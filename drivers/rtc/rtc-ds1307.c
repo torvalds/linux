@@ -267,12 +267,7 @@ static void ds1307_work(struct work_struct *work)
 		control &= ~DS1337_BIT_A1IE;
 		i2c_smbus_write_byte_data(client, DS1337_REG_CONTROL, control);
 
-		/* rtc_update_irq() assumes that it is called
-		 * from IRQ-disabled context.
-		 */
-		local_irq_disable();
 		rtc_update_irq(ds1307->rtc, 1, RTC_AF | RTC_IRQF);
-		local_irq_enable();
 	}
 
 out:

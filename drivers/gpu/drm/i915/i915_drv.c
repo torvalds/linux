@@ -67,8 +67,6 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 
 	pci_save_state(dev->pdev);
 
-	i915_save_state(dev);
-
 	/* If KMS is active, we do the leavevt stuff here */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		if (i915_gem_idle(dev))
@@ -76,6 +74,8 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 				"GEM idle failed, resume may fail\n");
 		drm_irq_uninstall(dev);
 	}
+
+	i915_save_state(dev);
 
 	intel_opregion_free(dev, 1);
 

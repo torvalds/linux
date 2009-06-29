@@ -275,9 +275,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     OUT PQOS_CAPABILITY_PARM pQosCapability,
     OUT ULONG *pRalinkIe,
     OUT UCHAR		 *pHtCapabilityLen,
-#ifdef CONFIG_STA_SUPPORT
     OUT UCHAR		 *pPreNHtCapabilityLen,
-#endif // CONFIG_STA_SUPPORT //
     OUT HT_CAPABILITY_IE *pHtCapability,
 	OUT UCHAR		 *AddHtInfoLen,
 	OUT ADD_HT_INFO_IE *AddHtInfo,
@@ -286,9 +284,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     OUT	PNDIS_802_11_VARIABLE_IEs pVIE)
 {
     CHAR				*Ptr;
-#ifdef CONFIG_STA_SUPPORT
 	CHAR 				TimLen;
-#endif // CONFIG_STA_SUPPORT //
     PFRAME_802_11		pFrame;
     PEID_STRUCT         pEid;
     UCHAR				SubType;
@@ -316,10 +312,8 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     *pAironetCellPowerLimit = 0xFF;  // Default of AironetCellPowerLimit is 0xFF
     *LengthVIE = 0;					// Set the length of VIE to init value 0
     *pHtCapabilityLen = 0;					// Set the length of VIE to init value 0
-#ifdef CONFIG_STA_SUPPORT
 	if (pAd->OpMode == OPMODE_STA)
 		*pPreNHtCapabilityLen = 0;					// Set the length of VIE to init value 0
-#endif // CONFIG_STA_SUPPORT //
     *AddHtInfoLen = 0;					// Set the length of VIE to init value 0
     *pRalinkIe = 0;
     *pNewChannel = 0;
@@ -428,8 +422,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 				*(USHORT *)(&pHtCapability->HtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->HtCapInfo));
 				*(USHORT *)(&pHtCapability->ExtHtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->ExtHtCapInfo));
 
-#ifdef CONFIG_STA_SUPPORT
-				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 					*pPreNHtCapabilityLen = 0;	// Nnow we only support 26 bytes.
 
@@ -437,7 +429,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 					NdisMoveMemory(Ptr + *LengthVIE, &pEid->Eid, pEid->Len + 2);
 					*LengthVIE += (pEid->Len + 2);
 				}
-#endif // CONFIG_STA_SUPPORT //
 			}
 			else
 			{
@@ -458,14 +449,11 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 				*(USHORT *)(&AddHtInfo->AddHtInfo2) = cpu2le16(*(USHORT *)(&AddHtInfo->AddHtInfo2));
 				*(USHORT *)(&AddHtInfo->AddHtInfo3) = cpu2le16(*(USHORT *)(&AddHtInfo->AddHtInfo3));
 
-#ifdef CONFIG_STA_SUPPORT
-				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 			                Ptr = (PUCHAR) pVIE;
 			                NdisMoveMemory(Ptr + *LengthVIE, &pEid->Eid, pEid->Len + 2);
 			                *LengthVIE += (pEid->Len + 2);
 				}
-#endif // CONFIG_STA_SUPPORT //
 			}
 			else
 			{
@@ -492,8 +480,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                 if(pEid->Len == 1)
                 {
                     *pChannel = *pEid->Octet;
-#ifdef CONFIG_STA_SUPPORT
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
+
 					{
 						if (ChannelSanity(pAd, *pChannel) == 0)
 						{
@@ -501,7 +488,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 							return FALSE;
 						}
 					}
-#endif // CONFIG_STA_SUPPORT //
+
                     Sanity |= 0x4;
                 }
                 else
@@ -539,14 +526,13 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                 }
                 break;
 
-#ifdef CONFIG_STA_SUPPORT
             case IE_TIM:
                 if(INFRA_ON(pAd) && SubType == SUBTYPE_BEACON)
                 {
                     GetTimBit((PUCHAR)pEid, pAd->StaActive.Aid, &TimLen, pBcastFlag, pDtimCount, pDtimPeriod, pMessageToMe);
                 }
                 break;
-#endif // CONFIG_STA_SUPPORT //
+
             case IE_CHANNEL_SWITCH_ANNOUNCEMENT:
                 if(pEid->Len == 3)
                 {
@@ -568,8 +554,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
         			else
         				*pRalinkIe = 0xf0000000; // Set to non-zero value (can't set bit0-2) to represent this is Ralink Chip. So at linkup, we will set ralinkchip flag.
                 }
-#ifdef CONFIG_STA_SUPPORT
-#ifdef DOT11_N_SUPPORT
 		// This HT IE is before IEEE draft set HT IE value.2006-09-28 by Jan.
 
                 // Other vendors had production before IE_HT_CAP value is assigned. To backward support those old-firmware AP,
@@ -588,8 +572,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                         *AddHtInfoLen = SIZE_ADD_HT_INFO_IE;
                     }
                 }
-#endif // DOT11_N_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
                 else if (NdisEqualMemory(pEid->Octet, WPA_OUI, 4))
                 {
                     // Copy to pVIE which will report to microsoft bssid list.
@@ -712,15 +694,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                     *LengthVIE += (pEid->Len + 2);
                 }
                 break;
-#ifdef CONFIG_STA_SUPPORT
-#ifdef EXT_BUILD_CHANNEL_LIST
-			case IE_COUNTRY:
-				Ptr = (PUCHAR) pVIE;
-                NdisMoveMemory(Ptr + *LengthVIE, &pEid->Eid, pEid->Len + 2);
-                *LengthVIE += (pEid->Len + 2);
-				break;
-#endif // EXT_BUILD_CHANNEL_LIST //
-#endif // CONFIG_STA_SUPPORT //
 
             default:
                 break;
@@ -731,8 +704,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     }
 
     // For some 11a AP. it did not have the channel EID, patch here
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		UCHAR LatchRfChannel = MsgChannel;
 		if ((pAd->LatchRfRegs.Channel > 14) && ((Sanity & 0x4) == 0))
@@ -744,7 +715,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 			Sanity |= 0x4;
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	if (Sanity != 0x7)
 	{
@@ -757,76 +727,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 	}
 
 }
-
-#ifdef DOT11N_DRAFT3
-/*
-	==========================================================================
-	Description:
-		MLME message sanity check for some IE addressed  in 802.11n d3.03.
-	Return:
-		TRUE if all parameters are OK, FALSE otherwise
-
-	IRQL = DISPATCH_LEVEL
-
-	==========================================================================
- */
-BOOLEAN PeerBeaconAndProbeRspSanity2(
-	IN PRTMP_ADAPTER pAd,
-	IN VOID *Msg,
-	IN ULONG MsgLen,
-	OUT UCHAR 	*RegClass)
-{
-	CHAR				*Ptr;
-	PFRAME_802_11		pFrame;
-	PEID_STRUCT			pEid;
-	ULONG				Length = 0;
-
-	pFrame = (PFRAME_802_11)Msg;
-
-	*RegClass = 0;
-	Ptr = pFrame->Octet;
-	Length += LENGTH_802_11;
-
-	// get timestamp from payload and advance the pointer
-	Ptr += TIMESTAMP_LEN;
-	Length += TIMESTAMP_LEN;
-
-	// get beacon interval from payload and advance the pointer
-	Ptr += 2;
-	Length += 2;
-
-	// get capability info from payload and advance the pointer
-	Ptr += 2;
-	Length += 2;
-
-	pEid = (PEID_STRUCT) Ptr;
-
-	// get variable fields from payload and advance the pointer
-	while ((Length + 2 + pEid->Len) <= MsgLen)
-	{
-		switch(pEid->Eid)
-		{
-			case IE_SUPP_REG_CLASS:
-				if(pEid->Len > 0)
-				{
-					*RegClass = *pEid->Octet;
-				}
-				else
-				{
-					DBGPRINT(RT_DEBUG_TRACE, ("PeerBeaconAndProbeRspSanity - wrong IE_SSID (len=%d)\n",pEid->Len));
-					return FALSE;
-				}
-				break;
-		}
-
-		Length = Length + 2 + pEid->Len;  // Eid[1] + Len[1]+ content[Len]
-		pEid = (PEID_STRUCT)((UCHAR*)pEid + 2 + pEid->Len);
-	}
-
-	return TRUE;
-
-}
-#endif // DOT11N_DRAFT3 //
 
 /*
     ==========================================================================
@@ -855,10 +755,8 @@ BOOLEAN MlmeScanReqSanity(
 
 	if ((*pBssType == BSS_INFRA || *pBssType == BSS_ADHOC || *pBssType == BSS_ANY)
 		&& (*pScanType == SCAN_ACTIVE || *pScanType == SCAN_PASSIVE
-#ifdef CONFIG_STA_SUPPORT
 		|| *pScanType == SCAN_CISCO_PASSIVE || *pScanType == SCAN_CISCO_ACTIVE
 		|| *pScanType == SCAN_CISCO_CHANNEL_LOAD || *pScanType == SCAN_CISCO_NOISE
-#endif // CONFIG_STA_SUPPORT //
 		))
 	{
 		return TRUE;
@@ -940,9 +838,6 @@ BOOLEAN PeerAuthSanity(
     NdisMoveMemory(pStatus, &pFrame->Octet[4], 2);
 
     if ((*pAlg == Ndis802_11AuthModeOpen)
-#ifdef LEAP_SUPPORT
-      || (*pAlg == CISCO_AuthModeLEAP)
-#endif // LEAP_SUPPORT //
       )
     {
         if (*pSeq == 1 || *pSeq == 2)
@@ -1003,9 +898,6 @@ BOOLEAN MlmeAuthReqSanity(
     *pAlg = pInfo->Alg;
 
     if (((*pAlg == Ndis802_11AuthModeShared) ||(*pAlg == Ndis802_11AuthModeOpen)
-#ifdef LEAP_SUPPORT
-     || (*pAlg == CISCO_AuthModeLEAP)
-#endif // LEAP_SUPPORT //
      	) &&
         ((*pAddr & 0x01) == 0))
     {
@@ -1344,290 +1236,3 @@ BOOLEAN PeerWpaMessageSanity(
 	return TRUE;
 
 }
-
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-BOOLEAN MlmeDlsReqSanity(
-	IN PRTMP_ADAPTER pAd,
-    IN VOID *Msg,
-    IN ULONG MsgLen,
-    OUT PRT_802_11_DLS *pDLS,
-    OUT PUSHORT pReason)
-{
-	MLME_DLS_REQ_STRUCT *pInfo;
-
-    pInfo = (MLME_DLS_REQ_STRUCT *)Msg;
-
-	*pDLS = pInfo->pDLS;
-	*pReason = pInfo->Reason;
-
-	return TRUE;
-}
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
-
-#ifdef QOS_DLS_SUPPORT
-BOOLEAN PeerDlsReqSanity(
-    IN PRTMP_ADAPTER pAd,
-    IN VOID *Msg,
-    IN ULONG MsgLen,
-    OUT PUCHAR pDA,
-    OUT PUCHAR pSA,
-    OUT USHORT *pCapabilityInfo,
-    OUT USHORT *pDlsTimeout,
-    OUT UCHAR *pRatesLen,
-    OUT UCHAR Rates[],
-	OUT UCHAR *pHtCapabilityLen,
-    OUT HT_CAPABILITY_IE *pHtCapability)
-{
-	CHAR            *Ptr;
-    PFRAME_802_11	Fr = (PFRAME_802_11)Msg;
-	PEID_STRUCT  eid_ptr;
-
-    // to prevent caller from using garbage output value
-    *pCapabilityInfo	= 0;
-    *pDlsTimeout	= 0;
-	*pHtCapabilityLen = 0;
-
-    Ptr = Fr->Octet;
-
-	// offset to destination MAC address (Category and Action field)
-    Ptr += 2;
-
-    // get DA from payload and advance the pointer
-    NdisMoveMemory(pDA, Ptr, MAC_ADDR_LEN);
-    Ptr += MAC_ADDR_LEN;
-
-    // get SA from payload and advance the pointer
-    NdisMoveMemory(pSA, Ptr, MAC_ADDR_LEN);
-    Ptr += MAC_ADDR_LEN;
-
-    // get capability info from payload and advance the pointer
-    NdisMoveMemory(pCapabilityInfo, Ptr, 2);
-    Ptr += 2;
-
-    // get capability info from payload and advance the pointer
-    NdisMoveMemory(pDlsTimeout, Ptr, 2);
-    Ptr += 2;
-
-	// Category and Action field + DA + SA + capability + Timeout
-	eid_ptr = (PEID_STRUCT) &Fr->Octet[18];
-
-	while (((UCHAR*)eid_ptr + eid_ptr->Len + 1) < ((UCHAR*)Fr + MsgLen))
-	{
-		switch(eid_ptr->Eid)
-		{
-			case IE_SUPP_RATES:
-                if ((eid_ptr->Len <= MAX_LEN_OF_SUPPORTED_RATES) && (eid_ptr->Len > 0))
-                {
-                    NdisMoveMemory(Rates, eid_ptr->Octet, eid_ptr->Len);
-                    DBGPRINT(RT_DEBUG_TRACE, ("PeerDlsReqSanity - IE_SUPP_RATES., Len=%d. Rates[0]=%x\n",eid_ptr->Len, Rates[0]));
-                    DBGPRINT(RT_DEBUG_TRACE, ("Rates[1]=%x %x %x %x %x %x %x\n", Rates[1], Rates[2], Rates[3], Rates[4], Rates[5], Rates[6], Rates[7]));
-                    *pRatesLen = eid_ptr->Len;
-                }
-                else
-                {
-                    *pRatesLen = 8;
-					Rates[0] = 0x82;
-					Rates[1] = 0x84;
-					Rates[2] = 0x8b;
-					Rates[3] = 0x96;
-					Rates[4] = 0x12;
-					Rates[5] = 0x24;
-					Rates[6] = 0x48;
-					Rates[7] = 0x6c;
-                    DBGPRINT(RT_DEBUG_TRACE, ("PeerDlsReqSanity - wrong IE_SUPP_RATES., Len=%d\n",eid_ptr->Len));
-                }
-				break;
-
-			case IE_EXT_SUPP_RATES:
-                if (eid_ptr->Len + *pRatesLen <= MAX_LEN_OF_SUPPORTED_RATES)
-                {
-                    NdisMoveMemory(&Rates[*pRatesLen], eid_ptr->Octet, eid_ptr->Len);
-                    *pRatesLen = (*pRatesLen) + eid_ptr->Len;
-                }
-                else
-                {
-                    NdisMoveMemory(&Rates[*pRatesLen], eid_ptr->Octet, MAX_LEN_OF_SUPPORTED_RATES - (*pRatesLen));
-                    *pRatesLen = MAX_LEN_OF_SUPPORTED_RATES;
-                }
-				break;
-
-			case IE_HT_CAP:
-				if (eid_ptr->Len >= sizeof(HT_CAPABILITY_IE))
-				{
-					NdisMoveMemory(pHtCapability, eid_ptr->Octet, sizeof(HT_CAPABILITY_IE));
-
-					*(USHORT *)(&pHtCapability->HtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->HtCapInfo));
-					*(USHORT *)(&pHtCapability->ExtHtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->ExtHtCapInfo));
-					*pHtCapabilityLen = sizeof(HT_CAPABILITY_IE);
-
-					DBGPRINT(RT_DEBUG_TRACE, ("PeerDlsReqSanity - IE_HT_CAP\n"));
-				}
-				else
-				{
-					DBGPRINT(RT_DEBUG_TRACE, ("PeerDlsReqSanity - wrong IE_HT_CAP.eid_ptr->Len = %d\n", eid_ptr->Len));
-				}
-				break;
-
-			default:
-				break;
-		}
-
-		eid_ptr = (PEID_STRUCT)((UCHAR*)eid_ptr + 2 + eid_ptr->Len);
-	}
-
-    return TRUE;
-}
-
-BOOLEAN PeerDlsRspSanity(
-    IN PRTMP_ADAPTER pAd,
-    IN VOID *Msg,
-    IN ULONG MsgLen,
-    OUT PUCHAR pDA,
-    OUT PUCHAR pSA,
-    OUT USHORT *pCapabilityInfo,
-    OUT USHORT *pStatus,
-    OUT UCHAR *pRatesLen,
-    OUT UCHAR Rates[],
-    OUT UCHAR *pHtCapabilityLen,
-    OUT HT_CAPABILITY_IE *pHtCapability)
-{
-    CHAR            *Ptr;
-    PFRAME_802_11	Fr = (PFRAME_802_11)Msg;
-	PEID_STRUCT  eid_ptr;
-
-    // to prevent caller from using garbage output value
-    *pStatus		= 0;
-    *pCapabilityInfo	= 0;
-	*pHtCapabilityLen = 0;
-
-    Ptr = Fr->Octet;
-
-	// offset to destination MAC address (Category and Action field)
-    Ptr += 2;
-
-	// get status code from payload and advance the pointer
-    NdisMoveMemory(pStatus, Ptr, 2);
-    Ptr += 2;
-
-    // get DA from payload and advance the pointer
-    NdisMoveMemory(pDA, Ptr, MAC_ADDR_LEN);
-    Ptr += MAC_ADDR_LEN;
-
-    // get SA from payload and advance the pointer
-    NdisMoveMemory(pSA, Ptr, MAC_ADDR_LEN);
-    Ptr += MAC_ADDR_LEN;
-
-	if (pStatus == 0)
-	{
-	    // get capability info from payload and advance the pointer
-	    NdisMoveMemory(pCapabilityInfo, Ptr, 2);
-	    Ptr += 2;
-	}
-
-	// Category and Action field + status code + DA + SA + capability
-	eid_ptr = (PEID_STRUCT) &Fr->Octet[18];
-
-	while (((UCHAR*)eid_ptr + eid_ptr->Len + 1) < ((UCHAR*)Fr + MsgLen))
-	{
-		switch(eid_ptr->Eid)
-		{
-			case IE_SUPP_RATES:
-                if ((eid_ptr->Len <= MAX_LEN_OF_SUPPORTED_RATES) && (eid_ptr->Len > 0))
-                {
-                    NdisMoveMemory(Rates, eid_ptr->Octet, eid_ptr->Len);
-                    DBGPRINT(RT_DEBUG_TRACE, ("PeerDlsRspSanity - IE_SUPP_RATES., Len=%d. Rates[0]=%x\n",eid_ptr->Len, Rates[0]));
-                    DBGPRINT(RT_DEBUG_TRACE, ("Rates[1]=%x %x %x %x %x %x %x\n", Rates[1], Rates[2], Rates[3], Rates[4], Rates[5], Rates[6], Rates[7]));
-                    *pRatesLen = eid_ptr->Len;
-                }
-                else
-                {
-                    *pRatesLen = 8;
-					Rates[0] = 0x82;
-					Rates[1] = 0x84;
-					Rates[2] = 0x8b;
-					Rates[3] = 0x96;
-					Rates[4] = 0x12;
-					Rates[5] = 0x24;
-					Rates[6] = 0x48;
-					Rates[7] = 0x6c;
-                    DBGPRINT(RT_DEBUG_TRACE, ("PeerDlsRspSanity - wrong IE_SUPP_RATES., Len=%d\n",eid_ptr->Len));
-                }
-				break;
-
-			case IE_EXT_SUPP_RATES:
-                if (eid_ptr->Len + *pRatesLen <= MAX_LEN_OF_SUPPORTED_RATES)
-                {
-                    NdisMoveMemory(&Rates[*pRatesLen], eid_ptr->Octet, eid_ptr->Len);
-                    *pRatesLen = (*pRatesLen) + eid_ptr->Len;
-                }
-                else
-                {
-                    NdisMoveMemory(&Rates[*pRatesLen], eid_ptr->Octet, MAX_LEN_OF_SUPPORTED_RATES - (*pRatesLen));
-                    *pRatesLen = MAX_LEN_OF_SUPPORTED_RATES;
-                }
-				break;
-
-			case IE_HT_CAP:
-				if (eid_ptr->Len >= sizeof(HT_CAPABILITY_IE))
-				{
-					NdisMoveMemory(pHtCapability, eid_ptr->Octet, sizeof(HT_CAPABILITY_IE));
-
-					*(USHORT *)(&pHtCapability->HtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->HtCapInfo));
-					*(USHORT *)(&pHtCapability->ExtHtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->ExtHtCapInfo));
-					*pHtCapabilityLen = sizeof(HT_CAPABILITY_IE);
-
-					DBGPRINT(RT_DEBUG_TRACE, ("PeerDlsRspSanity - IE_HT_CAP\n"));
-				}
-				else
-				{
-					DBGPRINT(RT_DEBUG_TRACE, ("PeerDlsRspSanity - wrong IE_HT_CAP.eid_ptr->Len = %d\n", eid_ptr->Len));
-				}
-				break;
-
-			default:
-				break;
-		}
-
-		eid_ptr = (PEID_STRUCT)((UCHAR*)eid_ptr + 2 + eid_ptr->Len);
-	}
-
-    return TRUE;
-}
-
-BOOLEAN PeerDlsTearDownSanity(
-    IN PRTMP_ADAPTER pAd,
-    IN VOID *Msg,
-    IN ULONG MsgLen,
-    OUT PUCHAR pDA,
-    OUT PUCHAR pSA,
-    OUT USHORT *pReason)
-{
-    CHAR            *Ptr;
-    PFRAME_802_11	Fr = (PFRAME_802_11)Msg;
-
-    // to prevent caller from using garbage output value
-    *pReason	= 0;
-
-    Ptr = Fr->Octet;
-
-	// offset to destination MAC address (Category and Action field)
-    Ptr += 2;
-
-    // get DA from payload and advance the pointer
-    NdisMoveMemory(pDA, Ptr, MAC_ADDR_LEN);
-    Ptr += MAC_ADDR_LEN;
-
-    // get SA from payload and advance the pointer
-    NdisMoveMemory(pSA, Ptr, MAC_ADDR_LEN);
-    Ptr += MAC_ADDR_LEN;
-
-	// get reason code from payload and advance the pointer
-    NdisMoveMemory(pReason, Ptr, 2);
-    Ptr += 2;
-
-    return TRUE;
-}
-#endif // QOS_DLS_SUPPORT //
-

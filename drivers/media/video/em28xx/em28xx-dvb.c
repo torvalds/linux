@@ -445,6 +445,7 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2883_BOARD_KWORLD_HYBRID_330U:
+	case EM2882_BOARD_EVGA_INDTUBE:
 		dvb->frontend = dvb_attach(s5h1409_attach,
 					   &em28xx_s5h1409_with_xc3028,
 					   &dev->i2c_adap);

@@ -64,10 +64,13 @@ static inline bool nfsd4_has_session(struct nfsd4_compound_state *cs)
 
 struct nfsd4_change_info {
 	u32		atomic;
+	bool		change_supported;
 	u32		before_ctime_sec;
 	u32		before_ctime_nsec;
+	u64		before_change;
 	u32		after_ctime_sec;
 	u32		after_ctime_nsec;
+	u64		after_change;
 };
 
 struct nfsd4_access {
@@ -363,17 +366,6 @@ struct nfsd4_exchange_id {
 	int		spa_how;
 };
 
-struct nfsd4_channel_attrs {
-	u32		headerpadsz;
-	u32		maxreq_sz;
-	u32		maxresp_sz;
-	u32		maxresp_cached;
-	u32		maxops;
-	u32		maxreqs;
-	u32		nr_rdma_attrs;
-	u32		rdma_attrs;
-};
-
 struct nfsd4_create_session {
 	clientid_t		clientid;
 	struct nfs4_sessionid	sessionid;
@@ -503,10 +495,16 @@ set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
 {
 	BUG_ON(!fhp->fh_pre_saved || !fhp->fh_post_saved);
 	cinfo->atomic = 1;
-	cinfo->before_ctime_sec = fhp->fh_pre_ctime.tv_sec;
-	cinfo->before_ctime_nsec = fhp->fh_pre_ctime.tv_nsec;
-	cinfo->after_ctime_sec = fhp->fh_post_attr.ctime.tv_sec;
-	cinfo->after_ctime_nsec = fhp->fh_post_attr.ctime.tv_nsec;
+	cinfo->change_supported = IS_I_VERSION(fhp->fh_dentry->d_inode);
+	if (cinfo->change_supported) {
+		cinfo->before_change = fhp->fh_pre_change;
+		cinfo->after_change = fhp->fh_post_change;
+	} else {
+		cinfo->before_ctime_sec = fhp->fh_pre_ctime.tv_sec;
+		cinfo->before_ctime_nsec = fhp->fh_pre_ctime.tv_nsec;
+		cinfo->after_ctime_sec = fhp->fh_post_attr.ctime.tv_sec;
+		cinfo->after_ctime_nsec = fhp->fh_post_attr.ctime.tv_nsec;
+	}
 }
 
 int nfs4svc_encode_voidres(struct svc_rqst *, __be32 *, void *);

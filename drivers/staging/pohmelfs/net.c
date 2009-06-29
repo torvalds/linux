@@ -168,8 +168,7 @@ int pohmelfs_data_recv_and_check(struct netfs_state *st, void *data, unsigned in
  * Polling machinery.
  */
 
-struct netfs_poll_helper
-{
+struct netfs_poll_helper {
 	poll_table 		pt;
 	struct netfs_state	*st;
 };
@@ -915,9 +914,9 @@ static int pohmelfs_recv(void *data)
 				unsigned char *hash = e->data;
 
 				dprintk("%s: received hash: ", __func__);
-				for (i=0; i<cmd->csize; ++i) {
+				for (i=0; i<cmd->csize; ++i)
 					printk("%02x ", hash[i]);
-				}
+
 				printk("\n");
 			}
 #endif

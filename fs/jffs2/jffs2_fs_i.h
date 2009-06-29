@@ -50,10 +50,6 @@ struct jffs2_inode_info {
 	uint16_t flags;
 	uint8_t usercompr;
 	struct inode vfs_inode;
-#ifdef CONFIG_JFFS2_FS_POSIX_ACL
-	struct posix_acl *i_acl_access;
-	struct posix_acl *i_acl_default;
-#endif
 };
 
 #endif /* _JFFS2_FS_I */

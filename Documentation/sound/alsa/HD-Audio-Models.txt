@@ -139,6 +139,7 @@ ALC883/888
   acer		Acer laptops (Travelmate 3012WTMi, Aspire 5600, etc)
   acer-aspire	Acer Aspire 9810
   acer-aspire-4930g Acer Aspire 4930G
+  acer-aspire-6530g Acer Aspire 6530G
   acer-aspire-8930g Acer Aspire 8930G
   medion	Medion Laptops
   medion-md2	Medion MD2
@@ -239,6 +240,7 @@ AD1986A
   laptop-automute 2-channel with EAPD and HP-automute (Lenovo N100)
   ultra		2-channel with EAPD (Samsung Ultra tablet PC)
   samsung	2-channel with EAPD (Samsung R65)
+  samsung-p50	2-channel with HP-automute (Samsung P50)
 
 AD1988/AD1988B/AD1989A/AD1989B
 ==============================

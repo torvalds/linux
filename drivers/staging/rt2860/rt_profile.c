@@ -27,12 +27,10 @@
 
 #include "rt_config.h"
 
-#ifdef DOT11_N_SUPPORT
 static void HTParametersHook(
 	IN	PRTMP_ADAPTER pAd,
 	IN	CHAR		  *pValueStr,
 	IN	CHAR		  *pInput);
-#endif // DOT11_N_SUPPORT //
 
 #define ETH_MAC_ADDR_STR_LEN 17  // in format of xx:xx:xx:xx:xx:xx
 
@@ -756,9 +754,6 @@ static void rtmp_read_key_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbuf, c
 	//DefaultKeyID
 	if(RTMPGetKeyParameter("DefaultKeyID", tmpbuf, 25, buffer))
 	{
-
-#ifdef CONFIG_STA_SUPPORT
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			KeyIdx = simple_strtol(tmpbuf, 0, 10);
 			if((KeyIdx >= 1 ) && (KeyIdx <= 4))
@@ -768,7 +763,6 @@ static void rtmp_read_key_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbuf, c
 
 			DBGPRINT(RT_DEBUG_TRACE, ("DefaultKeyID(0~3)=%d\n", pAd->StaCfg.DefaultKeyId));
 		}
-#endif // CONFIG_STA_SUPPORT //
 	}
 
 
@@ -783,8 +777,6 @@ static void rtmp_read_key_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbuf, c
 			    KeyType[i] = simple_strtol(macptr, 0, 10);
 		    }
 
-#ifdef CONFIG_STA_SUPPORT
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			{
 				sprintf(tok_str, "Key%dStr", idx + 1);
 				if (RTMPGetCriticalParameter(tok_str, tmpbuf, 128, buffer))
@@ -792,13 +784,10 @@ static void rtmp_read_key_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbuf, c
 					rtmp_parse_key_buffer_from_file(pAd, tmpbuf, KeyType[BSS0], BSS0, idx);
 				}
 			}
-#endif // CONFIG_STA_SUPPORT //
 		}
 	}
 }
 
-
-#ifdef CONFIG_STA_SUPPORT
 static void rtmp_read_sta_wmm_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbuf, char *buffer)
 {
 	PUCHAR					macptr;
@@ -820,23 +809,6 @@ static void rtmp_read_sta_wmm_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbu
 
 		DBGPRINT(RT_DEBUG_TRACE, ("WmmCapable=%d\n", pAd->CommonCfg.bWmmCapable));
 	}
-
-#ifdef QOS_DLS_SUPPORT
-	//DLSCapable
-	if(RTMPGetKeyParameter("DLSCapable", tmpbuf, 32, buffer))
-	{
-		if(simple_strtol(tmpbuf, 0, 10) != 0)  //Enable
-		{
-			pAd->CommonCfg.bDLSCapable = TRUE;
-		}
-		else //Disable
-		{
-			pAd->CommonCfg.bDLSCapable = FALSE;
-		}
-
-		DBGPRINT(RT_DEBUG_TRACE, ("bDLSCapable=%d\n", pAd->CommonCfg.bDLSCapable));
-	}
-#endif // QOS_DLS_SUPPORT //
 
 	//AckPolicy for AC_BK, AC_BE, AC_VI, AC_VO
 	if(RTMPGetKeyParameter("AckPolicy", tmpbuf, 32, buffer))
@@ -882,8 +854,6 @@ static void rtmp_read_sta_wmm_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbu
 	}
 
 }
-#endif // CONFIG_STA_SUPPORT //
-
 
 NDIS_STATUS	RTMPReadParametersHook(
 	IN	PRTMP_ADAPTER pAd)
@@ -896,10 +866,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 	CHAR					*tmpbuf;
 	ULONG					RtsThresh;
 	ULONG					FragThresh;
-#ifdef CONFIG_STA_SUPPORT
 	UCHAR	                keyMaterial[40];
-#endif // CONFIG_STA_SUPPORT //
-
 
 	PUCHAR					macptr;
 	INT						i = 0;
@@ -915,21 +882,17 @@ NDIS_STATUS	RTMPReadParametersHook(
         return NDIS_STATUS_FAILURE;
 	}
 
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		src = STA_PROFILE_PATH;
-#endif // CONFIG_STA_SUPPORT //
-#ifdef MULTIPLE_CARD_SUPPORT
-	src = pAd->MC_FileName;
-#endif // MULTIPLE_CARD_SUPPORT //
+	src = STA_PROFILE_PATH;
 
 	// Save uid and gid used for filesystem access.
 	// Set user and group to 0 (root)
+#ifndef RT30xx
 	orgfsuid = current_fsuid();
 	orgfsgid = current_fsgid();
 	/* Hm, can't really do this nicely anymore, so rely on these files
 	 * being set to the proper permission to read them... */
 	/* current->cred->fsuid = current->cred->fsgid = 0; */
+#endif
     orgfs = get_fs();
     set_fs(KERNEL_DS);
 
@@ -970,12 +933,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 					if(RTMPGetKeyParameter("CountryCode", tmpbuf, 25, buffer))
 					{
 						NdisMoveMemory(pAd->CommonCfg.CountryCode, tmpbuf , 2);
-#ifdef CONFIG_STA_SUPPORT
-#ifdef EXT_BUILD_CHANNEL_LIST
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-							NdisMoveMemory(pAd->StaCfg.StaOriCountryCode, tmpbuf , 2);
-#endif // EXT_BUILD_CHANNEL_LIST //
-#endif // CONFIG_STA_SUPPORT //
+
 						if (strlen(pAd->CommonCfg.CountryCode) != 0)
 						{
 							pAd->CommonCfg.bCountryFlag = TRUE;
@@ -991,12 +949,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 							pAd->CommonCfg.Geography = Geography;
 							pAd->CommonCfg.CountryCode[2] =
 								(pAd->CommonCfg.Geography == BOTH) ? ' ' : ((pAd->CommonCfg.Geography == IDOR) ? 'I' : 'O');
-#ifdef CONFIG_STA_SUPPORT
-#ifdef EXT_BUILD_CHANNEL_LIST
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-							pAd->StaCfg.StaOriGeography = pAd->CommonCfg.Geography;
-#endif // EXT_BUILD_CHANNEL_LIST //
-#endif // CONFIG_STA_SUPPORT //
 							DBGPRINT(RT_DEBUG_TRACE, ("ChannelGeography=%d\n", pAd->CommonCfg.Geography));
 						}
 					}
@@ -1006,9 +958,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 						pAd->CommonCfg.CountryCode[2] = ' ';
 					}
 
-
-#ifdef CONFIG_STA_SUPPORT
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						//SSID
 						if (RTMPGetCriticalParameter("SSID", tmpbuf, 256, buffer))
@@ -1028,10 +977,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 							}
 						}
 					}
-#endif // CONFIG_STA_SUPPORT //
 
-#ifdef CONFIG_STA_SUPPORT
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						//NetworkType
 						if (RTMPGetKeyParameter("NetworkType", tmpbuf, 25, buffer))
@@ -1046,7 +992,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 							DBGPRINT(RT_DEBUG_TRACE, ("%s::(NetworkType=%d)\n", __func__, pAd->StaCfg.BssType));
 						}
 					}
-#endif // CONFIG_STA_SUPPORT //
+
 					//Channel
 					if(RTMPGetKeyParameter("Channel", tmpbuf, 10, buffer))
 					{
@@ -1058,9 +1004,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 					{
 						int value  = 0, maxPhyMode = PHY_11G;
 
-#ifdef DOT11_N_SUPPORT
 						maxPhyMode = PHY_11N_5G;
-#endif // DOT11_N_SUPPORT //
 
 						value = simple_strtol(tmpbuf, 0, 10);
 
@@ -1086,10 +1030,9 @@ NDIS_STATUS	RTMPReadParametersHook(
 					if(RTMPGetKeyParameter("TxPower", tmpbuf, 10, buffer))
 					{
 						pAd->CommonCfg.TxPowerPercentage = (ULONG) simple_strtol(tmpbuf, 0, 10);
-#ifdef CONFIG_STA_SUPPORT
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-							pAd->CommonCfg.TxPowerDefault = pAd->CommonCfg.TxPowerPercentage;
-#endif // CONFIG_STA_SUPPORT //
+
+						pAd->CommonCfg.TxPowerDefault = pAd->CommonCfg.TxPowerPercentage;
+
 						DBGPRINT(RT_DEBUG_TRACE, ("TxPower=%ld\n", pAd->CommonCfg.TxPowerPercentage));
 					}
 					//BGProtection
@@ -1206,11 +1149,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 #endif // AGGREGATION_SUPPORT //
 
 					// WmmCapable
-
-#ifdef CONFIG_STA_SUPPORT
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-						rtmp_read_sta_wmm_parms_from_file(pAd, tmpbuf, buffer);
-#endif // CONFIG_STA_SUPPORT //
+					rtmp_read_sta_wmm_parms_from_file(pAd, tmpbuf, buffer);
 
 					//ShortSlot
 					if(RTMPGetKeyParameter("ShortSlot", tmpbuf, 10, buffer))
@@ -1313,8 +1252,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 					//AuthMode
 					if(RTMPGetKeyParameter("AuthMode", tmpbuf, 128, buffer))
 					{
-#ifdef CONFIG_STA_SUPPORT
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							if ((strcmp(tmpbuf, "WEPAUTO") == 0) || (strcmp(tmpbuf, "wepauto") == 0))
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeAutoSwitch;
@@ -1326,12 +1263,10 @@ NDIS_STATUS	RTMPReadParametersHook(
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeWPANone;
 							else if ((strcmp(tmpbuf, "WPA2PSK") == 0) || (strcmp(tmpbuf, "wpa2psk") == 0))
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeWPA2PSK;
-#ifdef WPA_SUPPLICANT_SUPPORT
 							else if ((strcmp(tmpbuf, "WPA") == 0) || (strcmp(tmpbuf, "wpa") == 0))
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeWPA;
 							else if ((strcmp(tmpbuf, "WPA2") == 0) || (strcmp(tmpbuf, "wpa2") == 0))
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeWPA2;
-#endif // WPA_SUPPLICANT_SUPPORT //
 				                        else
 				                            pAd->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
 
@@ -1339,14 +1274,10 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 							DBGPRINT(RT_DEBUG_TRACE, ("%s::(EncrypType=%d)\n", __func__, pAd->StaCfg.WepStatus));
 						}
-#endif // CONFIG_STA_SUPPORT //
 					}
 					//EncrypType
 					if(RTMPGetKeyParameter("EncrypType", tmpbuf, 128, buffer))
 					{
-
-#ifdef CONFIG_STA_SUPPORT
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							if ((strcmp(tmpbuf, "WEP") == 0) || (strcmp(tmpbuf, "wep") == 0))
 								pAd->StaCfg.WepStatus	= Ndis802_11WEPEnabled;
@@ -1365,13 +1296,8 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 							DBGPRINT(RT_DEBUG_TRACE, ("%s::(EncrypType=%d)\n", __func__, pAd->StaCfg.WepStatus));
 						}
-#endif // CONFIG_STA_SUPPORT //
 					}
 
-
-
-#ifdef CONFIG_STA_SUPPORT
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						if(RTMPGetCriticalParameter("WPAPSK", tmpbuf, 512, buffer))
 						{
@@ -1420,38 +1346,20 @@ NDIS_STATUS	RTMPReadParametersHook(
 							}
 						}
 					}
-#endif // CONFIG_STA_SUPPORT //
 
 					//DefaultKeyID, KeyType, KeyStr
 					rtmp_read_key_parms_from_file(pAd, tmpbuf, buffer);
 
-#ifdef DOT11_N_SUPPORT
 					HTParametersHook(pAd, tmpbuf, buffer);
-#endif // DOT11_N_SUPPORT //
 
-
-#ifdef CARRIER_DETECTION_SUPPORT
-						//CarrierDetect
-						if(RTMPGetKeyParameter("CarrierDetect", tmpbuf, 128, buffer))
-						{
-							if ((strncmp(tmpbuf, "0", 1) == 0))
-								pAd->CommonCfg.CarrierDetect.Enable = FALSE;
-							else if ((strncmp(tmpbuf, "1", 1) == 0))
-								pAd->CommonCfg.CarrierDetect.Enable = TRUE;
-							else
-								pAd->CommonCfg.CarrierDetect.Enable = FALSE;
-
-							DBGPRINT(RT_DEBUG_TRACE, ("CarrierDetect.Enable=%d\n", pAd->CommonCfg.CarrierDetect.Enable));
-						}
-						else
-							pAd->CommonCfg.CarrierDetect.Enable = FALSE;
-#endif // CARRIER_DETECTION_SUPPORT //
-
-#ifdef CONFIG_STA_SUPPORT
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						//PSMode
+#ifdef RT2860
 						if (RTMPGetKeyParameter("PSMode", tmpbuf, 32, buffer))
+#endif
+#ifdef RT2870
+						if (RTMPGetKeyParameter("PSMode", tmpbuf, 10, buffer))
+#endif
 						{
 							if (pAd->StaCfg.BssType == BSS_INFRA)
 							{
@@ -1534,8 +1442,23 @@ NDIS_STATUS	RTMPReadParametersHook(
 								DBGPRINT(RT_DEBUG_TRACE, ("TGnWifiTest=%d\n", pAd->StaCfg.bTGnWifiTest));
 						}
 					}
-#endif // CONFIG_STA_SUPPORT //
 
+#ifdef RT30xx
+						{
+							if(RTMPGetKeyParameter("AntDiversity", tmpbuf, 10, buffer))
+							{
+								for (i = 0, macptr = rstrtok(tmpbuf,";"); macptr; macptr = rstrtok(NULL,";"), i++)
+								{
+									if(simple_strtol(macptr, 0, 10) != 0)  //Enable
+										pAd->CommonCfg.bRxAntDiversity = TRUE;
+									else //Disable
+										pAd->CommonCfg.bRxAntDiversity = FALSE;
+
+									DBGPRINT(RT_DEBUG_ERROR, ("AntDiversity=%d\n", pAd->CommonCfg.bRxAntDiversity));
+								}
+							}
+						}
+#endif // RT30xx //
 				}
 			}
 			else
@@ -1554,18 +1477,12 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 	set_fs(orgfs);
 
-#if 0
-	current->cred->fsuid = orgfsuid;
-	current->cred->fsgid = orgfsgid;
-#endif
-
 	kfree(buffer);
 	kfree(tmpbuf);
 
 	return (NDIS_STATUS_SUCCESS);
 }
 
-#ifdef DOT11_N_SUPPORT
 static void	HTParametersHook(
 	IN	PRTMP_ADAPTER pAd,
 	IN	CHAR		  *pValueStr,
@@ -1654,12 +1571,21 @@ static void	HTParametersHook(
         if (Value == 0)
         {
             pAd->CommonCfg.BACapability.field.AutoBA = FALSE;
+#ifdef RT30xx
+	    pAd->CommonCfg.BACapability.field.Policy = BA_NOTUSE;
+#endif
         }
         else
         {
             pAd->CommonCfg.BACapability.field.AutoBA = TRUE;
+#ifdef RT30xx
+	    pAd->CommonCfg.BACapability.field.Policy = IMMED_BA;
+#endif
         }
         pAd->CommonCfg.REGBACapability.field.AutoBA = pAd->CommonCfg.BACapability.field.AutoBA;
+#ifdef RT30xx
+	pAd->CommonCfg.REGBACapability.field.Policy = pAd->CommonCfg.BACapability.field.Policy;
+#endif
         DBGPRINT(RT_DEBUG_TRACE, ("HT: Auto BA  = %s\n", (Value==0) ? "Disable" : "Enable"));
     }
 
@@ -1804,8 +1730,6 @@ static void	HTParametersHook(
 	{
 		UCHAR	fix_tx_mode;
 
-#ifdef CONFIG_STA_SUPPORT
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			fix_tx_mode = FIXED_TXMODE_HT;
 
@@ -1837,7 +1761,6 @@ static void	HTParametersHook(
 			DBGPRINT(RT_DEBUG_TRACE, ("Fixed Tx Mode = %d\n", fix_tx_mode));
 
 		}
-#endif // CONFIG_STA_SUPPORT //
 	}
 
 
@@ -1882,9 +1805,6 @@ static void	HTParametersHook(
 	// MSC
 	if (RTMPGetKeyParameter("HT_MCS", pValueStr, 50, pInput))
 	{
-
-#ifdef CONFIG_STA_SUPPORT
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			Value = simple_strtol(pValueStr, 0, 10);
 
@@ -1901,7 +1821,6 @@ static void	HTParametersHook(
 				DBGPRINT(RT_DEBUG_TRACE, ("HT: MCS = AUTO\n"));
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 	}
 
 	// STBC
@@ -1977,5 +1896,3 @@ static void	HTParametersHook(
 	}
 
 }
-#endif // DOT11_N_SUPPORT //
-

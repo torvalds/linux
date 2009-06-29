@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -70,38 +70,38 @@ struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)         
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnConfigPWM(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	BYTE b_ConfigType;
-	INT i_ReturnValue = 0;
+	unsigned char b_ConfigType;
+	int i_ReturnValue = 0;
 	b_ConfigType = CR_CHAN(insn->chanspec);
 
 	switch (b_ConfigType) {
 	case APCI1710_PWM_INIT:
-		i_ReturnValue = i_APCI1710_InitPWM(dev, (BYTE) CR_AREF(insn->chanspec),	//  b_ModulNbr
-			(BYTE) data[0],	//b_PWM
-			(BYTE) data[1],	// b_ClockSelection
-			(BYTE) data[2],	// b_TimingUnit
-			(ULONG) data[3],	//ul_LowTiming
-			(ULONG) data[4],	//ul_HighTiming
-			(PULONG) & data[0],	//pul_RealLowTiming
-			(PULONG) & data[1]	//pul_RealHighTiming
+		i_ReturnValue = i_APCI1710_InitPWM(dev, (unsigned char) CR_AREF(insn->chanspec),	/*   b_ModulNbr */
+			(unsigned char) data[0],	/* b_PWM */
+			(unsigned char) data[1],	/*  b_ClockSelection */
+			(unsigned char) data[2],	/*  b_TimingUnit */
+			(unsigned int) data[3],	/* ul_LowTiming */
+			(unsigned int) data[4],	/* ul_HighTiming */
+			(unsigned int *) &data[0],	/* pul_RealLowTiming */
+			(unsigned int *) &data[1]	/* pul_RealHighTiming */
 			);
 		break;
 
 	case APCI1710_PWM_GETINITDATA:
-		i_ReturnValue = i_APCI1710_GetPWMInitialisation(dev, (BYTE) CR_AREF(insn->chanspec),	// b_ModulNbr
-			(BYTE) data[0],	//b_PWM
-			(PBYTE) & data[0],	//pb_TimingUnit
-			(PULONG) & data[1],	//pul_LowTiming
-			(PULONG) & data[2],	//pul_HighTiming
-			(PBYTE) & data[3],	// pb_StartLevel
-			(PBYTE) & data[4],	// pb_StopMode
-			(PBYTE) & data[5],	// pb_StopLevel
-			(PBYTE) & data[6],	// pb_ExternGate
-			(PBYTE) & data[7],	// pb_InterruptEnable
-			(PBYTE) & data[8]	// pb_Enable
+		i_ReturnValue = i_APCI1710_GetPWMInitialisation(dev, (unsigned char) CR_AREF(insn->chanspec),	/*  b_ModulNbr */
+			(unsigned char) data[0],	/* b_PWM */
+			(unsigned char *) &data[0],	/* pb_TimingUnit */
+			(unsigned int *) &data[1],	/* pul_LowTiming */
+			(unsigned int *) &data[2],	/* pul_HighTiming */
+			(unsigned char *) &data[3],	/*  pb_StartLevel */
+			(unsigned char *) &data[4],	/*  pb_StopMode */
+			(unsigned char *) &data[5],	/*  pb_StopLevel */
+			(unsigned char *) &data[6],	/*  pb_ExternGate */
+			(unsigned char *) &data[7],	/*  pb_InterruptEnable */
+			(unsigned char *) &data[8]	/*  pb_Enable */
 			);
 		break;
 
@@ -111,17 +111,17 @@ INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_InitPWM                               |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_PWM,                    |
-|                                        BYTE_     b_ClockSelection,         |
-|                                        BYTE_     b_TimingUnit,             |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_PWM,                    |
+|                                        unsigned char_     b_ClockSelection,         |
+|                                        unsigned char_     b_TimingUnit,             |
 |                                        ULONG_   ul_LowTiming,              |
 |                                        ULONG_   ul_HighTiming,             |
 |                                        PULONG_ pul_RealLowTiming,          |
@@ -135,11 +135,11 @@ INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 |                     You must calling this function be for you call any     |
 |                     other function witch access of the PWM.                |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_     b_BoardHandle    : Handle of board APCI-1710 |
-|                     BYTE_     b_ModulNbr       : Module number to configure|
+| Input Parameters  : unsigned char_     b_BoardHandle    : Handle of board APCI-1710 |
+|                     unsigned char_     b_ModulNbr       : Module number to configure|
 |                                                  (0 to 3)                  |
-|                     BYTE_     b_PWM            : Selected PWM (0 or 1).    |
-|                     BYTE_     b_ClockSelection : Selection from PCI bus    |
+|                     unsigned char_     b_PWM            : Selected PWM (0 or 1).    |
+|                     unsigned char_     b_ClockSelection : Selection from PCI bus    |
 |                                                  clock                     |
 |                                                   - APCI1710_30MHZ :       |
 |                                                     The PC have a 30 MHz   |
@@ -151,7 +151,7 @@ INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 |                                                     The APCI-1710 have a   |
 |                                                     integrated 40Mhz       |
 |                                                     quartz.                |
-|                     BYTE_     b_TimingUnit     : Base timing Unit (0 to 4) |
+|                     unsigned char_     b_TimingUnit     : Base timing Unit (0 to 4) |
 |                                                       0 : ns               |
 |                                                       1 : æs               |
 |                                                       2 : ms               |
@@ -179,19 +179,19 @@ INT i_APCI1710_InsnConfigPWM(struct comedi_device * dev, struct comedi_subdevice
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitPWM(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_PWM,
-	BYTE b_ClockSelection,
-	BYTE b_TimingUnit,
-	ULONG ul_LowTiming,
-	ULONG ul_HighTiming,
-	PULONG pul_RealLowTiming, PULONG pul_RealHighTiming)
+int i_APCI1710_InitPWM(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned char b_PWM,
+	unsigned char b_ClockSelection,
+	unsigned char b_TimingUnit,
+	unsigned int ul_LowTiming,
+	unsigned int ul_HighTiming,
+	unsigned int *pul_RealLowTiming, unsigned int *pul_RealHighTiming)
 {
-	INT i_ReturnValue = 0;
-	ULONG ul_LowTimerValue = 0;
-	ULONG ul_HighTimerValue = 0;
-	DWORD dw_Command;
+	int i_ReturnValue = 0;
+	unsigned int ul_LowTimerValue = 0;
+	unsigned int ul_HighTimerValue = 0;
+	unsigned int dw_Command;
 	double d_RealLowTiming = 0;
 	double d_RealHighTiming = 0;
 
@@ -200,33 +200,33 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 	/**************************/
 
 	if (b_ModulNbr < 4) {
-	   /***************/
+		/***************/
 		/* Test if PWM */
-	   /***************/
+		/***************/
 
 		if ((devpriv->s_BoardInfos.
 				dw_MolduleConfiguration[b_ModulNbr] &
 				0xFFFF0000UL) == APCI1710_PWM) {
-	      /**************************/
+			/**************************/
 			/* Test the PWM selection */
-	      /**************************/
+			/**************************/
 
 			if (b_PWM <= 1) {
-		 /******************/
+				/******************/
 				/* Test the clock */
-		 /******************/
+				/******************/
 
 				if ((b_ClockSelection == APCI1710_30MHZ) ||
 					(b_ClockSelection == APCI1710_33MHZ) ||
 					(b_ClockSelection == APCI1710_40MHZ)) {
-		    /************************/
+					/************************/
 					/* Test the timing unit */
-		    /************************/
+					/************************/
 
 					if (b_TimingUnit <= 4) {
-		       /*********************************/
+						/*********************************/
 						/* Test the low timing selection */
-		       /*********************************/
+						/*********************************/
 
 						if (((b_ClockSelection ==
 									APCI1710_30MHZ)
@@ -361,45 +361,45 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 								&& (ul_LowTiming
 									<=
 									7UL))) {
-			  /**********************************/
+							/**********************************/
 							/* Test the High timing selection */
-			  /**********************************/
+							/**********************************/
 
 							if (((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 266) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571230650UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571230UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 9UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 242) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 519691043UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 519691UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 520UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 8UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 200) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429496729UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429496UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 7UL))) {
-			     /**************************/
+								/**************************/
 								/* Test the board version */
-			     /**************************/
+								/**************************/
 
 								if (((b_ClockSelection == APCI1710_40MHZ) && (devpriv->s_BoardInfos.b_BoardVersion > 0)) || (b_ClockSelection != APCI1710_40MHZ)) {
 
-				/************************************/
+									/************************************/
 									/* Calculate the low division fator */
-				/************************************/
+									/************************************/
 
 									fpu_begin
 										();
 
 									switch (b_TimingUnit) {
-				   /******/
+										/******/
 										/* ns */
-				   /******/
+										/******/
 
 									case 0:
 
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTiming
 											*
 											(0.00025 * b_ClockSelection));
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)ul_LowTiming * (0.00025 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 											ul_LowTimerValue
@@ -409,13 +409,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(0.00025 * (double)b_ClockSelection));
@@ -451,7 +451,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -461,26 +461,26 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										break;
 
-				   /******/
+										/******/
 										/* æs */
-				   /******/
+										/******/
 
 									case 1:
 
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTiming
 											*
 											(0.25 * b_ClockSelection));
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)ul_LowTiming * (0.25 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 											ul_LowTimerValue
@@ -490,13 +490,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(0.25 * (double)b_ClockSelection));
@@ -534,7 +534,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -544,15 +544,15 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										break;
 
-				   /******/
+										/******/
 										/* ms */
-				   /******/
+										/******/
 
 									case 2:
 
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_LowTimerValue
 											=
@@ -562,9 +562,9 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 											*
 											b_ClockSelection);
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)ul_LowTiming * (250.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 											ul_LowTimerValue
@@ -574,13 +574,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(250.0 * (double)b_ClockSelection));
@@ -616,7 +616,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -626,27 +626,27 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										break;
 
-				   /*****/
+										/*****/
 										/* s */
-				   /*****/
+										/*****/
 
 									case 3:
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTiming
 											*
 											(250000.0
 												*
 												b_ClockSelection));
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)ul_LowTiming * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 											ul_LowTimerValue
@@ -656,13 +656,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(250000.0
@@ -701,7 +701,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -711,19 +711,19 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										break;
 
-				   /******/
+										/******/
 										/* mn */
-				   /******/
+										/******/
 
 									case 4:
 
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(ul_LowTiming
 												*
@@ -733,9 +733,9 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												*
 												b_ClockSelection));
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)(ul_LowTiming * 60.0) * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 											ul_LowTimerValue
@@ -745,13 +745,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealLowTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_LowTimerValue
 											/
 											(250000.0
@@ -795,7 +795,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_LowTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_LowTimerValue)
@@ -806,31 +806,31 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										break;
 									}
 
-				/*************************************/
+									/*************************************/
 									/* Calculate the high division fator */
-				/*************************************/
+									/*************************************/
 
 									switch (b_TimingUnit) {
-				   /******/
+										/******/
 										/* ns */
-				   /******/
+										/******/
 
 									case 0:
 
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTiming
 											*
 											(0.00025 * b_ClockSelection));
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)ul_HighTiming * (0.00025 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 											ul_HighTimerValue
@@ -840,13 +840,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(0.00025 * (double)b_ClockSelection));
@@ -882,7 +882,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -892,26 +892,26 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										break;
 
-				   /******/
+										/******/
 										/* æs */
-				   /******/
+										/******/
 
 									case 1:
 
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTiming
 											*
 											(0.25 * b_ClockSelection));
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)ul_HighTiming * (0.25 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 											ul_HighTimerValue
@@ -921,13 +921,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(0.25 * (double)b_ClockSelection));
@@ -965,7 +965,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -975,15 +975,15 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										break;
 
-				   /******/
+										/******/
 										/* ms */
-				   /******/
+										/******/
 
 									case 2:
 
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_HighTimerValue
 											=
@@ -993,9 +993,9 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 											*
 											b_ClockSelection);
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)ul_HighTiming * (250.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 											ul_HighTimerValue
@@ -1005,13 +1005,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(250.0 * (double)b_ClockSelection));
@@ -1047,7 +1047,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -1057,28 +1057,28 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										break;
 
-				   /*****/
+										/*****/
 										/* s */
-				   /*****/
+										/*****/
 
 									case 3:
 
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTiming
 											*
 											(250000.0
 												*
 												b_ClockSelection));
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)ul_HighTiming * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 											ul_HighTimerValue
@@ -1088,13 +1088,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(250000.0
@@ -1133,7 +1133,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -1143,19 +1143,19 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 
 										break;
 
-				   /******/
+										/******/
 										/* mn */
-				   /******/
+										/******/
 
 									case 4:
 
-					   /******************/
+										/******************/
 										/* Timer 0 factor */
-					   /******************/
+										/******************/
 
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(ul_HighTiming
 												*
@@ -1165,9 +1165,9 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												*
 												b_ClockSelection));
 
-					   /*******************/
+										/*******************/
 										/* Round the value */
-					   /*******************/
+										/*******************/
 
 										if ((double)((double)(ul_HighTiming * 60.0) * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 											ul_HighTimerValue
@@ -1177,13 +1177,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 												1;
 										}
 
-					   /*****************************/
+										/*****************************/
 										/* Calculate the real timing */
-					   /*****************************/
+										/*****************************/
 
 										*pul_RealHighTiming
 											=
-											(ULONG)
+											(unsigned int)
 											(ul_HighTimerValue
 											/
 											(250000.0
@@ -1227,7 +1227,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										if (b_ClockSelection != APCI1710_40MHZ) {
 											ul_HighTimerValue
 												=
-												(ULONG)
+												(unsigned int)
 												(
 												(double)
 												(ul_HighTimerValue)
@@ -1239,9 +1239,9 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 									}
 
 									fpu_end();
-				/****************************/
+									/****************************/
 									/* Save the clock selection */
-				/****************************/
+									/****************************/
 
 									devpriv->
 										s_ModuleInfo
@@ -1251,9 +1251,9 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										=
 										b_ClockSelection;
 
-				/************************/
+									/************************/
 									/* Save the timing unit */
-				/************************/
+									/************************/
 
 									devpriv->
 										s_ModuleInfo
@@ -1265,9 +1265,9 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										=
 										b_TimingUnit;
 
-				/****************************/
+									/****************************/
 									/* Save the low base timing */
-				/****************************/
+									/****************************/
 
 									devpriv->
 										s_ModuleInfo
@@ -1289,9 +1289,9 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										=
 										*pul_RealLowTiming;
 
-				/****************************/
+									/****************************/
 									/* Save the high base timing */
-				/****************************/
+									/****************************/
 
 									devpriv->
 										s_ModuleInfo
@@ -1313,21 +1313,21 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										=
 										*pul_RealHighTiming;
 
-				/************************/
+									/************************/
 									/* Write the low timing */
-				/************************/
+									/************************/
 
 									outl(ul_LowTimerValue, devpriv->s_BoardInfos.ui_Address + 0 + (20 * b_PWM) + (64 * b_ModulNbr));
 
-				/*************************/
+									/*************************/
 									/* Write the high timing */
-				/*************************/
+									/*************************/
 
 									outl(ul_HighTimerValue, devpriv->s_BoardInfos.ui_Address + 4 + (20 * b_PWM) + (64 * b_ModulNbr));
 
-				/***************************/
+									/***************************/
 									/* Set the clock selection */
-				/***************************/
+									/***************************/
 
 									dw_Command
 										=
@@ -1354,15 +1354,15 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 											0x80;
 									}
 
-				/***************************/
+									/***************************/
 									/* Set the clock selection */
-				/***************************/
+									/***************************/
 
 									outl(dw_Command, devpriv->s_BoardInfos.ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
 
-				/*************/
+									/*************/
 									/* PWM init. */
-				/*************/
+									/*************/
 									devpriv->
 										s_ModuleInfo
 										[b_ModulNbr].
@@ -1373,98 +1373,98 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 										=
 										1;
 								} else {
-				/***************************************************/
+									/***************************************************/
 									/* You can not used the 40MHz clock selection with */
 									/* this board                                      */
-				/***************************************************/
+									/***************************************************/
 									DPRINTK("You can not used the 40MHz clock selection with this board\n");
 									i_ReturnValue
 										=
 										-9;
 								}
 							} else {
-			     /***************************************/
+								/***************************************/
 								/* High base timing selection is wrong */
-			     /***************************************/
+								/***************************************/
 								DPRINTK("High base timing selection is wrong\n");
 								i_ReturnValue =
 									-8;
 							}
 						} else {
-			  /**************************************/
+							/**************************************/
 							/* Low base timing selection is wrong */
-			  /**************************************/
+							/**************************************/
 							DPRINTK("Low base timing selection is wrong\n");
 							i_ReturnValue = -7;
 						}
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
 					else {
-		       /**********************************/
+						/**********************************/
 						/* Timing unit selection is wrong */
-		       /**********************************/
+						/**********************************/
 						DPRINTK("Timing unit selection is wrong\n");
 						i_ReturnValue = -6;
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-				}	// if ((b_ClockSelection == APCI1710_30MHZ) || (b_ClockSelection == APCI1710_33MHZ) || (b_ClockSelection == APCI1710_40MHZ))
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
+				}	/*  if ((b_ClockSelection == APCI1710_30MHZ) || (b_ClockSelection == APCI1710_33MHZ) || (b_ClockSelection == APCI1710_40MHZ)) */
 				else {
-		    /*******************************/
+					/*******************************/
 					/* The selected clock is wrong */
-		    /*******************************/
+					/*******************************/
 					DPRINTK("The selected clock is wrong\n");
 					i_ReturnValue = -5;
-				}	// if ((b_ClockSelection == APCI1710_30MHZ) || (b_ClockSelection == APCI1710_33MHZ) || (b_ClockSelection == APCI1710_40MHZ))
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+				}	/*  if ((b_ClockSelection == APCI1710_30MHZ) || (b_ClockSelection == APCI1710_33MHZ) || (b_ClockSelection == APCI1710_40MHZ)) */
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 			else {
-		 /******************************/
+				/******************************/
 				/* Tor PWM selection is wrong */
-		 /******************************/
+				/******************************/
 				DPRINTK("Tor PWM selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 		} else {
-	      /**********************************/
+			/**********************************/
 			/* The module is not a PWM module */
-	      /**********************************/
+			/**********************************/
 			DPRINTK("The module is not a PWM module\n");
 			i_ReturnValue = -3;
 		}
 	} else {
-	   /***********************/
+		/***********************/
 		/* Module number error */
-	   /***********************/
+		/***********************/
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetPWMInitialisation                  |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_PWM,                    |
-|                                        PBYTE_   pb_TimingUnit,             |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_PWM,                    |
+|                                        unsigned char *_   pb_TimingUnit,             |
 |                                        PULONG_ pul_LowTiming,              |
 |                                        PULONG_ pul_HighTiming,             |
-|                                        PBYTE_   pb_StartLevel,             |
-|                                        PBYTE_   pb_StopMode,               |
-|                                        PBYTE_   pb_StopLevel,              |
-|                                        PBYTE_   pb_ExternGate,             |
-|                                        PBYTE_   pb_InterruptEnable,        |
-|                                        PBYTE_   pb_Enable)                 |
+|                                        unsigned char *_   pb_StartLevel,             |
+|                                        unsigned char *_   pb_StopMode,               |
+|                                        unsigned char *_   pb_StopLevel,              |
+|                                        unsigned char *_   pb_ExternGate,             |
+|                                        unsigned char *_   pb_InterruptEnable,        |
+|                                        unsigned char *_   pb_Enable)                 |
 +----------------------------------------------------------------------------+
 | Task              : Return the PWM (b_PWM) initialisation from selected    |
 |                     module (b_ModulNbr). You must calling the              |
 |                     "i_APCI1710_InitPWM" function be for you call this     |
 |                     function.                                              |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle : Handle of board APCI-1710        |
-|                     BYTE_ b_ModulNbr    : Selected module number (0 to 3)  |
-|                     BYTE_ b_PWM         : Selected PWM (0 or 1)            |
+| Input Parameters  : unsigned char_ b_BoardHandle : Handle of board APCI-1710        |
+|                     unsigned char_ b_ModulNbr    : Selected module number (0 to 3)  |
+|                     unsigned char_ b_PWM         : Selected PWM (0 or 1)            |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_  pb_TimingUnit      : Base timing Unit (0 to 4) |
+| Output Parameters : unsigned char *_  pb_TimingUnit      : Base timing Unit (0 to 4) |
 |                                                       0 : ns               |
 |                                                       1 : æs               |
 |                                                       2 : ms               |
@@ -1472,13 +1472,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 |                                                       4 : mn               |
 |                     PULONG_ pul_LowTiming      : Low base timing value.    |
 |                     PULONG_ pul_HighTiming     : High base timing value.   |
-|                     PBYTE_  pb_StartLevel      : Start period level        |
+|                     unsigned char *_  pb_StartLevel      : Start period level        |
 |                                                  selection                 |
 |                                                       0 : The period start |
 |                                                           with a low level |
 |                                                       1 : The period start |
 |                                                           with a high level|
-|                     PBYTE_  pb_StopMode        : Stop mode selection       |
+|                     unsigned char *_  pb_StopMode        : Stop mode selection       |
 |                                                  0 : The PWM is stopped    |
 |                                                      directly after the    |
 |                                                     "i_APCI1710_DisablePWM"|
@@ -1489,7 +1489,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 |                                                      function the PWM is   |
 |                                                      stopped at the end    |
 |                                                      from last period cycle|
-|                     PBYTE_  pb_StopLevel        : Stop PWM level selection |
+|                     unsigned char *_  pb_StopLevel        : Stop PWM level selection |
 |                                                    0 : The output signal   |
 |                                                        keep the level after|
 |                                                        the                 |
@@ -1504,13 +1504,13 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 |                                                        the                 |
 |                                                     "i_APCI1710_DisablePWM"|
 |                                                        function            |
-|                     PBYTE_  pb_ExternGate      : Extern gate action        |
+|                     unsigned char *_  pb_ExternGate      : Extern gate action        |
 |                                                  selection                 |
 |                                                   0 : Extern gate signal   |
 |                                                       not used.            |
 |                                                   1 : Extern gate signal   |
 |                                                       used.                |
-|                     PBYTE_  pb_InterruptEnable : Enable or disable the PWM |
+|                     unsigned char *_  pb_InterruptEnable : Enable or disable the PWM |
 |                                                  interrupt.                |
 |                                                  - APCI1710_ENABLE :       |
 |                                                    Enable the PWM interrupt|
@@ -1519,7 +1519,7 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 |                                                  - APCI1710_DISABLE :      |
 |                                                    Disable the PWM         |
 |                                                    interrupt               |
-|                     PBYTE_  pb_Enable          : Indicate if the PWM is    |
+|                     unsigned char *_  pb_Enable          : Indicate if the PWM is    |
 |                                                  enabled or no             |
 |                                                       0 : PWM not enabled  |
 |                                                       1 : PWM enabled      |
@@ -1534,138 +1534,138 @@ INT i_APCI1710_InitPWM(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetPWMInitialisation(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_PWM,
-	PBYTE pb_TimingUnit,
-	PULONG pul_LowTiming,
-	PULONG pul_HighTiming,
-	PBYTE pb_StartLevel,
-	PBYTE pb_StopMode,
-	PBYTE pb_StopLevel,
-	PBYTE pb_ExternGate, PBYTE pb_InterruptEnable, PBYTE pb_Enable)
+int i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned char b_PWM,
+	unsigned char *pb_TimingUnit,
+	unsigned int *pul_LowTiming,
+	unsigned int *pul_HighTiming,
+	unsigned char *pb_StartLevel,
+	unsigned char *pb_StopMode,
+	unsigned char *pb_StopLevel,
+	unsigned char *pb_ExternGate, unsigned char *pb_InterruptEnable, unsigned char *pb_Enable)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_Status;
-	DWORD dw_Command;
+	int i_ReturnValue = 0;
+	unsigned int dw_Status;
+	unsigned int dw_Command;
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
 	if (b_ModulNbr < 4) {
-	   /***************/
+		/***************/
 		/* Test if PWM */
-	   /***************/
+		/***************/
 
 		if ((devpriv->s_BoardInfos.
 				dw_MolduleConfiguration[b_ModulNbr] &
 				0xFFFF0000UL) == APCI1710_PWM) {
-	      /**************************/
+			/**************************/
 			/* Test the PWM selection */
-	      /**************************/
+			/**************************/
 
 			if (b_PWM <= 1) {
-		 /***************************/
+				/***************************/
 				/* Test if PWM initialised */
-		 /***************************/
+				/***************************/
 
 				dw_Status = inl(devpriv->s_BoardInfos.
 					ui_Address + 12 + (20 * b_PWM) +
 					(64 * b_ModulNbr));
 
 				if (dw_Status & 0x10) {
-		    /***********************/
+					/***********************/
 					/* Read the low timing */
-		    /***********************/
+					/***********************/
 
 					*pul_LowTiming =
 						inl(devpriv->s_BoardInfos.
 						ui_Address + 0 + (20 * b_PWM) +
 						(64 * b_ModulNbr));
 
-		    /************************/
+					/************************/
 					/* Read the high timing */
-		    /************************/
+					/************************/
 
 					*pul_HighTiming =
 						inl(devpriv->s_BoardInfos.
 						ui_Address + 4 + (20 * b_PWM) +
 						(64 * b_ModulNbr));
 
-		    /********************/
+					/********************/
 					/* Read the command */
-		    /********************/
+					/********************/
 
 					dw_Command = inl(devpriv->s_BoardInfos.
 						ui_Address + 8 + (20 * b_PWM) +
 						(64 * b_ModulNbr));
 
 					*pb_StartLevel =
-						(BYTE) ((dw_Command >> 5) & 1);
+						(unsigned char) ((dw_Command >> 5) & 1);
 					*pb_StopMode =
-						(BYTE) ((dw_Command >> 0) & 1);
+						(unsigned char) ((dw_Command >> 0) & 1);
 					*pb_StopLevel =
-						(BYTE) ((dw_Command >> 1) & 1);
+						(unsigned char) ((dw_Command >> 1) & 1);
 					*pb_ExternGate =
-						(BYTE) ((dw_Command >> 4) & 1);
+						(unsigned char) ((dw_Command >> 4) & 1);
 					*pb_InterruptEnable =
-						(BYTE) ((dw_Command >> 3) & 1);
+						(unsigned char) ((dw_Command >> 3) & 1);
 
 					if (*pb_StopLevel) {
 						*pb_StopLevel =
 							*pb_StopLevel +
-							(BYTE) ((dw_Command >>
+							(unsigned char) ((dw_Command >>
 								2) & 1);
 					}
 
-		    /********************/
+					/********************/
 					/* Read the command */
-		    /********************/
+					/********************/
 
 					dw_Command = inl(devpriv->s_BoardInfos.
 						ui_Address + 8 + (20 * b_PWM) +
 						(64 * b_ModulNbr));
 
 					*pb_Enable =
-						(BYTE) ((dw_Command >> 0) & 1);
+						(unsigned char) ((dw_Command >> 0) & 1);
 
 					*pb_TimingUnit = devpriv->
 						s_ModuleInfo[b_ModulNbr].
 						s_PWMModuleInfo.
 						s_PWMInfo[b_PWM].b_TimingUnit;
-				}	// if (dw_Status & 0x10)
+				}	/*  if (dw_Status & 0x10) */
 				else {
-		    /***********************/
+					/***********************/
 					/* PWM not initialised */
-		    /***********************/
+					/***********************/
 					DPRINTK("PWM not initialised\n");
 					i_ReturnValue = -5;
-				}	// if (dw_Status & 0x10)
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+				}	/*  if (dw_Status & 0x10) */
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 			else {
-		 /******************************/
+				/******************************/
 				/* Tor PWM selection is wrong */
-		 /******************************/
+				/******************************/
 				DPRINTK("Tor PWM selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 		} else {
-	      /**********************************/
+			/**********************************/
 			/* The module is not a PWM module */
-	      /**********************************/
+			/**********************************/
 			DPRINTK("The module is not a PWM module\n");
 			i_ReturnValue = -3;
 		}
 	} else {
-	   /***********************/
+		/***********************/
 		/* Module number error */
-	   /***********************/
+		/***********************/
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1683,33 +1683,33 @@ struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data)         
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnWritePWM(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	BYTE b_WriteType;
-	INT i_ReturnValue = 0;
+	unsigned char b_WriteType;
+	int i_ReturnValue = 0;
 	b_WriteType = CR_CHAN(insn->chanspec);
 
 	switch (b_WriteType) {
 	case APCI1710_PWM_ENABLE:
 		i_ReturnValue = i_APCI1710_EnablePWM(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) data[0],
-			(BYTE) data[1],
-			(BYTE) data[2],
-			(BYTE) data[3], (BYTE) data[4], (BYTE) data[5]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) data[0],
+			(unsigned char) data[1],
+			(unsigned char) data[2],
+			(unsigned char) data[3], (unsigned char) data[4], (unsigned char) data[5]);
 		break;
 
 	case APCI1710_PWM_DISABLE:
 		i_ReturnValue = i_APCI1710_DisablePWM(dev,
-			(BYTE) CR_AREF(insn->chanspec), (BYTE) data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char) data[0]);
 		break;
 
 	case APCI1710_PWM_NEWTIMING:
 		i_ReturnValue = i_APCI1710_SetNewPWMTiming(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) data[0],
-			(BYTE) data[1], (ULONG) data[2], (ULONG) data[3]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) data[0],
+			(unsigned char) data[1], (unsigned int) data[2], (unsigned int) data[3]);
 		break;
 
 	default:
@@ -1718,20 +1718,20 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_     i_APCI1710_EnablePWM                         |
-|                                       (BYTE_  b_BoardHandle,               |
-|                                        BYTE_  b_ModulNbr,                  |
-|                                        BYTE_  b_PWM,                       |
-|                                        BYTE_  b_StartLevel,                |
-|                                        BYTE_  b_StopMode,                  |
-|                                        BYTE_  b_StopLevel,                 |
-|                                        BYTE_  b_ExternGate,                |
-|                                        BYTE_  b_InterruptEnable)           |
+|                                       (unsigned char_  b_BoardHandle,               |
+|                                        unsigned char_  b_ModulNbr,                  |
+|                                        unsigned char_  b_PWM,                       |
+|                                        unsigned char_  b_StartLevel,                |
+|                                        unsigned char_  b_StopMode,                  |
+|                                        unsigned char_  b_StopLevel,                 |
+|                                        unsigned char_  b_ExternGate,                |
+|                                        unsigned char_  b_InterruptEnable)           |
 +----------------------------------------------------------------------------+
 | Task              : Enable the selected PWM (b_PWM) from selected module   |
 |                     (b_ModulNbr). You must calling the "i_APCI1710_InitPWM"|
@@ -1741,16 +1741,16 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 |                     See function "i_APCI1710_SetBoardIntRoutineX" and the  |
 |                     Interrupt mask description chapter.                    |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Selected module number       |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Selected module number       |
 |                                               (0 to 3)                     |
-|                     BYTE_ b_PWM             : Selected PWM (0 or 1)        |
-|                     BYTE_ b_StartLevel      : Start period level selection |
+|                     unsigned char_ b_PWM             : Selected PWM (0 or 1)        |
+|                     unsigned char_ b_StartLevel      : Start period level selection |
 |                                                0 : The period start with a |
 |                                                    low level               |
 |                                                1 : The period start with a |
 |                                                    high level              |
-|                     BYTE_ b_StopMode        : Stop mode selection          |
+|                     unsigned char_ b_StopMode        : Stop mode selection          |
 |                                                0 : The PWM is stopped      |
 |                                                    directly after the      |
 |                                                    "i_APCI1710_DisablePWM" |
@@ -1761,7 +1761,7 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 |                                                     function the PWM is    |
 |                                                     stopped at the end from|
 |                                                     last period cycle.     |
-|                     BYTE_ b_StopLevel       : Stop PWM level selection     |
+|                     unsigned char_ b_StopLevel       : Stop PWM level selection     |
 |                                                0 : The output signal keep  |
 |                                                    the level after the     |
 |                                                    "i_APCI1710_DisablePWM" |
@@ -1774,11 +1774,11 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 |                                                    to high after the       |
 |                                                    "i_APCI1710_DisablePWM" |
 |                                                    function                |
-|                     BYTE_ b_ExternGate      : Extern gate action selection |
+|                     unsigned char_ b_ExternGate      : Extern gate action selection |
 |                                                0 : Extern gate signal not  |
 |                                                    used.                   |
 |                                                1 : Extern gate signal used.|
-|                     BYTE_ b_InterruptEnable : Enable or disable the PWM    |
+|                     unsigned char_ b_InterruptEnable : Enable or disable the PWM    |
 |                                               interrupt.                   |
 |                                               - APCI1710_ENABLE :          |
 |                                                 Enable the PWM interrupt   |
@@ -1806,77 +1806,77 @@ INT i_APCI1710_InsnWritePWM(struct comedi_device * dev, struct comedi_subdevice 
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnablePWM(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_PWM,
-	BYTE b_StartLevel,
-	BYTE b_StopMode,
-	BYTE b_StopLevel, BYTE b_ExternGate, BYTE b_InterruptEnable)
+int i_APCI1710_EnablePWM(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned char b_PWM,
+	unsigned char b_StartLevel,
+	unsigned char b_StopMode,
+	unsigned char b_StopLevel, unsigned char b_ExternGate, unsigned char b_InterruptEnable)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_Status;
-	DWORD dw_Command;
+	int i_ReturnValue = 0;
+	unsigned int dw_Status;
+	unsigned int dw_Command;
 
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
 	if (b_ModulNbr < 4) {
-	   /***************/
+		/***************/
 		/* Test if PWM */
-	   /***************/
+		/***************/
 
 		if ((devpriv->s_BoardInfos.
 				dw_MolduleConfiguration[b_ModulNbr] &
 				0xFFFF0000UL) == APCI1710_PWM) {
-	      /**************************/
+			/**************************/
 			/* Test the PWM selection */
-	      /**************************/
+			/**************************/
 
 			if (b_PWM <= 1) {
-		 /***************************/
+				/***************************/
 				/* Test if PWM initialised */
-		 /***************************/
+				/***************************/
 
 				dw_Status = inl(devpriv->s_BoardInfos.
 					ui_Address + 12 + (20 * b_PWM) +
 					(64 * b_ModulNbr));
 
 				if (dw_Status & 0x10) {
-		    /**********************************/
+					/**********************************/
 					/* Test the start level selection */
-		    /**********************************/
+					/**********************************/
 
 					if (b_StartLevel <= 1) {
-		       /**********************/
+						/**********************/
 						/* Test the stop mode */
-		       /**********************/
+						/**********************/
 
 						if (b_StopMode <= 1) {
-			  /***********************/
+							/***********************/
 							/* Test the stop level */
-			  /***********************/
+							/***********************/
 
 							if (b_StopLevel <= 2) {
-			     /*****************************/
+								/*****************************/
 								/* Test the extern gate mode */
-			     /*****************************/
+								/*****************************/
 
 								if (b_ExternGate
 									<= 1) {
-				/*****************************/
+									/*****************************/
 									/* Test the interrupt action */
-				/*****************************/
+									/*****************************/
 
 									if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE) {
-				   /******************************************/
+										/******************************************/
 										/* Test if interrupt function initialised */
-				   /******************************************/
+										/******************************************/
 
-				      /********************/
+										/********************/
 										/* Read the command */
-				      /********************/
+										/********************/
 
 										dw_Command
 											=
@@ -1895,9 +1895,9 @@ INT i_APCI1710_EnablePWM(struct comedi_device * dev,
 											&
 											0x80;
 
-				      /********************/
+										/********************/
 										/* Make the command */
-				      /********************/
+										/********************/
 
 										dw_Command
 											=
@@ -1943,100 +1943,100 @@ INT i_APCI1710_EnablePWM(struct comedi_device * dev,
 											=
 											b_InterruptEnable;
 
-				      /*******************/
+										/*******************/
 										/* Set the command */
-				      /*******************/
+										/*******************/
 
 										outl(dw_Command, devpriv->s_BoardInfos.ui_Address + 8 + (20 * b_PWM) + (64 * b_ModulNbr));
 
-				      /******************/
+										/******************/
 										/* Enable the PWM */
-				      /******************/
+										/******************/
 										outl(1, devpriv->s_BoardInfos.ui_Address + 12 + (20 * b_PWM) + (64 * b_ModulNbr));
-									}	// if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE)
+									}	/*  if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE) */
 									else {
-				   /********************************/
+										/********************************/
 										/* Interrupt parameter is wrong */
-				   /********************************/
+										/********************************/
 										DPRINTK("Interrupt parameter is wrong\n");
 										i_ReturnValue
 											=
 											-10;
-									}	// if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE)
-								}	// if (b_ExternGate >= 0 && b_ExternGate <= 1)
+									}	/*  if (b_InterruptEnable == APCI1710_ENABLE || b_InterruptEnable == APCI1710_DISABLE) */
+								}	/*  if (b_ExternGate >= 0 && b_ExternGate <= 1) */
 								else {
-				/*****************************************/
+									/*****************************************/
 									/* Extern gate signal selection is wrong */
-				/*****************************************/
+									/*****************************************/
 									DPRINTK("Extern gate signal selection is wrong\n");
 									i_ReturnValue
 										=
 										-9;
-								}	// if (b_ExternGate >= 0 && b_ExternGate <= 1)
-							}	// if (b_StopLevel >= 0 && b_StopLevel <= 2)
+								}	/*  if (b_ExternGate >= 0 && b_ExternGate <= 1) */
+							}	/*  if (b_StopLevel >= 0 && b_StopLevel <= 2) */
 							else {
-			     /*************************************/
+								/*************************************/
 								/* PWM stop level selection is wrong */
-			     /*************************************/
+								/*************************************/
 								DPRINTK("PWM stop level selection is wrong\n");
 								i_ReturnValue =
 									-8;
-							}	// if (b_StopLevel >= 0 && b_StopLevel <= 2)
-						}	// if (b_StopMode >= 0 && b_StopMode <= 1)
+							}	/*  if (b_StopLevel >= 0 && b_StopLevel <= 2) */
+						}	/*  if (b_StopMode >= 0 && b_StopMode <= 1) */
 						else {
-			  /************************************/
+							/************************************/
 							/* PWM stop mode selection is wrong */
-			  /************************************/
+							/************************************/
 							DPRINTK("PWM stop mode selection is wrong\n");
 							i_ReturnValue = -7;
-						}	// if (b_StopMode >= 0 && b_StopMode <= 1)
-					}	// if (b_StartLevel >= 0 && b_StartLevel <= 1)
+						}	/*  if (b_StopMode >= 0 && b_StopMode <= 1) */
+					}	/*  if (b_StartLevel >= 0 && b_StartLevel <= 1) */
 					else {
-		       /**************************************/
+						/**************************************/
 						/* PWM start level selection is wrong */
-		       /**************************************/
+						/**************************************/
 						DPRINTK("PWM start level selection is wrong\n");
 						i_ReturnValue = -6;
-					}	// if (b_StartLevel >= 0 && b_StartLevel <= 1)
-				}	// if (dw_Status & 0x10)
+					}	/*  if (b_StartLevel >= 0 && b_StartLevel <= 1) */
+				}	/*  if (dw_Status & 0x10) */
 				else {
-		    /***********************/
+					/***********************/
 					/* PWM not initialised */
-		    /***********************/
+					/***********************/
 					DPRINTK("PWM not initialised\n");
 					i_ReturnValue = -5;
-				}	// if (dw_Status & 0x10)
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+				}	/*  if (dw_Status & 0x10) */
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 			else {
-		 /******************************/
+				/******************************/
 				/* Tor PWM selection is wrong */
-		 /******************************/
+				/******************************/
 				DPRINTK("Tor PWM selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 		} else {
-	      /**********************************/
+			/**********************************/
 			/* The module is not a PWM module */
-	      /**********************************/
+			/**********************************/
 			DPRINTK("The module is not a PWM module\n");
 			i_ReturnValue = -3;
 		}
 	} else {
-	   /***********************/
+		/***********************/
 		/* Module number error */
-	   /***********************/
+		/***********************/
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_DisablePWM (BYTE_  b_BoardHandle,     |
-|                                                  BYTE_  b_ModulNbr,        |
-|                                                  BYTE_  b_PWM)             |
+| Function Name     : _INT_ i_APCI1710_DisablePWM (unsigned char_  b_BoardHandle,     |
+|                                                  unsigned char_  b_ModulNbr,        |
+|                                                  unsigned char_  b_PWM)             |
 +----------------------------------------------------------------------------+
 | Task              : Disable the selected PWM (b_PWM) from selected module  |
 |                     (b_ModulNbr). The output signal level depend of the    |
@@ -2045,8 +2045,8 @@ INT i_APCI1710_EnablePWM(struct comedi_device * dev,
 |                     parameters from this function.                         |
 +----------------------------------------------------------------------------+
 | Input Parameters  :BYTE_ b_BoardHandle : Handle of board APCI-1710         |
-|                    BYTE_ b_ModulNbr    : Selected module number (0 to 3)   |
-|                    BYTE_ b_PWM         : Selected PWM (0 or 1)             |
+|                    unsigned char_ b_ModulNbr    : Selected module number (0 to 3)   |
+|                    unsigned char_ b_PWM         : Selected PWM (0 or 1)             |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -2062,99 +2062,99 @@ INT i_APCI1710_EnablePWM(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisablePWM(struct comedi_device * dev, BYTE b_ModulNbr, BYTE b_PWM)
+int i_APCI1710_DisablePWM(struct comedi_device *dev, unsigned char b_ModulNbr, unsigned char b_PWM)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_Status;
+	int i_ReturnValue = 0;
+	unsigned int dw_Status;
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
 	if (b_ModulNbr < 4) {
-	   /***************/
+		/***************/
 		/* Test if PWM */
-	   /***************/
+		/***************/
 
 		if ((devpriv->s_BoardInfos.
 				dw_MolduleConfiguration[b_ModulNbr] &
 				0xFFFF0000UL) == APCI1710_PWM) {
-	      /**************************/
+			/**************************/
 			/* Test the PWM selection */
-	      /**************************/
+			/**************************/
 
 			if (b_PWM <= 1) {
-		 /***************************/
+				/***************************/
 				/* Test if PWM initialised */
-		 /***************************/
+				/***************************/
 
 				dw_Status = inl(devpriv->s_BoardInfos.
 					ui_Address + 12 + (20 * b_PWM) +
 					(64 * b_ModulNbr));
 
 				if (dw_Status & 0x10) {
-		    /***********************/
+					/***********************/
 					/* Test if PWM enabled */
-		    /***********************/
+					/***********************/
 
 					if (dw_Status & 0x1) {
-		       /*******************/
+						/*******************/
 						/* Disable the PWM */
-		       /*******************/
+						/*******************/
 						outl(0, devpriv->s_BoardInfos.
 							ui_Address + 12 +
 							(20 * b_PWM) +
 							(64 * b_ModulNbr));
-					}	// if (dw_Status & 0x1)
+					}	/*  if (dw_Status & 0x1) */
 					else {
-		       /*******************/
+						/*******************/
 						/* PWM not enabled */
-		       /*******************/
+						/*******************/
 						DPRINTK("PWM not enabled\n");
 						i_ReturnValue = -6;
-					}	// if (dw_Status & 0x1)
-				}	// if (dw_Status & 0x10)
+					}	/*  if (dw_Status & 0x1) */
+				}	/*  if (dw_Status & 0x10) */
 				else {
-		    /***********************/
+					/***********************/
 					/* PWM not initialised */
-		    /***********************/
+					/***********************/
 					DPRINTK(" PWM not initialised\n");
 					i_ReturnValue = -5;
-				}	// if (dw_Status & 0x10)
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+				}	/*  if (dw_Status & 0x10) */
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 			else {
-		 /******************************/
+				/******************************/
 				/* Tor PWM selection is wrong */
-		 /******************************/
+				/******************************/
 				DPRINTK("Tor PWM selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 		} else {
-	      /**********************************/
+			/**********************************/
 			/* The module is not a PWM module */
-	      /**********************************/
+			/**********************************/
 			DPRINTK("The module is not a PWM module\n");
 			i_ReturnValue = -3;
 		}
 	} else {
-	   /***********************/
+		/***********************/
 		/* Module number error */
-	   /***********************/
+		/***********************/
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_SetNewPWMTiming                       |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_PWM,                    |
-|                                        BYTE_     b_ClockSelection,         |
-|                                        BYTE_     b_TimingUnit,             |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_PWM,                    |
+|                                        unsigned char_     b_ClockSelection,         |
+|                                        unsigned char_     b_TimingUnit,             |
 |                                        ULONG_   ul_LowTiming,              |
 |                                        ULONG_   ul_HighTiming)             |
 +----------------------------------------------------------------------------+
@@ -2162,11 +2162,11 @@ INT i_APCI1710_DisablePWM(struct comedi_device * dev, BYTE b_ModulNbr, BYTE b_PW
 |                     ul_TimingUnit determine the low/high timing base for   |
 |                     the period.                                            |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_     b_BoardHandle    : Handle of board APCI-1710 |
-|                     BYTE_     b_ModulNbr       : Module number to configure|
+| Input Parameters  : unsigned char_     b_BoardHandle    : Handle of board APCI-1710 |
+|                     unsigned char_     b_ModulNbr       : Module number to configure|
 |                                                  (0 to 3)                  |
-|                     BYTE_     b_PWM            : Selected PWM (0 or 1).    |
-|                     BYTE_     b_TimingUnit     : Base timing Unit (0 to 4) |
+|                     unsigned char_     b_PWM            : Selected PWM (0 or 1).    |
+|                     unsigned char_     b_TimingUnit     : Base timing Unit (0 to 4) |
 |                                                       0 : ns               |
 |                                                       1 : æs               |
 |                                                       2 : ms               |
@@ -2189,18 +2189,18 @@ INT i_APCI1710_DisablePWM(struct comedi_device * dev, BYTE b_ModulNbr, BYTE b_PW
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_PWM, BYTE b_TimingUnit, ULONG ul_LowTiming, ULONG ul_HighTiming)
+int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned char b_PWM, unsigned char b_TimingUnit, unsigned int ul_LowTiming, unsigned int ul_HighTiming)
 {
-	BYTE b_ClockSelection;
-	INT i_ReturnValue = 0;
-	ULONG ul_LowTimerValue = 0;
-	ULONG ul_HighTimerValue = 0;
-	ULONG ul_RealLowTiming = 0;
-	ULONG ul_RealHighTiming = 0;
-	DWORD dw_Status;
-	DWORD dw_Command;
+	unsigned char b_ClockSelection;
+	int i_ReturnValue = 0;
+	unsigned int ul_LowTimerValue = 0;
+	unsigned int ul_HighTimerValue = 0;
+	unsigned int ul_RealLowTiming = 0;
+	unsigned int ul_RealHighTiming = 0;
+	unsigned int dw_Status;
+	unsigned int dw_Command;
 	double d_RealLowTiming = 0;
 	double d_RealHighTiming = 0;
 
@@ -2209,21 +2209,21 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 	/**************************/
 
 	if (b_ModulNbr < 4) {
-	   /***************/
+		/***************/
 		/* Test if PWM */
-	   /***************/
+		/***************/
 
 		if ((devpriv->s_BoardInfos.
 				dw_MolduleConfiguration[b_ModulNbr] &
 				0xFFFF0000UL) == APCI1710_PWM) {
-	      /**************************/
+			/**************************/
 			/* Test the PWM selection */
-	      /**************************/
+			/**************************/
 
 			if (b_PWM <= 1) {
-		 /***************************/
+				/***************************/
 				/* Test if PWM initialised */
-		 /***************************/
+				/***************************/
 
 				dw_Status = inl(devpriv->s_BoardInfos.
 					ui_Address + 12 + (20 * b_PWM) +
@@ -2235,14 +2235,14 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 						s_PWMModuleInfo.
 						b_ClockSelection;
 
-		    /************************/
+					/************************/
 					/* Test the timing unit */
-		    /************************/
+					/************************/
 
 					if (b_TimingUnit <= 4) {
-		       /*********************************/
+						/*********************************/
 						/* Test the low timing selection */
-		       /*********************************/
+						/*********************************/
 
 						if (((b_ClockSelection ==
 									APCI1710_30MHZ)
@@ -2377,37 +2377,37 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 								&& (ul_LowTiming
 									<=
 									7UL))) {
-			  /**********************************/
+							/**********************************/
 							/* Test the High timing selection */
-			  /**********************************/
+							/**********************************/
 
 							if (((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 266) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571230650UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571230UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 571UL)) || ((b_ClockSelection == APCI1710_30MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 9UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 242) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 519691043UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 519691UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 520UL)) || ((b_ClockSelection == APCI1710_33MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 8UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 0) && (ul_HighTiming >= 200) && (ul_HighTiming <= 0xFFFFFFFFUL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 1) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429496729UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 2) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429496UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 3) && (ul_HighTiming >= 1) && (ul_HighTiming <= 429UL)) || ((b_ClockSelection == APCI1710_40MHZ) && (b_TimingUnit == 4) && (ul_HighTiming >= 1) && (ul_HighTiming <= 7UL))) {
-			     /************************************/
+								/************************************/
 								/* Calculate the low division fator */
-			     /************************************/
+								/************************************/
 
 								fpu_begin();
 								switch (b_TimingUnit) {
-				/******/
+									/******/
 									/* ns */
-				/******/
+									/******/
 
 								case 0:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_LowTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTiming
 										*
 										(0.00025 * b_ClockSelection));
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)ul_LowTiming * (0.00025 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 										ul_LowTimerValue
@@ -2417,13 +2417,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(0.00025 * (double)b_ClockSelection));
@@ -2459,7 +2459,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2469,26 +2469,26 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									break;
 
-				/******/
+									/******/
 									/* æs */
-				/******/
+									/******/
 
 								case 1:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_LowTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTiming
 										*
 										(0.25 * b_ClockSelection));
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)ul_LowTiming * (0.25 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 										ul_LowTimerValue
@@ -2498,13 +2498,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(0.25 * (double)b_ClockSelection));
@@ -2542,7 +2542,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2552,15 +2552,15 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									break;
 
-				/******/
+									/******/
 									/* ms */
-				/******/
+									/******/
 
 								case 2:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_LowTimerValue
 										=
@@ -2570,9 +2570,9 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 										*
 										b_ClockSelection);
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)ul_LowTiming * (250.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 										ul_LowTimerValue
@@ -2582,13 +2582,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(250.0 * (double)b_ClockSelection));
@@ -2624,7 +2624,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2634,28 +2634,28 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									break;
 
-				/*****/
+									/*****/
 									/* s */
-				/*****/
+									/*****/
 
 								case 3:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_LowTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTiming
 										*
 										(250000.0
 											*
 											b_ClockSelection));
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)ul_LowTiming * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 										ul_LowTimerValue
@@ -2665,13 +2665,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(250000.0
@@ -2710,7 +2710,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2720,19 +2720,19 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									break;
 
-				/******/
+									/******/
 									/* mn */
-				/******/
+									/******/
 
 								case 4:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_LowTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(
 										(ul_LowTiming
 											*
@@ -2742,9 +2742,9 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											*
 											b_ClockSelection));
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)(ul_LowTiming * 60.0) * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_LowTimerValue + 0.5))) {
 										ul_LowTimerValue
@@ -2754,13 +2754,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealLowTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_LowTimerValue
 										/
 										(250000.0
@@ -2804,7 +2804,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_LowTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_LowTimerValue)
@@ -2815,31 +2815,31 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									break;
 								}
 
-			     /*************************************/
+								/*************************************/
 								/* Calculate the high division fator */
-			     /*************************************/
+								/*************************************/
 
 								switch (b_TimingUnit) {
-				/******/
+									/******/
 									/* ns */
-				/******/
+									/******/
 
 								case 0:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_HighTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTiming
 										*
 										(0.00025 * b_ClockSelection));
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)ul_HighTiming * (0.00025 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 										ul_HighTimerValue
@@ -2849,13 +2849,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(0.00025 * (double)b_ClockSelection));
@@ -2891,7 +2891,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)
@@ -2901,26 +2901,26 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									break;
 
-				/******/
+									/******/
 									/* æs */
-				/******/
+									/******/
 
 								case 1:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_HighTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTiming
 										*
 										(0.25 * b_ClockSelection));
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)ul_HighTiming * (0.25 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 										ul_HighTimerValue
@@ -2930,13 +2930,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(0.25 * (double)b_ClockSelection));
@@ -2974,7 +2974,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)
@@ -2984,15 +2984,15 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									break;
 
-				/******/
+									/******/
 									/* ms */
-				/******/
+									/******/
 
 								case 2:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_HighTimerValue
 										=
@@ -3002,9 +3002,9 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 										*
 										b_ClockSelection);
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)ul_HighTiming * (250.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 										ul_HighTimerValue
@@ -3014,13 +3014,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(250.0 * (double)b_ClockSelection));
@@ -3056,7 +3056,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)
@@ -3066,28 +3066,28 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									break;
 
-				/*****/
+									/*****/
 									/* s */
-				/*****/
+									/*****/
 
 								case 3:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_HighTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTiming
 										*
 										(250000.0
 											*
 											b_ClockSelection));
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)ul_HighTiming * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 										ul_HighTimerValue
@@ -3097,13 +3097,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(250000.0
@@ -3142,7 +3142,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)
@@ -3152,19 +3152,19 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 									break;
 
-				/******/
+									/******/
 									/* mn */
-				/******/
+									/******/
 
 								case 4:
 
-					/******************/
+									/******************/
 									/* Timer 0 factor */
-					/******************/
+									/******************/
 
 									ul_HighTimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(
 										(ul_HighTiming
 											*
@@ -3174,9 +3174,9 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											*
 											b_ClockSelection));
 
-					/*******************/
+									/*******************/
 									/* Round the value */
-					/*******************/
+									/*******************/
 
 									if ((double)((double)(ul_HighTiming * 60.0) * (250000.0 * (double)b_ClockSelection)) >= ((double)((double)ul_HighTimerValue + 0.5))) {
 										ul_HighTimerValue
@@ -3186,13 +3186,13 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 											1;
 									}
 
-					/*****************************/
+									/*****************************/
 									/* Calculate the real timing */
-					/*****************************/
+									/*****************************/
 
 									ul_RealHighTiming
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_HighTimerValue
 										/
 										(250000.0
@@ -3236,7 +3236,7 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									if (b_ClockSelection != APCI1710_40MHZ) {
 										ul_HighTimerValue
 											=
-											(ULONG)
+											(unsigned int)
 											(
 											(double)
 											(ul_HighTimerValue)
@@ -3249,9 +3249,9 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 
 								fpu_end();
 
-			     /************************/
+								/************************/
 								/* Save the timing unit */
-			     /************************/
+								/************************/
 
 								devpriv->
 									s_ModuleInfo
@@ -3263,9 +3263,9 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									=
 									b_TimingUnit;
 
-			     /****************************/
+								/****************************/
 								/* Save the low base timing */
-			     /****************************/
+								/****************************/
 
 								devpriv->
 									s_ModuleInfo
@@ -3287,9 +3287,9 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									=
 									ul_RealLowTiming;
 
-			     /****************************/
+								/****************************/
 								/* Save the high base timing */
-			     /****************************/
+								/****************************/
 
 								devpriv->
 									s_ModuleInfo
@@ -3311,21 +3311,21 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									=
 									ul_RealHighTiming;
 
-			     /************************/
+								/************************/
 								/* Write the low timing */
-			     /************************/
+								/************************/
 
 								outl(ul_LowTimerValue, devpriv->s_BoardInfos.ui_Address + 0 + (20 * b_PWM) + (64 * b_ModulNbr));
 
-			     /*************************/
+								/*************************/
 								/* Write the high timing */
-			     /*************************/
+								/*************************/
 
 								outl(ul_HighTimerValue, devpriv->s_BoardInfos.ui_Address + 4 + (20 * b_PWM) + (64 * b_ModulNbr));
 
-			     /***************************/
+								/***************************/
 								/* Set the clock selection */
-			     /***************************/
+								/***************************/
 
 								dw_Command =
 									inl
@@ -3347,9 +3347,9 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 										0x80;
 								}
 
-			     /***************************/
+								/***************************/
 								/* Set the clock selection */
-			     /***************************/
+								/***************************/
 
 								outl(dw_Command,
 									devpriv->
@@ -3358,96 +3358,96 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 									+ 8 +
 									(20 * b_PWM) + (64 * b_ModulNbr));
 							} else {
-			     /***************************************/
+								/***************************************/
 								/* High base timing selection is wrong */
-			     /***************************************/
+								/***************************************/
 								DPRINTK("High base timing selection is wrong\n");
 								i_ReturnValue =
 									-8;
 							}
 						} else {
-			  /**************************************/
+							/**************************************/
 							/* Low base timing selection is wrong */
-			  /**************************************/
+							/**************************************/
 							DPRINTK("Low base timing selection is wrong\n");
 							i_ReturnValue = -7;
 						}
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
 					else {
-		       /**********************************/
+						/**********************************/
 						/* Timing unit selection is wrong */
-		       /**********************************/
+						/**********************************/
 						DPRINTK("Timing unit selection is wrong\n");
 						i_ReturnValue = -6;
-					}	// if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4))
-				}	// if (dw_Status & 0x10)
+					}	/*  if ((b_TimingUnit >= 0) && (b_TimingUnit <= 4)) */
+				}	/*  if (dw_Status & 0x10) */
 				else {
-		    /***********************/
+					/***********************/
 					/* PWM not initialised */
-		    /***********************/
+					/***********************/
 					DPRINTK("PWM not initialised\n");
 					i_ReturnValue = -5;
-				}	// if (dw_Status & 0x10)
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+				}	/*  if (dw_Status & 0x10) */
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 			else {
-		 /******************************/
+				/******************************/
 				/* Tor PWM selection is wrong */
-		 /******************************/
+				/******************************/
 				DPRINTK("Tor PWM selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 		} else {
-	      /**********************************/
+			/**********************************/
 			/* The module is not a PWM module */
-	      /**********************************/
+			/**********************************/
 			DPRINTK("The module is not a PWM module\n");
 			i_ReturnValue = -3;
 		}
 	} else {
-	   /***********************/
+		/***********************/
 		/* Module number error */
-	   /***********************/
+		/***********************/
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetPWMStatus                          |
-|                               (BYTE_    b_BoardHandle,                     |
-|                                BYTE_    b_ModulNbr,                        |
-|                                BYTE_    b_PWM,                             |
-|                                PBYTE_  pb_PWMOutputStatus,                 |
-|                                PBYTE_  pb_ExternGateStatus)                |
+|                               (unsigned char_    b_BoardHandle,                     |
+|                                unsigned char_    b_ModulNbr,                        |
+|                                unsigned char_    b_PWM,                             |
+|                                unsigned char *_  pb_PWMOutputStatus,                 |
+|                                unsigned char *_  pb_ExternGateStatus)                |
 +----------------------------------------------------------------------------+
 | Task              : Return the status from selected PWM (b_PWM) from       |
 |                     selected module (b_ModulNbr).                          |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle : Handle of board APCI-1710       |
-|                     BYTE_  b_PWM         : Selected PWM (0 or 1)           |
-|                     BYTE_  b_ModulNbr    : Selected module number (0 to 3)
-	b_ModulNbr			=(BYTE)  CR_AREF(insn->chanspec);
-	b_PWM				=(BYTE)  data[0];
+| Input Parameters  : unsigned char_  b_BoardHandle : Handle of board APCI-1710       |
+|                     unsigned char_  b_PWM         : Selected PWM (0 or 1)           |
+|                     unsigned char_  b_ModulNbr    : Selected module number (0 to 3)
+	b_ModulNbr			=(unsigned char)  CR_AREF(insn->chanspec);
+	b_PWM				=(unsigned char)  data[0];
 
  |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_  pb_PWMOutputStatus  : Return the PWM output    |
+| Output Parameters : unsigned char *_  pb_PWMOutputStatus  : Return the PWM output    |
 |                                                   level status.            |
 |                                                    0 : The PWM output level|
 |                                                        is low.             |
 |                                                    1 : The PWM output level|
 |                                                        is high.            |
-|                     PBYTE_  pb_ExternGateStatus : Return the extern gate   |
+|                     unsigned char *_  pb_ExternGateStatus : Return the extern gate   |
 |                                                   level status.            |
 |                                                    0 : The extern gate is  |
 |                                                        low.                |
 |                                                    1 : The extern gate is  |
 |                                                        high.
-    pb_PWMOutputStatus	=(PBYTE) data[0];
-	pb_ExternGateStatus =(PBYTE) data[1];             |
+    pb_PWMOutputStatus	=(unsigned char *) data[0];
+	pb_ExternGateStatus =(unsigned char *) data[1];             |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
 |                     -1: The handle parameter of the board is wrong         |
@@ -3460,109 +3460,109 @@ INT i_APCI1710_SetNewPWMTiming(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadGetPWMStatus(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_Status;
+	int i_ReturnValue = 0;
+	unsigned int dw_Status;
 
-	BYTE b_ModulNbr;
-	BYTE b_PWM;
-	PBYTE pb_PWMOutputStatus;
-	PBYTE pb_ExternGateStatus;
+	unsigned char b_ModulNbr;
+	unsigned char b_PWM;
+	unsigned char *pb_PWMOutputStatus;
+	unsigned char *pb_ExternGateStatus;
 
 	i_ReturnValue = insn->n;
-	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
-	b_PWM = (BYTE) CR_CHAN(insn->chanspec);
-	pb_PWMOutputStatus = (PBYTE) & data[0];
-	pb_ExternGateStatus = (PBYTE) & data[1];
+	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
+	b_PWM = (unsigned char) CR_CHAN(insn->chanspec);
+	pb_PWMOutputStatus = (unsigned char *) &data[0];
+	pb_ExternGateStatus = (unsigned char *) &data[1];
 
 	/**************************/
 	/* Test the module number */
 	/**************************/
 
 	if (b_ModulNbr < 4) {
-	   /***************/
+		/***************/
 		/* Test if PWM */
-	   /***************/
+		/***************/
 
 		if ((devpriv->s_BoardInfos.
 				dw_MolduleConfiguration[b_ModulNbr] &
 				0xFFFF0000UL) == APCI1710_PWM) {
-	      /**************************/
+			/**************************/
 			/* Test the PWM selection */
-	      /**************************/
+			/**************************/
 
 			if (b_PWM <= 1) {
-		 /***************************/
+				/***************************/
 				/* Test if PWM initialised */
-		 /***************************/
+				/***************************/
 
 				dw_Status = inl(devpriv->s_BoardInfos.
 					ui_Address + 12 + (20 * b_PWM) +
 					(64 * b_ModulNbr));
 
 				if (dw_Status & 0x10) {
-		    /***********************/
+					/***********************/
 					/* Test if PWM enabled */
-		    /***********************/
+					/***********************/
 
 					if (dw_Status & 0x1) {
 						*pb_PWMOutputStatus =
-							(BYTE) ((dw_Status >> 7)
+							(unsigned char) ((dw_Status >> 7)
 							& 1);
 						*pb_ExternGateStatus =
-							(BYTE) ((dw_Status >> 6)
+							(unsigned char) ((dw_Status >> 6)
 							& 1);
-					}	// if (dw_Status & 0x1)
+					}	/*  if (dw_Status & 0x1) */
 					else {
-		       /*******************/
+						/*******************/
 						/* PWM not enabled */
-		       /*******************/
+						/*******************/
 
 						DPRINTK("PWM not enabled \n");
 						i_ReturnValue = -6;
-					}	// if (dw_Status & 0x1)
-				}	// if (dw_Status & 0x10)
+					}	/*  if (dw_Status & 0x1) */
+				}	/*  if (dw_Status & 0x10) */
 				else {
-		    /***********************/
+					/***********************/
 					/* PWM not initialised */
-		    /***********************/
+					/***********************/
 
 					DPRINTK("PWM not initialised\n");
 					i_ReturnValue = -5;
-				}	// if (dw_Status & 0x10)
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+				}	/*  if (dw_Status & 0x10) */
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 			else {
-		 /******************************/
+				/******************************/
 				/* Tor PWM selection is wrong */
-		 /******************************/
+				/******************************/
 
 				DPRINTK("Tor PWM selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_PWM >= 0 && b_PWM <= 1)
+			}	/*  if (b_PWM >= 0 && b_PWM <= 1) */
 		} else {
-	      /**********************************/
+			/**********************************/
 			/* The module is not a PWM module */
-	      /**********************************/
+			/**********************************/
 
 			DPRINTK("The module is not a PWM module\n");
 			i_ReturnValue = -3;
 		}
 	} else {
-	   /***********************/
+		/***********************/
 		/* Module number error */
-	   /***********************/
+		/***********************/
 
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
-INT i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = devpriv->s_InterruptParameters.
 		s_FIFOInterruptParameters[devpriv->
@@ -3574,9 +3574,9 @@ INT i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device * dev,
 		s_FIFOInterruptParameters[devpriv->
 		s_InterruptParameters.ui_Read].ul_OldCounterLatchValue;
 
-			     /**************************/
+	/**************************/
 	/* Increment the read FIFO */
-			     /***************************/
+	/***************************/
 
 	devpriv->
 		s_InterruptParameters.

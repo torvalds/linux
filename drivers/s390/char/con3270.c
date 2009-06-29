@@ -7,7 +7,6 @@
  *     Copyright IBM Corp. 2003, 2009
  */
 
-#include <linux/bootmem.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -600,16 +599,14 @@ con3270_init(void)
 	if (IS_ERR(rp))
 		return PTR_ERR(rp);
 
-	condev = (struct con3270 *) alloc_bootmem_low(sizeof(struct con3270));
-	memset(condev, 0, sizeof(struct con3270));
+	condev = kzalloc(sizeof(struct con3270), GFP_KERNEL | GFP_DMA);
 	condev->view.dev = rp;
 
-	condev->read = raw3270_request_alloc_bootmem(0);
+	condev->read = raw3270_request_alloc(0);
 	condev->read->callback = con3270_read_callback;
 	condev->read->callback_data = condev;
-	condev->write = 
-		raw3270_request_alloc_bootmem(CON3270_OUTPUT_BUFFER_SIZE);
-	condev->kreset = raw3270_request_alloc_bootmem(1);
+	condev->write = raw3270_request_alloc(CON3270_OUTPUT_BUFFER_SIZE);
+	condev->kreset = raw3270_request_alloc(1);
 
 	INIT_LIST_HEAD(&condev->lines);
 	INIT_LIST_HEAD(&condev->update);
@@ -623,7 +620,7 @@ con3270_init(void)
 
 	INIT_LIST_HEAD(&condev->freemem);
 	for (i = 0; i < CON3270_STRING_PAGES; i++) {
-		cbuf = (void *) alloc_bootmem_low_pages(PAGE_SIZE);
+		cbuf = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		add_string_memory(&condev->freemem, cbuf, PAGE_SIZE);
 	}
 	condev->cline = alloc_string(&condev->freemem, condev->view.cols);

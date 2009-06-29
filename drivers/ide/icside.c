@@ -187,7 +187,8 @@ static const expansioncard_ops_t icside_ops_arcin_v6 = {
  */
 static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 {
-	int cycle_time, use_dma_info = 0;
+	unsigned long cycle_time;
+	int use_dma_info = 0;
 
 	switch (xfer_mode) {
 	case XFER_MW_DMA_2:
@@ -218,10 +219,11 @@ static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 	if (use_dma_info && drive->id[ATA_ID_EIDE_DMA_TIME] > cycle_time)
 		cycle_time = drive->id[ATA_ID_EIDE_DMA_TIME];
 
-	drive->drive_data = cycle_time;
+	ide_set_drivedata(drive, (void *)cycle_time);
 
 	printk("%s: %s selected (peak %dMB/s)\n", drive->name,
-		ide_xfer_verbose(xfer_mode), 2000 / drive->drive_data);
+		ide_xfer_verbose(xfer_mode),
+		2000 / (unsigned long)ide_get_drivedata(drive));
 }
 
 static const struct ide_port_ops icside_v6_port_ops = {
@@ -277,7 +279,7 @@ static int icside_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	/*
 	 * Select the correct timing for this drive.
 	 */
-	set_dma_speed(ec->dma, drive->drive_data);
+	set_dma_speed(ec->dma, (unsigned long)ide_get_drivedata(drive));
 
 	/*
 	 * Tell the DMA engine about the SG table and

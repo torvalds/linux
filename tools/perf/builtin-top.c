@@ -54,7 +54,7 @@ static int			system_wide			=  0;
 
 static int			default_interval		= 100000;
 
-static __u64			count_filter			=  5;
+static u64			count_filter			=  5;
 static int			print_entries			= 15;
 
 static int			target_pid			= -1;
@@ -79,8 +79,8 @@ static int			dump_symtab;
  * Symbols
  */
 
-static __u64			min_ip;
-static __u64			max_ip = -1ll;
+static u64			min_ip;
+static u64			max_ip = -1ll;
 
 struct sym_entry {
 	struct rb_node		rb_node;
@@ -194,7 +194,7 @@ static void print_sym_table(void)
 		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)));
 
 	if (nr_counters == 1) {
-		printf("%Ld", attrs[0].sample_period);
+		printf("%Ld", (u64)attrs[0].sample_period);
 		if (freq)
 			printf("Hz ");
 		else
@@ -372,7 +372,7 @@ out_delete_dso:
 /*
  * Binary search in the histogram table and record the hit:
  */
-static void record_ip(__u64 ip, int counter)
+static void record_ip(u64 ip, int counter)
 {
 	struct symbol *sym = dso__find_symbol(kernel_dso, ip);
 
@@ -392,7 +392,7 @@ static void record_ip(__u64 ip, int counter)
 	samples--;
 }
 
-static void process_event(__u64 ip, int counter)
+static void process_event(u64 ip, int counter)
 {
 	samples++;
 
@@ -463,15 +463,15 @@ static void mmap_read_counter(struct mmap_data *md)
 	for (; old != head;) {
 		struct ip_event {
 			struct perf_event_header header;
-			__u64 ip;
-			__u32 pid, target_pid;
+			u64 ip;
+			u32 pid, target_pid;
 		};
 		struct mmap_event {
 			struct perf_event_header header;
-			__u32 pid, target_pid;
-			__u64 start;
-			__u64 len;
-			__u64 pgoff;
+			u32 pid, target_pid;
+			u64 start;
+			u64 len;
+			u64 pgoff;
 			char filename[PATH_MAX];
 		};
 

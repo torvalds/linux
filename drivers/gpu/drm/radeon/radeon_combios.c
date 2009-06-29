@@ -799,6 +799,7 @@ static struct radeon_encoder_lvds *radeon_legacy_get_lvds_info_from_regs(struct
 	struct radeon_encoder_lvds *lvds = NULL;
 	uint32_t fp_vert_stretch, fp_horz_stretch;
 	uint32_t ppll_div_sel, ppll_val;
+	uint32_t lvds_ss_gen_cntl = RREG32(RADEON_LVDS_SS_GEN_CNTL);
 
 	lvds = kzalloc(sizeof(struct radeon_encoder_lvds), GFP_KERNEL);
 
@@ -807,6 +808,14 @@ static struct radeon_encoder_lvds *radeon_legacy_get_lvds_info_from_regs(struct
 
 	fp_vert_stretch = RREG32(RADEON_FP_VERT_STRETCH);
 	fp_horz_stretch = RREG32(RADEON_FP_HORZ_STRETCH);
+
+	/* These should be fail-safe defaults, fingers crossed */
+	lvds->panel_pwr_delay = 200;
+	lvds->panel_vcc_delay = 2000;
+
+	lvds->lvds_gen_cntl = RREG32(RADEON_LVDS_GEN_CNTL);
+	lvds->panel_digon_delay = (lvds_ss_gen_cntl >> RADEON_LVDS_PWRSEQ_DELAY1_SHIFT) & 0xf;
+	lvds->panel_blon_delay = (lvds_ss_gen_cntl >> RADEON_LVDS_PWRSEQ_DELAY2_SHIFT) & 0xf;
 
 	if (fp_vert_stretch & RADEON_VERT_STRETCH_ENABLE)
 		lvds->native_mode.panel_yres =

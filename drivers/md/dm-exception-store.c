@@ -216,7 +216,7 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 		return -EINVAL;
 	}
 
-	type = get_type(argv[1]);
+	type = get_type(&persistent);
 	if (!type) {
 		ti->error = "Exception store type not recognised";
 		r = -EINVAL;

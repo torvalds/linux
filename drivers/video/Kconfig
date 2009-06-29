@@ -1122,11 +1122,13 @@ config FB_INTEL
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FB_BOOT_VESA_SUPPORT
+	select FB_BOOT_VESA_SUPPORT if FB_INTEL = y
 	help
 	  This driver supports the on-board graphics built in to the Intel
           830M/845G/852GM/855GM/865G/915G/915GM/945G/945GM/965G/965GM chipsets.
           Say Y if you have and plan to use such a board.
+
+	  To make FB_INTELFB=Y work you need to say AGP_INTEL=y too.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called intelfb.
@@ -1460,7 +1462,7 @@ config FB_SIS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FB_BOOT_VESA_SUPPORT
+	select FB_BOOT_VESA_SUPPORT if FB_SIS = y
 	help
 	  This is the frame buffer device driver for the SiS 300, 315, 330
 	  and 340 series as well as XGI V3XT, V5, V8, Z7 graphics chipsets.

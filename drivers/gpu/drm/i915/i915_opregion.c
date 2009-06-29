@@ -419,7 +419,7 @@ void intel_opregion_free(struct drm_device *dev, int suspend)
 		return;
 
 	if (!suspend)
-		acpi_video_exit();
+		acpi_video_unregister();
 
 	opregion->acpi->drdy = 0;
 

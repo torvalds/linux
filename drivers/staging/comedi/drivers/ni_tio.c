@@ -149,13 +149,13 @@ static const unsigned ni_660x_max_rtsi_channel = 6;
 static inline unsigned NI_660x_RTSI_Clock(unsigned n)
 {
 	BUG_ON(n > ni_660x_max_rtsi_channel);
-	return (0xb + n);
+	return 0xb + n;
 }
 static const unsigned ni_660x_max_source_pin = 7;
 static inline unsigned NI_660x_Source_Pin_Clock(unsigned n)
 {
 	BUG_ON(n > ni_660x_max_source_pin);
-	return (0x2 + n);
+	return 0x2 + n;
 }
 
 /* clock sources for ni e and m series boards, get bits with Gi_Source_Select_Bits() */
@@ -279,9 +279,9 @@ static void __exit ni_tio_cleanup_module(void)
 module_exit(ni_tio_cleanup_module);
 
 struct ni_gpct_device *ni_gpct_device_construct(struct comedi_device * dev,
-	void (*write_register) (struct ni_gpct * counter, unsigned bits,
+	void (*write_register) (struct ni_gpct *counter, unsigned bits,
 		enum ni_gpct_register reg),
-	unsigned (*read_register) (struct ni_gpct * counter,
+	unsigned (*read_register) (struct ni_gpct *counter,
 		enum ni_gpct_register reg), enum ni_gpct_variant variant,
 	unsigned num_counters)
 {
@@ -669,7 +669,7 @@ static unsigned ni_m_series_source_select_bits(unsigned int clock_source)
 		}
 		if (i <= ni_m_series_max_pfi_channel)
 			break;
-		rt_printk("invalid clock source 0x%lx\n",
+		printk("invalid clock source 0x%lx\n",
 			(unsigned long)clock_source);
 		BUG();
 		ni_m_series_clock = 0;
@@ -965,7 +965,7 @@ static uint64_t ni_tio_clock_period_ps(const struct ni_gpct *counter,
 }
 
 static void ni_tio_get_clock_src(struct ni_gpct *counter,
-	unsigned int * clock_source, unsigned int * period_ns)
+	unsigned int *clock_source, unsigned int *period_ns)
 {
 	static const unsigned pico_per_nano = 1000;
 	uint64_t temp64;
@@ -1273,7 +1273,7 @@ static int ni_tio_set_other_src(struct ni_gpct *counter, unsigned index,
 		counter_dev->regs[abz_reg] &= ~mask;
 		counter_dev->regs[abz_reg] |= (source << shift) & mask;
 		write_register(counter, counter_dev->regs[abz_reg], abz_reg);
-//              rt_printk("%s %x %d %d\n", __FUNCTION__, counter_dev->regs[abz_reg], index, source);
+/* printk("%s %x %d %d\n", __func__, counter_dev->regs[abz_reg], index, source); */
 		return 0;
 	}
 	return -EINVAL;
@@ -1442,7 +1442,7 @@ static unsigned ni_m_series_second_gate_to_generic_gate_source(unsigned
 };
 
 static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
-	unsigned int * gate_source)
+	unsigned int *gate_source)
 {
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
 	const unsigned mode_bits = ni_tio_get_soft_copy(counter,
@@ -1534,7 +1534,7 @@ static int ni_tio_get_gate_src(struct ni_gpct *counter, unsigned gate_index,
 }
 
 int ni_tio_insn_config(struct ni_gpct *counter,
-	struct comedi_insn * insn, unsigned int * data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:

@@ -48,7 +48,7 @@ static int crypto_fpu_encrypt(struct blkcipher_desc *desc_in,
 	struct blkcipher_desc desc = {
 		.tfm = child,
 		.info = desc_in->info,
-		.flags = desc_in->flags,
+		.flags = desc_in->flags & ~CRYPTO_TFM_REQ_MAY_SLEEP,
 	};
 
 	kernel_fpu_begin();
@@ -67,7 +67,7 @@ static int crypto_fpu_decrypt(struct blkcipher_desc *desc_in,
 	struct blkcipher_desc desc = {
 		.tfm = child,
 		.info = desc_in->info,
-		.flags = desc_in->flags,
+		.flags = desc_in->flags & ~CRYPTO_TFM_REQ_MAY_SLEEP,
 	};
 
 	kernel_fpu_begin();

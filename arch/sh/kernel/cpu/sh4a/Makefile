@@ -16,7 +16,7 @@ obj-$(CONFIG_CPU_SUBTYPE_SH7366)	+= setup-sh7366.o
 obj-$(CONFIG_CPU_SUBTYPE_SHX3)		+= setup-shx3.o
 
 # SMP setup
-smp-$(CONFIG_CPU_SUBTYPE_SHX3)		:= smp-shx3.o
+smp-$(CONFIG_CPU_SHX3)			:= smp-shx3.o
 
 # Primary on-chip clocks (common)
 clock-$(CONFIG_CPU_SUBTYPE_SH7763)	:= clock-sh7763.o
@@ -38,6 +38,6 @@ pinmux-$(CONFIG_CPU_SUBTYPE_SH7724)	:= pinmux-sh7724.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7785)	:= pinmux-sh7785.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7786)	:= pinmux-sh7786.o
 
-obj-y			+= $(clock-y)
-obj-$(CONFIG_SMP)	+= $(smp-y)
+obj-y				+= $(clock-y)
+obj-$(CONFIG_SMP)		+= $(smp-y)
 obj-$(CONFIG_GENERIC_GPIO)	+= $(pinmux-y)

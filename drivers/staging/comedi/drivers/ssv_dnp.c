@@ -61,10 +61,10 @@ struct dnp_board {
 
 static const struct dnp_board dnp_boards[] = {	/* we only support one DNP 'board'   */
 	{			/* variant at the moment             */
-	      name:	"dnp-1486",
-	      ai_chans:16,
-	      ai_bits:	12,
-	      have_dio:1,
+	.name = "dnp-1486",
+	.ai_chans = 16,
+	.ai_bits = 12,
+	.have_dio = 1,
 		},
 };
 
@@ -74,7 +74,6 @@ static const struct dnp_board dnp_boards[] = {	/* we only support one DNP 'board
 /* This structure is for data unique to the DNP driver --------------------- */
 struct dnp_private_data {
 
-	//
 };
 
 
@@ -89,27 +88,27 @@ struct dnp_private_data {
 /* In the following section we define the API of this driver.                */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int dnp_detach(struct comedi_device * dev);
+static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int dnp_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_dnp = {
-      driver_name:"ssv_dnp",
-      module:THIS_MODULE,
-      attach:dnp_attach,
-      detach:dnp_detach,
-      board_name:&dnp_boards[0].name,
+	.driver_name = "ssv_dnp",
+	.module = THIS_MODULE,
+	.attach = dnp_attach,
+	.detach = dnp_detach,
+	.board_name = &dnp_boards[0].name,
 	/* only necessary for non-PnP devs   */
-      offset:sizeof(struct dnp_board),/* like ISA-PnP, PCI or PCMCIA.      */
-      num_names:sizeof(dnp_boards) / sizeof(struct dnp_board),
+	.offset = sizeof(struct dnp_board),/* like ISA-PnP, PCI or PCMCIA.      */
+	.num_names = ARRAY_SIZE(dnp_boards),
 };
 
 COMEDI_INITCLEANUP(driver_dnp);
 
-static int dnp_dio_insn_bits(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
+static int dnp_dio_insn_bits(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data);
 
-static int dnp_dio_insn_config(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data);
+static int dnp_dio_insn_config(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data);
 
 /* ------------------------------------------------------------------------- */
 /* Attach is called by comedi core to configure the driver for a particular  */
@@ -117,7 +116,7 @@ static int dnp_dio_insn_config(struct comedi_device * dev,
 /* dev->board_ptr contains that address.                                     */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 
 	struct comedi_subdevice *s;
@@ -126,7 +125,7 @@ static int dnp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 
 	/* Autoprobing: this should find out which board we have. Currently only   */
 	/* the 1486 board is supported and autoprobing is not implemented :-)      */
-	//dev->board_ptr = dnp_probe(dev);
+	/* dev->board_ptr = dnp_probe(dev); */
 
 	/* Initialize the name of the board. We can use the "thisboard" macro now. */
 	dev->board_name = thisboard->name;
@@ -178,7 +177,7 @@ static int dnp_attach(struct comedi_device * dev, struct comedi_devconfig * it)
 /* deallocated automatically by the core.                                    */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_detach(struct comedi_device * dev)
+static int dnp_detach(struct comedi_device *dev)
 {
 
 	/* configure all ports as input (default)                                  */
@@ -202,8 +201,8 @@ static int dnp_detach(struct comedi_device * dev)
 /* are able to use these instructions as well.                               */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_dio_insn_bits(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+static int dnp_dio_insn_bits(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 
 	if (insn->n != 2)
@@ -252,8 +251,8 @@ static int dnp_dio_insn_bits(struct comedi_device * dev,
 /* COMEDI_INPUT or COMEDI_OUTPUT.                                            */
 /* ------------------------------------------------------------------------- */
 
-static int dnp_dio_insn_config(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+static int dnp_dio_insn_config(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
 
 	u8 register_buffer;

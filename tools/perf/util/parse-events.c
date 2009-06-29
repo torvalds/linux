@@ -13,8 +13,8 @@ int					nr_counters;
 struct perf_counter_attr		attrs[MAX_COUNTERS];
 
 struct event_symbol {
-	__u8	type;
-	__u64	config;
+	u8	type;
+	u64	config;
 	char	*symbol;
 };
 
@@ -63,8 +63,8 @@ static char *hw_event_names[] = {
 };
 
 static char *sw_event_names[] = {
-	"cpu-clock-ticks",
-	"task-clock-ticks",
+	"cpu-clock-msecs",
+	"task-clock-msecs",
 	"page-faults",
 	"context-switches",
 	"CPU-migrations",
@@ -96,7 +96,7 @@ static char *hw_cache_result [][MAX_ALIASES] = {
 
 char *event_name(int counter)
 {
-	__u64 config = attrs[counter].config;
+	u64 config = attrs[counter].config;
 	int type = attrs[counter].type;
 	static char buf[32];
 
@@ -112,7 +112,7 @@ char *event_name(int counter)
 		return "unknown-hardware";
 
 	case PERF_TYPE_HW_CACHE: {
-		__u8 cache_type, cache_op, cache_result;
+		u8 cache_type, cache_op, cache_result;
 		static char name[100];
 
 		cache_type   = (config >>  0) & 0xff;
@@ -202,7 +202,7 @@ static int parse_generic_hw_symbols(const char *str, struct perf_counter_attr *a
  */
 static int parse_event_symbols(const char *str, struct perf_counter_attr *attr)
 {
-	__u64 config, id;
+	u64 config, id;
 	int type;
 	unsigned int i;
 	const char *sep, *pstr;

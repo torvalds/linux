@@ -3362,7 +3362,10 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 		valid = ifa->valid_lft;
 		if (preferred != INFINITY_LIFE_TIME) {
 			long tval = (jiffies - ifa->tstamp)/HZ;
-			preferred -= tval;
+			if (preferred > tval)
+				preferred -= tval;
+			else
+				preferred = 0;
 			if (valid != INFINITY_LIFE_TIME)
 				valid -= tval;
 		}

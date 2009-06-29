@@ -141,7 +141,7 @@ static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
 	sclk = get_sclk() / 1000;
 
 #if ANOMALY_05000273 || ANOMALY_05000274 || \
-	(!defined(CONFIG_BF54x) && defined(CONFIG_BFIN_DCACHE))
+	(!defined(CONFIG_BF54x) && defined(CONFIG_BFIN_EXTMEM_DCACHEABLE))
 	min_cclk = sclk * 2;
 #else
 	min_cclk = sclk;

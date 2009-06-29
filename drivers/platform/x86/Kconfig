@@ -34,10 +34,27 @@ config ACER_WMI
 	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
 	  here.
 
+config ACERHDF
+	tristate "Acer Aspire One temperature and fan driver"
+	depends on THERMAL && THERMAL_HWMON && ACPI
+	---help---
+	  This is a driver for Acer Aspire One netbooks. It allows to access
+	  the temperature sensor and to control the fan.
+
+	  After loading this driver the BIOS is still in control of the fan.
+	  To let the kernel handle the fan, do:
+	  echo -n enabled > /sys/class/thermal/thermal_zone0/mode
+
+	  For more information about this driver see
+	  <http://piie.net/files/acerhdf_README.txt>
+
+	  If you have an Acer Aspire One netbook, say Y or M
+	  here.
+
 config ASUS_LAPTOP
-	tristate "Asus Laptop Extras (EXPERIMENTAL)"
+	tristate "Asus Laptop Extras"
 	depends on ACPI
-	depends on EXPERIMENTAL && !ACPI_ASUS
+	depends on !ACPI_ASUS
 	select LEDS_CLASS
 	select NEW_LEDS
 	select BACKLIGHT_CLASS_DEVICE
@@ -45,12 +62,12 @@ config ASUS_LAPTOP
 	---help---
 	  This is the new Linux driver for Asus laptops. It may also support some
 	  MEDION, JVC or VICTOR laptops. It makes all the extra buttons generate
-	  standard ACPI events that go through /proc/acpi/events. It also adds
+	  standard ACPI events and input events. It also adds
 	  support for video output switching, LCD backlight control, Bluetooth and
 	  Wlan control, and most importantly, allows you to blink those fancy LEDs.
 
 	  For more information and a userspace daemon for handling the extra
-	  buttons see <http://acpi4asus.sf.net/>.
+	  buttons see <http://acpi4asus.sf.net>.
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
@@ -338,11 +355,15 @@ config EEEPC_LAPTOP
 	depends on INPUT
 	depends on EXPERIMENTAL
 	depends on RFKILL || RFKILL = n
+	depends on HOTPLUG_PCI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
-	  It also adds the ability to switch camera/wlan on/off.
+
+	  It  also gives access to some extra laptop functionalities like
+	  Bluetooth, backlight and allows powering on/off some other
+	  devices.
 
 	  If you have an Eee PC laptop, say Y or M here.
 
@@ -369,7 +390,7 @@ config ACPI_WMI
 	  any ACPI-WMI devices.
 
 config ACPI_ASUS
-	tristate "ASUS/Medion Laptop Extras"
+	tristate "ASUS/Medion Laptop Extras (DEPRECATED)"
 	depends on ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
@@ -390,7 +411,7 @@ config ACPI_ASUS
 	  parameters.
 
 	  More information and a userspace daemon for handling the extra buttons
-	  at <http://sourceforge.net/projects/acpi4asus/>.
+	  at <http://acpi4asus.sf.net>.
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here. This
 	  driver is still under development, so if your laptop is unsupported or

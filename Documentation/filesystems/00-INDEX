@@ -66,6 +66,10 @@ mandatory-locking.txt
 	- info on the Linux implementation of Sys V mandatory file locking.
 ncpfs.txt
 	- info on Novell Netware(tm) filesystem using NCP protocol.
+nfs41-server.txt
+	- info on the Linux server implementation of NFSv4 minor version 1.
+nfs-rdma.txt
+	- how to install and setup the Linux NFS/RDMA client and server software.
 nfsroot.txt
 	- short guide on setting up a diskless box with NFS root filesystem.
 nilfs2.txt

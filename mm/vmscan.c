@@ -932,7 +932,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 				continue;
 			if (__isolate_lru_page(cursor_page, mode, file) == 0) {
 				list_move(&cursor_page->lru, dst);
-				mem_cgroup_del_lru(page);
+				mem_cgroup_del_lru(cursor_page);
 				nr_taken++;
 				scan++;
 			}

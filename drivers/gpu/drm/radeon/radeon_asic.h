@@ -41,6 +41,7 @@ void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 /*
  * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
  */
+int r100_init(struct radeon_device *rdev);
 uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg);
 void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void r100_errata(struct radeon_device *rdev);
@@ -72,6 +73,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 		   struct radeon_fence *fence);
 
 static struct radeon_asic r100_asic = {
+	.init = &r100_init,
 	.errata = &r100_errata,
 	.vram_info = &r100_vram_info,
 	.gpu_reset = &r100_gpu_reset,
@@ -104,6 +106,7 @@ static struct radeon_asic r100_asic = {
 /*
  * r300,r350,rv350,rv380
  */
+int r300_init(struct radeon_device *rdev);
 void r300_errata(struct radeon_device *rdev);
 void r300_vram_info(struct radeon_device *rdev);
 int r300_gpu_reset(struct radeon_device *rdev);
@@ -126,6 +129,7 @@ int r300_copy_dma(struct radeon_device *rdev,
 		  unsigned num_pages,
 		  struct radeon_fence *fence);
 static struct radeon_asic r300_asic = {
+	.init = &r300_init,
 	.errata = &r300_errata,
 	.vram_info = &r300_vram_info,
 	.gpu_reset = &r300_gpu_reset,
@@ -162,6 +166,7 @@ void r420_vram_info(struct radeon_device *rdev);
 int r420_mc_init(struct radeon_device *rdev);
 void r420_mc_fini(struct radeon_device *rdev);
 static struct radeon_asic r420_asic = {
+	.init = &r300_init,
 	.errata = &r420_errata,
 	.vram_info = &r420_vram_info,
 	.gpu_reset = &r300_gpu_reset,
@@ -205,6 +210,7 @@ int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 uint32_t rs400_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 static struct radeon_asic rs400_asic = {
+	.init = &r300_init,
 	.errata = &rs400_errata,
 	.vram_info = &rs400_vram_info,
 	.gpu_reset = &r300_gpu_reset,
@@ -249,6 +255,7 @@ int rs600_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 static struct radeon_asic rs600_asic = {
+	.init = &r300_init,
 	.errata = &rs600_errata,
 	.vram_info = &rs600_vram_info,
 	.gpu_reset = &r300_gpu_reset,
@@ -288,6 +295,7 @@ void rs690_mc_fini(struct radeon_device *rdev);
 uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 static struct radeon_asic rs690_asic = {
+	.init = &r300_init,
 	.errata = &rs690_errata,
 	.vram_info = &rs690_vram_info,
 	.gpu_reset = &r300_gpu_reset,
@@ -320,6 +328,7 @@ static struct radeon_asic rs690_asic = {
 /*
  * rv515
  */
+int rv515_init(struct radeon_device *rdev);
 void rv515_errata(struct radeon_device *rdev);
 void rv515_vram_info(struct radeon_device *rdev);
 int rv515_gpu_reset(struct radeon_device *rdev);
@@ -331,6 +340,7 @@ void rv515_ring_start(struct radeon_device *rdev);
 uint32_t rv515_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
 void rv515_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 static struct radeon_asic rv515_asic = {
+	.init = &rv515_init,
 	.errata = &rv515_errata,
 	.vram_info = &rv515_vram_info,
 	.gpu_reset = &rv515_gpu_reset,
@@ -349,7 +359,7 @@ static struct radeon_asic rv515_asic = {
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
 	.fence_ring_emit = &r300_fence_ring_emit,
-	.cs_parse = &r100_cs_parse,
+	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = &r300_copy_dma,
 	.copy = &r100_copy_blit,
@@ -368,6 +378,7 @@ void r520_vram_info(struct radeon_device *rdev);
 int r520_mc_init(struct radeon_device *rdev);
 void r520_mc_fini(struct radeon_device *rdev);
 static struct radeon_asic r520_asic = {
+	.init = &rv515_init,
 	.errata = &r520_errata,
 	.vram_info = &r520_vram_info,
 	.gpu_reset = &rv515_gpu_reset,
@@ -386,7 +397,7 @@ static struct radeon_asic r520_asic = {
 	.irq_set = &r100_irq_set,
 	.irq_process = &r100_irq_process,
 	.fence_ring_emit = &r300_fence_ring_emit,
-	.cs_parse = &r100_cs_parse,
+	.cs_parse = &r300_cs_parse,
 	.copy_blit = &r100_copy_blit,
 	.copy_dma = &r300_copy_dma,
 	.copy = &r100_copy_blit,

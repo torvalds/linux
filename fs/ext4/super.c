@@ -666,10 +666,6 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	if (!ei)
 		return NULL;
 
-#ifdef CONFIG_EXT4_FS_POSIX_ACL
-	ei->i_acl = EXT4_ACL_NOT_CACHED;
-	ei->i_default_acl = EXT4_ACL_NOT_CACHED;
-#endif
 	ei->vfs_inode.i_version = 1;
 	ei->vfs_inode.i_data.writeback_index = 0;
 	memset(&ei->i_cached_extent, 0, sizeof(struct ext4_ext_cache));
@@ -735,18 +731,6 @@ static void destroy_inodecache(void)
 
 static void ext4_clear_inode(struct inode *inode)
 {
-#ifdef CONFIG_EXT4_FS_POSIX_ACL
-	if (EXT4_I(inode)->i_acl &&
-			EXT4_I(inode)->i_acl != EXT4_ACL_NOT_CACHED) {
-		posix_acl_release(EXT4_I(inode)->i_acl);
-		EXT4_I(inode)->i_acl = EXT4_ACL_NOT_CACHED;
-	}
-	if (EXT4_I(inode)->i_default_acl &&
-			EXT4_I(inode)->i_default_acl != EXT4_ACL_NOT_CACHED) {
-		posix_acl_release(EXT4_I(inode)->i_default_acl);
-		EXT4_I(inode)->i_default_acl = EXT4_ACL_NOT_CACHED;
-	}
-#endif
 	ext4_discard_preallocations(inode);
 	if (EXT4_JOURNAL(inode))
 		jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
@@ -1959,7 +1943,7 @@ static loff_t ext4_max_size(int blkbits, int has_huge_files)
 	/* small i_blocks in vfs inode? */
 	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
-		 * CONFIG_LBD is not enabled implies the inode
+		 * CONFIG_LBDAF is not enabled implies the inode
 		 * i_block represent total blocks in 512 bytes
 		 * 32 == size of vfs inode i_blocks * 8
 		 */
@@ -2002,7 +1986,7 @@ static loff_t ext4_max_bitmap_size(int bits, int has_huge_files)
 
 	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
-		 * !has_huge_files or CONFIG_LBD not enabled implies that
+		 * !has_huge_files or CONFIG_LBDAF not enabled implies that
 		 * the inode i_block field represents total file blocks in
 		 * 2^32 512-byte sectors == size of vfs inode i_blocks * 8
 		 */
@@ -2440,13 +2424,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (has_huge_files) {
 		/*
 		 * Large file size enabled file system can only be
-		 * mount if kernel is build with CONFIG_LBD
+		 * mount if kernel is build with CONFIG_LBDAF
 		 */
 		if (sizeof(root->i_blocks) < sizeof(u64) &&
 				!(sb->s_flags & MS_RDONLY)) {
 			ext4_msg(sb, KERN_ERR, "Filesystem with huge "
 					"files cannot be mounted read-write "
-					"without CONFIG_LBD");
+					"without CONFIG_LBDAF");
 			goto failed_mount;
 		}
 	}
@@ -2570,7 +2554,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		ext4_msg(sb, KERN_ERR, "filesystem"
 			" too large to mount safely");
 		if (sizeof(sector_t) < 8)
-			ext4_msg(sb, KERN_WARNING, "CONFIG_LBD not enabled");
+			ext4_msg(sb, KERN_WARNING, "CONFIG_LBDAF not enabled");
 		goto failed_mount;
 	}
 

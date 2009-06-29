@@ -51,6 +51,7 @@ broken.
 
  */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>
@@ -113,7 +114,7 @@ static const struct me4000_board me4000_boards[] = {
 	{0},
 };
 
-#define ME4000_BOARD_VERSIONS (sizeof(me4000_boards) / sizeof(struct me4000_board) - 1)
+#define ME4000_BOARD_VERSIONS (ARRAY_SIZE(me4000_boards) - 1)
 
 /*-----------------------------------------------------------------------------
   Comedi function prototypes
@@ -183,7 +184,7 @@ static int ai_prepare(struct comedi_device *dev,
 static int ai_write_chanlist(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_cmd *cmd);
 
-static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG);
+static irqreturn_t me4000_ai_isr(int irq, void *dev_id);
 
 static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	struct comedi_subdevice *s, struct comedi_cmd *cmd);
@@ -283,7 +284,7 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->insn_read = me4000_ai_insn_read;
 
 		if (info->irq > 0) {
-			if (comedi_request_irq(info->irq, me4000_ai_isr,
+			if (request_irq(info->irq, me4000_ai_isr,
 					IRQF_SHARED, "ME-4000", dev)) {
 				printk("comedi%d: me4000: me4000_attach(): Unable to allocate irq\n", dev->minor);
 			} else {
@@ -1740,7 +1741,7 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	return 0;
 }
 
-static irqreturn_t me4000_ai_isr(int irq, void *dev_id PT_REGS_ARG)
+static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 {
 	unsigned int tmp;
 	struct comedi_device *dev = dev_id;

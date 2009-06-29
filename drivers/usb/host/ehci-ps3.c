@@ -77,7 +77,7 @@ static const struct hc_driver ps3_ehci_hc_driver = {
 	.port_handed_over	= ehci_port_handed_over,
 };
 
-static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
+static int __devinit ps3_ehci_probe(struct ps3_system_bus_device *dev)
 {
 	int result;
 	struct usb_hcd *hcd;
@@ -225,7 +225,7 @@ static int ps3_ehci_remove(struct ps3_system_bus_device *dev)
 	return 0;
 }
 
-static int ps3_ehci_driver_register(struct ps3_system_bus_driver *drv)
+static int __init ps3_ehci_driver_register(struct ps3_system_bus_driver *drv)
 {
 	return firmware_has_feature(FW_FEATURE_PS3_LV1)
 		? ps3_system_bus_driver_register(drv)

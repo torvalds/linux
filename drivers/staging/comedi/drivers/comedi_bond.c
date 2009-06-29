@@ -210,7 +210,7 @@ static struct comedi_driver driver_bonding = {
 	 */
       .board_name =	&bondingBoards[0].name,
       .offset =		sizeof(struct BondingBoard),
-      .num_names =	sizeof(bondingBoards) / sizeof(struct BondingBoard),
+      .num_names =	ARRAY_SIZE(bondingBoards),
 };
 
 static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,

@@ -1,23 +1,20 @@
 #ifndef __ARCH_BLACKFIN_ATOMIC__
 #define __ARCH_BLACKFIN_ATOMIC__
 
+#ifndef CONFIG_SMP
+# include <asm-generic/atomic.h>
+#else
+
 #include <linux/types.h>
 #include <asm/system.h>	/* local_irq_XXX() */
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
  * resource counting etc..
- *
- * Generally we do not concern about SMP BFIN systems, so we don't have
- * to deal with that.
- *
- * Tony Kou (tonyko@lineo.ca)   Lineo Inc.   2001
  */
 
 #define ATOMIC_INIT(i)	{ (i) }
 #define atomic_set(v, i)	(((v)->counter) = i)
-
-#ifdef CONFIG_SMP
 
 #define atomic_read(v)	__raw_uncached_fetch_asm(&(v)->counter)
 
@@ -84,100 +81,6 @@ static inline int atomic_test_mask(int mask, atomic_t *v)
 #define smp_mb__before_atomic_inc()    barrier()
 #define smp_mb__after_atomic_inc() barrier()
 
-#else /* !CONFIG_SMP */
-
-#define atomic_read(v)	((v)->counter)
-
-static inline void atomic_add(int i, atomic_t *v)
-{
-	unsigned long flags;
-
-	local_irq_save_hw(flags);
-	v->counter += i;
-	local_irq_restore_hw(flags);
-}
-
-static inline void atomic_sub(int i, atomic_t *v)
-{
-	unsigned long flags;
-
-	local_irq_save_hw(flags);
-	v->counter -= i;
-	local_irq_restore_hw(flags);
-
-}
-
-static inline int atomic_add_return(int i, atomic_t *v)
-{
-	int __temp = 0;
-	unsigned long flags;
-
-	local_irq_save_hw(flags);
-	v->counter += i;
-	__temp = v->counter;
-	local_irq_restore_hw(flags);
-
-
-	return __temp;
-}
-
-static inline int atomic_sub_return(int i, atomic_t *v)
-{
-	int __temp = 0;
-	unsigned long flags;
-
-	local_irq_save_hw(flags);
-	v->counter -= i;
-	__temp = v->counter;
-	local_irq_restore_hw(flags);
-
-	return __temp;
-}
-
-static inline void atomic_inc(volatile atomic_t *v)
-{
-	unsigned long flags;
-
-	local_irq_save_hw(flags);
-	v->counter++;
-	local_irq_restore_hw(flags);
-}
-
-static inline void atomic_dec(volatile atomic_t *v)
-{
-	unsigned long flags;
-
-	local_irq_save_hw(flags);
-	v->counter--;
-	local_irq_restore_hw(flags);
-}
-
-static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
-{
-	unsigned long flags;
-
-	local_irq_save_hw(flags);
-	v->counter &= ~mask;
-	local_irq_restore_hw(flags);
-}
-
-static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
-{
-	unsigned long flags;
-
-	local_irq_save_hw(flags);
-	v->counter |= mask;
-	local_irq_restore_hw(flags);
-}
-
-/* Atomic operations are already serializing */
-#define smp_mb__before_atomic_dec()    barrier()
-#define smp_mb__after_atomic_dec() barrier()
-#define smp_mb__before_atomic_inc()    barrier()
-#define smp_mb__after_atomic_inc() barrier()
-
-#endif /* !CONFIG_SMP */
-
 #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
 #define atomic_dec_return(v) atomic_sub_return(1,(v))
 #define atomic_inc_return(v) atomic_add_return(1,(v))
@@ -210,4 +113,6 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 
 #include <asm-generic/atomic-long.h>
 
-#endif				/* __ARCH_BLACKFIN_ATOMIC __ */
+#endif
+
+#endif

@@ -11,6 +11,7 @@
 #include <net/sock.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svc_xprt.h>
+#include <linux/sunrpc/svcsock.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -1097,36 +1098,58 @@ struct svc_xprt *svc_find_xprt(struct svc_serv *serv, const char *xcl_name,
 }
 EXPORT_SYMBOL_GPL(svc_find_xprt);
 
-/*
- * Format a buffer with a list of the active transports. A zero for
- * the buflen parameter disables target buffer overflow checking.
+static int svc_one_xprt_name(const struct svc_xprt *xprt,
+			     char *pos, int remaining)
+{
+	int len;
+
+	len = snprintf(pos, remaining, "%s %u\n",
+			xprt->xpt_class->xcl_name,
+			svc_xprt_local_port(xprt));
+	if (len >= remaining)
+		return -ENAMETOOLONG;
+	return len;
+}
+
+/**
+ * svc_xprt_names - format a buffer with a list of transport names
+ * @serv: pointer to an RPC service
+ * @buf: pointer to a buffer to be filled in
+ * @buflen: length of buffer to be filled in
+ *
+ * Fills in @buf with a string containing a list of transport names,
+ * each name terminated with '\n'.
+ *
+ * Returns positive length of the filled-in string on success; otherwise
+ * a negative errno value is returned if an error occurs.
  */
-int svc_xprt_names(struct svc_serv *serv, char *buf, int buflen)
+int svc_xprt_names(struct svc_serv *serv, char *buf, const int buflen)
 {
 	struct svc_xprt *xprt;
-	char xprt_str[64];
-	int totlen = 0;
-	int len;
+	int len, totlen;
+	char *pos;
 
 	/* Sanity check args */
 	if (!serv)
 		return 0;
 
 	spin_lock_bh(&serv->sv_lock);
+
+	pos = buf;
+	totlen = 0;
 	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list) {
-		len = snprintf(xprt_str, sizeof(xprt_str),
-			       "%s %d\n", xprt->xpt_class->xcl_name,
-			       svc_xprt_local_port(xprt));
-		/* If the string was truncated, replace with error string */
-		if (len >= sizeof(xprt_str))
-			strcpy(xprt_str, "name-too-long\n");
-		/* Don't overflow buffer */
-		len = strlen(xprt_str);
-		if (buflen && (len + totlen >= buflen))
+		len = svc_one_xprt_name(xprt, pos, buflen - totlen);
+		if (len < 0) {
+			*buf = '\0';
+			totlen = len;
+		}
+		if (len <= 0)
 			break;
-		strcpy(buf+totlen, xprt_str);
+
+		pos += len;
 		totlen += len;
 	}
+
 	spin_unlock_bh(&serv->sv_lock);
 	return totlen;
 }

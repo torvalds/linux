@@ -46,7 +46,7 @@ Command support does not exist, but could be added for this board.
 
 #include "das08.h"
 
-// pcmcia includes
+/* pcmcia includes */
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -56,30 +56,31 @@ static struct pcmcia_device *cur_dev = NULL;
 
 #define thisboard ((const struct das08_board_struct *)dev->board_ptr)
 
-static int das08_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it);
+static int das08_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
 static struct comedi_driver driver_das08_cs = {
-      driver_name:"das08_cs",
-      module:THIS_MODULE,
-      attach:das08_cs_attach,
-      detach:das08_common_detach,
-      board_name:&das08_cs_boards[0].name,
-      num_names:sizeof(das08_cs_boards) /
+	.driver_name = "das08_cs",
+	.module = THIS_MODULE,
+	.attach = das08_cs_attach,
+	.detach = das08_common_detach,
+	.board_name = &das08_cs_boards[0].name,
+	.num_names = sizeof(das08_cs_boards) /
 		sizeof(struct das08_board_struct),
-      offset:sizeof(struct das08_board_struct),
+	.offset = sizeof(struct das08_board_struct),
 };
 
-static int das08_cs_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int das08_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	unsigned long iobase;
-	struct pcmcia_device *link = cur_dev;	// XXX hack
+	struct pcmcia_device *link = cur_dev;	/*  XXX hack */
 
-	if ((ret = alloc_private(dev, sizeof(struct das08_private_struct))) < 0)
+	ret = alloc_private(dev, sizeof(struct das08_private_struct));
+	if (ret < 0)
 		return ret;
 
 	printk("comedi%d: das08_cs: ", dev->minor);
-	// deal with a pci board
+	/*  deal with a pci board */
 
 	if (thisboard->bustype == pcmcia) {
 		if (link == NULL) {
@@ -264,14 +265,23 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 	last_fn = GetFirstTuple;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
+
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret)
 		goto cs_failed;
+
 	last_fn = GetTupleData;
-	if ((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0)
+
+	last_ret = pcmcia_get_tuple_data(link, &tuple);
+	if (last_ret)
 		goto cs_failed;
+
 	last_fn = ParseTuple;
-	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse)) != 0)
+
+	last_ret = pcmcia_parse_tuple(&tuple, &parse);
+	if (last_ret)
 		goto cs_failed;
+
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
@@ -289,13 +299,20 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	last_fn = GetFirstTuple;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
+
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret)
 		goto cs_failed;
+
 	while (1) {
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-		if ((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0)
+
+		last_ret = pcmcia_get_tuple_data(link, &tuple);
+		if (last_ret)
 			goto next_entry;
-		if ((last_ret = pcmcia_parse_tuple(&tuple, &parse)) != 0)
+
+		last_ret = pcmcia_parse_tuple(&tuple, &parse);
+		if (last_ret)
 			goto next_entry;
 
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
@@ -341,13 +358,16 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 
 	      next_entry:
 		last_fn = GetNextTuple;
-		if ((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0)
+
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
+		if (last_ret)
 			goto cs_failed;
 	}
 
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
 		last_fn = RequestIRQ;
-		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0)
+		last_ret = pcmcia_request_irq(link, &link->irq);
+		if (last_ret)
 			goto cs_failed;
 	}
 
@@ -357,7 +377,8 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	   card and host interface into "Memory and IO" mode.
 	 */
 	last_fn = RequestConfiguration;
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0)
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+	if (last_ret)
 		goto cs_failed;
 
 	/*

@@ -1687,13 +1687,52 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto out_rtnl;
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN) {
-		err = -EINVAL;
+	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
+	if (err)
 		goto out;
+
+	/* validate settings */
+	err = 0;
+
+	switch (dev->ieee80211_ptr->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+		/* disallow mesh-specific things */
+		if (params.plink_action)
+			err = -EINVAL;
+		break;
+	case NL80211_IFTYPE_STATION:
+		/* disallow everything but AUTHORIZED flag */
+		if (params.plink_action)
+			err = -EINVAL;
+		if (params.vlan)
+			err = -EINVAL;
+		if (params.supported_rates)
+			err = -EINVAL;
+		if (params.ht_capa)
+			err = -EINVAL;
+		if (params.listen_interval >= 0)
+			err = -EINVAL;
+		if (params.sta_flags_mask & ~BIT(NL80211_STA_FLAG_AUTHORIZED))
+			err = -EINVAL;
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		/* disallow things mesh doesn't support */
+		if (params.vlan)
+			err = -EINVAL;
+		if (params.ht_capa)
+			err = -EINVAL;
+		if (params.listen_interval >= 0)
+			err = -EINVAL;
+		if (params.supported_rates)
+			err = -EINVAL;
+		if (params.sta_flags_mask)
+			err = -EINVAL;
+		break;
+	default:
+		err = -EINVAL;
 	}
 
-	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
 	if (err)
 		goto out;
 
@@ -1728,9 +1767,6 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL80211_ATTR_MAC])
 		return -EINVAL;
 
-	if (!info->attrs[NL80211_ATTR_STA_AID])
-		return -EINVAL;
-
 	if (!info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL])
 		return -EINVAL;
 
@@ -1745,9 +1781,11 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	params.listen_interval =
 		nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
 
-	params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
-	if (!params.aid || params.aid > IEEE80211_MAX_AID)
-		return -EINVAL;
+	if (info->attrs[NL80211_ATTR_STA_AID]) {
+		params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
+		if (!params.aid || params.aid > IEEE80211_MAX_AID)
+			return -EINVAL;
+	}
 
 	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
 		params.ht_capa =
@@ -1762,13 +1800,39 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto out_rtnl;
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN) {
-		err = -EINVAL;
+	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
+	if (err)
 		goto out;
+
+	/* validate settings */
+	err = 0;
+
+	switch (dev->ieee80211_ptr->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+		/* all ok but must have AID */
+		if (!params.aid)
+			err = -EINVAL;
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		/* disallow things mesh doesn't support */
+		if (params.vlan)
+			err = -EINVAL;
+		if (params.aid)
+			err = -EINVAL;
+		if (params.ht_capa)
+			err = -EINVAL;
+		if (params.listen_interval >= 0)
+			err = -EINVAL;
+		if (params.supported_rates)
+			err = -EINVAL;
+		if (params.sta_flags_mask)
+			err = -EINVAL;
+		break;
+	default:
+		err = -EINVAL;
 	}
 
-	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
 	if (err)
 		goto out;
 
@@ -1812,7 +1876,8 @@ static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
 		goto out_rtnl;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN) {
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT) {
 		err = -EINVAL;
 		goto out;
 	}

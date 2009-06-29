@@ -117,7 +117,7 @@
 *	process thread  (usually)
 *	interrupt
 ----------------------------------------------------------------*/
-int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_scan(wlandevice_t * wlandev, void *msgp)
 {
 	int result = 0;
 	hfa384x_t *hw = wlandev->priv;
@@ -362,7 +362,7 @@ exit:
 *	process thread  (usually)
 *	interrupt
 ----------------------------------------------------------------*/
-int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_scan_results(wlandevice_t * wlandev, void *msgp)
 {
 	int result = 0;
 	p80211msg_dot11req_scan_results_t *req;
@@ -389,7 +389,7 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 
 	if (req->bssindex.data >= count) {
 		pr_debug("requested index (%d) out of range (%d)\n",
-		       req->bssindex.data, count);
+			 req->bssindex.data, count);
 		result = 2;
 		req->resultcode.data = P80211ENUM_resultcode_invalid_parameters;
 		goto exit;
@@ -511,7 +511,7 @@ exit:
 *	process thread  (usually)
 *	interrupt
 ----------------------------------------------------------------*/
-int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_start(wlandevice_t * wlandev, void *msgp)
 {
 	int result = 0;
 	hfa384x_t *hw = wlandev->priv;
@@ -544,7 +544,7 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 	/*** STATION ***/
 	/* Set the REQUIRED config items */
 	/* SSID */
-	pstr = (p80211pstrd_t *)&(msg->ssid.data);
+	pstr = (p80211pstrd_t *) & (msg->ssid.data);
 	prism2mgmt_pstr2bytestr(p2bytestr, pstr);
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFOWNSSID,
 					bytebuf, HFA384x_RID_CNFOWNSSID_LEN);
@@ -688,7 +688,7 @@ done:
 * Call context:
 *	process thread  (usually)
 ----------------------------------------------------------------*/
-int prism2mgmt_readpda(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_readpda(wlandevice_t * wlandev, void *msgp)
 {
 	hfa384x_t *hw = wlandev->priv;
 	p80211msg_p2req_readpda_t *msg = msgp;
@@ -754,7 +754,7 @@ int prism2mgmt_readpda(wlandevice_t *wlandev, void *msgp)
 * Call context:
 *	process thread  (usually)
 ----------------------------------------------------------------*/
-int prism2mgmt_ramdl_state(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_ramdl_state(wlandevice_t * wlandev, void *msgp)
 {
 	hfa384x_t *hw = wlandev->priv;
 	p80211msg_p2req_ramdl_state_t *msg = msgp;
@@ -810,7 +810,7 @@ int prism2mgmt_ramdl_state(wlandevice_t *wlandev, void *msgp)
 * Call context:
 *	process thread  (usually)
 ----------------------------------------------------------------*/
-int prism2mgmt_ramdl_write(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_ramdl_write(wlandevice_t * wlandev, void *msgp)
 {
 	hfa384x_t *hw = wlandev->priv;
 	p80211msg_p2req_ramdl_write_t *msg = msgp;
@@ -872,7 +872,7 @@ int prism2mgmt_ramdl_write(wlandevice_t *wlandev, void *msgp)
 * Call context:
 *	process thread  (usually)
 ----------------------------------------------------------------*/
-int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_flashdl_state(wlandevice_t * wlandev, void *msgp)
 {
 	int result = 0;
 	hfa384x_t *hw = wlandev->priv;
@@ -943,7 +943,7 @@ int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp)
 * Call context:
 *	process thread  (usually)
 ----------------------------------------------------------------*/
-int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_flashdl_write(wlandevice_t * wlandev, void *msgp)
 {
 	hfa384x_t *hw = wlandev->priv;
 	p80211msg_p2req_flashdl_write_t *msg = msgp;
@@ -1004,7 +1004,7 @@ int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp)
 *	process thread  (usually)
 *	interrupt
 ----------------------------------------------------------------*/
-int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_autojoin(wlandevice_t * wlandev, void *msgp)
 {
 	hfa384x_t *hw = wlandev->priv;
 	int result = 0;
@@ -1037,7 +1037,7 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
 
 	/* Set the ssid */
 	memset(bytebuf, 0, 256);
-	pstr = (p80211pstrd_t *)&(msg->ssid.data);
+	pstr = (p80211pstrd_t *) & (msg->ssid.data);
 	prism2mgmt_pstr2bytestr(p2bytestr, pstr);
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFDESIREDSSID,
 					bytebuf,
@@ -1075,7 +1075,7 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
 *	process thread  (usually)
 *	interrupt
 ----------------------------------------------------------------*/
-int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_wlansniff(wlandevice_t * wlandev, void *msgp)
 {
 	int result = 0;
 	p80211msg_lnxreq_wlansniff_t *msg = msgp;
@@ -1096,17 +1096,16 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Disable monitor mode */
 		result = hfa384x_cmd_monitor(hw, HFA384x_MONITOR_DISABLE);
 		if (result) {
-			printk(KERN_DEBUG
-			       "failed to disable monitor mode, result=%d\n",
-			       result);
+			pr_debug("failed to disable monitor mode, result=%d\n",
+				 result);
 			goto failed;
 		}
 		/* Disable port 0 */
 		result = hfa384x_drvr_disable(hw, 0);
 		if (result) {
-			printk(KERN_DEBUG
-			       "failed to disable port 0 after sniffing, result=%d\n",
-			       result);
+			pr_debug
+			    ("failed to disable port 0 after sniffing, result=%d\n",
+			     result);
 			goto failed;
 		}
 		/* Clear the driver state */
@@ -1117,9 +1116,9 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 						  HFA384x_RID_CNFWEPFLAGS,
 						  hw->presniff_wepflags);
 		if (result) {
-			printk(KERN_DEBUG
-			       "failed to restore wepflags=0x%04x, result=%d\n",
-			       hw->presniff_wepflags, result);
+			pr_debug
+			    ("failed to restore wepflags=0x%04x, result=%d\n",
+			     hw->presniff_wepflags, result);
 			goto failed;
 		}
 
@@ -1130,18 +1129,18 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 							  HFA384x_RID_CNFPORTTYPE,
 							  word);
 			if (result) {
-				printk(KERN_DEBUG
-				       "failed to restore porttype, result=%d\n",
-				       result);
+				pr_debug
+				    ("failed to restore porttype, result=%d\n",
+				     result);
 				goto failed;
 			}
 
 			/* Enable the port */
 			result = hfa384x_drvr_enable(hw, 0);
 			if (result) {
-				printk(KERN_DEBUG
-				       "failed to enable port to presniff setting, result=%d\n",
-				       result);
+				pr_debug
+				    ("failed to enable port to presniff setting, result=%d\n",
+				     result);
 				goto failed;
 			}
 		} else {
@@ -1161,40 +1160,42 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 				/* Save macport 0 state */
 				result = hfa384x_drvr_getconfig16(hw,
 								  HFA384x_RID_CNFPORTTYPE,
-								  &(hw->
-								    presniff_port_type));
+								  &
+								  (hw->
+								   presniff_port_type));
 				if (result) {
-					printk(KERN_DEBUG
-					       "failed to read porttype, result=%d\n",
-					       result);
+					pr_debug
+					    ("failed to read porttype, result=%d\n",
+					     result);
 					goto failed;
 				}
 				/* Save the wepflags state */
 				result = hfa384x_drvr_getconfig16(hw,
 								  HFA384x_RID_CNFWEPFLAGS,
-								  &(hw->
-								    presniff_wepflags));
+								  &
+								  (hw->
+								   presniff_wepflags));
 				if (result) {
-					printk(KERN_DEBUG
-					       "failed to read wepflags, result=%d\n",
-					       result);
+					pr_debug
+					    ("failed to read wepflags, result=%d\n",
+					     result);
 					goto failed;
 				}
 				hfa384x_drvr_stop(hw);
 				result = hfa384x_drvr_start(hw);
 				if (result) {
-					printk(KERN_DEBUG
-					       "failed to restart the card for sniffing, result=%d\n",
-					       result);
+					pr_debug
+					    ("failed to restart the card for sniffing, result=%d\n",
+					     result);
 					goto failed;
 				}
 			} else {
 				/* Disable the port */
 				result = hfa384x_drvr_disable(hw, 0);
 				if (result) {
-					printk(KERN_DEBUG
-					       "failed to enable port for sniffing, result=%d\n",
-					       result);
+					pr_debug
+					    ("failed to enable port for sniffing, result=%d\n",
+					     result);
 					goto failed;
 				}
 			}
@@ -1210,9 +1211,8 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		hw->sniff_channel = word;
 
 		if (result) {
-			printk(KERN_DEBUG
-			       "failed to set channel %d, result=%d\n",
-			       word, result);
+			pr_debug("failed to set channel %d, result=%d\n",
+				 word, result);
 			goto failed;
 		}
 
@@ -1224,9 +1224,9 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 							  HFA384x_RID_CNFPORTTYPE,
 							  word);
 			if (result) {
-				printk(KERN_DEBUG
-				       "failed to set porttype %d, result=%d\n",
-				       word, result);
+				pr_debug
+				    ("failed to set porttype %d, result=%d\n",
+				     word, result);
 				goto failed;
 			}
 			if ((msg->keepwepflags.status ==
@@ -1243,9 +1243,9 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			}
 
 			if (result) {
-				printk(KERN_DEBUG
-				       "failed to set wepflags=0x%04x, result=%d\n",
-				       word, result);
+				pr_debug
+				    ("failed to set wepflags=0x%04x, result=%d\n",
+				     word, result);
 				goto failed;
 			}
 		}
@@ -1269,17 +1269,16 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Enable the port */
 		result = hfa384x_drvr_enable(hw, 0);
 		if (result) {
-			printk(KERN_DEBUG
-			       "failed to enable port for sniffing, result=%d\n",
-			       result);
+			pr_debug
+			    ("failed to enable port for sniffing, result=%d\n",
+			     result);
 			goto failed;
 		}
 		/* Enable monitor mode */
 		result = hfa384x_cmd_monitor(hw, HFA384x_MONITOR_ENABLE);
 		if (result) {
-			printk(KERN_DEBUG
-			       "failed to enable monitor mode, result=%d\n",
-			       result);
+			pr_debug("failed to enable monitor mode, result=%d\n",
+				 result);
 			goto failed;
 		}
 

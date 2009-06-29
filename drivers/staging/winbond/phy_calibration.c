@@ -340,6 +340,25 @@ void _sin_cos(s32 angle, s32 *sin, s32 *cos)
     }
 }
 
+static unsigned char hal_get_dxx_reg(struct hw_data *pHwData, u16 number, u32 * pValue)
+{
+	if (number < 0x1000)
+		number += 0x1000;
+	return Wb35Reg_ReadSync(pHwData, number, pValue);
+}
+#define hw_get_dxx_reg( _A, _B, _C ) hal_get_dxx_reg( _A, _B, (u32 *)_C )
+
+static unsigned char hal_set_dxx_reg(struct hw_data *pHwData, u16 number, u32 value)
+{
+	unsigned char ret;
+
+	if (number < 0x1000)
+		number += 0x1000;
+	ret = Wb35Reg_WriteSync(pHwData, number, value);
+	return ret;
+}
+#define hw_set_dxx_reg( _A, _B, _C ) hal_set_dxx_reg( _A, _B, (u32)_C )
+
 
 void _reset_rx_cal(struct hw_data *phw_data)
 {

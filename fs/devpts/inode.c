@@ -423,7 +423,6 @@ static void devpts_kill_sb(struct super_block *sb)
 }
 
 static struct file_system_type devpts_fs_type = {
-	.owner		= THIS_MODULE,
 	.name		= "devpts",
 	.get_sb		= devpts_get_sb,
 	.kill_sb	= devpts_kill_sb,
@@ -564,13 +563,4 @@ static int __init init_devpts_fs(void)
 	}
 	return err;
 }
-
-static void __exit exit_devpts_fs(void)
-{
-	unregister_filesystem(&devpts_fs_type);
-	mntput(devpts_mnt);
-}
-
 module_init(init_devpts_fs)
-module_exit(exit_devpts_fs)
-MODULE_LICENSE("GPL");

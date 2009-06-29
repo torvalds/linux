@@ -15,7 +15,7 @@ static int hex(char ch)
  * While we find nice hex chars, build a long_val.
  * Return number of chars processed.
  */
-int hex2u64(const char *ptr, __u64 *long_val)
+int hex2u64(const char *ptr, u64 *long_val)
 {
 	const char *p = ptr;
 	*long_val = 0;

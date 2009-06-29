@@ -1318,7 +1318,6 @@ error:
 }
 
 struct hotplug_slot_ops ibmphp_hotplug_slot_ops = {
-	.owner =			THIS_MODULE,
 	.set_attention_status =		set_attention_status,
 	.enable_slot =			enable_slot,
 	.disable_slot =			ibmphp_disable_slot,
@@ -1421,3 +1420,4 @@ static void __exit ibmphp_exit(void)
 }
 
 module_init(ibmphp_init);
+module_exit(ibmphp_exit);

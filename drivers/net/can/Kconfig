@@ -36,7 +36,7 @@ config CAN_CALC_BITTIMING
 	  If unsure, say Y.
 
 config CAN_SJA1000
-	depends on CAN_DEV
+	depends on CAN_DEV && HAS_IOMEM
 	tristate "Philips SJA1000"
 	---help---
 	  Driver for the SJA1000 CAN controllers from Philips or NXP

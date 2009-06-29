@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/interrupt.h>
+#include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/slab.h>

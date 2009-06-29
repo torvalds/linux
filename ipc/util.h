@@ -10,6 +10,7 @@
 #ifndef _IPC_UTIL_H
 #define _IPC_UTIL_H
 
+#include <linux/unistd.h>
 #include <linux/err.h>
 
 #define SEQ_MULTIPLIER	(IPCMNI)

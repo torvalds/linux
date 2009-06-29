@@ -944,28 +944,31 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 	u32 val = 0;
 	int retries = 60;
 
-	if (!pegtune_val) {
-		do {
-			val = NXRD32(adapter, CRB_CMDPEG_STATE);
+	if (pegtune_val)
+		return 0;
 
-			if (val == PHAN_INITIALIZE_COMPLETE ||
-				val == PHAN_INITIALIZE_ACK)
-				return 0;
+	do {
+		val = NXRD32(adapter, CRB_CMDPEG_STATE);
 
-			msleep(500);
-
-		} while (--retries);
-
-		if (!retries) {
-			pegtune_val = NXRD32(adapter,
-					NETXEN_ROMUSB_GLB_PEGTUNE_DONE);
-			printk(KERN_WARNING "netxen_phantom_init: init failed, "
-					"pegtune_val=%x\n", pegtune_val);
-			return -1;
+		switch (val) {
+		case PHAN_INITIALIZE_COMPLETE:
+		case PHAN_INITIALIZE_ACK:
+			return 0;
+		case PHAN_INITIALIZE_FAILED:
+			goto out_err;
+		default:
+			break;
 		}
-	}
 
-	return 0;
+		msleep(500);
+
+	} while (--retries);
+
+	NXWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_FAILED);
+
+out_err:
+	dev_warn(&adapter->pdev->dev, "firmware init failed\n");
+	return -EIO;
 }
 
 static int

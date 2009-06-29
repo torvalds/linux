@@ -608,6 +608,7 @@ void emergency_remount(void)
 
 static DEFINE_IDA(unnamed_dev_ida);
 static DEFINE_SPINLOCK(unnamed_dev_lock);/* protects the above */
+static int unnamed_dev_start = 0; /* don't bother trying below it */
 
 int set_anon_super(struct super_block *s, void *data)
 {
@@ -618,7 +619,9 @@ int set_anon_super(struct super_block *s, void *data)
 	if (ida_pre_get(&unnamed_dev_ida, GFP_ATOMIC) == 0)
 		return -ENOMEM;
 	spin_lock(&unnamed_dev_lock);
-	error = ida_get_new(&unnamed_dev_ida, &dev);
+	error = ida_get_new_above(&unnamed_dev_ida, unnamed_dev_start, &dev);
+	if (!error)
+		unnamed_dev_start = dev + 1;
 	spin_unlock(&unnamed_dev_lock);
 	if (error == -EAGAIN)
 		/* We raced and lost with another CPU. */
@@ -629,6 +632,8 @@ int set_anon_super(struct super_block *s, void *data)
 	if ((dev & MAX_ID_MASK) == (1 << MINORBITS)) {
 		spin_lock(&unnamed_dev_lock);
 		ida_remove(&unnamed_dev_ida, dev);
+		if (unnamed_dev_start > dev)
+			unnamed_dev_start = dev;
 		spin_unlock(&unnamed_dev_lock);
 		return -EMFILE;
 	}
@@ -645,6 +650,8 @@ void kill_anon_super(struct super_block *sb)
 	generic_shutdown_super(sb);
 	spin_lock(&unnamed_dev_lock);
 	ida_remove(&unnamed_dev_ida, slot);
+	if (slot < unnamed_dev_start)
+		unnamed_dev_start = slot;
 	spin_unlock(&unnamed_dev_lock);
 }
 

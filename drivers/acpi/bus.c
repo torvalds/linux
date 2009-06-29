@@ -450,18 +450,16 @@ int acpi_bus_receive_event(struct acpi_bus_event *event)
                              Notification Handling
    -------------------------------------------------------------------------- */
 
-static int
-acpi_bus_check_device(struct acpi_device *device, int *status_changed)
+static void acpi_bus_check_device(acpi_handle handle)
 {
-	acpi_status status = 0;
+	struct acpi_device *device;
+	acpi_status status;
 	struct acpi_device_status old_status;
 
-
+	if (acpi_bus_get_device(handle, &device))
+		return;
 	if (!device)
-		return -EINVAL;
-
-	if (status_changed)
-		*status_changed = 0;
+		return;
 
 	old_status = device->status;
 
@@ -471,22 +469,15 @@ acpi_bus_check_device(struct acpi_device *device, int *status_changed)
 	 */
 	if (device->parent && !device->parent->status.present) {
 		device->status = device->parent->status;
-		if (STRUCT_TO_INT(old_status) != STRUCT_TO_INT(device->status)) {
-			if (status_changed)
-				*status_changed = 1;
-		}
-		return 0;
+		return;
 	}
 
 	status = acpi_bus_get_status(device);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return;
 
 	if (STRUCT_TO_INT(old_status) == STRUCT_TO_INT(device->status))
-		return 0;
-
-	if (status_changed)
-		*status_changed = 1;
+		return;
 
 	/*
 	 * Device Insertion/Removal
@@ -498,33 +489,17 @@ acpi_bus_check_device(struct acpi_device *device, int *status_changed)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device removal detected\n"));
 		/* TBD: Handle device removal */
 	}
-
-	return 0;
 }
 
-static int acpi_bus_check_scope(struct acpi_device *device)
+static void acpi_bus_check_scope(acpi_handle handle)
 {
-	int result = 0;
-	int status_changed = 0;
-
-
-	if (!device)
-		return -EINVAL;
-
 	/* Status Change? */
-	result = acpi_bus_check_device(device, &status_changed);
-	if (result)
-		return result;
-
-	if (!status_changed)
-		return 0;
+	acpi_bus_check_device(handle);
 
 	/*
 	 * TBD: Enumerate child devices within this device's scope and
 	 *       run acpi_bus_check_device()'s on them.
 	 */
-
-	return 0;
 }
 
 static BLOCKING_NOTIFIER_HEAD(acpi_bus_notify_list);
@@ -547,22 +522,19 @@ EXPORT_SYMBOL_GPL(unregister_acpi_bus_notifier);
  */
 static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 {
-	int result = 0;
 	struct acpi_device *device = NULL;
+	struct acpi_driver *driver;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Notification %#02x to handle %p\n",
+			  type, handle));
 
 	blocking_notifier_call_chain(&acpi_bus_notify_list,
 		type, (void *)handle);
 
-	if (acpi_bus_get_device(handle, &device))
-		return;
-
 	switch (type) {
 
 	case ACPI_NOTIFY_BUS_CHECK:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received BUS CHECK notification for device [%s]\n",
-				  device->pnp.bus_id));
-		result = acpi_bus_check_scope(device);
+		acpi_bus_check_scope(handle);
 		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
 		 *      drivers via the device manager (device.c).
@@ -570,10 +542,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received DEVICE CHECK notification for device [%s]\n",
-				  device->pnp.bus_id));
-		result = acpi_bus_check_device(device, NULL);
+		acpi_bus_check_device(handle);
 		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
 		 *      drivers via the device manager (device.c).
@@ -581,44 +550,26 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	case ACPI_NOTIFY_DEVICE_WAKE:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received DEVICE WAKE notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received EJECT REQUEST notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK_LIGHT:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received DEVICE CHECK LIGHT notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD: Exactly what does 'light' mean? */
 		break;
 
 	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received FREQUENCY MISMATCH notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_BUS_MODE_MISMATCH:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received BUS MODE MISMATCH notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_POWER_FAULT:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received POWER FAULT notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
@@ -629,7 +580,13 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 	}
 
-	return;
+	acpi_bus_get_device(handle, &device);
+	if (device) {
+		driver = device->driver;
+		if (driver && driver->ops.notify &&
+		    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
+			driver->ops.notify(device, type);
+	}
 }
 
 /* --------------------------------------------------------------------------

@@ -668,7 +668,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	queue_work(mdev->workqueue, &priv->mcast_task);
 
 	priv->port_up = true;
-	netif_start_queue(dev);
+	netif_tx_start_all_queues(dev);
 	return 0;
 
 mac_err:
@@ -700,14 +700,14 @@ void mlx4_en_stop_port(struct net_device *dev)
 		en_dbg(DRV, priv, "stop port called while port already down\n");
 		return;
 	}
-	netif_stop_queue(dev);
 
 	/* Synchronize with tx routine */
 	netif_tx_lock_bh(dev);
-	priv->port_up = false;
+	netif_tx_stop_all_queues(dev);
 	netif_tx_unlock_bh(dev);
 
 	/* close port*/
+	priv->port_up = false;
 	mlx4_CLOSE_PORT(mdev->dev, priv->port);
 
 	/* Unregister Mac address for the port */
@@ -881,7 +881,6 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 		mlx4_free_hwq_res(mdev->dev, &priv->res, MLX4_EN_PAGE_SIZE);
 
 	cancel_delayed_work(&priv->stats_task);
-	cancel_delayed_work(&priv->refill_task);
 	/* flush any pending task for this netdev */
 	flush_workqueue(mdev->workqueue);
 
@@ -986,7 +985,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	spin_lock_init(&priv->stats_lock);
 	INIT_WORK(&priv->mcast_task, mlx4_en_do_set_multicast);
 	INIT_WORK(&priv->mac_task, mlx4_en_do_set_mac);
-	INIT_DELAYED_WORK(&priv->refill_task, mlx4_en_rx_refill);
 	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);
 	INIT_WORK(&priv->linkstate_task, mlx4_en_linkstate);
 	INIT_DELAYED_WORK(&priv->stats_task, mlx4_en_do_get_stats);

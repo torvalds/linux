@@ -351,7 +351,7 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	radeon_i2c_do_lock(radeon_connector, 0);
 	if (edid) {
 		/* update digital bits here */
-		if (edid->digital)
+		if (edid->input & DRM_EDID_INPUT_DIGITAL)
 			radeon_connector->use_digital = 1;
 		else
 			radeon_connector->use_digital = 0;

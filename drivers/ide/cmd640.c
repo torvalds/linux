@@ -153,6 +153,7 @@ static int cmd640_vlb;
 #define ARTTIM23	0x57
 #define   ARTTIM23_DIS_RA2	0x04
 #define   ARTTIM23_DIS_RA3	0x08
+#define   ARTTIM23_IDE23INTR	0x10
 #define DRWTIM23	0x58
 #define BRST		0x59
 
@@ -629,12 +630,24 @@ static void cmd640_init_dev(ide_drive_t *drive)
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 }
 
+static int cmd640_test_irq(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
+	u8  irq_stat, irq_mask	= hwif->channel ? ARTTIM23_IDE23INTR :
+						  CFR_IDE01INTR;
+
+	pci_read_config_byte(dev, irq_reg, &irq_stat);
+
+	return (irq_stat & irq_mask) ? 1 : 0;
+}
 
 static const struct ide_port_ops cmd640_port_ops = {
 	.init_dev		= cmd640_init_dev,
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	.set_pio_mode		= cmd640_set_pio_mode,
 #endif
+	.test_irq		= cmd640_test_irq,
 };
 
 static int pci_conf1(void)

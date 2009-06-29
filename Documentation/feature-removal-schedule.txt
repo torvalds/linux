@@ -368,16 +368,6 @@ Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
 ---------------------------
 
-What:	i2c_attach_client(), i2c_detach_client(), i2c_driver->detach_client(),
-	i2c_adapter->client_register(), i2c_adapter->client_unregister
-When:	2.6.30
-Check:	i2c_attach_client i2c_detach_client
-Why:	Deprecated by the new (standard) device driver binding model. Use
-	i2c_driver->probe() and ->remove() instead.
-Who:	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
 What:	fscher and fscpos drivers
 When:	June 2009
 Why:	Deprecated by the new fschmd driver.

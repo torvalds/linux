@@ -320,7 +320,7 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
                     snd_mask_max(&params->masks[SNDRV_PCM_HW_PARAM_CHANNELS])) {
 			changed = substream->ops->ioctl(substream,
 					SNDRV_PCM_IOCTL1_FIFO_SIZE, params);
-			if (params < 0)
+			if (changed < 0)
 				return changed;
 		}
 	}

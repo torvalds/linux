@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -52,9 +52,9 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 +----------------------------------------------------------------------------+
 */
 #include "hwdrv_apci035.h"
-INT i_WatchdogNbr = 0;
-INT i_Temp = 0;
-INT i_Flag = 1;
+int i_WatchdogNbr = 0;
+int i_Temp = 0;
+int i_Flag = 1;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI035_ConfigTimerWatchdog                      |
@@ -64,42 +64,42 @@ INT i_Flag = 1;
 | Task              : Configures The Timer , Counter or Watchdog             |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |					  data[0]            : 0 Configure As Timer      |
 |										   1 Configure As Watchdog   |
-                              data[1]            : Watchdog number
+|                                         data[1]            : Watchdog number
 |					  data[2]            : Time base Unit            |
 |					  data[3]			 : Reload Value			     |
-                              data[4]            : External Trigger          |
-                                                   1:Enable
-                                                   0:Disable
-                              data[5]            :External Trigger Level
-                                                  00 Trigger Disabled
-                                                  01 Trigger Enabled (Low level)
-                                                  10 Trigger Enabled (High Level)
-                                                  11 Trigger Enabled (High/Low level)
-                              data[6]            : External Gate            |
-                                                   1:Enable
-                                                   0:Disable
-                              data[7]            : External Gate level
-                                                  00 Gate Disabled
-                                                  01 Gate Enabled (Low level)
-                                                  10 Gate Enabled (High Level)
-                              data[8]            :Warning Relay
-                                                  1: ENABLE
-                                                  0: DISABLE
-                              data[9]            :Warning Delay available
-                              data[10]           :Warning Relay Time unit
-                              data[11]           :Warning Relay Time Reload value
-                              data[12]           :Reset Relay
-                                                  1 : ENABLE
-                                                  0 : DISABLE
-                              data[13]           :Interrupt
-                                                  1 : ENABLE
-                                                  0 : DISABLE
-
+|                                         data[4]            : External Trigger          |
+|                                                              1:Enable
+|                                                           0:Disable
+|                              data[5]            :External Trigger Level
+|                                                  00 Trigger Disabled
+|                                                  01 Trigger Enabled (Low level)
+|                                                  10 Trigger Enabled (High Level)
+|                                                  11 Trigger Enabled (High/Low level)
+|                              data[6]            : External Gate            |
+|                                                   1:Enable
+|                                                   0:Disable
+|                              data[7]            : External Gate level
+|                                                  00 Gate Disabled
+|                                                  01 Gate Enabled (Low level)
+|                                                  10 Gate Enabled (High Level)
+|                              data[8]            :Warning Relay
+|                                                  1: ENABLE
+|                                                  0: DISABLE
+|                              data[9]            :Warning Delay available
+|                              data[10]           :Warning Relay Time unit
+|                              data[11]           :Warning Relay Time Reload value
+|                              data[12]           :Reset Relay
+|                                                  1 : ENABLE
+|                                                  0 : DISABLE
+|                              data[13]           :Interrupt
+|                                                  1 : ENABLE
+|                                                  0 : DISABLE
+|
 |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
@@ -109,12 +109,12 @@ INT i_Flag = 1;
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_ConfigTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_Status = 0;
-	UINT ui_Command = 0;
-	UINT ui_Mode = 0;
+	unsigned int ui_Status = 0;
+	unsigned int ui_Command = 0;
+	unsigned int ui_Mode = 0;
 	i_Temp = 0;
 	devpriv->tsk_Current = current;
 	devpriv->b_TimerSelectMode = data[0];
@@ -124,9 +124,9 @@ INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 	} else {
 		ui_Mode = 0;
 	}
-//ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12);
+/* ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12); */
 	ui_Command = 0;
-//ui_Command = ui_Command & 0xFFFFF9FEUL;
+/* ui_Command = ui_Command & 0xFFFFF9FEUL; */
 	outl(ui_Command, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 	ui_Command = 0;
 	ui_Command = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
@@ -153,7 +153,7 @@ INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 		ui_Command =
 			(ui_Command & 0xFFF719E2UL) | ui_Mode << 13UL | 0x10UL;
 
-	}			//if (data[0] == ADDIDATA_TIMER)
+	}			/* if (data[0] == ADDIDATA_TIMER) */
 	else {
 		if (data[0] == ADDIDATA_WATCHDOG) {
 
@@ -260,7 +260,7 @@ INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 | Task              : Start / Stop The Selected Timer , or Watchdog  |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |					                                                 |
 |					  data[0] : 0 - Stop Selected Timer/Watchdog     |
@@ -278,11 +278,11 @@ INT i_APCI035_ConfigTimerWatchdog(struct comedi_device * dev, struct comedi_subd
 |					                                                 |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
-	struct comedi_subdevice * s, struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device *dev,
+	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_Command = 0;
-	INT i_Count = 0;
+	unsigned int ui_Command = 0;
+	int i_Count = 0;
 	if (data[0] == 1) {
 		ui_Command =
 			inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
@@ -292,7 +292,7 @@ INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 		ui_Command = (ui_Command & 0xFFFFF9FFUL) | 0x1UL;
 		outl(ui_Command,
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
-	}			// if  (data[0]==1)
+	}			/*  if  (data[0]==1) */
 	if (data[0] == 2) {
 		ui_Command =
 			inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
@@ -304,16 +304,18 @@ INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
 	}
 
-	if (data[0] == 0)	//Stop The Watchdog
+	if (data[0] == 0)	/* Stop The Watchdog */
 	{
-		//Stop The Watchdog
+		/* Stop The Watchdog */
 		ui_Command = 0;
-		//ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12);
-		//ui_Command = ui_Command & 0xFFFFF9FEUL;
+/*
+* ui_Command = inl(devpriv->iobase+((i_WatchdogNbr-1)*32)+12);
+* ui_Command = ui_Command & 0xFFFFF9FEUL;
+*/
 		outl(ui_Command,
 			devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 12);
-	}			//  if (data[1]==0)
-	if (data[0] == 3)	//stop all Watchdogs
+	}			/*   if (data[1]==0) */
+	if (data[0] == 3)	/* stop all Watchdogs */
 	{
 		ui_Command = 0;
 		for (i_Count = 1; i_Count <= 4; i_Count++) {
@@ -329,7 +331,7 @@ INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 		}
 
 	}
-	if (data[0] == 4)	//start all Watchdogs
+	if (data[0] == 4)	/* start all Watchdogs */
 	{
 		ui_Command = 0;
 		for (i_Count = 1; i_Count <= 4; i_Count++) {
@@ -344,7 +346,7 @@ INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 				0);
 		}
 	}
-	if (data[0] == 5)	//trigger all Watchdogs
+	if (data[0] == 5)	/* trigger all Watchdogs */
 	{
 		ui_Command = 0;
 		for (i_Count = 1; i_Count <= 4; i_Count++) {
@@ -373,17 +375,17 @@ INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 | Task              : Read The Selected Timer , Counter or Watchdog          |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     UINT *data         : Data Pointer contains             |
+|                     unsigned int *data         : Data Pointer contains             |
 |                                          configuration parameters as below |
 |                                                                            |
 |     																	 |
 +----------------------------------------------------------------------------+
 | Output Parameters :	data[0]            : software trigger status
-              data[1]            : hardware trigger status
-|     				data[2]            : Software clear status
-                        data[3]            : Overflow status
-                     data[4]            : Timer actual value
-
+|                       data[1]            : hardware trigger status
+|     	  	        data[2]            : Software clear status
+|                       data[3]            : Overflow status
+|                       data[4]            : Timer actual value
+|
 
 +----------------------------------------------------------------------------+
 | Return Value      : TRUE  : No error occur                                 |
@@ -391,42 +393,46 @@ INT i_APCI035_StartStopWriteTimerWatchdog(struct comedi_device * dev,
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_ReadTimerWatchdog(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_Status = 0;	// Status register
+	unsigned int ui_Status = 0;	/*  Status register */
 	i_WatchdogNbr = insn->unused[0];
-	      /******************/
+
+	/******************/
 	/* Get the status */
-	      /******************/
+	/******************/
+
 	ui_Status = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 16);
-      /***********************************/
+
+	/***********************************/
 	/* Get the software trigger status */
-      /***********************************/
+	/***********************************/
+
 	data[0] = ((ui_Status >> 1) & 1);
-      /***********************************/
+	/***********************************/
 	/* Get the hardware trigger status */
-      /***********************************/
+	/***********************************/
 	data[1] = ((ui_Status >> 2) & 1);
-      /*********************************/
+	/*********************************/
 	/* Get the software clear status */
-      /*********************************/
+	/*********************************/
 	data[2] = ((ui_Status >> 3) & 1);
-      /***************************/
+	/***************************/
 	/* Get the overflow status */
-      /***************************/
+	/***************************/
 	data[3] = ((ui_Status >> 0) & 1);
 	if (devpriv->b_TimerSelectMode == ADDIDATA_TIMER) {
 		data[4] = inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);
 
-	}			//  if  (devpriv->b_TimerSelectMode==ADDIDATA_TIMER)
+	}			/*   if  (devpriv->b_TimerSelectMode==ADDIDATA_TIMER) */
 
 	return insn->n;
 }
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : INT i_APCI035_ConfigAnalogInput                        |
+| Function   Name   : int i_APCI035_ConfigAnalogInput                        |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                      struct comedi_insn *insn,unsigned int *data)                     |
 +----------------------------------------------------------------------------+
@@ -447,8 +453,8 @@ INT i_APCI035_ReadTimerWatchdog(struct comedi_device * dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_ConfigAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	devpriv->tsk_Current = current;
 	outl(0x200 | 0, devpriv->iobase + 128 + 0x4);
@@ -472,8 +478,8 @@ INT i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdev
 | Task              : Read  value  of the selected channel			         |
 +----------------------------------------------------------------------------+
 | Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     UINT ui_NoOfChannels    : No Of Channels To read       |
-|                     UINT *data              : Data Pointer to read status  |
+|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
+|                     unsigned int *data              : Data Pointer to read status  |
 +----------------------------------------------------------------------------+
 | Output Parameters :	--													 |
 |			          data[0]  : Digital Value Of Input              |
@@ -484,10 +490,10 @@ INT i_APCI035_ConfigAnalogInput(struct comedi_device * dev, struct comedi_subdev
 |			                                                         |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI035_ReadAnalogInput(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_CommandRegister = 0;
+	unsigned int ui_CommandRegister = 0;
 /******************/
 /*  Set the start */
 /******************/
@@ -519,14 +525,14 @@ INT i_APCI035_ReadAnalogInput(struct comedi_device * dev, struct comedi_subdevic
 |			                                                                 |
 +----------------------------------------------------------------------------+
 */
-INT i_APCI035_Reset(struct comedi_device * dev)
+int i_APCI035_Reset(struct comedi_device *dev)
 {
-	INT i_Count = 0;
+	int i_Count = 0;
 	for (i_Count = 1; i_Count <= 4; i_Count++) {
 		i_WatchdogNbr = i_Count;
-		outl(0x0, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);	//stop all timers
+		outl(0x0, devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 0);	/* stop all timers */
 	}
-	outl(0x0, devpriv->iobase + 128 + 12);	//Disable the warning delay
+	outl(0x0, devpriv->iobase + 128 + 12);	/* Disable the warning delay */
 
 	return 0;
 }
@@ -551,11 +557,11 @@ INT i_APCI035_Reset(struct comedi_device * dev)
 static void v_APCI035_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	UINT ui_StatusRegister1 = 0;
-	UINT ui_StatusRegister2 = 0;
-	UINT ui_ReadCommand = 0;
-	UINT ui_ChannelNumber = 0;
-	UINT ui_DigitalTemperature = 0;
+	unsigned int ui_StatusRegister1 = 0;
+	unsigned int ui_StatusRegister2 = 0;
+	unsigned int ui_ReadCommand = 0;
+	unsigned int ui_ChannelNumber = 0;
+	unsigned int ui_DigitalTemperature = 0;
 	if (i_Temp == 1) {
 		i_WatchdogNbr = i_Flag;
 		i_Flag = i_Flag + 1;
@@ -571,7 +577,7 @@ static void v_APCI035_Interrupt(int irq, void *d)
 	ui_StatusRegister2 =
 		inl(devpriv->iobase + ((i_WatchdogNbr - 1) * 32) + 20);
 
-	if ((((ui_StatusRegister1) & 0x8) == 0x8))	//Test if warning relay interrupt
+	if ((((ui_StatusRegister1) & 0x8) == 0x8))	/* Test if warning relay interrupt */
 	{
 	/**********************************/
 		/* Disable the temperature warning */
@@ -587,14 +593,14 @@ static void v_APCI035_Interrupt(int irq, void *d)
 		/* Read the digital temperature value */
 	/**************************************/
 		ui_DigitalTemperature = inl(devpriv->iobase + 128 + 60);
-		send_sig(SIGIO, devpriv->tsk_Current, 0);	// send signal to the sample
-	}			//if (((ui_StatusRegister1 & 0x8) == 0x8))
+		send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
+	}			/* if (((ui_StatusRegister1 & 0x8) == 0x8)) */
 
 	else {
 		if ((ui_StatusRegister2 & 0x1) == 0x1) {
-			send_sig(SIGIO, devpriv->tsk_Current, 0);	// send signal to the sample
+			send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
 		}
-	}			//else if (((ui_StatusRegister1 & 0x8) == 0x8))
+	}			/* else if (((ui_StatusRegister1 & 0x8) == 0x8)) */
 
 	return;
 }

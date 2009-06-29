@@ -109,10 +109,11 @@ swsusp_arch_resume:
 	aghi	%r15,-STACK_FRAME_OVERHEAD
 	stg	%r1,__SF_BACKCHAIN(%r15)
 
+#ifdef CONFIG_SMP
 	/* Save boot cpu number */
 	brasl	%r14,smp_get_phys_cpu_id
 	lgr	%r10,%r2
-
+#endif
 	/* Deactivate DAT */
 	stnsm	__SF_EMPTY(%r15),0xfb
 
@@ -177,11 +178,12 @@ swsusp_arch_resume:
 	/* Pointer to save arae */
 	lghi	%r13,0x1000
 
+#ifdef CONFIG_SMP
 	/* Switch CPUs */
 	lgr	%r2,%r10		/* get cpu id */
 	llgf	%r3,0x318(%r13)
 	brasl	%r14,smp_switch_boot_cpu_in_resume
-
+#endif
 	/* Restore prefix register */
 	spx	0x318(%r13)
 

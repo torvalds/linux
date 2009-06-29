@@ -437,8 +437,7 @@ free:
 int ax25_kiss_rcv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type *ptype, struct net_device *orig_dev)
 {
-	skb->sk = NULL;		/* Initially we don't know who it's for */
-	skb->destructor = NULL;	/* Who initializes this, dammit?! */
+	skb_orphan(skb);
 
 	if (!net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(skb);

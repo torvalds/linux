@@ -15,6 +15,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -28,7 +29,10 @@ struct serio {
 	char name[32];
 	char phys[32];
 
-	unsigned int manual_bind;
+	bool manual_bind;
+	bool registered;	/* port has been fully registered with driver core */
+	bool suspended;		/* port is suspended */
+
 
 	struct serio_device_id id;
 
@@ -47,7 +51,6 @@ struct serio {
 	struct mutex drv_mutex;		/* protects serio->drv so attributes can pin driver */
 
 	struct device dev;
-	unsigned int registered;	/* port has been fully registered with driver core */
 
 	struct list_head node;
 };
@@ -58,7 +61,7 @@ struct serio_driver {
 	char *description;
 
 	struct serio_device_id *id_table;
-	unsigned int manual_bind;
+	bool manual_bind;
 
 	void (*write_wakeup)(struct serio *);
 	irqreturn_t (*interrupt)(struct serio *, unsigned char, unsigned int);

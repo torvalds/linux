@@ -22,13 +22,6 @@
 /* SYS_IRQS and NR_IRQS are defined in <mach-bf5xx/irq.h> */
 #include <mach/irq.h>
 
-/* Xenomai IPIPE helpers */
-#define local_irq_restore_hw(x) local_irq_restore(x)
-#define local_irq_save_hw(x)    local_irq_save(x)
-#define local_irq_enable_hw(x)  local_irq_enable(x)
-#define local_irq_disable_hw(x) local_irq_disable(x)
-#define irqs_disabled_hw(x)     irqs_disabled(x)
-
 #if ANOMALY_05000244 && defined(CONFIG_BFIN_ICACHE)
 # define NOP_PAD_ANOMALY_05000244 "nop; nop;"
 #else
@@ -45,9 +38,6 @@
 		: "d" (bfin_irq_flags) \
 	)
 
-static inline int irq_canonicalize(int irq)
-{
-	return irq;
-}
+#include <asm-generic/irq.h>
 
 #endif				/* _BFIN_IRQ_H_ */

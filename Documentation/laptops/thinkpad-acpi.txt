@@ -920,7 +920,7 @@ The available commands are:
 	echo '<LED number> off' >/proc/acpi/ibm/led
 	echo '<LED number> blink' >/proc/acpi/ibm/led
 
-The <LED number> range is 0 to 7. The set of LEDs that can be
+The <LED number> range is 0 to 15. The set of LEDs that can be
 controlled varies from model to model. Here is the common ThinkPad
 mapping:
 
@@ -932,6 +932,11 @@ mapping:
 	5 - UltraBase battery slot
 	6 - (unknown)
 	7 - standby
+	8 - dock status 1
+	9 - dock status 2
+	10, 11 - (unknown)
+	12 - thinkvantage
+	13, 14, 15 - (unknown)
 
 All of the above can be turned on and off and can be made to blink.
 
@@ -940,10 +945,12 @@ sysfs notes:
 The ThinkPad LED sysfs interface is described in detail by the LED class
 documentation, in Documentation/leds-class.txt.
 
-The leds are named (in LED ID order, from 0 to 7):
+The LEDs are named (in LED ID order, from 0 to 12):
 "tpacpi::power", "tpacpi:orange:batt", "tpacpi:green:batt",
 "tpacpi::dock_active", "tpacpi::bay_active", "tpacpi::dock_batt",
-"tpacpi::unknown_led", "tpacpi::standby".
+"tpacpi::unknown_led", "tpacpi::standby", "tpacpi::dock_status1",
+"tpacpi::dock_status2", "tpacpi::unknown_led2", "tpacpi::unknown_led3",
+"tpacpi::thinkvantage".
 
 Due to limitations in the sysfs LED class, if the status of the LED
 indicators cannot be read due to an error, thinkpad-acpi will report it as
@@ -957,6 +964,12 @@ These LEDs can blink using hardware acceleration.  To request that a
 ThinkPad indicator LED should blink in hardware accelerated mode, use the
 "timer" trigger, and leave the delay_on and delay_off parameters set to
 zero (to request hardware acceleration autodetection).
+
+LEDs that are known not to exist in a given ThinkPad model are not
+made available through the sysfs interface.  If you have a dock and you
+notice there are LEDs listed for your ThinkPad that do not exist (and
+are not in the dock), or if you notice that there are missing LEDs,
+a report to ibm-acpi-devel@lists.sourceforge.net is appreciated.
 
 
 ACPI sounds -- /proc/acpi/ibm/beep
@@ -1156,16 +1169,18 @@ may not be distinct.  Later Lenovo models that implement the ACPI
 display backlight brightness control methods have 16 levels, ranging
 from 0 to 15.
 
-There are two interfaces to the firmware for direct brightness control,
-EC and UCMS (or CMOS).  To select which one should be used, use the
-brightness_mode module parameter: brightness_mode=1 selects EC mode,
-brightness_mode=2 selects UCMS mode, brightness_mode=3 selects EC
-mode with NVRAM backing (so that brightness changes are remembered
-across shutdown/reboot).
+For IBM ThinkPads, there are two interfaces to the firmware for direct
+brightness control, EC and UCMS (or CMOS).  To select which one should be
+used, use the brightness_mode module parameter: brightness_mode=1 selects
+EC mode, brightness_mode=2 selects UCMS mode, brightness_mode=3 selects EC
+mode with NVRAM backing (so that brightness changes are remembered across
+shutdown/reboot).
 
 The driver tries to select which interface to use from a table of
 defaults for each ThinkPad model.  If it makes a wrong choice, please
 report this as a bug, so that we can fix it.
+
+Lenovo ThinkPads only support brightness_mode=2 (UCMS).
 
 When display backlight brightness controls are available through the
 standard ACPI interface, it is best to use it instead of this direct
@@ -1254,7 +1269,7 @@ Fan control and monitoring: fan speed, fan enable/disable
 
 procfs: /proc/acpi/ibm/fan
 sysfs device attributes: (hwmon "thinkpad") fan1_input, pwm1,
-			  pwm1_enable
+			  pwm1_enable, fan2_input
 sysfs hwmon driver attributes: fan_watchdog
 
 NOTE NOTE NOTE: fan control operations are disabled by default for
@@ -1266,6 +1281,9 @@ other fan data that might be available.  The speed is read directly
 from the hardware registers of the embedded controller.  This is known
 to work on later R, T, X and Z series ThinkPads but may show a bogus
 value on other models.
+
+Some Lenovo ThinkPads support a secondary fan.  This fan cannot be
+controlled separately, it shares the main fan control.
 
 Fan levels:
 
@@ -1396,6 +1414,11 @@ hwmon device attribute fan1_input:
 	ThinkPads while the EC transitions the PWM to offline mode,
 	which can take up to two minutes.  May return rubbish on older
 	ThinkPads.
+
+hwmon device attribute fan2_input:
+	Fan tachometer reading, in RPM, for the secondary fan.
+	Available only on some ThinkPads.  If the secondary fan is
+	not installed, will always read 0.
 
 hwmon driver attribute fan_watchdog:
 	Fan safety watchdog timer interval, in seconds.  Minimum is
@@ -1555,3 +1578,7 @@ Sysfs interface changelog:
 0x020300:	hotkey enable/disable support removed, attributes
 		hotkey_bios_enabled and hotkey_enable deprecated and
 		marked for removal.
+
+0x020400:	Marker for 16 LEDs support.  Also, LEDs that are known
+		to not exist in a given model are not registered with
+		the LED sysfs class anymore.

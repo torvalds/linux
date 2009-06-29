@@ -11,6 +11,7 @@
 #ifndef _XTENSA_IRQ_H
 #define _XTENSA_IRQ_H
 
+#include <linux/init.h>
 #include <platform/hardware.h>
 #include <variant/core.h>
 
@@ -21,11 +22,20 @@ static inline void variant_irq_enable(unsigned int irq) { }
 static inline void variant_irq_disable(unsigned int irq) { }
 #endif
 
+#ifndef VARIANT_NR_IRQS
+# define VARIANT_NR_IRQS 0
+#endif
 #ifndef PLATFORM_NR_IRQS
 # define PLATFORM_NR_IRQS 0
 #endif
 #define XTENSA_NR_IRQS XCHAL_NUM_INTERRUPTS
-#define NR_IRQS (XTENSA_NR_IRQS + PLATFORM_NR_IRQS)
+#define NR_IRQS (XTENSA_NR_IRQS + VARIANT_NR_IRQS + PLATFORM_NR_IRQS)
+
+#if VARIANT_NR_IRQS == 0
+static inline void variant_init_irq(void) { }
+#else
+void variant_init_irq(void) __init;
+#endif
 
 static __inline__ int irq_canonicalize(int irq)
 {

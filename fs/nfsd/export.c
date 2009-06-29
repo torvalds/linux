@@ -464,16 +464,11 @@ static int secinfo_parse(char **mesg, char *buf, struct svc_export *exp)
 		if (err)
 			return err;
 		/*
-		 * Just a quick sanity check; we could also try to check
-		 * whether this pseudoflavor is supported, but at worst
-		 * an unsupported pseudoflavor on the export would just
-		 * be a pseudoflavor that won't match the flavor of any
-		 * authenticated request.  The administrator will
-		 * probably discover the problem when someone fails to
-		 * authenticate.
+		 * XXX: It would be nice to also check whether this
+		 * pseudoflavor is supported, so we can discover the
+		 * problem at export time instead of when a client fails
+		 * to authenticate.
 		 */
-		if (f->pseudoflavor < 0)
-			return -EINVAL;
 		err = get_int(mesg, &f->flags);
 		if (err)
 			return err;

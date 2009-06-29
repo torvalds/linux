@@ -184,14 +184,7 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	ide_hwif_t *hwif = drive->hwif;
 
 	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
-
-	if (!blk_fs_request(rq)) {
-		blk_dump_rq_flags(rq, "ide_do_rw_disk - bad command");
-		if (rq->errors == 0)
-			rq->errors = -EIO;
-		ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
-		return ide_stopped;
-	}
+	BUG_ON(!blk_fs_request(rq));
 
 	ledtrig_ide_activity();
 

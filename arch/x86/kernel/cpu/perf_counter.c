@@ -19,6 +19,7 @@
 #include <linux/kdebug.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
+#include <linux/highmem.h>
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
@@ -389,23 +390,23 @@ static u64 intel_pmu_raw_event(u64 event)
 	return event & CORE_EVNTSEL_MASK;
 }
 
-static const u64 amd_0f_hw_cache_event_ids
+static const u64 amd_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
 {
  [ C(L1D) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0,
-		[ C(RESULT_MISS)   ] = 0,
+		[ C(RESULT_ACCESS) ] = 0x0040, /* Data Cache Accesses        */
+		[ C(RESULT_MISS)   ] = 0x0041, /* Data Cache Misses          */
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = 0,
+		[ C(RESULT_ACCESS) ] = 0x0042, /* Data Cache Refills from L2 */
 		[ C(RESULT_MISS)   ] = 0,
 	},
 	[ C(OP_PREFETCH) ] = {
-		[ C(RESULT_ACCESS) ] = 0,
-		[ C(RESULT_MISS)   ] = 0,
+		[ C(RESULT_ACCESS) ] = 0x0267, /* Data Prefetcher :attempts  */
+		[ C(RESULT_MISS)   ] = 0x0167, /* Data Prefetcher :cancelled */
 	},
  },
  [ C(L1I ) ] = {
@@ -418,17 +419,17 @@ static const u64 amd_0f_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = -1,
 	},
 	[ C(OP_PREFETCH) ] = {
-		[ C(RESULT_ACCESS) ] = 0,
+		[ C(RESULT_ACCESS) ] = 0x014B, /* Prefetch Instructions :Load */
 		[ C(RESULT_MISS)   ] = 0,
 	},
  },
  [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0,
-		[ C(RESULT_MISS)   ] = 0,
+		[ C(RESULT_ACCESS) ] = 0x037D, /* Requests to L2 Cache :IC+DC */
+		[ C(RESULT_MISS)   ] = 0x037E, /* L2 Cache Misses : IC+DC     */
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = 0,
+		[ C(RESULT_ACCESS) ] = 0x017F, /* L2 Fill/Writeback           */
 		[ C(RESULT_MISS)   ] = 0,
 	},
 	[ C(OP_PREFETCH) ] = {
@@ -438,8 +439,8 @@ static const u64 amd_0f_hw_cache_event_ids
  },
  [ C(DTLB) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0,
-		[ C(RESULT_MISS)   ] = 0,
+		[ C(RESULT_ACCESS) ] = 0x0040, /* Data Cache Accesses        */
+		[ C(RESULT_MISS)   ] = 0x0046, /* L1 DTLB and L2 DLTB Miss   */
 	},
 	[ C(OP_WRITE) ] = {
 		[ C(RESULT_ACCESS) ] = 0,
@@ -1223,6 +1224,8 @@ again:
 		if (!intel_pmu_save_and_restart(counter))
 			continue;
 
+		data.period = counter->hw.last_period;
+
 		if (perf_counter_overflow(counter, 1, &data))
 			intel_pmu_disable_counter(&counter->hw, bit);
 	}
@@ -1459,18 +1462,16 @@ static int intel_pmu_init(void)
 
 static int amd_pmu_init(void)
 {
+	/* Performance-monitoring supported from K7 and later: */
+	if (boot_cpu_data.x86 < 6)
+		return -ENODEV;
+
 	x86_pmu = amd_pmu;
 
-	switch (boot_cpu_data.x86) {
-	case 0x0f:
-	case 0x10:
-	case 0x11:
-		memcpy(hw_cache_event_ids, amd_0f_hw_cache_event_ids,
-		       sizeof(hw_cache_event_ids));
+	/* Events are common for all AMDs */
+	memcpy(hw_cache_event_ids, amd_hw_cache_event_ids,
+	       sizeof(hw_cache_event_ids));
 
-		pr_cont("AMD Family 0f/10/11 events, ");
-		break;
-	}
 	return 0;
 }
 
@@ -1554,9 +1555,9 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
  */
 
 static inline
-void callchain_store(struct perf_callchain_entry *entry, unsigned long ip)
+void callchain_store(struct perf_callchain_entry *entry, u64 ip)
 {
-	if (entry->nr < MAX_STACK_DEPTH)
+	if (entry->nr < PERF_MAX_STACK_DEPTH)
 		entry->ip[entry->nr++] = ip;
 }
 
@@ -1577,8 +1578,8 @@ static void backtrace_warning(void *data, char *msg)
 
 static int backtrace_stack(void *data, char *name)
 {
-	/* Don't bother with IRQ stacks for now */
-	return -1;
+	/* Process all stacks: */
+	return 0;
 }
 
 static void backtrace_address(void *data, unsigned long addr, int reliable)
@@ -1596,47 +1597,59 @@ static const struct stacktrace_ops backtrace_ops = {
 	.address		= backtrace_address,
 };
 
+#include "../dumpstack.h"
+
 static void
 perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
-	unsigned long bp;
-	char *stack;
-	int nr = entry->nr;
+	callchain_store(entry, PERF_CONTEXT_KERNEL);
+	callchain_store(entry, regs->ip);
 
-	callchain_store(entry, instruction_pointer(regs));
-
-	stack = ((char *)regs + sizeof(struct pt_regs));
-#ifdef CONFIG_FRAME_POINTER
-	bp = frame_pointer(regs);
-#else
-	bp = 0;
-#endif
-
-	dump_trace(NULL, regs, (void *)stack, bp, &backtrace_ops, entry);
-
-	entry->kernel = entry->nr - nr;
+	dump_trace(NULL, regs, NULL, 0, &backtrace_ops, entry);
 }
 
+/*
+ * best effort, GUP based copy_from_user() that assumes IRQ or NMI context
+ */
+static unsigned long
+copy_from_user_nmi(void *to, const void __user *from, unsigned long n)
+{
+	unsigned long offset, addr = (unsigned long)from;
+	int type = in_nmi() ? KM_NMI : KM_IRQ0;
+	unsigned long size, len = 0;
+	struct page *page;
+	void *map;
+	int ret;
 
-struct stack_frame {
-	const void __user	*next_fp;
-	unsigned long		return_address;
-};
+	do {
+		ret = __get_user_pages_fast(addr, 1, 0, &page);
+		if (!ret)
+			break;
+
+		offset = addr & (PAGE_SIZE - 1);
+		size = min(PAGE_SIZE - offset, n - len);
+
+		map = kmap_atomic(page, type);
+		memcpy(to, map+offset, size);
+		kunmap_atomic(map, type);
+		put_page(page);
+
+		len  += size;
+		to   += size;
+		addr += size;
+
+	} while (len < n);
+
+	return len;
+}
 
 static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
 {
-	int ret;
+	unsigned long bytes;
 
-	if (!access_ok(VERIFY_READ, fp, sizeof(*frame)))
-		return 0;
+	bytes = copy_from_user_nmi(frame, fp, sizeof(*frame));
 
-	ret = 1;
-	pagefault_disable();
-	if (__copy_from_user_inatomic(frame, fp, sizeof(*frame)))
-		ret = 0;
-	pagefault_enable();
-
-	return ret;
+	return bytes == sizeof(*frame);
 }
 
 static void
@@ -1644,28 +1657,28 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
 	struct stack_frame frame;
 	const void __user *fp;
-	int nr = entry->nr;
 
-	regs = (struct pt_regs *)current->thread.sp0 - 1;
-	fp   = (void __user *)regs->bp;
+	if (!user_mode(regs))
+		regs = task_pt_regs(current);
 
+	fp = (void __user *)regs->bp;
+
+	callchain_store(entry, PERF_CONTEXT_USER);
 	callchain_store(entry, regs->ip);
 
-	while (entry->nr < MAX_STACK_DEPTH) {
-		frame.next_fp	     = NULL;
+	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+		frame.next_frame	     = NULL;
 		frame.return_address = 0;
 
 		if (!copy_stack_frame(fp, &frame))
 			break;
 
-		if ((unsigned long)fp < user_stack_pointer(regs))
+		if ((unsigned long)fp < regs->sp)
 			break;
 
 		callchain_store(entry, frame.return_address);
-		fp = frame.next_fp;
+		fp = frame.next_frame;
 	}
-
-	entry->user = entry->nr - nr;
 }
 
 static void
@@ -1701,9 +1714,6 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 		entry = &__get_cpu_var(irq_entry);
 
 	entry->nr = 0;
-	entry->hv = 0;
-	entry->kernel = 0;
-	entry->user = 0;
 
 	perf_do_callchain(regs, entry);
 

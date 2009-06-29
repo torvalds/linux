@@ -319,7 +319,7 @@ int ehca_query_gid(struct ib_device *ibdev, u8 port,
 					      ib_device);
 	struct hipz_query_port *rblock;
 
-	if (index > 255) {
+	if (index < 0 || index > 255) {
 		ehca_err(&shca->ib_device, "Invalid index: %x.", index);
 		return -EINVAL;
 	}

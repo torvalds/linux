@@ -123,19 +123,20 @@ static char *ch7xxx_get_id(uint8_t vid)
 static bool ch7xxx_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 {
 	struct ch7xxx_priv *ch7xxx= dvo->dev_priv;
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
+	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	u8 out_buf[2];
 	u8 in_buf[2];
 
 	struct i2c_msg msgs[] = {
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = 0,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = in_buf,
@@ -152,7 +153,7 @@ static bool ch7xxx_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 
 	if (!ch7xxx->quiet) {
 		DRM_DEBUG("Unable to read register 0x%02x from %s:%02x.\n",
-			  addr, i2cbus->adapter.name, i2cbus->slave_addr);
+			  addr, i2cbus->adapter.name, dvo->slave_addr);
 	}
 	return false;
 }
@@ -161,10 +162,11 @@ static bool ch7xxx_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 static bool ch7xxx_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 {
 	struct ch7xxx_priv *ch7xxx = dvo->dev_priv;
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
+	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	uint8_t out_buf[2];
 	struct i2c_msg msg = {
-		.addr = i2cbus->slave_addr,
+		.addr = dvo->slave_addr,
 		.flags = 0,
 		.len = 2,
 		.buf = out_buf,
@@ -178,14 +180,14 @@ static bool ch7xxx_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 
 	if (!ch7xxx->quiet) {
 		DRM_DEBUG("Unable to write register 0x%02x to %s:%d.\n",
-			  addr, i2cbus->adapter.name, i2cbus->slave_addr);
+			  addr, i2cbus->adapter.name, dvo->slave_addr);
 	}
 
 	return false;
 }
 
 static bool ch7xxx_init(struct intel_dvo_device *dvo,
-			struct intel_i2c_chan *i2cbus)
+			struct i2c_adapter *adapter)
 {
 	/* this will detect the CH7xxx chip on the specified i2c bus */
 	struct ch7xxx_priv *ch7xxx;
@@ -196,8 +198,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 	if (ch7xxx == NULL)
 		return false;
 
-	dvo->i2c_bus = i2cbus;
-	dvo->i2c_bus->slave_addr = dvo->slave_addr;
+	dvo->i2c_bus = adapter;
 	dvo->dev_priv = ch7xxx;
 	ch7xxx->quiet = true;
 
@@ -207,7 +208,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 	name = ch7xxx_get_id(vendor);
 	if (!name) {
 		DRM_DEBUG("ch7xxx not detected; got 0x%02x from %s slave %d.\n",
-			  vendor, i2cbus->adapter.name, i2cbus->slave_addr);
+			  vendor, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 
@@ -217,7 +218,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 
 	if (device != CH7xxx_DID) {
 		DRM_DEBUG("ch7xxx not detected; got 0x%02x from %s slave %d.\n",
-			  vendor, i2cbus->adapter.name, i2cbus->slave_addr);
+			  vendor, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 

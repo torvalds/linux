@@ -40,6 +40,9 @@ struct async_state {
 	uint32_t flash_ambctl0, flash_ambctl1;
 	uint32_t save_ambctl0, save_ambctl1;
 	unsigned long irq_flags;
+#ifdef CONFIG_MTD_PARTITIONS
+	struct mtd_partition *parts;
+#endif
 };
 
 static void switch_to_flash(struct async_state *state)
@@ -170,6 +173,7 @@ static int __devinit bfin_flash_probe(struct platform_device *pdev)
 	if (ret > 0) {
 		pr_devinit(KERN_NOTICE DRIVER_NAME ": Using commandline partition definition\n");
 		add_mtd_partitions(state->mtd, pdata->parts, ret);
+		state->parts = pdata->parts;
 
 	} else if (pdata->nr_parts) {
 		pr_devinit(KERN_NOTICE DRIVER_NAME ": Using board partition definition\n");
@@ -193,6 +197,7 @@ static int __devexit bfin_flash_remove(struct platform_device *pdev)
 	gpio_free(state->enet_flash_pin);
 #ifdef CONFIG_MTD_PARTITIONS
 	del_mtd_partitions(state->mtd);
+	kfree(state->parts);
 #endif
 	map_destroy(state->mtd);
 	kfree(state);

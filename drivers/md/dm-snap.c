@@ -678,6 +678,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->private = s;
 	ti->split_io = s->store->chunk_size;
+	ti->num_flush_requests = 1;
 
 	return 0;
 
@@ -1030,6 +1031,11 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	chunk_t chunk;
 	struct dm_snap_pending_exception *pe = NULL;
 
+	if (unlikely(bio_empty_barrier(bio))) {
+		bio->bi_bdev = s->store->cow->bdev;
+		return DM_MAPIO_REMAPPED;
+	}
+
 	chunk = sector_to_chunk(s->store, bio->bi_sector);
 
 	/* Full snapshots are not usable */
@@ -1338,6 +1344,8 @@ static int origin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = dev;
+	ti->num_flush_requests = 1;
+
 	return 0;
 }
 
@@ -1352,6 +1360,9 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 {
 	struct dm_dev *dev = ti->private;
 	bio->bi_bdev = dev->bdev;
+
+	if (unlikely(bio_empty_barrier(bio)))
+		return DM_MAPIO_REMAPPED;
 
 	/* Only tell snapshots if this is a write */
 	return (bio_rw(bio) == WRITE) ? do_origin(dev, bio) : DM_MAPIO_REMAPPED;

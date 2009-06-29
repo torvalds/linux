@@ -536,11 +536,15 @@ static void * __init alloc_arch_preferred_bootmem(bootmem_data_t *bdata,
 		return kzalloc(size, GFP_NOWAIT);
 
 #ifdef CONFIG_HAVE_ARCH_BOOTMEM
-	bootmem_data_t *p_bdata;
+	{
+		bootmem_data_t *p_bdata;
 
-	p_bdata = bootmem_arch_preferred_node(bdata, size, align, goal, limit);
-	if (p_bdata)
-		return alloc_bootmem_core(p_bdata, size, align, goal, limit);
+		p_bdata = bootmem_arch_preferred_node(bdata, size, align,
+							goal, limit);
+		if (p_bdata)
+			return alloc_bootmem_core(p_bdata, size, align,
+							goal, limit);
+	}
 #endif
 	return NULL;
 }

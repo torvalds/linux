@@ -52,7 +52,7 @@ struct serial2002_board {
 
 static const struct serial2002_board serial2002_boards[] = {
 	{
-      name:	"serial2002"}
+	.name = "serial2002"}
 };
 
 /*
@@ -62,7 +62,7 @@ static const struct serial2002_board serial2002_boards[] = {
 
 struct serial2002_range_table_t {
 
-	// HACK...
+	/*  HACK... */
 	int length;
 	struct comedi_krange range;
 };
@@ -70,8 +70,8 @@ struct serial2002_range_table_t {
 
 struct serial2002_private {
 
-	int port;		// /dev/ttyS<port>
-	int speed;		// baudrate
+	int port;		/*  /dev/ttyS<port> */
+	int speed;		/*  baudrate */
 	struct file *tty;
 	unsigned int ao_readback[32];
 	unsigned char digital_in_mapping[32];
@@ -89,28 +89,28 @@ struct serial2002_private {
  */
 #define devpriv ((struct serial2002_private *)dev->private)
 
-static int serial2002_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int serial2002_detach(struct comedi_device * dev);
+static int serial2002_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int serial2002_detach(struct comedi_device *dev);
 struct comedi_driver driver_serial2002 = {
-      driver_name:"serial2002",
-      module:THIS_MODULE,
-      attach:serial2002_attach,
-      detach:serial2002_detach,
-      board_name:&serial2002_boards[0].name,
-      offset:sizeof(struct serial2002_board),
-      num_names:sizeof(serial2002_boards) / sizeof(struct serial2002_board),
+	.driver_name = "serial2002",
+	.module = THIS_MODULE,
+	.attach = serial2002_attach,
+	.detach = serial2002_detach,
+	.board_name = &serial2002_boards[0].name,
+	.offset = sizeof(struct serial2002_board),
+	.num_names = ARRAY_SIZE(serial2002_boards),
 };
 
-static int serial2002_di_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int serial2002_do_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int serial2002_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int serial2002_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int serial2002_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int serial2002_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int serial2002_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int serial2002_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int serial2002_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int serial2002_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
 struct serial_data {
 	enum { is_invalid, is_digital, is_channel } kind;
@@ -121,12 +121,12 @@ struct serial_data {
 static long tty_ioctl(struct file *f, unsigned op, unsigned long param)
 {
 #ifdef HAVE_UNLOCKED_IOCTL
-  	if (f->f_op->unlocked_ioctl) {
+	if (f->f_op->unlocked_ioctl) {
 		return f->f_op->unlocked_ioctl(f, op, param);
 	}
 #endif
 	if (f->f_op->ioctl) {
-	  	return f->f_op->ioctl(f->f_dentry->d_inode, f, op, param);
+		return f->f_op->ioctl(f->f_dentry->d_inode, f, op, param);
 	}
 	return -ENOSYS;
 }
@@ -211,7 +211,7 @@ static int tty_read(struct file *f, int timeout)
 			/* Device does not support poll, busy wait */
 			int retries = 0;
 			while (1) {
-			  	unsigned char ch;
+				unsigned char ch;
 
 				retries++;
 				if (retries >= timeout) {
@@ -220,10 +220,10 @@ static int tty_read(struct file *f, int timeout)
 
 				f->f_pos = 0;
 				if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
-				  	result = ch;
+					result = ch;
 					break;
 				}
-				comedi_udelay(100);
+				udelay(100);
 			}
 		}
 		set_fs(oldfs);
@@ -238,11 +238,11 @@ static void tty_setspeed(struct file *f, int speed)
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
 	{
-		// Set speed
+		/*  Set speed */
 		struct termios settings;
 
 		tty_ioctl(f, TCGETS, (unsigned long)&settings);
-//    printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX));
+/* printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX)); */
 		settings.c_iflag = 0;
 		settings.c_oflag = 0;
 		settings.c_lflag = 0;
@@ -284,10 +284,10 @@ static void tty_setspeed(struct file *f, int speed)
 			break;
 		}
 		tty_ioctl(f, TCSETS, (unsigned long)&settings);
-//    printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX));
+/* printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX)); */
 	}
 	{
-		// Set low latency
+		/*  Set low latency */
 		struct serial_struct settings;
 
 		tty_ioctl(f, TIOCGSERIAL, (unsigned long)&settings);
@@ -393,7 +393,7 @@ static void serial_write(struct file *f, struct serial_data data)
 	}
 }
 
-static void serial_2002_open(struct comedi_device * dev)
+static void serial_2002_open(struct comedi_device *dev)
 {
 	char port[20];
 
@@ -437,7 +437,7 @@ static void serial_2002_open(struct comedi_device * dev)
 		}
 
 		tty_setspeed(devpriv->tty, devpriv->speed);
-		poll_channel(devpriv->tty, 31);	// Start reading configuration
+		poll_channel(devpriv->tty, 31);	/*  Start reading configuration */
 		while (1) {
 			struct serial_data data;
 
@@ -557,7 +557,7 @@ static void serial_2002_open(struct comedi_device * dev)
 			}
 		}
 		for (i = 0; i <= 4; i++) {
-			// Fill in subdev data
+			/*  Fill in subdev data */
 			struct config_t *c;
 			unsigned char *mapping = 0;
 			struct serial2002_range_table_t *range = 0;
@@ -659,15 +659,15 @@ static void serial_2002_open(struct comedi_device * dev)
 	}
 }
 
-static void serial_2002_close(struct comedi_device * dev)
+static void serial_2002_close(struct comedi_device *dev)
 {
 	if (!IS_ERR(devpriv->tty) && (devpriv->tty != 0)) {
 		filp_close(devpriv->tty, 0);
 	}
 }
 
-static int serial2002_di_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int serial2002_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -688,8 +688,8 @@ static int serial2002_di_rinsn(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int serial2002_do_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int serial2002_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -706,8 +706,8 @@ static int serial2002_do_winsn(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int serial2002_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int serial2002_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -728,8 +728,8 @@ static int serial2002_ai_rinsn(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int serial2002_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int serial2002_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -747,8 +747,8 @@ static int serial2002_ao_winsn(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int serial2002_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int serial2002_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -760,8 +760,8 @@ static int serial2002_ao_rinsn(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int serial2002_ei_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int serial2002_ei_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int chan;
@@ -782,7 +782,7 @@ static int serial2002_ei_rinsn(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int serial2002_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int serial2002_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 
@@ -849,7 +849,7 @@ static int serial2002_attach(struct comedi_device * dev, struct comedi_devconfig
 	return 1;
 }
 
-static int serial2002_detach(struct comedi_device * dev)
+static int serial2002_detach(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
 	int i;

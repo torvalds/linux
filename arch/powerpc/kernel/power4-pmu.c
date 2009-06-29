@@ -10,7 +10,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/perf_counter.h>
+#include <linux/string.h>
 #include <asm/reg.h>
+#include <asm/cputable.h>
 
 /*
  * Bits in event code for POWER4
@@ -179,22 +181,22 @@ static short mmcr1_adder_bits[8] = {
  */
 
 static struct unitinfo {
-	u64	value, mask;
-	int	unit;
-	int	lowerbit;
+	unsigned long	value, mask;
+	int		unit;
+	int		lowerbit;
 } p4_unitinfo[16] = {
-	[PM_FPU]  = { 0x44000000000000ull, 0x88000000000000ull, PM_FPU, 0 },
-	[PM_ISU1] = { 0x20080000000000ull, 0x88000000000000ull, PM_ISU1, 0 },
+	[PM_FPU]  = { 0x44000000000000ul, 0x88000000000000ul, PM_FPU, 0 },
+	[PM_ISU1] = { 0x20080000000000ul, 0x88000000000000ul, PM_ISU1, 0 },
 	[PM_ISU1_ALT] =
-		    { 0x20080000000000ull, 0x88000000000000ull, PM_ISU1, 0 },
-	[PM_IFU]  = { 0x02200000000000ull, 0x08820000000000ull, PM_IFU, 41 },
+		    { 0x20080000000000ul, 0x88000000000000ul, PM_ISU1, 0 },
+	[PM_IFU]  = { 0x02200000000000ul, 0x08820000000000ul, PM_IFU, 41 },
 	[PM_IFU_ALT] =
-		    { 0x02200000000000ull, 0x08820000000000ull, PM_IFU, 41 },
-	[PM_IDU0] = { 0x10100000000000ull, 0x80840000000000ull, PM_IDU0, 1 },
-	[PM_ISU2] = { 0x10140000000000ull, 0x80840000000000ull, PM_ISU2, 0 },
-	[PM_LSU0] = { 0x01400000000000ull, 0x08800000000000ull, PM_LSU0, 0 },
-	[PM_LSU1] = { 0x00000000000000ull, 0x00010000000000ull, PM_LSU1, 40 },
-	[PM_GPS]  = { 0x00000000000000ull, 0x00000000000000ull, PM_GPS, 0 }
+		    { 0x02200000000000ul, 0x08820000000000ul, PM_IFU, 41 },
+	[PM_IDU0] = { 0x10100000000000ul, 0x80840000000000ul, PM_IDU0, 1 },
+	[PM_ISU2] = { 0x10140000000000ul, 0x80840000000000ul, PM_ISU2, 0 },
+	[PM_LSU0] = { 0x01400000000000ul, 0x08800000000000ul, PM_LSU0, 0 },
+	[PM_LSU1] = { 0x00000000000000ul, 0x00010000000000ul, PM_LSU1, 40 },
+	[PM_GPS]  = { 0x00000000000000ul, 0x00000000000000ul, PM_GPS, 0 }
 };
 
 static unsigned char direct_marked_event[8] = {
@@ -249,10 +251,11 @@ static int p4_marked_instr_event(u64 event)
 	return (mask >> (byte * 8 + bit)) & 1;
 }
 
-static int p4_get_constraint(u64 event, u64 *maskp, u64 *valp)
+static int p4_get_constraint(u64 event, unsigned long *maskp,
+			     unsigned long *valp)
 {
 	int pmc, byte, unit, lower, sh;
-	u64 mask = 0, value = 0;
+	unsigned long mask = 0, value = 0;
 	int grp = -1;
 
 	pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
@@ -282,14 +285,14 @@ static int p4_get_constraint(u64 event, u64 *maskp, u64 *valp)
 		value |= p4_unitinfo[unit].value;
 		sh = p4_unitinfo[unit].lowerbit;
 		if (sh > 1)
-			value |= (u64)lower << sh;
+			value |= (unsigned long)lower << sh;
 		else if (lower != sh)
 			return -1;
 		unit = p4_unitinfo[unit].unit;
 
 		/* Set byte lane select field */
 		mask  |= 0xfULL << (28 - 4 * byte);
-		value |= (u64)unit << (28 - 4 * byte);
+		value |= (unsigned long)unit << (28 - 4 * byte);
 	}
 	if (grp == 0) {
 		/* increment PMC1/2/5/6 field */
@@ -353,9 +356,9 @@ static int p4_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 }
 
 static int p4_compute_mmcr(u64 event[], int n_ev,
-			   unsigned int hwc[], u64 mmcr[])
+			   unsigned int hwc[], unsigned long mmcr[])
 {
-	u64 mmcr0 = 0, mmcr1 = 0, mmcra = 0;
+	unsigned long mmcr0 = 0, mmcr1 = 0, mmcra = 0;
 	unsigned int pmc, unit, byte, psel, lower;
 	unsigned int ttm, grp;
 	unsigned int pmc_inuse = 0;
@@ -429,9 +432,11 @@ static int p4_compute_mmcr(u64 event[], int n_ev,
 		return -1;
 
 	/* Set TTMxSEL fields.  Note, units 1-3 => TTM0SEL codes 0-2 */
-	mmcr1 |= (u64)(unituse[3] * 2 + unituse[2]) << MMCR1_TTM0SEL_SH;
-	mmcr1 |= (u64)(unituse[7] * 3 + unituse[6] * 2) << MMCR1_TTM1SEL_SH;
-	mmcr1 |= (u64)unituse[9] << MMCR1_TTM2SEL_SH;
+	mmcr1 |= (unsigned long)(unituse[3] * 2 + unituse[2])
+		<< MMCR1_TTM0SEL_SH;
+	mmcr1 |= (unsigned long)(unituse[7] * 3 + unituse[6] * 2)
+		<< MMCR1_TTM1SEL_SH;
+	mmcr1 |= (unsigned long)unituse[9] << MMCR1_TTM2SEL_SH;
 
 	/* Set TTCxSEL fields. */
 	if (unitlower & 0xe)
@@ -456,7 +461,8 @@ static int p4_compute_mmcr(u64 event[], int n_ev,
 				ttm = unit - 1;		/* 2->1, 3->2 */
 			else
 				ttm = unit >> 2;
-			mmcr1 |= (u64)ttm << (MMCR1_TD_CP_DBG0SEL_SH - 2*byte);
+			mmcr1 |= (unsigned long)ttm
+				<< (MMCR1_TD_CP_DBG0SEL_SH - 2 * byte);
 		}
 	}
 
@@ -519,7 +525,7 @@ static int p4_compute_mmcr(u64 event[], int n_ev,
 	return 0;
 }
 
-static void p4_disable_pmc(unsigned int pmc, u64 mmcr[])
+static void p4_disable_pmc(unsigned int pmc, unsigned long mmcr[])
 {
 	/*
 	 * Setting the PMCxSEL field to 0 disables PMC x.
@@ -583,16 +589,27 @@ static int power4_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 };
 
-struct power_pmu power4_pmu = {
-	.n_counter = 8,
-	.max_alternatives = 5,
-	.add_fields = 0x0000001100005555ull,
-	.test_adder = 0x0011083300000000ull,
-	.compute_mmcr = p4_compute_mmcr,
-	.get_constraint = p4_get_constraint,
-	.get_alternatives = p4_get_alternatives,
-	.disable_pmc = p4_disable_pmc,
-	.n_generic = ARRAY_SIZE(p4_generic_events),
-	.generic_events = p4_generic_events,
-	.cache_events = &power4_cache_events,
+static struct power_pmu power4_pmu = {
+	.name			= "POWER4/4+",
+	.n_counter		= 8,
+	.max_alternatives	= 5,
+	.add_fields		= 0x0000001100005555ul,
+	.test_adder		= 0x0011083300000000ul,
+	.compute_mmcr		= p4_compute_mmcr,
+	.get_constraint		= p4_get_constraint,
+	.get_alternatives	= p4_get_alternatives,
+	.disable_pmc		= p4_disable_pmc,
+	.n_generic		= ARRAY_SIZE(p4_generic_events),
+	.generic_events		= p4_generic_events,
+	.cache_events		= &power4_cache_events,
 };
+
+static int init_power4_pmu(void)
+{
+	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power4"))
+		return -ENODEV;
+
+	return register_power_pmu(&power4_pmu);
+}
+
+arch_initcall(init_power4_pmu);

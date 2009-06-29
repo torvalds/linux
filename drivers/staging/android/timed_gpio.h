@@ -16,10 +16,12 @@
 #ifndef _LINUX_TIMED_GPIO_H
 #define _LINUX_TIMED_GPIO_H
 
+#define TIMED_GPIO_NAME "timed-gpio"
+
 struct timed_gpio {
 	const char *name;
 	unsigned 	gpio;
-	int     max_timeout;
+	int		max_timeout;
 	u8 		active_low;
 };
 

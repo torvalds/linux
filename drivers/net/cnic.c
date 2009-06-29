@@ -25,8 +25,6 @@
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
-#include <linux/module.h>
-
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define BCM_VLAN 1
 #endif
@@ -2521,9 +2519,9 @@ static struct cnic_dev *init_bnx2_cnic(struct net_device *dev)
 	struct cnic_dev *cdev;
 	struct cnic_local *cp;
 	struct cnic_eth_dev *ethdev = NULL;
-	struct cnic_eth_dev *(*probe)(void *) = NULL;
+	struct cnic_eth_dev *(*probe)(struct net_device *) = NULL;
 
-	probe = __symbol_get("bnx2_cnic_probe");
+	probe = symbol_get(bnx2_cnic_probe);
 	if (probe) {
 		ethdev = (*probe)(dev);
 		symbol_put_addr(probe);

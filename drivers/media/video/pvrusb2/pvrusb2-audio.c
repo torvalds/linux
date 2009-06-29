@@ -48,11 +48,13 @@ static const int routing_scheme0[] = {
 						MSP_DSP_IN_SCART),
 };
 
-static const struct routing_scheme routing_schemes[] = {
-	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = {
-		.def = routing_scheme0,
-		.cnt = ARRAY_SIZE(routing_scheme0),
-	},
+static const struct routing_scheme routing_def0 = {
+	.def = routing_scheme0,
+	.cnt = ARRAY_SIZE(routing_scheme0),
+};
+
+static const struct routing_scheme *routing_schemes[] = {
+	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = &routing_def0,
 };
 
 void pvr2_msp3400_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
@@ -65,7 +67,7 @@ void pvr2_msp3400_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev msp3400 v4l2 set_stereo");
 
 		if ((sid < ARRAY_SIZE(routing_schemes)) &&
-		    ((sp = routing_schemes + sid) != NULL) &&
+		    ((sp = routing_schemes[sid]) != NULL) &&
 		    (hdw->input_val >= 0) &&
 		    (hdw->input_val < sp->cnt)) {
 			input = sp->def[hdw->input_val];

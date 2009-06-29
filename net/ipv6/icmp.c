@@ -117,7 +117,7 @@ static __inline__ void icmpv6_xmit_unlock(struct sock *sk)
 /*
  * Slightly more convenient version of icmpv6_send.
  */
-void icmpv6_param_prob(struct sk_buff *skb, int code, int pos)
+void icmpv6_param_prob(struct sk_buff *skb, u8 code, int pos)
 {
 	icmpv6_send(skb, ICMPV6_PARAMPROB, code, pos, skb->dev);
 	kfree_skb(skb);
@@ -161,7 +161,7 @@ static int is_ineligible(struct sk_buff *skb)
 /*
  * Check the ICMP output rate limit
  */
-static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
+static inline int icmpv6_xrlim_allow(struct sock *sk, u8 type,
 				     struct flowi *fl)
 {
 	struct dst_entry *dst;
@@ -305,7 +305,7 @@ static inline void mip6_addr_swap(struct sk_buff *skb) {}
 /*
  *	Send an ICMP message in response to a packet in error
  */
-void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
+void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 		 struct net_device *dev)
 {
 	struct net *net = dev_net(skb->dev);
@@ -590,7 +590,7 @@ out:
 	icmpv6_xmit_unlock(sk);
 }
 
-static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
+static void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 {
 	struct inet6_protocol *ipprot;
 	int inner_offset;
@@ -643,7 +643,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	struct in6_addr *saddr, *daddr;
 	struct ipv6hdr *orig_hdr;
 	struct icmp6hdr *hdr;
-	int type;
+	u8 type;
 
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 		struct sec_path *sp = skb_sec_path(skb);
@@ -914,7 +914,7 @@ static const struct icmp6_err {
 	},
 };
 
-int icmpv6_err_convert(int type, int code, int *err)
+int icmpv6_err_convert(u8 type, u8 code, int *err)
 {
 	int fatal = 0;
 

@@ -188,7 +188,6 @@ extern "C" {
 #define SDF_WRITABLE	0x00020000	/* subdevice can be written (e.g. analog output) */
 #define SDF_WRITEABLE	SDF_WRITABLE	/* spelling error in API */
 #define SDF_INTERNAL	0x00040000	/* subdevice does not have externally visible lines */
-#define SDF_RT		0x00080000	/* DEPRECATED: subdevice is RT capable */
 #define SDF_GROUND	0x00100000	/* can do aref=ground */
 #define SDF_COMMON	0x00200000	/* can do aref=common */
 #define SDF_DIFF	0x00400000	/* can do aref=diff */

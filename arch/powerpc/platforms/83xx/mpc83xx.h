@@ -22,8 +22,8 @@
 /* system i/o configuration register low */
 #define MPC83XX_SICRL_OFFS         0x114
 #define MPC834X_SICRL_USB_MASK     0x60000000
-#define MPC834X_SICRL_USB0         0x40000000
-#define MPC834X_SICRL_USB1         0x20000000
+#define MPC834X_SICRL_USB0         0x20000000
+#define MPC834X_SICRL_USB1         0x40000000
 #define MPC831X_SICRL_USB_MASK     0x00000c00
 #define MPC831X_SICRL_USB_ULPI     0x00000800
 #define MPC8315_SICRL_USB_MASK     0x000000fc

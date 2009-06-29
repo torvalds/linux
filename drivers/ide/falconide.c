@@ -128,7 +128,6 @@ static void __init falconide_setup_ports(struct ide_hw *hw)
 	hw->io_ports.ctl_addr = ATA_HD_BASE + ATA_HD_CONTROL;
 
 	hw->irq = IRQ_MFP_IDE;
-	hw->ack_intr = NULL;
 }
 
     /*

@@ -36,15 +36,6 @@
 #include <linux/highmem.h>
 #include "drmP.h"
 
-#ifdef DEBUG_MEMORY
-#include "drm_memory_debug.h"
-#else
-
-/** No-op. */
-void drm_mem_init(void)
-{
-}
-
 /**
  * Called when "/proc/dri/%dev%/mem" is read.
  *
@@ -64,28 +55,15 @@ int drm_mem_info(char *buf, char **start, off_t offset,
 	return 0;
 }
 
-/** Wrapper around kmalloc() and kfree() */
-void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
-{
-	void *pt;
-
-	if (!(pt = kmalloc(size, GFP_KERNEL)))
-		return NULL;
-	if (oldpt && oldsize) {
-		memcpy(pt, oldpt, oldsize);
-		kfree(oldpt);
-	}
-	return pt;
-}
-
 #if __OS_HAS_AGP
 static void *agp_remap(unsigned long offset, unsigned long size,
 		       struct drm_device * dev)
 {
-	unsigned long *phys_addr_map, i, num_pages =
+	unsigned long i, num_pages =
 	    PAGE_ALIGN(size) / PAGE_SIZE;
 	struct drm_agp_mem *agpmem;
 	struct page **page_map;
+	struct page **phys_page_map;
 	void *addr;
 
 	size = PAGE_ALIGN(size);
@@ -112,10 +90,9 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 	if (!page_map)
 		return NULL;
 
-	phys_addr_map =
-	    agpmem->memory->memory + (offset - agpmem->bound) / PAGE_SIZE;
+	phys_page_map = (agpmem->memory->pages + (offset - agpmem->bound) / PAGE_SIZE);
 	for (i = 0; i < num_pages; ++i)
-		page_map[i] = pfn_to_page(phys_addr_map[i] >> PAGE_SHIFT);
+		page_map[i] = phys_page_map[i];
 	addr = vmap(page_map, num_pages, VM_IOREMAP, PAGE_AGP);
 	vfree(page_map);
 
@@ -156,8 +133,6 @@ static inline void *agp_remap(unsigned long offset, unsigned long size,
 }
 
 #endif				/* agp */
-
-#endif				/* debug_memory */
 
 void drm_core_ioremap(struct drm_local_map *map, struct drm_device *dev)
 {

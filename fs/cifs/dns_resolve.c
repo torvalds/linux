@@ -35,26 +35,11 @@
  * 		0 - name is not IP
  */
 static int
-is_ip(const char *name)
+is_ip(char *name)
 {
-	int rc;
-	struct sockaddr_in sin_server;
-	struct sockaddr_in6 sin_server6;
+	struct sockaddr_storage ss;
 
-	rc = cifs_inet_pton(AF_INET, name,
-			&sin_server.sin_addr.s_addr);
-
-	if (rc <= 0) {
-		/* not ipv4 address, try ipv6 */
-		rc = cifs_inet_pton(AF_INET6, name,
-				&sin_server6.sin6_addr.in6_u);
-		if (rc > 0)
-			return 1;
-	} else {
-		return 1;
-	}
-	/* we failed translating address */
-	return 0;
+	return cifs_convert_address(name, &ss);
 }
 
 static int
@@ -72,7 +57,7 @@ dns_resolver_instantiate(struct key *key, const void *data,
 	ip[datalen] = '\0';
 
 	/* make sure this looks like an address */
-	if (!is_ip((const char *) ip)) {
+	if (!is_ip(ip)) {
 		kfree(ip);
 		return -EINVAL;
 	}

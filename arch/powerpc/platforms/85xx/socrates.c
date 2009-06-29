@@ -102,10 +102,11 @@ static struct of_device_id __initdata socrates_of_bus_ids[] = {
 	{},
 };
 
-static void __init socrates_init(void)
+static int __init socrates_publish_devices(void)
 {
-	of_platform_bus_probe(NULL, socrates_of_bus_ids, NULL);
+	return of_platform_bus_probe(NULL, socrates_of_bus_ids, NULL);
 }
+machine_device_initcall(socrates, socrates_publish_devices);
 
 /*
  * Called very early, device-tree isn't unflattened
@@ -124,7 +125,6 @@ define_machine(socrates) {
 	.name			= "Socrates",
 	.probe			= socrates_probe,
 	.setup_arch		= socrates_setup_arch,
-	.init			= socrates_init,
 	.init_IRQ		= socrates_pic_init,
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,
