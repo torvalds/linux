@@ -654,12 +654,11 @@ static int __devinit lx_init_ethersound_config(struct lx6464es *chip)
 	int i;
 	u32 orig_conf_es = lx_dsp_reg_read(chip, eReg_CONFES);
 
-	u32 default_conf_es = (64 << IOCR_OUTPUTS_OFFSET) |
+	/* configure 64 io channels */
+	u32 conf_es = (orig_conf_es & CONFES_READ_PART_MASK) |
 		(64 << IOCR_INPUTS_OFFSET) |
+		(64 << IOCR_OUTPUTS_OFFSET) |
 		(FREQ_RATIO_SINGLE_MODE << FREQ_RATIO_OFFSET);
-
-	u32 conf_es = (orig_conf_es & CONFES_READ_PART_MASK)
-		| (default_conf_es & CONFES_WRITE_PART_MASK);
 
 	snd_printdd("->lx_init_ethersound\n");
 
