@@ -117,17 +117,25 @@ struct i2c_reg_value {
  * Some values are marked as Reserved at the datasheet
  */
 static const struct i2c_reg_value mt9v011_init_default[] = {
-					/* guessed meaning - as mt9m111 */
 		{ R0D_MT9V011_RESET, 0x0001 },
 		{ R0D_MT9V011_RESET, 0x0000 },
+
 		{ R01_MT9V011_ROWSTART, 0x0008 },
 		{ R02_MT9V011_COLSTART, 0x0014 },
 		{ R03_MT9V011_HEIGHT, 0x01e0 },
 		{ R04_MT9V011_WIDTH, 0x0280 },
-		{ R05_MT9V011_HBLANK, 0x0001 },
-		{ R05_MT9V011_HBLANK, 0x0001 },
+		{ R05_MT9V011_HBLANK, 0x007b },
+		{ R06_MT9V011_VBLANK, 0x001c },
+		{ R09_MT9V011_SHUTTER_WIDTH, 0x0418 },
 		{ R0A_MT9V011_CLK_SPEED, 0x0000 },
-		{ R05_MT9V011_HBLANK, 0x000a },
+		{ R0C_MT9V011_SHUTTER_DELAY, 0x0000 },
+		{ R1E_MT9V011_DIGITAL_ZOOM,  0x0000 },
+		{ R20_MT9V011_READ_MODE, 0x1100 },
+
+		/*
+		 * Those registers are not docummented at the datasheet.
+		 * However, the original driver initializes them
+		 */
 		{ 0x30, 0x0005 },
 		{ 0x34, 0x0100 },
 		{ 0x3d, 0x068f },
@@ -136,8 +144,8 @@ static const struct i2c_reg_value mt9v011_init_default[] = {
 		{ 0x58, 0x0038 },	/* Datasheet default 0x0078 */
 		{ 0x59, 0x0723 },	/* Datasheet default 0x0703 */
 		{ 0x62, 0x041a },	/* Datasheet default 0x0418 */
-		{ R09_MT9V011_SHUTTER_WIDTH, 0x0418 },
-		{ R20_MT9V011_READ_MODE, 0x1100 },
+
+		{ R07_MT9V011_OUT_CTRL, 0x000a },	/* chip enable */
 };
 
 static void set_balance(struct v4l2_subdev *sd)
