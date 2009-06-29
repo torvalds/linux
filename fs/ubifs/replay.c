@@ -837,9 +837,10 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 
 	dbg_mnt("replay log LEB %d:%d", lnum, offs);
 	sleb = ubifs_scan(c, lnum, offs, sbuf);
-	if (IS_ERR(sleb)) {
-		if (c->need_recovery)
-			sleb = ubifs_recover_log_leb(c, lnum, offs, sbuf);
+	if (IS_ERR(sleb) ) {
+		if (PTR_ERR(sleb) != -EUCLEAN || !c->need_recovery)
+			return PTR_ERR(sleb);
+		sleb = ubifs_recover_log_leb(c, lnum, offs, sbuf);
 		if (IS_ERR(sleb))
 			return PTR_ERR(sleb);
 	}

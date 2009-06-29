@@ -543,8 +543,8 @@ static int drop_incomplete_group(struct ubifs_scan_leb *sleb, int *offs)
  *
  * This function does a scan of a LEB, but caters for errors that might have
  * been caused by the unclean unmount from which we are attempting to recover.
- *
- * This function returns %0 on success and a negative error code on failure.
+ * Returns %0 in case of success, %-EUCLEAN if an unrecoverable corruption is
+ * found, and a negative error code in case of failure.
  */
 struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 					 int offs, void *sbuf, int grouped)
@@ -643,7 +643,8 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 			goto corrupted;
 		default:
 			dbg_err("unknown");
-			goto corrupted;
+			err = -EINVAL;
+			goto error;
 		}
 	}
 
