@@ -677,6 +677,14 @@ static int bfin_sir_init_iobuf(iobuff_t *io, int size)
 	return 0;
 }
 
+static const struct net_device_ops bfin_sir_ndo = {
+	.ndo_open		= bfin_sir_open,
+	.ndo_stop		= bfin_sir_stop,
+	.ndo_start_xmit		= bfin_sir_hard_xmit,
+	.ndo_do_ioctl		= bfin_sir_ioctl,
+	.ndo_get_stats		= bfin_sir_stats,
+};
+
 static int __devinit bfin_sir_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
@@ -718,12 +726,8 @@ static int __devinit bfin_sir_probe(struct platform_device *pdev)
 	if (err)
 		goto err_mem_3;
 
-	dev->hard_start_xmit = bfin_sir_hard_xmit;
-	dev->open            = bfin_sir_open;
-	dev->stop            = bfin_sir_stop;
-	dev->do_ioctl        = bfin_sir_ioctl;
-	dev->get_stats       = bfin_sir_stats;
-	dev->irq             = sir_port->irq;
+	dev->netdev_ops = &bfin_sir_ndo;
+	dev->irq = sir_port->irq;
 
 	irda_init_max_qos_capabilies(&self->qos);
 
