@@ -666,7 +666,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 {
 	struct be_queue_info *rxq = &adapter->rx_obj.q;
 	struct be_rx_page_info *page_info;
-	u16 rxq_idx, i, num_rcvd;
+	u16 rxq_idx, i, num_rcvd, j;
 	u32 pktsize, hdr_len, curr_frag_len;
 	u8 *start;
 
@@ -709,22 +709,33 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 
 	/* More frags present for this completion */
 	pktsize -= curr_frag_len; /* account for above copied frag */
-	for (i = 1; i < num_rcvd; i++) {
+	for (i = 1, j = 0; i < num_rcvd; i++) {
 		index_inc(&rxq_idx, rxq->len);
 		page_info = get_rx_page_info(adapter, rxq_idx);
 
 		curr_frag_len = min(pktsize, rx_frag_size);
 
-		skb_shinfo(skb)->frags[i].page = page_info->page;
-		skb_shinfo(skb)->frags[i].page_offset = page_info->page_offset;
-		skb_shinfo(skb)->frags[i].size = curr_frag_len;
+		/* Coalesce all frags from the same physical page in one slot */
+		if (page_info->page_offset == 0) {
+			/* Fresh page */
+			j++;
+			skb_shinfo(skb)->frags[j].page = page_info->page;
+			skb_shinfo(skb)->frags[j].page_offset =
+							page_info->page_offset;
+			skb_shinfo(skb)->frags[j].size = 0;
+			skb_shinfo(skb)->nr_frags++;
+		} else {
+			put_page(page_info->page);
+		}
+
+		skb_shinfo(skb)->frags[j].size += curr_frag_len;
 		skb->len += curr_frag_len;
 		skb->data_len += curr_frag_len;
-		skb_shinfo(skb)->nr_frags++;
 		pktsize -= curr_frag_len;
 
 		memset(page_info, 0, sizeof(*page_info));
 	}
+	BUG_ON(j > MAX_SKB_FRAGS);
 
 done:
 	be_rx_stats_update(adapter, pktsize, num_rcvd);
@@ -786,7 +797,7 @@ static void be_rx_compl_process_lro(struct be_adapter *adapter,
 	struct skb_frag_struct rx_frags[BE_MAX_FRAGS_PER_FRAME];
 	struct be_queue_info *rxq = &adapter->rx_obj.q;
 	u32 num_rcvd, pkt_size, remaining, vlanf, curr_frag_len;
-	u16 i, rxq_idx = 0, vid;
+	u16 i, rxq_idx = 0, vid, j;
 
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 	pkt_size = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
@@ -794,20 +805,28 @@ static void be_rx_compl_process_lro(struct be_adapter *adapter,
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
 
 	remaining = pkt_size;
-	for (i = 0; i < num_rcvd; i++) {
+	for (i = 0, j = -1; i < num_rcvd; i++) {
 		page_info = get_rx_page_info(adapter, rxq_idx);
 
 		curr_frag_len = min(remaining, rx_frag_size);
 
-		rx_frags[i].page = page_info->page;
-		rx_frags[i].page_offset = page_info->page_offset;
-		rx_frags[i].size = curr_frag_len;
+		/* Coalesce all frags from the same physical page in one slot */
+		if (i == 0 || page_info->page_offset == 0) {
+			/* First frag or Fresh page */
+			j++;
+			rx_frags[j].page = page_info->page;
+			rx_frags[j].page_offset = page_info->page_offset;
+			rx_frags[j].size = 0;
+		} else {
+			put_page(page_info->page);
+		}
+		rx_frags[j].size += curr_frag_len;
+
 		remaining -= curr_frag_len;
-
 		index_inc(&rxq_idx, rxq->len);
-
 		memset(page_info, 0, sizeof(*page_info));
 	}
+	BUG_ON(j > MAX_SKB_FRAGS);
 
 	if (likely(!vlanf)) {
 		lro_receive_frags(&adapter->rx_obj.lro_mgr, rx_frags, pkt_size,

@@ -865,8 +865,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_cpu_data *cd = mdp->cd;
 	irqreturn_t ret = IRQ_NONE;
-	u32 ioaddr, boguscnt = RX_RING_SIZE;
-	u32 intr_status = 0;
+	u32 ioaddr, intr_status = 0;
 
 	ioaddr = ndev->base_addr;
 	spin_lock(&mdp->lock);
@@ -900,12 +899,6 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 
 	if (intr_status & cd->eesr_err_check)
 		sh_eth_error(ndev, intr_status);
-
-	if (--boguscnt < 0) {
-		printk(KERN_WARNING
-		       "%s: Too much work at interrupt, status=0x%4.4x.\n",
-		       ndev->name, intr_status);
-	}
 
 other_irq:
 	spin_unlock(&mdp->lock);

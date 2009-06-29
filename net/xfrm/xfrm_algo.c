@@ -292,8 +292,8 @@ static struct xfrm_algo_desc ealg_list[] = {
 	}
 },
 {
-	.name = "cbc(cast128)",
-	.compat = "cast128",
+	.name = "cbc(cast5)",
+	.compat = "cast5",
 
 	.uinfo = {
 		.encr = {

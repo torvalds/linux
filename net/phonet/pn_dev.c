@@ -69,10 +69,27 @@ static struct phonet_device *__phonet_get(struct net_device *dev)
 	return NULL;
 }
 
-static void __phonet_device_free(struct phonet_device *pnd)
+static void phonet_device_destroy(struct net_device *dev)
 {
-	list_del(&pnd->list);
-	kfree(pnd);
+	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
+	struct phonet_device *pnd;
+
+	ASSERT_RTNL();
+
+	spin_lock_bh(&pndevs->lock);
+	pnd = __phonet_get(dev);
+	if (pnd)
+		list_del(&pnd->list);
+	spin_unlock_bh(&pndevs->lock);
+
+	if (pnd) {
+		u8 addr;
+
+		for (addr = find_first_bit(pnd->addrs, 64); addr < 64;
+			addr = find_next_bit(pnd->addrs, 64, 1+addr))
+			phonet_address_notify(RTM_DELADDR, dev, addr);
+		kfree(pnd);
+	}
 }
 
 struct net_device *phonet_device_get(struct net *net)
@@ -126,8 +143,10 @@ int phonet_address_del(struct net_device *dev, u8 addr)
 	pnd = __phonet_get(dev);
 	if (!pnd || !test_and_clear_bit(addr >> 2, pnd->addrs))
 		err = -EADDRNOTAVAIL;
-	else if (bitmap_empty(pnd->addrs, 64))
-		__phonet_device_free(pnd);
+	else if (bitmap_empty(pnd->addrs, 64)) {
+		list_del(&pnd->list);
+		kfree(pnd);
+	}
 	spin_unlock_bh(&pndevs->lock);
 	return err;
 }
@@ -181,18 +200,8 @@ static int phonet_device_notify(struct notifier_block *me, unsigned long what,
 {
 	struct net_device *dev = arg;
 
-	if (what == NETDEV_UNREGISTER) {
-		struct phonet_device_list *pndevs;
-		struct phonet_device *pnd;
-
-		/* Destroy phonet-specific device data */
-		pndevs = phonet_device_list(dev_net(dev));
-		spin_lock_bh(&pndevs->lock);
-		pnd = __phonet_get(dev);
-		if (pnd)
-			__phonet_device_free(pnd);
-		spin_unlock_bh(&pndevs->lock);
-	}
+	if (what == NETDEV_UNREGISTER)
+		phonet_device_destroy(dev);
 	return 0;
 
 }
@@ -218,11 +227,12 @@ static int phonet_init_net(struct net *net)
 static void phonet_exit_net(struct net *net)
 {
 	struct phonet_net *pnn = net_generic(net, phonet_net_id);
-	struct phonet_device *pnd, *n;
+	struct net_device *dev;
 
-	list_for_each_entry_safe(pnd, n, &pnn->pndevs.list, list)
-		__phonet_device_free(pnd);
-
+	rtnl_lock();
+	for_each_netdev(net, dev)
+		phonet_device_destroy(dev);
+	rtnl_unlock();
 	kfree(pnn);
 }
 
