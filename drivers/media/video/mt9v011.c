@@ -71,15 +71,17 @@ static int mt9v011_read(struct v4l2_subdev *sd, unsigned char addr)
 	__be16 buffer;
 	int rc, val;
 
-	if (1 != (rc = i2c_master_send(c, &addr, 1)))
+	rc = i2c_master_send(c, &addr, 1);
+	if (rc != 1)
 		v4l2_dbg(0, debug, sd,
 			 "i2c i/o error: rc == %d (should be 1)\n", rc);
 
 	msleep(10);
 
-	if (2 != (rc = i2c_master_recv(c, (char *)&buffer, 2)))
+	rc = i2c_master_recv(c, (char *)&buffer, 2);
+	if (rc != 2)
 		v4l2_dbg(0, debug, sd,
-			 "i2c i/o error: rc == %d (should be 1)\n", rc);
+			 "i2c i/o error: rc == %d (should be 2)\n", rc);
 
 	val = be16_to_cpu(buffer);
 
@@ -101,7 +103,8 @@ static void mt9v011_write(struct v4l2_subdev *sd, unsigned char addr,
 
 	v4l2_dbg(2, debug, sd,
 		 "mt9v011: writing 0x%02x 0x%04x\n", buffer[0], value);
-	if (3 != (rc = i2c_master_send(c, buffer, 3)))
+	rc = i2c_master_send(c, &buffer, 3);
+	if (rc != 3)
 		v4l2_dbg(0, debug, sd,
 			 "i2c i/o error: rc == %d (should be 3)\n", rc);
 }
