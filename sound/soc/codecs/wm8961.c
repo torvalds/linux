@@ -1268,7 +1268,7 @@ static __devexit int wm8961_i2c_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int wm8961_i2c_suspend(struct i2c_client *client)
+static int wm8961_i2c_suspend(struct i2c_client *client, pm_message_t state)
 {
 	return snd_soc_suspend_device(&client->dev);
 }
