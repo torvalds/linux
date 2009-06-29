@@ -207,6 +207,9 @@ static int usb_probe_interface(struct device *dev)
 
 	intf->needs_binding = 0;
 
+	if (usb_device_is_owned(udev))
+		return -ENODEV;
+
 	if (udev->authorized == 0) {
 		dev_err(&intf->dev, "Device is not authorized for usage\n");
 		return -ENODEV;

@@ -52,6 +52,7 @@
 
 #include "hcd.h"	/* for usbcore internals */
 #include "usb.h"
+#include "hub.h"
 
 #define USB_MAXBUS			64
 #define USB_DEVICE_MAX			USB_MAXBUS * 128
@@ -655,6 +656,7 @@ static int usbdev_release(struct inode *inode, struct file *file)
 	struct async *as;
 
 	usb_lock_device(dev);
+	usb_hub_release_all_ports(dev, ps);
 
 	/* Protect against simultaneous open */
 	mutex_lock(&usbfs_mutex);
@@ -1548,6 +1550,29 @@ static int proc_ioctl_compat(struct dev_state *ps, compat_uptr_t arg)
 }
 #endif
 
+static int proc_claim_port(struct dev_state *ps, void __user *arg)
+{
+	unsigned portnum;
+	int rc;
+
+	if (get_user(portnum, (unsigned __user *) arg))
+		return -EFAULT;
+	rc = usb_hub_claim_port(ps->dev, portnum, ps);
+	if (rc == 0)
+		snoop(&ps->dev->dev, "port %d claimed by process %d: %s\n",
+			portnum, task_pid_nr(current), current->comm);
+	return rc;
+}
+
+static int proc_release_port(struct dev_state *ps, void __user *arg)
+{
+	unsigned portnum;
+
+	if (get_user(portnum, (unsigned __user *) arg))
+		return -EFAULT;
+	return usb_hub_release_port(ps->dev, portnum, ps);
+}
+
 /*
  * NOTE:  All requests here that have interface numbers as parameters
  * are assuming that somehow the configuration has been prevented from
@@ -1688,6 +1713,16 @@ static int usbdev_ioctl(struct inode *inode, struct file *file,
 	case USBDEVFS_IOCTL:
 		snoop(&dev->dev, "%s: IOCTL\n", __func__);
 		ret = proc_ioctl_default(ps, p);
+		break;
+
+	case USBDEVFS_CLAIM_PORT:
+		snoop(&dev->dev, "%s: CLAIM_PORT\n", __func__);
+		ret = proc_claim_port(ps, p);
+		break;
+
+	case USBDEVFS_RELEASE_PORT:
+		snoop(&dev->dev, "%s: RELEASE_PORT\n", __func__);
+		ret = proc_release_port(ps, p);
 		break;
 	}
 	usb_unlock_device(dev);

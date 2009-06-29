@@ -78,6 +78,7 @@ struct usb_hub {
 	u8			indicator[USB_MAXCHILDREN];
 	struct delayed_work	leds;
 	struct delayed_work	init_work;
+	void			**port_owners;
 };
 
 
@@ -860,19 +861,17 @@ static int hub_configure(struct usb_hub *hub,
 	u16 wHubCharacteristics;
 	unsigned int pipe;
 	int maxp, ret;
-	char *message;
+	char *message = "out of memory";
 
 	hub->buffer = usb_buffer_alloc(hdev, sizeof(*hub->buffer), GFP_KERNEL,
 			&hub->buffer_dma);
 	if (!hub->buffer) {
-		message = "can't allocate hub irq buffer";
 		ret = -ENOMEM;
 		goto fail;
 	}
 
 	hub->status = kmalloc(sizeof(*hub->status), GFP_KERNEL);
 	if (!hub->status) {
-		message = "can't kmalloc hub status buffer";
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -880,7 +879,6 @@ static int hub_configure(struct usb_hub *hub,
 
 	hub->descriptor = kmalloc(sizeof(*hub->descriptor), GFP_KERNEL);
 	if (!hub->descriptor) {
-		message = "can't kmalloc hub descriptor";
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -903,6 +901,12 @@ static int hub_configure(struct usb_hub *hub,
 	hdev->maxchild = hub->descriptor->bNbrPorts;
 	dev_info (hub_dev, "%d port%s detected\n", hdev->maxchild,
 		(hdev->maxchild == 1) ? "" : "s");
+
+	hub->port_owners = kzalloc(hdev->maxchild * sizeof(void *), GFP_KERNEL);
+	if (!hub->port_owners) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 
 	wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
 
@@ -1082,7 +1086,6 @@ static int hub_configure(struct usb_hub *hub,
 
 	hub->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!hub->urb) {
-		message = "couldn't allocate interrupt urb";
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1131,11 +1134,13 @@ static void hub_disconnect(struct usb_interface *intf)
 	hub_quiesce(hub, HUB_DISCONNECT);
 
 	usb_set_intfdata (intf, NULL);
+	hub->hdev->maxchild = 0;
 
 	if (hub->hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs--;
 
 	usb_free_urb(hub->urb);
+	kfree(hub->port_owners);
 	kfree(hub->descriptor);
 	kfree(hub->status);
 	usb_buffer_free(hub->hdev, sizeof(*hub->buffer), hub->buffer,
@@ -1248,6 +1253,79 @@ hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
 	default:
 		return -ENOSYS;
 	}
+}
+
+/*
+ * Allow user programs to claim ports on a hub.  When a device is attached
+ * to one of these "claimed" ports, the program will "own" the device.
+ */
+static int find_port_owner(struct usb_device *hdev, unsigned port1,
+		void ***ppowner)
+{
+	if (hdev->state == USB_STATE_NOTATTACHED)
+		return -ENODEV;
+	if (port1 == 0 || port1 > hdev->maxchild)
+		return -EINVAL;
+
+	/* This assumes that devices not managed by the hub driver
+	 * will always have maxchild equal to 0.
+	 */
+	*ppowner = &(hdev_to_hub(hdev)->port_owners[port1 - 1]);
+	return 0;
+}
+
+/* In the following three functions, the caller must hold hdev's lock */
+int usb_hub_claim_port(struct usb_device *hdev, unsigned port1, void *owner)
+{
+	int rc;
+	void **powner;
+
+	rc = find_port_owner(hdev, port1, &powner);
+	if (rc)
+		return rc;
+	if (*powner)
+		return -EBUSY;
+	*powner = owner;
+	return rc;
+}
+
+int usb_hub_release_port(struct usb_device *hdev, unsigned port1, void *owner)
+{
+	int rc;
+	void **powner;
+
+	rc = find_port_owner(hdev, port1, &powner);
+	if (rc)
+		return rc;
+	if (*powner != owner)
+		return -ENOENT;
+	*powner = NULL;
+	return rc;
+}
+
+void usb_hub_release_all_ports(struct usb_device *hdev, void *owner)
+{
+	int n;
+	void **powner;
+
+	n = find_port_owner(hdev, 1, &powner);
+	if (n == 0) {
+		for (; n < hdev->maxchild; (++n, ++powner)) {
+			if (*powner == owner)
+				*powner = NULL;
+		}
+	}
+}
+
+/* The caller must hold udev's lock */
+bool usb_device_is_owned(struct usb_device *udev)
+{
+	struct usb_hub *hub;
+
+	if (udev->state == USB_STATE_NOTATTACHED || !udev->parent)
+		return false;
+	hub = hdev_to_hub(udev->parent);
+	return !!hub->port_owners[udev->portnum - 1];
 }
 
 

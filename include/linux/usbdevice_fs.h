@@ -175,4 +175,6 @@ struct usbdevfs_ioctl32 {
 #define USBDEVFS_CLEAR_HALT        _IOR('U', 21, unsigned int)
 #define USBDEVFS_DISCONNECT        _IO('U', 22)
 #define USBDEVFS_CONNECT           _IO('U', 23)
+#define USBDEVFS_CLAIM_PORT        _IOR('U', 24, unsigned int)
+#define USBDEVFS_RELEASE_PORT      _IOR('U', 25, unsigned int)
 #endif /* _LINUX_USBDEVICE_FS_H */
