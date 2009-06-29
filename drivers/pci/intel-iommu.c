@@ -1054,7 +1054,12 @@ static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 	else
 		iommu->flush.flush_iotlb(iommu, did, addr, mask,
 						DMA_TLB_PSI_FLUSH);
-	if (did)
+
+	/*
+	 * In caching mode, domain ID 0 is reserved for non-present to present
+	 * mapping flush. Device IOTLB doesn't need to be flushed in this case.
+	 */
+	if (!cap_caching_mode(iommu->cap) || did)
 		iommu_flush_dev_iotlb(iommu->domains[did], addr, mask);
 }
 
