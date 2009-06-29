@@ -23,29 +23,15 @@
  * pressed, or its autorepeat kicks in, an event is sent.  This driver
  * read those events from the small (32 event) queue and reports them.
  *
- * Because we communicate with the MSP430 using I2C, and all I2C calls
- * in Linux sleep, we need to cons up a kind of threaded IRQ handler
- * using a work_struct.  The IRQ is active low, but we use it through
- * the GPIO controller so we can trigger on falling edges.
- *
  * Note that physically there can only be one of these devices.
  *
  * This driver was tested with firmware revision A4.
  */
 struct dm355evm_keys {
-	struct work_struct	work;
 	struct input_dev	*input;
 	struct device		*dev;
 	int			irq;
 };
-
-static irqreturn_t dm355evm_keys_irq(int irq, void *_keys)
-{
-	struct dm355evm_keys	*keys = _keys;
-
-	schedule_work(&keys->work);
-	return IRQ_HANDLED;
-}
 
 /* These initial keycodes can be remapped by dm355evm_setkeycode(). */
 static struct {
@@ -110,12 +96,11 @@ static struct {
 	{ 0x3169, KEY_PAUSE, },
 };
 
-static void dm355evm_keys_work(struct work_struct *work)
+/* runs in an IRQ thread -- can (and will!) sleep */
+static irqreturn_t dm355evm_keys_irq(int irq, void *_keys)
 {
-	struct dm355evm_keys	*keys;
+	struct dm355evm_keys	*keys = _keys;
 	int			status;
-
-	keys = container_of(work, struct dm355evm_keys, work);
 
 	/* For simplicity we ignore INPUT_COUNT and just read
 	 * events until we get the "queue empty" indicator.
@@ -183,6 +168,19 @@ static void dm355evm_keys_work(struct work_struct *work)
 		input_report_key(keys->input, keycode, 0);
 		input_sync(keys->input);
 	}
+	return IRQ_HANDLED;
+}
+
+/*
+ * Because we communicate with the MSP430 using I2C, and all I2C calls
+ * in Linux sleep, we use a threaded IRQ handler.  The IRQ itself is
+ * active low, but we go through the GPIO controller so we can trigger
+ * on falling edges and not worry about enabling/disabling the IRQ in
+ * the keypress handling path.
+ */
+static irqreturn_t dm355evm_keys_hardirq(int irq, void *_keys)
+{
+	return IRQ_WAKE_THREAD;
 }
 
 static int dm355evm_setkeycode(struct input_dev *dev, int index, int keycode)
@@ -233,7 +231,6 @@ static int __devinit dm355evm_keys_probe(struct platform_device *pdev)
 
 	keys->dev = &pdev->dev;
 	keys->input = input;
-	INIT_WORK(&keys->work, dm355evm_keys_work);
 
 	/* set up "threaded IRQ handler" */
 	status = platform_get_irq(pdev, 0);
@@ -260,9 +257,10 @@ static int __devinit dm355evm_keys_probe(struct platform_device *pdev)
 
 	/* REVISIT:  flush the event queue? */
 
-	status = request_irq(keys->irq, dm355evm_keys_irq,
-			     IRQF_TRIGGER_FALLING,
-			     dev_name(&pdev->dev), keys);
+	status = request_threaded_irq(keys->irq,
+			dm355evm_keys_hardirq, dm355evm_keys_irq,
+			IRQF_TRIGGER_FALLING,
+			dev_name(&pdev->dev), keys);
 	if (status < 0)
 		goto fail1;
 
