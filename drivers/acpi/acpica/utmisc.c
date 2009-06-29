@@ -120,6 +120,34 @@ const char *acpi_ut_validate_exception(acpi_status status)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_is_pci_root_bridge
+ *
+ * PARAMETERS:  Id              - The HID/CID in string format
+ *
+ * RETURN:      TRUE if the Id is a match for a PCI/PCI-Express Root Bridge
+ *
+ * DESCRIPTION: Determine if the input ID is a PCI Root Bridge ID.
+ *
+ ******************************************************************************/
+
+u8 acpi_ut_is_pci_root_bridge(char *id)
+{
+
+	/*
+	 * Check if this is a PCI root bridge.
+	 * ACPI 3.0+: check for a PCI Express root also.
+	 */
+	if (!(ACPI_STRCMP(id,
+			  PCI_ROOT_HID_STRING)) ||
+	    !(ACPI_STRCMP(id, PCI_EXPRESS_ROOT_HID_STRING))) {
+		return (TRUE);
+	}
+
+	return (FALSE);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_is_aml_table
  *
  * PARAMETERS:  Table               - An ACPI table

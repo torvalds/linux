@@ -90,7 +90,15 @@ const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT] = {
 	"\\_S5_"
 };
 
-const char *acpi_gbl_highest_dstate_names[4] = {
+const char *acpi_gbl_lowest_dstate_names[ACPI_NUM_sx_w_METHODS] = {
+	"_S0W",
+	"_S1W",
+	"_S2W",
+	"_S3W",
+	"_S4W"
+};
+
+const char *acpi_gbl_highest_dstate_names[ACPI_NUM_sx_d_METHODS] = {
 	"_S1D",
 	"_S2D",
 	"_S3D",

@@ -173,17 +173,15 @@ struct acpi_device_dir {
 
 typedef char acpi_bus_id[8];
 typedef unsigned long acpi_bus_address;
-typedef char acpi_hardware_id[15];
-typedef char acpi_unique_id[9];
 typedef char acpi_device_name[40];
 typedef char acpi_device_class[20];
 
 struct acpi_device_pnp {
 	acpi_bus_id bus_id;	/* Object name */
 	acpi_bus_address bus_address;	/* _ADR */
-	acpi_hardware_id hardware_id;	/* _HID */
-	struct acpi_compatible_id_list *cid_list;	/* _CIDs */
-	acpi_unique_id unique_id;	/* _UID */
+	char *hardware_id;	/* _HID */
+	struct acpica_device_id_list *cid_list;	/* _CIDs */
+	char *unique_id;	/* _UID */
 	acpi_device_name device_name;	/* Driver-determined */
 	acpi_device_class device_class;	/*        "          */
 };

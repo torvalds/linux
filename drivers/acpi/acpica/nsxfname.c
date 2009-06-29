@@ -51,6 +51,11 @@
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsxfname")
 
+/* Local prototypes */
+static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
+				    struct acpica_device_id *source,
+				    char *string_area);
+
 /******************************************************************************
  *
  * FUNCTION:    acpi_get_handle
@@ -68,6 +73,7 @@ ACPI_MODULE_NAME("nsxfname")
  *              namespace handle.
  *
  ******************************************************************************/
+
 acpi_status
 acpi_get_handle(acpi_handle parent,
 		acpi_string pathname, acpi_handle * ret_handle)
@@ -210,10 +216,38 @@ ACPI_EXPORT_SYMBOL(acpi_get_name)
 
 /******************************************************************************
  *
+ * FUNCTION:    acpi_ns_copy_device_id
+ *
+ * PARAMETERS:  Dest                - Pointer to the destination DEVICE_ID
+ *              Source              - Pointer to the source DEVICE_ID
+ *              string_area         - Pointer to where to copy the dest string
+ *
+ * RETURN:      Pointer to the next string area
+ *
+ * DESCRIPTION: Copy a single DEVICE_ID, including the string data.
+ *
+ ******************************************************************************/
+static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
+				    struct acpica_device_id *source,
+				    char *string_area)
+{
+	/* Create the destination DEVICE_ID */
+
+	dest->string = string_area;
+	dest->length = source->length;
+
+	/* Copy actual string and return a pointer to the next string area */
+
+	ACPI_MEMCPY(string_area, source->string, source->length);
+	return (string_area + source->length);
+}
+
+/******************************************************************************
+ *
  * FUNCTION:    acpi_get_object_info
  *
- * PARAMETERS:  Handle          - Object Handle
- *              Buffer          - Where the info is returned
+ * PARAMETERS:  Handle              - Object Handle
+ *              return_buffer       - Where the info is returned
  *
  * RETURN:      Status
  *
@@ -221,31 +255,35 @@ ACPI_EXPORT_SYMBOL(acpi_get_name)
  *              namespace node and possibly by running several standard
  *              control methods (Such as in the case of a device.)
  *
+ * For Device and Processor objects, run the Device _HID, _UID, _CID, _STA,
+ * _ADR, _sx_w, and _sx_d methods.
+ *
+ * Note: Allocates the return buffer, must be freed by the caller.
+ *
  ******************************************************************************/
+
 acpi_status
-acpi_get_object_info(acpi_handle handle, struct acpi_buffer * buffer)
+acpi_get_object_info(acpi_handle handle,
+		     struct acpi_device_info **return_buffer)
 {
-	acpi_status status;
 	struct acpi_namespace_node *node;
 	struct acpi_device_info *info;
-	struct acpi_device_info *return_info;
-	struct acpi_compatible_id_list *cid_list = NULL;
-	acpi_size size;
+	struct acpica_device_id_list *cid_list = NULL;
+	struct acpica_device_id *hid = NULL;
+	struct acpica_device_id *uid = NULL;
+	char *next_id_string;
+	acpi_object_type type;
+	acpi_name name;
+	u8 param_count = 0;
+	u8 valid = 0;
+	u32 info_size;
+	u32 i;
+	acpi_status status;
 
 	/* Parameter validation */
 
-	if (!handle || !buffer) {
+	if (!handle || !return_buffer) {
 		return (AE_BAD_PARAMETER);
-	}
-
-	status = acpi_ut_validate_buffer(buffer);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_device_info));
-	if (!info) {
-		return (AE_NO_MEMORY);
 	}
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
@@ -256,66 +294,91 @@ acpi_get_object_info(acpi_handle handle, struct acpi_buffer * buffer)
 	node = acpi_ns_map_handle_to_node(handle);
 	if (!node) {
 		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-		status = AE_BAD_PARAMETER;
-		goto cleanup;
+		return (AE_BAD_PARAMETER);
 	}
 
-	/* Init return structure */
+	/* Get the namespace node data while the namespace is locked */
 
-	size = sizeof(struct acpi_device_info);
-
-	info->type = node->type;
-	info->name = node->name.integer;
-	info->valid = 0;
+	info_size = sizeof(struct acpi_device_info);
+	type = node->type;
+	name = node->name.integer;
 
 	if (node->type == ACPI_TYPE_METHOD) {
-		info->param_count = node->object->method.param_count;
+		param_count = node->object->method.param_count;
 	}
 
 	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		goto cleanup;
+		return (status);
 	}
 
-	/* If not a device, we are all done */
-
-	if (info->type == ACPI_TYPE_DEVICE) {
+	if ((type == ACPI_TYPE_DEVICE) || (type == ACPI_TYPE_PROCESSOR)) {
 		/*
-		 * Get extra info for ACPI Devices objects only:
-		 * Run the Device _HID, _UID, _CID, _STA, _ADR and _sx_d methods.
+		 * Get extra info for ACPI Device/Processor objects only:
+		 * Run the Device _HID, _UID, and _CID methods.
 		 *
 		 * Note: none of these methods are required, so they may or may
-		 * not be present for this device.  The Info->Valid bitfield is used
-		 * to indicate which methods were found and ran successfully.
+		 * not be present for this device. The Info->Valid bitfield is used
+		 * to indicate which methods were found and run successfully.
 		 */
 
 		/* Execute the Device._HID method */
 
-		status = acpi_ut_execute_HID(node, &info->hardware_id);
+		status = acpi_ut_execute_HID(node, &hid);
 		if (ACPI_SUCCESS(status)) {
-			info->valid |= ACPI_VALID_HID;
+			info_size += hid->length;
+			valid |= ACPI_VALID_HID;
 		}
 
 		/* Execute the Device._UID method */
 
-		status = acpi_ut_execute_UID(node, &info->unique_id);
+		status = acpi_ut_execute_UID(node, &uid);
 		if (ACPI_SUCCESS(status)) {
-			info->valid |= ACPI_VALID_UID;
+			info_size += uid->length;
+			valid |= ACPI_VALID_UID;
 		}
 
 		/* Execute the Device._CID method */
 
 		status = acpi_ut_execute_CID(node, &cid_list);
 		if (ACPI_SUCCESS(status)) {
-			size += cid_list->size;
-			info->valid |= ACPI_VALID_CID;
+
+			/* Add size of CID strings and CID pointer array */
+
+			info_size +=
+			    (cid_list->list_size -
+			     sizeof(struct acpica_device_id_list));
+			valid |= ACPI_VALID_CID;
 		}
+	}
+
+	/*
+	 * Now that we have the variable-length data, we can allocate the
+	 * return buffer
+	 */
+	info = ACPI_ALLOCATE_ZEROED(info_size);
+	if (!info) {
+		status = AE_NO_MEMORY;
+		goto cleanup;
+	}
+
+	/* Get the fixed-length data */
+
+	if ((type == ACPI_TYPE_DEVICE) || (type == ACPI_TYPE_PROCESSOR)) {
+		/*
+		 * Get extra info for ACPI Device/Processor objects only:
+		 * Run the _STA, _ADR and, sx_w, and _sx_d methods.
+		 *
+		 * Note: none of these methods are required, so they may or may
+		 * not be present for this device. The Info->Valid bitfield is used
+		 * to indicate which methods were found and run successfully.
+		 */
 
 		/* Execute the Device._STA method */
 
 		status = acpi_ut_execute_STA(node, &info->current_status);
 		if (ACPI_SUCCESS(status)) {
-			info->valid |= ACPI_VALID_STA;
+			valid |= ACPI_VALID_STA;
 		}
 
 		/* Execute the Device._ADR method */
@@ -323,36 +386,100 @@ acpi_get_object_info(acpi_handle handle, struct acpi_buffer * buffer)
 		status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR, node,
 							 &info->address);
 		if (ACPI_SUCCESS(status)) {
-			info->valid |= ACPI_VALID_ADR;
+			valid |= ACPI_VALID_ADR;
+		}
+
+		/* Execute the Device._sx_w methods */
+
+		status = acpi_ut_execute_power_methods(node,
+						       acpi_gbl_lowest_dstate_names,
+						       ACPI_NUM_sx_w_METHODS,
+						       info->lowest_dstates);
+		if (ACPI_SUCCESS(status)) {
+			valid |= ACPI_VALID_SXWS;
 		}
 
 		/* Execute the Device._sx_d methods */
 
-		status = acpi_ut_execute_sxds(node, info->highest_dstates);
+		status = acpi_ut_execute_power_methods(node,
+						       acpi_gbl_highest_dstate_names,
+						       ACPI_NUM_sx_d_METHODS,
+						       info->highest_dstates);
 		if (ACPI_SUCCESS(status)) {
-			info->valid |= ACPI_VALID_SXDS;
+			valid |= ACPI_VALID_SXDS;
 		}
 	}
 
-	/* Validate/Allocate/Clear caller buffer */
+	/*
+	 * Create a pointer to the string area of the return buffer.
+	 * Point to the end of the base struct acpi_device_info structure.
+	 */
+	next_id_string = ACPI_CAST_PTR(char, info->compatible_id_list.ids);
+	if (cid_list) {
 
-	status = acpi_ut_initialize_buffer(buffer, size);
-	if (ACPI_FAILURE(status)) {
-		goto cleanup;
+		/* Point past the CID DEVICE_ID array */
+
+		next_id_string +=
+		    ((acpi_size) cid_list->count *
+		     sizeof(struct acpica_device_id));
 	}
 
-	/* Populate the return buffer */
+	/*
+	 * Copy the HID, UID, and CIDs to the return buffer. The variable-length
+	 * strings are copied to the reserved area at the end of the buffer.
+	 *
+	 * For HID and CID, check if the ID is a PCI Root Bridge.
+	 */
+	if (hid) {
+		next_id_string = acpi_ns_copy_device_id(&info->hardware_id,
+							hid, next_id_string);
 
-	return_info = buffer->pointer;
-	ACPI_MEMCPY(return_info, info, sizeof(struct acpi_device_info));
+		if (acpi_ut_is_pci_root_bridge(hid->string)) {
+			info->flags |= ACPI_PCI_ROOT_BRIDGE;
+		}
+	}
+
+	if (uid) {
+		next_id_string = acpi_ns_copy_device_id(&info->unique_id,
+							uid, next_id_string);
+	}
 
 	if (cid_list) {
-		ACPI_MEMCPY(&return_info->compatibility_id, cid_list,
-			    cid_list->size);
+		info->compatible_id_list.count = cid_list->count;
+		info->compatible_id_list.list_size = cid_list->list_size;
+
+		/* Copy each CID */
+
+		for (i = 0; i < cid_list->count; i++) {
+			next_id_string =
+			    acpi_ns_copy_device_id(&info->compatible_id_list.
+						   ids[i], &cid_list->ids[i],
+						   next_id_string);
+
+			if (acpi_ut_is_pci_root_bridge(cid_list->ids[i].string)) {
+				info->flags |= ACPI_PCI_ROOT_BRIDGE;
+			}
+		}
 	}
 
+	/* Copy the fixed-length data */
+
+	info->info_size = info_size;
+	info->type = type;
+	info->name = name;
+	info->param_count = param_count;
+	info->valid = valid;
+
+	*return_buffer = info;
+	status = AE_OK;
+
       cleanup:
-	ACPI_FREE(info);
+	if (hid) {
+		ACPI_FREE(hid);
+	}
+	if (uid) {
+		ACPI_FREE(uid);
+	}
 	if (cid_list) {
 		ACPI_FREE(cid_list);
 	}

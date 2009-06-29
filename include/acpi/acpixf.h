@@ -200,7 +200,8 @@ acpi_evaluate_object_typed(acpi_handle object,
 			   acpi_object_type return_type);
 
 acpi_status
-acpi_get_object_info(acpi_handle handle, struct acpi_buffer *return_buffer);
+acpi_get_object_info(acpi_handle handle,
+		     struct acpi_device_info **return_buffer);
 
 acpi_status acpi_install_method(u8 *buffer);
 
