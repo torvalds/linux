@@ -384,6 +384,8 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_key(wcombo, BTN_STYLUS2, 0);
 			wacom_report_key(wcombo, BTN_TOUCH, 0);
 			wacom_report_abs(wcombo, ABS_WHEEL, 0);
+			if (wacom->features->type >= INTUOS3S)
+				wacom_report_abs(wcombo, ABS_Z, 0);
 		}
 		wacom_report_key(wcombo, wacom->tool[idx], 0);
 		wacom_report_abs(wcombo, ABS_MISC, 0); /* reset tool id */
@@ -836,6 +838,7 @@ static struct wacom_features wacom_features[] = {
 	{ "Wacom DTU710",        8,  34080, 27660,  511,  0, PL },
 	{ "Wacom DTF521",        8,   6282,  4762,  511,  0, PL },
 	{ "Wacom DTF720",        8,   6858,  5506,  511,  0, PL },
+	{ "Wacom DTF720a",       8,   6858,  5506,  511,  0, PL },
 	{ "Wacom Cintiq Partner",8,  20480, 15360,  511,  0, PTU },
 	{ "Wacom Intuos2 4x5",   10, 12700, 10600, 1023, 31, INTUOS },
 	{ "Wacom Intuos2 6x8",   10, 20320, 16240, 1023, 31, INTUOS },
@@ -897,8 +900,9 @@ static struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x37) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x38) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x39) },
-	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xC0) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xC4) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xC0) },
+	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0xC2) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x03) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x41) },
 	{ USB_DEVICE(USB_VENDOR_ID_WACOM, 0x42) },
