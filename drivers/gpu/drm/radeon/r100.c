@@ -110,7 +110,7 @@ int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	if (i < 0 || i > rdev->gart.num_gpu_pages) {
 		return -EINVAL;
 	}
-	rdev->gart.table.ram.ptr[i] = cpu_to_le32((uint32_t)addr);
+	rdev->gart.table.ram.ptr[i] = cpu_to_le32(lower_32_bits(addr));
 	return 0;
 }
 

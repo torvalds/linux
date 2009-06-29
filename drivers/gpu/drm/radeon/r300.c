@@ -150,7 +150,9 @@ int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	if (i < 0 || i > rdev->gart.num_gpu_pages) {
 		return -EINVAL;
 	}
-	addr = (((u32)addr) >> 8) | ((upper_32_bits(addr) & 0xff) << 4) | 0xC;
+	addr = (lower_32_bits(addr) >> 8) |
+	       ((upper_32_bits(addr) & 0xff) << 24) |
+	       0xc;
 	writel(cpu_to_le32(addr), ((void __iomem *)ptr) + (i * 4));
 	return 0;
 }

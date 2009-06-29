@@ -164,7 +164,9 @@ int rs400_gart_enable(struct radeon_device *rdev)
 		WREG32(RADEON_BUS_CNTL, tmp);
 	}
 	/* Table should be in 32bits address space so ignore bits above. */
-	tmp = rdev->gart.table_addr & 0xfffff000;
+	tmp = (u32)rdev->gart.table_addr & 0xfffff000;
+	tmp |= (upper_32_bits(rdev->gart.table_addr) & 0xff) << 4;
+
 	WREG32_MC(RS480_GART_BASE, tmp);
 	/* TODO: more tweaking here */
 	WREG32_MC(RS480_GART_FEATURE_ID,
@@ -201,10 +203,17 @@ void rs400_gart_disable(struct radeon_device *rdev)
 
 int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 {
+	uint32_t entry;
+
 	if (i < 0 || i > rdev->gart.num_gpu_pages) {
 		return -EINVAL;
 	}
-	rdev->gart.table.ram.ptr[i] = cpu_to_le32(((uint32_t)addr) | 0xC);
+
+	entry = (lower_32_bits(addr) & PAGE_MASK) |
+		((upper_32_bits(addr) & 0xff) << 4) |
+		0xc;
+	entry = cpu_to_le32(entry);
+	rdev->gart.table.ram.ptr[i] = entry;
 	return 0;
 }
 
