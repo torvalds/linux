@@ -12463,6 +12463,8 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
+
 	return 1;
 }
 
@@ -13370,6 +13372,8 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 
 	if (!spec->cap_mixer && !spec->no_analog)
 		set_capture_mixer(spec);
+
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
 
 	return 1;
 }
