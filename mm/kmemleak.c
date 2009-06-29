@@ -1030,6 +1030,12 @@ static void kmemleak_scan(void)
 	WARN_ON(!list_empty(&gray_list));
 
 	/*
+	 * If scanning was stopped do not report any new unreferenced objects.
+	 */
+	if (scan_should_stop())
+		return;
+
+	/*
 	 * Scanning result reporting.
 	 */
 	rcu_read_lock();
@@ -1184,11 +1190,10 @@ static int kmemleak_seq_show(struct seq_file *seq, void *v)
 	unsigned long flags;
 
 	spin_lock_irqsave(&object->lock, flags);
-	if (!unreferenced_object(object))
-		goto out;
-	print_unreferenced(seq, object);
-	reported_leaks++;
-out:
+	if ((object->flags & OBJECT_REPORTED) && unreferenced_object(object)) {
+		print_unreferenced(seq, object);
+		reported_leaks++;
+	}
 	spin_unlock_irqrestore(&object->lock, flags);
 	return 0;
 }
