@@ -940,6 +940,7 @@ menu "Performance Counters"
 
 config PERF_COUNTERS
 	bool "Kernel Performance Counters"
+	default y if PROFILING
 	depends on HAVE_PERF_COUNTERS
 	select ANON_INODES
 	help
