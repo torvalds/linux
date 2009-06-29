@@ -1003,6 +1003,8 @@ idle_timeout:
 		schedule_timeout_uninterruptible(1);
 		goto rescan;
 	case QH_STATE_IDLE:		/* fully unlinked */
+		if (qh->clearing_tt)
+			goto idle_timeout;
 		if (list_empty (&qh->qtd_list)) {
 			qh_put (qh);
 			break;

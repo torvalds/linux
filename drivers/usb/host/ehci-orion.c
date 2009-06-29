@@ -165,6 +165,8 @@ static const struct hc_driver ehci_orion_hc_driver = {
 	.bus_resume = ehci_bus_resume,
 	.relinquish_port = ehci_relinquish_port,
 	.port_handed_over = ehci_port_handed_over,
+
+	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
 static void __init
