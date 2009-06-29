@@ -44,6 +44,7 @@ int r100_gui_wait_for_idle(struct radeon_device *rdev);
 int r100_cs_packet_parse(struct radeon_cs_parser *p,
 			 struct radeon_cs_packet *pkt,
 			 unsigned idx);
+int r100_cs_packet_parse_vline(struct radeon_cs_parser *p);
 int r100_cs_packet_next_reloc(struct radeon_cs_parser *p,
 			      struct radeon_cs_reloc **cs_reloc);
 int r100_cs_parse_packet0(struct radeon_cs_parser *p,
@@ -972,7 +973,7 @@ static inline void r300_cs_track_clear(struct r300_cs_track *track)
 
 static const unsigned r300_reg_safe_bm[159] = {
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-	0xFFFFFFBF, 0xFFFFFFFF, 0xFFFFFFBF, 0xFFFFFFFF,
+	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
@@ -1029,6 +1030,16 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	ib_chunk = &p->chunks[p->chunk_ib_idx];
 	track = (struct r300_cs_track*)p->track;
 	switch(reg) {
+	case AVIVO_D1MODE_VLINE_START_END:
+	case RADEON_CRTC_GUI_TRIG_VLINE:
+		r = r100_cs_packet_parse_vline(p);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+		break;
 	case RADEON_DST_PITCH_OFFSET:
 	case RADEON_SRC_PITCH_OFFSET:
 		r = r100_cs_packet_next_reloc(p, &reloc);

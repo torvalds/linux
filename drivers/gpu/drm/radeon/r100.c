@@ -752,6 +752,102 @@ int r100_cs_packet_parse(struct radeon_cs_parser *p,
 }
 
 /**
+ * r100_cs_packet_next_vline() - parse userspace VLINE packet
+ * @parser:		parser structure holding parsing context.
+ *
+ * Userspace sends a special sequence for VLINE waits.
+ * PACKET0 - VLINE_START_END + value
+ * PACKET0 - WAIT_UNTIL +_value
+ * RELOC (P3) - crtc_id in reloc.
+ *
+ * This function parses this and relocates the VLINE START END
+ * and WAIT UNTIL packets to the correct crtc.
+ * It also detects a switched off crtc and nulls out the
+ * wait in that case.
+ */
+int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
+{
+	struct radeon_cs_chunk *ib_chunk;
+	struct drm_mode_object *obj;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+	struct radeon_cs_packet p3reloc, waitreloc;
+	int crtc_id;
+	int r;
+	uint32_t header, h_idx, reg;
+
+	ib_chunk = &p->chunks[p->chunk_ib_idx];
+
+	/* parse the wait until */
+	r = r100_cs_packet_parse(p, &waitreloc, p->idx);
+	if (r)
+		return r;
+
+	/* check its a wait until and only 1 count */
+	if (waitreloc.reg != RADEON_WAIT_UNTIL ||
+	    waitreloc.count != 0) {
+		DRM_ERROR("vline wait had illegal wait until segment\n");
+		r = -EINVAL;
+		return r;
+	}
+
+	if (ib_chunk->kdata[waitreloc.idx + 1] != RADEON_WAIT_CRTC_VLINE) {
+		DRM_ERROR("vline wait had illegal wait until\n");
+		r = -EINVAL;
+		return r;
+	}
+
+	/* jump over the NOP */
+	r = r100_cs_packet_parse(p, &p3reloc, p->idx);
+	if (r)
+		return r;
+
+	h_idx = p->idx - 2;
+	p->idx += waitreloc.count;
+	p->idx += p3reloc.count;
+
+	header = ib_chunk->kdata[h_idx];
+	crtc_id = ib_chunk->kdata[h_idx + 5];
+	reg = ib_chunk->kdata[h_idx] >> 2;
+	mutex_lock(&p->rdev->ddev->mode_config.mutex);
+	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
+	if (!obj) {
+		DRM_ERROR("cannot find crtc %d\n", crtc_id);
+		r = -EINVAL;
+		goto out;
+	}
+	crtc = obj_to_crtc(obj);
+	radeon_crtc = to_radeon_crtc(crtc);
+	crtc_id = radeon_crtc->crtc_id;
+
+	if (!crtc->enabled) {
+		/* if the CRTC isn't enabled - we need to nop out the wait until */
+		ib_chunk->kdata[h_idx + 2] = PACKET2(0);
+		ib_chunk->kdata[h_idx + 3] = PACKET2(0);
+	} else if (crtc_id == 1) {
+		switch (reg) {
+		case AVIVO_D1MODE_VLINE_START_END:
+			header &= R300_CP_PACKET0_REG_MASK;
+			header |= AVIVO_D2MODE_VLINE_START_END >> 2;
+			break;
+		case RADEON_CRTC_GUI_TRIG_VLINE:
+			header &= R300_CP_PACKET0_REG_MASK;
+			header |= RADEON_CRTC2_GUI_TRIG_VLINE >> 2;
+			break;
+		default:
+			DRM_ERROR("unknown crtc reloc\n");
+			r = -EINVAL;
+			goto out;
+		}
+		ib_chunk->kdata[h_idx] = header;
+		ib_chunk->kdata[h_idx + 3] |= RADEON_ENG_DISPLAY_SELECT_CRTC1;
+	}
+out:
+	mutex_unlock(&p->rdev->ddev->mode_config.mutex);
+	return r;
+}
+
+/**
  * r100_cs_packet_next_reloc() - parse next packet which should be reloc packet3
  * @parser:		parser structure holding parsing context.
  * @data:		pointer to relocation data
@@ -824,6 +920,15 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	}
 	for (i = 0; i <= pkt->count; i++, idx++, reg += 4) {
 		switch (reg) {
+		case RADEON_CRTC_GUI_TRIG_VLINE:
+			r = r100_cs_packet_parse_vline(p);
+			if (r) {
+				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+						idx, reg);
+				r100_cs_dump_packet(p, pkt);
+				return r;
+			}
+			break;
 		/* FIXME: only allow PACKET3 blit? easier to check for out of
 		 * range access */
 		case RADEON_DST_PITCH_OFFSET:
