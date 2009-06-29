@@ -214,6 +214,14 @@ static int qtd_copy_status (
 		if (token & QTD_STS_BABBLE) {
 			/* FIXME "must" disable babbling device's port too */
 			status = -EOVERFLOW;
+		/* CERR nonzero + halt --> stall */
+		} else if (QTD_CERR(token)) {
+			status = -EPIPE;
+
+		/* In theory, more than one of the following bits can be set
+		 * since they are sticky and the transaction is retried.
+		 * Which to test first is rather arbitrary.
+		 */
 		} else if (token & QTD_STS_MMF) {
 			/* fs/ls interrupt xfer missed the complete-split */
 			status = -EPROTO;
@@ -222,21 +230,15 @@ static int qtd_copy_status (
 				? -ENOSR  /* hc couldn't read data */
 				: -ECOMM; /* hc couldn't write data */
 		} else if (token & QTD_STS_XACT) {
-			/* timeout, bad crc, wrong PID, etc; retried */
-			if (QTD_CERR (token))
-				status = -EPIPE;
-			else {
-				ehci_dbg (ehci, "devpath %s ep%d%s 3strikes\n",
-					urb->dev->devpath,
-					usb_pipeendpoint (urb->pipe),
-					usb_pipein (urb->pipe) ? "in" : "out");
-				status = -EPROTO;
-			}
-		/* CERR nonzero + no errors + halt --> stall */
-		} else if (QTD_CERR (token))
-			status = -EPIPE;
-		else	/* unknown */
+			/* timeout, bad CRC, wrong PID, etc */
+			ehci_dbg(ehci, "devpath %s ep%d%s 3strikes\n",
+				urb->dev->devpath,
+				usb_pipeendpoint(urb->pipe),
+				usb_pipein(urb->pipe) ? "in" : "out");
 			status = -EPROTO;
+		} else {	/* unknown */
+			status = -EPROTO;
+		}
 
 		ehci_vdbg (ehci,
 			"dev%d ep%d%s qtd token %08x --> status %d\n",
