@@ -267,6 +267,7 @@ config MACH_VR41XX
 	select CEVT_R4K
 	select CSRC_R4K
 	select SYS_HAS_CPU_VR41XX
+	select ARCH_REQUIRE_GPIOLIB
 
 config NXP_STB220
 	bool "NXP STB220 board"
