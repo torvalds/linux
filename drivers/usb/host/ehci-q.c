@@ -215,7 +215,7 @@ static int qtd_copy_status (
 			/* REVISIT ARC-derived cores don't clear the root
 			 * hub TT buffer in this way...
 			 */
-			usb_hub_tt_clear_buffer (urb->dev, urb->pipe);
+			usb_hub_clear_tt_buffer(urb);
 		}
 	}
 
