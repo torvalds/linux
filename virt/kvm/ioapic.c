@@ -227,20 +227,19 @@ static inline struct kvm_ioapic *to_ioapic(struct kvm_io_device *dev)
 	return container_of(dev, struct kvm_ioapic, dev);
 }
 
-static int ioapic_in_range(struct kvm_io_device *this, gpa_t addr,
-			   int len, int is_write)
+static inline int ioapic_in_range(struct kvm_ioapic *ioapic, gpa_t addr)
 {
-	struct kvm_ioapic *ioapic = to_ioapic(this);
-
 	return ((addr >= ioapic->base_address &&
 		 (addr < ioapic->base_address + IOAPIC_MEM_LENGTH)));
 }
 
-static void ioapic_mmio_read(struct kvm_io_device *this, gpa_t addr, int len,
-			     void *val)
+static int ioapic_mmio_read(struct kvm_io_device *this, gpa_t addr, int len,
+			    void *val)
 {
 	struct kvm_ioapic *ioapic = to_ioapic(this);
 	u32 result;
+	if (!ioapic_in_range(ioapic, addr))
+		return -EOPNOTSUPP;
 
 	ioapic_debug("addr %lx\n", (unsigned long)addr);
 	ASSERT(!(addr & 0xf));	/* check alignment */
@@ -273,13 +272,16 @@ static void ioapic_mmio_read(struct kvm_io_device *this, gpa_t addr, int len,
 		printk(KERN_WARNING "ioapic: wrong length %d\n", len);
 	}
 	mutex_unlock(&ioapic->kvm->irq_lock);
+	return 0;
 }
 
-static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
-			      const void *val)
+static int ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
+			     const void *val)
 {
 	struct kvm_ioapic *ioapic = to_ioapic(this);
 	u32 data;
+	if (!ioapic_in_range(ioapic, addr))
+		return -EOPNOTSUPP;
 
 	ioapic_debug("ioapic_mmio_write addr=%p len=%d val=%p\n",
 		     (void*)addr, len, val);
@@ -290,7 +292,7 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 		data = *(u32 *) val;
 	else {
 		printk(KERN_WARNING "ioapic: Unsupported size %d\n", len);
-		return;
+		return 0;
 	}
 
 	addr &= 0xff;
@@ -312,6 +314,7 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 		break;
 	}
 	mutex_unlock(&ioapic->kvm->irq_lock);
+	return 0;
 }
 
 void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
@@ -329,7 +332,6 @@ void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
 static const struct kvm_io_device_ops ioapic_mmio_ops = {
 	.read     = ioapic_mmio_read,
 	.write    = ioapic_mmio_write,
-	.in_range = ioapic_in_range,
 };
 
 int kvm_ioapic_init(struct kvm *kvm)

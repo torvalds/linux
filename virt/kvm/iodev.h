@@ -17,23 +17,24 @@
 #define __KVM_IODEV_H__
 
 #include <linux/kvm_types.h>
+#include <asm/errno.h>
 
 struct kvm_io_device;
 
 /**
  * kvm_io_device_ops are called under kvm slots_lock.
+ * read and write handlers return 0 if the transaction has been handled,
+ * or non-zero to have it passed to the next device.
  **/
 struct kvm_io_device_ops {
-	void (*read)(struct kvm_io_device *this,
+	int (*read)(struct kvm_io_device *this,
+		    gpa_t addr,
+		    int len,
+		    void *val);
+	int (*write)(struct kvm_io_device *this,
 		     gpa_t addr,
 		     int len,
-		     void *val);
-	void (*write)(struct kvm_io_device *this,
-		      gpa_t addr,
-		      int len,
-		      const void *val);
-	int (*in_range)(struct kvm_io_device *this, gpa_t addr, int len,
-			int is_write);
+		     const void *val);
 	void (*destructor)(struct kvm_io_device *this);
 };
 
@@ -48,26 +49,16 @@ static inline void kvm_iodevice_init(struct kvm_io_device *dev,
 	dev->ops = ops;
 }
 
-static inline void kvm_iodevice_read(struct kvm_io_device *dev,
-				     gpa_t addr,
-				     int len,
-				     void *val)
+static inline int kvm_iodevice_read(struct kvm_io_device *dev,
+				    gpa_t addr, int l, void *v)
 {
-	dev->ops->read(dev, addr, len, val);
+	return dev->ops->read ? dev->ops->read(dev, addr, l, v) : -EOPNOTSUPP;
 }
 
-static inline void kvm_iodevice_write(struct kvm_io_device *dev,
-				      gpa_t addr,
-				      int len,
-				      const void *val)
+static inline int kvm_iodevice_write(struct kvm_io_device *dev,
+				     gpa_t addr, int l, const void *v)
 {
-	dev->ops->write(dev, addr, len, val);
-}
-
-static inline int kvm_iodevice_in_range(struct kvm_io_device *dev,
-					gpa_t addr, int len, int is_write)
-{
-	return dev->ops->in_range(dev, addr, len, is_write);
+	return dev->ops->write ? dev->ops->write(dev, addr, l, v) : -EOPNOTSUPP;
 }
 
 static inline void kvm_iodevice_destructor(struct kvm_io_device *dev)

@@ -19,17 +19,13 @@ static inline struct kvm_coalesced_mmio_dev *to_mmio(struct kvm_io_device *dev)
 	return container_of(dev, struct kvm_coalesced_mmio_dev, dev);
 }
 
-static int coalesced_mmio_in_range(struct kvm_io_device *this,
-				   gpa_t addr, int len, int is_write)
+static int coalesced_mmio_in_range(struct kvm_coalesced_mmio_dev *dev,
+				   gpa_t addr, int len)
 {
-	struct kvm_coalesced_mmio_dev *dev = to_mmio(this);
 	struct kvm_coalesced_mmio_zone *zone;
 	struct kvm_coalesced_mmio_ring *ring;
 	unsigned avail;
 	int i;
-
-	if (!is_write)
-		return 0;
 
 	/* Are we able to batch it ? */
 
@@ -60,11 +56,13 @@ static int coalesced_mmio_in_range(struct kvm_io_device *this,
 	return 0;
 }
 
-static void coalesced_mmio_write(struct kvm_io_device *this,
-				 gpa_t addr, int len, const void *val)
+static int coalesced_mmio_write(struct kvm_io_device *this,
+				gpa_t addr, int len, const void *val)
 {
 	struct kvm_coalesced_mmio_dev *dev = to_mmio(this);
 	struct kvm_coalesced_mmio_ring *ring = dev->kvm->coalesced_mmio_ring;
+	if (!coalesced_mmio_in_range(dev, addr, len))
+		return -EOPNOTSUPP;
 
 	spin_lock(&dev->lock);
 
@@ -76,6 +74,7 @@ static void coalesced_mmio_write(struct kvm_io_device *this,
 	smp_wmb();
 	ring->last = (ring->last + 1) % KVM_COALESCED_MMIO_MAX;
 	spin_unlock(&dev->lock);
+	return 0;
 }
 
 static void coalesced_mmio_destructor(struct kvm_io_device *this)
@@ -87,7 +86,6 @@ static void coalesced_mmio_destructor(struct kvm_io_device *this)
 
 static const struct kvm_io_device_ops coalesced_mmio_ops = {
 	.write      = coalesced_mmio_write,
-	.in_range   = coalesced_mmio_in_range,
 	.destructor = coalesced_mmio_destructor,
 };
 

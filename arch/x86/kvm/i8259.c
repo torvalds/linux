@@ -430,8 +430,7 @@ static u32 elcr_ioport_read(void *opaque, u32 addr1)
 	return s->elcr;
 }
 
-static int picdev_in_range(struct kvm_io_device *this, gpa_t addr,
-			   int len, int is_write)
+static int picdev_in_range(gpa_t addr)
 {
 	switch (addr) {
 	case 0x20:
@@ -451,16 +450,18 @@ static inline struct kvm_pic *to_pic(struct kvm_io_device *dev)
 	return container_of(dev, struct kvm_pic, dev);
 }
 
-static void picdev_write(struct kvm_io_device *this,
+static int picdev_write(struct kvm_io_device *this,
 			 gpa_t addr, int len, const void *val)
 {
 	struct kvm_pic *s = to_pic(this);
 	unsigned char data = *(unsigned char *)val;
+	if (!picdev_in_range(addr))
+		return -EOPNOTSUPP;
 
 	if (len != 1) {
 		if (printk_ratelimit())
 			printk(KERN_ERR "PIC: non byte write\n");
-		return;
+		return 0;
 	}
 	pic_lock(s);
 	switch (addr) {
@@ -476,18 +477,21 @@ static void picdev_write(struct kvm_io_device *this,
 		break;
 	}
 	pic_unlock(s);
+	return 0;
 }
 
-static void picdev_read(struct kvm_io_device *this,
-			gpa_t addr, int len, void *val)
+static int picdev_read(struct kvm_io_device *this,
+		       gpa_t addr, int len, void *val)
 {
 	struct kvm_pic *s = to_pic(this);
 	unsigned char data = 0;
+	if (!picdev_in_range(addr))
+		return -EOPNOTSUPP;
 
 	if (len != 1) {
 		if (printk_ratelimit())
 			printk(KERN_ERR "PIC: non byte read\n");
-		return;
+		return 0;
 	}
 	pic_lock(s);
 	switch (addr) {
@@ -504,6 +508,7 @@ static void picdev_read(struct kvm_io_device *this,
 	}
 	*(unsigned char *)val = data;
 	pic_unlock(s);
+	return 0;
 }
 
 /*
@@ -526,7 +531,6 @@ static void pic_irq_request(void *opaque, int level)
 static const struct kvm_io_device_ops picdev_ops = {
 	.read     = picdev_read,
 	.write    = picdev_write,
-	.in_range = picdev_in_range,
 };
 
 struct kvm_pic *kvm_create_pic(struct kvm *kvm)

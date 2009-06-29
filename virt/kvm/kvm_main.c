@@ -2512,19 +2512,25 @@ void kvm_io_bus_destroy(struct kvm_io_bus *bus)
 	}
 }
 
-struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus,
-					  gpa_t addr, int len, int is_write)
+/* kvm_io_bus_write - called under kvm->slots_lock */
+int kvm_io_bus_write(struct kvm_io_bus *bus, gpa_t addr,
+		     int len, const void *val)
 {
 	int i;
+	for (i = 0; i < bus->dev_count; i++)
+		if (!kvm_iodevice_write(bus->devs[i], addr, len, val))
+			return 0;
+	return -EOPNOTSUPP;
+}
 
-	for (i = 0; i < bus->dev_count; i++) {
-		struct kvm_io_device *pos = bus->devs[i];
-
-		if (kvm_iodevice_in_range(pos, addr, len, is_write))
-			return pos;
-	}
-
-	return NULL;
+/* kvm_io_bus_read - called under kvm->slots_lock */
+int kvm_io_bus_read(struct kvm_io_bus *bus, gpa_t addr, int len, void *val)
+{
+	int i;
+	for (i = 0; i < bus->dev_count; i++)
+		if (!kvm_iodevice_read(bus->devs[i], addr, len, val))
+			return 0;
+	return -EOPNOTSUPP;
 }
 
 void kvm_io_bus_register_dev(struct kvm *kvm, struct kvm_io_bus *bus,

@@ -546,18 +546,27 @@ static inline struct kvm_lapic *to_lapic(struct kvm_io_device *dev)
 	return container_of(dev, struct kvm_lapic, dev);
 }
 
-static void apic_mmio_read(struct kvm_io_device *this,
-			   gpa_t address, int len, void *data)
+static int apic_mmio_in_range(struct kvm_lapic *apic, gpa_t addr)
+{
+	return apic_hw_enabled(apic) &&
+	    addr >= apic->base_address &&
+	    addr < apic->base_address + LAPIC_MMIO_LENGTH;
+}
+
+static int apic_mmio_read(struct kvm_io_device *this,
+			  gpa_t address, int len, void *data)
 {
 	struct kvm_lapic *apic = to_lapic(this);
 	unsigned int offset = address - apic->base_address;
 	unsigned char alignment = offset & 0xf;
 	u32 result;
+	if (!apic_mmio_in_range(apic, address))
+		return -EOPNOTSUPP;
 
 	if ((alignment + len) > 4) {
 		printk(KERN_ERR "KVM_APIC_READ: alignment error %lx %d",
 		       (unsigned long)address, len);
-		return;
+		return 0;
 	}
 	result = __apic_read(apic, offset & ~0xf);
 
@@ -574,6 +583,7 @@ static void apic_mmio_read(struct kvm_io_device *this,
 		       "should be 1,2, or 4 instead\n", len);
 		break;
 	}
+	return 0;
 }
 
 static void update_divide_count(struct kvm_lapic *apic)
@@ -629,13 +639,15 @@ static void apic_manage_nmi_watchdog(struct kvm_lapic *apic, u32 lvt0_val)
 		apic->vcpu->kvm->arch.vapics_in_nmi_mode--;
 }
 
-static void apic_mmio_write(struct kvm_io_device *this,
-			    gpa_t address, int len, const void *data)
+static int apic_mmio_write(struct kvm_io_device *this,
+			   gpa_t address, int len, const void *data)
 {
 	struct kvm_lapic *apic = to_lapic(this);
 	unsigned int offset = address - apic->base_address;
 	unsigned char alignment = offset & 0xf;
 	u32 val;
+	if (!apic_mmio_in_range(apic, address))
+		return -EOPNOTSUPP;
 
 	/*
 	 * APIC register must be aligned on 128-bits boundary.
@@ -646,7 +658,7 @@ static void apic_mmio_write(struct kvm_io_device *this,
 		/* Don't shout loud, $infamous_os would cause only noise. */
 		apic_debug("apic write: bad size=%d %lx\n",
 			   len, (long)address);
-		return;
+		return 0;
 	}
 
 	val = *(u32 *) data;
@@ -729,7 +741,7 @@ static void apic_mmio_write(struct kvm_io_device *this,
 		hrtimer_cancel(&apic->lapic_timer.timer);
 		apic_set_reg(apic, APIC_TMICT, val);
 		start_apic_timer(apic);
-		return;
+		return 0;
 
 	case APIC_TDCR:
 		if (val & 4)
@@ -743,22 +755,7 @@ static void apic_mmio_write(struct kvm_io_device *this,
 			   offset);
 		break;
 	}
-
-}
-
-static int apic_mmio_range(struct kvm_io_device *this, gpa_t addr,
-			   int len, int size)
-{
-	struct kvm_lapic *apic = to_lapic(this);
-	int ret = 0;
-
-
-	if (apic_hw_enabled(apic) &&
-	    (addr >= apic->base_address) &&
-	    (addr < (apic->base_address + LAPIC_MMIO_LENGTH)))
-		ret = 1;
-
-	return ret;
+	return 0;
 }
 
 void kvm_free_lapic(struct kvm_vcpu *vcpu)
@@ -938,7 +935,6 @@ static struct kvm_timer_ops lapic_timer_ops = {
 static const struct kvm_io_device_ops apic_mmio_ops = {
 	.read     = apic_mmio_read,
 	.write    = apic_mmio_write,
-	.in_range = apic_mmio_range,
 };
 
 int kvm_create_lapic(struct kvm_vcpu *vcpu)

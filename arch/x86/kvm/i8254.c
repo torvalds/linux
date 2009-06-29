@@ -358,8 +358,14 @@ static inline struct kvm_pit *speaker_to_pit(struct kvm_io_device *dev)
 	return container_of(dev, struct kvm_pit, speaker_dev);
 }
 
-static void pit_ioport_write(struct kvm_io_device *this,
-			     gpa_t addr, int len, const void *data)
+static inline int pit_in_range(gpa_t addr)
+{
+	return ((addr >= KVM_PIT_BASE_ADDRESS) &&
+		(addr < KVM_PIT_BASE_ADDRESS + KVM_PIT_MEM_LENGTH));
+}
+
+static int pit_ioport_write(struct kvm_io_device *this,
+			    gpa_t addr, int len, const void *data)
 {
 	struct kvm_pit *pit = dev_to_pit(this);
 	struct kvm_kpit_state *pit_state = &pit->pit_state;
@@ -367,6 +373,8 @@ static void pit_ioport_write(struct kvm_io_device *this,
 	int channel, access;
 	struct kvm_kpit_channel_state *s;
 	u32 val = *(u32 *) data;
+	if (!pit_in_range(addr))
+		return -EOPNOTSUPP;
 
 	val  &= 0xff;
 	addr &= KVM_PIT_CHANNEL_MASK;
@@ -429,16 +437,19 @@ static void pit_ioport_write(struct kvm_io_device *this,
 	}
 
 	mutex_unlock(&pit_state->lock);
+	return 0;
 }
 
-static void pit_ioport_read(struct kvm_io_device *this,
-			    gpa_t addr, int len, void *data)
+static int pit_ioport_read(struct kvm_io_device *this,
+			   gpa_t addr, int len, void *data)
 {
 	struct kvm_pit *pit = dev_to_pit(this);
 	struct kvm_kpit_state *pit_state = &pit->pit_state;
 	struct kvm *kvm = pit->kvm;
 	int ret, count;
 	struct kvm_kpit_channel_state *s;
+	if (!pit_in_range(addr))
+		return -EOPNOTSUPP;
 
 	addr &= KVM_PIT_CHANNEL_MASK;
 	s = &pit_state->channels[addr];
@@ -493,37 +504,36 @@ static void pit_ioport_read(struct kvm_io_device *this,
 	memcpy(data, (char *)&ret, len);
 
 	mutex_unlock(&pit_state->lock);
+	return 0;
 }
 
-static int pit_in_range(struct kvm_io_device *this, gpa_t addr,
-			int len, int is_write)
-{
-	return ((addr >= KVM_PIT_BASE_ADDRESS) &&
-		(addr < KVM_PIT_BASE_ADDRESS + KVM_PIT_MEM_LENGTH));
-}
-
-static void speaker_ioport_write(struct kvm_io_device *this,
-				 gpa_t addr, int len, const void *data)
+static int speaker_ioport_write(struct kvm_io_device *this,
+				gpa_t addr, int len, const void *data)
 {
 	struct kvm_pit *pit = speaker_to_pit(this);
 	struct kvm_kpit_state *pit_state = &pit->pit_state;
 	struct kvm *kvm = pit->kvm;
 	u32 val = *(u32 *) data;
+	if (addr != KVM_SPEAKER_BASE_ADDRESS)
+		return -EOPNOTSUPP;
 
 	mutex_lock(&pit_state->lock);
 	pit_state->speaker_data_on = (val >> 1) & 1;
 	pit_set_gate(kvm, 2, val & 1);
 	mutex_unlock(&pit_state->lock);
+	return 0;
 }
 
-static void speaker_ioport_read(struct kvm_io_device *this,
-				gpa_t addr, int len, void *data)
+static int speaker_ioport_read(struct kvm_io_device *this,
+			       gpa_t addr, int len, void *data)
 {
 	struct kvm_pit *pit = speaker_to_pit(this);
 	struct kvm_kpit_state *pit_state = &pit->pit_state;
 	struct kvm *kvm = pit->kvm;
 	unsigned int refresh_clock;
 	int ret;
+	if (addr != KVM_SPEAKER_BASE_ADDRESS)
+		return -EOPNOTSUPP;
 
 	/* Refresh clock toggles at about 15us. We approximate as 2^14ns. */
 	refresh_clock = ((unsigned int)ktime_to_ns(ktime_get()) >> 14) & 1;
@@ -535,12 +545,7 @@ static void speaker_ioport_read(struct kvm_io_device *this,
 		len = sizeof(ret);
 	memcpy(data, (char *)&ret, len);
 	mutex_unlock(&pit_state->lock);
-}
-
-static int speaker_in_range(struct kvm_io_device *this, gpa_t addr,
-			    int len, int is_write)
-{
-	return (addr == KVM_SPEAKER_BASE_ADDRESS);
+	return 0;
 }
 
 void kvm_pit_reset(struct kvm_pit *pit)
@@ -574,13 +579,11 @@ static void pit_mask_notifer(struct kvm_irq_mask_notifier *kimn, bool mask)
 static const struct kvm_io_device_ops pit_dev_ops = {
 	.read     = pit_ioport_read,
 	.write    = pit_ioport_write,
-	.in_range = pit_in_range,
 };
 
 static const struct kvm_io_device_ops speaker_dev_ops = {
 	.read     = speaker_ioport_read,
 	.write    = speaker_ioport_write,
-	.in_range = speaker_in_range,
 };
 
 /* Caller must have writers lock on slots_lock */

@@ -210,16 +210,6 @@ int kvm_dev_ioctl_check_extension(long ext)
 
 }
 
-static struct kvm_io_device *vcpu_find_mmio_dev(struct kvm_vcpu *vcpu,
-					gpa_t addr, int len, int is_write)
-{
-	struct kvm_io_device *dev;
-
-	dev = kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr, len, is_write);
-
-	return dev;
-}
-
 static int handle_vm_error(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
@@ -231,6 +221,7 @@ static int handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct kvm_mmio_req *p;
 	struct kvm_io_device *mmio_dev;
+	int r;
 
 	p = kvm_get_vcpu_ioreq(vcpu);
 
@@ -247,16 +238,13 @@ static int handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	kvm_run->exit_reason = KVM_EXIT_MMIO;
 	return 0;
 mmio:
-	mmio_dev = vcpu_find_mmio_dev(vcpu, p->addr, p->size, !p->dir);
-	if (mmio_dev) {
-		if (!p->dir)
-			kvm_iodevice_write(mmio_dev, p->addr, p->size,
-						&p->data);
-		else
-			kvm_iodevice_read(mmio_dev, p->addr, p->size,
-						&p->data);
-
-	} else
+	if (p->dir)
+		r = kvm_io_bus_read(&vcpu->kvm->mmio_bus, p->addr,
+				    p->size, &p->data);
+	else
+		r = kvm_io_bus_write(&vcpu->kvm->mmio_bus, p->addr,
+				     p->size, &p->data);
+	if (r)
 		printk(KERN_ERR"kvm: No iodevice found! addr:%lx\n", p->addr);
 	p->state = STATE_IORESP_READY;
 

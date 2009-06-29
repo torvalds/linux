@@ -60,8 +60,10 @@ struct kvm_io_bus {
 
 void kvm_io_bus_init(struct kvm_io_bus *bus);
 void kvm_io_bus_destroy(struct kvm_io_bus *bus);
-struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus,
-					  gpa_t addr, int len, int is_write);
+int kvm_io_bus_write(struct kvm_io_bus *bus, gpa_t addr, int len,
+		     const void *val);
+int kvm_io_bus_read(struct kvm_io_bus *bus, gpa_t addr, int len,
+		    void *val);
 void __kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 			       struct kvm_io_device *dev);
 void kvm_io_bus_register_dev(struct kvm *kvm, struct kvm_io_bus *bus,
