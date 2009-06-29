@@ -433,7 +433,7 @@ static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		dbg("rx framesize %d range %d..%d mtu %d", skb->len,
 			net->hard_header_len, dev->hard_mtu, net->mtu);
 #endif
-		dev->stats.rx_frame_errors++;
+		dev->net->stats.rx_frame_errors++;
 		nc_ensure_sync(dev);
 		return 0;
 	}
@@ -442,12 +442,12 @@ static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	hdr_len = le16_to_cpup(&header->hdr_len);
 	packet_len = le16_to_cpup(&header->packet_len);
 	if (FRAMED_SIZE(packet_len) > NC_MAX_PACKET) {
-		dev->stats.rx_frame_errors++;
+		dev->net->stats.rx_frame_errors++;
 		dbg("packet too big, %d", packet_len);
 		nc_ensure_sync(dev);
 		return 0;
 	} else if (hdr_len < MIN_HEADER) {
-		dev->stats.rx_frame_errors++;
+		dev->net->stats.rx_frame_errors++;
 		dbg("header too short, %d", hdr_len);
 		nc_ensure_sync(dev);
 		return 0;
@@ -465,21 +465,21 @@ static int net1080_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 	if ((packet_len & 0x01) == 0) {
 		if (skb->data [packet_len] != PAD_BYTE) {
-			dev->stats.rx_frame_errors++;
+			dev->net->stats.rx_frame_errors++;
 			dbg("bad pad");
 			return 0;
 		}
 		skb_trim(skb, skb->len - 1);
 	}
 	if (skb->len != packet_len) {
-		dev->stats.rx_frame_errors++;
+		dev->net->stats.rx_frame_errors++;
 		dbg("bad packet len %d (expected %d)",
 			skb->len, packet_len);
 		nc_ensure_sync(dev);
 		return 0;
 	}
 	if (header->packet_id != get_unaligned(&trailer->packet_id)) {
-		dev->stats.rx_fifo_errors++;
+		dev->net->stats.rx_fifo_errors++;
 		dbg("(2+ dropped) rx packet_id mismatch 0x%x 0x%x",
 			le16_to_cpu(header->packet_id),
 			le16_to_cpu(trailer->packet_id));
