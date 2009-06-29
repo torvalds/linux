@@ -32,8 +32,7 @@
  * This driver was tested with firmware revision A4.
  */
 
-#if defined(CONFIG_KEYBOARD_DM355EVM) \
-		|| defined(CONFIG_KEYBOARD_DM355EVM_MODULE)
+#if defined(CONFIG_INPUT_DM355EVM) || defined(CONFIG_INPUT_DM355EVM_MODULE)
 #define msp_has_keyboard()	true
 #else
 #define msp_has_keyboard()	false
