@@ -238,12 +238,12 @@ void ubifs_scanned_corruption(const struct ubifs_info *c, int lnum, int offs,
 {
 	int len;
 
-	ubifs_err("corrupted data at LEB %d:%d", lnum, offs);
+	ubifs_err("corruption at LEB %d:%d", lnum, offs);
 	if (dbg_failure_mode)
 		return;
 	len = c->leb_size - offs;
-	if (len > 4096)
-		len = 4096;
+	if (len > 8192)
+		len = 8192;
 	dbg_err("first %d bytes from LEB %d:%d", len, lnum, offs);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 4, buf, len, 1);
 }
