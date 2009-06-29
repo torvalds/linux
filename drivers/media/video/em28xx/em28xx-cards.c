@@ -191,6 +191,13 @@ static struct em28xx_reg_seq terratec_av350_unmute_gpio[] = {
 	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
 	{	-1,		-1,	-1,		-1},
 };
+
+static struct em28xx_reg_seq silvercrest_reg_seq[] = {
+	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
+	{EM28XX_R08_GPIO,	0x01,	0xf7,		10},
+	{	-1,		-1,	-1,		-1},
+};
+
 /*
  *  Board definitions
  */
@@ -436,6 +443,18 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = EM28XX_AMUX_VIDEO,
+		} },
+	},
+	[EM2820_BOARD_SILVERCREST_WEBCAM] = {
+		.name         = "Silvercrest Webcam 1.3mpix",
+		.tuner_type   = TUNER_ABSENT,
+		.is_27xx      = 1,
+		.decoder      = EM28XX_MT9V011,
+		.input        = { {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = silvercrest_reg_seq,
 		} },
 	},
 	[EM2821_BOARD_SUPERCOMP_USB_2] = {
@@ -1639,6 +1658,11 @@ static unsigned short tvp5150_addrs[] = {
 	I2C_CLIENT_END
 };
 
+static unsigned short mt9v011_addrs[] = {
+	0xba >> 1,
+	I2C_CLIENT_END
+};
+
 static unsigned short msp3400_addrs[] = {
 	0x80 >> 1,
 	0x88 >> 1,
@@ -1706,7 +1730,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 			em28xx_info("chip ID is em2750\n");
 			break;
 		case CHIP_ID_EM2820:
-			em28xx_info("chip ID is em2820\n");
+			if (dev->board.is_27xx)
+				em28xx_info("chip is em2710\n");
+			else
+				em28xx_info("chip ID is em2820\n");
 			break;
 		case CHIP_ID_EM2840:
 			em28xx_info("chip ID is em2840\n");
@@ -2158,6 +2185,10 @@ void em28xx_card_setup(struct em28xx *dev)
 		   before probing the i2c bus. */
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		break;
+	case EM2820_BOARD_SILVERCREST_WEBCAM:
+		/* FIXME: need to document the registers bellow */
+		em28xx_write_reg(dev, 0x0d, 0x42);
+		em28xx_write_reg(dev, 0x13, 0x08);
 	}
 
 	if (dev->board.has_snapshot_button)
@@ -2188,6 +2219,10 @@ void em28xx_card_setup(struct em28xx *dev)
 	if (dev->board.decoder == EM28XX_TVP5150)
 		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 			"tvp5150", "tvp5150", tvp5150_addrs);
+
+	if (dev->board.decoder == EM28XX_MT9V011)
+		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"mt9v011", "mt9v011", mt9v011_addrs);
 
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
