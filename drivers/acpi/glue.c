@@ -119,7 +119,7 @@ EXPORT_SYMBOL(acpi_get_child);
 
 /* Link ACPI devices with physical devices */
 static void acpi_glue_data_handler(acpi_handle handle,
-				   u32 function, void *context)
+				   void *context)
 {
 	/* we provide an empty handler */
 }

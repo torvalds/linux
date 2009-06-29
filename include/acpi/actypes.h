@@ -922,7 +922,7 @@ typedef
 void (*acpi_notify_handler) (acpi_handle device, u32 value, void *context);
 
 typedef
-void (*acpi_object_handler) (acpi_handle object, u32 function, void *data);
+void (*acpi_object_handler) (acpi_handle object, void *data);
 
 typedef acpi_status(*acpi_init_handler) (acpi_handle object, u32 function);
 

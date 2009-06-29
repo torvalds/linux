@@ -312,7 +312,7 @@ struct acpi_bus_event {
 
 extern struct kobject *acpi_kobj;
 extern int acpi_bus_generate_netlink_event(const char*, const char*, u8, int);
-void acpi_bus_private_data_handler(acpi_handle, u32, void *);
+void acpi_bus_private_data_handler(acpi_handle, void *);
 int acpi_bus_get_private_data(acpi_handle, void **);
 extern int acpi_notifier_call_chain(struct acpi_device *, u32, u32);
 extern int register_acpi_notifier(struct notifier_block *);
@@ -325,7 +325,7 @@ extern void unregister_acpi_bus_notifier(struct notifier_block *nb);
  */
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
-void acpi_bus_data_handler(acpi_handle handle, u32 function, void *context);
+void acpi_bus_data_handler(acpi_handle handle, void *context);
 int acpi_bus_get_status(struct acpi_device *device);
 int acpi_bus_get_power(acpi_handle handle, int *state);
 int acpi_bus_set_power(acpi_handle handle, int state);

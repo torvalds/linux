@@ -687,7 +687,7 @@ acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd)
 }
 EXPORT_SYMBOL_GPL(acpi_bus_get_ejd);
 
-void acpi_bus_data_handler(acpi_handle handle, u32 function, void *context)
+void acpi_bus_data_handler(acpi_handle handle, void *context)
 {
 
 	/* TBD */
