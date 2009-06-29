@@ -1635,6 +1635,56 @@ static int domain_context_mapped(struct pci_dev *pdev)
 					     tmp->devfn);
 }
 
+static int domain_sg_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
+			     struct scatterlist *sg, unsigned long nr_pages,
+			     int prot)
+{
+	struct dma_pte *first_pte = NULL, *pte = NULL;
+	uint64_t pteval;
+	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
+	unsigned long sg_res = 0;
+
+	BUG_ON(addr_width < BITS_PER_LONG && (iov_pfn + nr_pages - 1) >> addr_width);
+
+	if ((prot & (DMA_PTE_READ|DMA_PTE_WRITE)) == 0)
+		return -EINVAL;
+
+	prot &= DMA_PTE_READ | DMA_PTE_WRITE | DMA_PTE_SNP;
+
+	while (nr_pages--) {
+		if (!sg_res) {
+			sg_res = (sg->offset + sg->length + VTD_PAGE_SIZE - 1) >> VTD_PAGE_SHIFT;
+			sg->dma_address = ((dma_addr_t)iov_pfn << VTD_PAGE_SHIFT) + sg->offset;
+			sg->dma_length = sg->length;
+			pteval = page_to_phys(sg_page(sg)) | prot;
+		}
+		if (!pte) {
+			first_pte = pte = pfn_to_dma_pte(domain, iov_pfn);
+			if (!pte)
+				return -ENOMEM;
+		}
+		/* We don't need lock here, nobody else
+		 * touches the iova range
+		 */
+		BUG_ON(dma_pte_addr(pte));
+		pte->val = pteval;
+		pte++;
+		if (!nr_pages ||
+		    (unsigned long)pte >> VTD_PAGE_SHIFT !=
+		    (unsigned long)first_pte >> VTD_PAGE_SHIFT) {
+			domain_flush_cache(domain, first_pte,
+					   (void *)pte - (void *)first_pte);
+			pte = NULL;
+		}
+		iov_pfn++;
+		pteval += VTD_PAGE_SIZE;
+		sg_res--;
+		if (!sg_res)
+			sg = sg_next(sg);
+	}
+	return 0;
+}
+
 static int domain_pfn_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			      unsigned long phys_pfn, unsigned long nr_pages,
 			      int prot)
@@ -2758,27 +2808,18 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 		prot |= DMA_PTE_WRITE;
 
 	start_vpfn = mm_to_dma_pfn(iova->pfn_lo);
-	offset_pfn = 0;
-	for_each_sg(sglist, sg, nelems, i) {
-		int nr_pages = aligned_nrpages(sg->offset, sg->length);
-		ret = domain_pfn_mapping(domain, start_vpfn + offset_pfn,
-					 page_to_dma_pfn(sg_page(sg)),
-					 nr_pages, prot);
-		if (ret) {
-			/*  clear the page */
-			dma_pte_clear_range(domain, start_vpfn,
-					    start_vpfn + offset_pfn);
-			/* free page tables */
-			dma_pte_free_pagetable(domain, start_vpfn,
-					       start_vpfn + offset_pfn);
-			/* free iova */
-			__free_iova(&domain->iovad, iova);
-			return 0;
-		}
-		sg->dma_address = ((dma_addr_t)(start_vpfn + offset_pfn)
-				   << VTD_PAGE_SHIFT) + sg->offset;
-		sg->dma_length = sg->length;
-		offset_pfn += nr_pages;
+
+	ret = domain_sg_mapping(domain, start_vpfn, sglist, mm_to_dma_pfn(size), prot);
+	if (unlikely(ret)) {
+		/*  clear the page */
+		dma_pte_clear_range(domain, start_vpfn,
+				    start_vpfn + size - 1);
+		/* free page tables */
+		dma_pte_free_pagetable(domain, start_vpfn,
+				       start_vpfn + size - 1);
+		/* free iova */
+		__free_iova(&domain->iovad, iova);
+		return 0;
 	}
 
 	/* it's a non-present to present mapping. Only flush if caching mode */
