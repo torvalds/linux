@@ -68,7 +68,7 @@ MODULE_LICENSE("GPL");
 /*
  * Ordering of locks:
  *
- * 		kvm->lock --> kvm->irq_lock
+ * 		kvm->slots_lock --> kvm->lock --> kvm->irq_lock
  */
 
 DEFINE_SPINLOCK(kvm_lock);
