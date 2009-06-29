@@ -173,6 +173,7 @@ static inline int ubi_dbg_is_erase_failure(void)
 #define ubi_dbg_is_bitflip()       0
 #define ubi_dbg_is_write_failure() 0
 #define ubi_dbg_is_erase_failure() 0
+#define ubi_dbg_check_all_ff(ubi, pnum, offset, len) 0
 
 #endif /* !CONFIG_MTD_UBI_DEBUG */
 #endif /* !__UBI_DEBUG_H__ */

@@ -463,7 +463,7 @@ retry:
 	err = ubi_dbg_check_all_ff(ubi, e->pnum, ubi->vid_hdr_aloffset,
 				   ubi->peb_size - ubi->vid_hdr_aloffset);
 	if (err) {
-		dbg_err("new PEB does not contain all 0xFF bytes");
+		ubi_err("new PEB %d does not contain all 0xFF bytes", e->pnum);
 		return err > 0 ? -EINVAL : err;
 	}
 
