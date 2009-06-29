@@ -158,7 +158,16 @@ config KEYBOARD_GPIO
 	  with configuration data saying which GPIOs are used.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called gpio-keys.
+	  module will be called gpio_keys.
+
+config KEYBOARD_MATRIX
+	tristate "GPIO driven matrix keypad support"
+	depends on GENERIC_GPIO
+	help
+	  Enable support for GPIO driven matrix keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called matrix_keypad.
 
 config KEYBOARD_HIL_OLD
 	tristate "HP HIL keyboard support (simple driver)"
@@ -254,7 +263,7 @@ config KEYBOARD_PXA27x
 	tristate "PXA27x/PXA3xx keypad support"
 	depends on PXA27x || PXA3xx
 	help
-	  Enable support for PXA27x/PXA3xx keypad controller
+	  Enable support for PXA27x/PXA3xx keypad controller.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxa27x_keypad.
