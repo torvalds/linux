@@ -1673,7 +1673,16 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 		/* We don't need lock here, nobody else
 		 * touches the iova range
 		 */
-		BUG_ON(dma_pte_addr(pte));
+		if (unlikely(dma_pte_addr(pte))) {
+			static int dumps = 5;
+			printk(KERN_CRIT "ERROR: DMA PTE for vPFN 0x%lx already set (to %llx)\n",
+			       iov_pfn, pte->val);
+			if (dumps) {
+				dumps--;
+				debug_dma_dump_mappings(NULL);
+			}
+			WARN_ON(1);
+		}
 		pte->val = pteval;
 		pte++;
 		if (!nr_pages ||
