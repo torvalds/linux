@@ -548,6 +548,6 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	 * Initialize PIO device
 	 */
 	kvm_iodevice_init(&s->dev, &picdev_ops);
-	kvm_io_bus_register_dev(&kvm->pio_bus, &s->dev);
+	kvm_io_bus_register_dev(kvm, &kvm->pio_bus, &s->dev);
 	return s;
 }

@@ -343,7 +343,7 @@ int kvm_ioapic_init(struct kvm *kvm)
 	kvm_ioapic_reset(ioapic);
 	kvm_iodevice_init(&ioapic->dev, &ioapic_mmio_ops);
 	ioapic->kvm = kvm;
-	kvm_io_bus_register_dev(&kvm->mmio_bus, &ioapic->dev);
+	kvm_io_bus_register_dev(kvm, &kvm->mmio_bus, &ioapic->dev);
 	return 0;
 }
 

@@ -102,7 +102,7 @@ int kvm_coalesced_mmio_init(struct kvm *kvm)
 	kvm_iodevice_init(&dev->dev, &coalesced_mmio_ops);
 	dev->kvm = kvm;
 	kvm->coalesced_mmio_dev = dev;
-	kvm_io_bus_register_dev(&kvm->mmio_bus, &dev->dev);
+	kvm_io_bus_register_dev(kvm, &kvm->mmio_bus, &dev->dev);
 
 	return 0;
 }

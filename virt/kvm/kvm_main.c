@@ -2527,7 +2527,17 @@ struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus,
 	return NULL;
 }
 
-void kvm_io_bus_register_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev)
+void kvm_io_bus_register_dev(struct kvm *kvm, struct kvm_io_bus *bus,
+			     struct kvm_io_device *dev)
+{
+	down_write(&kvm->slots_lock);
+	__kvm_io_bus_register_dev(bus, dev);
+	up_write(&kvm->slots_lock);
+}
+
+/* An unlocked version. Caller must have write lock on slots_lock. */
+void __kvm_io_bus_register_dev(struct kvm_io_bus *bus,
+			     struct kvm_io_device *dev)
 {
 	BUG_ON(bus->dev_count > (NR_IOBUS_DEVS-1));
 
