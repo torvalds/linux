@@ -99,7 +99,7 @@ static u64			runtime_cycles_noise;
 #define ERR_PERF_OPEN \
 "Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n"
 
-static void create_perf_stat_counter(int counter)
+static void create_perf_stat_counter(int counter, int pid)
 {
 	struct perf_counter_attr *attr = attrs + counter;
 
@@ -119,7 +119,7 @@ static void create_perf_stat_counter(int counter)
 		attr->inherit	= inherit;
 		attr->disabled	= 1;
 
-		fd[0][counter] = sys_perf_counter_open(attr, 0, -1, -1, 0);
+		fd[0][counter] = sys_perf_counter_open(attr, pid, -1, -1, 0);
 		if (fd[0][counter] < 0 && verbose)
 			fprintf(stderr, ERR_PERF_OPEN, counter,
 				fd[0][counter], strerror(errno));
@@ -205,12 +205,58 @@ static int run_perf_stat(int argc, const char **argv)
 	int status = 0;
 	int counter;
 	int pid;
+	int child_ready_pipe[2], go_pipe[2];
+	char buf;
 
 	if (!system_wide)
 		nr_cpus = 1;
 
+	if (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0) {
+		perror("failed to create pipes");
+		exit(1);
+	}
+
+	if ((pid = fork()) < 0)
+		perror("failed to fork");
+
+	if (!pid) {
+		close(child_ready_pipe[0]);
+		close(go_pipe[1]);
+		fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+
+		/*
+		 * Do a dummy execvp to get the PLT entry resolved,
+		 * so we avoid the resolver overhead on the real
+		 * execvp call.
+		 */
+		execvp("", (char **)argv);
+
+		/*
+		 * Tell the parent we're ready to go
+		 */
+		close(child_ready_pipe[1]);
+
+		/*
+		 * Wait until the parent tells us to go.
+		 */
+		read(go_pipe[0], &buf, 1);
+
+		execvp(argv[0], (char **)argv);
+
+		perror(argv[0]);
+		exit(-1);
+	}
+
+	/*
+	 * Wait for the child to be ready to exec.
+	 */
+	close(child_ready_pipe[1]);
+	close(go_pipe[0]);
+	read(child_ready_pipe[0], &buf, 1);
+	close(child_ready_pipe[0]);
+
 	for (counter = 0; counter < nr_counters; counter++)
-		create_perf_stat_counter(counter);
+		create_perf_stat_counter(counter, pid);
 
 	/*
 	 * Enable counters and exec the command:
@@ -218,19 +264,9 @@ static int run_perf_stat(int argc, const char **argv)
 	t0 = rdclock();
 	prctl(PR_TASK_PERF_COUNTERS_ENABLE);
 
-	if ((pid = fork()) < 0)
-		perror("failed to fork");
-
-	if (!pid) {
-		if (execvp(argv[0], (char **)argv)) {
-			perror(argv[0]);
-			exit(-1);
-		}
-	}
-
+	close(go_pipe[1]);
 	wait(&status);
 
-	prctl(PR_TASK_PERF_COUNTERS_DISABLE);
 	t1 = rdclock();
 
 	walltime_nsecs[run_idx] = t1 - t0;
