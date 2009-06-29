@@ -20,6 +20,9 @@
 
 struct kvm_io_device;
 
+/**
+ * kvm_io_device_ops are called under kvm slots_lock.
+ **/
 struct kvm_io_device_ops {
 	void (*read)(struct kvm_io_device *this,
 		     gpa_t addr,
