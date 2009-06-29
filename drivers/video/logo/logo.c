@@ -68,8 +68,8 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		logo = &logo_zen_clut224;
 #endif
 #ifdef CONFIG_LOGO_SKUNK_CLUT224
-		/* Zen-Sources logo */
-		logo = &logo_zen_clut224;
+		/* Skunk-Sources logo */
+		logo = &logo_skunk_clut224;
 #endif
 #ifdef CONFIG_LOGO_ARCH_CLUT224
 		/* Arch Linux logo */
