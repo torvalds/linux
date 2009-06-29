@@ -55,6 +55,7 @@ zero volts).
 #include <asm/div64.h>
 
 #include "comedi_fc.h"
+#include <linux/timer.h>
 
 /* Board descriptions */
 struct waveform_board {
@@ -102,7 +103,7 @@ static struct comedi_driver driver_waveform = {
       .detach =		waveform_detach,
       .board_name =	&waveform_boards[0].name,
       .offset =		sizeof(struct waveform_board),
-      .num_names =	sizeof(waveform_boards) / sizeof(struct waveform_board),
+      .num_names =	ARRAY_SIZE(waveform_boards),
 };
 
 COMEDI_INITCLEANUP(driver_waveform);

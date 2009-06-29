@@ -22,7 +22,7 @@
  */
 
 /* NOTE: the full version of this header is in the v4l-dvb repository
- * and allows v4l i2c drivers to be compiled on older kernels as well.
+ * and allows v4l i2c drivers to be compiled on pre-2.6.26 kernels.
  * The version of this header as it appears in the kernel is a stripped
  * version (without all the backwards compatibility stuff) and so it
  * looks a bit odd.
@@ -30,6 +30,9 @@
  * If you look at the full version then you will understand the reason
  * for introducing this header since you really don't want to have all
  * the tricky backwards compatibility code in each and every i2c driver.
+ *
+ * If the i2c driver will never be compiled for pre-2.6.26 kernels, then
+ * DO NOT USE this header! Just write it as a regular i2c driver.
  */
 
 #ifndef __V4L2_I2C_DRV_H__

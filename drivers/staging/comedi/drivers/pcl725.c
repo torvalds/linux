@@ -20,19 +20,19 @@ Devices: [Advantech] PCL-725 (pcl725)
 #define PCL725_DO 0
 #define PCL725_DI 1
 
-static int pcl725_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pcl725_detach(struct comedi_device * dev);
+static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcl725_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcl725 = {
-      driver_name:"pcl725",
-      module:THIS_MODULE,
-      attach:pcl725_attach,
-      detach:pcl725_detach,
+	.driver_name = "pcl725",
+	.module = THIS_MODULE,
+	.attach = pcl725_attach,
+	.detach = pcl725_detach,
 };
 
 COMEDI_INITCLEANUP(driver_pcl725);
 
-static int pcl725_do_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcl725_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -48,8 +48,8 @@ static int pcl725_do_insn(struct comedi_device * dev, struct comedi_subdevice * 
 	return 2;
 }
 
-static int pcl725_di_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pcl725_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -59,7 +59,7 @@ static int pcl725_di_insn(struct comedi_device * dev, struct comedi_subdevice * 
 	return 2;
 }
 
-static int pcl725_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;
@@ -100,7 +100,7 @@ static int pcl725_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	return 0;
 }
 
-static int pcl725_detach(struct comedi_device * dev)
+static int pcl725_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: pcl725: remove\n", dev->minor);
 

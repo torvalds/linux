@@ -497,7 +497,7 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_els_rsp_acc(vport, ELS_CMD_PRLO, cmdiocb, ndlp, NULL);
 	else
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
-	if ((ndlp->nlp_type & NLP_FABRIC) &&
+	if ((ndlp->nlp_DID == Fabric_DID) &&
 		vport->port_type == LPFC_NPIV_PORT) {
 		lpfc_linkdown_port(vport);
 		mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ * 1);

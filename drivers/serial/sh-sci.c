@@ -1332,44 +1332,46 @@ err_unreg:
 	return ret;
 }
 
-static int sci_suspend(struct platform_device *dev, pm_message_t state)
+static int sci_suspend(struct device *dev)
 {
-	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sh_sci_priv *priv = dev_get_drvdata(dev);
 	struct sci_port *p;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	list_for_each_entry(p, &priv->ports, node)
 		uart_suspend_port(&sci_uart_driver, &p->port);
-
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
 
-static int sci_resume(struct platform_device *dev)
+static int sci_resume(struct device *dev)
 {
-	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sh_sci_priv *priv = dev_get_drvdata(dev);
 	struct sci_port *p;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	list_for_each_entry(p, &priv->ports, node)
 		uart_resume_port(&sci_uart_driver, &p->port);
-
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
 
+static struct dev_pm_ops sci_dev_pm_ops = {
+	.suspend	= sci_suspend,
+	.resume		= sci_resume,
+};
+
 static struct platform_driver sci_driver = {
 	.probe		= sci_probe,
 	.remove		= __devexit_p(sci_remove),
-	.suspend	= sci_suspend,
-	.resume		= sci_resume,
 	.driver		= {
 		.name	= "sh-sci",
 		.owner	= THIS_MODULE,
+		.pm	= &sci_dev_pm_ops,
 	},
 };
 

@@ -448,6 +448,7 @@ static inline void sctp_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
 {
 	struct sctp_ulpevent *event = sctp_skb2event(skb);
 
+	skb_orphan(skb);
 	skb->sk = sk;
 	skb->destructor = sctp_sock_rfree;
 	atomic_add(event->rmem_len, &sk->sk_rmem_alloc);

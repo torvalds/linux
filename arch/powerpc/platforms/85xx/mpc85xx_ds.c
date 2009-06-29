@@ -20,6 +20,7 @@
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/of_platform.h>
+#include <linux/lmb.h>
 
 #include <asm/system.h>
 #include <asm/time.h>
@@ -30,6 +31,7 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/i8259.h>
+#include <asm/swiotlb.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
@@ -155,7 +157,9 @@ static void __init mpc85xx_ds_setup_arch(void)
 {
 #ifdef CONFIG_PCI
 	struct device_node *np;
+	struct pci_controller *hose;
 #endif
+	dma_addr_t max = 0xffffffff;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_ds_setup_arch()", 0);
@@ -163,13 +167,18 @@ static void __init mpc85xx_ds_setup_arch(void)
 #ifdef CONFIG_PCI
 	for_each_node_by_type(np, "pci") {
 		if (of_device_is_compatible(np, "fsl,mpc8540-pci") ||
-		    of_device_is_compatible(np, "fsl,mpc8548-pcie")) {
+		    of_device_is_compatible(np, "fsl,mpc8548-pcie") ||
+		    of_device_is_compatible(np, "fsl,p2020-pcie")) {
 			struct resource rsrc;
 			of_address_to_resource(np, 0, &rsrc);
 			if ((rsrc.start & 0xfffff) == primary_phb_addr)
 				fsl_add_bridge(np, 1);
 			else
 				fsl_add_bridge(np, 0);
+
+			hose = pci_find_hose_for_OF_device(np);
+			max = min(max, hose->dma_window_base_cur +
+					hose->dma_window_size);
 		}
 	}
 
@@ -178,6 +187,13 @@ static void __init mpc85xx_ds_setup_arch(void)
 
 #ifdef CONFIG_SMP
 	mpc85xx_smp_init();
+#endif
+
+#ifdef CONFIG_SWIOTLB
+	if (lmb_end_of_DRAM() > max) {
+		ppc_swiotlb_enable = 1;
+		set_pci_dma_ops(&swiotlb_pci_dma_ops);
+	}
 #endif
 
 	printk("MPC85xx DS board from Freescale Semiconductor\n");
@@ -195,9 +211,9 @@ static int __init mpc8544_ds_probe(void)
 		primary_phb_addr = 0xb000;
 #endif
 		return 1;
-	} else {
-		return 0;
 	}
+
+	return 0;
 }
 
 static struct of_device_id __initdata mpc85xxds_ids[] = {
@@ -214,6 +230,11 @@ static int __init mpc85xxds_publish_devices(void)
 }
 machine_device_initcall(mpc8544_ds, mpc85xxds_publish_devices);
 machine_device_initcall(mpc8572_ds, mpc85xxds_publish_devices);
+machine_device_initcall(p2020_ds, mpc85xxds_publish_devices);
+
+machine_arch_initcall(mpc8544_ds, swiotlb_setup_bus_notifier);
+machine_arch_initcall(mpc8572_ds, swiotlb_setup_bus_notifier);
+machine_arch_initcall(p2020_ds, swiotlb_setup_bus_notifier);
 
 /*
  * Called very early, device-tree isn't unflattened
@@ -227,9 +248,26 @@ static int __init mpc8572_ds_probe(void)
 		primary_phb_addr = 0x8000;
 #endif
 		return 1;
-	} else {
-		return 0;
 	}
+
+	return 0;
+}
+
+/*
+ * Called very early, device-tree isn't unflattened
+ */
+static int __init p2020_ds_probe(void)
+{
+	unsigned long root = of_get_flat_dt_root();
+
+	if (of_flat_dt_is_compatible(root, "fsl,P2020DS")) {
+#ifdef CONFIG_PCI
+		primary_phb_addr = 0x9000;
+#endif
+		return 1;
+	}
+
+	return 0;
 }
 
 define_machine(mpc8544_ds) {
@@ -249,6 +287,20 @@ define_machine(mpc8544_ds) {
 define_machine(mpc8572_ds) {
 	.name			= "MPC8572 DS",
 	.probe			= mpc8572_ds_probe,
+	.setup_arch		= mpc85xx_ds_setup_arch,
+	.init_IRQ		= mpc85xx_ds_pic_init,
+#ifdef CONFIG_PCI
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+#endif
+	.get_irq		= mpic_get_irq,
+	.restart		= fsl_rstcr_restart,
+	.calibrate_decr		= generic_calibrate_decr,
+	.progress		= udbg_progress,
+};
+
+define_machine(p2020_ds) {
+	.name			= "P2020 DS",
+	.probe			= p2020_ds_probe,
 	.setup_arch		= mpc85xx_ds_setup_arch,
 	.init_IRQ		= mpc85xx_ds_pic_init,
 #ifdef CONFIG_PCI

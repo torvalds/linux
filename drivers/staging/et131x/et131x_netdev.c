@@ -585,11 +585,11 @@ int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 			 * available
 			 */
 			netif_stop_queue(netdev);
-			status = 1;
+			status = NETDEV_TX_BUSY;
 		} else {
 			DBG_WARNING(et131x_dbginfo,
 				    "Misc error; drop packet\n");
-			status = 0;
+			status = NETDEV_TX_OK;
 		}
 	}
 

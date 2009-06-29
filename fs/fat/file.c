@@ -18,106 +18,112 @@
 #include <linux/security.h>
 #include "fat.h"
 
+static int fat_ioctl_get_attributes(struct inode *inode, u32 __user *user_attr)
+{
+	u32 attr;
+
+	mutex_lock(&inode->i_mutex);
+	attr = fat_make_attrs(inode);
+	mutex_unlock(&inode->i_mutex);
+
+	return put_user(attr, user_attr);
+}
+
+static int fat_ioctl_set_attributes(struct file *file, u32 __user *user_attr)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	int is_dir = S_ISDIR(inode->i_mode);
+	u32 attr, oldattr;
+	struct iattr ia;
+	int err;
+
+	err = get_user(attr, user_attr);
+	if (err)
+		goto out;
+
+	mutex_lock(&inode->i_mutex);
+	err = mnt_want_write(file->f_path.mnt);
+	if (err)
+		goto out_unlock_inode;
+
+	/*
+	 * ATTR_VOLUME and ATTR_DIR cannot be changed; this also
+	 * prevents the user from turning us into a VFAT
+	 * longname entry.  Also, we obviously can't set
+	 * any of the NTFS attributes in the high 24 bits.
+	 */
+	attr &= 0xff & ~(ATTR_VOLUME | ATTR_DIR);
+	/* Merge in ATTR_VOLUME and ATTR_DIR */
+	attr |= (MSDOS_I(inode)->i_attrs & ATTR_VOLUME) |
+		(is_dir ? ATTR_DIR : 0);
+	oldattr = fat_make_attrs(inode);
+
+	/* Equivalent to a chmod() */
+	ia.ia_valid = ATTR_MODE | ATTR_CTIME;
+	ia.ia_ctime = current_fs_time(inode->i_sb);
+	if (is_dir)
+		ia.ia_mode = fat_make_mode(sbi, attr, S_IRWXUGO);
+	else {
+		ia.ia_mode = fat_make_mode(sbi, attr,
+			S_IRUGO | S_IWUGO | (inode->i_mode & S_IXUGO));
+	}
+
+	/* The root directory has no attributes */
+	if (inode->i_ino == MSDOS_ROOT_INO && attr != ATTR_DIR) {
+		err = -EINVAL;
+		goto out_drop_write;
+	}
+
+	if (sbi->options.sys_immutable &&
+	    ((attr | oldattr) & ATTR_SYS) &&
+	    !capable(CAP_LINUX_IMMUTABLE)) {
+		err = -EPERM;
+		goto out_drop_write;
+	}
+
+	/*
+	 * The security check is questionable...  We single
+	 * out the RO attribute for checking by the security
+	 * module, just because it maps to a file mode.
+	 */
+	err = security_inode_setattr(file->f_path.dentry, &ia);
+	if (err)
+		goto out_drop_write;
+
+	/* This MUST be done before doing anything irreversible... */
+	err = fat_setattr(file->f_path.dentry, &ia);
+	if (err)
+		goto out_drop_write;
+
+	fsnotify_change(file->f_path.dentry, ia.ia_valid);
+	if (sbi->options.sys_immutable) {
+		if (attr & ATTR_SYS)
+			inode->i_flags |= S_IMMUTABLE;
+		else
+			inode->i_flags &= S_IMMUTABLE;
+	}
+
+	fat_save_attrs(inode, attr);
+	mark_inode_dirty(inode);
+out_drop_write:
+	mnt_drop_write(file->f_path.mnt);
+out_unlock_inode:
+	mutex_unlock(&inode->i_mutex);
+out:
+	return err;
+}
+
 int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	u32 __user *user_attr = (u32 __user *)arg;
 
 	switch (cmd) {
 	case FAT_IOCTL_GET_ATTRIBUTES:
-	{
-		u32 attr;
-
-		mutex_lock(&inode->i_mutex);
-		attr = fat_make_attrs(inode);
-		mutex_unlock(&inode->i_mutex);
-
-		return put_user(attr, user_attr);
-	}
+		return fat_ioctl_get_attributes(inode, user_attr);
 	case FAT_IOCTL_SET_ATTRIBUTES:
-	{
-		u32 attr, oldattr;
-		int err, is_dir = S_ISDIR(inode->i_mode);
-		struct iattr ia;
-
-		err = get_user(attr, user_attr);
-		if (err)
-			return err;
-
-		mutex_lock(&inode->i_mutex);
-
-		err = mnt_want_write(filp->f_path.mnt);
-		if (err)
-			goto up_no_drop_write;
-
-		/*
-		 * ATTR_VOLUME and ATTR_DIR cannot be changed; this also
-		 * prevents the user from turning us into a VFAT
-		 * longname entry.  Also, we obviously can't set
-		 * any of the NTFS attributes in the high 24 bits.
-		 */
-		attr &= 0xff & ~(ATTR_VOLUME | ATTR_DIR);
-		/* Merge in ATTR_VOLUME and ATTR_DIR */
-		attr |= (MSDOS_I(inode)->i_attrs & ATTR_VOLUME) |
-			(is_dir ? ATTR_DIR : 0);
-		oldattr = fat_make_attrs(inode);
-
-		/* Equivalent to a chmod() */
-		ia.ia_valid = ATTR_MODE | ATTR_CTIME;
-		ia.ia_ctime = current_fs_time(inode->i_sb);
-		if (is_dir)
-			ia.ia_mode = fat_make_mode(sbi, attr, S_IRWXUGO);
-		else {
-			ia.ia_mode = fat_make_mode(sbi, attr,
-				S_IRUGO | S_IWUGO | (inode->i_mode & S_IXUGO));
-		}
-
-		/* The root directory has no attributes */
-		if (inode->i_ino == MSDOS_ROOT_INO && attr != ATTR_DIR) {
-			err = -EINVAL;
-			goto up;
-		}
-
-		if (sbi->options.sys_immutable) {
-			if ((attr | oldattr) & ATTR_SYS) {
-				if (!capable(CAP_LINUX_IMMUTABLE)) {
-					err = -EPERM;
-					goto up;
-				}
-			}
-		}
-
-		/*
-		 * The security check is questionable...  We single
-		 * out the RO attribute for checking by the security
-		 * module, just because it maps to a file mode.
-		 */
-		err = security_inode_setattr(filp->f_path.dentry, &ia);
-		if (err)
-			goto up;
-
-		/* This MUST be done before doing anything irreversible... */
-		err = fat_setattr(filp->f_path.dentry, &ia);
-		if (err)
-			goto up;
-
-		fsnotify_change(filp->f_path.dentry, ia.ia_valid);
-		if (sbi->options.sys_immutable) {
-			if (attr & ATTR_SYS)
-				inode->i_flags |= S_IMMUTABLE;
-			else
-				inode->i_flags &= S_IMMUTABLE;
-		}
-
-		fat_save_attrs(inode, attr);
-		mark_inode_dirty(inode);
-up:
-		mnt_drop_write(filp->f_path.mnt);
-up_no_drop_write:
-		mutex_unlock(&inode->i_mutex);
-		return err;
-	}
+		return fat_ioctl_set_attributes(filp, user_attr);
 	default:
 		return -ENOTTY;	/* Inappropriate ioctl for device */
 	}
@@ -225,7 +231,7 @@ static int fat_free(struct inode *inode, int skip)
 			fatent_brelse(&fatent);
 			return 0;
 		} else if (ret == FAT_ENT_FREE) {
-			fat_fs_panic(sb,
+			fat_fs_error(sb,
 				     "%s: invalid cluster chain (i_pos %lld)",
 				     __func__, MSDOS_I(inode)->i_pos);
 			ret = -EIO;

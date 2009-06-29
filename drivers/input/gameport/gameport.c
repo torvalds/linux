@@ -30,16 +30,6 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Generic gameport layer");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(__gameport_register_port);
-EXPORT_SYMBOL(gameport_unregister_port);
-EXPORT_SYMBOL(__gameport_register_driver);
-EXPORT_SYMBOL(gameport_unregister_driver);
-EXPORT_SYMBOL(gameport_open);
-EXPORT_SYMBOL(gameport_close);
-EXPORT_SYMBOL(gameport_set_phys);
-EXPORT_SYMBOL(gameport_start_polling);
-EXPORT_SYMBOL(gameport_stop_polling);
-
 /*
  * gameport_mutex protects entire gameport subsystem and is taken
  * every time gameport port or driver registrered or unregistered.
@@ -162,6 +152,7 @@ void gameport_start_polling(struct gameport *gameport)
 
 	spin_unlock(&gameport->timer_lock);
 }
+EXPORT_SYMBOL(gameport_start_polling);
 
 void gameport_stop_polling(struct gameport *gameport)
 {
@@ -172,6 +163,7 @@ void gameport_stop_polling(struct gameport *gameport)
 
 	spin_unlock(&gameport->timer_lock);
 }
+EXPORT_SYMBOL(gameport_stop_polling);
 
 static void gameport_run_poll_handler(unsigned long d)
 {
@@ -516,6 +508,7 @@ void gameport_set_phys(struct gameport *gameport, const char *fmt, ...)
 	vsnprintf(gameport->phys, sizeof(gameport->phys), fmt, args);
 	va_end(args);
 }
+EXPORT_SYMBOL(gameport_set_phys);
 
 /*
  * Prepare gameport port for registration.
@@ -658,6 +651,7 @@ void __gameport_register_port(struct gameport *gameport, struct module *owner)
 	gameport_init_port(gameport);
 	gameport_queue_event(gameport, owner, GAMEPORT_REGISTER_PORT);
 }
+EXPORT_SYMBOL(__gameport_register_port);
 
 /*
  * Synchronously unregisters gameport port.
@@ -669,6 +663,7 @@ void gameport_unregister_port(struct gameport *gameport)
 	gameport_destroy_port(gameport);
 	mutex_unlock(&gameport_mutex);
 }
+EXPORT_SYMBOL(gameport_unregister_port);
 
 
 /*
@@ -728,7 +723,7 @@ int __gameport_register_driver(struct gameport_driver *drv, struct module *owner
 	 * Temporarily disable automatic binding because probing
 	 * takes long time and we are better off doing it in kgameportd
 	 */
-	drv->ignore = 1;
+	drv->ignore = true;
 
 	error = driver_register(&drv->driver);
 	if (error) {
@@ -741,7 +736,7 @@ int __gameport_register_driver(struct gameport_driver *drv, struct module *owner
 	/*
 	 * Reset ignore flag and let kgameportd bind the driver to free ports
 	 */
-	drv->ignore = 0;
+	drv->ignore = false;
 	error = gameport_queue_event(drv, NULL, GAMEPORT_ATTACH_DRIVER);
 	if (error) {
 		driver_unregister(&drv->driver);
@@ -750,6 +745,7 @@ int __gameport_register_driver(struct gameport_driver *drv, struct module *owner
 
 	return 0;
 }
+EXPORT_SYMBOL(__gameport_register_driver);
 
 void gameport_unregister_driver(struct gameport_driver *drv)
 {
@@ -757,7 +753,7 @@ void gameport_unregister_driver(struct gameport_driver *drv)
 
 	mutex_lock(&gameport_mutex);
 
-	drv->ignore = 1;	/* so gameport_find_driver ignores it */
+	drv->ignore = true;	/* so gameport_find_driver ignores it */
 	gameport_remove_pending_events(drv);
 
 start_over:
@@ -774,6 +770,7 @@ start_over:
 
 	mutex_unlock(&gameport_mutex);
 }
+EXPORT_SYMBOL(gameport_unregister_driver);
 
 static int gameport_bus_match(struct device *dev, struct device_driver *drv)
 {
@@ -812,6 +809,7 @@ int gameport_open(struct gameport *gameport, struct gameport_driver *drv, int mo
 	gameport_set_drv(gameport, drv);
 	return 0;
 }
+EXPORT_SYMBOL(gameport_open);
 
 void gameport_close(struct gameport *gameport)
 {
@@ -822,6 +820,7 @@ void gameport_close(struct gameport *gameport)
 	if (gameport->close)
 		gameport->close(gameport);
 }
+EXPORT_SYMBOL(gameport_close);
 
 static int __init gameport_init(void)
 {

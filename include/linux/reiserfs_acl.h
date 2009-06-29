@@ -56,15 +56,6 @@ int reiserfs_cache_default_acl(struct inode *dir);
 extern struct xattr_handler reiserfs_posix_acl_default_handler;
 extern struct xattr_handler reiserfs_posix_acl_access_handler;
 
-static inline void reiserfs_init_acl_access(struct inode *inode)
-{
-	REISERFS_I(inode)->i_acl_access = NULL;
-}
-
-static inline void reiserfs_init_acl_default(struct inode *inode)
-{
-	REISERFS_I(inode)->i_acl_default = NULL;
-}
 #else
 
 #define reiserfs_cache_default_acl(inode) 0
@@ -85,13 +76,5 @@ reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
 			     struct inode *inode)
 {
 	return 0;
-}
-
-static inline void reiserfs_init_acl_access(struct inode *inode)
-{
-}
-
-static inline void reiserfs_init_acl_default(struct inode *inode)
-{
 }
 #endif

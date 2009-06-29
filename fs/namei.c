@@ -1698,8 +1698,11 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	if (error)
 		return ERR_PTR(error);
 	error = path_walk(pathname, &nd);
-	if (error)
+	if (error) {
+		if (nd.root.mnt)
+			path_put(&nd.root);
 		return ERR_PTR(error);
+	}
 	if (unlikely(!audit_dummy_context()))
 		audit_inode(pathname, nd.path.dentry);
 
@@ -1759,6 +1762,8 @@ do_last:
 		}
 		filp = nameidata_to_filp(&nd, open_flag);
 		mnt_drop_write(nd.path.mnt);
+		if (nd.root.mnt)
+			path_put(&nd.root);
 		return filp;
 	}
 
@@ -1819,6 +1824,8 @@ ok:
 	 */
 	if (will_write)
 		mnt_drop_write(nd.path.mnt);
+	if (nd.root.mnt)
+		path_put(&nd.root);
 	return filp;
 
 exit_mutex_unlock:
@@ -1859,6 +1866,8 @@ do_link:
 		 * with "intent.open".
 		 */
 		release_open_intent(&nd);
+		if (nd.root.mnt)
+			path_put(&nd.root);
 		return ERR_PTR(error);
 	}
 	nd.flags &= ~LOOKUP_PARENT;

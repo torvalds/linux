@@ -67,7 +67,7 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 	port->type = type;
 	port->uartclk = *clk;
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
-		| UPF_FIXED_PORT;
+		| UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	port->dev = &ofdev->dev;
 	/* If current-speed was set, then try not to change it. */
 	if (spd)
@@ -122,7 +122,7 @@ static int __devinit of_platform_serial_probe(struct of_device *ofdev,
 
 	info->type = port_type;
 	info->line = ret;
-	ofdev->dev.driver_data = info;
+	dev_set_drvdata(&ofdev->dev, info);
 	return 0;
 out:
 	kfree(info);
@@ -135,7 +135,7 @@ out:
  */
 static int of_platform_serial_remove(struct of_device *ofdev)
 {
-	struct of_serial_info *info = ofdev->dev.driver_data;
+	struct of_serial_info *info = dev_get_drvdata(&ofdev->dev);
 	switch (info->type) {
 #ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:

@@ -31,21 +31,26 @@
 #include "dat.h"
 #include "alloc.h"
 
+struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
+{
+	return nilfs_dat_inode(NILFS_I_NILFS(bmap->b_inode));
+}
+
 int nilfs_bmap_lookup_at_level(struct nilfs_bmap *bmap, __u64 key, int level,
 			       __u64 *ptrp)
 {
-	__u64 ptr;
+	sector_t blocknr;
 	int ret;
 
 	down_read(&bmap->b_sem);
 	ret = bmap->b_ops->bop_lookup(bmap, key, level, ptrp);
 	if (ret < 0)
 		goto out;
-	if (bmap->b_pops->bpop_translate != NULL) {
-		ret = bmap->b_pops->bpop_translate(bmap, *ptrp, &ptr);
-		if (ret < 0)
-			goto out;
-		*ptrp = ptr;
+	if (NILFS_BMAP_USE_VBN(bmap)) {
+		ret = nilfs_dat_translate(nilfs_bmap_get_dat(bmap), *ptrp,
+					  &blocknr);
+		if (!ret)
+			*ptrp = blocknr;
 	}
 
  out:
@@ -53,6 +58,16 @@ int nilfs_bmap_lookup_at_level(struct nilfs_bmap *bmap, __u64 key, int level,
 	return ret;
 }
 
+int nilfs_bmap_lookup_contig(struct nilfs_bmap *bmap, __u64 key, __u64 *ptrp,
+			     unsigned maxblocks)
+{
+	int ret;
+
+	down_read(&bmap->b_sem);
+	ret = bmap->b_ops->bop_lookup_contig(bmap, key, ptrp, maxblocks);
+	up_read(&bmap->b_sem);
+	return ret;
+}
 
 /**
  * nilfs_bmap_lookup - find a record
@@ -101,8 +116,7 @@ static int nilfs_bmap_do_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 			if (n < 0)
 				return n;
 			ret = nilfs_btree_convert_and_insert(
-				bmap, key, ptr, keys, ptrs, n,
-				NILFS_BMAP_LARGE_LOW, NILFS_BMAP_LARGE_HIGH);
+				bmap, key, ptr, keys, ptrs, n);
 			if (ret == 0)
 				bmap->b_u.u_flags |= NILFS_BMAP_LARGE;
 
@@ -158,8 +172,7 @@ static int nilfs_bmap_do_delete(struct nilfs_bmap *bmap, __u64 key)
 			if (n < 0)
 				return n;
 			ret = nilfs_direct_delete_and_convert(
-				bmap, key, keys, ptrs, n,
-				NILFS_BMAP_SMALL_LOW, NILFS_BMAP_SMALL_HIGH);
+				bmap, key, keys, ptrs, n);
 			if (ret == 0)
 				bmap->b_u.u_flags &= ~NILFS_BMAP_LARGE;
 
@@ -417,38 +430,6 @@ void nilfs_bmap_sub_blocks(const struct nilfs_bmap *bmap, int n)
 		mark_inode_dirty(bmap->b_inode);
 }
 
-int nilfs_bmap_get_block(const struct nilfs_bmap *bmap, __u64 ptr,
-			 struct buffer_head **bhp)
-{
-	return nilfs_btnode_get(&NILFS_BMAP_I(bmap)->i_btnode_cache,
-				ptr, 0, bhp, 0);
-}
-
-void nilfs_bmap_put_block(const struct nilfs_bmap *bmap,
-			  struct buffer_head *bh)
-{
-	brelse(bh);
-}
-
-int nilfs_bmap_get_new_block(const struct nilfs_bmap *bmap, __u64 ptr,
-			     struct buffer_head **bhp)
-{
-	int ret;
-
-	ret = nilfs_btnode_get(&NILFS_BMAP_I(bmap)->i_btnode_cache,
-			       ptr, 0, bhp, 1);
-	if (ret < 0)
-		return ret;
-	set_buffer_nilfs_volatile(*bhp);
-	return 0;
-}
-
-void nilfs_bmap_delete_block(const struct nilfs_bmap *bmap,
-			     struct buffer_head *bh)
-{
-	nilfs_btnode_delete(bh);
-}
-
 __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *bmap,
 			      const struct buffer_head *bh)
 {
@@ -476,11 +457,6 @@ __u64 nilfs_bmap_find_target_seq(const struct nilfs_bmap *bmap, __u64 key)
 		return NILFS_BMAP_INVALID_PTR;
 }
 
-static struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
-{
-	return nilfs_dat_inode(NILFS_I_NILFS(bmap->b_inode));
-}
-
 #define NILFS_BMAP_GROUP_DIV	8
 __u64 nilfs_bmap_find_target_in_group(const struct nilfs_bmap *bmap)
 {
@@ -493,64 +469,51 @@ __u64 nilfs_bmap_find_target_in_group(const struct nilfs_bmap *bmap)
 		(entries_per_group / NILFS_BMAP_GROUP_DIV);
 }
 
-static int nilfs_bmap_prepare_alloc_v(struct nilfs_bmap *bmap,
-				      union nilfs_bmap_ptr_req *req)
+int nilfs_bmap_prepare_alloc_v(struct nilfs_bmap *bmap,
+				 union nilfs_bmap_ptr_req *req)
 {
 	return nilfs_dat_prepare_alloc(nilfs_bmap_get_dat(bmap), &req->bpr_req);
 }
 
-static void nilfs_bmap_commit_alloc_v(struct nilfs_bmap *bmap,
-				      union nilfs_bmap_ptr_req *req)
+void nilfs_bmap_commit_alloc_v(struct nilfs_bmap *bmap,
+				 union nilfs_bmap_ptr_req *req)
 {
 	nilfs_dat_commit_alloc(nilfs_bmap_get_dat(bmap), &req->bpr_req);
 }
 
-static void nilfs_bmap_abort_alloc_v(struct nilfs_bmap *bmap,
-				     union nilfs_bmap_ptr_req *req)
+void nilfs_bmap_abort_alloc_v(struct nilfs_bmap *bmap,
+			      union nilfs_bmap_ptr_req *req)
 {
 	nilfs_dat_abort_alloc(nilfs_bmap_get_dat(bmap), &req->bpr_req);
 }
 
-static int nilfs_bmap_prepare_start_v(struct nilfs_bmap *bmap,
-				      union nilfs_bmap_ptr_req *req)
+int nilfs_bmap_start_v(struct nilfs_bmap *bmap, union nilfs_bmap_ptr_req *req,
+		       sector_t blocknr)
 {
-	return nilfs_dat_prepare_start(nilfs_bmap_get_dat(bmap), &req->bpr_req);
+	struct inode *dat = nilfs_bmap_get_dat(bmap);
+	int ret;
+
+	ret = nilfs_dat_prepare_start(dat, &req->bpr_req);
+	if (likely(!ret))
+		nilfs_dat_commit_start(dat, &req->bpr_req, blocknr);
+	return ret;
 }
 
-static void nilfs_bmap_commit_start_v(struct nilfs_bmap *bmap,
-				      union nilfs_bmap_ptr_req *req,
-				      sector_t blocknr)
-{
-	nilfs_dat_commit_start(nilfs_bmap_get_dat(bmap), &req->bpr_req,
-			       blocknr);
-}
-
-static void nilfs_bmap_abort_start_v(struct nilfs_bmap *bmap,
-				     union nilfs_bmap_ptr_req *req)
-{
-	nilfs_dat_abort_start(nilfs_bmap_get_dat(bmap), &req->bpr_req);
-}
-
-static int nilfs_bmap_prepare_end_v(struct nilfs_bmap *bmap,
-				    union nilfs_bmap_ptr_req *req)
+int nilfs_bmap_prepare_end_v(struct nilfs_bmap *bmap,
+			     union nilfs_bmap_ptr_req *req)
 {
 	return nilfs_dat_prepare_end(nilfs_bmap_get_dat(bmap), &req->bpr_req);
 }
 
-static void nilfs_bmap_commit_end_v(struct nilfs_bmap *bmap,
-				    union nilfs_bmap_ptr_req *req)
+void nilfs_bmap_commit_end_v(struct nilfs_bmap *bmap,
+			     union nilfs_bmap_ptr_req *req)
 {
-	nilfs_dat_commit_end(nilfs_bmap_get_dat(bmap), &req->bpr_req, 0);
+	nilfs_dat_commit_end(nilfs_bmap_get_dat(bmap), &req->bpr_req,
+			     bmap->b_ptr_type == NILFS_BMAP_PTR_VS);
 }
 
-static void nilfs_bmap_commit_end_vmdt(struct nilfs_bmap *bmap,
-				       union nilfs_bmap_ptr_req *req)
-{
-	nilfs_dat_commit_end(nilfs_bmap_get_dat(bmap), &req->bpr_req, 1);
-}
-
-static void nilfs_bmap_abort_end_v(struct nilfs_bmap *bmap,
-				   union nilfs_bmap_ptr_req *req)
+void nilfs_bmap_abort_end_v(struct nilfs_bmap *bmap,
+			    union nilfs_bmap_ptr_req *req)
 {
 	nilfs_dat_abort_end(nilfs_bmap_get_dat(bmap), &req->bpr_req);
 }
@@ -566,127 +529,43 @@ int nilfs_bmap_mark_dirty(const struct nilfs_bmap *bmap, __u64 vblocknr)
 	return nilfs_dat_mark_dirty(nilfs_bmap_get_dat(bmap), vblocknr);
 }
 
-int nilfs_bmap_prepare_update(struct nilfs_bmap *bmap,
-			      union nilfs_bmap_ptr_req *oldreq,
-			      union nilfs_bmap_ptr_req *newreq)
+int nilfs_bmap_prepare_update_v(struct nilfs_bmap *bmap,
+				union nilfs_bmap_ptr_req *oldreq,
+				union nilfs_bmap_ptr_req *newreq)
 {
+	struct inode *dat = nilfs_bmap_get_dat(bmap);
 	int ret;
 
-	ret = bmap->b_pops->bpop_prepare_end_ptr(bmap, oldreq);
+	ret = nilfs_dat_prepare_end(dat, &oldreq->bpr_req);
 	if (ret < 0)
 		return ret;
-	ret = bmap->b_pops->bpop_prepare_alloc_ptr(bmap, newreq);
+	ret = nilfs_dat_prepare_alloc(dat, &newreq->bpr_req);
 	if (ret < 0)
-		bmap->b_pops->bpop_abort_end_ptr(bmap, oldreq);
+		nilfs_dat_abort_end(dat, &oldreq->bpr_req);
 
 	return ret;
 }
 
-void nilfs_bmap_commit_update(struct nilfs_bmap *bmap,
-			      union nilfs_bmap_ptr_req *oldreq,
-			      union nilfs_bmap_ptr_req *newreq)
+void nilfs_bmap_commit_update_v(struct nilfs_bmap *bmap,
+				union nilfs_bmap_ptr_req *oldreq,
+				union nilfs_bmap_ptr_req *newreq)
 {
-	bmap->b_pops->bpop_commit_end_ptr(bmap, oldreq);
-	bmap->b_pops->bpop_commit_alloc_ptr(bmap, newreq);
+	struct inode *dat = nilfs_bmap_get_dat(bmap);
+
+	nilfs_dat_commit_end(dat, &oldreq->bpr_req,
+			     bmap->b_ptr_type == NILFS_BMAP_PTR_VS);
+	nilfs_dat_commit_alloc(dat, &newreq->bpr_req);
 }
 
-void nilfs_bmap_abort_update(struct nilfs_bmap *bmap,
-			     union nilfs_bmap_ptr_req *oldreq,
-			     union nilfs_bmap_ptr_req *newreq)
+void nilfs_bmap_abort_update_v(struct nilfs_bmap *bmap,
+			       union nilfs_bmap_ptr_req *oldreq,
+			       union nilfs_bmap_ptr_req *newreq)
 {
-	bmap->b_pops->bpop_abort_end_ptr(bmap, oldreq);
-	bmap->b_pops->bpop_abort_alloc_ptr(bmap, newreq);
+	struct inode *dat = nilfs_bmap_get_dat(bmap);
+
+	nilfs_dat_abort_end(dat, &oldreq->bpr_req);
+	nilfs_dat_abort_alloc(dat, &newreq->bpr_req);
 }
-
-static int nilfs_bmap_translate_v(const struct nilfs_bmap *bmap, __u64 ptr,
-				  __u64 *ptrp)
-{
-	sector_t blocknr;
-	int ret;
-
-	ret = nilfs_dat_translate(nilfs_bmap_get_dat(bmap), ptr, &blocknr);
-	if (ret < 0)
-		return ret;
-	if (ptrp != NULL)
-		*ptrp = blocknr;
-	return 0;
-}
-
-static int nilfs_bmap_prepare_alloc_p(struct nilfs_bmap *bmap,
-				      union nilfs_bmap_ptr_req *req)
-{
-	/* ignore target ptr */
-	req->bpr_ptr = bmap->b_last_allocated_ptr++;
-	return 0;
-}
-
-static void nilfs_bmap_commit_alloc_p(struct nilfs_bmap *bmap,
-				      union nilfs_bmap_ptr_req *req)
-{
-	/* do nothing */
-}
-
-static void nilfs_bmap_abort_alloc_p(struct nilfs_bmap *bmap,
-				     union nilfs_bmap_ptr_req *req)
-{
-	bmap->b_last_allocated_ptr--;
-}
-
-static const struct nilfs_bmap_ptr_operations nilfs_bmap_ptr_ops_v = {
-	.bpop_prepare_alloc_ptr	=	nilfs_bmap_prepare_alloc_v,
-	.bpop_commit_alloc_ptr	=	nilfs_bmap_commit_alloc_v,
-	.bpop_abort_alloc_ptr	=	nilfs_bmap_abort_alloc_v,
-	.bpop_prepare_start_ptr	=	nilfs_bmap_prepare_start_v,
-	.bpop_commit_start_ptr	=	nilfs_bmap_commit_start_v,
-	.bpop_abort_start_ptr	=	nilfs_bmap_abort_start_v,
-	.bpop_prepare_end_ptr	=	nilfs_bmap_prepare_end_v,
-	.bpop_commit_end_ptr	=	nilfs_bmap_commit_end_v,
-	.bpop_abort_end_ptr	=	nilfs_bmap_abort_end_v,
-
-	.bpop_translate		=	nilfs_bmap_translate_v,
-};
-
-static const struct nilfs_bmap_ptr_operations nilfs_bmap_ptr_ops_vmdt = {
-	.bpop_prepare_alloc_ptr	=	nilfs_bmap_prepare_alloc_v,
-	.bpop_commit_alloc_ptr	=	nilfs_bmap_commit_alloc_v,
-	.bpop_abort_alloc_ptr	=	nilfs_bmap_abort_alloc_v,
-	.bpop_prepare_start_ptr	=	nilfs_bmap_prepare_start_v,
-	.bpop_commit_start_ptr	=	nilfs_bmap_commit_start_v,
-	.bpop_abort_start_ptr	=	nilfs_bmap_abort_start_v,
-	.bpop_prepare_end_ptr	=	nilfs_bmap_prepare_end_v,
-	.bpop_commit_end_ptr	=	nilfs_bmap_commit_end_vmdt,
-	.bpop_abort_end_ptr	=	nilfs_bmap_abort_end_v,
-
-	.bpop_translate		=	nilfs_bmap_translate_v,
-};
-
-static const struct nilfs_bmap_ptr_operations nilfs_bmap_ptr_ops_p = {
-	.bpop_prepare_alloc_ptr	=	nilfs_bmap_prepare_alloc_p,
-	.bpop_commit_alloc_ptr	=	nilfs_bmap_commit_alloc_p,
-	.bpop_abort_alloc_ptr	=	nilfs_bmap_abort_alloc_p,
-	.bpop_prepare_start_ptr	=	NULL,
-	.bpop_commit_start_ptr	=	NULL,
-	.bpop_abort_start_ptr	=	NULL,
-	.bpop_prepare_end_ptr	=	NULL,
-	.bpop_commit_end_ptr	=	NULL,
-	.bpop_abort_end_ptr	=	NULL,
-
-	.bpop_translate		=	NULL,
-};
-
-static const struct nilfs_bmap_ptr_operations nilfs_bmap_ptr_ops_gc = {
-	.bpop_prepare_alloc_ptr	=	NULL,
-	.bpop_commit_alloc_ptr	=	NULL,
-	.bpop_abort_alloc_ptr	=	NULL,
-	.bpop_prepare_start_ptr	=	NULL,
-	.bpop_commit_start_ptr	=	NULL,
-	.bpop_abort_start_ptr	=	NULL,
-	.bpop_prepare_end_ptr	=	NULL,
-	.bpop_commit_end_ptr	=	NULL,
-	.bpop_abort_end_ptr	=	NULL,
-
-	.bpop_translate		=	NULL,
-};
 
 static struct lock_class_key nilfs_bmap_dat_lock_key;
 
@@ -714,31 +593,26 @@ int nilfs_bmap_read(struct nilfs_bmap *bmap, struct nilfs_inode *raw_inode)
 	bmap->b_inode = &NILFS_BMAP_I(bmap)->vfs_inode;
 	switch (bmap->b_inode->i_ino) {
 	case NILFS_DAT_INO:
-		bmap->b_pops = &nilfs_bmap_ptr_ops_p;
-		bmap->b_last_allocated_key = 0;	/* XXX: use macro */
+		bmap->b_ptr_type = NILFS_BMAP_PTR_P;
+		bmap->b_last_allocated_key = 0;
 		bmap->b_last_allocated_ptr = NILFS_BMAP_NEW_PTR_INIT;
 		lockdep_set_class(&bmap->b_sem, &nilfs_bmap_dat_lock_key);
 		break;
 	case NILFS_CPFILE_INO:
 	case NILFS_SUFILE_INO:
-		bmap->b_pops = &nilfs_bmap_ptr_ops_vmdt;
-		bmap->b_last_allocated_key = 0;	/* XXX: use macro */
+		bmap->b_ptr_type = NILFS_BMAP_PTR_VS;
+		bmap->b_last_allocated_key = 0;
 		bmap->b_last_allocated_ptr = NILFS_BMAP_INVALID_PTR;
 		break;
 	default:
-		bmap->b_pops = &nilfs_bmap_ptr_ops_v;
-		bmap->b_last_allocated_key = 0;	/* XXX: use macro */
+		bmap->b_ptr_type = NILFS_BMAP_PTR_VM;
+		bmap->b_last_allocated_key = 0;
 		bmap->b_last_allocated_ptr = NILFS_BMAP_INVALID_PTR;
 		break;
 	}
 
 	return (bmap->b_u.u_flags & NILFS_BMAP_LARGE) ?
-		nilfs_btree_init(bmap,
-				 NILFS_BMAP_LARGE_LOW,
-				 NILFS_BMAP_LARGE_HIGH) :
-		nilfs_direct_init(bmap,
-				  NILFS_BMAP_SMALL_LOW,
-				  NILFS_BMAP_SMALL_HIGH);
+		nilfs_btree_init(bmap) : nilfs_direct_init(bmap);
 }
 
 /**
@@ -764,7 +638,7 @@ void nilfs_bmap_init_gc(struct nilfs_bmap *bmap)
 	memset(&bmap->b_u, 0, NILFS_BMAP_SIZE);
 	init_rwsem(&bmap->b_sem);
 	bmap->b_inode = &NILFS_BMAP_I(bmap)->vfs_inode;
-	bmap->b_pops = &nilfs_bmap_ptr_ops_gc;
+	bmap->b_ptr_type = NILFS_BMAP_PTR_U;
 	bmap->b_last_allocated_key = 0;
 	bmap->b_last_allocated_ptr = NILFS_BMAP_INVALID_PTR;
 	bmap->b_state = 0;

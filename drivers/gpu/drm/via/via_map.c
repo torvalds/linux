@@ -96,7 +96,7 @@ int via_driver_load(struct drm_device *dev, unsigned long chipset)
 	drm_via_private_t *dev_priv;
 	int ret = 0;
 
-	dev_priv = drm_calloc(1, sizeof(drm_via_private_t), DRM_MEM_DRIVER);
+	dev_priv = kzalloc(sizeof(drm_via_private_t), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
 
@@ -106,14 +106,14 @@ int via_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	ret = drm_sman_init(&dev_priv->sman, 2, 12, 8);
 	if (ret) {
-		drm_free(dev_priv, sizeof(*dev_priv), DRM_MEM_DRIVER);
+		kfree(dev_priv);
 		return ret;
 	}
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret) {
 		drm_sman_takedown(&dev_priv->sman);
-		drm_free(dev_priv, sizeof(drm_via_private_t), DRM_MEM_DRIVER);
+		kfree(dev_priv);
 		return ret;
 	}
 
@@ -126,7 +126,7 @@ int via_driver_unload(struct drm_device *dev)
 
 	drm_sman_takedown(&dev_priv->sman);
 
-	drm_free(dev_priv, sizeof(drm_via_private_t), DRM_MEM_DRIVER);
+	kfree(dev_priv);
 
 	return 0;
 }

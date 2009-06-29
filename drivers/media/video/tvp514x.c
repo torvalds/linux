@@ -692,7 +692,7 @@ static int ioctl_s_routing(struct v4l2_int_device *s,
 			break;	/* Input detected */
 	}
 
-	if ((current_std == STD_INVALID) || (try_count <= 0))
+	if ((current_std == STD_INVALID) || (try_count < 0))
 		return -EINVAL;
 
 	decoder->current_std = current_std;

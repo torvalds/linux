@@ -363,38 +363,16 @@ static int inotify_find_inode(const char __user *dirname, struct path *path, uns
 }
 
 /*
- * When, for whatever reason, inotify is done with a mark (or what used to be a
- * watch) we need to remove that watch from the idr and we need to send IN_IGNORED
- * for the given wd.
- *
- * There is a bit of recursion here.  The loop looks like:
- * 	inotify_destroy_mark_entry -> fsnotify_destroy_mark_by_entry ->
- *	inotify_freeing_mark -> inotify_destory_mark_entry -> restart
- * But the loop is broken in 2 places.  fsnotify_destroy_mark_by_entry sets
- * entry->group = NULL before the call to inotify_freeing_mark, so the if (egroup)
- * test below will not call back to fsnotify again.  But even if that test wasn't
- * there this would still be safe since fsnotify_destroy_mark_by_entry() is
- * safe from recursion.
+ * Send IN_IGNORED for this wd, remove this wd from the idr, and drop the
+ * internal reference help on the mark because it is in the idr.
  */
-void inotify_destroy_mark_entry(struct fsnotify_mark_entry *entry, struct fsnotify_group *group)
+void inotify_ignored_and_remove_idr(struct fsnotify_mark_entry *entry,
+				    struct fsnotify_group *group)
 {
 	struct inotify_inode_mark_entry *ientry;
 	struct inotify_event_private_data *event_priv;
 	struct fsnotify_event_private_data *fsn_event_priv;
-	struct fsnotify_group *egroup;
 	struct idr *idr;
-
-	spin_lock(&entry->lock);
-	egroup = entry->group;
-
-	/* if egroup we aren't really done and something might still send events
-	 * for this inode, on the callback we'll send the IN_IGNORED */
-	if (egroup) {
-		spin_unlock(&entry->lock);
-		fsnotify_destroy_mark_by_entry(entry);
-		return;
-	}
-	spin_unlock(&entry->lock);
 
 	ientry = container_of(entry, struct inotify_inode_mark_entry, fsn_entry);
 
@@ -699,7 +677,7 @@ SYSCALL_DEFINE2(inotify_rm_watch, int, fd, __s32, wd)
 	fsnotify_get_mark(entry);
 	spin_unlock(&group->inotify_data.idr_lock);
 
-	inotify_destroy_mark_entry(entry, group);
+	fsnotify_destroy_mark_by_entry(entry);
 	fsnotify_put_mark(entry);
 
 out:

@@ -430,12 +430,13 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	for_each_sched_entity(se) {
 		struct load_weight *load;
+		struct load_weight lw;
 
 		cfs_rq = cfs_rq_of(se);
 		load = &cfs_rq->load;
 
 		if (unlikely(!se->on_rq)) {
-			struct load_weight lw = cfs_rq->load;
+			lw = cfs_rq->load;
 
 			update_load_add(&lw, se->load.weight);
 			load = &lw;

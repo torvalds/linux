@@ -34,14 +34,11 @@ static struct {
 	 * an ongoing cpu hotplug operation.
 	 */
 	int refcount;
-} cpu_hotplug;
-
-void __init cpu_hotplug_init(void)
-{
-	cpu_hotplug.active_writer = NULL;
-	mutex_init(&cpu_hotplug.lock);
-	cpu_hotplug.refcount = 0;
-}
+} cpu_hotplug = {
+	.active_writer = NULL,
+	.lock = __MUTEX_INITIALIZER(cpu_hotplug.lock),
+	.refcount = 0,
+};
 
 #ifdef CONFIG_HOTPLUG_CPU
 

@@ -116,6 +116,27 @@ lpfc_debug_save_dif(struct scsi_cmnd *cmnd)
 }
 
 /**
+ * lpfc_sli4_set_rsp_sgl_last - Set the last bit in the response sge.
+ * @phba: Pointer to HBA object.
+ * @lpfc_cmd: lpfc scsi command object pointer.
+ *
+ * This function is called from the lpfc_prep_task_mgmt_cmd function to
+ * set the last bit in the response sge entry.
+ **/
+static void
+lpfc_sli4_set_rsp_sgl_last(struct lpfc_hba *phba,
+				struct lpfc_scsi_buf *lpfc_cmd)
+{
+	struct sli4_sge *sgl = (struct sli4_sge *)lpfc_cmd->fcp_bpl;
+	if (sgl) {
+		sgl += 1;
+		sgl->word2 = le32_to_cpu(sgl->word2);
+		bf_set(lpfc_sli4_sge_last, sgl, 1);
+		sgl->word2 = cpu_to_le32(sgl->word2);
+	}
+}
+
+/**
  * lpfc_update_stats - Update statistical data for the command completion
  * @phba: Pointer to HBA object.
  * @lpfc_cmd: lpfc scsi command object pointer.
@@ -1978,7 +1999,7 @@ lpfc_send_scsi_error_event(struct lpfc_hba *phba, struct lpfc_vport *vport,
 }
 
 /**
- * lpfc_scsi_unprep_dma_buf_s3 - Un-map DMA mapping of SG-list for SLI3 dev
+ * lpfc_scsi_unprep_dma_buf - Un-map DMA mapping of SG-list for dev
  * @phba: The HBA for which this call is being executed.
  * @psb: The scsi buffer which is going to be un-mapped.
  *
@@ -1986,7 +2007,7 @@ lpfc_send_scsi_error_event(struct lpfc_hba *phba, struct lpfc_vport *vport,
  * field of @lpfc_cmd for device with SLI-3 interface spec.
  **/
 static void
-lpfc_scsi_unprep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
+lpfc_scsi_unprep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 {
 	/*
 	 * There are only two special cases to consider.  (1) the scsi command
@@ -2000,36 +2021,6 @@ lpfc_scsi_unprep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 		dma_unmap_sg(&phba->pcidev->dev, scsi_prot_sglist(psb->pCmd),
 				scsi_prot_sg_count(psb->pCmd),
 				psb->pCmd->sc_data_direction);
-}
-
-/**
- * lpfc_scsi_unprep_dma_buf_s4 - Un-map DMA mapping of SG-list for SLI4 dev
- * @phba: The Hba for which this call is being executed.
- * @psb: The scsi buffer which is going to be un-mapped.
- *
- * This routine does DMA un-mapping of scatter gather list of scsi command
- * field of @lpfc_cmd for device with SLI-4 interface spec. If we have to
- * remove the sgl for this scsi buffer then we will do it here. For now
- * we should be able to just call the sli3 unprep routine.
- **/
-static void
-lpfc_scsi_unprep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
-{
-	lpfc_scsi_unprep_dma_buf_s3(phba, psb);
-}
-
-/**
- * lpfc_scsi_unprep_dma_buf - Wrapper function for unmap DMA mapping of SG-list
- * @phba: The Hba for which this call is being executed.
- * @psb: The scsi buffer which is going to be un-mapped.
- *
- * This routine does DMA un-mapping of scatter gather list of scsi command
- * field of @lpfc_cmd for device with SLI-4 interface spec.
- **/
-static void
-lpfc_scsi_unprep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
-{
-	phba->lpfc_scsi_unprep_dma_buf(phba, psb);
 }
 
 /**
@@ -2461,7 +2452,7 @@ lpfc_fcpcmd_to_iocb(uint8_t *data, struct fcp_cmnd *fcp_cmnd)
 }
 
 /**
- * lpfc_scsi_prep_cmnd_s3 - Convert scsi cmnd to FCP infor unit for SLI3 dev
+ * lpfc_scsi_prep_cmnd - Wrapper func for convert scsi cmnd to FCP info unit
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: The scsi command which needs to send.
  * @pnode: Pointer to lpfc_nodelist.
@@ -2470,7 +2461,7 @@ lpfc_fcpcmd_to_iocb(uint8_t *data, struct fcp_cmnd *fcp_cmnd)
  * to transfer for device with SLI3 interface spec.
  **/
 static void
-lpfc_scsi_prep_cmnd_s3(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
+lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		    struct lpfc_nodelist *pnode)
 {
 	struct lpfc_hba *phba = vport->phba;
@@ -2558,46 +2549,7 @@ lpfc_scsi_prep_cmnd_s3(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 }
 
 /**
- * lpfc_scsi_prep_cmnd_s4 - Convert scsi cmnd to FCP infor unit for SLI4 dev
- * @vport: The virtual port for which this call is being executed.
- * @lpfc_cmd: The scsi command which needs to send.
- * @pnode: Pointer to lpfc_nodelist.
- *
- * This routine initializes fcp_cmnd and iocb data structure from scsi command
- * to transfer for device with SLI4 interface spec.
- **/
-static void
-lpfc_scsi_prep_cmnd_s4(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
-		       struct lpfc_nodelist *pnode)
-{
-	/*
-	 * The prep cmnd routines do not touch the sgl or its
-	 * entries. We may not have to do anything different.
-	 * I will leave this function in place until we can
-	 * run some IO through the driver and determine if changes
-	 * are needed.
-	 */
-	return lpfc_scsi_prep_cmnd_s3(vport, lpfc_cmd, pnode);
-}
-
-/**
- * lpfc_scsi_prep_cmnd - Wrapper func for convert scsi cmnd to FCP info unit
- * @vport: The virtual port for which this call is being executed.
- * @lpfc_cmd: The scsi command which needs to send.
- * @pnode: Pointer to lpfc_nodelist.
- *
- * This routine wraps the actual convert SCSI cmnd function pointer from
- * the lpfc_hba struct.
- **/
-static inline void
-lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
-		    struct lpfc_nodelist *pnode)
-{
-	vport->phba->lpfc_scsi_prep_cmnd(vport, lpfc_cmd, pnode);
-}
-
-/**
- * lpfc_scsi_prep_task_mgmt_cmnd_s3 - Convert SLI3 scsi TM cmd to FCP info unit
+ * lpfc_scsi_prep_task_mgmt_cmnd - Convert SLI3 scsi TM cmd to FCP info unit
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
  * @lun: Logical unit number.
@@ -2611,7 +2563,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
  *   1 - Success
  **/
 static int
-lpfc_scsi_prep_task_mgmt_cmd_s3(struct lpfc_vport *vport,
+lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
 			     struct lpfc_scsi_buf *lpfc_cmd,
 			     unsigned int lun,
 			     uint8_t task_mgmt_cmd)
@@ -2653,68 +2605,13 @@ lpfc_scsi_prep_task_mgmt_cmd_s3(struct lpfc_vport *vport,
 		 * The driver will provide the timeout mechanism.
 		 */
 		piocb->ulpTimeout = 0;
-	} else {
+	} else
 		piocb->ulpTimeout = lpfc_cmd->timeout;
-	}
+
+	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_sli4_set_rsp_sgl_last(vport->phba, lpfc_cmd);
 
 	return 1;
-}
-
-/**
- * lpfc_scsi_prep_task_mgmt_cmnd_s4 - Convert SLI4 scsi TM cmd to FCP info unit
- * @vport: The virtual port for which this call is being executed.
- * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
- * @lun: Logical unit number.
- * @task_mgmt_cmd: SCSI task management command.
- *
- * This routine creates FCP information unit corresponding to @task_mgmt_cmd
- * for device with SLI-4 interface spec.
- *
- * Return codes:
- * 	0 - Error
- * 	1 - Success
- **/
-static int
-lpfc_scsi_prep_task_mgmt_cmd_s4(struct lpfc_vport *vport,
-				struct lpfc_scsi_buf *lpfc_cmd,
-				unsigned int lun,
-				uint8_t task_mgmt_cmd)
-{
-	/*
-	 * The prep cmnd routines do not touch the sgl or its
-	 * entries. We may not have to do anything different.
-	 * I will leave this function in place until we can
-	 * run some IO through the driver and determine if changes
-	 * are needed.
-	 */
-	return lpfc_scsi_prep_task_mgmt_cmd_s3(vport, lpfc_cmd, lun,
-						task_mgmt_cmd);
-}
-
-/**
- * lpfc_scsi_prep_task_mgmt_cmnd - Wrapper func convert scsi TM cmd to FCP info
- * @vport: The virtual port for which this call is being executed.
- * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
- * @lun: Logical unit number.
- * @task_mgmt_cmd: SCSI task management command.
- *
- * This routine wraps the actual convert SCSI TM to FCP information unit
- * function pointer from the lpfc_hba struct.
- *
- * Return codes:
- * 	0 - Error
- * 	1 - Success
- **/
-static inline int
-lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
-			     struct lpfc_scsi_buf *lpfc_cmd,
-			     unsigned int lun,
-			     uint8_t task_mgmt_cmd)
-{
-	struct lpfc_hba *phba = vport->phba;
-
-	return phba->lpfc_scsi_prep_task_mgmt_cmd(vport, lpfc_cmd, lun,
-						  task_mgmt_cmd);
 }
 
 /**
@@ -2730,23 +2627,19 @@ int
 lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 {
 
+	phba->lpfc_scsi_unprep_dma_buf = lpfc_scsi_unprep_dma_buf;
+	phba->lpfc_scsi_prep_cmnd = lpfc_scsi_prep_cmnd;
+	phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf;
+
 	switch (dev_grp) {
 	case LPFC_PCI_DEV_LP:
 		phba->lpfc_new_scsi_buf = lpfc_new_scsi_buf_s3;
 		phba->lpfc_scsi_prep_dma_buf = lpfc_scsi_prep_dma_buf_s3;
-		phba->lpfc_scsi_prep_cmnd = lpfc_scsi_prep_cmnd_s3;
-		phba->lpfc_scsi_unprep_dma_buf = lpfc_scsi_unprep_dma_buf_s3;
-		phba->lpfc_scsi_prep_task_mgmt_cmd =
-					lpfc_scsi_prep_task_mgmt_cmd_s3;
 		phba->lpfc_release_scsi_buf = lpfc_release_scsi_buf_s3;
 		break;
 	case LPFC_PCI_DEV_OC:
 		phba->lpfc_new_scsi_buf = lpfc_new_scsi_buf_s4;
 		phba->lpfc_scsi_prep_dma_buf = lpfc_scsi_prep_dma_buf_s4;
-		phba->lpfc_scsi_prep_cmnd = lpfc_scsi_prep_cmnd_s4;
-		phba->lpfc_scsi_unprep_dma_buf = lpfc_scsi_unprep_dma_buf_s4;
-		phba->lpfc_scsi_prep_task_mgmt_cmd =
-					lpfc_scsi_prep_task_mgmt_cmd_s4;
 		phba->lpfc_release_scsi_buf = lpfc_release_scsi_buf_s4;
 		break;
 	default:
@@ -2780,72 +2673,6 @@ lpfc_tskmgmt_def_cmpl(struct lpfc_hba *phba,
 	if (lpfc_cmd)
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 	return;
-}
-
-/**
- * lpfc_scsi_tgt_reset - Target reset handler
- * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure
- * @vport: The virtual port for which this call is being executed.
- * @tgt_id: Target ID.
- * @lun: Lun number.
- * @rdata: Pointer to lpfc_rport_data.
- *
- * This routine issues a TARGET RESET iocb to reset a target with @tgt_id ID.
- *
- * Return Code:
- *   0x2003 - Error
- *   0x2002 - Success.
- **/
-static int
-lpfc_scsi_tgt_reset(struct lpfc_scsi_buf *lpfc_cmd, struct lpfc_vport *vport,
-		    unsigned  tgt_id, unsigned int lun,
-		    struct lpfc_rport_data *rdata)
-{
-	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_iocbq *iocbq;
-	struct lpfc_iocbq *iocbqrsp;
-	int ret;
-	int status;
-
-	if (!rdata->pnode || !NLP_CHK_NODE_ACT(rdata->pnode))
-		return FAILED;
-
-	lpfc_cmd->rdata = rdata;
-	status = lpfc_scsi_prep_task_mgmt_cmd(vport, lpfc_cmd, lun,
-					   FCP_TARGET_RESET);
-	if (!status)
-		return FAILED;
-
-	iocbq = &lpfc_cmd->cur_iocbq;
-	iocbqrsp = lpfc_sli_get_iocbq(phba);
-
-	if (!iocbqrsp)
-		return FAILED;
-
-	/* Issue Target Reset to TGT <num> */
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
-			 "0702 Issue Target Reset to TGT %d Data: x%x x%x\n",
-			 tgt_id, rdata->pnode->nlp_rpi, rdata->pnode->nlp_flag);
-	status = lpfc_sli_issue_iocb_wait(phba, LPFC_FCP_RING,
-					  iocbq, iocbqrsp, lpfc_cmd->timeout);
-	if (status != IOCB_SUCCESS) {
-		if (status == IOCB_TIMEDOUT) {
-			iocbq->iocb_cmpl = lpfc_tskmgmt_def_cmpl;
-			ret = TIMEOUT_ERROR;
-		} else
-			ret = FAILED;
-		lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
-	} else {
-		ret = SUCCESS;
-		lpfc_cmd->result = iocbqrsp->iocb.un.ulpWord[4];
-		lpfc_cmd->status = iocbqrsp->iocb.ulpStatus;
-		if (lpfc_cmd->status == IOSTAT_LOCAL_REJECT &&
-			(lpfc_cmd->result & IOERR_DRVR_MASK))
-				lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
-	}
-
-	lpfc_sli_release_iocbq(phba, iocbqrsp);
-	return ret;
 }
 
 /**
@@ -3228,11 +3055,201 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	return ret;
 }
 
+static char *
+lpfc_taskmgmt_name(uint8_t task_mgmt_cmd)
+{
+	switch (task_mgmt_cmd) {
+	case FCP_ABORT_TASK_SET:
+		return "ABORT_TASK_SET";
+	case FCP_CLEAR_TASK_SET:
+		return "FCP_CLEAR_TASK_SET";
+	case FCP_BUS_RESET:
+		return "FCP_BUS_RESET";
+	case FCP_LUN_RESET:
+		return "FCP_LUN_RESET";
+	case FCP_TARGET_RESET:
+		return "FCP_TARGET_RESET";
+	case FCP_CLEAR_ACA:
+		return "FCP_CLEAR_ACA";
+	case FCP_TERMINATE_TASK:
+		return "FCP_TERMINATE_TASK";
+	default:
+		return "unknown";
+	}
+}
+
+/**
+ * lpfc_send_taskmgmt - Generic SCSI Task Mgmt Handler
+ * @vport: The virtual port for which this call is being executed.
+ * @rdata: Pointer to remote port local data
+ * @tgt_id: Target ID of remote device.
+ * @lun_id: Lun number for the TMF
+ * @task_mgmt_cmd: type of TMF to send
+ *
+ * This routine builds and sends a TMF (SCSI Task Mgmt Function) to
+ * a remote port.
+ *
+ * Return Code:
+ *   0x2003 - Error
+ *   0x2002 - Success.
+ **/
+static int
+lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
+		    unsigned  tgt_id, unsigned int lun_id,
+		    uint8_t task_mgmt_cmd)
+{
+	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_scsi_buf *lpfc_cmd;
+	struct lpfc_iocbq *iocbq;
+	struct lpfc_iocbq *iocbqrsp;
+	int ret;
+	int status;
+
+	if (!rdata->pnode || !NLP_CHK_NODE_ACT(rdata->pnode))
+		return FAILED;
+
+	lpfc_cmd = lpfc_get_scsi_buf(phba);
+	if (lpfc_cmd == NULL)
+		return FAILED;
+	lpfc_cmd->timeout = 60;
+	lpfc_cmd->rdata = rdata;
+
+	status = lpfc_scsi_prep_task_mgmt_cmd(vport, lpfc_cmd, lun_id,
+					   task_mgmt_cmd);
+	if (!status) {
+		lpfc_release_scsi_buf(phba, lpfc_cmd);
+		return FAILED;
+	}
+
+	iocbq = &lpfc_cmd->cur_iocbq;
+	iocbqrsp = lpfc_sli_get_iocbq(phba);
+	if (iocbqrsp == NULL) {
+		lpfc_release_scsi_buf(phba, lpfc_cmd);
+		return FAILED;
+	}
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+			 "0702 Issue %s to TGT %d LUN %d "
+			 "rpi x%x nlp_flag x%x\n",
+			 lpfc_taskmgmt_name(task_mgmt_cmd), tgt_id, lun_id,
+			 rdata->pnode->nlp_rpi, rdata->pnode->nlp_flag);
+
+	status = lpfc_sli_issue_iocb_wait(phba, LPFC_FCP_RING,
+					  iocbq, iocbqrsp, lpfc_cmd->timeout);
+	if (status != IOCB_SUCCESS) {
+		if (status == IOCB_TIMEDOUT) {
+			iocbq->iocb_cmpl = lpfc_tskmgmt_def_cmpl;
+			ret = TIMEOUT_ERROR;
+		} else
+			ret = FAILED;
+		lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			 "0727 TMF %s to TGT %d LUN %d failed (%d, %d)\n",
+			 lpfc_taskmgmt_name(task_mgmt_cmd),
+			 tgt_id, lun_id, iocbqrsp->iocb.ulpStatus,
+			 iocbqrsp->iocb.un.ulpWord[4]);
+	} else
+		ret = SUCCESS;
+
+	lpfc_sli_release_iocbq(phba, iocbqrsp);
+
+	if (ret != TIMEOUT_ERROR)
+		lpfc_release_scsi_buf(phba, lpfc_cmd);
+
+	return ret;
+}
+
+/**
+ * lpfc_chk_tgt_mapped -
+ * @vport: The virtual port to check on
+ * @cmnd: Pointer to scsi_cmnd data structure.
+ *
+ * This routine delays until the scsi target (aka rport) for the
+ * command exists (is present and logged in) or we declare it non-existent.
+ *
+ * Return code :
+ *  0x2003 - Error
+ *  0x2002 - Success
+ **/
+static int
+lpfc_chk_tgt_mapped(struct lpfc_vport *vport, struct scsi_cmnd *cmnd)
+{
+	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
+	struct lpfc_nodelist *pnode = rdata->pnode;
+	unsigned long later;
+
+	/*
+	 * If target is not in a MAPPED state, delay until
+	 * target is rediscovered or devloss timeout expires.
+	 */
+	later = msecs_to_jiffies(2 * vport->cfg_devloss_tmo * 1000) + jiffies;
+	while (time_after(later, jiffies)) {
+		if (!pnode || !NLP_CHK_NODE_ACT(pnode))
+			return FAILED;
+		if (pnode->nlp_state == NLP_STE_MAPPED_NODE)
+			return SUCCESS;
+		schedule_timeout_uninterruptible(msecs_to_jiffies(500));
+		rdata = cmnd->device->hostdata;
+		if (!rdata)
+			return FAILED;
+		pnode = rdata->pnode;
+	}
+	if (!pnode || !NLP_CHK_NODE_ACT(pnode) ||
+	    (pnode->nlp_state != NLP_STE_MAPPED_NODE))
+		return FAILED;
+	return SUCCESS;
+}
+
+/**
+ * lpfc_reset_flush_io_context -
+ * @vport: The virtual port (scsi_host) for the flush context
+ * @tgt_id: If aborting by Target contect - specifies the target id
+ * @lun_id: If aborting by Lun context - specifies the lun id
+ * @context: specifies the context level to flush at.
+ *
+ * After a reset condition via TMF, we need to flush orphaned i/o
+ * contexts from the adapter. This routine aborts any contexts
+ * outstanding, then waits for their completions. The wait is
+ * bounded by devloss_tmo though.
+ *
+ * Return code :
+ *  0x2003 - Error
+ *  0x2002 - Success
+ **/
+static int
+lpfc_reset_flush_io_context(struct lpfc_vport *vport, uint16_t tgt_id,
+			uint64_t lun_id, lpfc_ctx_cmd context)
+{
+	struct lpfc_hba   *phba = vport->phba;
+	unsigned long later;
+	int cnt;
+
+	cnt = lpfc_sli_sum_iocb(vport, tgt_id, lun_id, context);
+	if (cnt)
+		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
+				    tgt_id, lun_id, context);
+	later = msecs_to_jiffies(2 * vport->cfg_devloss_tmo * 1000) + jiffies;
+	while (time_after(later, jiffies) && cnt) {
+		schedule_timeout_uninterruptible(msecs_to_jiffies(20));
+		cnt = lpfc_sli_sum_iocb(vport, tgt_id, lun_id, context);
+	}
+	if (cnt) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			"0724 I/O flush failure for context %s : cnt x%x\n",
+			((context == LPFC_CTX_LUN) ? "LUN" :
+			 ((context == LPFC_CTX_TGT) ? "TGT" :
+			  ((context == LPFC_CTX_HOST) ? "HOST" : "Unknown"))),
+			cnt);
+		return FAILED;
+	}
+	return SUCCESS;
+}
+
 /**
  * lpfc_device_reset_handler - scsi_host_template eh_device_reset entry point
  * @cmnd: Pointer to scsi_cmnd data structure.
  *
- * This routine does a device reset by sending a TARGET_RESET task management
+ * This routine does a device reset by sending a LUN_RESET task management
  * command.
  *
  * Return code :
@@ -3244,33 +3261,79 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host  *shost = cmnd->device->host;
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_scsi_buf *lpfc_cmd;
-	struct lpfc_iocbq *iocbq, *iocbqrsp;
 	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
 	struct lpfc_nodelist *pnode = rdata->pnode;
-	unsigned long later;
-	int ret = SUCCESS;
-	int status;
-	int cnt;
+	unsigned tgt_id = cmnd->device->id;
+	unsigned int lun_id = cmnd->device->lun;
 	struct lpfc_scsi_event_header scsi_event;
+	int status;
 
 	lpfc_block_error_handler(cmnd);
+
+	status = lpfc_chk_tgt_mapped(vport, cmnd);
+	if (status == FAILED) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			"0721 Device Reset rport failure: rdata x%p\n", rdata);
+		return FAILED;
+	}
+
+	scsi_event.event_type = FC_REG_SCSI_EVENT;
+	scsi_event.subcategory = LPFC_EVENT_LUNRESET;
+	scsi_event.lun = lun_id;
+	memcpy(scsi_event.wwpn, &pnode->nlp_portname, sizeof(struct lpfc_name));
+	memcpy(scsi_event.wwnn, &pnode->nlp_nodename, sizeof(struct lpfc_name));
+
+	fc_host_post_vendor_event(shost, fc_get_event_number(),
+		sizeof(scsi_event), (char *)&scsi_event, LPFC_NL_VENDOR_ID);
+
+	status = lpfc_send_taskmgmt(vport, rdata, tgt_id, lun_id,
+						FCP_LUN_RESET);
+
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			 "0713 SCSI layer issued Device Reset (%d, %d) "
+			 "return x%x\n", tgt_id, lun_id, status);
+
 	/*
-	 * If target is not in a MAPPED state, delay the reset until
-	 * target is rediscovered or devloss timeout expires.
+	 * We have to clean up i/o as : they may be orphaned by the TMF;
+	 * or if the TMF failed, they may be in an indeterminate state.
+	 * So, continue on.
+	 * We will report success if all the i/o aborts successfully.
 	 */
-	later = msecs_to_jiffies(2 * vport->cfg_devloss_tmo * 1000) + jiffies;
-	while (time_after(later, jiffies)) {
-		if (!pnode || !NLP_CHK_NODE_ACT(pnode))
-			return FAILED;
-		if (pnode->nlp_state == NLP_STE_MAPPED_NODE)
-			break;
-		schedule_timeout_uninterruptible(msecs_to_jiffies(500));
-		rdata = cmnd->device->hostdata;
-		if (!rdata)
-			break;
-		pnode = rdata->pnode;
+	status = lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
+						LPFC_CTX_LUN);
+	return status;
+}
+
+/**
+ * lpfc_target_reset_handler - scsi_host_template eh_target_reset entry point
+ * @cmnd: Pointer to scsi_cmnd data structure.
+ *
+ * This routine does a target reset by sending a TARGET_RESET task management
+ * command.
+ *
+ * Return code :
+ *  0x2003 - Error
+ *  0x2002 - Success
+ **/
+static int
+lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
+{
+	struct Scsi_Host  *shost = cmnd->device->host;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
+	struct lpfc_nodelist *pnode = rdata->pnode;
+	unsigned tgt_id = cmnd->device->id;
+	unsigned int lun_id = cmnd->device->lun;
+	struct lpfc_scsi_event_header scsi_event;
+	int status;
+
+	lpfc_block_error_handler(cmnd);
+
+	status = lpfc_chk_tgt_mapped(vport, cmnd);
+	if (status == FAILED) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			"0722 Target Reset rport failure: rdata x%p\n", rdata);
+		return FAILED;
 	}
 
 	scsi_event.event_type = FC_REG_SCSI_EVENT;
@@ -3279,105 +3342,47 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	memcpy(scsi_event.wwpn, &pnode->nlp_portname, sizeof(struct lpfc_name));
 	memcpy(scsi_event.wwnn, &pnode->nlp_nodename, sizeof(struct lpfc_name));
 
-	fc_host_post_vendor_event(shost,
-		fc_get_event_number(),
-		sizeof(scsi_event),
-		(char *)&scsi_event,
-		LPFC_NL_VENDOR_ID);
+	fc_host_post_vendor_event(shost, fc_get_event_number(),
+		sizeof(scsi_event), (char *)&scsi_event, LPFC_NL_VENDOR_ID);
 
-	if (!rdata || pnode->nlp_state != NLP_STE_MAPPED_NODE) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-				 "0721 LUN Reset rport "
-				 "failure: msec x%x rdata x%p\n",
-				 jiffies_to_msecs(jiffies - later), rdata);
-		return FAILED;
-	}
-	lpfc_cmd = lpfc_get_scsi_buf(phba);
-	if (lpfc_cmd == NULL)
-		return FAILED;
-	lpfc_cmd->timeout = 60;
-	lpfc_cmd->rdata = rdata;
+	status = lpfc_send_taskmgmt(vport, rdata, tgt_id, lun_id,
+					FCP_TARGET_RESET);
 
-	status = lpfc_scsi_prep_task_mgmt_cmd(vport, lpfc_cmd,
-					      cmnd->device->lun,
-					      FCP_TARGET_RESET);
-	if (!status) {
-		lpfc_release_scsi_buf(phba, lpfc_cmd);
-		return FAILED;
-	}
-	iocbq = &lpfc_cmd->cur_iocbq;
-
-	/* get a buffer for this IOCB command response */
-	iocbqrsp = lpfc_sli_get_iocbq(phba);
-	if (iocbqrsp == NULL) {
-		lpfc_release_scsi_buf(phba, lpfc_cmd);
-		return FAILED;
-	}
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
-			 "0703 Issue target reset to TGT %d LUN %d "
-			 "rpi x%x nlp_flag x%x\n", cmnd->device->id,
-			 cmnd->device->lun, pnode->nlp_rpi, pnode->nlp_flag);
-	status = lpfc_sli_issue_iocb_wait(phba, LPFC_FCP_RING,
-					  iocbq, iocbqrsp, lpfc_cmd->timeout);
-	if (status == IOCB_TIMEDOUT) {
-		iocbq->iocb_cmpl = lpfc_tskmgmt_def_cmpl;
-		ret = TIMEOUT_ERROR;
-	} else {
-		if (status != IOCB_SUCCESS)
-			ret = FAILED;
-		lpfc_release_scsi_buf(phba, lpfc_cmd);
-	}
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			 "0713 SCSI layer issued device reset (%d, %d) "
-			 "return x%x status x%x result x%x\n",
-			 cmnd->device->id, cmnd->device->lun, ret,
-			 iocbqrsp->iocb.ulpStatus,
-			 iocbqrsp->iocb.un.ulpWord[4]);
-	lpfc_sli_release_iocbq(phba, iocbqrsp);
-	cnt = lpfc_sli_sum_iocb(vport, cmnd->device->id, cmnd->device->lun,
-				LPFC_CTX_TGT);
-	if (cnt)
-		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
-				    cmnd->device->id, cmnd->device->lun,
-				    LPFC_CTX_TGT);
-	later = msecs_to_jiffies(2 * vport->cfg_devloss_tmo * 1000) + jiffies;
-	while (time_after(later, jiffies) && cnt) {
-		schedule_timeout_uninterruptible(msecs_to_jiffies(20));
-		cnt = lpfc_sli_sum_iocb(vport, cmnd->device->id,
-					cmnd->device->lun, LPFC_CTX_TGT);
-	}
-	if (cnt) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-				 "0719 device reset I/O flush failure: "
-				 "cnt x%x\n", cnt);
-		ret = FAILED;
-	}
-	return ret;
+			 "0723 SCSI layer issued Target Reset (%d, %d) "
+			 "return x%x\n", tgt_id, lun_id, status);
+
+	/*
+	 * We have to clean up i/o as : they may be orphaned by the TMF;
+	 * or if the TMF failed, they may be in an indeterminate state.
+	 * So, continue on.
+	 * We will report success if all the i/o aborts successfully.
+	 */
+	status = lpfc_reset_flush_io_context(vport, tgt_id, lun_id,
+					LPFC_CTX_TGT);
+	return status;
 }
 
 /**
  * lpfc_bus_reset_handler - scsi_host_template eh_bus_reset_handler entry point
  * @cmnd: Pointer to scsi_cmnd data structure.
  *
- * This routine does target reset to all target on @cmnd->device->host.
+ * This routine does target reset to all targets on @cmnd->device->host.
+ * This emulates Parallel SCSI Bus Reset Semantics.
  *
- * Return Code:
- *   0x2003 - Error
- *   0x2002 - Success
+ * Return code :
+ *  0x2003 - Error
+ *  0x2002 - Success
  **/
 static int
 lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host  *shost = cmnd->device->host;
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL;
-	int match;
-	int ret = SUCCESS, status = SUCCESS, i;
-	int cnt;
-	struct lpfc_scsi_buf * lpfc_cmd;
-	unsigned long later;
 	struct lpfc_scsi_event_header scsi_event;
+	int match;
+	int ret = SUCCESS, status, i;
 
 	scsi_event.event_type = FC_REG_SCSI_EVENT;
 	scsi_event.subcategory = LPFC_EVENT_BUSRESET;
@@ -3385,13 +3390,11 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	memcpy(scsi_event.wwpn, &vport->fc_portname, sizeof(struct lpfc_name));
 	memcpy(scsi_event.wwnn, &vport->fc_nodename, sizeof(struct lpfc_name));
 
-	fc_host_post_vendor_event(shost,
-		fc_get_event_number(),
-		sizeof(scsi_event),
-		(char *)&scsi_event,
-		LPFC_NL_VENDOR_ID);
+	fc_host_post_vendor_event(shost, fc_get_event_number(),
+		sizeof(scsi_event), (char *)&scsi_event, LPFC_NL_VENDOR_ID);
 
 	lpfc_block_error_handler(cmnd);
+
 	/*
 	 * Since the driver manages a single bus device, reset all
 	 * targets known to the driver.  Should any target reset
@@ -3414,16 +3417,11 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 		spin_unlock_irq(shost->host_lock);
 		if (!match)
 			continue;
-		lpfc_cmd = lpfc_get_scsi_buf(phba);
-		if (lpfc_cmd) {
-			lpfc_cmd->timeout = 60;
-			status = lpfc_scsi_tgt_reset(lpfc_cmd, vport, i,
-						     cmnd->device->lun,
-						     ndlp->rport->dd_data);
-			if (status != TIMEOUT_ERROR)
-				lpfc_release_scsi_buf(phba, lpfc_cmd);
-		}
-		if (!lpfc_cmd || status != SUCCESS) {
+
+		status = lpfc_send_taskmgmt(vport, ndlp->rport->dd_data,
+					i, 0, FCP_TARGET_RESET);
+
+		if (status != SUCCESS) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 					 "0700 Bus Reset on target %d failed\n",
 					 i);
@@ -3431,25 +3429,16 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 		}
 	}
 	/*
-	 * All outstanding txcmplq I/Os should have been aborted by
-	 * the targets.  Unfortunately, some targets do not abide by
-	 * this forcing the driver to double check.
+	 * We have to clean up i/o as : they may be orphaned by the TMFs
+	 * above; or if any of the TMFs failed, they may be in an
+	 * indeterminate state.
+	 * We will report success if all the i/o aborts successfully.
 	 */
-	cnt = lpfc_sli_sum_iocb(vport, 0, 0, LPFC_CTX_HOST);
-	if (cnt)
-		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
-				    0, 0, LPFC_CTX_HOST);
-	later = msecs_to_jiffies(2 * vport->cfg_devloss_tmo * 1000) + jiffies;
-	while (time_after(later, jiffies) && cnt) {
-		schedule_timeout_uninterruptible(msecs_to_jiffies(20));
-		cnt = lpfc_sli_sum_iocb(vport, 0, 0, LPFC_CTX_HOST);
-	}
-	if (cnt) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-				 "0715 Bus Reset I/O flush failure: "
-				 "cnt x%x left x%x\n", cnt, i);
+
+	status = lpfc_reset_flush_io_context(vport, 0, 0, LPFC_CTX_HOST);
+	if (status != SUCCESS)
 		ret = FAILED;
-	}
+
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 			 "0714 SCSI layer issued Bus Reset Data: x%x\n", ret);
 	return ret;
@@ -3582,7 +3571,8 @@ struct scsi_host_template lpfc_template = {
 	.info			= lpfc_info,
 	.queuecommand		= lpfc_queuecommand,
 	.eh_abort_handler	= lpfc_abort_handler,
-	.eh_device_reset_handler= lpfc_device_reset_handler,
+	.eh_device_reset_handler = lpfc_device_reset_handler,
+	.eh_target_reset_handler = lpfc_target_reset_handler,
 	.eh_bus_reset_handler	= lpfc_bus_reset_handler,
 	.slave_alloc		= lpfc_slave_alloc,
 	.slave_configure	= lpfc_slave_configure,
@@ -3602,7 +3592,8 @@ struct scsi_host_template lpfc_vport_template = {
 	.info			= lpfc_info,
 	.queuecommand		= lpfc_queuecommand,
 	.eh_abort_handler	= lpfc_abort_handler,
-	.eh_device_reset_handler= lpfc_device_reset_handler,
+	.eh_device_reset_handler = lpfc_device_reset_handler,
+	.eh_target_reset_handler = lpfc_target_reset_handler,
 	.eh_bus_reset_handler	= lpfc_bus_reset_handler,
 	.slave_alloc		= lpfc_slave_alloc,
 	.slave_configure	= lpfc_slave_configure,

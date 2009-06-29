@@ -136,7 +136,7 @@ static int tc6393xb_nand_enable(struct platform_device *nand)
 	return 0;
 }
 
-const static struct tmio_mmc_data tc6393xb_mmc_data = {
+static struct tmio_mmc_data tc6393xb_mmc_data = {
 	.hclk = 24000000,
 };
 

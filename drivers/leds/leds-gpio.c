@@ -76,7 +76,7 @@ static int __devinit create_gpio_led(const struct gpio_led *template,
 	struct gpio_led_data *led_dat, struct device *parent,
 	int (*blink_set)(unsigned, unsigned long *, unsigned long *))
 {
-	int ret;
+	int ret, state;
 
 	/* skip leds that aren't available */
 	if (!gpio_is_valid(template->gpio)) {
@@ -99,11 +99,15 @@ static int __devinit create_gpio_led(const struct gpio_led *template,
 		led_dat->cdev.blink_set = gpio_blink_set;
 	}
 	led_dat->cdev.brightness_set = gpio_led_set;
-	led_dat->cdev.brightness = LED_OFF;
+	if (template->default_state == LEDS_GPIO_DEFSTATE_KEEP)
+		state = !!gpio_get_value(led_dat->gpio) ^ led_dat->active_low;
+	else
+		state = (template->default_state == LEDS_GPIO_DEFSTATE_ON);
+	led_dat->cdev.brightness = state ? LED_FULL : LED_OFF;
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
-	ret = gpio_direction_output(led_dat->gpio, led_dat->active_low);
+	ret = gpio_direction_output(led_dat->gpio, led_dat->active_low ^ state);
 	if (ret < 0)
 		goto err;
 
@@ -129,7 +133,7 @@ static void delete_gpio_led(struct gpio_led_data *led)
 }
 
 #ifdef CONFIG_LEDS_GPIO_PLATFORM
-static int gpio_led_probe(struct platform_device *pdev)
+static int __devinit gpio_led_probe(struct platform_device *pdev)
 {
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_led_data *leds_data;
@@ -223,12 +227,22 @@ static int __devinit of_gpio_leds_probe(struct of_device *ofdev,
 	memset(&led, 0, sizeof(led));
 	for_each_child_of_node(np, child) {
 		enum of_gpio_flags flags;
+		const char *state;
 
 		led.gpio = of_get_gpio_flags(child, 0, &flags);
 		led.active_low = flags & OF_GPIO_ACTIVE_LOW;
 		led.name = of_get_property(child, "label", NULL) ? : child->name;
 		led.default_trigger =
 			of_get_property(child, "linux,default-trigger", NULL);
+		state = of_get_property(child, "default-state", NULL);
+		if (state) {
+			if (!strcmp(state, "keep"))
+				led.default_state = LEDS_GPIO_DEFSTATE_KEEP;
+			else if(!strcmp(state, "on"))
+				led.default_state = LEDS_GPIO_DEFSTATE_ON;
+			else
+				led.default_state = LEDS_GPIO_DEFSTATE_OFF;
+		}
 
 		ret = create_gpio_led(&led, &pdata->led_data[pdata->num_leds++],
 				      &ofdev->dev, NULL);

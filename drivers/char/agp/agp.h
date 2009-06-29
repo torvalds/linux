@@ -107,7 +107,7 @@ struct agp_bridge_driver {
 	void (*agp_enable)(struct agp_bridge_data *, u32);
 	void (*cleanup)(void);
 	void (*tlb_flush)(struct agp_memory *);
-	unsigned long (*mask_memory)(struct agp_bridge_data *, unsigned long, int);
+	unsigned long (*mask_memory)(struct agp_bridge_data *, struct page *, int);
 	void (*cache_flush)(void);
 	int (*create_gatt_table)(struct agp_bridge_data *);
 	int (*free_gatt_table)(struct agp_bridge_data *);
@@ -115,9 +115,9 @@ struct agp_bridge_driver {
 	int (*remove_memory)(struct agp_memory *, off_t, int);
 	struct agp_memory *(*alloc_by_type) (size_t, int);
 	void (*free_by_type)(struct agp_memory *);
-	void *(*agp_alloc_page)(struct agp_bridge_data *);
+	struct page *(*agp_alloc_page)(struct agp_bridge_data *);
 	int (*agp_alloc_pages)(struct agp_bridge_data *, struct agp_memory *, size_t);
-	void (*agp_destroy_page)(void *, int flags);
+	void (*agp_destroy_page)(struct page *, int flags);
 	void (*agp_destroy_pages)(struct agp_memory *);
 	int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
 	void (*chipset_flush)(struct agp_bridge_data *);
@@ -278,10 +278,10 @@ int agp_generic_insert_memory(struct agp_memory *mem, off_t pg_start, int type);
 int agp_generic_remove_memory(struct agp_memory *mem, off_t pg_start, int type);
 struct agp_memory *agp_generic_alloc_by_type(size_t page_count, int type);
 void agp_generic_free_by_type(struct agp_memory *curr);
-void *agp_generic_alloc_page(struct agp_bridge_data *bridge);
+struct page *agp_generic_alloc_page(struct agp_bridge_data *bridge);
 int agp_generic_alloc_pages(struct agp_bridge_data *agp_bridge,
 			    struct agp_memory *memory, size_t page_count);
-void agp_generic_destroy_page(void *addr, int flags);
+void agp_generic_destroy_page(struct page *page, int flags);
 void agp_generic_destroy_pages(struct agp_memory *memory);
 void agp_free_key(int key);
 int agp_num_entries(void);
@@ -291,7 +291,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge);
 void global_cache_flush(void);
 void get_agp_version(struct agp_bridge_data *bridge);
 unsigned long agp_generic_mask_memory(struct agp_bridge_data *bridge,
-	unsigned long addr, int type);
+				      struct page *page, int type);
 int agp_generic_type_to_mask_type(struct agp_bridge_data *bridge,
 				  int type);
 struct agp_bridge_data *agp_generic_find_bridge(struct pci_dev *pdev);

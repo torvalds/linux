@@ -59,11 +59,11 @@ struct nf_conntrack_l4proto
 			   const struct nf_conntrack_tuple *);
 
 	/* Print out the private part of the conntrack. */
-	int (*print_conntrack)(struct seq_file *s, const struct nf_conn *);
+	int (*print_conntrack)(struct seq_file *s, struct nf_conn *);
 
 	/* convert protoinfo to nfnetink attributes */
 	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,
-			 const struct nf_conn *ct);
+			 struct nf_conn *ct);
 	/* Calculate protoinfo nlattr size */
 	int (*nlattr_size)(void);
 

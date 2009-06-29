@@ -4,7 +4,7 @@
 
 menuconfig HOTPLUG_PCI
 	tristate "Support for PCI Hotplug"
-	depends on PCI && HOTPLUG
+	depends on PCI && HOTPLUG && SYSFS
 	---help---
 	  Say Y here if you have a motherboard with a PCI Hotplug controller.
 	  This allows you to add and remove PCI cards while the machine is
@@ -41,7 +41,7 @@ config HOTPLUG_PCI_FAKE
 
 config HOTPLUG_PCI_COMPAQ
 	tristate "Compaq PCI Hotplug driver"
-	depends on X86 && PCI_BIOS && PCI_LEGACY
+	depends on X86 && PCI_BIOS
 	help
 	  Say Y here if you have a motherboard with a Compaq PCI Hotplug
 	  controller.

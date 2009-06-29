@@ -295,7 +295,7 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw,
 	/* If PFC is disabled globally then fall back to LFC. */
 	if (!dcb_config->pfc_mode_enable) {
 		for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-			hw->mac.ops.setup_fc(hw, i);
+			hw->mac.ops.fc_enable(hw, i);
 		goto out;
 	}
 

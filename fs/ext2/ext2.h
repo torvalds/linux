@@ -47,10 +47,6 @@ struct ext2_inode_info {
 	 */
 	struct rw_semaphore xattr_sem;
 #endif
-#ifdef CONFIG_EXT2_FS_POSIX_ACL
-	struct posix_acl	*i_acl;
-	struct posix_acl	*i_default_acl;
-#endif
 	rwlock_t i_meta_lock;
 
 	/*
@@ -111,7 +107,7 @@ extern struct ext2_dir_entry_2 * ext2_find_entry (struct inode *,struct qstr *, 
 extern int ext2_delete_entry (struct ext2_dir_entry_2 *, struct page *);
 extern int ext2_empty_dir (struct inode *);
 extern struct ext2_dir_entry_2 * ext2_dotdot (struct inode *, struct page **);
-extern void ext2_set_link(struct inode *, struct ext2_dir_entry_2 *, struct page *, struct inode *);
+extern void ext2_set_link(struct inode *, struct ext2_dir_entry_2 *, struct page *, struct inode *, int);
 
 /* ialloc.c */
 extern struct inode * ext2_new_inode (struct inode *, int);

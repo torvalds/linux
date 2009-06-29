@@ -569,6 +569,19 @@
 #define C0DRB3			0x10206
 #define C1DRB3			0x10606
 
+/* Clocking configuration register */
+#define CLKCFG			0x10c00
+#define CLKCFG_FSB_400					(0 << 0)	/* hrawclk 100 */
+#define CLKCFG_FSB_533					(1 << 0)	/* hrawclk 133 */
+#define CLKCFG_FSB_667					(3 << 0)	/* hrawclk 166 */
+#define CLKCFG_FSB_800					(2 << 0)	/* hrawclk 200 */
+#define CLKCFG_FSB_1067					(6 << 0)	/* hrawclk 266 */
+#define CLKCFG_FSB_1333					(7 << 0)	/* hrawclk 333 */
+/* this is a guess, could be 5 as well */
+#define CLKCFG_FSB_1600					(4 << 0)	/* hrawclk 400 */
+#define CLKCFG_FSB_1600_ALT				(5 << 0)	/* hrawclk 400 */
+#define CLKCFG_FSB_MASK					(7 << 0)
+ 
 /** GM965 GM45 render standby register */
 #define MCHBAR_RENDER_STANDBY	0x111B8
 
@@ -834,9 +847,25 @@
 #define   HORIZ_INTERP_MASK	(3 << 6)
 #define   HORIZ_AUTO_SCALE	(1 << 5)
 #define   PANEL_8TO6_DITHER_ENABLE (1 << 3)
+#define   PFIT_FILTER_FUZZY	(0 << 24)
+#define   PFIT_SCALING_AUTO	(0 << 26)
+#define   PFIT_SCALING_PROGRAMMED (1 << 26)
+#define   PFIT_SCALING_PILLAR	(2 << 26)
+#define   PFIT_SCALING_LETTER	(3 << 26)
 #define PFIT_PGM_RATIOS	0x61234
 #define   PFIT_VERT_SCALE_MASK			0xfff00000
 #define   PFIT_HORIZ_SCALE_MASK			0x0000fff0
+/* Pre-965 */
+#define		PFIT_VERT_SCALE_SHIFT		20
+#define		PFIT_VERT_SCALE_MASK		0xfff00000
+#define		PFIT_HORIZ_SCALE_SHIFT		4
+#define		PFIT_HORIZ_SCALE_MASK		0x0000fff0
+/* 965+ */
+#define		PFIT_VERT_SCALE_SHIFT_965	16
+#define		PFIT_VERT_SCALE_MASK_965	0x1fff0000
+#define		PFIT_HORIZ_SCALE_SHIFT_965	0
+#define		PFIT_HORIZ_SCALE_MASK_965	0x00001fff
+
 #define PFIT_AUTO_RATIOS 0x61238
 
 /* Backlight control */

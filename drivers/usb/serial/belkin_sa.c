@@ -90,7 +90,7 @@ static int debug;
 
 /* function prototypes for a Belkin USB Serial Adapter F5U103 */
 static int  belkin_sa_startup(struct usb_serial *serial);
-static void belkin_sa_shutdown(struct usb_serial *serial);
+static void belkin_sa_release(struct usb_serial *serial);
 static int  belkin_sa_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
 static void belkin_sa_close(struct usb_serial_port *port);
@@ -142,7 +142,7 @@ static struct usb_serial_driver belkin_device = {
 	.tiocmget =		belkin_sa_tiocmget,
 	.tiocmset =		belkin_sa_tiocmset,
 	.attach =		belkin_sa_startup,
-	.shutdown =		belkin_sa_shutdown,
+	.release =		belkin_sa_release,
 };
 
 
@@ -197,14 +197,13 @@ static int belkin_sa_startup(struct usb_serial *serial)
 }
 
 
-static void belkin_sa_shutdown(struct usb_serial *serial)
+static void belkin_sa_release(struct usb_serial *serial)
 {
 	struct belkin_sa_private *priv;
 	int i;
 
 	dbg("%s", __func__);
 
-	/* stop reads and writes on all ports */
 	for (i = 0; i < serial->num_ports; ++i) {
 		/* My special items, the standard routines free my urbs */
 		priv = usb_get_serial_port_data(serial->port[i]);

@@ -57,7 +57,8 @@ static struct tracer_flags tracer_flags = {
 
 /* Add a function return address to the trace stack on thread info.*/
 int
-ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
+ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
+			 unsigned long frame_pointer)
 {
 	unsigned long long calltime;
 	int index;
@@ -85,6 +86,7 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
 	current->ret_stack[index].func = func;
 	current->ret_stack[index].calltime = calltime;
 	current->ret_stack[index].subtime = 0;
+	current->ret_stack[index].fp = frame_pointer;
 	*depth = index;
 
 	return 0;
@@ -92,7 +94,8 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
 
 /* Retrieve a function return address to the trace stack on thread info.*/
 static void
-ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
+ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
+			unsigned long frame_pointer)
 {
 	int index;
 
@@ -106,6 +109,31 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 		return;
 	}
 
+#ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+	/*
+	 * The arch may choose to record the frame pointer used
+	 * and check it here to make sure that it is what we expect it
+	 * to be. If gcc does not set the place holder of the return
+	 * address in the frame pointer, and does a copy instead, then
+	 * the function graph trace will fail. This test detects this
+	 * case.
+	 *
+	 * Currently, x86_32 with optimize for size (-Os) makes the latest
+	 * gcc do the above.
+	 */
+	if (unlikely(current->ret_stack[index].fp != frame_pointer)) {
+		ftrace_graph_stop();
+		WARN(1, "Bad frame pointer: expected %lx, received %lx\n"
+		     "  from func %pF return to %lx\n",
+		     current->ret_stack[index].fp,
+		     frame_pointer,
+		     (void *)current->ret_stack[index].func,
+		     current->ret_stack[index].ret);
+		*ret = (unsigned long)panic;
+		return;
+	}
+#endif
+
 	*ret = current->ret_stack[index].ret;
 	trace->func = current->ret_stack[index].func;
 	trace->calltime = current->ret_stack[index].calltime;
@@ -117,12 +145,12 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
  * Send the trace to the ring-buffer.
  * @return the original return address.
  */
-unsigned long ftrace_return_to_handler(void)
+unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 {
 	struct ftrace_graph_ret trace;
 	unsigned long ret;
 
-	ftrace_pop_return_trace(&trace, &ret);
+	ftrace_pop_return_trace(&trace, &ret, frame_pointer);
 	trace.rettime = trace_clock_local();
 	ftrace_graph_return(&trace);
 	barrier();

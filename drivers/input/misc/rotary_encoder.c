@@ -26,13 +26,17 @@
 #define DRV_NAME "rotary-encoder"
 
 struct rotary_encoder {
-	unsigned int irq_a;
-	unsigned int irq_b;
-	unsigned int pos;
-	unsigned int armed;
-	unsigned int dir;
 	struct input_dev *input;
 	struct rotary_encoder_platform_data *pdata;
+
+	unsigned int axis;
+	unsigned int pos;
+
+	unsigned int irq_a;
+	unsigned int irq_b;
+
+	bool armed;
+	unsigned char dir;	/* 0 - clockwise, 1 - CCW */
 };
 
 static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
@@ -53,21 +57,32 @@ static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
 		if (!encoder->armed)
 			break;
 
-		if (encoder->dir) {
-			/* turning counter-clockwise */
-			encoder->pos += pdata->steps;
-			encoder->pos--;
-			encoder->pos %= pdata->steps;
+		if (pdata->relative_axis) {
+			input_report_rel(encoder->input, pdata->axis,
+					 encoder->dir ? -1 : 1);
 		} else {
-			/* turning clockwise */
-			encoder->pos++;
-			encoder->pos %= pdata->steps;
-		}
+			unsigned int pos = encoder->pos;
 
-		input_report_abs(encoder->input, pdata->axis, encoder->pos);
+			if (encoder->dir) {
+				/* turning counter-clockwise */
+				if (pdata->rollover)
+					pos += pdata->steps;
+				if (pos)
+					pos--;
+			} else {
+				/* turning clockwise */
+				if (pdata->rollover || pos < pdata->steps)
+					pos++;
+			}
+			if (pdata->rollover)
+				pos %= pdata->steps;
+			encoder->pos = pos;
+			input_report_abs(encoder->input, pdata->axis,
+					 encoder->pos);
+		}
 		input_sync(encoder->input);
 
-		encoder->armed = 0;
+		encoder->armed = false;
 		break;
 
 	case 0x1:
@@ -77,7 +92,7 @@ static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
 		break;
 
 	case 0x3:
-		encoder->armed = 1;
+		encoder->armed = true;
 		break;
 	}
 
@@ -113,9 +128,15 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 	input->name = pdev->name;
 	input->id.bustype = BUS_HOST;
 	input->dev.parent = &pdev->dev;
-	input->evbit[0] = BIT_MASK(EV_ABS);
-	input_set_abs_params(encoder->input,
-			     pdata->axis, 0, pdata->steps, 0, 1);
+
+	if (pdata->relative_axis) {
+		input->evbit[0] = BIT_MASK(EV_REL);
+		input->relbit[0] = BIT_MASK(pdata->axis);
+	} else {
+		input->evbit[0] = BIT_MASK(EV_ABS);
+		input_set_abs_params(encoder->input,
+				     pdata->axis, 0, pdata->steps, 0, 1);
+	}
 
 	err = input_register_device(input);
 	if (err) {

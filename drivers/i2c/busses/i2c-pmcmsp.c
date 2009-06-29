@@ -283,7 +283,7 @@ static int __devinit pmcmsptwi_probe(struct platform_device *pldev)
 	}
 
 	/* reserve the memory region */
-	if (!request_mem_region(res->start, res->end - res->start + 1,
+	if (!request_mem_region(res->start, resource_size(res),
 				pldev->name)) {
 		dev_err(&pldev->dev,
 			"Unable to get memory/io address region 0x%08x\n",
@@ -294,7 +294,7 @@ static int __devinit pmcmsptwi_probe(struct platform_device *pldev)
 
 	/* remap the memory */
 	pmcmsptwi_data.iobase = ioremap_nocache(res->start,
-						res->end - res->start + 1);
+						resource_size(res));
 	if (!pmcmsptwi_data.iobase) {
 		dev_err(&pldev->dev,
 			"Unable to ioremap address 0x%08x\n", res->start);
@@ -360,7 +360,7 @@ ret_unmap:
 	iounmap(pmcmsptwi_data.iobase);
 
 ret_unreserve:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 ret_err:
 	return rc;
@@ -385,7 +385,7 @@ static int __devexit pmcmsptwi_remove(struct platform_device *pldev)
 	iounmap(pmcmsptwi_data.iobase);
 
 	res = platform_get_resource(pldev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }

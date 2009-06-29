@@ -6,6 +6,8 @@ config ANDROID
 	---help---
 	  Enable support for various drivers needed on the Android platform
 
+if ANDROID
+
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
 	default n
@@ -73,9 +75,13 @@ config ANDROID_RAM_CONSOLE_EARLY_SIZE
 	default 0
 	depends on ANDROID_RAM_CONSOLE_EARLY_INIT
 
+config ANDROID_TIMED_OUTPUT
+	bool "Timed output class driver"
+	default y
+
 config ANDROID_TIMED_GPIO
 	tristate "Android timed gpio driver"
-	depends on GENERIC_GPIO
+	depends on GENERIC_GPIO && ANDROID_TIMED_OUTPUT
 	default n
 
 config ANDROID_LOW_MEMORY_KILLER
@@ -83,5 +89,7 @@ config ANDROID_LOW_MEMORY_KILLER
 	default N
 	---help---
 	  Register processes to be killed when memory is low
+
+endif # if ANDROID
 
 endmenu

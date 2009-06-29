@@ -535,7 +535,7 @@ static int ide_register_port(ide_hwif_t *hwif)
 
 	/* register with global device tree */
 	dev_set_name(&hwif->gendev, hwif->name);
-	hwif->gendev.driver_data = hwif;
+	dev_set_drvdata(&hwif->gendev, hwif);
 	if (hwif->gendev.parent == NULL)
 		hwif->gendev.parent = hwif->dev;
 	hwif->gendev.release = hwif_release_dev;
@@ -818,6 +818,24 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 	return j;
 }
 
+static void ide_host_enable_irqs(struct ide_host *host)
+{
+	ide_hwif_t *hwif;
+	int i;
+
+	ide_host_for_each_port(i, hwif, host) {
+		if (hwif == NULL)
+			continue;
+
+		/* clear any pending IRQs */
+		hwif->tp_ops->read_status(hwif);
+
+		/* unmask IRQs */
+		if (hwif->io_ports.ctl_addr)
+			hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
+	}
+}
+
 /*
  * This routine sets up the IRQ for an IDE interface.
  */
@@ -830,9 +848,6 @@ static int init_irq (ide_hwif_t *hwif)
 
 	if (irq_handler == NULL)
 		irq_handler = ide_intr;
-
-	if (io_ports->ctl_addr)
-		hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	if (request_irq(hwif->irq, irq_handler, sa, hwif->name, hwif))
 		goto out_up;
@@ -987,9 +1002,9 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 		int ret;
 
 		dev_set_name(dev, "%u.%u", hwif->index, i);
+		dev_set_drvdata(dev, drive);
 		dev->parent = &hwif->gendev;
 		dev->bus = &ide_bus_type;
-		dev->driver_data = drive;
 		dev->release = drive_release_dev;
 
 		ret = device_register(dev);
@@ -1170,7 +1185,6 @@ static void ide_init_port_hw(ide_hwif_t *hwif, struct ide_hw *hw)
 	hwif->irq = hw->irq;
 	hwif->dev = hw->dev;
 	hwif->gendev.parent = hw->parent ? hw->parent : hw->dev;
-	hwif->ack_intr = hw->ack_intr;
 	hwif->config_data = hw->config;
 }
 
@@ -1378,6 +1392,9 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 
 		ide_init_port(hwif, i & 1, d);
 		ide_port_cable_detect(hwif);
+
+		hwif->port_flags |= IDE_PFLAG_PROBING;
+
 		ide_port_init_devices(hwif);
 	}
 
@@ -1387,6 +1404,8 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 
 		if (ide_probe_port(hwif) == 0)
 			hwif->present = 1;
+
+		hwif->port_flags &= ~IDE_PFLAG_PROBING;
 
 		if ((hwif->host_flags & IDE_HFLAG_4DRIVES) == 0 ||
 		    hwif->mate == NULL || hwif->mate->present == 0) {
@@ -1399,6 +1418,8 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif->present)
 			ide_port_tune_devices(hwif);
 	}
+
+	ide_host_enable_irqs(host);
 
 	ide_host_for_each_port(i, hwif, host) {
 		if (hwif == NULL)
@@ -1569,11 +1590,20 @@ EXPORT_SYMBOL_GPL(ide_host_remove);
 
 void ide_port_scan(ide_hwif_t *hwif)
 {
+	int rc;
+
 	ide_port_apply_params(hwif);
 	ide_port_cable_detect(hwif);
+
+	hwif->port_flags |= IDE_PFLAG_PROBING;
+
 	ide_port_init_devices(hwif);
 
-	if (ide_probe_port(hwif) < 0)
+	rc = ide_probe_port(hwif);
+
+	hwif->port_flags &= ~IDE_PFLAG_PROBING;
+
+	if (rc < 0)
 		return;
 
 	hwif->present = 1;

@@ -27,20 +27,20 @@
 /*
  * DIGITAL I/O INISIALISATION FUNCTION
  */
-INT i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev, struct comedi_subdevice *s,
+int i_APCI1710_InsnConfigDigitalIO(struct comedi_device *dev, struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data);
 
 /*
  * INPUT OUTPUT  FUNCTIONS
  */
-INT i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,
+int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,
 					 struct comedi_subdevice *s,
 					 struct comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
+int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
 					  struct comedi_insn *insn, unsigned int *data);
 
-INT i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device *dev,
+int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device *dev,
 					  struct comedi_subdevice *s,
 					  struct comedi_insn *insn, unsigned int *data);

@@ -67,7 +67,8 @@ struct rpc_rqst {
 	struct rpc_task *	rq_task;	/* RPC task data */
 	__be32			rq_xid;		/* request XID */
 	int			rq_cong;	/* has incremented xprt->cong */
-	int			rq_received;	/* receive completed */
+	int			rq_reply_bytes_recvd;	/* number of reply */
+							/* bytes received */
 	u32			rq_seqno;	/* gss seq no. used on req. */
 	int			rq_enc_pages_num;
 	struct page		**rq_enc_pages;	/* scratch pages for use by
@@ -97,6 +98,12 @@ struct rpc_rqst {
 
 	unsigned long		rq_xtime;	/* when transmitted */
 	int			rq_ntrans;
+
+#if defined(CONFIG_NFS_V4_1)
+	struct list_head	rq_bc_list;	/* Callback service list */
+	unsigned long		rq_bc_pa_state;	/* Backchannel prealloc state */
+	struct list_head	rq_bc_pa_list;	/* Backchannel prealloc list */
+#endif /* CONFIG_NFS_V4_1 */
 };
 #define rq_svec			rq_snd_buf.head
 #define rq_slen			rq_snd_buf.len
@@ -174,6 +181,15 @@ struct rpc_xprt {
 	spinlock_t		reserve_lock;	/* lock slot table */
 	u32			xid;		/* Next XID value to use */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
+#if defined(CONFIG_NFS_V4_1)
+	struct svc_serv		*bc_serv;       /* The RPC service which will */
+						/* process the callback */
+	unsigned int		bc_alloc_count;	/* Total number of preallocs */
+	spinlock_t		bc_pa_lock;	/* Protects the preallocated
+						 * items */
+	struct list_head	bc_pa_list;	/* List of preallocated
+						 * backchannel rpc_rqst's */
+#endif /* CONFIG_NFS_V4_1 */
 	struct list_head	recv;
 
 	struct {
@@ -191,6 +207,26 @@ struct rpc_xprt {
 
 	const char		*address_strings[RPC_DISPLAY_MAX];
 };
+
+#if defined(CONFIG_NFS_V4_1)
+/*
+ * Backchannel flags
+ */
+#define	RPC_BC_PA_IN_USE	0x0001		/* Preallocated backchannel */
+						/* buffer in use */
+#endif /* CONFIG_NFS_V4_1 */
+
+#if defined(CONFIG_NFS_V4_1)
+static inline int bc_prealloc(struct rpc_rqst *req)
+{
+	return test_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
+}
+#else
+static inline int bc_prealloc(struct rpc_rqst *req)
+{
+	return 0;
+}
+#endif /* CONFIG_NFS_V4_1 */
 
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */

@@ -133,7 +133,7 @@ good_area:
 	 * the fault.
 	 */
 survive:
-	fault = handle_mm_fault(mm, vma, address, writeaccess);
+	fault = handle_mm_fault(mm, vma, address, writeaccess ? FAULT_FLAG_WRITE : 0);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
@@ -249,9 +249,6 @@ static inline int notify_page_fault(struct pt_regs *regs, int trap)
 {
 	int ret = 0;
 
-	trace_mark(kernel_arch_trap_entry, "trap_id %d ip #p%ld",
-		   trap >> 5, instruction_pointer(regs));
-
 #ifdef CONFIG_KPROBES
 	if (!user_mode(regs)) {
 		preempt_disable();
@@ -327,6 +324,5 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 
 	ret = 0;
 out:
-	trace_mark(kernel_arch_trap_exit, MARK_NOARGS);
 	return ret;
 }

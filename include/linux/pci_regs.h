@@ -295,8 +295,9 @@
 #define PCI_MSI_ADDRESS_LO	4	/* Lower 32 bits */
 #define PCI_MSI_ADDRESS_HI	8	/* Upper 32 bits (if PCI_MSI_FLAGS_64BIT set) */
 #define PCI_MSI_DATA_32		8	/* 16 bits of data for 32-bit devices */
+#define PCI_MSI_MASK_32		12	/* Mask bits register for 32-bit devices */
 #define PCI_MSI_DATA_64		12	/* 16 bits of data for 64-bit devices */
-#define PCI_MSI_MASK_BIT	16	/* Mask bits register */
+#define PCI_MSI_MASK_64		16	/* Mask bits register for 64-bit devices */
 
 /* MSI-X registers (these are at offset PCI_MSIX_FLAGS) */
 #define PCI_MSIX_FLAGS		2
@@ -304,7 +305,6 @@
 #define  PCI_MSIX_FLAGS_ENABLE	(1 << 15)
 #define  PCI_MSIX_FLAGS_MASKALL	(1 << 14)
 #define PCI_MSIX_FLAGS_BIRMASK	(7 << 0)
-#define PCI_MSIX_FLAGS_BITMASK	(1 << 0)
 
 /* CompactPCI Hotswap Register */
 
@@ -502,6 +502,7 @@
 #define PCI_EXT_CAP_ID_DSN	3
 #define PCI_EXT_CAP_ID_PWR	4
 #define PCI_EXT_CAP_ID_ARI	14
+#define PCI_EXT_CAP_ID_ATS	15
 #define PCI_EXT_CAP_ID_SRIOV	16
 
 /* Advanced Error Reporting */
@@ -619,6 +620,15 @@
 #define  PCI_ARI_CTRL_MFVC	0x0001	/* MFVC Function Groups Enable */
 #define  PCI_ARI_CTRL_ACS	0x0002	/* ACS Function Groups Enable */
 #define  PCI_ARI_CTRL_FG(x)	(((x) >> 4) & 7) /* Function Group */
+
+/* Address Translation Service */
+#define PCI_ATS_CAP		0x04	/* ATS Capability Register */
+#define  PCI_ATS_CAP_QDEP(x)	((x) & 0x1f)	/* Invalidate Queue Depth */
+#define  PCI_ATS_MAX_QDEP	32	/* Max Invalidate Queue Depth */
+#define PCI_ATS_CTRL		0x06	/* ATS Control Register */
+#define  PCI_ATS_CTRL_ENABLE	0x8000	/* ATS Enable */
+#define  PCI_ATS_CTRL_STU(x)	((x) & 0x1f)	/* Smallest Translation Unit */
+#define  PCI_ATS_MIN_STU	12	/* shift of minimum STU block */
 
 /* Single Root I/O Virtualization */
 #define PCI_SRIOV_CAP		0x04	/* SR-IOV Capabilities */

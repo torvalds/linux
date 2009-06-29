@@ -380,12 +380,12 @@ static struct pca953x_platform_data pca9536_data = {
 	.gpio_base	= NR_BUILTIN_GPIO,
 };
 
-static int gpio_bus_switch;
+static int gpio_bus_switch = -EINVAL;
 
 static int pcm990_camera_set_bus_param(struct soc_camera_link *link,
-		unsigned long flags)
+				       unsigned long flags)
 {
-	if (gpio_bus_switch <= 0) {
+	if (gpio_bus_switch < 0) {
 		if (flags == SOCAM_DATAWIDTH_10)
 			return 0;
 		else
@@ -404,25 +404,34 @@ static unsigned long pcm990_camera_query_bus_param(struct soc_camera_link *link)
 {
 	int ret;
 
-	if (!gpio_bus_switch) {
+	if (gpio_bus_switch < 0) {
 		ret = gpio_request(NR_BUILTIN_GPIO, "camera");
 		if (!ret) {
 			gpio_bus_switch = NR_BUILTIN_GPIO;
 			gpio_direction_output(gpio_bus_switch, 0);
-		} else
-			gpio_bus_switch = -EINVAL;
+		}
 	}
 
-	if (gpio_bus_switch > 0)
+	if (gpio_bus_switch >= 0)
 		return SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_10;
 	else
 		return SOCAM_DATAWIDTH_10;
+}
+
+static void pcm990_camera_free_bus(struct soc_camera_link *link)
+{
+	if (gpio_bus_switch < 0)
+		return;
+
+	gpio_free(gpio_bus_switch);
+	gpio_bus_switch = -EINVAL;
 }
 
 static struct soc_camera_link iclink = {
 	.bus_id	= 0, /* Must match with the camera ID above */
 	.query_bus_param = pcm990_camera_query_bus_param,
 	.set_bus_param = pcm990_camera_set_bus_param,
+	.free_bus = pcm990_camera_free_bus,
 };
 
 /* Board I2C devices. */

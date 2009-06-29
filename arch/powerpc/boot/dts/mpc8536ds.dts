@@ -51,8 +51,20 @@
 		device_type = "soc";
 		compatible = "simple-bus";
 		ranges = <0x0 0xffe00000 0x100000>;
-		reg = <0xffe00000 0x1000>;
 		bus-frequency = <0>;		// Filled out by uboot.
+
+		ecm-law@0 {
+			compatible = "fsl,ecm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <12>;
+		};
+
+		ecm@1000 {
+			compatible = "fsl,mpc8536-ecm", "fsl,ecm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
 
 		memory-controller@2000 {
 			compatible = "fsl,mpc8536-memory-controller";
@@ -321,7 +333,6 @@
 	};
 
 	pci0: pci@ffe08000 {
-		cell-index = <0>;
 		compatible = "fsl,mpc8540-pci";
 		device_type = "pci";
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
@@ -346,7 +357,6 @@
 	};
 
 	pci1: pcie@ffe09000 {
-		cell-index = <1>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -383,7 +393,6 @@
 	};
 
 	pci2: pcie@ffe0a000 {
-		cell-index = <2>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -420,7 +429,6 @@
 	};
 
 	pci3: pcie@ffe0b000 {
-		cell-index = <3>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;

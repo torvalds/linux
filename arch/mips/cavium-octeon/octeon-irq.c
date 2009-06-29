@@ -7,9 +7,11 @@
  */
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/hardirq.h>
+#include <linux/smp.h>
 
 #include <asm/octeon/octeon.h>
+#include <asm/octeon/cvmx-pexp-defs.h>
+#include <asm/octeon/cvmx-npi-defs.h>
 
 DEFINE_RWLOCK(octeon_irq_ciu0_rwlock);
 DEFINE_RWLOCK(octeon_irq_ciu1_rwlock);
@@ -499,3 +501,62 @@ asmlinkage void plat_irq_dispatch(void)
 		}
 	}
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+static int is_irq_enabled_on_cpu(unsigned int irq, unsigned int cpu)
+{
+       unsigned int isset;
+#ifdef CONFIG_SMP
+       int coreid = cpu_logical_map(cpu);
+#else
+	int coreid = cvmx_get_core_num();
+#endif
+	int bit = (irq < OCTEON_IRQ_WDOG0) ?
+		irq - OCTEON_IRQ_WORKQ0 : irq - OCTEON_IRQ_WDOG0;
+       if (irq < 64) {
+		isset = (cvmx_read_csr(CVMX_CIU_INTX_EN0(coreid * 2)) &
+			(1ull << bit)) >> bit;
+       } else {
+	       isset = (cvmx_read_csr(CVMX_CIU_INTX_EN1(coreid * 2 + 1)) &
+			(1ull << bit)) >> bit;
+       }
+       return isset;
+}
+
+void fixup_irqs(void)
+{
+       int irq;
+
+	for (irq = OCTEON_IRQ_SW0; irq <= OCTEON_IRQ_TIMER; irq++)
+		octeon_irq_core_disable_local(irq);
+
+	for (irq = OCTEON_IRQ_WORKQ0; irq <= OCTEON_IRQ_GPIO15; irq++) {
+		if (is_irq_enabled_on_cpu(irq, smp_processor_id())) {
+			/* ciu irq migrates to next cpu */
+			octeon_irq_chip_ciu0.disable(irq);
+			octeon_irq_ciu0_set_affinity(irq, &cpu_online_map);
+		}
+	}
+
+#if 0
+	for (irq = OCTEON_IRQ_MBOX0; irq <= OCTEON_IRQ_MBOX1; irq++)
+		octeon_irq_mailbox_mask(irq);
+#endif
+	for (irq = OCTEON_IRQ_UART0; irq <= OCTEON_IRQ_BOOTDMA; irq++) {
+		if (is_irq_enabled_on_cpu(irq, smp_processor_id())) {
+			/* ciu irq migrates to next cpu */
+			octeon_irq_chip_ciu0.disable(irq);
+			octeon_irq_ciu0_set_affinity(irq, &cpu_online_map);
+		}
+	}
+
+	for (irq = OCTEON_IRQ_UART2; irq <= OCTEON_IRQ_RESERVED135; irq++) {
+		if (is_irq_enabled_on_cpu(irq, smp_processor_id())) {
+			/* ciu irq migrates to next cpu */
+			octeon_irq_chip_ciu1.disable(irq);
+			octeon_irq_ciu1_set_affinity(irq, &cpu_online_map);
+		}
+	}
+}
+
+#endif /* CONFIG_HOTPLUG_CPU */

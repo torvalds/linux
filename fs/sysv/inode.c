@@ -21,7 +21,6 @@
  *  the superblock.
  */
 
-#include <linux/smp_lock.h>
 #include <linux/highuid.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -37,7 +36,6 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 	unsigned long time = get_seconds(), old_time;
 
 	lock_super(sb);
-	lock_kernel();
 
 	/*
 	 * If we are going to write out the super block,
@@ -52,7 +50,6 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 		mark_buffer_dirty(sbi->s_bh2);
 	}
 
-	unlock_kernel();
 	unlock_super(sb);
 
 	return 0;
@@ -82,8 +79,6 @@ static void sysv_put_super(struct super_block *sb)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 
-	lock_kernel();
-
 	if (sb->s_dirt)
 		sysv_write_super(sb);
 
@@ -99,8 +94,6 @@ static void sysv_put_super(struct super_block *sb)
 		brelse(sbi->s_bh2);
 
 	kfree(sbi);
-
-	unlock_kernel();
 }
 
 static int sysv_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -275,7 +268,6 @@ int sysv_write_inode(struct inode *inode, int wait)
 		return -EIO;
 	}
 
-	lock_kernel();
 	raw_inode->i_mode = cpu_to_fs16(sbi, inode->i_mode);
 	raw_inode->i_uid = cpu_to_fs16(sbi, fs_high2lowuid(inode->i_uid));
 	raw_inode->i_gid = cpu_to_fs16(sbi, fs_high2lowgid(inode->i_gid));
@@ -291,7 +283,6 @@ int sysv_write_inode(struct inode *inode, int wait)
 	for (block = 0; block < 10+1+1+1; block++)
 		write3byte(sbi, (u8 *)&si->i_data[block],
 			&raw_inode->i_data[3*block]);
-	unlock_kernel();
 	mark_buffer_dirty(bh);
 	if (wait) {
                 sync_dirty_buffer(bh);
@@ -315,9 +306,7 @@ static void sysv_delete_inode(struct inode *inode)
 	truncate_inode_pages(&inode->i_data, 0);
 	inode->i_size = 0;
 	sysv_truncate(inode);
-	lock_kernel();
 	sysv_free_inode(inode);
-	unlock_kernel();
 }
 
 static struct kmem_cache *sysv_inode_cachep;

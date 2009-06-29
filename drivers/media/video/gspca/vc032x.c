@@ -42,7 +42,7 @@ struct sd {
 	char bridge;
 #define BRIDGE_VC0321 0
 #define BRIDGE_VC0323 1
-	char sensor;
+	u8 sensor;
 #define SENSOR_HV7131R 0
 #define SENSOR_MI0360 1
 #define SENSOR_MI1310_SOC 2
@@ -159,17 +159,17 @@ static const struct v4l2_pix_format vc0323_mode[] = {
 		.priv = 2},
 };
 static const struct v4l2_pix_format bi_mode[] = {
-	{320, 240, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{640, 480, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{1280, 1024, V4L2_PIX_FMT_YVYU, V4L2_FIELD_NONE,
+	{1280, 1024, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 1024 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -2453,6 +2453,17 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
 	int sensor;
+	static u8 npkt[] = {	/* number of packets per ISOC message */
+		64,		/* HV7131R 0 */
+		32,		/* MI0360 1 */
+		32,		/* MI1310_SOC 2 */
+		64,		/* MI1320 3 */
+		128,		/* MI1320_SOC 4 */
+		32,		/* OV7660 5 */
+		64,		/* OV7670 6 */
+		128,		/* PO1200 7 */
+		128,		/* PO3130NC 8 */
+	};
 
 	cam = &gspca_dev->cam;
 	sd->bridge = id->driver_info;
@@ -2508,6 +2519,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		case SENSOR_MI1320_SOC:
 			cam->cam_mode = bi_mode;
 			cam->nmodes = ARRAY_SIZE(bi_mode);
+			cam->input_flags = V4L2_IN_ST_VFLIP |
+					   V4L2_IN_ST_HFLIP;
 			break;
 		default:
 			cam->cam_mode = vc0323_mode;
@@ -2515,6 +2528,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			break;
 		}
 	}
+	cam->npkt = npkt[sd->sensor];
 
 	sd->hflip = HFLIP_DEF;
 	sd->vflip = VFLIP_DEF;

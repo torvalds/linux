@@ -119,13 +119,19 @@ static struct platform_device bfin_mac_device = {
 };
 
 #if defined(CONFIG_NET_DSA_KSZ8893M) || defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
-static struct dsa_platform_data ksz8893m_switch_data = {
+static struct dsa_chip_data ksz8893m_switch_chip_data = {
 	.mii_bus = &bfin_mii_bus.dev,
+	.port_names = {
+		NULL,
+		"eth%d",
+		"eth%d",
+		"cpu",
+	},
+};
+static struct dsa_platform_data ksz8893m_switch_data = {
+	.nr_chips = 1,
 	.netdev = &bfin_mac_device.dev,
-	.port_names[0]	= NULL,
-	.port_names[1]	= "eth%d",
-	.port_names[2]	= "eth%d",
-	.port_names[3]	= "cpu",
+	.chip = &ksz8893m_switch_chip_data,
 };
 
 static struct platform_device ksz8893m_switch_device = {
@@ -246,7 +252,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.modalias = "m25p80", /* Name of spi_driver for this device */
 		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0, /* Framework bus number */
-		.chip_select = 1, /* Framework chip select. On STAMP537 it is SPISSEL1*/
+		.chip_select = 2, /* On BF518F-EZBRD it's SPI0_SSEL2 */
 		.platform_data = &bfin_spi_flash_data,
 		.controller_data = &spi_flash_chip_info,
 		.mode = SPI_MODE_3,
@@ -369,6 +375,11 @@ static struct resource bfin_spi0_resource[] = {
 	[1] = {
 		.start = CH_SPI0,
 		.end   = CH_SPI0,
+		.flags = IORESOURCE_DMA,
+	},
+	[2] = {
+		.start = IRQ_SPI0,
+		.end   = IRQ_SPI0,
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -399,6 +410,11 @@ static struct resource bfin_spi1_resource[] = {
 	[1] = {
 		.start = CH_SPI1,
 		.end   = CH_SPI1,
+		.flags = IORESOURCE_DMA,
+	},
+	[2] = {
+		.start = IRQ_SPI1,
+		.end   = IRQ_SPI1,
 		.flags = IORESOURCE_IRQ,
 	},
 };

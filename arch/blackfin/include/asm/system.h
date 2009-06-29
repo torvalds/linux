@@ -35,10 +35,10 @@
 #define _BLACKFIN_SYSTEM_H
 
 #include <linux/linkage.h>
-#include <linux/compiler.h>
+#include <linux/irqflags.h>
 #include <mach/anomaly.h>
+#include <asm/cache.h>
 #include <asm/pda.h>
-#include <asm/processor.h>
 #include <asm/irq.h>
 
 /*
@@ -135,11 +135,13 @@ struct __xchg_dummy {
 };
 #define __xg(x) ((volatile struct __xchg_dummy *)(x))
 
+#include <mach/blackfin.h>
+
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
 				   int size)
 {
 	unsigned long tmp = 0;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 

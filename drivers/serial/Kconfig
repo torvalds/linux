@@ -1320,6 +1320,16 @@ config SERIAL_SGI_IOC3
 	  If you have an SGI Altix with an IOC3 serial card,
 	  say Y or M.  Otherwise, say N.
 
+config SERIAL_MSM
+	bool "MSM on-chip serial port support"
+	depends on ARM && ARCH_MSM
+	select SERIAL_CORE
+
+config SERIAL_MSM_CONSOLE
+	bool "MSM serial console support"
+	depends on SERIAL_MSM=y
+	select SERIAL_CORE_CONSOLE
+
 config SERIAL_NETX
 	tristate "NetX serial port support"
 	depends on ARM && ARCH_NETX

@@ -30,7 +30,7 @@ EXPORT_SYMBOL(xfrm6_find_1stfragopt);
 static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 {
 	int mtu, ret = 0;
-	struct dst_entry *dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 
 	mtu = dst_mtu(dst);
 	if (mtu < IPV6_MIN_MTU)
@@ -90,6 +90,6 @@ static int xfrm6_output_finish(struct sk_buff *skb)
 
 int xfrm6_output(struct sk_buff *skb)
 {
-	return NF_HOOK(PF_INET6, NF_INET_POST_ROUTING, skb, NULL, skb->dst->dev,
+	return NF_HOOK(PF_INET6, NF_INET_POST_ROUTING, skb, NULL, skb_dst(skb)->dev,
 		       xfrm6_output_finish);
 }

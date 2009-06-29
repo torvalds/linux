@@ -432,7 +432,7 @@ Mds_Tx(struct wbsoft_priv * adapter)
 		return;
 
 	//Only one thread can be run here
-	if (!atomic_inc_return(&pMds->TxThreadCount) == 1)
+	if (atomic_inc_return(&pMds->TxThreadCount) != 1)
 		goto cleanup;
 
 	// Start to fill the data

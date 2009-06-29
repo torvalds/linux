@@ -3,13 +3,13 @@
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
+	ADDI-DATA GmbH
+	Dieselstrasse 3
+	D-77833 Ottersweier
+	Tel: +19(0)7223/9493-0
+	Fax: +49(0)7223/9493-92
+	http://www.addi-data-com
+	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
 
@@ -61,7 +61,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 /*
 +----------------------------------------------------------------------------+
-| INT	i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev,struct comedi_subdevice *s,
+| int	i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev,struct comedi_subdevice *s,
 struct comedi_insn *insn,unsigned int *data)
 
 +----------------------------------------------------------------------------+
@@ -75,58 +75,58 @@ struct comedi_insn *insn,unsigned int *data)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_ConfigType;
-	INT i_ReturnValue = 0;
+	unsigned int ui_ConfigType;
+	int i_ReturnValue = 0;
 	ui_ConfigType = CR_CHAN(insn->chanspec);
 
 	printk("\nINC_CPT");
 
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 	switch (ui_ConfigType) {
 	case APCI1710_INCCPT_INITCOUNTER:
 		i_ReturnValue = i_APCI1710_InitCounter(dev,
 			CR_AREF(insn->chanspec),
-			(BYTE) data[0],
-			(BYTE) data[1],
-			(BYTE) data[2], (BYTE) data[3], (BYTE) data[4]);
+			(unsigned char) data[0],
+			(unsigned char) data[1],
+			(unsigned char) data[2], (unsigned char) data[3], (unsigned char) data[4]);
 		break;
 
 	case APCI1710_INCCPT_COUNTERAUTOTEST:
 		i_ReturnValue = i_APCI1710_CounterAutoTest(dev,
-			(PBYTE) & data[0]);
+			(unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_INITINDEX:
 		i_ReturnValue = i_APCI1710_InitIndex(dev,
 			CR_AREF(insn->chanspec),
-			(BYTE) data[0],
-			(BYTE) data[1], (BYTE) data[2], (BYTE) data[3]);
+			(unsigned char) data[0],
+			(unsigned char) data[1], (unsigned char) data[2], (unsigned char) data[3]);
 		break;
 
 	case APCI1710_INCCPT_INITREFERENCE:
 		i_ReturnValue = i_APCI1710_InitReference(dev,
-			CR_AREF(insn->chanspec), (BYTE) data[0]);
+			CR_AREF(insn->chanspec), (unsigned char) data[0]);
 		break;
 
 	case APCI1710_INCCPT_INITEXTERNALSTROBE:
 		i_ReturnValue = i_APCI1710_InitExternalStrobe(dev,
 			CR_AREF(insn->chanspec),
-			(BYTE) data[0], (BYTE) data[1]);
+			(unsigned char) data[0], (unsigned char) data[1]);
 		break;
 
 	case APCI1710_INCCPT_INITCOMPARELOGIC:
 		i_ReturnValue = i_APCI1710_InitCompareLogic(dev,
-			CR_AREF(insn->chanspec), (UINT) data[0]);
+			CR_AREF(insn->chanspec), (unsigned int) data[0]);
 		break;
 
 	case APCI1710_INCCPT_INITFREQUENCYMEASUREMENT:
 		i_ReturnValue = i_APCI1710_InitFrequencyMeasurement(dev,
 			CR_AREF(insn->chanspec),
-			(BYTE) data[0],
-			(BYTE) data[1], (ULONG) data[2], (PULONG) & data[0]);
+			(unsigned char) data[0],
+			(unsigned char) data[1], (unsigned int) data[2], (unsigned int *) &data[0]);
 		break;
 
 	default:
@@ -136,19 +136,19 @@ INT i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdev
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_InitCounter                           |
-|                               (BYTE_          b_BoardHandle,               |
-|                                BYTE_          b_ModulNbr,                  |
-|                                BYTE_          b_CounterRange,              |
-|                                BYTE_          b_FirstCounterModus,         |
-|                                BYTE_          b_FirstCounterOption,        |
-|                                BYTE_          b_SecondCounterModus,        |
-|                                BYTE_          b_SecondCounterOption)       |
+|                               (unsigned char_          b_BoardHandle,               |
+|                                unsigned char_          b_ModulNbr,                  |
+|                                unsigned char_          b_CounterRange,              |
+|                                unsigned char_          b_FirstCounterModus,         |
+|                                unsigned char_          b_FirstCounterOption,        |
+|                                unsigned char_          b_SecondCounterModus,        |
+|                                unsigned char_          b_SecondCounterOption)       |
 +----------------------------------------------------------------------------+
 | Task              : Configure the counter operating mode from selected     |
 |                     module (b_ModulNbr). You must calling this function be |
@@ -273,17 +273,17 @@ INT i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdev
 | +----------------------+--------------------+----------------------------+ |
 |                                                                            |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle         : Handle of board APCI-1710|
-|                     BYTE_ b_ModulNbr            : Module number to         |
+| Input Parameters  : unsigned char_ b_BoardHandle         : Handle of board APCI-1710|
+|                     unsigned char_ b_ModulNbr            : Module number to         |
 |                                                   configure (0 to 3)       |
-|                     BYTE_ b_CounterRange        : Selection form counter   |
+|                     unsigned char_ b_CounterRange        : Selection form counter   |
 |                                                   range.                   |
-|                     BYTE_ b_FirstCounterModus   : First counter operating  |
+|                     unsigned char_ b_FirstCounterModus   : First counter operating  |
 |                                                   mode.                    |
-|                     BYTE_ b_FirstCounterOption  : First counter  option.   |
-|                     BYTE_ b_SecondCounterModus  : Second counter operating |
+|                     unsigned char_ b_FirstCounterOption  : First counter  option.   |
+|                     unsigned char_ b_SecondCounterModus  : Second counter operating |
 |                                                   mode.                    |
-|                     BYTE_ b_SecondCounterOption : Second counter  option.  |
+|                     unsigned char_ b_SecondCounterOption : Second counter  option.  |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -299,14 +299,14 @@ INT i_APCI1710_InsnConfigINCCPT(struct comedi_device * dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitCounter(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_CounterRange,
-	BYTE b_FirstCounterModus,
-	BYTE b_FirstCounterOption,
-	BYTE b_SecondCounterModus, BYTE b_SecondCounterOption)
+int i_APCI1710_InitCounter(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned char b_CounterRange,
+	unsigned char b_FirstCounterModus,
+	unsigned char b_FirstCounterOption,
+	unsigned char b_SecondCounterModus, unsigned char b_SecondCounterOption)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/*******************************/
 	/* Test if incremental counter */
@@ -502,14 +502,14 @@ INT i_APCI1710_InitCounter(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_CounterAutoTest                       |
-|                                               (BYTE_     b_BoardHandle,    |
-|                                                PBYTE_   pb_TestStatus)     |
+|                                               (unsigned char_     b_BoardHandle,    |
+|                                                unsigned char *_   pb_TestStatus)     |
 +----------------------------------------------------------------------------+
 | Task              : A test mode is intended for testing the component and  |
 |                     the connected periphery. All the 8-bit counter chains  |
@@ -535,9 +535,9 @@ INT i_APCI1710_InitCounter(struct comedi_device * dev,
 |              |    1000         | Error detected of counter 3 |             |
 |              +-----------------+-----------------------------+             |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_   b_BoardHandle : Handle of board APCI-1710      |  |
+| Input Parameters  : unsigned char_   b_BoardHandle : Handle of board APCI-1710      |  |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_TestStatus  : Auto test conclusion. See table|
+| Output Parameters : unsigned char *_ pb_TestStatus  : Auto test conclusion. See table|
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
 |                     -1: The handle parameter of the board is wrong         |
@@ -545,11 +545,11 @@ INT i_APCI1710_InitCounter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_CounterAutoTest(struct comedi_device * dev, PBYTE pb_TestStatus)
+int i_APCI1710_CounterAutoTest(struct comedi_device *dev, unsigned char *pb_TestStatus)
 {
-	BYTE b_ModulCpt = 0;
-	INT i_ReturnValue = 0;
-	DWORD dw_LathchValue;
+	unsigned char b_ModulCpt = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_LathchValue;
 
 	*pb_TestStatus = 0;
 
@@ -627,17 +627,17 @@ INT i_APCI1710_CounterAutoTest(struct comedi_device * dev, PBYTE pb_TestStatus)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_InitIndex (BYTE_ b_BoardHandle,       |
-|                                                 BYTE_ b_ModulNbr,          |
-|                                                 BYTE_ b_ReferenceAction,   |
-|                                                 BYTE_ b_IndexOperation,    |
-|                                                 BYTE_ b_AutoMode,          |
-|                                                 BYTE_ b_InterruptEnable)   |
+| Function Name     : _INT_ i_APCI1710_InitIndex (unsigned char_ b_BoardHandle,       |
+|                                                 unsigned char_ b_ModulNbr,          |
+|                                                 unsigned char_ b_ReferenceAction,   |
+|                                                 unsigned char_ b_IndexOperation,    |
+|                                                 unsigned char_ b_AutoMode,          |
+|                                                 unsigned char_ b_InterruptEnable)   |
 +----------------------------------------------------------------------------+
 | Task              : Initialise the index corresponding to the selected     |
 |                     module (b_ModulNbr). If a INDEX flag occur, you have   |
@@ -665,10 +665,10 @@ INT i_APCI1710_CounterAutoTest(struct comedi_device * dev, PBYTE pb_TestStatus)
 |           |                        | value is cleared (32-Bit)          |  |
 |           +------------------------+------------------------------------+  |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
-|                     BYTE_ b_ReferenceAction : Determine if the reference   |
+|                     unsigned char_ b_ReferenceAction : Determine if the reference   |
 |                                               must set or no for the       |
 |                                               acceptance from index        |
 |                                               APCI1710_ENABLE :            |
@@ -677,15 +677,15 @@ INT i_APCI1710_CounterAutoTest(struct comedi_device * dev, PBYTE pb_TestStatus)
 |                                               APCI1710_DISABLE :           |
 |                                                  Reference have not        |
 |                                                  importance                |
-|                     BYTE_ b_IndexOperation  : Index operating mode.        |
+|                     unsigned char_ b_IndexOperation  : Index operating mode.        |
 |                                               See table.                   |
-|                     BYTE_ b_AutoMode        : Enable or disable the        |
+|                     unsigned char_ b_AutoMode        : Enable or disable the        |
 |                                               automatic index reset.       |
 |                                               APCI1710_ENABLE :            |
 |                                                 Enable the automatic mode  |
 |                                               APCI1710_DISABLE :           |
 |                                                 Disable the automatic mode |
-|                     BYTE_ b_InterruptEnable : Enable or disable the        |
+|                     unsigned char_ b_InterruptEnable : Enable or disable the        |
 |                                               interrupt.                   |
 |                                               APCI1710_ENABLE :            |
 |                                               Enable the interrupt         |
@@ -708,12 +708,12 @@ INT i_APCI1710_CounterAutoTest(struct comedi_device * dev, PBYTE pb_TestStatus)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitIndex(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_ReferenceAction,
-	BYTE b_IndexOperation, BYTE b_AutoMode, BYTE b_InterruptEnable)
+int i_APCI1710_InitIndex(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned char b_ReferenceAction,
+	unsigned char b_IndexOperation, unsigned char b_AutoMode, unsigned char b_InterruptEnable)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -902,7 +902,7 @@ INT i_APCI1710_InitIndex(struct comedi_device * dev,
 									b_ModeRegister4
 									|
 									APCI1710_ENABLE_LATCH_AND_CLEAR;
-							}	// if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
+							}	/*  if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER) */
 							else {
 				/*****************************************/
 								/* Clear the latch and clear flag (DQ27) */
@@ -975,7 +975,7 @@ INT i_APCI1710_InitIndex(struct comedi_device * dev,
 										&
 										(~APCI1710_INDEX_LATCH_COUNTER);
 								}
-							}	// // if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER)
+							}	/*  // if (b_IndexOperation == APCI1710_HIGH_EDGE_LATCH_AND_CLEAR_COUNTER || b_IndexOperation == APCI1710_LOW_EDGE_LATCH_AND_CLEAR_COUNTER) */
 
 							if (b_AutoMode ==
 								APCI1710_DISABLE)
@@ -1113,15 +1113,15 @@ INT i_APCI1710_InitIndex(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_InitReference                         |
-|                                                (BYTE_ b_BoardHandle,       |
-|                                                 BYTE_ b_ModulNbr,          |
-|                                                 BYTE_ b_ReferenceLevel)    |
+|                                                (unsigned char_ b_BoardHandle,       |
+|                                                 unsigned char_ b_ModulNbr,          |
+|                                                 unsigned char_ b_ReferenceLevel)    |
 +----------------------------------------------------------------------------+
 | Task              : Initialise the reference corresponding to the selected |
 |                     module (b_ModulNbr).                                   |
@@ -1136,10 +1136,10 @@ INT i_APCI1710_InitIndex(struct comedi_device * dev,
 |             |   APCI1710_HIGH    |  Reference occur if "1" |               |
 |             +--------------------+-------------------------+               |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
-|                     BYTE_ b_ReferenceLevel  : Reference level.             |
+|                     unsigned char_ b_ReferenceLevel  : Reference level.             |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -1152,10 +1152,10 @@ INT i_APCI1710_InitIndex(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitReference(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_ReferenceLevel)
+int i_APCI1710_InitReference(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_ReferenceLevel)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1239,27 +1239,27 @@ INT i_APCI1710_InitReference(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_	i_APCI1710_InitExternalStrobe                |
-|					(BYTE_ b_BoardHandle,                |
-|					 BYTE_ b_ModulNbr,                   |
-|					 BYTE_ b_ExternalStrobe,             |
-|					 BYTE_ b_ExternalStrobeLevel)        |
+|					(unsigned char_ b_BoardHandle,                |
+|					 unsigned char_ b_ModulNbr,                   |
+|					 unsigned char_ b_ExternalStrobe,             |
+|					 unsigned char_ b_ExternalStrobeLevel)        |
 +----------------------------------------------------------------------------+
 | Task              : Initialises the external strobe level corresponding to |
 |		      the selected module (b_ModulNbr).                      |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
-|		      BYTE_ b_ExternalStrobe  : External strobe selection    |
+|		      unsigned char_ b_ExternalStrobe  : External strobe selection    |
 |						0 : External strobe A        |
 |						1 : External strobe B        |
-|		      BYTE_ b_ExternalStrobeLevel : External strobe level    |
+|		      unsigned char_ b_ExternalStrobeLevel : External strobe level    |
 |						APCI1710_LOW :               |
 |						External latch occurs if "0" |
 |						APCI1710_HIGH :              |
@@ -1277,10 +1277,10 @@ INT i_APCI1710_InitReference(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_ExternalStrobe, BYTE b_ExternalStrobeLevel)
+int i_APCI1710_InitExternalStrobe(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_ExternalStrobe, unsigned char b_ExternalStrobeLevel)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1335,7 +1335,7 @@ INT i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 					DPRINTK("External strobe level parameter is wrong\n");
 					i_ReturnValue = -5;
 				}
-			}	// if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
+			}	/*  if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1) */
 			else {
 		 /**************************************/
 				/* External strobe selection is wrong */
@@ -1343,7 +1343,7 @@ INT i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 
 				DPRINTK("External strobe selection is wrong\n");
 				i_ReturnValue = -4;
-			}	// if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1)
+			}	/*  if (b_ExternalStrobe == 0 || b_ExternalStrobe == 1) */
 		} else {
 	      /****************************************/
 			/* Counter not initialised see function */
@@ -1362,24 +1362,24 @@ INT i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 	/*
 	   +----------------------------------------------------------------------------+
 	   | Function Name     : _INT_ i_APCI1710_InitCompareLogic                      |
-	   |                               (BYTE_   b_BoardHandle,                      |
-	   |                                BYTE_   b_ModulNbr,                         |
-	   |                                UINT_  ui_CompareValue)                     |
+	   |                               (unsigned char_   b_BoardHandle,                      |
+	   |                                unsigned char_   b_ModulNbr,                         |
+	   |                                unsigned int_  ui_CompareValue)                     |
 	   +----------------------------------------------------------------------------+
 	   | Task              : Set the 32-Bit compare value. At that moment that the  |
 	   |                     incremental counter arrive to the compare value        |
 	   |                     (ui_CompareValue) a interrupt is generated.            |
 	   +----------------------------------------------------------------------------+
-	   | Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-	   |                     BYTE_  b_ModulNbr       : Module number to configure   |
+	   | Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+	   |                     unsigned char_  b_ModulNbr       : Module number to configure   |
 	   |                                               (0 to 3)                     |
-	   |                     UINT_ ui_CompareValue   : 32-Bit compare value         |
+	   |                     unsigned int_ ui_CompareValue   : 32-Bit compare value         |
 	   +----------------------------------------------------------------------------+
 	   | Output Parameters : -
 	   +----------------------------------------------------------------------------+
@@ -1391,10 +1391,10 @@ INT i_APCI1710_InitExternalStrobe(struct comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_InitCompareLogic(struct comedi_device * dev,
-	BYTE b_ModulNbr, UINT ui_CompareValue)
+int i_APCI1710_InitCompareLogic(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned int ui_CompareValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1434,16 +1434,16 @@ INT i_APCI1710_InitCompareLogic(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_InitFrequencyMeasurement              |
-|				(BYTE_		 b_BoardHandle,              |
-|				 BYTE_		 b_ModulNbr,                 |
-|				 BYTE_		 b_PCIInputClock,            |
-|				 BYTE_		 b_TimingUnity,              |
+|				(unsigned char_		 b_BoardHandle,              |
+|				 unsigned char_		 b_ModulNbr,                 |
+|				 unsigned char_		 b_PCIInputClock,            |
+|				 unsigned char_		 b_TimingUnity,              |
 |				 ULONG_ 	ul_TimingInterval,           |
 |				 PULONG_       pul_RealTimingInterval)       |
 +----------------------------------------------------------------------------+
@@ -1456,10 +1456,10 @@ INT i_APCI1710_InitCompareLogic(struct comedi_device * dev,
 |		      you call up any other function which gives access to   |
 |		      the frequency measurement.                             |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|		      BYTE_  b_ModulNbr	      :	Number of the module to be   |
+| Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+|		      unsigned char_  b_ModulNbr	      :	Number of the module to be   |
 |						configured (0 to 3)          |
-|		      BYTE_  b_PCIInputClock  :	Selection of the PCI bus     |
+|		      unsigned char_  b_PCIInputClock  :	Selection of the PCI bus     |
 |						clock                        |
 |						- APCI1710_30MHZ :           |
 |						  The PC has a PCI bus clock |
@@ -1467,7 +1467,7 @@ INT i_APCI1710_InitCompareLogic(struct comedi_device * dev,
 |						- APCI1710_33MHZ :           |
 |						  The PC has a PCI bus clock |
 |						  of 33 MHz                  |
-|		      BYTE_  b_TimingUnity    : Base time unit (0 to 2)      |
+|		      unsigned char_  b_TimingUnity    : Base time unit (0 to 2)      |
 |						  0 : ns                     |
 |						  1 : æs                     |
 |						  2 : ms                     |
@@ -1487,16 +1487,16 @@ INT i_APCI1710_InitCompareLogic(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	BYTE b_PCIInputClock,
-	BYTE b_TimingUnity,
-	ULONG ul_TimingInterval, PULONG pul_RealTimingInterval)
+int i_APCI1710_InitFrequencyMeasurement(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned char b_PCIInputClock,
+	unsigned char b_TimingUnity,
+	unsigned int ul_TimingInterval, unsigned int *pul_RealTimingInterval)
 {
-	INT i_ReturnValue = 0;
-	ULONG ul_TimerValue = 0;
+	int i_ReturnValue = 0;
+	unsigned int ul_TimerValue = 0;
 	double d_RealTimingInterval;
-	DWORD dw_Status = 0;
+	unsigned int dw_Status = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -1637,7 +1637,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 								i_ReturnValue =
 									-7;
 							}
-						}	// if (b_PCIInputClock == APCI1710_40MHZ)
+						}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 
 		       /***************************/
 						/* Test if not error occur */
@@ -1676,7 +1676,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 										b_ModeRegister4
 										|
 										APCI1710_ENABLE_40MHZ_FREQUENCY;
-								}	// if (b_PCIInputClock == APCI1710_40MHZ)
+								}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 								else {
 				   /**********************************/
 									/* Disable the 40MHz quarz (DQ30) */
@@ -1700,7 +1700,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 										&
 										APCI1710_DISABLE_40MHZ_FREQUENCY;
 
-								}	// if (b_PCIInputClock == APCI1710_40MHZ)
+								}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 
 			     /********************************/
 								/* Calculate the division fator */
@@ -1720,7 +1720,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									ul_TimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimingInterval
 										*
 										(0.00025 * b_PCIInputClock));
@@ -1743,7 +1743,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									*pul_RealTimingInterval
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimerValue
 										/
 										(0.00025 * (double)b_PCIInputClock));
@@ -1790,7 +1790,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									ul_TimerValue
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimingInterval
 										*
 										(0.25 * b_PCIInputClock));
@@ -1813,7 +1813,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									*pul_RealTimingInterval
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimerValue
 										/
 										(0.25 * (double)b_PCIInputClock));
@@ -1886,7 +1886,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 
 									*pul_RealTimingInterval
 										=
-										(ULONG)
+										(unsigned int)
 										(ul_TimerValue
 										/
 										(250.0 * (double)b_PCIInputClock));
@@ -1949,7 +1949,7 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 								i_ReturnValue =
 									-3;
 							}
-						}	// if (i_ReturnValue == 0)
+						}	/*  if (i_ReturnValue == 0) */
 					} else {
 		       /**********************************/
 						/* Base timing selection is wrong */
@@ -1992,12 +1992,12 @@ INT i_APCI1710_InitFrequencyMeasurement(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*########################################################################### */
 
-							//INSN BITS
+							/* INSN BITS */
 /*########################################################################### */
 
 /*
@@ -2015,18 +2015,18 @@ struct comedi_insn *insn,unsigned int *data)                   |
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnBitsINCCPT(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_BitsType;
-	INT i_ReturnValue = 0;
+	unsigned int ui_BitsType;
+	int i_ReturnValue = 0;
 	ui_BitsType = CR_CHAN(insn->chanspec);
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 
 	switch (ui_BitsType) {
 	case APCI1710_INCCPT_CLEARCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_ClearCounterValue(dev,
-			(BYTE) CR_AREF(insn->chanspec));
+			(unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_CLEARALLCOUNTERVALUE:
@@ -2035,28 +2035,28 @@ INT i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevic
 
 	case APCI1710_INCCPT_SETINPUTFILTER:
 		i_ReturnValue = i_APCI1710_SetInputFilter(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) data[0], (BYTE) data[1]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) data[0], (unsigned char) data[1]);
 		break;
 
 	case APCI1710_INCCPT_LATCHCOUNTER:
 		i_ReturnValue = i_APCI1710_LatchCounter(dev,
-			(BYTE) CR_AREF(insn->chanspec), (BYTE) data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char) data[0]);
 		break;
 
 	case APCI1710_INCCPT_SETINDEXANDREFERENCESOURCE:
 		i_ReturnValue = i_APCI1710_SetIndexAndReferenceSource(dev,
-			(BYTE) CR_AREF(insn->chanspec), (BYTE) data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char) data[0]);
 		break;
 
 	case APCI1710_INCCPT_SETDIGITALCHLON:
 		i_ReturnValue = i_APCI1710_SetDigitalChlOn(dev,
-			(BYTE) CR_AREF(insn->chanspec));
+			(unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_SETDIGITALCHLOFF:
 		i_ReturnValue = i_APCI1710_SetDigitalChlOff(dev,
-			(BYTE) CR_AREF(insn->chanspec));
+			(unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	default:
@@ -2065,20 +2065,20 @@ INT i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevic
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_ClearCounterValue                     |
-|                               (BYTE_      b_BoardHandle,                   |
-|                                BYTE_       b_ModulNbr)                     |
+|                               (unsigned char_      b_BoardHandle,                   |
+|                                unsigned char_       b_ModulNbr)                     |
 +----------------------------------------------------------------------------+
 | Task              : Clear the counter value from selected module           |
 |                     (b_ModulNbr).                                          |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle : Handle of board APCI-1710        |
-|                     BYTE_ b_ModulNbr    : Module number to configure       |
+| Input Parameters  : unsigned char_ b_BoardHandle : Handle of board APCI-1710        |
+|                     unsigned char_ b_ModulNbr    : Module number to configure       |
 |                                           (0 to 3)                         |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -2091,9 +2091,9 @@ INT i_APCI1710_InsnBitsINCCPT(struct comedi_device * dev, struct comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ClearCounterValue(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_ClearCounterValue(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2131,17 +2131,17 @@ INT i_APCI1710_ClearCounterValue(struct comedi_device * dev, BYTE b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_ClearAllCounterValue                  |
-|                               (BYTE_      b_BoardHandle)                   |
+|                               (unsigned char_      b_BoardHandle)                   |
 +----------------------------------------------------------------------------+
 | Task              : Clear all counter value.                               |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle : Handle of board APCI-1710        |
+| Input Parameters  : unsigned char_ b_BoardHandle : Handle of board APCI-1710        |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -2151,10 +2151,10 @@ INT i_APCI1710_ClearCounterValue(struct comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ClearAllCounterValue(struct comedi_device * dev)
+int i_APCI1710_ClearAllCounterValue(struct comedi_device *dev)
 {
-	BYTE b_ModulCpt = 0;
-	INT i_ReturnValue = 0;
+	unsigned char b_ModulCpt = 0;
+	int i_ReturnValue = 0;
 
 	/********************************/
 	/* Test if counter module found */
@@ -2198,24 +2198,24 @@ INT i_APCI1710_ClearAllCounterValue(struct comedi_device * dev)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_SetInputFilter                        |
-|					(BYTE_ b_BoardHandle,                |
-|					 BYTE_ b_Module,                     |
-|					 BYTE_ b_PCIInputClock,              |
-|					 BYTE_ b_Filter)     		     |
+|					(unsigned char_ b_BoardHandle,                |
+|					 unsigned char_ b_Module,                     |
+|					 unsigned char_ b_PCIInputClock,              |
+|					 unsigned char_ b_Filter)     		     |
 +----------------------------------------------------------------------------+
 | Task              : Disable or enable the software filter from selected    |
 |		      module (b_ModulNbr). b_Filter determine the filter time|
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|		      BYTE_  b_ModulNbr	      :	Number of the module to be   |
+| Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+|		      unsigned char_  b_ModulNbr	      :	Number of the module to be   |
 |						configured (0 to 3)          |
-|		      BYTE_  b_PCIInputClock  :	Selection of the PCI bus     |
+|		      unsigned char_  b_PCIInputClock  :	Selection of the PCI bus     |
 |						clock                        |
 |						- APCI1710_30MHZ :           |
 |						  The PC has a PCI bus clock |
@@ -2226,7 +2226,7 @@ INT i_APCI1710_ClearAllCounterValue(struct comedi_device * dev)
 |						- APCI1710_40MHZ :           |
 |						  The APCI1710 has a 40MHz    |
 |						  quartz		     |
-|		      BYTE_  b_Filter	      : Filter selection             |
+|		      unsigned char_  b_Filter	      : Filter selection             |
 |                                                                            |
 |				30 MHz                                       |
 |				------                                       |
@@ -2297,11 +2297,11 @@ INT i_APCI1710_ClearAllCounterValue(struct comedi_device * dev)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_PCIInputClock, BYTE b_Filter)
+int i_APCI1710_SetInputFilter(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_PCIInputClock, unsigned char b_Filter)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_Status = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_Status = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2365,7 +2365,7 @@ INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 								i_ReturnValue =
 									-6;
 							}
-						}	// if (b_PCIInputClock == APCI1710_40MHZ)
+						}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 
 		       /***************************/
 						/* Test if error not occur */
@@ -2401,7 +2401,7 @@ INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 									|
 									APCI1710_ENABLE_40MHZ_FILTER;
 
-							}	// if (b_PCIInputClock == APCI1710_40MHZ)
+							}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 							else {
 			     /**********************************/
 								/* Disable the 40MHz quarz (DQ31) */
@@ -2425,7 +2425,7 @@ INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 									&
 									APCI1710_DISABLE_40MHZ_FILTER;
 
-							}	// if (b_PCIInputClock == APCI1710_40MHZ)
+							}	/*  if (b_PCIInputClock == APCI1710_40MHZ) */
 
 			  /************************/
 							/* Set the filter value */
@@ -2486,8 +2486,8 @@ INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 								ui_Address +
 								20 +
 								(64 * b_ModulNbr));
-						}	// if (i_ReturnValue == 0)
-					}	// if (b_Filter < 16)
+						}	/*  if (i_ReturnValue == 0) */
+					}	/*  if (b_Filter < 16) */
 					else {
 		       /**************************************/
 						/* The selected filter value is wrong */
@@ -2495,8 +2495,8 @@ INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 
 						DPRINTK("The selected filter value is wrong\n");
 						i_ReturnValue = -5;
-					}	// if (b_Filter < 16)
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
+					}	/*  if (b_Filter < 16) */
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ)) */
 				else {
 		    /*****************************************/
 					/* The selected PCI input clock is wrong */
@@ -2504,7 +2504,7 @@ INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 
 					DPRINTK("The selected PCI input clock is wrong\n");
 					i_ReturnValue = 4;
-				}	// if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ))
+				}	/*  if ((b_PCIInputClock == APCI1710_30MHZ) || (b_PCIInputClock == APCI1710_33MHZ) || (b_PCIInputClock == APCI1710_40MHZ)) */
 			} else {
 		 /**************************************/
 				/* The module is not a counter module */
@@ -2530,23 +2530,23 @@ INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_LatchCounter (BYTE_ b_BoardHandle,    |
-|                                                    BYTE_ b_ModulNbr,       |
-|                                                    BYTE_ b_LatchReg)       |
+| Function Name     : _INT_ i_APCI1710_LatchCounter (unsigned char_ b_BoardHandle,    |
+|                                                    unsigned char_ b_ModulNbr,       |
+|                                                    unsigned char_ b_LatchReg)       |
 +----------------------------------------------------------------------------+
 | Task              : Latch the courant value from selected module           |
 |                     (b_ModulNbr) in to the selected latch register         |
 |                     (b_LatchReg).                                          |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle : Handle of board APCI-1710        |
-|                     BYTE_ b_ModulNbr    : Module number to configure       |
+| Input Parameters  : unsigned char_ b_BoardHandle : Handle of board APCI-1710        |
+|                     unsigned char_ b_ModulNbr    : Module number to configure       |
 |                                           (0 to 3)                         |
-|                     BYTE_ b_LatchReg    : Selected latch register          |
+|                     unsigned char_ b_LatchReg    : Selected latch register          |
 |                               0 : for the first latch register             |
 |                               1 : for the second latch register            |
 +----------------------------------------------------------------------------+
@@ -2561,10 +2561,10 @@ INT i_APCI1710_SetInputFilter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_LatchCounter(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_LatchReg)
+int i_APCI1710_LatchCounter(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_LatchReg)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2616,25 +2616,25 @@ INT i_APCI1710_LatchCounter(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_	i_APCI1710_SetIndexAndReferenceSource        |
-|					(BYTE_ b_BoardHandle,                |
-|					 BYTE_ b_ModulNbr,                   |
-|					 BYTE_ b_SourceSelection)            |
+|					(unsigned char_ b_BoardHandle,                |
+|					 unsigned char_ b_ModulNbr,                   |
+|					 unsigned char_ b_SourceSelection)            |
 +----------------------------------------------------------------------------+
 | Task              : Determine the hardware source for the index and the    |
 |		      reference logic. Per default the index logic is        |
 |		      connected to the difference input C and the reference  |
 |		      logic is connected to the 24V input E                  |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
-|		      BYTE_ b_SourceSelection : APCI1710_SOURCE_0 :          |
+|		      unsigned char_ b_SourceSelection : APCI1710_SOURCE_0 :          |
 |						The index logic is connected |
 |						to the difference input C and|
 |						the reference logic is       |
@@ -2658,10 +2658,10 @@ INT i_APCI1710_LatchCounter(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_SourceSelection)
+int i_APCI1710_SetIndexAndReferenceSource(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_SourceSelection)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2735,7 +2735,7 @@ INT i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
 							b_ModeRegister4 &
 							APCI1710_DEFAULT_INDEX_RFERENCE;
 					}
-				}	// if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1)
+				}	/*  if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1) */
 				else {
 		    /*********************************/
 					/* The source selection is wrong */
@@ -2743,7 +2743,7 @@ INT i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
 
 					DPRINTK("The source selection is wrong\n");
 					i_ReturnValue = -4;
-				}	// if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1)
+				}	/*  if (b_SourceSelection == APCI1710_SOURCE_0 ||b_SourceSelection == APCI1710_SOURCE_1) */
 			} else {
 		 /**************************************/
 				/* The module is not a counter module */
@@ -2769,20 +2769,20 @@ INT i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_	i_APCI1710_SetDigitalChlOn                   |
-|				   (BYTE_  b_BoardHandle,                    |
-|				    BYTE_  b_ModulNbr)                       |
+|				   (unsigned char_  b_BoardHandle,                    |
+|				    unsigned char_  b_ModulNbr)                       |
 +----------------------------------------------------------------------------+
 | Task              : Sets the digital output H Setting an output means      |
 |		      setting an ouput high.                                 |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|		      BYTE_  b_ModulNbr	      :	Number of the module to be   |
+| Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+|		      unsigned char_  b_ModulNbr	      :	Number of the module to be   |
 |						configured (0 to 3)          |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -2795,9 +2795,9 @@ INT i_APCI1710_SetIndexAndReferenceSource(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetDigitalChlOn(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_SetDigitalChlOn(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2849,20 +2849,20 @@ INT i_APCI1710_SetDigitalChlOn(struct comedi_device * dev, BYTE b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_	i_APCI1710_SetDigitalChlOff                  |
-|				   (BYTE_  b_BoardHandle,                    |
-|				    BYTE_  b_ModulNbr)                       |
+|				   (unsigned char_  b_BoardHandle,                    |
+|				    unsigned char_  b_ModulNbr)                       |
 +----------------------------------------------------------------------------+
 | Task              : Resets the digital output H. Resetting an output means |
 |		      setting an ouput low.                                  |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|		      BYTE_  b_ModulNbr	      :	Number of the module to be   |
+| Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+|		      unsigned char_  b_ModulNbr	      :	Number of the module to be   |
 |						configured (0 to 3)          |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -2875,9 +2875,9 @@ INT i_APCI1710_SetDigitalChlOn(struct comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_SetDigitalChlOff(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_SetDigitalChlOff(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -2929,12 +2929,12 @@ INT i_APCI1710_SetDigitalChlOff(struct comedi_device * dev, BYTE b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*########################################################################### */
 
-							// INSN WRITE
+							/*  INSN WRITE */
 /*########################################################################### */
 
 /*
@@ -2951,65 +2951,65 @@ struct comedi_insn *insn,unsigned int *data)                   |
 | Return Value      :
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnWriteINCCPT(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_WriteType;
-	INT i_ReturnValue = 0;
+	unsigned int ui_WriteType;
+	int i_ReturnValue = 0;
 
 	ui_WriteType = CR_CHAN(insn->chanspec);
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 
 	switch (ui_WriteType) {
 	case APCI1710_INCCPT_ENABLELATCHINTERRUPT:
 		i_ReturnValue = i_APCI1710_EnableLatchInterrupt(dev,
-			(BYTE) CR_AREF(insn->chanspec));
+			(unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_DISABLELATCHINTERRUPT:
 		i_ReturnValue = i_APCI1710_DisableLatchInterrupt(dev,
-			(BYTE) CR_AREF(insn->chanspec));
+			(unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_WRITE16BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Write16BitCounterValue(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) data[0], (UINT) data[1]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) data[0], (unsigned int) data[1]);
 		break;
 
 	case APCI1710_INCCPT_WRITE32BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Write32BitCounterValue(dev,
-			(BYTE) CR_AREF(insn->chanspec), (ULONG) data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned int) data[0]);
 
 		break;
 
 	case APCI1710_INCCPT_ENABLEINDEX:
-		i_APCI1710_EnableIndex(dev, (BYTE) CR_AREF(insn->chanspec));
+		i_APCI1710_EnableIndex(dev, (unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_DISABLEINDEX:
 		i_ReturnValue = i_APCI1710_DisableIndex(dev,
-			(BYTE) CR_AREF(insn->chanspec));
+			(unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_ENABLECOMPARELOGIC:
 		i_ReturnValue = i_APCI1710_EnableCompareLogic(dev,
-			(BYTE) CR_AREF(insn->chanspec));
+			(unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_DISABLECOMPARELOGIC:
 		i_ReturnValue = i_APCI1710_DisableCompareLogic(dev,
-			(BYTE) CR_AREF(insn->chanspec));
+			(unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	case APCI1710_INCCPT_ENABLEFREQUENCYMEASUREMENT:
 		i_ReturnValue = i_APCI1710_EnableFrequencyMeasurement(dev,
-			(BYTE) CR_AREF(insn->chanspec), (BYTE) data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char) data[0]);
 		break;
 
 	case APCI1710_INCCPT_DISABLEFREQUENCYMEASUREMENT:
 		i_ReturnValue = i_APCI1710_DisableFrequencyMeasurement(dev,
-			(BYTE) CR_AREF(insn->chanspec));
+			(unsigned char) CR_AREF(insn->chanspec));
 		break;
 
 	default:
@@ -3018,21 +3018,21 @@ INT i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevi
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_EnableLatchInterrupt                  |
-|                               (BYTE_ b_BoardHandle,                        |
-|                                BYTE_ b_ModulNbr)                           |
+|                               (unsigned char_ b_BoardHandle,                        |
+|                                unsigned char_ b_ModulNbr)                           |
 +----------------------------------------------------------------------------+
 | Task              : Enable the latch interrupt from selected module        |
 |                     (b_ModulNbr). Each software or hardware latch occur a  |
 |                     interrupt.                                             |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle : Handle of board APCI-1710        |
-|                     BYTE_ b_ModulNbr    : Module number to configure       |
+| Input Parameters  : unsigned char_ b_BoardHandle : Handle of board APCI-1710        |
+|                     unsigned char_ b_ModulNbr    : Module number to configure       |
 |                                           (0 to 3)                         |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -3047,9 +3047,9 @@ INT i_APCI1710_InsnWriteINCCPT(struct comedi_device * dev, struct comedi_subdevi
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnableLatchInterrupt(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_EnableLatchInterrupt(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3105,20 +3105,20 @@ INT i_APCI1710_EnableLatchInterrupt(struct comedi_device * dev, BYTE b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_DisableLatchInterrupt                 |
-|                               (BYTE_ b_BoardHandle,                        |
-|                                BYTE_ b_ModulNbr)                           |
+|                               (unsigned char_ b_BoardHandle,                        |
+|                                unsigned char_ b_ModulNbr)                           |
 +----------------------------------------------------------------------------+
 | Task              : Disable the latch interrupt from selected module       |
 |                     (b_ModulNbr).                                          |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle : Handle of board APCI-1710        |
-|                     BYTE_ b_ModulNbr    : Module number to configure       |
+| Input Parameters  : unsigned char_ b_BoardHandle : Handle of board APCI-1710        |
+|                     unsigned char_ b_ModulNbr    : Module number to configure       |
 |                                           (0 to 3)                         |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -3133,9 +3133,9 @@ INT i_APCI1710_EnableLatchInterrupt(struct comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_DisableLatchInterrupt(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3198,27 +3198,27 @@ INT i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, BYTE b_ModulNbr
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_Write16BitCounterValue                |
-|                                               (BYTE_  b_BoardHandle        |
-|                                                BYTE_  b_ModulNbr,          |
-|                                                BYTE_  b_SelectedCounter,   |
-|                                                UINT_ ui_WriteValue)        |
+|                                               (unsigned char_  b_BoardHandle        |
+|                                                unsigned char_  b_ModulNbr,          |
+|                                                unsigned char_  b_SelectedCounter,   |
+|                                                unsigned int_ ui_WriteValue)        |
 +----------------------------------------------------------------------------+
 | Task              : Write a 16-Bit value (ui_WriteValue) in to the selected|
 |                     16-Bit counter (b_SelectedCounter) from selected module|
 |                     (b_ModulNbr).                                          |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                              (0 to 3)                      |
-|                     BYTE_ b_SelectedCounter : Selected 16-Bit counter      |
+|                     unsigned char_ b_SelectedCounter : Selected 16-Bit counter      |
 |                                               (0 or 1)                     |
-|                     UINT_ ui_WriteValue     : 16-Bit write value           |
+|                     unsigned int_ ui_WriteValue     : 16-Bit write value           |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
@@ -3231,10 +3231,10 @@ INT i_APCI1710_DisableLatchInterrupt(struct comedi_device * dev, BYTE b_ModulNbr
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_SelectedCounter, UINT ui_WriteValue)
+int i_APCI1710_Write16BitCounterValue(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_SelectedCounter, unsigned int ui_WriteValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3257,7 +3257,7 @@ INT i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
 				/* Write the value */
 		 /*******************/
 
-				outl((ULONG) ((ULONG) (ui_WriteValue) << (16 *
+				outl((unsigned int) ((unsigned int) (ui_WriteValue) << (16 *
 							b_SelectedCounter)),
 					devpriv->s_BoardInfos.ui_Address + 8 +
 					(b_SelectedCounter * 4) +
@@ -3288,21 +3288,21 @@ INT i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_Write32BitCounterValue                |
-|                                               (BYTE_   b_BoardHandle       |
-|                                                BYTE_   b_ModulNbr,         |
+|                                               (unsigned char_   b_BoardHandle       |
+|                                                unsigned char_   b_ModulNbr,         |
 |                                                ULONG_ ul_WriteValue)       |
 +----------------------------------------------------------------------------+
 | Task              : Write a 32-Bit value (ui_WriteValue) in to the selected|
 |                     module (b_ModulNbr).                                   |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                              (0 to 3)                      |
 |                     ULONG_ ul_WriteValue    : 32-Bit write value           |
 +----------------------------------------------------------------------------+
@@ -3316,10 +3316,10 @@ INT i_APCI1710_Write16BitCounterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Write32BitCounterValue(struct comedi_device * dev,
-	BYTE b_ModulNbr, ULONG ul_WriteValue)
+int i_APCI1710_Write32BitCounterValue(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned int ul_WriteValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3357,18 +3357,18 @@ INT i_APCI1710_Write32BitCounterValue(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_EnableIndex (BYTE_  b_BoardHandle,    |
-|                                                   BYTE_  b_ModulNbr)       |
+| Function Name     : _INT_ i_APCI1710_EnableIndex (unsigned char_  b_BoardHandle,    |
+|                                                   unsigned char_  b_ModulNbr)       |
 +----------------------------------------------------------------------------+
 | Task              : Enable the INDEX actions                               |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -3383,10 +3383,10 @@ INT i_APCI1710_Write32BitCounterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnableIndex(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_EnableIndex(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
-	ULONG ul_InterruptLatchReg;
+	int i_ReturnValue = 0;
+	unsigned int ul_InterruptLatchReg;
 
 	/**************************/
 	/* Test the module number */
@@ -3455,18 +3455,18 @@ INT i_APCI1710_EnableIndex(struct comedi_device * dev, BYTE b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_DisableIndex (BYTE_  b_BoardHandle,   |
-|                                                    BYTE_  b_ModulNbr)      |
+| Function Name     : _INT_ i_APCI1710_DisableIndex (unsigned char_  b_BoardHandle,   |
+|                                                    unsigned char_  b_ModulNbr)      |
 +----------------------------------------------------------------------------+
 | Task              : Disable the INDEX actions                              |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
@@ -3481,9 +3481,9 @@ INT i_APCI1710_EnableIndex(struct comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisableIndex(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_DisableIndex(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3549,21 +3549,21 @@ INT i_APCI1710_DisableIndex(struct comedi_device * dev, BYTE b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_EnableCompareLogic                    |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr)                         |
+|                               (unsigned char_   b_BoardHandle,                      |
+|                                unsigned char_   b_ModulNbr)                         |
 +----------------------------------------------------------------------------+
 | Task              : Enable the 32-Bit compare logic. At that moment that   |
 |                     the incremental counter arrive to the compare value a  |
 |                     interrupt is generated.                                |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|                     BYTE_  b_ModulNbr       : Module number to configure   |
+| Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+|                     unsigned char_  b_ModulNbr       : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
 | Output Parameters : -
@@ -3580,9 +3580,9 @@ INT i_APCI1710_DisableIndex(struct comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_EnableCompareLogic(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_EnableCompareLogic(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3653,19 +3653,19 @@ INT i_APCI1710_EnableCompareLogic(struct comedi_device * dev, BYTE b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_DisableCompareLogic                   |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr)                         |
+|                               (unsigned char_   b_BoardHandle,                      |
+|                                unsigned char_   b_ModulNbr)                         |
 +----------------------------------------------------------------------------+
 | Task              : Disable the 32-Bit compare logic.
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-|                     BYTE_  b_ModulNbr       : Module number to configure   |
+| Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+|                     unsigned char_  b_ModulNbr       : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
 | Output Parameters : -
@@ -3680,9 +3680,9 @@ INT i_APCI1710_EnableCompareLogic(struct comedi_device * dev, BYTE b_ModulNbr)
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_DisableCompareLogic(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_DisableCompareLogic(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3753,22 +3753,22 @@ INT i_APCI1710_DisableCompareLogic(struct comedi_device * dev, BYTE b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 	/*
 	   +----------------------------------------------------------------------------+
 	   | Function Name     : _INT_ i_APCI1710_EnableFrequencyMeasurement            |
-	   |                            (BYTE_   b_BoardHandle,                      |
-	   |                             BYTE_   b_ModulNbr,                         |
-	   |                             BYTE_   b_InterruptEnable)                  |
+	   |                            (unsigned char_   b_BoardHandle,                      |
+	   |                             unsigned char_   b_ModulNbr,                         |
+	   |                             unsigned char_   b_InterruptEnable)                  |
 	   +----------------------------------------------------------------------------+
 	   | Task              : Enables the frequency measurement function             |
 	   +----------------------------------------------------------------------------+
-	   | Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-	   |                  BYTE_  b_ModulNbr       : Number of the module to be   |
+	   | Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+	   |                  unsigned char_  b_ModulNbr       : Number of the module to be   |
 	   |                                            configured (0 to 3)          |
-	   |                  BYTE_  b_InterruptEnable: Enable or disable the        |
+	   |                  unsigned char_  b_InterruptEnable: Enable or disable the        |
 	   |                                            interrupt.                   |
 	   |                                            APCI1710_ENABLE:             |
 	   |                                            Enable the interrupt         |
@@ -3789,10 +3789,10 @@ INT i_APCI1710_DisableCompareLogic(struct comedi_device * dev, BYTE b_ModulNbr)
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_EnableFrequencyMeasurement(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_InterruptEnable)
+int i_APCI1710_EnableFrequencyMeasurement(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_InterruptEnable)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3909,19 +3909,19 @@ INT i_APCI1710_EnableFrequencyMeasurement(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 	/*
 	   +----------------------------------------------------------------------------+
 	   | Function Name     : _INT_ i_APCI1710_DisableFrequencyMeasurement           |
-	   |                            (BYTE_   b_BoardHandle,                      |
-	   |                             BYTE_   b_ModulNbr)                         |
+	   |                            (unsigned char_   b_BoardHandle,                      |
+	   |                             unsigned char_   b_ModulNbr)                         |
 	   +----------------------------------------------------------------------------+
 	   | Task              : Disables the frequency measurement function             |
 	   +----------------------------------------------------------------------------+
-	   | Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-	   |                  BYTE_  b_ModulNbr       : Number of the module to be   |
+	   | Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+	   |                  unsigned char_  b_ModulNbr       : Number of the module to be   |
 	   |                                            configured (0 to 3)          |
 	   +----------------------------------------------------------------------------+
 	   | Output Parameters : -                                                      |
@@ -3936,9 +3936,9 @@ INT i_APCI1710_EnableFrequencyMeasurement(struct comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_DisableFrequencyMeasurement(struct comedi_device * dev, BYTE b_ModulNbr)
+int i_APCI1710_DisableFrequencyMeasurement(struct comedi_device *dev, unsigned char b_ModulNbr)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -3976,9 +3976,9 @@ INT i_APCI1710_DisableFrequencyMeasurement(struct comedi_device * dev, BYTE b_Mo
 					s_ByteModeRegister.
 					b_ModeRegister3 &
 					APCI1710_DISABLE_FREQUENCY
-					// Begin CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared
+					/*  Begin CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared */
 					& APCI1710_DISABLE_FREQUENCY_INT;
-				// End CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared
+				/*  End CG 29/06/01 CG 1100/0231 -> 0701/0232 Frequence measure IRQ must be cleared */
 
 		 /***************************/
 				/* Write the configuration */
@@ -4026,12 +4026,12 @@ INT i_APCI1710_DisableFrequencyMeasurement(struct comedi_device * dev, BYTE b_Mo
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*########################################################################### */
 
-							// INSN READ
+							/*  INSN READ */
 
 /*########################################################################### */
 
@@ -4049,82 +4049,82 @@ struct comedi_insn *insn,unsigned int *data)                   |
 | Return Value      :
 +----------------------------------------------------------------------------+
 */
-INT i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+int i_APCI1710_InsnReadINCCPT(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
-	UINT ui_ReadType;
-	INT i_ReturnValue = 0;
+	unsigned int ui_ReadType;
+	int i_ReturnValue = 0;
 
 	ui_ReadType = CR_CHAN(insn->chanspec);
 
-	devpriv->tsk_Current = current;	// Save the current process task structure
+	devpriv->tsk_Current = current;	/*  Save the current process task structure */
 	switch (ui_ReadType) {
 	case APCI1710_INCCPT_READLATCHREGISTERSTATUS:
 		i_ReturnValue = i_APCI1710_ReadLatchRegisterStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) CR_RANGE(insn->chanspec), (PBYTE) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) CR_RANGE(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_READLATCHREGISTERVALUE:
 		i_ReturnValue = i_APCI1710_ReadLatchRegisterValue(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) CR_RANGE(insn->chanspec), (PULONG) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) CR_RANGE(insn->chanspec), (unsigned int *) &data[0]);
 		printk("Latch Register Value %d\n", data[0]);
 		break;
 
 	case APCI1710_INCCPT_READ16BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Read16BitCounterValue(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) CR_RANGE(insn->chanspec), (PUINT) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char) CR_RANGE(insn->chanspec), (unsigned int *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_READ32BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Read32BitCounterValue(dev,
-			(BYTE) CR_AREF(insn->chanspec), (PULONG) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned int *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GETINDEXSTATUS:
 		i_ReturnValue = i_APCI1710_GetIndexStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GETREFERENCESTATUS:
 		i_ReturnValue = i_APCI1710_GetReferenceStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GETUASSTATUS:
 		i_ReturnValue = i_APCI1710_GetUASStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GETCBSTATUS:
 		i_ReturnValue = i_APCI1710_GetCBStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GET16BITCBSTATUS:
 		i_ReturnValue = i_APCI1710_Get16BitCBStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(PBYTE) & data[0], (PBYTE) & data[1]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char *) &data[0], (unsigned char *) &data[1]);
 		break;
 
 	case APCI1710_INCCPT_GETUDSTATUS:
 		i_ReturnValue = i_APCI1710_GetUDStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 
 		break;
 
 	case APCI1710_INCCPT_GETINTERRUPTUDLATCHEDSTATUS:
 		i_ReturnValue = i_APCI1710_GetInterruptUDLatchedStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec), (PBYTE) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_READFREQUENCYMEASUREMENT:
 		i_ReturnValue = i_APCI1710_ReadFrequencyMeasurement(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(PBYTE) & data[0],
-			(PBYTE) & data[1], (PULONG) & data[2]);
+			(unsigned char) CR_AREF(insn->chanspec),
+			(unsigned char *) &data[0],
+			(unsigned char *) &data[1], (unsigned int *) &data[2]);
 		break;
 
 	case APCI1710_INCCPT_READINTERRUPT:
@@ -4155,29 +4155,29 @@ INT i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevic
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_ReadLatchRegisterStatus               |
-|                                                   (BYTE_   b_BoardHandle,  |
-|                                                    BYTE_   b_ModulNbr,     |
-|                                                    BYTE_   b_LatchReg,     |
-|                                                    PBYTE_ pb_LatchStatus)  |
+|                                                   (unsigned char_   b_BoardHandle,  |
+|                                                    unsigned char_   b_ModulNbr,     |
+|                                                    unsigned char_   b_LatchReg,     |
+|                                                    unsigned char *_ pb_LatchStatus)  |
 +----------------------------------------------------------------------------+
 | Task              : Read the latch register status from selected module    |
 |                     (b_ModulNbr) and selected latch register (b_LatchReg). |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle : Handle of board APCI-1710        |
-|                     BYTE_ b_ModulNbr    : Module number to configure       |
+| Input Parameters  : unsigned char_ b_BoardHandle : Handle of board APCI-1710        |
+|                     unsigned char_ b_ModulNbr    : Module number to configure       |
 |                                           (0 to 3)                         |
-|                     BYTE_ b_LatchReg    : Selected latch register          |
+|                     unsigned char_ b_LatchReg    : Selected latch register          |
 |                               0 : for the first latch register             |
 |                               1 : for the second latch register            |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_LatchStatus :   Latch register status.       |
+| Output Parameters : unsigned char *_ pb_LatchStatus :   Latch register status.       |
 |                                               0 : No latch occur           |
 |                                               1 : A software latch occur   |
 |                                               2 : A hardware latch occur   |
@@ -4193,11 +4193,11 @@ INT i_APCI1710_InsnReadINCCPT(struct comedi_device * dev, struct comedi_subdevic
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ReadLatchRegisterStatus(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_LatchReg, PBYTE pb_LatchStatus)
+int i_APCI1710_ReadLatchRegisterStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_LatchReg, unsigned char *pb_LatchStatus)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_LatchReg;
+	int i_ReturnValue = 0;
+	unsigned int dw_LatchReg;
 
 	/**************************/
 	/* Test the module number */
@@ -4220,7 +4220,7 @@ INT i_APCI1710_ReadLatchRegisterStatus(struct comedi_device * dev,
 					ui_Address + (64 * b_ModulNbr));
 
 				*pb_LatchStatus =
-					(BYTE) ((dw_LatchReg >> (b_LatchReg *
+					(unsigned char) ((dw_LatchReg >> (b_LatchReg *
 							4)) & 0x3);
 			} else {
 		 /**************************************************/
@@ -4248,24 +4248,24 @@ INT i_APCI1710_ReadLatchRegisterStatus(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_ReadLatchRegisterValue                |
-|                                                   (BYTE_     b_BoardHandle,|
-|                                                    BYTE_     b_ModulNbr,   |
-|                                                    BYTE_     b_LatchReg,   |
+|                                                   (unsigned char_     b_BoardHandle,|
+|                                                    unsigned char_     b_ModulNbr,   |
+|                                                    unsigned char_     b_LatchReg,   |
 |                                                    PULONG_ pul_LatchValue) |
 +----------------------------------------------------------------------------+
 | Task              : Read the latch register value from selected module     |
 |                     (b_ModulNbr) and selected latch register (b_LatchReg). |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle : Handle of board APCI-1710        |
-|                     BYTE_ b_ModulNbr    : Module number to configure       |
+| Input Parameters  : unsigned char_ b_BoardHandle : Handle of board APCI-1710        |
+|                     unsigned char_ b_ModulNbr    : Module number to configure       |
 |                                           (0 to 3)                         |
-|                     BYTE_ b_LatchReg    : Selected latch register          |
+|                     unsigned char_ b_LatchReg    : Selected latch register          |
 |                               0 : for the first latch register             |
 |                               1 : for the second latch register            |
 +----------------------------------------------------------------------------+
@@ -4280,10 +4280,10 @@ INT i_APCI1710_ReadLatchRegisterStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_LatchReg, PULONG pul_LatchValue)
+int i_APCI1710_ReadLatchRegisterValue(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_LatchReg, unsigned int *pul_LatchValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4332,28 +4332,28 @@ INT i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_Read16BitCounterValue                 |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
-|                                        BYTE_     b_SelectedCounter,        |
-|                                        PUINT_   pui_CounterValue)          |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
+|                                        unsigned char_     b_SelectedCounter,        |
+|                                        unsigned int *_   pui_CounterValue)          |
 +----------------------------------------------------------------------------+
 | Task              : Latch the selected 16-Bit counter (b_SelectedCounter)  |
 |                     from selected module (b_ModulNbr) in to the first      |
 |                     latch register and return the latched value.           |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                              (0 to 3)                      |
-|                     BYTE_ b_SelectedCounter : Selected 16-Bit counter      |
+|                     unsigned char_ b_SelectedCounter : Selected 16-Bit counter      |
 |                                               (0 or 1)                     |
 +----------------------------------------------------------------------------+
-| Output Parameters : PUINT_ pui_CounterValue : 16-Bit counter value         |
+| Output Parameters : unsigned int *_ pui_CounterValue : 16-Bit counter value         |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
 |                     -1: The handle parameter of the board is wrong         |
@@ -4364,11 +4364,11 @@ INT i_APCI1710_ReadLatchRegisterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_SelectedCounter, PUINT pui_CounterValue)
+int i_APCI1710_Read16BitCounterValue(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char b_SelectedCounter, unsigned int *pui_CounterValue)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_LathchValue = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_LathchValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4402,7 +4402,7 @@ INT i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
 					ui_Address + 4 + (64 * b_ModulNbr));
 
 				*pui_CounterValue =
-					(UINT) ((dw_LathchValue >> (16 *
+					(unsigned int) ((dw_LathchValue >> (16 *
 							b_SelectedCounter)) &
 					0xFFFFU);
 			} else {
@@ -4431,22 +4431,22 @@ INT i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_Read32BitCounterValue                 |
-|                                       (BYTE_     b_BoardHandle,            |
-|                                        BYTE_     b_ModulNbr,               |
+|                                       (unsigned char_     b_BoardHandle,            |
+|                                        unsigned char_     b_ModulNbr,               |
 |                                        PULONG_ pul_CounterValue)           |
 +----------------------------------------------------------------------------+
 | Task              : Latch the 32-Bit counter from selected module          |
 |                     (b_ModulNbr) in to the first latch register and return |
 |                     the latched value.                                     |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                              (0 to 3)                      |
 +----------------------------------------------------------------------------+
 | Output Parameters : PULONG_  pul_CounterValue : 32-Bit counter value       |
@@ -4459,10 +4459,10 @@ INT i_APCI1710_Read16BitCounterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Read32BitCounterValue(struct comedi_device * dev,
-	BYTE b_ModulNbr, PULONG pul_CounterValue)
+int i_APCI1710_Read32BitCounterValue(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned int *pul_CounterValue)
 {
-	INT i_ReturnValue = 0;
+	int i_ReturnValue = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4507,22 +4507,22 @@ INT i_APCI1710_Read32BitCounterValue(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
-| Function Name     : _INT_ i_APCI1710_GetIndexStatus (BYTE_   b_BoardHandle,|
-|                                                      BYTE_   b_ModulNbr,   |
-|                                                      PBYTE_ pb_IndexStatus)|
+| Function Name     : _INT_ i_APCI1710_GetIndexStatus (unsigned char_   b_BoardHandle,|
+|                                                      unsigned char_   b_ModulNbr,   |
+|                                                      unsigned char *_ pb_IndexStatus)|
 +----------------------------------------------------------------------------+
 | Task              : Return the index status                                |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_IndexStatus   : 0 : No INDEX occur           |
+| Output Parameters : unsigned char *_ pb_IndexStatus   : 0 : No INDEX occur           |
 |                                               1 : A INDEX occur            |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
@@ -4535,11 +4535,11 @@ INT i_APCI1710_Read32BitCounterValue(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetIndexStatus(struct comedi_device * dev,
-	BYTE b_ModulNbr, PBYTE pb_IndexStatus)
+int i_APCI1710_GetIndexStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char *pb_IndexStatus)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_StatusReg = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_StatusReg = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4563,7 +4563,7 @@ INT i_APCI1710_GetIndexStatus(struct comedi_device * dev,
 				dw_StatusReg = inl(devpriv->s_BoardInfos.
 					ui_Address + 12 + (64 * b_ModulNbr));
 
-				*pb_IndexStatus = (BYTE) (dw_StatusReg & 1);
+				*pb_IndexStatus = (unsigned char) (dw_StatusReg & 1);
 			} else {
 		 /*************************************************************/
 				/* Index not initialised see function "i_APCI1710_InitIndex" */
@@ -4590,23 +4590,23 @@ INT i_APCI1710_GetIndexStatus(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetReferenceStatus                    |
-|                                                (BYTE_   b_BoardHandle,     |
-|                                                 BYTE_   b_ModulNbr,        |
-|                                                 PBYTE_ pb_ReferenceStatus) |
+|                                                (unsigned char_   b_BoardHandle,     |
+|                                                 unsigned char_   b_ModulNbr,        |
+|                                                 unsigned char *_ pb_ReferenceStatus) |
 +----------------------------------------------------------------------------+
 | Task              : Return the reference status                            |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_ReferenceStatus   : 0 : No REFERENCE occur   |
+| Output Parameters : unsigned char *_ pb_ReferenceStatus   : 0 : No REFERENCE occur   |
 |                                                   1 : A REFERENCE occur    |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
@@ -4619,11 +4619,11 @@ INT i_APCI1710_GetIndexStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetReferenceStatus(struct comedi_device * dev,
-	BYTE b_ModulNbr, PBYTE pb_ReferenceStatus)
+int i_APCI1710_GetReferenceStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char *pb_ReferenceStatus)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_StatusReg = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_StatusReg = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4649,7 +4649,7 @@ INT i_APCI1710_GetReferenceStatus(struct comedi_device * dev,
 					ui_Address + 24 + (64 * b_ModulNbr));
 
 				*pb_ReferenceStatus =
-					(BYTE) (~dw_StatusReg & 1);
+					(unsigned char) (~dw_StatusReg & 1);
 			} else {
 		 /*********************************************************************/
 				/* Reference not initialised see function "i_APCI1710_InitReference" */
@@ -4676,23 +4676,23 @@ INT i_APCI1710_GetReferenceStatus(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetUASStatus                          |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr,                         |
-|                                PBYTE_ pb_UASStatus)                        |
+|                               (unsigned char_   b_BoardHandle,                      |
+|                                unsigned char_   b_ModulNbr,                         |
+|                                unsigned char *_ pb_UASStatus)                        |
 +----------------------------------------------------------------------------+
 | Task              : Return the error signal (UAS) status                   |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_UASStatus      : 0 : UAS is low "0"          |
+| Output Parameters : unsigned char *_ pb_UASStatus      : 0 : UAS is low "0"          |
 |                                                1 : UAS is high "1"         |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
@@ -4703,11 +4703,11 @@ INT i_APCI1710_GetReferenceStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetUASStatus(struct comedi_device * dev,
-	BYTE b_ModulNbr, PBYTE pb_UASStatus)
+int i_APCI1710_GetUASStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char *pb_UASStatus)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_StatusReg = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_StatusReg = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4724,7 +4724,7 @@ INT i_APCI1710_GetUASStatus(struct comedi_device * dev,
 			dw_StatusReg = inl(devpriv->s_BoardInfos.
 				ui_Address + 24 + (64 * b_ModulNbr));
 
-			*pb_UASStatus = (BYTE) ((dw_StatusReg >> 1) & 1);
+			*pb_UASStatus = (unsigned char) ((dw_StatusReg >> 1) & 1);
 		} else {
 	      /****************************************/
 			/* Counter not initialised see function */
@@ -4744,23 +4744,23 @@ INT i_APCI1710_GetUASStatus(struct comedi_device * dev,
 
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetCBStatus                           |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr,                         |
-|                                PBYTE_ pb_CBStatus)                         |
+|                               (unsigned char_   b_BoardHandle,                      |
+|                                unsigned char_   b_ModulNbr,                         |
+|                                unsigned char *_ pb_CBStatus)                         |
 +----------------------------------------------------------------------------+
 | Task              : Return the counter overflow status                     |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_CBStatus      : 0 : Counter no overflow      |
+| Output Parameters : unsigned char *_ pb_CBStatus      : 0 : Counter no overflow      |
 |                                               1 : Counter overflow         |
 +----------------------------------------------------------------------------+
 | Return Value      :  0: No error                                           |
@@ -4771,11 +4771,11 @@ INT i_APCI1710_GetUASStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetCBStatus(struct comedi_device * dev,
-	BYTE b_ModulNbr, PBYTE pb_CBStatus)
+int i_APCI1710_GetCBStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char *pb_CBStatus)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_StatusReg = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_StatusReg = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4792,7 +4792,7 @@ INT i_APCI1710_GetCBStatus(struct comedi_device * dev,
 			dw_StatusReg = inl(devpriv->s_BoardInfos.
 				ui_Address + 16 + (64 * b_ModulNbr));
 
-			*pb_CBStatus = (BYTE) (dw_StatusReg & 1);
+			*pb_CBStatus = (unsigned char) (dw_StatusReg & 1);
 
 		} else {
 	      /****************************************/
@@ -4812,31 +4812,31 @@ INT i_APCI1710_GetCBStatus(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_Get16BitCBStatus                      |
-|					(BYTE_     b_BoardHandle,            |
-|					 BYTE_     b_ModulNbr,               |
-|					 PBYTE_ pb_CBStatusCounter0,         |
-|					 PBYTE_ pb_CBStatusCounter1)         |
+|					(unsigned char_     b_BoardHandle,            |
+|					 unsigned char_     b_ModulNbr,               |
+|					 unsigned char *_ pb_CBStatusCounter0,         |
+|					 unsigned char *_ pb_CBStatusCounter1)         |
 +----------------------------------------------------------------------------+
 | Task              : Returns the counter overflow (counter initialised to   |
 |		      2*16-bit) status from selected incremental counter     |
 |		      module                                                 |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_CBStatusCounter0 : 0 : No overflow occur for |
+| Output Parameters : unsigned char *_ pb_CBStatusCounter0 : 0 : No overflow occur for |
 |						       the first 16-bit      |
 |						       counter               |
 |						   1 : Overflow occur for the|
 |						       first 16-bit counter  |
-|		      PBYTE_ pb_CBStatusCounter1 : 0 : No overflow occur for |
+|		      unsigned char *_ pb_CBStatusCounter1 : 0 : No overflow occur for |
 |						       the second 16-bit     |
 |						       counter               |
 |						   1 : Overflow occur for the|
@@ -4853,11 +4853,11 @@ INT i_APCI1710_GetCBStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
-	BYTE b_ModulNbr, PBYTE pb_CBStatusCounter0, PBYTE pb_CBStatusCounter1)
+int i_APCI1710_Get16BitCBStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char *pb_CBStatusCounter0, unsigned char *pb_CBStatusCounter1)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_StatusReg = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_StatusReg = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4894,20 +4894,20 @@ INT i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 						(64 * b_ModulNbr));
 
 					*pb_CBStatusCounter1 =
-						(BYTE) ((dw_StatusReg >> 0) &
+						(unsigned char) ((dw_StatusReg >> 0) &
 						1);
 					*pb_CBStatusCounter0 =
-						(BYTE) ((dw_StatusReg >> 1) &
+						(unsigned char) ((dw_StatusReg >> 1) &
 						1);
-				}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136)
+				}	/*  if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136) */
 				else {
 		    /****************************/
 					/* Firmware revision error  */
 		    /****************************/
 
 					i_ReturnValue = -5;
-				}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136)
-			}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10)
+				}	/*  if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_BoardInfos.dw_MolduleConfiguration [b_ModulNbr] & 0xFFFF) >= 0x3136) */
+			}	/*  if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10) */
 			else {
 		 /********************************************/
 				/* Counter not initialised to 2*16-bit mode */
@@ -4916,8 +4916,8 @@ INT i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 
 				DPRINTK("Counter not initialised\n");
 				i_ReturnValue = -4;
-			}	// if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10)
-		}		// if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
+			}	/*  if ((ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_ModeRegister.s_ByteModeRegister.b_ModeRegister1 & 0x10) == 0x10) */
+		}		/*  if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) */
 		else {
 	      /****************************************/
 			/* Counter not initialised see function */
@@ -4926,8 +4926,8 @@ INT i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 
 			DPRINTK("Counter not initialised\n");
 			i_ReturnValue = -3;
-		}		// if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1)
-	}			// if (b_ModulNbr < 4)
+		}		/*  if (ps_APCI1710Variable->s_Board [b_BoardHandle].s_ModuleInfo [b_ModulNbr].s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) */
+	}			/*  if (b_ModulNbr < 4) */
 	else {
 	   /*************************************************/
 		/* The selected module number parameter is wrong */
@@ -4935,25 +4935,25 @@ INT i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 
 		DPRINTK("The selected module number parameter is wrong\n");
 		i_ReturnValue = -2;
-	}			// if (b_ModulNbr < 4)
+	}			/*  if (b_ModulNbr < 4) */
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetUDStatus                           |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr,                         |
-|                                PBYTE_ pb_UDStatus)                         |
+|                               (unsigned char_   b_BoardHandle,                      |
+|                                unsigned char_   b_ModulNbr,                         |
+|                                unsigned char *_ pb_UDStatus)                         |
 +----------------------------------------------------------------------------+
 | Task              : Return the counter progress status                     |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_UDStatus      : 0 : Counter progress in the  |
+| Output Parameters : unsigned char *_ pb_UDStatus      : 0 : Counter progress in the  |
 |                                                   selected mode down       |
 |                                               1 : Counter progress in the  |
 |                                                   selected mode up         |
@@ -4966,11 +4966,11 @@ INT i_APCI1710_Get16BitCBStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetUDStatus(struct comedi_device * dev,
-	BYTE b_ModulNbr, PBYTE pb_UDStatus)
+int i_APCI1710_GetUDStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char *pb_UDStatus)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_StatusReg = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_StatusReg = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -4987,7 +4987,7 @@ INT i_APCI1710_GetUDStatus(struct comedi_device * dev,
 			dw_StatusReg = inl(devpriv->s_BoardInfos.
 				ui_Address + 24 + (64 * b_ModulNbr));
 
-			*pb_UDStatus = (BYTE) ((dw_StatusReg >> 2) & 1);
+			*pb_UDStatus = (unsigned char) ((dw_StatusReg >> 2) & 1);
 
 		} else {
 	      /****************************************/
@@ -5007,24 +5007,24 @@ INT i_APCI1710_GetUDStatus(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
 +----------------------------------------------------------------------------+
 | Function Name     : _INT_ i_APCI1710_GetInterruptUDLatchedStatus           |
-|                               (BYTE_   b_BoardHandle,                      |
-|                                BYTE_   b_ModulNbr,                         |
-|                                PBYTE_ pb_UDStatus)                         |
+|                               (unsigned char_   b_BoardHandle,                      |
+|                                unsigned char_   b_ModulNbr,                         |
+|                                unsigned char *_ pb_UDStatus)                         |
 +----------------------------------------------------------------------------+
 | Task              : Return the counter progress latched status after a     |
 |                     index interrupt occur.                                 |
 +----------------------------------------------------------------------------+
-| Input Parameters  : BYTE_ b_BoardHandle     : Handle of board APCI-1710    |
-|                     BYTE_ b_ModulNbr        : Module number to configure   |
+| Input Parameters  : unsigned char_ b_BoardHandle     : Handle of board APCI-1710    |
+|                     unsigned char_ b_ModulNbr        : Module number to configure   |
 |                                               (0 to 3)                     |
 +----------------------------------------------------------------------------+
-| Output Parameters : PBYTE_ pb_UDStatus      : 0 : Counter progress in the  |
+| Output Parameters : unsigned char *_ pb_UDStatus      : 0 : Counter progress in the  |
 |                                                   selected mode down       |
 |                                               1 : Counter progress in the  |
 |                                                   selected mode up         |
@@ -5040,11 +5040,11 @@ INT i_APCI1710_GetUDStatus(struct comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
-	BYTE b_ModulNbr, PBYTE pb_UDStatus)
+int i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device *dev,
+	unsigned char b_ModulNbr, unsigned char *pb_UDStatus)
 {
-	INT i_ReturnValue = 0;
-	DWORD dw_StatusReg = 0;
+	int i_ReturnValue = 0;
+	unsigned int dw_StatusReg = 0;
 
 	/**************************/
 	/* Test the module number */
@@ -5074,7 +5074,7 @@ INT i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
 				dw_StatusReg = inl(devpriv->s_BoardInfos.
 					ui_Address + 12 + (64 * b_ModulNbr));
 
-				*pb_UDStatus = (BYTE) ((dw_StatusReg >> 1) & 1);
+				*pb_UDStatus = (unsigned char) ((dw_StatusReg >> 1) & 1);
 			} else {
 		    /****************************/
 				/* No index interrupt occur */
@@ -5100,26 +5100,26 @@ INT i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 	/*
 	   +----------------------------------------------------------------------------+
 	   | Function Name     : _INT_ i_APCI1710_ReadFrequencyMeasurement              |
-	   |                            (BYTE_            b_BoardHandle,             |
-	   |                             BYTE_            b_ModulNbr,                |
-	   |                             PBYTE_          pb_Status,                  |
+	   |                            (unsigned char_            b_BoardHandle,             |
+	   |                             unsigned char_            b_ModulNbr,                |
+	   |                             unsigned char *_          pb_Status,                  |
 	   |                             PULONG_        pul_ReadValue)               |
 	   +----------------------------------------------------------------------------+
 	   | Task              : Returns the status (pb_Status) and the number of       |
 	   |                  increments in the set time.                            |
 	   |                  See function " i_APCI1710_InitFrequencyMeasurement "   |
 	   +----------------------------------------------------------------------------+
-	   | Input Parameters  : BYTE_  b_BoardHandle    : Handle of board APCI-1710    |
-	   |                  BYTE_  b_ModulNbr       : Number of the module to be   |
+	   | Input Parameters  : unsigned char_  b_BoardHandle    : Handle of board APCI-1710    |
+	   |                  unsigned char_  b_ModulNbr       : Number of the module to be   |
 	   |                                            configured (0 to 3)          |
 	   +----------------------------------------------------------------------------+
-	   | Output Parameters : PBYTE_ pb_Status     : Returns the frequency        |
+	   | Output Parameters : unsigned char *_ pb_Status     : Returns the frequency        |
 	   |                                            measurement status           |
 	   |                                            0 : Counting cycle not       |
 	   |                                                started.                 |
@@ -5127,7 +5127,7 @@ INT i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
 	   |                                            2 : Counting cycle stopped.  |
 	   |                                                The measurement cycle is |
 	   |                                                completed.               |
-	   |                  PBYTE_ pb_UDStatus      : 0 : Counter progress in the  |
+	   |                  unsigned char *_ pb_UDStatus      : 0 : Counter progress in the  |
 	   |                                                   selected mode down       |
 	   |                                               1 : Counter progress in the  |
 	   |                                                   selected mode up         |
@@ -5145,13 +5145,13 @@ INT i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device * dev,
 	   +----------------------------------------------------------------------------+
 	 */
 
-INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
-	BYTE b_ModulNbr,
-	PBYTE pb_Status, PBYTE pb_UDStatus, PULONG pul_ReadValue)
+int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device *dev,
+	unsigned char b_ModulNbr,
+	unsigned char *pb_Status, unsigned char *pb_UDStatus, unsigned int *pul_ReadValue)
 {
-	INT i_ReturnValue = 0;
-	UINT ui_16BitValue;
-	DWORD dw_StatusReg;
+	int i_ReturnValue = 0;
+	unsigned int ui_16BitValue;
+	unsigned int dw_StatusReg;
 
 	/**************************/
 	/* Test the module number */
@@ -5198,7 +5198,7 @@ INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 					if (dw_StatusReg & 1) {
 						*pb_Status = 2;
 						*pb_UDStatus =
-							(BYTE) ((dw_StatusReg >>
+							(unsigned char) ((dw_StatusReg >>
 								1) & 3);
 
 		       /******************/
@@ -5224,7 +5224,7 @@ INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 								if ((*pul_ReadValue & 0xFFFFU) != 0) {
 									ui_16BitValue
 										=
-										(UINT)
+										(unsigned int)
 										*
 										pul_ReadValue
 										&
@@ -5247,7 +5247,7 @@ INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 								if ((*pul_ReadValue & 0xFFFF0000UL) != 0) {
 									ui_16BitValue
 										=
-										(UINT)
+										(unsigned int)
 										(
 										(*pul_ReadValue
 											>>
@@ -5281,7 +5281,7 @@ INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 								if ((*pul_ReadValue & 0xFFFF0000UL) != 0) {
 									ui_16BitValue
 										=
-										(UINT)
+										(unsigned int)
 										(
 										(*pul_ReadValue
 											>>
@@ -5307,7 +5307,7 @@ INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 									if ((*pul_ReadValue & 0xFFFFU) != 0) {
 										ui_16BitValue
 											=
-											(UINT)
+											(unsigned int)
 											*
 											pul_ReadValue
 											&
@@ -5359,5 +5359,5 @@ INT i_APCI1710_ReadFrequencyMeasurement(struct comedi_device * dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }

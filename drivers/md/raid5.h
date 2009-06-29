@@ -334,7 +334,8 @@ struct raid5_private_data {
 	struct hlist_head	*stripe_hashtbl;
 	mddev_t			*mddev;
 	struct disk_info	*spare;
-	int			chunk_size, level, algorithm;
+	int			chunk_sectors;
+	int			level, algorithm;
 	int			max_degraded;
 	int			raid_disks;
 	int			max_nr_stripes;
@@ -350,7 +351,8 @@ struct raid5_private_data {
 	 */
 	sector_t		reshape_safe;
 	int			previous_raid_disks;
-	int			prev_chunk, prev_algo;
+	int			prev_chunk_sectors;
+	int			prev_algo;
 	short			generation; /* increments with every reshape */
 	unsigned long		reshape_checkpoint; /* Time we last updated
 						     * metadata */
@@ -407,8 +409,6 @@ struct raid5_private_data {
 };
 
 typedef struct raid5_private_data raid5_conf_t;
-
-#define mddev_to_conf(mddev) ((raid5_conf_t *) mddev->private)
 
 /*
  * Our supported algorithms

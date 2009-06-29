@@ -166,7 +166,8 @@ static inline struct gru_state *irq_to_gru(int irq)
  * the GRU, atomic operations must be used to clear bits.
  */
 static void get_clear_fault_map(struct gru_state *gru,
-				struct gru_tlb_fault_map *map)
+				struct gru_tlb_fault_map *imap,
+				struct gru_tlb_fault_map *dmap)
 {
 	unsigned long i, k;
 	struct gru_tlb_fault_map *tfm;
@@ -177,7 +178,11 @@ static void get_clear_fault_map(struct gru_state *gru,
 		k = tfm->fault_bits[i];
 		if (k)
 			k = xchg(&tfm->fault_bits[i], 0UL);
-		map->fault_bits[i] = k;
+		imap->fault_bits[i] = k;
+		k = tfm->done_bits[i];
+		if (k)
+			k = xchg(&tfm->done_bits[i], 0UL);
+		dmap->fault_bits[i] = k;
 	}
 
 	/*
@@ -334,6 +339,12 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	 * Might be a hardware race OR a stupid user. Ignore FMM because FMM
 	 * is a transient state.
 	 */
+	if (tfh->status != TFHSTATUS_EXCEPTION) {
+		gru_flush_cache(tfh);
+		if (tfh->status != TFHSTATUS_EXCEPTION)
+			goto failnoexception;
+		STAT(tfh_stale_on_fault);
+	}
 	if (tfh->state == TFHSTATE_IDLE)
 		goto failidle;
 	if (tfh->state == TFHSTATE_MISS_FMM && cb)
@@ -401,8 +412,17 @@ failfmm:
 	gru_dbg(grudev, "FAILED fmm tfh: 0x%p, state %d\n", tfh, tfh->state);
 	return 0;
 
+failnoexception:
+	/* TFH status did not show exception pending */
+	gru_flush_cache(tfh);
+	if (cb)
+		gru_flush_cache(cb);
+	STAT(tlb_dropin_fail_no_exception);
+	gru_dbg(grudev, "FAILED non-exception tfh: 0x%p, status %d, state %d\n", tfh, tfh->status, tfh->state);
+	return 0;
+
 failidle:
-	/* TFH was idle  - no miss pending */
+	/* TFH state was idle  - no miss pending */
 	gru_flush_cache(tfh);
 	if (cb)
 		gru_flush_cache(cb);
@@ -438,7 +458,7 @@ failactive:
 irqreturn_t gru_intr(int irq, void *dev_id)
 {
 	struct gru_state *gru;
-	struct gru_tlb_fault_map map;
+	struct gru_tlb_fault_map imap, dmap;
 	struct gru_thread_state *gts;
 	struct gru_tlb_fault_handle *tfh = NULL;
 	int cbrnum, ctxnum;
@@ -451,11 +471,15 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 			raw_smp_processor_id(), irq);
 		return IRQ_NONE;
 	}
-	get_clear_fault_map(gru, &map);
-	gru_dbg(grudev, "irq %d, gru %x, map 0x%lx\n", irq, gru->gs_gid,
-		map.fault_bits[0]);
+	get_clear_fault_map(gru, &imap, &dmap);
 
-	for_each_cbr_in_tfm(cbrnum, map.fault_bits) {
+	for_each_cbr_in_tfm(cbrnum, dmap.fault_bits) {
+		complete(gru->gs_blade->bs_async_wq);
+		gru_dbg(grudev, "gid %d, cbr_done %d, done %d\n",
+			gru->gs_gid, cbrnum, gru->gs_blade->bs_async_wq->done);
+	}
+
+	for_each_cbr_in_tfm(cbrnum, imap.fault_bits) {
 		tfh = get_tfh_by_index(gru, cbrnum);
 		prefetchw(tfh);	/* Helps on hdw, required for emulator */
 
@@ -472,7 +496,9 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 		 * This is running in interrupt context. Trylock the mmap_sem.
 		 * If it fails, retry the fault in user context.
 		 */
-		if (down_read_trylock(&gts->ts_mm->mmap_sem)) {
+		if (!gts->ts_force_cch_reload &&
+					down_read_trylock(&gts->ts_mm->mmap_sem)) {
+			gts->ustats.fmm_tlbdropin++;
 			gru_try_dropin(gts, tfh, NULL);
 			up_read(&gts->ts_mm->mmap_sem);
 		} else {
@@ -491,6 +517,7 @@ static int gru_user_dropin(struct gru_thread_state *gts,
 	struct gru_mm_struct *gms = gts->ts_gms;
 	int ret;
 
+	gts->ustats.upm_tlbdropin++;
 	while (1) {
 		wait_event(gms->ms_wait_queue,
 			   atomic_read(&gms->ms_range_active) == 0);
@@ -546,8 +573,8 @@ int gru_handle_user_call_os(unsigned long cb)
 	 * CCH may contain stale data if ts_force_cch_reload is set.
 	 */
 	if (gts->ts_gru && gts->ts_force_cch_reload) {
-		gru_update_cch(gts, 0);
 		gts->ts_force_cch_reload = 0;
+		gru_update_cch(gts, 0);
 	}
 
 	ret = -EAGAIN;
@@ -589,20 +616,26 @@ int gru_get_exception_detail(unsigned long arg)
 	} else if (gts->ts_gru) {
 		cbrnum = thread_cbr_number(gts, ucbnum);
 		cbe = get_cbe_by_index(gts->ts_gru, cbrnum);
-		prefetchw(cbe);/* Harmless on hardware, required for emulator */
+		gru_flush_cache(cbe);	/* CBE not coherent */
 		excdet.opc = cbe->opccpy;
 		excdet.exopc = cbe->exopccpy;
 		excdet.ecause = cbe->ecause;
 		excdet.exceptdet0 = cbe->idef1upd;
 		excdet.exceptdet1 = cbe->idef3upd;
+		excdet.cbrstate = cbe->cbrstate;
+		excdet.cbrexecstatus = cbe->cbrexecstatus;
+		gru_flush_cache(cbe);
 		ret = 0;
 	} else {
 		ret = -EAGAIN;
 	}
 	gru_unlock_gts(gts);
 
-	gru_dbg(grudev, "address 0x%lx, ecause 0x%x\n", excdet.cb,
-		excdet.ecause);
+	gru_dbg(grudev,
+		"cb 0x%lx, op %d, exopc %d, cbrstate %d, cbrexecstatus 0x%x, ecause 0x%x, "
+		"exdet0 0x%lx, exdet1 0x%x\n",
+		excdet.cb, excdet.opc, excdet.exopc, excdet.cbrstate, excdet.cbrexecstatus,
+		excdet.ecause, excdet.exceptdet0, excdet.exceptdet1);
 	if (!ret && copy_to_user((void __user *)arg, &excdet, sizeof(excdet)))
 		ret = -EFAULT;
 	return ret;
@@ -627,7 +660,7 @@ static int gru_unload_all_contexts(void)
 			if (gts && mutex_trylock(&gts->ts_ctxlock)) {
 				spin_unlock(&gru->gs_lock);
 				gru_unload_context(gts, 1);
-				gru_unlock_gts(gts);
+				mutex_unlock(&gts->ts_ctxlock);
 				spin_lock(&gru->gs_lock);
 			}
 		}
@@ -669,6 +702,7 @@ int gru_user_flush_tlb(unsigned long arg)
 {
 	struct gru_thread_state *gts;
 	struct gru_flush_tlb_req req;
+	struct gru_mm_struct *gms;
 
 	STAT(user_flush_tlb);
 	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
@@ -681,8 +715,34 @@ int gru_user_flush_tlb(unsigned long arg)
 	if (!gts)
 		return -EINVAL;
 
-	gru_flush_tlb_range(gts->ts_gms, req.vaddr, req.len);
+	gms = gts->ts_gms;
 	gru_unlock_gts(gts);
+	gru_flush_tlb_range(gms, req.vaddr, req.len);
+
+	return 0;
+}
+
+/*
+ * Fetch GSEG statisticss
+ */
+long gru_get_gseg_statistics(unsigned long arg)
+{
+	struct gru_thread_state *gts;
+	struct gru_get_gseg_statistics_req req;
+
+	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
+		return -EFAULT;
+
+	gts = gru_find_lock_gts(req.gseg);
+	if (gts) {
+		memcpy(&req.stats, &gts->ustats, sizeof(gts->ustats));
+		gru_unlock_gts(gts);
+	} else {
+		memset(&req.stats, 0, sizeof(gts->ustats));
+	}
+
+	if (copy_to_user((void __user *)arg, &req, sizeof(req)))
+		return -EFAULT;
 
 	return 0;
 }
@@ -691,18 +751,34 @@ int gru_user_flush_tlb(unsigned long arg)
  * Register the current task as the user of the GSEG slice.
  * Needed for TLB fault interrupt targeting.
  */
-int gru_set_task_slice(long address)
+int gru_set_context_option(unsigned long arg)
 {
 	struct gru_thread_state *gts;
+	struct gru_set_context_option_req req;
+	int ret = 0;
 
-	STAT(set_task_slice);
-	gru_dbg(grudev, "address 0x%lx\n", address);
-	gts = gru_alloc_locked_gts(address);
+	STAT(set_context_option);
+	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
+		return -EFAULT;
+	gru_dbg(grudev, "op %d, gseg 0x%lx, value1 0x%lx\n", req.op, req.gseg, req.val1);
+
+	gts = gru_alloc_locked_gts(req.gseg);
 	if (!gts)
 		return -EINVAL;
 
-	gts->ts_tgid_owner = current->tgid;
+	switch (req.op) {
+	case sco_gseg_owner:
+ 		/* Register the current task as the GSEG owner */
+		gts->ts_tgid_owner = current->tgid;
+		break;
+	case sco_cch_req_slice:
+ 		/* Set the CCH slice option */
+		gts->ts_cch_req_slice = req.val1 & 3;
+		break;
+	default:
+		ret = -EINVAL;
+	}
 	gru_unlock_gts(gts);
 
-	return 0;
+	return ret;
 }

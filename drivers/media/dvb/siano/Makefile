@@ -1,4 +1,4 @@
-sms1xxx-objs := smscoreapi.o sms-cards.o
+sms1xxx-objs := smscoreapi.o sms-cards.o smsendian.o smsir.o
 
 obj-$(CONFIG_DVB_SIANO_SMS1XXX) += sms1xxx.o
 obj-$(CONFIG_DVB_SIANO_SMS1XXX) += smsusb.o

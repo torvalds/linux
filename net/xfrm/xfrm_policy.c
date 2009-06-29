@@ -2027,6 +2027,8 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 {
 	struct net *net = dev_net(skb->dev);
 	struct flowi fl;
+	struct dst_entry *dst;
+	int res;
 
 	if (xfrm_decode_session(skb, &fl, family) < 0) {
 		/* XXX: we should have something like FWDHDRERROR here. */
@@ -2034,7 +2036,11 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 		return 0;
 	}
 
-	return xfrm_lookup(net, &skb->dst, &fl, NULL, 0) == 0;
+	dst = skb_dst(skb);
+
+	res = xfrm_lookup(net, &dst, &fl, NULL, 0) == 0;
+	skb_dst_set(skb, dst);
+	return res;
 }
 EXPORT_SYMBOL(__xfrm_route_forward);
 

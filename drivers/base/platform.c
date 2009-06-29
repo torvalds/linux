@@ -69,7 +69,8 @@ EXPORT_SYMBOL_GPL(platform_get_irq);
  * @name: resource name
  */
 struct resource *platform_get_resource_byname(struct platform_device *dev,
-					      unsigned int type, char *name)
+					      unsigned int type,
+					      const char *name)
 {
 	int i;
 
@@ -88,7 +89,7 @@ EXPORT_SYMBOL_GPL(platform_get_resource_byname);
  * @dev: platform device
  * @name: IRQ name
  */
-int platform_get_irq_byname(struct platform_device *dev, char *name)
+int platform_get_irq_byname(struct platform_device *dev, const char *name)
 {
 	struct resource *r = platform_get_resource_byname(dev, IORESOURCE_IRQ,
 							  name);
@@ -244,7 +245,7 @@ int platform_device_add(struct platform_device *pdev)
 	if (pdev->id != -1)
 		dev_set_name(&pdev->dev, "%s.%d", pdev->name,  pdev->id);
 	else
-		dev_set_name(&pdev->dev, pdev->name);
+		dev_set_name(&pdev->dev, "%s", pdev->name);
 
 	for (i = 0; i < pdev->num_resources; i++) {
 		struct resource *p, *r = &pdev->resource[i];

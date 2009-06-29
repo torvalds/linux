@@ -58,7 +58,8 @@ static int debug;
 
 /* Function prototypes */
 static int cyberjack_startup(struct usb_serial *serial);
-static void cyberjack_shutdown(struct usb_serial *serial);
+static void cyberjack_disconnect(struct usb_serial *serial);
+static void cyberjack_release(struct usb_serial *serial);
 static int  cyberjack_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
 static void cyberjack_close(struct usb_serial_port *port);
@@ -94,7 +95,8 @@ static struct usb_serial_driver cyberjack_device = {
 	.id_table =		id_table,
 	.num_ports =		1,
 	.attach =		cyberjack_startup,
-	.shutdown =		cyberjack_shutdown,
+	.disconnect =		cyberjack_disconnect,
+	.release =		cyberjack_release,
 	.open =			cyberjack_open,
 	.close =		cyberjack_close,
 	.write =		cyberjack_write,
@@ -148,17 +150,25 @@ static int cyberjack_startup(struct usb_serial *serial)
 	return 0;
 }
 
-static void cyberjack_shutdown(struct usb_serial *serial)
+static void cyberjack_disconnect(struct usb_serial *serial)
+{
+	int i;
+
+	dbg("%s", __func__);
+
+	for (i = 0; i < serial->num_ports; ++i)
+		usb_kill_urb(serial->port[i]->interrupt_in_urb);
+}
+
+static void cyberjack_release(struct usb_serial *serial)
 {
 	int i;
 
 	dbg("%s", __func__);
 
 	for (i = 0; i < serial->num_ports; ++i) {
-		usb_kill_urb(serial->port[i]->interrupt_in_urb);
 		/* My special items, the standard routines free my urbs */
 		kfree(usb_get_serial_port_data(serial->port[i]));
-		usb_set_serial_port_data(serial->port[i], NULL);
 	}
 }
 

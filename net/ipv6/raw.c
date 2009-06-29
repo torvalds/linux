@@ -310,7 +310,7 @@ out:
 
 static void rawv6_err(struct sock *sk, struct sk_buff *skb,
 	       struct inet6_skb_parm *opt,
-	       int type, int code, int offset, __be32 info)
+	       u8 type, u8 code, int offset, __be32 info)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -343,7 +343,7 @@ static void rawv6_err(struct sock *sk, struct sk_buff *skb,
 }
 
 void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
-		int type, int code, int inner_offset, __be32 info)
+		u8 type, u8 code, int inner_offset, __be32 info)
 {
 	struct sock *sk;
 	int hash;
@@ -625,7 +625,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-	skb->dst = dst_clone(&rt->u.dst);
+	skb_dst_set(skb, dst_clone(&rt->u.dst));
 
 	skb_put(skb, length);
 	skb_reset_network_header(skb);
@@ -638,7 +638,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	if (err)
 		goto error_fault;
 
-	IP6_INC_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUTREQUESTS);
+	IP6_UPD_PO_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
 	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
 		      dst_output);
 	if (err > 0)
@@ -1130,7 +1130,8 @@ static int rawv6_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	switch(cmd) {
 		case SIOCOUTQ:
 		{
-			int amount = atomic_read(&sk->sk_wmem_alloc);
+			int amount = sk_wmem_alloc_get(sk);
+
 			return put_user(amount, (int __user *)arg);
 		}
 		case SIOCINQ:
@@ -1236,8 +1237,8 @@ static void raw6_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 		   dest->s6_addr32[0], dest->s6_addr32[1],
 		   dest->s6_addr32[2], dest->s6_addr32[3], destp,
 		   sp->sk_state,
-		   atomic_read(&sp->sk_wmem_alloc),
-		   atomic_read(&sp->sk_rmem_alloc),
+		   sk_wmem_alloc_get(sp),
+		   sk_rmem_alloc_get(sp),
 		   0, 0L, 0,
 		   sock_i_uid(sp), 0,
 		   sock_i_ino(sp),

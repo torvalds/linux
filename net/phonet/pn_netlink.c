@@ -32,7 +32,7 @@
 static int fill_addr(struct sk_buff *skb, struct net_device *dev, u8 addr,
 		     u32 pid, u32 seq, int event);
 
-static void rtmsg_notify(int event, struct net_device *dev, u8 addr)
+void phonet_address_notify(int event, struct net_device *dev, u8 addr)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
@@ -94,7 +94,7 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *attr)
 	else
 		err = phonet_address_del(dev, pnaddr);
 	if (!err)
-		rtmsg_notify(nlh->nlmsg_type, dev, pnaddr);
+		phonet_address_notify(nlh->nlmsg_type, dev, pnaddr);
 	return err;
 }
 

@@ -36,7 +36,7 @@ static int system_serial_number_open(struct inode *inode, struct file *file)
 
 static int licenseID_show(struct seq_file *s, void *p)
 {
-	seq_printf(s, "0x%lx\n", sn_partition_serial_number_val());
+	seq_printf(s, "0x%llx\n", sn_partition_serial_number_val());
 	return 0;
 }
 

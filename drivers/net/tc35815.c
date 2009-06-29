@@ -688,14 +688,11 @@ static void tc_handle_link_change(struct net_device *dev)
 
 	if (status_change && netif_msg_link(lp)) {
 		phy_print_status(phydev);
-#ifdef DEBUG
-		printk(KERN_DEBUG
-		       "%s: MII BMCR %04x BMSR %04x LPA %04x\n",
-		       dev->name,
-		       phy_read(phydev, MII_BMCR),
-		       phy_read(phydev, MII_BMSR),
-		       phy_read(phydev, MII_LPA));
-#endif
+		pr_debug("%s: MII BMCR %04x BMSR %04x LPA %04x\n",
+			 dev->name,
+			 phy_read(phydev, MII_BMCR),
+			 phy_read(phydev, MII_BMSR),
+			 phy_read(phydev, MII_LPA));
 	}
 }
 

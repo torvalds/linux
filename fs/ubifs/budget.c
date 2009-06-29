@@ -91,7 +91,6 @@ static int shrink_liability(struct ubifs_info *c, int nr_to_write)
 	return nr_written;
 }
 
-
 /**
  * run_gc - run garbage collector.
  * @c: UBIFS file-system description object
@@ -628,7 +627,7 @@ void ubifs_convert_page_budget(struct ubifs_info *c)
  *
  * This function releases budget corresponding to a dirty inode. It is usually
  * called when after the inode has been written to the media and marked as
- * clean.
+ * clean. It also causes the "no space" flags to be cleared.
  */
 void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
 				      struct ubifs_inode *ui)
@@ -636,6 +635,7 @@ void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
 	struct ubifs_budget_req req;
 
 	memset(&req, 0, sizeof(struct ubifs_budget_req));
+	/* The "no space" flags will be cleared because dd_growth is > 0 */
 	req.dd_growth = c->inode_budget + ALIGN(ui->data_len, 8);
 	ubifs_release_budget(c, &req);
 }

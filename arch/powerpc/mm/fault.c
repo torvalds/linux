@@ -302,7 +302,7 @@ good_area:
 	 * the fault.
 	 */
  survive:
-	ret = handle_mm_fault(mm, vma, address, is_write);
+	ret = handle_mm_fault(mm, vma, address, is_write ? FAULT_FLAG_WRITE : 0);
 	if (unlikely(ret & VM_FAULT_ERROR)) {
 		if (ret & VM_FAULT_OOM)
 			goto out_of_memory;

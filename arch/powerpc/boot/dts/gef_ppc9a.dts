@@ -164,8 +164,20 @@
 		device_type = "soc";
 		compatible = "fsl,mpc8641-soc", "simple-bus";
 		ranges = <0x0 0xfef00000 0x00100000>;
-		reg = <0xfef00000 0x100000>;	// CCSRBAR 1M
 		bus-frequency = <33333333>;
+
+		mcm-law@0 {
+			compatible = "fsl,mcm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <10>;
+		};
+
+		mcm@1000 {
+			compatible = "fsl,mpc8641-mcm", "fsl,mcm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
 
 		i2c1: i2c@3000 {
 			#address-cells = <1>;

@@ -30,6 +30,7 @@ config MFD_SM501_GPIO
 config MFD_ASIC3
 	bool "Support for Compaq ASIC3"
 	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
+	select MFD_CORE
 	 ---help---
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)
@@ -152,7 +153,7 @@ config MFD_WM8400
 	depends on I2C
 	help
 	  Support for the Wolfson Microelecronics WM8400 PMIC and audio
-	  CODEC.  This driver adds provides common support for accessing
+	  CODEC.  This driver provides common support for accessing
 	  the device, additional drivers must be enabled in order to use
 	  the functionality of the device.
 
@@ -240,6 +241,27 @@ config PCF50633_GPIO
 	help
 	 Say yes here if you want to include support GPIO for pins on
 	 the PCF50633 chip.
+
+config AB3100_CORE
+	tristate "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
+	depends on I2C
+	default y if ARCH_U300
+	help
+	  Select this to enable the AB3100 Mixed Signal IC core
+	  functionality. This connects to a AB3100 on the I2C bus
+	  and expose a number of symbols needed for dependent devices
+	  to read and write registers and subscribe to events from
+	  this multi-functional IC. This is needed to use other features
+	  of the AB3100 such as battery-backed RTC, charging control,
+	  LEDs, vibrator, system power and temperature, power management
+	  and ALSA sound.
+
+config EZX_PCAP
+	bool "PCAP Support"
+	depends on GENERIC_HARDIRQS && SPI_MASTER
+	help
+	  This enables the PCAP ASIC present on EZX Phones. This is
+	  needed for MMC, TouchScreen, Sound, USB, etc..
 
 endmenu
 

@@ -71,3 +71,15 @@ void arch_acpi_processor_init_pdc(struct acpi_processor *pr)
 }
 
 EXPORT_SYMBOL(arch_acpi_processor_init_pdc);
+
+void arch_acpi_processor_cleanup_pdc(struct acpi_processor *pr)
+{
+	if (pr->pdc) {
+		kfree(pr->pdc->pointer->buffer.pointer);
+		kfree(pr->pdc->pointer);
+		kfree(pr->pdc);
+		pr->pdc = NULL;
+	}
+}
+
+EXPORT_SYMBOL(arch_acpi_processor_cleanup_pdc);

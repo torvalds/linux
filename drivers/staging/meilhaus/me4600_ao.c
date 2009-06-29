@@ -2567,11 +2567,7 @@ me4600_ao_subdevice_t *me4600_ao_constructor(uint32_t reg_base,
 	if (subdevice->fifo) {
 		subdevice->irq = irq;
 		if (request_irq(subdevice->irq, me4600_ao_isr,
-#ifdef IRQF_DISABLED
 				IRQF_DISABLED | IRQF_SHARED,
-#else
-				SA_INTERRUPT | SA_SHIRQ,
-#endif
 				ME4600_NAME, subdevice)) {
 			PERROR("Cannot get interrupt line.\n");
 			PDEBUG("free circ_buf = %p size=%d",
@@ -5737,7 +5733,7 @@ me4600_ao_subdevice_t *me4600_ao_constructor(uint32_t reg_base,
 	subdevice->irq = irq;
 
 	if (request_irq
-	    (subdevice->irq, me4600_ao_isr, SA_INTERRUPT | SA_SHIRQ,
+	    (subdevice->irq, me4600_ao_isr, IRQF_DISABLED | IRQF_SHARED,
 	     ME4600_NAME, subdevice)) {
 		PERROR("Cannot get interrupt line.\n");
 		me_subdevice_deinit((me_subdevice_t *) subdevice);

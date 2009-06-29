@@ -499,10 +499,7 @@ static void ds1305_work(struct work_struct *work)
 	if (!test_bit(FLAG_EXITING, &ds1305->flags))
 		enable_irq(spi->irq);
 
-	/* rtc_update_irq() requires an IRQ-disabled context */
-	local_irq_disable();
 	rtc_update_irq(ds1305->rtc, 1, RTC_AF | RTC_IRQF);
-	local_irq_enable();
 }
 
 /*

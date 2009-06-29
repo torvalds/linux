@@ -19,16 +19,21 @@
  * If TRACE_SYSTEM is defined, that will be the directory created
  * in the ftrace directory under /debugfs/tracing/events/<system>
  *
- * The define_trace.h belowe will also look for a file name of
+ * The define_trace.h below will also look for a file name of
  * TRACE_SYSTEM.h where TRACE_SYSTEM is what is defined here.
+ * In this case, it would look for sample.h
  *
- * If you want a different system than file name, you can override
- * the header name by defining TRACE_INCLUDE_FILE
+ * If the header name will be different than the system name
+ * (as in this case), then you can override the header name that
+ * define_trace.h will look up by defining TRACE_INCLUDE_FILE
  *
- * If this file was called, goofy.h, then we would define:
+ * This file is called trace-events-sample.h but we want the system
+ * to be called "sample". Therefore we must define the name of this
+ * file:
  *
- * #define TRACE_INCLUDE_FILE goofy
+ * #define TRACE_INCLUDE_FILE trace-events-sample
  *
+ * As we do an the bottom of this file.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM sample
@@ -99,13 +104,13 @@ TRACE_EVENT(foo_bar,
  *
  * #define TRACE_INCLUDE_PATH ../../samples/trace_events
  *
- * But I chose to simply make it use the current directory and then in
- * the Makefile I added:
+ * But the safest and easiest way to simply make it use the directory
+ * that the file is in is to add in the Makefile:
  *
- * CFLAGS_trace-events-sample.o := -I$(PWD)/samples/trace_events/
+ * CFLAGS_trace-events-sample.o := -I$(src)
  *
  * This will make sure the current path is part of the include
- * structure for our file so that we can find it.
+ * structure for our file so that define_trace.h can find it.
  *
  * I could have made only the top level directory the include:
  *
@@ -115,8 +120,8 @@ TRACE_EVENT(foo_bar,
  *
  * #define TRACE_INCLUDE_PATH samples/trace_events
  *
- * But then if something defines "samples" or "trace_events" then we
- * could risk that being converted too, and give us an unexpected
+ * But then if something defines "samples" or "trace_events" as a macro
+ * then we could risk that being converted too, and give us an unexpected
  * result.
  */
 #undef TRACE_INCLUDE_PATH

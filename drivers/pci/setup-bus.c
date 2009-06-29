@@ -58,7 +58,6 @@ static void pbus_assign_resources_sorted(const struct pci_bus *bus)
 		res = list->res;
 		idx = res - &list->dev->resource[0];
 		if (pci_assign_resource(list->dev, idx)) {
-			/* FIXME: get rid of this */
 			res->start = 0;
 			res->end = 0;
 			res->flags = 0;
@@ -143,6 +142,7 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	struct pci_dev *bridge = bus->self;
 	struct pci_bus_region region;
 	u32 l, bu, lu, io_upper16;
+	int pref_mem64;
 
 	if (pci_is_enabled(bridge))
 		return;
@@ -198,16 +198,22 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	pci_write_config_dword(bridge, PCI_PREF_LIMIT_UPPER32, 0);
 
 	/* Set up PREF base/limit. */
+	pref_mem64 = 0;
 	bu = lu = 0;
 	pcibios_resource_to_bus(bridge, &region, bus->resource[2]);
 	if (bus->resource[2]->flags & IORESOURCE_PREFETCH) {
+		int width = 8;
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
-		bu = upper_32_bits(region.start);
-		lu = upper_32_bits(region.end);
-		dev_info(&bridge->dev, "  PREFETCH window: %#016llx-%#016llx\n",
-		    (unsigned long long)region.start,
-		    (unsigned long long)region.end);
+		if (bus->resource[2]->flags & IORESOURCE_MEM_64) {
+			pref_mem64 = 1;
+			bu = upper_32_bits(region.start);
+			lu = upper_32_bits(region.end);
+			width = 16;
+		}
+		dev_info(&bridge->dev, "  PREFETCH window: %#0*llx-%#0*llx\n",
+				width, (unsigned long long)region.start,
+				width, (unsigned long long)region.end);
 	}
 	else {
 		l = 0x0000fff0;
@@ -215,9 +221,11 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	}
 	pci_write_config_dword(bridge, PCI_PREF_MEMORY_BASE, l);
 
-	/* Set the upper 32 bits of PREF base & limit. */
-	pci_write_config_dword(bridge, PCI_PREF_BASE_UPPER32, bu);
-	pci_write_config_dword(bridge, PCI_PREF_LIMIT_UPPER32, lu);
+	if (pref_mem64) {
+		/* Set the upper 32 bits of PREF base & limit. */
+		pci_write_config_dword(bridge, PCI_PREF_BASE_UPPER32, bu);
+		pci_write_config_dword(bridge, PCI_PREF_LIMIT_UPPER32, lu);
+	}
 
 	pci_write_config_word(bridge, PCI_BRIDGE_CONTROL, bus->bridge_ctl);
 }
@@ -255,8 +263,25 @@ static void pci_bridge_check_ranges(struct pci_bus *bus)
 		pci_read_config_dword(bridge, PCI_PREF_MEMORY_BASE, &pmem);
 		pci_write_config_dword(bridge, PCI_PREF_MEMORY_BASE, 0x0);
 	}
-	if (pmem)
+	if (pmem) {
 		b_res[2].flags |= IORESOURCE_MEM | IORESOURCE_PREFETCH;
+		if ((pmem & PCI_PREF_RANGE_TYPE_MASK) == PCI_PREF_RANGE_TYPE_64)
+			b_res[2].flags |= IORESOURCE_MEM_64;
+	}
+
+	/* double check if bridge does support 64 bit pref */
+	if (b_res[2].flags & IORESOURCE_MEM_64) {
+		u32 mem_base_hi, tmp;
+		pci_read_config_dword(bridge, PCI_PREF_BASE_UPPER32,
+					 &mem_base_hi);
+		pci_write_config_dword(bridge, PCI_PREF_BASE_UPPER32,
+					       0xffffffff);
+		pci_read_config_dword(bridge, PCI_PREF_BASE_UPPER32, &tmp);
+		if (!tmp)
+			b_res[2].flags &= ~IORESOURCE_MEM_64;
+		pci_write_config_dword(bridge, PCI_PREF_BASE_UPPER32,
+				       mem_base_hi);
+	}
 }
 
 /* Helper function for sizing routines: find first available
@@ -336,6 +361,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 	resource_size_t aligns[12];	/* Alignments from 1Mb to 2Gb */
 	int order, max_order;
 	struct resource *b_res = find_free_bus_resource(bus, type);
+	unsigned int mem64_mask = 0;
 
 	if (!b_res)
 		return 0;
@@ -344,9 +370,12 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 	max_order = 0;
 	size = 0;
 
+	mem64_mask = b_res->flags & IORESOURCE_MEM_64;
+	b_res->flags &= ~IORESOURCE_MEM_64;
+
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		int i;
-		
+
 		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
 			struct resource *r = &dev->resource[i];
 			resource_size_t r_size;
@@ -372,6 +401,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 				aligns[order] += align;
 			if (order > max_order)
 				max_order = order;
+			mem64_mask &= r->flags & IORESOURCE_MEM_64;
 		}
 	}
 
@@ -396,6 +426,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 	b_res->start = min_align;
 	b_res->end = size + min_align - 1;
 	b_res->flags |= IORESOURCE_STARTALIGN;
+	b_res->flags |= mem64_mask;
 	return 1;
 }
 

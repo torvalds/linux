@@ -38,6 +38,10 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/math64.h>
+#include <linux/hash.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/jbd2.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -2376,6 +2380,71 @@ static void __exit journal_exit(void)
 	jbd2_remove_jbd_stats_proc_entry();
 	jbd2_journal_destroy_caches();
 }
+
+/* 
+ * jbd2_dev_to_name is a utility function used by the jbd2 and ext4 
+ * tracing infrastructure to map a dev_t to a device name.
+ *
+ * The caller should use rcu_read_lock() in order to make sure the
+ * device name stays valid until its done with it.  We use
+ * rcu_read_lock() as well to make sure we're safe in case the caller
+ * gets sloppy, and because rcu_read_lock() is cheap and can be safely
+ * nested.
+ */
+struct devname_cache {
+	struct rcu_head	rcu;
+	dev_t		device;
+	char		devname[BDEVNAME_SIZE];
+};
+#define CACHE_SIZE_BITS 6
+static struct devname_cache *devcache[1 << CACHE_SIZE_BITS];
+static DEFINE_SPINLOCK(devname_cache_lock);
+
+static void free_devcache(struct rcu_head *rcu)
+{
+	kfree(rcu);
+}
+
+const char *jbd2_dev_to_name(dev_t device)
+{
+	int	i = hash_32(device, CACHE_SIZE_BITS);
+	char	*ret;
+	struct block_device *bd;
+
+	rcu_read_lock();
+	if (devcache[i] && devcache[i]->device == device) {
+		ret = devcache[i]->devname;
+		rcu_read_unlock();
+		return ret;
+	}
+	rcu_read_unlock();
+
+	spin_lock(&devname_cache_lock);
+	if (devcache[i]) {
+		if (devcache[i]->device == device) {
+			ret = devcache[i]->devname;
+			spin_unlock(&devname_cache_lock);
+			return ret;
+		}
+		call_rcu(&devcache[i]->rcu, free_devcache);
+	}
+	devcache[i] = kmalloc(sizeof(struct devname_cache), GFP_KERNEL);
+	if (!devcache[i]) {
+		spin_unlock(&devname_cache_lock);
+		return "NODEV-ALLOCFAILURE"; /* Something non-NULL */
+	}
+	devcache[i]->device = device;
+	bd = bdget(device);
+	if (bd) {
+		bdevname(bd, devcache[i]->devname);
+		bdput(bd);
+	} else
+		__bdevname(device, devcache[i]->devname);
+	ret = devcache[i]->devname;
+	spin_unlock(&devname_cache_lock);
+	return ret;
+}
+EXPORT_SYMBOL(jbd2_dev_to_name);
 
 MODULE_LICENSE("GPL");
 module_init(journal_init);

@@ -93,7 +93,7 @@ int drm_setunique(struct drm_device *dev, void *data,
 
 	master->unique_len = u->unique_len;
 	master->unique_size = u->unique_len + 1;
-	master->unique = drm_alloc(master->unique_size, DRM_MEM_DRIVER);
+	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
 	if (!master->unique)
 		return -ENOMEM;
 	if (copy_from_user(master->unique, u->unique, master->unique_len))
@@ -101,9 +101,8 @@ int drm_setunique(struct drm_device *dev, void *data,
 
 	master->unique[master->unique_len] = '\0';
 
-	dev->devname =
-	    drm_alloc(strlen(dev->driver->pci_driver.name) +
-		      strlen(master->unique) + 2, DRM_MEM_DRIVER);
+	dev->devname = kmalloc(strlen(dev->driver->pci_driver.name) +
+			       strlen(master->unique) + 2, GFP_KERNEL);
 	if (!dev->devname)
 		return -ENOMEM;
 
@@ -138,7 +137,7 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 
 	master->unique_len = 40;
 	master->unique_size = master->unique_len;
-	master->unique = drm_alloc(master->unique_size, DRM_MEM_DRIVER);
+	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
 	if (master->unique == NULL)
 		return -ENOMEM;
 
@@ -152,9 +151,8 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 	else
 		master->unique_len = len;
 
-	dev->devname =
-	    drm_alloc(strlen(dev->driver->pci_driver.name) + master->unique_len +
-		      2, DRM_MEM_DRIVER);
+	dev->devname = kmalloc(strlen(dev->driver->pci_driver.name) +
+			       master->unique_len + 2, GFP_KERNEL);
 	if (dev->devname == NULL)
 		return -ENOMEM;
 

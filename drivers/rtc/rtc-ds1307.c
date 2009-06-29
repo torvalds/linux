@@ -31,6 +31,8 @@ enum ds_type {
 	ds_1338,
 	ds_1339,
 	ds_1340,
+	ds_1388,
+	ds_3231,
 	m41t00,
 	rx_8025,
 	// rs5c372 too?  different address...
@@ -66,6 +68,7 @@ enum ds_type {
 #define DS1337_REG_CONTROL	0x0e
 #	define DS1337_BIT_nEOSC		0x80
 #	define DS1339_BIT_BBSQI		0x20
+#	define DS3231_BIT_BBSQW		0x40 /* same as BBSQI */
 #	define DS1337_BIT_RS2		0x10
 #	define DS1337_BIT_RS1		0x08
 #	define DS1337_BIT_INTCN		0x04
@@ -94,6 +97,7 @@ enum ds_type {
 
 
 struct ds1307 {
+	u8			offset; /* register's offset */
 	u8			regs[11];
 	enum ds_type		type;
 	unsigned long		flags;
@@ -128,6 +132,9 @@ static const struct chip_desc chips[] = {
 },
 [ds_1340] = {
 },
+[ds_3231] = {
+	.alarm		= 1,
+},
 [m41t00] = {
 },
 [rx_8025] = {
@@ -138,7 +145,9 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1337", ds_1337 },
 	{ "ds1338", ds_1338 },
 	{ "ds1339", ds_1339 },
+	{ "ds1388", ds_1388 },
 	{ "ds1340", ds_1340 },
+	{ "ds3231", ds_3231 },
 	{ "m41t00", m41t00 },
 	{ "rx8025", rx_8025 },
 	{ }
@@ -258,12 +267,7 @@ static void ds1307_work(struct work_struct *work)
 		control &= ~DS1337_BIT_A1IE;
 		i2c_smbus_write_byte_data(client, DS1337_REG_CONTROL, control);
 
-		/* rtc_update_irq() assumes that it is called
-		 * from IRQ-disabled context.
-		 */
-		local_irq_disable();
 		rtc_update_irq(ds1307->rtc, 1, RTC_AF | RTC_IRQF);
-		local_irq_enable();
 	}
 
 out:
@@ -291,7 +295,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 
 	/* read the RTC date and time registers all at once */
 	tmp = ds1307->read_block_data(ds1307->client,
-		DS1307_REG_SECS, 7, ds1307->regs);
+		ds1307->offset, 7, ds1307->regs);
 	if (tmp != 7) {
 		dev_err(dev, "%s error %d\n", "read", tmp);
 		return -EIO;
@@ -353,6 +357,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	switch (ds1307->type) {
 	case ds_1337:
 	case ds_1339:
+	case ds_3231:
 		buf[DS1307_REG_MONTH] |= DS1337_BIT_CENTURY;
 		break;
 	case ds_1340:
@@ -367,7 +372,8 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		"write", buf[0], buf[1], buf[2], buf[3],
 		buf[4], buf[5], buf[6]);
 
-	result = ds1307->write_block_data(ds1307->client, 0, 7, buf);
+	result = ds1307->write_block_data(ds1307->client,
+		ds1307->offset, 7, buf);
 	if (result < 0) {
 		dev_err(dev, "%s error %d\n", "write", result);
 		return result;
@@ -624,6 +630,11 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
 	int			want_irq = false;
 	unsigned char		*buf;
+	static const int	bbsqi_bitpos[] = {
+		[ds_1337] = 0,
+		[ds_1339] = DS1339_BIT_BBSQI,
+		[ds_3231] = DS3231_BIT_BBSQW,
+	};
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)
 	    && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
@@ -632,9 +643,12 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	if (!(ds1307 = kzalloc(sizeof(struct ds1307), GFP_KERNEL)))
 		return -ENOMEM;
 
-	ds1307->client = client;
 	i2c_set_clientdata(client, ds1307);
-	ds1307->type = id->driver_data;
+
+	ds1307->client	= client;
+	ds1307->type	= id->driver_data;
+	ds1307->offset	= 0;
+
 	buf = ds1307->regs;
 	if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
 		ds1307->read_block_data = i2c_smbus_read_i2c_block_data;
@@ -647,6 +661,7 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	switch (ds1307->type) {
 	case ds_1337:
 	case ds_1339:
+	case ds_3231:
 		/* has IRQ? */
 		if (ds1307->client->irq > 0 && chip->alarm) {
 			INIT_WORK(&ds1307->work, ds1307_work);
@@ -666,12 +681,12 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 			ds1307->regs[0] &= ~DS1337_BIT_nEOSC;
 
 		/* Using IRQ?  Disable the square wave and both alarms.
-		 * For ds1339, be sure alarms can trigger when we're
-		 * running on Vbackup (BBSQI); we assume ds1337 will
-		 * ignore that bit
+		 * For some variants, be sure alarms can trigger when we're
+		 * running on Vbackup (BBSQI/BBSQW)
 		 */
 		if (want_irq) {
-			ds1307->regs[0] |= DS1337_BIT_INTCN | DS1339_BIT_BBSQI;
+			ds1307->regs[0] |= DS1337_BIT_INTCN
+					| bbsqi_bitpos[ds1307->type];
 			ds1307->regs[0] &= ~(DS1337_BIT_A2IE | DS1337_BIT_A1IE);
 		}
 
@@ -751,6 +766,9 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 						  hour);
 		}
 		break;
+	case ds_1388:
+		ds1307->offset = 1; /* Seconds starts at 1 */
+		break;
 	default:
 		break;
 	}
@@ -814,6 +832,8 @@ read_rtc:
 	case rx_8025:
 	case ds_1337:
 	case ds_1339:
+	case ds_1388:
+	case ds_3231:
 		break;
 	}
 

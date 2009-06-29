@@ -83,7 +83,7 @@ enum securityEnum {
 	NTLM,			/* Legacy NTLM012 auth with NTLM hash */
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */
-	NTLMSSP,		/* NTLMSSP via SPNEGO, NTLMv2 hash */
+/*	NTLMSSP, */ /* can use rawNTLMSSP instead of NTLMSSP via SPNEGO */
 	Kerberos,		/* Kerberos via SPNEGO */
 	MSKerberos,		/* MS Kerberos via SPNEGO */
 };

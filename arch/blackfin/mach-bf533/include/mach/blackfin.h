@@ -34,7 +34,6 @@
 #define BF533_FAMILY
 
 #include "bf533.h"
-#include "mem_map.h"
 #include "defBF532.h"
 #include "anomaly.h"
 

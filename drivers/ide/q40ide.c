@@ -51,9 +51,7 @@ static int q40ide_default_irq(unsigned long base)
 /*
  * Addresses are pretranslated for Q40 ISA access.
  */
-static void q40_ide_setup_ports(struct ide_hw *hw, unsigned long base,
-			ide_ack_intr_t *ack_intr,
-			int irq)
+static void q40_ide_setup_ports(struct ide_hw *hw, unsigned long base, int irq)
 {
 	memset(hw, 0, sizeof(*hw));
 	/* BIG FAT WARNING: 
@@ -69,7 +67,6 @@ static void q40_ide_setup_ports(struct ide_hw *hw, unsigned long base,
 	hw->io_ports.ctl_addr = Q40_ISA_IO_B(base + 0x206);
 
 	hw->irq = irq;
-	hw->ack_intr = ack_intr;
 }
 
 static void q40ide_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
@@ -156,7 +153,7 @@ static int __init q40ide_init(void)
 		release_region(pcide_bases[i], 8);
 		continue;
 	}
-	q40_ide_setup_ports(&hw[i], pcide_bases[i], NULL,
+	q40_ide_setup_ports(&hw[i], pcide_bases[i],
 			q40ide_default_irq(pcide_bases[i]));
 
 	hws[i] = &hw[i];

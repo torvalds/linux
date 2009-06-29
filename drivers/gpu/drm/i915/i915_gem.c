@@ -46,7 +46,6 @@ static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *o
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
-static int i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
 static int i915_gem_evict_something(struct drm_device *dev);
 static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
@@ -1007,7 +1006,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->struct_mutex);
 #if WATCH_BUF
-	DRM_INFO("set_domain_ioctl %p(%d), %08x %08x\n",
+	DRM_INFO("set_domain_ioctl %p(%zd), %08x %08x\n",
 		 obj, obj->size, read_domains, write_domain);
 #endif
 	if (read_domains & I915_GEM_DOMAIN_GTT) {
@@ -1051,7 +1050,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	}
 
 #if WATCH_BUF
-	DRM_INFO("%s: sw_finish %d (%p %d)\n",
+	DRM_INFO("%s: sw_finish %d (%p %zd)\n",
 		 __func__, args->handle, obj, obj->size);
 #endif
 	obj_priv = obj->driver_private;
@@ -1158,7 +1157,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Need a new fence register? */
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
 	    obj_priv->tiling_mode != I915_TILING_NONE) {
-		ret = i915_gem_object_get_fence_reg(obj, write);
+		ret = i915_gem_object_get_fence_reg(obj);
 		if (ret) {
 			mutex_unlock(&dev->struct_mutex);
 			return VM_FAULT_SIGBUS;
@@ -1208,8 +1207,7 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 
 	/* Set the object up for mmap'ing */
 	list = &obj->map_list;
-	list->map = drm_calloc(1, sizeof(struct drm_map_list),
-			       DRM_MEM_DRIVER);
+	list->map = kzalloc(sizeof(struct drm_map_list), GFP_KERNEL);
 	if (!list->map)
 		return -ENOMEM;
 
@@ -1249,7 +1247,7 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 out_free_mm:
 	drm_mm_put_block(list->file_offset_node);
 out_free_list:
-	drm_free(list->map, sizeof(struct drm_map_list), DRM_MEM_DRIVER);
+	kfree(list->map);
 
 	return ret;
 }
@@ -1271,7 +1269,7 @@ i915_gem_free_mmap_offset(struct drm_gem_object *obj)
 	}
 
 	if (list->map) {
-		drm_free(list->map, sizeof(struct drm_map), DRM_MEM_DRIVER);
+		kfree(list->map);
 		list->map = NULL;
 	}
 
@@ -1494,7 +1492,7 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 	if (file_priv != NULL)
 		i915_file_priv = file_priv->driver_priv;
 
-	request = drm_calloc(1, sizeof(*request), DRM_MEM_DRIVER);
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (request == NULL)
 		return 0;
 
@@ -1676,7 +1674,7 @@ i915_gem_retire_requests(struct drm_device *dev)
 
 			list_del(&request->list);
 			list_del(&request->client_list);
-			drm_free(request, sizeof(*request), DRM_MEM_DRIVER);
+			kfree(request);
 		} else
 			break;
 	}
@@ -2163,13 +2161,11 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 	val |= I830_FENCE_REG_VALID;
 
 	I915_WRITE(FENCE_REG_830_0 + (regnum * 4), val);
-
 }
 
 /**
  * i915_gem_object_get_fence_reg - set up a fence reg for an object
  * @obj: object to map through a fence reg
- * @write: object is about to be written
  *
  * When mapping objects through the GTT, userspace wants to be able to write
  * to them without having to worry about swizzling if the object is tiled.
@@ -2180,8 +2176,8 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
  * It then sets up the reg based on the object's properties: address, pitch
  * and tiling format.
  */
-static int
-i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write)
+int
+i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2331,6 +2327,42 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 }
 
 /**
+ * i915_gem_object_put_fence_reg - waits on outstanding fenced access
+ * to the buffer to finish, and then resets the fence register.
+ * @obj: tiled object holding a fence register.
+ *
+ * Zeroes out the fence register itself and clears out the associated
+ * data structures in dev_priv and obj_priv.
+ */
+int
+i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	if (obj_priv->fence_reg == I915_FENCE_REG_NONE)
+		return 0;
+
+	/* On the i915, GPU access to tiled buffers is via a fence,
+	 * therefore we must wait for any outstanding access to complete
+	 * before clearing the fence.
+	 */
+	if (!IS_I965G(dev)) {
+		int ret;
+
+		i915_gem_object_flush_gpu_write_domain(obj);
+		i915_gem_object_flush_gtt_write_domain(obj);
+		ret = i915_gem_object_wait_rendering(obj);
+		if (ret != 0)
+			return ret;
+	}
+
+	i915_gem_clear_fence_reg (obj);
+
+	return 0;
+}
+
+/**
  * Finds free space in the GTT aperture and binds the object there.
  */
 static int
@@ -2391,7 +2423,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	}
 
 #if WATCH_BUF
-	DRM_INFO("Binding object of size %d at 0x%08x\n",
+	DRM_INFO("Binding object of size %zd at 0x%08x\n",
 		 obj->size, obj_priv->gtt_offset);
 #endif
 	ret = i915_gem_object_get_pages(obj);
@@ -2800,8 +2832,7 @@ i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj)
 	/* Free the page_cpu_valid mappings which are now stale, whether
 	 * or not we've got I915_GEM_DOMAIN_CPU.
 	 */
-	drm_free(obj_priv->page_cpu_valid, obj->size / PAGE_SIZE,
-		 DRM_MEM_DRIVER);
+	kfree(obj_priv->page_cpu_valid);
 	obj_priv->page_cpu_valid = NULL;
 }
 
@@ -2843,8 +2874,8 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 	 * newly adding I915_GEM_DOMAIN_CPU
 	 */
 	if (obj_priv->page_cpu_valid == NULL) {
-		obj_priv->page_cpu_valid = drm_calloc(1, obj->size / PAGE_SIZE,
-						      DRM_MEM_DRIVER);
+		obj_priv->page_cpu_valid = kzalloc(obj->size / PAGE_SIZE,
+						   GFP_KERNEL);
 		if (obj_priv->page_cpu_valid == NULL)
 			return -ENOMEM;
 	} else if ((obj->read_domains & I915_GEM_DOMAIN_CPU) == 0)
@@ -3267,8 +3298,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (args->num_cliprects != 0) {
-		cliprects = drm_calloc(args->num_cliprects, sizeof(*cliprects),
-				       DRM_MEM_DRIVER);
+		cliprects = kcalloc(args->num_cliprects, sizeof(*cliprects),
+				    GFP_KERNEL);
 		if (cliprects == NULL)
 			goto pre_mutex_err;
 
@@ -3521,8 +3552,7 @@ err:
 pre_mutex_err:
 	drm_free_large(object_list);
 	drm_free_large(exec_list);
-	drm_free(cliprects, sizeof(*cliprects) * args->num_cliprects,
-		 DRM_MEM_DRIVER);
+	kfree(cliprects);
 
 	return ret;
 }
@@ -3550,7 +3580,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	if (!IS_I965G(dev) &&
 	    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
 	    obj_priv->tiling_mode != I915_TILING_NONE) {
-		ret = i915_gem_object_get_fence_reg(obj, true);
+		ret = i915_gem_object_get_fence_reg(obj);
 		if (ret != 0) {
 			if (ret != -EBUSY && ret != -ERESTARTSYS)
 				DRM_ERROR("Failure to install fence: %d\n",
@@ -3739,7 +3769,7 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv;
 
-	obj_priv = drm_calloc(1, sizeof(*obj_priv), DRM_MEM_DRIVER);
+	obj_priv = kzalloc(sizeof(*obj_priv), GFP_KERNEL);
 	if (obj_priv == NULL)
 		return -ENOMEM;
 
@@ -3777,9 +3807,9 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 
 	i915_gem_free_mmap_offset(obj);
 
-	drm_free(obj_priv->page_cpu_valid, 1, DRM_MEM_DRIVER);
+	kfree(obj_priv->page_cpu_valid);
 	kfree(obj_priv->bit_17);
-	drm_free(obj->driver_private, 1, DRM_MEM_DRIVER);
+	kfree(obj->driver_private);
 }
 
 /** Unbinds all objects that are on the given buffer list. */
@@ -4197,6 +4227,7 @@ i915_gem_lastclose(struct drm_device *dev)
 void
 i915_gem_load(struct drm_device *dev)
 {
+	int i;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	spin_lock_init(&dev_priv->mm.active_list_lock);
@@ -4216,6 +4247,18 @@ i915_gem_load(struct drm_device *dev)
 	else
 		dev_priv->num_fence_regs = 8;
 
+	/* Initialize fence registers to zero */
+	if (IS_I965G(dev)) {
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_965_0 + (i * 8), 0);
+	} else {
+		for (i = 0; i < 8; i++)
+			I915_WRITE(FENCE_REG_830_0 + (i * 4), 0);
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				I915_WRITE(FENCE_REG_945_8 + (i * 4), 0);
+	}
+
 	i915_gem_detect_bit_6_swizzle(dev);
 }
 
@@ -4233,7 +4276,7 @@ int i915_gem_init_phys_object(struct drm_device *dev,
 	if (dev_priv->mm.phys_objs[id - 1] || !size)
 		return 0;
 
-	phys_obj = drm_calloc(1, sizeof(struct drm_i915_gem_phys_object), DRM_MEM_DRIVER);
+	phys_obj = kzalloc(sizeof(struct drm_i915_gem_phys_object), GFP_KERNEL);
 	if (!phys_obj)
 		return -ENOMEM;
 
@@ -4252,7 +4295,7 @@ int i915_gem_init_phys_object(struct drm_device *dev,
 
 	return 0;
 kfree_obj:
-	drm_free(phys_obj, sizeof(struct drm_i915_gem_phys_object), DRM_MEM_DRIVER);
+	kfree(phys_obj);
 	return ret;
 }
 
@@ -4312,6 +4355,8 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 	}
 	drm_clflush_pages(obj_priv->pages, page_count);
 	drm_agp_chipset_flush(dev);
+
+	i915_gem_object_put_pages(obj);
 out:
 	obj_priv->phys_obj->cur_obj = NULL;
 	obj_priv->phys_obj = NULL;
@@ -4368,6 +4413,8 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 		memcpy(dst, src, PAGE_SIZE);
 		kunmap_atomic(src, KM_USER0);
 	}
+
+	i915_gem_object_put_pages(obj);
 
 	return 0;
 out:

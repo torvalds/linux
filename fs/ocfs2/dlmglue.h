@@ -62,6 +62,14 @@ struct ocfs2_qinfo_lvb {
 	__be32	lvb_free_entry;
 };
 
+#define OCFS2_ORPHAN_LVB_VERSION 1
+
+struct ocfs2_orphan_scan_lvb {
+	__u8	lvb_version;
+	__u8	lvb_reserved[3];
+	__be32	lvb_os_seqno;
+};
+
 /* ocfs2_inode_lock_full() 'arg_flags' flags */
 /* don't wait on recovery. */
 #define OCFS2_META_LOCK_RECOVERY	(0x01)
@@ -69,6 +77,14 @@ struct ocfs2_qinfo_lvb {
 #define OCFS2_META_LOCK_NOQUEUE		(0x02)
 /* don't block waiting for the downconvert thread, instead return -EAGAIN */
 #define OCFS2_LOCK_NONBLOCK		(0x04)
+
+/* Locking subclasses of inode cluster lock */
+enum {
+	OI_LS_NORMAL = 0,
+	OI_LS_PARENT,
+	OI_LS_RENAME1,
+	OI_LS_RENAME2,
+};
 
 int ocfs2_dlm_init(struct ocfs2_super *osb);
 void ocfs2_dlm_shutdown(struct ocfs2_super *osb, int hangup_pending);
@@ -96,23 +112,32 @@ void ocfs2_open_unlock(struct inode *inode);
 int ocfs2_inode_lock_atime(struct inode *inode,
 			  struct vfsmount *vfsmnt,
 			  int *level);
-int ocfs2_inode_lock_full(struct inode *inode,
+int ocfs2_inode_lock_full_nested(struct inode *inode,
 			 struct buffer_head **ret_bh,
 			 int ex,
-			 int arg_flags);
+			 int arg_flags,
+			 int subclass);
 int ocfs2_inode_lock_with_page(struct inode *inode,
 			      struct buffer_head **ret_bh,
 			      int ex,
 			      struct page *page);
+/* Variants without special locking class or flags */
+#define ocfs2_inode_lock_full(i, r, e, f)\
+		ocfs2_inode_lock_full_nested(i, r, e, f, OI_LS_NORMAL)
+#define ocfs2_inode_lock_nested(i, b, e, s)\
+		ocfs2_inode_lock_full_nested(i, b, e, 0, s)
 /* 99% of the time we don't want to supply any additional flags --
  * those are for very specific cases only. */
-#define ocfs2_inode_lock(i, b, e) ocfs2_inode_lock_full(i, b, e, 0)
+#define ocfs2_inode_lock(i, b, e) ocfs2_inode_lock_full_nested(i, b, e, 0, OI_LS_NORMAL)
 void ocfs2_inode_unlock(struct inode *inode,
 		       int ex);
 int ocfs2_super_lock(struct ocfs2_super *osb,
 		     int ex);
 void ocfs2_super_unlock(struct ocfs2_super *osb,
 			int ex);
+int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno);
+void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqno);
+
 int ocfs2_rename_lock(struct ocfs2_super *osb);
 void ocfs2_rename_unlock(struct ocfs2_super *osb);
 int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex);

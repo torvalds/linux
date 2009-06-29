@@ -188,10 +188,7 @@ int rds_info_getsockopt(struct socket *sock, int optname, char __user *optval,
 		ret = -ENOMEM;
 		goto out;
 	}
-	down_read(&current->mm->mmap_sem);
-	ret = get_user_pages(current, current->mm, start, nr_pages, 1, 0,
-			     pages, NULL);
-	up_read(&current->mm->mmap_sem);
+	ret = get_user_pages_fast(start, nr_pages, 1, pages);
 	if (ret != nr_pages) {
 		if (ret > 0)
 			nr_pages = ret;

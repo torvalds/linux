@@ -314,7 +314,7 @@ static int usbduxfast_ai_cancel(struct comedi_device *dev, struct comedi_subdevi
  * analogue IN
  * interrupt service routine
  */
-static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
+static void usbduxfastsub_ai_Irq(struct urb *urb)
 {
 	int n, err;
 	struct usbduxfastsub_s *udfs;
@@ -406,7 +406,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 					udfs->ai_sample_count
 					* sizeof(uint16_t));
 				usbduxfast_ai_stop(udfs, 0);
-				/* say comedi that the acquistion is over */
+				/* tell comedi that the acquistion is over */
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(udfs->comedidev, s);
 				return;
@@ -414,8 +414,13 @@ static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
 			udfs->ai_sample_count -= n;
 		}
 		/* write the full buffer to comedi */
-		cfc_write_array_to_buffer(s, urb->transfer_buffer,
-					  urb->actual_length);
+		err = cfc_write_array_to_buffer(s, urb->transfer_buffer,
+						urb->actual_length);
+		if (unlikely(err == 0)) {
+			/* buffer overflow */
+			usbduxfast_ai_stop(udfs, 0);
+			return;
+		}
 
 		/* tell comedi that data is there */
 		comedi_event(udfs->comedidev, s);
@@ -518,33 +523,6 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 
 	if (ret < 0) {
 		printk(KERN_ERR "comedi_: usbduxfast: uppload failed\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-int firmwareUpload(struct usbduxfastsub_s *udfs, unsigned char *firmwareBinary,
-		   int sizeFirmware)
-{
-	int ret;
-
-	if (!firmwareBinary)
-		return 0;
-
-	ret = usbduxfastsub_stop(udfs);
-	if (ret < 0) {
-		printk(KERN_ERR "comedi_: usbduxfast: can not stop firmware\n");
-		return ret;
-	}
-	ret = usbduxfastsub_upload(udfs, firmwareBinary, 0, sizeFirmware);
-	if (ret < 0) {
-		printk(KERN_ERR "comedi_: usbduxfast: firmware upload failed\n");
-		return ret;
-	}
-	ret = usbduxfastsub_start(udfs);
-	if (ret < 0) {
-		printk(KERN_ERR "comedi_: usbduxfast: can not start firmware\n");
 		return ret;
 	}
 
@@ -1365,135 +1343,60 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static unsigned hex2unsigned(char *h)
-{
-	unsigned hi, lo;
-
-	if (h[0] > '9')
-		hi = h[0] - 'A' + 0x0a;
-	else
-		hi = h[0] - '0';
-
-	if (h[1] > '9')
-		lo = h[1] - 'A' + 0x0a;
-	else
-		lo = h[1] - '0';
-
-	return hi * 0x10 + lo;
-}
-
-/* for FX2 */
 #define FIRMWARE_MAX_LEN 0x2000
 
-/*
- * taken from David Brownell's fxload and adjusted for this driver
- */
-static int read_firmware(struct usbduxfastsub_s *udfs, const void *firmwarePtr,
-			 long size)
+static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
+			  const u8 *firmwareBinary,
+			  int sizeFirmware)
 {
-	int i = 0;
-	unsigned char *fp = (char *)firmwarePtr;
-	unsigned char *firmwareBinary;
-	int res = 0;
-	int maxAddr = 0;
+	int ret;
+	uint8_t *fwBuf;
 
-	firmwareBinary = kmalloc(FIRMWARE_MAX_LEN, GFP_KERNEL);
-	if (!firmwareBinary) {
-		printk(KERN_ERR "comedi_: usbduxfast: mem alloc for firmware "
-		       " failed\n");
+	if (!firmwareBinary)
+		return 0;
+
+	if (sizeFirmware>FIRMWARE_MAX_LEN) {
+		dev_err(&usbduxfastsub->interface->dev,
+			"comedi_: usbduxfast firmware binary it too large for FX2.\n");
 		return -ENOMEM;
 	}
 
-	for (;;) {
-		char buf[256], *cp;
-		char type;
-		int len;
-		int idx, off;
-		int j = 0;
-
-		/* get one line */
-		while ((i < size) && (fp[i] != 13) && (fp[i] != 10)) {
-			buf[j] = fp[i];
-			i++;
-			j++;
-			if (j >= sizeof(buf)) {
-				printk(KERN_ERR "comedi_: usbduxfast: bogus "
-				       "firmware file!\n");
-				kfree(firmwareBinary);
-				return -1;
-			}
-		}
-		/* get rid of LF/CR/... */
-		while ((i < size) && ((fp[i] == 13) || (fp[i] == 10)
-					|| (fp[i] == 0)))
-			i++;
-
-		buf[j] = 0;
-		/* printk("comedi_: buf=%s\n",buf); */
-
-		/*
-		 * EXTENSION: "# comment-till-end-of-line",
-		 * for copyrights etc
-		 */
-		if (buf[0] == '#')
-			continue;
-
-		if (buf[0] != ':') {
-			printk(KERN_ERR "comedi_: usbduxfast: upload: not an "
-			       "ihex record: %s", buf);
-			kfree(firmwareBinary);
-			return -EFAULT;
-		}
-
-		/* Read the length field (up to 16 bytes) */
-		len = hex2unsigned(buf + 1);
-
-		/* Read the target offset */
-		off = (hex2unsigned(buf + 3) * 0x0100) + hex2unsigned(buf + 5);
-
-		if ((off + len) > maxAddr)
-			maxAddr = off + len;
-
-		if (maxAddr >= FIRMWARE_MAX_LEN) {
-			printk(KERN_ERR "comedi_: usbduxfast: firmware upload "
-			       "goes beyond FX2 RAM boundaries.");
-			kfree(firmwareBinary);
-			return -EFAULT;
-		}
-		/* printk("comedi_: usbduxfast: off=%x, len=%x:",off,len); */
-
-		/* Read the record type */
-		type = hex2unsigned(buf + 7);
-
-		/* If this is an EOF record, then make it so. */
-		if (type == 1)
-			break;
-
-		if (type != 0) {
-			printk(KERN_ERR "comedi_: usbduxfast: unsupported "
-			       "record type: %u\n", type);
-			kfree(firmwareBinary);
-			return -EFAULT;
-		}
-
-		for (idx = 0, cp = buf + 9; idx < len; idx += 1, cp += 2) {
-			firmwareBinary[idx + off] = hex2unsigned(cp);
-			/* printk("%02x ",firmwareBinary[idx+off]); */
-		}
-
-		/* printk("\n"); */
-
-		if (i >= size) {
-			printk(KERN_ERR "comedi_: usbduxfast: unexpected end "
-			       "of hex file\n");
-			break;
-		}
-
+	/* we generate a local buffer for the firmware */
+	fwBuf = kzalloc(sizeFirmware, GFP_KERNEL);
+	if (!fwBuf) {
+		dev_err(&usbduxfastsub->interface->dev,
+			"comedi_: mem alloc for firmware failed\n");
+		return -ENOMEM;
 	}
-	res = firmwareUpload(udfs, firmwareBinary, maxAddr + 1);
-	kfree(firmwareBinary);
-	return res;
+	memcpy(fwBuf,firmwareBinary,sizeFirmware);
+
+	ret = usbduxfastsub_stop(usbduxfastsub);
+	if (ret < 0) {
+		dev_err(&usbduxfastsub->interface->dev,
+			"comedi_: can not stop firmware\n");
+		kfree(fwBuf);
+		return ret;
+	}
+
+	ret = usbduxfastsub_upload(usbduxfastsub, fwBuf, 0, sizeFirmware);
+	if (ret < 0) {
+		dev_err(&usbduxfastsub->interface->dev,
+			"comedi_: firmware upload failed\n");
+		kfree(fwBuf);
+		return ret;
+	}
+	ret = usbduxfastsub_start(usbduxfastsub);
+	if (ret < 0) {
+		dev_err(&usbduxfastsub->interface->dev,
+			"comedi_: can not start firmware\n");
+		kfree(fwBuf);
+		return ret;
+	}
+	kfree(fwBuf);
+	return 0;
 }
+
+
 
 static void tidy_up(struct usbduxfastsub_s *udfs)
 {
@@ -1544,7 +1447,7 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware *
 	 * we need to upload the firmware here because fw will be
 	 * freed once we've left this function
 	 */
-	ret = read_firmware(usbduxfastsub_tmp, fw->data, fw->size);
+	ret = firmwareUpload(usbduxfastsub_tmp, fw->data, fw->size);
 
 	if (ret) {
 		dev_err(&usbdev->dev,
@@ -1666,7 +1569,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 
 	ret = request_firmware_nowait(THIS_MODULE,
 				      FW_ACTION_HOTPLUG,
-				      "usbduxfast_firmware.hex",
+				      "usbduxfast_firmware.bin",
 				      &udev->dev,
 				      usbduxfastsub + index,
 				      usbduxfast_firmware_request_complete_handler);
@@ -1751,9 +1654,9 @@ static int usbduxfast_attach(struct comedi_device *dev, struct comedi_devconfig 
 	/* trying to upload the firmware into the chip */
 	if (comedi_aux_data(it->options, 0) &&
 	    it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		read_firmware(&usbduxfastsub[index],
-			      comedi_aux_data(it->options, 0),
-			      it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
+		firmwareUpload(&usbduxfastsub[index],
+			       comedi_aux_data(it->options, 0),
+			       it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
 	}
 
 	dev->board_name = BOARDNAME;

@@ -152,7 +152,7 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
  *
  * Returns: -ENOMEM if memory fails.
  */
-int __init_refok cpupri_init(struct cpupri *cp, bool bootmem)
+int cpupri_init(struct cpupri *cp, bool bootmem)
 {
 	gfp_t gfp = GFP_KERNEL;
 	int i;

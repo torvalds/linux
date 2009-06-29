@@ -339,7 +339,7 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 		 * to get longer filter period for better noise suppression.
 		 * The filter is iclk (fclk for HS) period.
 		 */
-		if (dev->speed > 400 || cpu_is_omap_2430())
+		if (dev->speed > 400 || cpu_is_omap2430())
 			internal_clk = 19200;
 		else if (dev->speed > 100)
 			internal_clk = 9600;
@@ -828,7 +828,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	dev->idle = 1;
 	dev->dev = &pdev->dev;
 	dev->irq = irq->start;
-	dev->base = ioremap(mem->start, mem->end - mem->start + 1);
+	dev->base = ioremap(mem->start, resource_size(mem));
 	if (!dev->base) {
 		r = -ENOMEM;
 		goto err_free_mem;

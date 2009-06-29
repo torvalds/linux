@@ -144,14 +144,12 @@ VOID	RTMPInitWepEngine(
 
 	pAd->PrivateInfo.FCSCRC32 = PPPINITFCS32;   //Init crc32.
 
-#ifdef CONFIG_STA_SUPPORT
     if (pAd->StaCfg.bCkipOn && (pAd->StaCfg.CkipFlag & 0x10) && (pAd->OpMode == OPMODE_STA))
     {
         ARCFOUR_INIT(&pAd->PrivateInfo.WEPCONTEXT, pKey, KeyLen);  //INIT SBOX, KEYLEN+3(IV)
         NdisMoveMemory(pDest, pKey, 3);  //Append Init Vector
     }
     else
-#endif // CONFIG_STA_SUPPORT //
     {
 		NdisMoveMemory(WEPKEY + 3, pKey, KeyLen);
 

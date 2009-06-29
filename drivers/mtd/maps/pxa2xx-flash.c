@@ -140,24 +140,6 @@ static int __devexit pxa2xx_flash_remove(struct platform_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int pxa2xx_flash_suspend(struct platform_device *dev, pm_message_t state)
-{
-	struct pxa2xx_flash_info *info = platform_get_drvdata(dev);
-	int ret = 0;
-
-	if (info->mtd && info->mtd->suspend)
-		ret = info->mtd->suspend(info->mtd);
-	return ret;
-}
-
-static int pxa2xx_flash_resume(struct platform_device *dev)
-{
-	struct pxa2xx_flash_info *info = platform_get_drvdata(dev);
-
-	if (info->mtd && info->mtd->resume)
-		info->mtd->resume(info->mtd);
-	return 0;
-}
 static void pxa2xx_flash_shutdown(struct platform_device *dev)
 {
 	struct pxa2xx_flash_info *info = platform_get_drvdata(dev);
@@ -166,8 +148,6 @@ static void pxa2xx_flash_shutdown(struct platform_device *dev)
 		info->mtd->resume(info->mtd);
 }
 #else
-#define pxa2xx_flash_suspend NULL
-#define pxa2xx_flash_resume NULL
 #define pxa2xx_flash_shutdown NULL
 #endif
 
@@ -178,8 +158,6 @@ static struct platform_driver pxa2xx_flash_driver = {
 	},
 	.probe		= pxa2xx_flash_probe,
 	.remove		= __devexit_p(pxa2xx_flash_remove),
-	.suspend	= pxa2xx_flash_suspend,
-	.resume		= pxa2xx_flash_resume,
 	.shutdown	= pxa2xx_flash_shutdown,
 };
 

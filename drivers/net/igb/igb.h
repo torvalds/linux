@@ -137,9 +137,15 @@ struct igb_buffer {
 	};
 };
 
-struct igb_queue_stats {
+struct igb_tx_queue_stats {
 	u64 packets;
 	u64 bytes;
+};
+
+struct igb_rx_queue_stats {
+	u64 packets;
+	u64 bytes;
+	u64 drops;
 };
 
 struct igb_ring {
@@ -167,12 +173,13 @@ struct igb_ring {
 	union {
 		/* TX */
 		struct {
-			struct igb_queue_stats tx_stats;
+			struct igb_tx_queue_stats tx_stats;
 			bool detect_tx_hung;
 		};
 		/* RX */
 		struct {
-			struct igb_queue_stats rx_stats;
+			struct igb_rx_queue_stats rx_stats;
+			u64 rx_queue_drops;
 			struct napi_struct napi;
 			int set_itr;
 			struct igb_ring *buddy;
@@ -238,7 +245,6 @@ struct igb_adapter {
 	u64 hw_csum_err;
 	u64 hw_csum_good;
 	u32 alloc_rx_buff_failed;
-	bool rx_csum;
 	u32 gorc;
 	u64 gorc_old;
 	u16 rx_ps_hdr_size;
@@ -286,6 +292,7 @@ struct igb_adapter {
 #define IGB_FLAG_DCA_ENABLED       (1 << 1)
 #define IGB_FLAG_QUAD_PORT_A       (1 << 2)
 #define IGB_FLAG_NEED_CTX_IDX      (1 << 3)
+#define IGB_FLAG_RX_CSUM_DISABLED  (1 << 4)
 
 enum e1000_state_t {
 	__IGB_TESTING,

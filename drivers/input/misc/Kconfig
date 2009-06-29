@@ -193,6 +193,16 @@ config INPUT_CM109
 	  To compile this driver as a module, choose M here: the module will be
 	  called cm109.
 
+config INPUT_TWL4030_PWRBUTTON
+	tristate "TWL4030 Power button Driver"
+	depends on TWL4030_CORE
+	help
+	  Say Y here if you want to enable power key reporting via the
+	  TWL4030 family of chips.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called twl4030_pwrbutton.
+
 config INPUT_UINPUT
 	tristate "User level driver support"
 	help
@@ -250,4 +260,13 @@ config INPUT_RB532_BUTTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called rb532_button.
 
+config INPUT_DM355EVM
+	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"
+	depends on MFD_DM355EVM_MSP
+	help
+	  Supports the pushbuttons and IR remote used with
+	  the DM355 EVM board.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dm355evm_keys.
 endif

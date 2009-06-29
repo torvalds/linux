@@ -660,23 +660,54 @@ static inline void set_le_key_k_type(int version, struct reiserfs_key *key,
 		   cpu_to_le32(type2uniqueness(type)))
 	    : (void)(set_offset_v2_k_type(&(key->u.k_offset_v2), type));
 }
+
 static inline void set_le_ih_k_type(struct item_head *ih, int type)
 {
 	set_le_key_k_type(ih_version(ih), &(ih->ih_key), type);
 }
 
-#define is_direntry_le_key(version,key) (le_key_k_type (version, key) == TYPE_DIRENTRY)
-#define is_direct_le_key(version,key) (le_key_k_type (version, key) == TYPE_DIRECT)
-#define is_indirect_le_key(version,key) (le_key_k_type (version, key) == TYPE_INDIRECT)
-#define is_statdata_le_key(version,key) (le_key_k_type (version, key) == TYPE_STAT_DATA)
+static inline int is_direntry_le_key(int version, struct reiserfs_key *key)
+{
+	return le_key_k_type(version, key) == TYPE_DIRENTRY;
+}
+
+static inline int is_direct_le_key(int version, struct reiserfs_key *key)
+{
+	return le_key_k_type(version, key) == TYPE_DIRECT;
+}
+
+static inline int is_indirect_le_key(int version, struct reiserfs_key *key)
+{
+	return le_key_k_type(version, key) == TYPE_INDIRECT;
+}
+
+static inline int is_statdata_le_key(int version, struct reiserfs_key *key)
+{
+	return le_key_k_type(version, key) == TYPE_STAT_DATA;
+}
 
 //
 // item header has version.
 //
-#define is_direntry_le_ih(ih) is_direntry_le_key (ih_version (ih), &((ih)->ih_key))
-#define is_direct_le_ih(ih) is_direct_le_key (ih_version (ih), &((ih)->ih_key))
-#define is_indirect_le_ih(ih) is_indirect_le_key (ih_version(ih), &((ih)->ih_key))
-#define is_statdata_le_ih(ih) is_statdata_le_key (ih_version (ih), &((ih)->ih_key))
+static inline int is_direntry_le_ih(struct item_head *ih)
+{
+	return is_direntry_le_key(ih_version(ih), &ih->ih_key);
+}
+
+static inline int is_direct_le_ih(struct item_head *ih)
+{
+	return is_direct_le_key(ih_version(ih), &ih->ih_key);
+}
+
+static inline int is_indirect_le_ih(struct item_head *ih)
+{
+	return is_indirect_le_key(ih_version(ih), &ih->ih_key);
+}
+
+static inline int is_statdata_le_ih(struct item_head *ih)
+{
+	return is_statdata_le_key(ih_version(ih), &ih->ih_key);
+}
 
 //
 // key is pointer to cpu key, result is cpu

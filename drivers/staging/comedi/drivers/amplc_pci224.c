@@ -103,6 +103,8 @@ Caveats:
      correctly.
 */
 
+#include <linux/interrupt.h>
+
 #include "../comedidev.h"
 
 #include "comedi_pci.h"
@@ -356,23 +358,23 @@ struct pci224_board {
 
 static const struct pci224_board pci224_boards[] = {
 	{
-	      name:	"pci224",
-	      devid: PCI_DEVICE_ID_AMPLICON_PCI224,
-	      model:	pci224_model,
-	      ao_chans:16,
-	      ao_bits:	12,
+	.name = "pci224",
+	.devid = PCI_DEVICE_ID_AMPLICON_PCI224,
+	.model = pci224_model,
+	.ao_chans = 16,
+	.ao_bits = 12,
 		},
 	{
-	      name:	"pci234",
-	      devid: PCI_DEVICE_ID_AMPLICON_PCI234,
-	      model:	pci234_model,
-	      ao_chans:4,
-	      ao_bits:	16,
+	.name = "pci234",
+	.devid = PCI_DEVICE_ID_AMPLICON_PCI234,
+	.model = pci234_model,
+	.ao_chans = 4,
+	.ao_bits = 16,
 		},
 	{
-	      name:	DRIVER_NAME,
-	      devid: PCI_DEVICE_ID_INVALID,
-	      model:	any_model,	/* wildcard */
+	.name = DRIVER_NAME,
+	.devid = PCI_DEVICE_ID_INVALID,
+	.model = any_model,	/* wildcard */
 		},
 };
 
@@ -426,16 +428,16 @@ struct pci224_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pci224_detach(struct comedi_device * dev);
+static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pci224_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_pci224 = {
-      driver_name:DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pci224_attach,
-      detach:pci224_detach,
-      board_name:&pci224_boards[0].name,
-      offset:sizeof(struct pci224_board),
-      num_names:sizeof(pci224_boards) / sizeof(struct pci224_board),
+	.driver_name = DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = pci224_attach,
+	.detach = pci224_detach,
+	.board_name = &pci224_boards[0].name,
+	.offset = sizeof(struct pci224_board),
+	.num_names = ARRAY_SIZE(pci224_boards),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci224, pci224_pci_table);
@@ -444,7 +446,7 @@ COMEDI_PCI_INITCLEANUP(driver_amplc_pci224, pci224_pci_table);
  * Called from the 'insn_write' function to perform a single write.
  */
 static void
-pci224_ao_set_data(struct comedi_device * dev, int chan, int range, unsigned int data)
+pci224_ao_set_data(struct comedi_device *dev, int chan, int range, unsigned int data)
 {
 	unsigned short mangled;
 
@@ -477,8 +479,8 @@ pci224_ao_set_data(struct comedi_device * dev, int chan, int range, unsigned int
  * 'insn_write' function for AO subdevice.
  */
 static int
-pci224_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+pci224_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan, range;
@@ -504,8 +506,8 @@ pci224_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
  * command.
  */
 static int
-pci224_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+pci224_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan;
@@ -532,7 +534,7 @@ pci224_cascade_ns_to_timer(int osc_base, unsigned int *d1, unsigned int *d2,
 /*
  * Kills a command running on the AO subdevice.
  */
-static void pci224_ao_stop(struct comedi_device * dev, struct comedi_subdevice * s)
+static void pci224_ao_stop(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned long flags;
 
@@ -540,7 +542,7 @@ static void pci224_ao_stop(struct comedi_device * dev, struct comedi_subdevice *
 		return;
 	}
 
-	comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+	spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 	/* Kill the interrupts. */
 	devpriv->intsce = 0;
 	outb(0, devpriv->iobase1 + PCI224_INT_SCE);
@@ -556,10 +558,10 @@ static void pci224_ao_stop(struct comedi_device * dev, struct comedi_subdevice *
 	 * routine.
 	 */
 	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+	spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 	/* Reconfigure DAC for insn_write usage. */
 	outw(0, dev->iobase + PCI224_DACCEN);	/* Disable channels. */
 	devpriv->daccon = COMBINE(devpriv->daccon,
@@ -572,7 +574,7 @@ static void pci224_ao_stop(struct comedi_device * dev, struct comedi_subdevice *
 /*
  * Handles start of acquisition for the AO subdevice.
  */
-static void pci224_ao_start(struct comedi_device * dev, struct comedi_subdevice * s)
+static void pci224_ao_start(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long flags;
@@ -585,21 +587,21 @@ static void pci224_ao_start(struct comedi_device * dev, struct comedi_subdevice 
 		comedi_event(dev, s);
 	} else {
 		/* Enable interrupts. */
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		if (cmd->stop_src == TRIG_EXT) {
 			devpriv->intsce = PCI224_INTR_EXT | PCI224_INTR_DAC;
 		} else {
 			devpriv->intsce = PCI224_INTR_DAC;
 		}
 		outb(devpriv->intsce, devpriv->iobase1 + PCI224_INT_SCE);
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 	}
 }
 
 /*
  * Handles interrupts from the DAC FIFO.
  */
-static void pci224_ao_handle_fifo(struct comedi_device * dev, struct comedi_subdevice * s)
+static void pci224_ao_handle_fifo(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int num_scans;
@@ -653,7 +655,7 @@ static void pci224_ao_handle_fifo(struct comedi_device * dev, struct comedi_subd
 			/* Nothing left to put in the FIFO. */
 			pci224_ao_stop(dev, s);
 			s->async->events |= COMEDI_CB_OVERFLOW;
-			rt_printk(KERN_ERR "comedi%d: "
+			printk(KERN_ERR "comedi%d: "
 				"AO buffer underrun\n", dev->minor);
 		}
 	}
@@ -728,7 +730,7 @@ static void pci224_ao_handle_fifo(struct comedi_device * dev, struct comedi_subd
  * Internal trigger function to start acquisition on AO subdevice.
  */
 static int
-pci224_ao_inttrig_start(struct comedi_device * dev, struct comedi_subdevice * s,
+pci224_ao_inttrig_start(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum)
 {
 	if (trignum != 0)
@@ -748,7 +750,7 @@ pci224_ao_inttrig_start(struct comedi_device * dev, struct comedi_subdevice * s,
  * 'do_cmdtest' function for AO subdevice.
  */
 static int
-pci224_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, struct comedi_cmd * cmd)
+pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	int err = 0;
 	unsigned int tmp;
@@ -1015,7 +1017,7 @@ pci224_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s, struc
 /*
  * 'do_cmd' function for AO subdevice.
  */
-static int pci224_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int range;
@@ -1153,16 +1155,16 @@ static int pci224_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 	 */
 	switch (cmd->start_src) {
 	case TRIG_INT:
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		s->async->inttrig = &pci224_ao_inttrig_start;
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 		break;
 	case TRIG_EXT:
 		/* Enable external interrupt trigger to start acquisition. */
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		devpriv->intsce |= PCI224_INTR_EXT;
 		outb(devpriv->intsce, devpriv->iobase1 + PCI224_INT_SCE);
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 		break;
 	}
 
@@ -1172,7 +1174,7 @@ static int pci224_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 /*
  * 'cancel' function for AO subdevice.
  */
-static int pci224_ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int pci224_ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	pci224_ao_stop(dev, s);
 	return 0;
@@ -1182,7 +1184,7 @@ static int pci224_ao_cancel(struct comedi_device * dev, struct comedi_subdevice 
  * 'munge' data for AO command.
  */
 static void
-pci224_ao_munge(struct comedi_device * dev, struct comedi_subdevice * s, void *data,
+pci224_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s, void *data,
 	unsigned int num_bytes, unsigned int chan_index)
 {
 	struct comedi_async *async = s->async;
@@ -1212,7 +1214,7 @@ pci224_ao_munge(struct comedi_device * dev, struct comedi_subdevice * s, void *d
 /*
  * Interrupt handler.
  */
-static irqreturn_t pci224_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t pci224_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = &dev->subdevices[0];
@@ -1225,14 +1227,14 @@ static irqreturn_t pci224_interrupt(int irq, void *d PT_REGS_ARG)
 	intstat = inb(devpriv->iobase1 + PCI224_INT_SCE) & 0x3F;
 	if (intstat) {
 		retval = 1;
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		valid_intstat = devpriv->intsce & intstat;
 		/* Temporarily disable interrupt sources. */
 		curenab = devpriv->intsce & ~intstat;
 		outb(curenab, devpriv->iobase1 + PCI224_INT_SCE);
 		devpriv->intr_running = 1;
 		devpriv->intr_cpuid = THISCPU;
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 		if (valid_intstat != 0) {
 			cmd = &s->async->cmd;
 			if (valid_intstat & PCI224_INTR_EXT) {
@@ -1248,13 +1250,13 @@ static irqreturn_t pci224_interrupt(int irq, void *d PT_REGS_ARG)
 			}
 		}
 		/* Reenable interrupt sources. */
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		if (curenab != devpriv->intsce) {
 			outb(devpriv->intsce,
 				devpriv->iobase1 + PCI224_INT_SCE);
 		}
 		devpriv->intr_running = 0;
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 	}
 	return IRQ_RETVAL(retval);
 }
@@ -1264,7 +1266,7 @@ static irqreturn_t pci224_interrupt(int irq, void *d PT_REGS_ARG)
  * bus and slot.
  */
 static int
-pci224_find_pci(struct comedi_device * dev, int bus, int slot,
+pci224_find_pci(struct comedi_device *dev, int bus, int slot,
 	struct pci_dev **pci_dev_p)
 {
 	struct pci_dev *pci_dev = NULL;
@@ -1323,7 +1325,7 @@ pci224_find_pci(struct comedi_device * dev, int bus, int slot,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	struct pci_dev *pci_dev;
@@ -1336,16 +1338,20 @@ static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * i
 
 	bus = it->options[0];
 	slot = it->options[1];
-	if ((ret = alloc_private(dev, sizeof(struct pci224_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct pci224_private));
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
 	}
-	if ((ret = pci224_find_pci(dev, bus, slot, &pci_dev)) < 0)
-		return ret;
-	devpriv->pci_dev = pci_dev;
 
-	if ((ret = comedi_pci_enable(pci_dev, DRIVER_NAME)) < 0) {
+	ret = pci224_find_pci(dev, bus, slot, &pci_dev);
+	if (ret < 0)
+		return ret;
+
+	devpriv->pci_dev = pci_dev;
+	ret = comedi_pci_enable(pci_dev, DRIVER_NAME);
+	if (ret < 0) {
 		printk(KERN_ERR
 			"comedi%d: error! cannot enable PCI device "
 			"and request regions!\n", dev->minor);
@@ -1392,7 +1398,8 @@ static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * i
 		dev->iobase + PCI224_DACCON);
 
 	/* Allocate subdevices.  There is only one!  */
-	if ((ret = alloc_subdevices(dev, 1)) < 0) {
+	ret = alloc_subdevices(dev, 1);
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
@@ -1471,8 +1478,8 @@ static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	dev->board_name = thisboard->name;
 
 	if (irq) {
-		ret = comedi_request_irq(irq, pci224_interrupt, IRQF_SHARED,
-			DRIVER_NAME, dev);
+		ret = request_irq(irq, pci224_interrupt, IRQF_SHARED,
+				  DRIVER_NAME, dev);
 		if (ret < 0) {
 			printk(KERN_ERR "comedi%d: error! "
 				"unable to allocate irq %u\n", dev->minor, irq);
@@ -1503,12 +1510,12 @@ static int pci224_attach(struct comedi_device * dev, struct comedi_devconfig * i
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pci224_detach(struct comedi_device * dev)
+static int pci224_detach(struct comedi_device *dev)
 {
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor, DRIVER_NAME);
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->subdevices) {
 		struct comedi_subdevice *s;

@@ -128,6 +128,23 @@ int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *))
 	return 0;
 }
 
+/**
+ * tick_check_oneshot_mode - check whether the system is in oneshot mode
+ *
+ * returns 1 when either nohz or highres are enabled. otherwise 0.
+ */
+int tick_oneshot_mode_active(void)
+{
+	unsigned long flags;
+	int ret;
+
+	local_irq_save(flags);
+	ret = __get_cpu_var(tick_cpu_device).mode == TICKDEV_MODE_ONESHOT;
+	local_irq_restore(flags);
+
+	return ret;
+}
+
 #ifdef CONFIG_HIGH_RES_TIMERS
 /**
  * tick_init_highres - switch to high resolution mode

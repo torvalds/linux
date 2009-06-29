@@ -100,8 +100,18 @@
 		};
 
 		board-control@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			compatible = "fsl,fpga-pixis";
 			reg = <3 0 0x20>;
+			ranges = <0 3 0 0x20>;
+
+			sdcsr_pio: gpio-controller@a {
+				#gpio-cells = <2>;
+				compatible = "fsl,fpga-pixis-gpio-bank";
+				reg = <0xa 1>;
+				gpio-controller;
+			};
 		};
 	};
 
@@ -112,8 +122,20 @@
 		device_type = "soc";
 		compatible = "fsl,mpc8610-immr", "simple-bus";
 		ranges = <0x0 0xe0000000 0x00100000>;
-		reg = <0xe0000000 0x1000>;
 		bus-frequency = <0>;
+
+		mcm-law@0 {
+			compatible = "fsl,mcm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <10>;
+		};
+
+		mcm@1000 {
+			compatible = "fsl,mpc8610-mcm", "fsl,mcm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
 
 		i2c@3000 {
 			#address-cells = <1>;
@@ -162,6 +184,28 @@
 			clock-frequency = <0>;
 			interrupts = <42 2>;
 			interrupt-parent = <&mpic>;
+		};
+
+		spi@7000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc8610-spi", "fsl,spi";
+			reg = <0x7000 0x40>;
+			cell-index = <0>;
+			interrupts = <59 2>;
+			interrupt-parent = <&mpic>;
+			mode = "cpu";
+			gpios = <&sdcsr_pio 7 0>;
+
+			mmc-slot@0 {
+				compatible = "fsl,mpc8610hpcd-mmc-slot",
+					     "mmc-spi-slot";
+				reg = <0>;
+				gpios = <&sdcsr_pio 0 1   /* nCD */
+					 &sdcsr_pio 1 0>; /*  WP */
+				voltage-ranges = <3300 3300>;
+				spi-max-frequency = <50000000>;
+			};
 		};
 
 		display@2c000 {
@@ -316,7 +360,6 @@
 	};
 
 	pci0: pci@e0008000 {
-		cell-index = <0>;
 		compatible = "fsl,mpc8610-pci";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -346,7 +389,6 @@
 	};
 
 	pci1: pcie@e000a000 {
-		cell-index = <1>;
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;

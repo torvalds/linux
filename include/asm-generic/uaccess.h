@@ -163,7 +163,7 @@ static inline __must_check long __copy_to_user(void __user *to,
 #define put_user(x, ptr)					\
 ({								\
 	might_sleep();						\
-	__access_ok(ptr, sizeof (*ptr)) ?			\
+	access_ok(VERIFY_WRITE, ptr, sizeof(*ptr)) ?		\
 		__put_user(x, ptr) :				\
 		-EFAULT;					\
 })
@@ -219,7 +219,7 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 #define get_user(x, ptr)					\
 ({								\
 	might_sleep();						\
-	__access_ok(ptr, sizeof (*ptr)) ?			\
+	access_ok(VERIFY_READ, ptr, sizeof(*ptr)) ?		\
 		__get_user(x, ptr) :				\
 		-EFAULT;					\
 })
@@ -244,7 +244,7 @@ static inline long copy_from_user(void *to,
 		const void __user * from, unsigned long n)
 {
 	might_sleep();
-	if (__access_ok(from, n))
+	if (access_ok(VERIFY_READ, from, n))
 		return __copy_from_user(to, from, n);
 	else
 		return n;
@@ -254,7 +254,7 @@ static inline long copy_to_user(void __user *to,
 		const void *from, unsigned long n)
 {
 	might_sleep();
-	if (__access_ok(to, n))
+	if (access_ok(VERIFY_WRITE, to, n))
 		return __copy_to_user(to, from, n);
 	else
 		return n;
@@ -278,7 +278,7 @@ __strncpy_from_user(char *dst, const char __user *src, long count)
 static inline long
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
-	if (!__access_ok(src, 1))
+	if (!access_ok(VERIFY_READ, src, 1))
 		return -EFAULT;
 	return __strncpy_from_user(dst, src, count);
 }
@@ -291,6 +291,8 @@ strncpy_from_user(char *dst, const char __user *src, long count)
 #ifndef strnlen_user
 static inline long strnlen_user(const char __user *src, long n)
 {
+	if (!access_ok(VERIFY_READ, src, 1))
+		return 0;
 	return strlen((void * __force)src) + 1;
 }
 #endif
@@ -316,7 +318,7 @@ static inline __must_check unsigned long
 clear_user(void __user *to, unsigned long n)
 {
 	might_sleep();
-	if (!__access_ok(to, n))
+	if (!access_ok(VERIFY_WRITE, to, n))
 		return n;
 
 	return __clear_user(to, n);

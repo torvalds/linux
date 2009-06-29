@@ -40,7 +40,7 @@ Configuration options:
 
 #undef DPRINTK
 #ifdef PCI_DIO_EXTDEBUG
-#define DPRINTK(fmt, args...) rt_printk(fmt, ## args)
+#define DPRINTK(fmt, args...) printk(fmt, ## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif
@@ -183,8 +183,8 @@ enum hw_io_access {
 
 #define OMBCMD_RETRY	0x03	/* 3 times try request before error */
 
-static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pci_dio_detach(struct comedi_device * dev);
+static int pci_dio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pci_dio_detach(struct comedi_device *dev);
 
 struct diosubd_data {
 	int chans;		/*  num of chans */
@@ -323,10 +323,10 @@ static const struct dio_boardtype boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct dio_boardtype))
 
 static struct comedi_driver driver_pci_dio = {
-      driver_name:"adv_pci_dio",
-      module:THIS_MODULE,
-      attach:pci_dio_attach,
-      detach:pci_dio_detach
+	.driver_name = "adv_pci_dio",
+	.module = THIS_MODULE,
+	.attach = pci_dio_attach,
+	.detach = pci_dio_detach
 };
 
 struct pci_dio_private {
@@ -357,8 +357,8 @@ static struct pci_dio_private *pci_priv = NULL;	/* list of allocated cards */
 /*
 ==============================================================================
 */
-static int pci_dio_insn_bits_di_b(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci_dio_insn_bits_di_b(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
 	int i;
@@ -374,8 +374,8 @@ static int pci_dio_insn_bits_di_b(struct comedi_device * dev, struct comedi_subd
 /*
 ==============================================================================
 */
-static int pci_dio_insn_bits_di_w(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci_dio_insn_bits_di_w(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
 	int i;
@@ -390,8 +390,8 @@ static int pci_dio_insn_bits_di_w(struct comedi_device * dev, struct comedi_subd
 /*
 ==============================================================================
 */
-static int pci_dio_insn_bits_do_b(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci_dio_insn_bits_do_b(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
 	int i;
@@ -411,8 +411,8 @@ static int pci_dio_insn_bits_do_b(struct comedi_device * dev, struct comedi_subd
 /*
 ==============================================================================
 */
-static int pci_dio_insn_bits_do_w(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci_dio_insn_bits_do_w(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	const struct diosubd_data *d = (const struct diosubd_data *)s->private;
 	int i;
@@ -432,7 +432,7 @@ static int pci_dio_insn_bits_do_w(struct comedi_device * dev, struct comedi_subd
 /*
 ==============================================================================
 */
-static int pci1760_unchecked_mbxrequest(struct comedi_device * dev,
+static int pci1760_unchecked_mbxrequest(struct comedi_device *dev,
 	unsigned char *omb, unsigned char *imb, int repeats)
 {
 	int cnt, tout, ok = 0;
@@ -443,14 +443,15 @@ static int pci1760_unchecked_mbxrequest(struct comedi_device * dev,
 		outb(omb[2], dev->iobase + OMB2);
 		outb(omb[3], dev->iobase + OMB3);
 		for (tout = 0; tout < 251; tout++) {
-			if ((imb[2] = inb(dev->iobase + IMB2)) == omb[2]) {
+			imb[2] = inb(dev->iobase + IMB2);
+			if (imb[2] == omb[2]) {
 				imb[0] = inb(dev->iobase + IMB0);
 				imb[1] = inb(dev->iobase + IMB1);
 				imb[3] = inb(dev->iobase + IMB3);
 				ok = 1;
 				break;
 			}
-			comedi_udelay(1);
+			udelay(1);
 		}
 		if (ok)
 			return 0;
@@ -460,7 +461,7 @@ static int pci1760_unchecked_mbxrequest(struct comedi_device * dev,
 	return -ETIME;
 }
 
-static int pci1760_clear_imb2(struct comedi_device * dev)
+static int pci1760_clear_imb2(struct comedi_device *dev)
 {
 	unsigned char omb[4] = { 0x0, 0x0, CMD_ClearIMB2, 0x0 };
 	unsigned char imb[4];
@@ -470,7 +471,7 @@ static int pci1760_clear_imb2(struct comedi_device * dev)
 	return pci1760_unchecked_mbxrequest(dev, omb, imb, OMBCMD_RETRY);
 }
 
-static int pci1760_mbxrequest(struct comedi_device * dev,
+static int pci1760_mbxrequest(struct comedi_device *dev,
 	unsigned char *omb, unsigned char *imb)
 {
 	if (omb[2] == CMD_ClearIMB2) {
@@ -490,8 +491,8 @@ static int pci1760_mbxrequest(struct comedi_device * dev,
 /*
 ==============================================================================
 */
-static int pci1760_insn_bits_di(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci1760_insn_bits_di(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	data[1] = inb(dev->iobase + IMB3);
 
@@ -501,8 +502,8 @@ static int pci1760_insn_bits_di(struct comedi_device * dev, struct comedi_subdev
 /*
 ==============================================================================
 */
-static int pci1760_insn_bits_do(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci1760_insn_bits_do(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int ret;
 	unsigned char omb[4] = {
@@ -517,7 +518,8 @@ static int pci1760_insn_bits_do(struct comedi_device * dev, struct comedi_subdev
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
 		omb[0] = s->state;
-		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+		ret = pci1760_mbxrequest(dev, omb, imb);
+		if (!ret)
 			return ret;
 	}
 	data[1] = s->state;
@@ -528,8 +530,8 @@ static int pci1760_insn_bits_do(struct comedi_device * dev, struct comedi_subdev
 /*
 ==============================================================================
 */
-static int pci1760_insn_cnt_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci1760_insn_cnt_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int ret, n;
 	unsigned char omb[4] = {
@@ -541,7 +543,8 @@ static int pci1760_insn_cnt_read(struct comedi_device * dev, struct comedi_subde
 	unsigned char imb[4];
 
 	for (n = 0; n < insn->n; n++) {
-		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+		ret = pci1760_mbxrequest(dev, omb, imb);
+		if (!ret)
 			return ret;
 		data[n] = (imb[1] << 8) + imb[0];
 	}
@@ -552,8 +555,8 @@ static int pci1760_insn_cnt_read(struct comedi_device * dev, struct comedi_subde
 /*
 ==============================================================================
 */
-static int pci1760_insn_cnt_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci1760_insn_cnt_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int ret;
 	unsigned char chan = CR_CHAN(insn->chanspec) & 0x07;
@@ -567,20 +570,23 @@ static int pci1760_insn_cnt_write(struct comedi_device * dev, struct comedi_subd
 	unsigned char imb[4];
 
 	if (devpriv->CntResValue[chan] != (data[0] & 0xffff)) {	/*  Set reset value if different */
-		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+		ret =  pci1760_mbxrequest(dev, omb, imb);
+		if (!ret)
 			return ret;
 		devpriv->CntResValue[chan] = data[0] & 0xffff;
 	}
 
 	omb[0] = bitmask;	/*  reset counter to it reset value */
 	omb[2] = CMD_ResetIDICounters;
-	if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+	ret = pci1760_mbxrequest(dev, omb, imb);
+	if (!ret)
 		return ret;
 
 	if (!(bitmask & devpriv->IDICntEnable)) {	/*  start counter if it don't run */
 		omb[0] = bitmask;
 		omb[2] = CMD_EnableIDICounters;
-		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+		ret = pci1760_mbxrequest(dev, omb, imb);
+		if (!ret)
 			return ret;
 		devpriv->IDICntEnable |= bitmask;
 	}
@@ -590,7 +596,7 @@ static int pci1760_insn_cnt_write(struct comedi_device * dev, struct comedi_subd
 /*
 ==============================================================================
 */
-static int pci1760_reset(struct comedi_device * dev)
+static int pci1760_reset(struct comedi_device *dev)
 {
 	int i;
 	unsigned char omb[4] = { 0x00, 0x00, 0x00, 0x00 };
@@ -667,7 +673,7 @@ static int pci1760_reset(struct comedi_device * dev)
 /*
 ==============================================================================
 */
-static int pci_dio_reset(struct comedi_device * dev)
+static int pci_dio_reset(struct comedi_device *dev)
 {
 	DPRINTK("adv_pci_dio EDBG: BGN: pci171x_reset(...)\n");
 
@@ -750,7 +756,7 @@ static int pci_dio_reset(struct comedi_device * dev)
 /*
 ==============================================================================
 */
-static int pci1760_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pci1760_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int subdev = 0;
@@ -802,8 +808,8 @@ static int pci1760_attach(struct comedi_device * dev, struct comedi_devconfig * 
 /*
 ==============================================================================
 */
-static int pci_dio_add_di(struct comedi_device * dev, struct comedi_subdevice * s,
-	const struct diosubd_data * d, int subdev)
+static int pci_dio_add_di(struct comedi_device *dev, struct comedi_subdevice *s,
+	const struct diosubd_data *d, int subdev)
 {
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | d->specflags;
@@ -829,8 +835,8 @@ static int pci_dio_add_di(struct comedi_device * dev, struct comedi_subdevice * 
 /*
 ==============================================================================
 */
-static int pci_dio_add_do(struct comedi_device * dev, struct comedi_subdevice * s,
-	const struct diosubd_data * d, int subdev)
+static int pci_dio_add_do(struct comedi_device *dev, struct comedi_subdevice *s,
+	const struct diosubd_data *d, int subdev)
 {
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
@@ -857,7 +863,7 @@ static int pci_dio_add_do(struct comedi_device * dev, struct comedi_subdevice * 
 /*
 ==============================================================================
 */
-static int CheckAndAllocCard(struct comedi_device * dev, struct comedi_devconfig * it,
+static int CheckAndAllocCard(struct comedi_device *dev, struct comedi_devconfig *it,
 	struct pci_dev *pcidev)
 {
 	struct pci_dio_private *pr, *prev;
@@ -883,17 +889,18 @@ static int CheckAndAllocCard(struct comedi_device * dev, struct comedi_devconfig
 /*
 ==============================================================================
 */
-static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pci_dio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices, i, j;
 	unsigned long iobase;
 	struct pci_dev *pcidev;
 
-	rt_printk("comedi%d: adv_pci_dio: ", dev->minor);
+	printk("comedi%d: adv_pci_dio: ", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(struct pci_dio_private))) < 0) {
-		rt_printk(", Error: Cann't allocate private memory!\n");
+	ret = alloc_private(dev, sizeof(struct pci_dio_private));
+	if (ret < 0) {
+		printk(", Error: Cann't allocate private memory!\n");
 		return -ENOMEM;
 	}
 
@@ -925,18 +932,18 @@ static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	}
 
 	if (!dev->board_ptr) {
-		rt_printk
+		printk
 			(", Error: Requested type of the card was not found!\n");
 		return -EIO;
 	}
 
 	if (comedi_pci_enable(pcidev, driver_pci_dio.driver_name)) {
-		rt_printk
+		printk
 			(", Error: Can't enable PCI device and request regions!\n");
 		return -EIO;
 	}
 	iobase = pci_resource_start(pcidev, this_board->main_pci_region);
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx",
+	printk(", b:s:f=%d:%d:%d, io=0x%4lx",
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn),
 		PCI_FUNC(pcidev->devfn), iobase);
 
@@ -959,12 +966,13 @@ static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * 
 			n_subdevices++;
 	}
 
-	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
-		rt_printk(", Error: Cann't allocate subdevice memory!\n");
+	ret = alloc_subdevices(dev, n_subdevices);
+	if (ret < 0) {
+		printk(", Error: Cann't allocate subdevice memory!\n");
 		return ret;
 	}
 
-	rt_printk(".\n");
+	printk(".\n");
 
 	subdev = 0;
 
@@ -1011,7 +1019,7 @@ static int pci_dio_attach(struct comedi_device * dev, struct comedi_devconfig * 
 /*
 ==============================================================================
 */
-static int pci_dio_detach(struct comedi_device * dev)
+static int pci_dio_detach(struct comedi_device *dev)
 {
 	int i, j;
 	struct comedi_subdevice *s;

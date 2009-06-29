@@ -1241,7 +1241,7 @@ endmenu
 
 menu "CPU Power Management"
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_PXA)
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_PXA || ARCH_S3C64XX)
 
 source "drivers/cpufreq/Kconfig"
 
@@ -1271,6 +1271,10 @@ config CPU_FREQ_PXA
 	depends on CPU_FREQ && ARCH_PXA && PXA25x
 	default y
 	select CPU_FREQ_DEFAULT_GOV_USERSPACE
+
+config CPU_FREQ_S3C64XX
+	bool "CPUfreq support for Samsung S3C64XX CPUs"
+	depends on CPU_FREQ && CPU_S3C6410
 
 endif
 

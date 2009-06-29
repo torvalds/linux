@@ -46,6 +46,7 @@ int main(int argc,char **argv)
 	struct stat s;
 	int image, tail;
 	
+	start = end = 0;
 	if (stat (argv[3], &s) < 0) die (argv[3]);
 	map = fopen (argv[2], "r");
 	if (!map) die(argv[2]);

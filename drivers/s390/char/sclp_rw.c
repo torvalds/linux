@@ -1,11 +1,10 @@
 /*
- *  drivers/s390/char/sclp_rw.c
- *     driver: reading from and writing to system console on S/390 via SCLP
+ * driver: reading from and writing to system console on S/390 via SCLP
  *
- *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
- *    Author(s): Martin Peschke <mpeschke@de.ibm.com>
- *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
+ * Copyright IBM Corp. 1999, 2009
+ *
+ * Author(s): Martin Peschke <mpeschke@de.ibm.com>
+ *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #include <linux/kmod.h>
@@ -26,9 +25,16 @@
  */
 #define MAX_SCCB_ROOM (PAGE_SIZE - sizeof(struct sclp_buffer))
 
+static void sclp_rw_pm_event(struct sclp_register *reg,
+			     enum sclp_pm_event sclp_pm_event)
+{
+	sclp_console_pm_event(sclp_pm_event);
+}
+
 /* Event type structure for write message and write priority message */
 static struct sclp_register sclp_rw_event = {
-	.send_mask = EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK
+	.send_mask = EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK,
+	.pm_event_fn = sclp_rw_pm_event,
 };
 
 /*

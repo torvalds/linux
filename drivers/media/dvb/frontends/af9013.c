@@ -1455,7 +1455,7 @@ static int af9013_download_firmware(struct af9013_state *state)
 		af9013_ops.info.name);
 
 	/* request the firmware, this will block and timeout */
-	ret = request_firmware(&fw, fw_file,  &state->i2c->dev);
+	ret = request_firmware(&fw, fw_file, state->i2c->dev.parent);
 	if (ret) {
 		err("did not find the firmware file. (%s) "
 			"Please see linux/Documentation/dvb/ for more details" \

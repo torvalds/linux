@@ -85,9 +85,8 @@ int drm_rmdraw(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 		return -EINVAL;
 	}
-	drm_free(info->rects, info->num_rects * sizeof(struct drm_clip_rect),
-			DRM_MEM_BUFS);
-	drm_free(info, sizeof(struct drm_drawable_info), DRM_MEM_BUFS);
+	kfree(info->rects);
+	kfree(info);
 
 	idr_remove(&dev->drw_idr, draw->handle);
 
@@ -106,12 +105,12 @@ int drm_update_drawable_info(struct drm_device *dev, void *data, struct drm_file
 
 	info = idr_find(&dev->drw_idr, update->handle);
 	if (!info) {
-		info = drm_calloc(1, sizeof(*info), DRM_MEM_BUFS);
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
 		if (IS_ERR(idr_replace(&dev->drw_idr, info, update->handle))) {
 			DRM_ERROR("No such drawable %d\n", update->handle);
-			drm_free(info, sizeof(*info), DRM_MEM_BUFS);
+			kfree(info);
 			return -EINVAL;
 		}
 	}
@@ -121,8 +120,9 @@ int drm_update_drawable_info(struct drm_device *dev, void *data, struct drm_file
 		if (update->num == 0)
 			rects = NULL;
 		else if (update->num != info->num_rects) {
-			rects = drm_alloc(update->num * sizeof(struct drm_clip_rect),
-					 DRM_MEM_BUFS);
+			rects = kmalloc(update->num *
+					sizeof(struct drm_clip_rect),
+					GFP_KERNEL);
 		} else
 			rects = info->rects;
 
@@ -145,8 +145,7 @@ int drm_update_drawable_info(struct drm_device *dev, void *data, struct drm_file
 		spin_lock_irqsave(&dev->drw_lock, irqflags);
 
 		if (rects != info->rects) {
-			drm_free(info->rects, info->num_rects *
-				 sizeof(struct drm_clip_rect), DRM_MEM_BUFS);
+			kfree(info->rects);
 		}
 
 		info->rects = rects;
@@ -166,8 +165,7 @@ int drm_update_drawable_info(struct drm_device *dev, void *data, struct drm_file
 
 error:
 	if (rects != info->rects)
-		drm_free(rects, update->num * sizeof(struct drm_clip_rect),
-			 DRM_MEM_BUFS);
+		kfree(rects);
 
 	return err;
 }
@@ -186,9 +184,8 @@ static int drm_drawable_free(int idr, void *p, void *data)
 	struct drm_drawable_info *info = p;
 
 	if (info) {
-		drm_free(info->rects, info->num_rects *
-			 sizeof(struct drm_clip_rect), DRM_MEM_BUFS);
-		drm_free(info, sizeof(*info), DRM_MEM_BUFS);
+		kfree(info->rects);
+		kfree(info);
 	}
 
 	return 0;

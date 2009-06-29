@@ -4495,7 +4495,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb, int ifindex,
 	 * when the packet is on it's final way out.
 	 * NOTE: there appear to be some IPv6 multicast cases where skb->dst
 	 *       is NULL, in this case go ahead and apply access control. */
-	if (skb->dst != NULL && skb->dst->xfrm != NULL)
+	if (skb_dst(skb) != NULL && skb_dst(skb)->xfrm != NULL)
 		return NF_ACCEPT;
 #endif
 	secmark_active = selinux_secmark_enabled();

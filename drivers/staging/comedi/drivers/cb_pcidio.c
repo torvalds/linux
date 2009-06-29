@@ -53,32 +53,32 @@ Passing a zero for an option is the same as leaving it unspecified.
  * Some drivers use arrays such as this, other do not.
  */
 struct pcidio_board {
-	const char *name;	// anme of the board
-	int n_8255;		// number of 8255 chips on board
+	const char *name;	/*  anme of the board */
+	int n_8255;		/*  number of 8255 chips on board */
 
-	// indices of base address regions
+	/*  indices of base address regions */
 	int pcicontroler_badrindex;
 	int dioregs_badrindex;
 };
 
 static const struct pcidio_board pcidio_boards[] = {
 	{
-	      name:	"pci-dio24",
-	      n_8255:	1,
-	      pcicontroler_badrindex:1,
-	      dioregs_badrindex:2,
+	.name = "pci-dio24",
+	.n_8255 = 1,
+	.pcicontroler_badrindex = 1,
+	.dioregs_badrindex = 2,
 		},
 	{
-	      name:	"pci-dio24h",
-	      n_8255:	1,
-	      pcicontroler_badrindex:1,
-	      dioregs_badrindex:2,
+	.name = "pci-dio24h",
+	.n_8255 = 1,
+	.pcicontroler_badrindex = 1,
+	.dioregs_badrindex = 2,
 		},
 	{
-	      name:	"pci-dio48h",
-	      n_8255:	2,
-	      pcicontroler_badrindex:0,
-	      dioregs_badrindex:1,
+	.name = "pci-dio48h",
+	.n_8255 = 2,
+	.pcicontroler_badrindex = 0,
+	.dioregs_badrindex = 1,
 		},
 };
 
@@ -104,7 +104,7 @@ MODULE_DEVICE_TABLE(pci, pcidio_pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct pcidio_private {
-	int data;		// curently unused
+	int data;		/*  curently unused */
 
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
@@ -112,7 +112,7 @@ struct pcidio_private {
 	/* used for DO readback, curently unused */
 	unsigned int do_readback[4];	/* up to 4 unsigned int suffice to hold 96 bits for PCI-DIO96 */
 
-	unsigned long dio_reg_base;	// address of port A of the first 8255 chip on board
+	unsigned long dio_reg_base;	/*  address of port A of the first 8255 chip on board */
 };
 
 /*
@@ -127,15 +127,17 @@ struct pcidio_private {
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int pcidio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pcidio_detach(struct comedi_device * dev);
+static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pcidio_detach(struct comedi_device *dev);
 static struct comedi_driver driver_cb_pcidio = {
-      driver_name:"cb_pcidio",
-      module:THIS_MODULE,
-      attach:pcidio_attach,
-      detach:pcidio_detach,
+	.driver_name = "cb_pcidio",
+	.module = THIS_MODULE,
+	.attach = pcidio_attach,
+	.detach = pcidio_detach,
+
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
+
 	/* Most drivers will support multiple types of boards by
 	 * having an array of board structures.  These were defined
 	 * in pcidio_boards[] above.  Note that the element 'name'
@@ -152,10 +154,15 @@ static struct comedi_driver driver_cb_pcidio = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-// The following fields should NOT be initialized if you are dealing with PCI devices
-//      board_name:     pcidio_boards,
-//      offset:         sizeof(struct pcidio_board),
-//      num_names:      sizeof(pcidio_boards) / sizeof(struct pcidio_board),
+
+/* The following fields should NOT be initialized if you are dealing
+ * with PCI devices
+ *
+ *	.board_name = pcidio_boards,
+ *	.offset = sizeof(struct pcidio_board),
+ *	.num_names = sizeof(pcidio_boards) / sizeof(structpcidio_board),
+ */
+
 };
 
 /*------------------------------- FUNCTIONS -----------------------------------*/
@@ -166,7 +173,7 @@ static struct comedi_driver driver_cb_pcidio = {
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int pcidio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
 	int index;
@@ -192,19 +199,19 @@ static int pcidio_attach(struct comedi_device * dev, struct comedi_devconfig * i
 	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
 		pcidev != NULL;
 		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-		// is it not a computer boards card?
+		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_CB)
 			continue;
-		// loop through cards supported by this driver
+		/*  loop through cards supported by this driver */
 		for (index = 0;
-			index < sizeof pcidio_boards / sizeof(struct pcidio_board);
+			index < ARRAY_SIZE(pcidio_boards);
 			index++) {
 			if (pcidio_pci_table[index].device != pcidev->device)
 				continue;
 
-			// was a particular bus/slot requested?
+			/*  was a particular bus/slot requested? */
 			if (it->options[0] || it->options[1]) {
-				// are we on the wrong bus/slot?
+				/*  are we on the wrong bus/slot? */
 				if (pcidev->bus->number != it->options[0] ||
 					PCI_SLOT(pcidev->devfn) !=
 					it->options[1]) {
@@ -267,7 +274,7 @@ static int pcidio_attach(struct comedi_device * dev, struct comedi_devconfig * i
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int pcidio_detach(struct comedi_device * dev)
+static int pcidio_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: cb_pcidio: remove\n", dev->minor);
 	if (devpriv) {

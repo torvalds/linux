@@ -234,14 +234,14 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	if (!request_mem_region(res->start, res->end - res->start + 1,
+	if (!request_mem_region(res->start, resource_size(res),
 				pdev->name)) {
 		dev_err(&pdev->dev, "Memory region busy\n");
 		ret = -EBUSY;
 		goto request_mem_failed;
 	}
 
-	i2c->base = ioremap(res->start, res->end - res->start + 1);
+	i2c->base = ioremap(res->start, resource_size(res));
 	if (!i2c->base) {
 		dev_err(&pdev->dev, "Unable to map registers\n");
 		ret = -EIO;
@@ -283,7 +283,7 @@ add_adapter_failed:
 request_irq_failed:
 	iounmap(i2c->base);
 map_failed:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 request_mem_failed:
 	kfree(i2c);
 
@@ -311,7 +311,7 @@ static int __devexit ocores_i2c_remove(struct platform_device* pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res)
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 
 	kfree(i2c);
 

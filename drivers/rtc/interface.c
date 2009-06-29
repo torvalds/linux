@@ -371,19 +371,21 @@ EXPORT_SYMBOL_GPL(rtc_update_irq_enable);
  * @rtc: the rtc device
  * @num: how many irqs are being reported (usually one)
  * @events: mask of RTC_IRQF with one or more of RTC_PF, RTC_AF, RTC_UF
- * Context: in_interrupt(), irqs blocked
+ * Context: any
  */
 void rtc_update_irq(struct rtc_device *rtc,
 		unsigned long num, unsigned long events)
 {
-	spin_lock(&rtc->irq_lock);
-	rtc->irq_data = (rtc->irq_data + (num << 8)) | events;
-	spin_unlock(&rtc->irq_lock);
+	unsigned long flags;
 
-	spin_lock(&rtc->irq_task_lock);
+	spin_lock_irqsave(&rtc->irq_lock, flags);
+	rtc->irq_data = (rtc->irq_data + (num << 8)) | events;
+	spin_unlock_irqrestore(&rtc->irq_lock, flags);
+
+	spin_lock_irqsave(&rtc->irq_task_lock, flags);
 	if (rtc->irq_task)
 		rtc->irq_task->func(rtc->irq_task->private_data);
-	spin_unlock(&rtc->irq_task_lock);
+	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
 
 	wake_up_interruptible(&rtc->irq_queue);
 	kill_fasync(&rtc->async_queue, SIGIO, POLL_IN);

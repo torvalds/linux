@@ -128,6 +128,27 @@ static inline int is_root_hub(struct usb_device *udev)
 #define KERNEL_REL	((LINUX_VERSION_CODE >> 16) & 0x0ff)
 #define KERNEL_VER	((LINUX_VERSION_CODE >> 8) & 0x0ff)
 
+/* usb 3.0 root hub device descriptor */
+static const u8 usb3_rh_dev_descriptor[18] = {
+	0x12,       /*  __u8  bLength; */
+	0x01,       /*  __u8  bDescriptorType; Device */
+	0x00, 0x03, /*  __le16 bcdUSB; v3.0 */
+
+	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
+	0x00,	    /*  __u8  bDeviceSubClass; */
+	0x03,       /*  __u8  bDeviceProtocol; USB 3.0 hub */
+	0x09,       /*  __u8  bMaxPacketSize0; 2^9 = 512 Bytes */
+
+	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
+	0x02, 0x00, /*  __le16 idProduct; device 0x0002 */
+	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
+
+	0x03,       /*  __u8  iManufacturer; */
+	0x02,       /*  __u8  iProduct; */
+	0x01,       /*  __u8  iSerialNumber; */
+	0x01        /*  __u8  bNumConfigurations; */
+};
+
 /* usb 2.0 root hub device descriptor */
 static const u8 usb2_rh_dev_descriptor [18] = {
 	0x12,       /*  __u8  bLength; */
@@ -271,6 +292,47 @@ static const u8 hs_rh_config_descriptor [] = {
 		     * see hub.c:hub_configure() for details. */
 	(USB_MAXCHILDREN + 1 + 7) / 8, 0x00,
 	0x0c        /*  __u8  ep_bInterval; (256ms -- usb 2.0 spec) */
+};
+
+static const u8 ss_rh_config_descriptor[] = {
+	/* one configuration */
+	0x09,       /*  __u8  bLength; */
+	0x02,       /*  __u8  bDescriptorType; Configuration */
+	0x19, 0x00, /*  __le16 wTotalLength; FIXME */
+	0x01,       /*  __u8  bNumInterfaces; (1) */
+	0x01,       /*  __u8  bConfigurationValue; */
+	0x00,       /*  __u8  iConfiguration; */
+	0xc0,       /*  __u8  bmAttributes;
+				 Bit 7: must be set,
+				     6: Self-powered,
+				     5: Remote wakeup,
+				     4..0: resvd */
+	0x00,       /*  __u8  MaxPower; */
+
+	/* one interface */
+	0x09,       /*  __u8  if_bLength; */
+	0x04,       /*  __u8  if_bDescriptorType; Interface */
+	0x00,       /*  __u8  if_bInterfaceNumber; */
+	0x00,       /*  __u8  if_bAlternateSetting; */
+	0x01,       /*  __u8  if_bNumEndpoints; */
+	0x09,       /*  __u8  if_bInterfaceClass; HUB_CLASSCODE */
+	0x00,       /*  __u8  if_bInterfaceSubClass; */
+	0x00,       /*  __u8  if_bInterfaceProtocol; */
+	0x00,       /*  __u8  if_iInterface; */
+
+	/* one endpoint (status change endpoint) */
+	0x07,       /*  __u8  ep_bLength; */
+	0x05,       /*  __u8  ep_bDescriptorType; Endpoint */
+	0x81,       /*  __u8  ep_bEndpointAddress; IN Endpoint 1 */
+	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
+		    /* __le16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8)
+		     * see hub.c:hub_configure() for details. */
+	(USB_MAXCHILDREN + 1 + 7) / 8, 0x00,
+	0x0c        /*  __u8  ep_bInterval; (256ms -- usb 2.0 spec) */
+	/*
+	 * All 3.0 hubs should have an endpoint companion descriptor,
+	 * but we're ignoring that for now.  FIXME?
+	 */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -426,23 +488,39 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
 		switch (wValue & 0xff00) {
 		case USB_DT_DEVICE << 8:
-			if (hcd->driver->flags & HCD_USB2)
+			switch (hcd->driver->flags & HCD_MASK) {
+			case HCD_USB3:
+				bufp = usb3_rh_dev_descriptor;
+				break;
+			case HCD_USB2:
 				bufp = usb2_rh_dev_descriptor;
-			else if (hcd->driver->flags & HCD_USB11)
+				break;
+			case HCD_USB11:
 				bufp = usb11_rh_dev_descriptor;
-			else
+				break;
+			default:
 				goto error;
+			}
 			len = 18;
 			if (hcd->has_tt)
 				patch_protocol = 1;
 			break;
 		case USB_DT_CONFIG << 8:
-			if (hcd->driver->flags & HCD_USB2) {
+			switch (hcd->driver->flags & HCD_MASK) {
+			case HCD_USB3:
+				bufp = ss_rh_config_descriptor;
+				len = sizeof ss_rh_config_descriptor;
+				break;
+			case HCD_USB2:
 				bufp = hs_rh_config_descriptor;
 				len = sizeof hs_rh_config_descriptor;
-			} else {
+				break;
+			case HCD_USB11:
 				bufp = fs_rh_config_descriptor;
 				len = sizeof fs_rh_config_descriptor;
+				break;
+			default:
+				goto error;
 			}
 			if (device_can_wakeup(&hcd->self.root_hub->dev))
 				patch_wakeup = 1;
@@ -755,23 +833,6 @@ static struct attribute_group usb_bus_attr_group = {
 
 /*-------------------------------------------------------------------------*/
 
-static struct class *usb_host_class;
-
-int usb_host_init(void)
-{
-	int retval = 0;
-
-	usb_host_class = class_create(THIS_MODULE, "usb_host");
-	if (IS_ERR(usb_host_class))
-		retval = PTR_ERR(usb_host_class);
-	return retval;
-}
-
-void usb_host_cleanup(void)
-{
-	class_destroy(usb_host_class);
-}
-
 /**
  * usb_bus_init - shared initialization code
  * @bus: the bus structure being initialized
@@ -818,12 +879,6 @@ static int usb_register_bus(struct usb_bus *bus)
 	set_bit (busnum, busmap.busmap);
 	bus->busnum = busnum;
 
-	bus->dev = device_create(usb_host_class, bus->controller, MKDEV(0, 0),
-				 bus, "usb_host%d", busnum);
-	result = PTR_ERR(bus->dev);
-	if (IS_ERR(bus->dev))
-		goto error_create_class_dev;
-
 	/* Add it to the local list of buses */
 	list_add (&bus->bus_list, &usb_bus_list);
 	mutex_unlock(&usb_bus_list_lock);
@@ -834,8 +889,6 @@ static int usb_register_bus(struct usb_bus *bus)
 		  "number %d\n", bus->busnum);
 	return 0;
 
-error_create_class_dev:
-	clear_bit(busnum, busmap.busmap);
 error_find_busnum:
 	mutex_unlock(&usb_bus_list_lock);
 	return result;
@@ -865,8 +918,6 @@ static void usb_deregister_bus (struct usb_bus *bus)
 	usb_notify_remove_bus(bus);
 
 	clear_bit (bus->busnum, busmap.busmap);
-
-	device_unregister(bus->dev);
 }
 
 /**
@@ -1199,7 +1250,8 @@ static int map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 
 	/* Map the URB's buffers for DMA access.
 	 * Lower level HCD code should use *_dma exclusively,
-	 * unless it uses pio or talks to another transport.
+	 * unless it uses pio or talks to another transport,
+	 * or uses the provided scatter gather list for bulk.
 	 */
 	if (is_root_hub(urb->dev))
 		return 0;
@@ -1518,6 +1570,92 @@ rescan:
 			usb_put_urb (urb);
 		}
 	}
+}
+
+/* Check whether a new configuration or alt setting for an interface
+ * will exceed the bandwidth for the bus (or the host controller resources).
+ * Only pass in a non-NULL config or interface, not both!
+ * Passing NULL for both new_config and new_intf means the device will be
+ * de-configured by issuing a set configuration 0 command.
+ */
+int usb_hcd_check_bandwidth(struct usb_device *udev,
+		struct usb_host_config *new_config,
+		struct usb_interface *new_intf)
+{
+	int num_intfs, i, j;
+	struct usb_interface_cache *intf_cache;
+	struct usb_host_interface *alt = 0;
+	int ret = 0;
+	struct usb_hcd *hcd;
+	struct usb_host_endpoint *ep;
+
+	hcd = bus_to_hcd(udev->bus);
+	if (!hcd->driver->check_bandwidth)
+		return 0;
+
+	/* Configuration is being removed - set configuration 0 */
+	if (!new_config && !new_intf) {
+		for (i = 1; i < 16; ++i) {
+			ep = udev->ep_out[i];
+			if (ep)
+				hcd->driver->drop_endpoint(hcd, udev, ep);
+			ep = udev->ep_in[i];
+			if (ep)
+				hcd->driver->drop_endpoint(hcd, udev, ep);
+		}
+		hcd->driver->check_bandwidth(hcd, udev);
+		return 0;
+	}
+	/* Check if the HCD says there's enough bandwidth.  Enable all endpoints
+	 * each interface's alt setting 0 and ask the HCD to check the bandwidth
+	 * of the bus.  There will always be bandwidth for endpoint 0, so it's
+	 * ok to exclude it.
+	 */
+	if (new_config) {
+		num_intfs = new_config->desc.bNumInterfaces;
+		/* Remove endpoints (except endpoint 0, which is always on the
+		 * schedule) from the old config from the schedule
+		 */
+		for (i = 1; i < 16; ++i) {
+			ep = udev->ep_out[i];
+			if (ep) {
+				ret = hcd->driver->drop_endpoint(hcd, udev, ep);
+				if (ret < 0)
+					goto reset;
+			}
+			ep = udev->ep_in[i];
+			if (ep) {
+				ret = hcd->driver->drop_endpoint(hcd, udev, ep);
+				if (ret < 0)
+					goto reset;
+			}
+		}
+		for (i = 0; i < num_intfs; ++i) {
+
+			/* Dig the endpoints for alt setting 0 out of the
+			 * interface cache for this interface
+			 */
+			intf_cache = new_config->intf_cache[i];
+			for (j = 0; j < intf_cache->num_altsetting; j++) {
+				if (intf_cache->altsetting[j].desc.bAlternateSetting == 0)
+					alt = &intf_cache->altsetting[j];
+			}
+			if (!alt) {
+				printk(KERN_DEBUG "Did not find alt setting 0 for intf %d\n", i);
+				continue;
+			}
+			for (j = 0; j < alt->desc.bNumEndpoints; j++) {
+				ret = hcd->driver->add_endpoint(hcd, udev, &alt->endpoint[j]);
+				if (ret < 0)
+					goto reset;
+			}
+		}
+	}
+	ret = hcd->driver->check_bandwidth(hcd, udev);
+reset:
+	if (ret < 0)
+		hcd->driver->reset_bandwidth(hcd, udev);
+	return ret;
 }
 
 /* Disables the endpoint: synchronizes with the hcd to make sure all
@@ -1897,8 +2035,20 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		retval = -ENOMEM;
 		goto err_allocate_root_hub;
 	}
-	rhdev->speed = (hcd->driver->flags & HCD_USB2) ? USB_SPEED_HIGH :
-			USB_SPEED_FULL;
+
+	switch (hcd->driver->flags & HCD_MASK) {
+	case HCD_USB11:
+		rhdev->speed = USB_SPEED_FULL;
+		break;
+	case HCD_USB2:
+		rhdev->speed = USB_SPEED_HIGH;
+		break;
+	case HCD_USB3:
+		rhdev->speed = USB_SPEED_SUPER;
+		break;
+	default:
+		goto err_allocate_root_hub;
+	}
 	hcd->self.root_hub = rhdev;
 
 	/* wakeup flag init defaults to "everything works" for root hubs,

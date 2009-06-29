@@ -60,6 +60,8 @@ int ivtv_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 
 	switch (qctrl->id) {
 	/* Standard V4L2 controls */
+	case V4L2_CID_USER_CLASS:
+		return v4l2_ctrl_query_fill(qctrl, 0, 0, 0, 0);
 	case V4L2_CID_BRIGHTNESS:
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:

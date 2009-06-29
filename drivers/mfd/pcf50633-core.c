@@ -618,7 +618,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 
 		pdev->dev.parent = pcf->dev;
 		pdev->dev.platform_data = &pdata->reg_init_data[i];
-		pdev->dev.driver_data = pcf;
+		dev_set_drvdata(&pdev->dev, pcf);
 		pcf->regulator_pdev[i] = pdev;
 
 		platform_device_add(pdev);
@@ -705,5 +705,5 @@ MODULE_DESCRIPTION("I2C chip driver for NXP PCF50633 PMU");
 MODULE_AUTHOR("Harald Welte <laforge@openmoko.org>");
 MODULE_LICENSE("GPL");
 
-module_init(pcf50633_init);
+subsys_initcall(pcf50633_init);
 module_exit(pcf50633_exit);

@@ -105,15 +105,6 @@ config MSP_FLASH_MAP_LIMIT
 	default "0x02000000"
 	depends on MSP_FLASH_MAP_LIMIT_32M
 
-config MTD_PMC_MSP_RAMROOT
-	tristate "Embedded RAM block device for root on PMC-Sierra MSP"
-	depends on PMC_MSP_EMBEDDED_ROOTFS && \
-			(MTD_BLOCK || MTD_BLOCK_RO) && \
-			MTD_RAM
-	help
-	  This provides support for the embedded root file system
-          on PMC MSP devices.  This memory is mapped as a MTD block device.
-
 config MTD_SUN_UFLASH
 	tristate "Sun Microsystems userflash support"
 	depends on SPARC && MTD_CFI && PCI
@@ -270,7 +261,7 @@ config MTD_ALCHEMY
 
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
-	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT
+	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT && BROKEN
 	help
 	  MTD map driver for SSV DIL/Net PC Boards "DNP" and "ADNP".
 	  For details, see <http://www.ssv-embedded.de/ssv/pc104/p169.htm>
@@ -501,7 +492,7 @@ config MTD_BFIN_ASYNC
 	  If compiled as a module, it will be called bfin-async-flash.
 
 config MTD_UCLINUX
-	tristate "Generic uClinux RAM/ROM filesystem support"
+	bool "Generic uClinux RAM/ROM filesystem support"
 	depends on MTD_PARTITIONS && MTD_RAM && !MMU
 	help
 	  Map driver to support image based filesystems for uClinux.

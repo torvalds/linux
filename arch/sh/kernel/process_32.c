@@ -119,8 +119,6 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	pid = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
 		      &regs, 0, NULL, NULL);
 
-	trace_mark(kernel_arch_kthread_create, "pid %d fn %p", pid, fn);
-
 	return pid;
 }
 
@@ -367,11 +365,6 @@ asmlinkage int sys_execve(char __user *ufilename, char __user * __user *uargv,
 		goto out;
 
 	error = do_execve(filename, uargv, uenvp, regs);
-	if (error == 0) {
-		task_lock(current);
-		current->ptrace &= ~PT_DTRACE;
-		task_unlock(current);
-	}
 	putname(filename);
 out:
 	return error;

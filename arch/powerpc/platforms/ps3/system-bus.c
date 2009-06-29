@@ -27,6 +27,7 @@
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
 #include <asm/firmware.h>
+#include <asm/iommu.h>
 
 #include "platform.h"
 
@@ -531,7 +532,8 @@ static void * ps3_alloc_coherent(struct device *_dev, size_t size,
 	}
 
 	result = ps3_dma_map(dev->d_region, virt_addr, size, dma_handle,
-			     IOPTE_PP_W | IOPTE_PP_R | IOPTE_SO_RW | IOPTE_M);
+			     CBE_IOPTE_PP_W | CBE_IOPTE_PP_R |
+			     CBE_IOPTE_SO_RW | CBE_IOPTE_M);
 
 	if (result) {
 		pr_debug("%s:%d: ps3_dma_map failed (%d)\n",
@@ -575,7 +577,8 @@ static dma_addr_t ps3_sb_map_page(struct device *_dev, struct page *page,
 
 	result = ps3_dma_map(dev->d_region, (unsigned long)ptr, size,
 			     &bus_addr,
-			     IOPTE_PP_R | IOPTE_PP_W | IOPTE_SO_RW | IOPTE_M);
+			     CBE_IOPTE_PP_R | CBE_IOPTE_PP_W |
+			     CBE_IOPTE_SO_RW | CBE_IOPTE_M);
 
 	if (result) {
 		pr_debug("%s:%d: ps3_dma_map failed (%d)\n",
@@ -596,16 +599,16 @@ static dma_addr_t ps3_ioc0_map_page(struct device *_dev, struct page *page,
 	u64 iopte_flag;
 	void *ptr = page_address(page) + offset;
 
-	iopte_flag = IOPTE_M;
+	iopte_flag = CBE_IOPTE_M;
 	switch (direction) {
 	case DMA_BIDIRECTIONAL:
-		iopte_flag |= IOPTE_PP_R | IOPTE_PP_W | IOPTE_SO_RW;
+		iopte_flag |= CBE_IOPTE_PP_R | CBE_IOPTE_PP_W | CBE_IOPTE_SO_RW;
 		break;
 	case DMA_TO_DEVICE:
-		iopte_flag |= IOPTE_PP_R | IOPTE_SO_R;
+		iopte_flag |= CBE_IOPTE_PP_R | CBE_IOPTE_SO_R;
 		break;
 	case DMA_FROM_DEVICE:
-		iopte_flag |= IOPTE_PP_W | IOPTE_SO_RW;
+		iopte_flag |= CBE_IOPTE_PP_W | CBE_IOPTE_SO_RW;
 		break;
 	default:
 		/* not happned */

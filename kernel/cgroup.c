@@ -843,6 +843,11 @@ static int parse_cgroupfs_options(char *data,
 				     struct cgroup_sb_opts *opts)
 {
 	char *token, *o = data ?: "all";
+	unsigned long mask = (unsigned long)-1;
+
+#ifdef CONFIG_CPUSETS
+	mask = ~(1UL << cpuset_subsys_id);
+#endif
 
 	opts->subsys_bits = 0;
 	opts->flags = 0;
@@ -886,6 +891,15 @@ static int parse_cgroupfs_options(char *data,
 				return -ENOENT;
 		}
 	}
+
+	/*
+	 * Option noprefix was introduced just for backward compatibility
+	 * with the old cpuset, so we allow noprefix only if mounting just
+	 * the cpuset subsystem.
+	 */
+	if (test_bit(ROOT_NOPREFIX, &opts->flags) &&
+	    (opts->subsys_bits & mask))
+		return -EINVAL;
 
 	/* We can't have an empty hierarchy */
 	if (!opts->subsys_bits)

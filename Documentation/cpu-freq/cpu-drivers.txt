@@ -155,7 +155,7 @@ actual frequency must be determined using the following rules:
 - if relation==CPUFREQ_REL_H, try to select a new_freq lower than or equal
   target_freq. ("H for highest, but no higher than")
 
-Here again the frequency table helper might assist you - see section 3
+Here again the frequency table helper might assist you - see section 2
 for details.
 
 

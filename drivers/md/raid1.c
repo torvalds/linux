@@ -182,7 +182,7 @@ static void put_all_bios(conf_t *conf, r1bio_t *r1_bio)
 
 static void free_r1bio(r1bio_t *r1_bio)
 {
-	conf_t *conf = mddev_to_conf(r1_bio->mddev);
+	conf_t *conf = r1_bio->mddev->private;
 
 	/*
 	 * Wake up any possible resync thread that waits for the device
@@ -196,7 +196,7 @@ static void free_r1bio(r1bio_t *r1_bio)
 
 static void put_buf(r1bio_t *r1_bio)
 {
-	conf_t *conf = mddev_to_conf(r1_bio->mddev);
+	conf_t *conf = r1_bio->mddev->private;
 	int i;
 
 	for (i=0; i<conf->raid_disks; i++) {
@@ -214,7 +214,7 @@ static void reschedule_retry(r1bio_t *r1_bio)
 {
 	unsigned long flags;
 	mddev_t *mddev = r1_bio->mddev;
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 
 	spin_lock_irqsave(&conf->device_lock, flags);
 	list_add(&r1_bio->retry_list, &conf->retry_list);
@@ -253,7 +253,7 @@ static void raid_end_bio_io(r1bio_t *r1_bio)
  */
 static inline void update_head_pos(int disk, r1bio_t *r1_bio)
 {
-	conf_t *conf = mddev_to_conf(r1_bio->mddev);
+	conf_t *conf = r1_bio->mddev->private;
 
 	conf->mirrors[disk].head_position =
 		r1_bio->sector + (r1_bio->sectors);
@@ -264,7 +264,7 @@ static void raid1_end_read_request(struct bio *bio, int error)
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	r1bio_t * r1_bio = (r1bio_t *)(bio->bi_private);
 	int mirror;
-	conf_t *conf = mddev_to_conf(r1_bio->mddev);
+	conf_t *conf = r1_bio->mddev->private;
 
 	mirror = r1_bio->read_disk;
 	/*
@@ -309,7 +309,7 @@ static void raid1_end_write_request(struct bio *bio, int error)
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	r1bio_t * r1_bio = (r1bio_t *)(bio->bi_private);
 	int mirror, behind = test_bit(R1BIO_BehindIO, &r1_bio->state);
-	conf_t *conf = mddev_to_conf(r1_bio->mddev);
+	conf_t *conf = r1_bio->mddev->private;
 	struct bio *to_put = NULL;
 
 
@@ -541,7 +541,7 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 
 static void unplug_slaves(mddev_t *mddev)
 {
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	int i;
 
 	rcu_read_lock();
@@ -573,7 +573,7 @@ static void raid1_unplug(struct request_queue *q)
 static int raid1_congested(void *data, int bits)
 {
 	mddev_t *mddev = data;
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	int i, ret = 0;
 
 	rcu_read_lock();
@@ -772,7 +772,7 @@ do_sync_io:
 static int make_request(struct request_queue *q, struct bio * bio)
 {
 	mddev_t *mddev = q->queuedata;
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	mirror_info_t *mirror;
 	r1bio_t *r1_bio;
 	struct bio *read_bio;
@@ -991,7 +991,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 
 static void status(struct seq_file *seq, mddev_t *mddev)
 {
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	int i;
 
 	seq_printf(seq, " [%d/%d] [", conf->raid_disks,
@@ -1010,7 +1010,7 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	char b[BDEVNAME_SIZE];
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 
 	/*
 	 * If it is not operational, then we have already marked it as dead
@@ -1214,7 +1214,7 @@ static void end_sync_write(struct bio *bio, int error)
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	r1bio_t * r1_bio = (r1bio_t *)(bio->bi_private);
 	mddev_t *mddev = r1_bio->mddev;
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	int i;
 	int mirror=0;
 
@@ -1248,7 +1248,7 @@ static void end_sync_write(struct bio *bio, int error)
 
 static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 {
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	int i;
 	int disks = conf->raid_disks;
 	struct bio *bio, *wbio;
@@ -1562,7 +1562,7 @@ static void raid1d(mddev_t *mddev)
 	r1bio_t *r1_bio;
 	struct bio *bio;
 	unsigned long flags;
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	struct list_head *head = &conf->retry_list;
 	int unplug=0;
 	mdk_rdev_t *rdev;
@@ -1585,7 +1585,7 @@ static void raid1d(mddev_t *mddev)
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 
 		mddev = r1_bio->mddev;
-		conf = mddev_to_conf(mddev);
+		conf = mddev->private;
 		if (test_bit(R1BIO_IsSync, &r1_bio->state)) {
 			sync_request_write(mddev, r1_bio);
 			unplug = 1;
@@ -1706,7 +1706,7 @@ static int init_resync(conf_t *conf)
 
 static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster)
 {
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	r1bio_t *r1_bio;
 	struct bio *bio;
 	sector_t max_sector, nr_sectors;
@@ -2052,6 +2052,10 @@ static int run(mddev_t *mddev)
 		goto out_free_conf;
 	}
 
+	if (mddev->recovery_cp != MaxSector)
+		printk(KERN_NOTICE "raid1: %s is not clean"
+		       " -- starting background reconstruction\n",
+		       mdname(mddev));
 	printk(KERN_INFO 
 		"raid1: raid set %s active with %d out of %d mirrors\n",
 		mdname(mddev), mddev->raid_disks - mddev->degraded, 
@@ -2087,7 +2091,7 @@ out:
 
 static int stop(mddev_t *mddev)
 {
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	struct bitmap *bitmap = mddev->bitmap;
 	int behind_wait = 0;
 
@@ -2155,16 +2159,16 @@ static int raid1_reshape(mddev_t *mddev)
 	mempool_t *newpool, *oldpool;
 	struct pool_info *newpoolinfo;
 	mirror_info_t *newmirrors;
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 	int cnt, raid_disks;
 	unsigned long flags;
 	int d, d2, err;
 
 	/* Cannot change chunk_size, layout, or level */
-	if (mddev->chunk_size != mddev->new_chunk ||
+	if (mddev->chunk_sectors != mddev->new_chunk_sectors ||
 	    mddev->layout != mddev->new_layout ||
 	    mddev->level != mddev->new_level) {
-		mddev->new_chunk = mddev->chunk_size;
+		mddev->new_chunk_sectors = mddev->chunk_sectors;
 		mddev->new_layout = mddev->layout;
 		mddev->new_level = mddev->level;
 		return -EINVAL;
@@ -2252,7 +2256,7 @@ static int raid1_reshape(mddev_t *mddev)
 
 static void raid1_quiesce(mddev_t *mddev, int state)
 {
-	conf_t *conf = mddev_to_conf(mddev);
+	conf_t *conf = mddev->private;
 
 	switch(state) {
 	case 1:

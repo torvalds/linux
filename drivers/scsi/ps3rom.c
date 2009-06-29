@@ -299,7 +299,7 @@ static irqreturn_t ps3rom_interrupt(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	host = dev->sbd.core.driver_data;
+	host = ps3_system_bus_get_drvdata(&dev->sbd);
 	priv = shost_priv(host);
 	cmd = priv->curr_cmd;
 
@@ -387,7 +387,7 @@ static int __devinit ps3rom_probe(struct ps3_system_bus_device *_dev)
 	}
 
 	priv = shost_priv(host);
-	dev->sbd.core.driver_data = host;
+	ps3_system_bus_set_drvdata(&dev->sbd, host);
 	priv->dev = dev;
 
 	/* One device/LUN per SCSI bus */
@@ -407,7 +407,7 @@ static int __devinit ps3rom_probe(struct ps3_system_bus_device *_dev)
 
 fail_host_put:
 	scsi_host_put(host);
-	dev->sbd.core.driver_data = NULL;
+	ps3_system_bus_set_drvdata(&dev->sbd, NULL);
 fail_teardown:
 	ps3stor_teardown(dev);
 fail_free_bounce:
@@ -418,12 +418,12 @@ fail_free_bounce:
 static int ps3rom_remove(struct ps3_system_bus_device *_dev)
 {
 	struct ps3_storage_device *dev = to_ps3_storage_device(&_dev->core);
-	struct Scsi_Host *host = dev->sbd.core.driver_data;
+	struct Scsi_Host *host = ps3_system_bus_get_drvdata(&dev->sbd);
 
 	scsi_remove_host(host);
 	ps3stor_teardown(dev);
 	scsi_host_put(host);
-	dev->sbd.core.driver_data = NULL;
+	ps3_system_bus_set_drvdata(&dev->sbd, NULL);
 	kfree(dev->bounce_buf);
 	return 0;
 }

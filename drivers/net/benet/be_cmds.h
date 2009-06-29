@@ -76,6 +76,34 @@ struct be_mcc_cq_entry {
 	u32 flags;		/* dword 3 */
 };
 
+/* When the async bit of mcc_compl is set, the last 4 bytes of
+ * mcc_compl is interpreted as follows:
+ */
+#define ASYNC_TRAILER_EVENT_CODE_SHIFT	8	/* bits 8 - 15 */
+#define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
+#define ASYNC_EVENT_CODE_LINK_STATE	0x1
+struct be_async_event_trailer {
+	u32 code;
+};
+
+enum {
+	ASYNC_EVENT_LINK_DOWN 	= 0x0,
+	ASYNC_EVENT_LINK_UP 	= 0x1
+};
+
+/* When the event code of an async trailer is link-state, the mcc_compl
+ * must be interpreted as follows
+ */
+struct be_async_event_link_state {
+	u8 physical_port;
+	u8 port_link_status;
+	u8 port_duplex;
+	u8 port_speed;
+	u8 port_fault;
+	u8 rsvd0[7];
+	struct be_async_event_trailer trailer;
+} __packed;
+
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
 	struct be_mcc_cq_entry cqe;
@@ -101,6 +129,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_FIRMWARE_CONFIG			42
 #define OPCODE_COMMON_NTWK_INTERFACE_CREATE 		50
 #define OPCODE_COMMON_NTWK_INTERFACE_DESTROY 		51
+#define OPCODE_COMMON_MCC_DESTROY        		53
 #define OPCODE_COMMON_CQ_DESTROY        		54
 #define OPCODE_COMMON_EQ_DESTROY        		55
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
@@ -269,6 +298,38 @@ struct be_cmd_resp_cq_create {
 	u16 rsvd0;
 } __packed;
 
+/******************** Create MCCQ ***************************/
+/* Pseudo amap definition in which each bit of the actual structure is defined
+ * as a byte: used to calculate offset/shift/mask of each field */
+struct amap_mcc_context {
+	u8 con_index[14];
+	u8 rsvd0[2];
+	u8 ring_size[4];
+	u8 fetch_wrb;
+	u8 fetch_r2t;
+	u8 cq_id[10];
+	u8 prod_index[14];
+	u8 fid[8];
+	u8 pdid[9];
+	u8 valid;
+	u8 rsvd1[32];
+	u8 rsvd2[32];
+} __packed;
+
+struct be_cmd_req_mcc_create {
+	struct be_cmd_req_hdr hdr;
+	u16 num_pages;
+	u16 rsvd0;
+	u8 context[sizeof(struct amap_mcc_context) / 8];
+	struct phys_addr pages[8];
+} __packed;
+
+struct be_cmd_resp_mcc_create {
+	struct be_cmd_resp_hdr hdr;
+	u16 id;
+	u16 rsvd0;
+} __packed;
+
 /******************** Create TxQ ***************************/
 #define BE_ETH_TX_RING_TYPE_STANDARD    	2
 #define BE_ULP1_NUM				1
@@ -341,7 +402,8 @@ enum {
 	QTYPE_EQ = 1,
 	QTYPE_CQ,
 	QTYPE_TXQ,
-	QTYPE_RXQ
+	QTYPE_RXQ,
+	QTYPE_MCCQ
 };
 
 struct be_cmd_req_q_destroy {
@@ -546,12 +608,6 @@ struct be_cmd_req_link_status {
 	u32 rsvd;
 };
 
-struct be_link_info {
-	u8 duplex;
-	u8 speed;
-	u8 fault;
-};
-
 enum {
 	PHY_LINK_DUPLEX_NONE = 0x0,
 	PHY_LINK_DUPLEX_HALF = 0x1,
@@ -657,6 +713,9 @@ extern int be_cmd_cq_create(struct be_ctrl_info *ctrl,
 			struct be_queue_info *cq, struct be_queue_info *eq,
 			bool sol_evts, bool no_delay,
 			int num_cqe_dma_coalesce);
+extern int be_cmd_mccq_create(struct be_ctrl_info *ctrl,
+			struct be_queue_info *mccq,
+			struct be_queue_info *cq);
 extern int be_cmd_txq_create(struct be_ctrl_info *ctrl,
 			struct be_queue_info *txq,
 			struct be_queue_info *cq);
@@ -667,7 +726,7 @@ extern int be_cmd_rxq_create(struct be_ctrl_info *ctrl,
 extern int be_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 			int type);
 extern int be_cmd_link_status_query(struct be_ctrl_info *ctrl,
-			struct be_link_info *link);
+			bool *link_up);
 extern int be_cmd_reset(struct be_ctrl_info *ctrl);
 extern int be_cmd_get_stats(struct be_ctrl_info *ctrl,
 			struct be_dma_mem *nonemb_cmd);
@@ -679,10 +738,11 @@ extern int be_cmd_vlan_config(struct be_ctrl_info *ctrl, u32 if_id,
 			bool promiscuous);
 extern int be_cmd_promiscuous_config(struct be_ctrl_info *ctrl,
 			u8 port_num, bool en);
-extern int be_cmd_mcast_mac_set(struct be_ctrl_info *ctrl, u32 if_id,
-			u8 *mac_table, u32 num, bool promiscuous);
+extern int be_cmd_multicast_set(struct be_ctrl_info *ctrl, u32 if_id,
+			struct dev_mc_list *mc_list, u32 mc_count);
 extern int be_cmd_set_flow_control(struct be_ctrl_info *ctrl,
 			u32 tx_fc, u32 rx_fc);
 extern int be_cmd_get_flow_control(struct be_ctrl_info *ctrl,
 			u32 *tx_fc, u32 *rx_fc);
 extern int be_cmd_query_fw_cfg(struct be_ctrl_info *ctrl, u32 *port_num);
+extern void be_process_mcc(struct be_ctrl_info *ctrl);

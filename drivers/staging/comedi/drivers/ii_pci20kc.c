@@ -158,21 +158,21 @@ struct pci20xxx_private {
 #define devpriv ((struct pci20xxx_private *)dev->private)
 #define CHAN (CR_CHAN(it->chanlist[0]))
 
-static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int pci20xxx_detach(struct comedi_device * dev);
+static int pci20xxx_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int pci20xxx_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_pci20xxx = {
-      driver_name:"ii_pci20kc",
-      module:THIS_MODULE,
-      attach:pci20xxx_attach,
-      detach:pci20xxx_detach,
+	.driver_name = "ii_pci20kc",
+	.module = THIS_MODULE,
+	.attach = pci20xxx_attach,
+	.detach = pci20xxx_detach,
 };
 
-static int pci20006_init(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	int opt0, int opt1);
-static int pci20341_init(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pci20341_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	int opt0, int opt1);
-static int pci20xxx_dio_init(struct comedi_device * dev, struct comedi_subdevice * s);
+static int pci20xxx_dio_init(struct comedi_device *dev, struct comedi_subdevice *s);
 
 /*
   options[0]	Board base address
@@ -201,7 +201,7 @@ static int pci20xxx_dio_init(struct comedi_device * dev, struct comedi_subdevice
 		1 == unipolar 10V  (0V -- +10V)
 		2 == bipolar 5V  (-5V -- +5V)
 */
-static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int pci20xxx_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	unsigned char i;
 	int ret;
@@ -209,9 +209,12 @@ static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig *
 	struct comedi_subdevice *s;
 	union pci20xxx_subdev_private *sdp;
 
-	if ((ret = alloc_subdevices(dev, 1 + PCI20000_MODULES)) < 0)
+	ret = alloc_subdevices(dev, 1 + PCI20000_MODULES);
+	if (ret < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(struct pci20xxx_private))) < 0)
+
+	ret = alloc_private(dev, sizeof(struct pci20xxx_private));
+	if (ret < 0)
 		return ret;
 
 	devpriv->ioaddr = (void *)(unsigned long)it->options[0];
@@ -263,7 +266,7 @@ static int pci20xxx_attach(struct comedi_device * dev, struct comedi_devconfig *
 	return 1;
 }
 
-static int pci20xxx_detach(struct comedi_device * dev)
+static int pci20xxx_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: pci20xxx: remove\n", dev->minor);
 
@@ -272,10 +275,10 @@ static int pci20xxx_detach(struct comedi_device * dev)
 
 /* pci20006m */
 
-static int pci20006_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int pci20006_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int pci20006_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int pci20006_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
 static const struct comedi_lrange *pci20006_range_list[] = {
 	&range_bipolar10,
@@ -283,7 +286,7 @@ static const struct comedi_lrange *pci20006_range_list[] = {
 	&range_bipolar5,
 };
 
-static int pci20006_init(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	int opt0, int opt1)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
@@ -308,8 +311,8 @@ static int pci20006_init(struct comedi_device * dev, struct comedi_subdevice * s
 	return 0;
 }
 
-static int pci20006_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci20006_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
 
@@ -318,8 +321,8 @@ static int pci20006_insn_read(struct comedi_device * dev, struct comedi_subdevic
 	return 1;
 }
 
-static int pci20006_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci20006_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
 	int hi, lo;
@@ -351,8 +354,8 @@ static int pci20006_insn_write(struct comedi_device * dev, struct comedi_subdevi
 
 /* PCI20341M */
 
-static int pci20341_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int pci20341_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
 static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
 static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
@@ -368,7 +371,7 @@ static const struct comedi_lrange *const pci20341_ranges[] = {
 	&range_bipolar0_025,
 };
 
-static int pci20341_init(struct comedi_device * dev, struct comedi_subdevice * s,
+static int pci20341_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	int opt0, int opt1)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
@@ -399,8 +402,8 @@ static int pci20341_init(struct comedi_device * dev, struct comedi_subdevice * s
 	return 0;
 }
 
-static int pci20341_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci20341_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
         union pci20xxx_subdev_private *sdp = s->private;
 	unsigned int i = 0, j = 0;
@@ -445,14 +448,14 @@ static int pci20341_insn_read(struct comedi_device * dev, struct comedi_subdevic
 
 /* native DIO */
 
-static void pci20xxx_dio_config(struct comedi_device * dev, struct comedi_subdevice * s);
-static int pci20xxx_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int pci20xxx_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static void pci20xxx_dio_config(struct comedi_device *dev, struct comedi_subdevice *s);
+static int pci20xxx_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int pci20xxx_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
 /* initialize struct pci20xxx_private */
-static int pci20xxx_dio_init(struct comedi_device * dev, struct comedi_subdevice * s)
+static int pci20xxx_dio_init(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 
 	s->type = COMEDI_SUBD_DIO;
@@ -471,8 +474,8 @@ static int pci20xxx_dio_init(struct comedi_device * dev, struct comedi_subdevice
 	return 0;
 }
 
-static int pci20xxx_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci20xxx_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int mask, bits;
 
@@ -496,8 +499,8 @@ static int pci20xxx_dio_insn_config(struct comedi_device * dev, struct comedi_su
 	return 1;
 }
 
-static int pci20xxx_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int pci20xxx_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask = data[0];
 
@@ -526,7 +529,7 @@ static int pci20xxx_dio_insn_bits(struct comedi_device * dev, struct comedi_subd
 	return 2;
 }
 
-static void pci20xxx_dio_config(struct comedi_device * dev, struct comedi_subdevice * s)
+static void pci20xxx_dio_config(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned char control_01;
 	unsigned char control_23;
@@ -582,7 +585,7 @@ static void pci20xxx_dio_config(struct comedi_device * dev, struct comedi_subdev
 }
 
 #if 0
-static void pci20xxx_do(struct comedi_device * dev, struct comedi_subdevice * s)
+static void pci20xxx_do(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	/* XXX if the channel is configured for input, does this
 	   do bad things? */
@@ -595,7 +598,7 @@ static void pci20xxx_do(struct comedi_device * dev, struct comedi_subdevice * s)
 	writeb((s->state >> 24) & 0xff, devpriv->ioaddr + PCI20000_DIO_3);
 }
 
-static unsigned int pci20xxx_di(struct comedi_device * dev, struct comedi_subdevice * s)
+static unsigned int pci20xxx_di(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	/* XXX same note as above */
 	unsigned int bits;

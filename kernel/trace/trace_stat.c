@@ -199,16 +199,12 @@ static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 	mutex_lock(&session->stat_mutex);
 
 	/* If we are in the beginning of the file, print the headers */
-	if (!*pos && session->ts->stat_headers) {
-		(*pos)++;
+	if (!*pos && session->ts->stat_headers)
 		return SEQ_START_TOKEN;
-	}
 
 	node = rb_first(&session->stat_root);
 	for (i = 0; node && i < *pos; i++)
 		node = rb_next(node);
-
-	(*pos)++;
 
 	return node;
 }

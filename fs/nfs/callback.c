@@ -17,6 +17,9 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/sunrpc/svcauth_gss.h>
+#if defined(CONFIG_NFS_V4_1)
+#include <linux/sunrpc/bc_xprt.h>
+#endif
 
 #include <net/inet_sock.h>
 
@@ -28,11 +31,12 @@
 
 struct nfs_callback_data {
 	unsigned int users;
+	struct svc_serv *serv;
 	struct svc_rqst *rqst;
 	struct task_struct *task;
 };
 
-static struct nfs_callback_data nfs_callback_info;
+static struct nfs_callback_data nfs_callback_info[NFS4_MAX_MINOR_VERSION + 1];
 static DEFINE_MUTEX(nfs_callback_mutex);
 static struct svc_program nfs4_callback_program;
 
@@ -56,10 +60,10 @@ module_param_call(callback_tcpport, param_set_port, param_get_int,
 		 &nfs_callback_set_tcpport, 0644);
 
 /*
- * This is the callback kernel thread.
+ * This is the NFSv4 callback kernel thread.
  */
 static int
-nfs_callback_svc(void *vrqstp)
+nfs4_callback_svc(void *vrqstp)
 {
 	int err, preverr = 0;
 	struct svc_rqst *rqstp = vrqstp;
@@ -97,20 +101,12 @@ nfs_callback_svc(void *vrqstp)
 }
 
 /*
- * Bring up the callback thread if it is not already up.
+ * Prepare to bring up the NFSv4 callback service
  */
-int nfs_callback_up(void)
+struct svc_rqst *
+nfs4_callback_up(struct svc_serv *serv)
 {
-	struct svc_serv *serv = NULL;
-	int ret = 0;
-
-	mutex_lock(&nfs_callback_mutex);
-	if (nfs_callback_info.users++ || nfs_callback_info.task != NULL)
-		goto out;
-	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, NULL);
-	ret = -ENOMEM;
-	if (!serv)
-		goto out_err;
+	int ret;
 
 	ret = svc_create_xprt(serv, "tcp", PF_INET,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
@@ -127,27 +123,174 @@ int nfs_callback_up(void)
 		nfs_callback_tcpport6 = ret;
 		dprintk("NFS: Callback listener port = %u (af %u)\n",
 				nfs_callback_tcpport6, PF_INET6);
-	} else if (ret != -EAFNOSUPPORT)
+	} else if (ret == -EAFNOSUPPORT)
+		ret = 0;
+	else
 		goto out_err;
 #endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 
-	nfs_callback_info.rqst = svc_prepare_thread(serv, &serv->sv_pools[0]);
-	if (IS_ERR(nfs_callback_info.rqst)) {
-		ret = PTR_ERR(nfs_callback_info.rqst);
-		nfs_callback_info.rqst = NULL;
+	return svc_prepare_thread(serv, &serv->sv_pools[0]);
+
+out_err:
+	if (ret == 0)
+		ret = -ENOMEM;
+	return ERR_PTR(ret);
+}
+
+#if defined(CONFIG_NFS_V4_1)
+/*
+ * The callback service for NFSv4.1 callbacks
+ */
+static int
+nfs41_callback_svc(void *vrqstp)
+{
+	struct svc_rqst *rqstp = vrqstp;
+	struct svc_serv *serv = rqstp->rq_server;
+	struct rpc_rqst *req;
+	int error;
+	DEFINE_WAIT(wq);
+
+	set_freezable();
+
+	/*
+	 * FIXME: do we really need to run this under the BKL? If so, please
+	 * add a comment about what it's intended to protect.
+	 */
+	lock_kernel();
+	while (!kthread_should_stop()) {
+		prepare_to_wait(&serv->sv_cb_waitq, &wq, TASK_INTERRUPTIBLE);
+		spin_lock_bh(&serv->sv_cb_lock);
+		if (!list_empty(&serv->sv_cb_list)) {
+			req = list_first_entry(&serv->sv_cb_list,
+					struct rpc_rqst, rq_bc_list);
+			list_del(&req->rq_bc_list);
+			spin_unlock_bh(&serv->sv_cb_lock);
+			dprintk("Invoking bc_svc_process()\n");
+			error = bc_svc_process(serv, req, rqstp);
+			dprintk("bc_svc_process() returned w/ error code= %d\n",
+				error);
+		} else {
+			spin_unlock_bh(&serv->sv_cb_lock);
+			schedule();
+		}
+		finish_wait(&serv->sv_cb_waitq, &wq);
+	}
+	unlock_kernel();
+	return 0;
+}
+
+/*
+ * Bring up the NFSv4.1 callback service
+ */
+struct svc_rqst *
+nfs41_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
+{
+	struct svc_xprt *bc_xprt;
+	struct svc_rqst *rqstp = ERR_PTR(-ENOMEM);
+
+	dprintk("--> %s\n", __func__);
+	/* Create a svc_sock for the service */
+	bc_xprt = svc_sock_create(serv, xprt->prot);
+	if (!bc_xprt)
+		goto out;
+
+	/*
+	 * Save the svc_serv in the transport so that it can
+	 * be referenced when the session backchannel is initialized
+	 */
+	serv->bc_xprt = bc_xprt;
+	xprt->bc_serv = serv;
+
+	INIT_LIST_HEAD(&serv->sv_cb_list);
+	spin_lock_init(&serv->sv_cb_lock);
+	init_waitqueue_head(&serv->sv_cb_waitq);
+	rqstp = svc_prepare_thread(serv, &serv->sv_pools[0]);
+	if (IS_ERR(rqstp))
+		svc_sock_destroy(bc_xprt);
+out:
+	dprintk("--> %s return %p\n", __func__, rqstp);
+	return rqstp;
+}
+
+static inline int nfs_minorversion_callback_svc_setup(u32 minorversion,
+		struct svc_serv *serv, struct rpc_xprt *xprt,
+		struct svc_rqst **rqstpp, int (**callback_svc)(void *vrqstp))
+{
+	if (minorversion) {
+		*rqstpp = nfs41_callback_up(serv, xprt);
+		*callback_svc = nfs41_callback_svc;
+	}
+	return minorversion;
+}
+
+static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
+		struct nfs_callback_data *cb_info)
+{
+	if (minorversion)
+		xprt->bc_serv = cb_info->serv;
+}
+#else
+static inline int nfs_minorversion_callback_svc_setup(u32 minorversion,
+		struct svc_serv *serv, struct rpc_xprt *xprt,
+		struct svc_rqst **rqstpp, int (**callback_svc)(void *vrqstp))
+{
+	return 0;
+}
+
+static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
+		struct nfs_callback_data *cb_info)
+{
+}
+#endif /* CONFIG_NFS_V4_1 */
+
+/*
+ * Bring up the callback thread if it is not already up.
+ */
+int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
+{
+	struct svc_serv *serv = NULL;
+	struct svc_rqst *rqstp;
+	int (*callback_svc)(void *vrqstp);
+	struct nfs_callback_data *cb_info = &nfs_callback_info[minorversion];
+	char svc_name[12];
+	int ret = 0;
+	int minorversion_setup;
+
+	mutex_lock(&nfs_callback_mutex);
+	if (cb_info->users++ || cb_info->task != NULL) {
+		nfs_callback_bc_serv(minorversion, xprt, cb_info);
+		goto out;
+	}
+	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE, NULL);
+	if (!serv) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	minorversion_setup =  nfs_minorversion_callback_svc_setup(minorversion,
+					serv, xprt, &rqstp, &callback_svc);
+	if (!minorversion_setup) {
+		/* v4.0 callback setup */
+		rqstp = nfs4_callback_up(serv);
+		callback_svc = nfs4_callback_svc;
+	}
+
+	if (IS_ERR(rqstp)) {
+		ret = PTR_ERR(rqstp);
 		goto out_err;
 	}
 
 	svc_sock_update_bufs(serv);
 
-	nfs_callback_info.task = kthread_run(nfs_callback_svc,
-					     nfs_callback_info.rqst,
-					     "nfsv4-svc");
-	if (IS_ERR(nfs_callback_info.task)) {
-		ret = PTR_ERR(nfs_callback_info.task);
-		svc_exit_thread(nfs_callback_info.rqst);
-		nfs_callback_info.rqst = NULL;
-		nfs_callback_info.task = NULL;
+	sprintf(svc_name, "nfsv4.%u-svc", minorversion);
+	cb_info->serv = serv;
+	cb_info->rqst = rqstp;
+	cb_info->task = kthread_run(callback_svc, cb_info->rqst, svc_name);
+	if (IS_ERR(cb_info->task)) {
+		ret = PTR_ERR(cb_info->task);
+		svc_exit_thread(cb_info->rqst);
+		cb_info->rqst = NULL;
+		cb_info->task = NULL;
 		goto out_err;
 	}
 out:
@@ -164,22 +307,25 @@ out:
 out_err:
 	dprintk("NFS: Couldn't create callback socket or server thread; "
 		"err = %d\n", ret);
-	nfs_callback_info.users--;
+	cb_info->users--;
 	goto out;
 }
 
 /*
  * Kill the callback thread if it's no longer being used.
  */
-void nfs_callback_down(void)
+void nfs_callback_down(int minorversion)
 {
+	struct nfs_callback_data *cb_info = &nfs_callback_info[minorversion];
+
 	mutex_lock(&nfs_callback_mutex);
-	nfs_callback_info.users--;
-	if (nfs_callback_info.users == 0 && nfs_callback_info.task != NULL) {
-		kthread_stop(nfs_callback_info.task);
-		svc_exit_thread(nfs_callback_info.rqst);
-		nfs_callback_info.rqst = NULL;
-		nfs_callback_info.task = NULL;
+	cb_info->users--;
+	if (cb_info->users == 0 && cb_info->task != NULL) {
+		kthread_stop(cb_info->task);
+		svc_exit_thread(cb_info->rqst);
+		cb_info->serv = NULL;
+		cb_info->rqst = NULL;
+		cb_info->task = NULL;
 	}
 	mutex_unlock(&nfs_callback_mutex);
 }

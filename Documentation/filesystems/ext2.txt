@@ -322,7 +322,7 @@ an upper limit on the block size imposed by the page size of the kernel,
 so 8kB blocks are only allowed on Alpha systems (and other architectures
 which support larger pages).
 
-There is an upper limit of 32768 subdirectories in a single directory.
+There is an upper limit of 32000 subdirectories in a single directory.
 
 There is a "soft" upper limit of about 10-15k files in a single directory
 with the current linear linked-list directory implementation.  This limit

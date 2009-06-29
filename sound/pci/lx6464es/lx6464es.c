@@ -988,7 +988,7 @@ static int __devinit snd_lx6464es_create(struct snd_card *card,
 	pci_set_master(pci);
 
 	/* check if we can restrict PCI DMA transfers to 32 bits */
-	err = pci_set_dma_mask(pci, DMA_32BIT_MASK);
+	err = pci_set_dma_mask(pci, DMA_BIT_MASK(32));
 	if (err < 0) {
 		snd_printk(KERN_ERR "architecture does not support "
 			   "32bit PCI busmaster DMA\n");

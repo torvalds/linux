@@ -66,7 +66,7 @@ static int __handle_fault(struct mm_struct *mm, unsigned long address,
 	}
 
 survive:
-	fault = handle_mm_fault(mm, vma, address, write_access);
+	fault = handle_mm_fault(mm, vma, address, write_access ? FAULT_FLAG_WRITE : 0);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;

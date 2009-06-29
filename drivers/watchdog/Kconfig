@@ -240,6 +240,32 @@ config ORION_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called orion_wdt.
 
+config COH901327_WATCHDOG
+	bool "ST-Ericsson COH 901 327 watchdog"
+	depends on ARCH_U300
+	default y if MACH_U300
+	help
+	  Say Y here to include Watchdog timer support for the
+	  watchdog embedded into the ST-Ericsson U300 series platforms.
+	  This watchdog is used to reset the system and thus cannot be
+	  compiled as a module.
+
+config TWL4030_WATCHDOG
+	tristate "TWL4030 Watchdog"
+	depends on TWL4030_CORE
+	help
+	  Support for TI TWL4030 watchdog.  Say 'Y' here to enable the
+	  watchdog timer support for TWL4030 chips.
+
+config STMP3XXX_WATCHDOG
+	tristate "Freescale STMP3XXX watchdog"
+	depends on ARCH_STMP3XXX
+	help
+	  Say Y here if to include support for the watchdog timer
+	  for the Sigmatel STMP37XX/378X SoC.
+	  To compile this driver as a module, choose M here: the
+	  module will be called stmp3xxx_wdt.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
@@ -703,6 +729,12 @@ config SBC_EPX_C3_WATCHDOG
 
 # MIPS Architecture
 
+config BCM47XX_WDT
+	tristate "Broadcom BCM47xx Watchdog Timer"
+	depends on BCM47XX
+	help
+	  Hardware driver for the Broadcom BCM47xx Watchog Timer.
+
 config RC32434_WDT
 	tristate "IDT RC32434 SoC Watchdog Timer"
 	depends on MIKROTIK_RB532
@@ -728,6 +760,15 @@ config WDT_MTX1
 	help
 	  Hardware driver for the MTX-1 boards. This is a watchdog timer that
 	  will reboot the machine after a 100 seconds timer expired.
+
+config PNX833X_WDT
+	tristate "PNX833x Hardware Watchdog"
+	depends on SOC_PNX8335
+	help
+	  Hardware driver for the PNX833x's watchdog. This is a
+	  watchdog timer that will reboot the machine after a programable
+	  timer has expired and no process has written to /dev/watchdog during
+	  that time.
 
 config WDT_RM9K_GPI
 	tristate "RM9000/GPI hardware watchdog"
@@ -966,23 +1007,15 @@ config WDTPCI
 	---help---
 	  If you have a PCI-WDT500/501 watchdog board, say Y here, otherwise N.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called wdt_pci.
-
-config WDT_501_PCI
-	bool "PCI-WDT501 features"
-	depends on WDTPCI
-	help
-	  Saying Y here and creating a character special file /dev/temperature
-	  with major number 10 and minor number 131 ("man mknod") will give
-	  you a thermometer inside your computer: reading from
-	  /dev/temperature yields one byte, the temperature in degrees
-	  Fahrenheit. This works only if you have a PCI-WDT501 watchdog board
-	  installed.
+	  If you have a PCI-WDT501 watchdog board then you can enable the
+	  temperature sensor by setting the type parameter to 501.
 
 	  If you want to enable the Fan Tachometer on the PCI-WDT501, then you
 	  can do this via the tachometer parameter. Only do this if you have a
 	  fan tachometer actually set up.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wdt_pci.
 
 #
 # USB-based Watchdog Cards

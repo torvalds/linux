@@ -90,14 +90,14 @@ static int ql_get_mb_sts(struct ql_adapter *qdev, struct mbox_params *mbcp)
  */
 static int ql_wait_mbx_cmd_cmplt(struct ql_adapter *qdev)
 {
-	int count = 50;	/* TODO: arbitrary for now. */
+	int count = 100;
 	u32 value;
 
 	do {
 		value = ql_read32(qdev, STS);
 		if (value & STS_PI)
 			return 0;
-		udelay(UDELAY_DELAY); /* 10us */
+		mdelay(UDELAY_DELAY); /* 100ms */
 	} while (--count);
 	return -ETIMEDOUT;
 }
@@ -453,6 +453,13 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	}
 end:
 	ql_write32(qdev, CSR, CSR_CMD_CLR_R2PCI_INT);
+	/* Restore the original mailbox count to
+	 * what the caller asked for.  This can get
+	 * changed when a mailbox command is waiting
+	 * for a response and an AEN arrives and
+	 * is handled.
+	 * */
+	mbcp->out_count = orig_count;
 	return status;
 }
 
@@ -537,6 +544,40 @@ end:
 	mutex_unlock(&qdev->mpi_mutex);
 	/* End polled mode for MPI */
 	ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16) | INTR_MASK_PI);
+	return status;
+}
+
+
+/* Get MPI firmware version. This will be used for
+ * driver banner and for ethtool info.
+ * Returns zero on success.
+ */
+int ql_mb_about_fw(struct ql_adapter *qdev)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status = 0;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 1;
+	mbcp->out_count = 3;
+
+	mbcp->mbox_in[0] = MB_CMD_ABOUT_FW;
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed about firmware command\n");
+		status = -EIO;
+	}
+
+	/* Store the firmware version */
+	qdev->fw_rev_id = mbcp->mbox_out[1];
+
 	return status;
 }
 
@@ -754,7 +795,6 @@ void ql_mpi_port_cfg_work(struct work_struct *work)
 {
 	struct ql_adapter *qdev =
 	    container_of(work, struct ql_adapter, mpi_port_cfg_work.work);
-	struct net_device *ndev = qdev->ndev;
 	int status;
 
 	status = ql_mb_get_port_cfg(qdev);
@@ -764,9 +804,7 @@ void ql_mpi_port_cfg_work(struct work_struct *work)
 		goto err;
 	}
 
-	if (ndev->mtu <= 2500)
-		goto end;
-	else if (qdev->link_config & CFG_JUMBO_FRAME_SIZE &&
+	if (qdev->link_config & CFG_JUMBO_FRAME_SIZE &&
 			qdev->max_frame_size ==
 			CFG_DEFAULT_MAX_FRAME_SIZE)
 		goto end;
@@ -831,13 +869,19 @@ void ql_mpi_work(struct work_struct *work)
 	    container_of(work, struct ql_adapter, mpi_work.work);
 	struct mbox_params mbc;
 	struct mbox_params *mbcp = &mbc;
+	int err = 0;
 
 	mutex_lock(&qdev->mpi_mutex);
 
 	while (ql_read32(qdev, STS) & STS_PI) {
 		memset(mbcp, 0, sizeof(struct mbox_params));
 		mbcp->out_count = 1;
-		ql_mpi_handler(qdev, mbcp);
+		/* Don't continue if an async event
+		 * did not complete properly.
+		 */
+		err = ql_mpi_handler(qdev, mbcp);
+		if (err)
+			break;
 	}
 
 	mutex_unlock(&qdev->mpi_mutex);

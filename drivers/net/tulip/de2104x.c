@@ -82,6 +82,13 @@ MODULE_PARM_DESC (rx_copybreak, "de2104x Breakpoint at which Rx packets are copi
 				 NETIF_MSG_RX_ERR	| \
 				 NETIF_MSG_TX_ERR)
 
+/* Descriptor skip length in 32 bit longwords. */
+#ifndef CONFIG_DE2104X_DSL
+#define DSL			0
+#else
+#define DSL			CONFIG_DE2104X_DSL
+#endif
+
 #define DE_RX_RING_SIZE		64
 #define DE_TX_RING_SIZE		64
 #define DE_RING_BYTES		\
@@ -153,6 +160,7 @@ enum {
 	CmdReset		= (1 << 0),
 	CacheAlign16		= 0x00008000,
 	BurstLen4		= 0x00000400,
+	DescSkipLen		= (DSL << 2),
 
 	/* Rx/TxPoll bits */
 	NormalTxPoll		= (1 << 0),
@@ -246,7 +254,7 @@ static const u32 de_intr_mask =
  * Set the programmable burst length to 4 longwords for all:
  * DMA errors result without these values. Cache align 16 long.
  */
-static const u32 de_bus_mode = CacheAlign16 | BurstLen4;
+static const u32 de_bus_mode = CacheAlign16 | BurstLen4 | DescSkipLen;
 
 struct de_srom_media_block {
 	u8			opts;
@@ -266,6 +274,9 @@ struct de_desc {
 	__le32			opts2;
 	__le32			addr1;
 	__le32			addr2;
+#if DSL
+	__le32			skip[DSL];
+#endif
 };
 
 struct media_info {
@@ -601,7 +612,7 @@ static int de_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	if (tx_free == 0) {
 		netif_stop_queue(dev);
 		spin_unlock_irq(&de->lock);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	tx_free--;
 

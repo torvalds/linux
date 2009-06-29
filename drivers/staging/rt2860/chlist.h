@@ -524,7 +524,12 @@ static CH_REGION ChRegion[] =
 			JAP,
 			{
 				{ 1,   14,  20, BOTH, FALSE},	// 2.4 G, ch 1~14
+#ifndef RT30xx
 				{ 36, 	4,  23, IDOR, FALSE},	// 5G, ch 36~48
+#endif
+#ifdef RT30xx
+				{ 34, 	4,  23, IDOR, FALSE},	// 5G, ch 34~46
+#endif
 				{ 0},							// end
 			}
 		},
@@ -957,16 +962,12 @@ static inline VOID ChBandCheck(
 	switch(PhyMode)
 	{
 		case PHY_11A:
-#ifdef DOT11_N_SUPPORT
 		case PHY_11AN_MIXED:
-#endif // DOT11_N_SUPPORT //
 			*pChType = BAND_5G;
 			break;
 		case PHY_11ABG_MIXED:
-#ifdef DOT11_N_SUPPORT
 		case PHY_11AGN_MIXED:
 		case PHY_11ABGN_MIXED:
-#endif // DOT11_N_SUPPORT //
 			*pChType = BAND_BOTH;
 			break;
 
@@ -1114,8 +1115,6 @@ static inline VOID BuildBeaconChList(
 	}
 }
 
-
-#ifdef DOT11_N_SUPPORT
 static inline BOOLEAN IsValidChannel(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR channel)
@@ -1201,49 +1200,6 @@ static inline VOID N_ChannelCheck(
 				pAd->CommonCfg.RegTransmitSetting.field.BW  = BW_20;
 				//pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_NONE;	// We didn't set the ExtCh as NONE due to it'll set in RTMPSetHT()
 			}
-#if 0
-			switch (pAd->CommonCfg.CountryRegion  & 0x7f)
-			{
-				case REGION_0_BG_BAND:	// 1 -11
-				case REGION_1_BG_BAND:	// 1 - 13
-				case REGION_5_BG_BAND:	// 1 - 14
-					if (Channel <= 4)
-					{
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_ABOVE;
-					}
-					else if (Channel >= 8)
-					{
-						if ((ChannelNum - Channel) < 4)
-							pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_BELOW;
-					}
-					break;
-
-				case REGION_2_BG_BAND:	// 10 - 11
-				case REGION_3_BG_BAND:	// 10 - 13
-				case REGION_4_BG_BAND:	// 14
-					pAd->CommonCfg.RegTransmitSetting.field.BW  = BW_20;
-					break;
-
-				case REGION_6_BG_BAND:	// 3 - 9
-					if (Channel <= 5)
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_ABOVE;
-					else if (Channel == 6)
-						pAd->CommonCfg.RegTransmitSetting.field.BW  = BW_20;
-					else if (Channel >= 7)
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_BELOW;
-					break;
-
-				case REGION_7_BG_BAND:  // 5 - 13
-					if (Channel <= 8)
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_ABOVE;
-					else if (Channel >= 10)
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_BELOW;
-					break;
-
-				default:	// Error. should never happen
-					break;
-			}
-#endif
 		}
 	}
 
@@ -1273,8 +1229,6 @@ static inline VOID N_SetCenCh(
 		pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel;
 	}
 }
-#endif // DOT11_N_SUPPORT //
-
 
 static inline UINT8 GetCuntryMaxTxPwr(
 	IN PRTMP_ADAPTER pAd,

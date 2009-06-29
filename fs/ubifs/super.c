@@ -361,6 +361,11 @@ static void ubifs_delete_inode(struct inode *inode)
 out:
 	if (ui->dirty)
 		ubifs_release_dirty_inode_budget(c, ui);
+	else {
+		/* We've deleted something - clean the "no space" flags */
+		c->nospace = c->nospace_rp = 0;
+		smp_wmb();
+	}
 	clear_inode(inode);
 }
 
@@ -792,7 +797,7 @@ static int alloc_wbufs(struct ubifs_info *c)
 	 * does not need to be synchronized by timer.
 	 */
 	c->jheads[GCHD].wbuf.dtype = UBI_LONGTERM;
-	c->jheads[GCHD].wbuf.timeout = 0;
+	c->jheads[GCHD].wbuf.softlimit = ktime_set(0, 0);
 
 	return 0;
 }
@@ -933,6 +938,27 @@ static const match_table_t tokens = {
 };
 
 /**
+ * parse_standard_option - parse a standard mount option.
+ * @option: the option to parse
+ *
+ * Normally, standard mount options like "sync" are passed to file-systems as
+ * flags. However, when a "rootflags=" kernel boot parameter is used, they may
+ * be present in the options string. This function tries to deal with this
+ * situation and parse standard options. Returns 0 if the option was not
+ * recognized, and the corresponding integer flag if it was.
+ *
+ * UBIFS is only interested in the "sync" option, so do not check for anything
+ * else.
+ */
+static int parse_standard_option(const char *option)
+{
+	ubifs_msg("parse %s", option);
+	if (!strcmp(option, "sync"))
+		return MS_SYNCHRONOUS;
+	return 0;
+}
+
+/**
  * ubifs_parse_options - parse mount parameters.
  * @c: UBIFS file-system description object
  * @options: parameters to parse
@@ -1008,9 +1034,19 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 			break;
 		}
 		default:
-			ubifs_err("unrecognized mount option \"%s\" "
-				  "or missing value", p);
-			return -EINVAL;
+		{
+			unsigned long flag;
+			struct super_block *sb = c->vfs_sb;
+
+			flag = parse_standard_option(p);
+			if (!flag) {
+				ubifs_err("unrecognized mount option \"%s\" "
+					  "or missing value", p);
+				return -EINVAL;
+			}
+			sb->s_flags |= flag;
+			break;
+		}
 		}
 	}
 
@@ -1180,6 +1216,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (!ubifs_compr_present(c->default_compr)) {
 		ubifs_err("'compressor \"%s\" is not compiled in",
 			  ubifs_compr_name(c->default_compr));
+		err = -ENOTSUPP;
 		goto out_free;
 	}
 
@@ -1656,7 +1693,7 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 
 	for (i = 0; i < c->jhead_cnt; i++) {
 		ubifs_wbuf_sync(&c->jheads[i].wbuf);
-		del_timer_sync(&c->jheads[i].wbuf.timer);
+		hrtimer_cancel(&c->jheads[i].wbuf.timer);
 	}
 
 	c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
@@ -1719,7 +1756,7 @@ static void ubifs_put_super(struct super_block *sb)
 		if (c->jheads)
 			for (i = 0; i < c->jhead_cnt; i++) {
 				ubifs_wbuf_sync(&c->jheads[i].wbuf);
-				del_timer_sync(&c->jheads[i].wbuf.timer);
+				hrtimer_cancel(&c->jheads[i].wbuf.timer);
 			}
 
 		/*
@@ -1911,6 +1948,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_LIST_HEAD(&c->orph_list);
 	INIT_LIST_HEAD(&c->orph_new);
 
+	c->vfs_sb = sb;
 	c->highest_inum = UBIFS_FIRST_INO;
 	c->lhead_lnum = c->ltail_lnum = UBIFS_LOG_LNUM;
 
@@ -1937,18 +1975,18 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	err  = bdi_init(&c->bdi);
 	if (err)
 		goto out_close;
+	err = bdi_register(&c->bdi, NULL, "ubifs");
+	if (err)
+		goto out_bdi;
 
 	err = ubifs_parse_options(c, data, 0);
 	if (err)
 		goto out_bdi;
 
-	c->vfs_sb = sb;
-
 	sb->s_fs_info = c;
 	sb->s_magic = UBIFS_SUPER_MAGIC;
 	sb->s_blocksize = UBIFS_BLOCK_SIZE;
 	sb->s_blocksize_bits = UBIFS_BLOCK_SHIFT;
-	sb->s_dev = c->vi.cdev;
 	sb->s_maxbytes = c->max_inode_sz = key_max_inode_size(c);
 	if (c->max_inode_sz > MAX_LFS_FILESIZE)
 		sb->s_maxbytes = c->max_inode_sz = MAX_LFS_FILESIZE;
@@ -1993,16 +2031,9 @@ out_free:
 static int sb_test(struct super_block *sb, void *data)
 {
 	dev_t *dev = data;
+	struct ubifs_info *c = sb->s_fs_info;
 
-	return sb->s_dev == *dev;
-}
-
-static int sb_set(struct super_block *sb, void *data)
-{
-	dev_t *dev = data;
-
-	sb->s_dev = *dev;
-	return 0;
+	return c->vi.cdev == *dev;
 }
 
 static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
@@ -2030,7 +2061,7 @@ static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
 
 	dbg_gen("opened ubi%d_%d", vi.ubi_num, vi.vol_id);
 
-	sb = sget(fs_type, &sb_test, &sb_set, &vi.cdev);
+	sb = sget(fs_type, &sb_test, &set_anon_super, &vi.cdev);
 	if (IS_ERR(sb)) {
 		err = PTR_ERR(sb);
 		goto out_close;
@@ -2070,16 +2101,11 @@ out_close:
 	return err;
 }
 
-static void ubifs_kill_sb(struct super_block *sb)
-{
-	generic_shutdown_super(sb);
-}
-
 static struct file_system_type ubifs_fs_type = {
 	.name    = "ubifs",
 	.owner   = THIS_MODULE,
 	.get_sb  = ubifs_get_sb,
-	.kill_sb = ubifs_kill_sb
+	.kill_sb = kill_anon_super,
 };
 
 /*

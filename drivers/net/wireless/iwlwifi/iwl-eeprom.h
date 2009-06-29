@@ -179,6 +179,10 @@ struct iwl_eeprom_channel {
 #define EEPROM_5050_TX_POWER_VERSION    (4)
 #define EEPROM_5050_EEPROM_VERSION	(0x21E)
 
+/* OTP */
+#define OTP_LOWER_BLOCKS_TOTAL		(3)
+#define OTP_BLOCK_SIZE			(0x400)
+
 /* 2.4 GHz */
 extern const u8 iwl_eeprom_band_1[14];
 

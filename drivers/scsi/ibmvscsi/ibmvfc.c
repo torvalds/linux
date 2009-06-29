@@ -2254,10 +2254,13 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 				continue;
 			if (crq->node_name && tgt->ids.node_name != crq->node_name)
 				continue;
-			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
+			if (tgt->need_login && crq->event == IBMVFC_AE_ELS_LOGO)
+				tgt->logo_rcvd = 1;
+			if (!tgt->need_login || crq->event == IBMVFC_AE_ELS_PLOGI) {
+				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
+				ibmvfc_reinit_host(vhost);
+			}
 		}
-
-		ibmvfc_reinit_host(vhost);
 		break;
 	case IBMVFC_AE_LINK_DOWN:
 	case IBMVFC_AE_ADAPTER_FAILED:
@@ -2783,27 +2786,27 @@ static void ibmvfc_tasklet(void *data)
 
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	while (!done) {
-		/* Pull all the valid messages off the CRQ */
-		while ((crq = ibmvfc_next_crq(vhost)) != NULL) {
-			ibmvfc_handle_crq(crq, vhost);
-			crq->valid = 0;
-		}
-
 		/* Pull all the valid messages off the async CRQ */
 		while ((async = ibmvfc_next_async_crq(vhost)) != NULL) {
 			ibmvfc_handle_async(async, vhost);
 			async->valid = 0;
 		}
 
-		vio_enable_interrupts(vdev);
-		if ((crq = ibmvfc_next_crq(vhost)) != NULL) {
-			vio_disable_interrupts(vdev);
+		/* Pull all the valid messages off the CRQ */
+		while ((crq = ibmvfc_next_crq(vhost)) != NULL) {
 			ibmvfc_handle_crq(crq, vhost);
 			crq->valid = 0;
-		} else if ((async = ibmvfc_next_async_crq(vhost)) != NULL) {
+		}
+
+		vio_enable_interrupts(vdev);
+		if ((async = ibmvfc_next_async_crq(vhost)) != NULL) {
 			vio_disable_interrupts(vdev);
 			ibmvfc_handle_async(async, vhost);
 			async->valid = 0;
+		} else if ((crq = ibmvfc_next_crq(vhost)) != NULL) {
+			vio_disable_interrupts(vdev);
+			ibmvfc_handle_crq(crq, vhost);
+			crq->valid = 0;
 		} else
 			done = 1;
 	}
@@ -2927,7 +2930,11 @@ static void ibmvfc_tgt_prli_done(struct ibmvfc_event *evt)
 		break;
 	case IBMVFC_MAD_FAILED:
 	default:
-		if (ibmvfc_retry_cmd(rsp->status, rsp->error))
+		if ((rsp->status & IBMVFC_VIOS_FAILURE) && rsp->error == IBMVFC_PLOGI_REQUIRED)
+			level += ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_plogi);
+		else if (tgt->logo_rcvd)
+			level += ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_plogi);
+		else if (ibmvfc_retry_cmd(rsp->status, rsp->error))
 			level += ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_prli);
 		else
 			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
@@ -3054,6 +3061,7 @@ static void ibmvfc_tgt_send_plogi(struct ibmvfc_target *tgt)
 		return;
 
 	kref_get(&tgt->kref);
+	tgt->logo_rcvd = 0;
 	evt = ibmvfc_get_event(vhost);
 	vhost->discovery_threads++;
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_INIT_WAIT);

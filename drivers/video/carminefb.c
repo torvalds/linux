@@ -562,7 +562,7 @@ static int __devinit alloc_carmine_fb(void __iomem *regs, void __iomem *smem_bas
 	if (ret < 0)
 		goto err_free_fb;
 
-	if (fb_mode > ARRAY_SIZE(carmine_modedb))
+	if (fb_mode >= ARRAY_SIZE(carmine_modedb))
 		fb_mode = CARMINEFB_DEFAULT_VIDEO_MODE;
 
 	par->cur_mode = par->new_mode = ~0;

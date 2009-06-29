@@ -216,7 +216,7 @@ qla24xx_soft_reset(struct qla_hw_data *ha)
 
 static int
 qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint16_t *ram,
-    uint16_t ram_words, void **nxt)
+    uint32_t ram_words, void **nxt)
 {
 	int rval;
 	uint32_t cnt, stat, timer, words, idx;

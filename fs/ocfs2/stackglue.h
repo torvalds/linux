@@ -186,6 +186,11 @@ struct ocfs2_stack_operations {
 	int (*lock_status)(union ocfs2_dlm_lksb *lksb);
 
 	/*
+	 * Return non-zero if the LVB is valid.
+	 */
+	int (*lvb_valid)(union ocfs2_dlm_lksb *lksb);
+
+	/*
 	 * Pull the lvb pointer off of the stack-specific lksb.
 	 */
 	void *(*lock_lvb)(union ocfs2_dlm_lksb *lksb);
@@ -252,6 +257,7 @@ int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
 		     struct ocfs2_lock_res *astarg);
 
 int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb);
+int ocfs2_dlm_lvb_valid(union ocfs2_dlm_lksb *lksb);
 void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb);
 void ocfs2_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb);
 

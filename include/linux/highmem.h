@@ -55,7 +55,9 @@ static inline void *kmap(struct page *page)
 	return page_address(page);
 }
 
-#define kunmap(page) do { (void) (page); } while (0)
+static inline void kunmap(struct page *page)
+{
+}
 
 static inline void *kmap_atomic(struct page *page, enum km_type idx)
 {

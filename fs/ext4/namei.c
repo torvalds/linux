@@ -1782,7 +1782,7 @@ retry:
 	if (IS_DIRSYNC(dir))
 		ext4_handle_sync(handle);
 
-	inode = ext4_new_inode (handle, dir, mode);
+	inode = ext4_new_inode(handle, dir, mode, &dentry->d_name, 0);
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 		inode->i_op = &ext4_file_inode_operations;
@@ -1816,7 +1816,7 @@ retry:
 	if (IS_DIRSYNC(dir))
 		ext4_handle_sync(handle);
 
-	inode = ext4_new_inode(handle, dir, mode);
+	inode = ext4_new_inode(handle, dir, mode, &dentry->d_name, 0);
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 		init_special_inode(inode, inode->i_mode, rdev);
@@ -1853,7 +1853,8 @@ retry:
 	if (IS_DIRSYNC(dir))
 		ext4_handle_sync(handle);
 
-	inode = ext4_new_inode(handle, dir, S_IFDIR | mode);
+	inode = ext4_new_inode(handle, dir, S_IFDIR | mode,
+			       &dentry->d_name, 0);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out_stop;
@@ -2264,7 +2265,8 @@ retry:
 	if (IS_DIRSYNC(dir))
 		ext4_handle_sync(handle);
 
-	inode = ext4_new_inode(handle, dir, S_IFLNK|S_IRWXUGO);
+	inode = ext4_new_inode(handle, dir, S_IFLNK|S_IRWXUGO,
+			       &dentry->d_name, 0);
 	err = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto out_stop;

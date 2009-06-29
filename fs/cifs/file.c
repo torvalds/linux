@@ -300,14 +300,16 @@ int cifs_open(struct inode *inode, struct file *file)
 	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
 	pCifsFile = cifs_fill_filedata(file);
 	if (pCifsFile) {
+		rc = 0;
 		FreeXid(xid);
-		return 0;
+		return rc;
 	}
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {
+		rc = -ENOMEM;
 		FreeXid(xid);
-		return -ENOMEM;
+		return rc;
 	}
 
 	cFYI(1, ("inode = 0x%p file flags are 0x%x for %s",
@@ -491,11 +493,12 @@ static int cifs_reopen_file(struct file *file, bool can_flush)
 		return -EBADF;
 
 	xid = GetXid();
-	mutex_unlock(&pCifsFile->fh_mutex);
+	mutex_lock(&pCifsFile->fh_mutex);
 	if (!pCifsFile->invalidHandle) {
-		mutex_lock(&pCifsFile->fh_mutex);
+		mutex_unlock(&pCifsFile->fh_mutex);
+		rc = 0;
 		FreeXid(xid);
-		return 0;
+		return rc;
 	}
 
 	if (file->f_path.dentry == NULL) {
@@ -524,7 +527,7 @@ static int cifs_reopen_file(struct file *file, bool can_flush)
 	if (full_path == NULL) {
 		rc = -ENOMEM;
 reopen_error_exit:
-		mutex_lock(&pCifsFile->fh_mutex);
+		mutex_unlock(&pCifsFile->fh_mutex);
 		FreeXid(xid);
 		return rc;
 	}
@@ -566,14 +569,14 @@ reopen_error_exit:
 			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
-		mutex_lock(&pCifsFile->fh_mutex);
+		mutex_unlock(&pCifsFile->fh_mutex);
 		cFYI(1, ("cifs_open returned 0x%x", rc));
 		cFYI(1, ("oplock: %d", oplock));
 	} else {
 reopen_success:
 		pCifsFile->netfid = netfid;
 		pCifsFile->invalidHandle = false;
-		mutex_lock(&pCifsFile->fh_mutex);
+		mutex_unlock(&pCifsFile->fh_mutex);
 		pCifsInode = CIFS_I(inode);
 		if (pCifsInode) {
 			if (can_flush) {
@@ -845,8 +848,9 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	tcon = cifs_sb->tcon;
 
 	if (file->private_data == NULL) {
+		rc = -EBADF;
 		FreeXid(xid);
-		return -EBADF;
+		return rc;
 	}
 	netfid = ((struct cifsFileInfo *)file->private_data)->netfid;
 
@@ -1805,8 +1809,9 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 	pTcon = cifs_sb->tcon;
 
 	if (file->private_data == NULL) {
+		rc = -EBADF;
 		FreeXid(xid);
-		return -EBADF;
+		return rc;
 	}
 	open_file = (struct cifsFileInfo *)file->private_data;
 
@@ -1885,8 +1890,9 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	pTcon = cifs_sb->tcon;
 
 	if (file->private_data == NULL) {
+		rc = -EBADF;
 		FreeXid(xid);
-		return -EBADF;
+		return rc;
 	}
 	open_file = (struct cifsFileInfo *)file->private_data;
 
@@ -2019,8 +2025,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 
 	xid = GetXid();
 	if (file->private_data == NULL) {
+		rc = -EBADF;
 		FreeXid(xid);
-		return -EBADF;
+		return rc;
 	}
 	open_file = (struct cifsFileInfo *)file->private_data;
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
@@ -2185,8 +2192,9 @@ static int cifs_readpage(struct file *file, struct page *page)
 	xid = GetXid();
 
 	if (file->private_data == NULL) {
+		rc = -EBADF;
 		FreeXid(xid);
-		return -EBADF;
+		return rc;
 	}
 
 	cFYI(1, ("readpage %p at offset %d 0x%x\n",

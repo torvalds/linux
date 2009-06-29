@@ -118,7 +118,7 @@ jensen_local_end(unsigned int irq)
 		i8259a_end_irq(1);
 }
 
-static struct hw_interrupt_type jensen_local_irq_type = {
+static struct irq_chip jensen_local_irq_type = {
 	.typename	= "LOCAL",
 	.startup	= jensen_local_startup,
 	.shutdown	= jensen_local_shutdown,

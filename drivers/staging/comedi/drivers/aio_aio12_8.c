@@ -77,7 +77,7 @@ struct aio12_8_boardtype {
 
 static const struct aio12_8_boardtype board_types[] = {
 	{
-      name:	"aio_aio12_8"},
+	.name = "aio_aio12_8"},
 };
 
 #define	thisboard	((const struct aio12_8_boardtype  *) dev->board_ptr)
@@ -88,29 +88,29 @@ struct aio12_8_private {
 
 #define devpriv	((struct aio12_8_private *) dev->private)
 
-static int aio_aio12_8_ai_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int aio_aio12_8_ai_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	unsigned char control =
 		ADC_MODE_NORMAL |
 		(CR_RANGE(insn->chanspec) << 3) | CR_CHAN(insn->chanspec);
 
-	//read status to clear EOC latch
+	/* read status to clear EOC latch */
 	inb(dev->iobase + AIO12_8_STATUS);
 
 	for (n = 0; n < insn->n; n++) {
 		int timeout = 5;
 
-		// Setup and start conversion
+		/*  Setup and start conversion */
 		outb(control, dev->iobase + AIO12_8_ADC);
 
-		// Wait for conversion to complete
+		/*  Wait for conversion to complete */
 		while (timeout &&
 			!(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
 			timeout--;
 			printk("timeout %d\n", timeout);
-			comedi_udelay(1);
+			udelay(1);
 		}
 		if (timeout == 0) {
 			comedi_error(dev, "ADC timeout");
@@ -122,8 +122,8 @@ static int aio_aio12_8_ai_read(struct comedi_device * dev, struct comedi_subdevi
 	return n;
 }
 
-static int aio_aio12_8_ao_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int aio_aio12_8_ao_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int val = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
@@ -133,19 +133,19 @@ static int aio_aio12_8_ao_read(struct comedi_device * dev, struct comedi_subdevi
 	return insn->n;
 }
 
-static int aio_aio12_8_ao_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int aio_aio12_8_ao_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned long port = dev->iobase + AIO12_8_DAC_0 + (2 * chan);
 
-	//enable DACs
+	/* enable DACs */
 	outb(0x01, dev->iobase + DAC_ENABLE);
 
 	for (i = 0; i < insn->n; i++) {
-		outb(data[i] & 0xFF, port);	// LSB
-		outb((data[i] >> 8) & 0x0F, port + 1);	// MSB
+		outb(data[i] & 0xFF, port);	/*  LSB */
+		outb((data[i] >> 8) & 0x0F, port + 1);	/*  MSB */
 		devpriv->ao_readback[chan] = data[i];
 	}
 	return insn->n;
@@ -161,7 +161,7 @@ static const struct comedi_lrange range_aio_aio12_8 = {
 		}
 };
 
-static int aio_aio12_8_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int aio_aio12_8_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int iobase;
 	struct comedi_subdevice *s;
@@ -205,7 +205,7 @@ static int aio_aio12_8_attach(struct comedi_device * dev, struct comedi_devconfi
 	return 0;
 }
 
-static int aio_aio12_8_detach(struct comedi_device * dev)
+static int aio_aio12_8_detach(struct comedi_device *dev)
 {
 	subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->iobase)
@@ -214,13 +214,13 @@ static int aio_aio12_8_detach(struct comedi_device * dev)
 }
 
 static struct comedi_driver driver_aio_aio12_8 = {
-      driver_name:"aio_aio12_8",
-      module:THIS_MODULE,
-      attach:aio_aio12_8_attach,
-      detach:aio_aio12_8_detach,
-      board_name:&board_types[0].name,
-      num_names:1,
-      offset:sizeof(struct aio12_8_boardtype),
+	.driver_name = "aio_aio12_8",
+	.module = THIS_MODULE,
+	.attach = aio_aio12_8_attach,
+	.detach = aio_aio12_8_detach,
+	.board_name = &board_types[0].name,
+	.num_names = 1,
+	.offset = sizeof(struct aio12_8_boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_aio_aio12_8);

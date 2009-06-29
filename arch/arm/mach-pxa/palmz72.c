@@ -27,7 +27,9 @@
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
+#include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -41,6 +43,8 @@
 #include <mach/irda.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/udc.h>
+#include <mach/palmasoc.h>
+
 #include <mach/pm.h>
 
 #include "generic.h"
@@ -66,6 +70,8 @@ static unsigned long palmz72_pin_config[] __initdata = {
 	GPIO29_AC97_SDATA_IN_0,
 	GPIO30_AC97_SDATA_OUT,
 	GPIO31_AC97_SYNC,
+	GPIO89_AC97_SYSCLK,
+	GPIO113_AC97_nRESET,
 
 	/* IrDA */
 	GPIO49_GPIO,	/* ir disable */
@@ -77,8 +83,7 @@ static unsigned long palmz72_pin_config[] __initdata = {
 
 	/* USB */
 	GPIO15_GPIO,	/* usb detect */
-	GPIO12_GPIO,	/* usb pullup */
-	GPIO95_GPIO,	/* usb power */
+	GPIO95_GPIO,	/* usb pullup */
 
 	/* Matrix keypad */
 	GPIO100_KP_MKIN_0	| WAKEUP_ON_LEVEL_HIGH,
@@ -355,6 +360,22 @@ static struct platform_device palmz72_leds = {
 };
 
 /******************************************************************************
+ * UDC
+ ******************************************************************************/
+static struct gpio_vbus_mach_info palmz72_udc_info = {
+	.gpio_vbus		= GPIO_NR_PALMZ72_USB_DETECT_N,
+	.gpio_pullup		= GPIO_NR_PALMZ72_USB_PULLUP,
+};
+
+static struct platform_device palmz72_gpio_vbus = {
+	.name	= "gpio-vbus",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &palmz72_udc_info,
+	},
+};
+
+/******************************************************************************
  * Power supply
  ******************************************************************************/
 static int power_supply_init(struct device *dev)
@@ -419,6 +440,31 @@ static struct platform_device power_supply = {
 	.dev  = {
 		.platform_data = &power_supply_info,
 	},
+};
+
+/******************************************************************************
+ * WM97xx battery
+ ******************************************************************************/
+static struct wm97xx_batt_info wm97xx_batt_pdata = {
+	.batt_aux	= WM97XX_AUX_ID3,
+	.temp_aux	= WM97XX_AUX_ID2,
+	.charge_gpio	= -1,
+	.max_voltage	= PALMZ72_BAT_MAX_VOLTAGE,
+	.min_voltage	= PALMZ72_BAT_MIN_VOLTAGE,
+	.batt_mult	= 1000,
+	.batt_div	= 414,
+	.temp_mult	= 1,
+	.temp_div	= 1,
+	.batt_tech	= POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.batt_name	= "main-batt",
+};
+
+/******************************************************************************
+ * aSoC audio
+ ******************************************************************************/
+static struct platform_device palmz72_asoc = {
+	.name = "palm27x-asoc",
+	.id   = -1,
 };
 
 /******************************************************************************
@@ -527,17 +573,32 @@ device_initcall(palmz72_pm_init);
 static struct platform_device *devices[] __initdata = {
 	&palmz72_backlight,
 	&palmz72_leds,
+	&palmz72_asoc,
 	&power_supply,
+	&palmz72_gpio_vbus,
 };
+
+/* setup udc GPIOs initial state */
+static void __init palmz72_udc_init(void)
+{
+	if (!gpio_request(GPIO_NR_PALMZ72_USB_PULLUP, "USB Pullup")) {
+		gpio_direction_output(GPIO_NR_PALMZ72_USB_PULLUP, 0);
+		gpio_free(GPIO_NR_PALMZ72_USB_PULLUP);
+	}
+}
 
 static void __init palmz72_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmz72_pin_config));
+
 	set_pxa_fb_info(&palmz72_lcd_screen);
 	pxa_set_mci_info(&palmz72_mci_platform_data);
+	palmz72_udc_init();
 	pxa_set_ac97_info(NULL);
 	pxa_set_ficp_info(&palmz72_ficp_platform_data);
 	pxa_set_keypad_info(&palmz72_keypad_platform_data);
+	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

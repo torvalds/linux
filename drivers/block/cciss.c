@@ -38,7 +38,6 @@
 #include <linux/hdreg.h>
 #include <linux/spinlock.h>
 #include <linux/compat.h>
-#include <linux/blktrace_api.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 

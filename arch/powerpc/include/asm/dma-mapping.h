@@ -15,8 +15,17 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-attrs.h>
 #include <asm/io.h>
+#include <asm/swiotlb.h>
 
 #define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
+
+/* Some dma direct funcs must be visible for use in other dma_ops */
+extern void *dma_direct_alloc_coherent(struct device *dev, size_t size,
+				       dma_addr_t *dma_handle, gfp_t flag);
+extern void dma_direct_free_coherent(struct device *dev, size_t size,
+				     void *vaddr, dma_addr_t dma_handle);
+
+extern unsigned long get_dma_direct_offset(struct device *dev);
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
 /*
@@ -78,6 +87,8 @@ struct dma_mapping_ops {
 				dma_addr_t dma_address, size_t size,
 				enum dma_data_direction direction,
 				struct dma_attrs *attrs);
+	int		(*addr_needs_map)(struct device *dev, dma_addr_t addr,
+				size_t size);
 #ifdef CONFIG_PPC_NEED_DMA_SYNC_OPS
 	void            (*sync_single_range_for_cpu)(struct device *hwdev,
 				dma_addr_t dma_handle, unsigned long offset,
@@ -298,7 +309,9 @@ static inline void dma_sync_single_for_cpu(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_single_range_for_cpu(dev, dma_handle, 0,
+
+	if (dma_ops->sync_single_range_for_cpu)
+		dma_ops->sync_single_range_for_cpu(dev, dma_handle, 0,
 					   size, direction);
 }
 
@@ -309,7 +322,9 @@ static inline void dma_sync_single_for_device(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_single_range_for_device(dev, dma_handle,
+
+	if (dma_ops->sync_single_range_for_device)
+		dma_ops->sync_single_range_for_device(dev, dma_handle,
 					      0, size, direction);
 }
 
@@ -320,7 +335,9 @@ static inline void dma_sync_sg_for_cpu(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_sg_for_cpu(dev, sgl, nents, direction);
+
+	if (dma_ops->sync_sg_for_cpu)
+		dma_ops->sync_sg_for_cpu(dev, sgl, nents, direction);
 }
 
 static inline void dma_sync_sg_for_device(struct device *dev,
@@ -330,7 +347,9 @@ static inline void dma_sync_sg_for_device(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_sg_for_device(dev, sgl, nents, direction);
+
+	if (dma_ops->sync_sg_for_device)
+		dma_ops->sync_sg_for_device(dev, sgl, nents, direction);
 }
 
 static inline void dma_sync_single_range_for_cpu(struct device *dev,
@@ -340,7 +359,9 @@ static inline void dma_sync_single_range_for_cpu(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_single_range_for_cpu(dev, dma_handle,
+
+	if (dma_ops->sync_single_range_for_cpu)
+		dma_ops->sync_single_range_for_cpu(dev, dma_handle,
 					   offset, size, direction);
 }
 
@@ -351,7 +372,9 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_single_range_for_device(dev, dma_handle, offset,
+
+	if (dma_ops->sync_single_range_for_device)
+		dma_ops->sync_single_range_for_device(dev, dma_handle, offset,
 					      size, direction);
 }
 #else /* CONFIG_PPC_NEED_DMA_SYNC_OPS */

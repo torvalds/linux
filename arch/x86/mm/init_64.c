@@ -104,7 +104,7 @@ static __ref void *spp_getpage(void)
 	void *ptr;
 
 	if (after_bootmem)
-		ptr = (void *) get_zeroed_page(GFP_ATOMIC);
+		ptr = (void *) get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
 	else
 		ptr = alloc_bootmem_pages(PAGE_SIZE);
 
@@ -281,7 +281,7 @@ static __ref void *alloc_low_page(unsigned long *phys)
 	void *adr;
 
 	if (after_bootmem) {
-		adr = (void *)get_zeroed_page(GFP_ATOMIC);
+		adr = (void *)get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
 		*phys = __pa(adr);
 
 		return adr;
@@ -527,7 +527,7 @@ phys_pud_update(pgd_t *pgd, unsigned long addr, unsigned long end,
 	return phys_pud_init(pud, addr, end, page_size_mask);
 }
 
-unsigned long __init
+unsigned long __meminit
 kernel_physical_mapping_init(unsigned long start,
 			     unsigned long end,
 			     unsigned long page_size_mask)

@@ -856,7 +856,7 @@ EXPORT_SYMBOL(free_irq);
  *	still called in hard interrupt context and has to check
  *	whether the interrupt originates from the device. If yes it
  *	needs to disable the interrupt on the device and return
- *	IRQ_THREAD_WAKE which will wake up the handler thread and run
+ *	IRQ_WAKE_THREAD which will wake up the handler thread and run
  *	@thread_fn. This split handler design is necessary to support
  *	shared interrupts.
  *

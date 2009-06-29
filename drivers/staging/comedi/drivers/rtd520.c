@@ -101,6 +101,7 @@ Configuration options:
 
 */
 
+#include <linux/interrupt.h>
 #include <linux/delay.h>
 
 #include "../comedidev.h"
@@ -135,7 +136,7 @@ Configuration options:
 #define RTD_DMA_TIMEOUT	33000	/* 1 msec */
 #else
 /* by delaying, power and electrical noise are reduced somewhat */
-#define WAIT_QUIETLY	comedi_udelay (1)
+#define WAIT_QUIETLY	udelay (1)
 #define RTD_ADC_TIMEOUT	2000	/* in usec */
 #define RTD_DAC_TIMEOUT	2000	/* in usec */
 #define RTD_DMA_TIMEOUT	1000	/* in usec */
@@ -278,22 +279,22 @@ struct rtdBoard {
 
 static const struct rtdBoard rtd520Boards[] = {
 	{
-	      name:	"DM7520",
-	      device_id : 0x7520,
-	      aiChans:	16,
-	      aiBits:	12,
-	      aiMaxGain:32,
-	      range10Start:6,
-	      rangeUniStart:12,
+	.name = "DM7520",
+	.device_id = 0x7520,
+	.aiChans = 16,
+	.aiBits = 12,
+	.aiMaxGain = 32,
+	.range10Start = 6,
+	.rangeUniStart = 12,
 		},
 	{
-	      name:	"PCI4520",
-	      device_id : 0x4520,
-	      aiChans:	16,
-	      aiBits:	12,
-	      aiMaxGain:128,
-	      range10Start:8,
-	      rangeUniStart:16,
+	.name = "PCI4520",
+	.device_id = 0x4520,
+	.aiChans = 16,
+	.aiBits = 12,
+	.aiMaxGain = 128,
+	.range10Start = 8,
+	.rangeUniStart = 16,
 		},
 };
 
@@ -684,10 +685,10 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int rtd_detach(struct comedi_device *dev);
 
 static struct comedi_driver rtd520Driver = {
-      driver_name: DRV_NAME,
-      module : THIS_MODULE,
-      attach : rtd_attach,
-      detach : rtd_detach,
+	.driver_name = DRV_NAME,
+	.module = THIS_MODULE,
+	.attach = rtd_attach,
+	.detach = rtd_detach,
 };
 
 static int rtd_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -706,7 +707,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 /* static int rtd_ai_poll (struct comedi_device *dev,struct comedi_subdevice *s); */
 static int rtd_ns_to_timer(unsigned int *ns, int roundMode);
-static irqreturn_t rtd_interrupt(int irq, void *d PT_REGS_ARG);
+static irqreturn_t rtd_interrupt(int irq, void *d);
 static int rtd520_probe_fifo_depth(struct comedi_device *dev);
 
 /*
@@ -757,15 +758,15 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				continue;
 			}
 		}
-		for(i = 0; i < sizeof(rtd520Boards) / sizeof(rtd520Boards[0]); ++i)
+		for (i = 0; i < ARRAY_SIZE(rtd520Boards); ++i)
 		{
-			if(pcidev->device == rtd520Boards[i].device_id)
+			if (pcidev->device == rtd520Boards[i].device_id)
 			{
 				dev->board_ptr = &rtd520Boards[i];
 				break;
 			}
 		}
-		if(dev->board_ptr) break;	/* found one */
+		if (dev->board_ptr) break;	/* found one */
 	}
 	if (!pcidev) {
 		if (it->options[0] && it->options[1]) {
@@ -900,7 +901,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* initialize board, per RTD spec */
 	/* also, initialize shadow registers */
 	RtdResetBoard(dev);
-	comedi_udelay(100);	/* needed? */
+	udelay(100);	/* needed? */
 	RtdPlxInterruptWrite(dev, 0);
 	RtdInterruptMask(dev, 0);	/* and sets shadow */
 	RtdInterruptClearMask(dev, ~0);	/* and sets shadow */
@@ -919,7 +920,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* TODO: set user out source ??? */
 
 	/* check if our interrupt is available and get it */
-	ret = comedi_request_irq(devpriv->pci_dev->irq, rtd_interrupt,
+	ret = request_irq(devpriv->pci_dev->irq, rtd_interrupt,
 				 IRQF_SHARED, DRV_NAME, dev);
 
 	if (ret < 0) {
@@ -931,7 +932,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk("( irq=%u )", dev->irq);
 
 	ret = rtd520_probe_fifo_depth(dev);
-	if(ret < 0) {
+	if (ret < 0) {
 		return ret;
 	}
 	devpriv->fifoLen = ret;
@@ -1032,7 +1033,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/* disable interrupt controller */
 		RtdPlxInterruptWrite(dev, RtdPlxInterruptRead(dev)
 			& ~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	/* release all regions that were allocated */
@@ -1111,7 +1112,7 @@ static int rtd_detach(struct comedi_device *dev)
 			/* disable interrupt controller */
 			RtdPlxInterruptWrite(dev, RtdPlxInterruptRead(dev)
 				& ~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
-			comedi_free_irq(dev->irq, dev);
+			free_irq(dev->irq, dev);
 		}
 
 		/* release all regions that were allocated */
@@ -1224,22 +1225,22 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 		unsigned fifo_status;
 		/* trigger conversion */
 		RtdAdcStart(dev);
-		comedi_udelay(1);
+		udelay(1);
 		fifo_status = RtdFifoStatus(dev);
-		if((fifo_status & FS_ADC_HEMPTY) == 0) {
+		if ((fifo_status & FS_ADC_HEMPTY) == 0) {
 			fifo_size = 2 * i;
 			break;
 		}
 	}
-	if(i == limit)
+	if (i == limit)
 	{
-		rt_printk("\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
+		printk("\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
 		return -EIO;
 	}
 	RtdAdcClearFifo(dev);
-	if(fifo_size != 0x400 && fifo_size != 0x2000)
+	if (fifo_size != 0x400 && fifo_size != 0x2000)
 	{
-		rt_printk("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
+		printk("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
 			DRV_NAME, fifo_size);
 		return -EIO;
 	}
@@ -1386,7 +1387,7 @@ void abort_dma(struct comedi_device *dev, unsigned int channel)
 		+ ((channel == 0) ? LCFG_DMACSR0 : LCFG_DMACSR1);
 
 	/*  spinlock for plx dma control/status reg */
-	/* comedi_spin_lock_irqsave( &dev->spinlock, flags ); */
+	/* spin_lock_irqsave( &dev->spinlock, flags ); */
 
 	/*  abort dma transfer if necessary */
 	status = readb(dma_cs_addr);
@@ -1409,7 +1410,7 @@ void abort_dma(struct comedi_device *dev, unsigned int channel)
 
 	/* disable channel (required) */
 	writeb(0, dma_cs_addr);
-	comedi_udelay(1);	/* needed?? */
+	udelay(1);	/* needed?? */
 	/* set abort bit for channel */
 	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
 
@@ -1427,7 +1428,7 @@ void abort_dma(struct comedi_device *dev, unsigned int channel)
 	}
 
       abortDmaExit:
-	/* comedi_spin_unlock_irqrestore( &dev->spinlock, flags ); */
+	/* spin_unlock_irqrestore( &dev->spinlock, flags ); */
 }
 
 /*
@@ -1494,8 +1495,7 @@ static int ai_process_dma(struct comedi_device *dev, struct comedi_subdevice *s)
   The data conversion may someday happen in a "bottom half".
 */
 static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
-	void *d			/* our data */
-	PT_REGS_ARG)
+	void *d)		/* our data */
 {				/* cpu context (ignored) */
 	struct comedi_device *dev = d;	/* must be called "dev" for devpriv */
 	u16 status;

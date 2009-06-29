@@ -207,10 +207,14 @@ static struct file_operations pool_stats_operations = {
 static ssize_t write_svc(struct file *file, char *buf, size_t size)
 {
 	struct nfsctl_svc *data;
+	int err;
 	if (size < sizeof(*data))
 		return -EINVAL;
 	data = (struct nfsctl_svc*) buf;
-	return nfsd_svc(data->svc_port, data->svc_nthreads);
+	err = nfsd_svc(data->svc_port, data->svc_nthreads);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 /**
@@ -692,11 +696,12 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 		if (newthreads < 0)
 			return -EINVAL;
 		rv = nfsd_svc(NFS_PORT, newthreads);
-		if (rv)
+		if (rv < 0)
 			return rv;
-	}
-	sprintf(buf, "%d\n", nfsd_nrthreads());
-	return strlen(buf);
+	} else
+		rv = nfsd_nrthreads();
+
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%d\n", rv);
 }
 
 /**
@@ -793,7 +798,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
 	char *vers, *minorp, sign;
-	int len, num;
+	int len, num, remaining;
 	unsigned minor;
 	ssize_t tlen = 0;
 	char *sep;
@@ -840,32 +845,50 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 			}
 		next:
 			vers += len + 1;
-			tlen += len;
 		} while ((len = qword_get(&mesg, vers, size)) > 0);
 		/* If all get turned off, turn them back on, as
 		 * having no versions is BAD
 		 */
 		nfsd_reset_versions();
 	}
+
 	/* Now write current state into reply buffer */
 	len = 0;
 	sep = "";
+	remaining = SIMPLE_TRANSACTION_LIMIT;
 	for (num=2 ; num <= 4 ; num++)
 		if (nfsd_vers(num, NFSD_AVAIL)) {
-			len += sprintf(buf+len, "%s%c%d", sep,
+			len = snprintf(buf, remaining, "%s%c%d", sep,
 				       nfsd_vers(num, NFSD_TEST)?'+':'-',
 				       num);
 			sep = " ";
+
+			if (len > remaining)
+				break;
+			remaining -= len;
+			buf += len;
+			tlen += len;
 		}
 	if (nfsd_vers(4, NFSD_AVAIL))
-		for (minor = 1; minor <= NFSD_SUPPORTED_MINOR_VERSION; minor++)
-			len += sprintf(buf+len, " %c4.%u",
+		for (minor = 1; minor <= NFSD_SUPPORTED_MINOR_VERSION;
+		     minor++) {
+			len = snprintf(buf, remaining, " %c4.%u",
 					(nfsd_vers(4, NFSD_TEST) &&
 					 nfsd_minorversion(minor, NFSD_TEST)) ?
 						'+' : '-',
 					minor);
-	len += sprintf(buf+len, "\n");
-	return len;
+
+			if (len > remaining)
+				break;
+			remaining -= len;
+			buf += len;
+			tlen += len;
+		}
+
+	len = snprintf(buf, remaining, "\n");
+	if (len > remaining)
+		return -EINVAL;
+	return tlen + len;
 }
 
 /**
@@ -910,104 +933,143 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 	return rv;
 }
 
+/*
+ * Zero-length write.  Return a list of NFSD's current listener
+ * transports.
+ */
+static ssize_t __write_ports_names(char *buf)
+{
+	if (nfsd_serv == NULL)
+		return 0;
+	return svc_xprt_names(nfsd_serv, buf, SIMPLE_TRANSACTION_LIMIT);
+}
+
+/*
+ * A single 'fd' number was written, in which case it must be for
+ * a socket of a supported family/protocol, and we use it as an
+ * nfsd listener.
+ */
+static ssize_t __write_ports_addfd(char *buf)
+{
+	char *mesg = buf;
+	int fd, err;
+
+	err = get_int(&mesg, &fd);
+	if (err != 0 || fd < 0)
+		return -EINVAL;
+
+	err = nfsd_create_serv();
+	if (err != 0)
+		return err;
+
+	err = lockd_up();
+	if (err != 0)
+		goto out;
+
+	err = svc_addsock(nfsd_serv, fd, buf, SIMPLE_TRANSACTION_LIMIT);
+	if (err < 0)
+		lockd_down();
+
+out:
+	/* Decrease the count, but don't shut down the service */
+	nfsd_serv->sv_nrthreads--;
+	return err;
+}
+
+/*
+ * A '-' followed by the 'name' of a socket means we close the socket.
+ */
+static ssize_t __write_ports_delfd(char *buf)
+{
+	char *toclose;
+	int len = 0;
+
+	toclose = kstrdup(buf + 1, GFP_KERNEL);
+	if (toclose == NULL)
+		return -ENOMEM;
+
+	if (nfsd_serv != NULL)
+		len = svc_sock_names(nfsd_serv, buf,
+					SIMPLE_TRANSACTION_LIMIT, toclose);
+	if (len >= 0)
+		lockd_down();
+
+	kfree(toclose);
+	return len;
+}
+
+/*
+ * A transport listener is added by writing it's transport name and
+ * a port number.
+ */
+static ssize_t __write_ports_addxprt(char *buf)
+{
+	char transport[16];
+	int port, err;
+
+	if (sscanf(buf, "%15s %4u", transport, &port) != 2)
+		return -EINVAL;
+
+	if (port < 1 || port > USHORT_MAX)
+		return -EINVAL;
+
+	err = nfsd_create_serv();
+	if (err != 0)
+		return err;
+
+	err = svc_create_xprt(nfsd_serv, transport,
+				PF_INET, port, SVC_SOCK_ANONYMOUS);
+	if (err < 0) {
+		/* Give a reasonable perror msg for bad transport string */
+		if (err == -ENOENT)
+			err = -EPROTONOSUPPORT;
+		return err;
+	}
+	return 0;
+}
+
+/*
+ * A transport listener is removed by writing a "-", it's transport
+ * name, and it's port number.
+ */
+static ssize_t __write_ports_delxprt(char *buf)
+{
+	struct svc_xprt *xprt;
+	char transport[16];
+	int port;
+
+	if (sscanf(&buf[1], "%15s %4u", transport, &port) != 2)
+		return -EINVAL;
+
+	if (port < 1 || port > USHORT_MAX || nfsd_serv == NULL)
+		return -EINVAL;
+
+	xprt = svc_find_xprt(nfsd_serv, transport, AF_UNSPEC, port);
+	if (xprt == NULL)
+		return -ENOTCONN;
+
+	svc_close_xprt(xprt);
+	svc_xprt_put(xprt);
+	return 0;
+}
+
 static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 {
-	if (size == 0) {
-		int len = 0;
+	if (size == 0)
+		return __write_ports_names(buf);
 
-		if (nfsd_serv)
-			len = svc_xprt_names(nfsd_serv, buf, 0);
-		return len;
-	}
-	/* Either a single 'fd' number is written, in which
-	 * case it must be for a socket of a supported family/protocol,
-	 * and we use it as an nfsd socket, or
-	 * A '-' followed by the 'name' of a socket in which case
-	 * we close the socket.
-	 */
-	if (isdigit(buf[0])) {
-		char *mesg = buf;
-		int fd;
-		int err;
-		err = get_int(&mesg, &fd);
-		if (err)
-			return -EINVAL;
-		if (fd < 0)
-			return -EINVAL;
-		err = nfsd_create_serv();
-		if (!err) {
-			err = svc_addsock(nfsd_serv, fd, buf);
-			if (err >= 0) {
-				err = lockd_up();
-				if (err < 0)
-					svc_sock_names(buf+strlen(buf)+1, nfsd_serv, buf);
-			}
-			/* Decrease the count, but don't shutdown the
-			 * the service
-			 */
-			nfsd_serv->sv_nrthreads--;
-		}
-		return err < 0 ? err : 0;
-	}
-	if (buf[0] == '-' && isdigit(buf[1])) {
-		char *toclose = kstrdup(buf+1, GFP_KERNEL);
-		int len = 0;
-		if (!toclose)
-			return -ENOMEM;
-		if (nfsd_serv)
-			len = svc_sock_names(buf, nfsd_serv, toclose);
-		if (len >= 0)
-			lockd_down();
-		kfree(toclose);
-		return len;
-	}
-	/*
-	 * Add a transport listener by writing it's transport name
-	 */
-	if (isalpha(buf[0])) {
-		int err;
-		char transport[16];
-		int port;
-		if (sscanf(buf, "%15s %4d", transport, &port) == 2) {
-			if (port < 1 || port > 65535)
-				return -EINVAL;
-			err = nfsd_create_serv();
-			if (!err) {
-				err = svc_create_xprt(nfsd_serv,
-						      transport, PF_INET, port,
-						      SVC_SOCK_ANONYMOUS);
-				if (err == -ENOENT)
-					/* Give a reasonable perror msg for
-					 * bad transport string */
-					err = -EPROTONOSUPPORT;
-			}
-			return err < 0 ? err : 0;
-		}
-	}
-	/*
-	 * Remove a transport by writing it's transport name and port number
-	 */
-	if (buf[0] == '-' && isalpha(buf[1])) {
-		struct svc_xprt *xprt;
-		int err = -EINVAL;
-		char transport[16];
-		int port;
-		if (sscanf(&buf[1], "%15s %4d", transport, &port) == 2) {
-			if (port < 1 || port > 65535)
-				return -EINVAL;
-			if (nfsd_serv) {
-				xprt = svc_find_xprt(nfsd_serv, transport,
-						     AF_UNSPEC, port);
-				if (xprt) {
-					svc_close_xprt(xprt);
-					svc_xprt_put(xprt);
-					err = 0;
-				} else
-					err = -ENOTCONN;
-			}
-			return err < 0 ? err : 0;
-		}
-	}
+	if (isdigit(buf[0]))
+		return __write_ports_addfd(buf);
+
+	if (buf[0] == '-' && isdigit(buf[1]))
+		return __write_ports_delfd(buf);
+
+	if (isalpha(buf[0]))
+		return __write_ports_addxprt(buf);
+
+	if (buf[0] == '-' && isalpha(buf[1]))
+		return __write_ports_delxprt(buf);
+
 	return -EINVAL;
 }
 
@@ -1030,7 +1092,9 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
  *			buf:		C string containing an unsigned
  *					integer value representing a bound
  *					but unconnected socket that is to be
- *					used as an NFSD listener
+ *					used as an NFSD listener; listen(3)
+ *					must be called for a SOCK_STREAM
+ *					socket, otherwise it is ignored
  *			size:		non-zero length of C string in @buf
  * Output:
  *	On success:	NFS service is started;
@@ -1138,7 +1202,9 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 		nfsd_max_blksize = bsize;
 		mutex_unlock(&nfsd_mutex);
 	}
-	return sprintf(buf, "%d\n", nfsd_max_blksize);
+
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%d\n",
+							nfsd_max_blksize);
 }
 
 #ifdef CONFIG_NFSD_V4
@@ -1162,8 +1228,9 @@ static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
 			return -EINVAL;
 		nfs4_reset_lease(lease);
 	}
-	sprintf(buf, "%ld\n", nfs4_lease_time());
-	return strlen(buf);
+
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n",
+							nfs4_lease_time());
 }
 
 /**
@@ -1219,8 +1286,9 @@ static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size)
 
 		status = nfs4_reset_recoverydir(recdir);
 	}
-	sprintf(buf, "%s\n", nfs4_recoverydir());
-	return strlen(buf);
+
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%s\n",
+							nfs4_recoverydir());
 }
 
 /**

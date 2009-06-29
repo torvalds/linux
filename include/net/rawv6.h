@@ -6,7 +6,7 @@
 #include <net/protocol.h>
 
 void raw6_icmp_error(struct sk_buff *, int nexthdr,
-		int type, int code, int inner_offset, __be32);
+		u8 type, u8 code, int inner_offset, __be32);
 int raw6_local_deliver(struct sk_buff *, int);
 
 extern int			rawv6_rcv(struct sock *sk,

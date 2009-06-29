@@ -79,7 +79,7 @@ int attach_capi_ctr(struct capi_ctr *);
 int detach_capi_ctr(struct capi_ctr *);
 
 void capi_ctr_ready(struct capi_ctr * card);
-void capi_ctr_reseted(struct capi_ctr * card);
+void capi_ctr_down(struct capi_ctr * card);
 void capi_ctr_suspend_output(struct capi_ctr * card);
 void capi_ctr_resume_output(struct capi_ctr * card);
 void capi_ctr_handle_message(struct capi_ctr * card, u16 appl, struct sk_buff *skb);

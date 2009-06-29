@@ -2,6 +2,7 @@ config DEBUG_PAGEALLOC
 	bool "Debug page memory allocations"
 	depends on DEBUG_KERNEL && ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	depends on !HIBERNATION || !PPC && !SPARC
+	depends on !KMEMCHECK
 	---help---
 	  Unmap pages from the kernel linear mapping after free_pages().
 	  This results in a large slowdown, but helps to find certain types

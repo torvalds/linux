@@ -37,6 +37,7 @@
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ctype.h>
 #include <linux/ethtool.h>
 #include <linux/workqueue.h>
 #include <linux/mii.h>
@@ -155,6 +156,36 @@ int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_get_endpoints);
+
+static u8 nibble(unsigned char c)
+{
+	if (likely(isdigit(c)))
+		return c - '0';
+	c = toupper(c);
+	if (likely(isxdigit(c)))
+		return 10 + c - 'A';
+	return 0;
+}
+
+int usbnet_get_ethernet_addr(struct usbnet *dev, int iMACAddress)
+{
+	int 		tmp, i;
+	unsigned char	buf [13];
+
+	tmp = usb_string(dev->udev, iMACAddress, buf, sizeof buf);
+	if (tmp != 12) {
+		dev_dbg(&dev->udev->dev,
+			"bad MAC string %d fetch, %d\n", iMACAddress, tmp);
+		if (tmp >= 0)
+			tmp = -EINVAL;
+		return tmp;
+	}
+	for (i = tmp = 0; i < 6; i++, tmp += 2)
+		dev->net->dev_addr [i] =
+			(nibble(buf [tmp]) << 4) + nibble(buf [tmp + 1]);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usbnet_get_ethernet_addr);
 
 static void intr_complete (struct urb *urb);
 
@@ -1185,12 +1216,6 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 #endif
 
 	net->netdev_ops = &usbnet_netdev_ops;
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	net->hard_start_xmit = usbnet_start_xmit;
-	net->open = usbnet_open;
-	net->stop = usbnet_stop;
-	net->tx_timeout = usbnet_tx_timeout;
-#endif
 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	net->ethtool_ops = &usbnet_ethtool_ops;
 

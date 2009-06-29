@@ -171,7 +171,7 @@ struct cypress_buf {
 static int  cypress_earthmate_startup(struct usb_serial *serial);
 static int  cypress_hidcom_startup(struct usb_serial *serial);
 static int  cypress_ca42v2_startup(struct usb_serial *serial);
-static void cypress_shutdown(struct usb_serial *serial);
+static void cypress_release(struct usb_serial *serial);
 static int  cypress_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
 static void cypress_close(struct usb_serial_port *port);
@@ -215,7 +215,7 @@ static struct usb_serial_driver cypress_earthmate_device = {
 	.id_table =			id_table_earthmate,
 	.num_ports =			1,
 	.attach =			cypress_earthmate_startup,
-	.shutdown =			cypress_shutdown,
+	.release =			cypress_release,
 	.open =				cypress_open,
 	.close =			cypress_close,
 	.dtr_rts =			cypress_dtr_rts,
@@ -242,7 +242,7 @@ static struct usb_serial_driver cypress_hidcom_device = {
 	.id_table =			id_table_cyphidcomrs232,
 	.num_ports =			1,
 	.attach =			cypress_hidcom_startup,
-	.shutdown =			cypress_shutdown,
+	.release =			cypress_release,
 	.open =				cypress_open,
 	.close =			cypress_close,
 	.dtr_rts =			cypress_dtr_rts,
@@ -269,7 +269,7 @@ static struct usb_serial_driver cypress_ca42v2_device = {
 	.id_table =			id_table_nokiaca42v2,
 	.num_ports =			1,
 	.attach =			cypress_ca42v2_startup,
-	.shutdown =			cypress_shutdown,
+	.release =			cypress_release,
 	.open =				cypress_open,
 	.close =			cypress_close,
 	.dtr_rts =			cypress_dtr_rts,
@@ -616,7 +616,7 @@ static int cypress_ca42v2_startup(struct usb_serial *serial)
 } /* cypress_ca42v2_startup */
 
 
-static void cypress_shutdown(struct usb_serial *serial)
+static void cypress_release(struct usb_serial *serial)
 {
 	struct cypress_private *priv;
 
@@ -629,7 +629,6 @@ static void cypress_shutdown(struct usb_serial *serial)
 	if (priv) {
 		cypress_buf_free(priv->buf);
 		kfree(priv);
-		usb_set_serial_port_data(serial->port[0], NULL);
 	}
 }
 

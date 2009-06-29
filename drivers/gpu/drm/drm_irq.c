@@ -104,21 +104,13 @@ void drm_vblank_cleanup(struct drm_device *dev)
 
 	vblank_disable_fn((unsigned long)dev);
 
-	drm_free(dev->vbl_queue, sizeof(*dev->vbl_queue) * dev->num_crtcs,
-		 DRM_MEM_DRIVER);
-	drm_free(dev->_vblank_count, sizeof(*dev->_vblank_count) *
-		 dev->num_crtcs, DRM_MEM_DRIVER);
-	drm_free(dev->vblank_refcount, sizeof(*dev->vblank_refcount) *
-		 dev->num_crtcs, DRM_MEM_DRIVER);
-	drm_free(dev->vblank_enabled, sizeof(*dev->vblank_enabled) *
-		 dev->num_crtcs, DRM_MEM_DRIVER);
-	drm_free(dev->last_vblank, sizeof(*dev->last_vblank) * dev->num_crtcs,
-		 DRM_MEM_DRIVER);
-	drm_free(dev->last_vblank_wait,
-		 sizeof(*dev->last_vblank_wait) * dev->num_crtcs,
-		 DRM_MEM_DRIVER);
-	drm_free(dev->vblank_inmodeset, sizeof(*dev->vblank_inmodeset) *
-		 dev->num_crtcs, DRM_MEM_DRIVER);
+	kfree(dev->vbl_queue);
+	kfree(dev->_vblank_count);
+	kfree(dev->vblank_refcount);
+	kfree(dev->vblank_enabled);
+	kfree(dev->last_vblank);
+	kfree(dev->last_vblank_wait);
+	kfree(dev->vblank_inmodeset);
 
 	dev->num_crtcs = 0;
 }
@@ -132,37 +124,33 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	spin_lock_init(&dev->vbl_lock);
 	dev->num_crtcs = num_crtcs;
 
-	dev->vbl_queue = drm_alloc(sizeof(wait_queue_head_t) * num_crtcs,
-				   DRM_MEM_DRIVER);
+	dev->vbl_queue = kmalloc(sizeof(wait_queue_head_t) * num_crtcs,
+				 GFP_KERNEL);
 	if (!dev->vbl_queue)
 		goto err;
 
-	dev->_vblank_count = drm_alloc(sizeof(atomic_t) * num_crtcs,
-				      DRM_MEM_DRIVER);
+	dev->_vblank_count = kmalloc(sizeof(atomic_t) * num_crtcs, GFP_KERNEL);
 	if (!dev->_vblank_count)
 		goto err;
 
-	dev->vblank_refcount = drm_alloc(sizeof(atomic_t) * num_crtcs,
-					 DRM_MEM_DRIVER);
+	dev->vblank_refcount = kmalloc(sizeof(atomic_t) * num_crtcs,
+				       GFP_KERNEL);
 	if (!dev->vblank_refcount)
 		goto err;
 
-	dev->vblank_enabled = drm_calloc(num_crtcs, sizeof(int),
-					 DRM_MEM_DRIVER);
+	dev->vblank_enabled = kcalloc(num_crtcs, sizeof(int), GFP_KERNEL);
 	if (!dev->vblank_enabled)
 		goto err;
 
-	dev->last_vblank = drm_calloc(num_crtcs, sizeof(u32), DRM_MEM_DRIVER);
+	dev->last_vblank = kcalloc(num_crtcs, sizeof(u32), GFP_KERNEL);
 	if (!dev->last_vblank)
 		goto err;
 
-	dev->last_vblank_wait = drm_calloc(num_crtcs, sizeof(u32),
-					   DRM_MEM_DRIVER);
+	dev->last_vblank_wait = kcalloc(num_crtcs, sizeof(u32), GFP_KERNEL);
 	if (!dev->last_vblank_wait)
 		goto err;
 
-	dev->vblank_inmodeset = drm_calloc(num_crtcs, sizeof(int),
-					 DRM_MEM_DRIVER);
+	dev->vblank_inmodeset = kcalloc(num_crtcs, sizeof(int), GFP_KERNEL);
 	if (!dev->vblank_inmodeset)
 		goto err;
 
