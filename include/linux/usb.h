@@ -195,7 +195,7 @@ struct usb_interface {
 
 	struct device dev;		/* interface specific device info */
 	struct device *usb_dev;
-	int pm_usage_cnt;		/* usage counter for autosuspend */
+	atomic_t pm_usage_cnt;		/* usage counter for autosuspend */
 	struct work_struct reset_ws;	/* for resets in atomic context */
 };
 #define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
@@ -551,13 +551,13 @@ extern void usb_autopm_put_interface_async(struct usb_interface *intf);
 
 static inline void usb_autopm_enable(struct usb_interface *intf)
 {
-	intf->pm_usage_cnt = 0;
+	atomic_set(&intf->pm_usage_cnt, 0);
 	usb_autopm_set_interface(intf);
 }
 
 static inline void usb_autopm_disable(struct usb_interface *intf)
 {
-	intf->pm_usage_cnt = 1;
+	atomic_set(&intf->pm_usage_cnt, 1);
 	usb_autopm_set_interface(intf);
 }
 

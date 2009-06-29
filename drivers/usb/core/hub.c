@@ -373,7 +373,7 @@ static void kick_khubd(struct usb_hub *hub)
 	unsigned long	flags;
 
 	/* Suppress autosuspend until khubd runs */
-	to_usb_interface(hub->intfdev)->pm_usage_cnt = 1;
+	atomic_set(&to_usb_interface(hub->intfdev)->pm_usage_cnt, 1);
 
 	spin_lock_irqsave(&hub_event_lock, flags);
 	if (!hub->disconnected && list_empty(&hub->event_list)) {
@@ -678,7 +678,8 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 					msecs_to_jiffies(delay));
 
 			/* Suppress autosuspend until init is done */
-			to_usb_interface(hub->intfdev)->pm_usage_cnt = 1;
+			atomic_set(&to_usb_interface(hub->intfdev)->
+					pm_usage_cnt, 1);
 			return;		/* Continues at init2: below */
 		} else {
 			hub_power_on(hub, true);
