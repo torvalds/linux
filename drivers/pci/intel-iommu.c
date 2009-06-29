@@ -1635,14 +1635,14 @@ static int domain_context_mapped(struct pci_dev *pdev)
 					     tmp->devfn);
 }
 
-static int domain_sg_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
-			     struct scatterlist *sg, unsigned long nr_pages,
-			     int prot)
+static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
+			    struct scatterlist *sg, unsigned long phys_pfn,
+			    unsigned long nr_pages, int prot)
 {
 	struct dma_pte *first_pte = NULL, *pte = NULL;
-	uint64_t pteval;
+	phys_addr_t uninitialized_var(pteval);
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
-	unsigned long sg_res = 0;
+	unsigned long sg_res;
 
 	BUG_ON(addr_width < BITS_PER_LONG && (iov_pfn + nr_pages - 1) >> addr_width);
 
@@ -1650,6 +1650,13 @@ static int domain_sg_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 		return -EINVAL;
 
 	prot &= DMA_PTE_READ | DMA_PTE_WRITE | DMA_PTE_SNP;
+
+	if (sg)
+		sg_res = 0;
+	else {
+		sg_res = nr_pages + 1;
+		pteval = ((phys_addr_t)phys_pfn << VTD_PAGE_SHIFT) | prot;
+	}
 
 	while (nr_pages--) {
 		if (!sg_res) {
@@ -1685,43 +1692,18 @@ static int domain_sg_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 	return 0;
 }
 
-static int domain_pfn_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
-			      unsigned long phys_pfn, unsigned long nr_pages,
-			      int prot)
+static inline int domain_sg_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
+				    struct scatterlist *sg, unsigned long nr_pages,
+				    int prot)
 {
-	struct dma_pte *first_pte = NULL, *pte = NULL;
-	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
+	return __domain_mapping(domain, iov_pfn, sg, 0, nr_pages, prot);
+}
 
-	BUG_ON(addr_width < BITS_PER_LONG && (iov_pfn + nr_pages - 1) >> addr_width);
-
-	if ((prot & (DMA_PTE_READ|DMA_PTE_WRITE)) == 0)
-		return -EINVAL;
-
-	prot &= DMA_PTE_READ | DMA_PTE_WRITE | DMA_PTE_SNP;
-
-	while (nr_pages--) {
-		if (!pte) {
-			first_pte = pte = pfn_to_dma_pte(domain, iov_pfn);
-			if (!pte)
-				return -ENOMEM;
-		}
-		/* We don't need lock here, nobody else
-		 * touches the iova range
-		 */
-		BUG_ON(dma_pte_addr(pte));
-		pte->val = (phys_pfn << VTD_PAGE_SHIFT) | prot;
-		pte++;
-		if (!nr_pages ||
-		    (unsigned long)pte >> VTD_PAGE_SHIFT !=
-		    (unsigned long)first_pte >> VTD_PAGE_SHIFT) {
-			domain_flush_cache(domain, first_pte,
-					   (void *)pte - (void *)first_pte);
-			pte = NULL;
-		}
-		iov_pfn++;
-		phys_pfn++;
-	}
-	return 0;
+static inline int domain_pfn_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
+				     unsigned long phys_pfn, unsigned long nr_pages,
+				     int prot)
+{
+	return __domain_mapping(domain, iov_pfn, NULL, phys_pfn, nr_pages, prot);
 }
 
 static void iommu_detach_dev(struct intel_iommu *iommu, u8 bus, u8 devfn)
