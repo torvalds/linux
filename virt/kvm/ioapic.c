@@ -292,7 +292,7 @@ static int ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 		data = *(u32 *) val;
 	else {
 		printk(KERN_WARNING "ioapic: Unsupported size %d\n", len);
-		return 0;
+		goto unlock;
 	}
 
 	addr &= 0xff;
@@ -313,6 +313,7 @@ static int ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	default:
 		break;
 	}
+unlock:
 	mutex_unlock(&ioapic->kvm->irq_lock);
 	return 0;
 }
