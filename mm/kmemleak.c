@@ -531,8 +531,10 @@ static void delete_object(unsigned long ptr)
 	write_lock_irqsave(&kmemleak_lock, flags);
 	object = lookup_object(ptr, 0);
 	if (!object) {
+#ifdef DEBUG
 		kmemleak_warn("Freeing unknown object at 0x%08lx\n",
 			      ptr);
+#endif
 		write_unlock_irqrestore(&kmemleak_lock, flags);
 		return;
 	}
