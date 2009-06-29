@@ -53,6 +53,25 @@ static int is_empty(void *buf, int len)
 }
 
 /**
+ * first_non_ff - find offset of the first non-0xff byte.
+ * @buf: buffer to search in
+ * @len: length of buffer
+ *
+ * This function returns offset of the first non-0xff byte in @buf or %-1 if
+ * the buffer contains only 0xff bytes.
+ */
+static int first_non_ff(void *buf, int len)
+{
+	uint8_t *p = buf;
+	int i;
+
+	for (i = 0; i < len; i++)
+		if (*p++ != 0xff)
+			return i;
+	return -1;
+}
+
+/**
  * get_master_node - get the last valid master node allowing for corruption.
  * @c: UBIFS file-system description object
  * @lnum: LEB number
@@ -649,8 +668,13 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 			clean_buf(c, &buf, lnum, &offs, &len);
 			need_clean = 1;
 		} else {
-			ubifs_err("corrupt empty space at LEB %d:%d",
-				  lnum, offs);
+			int corruption = first_non_ff(buf, len);
+
+			ubifs_err("corrupt empty space LEB %d:%d, corruption "
+				  "starts at %d", lnum, offs, corruption);
+			/* Make sure we dump interesting non-0xFF data */
+			offs = corruption;
+			buf += corruption;
 			goto corrupted;
 		}
 	}
