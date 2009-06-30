@@ -1657,7 +1657,7 @@ static int ti_do_download(struct usb_device *dev, int pipe,
 	u8 cs = 0;
 	int done;
 	struct ti_firmware_header *header;
-	int status;
+	int status = 0;
 	int len;
 
 	for (pos = sizeof(struct ti_firmware_header); pos < size; pos++)
