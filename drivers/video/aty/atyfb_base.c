@@ -363,8 +363,8 @@ static unsigned long phys_guiregbase[FB_MAX] __devinitdata = { 0, };
 #define ATI_CHIP_264GTPRO  (ATI_MODERN_SET | M64F_SDRAM_MAGIC_PLL | M64F_HW_TRIPLE | M64F_FIFO_32 | M64F_RESET_3D)
 #define ATI_CHIP_264LTPRO  (ATI_MODERN_SET | M64F_HW_TRIPLE | M64F_FIFO_32 | M64F_RESET_3D)
 
-#define ATI_CHIP_264XL     (ATI_MODERN_SET | M64F_HW_TRIPLE | M64F_FIFO_32 | M64F_RESET_3D | M64F_XL_DLL | M64F_MFB_FORCE_4)
-#define ATI_CHIP_MOBILITY  (ATI_MODERN_SET | M64F_HW_TRIPLE | M64F_FIFO_32 | M64F_RESET_3D | M64F_XL_DLL | M64F_MFB_FORCE_4 | M64F_MOBIL_BUS)
+#define ATI_CHIP_264XL     (ATI_MODERN_SET | M64F_HW_TRIPLE | M64F_FIFO_32 | M64F_RESET_3D | M64F_XL_DLL | M64F_MFB_FORCE_4 | M64F_XL_MEM)
+#define ATI_CHIP_MOBILITY  (ATI_MODERN_SET | M64F_HW_TRIPLE | M64F_FIFO_32 | M64F_RESET_3D | M64F_XL_DLL | M64F_MFB_FORCE_4 | M64F_XL_MEM | M64F_MOBIL_BUS)
 
 static struct {
 	u16 pci_id;
@@ -541,6 +541,7 @@ static char ram_edo[] __devinitdata = "EDO";
 static char ram_sdram[] __devinitdata = "SDRAM (1:1)";
 static char ram_sgram[] __devinitdata = "SGRAM (1:1)";
 static char ram_sdram32[] __devinitdata = "SDRAM (2:1) (32-bit)";
+static char ram_wram[] __devinitdata = "WRAM";
 static char ram_off[] __devinitdata = "OFF";
 #endif /* CONFIG_FB_ATY_CT */
 
@@ -554,6 +555,10 @@ static char *aty_gx_ram[8] __devinitdata = {
 
 #ifdef CONFIG_FB_ATY_CT
 static char *aty_ct_ram[8] __devinitdata = {
+	ram_off, ram_dram, ram_edo, ram_edo,
+	ram_sdram, ram_sgram, ram_wram, ram_resv
+};
+static char *aty_xl_ram[8] __devinitdata = {
 	ram_off, ram_dram, ram_edo, ram_edo,
 	ram_sdram, ram_sgram, ram_sdram32, ram_resv
 };
@@ -762,6 +767,17 @@ static void aty_set_crtc(const struct atyfb_par *par, const struct crtc *crtc)
 #endif /* CONFIG_FB_ATY_GENERIC_LCD */
 }
 
+static u32 calc_line_length(struct atyfb_par *par, u32 vxres, u32 bpp)
+{
+	u32 line_length = vxres * bpp / 8;
+
+	if (par->ram_type == SGRAM ||
+	    (!M64_HAS(XL_MEM) && par->ram_type == WRAM))
+		line_length = (line_length + 63) & ~63;
+
+	return line_length;
+}
+
 static int aty_var_to_crtc(const struct fb_info *info,
 	const struct fb_var_screeninfo *var, struct crtc *crtc)
 {
@@ -771,13 +787,14 @@ static int aty_var_to_crtc(const struct fb_info *info,
 	u32 h_total, h_disp, h_sync_strt, h_sync_end, h_sync_dly, h_sync_wid, h_sync_pol;
 	u32 v_total, v_disp, v_sync_strt, v_sync_end, v_sync_wid, v_sync_pol, c_sync;
 	u32 pix_width, dp_pix_width, dp_chain_mask;
+	u32 line_length;
 
 	/* input */
-	xres = var->xres;
+	xres = (var->xres + 7) & ~7;
 	yres = var->yres;
-	vxres = var->xres_virtual;
+	vxres = (var->xres_virtual + 7) & ~7;
 	vyres = var->yres_virtual;
-	xoffset = var->xoffset;
+	xoffset = (var->xoffset + 7) & ~7;
 	yoffset = var->yoffset;
 	bpp = var->bits_per_pixel;
 	if (bpp == 16)
@@ -829,7 +846,9 @@ static int aty_var_to_crtc(const struct fb_info *info,
 	} else
 		FAIL("invalid bpp");
 
-	if (vxres * vyres * bpp / 8 > info->fix.smem_len)
+	line_length = calc_line_length(par, vxres, bpp);
+
+	if (vyres * line_length > info->fix.smem_len)
 		FAIL("not enough video RAM");
 
 	h_sync_pol = sync & FB_SYNC_HOR_HIGH_ACT ? 0 : 1;
@@ -971,7 +990,9 @@ static int aty_var_to_crtc(const struct fb_info *info,
 	crtc->xoffset = xoffset;
 	crtc->yoffset = yoffset;
 	crtc->bpp = bpp;
-	crtc->off_pitch = ((yoffset*vxres+xoffset)*bpp/64) | (vxres<<19);
+	crtc->off_pitch =
+		((yoffset * line_length + xoffset * bpp / 8) / 8) |
+		((line_length / bpp) << 22);
 	crtc->vline_crnt_vline = 0;
 
 	crtc->h_tot_disp = h_total | (h_disp<<16);
@@ -1396,7 +1417,9 @@ static int atyfb_set_par(struct fb_info *info)
 	}
 	aty_st_8(DAC_MASK, 0xff, par);
 
-	info->fix.line_length = var->xres_virtual * var->bits_per_pixel/8;
+	info->fix.line_length = calc_line_length(par, var->xres_virtual,
+						 var->bits_per_pixel);
+
 	info->fix.visual = var->bits_per_pixel <= 8 ?
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
 
@@ -1507,10 +1530,12 @@ static void set_off_pitch(struct atyfb_par *par, const struct fb_info *info)
 {
 	u32 xoffset = info->var.xoffset;
 	u32 yoffset = info->var.yoffset;
-	u32 vxres = par->crtc.vxres;
+	u32 line_length = info->fix.line_length;
 	u32 bpp = info->var.bits_per_pixel;
 
-	par->crtc.off_pitch = ((yoffset * vxres + xoffset) * bpp / 64) | (vxres << 19);
+	par->crtc.off_pitch =
+		((yoffset * line_length + xoffset * bpp / 8) / 8) |
+		((line_length / bpp) << 22);
 }
 
 
@@ -2203,7 +2228,7 @@ static void __devinit aty_calc_mem_refresh(struct atyfb_par *par, int xclk)
 	const int *refresh_tbl;
 	int i, size;
 
-	if (IS_XL(par->pci_id) || IS_MOBILITY(par->pci_id)) {
+	if (M64_HAS(XL_MEM)) {
 		refresh_tbl = ragexl_tbl;
 		size = ARRAY_SIZE(ragexl_tbl);
 	} else {
@@ -2337,7 +2362,10 @@ static int __devinit aty_init(struct fb_info *info)
 		par->pll_ops = &aty_pll_ct;
 		par->bus_type = PCI;
 		par->ram_type = (aty_ld_le32(CNFG_STAT0, par) & 0x07);
-		ramname = aty_ct_ram[par->ram_type];
+		if (M64_HAS(XL_MEM))
+			ramname = aty_xl_ram[par->ram_type];
+		else
+			ramname = aty_ct_ram[par->ram_type];
 		/* for many chips, the mclk is 67 MHz for SDRAM, 63 MHz otherwise */
 		if (par->pll_limits.mclk == 67 && par->ram_type < SDRAM)
 			par->pll_limits.mclk = 63;
