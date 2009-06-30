@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -334,21 +335,21 @@ static ssize_t olpc_bat_eeprom_read(struct kobject *kobj,
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	uint8_t ec_byte;
-	int ret, end;
+	int ret;
+	int i;
 
 	if (off >= EEPROM_SIZE)
 		return 0;
 	if (off + count > EEPROM_SIZE)
 		count = EEPROM_SIZE - off;
 
-	end = EEPROM_START + off + count;
-	for (ec_byte = EEPROM_START + off; ec_byte < end; ec_byte++) {
-		ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1,
-				&buf[ec_byte - EEPROM_START], 1);
+	for (i = 0; i < count; i++) {
+		ec_byte = EEPROM_START + off + i;
+		ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1, &buf[i], 1);
 		if (ret) {
-			printk(KERN_ERR "olpc-battery:  EC command "
-					"EC_BAT_EEPROM @ 0x%x failed -"
-					" %d!\n", ec_byte, ret);
+			pr_err("olpc-battery: "
+			       "EC_BAT_EEPROM cmd @ 0x%x failed - %d!\n",
+			       ec_byte, ret);
 			return -EIO;
 		}
 	}
