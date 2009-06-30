@@ -1,7 +1,7 @@
 /*
  * wm8974.c  --  WM8974 ALSA Soc Audio driver
  *
- * Copyright 2006 Wolfson Microelectronics PLC.
+ * Copyright 2006-2009 Wolfson Microelectronics PLC.
  *
  * Author: Liam Girdwood <linux@wolfsonmicro.com>
  *
@@ -357,7 +357,7 @@ static void pll_factors(unsigned int target, unsigned int source)
 
 	if ((Ndiv < 6) || (Ndiv > 12))
 		printk(KERN_WARNING
-			"WM8974 N value %u outwith recommended range!d\n",
+			"WM8974 N value %u outwith recommended range!\n",
 			Ndiv);
 
 	pll_div.n = Ndiv;
@@ -546,6 +546,7 @@ static int wm8974_pcm_hw_params(struct snd_pcm_substream *substream,
 		adn |= 0x1 << 1;
 		break;
 	case SNDRV_PCM_RATE_44100:
+	case SNDRV_PCM_RATE_48000:
 		break;
 	}
 
@@ -822,7 +823,7 @@ MODULE_DEVICE_TABLE(i2c, wm8974_i2c_id);
 
 static struct i2c_driver wm8974_i2c_driver = {
 	.driver = {
-		.name = "WM8974 I2C Codec",
+		.name = "WM8974",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8974_i2c_probe,
