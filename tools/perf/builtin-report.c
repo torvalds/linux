@@ -33,8 +33,8 @@ static char		*vmlinux = NULL;
 
 static char		default_sort_order[] = "comm,dso";
 static char		*sort_order = default_sort_order;
-static char		*dso_list_str;
-static struct strlist	*dso_list;
+static char		*dso_list_str, *comm_list_str;
+static struct strlist	*dso_list, *comm_list;
 
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
@@ -240,7 +240,7 @@ static u64 vdso__map_ip(struct map *map, u64 ip)
 
 static inline int is_anon_memory(const char *filename)
 {
-     return strcmp(filename, "//anon") == 0;
+	return strcmp(filename, "//anon") == 0;
 }
 
 static struct map *map__new(struct mmap_event *event)
@@ -1253,6 +1253,9 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		return -1;
 	}
 
+	if (comm_list && !strlist__has_entry(comm_list, thread->comm))
+		return 0;
+
 	if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
 		show = SHOW_KERNEL;
 		level = 'k';
@@ -1667,6 +1670,8 @@ static const struct option options[] = {
 	OPT_BOOLEAN('c', "callchain", &callchain, "Display callchains"),
 	OPT_STRING('d', "dsos", &dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
+	OPT_STRING('C', "comms", &comm_list_str, "comm[,comm...]",
+		   "only consider symbols in these comms"),
 	OPT_END()
 };
 
@@ -1683,6 +1688,19 @@ static void setup_sorting(void)
 	}
 
 	free(str);
+}
+
+static void setup_list(struct strlist **list, const char *list_str,
+		       const char *list_name)
+{
+	if (list_str) {
+		*list = strlist__new(true, list_str);
+		if (!*list) {
+			fprintf(stderr, "problems parsing %s list\n",
+				list_name);
+			exit(129);
+		}
+	}
 }
 
 int cmd_report(int argc, const char **argv, const char *prefix)
@@ -1706,13 +1724,8 @@ int cmd_report(int argc, const char **argv, const char *prefix)
 	if (argc)
 		usage_with_options(report_usage, options);
 
-	if (dso_list_str) {
-		dso_list = strlist__new(true, dso_list_str);
-		if (!dso_list) {
-			fprintf(stderr, "problems parsing dso list\n");
-			exit(129);
-		}
-	}
+	setup_list(&dso_list, dso_list_str, "dso");
+	setup_list(&comm_list, comm_list_str, "comm");
 
 	setup_pager();
 
