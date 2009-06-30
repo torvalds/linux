@@ -5576,8 +5576,8 @@ F:	drivers/staging/
 
 STARFIRE/DURALAN NETWORK DRIVER
 P:	Ion Badulescu
-M:	ionut@cs.columbia.edu
-S:	Maintained
+M:	ionut@badula.org
+S:	Odd Fixes
 F:	drivers/net/starfire*
 
 STARMODE RADIO IP (STRIP) PROTOCOL DRIVER
