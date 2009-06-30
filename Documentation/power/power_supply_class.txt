@@ -108,6 +108,8 @@ relative, time-based measurements.
 ENERGY_FULL, ENERGY_EMPTY - same as above but for energy.
 
 CAPACITY - capacity in percents.
+CAPACITY_LEVEL - capacity level. This corresponds to
+POWER_SUPPLY_CAPACITY_LEVEL_*.
 
 TEMP - temperature of the power supply.
 TEMP_AMBIENT - ambient temperature.
