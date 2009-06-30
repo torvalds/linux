@@ -619,8 +619,9 @@ static struct snd_pcm_ops soc_pcm_ops = {
 
 #ifdef CONFIG_PM
 /* powers down audio subsystem for suspend */
-static int soc_suspend(struct platform_device *pdev, pm_message_t state)
+static int soc_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_card *card = socdev->card;
 	struct snd_soc_platform *platform = card->platform;
@@ -656,7 +657,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 		snd_pcm_suspend_all(card->dai_link[i].pcm);
 
 	if (card->suspend_pre)
-		card->suspend_pre(pdev, state);
+		card->suspend_pre(pdev, PMSG_SUSPEND);
 
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai  *cpu_dai = card->dai_link[i].cpu_dai;
@@ -682,7 +683,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 
 	if (codec_dev->suspend)
-		codec_dev->suspend(pdev, state);
+		codec_dev->suspend(pdev, PMSG_SUSPEND);
 
 	for (i = 0; i < card->num_links; i++) {
 		struct snd_soc_dai *cpu_dai = card->dai_link[i].cpu_dai;
@@ -691,7 +692,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 
 	if (card->suspend_post)
-		card->suspend_post(pdev, state);
+		card->suspend_post(pdev, PMSG_SUSPEND);
 
 	return 0;
 }
@@ -765,8 +766,9 @@ static void soc_resume_deferred(struct work_struct *work)
 }
 
 /* powers up audio subsystem after a suspend */
-static int soc_resume(struct platform_device *pdev)
+static int soc_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_card *card = socdev->card;
 	struct snd_soc_dai *cpu_dai = card->dai_link[0].cpu_dai;
@@ -826,7 +828,6 @@ int snd_soc_resume_device(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_resume_device);
-
 #else
 #define soc_suspend	NULL
 #define soc_resume	NULL
@@ -1020,32 +1021,39 @@ static int soc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void soc_shutdown(struct platform_device *pdev)
+static int soc_poweroff(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_card *card = socdev->card;
 
 	if (!card->instantiated)
-		return;
+		return 0;
 
 	/* Flush out pmdown_time work - we actually do want to run it
 	 * now, we're shutting down so no imminent restart. */
 	run_delayed_work(&card->delayed_work);
 
 	snd_soc_dapm_shutdown(socdev);
+
+	return 0;
 }
+
+static struct dev_pm_ops soc_pm_ops = {
+	.suspend = soc_suspend,
+	.resume = soc_resume,
+	.poweroff = soc_poweroff,
+};
 
 /* ASoC platform driver */
 static struct platform_driver soc_driver = {
 	.driver		= {
 		.name		= "soc-audio",
 		.owner		= THIS_MODULE,
+		.pm		= &soc_pm_ops,
 	},
 	.probe		= soc_probe,
 	.remove		= soc_remove,
-	.suspend	= soc_suspend,
-	.resume		= soc_resume,
-	.shutdown	= soc_shutdown,
 };
 
 /* create a new pcm */
