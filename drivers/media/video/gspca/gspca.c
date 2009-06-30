@@ -512,7 +512,10 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	if (!gspca_dev->cam.bulk) {		/* isoc */
 
 		/* See paragraph 5.9 / table 5-11 of the usb 2.0 spec. */
-		psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
+		if (gspca_dev->pkt_size == 0)
+			psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
+		else
+			psize = gspca_dev->pkt_size;
 		npkt = gspca_dev->cam.npkt;
 		if (npkt == 0)
 			npkt = 32;		/* default value */
@@ -597,13 +600,18 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	/* set the higher alternate setting and
 	 * loop until urb submit succeeds */
 	gspca_dev->alt = gspca_dev->nbalt;
+	if (gspca_dev->sd_desc->isoc_init) {
+		ret = gspca_dev->sd_desc->isoc_init(gspca_dev);
+		if (ret < 0)
+			goto out;
+	}
+	ep = get_ep(gspca_dev);
+	if (ep == NULL) {
+		ret = -EIO;
+		goto out;
+	}
 	for (;;) {
 		PDEBUG(D_STREAM, "init transfer alt %d", gspca_dev->alt);
-		ep = get_ep(gspca_dev);
-		if (ep == NULL) {
-			ret = -EIO;
-			goto out;
-		}
 		ret = create_urbs(gspca_dev, ep);
 		if (ret < 0)
 			goto out;
@@ -628,21 +636,32 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		/* submit the URBs */
 		for (n = 0; n < gspca_dev->nurbs; n++) {
 			ret = usb_submit_urb(gspca_dev->urb[n], GFP_KERNEL);
-			if (ret < 0) {
-				PDEBUG(D_ERR|D_STREAM,
-					"usb_submit_urb [%d] err %d", n, ret);
-				gspca_dev->streaming = 0;
-				destroy_urbs(gspca_dev);
-				if (ret == -ENOSPC) {
-					msleep(20);	/* wait for kill
-							 * complete */
-					break;	/* try the previous alt */
-				}
-				goto out;
-			}
+			if (ret < 0)
+				break;
 		}
 		if (ret >= 0)
 			break;
+		PDEBUG(D_ERR|D_STREAM,
+			"usb_submit_urb alt %d err %d", gspca_dev->alt, ret);
+		gspca_dev->streaming = 0;
+		destroy_urbs(gspca_dev);
+		if (ret != -ENOSPC)
+			goto out;
+
+		/* the bandwidth is not wide enough
+		 * negociate or try a lower alternate setting */
+		msleep(20);	/* wait for kill complete */
+		if (gspca_dev->sd_desc->isoc_nego) {
+			ret = gspca_dev->sd_desc->isoc_nego(gspca_dev);
+			if (ret < 0)
+				goto out;
+		} else {
+			ep = get_ep(gspca_dev);
+			if (ep == NULL) {
+				ret = -EIO;
+				goto out;
+			}
+		}
 	}
 out:
 	mutex_unlock(&gspca_dev->usb_lock);
