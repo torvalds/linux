@@ -381,12 +381,6 @@ ifndef CC_LD_DYNPATH
 	endif
 endif
 
-ifdef ZLIB_PATH
-	BASIC_CFLAGS += -I$(ZLIB_PATH)/include
-	EXTLIBS += -L$(ZLIB_PATH)/$(lib) $(CC_LD_DYNPATH)$(ZLIB_PATH)/$(lib)
-endif
-EXTLIBS += -lz
-
 ifdef NEEDS_SOCKET
 	EXTLIBS += -lsocket
 endif
