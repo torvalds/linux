@@ -10,7 +10,9 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/types.h>
 #include <linux/err.h>
+#include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/jiffies.h>
@@ -379,6 +381,29 @@ static struct bin_attribute olpc_bat_eeprom = {
 	.read = olpc_bat_eeprom_read,
 };
 
+/* Allow userspace to see the specific error value pulled from the EC */
+
+static ssize_t olpc_bat_error_read(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	uint8_t ec_byte;
+	ssize_t ret;
+
+	ret = olpc_ec_cmd(EC_BAT_ERRCODE, NULL, 0, &ec_byte, 1);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", ec_byte);
+}
+
+static struct device_attribute olpc_bat_error = {
+	.attr = {
+		.name = "error",
+		.mode = S_IRUGO,
+	},
+	.show = olpc_bat_error_read,
+};
+
 /*********************************************************************
  *		Initialisation
  *********************************************************************/
@@ -442,8 +467,14 @@ static int __init olpc_bat_init(void)
 	if (ret)
 		goto eeprom_failed;
 
+	ret = device_create_file(olpc_bat.dev, &olpc_bat_error);
+	if (ret)
+		goto error_failed;
+
 	goto success;
 
+error_failed:
+	device_remove_bin_file(olpc_bat.dev, &olpc_bat_eeprom);
 eeprom_failed:
 	power_supply_unregister(&olpc_bat);
 battery_failed:
@@ -456,6 +487,7 @@ success:
 
 static void __exit olpc_bat_exit(void)
 {
+	device_remove_file(olpc_bat.dev, &olpc_bat_error);
 	device_remove_bin_file(olpc_bat.dev, &olpc_bat_eeprom);
 	power_supply_unregister(&olpc_bat);
 	power_supply_unregister(&olpc_ac);
