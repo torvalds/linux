@@ -1314,6 +1314,10 @@ static int gfs2_shrink_glock_memory(int nr, gfp_t gfp_mask)
 		list_del_init(&gl->gl_lru);
 		atomic_dec(&lru_count);
 
+		/* Check if glock is about to be freed */
+		if (atomic_read(&gl->gl_ref) == 0)
+			continue;
+
 		/* Test for being demotable */
 		if (!test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
 			gfs2_glock_hold(gl);
