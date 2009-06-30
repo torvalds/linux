@@ -1748,6 +1748,12 @@ static int getsockopt(struct socket *sock,
 		value = jiffies_to_msecs(sk->sk_rcvtimeo);
 		/* no need to set "res", since already 0 at this point */
 		break;
+	 case TIPC_NODE_RECVQ_DEPTH:
+		value = (u32)atomic_read(&tipc_queue_size);
+		break;
+	 case TIPC_SOCK_RECVQ_DEPTH:
+		value = skb_queue_len(&sk->sk_receive_queue);
+		break;
 	default:
 		res = -EINVAL;
 	}
