@@ -675,7 +675,7 @@ static const struct option options[] = {
 			    "put the counters into a counter group"),
 	OPT_STRING('s', "sym-filter", &sym_filter, "pattern",
 		    "only display symbols matchig this pattern"),
-	OPT_BOOLEAN('z', "zero", &group,
+	OPT_BOOLEAN('z', "zero", &zero,
 		    "zero history across updates"),
 	OPT_INTEGER('F', "freq", &freq,
 		    "profile at this frequency"),
