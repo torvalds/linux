@@ -25,6 +25,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include "wm8974.h"
 
@@ -137,6 +138,11 @@ static const struct soc_enum wm8974_enum[] = {
 	SOC_ENUM_SINGLE(WM8974_ALC3,  8, 2, wm8974_alc),
 };
 
+static const DECLARE_TLV_DB_SCALE(digital_tlv, -12750, 50, 1);
+static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
+static const DECLARE_TLV_DB_SCALE(inpga_tlv, -1200, 75, 0);
+static const DECLARE_TLV_DB_SCALE(spk_tlv, -5700, 100, 0);
+
 static const struct snd_kcontrol_new wm8974_snd_controls[] = {
 
 SOC_SINGLE("Digital Loopback Switch", WM8974_COMP, 0, 1, 0),
@@ -147,33 +153,33 @@ SOC_ENUM("ADC Companding", wm8974_enum[0]),
 SOC_ENUM("Playback De-emphasis", wm8974_enum[2]),
 SOC_SINGLE("DAC Inversion Switch", WM8974_DAC, 0, 1, 0),
 
-SOC_SINGLE("PCM Volume", WM8974_DACVOL, 0, 127, 0),
+SOC_SINGLE_TLV("PCM Volume", WM8974_DACVOL, 0, 255, 0, digital_tlv),
 
 SOC_SINGLE("High Pass Filter Switch", WM8974_ADC, 8, 1, 0),
 SOC_SINGLE("High Pass Cut Off", WM8974_ADC, 4, 7, 0),
 SOC_SINGLE("ADC Inversion Switch", WM8974_COMP, 0, 1, 0),
 
-SOC_SINGLE("Capture Volume", WM8974_ADCVOL,  0, 127, 0),
+SOC_SINGLE_TLV("Capture Volume", WM8974_ADCVOL,  0, 255, 0, digital_tlv),
 
 SOC_ENUM("Equaliser Function", wm8974_enum[3]),
 SOC_ENUM("EQ1 Cut Off", wm8974_enum[4]),
-SOC_SINGLE("EQ1 Volume", WM8974_EQ1,  0, 31, 1),
+SOC_SINGLE_TLV("EQ1 Volume", WM8974_EQ1,  0, 24, 1, eq_tlv),
 
 SOC_ENUM("Equaliser EQ2 Bandwith", wm8974_enum[5]),
 SOC_ENUM("EQ2 Cut Off", wm8974_enum[6]),
-SOC_SINGLE("EQ2 Volume", WM8974_EQ2,  0, 31, 1),
+SOC_SINGLE_TLV("EQ2 Volume", WM8974_EQ2,  0, 24, 1, eq_tlv),
 
 SOC_ENUM("Equaliser EQ3 Bandwith", wm8974_enum[7]),
 SOC_ENUM("EQ3 Cut Off", wm8974_enum[8]),
-SOC_SINGLE("EQ3 Volume", WM8974_EQ3,  0, 31, 1),
+SOC_SINGLE_TLV("EQ3 Volume", WM8974_EQ3,  0, 24, 1, eq_tlv),
 
 SOC_ENUM("Equaliser EQ4 Bandwith", wm8974_enum[9]),
 SOC_ENUM("EQ4 Cut Off", wm8974_enum[10]),
-SOC_SINGLE("EQ4 Volume", WM8974_EQ4,  0, 31, 1),
+SOC_SINGLE_TLV("EQ4 Volume", WM8974_EQ4,  0, 24, 1, eq_tlv),
 
 SOC_ENUM("Equaliser EQ5 Bandwith", wm8974_enum[11]),
 SOC_ENUM("EQ5 Cut Off", wm8974_enum[12]),
-SOC_SINGLE("EQ5 Volume", WM8974_EQ5,  0, 31, 1),
+SOC_SINGLE_TLV("EQ5 Volume", WM8974_EQ5,  0, 24, 1, eq_tlv),
 
 SOC_SINGLE("DAC Playback Limiter Switch", WM8974_DACLIM1,  8, 1, 0),
 SOC_SINGLE("DAC Playback Limiter Decay", WM8974_DACLIM1,  4, 15, 0),
@@ -198,11 +204,11 @@ SOC_SINGLE("ALC Capture Noise Gate Switch", WM8974_NGATE,  3, 1, 0),
 SOC_SINGLE("ALC Capture Noise Gate Threshold", WM8974_NGATE,  0, 7, 0),
 
 SOC_SINGLE("Capture PGA ZC Switch", WM8974_INPPGA,  7, 1, 0),
-SOC_SINGLE("Capture PGA Volume", WM8974_INPPGA,  0, 63, 0),
+SOC_SINGLE_TLV("Capture PGA Volume", WM8974_INPPGA,  0, 63, 0, inpga_tlv),
 
 SOC_SINGLE("Speaker Playback ZC Switch", WM8974_SPKVOL,  7, 1, 0),
 SOC_SINGLE("Speaker Playback Switch", WM8974_SPKVOL,  6, 1, 1),
-SOC_SINGLE("Speaker Playback Volume", WM8974_SPKVOL,  0, 63, 0),
+SOC_SINGLE_TLV("Speaker Playback Volume", WM8974_SPKVOL,  0, 63, 1, spk_tlv),
 
 SOC_SINGLE("Capture Boost(+20dB)", WM8974_ADCBOOST,  8, 1, 0),
 SOC_SINGLE("Mono Playback Switch", WM8974_MONOMIX, 6, 1, 0),
