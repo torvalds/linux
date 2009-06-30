@@ -66,6 +66,8 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/backlight.h>
+#include <linux/reboot.h>
+#include <linux/dmi.h>
 
 #include <asm/io.h>
 #include <linux/uaccess.h>
@@ -249,8 +251,6 @@ static int aty_init(struct fb_info *info);
 static int store_video_par(char *videopar, unsigned char m64_num);
 #endif
 
-static struct crtc saved_crtc;
-static union aty_pll saved_pll;
 static void aty_get_crtc(const struct atyfb_par *par, struct crtc *crtc);
 
 static void aty_set_crtc(const struct atyfb_par *par, const struct crtc *crtc);
@@ -261,6 +261,8 @@ static void set_off_pitch(struct atyfb_par *par, const struct fb_info *info);
 static int read_aty_sense(const struct atyfb_par *par);
 #endif
 
+static DEFINE_MUTEX(reboot_lock);
+static struct fb_info *reboot_info;
 
     /*
      *  Interface used by the world
@@ -2390,9 +2392,9 @@ static int __devinit aty_init(struct fb_info *info)
 #endif /* CONFIG_FB_ATY_CT */
 
 	/* save previous video mode */
-	aty_get_crtc(par, &saved_crtc);
+	aty_get_crtc(par, &par->saved_crtc);
 	if(par->pll_ops->get_pll)
-		par->pll_ops->get_pll(info, &saved_pll);
+		par->pll_ops->get_pll(info, &par->saved_pll);
 
 	par->mem_cntl = aty_ld_le32(MEM_CNTL, par);
 	gtb_memsize = M64_HAS(GTB_DSP);
@@ -2667,8 +2669,8 @@ static int __devinit aty_init(struct fb_info *info)
 
 aty_init_exit:
 	/* restore video mode */
-	aty_set_crtc(par, &saved_crtc);
-	par->pll_ops->set_pll(info, &saved_pll);
+	aty_set_crtc(par, &par->saved_crtc);
+	par->pll_ops->set_pll(info, &par->saved_pll);
 
 #ifdef CONFIG_MTRR
 	if (par->mtrr_reg >= 0) {
@@ -3502,6 +3504,11 @@ static int __devinit atyfb_pci_probe(struct pci_dev *pdev, const struct pci_devi
 	par->mmap_map[1].prot_flag = _PAGE_E;
 #endif /* __sparc__ */
 
+	mutex_lock(&reboot_lock);
+	if (!reboot_info)
+		reboot_info = info;
+	mutex_unlock(&reboot_lock);
+
 	return 0;
 
 err_release_io:
@@ -3614,8 +3621,8 @@ static void __devexit atyfb_remove(struct fb_info *info)
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 
 	/* restore video mode */
-	aty_set_crtc(par, &saved_crtc);
-	par->pll_ops->set_pll(info, &saved_pll);
+	aty_set_crtc(par, &par->saved_crtc);
+	par->pll_ops->set_pll(info, &par->saved_pll);
 
 	unregister_framebuffer(info);
 
@@ -3660,6 +3667,11 @@ static void __devexit atyfb_remove(struct fb_info *info)
 static void __devexit atyfb_pci_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
+
+	mutex_lock(&reboot_lock);
+	if (reboot_info == info)
+		reboot_info = NULL;
+	mutex_unlock(&reboot_lock);
 
 	atyfb_remove(info);
 }
@@ -3808,6 +3820,56 @@ static int __init atyfb_setup(char *options)
 }
 #endif  /*  MODULE  */
 
+static int atyfb_reboot_notify(struct notifier_block *nb,
+			       unsigned long code, void *unused)
+{
+	struct atyfb_par *par;
+
+	if (code != SYS_RESTART)
+		return NOTIFY_DONE;
+
+	mutex_lock(&reboot_lock);
+
+	if (!reboot_info)
+		goto out;
+
+	if (!lock_fb_info(reboot_info))
+		goto out;
+
+	par = reboot_info->par;
+
+	/*
+	 * HP OmniBook 500's BIOS doesn't like the state of the
+	 * hardware after atyfb has been used. Restore the hardware
+	 * to the original state to allow successful reboots.
+	 */
+	aty_set_crtc(par, &par->saved_crtc);
+	par->pll_ops->set_pll(reboot_info, &par->saved_pll);
+
+	unlock_fb_info(reboot_info);
+ out:
+	mutex_unlock(&reboot_lock);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block atyfb_reboot_notifier = {
+	.notifier_call = atyfb_reboot_notify,
+};
+
+static const struct dmi_system_id atyfb_reboot_ids[] = {
+	{
+		.ident = "HP OmniBook 500",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP OmniBook PC"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "HP OmniBook 500 FA"),
+		},
+	},
+
+	{ }
+};
+
 static int __init atyfb_init(void)
 {
     int err1 = 1, err2 = 1;
@@ -3826,11 +3888,20 @@ static int __init atyfb_init(void)
     err2 = atyfb_atari_probe();
 #endif
 
-    return (err1 && err2) ? -ENODEV : 0;
+    if (err1 && err2)
+	return -ENODEV;
+
+    if (dmi_check_system(atyfb_reboot_ids))
+	register_reboot_notifier(&atyfb_reboot_notifier);
+
+    return 0;
 }
 
 static void __exit atyfb_exit(void)
 {
+	if (dmi_check_system(atyfb_reboot_ids))
+		unregister_reboot_notifier(&atyfb_reboot_notifier);
+
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&atyfb_driver);
 #endif
