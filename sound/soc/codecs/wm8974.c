@@ -631,6 +631,7 @@ struct snd_soc_dai wm8974_dai = {
 		.rates = WM8974_RATES,
 		.formats = WM8974_FORMATS,},
 	.ops = &wm8974_ops,
+	.symmetric_rates = 1,
 };
 EXPORT_SYMBOL_GPL(wm8974_dai);
 
