@@ -94,6 +94,11 @@ static struct em28xx_fmt format[] = {
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.depth    = 16,
 		.reg	  = EM28XX_OUTFMT_YUV422_Y0UY1V,
+	}, {
+		.name     = "16 bpp RGB, le",
+		.fourcc   = V4L2_PIX_FMT_RGB565,
+		.depth    = 16,
+		.reg      = EM28XX_OUTFMT_YUV211,
 	},
 };
 
@@ -694,6 +699,10 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	unsigned int          hscale, vscale;
 	struct em28xx_fmt     *fmt;
 
+	/* FIXME: This is the only supported fmt */
+	if (dev->board.is_27xx)
+		f->fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
+
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 	if (!fmt) {
 		em28xx_videodbg("Fourcc format (%08x) invalid.\n",
@@ -701,7 +710,11 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	if (dev->board.is_em2800) {
+	if (dev->board.is_27xx) {
+		/* FIXME: This is the only supported fmt */
+		width  = 640;
+		height = 480;
+	} else if (dev->board.is_em2800) {
 		/* the em2800 can only scale down to 50% */
 		height = height > (3 * maxh / 4) ? maxh : maxh / 2;
 		width = width > (3 * maxw / 4) ? maxw : maxw / 2;
@@ -746,6 +759,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		return rc;
 
 	mutex_lock(&dev->lock);
+
+	/* FIXME: This is the only supported fmt */
+	if (dev->board.is_27xx)
+		f->fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
 
 	vidioc_try_fmt_vid_cap(file, priv, f);
 
