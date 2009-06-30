@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005-2007 Cavium Networks
+ * Copyright (C) 2005-2009 Cavium Networks
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -16,8 +16,7 @@
 #include <asm/octeon/cvmx-pci-defs.h>
 #include <asm/octeon/cvmx-npei-defs.h>
 #include <asm/octeon/cvmx-pexp-defs.h>
-
-#include "pci-common.h"
+#include <asm/octeon/pci-octeon.h>
 
 /*
  * Each bit in msi_free_irq_bitmask represents a MSI interrupt that is
@@ -47,8 +46,8 @@ static DEFINE_SPINLOCK(msi_free_irq_bitmask_lock);
  * programming the MSI control bits [6:4] before calling
  * pci_enable_msi().
  *
- * @param dev    Device requesting MSI interrupts
- * @param desc   MSI descriptor
+ * @dev:    Device requesting MSI interrupts
+ * @desc:   MSI descriptor
  *
  * Returns 0 on success.
  */
@@ -213,14 +212,9 @@ void arch_teardown_msi_irq(unsigned int irq)
 }
 
 
-/**
+/*
  * Called by the interrupt handling code when an MSI interrupt
  * occurs.
- *
- * @param cpl
- * @param dev_id
- *
- * @return
  */
 static irqreturn_t octeon_msi_interrupt(int cpl, void *dev_id)
 {
@@ -256,31 +250,37 @@ static irqreturn_t octeon_msi_interrupt(int cpl, void *dev_id)
 }
 
 
-/**
+/*
  * Initializes the MSI interrupt handling code
- *
- * @return
  */
 int octeon_msi_initialize(void)
 {
-	int r;
 	if (octeon_has_feature(OCTEON_FEATURE_PCIE)) {
-		r = request_irq(OCTEON_IRQ_PCI_MSI0, octeon_msi_interrupt,
+		if (request_irq(OCTEON_IRQ_PCI_MSI0, octeon_msi_interrupt,
 				IRQF_SHARED,
-				"MSI[0:63]", octeon_msi_interrupt);
+				"MSI[0:63]", octeon_msi_interrupt))
+			panic("request_irq(OCTEON_IRQ_PCI_MSI0) failed");
 	} else if (octeon_is_pci_host()) {
-		r = request_irq(OCTEON_IRQ_PCI_MSI0, octeon_msi_interrupt,
+		if (request_irq(OCTEON_IRQ_PCI_MSI0, octeon_msi_interrupt,
 				IRQF_SHARED,
-				"MSI[0:15]", octeon_msi_interrupt);
-		r += request_irq(OCTEON_IRQ_PCI_MSI1, octeon_msi_interrupt,
-				 IRQF_SHARED,
-				 "MSI[16:31]", octeon_msi_interrupt);
-		r += request_irq(OCTEON_IRQ_PCI_MSI2, octeon_msi_interrupt,
-				 IRQF_SHARED,
-				 "MSI[32:47]", octeon_msi_interrupt);
-		r += request_irq(OCTEON_IRQ_PCI_MSI3, octeon_msi_interrupt,
-				 IRQF_SHARED,
-				 "MSI[48:63]", octeon_msi_interrupt);
+				"MSI[0:15]", octeon_msi_interrupt))
+			panic("request_irq(OCTEON_IRQ_PCI_MSI0) failed");
+
+		if (request_irq(OCTEON_IRQ_PCI_MSI1, octeon_msi_interrupt,
+				IRQF_SHARED,
+				"MSI[16:31]", octeon_msi_interrupt))
+			panic("request_irq(OCTEON_IRQ_PCI_MSI1) failed");
+
+		if (request_irq(OCTEON_IRQ_PCI_MSI2, octeon_msi_interrupt,
+				IRQF_SHARED,
+				"MSI[32:47]", octeon_msi_interrupt))
+			panic("request_irq(OCTEON_IRQ_PCI_MSI2) failed");
+
+		if (request_irq(OCTEON_IRQ_PCI_MSI3, octeon_msi_interrupt,
+				IRQF_SHARED,
+				"MSI[48:63]", octeon_msi_interrupt))
+			panic("request_irq(OCTEON_IRQ_PCI_MSI3) failed");
+
 	}
 	return 0;
 }
