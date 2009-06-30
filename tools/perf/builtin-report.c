@@ -33,8 +33,8 @@ static char		*vmlinux = NULL;
 
 static char		default_sort_order[] = "comm,dso";
 static char		*sort_order = default_sort_order;
-static char		*dso_list_str, *comm_list_str;
-static struct strlist	*dso_list, *comm_list;
+static char		*dso_list_str, *comm_list_str, *sym_list_str;
+static struct strlist	*dso_list, *comm_list, *sym_list;
 
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
@@ -1281,6 +1281,9 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		if (dso_list && dso && dso->name && !strlist__has_entry(dso_list, dso->name))
 			return 0;
 
+		if (sym_list && sym && !strlist__has_entry(sym_list, sym->name))
+			return 0;
+
 		if (hist_entry__add(thread, map, dso, sym, ip, chain, level, period)) {
 			eprintf("problem incrementing symbol count, skipping event\n");
 			return -1;
@@ -1672,6 +1675,8 @@ static const struct option options[] = {
 		   "only consider symbols in these dsos"),
 	OPT_STRING('C', "comms", &comm_list_str, "comm[,comm...]",
 		   "only consider symbols in these comms"),
+	OPT_STRING('S', "symbols", &sym_list_str, "symbol[,symbol...]",
+		   "only consider these symbols"),
 	OPT_END()
 };
 
@@ -1726,6 +1731,7 @@ int cmd_report(int argc, const char **argv, const char *prefix)
 
 	setup_list(&dso_list, dso_list_str, "dso");
 	setup_list(&comm_list, comm_list_str, "comm");
+	setup_list(&sym_list, sym_list_str, "symbol");
 
 	setup_pager();
 
