@@ -135,12 +135,6 @@
 #define DEVICE_USE_CODEC3(x) ((x)>=700)
 #define DEVICE_USE_CODEC23(x) ((x)>=675)
 
-
-#ifndef V4L2_PIX_FMT_PWC1
-#define V4L2_PIX_FMT_PWC1	v4l2_fourcc('P','W','C','1')
-#define V4L2_PIX_FMT_PWC2	v4l2_fourcc('P','W','C','2')
-#endif
-
 /* The following structures were based on cpia.h. Why reinvent the wheel? :-) */
 struct pwc_iso_buf
 {
