@@ -46,6 +46,9 @@ static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
 	0x0000,
 };
 
+#define WM8974_POWER1_BIASEN  0x08
+#define WM8974_POWER1_BUFIOEN 0x10
+
 struct wm8974_priv {
 	struct snd_soc_codec codec;
 	u16 reg_cache[WM8974_CACHEREGNUM];
@@ -528,22 +531,35 @@ static int wm8974_mute(struct snd_soc_dai *dai, int mute)
 static int wm8974_set_bias_level(struct snd_soc_codec *codec,
 	enum snd_soc_bias_level level)
 {
+	u16 power1 = wm8974_read_reg_cache(codec, WM8974_POWER1) & ~0x3;
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		wm8974_write(codec, WM8974_POWER1, 0x1ff);
-		wm8974_write(codec, WM8974_POWER2, 0x1ff);
-		wm8974_write(codec, WM8974_POWER3, 0x1ff);
-		break;
 	case SND_SOC_BIAS_PREPARE:
+		power1 |= 0x1;  /* VMID 50k */
+		wm8974_write(codec, WM8974_POWER1, power1);
 		break;
+
 	case SND_SOC_BIAS_STANDBY:
+		power1 |= WM8974_POWER1_BIASEN | WM8974_POWER1_BUFIOEN;
+
+		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+			/* Initial cap charge at VMID 5k */
+			wm8974_write(codec, WM8974_POWER1, power1 | 0x3);
+			mdelay(100);
+		}
+
+		power1 |= 0x2;  /* VMID 500k */
+		wm8974_write(codec, WM8974_POWER1, power1);
 		break;
+
 	case SND_SOC_BIAS_OFF:
-		wm8974_write(codec, WM8974_POWER1, 0x0);
-		wm8974_write(codec, WM8974_POWER2, 0x0);
-		wm8974_write(codec, WM8974_POWER3, 0x0);
+		wm8974_write(codec, WM8974_POWER1, 0);
+		wm8974_write(codec, WM8974_POWER2, 0);
+		wm8974_write(codec, WM8974_POWER3, 0);
 		break;
 	}
+
 	codec->bias_level = level;
 	return 0;
 }
