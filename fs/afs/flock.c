@@ -432,7 +432,6 @@ vfs_rejected_lock:
 	list_del_init(&fl->fl_u.afs.link);
 	if (list_empty(&vnode->granted_locks))
 		afs_defer_unlock(vnode, key);
-	spin_unlock(&vnode->lock);
 	goto abort_attempt;
 }
 
