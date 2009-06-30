@@ -1170,6 +1170,11 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	const int unplug = bio_unplug(bio);
 	int rw_flags;
 
+	if (bio_barrier(bio) && bio_has_data(bio) &&
+	    (q->next_ordered == QUEUE_ORDERED_NONE)) {
+		bio_endio(bio, -EOPNOTSUPP);
+		return 0;
+	}
 	/*
 	 * low level driver can indicate that it wants pages above a
 	 * certain limit bounced to low memory (ie for highmem, or even
@@ -1467,11 +1472,6 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 
 		if (bio_discard(bio) && !q->prepare_discard_fn) {
-			err = -EOPNOTSUPP;
-			goto end_io;
-		}
-		if (bio_barrier(bio) && bio_has_data(bio) &&
-		    (q->next_ordered == QUEUE_ORDERED_NONE)) {
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
