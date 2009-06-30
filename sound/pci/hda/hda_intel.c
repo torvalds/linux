@@ -61,6 +61,9 @@ static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_only[SNDRV_CARDS];
 static int single_cmd;
 static int enable_msi;
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+static char *patch[SNDRV_CARDS];
+#endif
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -84,6 +87,10 @@ MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 		 "(for debugging only).");
 module_param(enable_msi, int, 0444);
 MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+module_param_array(patch, charp, NULL, 0444);
+MODULE_PARM_DESC(patch, "Patch file for Intel HD audio interface.");
+#endif
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static int power_save = CONFIG_SND_HDA_POWER_SAVE_DEFAULT;
@@ -1286,8 +1293,7 @@ static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] __devinitdata = {
 	[AZX_DRIVER_TERA] = 1,
 };
 
-static int __devinit azx_codec_create(struct azx *chip, const char *model,
-				      int no_init)
+static int __devinit azx_codec_create(struct azx *chip, const char *model)
 {
 	struct hda_bus_template bus_temp;
 	int c, codecs, err;
@@ -1346,7 +1352,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			struct hda_codec *codec;
-			err = snd_hda_codec_new(chip->bus, c, !no_init, &codec);
+			err = snd_hda_codec_new(chip->bus, c, &codec);
 			if (err < 0)
 				continue;
 			codecs++;
@@ -1356,7 +1362,16 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 		snd_printk(KERN_ERR SFX "no codecs initialized\n");
 		return -ENXIO;
 	}
+	return 0;
+}
 
+/* configure each codec instance */
+static int __devinit azx_codec_configure(struct azx *chip)
+{
+	struct hda_codec *codec;
+	list_for_each_entry(codec, &chip->bus->codec_list, list) {
+		snd_hda_codec_configure(codec);
+	}
 	return 0;
 }
 
@@ -2460,15 +2475,32 @@ static int __devinit azx_probe(struct pci_dev *pci,
 		return err;
 	}
 
+	/* set this here since it's referred in snd_hda_load_patch() */
+	snd_card_set_dev(card, &pci->dev);
+
 	err = azx_create(card, pci, dev, pci_id->driver_data, &chip);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
 
 	/* create codec instances */
-	err = azx_codec_create(chip, model[dev], probe_only[dev]);
+	err = azx_codec_create(chip, model[dev]);
 	if (err < 0)
 		goto out_free;
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+	if (patch[dev]) {
+		snd_printk(KERN_ERR SFX "Applying patch firmware '%s'\n",
+			   patch[dev]);
+		err = snd_hda_load_patch(chip->bus, patch[dev]);
+		if (err < 0)
+			goto out_free;
+	}
+#endif
+	if (!probe_only[dev]) {
+		err = azx_codec_configure(chip);
+		if (err < 0)
+			goto out_free;
+	}
 
 	/* create PCM streams */
 	err = snd_hda_build_pcms(chip->bus);
@@ -2479,8 +2511,6 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	err = azx_mixer_create(chip);
 	if (err < 0)
 		goto out_free;
-
-	snd_card_set_dev(card, &pci->dev);
 
 	err = snd_card_register(card);
 	if (err < 0)
