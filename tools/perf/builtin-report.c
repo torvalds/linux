@@ -1213,6 +1213,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	struct map *map = NULL;
 	void *more_data = event->ip.__more_data;
 	struct ip_callchain *chain = NULL;
+	int cpumode;
 
 	if (sample_type & PERF_SAMPLE_PERIOD) {
 		period = *(u64 *)more_data;
@@ -1256,7 +1257,9 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	if (comm_list && !strlist__has_entry(comm_list, thread->comm))
 		return 0;
 
-	if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
+	cpumode = event->header.misc & PERF_EVENT_MISC_CPUMODE_MASK;
+
+	if (cpumode == PERF_EVENT_MISC_KERNEL) {
 		show = SHOW_KERNEL;
 		level = 'k';
 
@@ -1264,7 +1267,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 
 		dprintf(" ...... dso: %s\n", dso->name);
 
-	} else if (event->header.misc & PERF_EVENT_MISC_USER) {
+	} else if (cpumode == PERF_EVENT_MISC_USER) {
 
 		show = SHOW_USER;
 		level = '.';
