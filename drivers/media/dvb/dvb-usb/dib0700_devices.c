@@ -2663,10 +2663,9 @@ static int dib0700_xc4000_tuner_callback(void *priv, int component,
 
 	if (command == XC4000_TUNER_RESET) {
 		/* Reset the tuner */
-		dib0700_set_gpio(adap->dev, GPIO1, GPIO_OUT, 0);
+		dib7000p_set_gpio(adap->fe, 8, 0, 0);
 		msleep(10);
-		dib0700_set_gpio(adap->dev, GPIO1, GPIO_OUT, 1);
-		msleep(10);
+		dib7000p_set_gpio(adap->fe, 8, 0, 1);
 	} else {
 		err("xc4000: unknown tuner callback command: %d\n", command);
 		return -EINVAL;
@@ -2683,7 +2682,6 @@ static struct dib7000p_config pctv_340e_config = {
 	.agc = &stk7700p_7000p_mt2060_agc_config,
 	.bw  = &stk7700p_pll_config,
 
-	/* FIXME: need to take xc4000 out of reset */
 	.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
 	.gpio_val = DIB7000M_GPIO_DEFAULT_VALUES,
 	.gpio_pwm_pos = DIB7000M_GPIO_DEFAULT_PWM_POS,
@@ -2738,17 +2736,26 @@ static int pctv340e_frontend_attach(struct dvb_usb_adapter *adap)
 
 
 static struct xc4000_config s5h1411_xc4000_tunerconfig = {
-	.i2c_address      = 0x64,
+	.i2c_address      = 0x61,
 	.if_khz           = 5380,
 };
 
 static int xc4000_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	err("xc4000:  xc4000_tuner_attach");
-	/* FIXME: generalize & move to common area */
+	struct i2c_adapter *tun_i2c;
+
+	/* The xc4000 is not on the main i2c bus */
+	tun_i2c = dib7000p_get_i2c_master(adap->fe,
+					  DIBX000_I2C_INTERFACE_TUNER, 1);
+	if (tun_i2c == NULL) {
+		printk("Could not reach tuner i2c bus\n");
+		return 0;
+	}
+
+	/* Setup the reset callback */
 	adap->fe->callback = dib0700_xc4000_tuner_callback;
 
-	return dvb_attach(xc4000_attach, adap->fe, &adap->dev->i2c_adap,
+	return dvb_attach(xc4000_attach, adap->fe, tun_i2c,
 			  &s5h1411_xc4000_tunerconfig)
 		== NULL ? -ENODEV : 0;
 }
