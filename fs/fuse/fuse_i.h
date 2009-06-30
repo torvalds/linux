@@ -446,6 +446,9 @@ struct fuse_conn {
 	/** Do multi-page cached writes */
 	unsigned big_writes:1;
 
+	/** Don't apply umask to creation modes */
+	unsigned dont_mask:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
