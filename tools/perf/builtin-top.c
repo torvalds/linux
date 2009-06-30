@@ -293,6 +293,8 @@ char *skip_symbols[] = {
 	"enter_idle",
 	"exit_idle",
 	"mwait_idle",
+	"ppc64_runlatch_off",
+	"pseries_dedicated_idle_sleep",
 	NULL
 };
 
@@ -302,6 +304,13 @@ static int symbol_filter(struct dso *self, struct symbol *sym)
 	struct sym_entry *syme;
 	const char *name = sym->name;
 	int i;
+
+	/*
+	 * ppc64 uses function descriptors and appends a '.' to the
+	 * start of every instruction address. Remove it.
+	 */
+	if (name[0] == '.')
+		name++;
 
 	if (!strcmp(name, "_text") ||
 	    !strcmp(name, "_etext") ||
