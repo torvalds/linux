@@ -221,7 +221,7 @@ static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
 	struct pl061_gpio *chip;
 	struct list_head *chip_list;
 	int ret, irq, i;
-	static unsigned long init_irq[BITS_TO_LONGS(NR_IRQS)];
+	static DECLARE_BITMAP(init_irq, NR_IRQS);
 
 	pdata = dev->dev.platform_data;
 	if (pdata == NULL)
@@ -280,6 +280,7 @@ static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
 	if (!test_and_set_bit(irq, init_irq)) { /* list initialized? */
 		chip_list = kmalloc(sizeof(*chip_list), GFP_KERNEL);
 		if (chip_list == NULL) {
+			clear_bit(irq, init_irq);
 			ret = -ENOMEM;
 			goto iounmap;
 		}
