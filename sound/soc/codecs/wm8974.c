@@ -138,6 +138,11 @@ static const struct soc_enum wm8974_enum[] = {
 	SOC_ENUM_SINGLE(WM8974_ALC3,  8, 2, wm8974_alc),
 };
 
+static const char *wm8974_auxmode_text[] = { "Buffer", "Mixer" };
+
+static const struct soc_enum wm8974_auxmode =
+	SOC_ENUM_SINGLE(WM8974_INPUT,  3, 2, wm8974_auxmode_text);
+
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static const DECLARE_TLV_DB_SCALE(inpga_tlv, -1200, 75, 0);
@@ -208,10 +213,12 @@ SOC_SINGLE_TLV("Capture PGA Volume", WM8974_INPPGA,  0, 63, 0, inpga_tlv),
 
 SOC_SINGLE("Speaker Playback ZC Switch", WM8974_SPKVOL,  7, 1, 0),
 SOC_SINGLE("Speaker Playback Switch", WM8974_SPKVOL,  6, 1, 1),
-SOC_SINGLE_TLV("Speaker Playback Volume", WM8974_SPKVOL,  0, 63, 1, spk_tlv),
+SOC_SINGLE_TLV("Speaker Playback Volume", WM8974_SPKVOL,  0, 63, 0, spk_tlv),
+
+SOC_ENUM("Aux Mode", wm8974_auxmode),
 
 SOC_SINGLE("Capture Boost(+20dB)", WM8974_ADCBOOST,  8, 1, 0),
-SOC_SINGLE("Mono Playback Switch", WM8974_MONOMIX, 6, 1, 0),
+SOC_SINGLE("Mono Playback Switch", WM8974_MONOMIX, 6, 1, 1),
 };
 
 /* Speaker Output Mixer */
@@ -225,7 +232,19 @@ SOC_DAPM_SINGLE("PCM Playback Switch", WM8974_SPKMIX, 0, 1, 1),
 static const struct snd_kcontrol_new wm8974_mono_mixer_controls[] = {
 SOC_DAPM_SINGLE("Line Bypass Switch", WM8974_MONOMIX, 1, 1, 0),
 SOC_DAPM_SINGLE("Aux Playback Switch", WM8974_MONOMIX, 2, 1, 0),
-SOC_DAPM_SINGLE("PCM Playback Switch", WM8974_MONOMIX, 0, 1, 1),
+SOC_DAPM_SINGLE("PCM Playback Switch", WM8974_MONOMIX, 0, 1, 0),
+};
+
+/* Boost mixer */
+static const struct snd_kcontrol_new wm8974_boost_mixer[] = {
+SOC_DAPM_SINGLE("Aux Switch", WM8974_INPPGA, 6, 1, 0),
+};
+
+/* Input PGA */
+static const struct snd_kcontrol_new wm8974_inpga[] = {
+SOC_DAPM_SINGLE("Aux Switch", WM8974_INPUT, 2, 1, 0),
+SOC_DAPM_SINGLE("MicN Switch", WM8974_INPUT, 1, 1, 0),
+SOC_DAPM_SINGLE("MicP Switch", WM8974_INPUT, 0, 1, 0),
 };
 
 /* AUX Input boost vol */
@@ -236,22 +255,6 @@ SOC_DAPM_SINGLE("Aux Volume", WM8974_ADCBOOST, 0, 7, 0);
 static const struct snd_kcontrol_new wm8974_mic_boost_controls =
 SOC_DAPM_SINGLE("Mic Volume", WM8974_ADCBOOST, 4, 7, 0);
 
-/* Capture boost switch */
-static const struct snd_kcontrol_new wm8974_capture_boost_controls =
-SOC_DAPM_SINGLE("Capture Boost Switch", WM8974_INPPGA,  6, 1, 0);
-
-/* Aux In to PGA */
-static const struct snd_kcontrol_new wm8974_aux_capture_boost_controls =
-SOC_DAPM_SINGLE("Aux Capture Boost Switch", WM8974_INPPGA,  2, 1, 0);
-
-/* Mic P In to PGA */
-static const struct snd_kcontrol_new wm8974_micp_capture_boost_controls =
-SOC_DAPM_SINGLE("Mic P Capture Boost Switch", WM8974_INPPGA,  0, 1, 0);
-
-/* Mic N In to PGA */
-static const struct snd_kcontrol_new wm8974_micn_capture_boost_controls =
-SOC_DAPM_SINGLE("Mic N Capture Boost Switch", WM8974_INPPGA,  1, 1, 0);
-
 static const struct snd_soc_dapm_widget wm8974_dapm_widgets[] = {
 SND_SOC_DAPM_MIXER("Speaker Mixer", WM8974_POWER3, 2, 0,
 	&wm8974_speaker_mixer_controls[0],
@@ -260,21 +263,16 @@ SND_SOC_DAPM_MIXER("Mono Mixer", WM8974_POWER3, 3, 0,
 	&wm8974_mono_mixer_controls[0],
 	ARRAY_SIZE(wm8974_mono_mixer_controls)),
 SND_SOC_DAPM_DAC("DAC", "HiFi Playback", WM8974_POWER3, 0, 0),
-SND_SOC_DAPM_ADC("ADC", "HiFi Capture", WM8974_POWER3, 0, 0),
+SND_SOC_DAPM_ADC("ADC", "HiFi Capture", WM8974_POWER2, 0, 0),
 SND_SOC_DAPM_PGA("Aux Input", WM8974_POWER1, 6, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SpkN Out", WM8974_POWER3, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SpkP Out", WM8974_POWER3, 6, 0, NULL, 0),
 SND_SOC_DAPM_PGA("Mono Out", WM8974_POWER3, 7, 0, NULL, 0),
-SND_SOC_DAPM_PGA("Mic PGA", WM8974_POWER2, 2, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA("Aux Boost", SND_SOC_NOPM, 0, 0,
-	&wm8974_aux_boost_controls, 1),
-SND_SOC_DAPM_PGA("Mic Boost", SND_SOC_NOPM, 0, 0,
-	&wm8974_mic_boost_controls, 1),
-SND_SOC_DAPM_SWITCH("Capture Boost", SND_SOC_NOPM, 0, 0,
-	&wm8974_capture_boost_controls),
-
-SND_SOC_DAPM_MIXER("Boost Mixer", WM8974_POWER2, 4, 0, NULL, 0),
+SND_SOC_DAPM_MIXER("Input PGA", WM8974_POWER2, 2, 0, wm8974_inpga,
+		   ARRAY_SIZE(wm8974_inpga)),
+SND_SOC_DAPM_MIXER("Boost Mixer", WM8974_POWER2, 4, 0,
+		   wm8974_boost_mixer, ARRAY_SIZE(wm8974_boost_mixer)),
 
 SND_SOC_DAPM_MICBIAS("Mic Bias", WM8974_POWER1, 4, 0),
 
@@ -306,17 +304,18 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"SPKOUTP", NULL, "SpkP Out"},
 
 	/* Boost Mixer */
-	{"Boost Mixer", NULL, "ADC"},
-	{"Capture Boost Switch", "Aux Capture Boost Switch", "AUX"},
-	{"Aux Boost", "Aux Volume", "Boost Mixer"},
-	{"Capture Boost", "Capture Switch", "Boost Mixer"},
-	{"Mic Boost", "Mic Volume", "Boost Mixer"},
+	{"ADC", NULL, "Boost Mixer"},
+	{"Boost Mixer", "Aux Switch", "Aux Input"},
+	{"Boost Mixer", NULL, "Input PGA"},
+	{"Boost Mixer", NULL, "MICP"},
+
+	/* Input PGA */
+	{"Input PGA", "Aux Switch", "Aux Input"},
+	{"Input PGA", "MicN Switch", "MICN"},
+	{"Input PGA", "MicP Switch", "MICP"},
 
 	/* Inputs */
-	{"MICP", NULL, "Mic Boost"},
-	{"MICN", NULL, "Mic PGA"},
-	{"Mic PGA", NULL, "Capture Boost"},
-	{"AUX", NULL, "Aux Input"},
+	{"Aux Input", NULL, "AUX"},
 };
 
 static int wm8974_add_widgets(struct snd_soc_codec *codec)
