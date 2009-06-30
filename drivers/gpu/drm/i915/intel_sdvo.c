@@ -68,10 +68,21 @@ struct intel_sdvo_priv {
 	 * This is set if we treat the device as HDMI, instead of DVI.
 	 */
 	bool is_hdmi;
+
 	/**
 	 * This is set if we detect output of sdvo device as LVDS.
 	 */
 	bool is_lvds;
+
+	/**
+	 * This is sdvo flags for input timing.
+	 */
+	uint8_t sdvo_flags;
+
+	/**
+	 * This is sdvo fixed pannel mode pointer
+	 */
+	struct drm_display_mode *sdvo_lvds_fixed_mode;
 
 	/**
 	 * Returned SDTV resolutions allowed for the current format, if the
@@ -592,6 +603,7 @@ intel_sdvo_create_preferred_input_timing(struct intel_output *output,
 					 uint16_t height)
 {
 	struct intel_sdvo_preferred_input_timing_args args;
+	struct intel_sdvo_priv *sdvo_priv = output->dev_priv;
 	uint8_t status;
 
 	memset(&args, 0, sizeof(args));
@@ -599,7 +611,12 @@ intel_sdvo_create_preferred_input_timing(struct intel_output *output,
 	args.width = width;
 	args.height = height;
 	args.interlace = 0;
-	args.scaled = 0;
+
+	if (sdvo_priv->is_lvds &&
+	   (sdvo_priv->sdvo_lvds_fixed_mode->hdisplay != width ||
+	    sdvo_priv->sdvo_lvds_fixed_mode->vdisplay != height))
+		args.scaled = 1;
+
 	intel_sdvo_write_cmd(output, SDVO_CMD_CREATE_PREFERRED_INPUT_TIMING,
 			     &args, sizeof(args));
 	status = intel_sdvo_read_response(output, NULL, 0);
@@ -944,12 +961,7 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 	struct intel_output *output = enc_to_intel_output(encoder);
 	struct intel_sdvo_priv *dev_priv = output->dev_priv;
 
-	if (!dev_priv->is_tv) {
-		/* Make the CRTC code factor in the SDVO pixel multiplier.  The
-		 * SDVO device will be told of the multiplier during mode_set.
-		 */
-		adjusted_mode->clock *= intel_sdvo_get_pixel_multiplier(mode);
-	} else {
+	if (dev_priv->is_tv) {
 		struct intel_sdvo_dtd output_dtd;
 		bool success;
 
@@ -980,6 +992,7 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 			intel_sdvo_get_preferred_input_timing(output,
 							     &input_dtd);
 			intel_sdvo_get_mode_from_dtd(adjusted_mode, &input_dtd);
+			dev_priv->sdvo_flags = input_dtd.part2.sdvo_flags;
 
 			drm_mode_set_crtcinfo(adjusted_mode, 0);
 
@@ -990,6 +1003,52 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 		} else {
 			return false;
 		}
+	} else if (dev_priv->is_lvds) {
+		struct intel_sdvo_dtd output_dtd;
+		bool success;
+
+		drm_mode_set_crtcinfo(dev_priv->sdvo_lvds_fixed_mode, 0);
+		/* Set output timings */
+		intel_sdvo_get_dtd_from_mode(&output_dtd,
+				dev_priv->sdvo_lvds_fixed_mode);
+
+		intel_sdvo_set_target_output(output,
+					     dev_priv->controlled_output);
+		intel_sdvo_set_output_timing(output, &output_dtd);
+
+		/* Set the input timing to the screen. Assume always input 0. */
+		intel_sdvo_set_target_input(output, true, false);
+
+
+		success = intel_sdvo_create_preferred_input_timing(
+				output,
+				mode->clock / 10,
+				mode->hdisplay,
+				mode->vdisplay);
+
+		if (success) {
+			struct intel_sdvo_dtd input_dtd;
+
+			intel_sdvo_get_preferred_input_timing(output,
+							     &input_dtd);
+			intel_sdvo_get_mode_from_dtd(adjusted_mode, &input_dtd);
+			dev_priv->sdvo_flags = input_dtd.part2.sdvo_flags;
+
+			drm_mode_set_crtcinfo(adjusted_mode, 0);
+
+			mode->clock = adjusted_mode->clock;
+
+			adjusted_mode->clock *=
+				intel_sdvo_get_pixel_multiplier(mode);
+		} else {
+			return false;
+		}
+
+	} else {
+		/* Make the CRTC code factor in the SDVO pixel multiplier.  The
+		 * SDVO device will be told of the multiplier during mode_set.
+		 */
+		adjusted_mode->clock *= intel_sdvo_get_pixel_multiplier(mode);
 	}
 	return true;
 }
@@ -1033,15 +1092,16 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 
 	/* We have tried to get input timing in mode_fixup, and filled into
 	   adjusted_mode */
-	if (sdvo_priv->is_tv)
+	if (sdvo_priv->is_tv || sdvo_priv->is_lvds) {
 		intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
-	else
+		input_dtd.part2.sdvo_flags = sdvo_priv->sdvo_flags;
+	} else
 		intel_sdvo_get_dtd_from_mode(&input_dtd, mode);
 
 	/* If it's a TV, we already set the output timing in mode_fixup.
 	 * Otherwise, the output timing is equal to the input timing.
 	 */
-	if (!sdvo_priv->is_tv) {
+	if (!sdvo_priv->is_tv && !sdvo_priv->is_lvds) {
 		/* Set the output timing to the screen */
 		intel_sdvo_set_target_output(output,
 					     sdvo_priv->controlled_output);
@@ -1116,6 +1176,8 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		sdvox |= (sdvo_pixel_multiply - 1) << SDVO_PORT_MULTIPLY_SHIFT;
 	}
 
+	if (sdvo_priv->sdvo_flags & SDVO_NEED_TO_STALL)
+		sdvox |= SDVO_STALL_SELECT;
 	intel_sdvo_write_sdvox(output, sdvox);
 }
 
@@ -1275,6 +1337,17 @@ static int intel_sdvo_mode_valid(struct drm_connector *connector,
 
 	if (sdvo_priv->pixel_clock_max < mode->clock)
 		return MODE_CLOCK_HIGH;
+
+	if (sdvo_priv->is_lvds == true) {
+		if (sdvo_priv->sdvo_lvds_fixed_mode == NULL)
+			return MODE_PANEL;
+
+		if (mode->hdisplay > sdvo_priv->sdvo_lvds_fixed_mode->hdisplay)
+			return MODE_PANEL;
+
+		if (mode->vdisplay > sdvo_priv->sdvo_lvds_fixed_mode->vdisplay)
+			return MODE_PANEL;
+	}
 
 	return MODE_OK;
 }
@@ -1549,6 +1622,8 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
+	struct drm_display_mode *newmode;
 
 	/*
 	 * Attempt to get the mode list from DDC.
@@ -1557,11 +1632,10 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 	 */
 	intel_ddc_get_modes(intel_output);
 	if (list_empty(&connector->probed_modes) == false)
-		return;
+		goto end;
 
 	/* Fetch modes from VBT */
 	if (dev_priv->sdvo_lvds_vbt_mode != NULL) {
-		struct drm_display_mode *newmode;
 		newmode = drm_mode_duplicate(connector->dev,
 					     dev_priv->sdvo_lvds_vbt_mode);
 		if (newmode != NULL) {
@@ -1571,6 +1645,16 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 			drm_mode_probed_add(connector, newmode);
 		}
 	}
+
+end:
+	list_for_each_entry(newmode, &connector->probed_modes, head) {
+		if (newmode->type & DRM_MODE_TYPE_PREFERRED) {
+			sdvo_priv->sdvo_lvds_fixed_mode =
+				drm_mode_duplicate(connector->dev, newmode);
+			break;
+		}
+	}
+
 }
 
 static int intel_sdvo_get_modes(struct drm_connector *connector)
@@ -1593,14 +1677,20 @@ static int intel_sdvo_get_modes(struct drm_connector *connector)
 static void intel_sdvo_destroy(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
 
 	if (intel_output->i2c_bus)
 		intel_i2c_destroy(intel_output->i2c_bus);
 	if (intel_output->ddc_bus)
 		intel_i2c_destroy(intel_output->ddc_bus);
 
+	if (sdvo_priv->sdvo_lvds_fixed_mode != NULL)
+		drm_mode_destroy(connector->dev,
+				 sdvo_priv->sdvo_lvds_fixed_mode);
+
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
+
 	kfree(intel_output);
 }
 
