@@ -4506,7 +4506,8 @@ static void ixgbe_multispeed_fiber_task(struct work_struct *work)
 	u32 autoneg;
 
 	adapter->flags |= IXGBE_FLAG_IN_SFP_LINK_TASK;
-	if (hw->mac.ops.get_link_capabilities)
+	autoneg = hw->phy.autoneg_advertised;
+	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
 		hw->mac.ops.get_link_capabilities(hw, &autoneg,
 		                                  &hw->mac.autoneg);
 	if (hw->mac.ops.setup_link_speed)
