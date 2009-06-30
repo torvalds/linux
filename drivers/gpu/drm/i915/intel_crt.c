@@ -428,8 +428,34 @@ static void intel_crt_destroy(struct drm_connector *connector)
 
 static int intel_crt_get_modes(struct drm_connector *connector)
 {
+	int ret;
 	struct intel_output *intel_output = to_intel_output(connector);
-	return intel_ddc_get_modes(intel_output);
+	struct intel_i2c_chan *ddcbus;
+	struct drm_device *dev = connector->dev;
+
+
+	ret = intel_ddc_get_modes(intel_output);
+	if (ret || !IS_G4X(dev))
+		goto end;
+
+	ddcbus = intel_output->ddc_bus;
+	/* Try to probe digital port for output in DVI-I -> VGA mode. */
+	intel_output->ddc_bus =
+		intel_i2c_create(connector->dev, GPIOD, "CRTDDC_D");
+
+	if (!intel_output->ddc_bus) {
+		intel_output->ddc_bus = ddcbus;
+		dev_printk(KERN_ERR, &connector->dev->pdev->dev,
+			   "DDC bus registration failed for CRTDDC_D.\n");
+		goto end;
+	}
+	/* Try to get modes by GPIOD port */
+	ret = intel_ddc_get_modes(intel_output);
+	intel_i2c_destroy(ddcbus);
+
+end:
+	return ret;
+
 }
 
 static int intel_crt_set_property(struct drm_connector *connector,
