@@ -179,8 +179,9 @@ struct perf_counter_attr {
 				comm	       :  1, /* include comm data     */
 				freq           :  1, /* use freq, not period  */
 				inherit_stat   :  1, /* per task counts       */
+				enable_on_exec :  1, /* next exec enables     */
 
-				__reserved_1   : 52;
+				__reserved_1   : 51;
 
 	__u32			wakeup_events;	/* wakeup every n events */
 	__u32			__reserved_2;

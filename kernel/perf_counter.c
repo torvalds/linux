@@ -1429,6 +1429,53 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 }
 
 /*
+ * Enable all of a task's counters that have been marked enable-on-exec.
+ * This expects task == current.
+ */
+static void perf_counter_enable_on_exec(struct task_struct *task)
+{
+	struct perf_counter_context *ctx;
+	struct perf_counter *counter;
+	unsigned long flags;
+	int enabled = 0;
+
+	local_irq_save(flags);
+	ctx = task->perf_counter_ctxp;
+	if (!ctx || !ctx->nr_counters)
+		goto out;
+
+	__perf_counter_task_sched_out(ctx);
+
+	spin_lock(&ctx->lock);
+
+	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+		if (!counter->attr.enable_on_exec)
+			continue;
+		counter->attr.enable_on_exec = 0;
+		if (counter->state >= PERF_COUNTER_STATE_INACTIVE)
+			continue;
+		counter->state = PERF_COUNTER_STATE_INACTIVE;
+		counter->tstamp_enabled =
+			ctx->time - counter->total_time_enabled;
+		enabled = 1;
+	}
+
+	/*
+	 * Unclone this context if we enabled any counter.
+	 */
+	if (enabled && ctx->parent_ctx) {
+		put_ctx(ctx->parent_ctx);
+		ctx->parent_ctx = NULL;
+	}
+
+	spin_unlock(&ctx->lock);
+
+	perf_counter_task_sched_in(task, smp_processor_id());
+ out:
+	local_irq_restore(flags);
+}
+
+/*
  * Cross CPU call to read the hardware counter
  */
 static void __perf_counter_read(void *info)
@@ -2948,6 +2995,9 @@ static void perf_counter_comm_event(struct perf_comm_event *comm_event)
 void perf_counter_comm(struct task_struct *task)
 {
 	struct perf_comm_event comm_event;
+
+	if (task->perf_counter_ctxp)
+		perf_counter_enable_on_exec(task);
 
 	if (!atomic_read(&nr_comm_counters))
 		return;

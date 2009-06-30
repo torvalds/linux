@@ -116,8 +116,9 @@ static void create_perf_stat_counter(int counter, int pid)
 					fd[cpu][counter], strerror(errno));
 		}
 	} else {
-		attr->inherit	= inherit;
-		attr->disabled	= 1;
+		attr->inherit	     = inherit;
+		attr->disabled	     = 1;
+		attr->enable_on_exec = 1;
 
 		fd[0][counter] = sys_perf_counter_open(attr, pid, -1, -1, 0);
 		if (fd[0][counter] < 0 && verbose)
@@ -262,7 +263,6 @@ static int run_perf_stat(int argc, const char **argv)
 	 * Enable counters and exec the command:
 	 */
 	t0 = rdclock();
-	prctl(PR_TASK_PERF_COUNTERS_ENABLE);
 
 	close(go_pipe[1]);
 	wait(&status);
