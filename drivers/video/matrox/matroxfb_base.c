@@ -724,8 +724,10 @@ static void matroxfb_update_fix(WPMINFO2)
 	struct fb_fix_screeninfo *fix = &ACCESS_FBINFO(fbcon).fix;
 	DBG(__func__)
 
+	mutex_lock(&ACCESS_FBINFO(fbcon).mm_lock);
 	fix->smem_start = ACCESS_FBINFO(video.base) + ACCESS_FBINFO(curr.ydstorg.bytes);
 	fix->smem_len = ACCESS_FBINFO(video.len_usable) - ACCESS_FBINFO(curr.ydstorg.bytes);
+	mutex_unlock(&ACCESS_FBINFO(fbcon).mm_lock);
 }
 
 static int matroxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
@@ -2081,6 +2083,7 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 	spin_lock_init(&ACCESS_FBINFO(lock.accel));
 	init_rwsem(&ACCESS_FBINFO(crtc2.lock));
 	init_rwsem(&ACCESS_FBINFO(altout.lock));
+	mutex_init(&ACCESS_FBINFO(fbcon).mm_lock);
 	ACCESS_FBINFO(irq_flags) = 0;
 	init_waitqueue_head(&ACCESS_FBINFO(crtc1.vsync.wait));
 	init_waitqueue_head(&ACCESS_FBINFO(crtc2.vsync.wait));

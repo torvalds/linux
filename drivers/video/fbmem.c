@@ -1310,8 +1310,6 @@ static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 
 static int
 fb_mmap(struct file *file, struct vm_area_struct * vma)
-__acquires(&info->lock)
-__releases(&info->lock)
 {
 	int fbidx = iminor(file->f_path.dentry->d_inode);
 	struct fb_info *info = registered_fb[fbidx];
@@ -1325,15 +1323,13 @@ __releases(&info->lock)
 	off = vma->vm_pgoff << PAGE_SHIFT;
 	if (!fb)
 		return -ENODEV;
+	mutex_lock(&info->mm_lock);
 	if (fb->fb_mmap) {
 		int res;
-		mutex_lock(&info->lock);
 		res = fb->fb_mmap(info, vma);
-		mutex_unlock(&info->lock);
+		mutex_unlock(&info->mm_lock);
 		return res;
 	}
-
-	mutex_lock(&info->lock);
 
 	/* frame buffer memory */
 	start = info->fix.smem_start;
@@ -1342,13 +1338,13 @@ __releases(&info->lock)
 		/* memory mapped io */
 		off -= len;
 		if (info->var.accel_flags) {
-			mutex_unlock(&info->lock);
+			mutex_unlock(&info->mm_lock);
 			return -EINVAL;
 		}
 		start = info->fix.mmio_start;
 		len = PAGE_ALIGN((start & ~PAGE_MASK) + info->fix.mmio_len);
 	}
-	mutex_unlock(&info->lock);
+	mutex_unlock(&info->mm_lock);
 	start &= PAGE_MASK;
 	if ((vma->vm_end - vma->vm_start + off) > len)
 		return -EINVAL;
@@ -1518,6 +1514,7 @@ register_framebuffer(struct fb_info *fb_info)
 			break;
 	fb_info->node = i;
 	mutex_init(&fb_info->lock);
+	mutex_init(&fb_info->mm_lock);
 
 	fb_info->dev = device_create(fb_class, fb_info->device,
 				     MKDEV(FB_MAJOR, i), NULL, "fb%d", i);
