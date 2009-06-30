@@ -121,6 +121,7 @@ typedef union event_union {
 static LIST_HEAD(dsos);
 static struct dso *kernel_dso;
 static struct dso *vdso;
+static struct dso *hypervisor_dso;
 
 static void dsos__add(struct dso *dso)
 {
@@ -201,6 +202,11 @@ static int load_kernel(void)
 	vdso->find_symbol = vdso__find_symbol;
 
 	dsos__add(vdso);
+
+	hypervisor_dso = dso__new("[hypervisor]", 0);
+	if (!hypervisor_dso)
+		return -1;
+	dsos__add(hypervisor_dso);
 
 	return err;
 }
@@ -640,7 +646,8 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 
 	if (self->sym) {
 		ret += fprintf(fp, "[%c] %s",
-			self->dso == kernel_dso ? 'k' : '.', self->sym->name);
+			self->dso == kernel_dso ? 'k' :
+			self->dso == hypervisor_dso ? 'h' : '.', self->sym->name);
 	} else {
 		ret += fprintf(fp, "%#016llx", (u64)self->ip);
 	}
@@ -963,6 +970,9 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 			}
 
 			switch (context) {
+			case PERF_CONTEXT_HV:
+				dso = hypervisor_dso;
+				break;
 			case PERF_CONTEXT_KERNEL:
 				dso = kernel_dso;
 				break;
@@ -1275,6 +1285,9 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	} else {
 		show = SHOW_HV;
 		level = 'H';
+
+		dso = hypervisor_dso;
+
 		dprintf(" ...... dso: [hypervisor]\n");
 	}
 
