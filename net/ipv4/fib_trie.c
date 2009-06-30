@@ -1021,6 +1021,9 @@ static void trie_rebalance(struct trie *t, struct tnode *tn)
 				      (struct node *)tn, wasfull);
 
 		tp = node_parent((struct node *) tn);
+		if (!tp)
+			rcu_assign_pointer(t->trie, (struct node *)tn);
+
 		tnode_free_flush();
 		if (!tp)
 			break;
