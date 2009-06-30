@@ -286,11 +286,22 @@ static void *display_thread(void *arg)
 	return NULL;
 }
 
+/* Tag samples to be skipped. */
+char *skip_symbols[] = {
+	"default_idle",
+	"cpu_idle",
+	"enter_idle",
+	"exit_idle",
+	"mwait_idle",
+	NULL
+};
+
 static int symbol_filter(struct dso *self, struct symbol *sym)
 {
 	static int filter_match;
 	struct sym_entry *syme;
 	const char *name = sym->name;
+	int i;
 
 	if (!strcmp(name, "_text") ||
 	    !strcmp(name, "_etext") ||
@@ -302,13 +313,12 @@ static int symbol_filter(struct dso *self, struct symbol *sym)
 		return 1;
 
 	syme = dso__sym_priv(self, sym);
-	/* Tag samples to be skipped. */
-	if (!strcmp("default_idle", name) ||
-	    !strcmp("cpu_idle", name) ||
-	    !strcmp("enter_idle", name) ||
-	    !strcmp("exit_idle", name) ||
-	    !strcmp("mwait_idle", name))
-		syme->skip = 1;
+	for (i = 0; skip_symbols[i]; i++) {
+		if (!strcmp(skip_symbols[i], name)) {
+			syme->skip = 1;
+			break;
+		}
+	}
 
 	if (filter_match == 1) {
 		filter_end = sym->start;
