@@ -64,6 +64,16 @@
 
 #ifdef CONFIG_ANDROID_PARANOID_NETWORK
 #include <linux/android_aid.h>
+
+static inline int current_has_network(void)
+{
+	return in_egroup_p(AID_INET) || capable(CAP_NET_RAW);
+}
+#else
+static inline int current_has_network(void)
+{
+	return 1;
+}
 #endif
 
 MODULE_AUTHOR("Cast of dozens");
@@ -98,29 +108,6 @@ static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 
 	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
 }
-
-#ifdef CONFIG_ANDROID_PARANOID_NETWORK
-static inline int current_has_network(void)
-{
-	return (!current_euid() || in_egroup_p(AID_INET) ||
-		in_egroup_p(AID_NET_RAW));
-}
-static inline int current_has_cap(int cap)
-{
-	if (cap == CAP_NET_RAW && in_egroup_p(AID_NET_RAW))
-		return 1;
-	return capable(cap);
-}
-# else
-static inline int current_has_network(void)
-{
-	return 1;
-}
-static inline int current_has_cap(int cap)
-{
-	return capable(cap);
-}
-#endif
 
 static int inet6_create(struct net *net, struct socket *sock, int protocol)
 {
@@ -188,7 +175,7 @@ lookup_protocol:
 	}
 
 	err = -EPERM;
-	if (answer->capability > 0 && !current_has_cap(answer->capability))
+	if (answer->capability > 0 && !capable(answer->capability))
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
