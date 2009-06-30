@@ -114,8 +114,8 @@ ALC662/663/272
   samsung-nc10	Samsung NC10 mini notebook
   auto		auto-config reading BIOS (default)
 
-ALC882/885
-==========
+ALC882/883/885/888/889
+======================
   3stack-dig	3-jack with SPDIF I/O
   6stack-dig	6-jack digital with SPDIF I/O
   arima		Arima W820Di1
@@ -127,12 +127,8 @@ ALC882/885
   mbp3		Macbook Pro rev3
   imac24	iMac 24'' with jack detection
   w2jc		ASUS W2JC
-  auto		auto-config reading BIOS (default)
-
-ALC883/888
-==========
-  3stack-dig	3-jack with SPDIF I/O
-  6stack-dig	6-jack digital with SPDIF I/O
+  3stack-2ch-dig	3-jack with SPDIF I/O (ALC883)
+  alc883-6stack-dig	6-jack digital with SPDIF I/O (ALC883)
   3stack-6ch    3-jack 6-channel
   3stack-6ch-dig 3-jack 6-channel with SPDIF I/O
   6stack-dig-demo  6-jack digital for Intel demo board
