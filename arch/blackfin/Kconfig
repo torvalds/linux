@@ -987,7 +987,7 @@ endchoice
 config BFIN_L2_DCACHEABLE
 	bool "Enable DCACHE for L2 SRAM"
 	depends on BFIN_DCACHE
-	depends on BF54x || BF561
+	depends on (BF54x || BF561) && !SMP
 	default n
 choice
 	prompt "L2 SRAM DCACHE policy"
@@ -995,11 +995,9 @@ choice
 	default BFIN_L2_WRITEBACK
 config BFIN_L2_WRITEBACK
 	bool "Write back"
-	depends on !SMP
 
 config BFIN_L2_WRITETHROUGH
 	bool "Write through"
-	depends on !SMP
 endchoice
 
 
