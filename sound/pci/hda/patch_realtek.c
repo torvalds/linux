@@ -9125,9 +9125,6 @@ static void alc882_auto_init_hp_out(struct hda_codec *codec)
 		alc882_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
 }
 
-#define alc882_is_input_pin(nid)	alc880_is_input_pin(nid)
-#define ALC882_PIN_CD_NID		ALC880_PIN_CD_NID
-
 static void alc882_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -9137,7 +9134,7 @@ static void alc882_auto_init_analog_input(struct hda_codec *codec)
 		hda_nid_t nid = spec->autocfg.input_pins[i];
 		if (!nid)
 			continue;
-		alc_set_input_pin(codec, nid, AUTO_PIN_FRONT_MIC /*i*/);
+		alc_set_input_pin(codec, nid, i);
 		if (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP)
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
