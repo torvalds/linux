@@ -2701,7 +2701,10 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	 */
 	err = hw->phy.ops.identify(hw);
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		DPRINTK(PROBE, ERR, "PHY not supported on this NIC %d\n", err);
+		dev_err(&adapter->pdev->dev, "failed to initialize because "
+			"an unsupported SFP+ module type was detected.\n"
+			"Reload the driver after installing a supported "
+			"module.\n");
 		ixgbe_down(adapter);
 		return err;
 	}
@@ -3720,10 +3723,11 @@ static void ixgbe_sfp_task(struct work_struct *work)
 			goto reschedule;
 		ret = hw->phy.ops.reset(hw);
 		if (ret == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-			DPRINTK(PROBE, ERR, "failed to initialize because an "
-			        "unsupported SFP+ module type was detected.\n"
-			        "Reload the driver after installing a "
-			        "supported module.\n");
+			dev_err(&adapter->pdev->dev, "failed to initialize "
+				"because an unsupported SFP+ module type "
+				"was detected.\n"
+				"Reload the driver after installing a "
+				"supported module.\n");
 			unregister_netdev(adapter->netdev);
 		} else {
 			DPRINTK(PROBE, INFO, "detected SFP+: %d\n",
@@ -4526,7 +4530,10 @@ static void ixgbe_sfp_config_module_task(struct work_struct *work)
 	adapter->flags |= IXGBE_FLAG_IN_SFP_MOD_TASK;
 	err = hw->phy.ops.identify_sfp(hw);
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		DPRINTK(PROBE, ERR, "PHY not supported on this NIC %d\n", err);
+		dev_err(&adapter->pdev->dev, "failed to initialize because "
+			"an unsupported SFP+ module type was detected.\n"
+			"Reload the driver after installing a supported "
+			"module.\n");
 		ixgbe_down(adapter);
 		return;
 	}
@@ -5513,8 +5520,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			  round_jiffies(jiffies + (2 * HZ)));
 		err = 0;
 	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		dev_err(&adapter->pdev->dev, "failed to load because an "
-		        "unsupported SFP+ module type was detected.\n");
+		dev_err(&adapter->pdev->dev, "failed to initialize because "
+			"an unsupported SFP+ module type was detected.\n"
+			"Reload the driver after installing a supported "
+			"module.\n");
 		goto err_sw_init;
 	} else if (err) {
 		dev_err(&adapter->pdev->dev, "HW Init failed: %d\n", err);
