@@ -16,6 +16,7 @@
 #include "util/symbol.h"
 #include "util/string.h"
 #include "util/callchain.h"
+#include "util/strlist.h"
 
 #include "perf.h"
 #include "util/header.h"
@@ -32,6 +33,8 @@ static char		*vmlinux = NULL;
 
 static char		default_sort_order[] = "comm,dso";
 static char		*sort_order = default_sort_order;
+static char		*dso_list_str;
+static struct strlist	*dso_list;
 
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
@@ -1272,6 +1275,9 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 	if (show & show_mask) {
 		struct symbol *sym = resolve_symbol(thread, &map, &dso, &ip);
 
+		if (dso_list && dso && dso->name && !strlist__has_entry(dso_list, dso->name))
+			return 0;
+
 		if (hist_entry__add(thread, map, dso, sym, ip, chain, level, period)) {
 			eprintf("problem incrementing symbol count, skipping event\n");
 			return -1;
@@ -1659,6 +1665,8 @@ static const struct option options[] = {
 	OPT_BOOLEAN('x', "exclude-other", &exclude_other,
 		    "Only display entries with parent-match"),
 	OPT_BOOLEAN('c', "callchain", &callchain, "Display callchains"),
+	OPT_STRING('d', "dsos", &dso_list_str, "dso[,dso...]",
+		   "only consider symbols in these dsos"),
 	OPT_END()
 };
 
@@ -1697,6 +1705,14 @@ int cmd_report(int argc, const char **argv, const char *prefix)
 	 */
 	if (argc)
 		usage_with_options(report_usage, options);
+
+	if (dso_list_str) {
+		dso_list = strlist__new(true, dso_list_str);
+		if (!dso_list) {
+			fprintf(stderr, "problems parsing dso list\n");
+			exit(129);
+		}
+	}
 
 	setup_pager();
 

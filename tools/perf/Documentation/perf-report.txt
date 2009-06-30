@@ -20,6 +20,10 @@ OPTIONS
 -i::
 --input=::
         Input file name. (default: perf.data)
+-d::
+--dsos=::
+	Only consider symbols in these dsos. CSV that understands
+	file://filename entries.
 
 SEE ALSO
 --------
