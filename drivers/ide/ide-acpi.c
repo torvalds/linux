@@ -92,6 +92,11 @@ int ide_acpi_init(void)
 	return 0;
 }
 
+bool ide_port_acpi(ide_hwif_t *hwif)
+{
+	return ide_noacpi == 0 && hwif->acpidata;
+}
+
 /**
  * ide_get_dev_handle - finds acpi_handle and PCI device.function
  * @dev: device to locate
@@ -352,9 +357,6 @@ int ide_acpi_exec_tfs(ide_drive_t *drive)
 	unsigned long	gtf_address;
 	unsigned long	obj_loc;
 
-	if (ide_noacpi)
-		return 0;
-
 	DEBPRINT("call get_GTF, drive=%s port=%d\n", drive->name, drive->dn);
 
 	ret = do_drive_get_GTF(drive, &gtf_length, &gtf_address, &obj_loc);
@@ -388,16 +390,6 @@ void ide_acpi_get_timing(ide_hwif_t *hwif)
 	acpi_status		status;
 	struct acpi_buffer	output;
 	union acpi_object 	*out_obj;
-
-	if (ide_noacpi)
-		return;
-
-	DEBPRINT("ENTER:\n");
-
-	if (!hwif->acpidata) {
-		DEBPRINT("no ACPI data for %s\n", hwif->name);
-		return;
-	}
 
 	/* Setting up output buffer for _GTM */
 	output.length = ACPI_ALLOCATE_BUFFER;
@@ -479,16 +471,6 @@ void ide_acpi_push_timing(ide_hwif_t *hwif)
 	struct ide_acpi_drive_link	*master = &hwif->acpidata->master;
 	struct ide_acpi_drive_link	*slave = &hwif->acpidata->slave;
 
-	if (ide_noacpi)
-		return;
-
-	DEBPRINT("ENTER:\n");
-
-	if (!hwif->acpidata) {
-		DEBPRINT("no ACPI data for %s\n", hwif->name);
-		return;
-	}
-
 	/* Give the GTM buffer + drive Identify data to the channel via the
 	 * _STM method: */
 	/* setup input parameters buffer for _STM */
@@ -527,15 +509,10 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 	ide_drive_t *drive;
 	int i;
 
-	if (ide_noacpi || ide_noacpi_psx)
+	if (ide_noacpi_psx)
 		return;
 
 	DEBPRINT("ENTER:\n");
-
-	if (!hwif->acpidata) {
-		DEBPRINT("no ACPI data for %s\n", hwif->name);
-		return;
-	}
 
 	/* channel first and then drives for power on and verse versa for power off */
 	if (on)
@@ -616,7 +593,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 				 drive->name, err);
 	}
 
-	if (!ide_acpionboot) {
+	if (ide_noacpi || ide_acpionboot == 0) {
 		DEBPRINT("ACPI methods disabled on boot\n");
 		return;
 	}

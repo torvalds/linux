@@ -112,16 +112,6 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 	}
 }
 
-/* obsolete, blk_rq_bytes() should be used instead */
-unsigned int ide_rq_bytes(struct request *rq)
-{
-	if (blk_pc_request(rq))
-		return blk_rq_bytes(rq);
-	else
-		return blk_rq_cur_sectors(rq) << 9;
-}
-EXPORT_SYMBOL_GPL(ide_rq_bytes);
-
 int ide_complete_rq(ide_drive_t *drive, int error, unsigned int nr_bytes)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -152,14 +142,14 @@ void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 
 	if ((media == ide_floppy || media == ide_tape) && drv_req) {
 		rq->errors = 0;
-		ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 	} else {
 		if (media == ide_tape)
 			rq->errors = IDE_DRV_ERROR_GENERAL;
 		else if (blk_fs_request(rq) == 0 && rq->errors == 0)
 			rq->errors = -EIO;
-		ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
 	}
+
+	ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
 }
 
 static void ide_tf_set_specify_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
