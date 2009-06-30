@@ -36,6 +36,7 @@
 #define BAT_STAT_AC		0x10
 #define BAT_STAT_CHARGING	0x20
 #define BAT_STAT_DISCHARGING	0x40
+#define BAT_STAT_TRICKLE	0x80
 
 #define BAT_ERR_INFOFAIL	0x02
 #define BAT_ERR_OVERVOLTAGE	0x04
@@ -90,7 +91,7 @@ static char bat_serial[17]; /* Ick */
 static int olpc_bat_get_status(union power_supply_propval *val, uint8_t ec_byte)
 {
 	if (olpc_platform_info.ecver > 0x44) {
-		if (ec_byte & BAT_STAT_CHARGING)
+		if (ec_byte & (BAT_STAT_CHARGING | BAT_STAT_TRICKLE))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (ec_byte & BAT_STAT_DISCHARGING)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -220,7 +221,8 @@ static int olpc_bat_get_property(struct power_supply *psy,
 	   It doesn't matter though -- the EC will return the last-known
 	   information, and it's as if we just ran that _little_ bit faster
 	   and managed to read it out before the battery went away. */
-	if (!(ec_byte & BAT_STAT_PRESENT) && psp != POWER_SUPPLY_PROP_PRESENT)
+	if (!(ec_byte & (BAT_STAT_PRESENT | BAT_STAT_TRICKLE)) &&
+			psp != POWER_SUPPLY_PROP_PRESENT)
 		return -ENODEV;
 
 	switch (psp) {
@@ -230,7 +232,8 @@ static int olpc_bat_get_property(struct power_supply *psy,
 			return ret;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-		val->intval = !!(ec_byte & BAT_STAT_PRESENT);
+		val->intval = !!(ec_byte & (BAT_STAT_PRESENT |
+					    BAT_STAT_TRICKLE));
 		break;
 
 	case POWER_SUPPLY_PROP_HEALTH:
