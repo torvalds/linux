@@ -325,51 +325,84 @@ static int wm8974_add_widgets(struct snd_soc_codec *codec)
 }
 
 struct pll_ {
-	unsigned int in_hz, out_hz;
-	unsigned int pre:4; /* prescale - 1 */
+	unsigned int pre_div:4; /* prescale - 1 */
 	unsigned int n:4;
 	unsigned int k;
 };
 
-static struct pll_ pll[] = {
-	{ 12000000, 11289600, 0, 7, 0x86c220 },
-	{ 12000000, 12288000, 0, 8, 0x3126e8 },
-	{ 13000000, 11289600, 0, 6, 0xf28bd4 },
-	{ 13000000, 12288000, 0, 7, 0x8fd525 },
-	{ 12288000, 11289600, 0, 7, 0x59999a },
-	{ 11289600, 12288000, 0, 8, 0x80dee9 },
-	{ 25000000, 11289600, 1, 7, 0x39B024 },
-	{ 25000000, 24576000, 1, 7, 0xdd4413 }
-};
+static struct pll_ pll_div;
+
+/* The size in bits of the pll divide multiplied by 10
+ * to allow rounding later */
+#define FIXED_PLL_SIZE ((1 << 24) * 10)
+
+static void pll_factors(unsigned int target, unsigned int source)
+{
+	unsigned long long Kpart;
+	unsigned int K, Ndiv, Nmod;
+
+	Ndiv = target / source;
+	if (Ndiv < 6) {
+		source >>= 1;
+		pll_div.pre_div = 1;
+		Ndiv = target / source;
+	} else
+		pll_div.pre_div = 0;
+
+	if ((Ndiv < 6) || (Ndiv > 12))
+		printk(KERN_WARNING
+			"WM8974 N value %u outwith recommended range!d\n",
+			Ndiv);
+
+	pll_div.n = Ndiv;
+	Nmod = target % source;
+	Kpart = FIXED_PLL_SIZE * (long long)Nmod;
+
+	do_div(Kpart, source);
+
+	K = Kpart & 0xFFFFFFFF;
+
+	/* Check if we need to round */
+	if ((K % 10) >= 5)
+		K += 5;
+
+	/* Move down to proper range now rounding is done */
+	K /= 10;
+
+	pll_div.k = K;
+}
 
 static int wm8974_set_dai_pll(struct snd_soc_dai *codec_dai,
 		int pll_id, unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	int i;
 	u16 reg;
 
 	if (freq_in == 0 || freq_out == 0) {
+		/* Clock CODEC directly from MCLK */
+		reg = wm8974_read_reg_cache(codec, WM8974_CLOCK);
+		wm8974_write(codec, WM8974_CLOCK, reg & 0x0ff);
+
+		/* Turn off PLL */
 		reg = wm8974_read_reg_cache(codec, WM8974_POWER1);
 		wm8974_write(codec, WM8974_POWER1, reg & 0x1df);
 		return 0;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(pll); i++) {
-		if (freq_in == pll[i].in_hz && freq_out == pll[i].out_hz) {
-			wm8974_write(codec, WM8974_PLLN,
-				     (pll[i].pre << 4) | pll[i].n);
-			wm8974_write(codec, WM8974_PLLK1, pll[i].k >> 18);
-			wm8974_write(codec, WM8974_PLLK2,
-				     (pll[i].k >> 9) & 0x1ff);
-			wm8974_write(codec, WM8974_PLLK3, pll[i].k & 0x1ff);
-			reg = wm8974_read_reg_cache(codec, WM8974_POWER1);
-			wm8974_write(codec, WM8974_POWER1, reg | 0x020);
-			return 0;
-		}
-	}
+	pll_factors(freq_out*4, freq_in);
 
-	return -EINVAL;
+	wm8974_write(codec, WM8974_PLLN, (pll_div.pre_div << 4) | pll_div.n);
+	wm8974_write(codec, WM8974_PLLK1, pll_div.k >> 18);
+	wm8974_write(codec, WM8974_PLLK2, (pll_div.k >> 9) & 0x1ff);
+	wm8974_write(codec, WM8974_PLLK3, pll_div.k & 0x1ff);
+	reg = wm8974_read_reg_cache(codec, WM8974_POWER1);
+	wm8974_write(codec, WM8974_POWER1, reg | 0x020);
+
+	/* Run CODEC from PLL instead of MCLK */
+	reg = wm8974_read_reg_cache(codec, WM8974_CLOCK);
+	wm8974_write(codec, WM8974_CLOCK, reg | 0x100);
+
+	return 0;
 }
 
 /*
