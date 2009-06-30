@@ -815,7 +815,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 		if (tmp + level_size(level) - 1 > last_pfn)
 			return;
 
-		while (tmp <= last_pfn) {
+		while (tmp + level_size(level) - 1 <= last_pfn) {
 			pte = dma_pfn_level_pte(domain, tmp, level);
 			if (pte) {
 				free_pgtable_page(
