@@ -443,7 +443,7 @@ extern int dev_get_wireless_info(char * buffer, char **start, off_t offset,
 extern void wireless_send_event(struct net_device *	dev,
 				unsigned int		cmd,
 				union iwreq_data *	wrqu,
-				char *			extra);
+				const char *		extra);
 
 /* We may need a function to send a stream of events to user space.
  * More on that later... */

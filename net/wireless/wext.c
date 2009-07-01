@@ -1376,7 +1376,7 @@ static void rtmsg_iwinfo(struct net_device *dev, char *event, int event_len)
 void wireless_send_event(struct net_device *	dev,
 			 unsigned int		cmd,
 			 union iwreq_data *	wrqu,
-			 char *			extra)
+			 const char *		extra)
 {
 	const struct iw_ioctl_description *	descr = NULL;
 	int extra_len = 0;
