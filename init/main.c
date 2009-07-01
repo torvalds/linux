@@ -73,6 +73,7 @@
 #include <asm/io.h>
 #include <asm/bugs.h>
 #include <asm/setup.h>
+#include <asm/tboot.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 
@@ -714,6 +715,8 @@ asmlinkage void __init start_kernel(void)
 	acpi_early_init(); /* before LAPIC and SMP init */
 
 	ftrace_init();
+
+	tboot_create_trampoline();
 
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
