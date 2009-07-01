@@ -267,7 +267,6 @@ struct dmar_domain {
 	struct iova_domain iovad;	/* iova's that belong to this domain */
 
 	struct dma_pte	*pgd;		/* virtual address */
-	spinlock_t	mapping_lock;	/* page table lock */
 	int		gaw;		/* max guest address width */
 
 	/* adjusted guest address width, 0 is level 2 30-bit */
@@ -701,13 +700,11 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 	struct dma_pte *parent, *pte = NULL;
 	int level = agaw_to_level(domain->agaw);
 	int offset;
-	unsigned long flags;
 
 	BUG_ON(!domain->pgd);
 	BUG_ON(addr_width < BITS_PER_LONG && pfn >> addr_width);
 	parent = domain->pgd;
 
-	spin_lock_irqsave(&domain->mapping_lock, flags);
 	while (level > 0) {
 		void *tmp_page;
 
@@ -721,11 +718,9 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 
 			tmp_page = alloc_pgtable_page();
 
-			if (!tmp_page) {
-				spin_unlock_irqrestore(&domain->mapping_lock,
-					flags);
+			if (!tmp_page)
 				return NULL;
-			}
+
 			domain_flush_cache(domain, tmp_page, VTD_PAGE_SIZE);
 			pteval = (virt_to_dma_pfn(tmp_page) << VTD_PAGE_SHIFT) | DMA_PTE_READ | DMA_PTE_WRITE;
 			if (cmpxchg64(&pte->val, 0ULL, pteval)) {
@@ -740,7 +735,6 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 		level--;
 	}
 
-	spin_unlock_irqrestore(&domain->mapping_lock, flags);
 	return pte;
 }
 
@@ -1375,7 +1369,6 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 	unsigned long sagaw;
 
 	init_iova_domain(&domain->iovad, DMA_32BIT_PFN);
-	spin_lock_init(&domain->mapping_lock);
 	spin_lock_init(&domain->iommu_lock);
 
 	domain_reserve_special_ranges(domain);
@@ -3336,7 +3329,6 @@ static int md_domain_init(struct dmar_domain *domain, int guest_width)
 	int adjust_width;
 
 	init_iova_domain(&domain->iovad, DMA_32BIT_PFN);
-	spin_lock_init(&domain->mapping_lock);
 	spin_lock_init(&domain->iommu_lock);
 
 	domain_reserve_special_ranges(domain);
