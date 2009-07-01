@@ -981,9 +981,6 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 				    const u8 *ssid, u8 ssid_len);
 int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_scan_request *req);
-int ieee80211_scan_results(struct ieee80211_local *local,
-			   struct iw_request_info *info,
-			   char *buf, size_t len);
 void ieee80211_scan_cancel(struct ieee80211_local *local);
 ieee80211_rx_result
 ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
