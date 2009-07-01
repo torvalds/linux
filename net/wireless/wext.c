@@ -417,6 +417,21 @@ static const int event_type_size[] = {
 	IW_EV_QUAL_LEN,			/* IW_HEADER_TYPE_QUAL */
 };
 
+#ifdef CONFIG_COMPAT
+static const int compat_event_type_size[] = {
+	IW_EV_COMPAT_LCP_LEN,		/* IW_HEADER_TYPE_NULL */
+	0,
+	IW_EV_COMPAT_CHAR_LEN,		/* IW_HEADER_TYPE_CHAR */
+	0,
+	IW_EV_COMPAT_UINT_LEN,		/* IW_HEADER_TYPE_UINT */
+	IW_EV_COMPAT_FREQ_LEN,		/* IW_HEADER_TYPE_FREQ */
+	IW_EV_COMPAT_ADDR_LEN,		/* IW_HEADER_TYPE_ADDR */
+	0,
+	IW_EV_COMPAT_POINT_LEN,		/* Without variable payload */
+	IW_EV_COMPAT_PARAM_LEN,		/* IW_HEADER_TYPE_PARAM */
+	IW_EV_COMPAT_QUAL_LEN,		/* IW_HEADER_TYPE_QUAL */
+};
+#endif
 
 /************************ COMMON SUBROUTINES ************************/
 /*
@@ -1348,6 +1363,22 @@ void wireless_send_event(struct net_device *	dev,
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	struct nlattr *nla;
+#ifdef CONFIG_COMPAT
+	struct __compat_iw_event *compat_event;
+	struct compat_iw_point compat_wrqu;
+	struct sk_buff *compskb;
+#endif
+
+	/*
+	 * Nothing in the kernel sends scan events with data, be safe.
+	 * This is necessary because we cannot fix up scan event data
+	 * for compat, due to being contained in 'extra', but normally
+	 * applications are required to retrieve the scan data anyway
+	 * and no data is included in the event, this codifies that
+	 * practice.
+	 */
+	if (WARN_ON(cmd == SIOCGIWSCAN && extra))
+		extra = NULL;
 
 	/* Get the description of the Event */
 	if (cmd <= SIOCIWLAST) {
@@ -1446,7 +1477,54 @@ void wireless_send_event(struct net_device *	dev,
 		memcpy(((char *) event) + hdr_len, extra, extra_len);
 
 	nlmsg_end(skb, nlh);
+#ifdef CONFIG_COMPAT
+	hdr_len = compat_event_type_size[descr->header_type];
+	event_len = hdr_len + extra_len;
 
+	compskb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!compskb) {
+		kfree_skb(skb);
+		return;
+	}
+
+	/* Send via the RtNetlink event channel */
+	nlh = rtnetlink_ifinfo_prep(dev, compskb);
+	if (WARN_ON(!nlh)) {
+		kfree_skb(skb);
+		kfree_skb(compskb);
+		return;
+	}
+
+	/* Add the wireless events in the netlink packet */
+	nla = nla_reserve(compskb, IFLA_WIRELESS, event_len);
+	if (!nla) {
+		kfree_skb(skb);
+		kfree_skb(compskb);
+		return;
+	}
+	compat_event = nla_data(nla);
+
+	compat_event->len = event_len;
+	compat_event->cmd = cmd;
+	if (descr->header_type == IW_HEADER_TYPE_POINT) {
+		compat_wrqu.length = wrqu->data.length;
+		compat_wrqu.flags = wrqu->data.flags;
+		memcpy(&compat_event->pointer,
+			((char *) &compat_wrqu) + IW_EV_COMPAT_POINT_OFF,
+			hdr_len - IW_EV_COMPAT_LCP_LEN);
+		if (extra_len)
+			memcpy(((char *) compat_event) + hdr_len,
+				extra, extra_len);
+	} else {
+		/* extra_len must be zero, so no if (extra) needed */
+		memcpy(&compat_event->pointer, wrqu,
+			hdr_len - IW_EV_COMPAT_LCP_LEN);
+	}
+
+	nlmsg_end(compskb, nlh);
+
+	skb_shinfo(skb)->frag_list = compskb;
+#endif
 	skb_queue_tail(&dev_net(dev)->wext_nlevents, skb);
 	schedule_work(&wireless_nlevent_work);
 }

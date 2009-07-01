@@ -743,6 +743,18 @@ asmlinkage long compat_sys_recvmsg(int fd, struct compat_msghdr __user *msg, uns
 	return sys_recvmsg(fd, (struct msghdr __user *)msg, flags | MSG_CMSG_COMPAT);
 }
 
+asmlinkage long compat_sys_recv(int fd, void __user *buf, size_t len, unsigned flags)
+{
+	return sys_recv(fd, buf, len, flags | MSG_CMSG_COMPAT);
+}
+
+asmlinkage long compat_sys_recvfrom(int fd, void __user *buf, size_t len,
+				    unsigned flags, struct sockaddr __user *addr,
+				    int __user *addrlen)
+{
+	return sys_recvfrom(fd, buf, len, flags | MSG_CMSG_COMPAT, addr, addrlen);
+}
+
 asmlinkage long compat_sys_socketcall(int call, u32 __user *args)
 {
 	int ret;
@@ -788,10 +800,11 @@ asmlinkage long compat_sys_socketcall(int call, u32 __user *args)
 		ret = sys_sendto(a0, compat_ptr(a1), a[2], a[3], compat_ptr(a[4]), a[5]);
 		break;
 	case SYS_RECV:
-		ret = sys_recv(a0, compat_ptr(a1), a[2], a[3]);
+		ret = compat_sys_recv(a0, compat_ptr(a1), a[2], a[3]);
 		break;
 	case SYS_RECVFROM:
-		ret = sys_recvfrom(a0, compat_ptr(a1), a[2], a[3], compat_ptr(a[4]), compat_ptr(a[5]));
+		ret = compat_sys_recvfrom(a0, compat_ptr(a1), a[2], a[3],
+					  compat_ptr(a[4]), compat_ptr(a[5]));
 		break;
 	case SYS_SHUTDOWN:
 		ret = sys_shutdown(a0,a1);

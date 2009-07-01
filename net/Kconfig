@@ -23,6 +23,26 @@ menuconfig NET
 
 if NET
 
+config WANT_COMPAT_NETLINK_MESSAGES
+	bool
+	help
+	  This option can be selected by other options that need compat
+	  netlink messages.
+
+config COMPAT_NETLINK_MESSAGES
+	def_bool y
+	depends on COMPAT
+	depends on WIRELESS_EXT || WANT_COMPAT_NETLINK_MESSAGES
+	help
+	  This option makes it possible to send different netlink messages
+	  to tasks depending on whether the task is a compat task or not. To
+	  achieve this, you need to set skb_shinfo(skb)->frag_list to the
+	  compat skb before sending the skb, the netlink code will sort out
+	  which message to actually pass to the task.
+
+	  Newly written code should NEVER need this option but do
+	  compat-independent messages instead!
+
 menu "Networking options"
 
 source "net/packet/Kconfig"

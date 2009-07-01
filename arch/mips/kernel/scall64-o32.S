@@ -378,8 +378,8 @@ sys_call_table:
 	PTR	sys_getsockname
 	PTR	sys_getsockopt
 	PTR	sys_listen
-	PTR	sys_recv			/* 4175 */
-	PTR	sys_recvfrom
+	PTR	compat_sys_recv			/* 4175 */
+	PTR	compat_sys_recvfrom
 	PTR	compat_sys_recvmsg
 	PTR	sys_send
 	PTR	compat_sys_sendmsg
