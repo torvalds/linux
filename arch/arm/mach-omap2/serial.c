@@ -601,7 +601,7 @@ void __init omap_serial_init(void)
 		uart->num = i;
 		p->private_data = uart;
 		uart->p = p;
-		list_add(&uart->node, &uart_list);
+		list_add_tail(&uart->node, &uart_list);
 
 		if (cpu_is_omap44xx())
 			p->irq += 32;
