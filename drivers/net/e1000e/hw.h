@@ -215,6 +215,7 @@ enum e1e_registers {
 	E1000_SWSM      = 0x05B50, /* SW Semaphore */
 	E1000_FWSM      = 0x05B54, /* FW Semaphore */
 	E1000_SWSM2     = 0x05B58, /* Driver-only SW semaphore */
+	E1000_CRC_OFFSET = 0x05F50, /* CRC Offset register */
 	E1000_HICR      = 0x08F00, /* Host Interface Control */
 };
 
@@ -302,6 +303,9 @@ enum e1e_registers {
 #define E1000_KMRNCTRLSTA_REN		0x00200000
 #define E1000_KMRNCTRLSTA_DIAG_OFFSET	0x3    /* Kumeran Diagnostic */
 #define E1000_KMRNCTRLSTA_DIAG_NELPBK	0x1000 /* Nearend Loopback mode */
+#define E1000_KMRNCTRLSTA_K1_CONFIG	0x7
+#define E1000_KMRNCTRLSTA_K1_ENABLE	0x140E
+#define E1000_KMRNCTRLSTA_K1_DISABLE	0x1400
 
 #define IFE_PHY_EXTENDED_STATUS_CONTROL	0x10
 #define IFE_PHY_SPECIAL_CONTROL		0x11 /* 100BaseTx PHY Special Control */

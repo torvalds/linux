@@ -461,6 +461,95 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 	return 0;
 }
 
+/**
+ *  e1000_check_for_copper_link_ich8lan - Check for link (Copper)
+ *  @hw: pointer to the HW structure
+ *
+ *  Checks to see of the link status of the hardware has changed.  If a
+ *  change in link status has been detected, then we read the PHY registers
+ *  to get the current speed/duplex if link exists.
+ **/
+static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
+{
+	struct e1000_mac_info *mac = &hw->mac;
+	s32 ret_val;
+	bool link;
+
+	/*
+	 * We only want to go out to the PHY registers to see if Auto-Neg
+	 * has completed and/or if our link status has changed.  The
+	 * get_link_status flag is set upon receiving a Link Status
+	 * Change or Rx Sequence Error interrupt.
+	 */
+	if (!mac->get_link_status) {
+		ret_val = 0;
+		goto out;
+	}
+
+	if (hw->mac.type == e1000_pchlan) {
+		ret_val = e1000e_write_kmrn_reg(hw,
+		                                   E1000_KMRNCTRLSTA_K1_CONFIG,
+		                                   E1000_KMRNCTRLSTA_K1_ENABLE);
+		if (ret_val)
+			goto out;
+	}
+
+	/*
+	 * First we want to see if the MII Status Register reports
+	 * link.  If so, then we want to get the current speed/duplex
+	 * of the PHY.
+	 */
+	ret_val = e1000e_phy_has_link_generic(hw, 1, 0, &link);
+	if (ret_val)
+		goto out;
+
+	if (!link)
+		goto out; /* No link detected */
+
+	mac->get_link_status = false;
+
+	if (hw->phy.type == e1000_phy_82578) {
+		ret_val = e1000_link_stall_workaround_hv(hw);
+		if (ret_val)
+			goto out;
+	}
+
+	/*
+	 * Check if there was DownShift, must be checked
+	 * immediately after link-up
+	 */
+	e1000e_check_downshift(hw);
+
+	/*
+	 * If we are forcing speed/duplex, then we simply return since
+	 * we have already determined whether we have link or not.
+	 */
+	if (!mac->autoneg) {
+		ret_val = -E1000_ERR_CONFIG;
+		goto out;
+	}
+
+	/*
+	 * Auto-Neg is enabled.  Auto Speed Detection takes care
+	 * of MAC speed/duplex configuration.  So we only need to
+	 * configure Collision Distance in the MAC.
+	 */
+	e1000e_config_collision_dist(hw);
+
+	/*
+	 * Configure Flow Control now that Auto-Neg has completed.
+	 * First, we need to restore the desired flow control
+	 * settings because we may have had to re-autoneg with a
+	 * different link partner.
+	 */
+	ret_val = e1000e_config_fc_after_link_up(hw);
+	if (ret_val)
+		hw_dbg(hw, "Error configuring flow control\n");
+
+out:
+	return ret_val;
+}
+
 static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
@@ -2224,6 +2313,14 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 		}
 	}
 
+	/*
+	 * For PCH, this write will make sure that any noise
+	 * will be detected as a CRC error and be dropped rather than show up
+	 * as a bad packet to the DMA engine.
+	 */
+	if (hw->mac.type == e1000_pchlan)
+		ew32(CRC_OFFSET, 0x65656565);
+
 	ew32(IMC, 0xffffffff);
 	icr = er32(ICR);
 
@@ -2537,6 +2634,14 @@ static s32 e1000_get_link_up_info_ich8lan(struct e1000_hw *hw, u16 *speed,
 	ret_val = e1000e_get_speed_and_duplex_copper(hw, speed, duplex);
 	if (ret_val)
 		return ret_val;
+
+	if ((hw->mac.type == e1000_pchlan) && (*speed == SPEED_1000)) {
+		ret_val = e1000e_write_kmrn_reg(hw,
+		                                  E1000_KMRNCTRLSTA_K1_CONFIG,
+		                                  E1000_KMRNCTRLSTA_K1_DISABLE);
+		if (ret_val)
+			return ret_val;
+	}
 
 	if ((hw->mac.type == e1000_ich8lan) &&
 	    (hw->phy.type == e1000_phy_igp_3) &&
@@ -2984,7 +3089,7 @@ static void e1000_clear_hw_cntrs_ich8lan(struct e1000_hw *hw)
 static struct e1000_mac_operations ich8_mac_ops = {
 	.id_led_init		= e1000e_id_led_init,
 	.check_mng_mode		= e1000_check_mng_mode_ich8lan,
-	.check_for_link		= e1000e_check_for_copper_link,
+	.check_for_link		= e1000_check_for_copper_link_ich8lan,
 	/* cleanup_led dependent on mac type */
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_ich8lan,
 	.get_bus_info		= e1000_get_bus_info_ich8lan,
