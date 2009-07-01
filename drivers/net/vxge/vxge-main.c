@@ -374,10 +374,10 @@ vxge_rx_complete(struct vxge_ring *ring, struct sk_buff *skb, u16 vlan,
 		if (ring->vlgrp && ext_info->vlan &&
 			(ring->vlan_tag_strip ==
 				VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_ENABLE))
-			vlan_gro_receive(&ring->napi, ring->vlgrp,
+			vlan_gro_receive(ring->napi_p, ring->vlgrp,
 					ext_info->vlan, skb);
 		else
-			napi_gro_receive(&ring->napi, skb);
+			napi_gro_receive(ring->napi_p, skb);
 	} else {
 		if (ring->vlgrp && vlan &&
 			(ring->vlan_tag_strip ==
@@ -2132,16 +2132,16 @@ int vxge_open_vpaths(struct vxgedev *vdev)
  */
 static irqreturn_t vxge_isr_napi(int irq, void *dev_id)
 {
-	struct __vxge_hw_device  *hldev = (struct __vxge_hw_device  *)dev_id;
-	struct vxgedev *vdev;
 	struct net_device *dev;
+	struct __vxge_hw_device *hldev;
 	u64 reason;
 	enum vxge_hw_status status;
+	struct vxgedev *vdev = (struct vxgedev *) dev_id;;
 
 	vxge_debug_intr(VXGE_TRACE, "%s:%d", __func__, __LINE__);
 
-	dev = hldev->ndev;
-	vdev = netdev_priv(dev);
+	dev = vdev->ndev;
+	hldev = (struct __vxge_hw_device *)pci_get_drvdata(vdev->pdev);
 
 	if (pci_channel_offline(vdev->pdev))
 		return IRQ_NONE;
@@ -2412,15 +2412,13 @@ static void vxge_rem_isr(struct vxgedev *vdev)
 #endif
 	if (vdev->config.intr_type == INTA) {
 			synchronize_irq(vdev->pdev->irq);
-			free_irq(vdev->pdev->irq, hldev);
+			free_irq(vdev->pdev->irq, vdev);
 	}
 }
 
 static int vxge_add_isr(struct vxgedev *vdev)
 {
 	int ret = 0;
-	struct __vxge_hw_device  *hldev =
-		(struct __vxge_hw_device  *) pci_get_drvdata(vdev->pdev);
 #ifdef CONFIG_PCI_MSI
 	int vp_idx = 0, intr_idx = 0, intr_cnt = 0, msix_idx = 0, irq_req = 0;
 	u64 function_mode = vdev->config.device_hw_info.function_mode;
@@ -2574,7 +2572,7 @@ INTA_MODE:
 	if (vdev->config.intr_type == INTA) {
 		ret = request_irq((int) vdev->pdev->irq,
 			vxge_isr_napi,
-			IRQF_SHARED, vdev->desc[0], hldev);
+			IRQF_SHARED, vdev->desc[0], vdev);
 		if (ret) {
 			vxge_debug_init(VXGE_ERR,
 				"%s %s-%d: ISR registration failed",
@@ -2707,11 +2705,15 @@ vxge_open(struct net_device *dev)
 		netif_napi_add(dev, &vdev->napi, vxge_poll_inta,
 			vdev->config.napi_weight);
 		napi_enable(&vdev->napi);
+		for (i = 0; i < vdev->no_of_vpath; i++)
+			vdev->vpaths[i].ring.napi_p = &vdev->napi;
 	} else {
 		for (i = 0; i < vdev->no_of_vpath; i++) {
 			netif_napi_add(dev, &vdev->vpaths[i].ring.napi,
 			    vxge_poll_msix, vdev->config.napi_weight);
 			napi_enable(&vdev->vpaths[i].ring.napi);
+			vdev->vpaths[i].ring.napi_p =
+				&vdev->vpaths[i].ring.napi;
 		}
 	}
 

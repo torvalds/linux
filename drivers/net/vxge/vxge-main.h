@@ -260,6 +260,7 @@ struct vxge_ring {
 	int gro_enable;
 
 	struct napi_struct napi;
+	struct napi_struct *napi_p;
 
 #define VXGE_MAX_MAC_ADDR_COUNT		30
 
