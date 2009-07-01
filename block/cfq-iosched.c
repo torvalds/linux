@@ -2313,10 +2313,6 @@ cfq_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 	cfqq = cic_to_cfqq(cic, is_sync);
 	if (!cfqq) {
 		cfqq = cfq_get_queue(cfqd, is_sync, cic->ioc, gfp_mask);
-
-		if (!cfqq)
-			goto queue_fail;
-
 		cic_set_cfqq(cic, cfqq, is_sync);
 	}
 
