@@ -964,6 +964,9 @@ resolve_callchain(struct thread *thread, struct map *map,
 		}
 
 		switch (context) {
+		case PERF_CONTEXT_HV:
+			dso = hypervisor_dso;
+			break;
 		case PERF_CONTEXT_KERNEL:
 			dso = kernel_dso;
 			break;
@@ -1012,9 +1015,6 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	};
 	int cmp;
 
-			case PERF_CONTEXT_HV:
-				dso = hypervisor_dso;
-				break;
 	if ((sort__has_parent || callchain) && chain)
 		syms = resolve_callchain(thread, map, chain, &entry);
 
