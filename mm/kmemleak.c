@@ -105,7 +105,6 @@
 #define MAX_TRACE		16	/* stack trace length */
 #define REPORTS_NR		50	/* maximum number of reported leaks */
 #define MSECS_MIN_AGE		5000	/* minimum object age for reporting */
-#define MSECS_SCAN_YIELD	10	/* CPU yielding period */
 #define SECS_FIRST_SCAN		60	/* delay before the first scan */
 #define SECS_SCAN_WAIT		600	/* subsequent auto scanning delay */
 
@@ -186,10 +185,7 @@ static atomic_t kmemleak_error = ATOMIC_INIT(0);
 static unsigned long min_addr = ULONG_MAX;
 static unsigned long max_addr;
 
-/* used for yielding the CPU to other tasks during scanning */
-static unsigned long next_scan_yield;
 static struct task_struct *scan_thread;
-static unsigned long jiffies_scan_yield;
 /* used to avoid reporting of recently allocated objects */
 static unsigned long jiffies_min_age;
 static unsigned long jiffies_last_scan;
@@ -786,21 +782,6 @@ void kmemleak_no_scan(const void *ptr)
 EXPORT_SYMBOL(kmemleak_no_scan);
 
 /*
- * Yield the CPU so that other tasks get a chance to run.  The yielding is
- * rate-limited to avoid excessive number of calls to the schedule() function
- * during memory scanning.
- */
-static void scan_yield(void)
-{
-	might_sleep();
-
-	if (time_is_before_eq_jiffies(next_scan_yield)) {
-		schedule();
-		next_scan_yield = jiffies + jiffies_scan_yield;
-	}
-}
-
-/*
  * Memory scanning is a long process and it needs to be interruptable. This
  * function checks whether such interrupt condition occured.
  */
@@ -839,15 +820,6 @@ static void scan_block(void *_start, void *_end,
 
 		if (scan_should_stop())
 			break;
-
-		/*
-		 * When scanning a memory block with a corresponding
-		 * kmemleak_object, the CPU yielding is handled in the calling
-		 * code since it holds the object->lock to avoid the block
-		 * freeing.
-		 */
-		if (!scanned)
-			scan_yield();
 
 		object = find_and_get_object(pointer, 1);
 		if (!object)
@@ -1014,7 +986,7 @@ static void kmemleak_scan(void)
 	 */
 	object = list_entry(gray_list.next, typeof(*object), gray_list);
 	while (&object->gray_list != &gray_list) {
-		scan_yield();
+		cond_resched();
 
 		/* may add new objects to the list */
 		if (!scan_should_stop())
@@ -1385,7 +1357,6 @@ void __init kmemleak_init(void)
 	int i;
 	unsigned long flags;
 
-	jiffies_scan_yield = msecs_to_jiffies(MSECS_SCAN_YIELD);
 	jiffies_min_age = msecs_to_jiffies(MSECS_MIN_AGE);
 	jiffies_scan_wait = msecs_to_jiffies(SECS_SCAN_WAIT * 1000);
 
