@@ -1156,3 +1156,62 @@ int cfg80211_wext_giwrate(struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwrate);
+
+/* Get wireless statistics.  Called by /proc/net/wireless and by SIOCGIWSTATS */
+struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	/* we are under RTNL - globally locked - so can use static structs */
+	static struct iw_statistics wstats;
+	static struct station_info sinfo;
+	u8 *addr;
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION)
+		return NULL;
+
+	if (!rdev->ops->get_station)
+		return NULL;
+
+	addr = wdev->wext.connect.bssid;
+	if (!addr)
+		return NULL;
+
+	if (rdev->ops->get_station(&rdev->wiphy, dev, addr, &sinfo))
+		return NULL;
+
+	memset(&wstats, 0, sizeof(wstats));
+
+	switch (rdev->wiphy.signal_type) {
+	case CFG80211_SIGNAL_TYPE_MBM:
+		if (sinfo.filled & STATION_INFO_SIGNAL) {
+			int sig = sinfo.signal;
+			wstats.qual.updated |= IW_QUAL_LEVEL_UPDATED;
+			wstats.qual.updated |= IW_QUAL_QUAL_UPDATED;
+			wstats.qual.updated |= IW_QUAL_DBM;
+			wstats.qual.level = sig;
+			if (sig < -110)
+				sig = -110;
+			else if (sig > -40)
+				sig = -40;
+			wstats.qual.qual = sig + 110;
+			break;
+		}
+	case CFG80211_SIGNAL_TYPE_UNSPEC:
+		if (sinfo.filled & STATION_INFO_SIGNAL) {
+			wstats.qual.updated |= IW_QUAL_LEVEL_UPDATED;
+			wstats.qual.updated |= IW_QUAL_QUAL_UPDATED;
+			wstats.qual.level = sinfo.signal;
+			wstats.qual.qual = sinfo.signal;
+			break;
+		}
+	default:
+		wstats.qual.updated |= IW_QUAL_LEVEL_INVALID;
+		wstats.qual.updated |= IW_QUAL_QUAL_INVALID;
+	}
+
+	wstats.qual.updated |= IW_QUAL_NOISE_INVALID;
+
+	return &wstats;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wireless_stats);

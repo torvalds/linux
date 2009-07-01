@@ -1646,6 +1646,7 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 int cfg80211_wext_giwtxpower(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *data, char *keybuf);
+struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev);
 
 int cfg80211_wext_siwpower(struct net_device *dev,
 			   struct iw_request_info *info,
