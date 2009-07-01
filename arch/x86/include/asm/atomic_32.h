@@ -31,7 +31,10 @@ static inline int atomic_read(const atomic_t *v)
  *
  * Atomically sets the value of @v to @i.
  */
-#define atomic_set(v, i)	(((v)->counter) = (i))
+static inline void atomic_set(atomic_t *v, int i)
+{
+	v->counter = i;
+}
 
 /**
  * atomic_add - add integer to atomic variable
@@ -203,8 +206,15 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	return atomic_add_return(-i, v);
 }
 
-#define atomic_cmpxchg(v, old, new) (cmpxchg(&((v)->counter), (old), (new)))
-#define atomic_xchg(v, new) (xchg(&((v)->counter), (new)))
+static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	return cmpxchg(&v->counter, old, new);
+}
+
+static inline int atomic_xchg(atomic_t *v, int new)
+{
+	return xchg(&v->counter, new);
+}
 
 /**
  * atomic_add_unless - add unless the number is already a given value
