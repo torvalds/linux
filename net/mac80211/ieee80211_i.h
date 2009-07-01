@@ -228,28 +228,24 @@ struct mesh_preq_queue {
 };
 
 /* flags used in struct ieee80211_if_managed.flags */
-#define IEEE80211_STA_SSID_SET		BIT(0)
-#define IEEE80211_STA_BSSID_SET		BIT(1)
-#define IEEE80211_STA_PREV_BSSID_SET	BIT(2)
-#define IEEE80211_STA_AUTHENTICATED	BIT(3)
-#define IEEE80211_STA_ASSOCIATED	BIT(4)
-#define IEEE80211_STA_PROBEREQ_POLL	BIT(5)
-#define IEEE80211_STA_CREATE_IBSS	BIT(6)
-#define IEEE80211_STA_CONTROL_PORT	BIT(7)
-#define IEEE80211_STA_WMM_ENABLED	BIT(8)
-/* hole at 9, please re-use */
-#define IEEE80211_STA_AUTO_SSID_SEL	BIT(10)
-#define IEEE80211_STA_AUTO_BSSID_SEL	BIT(11)
-#define IEEE80211_STA_AUTO_CHANNEL_SEL	BIT(12)
-#define IEEE80211_STA_PRIVACY_INVOKED	BIT(13)
-#define IEEE80211_STA_TKIP_WEP_USED	BIT(14)
-#define IEEE80211_STA_CSA_RECEIVED	BIT(15)
-#define IEEE80211_STA_MFP_ENABLED	BIT(16)
-#define IEEE80211_STA_EXT_SME		BIT(17)
+enum ieee80211_sta_flags {
+	IEEE80211_STA_PREV_BSSID_SET	= BIT(0),
+	IEEE80211_STA_AUTHENTICATED	= BIT(1),
+	IEEE80211_STA_ASSOCIATED	= BIT(2),
+	IEEE80211_STA_PROBEREQ_POLL	= BIT(3),
+	IEEE80211_STA_CONTROL_PORT	= BIT(4),
+	IEEE80211_STA_WMM_ENABLED	= BIT(5),
+	IEEE80211_STA_DISABLE_11N	= BIT(6),
+	IEEE80211_STA_CSA_RECEIVED	= BIT(7),
+	IEEE80211_STA_MFP_ENABLED	= BIT(8),
+};
+
 /* flags for MLME request */
-#define IEEE80211_STA_REQ_SCAN 0
-#define IEEE80211_STA_REQ_AUTH 1
-#define IEEE80211_STA_REQ_RUN  2
+enum ieee80211_sta_request {
+	IEEE80211_STA_REQ_SCAN,
+	IEEE80211_STA_REQ_AUTH,
+	IEEE80211_STA_REQ_RUN,
+};
 
 struct ieee80211_if_managed {
 	struct timer_list timer;
@@ -936,10 +932,6 @@ extern const struct iw_handler_def ieee80211_iw_handler_def;
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
 ieee80211_rx_result ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 					  struct sk_buff *skb);
-int ieee80211_sta_commit(struct ieee80211_sub_if_data *sdata);
-int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len);
-int ieee80211_sta_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t *len);
-int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid);
 void ieee80211_sta_req_auth(struct ieee80211_sub_if_data *sdata);
 int ieee80211_sta_deauthenticate(struct ieee80211_sub_if_data *sdata, u16 reason);
 int ieee80211_sta_disassociate(struct ieee80211_sub_if_data *sdata, u16 reason);

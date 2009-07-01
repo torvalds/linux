@@ -111,9 +111,7 @@ IEEE80211_IF_FILE(auth_transaction, u.mgd.auth_transaction, DEC);
 static ssize_t ieee80211_if_fmt_flags(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
 {
-	return scnprintf(buf, buflen, "%s%s%s%s%s%s%s\n",
-		 sdata->u.mgd.flags & IEEE80211_STA_SSID_SET ? "SSID\n" : "",
-		 sdata->u.mgd.flags & IEEE80211_STA_BSSID_SET ? "BSSID\n" : "",
+	return scnprintf(buf, buflen, "%s%s%s%s%s\n",
 		 sdata->u.mgd.flags & IEEE80211_STA_PREV_BSSID_SET ? "prev BSSID\n" : "",
 		 sdata->u.mgd.flags & IEEE80211_STA_AUTHENTICATED ? "AUTH\n" : "",
 		 sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED ? "ASSOC\n" : "",

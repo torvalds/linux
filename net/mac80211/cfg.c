@@ -1194,18 +1194,14 @@ static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	memcpy(sdata->u.mgd.bssid, req->peer_addr, ETH_ALEN);
-	sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
-	sdata->u.mgd.flags |= IEEE80211_STA_BSSID_SET;
 
-	/* TODO: req->chan */
-	sdata->u.mgd.flags |= IEEE80211_STA_AUTO_CHANNEL_SEL;
+	sdata->local->oper_channel = req->chan;
+	ieee80211_hw_config(sdata->local, 0);
 
-	if (req->ssid) {
-		sdata->u.mgd.flags |= IEEE80211_STA_SSID_SET;
-		memcpy(sdata->u.mgd.ssid, req->ssid, req->ssid_len);
-		sdata->u.mgd.ssid_len = req->ssid_len;
-		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
-	}
+	if (!req->ssid)
+		return -EINVAL;
+	memcpy(sdata->u.mgd.ssid, req->ssid, req->ssid_len);
+	sdata->u.mgd.ssid_len = req->ssid_len;
 
 	kfree(sdata->u.mgd.sme_auth_ie);
 	sdata->u.mgd.sme_auth_ie = NULL;
@@ -1218,7 +1214,6 @@ static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 		sdata->u.mgd.sme_auth_ie_len = req->ie_len;
 	}
 
-	sdata->u.mgd.flags |= IEEE80211_STA_EXT_SME;
 	sdata->u.mgd.state = IEEE80211_STA_MLME_DIRECT_PROBE;
 	ieee80211_sta_req_auth(sdata);
 	return 0;
@@ -1236,27 +1231,22 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 	    !(sdata->u.mgd.flags & IEEE80211_STA_AUTHENTICATED))
 		return -ENOLINK; /* not authenticated */
 
-	sdata->u.mgd.flags &= ~IEEE80211_STA_TKIP_WEP_USED;
+	sdata->u.mgd.flags &= ~IEEE80211_STA_DISABLE_11N;
 
 	for (i = 0; i < req->crypto.n_ciphers_pairwise; i++)
 		if (req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP40 ||
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_TKIP ||
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP104)
-			sdata->u.mgd.flags |= IEEE80211_STA_TKIP_WEP_USED;
+			sdata->u.mgd.flags |= IEEE80211_STA_DISABLE_11N;
 
-	sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
-	sdata->u.mgd.flags |= IEEE80211_STA_BSSID_SET;
+	sdata->local->oper_channel = req->chan;
+	ieee80211_hw_config(sdata->local, 0);
 
-	/* TODO: req->chan */
-	sdata->u.mgd.flags |= IEEE80211_STA_AUTO_CHANNEL_SEL;
+	if (!req->ssid)
+		return -EINVAL;
 
-	if (req->ssid) {
-		sdata->u.mgd.flags |= IEEE80211_STA_SSID_SET;
-		memcpy(sdata->u.mgd.ssid, req->ssid, req->ssid_len);
-		sdata->u.mgd.ssid_len = req->ssid_len;
-		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
-	} else
-		sdata->u.mgd.flags |= IEEE80211_STA_AUTO_SSID_SEL;
+	memcpy(sdata->u.mgd.ssid, req->ssid, req->ssid_len);
+	sdata->u.mgd.ssid_len = req->ssid_len;
 
 	ret = ieee80211_sta_set_extra_ie(sdata, req->ie, req->ie_len);
 	if (ret && ret != -EALREADY)
@@ -1275,7 +1265,6 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 	else
 		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
 
-	sdata->u.mgd.flags |= IEEE80211_STA_EXT_SME;
 	sdata->u.mgd.state = IEEE80211_STA_MLME_ASSOCIATE;
 	ieee80211_sta_req_auth(sdata);
 	return 0;
