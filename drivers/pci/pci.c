@@ -1517,11 +1517,20 @@ void pci_enable_ari(struct pci_dev *dev)
  *
  * Perform INTx swizzling for a device behind one level of bridge.  This is
  * required by section 9.1 of the PCI-to-PCI bridge specification for devices
- * behind bridges on add-in cards.
+ * behind bridges on add-in cards.  For devices with ARI enabled, the slot
+ * number is always 0 (see the Implementation Note in section 2.2.8.1 of
+ * the PCI Express Base Specification, Revision 2.1)
  */
 u8 pci_swizzle_interrupt_pin(struct pci_dev *dev, u8 pin)
 {
-	return (((pin - 1) + PCI_SLOT(dev->devfn)) % 4) + 1;
+	int slot;
+
+	if (pci_ari_enabled(dev->bus))
+		slot = 0;
+	else
+		slot = PCI_SLOT(dev->devfn);
+
+	return (((pin - 1) + slot) % 4) + 1;
 }
 
 int
