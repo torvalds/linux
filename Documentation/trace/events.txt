@@ -83,6 +83,15 @@ When reading one of these enable files, there are four results:
  X - there is a mixture of events enabled and disabled
  ? - this file does not affect any event
 
+2.3 Boot option
+---------------
+
+In order to facilitate early boot debugging, use boot option:
+
+	trace_event=[event-list]
+
+The format of this boot option is the same as described in section 2.1.
+
 3. Defining an event-enabled tracepoint
 =======================================
 

@@ -49,7 +49,7 @@ unsigned long __read_mostly	tracing_thresh;
  * On boot up, the ring buffer is set to the minimum size, so that
  * we do not waste memory on systems that are not using tracing.
  */
-static int ring_buffer_expanded;
+int ring_buffer_expanded;
 
 /*
  * We need to change this state when a selftest is running.
@@ -63,7 +63,7 @@ static bool __read_mostly tracing_selftest_running;
 /*
  * If a tracer is running, we do not want to run SELFTEST.
  */
-static bool __read_mostly tracing_selftest_disabled;
+bool __read_mostly tracing_selftest_disabled;
 
 /* For tracers that don't implement custom flags */
 static struct tracer_opt dummy_tracer_opt[] = {
