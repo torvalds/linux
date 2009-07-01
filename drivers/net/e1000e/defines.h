@@ -575,6 +575,8 @@
 #define PHY_1000T_STATUS 0x0A /* 1000Base-T Status Reg */
 #define PHY_EXT_STATUS   0x0F /* Extended Status Reg */
 
+#define PHY_CONTROL_LB   0x4000 /* PHY Loopback bit */
+
 /* NVM Control */
 #define E1000_EECD_SK        0x00000001 /* NVM Clock */
 #define E1000_EECD_CS        0x00000002 /* NVM Chip Select */

@@ -2737,6 +2737,11 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 	if (hw->phy.type != e1000_phy_82578)
 		goto out;
 
+	/* Do not apply workaround if in PHY loopback bit 14 set */
+	hw->phy.ops.read_phy_reg(hw, PHY_CONTROL, &data);
+	if (data & PHY_CONTROL_LB)
+		goto out;
+
 	/* check if link is up and at 1Gbps */
 	ret_val = hw->phy.ops.read_phy_reg(hw, BM_CS_STATUS, &data);
 	if (ret_val)
