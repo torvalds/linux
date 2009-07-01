@@ -80,9 +80,11 @@ struct uvc_xu_control {
 #define UVC_ENTITY_IS_UNIT(entity)	(((entity)->type & 0xff00) == 0)
 #define UVC_ENTITY_IS_TERM(entity)	(((entity)->type & 0xff00) != 0)
 #define UVC_ENTITY_IS_ITERM(entity) \
-	(((entity)->type & 0x8000) == UVC_TERM_INPUT)
+	(UVC_ENTITY_IS_TERM(entity) && \
+	((entity)->type & 0x8000) == UVC_TERM_INPUT)
 #define UVC_ENTITY_IS_OTERM(entity) \
-	(((entity)->type & 0x8000) == UVC_TERM_OUTPUT)
+	(UVC_ENTITY_IS_TERM(entity) && \
+	((entity)->type & 0x8000) == UVC_TERM_OUTPUT)
 
 
 /* ------------------------------------------------------------------------
@@ -402,10 +404,24 @@ struct uvc_video_queue {
 	struct list_head irqqueue;
 };
 
+struct uvc_video_chain {
+	struct uvc_device *dev;
+	struct list_head list;
+
+	struct list_head iterms;		/* Input terminals */
+	struct list_head oterms;		/* Output terminals */
+	struct uvc_entity *processing;		/* Processing unit */
+	struct uvc_entity *selector;		/* Selector unit */
+	struct list_head extensions;		/* Extension units */
+
+	struct mutex ctrl_mutex;
+};
+
 struct uvc_streaming {
 	struct list_head list;
 	struct uvc_device *dev;
 	struct video_device *vdev;
+	struct uvc_video_chain *chain;
 	atomic_t active;
 
 	struct usb_interface *intf;
@@ -446,18 +462,6 @@ struct uvc_streaming {
 	__u8 last_fid;
 };
 
-struct uvc_video_device {
-	struct uvc_device *dev;
-
-	struct list_head iterms;		/* Input terminals */
-	struct uvc_entity *oterm;		/* Output terminal */
-	struct uvc_entity *sterm;		/* USB streaming terminal */
-	struct uvc_entity *processing;
-	struct uvc_entity *selector;
-	struct list_head extensions;
-	struct mutex ctrl_mutex;
-};
-
 enum uvc_device_state {
 	UVC_DEV_DISCONNECTED = 1,
 };
@@ -480,8 +484,7 @@ struct uvc_device {
 	__u32 clock_frequency;
 
 	struct list_head entities;
-
-	struct uvc_video_device video;
+	struct list_head chains;
 
 	/* Video Streaming interfaces */
 	struct list_head streams;
@@ -500,7 +503,7 @@ enum uvc_handle_state {
 };
 
 struct uvc_fh {
-	struct uvc_video_device *video;
+	struct uvc_video_chain *chain;
 	struct uvc_streaming *stream;
 	enum uvc_handle_state state;
 };
@@ -618,9 +621,9 @@ extern int uvc_status_suspend(struct uvc_device *dev);
 extern int uvc_status_resume(struct uvc_device *dev);
 
 /* Controls */
-extern struct uvc_control *uvc_find_control(struct uvc_video_device *video,
+extern struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 		__u32 v4l2_id, struct uvc_control_mapping **mapping);
-extern int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
+extern int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		struct v4l2_queryctrl *v4l2_ctrl);
 
 extern int uvc_ctrl_add_info(struct uvc_control_info *info);
@@ -630,23 +633,23 @@ extern void uvc_ctrl_cleanup_device(struct uvc_device *dev);
 extern int uvc_ctrl_resume_device(struct uvc_device *dev);
 extern void uvc_ctrl_init(void);
 
-extern int uvc_ctrl_begin(struct uvc_video_device *video);
-extern int __uvc_ctrl_commit(struct uvc_video_device *video, int rollback);
-static inline int uvc_ctrl_commit(struct uvc_video_device *video)
+extern int uvc_ctrl_begin(struct uvc_video_chain *chain);
+extern int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback);
+static inline int uvc_ctrl_commit(struct uvc_video_chain *chain)
 {
-	return __uvc_ctrl_commit(video, 0);
+	return __uvc_ctrl_commit(chain, 0);
 }
-static inline int uvc_ctrl_rollback(struct uvc_video_device *video)
+static inline int uvc_ctrl_rollback(struct uvc_video_chain *chain)
 {
-	return __uvc_ctrl_commit(video, 1);
+	return __uvc_ctrl_commit(chain, 1);
 }
 
-extern int uvc_ctrl_get(struct uvc_video_device *video,
+extern int uvc_ctrl_get(struct uvc_video_chain *chain,
 		struct v4l2_ext_control *xctrl);
-extern int uvc_ctrl_set(struct uvc_video_device *video,
+extern int uvc_ctrl_set(struct uvc_video_chain *chain,
 		struct v4l2_ext_control *xctrl);
 
-extern int uvc_xu_ctrl_query(struct uvc_video_device *video,
+extern int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 		struct uvc_xu_control *ctrl, int set);
 
 /* Utility functions */

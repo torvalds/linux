@@ -729,7 +729,7 @@ static void __uvc_find_control(struct uvc_entity *entity, __u32 v4l2_id,
 	}
 }
 
-struct uvc_control *uvc_find_control(struct uvc_video_device *video,
+struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 	__u32 v4l2_id, struct uvc_control_mapping **mapping)
 {
 	struct uvc_control *ctrl = NULL;
@@ -742,17 +742,17 @@ struct uvc_control *uvc_find_control(struct uvc_video_device *video,
 	v4l2_id &= V4L2_CTRL_ID_MASK;
 
 	/* Find the control. */
-	__uvc_find_control(video->processing, v4l2_id, mapping, &ctrl, next);
+	__uvc_find_control(chain->processing, v4l2_id, mapping, &ctrl, next);
 	if (ctrl && !next)
 		return ctrl;
 
-	list_for_each_entry(entity, &video->iterms, chain) {
+	list_for_each_entry(entity, &chain->iterms, chain) {
 		__uvc_find_control(entity, v4l2_id, mapping, &ctrl, next);
 		if (ctrl && !next)
 			return ctrl;
 	}
 
-	list_for_each_entry(entity, &video->extensions, chain) {
+	list_for_each_entry(entity, &chain->extensions, chain) {
 		__uvc_find_control(entity, v4l2_id, mapping, &ctrl, next);
 		if (ctrl && !next)
 			return ctrl;
@@ -765,7 +765,7 @@ struct uvc_control *uvc_find_control(struct uvc_video_device *video,
 	return ctrl;
 }
 
-int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
+int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	struct v4l2_queryctrl *v4l2_ctrl)
 {
 	struct uvc_control *ctrl;
@@ -775,7 +775,7 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 	__u8 *data;
 	int ret;
 
-	ctrl = uvc_find_control(video, v4l2_ctrl->id, &mapping);
+	ctrl = uvc_find_control(chain, v4l2_ctrl->id, &mapping);
 	if (ctrl == NULL)
 		return -EINVAL;
 
@@ -793,9 +793,9 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 		v4l2_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	if (ctrl->info->flags & UVC_CONTROL_GET_DEF) {
-		ret = uvc_query_ctrl(video->dev, UVC_GET_DEF, ctrl->entity->id,
-				video->dev->intfnum, ctrl->info->selector, data,
-				ctrl->info->size);
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_DEF, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     data, ctrl->info->size);
 		if (ret < 0)
 			goto out;
 		v4l2_ctrl->default_value =
@@ -831,25 +831,25 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 	}
 
 	if (ctrl->info->flags & UVC_CONTROL_GET_MIN) {
-		ret = uvc_query_ctrl(video->dev, UVC_GET_MIN, ctrl->entity->id,
-				video->dev->intfnum, ctrl->info->selector, data,
-				ctrl->info->size);
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_MIN, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     data, ctrl->info->size);
 		if (ret < 0)
 			goto out;
 		v4l2_ctrl->minimum = mapping->get(mapping, UVC_GET_MIN, data);
 	}
 	if (ctrl->info->flags & UVC_CONTROL_GET_MAX) {
-		ret = uvc_query_ctrl(video->dev, UVC_GET_MAX, ctrl->entity->id,
-				video->dev->intfnum, ctrl->info->selector, data,
-				ctrl->info->size);
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_MAX, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     data, ctrl->info->size);
 		if (ret < 0)
 			goto out;
 		v4l2_ctrl->maximum = mapping->get(mapping, UVC_GET_MAX, data);
 	}
 	if (ctrl->info->flags & UVC_CONTROL_GET_RES) {
-		ret = uvc_query_ctrl(video->dev, UVC_GET_RES, ctrl->entity->id,
-				video->dev->intfnum, ctrl->info->selector, data,
-				ctrl->info->size);
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_RES, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     data, ctrl->info->size);
 		if (ret < 0)
 			goto out;
 		v4l2_ctrl->step = mapping->get(mapping, UVC_GET_RES, data);
@@ -886,9 +886,9 @@ out:
  * (UVC_CTRL_DATA_BACKUP) for all dirty controls. Both functions release the
  * control lock.
  */
-int uvc_ctrl_begin(struct uvc_video_device *video)
+int uvc_ctrl_begin(struct uvc_video_chain *chain)
 {
-	return mutex_lock_interruptible(&video->ctrl_mutex) ? -ERESTARTSYS : 0;
+	return mutex_lock_interruptible(&chain->ctrl_mutex) ? -ERESTARTSYS : 0;
 }
 
 static int uvc_ctrl_commit_entity(struct uvc_device *dev,
@@ -938,34 +938,34 @@ static int uvc_ctrl_commit_entity(struct uvc_device *dev,
 	return 0;
 }
 
-int __uvc_ctrl_commit(struct uvc_video_device *video, int rollback)
+int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback)
 {
 	struct uvc_entity *entity;
 	int ret = 0;
 
 	/* Find the control. */
-	ret = uvc_ctrl_commit_entity(video->dev, video->processing, rollback);
+	ret = uvc_ctrl_commit_entity(chain->dev, chain->processing, rollback);
 	if (ret < 0)
 		goto done;
 
-	list_for_each_entry(entity, &video->iterms, chain) {
-		ret = uvc_ctrl_commit_entity(video->dev, entity, rollback);
+	list_for_each_entry(entity, &chain->iterms, chain) {
+		ret = uvc_ctrl_commit_entity(chain->dev, entity, rollback);
 		if (ret < 0)
 			goto done;
 	}
 
-	list_for_each_entry(entity, &video->extensions, chain) {
-		ret = uvc_ctrl_commit_entity(video->dev, entity, rollback);
+	list_for_each_entry(entity, &chain->extensions, chain) {
+		ret = uvc_ctrl_commit_entity(chain->dev, entity, rollback);
 		if (ret < 0)
 			goto done;
 	}
 
 done:
-	mutex_unlock(&video->ctrl_mutex);
+	mutex_unlock(&chain->ctrl_mutex);
 	return ret;
 }
 
-int uvc_ctrl_get(struct uvc_video_device *video,
+int uvc_ctrl_get(struct uvc_video_chain *chain,
 	struct v4l2_ext_control *xctrl)
 {
 	struct uvc_control *ctrl;
@@ -974,13 +974,13 @@ int uvc_ctrl_get(struct uvc_video_device *video,
 	unsigned int i;
 	int ret;
 
-	ctrl = uvc_find_control(video, xctrl->id, &mapping);
+	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
 	if (ctrl == NULL || (ctrl->info->flags & UVC_CONTROL_GET_CUR) == 0)
 		return -EINVAL;
 
 	if (!ctrl->loaded) {
-		ret = uvc_query_ctrl(video->dev, UVC_GET_CUR, ctrl->entity->id,
-				video->dev->intfnum, ctrl->info->selector,
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_CUR, ctrl->entity->id,
+				chain->dev->intfnum, ctrl->info->selector,
 				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
 				ctrl->info->size);
 		if (ret < 0)
@@ -1005,7 +1005,7 @@ int uvc_ctrl_get(struct uvc_video_device *video,
 	return 0;
 }
 
-int uvc_ctrl_set(struct uvc_video_device *video,
+int uvc_ctrl_set(struct uvc_video_chain *chain,
 	struct v4l2_ext_control *xctrl)
 {
 	struct uvc_control *ctrl;
@@ -1013,7 +1013,7 @@ int uvc_ctrl_set(struct uvc_video_device *video,
 	s32 value = xctrl->value;
 	int ret;
 
-	ctrl = uvc_find_control(video, xctrl->id, &mapping);
+	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
 	if (ctrl == NULL || (ctrl->info->flags & UVC_CONTROL_SET_CUR) == 0)
 		return -EINVAL;
 
@@ -1028,8 +1028,8 @@ int uvc_ctrl_set(struct uvc_video_device *video,
 			memset(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
 				0, ctrl->info->size);
 		} else {
-			ret = uvc_query_ctrl(video->dev, UVC_GET_CUR,
-				ctrl->entity->id, video->dev->intfnum,
+			ret = uvc_query_ctrl(chain->dev, UVC_GET_CUR,
+				ctrl->entity->id, chain->dev->intfnum,
 				ctrl->info->selector,
 				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
 				ctrl->info->size);
@@ -1058,7 +1058,7 @@ int uvc_ctrl_set(struct uvc_video_device *video,
  * Dynamic controls
  */
 
-int uvc_xu_ctrl_query(struct uvc_video_device *video,
+int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	struct uvc_xu_control *xctrl, int set)
 {
 	struct uvc_entity *entity;
@@ -1068,7 +1068,7 @@ int uvc_xu_ctrl_query(struct uvc_video_device *video,
 	int ret;
 
 	/* Find the extension unit. */
-	list_for_each_entry(entity, &video->extensions, chain) {
+	list_for_each_entry(entity, &chain->extensions, chain) {
 		if (entity->id == xctrl->unit)
 			break;
 	}
@@ -1107,7 +1107,7 @@ int uvc_xu_ctrl_query(struct uvc_video_device *video,
 	    (!set && !(ctrl->info->flags & UVC_CONTROL_GET_CUR)))
 		return -EINVAL;
 
-	if (mutex_lock_interruptible(&video->ctrl_mutex))
+	if (mutex_lock_interruptible(&chain->ctrl_mutex))
 		return -ERESTARTSYS;
 
 	memcpy(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_BACKUP),
@@ -1120,8 +1120,8 @@ int uvc_xu_ctrl_query(struct uvc_video_device *video,
 		goto out;
 	}
 
-	ret = uvc_query_ctrl(video->dev, set ? UVC_SET_CUR : UVC_GET_CUR,
-			     xctrl->unit, video->dev->intfnum, xctrl->selector,
+	ret = uvc_query_ctrl(chain->dev, set ? UVC_SET_CUR : UVC_GET_CUR,
+			     xctrl->unit, chain->dev->intfnum, xctrl->selector,
 			     data, xctrl->size);
 	if (ret < 0)
 		goto out;
@@ -1137,7 +1137,7 @@ out:
 		       uvc_ctrl_data(ctrl, UVC_CTRL_DATA_BACKUP),
 		       xctrl->size);
 
-	mutex_unlock(&video->ctrl_mutex);
+	mutex_unlock(&chain->ctrl_mutex);
 	return ret;
 }
 

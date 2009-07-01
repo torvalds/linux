@@ -128,7 +128,7 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 	if (data == NULL)
 		return -ENOMEM;
 
-	if ((video->dev->quirks & UVC_QUIRK_PROBE_DEF) && query == UVC_GET_DEF)
+	if ((stream->dev->quirks & UVC_QUIRK_PROBE_DEF) && query == UVC_GET_DEF)
 		return -EIO;
 
 	ret = __uvc_query_ctrl(stream->dev, query, 0, stream->intfnum,
