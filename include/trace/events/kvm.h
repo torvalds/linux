@@ -56,6 +56,39 @@ TRACE_EVENT(kvm_ack_irq,
 
 
 #endif /* defined(__KVM_HAVE_IOAPIC) */
+
+#define KVM_TRACE_MMIO_READ_UNSATISFIED 0
+#define KVM_TRACE_MMIO_READ 1
+#define KVM_TRACE_MMIO_WRITE 2
+
+#define kvm_trace_symbol_mmio \
+	{ KVM_TRACE_MMIO_READ_UNSATISFIED, "unsatisfied-read" }, \
+	{ KVM_TRACE_MMIO_READ, "read" }, \
+	{ KVM_TRACE_MMIO_WRITE, "write" }
+
+TRACE_EVENT(kvm_mmio,
+	TP_PROTO(int type, int len, u64 gpa, u64 val),
+	TP_ARGS(type, len, gpa, val),
+
+	TP_STRUCT__entry(
+		__field(	u32,	type		)
+		__field(	u32,	len		)
+		__field(	u64,	gpa		)
+		__field(	u64,	val		)
+	),
+
+	TP_fast_assign(
+		__entry->type		= type;
+		__entry->len		= len;
+		__entry->gpa		= gpa;
+		__entry->val		= val;
+	),
+
+	TP_printk("mmio %s len %u gpa 0x%llx val 0x%llx",
+		  __print_symbolic(__entry->type, kvm_trace_symbol_mmio),
+		  __entry->len, __entry->gpa, __entry->val)
+);
+
 #endif /* _TRACE_KVM_MAIN_H */
 
 /* This part must be outside protection */

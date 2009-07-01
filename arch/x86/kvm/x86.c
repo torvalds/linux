@@ -37,6 +37,8 @@
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 #include <linux/cpufreq.h>
+#include <trace/events/kvm.h>
+#undef TRACE_INCLUDE_FILE
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
@@ -2425,6 +2427,8 @@ static int emulator_read_emulated(unsigned long addr,
 
 	if (vcpu->mmio_read_completed) {
 		memcpy(val, vcpu->mmio_data, bytes);
+		trace_kvm_mmio(KVM_TRACE_MMIO_READ, bytes,
+			       vcpu->mmio_phys_addr, *(u64 *)val);
 		vcpu->mmio_read_completed = 0;
 		return X86EMUL_CONTINUE;
 	}
@@ -2445,8 +2449,12 @@ mmio:
 	/*
 	 * Is this MMIO handled locally?
 	 */
-	if (!vcpu_mmio_read(vcpu, gpa, bytes, val))
+	if (!vcpu_mmio_read(vcpu, gpa, bytes, val)) {
+		trace_kvm_mmio(KVM_TRACE_MMIO_READ, bytes, gpa, *(u64 *)val);
 		return X86EMUL_CONTINUE;
+	}
+
+	trace_kvm_mmio(KVM_TRACE_MMIO_READ_UNSATISFIED, bytes, gpa, 0);
 
 	vcpu->mmio_needed = 1;
 	vcpu->mmio_phys_addr = gpa;
@@ -2490,6 +2498,7 @@ static int emulator_write_emulated_onepage(unsigned long addr,
 		return X86EMUL_CONTINUE;
 
 mmio:
+	trace_kvm_mmio(KVM_TRACE_MMIO_WRITE, bytes, gpa, *(u64 *)val);
 	/*
 	 * Is this MMIO handled locally?
 	 */
