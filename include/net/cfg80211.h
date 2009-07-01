@@ -1170,7 +1170,6 @@ struct wireless_dev {
 
 	/* currently used for IBSS - might be rearranged in the future */
 	struct cfg80211_bss *current_bss;
-	u8 bssid[ETH_ALEN];
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len;
 

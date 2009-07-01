@@ -24,9 +24,6 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp)
 	if (WARN_ON(!wdev->ssid_len))
 		return;
 
-	if (memcmp(bssid, wdev->bssid, ETH_ALEN) == 0)
-		return;
-
 	bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
 			       wdev->ssid, wdev->ssid_len,
 			       WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
@@ -41,7 +38,6 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp)
 
 	cfg80211_hold_bss(bss);
 	wdev->current_bss = bss;
-	memcpy(wdev->bssid, bssid, ETH_ALEN);
 
 	nl80211_send_ibss_bssid(wiphy_to_dev(wdev->wiphy), dev, bssid, gfp);
 #ifdef CONFIG_WIRELESS_EXT
@@ -87,7 +83,6 @@ void cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 
 	wdev->current_bss = NULL;
 	wdev->ssid_len = 0;
-	memset(wdev->bssid, 0, ETH_ALEN);
 #ifdef CONFIG_WIRELESS_EXT
 	if (!nowext)
 		wdev->wext.ibss.ssid_len = 0;
@@ -356,12 +351,10 @@ int cfg80211_ibss_wext_giwap(struct net_device *dev,
 
 	ap_addr->sa_family = ARPHRD_ETHER;
 
-	if (wdev->wext.ibss.bssid) {
+	if (wdev->current_bss)
+		memcpy(ap_addr->sa_data, wdev->current_bss->bssid, ETH_ALEN);
+	else
 		memcpy(ap_addr->sa_data, wdev->wext.ibss.bssid, ETH_ALEN);
-		return 0;
-	}
-
-	memcpy(ap_addr->sa_data, wdev->bssid, ETH_ALEN);
 	return 0;
 }
 /* temporary symbol - mark GPL - in the future the handler won't be */
