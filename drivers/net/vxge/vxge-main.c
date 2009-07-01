@@ -2890,6 +2890,9 @@ int do_vxge_close(struct net_device *dev, int do_io)
 	vdev = (struct vxgedev *)netdev_priv(dev);
 	hldev = (struct __vxge_hw_device *) pci_get_drvdata(vdev->pdev);
 
+	if (unlikely(!is_vxge_card_up(vdev)))
+		return 0;
+
 	/* If vxge_handle_crit_err task is executing,
 	 * wait till it completes. */
 	while (test_and_set_bit(__VXGE_STATE_RESET_CARD, &vdev->state))
