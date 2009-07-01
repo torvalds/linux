@@ -489,9 +489,6 @@ struct drm_i915_gem_object {
 	 */
 	int fence_reg;
 
-	/** Boolean whether this object has a valid gtt offset. */
-	int gtt_bound;
-
 	/** How many users have pinned this object in GTT space */
 	int pin_count;
 
