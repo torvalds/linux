@@ -1414,39 +1414,6 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (status_code != WLAN_STATUS_SUCCESS) {
-		if (status_code == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG) {
-			u8 algs[3];
-			const int num_algs = ARRAY_SIZE(algs);
-			int i, pos;
-			algs[0] = algs[1] = algs[2] = 0xff;
-			if (ifmgd->auth_algs & IEEE80211_AUTH_ALG_OPEN)
-				algs[0] = WLAN_AUTH_OPEN;
-			if (ifmgd->auth_algs & IEEE80211_AUTH_ALG_SHARED_KEY)
-				algs[1] = WLAN_AUTH_SHARED_KEY;
-			if (ifmgd->auth_algs & IEEE80211_AUTH_ALG_LEAP)
-				algs[2] = WLAN_AUTH_LEAP;
-			if (ifmgd->auth_alg == WLAN_AUTH_OPEN)
-				pos = 0;
-			else if (ifmgd->auth_alg == WLAN_AUTH_SHARED_KEY)
-				pos = 1;
-			else
-				pos = 2;
-			for (i = 0; i < num_algs; i++) {
-				pos++;
-				if (pos >= num_algs)
-					pos = 0;
-				if (algs[pos] == ifmgd->auth_alg ||
-				    algs[pos] == 0xff)
-					continue;
-				if (algs[pos] == WLAN_AUTH_SHARED_KEY &&
-				    !ieee80211_sta_wep_configured(sdata))
-					continue;
-				ifmgd->auth_alg = algs[pos];
-				ifmgd->auth_tries = 0;
-				return;
-			}
-		}
-		/* nothing else to try -- give up */
 		cfg80211_send_rx_auth(sdata->dev, (u8 *) mgmt, len,
 				      GFP_KERNEL);
 		ifmgd->state = IEEE80211_STA_MLME_DISABLED;
@@ -2102,18 +2069,6 @@ static void ieee80211_sta_reset_auth(struct ieee80211_sub_if_data *sdata)
 	drv_reset_tsf(local);
 
 	ifmgd->wmm_last_param_set = -1; /* allow any WMM update */
-
-
-	if (ifmgd->auth_algs & IEEE80211_AUTH_ALG_OPEN)
-		ifmgd->auth_alg = WLAN_AUTH_OPEN;
-	else if (ifmgd->auth_algs & IEEE80211_AUTH_ALG_SHARED_KEY)
-		ifmgd->auth_alg = WLAN_AUTH_SHARED_KEY;
-	else if (ifmgd->auth_algs & IEEE80211_AUTH_ALG_LEAP)
-		ifmgd->auth_alg = WLAN_AUTH_LEAP;
-	else if (ifmgd->auth_algs & IEEE80211_AUTH_ALG_FT)
-		ifmgd->auth_alg = WLAN_AUTH_FT;
-	else
-		ifmgd->auth_alg = WLAN_AUTH_OPEN;
 	ifmgd->auth_transaction = -1;
 	ifmgd->flags &= ~IEEE80211_STA_ASSOCIATED;
 	ifmgd->assoc_scan_tries = 0;
@@ -2351,8 +2306,6 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	skb_queue_head_init(&ifmgd->skb_queue);
 
 	ifmgd->capab = WLAN_CAPABILITY_ESS;
-	ifmgd->auth_algs = IEEE80211_AUTH_ALG_OPEN |
-		IEEE80211_AUTH_ALG_SHARED_KEY;
 	ifmgd->flags |= IEEE80211_STA_CREATE_IBSS |
 		IEEE80211_STA_AUTO_BSSID_SEL |
 		IEEE80211_STA_AUTO_CHANNEL_SEL;

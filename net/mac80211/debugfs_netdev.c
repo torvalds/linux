@@ -105,7 +105,6 @@ IEEE80211_IF_FILE(capab, u.mgd.capab, HEX);
 IEEE80211_IF_FILE(extra_ie_len, u.mgd.extra_ie_len, SIZE);
 IEEE80211_IF_FILE(auth_tries, u.mgd.auth_tries, DEC);
 IEEE80211_IF_FILE(assoc_tries, u.mgd.assoc_tries, DEC);
-IEEE80211_IF_FILE(auth_algs, u.mgd.auth_algs, HEX);
 IEEE80211_IF_FILE(auth_alg, u.mgd.auth_alg, DEC);
 IEEE80211_IF_FILE(auth_transaction, u.mgd.auth_transaction, DEC);
 
@@ -194,7 +193,6 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(extra_ie_len, sta);
 	DEBUGFS_ADD(auth_tries, sta);
 	DEBUGFS_ADD(assoc_tries, sta);
-	DEBUGFS_ADD(auth_algs, sta);
 	DEBUGFS_ADD(auth_alg, sta);
 	DEBUGFS_ADD(auth_transaction, sta);
 	DEBUGFS_ADD(flags, sta);
@@ -327,7 +325,6 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_DEL(extra_ie_len, sta);
 	DEBUGFS_DEL(auth_tries, sta);
 	DEBUGFS_DEL(assoc_tries, sta);
-	DEBUGFS_DEL(auth_algs, sta);
 	DEBUGFS_DEL(auth_alg, sta);
 	DEBUGFS_DEL(auth_transaction, sta);
 	DEBUGFS_DEL(flags, sta);

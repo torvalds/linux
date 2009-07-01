@@ -1178,16 +1178,16 @@ static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (req->auth_type) {
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
-		sdata->u.mgd.auth_algs = IEEE80211_AUTH_ALG_OPEN;
+		sdata->u.mgd.auth_alg = WLAN_AUTH_OPEN;
 		break;
 	case NL80211_AUTHTYPE_SHARED_KEY:
-		sdata->u.mgd.auth_algs = IEEE80211_AUTH_ALG_SHARED_KEY;
+		sdata->u.mgd.auth_alg = WLAN_AUTH_SHARED_KEY;
 		break;
 	case NL80211_AUTHTYPE_FT:
-		sdata->u.mgd.auth_algs = IEEE80211_AUTH_ALG_FT;
+		sdata->u.mgd.auth_alg = WLAN_AUTH_FT;
 		break;
 	case NL80211_AUTHTYPE_NETWORK_EAP:
-		sdata->u.mgd.auth_algs = IEEE80211_AUTH_ALG_LEAP;
+		sdata->u.mgd.auth_alg = WLAN_AUTH_LEAP;
 		break;
 	default:
 		return -EOPNOTSUPP;

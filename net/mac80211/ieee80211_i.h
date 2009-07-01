@@ -251,12 +251,6 @@ struct mesh_preq_queue {
 #define IEEE80211_STA_REQ_AUTH 1
 #define IEEE80211_STA_REQ_RUN  2
 
-/* bitfield of allowed auth algs */
-#define IEEE80211_AUTH_ALG_OPEN BIT(0)
-#define IEEE80211_AUTH_ALG_SHARED_KEY BIT(1)
-#define IEEE80211_AUTH_ALG_LEAP BIT(2)
-#define IEEE80211_AUTH_ALG_FT BIT(3)
-
 struct ieee80211_if_managed {
 	struct timer_list timer;
 	struct timer_list chswitch_timer;
@@ -303,7 +297,6 @@ struct ieee80211_if_managed {
 
 	unsigned int flags;
 
-	unsigned int auth_algs; /* bitfield of allowed auth algs */
 	int auth_alg; /* currently used IEEE 802.11 authentication algorithm */
 	int auth_transaction;
 
@@ -488,7 +481,6 @@ struct ieee80211_sub_if_data {
 			struct dentry *extra_ie_len;
 			struct dentry *auth_tries;
 			struct dentry *assoc_tries;
-			struct dentry *auth_algs;
 			struct dentry *auth_alg;
 			struct dentry *auth_transaction;
 			struct dentry *flags;
