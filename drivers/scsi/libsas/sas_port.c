@@ -56,7 +56,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		}
 	}
 
-	/* find a port */
+	/* see if the phy should be part of a wide port */
 	spin_lock_irqsave(&sas_ha->phy_port_lock, flags);
 	for (i = 0; i < sas_ha->num_phys; i++) {
 		port = sas_ha->sas_port[i];
@@ -69,11 +69,22 @@ static void sas_form_port(struct asd_sas_phy *phy)
 			SAS_DPRINTK("phy%d matched wide port%d\n", phy->id,
 				    port->id);
 			break;
-		} else if (*(u64 *) port->sas_addr == 0 && port->num_phys==0) {
-			memcpy(port->sas_addr, phy->sas_addr, SAS_ADDR_SIZE);
-			break;
 		}
 		spin_unlock(&port->phy_list_lock);
+	}
+	/* The phy does not match any existing port, create a new one */
+	if (i == sas_ha->num_phys) {
+		for (i = 0; i < sas_ha->num_phys; i++) {
+			port = sas_ha->sas_port[i];
+			spin_lock(&port->phy_list_lock);
+			if (*(u64 *)port->sas_addr == 0
+				&& port->num_phys == 0) {
+				memcpy(port->sas_addr, phy->sas_addr,
+					SAS_ADDR_SIZE);
+				break;
+			}
+			spin_unlock(&port->phy_list_lock);
+		}
 	}
 
 	if (i >= sas_ha->num_phys) {
