@@ -45,6 +45,7 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "actables.h"
+#include <asm/tboot.h>
 
 #define _COMPONENT          ACPI_HARDWARE
 ACPI_MODULE_NAME("hwsleep")
@@ -341,6 +342,8 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 	/* Flush caches, as per ACPI specification */
 
 	ACPI_FLUSH_CPU_CACHE();
+
+	tboot_sleep(sleep_state, pm1a_control, pm1b_control);
 
 	/* Write #2: Write both SLP_TYP + SLP_EN */
 

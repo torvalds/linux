@@ -62,6 +62,7 @@
 #include <asm/vmi.h>
 #include <asm/apic.h>
 #include <asm/setup.h>
+#include <asm/tboot.h>
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 
@@ -1317,6 +1318,7 @@ void play_dead_common(void)
 void native_play_dead(void)
 {
 	play_dead_common();
+	tboot_shutdown(TB_SHUTDOWN_WFS);
 	wbinvd_halt();
 }
 
