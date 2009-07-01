@@ -3862,6 +3862,8 @@ static int md_alloc(dev_t dev, char *name)
 			if (mddev2->gendisk &&
 			    strcmp(mddev2->gendisk->disk_name, name) == 0) {
 				spin_unlock(&all_mddevs_lock);
+				mutex_unlock(&disks_mutex);
+				mddev_put(mddev);
 				return -EEXIST;
 			}
 		spin_unlock(&all_mddevs_lock);
