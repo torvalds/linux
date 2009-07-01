@@ -2931,7 +2931,7 @@ P:	Dmitry Eremin-Solenikov
 M:	dbaryshkov@gmail.com
 P:	Sergey Lapin
 M:	slapin@ossfans.org
-L:	linux-zigbee-devel@lists.sourceforge.net
+L:	linux-zigbee-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://apps.sourceforge.net/trac/linux-zigbee
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lowpan/lowpan.git
 S:	Maintained

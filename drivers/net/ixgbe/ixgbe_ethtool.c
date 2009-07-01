@@ -139,7 +139,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	ecmd->autoneg = AUTONEG_ENABLE;
 	ecmd->transceiver = XCVR_EXTERNAL;
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
-	    (hw->mac.type == ixgbe_mac_82599EB)) {
+	    (hw->phy.multispeed_fiber)) {
 		ecmd->supported |= (SUPPORTED_1000baseT_Full |
 		                    SUPPORTED_Autoneg);
 
@@ -217,7 +217,7 @@ static int ixgbe_set_settings(struct net_device *netdev,
 	s32 err = 0;
 
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
-	    (hw->mac.type == ixgbe_mac_82599EB)) {
+	    (hw->phy.multispeed_fiber)) {
 		/* 10000/copper and 1000/copper must autoneg
 		 * this function does not support any duplex forcing, but can
 		 * limit the advertising of the adapter to only 10000 or 1000 */
@@ -245,6 +245,7 @@ static int ixgbe_set_settings(struct net_device *netdev,
 	} else {
 		/* in this case we currently only support 10Gb/FULL */
 		if ((ecmd->autoneg == AUTONEG_ENABLE) ||
+		    (ecmd->advertising != ADVERTISED_10000baseT_Full) ||
 		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
 			return -EINVAL;
 	}

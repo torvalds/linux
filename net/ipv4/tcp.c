@@ -903,13 +903,17 @@ int tcp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		iov++;
 
 		while (seglen > 0) {
-			int copy;
+			int copy = 0;
+			int max = size_goal;
 
 			skb = tcp_write_queue_tail(sk);
+			if (tcp_send_head(sk)) {
+				if (skb->ip_summed == CHECKSUM_NONE)
+					max = mss_now;
+				copy = max - skb->len;
+			}
 
-			if (!tcp_send_head(sk) ||
-			    (copy = size_goal - skb->len) <= 0) {
-
+			if (copy <= 0) {
 new_segment:
 				/* Allocate new segment. If the interface is SG,
 				 * allocate skb fitting to single page.
@@ -930,6 +934,7 @@ new_segment:
 
 				skb_entail(sk, skb);
 				copy = size_goal;
+				max = size_goal;
 			}
 
 			/* Try to append data to the end of skb. */
@@ -1028,7 +1033,7 @@ new_segment:
 			if ((seglen -= copy) == 0 && iovlen == 0)
 				goto out;
 
-			if (skb->len < size_goal || (flags & MSG_OOB))
+			if (skb->len < max || (flags & MSG_OOB))
 				continue;
 
 			if (forced_push(tp)) {
