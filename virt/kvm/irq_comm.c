@@ -126,7 +126,7 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 	unsigned long *irq_state, sig_level;
 	int ret = -1;
 
-	trace_kvm_set_irq(irq);
+	trace_kvm_set_irq(irq, level, irq_source_id);
 
 	WARN_ON(!mutex_is_locked(&kvm->irq_lock));
 

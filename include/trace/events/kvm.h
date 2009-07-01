@@ -9,18 +9,23 @@
 
 #if defined(__KVM_HAVE_IOAPIC)
 TRACE_EVENT(kvm_set_irq,
-	TP_PROTO(unsigned int gsi),
-	TP_ARGS(gsi),
+	TP_PROTO(unsigned int gsi, int level, int irq_source_id),
+	TP_ARGS(gsi, level, irq_source_id),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	gsi		)
+		__field(	int,		level		)
+		__field(	int,		irq_source_id	)
 	),
 
 	TP_fast_assign(
 		__entry->gsi		= gsi;
+		__entry->level		= level;
+		__entry->irq_source_id	= irq_source_id;
 	),
 
-	TP_printk("gsi %u", __entry->gsi)
+	TP_printk("gsi %u level %d source %d",
+		  __entry->gsi, __entry->level, __entry->irq_source_id)
 );
 
 
