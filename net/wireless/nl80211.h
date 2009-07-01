@@ -15,27 +15,27 @@ void nl80211_send_scan_aborted(struct cfg80211_registered_device *rdev,
 void nl80211_send_reg_change_event(struct regulatory_request *request);
 void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 			  struct net_device *netdev,
-			  const u8 *buf, size_t len);
+			  const u8 *buf, size_t len, gfp_t gfp);
 void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev,
-			   const u8 *buf, size_t len);
+			   const u8 *buf, size_t len, gfp_t gfp);
 void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *netdev,
-			 const u8 *buf, size_t len);
+			 const u8 *buf, size_t len, gfp_t gfp);
 void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev,
-			   const u8 *buf, size_t len);
+			   const u8 *buf, size_t len, gfp_t gfp);
 void nl80211_send_auth_timeout(struct cfg80211_registered_device *rdev,
 			       struct net_device *netdev,
-			       const u8 *addr);
+			       const u8 *addr, gfp_t gfp);
 void nl80211_send_assoc_timeout(struct cfg80211_registered_device *rdev,
 				struct net_device *netdev,
-				const u8 *addr);
+				const u8 *addr, gfp_t gfp);
 void
 nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
 			    struct net_device *netdev, const u8 *addr,
 			    enum nl80211_key_type key_type,
-			    int key_id, const u8 *tsc);
+			    int key_id, const u8 *tsc, gfp_t gfp);
 
 void
 nl80211_send_beacon_hint_event(struct wiphy *wiphy,
