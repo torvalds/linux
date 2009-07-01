@@ -2640,7 +2640,8 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	iommu = domain_get_iommu(domain);
 
 	iova = find_iova(&domain->iovad, IOVA_PFN(dev_addr));
-	if (!iova)
+	if (WARN_ONCE(!iova, "Driver unmaps unmatched page at PFN %llx\n",
+		      (unsigned long long)dev_addr))
 		return;
 
 	start_pfn = mm_to_dma_pfn(iova->pfn_lo);
@@ -2730,7 +2731,8 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	iommu = domain_get_iommu(domain);
 
 	iova = find_iova(&domain->iovad, IOVA_PFN(sglist[0].dma_address));
-	if (!iova)
+	if (WARN_ONCE(!iova, "Driver unmaps unmatched sglist at PFN %llx\n",
+		      (unsigned long long)sglist[0].dma_address))
 		return;
 
 	start_pfn = mm_to_dma_pfn(iova->pfn_lo);
