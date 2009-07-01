@@ -625,6 +625,7 @@ struct netxen_new_user_info {
 #define NX_P2_MN_ROMIMAGE	0
 #define NX_P3_CT_ROMIMAGE	1
 #define NX_P3_MN_ROMIMAGE	2
+#define NX_FLASH_ROMIMAGE	3
 
 #define NETXEN_USER_START_OLD NETXEN_PXE_START	/* for backward compatibility */
 
@@ -1254,7 +1255,7 @@ struct netxen_adapter {
 	u32 resv3;
 
 	u8 has_link_events;
-	u8 resv1;
+	u8 fw_type;
 	u16 tx_context_id;
 	u16 mtu;
 	u16 is_up;
@@ -1398,6 +1399,7 @@ void netxen_free_adapter_offload(struct netxen_adapter *adapter);
 int netxen_initialize_adapter_offload(struct netxen_adapter *adapter);
 int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
 int netxen_load_firmware(struct netxen_adapter *adapter);
+int netxen_need_fw_reset(struct netxen_adapter *adapter);
 void netxen_request_firmware(struct netxen_adapter *adapter);
 void netxen_release_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);
