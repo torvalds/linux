@@ -1577,7 +1577,7 @@ igdng_compute_m_n(int bytes_per_pixel, int nlanes,
 
 	temp = (u64) DATA_N * pixel_clock;
 	temp = div_u64(temp, link_clock);
-	m_n->gmch_m = (temp * bytes_per_pixel) / nlanes;
+	m_n->gmch_m = div_u64(temp * bytes_per_pixel, nlanes);
 	m_n->gmch_n = DATA_N;
 	fdi_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
 
