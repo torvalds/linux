@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include "types.h"
 #include "list.h"
-#include "rbtree.h"
+#include <linux/rbtree.h>
 
 struct symbol {
 	struct rb_node	rb_node;

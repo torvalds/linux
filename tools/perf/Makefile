@@ -223,7 +223,7 @@ SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
 # Those must not be GNU-specific; they are shared with perl/ which may
 # be built by a different compiler. (Note that this is an artifact now
 # but it still might be nice to keep that distinction.)
-BASIC_CFLAGS =
+BASIC_CFLAGS = -Iutil/include
 BASIC_LDFLAGS =
 
 # Guard against environment variables
@@ -289,10 +289,10 @@ export PERL_PATH
 LIB_FILE=libperf.a
 
 LIB_H += ../../include/linux/perf_counter.h
+LIB_H += ../../include/linux/rbtree.h
 LIB_H += perf.h
 LIB_H += util/types.h
 LIB_H += util/list.h
-LIB_H += util/rbtree.h
 LIB_H += util/levenshtein.h
 LIB_H += util/parse-options.h
 LIB_H += util/parse-events.h
@@ -690,6 +690,9 @@ builtin-init-db.o: builtin-init-db.c PERF-CFLAGS
 
 util/config.o: util/config.c PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+util/rbtree.o: ../../lib/rbtree.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o util/rbtree.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
 perf-%$X: %.o $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(ALL_LDFLAGS) $(filter %.o,$^) $(LIBS)

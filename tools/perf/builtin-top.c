@@ -23,7 +23,7 @@
 #include "util/symbol.h"
 #include "util/color.h"
 #include "util/util.h"
-#include "util/rbtree.h"
+#include <linux/rbtree.h>
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 

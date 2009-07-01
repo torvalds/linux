@@ -12,7 +12,7 @@
 #include "util/color.h"
 #include "util/list.h"
 #include "util/cache.h"
-#include "util/rbtree.h"
+#include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/string.h"
 #include "util/callchain.h"

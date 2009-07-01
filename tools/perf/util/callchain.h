@@ -3,7 +3,7 @@
 
 #include "../perf.h"
 #include "list.h"
-#include "rbtree.h"
+#include <linux/rbtree.h>
 #include "symbol.h"
 
 
