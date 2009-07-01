@@ -3699,14 +3699,21 @@ static int make_request(struct request_queue *q, struct bio * bi)
 					goto retry;
 				}
 			}
-			/* FIXME what if we get a false positive because these
-			 * are being updated.
-			 */
+
 			if (bio_data_dir(bi) == WRITE &&
 			    logical_sector >= mddev->suspend_lo &&
 			    logical_sector < mddev->suspend_hi) {
 				release_stripe(sh);
-				schedule();
+				/* As the suspend_* range is controlled by
+				 * userspace, we want an interruptible
+				 * wait.
+				 */
+				flush_signals(current);
+				prepare_to_wait(&conf->wait_for_overlap,
+						&w, TASK_INTERRUPTIBLE);
+				if (logical_sector >= mddev->suspend_lo &&
+				    logical_sector < mddev->suspend_hi)
+					schedule();
 				goto retry;
 			}
 

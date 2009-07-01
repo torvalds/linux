@@ -6336,10 +6336,16 @@ void md_do_sync(mddev_t *mddev)
 			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
 
-		if (j >= mddev->resync_max)
-			wait_event(mddev->recovery_wait,
-				   mddev->resync_max > j
-				   || kthread_should_stop());
+		while (j >= mddev->resync_max && !kthread_should_stop()) {
+			/* As this condition is controlled by user-space,
+			 * we can block indefinitely, so use '_interruptible'
+			 * to avoid triggering warnings.
+			 */
+			flush_signals(current); /* just in case */
+			wait_event_interruptible(mddev->recovery_wait,
+						 mddev->resync_max > j
+						 || kthread_should_stop());
+		}
 
 		if (kthread_should_stop())
 			goto interrupted;
