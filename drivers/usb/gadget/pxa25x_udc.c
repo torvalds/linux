@@ -1802,11 +1802,13 @@ pxa25x_udc_irq(int irq, void *_dev)
 					USIR0 |= tmp;
 					handled = 1;
 				}
+#ifndef	CONFIG_USB_PXA25X_SMALL
 				if (usir1 & tmp) {
 					handle_ep(&dev->ep[i+8]);
 					USIR1 |= tmp;
 					handled = 1;
 				}
+#endif
 			}
 		}
 
