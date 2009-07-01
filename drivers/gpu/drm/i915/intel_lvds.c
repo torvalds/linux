@@ -38,14 +38,6 @@
 #include "i915_drv.h"
 #include <linux/acpi.h>
 
-/*
- * the following four scaling options are defined.
- * #define DRM_MODE_SCALE_NON_GPU	0
- * #define DRM_MODE_SCALE_FULLSCREEN	1
- * #define DRM_MODE_SCALE_NO_SCALE	2
- * #define DRM_MODE_SCALE_ASPECT	3
- */
-
 /* Private structure for the integrated LVDS support */
 struct intel_lvds_priv {
 	int fitting_mode;
@@ -334,7 +326,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	I915_WRITE(BCLRPAT_B, 0);
 
 	switch (lvds_priv->fitting_mode) {
-	case DRM_MODE_SCALE_NO_SCALE:
+	case DRM_MODE_SCALE_CENTER:
 		/*
 		 * For centered modes, we have to calculate border widths &
 		 * heights and modify the values programmed into the CRTC.
@@ -670,8 +662,8 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				connector->encoder) {
 		struct drm_crtc *crtc = connector->encoder->crtc;
 		struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
-		if (value == DRM_MODE_SCALE_NON_GPU) {
-			DRM_DEBUG_KMS("non_GPU property is unsupported\n");
+		if (value == DRM_MODE_SCALE_NONE) {
+			DRM_DEBUG_KMS("no scaling not supported\n");
 			return 0;
 		}
 		if (lvds_priv->fitting_mode == value) {

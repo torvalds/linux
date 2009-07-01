@@ -68,10 +68,11 @@
 #define DRM_MODE_DPMS_OFF	3
 
 /* Scaling mode options */
-#define DRM_MODE_SCALE_NON_GPU		0
-#define DRM_MODE_SCALE_FULLSCREEN	1
-#define DRM_MODE_SCALE_NO_SCALE		2
-#define DRM_MODE_SCALE_ASPECT		3
+#define DRM_MODE_SCALE_NONE		0 /* Unmodified timing (display or
+					     software can still scale) */
+#define DRM_MODE_SCALE_FULLSCREEN	1 /* Full screen, ignore aspect */
+#define DRM_MODE_SCALE_CENTER		2 /* Centered, no scaling */
+#define DRM_MODE_SCALE_ASPECT		3 /* Full screen, preserve aspect */
 
 /* Dithering mode options */
 #define DRM_MODE_DITHERING_OFF	0

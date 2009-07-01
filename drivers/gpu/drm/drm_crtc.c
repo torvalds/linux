@@ -68,10 +68,10 @@ DRM_ENUM_NAME_FN(drm_get_dpms_name, drm_dpms_enum_list)
  */
 static struct drm_prop_enum_list drm_scaling_mode_enum_list[] =
 {
-	{ DRM_MODE_SCALE_NON_GPU, "Non-GPU" },
-	{ DRM_MODE_SCALE_FULLSCREEN, "Fullscreen" },
-	{ DRM_MODE_SCALE_NO_SCALE, "No scale" },
-	{ DRM_MODE_SCALE_ASPECT, "Aspect" },
+	{ DRM_MODE_SCALE_NONE, "None" },
+	{ DRM_MODE_SCALE_FULLSCREEN, "Full" },
+	{ DRM_MODE_SCALE_CENTER, "Center" },
+	{ DRM_MODE_SCALE_ASPECT, "Full aspect" },
 };
 
 static struct drm_prop_enum_list drm_dithering_mode_enum_list[] =
