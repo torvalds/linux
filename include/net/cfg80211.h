@@ -1018,6 +1018,9 @@ struct cfg80211_ops {
 				enum tx_power_setting type, int dbm);
 	int	(*get_tx_power)(struct wiphy *wiphy, int *dbm);
 
+	int	(*set_wds_peer)(struct wiphy *wiphy, struct net_device *dev,
+				u8 *addr);
+
 	void	(*rfkill_poll)(struct wiphy *wiphy);
 
 #ifdef CONFIG_NL80211_TESTMODE
@@ -1618,6 +1621,13 @@ int cfg80211_wext_siwpower(struct net_device *dev,
 int cfg80211_wext_giwpower(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_param *wrq, char *extra);
+
+int cfg80211_wds_wext_siwap(struct net_device *dev,
+			    struct iw_request_info *info,
+			    struct sockaddr *addr, char *extra);
+int cfg80211_wds_wext_giwap(struct net_device *dev,
+			    struct iw_request_info *info,
+			    struct sockaddr *addr, char *extra);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification

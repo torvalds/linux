@@ -140,23 +140,8 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		return cfg80211_mgd_wext_siwap(dev, info, ap_addr, extra);
 
-	if (sdata->vif.type == NL80211_IFTYPE_WDS) {
-		/*
-		 * If it is necessary to update the WDS peer address
-		 * while the interface is running, then we need to do
-		 * more work here, namely if it is running we need to
-		 * add a new and remove the old STA entry, this is
-		 * normally handled by _open() and _stop().
-		 */
-		if (netif_running(dev))
-			return -EBUSY;
-
-		memcpy(&sdata->u.wds.remote_addr, (u8 *) &ap_addr->sa_data,
-		       ETH_ALEN);
-
-		return 0;
-	}
-
+	if (sdata->vif.type == NL80211_IFTYPE_WDS)
+		return cfg80211_wds_wext_siwap(dev, info, ap_addr, extra);
 	return -EOPNOTSUPP;
 }
 
@@ -173,11 +158,8 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		return cfg80211_mgd_wext_giwap(dev, info, ap_addr, extra);
 
-	if (sdata->vif.type == NL80211_IFTYPE_WDS) {
-		ap_addr->sa_family = ARPHRD_ETHER;
-		memcpy(&ap_addr->sa_data, sdata->u.wds.remote_addr, ETH_ALEN);
-		return 0;
-	}
+	if (sdata->vif.type == NL80211_IFTYPE_WDS)
+		return cfg80211_wds_wext_giwap(dev, info, ap_addr, extra);
 
 	return -EOPNOTSUPP;
 }

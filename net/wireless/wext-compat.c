@@ -1047,3 +1047,49 @@ int cfg80211_wext_giwpower(struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwpower);
+
+int cfg80211_wds_wext_siwap(struct net_device *dev,
+			    struct iw_request_info *info,
+			    struct sockaddr *addr, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	int err;
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_WDS))
+		return -EINVAL;
+
+	if (addr->sa_family != ARPHRD_ETHER)
+		return -EINVAL;
+
+	if (netif_running(dev))
+		return -EBUSY;
+
+	if (!rdev->ops->set_wds_peer)
+		return -EOPNOTSUPP;
+
+	err = rdev->ops->set_wds_peer(wdev->wiphy, dev, (u8 *) &addr->sa_data);
+	if (err)
+		return err;
+
+	memcpy(&wdev->wext.bssid, (u8 *) &addr->sa_data, ETH_ALEN);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wds_wext_siwap);
+
+int cfg80211_wds_wext_giwap(struct net_device *dev,
+			    struct iw_request_info *info,
+			    struct sockaddr *addr, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_WDS))
+		return -EINVAL;
+
+	addr->sa_family = ARPHRD_ETHER;
+	memcpy(&addr->sa_data, wdev->wext.bssid, ETH_ALEN);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wds_wext_giwap);
