@@ -855,7 +855,7 @@ static unsigned long total = 0,
 		     total_unknown = 0;
 
 static int
-process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
+process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
 	int show = 0;
@@ -1013,10 +1013,10 @@ process_period_event(event_t *event, unsigned long offset, unsigned long head)
 static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW)
-		return process_overflow_event(event, offset, head);
-
 	switch (event->header.type) {
+	case PERF_EVENT_SAMPLE:
+		return process_sample_event(event, offset, head);
+
 	case PERF_EVENT_MMAP:
 		return process_mmap_event(event, offset, head);
 

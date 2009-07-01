@@ -16,32 +16,28 @@ struct event_symbol {
 	u8	type;
 	u64	config;
 	char	*symbol;
+	char	*alias;
 };
 
-#define C(x, y) .type = PERF_TYPE_##x, .config = PERF_COUNT_##y
-#define CR(x, y) .type = PERF_TYPE_##x, .config = y
+#define CHW(x) .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_##x
+#define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
 
 static struct event_symbol event_symbols[] = {
-  { C(HARDWARE, HW_CPU_CYCLES),		"cpu-cycles",		},
-  { C(HARDWARE, HW_CPU_CYCLES),		"cycles",		},
-  { C(HARDWARE, HW_INSTRUCTIONS),	"instructions",		},
-  { C(HARDWARE, HW_CACHE_REFERENCES),	"cache-references",	},
-  { C(HARDWARE, HW_CACHE_MISSES),	"cache-misses",		},
-  { C(HARDWARE, HW_BRANCH_INSTRUCTIONS),"branch-instructions",	},
-  { C(HARDWARE, HW_BRANCH_INSTRUCTIONS),"branches",		},
-  { C(HARDWARE, HW_BRANCH_MISSES),	"branch-misses",	},
-  { C(HARDWARE, HW_BUS_CYCLES),		"bus-cycles",		},
+  { CHW(CPU_CYCLES),		"cpu-cycles",		"cycles"	},
+  { CHW(INSTRUCTIONS),		"instructions",		""		},
+  { CHW(CACHE_REFERENCES),	"cache-references",	""		},
+  { CHW(CACHE_MISSES),		"cache-misses",		""		},
+  { CHW(BRANCH_INSTRUCTIONS),	"branch-instructions",	"branches"	},
+  { CHW(BRANCH_MISSES),		"branch-misses",	""		},
+  { CHW(BUS_CYCLES),		"bus-cycles",		""		},
 
-  { C(SOFTWARE, SW_CPU_CLOCK),		"cpu-clock",		},
-  { C(SOFTWARE, SW_TASK_CLOCK),		"task-clock",		},
-  { C(SOFTWARE, SW_PAGE_FAULTS),	"page-faults",		},
-  { C(SOFTWARE, SW_PAGE_FAULTS),	"faults",		},
-  { C(SOFTWARE, SW_PAGE_FAULTS_MIN),	"minor-faults",		},
-  { C(SOFTWARE, SW_PAGE_FAULTS_MAJ),	"major-faults",		},
-  { C(SOFTWARE, SW_CONTEXT_SWITCHES),	"context-switches",	},
-  { C(SOFTWARE, SW_CONTEXT_SWITCHES),	"cs",			},
-  { C(SOFTWARE, SW_CPU_MIGRATIONS),	"cpu-migrations",	},
-  { C(SOFTWARE, SW_CPU_MIGRATIONS),	"migrations",		},
+  { CSW(CPU_CLOCK),		"cpu-clock",		""		},
+  { CSW(TASK_CLOCK),		"task-clock",		""		},
+  { CSW(PAGE_FAULTS),		"page-faults",		"faults"	},
+  { CSW(PAGE_FAULTS_MIN),	"minor-faults",		""		},
+  { CSW(PAGE_FAULTS_MAJ),	"major-faults",		""		},
+  { CSW(CONTEXT_SWITCHES),	"context-switches",	"cs"		},
+  { CSW(CPU_MIGRATIONS),	"cpu-migrations",	"migrations"	},
 };
 
 #define __PERF_COUNTER_FIELD(config, name) \
@@ -74,25 +70,69 @@ static char *sw_event_names[] = {
 
 #define MAX_ALIASES 8
 
-static char *hw_cache [][MAX_ALIASES] = {
-	{ "L1-data"		, "l1-d", "l1d"					},
-	{ "L1-instruction"	, "l1-i", "l1i"					},
-	{ "L2"			, "l2"						},
-	{ "Data-TLB"		, "dtlb", "d-tlb"				},
-	{ "Instruction-TLB"	, "itlb", "i-tlb"				},
-	{ "Branch"		, "bpu" , "btb", "bpc"				},
+static char *hw_cache[][MAX_ALIASES] = {
+ { "L1-d$",	"l1-d",		"l1d",		"L1-data",		},
+ { "L1-i$",	"l1-i",		"l1i",		"L1-instruction",	},
+ { "LLC",	"L2"							},
+ { "dTLB",	"d-tlb",	"Data-TLB",				},
+ { "iTLB",	"i-tlb",	"Instruction-TLB",			},
+ { "branch",	"branches",	"bpu",		"btb",		"bpc",	},
 };
 
-static char *hw_cache_op [][MAX_ALIASES] = {
-	{ "Load"		, "read"					},
-	{ "Store"		, "write"					},
-	{ "Prefetch"		, "speculative-read", "speculative-load"	},
+static char *hw_cache_op[][MAX_ALIASES] = {
+ { "load",	"loads",	"read",					},
+ { "store",	"stores",	"write",				},
+ { "prefetch",	"prefetches",	"speculative-read", "speculative-load",	},
 };
 
-static char *hw_cache_result [][MAX_ALIASES] = {
-	{ "Reference"		, "ops", "access"				},
-	{ "Miss"								},
+static char *hw_cache_result[][MAX_ALIASES] = {
+ { "refs",	"Reference",	"ops",		"access",		},
+ { "misses",	"miss",							},
 };
+
+#define C(x)		PERF_COUNT_HW_CACHE_##x
+#define CACHE_READ	(1 << C(OP_READ))
+#define CACHE_WRITE	(1 << C(OP_WRITE))
+#define CACHE_PREFETCH	(1 << C(OP_PREFETCH))
+#define COP(x)		(1 << x)
+
+/*
+ * cache operartion stat
+ * L1I : Read and prefetch only
+ * ITLB and BPU : Read-only
+ */
+static unsigned long hw_cache_stat[C(MAX)] = {
+ [C(L1D)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(L1I)]	= (CACHE_READ | CACHE_PREFETCH),
+ [C(LL)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(DTLB)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(ITLB)]	= (CACHE_READ),
+ [C(BPU)]	= (CACHE_READ),
+};
+
+static int is_cache_op_valid(u8 cache_type, u8 cache_op)
+{
+	if (hw_cache_stat[cache_type] & COP(cache_op))
+		return 1;	/* valid */
+	else
+		return 0;	/* invalid */
+}
+
+static char *event_cache_name(u8 cache_type, u8 cache_op, u8 cache_result)
+{
+	static char name[50];
+
+	if (cache_result) {
+		sprintf(name, "%s-%s-%s", hw_cache[cache_type][0],
+			hw_cache_op[cache_op][0],
+			hw_cache_result[cache_result][0]);
+	} else {
+		sprintf(name, "%s-%s", hw_cache[cache_type][0],
+			hw_cache_op[cache_op][1]);
+	}
+
+	return name;
+}
 
 char *event_name(int counter)
 {
@@ -113,7 +153,6 @@ char *event_name(int counter)
 
 	case PERF_TYPE_HW_CACHE: {
 		u8 cache_type, cache_op, cache_result;
-		static char name[100];
 
 		cache_type   = (config >>  0) & 0xff;
 		if (cache_type > PERF_COUNT_HW_CACHE_MAX)
@@ -127,12 +166,10 @@ char *event_name(int counter)
 		if (cache_result > PERF_COUNT_HW_CACHE_RESULT_MAX)
 			return "unknown-ext-hardware-cache-result";
 
-		sprintf(name, "%s-Cache-%s-%ses",
-			hw_cache[cache_type][0],
-			hw_cache_op[cache_op][0],
-			hw_cache_result[cache_result][0]);
+		if (!is_cache_op_valid(cache_type, cache_op))
+			return "invalid-cache";
 
-		return name;
+		return event_cache_name(cache_type, cache_op, cache_result);
 	}
 
 	case PERF_TYPE_SOFTWARE:
@@ -163,7 +200,8 @@ static int parse_aliases(const char *str, char *names[][MAX_ALIASES], int size)
 	return -1;
 }
 
-static int parse_generic_hw_symbols(const char *str, struct perf_counter_attr *attr)
+static int
+parse_generic_hw_symbols(const char *str, struct perf_counter_attr *attr)
 {
 	int cache_type = -1, cache_op = 0, cache_result = 0;
 
@@ -182,6 +220,9 @@ static int parse_generic_hw_symbols(const char *str, struct perf_counter_attr *a
 	if (cache_op == -1)
 		cache_op = PERF_COUNT_HW_CACHE_OP_READ;
 
+	if (!is_cache_op_valid(cache_type, cache_op))
+		return -EINVAL;
+
 	cache_result = parse_aliases(str, hw_cache_result,
 					PERF_COUNT_HW_CACHE_RESULT_MAX);
 	/*
@@ -193,6 +234,19 @@ static int parse_generic_hw_symbols(const char *str, struct perf_counter_attr *a
 	attr->config = cache_type | (cache_op << 8) | (cache_result << 16);
 	attr->type = PERF_TYPE_HW_CACHE;
 
+	return 0;
+}
+
+static int check_events(const char *str, unsigned int i)
+{
+	if (!strncmp(str, event_symbols[i].symbol,
+		     strlen(event_symbols[i].symbol)))
+		return 1;
+
+	if (strlen(event_symbols[i].alias))
+		if (!strncmp(str, event_symbols[i].alias,
+			     strlen(event_symbols[i].alias)))
+			return 1;
 	return 0;
 }
 
@@ -235,9 +289,7 @@ static int parse_event_symbols(const char *str, struct perf_counter_attr *attr)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
-		if (!strncmp(str, event_symbols[i].symbol,
-			     strlen(event_symbols[i].symbol))) {
-
+		if (check_events(str, i)) {
 			attr->type = event_symbols[i].type;
 			attr->config = event_symbols[i].config;
 
@@ -289,6 +341,7 @@ void print_events(void)
 {
 	struct event_symbol *syms = event_symbols;
 	unsigned int i, type, prev_type = -1;
+	char name[40];
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, "List of pre-defined events (to be used in -e):\n");
@@ -301,14 +354,18 @@ void print_events(void)
 		if (type != prev_type)
 			fprintf(stderr, "\n");
 
-		fprintf(stderr, "  %-30s [%s]\n", syms->symbol,
+		if (strlen(syms->alias))
+			sprintf(name, "%s OR %s", syms->symbol, syms->alias);
+		else
+			strcpy(name, syms->symbol);
+		fprintf(stderr, "  %-40s [%s]\n", name,
 			event_type_descriptors[type]);
 
 		prev_type = type;
 	}
 
 	fprintf(stderr, "\n");
-	fprintf(stderr, "  %-30s [raw hardware event descriptor]\n",
+	fprintf(stderr, "  %-40s [raw hardware event descriptor]\n",
 		"rNNN");
 	fprintf(stderr, "\n");
 
