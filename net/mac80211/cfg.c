@@ -1228,13 +1228,21 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 			   struct cfg80211_assoc_request *req)
 {
 	struct ieee80211_sub_if_data *sdata;
-	int ret;
+	int ret, i;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (memcmp(sdata->u.mgd.bssid, req->peer_addr, ETH_ALEN) != 0 ||
 	    !(sdata->u.mgd.flags & IEEE80211_STA_AUTHENTICATED))
 		return -ENOLINK; /* not authenticated */
+
+	sdata->u.mgd.flags &= ~IEEE80211_STA_TKIP_WEP_USED;
+
+	for (i = 0; i < req->crypto.n_ciphers_pairwise; i++)
+		if (req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP40 ||
+		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_TKIP ||
+		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP104)
+			sdata->u.mgd.flags |= IEEE80211_STA_TKIP_WEP_USED;
 
 	sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
 	sdata->u.mgd.flags |= IEEE80211_STA_BSSID_SET;
