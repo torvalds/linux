@@ -817,7 +817,6 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 	u64 dma_pointer;
 	struct vxge_tx_priv *txdl_priv = NULL;
 	struct __vxge_hw_fifo *fifo_hw;
-	u32 max_mss = 0x0;
 	int offload_type;
 	unsigned long flags = 0;
 	int vpath_no = 0;
@@ -969,10 +968,6 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		int mss = vxge_tcp_mss(skb);
 		if (mss) {
-			max_mss = dev->mtu + ETH_HLEN -
-				VXGE_HW_TCPIP_HEADER_MAX_SIZE;
-			if (mss > max_mss)
-				mss = max_mss;
 			vxge_debug_tx(VXGE_TRACE,
 				"%s: %s:%d mss = %d",
 				dev->name, __func__, __LINE__, mss);
