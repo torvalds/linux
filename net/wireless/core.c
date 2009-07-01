@@ -546,6 +546,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 				"symlink to netdev!\n");
 		}
 		wdev->netdev = dev;
+		wdev->sme_state = CFG80211_SME_IDLE;
 #ifdef CONFIG_WIRELESS_EXT
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
@@ -553,11 +554,20 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		mutex_unlock(&rdev->devlist_mtx);
 		break;
 	case NETDEV_GOING_DOWN:
-		if (wdev->iftype != NL80211_IFTYPE_ADHOC)
-			break;
 		if (!wdev->ssid_len)
 			break;
-		cfg80211_leave_ibss(rdev, dev, true);
+
+		switch (wdev->iftype) {
+		case NL80211_IFTYPE_ADHOC:
+			cfg80211_leave_ibss(rdev, dev, true);
+			break;
+		case NL80211_IFTYPE_STATION:
+			cfg80211_disconnect(rdev, dev,
+					    WLAN_REASON_DEAUTH_LEAVING);
+			break;
+		default:
+			break;
+		}
 		break;
 	case NETDEV_UP:
 #ifdef CONFIG_WIRELESS_EXT

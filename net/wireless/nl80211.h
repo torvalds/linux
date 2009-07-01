@@ -31,6 +31,19 @@ void nl80211_send_auth_timeout(struct cfg80211_registered_device *rdev,
 void nl80211_send_assoc_timeout(struct cfg80211_registered_device *rdev,
 				struct net_device *netdev,
 				const u8 *addr, gfp_t gfp);
+void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
+				 struct net_device *netdev, const u8 *bssid,
+				 const u8 *req_ie, size_t req_ie_len,
+				 const u8 *resp_ie, size_t resp_ie_len,
+				 u16 status, gfp_t gfp);
+void nl80211_send_roamed(struct cfg80211_registered_device *rdev,
+			 struct net_device *netdev, const u8 *bssid,
+			 const u8 *req_ie, size_t req_ie_len,
+			 const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp);
+void nl80211_send_disconnected(struct cfg80211_registered_device *rdev,
+			       struct net_device *netdev, u16 reason,
+			       u8 *ie, size_t ie_len, bool from_ap, gfp_t gfp);
+
 void
 nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
 			    struct net_device *netdev, const u8 *addr,

@@ -1262,7 +1262,7 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 		sdata->u.mgd.flags &= ~IEEE80211_STA_MFP_ENABLED;
 	}
 
-	if (req->control_port)
+	if (req->crypto.control_port)
 		sdata->u.mgd.flags |= IEEE80211_STA_CONTROL_PORT;
 	else
 		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;

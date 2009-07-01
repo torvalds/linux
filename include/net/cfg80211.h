@@ -605,6 +605,30 @@ struct cfg80211_bss {
 };
 
 /**
+ * struct cfg80211_crypto_settings - Crypto settings
+ * @wpa_versions: indicates which, if any, WPA versions are enabled
+ *	(from enum nl80211_wpa_versions)
+ * @cipher_group: group key cipher suite (or 0 if unset)
+ * @n_ciphers_pairwise: number of AP supported unicast ciphers
+ * @ciphers_pairwise: unicast key cipher suites
+ * @n_akm_suites: number of AKM suites
+ * @akm_suites: AKM suites
+ * @control_port: Whether user space controls IEEE 802.1X port, i.e.,
+ *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
+ *	required to assume that the port is unauthorized until authorized by
+ *	user space. Otherwise, port is marked authorized by default.
+ */
+struct cfg80211_crypto_settings {
+	u32 wpa_versions;
+	u32 cipher_group;
+	int n_ciphers_pairwise;
+	u32 ciphers_pairwise[NL80211_MAX_NR_CIPHER_SUITES];
+	int n_akm_suites;
+	u32 akm_suites[NL80211_MAX_NR_AKM_SUITES];
+	bool control_port;
+};
+
+/**
  * struct cfg80211_auth_request - Authentication request data
  *
  * This structure provides information needed to complete IEEE 802.11
@@ -658,10 +682,7 @@ struct cfg80211_auth_request {
  * @ie: Extra IEs to add to (Re)Association Request frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
- * @control_port: Whether user space controls IEEE 802.1X port, i.e.,
- *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
- *	required to assume that the port is unauthorized until authorized by
- *	user space. Otherwise, port is marked authorized by default.
+ * @crypto: crypto settings
  */
 struct cfg80211_assoc_request {
 	struct ieee80211_channel *chan;
@@ -671,7 +692,7 @@ struct cfg80211_assoc_request {
 	const u8 *ie;
 	size_t ie_len;
 	bool use_mfp;
-	bool control_port;
+	struct cfg80211_crypto_settings crypto;
 };
 
 /**
@@ -735,6 +756,36 @@ struct cfg80211_ibss_params {
 	u8 ssid_len, ie_len;
 	u16 beacon_interval;
 	bool channel_fixed;
+};
+
+/**
+ * struct cfg80211_connect_params - Connection parameters
+ *
+ * This structure provides information needed to complete IEEE 802.11
+ * authentication and association.
+ *
+ * @channel: The channel to use or %NULL if not specified (auto-select based
+ *	on scan results)
+ * @bssid: The AP BSSID or %NULL if not specified (auto-select based on scan
+ *	results)
+ * @ssid: SSID
+ * @ssid_len: Length of ssid in octets
+ * @auth_type: Authentication type (algorithm)
+ * @assoc_ie: IEs for association request
+ * @assoc_ie_len: Length of assoc_ie in octets
+ * @privacy: indicates whether privacy-enabled APs should be used
+ * @crypto: crypto settings
+ */
+struct cfg80211_connect_params {
+	struct ieee80211_channel *channel;
+	u8 *bssid;
+	u8 *ssid;
+	size_t ssid_len;
+	enum nl80211_auth_type auth_type;
+	u8 *ie;
+	size_t ie_len;
+	bool privacy;
+	struct cfg80211_crypto_settings crypto;
 };
 
 /**
@@ -841,6 +892,12 @@ enum tx_power_setting {
  * @deauth: Request to deauthenticate from the specified peer
  * @disassoc: Request to disassociate from the specified peer
  *
+ * @connect: Connect to the ESS with the specified parameters. When connected,
+ *	call cfg80211_connect_result() with status code %WLAN_STATUS_SUCCESS.
+ *	If the connection fails for some reason, call cfg80211_connect_result()
+ *	with the status from the AP.
+ * @disconnect: Disconnect from the BSS/ESS.
+ *
  * @join_ibss: Join the specified IBSS (or create if necessary). Once done, call
  *	cfg80211_ibss_joined(), also call that function when changing BSSID due
  *	to a merge.
@@ -945,6 +1002,11 @@ struct cfg80211_ops {
 			  struct cfg80211_deauth_request *req);
 	int	(*disassoc)(struct wiphy *wiphy, struct net_device *dev,
 			    struct cfg80211_disassoc_request *req);
+
+	int	(*connect)(struct wiphy *wiphy, struct net_device *dev,
+			   struct cfg80211_connect_params *sme);
+	int	(*disconnect)(struct wiphy *wiphy, struct net_device *dev,
+			      u16 reason_code);
 
 	int	(*join_ibss)(struct wiphy *wiphy, struct net_device *dev,
 			     struct cfg80211_ibss_params *params);
@@ -1174,10 +1236,15 @@ struct wireless_dev {
 	struct list_head list;
 	struct net_device *netdev;
 
-	/* currently used for IBSS - might be rearranged in the future */
+	/* currently used for IBSS and SME - might be rearranged later */
 	struct cfg80211_bss *current_bss;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len;
+	enum {
+		CFG80211_SME_IDLE,
+		CFG80211_SME_CONNECTING, /* ->connect called */
+		CFG80211_SME_CONNECTED,
+	} sme_state;
 
 #ifdef CONFIG_WIRELESS_EXT
 	/* wext data */
@@ -1787,5 +1854,61 @@ void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp);
 #else
 #define CFG80211_TESTMODE_CMD(cmd)
 #endif
+
+/**
+ * cfg80211_connect_result - notify cfg80211 of connection result
+ *
+ * @dev: network device
+ * @bssid: the BSSID of the AP
+ * @req_ie: association request IEs (maybe be %NULL)
+ * @req_ie_len: association request IEs length
+ * @resp_ie: association response IEs (may be %NULL)
+ * @resp_ie_len: assoc response IEs length
+ * @status: status code, 0 for successful connection, use
+ *	%WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
+ *	the real status code for failures.
+ * @gfp: allocation flags
+ *
+ * It should be called by the underlying driver whenever connect() has
+ * succeeded.
+ */
+void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
+			     const u8 *req_ie, size_t req_ie_len,
+			     const u8 *resp_ie, size_t resp_ie_len,
+			     u16 status, gfp_t gfp);
+
+/**
+ * cfg80211_roamed - notify cfg80211 of roaming
+ *
+ * @dev: network device
+ * @bssid: the BSSID of the new AP
+ * @req_ie: association request IEs (maybe be %NULL)
+ * @req_ie_len: association request IEs length
+ * @resp_ie: association response IEs (may be %NULL)
+ * @resp_ie_len: assoc response IEs length
+ * @gfp: allocation flags
+ *
+ * It should be called by the underlying driver whenever it roamed
+ * from one AP to another while connected.
+ */
+void cfg80211_roamed(struct net_device *dev, const u8 *bssid,
+		     const u8 *req_ie, size_t req_ie_len,
+		     const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp);
+
+/**
+ * cfg80211_disconnected - notify cfg80211 that connection was dropped
+ *
+ * @dev: network device
+ * @ie: information elements of the deauth/disassoc frame (may be %NULL)
+ * @ie_len: length of IEs
+ * @reason: reason code for the disconnection, set it to 0 if unknown
+ * @gfp: allocation flags
+ *
+ * After it calls this function, the driver should enter an idle state
+ * and not try to connect to any AP any more.
+ */
+void cfg80211_disconnected(struct net_device *dev, u16 reason,
+			   u8 *ie, size_t ie_len, gfp_t gfp);
+
 
 #endif /* __NET_CFG80211_H */
