@@ -977,12 +977,14 @@ static s32 e1000_set_d0_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 		phy_ctrl |= E1000_PHY_CTRL_D0A_LPLU;
 		ew32(PHY_CTRL, phy_ctrl);
 
+		if (phy->type != e1000_phy_igp_3)
+			return 0;
+
 		/*
 		 * Call gig speed drop workaround on LPLU before accessing
 		 * any PHY registers
 		 */
-		if ((hw->mac.type == e1000_ich8lan) &&
-		    (hw->phy.type == e1000_phy_igp_3))
+		if (hw->mac.type == e1000_ich8lan)
 			e1000e_gig_downshift_workaround_ich8lan(hw);
 
 		/* When LPLU is enabled, we should disable SmartSpeed */
@@ -994,6 +996,9 @@ static s32 e1000_set_d0_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 	} else {
 		phy_ctrl &= ~E1000_PHY_CTRL_D0A_LPLU;
 		ew32(PHY_CTRL, phy_ctrl);
+
+		if (phy->type != e1000_phy_igp_3)
+			return 0;
 
 		/*
 		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
@@ -1054,6 +1059,10 @@ static s32 e1000_set_d3_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 	if (!active) {
 		phy_ctrl &= ~E1000_PHY_CTRL_NOND0A_LPLU;
 		ew32(PHY_CTRL, phy_ctrl);
+
+		if (phy->type != e1000_phy_igp_3)
+			return 0;
+
 		/*
 		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
 		 * during Dx states where the power conservation is most
@@ -1089,12 +1098,14 @@ static s32 e1000_set_d3_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 		phy_ctrl |= E1000_PHY_CTRL_NOND0A_LPLU;
 		ew32(PHY_CTRL, phy_ctrl);
 
+		if (phy->type != e1000_phy_igp_3)
+			return 0;
+
 		/*
 		 * Call gig speed drop workaround on LPLU before accessing
 		 * any PHY registers
 		 */
-		if ((hw->mac.type == e1000_ich8lan) &&
-		    (hw->phy.type == e1000_phy_igp_3))
+		if (hw->mac.type == e1000_ich8lan)
 			e1000e_gig_downshift_workaround_ich8lan(hw);
 
 		/* When LPLU is enabled, we should disable SmartSpeed */
