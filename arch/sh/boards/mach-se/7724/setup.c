@@ -454,7 +454,7 @@ static int __init devices_setup(void)
 	gpio_request(GPIO_FN_VIO0_CLK, NULL);
 	gpio_request(GPIO_FN_VIO0_FLD, NULL);
 	gpio_request(GPIO_FN_VIO0_HD,  NULL);
-	platform_resource_setup_memory(&ceu0_device, "ceu", 4 << 20);
+	platform_resource_setup_memory(&ceu0_device, "ceu0", 4 << 20);
 
 	/* enable CEU1 */
 	gpio_request(GPIO_FN_VIO1_D7,  NULL);
@@ -469,7 +469,7 @@ static int __init devices_setup(void)
 	gpio_request(GPIO_FN_VIO1_HD,  NULL);
 	gpio_request(GPIO_FN_VIO1_VD,  NULL);
 	gpio_request(GPIO_FN_VIO1_CLK, NULL);
-	platform_resource_setup_memory(&ceu1_device, "ceu", 4 << 20);
+	platform_resource_setup_memory(&ceu1_device, "ceu1", 4 << 20);
 
 	/* KEYSC */
 	gpio_request(GPIO_FN_KEYOUT5_IN5, NULL);
