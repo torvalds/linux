@@ -104,7 +104,10 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		if (obj->name)
 			seq_printf(m, " (name: %d)", obj->name);
 		if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
-			seq_printf(m, " (fence: %d)\n", obj_priv->fence_reg);
+			seq_printf(m, " (fence: %d)", obj_priv->fence_reg);
+		if (obj_priv->gtt_space != NULL)
+			seq_printf(m, " (gtt_offset: %08x)", obj_priv->gtt_offset);
+
 		seq_printf(m, "\n");
 	}
 
