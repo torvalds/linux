@@ -4325,6 +4325,27 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		ll_config.device_hw_info.fw_version.version,
 		ll_config.device_hw_info.fw_date.date);
 
+	if (new_device) {
+		switch (ll_config.device_hw_info.function_mode) {
+		case VXGE_HW_FUNCTION_MODE_SINGLE_FUNCTION:
+			vxge_debug_init(VXGE_TRACE,
+			"%s: Single Function Mode Enabled", vdev->ndev->name);
+		break;
+		case VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION:
+			vxge_debug_init(VXGE_TRACE,
+			"%s: Multi Function Mode Enabled", vdev->ndev->name);
+		break;
+		case VXGE_HW_FUNCTION_MODE_SRIOV:
+			vxge_debug_init(VXGE_TRACE,
+			"%s: Single Root IOV Mode Enabled", vdev->ndev->name);
+		break;
+		case VXGE_HW_FUNCTION_MODE_MRIOV:
+			vxge_debug_init(VXGE_TRACE,
+			"%s: Multi Root IOV Mode Enabled", vdev->ndev->name);
+		break;
+		}
+	}
+
 	vxge_print_parm(vdev, vpath_mask);
 
 	/* Store the fw version for ethttool option */
