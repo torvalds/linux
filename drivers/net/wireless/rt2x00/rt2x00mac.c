@@ -688,3 +688,12 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_conf_tx);
+
+void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	bool blocked = !!rt2x00dev->ops->lib->rfkill_poll(rt2x00dev);
+
+	wiphy_rfkill_set_hw_state(hw->wiphy, blocked);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_rfkill_poll);

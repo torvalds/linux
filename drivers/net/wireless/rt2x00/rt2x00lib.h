@@ -30,10 +30,8 @@
 
 /*
  * Interval defines
- * Both the link tuner as the rfkill will be called once per second.
  */
 #define LINK_TUNE_INTERVAL	round_jiffies_relative(HZ)
-#define RFKILL_POLL_INTERVAL	1000
 
 /*
  * rt2x00_rate: Per rate device information
@@ -386,28 +384,17 @@ static inline void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 /*
  * RFkill handlers.
  */
-#ifdef CONFIG_RT2X00_LIB_RFKILL
-void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev);
-void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev);
-void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev);
-void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev);
-#else
 static inline void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 {
+	if (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+		wiphy_rfkill_start_polling(rt2x00dev->hw->wiphy);
 }
 
 static inline void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
 {
+	if (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+		wiphy_rfkill_stop_polling(rt2x00dev->hw->wiphy);
 }
-
-static inline void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
-{
-}
-
-static inline void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)
-{
-}
-#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 /*
  * LED handlers

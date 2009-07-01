@@ -651,18 +651,6 @@ struct rt2x00_dev {
 	enum ieee80211_band curr_band;
 
 	/*
-	 * rfkill structure for RF state switching support.
-	 * This will only be compiled in when required.
-	 */
-#ifdef CONFIG_RT2X00_LIB_RFKILL
-	unsigned long rfkill_state;
-#define RFKILL_STATE_ALLOCATED		1
-#define RFKILL_STATE_REGISTERED		2
-#define RFKILL_STATE_BLOCKED		3
-	struct input_polled_dev *rfkill_poll_dev;
-#endif /* CONFIG_RT2X00_LIB_RFKILL */
-
-	/*
 	 * If enabled, the debugfs interface structures
 	 * required for deregistration of debugfs.
 	 */
@@ -992,6 +980,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				u32 changes);
 int rt2x00mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		      const struct ieee80211_tx_queue_params *params);
+void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw);
 
 /*
  * Driver allocation handlers.
