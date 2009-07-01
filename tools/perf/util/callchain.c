@@ -74,7 +74,7 @@ fill_node(struct callchain_node *node, struct ip_callchain *chain, int start)
 	for (i = start; i < chain->nr; i++) {
 		struct callchain_list *call;
 
-		call = malloc(sizeof(*chain));
+		call = malloc(sizeof(*call));
 		if (!call) {
 			perror("not enough memory for the code path tree");
 			return;
