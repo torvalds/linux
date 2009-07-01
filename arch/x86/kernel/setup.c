@@ -145,6 +145,8 @@ struct boot_params __initdata boot_params;
 struct boot_params boot_params;
 #endif
 
+#include <asm/tboot.h>
+
 /*
  * Machine setup..
  */
@@ -963,6 +965,8 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 	paravirt_pagetable_setup_done(swapper_pg_dir);
 	paravirt_post_allocator_init();
+
+	tboot_probe();
 
 #ifdef CONFIG_X86_64
 	map_vsyscall();

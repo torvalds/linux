@@ -113,6 +113,36 @@ config SECURITY_ROOTPLUG
 
 	  If you are unsure how to answer this question, answer N.
 
+config INTEL_TXT
+	bool "Enable Intel(R) Trusted Execution Technology (Intel(R) TXT)"
+	depends on EXPERIMENTAL && X86 && DMAR && ACPI
+	help
+	  This option enables support for booting the kernel with the
+	  Trusted Boot (tboot) module. This will utilize
+	  Intel(R) Trusted Execution Technology to perform a measured launch
+	  of the kernel. If the system does not support Intel(R) TXT, this
+	  will have no effect.
+
+	  Intel TXT will provide higher assurance of sysem configuration and
+	  initial state as well as data reset protection.  This is used to
+	  create a robust initial kernel measurement and verification, which
+	  helps to ensure that kernel security mechanisms are functioning
+	  correctly. This level of protection requires a root of trust outside
+	  of the kernel itself.
+
+	  Intel TXT also helps solve real end user concerns about having
+	  confidence that their hardware is running the VMM or kernel that
+	  it was conigured with, especially since they may be responsible for
+	  providing such assurances to VMs and services running on it.
+
+	  See <http://www.intel.com/technology/security/> for more information
+	  about Intel(R) TXT.
+	  See <http://tboot.sourceforge.net> for more information about tboot.
+	  See Documentation/intel_txt.txt for a description of how to enable
+	  Intel TXT support in a kernel boot.
+
+	  If you are unsure as to whether this is required, answer N.
+
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig
