@@ -60,7 +60,18 @@
 #define _NETXEN_NIC_LINUX_SUBVERSION 30
 #define NETXEN_NIC_LINUX_VERSIONID  "4.0.30"
 
-#define NETXEN_VERSION_CODE(a, b, c)	(((a) << 16) + ((b) << 8) + (c))
+#define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
+#define _major(v)	(((v) >> 24) & 0xff)
+#define _minor(v)	(((v) >> 16) & 0xff)
+#define _build(v)	((v) & 0xffff)
+
+/* version in image has weird encoding:
+ *  7:0  - major
+ * 15:8  - minor
+ * 31:16 - build (little endian)
+ */
+#define NETXEN_DECODE_VERSION(v) \
+	NETXEN_VERSION_CODE(((v) & 0xff), (((v) >> 8) & 0xff), ((v) >> 16))
 
 #define NETXEN_NUM_FLASH_SECTORS (64)
 #define NETXEN_FLASH_SECTOR_SIZE (64 * 1024)
