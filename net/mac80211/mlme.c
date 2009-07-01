@@ -870,70 +870,6 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 	return changed;
 }
 
-static void ieee80211_sta_send_apinfo(struct ieee80211_sub_if_data *sdata)
-{
-	union iwreq_data wrqu;
-
-	memset(&wrqu, 0, sizeof(wrqu));
-	if (sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED)
-		memcpy(wrqu.ap_addr.sa_data, sdata->u.mgd.bssid, ETH_ALEN);
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	wireless_send_event(sdata->dev, SIOCGIWAP, &wrqu, NULL);
-}
-
-static void ieee80211_sta_send_associnfo(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	char *buf;
-	size_t len;
-	int i;
-	union iwreq_data wrqu;
-
-	if (!ifmgd->assocreq_ies && !ifmgd->assocresp_ies)
-		return;
-
-	buf = kmalloc(50 + 2 * (ifmgd->assocreq_ies_len +
-				ifmgd->assocresp_ies_len), GFP_KERNEL);
-	if (!buf)
-		return;
-
-	len = sprintf(buf, "ASSOCINFO(");
-	if (ifmgd->assocreq_ies) {
-		len += sprintf(buf + len, "ReqIEs=");
-		for (i = 0; i < ifmgd->assocreq_ies_len; i++) {
-			len += sprintf(buf + len, "%02x",
-				       ifmgd->assocreq_ies[i]);
-		}
-	}
-	if (ifmgd->assocresp_ies) {
-		if (ifmgd->assocreq_ies)
-			len += sprintf(buf + len, " ");
-		len += sprintf(buf + len, "RespIEs=");
-		for (i = 0; i < ifmgd->assocresp_ies_len; i++) {
-			len += sprintf(buf + len, "%02x",
-				       ifmgd->assocresp_ies[i]);
-		}
-	}
-	len += sprintf(buf + len, ")");
-
-	if (len > IW_CUSTOM_MAX) {
-		len = sprintf(buf, "ASSOCRESPIE=");
-		for (i = 0; i < ifmgd->assocresp_ies_len; i++) {
-			len += sprintf(buf + len, "%02x",
-				       ifmgd->assocresp_ies[i]);
-		}
-	}
-
-	if (len <= IW_CUSTOM_MAX) {
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = len;
-		wireless_send_event(sdata->dev, IWEVCUSTOM, &wrqu, buf);
-	}
-
-	kfree(buf);
-}
-
-
 static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 				     u32 bss_info_changed)
 {
@@ -966,7 +902,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->flags |= IEEE80211_STA_PREV_BSSID_SET;
 	memcpy(ifmgd->prev_bssid, sdata->u.mgd.bssid, ETH_ALEN);
-	ieee80211_sta_send_associnfo(sdata);
 
 	ifmgd->last_probe = jiffies;
 	ieee80211_led_assoc(local, 1);
@@ -993,8 +928,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
-
-	ieee80211_sta_send_apinfo(sdata);
 }
 
 static void ieee80211_direct_probe(struct ieee80211_sub_if_data *sdata)
@@ -1146,8 +1079,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_led_assoc(local, 0);
 	changed |= BSS_CHANGED_ASSOC;
 	sdata->vif.bss_conf.assoc = false;
-
-	ieee80211_sta_send_apinfo(sdata);
 
 	if (self_disconnected || reason == WLAN_REASON_DISASSOC_STA_HAS_LEFT) {
 		ifmgd->state = IEEE80211_STA_MLME_DISABLED;

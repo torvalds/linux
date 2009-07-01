@@ -273,10 +273,10 @@ void cfg80211_sme_rx_auth(struct net_device *dev, const u8 *buf, size_t len)
 	}
 }
 
-void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
-			     const u8 *req_ie, size_t req_ie_len,
-			     const u8 *resp_ie, size_t resp_ie_len,
-			     u16 status, gfp_t gfp)
+static void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
+				      const u8 *req_ie, size_t req_ie_len,
+				      const u8 *resp_ie, size_t resp_ie_len,
+				      u16 status, bool wextev, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_bss *bss;
@@ -321,24 +321,35 @@ void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 				    status, gfp);
 
 #ifdef CONFIG_WIRELESS_EXT
-	if (req_ie && status == WLAN_STATUS_SUCCESS) {
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = req_ie_len;
-		wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, req_ie);
-	}
+	if (wextev) {
+		if (req_ie && status == WLAN_STATUS_SUCCESS) {
+			memset(&wrqu, 0, sizeof(wrqu));
+			wrqu.data.length = req_ie_len;
+			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, req_ie);
+		}
 
-	if (resp_ie && status == WLAN_STATUS_SUCCESS) {
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = resp_ie_len;
-		wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, resp_ie);
-	}
+		if (resp_ie && status == WLAN_STATUS_SUCCESS) {
+			memset(&wrqu, 0, sizeof(wrqu));
+			wrqu.data.length = resp_ie_len;
+			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, resp_ie);
+		}
 
-	memset(&wrqu, 0, sizeof(wrqu));
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	if (bssid && status == WLAN_STATUS_SUCCESS)
-		memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
-	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
+		memset(&wrqu, 0, sizeof(wrqu));
+		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
+		if (bssid && status == WLAN_STATUS_SUCCESS)
+			memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
+		wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
+	}
 #endif
+}
+
+void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
+			     const u8 *req_ie, size_t req_ie_len,
+			     const u8 *resp_ie, size_t resp_ie_len,
+			     u16 status, gfp_t gfp)
+{
+	bool wextev = status == WLAN_STATUS_SUCCESS;
+	__cfg80211_connect_result(dev, bssid, req_ie, req_ie_len, resp_ie, resp_ie_len, status, wextev, gfp);
 }
 EXPORT_SYMBOL(cfg80211_connect_result);
 
@@ -540,7 +551,7 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 }
 
 int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
-			struct net_device *dev, u16 reason)
+			struct net_device *dev, u16 reason, bool wextev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -585,9 +596,9 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 	if (wdev->sme_state == CFG80211_SME_CONNECTED)
 		__cfg80211_disconnected(dev, GFP_KERNEL, NULL, 0, 0, false);
 	else if (wdev->sme_state == CFG80211_SME_CONNECTING)
-		cfg80211_connect_result(dev, NULL, NULL, 0, NULL, 0,
-					WLAN_STATUS_UNSPECIFIED_FAILURE,
-					GFP_KERNEL);
+		__cfg80211_connect_result(dev, NULL, NULL, 0, NULL, 0,
+					  WLAN_STATUS_UNSPECIFIED_FAILURE,
+					  wextev, GFP_KERNEL);
 
 	return 0;
 }

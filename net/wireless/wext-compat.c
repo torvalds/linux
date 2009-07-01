@@ -261,50 +261,6 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwrange);
 
-int cfg80211_wext_siwmlme(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_point *data, char *extra)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct iw_mlme *mlme = (struct iw_mlme *)extra;
-	struct cfg80211_registered_device *rdev;
-	union {
-		struct cfg80211_disassoc_request disassoc;
-		struct cfg80211_deauth_request deauth;
-	} cmd;
-
-	if (!wdev)
-		return -EOPNOTSUPP;
-
-	rdev = wiphy_to_dev(wdev->wiphy);
-
-	if (wdev->iftype != NL80211_IFTYPE_STATION)
-		return -EINVAL;
-
-	if (mlme->addr.sa_family != ARPHRD_ETHER)
-		return -EINVAL;
-
-	memset(&cmd, 0, sizeof(cmd));
-
-	switch (mlme->cmd) {
-	case IW_MLME_DEAUTH:
-		if (!rdev->ops->deauth)
-			return -EOPNOTSUPP;
-		cmd.deauth.peer_addr = mlme->addr.sa_data;
-		cmd.deauth.reason_code = mlme->reason_code;
-		return rdev->ops->deauth(wdev->wiphy, dev, &cmd.deauth);
-	case IW_MLME_DISASSOC:
-		if (!rdev->ops->disassoc)
-			return -EOPNOTSUPP;
-		cmd.disassoc.peer_addr = mlme->addr.sa_data;
-		cmd.disassoc.reason_code = mlme->reason_code;
-		return rdev->ops->disassoc(wdev->wiphy, dev, &cmd.disassoc);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwmlme);
-
 
 /**
  * cfg80211_wext_freq - get wext frequency for non-"auto"
@@ -846,3 +802,188 @@ int cfg80211_wext_giwtxpower(struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwtxpower);
+
+static int cfg80211_set_auth_alg(struct wireless_dev *wdev,
+				 s32 auth_alg)
+{
+	int nr_alg = 0;
+
+	if (!auth_alg)
+		return -EINVAL;
+
+	if (auth_alg & ~(IW_AUTH_ALG_OPEN_SYSTEM |
+			 IW_AUTH_ALG_SHARED_KEY |
+			 IW_AUTH_ALG_LEAP))
+		return -EINVAL;
+
+	if (auth_alg & IW_AUTH_ALG_OPEN_SYSTEM) {
+		nr_alg++;
+		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_OPEN_SYSTEM;
+	}
+
+	if (auth_alg & IW_AUTH_ALG_SHARED_KEY) {
+		nr_alg++;
+		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_SHARED_KEY;
+	}
+
+	if (auth_alg & IW_AUTH_ALG_LEAP) {
+		nr_alg++;
+		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_NETWORK_EAP;
+	}
+
+	if (nr_alg > 1)
+		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
+
+	return 0;
+}
+
+static int cfg80211_set_wpa_version(struct wireless_dev *wdev, u32 wpa_versions)
+{
+	wdev->wext.connect.crypto.wpa_versions = 0;
+
+	if (wpa_versions & ~(IW_AUTH_WPA_VERSION_WPA |
+			     IW_AUTH_WPA_VERSION_WPA2))
+		return -EINVAL;
+
+	if (wpa_versions & IW_AUTH_WPA_VERSION_WPA)
+		wdev->wext.connect.crypto.wpa_versions |=
+			NL80211_WPA_VERSION_1;
+
+	if (wpa_versions & IW_AUTH_WPA_VERSION_WPA2)
+		wdev->wext.connect.crypto.wpa_versions |=
+			NL80211_WPA_VERSION_2;
+
+	return 0;
+}
+
+int cfg80211_set_cipher_group(struct wireless_dev *wdev, u32 cipher)
+{
+	wdev->wext.connect.crypto.cipher_group = 0;
+
+	if (cipher & IW_AUTH_CIPHER_WEP40)
+		wdev->wext.connect.crypto.cipher_group =
+			WLAN_CIPHER_SUITE_WEP40;
+	else if (cipher & IW_AUTH_CIPHER_WEP104)
+		wdev->wext.connect.crypto.cipher_group =
+			WLAN_CIPHER_SUITE_WEP104;
+	else if (cipher & IW_AUTH_CIPHER_TKIP)
+		wdev->wext.connect.crypto.cipher_group =
+			WLAN_CIPHER_SUITE_TKIP;
+	else if (cipher & IW_AUTH_CIPHER_CCMP)
+		wdev->wext.connect.crypto.cipher_group =
+			WLAN_CIPHER_SUITE_CCMP;
+	else if (cipher & IW_AUTH_CIPHER_AES_CMAC)
+		wdev->wext.connect.crypto.cipher_group =
+			WLAN_CIPHER_SUITE_AES_CMAC;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+int cfg80211_set_cipher_pairwise(struct wireless_dev *wdev, u32 cipher)
+{
+	int nr_ciphers = 0;
+	u32 *ciphers_pairwise = wdev->wext.connect.crypto.ciphers_pairwise;
+
+	if (cipher & IW_AUTH_CIPHER_WEP40) {
+		ciphers_pairwise[nr_ciphers] = WLAN_CIPHER_SUITE_WEP40;
+		nr_ciphers++;
+	}
+
+	if (cipher & IW_AUTH_CIPHER_WEP104) {
+		ciphers_pairwise[nr_ciphers] = WLAN_CIPHER_SUITE_WEP104;
+		nr_ciphers++;
+	}
+
+	if (cipher & IW_AUTH_CIPHER_TKIP) {
+		ciphers_pairwise[nr_ciphers] = WLAN_CIPHER_SUITE_TKIP;
+		nr_ciphers++;
+	}
+
+	if (cipher & IW_AUTH_CIPHER_CCMP) {
+		ciphers_pairwise[nr_ciphers] = WLAN_CIPHER_SUITE_CCMP;
+		nr_ciphers++;
+	}
+
+	if (cipher & IW_AUTH_CIPHER_AES_CMAC) {
+		ciphers_pairwise[nr_ciphers] = WLAN_CIPHER_SUITE_AES_CMAC;
+		nr_ciphers++;
+	}
+
+	BUILD_BUG_ON(NL80211_MAX_NR_CIPHER_SUITES < 5);
+
+	wdev->wext.connect.crypto.n_ciphers_pairwise = nr_ciphers;
+
+	return 0;
+}
+
+
+int cfg80211_set_key_mgt(struct wireless_dev *wdev, u32 key_mgt)
+{
+	int nr_akm_suites = 0;
+
+	if (key_mgt & ~(IW_AUTH_KEY_MGMT_802_1X |
+			IW_AUTH_KEY_MGMT_PSK))
+		return -EINVAL;
+
+	if (key_mgt & IW_AUTH_KEY_MGMT_802_1X) {
+		wdev->wext.connect.crypto.akm_suites[nr_akm_suites] =
+			WLAN_AKM_SUITE_8021X;
+		nr_akm_suites++;
+	}
+
+	if (key_mgt & IW_AUTH_KEY_MGMT_PSK) {
+		wdev->wext.connect.crypto.akm_suites[nr_akm_suites] =
+			WLAN_AKM_SUITE_PSK;
+		nr_akm_suites++;
+	}
+
+	wdev->wext.connect.crypto.n_akm_suites = nr_akm_suites;
+
+	return 0;
+}
+
+int cfg80211_wext_siwauth(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *data, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	switch (data->flags & IW_AUTH_INDEX) {
+	case IW_AUTH_PRIVACY_INVOKED:
+		wdev->wext.connect.privacy = data->value;
+		return 0;
+	case IW_AUTH_WPA_VERSION:
+		return cfg80211_set_wpa_version(wdev, data->value);
+	case IW_AUTH_CIPHER_GROUP:
+		return cfg80211_set_cipher_group(wdev, data->value);
+	case IW_AUTH_KEY_MGMT:
+		return cfg80211_set_key_mgt(wdev, data->value);
+	case IW_AUTH_CIPHER_PAIRWISE:
+		return cfg80211_set_cipher_pairwise(wdev, data->value);
+	case IW_AUTH_80211_AUTH_ALG:
+		return cfg80211_set_auth_alg(wdev, data->value);
+	case IW_AUTH_WPA_ENABLED:
+	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
+	case IW_AUTH_DROP_UNENCRYPTED:
+	case IW_AUTH_MFP:
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwauth);
+
+int cfg80211_wext_giwauth(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *data, char *extra)
+{
+	/* XXX: what do we need? */
+
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwauth);

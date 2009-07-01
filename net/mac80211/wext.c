@@ -27,29 +27,6 @@
 #include "aes_ccm.h"
 
 
-static int ieee80211_ioctl_siwgenie(struct net_device *dev,
-				    struct iw_request_info *info,
-				    struct iw_point *data, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		int ret = ieee80211_sta_set_extra_ie(sdata, extra, data->length);
-		if (ret && ret != -EALREADY)
-			return ret;
-		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
-		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
-		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
-		if (ret != -EALREADY)
-			ieee80211_sta_req_auth(sdata);
-		return 0;
-	}
-
-	return -EOPNOTSUPP;
-}
-
 static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 				   struct iw_request_info *info,
 				   struct iw_freq *freq, char *extra)
@@ -61,16 +38,13 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		return cfg80211_ibss_wext_siwfreq(dev, info, freq, extra);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_CHANNEL_SEL;
+		return cfg80211_mgd_wext_siwfreq(dev, info, freq, extra);
 
 	/* freq->e == 0: freq->m = channel; otherwise freq = m * 10^e */
 	if (freq->e == 0) {
-		if (freq->m < 0) {
-			if (sdata->vif.type == NL80211_IFTYPE_STATION)
-				sdata->u.mgd.flags |=
-					IEEE80211_STA_AUTO_CHANNEL_SEL;
-			return 0;
-		} else
+		if (freq->m < 0)
+			return -EINVAL;
+		else
 			chan = ieee80211_get_channel(local->hw.wiphy,
 				ieee80211_channel_to_frequency(freq->m));
 	} else {
@@ -95,9 +69,6 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 	if (local->oper_channel == chan)
 		return 0;
 
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		ieee80211_sta_req_auth(sdata);
-
 	local->oper_channel = chan;
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
 	ieee80211_hw_config(local, 0);
@@ -115,6 +86,8 @@ static int ieee80211_ioctl_giwfreq(struct net_device *dev,
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
+	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		return cfg80211_mgd_wext_giwfreq(dev, info, freq, extra);
 
 	freq->m = local->oper_channel->center_freq;
 	freq->e = 6;
@@ -128,31 +101,11 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 				    struct iw_point *data, char *ssid)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	size_t len = data->length;
-	int ret;
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		return cfg80211_ibss_wext_siwessid(dev, info, data, ssid);
-
-	/* iwconfig uses nul termination in SSID.. */
-	if (len > 0 && ssid[len - 1] == '\0')
-		len--;
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		if (data->flags)
-			sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
-		else
-			sdata->u.mgd.flags |= IEEE80211_STA_AUTO_SSID_SEL;
-
-		ret = ieee80211_sta_set_ssid(sdata, ssid, len);
-		if (ret)
-			return ret;
-
-		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
-		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
-		ieee80211_sta_req_auth(sdata);
-		return 0;
-	}
+	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		return cfg80211_mgd_wext_siwessid(dev, info, data, ssid);
 
 	return -EOPNOTSUPP;
 }
@@ -162,23 +115,14 @@ static int ieee80211_ioctl_giwessid(struct net_device *dev,
 				    struct iw_request_info *info,
 				    struct iw_point *data, char *ssid)
 {
-	size_t len;
 	struct ieee80211_sub_if_data *sdata;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		return cfg80211_ibss_wext_giwessid(dev, info, data, ssid);
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		int res = ieee80211_sta_get_ssid(sdata, ssid, &len);
-		if (res == 0) {
-			data->length = len;
-			data->flags = 1;
-		} else
-			data->flags = 0;
-		return res;
-	}
+	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		return cfg80211_mgd_wext_giwessid(dev, info, data, ssid);
 
 	return -EOPNOTSUPP;
 }
@@ -193,24 +137,10 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		return cfg80211_ibss_wext_siwap(dev, info, ap_addr, extra);
 
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		int ret;
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		return cfg80211_mgd_wext_siwap(dev, info, ap_addr, extra);
 
-		if (is_zero_ether_addr((u8 *) &ap_addr->sa_data))
-			sdata->u.mgd.flags |= IEEE80211_STA_AUTO_BSSID_SEL |
-				IEEE80211_STA_AUTO_CHANNEL_SEL;
-		else if (is_broadcast_ether_addr((u8 *) &ap_addr->sa_data))
-			sdata->u.mgd.flags |= IEEE80211_STA_AUTO_BSSID_SEL;
-		else
-			sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
-		ret = ieee80211_sta_set_bssid(sdata, (u8 *) &ap_addr->sa_data);
-		if (ret)
-			return ret;
-		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
-		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
-		ieee80211_sta_req_auth(sdata);
-		return 0;
-	} else if (sdata->vif.type == NL80211_IFTYPE_WDS) {
+	if (sdata->vif.type == NL80211_IFTYPE_WDS) {
 		/*
 		 * If it is necessary to update the WDS peer address
 		 * while the interface is running, then we need to do
@@ -240,14 +170,10 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		return cfg80211_ibss_wext_giwap(dev, info, ap_addr, extra);
 
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		if (sdata->u.mgd.state == IEEE80211_STA_MLME_ASSOCIATED) {
-			ap_addr->sa_family = ARPHRD_ETHER;
-			memcpy(&ap_addr->sa_data, sdata->u.mgd.bssid, ETH_ALEN);
-		} else
-			memset(&ap_addr->sa_data, 0, ETH_ALEN);
-		return 0;
-	} else if (sdata->vif.type == NL80211_IFTYPE_WDS) {
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		return cfg80211_mgd_wext_giwap(dev, info, ap_addr, extra);
+
+	if (sdata->vif.type == NL80211_IFTYPE_WDS) {
 		ap_addr->sa_family = ARPHRD_ETHER;
 		memcpy(&ap_addr->sa_data, sdata->u.wds.remote_addr, ETH_ALEN);
 		return 0;
@@ -395,85 +321,6 @@ static int ieee80211_ioctl_giwpower(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_siwauth(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_param *data, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	int ret = 0;
-
-	switch (data->flags & IW_AUTH_INDEX) {
-	case IW_AUTH_WPA_VERSION:
-	case IW_AUTH_CIPHER_GROUP:
-	case IW_AUTH_WPA_ENABLED:
-	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
-	case IW_AUTH_KEY_MGMT:
-	case IW_AUTH_CIPHER_GROUP_MGMT:
-		break;
-	case IW_AUTH_CIPHER_PAIRWISE:
-		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			if (data->value & (IW_AUTH_CIPHER_WEP40 |
-			    IW_AUTH_CIPHER_WEP104 | IW_AUTH_CIPHER_TKIP))
-				sdata->u.mgd.flags |=
-					IEEE80211_STA_TKIP_WEP_USED;
-			else
-				sdata->u.mgd.flags &=
-					~IEEE80211_STA_TKIP_WEP_USED;
-		}
-		break;
-	case IW_AUTH_DROP_UNENCRYPTED:
-		sdata->drop_unencrypted = !!data->value;
-		break;
-	case IW_AUTH_PRIVACY_INVOKED:
-		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			ret = -EINVAL;
-		else {
-			sdata->u.mgd.flags &= ~IEEE80211_STA_PRIVACY_INVOKED;
-			/*
-			 * Privacy invoked by wpa_supplicant, store the
-			 * value and allow associating to a protected
-			 * network without having a key up front.
-			 */
-			if (data->value)
-				sdata->u.mgd.flags |=
-					IEEE80211_STA_PRIVACY_INVOKED;
-		}
-		break;
-	case IW_AUTH_80211_AUTH_ALG:
-		if (sdata->vif.type == NL80211_IFTYPE_STATION)
-			sdata->u.mgd.auth_algs = data->value;
-		else
-			ret = -EOPNOTSUPP;
-		break;
-	case IW_AUTH_MFP:
-		if (!(sdata->local->hw.flags & IEEE80211_HW_MFP_CAPABLE)) {
-			ret = -EOPNOTSUPP;
-			break;
-		}
-		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			switch (data->value) {
-			case IW_AUTH_MFP_DISABLED:
-				sdata->u.mgd.mfp = IEEE80211_MFP_DISABLED;
-				break;
-			case IW_AUTH_MFP_OPTIONAL:
-				sdata->u.mgd.mfp = IEEE80211_MFP_OPTIONAL;
-				break;
-			case IW_AUTH_MFP_REQUIRED:
-				sdata->u.mgd.mfp = IEEE80211_MFP_REQUIRED;
-				break;
-			default:
-				ret = -EINVAL;
-			}
-		} else
-			ret = -EOPNOTSUPP;
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
-	return ret;
-}
-
 /* Get wireless statistics.  Called by /proc/net/wireless and by SIOCGIWSTATS */
 static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev)
 {
@@ -541,28 +388,6 @@ static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev
 	return wstats;
 }
 
-static int ieee80211_ioctl_giwauth(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_param *data, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	int ret = 0;
-
-	switch (data->flags & IW_AUTH_INDEX) {
-	case IW_AUTH_80211_AUTH_ALG:
-		if (sdata->vif.type == NL80211_IFTYPE_STATION)
-			data->value = sdata->u.mgd.auth_algs;
-		else
-			ret = -EOPNOTSUPP;
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
-	return ret;
-}
-
-
 /* Structures to export the Wireless Handlers */
 
 static const iw_handler ieee80211_handler[] =
@@ -615,10 +440,10 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) ieee80211_ioctl_giwpower,		/* SIOCGIWPOWER */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
-	(iw_handler) ieee80211_ioctl_siwgenie,		/* SIOCSIWGENIE */
+	(iw_handler) cfg80211_wext_siwgenie,		/* SIOCSIWGENIE */
 	(iw_handler) NULL,				/* SIOCGIWGENIE */
-	(iw_handler) ieee80211_ioctl_siwauth,		/* SIOCSIWAUTH */
-	(iw_handler) ieee80211_ioctl_giwauth,		/* SIOCGIWAUTH */
+	(iw_handler) cfg80211_wext_siwauth,		/* SIOCSIWAUTH */
+	(iw_handler) cfg80211_wext_giwauth,		/* SIOCGIWAUTH */
 	(iw_handler) cfg80211_wext_siwencodeext,	/* SIOCSIWENCODEEXT */
 	(iw_handler) NULL,				/* SIOCGIWENCODEEXT */
 	(iw_handler) NULL,				/* SIOCSIWPMKSA */

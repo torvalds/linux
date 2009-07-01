@@ -553,6 +553,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #ifdef CONFIG_WIRELESS_EXT
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
+		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
 #endif
 		mutex_unlock(&rdev->devlist_mtx);
 		break;
@@ -565,8 +566,13 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			cfg80211_leave_ibss(rdev, dev, true);
 			break;
 		case NL80211_IFTYPE_STATION:
+#ifdef CONFIG_WIRELESS_EXT
+			kfree(wdev->wext.ie);
+			wdev->wext.ie = NULL;
+			wdev->wext.ie_len = 0;
+#endif
 			cfg80211_disconnect(rdev, dev,
-					    WLAN_REASON_DEAUTH_LEAVING);
+					    WLAN_REASON_DEAUTH_LEAVING, true);
 			break;
 		default:
 			break;
@@ -578,11 +584,20 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		break;
 	case NETDEV_UP:
 #ifdef CONFIG_WIRELESS_EXT
-		if (wdev->iftype != NL80211_IFTYPE_ADHOC)
+		switch (wdev->iftype) {
+		case NL80211_IFTYPE_ADHOC:
+			if (wdev->wext.ibss.ssid_len)
+				cfg80211_join_ibss(rdev, dev,
+						   &wdev->wext.ibss);
 			break;
-		if (!wdev->wext.ibss.ssid_len)
+		case NL80211_IFTYPE_STATION:
+			if (wdev->wext.connect.ssid_len)
+				cfg80211_connect(rdev, dev,
+						 &wdev->wext.connect);
 			break;
-		cfg80211_join_ibss(rdev, dev, &wdev->wext.ibss);
+		default:
+			break;
+		}
 #endif
 		break;
 	case NETDEV_UNREGISTER:
