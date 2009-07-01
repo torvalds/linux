@@ -369,3 +369,5 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall
 	.long sys_ni_syscall
 	.long sys_ni_syscall
+	.long sys_rt_tgsigqueueinfo	/* 365 */
+	.long sys_perf_counter_open
