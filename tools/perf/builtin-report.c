@@ -10,7 +10,7 @@
 #include "util/util.h"
 
 #include "util/color.h"
-#include "util/list.h"
+#include <linux/list.h>
 #include "util/cache.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"

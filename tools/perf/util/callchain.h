@@ -2,7 +2,7 @@
 #define __PERF_CALLCHAIN_H
 
 #include "../perf.h"
-#include "list.h"
+#include <linux/list.h>
 #include <linux/rbtree.h>
 #include "symbol.h"
 

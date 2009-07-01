@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #include "types.h"
-#include "list.h"
+#include <linux/list.h>
 #include <linux/rbtree.h>
 
 struct symbol {
