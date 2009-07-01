@@ -330,7 +330,6 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (is_host_enabled(musb) && drvvbus) {
-			musb->is_active = 1;
 			MUSB_HST_MODE(musb);
 			musb->xceiv->default_a = 1;
 			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
@@ -344,7 +343,9 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 			portstate(musb->port1_status &= ~USB_PORT_STAT_POWER);
 		}
 
-		/* NOTE:  this must complete poweron within 100 msec */
+		/* NOTE:  this must complete poweron within 100 msec
+		 * (OTG_TIME_A_WAIT_VRISE) but we don't check for that.
+		 */
 		davinci_source_power(musb, drvvbus, 0);
 		DBG(2, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
