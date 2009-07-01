@@ -550,12 +550,21 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		}
 		wdev->netdev = dev;
 		wdev->sme_state = CFG80211_SME_IDLE;
+		mutex_unlock(&rdev->devlist_mtx);
 #ifdef CONFIG_WIRELESS_EXT
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
+		wdev->wext.ps = CONFIG_CFG80211_DEFAULT_PS_VALUE;
+		wdev->wext.ps_timeout = 500;
+		if (rdev->ops->set_power_mgmt)
+			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
+						      wdev->wext.ps,
+						      wdev->wext.ps_timeout)) {
+				/* assume this means it's off */
+				wdev->wext.ps = false;
+			}
 #endif
-		mutex_unlock(&rdev->devlist_mtx);
 		break;
 	case NETDEV_GOING_DOWN:
 		if (!wdev->ssid_len)

@@ -238,49 +238,6 @@ static int iwm_set_wpa_version(struct iwm_priv *iwm, u8 wpa_version)
 	return 0;
 }
 
-static int iwm_wext_siwpower(struct net_device *dev,
-			     struct iw_request_info *info,
-			     struct iw_param *wrq, char *extra)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-	u32 power_index;
-
-	if (wrq->disabled) {
-		power_index = IWM_POWER_INDEX_MIN;
-		goto set;
-	} else
-		power_index = IWM_POWER_INDEX_DEFAULT;
-
-	switch (wrq->flags & IW_POWER_MODE) {
-	case IW_POWER_ON:
-	case IW_POWER_MODE:
-	case IW_POWER_ALL_R:
-		break;
-	default:
-		return -EINVAL;
-	}
-
- set:
-	if (power_index == iwm->conf.power_index)
-		return 0;
-
-	iwm->conf.power_index = power_index;
-
-	return iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
-				       CFG_POWER_INDEX, iwm->conf.power_index);
-}
-
-static int iwm_wext_giwpower(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-
-	wrqu->power.disabled = (iwm->conf.power_index == IWM_POWER_INDEX_MIN);
-
-	return 0;
-}
-
 static int iwm_set_key_mgt(struct iwm_priv *iwm, u8 key_mgt)
 {
 	u8 *auth_type = &iwm->umac_profile->sec.auth_type;
@@ -458,8 +415,8 @@ static const iw_handler iwm_handlers[] =
 	(iw_handler) NULL,				/* SIOCGIWRETRY */
 	(iw_handler) cfg80211_wext_siwencode,		/* SIOCSIWENCODE */
 	(iw_handler) cfg80211_wext_giwencode,		/* SIOCGIWENCODE */
-	(iw_handler) iwm_wext_siwpower,			/* SIOCSIWPOWER */
-	(iw_handler) iwm_wext_giwpower,			/* SIOCGIWPOWER */
+	(iw_handler) cfg80211_wext_siwpower,		/* SIOCSIWPOWER */
+	(iw_handler) cfg80211_wext_giwpower,		/* SIOCGIWPOWER */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,                              /* SIOCSIWGENIE */

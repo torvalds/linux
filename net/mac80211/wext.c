@@ -255,72 +255,6 @@ static int ieee80211_ioctl_giwrate(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_siwpower(struct net_device *dev,
-				    struct iw_request_info *info,
-				    struct iw_param *wrq,
-				    char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_conf *conf = &local->hw.conf;
-	int timeout = 0;
-	bool ps;
-
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
-		return -EOPNOTSUPP;
-
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
-		return -EINVAL;
-
-	if (wrq->disabled) {
-		ps = false;
-		timeout = 0;
-		goto set;
-	}
-
-	switch (wrq->flags & IW_POWER_MODE) {
-	case IW_POWER_ON:       /* If not specified */
-	case IW_POWER_MODE:     /* If set all mask */
-	case IW_POWER_ALL_R:    /* If explicitely state all */
-		ps = true;
-		break;
-	default:                /* Otherwise we ignore */
-		return -EINVAL;
-	}
-
-	if (wrq->flags & ~(IW_POWER_MODE | IW_POWER_TIMEOUT))
-		return -EINVAL;
-
-	if (wrq->flags & IW_POWER_TIMEOUT)
-		timeout = wrq->value / 1000;
-
- set:
-	if (ps == sdata->u.mgd.powersave && timeout == conf->dynamic_ps_timeout)
-		return 0;
-
-	sdata->u.mgd.powersave = ps;
-	conf->dynamic_ps_timeout = timeout;
-
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
-
-	ieee80211_recalc_ps(local, -1);
-
-	return 0;
-}
-
-static int ieee80211_ioctl_giwpower(struct net_device *dev,
-				    struct iw_request_info *info,
-				    union iwreq_data *wrqu,
-				    char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	wrqu->power.disabled = !sdata->u.mgd.powersave;
-
-	return 0;
-}
-
 /* Get wireless statistics.  Called by /proc/net/wireless and by SIOCGIWSTATS */
 static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev)
 {
@@ -436,8 +370,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) cfg80211_wext_giwretry,		/* SIOCGIWRETRY */
 	(iw_handler) cfg80211_wext_siwencode,		/* SIOCSIWENCODE */
 	(iw_handler) cfg80211_wext_giwencode,		/* SIOCGIWENCODE */
-	(iw_handler) ieee80211_ioctl_siwpower,		/* SIOCSIWPOWER */
-	(iw_handler) ieee80211_ioctl_giwpower,		/* SIOCGIWPOWER */
+	(iw_handler) cfg80211_wext_siwpower,		/* SIOCSIWPOWER */
+	(iw_handler) cfg80211_wext_giwpower,		/* SIOCGIWPOWER */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) cfg80211_wext_siwgenie,		/* SIOCSIWGENIE */

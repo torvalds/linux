@@ -987,3 +987,63 @@ int cfg80211_wext_giwauth(struct net_device *dev,
 	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwauth);
+
+int cfg80211_wext_siwpower(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *wrq, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	bool ps = wdev->wext.ps;
+	int timeout = wdev->wext.ps_timeout;
+	int err;
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION)
+		return -EINVAL;
+
+	if (!rdev->ops->set_power_mgmt)
+		return -EOPNOTSUPP;
+
+	if (wrq->disabled) {
+		ps = false;
+	} else {
+		switch (wrq->flags & IW_POWER_MODE) {
+		case IW_POWER_ON:       /* If not specified */
+		case IW_POWER_MODE:     /* If set all mask */
+		case IW_POWER_ALL_R:    /* If explicitely state all */
+			ps = true;
+			break;
+		default:                /* Otherwise we ignore */
+			return -EINVAL;
+		}
+
+		if (wrq->flags & ~(IW_POWER_MODE | IW_POWER_TIMEOUT))
+			return -EINVAL;
+
+		if (wrq->flags & IW_POWER_TIMEOUT)
+			timeout = wrq->value / 1000;
+	}
+
+	err = rdev->ops->set_power_mgmt(wdev->wiphy, dev, ps, timeout);
+	if (err)
+		return err;
+
+	wdev->wext.ps = ps;
+	wdev->wext.ps_timeout = timeout;
+
+	return 0;
+
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwpower);
+
+int cfg80211_wext_giwpower(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *wrq, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	wrq->disabled = !wdev->wext.ps;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwpower);

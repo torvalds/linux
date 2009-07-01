@@ -522,6 +522,27 @@ static int iwm_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
 	return 0;
 }
 
+static int iwm_cfg80211_set_power_mgmt(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       bool enabled, int timeout)
+{
+	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
+	u32 power_index;
+
+	if (enabled)
+		power_index = IWM_POWER_INDEX_DEFAULT;
+	else
+		power_index = IWM_POWER_INDEX_MIN;
+
+	if (power_index == iwm->conf.power_index)
+		return 0;
+
+	iwm->conf.power_index = power_index;
+
+	return iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
+				       CFG_POWER_INDEX, iwm->conf.power_index);
+}
+
 static struct cfg80211_ops iwm_cfg80211_ops = {
 	.change_virtual_intf = iwm_cfg80211_change_iface,
 	.add_key = iwm_cfg80211_add_key,
@@ -534,6 +555,7 @@ static struct cfg80211_ops iwm_cfg80211_ops = {
 	.leave_ibss = iwm_cfg80211_leave_ibss,
 	.set_tx_power = iwm_cfg80211_set_txpower,
 	.get_tx_power = iwm_cfg80211_get_txpower,
+	.set_power_mgmt = iwm_cfg80211_set_power_mgmt,
 };
 
 struct wireless_dev *iwm_wdev_alloc(int sizeof_bus, struct device *dev)

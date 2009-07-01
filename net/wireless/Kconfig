@@ -26,6 +26,22 @@ config CFG80211_REG_DEBUG
 
 	  If unsure, say N.
 
+config CFG80211_DEFAULT_PS
+	bool "enable powersave by default"
+	depends on CFG80211
+	default y
+	help
+	  This option enables powersave mode by default.
+
+	  If this causes your applications to misbehave you should fix your
+	  applications instead -- they need to register their network
+	  latency requirement, see Documentation/power/pm_qos_interface.txt.
+
+config CFG80211_DEFAULT_PS_VALUE
+	int
+	default 1 if CFG80211_DEFAULT_PS
+	default 0
+
 config CFG80211_DEBUGFS
 	bool "cfg80211 DebugFS entries"
 	depends on CFG80211 && DEBUG_FS

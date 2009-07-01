@@ -1388,6 +1388,31 @@ int ieee80211_testmode_cmd(struct wiphy *wiphy, void *data, int len)
 }
 #endif
 
+static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+				    bool enabled, int timeout)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_conf *conf = &local->hw.conf;
+
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
+		return -EOPNOTSUPP;
+
+	if (enabled == sdata->u.mgd.powersave &&
+	    timeout == conf->dynamic_ps_timeout)
+		return 0;
+
+	sdata->u.mgd.powersave = enabled;
+	conf->dynamic_ps_timeout = timeout;
+
+	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+
+	ieee80211_recalc_ps(local, -1);
+
+	return 0;
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1431,4 +1456,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.get_tx_power = ieee80211_get_tx_power,
 	.rfkill_poll = ieee80211_rfkill_poll,
 	CFG80211_TESTMODE_CMD(ieee80211_testmode_cmd)
+	.set_power_mgmt = ieee80211_set_power_mgmt,
 };

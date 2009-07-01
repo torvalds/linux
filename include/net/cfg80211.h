@@ -1023,6 +1023,10 @@ struct cfg80211_ops {
 #ifdef CONFIG_NL80211_TESTMODE
 	int	(*testmode_cmd)(struct wiphy *wiphy, void *data, int len);
 #endif
+
+	/* some temporary stuff to finish wext */
+	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,
+				  bool enabled, int timeout);
 };
 
 /*
@@ -1262,6 +1266,8 @@ struct wireless_dev {
 		u8 bssid[ETH_ALEN];
 		u8 ssid[IEEE80211_MAX_SSID_LEN];
 		s8 default_key, default_mgmt_key;
+		bool ps;
+		int ps_timeout;
 	} wext;
 #endif
 };
@@ -1605,6 +1611,13 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 int cfg80211_wext_giwtxpower(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *data, char *keybuf);
+
+int cfg80211_wext_siwpower(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *wrq, char *extra);
+int cfg80211_wext_giwpower(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *wrq, char *extra);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification

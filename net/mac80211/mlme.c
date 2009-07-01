@@ -2360,11 +2360,6 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 		ifmgd->flags |= IEEE80211_STA_WMM_ENABLED;
 
 	hw_flags = sdata->local->hw.flags;
-
-	if (hw_flags & IEEE80211_HW_SUPPORTS_PS) {
-		ifmgd->powersave = CONFIG_MAC80211_DEFAULT_PS_VALUE;
-		sdata->local->hw.conf.dynamic_ps_timeout = 500;
-	}
 }
 
 /* configuration hooks */
