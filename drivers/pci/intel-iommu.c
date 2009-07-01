@@ -222,7 +222,12 @@ static inline void dma_set_pte_prot(struct dma_pte *pte, unsigned long prot)
 
 static inline u64 dma_pte_addr(struct dma_pte *pte)
 {
-	return (pte->val & VTD_PAGE_MASK);
+#ifdef CONFIG_64BIT
+	return pte->val & VTD_PAGE_MASK;
+#else
+	/* Must have a full atomic 64-bit read */
+	return  __cmpxchg64(pte, 0ULL, 0ULL) & VTD_PAGE_MASK;
+#endif
 }
 
 static inline void dma_set_pte_pfn(struct dma_pte *pte, unsigned long pfn)
@@ -712,6 +717,8 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 			break;
 
 		if (!dma_pte_present(pte)) {
+			uint64_t pteval;
+
 			tmp_page = alloc_pgtable_page();
 
 			if (!tmp_page) {
@@ -719,15 +726,15 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 					flags);
 				return NULL;
 			}
-			domain_flush_cache(domain, tmp_page, PAGE_SIZE);
-			dma_set_pte_pfn(pte, virt_to_dma_pfn(tmp_page));
-			/*
-			 * high level table always sets r/w, last level page
-			 * table control read/write
-			 */
-			dma_set_pte_readable(pte);
-			dma_set_pte_writable(pte);
-			domain_flush_cache(domain, pte, sizeof(*pte));
+			domain_flush_cache(domain, tmp_page, VTD_PAGE_SIZE);
+			pteval = (virt_to_dma_pfn(tmp_page) << VTD_PAGE_SHIFT) | DMA_PTE_READ | DMA_PTE_WRITE;
+			if (cmpxchg64(&pte->val, 0ULL, pteval)) {
+				/* Someone else set it while we were thinking; use theirs. */
+				free_pgtable_page(tmp_page);
+			} else {
+				dma_pte_addr(pte);
+				domain_flush_cache(domain, pte, sizeof(*pte));
+			}
 		}
 		parent = phys_to_virt(dma_pte_addr(pte));
 		level--;
@@ -1666,6 +1673,8 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 	}
 
 	while (nr_pages--) {
+		uint64_t tmp;
+
 		if (!sg_res) {
 			sg_res = (sg->offset + sg->length + VTD_PAGE_SIZE - 1) >> VTD_PAGE_SHIFT;
 			sg->dma_address = ((dma_addr_t)iov_pfn << VTD_PAGE_SHIFT) + sg->offset;
@@ -1680,17 +1689,17 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 		/* We don't need lock here, nobody else
 		 * touches the iova range
 		 */
-		if (unlikely(dma_pte_addr(pte))) {
+		tmp = cmpxchg64(&pte->val, 0ULL, pteval);
+		if (tmp) {
 			static int dumps = 5;
-			printk(KERN_CRIT "ERROR: DMA PTE for vPFN 0x%lx already set (to %llx)\n",
-			       iov_pfn, pte->val);
+			printk(KERN_CRIT "ERROR: DMA PTE for vPFN 0x%lx already set (to %llx not %llx)\n",
+			       iov_pfn, tmp, (unsigned long long)pteval);
 			if (dumps) {
 				dumps--;
 				debug_dma_dump_mappings(NULL);
 			}
 			WARN_ON(1);
 		}
-		pte->val = pteval;
 		pte++;
 		if (!nr_pages ||
 		    (unsigned long)pte >> VTD_PAGE_SHIFT !=
