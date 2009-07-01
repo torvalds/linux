@@ -99,14 +99,6 @@ config DEBUG_CLPS711X_UART2
 	  output to the second serial port on these devices.  Saying N will
 	  cause the debug messages to appear on the first serial port.
 
-config DEBUG_S3C_PORT
-	depends on DEBUG_LL && PLAT_S3C
-	bool "Kernel low-level debugging messages via S3C UART"
-	help
-	  Say Y here if you want debug print routines to go to one of the
-	  S3C internal UARTs. The chosen UART must have been configured
-	  before it is used.
-
 config DEBUG_S3C_UART
 	depends on PLAT_S3C
 	int "S3C UART to use for low-level debug"

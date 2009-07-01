@@ -37,13 +37,14 @@
 #include <asm/octeon/octeon.h>
 
 #include "ethernet-defines.h"
+#include "octeon-ethernet.h"
 #include "ethernet-mem.h"
 #include "ethernet-rx.h"
 #include "ethernet-tx.h"
+#include "ethernet-mdio.h"
 #include "ethernet-util.h"
 #include "ethernet-proc.h"
-#include "ethernet-common.h"
-#include "octeon-ethernet.h"
+
 
 #include "cvmx-pip.h"
 #include "cvmx-pko.h"
@@ -51,6 +52,7 @@
 #include "cvmx-ipd.h"
 #include "cvmx-helper.h"
 
+#include "cvmx-gmxx-defs.h"
 #include "cvmx-smix-defs.h"
 
 #if defined(CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS) \
@@ -129,53 +131,55 @@ extern struct semaphore mdio_sem;
  */
 static void cvm_do_timer(unsigned long arg)
 {
+	int32_t skb_to_free, undo;
+	int queues_per_port;
+	int qos;
+	struct octeon_ethernet *priv;
 	static int port;
-	if (port < CVMX_PIP_NUM_INPUT_PORTS) {
-		if (cvm_oct_device[port]) {
-			int queues_per_port;
-			int qos;
-			struct octeon_ethernet *priv =
-				netdev_priv(cvm_oct_device[port]);
-			if (priv->poll) {
-				/* skip polling if we don't get the lock */
-				if (!down_trylock(&mdio_sem)) {
-					priv->poll(cvm_oct_device[port]);
-					up(&mdio_sem);
-				}
-			}
 
-			queues_per_port = cvmx_pko_get_num_queues(port);
-			/* Drain any pending packets in the free list */
-			for (qos = 0; qos < queues_per_port; qos++) {
-				if (skb_queue_len(&priv->tx_free_list[qos])) {
-					spin_lock(&priv->tx_free_list[qos].
-						  lock);
-					while (skb_queue_len
-					       (&priv->tx_free_list[qos]) >
-					       cvmx_fau_fetch_and_add32(priv->
-									fau +
-									qos * 4,
-									0))
-						dev_kfree_skb(__skb_dequeue
-							      (&priv->
-							       tx_free_list
-							       [qos]));
-					spin_unlock(&priv->tx_free_list[qos].
-						    lock);
-				}
-			}
-			cvm_oct_device[port]->get_stats(cvm_oct_device[port]);
-		}
-		port++;
-		/* Poll the next port in a 50th of a second.
-		   This spreads the polling of ports out a little bit */
-		mod_timer(&cvm_oct_poll_timer, jiffies + HZ / 50);
-	} else {
+	if (port >= CVMX_PIP_NUM_INPUT_PORTS) {
+		/*
+		 * All ports have been polled. Start the next
+		 * iteration through the ports in one second.
+		 */
 		port = 0;
-		/* All ports have been polled. Start the next iteration through
-		   the ports in one second */
 		mod_timer(&cvm_oct_poll_timer, jiffies + HZ);
+		return;
 	}
+	if (!cvm_oct_device[port])
+		goto out;
+
+	priv = netdev_priv(cvm_oct_device[port]);
+	if (priv->poll) {
+		/* skip polling if we don't get the lock */
+		if (!down_trylock(&mdio_sem)) {
+			priv->poll(cvm_oct_device[port]);
+			up(&mdio_sem);
+		}
+	}
+
+	queues_per_port = cvmx_pko_get_num_queues(port);
+	/* Drain any pending packets in the free list */
+	for (qos = 0; qos < queues_per_port; qos++) {
+		if (skb_queue_len(&priv->tx_free_list[qos]) == 0)
+			continue;
+		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau + qos * 4,
+						       MAX_SKB_TO_FREE);
+		undo = skb_to_free > 0 ?
+			MAX_SKB_TO_FREE : skb_to_free + MAX_SKB_TO_FREE;
+		if (undo > 0)
+			cvmx_fau_atomic_add32(priv->fau+qos*4, -undo);
+		skb_to_free = -skb_to_free > MAX_SKB_TO_FREE ?
+			MAX_SKB_TO_FREE : -skb_to_free;
+		cvm_oct_free_tx_skbs(priv, skb_to_free, qos, 1);
+	}
+	cvm_oct_device[port]->netdev_ops->ndo_get_stats(cvm_oct_device[port]);
+
+out:
+	port++;
+	/* Poll the next port in a 50th of a second.
+	   This spreads the polling of ports out a little bit */
+	mod_timer(&cvm_oct_poll_timer, jiffies + HZ / 50);
 }
 
 /**
@@ -246,6 +250,362 @@ int cvm_oct_free_work(void *work_queue_entry)
 EXPORT_SYMBOL(cvm_oct_free_work);
 
 /**
+ * Get the low level ethernet statistics
+ *
+ * @dev:    Device to get the statistics from
+ * Returns Pointer to the statistics
+ */
+static struct net_device_stats *cvm_oct_common_get_stats(struct net_device *dev)
+{
+	cvmx_pip_port_status_t rx_status;
+	cvmx_pko_port_status_t tx_status;
+	struct octeon_ethernet *priv = netdev_priv(dev);
+
+	if (priv->port < CVMX_PIP_NUM_INPUT_PORTS) {
+		if (octeon_is_simulation()) {
+			/* The simulator doesn't support statistics */
+			memset(&rx_status, 0, sizeof(rx_status));
+			memset(&tx_status, 0, sizeof(tx_status));
+		} else {
+			cvmx_pip_get_port_status(priv->port, 1, &rx_status);
+			cvmx_pko_get_port_status(priv->port, 1, &tx_status);
+		}
+
+		priv->stats.rx_packets += rx_status.inb_packets;
+		priv->stats.tx_packets += tx_status.packets;
+		priv->stats.rx_bytes += rx_status.inb_octets;
+		priv->stats.tx_bytes += tx_status.octets;
+		priv->stats.multicast += rx_status.multicast_packets;
+		priv->stats.rx_crc_errors += rx_status.inb_errors;
+		priv->stats.rx_frame_errors += rx_status.fcs_align_err_packets;
+
+		/*
+		 * The drop counter must be incremented atomically
+		 * since the RX tasklet also increments it.
+		 */
+#ifdef CONFIG_64BIT
+		atomic64_add(rx_status.dropped_packets,
+			     (atomic64_t *)&priv->stats.rx_dropped);
+#else
+		atomic_add(rx_status.dropped_packets,
+			     (atomic_t *)&priv->stats.rx_dropped);
+#endif
+	}
+
+	return &priv->stats;
+}
+
+/**
+ * Change the link MTU. Unimplemented
+ *
+ * @dev:     Device to change
+ * @new_mtu: The new MTU
+ *
+ * Returns Zero on success
+ */
+static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
+{
+	struct octeon_ethernet *priv = netdev_priv(dev);
+	int interface = INTERFACE(priv->port);
+	int index = INDEX(priv->port);
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+	int vlan_bytes = 4;
+#else
+	int vlan_bytes = 0;
+#endif
+
+	/*
+	 * Limit the MTU to make sure the ethernet packets are between
+	 * 64 bytes and 65535 bytes.
+	 */
+	if ((new_mtu + 14 + 4 + vlan_bytes < 64)
+	    || (new_mtu + 14 + 4 + vlan_bytes > 65392)) {
+		pr_err("MTU must be between %d and %d.\n",
+		       64 - 14 - 4 - vlan_bytes, 65392 - 14 - 4 - vlan_bytes);
+		return -EINVAL;
+	}
+	dev->mtu = new_mtu;
+
+	if ((interface < 2)
+	    && (cvmx_helper_interface_get_mode(interface) !=
+		CVMX_HELPER_INTERFACE_MODE_SPI)) {
+		/* Add ethernet header and FCS, and VLAN if configured. */
+		int max_packet = new_mtu + 14 + 4 + vlan_bytes;
+
+		if (OCTEON_IS_MODEL(OCTEON_CN3XXX)
+		    || OCTEON_IS_MODEL(OCTEON_CN58XX)) {
+			/* Signal errors on packets larger than the MTU */
+			cvmx_write_csr(CVMX_GMXX_RXX_FRM_MAX(index, interface),
+				       max_packet);
+		} else {
+			/*
+			 * Set the hardware to truncate packets larger
+			 * than the MTU and smaller the 64 bytes.
+			 */
+			union cvmx_pip_frm_len_chkx frm_len_chk;
+			frm_len_chk.u64 = 0;
+			frm_len_chk.s.minlen = 64;
+			frm_len_chk.s.maxlen = max_packet;
+			cvmx_write_csr(CVMX_PIP_FRM_LEN_CHKX(interface),
+				       frm_len_chk.u64);
+		}
+		/*
+		 * Set the hardware to truncate packets larger than
+		 * the MTU. The jabber register must be set to a
+		 * multiple of 8 bytes, so round up.
+		 */
+		cvmx_write_csr(CVMX_GMXX_RXX_JABBER(index, interface),
+			       (max_packet + 7) & ~7u);
+	}
+	return 0;
+}
+
+/**
+ * Set the multicast list. Currently unimplemented.
+ *
+ * @dev:    Device to work on
+ */
+static void cvm_oct_common_set_multicast_list(struct net_device *dev)
+{
+	union cvmx_gmxx_prtx_cfg gmx_cfg;
+	struct octeon_ethernet *priv = netdev_priv(dev);
+	int interface = INTERFACE(priv->port);
+	int index = INDEX(priv->port);
+
+	if ((interface < 2)
+	    && (cvmx_helper_interface_get_mode(interface) !=
+		CVMX_HELPER_INTERFACE_MODE_SPI)) {
+		union cvmx_gmxx_rxx_adr_ctl control;
+		control.u64 = 0;
+		control.s.bcst = 1;	/* Allow broadcast MAC addresses */
+
+		if (dev->mc_list || (dev->flags & IFF_ALLMULTI) ||
+		    (dev->flags & IFF_PROMISC))
+			/* Force accept multicast packets */
+			control.s.mcst = 2;
+		else
+			/* Force reject multicat packets */
+			control.s.mcst = 1;
+
+		if (dev->flags & IFF_PROMISC)
+			/*
+			 * Reject matches if promisc. Since CAM is
+			 * shut off, should accept everything.
+			 */
+			control.s.cam_mode = 0;
+		else
+			/* Filter packets based on the CAM */
+			control.s.cam_mode = 1;
+
+		gmx_cfg.u64 =
+		    cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+		cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface),
+			       gmx_cfg.u64 & ~1ull);
+
+		cvmx_write_csr(CVMX_GMXX_RXX_ADR_CTL(index, interface),
+			       control.u64);
+		if (dev->flags & IFF_PROMISC)
+			cvmx_write_csr(CVMX_GMXX_RXX_ADR_CAM_EN
+				       (index, interface), 0);
+		else
+			cvmx_write_csr(CVMX_GMXX_RXX_ADR_CAM_EN
+				       (index, interface), 1);
+
+		cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface),
+			       gmx_cfg.u64);
+	}
+}
+
+/**
+ * Set the hardware MAC address for a device
+ *
+ * @dev:    Device to change the MAC address for
+ * @addr:   Address structure to change it too. MAC address is addr + 2.
+ * Returns Zero on success
+ */
+static int cvm_oct_common_set_mac_address(struct net_device *dev, void *addr)
+{
+	struct octeon_ethernet *priv = netdev_priv(dev);
+	union cvmx_gmxx_prtx_cfg gmx_cfg;
+	int interface = INTERFACE(priv->port);
+	int index = INDEX(priv->port);
+
+	memcpy(dev->dev_addr, addr + 2, 6);
+
+	if ((interface < 2)
+	    && (cvmx_helper_interface_get_mode(interface) !=
+		CVMX_HELPER_INTERFACE_MODE_SPI)) {
+		int i;
+		uint8_t *ptr = addr;
+		uint64_t mac = 0;
+		for (i = 0; i < 6; i++)
+			mac = (mac << 8) | (uint64_t) (ptr[i + 2]);
+
+		gmx_cfg.u64 =
+		    cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+		cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface),
+			       gmx_cfg.u64 & ~1ull);
+
+		cvmx_write_csr(CVMX_GMXX_SMACX(index, interface), mac);
+		cvmx_write_csr(CVMX_GMXX_RXX_ADR_CAM0(index, interface),
+			       ptr[2]);
+		cvmx_write_csr(CVMX_GMXX_RXX_ADR_CAM1(index, interface),
+			       ptr[3]);
+		cvmx_write_csr(CVMX_GMXX_RXX_ADR_CAM2(index, interface),
+			       ptr[4]);
+		cvmx_write_csr(CVMX_GMXX_RXX_ADR_CAM3(index, interface),
+			       ptr[5]);
+		cvmx_write_csr(CVMX_GMXX_RXX_ADR_CAM4(index, interface),
+			       ptr[6]);
+		cvmx_write_csr(CVMX_GMXX_RXX_ADR_CAM5(index, interface),
+			       ptr[7]);
+		cvm_oct_common_set_multicast_list(dev);
+		cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface),
+			       gmx_cfg.u64);
+	}
+	return 0;
+}
+
+/**
+ * Per network device initialization
+ *
+ * @dev:    Device to initialize
+ * Returns Zero on success
+ */
+int cvm_oct_common_init(struct net_device *dev)
+{
+	static int count;
+	char mac[8] = { 0x00, 0x00,
+		octeon_bootinfo->mac_addr_base[0],
+		octeon_bootinfo->mac_addr_base[1],
+		octeon_bootinfo->mac_addr_base[2],
+		octeon_bootinfo->mac_addr_base[3],
+		octeon_bootinfo->mac_addr_base[4],
+		octeon_bootinfo->mac_addr_base[5] + count
+	};
+	struct octeon_ethernet *priv = netdev_priv(dev);
+
+	/*
+	 * Force the interface to use the POW send if always_use_pow
+	 * was specified or it is in the pow send list.
+	 */
+	if ((pow_send_group != -1)
+	    && (always_use_pow || strstr(pow_send_list, dev->name)))
+		priv->queue = -1;
+
+	if (priv->queue != -1 && USE_HW_TCPUDP_CHECKSUM)
+		dev->features |= NETIF_F_IP_CSUM;
+
+	count++;
+
+	/* We do our own locking, Linux doesn't need to */
+	dev->features |= NETIF_F_LLTX;
+	SET_ETHTOOL_OPS(dev, &cvm_oct_ethtool_ops);
+
+	cvm_oct_mdio_setup_device(dev);
+	dev->netdev_ops->ndo_set_mac_address(dev, mac);
+	dev->netdev_ops->ndo_change_mtu(dev, dev->mtu);
+
+	/*
+	 * Zero out stats for port so we won't mistakenly show
+	 * counters from the bootloader.
+	 */
+	memset(dev->netdev_ops->ndo_get_stats(dev), 0,
+	       sizeof(struct net_device_stats));
+
+	return 0;
+}
+
+void cvm_oct_common_uninit(struct net_device *dev)
+{
+	/* Currently nothing to do */
+}
+
+static const struct net_device_ops cvm_oct_npi_netdev_ops = {
+	.ndo_init		= cvm_oct_common_init,
+	.ndo_uninit		= cvm_oct_common_uninit,
+	.ndo_start_xmit		= cvm_oct_xmit,
+	.ndo_set_multicast_list	= cvm_oct_common_set_multicast_list,
+	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
+	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_change_mtu		= cvm_oct_common_change_mtu,
+	.ndo_get_stats		= cvm_oct_common_get_stats,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= cvm_oct_poll_controller,
+#endif
+};
+static const struct net_device_ops cvm_oct_xaui_netdev_ops = {
+	.ndo_init		= cvm_oct_xaui_init,
+	.ndo_uninit		= cvm_oct_xaui_uninit,
+	.ndo_open		= cvm_oct_xaui_open,
+	.ndo_stop		= cvm_oct_xaui_stop,
+	.ndo_start_xmit		= cvm_oct_xmit,
+	.ndo_set_multicast_list	= cvm_oct_common_set_multicast_list,
+	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
+	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_change_mtu		= cvm_oct_common_change_mtu,
+	.ndo_get_stats		= cvm_oct_common_get_stats,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= cvm_oct_poll_controller,
+#endif
+};
+static const struct net_device_ops cvm_oct_sgmii_netdev_ops = {
+	.ndo_init		= cvm_oct_sgmii_init,
+	.ndo_uninit		= cvm_oct_sgmii_uninit,
+	.ndo_open		= cvm_oct_sgmii_open,
+	.ndo_stop		= cvm_oct_sgmii_stop,
+	.ndo_start_xmit		= cvm_oct_xmit,
+	.ndo_set_multicast_list	= cvm_oct_common_set_multicast_list,
+	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
+	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_change_mtu		= cvm_oct_common_change_mtu,
+	.ndo_get_stats		= cvm_oct_common_get_stats,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= cvm_oct_poll_controller,
+#endif
+};
+static const struct net_device_ops cvm_oct_spi_netdev_ops = {
+	.ndo_init		= cvm_oct_spi_init,
+	.ndo_uninit		= cvm_oct_spi_uninit,
+	.ndo_start_xmit		= cvm_oct_xmit,
+	.ndo_set_multicast_list	= cvm_oct_common_set_multicast_list,
+	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
+	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_change_mtu		= cvm_oct_common_change_mtu,
+	.ndo_get_stats		= cvm_oct_common_get_stats,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= cvm_oct_poll_controller,
+#endif
+};
+static const struct net_device_ops cvm_oct_rgmii_netdev_ops = {
+	.ndo_init		= cvm_oct_rgmii_init,
+	.ndo_uninit		= cvm_oct_rgmii_uninit,
+	.ndo_open		= cvm_oct_rgmii_open,
+	.ndo_stop		= cvm_oct_rgmii_stop,
+	.ndo_start_xmit		= cvm_oct_xmit,
+	.ndo_set_multicast_list	= cvm_oct_common_set_multicast_list,
+	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
+	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_change_mtu		= cvm_oct_common_change_mtu,
+	.ndo_get_stats		= cvm_oct_common_get_stats,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= cvm_oct_poll_controller,
+#endif
+};
+static const struct net_device_ops cvm_oct_pow_netdev_ops = {
+	.ndo_init		= cvm_oct_common_init,
+	.ndo_start_xmit		= cvm_oct_xmit_pow,
+	.ndo_set_multicast_list	= cvm_oct_common_set_multicast_list,
+	.ndo_set_mac_address	= cvm_oct_common_set_mac_address,
+	.ndo_do_ioctl		= cvm_oct_ioctl,
+	.ndo_change_mtu		= cvm_oct_common_change_mtu,
+	.ndo_get_stats		= cvm_oct_common_get_stats,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= cvm_oct_poll_controller,
+#endif
+};
+
+/**
  * Module/ driver initialization. Creates the linux network
  * devices.
  *
@@ -303,7 +663,7 @@ static int __init cvm_oct_init_module(void)
 			struct octeon_ethernet *priv = netdev_priv(dev);
 			memset(priv, 0, sizeof(struct octeon_ethernet));
 
-			dev->init = cvm_oct_common_init;
+			dev->netdev_ops = &cvm_oct_pow_netdev_ops;
 			priv->imode = CVMX_HELPER_INTERFACE_MODE_DISABLED;
 			priv->port = CVMX_PIP_NUM_INPUT_PORTS;
 			priv->queue = -1;
@@ -372,44 +732,38 @@ static int __init cvm_oct_init_module(void)
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_NPI:
-				dev->init = cvm_oct_common_init;
-				dev->uninit = cvm_oct_common_uninit;
+				dev->netdev_ops = &cvm_oct_npi_netdev_ops;
 				strcpy(dev->name, "npi%d");
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_XAUI:
-				dev->init = cvm_oct_xaui_init;
-				dev->uninit = cvm_oct_xaui_uninit;
+				dev->netdev_ops = &cvm_oct_xaui_netdev_ops;
 				strcpy(dev->name, "xaui%d");
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_LOOP:
-				dev->init = cvm_oct_common_init;
-				dev->uninit = cvm_oct_common_uninit;
+				dev->netdev_ops = &cvm_oct_npi_netdev_ops;
 				strcpy(dev->name, "loop%d");
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_SGMII:
-				dev->init = cvm_oct_sgmii_init;
-				dev->uninit = cvm_oct_sgmii_uninit;
+				dev->netdev_ops = &cvm_oct_sgmii_netdev_ops;
 				strcpy(dev->name, "eth%d");
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_SPI:
-				dev->init = cvm_oct_spi_init;
-				dev->uninit = cvm_oct_spi_uninit;
+				dev->netdev_ops = &cvm_oct_spi_netdev_ops;
 				strcpy(dev->name, "spi%d");
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_RGMII:
 			case CVMX_HELPER_INTERFACE_MODE_GMII:
-				dev->init = cvm_oct_rgmii_init;
-				dev->uninit = cvm_oct_rgmii_uninit;
+				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
 				strcpy(dev->name, "eth%d");
 				break;
 			}
 
-			if (!dev->init) {
+			if (!dev->netdev_ops) {
 				kfree(dev);
 			} else if (register_netdev(dev) < 0) {
 				pr_err("Failed to register ethernet device "

@@ -1422,8 +1422,8 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
 		struct smscore_gpio_config *pGpioConfig) {
 
 	u32 totalLen;
-	u32 TranslatedPinNum;
-	u32 GroupNum;
+	u32 TranslatedPinNum = 0;
+	u32 GroupNum = 0;
 	u32 ElectricChar;
 	u32 groupCfg;
 	void *buffer;

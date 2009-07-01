@@ -298,8 +298,8 @@ extern int try_to_free_swap(struct page *);
 struct backing_dev_info;
 
 /* linux/mm/thrash.c */
-extern struct mm_struct * swap_token_mm;
-extern void grab_swap_token(void);
+extern struct mm_struct *swap_token_mm;
+extern void grab_swap_token(struct mm_struct *);
 extern void __put_swap_token(struct mm_struct *);
 
 static inline int has_swap_token(struct mm_struct *mm)
@@ -419,10 +419,10 @@ static inline swp_entry_t get_swap_page(void)
 }
 
 /* linux/mm/thrash.c */
-#define put_swap_token(x) do { } while(0)
-#define grab_swap_token()  do { } while(0)
-#define has_swap_token(x) 0
-#define disable_swap_token() do { } while(0)
+#define put_swap_token(mm)	do { } while (0)
+#define grab_swap_token(mm)	do { } while (0)
+#define has_swap_token(mm)	0
+#define disable_swap_token()	do { } while (0)
 
 static inline void
 mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)

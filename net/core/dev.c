@@ -2310,8 +2310,6 @@ ncls:
 	if (!skb)
 		goto out;
 
-	skb_orphan(skb);
-
 	type = skb->protocol;
 	list_for_each_entry_rcu(ptype,
 			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
@@ -2825,9 +2823,11 @@ static void net_rx_action(struct softirq_action *h)
 		 * move the instance around on the list at-will.
 		 */
 		if (unlikely(work == weight)) {
-			if (unlikely(napi_disable_pending(n)))
-				__napi_complete(n);
-			else
+			if (unlikely(napi_disable_pending(n))) {
+				local_irq_enable();
+				napi_complete(n);
+				local_irq_disable();
+			} else
 				list_move_tail(&n->poll_list, list);
 		}
 

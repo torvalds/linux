@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/of_gpio.h>
+#include <linux/of_i2c.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>
@@ -65,7 +66,6 @@ define_machine(warp) {
 
 static u32 post_info;
 
-/* I am not sure this is the best place for this... */
 static int __init warp_post_info(void)
 {
 	struct device_node *np;
@@ -194,9 +194,9 @@ static int pika_setup_leds(void)
 	return 0;
 }
 
-static void pika_setup_critical_temp(struct i2c_client *client)
+static void pika_setup_critical_temp(struct device_node *np,
+				     struct i2c_client *client)
 {
-	struct device_node *np;
 	int irq, rc;
 
 	/* Do this before enabling critical temp interrupt since we
@@ -208,14 +208,7 @@ static void pika_setup_critical_temp(struct i2c_client *client)
 	i2c_smbus_write_byte_data(client, 2, 65); /* Thigh */
 	i2c_smbus_write_byte_data(client, 3,  0); /* Tlow */
 
-	np = of_find_compatible_node(NULL, NULL, "adi,ad7414");
-	if (np == NULL) {
-		printk(KERN_ERR __FILE__ ": Unable to find ad7414\n");
-		return;
-	}
-
 	irq = irq_of_parse_and_map(np, 0);
-	of_node_put(np);
 	if (irq  == NO_IRQ) {
 		printk(KERN_ERR __FILE__ ": Unable to get ad7414 irq\n");
 		return;
@@ -244,32 +237,24 @@ static inline void pika_dtm_check_fan(void __iomem *fpga)
 
 static int pika_dtm_thread(void __iomem *fpga)
 {
-	struct i2c_adapter *adap;
+	struct device_node *np;
 	struct i2c_client *client;
 
-	/* We loop in case either driver was compiled as a module and
-	 * has not been insmoded yet.
-	 */
-	while (!(adap = i2c_get_adapter(0))) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ);
+	np = of_find_compatible_node(NULL, NULL, "adi,ad7414");
+	if (np == NULL)
+		return -ENOENT;
+
+	client = of_find_i2c_device_by_node(np);
+	if (client == NULL) {
+		of_node_put(np);
+		return -ENOENT;
 	}
 
-	while (1) {
-		list_for_each_entry(client, &adap->clients, list)
-			if (client->addr == 0x4a)
-				goto found_it;
+	pika_setup_critical_temp(np, client);
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ);
-	}
+	of_node_put(np);
 
-found_it:
-	pika_setup_critical_temp(client);
-
-	i2c_put_adapter(adap);
-
-	printk(KERN_INFO "PIKA DTM thread running.\n");
+	printk(KERN_INFO "Warp DTM thread running.\n");
 
 	while (!kthread_should_stop()) {
 		int val;
@@ -290,7 +275,6 @@ found_it:
 
 	return 0;
 }
-
 
 static int __init pika_dtm_start(void)
 {

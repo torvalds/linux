@@ -178,7 +178,7 @@ cputime64_to_clock_t(cputime64_t cputime)
 }
 
 struct s390_idle_data {
-	spinlock_t lock;
+	unsigned int sequence;
 	unsigned long long idle_count;
 	unsigned long long idle_enter;
 	unsigned long long idle_time;

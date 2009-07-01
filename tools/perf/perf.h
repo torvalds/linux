@@ -13,6 +13,12 @@
 #define cpu_relax()	asm volatile ("" ::: "memory");
 #endif
 
+#ifdef __s390__
+#include "../../arch/s390/include/asm/unistd.h"
+#define rmb()		asm volatile("bcr 15,0" ::: "memory")
+#define cpu_relax()	asm volatile("" ::: "memory");
+#endif
+
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>

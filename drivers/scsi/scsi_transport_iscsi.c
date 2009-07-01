@@ -692,6 +692,7 @@ int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 						 "Too many iscsi targets. Max "
 						 "number of targets is %d.\n",
 						 ISCSI_MAX_TARGET - 1);
+			err = -EOVERFLOW;
 			goto release_host;
 		}
 	}

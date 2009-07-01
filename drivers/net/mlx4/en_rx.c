@@ -269,31 +269,6 @@ reduce_rings:
 	return 0;
 }
 
-static int mlx4_en_fill_rx_buf(struct net_device *dev,
-			       struct mlx4_en_rx_ring *ring)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int num = 0;
-	int err;
-
-	while ((u32) (ring->prod - ring->cons) < ring->actual_size) {
-		err = mlx4_en_prepare_rx_desc(priv, ring, ring->prod &
-					      ring->size_mask);
-		if (err) {
-			if (netif_msg_rx_err(priv))
-				en_warn(priv, "Failed preparing rx descriptor\n");
-			priv->port_stats.rx_alloc_failed++;
-			break;
-		}
-		++num;
-		++ring->prod;
-	}
-	if ((u32) (ring->prod - ring->cons) == ring->actual_size)
-		ring->full = 1;
-
-	return num;
-}
-
 static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 				struct mlx4_en_rx_ring *ring)
 {
@@ -311,42 +286,6 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 		++ring->cons;
 	}
 }
-
-
-void mlx4_en_rx_refill(struct work_struct *work)
-{
-	struct delayed_work *delay = to_delayed_work(work);
-	struct mlx4_en_priv *priv = container_of(delay, struct mlx4_en_priv,
-						 refill_task);
-	struct mlx4_en_dev *mdev = priv->mdev;
-	struct net_device *dev = priv->dev;
-	struct mlx4_en_rx_ring *ring;
-	int need_refill = 0;
-	int i;
-
-	mutex_lock(&mdev->state_lock);
-	if (!mdev->device_up || !priv->port_up)
-		goto out;
-
-	/* We only get here if there are no receive buffers, so we can't race
-	 * with Rx interrupts while filling buffers */
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		ring = &priv->rx_ring[i];
-		if (ring->need_refill) {
-			if (mlx4_en_fill_rx_buf(dev, ring)) {
-				ring->need_refill = 0;
-				mlx4_en_update_rx_prod_db(ring);
-			} else
-				need_refill = 1;
-		}
-	}
-	if (need_refill)
-		queue_delayed_work(mdev->workqueue, &priv->refill_task, HZ);
-
-out:
-	mutex_unlock(&mdev->state_lock);
-}
-
 
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring *ring, u32 size, u16 stride)
@@ -457,9 +396,6 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 			ring_ind--;
 			goto err_allocator;
 		}
-
-		/* Fill Rx buffers */
-		ring->full = 0;
 	}
 	err = mlx4_en_fill_rx_buffers(priv);
 	if (err)
@@ -647,33 +583,6 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 	return skb;
 }
 
-static void mlx4_en_copy_desc(struct mlx4_en_priv *priv,
-			      struct mlx4_en_rx_ring *ring,
-			      int from, int to, int num)
-{
-	struct skb_frag_struct *skb_frags_from;
-	struct skb_frag_struct *skb_frags_to;
-	struct mlx4_en_rx_desc *rx_desc_from;
-	struct mlx4_en_rx_desc *rx_desc_to;
-	int from_index, to_index;
-	int nr, i;
-
-	for (i = 0; i < num; i++) {
-		from_index = (from + i) & ring->size_mask;
-		to_index = (to + i) & ring->size_mask;
-		skb_frags_from = ring->rx_info + (from_index << priv->log_rx_info);
-		skb_frags_to = ring->rx_info + (to_index << priv->log_rx_info);
-		rx_desc_from = ring->buf + (from_index << ring->log_stride);
-		rx_desc_to = ring->buf + (to_index << ring->log_stride);
-
-		for (nr = 0; nr < priv->num_frags; nr++) {
-			skb_frags_to[nr].page = skb_frags_from[nr].page;
-			skb_frags_to[nr].page_offset = skb_frags_from[nr].page_offset;
-			rx_desc_to->data[nr].addr = rx_desc_from->data[nr].addr;
-		}
-	}
-}
-
 
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
 {
@@ -821,11 +730,6 @@ out:
 	wmb(); /* ensure HW sees CQ consumer before we post new buffers */
 	ring->cons = cq->mcq.cons_index;
 	ring->prod += polled; /* Polled descriptors were realocated in place */
-	if (unlikely(!ring->full)) {
-		mlx4_en_copy_desc(priv, ring, ring->cons - polled,
-				  ring->prod - polled, polled);
-		mlx4_en_fill_rx_buf(dev, ring);
-	}
 	mlx4_en_update_rx_prod_db(ring);
 	return polled;
 }

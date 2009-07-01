@@ -139,6 +139,9 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 
 	rcu_read_unlock();
 
+	/* Must drop socket now because of tproxy. */
+	skb_orphan(skb);
+
 	return NF_HOOK(PF_INET6, NF_INET_PRE_ROUTING, skb, dev, NULL,
 		       ip6_rcv_finish);
 err:

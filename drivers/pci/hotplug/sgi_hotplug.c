@@ -83,7 +83,6 @@ static int disable_slot(struct hotplug_slot *slot);
 static inline int get_power_status(struct hotplug_slot *slot, u8 *value);
 
 static struct hotplug_slot_ops sn_hotplug_slot_ops = {
-	.owner                  = THIS_MODULE,
 	.enable_slot            = enable_slot,
 	.disable_slot           = disable_slot,
 	.get_power_status       = get_power_status,

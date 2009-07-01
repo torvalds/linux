@@ -461,7 +461,7 @@ static void sunhv_console_write_paged(struct console *con, const char *s, unsign
 					break;
 				udelay(1);
 			}
-			if (limit <= 0)
+			if (limit < 0)
 				break;
 			page_bytes -= written;
 			ra += written;

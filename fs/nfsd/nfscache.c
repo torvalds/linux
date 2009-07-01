@@ -29,15 +29,24 @@
  */
 #define CACHESIZE		1024
 #define HASHSIZE		64
-#define REQHASH(xid)		(((((__force __u32)xid) >> 24) ^ ((__force __u32)xid)) & (HASHSIZE-1))
 
-static struct hlist_head *	hash_list;
+static struct hlist_head *	cache_hash;
 static struct list_head 	lru_head;
 static int			cache_disabled = 1;
 
+/*
+ * Calculate the hash index from an XID.
+ */
+static inline u32 request_hash(u32 xid)
+{
+	u32 h = xid;
+	h ^= (xid >> 24);
+	return h & (HASHSIZE-1);
+}
+
 static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
 
-/* 
+/*
  * locking for the reply cache:
  * A cache entry is "single use" if c_state == RC_INPROG
  * Otherwise, it when accessing _prev or _next, the lock must be held.
@@ -62,8 +71,8 @@ int nfsd_reply_cache_init(void)
 		i--;
 	}
 
-	hash_list = kcalloc (HASHSIZE, sizeof(struct hlist_head), GFP_KERNEL);
-	if (!hash_list)
+	cache_hash = kcalloc (HASHSIZE, sizeof(struct hlist_head), GFP_KERNEL);
+	if (!cache_hash)
 		goto out_nomem;
 
 	cache_disabled = 0;
@@ -88,8 +97,8 @@ void nfsd_reply_cache_shutdown(void)
 
 	cache_disabled = 1;
 
-	kfree (hash_list);
-	hash_list = NULL;
+	kfree (cache_hash);
+	cache_hash = NULL;
 }
 
 /*
@@ -108,7 +117,7 @@ static void
 hash_refile(struct svc_cacherep *rp)
 {
 	hlist_del_init(&rp->c_hash);
-	hlist_add_head(&rp->c_hash, hash_list + REQHASH(rp->c_xid));
+	hlist_add_head(&rp->c_hash, cache_hash + request_hash(rp->c_xid));
 }
 
 /*
@@ -138,7 +147,7 @@ nfsd_cache_lookup(struct svc_rqst *rqstp, int type)
 	spin_lock(&cache_lock);
 	rtn = RC_DOIT;
 
-	rh = &hash_list[REQHASH(xid)];
+	rh = &cache_hash[request_hash(xid)];
 	hlist_for_each_entry(rp, hn, rh, c_hash) {
 		if (rp->c_state != RC_UNUSED &&
 		    xid == rp->c_xid && proc == rp->c_proc &&
@@ -165,8 +174,8 @@ nfsd_cache_lookup(struct svc_rqst *rqstp, int type)
 	}
 	}
 
-	/* This should not happen */
-	if (rp == NULL) {
+	/* All entries on the LRU are in-progress. This should not happen */
+	if (&rp->c_lru == &lru_head) {
 		static int	complaints;
 
 		printk(KERN_WARNING "nfsd: all repcache entries locked!\n");
@@ -264,7 +273,7 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 
 	len = resv->iov_len - ((char*)statp - (char*)resv->iov_base);
 	len >>= 2;
-	
+
 	/* Don't cache excessive amounts of data and XDR failures */
 	if (!statp || len > (256 >> 2)) {
 		rp->c_state = RC_UNUSED;

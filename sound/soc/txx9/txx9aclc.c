@@ -297,9 +297,9 @@ static int txx9aclc_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 static bool filter(struct dma_chan *chan, void *param)
 {
 	struct txx9aclc_dmadata *dmadata = param;
-	char devname[BUS_ID_SIZE + 2];
+	char devname[20 + 2]; /* FIXME: old BUS_ID_SIZE + 2 */
 
-	sprintf(devname, "%s.%d", dmadata->dma_res->name,
+	snprintf(devname, sizeof(devname), "%s.%d", dmadata->dma_res->name,
 		(int)dmadata->dma_res->start);
 	if (strcmp(dev_name(chan->device->dev), devname) == 0) {
 		chan->private = &dmadata->dma_slave;

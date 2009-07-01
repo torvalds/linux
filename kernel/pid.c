@@ -36,6 +36,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/init_task.h>
 #include <linux/syscalls.h>
+#include <linux/kmemleak.h>
 
 #define pid_hashfn(nr, ns)	\
 	hash_long((unsigned long)nr + (unsigned long)ns, pidhash_shift)
@@ -512,6 +513,12 @@ void __init pidhash_init(void)
 	pid_hash = alloc_bootmem(pidhash_size *	sizeof(*(pid_hash)));
 	if (!pid_hash)
 		panic("Could not alloc pidhash!\n");
+	/*
+	 * pid_hash contains references to allocated struct pid objects and it
+	 * must be scanned by kmemleak to avoid false positives.
+	 */
+	kmemleak_alloc(pid_hash, pidhash_size *	sizeof(*(pid_hash)), 0,
+		       GFP_KERNEL);
 	for (i = 0; i < pidhash_size; i++)
 		INIT_HLIST_HEAD(&pid_hash[i]);
 }

@@ -45,6 +45,7 @@
 #include "dibx000_common.h"
 #include "zl10353.h"
 #include "stv0900.h"
+#include "stv0900_reg.h"
 #include "stv6110.h"
 #include "lnbh24.h"
 #include "cx24116.h"
@@ -242,12 +243,22 @@ static struct tda18271_std_map hauppauge_tda18271_std_map = {
 		      .if_lvl = 6, .rfagc_top = 0x37 },
 };
 
+static struct tda18271_std_map hauppauge_hvr1200_tda18271_std_map = {
+	.dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_7   = { .if_freq = 3800, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_8   = { .if_freq = 4300, .agc_mode = 3, .std = 6,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+};
+
 static struct tda18271_config hauppauge_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
 };
 
 static struct tda18271_config hauppauge_hvr1200_tuner_config = {
+	.std_map = &hauppauge_hvr1200_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
 };
 
@@ -370,13 +381,25 @@ static struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.disable_i2c_gate_ctrl = 1,
 };
 
+static struct stv0900_reg stv0900_ts_regs[] = {
+	{ R0900_TSGENERAL, 0x00 },
+	{ R0900_P1_TSSPEED, 0x40 },
+	{ R0900_P2_TSSPEED, 0x40 },
+	{ R0900_P1_TSCFGM, 0xc0 },
+	{ R0900_P2_TSCFGM, 0xc0 },
+	{ R0900_P1_TSCFGH, 0xe0 },
+	{ R0900_P2_TSCFGH, 0xe0 },
+	{ R0900_P1_TSCFGL, 0x20 },
+	{ R0900_P2_TSCFGL, 0x20 },
+	{ 0xffff, 0xff }, /* terminate */
+};
+
 static struct stv0900_config netup_stv0900_config = {
 	.demod_address = 0x68,
 	.xtal = 27000000,
 	.clkmode = 3,/* 0-CLKI, 2-XTALI, else AUTO */
 	.diseqc_mode = 2,/* 2/3 PWM */
-	.path1_mode = 2,/*Serial continues clock */
-	.path2_mode = 2,/*Serial continues clock */
+	.ts_config_regs = stv0900_ts_regs,
 	.tun1_maddress = 0,/* 0x60 */
 	.tun2_maddress = 3,/* 0x63 */
 	.tun1_adc = 1,/* 1 Vpp */
@@ -736,7 +759,8 @@ static int dvb_register(struct cx23885_tsport *port)
 					if (!dvb_attach(lnbh24_attach,
 							fe0->dvb.frontend,
 							&i2c_bus->i2c_adap,
-							LNBH24_PCL, 0, 0x09))
+							LNBH24_PCL,
+							LNBH24_TTX, 0x09))
 						printk(KERN_ERR
 							"No LNBH24 found!\n");
 
@@ -756,7 +780,8 @@ static int dvb_register(struct cx23885_tsport *port)
 					if (!dvb_attach(lnbh24_attach,
 							fe0->dvb.frontend,
 							&i2c_bus->i2c_adap,
-							LNBH24_PCL, 0, 0x0a))
+							LNBH24_PCL,
+							LNBH24_TTX, 0x0a))
 						printk(KERN_ERR
 							"No LNBH24 found!\n");
 

@@ -173,8 +173,8 @@ unsigned int kobjsize(const void *objp)
 }
 
 int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		     unsigned long start, int len, int flags,
-		struct page **pages, struct vm_area_struct **vmas)
+		     unsigned long start, int nr_pages, int flags,
+		     struct page **pages, struct vm_area_struct **vmas)
 {
 	struct vm_area_struct *vma;
 	unsigned long vm_flags;
@@ -189,7 +189,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	vm_flags  = write ? (VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
 	vm_flags &= force ? (VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
 
-	for (i = 0; i < len; i++) {
+	for (i = 0; i < nr_pages; i++) {
 		vma = find_vma(mm, start);
 		if (!vma)
 			goto finish_or_fault;
@@ -224,7 +224,7 @@ finish_or_fault:
  * - don't permit access to VMAs that don't support it, such as I/O mappings
  */
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-	unsigned long start, int len, int write, int force,
+	unsigned long start, int nr_pages, int write, int force,
 	struct page **pages, struct vm_area_struct **vmas)
 {
 	int flags = 0;
@@ -234,9 +234,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	if (force)
 		flags |= GUP_FLAGS_FORCE;
 
-	return __get_user_pages(tsk, mm,
-				start, len, flags,
-				pages, vmas);
+	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
 }
 EXPORT_SYMBOL(get_user_pages);
 

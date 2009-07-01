@@ -4,7 +4,7 @@ menu "IEEE 1394 (FireWire) support"
 source "drivers/firewire/Kconfig"
 
 config IEEE1394
-	tristate "Stable FireWire stack"
+	tristate "Legacy alternative FireWire driver stack"
 	depends on PCI || BROKEN
 	help
 	  IEEE 1394 describes a high performance serial bus, which is also
@@ -33,11 +33,9 @@ config IEEE1394_OHCI1394
 	  module will be called ohci1394.
 
 	  NOTE:
-
-	  You should only build either ohci1394 or the new firewire-ohci driver,
-	  but not both.  If you nevertheless want to install both, you should
-	  configure them only as modules and blacklist the driver(s) which you
-	  don't want to have auto-loaded.  Add either
+	  If you want to install firewire-ohci and ohci1394 together, you
+	  should configure them only as modules and blacklist the driver(s)
+	  which you don't want to have auto-loaded.  Add either
 
 	      blacklist firewire-ohci
 	  or
@@ -46,12 +44,7 @@ config IEEE1394_OHCI1394
 	      blacklist dv1394
 
 	  to /etc/modprobe.conf or /etc/modprobe.d/* and update modprobe.conf
-	  depending on your distribution.  The latter two modules should be
-	  blacklisted together with ohci1394 because they depend on ohci1394.
-
-	  If you have an old modprobe which doesn't implement the blacklist
-	  directive, use "install modulename /bin/true" for the modules to be
-	  blacklisted.
+	  depending on your distribution.
 
 comment "PCILynx controller requires I2C"
 	depends on IEEE1394 && I2C=n
@@ -105,7 +98,7 @@ config IEEE1394_ETH1394_ROM_ENTRY
 	default n
 
 config IEEE1394_ETH1394
-	tristate "IP over 1394"
+	tristate "IP networking over 1394 (experimental)"
 	depends on IEEE1394 && EXPERIMENTAL && INET
 	select IEEE1394_ETH1394_ROM_ENTRY
 	help

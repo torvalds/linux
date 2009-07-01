@@ -2,6 +2,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/init.h>
+#include <linux/smp.h>
 
 #include <asm/io.h>
 #include <asm/gic.h>

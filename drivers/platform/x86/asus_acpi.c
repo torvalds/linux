@@ -455,6 +455,8 @@ static struct asus_hotk *hotk;
  */
 static int asus_hotk_add(struct acpi_device *device);
 static int asus_hotk_remove(struct acpi_device *device, int type);
+static void asus_hotk_notify(struct acpi_device *device, u32 event);
+
 static const struct acpi_device_id asus_device_ids[] = {
 	{"ATK0100", 0},
 	{"", 0},
@@ -465,9 +467,11 @@ static struct acpi_driver asus_hotk_driver = {
 	.name = "asus_acpi",
 	.class = ACPI_HOTK_CLASS,
 	.ids = asus_device_ids,
+	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {
 		.add = asus_hotk_add,
 		.remove = asus_hotk_remove,
+		.notify = asus_hotk_notify,
 		},
 };
 
@@ -1101,10 +1105,18 @@ static int asus_hotk_remove_fs(struct acpi_device *device)
 	return 0;
 }
 
-static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
+static void asus_hotk_notify(struct acpi_device *device, u32 event)
 {
 	/* TODO Find a better way to handle events count. */
 	if (!hotk)
+		return;
+
+	/*
+	 * The BIOS *should* be sending us device events, but apparently
+	 * Asus uses system events instead, so just ignore any device
+	 * events we get.
+	 */
+	if (event > ACPI_MAX_SYS_NOTIFY)
 		return;
 
 	if ((event & ~((u32) BR_UP)) < 16)
@@ -1346,15 +1358,6 @@ static int asus_hotk_add(struct acpi_device *device)
 	if (result)
 		goto end;
 
-	/*
-	 * We install the handler, it will receive the hotk in parameter, so, we
-	 * could add other data to the hotk struct
-	 */
-	status = acpi_install_notify_handler(hotk->handle, ACPI_SYSTEM_NOTIFY,
-					     asus_hotk_notify, hotk);
-	if (ACPI_FAILURE(status))
-		printk(KERN_ERR "  Error installing notify handler\n");
-
 	/* For laptops without GPLV: init the hotk->brightness value */
 	if ((!hotk->methods->brightness_get)
 	    && (!hotk->methods->brightness_status)
@@ -1389,15 +1392,8 @@ end:
 
 static int asus_hotk_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = 0;
-
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
-
-	status = acpi_remove_notify_handler(hotk->handle, ACPI_SYSTEM_NOTIFY,
-					    asus_hotk_notify);
-	if (ACPI_FAILURE(status))
-		printk(KERN_ERR "Asus ACPI: Error removing notify handler\n");
 
 	asus_hotk_remove_fs(device);
 

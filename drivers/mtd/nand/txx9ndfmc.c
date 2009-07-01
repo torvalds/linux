@@ -64,7 +64,7 @@ struct txx9ndfmc_priv {
 	struct nand_chip chip;
 	struct mtd_info mtd;
 	int cs;
-	char mtdname[BUS_ID_SIZE + 2];
+	const char *mtdname;
 };
 
 #define MAX_TXX9NDFMC_DEV	4
@@ -334,16 +334,23 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 
 		if (plat->ch_mask != 1) {
 			txx9_priv->cs = i;
-			sprintf(txx9_priv->mtdname, "%s.%u",
-				dev_name(&dev->dev), i);
+			txx9_priv->mtdname = kasprintf(GFP_KERNEL, "%s.%u",
+						       dev_name(&dev->dev), i);
 		} else {
 			txx9_priv->cs = -1;
-			strcpy(txx9_priv->mtdname, dev_name(&dev->dev));
+			txx9_priv->mtdname = kstrdup(dev_name(&dev->dev),
+						     GFP_KERNEL);
+		}
+		if (!txx9_priv->mtdname) {
+			kfree(txx9_priv);
+			dev_err(&dev->dev, "Unable to allocate MTD name.\n");
+			continue;
 		}
 		if (plat->wide_mask & (1 << i))
 			chip->options |= NAND_BUSWIDTH_16;
 
 		if (nand_scan(mtd, 1)) {
+			kfree(txx9_priv->mtdname);
 			kfree(txx9_priv);
 			continue;
 		}
@@ -385,6 +392,7 @@ static int __exit txx9ndfmc_remove(struct platform_device *dev)
 		kfree(drvdata->parts[i]);
 #endif
 		del_mtd_device(mtd);
+		kfree(txx9_priv->mtdname);
 		kfree(txx9_priv);
 	}
 	return 0;

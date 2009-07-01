@@ -55,7 +55,11 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 		goto out;
 	odd = 1 & (unsigned long) buff;
 	if (odd) {
+#ifdef __LITTLE_ENDIAN
 		result = *buff;
+#else
+		result += (*buff << 8);
+#endif
 		len--;
 		buff++;
 	}
@@ -71,7 +75,7 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 		if (count) {
 			unsigned long carry = 0;
 			do {
-				unsigned long w = *(unsigned long *) buff;
+				unsigned long w = *(unsigned int *) buff;
 				count--;
 				buff += 4;
 				result += carry;
@@ -87,7 +91,11 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 		}
 	}
 	if (len & 1)
+#ifdef __LITTLE_ENDIAN
+		result += *buff;
+#else
 		result += (*buff << 8);
+#endif
 	result = from32to16(result);
 	if (odd)
 		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);

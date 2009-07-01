@@ -198,6 +198,7 @@ static int ecb_encrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	kernel_fpu_begin();
 	while ((nbytes = walk.nbytes)) {
@@ -221,6 +222,7 @@ static int ecb_decrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	kernel_fpu_begin();
 	while ((nbytes = walk.nbytes)) {
@@ -266,6 +268,7 @@ static int cbc_encrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	kernel_fpu_begin();
 	while ((nbytes = walk.nbytes)) {
@@ -289,6 +292,7 @@ static int cbc_decrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	kernel_fpu_begin();
 	while ((nbytes = walk.nbytes)) {

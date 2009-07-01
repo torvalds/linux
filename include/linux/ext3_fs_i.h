@@ -103,10 +103,6 @@ struct ext3_inode_info {
 	 */
 	struct rw_semaphore xattr_sem;
 #endif
-#ifdef CONFIG_EXT3_FS_POSIX_ACL
-	struct posix_acl	*i_acl;
-	struct posix_acl	*i_default_acl;
-#endif
 
 	struct list_head i_orphan;	/* unlinked but open inodes */
 

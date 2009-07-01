@@ -13,7 +13,7 @@ extra-y += vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A $(ARCH) -O linux -T kernel \
-                   -C $(2) -n 'Linux-$(KERNELRELEASE)' -a $(CONFIG_BOOT_LOAD) \
+                   -C $(2) -n '$(MACHINE)-$(KERNELRELEASE)' -a $(CONFIG_BOOT_LOAD) \
                    -e $(shell $(NM) vmlinux | awk '$$NF == "__start" {print $$1}') \
                    -d $< $@
 

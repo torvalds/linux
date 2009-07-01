@@ -32,6 +32,8 @@ int force_iommu __read_mostly = 1;
 int force_iommu __read_mostly;
 #endif
 
+int iommu_pass_through;
+
 /* Dummy device used for NULL arguments (normally ISA). Better would
    be probably a smaller DMA mask, but this is bug-to-bug compatible
    to i386. */

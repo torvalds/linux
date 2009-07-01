@@ -112,16 +112,6 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 	}
 }
 
-/* obsolete, blk_rq_bytes() should be used instead */
-unsigned int ide_rq_bytes(struct request *rq)
-{
-	if (blk_pc_request(rq))
-		return blk_rq_bytes(rq);
-	else
-		return blk_rq_cur_sectors(rq) << 9;
-}
-EXPORT_SYMBOL_GPL(ide_rq_bytes);
-
 int ide_complete_rq(ide_drive_t *drive, int error, unsigned int nr_bytes)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -152,14 +142,14 @@ void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 
 	if ((media == ide_floppy || media == ide_tape) && drv_req) {
 		rq->errors = 0;
-		ide_complete_rq(drive, 0, blk_rq_bytes(rq));
 	} else {
 		if (media == ide_tape)
 			rq->errors = IDE_DRV_ERROR_GENERAL;
 		else if (blk_fs_request(rq) == 0 && rq->errors == 0)
 			rq->errors = -EIO;
-		ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
 	}
+
+	ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
 }
 
 static void ide_tf_set_specify_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
@@ -476,10 +466,14 @@ void do_ide_request(struct request_queue *q)
 
 	if (!ide_lock_port(hwif)) {
 		ide_hwif_t *prev_port;
-
-		WARN_ON_ONCE(hwif->rq);
 repeat:
 		prev_port = hwif->host->cur_port;
+
+		if (drive->dev_flags & IDE_DFLAG_BLOCKED)
+			rq = hwif->rq;
+		else
+			WARN_ON_ONCE(hwif->rq);
+
 		if (drive->dev_flags & IDE_DFLAG_SLEEPING &&
 		    time_after(drive->sleep, jiffies)) {
 			ide_unlock_port(hwif);
@@ -506,43 +500,29 @@ repeat:
 		hwif->cur_dev = drive;
 		drive->dev_flags &= ~(IDE_DFLAG_SLEEPING | IDE_DFLAG_PARKED);
 
-		spin_unlock_irq(&hwif->lock);
-		spin_lock_irq(q->queue_lock);
-		/*
-		 * we know that the queue isn't empty, but this can happen
-		 * if the q->prep_rq_fn() decides to kill a request
-		 */
-		if (!rq)
+		if (rq == NULL) {
+			spin_unlock_irq(&hwif->lock);
+			spin_lock_irq(q->queue_lock);
+			/*
+			 * we know that the queue isn't empty, but this can
+			 * happen if ->prep_rq_fn() decides to kill a request
+			 */
 			rq = blk_fetch_request(drive->queue);
+			spin_unlock_irq(q->queue_lock);
+			spin_lock_irq(&hwif->lock);
 
-		spin_unlock_irq(q->queue_lock);
-		spin_lock_irq(&hwif->lock);
-
-		if (!rq) {
-			ide_unlock_port(hwif);
-			goto out;
+			if (rq == NULL) {
+				ide_unlock_port(hwif);
+				goto out;
+			}
 		}
 
 		/*
 		 * Sanity: don't accept a request that isn't a PM request
-		 * if we are currently power managed. This is very important as
-		 * blk_stop_queue() doesn't prevent the blk_fetch_request()
-		 * above to return us whatever is in the queue. Since we call
-		 * ide_do_request() ourselves, we end up taking requests while
-		 * the queue is blocked...
-		 * 
-		 * We let requests forced at head of queue with ide-preempt
-		 * though. I hope that doesn't happen too much, hopefully not
-		 * unless the subdriver triggers such a thing in its own PM
-		 * state machine.
+		 * if we are currently power managed.
 		 */
-		if ((drive->dev_flags & IDE_DFLAG_BLOCKED) &&
-		    blk_pm_request(rq) == 0 &&
-		    (rq->cmd_flags & REQ_PREEMPT) == 0) {
-			/* there should be no pending command at this point */
-			ide_unlock_port(hwif);
-			goto plug_device;
-		}
+		BUG_ON((drive->dev_flags & IDE_DFLAG_BLOCKED) &&
+		       blk_pm_request(rq) == 0);
 
 		hwif->rq = rq;
 

@@ -125,6 +125,10 @@ struct iscsi_task {
 	struct scsi_cmnd	*sc;		/* associated SCSI cmd*/
 	struct iscsi_conn	*conn;		/* used connection    */
 
+	/* data processing tracking */
+	unsigned long		last_xfer;
+	unsigned long		last_timeout;
+	bool			have_checked_conn;
 	/* state set/tested under session->lock */
 	int			state;
 	atomic_t		refcount;

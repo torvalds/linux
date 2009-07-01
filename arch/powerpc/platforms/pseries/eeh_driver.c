@@ -122,7 +122,7 @@ static void eeh_enable_irq(struct pci_dev *dev)
  * passed back in "userdata".
  */
 
-static void eeh_report_error(struct pci_dev *dev, void *userdata)
+static int eeh_report_error(struct pci_dev *dev, void *userdata)
 {
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver = dev->driver;
@@ -130,19 +130,21 @@ static void eeh_report_error(struct pci_dev *dev, void *userdata)
 	dev->error_state = pci_channel_io_frozen;
 
 	if (!driver)
-		return;
+		return 0;
 
 	eeh_disable_irq(dev);
 
 	if (!driver->err_handler ||
 	    !driver->err_handler->error_detected)
-		return;
+		return 0;
 
 	rc = driver->err_handler->error_detected (dev, pci_channel_io_frozen);
 
 	/* A driver that needs a reset trumps all others */
 	if (rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
+
+	return 0;
 }
 
 /**
@@ -153,7 +155,7 @@ static void eeh_report_error(struct pci_dev *dev, void *userdata)
  * Cumulative response passed back in "userdata".
  */
 
-static void eeh_report_mmio_enabled(struct pci_dev *dev, void *userdata)
+static int eeh_report_mmio_enabled(struct pci_dev *dev, void *userdata)
 {
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver = dev->driver;
@@ -161,26 +163,28 @@ static void eeh_report_mmio_enabled(struct pci_dev *dev, void *userdata)
 	if (!driver ||
 	    !driver->err_handler ||
 	    !driver->err_handler->mmio_enabled)
-		return;
+		return 0;
 
 	rc = driver->err_handler->mmio_enabled (dev);
 
 	/* A driver that needs a reset trumps all others */
 	if (rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
+
+	return 0;
 }
 
 /**
  * eeh_report_reset - tell device that slot has been reset
  */
 
-static void eeh_report_reset(struct pci_dev *dev, void *userdata)
+static int eeh_report_reset(struct pci_dev *dev, void *userdata)
 {
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver = dev->driver;
 
 	if (!driver)
-		return;
+		return 0;
 
 	dev->error_state = pci_channel_io_normal;
 
@@ -188,35 +192,39 @@ static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 
 	if (!driver->err_handler ||
 	    !driver->err_handler->slot_reset)
-		return;
+		return 0;
 
 	rc = driver->err_handler->slot_reset(dev);
 	if ((*res == PCI_ERS_RESULT_NONE) ||
 	    (*res == PCI_ERS_RESULT_RECOVERED)) *res = rc;
 	if (*res == PCI_ERS_RESULT_DISCONNECT &&
 	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
+
+	return 0;
 }
 
 /**
  * eeh_report_resume - tell device to resume normal operations
  */
 
-static void eeh_report_resume(struct pci_dev *dev, void *userdata)
+static int eeh_report_resume(struct pci_dev *dev, void *userdata)
 {
 	struct pci_driver *driver = dev->driver;
 
 	dev->error_state = pci_channel_io_normal;
 
 	if (!driver)
-		return;
+		return 0;
 
 	eeh_enable_irq(dev);
 
 	if (!driver->err_handler ||
 	    !driver->err_handler->resume)
-		return;
+		return 0;
 
 	driver->err_handler->resume(dev);
+
+	return 0;
 }
 
 /**
@@ -226,22 +234,24 @@ static void eeh_report_resume(struct pci_dev *dev, void *userdata)
  * dead, and that no further recovery attempts will be made on it.
  */
 
-static void eeh_report_failure(struct pci_dev *dev, void *userdata)
+static int eeh_report_failure(struct pci_dev *dev, void *userdata)
 {
 	struct pci_driver *driver = dev->driver;
 
 	dev->error_state = pci_channel_io_perm_failure;
 
 	if (!driver)
-		return;
+		return 0;
 
 	eeh_disable_irq(dev);
 
 	if (!driver->err_handler ||
 	    !driver->err_handler->error_detected)
-		return;
+		return 0;
 
 	driver->err_handler->error_detected(dev, pci_channel_io_perm_failure);
+
+	return 0;
 }
 
 /* ------------------------------------------------------- */

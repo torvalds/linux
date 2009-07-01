@@ -2122,10 +2122,8 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	 * any xattrs or acls
 	 */
 	maybe_acls = acls_after_inode_item(leaf, path->slots[0], inode->i_ino);
-	if (!maybe_acls) {
-		BTRFS_I(inode)->i_acl = NULL;
-		BTRFS_I(inode)->i_default_acl = NULL;
-	}
+	if (!maybe_acls)
+		cache_no_acl(inode);
 
 	BTRFS_I(inode)->block_group = btrfs_find_block_group(root, 0,
 						alloc_group_block, 0);
@@ -3140,9 +3138,6 @@ static void inode_tree_del(struct inode *inode)
 static noinline void init_btrfs_i(struct inode *inode)
 {
 	struct btrfs_inode *bi = BTRFS_I(inode);
-
-	bi->i_acl = BTRFS_ACL_NOT_CACHED;
-	bi->i_default_acl = BTRFS_ACL_NOT_CACHED;
 
 	bi->generation = 0;
 	bi->sequence = 0;
@@ -4640,8 +4635,6 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->last_trans = 0;
 	ei->logged_trans = 0;
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
-	ei->i_acl = BTRFS_ACL_NOT_CACHED;
-	ei->i_default_acl = BTRFS_ACL_NOT_CACHED;
 	INIT_LIST_HEAD(&ei->i_orphan);
 	INIT_LIST_HEAD(&ei->ordered_operations);
 	return &ei->vfs_inode;
@@ -4654,13 +4647,6 @@ void btrfs_destroy_inode(struct inode *inode)
 
 	WARN_ON(!list_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
-
-	if (BTRFS_I(inode)->i_acl &&
-	    BTRFS_I(inode)->i_acl != BTRFS_ACL_NOT_CACHED)
-		posix_acl_release(BTRFS_I(inode)->i_acl);
-	if (BTRFS_I(inode)->i_default_acl &&
-	    BTRFS_I(inode)->i_default_acl != BTRFS_ACL_NOT_CACHED)
-		posix_acl_release(BTRFS_I(inode)->i_default_acl);
 
 	/*
 	 * Make sure we're properly removed from the ordered operation

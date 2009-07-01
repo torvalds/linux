@@ -145,7 +145,7 @@ static inline void sm501fb_sync_regs(struct sm501fb_info *info)
 #define SM501_MEMF_ACCEL		(8)
 
 static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
-			   unsigned int why, size_t size)
+			   unsigned int why, size_t size, u32 smem_len)
 {
 	struct sm501fb_par *par;
 	struct fb_info *fbi;
@@ -172,7 +172,7 @@ static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
 		if (ptr > 0)
 			ptr &= ~(PAGE_SIZE - 1);
 
-		if (fbi && ptr < fbi->fix.smem_len)
+		if (fbi && ptr < smem_len)
 			return -ENOMEM;
 
 		break;
@@ -197,7 +197,7 @@ static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
 
 	case SM501_MEMF_ACCEL:
 		fbi = inf->fb[HEAD_CRT];
-		ptr = fbi ? fbi->fix.smem_len : 0;
+		ptr = fbi ? smem_len : 0;
 
 		fbi = inf->fb[HEAD_PANEL];
 		if (fbi) {
@@ -413,6 +413,7 @@ static int sm501fb_set_par_common(struct fb_info *info,
 	unsigned int mem_type;
 	unsigned int clock_type;
 	unsigned int head_addr;
+	unsigned int smem_len;
 
 	dev_dbg(fbi->dev, "%s: %dx%d, bpp = %d, virtual %dx%d\n",
 		__func__, var->xres, var->yres, var->bits_per_pixel,
@@ -453,18 +454,20 @@ static int sm501fb_set_par_common(struct fb_info *info,
 
 	/* allocate fb memory within 501 */
 	info->fix.line_length = (var->xres_virtual * var->bits_per_pixel)/8;
-	info->fix.smem_len    = info->fix.line_length * var->yres_virtual;
+	smem_len = info->fix.line_length * var->yres_virtual;
 
 	dev_dbg(fbi->dev, "%s: line length = %u\n", __func__,
 		info->fix.line_length);
 
-	if (sm501_alloc_mem(fbi, &par->screen, mem_type,
-			    info->fix.smem_len)) {
+	if (sm501_alloc_mem(fbi, &par->screen, mem_type, smem_len, smem_len)) {
 		dev_err(fbi->dev, "no memory available\n");
 		return -ENOMEM;
 	}
 
+	mutex_lock(&info->mm_lock);
 	info->fix.smem_start = fbi->fbmem_res->start + par->screen.sm_addr;
+	info->fix.smem_len   = smem_len;
+	mutex_unlock(&info->mm_lock);
 
 	info->screen_base = fbi->fbmem + par->screen.sm_addr;
 	info->screen_size = info->fix.smem_len;
@@ -637,7 +640,8 @@ static int sm501fb_set_par_crt(struct fb_info *info)
 	if ((control & SM501_DC_CRT_CONTROL_SEL) == 0) {
 		/* the head is displaying panel data... */
 
-		sm501_alloc_mem(fbi, &par->screen, SM501_MEMF_CRT, 0);
+		sm501_alloc_mem(fbi, &par->screen, SM501_MEMF_CRT, 0,
+				info->fix.smem_len);
 		goto out_update;
 	}
 
@@ -1289,7 +1293,8 @@ static int sm501_init_cursor(struct fb_info *fbi, unsigned int reg_base)
 
 	par->cursor_regs = info->regs + reg_base;
 
-	ret = sm501_alloc_mem(info, &par->cursor, SM501_MEMF_CURSOR, 1024);
+	ret = sm501_alloc_mem(info, &par->cursor, SM501_MEMF_CURSOR, 1024,
+			      fbi->fix.smem_len);
 	if (ret < 0)
 		return ret;
 

@@ -41,8 +41,13 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		void *alignf_data)
 {
 	int i, ret = -ENOMEM;
+	resource_size_t max = -1;
 
 	type_mask |= IORESOURCE_IO | IORESOURCE_MEM;
+
+	/* don't allocate too high if the pref mem doesn't support 64bit*/
+	if (!(res->flags & IORESOURCE_MEM_64))
+		max = PCIBIOS_MAX_MEM_32;
 
 	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
 		struct resource *r = bus->resource[i];
@@ -62,7 +67,7 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		/* Ok, try it out.. */
 		ret = allocate_resource(r, res, size,
 					r->start ? : min,
-					-1, align,
+					max, align,
 					alignf, alignf_data);
 		if (ret == 0)
 			break;
@@ -201,13 +206,18 @@ void pci_enable_bridges(struct pci_bus *bus)
  *  Walk the given bus, including any bridged devices
  *  on buses under this bus.  Call the provided callback
  *  on each device found.
+ *
+ *  We check the return of @cb each time. If it returns anything
+ *  other than 0, we break out.
+ *
  */
-void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
+void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
 		  void *userdata)
 {
 	struct pci_dev *dev;
 	struct pci_bus *bus;
 	struct list_head *next;
+	int retval;
 
 	bus = top;
 	down_read(&pci_bus_sem);
@@ -231,8 +241,10 @@ void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
 
 		/* Run device routines with the device locked */
 		down(&dev->dev.sem);
-		cb(dev, userdata);
+		retval = cb(dev, userdata);
 		up(&dev->dev.sem);
+		if (retval)
+			break;
 	}
 	up_read(&pci_bus_sem);
 }

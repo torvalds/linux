@@ -1997,7 +1997,7 @@ static int e1000_clean(struct napi_struct *napi, int budget)
 	struct e1000_adapter *adapter = container_of(napi, struct e1000_adapter, napi);
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *poll_dev = adapter->netdev;
-	int tx_cleaned = 0, work_done = 0;
+	int tx_cleaned = 1, work_done = 0;
 
 	adapter = netdev_priv(poll_dev);
 

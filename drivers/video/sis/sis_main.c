@@ -1847,8 +1847,10 @@ sisfb_get_fix(struct fb_fix_screeninfo *fix, int con, struct fb_info *info)
 
 	strcpy(fix->id, ivideo->myid);
 
+	mutex_lock(&info->mm_lock);
 	fix->smem_start  = ivideo->video_base + ivideo->video_offset;
 	fix->smem_len    = ivideo->sisfb_mem;
+	mutex_unlock(&info->mm_lock);
 	fix->type        = FB_TYPE_PACKED_PIXELS;
 	fix->type_aux    = 0;
 	fix->visual      = (ivideo->video_bpp == 8) ? FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;

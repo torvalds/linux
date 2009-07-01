@@ -2414,7 +2414,10 @@ static int atafb_get_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
 	if (err)
 		return err;
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
-	return fbhw->encode_fix(fix, &par);
+	mutex_lock(&info->mm_lock);
+	err = fbhw->encode_fix(fix, &par);
+	mutex_unlock(&info->mm_lock);
+	return err;
 }
 
 static int atafb_get_var(struct fb_var_screeninfo *var, struct fb_info *info)
@@ -2743,7 +2746,9 @@ static int atafb_set_par(struct fb_info *info)
 
 	/* Decode wanted screen parameters */
 	fbhw->decode_var(&info->var, par);
+	mutex_lock(&info->mm_lock);
 	fbhw->encode_fix(&info->fix, par);
+	mutex_unlock(&info->mm_lock);
 
 	/* Set new videomode */
 	ata_set_par(par);

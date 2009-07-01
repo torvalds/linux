@@ -23,6 +23,7 @@
 #include <linux/pm.h>
 #include <linux/gpio.h>
 #include <linux/backlight.h>
+#include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -600,6 +601,10 @@ static struct platform_device *devices[] __initdata = {
 	&sharpsl_rom_device,
 };
 
+static struct i2c_board_info __initdata corgi_i2c_devices[] = {
+	{ I2C_BOARD_INFO("wm8731", 0x1b) },
+};
+
 static void corgi_poweroff(void)
 {
 	if (!machine_is_corgi())
@@ -634,6 +639,7 @@ static void __init corgi_init(void)
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(corgi_i2c_devices));
 
 	platform_scoop_config = &corgi_pcmcia_config;
 

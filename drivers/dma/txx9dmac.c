@@ -432,23 +432,27 @@ txx9dmac_descriptor_complete(struct txx9dmac_chan *dc,
 	list_splice_init(&txd->tx_list, &dc->free_list);
 	list_move(&desc->desc_node, &dc->free_list);
 
-	/*
-	 * We use dma_unmap_page() regardless of how the buffers were
-	 * mapped before they were submitted...
-	 */
 	if (!ds) {
 		dma_addr_t dmaaddr;
 		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
 			dmaaddr = is_dmac64(dc) ?
 				desc->hwdesc.DAR : desc->hwdesc32.DAR;
-			dma_unmap_page(chan2parent(&dc->chan), dmaaddr,
-				       desc->len, DMA_FROM_DEVICE);
+			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
+				dma_unmap_single(chan2parent(&dc->chan),
+					dmaaddr, desc->len, DMA_FROM_DEVICE);
+			else
+				dma_unmap_page(chan2parent(&dc->chan),
+					dmaaddr, desc->len, DMA_FROM_DEVICE);
 		}
 		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
 			dmaaddr = is_dmac64(dc) ?
 				desc->hwdesc.SAR : desc->hwdesc32.SAR;
-			dma_unmap_page(chan2parent(&dc->chan), dmaaddr,
-				       desc->len, DMA_TO_DEVICE);
+			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
+				dma_unmap_single(chan2parent(&dc->chan),
+					dmaaddr, desc->len, DMA_TO_DEVICE);
+			else
+				dma_unmap_page(chan2parent(&dc->chan),
+					dmaaddr, desc->len, DMA_TO_DEVICE);
 		}
 	}
 

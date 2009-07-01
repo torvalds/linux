@@ -141,12 +141,14 @@ EXPORT_SYMBOL_GPL(rpc_free_iostats);
 void rpc_count_iostats(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_iostats *stats = task->tk_client->cl_metrics;
+	struct rpc_iostats *stats;
 	struct rpc_iostats *op_metrics;
 	long rtt, execute, queue;
 
-	if (!stats || !req)
+	if (!task->tk_client || !task->tk_client->cl_metrics || !req)
 		return;
+
+	stats = task->tk_client->cl_metrics;
 	op_metrics = &stats[task->tk_msg.rpc_proc->p_statidx];
 
 	op_metrics->om_ops++;
@@ -154,7 +156,7 @@ void rpc_count_iostats(struct rpc_task *task)
 	op_metrics->om_timeouts += task->tk_timeouts;
 
 	op_metrics->om_bytes_sent += task->tk_bytes_sent;
-	op_metrics->om_bytes_recv += req->rq_received;
+	op_metrics->om_bytes_recv += req->rq_reply_bytes_recvd;
 
 	queue = (long)req->rq_xtime - task->tk_start;
 	if (queue < 0)

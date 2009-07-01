@@ -117,7 +117,7 @@ static int gic_set_cpu(unsigned int irq, const struct cpumask *mask_val)
 	u32 val;
 
 	spin_lock(&irq_controller_lock);
-	irq_desc[irq].cpu = cpu;
+	irq_desc[irq].node = cpu;
 	val = readl(reg) & ~(0xff << shift);
 	val |= 1 << (cpu + shift);
 	writel(val, reg);

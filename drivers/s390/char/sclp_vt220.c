@@ -20,7 +20,6 @@
 #include <linux/major.h>
 #include <linux/console.h>
 #include <linux/kdev_t.h>
-#include <linux/bootmem.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/reboot.h>
@@ -601,10 +600,7 @@ static void __init __sclp_vt220_free_pages(void)
 
 	list_for_each_safe(page, p, &sclp_vt220_empty) {
 		list_del(page);
-		if (slab_is_available())
-			free_page((unsigned long) page);
-		else
-			free_bootmem((unsigned long) page, PAGE_SIZE);
+		free_page((unsigned long) page);
 	}
 }
 
@@ -640,16 +636,12 @@ static int __init __sclp_vt220_init(int num_pages)
 	sclp_vt220_flush_later = 0;
 
 	/* Allocate pages for output buffering */
+	rc = -ENOMEM;
 	for (i = 0; i < num_pages; i++) {
-		if (slab_is_available())
-			page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
-		else
-			page = alloc_bootmem_low_pages(PAGE_SIZE);
-		if (!page) {
-			rc = -ENOMEM;
+		page = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+		if (!page)
 			goto out;
-		}
-		list_add_tail((struct list_head *) page, &sclp_vt220_empty);
+		list_add_tail(page, &sclp_vt220_empty);
 	}
 	rc = sclp_register(&sclp_vt220_register);
 out:

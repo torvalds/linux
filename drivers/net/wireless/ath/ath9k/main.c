@@ -1196,8 +1196,8 @@ void ath_radio_disable(struct ath_softc *sc)
 
 	ath9k_hw_phy_disable(ah);
 	ath9k_hw_configpcipowersave(ah, 1);
-	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 	ath9k_ps_restore(sc);
+	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 }
 
 /*******************/

@@ -669,7 +669,7 @@ static uint32_t bpp_to_pixfmt(int bpp)
 }
 
 static int mx3fb_blank(int blank, struct fb_info *fbi);
-static int mx3fb_map_video_memory(struct fb_info *fbi);
+static int mx3fb_map_video_memory(struct fb_info *fbi, unsigned int mem_len);
 static int mx3fb_unmap_video_memory(struct fb_info *fbi);
 
 /**
@@ -742,8 +742,7 @@ static int mx3fb_set_par(struct fb_info *fbi)
 		if (fbi->fix.smem_start)
 			mx3fb_unmap_video_memory(fbi);
 
-		fbi->fix.smem_len = mem_len;
-		if (mx3fb_map_video_memory(fbi) < 0) {
+		if (mx3fb_map_video_memory(fbi, mem_len) < 0) {
 			mutex_unlock(&mx3_fbi->mutex);
 			return -ENOMEM;
 		}
@@ -1198,6 +1197,7 @@ static int mx3fb_resume(struct platform_device *pdev)
 /**
  * mx3fb_map_video_memory() - allocates the DRAM memory for the frame buffer.
  * @fbi:	framebuffer information pointer
+ * @mem_len:	length of mapped memory
  * @return:	Error code indicating success or failure
  *
  * This buffer is remapped into a non-cached, non-buffered, memory region to
@@ -1205,23 +1205,26 @@ static int mx3fb_resume(struct platform_device *pdev)
  * area is remapped, all virtual memory access to the video memory should occur
  * at the new region.
  */
-static int mx3fb_map_video_memory(struct fb_info *fbi)
+static int mx3fb_map_video_memory(struct fb_info *fbi, unsigned int mem_len)
 {
 	int retval = 0;
 	dma_addr_t addr;
 
 	fbi->screen_base = dma_alloc_writecombine(fbi->device,
-						  fbi->fix.smem_len,
+						  mem_len,
 						  &addr, GFP_DMA);
 
 	if (!fbi->screen_base) {
 		dev_err(fbi->device, "Cannot allocate %u bytes framebuffer memory\n",
-			fbi->fix.smem_len);
+			mem_len);
 		retval = -EBUSY;
 		goto err0;
 	}
 
+	mutex_lock(&fbi->mm_lock);
 	fbi->fix.smem_start = addr;
+	fbi->fix.smem_len = mem_len;
+	mutex_unlock(&fbi->mm_lock);
 
 	dev_dbg(fbi->device, "allocated fb @ p=0x%08x, v=0x%p, size=%d.\n",
 		(uint32_t) fbi->fix.smem_start, fbi->screen_base, fbi->fix.smem_len);
@@ -1251,8 +1254,10 @@ static int mx3fb_unmap_video_memory(struct fb_info *fbi)
 			      fbi->screen_base, fbi->fix.smem_start);
 
 	fbi->screen_base = 0;
+	mutex_lock(&fbi->mm_lock);
 	fbi->fix.smem_start = 0;
 	fbi->fix.smem_len = 0;
+	mutex_unlock(&fbi->mm_lock);
 	return 0;
 }
 

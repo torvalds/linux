@@ -273,11 +273,6 @@ typedef struct xfs_inode {
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
 
-#ifdef CONFIG_XFS_POSIX_ACL
-	struct posix_acl	*i_acl;
-	struct posix_acl	*i_default_acl;
-#endif
-
 	/* Trace buffers per inode. */
 #ifdef XFS_INODE_TRACE
 	struct ktrace		*i_trace;	/* general inode trace */

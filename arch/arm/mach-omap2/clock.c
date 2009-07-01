@@ -302,7 +302,7 @@ int omap2_wait_clock_ready(void __iomem *reg, u32 mask, const char *name)
 		udelay(1);
 	}
 
-	if (i < MAX_CLOCK_ENABLE_WAIT)
+	if (i <= MAX_CLOCK_ENABLE_WAIT)
 		pr_debug("Clock %s stable after %d loops\n", name, i);
 	else
 		printk(KERN_ERR "Clock %s didn't enable in %d tries\n",

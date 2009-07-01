@@ -11,6 +11,7 @@
 
 #include <linux/bug.h>
 #include <linux/delay.h>
+#include <linux/smp.h>
 
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>

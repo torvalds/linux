@@ -291,7 +291,9 @@ function_stat_next(void *v, int idx)
 	pg = (struct ftrace_profile_page *)((unsigned long)rec & PAGE_MASK);
 
  again:
-	rec++;
+	if (idx != 0)
+		rec++;
+
 	if ((void *)rec >= (void *)&pg->records[pg->index]) {
 		pg = pg->next;
 		if (!pg)
@@ -1417,10 +1419,20 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
 	void *p = NULL;
+	loff_t l;
+
+	if (!(iter->flags & FTRACE_ITER_HASH))
+		*pos = 0;
 
 	iter->flags |= FTRACE_ITER_HASH;
 
-	return t_hash_next(m, p, pos);
+	iter->hidx = 0;
+	for (l = 0; l <= *pos; ) {
+		p = t_hash_next(m, p, &l);
+		if (!p)
+			break;
+	}
+	return p;
 }
 
 static int t_hash_show(struct seq_file *m, void *v)
@@ -1467,8 +1479,6 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 			iter->pg = iter->pg->next;
 			iter->idx = 0;
 			goto retry;
-		} else {
-			iter->idx = -1;
 		}
 	} else {
 		rec = &iter->pg->records[iter->idx++];
@@ -1497,6 +1507,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
 	void *p = NULL;
+	loff_t l;
 
 	mutex_lock(&ftrace_lock);
 	/*
@@ -1508,23 +1519,21 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 		if (*pos > 0)
 			return t_hash_start(m, pos);
 		iter->flags |= FTRACE_ITER_PRINTALL;
-		(*pos)++;
 		return iter;
 	}
 
 	if (iter->flags & FTRACE_ITER_HASH)
 		return t_hash_start(m, pos);
 
-	if (*pos > 0) {
-		if (iter->idx < 0)
-			return p;
-		(*pos)--;
-		iter->idx--;
+	iter->pg = ftrace_pages_start;
+	iter->idx = 0;
+	for (l = 0; l <= *pos; ) {
+		p = t_next(m, p, &l);
+		if (!p)
+			break;
 	}
 
-	p = t_next(m, p, pos);
-
-	if (!p)
+	if (!p && iter->flags & FTRACE_ITER_FILTER)
 		return t_hash_start(m, pos);
 
 	return p;
@@ -2500,32 +2509,31 @@ int ftrace_graph_count;
 unsigned long ftrace_graph_funcs[FTRACE_GRAPH_MAX_FUNCS] __read_mostly;
 
 static void *
-g_next(struct seq_file *m, void *v, loff_t *pos)
+__g_next(struct seq_file *m, loff_t *pos)
 {
 	unsigned long *array = m->private;
-	int index = *pos;
 
-	(*pos)++;
-
-	if (index >= ftrace_graph_count)
+	if (*pos >= ftrace_graph_count)
 		return NULL;
+	return &array[*pos];
+}
 
-	return &array[index];
+static void *
+g_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	(*pos)++;
+	return __g_next(m, pos);
 }
 
 static void *g_start(struct seq_file *m, loff_t *pos)
 {
-	void *p = NULL;
-
 	mutex_lock(&graph_lock);
 
 	/* Nothing, tell g_show to print all functions are enabled */
 	if (!ftrace_graph_count && !*pos)
 		return (void *)1;
 
-	p = g_next(m, p, pos);
-
-	return p;
+	return __g_next(m, pos);
 }
 
 static void g_stop(struct seq_file *m, void *p)

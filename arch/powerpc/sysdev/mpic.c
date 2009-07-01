@@ -279,28 +279,29 @@ static void _mpic_map_mmio(struct mpic *mpic, phys_addr_t phys_addr,
 }
 
 #ifdef CONFIG_PPC_DCR
-static void _mpic_map_dcr(struct mpic *mpic, struct mpic_reg_bank *rb,
+static void _mpic_map_dcr(struct mpic *mpic, struct device_node *node,
+			  struct mpic_reg_bank *rb,
 			  unsigned int offset, unsigned int size)
 {
 	const u32 *dbasep;
 
-	dbasep = of_get_property(mpic->irqhost->of_node, "dcr-reg", NULL);
+	dbasep = of_get_property(node, "dcr-reg", NULL);
 
-	rb->dhost = dcr_map(mpic->irqhost->of_node, *dbasep + offset, size);
+	rb->dhost = dcr_map(node, *dbasep + offset, size);
 	BUG_ON(!DCR_MAP_OK(rb->dhost));
 }
 
-static inline void mpic_map(struct mpic *mpic, phys_addr_t phys_addr,
-			    struct mpic_reg_bank *rb, unsigned int offset,
-			    unsigned int size)
+static inline void mpic_map(struct mpic *mpic, struct device_node *node,
+			    phys_addr_t phys_addr, struct mpic_reg_bank *rb,
+			    unsigned int offset, unsigned int size)
 {
 	if (mpic->flags & MPIC_USES_DCR)
-		_mpic_map_dcr(mpic, rb, offset, size);
+		_mpic_map_dcr(mpic, node, rb, offset, size);
 	else
 		_mpic_map_mmio(mpic, phys_addr, rb, offset, size);
 }
 #else /* CONFIG_PPC_DCR */
-#define mpic_map(m,p,b,o,s)	_mpic_map_mmio(m,p,b,o,s)
+#define mpic_map(m,n,p,b,o,s)	_mpic_map_mmio(m,p,b,o,s)
 #endif /* !CONFIG_PPC_DCR */
 
 
@@ -1052,11 +1053,10 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	int		intvec_top;
 	u64		paddr = phys_addr;
 
-	mpic = alloc_bootmem(sizeof(struct mpic));
+	mpic = kzalloc(sizeof(struct mpic), GFP_KERNEL);
 	if (mpic == NULL)
 		return NULL;
-	
-	memset(mpic, 0, sizeof(struct mpic));
+
 	mpic->name = name;
 
 	mpic->hc_irq = mpic_irq_chip;
@@ -1152,8 +1152,8 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	}
 
 	/* Map the global registers */
-	mpic_map(mpic, paddr, &mpic->gregs, MPIC_INFO(GREG_BASE), 0x1000);
-	mpic_map(mpic, paddr, &mpic->tmregs, MPIC_INFO(TIMER_BASE), 0x1000);
+	mpic_map(mpic, node, paddr, &mpic->gregs, MPIC_INFO(GREG_BASE), 0x1000);
+	mpic_map(mpic, node, paddr, &mpic->tmregs, MPIC_INFO(TIMER_BASE), 0x1000);
 
 	/* Reset */
 	if (flags & MPIC_WANTS_RESET) {
@@ -1194,7 +1194,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 
 	/* Map the per-CPU registers */
 	for (i = 0; i < mpic->num_cpus; i++) {
-		mpic_map(mpic, paddr, &mpic->cpuregs[i],
+		mpic_map(mpic, node, paddr, &mpic->cpuregs[i],
 			 MPIC_INFO(CPU_BASE) + i * MPIC_INFO(CPU_STRIDE),
 			 0x1000);
 	}
@@ -1202,7 +1202,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	/* Initialize main ISU if none provided */
 	if (mpic->isu_size == 0) {
 		mpic->isu_size = mpic->num_sources;
-		mpic_map(mpic, paddr, &mpic->isus[0],
+		mpic_map(mpic, node, paddr, &mpic->isus[0],
 			 MPIC_INFO(IRQ_BASE), MPIC_INFO(IRQ_STRIDE) * mpic->isu_size);
 	}
 	mpic->isu_shift = 1 + __ilog2(mpic->isu_size - 1);
@@ -1256,8 +1256,10 @@ void __init mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 
 	BUG_ON(isu_num >= MPIC_MAX_ISU);
 
-	mpic_map(mpic, paddr, &mpic->isus[isu_num], 0,
+	mpic_map(mpic, mpic->irqhost->of_node,
+		 paddr, &mpic->isus[isu_num], 0,
 		 MPIC_INFO(IRQ_STRIDE) * mpic->isu_size);
+
 	if ((isu_first + mpic->isu_size) > mpic->num_sources)
 		mpic->num_sources = isu_first + mpic->isu_size;
 }

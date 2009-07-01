@@ -195,7 +195,7 @@ extern struct svc_procedure	nlmsvc_procedures4[];
 extern int			nlmsvc_grace_period;
 extern unsigned long		nlmsvc_timeout;
 extern int			nsm_use_hostnames;
-extern int			nsm_local_state;
+extern u32			nsm_local_state;
 
 /*
  * Lockd client functions

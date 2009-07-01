@@ -64,10 +64,11 @@
 extern void __secondary_start_pmac_0(void);
 extern int pmac_pfunc_base_install(void);
 
-#ifdef CONFIG_PPC32
+static void (*pmac_tb_freeze)(int freeze);
+static u64 timebase;
+static int tb_req;
 
-/* Sync flag for HW tb sync */
-static volatile int sec_tb_reset = 0;
+#ifdef CONFIG_PPC32
 
 /*
  * Powersurge (old powermac SMP) support.
@@ -294,6 +295,9 @@ static int __init smp_psurge_probe(void)
 		psurge_quad_init();
 		/* All released cards using this HW design have 4 CPUs */
 		ncpus = 4;
+		/* No sure how timebase sync works on those, let's use SW */
+		smp_ops->give_timebase = smp_generic_give_timebase;
+		smp_ops->take_timebase = smp_generic_take_timebase;
 	} else {
 		iounmap(quad_base);
 		if ((in_8(hhead_base + HHEAD_CONFIG) & 0x02) == 0) {
@@ -308,18 +312,15 @@ static int __init smp_psurge_probe(void)
 	psurge_start = ioremap(PSURGE_START, 4);
 	psurge_pri_intr = ioremap(PSURGE_PRI_INTR, 4);
 
-	/*
-	 * This is necessary because OF doesn't know about the
+	/* This is necessary because OF doesn't know about the
 	 * secondary cpu(s), and thus there aren't nodes in the
 	 * device tree for them, and smp_setup_cpu_maps hasn't
-	 * set their bits in cpu_possible_map and cpu_present_map.
+	 * set their bits in cpu_present_map.
 	 */
 	if (ncpus > NR_CPUS)
 		ncpus = NR_CPUS;
-	for (i = 1; i < ncpus ; ++i) {
+	for (i = 1; i < ncpus ; ++i)
 		cpu_set(i, cpu_present_map);
-		set_hard_smp_processor_id(i, i);
-	}
 
 	if (ppc_md.progress) ppc_md.progress("smp_psurge_probe - done", 0x352);
 
@@ -329,8 +330,14 @@ static int __init smp_psurge_probe(void)
 static void __init smp_psurge_kick_cpu(int nr)
 {
 	unsigned long start = __pa(__secondary_start_pmac_0) + nr * 8;
-	unsigned long a;
-	int i;
+	unsigned long a, flags;
+	int i, j;
+
+	/* Defining this here is evil ... but I prefer hiding that
+	 * crap to avoid giving people ideas that they can do the
+	 * same.
+	 */
+	extern volatile unsigned int cpu_callin_map[NR_CPUS];
 
 	/* may need to flush here if secondary bats aren't setup */
 	for (a = KERNELBASE; a < KERNELBASE + 0x800000; a += 32)
@@ -339,47 +346,52 @@ static void __init smp_psurge_kick_cpu(int nr)
 
 	if (ppc_md.progress) ppc_md.progress("smp_psurge_kick_cpu", 0x353);
 
+	/* This is going to freeze the timeebase, we disable interrupts */
+	local_irq_save(flags);
+
 	out_be32(psurge_start, start);
 	mb();
 
 	psurge_set_ipi(nr);
+
 	/*
 	 * We can't use udelay here because the timebase is now frozen.
 	 */
 	for (i = 0; i < 2000; ++i)
-		barrier();
+		asm volatile("nop" : : : "memory");
 	psurge_clr_ipi(nr);
 
-	if (ppc_md.progress) ppc_md.progress("smp_psurge_kick_cpu - done", 0x354);
-}
-
-/*
- * With the dual-cpu powersurge board, the decrementers and timebases
- * of both cpus are frozen after the secondary cpu is started up,
- * until we give the secondary cpu another interrupt.  This routine
- * uses this to get the timebases synchronized.
- *  -- paulus.
- */
-static void __init psurge_dual_sync_tb(int cpu_nr)
-{
-	int t;
-
-	set_dec(tb_ticks_per_jiffy);
-	/* XXX fixme */
-	set_tb(0, 0);
-
-	if (cpu_nr > 0) {
-		mb();
-		sec_tb_reset = 1;
-		return;
+	/*
+	 * Also, because the timebase is frozen, we must not return to the
+	 * caller which will try to do udelay's etc... Instead, we wait -here-
+	 * for the CPU to callin.
+	 */
+	for (i = 0; i < 100000 && !cpu_callin_map[nr]; ++i) {
+		for (j = 1; j < 10000; j++)
+			asm volatile("nop" : : : "memory");
+		asm volatile("sync" : : : "memory");
 	}
+	if (!cpu_callin_map[nr])
+		goto stuck;
 
-	/* wait for the secondary to have reset its TB before proceeding */
-	for (t = 10000000; t > 0 && !sec_tb_reset; --t)
-		;
+	/* And we do the TB sync here too for standard dual CPU cards */
+	if (psurge_type == PSURGE_DUAL) {
+		while(!tb_req)
+			barrier();
+		tb_req = 0;
+		mb();
+		timebase = get_tb();
+		mb();
+		while (timebase)
+			barrier();
+		mb();
+	}
+ stuck:
+	/* now interrupt the secondary, restarting both TBs */
+	if (psurge_type == PSURGE_DUAL)
+		psurge_set_ipi(1);
 
-	/* now interrupt the secondary, starting both TBs */
-	psurge_set_ipi(1);
+	if (ppc_md.progress) ppc_md.progress("smp_psurge_kick_cpu - done", 0x354);
 }
 
 static struct irqaction psurge_irqaction = {
@@ -390,36 +402,35 @@ static struct irqaction psurge_irqaction = {
 
 static void __init smp_psurge_setup_cpu(int cpu_nr)
 {
+	if (cpu_nr != 0)
+		return;
 
-	if (cpu_nr == 0) {
-		/* If we failed to start the second CPU, we should still
-		 * send it an IPI to start the timebase & DEC or we might
-		 * have them stuck.
-		 */
-		if (num_online_cpus() < 2) {
-			if (psurge_type == PSURGE_DUAL)
-				psurge_set_ipi(1);
-			return;
-		}
-		/* reset the entry point so if we get another intr we won't
-		 * try to startup again */
-		out_be32(psurge_start, 0x100);
-		if (setup_irq(30, &psurge_irqaction))
-			printk(KERN_ERR "Couldn't get primary IPI interrupt");
-	}
-
-	if (psurge_type == PSURGE_DUAL)
-		psurge_dual_sync_tb(cpu_nr);
+	/* reset the entry point so if we get another intr we won't
+	 * try to startup again */
+	out_be32(psurge_start, 0x100);
+	if (setup_irq(30, &psurge_irqaction))
+		printk(KERN_ERR "Couldn't get primary IPI interrupt");
 }
 
 void __init smp_psurge_take_timebase(void)
 {
-	/* Dummy implementation */
+	if (psurge_type != PSURGE_DUAL)
+		return;
+
+	tb_req = 1;
+	mb();
+	while (!timebase)
+		barrier();
+	mb();
+	set_tb(timebase >> 32, timebase & 0xffffffff);
+	timebase = 0;
+	mb();
+	set_dec(tb_ticks_per_jiffy/2);
 }
 
 void __init smp_psurge_give_timebase(void)
 {
-	/* Dummy implementation */
+	/* Nothing to do here */
 }
 
 /* PowerSurge-style Macs */
@@ -437,9 +448,6 @@ struct smp_ops_t psurge_smp_ops = {
  * Core 99 and later support
  */
 
-static void (*pmac_tb_freeze)(int freeze);
-static u64 timebase;
-static int tb_req;
 
 static void smp_core99_give_timebase(void)
 {
@@ -478,7 +486,6 @@ static void __devinit smp_core99_take_timebase(void)
 	set_tb(timebase >> 32, timebase & 0xffffffff);
 	timebase = 0;
 	mb();
-	set_dec(tb_ticks_per_jiffy/2);
 
 	local_irq_restore(flags);
 }
@@ -920,3 +927,34 @@ struct smp_ops_t core99_smp_ops = {
 # endif
 #endif
 };
+
+void __init pmac_setup_smp(void)
+{
+	struct device_node *np;
+
+	/* Check for Core99 */
+	np = of_find_node_by_name(NULL, "uni-n");
+	if (!np)
+		np = of_find_node_by_name(NULL, "u3");
+	if (!np)
+		np = of_find_node_by_name(NULL, "u4");
+	if (np) {
+		of_node_put(np);
+		smp_ops = &core99_smp_ops;
+	}
+#ifdef CONFIG_PPC32
+	else {
+		/* We have to set bits in cpu_possible_map here since the
+		 * secondary CPU(s) aren't in the device tree. Various
+		 * things won't be initialized for CPUs not in the possible
+		 * map, so we really need to fix it up here.
+		 */
+		int cpu;
+
+		for (cpu = 1; cpu < 4 && cpu < NR_CPUS; ++cpu)
+			cpu_set(cpu, cpu_possible_map);
+		smp_ops = &psurge_smp_ops;
+	}
+#endif /* CONFIG_PPC32 */
+}
+
