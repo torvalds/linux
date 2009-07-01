@@ -4348,6 +4348,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		vdev->vpaths[i].mac_addr_cnt = 1;
 	}
 
+	kfree(device_config);
 	vxge_debug_entryexit(VXGE_TRACE, "%s: %s:%d  Exiting...",
 		vdev->ndev->name, __func__, __LINE__);
 
