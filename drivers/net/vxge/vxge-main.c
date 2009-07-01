@@ -454,6 +454,8 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 		vxge_hw_ring_rxd_1b_get(ringh, dtr, &dma_sizes);
 		pkt_length = dma_sizes;
 
+		pkt_length -= ETH_FCS_LEN;
+
 		vxge_debug_rx(VXGE_TRACE,
 			"%s: %s:%d  Packet Length = %d",
 			ring->ndev->name, __func__, __LINE__, pkt_length);
@@ -4163,11 +4165,11 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	}
 
 	if (ll_config.device_hw_info.fw_version.major !=
-		VXGE_DRIVER_VERSION_MAJOR) {
+		VXGE_DRIVER_FW_VERSION_MAJOR) {
 		vxge_debug_init(VXGE_ERR,
-			"FW Ver.(maj): %d not driver's expected version: %d",
-			ll_config.device_hw_info.fw_version.major,
-			VXGE_DRIVER_VERSION_MAJOR);
+			"%s: Incorrect firmware version."
+			"Please upgrade the firmware to version 1.x.x",
+			VXGE_DRIVER_NAME);
 		ret = -EINVAL;
 		goto _exit3;
 	}
