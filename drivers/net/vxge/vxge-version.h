@@ -18,6 +18,6 @@
 #define VXGE_VERSION_MAJOR	"2"
 #define VXGE_VERSION_MINOR	"0"
 #define VXGE_VERSION_FIX	"4"
-#define VXGE_VERSION_BUILD	"17795"
+#define VXGE_VERSION_BUILD	"17899"
 #define VXGE_VERSION_FOR	"k"
 #endif
