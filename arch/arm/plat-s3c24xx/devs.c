@@ -180,25 +180,6 @@ void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *pd)
 	}
 }
 
-/* NAND Controller */
-
-static struct resource s3c_nand_resource[] = {
-	[0] = {
-		.start = S3C24XX_PA_NAND,
-		.end   = S3C24XX_PA_NAND + S3C24XX_SZ_NAND - 1,
-		.flags = IORESOURCE_MEM,
-	}
-};
-
-struct platform_device s3c_device_nand = {
-	.name		  = "s3c2410-nand",
-	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(s3c_nand_resource),
-	.resource	  = s3c_nand_resource,
-};
-
-EXPORT_SYMBOL(s3c_device_nand);
-
 /* USB Device (Gadget)*/
 
 static struct resource s3c_usbgadget_resource[] = {

@@ -38,3 +38,4 @@ obj-$(CONFIG_SND_S3C64XX_SOC_I2S)	+= dev-audio.o
 obj-$(CONFIG_S3C_DEV_FB)	+= dev-fb.o
 obj-$(CONFIG_S3C_DEV_USB_HOST)	+= dev-usb.o
 obj-$(CONFIG_S3C_DEV_USB_HSOTG)	+= dev-usb-hsotg.o
+obj-y				+= dev-nand.o
