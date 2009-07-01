@@ -3702,7 +3702,8 @@ static int make_request(struct request_queue *q, struct bio * bi)
 			/* FIXME what if we get a false positive because these
 			 * are being updated.
 			 */
-			if (logical_sector >= mddev->suspend_lo &&
+			if (bio_data_dir(bi) == WRITE &&
+			    logical_sector >= mddev->suspend_lo &&
 			    logical_sector < mddev->suspend_hi) {
 				release_stripe(sh);
 				schedule();
