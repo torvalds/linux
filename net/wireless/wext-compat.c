@@ -1093,3 +1093,66 @@ int cfg80211_wds_wext_giwap(struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wds_wext_giwap);
+
+int cfg80211_wext_siwrate(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *rate, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_bitrate_mask mask;
+
+	if (!rdev->ops->set_bitrate_mask)
+		return -EOPNOTSUPP;
+
+	mask.fixed = 0;
+	mask.maxrate = 0;
+
+	if (rate->value < 0) {
+		/* nothing */
+	} else if (rate->fixed) {
+		mask.fixed = rate->value / 1000; /* kbps */
+	} else {
+		mask.maxrate = rate->value / 1000; /* kbps */
+	}
+
+	return rdev->ops->set_bitrate_mask(wdev->wiphy, dev, NULL, &mask);
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwrate);
+
+int cfg80211_wext_giwrate(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *rate, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	/* we are under RTNL - globally locked - so can use a static struct */
+	static struct station_info sinfo;
+	u8 *addr;
+	int err;
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->get_station)
+		return -EOPNOTSUPP;
+
+	addr = wdev->wext.connect.bssid;
+	if (!addr)
+		return -EOPNOTSUPP;
+
+	err = rdev->ops->get_station(&rdev->wiphy, dev, addr, &sinfo);
+	if (err)
+		return err;
+
+	if (!(sinfo.filled & STATION_INFO_TX_BITRATE))
+		return -EOPNOTSUPP;
+
+	rate->value = 0;
+
+	if (!(sinfo.txrate.flags & RATE_INFO_FLAGS_MCS))
+		rate->value = 100000 * sinfo.txrate.legacy;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwrate);

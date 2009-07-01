@@ -165,78 +165,6 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 }
 
 
-static int ieee80211_ioctl_siwrate(struct net_device *dev,
-				  struct iw_request_info *info,
-				  struct iw_param *rate, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	int i, err = -EINVAL;
-	u32 target_rate = rate->value / 100000;
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_supported_band *sband;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-
-	/* target_rate = -1, rate->fixed = 0 means auto only, so use all rates
-	 * target_rate = X, rate->fixed = 1 means only rate X
-	 * target_rate = X, rate->fixed = 0 means all rates <= X */
-	sdata->max_ratectrl_rateidx = -1;
-	sdata->force_unicast_rateidx = -1;
-	if (rate->value < 0)
-		return 0;
-
-	for (i=0; i< sband->n_bitrates; i++) {
-		struct ieee80211_rate *brate = &sband->bitrates[i];
-		int this_rate = brate->bitrate;
-
-		if (target_rate == this_rate) {
-			sdata->max_ratectrl_rateidx = i;
-			if (rate->fixed)
-				sdata->force_unicast_rateidx = i;
-			err = 0;
-			break;
-		}
-	}
-	return err;
-}
-
-static int ieee80211_ioctl_giwrate(struct net_device *dev,
-				  struct iw_request_info *info,
-				  struct iw_param *rate, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct sta_info *sta;
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_supported_band *sband;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
-
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-
-	rcu_read_lock();
-
-	sta = sta_info_get(local, sdata->u.mgd.bssid);
-
-	if (sta && !(sta->last_tx_rate.flags & IEEE80211_TX_RC_MCS))
-		rate->value = sband->bitrates[sta->last_tx_rate.idx].bitrate;
-	else
-		rate->value = 0;
-
-	rcu_read_unlock();
-
-	if (!sta)
-		return -ENODEV;
-
-	rate->value *= 100000;
-
-	return 0;
-}
-
 /* Get wireless statistics.  Called by /proc/net/wireless and by SIOCGIWSTATS */
 static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev)
 {
@@ -340,8 +268,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* SIOCGIWNICKN */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
-	(iw_handler) ieee80211_ioctl_siwrate,		/* SIOCSIWRATE */
-	(iw_handler) ieee80211_ioctl_giwrate,		/* SIOCGIWRATE */
+	(iw_handler) cfg80211_wext_siwrate,		/* SIOCSIWRATE */
+	(iw_handler) cfg80211_wext_giwrate,		/* SIOCGIWRATE */
 	(iw_handler) cfg80211_wext_siwrts,		/* SIOCSIWRTS */
 	(iw_handler) cfg80211_wext_giwrts,		/* SIOCGIWRTS */
 	(iw_handler) cfg80211_wext_siwfrag,		/* SIOCSIWFRAG */

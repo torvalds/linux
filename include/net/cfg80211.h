@@ -815,6 +815,26 @@ enum tx_power_setting {
 	TX_POWER_FIXED,
 };
 
+/*
+ * cfg80211_bitrate_mask - masks for bitrate control
+ */
+struct cfg80211_bitrate_mask {
+/*
+ * As discussed in Berlin, this struct really
+ * should look like this:
+
+	struct {
+		u32 legacy;
+		u8 mcs[IEEE80211_HT_MCS_MASK_LEN];
+	} control[IEEE80211_NUM_BANDS];
+
+ * Since we can always fix in-kernel users, let's keep
+ * it simpler for now:
+ */
+	u32 fixed;   /* fixed bitrate, 0 == not fixed */
+	u32 maxrate; /* in kbps, 0 == no limit */
+};
+
 /**
  * struct cfg80211_ops - backend description for wireless configuration
  *
@@ -1026,6 +1046,11 @@ struct cfg80211_ops {
 #ifdef CONFIG_NL80211_TESTMODE
 	int	(*testmode_cmd)(struct wiphy *wiphy, void *data, int len);
 #endif
+
+	int	(*set_bitrate_mask)(struct wiphy *wiphy,
+				    struct net_device *dev,
+				    const u8 *peer,
+				    const struct cfg80211_bitrate_mask *mask);
 
 	/* some temporary stuff to finish wext */
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,
@@ -1580,6 +1605,13 @@ int cfg80211_wext_giwauth(struct net_device *dev,
 
 struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
 					     struct iw_freq *freq);
+
+int cfg80211_wext_siwrate(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *rate, char *extra);
+int cfg80211_wext_giwrate(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *rate, char *extra);
 
 int cfg80211_wext_siwrts(struct net_device *dev,
 			 struct iw_request_info *info,
