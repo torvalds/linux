@@ -75,11 +75,10 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	case ACTIVE_LIST:
 		seq_printf(m, "Active:\n");
 		lock = &dev_priv->mm.active_list_lock;
-		spin_lock(lock);
 		head = &dev_priv->mm.active_list;
 		break;
 	case INACTIVE_LIST:
-		seq_printf(m, "Inctive:\n");
+		seq_printf(m, "Inactive:\n");
 		head = &dev_priv->mm.inactive_list;
 		break;
 	case FLUSHING_LIST:
@@ -91,6 +90,8 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		return 0;
 	}
 
+	if (lock)
+		spin_lock(lock);
 	list_for_each_entry(obj_priv, head, list)
 	{
 		struct drm_gem_object *obj = obj_priv->obj;
