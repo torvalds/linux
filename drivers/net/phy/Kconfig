@@ -56,6 +56,12 @@ config BROADCOM_PHY
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM5464, BCM5481
 	  and BCM5482 PHYs.
 
+config BCM63XX_PHY
+	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
+	depends on BCM63XX
+	---help---
+	  Currently supports the 6348 and 6358 PHYs.
+
 config ICPLUS_PHY
 	tristate "Drivers for ICPlus PHYs"
 	---help---
