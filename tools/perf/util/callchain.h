@@ -10,15 +10,15 @@
 struct callchain_node {
 	struct callchain_node	*parent;
 	struct list_head	brothers;
-	struct list_head 	children;
-	struct list_head 	val;
+	struct list_head	children;
+	struct list_head	val;
 	struct rb_node		rb_node;
-	int			val_nr;
-	int			hit;
+	unsigned int		val_nr;
+	u64			hit;
 };
 
 struct callchain_list {
-	unsigned long		ip;
+	u64			ip;
 	struct symbol		*sym;
 	struct list_head	list;
 };

@@ -269,7 +269,7 @@ static void print_sym_table(void)
 	}
 }
 
-static void *display_thread(void *arg)
+static void *display_thread(void *arg __used)
 {
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
 	int delay_msecs = delay_secs * 1000;
@@ -287,7 +287,7 @@ static void *display_thread(void *arg)
 }
 
 /* Tag samples to be skipped. */
-char *skip_symbols[] = {
+static const char *skip_symbols[] = {
 	"default_idle",
 	"cpu_idle",
 	"enter_idle",
@@ -426,7 +426,7 @@ static void process_event(u64 ip, int counter, int user)
 struct mmap_data {
 	int			counter;
 	void			*base;
-	unsigned int		mask;
+	int			mask;
 	unsigned int		prev;
 };
 
@@ -705,7 +705,7 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-int cmd_top(int argc, const char **argv, const char *prefix)
+int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 

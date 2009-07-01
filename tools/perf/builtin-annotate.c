@@ -160,7 +160,7 @@ static void dsos__fprintf(FILE *fp)
 
 static struct symbol *vdso__find_symbol(struct dso *dso, u64 ip)
 {
-	return dso__find_symbol(kernel_dso, ip);
+	return dso__find_symbol(dso, ip);
 }
 
 static int load_kernel(void)
@@ -203,7 +203,7 @@ static u64 map__map_ip(struct map *map, u64 ip)
 	return ip - map->start + map->pgoff;
 }
 
-static u64 vdso__map_ip(struct map *map, u64 ip)
+static u64 vdso__map_ip(struct map *map __used, u64 ip)
 {
 	return ip;
 }
@@ -600,7 +600,7 @@ static LIST_HEAD(hist_entry__sort_list);
 
 static int sort_dimension__add(char *tok)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
 		struct sort_dimension *sd = &sort_dimensions[i];
@@ -1069,7 +1069,7 @@ parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 	static const char *prev_color;
 	unsigned int offset;
 	size_t line_len;
-	u64 line_ip;
+	s64 line_ip;
 	int ret;
 	char *c;
 
@@ -1428,7 +1428,7 @@ more:
 
 	head += size;
 
-	if (offset + head < stat.st_size)
+	if (offset + head < (unsigned long)stat.st_size)
 		goto more;
 
 	rc = EXIT_SUCCESS;
@@ -1492,7 +1492,7 @@ static void setup_sorting(void)
 	free(str);
 }
 
-int cmd_annotate(int argc, const char **argv, const char *prefix)
+int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
 	symbol__init();
 

@@ -294,7 +294,7 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 	while (1) {
 		char bf[BUFSIZ], *pbf = bf;
 		struct mmap_event mmap_ev = {
-			.header.type = PERF_EVENT_MMAP,
+			.header = { .type = PERF_EVENT_MMAP },
 		};
 		int n;
 		size_t size;
@@ -650,7 +650,7 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-int cmd_record(int argc, const char **argv, const char *prefix)
+int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 

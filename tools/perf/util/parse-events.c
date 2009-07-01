@@ -385,7 +385,7 @@ static int parse_event_symbols(const char **str, struct perf_counter_attr *attr)
 	return 1;
 }
 
-int parse_events(const struct option *opt, const char *str, int unset)
+int parse_events(const struct option *opt __used, const char *str, int unset __used)
 {
 	struct perf_counter_attr attr;
 

@@ -177,7 +177,7 @@ static void dsos__fprintf(FILE *fp)
 
 static struct symbol *vdso__find_symbol(struct dso *dso, u64 ip)
 {
-	return dso__find_symbol(kernel_dso, ip);
+	return dso__find_symbol(dso, ip);
 }
 
 static int load_kernel(void)
@@ -239,7 +239,7 @@ static u64 map__map_ip(struct map *map, u64 ip)
 	return ip - map->start + map->pgoff;
 }
 
-static u64 vdso__map_ip(struct map *map, u64 ip)
+static u64 vdso__map_ip(struct map *map __used, u64 ip)
 {
 	return ip;
 }
@@ -712,7 +712,7 @@ static LIST_HEAD(hist_entry__sort_list);
 
 static int sort_dimension__add(char *tok)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
 		struct sort_dimension *sd = &sort_dimensions[i];
@@ -801,7 +801,7 @@ callchain__fprintf(FILE *fp, struct callchain_node *self, u64 total_samples)
 			ret += fprintf(fp, "                %s\n", chain->sym->name);
 		else
 			ret += fprintf(fp, "                %p\n",
-					(void *)chain->ip);
+					(void *)(long)chain->ip);
 	}
 
 	return ret;
@@ -938,12 +938,12 @@ static int call__match(struct symbol *sym)
 }
 
 static struct symbol **
-resolve_callchain(struct thread *thread, struct map *map,
+resolve_callchain(struct thread *thread, struct map *map __used,
 		    struct ip_callchain *chain, struct hist_entry *entry)
 {
-	int i;
-	struct symbol **syms;
 	u64 context = PERF_CONTEXT_MAX;
+	struct symbol **syms;
+	unsigned int i;
 
 	if (callchain) {
 		syms = calloc(chain->nr, sizeof(*syms));
@@ -1183,7 +1183,7 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 
 	fprintf(fp, "# ........");
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		int i;
+		unsigned int i;
 
 		if (exclude_other && (se == &sort_parent))
 			continue;
@@ -1271,7 +1271,7 @@ process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 		(long long)period);
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
-		int i;
+		unsigned int i;
 
 		chain = (void *)more_data;
 
@@ -1667,7 +1667,7 @@ more:
 	if (offset + head >= header->data_offset + header->data_size)
 		goto done;
 
-	if (offset + head < stat.st_size)
+	if (offset + head < (unsigned long)stat.st_size)
 		goto more;
 
 done:
@@ -1756,7 +1756,7 @@ static void setup_list(struct strlist **list, const char *list_str,
 	}
 }
 
-int cmd_report(int argc, const char **argv, const char *prefix)
+int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
 	symbol__init();
 

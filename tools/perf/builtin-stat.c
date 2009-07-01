@@ -64,7 +64,7 @@ static struct perf_counter_attr default_attrs[] = {
 
 static int			system_wide			=  0;
 static int			verbose				=  0;
-static int			nr_cpus				=  0;
+static unsigned int		nr_cpus				=  0;
 static int			run_idx				=  0;
 
 static int			run_count			=  1;
@@ -108,7 +108,8 @@ static void create_perf_stat_counter(int counter, int pid)
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	if (system_wide) {
-		int cpu;
+		unsigned int cpu;
+
 		for (cpu = 0; cpu < nr_cpus; cpu++) {
 			fd[cpu][counter] = sys_perf_counter_open(attr, -1, cpu, -1, 0);
 			if (fd[cpu][counter] < 0 && verbose)
@@ -150,8 +151,8 @@ static inline int nsec_counter(int counter)
 static void read_counter(int counter)
 {
 	u64 *count, single_count[3];
-	ssize_t res;
-	int cpu, nv;
+	unsigned int cpu;
+	size_t res, nv;
 	int scaled;
 
 	count = event_res[run_idx][counter];
@@ -165,6 +166,7 @@ static void read_counter(int counter)
 
 		res = read(fd[cpu][counter], single_count, nv * sizeof(u64));
 		assert(res == nv * sizeof(u64));
+
 		close(fd[cpu][counter]);
 		fd[cpu][counter] = -1;
 
@@ -200,7 +202,7 @@ static void read_counter(int counter)
 		runtime_cycles[run_idx] = count[0];
 }
 
-static int run_perf_stat(int argc, const char **argv)
+static int run_perf_stat(int argc __used, const char **argv)
 {
 	unsigned long long t0, t1;
 	int status = 0;
@@ -390,7 +392,7 @@ static void calc_avg(void)
 				event_res_avg[j]+1, event_res[i][j]+1);
 			update_avg("counter/2", j,
 				event_res_avg[j]+2, event_res[i][j]+2);
-			if (event_scaled[i][j] != -1)
+			if (event_scaled[i][j] != (u64)-1)
 				update_avg("scaled", j,
 					event_scaled_avg + j, event_scaled[i]+j);
 			else
@@ -510,7 +512,7 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-int cmd_stat(int argc, const char **argv, const char *prefix)
+int cmd_stat(int argc, const char **argv, const char *prefix __used)
 {
 	int status;
 
@@ -528,7 +530,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix)
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	assert(nr_cpus <= MAX_NR_CPUS);
-	assert(nr_cpus >= 0);
+	assert((int)nr_cpus >= 0);
 
 	/*
 	 * We dont want to block the signals - that would cause

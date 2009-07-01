@@ -92,7 +92,7 @@ static void
 fill_node(struct callchain_node *node, struct ip_callchain *chain,
 	  int start, struct symbol **syms)
 {
-	int i;
+	unsigned int i;
 
 	for (i = start; i < chain->nr; i++) {
 		struct callchain_list *call;
@@ -135,7 +135,7 @@ split_add_child(struct callchain_node *parent, struct ip_callchain *chain,
 {
 	struct callchain_node *new;
 	struct list_head *old_tail;
-	int idx_total = idx_parents + idx_local;
+	unsigned int idx_total = idx_parents + idx_local;
 
 	/* split */
 	new = create_child(parent, true);
@@ -164,17 +164,18 @@ split_add_child(struct callchain_node *parent, struct ip_callchain *chain,
 
 static int
 __append_chain(struct callchain_node *root, struct ip_callchain *chain,
-	       int start, struct symbol **syms);
+	       unsigned int start, struct symbol **syms);
 
 static void
 __append_chain_children(struct callchain_node *root, struct ip_callchain *chain,
-			struct symbol **syms, int start)
+			struct symbol **syms, unsigned int start)
 {
 	struct callchain_node *rnode;
 
 	/* lookup in childrens */
 	list_for_each_entry(rnode, &root->children, brothers) {
-		int ret = __append_chain(rnode, chain, start, syms);
+		unsigned int ret = __append_chain(rnode, chain, start, syms);
+
 		if (!ret)
 			return;
 	}
@@ -184,10 +185,10 @@ __append_chain_children(struct callchain_node *root, struct ip_callchain *chain,
 
 static int
 __append_chain(struct callchain_node *root, struct ip_callchain *chain,
-	       int start, struct symbol **syms)
+	       unsigned int start, struct symbol **syms)
 {
 	struct callchain_list *cnode;
-	int i = start;
+	unsigned int i = start;
 	bool found = false;
 
 	/*
