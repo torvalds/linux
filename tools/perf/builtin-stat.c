@@ -239,7 +239,8 @@ static int run_perf_stat(int argc __used, const char **argv)
 		/*
 		 * Wait until the parent tells us to go.
 		 */
-		read(go_pipe[0], &buf, 1);
+		if (read(go_pipe[0], &buf, 1) == -1)
+			perror("unable to read pipe");
 
 		execvp(argv[0], (char **)argv);
 
@@ -252,7 +253,8 @@ static int run_perf_stat(int argc __used, const char **argv)
 	 */
 	close(child_ready_pipe[1]);
 	close(go_pipe[0]);
-	read(child_ready_pipe[0], &buf, 1);
+	if (read(child_ready_pipe[0], &buf, 1) == -1)
+		perror("unable to read pipe");
 	close(child_ready_pipe[0]);
 
 	for (counter = 0; counter < nr_counters; counter++)
