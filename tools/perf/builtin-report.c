@@ -794,8 +794,15 @@ callchain__fprintf(FILE *fp, struct callchain_node *self, u64 total_samples)
 	ret += callchain__fprintf(fp, self->parent, total_samples);
 
 
-	list_for_each_entry(chain, &self->val, list)
-		ret += fprintf(fp, "                %p\n", (void *)chain->ip);
+	list_for_each_entry(chain, &self->val, list) {
+		if (chain->ip >= PERF_CONTEXT_MAX)
+			continue;
+		if (chain->sym)
+			ret += fprintf(fp, "                %s\n", chain->sym->name);
+		else
+			ret += fprintf(fp, "                %p\n",
+					(void *)chain->ip);
+	}
 
 	return ret;
 }
@@ -930,6 +937,55 @@ static int call__match(struct symbol *sym)
 	return 0;
 }
 
+static struct symbol **
+resolve_callchain(struct thread *thread, struct map *map,
+		    struct ip_callchain *chain, struct hist_entry *entry)
+{
+	int i;
+	struct symbol **syms;
+	u64 context = PERF_CONTEXT_MAX;
+
+	if (callchain) {
+		syms = calloc(chain->nr, sizeof(*syms));
+		if (!syms) {
+			fprintf(stderr, "Can't allocate memory for symbols\n");
+			exit(-1);
+		}
+	}
+
+	for (i = 0; i < chain->nr; i++) {
+		u64 ip = chain->ips[i];
+		struct dso *dso = NULL;
+		struct symbol *sym;
+
+		if (ip >= PERF_CONTEXT_MAX) {
+			context = ip;
+			continue;
+		}
+
+		switch (context) {
+		case PERF_CONTEXT_KERNEL:
+			dso = kernel_dso;
+			break;
+		default:
+			break;
+		}
+
+		sym = resolve_symbol(thread, NULL, &dso, &ip);
+
+		if (sym) {
+			if (sort__has_parent && call__match(sym) &&
+			    !entry->parent)
+				entry->parent = sym;
+			if (!callchain)
+				break;
+			syms[i] = sym;
+		}
+	}
+
+	return syms;
+}
+
 /*
  * collect histogram counts
  */
@@ -942,6 +998,7 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	struct rb_node **p = &hist.rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
+	struct symbol **syms = NULL;
 	struct hist_entry entry = {
 		.thread	= thread,
 		.map	= map,
@@ -955,39 +1012,11 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	};
 	int cmp;
 
-	if (sort__has_parent && chain) {
-		u64 context = PERF_CONTEXT_MAX;
-		int i;
-
-		for (i = 0; i < chain->nr; i++) {
-			u64 ip = chain->ips[i];
-			struct dso *dso = NULL;
-			struct symbol *sym;
-
-			if (ip >= PERF_CONTEXT_MAX) {
-				context = ip;
-				continue;
-			}
-
-			switch (context) {
 			case PERF_CONTEXT_HV:
 				dso = hypervisor_dso;
 				break;
-			case PERF_CONTEXT_KERNEL:
-				dso = kernel_dso;
-				break;
-			default:
-				break;
-			}
-
-			sym = resolve_symbol(thread, NULL, &dso, &ip);
-
-			if (sym && call__match(sym)) {
-				entry.parent = sym;
-				break;
-			}
-		}
-	}
+	if ((sort__has_parent || callchain) && chain)
+		syms = resolve_callchain(thread, map, chain, &entry);
 
 	while (*p != NULL) {
 		parent = *p;
@@ -997,8 +1026,10 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 
 		if (!cmp) {
 			he->count += count;
-			if (callchain)
-				append_chain(&he->callchain, chain);
+			if (callchain) {
+				append_chain(&he->callchain, chain, syms);
+				free(syms);
+			}
 			return 0;
 		}
 
@@ -1014,7 +1045,8 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	*he = entry;
 	if (callchain) {
 		callchain_init(&he->callchain);
-		append_chain(&he->callchain, chain);
+		append_chain(&he->callchain, chain, syms);
+		free(syms);
 	}
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, &hist);
