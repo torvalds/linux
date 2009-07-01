@@ -38,6 +38,7 @@
 #include <linux/intel-iommu.h>
 #include <linux/sysdev.h>
 #include <asm/cacheflush.h>
+#include <asm/tboot.h>
 #include <asm/iommu.h>
 #include "pci.h"
 
@@ -3183,12 +3184,22 @@ static int __init init_iommu_sysfs(void)
 int __init intel_iommu_init(void)
 {
 	int ret = 0;
+	int force_on = 0;
 
-	if (dmar_table_init())
-		return 	-ENODEV;
+	/* VT-d is required for a TXT/tboot launch, so enforce that */
+	force_on = tboot_force_iommu();
 
-	if (dmar_dev_scope_init())
+	if (dmar_table_init()) {
+		if (force_on)
+			panic("tboot: Failed to initialize DMAR table\n");
 		return 	-ENODEV;
+	}
+
+	if (dmar_dev_scope_init()) {
+		if (force_on)
+			panic("tboot: Failed to initialize DMAR device scope\n");
+		return 	-ENODEV;
+	}
 
 	/*
 	 * Check the need for DMA-remapping initialization now.
@@ -3204,6 +3215,8 @@ int __init intel_iommu_init(void)
 
 	ret = init_dmars();
 	if (ret) {
+		if (force_on)
+			panic("tboot: Failed to initialize DMARs\n");
 		printk(KERN_ERR "IOMMU: dmar init failed\n");
 		put_iova_domain(&reserved_iova_list);
 		iommu_exit_mempool();
