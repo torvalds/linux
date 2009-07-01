@@ -35,19 +35,13 @@ config WIRELESS_OLD_REGULATORY
 
 config WIRELESS_EXT
 	bool "Wireless extensions"
-	default n
+	default y
 	---help---
 	  This option enables the legacy wireless extensions
 	  (wireless network interface configuration via ioctls.)
 
-	  Wireless extensions will be replaced by cfg80211 and
-	  will be required only by legacy drivers that implement
-	  wireless extension handlers. This option does not
-	  affect the wireless-extension backward compatibility
-	  code in cfg80211.
-
-	  Say N (if you can) unless you know you need wireless
-	  extensions for external modules.
+	  Say Y unless you've upgraded all your userspace to use
+	  nl80211 instead of wireless extensions.
 
 config WIRELESS_EXT_SYSFS
 	bool "Wireless extensions sysfs files"
