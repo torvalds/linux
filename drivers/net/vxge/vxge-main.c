@@ -4152,18 +4152,6 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		attr.bar0,
 		(unsigned long long)pci_resource_start(pdev, 0));
 
-	attr.bar1 = pci_ioremap_bar(pdev, 2);
-	if (!attr.bar1) {
-		vxge_debug_init(VXGE_ERR,
-			"%s : cannot remap io memory bar2", __func__);
-		ret = -ENODEV;
-		goto _exit3;
-	}
-	vxge_debug_ll_config(VXGE_TRACE,
-		"pci ioremap bar1: %p:0x%llx",
-		attr.bar1,
-		(unsigned long long)pci_resource_start(pdev, 2));
-
 	status = vxge_hw_device_hw_info_get(attr.bar0,
 			&ll_config.device_hw_info);
 	if (status != VXGE_HW_OK) {
@@ -4171,7 +4159,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 			"%s: Reading of hardware info failed."
 			"Please try upgrading the firmware.", VXGE_DRIVER_NAME);
 		ret = -EINVAL;
-		goto _exit4;
+		goto _exit3;
 	}
 
 	if (ll_config.device_hw_info.fw_version.major !=
@@ -4181,7 +4169,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 			ll_config.device_hw_info.fw_version.major,
 			VXGE_DRIVER_VERSION_MAJOR);
 		ret = -EINVAL;
-		goto _exit4;
+		goto _exit3;
 	}
 
 	vpath_mask = ll_config.device_hw_info.vpath_mask;
@@ -4189,7 +4177,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		vxge_debug_ll_config(VXGE_TRACE,
 			"%s: No vpaths available in device", VXGE_DRIVER_NAME);
 		ret = -EINVAL;
-		goto _exit4;
+		goto _exit3;
 	}
 
 	vxge_debug_ll_config(VXGE_TRACE,
@@ -4222,7 +4210,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		vxge_debug_ll_config(VXGE_ERR,
 			"%s: No more vpaths to configure", VXGE_DRIVER_NAME);
 		ret = 0;
-		goto _exit4;
+		goto _exit3;
 	}
 
 	/* Setting driver callbacks */
@@ -4235,7 +4223,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		vxge_debug_init(VXGE_ERR,
 			"Failed to initialize device (%d)", status);
 			ret = -EINVAL;
-			goto _exit4;
+			goto _exit3;
 	}
 
 	vxge_hw_device_debug_set(hldev, VXGE_ERR, VXGE_COMPONENT_LL);
@@ -4260,7 +4248,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	if (vxge_device_register(hldev, &ll_config, high_dma, no_of_vpath,
 		&vdev)) {
 		ret = -EINVAL;
-		goto _exit5;
+		goto _exit4;
 	}
 
 	vxge_hw_device_debug_set(hldev, VXGE_TRACE, VXGE_COMPONENT_LL);
@@ -4271,7 +4259,6 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	hldev->ndev = vdev->ndev;
 	vdev->mtu = VXGE_HW_DEFAULT_MTU;
 	vdev->bar0 = attr.bar0;
-	vdev->bar1 = attr.bar1;
 	vdev->max_vpath_supported = max_vpath_supported;
 	vdev->no_of_vpath = no_of_vpath;
 
@@ -4353,7 +4340,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 				"%s: mac_addr_list : memory allocation failed",
 				vdev->ndev->name);
 			ret = -EPERM;
-			goto _exit6;
+			goto _exit5;
 		}
 		macaddr = (u8 *)&entry->macaddr;
 		memcpy(macaddr, vdev->ndev->dev_addr, ETH_ALEN);
@@ -4370,16 +4357,14 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	return 0;
 
-_exit6:
+_exit5:
 	for (i = 0; i < vdev->no_of_vpath; i++)
 		vxge_free_mac_add_list(&vdev->vpaths[i]);
 
 	vxge_device_unregister(hldev);
-_exit5:
+_exit4:
 	pci_disable_sriov(pdev);
 	vxge_hw_device_terminate(hldev);
-_exit4:
-	iounmap(attr.bar1);
 _exit3:
 	iounmap(attr.bar0);
 _exit2:
@@ -4438,7 +4423,6 @@ vxge_remove(struct pci_dev *pdev)
 	kfree(vdev->vpaths);
 
 	iounmap(vdev->bar0);
-	iounmap(vdev->bar1);
 
 	pci_disable_sriov(pdev);
 

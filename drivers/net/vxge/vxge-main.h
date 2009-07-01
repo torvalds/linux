@@ -363,7 +363,6 @@ struct vxgedev {
 
 	struct __vxge_hw_vpath_handle *vp_handles[VXGE_HW_MAX_VIRTUAL_PATHS];
 	void __iomem *bar0;
-	void __iomem *bar1;
 	struct vxge_sw_stats	stats;
 	int		mtu;
 	/* Below variables are used for vpath selection to transmit a packet */
