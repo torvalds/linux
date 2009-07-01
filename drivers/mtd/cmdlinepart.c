@@ -194,7 +194,7 @@ static struct mtd_partition * newpart(char *s,
 	parts[this_part].name = extra_mem;
 	extra_mem += name_len + 1;
 
-	dbg(("partition %d: name <%s>, offset %x, size %x, mask flags %x\n",
+	dbg(("partition %d: name <%s>, offset %llx, size %llx, mask flags %x\n",
 	     this_part,
 	     parts[this_part].name,
 	     parts[this_part].offset,
