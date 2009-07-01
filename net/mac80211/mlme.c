@@ -1511,9 +1511,15 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 				    !ieee80211_sta_wep_configured(sdata))
 					continue;
 				ifmgd->auth_alg = algs[pos];
-				break;
+				ifmgd->auth_tries = 0;
+				return;
 			}
 		}
+		/* nothing else to try -- give up */
+		cfg80211_send_rx_auth(sdata->dev, (u8 *) mgmt, len,
+				      GFP_KERNEL);
+		ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+		ieee80211_recalc_idle(sdata->local);
 		return;
 	}
 
