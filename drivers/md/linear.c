@@ -166,8 +166,8 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 			rdev->sectors = sectors * mddev->chunk_sectors;
 		}
 
-		blk_queue_stack_limits(mddev->queue,
-				       rdev->bdev->bd_disk->queue);
+		disk_stack_limits(mddev->gendisk, rdev->bdev,
+				  rdev->data_offset << 9);
 		/* as we don't honour merge_bvec_fn, we must never risk
 		 * violating it, so limit ->max_sector to one PAGE, as
 		 * a one page request is never in violation.
