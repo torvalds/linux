@@ -374,6 +374,7 @@ static void hidp_process_hid_control(struct hidp_session *session,
 
 		/* Kill session thread */
 		atomic_inc(&session->terminate);
+		hidp_schedule(session);
 	}
 }
 
