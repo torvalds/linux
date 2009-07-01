@@ -1416,6 +1416,8 @@ enum ieee80211_ampdu_mlme_action {
  * @rfkill_poll: Poll rfkill hardware state. If you need this, you also
  *	need to set wiphy->rfkill_poll to %true before registration,
  *	and need to call wiphy_rfkill_set_hw_state() in the callback.
+ *
+ * @testmode_cmd: Implement a cfg80211 test mode command.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1466,6 +1468,9 @@ struct ieee80211_ops {
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
+#ifdef CONFIG_NL80211_TESTMODE
+	int (*testmode_cmd)(struct ieee80211_hw *hw, void *data, int len);
+#endif
 };
 
 /**

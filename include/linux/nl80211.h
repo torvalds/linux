@@ -242,6 +242,10 @@
  * @NL80211_CMD_LEAVE_IBSS: Leave the IBSS -- no special arguments, the IBSS is
  *	determined by the network interface.
  *
+ * @NL80211_CMD_TESTMODE: testmode command, takes a wiphy (or ifindex) attribute
+ *	to identify the device, and the TESTDATA blob attribute to pass through
+ *	to the driver.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -309,6 +313,8 @@ enum nl80211_commands {
 
 	NL80211_CMD_JOIN_IBSS,
 	NL80211_CMD_LEAVE_IBSS,
+
+	NL80211_CMD_TESTMODE,
 
 	/* add new commands above here */
 
@@ -511,6 +517,9 @@ enum nl80211_commands {
  *	authorized by user space. Otherwise, port is marked authorized by
  *	default in station mode.
  *
+ * @NL80211_ATTR_TESTDATA: Testmode data blob, passed through to the driver.
+ *	We recommend using nested, driver-specific attributes within this.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -618,6 +627,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_STA_FLAGS2,
 
 	NL80211_ATTR_CONTROL_PORT,
+
+	NL80211_ATTR_TESTDATA,
 
 	/* add attributes here, update the policy in nl80211.c */
 

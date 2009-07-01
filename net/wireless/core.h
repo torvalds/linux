@@ -58,6 +58,10 @@ struct cfg80211_registered_device {
 	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
 	unsigned long suspend_at;
 
+#ifdef CONFIG_NL80211_TESTMODE
+	struct genl_info *testmode_info;
+#endif
+
 #ifdef CONFIG_CFG80211_DEBUGFS
 	/* Debugfs entries */
 	struct wiphy_debugfsdentries {

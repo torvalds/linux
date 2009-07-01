@@ -2,6 +2,21 @@ config CFG80211
 	tristate "Improved wireless configuration API"
 	depends on RFKILL || !RFKILL
 
+config NL80211_TESTMODE
+	bool "nl80211 testmode command"
+	depends on CFG80211
+	help
+	  The nl80211 testmode command helps implementing things like
+	  factory calibration or validation tools for wireless chips.
+
+	  Select this option ONLY for kernels that are specifically
+	  built for such purposes.
+
+	  Debugging tools that are supposed to end up in the hands of
+	  users should better be implemented with debugfs.
+
+	  Say N.
+
 config CFG80211_REG_DEBUG
 	bool "cfg80211 regulatory debugging"
 	depends on CFG80211

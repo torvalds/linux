@@ -857,6 +857,8 @@ enum tx_power_setting {
  *
  * @rfkill_poll: polls the hw rfkill line, use cfg80211 reporting
  *	functions to adjust rfkill hw state
+ *
+ * @testmode_cmd: run a test mode command
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -955,6 +957,10 @@ struct cfg80211_ops {
 	int	(*get_tx_power)(struct wiphy *wiphy, int *dbm);
 
 	void	(*rfkill_poll)(struct wiphy *wiphy);
+
+#ifdef CONFIG_NL80211_TESTMODE
+	int	(*testmode_cmd)(struct wiphy *wiphy, void *data, int len);
+#endif
 };
 
 /*
@@ -1704,5 +1710,82 @@ void wiphy_rfkill_start_polling(struct wiphy *wiphy);
  * @wiphy: the wiphy
  */
 void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
+
+#ifdef CONFIG_NL80211_TESTMODE
+/**
+ * cfg80211_testmode_alloc_reply_skb - allocate testmode reply
+ * @wiphy: the wiphy
+ * @approxlen: an upper bound of the length of the data that will
+ *	be put into the skb
+ *
+ * This function allocates and pre-fills an skb for a reply to
+ * the testmode command. Since it is intended for a reply, calling
+ * it outside of the @testmode_cmd operation is invalid.
+ *
+ * The returned skb (or %NULL if any errors happen) is pre-filled
+ * with the wiphy index and set up in a way that any data that is
+ * put into the skb (with skb_put(), nla_put() or similar) will end
+ * up being within the %NL80211_ATTR_TESTDATA attribute, so all that
+ * needs to be done with the skb is adding data for the corresponding
+ * userspace tool which can then read that data out of the testdata
+ * attribute. You must not modify the skb in any other way.
+ *
+ * When done, call cfg80211_testmode_reply() with the skb and return
+ * its error code as the result of the @testmode_cmd operation.
+ */
+struct sk_buff *cfg80211_testmode_alloc_reply_skb(struct wiphy *wiphy,
+						  int approxlen);
+
+/**
+ * cfg80211_testmode_reply - send the reply skb
+ * @skb: The skb, must have been allocated with
+ *	cfg80211_testmode_alloc_reply_skb()
+ *
+ * Returns an error code or 0 on success, since calling this
+ * function will usually be the last thing before returning
+ * from the @testmode_cmd you should return the error code.
+ * Note that this function consumes the skb regardless of the
+ * return value.
+ */
+int cfg80211_testmode_reply(struct sk_buff *skb);
+
+/**
+ * cfg80211_testmode_alloc_event_skb - allocate testmode event
+ * @wiphy: the wiphy
+ * @approxlen: an upper bound of the length of the data that will
+ *	be put into the skb
+ * @gfp: allocation flags
+ *
+ * This function allocates and pre-fills an skb for an event on the
+ * testmode multicast group.
+ *
+ * The returned skb (or %NULL if any errors happen) is set up in the
+ * same way as with cfg80211_testmode_alloc_reply_skb() but prepared
+ * for an event. As there, you should simply add data to it that will
+ * then end up in the %NL80211_ATTR_TESTDATA attribute. Again, you must
+ * not modify the skb in any other way.
+ *
+ * When done filling the skb, call cfg80211_testmode_event() with the
+ * skb to send the event.
+ */
+struct sk_buff *cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy,
+						  int approxlen, gfp_t gfp);
+
+/**
+ * cfg80211_testmode_event - send the event
+ * @skb: The skb, must have been allocated with
+ *	cfg80211_testmode_alloc_event_skb()
+ * @gfp: allocation flags
+ *
+ * This function sends the given @skb, which must have been allocated
+ * by cfg80211_testmode_alloc_event_skb(), as an event. It always
+ * consumes it.
+ */
+void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp);
+
+#define CFG80211_TESTMODE_CMD(cmd)	.testmode_cmd = (cmd),
+#else
+#define CFG80211_TESTMODE_CMD(cmd)
+#endif
 
 #endif /* __NET_CFG80211_H */

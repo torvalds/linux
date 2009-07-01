@@ -1376,6 +1376,18 @@ static void ieee80211_rfkill_poll(struct wiphy *wiphy)
 	drv_rfkill_poll(local);
 }
 
+#ifdef CONFIG_NL80211_TESTMODE
+int ieee80211_testmode_cmd(struct wiphy *wiphy, void *data, int len)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	if (!local->ops->testmode_cmd)
+		return -EOPNOTSUPP;
+
+	return local->ops->testmode_cmd(&local->hw, data, len);
+}
+#endif
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1418,4 +1430,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.set_tx_power = ieee80211_set_tx_power,
 	.get_tx_power = ieee80211_get_tx_power,
 	.rfkill_poll = ieee80211_rfkill_poll,
+	CFG80211_TESTMODE_CMD(ieee80211_testmode_cmd)
 };
