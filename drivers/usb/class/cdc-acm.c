@@ -387,6 +387,7 @@ static void acm_rx_tasklet(unsigned long _acm)
 	struct acm_ru *rcv;
 	unsigned long flags;
 	unsigned char throttled;
+	struct usb_host_endpoint *ep;
 
 	dbg("Entering acm_rx_tasklet");
 
@@ -462,11 +463,20 @@ urbs:
 
 		rcv->buffer = buf;
 
-		usb_fill_bulk_urb(rcv->urb, acm->dev,
-				  acm->rx_endpoint,
-				  buf->base,
-				  acm->readsize,
-				  acm_read_bulk, rcv);
+		ep = (usb_pipein(acm->rx_endpoint) ? acm->dev->ep_in : acm->dev->ep_out)
+				[usb_pipeendpoint(acm->rx_endpoint)];
+		if (usb_endpoint_xfer_int(&ep->desc))
+			usb_fill_int_urb(rcv->urb, acm->dev,
+					 acm->rx_endpoint,
+					 buf->base,
+					 acm->readsize,
+					 acm_read_bulk, rcv, ep->desc.bInterval);
+		else
+			usb_fill_bulk_urb(rcv->urb, acm->dev,
+					  acm->rx_endpoint,
+					  buf->base,
+					  acm->readsize,
+					  acm_read_bulk, rcv);
 		rcv->urb->transfer_dma = buf->dma;
 		rcv->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
@@ -1227,9 +1237,14 @@ made_compressed_probe:
 			goto alloc_fail7;
 		}
 
-		usb_fill_bulk_urb(snd->urb, usb_dev,
-			usb_sndbulkpipe(usb_dev, epwrite->bEndpointAddress),
-			NULL, acm->writesize, acm_write_bulk, snd);
+		if (usb_endpoint_xfer_int(epwrite))
+			usb_fill_int_urb(snd->urb, usb_dev,
+				usb_sndbulkpipe(usb_dev, epwrite->bEndpointAddress),
+				NULL, acm->writesize, acm_write_bulk, snd, epwrite->bInterval);
+		else
+			usb_fill_bulk_urb(snd->urb, usb_dev,
+				usb_sndbulkpipe(usb_dev, epwrite->bEndpointAddress),
+				NULL, acm->writesize, acm_write_bulk, snd);
 		snd->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		snd->instance = acm;
 	}
