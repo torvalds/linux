@@ -111,6 +111,15 @@ TRACE_EVENT(kvm_cpuid,
 		  __entry->rbx, __entry->rcx, __entry->rdx)
 );
 
+#define AREG(x) { APIC_##x, "APIC_" #x }
+
+#define kvm_trace_symbol_apic						    \
+	AREG(ID), AREG(LVR), AREG(TASKPRI), AREG(ARBPRI), AREG(PROCPRI),    \
+	AREG(EOI), AREG(RRR), AREG(LDR), AREG(DFR), AREG(SPIV), AREG(ISR),  \
+	AREG(TMR), AREG(IRR), AREG(ESR), AREG(ICR), AREG(ICR2), AREG(LVTT), \
+	AREG(LVTTHMR), AREG(LVTPC), AREG(LVT0), AREG(LVT1), AREG(LVTERR),   \
+	AREG(TMICT), AREG(TMCCT), AREG(TDCR), AREG(SELF_IPI), AREG(EFEAT),  \
+	AREG(ECTRL)
 /*
  * Tracepoint for apic access.
  */
@@ -130,9 +139,10 @@ TRACE_EVENT(kvm_apic,
 		__entry->val		= val;
 	),
 
-	TP_printk("apic_%s 0x%x = 0x%x",
+	TP_printk("apic_%s %s = 0x%x",
 		  __entry->rw ? "write" : "read",
-		  __entry->reg, __entry->val)
+		  __print_symbolic(__entry->reg, kvm_trace_symbol_apic),
+		  __entry->val)
 );
 
 #define trace_kvm_apic_read(reg, val)		trace_kvm_apic(0, reg, val)
