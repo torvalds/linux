@@ -1924,7 +1924,7 @@ struct iwl_link_qual_general_params {
 #define LINK_QUAL_AGG_DISABLE_START_MIN	(0)
 
 #define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(31)
-#define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(64)
+#define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(63)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MIN	(0)
 
 /**
