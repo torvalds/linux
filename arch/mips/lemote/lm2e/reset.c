@@ -29,16 +29,11 @@ static void loongson2e_halt(void)
 	while (1) ;
 }
 
-static void loongson2e_power_off(void)
-{
-	loongson2e_halt();
-}
-
 static int __init mips_reboot_setup(void)
 {
 	_machine_restart = loongson2e_restart;
 	_machine_halt = loongson2e_halt;
-	pm_power_off = loongson2e_power_off;
+	pm_power_off = loongson2e_halt;
 
 	return 0;
 }
