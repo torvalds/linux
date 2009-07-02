@@ -41,6 +41,10 @@ static unsigned short psc_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 		pr_err("timeout on ac97 bus (rdy)\n");
 		return -ENODEV;
 	}
+
+	/* Force clear the data valid bit */
+	in_be32(&psc_dma->psc_regs->ac97_data);
+
 	/* Send the read */
 	out_be32(&psc_dma->psc_regs->ac97_cmd, (1<<31) | ((reg & 0x7f) << 24));
 
