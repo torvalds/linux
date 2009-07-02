@@ -19,8 +19,8 @@
  * 02139, USA.
  */
 
-#ifndef __ASM_MACH_LEMOTE_PCI_H_
-#define __ASM_MACH_LEMOTE_PCI_H_
+#ifndef __ASM_MACH_LOONGSON_PCI_H_
+#define __ASM_MACH_LOONGSON_PCI_H_
 
 extern struct pci_ops bonito64_pci_ops;
 
@@ -28,4 +28,4 @@ extern struct pci_ops bonito64_pci_ops;
 #define LOONGSON2E_PCI_MEM_END		(BONITO_PCILO1_BASE + 0x04000000 * 2)
 #define LOONGSON2E_PCI_IO_START		0x00004000UL
 
-#endif /* !__ASM_MACH_LEMOTE_PCI_H_ */
+#endif /* !__ASM_MACH_LOONGSON_PCI_H_ */

@@ -8,8 +8,8 @@
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
  */
-#ifndef __ASM_MACH_LEMOTE_DMA_COHERENCE_H
-#define __ASM_MACH_LEMOTE_DMA_COHERENCE_H
+#ifndef __ASM_MACH_LOONGSON_DMA_COHERENCE_H
+#define __ASM_MACH_LOONGSON_DMA_COHERENCE_H
 
 struct device;
 
@@ -65,4 +65,4 @@ static inline int plat_device_is_coherent(struct device *dev)
 	return 0;
 }
 
-#endif /* __ASM_MACH_LEMOTE_DMA_COHERENCE_H */
+#endif /* __ASM_MACH_LOONGSON_DMA_COHERENCE_H */

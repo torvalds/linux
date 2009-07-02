@@ -13,8 +13,8 @@
  *      loongson2f user manual.
  */
 
-#ifndef __ASM_MACH_LEMOTE_CPU_FEATURE_OVERRIDES_H
-#define __ASM_MACH_LEMOTE_CPU_FEATURE_OVERRIDES_H
+#ifndef __ASM_MACH_LOONGSON_CPU_FEATURE_OVERRIDES_H
+#define __ASM_MACH_LOONGSON_CPU_FEATURE_OVERRIDES_H
 
 #define cpu_dcache_line_size()	32
 #define cpu_icache_line_size()	32
@@ -56,4 +56,4 @@
 #define cpu_has_watch		1
 #define cpu_icache_snoops_remote_store	1
 
-#endif /* __ASM_MACH_LEMOTE_CPU_FEATURE_OVERRIDES_H */
+#endif /* __ASM_MACH_LOONGSON_CPU_FEATURE_OVERRIDES_H */

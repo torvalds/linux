@@ -10,6 +10,6 @@
 
 const char *get_system_type(void)
 {
-	return "lemote-fulong";
+	return "lemote-fuloong-2e-box";
 }
 

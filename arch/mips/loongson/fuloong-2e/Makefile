@@ -1,5 +1,5 @@
 #
-# Makefile for Lemote Fulong mini-PC board.
+# Makefile for Lemote Fuloong2e mini-PC board.
 #
 
 obj-y += setup.o init.o reset.o irq.o pci.o bonito-irq.o mem.o \

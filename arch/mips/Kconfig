@@ -6,7 +6,7 @@ config MIPS
 	select HAVE_ARCH_KGDB
 	# Horrible source of confusion.  Die, die, die ...
 	select EMBEDDED
-	select RTC_LIB if !LEMOTE_FULONG
+	select RTC_LIB if !LEMOTE_FULOONG2E
 
 mainmenu "Linux/MIPS Kernel Configuration"
 
@@ -174,8 +174,8 @@ config LASAT
 	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
-config LEMOTE_FULONG
-	bool "Lemote Fulong mini-PC"
+config LEMOTE_FULOONG2E
+	bool "Lemote Fuloong2e mini-PC"
 	select ARCH_SPARSEMEM_ENABLE
 	select CEVT_R4K
 	select CSRC_R4K
@@ -196,7 +196,7 @@ config LEMOTE_FULONG
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select CPU_HAS_WB
 	help
-	  Lemote Fulong mini-PC board based on the Chinese Loongson-2E CPU and
+	  Lemote Fuloong2e mini-PC board based on the Chinese Loongson-2E CPU and
 	  an FPGA northbridge
 
 config MIPS_MALTA
