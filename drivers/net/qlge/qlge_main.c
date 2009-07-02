@@ -3040,25 +3040,40 @@ static int ql_start_rss(struct ql_adapter *qdev)
 	return status;
 }
 
+static int ql_clear_routing_entries(struct ql_adapter *qdev)
+{
+	int i, status = 0;
+
+	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
+	if (status)
+		return status;
+	/* Clear all the entries in the routing table. */
+	for (i = 0; i < 16; i++) {
+		status = ql_set_routing_reg(qdev, i, 0, 0);
+		if (status) {
+			QPRINTK(qdev, IFUP, ERR,
+				"Failed to init routing register for CAM "
+				"packets.\n");
+			break;
+		}
+	}
+	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
+	return status;
+}
+
 /* Initialize the frame-to-queue routing. */
 static int ql_route_initialize(struct ql_adapter *qdev)
 {
 	int status = 0;
-	int i;
 
 	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
 	if (status)
 		return status;
 
 	/* Clear all the entries in the routing table. */
-	for (i = 0; i < 16; i++) {
-		status = ql_set_routing_reg(qdev, i, 0, 0);
-		if (status) {
-			QPRINTK(qdev, IFUP, ERR,
-				"Failed to init routing register for CAM packets.\n");
-			goto exit;
-		}
-	}
+	status = ql_clear_routing_entries(qdev);
+	if (status)
+		goto exit;
 
 	status = ql_set_routing_reg(qdev, RT_IDX_ALL_ERR_SLOT, RT_IDX_ERR, 1);
 	if (status) {
@@ -3211,9 +3226,17 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 {
 	u32 value;
 	int status = 0;
-	unsigned long end_jiffies = jiffies +
-		max((unsigned long)1, usecs_to_jiffies(30));
+	unsigned long end_jiffies;
 
+	/* Clear all the entries in the routing table. */
+	status = ql_clear_routing_entries(qdev);
+	if (status) {
+		QPRINTK(qdev, IFUP, ERR, "Failed to clear routing bits.\n");
+		return status;
+	}
+
+	end_jiffies = jiffies +
+		max((unsigned long)1, usecs_to_jiffies(30));
 	ql_write32(qdev, RST_FO, (RST_FO_FR << 16) | RST_FO_FR);
 
 	do {
