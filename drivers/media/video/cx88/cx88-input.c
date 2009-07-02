@@ -23,7 +23,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/delay.h>
+#include <linux/hrtimer.h>
 #include <linux/input.h>
 #include <linux/pci.h>
 #include <linux/module.h>
@@ -48,7 +48,7 @@ struct cx88_IR {
 
 	/* poll external decoder */
 	int polling;
-	struct delayed_work work;
+	struct hrtimer timer;
 	u32 gpio_addr;
 	u32 last_gpio;
 	u32 mask_keycode;
@@ -144,19 +144,28 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 	}
 }
 
-static void cx88_ir_work(struct work_struct *work)
+static enum hrtimer_restart cx88_ir_work(struct hrtimer *timer)
 {
-	struct cx88_IR *ir = container_of(work, struct cx88_IR, work.work);
+	unsigned long missed;
+	struct cx88_IR *ir = container_of(timer, struct cx88_IR, timer);
 
 	cx88_ir_handle_key(ir);
-	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
+	missed = hrtimer_forward_now(&ir->timer,
+				     ktime_set(0, ir->polling * 1000000));
+	if (missed > 1)
+		ir_dprintk("Missed ticks %ld\n", missed - 1);
+
+	return HRTIMER_RESTART;
 }
 
 void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
 {
 	if (ir->polling) {
-		INIT_DELAYED_WORK(&ir->work, cx88_ir_work);
-		schedule_delayed_work(&ir->work, 0);
+		hrtimer_init(&ir->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		ir->timer.function = cx88_ir_work;
+		hrtimer_start(&ir->timer,
+			      ktime_set(0, ir->polling * 1000000),
+			      HRTIMER_MODE_REL);
 	}
 	if (ir->sampling) {
 		core->pci_irqmask |= PCI_INT_IR_SMPINT;
@@ -173,7 +182,7 @@ void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
 	}
 
 	if (ir->polling)
-		cancel_delayed_work_sync(&ir->work);
+		hrtimer_cancel(&ir->timer);
 }
 
 /* ---------------------------------------------------------------------- */
