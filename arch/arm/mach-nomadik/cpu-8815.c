@@ -19,11 +19,86 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/amba/bus.h>
+#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/vic.h>
+
+/* The 8815 has 4 GPIO blocks, let's register them immediately */
+static struct nmk_gpio_platform_data cpu8815_gpio[] = {
+	{
+		.name = "GPIO-0-31",
+		.first_gpio = 0,
+		.first_irq = NOMADIK_GPIO_TO_IRQ(0),
+		.parent_irq = IRQ_GPIO0,
+	}, {
+		.name = "GPIO-32-63",
+		.first_gpio = 32,
+		.first_irq = NOMADIK_GPIO_TO_IRQ(32),
+		.parent_irq = IRQ_GPIO1,
+	}, {
+		.name = "GPIO-64-95",
+		.first_gpio = 64,
+		.first_irq = NOMADIK_GPIO_TO_IRQ(64),
+		.parent_irq = IRQ_GPIO2,
+	}, {
+		.name = "GPIO-96-127", /* 124..127 not routed to pin */
+		.first_gpio = 96,
+		.first_irq = NOMADIK_GPIO_TO_IRQ(96),
+		.parent_irq = IRQ_GPIO3,
+	}
+};
+
+#define __MEM_4K_RESOURCE(x) \
+	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
+
+static struct amba_device cpu8815_amba_gpio[] = {
+	{
+		.dev = {
+			.init_name = "gpio0",
+			.platform_data = cpu8815_gpio + 0,
+		},
+		__MEM_4K_RESOURCE(NOMADIK_GPIO0_BASE),
+	}, {
+		.dev = {
+			.init_name = "gpio1",
+			.platform_data = cpu8815_gpio + 1,
+		},
+		__MEM_4K_RESOURCE(NOMADIK_GPIO1_BASE),
+	}, {
+		.dev = {
+			.init_name = "gpio2",
+			.platform_data = cpu8815_gpio + 2,
+		},
+		__MEM_4K_RESOURCE(NOMADIK_GPIO2_BASE),
+	}, {
+		.dev = {
+			.init_name = "gpio3",
+			.platform_data = cpu8815_gpio + 3,
+		},
+		__MEM_4K_RESOURCE(NOMADIK_GPIO3_BASE),
+	},
+};
+
+static struct amba_device *amba_devs[] __initdata = {
+	cpu8815_amba_gpio + 0,
+	cpu8815_amba_gpio + 1,
+	cpu8815_amba_gpio + 2,
+	cpu8815_amba_gpio + 3,
+};
+
+static int __init cpu8815_init(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
+		amba_device_register(amba_devs[i], &iomem_resource);
+	return 0;
+}
+arch_initcall(cpu8815_init);
 
 /* All SoC devices live in the same area (see hardware.h) */
 static struct map_desc nomadik_io_desc[] __initdata = {
