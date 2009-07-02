@@ -1079,14 +1079,13 @@ long kvm_arch_dev_ioctl(struct file *filp,
 		if (copy_to_user(user_msr_list, &msr_list, sizeof msr_list))
 			goto out;
 		r = -E2BIG;
-		if (n < num_msrs_to_save)
+		if (n < msr_list.nmsrs)
 			goto out;
 		r = -EFAULT;
 		if (copy_to_user(user_msr_list->indices, &msrs_to_save,
 				 num_msrs_to_save * sizeof(u32)))
 			goto out;
-		if (copy_to_user(user_msr_list->indices
-				 + num_msrs_to_save * sizeof(u32),
+		if (copy_to_user(user_msr_list->indices + num_msrs_to_save,
 				 &emulated_msrs,
 				 ARRAY_SIZE(emulated_msrs) * sizeof(u32)))
 			goto out;
