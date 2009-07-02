@@ -472,6 +472,8 @@ static u8 * __init alloc_event_buffer(struct amd_iommu *iommu)
 	if (iommu->evt_buf == NULL)
 		return NULL;
 
+	iommu->evt_buf_size = EVT_BUFFER_SIZE;
+
 	return iommu->evt_buf;
 }
 
