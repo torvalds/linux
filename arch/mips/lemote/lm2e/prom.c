@@ -21,7 +21,6 @@
 extern unsigned long bus_clock;
 extern unsigned long cpu_clock_freq;
 extern unsigned int memsize, highmemsize;
-extern int putDebugChar(unsigned char byte);
 
 static int argc;
 /* pmon passes arguments in 32bit pointers */
@@ -89,9 +88,4 @@ do {									\
 
 void __init prom_free_prom_memory(void)
 {
-}
-
-void prom_putchar(char c)
-{
-	putDebugChar(c);
 }
