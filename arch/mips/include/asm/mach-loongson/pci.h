@@ -24,8 +24,14 @@
 
 extern struct pci_ops bonito64_pci_ops;
 
-#define LOONGSON2E_PCI_MEM_START	BONITO_PCILO1_BASE
-#define LOONGSON2E_PCI_MEM_END		(BONITO_PCILO1_BASE + 0x04000000 * 2)
-#define LOONGSON2E_PCI_IO_START		0x00004000UL
+#ifdef CONFIG_LEMOTE_FULOONG2E
+
+/* this pci memory space is mapped by pcimap in pci.c */
+#define LOONGSON_PCI_MEM_START	BONITO_PCILO1_BASE
+#define LOONGSON_PCI_MEM_END	(BONITO_PCILO1_BASE + 0x04000000 * 2)
+/* this is an offset from mips_io_port_base */
+#define LOONGSON_PCI_IO_START	0x00004000UL
+
+#endif
 
 #endif /* !__ASM_MACH_LOONGSON_PCI_H_ */

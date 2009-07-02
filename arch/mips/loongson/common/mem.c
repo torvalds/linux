@@ -11,13 +11,15 @@
 #include <asm/bootinfo.h>
 
 #include <loongson.h>
+#include <mem.h>
 
 void __init prom_init_memory(void)
 {
     add_memory_region(0x0, (memsize << 20), BOOT_MEM_RAM);
 #ifdef CONFIG_64BIT
     if (highmemsize > 0)
-		add_memory_region(0x20000000, highmemsize << 20, BOOT_MEM_RAM);
+	add_memory_region(LOONGSON_HIGHMEM_START,
+		highmemsize << 20, BOOT_MEM_RAM);
 #endif /* CONFIG_64BIT */
 }
 
@@ -27,10 +29,7 @@ int __uncached_access(struct file *file, unsigned long addr)
 	if (file->f_flags & O_SYNC)
 		return 1;
 
-	/*
-	 * On the Lemote Loongson 2e system, the peripheral registers
-	 * reside between 0x1000:0000 and 0x2000:0000.
-	 */
 	return addr >= __pa(high_memory) ||
-		((addr >= 0x10000000) && (addr < 0x20000000));
+		((addr >= LOONGSON_MMIO_MEM_START) &&
+		 (addr < LOONGSON_MMIO_MEM_END));
 }

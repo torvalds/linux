@@ -12,24 +12,24 @@
 #include <pci.h>
 #include <loongson.h>
 
-static struct resource loongson2e_pci_mem_resource = {
-	.name   = "LOONGSON2E PCI MEM",
-	.start  = LOONGSON2E_PCI_MEM_START,
-	.end    = LOONGSON2E_PCI_MEM_END,
+static struct resource loongson_pci_mem_resource = {
+	.name   = "pci memory space",
+	.start  = LOONGSON_PCI_MEM_START,
+	.end    = LOONGSON_PCI_MEM_END,
 	.flags  = IORESOURCE_MEM,
 };
 
-static struct resource loongson2e_pci_io_resource = {
-	.name   = "LOONGSON2E PCI IO MEM",
-	.start  = LOONGSON2E_PCI_IO_START,
+static struct resource loongson_pci_io_resource = {
+	.name   = "pci io space",
+	.start  = LOONGSON_PCI_IO_START,
 	.end    = IO_SPACE_LIMIT,
 	.flags  = IORESOURCE_IO,
 };
 
-static struct pci_controller  loongson2e_pci_controller = {
+static struct pci_controller  loongson_pci_controller = {
 	.pci_ops        = &bonito64_pci_ops,
-	.io_resource    = &loongson2e_pci_io_resource,
-	.mem_resource   = &loongson2e_pci_mem_resource,
+	.io_resource    = &loongson_pci_io_resource,
+	.mem_resource   = &loongson_pci_mem_resource,
 	.mem_offset     = 0x00000000UL,
 	.io_offset      = 0x00000000UL,
 };
@@ -73,9 +73,9 @@ static int __init pcibios_init(void)
 {
 	setup_pcimap();
 
-	loongson2e_pci_controller.io_map_base = mips_io_port_base;
+	loongson_pci_controller.io_map_base = mips_io_port_base;
 
-	register_pci_controller(&loongson2e_pci_controller);
+	register_pci_controller(&loongson_pci_controller);
 
 	return 0;
 }
