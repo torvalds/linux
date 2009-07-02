@@ -78,10 +78,4 @@ extern int xfs_read_buf(struct xfs_mount *mp, xfs_buftarg_t *btp,
 extern void xfs_ioerror_alert(char *func, struct xfs_mount *mp,
 				xfs_buf_t *bp, xfs_daddr_t blkno);
 
-/*
- * Prototypes for functions in xfs_vnodeops.c.
- */
-extern int xfs_free_eofblocks(struct xfs_mount *mp, struct xfs_inode *ip,
-			int flags);
-
 #endif /* __XFS_RW_H__ */
