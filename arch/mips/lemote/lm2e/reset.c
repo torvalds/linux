@@ -6,22 +6,24 @@
  *
  * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
  * Author: Fuxin Zhang, zhangfx@lemote.com
+ * Copyright (C) 2009 Lemote, Inc. & Institute of Computing Technology
+ * Author: Zhangjin Wu, wuzj@lemote.com
  */
 #include <linux/init.h>
 #include <linux/pm.h>
+#include <linux/io.h>
 
 #include <asm/reboot.h>
+#include <asm/mips-boards/bonito64.h>
 
 static void loongson2e_restart(char *command)
 {
-#ifdef CONFIG_32BIT
-	*(unsigned long *)0xbfe00104 &= ~(1 << 2);
-	*(unsigned long *)0xbfe00104 |= (1 << 2);
-#else
-	*(unsigned long *)0xffffffffbfe00104 &= ~(1 << 2);
-	*(unsigned long *)0xffffffffbfe00104 |= (1 << 2);
-#endif
-	__asm__ __volatile__("jr\t%0"::"r"(0xbfc00000));
+	/* do preparation for reboot */
+	BONITO_BONGENCFG &= ~(1 << 2);
+	BONITO_BONGENCFG |= (1 << 2);
+
+	/* reboot via jumping to boot base address */
+	((void (*)(void))ioremap_nocache(BONITO_BOOT_BASE, 4)) ();
 }
 
 static void loongson2e_halt(void)
