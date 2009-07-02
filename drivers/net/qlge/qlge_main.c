@@ -3343,7 +3343,11 @@ static int ql_adapter_up(struct ql_adapter *qdev)
 	}
 	set_bit(QL_ADAPTER_UP, &qdev->flags);
 	ql_alloc_rx_buffers(qdev);
-	if ((ql_read32(qdev, STS) & qdev->port_init))
+	/* If the port is initialized and the
+	 * link is up the turn on the carrier.
+	 */
+	if ((ql_read32(qdev, STS) & qdev->port_init) &&
+			(ql_read32(qdev, STS) & qdev->port_link_up))
 		netif_carrier_on(qdev->ndev);
 	ql_enable_interrupts(qdev);
 	ql_enable_all_completion_interrupts(qdev);
