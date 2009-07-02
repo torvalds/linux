@@ -14,6 +14,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
+#include <linux/interrupt.h>
+#include <linux/gpio.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -45,8 +47,42 @@ static struct clk nhk8815_clk_48 = {
 	.rate = 48*1000*1000,
 };
 
+static struct resource nhk8815_eth_resources[] = {
+	{
+		.name = "smc91x-regs",
+		.start = 0x34000000 + 0x300,
+		.end = 0x34000000 + SZ_64K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = NOMADIK_GPIO_TO_IRQ(115),
+		.end = NOMADIK_GPIO_TO_IRQ(115),
+		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_RISING,
+	}
+};
+
+static struct platform_device nhk8815_eth_device = {
+	.name = "smc91x",
+	.resource = nhk8815_eth_resources,
+	.num_resources = ARRAY_SIZE(nhk8815_eth_resources),
+};
+
+static int __init nhk8815_eth_init(void)
+{
+	int gpio_nr = 115; /* hardwired in the board */
+	int err;
+
+	err = gpio_request(gpio_nr, "eth_irq");
+	if (!err) err = nmk_gpio_set_mode(gpio_nr, NMK_GPIO_ALT_GPIO);
+	if (!err) err = gpio_direction_input(gpio_nr);
+	if (err)
+		pr_err("Error %i in %s\n", err, __func__);
+	return err;
+}
+device_initcall(nhk8815_eth_init);
+
 static struct platform_device *nhk8815_platform_devices[] __initdata = {
-	/* currently empty, will add keypad, touchscreen etc */
+	&nhk8815_eth_device,
+	/* will add more devices */
 };
 
 static void __init nhk8815_platform_init(void)
