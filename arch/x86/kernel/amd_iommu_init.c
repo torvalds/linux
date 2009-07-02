@@ -691,6 +691,7 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			devid = e->devid;
 			devid_to = e->ext >> 8;
+			set_dev_entry_from_acpi(iommu, devid   , e->flags, 0);
 			set_dev_entry_from_acpi(iommu, devid_to, e->flags, 0);
 			amd_iommu_alias_table[devid] = devid_to;
 			break;
@@ -749,11 +750,13 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			devid = e->devid;
 			for (dev_i = devid_start; dev_i <= devid; ++dev_i) {
-				if (alias)
+				if (alias) {
 					amd_iommu_alias_table[dev_i] = devid_to;
-				set_dev_entry_from_acpi(iommu,
-						amd_iommu_alias_table[dev_i],
-						flags, ext_flags);
+					set_dev_entry_from_acpi(iommu,
+						devid_to, flags, ext_flags);
+				}
+				set_dev_entry_from_acpi(iommu, dev_i,
+							flags, ext_flags);
 			}
 			break;
 		default:
