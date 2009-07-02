@@ -844,6 +844,13 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 			return 1;
 		}
 		break;
+	case MSR_FAM10H_MMIO_CONF_BASE:
+		if (data != 0) {
+			pr_unimpl(vcpu, "unimplemented MMIO_CONF_BASE wrmsr: "
+				"0x%llx\n", data);
+			return 1;
+		}
+		break;
 	case MSR_AMD64_NB_CFG:
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
@@ -1055,6 +1062,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_K7_EVNTSEL0:
 	case MSR_K8_INT_PENDING_MSG:
 	case MSR_AMD64_NB_CFG:
+	case MSR_FAM10H_MMIO_CONF_BASE:
 		data = 0;
 		break;
 	case MSR_MTRRcap:
