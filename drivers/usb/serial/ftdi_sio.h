@@ -740,6 +740,15 @@
 #define FTDI_PYRAMID_PID	0xE6C8	/* Pyramid Appliance Display */
 
 /*
+ * NDI (www.ndigital.com) product ids
+ */
+#define FTDI_NDI_HUC_PID		0xDA70	/* NDI Host USB Converter */
+#define FTDI_NDI_SPECTRA_SCU_PID	0xDA71	/* NDI Spectra SCU */
+#define FTDI_NDI_FUTURE_2_PID		0xDA72	/* NDI future device #2 */
+#define FTDI_NDI_FUTURE_3_PID		0xDA73	/* NDI future device #3 */
+#define FTDI_NDI_AURORA_SCU_PID		0xDA74	/* NDI Aurora SCU */
+
+/*
  * Posiflex inc retail equipment (http://www.posiflex.com.tw)
  */
 #define POSIFLEX_VID		0x0d3a  /* Vendor ID */
@@ -851,9 +860,6 @@
  */
 #define TML_VID			0x1B91	/* Vendor ID */
 #define TML_USB_SERIAL_PID	0x0064	/* USB - Serial Converter */
-
-/* NDI Polaris System */
-#define FTDI_NDI_HUC_PID        0xDA70
 
 /* Propox devices */
 #define FTDI_PROPOX_JTAGCABLEII_PID	0xD738

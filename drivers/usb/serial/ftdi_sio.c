@@ -107,6 +107,7 @@ struct ftdi_sio_quirk {
 
 static int   ftdi_jtag_probe(struct usb_serial *serial);
 static int   ftdi_mtxorb_hack_setup(struct usb_serial *serial);
+static int   ftdi_NDI_device_setup(struct usb_serial *serial);
 static void  ftdi_USB_UIRT_setup(struct ftdi_private *priv);
 static void  ftdi_HE_TIRA1_setup(struct ftdi_private *priv);
 
@@ -116,6 +117,10 @@ static struct ftdi_sio_quirk ftdi_jtag_quirk = {
 
 static struct ftdi_sio_quirk ftdi_mtxorb_hack_quirk = {
 	.probe  = ftdi_mtxorb_hack_setup,
+};
+
+static struct ftdi_sio_quirk ftdi_NDI_device_quirk = {
+	.probe	= ftdi_NDI_device_setup,
 };
 
 static struct ftdi_sio_quirk ftdi_USB_UIRT_quirk = {
@@ -648,6 +653,16 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_TACTRIX_OPENPORT_13S_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_TACTRIX_OPENPORT_13U_PID) },
 	{ USB_DEVICE(ELEKTOR_VID, ELEKTOR_FT323R_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_NDI_HUC_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+	{ USB_DEVICE(FTDI_VID, FTDI_NDI_SPECTRA_SCU_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+	{ USB_DEVICE(FTDI_VID, FTDI_NDI_FUTURE_2_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+	{ USB_DEVICE(FTDI_VID, FTDI_NDI_FUTURE_3_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
+	{ USB_DEVICE(FTDI_VID, FTDI_NDI_AURORA_SCU_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_NDI_device_quirk },
 	{ USB_DEVICE(TELLDUS_VID, TELLDUS_TELLSTICK_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MAXSTREAM_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_PHI_FISCO_PID) },
@@ -671,7 +686,6 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DUSB_PID) },
 	{ USB_DEVICE(ALTI2_VID, ALTI2_N3_PID) },
 	{ USB_DEVICE(FTDI_VID, DIEBOLD_BCS_SE923_PID) },
-	{ USB_DEVICE(FTDI_VID, FTDI_NDI_HUC_PID) },
 	{ USB_DEVICE(ATMEL_VID, STK541_PID) },
 	{ USB_DEVICE(DE_VID, STB_PID) },
 	{ USB_DEVICE(DE_VID, WHT_PID) },
@@ -1027,6 +1041,16 @@ static __u32 get_ftdi_divisor(struct tty_struct *tty,
 	case FT2232C: /* FT2232C chip */
 	case FT232RL:
 		if (baud <= 3000000) {
+			__u16 product_id = le16_to_cpu(
+				port->serial->dev->descriptor.idProduct);
+			if (((FTDI_NDI_HUC_PID == product_id) ||
+			     (FTDI_NDI_SPECTRA_SCU_PID == product_id) ||
+			     (FTDI_NDI_FUTURE_2_PID == product_id) ||
+			     (FTDI_NDI_FUTURE_3_PID == product_id) ||
+			     (FTDI_NDI_AURORA_SCU_PID == product_id)) &&
+			    (baud == 19200)) {
+				baud = 1200000;
+			}
 			div_value = ftdi_232bm_baud_to_divisor(baud);
 		} else {
 			dbg("%s - Baud rate too high!", __func__);
@@ -1556,6 +1580,39 @@ static void ftdi_HE_TIRA1_setup(struct ftdi_private *priv)
 	priv->force_baud = 38400;
 	priv->force_rtscts = 1;
 } /* ftdi_HE_TIRA1_setup */
+
+/*
+ * Module parameter to control latency timer for NDI FTDI-based USB devices.
+ * If this value is not set in modprobe.conf.local its value will be set to 1ms.
+ */
+static int ndi_latency_timer = 1;
+
+/* Setup for the NDI FTDI-based USB devices, which requires hardwired
+ * baudrate (19200 gets mapped to 1200000).
+ *
+ * Called from usbserial:serial_probe.
+ */
+static int ftdi_NDI_device_setup(struct usb_serial *serial)
+{
+	struct usb_device *udev = serial->dev;
+	int latency = ndi_latency_timer;
+	int rv = 0;
+	char buf[1];
+
+	if (latency == 0)
+		latency = 1;
+	if (latency > 99)
+		latency = 99;
+
+	dbg("%s setting NDI device latency to %d", __func__, latency);
+	dev_info(&udev->dev, "NDI device with a latency value of %d", latency);
+
+	rv = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
+				FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
+				latency, 0, buf, 0, WDR_TIMEOUT);
+	return 0;
+}
 
 /*
  * First port on JTAG adaptors such as Olimex arm-usb-ocd or the FIC/OpenMoko
@@ -2626,3 +2683,5 @@ MODULE_PARM_DESC(vendor, "User specified vendor ID (default="
 module_param(product, ushort, 0);
 MODULE_PARM_DESC(product, "User specified product ID");
 
+module_param(ndi_latency_timer, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ndi_latency_timer, "NDI device latency timer override");
