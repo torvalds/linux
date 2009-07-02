@@ -259,6 +259,15 @@ static struct irq_chip vic_chip = {
 	.set_wake = vic_set_wake,
 };
 
+/* The PL190 cell from ARM has been modified by ST, so handle both here */
+static void vik_init_st(void __iomem *base, unsigned int irq_start,
+			 u32 vic_sources);
+
+enum vic_vendor {
+	VENDOR_ARM = 0x41,
+	VENDOR_ST = 0x80,
+};
+
 /**
  * vic_init - initialise a vectored interrupt controller
  * @base: iomem base address
@@ -270,6 +279,28 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 		     u32 vic_sources, u32 resume_sources)
 {
 	unsigned int i;
+	u32 cellid = 0;
+	enum vic_vendor vendor;
+
+	/* Identify which VIC cell this one is, by reading the ID */
+	for (i = 0; i < 4; i++) {
+		u32 addr = ((u32)base & PAGE_MASK) + 0xfe0 + (i * 4);
+		cellid |= (readl(addr) & 0xff) << (8 * i);
+	}
+	vendor = (cellid >> 12) & 0xff;
+	printk(KERN_INFO "VIC @%p: id 0x%08x, vendor 0x%02x\n",
+	       base, cellid, vendor);
+
+	switch(vendor) {
+	case VENDOR_ST:
+		vik_init_st(base, irq_start, vic_sources);
+		return;
+	default:
+		printk(KERN_WARNING "VIC: unknown vendor, continuing anyways\n");
+		/* fall through */
+	case VENDOR_ARM:
+		break;
+	}
 
 	/* Disable all interrupts initially. */
 
@@ -305,4 +336,61 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 	}
 
 	vic_pm_register(base, irq_start, resume_sources);
+}
+
+/*
+ * The PL190 cell from ARM has been modified by ST to handle 64 interrupts.
+ * The original cell has 32 interrupts, while the modified one has 64,
+ * replocating two blocks 0x00..0x1f in 0x20..0x3f. In that case
+ * the probe function is called twice, with base set to offset 000
+ *  and 020 within the page. We call this "second block".
+ */
+static void __init vik_init_st(void __iomem *base, unsigned int irq_start,
+				u32 vic_sources)
+{
+	unsigned int i;
+	int vic_2nd_block = ((unsigned long)base & ~PAGE_MASK) != 0;
+
+	/* Disable all interrupts initially. */
+
+	writel(0, base + VIC_INT_SELECT);
+	writel(0, base + VIC_INT_ENABLE);
+	writel(~0, base + VIC_INT_ENABLE_CLEAR);
+	writel(0, base + VIC_IRQ_STATUS);
+	writel(0, base + VIC_ITCR);
+	writel(~0, base + VIC_INT_SOFT_CLEAR);
+
+	/*
+	 * Make sure we clear all existing interrupts. The vector registers
+	 * in this cell are after the second block of general registers,
+	 * so we can address them using standard offsets, but only from
+	 * the second base address, which is 0x20 in the page
+	 */
+	if (vic_2nd_block) {
+		writel(0, base + VIC_PL190_VECT_ADDR);
+		for (i = 0; i < 19; i++) {
+			unsigned int value;
+
+			value = readl(base + VIC_PL190_VECT_ADDR);
+			writel(value, base + VIC_PL190_VECT_ADDR);
+		}
+		/* ST has 16 vectors as well, but we don't enable them by now */
+		for (i = 0; i < 16; i++) {
+			void __iomem *reg = base + VIC_VECT_CNTL0 + (i * 4);
+			writel(0, reg);
+		}
+
+		writel(32, base + VIC_PL190_DEF_VECT_ADDR);
+	}
+
+	for (i = 0; i < 32; i++) {
+		if (vic_sources & (1 << i)) {
+			unsigned int irq = irq_start + i;
+
+			set_irq_chip(irq, &vic_chip);
+			set_irq_chip_data(irq, base);
+			set_irq_handler(irq, handle_level_irq);
+			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		}
+	}
 }
