@@ -240,6 +240,11 @@ static inline bool dma_pte_present(struct dma_pte *pte)
 	return (pte->val & 3) != 0;
 }
 
+static inline int first_pte_in_page(struct dma_pte *pte)
+{
+	return !((unsigned long)pte & ~VTD_PAGE_MASK);
+}
+
 /*
  * This domain is a statically identity mapping domain.
  *	1. This domain creats a static 1:1 mapping to all usable memory.
@@ -780,13 +785,12 @@ static void dma_pte_clear_range(struct dmar_domain *domain,
 			start_pfn = align_to_level(start_pfn + 1, 2);
 			continue;
 		}
-		while (start_pfn <= last_pfn &&
-		       (unsigned long)pte >> VTD_PAGE_SHIFT ==
-		       (unsigned long)first_pte >> VTD_PAGE_SHIFT) {
+		do { 
 			dma_clear_pte(pte);
 			start_pfn++;
 			pte++;
-		}
+		} while (start_pfn <= last_pfn && !first_pte_in_page(pte));
+
 		domain_flush_cache(domain, first_pte,
 				   (void *)pte - (void *)first_pte);
 	}
@@ -821,14 +825,14 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 				tmp = align_to_level(tmp + 1, level + 1);
 				continue;
 			}
-			while (tmp + level_size(level) - 1 <= last_pfn &&
-			       (unsigned long)pte >> VTD_PAGE_SHIFT ==
-			       (unsigned long)first_pte >> VTD_PAGE_SHIFT) {
+			do {
 				free_pgtable_page(phys_to_virt(dma_pte_addr(pte)));
 				dma_clear_pte(pte);
 				pte++;
 				tmp += level_size(level);
-			}
+			} while (!first_pte_in_page(pte) &&
+				 tmp + level_size(level) - 1 <= last_pfn);
+
 			domain_flush_cache(domain, first_pte,
 					   (void *)pte - (void *)first_pte);
 			
@@ -1694,9 +1698,7 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			WARN_ON(1);
 		}
 		pte++;
-		if (!nr_pages ||
-		    (unsigned long)pte >> VTD_PAGE_SHIFT !=
-		    (unsigned long)first_pte >> VTD_PAGE_SHIFT) {
+		if (!nr_pages || first_pte_in_page(pte)) {
 			domain_flush_cache(domain, first_pte,
 					   (void *)pte - (void *)first_pte);
 			pte = NULL;
