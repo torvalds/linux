@@ -1,0 +1,14 @@
+if ARCH_NOMADIK
+
+menu "Nomadik boards"
+
+config MACH_NOMADIK_8815NHK
+	bool "ST 8815 Nomadik Hardware Kit (evaluation board)"
+	select NOMADIK_8815
+
+endmenu
+
+config NOMADIK_8815
+	bool
+
+endif
