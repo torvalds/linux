@@ -584,7 +584,6 @@ enum cfg80211_signal_type {
  *	is no guarantee that these are well-formed!)
  * @len_information_elements: total length of the information elements
  * @signal: signal strength value (type depends on the wiphy's signal_type)
- * @hold: BSS should not expire
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
@@ -642,33 +641,17 @@ struct cfg80211_crypto_settings {
  *
  * This structure provides information needed to complete IEEE 802.11
  * authentication.
- * NOTE: This structure will likely change when more code from mac80211 is
- * moved into cfg80211 so that non-mac80211 drivers can benefit from it, too.
- * Before using this in a driver that does not use mac80211, it would be better
- * to check the status of that work and better yet, volunteer to work on it.
  *
- * @chan: The channel to use or %NULL if not specified (auto-select based on
- *	scan results)
- * @peer_addr: The address of the peer STA (AP BSSID in infrastructure case);
- *	this field is required to be present; if the driver wants to help with
- *	BSS selection, it should use (yet to be added) MLME event to allow user
- *	space SME to be notified of roaming candidate, so that the SME can then
- *	use the authentication request with the recommended BSSID and whatever
- *	other data may be needed for authentication/association
- * @ssid: SSID or %NULL if not yet available
- * @ssid_len: Length of ssid in octets
+ * @bss: The BSS to authenticate with.
  * @auth_type: Authentication type (algorithm)
  * @ie: Extra IEs to add to Authentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
  */
 struct cfg80211_auth_request {
-	struct ieee80211_channel *chan;
-	u8 *peer_addr;
-	const u8 *ssid;
-	size_t ssid_len;
-	enum nl80211_auth_type auth_type;
+	struct cfg80211_bss *bss;
 	const u8 *ie;
 	size_t ie_len;
+	enum nl80211_auth_type auth_type;
 };
 
 /**
@@ -676,32 +659,18 @@ struct cfg80211_auth_request {
  *
  * This structure provides information needed to complete IEEE 802.11
  * (re)association.
- * NOTE: This structure will likely change when more code from mac80211 is
- * moved into cfg80211 so that non-mac80211 drivers can benefit from it, too.
- * Before using this in a driver that does not use mac80211, it would be better
- * to check the status of that work and better yet, volunteer to work on it.
- *
- * @chan: The channel to use or %NULL if not specified (auto-select based on
- *	scan results)
- * @peer_addr: The address of the peer STA (AP BSSID); this field is required
- *	to be present and the STA must be in State 2 (authenticated) with the
- *	peer STA
- * @ssid: SSID
- * @ssid_len: Length of ssid in octets
+ * @bss: The BSS to associate with.
  * @ie: Extra IEs to add to (Re)Association Request frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
  * @crypto: crypto settings
  */
 struct cfg80211_assoc_request {
-	struct ieee80211_channel *chan;
-	u8 *peer_addr;
-	const u8 *ssid;
-	size_t ssid_len;
+	struct cfg80211_bss *bss;
 	const u8 *ie;
 	size_t ie_len;
-	bool use_mfp;
 	struct cfg80211_crypto_settings crypto;
+	bool use_mfp;
 };
 
 /**
@@ -710,16 +679,16 @@ struct cfg80211_assoc_request {
  * This structure provides information needed to complete IEEE 802.11
  * deauthentication.
  *
- * @peer_addr: The address of the peer STA (AP BSSID); this field is required
- *	to be present and the STA must be authenticated with the peer STA
+ * @bss: the BSS to deauthenticate from
  * @ie: Extra IEs to add to Deauthentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
+ * @reason_code: The reason code for the deauthentication
  */
 struct cfg80211_deauth_request {
-	u8 *peer_addr;
-	u16 reason_code;
+	struct cfg80211_bss *bss;
 	const u8 *ie;
 	size_t ie_len;
+	u16 reason_code;
 };
 
 /**
@@ -728,16 +697,16 @@ struct cfg80211_deauth_request {
  * This structure provides information needed to complete IEEE 802.11
  * disassocation.
  *
- * @peer_addr: The address of the peer STA (AP BSSID); this field is required
- *	to be present and the STA must be associated with the peer STA
+ * @bss: the BSS to disassociate from
  * @ie: Extra IEs to add to Disassociation frame or %NULL
  * @ie_len: Length of ie buffer in octets
+ * @reason_code: The reason code for the disassociation
  */
 struct cfg80211_disassoc_request {
-	u8 *peer_addr;
-	u16 reason_code;
+	struct cfg80211_bss *bss;
 	const u8 *ie;
 	size_t ie_len;
+	u16 reason_code;
 };
 
 /**
@@ -1252,6 +1221,9 @@ extern void wiphy_free(struct wiphy *wiphy);
 
 /* internal struct */
 struct cfg80211_conn;
+struct cfg80211_internal_bss;
+
+#define MAX_AUTH_BSSES		4
 
 /**
  * struct wireless_dev - wireless per-netdev state
@@ -1281,7 +1253,6 @@ struct wireless_dev {
 	struct net_device *netdev;
 
 	/* currently used for IBSS and SME - might be rearranged later */
-	struct cfg80211_bss *current_bss;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len;
 	enum {
@@ -1290,6 +1261,10 @@ struct wireless_dev {
 		CFG80211_SME_CONNECTED,
 	} sme_state;
 	struct cfg80211_conn *conn;
+
+	struct cfg80211_internal_bss *authtry_bsses[MAX_AUTH_BSSES];
+	struct cfg80211_internal_bss *auth_bsses[MAX_AUTH_BSSES];
+	struct cfg80211_internal_bss *current_bss; /* associated / joined */
 
 #ifdef CONFIG_WIRELESS_EXT
 	/* wext data */
@@ -1811,23 +1786,6 @@ void cfg80211_send_deauth(struct net_device *dev, const u8 *buf, size_t len, gfp
  * generated ones.
  */
 void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len, gfp_t gfp);
-
-/**
- * cfg80211_hold_bss - exclude bss from expiration
- * @bss: bss which should not expire
- *
- * In a case when the BSS is not updated but it shouldn't expire this
- * function can be used to mark the BSS to be excluded from expiration.
- */
-void cfg80211_hold_bss(struct cfg80211_bss *bss);
-
-/**
- * cfg80211_unhold_bss - remove expiration exception from the BSS
- * @bss: bss which can expire again
- *
- * This function marks the BSS to be expirable again.
- */
-void cfg80211_unhold_bss(struct cfg80211_bss *bss);
 
 /**
  * cfg80211_michael_mic_failure - notification of Michael MIC failure (TKIP)

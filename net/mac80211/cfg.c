@@ -1173,6 +1173,7 @@ static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 			  struct cfg80211_auth_request *req)
 {
 	struct ieee80211_sub_if_data *sdata;
+	const u8 *ssid;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -1193,15 +1194,16 @@ static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 
-	memcpy(sdata->u.mgd.bssid, req->peer_addr, ETH_ALEN);
+	memcpy(sdata->u.mgd.bssid, req->bss->bssid, ETH_ALEN);
 
-	sdata->local->oper_channel = req->chan;
+	sdata->local->oper_channel = req->bss->channel;
 	ieee80211_hw_config(sdata->local, 0);
 
-	if (!req->ssid)
+	ssid = ieee80211_bss_get_ie(req->bss, WLAN_EID_SSID);
+	if (!ssid)
 		return -EINVAL;
-	memcpy(sdata->u.mgd.ssid, req->ssid, req->ssid_len);
-	sdata->u.mgd.ssid_len = req->ssid_len;
+	sdata->u.mgd.ssid_len = *(ssid + 1);
+	memcpy(sdata->u.mgd.ssid, ssid + 2, sdata->u.mgd.ssid_len);
 
 	kfree(sdata->u.mgd.sme_auth_ie);
 	sdata->u.mgd.sme_auth_ie = NULL;
@@ -1227,7 +1229,7 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (memcmp(sdata->u.mgd.bssid, req->peer_addr, ETH_ALEN) != 0 ||
+	if (memcmp(sdata->u.mgd.bssid, req->bss->bssid, ETH_ALEN) != 0 ||
 	    !(sdata->u.mgd.flags & IEEE80211_STA_AUTHENTICATED))
 		return -ENOLINK; /* not authenticated */
 
@@ -1239,14 +1241,8 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP104)
 			sdata->u.mgd.flags |= IEEE80211_STA_DISABLE_11N;
 
-	sdata->local->oper_channel = req->chan;
+	sdata->local->oper_channel = req->bss->channel;
 	ieee80211_hw_config(sdata->local, 0);
-
-	if (!req->ssid)
-		return -EINVAL;
-
-	memcpy(sdata->u.mgd.ssid, req->ssid, req->ssid_len);
-	sdata->u.mgd.ssid_len = req->ssid_len;
 
 	ret = ieee80211_sta_set_extra_ie(sdata, req->ie, req->ie_len);
 	if (ret && ret != -EALREADY)

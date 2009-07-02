@@ -70,6 +70,8 @@ static void bss_release(struct kref *ref)
 	if (bss->ies_allocated)
 		kfree(bss->pub.information_elements);
 
+	BUG_ON(atomic_read(&bss->hold));
+
 	kfree(bss);
 }
 
@@ -92,8 +94,9 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 	bool expired = false;
 
 	list_for_each_entry_safe(bss, tmp, &dev->bss_list, list) {
-		if (bss->hold ||
-		    !time_after(jiffies, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE))
+		if (atomic_read(&bss->hold))
+			continue;
+		if (!time_after(jiffies, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE))
 			continue;
 		list_del(&bss->list);
 		rb_erase(&bss->rbn, &dev->bss_tree);
@@ -552,30 +555,6 @@ void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 	kref_put(&bss->ref, bss_release);
 }
 EXPORT_SYMBOL(cfg80211_unlink_bss);
-
-void cfg80211_hold_bss(struct cfg80211_bss *pub)
-{
-	struct cfg80211_internal_bss *bss;
-
-	if (!pub)
-		return;
-
-	bss = container_of(pub, struct cfg80211_internal_bss, pub);
-	bss->hold = true;
-}
-EXPORT_SYMBOL(cfg80211_hold_bss);
-
-void cfg80211_unhold_bss(struct cfg80211_bss *pub)
-{
-	struct cfg80211_internal_bss *bss;
-
-	if (!pub)
-		return;
-
-	bss = container_of(pub, struct cfg80211_internal_bss, pub);
-	bss->hold = false;
-}
-EXPORT_SYMBOL(cfg80211_unhold_bss);
 
 #ifdef CONFIG_WIRELESS_EXT
 int cfg80211_wext_siwscan(struct net_device *dev,

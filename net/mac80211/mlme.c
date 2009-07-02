@@ -876,8 +876,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		bss_info_changed |= ieee80211_handle_bss_capability(sdata,
 			bss->cbss.capability, bss->has_erp_value, bss->erp_value);
 
-		cfg80211_hold_bss(&bss->cbss);
-
 		ieee80211_rx_bss_put(local, bss);
 	}
 
@@ -1031,10 +1029,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 				   conf->channel->center_freq,
 				   ifmgd->ssid, ifmgd->ssid_len);
 
-	if (bss) {
-		cfg80211_unhold_bss(&bss->cbss);
+	if (bss)
 		ieee80211_rx_bss_put(local, bss);
-	}
 
 	if (self_disconnected) {
 		if (deauth)

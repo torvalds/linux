@@ -3044,9 +3044,10 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *drv;
 	struct net_device *dev;
-	struct cfg80211_auth_request req;
-	struct wiphy *wiphy;
-	int err;
+	struct ieee80211_channel *chan;
+	const u8 *bssid, *ssid, *ie = NULL;
+	int err, ssid_len, ie_len = 0;
+	enum nl80211_auth_type auth_type;
 
 	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
 		return -EINVAL;
@@ -3055,6 +3056,12 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	if (!info->attrs[NL80211_ATTR_AUTH_TYPE])
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_SSID])
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_WIPHY_FREQ])
 		return -EINVAL;
 
 	rtnl_lock();
@@ -3078,38 +3085,30 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	wiphy = &drv->wiphy;
-	memset(&req, 0, sizeof(req));
-
-	req.peer_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
-
-	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
-		req.chan = ieee80211_get_channel(
-			wiphy,
-			nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]));
-		if (!req.chan) {
-			err = -EINVAL;
-			goto out;
-		}
-	}
-
-	if (info->attrs[NL80211_ATTR_SSID]) {
-		req.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
-		req.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
-	}
-
-	if (info->attrs[NL80211_ATTR_IE]) {
-		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
-		req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
-	}
-
-	req.auth_type = nla_get_u32(info->attrs[NL80211_ATTR_AUTH_TYPE]);
-	if (!nl80211_valid_auth_type(req.auth_type)) {
+	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	chan = ieee80211_get_channel(&drv->wiphy,
+		nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]));
+	if (!chan || (chan->flags & IEEE80211_CHAN_DISABLED)) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	err = drv->ops->auth(&drv->wiphy, dev, &req);
+	ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
+	ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
+
+	if (info->attrs[NL80211_ATTR_IE]) {
+		ie = nla_data(info->attrs[NL80211_ATTR_IE]);
+		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+	}
+
+	auth_type = nla_get_u32(info->attrs[NL80211_ATTR_AUTH_TYPE]);
+	if (!nl80211_valid_auth_type(auth_type)) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = cfg80211_mlme_auth(drv, dev, chan, auth_type, bssid,
+				 ssid, ssid_len, ie, ie_len);
 
 out:
 	cfg80211_put_dev(drv);
@@ -3183,26 +3182,29 @@ static int nl80211_crypto_settings(struct genl_info *info,
 
 static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
-	struct cfg80211_assoc_request req;
-	struct wiphy *wiphy;
-	int err;
+	struct cfg80211_crypto_settings crypto;
+	struct ieee80211_channel *chan;
+	const u8 *bssid, *ssid, *ie = NULL;
+	int err, ssid_len, ie_len = 0;
+	bool use_mfp = false;
 
 	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
 		return -EINVAL;
 
 	if (!info->attrs[NL80211_ATTR_MAC] ||
-	    !info->attrs[NL80211_ATTR_SSID])
+	    !info->attrs[NL80211_ATTR_SSID] ||
+	    !info->attrs[NL80211_ATTR_WIPHY_FREQ])
 		return -EINVAL;
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_drv_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	if (!drv->ops->assoc) {
+	if (!rdev->ops->assoc) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3217,46 +3219,42 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	wiphy = &drv->wiphy;
-	memset(&req, 0, sizeof(req));
+	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	req.peer_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
-
-	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
-		req.chan = ieee80211_get_channel(
-			wiphy,
-			nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]));
-		if (!req.chan) {
-			err = -EINVAL;
-			goto out;
-		}
+	chan = ieee80211_get_channel(&rdev->wiphy,
+		nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]));
+	if (!chan || (chan->flags & IEEE80211_CHAN_DISABLED)) {
+		err = -EINVAL;
+		goto out;
 	}
 
-	req.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
-	req.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
+	ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
+	ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
 
 	if (info->attrs[NL80211_ATTR_IE]) {
-		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
-		req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+		ie = nla_data(info->attrs[NL80211_ATTR_IE]);
+		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
 
 	if (info->attrs[NL80211_ATTR_USE_MFP]) {
 		enum nl80211_mfp use_mfp =
 			nla_get_u32(info->attrs[NL80211_ATTR_USE_MFP]);
 		if (use_mfp == NL80211_MFP_REQUIRED)
-			req.use_mfp = true;
+			use_mfp = true;
 		else if (use_mfp != NL80211_MFP_NO) {
 			err = -EINVAL;
 			goto out;
 		}
 	}
 
-	err = nl80211_crypto_settings(info, &req.crypto);
+	err = nl80211_crypto_settings(info, &crypto);
 	if (!err)
-		err = drv->ops->assoc(&drv->wiphy, dev, &req);
+		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid, ssid,
+					  ssid_len, ie, ie_len, use_mfp,
+					  &crypto);
 
 out:
-	cfg80211_put_dev(drv);
+	cfg80211_put_dev(rdev);
 	dev_put(dev);
 unlock_rtnl:
 	rtnl_unlock();
@@ -3267,9 +3265,9 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *drv;
 	struct net_device *dev;
-	struct cfg80211_deauth_request req;
-	struct wiphy *wiphy;
-	int err;
+	const u8 *ie = NULL, *bssid;
+	int err, ie_len = 0;
+	u16 reason_code;
 
 	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
 		return -EINVAL;
@@ -3301,24 +3299,21 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	wiphy = &drv->wiphy;
-	memset(&req, 0, sizeof(req));
+	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	req.peer_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
-
-	req.reason_code = nla_get_u16(info->attrs[NL80211_ATTR_REASON_CODE]);
-	if (req.reason_code == 0) {
+	reason_code = nla_get_u16(info->attrs[NL80211_ATTR_REASON_CODE]);
+	if (reason_code == 0) {
 		/* Reason Code 0 is reserved */
 		err = -EINVAL;
 		goto out;
 	}
 
 	if (info->attrs[NL80211_ATTR_IE]) {
-		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
-		req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+		ie = nla_data(info->attrs[NL80211_ATTR_IE]);
+		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
 
-	err = drv->ops->deauth(&drv->wiphy, dev, &req);
+	err = cfg80211_mlme_deauth(drv, dev, bssid, ie, ie_len, reason_code);
 
 out:
 	cfg80211_put_dev(drv);
@@ -3332,9 +3327,9 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *drv;
 	struct net_device *dev;
-	struct cfg80211_disassoc_request req;
-	struct wiphy *wiphy;
-	int err;
+	const u8 *ie = NULL, *bssid;
+	int err, ie_len = 0;
+	u16 reason_code;
 
 	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
 		return -EINVAL;
@@ -3366,24 +3361,21 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	wiphy = &drv->wiphy;
-	memset(&req, 0, sizeof(req));
+	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	req.peer_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
-
-	req.reason_code = nla_get_u16(info->attrs[NL80211_ATTR_REASON_CODE]);
-	if (req.reason_code == 0) {
+	reason_code = nla_get_u16(info->attrs[NL80211_ATTR_REASON_CODE]);
+	if (reason_code == 0) {
 		/* Reason Code 0 is reserved */
 		err = -EINVAL;
 		goto out;
 	}
 
 	if (info->attrs[NL80211_ATTR_IE]) {
-		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
-		req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+		ie = nla_data(info->attrs[NL80211_ATTR_IE]);
+		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
 
-	err = drv->ops->disassoc(&drv->wiphy, dev, &req);
+	err = cfg80211_mlme_disassoc(drv, dev, bssid, ie, ie_len, reason_code);
 
 out:
 	cfg80211_put_dev(drv);

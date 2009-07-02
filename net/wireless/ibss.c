@@ -33,11 +33,11 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp)
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);
-		cfg80211_put_bss(wdev->current_bss);
+		cfg80211_put_bss(&wdev->current_bss->pub);
 	}
 
-	cfg80211_hold_bss(bss);
-	wdev->current_bss = bss;
+	cfg80211_hold_bss(bss_from_pub(bss));
+	wdev->current_bss = bss_from_pub(bss);
 
 	nl80211_send_ibss_bssid(wiphy_to_dev(wdev->wiphy), dev, bssid, gfp);
 #ifdef CONFIG_WIRELESS_EXT
@@ -78,7 +78,7 @@ void cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);
-		cfg80211_put_bss(wdev->current_bss);
+		cfg80211_put_bss(&wdev->current_bss->pub);
 	}
 
 	wdev->current_bss = NULL;
@@ -212,7 +212,7 @@ int cfg80211_ibss_wext_giwfreq(struct net_device *dev,
 		return -EINVAL;
 
 	if (wdev->current_bss)
-		chan = wdev->current_bss->channel;
+		chan = wdev->current_bss->pub.channel;
 	else if (wdev->wext.ibss.channel)
 		chan = wdev->wext.ibss.channel;
 
@@ -352,7 +352,7 @@ int cfg80211_ibss_wext_giwap(struct net_device *dev,
 	ap_addr->sa_family = ARPHRD_ETHER;
 
 	if (wdev->current_bss)
-		memcpy(ap_addr->sa_data, wdev->current_bss->bssid, ETH_ALEN);
+		memcpy(ap_addr->sa_data, wdev->current_bss->pub.bssid, ETH_ALEN);
 	else
 		memcpy(ap_addr->sa_data, wdev->wext.ibss.bssid, ETH_ALEN);
 	return 0;

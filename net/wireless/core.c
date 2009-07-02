@@ -583,14 +583,11 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #endif
 			cfg80211_disconnect(rdev, dev,
 					    WLAN_REASON_DEAUTH_LEAVING, true);
+			cfg80211_mlme_down(rdev, dev);
 			break;
 		default:
 			break;
 		}
-		break;
-	case NETDEV_DOWN:
-		kfree(wdev->conn);
-		wdev->conn = NULL;
 		break;
 	case NETDEV_UP:
 #ifdef CONFIG_WIRELESS_EXT

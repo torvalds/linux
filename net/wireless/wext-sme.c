@@ -93,7 +93,7 @@ int cfg80211_mgd_wext_giwfreq(struct net_device *dev,
 		return -EINVAL;
 
 	if (wdev->current_bss)
-		chan = wdev->current_bss->channel;
+		chan = wdev->current_bss->pub.channel;
 	else if (wdev->wext.connect.channel)
 		chan = wdev->wext.connect.channel;
 
@@ -244,7 +244,7 @@ int cfg80211_mgd_wext_giwap(struct net_device *dev,
 	ap_addr->sa_family = ARPHRD_ETHER;
 
 	if (wdev->current_bss)
-		memcpy(ap_addr->sa_data, wdev->current_bss->bssid, ETH_ALEN);
+		memcpy(ap_addr->sa_data, wdev->current_bss->pub.bssid, ETH_ALEN);
 	else if (wdev->wext.connect.bssid)
 		memcpy(ap_addr->sa_data, wdev->wext.connect.bssid, ETH_ALEN);
 	else

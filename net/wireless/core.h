@@ -110,11 +110,29 @@ struct cfg80211_internal_bss {
 	struct rb_node rbn;
 	unsigned long ts;
 	struct kref ref;
-	bool hold, ies_allocated;
+	atomic_t hold;
+	bool ies_allocated;
 
 	/* must be last because of priv member */
 	struct cfg80211_bss pub;
 };
+
+static inline struct cfg80211_internal_bss *bss_from_pub(struct cfg80211_bss *pub)
+{
+	return container_of(pub, struct cfg80211_internal_bss, pub);
+}
+
+static inline void cfg80211_hold_bss(struct cfg80211_internal_bss *bss)
+{
+	atomic_inc(&bss->hold);
+}
+
+static inline void cfg80211_unhold_bss(struct cfg80211_internal_bss *bss)
+{
+	int r = atomic_dec_return(&bss->hold);
+	WARN_ON(r < 0);
+}
+
 
 struct cfg80211_registered_device *cfg80211_drv_by_wiphy_idx(int wiphy_idx);
 int get_wiphy_idx(struct wiphy *wiphy);
@@ -176,6 +194,26 @@ void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
 
+/* MLME */
+int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev, struct ieee80211_channel *chan,
+		       enum nl80211_auth_type auth_type, const u8 *bssid,
+		       const u8 *ssid, int ssid_len,
+		       const u8 *ie, int ie_len);
+int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
+			struct net_device *dev, struct ieee80211_channel *chan,
+			const u8 *bssid, const u8 *ssid, int ssid_len,
+			const u8 *ie, int ie_len, bool use_mfp,
+			struct cfg80211_crypto_settings *crypt);
+int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev, const u8 *bssid,
+			 const u8 *ie, int ie_len, u16 reason);
+int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
+			   struct net_device *dev, const u8 *bssid,
+			   const u8 *ie, int ie_len, u16 reason);
+void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
+			struct net_device *dev);
+
 /* SME */
 int cfg80211_connect(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev,
@@ -193,5 +231,6 @@ void __cfg80211_disconnected(struct net_device *dev, gfp_t gfp, u8 *ie,
 			     size_t ie_len, u16 reason, bool from_ap);
 void cfg80211_sme_scan_done(struct net_device *dev);
 void cfg80211_sme_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
+void cfg80211_sme_disassoc(struct net_device *dev, int idx);
 
 #endif /* __NET_WIRELESS_CORE_H */
