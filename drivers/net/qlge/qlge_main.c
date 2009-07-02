@@ -3374,11 +3374,6 @@ static int ql_get_adapter_resources(struct ql_adapter *qdev)
 		return -ENOMEM;
 	}
 	status = ql_request_irq(qdev);
-	if (status)
-		goto err_irq;
-	return status;
-err_irq:
-	ql_free_mem_resources(qdev);
 	return status;
 }
 
