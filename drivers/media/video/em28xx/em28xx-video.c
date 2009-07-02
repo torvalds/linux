@@ -746,13 +746,41 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
+				   unsigned width, unsigned height)
+{
+	struct em28xx_fmt     *fmt;
+
+	/* FIXME: This is the only supported fmt */
+	if (dev->board.is_27xx) {
+		fourcc = V4L2_PIX_FMT_RGB565;
+		width  = 640;
+		height = 480;
+	}
+
+	fmt = format_by_fourcc(fourcc);
+	if (!fmt)
+		return -EINVAL;
+
+	dev->format = fmt;
+	dev->width  = width;
+	dev->height = height;
+
+	/* set new image size */
+	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
+
+	em28xx_set_alternate(dev);
+	em28xx_resolution_set(dev);
+
+	return 0;
+}
+
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 	int                   rc;
-	struct em28xx_fmt     *fmt;
 
 	rc = check_dev(dev);
 	if (rc < 0)
@@ -760,17 +788,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 	mutex_lock(&dev->lock);
 
-	/* FIXME: This is the only supported fmt */
-	if (dev->board.is_27xx)
-		f->fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565;
-
 	vidioc_try_fmt_vid_cap(file, priv, f);
-
-	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
-	if (!fmt) {
-		rc = -EINVAL;
-		goto out;
-	}
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
 		em28xx_errdev("%s queue busy\n", __func__);
@@ -784,16 +802,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		goto out;
 	}
 
-	/* set new image size */
-	dev->width = f->fmt.pix.width;
-	dev->height = f->fmt.pix.height;
-	dev->format = fmt;
-	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
-
-	em28xx_set_alternate(dev);
-	em28xx_resolution_set(dev);
-
-	rc = 0;
+	rc = em28xx_set_video_format(dev, f->fmt.pix.pixelformat,
+				f->fmt.pix.width, f->fmt.pix.height);
 
 out:
 	mutex_unlock(&dev->lock);
@@ -1377,8 +1387,23 @@ static int vidioc_querycap(struct file *file, void  *priv,
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
 	if (unlikely(f->index >= ARRAY_SIZE(format)))
 		return -EINVAL;
+
+	if (dev->board.is_27xx) {
+		struct em28xx_fmt *fmt;
+		if (f->index)
+			return -EINVAL;
+
+		f->pixelformat = V4L2_PIX_FMT_RGB565;
+		fmt = format_by_fourcc(f->pixelformat);
+		strlcpy(f->description, fmt->name, sizeof(f->description));
+
+		return 0;
+	}
 
 	strlcpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
@@ -1633,11 +1658,6 @@ static int em28xx_v4l2_open(struct file *filp)
 	filp->private_data = fh;
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
-		dev->width = norm_maxw(dev);
-		dev->height = norm_maxh(dev);
-		dev->hscale = 0;
-		dev->vscale = 0;
-
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		em28xx_set_alternate(dev);
 		em28xx_resolution_set(dev);
@@ -1979,15 +1999,14 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 
 	/* set default norm */
 	dev->norm = em28xx_video_template.current_norm;
-	dev->width = norm_maxw(dev);
-	dev->height = norm_maxh(dev);
 	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
-	dev->hscale = 0;
-	dev->vscale = 0;
 	dev->ctl_input = 0;
 
 	/* Analog specific initialization */
 	dev->format = &format[0];
+	em28xx_set_video_format(dev, format[0].fourcc,
+				norm_maxw(dev), norm_maxh(dev));
+
 	video_mux(dev, dev->ctl_input);
 
 	/* Audio defaults */
