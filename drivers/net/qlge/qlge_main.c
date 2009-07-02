@@ -448,6 +448,22 @@ static int ql_set_mac_addr(struct ql_adapter *qdev, int set)
 	return status;
 }
 
+void ql_link_on(struct ql_adapter *qdev)
+{
+	QPRINTK(qdev, LINK, ERR, "%s: Link is up.\n",
+				 qdev->ndev->name);
+	netif_carrier_on(qdev->ndev);
+	ql_set_mac_addr(qdev, 1);
+}
+
+void ql_link_off(struct ql_adapter *qdev)
+{
+	QPRINTK(qdev, LINK, ERR, "%s: Link is down.\n",
+				 qdev->ndev->name);
+	netif_carrier_off(qdev->ndev);
+	ql_set_mac_addr(qdev, 0);
+}
+
 /* Get a specific frame routing value from the CAM.
  * Used for debug and reg dump.
  */
@@ -1696,13 +1712,13 @@ static void ql_process_mac_tx_intr(struct ql_adapter *qdev,
 /* Fire up a handler to reset the MPI processor. */
 void ql_queue_fw_error(struct ql_adapter *qdev)
 {
-	netif_carrier_off(qdev->ndev);
+	ql_link_off(qdev);
 	queue_delayed_work(qdev->workqueue, &qdev->mpi_reset_work, 0);
 }
 
 void ql_queue_asic_error(struct ql_adapter *qdev)
 {
-	netif_carrier_off(qdev->ndev);
+	ql_link_off(qdev);
 	ql_disable_interrupts(qdev);
 	/* Clear adapter up bit to signal the recovery
 	 * process that it shouldn't kill the reset worker
@@ -3312,7 +3328,7 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 	int i, status = 0;
 	struct rx_ring *rx_ring;
 
-	netif_carrier_off(qdev->ndev);
+	ql_link_off(qdev);
 
 	/* Don't kill the reset worker thread if we
 	 * are in the process of recovery.
@@ -3384,7 +3400,7 @@ static int ql_adapter_up(struct ql_adapter *qdev)
 	 */
 	if ((ql_read32(qdev, STS) & qdev->port_init) &&
 			(ql_read32(qdev, STS) & qdev->port_link_up))
-		netif_carrier_on(qdev->ndev);
+		ql_link_on(qdev);
 	ql_enable_interrupts(qdev);
 	ql_enable_all_completion_interrupts(qdev);
 	netif_tx_start_all_queues(qdev->ndev);
@@ -4035,7 +4051,7 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 		pci_disable_device(pdev);
 		return err;
 	}
-	netif_carrier_off(ndev);
+	ql_link_off(qdev);
 	ql_display_dev_info(ndev);
 	cards_found++;
 	return 0;
