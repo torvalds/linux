@@ -250,7 +250,7 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 /* An 64bit atomic type */
 
 typedef struct {
-	unsigned long long counter;
+	unsigned long long __aligned(8) counter;
 } atomic64_t;
 
 #define ATOMIC64_INIT(val)	{ (val) }
