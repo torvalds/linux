@@ -395,7 +395,7 @@ struct sram_channel {
 	u32  cmds_start;
 	u32  ctrl_start;
 	u32  cdt;
-	u32  fifo_start;;
+	u32  fifo_start;
 	u32  fifo_size;
 	u32  ptr1_reg;
 	u32  ptr2_reg;

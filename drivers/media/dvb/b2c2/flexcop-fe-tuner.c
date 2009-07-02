@@ -421,7 +421,7 @@ static int skystar2_rev28_attach(struct flexcop_device *fc,
 	if (!fc->fe)
 		return 0;
 
-	i2c_tuner = cx24123_get_tuner_i2c_adapter(fc->fe);;
+	i2c_tuner = cx24123_get_tuner_i2c_adapter(fc->fe);
 	if (!i2c_tuner)
 		return 0;
 

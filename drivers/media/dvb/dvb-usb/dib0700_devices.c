@@ -310,7 +310,7 @@ static int stk7700d_tuner_attach(struct dvb_usb_adapter *adap)
 	struct i2c_adapter *tun_i2c;
 	tun_i2c = dib7000p_get_i2c_master(adap->fe, DIBX000_I2C_INTERFACE_TUNER, 1);
 	return dvb_attach(mt2266_attach, adap->fe, tun_i2c,
-		&stk7700d_mt2266_config[adap->id]) == NULL ? -ENODEV : 0;;
+		&stk7700d_mt2266_config[adap->id]) == NULL ? -ENODEV : 0;
 }
 
 /* STK7700-PH: Digital/Analog Hybrid Tuner, e.h. Cinergy HT USB HE */
