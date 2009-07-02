@@ -2,7 +2,8 @@
 # Makefile for Lemote Fulong mini-PC board.
 #
 
-obj-y += setup.o prom.o reset.o irq.o pci.o bonito-irq.o mem.o
+obj-y += setup.o init.o reset.o irq.o pci.o bonito-irq.o mem.o \
+		env.o cmdline.o time.o machtype.o
 
 #
 # Early printk support

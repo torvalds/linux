@@ -26,36 +26,15 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-#include <linux/bootmem.h>
 #include <linux/init.h>
-#include <linux/irq.h>
+#include <linux/module.h>
 
-#include <asm/bootinfo.h>
-#include <asm/mc146818-time.h>
-#include <asm/time.h>
 #include <asm/wbflush.h>
-#include <asm/mach-lemote/pci.h>
 
 #ifdef CONFIG_VT
 #include <linux/console.h>
 #include <linux/screen_info.h>
 #endif
-
-unsigned long cpu_clock_freq;
-unsigned long bus_clock;
-unsigned int memsize;
-unsigned int highmemsize = 0;
-
-void __init plat_time_init(void)
-{
-	/* setup mips r4k timer */
-	mips_hpt_frequency = cpu_clock_freq / 2;
-}
-
-unsigned long read_persistent_clock(void)
-{
-	return mc146818_get_cmos_time();
-}
 
 void (*__wbflush)(void);
 EXPORT_SYMBOL(__wbflush);
@@ -73,17 +52,7 @@ static void wbflush_loongson2e(void)
 
 void __init plat_mem_setup(void)
 {
-	set_io_port_base((unsigned long)ioremap(LOONGSON2E_IO_PORT_BASE,
-				IO_SPACE_LIMIT - LOONGSON2E_PCI_IO_START + 1));
-
 	__wbflush = wbflush_loongson2e;
-
-	add_memory_region(0x0, (memsize << 20), BOOT_MEM_RAM);
-#ifdef CONFIG_64BIT
-	if (highmemsize > 0) {
-		add_memory_region(0x20000000, highmemsize << 20, BOOT_MEM_RAM);
-	}
-#endif
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
@@ -104,5 +73,4 @@ void __init plat_mem_setup(void)
 	conswitchp = &dummy_con;
 #endif
 #endif
-
 }
