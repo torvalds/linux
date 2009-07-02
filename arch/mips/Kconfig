@@ -2168,11 +2168,11 @@ menu "Power management options"
 
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y
-	depends on SYS_SUPPORTS_HOTPLUG_CPU
+	depends on SYS_SUPPORTS_HOTPLUG_CPU || !SMP
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on SYS_SUPPORTS_HOTPLUG_CPU
+	depends on SYS_SUPPORTS_HOTPLUG_CPU || !SMP
 
 source "kernel/power/Kconfig"
 
