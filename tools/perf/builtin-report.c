@@ -46,6 +46,8 @@ static int		dump_trace = 0;
 static int		verbose;
 #define eprintf(x...)	do { if (verbose) fprintf(stderr, x); } while (0)
 
+static int		modules;
+
 static int		full_paths;
 
 static unsigned long	page_size;
@@ -188,7 +190,7 @@ static int load_kernel(void)
 	if (!kernel_dso)
 		return -1;
 
-	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose, 0);
+	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose, modules);
 	if (err <= 0) {
 		dso__delete(kernel_dso);
 		kernel_dso = NULL;
@@ -648,6 +650,9 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 		ret += fprintf(fp, "[%c] %s",
 			self->dso == kernel_dso ? 'k' :
 			self->dso == hypervisor_dso ? 'h' : '.', self->sym->name);
+
+		if (self->sym->module)
+			ret += fprintf(fp, "\t[%s]", self->sym->module->name);
 	} else {
 		ret += fprintf(fp, "%#016llx", (u64)self->ip);
 	}
@@ -1710,6 +1715,8 @@ static const struct option options[] = {
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
+	OPT_BOOLEAN('m', "modules", &modules,
+		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN('P', "full-paths", &full_paths,

@@ -66,6 +66,7 @@ static unsigned int		page_size;
 static unsigned int		mmap_pages			= 16;
 static int			freq				=  0;
 static int			verbose				=  0;
+static char			*vmlinux			=  NULL;
 
 static char			*sym_filter;
 static unsigned long		filter_start;
@@ -265,7 +266,10 @@ static void print_sym_table(void)
 			printf("%9.1f %10ld - ", syme->weight, syme->snap_count);
 
 		color_fprintf(stdout, color, "%4.1f%%", pcnt);
-		printf(" - %016llx : %s\n", sym->start, sym->name);
+		printf(" - %016llx : %s", sym->start, sym->name);
+		if (sym->module)
+			printf("\t[%s]", sym->module->name);
+		printf("\n");
 	}
 }
 
@@ -359,12 +363,13 @@ static int parse_symbols(void)
 {
 	struct rb_node *node;
 	struct symbol  *sym;
+	int modules = vmlinux ? 1 : 0;
 
 	kernel_dso = dso__new("[kernel]", sizeof(struct sym_entry));
 	if (kernel_dso == NULL)
 		return -1;
 
-	if (dso__load_kernel(kernel_dso, NULL, symbol_filter, 1, 0) <= 0)
+	if (dso__load_kernel(kernel_dso, vmlinux, symbol_filter, verbose, modules) <= 0)
 		goto out_delete_dso;
 
 	node = rb_first(&kernel_dso->syms);
@@ -680,6 +685,7 @@ static const struct option options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_INTEGER('C', "CPU", &profile_cpu,
 		    "CPU to profile on"),
+	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
@@ -708,6 +714,8 @@ static const struct option options[] = {
 int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
+
+	symbol__init();
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
