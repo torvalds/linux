@@ -26,6 +26,15 @@
 #include <asm/mach/irq.h>
 #include <asm/hardware/vic.h>
 
+static void vic_ack_irq(unsigned int irq)
+{
+	void __iomem *base = get_irq_chip_data(irq);
+	irq &= 31;
+	writel(1 << irq, base + VIC_INT_ENABLE_CLEAR);
+	/* moreover, clear the soft-triggered, in case it was the reason */
+	writel(1 << irq, base + VIC_INT_SOFT_CLEAR);
+}
+
 static void vic_mask_irq(unsigned int irq)
 {
 	void __iomem *base = get_irq_chip_data(irq);
@@ -253,7 +262,7 @@ static inline void vic_pm_register(void __iomem *base, unsigned int irq, u32 arg
 
 static struct irq_chip vic_chip = {
 	.name	= "VIC",
-	.ack	= vic_mask_irq,
+	.ack	= vic_ack_irq,
 	.mask	= vic_mask_irq,
 	.unmask	= vic_unmask_irq,
 	.set_wake = vic_set_wake,
