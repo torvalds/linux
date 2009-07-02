@@ -59,6 +59,7 @@ static regex_t		parent_regex;
 
 static int		exclude_other = 1;
 static int		callchain;
+static enum chain_mode	callchain_mode;
 
 static u64		sample_type;
 
@@ -787,8 +788,103 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 	return cmp;
 }
 
+static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask)
+{
+	int i;
+	size_t ret = 0;
+
+	ret += fprintf(fp, "%s", "                ");
+
+	for (i = 0; i < depth; i++)
+		if (depth_mask & (1 << i))
+			ret += fprintf(fp, "|          ");
+		else
+			ret += fprintf(fp, "           ");
+
+	ret += fprintf(fp, "\n");
+
+	return ret;
+}
 static size_t
-callchain__fprintf(FILE *fp, struct callchain_node *self, u64 total_samples)
+ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain, int depth,
+		       int depth_mask, int count, u64 total_samples,
+		       int hits)
+{
+	int i;
+	size_t ret = 0;
+
+	ret += fprintf(fp, "%s", "                ");
+	for (i = 0; i < depth; i++) {
+		if (depth_mask & (1 << i))
+			ret += fprintf(fp, "|");
+		else
+			ret += fprintf(fp, " ");
+		if (!count && i == depth - 1) {
+			double percent;
+
+			percent = hits * 100.0 / total_samples;
+			ret += fprintf(fp, "--%2.2f%%-- ", percent);
+		} else
+			ret += fprintf(fp, "%s", "          ");
+	}
+	if (chain->sym)
+		ret += fprintf(fp, "%s\n", chain->sym->name);
+	else
+		ret += fprintf(fp, "%p\n", (void *)(long)chain->ip);
+
+	return ret;
+}
+
+static size_t
+callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
+			u64 total_samples, int depth, int depth_mask)
+{
+	struct rb_node *node, *next;
+	struct callchain_node *child;
+	struct callchain_list *chain;
+	int new_depth_mask = depth_mask;
+	size_t ret = 0;
+	int i;
+
+	node = rb_first(&self->rb_root);
+	while (node) {
+		child = rb_entry(node, struct callchain_node, rb_node);
+
+		/*
+		 * The depth mask manages the output of pipes that show
+		 * the depth. We don't want to keep the pipes of the current
+		 * level for the last child of this depth
+		 */
+		next = rb_next(node);
+		if (!next)
+			new_depth_mask &= ~(1 << (depth - 1));
+
+		/*
+		 * But we keep the older depth mask for the line seperator
+		 * to keep the level link until we reach the last child
+		 */
+		ret += ipchain__fprintf_graph_line(fp, depth, depth_mask);
+		i = 0;
+		list_for_each_entry(chain, &child->val, list) {
+			if (chain->ip >= PERF_CONTEXT_MAX)
+				continue;
+			ret += ipchain__fprintf_graph(fp, chain, depth,
+						      new_depth_mask, i++,
+						      total_samples,
+						      child->cumul_hit);
+		}
+		ret += callchain__fprintf_graph(fp, child, total_samples,
+						depth + 1,
+						new_depth_mask | (1 << depth));
+		node = next;
+	}
+
+	return ret;
+}
+
+static size_t
+callchain__fprintf_flat(FILE *fp, struct callchain_node *self,
+			u64 total_samples)
 {
 	struct callchain_list *chain;
 	size_t ret = 0;
@@ -796,7 +892,7 @@ callchain__fprintf(FILE *fp, struct callchain_node *self, u64 total_samples)
 	if (!self)
 		return 0;
 
-	ret += callchain__fprintf(fp, self->parent, total_samples);
+	ret += callchain__fprintf_flat(fp, self->parent, total_samples);
 
 
 	list_for_each_entry(chain, &self->val, list) {
@@ -826,8 +922,13 @@ hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 
 		chain = rb_entry(rb_node, struct callchain_node, rb_node);
 		percent = chain->hit * 100.0 / total_samples;
-		ret += fprintf(fp, "           %6.2f%%\n", percent);
-		ret += callchain__fprintf(fp, chain, total_samples);
+		if (callchain_mode == FLAT) {
+			ret += fprintf(fp, "           %6.2f%%\n", percent);
+			ret += callchain__fprintf_flat(fp, chain, total_samples);
+		} else if (callchain_mode == GRAPH) {
+			ret += callchain__fprintf_graph(fp, chain,
+							total_samples, 1, 1);
+		}
 		ret += fprintf(fp, "\n");
 		rb_node = rb_next(rb_node);
 	}
@@ -1129,8 +1230,12 @@ static void output__insert_entry(struct hist_entry *he)
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
 
-	if (callchain)
-		sort_chain_to_rbtree(&he->sorted_chain, &he->callchain);
+	if (callchain) {
+		if (callchain_mode == FLAT)
+			sort_chain_flat(&he->sorted_chain, &he->callchain);
+		else if (callchain_mode == GRAPH)
+			sort_chain_graph(&he->sorted_chain, &he->callchain);
+	}
 
 	while (*p != NULL) {
 		parent = *p;
@@ -1702,6 +1807,26 @@ done:
 	return rc;
 }
 
+static int
+parse_callchain_opt(const struct option *opt __used, const char *arg,
+		    int unset __used)
+{
+	callchain = 1;
+
+	if (!arg)
+		return 0;
+
+	if (!strncmp(arg, "graph", strlen(arg)))
+		callchain_mode = GRAPH;
+
+	else if (!strncmp(arg, "flat", strlen(arg)))
+		callchain_mode = FLAT;
+	else
+		return -1;
+
+	return 0;
+}
+
 static const char * const report_usage[] = {
 	"perf report [<options>] <command>",
 	NULL
@@ -1725,7 +1850,9 @@ static const struct option options[] = {
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_BOOLEAN('c', "callchain", &callchain, "Display callchains"),
+	OPT_CALLBACK_DEFAULT('c', "callchain", NULL, "output_type",
+		     "Display callchains with output_type: flat, graph. "
+		     "Default to flat", &parse_callchain_opt, "flat"),
 	OPT_STRING('d', "dsos", &dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('C', "comms", &comm_list_str, "comm[,comm...]",

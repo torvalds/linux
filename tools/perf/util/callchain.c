@@ -19,9 +19,9 @@
 #define chain_for_each_child(child, parent)	\
 	list_for_each_entry(child, &parent->children, brothers)
 
-
 static void
-rb_insert_callchain(struct rb_root *root, struct callchain_node *chain)
+rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
+		    enum chain_mode mode)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -31,10 +31,22 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain)
 		parent = *p;
 		rnode = rb_entry(parent, struct callchain_node, rb_node);
 
-		if (rnode->hit < chain->hit)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
+		switch (mode) {
+		case FLAT:
+			if (rnode->hit < chain->hit)
+				p = &(*p)->rb_left;
+			else
+				p = &(*p)->rb_right;
+			break;
+		case GRAPH:
+			if (rnode->cumul_hit < chain->cumul_hit)
+				p = &(*p)->rb_left;
+			else
+				p = &(*p)->rb_right;
+			break;
+		default:
+			break;
+		}
 	}
 
 	rb_link_node(&chain->rb_node, parent, p);
@@ -45,15 +57,36 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain)
  * Once we get every callchains from the stream, we can now
  * sort them by hit
  */
-void sort_chain_to_rbtree(struct rb_root *rb_root, struct callchain_node *node)
+void sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node)
 {
 	struct callchain_node *child;
 
 	chain_for_each_child(child, node)
-		sort_chain_to_rbtree(rb_root, child);
+		sort_chain_flat(rb_root, child);
 
 	if (node->hit)
-		rb_insert_callchain(rb_root, node);
+		rb_insert_callchain(rb_root, node, FLAT);
+}
+
+static void __sort_chain_graph(struct callchain_node *node)
+{
+	struct callchain_node *child;
+
+	node->rb_root = RB_ROOT;
+	node->cumul_hit = node->hit;
+
+	chain_for_each_child(child, node) {
+		__sort_chain_graph(child);
+		rb_insert_callchain(&node->rb_root, child, GRAPH);
+		node->cumul_hit += child->cumul_hit;
+	}
+}
+
+void
+sort_chain_graph(struct rb_root *rb_root, struct callchain_node *chain_root)
+{
+	__sort_chain_graph(chain_root);
+	rb_root->rb_node = chain_root->rb_root.rb_node;
 }
 
 /*
