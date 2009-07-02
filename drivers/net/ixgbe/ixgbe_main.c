@@ -3724,7 +3724,7 @@ static void ixgbe_sfp_task(struct work_struct *work)
 	if ((hw->phy.type == ixgbe_phy_nl) &&
 	    (hw->phy.sfp_type == ixgbe_sfp_type_not_present)) {
 		s32 ret = hw->phy.ops.identify_sfp(hw);
-		if (ret)
+		if (ret == IXGBE_ERR_SFP_NOT_PRESENT)
 			goto reschedule;
 		ret = hw->phy.ops.reset(hw);
 		if (ret == IXGBE_ERR_SFP_NOT_SUPPORTED) {
@@ -4534,13 +4534,17 @@ static void ixgbe_sfp_config_module_task(struct work_struct *work)
 	u32 err;
 
 	adapter->flags |= IXGBE_FLAG_IN_SFP_MOD_TASK;
+
+	/* Time for electrical oscillations to settle down */
+	msleep(100);
 	err = hw->phy.ops.identify_sfp(hw);
+
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
 		dev_err(&adapter->pdev->dev, "failed to initialize because "
 			"an unsupported SFP+ module type was detected.\n"
 			"Reload the driver after installing a supported "
 			"module.\n");
-		ixgbe_down(adapter);
+		unregister_netdev(adapter->netdev);
 		return;
 	}
 	hw->mac.ops.setup_sfp(hw);
