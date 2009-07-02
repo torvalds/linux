@@ -364,7 +364,6 @@ static int usX2Y_create_card(struct usb_device *device, struct snd_card **cardp)
 		0,//us428(card)->usbmidi.ifnum,
 		usX2Y(card)->chip.dev->bus->busnum, usX2Y(card)->chip.dev->devnum
 		);
-	snd_card_set_dev(card, &device->dev);
 	*cardp = card;
 	return 0;
 }
@@ -388,6 +387,7 @@ static int usX2Y_usb_probe(struct usb_device *device,
 	err = usX2Y_create_card(device, &card);
 	if (err < 0)
 		return err;
+	snd_card_set_dev(card, &intf->dev);
 	if ((err = usX2Y_hwdep_new(card, device)) < 0  ||
 	    (err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
