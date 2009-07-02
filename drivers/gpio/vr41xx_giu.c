@@ -2,8 +2,8 @@
  *  Driver for NEC VR4100 series General-purpose I/O Unit.
  *
  *  Copyright (C) 2002 MontaVista Software Inc.
- *	Author: Yoichi Yuasa <yyuasa@mvista.com or source@mvista.com>
- *  Copyright (C) 2003-2009  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *	Author: Yoichi Yuasa <source@mvista.com>
+ *  Copyright (C) 2003-2009  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 #include <asm/vr41xx/irq.h>
 #include <asm/vr41xx/vr41xx.h>
 
-MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yuasa@linux-mips.org>");
 MODULE_DESCRIPTION("NEC VR4100 series General-purpose I/O Unit driver");
 MODULE_LICENSE("GPL");
 

@@ -1,7 +1,7 @@
 /*
  *  Include file for NEC VR4100 series General-purpose I/O Unit.
  *
- *  Copyright (C) 2005-2009  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2005-2009  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
