@@ -239,7 +239,6 @@ static void print_sym_table(void)
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
 		struct sym_entry *syme = rb_entry(nd, struct sym_entry, rb_node);
 		struct symbol *sym = (struct symbol *)(syme + 1);
-		char *color = PERF_COLOR_NORMAL;
 		double pcnt;
 
 		if (++printed > print_entries || syme->snap_count < count_filter)
@@ -248,24 +247,12 @@ static void print_sym_table(void)
 		pcnt = 100.0 - (100.0 * ((sum_ksamples - syme->snap_count) /
 					 sum_ksamples));
 
-		/*
-		 * We color high-overhead entries in red, mid-overhead
-		 * entries in green - and keep the low overhead places
-		 * normal:
-		 */
-		if (pcnt >= 5.0) {
-			color = PERF_COLOR_RED;
-		} else {
-			if (pcnt >= 0.5)
-				color = PERF_COLOR_GREEN;
-		}
-
 		if (nr_counters == 1)
 			printf("%20.2f - ", syme->weight);
 		else
 			printf("%9.1f %10ld - ", syme->weight, syme->snap_count);
 
-		color_fprintf(stdout, color, "%4.1f%%", pcnt);
+		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
 		printf(" - %016llx : %s", sym->start, sym->name);
 		if (sym->module)
 			printf("\t[%s]", sym->module->name);

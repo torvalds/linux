@@ -25,10 +25,6 @@
 #define SHOW_USER	2
 #define SHOW_HV		4
 
-#define MIN_GREEN		0.5
-#define MIN_RED		5.0
-
-
 static char		const *input_name = "perf.data";
 static char		*vmlinux = "vmlinux";
 
@@ -1047,24 +1043,6 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
-static char *get_color(double percent)
-{
-	char *color = PERF_COLOR_NORMAL;
-
-	/*
-	 * We color high-overhead entries in red, mid-overhead
-	 * entries in green - and keep the low overhead places
-	 * normal:
-	 */
-	if (percent >= MIN_RED)
-		color = PERF_COLOR_RED;
-	else {
-		if (percent > MIN_GREEN)
-			color = PERF_COLOR_GREEN;
-	}
-	return color;
-}
-
 static int
 parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 {
@@ -1126,7 +1104,7 @@ parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 		} else if (sym->hist_sum)
 			percent = 100.0 * hits / sym->hist_sum;
 
-		color = get_color(percent);
+		color = get_percent_color(percent);
 
 		/*
 		 * Also color the filename and line if needed, with
@@ -1262,7 +1240,7 @@ static void print_summary(char *filename)
 
 		sym_ext = rb_entry(node, struct sym_ext, node);
 		percent = sym_ext->percent;
-		color = get_color(percent);
+		color = get_percent_color(percent);
 		path = sym_ext->path;
 
 		color_fprintf(stdout, color, " %7.2f %s", percent, path);
