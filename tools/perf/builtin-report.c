@@ -824,7 +824,7 @@ ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain, int depth,
 			double percent;
 
 			percent = hits * 100.0 / total_samples;
-			ret += fprintf(fp, "--%2.2f%%-- ", percent);
+			ret += percent_color_fprintf(fp, "--%2.2f%%-- ", percent);
 		} else
 			ret += fprintf(fp, "%s", "          ");
 	}
@@ -924,7 +924,8 @@ hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 		chain = rb_entry(rb_node, struct callchain_node, rb_node);
 		percent = chain->hit * 100.0 / total_samples;
 		if (callchain_mode == FLAT) {
-			ret += fprintf(fp, "           %6.2f%%\n", percent);
+			ret += percent_color_fprintf(fp, "           %6.2f%%\n",
+						     percent);
 			ret += callchain__fprintf_flat(fp, chain, total_samples);
 		} else if (callchain_mode == GRAPH) {
 			ret += callchain__fprintf_graph(fp, chain,
