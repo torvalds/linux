@@ -2696,7 +2696,7 @@ again:
 
 		printk(KERN_ERR "no space left, need %llu, %llu delalloc bytes"
 		       ", %llu bytes_used, %llu bytes_reserved, "
-		       "%llu bytes_pinned, %llu bytes_readonly, %llu may use"
+		       "%llu bytes_pinned, %llu bytes_readonly, %llu may use "
 		       "%llu total\n", (unsigned long long)bytes,
 		       (unsigned long long)data_sinfo->bytes_delalloc,
 		       (unsigned long long)data_sinfo->bytes_used,
