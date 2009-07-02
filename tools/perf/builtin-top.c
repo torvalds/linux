@@ -364,7 +364,7 @@ static int parse_symbols(void)
 	if (kernel_dso == NULL)
 		return -1;
 
-	if (dso__load_kernel(kernel_dso, NULL, symbol_filter, 1) <= 0)
+	if (dso__load_kernel(kernel_dso, NULL, symbol_filter, 1, 0) <= 0)
 		goto out_delete_dso;
 
 	node = rb_first(&kernel_dso->syms);

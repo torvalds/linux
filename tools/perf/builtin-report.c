@@ -188,7 +188,7 @@ static int load_kernel(void)
 	if (!kernel_dso)
 		return -1;
 
-	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose);
+	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose, 0);
 	if (err <= 0) {
 		dso__delete(kernel_dso);
 		kernel_dso = NULL;
