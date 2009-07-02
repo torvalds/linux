@@ -35,6 +35,7 @@ config MPC8610_HPCD
 config GEF_PPC9A
 	bool "GE Fanuc PPC9A"
 	select DEFAULT_UIMAGE
+	select MMIO_NVRAM
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
