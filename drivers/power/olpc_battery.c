@@ -233,6 +233,14 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		if (ret)
 			return ret;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_TYPE:
+		if (ec_byte & BAT_STAT_TRICKLE)
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
+		else if (ec_byte & BAT_STAT_CHARGING)
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_FAST;
+		else
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = !!(ec_byte & (BAT_STAT_PRESENT |
 					    BAT_STAT_TRICKLE));
@@ -325,6 +333,7 @@ static int olpc_bat_get_property(struct power_supply *psy,
 
 static enum power_supply_property olpc_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
