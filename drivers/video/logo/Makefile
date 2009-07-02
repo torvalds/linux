@@ -8,6 +8,7 @@ obj-$(CONFIG_LOGO_BLACKFIN_CLUT224)	+= logo_blackfin_clut224.o
 obj-$(CONFIG_LOGO_BLACKFIN_VGA16)	+= logo_blackfin_vga16.o
 obj-$(CONFIG_LOGO_ZEN_CLUT224)		+= logo_zen_clut224.o
 obj-$(CONFIG_LOGO_SKUNK_CLUT224)	+= logo_skunk_clut224.o
+obj-$(CONFIG_LOGO_PISTOLPANDA_CLUT224)	+= logo_pistolpanda_clut224.o
 obj-$(CONFIG_LOGO_ARCH_CLUT224)		+= logo_arch_clut224.o
 obj-$(CONFIG_LOGO_GENTOO_CLUT224)	+= logo_gentoo_clut224.o
 obj-$(CONFIG_LOGO_DEC_CLUT224)		+= logo_dec_clut224.o
