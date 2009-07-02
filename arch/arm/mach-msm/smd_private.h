@@ -324,7 +324,8 @@ struct smd_channel {
 #define SMD_KIND_PACKET		0x200
 
 extern struct list_head smd_ch_closed_list;
-extern struct list_head smd_ch_list;
+extern struct list_head smd_ch_list_modem;
+extern struct list_head smd_ch_list_dsp;
 
 extern spinlock_t smd_lock;
 extern spinlock_t smem_lock;

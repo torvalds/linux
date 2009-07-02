@@ -35,6 +35,10 @@
 #include "smd_private.h"
 #include "proc_comm.h"
 
+#if defined(CONFIG_ARCH_QSD8X50)
+#define CONFIG_QDSP6 1
+#endif
+
 void (*msm_hw_reset_hook)(void);
 
 #define MODULE_NAME "msm_smd"
@@ -70,6 +74,9 @@ static unsigned last_heap_free = 0xffffffff;
 static inline void notify_other_smsm(void)
 {
 	writel(1, MSM_A2M_INT(5));
+#ifdef CONFIG_QDSP6
+	writel(1, MSM_A2M_INT(8));
+#endif
 }
 
 static inline void notify_modem_smd(void)
@@ -140,7 +147,8 @@ static DEFINE_MUTEX(smd_creation_mutex);
 static int smd_initialized;
 
 LIST_HEAD(smd_ch_closed_list);
-LIST_HEAD(smd_ch_list); /* todo: per-target lists */
+LIST_HEAD(smd_ch_list_modem);
+LIST_HEAD(smd_ch_list_dsp);
 
 static unsigned char smd_ch_allocated[64];
 static struct work_struct probe_work;
@@ -150,6 +158,7 @@ static void smd_alloc_channel(const char *name, uint32_t cid, uint32_t type);
 static void smd_channel_probe_worker(struct work_struct *work)
 {
 	struct smd_alloc_elm *shared;
+	unsigned ctype;
 	unsigned type;
 	unsigned n;
 
@@ -165,12 +174,19 @@ static void smd_channel_probe_worker(struct work_struct *work)
 			continue;
 		if (!shared[n].name[0])
 			continue;
+		ctype = shared[n].ctype;
+		type = ctype & SMD_TYPE_MASK;
+
+		/* DAL channels are stream but neither the modem,
+		 * nor the DSP correctly indicate this.  Fixup manually.
+		 */
+		if (!memcmp(shared[n].name, "DAL", 3))
+			ctype = (ctype & (~SMD_KIND_MASK)) | SMD_KIND_STREAM;
+
 		type = shared[n].ctype & SMD_TYPE_MASK;
 		if ((type == SMD_TYPE_APPS_MODEM) ||
 		    (type == SMD_TYPE_APPS_DSP))
-			smd_alloc_channel(shared[n].name,
-					  shared[n].cid,
-					  shared[n].ctype);
+			smd_alloc_channel(shared[n].name, shared[n].cid, ctype);
 		smd_ch_allocated[n] = 1;
 	}
 }
@@ -403,67 +419,59 @@ static void handle_smd_irq(struct list_head *list, void (*notify)(void))
 	do_smd_probe();
 }
 
-static irqreturn_t smd_irq_handler(int irq, void *data)
+static irqreturn_t smd_modem_irq_handler(int irq, void *data)
 {
-	handle_smd_irq(&smd_ch_list, notify_modem_smd);
+	handle_smd_irq(&smd_ch_list_modem, notify_modem_smd);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t smd_dsp_irq_handler(int irq, void *data)
+{
+	handle_smd_irq(&smd_ch_list_dsp, notify_dsp_smd);
 	return IRQ_HANDLED;
 }
 
 static void smd_fake_irq_handler(unsigned long arg)
 {
-	smd_irq_handler(0, NULL);
+	handle_smd_irq(&smd_ch_list_modem, notify_modem_smd);
+	handle_smd_irq(&smd_ch_list_dsp, notify_dsp_smd);
 }
 
 static DECLARE_TASKLET(smd_fake_irq_tasklet, smd_fake_irq_handler, 0);
+
+static inline int smd_need_int(struct smd_channel *ch)
+{
+	if (ch_is_open(ch)) {
+		if (ch->recv->fHEAD || ch->recv->fTAIL || ch->recv->fSTATE)
+			return 1;
+		if (ch->recv->state != ch->last_state)
+			return 1;
+	}
+	return 0;
+}
 
 void smd_sleep_exit(void)
 {
 	unsigned long flags;
 	struct smd_channel *ch;
-	unsigned tmp;
 	int need_int = 0;
 
 	spin_lock_irqsave(&smd_lock, flags);
-	list_for_each_entry(ch, &smd_ch_list, ch_list) {
-		if (ch_is_open(ch)) {
-			if (ch->recv->fHEAD) {
-				if (msm_smd_debug_mask & MSM_SMD_DEBUG)
-					pr_info("smd_sleep_exit ch %d fHEAD "
-						"%x %x %x\n",
-						ch->n, ch->recv->fHEAD,
-						ch->recv->head, ch->recv->tail);
-				need_int = 1;
-				break;
-			}
-			if (ch->recv->fTAIL) {
-				if (msm_smd_debug_mask & MSM_SMD_DEBUG)
-					pr_info("smd_sleep_exit ch %d fTAIL "
-						"%x %x %x\n",
-						ch->n, ch->recv->fTAIL,
-						ch->send->head, ch->send->tail);
-				need_int = 1;
-				break;
-			}
-			if (ch->recv->fSTATE) {
-				if (msm_smd_debug_mask & MSM_SMD_DEBUG)
-					pr_info("smd_sleep_exit ch %d fSTATE %x"
-						"\n", ch->n, ch->recv->fSTATE);
-				need_int = 1;
-				break;
-			}
-			tmp = ch->recv->state;
-			if (tmp != ch->last_state) {
-				if (msm_smd_debug_mask & MSM_SMD_DEBUG)
-					pr_info("smd_sleep_exit ch %d "
-						"state %x != %x\n",
-						ch->n, tmp, ch->last_state);
-				need_int = 1;
-				break;
-			}
+	list_for_each_entry(ch, &smd_ch_list_modem, ch_list) {
+		if (smd_need_int(ch)) {
+			need_int = 1;
+			break;
+		}
+	}
+	list_for_each_entry(ch, &smd_ch_list_dsp, ch_list) {
+		if (smd_need_int(ch)) {
+			need_int = 1;
+			break;
 		}
 	}
 	spin_unlock_irqrestore(&smd_lock, flags);
 	do_smd_probe();
+
 	if (need_int) {
 		if (msm_smd_debug_mask & MSM_SMD_DEBUG)
 			pr_info("smd_sleep_exit need interrupt\n");
@@ -737,7 +745,11 @@ int smd_open(const char *name, smd_channel_t **_ch,
 	*_ch = ch;
 
 	spin_lock_irqsave(&smd_lock, flags);
-	list_add(&ch->ch_list, &smd_ch_list);
+
+	if ((ch->type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
+		list_add(&ch->ch_list, &smd_ch_list_modem);
+	else
+		list_add(&ch->ch_list, &smd_ch_list_dsp);
 
 	/* If the remote side is CLOSING, we need to get it to
 	 * move to OPENING (which we'll do by moving from CLOSED to
@@ -982,7 +994,7 @@ int smd_core_init(void)
 
 	smd_info.ready = 1;
 
-	r = request_irq(INT_A9_M2A_0, smd_irq_handler,
+	r = request_irq(INT_A9_M2A_0, smd_modem_irq_handler,
 			IRQF_TRIGGER_RISING, "smd_dev", 0);
 	if (r < 0)
 		return r;
@@ -999,6 +1011,16 @@ int smd_core_init(void)
 	r = enable_irq_wake(INT_A9_M2A_5);
 	if (r < 0)
 		pr_err("smd_core_init: enable_irq_wake failed for A9_M2A_5\n");
+
+#if defined(CONFIG_QDSP6)
+	r = request_irq(INT_ADSP_A11, smd_dsp_irq_handler,
+			IRQF_TRIGGER_RISING, "smd_dsp", 0);
+	if (r < 0) {
+		free_irq(INT_A9_M2A_0, 0);
+		free_irq(INT_A9_M2A_5, 0);
+		return r;
+	}
+#endif
 
 	/* check for any SMD channels that may already exist */
 	do_smd_probe();

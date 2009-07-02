@@ -55,7 +55,7 @@ static int dump_ch(char *buf, int max, struct smd_channel *ch)
 		buf, max,
 		"ch%02d:"
 		" %8s(%05d/%05d) %c%c%c%c%c%c%c <->"
-		" %8s(%05d/%05d) %c%c%c%c%c%c%c\n", ch->n,
+		" %8s(%05d/%05d) %c%c%c%c%c%c%c '%s'\n", ch->n,
 		chstate(s->state), s->tail, s->head,
 		s->fDSR ? 'D' : 'd',
 		s->fCTS ? 'C' : 'c',
@@ -71,7 +71,8 @@ static int dump_ch(char *buf, int max, struct smd_channel *ch)
 		r->fRI ? 'I' : 'i',
 		r->fHEAD ? 'W' : 'w',
 		r->fTAIL ? 'R' : 'r',
-		r->fSTATE ? 'S' : 's'
+		r->fSTATE ? 'S' : 's',
+		ch->name
 		);
 }
 
@@ -135,7 +136,9 @@ static int debug_read_ch(char *buf, int max)
 	int i = 0;
 
 	spin_lock_irqsave(&smd_lock, flags);
-	list_for_each_entry(ch, &smd_ch_list, ch_list)
+	list_for_each_entry(ch, &smd_ch_list_dsp, ch_list)
+		i += dump_ch(buf + i, max - i, ch);
+	list_for_each_entry(ch, &smd_ch_list_modem, ch_list)
 		i += dump_ch(buf + i, max - i, ch);
 	list_for_each_entry(ch, &smd_ch_closed_list, ch_list)
 		i += dump_ch(buf + i, max - i, ch);
