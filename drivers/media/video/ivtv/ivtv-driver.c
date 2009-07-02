@@ -218,7 +218,7 @@ MODULE_PARM_DESC(ivtv_yuv_mode,
 		 "\t\t\tDefault: 0 (interlaced)");
 MODULE_PARM_DESC(ivtv_yuv_threshold,
 		 "If ivtv_yuv_mode is 2 (auto) then playback content as\n\t\tprogressive if src height <= ivtv_yuvthreshold\n"
-		 "\t\t\tDefault: 480");;
+		 "\t\t\tDefault: 480");
 MODULE_PARM_DESC(enc_mpg_buffers,
 		 "Encoder MPG Buffers (in MB)\n"
 		 "\t\t\tDefault: " __stringify(IVTV_DEFAULT_ENC_MPG_BUFFERS));
