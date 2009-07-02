@@ -1087,11 +1087,24 @@ static void usbtmc_disconnect(struct usb_interface *intf)
 	kref_put(&data->kref, usbtmc_delete);
 }
 
+static int usbtmc_suspend (struct usb_interface *intf, pm_message_t message)
+{
+	/* this driver does not have pending URBs */
+	return 0;
+}
+
+static int usbtmc_resume (struct usb_interface *intf)
+{
+	return 0;
+}
+
 static struct usb_driver usbtmc_driver = {
 	.name		= "usbtmc",
 	.id_table	= usbtmc_devices,
 	.probe		= usbtmc_probe,
-	.disconnect	= usbtmc_disconnect
+	.disconnect	= usbtmc_disconnect,
+	.suspend	= usbtmc_suspend,
+	.resume		= usbtmc_resume,
 };
 
 static int __init usbtmc_init(void)
