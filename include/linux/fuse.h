@@ -30,6 +30,10 @@
  *  - add umask flag to input argument of open, mknod and mkdir
  *  - add notification messages for invalidation of inodes and
  *    directory entries
+ *
+ * 7.13
+ *  - make max number of background requests and congestion threshold
+ *    tunables
  */
 
 #ifndef _LINUX_FUSE_H
@@ -41,7 +45,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 12
+#define FUSE_KERNEL_MINOR_VERSION 13
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -427,7 +431,8 @@ struct fuse_init_out {
 	__u32	minor;
 	__u32	max_readahead;
 	__u32	flags;
-	__u32	unused;
+	__u16   max_background;
+	__u16   congestion_threshold;
 	__u32	max_write;
 };
 

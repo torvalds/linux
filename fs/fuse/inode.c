@@ -32,6 +32,12 @@ DEFINE_MUTEX(fuse_mutex);
 
 #define FUSE_DEFAULT_BLKSIZE 512
 
+/** Maximum number of outstanding background requests */
+#define FUSE_DEFAULT_MAX_BACKGROUND 12
+
+/** Congestion starts at 75% of maximum */
+#define FUSE_DEFAULT_CONGESTION_THRESHOLD (FUSE_DEFAULT_MAX_BACKGROUND * 3 / 4)
+
 struct fuse_mount_data {
 	int fd;
 	unsigned rootmode;
@@ -517,6 +523,8 @@ void fuse_conn_init(struct fuse_conn *fc)
 	INIT_LIST_HEAD(&fc->bg_queue);
 	INIT_LIST_HEAD(&fc->entry);
 	atomic_set(&fc->num_waiting, 0);
+	fc->max_background = FUSE_DEFAULT_MAX_BACKGROUND;
+	fc->congestion_threshold = FUSE_DEFAULT_CONGESTION_THRESHOLD;
 	fc->khctr = 0;
 	fc->polled_files = RB_ROOT;
 	fc->reqctr = 0;
@@ -736,6 +744,12 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	else {
 		unsigned long ra_pages;
 
+		if (arg->minor >= 13) {
+			if (arg->max_background)
+				fc->max_background = arg->max_background;
+			if (arg->congestion_threshold)
+				fc->congestion_threshold = arg->congestion_threshold;
+		}
 		if (arg->minor >= 6) {
 			ra_pages = arg->max_readahead / PAGE_CACHE_SIZE;
 			if (arg->flags & FUSE_ASYNC_READ)

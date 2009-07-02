@@ -25,12 +25,6 @@
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
 
-/** Maximum number of outstanding background requests */
-#define FUSE_MAX_BACKGROUND 12
-
-/** Congestion starts at 75% of maximum */
-#define FUSE_CONGESTION_THRESHOLD (FUSE_MAX_BACKGROUND * 75 / 100)
-
 /** Bias for fi->writectr, meaning new writepages must not be sent */
 #define FUSE_NOWRITE INT_MIN
 
@@ -348,6 +342,12 @@ struct fuse_conn {
 
 	/** rbtree of fuse_files waiting for poll events indexed by ph */
 	struct rb_root polled_files;
+
+	/** Maximum number of outstanding background requests */
+	unsigned max_background;
+
+	/** Number of background requests at which congestion starts */
+	unsigned congestion_threshold;
 
 	/** Number of requests currently in the background */
 	unsigned num_background;
