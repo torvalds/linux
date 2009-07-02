@@ -3119,7 +3119,8 @@ unlock_rtnl:
 }
 
 static int nl80211_crypto_settings(struct genl_info *info,
-				   struct cfg80211_crypto_settings *settings)
+				   struct cfg80211_crypto_settings *settings,
+				   int cipher_limit)
 {
 	settings->control_port = info->attrs[NL80211_ATTR_CONTROL_PORT];
 
@@ -3134,7 +3135,7 @@ static int nl80211_crypto_settings(struct genl_info *info,
 		if (len % sizeof(u32))
 			return -EINVAL;
 
-		if (settings->n_ciphers_pairwise > NL80211_MAX_NR_CIPHER_SUITES)
+		if (settings->n_ciphers_pairwise > cipher_limit)
 			return -EINVAL;
 
 		memcpy(settings->ciphers_pairwise, data, len);
@@ -3247,7 +3248,7 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	err = nl80211_crypto_settings(info, &crypto);
+	err = nl80211_crypto_settings(info, &crypto, 1);
 	if (!err)
 		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid, ssid,
 					  ssid_len, ie, ie_len, use_mfp,
@@ -3652,7 +3653,8 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 
 	connect.privacy = info->attrs[NL80211_ATTR_PRIVACY];
 
-	err = nl80211_crypto_settings(info, &connect.crypto);
+	err = nl80211_crypto_settings(info, &connect.crypto,
+				      NL80211_MAX_NR_CIPHER_SUITES);
 	if (err)
 		return err;
 	rtnl_lock();
