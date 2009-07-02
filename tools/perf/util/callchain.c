@@ -16,6 +16,9 @@
 
 #include "callchain.h"
 
+#define chain_for_each_child(child, parent)	\
+	list_for_each_entry(child, &parent->children, brothers)
+
 
 static void
 rb_insert_callchain(struct rb_root *root, struct callchain_node *chain)
@@ -46,7 +49,7 @@ void sort_chain_to_rbtree(struct rb_root *rb_root, struct callchain_node *node)
 {
 	struct callchain_node *child;
 
-	list_for_each_entry(child, &node->children, brothers)
+	chain_for_each_child(child, node)
 		sort_chain_to_rbtree(rb_root, child);
 
 	if (node->hit)
@@ -77,7 +80,7 @@ create_child(struct callchain_node *parent, bool inherit_children)
 		list_splice(&parent->children, &new->children);
 		INIT_LIST_HEAD(&parent->children);
 
-		list_for_each_entry(next, &new->children, brothers)
+		chain_for_each_child(next, new)
 			next->parent = new;
 	}
 	list_add_tail(&new->brothers, &parent->children);
@@ -173,7 +176,7 @@ __append_chain_children(struct callchain_node *root, struct ip_callchain *chain,
 	struct callchain_node *rnode;
 
 	/* lookup in childrens */
-	list_for_each_entry(rnode, &root->children, brothers) {
+	chain_for_each_child(rnode, root) {
 		unsigned int ret = __append_chain(rnode, chain, start, syms);
 
 		if (!ret)
