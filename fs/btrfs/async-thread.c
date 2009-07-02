@@ -299,8 +299,8 @@ int btrfs_start_workers(struct btrfs_workers *workers, int num_workers)
 					   "btrfs-%s-%d", workers->name,
 					   workers->num_workers + i);
 		if (IS_ERR(worker->task)) {
-			kfree(worker);
 			ret = PTR_ERR(worker->task);
+			kfree(worker);
 			goto fail;
 		}
 
