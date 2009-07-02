@@ -30,6 +30,13 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 
 	WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req);
 
+	/*
+	 * This must be before sending the other events!
+	 * Otherwise, wpa_supplicant gets completely confused with
+	 * wext events.
+	 */
+	cfg80211_sme_scan_done(dev);
+
 	if (aborted)
 		nl80211_send_scan_aborted(wiphy_to_dev(request->wiphy), dev);
 	else

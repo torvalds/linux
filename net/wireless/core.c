@@ -321,6 +321,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	}
 
 	INIT_WORK(&drv->rfkill_sync, cfg80211_rfkill_sync_work);
+	INIT_WORK(&drv->conn_work, cfg80211_conn_work);
 
 	/*
 	 * Initialize wiphy parameters to IEEE 802.11 MIB default values.
@@ -481,6 +482,8 @@ void wiphy_unregister(struct wiphy *wiphy)
 	/* unlock again before freeing */
 	mutex_unlock(&drv->mtx);
 
+	cancel_work_sync(&drv->conn_work);
+
 	cfg80211_debugfs_drv_del(drv);
 
 	/* If this device got a regulatory hint tell core its
@@ -568,6 +571,10 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		default:
 			break;
 		}
+		break;
+	case NETDEV_DOWN:
+		kfree(wdev->conn);
+		wdev->conn = NULL;
 		break;
 	case NETDEV_UP:
 #ifdef CONFIG_WIRELESS_EXT

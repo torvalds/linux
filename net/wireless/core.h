@@ -62,6 +62,8 @@ struct cfg80211_registered_device {
 	struct genl_info *testmode_info;
 #endif
 
+	struct work_struct conn_work;
+
 #ifdef CONFIG_CFG80211_DEBUGFS
 	/* Debugfs entries */
 	struct wiphy_debugfsdentries {
@@ -181,8 +183,14 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u16 reason);
 
+void cfg80211_conn_work(struct work_struct *work);
+
 /* internal helpers */
 int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
 				   const u8 *mac_addr);
+void __cfg80211_disconnected(struct net_device *dev, gfp_t gfp, u8 *ie,
+			     size_t ie_len, u16 reason, bool from_ap);
+void cfg80211_sme_scan_done(struct net_device *dev);
+void cfg80211_sme_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
 
 #endif /* __NET_WIRELESS_CORE_H */

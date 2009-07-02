@@ -1209,6 +1209,9 @@ extern void wiphy_unregister(struct wiphy *wiphy);
  */
 extern void wiphy_free(struct wiphy *wiphy);
 
+/* internal struct */
+struct cfg80211_conn;
+
 /**
  * struct wireless_dev - wireless per-netdev state
  *
@@ -1242,9 +1245,10 @@ struct wireless_dev {
 	u8 ssid_len;
 	enum {
 		CFG80211_SME_IDLE,
-		CFG80211_SME_CONNECTING, /* ->connect called */
+		CFG80211_SME_CONNECTING,
 		CFG80211_SME_CONNECTED,
 	} sme_state;
+	struct cfg80211_conn *conn;
 
 #ifdef CONFIG_WIRELESS_EXT
 	/* wext data */
