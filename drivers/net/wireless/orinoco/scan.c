@@ -190,7 +190,7 @@ void orinoco_add_hostscan_results(struct orinoco_private *priv,
 			/* Sanity check for atom_len */
 			if (atom_len < sizeof(struct prism2_scan_apinfo)) {
 				printk(KERN_ERR "%s: Invalid atom_len in scan "
-				       "data: %d\n", priv->ndev->name,
+				       "data: %zu\n", priv->ndev->name,
 				       atom_len);
 				abort = true;
 				goto scan_abort;
@@ -206,8 +206,8 @@ void orinoco_add_hostscan_results(struct orinoco_private *priv,
 
 	/* Check that we got an whole number of atoms */
 	if ((len - offset) % atom_len) {
-		printk(KERN_ERR "%s: Unexpected scan data length %d, "
-		       "atom_len %d, offset %d\n", priv->ndev->name, len,
+		printk(KERN_ERR "%s: Unexpected scan data length %zu, "
+		       "atom_len %zu, offset %d\n", priv->ndev->name, len,
 		       atom_len, offset);
 		abort = true;
 		goto scan_abort;
