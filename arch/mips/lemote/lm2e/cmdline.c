@@ -17,10 +17,9 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/io.h>
-#include <linux/init.h>
-
 #include <asm/bootinfo.h>
+
+#include <loongson.h>
 
 int prom_argc;
 /* pmon passes arguments in 32bit pointers */

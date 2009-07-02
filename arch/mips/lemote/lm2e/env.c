@@ -17,11 +17,9 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-
-#include <linux/io.h>
-#include <linux/init.h>
-
 #include <asm/bootinfo.h>
+
+#include <loongson.h>
 
 unsigned long bus_clock, cpu_clock_freq;
 unsigned long memsize, highmemsize;

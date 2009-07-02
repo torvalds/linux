@@ -9,11 +9,9 @@
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
  */
-#include <linux/io.h>
-#include <linux/init.h>
 #include <linux/serial_reg.h>
 
-#include <asm/mips-boards/bonito64.h>
+#include <loongson.h>
 
 #define UART_BASE (BONITO_PCIIO_BASE + 0x3f8)
 

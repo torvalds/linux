@@ -10,7 +10,7 @@
 
 #include <asm/bootinfo.h>
 
-extern unsigned long memsize, highmemsize;
+#include <loongson.h>
 
 void __init prom_init_memory(void)
 {

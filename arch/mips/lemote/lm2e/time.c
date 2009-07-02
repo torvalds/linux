@@ -10,13 +10,10 @@
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
  */
-
-#include <linux/init.h>
-
 #include <asm/mc146818-time.h>
 #include <asm/time.h>
 
-extern unsigned long cpu_clock_freq;
+#include <loongson.h>
 
 void __init plat_time_init(void)
 {

@@ -8,15 +8,11 @@
  * option) any later version.
  */
 
-#include <linux/init.h>
 #include <linux/bootmem.h>
 
 #include <asm/bootinfo.h>
-#include <asm/mips-boards/bonito64.h>
 
-extern void __init prom_init_cmdline(void);
-extern void __init prom_init_env(void);
-extern void __init prom_init_memory(void);
+#include <loongson.h>
 
 void __init prom_init(void)
 {
