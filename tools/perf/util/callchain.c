@@ -57,18 +57,19 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
  * Once we get every callchains from the stream, we can now
  * sort them by hit
  */
-void sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node)
+void sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
+		     u64 min_hit)
 {
 	struct callchain_node *child;
 
 	chain_for_each_child(child, node)
-		sort_chain_flat(rb_root, child);
+		sort_chain_flat(rb_root, child, min_hit);
 
-	if (node->hit)
+	if (node->hit && node->hit >= min_hit)
 		rb_insert_callchain(rb_root, node, FLAT);
 }
 
-static void __sort_chain_graph(struct callchain_node *node)
+static void __sort_chain_graph(struct callchain_node *node, u64 min_hit)
 {
 	struct callchain_node *child;
 
@@ -76,16 +77,18 @@ static void __sort_chain_graph(struct callchain_node *node)
 	node->cumul_hit = node->hit;
 
 	chain_for_each_child(child, node) {
-		__sort_chain_graph(child);
-		rb_insert_callchain(&node->rb_root, child, GRAPH);
+		__sort_chain_graph(child, min_hit);
+		if (child->cumul_hit >= min_hit)
+			rb_insert_callchain(&node->rb_root, child, GRAPH);
 		node->cumul_hit += child->cumul_hit;
 	}
 }
 
 void
-sort_chain_graph(struct rb_root *rb_root, struct callchain_node *chain_root)
+sort_chain_graph(struct rb_root *rb_root, struct callchain_node *chain_root,
+		 u64 min_hit)
 {
-	__sort_chain_graph(chain_root);
+	__sort_chain_graph(chain_root, min_hit);
 	rb_root->rb_node = chain_root->rb_root.rb_node;
 }
 

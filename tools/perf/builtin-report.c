@@ -60,6 +60,7 @@ static regex_t		parent_regex;
 static int		exclude_other = 1;
 static int		callchain;
 static enum chain_mode	callchain_mode;
+static double		callchain_min_percent = 0.0;
 
 static u64		sample_type;
 
@@ -1224,7 +1225,7 @@ static void collapse__resort(void)
 
 static struct rb_root output_hists;
 
-static void output__insert_entry(struct hist_entry *he)
+static void output__insert_entry(struct hist_entry *he, u64 min_callchain_hits)
 {
 	struct rb_node **p = &output_hists.rb_node;
 	struct rb_node *parent = NULL;
@@ -1232,9 +1233,11 @@ static void output__insert_entry(struct hist_entry *he)
 
 	if (callchain) {
 		if (callchain_mode == FLAT)
-			sort_chain_flat(&he->sorted_chain, &he->callchain);
+			sort_chain_flat(&he->sorted_chain, &he->callchain,
+					min_callchain_hits);
 		else if (callchain_mode == GRAPH)
-			sort_chain_graph(&he->sorted_chain, &he->callchain);
+			sort_chain_graph(&he->sorted_chain, &he->callchain,
+					 min_callchain_hits);
 	}
 
 	while (*p != NULL) {
@@ -1251,11 +1254,14 @@ static void output__insert_entry(struct hist_entry *he)
 	rb_insert_color(&he->rb_node, &output_hists);
 }
 
-static void output__resort(void)
+static void output__resort(u64 total_samples)
 {
 	struct rb_node *next;
 	struct hist_entry *n;
 	struct rb_root *tree = &hist;
+	u64 min_callchain_hits;
+
+	min_callchain_hits = total_samples * (callchain_min_percent / 100);
 
 	if (sort__need_collapse)
 		tree = &collapse_hists;
@@ -1267,7 +1273,7 @@ static void output__resort(void)
 		next = rb_next(&n->rb_node);
 
 		rb_erase(&n->rb_node, tree);
-		output__insert_entry(n);
+		output__insert_entry(n, min_callchain_hits);
 	}
 }
 
@@ -1801,7 +1807,7 @@ done:
 		dsos__fprintf(stdout);
 
 	collapse__resort();
-	output__resort();
+	output__resort(total);
 	output__fprintf(stdout, total);
 
 	return rc;
@@ -1811,17 +1817,34 @@ static int
 parse_callchain_opt(const struct option *opt __used, const char *arg,
 		    int unset __used)
 {
+	char *tok;
+	char *endptr;
+
 	callchain = 1;
 
 	if (!arg)
 		return 0;
 
-	if (!strncmp(arg, "graph", strlen(arg)))
+	tok = strtok((char *)arg, ",");
+	if (!tok)
+		return -1;
+
+	/* get the output mode */
+	if (!strncmp(tok, "graph", strlen(arg)))
 		callchain_mode = GRAPH;
 
-	else if (!strncmp(arg, "flat", strlen(arg)))
+	else if (!strncmp(tok, "flat", strlen(arg)))
 		callchain_mode = FLAT;
 	else
+		return -1;
+
+	/* get the min percentage */
+	tok = strtok(NULL, ",");
+	if (!tok)
+		return 0;
+
+	callchain_min_percent = strtod(tok, &endptr);
+	if (tok == endptr)
 		return -1;
 
 	return 0;
@@ -1850,9 +1873,9 @@ static const struct option options[] = {
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_CALLBACK_DEFAULT('c', "callchain", NULL, "output_type",
-		     "Display callchains with output_type: flat, graph. "
-		     "Default to flat", &parse_callchain_opt, "flat"),
+	OPT_CALLBACK_DEFAULT('c', "callchain", NULL, "output_type,min_percent",
+		     "Display callchains using output_type and min percent threshold. "
+		     "Default: flat,0", &parse_callchain_opt, "flat,100"),
 	OPT_STRING('d', "dsos", &dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('C', "comms", &comm_list_str, "comm[,comm...]",

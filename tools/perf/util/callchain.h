@@ -38,6 +38,8 @@ static inline void callchain_init(struct callchain_node *node)
 
 void append_chain(struct callchain_node *root, struct ip_callchain *chain,
 		  struct symbol **syms);
-void sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node);
-void sort_chain_graph(struct rb_root *rb_root, struct callchain_node *node);
+void sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
+		     u64 min_hit);
+void sort_chain_graph(struct rb_root *rb_root, struct callchain_node *node,
+		      u64 min_hit);
 #endif
