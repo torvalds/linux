@@ -2344,6 +2344,7 @@ static int alg_find_test(const char *alg)
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 {
 	int i;
+	int j;
 	int rc;
 
 	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_CIPHER) {
@@ -2365,14 +2366,22 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	}
 
 	i = alg_find_test(alg);
-	if (i < 0)
+	j = alg_find_test(driver);
+	if (i < 0 && j < 0)
 		goto notest;
 
-	if (fips_enabled && !alg_test_descs[i].fips_allowed)
+	if (fips_enabled && ((i >= 0 && !alg_test_descs[i].fips_allowed) ||
+			     (j >= 0 && !alg_test_descs[j].fips_allowed)))
 		goto non_fips_alg;
 
-	rc = alg_test_descs[i].test(alg_test_descs + i, driver,
-				      type, mask);
+	rc = 0;
+	if (i >= 0)
+		rc |= alg_test_descs[i].test(alg_test_descs + i, driver,
+					     type, mask);
+	if (j >= 0)
+		rc |= alg_test_descs[j].test(alg_test_descs + j, driver,
+					     type, mask);
+
 test_done:
 	if (fips_enabled && rc)
 		panic("%s: %s alg self test failed in fips mode!\n", driver, alg);
