@@ -885,8 +885,8 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
  * some RAM for the framebuffer at early boot.  This code figures out
  * how much was set aside so we can use it for our own purposes.
  */
-static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
-			  unsigned long *preallocated_size)
+static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
+			  uint32_t *preallocated_size)
 {
 	struct pci_dev *bridge_dev;
 	u16 tmp = 0;
@@ -984,10 +984,11 @@ static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
 	return 0;
 }
 
-static int i915_load_modeset_init(struct drm_device *dev)
+static int i915_load_modeset_init(struct drm_device *dev,
+				  unsigned long prealloc_size,
+				  unsigned long agp_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long agp_size, prealloc_size;
 	int fb_bar = IS_I9XX(dev) ? 2 : 0;
 	int ret = 0;
 
@@ -1001,10 +1002,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	if (IS_I965G(dev) || IS_G33(dev))
 		dev_priv->cursor_needs_physical = false;
-
-	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
-	if (ret)
-		goto out;
 
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
@@ -1136,6 +1133,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	resource_size_t base, size;
 	int ret = 0, mmio_bar = IS_I9XX(dev) ? 0 : 1;
+	uint32_t agp_size, prealloc_size;
 
 	/* i915 has 4 more counters */
 	dev->counters += 4;
@@ -1184,8 +1182,21 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			 "performance may suffer.\n");
 	}
 
+	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
+	if (ret)
+		goto out_iomapfree;
+
 	/* enable GEM by default */
 	dev_priv->has_gem = 1;
+
+	if (prealloc_size > agp_size * 3 / 4) {
+		DRM_ERROR("Detected broken video BIOS with %d/%dkB of video "
+			  "memory stolen.\n",
+			  prealloc_size / 1024, agp_size / 1024);
+		DRM_ERROR("Disabling GEM. (try reducing stolen memory or "
+			  "updating the BIOS to fix).\n");
+		dev_priv->has_gem = 0;
+	}
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
@@ -1231,7 +1242,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = i915_load_modeset_init(dev);
+		ret = i915_load_modeset_init(dev, prealloc_size, agp_size);
 		if (ret < 0) {
 			DRM_ERROR("failed to init modeset\n");
 			goto out_rmmap;
