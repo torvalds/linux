@@ -214,6 +214,10 @@ int ql_write_cfg(struct ql_adapter *qdev, void *ptr, int size, u32 bit,
 		return -ENOMEM;
 	}
 
+	status = ql_sem_spinlock(qdev, SEM_ICB_MASK);
+	if (status)
+		return status;
+
 	status = ql_wait_cfg(qdev, bit);
 	if (status) {
 		QPRINTK(qdev, IFUP, ERR,
@@ -221,12 +225,8 @@ int ql_write_cfg(struct ql_adapter *qdev, void *ptr, int size, u32 bit,
 		goto exit;
 	}
 
-	status = ql_sem_spinlock(qdev, SEM_ICB_MASK);
-	if (status)
-		goto exit;
 	ql_write32(qdev, ICB_L, (u32) map);
 	ql_write32(qdev, ICB_H, (u32) (map >> 32));
-	ql_sem_unlock(qdev, SEM_ICB_MASK);	/* does flush too */
 
 	mask = CFG_Q_MASK | (bit << 16);
 	value = bit | (q_id << CFG_Q_SHIFT);
@@ -237,6 +237,7 @@ int ql_write_cfg(struct ql_adapter *qdev, void *ptr, int size, u32 bit,
 	 */
 	status = ql_wait_cfg(qdev, bit);
 exit:
+	ql_sem_unlock(qdev, SEM_ICB_MASK);	/* does flush too */
 	pci_unmap_single(qdev->pdev, map, size, direction);
 	return status;
 }
