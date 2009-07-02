@@ -84,10 +84,7 @@ static int __init pcibios_init(void)
 {
 	ict_pcimap();
 
-	loongson2e_pci_controller.io_map_base =
-	    (unsigned long) ioremap(LOONGSON2E_IO_PORT_BASE,
-				    loongson2e_pci_io_resource.end -
-				    loongson2e_pci_io_resource.start + 1);
+	loongson2e_pci_controller.io_map_base = mips_io_port_base;
 
 	register_pci_controller(&loongson2e_pci_controller);
 
