@@ -146,6 +146,7 @@ static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int verb
 	char *line = NULL;
 	size_t n;
 	FILE *file = fopen("/proc/kallsyms", "r");
+	int count = 0;
 
 	if (file == NULL)
 		goto out_failure;
@@ -188,8 +189,10 @@ static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int verb
 
 		if (filter && filter(self, sym))
 			symbol__delete(sym, self->sym_priv_size);
-		else
+		else {
 			dso__insert_symbol(self, sym);
+			count++;
+		}
 	}
 
 	/*
@@ -212,7 +215,7 @@ static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int verb
 	free(line);
 	fclose(file);
 
-	return 0;
+	return count;
 
 out_delete_line:
 	free(line);
@@ -639,7 +642,7 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 	if (vmlinux)
 		err = dso__load_vmlinux(self, vmlinux, filter, verbose);
 
-	if (err < 0)
+	if (err <= 0)
 		err = dso__load_kallsyms(self, filter, verbose);
 
 	return err;
