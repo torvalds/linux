@@ -1790,7 +1790,7 @@ static int saa7134_s_input(struct file *file, void *priv, unsigned int i)
 	if (0 != err)
 		return err;
 
-	if (i < 0  ||  i >= SAA7134_INPUT_MAX)
+	if (i >= SAA7134_INPUT_MAX)
 		return -EINVAL;
 	if (NULL == card_in(dev, i).name)
 		return -EINVAL;
