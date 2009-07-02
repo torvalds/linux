@@ -826,8 +826,10 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 				continue;
 			}
 			do {
-				free_pgtable_page(phys_to_virt(dma_pte_addr(pte)));
-				dma_clear_pte(pte);
+				if (dma_pte_present(pte)) {
+					free_pgtable_page(phys_to_virt(dma_pte_addr(pte)));
+					dma_clear_pte(pte);
+				}
 				pte++;
 				tmp += level_size(level);
 			} while (!first_pte_in_page(pte) &&
