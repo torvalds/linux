@@ -2706,12 +2706,12 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	if (hw->phy.type == ixgbe_phy_unknown) {
 		err = hw->phy.ops.identify(hw);
 		if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-			dev_err(&adapter->pdev->dev, "failed to initialize "
-				"because an unsupported SFP+ module type "
-				"was detected.\n"
-				"Reload the driver after installing a "
-				"supported module.\n");
+			/*
+			 * Take the device down and schedule the sfp tasklet
+			 * which will unregister_netdev and log it.
+			 */
 			ixgbe_down(adapter);
+			schedule_work(&adapter->sfp_config_module_task);
 			return err;
 		}
 	}
