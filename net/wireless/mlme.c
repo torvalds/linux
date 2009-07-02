@@ -278,6 +278,21 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	struct cfg80211_internal_bss *bss;
 	int i, err, slot = -1, nfree = 0;
 
+	if (wdev->current_bss &&
+	    memcmp(bssid, wdev->current_bss->pub.bssid, ETH_ALEN) == 0)
+		return -EALREADY;
+
+	for (i = 0; i < MAX_AUTH_BSSES; i++) {
+		if (wdev->authtry_bsses[i] &&
+		    memcmp(bssid, wdev->authtry_bsses[i]->pub.bssid,
+						ETH_ALEN) == 0)
+			return -EALREADY;
+		if (wdev->auth_bsses[i] &&
+		    memcmp(bssid, wdev->auth_bsses[i]->pub.bssid,
+						ETH_ALEN) == 0)
+			return -EALREADY;
+	}
+
 	memset(&req, 0, sizeof(req));
 
 	req.ie = ie;
@@ -289,13 +304,6 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		return -ENOENT;
 
 	bss = bss_from_pub(req.bss);
-
-	for (i = 0; i < MAX_AUTH_BSSES; i++) {
-		if (bss == wdev->auth_bsses[i]) {
-			err = -EALREADY;
-			goto out;
-		}
-	}
 
 	for (i = 0; i < MAX_AUTH_BSSES; i++) {
 		if (!wdev->auth_bsses[i] && !wdev->authtry_bsses[i]) {
