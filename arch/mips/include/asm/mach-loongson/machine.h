@@ -15,7 +15,7 @@
 
 #define LOONGSON_UART_BASE (BONITO_PCIIO_BASE + 0x3f8)
 
-#define LOONGSON_MACHNAME "lemote-fuloong-2e-box"
+#define LOONGSON_MACHTYPE MACH_LEMOTE_FL2E
 
 #endif
 
