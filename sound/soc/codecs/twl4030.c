@@ -620,6 +620,9 @@ static int handsfreerpga_event(struct snd_soc_dapm_widget *w,
 
 static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 {
+	struct snd_soc_device *socdev = codec->socdev;
+	struct twl4030_setup_data *setup = socdev->codec_data;
+
 	unsigned char hs_gain, hs_pop;
 	struct twl4030_priv *twl4030 = codec->private_data;
 	/* Base values for ramp delay calculation: 2^19 - 2^26 */
@@ -629,6 +632,17 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 	hs_gain = twl4030_read_reg_cache(codec, TWL4030_REG_HS_GAIN_SET);
 	hs_pop = twl4030_read_reg_cache(codec, TWL4030_REG_HS_POPN_SET);
 
+	/* Enable external mute control, this dramatically reduces
+	 * the pop-noise */
+	if (setup && setup->hs_extmute) {
+		if (setup->set_hs_extmute) {
+			setup->set_hs_extmute(1);
+		} else {
+			hs_pop |= TWL4030_EXTMUTE;
+			twl4030_write(codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+		}
+	}
+
 	if (ramp) {
 		/* Headset ramp-up according to the TRM */
 		hs_pop |= TWL4030_VMID_EN;
@@ -636,6 +650,9 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 		twl4030_write(codec, TWL4030_REG_HS_GAIN_SET, hs_gain);
 		hs_pop |= TWL4030_RAMP_EN;
 		twl4030_write(codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+		/* Wait ramp delay time + 1, so the VMID can settle */
+		mdelay((ramp_base[(hs_pop & TWL4030_RAMP_DELAY) >> 2] /
+			twl4030->sysclk) + 1);
 	} else {
 		/* Headset ramp-down _not_ according to
 		 * the TRM, but in a way that it is working */
@@ -651,6 +668,16 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 
 		hs_pop &= ~TWL4030_VMID_EN;
 		twl4030_write(codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+	}
+
+	/* Disable external mute */
+	if (setup && setup->hs_extmute) {
+		if (setup->set_hs_extmute) {
+			setup->set_hs_extmute(0);
+		} else {
+			hs_pop &= ~TWL4030_EXTMUTE;
+			twl4030_write(codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+		}
 	}
 }
 
