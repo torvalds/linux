@@ -301,7 +301,7 @@ static int btusb_submit_bulk_urb(struct hci_dev *hdev, gfp_t mem_flags)
 	struct urb *urb;
 	unsigned char *buf;
 	unsigned int pipe;
-	int err, size;
+	int err, size = HCI_MAX_FRAME_SIZE;
 
 	BT_DBG("%s", hdev->name);
 
@@ -311,8 +311,6 @@ static int btusb_submit_bulk_urb(struct hci_dev *hdev, gfp_t mem_flags)
 	urb = usb_alloc_urb(0, mem_flags);
 	if (!urb)
 		return -ENOMEM;
-
-	size = le16_to_cpu(data->bulk_rx_ep->wMaxPacketSize);
 
 	buf = kmalloc(size, mem_flags);
 	if (!buf) {
