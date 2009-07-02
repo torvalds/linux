@@ -42,6 +42,12 @@
 			printk(KERN_DEBUG "%s: " fmt, vfd->name, ## arg);\
 		} while (0)
 
+#define dbgarg3(fmt, arg...) \
+		do {							\
+		    if (vfd->debug & V4L2_DEBUG_IOCTL_ARG)		\
+			printk(KERN_CONT "%s: " fmt, vfd->name, ## arg);\
+		} while (0)
+
 /* Zero out the end of the struct pointed to by p.  Everthing after, but
  * not including, the specified field is cleared. */
 #define CLEAR_AFTER_FIELD(p, field) \
@@ -1735,20 +1741,20 @@ static long __video_do_ioctl(struct file *file,
 			p->type);
 		switch (p->type) {
 		case V4L2_FRMSIZE_TYPE_DISCRETE:
-			printk("width = %d, height=%d\n",
+			dbgarg3("width = %d, height=%d\n",
 				p->discrete.width, p->discrete.height);
 			break;
 		case V4L2_FRMSIZE_TYPE_STEPWISE:
-			printk("min %dx%d, max %dx%d, step %dx%d\n",
+			dbgarg3("min %dx%d, max %dx%d, step %dx%d\n",
 				p->stepwise.min_width,  p->stepwise.min_height,
 				p->stepwise.step_width, p->stepwise.step_height,
 				p->stepwise.max_width,  p->stepwise.max_height);
 			break;
 		case V4L2_FRMSIZE_TYPE_CONTINUOUS:
-			printk("continuous\n");
+			dbgarg3("continuous\n");
 			break;
 		default:
-			printk("- Unknown type!\n");
+			dbgarg3("- Unknown type!\n");
 		}
 
 		break;
