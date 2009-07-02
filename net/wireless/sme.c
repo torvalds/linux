@@ -287,6 +287,44 @@ static void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
 		return;
 
+	if (wdev->sme_state == CFG80211_SME_CONNECTED)
+		nl80211_send_roamed(wiphy_to_dev(wdev->wiphy), dev,
+				    bssid, req_ie, req_ie_len,
+				    resp_ie, resp_ie_len, gfp);
+	else
+		nl80211_send_connect_result(wiphy_to_dev(wdev->wiphy), dev,
+					    bssid, req_ie, req_ie_len,
+					    resp_ie, resp_ie_len,
+					    status, gfp);
+
+#ifdef CONFIG_WIRELESS_EXT
+	if (wextev) {
+		if (req_ie && status == WLAN_STATUS_SUCCESS) {
+			memset(&wrqu, 0, sizeof(wrqu));
+			wrqu.data.length = req_ie_len;
+			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, req_ie);
+		}
+
+		if (resp_ie && status == WLAN_STATUS_SUCCESS) {
+			memset(&wrqu, 0, sizeof(wrqu));
+			wrqu.data.length = resp_ie_len;
+			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, resp_ie);
+		}
+
+		memset(&wrqu, 0, sizeof(wrqu));
+		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
+		if (bssid && status == WLAN_STATUS_SUCCESS)
+			memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
+		wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
+	}
+#endif
+
+	if (status == WLAN_STATUS_SUCCESS &&
+	    wdev->sme_state == CFG80211_SME_IDLE) {
+		wdev->sme_state = CFG80211_SME_CONNECTED;
+		return;
+	}
+
 	if (wdev->sme_state != CFG80211_SME_CONNECTING)
 		return;
 
@@ -315,32 +353,6 @@ static void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 
 	if (wdev->conn)
 		wdev->conn->state = CFG80211_CONN_IDLE;
-
-	nl80211_send_connect_result(wiphy_to_dev(wdev->wiphy), dev, bssid,
-				    req_ie, req_ie_len, resp_ie, resp_ie_len,
-				    status, gfp);
-
-#ifdef CONFIG_WIRELESS_EXT
-	if (wextev) {
-		if (req_ie && status == WLAN_STATUS_SUCCESS) {
-			memset(&wrqu, 0, sizeof(wrqu));
-			wrqu.data.length = req_ie_len;
-			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, req_ie);
-		}
-
-		if (resp_ie && status == WLAN_STATUS_SUCCESS) {
-			memset(&wrqu, 0, sizeof(wrqu));
-			wrqu.data.length = resp_ie_len;
-			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, resp_ie);
-		}
-
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		if (bssid && status == WLAN_STATUS_SUCCESS)
-			memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
-		wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
-	}
-#endif
 }
 
 void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
