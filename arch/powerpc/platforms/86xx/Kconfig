@@ -43,6 +43,7 @@ config GEF_PPC9A
 config GEF_SBC310
 	bool "GE Fanuc SBC310"
 	select DEFAULT_UIMAGE
+	select MMIO_NVRAM
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
