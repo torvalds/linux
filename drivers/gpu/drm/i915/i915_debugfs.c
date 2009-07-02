@@ -363,7 +363,7 @@ out:
 	return 0;
 }
 
-static struct drm_info_list i915_gem_debugfs_list[] = {
+static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
@@ -377,19 +377,19 @@ static struct drm_info_list i915_gem_debugfs_list[] = {
 	{"i915_batchbuffers", i915_batchbuffer_info, 0},
 	{"i915_error_state", i915_error_state, 0},
 };
-#define I915_GEM_DEBUGFS_ENTRIES ARRAY_SIZE(i915_gem_debugfs_list)
+#define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
-int i915_gem_debugfs_init(struct drm_minor *minor)
+int i915_debugfs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(i915_gem_debugfs_list,
-					I915_GEM_DEBUGFS_ENTRIES,
+	return drm_debugfs_create_files(i915_debugfs_list,
+					I915_DEBUGFS_ENTRIES,
 					minor->debugfs_root, minor);
 }
 
-void i915_gem_debugfs_cleanup(struct drm_minor *minor)
+void i915_debugfs_cleanup(struct drm_minor *minor)
 {
-	drm_debugfs_remove_files(i915_gem_debugfs_list,
-				 I915_GEM_DEBUGFS_ENTRIES, minor);
+	drm_debugfs_remove_files(i915_debugfs_list,
+				 I915_DEBUGFS_ENTRIES, minor);
 }
 
 #endif /* CONFIG_DEBUG_FS */
