@@ -1913,25 +1913,14 @@ config DMAR_DEFAULT_ON
 	  recommended you say N here while the DMAR code remains
 	  experimental.
 
-config DMAR_GFX_WA
-	def_bool y
-	prompt "Support for Graphics workaround"
-	depends on DMAR
-	---help---
-	  Current Graphics drivers tend to use physical address
-	  for DMA and avoid using DMA APIs. Setting this config
-	  option permits the IOMMU driver to set a unity map for
-	  all the OS-visible memory. Hence the driver can continue
-	  to use physical addresses for DMA.
-
 config DMAR_FLOPPY_WA
 	def_bool y
 	depends on DMAR
 	---help---
-	  Floppy disk drivers are know to bypass DMA API calls
+	  Floppy disk drivers are known to bypass DMA API calls
 	  thereby failing to work when IOMMU is enabled. This
 	  workaround will setup a 1:1 mapping for the first
-	  16M to make floppy (an ISA device) work.
+	  16MiB to make floppy (an ISA device) work.
 
 config INTR_REMAP
 	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
