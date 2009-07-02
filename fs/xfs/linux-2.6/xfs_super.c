@@ -687,7 +687,7 @@ xfs_barrier_test(
 	return error;
 }
 
-void
+STATIC void
 xfs_mountfs_check_barriers(xfs_mount_t *mp)
 {
 	int error;

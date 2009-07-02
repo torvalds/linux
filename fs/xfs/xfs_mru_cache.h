@@ -49,7 +49,6 @@ int xfs_mru_cache_insert(struct xfs_mru_cache *mru, unsigned long key,
 void * xfs_mru_cache_remove(struct xfs_mru_cache *mru, unsigned long key);
 void xfs_mru_cache_delete(struct xfs_mru_cache *mru, unsigned long key);
 void *xfs_mru_cache_lookup(struct xfs_mru_cache *mru, unsigned long key);
-void *xfs_mru_cache_peek(struct xfs_mru_cache *mru, unsigned long key);
 void xfs_mru_cache_done(struct xfs_mru_cache *mru);
 
 #endif /* __XFS_MRU_CACHE_H__ */

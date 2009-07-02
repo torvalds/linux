@@ -39,7 +39,7 @@
 #include "xfs_error.h"
 #include "xfs_btree.h"
 
-int
+STATIC int
 xfs_internal_inum(
 	xfs_mount_t	*mp,
 	xfs_ino_t	ino)

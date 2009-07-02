@@ -646,46 +646,6 @@ xfs_btree_read_bufl(
 }
 
 /*
- * Get a buffer for the block, return it read in.
- * Short-form addressing.
- */
-int					/* error */
-xfs_btree_read_bufs(
-	xfs_mount_t	*mp,		/* file system mount point */
-	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_agnumber_t	agno,		/* allocation group number */
-	xfs_agblock_t	agbno,		/* allocation group block number */
-	uint		lock,		/* lock flags for read_buf */
-	xfs_buf_t	**bpp,		/* buffer for agno/agbno */
-	int		refval)		/* ref count value for buffer */
-{
-	xfs_buf_t	*bp;		/* return value */
-	xfs_daddr_t	d;		/* real disk block address */
-	int		error;
-
-	ASSERT(agno != NULLAGNUMBER);
-	ASSERT(agbno != NULLAGBLOCK);
-	d = XFS_AGB_TO_DADDR(mp, agno, agbno);
-	if ((error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, d,
-					mp->m_bsize, lock, &bp))) {
-		return error;
-	}
-	ASSERT(!bp || !XFS_BUF_GETERROR(bp));
-	if (bp != NULL) {
-		switch (refval) {
-		case XFS_ALLOC_BTREE_REF:
-			XFS_BUF_SET_VTYPE_REF(bp, B_FS_MAP, refval);
-			break;
-		case XFS_INO_BTREE_REF:
-			XFS_BUF_SET_VTYPE_REF(bp, B_FS_INOMAP, refval);
-			break;
-		}
-	}
-	*bpp = bp;
-	return 0;
-}
-
-/*
  * Read-ahead the block, don't wait for it, don't return a buffer.
  * Long-form addressing.
  */
@@ -2951,7 +2911,7 @@ error0:
  * inode we have to copy the single block it was pointing to into the
  * inode.
  */
-int
+STATIC int
 xfs_btree_kill_iroot(
 	struct xfs_btree_cur	*cur)
 {
