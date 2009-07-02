@@ -50,4 +50,7 @@ extern void __init prom_init_env(void);
 #define LOONGSON_PXARB_CFG      BONITO(BONITO_REGBASE + 0x68)
 #define LOONGSON_PXARB_STATUS       BONITO(BONITO_REGBASE + 0x6c)
 
+/* loongson2-specific perf counter IRQ */
+#define LOONGSON2_PERFCNT_IRQ   (MIPS_CPU_IRQ_BASE + 6)
+
 #endif /* __ASM_MACH_LOONGSON_LOONGSON_H */
