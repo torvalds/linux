@@ -152,12 +152,12 @@ static struct hid_driver zp_driver = {
 	.probe = zp_probe,
 };
 
-static int zp_init(void)
+static int __init zp_init(void)
 {
 	return hid_register_driver(&zp_driver);
 }
 
-static void zp_exit(void)
+static void __exit zp_exit(void)
 {
 	hid_unregister_driver(&zp_driver);
 }

@@ -317,12 +317,12 @@ static struct hid_driver lg_driver = {
 	.probe = lg_probe,
 };
 
-static int lg_init(void)
+static int __init lg_init(void)
 {
 	return hid_register_driver(&lg_driver);
 }
 
-static void lg_exit(void)
+static void __exit lg_exit(void)
 {
 	hid_unregister_driver(&lg_driver);
 }

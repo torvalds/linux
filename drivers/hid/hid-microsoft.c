@@ -197,12 +197,12 @@ static struct hid_driver ms_driver = {
 	.probe = ms_probe,
 };
 
-static int ms_init(void)
+static int __init ms_init(void)
 {
 	return hid_register_driver(&ms_driver);
 }
 
-static void ms_exit(void)
+static void __exit ms_exit(void)
 {
 	hid_unregister_driver(&ms_driver);
 }

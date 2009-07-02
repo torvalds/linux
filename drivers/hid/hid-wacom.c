@@ -237,7 +237,7 @@ static struct hid_driver wacom_driver = {
 	.raw_event = wacom_raw_event,
 };
 
-static int wacom_init(void)
+static int __init wacom_init(void)
 {
 	int ret;
 
@@ -248,7 +248,7 @@ static int wacom_init(void)
 	return ret;
 }
 
-static void wacom_exit(void)
+static void __exit wacom_exit(void)
 {
 	hid_unregister_driver(&wacom_driver);
 }

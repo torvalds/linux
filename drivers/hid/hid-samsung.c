@@ -112,12 +112,12 @@ static struct hid_driver samsung_driver = {
 	.probe = samsung_probe,
 };
 
-static int samsung_init(void)
+static int __init samsung_init(void)
 {
 	return hid_register_driver(&samsung_driver);
 }
 
-static void samsung_exit(void)
+static void __exit samsung_exit(void)
 {
 	hid_unregister_driver(&samsung_driver);
 }

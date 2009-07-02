@@ -290,12 +290,12 @@ static struct hid_driver ntrig_driver = {
 	.event = ntrig_event,
 };
 
-static int ntrig_init(void)
+static int __init ntrig_init(void)
 {
 	return hid_register_driver(&ntrig_driver);
 }
 
-static void ntrig_exit(void)
+static void __exit ntrig_exit(void)
 {
 	hid_unregister_driver(&ntrig_driver);
 }

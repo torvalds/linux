@@ -60,12 +60,12 @@ static struct hid_driver ts_driver = {
 	.input_mapping = ts_input_mapping,
 };
 
-static int ts_init(void)
+static int __init ts_init(void)
 {
 	return hid_register_driver(&ts_driver);
 }
 
-static void ts_exit(void)
+static void __exit ts_exit(void)
 {
 	hid_unregister_driver(&ts_driver);
 }
