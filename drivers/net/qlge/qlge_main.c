@@ -413,6 +413,41 @@ exit:
 	return status;
 }
 
+/* Set or clear MAC address in hardware. We sometimes
+ * have to clear it to prevent wrong frame routing
+ * especially in a bonding environment.
+ */
+static int ql_set_mac_addr(struct ql_adapter *qdev, int set)
+{
+	int status;
+	char zero_mac_addr[ETH_ALEN];
+	char *addr;
+
+	if (set) {
+		addr = &qdev->ndev->dev_addr[0];
+		QPRINTK(qdev, IFUP, DEBUG,
+			"Set Mac addr %02x:%02x:%02x:%02x:%02x:%02x\n",
+			addr[0], addr[1], addr[2], addr[3],
+			addr[4], addr[5]);
+	} else {
+		memset(zero_mac_addr, 0, ETH_ALEN);
+		addr = &zero_mac_addr[0];
+		QPRINTK(qdev, IFUP, DEBUG,
+				"Clearing MAC address on %s\n",
+				qdev->ndev->name);
+	}
+	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
+	if (status)
+		return status;
+	status = ql_set_mac_addr_reg(qdev, (u8 *) addr,
+			MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
+	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
+	if (status)
+		QPRINTK(qdev, IFUP, ERR, "Failed to init mac "
+			"address.\n");
+	return status;
+}
+
 /* Get a specific frame routing value from the CAM.
  * Used for debug and reg dump.
  */
@@ -3112,14 +3147,15 @@ exit:
 
 int ql_cam_route_initialize(struct ql_adapter *qdev)
 {
-	int status;
+	int status, set;
 
-	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
-	if (status)
-		return status;
-	status = ql_set_mac_addr_reg(qdev, (u8 *) qdev->ndev->perm_addr,
-			     MAC_ADDR_TYPE_CAM_MAC, qdev->func * MAX_CQ);
-	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
+	/* If check if the link is up and use to
+	 * determine if we are setting or clearing
+	 * the MAC address in the CAM.
+	 */
+	set = ql_read32(qdev, STS);
+	set &= qdev->port_link_up;
+	status = ql_set_mac_addr(qdev, set);
 	if (status) {
 		QPRINTK(qdev, IFUP, ERR, "Failed to init mac address.\n");
 		return status;
