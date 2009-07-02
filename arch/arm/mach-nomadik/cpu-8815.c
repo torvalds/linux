@@ -27,6 +27,9 @@
 #include <asm/mach/map.h>
 #include <asm/hardware/vic.h>
 
+#include <asm/cacheflush.h>
+#include <asm/hardware/cache-l2x0.h>
+
 /* The 8815 has 4 GPIO blocks, let's register them immediately */
 static struct nmk_gpio_platform_data cpu8815_gpio[] = {
 	{
@@ -125,9 +128,12 @@ void __init cpu8815_init_irq(void)
 
 /*
  * This function is called from the board init ("init_machine").
- * Currently nothing is done as we can't register amba devs so early.
  */
  void __init cpu8815_platform_init(void)
 {
+#ifdef CONFIG_CACHE_L2X0
+	/* At full speed latency must be >=2, so 0x249 in low bits */
+	l2x0_init(io_p2v(NOMADIK_L2CC_BASE), 0x00730249, 0xfe000fff);
+#endif
 	 return;
 }
