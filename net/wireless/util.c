@@ -502,3 +502,24 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb)
 	return dscp >> 5;
 }
 EXPORT_SYMBOL(cfg80211_classify8021d);
+
+const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie)
+{
+	u8 *end, *pos;
+
+	pos = bss->information_elements;
+	if (pos == NULL)
+		return NULL;
+	end = pos + bss->len_information_elements;
+
+	while (pos + 1 < end) {
+		if (pos + 2 + pos[1] > end)
+			break;
+		if (pos[0] == ie)
+			return pos;
+		pos += 2 + pos[1];
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(ieee80211_bss_get_ie);

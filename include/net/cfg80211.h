@@ -605,6 +605,15 @@ struct cfg80211_bss {
 };
 
 /**
+ * ieee80211_bss_get_ie - find IE with given ID
+ * @bss: the bss to search
+ * @ie: the IE ID
+ * Returns %NULL if not found.
+ */
+const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie);
+
+
+/**
  * struct cfg80211_crypto_settings - Crypto settings
  * @wpa_versions: indicates which, if any, WPA versions are enabled
  *	(from enum nl80211_wpa_versions)

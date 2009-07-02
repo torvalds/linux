@@ -46,26 +46,6 @@ static int ecw2cw(int ecw)
 	return (1 << ecw) - 1;
 }
 
-static u8 *ieee80211_bss_get_ie(struct ieee80211_bss *bss, u8 ie)
-{
-	u8 *end, *pos;
-
-	pos = bss->cbss.information_elements;
-	if (pos == NULL)
-		return NULL;
-	end = pos + bss->cbss.len_information_elements;
-
-	while (pos + 1 < end) {
-		if (pos + 2 + pos[1] > end)
-			break;
-		if (pos[0] == ie)
-			return pos;
-		pos += 2 + pos[1];
-	}
-
-	return NULL;
-}
-
 static int ieee80211_compatible_rates(struct ieee80211_bss *bss,
 				      struct ieee80211_supported_band *sband,
 				      u32 *rates)
@@ -181,7 +161,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos, *ies, *ht_ie;
+	u8 *pos;
+	const u8 *ies, *ht_ie;
 	int i, len, count, rates_len, supp_rates_len;
 	u16 capab;
 	struct ieee80211_bss *bss;
@@ -345,7 +326,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	 */
 	if (wmm && (ifmgd->flags & IEEE80211_STA_WMM_ENABLED) &&
 	    sband->ht_cap.ht_supported &&
-	    (ht_ie = ieee80211_bss_get_ie(bss, WLAN_EID_HT_INFORMATION)) &&
+	    (ht_ie = ieee80211_bss_get_ie(&bss->cbss, WLAN_EID_HT_INFORMATION)) &&
 	    ht_ie[1] >= sizeof(struct ieee80211_ht_info) &&
 	    (!(ifmgd->flags & IEEE80211_STA_DISABLE_11N))) {
 		struct ieee80211_ht_info *ht_info =
