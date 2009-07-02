@@ -7,7 +7,7 @@ config LEMOTE_FULOONG2E
     select ARCH_SPARSEMEM_ENABLE
     select CEVT_R4K
     select CSRC_R4K
-    select SYS_HAS_CPU_LOONGSON2
+    select SYS_HAS_CPU_LOONGSON2E
     select DMA_NONCOHERENT
     select BOOT_ELF32
     select BOARD_SCACHE
