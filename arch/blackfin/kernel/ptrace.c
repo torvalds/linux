@@ -285,9 +285,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				tmp = child->mm->start_data;
 #ifdef CONFIG_BINFMT_ELF_FDPIC
 			} else if (addr == (sizeof(struct pt_regs) + 12)) {
-				tmp = child->mm->context.exec_fdpic_loadmap;
+				goto case_PTRACE_GETFDPIC_EXEC;
 			} else if (addr == (sizeof(struct pt_regs) + 16)) {
-				tmp = child->mm->context.interp_fdpic_loadmap;
+				goto case_PTRACE_GETFDPIC_INTERP;
 #endif
 			} else {
 				tmp = get_reg(child, addr);
@@ -295,6 +295,28 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = put_user(tmp, datap);
 			break;
 		}
+
+#ifdef CONFIG_BINFMT_ELF_FDPIC
+	case PTRACE_GETFDPIC: {
+		unsigned long tmp = 0;
+
+		switch (addr) {
+		case_PTRACE_GETFDPIC_EXEC:
+		case PTRACE_GETFDPIC_EXEC:
+			tmp = child->mm->context.exec_fdpic_loadmap;
+			break;
+		case_PTRACE_GETFDPIC_INTERP:
+		case PTRACE_GETFDPIC_INTERP:
+			tmp = child->mm->context.interp_fdpic_loadmap;
+			break;
+		default:
+			break;
+		}
+
+		ret = put_user(tmp, datap);
+		break;
+	}
+#endif
 
 		/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKEDATA:
