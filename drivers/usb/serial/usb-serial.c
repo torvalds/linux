@@ -292,8 +292,6 @@ static int serial_open(struct tty_struct *tty, struct file *filp)
 static void serial_down(struct usb_serial_port *port)
 {
 	struct usb_serial_driver *drv = port->serial->type;
-	struct usb_serial *serial;
-	struct module *owner;
 
 	/*
 	 * The console is magical.  Do not hang up the console hardware
@@ -309,12 +307,8 @@ static void serial_down(struct usb_serial_port *port)
 		return;
 
 	mutex_lock(&port->mutex);
-	serial = port->serial;
-	owner = serial->type->driver.owner;
-
 	if (drv->close)
 		drv->close(port);
-
 	mutex_unlock(&port->mutex);
 }
 
