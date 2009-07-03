@@ -655,7 +655,6 @@ int em28xx_set_outfmt(struct em28xx *dev)
 	if (dev->board.is_27xx) {
 		vinmode = 0x0d;
 		vinctl  = 0x00;
-		outfmt  = 0x24;
 	} else {
 		vinmode = 0x10;
 		vinctl  = 0x11;
