@@ -10,6 +10,7 @@ config SUPERH
 	select EMBEDDED
 	select HAVE_CLK
 	select HAVE_IDE
+	select HAVE_LMB
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IOREMAP_PROT if MMU
