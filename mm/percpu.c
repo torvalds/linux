@@ -1190,6 +1190,19 @@ size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 	return pcpu_unit_size;
 }
 
+static size_t pcpu_calc_fc_sizes(size_t static_size, size_t reserved_size,
+				 ssize_t *dyn_sizep)
+{
+	size_t size_sum;
+
+	size_sum = PFN_ALIGN(static_size + reserved_size +
+			     (*dyn_sizep >= 0 ? *dyn_sizep : 0));
+	if (*dyn_sizep != 0)
+		*dyn_sizep = size_sum - static_size - reserved_size;
+
+	return size_sum;
+}
+
 /*
  * Embedding first chunk setup helper.
  */
@@ -1241,10 +1254,7 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	unsigned int cpu;
 
 	/* determine parameters and allocate */
-	pcpue_size = PFN_ALIGN(static_size + reserved_size +
-			       (dyn_size >= 0 ? dyn_size : 0));
-	if (dyn_size != 0)
-		dyn_size = pcpue_size - static_size - reserved_size;
+	pcpue_size = pcpu_calc_fc_sizes(static_size, reserved_size, &dyn_size);
 
 	pcpue_unit_size = max_t(size_t, pcpue_size, PCPU_MIN_UNIT_SIZE);
 	chunk_size = pcpue_unit_size * num_possible_cpus();
@@ -1389,6 +1399,197 @@ out_free_ar:
 	free_bootmem(__pa(pcpu4k_pages), pages_size);
 	return ret;
 }
+
+/*
+ * Large page remapping first chunk setup helper
+ */
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+struct pcpul_ent {
+	unsigned int	cpu;
+	void		*ptr;
+};
+
+static size_t pcpul_size;
+static size_t pcpul_unit_size;
+static struct pcpul_ent *pcpul_map;
+static struct vm_struct pcpul_vm;
+
+static struct page * __init pcpul_get_page(unsigned int cpu, int pageno)
+{
+	size_t off = (size_t)pageno << PAGE_SHIFT;
+
+	if (off >= pcpul_size)
+		return NULL;
+
+	return virt_to_page(pcpul_map[cpu].ptr + off);
+}
+
+/**
+ * pcpu_lpage_first_chunk - remap the first percpu chunk using large page
+ * @static_size: the size of static percpu area in bytes
+ * @reserved_size: the size of reserved percpu area in bytes
+ * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
+ * @lpage_size: the size of a large page
+ * @alloc_fn: function to allocate percpu lpage, always called with lpage_size
+ * @free_fn: function to free percpu memory, @size <= lpage_size
+ * @map_fn: function to map percpu lpage, always called with lpage_size
+ *
+ * This allocator uses large page as unit.  A large page is allocated
+ * for each cpu and each is remapped into vmalloc area using large
+ * page mapping.  As large page can be quite large, only part of it is
+ * used for the first chunk.  Unused part is returned to the bootmem
+ * allocator.
+ *
+ * So, the large pages are mapped twice - once to the physical mapping
+ * and to the vmalloc area for the first percpu chunk.  The double
+ * mapping does add one more large TLB entry pressure but still is
+ * much better than only using 4k mappings while still being NUMA
+ * friendly.
+ *
+ * RETURNS:
+ * The determined pcpu_unit_size which can be used to initialize
+ * percpu access on success, -errno on failure.
+ */
+ssize_t __init pcpu_lpage_first_chunk(size_t static_size, size_t reserved_size,
+				      ssize_t dyn_size, size_t lpage_size,
+				      pcpu_fc_alloc_fn_t alloc_fn,
+				      pcpu_fc_free_fn_t free_fn,
+				      pcpu_fc_map_fn_t map_fn)
+{
+	size_t size_sum;
+	size_t map_size;
+	unsigned int cpu;
+	int i, j;
+	ssize_t ret;
+
+	/*
+	 * Currently supports only single page.  Supporting multiple
+	 * pages won't be too difficult if it ever becomes necessary.
+	 */
+	size_sum = pcpu_calc_fc_sizes(static_size, reserved_size, &dyn_size);
+
+	pcpul_unit_size = lpage_size;
+	pcpul_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
+	if (pcpul_size > pcpul_unit_size) {
+		pr_warning("PERCPU: static data is larger than large page, "
+			   "can't use large page\n");
+		return -EINVAL;
+	}
+
+	/* allocate pointer array and alloc large pages */
+	map_size = PFN_ALIGN(num_possible_cpus() * sizeof(pcpul_map[0]));
+	pcpul_map = alloc_bootmem(map_size);
+
+	for_each_possible_cpu(cpu) {
+		void *ptr;
+
+		ptr = alloc_fn(cpu, lpage_size);
+		if (!ptr) {
+			pr_warning("PERCPU: failed to allocate large page "
+				   "for cpu%u\n", cpu);
+			goto enomem;
+		}
+
+		/*
+		 * Only use pcpul_size bytes and give back the rest.
+		 *
+		 * Ingo: The lpage_size up-rounding bootmem is needed
+		 * to make sure the partial lpage is still fully RAM -
+		 * it's not well-specified to have a incompatible area
+		 * (unmapped RAM, device memory, etc.) in that hole.
+		 */
+		free_fn(ptr + pcpul_size, lpage_size - pcpul_size);
+
+		pcpul_map[cpu].cpu = cpu;
+		pcpul_map[cpu].ptr = ptr;
+
+		memcpy(ptr, __per_cpu_load, static_size);
+	}
+
+	/* allocate address and map */
+	pcpul_vm.flags = VM_ALLOC;
+	pcpul_vm.size = num_possible_cpus() * pcpul_unit_size;
+	vm_area_register_early(&pcpul_vm, pcpul_unit_size);
+
+	for_each_possible_cpu(cpu)
+		map_fn(pcpul_map[cpu].ptr, pcpul_unit_size,
+		       pcpul_vm.addr + cpu * pcpul_unit_size);
+
+	/* we're ready, commit */
+	pr_info("PERCPU: Remapped at %p with large pages, static data "
+		"%zu bytes\n", pcpul_vm.addr, static_size);
+
+	ret = pcpu_setup_first_chunk(pcpul_get_page, static_size,
+				     reserved_size, dyn_size, pcpul_unit_size,
+				     pcpul_vm.addr, NULL);
+
+	/* sort pcpul_map array for pcpu_lpage_remapped() */
+	for (i = 0; i < num_possible_cpus() - 1; i++)
+		for (j = i + 1; j < num_possible_cpus(); j++)
+			if (pcpul_map[i].ptr > pcpul_map[j].ptr) {
+				struct pcpul_ent tmp = pcpul_map[i];
+				pcpul_map[i] = pcpul_map[j];
+				pcpul_map[j] = tmp;
+			}
+
+	return ret;
+
+enomem:
+	for_each_possible_cpu(cpu)
+		if (pcpul_map[cpu].ptr)
+			free_fn(pcpul_map[cpu].ptr, pcpul_size);
+	free_bootmem(__pa(pcpul_map), map_size);
+	return -ENOMEM;
+}
+
+/**
+ * pcpu_lpage_remapped - determine whether a kaddr is in pcpul recycled area
+ * @kaddr: the kernel address in question
+ *
+ * Determine whether @kaddr falls in the pcpul recycled area.  This is
+ * used by pageattr to detect VM aliases and break up the pcpu large
+ * page mapping such that the same physical page is not mapped under
+ * different attributes.
+ *
+ * The recycled area is always at the tail of a partially used large
+ * page.
+ *
+ * RETURNS:
+ * Address of corresponding remapped pcpu address if match is found;
+ * otherwise, NULL.
+ */
+void *pcpu_lpage_remapped(void *kaddr)
+{
+	unsigned long unit_mask = pcpul_unit_size - 1;
+	void *lpage_addr = (void *)((unsigned long)kaddr & ~unit_mask);
+	unsigned long offset = (unsigned long)kaddr & unit_mask;
+	int left = 0, right = num_possible_cpus() - 1;
+	int pos;
+
+	/* pcpul in use at all? */
+	if (!pcpul_map)
+		return NULL;
+
+	/* okay, perform binary search */
+	while (left <= right) {
+		pos = (left + right) / 2;
+
+		if (pcpul_map[pos].ptr < lpage_addr)
+			left = pos + 1;
+		else if (pcpul_map[pos].ptr > lpage_addr)
+			right = pos - 1;
+		else {
+			/* it shouldn't be in the area for the first chunk */
+			WARN_ON(offset < pcpul_size);
+
+			return pcpul_vm.addr +
+				pcpul_map[pos].cpu * pcpul_unit_size + offset;
+		}
+	}
+
+	return NULL;
+}
+#endif
 
 /*
  * Generic percpu area setup.

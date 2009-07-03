@@ -12,6 +12,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/pfn.h>
+#include <linux/percpu.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>
