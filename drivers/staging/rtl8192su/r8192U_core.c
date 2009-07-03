@@ -2985,11 +2985,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 	// Fill up USB_OUT_CONTEXT.
 	//----------------------------------------------------------------------------
 	// Get index to out pipe from specified QueueID.
-#ifndef USE_ONE_PIPE
 	idx_pipe = txqueue2outpipe(priv,queue_index);
-#else
-	idx_pipe = 0x04;
-#endif
 #ifdef JOHN_DUMP_TXDESC
 	int i;
 	printk("<Tx descriptor>--rate %x---",rate);
@@ -3786,11 +3782,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 		tx_desc->TxBufferSize = (u32)(skb->len - USB_HWDESC_HEADER_LEN);
 	}
 	/* Get index to out pipe from specified QueueID */
-#ifndef USE_ONE_PIPE
 	idx_pipe = txqueue2outpipe(priv,tcb_desc->queue_index);
-#else
-	idx_pipe = 0x5;
-#endif
 
 	//RT_DEBUG_DATA(COMP_SEND,tx_fwinfo,sizeof(tx_fwinfo_819x_usb));
 	//RT_DEBUG_DATA(COMP_SEND,tx_desc,sizeof(tx_desc_819x_usb));
@@ -11721,7 +11713,6 @@ static void HalUsbSetQueuePipeMapping8192SUsb(struct usb_interface *intf, struct
 	memset(priv->RtOutPipes,0,16);
 	memset(priv->RtInPipes,0,16);
 
-#ifndef USE_ONE_PIPE
 	iface_desc = intf->cur_altsetting;
 	priv->ep_num = iface_desc->desc.bNumEndpoints;
 
@@ -11776,12 +11767,6 @@ static void HalUsbSetQueuePipeMapping8192SUsb(struct usb_interface *intf, struct
 	for(i=0; i < 9; i++)
 		printk("%d  ", priv->txqueue_to_outpipemap[i]);
 	printk("\n");
-#else
-	{
-		memset(priv->txqueue_to_outpipemap,0,9);
-		memset(priv->RtOutPipes,4,16);//all use endpoint 4 for out
-	}
-#endif
 
 	return;
 }
