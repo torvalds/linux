@@ -1516,7 +1516,7 @@ void __init setup_per_cpu_areas(void)
 
 	pcpu_unit_size = pcpu_setup_first_chunk(static_size,
 						PERCPU_MODULE_RESERVE, dyn_size,
-						PCPU_CHUNK_SIZE, vm.addr);
+						PCPU_CHUNK_SIZE, vm.addr, NULL);
 
 	free_bootmem(__pa(ptrs), ptrs_size);
 
