@@ -24,7 +24,7 @@ struct dso {
 	struct rb_root	 syms;
 	struct symbol    *(*find_symbol)(struct dso *, u64 ip);
 	unsigned int	 sym_priv_size;
-	unsigned char	 prelinked;
+	unsigned char	 adjust_symbols;
 	char		 name[0];
 };
 

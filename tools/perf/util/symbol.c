@@ -555,9 +555,10 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
 
 	memset(&sym, 0, sizeof(sym));
-	self->prelinked = elf_section_by_name(elf, &ehdr, &shdr,
-					      ".gnu.prelink_undo",
-					      NULL) != NULL;
+	self->adjust_symbols = (ehdr.e_type == ET_EXEC ||
+				elf_section_by_name(elf, &ehdr, &shdr,
+						     ".gnu.prelink_undo",
+						     NULL) != NULL);
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
 		struct symbol *f;
 		u64 obj_start;
@@ -580,7 +581,7 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 		section_name = elf_sec__name(&shdr, secstrs);
 		obj_start = sym.st_value;
 
-		if (self->prelinked) {
+		if (self->adjust_symbols) {
 			if (verbose >= 2)
 				printf("adjusting symbol: st_value: %Lx sh_addr: %Lx sh_offset: %Lx\n",
 					(u64)sym.st_value, (u64)shdr.sh_addr, (u64)shdr.sh_offset);
@@ -632,7 +633,7 @@ int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 	if (!name)
 		return -1;
 
-	self->prelinked = 0;
+	self->adjust_symbols = 0;
 
 	if (strncmp(self->name, "/tmp/perf-", 10) == 0)
 		return dso__load_perf_map(self, filter, verbose);
