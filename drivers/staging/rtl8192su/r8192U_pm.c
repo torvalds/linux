@@ -9,7 +9,6 @@
    Released under the terms of GPL (General Public Licence)
 */
 
-#ifdef CONFIG_RTL8192_PM
 #include "r8192U.h"
 #include "r8192U_pm.h"
 
@@ -71,4 +70,3 @@ int rtl8192U_enable_wake (struct pci_dev *dev, u32 state, int enable)
 	return(-EAGAIN);
 }
 
-#endif //CONFIG_RTL8192_PM

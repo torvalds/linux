@@ -76,9 +76,7 @@ double __extendsfdf2(float a) {return a;}
 //#include "r8192xU_phyreg.h"
 #include <linux/usb.h>
 
-#ifdef CONFIG_RTL8192_PM
 #include "r8192U_pm.h"
-#endif
 
 #include "ieee80211/dot11d.h"
 
@@ -97,9 +95,7 @@ double __extendsfdf2(float a) {return a;}
 //#include "r8192xU_phyreg.h"
 #include <linux/usb.h>
 
-#ifdef CONFIG_RTL8192_PM
 #include "r8192U_pm.h"
-#endif
 
 #include "ieee80211/dot11d.h"
 
@@ -222,15 +218,9 @@ static struct usb_driver rtl8192_usb_driver = {
 	.id_table	= rtl8192_usb_id_tbl,	          /* PCI_ID table  */
 	.probe		= rtl8192_usb_probe,	          /* probe fn      */
 	.disconnect	= rtl8192_usb_disconnect,	  /* remove fn     */
-#ifdef CONFIG_RTL8192_PM
 	.suspend	= rtl8192U_suspend,	          /* PM suspend fn */
 	.resume		= rtl8192U_resume,                 /* PM resume fn  */
 	.reset_resume   = rtl8192U_resume,                 /* PM reset resume fn  */
-#else
-	.suspend	= NULL,			          /* PM suspend fn */
-	.resume      	= NULL,			          /* PM resume fn  */
-	.reset_resume   = NULL,                 /* PM reset resume fn  */
-#endif
 };
 
 
