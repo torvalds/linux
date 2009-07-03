@@ -26,10 +26,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
-
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif
 
 extern void zfiRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo);
 extern void zfCoreRecv(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo);
