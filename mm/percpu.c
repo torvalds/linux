@@ -632,6 +632,13 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size,
 		pcpu_unmap(chunk, unmap_start, unmap_end, flush);
 }
 
+static int __pcpu_map_pages(unsigned long addr, struct page **pages,
+			    int nr_pages)
+{
+	return map_kernel_range_noflush(addr, nr_pages << PAGE_SHIFT,
+					PAGE_KERNEL, pages);
+}
+
 /**
  * pcpu_map - map pages into a pcpu_chunk
  * @chunk: chunk of interest
@@ -651,11 +658,9 @@ static int pcpu_map(struct pcpu_chunk *chunk, int page_start, int page_end)
 	WARN_ON(chunk->immutable);
 
 	for_each_possible_cpu(cpu) {
-		err = map_kernel_range_noflush(
-				pcpu_chunk_addr(chunk, cpu, page_start),
-				(page_end - page_start) << PAGE_SHIFT,
-				PAGE_KERNEL,
-				pcpu_chunk_pagep(chunk, cpu, page_start));
+		err = __pcpu_map_pages(pcpu_chunk_addr(chunk, cpu, page_start),
+				       pcpu_chunk_pagep(chunk, cpu, page_start),
+				       page_end - page_start);
 		if (err < 0)
 			return err;
 	}
@@ -1274,12 +1279,12 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
  * 4k page first chunk setup helper.
  */
 static struct page **pcpu4k_pages __initdata;
-static int pcpu4k_nr_static_pages __initdata;
+static int pcpu4k_unit_pages __initdata;
 
 static struct page * __init pcpu4k_get_page(unsigned int cpu, int pageno)
 {
-	if (pageno < pcpu4k_nr_static_pages)
-		return pcpu4k_pages[cpu * pcpu4k_nr_static_pages + pageno];
+	if (pageno < pcpu4k_unit_pages)
+		return pcpu4k_pages[cpu * pcpu4k_unit_pages + pageno];
 	return NULL;
 }
 
@@ -1306,22 +1311,24 @@ ssize_t __init pcpu_4k_first_chunk(size_t static_size, size_t reserved_size,
 				   pcpu_fc_free_fn_t free_fn,
 				   pcpu_fc_populate_pte_fn_t populate_pte_fn)
 {
+	static struct vm_struct vm;
 	size_t pages_size;
 	unsigned int cpu;
 	int i, j;
 	ssize_t ret;
 
-	pcpu4k_nr_static_pages = PFN_UP(static_size);
+	pcpu4k_unit_pages = PFN_UP(max_t(size_t, static_size + reserved_size,
+					 PCPU_MIN_UNIT_SIZE));
 
 	/* unaligned allocations can't be freed, round up to page size */
-	pages_size = PFN_ALIGN(pcpu4k_nr_static_pages * num_possible_cpus() *
+	pages_size = PFN_ALIGN(pcpu4k_unit_pages * num_possible_cpus() *
 			       sizeof(pcpu4k_pages[0]));
 	pcpu4k_pages = alloc_bootmem(pages_size);
 
-	/* allocate and copy */
+	/* allocate pages */
 	j = 0;
 	for_each_possible_cpu(cpu)
-		for (i = 0; i < pcpu4k_nr_static_pages; i++) {
+		for (i = 0; i < pcpu4k_unit_pages; i++) {
 			void *ptr;
 
 			ptr = alloc_fn(cpu, PAGE_SIZE);
@@ -1330,18 +1337,48 @@ ssize_t __init pcpu_4k_first_chunk(size_t static_size, size_t reserved_size,
 					   "4k page for cpu%u\n", cpu);
 				goto enomem;
 			}
-
-			memcpy(ptr, __per_cpu_load + i * PAGE_SIZE, PAGE_SIZE);
 			pcpu4k_pages[j++] = virt_to_page(ptr);
 		}
 
+	/* allocate vm area, map the pages and copy static data */
+	vm.flags = VM_ALLOC;
+	vm.size = num_possible_cpus() * pcpu4k_unit_pages << PAGE_SHIFT;
+	vm_area_register_early(&vm, PAGE_SIZE);
+
+	for_each_possible_cpu(cpu) {
+		unsigned long unit_addr = (unsigned long)vm.addr +
+			(cpu * pcpu4k_unit_pages << PAGE_SHIFT);
+
+		for (i = 0; i < pcpu4k_unit_pages; i++)
+			populate_pte_fn(unit_addr + (i << PAGE_SHIFT));
+
+		/* pte already populated, the following shouldn't fail */
+		ret = __pcpu_map_pages(unit_addr,
+				       &pcpu4k_pages[cpu * pcpu4k_unit_pages],
+				       pcpu4k_unit_pages);
+		if (ret < 0)
+			panic("failed to map percpu area, err=%zd\n", ret);
+
+		/*
+		 * FIXME: Archs with virtual cache should flush local
+		 * cache for the linear mapping here - something
+		 * equivalent to flush_cache_vmap() on the local cpu.
+		 * flush_cache_vmap() can't be used as most supporting
+		 * data structures are not set up yet.
+		 */
+
+		/* copy static data */
+		memcpy((void *)unit_addr, __per_cpu_load, static_size);
+	}
+
 	/* we're ready, commit */
-	pr_info("PERCPU: Allocated %d 4k pages, static data %zu bytes\n",
-		pcpu4k_nr_static_pages, static_size);
+	pr_info("PERCPU: %d 4k pages per cpu, static data %zu bytes\n",
+		pcpu4k_unit_pages, static_size);
 
 	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size,
 				     reserved_size, -1,
-				     -1, NULL, populate_pte_fn);
+				     pcpu4k_unit_pages << PAGE_SHIFT, vm.addr,
+				     NULL);
 	goto out_free_ar;
 
 enomem:
