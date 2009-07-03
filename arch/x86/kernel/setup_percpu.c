@@ -149,25 +149,26 @@ static void __init pcpul_map(void *ptr, size_t size, void *addr)
 	set_pmd(pmd, pmd_v);
 }
 
+static int pcpu_lpage_cpu_distance(unsigned int from, unsigned int to)
+{
+	if (early_cpu_to_node(from) == early_cpu_to_node(to))
+		return LOCAL_DISTANCE;
+	else
+		return REMOTE_DISTANCE;
+}
+
 static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 {
 	size_t reserve = PERCPU_MODULE_RESERVE + PERCPU_DYNAMIC_RESERVE;
+	size_t dyn_size = reserve - PERCPU_FIRST_CHUNK_RESERVE;
+	size_t unit_map_size, unit_size;
+	int *unit_map;
+	int nr_units;
+	ssize_t ret;
 
-	if (!chosen) {
-		size_t vm_size = VMALLOC_END - VMALLOC_START;
-		size_t tot_size = num_possible_cpus() * PMD_SIZE;
-
-		/* on non-NUMA, embedding is better */
-		if (!pcpu_need_numa())
-			return -EINVAL;
-
-		/* don't consume more than 20% of vmalloc area */
-		if (tot_size > vm_size / 5) {
-			pr_info("PERCPU: too large chunk size %zuMB for "
-				"large page remap\n", tot_size >> 20);
-			return -EINVAL;
-		}
-	}
+	/* on non-NUMA, embedding is better */
+	if (!chosen && !pcpu_need_numa())
+		return -EINVAL;
 
 	/* need PSE */
 	if (!cpu_has_pse) {
@@ -175,10 +176,46 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 		return -EINVAL;
 	}
 
-	return pcpu_lpage_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
-				      reserve - PERCPU_FIRST_CHUNK_RESERVE,
-				      PMD_SIZE,
-				      pcpu_fc_alloc, pcpu_fc_free, pcpul_map);
+	/* allocate and build unit_map */
+	unit_map_size = num_possible_cpus() * sizeof(int);
+	unit_map = alloc_bootmem_nopanic(unit_map_size);
+	if (!unit_map) {
+		pr_warning("PERCPU: failed to allocate unit_map\n");
+		return -ENOMEM;
+	}
+
+	ret = pcpu_lpage_build_unit_map(static_size,
+					PERCPU_FIRST_CHUNK_RESERVE,
+					&dyn_size, &unit_size, PMD_SIZE,
+					unit_map, pcpu_lpage_cpu_distance);
+	if (ret < 0) {
+		pr_warning("PERCPU: failed to build unit_map\n");
+		goto out_free;
+	}
+	nr_units = ret;
+
+	/* do the parameters look okay? */
+	if (!chosen) {
+		size_t vm_size = VMALLOC_END - VMALLOC_START;
+		size_t tot_size = nr_units * unit_size;
+
+		/* don't consume more than 20% of vmalloc area */
+		if (tot_size > vm_size / 5) {
+			pr_info("PERCPU: too large chunk size %zuMB for "
+				"large page remap\n", tot_size >> 20);
+			ret = -EINVAL;
+			goto out_free;
+		}
+	}
+
+	ret = pcpu_lpage_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
+				     dyn_size, unit_size, PMD_SIZE,
+				     unit_map, nr_units,
+				     pcpu_fc_alloc, pcpu_fc_free, pcpul_map);
+out_free:
+	if (ret < 0)
+		free_bootmem(__pa(unit_map), unit_map_size);
+	return ret;
 }
 #else
 static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
@@ -299,7 +336,8 @@ void __init setup_per_cpu_areas(void)
 	/* alrighty, percpu areas up and running */
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
 	for_each_possible_cpu(cpu) {
-		per_cpu_offset(cpu) = delta + cpu * pcpu_unit_size;
+		per_cpu_offset(cpu) =
+			delta + pcpu_unit_map[cpu] * pcpu_unit_size;
 		per_cpu(this_cpu_off, cpu) = per_cpu_offset(cpu);
 		per_cpu(cpu_number, cpu) = cpu;
 		setup_percpu_segment(cpu);

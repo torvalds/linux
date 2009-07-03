@@ -62,6 +62,7 @@ extern const int *pcpu_unit_map;
 typedef void * (*pcpu_fc_alloc_fn_t)(unsigned int cpu, size_t size);
 typedef void (*pcpu_fc_free_fn_t)(void *ptr, size_t size);
 typedef void (*pcpu_fc_populate_pte_fn_t)(unsigned long addr);
+typedef int (pcpu_fc_cpu_distance_fn_t)(unsigned int from, unsigned int to);
 typedef void (*pcpu_fc_map_fn_t)(void *ptr, size_t size, void *addr);
 
 extern size_t __init pcpu_setup_first_chunk(
@@ -80,18 +81,37 @@ extern ssize_t __init pcpu_4k_first_chunk(
 				pcpu_fc_populate_pte_fn_t populate_pte_fn);
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
+extern int __init pcpu_lpage_build_unit_map(
+				size_t static_size, size_t reserved_size,
+				ssize_t *dyn_sizep, size_t *unit_sizep,
+				size_t lpage_size, int *unit_map,
+				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
+
 extern ssize_t __init pcpu_lpage_first_chunk(
 				size_t static_size, size_t reserved_size,
-				ssize_t dyn_size, size_t lpage_size,
+				size_t dyn_size, size_t unit_size,
+				size_t lpage_size, const int *unit_map,
+				int nr_units,
 				pcpu_fc_alloc_fn_t alloc_fn,
 				pcpu_fc_free_fn_t free_fn,
 				pcpu_fc_map_fn_t map_fn);
 
 extern void *pcpu_lpage_remapped(void *kaddr);
 #else
+static inline int pcpu_lpage_build_unit_map(
+				size_t static_size, size_t reserved_size,
+				ssize_t *dyn_sizep, size_t *unit_sizep,
+				size_t lpage_size, int *unit_map,
+				pcpu_fc_cpu_distance_fn_t cpu_distance_fn)
+{
+	return -EINVAL;
+}
+
 static inline ssize_t __init pcpu_lpage_first_chunk(
 				size_t static_size, size_t reserved_size,
-				ssize_t dyn_size, size_t lpage_size,
+				size_t dyn_size, size_t unit_size,
+				size_t lpage_size, const int *unit_map,
+				int nr_units,
 				pcpu_fc_alloc_fn_t alloc_fn,
 				pcpu_fc_free_fn_t free_fn,
 				pcpu_fc_map_fn_t map_fn)

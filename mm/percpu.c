@@ -59,6 +59,7 @@
 #include <linux/bitmap.h>
 #include <linux/bootmem.h>
 #include <linux/list.h>
+#include <linux/log2.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -1594,75 +1595,259 @@ out_free_ar:
  * Large page remapping first chunk setup helper
  */
 #ifdef CONFIG_NEED_MULTIPLE_NODES
+
+/**
+ * pcpu_lpage_build_unit_map - build unit_map for large page remapping
+ * @static_size: the size of static percpu area in bytes
+ * @reserved_size: the size of reserved percpu area in bytes
+ * @dyn_sizep: in/out parameter for dynamic size, -1 for auto
+ * @unit_sizep: out parameter for unit size
+ * @unit_map: unit_map to be filled
+ * @cpu_distance_fn: callback to determine distance between cpus
+ *
+ * This function builds cpu -> unit map and determine other parameters
+ * considering needed percpu size, large page size and distances
+ * between CPUs in NUMA.
+ *
+ * CPUs which are of LOCAL_DISTANCE both ways are grouped together and
+ * may share units in the same large page.  The returned configuration
+ * is guaranteed to have CPUs on different nodes on different large
+ * pages and >=75% usage of allocated virtual address space.
+ *
+ * RETURNS:
+ * On success, fills in @unit_map, sets *@dyn_sizep, *@unit_sizep and
+ * returns the number of units to be allocated.  -errno on failure.
+ */
+int __init pcpu_lpage_build_unit_map(size_t static_size, size_t reserved_size,
+				     ssize_t *dyn_sizep, size_t *unit_sizep,
+				     size_t lpage_size, int *unit_map,
+				     pcpu_fc_cpu_distance_fn_t cpu_distance_fn)
+{
+	static int group_map[NR_CPUS] __initdata;
+	static int group_cnt[NR_CPUS] __initdata;
+	int group_cnt_max = 0;
+	size_t size_sum, min_unit_size, alloc_size;
+	int upa, max_upa, uninitialized_var(best_upa);	/* units_per_alloc */
+	int last_allocs;
+	unsigned int cpu, tcpu;
+	int group, unit;
+
+	/*
+	 * Determine min_unit_size, alloc_size and max_upa such that
+	 * alloc_size is multiple of lpage_size and is the smallest
+	 * which can accomodate 4k aligned segments which are equal to
+	 * or larger than min_unit_size.
+	 */
+	size_sum = pcpu_calc_fc_sizes(static_size, reserved_size, dyn_sizep);
+	min_unit_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
+
+	alloc_size = roundup(min_unit_size, lpage_size);
+	upa = alloc_size / min_unit_size;
+	while (alloc_size % upa || ((alloc_size / upa) & ~PAGE_MASK))
+		upa--;
+	max_upa = upa;
+
+	/* group cpus according to their proximity */
+	for_each_possible_cpu(cpu) {
+		group = 0;
+	next_group:
+		for_each_possible_cpu(tcpu) {
+			if (cpu == tcpu)
+				break;
+			if (group_map[tcpu] == group &&
+			    (cpu_distance_fn(cpu, tcpu) > LOCAL_DISTANCE ||
+			     cpu_distance_fn(tcpu, cpu) > LOCAL_DISTANCE)) {
+				group++;
+				goto next_group;
+			}
+		}
+		group_map[cpu] = group;
+		group_cnt[group]++;
+		group_cnt_max = max(group_cnt_max, group_cnt[group]);
+	}
+
+	/*
+	 * Expand unit size until address space usage goes over 75%
+	 * and then as much as possible without using more address
+	 * space.
+	 */
+	last_allocs = INT_MAX;
+	for (upa = max_upa; upa; upa--) {
+		int allocs = 0, wasted = 0;
+
+		if (alloc_size % upa || ((alloc_size / upa) & ~PAGE_MASK))
+			continue;
+
+		for (group = 0; group_cnt[group]; group++) {
+			int this_allocs = DIV_ROUND_UP(group_cnt[group], upa);
+			allocs += this_allocs;
+			wasted += this_allocs * upa - group_cnt[group];
+		}
+
+		/*
+		 * Don't accept if wastage is over 25%.  The
+		 * greater-than comparison ensures upa==1 always
+		 * passes the following check.
+		 */
+		if (wasted > num_possible_cpus() / 3)
+			continue;
+
+		/* and then don't consume more memory */
+		if (allocs > last_allocs)
+			break;
+		last_allocs = allocs;
+		best_upa = upa;
+	}
+	*unit_sizep = alloc_size / best_upa;
+
+	/* assign units to cpus accordingly */
+	unit = 0;
+	for (group = 0; group_cnt[group]; group++) {
+		for_each_possible_cpu(cpu)
+			if (group_map[cpu] == group)
+				unit_map[cpu] = unit++;
+		unit = roundup(unit, best_upa);
+	}
+
+	return unit;	/* unit contains aligned number of units */
+}
+
 struct pcpul_ent {
-	unsigned int	cpu;
 	void		*ptr;
+	void		*map_addr;
 };
 
 static size_t pcpul_size;
-static size_t pcpul_unit_size;
+static size_t pcpul_lpage_size;
+static int pcpul_nr_lpages;
 static struct pcpul_ent *pcpul_map;
-static struct vm_struct pcpul_vm;
+
+static bool __init pcpul_unit_to_cpu(int unit, const int *unit_map,
+				     unsigned int *cpup)
+{
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu)
+		if (unit_map[cpu] == unit) {
+			if (cpup)
+				*cpup = cpu;
+			return true;
+		}
+
+	return false;
+}
+
+static void __init pcpul_lpage_dump_cfg(const char *lvl, size_t static_size,
+					size_t reserved_size, size_t dyn_size,
+					size_t unit_size, size_t lpage_size,
+					const int *unit_map, int nr_units)
+{
+	int width = 1, v = nr_units;
+	char empty_str[] = "--------";
+	int upl, lpl;	/* units per lpage, lpage per line */
+	unsigned int cpu;
+	int lpage, unit;
+
+	while (v /= 10)
+		width++;
+	empty_str[min_t(int, width, sizeof(empty_str) - 1)] = '\0';
+
+	upl = max_t(int, lpage_size / unit_size, 1);
+	lpl = rounddown_pow_of_two(max_t(int, 60 / (upl * (width + 1) + 2), 1));
+
+	printk("%spcpu-lpage: sta/res/dyn=%zu/%zu/%zu unit=%zu lpage=%zu", lvl,
+	       static_size, reserved_size, dyn_size, unit_size, lpage_size);
+
+	for (lpage = 0, unit = 0; unit < nr_units; unit++) {
+		if (!(unit % upl)) {
+			if (!(lpage++ % lpl)) {
+				printk("\n");
+				printk("%spcpu-lpage: ", lvl);
+			} else
+				printk("| ");
+		}
+		if (pcpul_unit_to_cpu(unit, unit_map, &cpu))
+			printk("%0*d ", width, cpu);
+		else
+			printk("%s ", empty_str);
+	}
+	printk("\n");
+}
 
 /**
  * pcpu_lpage_first_chunk - remap the first percpu chunk using large page
  * @static_size: the size of static percpu area in bytes
  * @reserved_size: the size of reserved percpu area in bytes
- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
+ * @dyn_size: free size for dynamic allocation in bytes
+ * @unit_size: unit size in bytes
  * @lpage_size: the size of a large page
+ * @unit_map: cpu -> unit mapping
+ * @nr_units: the number of units
  * @alloc_fn: function to allocate percpu lpage, always called with lpage_size
  * @free_fn: function to free percpu memory, @size <= lpage_size
  * @map_fn: function to map percpu lpage, always called with lpage_size
  *
- * This allocator uses large page as unit.  A large page is allocated
- * for each cpu and each is remapped into vmalloc area using large
- * page mapping.  As large page can be quite large, only part of it is
- * used for the first chunk.  Unused part is returned to the bootmem
- * allocator.
+ * This allocator uses large page to build and map the first chunk.
+ * Unlike other helpers, the caller should always specify @dyn_size
+ * and @unit_size.  These parameters along with @unit_map and
+ * @nr_units can be determined using pcpu_lpage_build_unit_map().
+ * This two stage initialization is to allow arch code to evaluate the
+ * parameters before committing to it.
  *
- * So, the large pages are mapped twice - once to the physical mapping
- * and to the vmalloc area for the first percpu chunk.  The double
- * mapping does add one more large TLB entry pressure but still is
- * much better than only using 4k mappings while still being NUMA
- * friendly.
+ * Large pages are allocated as directed by @unit_map and other
+ * parameters and mapped to vmalloc space.  Unused holes are returned
+ * to the page allocator.  Note that these holes end up being actively
+ * mapped twice - once to the physical mapping and to the vmalloc area
+ * for the first percpu chunk.  Depending on architecture, this might
+ * cause problem when changing page attributes of the returned area.
+ * These double mapped areas can be detected using
+ * pcpu_lpage_remapped().
  *
  * RETURNS:
  * The determined pcpu_unit_size which can be used to initialize
  * percpu access on success, -errno on failure.
  */
 ssize_t __init pcpu_lpage_first_chunk(size_t static_size, size_t reserved_size,
-				      ssize_t dyn_size, size_t lpage_size,
+				      size_t dyn_size, size_t unit_size,
+				      size_t lpage_size, const int *unit_map,
+				      int nr_units,
 				      pcpu_fc_alloc_fn_t alloc_fn,
 				      pcpu_fc_free_fn_t free_fn,
 				      pcpu_fc_map_fn_t map_fn)
 {
-	size_t size_sum;
+	static struct vm_struct vm;
+	size_t chunk_size = unit_size * nr_units;
 	size_t map_size;
 	unsigned int cpu;
-	int i, j;
 	ssize_t ret;
+	int i, j, unit;
 
-	/*
-	 * Currently supports only single page.  Supporting multiple
-	 * pages won't be too difficult if it ever becomes necessary.
-	 */
-	size_sum = pcpu_calc_fc_sizes(static_size, reserved_size, &dyn_size);
+	pcpul_lpage_dump_cfg(KERN_DEBUG, static_size, reserved_size, dyn_size,
+			     unit_size, lpage_size, unit_map, nr_units);
 
-	pcpul_unit_size = lpage_size;
-	pcpul_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
-	if (pcpul_size > pcpul_unit_size) {
-		pr_warning("PERCPU: static data is larger than large page, "
-			   "can't use large page\n");
-		return -EINVAL;
-	}
+	BUG_ON(chunk_size % lpage_size);
+
+	pcpul_size = static_size + reserved_size + dyn_size;
+	pcpul_lpage_size = lpage_size;
+	pcpul_nr_lpages = chunk_size / lpage_size;
 
 	/* allocate pointer array and alloc large pages */
-	map_size = PFN_ALIGN(num_possible_cpus() * sizeof(pcpul_map[0]));
+	map_size = pcpul_nr_lpages * sizeof(pcpul_map[0]);
 	pcpul_map = alloc_bootmem(map_size);
 
-	for_each_possible_cpu(cpu) {
+	/* allocate all pages */
+	for (i = 0; i < pcpul_nr_lpages; i++) {
+		size_t offset = i * lpage_size;
+		int first_unit = offset / unit_size;
+		int last_unit = (offset + lpage_size - 1) / unit_size;
 		void *ptr;
 
+		/* find out which cpu is mapped to this unit */
+		for (unit = first_unit; unit <= last_unit; unit++)
+			if (pcpul_unit_to_cpu(unit, unit_map, &cpu))
+				goto found;
+		continue;
+	found:
 		ptr = alloc_fn(cpu, lpage_size);
 		if (!ptr) {
 			pr_warning("PERCPU: failed to allocate large page "
@@ -1670,53 +1855,79 @@ ssize_t __init pcpu_lpage_first_chunk(size_t static_size, size_t reserved_size,
 			goto enomem;
 		}
 
-		/*
-		 * Only use pcpul_size bytes and give back the rest.
-		 *
-		 * Ingo: The lpage_size up-rounding bootmem is needed
-		 * to make sure the partial lpage is still fully RAM -
-		 * it's not well-specified to have a incompatible area
-		 * (unmapped RAM, device memory, etc.) in that hole.
-		 */
-		free_fn(ptr + pcpul_size, lpage_size - pcpul_size);
-
-		pcpul_map[cpu].cpu = cpu;
-		pcpul_map[cpu].ptr = ptr;
-
-		memcpy(ptr, __per_cpu_load, static_size);
+		pcpul_map[i].ptr = ptr;
 	}
 
-	/* allocate address and map */
-	pcpul_vm.flags = VM_ALLOC;
-	pcpul_vm.size = num_possible_cpus() * pcpul_unit_size;
-	vm_area_register_early(&pcpul_vm, pcpul_unit_size);
+	/* return unused holes */
+	for (unit = 0; unit < nr_units; unit++) {
+		size_t start = unit * unit_size;
+		size_t end = start + unit_size;
+		size_t off, next;
+
+		/* don't free used part of occupied unit */
+		if (pcpul_unit_to_cpu(unit, unit_map, NULL))
+			start += pcpul_size;
+
+		/* unit can span more than one page, punch the holes */
+		for (off = start; off < end; off = next) {
+			void *ptr = pcpul_map[off / lpage_size].ptr;
+			next = min(roundup(off + 1, lpage_size), end);
+			if (ptr)
+				free_fn(ptr + off % lpage_size, next - off);
+		}
+	}
+
+	/* allocate address, map and copy */
+	vm.flags = VM_ALLOC;
+	vm.size = chunk_size;
+	vm_area_register_early(&vm, unit_size);
+
+	for (i = 0; i < pcpul_nr_lpages; i++) {
+		if (!pcpul_map[i].ptr)
+			continue;
+		pcpul_map[i].map_addr = vm.addr + i * lpage_size;
+		map_fn(pcpul_map[i].ptr, lpage_size, pcpul_map[i].map_addr);
+	}
 
 	for_each_possible_cpu(cpu)
-		map_fn(pcpul_map[cpu].ptr, pcpul_unit_size,
-		       pcpul_vm.addr + cpu * pcpul_unit_size);
+		memcpy(vm.addr + unit_map[cpu] * unit_size, __per_cpu_load,
+		       static_size);
 
 	/* we're ready, commit */
 	pr_info("PERCPU: Remapped at %p with large pages, static data "
-		"%zu bytes\n", pcpul_vm.addr, static_size);
+		"%zu bytes\n", vm.addr, static_size);
 
 	ret = pcpu_setup_first_chunk(static_size, reserved_size, dyn_size,
-				     pcpul_unit_size, pcpul_vm.addr, NULL);
+				     unit_size, vm.addr, unit_map);
 
-	/* sort pcpul_map array for pcpu_lpage_remapped() */
-	for (i = 0; i < num_possible_cpus() - 1; i++)
-		for (j = i + 1; j < num_possible_cpus(); j++)
-			if (pcpul_map[i].ptr > pcpul_map[j].ptr) {
-				struct pcpul_ent tmp = pcpul_map[i];
-				pcpul_map[i] = pcpul_map[j];
-				pcpul_map[j] = tmp;
-			}
+	/*
+	 * Sort pcpul_map array for pcpu_lpage_remapped().  Unmapped
+	 * lpages are pushed to the end and trimmed.
+	 */
+	for (i = 0; i < pcpul_nr_lpages - 1; i++)
+		for (j = i + 1; j < pcpul_nr_lpages; j++) {
+			struct pcpul_ent tmp;
+
+			if (!pcpul_map[j].ptr)
+				continue;
+			if (pcpul_map[i].ptr &&
+			    pcpul_map[i].ptr < pcpul_map[j].ptr)
+				continue;
+
+			tmp = pcpul_map[i];
+			pcpul_map[i] = pcpul_map[j];
+			pcpul_map[j] = tmp;
+		}
+
+	while (pcpul_nr_lpages && !pcpul_map[pcpul_nr_lpages - 1].ptr)
+		pcpul_nr_lpages--;
 
 	return ret;
 
 enomem:
-	for_each_possible_cpu(cpu)
-		if (pcpul_map[cpu].ptr)
-			free_fn(pcpul_map[cpu].ptr, pcpul_size);
+	for (i = 0; i < pcpul_nr_lpages; i++)
+		if (pcpul_map[i].ptr)
+			free_fn(pcpul_map[i].ptr, lpage_size);
 	free_bootmem(__pa(pcpul_map), map_size);
 	return -ENOMEM;
 }
@@ -1739,10 +1950,10 @@ enomem:
  */
 void *pcpu_lpage_remapped(void *kaddr)
 {
-	unsigned long unit_mask = pcpul_unit_size - 1;
-	void *lpage_addr = (void *)((unsigned long)kaddr & ~unit_mask);
-	unsigned long offset = (unsigned long)kaddr & unit_mask;
-	int left = 0, right = num_possible_cpus() - 1;
+	unsigned long lpage_mask = pcpul_lpage_size - 1;
+	void *lpage_addr = (void *)((unsigned long)kaddr & ~lpage_mask);
+	unsigned long offset = (unsigned long)kaddr & lpage_mask;
+	int left = 0, right = pcpul_nr_lpages - 1;
 	int pos;
 
 	/* pcpul in use at all? */
@@ -1757,13 +1968,8 @@ void *pcpu_lpage_remapped(void *kaddr)
 			left = pos + 1;
 		else if (pcpul_map[pos].ptr > lpage_addr)
 			right = pos - 1;
-		else {
-			/* it shouldn't be in the area for the first chunk */
-			WARN_ON(offset < pcpul_size);
-
-			return pcpul_vm.addr +
-				pcpul_map[pos].cpu * pcpul_unit_size + offset;
-		}
+		else
+			return pcpul_map[pos].map_addr + offset;
 	}
 
 	return NULL;
