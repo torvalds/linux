@@ -150,9 +150,9 @@ config LEDS_LP3944
 	tristate "LED Support for N.S. LP3944 (Fun Light) I2C chip"
 	depends on LEDS_CLASS && I2C
 	help
-    This option enables support for LEDs connected to the National
-    Semiconductor LP3944 Lighting Management Unit (LMU) also known as
-    Fun Light Chip.
+	  This option enables support for LEDs connected to the National
+	  Semiconductor LP3944 Lighting Management Unit (LMU) also known as
+	  Fun Light Chip.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-lp3944.
