@@ -290,7 +290,7 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 	void *first_start = pcpu_first_chunk->vm->addr;
 
 	/* is it in the first chunk? */
-	if (addr >= first_start && addr < first_start + pcpu_chunk_size) {
+	if (addr >= first_start && addr < first_start + pcpu_unit_size) {
 		/* is it in the reserved area? */
 		if (addr < first_start + pcpu_reserved_chunk_limit)
 			return pcpu_reserved_chunk;
