@@ -49,17 +49,17 @@ static inline int __vmware_platform(void)
 
 static unsigned long __vmware_get_tsc_khz(void)
 {
-        uint64_t tsc_hz;
-        uint32_t eax, ebx, ecx, edx;
+	uint64_t tsc_hz;
+	uint32_t eax, ebx, ecx, edx;
 
-        VMWARE_PORT(GETHZ, eax, ebx, ecx, edx);
+	VMWARE_PORT(GETHZ, eax, ebx, ecx, edx);
 
-        if (ebx == UINT_MAX)
-                return 0;
-        tsc_hz = eax | (((uint64_t)ebx) << 32);
-        do_div(tsc_hz, 1000);
-        BUG_ON(tsc_hz >> 32);
-        return tsc_hz;
+	if (ebx == UINT_MAX)
+		return 0;
+	tsc_hz = eax | (((uint64_t)ebx) << 32);
+	do_div(tsc_hz, 1000);
+	BUG_ON(tsc_hz >> 32);
+	return tsc_hz;
 }
 
 /*

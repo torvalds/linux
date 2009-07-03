@@ -128,7 +128,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			if (i < ARRAY_SIZE(x86_power_flags) &&
 			    x86_power_flags[i])
 				seq_printf(m, "%s%s",
-					   x86_power_flags[i][0]?" ":"",
+					   x86_power_flags[i][0] ? " " : "",
 					   x86_power_flags[i]);
 			else
 				seq_printf(m, " [%d]", i);

@@ -28,11 +28,10 @@
 static inline void __cpuinit
 detect_hypervisor_vendor(struct cpuinfo_x86 *c)
 {
-	if (vmware_platform()) {
+	if (vmware_platform())
 		c->x86_hyper_vendor = X86_HYPER_VENDOR_VMWARE;
-	} else {
+	else
 		c->x86_hyper_vendor = X86_HYPER_VENDOR_NONE;
-	}
 }
 
 unsigned long get_hypervisor_tsc_freq(void)
