@@ -1415,19 +1415,6 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 #endif
 }
 
-static size_t pcpur_size __initdata;
-static void **pcpur_ptrs __initdata;
-
-static struct page * __init pcpur_get_page(unsigned int cpu, int pageno)
-{
-	size_t off = (size_t)pageno << PAGE_SHIFT;
-
-	if (off >= pcpur_size)
-		return NULL;
-
-	return virt_to_page(pcpur_ptrs[cpu] + off);
-}
-
 #define PCPU_CHUNK_SIZE (4UL * 1024UL * 1024UL)
 
 static void __init pcpu_map_range(unsigned long start, unsigned long end,
@@ -1491,25 +1478,26 @@ void __init setup_per_cpu_areas(void)
 	size_t dyn_size, static_size = __per_cpu_end - __per_cpu_start;
 	static struct vm_struct vm;
 	unsigned long delta, cpu;
-	size_t pcpu_unit_size;
+	size_t size_sum, pcpu_unit_size;
 	size_t ptrs_size;
+	void **ptrs;
 
-	pcpur_size = PFN_ALIGN(static_size + PERCPU_MODULE_RESERVE +
-			       PERCPU_DYNAMIC_RESERVE);
-	dyn_size = pcpur_size - static_size - PERCPU_MODULE_RESERVE;
+	size_sum = PFN_ALIGN(static_size + PERCPU_MODULE_RESERVE +
+			     PERCPU_DYNAMIC_RESERVE);
+	dyn_size = size_sum - static_size - PERCPU_MODULE_RESERVE;
 
 
-	ptrs_size = PFN_ALIGN(num_possible_cpus() * sizeof(pcpur_ptrs[0]));
-	pcpur_ptrs = alloc_bootmem(ptrs_size);
+	ptrs_size = PFN_ALIGN(num_possible_cpus() * sizeof(ptrs[0]));
+	ptrs = alloc_bootmem(ptrs_size);
 
 	for_each_possible_cpu(cpu) {
-		pcpur_ptrs[cpu] = pcpu_alloc_bootmem(cpu, PCPU_CHUNK_SIZE,
-						     PCPU_CHUNK_SIZE);
+		ptrs[cpu] = pcpu_alloc_bootmem(cpu, PCPU_CHUNK_SIZE,
+					       PCPU_CHUNK_SIZE);
 
-		free_bootmem(__pa(pcpur_ptrs[cpu] + pcpur_size),
-			     PCPU_CHUNK_SIZE - pcpur_size);
+		free_bootmem(__pa(ptrs[cpu] + size_sum),
+			     PCPU_CHUNK_SIZE - size_sum);
 
-		memcpy(pcpur_ptrs[cpu], __per_cpu_load, static_size);
+		memcpy(ptrs[cpu], __per_cpu_load, static_size);
 	}
 
 	/* allocate address and map */
@@ -1523,14 +1511,14 @@ void __init setup_per_cpu_areas(void)
 
 		start += cpu * PCPU_CHUNK_SIZE;
 		end = start + PCPU_CHUNK_SIZE;
-		pcpu_map_range(start, end, virt_to_page(pcpur_ptrs[cpu]));
+		pcpu_map_range(start, end, virt_to_page(ptrs[cpu]));
 	}
 
-	pcpu_unit_size = pcpu_setup_first_chunk(pcpur_get_page, static_size,
+	pcpu_unit_size = pcpu_setup_first_chunk(static_size,
 						PERCPU_MODULE_RESERVE, dyn_size,
 						PCPU_CHUNK_SIZE, vm.addr);
 
-	free_bootmem(__pa(pcpur_ptrs), ptrs_size);
+	free_bootmem(__pa(ptrs), ptrs_size);
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
 	for_each_possible_cpu(cpu) {
