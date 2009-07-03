@@ -684,21 +684,10 @@ RT_STATUS phy_RF6052_Config_ParaFile(struct net_device* dev)
 		switch(eRFPath)
 		{
 		case RF90_PATH_A:
-#if	RTL8190_Download_Firmware_From_Header
 			rtStatus= rtl8192_phy_ConfigRFWithHeaderFile(dev,(RF90_RADIO_PATH_E)eRFPath);
-#else
-			rtStatus = PHY_ConfigRFWithParaFile(Adapter, (char* )&szRadioAFile, (RF90_RADIO_PATH_E)eRFPath);
-#endif
 			break;
 		case RF90_PATH_B:
-#if	RTL8190_Download_Firmware_From_Header
 			rtStatus= rtl8192_phy_ConfigRFWithHeaderFile(dev,(RF90_RADIO_PATH_E)eRFPath);
-#else
-			if(priv->rf_type == RF_2T2R_GREEN)
-				rtStatus = PHY_ConfigRFWithParaFile(Adapter, (ps1Byte)&szRadioBGMFile, (RF90_RADIO_PATH_E)eRFPath);
-			else
-				rtStatus = PHY_ConfigRFWithParaFile(Adapter, (char* )&szRadioBFile, (RF90_RADIO_PATH_E)eRFPath);
-#endif
 			break;
 		case RF90_PATH_C:
 			break;

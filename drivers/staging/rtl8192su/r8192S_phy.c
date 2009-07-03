@@ -1331,13 +1331,7 @@ extern bool PHY_MACConfig8192S(struct net_device* dev)
 	//
 	// Config MAC
 	//
-#if RTL8190_Download_Firmware_From_Header
 	rtStatus = phy_ConfigMACWithHeaderFile(dev);
-#else
-	// Not make sure EEPROM, add later
-	RT_TRACE(COMP_INIT, "Read MACREG.txt\n");
-	//rtStatus = phy_ConfigMACWithParaFile(dev, RTL819X_PHY_MACREG);// lzm del it temp
-#endif
 	return (rtStatus == RT_STATUS_SUCCESS) ? true:false;
 
 }
@@ -1545,7 +1539,6 @@ phy_BB8192S_Config_ParaFile(struct net_device* dev)
 	// 1. Read PHY_REG.TXT BB INIT!!
 	// We will seperate as 1T1R/1T2R/1T2R_GREEN/2T2R
 	//
-#if RTL8190_Download_Firmware_From_Header
 	if (priv->rf_type == RF_1T2R || priv->rf_type == RF_2T2R ||
 	    priv->rf_type == RF_1T1R ||priv->rf_type == RF_2T2R_GREEN)
 	{
@@ -1557,26 +1550,6 @@ phy_BB8192S_Config_ParaFile(struct net_device* dev)
 		}
 	}else
 		rtStatus = RT_STATUS_FAILURE;
-#else
-	RT_TRACE(COMP_INIT, "RF_Type == %d\n", priv->rf_type);
-	// No matter what kind of RF we always read PHY_REG.txt. We must copy different
-	// type of parameter files to phy_reg.txt at first.
-	if (priv->rf_type == RF_1T2R || priv->rf_type == RF_2T2R ||
-	    priv->rf_type == RF_1T1R ||priv->rf_type == RF_2T2R_GREEN)
-	{
-		rtStatus = phy_ConfigBBWithParaFile(dev, (char* )&szBBRegFile);
-		if(priv->rf_type != RF_2T2R && priv->rf_type != RF_2T2R_GREEN)
-		{//2008.11.10 Added by tynli. The default PHY_REG.txt we read is for 2T2R,
-		  //so we should reconfig BB reg with the right PHY parameters.
-			if(priv->rf_type == RF_1T1R)
-				rtStatus = phy_SetBBtoDiffRFWithParaFile(dev, (char* )&szBBRegto1T1RFile);
-			else if(priv->rf_type == RF_1T2R)
-				rtStatus = phy_SetBBtoDiffRFWithParaFile(dev, (char* )&szBBRegto1T2RFile);
-		}
-
-	}else
-		rtStatus = RT_STATUS_FAILURE;
-#endif
 
 	if(rtStatus != RT_STATUS_SUCCESS){
 		RT_TRACE(COMP_INIT, "phy_BB8192S_Config_ParaFile():Write BB Reg Fail!!");
@@ -1588,11 +1561,7 @@ phy_BB8192S_Config_ParaFile(struct net_device* dev)
 	//
 	if (priv->AutoloadFailFlag == false)
 	{
-#if	RTL8190_Download_Firmware_From_Header
 		rtStatus = phy_ConfigBBWithPgHeaderFile(dev,BaseBand_Config_PHY_REG);
-#else
-		rtStatus = phy_ConfigBBWithPgParaFile(dev, (char* )&szBBRegPgFile);
-#endif
 	}
 	if(rtStatus != RT_STATUS_SUCCESS){
 		RT_TRACE(COMP_INIT, "phy_BB8192S_Config_ParaFile():BB_PG Reg Fail!!");
@@ -1602,12 +1571,7 @@ phy_BB8192S_Config_ParaFile(struct net_device* dev)
 	//
 	// 3. BB AGC table Initialization
 	//
-#if RTL8190_Download_Firmware_From_Header
 	rtStatus = phy_ConfigBBWithHeaderFile(dev,BaseBand_Config_AGC_TAB);
-#else
-	RT_TRACE(COMP_INIT, "phy_BB8192S_Config_ParaFile AGC_TAB.txt\n");
-	rtStatus = phy_ConfigBBWithParaFile(Adapter, (char* )&szAGCTableFile);
-#endif
 
 	if(rtStatus != RT_STATUS_SUCCESS){
 		printk( "phy_BB8192S_Config_ParaFile():AGC Table Fail\n");
