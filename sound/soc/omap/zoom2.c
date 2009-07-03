@@ -35,7 +35,8 @@
 #include "omap-pcm.h"
 #include "../codecs/twl4030.h"
 
-#define ZOOM2_HEADSET_MUX_GPIO	(OMAP_MAX_GPIO_LINES + 15)
+#define ZOOM2_HEADSET_MUX_GPIO		(OMAP_MAX_GPIO_LINES + 15)
+#define ZOOM2_HEADSET_EXTMUTE_GPIO	153
 
 static int zoom2_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
@@ -234,10 +235,18 @@ static struct snd_soc_card snd_soc_zoom2 = {
 	.num_links = ARRAY_SIZE(zoom2_dai),
 };
 
+/* EXTMUTE callback function */
+void zoom2_set_hs_extmute(int mute)
+{
+	gpio_set_value(ZOOM2_HEADSET_EXTMUTE_GPIO, mute);
+}
+
 /* twl4030 setup */
 static struct twl4030_setup_data twl4030_setup = {
-	.ramp_delay_value = 2,	/* 81 ms */
+	.ramp_delay_value = 3,	/* 161 ms */
 	.sysclk = 26000,
+	.hs_extmute = 1,
+	.set_hs_extmute = zoom2_set_hs_extmute,
 };
 
 /* Audio subsystem */
@@ -277,6 +286,9 @@ static int __init zoom2_soc_init(void)
 	BUG_ON(gpio_request(ZOOM2_HEADSET_MUX_GPIO, "hs_mux") < 0);
 	gpio_direction_output(ZOOM2_HEADSET_MUX_GPIO, 0);
 
+	BUG_ON(gpio_request(ZOOM2_HEADSET_EXTMUTE_GPIO, "ext_mute") < 0);
+	gpio_direction_output(ZOOM2_HEADSET_EXTMUTE_GPIO, 0);
+
 	return 0;
 
 err1:
@@ -290,6 +302,7 @@ module_init(zoom2_soc_init);
 static void __exit zoom2_soc_exit(void)
 {
 	gpio_free(ZOOM2_HEADSET_MUX_GPIO);
+	gpio_free(ZOOM2_HEADSET_EXTMUTE_GPIO);
 
 	platform_device_unregister(zoom2_snd_device);
 }
