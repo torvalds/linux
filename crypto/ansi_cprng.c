@@ -283,7 +283,6 @@ static int reset_prng_context(struct prng_context *ctx,
 			      unsigned char *V, unsigned char *DT)
 {
 	int ret;
-	int rc = -EINVAL;
 	unsigned char *prng_key;
 
 	spin_lock_bh(&ctx->prng_lock);
@@ -307,34 +306,20 @@ static int reset_prng_context(struct prng_context *ctx,
 	memset(ctx->rand_data, 0, DEFAULT_BLK_SZ);
 	memset(ctx->last_rand_data, 0, DEFAULT_BLK_SZ);
 
-	if (ctx->tfm)
-		crypto_free_cipher(ctx->tfm);
-
-	ctx->tfm = crypto_alloc_cipher("aes", 0, 0);
-	if (IS_ERR(ctx->tfm)) {
-		dbgprint(KERN_CRIT "Failed to alloc tfm for context %p\n",
-			ctx);
-		ctx->tfm = NULL;
-		goto out;
-	}
-
 	ctx->rand_data_valid = DEFAULT_BLK_SZ;
 
 	ret = crypto_cipher_setkey(ctx->tfm, prng_key, klen);
 	if (ret) {
 		dbgprint(KERN_CRIT "PRNG: setkey() failed flags=%x\n",
 			crypto_cipher_get_flags(ctx->tfm));
-		crypto_free_cipher(ctx->tfm);
 		goto out;
 	}
 
-	rc = 0;
+	ret = 0;
 	ctx->flags &= ~PRNG_NEED_RESET;
 out:
 	spin_unlock_bh(&ctx->prng_lock);
-
-	return rc;
-
+	return ret;
 }
 
 static int cprng_init(struct crypto_tfm *tfm)
@@ -342,6 +327,12 @@ static int cprng_init(struct crypto_tfm *tfm)
 	struct prng_context *ctx = crypto_tfm_ctx(tfm);
 
 	spin_lock_init(&ctx->prng_lock);
+	ctx->tfm = crypto_alloc_cipher("aes", 0, 0);
+	if (IS_ERR(ctx->tfm)) {
+		dbgprint(KERN_CRIT "Failed to alloc tfm for context %p\n",
+				ctx);
+		return PTR_ERR(ctx->tfm);
+	}
 
 	if (reset_prng_context(ctx, NULL, DEFAULT_PRNG_KSZ, NULL, NULL) < 0)
 		return -EINVAL;
