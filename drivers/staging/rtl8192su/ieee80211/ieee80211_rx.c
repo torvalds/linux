@@ -1880,7 +1880,6 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				break;
 			}
 
-#ifdef THOMAS_TURBO
                         if (info_element->len == 7 &&
                             info_element->data[0] == 0x00 &&
                             info_element->data[1] == 0xe0 &&
@@ -1889,7 +1888,6 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
                             info_element->data[4] == 0x02) {
                                 network->Turbo_Enable = 1;
                         }
-#endif
 
                         //for HTcap and HTinfo parameters
 			if(tmp_htcap_len == 0){
@@ -2350,9 +2348,7 @@ static inline int ieee80211_network_init(
 	network->unknown_cap_exist = false;
 	network->realtek_cap_exit = false;
 	network->marvell_cap_exist = false;
-#ifdef THOMAS_TURBO
 	network->Turbo_Enable = 0;
-#endif
 	network->CountryIeLen = 0;
 	memset(network->CountryIeBuf, 0, MAX_IE_LEN);
 //Initialize HT parameters
@@ -2528,9 +2524,7 @@ static inline void update_network(struct ieee80211_network *dst,
 #else
 	dst->QoS_Enable = 1;//for Rtl8187 simulation
 #endif
-#ifdef THOMAS_TURBO
 	dst->Turbo_Enable = src->Turbo_Enable;
-#endif
 
 	dst->CountryIeLen = src->CountryIeLen;
 	memcpy(dst->CountryIeBuf, src->CountryIeBuf, src->CountryIeLen);

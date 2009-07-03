@@ -1443,9 +1443,7 @@ struct ieee80211_network {
         u8 wmm_info;
         struct ieee80211_wmm_ac_param wmm_param[4];
         u8 QoS_Enable;
-#ifdef THOMAS_TURBO
 	u8 Turbo_Enable;//enable turbo mode, added by thomas
-#endif
 	u16 CountryIeLen;
 	u8 CountryIeBuf[MAX_IE_LEN];
         // HT Related, by amy, 2008.04.29

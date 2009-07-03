@@ -127,7 +127,6 @@ void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p) {
 	*tag_p = tag;
 }
 
-#ifdef THOMAS_TURBO
 void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p) {
 	u8 *tag = *tag_p;
 
@@ -144,7 +143,6 @@ void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p) {
 	*tag_p = tag;
 	printk(KERN_ALERT "This is enable turbo mode IE process\n");
 }
-#endif
 
 void enqueue_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
@@ -1063,9 +1061,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 
 	unsigned int rate_len = ieee80211_MFIE_rate_len(ieee);
 	unsigned int wmm_info_len = beacon->qos_data.supported?9:0;
-#ifdef THOMAS_TURBO
 	unsigned int turbo_info_len = beacon->Turbo_Enable?9:0;
-#endif
 
 	int len = 0;
 
@@ -1103,7 +1099,6 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	{
 		cxvernum_ie_len = 5+2;
 	}
-#ifdef THOMAS_TURBO
 	len = sizeof(struct ieee80211_assoc_request_frame)+ 2
 		+ beacon->ssid_len//essid tagged val
 		+ rate_len//rates tagged val
@@ -1116,19 +1111,6 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 		+ ccxrm_ie_len
 		+ cxvernum_ie_len
 		+ ieee->tx_headroom;
-#else
-	len = sizeof(struct ieee80211_assoc_request_frame)+ 2
-		+ beacon->ssid_len//essid tagged val
-		+ rate_len//rates tagged val
-		+ wpa_ie_len
-		+ wmm_info_len
-                + ht_cap_len
-		+ realtek_ie_len
-		+ ckip_ie_len
-		+ ccxrm_ie_len
-		+ cxvernum_ie_len
-		+ ieee->tx_headroom;
-#endif
 
 	skb = dev_alloc_skb(len);
 
@@ -1250,12 +1232,10 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	if(wmm_info_len) {
 	  ieee80211_WMM_Info(ieee, &tag);
 	}
-#ifdef THOMAS_TURBO
 	tag = skb_put(skb,turbo_info_len);
         if(turbo_info_len) {
                 ieee80211_TURBO_Info(ieee, &tag);
         }
-#endif
 
 	if(ieee->pHTInfo->bCurrentHTSupport&&ieee->pHTInfo->bEnableHT){
 		if(ieee->pHTInfo->ePeerHTSpecVer == HT_SPEC_VER_EWC)
