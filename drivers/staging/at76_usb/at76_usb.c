@@ -558,20 +558,6 @@ static char *hex2str(void *buf, int len)
 	return ret;
 }
 
-#define MAC2STR_BUFFERS 4
-
-static inline char *mac2str(u8 *mac)
-{
-	static atomic_t a = ATOMIC_INIT(0);
-	static char bufs[MAC2STR_BUFFERS][6 * 3];
-	char *str;
-
-	str = bufs[atomic_inc_return(&a) & (MAC2STR_BUFFERS - 1)];
-	sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x",
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	return str;
-}
-
 /* LED trigger */
 static int tx_activity;
 static void at76_ledtrig_tx_timerfunc(unsigned long data);
@@ -1071,13 +1057,12 @@ static void at76_dump_mib_mac_addr(struct at76_priv *priv)
 		goto exit;
 	}
 
-	at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: mac_addr %s res 0x%x 0x%x",
-		 priv->netdev->name,
-		 mac2str(m->mac_addr), m->res[0], m->res[1]);
+	at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: mac_addr %pM res 0x%x 0x%x",
+		 priv->netdev->name, m->mac_addr, m->res[0], m->res[1]);
 	for (i = 0; i < ARRAY_SIZE(m->group_addr); i++)
-		at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: group addr %d: %s, "
+		at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: group addr %d: %pM, "
 			 "status %d", priv->netdev->name, i,
-			 mac2str(m->group_addr[i]), m->group_addr_status[i]);
+			 m->group_addr[i], m->group_addr_status[i]);
 exit:
 	kfree(m);
 }
@@ -1140,7 +1125,7 @@ static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 	at76_dbg(DBG_MIB, "%s: MIB MAC_MGMT: beacon_period %d CFP_max_duration "
 		 "%d medium_occupancy_limit %d station_id 0x%x ATIM_window %d "
 		 "CFP_mode %d privacy_opt_impl %d DTIM_period %d CFP_period %d "
-		 "current_bssid %s current_essid %s current_bss_type %d "
+		 "current_bssid %pM scurrent_essid %s current_bss_type %d "
 		 "pm_mode %d ibss_change %d res %d "
 		 "multi_domain_capability_implemented %d "
 		 "international_roaming %d country_string %.3s",
@@ -1149,7 +1134,7 @@ static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 		 le16_to_cpu(m->medium_occupancy_limit),
 		 le16_to_cpu(m->station_id), le16_to_cpu(m->ATIM_window),
 		 m->CFP_mode, m->privacy_option_implemented, m->DTIM_period,
-		 m->CFP_period, mac2str(m->current_bssid),
+		 m->CFP_period, m->current_bssid,
 		 hex2str(m->current_essid, IW_ESSID_MAX_SIZE),
 		 m->current_bss_type, m->power_mgmt_mode, m->ibss_change,
 		 m->res, m->multi_domain_capability_implemented,
@@ -1178,7 +1163,7 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 		 "cwmin %d cwmax %d short_retry_time %d long_retry_time %d "
 		 "scan_type %d scan_channel %d probe_delay %u "
 		 "min_channel_time %d max_channel_time %d listen_int %d "
-		 "desired_ssid %s desired_bssid %s desired_bsstype %d",
+		 "desired_ssid %s desired_bssid %pM desired_bsstype %d",
 		 priv->netdev->name, le32_to_cpu(m->max_tx_msdu_lifetime),
 		 le32_to_cpu(m->max_rx_lifetime),
 		 le16_to_cpu(m->frag_threshold), le16_to_cpu(m->rts_threshold),
@@ -1189,7 +1174,7 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 		 le16_to_cpu(m->max_channel_time),
 		 le16_to_cpu(m->listen_interval),
 		 hex2str(m->desired_ssid, IW_ESSID_MAX_SIZE),
-		 mac2str(m->desired_bssid), m->desired_bsstype);
+		 m->desired_bssid, m->desired_bsstype);
 exit:
 	kfree(m);
 }
@@ -1297,8 +1282,8 @@ static int at76_get_current_bssid(struct at76_priv *priv)
 		goto error;
 	}
 	memcpy(priv->bssid, mac_mgmt->current_bssid, ETH_ALEN);
-	printk(KERN_INFO "%s: using BSSID %s\n", priv->netdev->name,
-	       mac2str(priv->bssid));
+	printk(KERN_INFO "%s: using BSSID %pM\n", priv->netdev->name,
+	       priv->bssid);
 error:
 	kfree(mac_mgmt);
 exit:
@@ -1468,8 +1453,8 @@ static int at76_join_bss(struct at76_priv *priv, struct bss_info *ptr)
 	join.timeout = cpu_to_le16(2000);
 
 	at76_dbg(DBG_PROGRESS,
-		 "%s join addr %s ssid %s type %d ch %d timeout %d",
-		 priv->netdev->name, mac2str(join.bssid), join.essid,
+		 "%s join addr %pM ssid %s stype %d ch %d timeout %d",
+		 priv->netdev->name, join.bssid, join.essid,
 		 join.bss_type, join.channel, le16_to_cpu(join.timeout));
 	return at76_set_card_command(priv->udev, CMD_JOIN, &join,
 				     sizeof(struct at76_req_join));
@@ -1670,8 +1655,8 @@ static int at76_auth_req(struct at76_priv *priv, struct bss_info *bss,
 
 	/* init. at76_priv tx header */
 	tx_buffer->wlength = cpu_to_le16(buf_len - AT76_TX_HDRLEN);
-	at76_dbg(DBG_TX_MGMT, "%s: AuthReq bssid %s alg %d seq_nr %d",
-		 priv->netdev->name, mac2str(mgmt->addr3),
+	at76_dbg(DBG_TX_MGMT, "%s: AuthReq bssid %pM alg %d seq_nr %d",
+		 priv->netdev->name, mgmt->addr3,
 		 le16_to_cpu(req->algorithm), le16_to_cpu(req->transaction));
 	if (seq_nr == 3)
 		at76_dbg(DBG_TX_MGMT, "%s: AuthReq challenge: %s ...",
@@ -1746,8 +1731,8 @@ static int at76_assoc_req(struct at76_priv *priv, struct bss_info *bss)
 
 	next_ie(&ie);		/* points to IE of rates now */
 	at76_dbg(DBG_TX_MGMT,
-		 "%s: AssocReq bssid %s capa 0x%04x ssid %.*s rates %s",
-		 priv->netdev->name, mac2str(mgmt->addr3),
+		 "%s: AssocReq bssid %pM capa 0x%04x ssid %.*s rates %s",
+		 priv->netdev->name, mgmt->addr3,
 		 le16_to_cpu(req->capability), essid_len, essid,
 		 hex2str(ie->data, ie->len));
 
@@ -1773,8 +1758,8 @@ static void at76_bss_list_timeout(unsigned long par)
 		if (ptr != priv->curr_bss
 		    && time_after(jiffies, ptr->last_rx + BSS_LIST_TIMEOUT)) {
 			at76_dbg(DBG_BSS_TABLE_RM,
-				 "%s: bss_list: removing old BSS %s ch %d",
-				 priv->netdev->name, mac2str(ptr->bssid),
+				 "%s: bss_list: removing old BSS %pM ch %d",
+				 priv->netdev->name, ptr->bssid,
 				 ptr->channel);
 			list_del(&ptr->list);
 			kfree(ptr);
@@ -1806,9 +1791,9 @@ static void at76_dump_bss_table(struct at76_priv *priv)
 
 	list_for_each(lptr, &priv->bss_list) {
 		ptr = list_entry(lptr, struct bss_info, list);
-		at76_dbg(DBG_BSS_TABLE, "0x%p: bssid %s channel %d ssid %.*s "
+		at76_dbg(DBG_BSS_TABLE, "0x%p: bssid %pM channel %d ssid %.*s "
 			 "(%s) capa 0x%04x rates %s rssi %d link %d noise %d",
-			 ptr, mac2str(ptr->bssid), ptr->channel, ptr->ssid_len,
+			 ptr, ptr->bssid, ptr->channel, ptr->ssid_len,
 			 ptr->ssid, hex2str(ptr->ssid, ptr->ssid_len),
 			 ptr->capa, hex2str(ptr->rates, ptr->rates_len),
 			 ptr->rssi, ptr->link_qual, ptr->noise_level);
@@ -1855,8 +1840,8 @@ static void at76_work_assoc_done(struct work_struct *work)
 	netif_wake_queue(priv->netdev);
 	at76_set_mac_state(priv, MAC_CONNECTED);
 	at76_iwevent_bss_connect(priv->netdev, priv->curr_bss->bssid);
-	at76_dbg(DBG_PROGRESS, "%s: connected to BSSID %s",
-		 priv->netdev->name, mac2str(priv->curr_bss->bssid));
+	at76_dbg(DBG_PROGRESS, "%s: connected to BSSID %pM",
+		 priv->netdev->name, priv->curr_bss->bssid);
 
 exit:
 	mutex_unlock(&priv->mtx);
@@ -2218,8 +2203,8 @@ static int at76_iw_handler_set_wap(struct net_device *netdev,
 {
 	struct at76_priv *priv = netdev_priv(netdev);
 
-	at76_dbg(DBG_IOCTL, "%s: SIOCSIWAP - wap/bssid %s", netdev->name,
-		 mac2str(ap_addr->sa_data));
+	at76_dbg(DBG_IOCTL, "%s: SIOCSIWAP - wap/bssid %pM", netdev->name,
+		 ap_addr->sa_data);
 
 	/* if the incoming address == ff:ff:ff:ff:ff:ff, the user has
 	   chosen any or auto AP preference */
@@ -2244,8 +2229,8 @@ static int at76_iw_handler_get_wap(struct net_device *netdev,
 	ap_addr->sa_family = ARPHRD_ETHER;
 	memcpy(ap_addr->sa_data, priv->bssid, ETH_ALEN);
 
-	at76_dbg(DBG_IOCTL, "%s: SIOCGIWAP - wap/bssid %s", netdev->name,
-		 mac2str(ap_addr->sa_data));
+	at76_dbg(DBG_IOCTL, "%s: SIOCGIWAP - wap/bssid %pM", netdev->name,
+		 ap_addr->sa_data);
 
 	return 0;
 }
@@ -3323,8 +3308,8 @@ static int at76_open(struct net_device *netdev)
 	   set the mac address in the device ! */
 	if (compare_ether_addr(netdev->dev_addr, priv->mac_addr)) {
 		if (at76_add_mac_address(priv, netdev->dev_addr) >= 0)
-			at76_dbg(DBG_PROGRESS, "%s: set new MAC addr %s",
-				 netdev->name, mac2str(netdev->dev_addr));
+			at76_dbg(DBG_PROGRESS, "%s: set new MAC addr %pM",
+				 netdev->name, netdev->dev_addr);
 	}
 
 	priv->scan_state = SCAN_IDLE;
@@ -3581,11 +3566,11 @@ static inline int at76_match_bssid(struct at76_priv *priv, struct bss_info *ptr)
 		return 1;
 
 	at76_dbg(DBG_BSS_MATCH,
-		 "%s: requested bssid - %s does not match",
-		 priv->netdev->name, mac2str(priv->wanted_bssid));
+		 "%s: requested bssid - %pM does not match",
+		 priv->netdev->name, priv->wanted_bssid);
 	at76_dbg(DBG_BSS_MATCH,
-		 "      AP bssid - %s of bss table entry %p",
-		 mac2str(ptr->bssid), ptr);
+		 "      AP bssid - %pM of bss table entry %p",
+		 ptr->bssid, ptr);
 	return 0;
 }
 
@@ -3668,9 +3653,9 @@ static void at76_work_join(struct work_struct *work)
 			printk(KERN_ERR "%s: join_bss completed with %d\n",
 			       priv->netdev->name, ret);
 		else
-			printk(KERN_INFO "%s: join_bss ssid %s timed out\n",
+			printk(KERN_INFO "%s: join_bss ssid %pM timed out\n",
 			       priv->netdev->name,
-			       mac2str(priv->curr_bss->bssid));
+			       priv->curr_bss->bssid);
 
 		/* retry next BSS immediately */
 		schedule_work(&priv->work_join);
@@ -3788,8 +3773,8 @@ static void at76_dwork_beacon(struct work_struct *work)
 		goto exit;
 
 	/* We haven't received any beacons from out AP for BEACON_TIMEOUT */
-	printk(KERN_INFO "%s: lost beacon bssid %s\n",
-	       priv->netdev->name, mac2str(priv->curr_bss->bssid));
+	printk(KERN_INFO "%s: lost beacon bssid %pM\n",
+	       priv->netdev->name, priv->curr_bss->bssid);
 
 	netif_carrier_off(priv->netdev);
 	netif_stop_queue(priv->netdev);
@@ -3879,7 +3864,7 @@ static void at76_work_new_bss(struct work_struct *work)
 
 	at76_dbg(DBG_PROGRESS, "ibss_change = 0x%2x", mac_mgmt.ibss_change);
 	memcpy(priv->bssid, mac_mgmt.current_bssid, ETH_ALEN);
-	at76_dbg(DBG_PROGRESS, "using BSSID %s", mac2str(priv->bssid));
+	at76_dbg(DBG_PROGRESS, "using BSSID %pM", priv->bssid);
 
 	at76_iwevent_bss_connect(priv->netdev, priv->bssid);
 
@@ -4116,9 +4101,9 @@ static void at76_rx_mgmt_assoc(struct at76_priv *priv,
 	u16 assoc_id = le16_to_cpu(resp->aid);
 	u16 status = le16_to_cpu(resp->status);
 
-	at76_dbg(DBG_RX_MGMT, "%s: rx AssocResp bssid %s capa 0x%04x status "
+	at76_dbg(DBG_RX_MGMT, "%s: rx AssocResp bssid %pM capa 0x%04x status "
 		 "0x%04x assoc_id 0x%04x rates %s", priv->netdev->name,
-		 mac2str(resp->header.addr3), le16_to_cpu(resp->capability),
+		 resp->header.addr3, le16_to_cpu(resp->capability),
 		 status, assoc_id, hex2str(resp->info_element->data,
 					   resp->info_element->len));
 
@@ -4155,9 +4140,9 @@ static void at76_rx_mgmt_disassoc(struct at76_priv *priv,
 	struct ieee80211_hdr_3addr *mgmt = &resp->header;
 
 	at76_dbg(DBG_RX_MGMT,
-		 "%s: rx DisAssoc bssid %s reason 0x%04x destination %s",
-		 priv->netdev->name, mac2str(mgmt->addr3),
-		 le16_to_cpu(resp->reason), mac2str(mgmt->addr1));
+		 "%s: rx DisAssoc bssid %pM reason 0x%04x destination %pM",
+		 priv->netdev->name, mgmt->addr3,
+		 le16_to_cpu(resp->reason), mgmt->addr1);
 
 	/* We are not connected, ignore */
 	if (priv->mac_state == MAC_SCANNING || priv->mac_state == MAC_INIT
@@ -4203,9 +4188,9 @@ static void at76_rx_mgmt_auth(struct at76_priv *priv,
 	int status = le16_to_cpu(resp->status);
 
 	at76_dbg(DBG_RX_MGMT,
-		 "%s: rx AuthFrame bssid %s alg %d seq_nr %d status %d "
-		 "destination %s", priv->netdev->name, mac2str(mgmt->addr3),
-		 alg, seq_nr, status, mac2str(mgmt->addr1));
+		 "%s: rx AuthFrame bssid %pM alg %d seq_nr %d status %d "
+		 "destination %pM", priv->netdev->name, mgmt->addr3,
+		 alg, seq_nr, status, mgmt->addr1);
 
 	if (alg == WLAN_AUTH_SHARED_KEY && seq_nr == 2)
 		at76_dbg(DBG_RX_MGMT, "%s: AuthFrame challenge %s ...",
@@ -4262,9 +4247,9 @@ static void at76_rx_mgmt_deauth(struct at76_priv *priv,
 	struct ieee80211_hdr_3addr *mgmt = &resp->header;
 
 	at76_dbg(DBG_RX_MGMT | DBG_PROGRESS,
-		 "%s: rx DeAuth bssid %s reason 0x%04x destination %s",
-		 priv->netdev->name, mac2str(mgmt->addr3),
-		 le16_to_cpu(resp->reason), mac2str(mgmt->addr1));
+		 "%s: rx DeAuth bssid %pM reason 0x%04x destination %pM",
+		 priv->netdev->name, mgmt->addr3,
+		 le16_to_cpu(resp->reason), mgmt->addr1);
 
 	if (priv->mac_state != MAC_AUTH && priv->mac_state != MAC_ASSOC
 	    && priv->mac_state != MAC_CONNECTED) {
@@ -4366,8 +4351,8 @@ static void at76_rx_mgmt_beacon(struct at76_priv *priv,
 	match->link_qual = buf->link_quality;
 	match->noise_level = buf->noise_level;
 	memcpy(match->bssid, mgmt->addr3, ETH_ALEN);
-	at76_dbg(DBG_RX_BEACON, "%s: bssid %s", priv->netdev->name,
-		 mac2str(match->bssid));
+	at76_dbg(DBG_RX_BEACON, "%s: bssid %pM", priv->netdev->name,
+		 match->bssid);
 
 	ie = bdata->info_element;
 
@@ -4677,9 +4662,9 @@ static struct sk_buff *at76_check_for_rx_frags(struct at76_priv *priv)
 	unsigned long oldest = ~0UL;
 
 	at76_dbg(DBG_RX_FRAGS,
-		 "%s: rx data frame_ctl %04x addr2 %s seq/frag %d/%d "
+		 "%s: rx data frame_ctl %04x addr2 %pM seq/frag %d/%d "
 		 "length %d data %d: %s ...", priv->netdev->name, frame_ctl,
-		 mac2str(i802_11_hdr->addr2), seqnr, fragnr, length, data_len,
+		 i802_11_hdr->addr2, seqnr, fragnr, length, data_len,
 		 hex2str(data, 32));
 
 	at76_dbg(DBG_RX_FRAGS_SKB, "%s: incoming skb: head %p data %p "
@@ -4838,8 +4823,8 @@ static struct sk_buff *at76_check_for_rx_frags(struct at76_priv *priv)
 		priv->rx_skb = skb;
 
 		at76_dbg(DBG_RX_FRAGS,
-			 "%s: free old contents: sender %s seq/frag %d/%d",
-			 priv->netdev->name, mac2str(optr->sender),
+			 "%s: free old contents: sender %pM seq/frag %d/%d",
+			 priv->netdev->name, optr->sender,
 			 optr->seqnr, optr->fragnr);
 
 	} else {
@@ -5335,8 +5320,8 @@ static int at76_init_new_device(struct at76_priv *priv,
 	}
 	priv->netdev_registered = 1;
 
-	printk(KERN_INFO "%s: USB %s, MAC %s, firmware %d.%d.%d-%d\n",
-	       netdev->name, dev_name(&interface->dev), mac2str(priv->mac_addr),
+	printk(KERN_INFO "%s: USB %s, MAC %pM, firmware %d.%d.%d-%d\n",
+	       netdev->name, dev_name(&interface->dev), priv->mac_addr,
 	       priv->fw_version.major, priv->fw_version.minor,
 	       priv->fw_version.patch, priv->fw_version.build);
 	printk(KERN_INFO "%s: regulatory domain 0x%02x: %s\n", netdev->name,
