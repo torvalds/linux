@@ -295,6 +295,28 @@ extern void atomic64_set(atomic64_t *ptr, u64 new_val);
  *
  * Atomically reads the value of @ptr and returns it.
  */
+static inline u64 atomic64_read(atomic64_t *ptr)
+{
+	u64 res;
+
+	/*
+	 * Note, we inline this atomic64_t primitive because
+	 * it only clobbers EAX/EDX and leaves the others
+	 * untouched. We also (somewhat subtly) rely on the
+	 * fact that cmpxchg8b returns the current 64-bit value
+	 * of the memory location we are touching:
+	 */
+	asm volatile(
+		"mov %%ebx, %%eax\n\t"
+		"mov %%ecx, %%edx\n\t"
+		LOCK_PREFIX "cmpxchg8b %1\n"
+			: "=&A" (res)
+			: "m" (*ptr)
+		);
+
+	return res;
+}
+
 extern u64 atomic64_read(atomic64_t *ptr);
 
 /**

@@ -66,31 +66,10 @@ void atomic64_set(atomic64_t *ptr, u64 new_val)
 {
 	atomic64_xchg(ptr, new_val);
 }
-EXPORT_SYMBOL(atomic64_read);
+EXPORT_SYMBOL(atomic64_set);
 
 /**
- * atomic64_read - read atomic64 variable
- * @ptr:      pointer to type atomic64_t
- *
- * Atomically reads the value of @ptr and returns it.
- */
-u64 atomic64_read(atomic64_t *ptr)
-{
-	u64 res;
-
-	asm volatile(
-		"mov %%ebx, %%eax\n\t"
-		"mov %%ecx, %%edx\n\t"
-		LOCK_PREFIX "cmpxchg8b %1\n"
-			: "+A" (res)
-			: "m" (*ptr)
-		);
-
-	return res;
-}
 EXPORT_SYMBOL(atomic64_read);
-
-/**
  * atomic64_add_return - add and return
  * @delta: integer value to add
  * @ptr:   pointer to type atomic64_t
