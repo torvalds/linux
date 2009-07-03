@@ -105,21 +105,6 @@ void HTUpdateDefaultSetting(struct ieee80211_device* ieee)
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 	pHTInfo->UsbTxAggrNum = 4;
 #endif
-#ifdef USB_RX_AGGREGATION_SUPPORT
-#ifdef RTL8192SU
-	pHTInfo->UsbRxFwAggrEn = 1;
-	pHTInfo->UsbRxFwAggrPageNum = 16;
-	pHTInfo->UsbRxFwAggrPacketNum = 8;
-	pHTInfo->UsbRxFwAggrTimeout = 4; ////usb rx FW aggregation timeout threshold.It's in units of 64us
-	// For page size of receive packet buffer.
-	pHTInfo->UsbRxPageSize= 128;
-#else
-	pHTInfo->UsbRxFwAggrEn = 1;
-	pHTInfo->UsbRxFwAggrPageNum = 24;
-	pHTInfo->UsbRxFwAggrPacketNum = 8;
-	pHTInfo->UsbRxFwAggrTimeout = 16; ////usb rx FW aggregation timeout threshold.It's in units of 64us
-#endif
-#endif
 
 
 }

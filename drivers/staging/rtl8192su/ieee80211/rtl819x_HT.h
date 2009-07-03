@@ -327,12 +327,6 @@ typedef struct _RT_HIGH_THROUGHPUT{
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 	u8				UsbTxAggrNum;
 #endif
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	u8				UsbRxFwAggrEn;
-	u8				UsbRxFwAggrPageNum;
-	u8				UsbRxFwAggrPacketNum;
-	u8				UsbRxFwAggrTimeout;
-#endif
 
 	// Add for Broadcom(Linksys) IOT. Joseph
 	u8				bIsPeerBcm;

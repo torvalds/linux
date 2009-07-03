@@ -693,11 +693,7 @@ typedef struct rx_desc_819x_usb{
 	//DWORD 2
 	u16		Seq:12;
 	u16		Frag:4;
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	u8		UsbAggPktNum;//:8;
-#else
 	u8		NextPktLen;//:8;
-#endif
 	u8		Rsvd0:6;
 	u8		NextIND:1;
 	u8		Rsvd1:1;
@@ -751,27 +747,6 @@ typedef struct rx_desc_819x_usb{
 }rx_desc_819x_usb, *prx_desc_819x_usb;
 #endif
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-typedef struct _rx_desc_819x_usb_aggr_subframe{
-	//DOWRD 0
-	u16			Length:14;
-	u16			CRC32:1;
-	u16			ICV:1;
-	u8			Offset;
-	u8			RxDrvInfoSize;
-	//DOWRD 1
-	u8			Shift:2;
-	u8			PHYStatus:1;
-	u8			SWDec:1;
-	u8			Reserved1:4;
-	u8			Reserved2;
-	u16			Reserved3;
-	//DWORD 2
-	//u4Byte		Reserved3;
-	//DWORD 3
-	//u4Byte           	BufferAddress;
-}rx_desc_819x_usb_aggr_subframe, *prx_desc_819x_usb_aggr_subframe;
-#endif
 
 #ifdef RTL8192SU
 //
@@ -1896,13 +1871,6 @@ typedef struct r8192_priv
 //#endif
 
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	bool		bCurrentRxAggrEnable;
-	bool		bForcedUsbRxAggr;
-	u32		ForcedUsbRxAggrInfo;
-	u32		LastUsbRxAggrInfoSetting;
-	u32		RegUsbRxAggrInfo;
-#endif
 
 
 
