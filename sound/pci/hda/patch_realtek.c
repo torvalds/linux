@@ -12876,20 +12876,11 @@ static struct snd_kcontrol_new alc269_lifebook_mixer[] = {
 	{ }
 };
 
-/* bind volumes of both NID 0x0c and 0x0d */
-static struct hda_bind_ctls alc269_epc_bind_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x03, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
 static struct snd_kcontrol_new alc269_eeepc_mixer[] = {
-	HDA_CODEC_MUTE("iSpeaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_BIND_VOL("LineOut Playback Volume", &alc269_epc_bind_vol),
-	HDA_CODEC_MUTE("LineOut Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
 	{ } /* end */
 };
 
@@ -12902,12 +12893,7 @@ static struct snd_kcontrol_new alc269_epc_capture_mixer[] = {
 };
 
 /* FSC amilo */
-static struct snd_kcontrol_new alc269_fujitsu_mixer[] = {
-	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_BIND_VOL("PCM Playback Volume", &alc269_epc_bind_vol),
-	{ } /* end */
-};
+#define alc269_fujitsu_mixer	alc269_eeepc_mixer
 
 static struct hda_verb alc269_quanta_fl1_verbs[] = {
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},
