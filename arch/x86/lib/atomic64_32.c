@@ -33,14 +33,23 @@ EXPORT_SYMBOL(atomic64_cmpxchg);
  * Atomically xchgs the value of @ptr to @new_val and returns
  * the old value.
  */
-
 u64 atomic64_xchg(atomic64_t *ptr, u64 new_val)
 {
-	u64 old_val;
+	/*
+	 * Try first with a (possibly incorrect) assumption about
+	 * what we have there. We'll do two loops most likely,
+	 * but we'll get an ownership MESI transaction straight away
+	 * instead of a read transaction followed by a
+	 * flush-for-ownership transaction:
+	 */
+	u64 old_val, real_val = 0;
 
 	do {
-		old_val = __atomic64_read(ptr);
-	} while (atomic64_cmpxchg(ptr, old_val, new_val) != old_val);
+		old_val = real_val;
+
+		real_val = atomic64_cmpxchg(ptr, old_val, new_val);
+
+	} while (real_val != old_val);
 
 	return old_val;
 }
@@ -91,13 +100,13 @@ EXPORT_SYMBOL(atomic64_read);
 noinline u64 atomic64_add_return(u64 delta, atomic64_t *ptr)
 {
 	/*
-	 * Try first with a (probably incorrect) assumption about
+	 * Try first with a (possibly incorrect) assumption about
 	 * what we have there. We'll do two loops most likely,
 	 * but we'll get an ownership MESI transaction straight away
 	 * instead of a read transaction followed by a
 	 * flush-for-ownership transaction:
 	 */
-	u64 old_val, new_val, real_val = 1ULL << 32;
+	u64 old_val, new_val, real_val = 0;
 
 	do {
 		old_val = real_val;

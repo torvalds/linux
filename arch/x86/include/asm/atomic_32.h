@@ -268,15 +268,6 @@ typedef struct {
 
 #define ATOMIC64_INIT(val)	{ (val) }
 
-/**
- * atomic64_read - read atomic64 variable
- * @ptr: pointer of type atomic64_t
- *
- * Atomically reads the value of @v.
- * Doesn't imply a read memory barrier.
- */
-#define __atomic64_read(ptr)		((ptr)->counter)
-
 extern u64 atomic64_cmpxchg(atomic64_t *ptr, u64 old_val, u64 new_val);
 
 /**
