@@ -292,8 +292,9 @@ int p54_tx_cancel(struct p54_common *priv, __le32 req_id)
 {
 	struct sk_buff *skb;
 	struct p54_txcancel *cancel;
+	u32 _req_id = le32_to_cpu(req_id);
 
-	if (unlikely(req_id < priv->rx_start || req_id > priv->rx_end))
+	if (unlikely(_req_id < priv->rx_start || _req_id > priv->rx_end))
 		return -EINVAL;
 
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*cancel),
