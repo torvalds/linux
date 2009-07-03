@@ -87,51 +87,6 @@ static	RF_SHADOW_T	RF_Shadow[RF6052_MAX_PATH][RF6052_MAX_REG];// = {{0}};//FIXLZ
  *---------------------------------------------------------------------------*/
 extern void RF_ChangeTxPath(struct net_device* dev,  u16 DataRate)
 {
-// We do not support gain table change inACUT now !!!! Delete later !!!
-#if 0//(RTL92SE_FPGA_VERIFY == 0)
-	static	u1Byte	RF_Path_Type = 2;	// 1 = 1T 2= 2T
-	static	u4Byte	tx_gain_tbl1[6]
-			= {0x17f50, 0x11f40, 0x0cf30, 0x08720, 0x04310, 0x00100};
-	static	u4Byte	tx_gain_tbl2[6]
-			= {0x15ea0, 0x10e90, 0x0c680, 0x08250, 0x04040, 0x00030};
-	u1Byte	i;
-
-	if (RF_Path_Type == 2 && (DataRate&0xF) <= 0x7)
-	{
-		// Set TX SYNC power G2G3 loop filter
-		PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_A,
-					RF_TXPA_G2, bMask20Bits, 0x0f000);
-		PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_A,
-					RF_TXPA_G3, bMask20Bits, 0xeacf1);
-
-		// Change TX AGC gain table
-		for (i = 0; i < 6; i++)
-			PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_A,
-						RF_TX_AGC, bMask20Bits, tx_gain_tbl1[i]);
-
-		// Set PA to high value
-		PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_A,
-					RF_TXPA_G2, bMask20Bits, 0x01e39);
-	}
-	else if (RF_Path_Type == 1 && (DataRate&0xF) >= 0x8)
-	{
-		// Set TX SYNC power G2G3 loop filter
-		PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_A,
-					RF_TXPA_G2, bMask20Bits, 0x04440);
-		PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_A,
-					RF_TXPA_G3, bMask20Bits, 0xea4f1);
-
-		// Change TX AGC gain table
-		for (i = 0; i < 6; i++)
-			PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_A,
-						RF_TX_AGC, bMask20Bits, tx_gain_tbl2[i]);
-
-		// Set PA low gain
-		PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)RF90_PATH_A,
-					RF_TXPA_G2, bMask20Bits, 0x01e19);
-	}
-#endif
-
 }	/* RF_ChangeTxPath */
 
 
@@ -279,15 +234,6 @@ extern void PHY_RF6052SetOFDMTxPower(struct net_device* dev, u8 powerlevel)
 		{
 			ofdm_bandedge_chnl_low = 1;
 			ofdm_bandedge_chnl_high = 11;
-		#if 0//cosa, Todo: check ofdm 40MHz, when lower and duplicate, the bandedge chnl low=3, high=9
-			if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20_40)
-			{	// Is it the same with the document?
-				if(pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_UPPER)
-				else if(pHalData->nCur40MhzPrimeSC == HAL_PRIME_CHNL_OFFSET_LOWER;
-				else
-				pHalData->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-			}
-		#endif
 			BandEdge_Pwrdiff = 0;
 			if (Channel <= ofdm_bandedge_chnl_low)
 				BandEdge_Pwrdiff = priv->TxPwrbandEdgeLegacyOfdm[RF90_PATH_A][0];
@@ -385,18 +331,6 @@ extern void PHY_RF6052SetOFDMTxPower(struct net_device* dev, u8 powerlevel)
 		//
 		if (priv->rf_type == RF_2T2R)
 		{
-		#if 0//cosa, we have only one AntennaTxPwDiff
-			// HT OFDM
-			if (index > 1)
-			{
-				rf_pwr_diff = pHalData->AntennaTxPwDiff[0];
-			}
-			// Legacy OFDM
-			else
-			{
-				rf_pwr_diff = pHalData->AntTxPwDiffLegacy[0];
-			}
-		#endif
 			rf_pwr_diff = priv->AntennaTxPwDiff[0];
 			//RTPRINT(FPHY, PHY_TXPWR, ("2T2R RF-B to RF-A PWR DIFF=%d\n", rf_pwr_diff));
 

@@ -436,14 +436,6 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 		len = ((wrqu->essid.length-1) < IW_ESSID_MAX_SIZE) ? (wrqu->essid.length-1) : IW_ESSID_MAX_SIZE;
 		strncpy(ieee->current_network.ssid, extra, len+1);
 		ieee->current_network.ssid_len = len+1;
-#if 0
-		{
-			int i;
-			for (i=0; i<len + 1; i++)
-				printk("%c ", extra[i]);
-			printk("\n");
-		}
-#endif
 		ieee->ssid_set = 1;
 	}
 	else{

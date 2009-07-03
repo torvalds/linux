@@ -796,10 +796,7 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		cpu_to_le16((beacon_buf->capability |= WLAN_CAPABILITY_SHORT_SLOT));
 
 	crypt = ieee->crypt[ieee->tx_keyidx];
-#if 0
-	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
-		(0 == strcmp(crypt->ops->name, "WEP"));
-#endif
+
 	if (encrypt)
 		beacon_buf->capability |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
 
@@ -838,14 +835,7 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		*(tag++) = 1;
 		*(tag++) = erpinfo_content;
 	}
-#if 0
-	//Include High Throuput capability
 
-	*(tag++) = MFIE_TYPE_HT_CAP;
-	*(tag++) = tmp_ht_cap_len - 2;
-	memcpy(tag, tmp_ht_cap_buf, tmp_ht_cap_len - 2);
-	tag += tmp_ht_cap_len - 2;
-#endif
 	if(rate_ex_len){
 		*(tag++) = MFIE_TYPE_RATES_EX;
 		*(tag++) = rate_ex_len-2;
@@ -853,14 +843,6 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		tag+=rate_ex_len-2;
 	}
 
-#if 0
-	//Include High Throuput info
-
-	*(tag++) = MFIE_TYPE_HT_INFO;
-	*(tag++) = tmp_ht_info_len - 2;
-	memcpy(tag, tmp_ht_info_buf, tmp_ht_info_len -2);
-	tag += tmp_ht_info_len - 2;
-#endif
 	if (wpa_ie_len)
 	{
 		if (ieee->iw_mode == IW_MODE_ADHOC)
@@ -871,28 +853,6 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		tag += wpa_ie_len;
 	}
 
-#if 0
-	//
-	// Construct Realtek Proprietary Aggregation mode (Set AMPDU Factor to 2, 32k)
-	//
-	if(pHTInfo->bRegRT2RTAggregation)
-	{
-		(*tag++) = 0xdd;
-		(*tag++) = tmp_generic_ie_len - 2;
-		memcpy(tag,tmp_generic_ie_buf,tmp_generic_ie_len -2);
-		tag += tmp_generic_ie_len -2;
-
-	}
-#endif
-#if 0
-	if(ieee->qos_support)
-	{
-		(*tag++) = 0xdd;
-		(*tag++) = wmm_len;
-		memcpy(tag,QosOui,wmm_len);
-		tag += wmm_len;
-	}
-#endif
 	//skb->dev = ieee->dev;
 	return skb;
 }
@@ -1346,10 +1306,6 @@ void ieee80211_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int 
 
 		softmac_mgmt_xmit(skb, ieee);
 		mod_timer(&ieee->associate_timer, jiffies + (HZ/2));
-#if 0
-		ieee->associate_timer.expires = jiffies + (HZ / 2);
-		add_timer(&ieee->associate_timer);
-#endif
 		//dev_kfree_skb_any(skb);//edit by thomas
 	}
 	kfree(challenge);
@@ -1371,10 +1327,6 @@ void ieee80211_associate_step2(struct ieee80211_device *ieee)
 	else{
 		softmac_mgmt_xmit(skb, ieee);
 		mod_timer(&ieee->associate_timer, jiffies + (HZ/2));
-#if 0
-		ieee->associate_timer.expires = jiffies + (HZ / 2);
-		add_timer(&ieee->associate_timer);
-#endif
 		//dev_kfree_skb_any(skb);//edit by thomas
 	}
 }
@@ -1434,25 +1386,7 @@ void ieee80211_associate_complete(struct ieee80211_device *ieee)
 //	struct net_device* dev = ieee->dev;
 	del_timer_sync(&ieee->associate_timer);
 
-#if 0
-	for(i = 0; i < 6; i++) {
-	  ieee->seq_ctrl[i] = 0;
-	}
-#endif
 	ieee->state = IEEE80211_LINKED;
-#if 0
-	if (ieee->pHTInfo->bCurrentHTSupport)
-	{
-		printk("Successfully associated, ht enabled\n");
-		queue_work(ieee->wq, &ieee->ht_onAssRsp);
-	}
-	else
-	{
-		printk("Successfully associated, ht not enabled\n");
-		memset(ieee->dot11HTOperationalRateSet, 0, 16);
-		HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-	}
-#endif
 	//ieee->UpdateHalRATRTableHandler(dev, ieee->dot11HTOperationalRateSet);
 	queue_work(ieee->wq, &ieee->associate_complete_wq);
 }
@@ -1777,11 +1711,6 @@ ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 	printk(KERN_INFO"New client associated: "MAC_FMT"\n", MAC_ARG(dest));
 	//FIXME
-	#if 0
-	spin_lock_irqsave(&ieee->lock,flags);
-	add_associate(ieee,dest);
-	spin_unlock_irqrestore(&ieee->lock,flags);
-	#endif
 }
 
 
@@ -2010,18 +1939,6 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	if(!ieee->proto_started)
 		return 0;
-#if 0
-	printk("%d, %d, %d, %d\n", ieee->sta_sleep, ieee->ps, ieee->iw_mode, ieee->state);
-	if(ieee->sta_sleep || (ieee->ps != IEEE80211_PS_DISABLED &&
-		ieee->iw_mode == IW_MODE_INFRA &&
-		ieee->state == IEEE80211_LINKED))
-
-		tasklet_schedule(&ieee->ps_task);
-
-	if(WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_PROBE_RESP &&
-		WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_BEACON)
-		ieee->last_rx_ps_time = jiffies;
-#endif
 
 	switch (WLAN_FC_GET_STYPE(header->frame_ctl)) {
 

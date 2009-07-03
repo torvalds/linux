@@ -87,11 +87,6 @@
 
 // Rx smooth factor
 #define	Rx_Smooth_Factor		20
-#if 0 //we need to use RT_TRACE instead DMESG as RT_TRACE will clearly show debug level wb.
-#define DMESG(x,a...) printk(KERN_INFO RTL819xU_MODULE_NAME ": " x "\n", ## a)
-#define DMESGW(x,a...) printk(KERN_WARNING RTL819xU_MODULE_NAME ": WW:" x "\n", ## a)
-#define DMESGE(x,a...) printk(KERN_WARNING RTL819xU_MODULE_NAME ": EE:" x "\n", ## a)
-#else
 #define DMESG(x,a...)
 #define DMESGW(x,a...)
 #define DMESGE(x,a...)
@@ -149,7 +144,6 @@ do { if(rt_global_debug_component & component) \
 #define COMP_DOWN				BIT29  //for rm driver module
 #define COMP_RESET				BIT30  //for silent reset
 #define COMP_ERR				BIT31 //for error out, always on
-#endif
 
 #define RTL819x_DEBUG
 #ifdef RTL819x_DEBUG
@@ -711,135 +705,6 @@ typedef enum _RTL8192SUSB_LOOPBACK{
 }RTL8192SUSB_LOOPBACK_E;
 //#endif
 
-
-#if 0
-/* due to rtl8192 firmware */
-typedef enum _desc_packet_type_e{
-	DESC_PACKET_TYPE_INIT = 0,
-	DESC_PACKET_TYPE_NORMAL = 1,
-}desc_packet_type_e;
-
-typedef enum _firmware_source{
-	FW_SOURCE_IMG_FILE = 0,
-	FW_SOURCE_HEADER_FILE = 1,		//from header file
-}firmware_source_e, *pfirmware_source_e;
-
-typedef enum _firmware_status{
-	FW_STATUS_0_INIT = 0,
-	FW_STATUS_1_MOVE_BOOT_CODE = 1,
-	FW_STATUS_2_MOVE_MAIN_CODE = 2,
-	FW_STATUS_3_TURNON_CPU = 3,
-	FW_STATUS_4_MOVE_DATA_CODE = 4,
-	FW_STATUS_5_READY = 5,
-}firmware_status_e;
-
-typedef struct _rt_firmare_seg_container {
-	u16	seg_size;
-	u8	*seg_ptr;
-}fw_seg_container, *pfw_seg_container;
-
-//--------------------------------------------------------------------------------
-// 8192S Firmware related
-//--------------------------------------------------------------------------------
-typedef  struct _RT_8192S_FIRMWARE_PRIV { //8-bytes alignment required
-
-	//--- LONG WORD 0 ----
-	u32		RegulatoryClass;
-	u32		Rfintfs;
-
-	//--- LONG WORD 1 ----
-	u32		ChipVer;
-	u32		HCISel;
-
-	//--- LONG WORD 2 ----
-	u32		IBKMode;
-	u32		Rsvd00;
-
-	//--- LONG WORD 3 ----
-	u32		Rsvd01;
-	u8		Qos_En;			// QoS enable
-	u8		En40MHz;		// 40MHz BW enable
-	u8		AMSDU2AMPDU_En;	//14181 convert AMSDU to AMPDU, 0: disable
-	u8		AMPDU_En;		//111n AMPDU/AMSDU enable
-
-	//--- LONG WORD 4 ----
-	u8		rate_control_offload;//FW offloads, 0: driver handles
-	u8		aggregation_offload;	// FW offloads, 0: driver handles
-	u8		beacon_offload;	//FW offloads, 0: driver handles
-	u8		MLME_offload;	// FW offloads, 0: driver handles
-	u8		hwpc_offload;	// FW offloads, 0: driver handles
-	u8		tcp_checksum_offload;	//FW offloads, 0: driver handles
-	u8		tcp_offload;			//FW offloads, 0: driver handles
-	u8		ps_control_offload;	//FW offloads, 0: driver handles
-
-	//--- LONG WORD 5 ----
-	u8		WWLAN_Offload;	// FW offloads, 0: driver handles
-	u8		MPMode;	// normal mode, 0: MP mode;
-	u16		Version;		//0x8000 ~ 0x8FFF for FPGA version, 0x0000 ~ 0x7FFF for ASIC version,
-	u16		Signature;	//0x12: 8712, 0x92: 8192S
-	u16		Rsvd11;
-
-//	u32		rsvd1;
-//	u32		wireless_band;	//no A-band exists in 8712
-}RT_8192S_FIRMWARE_PRIV, *PRT_8192S_FIRMWARE_PRIV;
-
-typedef struct _RT_8192S_FIRMWARE_HDR {//8-byte alinment required
-
-	//--- LONG WORD 0 ----
-	u16		Signature;
-	u16		Version;		  //0x8000 ~ 0x8FFF for FPGA version, 0x0000 ~ 0x7FFF for ASIC version,
-	u32		DMEMSize;    //define the size of boot loader
-
-
-	//--- LONG WORD 1 ----
-	u32		IMG_IMEM_SIZE;    //define the size of FW in IMEM
-	u32		IMG_SRAM_SIZE;    //define the size of FW in SRAM
-
-	//--- LONG WORD 2 ----
-	u32		FW_PRIV_SIZE;       //define the size of DMEM variable
-	u32		Rsvd0;
-
-	//--- LONG WORD 3 ----
-	u32		Rsvd1;
-	u32		Rsvd2;
-
-	RT_8192S_FIRMWARE_PRIV	FWPriv;
-
-}RT_8192S_FIRMWARE_HDR, *PRT_8192S_FIRMWARE_HDR;
-
-#define	RT_8192S_FIRMWARE_HDR_SIZE	80
-
-typedef enum _FIRMWARE_8192S_STATUS{
-	FW_STATUS_INIT = 0,
-	FW_STATUS_LOAD_IMEM = 1,
-	FW_STATUS_LOAD_EMEM = 2,
-	FW_STATUS_LOAD_DMEM = 3,
-	FW_STATUS_READY = 4,
-}FIRMWARE_8192S_STATUS;
-
-#define RTL8190_MAX_FIRMWARE_CODE_SIZE  64000   //64k
-
-typedef struct _rt_firmware{
-	firmware_source_e	eFWSource;
-	PRT_8192S_FIRMWARE_HDR		pFwHeader;
-	FIRMWARE_8192S_STATUS	FWStatus;
-	u8		FwIMEM[64000];
-	u8		FwEMEM[64000];
-	u32		FwIMEMLen;
-	u32		FwEMEMLen;
-	u8		szFwTmpBuffer[164000];
-	u16		CmdPacketFragThresold;
-	//firmware_status_e       firmware_status;//in 92u temp FIXLZM
-	//u16               cmdpacket_frag_thresold;//in 92u temp FIXLZM
-	//u8                firmware_buf[RTL8190_MAX_FIRMWARE_CODE_SIZE];//in 92u temp FIXLZM
-	//u16               firmware_buf_size;//in 92u temp FIXLZM
-
-}rt_firmware, *prt_firmware;
-typedef struct _rt_firmware_info_819xUsb{
-	u8		sz_info[16];
-}rt_firmware_info_819xUsb, *prt_firmware_info_819xUsb;
-#endif
-
 //+by amy 080507
 #define MAX_RECEIVE_BUFFER_SIZE	9100	// Add this to 9100 bytes to receive A-MSDU from RT-AP
 
@@ -919,21 +784,6 @@ typedef struct rtl_reg_debug{
         } head;
         unsigned char buf[0xff];
 }rtl_reg_debug;
-
-
-
-
-
-#if 0
-
-typedef struct tx_pendingbuf
-{
-	struct ieee80211_txb *txb;
-	short ispending;
-	short descfrag;
-} tx_pendigbuf;
-
-#endif
 
 typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];
@@ -1689,70 +1539,6 @@ typedef enum{
 	UART_PRIORITY //0x0F
 } priority_t;
 
-#if 0
-typedef enum{
-	NIC_8192U = 1,
-	NIC_8190P = 2,
-	NIC_8192E = 3,
-	NIC_8192SE = 4,
-	NIC_8192SU = 5,
-	} nic_t;
-#endif
-
-#if 0 //defined in Qos.h
-//typedef u32 AC_CODING;
-#define AC0_BE	0		// ACI: 0x00	// Best Effort
-#define AC1_BK	1		// ACI: 0x01	// Background
-#define AC2_VI	2		// ACI: 0x10	// Video
-#define AC3_VO	3		// ACI: 0x11	// Voice
-#define AC_MAX	4		// Max: define total number; Should not to be used as a real enum.
-
-//
-// ECWmin/ECWmax field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.13.
-//
-typedef	union _ECW{
-	u8	charData;
-	struct
-	{
-		u8	ECWmin:4;
-		u8	ECWmax:4;
-	}f;	// Field
-}ECW, *PECW;
-
-//
-// ACI/AIFSN Field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _ACI_AIFSN{
-	u8	charData;
-
-	struct
-	{
-		u8	AIFSN:4;
-		u8	ACM:1;
-		u8	ACI:2;
-		u8	Reserved:1;
-	}f;	// Field
-}ACI_AIFSN, *PACI_AIFSN;
-
-//
-// AC Parameters Record Format.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _AC_PARAM{
-	u32	longData;
-	u8	charData[4];
-
-	struct
-	{
-		ACI_AIFSN	AciAifsn;
-		ECW		Ecw;
-		u16		TXOPLimit;
-	}f;	// Field
-}AC_PARAM, *PAC_PARAM;
-
-#endif
 #ifdef JOHN_HWSEC
 struct ssid_thread {
 	struct net_device *dev;

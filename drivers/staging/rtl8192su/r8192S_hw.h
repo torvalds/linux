@@ -62,16 +62,6 @@ typedef enum _BaseBand_Config_Type{
 	BaseBand_Config_AGC_TAB = 1,			//Radio Path B
 }BaseBand_Config_Type, *PBaseBand_Config_Type;
 
-#if 0
-typedef enum _RT_RF_TYPE_819xU{
-	RF_TYPE_MIN = 0,
-	RF_8225,
-	RF_8256,
-	RF_8258,
-	RF_PSEUDO_11N = 4,
-}RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
-#endif
-
 #define	RTL8187_REQT_READ		0xc0
 #define	RTL8187_REQT_WRITE	0x40
 #define	RTL8187_REQ_GET_REGS	0x05
@@ -1303,51 +1293,6 @@ Default: 00b.
 #define		FW_DM_DISABLE					0xfd00aa00
 #define		FW_BB_RESET_ENABLE			0xff00000d
 #define		FW_BB_RESET_DISABLE			0xff00000e
-#if 0
-//----------------------------------------------------------------------------
-//       8190 EEROM
-//----------------------------------------------------------------------------
-#define		RTL8190_EEPROM_ID					0x8129
-//#define		EEPROM_NODE_ADDRESS_BYTE_0			0x0C
-
-#define		EEPROM_RFInd_PowerDiff				0x28
-#define		EEPROM_ThermalMeter					0x29
-#define		EEPROM_TxPwDiff_CrystalCap			0x2A	//0x2A~0x2B
-#define		EEPROM_TxPwIndex_CCK				0x2C	//0x2C~0x39
-#define		EEPROM_TxPwIndex_OFDM_24G			0x3A	//0x3A~0x47
-#define		EEPROM_TxPwIndex_OFDM_5G			0x34	//0x34~0x7B
-
-//The following definition is for eeprom 93c56......modified 20080220
-#define		EEPROM_C56_CrystalCap				0x17	//0x17
-#define		EEPROM_C56_RfA_CCK_Chnl1_TxPwIndex	0x80	//0x80
-#define		EEPROM_C56_RfA_HT_OFDM_TxPwIndex	0x81	//0x81~0x83
-#define		EEPROM_C56_RfC_CCK_Chnl1_TxPwIndex	0xbc	//0xb8
-#define		EEPROM_C56_RfC_HT_OFDM_TxPwIndex	0xb9	//0xb9~0xbb
-#define		EEPROM_Customer_ID					0x7B	//0x7B:CustomerID
-#define		EEPROM_ICVersion_ChannelPlan		0x7C	//0x7C:ChnlPlan,
-														//0x7D:IC_Ver
-#define		EEPROM_CRC							0x7E	//0x7E~0x7F
-
-#define		EEPROM_Default_LegacyHTTxPowerDiff	0x4
-#define		EEPROM_Default_ThermalMeter			0x77
-#define		EEPROM_Default_AntTxPowerDiff		0x0
-#define		EEPROM_Default_TxPwDiff_CrystalCap	0x5
-#define		EEPROM_Default_TxPower				0x1010
-#define		EEPROM_Default_TxPowerLevel			0x10
-
-//
-// Define Different EEPROM type for customer
-//
-#define		EEPROM_CID_DEFAULT					0x0
-#define		EEPROM_CID_CAMEO					0x1
-#define		EEPROM_CID_RUNTOP					0x2
-#define		EEPROM_CID_Senao					0x3
-#define		EEPROM_CID_TOSHIBA					0x4
-#define		EEPROM_CID_NetCore					0x5
-#define		EEPROM_CID_Nettronix				0x6
-#define		EEPROM_CID_Pronet					0x7
-
-#endif
 
 //
 //--------------92SU require delete or move to other place later

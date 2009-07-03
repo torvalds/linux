@@ -620,10 +620,6 @@ void RxReorderIndicatePacket( struct ieee80211_device *ieee,
 	u8			index = 0;
 	bool			bMatchWinStart = false, bPktInBuf = false;
 	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): Seq is %d,pTS->RxIndicateSeq is %d, WinSize is %d\n",__FUNCTION__,SeqNum,pTS->RxIndicateSeq,WinSize);
-#if 0
-	if(!list_empty(&ieee->RxReorder_Unused_List))
-		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): ieee->RxReorder_Unused_List is nut NULL\n");
-#endif
 	/* Rx Reorder initialize condition.*/
 	if(pTS->RxIndicateSeq == 0xffff) {
 		pTS->RxIndicateSeq = SeqNum;
@@ -784,14 +780,7 @@ void RxReorderIndicatePacket( struct ieee80211_device *ieee,
 		// Set new pending timer.
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): SET rx timeout timer\n", __FUNCTION__);
 		pTS->RxTimeoutIndicateSeq = pTS->RxIndicateSeq;
-#if 0
-		if(timer_pending(&pTS->RxPktPendingTimer))
-			del_timer_sync(&pTS->RxPktPendingTimer);
-		pTS->RxPktPendingTimer.expires = jiffies + MSECS(pHTInfo->RxReorderPendingTime);
-		add_timer(&pTS->RxPktPendingTimer);
-#else
 		mod_timer(&pTS->RxPktPendingTimer,  jiffies + MSECS(pHTInfo->RxReorderPendingTime));
-#endif
 	}
 #endif
 }
@@ -860,11 +849,6 @@ u8 parse_subframe(struct sk_buff *skb,
 			nSubframe_Length = (nSubframe_Length>>8) + (nSubframe_Length<<8);
 
 			if(skb->len<(ETHERNET_HEADER_SIZE + nSubframe_Length)) {
-#if 0//cosa
-				RT_ASSERT(
-						(nRemain_Length>=(ETHERNET_HEADER_SIZE + nSubframe_Length)),
-						("ParseSubframe(): A-MSDU subframe parse error!! Subframe Length: %d\n", nSubframe_Length) );
-#endif
 				printk("%s: A-MSDU parse error!! pRfd->nTotalSubframe : %d\n",\
 						__FUNCTION__,rxb->nr_subframes);
 				printk("%s: A-MSDU parse error!! Subframe Length: %d\n",__FUNCTION__, nSubframe_Length);
@@ -1058,17 +1042,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	else
 	{
 		PRX_TS_RECORD pRxTS = NULL;
-	#if 0
-		struct ieee80211_hdr_3addr *hdr;
-		u16 fc;
-		hdr = (struct ieee80211_hdr_3addr *)skb->data;
-		fc = le16_to_cpu(hdr->frame_ctl);
-		u8 tmp = (fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS);
-
-		u8 tid = (*((u8*)skb->data + (((fc& IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS))?30:24)))&0xf;
-		printk("====================>fc:%x, tid:%d, tmp:%d\n", fc, tid, tmp);
-		//u8 tid =  (u8)((frameqos*)(buf + ((fc & IEEE80211_FCTL_TODS)&&(fc & IEEE80211_FCTL_FROMDS))? 30 : 24))->field.tid;
-	#endif
 			//IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): QOS ENABLE AND RECEIVE QOS DATA , we will get Ts, tid:%d\n",__FUNCTION__, tid);
 #if 1
 		if(GetTs(
@@ -1101,20 +1074,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 #endif
 	if (type == IEEE80211_FTYPE_MGMT) {
-
-	#if 0
-		if ( stype == IEEE80211_STYPE_AUTH &&
-		    fc & IEEE80211_FCTL_WEP && ieee->host_decrypt &&
-		    (keyidx = hostap_rx_frame_decrypt(ieee, skb, crypt)) < 0)
-		{
-			printk(KERN_DEBUG "%s: failed to decrypt mgmt::auth "
-			       "from " MAC_FMT "\n", dev->name,
-			       MAC_ARG(hdr->addr2));
-			/* TODO: could inform hostapd about this so that it
-			 * could send auth failure report */
-			goto rx_dropped;
-		}
-	#endif
 
 	//IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
 		if (ieee80211_rx_frame_mgmt(ieee, skb, rx_stats, type, stype))
@@ -1812,12 +1771,8 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
                         network->dtim_period = info_element->data[1];
                         if(ieee->state != IEEE80211_LINKED)
                                 break;
-#if 0
-                        network->last_dtim_sta_time[0] = stats->mac_time[0];
-#else
 			//we use jiffies for legacy Power save
 			network->last_dtim_sta_time[0] = jiffies;
-#endif
                         network->last_dtim_sta_time[1] = stats->mac_time[1];
 
                         network->dtim_data = IEEE80211_DTIM_VALID;
@@ -1984,16 +1939,6 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 
 				}
 			}
-#if 0
-			if (tmp_htcap_len !=0)
-				{
-					u16 cap_ext = ((PHT_CAPABILITY_ELE)&info_element->data[0])->ExtHTCapInfo;
-					if ((cap_ext & 0x0c00) == 0x0c00)
-						{
-							network->ralink_cap_exist = true;
-						}
-				}
-#endif
 			if(info_element->len >= 3 &&
 				info_element->data[0] == 0x00 &&
 				info_element->data[1] == 0x0c &&
@@ -2176,45 +2121,6 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			//printk("=====>Receive <%s> Country IE\n",network->ssid);
 			ieee80211_extract_country_ie(ieee, info_element, network, network->bssid);//addr2 is same as addr3 when from an AP
 			break;
-/* TODO */
-#if 0
-			/* 802.11h */
-		case MFIE_TYPE_POWER_CONSTRAINT:
-			network->power_constraint = info_element->data[0];
-			network->flags |= NETWORK_HAS_POWER_CONSTRAINT;
-			break;
-
-		case MFIE_TYPE_CSA:
-			network->power_constraint = info_element->data[0];
-			network->flags |= NETWORK_HAS_CSA;
-			break;
-
-		case MFIE_TYPE_QUIET:
-			network->quiet.count = info_element->data[0];
-			network->quiet.period = info_element->data[1];
-			network->quiet.duration = info_element->data[2];
-			network->quiet.offset = info_element->data[3];
-			network->flags |= NETWORK_HAS_QUIET;
-			break;
-
-		case MFIE_TYPE_IBSS_DFS:
-			if (network->ibss_dfs)
-				break;
-			network->ibss_dfs = kmemdup(info_element->data,
-						    info_element->len,
-						    GFP_ATOMIC);
-			if (!network->ibss_dfs)
-				return 1;
-			network->flags |= NETWORK_HAS_IBSS_DFS;
-			break;
-
-		case MFIE_TYPE_TPC_REPORT:
-			network->tpc_report.transmit_power =
-			    info_element->data[0];
-			network->tpc_report.link_margin = info_element->data[1];
-			network->flags |= NETWORK_HAS_TPC_REPORT;
-			break;
-#endif
 		default:
 			IEEE80211_DEBUG_MGMT
 			    ("Unsupported info element: %s (%d)\n",

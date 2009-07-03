@@ -170,9 +170,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	HTUpdateDefaultSetting(ieee);
 	HTInitializeHTInfo(ieee); //may move to other place.
 	TSInitialize(ieee);
-#if 0
- 	INIT_WORK(&ieee->ht_onAssRsp, (void(*)(void*)) HTOnAssocRsp_wq);
-#endif
+
 	for (i = 0; i < IEEE_IBSS_MAC_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&ieee->ibss_mac_hash[i]);
 
@@ -228,15 +226,6 @@ void free_ieee80211(struct net_device *dev)
 	}
 
 	ieee80211_networks_free(ieee);
-#if 0
-	for (i = 0; i < IEEE_IBSS_MAC_HASH_SIZE; i++) {
-		list_for_each_safe(p, q, &ieee->ibss_mac_hash[i]) {
-			kfree(list_entry(p, struct ieee_ibss_seq, list));
-			list_del(p);
-		}
-	}
-
-#endif
 	free_netdev(dev);
 }
 

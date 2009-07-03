@@ -625,178 +625,6 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 }
 
 /**
-* Function:	phy_RFSerialRead
-*
-* OverView:	Read regster from RF chips
-*
-* Input:
-*			PADAPTER		Adapter,
-*			RF90_RADIO_PATH_E	eRFPath,	//Radio path of A/B/C/D
-*			u4Byte			Offset,		//The target address to be read
-*
-* Output:	None
-* Return:		u4Byte			reback value
-* Note:		Threre are three types of serial operations:
-*			1. Software serial write
-*			2. Hardware LSSI-Low Speed Serial Interface
-*			3. Hardware HSSI-High speed
-*			serial write. Driver need to implement (1) and (2).
-*			This function is equal to the combination of RF_ReadReg() and  RFLSSIRead()
-*/
-#if 0
-static	u32
-phy_RFSerialRead(struct net_device* dev,RF90_RADIO_PATH_E eRFPath,u32 Offset)
-{
-
-	u32						retValue = 0;
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	BB_REGISTER_DEFINITION_T	*pPhyReg = &priv->PHYRegDef[eRFPath];
-	u32						NewOffset;
-	//u32						value  = 0;
-	u32 						tmplong,tmplong2;
-	u32						RfPiEnable=0;
-#if 0
-	if(pHalData->RFChipID == RF_8225 && Offset > 0x24) //36 valid regs
-		return	retValue;
-	if(pHalData->RFChipID == RF_8256 && Offset > 0x2D) //45 valid regs
-		return	retValue;
-#endif
-	//
-	// Make sure RF register offset is correct
-	//
-	Offset &= 0x3f;
-
-	//
-	// Switch page for 8256 RF IC
-	//
-	NewOffset = Offset;
-
-	// For 92S LSSI Read RFLSSIRead
-	// For RF A/B write 0x824/82c(does not work in the future)
-	// We must use 0x824 for RF A and B to execute read trigger
-	tmplong = rtl8192_QueryBBReg(dev, rFPGA0_XA_HSSIParameter2, bMaskDWord);
-	tmplong2 = rtl8192_QueryBBReg(dev, pPhyReg->rfHSSIPara2, bMaskDWord);
-	tmplong2 = (tmplong2 & (~bLSSIReadAddress)) | (NewOffset<<23) | bLSSIReadEdge;	//T65 RF
-
-	rtl8192_setBBreg(dev, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong&(~bLSSIReadEdge));
-	mdelay(1);
-
-	rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2, bMaskDWord, tmplong2);
-	mdelay(1);
-
-	rtl8192_setBBreg(dev, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong|bLSSIReadEdge);
-	mdelay(1);
-
-	if(eRFPath == RF90_PATH_A)
-		RfPiEnable = (u8)rtl8192_QueryBBReg(dev, rFPGA0_XA_HSSIParameter1, BIT8);
-	else if(eRFPath == RF90_PATH_B)
-		RfPiEnable = (u8)rtl8192_QueryBBReg(dev, rFPGA0_XB_HSSIParameter1, BIT8);
-
-	if(RfPiEnable)
-	{	// Read from BBreg8b8, 12 bits for 8190, 20bits for T65 RF
-		retValue = rtl8192_QueryBBReg(dev, pPhyReg->rfLSSIReadBackPi, bLSSIReadBackData);
-		//DbgPrint("Readback from RF-PI : 0x%x\n", retValue);
-	}
-	else
-	{	//Read from BBreg8a0, 12 bits for 8190, 20 bits for T65 RF
-		retValue = rtl8192_QueryBBReg(dev, pPhyReg->rfLSSIReadBack, bLSSIReadBackData);
-		//DbgPrint("Readback from RF-SI : 0x%x\n", retValue);
-	}
-	//RTPRINT(FPHY, PHY_RFR, ("RFR-%d Addr[0x%x]=0x%x\n", eRFPath, pPhyReg->rfLSSIReadBack, retValue));
-
-	return retValue;
-
-}
-4
-
-
-/**
-* Function:	phy_RFSerialWrite
-*
-* OverView:	Write data to RF register (page 8~)
-*
-* Input:
-*			PADAPTER		Adapter,
-*			RF90_RADIO_PATH_E	eRFPath,	//Radio path of A/B/C/D
-*			u4Byte			Offset,		//The target address to be read
-*			u4Byte			Data			//The new register Data in the target bit position
-*										//of the target to be read
-*
-* Output:	None
-* Return:		None
-* Note:		Threre are three types of serial operations:
-*			1. Software serial write
-*			2. Hardware LSSI-Low Speed Serial Interface
-*			3. Hardware HSSI-High speed
-*			serial write. Driver need to implement (1) and (2).
-*			This function is equal to the combination of RF_ReadReg() and  RFLSSIRead()
- *
- * Note: 		  For RF8256 only
- *			 The total count of RTL8256(Zebra4) register is around 36 bit it only employs
- *			 4-bit RF address. RTL8256 uses "register mode control bit" (Reg00[12], Reg00[10])
- *			 to access register address bigger than 0xf. See "Appendix-4 in PHY Configuration
- *			 programming guide" for more details.
- *			 Thus, we define a sub-finction for RTL8526 register address conversion
- *		       ===========================================================
- *			 Register Mode		RegCTL[1]		RegCTL[0]		Note
- *								(Reg00[12])		(Reg00[10])
- *		       ===========================================================
- *			 Reg_Mode0				0				x			Reg 0 ~15(0x0 ~ 0xf)
- *		       ------------------------------------------------------------------
- *			 Reg_Mode1				1				0			Reg 16 ~30(0x1 ~ 0xf)
- *		       ------------------------------------------------------------------
- *			 Reg_Mode2				1				1			Reg 31 ~ 45(0x1 ~ 0xf)
- *		       ------------------------------------------------------------------
- *
- *	2008/09/02	MH	Add 92S RF definition
- *
- *
- *
-*/
-static	void
-phy_RFSerialWrite(struct net_device* dev,RF90_RADIO_PATH_E eRFPath,u32 Offset,u32	Data)
-{
-	u32						DataAndAddr = 0;
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	BB_REGISTER_DEFINITION_T	*pPhyReg = &priv->PHYRegDef[eRFPath];
-	u32						NewOffset;
-
-#if 0
-	//<Roger_TODO> We should check valid regs for RF_6052 case.
-	if(pHalData->RFChipID == RF_8225 && Offset > 0x24) //36 valid regs
-		return;
-	if(pHalData->RFChipID == RF_8256 && Offset > 0x2D) //45 valid regs
-		return;
-#endif
-
-	Offset &= 0x3f;
-
-	//
-	// Shadow Update
-	//
-	PHY_RFShadowWrite(dev, eRFPath, Offset, Data);
-
-	//
-	// Switch page for 8256 RF IC
-	//
-		NewOffset = Offset;
-
-	//
-	// Put write addr in [5:0]  and write data in [31:16]
-	//
-	//DataAndAddr = (Data<<16) | (NewOffset&0x3f);
-	DataAndAddr = ((NewOffset<<20) | (Data&0x000fffff)) & 0x0fffffff;	// T65 RF
-
-	//
-	// Write Operation
-	//
-	rtl8192_setBBreg(dev, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
-	//RTPRINT(FPHY, PHY_RFW, ("RFW-%d Addr[0x%x]=0x%x\n", eRFPath, pPhyReg->rf3wireOffset, DataAndAddr));
-
-}
-#endif
-
-/**
 * Function:	phy_CalculateBitShift
 *
 * OverView:	Get shifted position of the BitMask
@@ -1096,33 +924,6 @@ phy_BB8192S_Config_ParaFile(struct net_device* dev)
 		goto phy_BB8190_Config_ParaFile_Fail;
 	}
 
-
-#if 0	// 2008/08/18 MH Disable for 92SE
-	if(pHalData->VersionID > VERSION_8190_BD)
-	{
-		//if(pHalData->RF_Type == RF_2T4R)
-		//{
-		// Antenna gain offset from B/C/D to A
-		u4RegValue = (  pHalData->AntennaTxPwDiff[2]<<8 |
-						pHalData->AntennaTxPwDiff[1]<<4 |
-						pHalData->AntennaTxPwDiff[0]);
-		//}
-		//else
-		//u4RegValue = 0;
-
-		PHY_SetBBReg(dev, rFPGA0_TxGainStage,
-			(bXBTxAGC|bXCTxAGC|bXDTxAGC), u4RegValue);
-
-		// CrystalCap
-		// Simulate 8192???
-		u4RegValue = pHalData->CrystalCap;
-		PHY_SetBBReg(dev, rFPGA0_AnalogParameter1, bXtalCap92x, u4RegValue);
-		// Simulate 8190??
-		//u4RegValue = ((pHalData->CrystalCap & 0xc)>>2);	// bit2~3 of crystal cap
-		//PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter2, bXtalCap23, u4RegValue);
-
-	}
-#endif
 
 	// Check if the CCK HighPower is turned ON.
 	// This is used to calculate PWDB.
@@ -2162,18 +1963,10 @@ PHY_GetTxPowerLevel8192S(
 				// Calculate Antenna pwr diff
 				if (pwrdiff[rfpath] < 8)	// 0~+7
 				{
-				#if 0//cosa, it doesn't need to add the offset here
-					if (rfpath == 0)
-						powerlevelOFDM24G += pwrdiff[rfpath];
-				#endif
 					ht20pwr[rfpath] += pwrdiff[rfpath];
 				}
 				else				// index8-15=-8~-1
 				{
-				#if 0//cosa, it doesn't need to add the offset here
-					if (rfpath == 0)
-						powerlevelOFDM24G -= (15-pwrdiff[rfpath]);
-				#endif
 					ht20pwr[rfpath] -= (15-pwrdiff[rfpath]);
 				}
 			}
@@ -2215,10 +2008,6 @@ PHY_GetTxPowerLevel8192S(
 
 					ht20pwr[rfpath] -= pwrdiff[rfpath];
 				}
-			#if 0//cosa, it doesn't need to add the offset here
-				if (rfpath == 0)
-					powerlevelOFDM24G -= pwrdiff[rfpath];
-			#endif
 			}
 
 			if (priv->rf_type == RF_2T2R)
@@ -2248,10 +2037,6 @@ PHY_GetTxPowerLevel8192S(
 				}
 			}
 		}
-#if 0//cosa, useless
-		// Read HT/Legacy OFDM diff
-		legacy_ant_pwr_diff= pHalData->TxPwrLegacyHtDiff[RF90_PATH_A][index];
-#endif
 		}
 
 	//Cosa added for protection, the reg rFPGA0_TxGainStage
@@ -2340,10 +2125,6 @@ PHY_GetTxPowerLevel8192S(
 		break;
 
 		case RF_8256:
-#if 0
-			PHY_SetRF8256CCKTxPower(dev, powerlevel);
-			PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
-#endif
 			break;
 
 		case RF_6052:
@@ -2574,65 +2355,6 @@ void PHY_InitialGain8192S(struct net_device* dev,u8 Operation	)
 	//struct r8192_priv *priv = ieee80211_priv(dev);
 	//u32					BitMask;
 	//u8					initial_gain;
-
-#if 0	// For 8192s test disable
-	if(!dev->bDriverStopped)
-	{
-		switch(Operation)
-		{
-			case IG_Backup:
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("IG_Backup, backup the initial gain.\n"));
-				initial_gain = priv->DefaultInitialGain[0];
-				BitMask = bMaskByte0;
-				if(DM_DigTable.Dig_Algorithm == DIG_ALGO_BY_FALSE_ALARM)
-					PHY_SetMacReg(dev, UFWP, bMaskByte1, 0x8);	// FW DIG OFF
-				pMgntInfo->InitGain_Backup.XAAGCCore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XAAGCCore1, BitMask);
-				pMgntInfo->InitGain_Backup.XBAGCCore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XBAGCCore1, BitMask);
-				pMgntInfo->InitGain_Backup.XCAGCCore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XCAGCCore1, BitMask);
-				pMgntInfo->InitGain_Backup.XDAGCCore1 = (u8)rtl8192_QueryBBReg(dev, rOFDM0_XDAGCCore1, BitMask);
-				BitMask  = bMaskByte2;
-				pMgntInfo->InitGain_Backup.CCA		= (u8)rtl8192_QueryBBReg(dev, rCCK0_CCA, BitMask);
-
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan InitialGainBackup 0xc50 is %x\n",pMgntInfo->InitGain_Backup.XAAGCCore1));
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan InitialGainBackup 0xc58 is %x\n",pMgntInfo->InitGain_Backup.XBAGCCore1));
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan InitialGainBackup 0xc60 is %x\n",pMgntInfo->InitGain_Backup.XCAGCCore1));
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan InitialGainBackup 0xc68 is %x\n",pMgntInfo->InitGain_Backup.XDAGCCore1));
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan InitialGainBackup 0xa0a is %x\n",pMgntInfo->InitGain_Backup.CCA));
-
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Write scan initial gain = 0x%x \n", initial_gain));
-				write_nic_byte(dev, rOFDM0_XAAGCCore1, initial_gain);
-				write_nic_byte(dev, rOFDM0_XBAGCCore1, initial_gain);
-				write_nic_byte(dev, rOFDM0_XCAGCCore1, initial_gain);
-				write_nic_byte(dev, rOFDM0_XDAGCCore1, initial_gain);
-				break;
-			case IG_Restore:
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("IG_Restore, restore the initial gain.\n"));
-				BitMask = 0x7f; //Bit0~ Bit6
-				if(DM_DigTable.Dig_Algorithm == DIG_ALGO_BY_FALSE_ALARM)
-					PHY_SetMacReg(dev, UFWP, bMaskByte1, 0x8);	// FW DIG OFF
-
-				rtl8192_setBBreg(dev, rOFDM0_XAAGCCore1, BitMask, (u32)pMgntInfo->InitGain_Backup.XAAGCCore1);
-				rtl8192_setBBreg(dev, rOFDM0_XBAGCCore1, BitMask, (u32)pMgntInfo->InitGain_Backup.XBAGCCore1);
-				rtl8192_setBBreg(dev, rOFDM0_XCAGCCore1, BitMask, (u32)pMgntInfo->InitGain_Backup.XCAGCCore1);
-				rtl8192_setBBreg(dev, rOFDM0_XDAGCCore1, BitMask, (u32)pMgntInfo->InitGain_Backup.XDAGCCore1);
-				BitMask  = (BIT22|BIT23);
-				rtl8192_setBBreg(dev, rCCK0_CCA, BitMask, (u32)pMgntInfo->InitGain_Backup.CCA);
-
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan BBInitialGainRestore 0xc50 is %x\n",pMgntInfo->InitGain_Backup.XAAGCCore1));
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan BBInitialGainRestore 0xc58 is %x\n",pMgntInfo->InitGain_Backup.XBAGCCore1));
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan BBInitialGainRestore 0xc60 is %x\n",pMgntInfo->InitGain_Backup.XCAGCCore1));
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan BBInitialGainRestore 0xc68 is %x\n",pMgntInfo->InitGain_Backup.XDAGCCore1));
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Scan BBInitialGainRestore 0xa0a is %x\n",pMgntInfo->InitGain_Backup.CCA));
-
-				if(DM_DigTable.Dig_Algorithm == DIG_ALGO_BY_FALSE_ALARM)
-					PHY_SetMacReg(dev, UFWP, bMaskByte1, 0x1);	// FW DIG ON
-				break;
-			default:
-			RT_TRACE(COMP_SCAN, DBG_LOUD, ("Unknown IG Operation. \n"));
-				break;
-		}
-	}
-#endif
 }
 
 /*-----------------------------------------------------------------------------
@@ -2729,12 +2451,6 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 			//write_nic_dword(dev, rCCK0_TxFilter1, 0x1a1b0000);
 			//write_nic_dword(dev, rCCK0_TxFilter2, 0x090e1317);
 			//write_nic_dword(dev, rCCK0_DebugPort, 0x00000204);
-			#if 0 //LZM 090219
-			rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskDWord, 0x1a1b0000);
-			rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, 0x090e1317);
-			rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskDWord, 0x00000204);
-			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00300000, 3);
-			#endif
 
 			if (priv->card_8192_version >= VERSION_8192S_BCUT)
 				write_nic_byte(dev, rFPGA0_AnalogParameter2, 0x58);
@@ -2751,11 +2467,6 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 			//write_nic_dword(dev, rCCK0_TxFilter1, 0x35360000);
 			//write_nic_dword(dev, rCCK0_TxFilter2, 0x121c252e);
 			//write_nic_dword(dev, rCCK0_DebugPort, 0x00000409);
-			#if 0 //LZM 090219
-			rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskDWord, 0x35360000);
-			rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, 0x121c252e);
-			rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskDWord, 0x00000409);
-			#endif
 
 			// Set Control channel to upper or lower. These settings are required only for 40MHz
 			rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand, (priv->nCur40MhzPrimeSC>>1));
@@ -2874,16 +2585,6 @@ void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EX
 	else
 		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
-#if 0
-	if(!priv->bDriverStopped)
-	{
-#ifdef USE_WORKITEM
-		PlatformScheduleWorkItem(&(priv->SetBWModeWorkItem));//SetBWModeCallback8192SUsbWorkItem
-#else
-		PlatformSetTimer(dev, &(priv->SetBWModeTimer), 0);//PHY_SetBWModeCallback8192S
-#endif
-	}
-#endif
 	if((priv->up) )// && !(RT_CANNOT_IO(Adapter) && Adapter->bInSetPower) )
 	{
 	SetBWModeCallback8192SUsbWorkItem(dev);
@@ -3320,16 +3021,6 @@ u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device* dev, u32 eRFPath)
 	bool				rtValue = TRUE;
 
 	// NOt check RF Path now.!
-#if 0
-	if (priv->rf_type == RF_1T2R && eRFPath != RF90_PATH_A)
-	{
-		rtValue = FALSE;
-	}
-	if (priv->rf_type == RF_1T2R && eRFPath != RF90_PATH_A)
-	{
-
-	}
-#endif
 	return	rtValue;
 
 }	/* PHY_CheckIsLegalRfPath8192S */
@@ -3869,18 +3560,6 @@ void SetBWModeCallback8192SUsb(struct net_device *dev)
 		case HT_CHANNEL_WIDTH_20:
 			rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x0);
 			rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x0);
-			#if 0 //LZM090219
-			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00300000, 3);
-
-			// Correct the tx power for CCK rate in 20M. Suggest by YN, 20071207
-			//write_nic_dword(dev, rCCK0_TxFilter1, 0x1a1b0000);
-			//write_nic_dword(dev, rCCK0_TxFilter2, 0x090e1317);
-			//write_nic_dword(dev, rCCK0_DebugPort, 0x00000204);
-			rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskDWord, 0x1a1b0000);
-			rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, 0x090e1317);
-			rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskDWord, 0x00000204);
-			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00300000, 3);
-			#endif
 
 			if (priv->card_8192_version >= VERSION_8192S_BCUT)
 				rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0xff, 0x58);
@@ -4017,33 +3696,12 @@ void SetBWModeCallback8192SUsbWorkItem(struct net_device *dev)
 			rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x0);
 			rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x0);
 
-			#if 0 //LZM 090219
-			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, bADClkPhase, 1);
-
-			// Correct the tx power for CCK rate in 20M. Suggest by YN, 20071207
-			rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskDWord, 0x1a1b0000);
-			rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, 0x090e1317);
-			rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskDWord, 0x00000204);
-			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x00100000, 1);
-			#endif
-
 			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0xff, 0x58);
 
 			break;
 		case HT_CHANNEL_WIDTH_20_40:
 			rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x1);
 			rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x1);
-			#if 0 //LZM 090219
-			rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand, (priv->nCur40MhzPrimeSC>>1));
-
-			rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, bADClkPhase, 0);
-
-   			rtl8192_setBBreg(dev, rOFDM1_LSTF, 0xC00, priv->nCur40MhzPrimeSC);
-			// Correct the tx power for CCK rate in 40M. Suggest by YN, 20071207
-			rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskDWord, 0x35360000);
-			rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, 0x121c252e);
-			rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskDWord, 0x00000409);
-			#endif
 
 			// Set Control channel to upper or lower. These settings are required only for 40MHz
 			rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand, (priv->nCur40MhzPrimeSC>>1));

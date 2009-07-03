@@ -340,11 +340,7 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device* ieee)
 {
 	bool			retValue = false;
 	struct ieee80211_network* net = &ieee->current_network;
-#if 0
-	if(pMgntInfo->bHalfNMode == false)
-		retValue = false;
-	else
-#endif
+
 	if((memcmp(net->bssid, BELKINF5D8233V1_RALINK, 3)==0) ||
 		     (memcmp(net->bssid, BELKINF5D82334V3_RALINK, 3)==0) ||
 		     (memcmp(net->bssid, PCI_RALINK, 3)==0) ||
@@ -423,24 +419,7 @@ void HTIOTPeerDetermine(struct ieee80211_device* ieee)
 u8 HTIOTActIsDisableMCS14(struct ieee80211_device* ieee, u8* PeerMacAddr)
 {
 	u8 ret = 0;
-#if 0
-	// Apply for 819u only
-#if (HAL_CODE_BASE==RTL8192 && DEV_BUS_TYPE==USB_INTERFACE)
-	if((memcmp(PeerMacAddr, UNKNOWN_BORADCOM, 3)==0) ||
-    		(memcmp(PeerMacAddr, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)
-	    )
-	{
-		ret = 1;
-	}
 
-
-	if(pHTInfo->bCurrentRT2RTAggregation)
-	{
-		// The parameter of pHTInfo->bCurrentRT2RTAggregation must be decided previously
-		ret = 1;
-	}
-#endif
-#endif
 	return ret;
  }
 
@@ -541,18 +520,6 @@ u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device* 	ieee, u8* PeerMacAddr)
 	// Set specific EDCA parameter for different AP in DM handler.
 
 	return retValue;
-#if 0
-	if((memcmp(PeerMacAddr, UNKNOWN_BORADCOM, 3)==0)||
-		(memcmp(PeerMacAddr, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)||
-		(memcmp(PeerMacAddr, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)||
-		(memcmp(PeerMacAddr, NETGEAR834Bv2_BROADCOM, 3)==0))
-
-	{
-		retValue = 1;	//Linksys disable EDCA turbo mode
-	}
-
-	return retValue;
-#endif
 }
 
 /********************************************************************************************************************
@@ -1203,12 +1170,7 @@ u8 HTFilterMCSRate( struct ieee80211_device* ieee, u8* pSupportMCS, u8* pOperate
 	return true;
 }
 void HTSetConnectBwMode(struct ieee80211_device* ieee, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET	Offset);
-#if 0
-//I need move this function to other places, such as rx?
-void HTOnAssocRsp_wq(struct work_struct *work)
-{
-	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, ht_onAssRsp);
-#endif
+
 void HTOnAssocRsp(struct ieee80211_device *ieee)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
@@ -1315,10 +1277,6 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	{
 		// Set MPDU density to 2 to Realtek AP, and set it to 0 for others
 		// Replace MPDU factor declared in original association response frame format. 2007.08.20 by Emily
-#if 0
-		osTmp= PacketGetElement( asocpdu, EID_Vendor, OUI_SUB_REALTEK_AGG, OUI_SUBTYPE_DONT_CARE);
-		if(osTmp.Length >= 5)	//00:e0:4c:02:00
-#endif
 		if (ieee->current_network.bssht.bdRT2RTAggregation)
 		{
 			if( ieee->pairwise_key_type != KEY_TYPE_NA)
@@ -1498,187 +1456,7 @@ void HTInitializeBssDesc(PBSS_HT pBssHT)
 	pBssHT->bdRT2RTLongSlotTime = false;
 	pBssHT->RT2RT_HT_Mode = (RT_HT_CAPBILITY)0;
 }
-#if 0
-//below function has merged into ieee80211_network_init() in ieee80211_rx.c
-void
-HTParsingHTCapElement(
-	IN	PADAPTER		Adapter,
-	IN	OCTET_STRING	HTCapIE,
-	OUT	PRT_WLAN_BSS	pBssDesc
-)
-{
-	PMGNT_INFO      			pMgntInfo = &Adapter->MgntInfo;
 
-	if( HTCapIE.Length > sizeof(pBssDesc->BssHT.bdHTCapBuf) )
-	{
-		RT_TRACE( COMP_HT, DBG_LOUD, ("HTParsingHTCapElement(): HT Capability Element length is too long!\n") );
-		return;
-	}
-
-	// TODO: Check the correctness of HT Cap
-	//Print each field in detail. Driver should not print out this message by default
-	if(!pMgntInfo->mActingAsAp && !pMgntInfo->mAssoc)
-		HTDebugHTCapability(DBG_TRACE, Adapter, &HTCapIE, (pu8)"HTParsingHTCapElement()");
-
-	HTCapIE.Length = HTCapIE.Length > sizeof(pBssDesc->BssHT.bdHTCapBuf)?\
-		sizeof(pBssDesc->BssHT.bdHTCapBuf):HTCapIE.Length;	//prevent from overflow
-
-	CopyMem(pBssDesc->BssHT.bdHTCapBuf, HTCapIE.Octet, HTCapIE.Length);
-	pBssDesc->BssHT.bdHTCapLen = HTCapIE.Length;
-
-}
-
-
-void
-HTParsingHTInfoElement(
-	PADAPTER		Adapter,
-	OCTET_STRING	HTInfoIE,
-	PRT_WLAN_BSS	pBssDesc
-)
-{
-	PMGNT_INFO      			pMgntInfo = &Adapter->MgntInfo;
-
-	if( HTInfoIE.Length > sizeof(pBssDesc->BssHT.bdHTInfoBuf))
-	{
-		RT_TRACE( COMP_HT, DBG_LOUD, ("HTParsingHTInfoElement(): HT Information Element length is too long!\n") );
-		return;
-	}
-
-	// TODO: Check the correctness of HT Info
-	//Print each field in detail. Driver should not print out this message by default
-	if(!pMgntInfo->mActingAsAp && !pMgntInfo->mAssoc)
-		HTDebugHTInfo(DBG_TRACE, Adapter, &HTInfoIE, (pu8)"HTParsingHTInfoElement()");
-
-	HTInfoIE.Length = HTInfoIE.Length > sizeof(pBssDesc->BssHT.bdHTInfoBuf)?\
-		sizeof(pBssDesc->BssHT.bdHTInfoBuf):HTInfoIE.Length;	//prevent from overflow
-
-	CopyMem( pBssDesc->BssHT.bdHTInfoBuf, HTInfoIE.Octet, HTInfoIE.Length);
-	pBssDesc->BssHT.bdHTInfoLen = HTInfoIE.Length;
-}
-
-/*
-  * Get HT related information from beacon and save it in BssDesc
-  *
-  * (1) Parse HTCap, and HTInfo, and record whether it is 11n AP
-  * (2) If peer is HT, but not WMM, call QosSetLegacyWMMParamWithHT()
-  * (3) Check whether peer is Realtek AP (for Realtek proprietary aggregation mode).
-  * Input:
-  * 		PADAPTER	Adapter
-  *
-  * Output:
-  *		PRT_TCB		BssDesc
-  *
-*/
-void HTGetValueFromBeaconOrProbeRsp(
-	PADAPTER			Adapter,
-	POCTET_STRING		pSRCmmpdu,
-	PRT_WLAN_BSS		bssDesc
-)
-{
-	PMGNT_INFO      			pMgntInfo = &Adapter->MgntInfo;
-	PRT_HIGH_THROUGHPUT		pHTInfo = GET_HT_INFO(pMgntInfo);
-	OCTET_STRING				HTCapIE, HTInfoIE, HTRealtekAgg, mmpdu;
-	OCTET_STRING				BroadcomElement, CiscoElement;
-
-	mmpdu.Octet = pSRCmmpdu->Octet;
-	mmpdu.Length = pSRCmmpdu->Length;
-
-	//2Note:
-	//   Mark for IOT testing using  Linksys WRT350N, This AP does not contain WMM IE  when
-	//   it is configured at pure-N mode.
-	//	if(bssDesc->BssQos.bdQoSMode & QOS_WMM)
-	//
-
-	HTInitializeBssDesc (&bssDesc->BssHT);
-
-	//2<1> Parse HTCap, and HTInfo
-	// Get HT Capability IE: (1) Get IEEE Draft N IE or (2) Get EWC IE
-	HTCapIE = PacketGetElement(mmpdu, EID_HTCapability, OUI_SUB_DONT_CARE, OUI_SUBTYPE_DONT_CARE);
-	if(HTCapIE.Length == 0)
-	{
-		HTCapIE = PacketGetElement(mmpdu, EID_Vendor, OUI_SUB_11N_EWC_HT_CAP, OUI_SUBTYPE_DONT_CARE);
-		if(HTCapIE.Length != 0)
-			bssDesc->BssHT.bdHTSpecVer= HT_SPEC_VER_EWC;
-	}
-	if(HTCapIE.Length != 0)
-		HTParsingHTCapElement(Adapter, HTCapIE, bssDesc);
-
-	// Get HT Information IE: (1) Get IEEE Draft N IE or (2) Get EWC IE
-	HTInfoIE = PacketGetElement(mmpdu, EID_HTInfo, OUI_SUB_DONT_CARE, OUI_SUBTYPE_DONT_CARE);
-	if(HTInfoIE.Length == 0)
-	{
-		HTInfoIE = PacketGetElement(mmpdu, EID_Vendor, OUI_SUB_11N_EWC_HT_INFO, OUI_SUBTYPE_DONT_CARE);
-		if(HTInfoIE.Length != 0)
-				bssDesc->BssHT.bdHTSpecVer  = HT_SPEC_VER_EWC;
-	}
-	if(HTInfoIE.Length != 0)
-		HTParsingHTInfoElement(Adapter, HTInfoIE, bssDesc);
-
-	//2<2>If peer is HT, but not WMM, call QosSetLegacyWMMParamWithHT()
-	if(HTCapIE.Length != 0)
-	{
-		bssDesc->BssHT.bdSupportHT = true;
-		if(bssDesc->BssQos.bdQoSMode == QOS_DISABLE)
-			QosSetLegacyWMMParamWithHT(Adapter, bssDesc);
-	}
-	else
-	{
-		bssDesc->BssHT.bdSupportHT = false;
-	}
-
-	//2<3>Check whether the peer is Realtek AP/STA
-	if(pHTInfo->bRegRT2RTAggregation)
-	{
-		if(bssDesc->BssHT.bdSupportHT)
-		{
-			HTRealtekAgg = PacketGetElement(mmpdu, EID_Vendor, OUI_SUB_REALTEK_AGG, OUI_SUBTYPE_DONT_CARE);
-			if(HTRealtekAgg.Length >=5 )
-			{
-				bssDesc->BssHT.bdRT2RTAggregation = true;
-
-				if((HTRealtekAgg.Octet[4]==1) && (HTRealtekAgg.Octet[5] & 0x02))
-					bssDesc->BssHT.bdRT2RTLongSlotTime = true;
-			}
-		}
-	}
-
-	//
-	// 2008/01/25 MH Get Broadcom AP IE for manamgent frame CCK rate problem.
-	// AP can not receive CCK managemtn from from 92E.
-	//
-
-	// Initialize every new bss broadcom cap exist as false..
-	bssDesc->bBroadcomCapExist= false;
-
-	if(HTCapIE.Length != 0 || HTInfoIE.Length != 0)
-	{
-		u4Byte	Length = 0;
-
-		FillOctetString(BroadcomElement, NULL, 0);
-
-		BroadcomElement = PacketGetElement( mmpdu, EID_Vendor, OUI_SUB_BROADCOM_IE_1, OUI_SUBTYPE_DONT_CARE);
-		Length += BroadcomElement.Length;
-		BroadcomElement = PacketGetElement( mmpdu, EID_Vendor, OUI_SUB_BROADCOM_IE_2, OUI_SUBTYPE_DONT_CARE);
-		Length += BroadcomElement.Length;
-		BroadcomElement = PacketGetElement( mmpdu, EID_Vendor, OUI_SUB_BROADCOM_IE_3, OUI_SUBTYPE_DONT_CARE);
-		Length += BroadcomElement.Length;
-
-		if(Length > 0)
-			bssDesc->bBroadcomCapExist = true;
-	}
-
-
-	// For Cisco IOT issue
-	CiscoElement = PacketGetElement( mmpdu, EID_Vendor, OUI_SUB_CISCO_IE, OUI_SUBTYPE_DONT_CARE);
-	if(CiscoElement.Length != 0){ // 3: 0x00, 0x40, 0x96 ....
-		bssDesc->bCiscoCapExist = true;
-	}else{
-		bssDesc->bCiscoCapExist = false;
-	}
-}
-
-
-#endif
 /********************************************************************************************************************
  *function:  initialize Bss HT structure(struct PBSS_HT)
  *   input:  struct ieee80211_device 	*ieee

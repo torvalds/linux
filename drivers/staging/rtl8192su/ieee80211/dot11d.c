@@ -34,10 +34,7 @@ Dot11d_Reset(struct ieee80211_device *ieee)
 {
 	u32 i;
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(ieee);
-#if 0
-	if(!pDot11dInfo->bEnabled)
-		return;
-#endif
+
 	// Clear old channel map
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);

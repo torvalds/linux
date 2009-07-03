@@ -235,11 +235,6 @@ void ieee80211_txb_free(struct ieee80211_txb *txb) {
 	//int i;
 	if (unlikely(!txb))
 		return;
-#if 0
-	for (i = 0; i < txb->nr_frags; i++)
-		if (txb->fragments[i])
-			dev_kfree_skb_any(txb->fragments[i]);
-#endif
 	kfree(txb);
 }
 

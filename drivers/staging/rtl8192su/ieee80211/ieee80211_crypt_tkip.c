@@ -327,18 +327,6 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 
-#if 0
-printk("@@ tkey\n");
-printk("%x|", ((u32*)tkey->key)[0]);
-printk("%x|", ((u32*)tkey->key)[1]);
-printk("%x|", ((u32*)tkey->key)[2]);
-printk("%x|", ((u32*)tkey->key)[3]);
-printk("%x|", ((u32*)tkey->key)[4]);
-printk("%x|", ((u32*)tkey->key)[5]);
-printk("%x|", ((u32*)tkey->key)[6]);
-printk("%x\n", ((u32*)tkey->key)[7]);
-#endif
-
 	if (!tcb_desc->bHwSec)
 	{
 		if (!tkey->tx_phase1_done) {

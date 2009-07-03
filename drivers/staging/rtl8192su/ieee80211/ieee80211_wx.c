@@ -35,11 +35,7 @@
 #include <linux/module.h>
 
 #include "ieee80211.h"
-#if 0
-static const char *ieee80211_modes[] = {
-	"?", "a", "b", "ab", "g", "ag", "bg", "abg"
-};
-#endif
+
 struct modes_unit {
 	char *mode_string;
 	int mode_size;
@@ -170,15 +166,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		if (rate > max_rate)
 			max_rate = rate;
 	}
-#if 0
-	printk("max rate:%d ===basic rate:\n", max_rate);
-	for (i=0;i<network->rates_len;i++)
-		printk(" %x", network->rates[i]);
-	printk("\n=======extend rate\n");
-	for (i=0; i<network->rates_ex_len; i++)
-		printk(" %x", network->rates_ex[i]);
-	printk("\n");
-#endif
+
 	iwe.cmd = SIOCGIWRATE;
 	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
 	iwe.u.bitrate.value = max_rate * 500000;
@@ -495,15 +483,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 		erq->flags |= IW_ENCODE_DISABLED;
 		return 0;
 	}
-#if 0
-	if (strcmp(crypt->ops->name, "WEP") != 0) {
-		/* only WEP is supported with wireless extensions, so just
-		 * report that encryption is used */
-		erq->length = 0;
-		erq->flags |= IW_ENCODE_ENABLED;
-		return 0;
-	}
-#endif
+
 	len = crypt->ops->get_key(keybuf, SCM_KEY_LEN, NULL, crypt->priv);
 	erq->length = (len >= 0 ? len : 0);
 
@@ -585,12 +565,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 
 	sec.enabled = 1;
     //    sec.encrypt = 1;
-#if 0
-        if (group_key ? !ieee->host_mc_decrypt :
-            !(ieee->host_encrypt || ieee->host_decrypt ||
-              ieee->host_encrypt_msdu))
-                goto skip_host_crypt;
-#endif
+
         switch (ext->alg) {
         case IW_ENCODE_ALG_WEP:
                 alg = "WEP";
@@ -841,15 +816,6 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 #if 1
 int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
-#if 0
-	printk("====>%s()\n", __FUNCTION__);
-	{
-		int i;
-		for (i=0; i<len; i++)
-		printk("%2x ", ie[i]&0xff);
-		printk("\n");
-	}
-#endif
 	u8 *buf;
 
 	if (len>MAX_WPA_IE_LEN || (len && ie == NULL))

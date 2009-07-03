@@ -89,21 +89,7 @@ void RxPktPendingTimeout(unsigned long data)
 	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff))
 	{
 		pRxTs->RxTimeoutIndicateSeq = pRxTs->RxIndicateSeq;
-#if 0
-		if(timer_pending(&pTS->RxPktPendingTimer))
-			del_timer_sync(&pTS->RxPktPendingTimer);
-		pTS->RxPktPendingTimer.expires = jiffies + MSECS(pHTInfo->RxReorderPendingTime);
-		add_timer(&pTS->RxPktPendingTimer);
-#else
 		mod_timer(&pRxTs->RxPktPendingTimer,  jiffies + MSECS(ieee->pHTInfo->RxReorderPendingTime));
-#endif
-
-#if 0
-		if(timer_pending(&pRxTs->RxPktPendingTimer))
-			del_timer_sync(&pRxTs->RxPktPendingTimer);
-		pRxTs->RxPktPendingTimer.expires = jiffies + ieee->pHTInfo->RxReorderPendingTime;
-		add_timer(&pRxTs->RxPktPendingTimer);
-#endif
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 	//PlatformReleaseSpinLock(Adapter, RT_RX_SPINLOCK);
@@ -372,17 +358,11 @@ bool GetTs(
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "get TS for Broadcast or Multicast\n");
 		return false;
 	}
-#if 0
-	if(ieee->pStaQos->CurrentQosMode == QOS_DISABLE)
-	{	UP = 0; } //only use one TS
-	else if(ieee->pStaQos->CurrentQosMode & QOS_WMM)
-	{
-#else
+
 	if (ieee->current_network.qos_data.supported == 0)
 		UP = 0;
 	else
 	{
-#endif
 		// In WMM case: we use 4 TID only
 		if (!IsACValid(TID))
 		{

@@ -2119,35 +2119,9 @@ struct ieee80211_device {
 //	void (*ps_request_tx_ack) (struct net_device *dev);
 	void (*enter_sleep_state) (struct net_device *dev, u32 th, u32 tl);
 	short (*ps_is_queue_empty) (struct net_device *dev);
-#if 0
-	/* Typical STA methods */
-        int (*handle_auth) (struct net_device * dev,
-                            struct ieee80211_auth * auth);
-        int (*handle_deauth) (struct net_device * dev,
-                              struct ieee80211_deauth * auth);
-        int (*handle_action) (struct net_device * dev,
-                              struct ieee80211_action * action,
-                              struct ieee80211_rx_stats * stats);
-        int (*handle_disassoc) (struct net_device * dev,
-                                struct ieee80211_disassoc * assoc);
-#endif
-        int (*handle_beacon) (struct net_device * dev, struct ieee80211_beacon * beacon, struct ieee80211_network * network);
-#if 0
-        int (*handle_probe_response) (struct net_device * dev,
-                                      struct ieee80211_probe_response * resp,
-                                      struct ieee80211_network * network);
-        int (*handle_probe_request) (struct net_device * dev,
-                                     struct ieee80211_probe_request * req,
-                                     struct ieee80211_rx_stats * stats);
-#endif
-        int (*handle_assoc_response) (struct net_device * dev, struct ieee80211_assoc_response_frame * resp, struct ieee80211_network * network);
 
-#if 0
-        /* Typical AP methods */
-        int (*handle_assoc_request) (struct net_device * dev);
-        int (*handle_reassoc_request) (struct net_device * dev,
-                                       struct ieee80211_reassoc_request * req);
-#endif
+        int (*handle_beacon) (struct net_device * dev, struct ieee80211_beacon * beacon, struct ieee80211_network * network);
+        int (*handle_assoc_response) (struct net_device * dev, struct ieee80211_assoc_response_frame * resp, struct ieee80211_network * network);
 
 	/* check whether Tx hw resouce available */
 	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
