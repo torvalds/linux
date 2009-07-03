@@ -181,17 +181,17 @@ static int pcpu_page_idx(unsigned int cpu, int page_idx)
 	return cpu * pcpu_unit_pages + page_idx;
 }
 
-static struct page **pcpu_chunk_pagep(struct pcpu_chunk *chunk,
-				      unsigned int cpu, int page_idx)
-{
-	return &chunk->page[pcpu_page_idx(cpu, page_idx)];
-}
-
 static unsigned long pcpu_chunk_addr(struct pcpu_chunk *chunk,
 				     unsigned int cpu, int page_idx)
 {
 	return (unsigned long)chunk->vm->addr +
 		(pcpu_page_idx(cpu, page_idx) << PAGE_SHIFT);
+}
+
+static struct page **pcpu_chunk_pagep(struct pcpu_chunk *chunk,
+				      unsigned int cpu, int page_idx)
+{
+	return &chunk->page[pcpu_page_idx(cpu, page_idx)];
 }
 
 static bool pcpu_chunk_page_occupied(struct pcpu_chunk *chunk,
@@ -583,6 +583,45 @@ static void pcpu_unmap(struct pcpu_chunk *chunk, int page_start, int page_end,
 				       pcpu_chunk_addr(chunk, last, page_end));
 }
 
+static int __pcpu_map_pages(unsigned long addr, struct page **pages,
+			    int nr_pages)
+{
+	return map_kernel_range_noflush(addr, nr_pages << PAGE_SHIFT,
+					PAGE_KERNEL, pages);
+}
+
+/**
+ * pcpu_map - map pages into a pcpu_chunk
+ * @chunk: chunk of interest
+ * @page_start: page index of the first page to map
+ * @page_end: page index of the last page to map + 1
+ *
+ * For each cpu, map pages [@page_start,@page_end) into @chunk.
+ * vcache is flushed afterwards.
+ */
+static int pcpu_map(struct pcpu_chunk *chunk, int page_start, int page_end)
+{
+	unsigned int last = num_possible_cpus() - 1;
+	unsigned int cpu;
+	int err;
+
+	/* map must not be done on immutable chunk */
+	WARN_ON(chunk->immutable);
+
+	for_each_possible_cpu(cpu) {
+		err = __pcpu_map_pages(pcpu_chunk_addr(chunk, cpu, page_start),
+				       pcpu_chunk_pagep(chunk, cpu, page_start),
+				       page_end - page_start);
+		if (err < 0)
+			return err;
+	}
+
+	/* flush at once, please read comments in pcpu_unmap() */
+	flush_cache_vmap(pcpu_chunk_addr(chunk, 0, page_start),
+			 pcpu_chunk_addr(chunk, last, page_end));
+	return 0;
+}
+
 /**
  * pcpu_depopulate_chunk - depopulate and unmap an area of a pcpu_chunk
  * @chunk: chunk to depopulate
@@ -630,45 +669,6 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size,
 
 	if (unmap_start >= 0)
 		pcpu_unmap(chunk, unmap_start, unmap_end, flush);
-}
-
-static int __pcpu_map_pages(unsigned long addr, struct page **pages,
-			    int nr_pages)
-{
-	return map_kernel_range_noflush(addr, nr_pages << PAGE_SHIFT,
-					PAGE_KERNEL, pages);
-}
-
-/**
- * pcpu_map - map pages into a pcpu_chunk
- * @chunk: chunk of interest
- * @page_start: page index of the first page to map
- * @page_end: page index of the last page to map + 1
- *
- * For each cpu, map pages [@page_start,@page_end) into @chunk.
- * vcache is flushed afterwards.
- */
-static int pcpu_map(struct pcpu_chunk *chunk, int page_start, int page_end)
-{
-	unsigned int last = num_possible_cpus() - 1;
-	unsigned int cpu;
-	int err;
-
-	/* map must not be done on immutable chunk */
-	WARN_ON(chunk->immutable);
-
-	for_each_possible_cpu(cpu) {
-		err = __pcpu_map_pages(pcpu_chunk_addr(chunk, cpu, page_start),
-				       pcpu_chunk_pagep(chunk, cpu, page_start),
-				       page_end - page_start);
-		if (err < 0)
-			return err;
-	}
-
-	/* flush at once, please read comments in pcpu_unmap() */
-	flush_cache_vmap(pcpu_chunk_addr(chunk, 0, page_start),
-			 pcpu_chunk_addr(chunk, last, page_end));
-	return 0;
 }
 
 /**
