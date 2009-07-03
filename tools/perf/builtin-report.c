@@ -1035,7 +1035,7 @@ resolve_callchain(struct thread *thread, struct map *map __used,
 		    struct ip_callchain *chain, struct hist_entry *entry)
 {
 	u64 context = PERF_CONTEXT_MAX;
-	struct symbol **syms;
+	struct symbol **syms = NULL;
 	unsigned int i;
 
 	if (callchain) {
