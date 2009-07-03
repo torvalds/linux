@@ -1016,6 +1016,50 @@ static const struct ivtv_card ivtv_card_aver_pvr150 = {
 
 /* ------------------------------------------------------------------------- */
 
+/* AVerMedia UltraTV 1500 MCE (newer non-cx88 version, M113 variant) card */
+
+static const struct ivtv_card_pci_info ivtv_pci_aver_ultra1500mce[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc019 },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_aver_ultra1500mce = {
+	.type = IVTV_CARD_AVER_ULTRA1500MCE,
+	.name = "AVerMedia UltraTV 1500 MCE / AVerTV M113",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_muxer = IVTV_HW_GPIO,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER |
+		  IVTV_HW_WM8739 | IVTV_HW_GPIO,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1,
+		  CX25840_SVIDEO_LUMA3 | CX25840_SVIDEO_CHROMA4 },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 1, CX25840_COMPOSITE1 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5,       0 },
+		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
+	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, 2 },
+	/* The 74HC4502 Dual 4:1 multiplexer is controlled by 2 GPIO lines */
+	.gpio_init = { .direction = 0xc000, .initial_value = 0 },
+	.gpio_audio_input  = { .mask   = 0xc000,
+			       .tuner  = 0x0000,
+			       .linein = 0x4000,
+			       .radio  = 0x8000 },
+	.tuners = {
+		/* The UltraTV 1500 MCE has a Philips FM1236 MK5 TV/FM tuner */
+		{ .std = V4L2_STD_MN, .tuner = TUNER_PHILIPS_FM1236_MK3 },
+	},
+	.pci_list = ivtv_pci_aver_ultra1500mce,
+	.i2c = &ivtv_i2c_std,
+};
+
+/* ------------------------------------------------------------------------- */
+
 /* AVerMedia EZMaker PCI Deluxe card */
 
 static const struct ivtv_card_pci_info ivtv_pci_aver_ezmaker[] = {
