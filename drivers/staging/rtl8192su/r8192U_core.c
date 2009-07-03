@@ -5513,12 +5513,7 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 	else
 	{
 		priv->AutoloadFailFlag=FALSE;
-#if RTL8192SU_USE_PARAM_TXPWR
-		priv->bTXPowerDataReadFromEEPORM = FALSE;
-#else
 		priv->bTXPowerDataReadFromEEPORM = TRUE;
-#endif
-
 	}
        // Read IC Version && Channel Plan
 	if(!priv->AutoloadFailFlag)
