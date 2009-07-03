@@ -102,9 +102,6 @@ void HTUpdateDefaultSetting(struct ieee80211_device* ieee)
 	pHTInfo->RxReorderWinSize = 64;
 	pHTInfo->RxReorderPendingTime = 30;
 
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-	pHTInfo->UsbTxAggrNum = 4;
-#endif
 
 
 }

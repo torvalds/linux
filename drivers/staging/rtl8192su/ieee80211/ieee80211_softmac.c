@@ -2237,11 +2237,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 #if 1
 	/* if xmit available, just xmit it immediately, else just insert it to the wait queue */
 	for(i = 0; i < txb->nr_frags; i++) {
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-		if ((skb_queue_len(&ieee->skb_drv_aggQ[queue_index]) != 0) ||
-#else
 		if ((skb_queue_len(&ieee->skb_waitQ[queue_index]) != 0) ||
-#endif
 		(!ieee->check_nic_enough_desc(ieee->dev,queue_index))||\
 		     (ieee->queue_stop)) {
 			/* insert the skb packet to the wait queue */
@@ -2250,11 +2246,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 			 * */
 			//printk("error:no descriptor left@queue_index %d, %d, %d\n", queue_index, skb_queue_len(&ieee->skb_waitQ[queue_index]), ieee->check_nic_enough_desc(ieee->dev,queue_index));
 			//ieee80211_stop_queue(ieee);
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-			skb_queue_tail(&ieee->skb_drv_aggQ[queue_index], txb->fragments[i]);
-#else
 			skb_queue_tail(&ieee->skb_waitQ[queue_index], txb->fragments[i]);
-#endif
 		}else{
 			ieee->softmac_data_hard_start_xmit(
 					txb->fragments[i],

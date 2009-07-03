@@ -293,9 +293,6 @@ typedef struct _RT_HIGH_THROUGHPUT{
 	u8				RxReorderPendingTime;
 	u16				RxReorderDropCounter;
 
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-	u8				UsbTxAggrNum;
-#endif
 
 	// Add for Broadcom(Linksys) IOT. Joseph
 	u8				bIsPeerBcm;
