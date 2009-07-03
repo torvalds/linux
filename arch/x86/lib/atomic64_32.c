@@ -67,13 +67,9 @@ void atomic64_set(atomic64_t *ptr, u64 new_val)
  */
 u64 atomic64_read(atomic64_t *ptr)
 {
-	u64 curr_val;
+	u64 old = 1LL << 32;
 
-	do {
-		curr_val = __atomic64_read(ptr);
-	} while (atomic64_cmpxchg(ptr, curr_val, curr_val) != curr_val);
-
-	return curr_val;
+	return cmpxchg8b(&ptr->counter, old, old);
 }
 
 /**
