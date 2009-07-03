@@ -6572,7 +6572,6 @@ static void rtl8192SU_SetHwRegAmpduMinSpace(struct net_device *dev, u8 MinSpaceC
 	u8	MinSpacingToSet;
 	u8	SecMinSpace;
 
-#ifdef RTL8192S_PREPARE_FOR_NORMAL_RELEASE
 	MinSpacingToSet = MinSpaceCfg;
 	if(MinSpacingToSet <= 7)
 	{
@@ -6593,13 +6592,6 @@ static void rtl8192SU_SetHwRegAmpduMinSpace(struct net_device *dev, u8 MinSpaceC
 		write_nic_byte(dev, AMPDU_MIN_SPACE, priv->MinSpaceCfg);
 	}
 
-#else
-	MinSpacingToSet = MinSpaceCfg;
-	MinSpacingToSet &= 0x07; // We only care about bit[2:0]
-	priv->MinSpaceCfg |= MinSpacingToSet;
-	RT_TRACE(COMP_SEC, "Set AMPDU_MIN_SPACE: %x\n", priv->MinSpaceCfg);
-	write_nic_byte(dev, AMPDU_MIN_SPACE, priv->MinSpaceCfg);//FIXLZM
-#endif
 }
 #endif
 
