@@ -80,9 +80,7 @@ double __extendsfdf2(float a) {return a;}
 #include "r8192U_pm.h"
 #endif
 
-#ifdef ENABLE_DOT11D
 #include "ieee80211/dot11d.h"
-#endif
 
 #else
 
@@ -103,9 +101,7 @@ double __extendsfdf2(float a) {return a;}
 #include "r8192U_pm.h"
 #endif
 
-#ifdef ENABLE_DOT11D
 #include "ieee80211/dot11d.h"
-#endif
 
 #endif
 
@@ -286,7 +282,6 @@ struct rtl819x_ops rtl8192u_ops = {
 };
 #endif
 
-#ifdef ENABLE_DOT11D
 
 typedef struct _CHANNEL_LIST
 {
@@ -362,7 +357,6 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 	}
 	return;
 }
-#endif
 
 #define eqMacAddr(a,b) ( ((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0 )
 
@@ -6850,7 +6844,6 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 short rtl8192_get_channel_map(struct net_device * dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-#ifdef ENABLE_DOT11D
 	if(priv->ChannelPlan > COUNTRY_CODE_GLOBAL_DOMAIN){
 		printk("rtl8180_init:Error channel plan! Set to default.\n");
 		priv->ChannelPlan= 0;
@@ -6858,21 +6851,6 @@ short rtl8192_get_channel_map(struct net_device * dev)
 	RT_TRACE(COMP_INIT, "Channel plan is %d\n",priv->ChannelPlan);
 
 	rtl819x_set_channel_map(priv->ChannelPlan, priv);
-#else
-	int ch,i;
-	//Set Default Channel Plan
-	if(!channels){
-		DMESG("No channels, aborting");
-		return -1;
-	}
-	ch=channels;
-	priv->ChannelPlan= 0;//hikaru
-	 // set channels 1..14 allowed in given locale
-	for (i=1; i<=14; i++) {
-		(priv->ieee80211->channel_map)[i] = (u8)(ch & 0x01);
-		ch >>= 1;
-	}
-#endif
 	return 0;
 }
 

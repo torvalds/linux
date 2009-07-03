@@ -47,9 +47,7 @@
 #include "r819xU_phyreg.h"
 #endif
 
-#ifdef ENABLE_DOT11D
 #include "ieee80211/dot11d.h"
-#endif
 
 /*---------------------------Define Local Constant---------------------------*/
 /* Channel switch:The size of command tables for switch channel*/
@@ -3691,13 +3689,11 @@ phy_SwChnlStepByStep(
 	//RT_ASSERT(IsLegalChannel(dev, channel), ("illegal channel: %d\n", channel));
 	RT_TRACE(COMP_CH, "===========>%s(), channel:%d, stage:%d, step:%d\n", __FUNCTION__, channel, *stage, *step);
 	//RT_ASSERT((pHalData != NULL), ("pHalData should not be NULL\n"));
-#ifdef ENABLE_DOT11D
 	if (!IsLegalChannel(priv->ieee80211, channel))
 	{
 		RT_TRACE(COMP_ERR, "=============>set to illegal channel:%d\n", channel);
 		return true; //return true to tell upper caller function this channel setting is finished! Or it will in while loop.
 	}
-#endif
 
 	//pChnlAccessSetting = &Adapter->MgntInfo.Info8185.ChannelAccessSetting;
 	//RT_ASSERT((pChnlAccessSetting != NULL), ("pChnlAccessSetting should not be NULL\n"));

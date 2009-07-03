@@ -15,9 +15,7 @@
 
 
 #include "ieee80211.h"
-#ifdef ENABLE_DOT11D
 #include "dot11d.h"
-#endif
 /* FIXME: add A freqs */
 
 const long ieee80211_wlan_frequencies[] = {
@@ -63,12 +61,10 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 
 	}else { /* Set the channel */
 
-#ifdef ENABLE_DOT11D
 		if (!(GET_DOT11D_INFO(ieee)->channel_map)[fwrq->m]) {
 			ret = -EINVAL;
 			goto out;
 		}
-#endif
 		ieee->current_network.channel = fwrq->m;
 		ieee->set_chan(ieee->dev, ieee->current_network.channel);
 

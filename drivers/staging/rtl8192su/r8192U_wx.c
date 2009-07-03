@@ -27,9 +27,7 @@
 #include "r8192U_hw.h"
 #endif
 
-#ifdef ENABLE_DOT11D
 #include "ieee80211/dot11d.h"
-#endif
 
 #define RATE_COUNT 12
 u32 rtl8180_rates[] = {1000000,2000000,5500000,11000000,
@@ -529,11 +527,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	for (i = 0, val = 0; i < 14; i++) {
 
 		// Include only legal frequencies for some countries
-#ifdef ENABLE_DOT11D
 		if ((GET_DOT11D_INFO(priv->ieee80211)->channel_map)[i+1]) {
-#else
-		if ((priv->ieee80211->channel_map)[i+1]) {
-#endif
 		        range->freq[val].i = i + 1;
 			range->freq[val].m = ieee80211_wlan_frequencies[i] * 100000;
 			range->freq[val].e = 1;
