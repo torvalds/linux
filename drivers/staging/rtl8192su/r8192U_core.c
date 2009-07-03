@@ -6683,23 +6683,6 @@ static void rtl8192SU_MacConfigAfterFwDownload(struct net_device *dev)
 	tmpU1b = read_nic_byte_E(dev, 0x5C);
 	write_nic_byte_E(dev, 0x5C, tmpU1b|BIT7);
 
-	//
-	// Revise USB PHY to solve the issue of Rx payload error, Rivesed by Roger,  2008-04-10
-	// Suggest by SD1 Alex.
-	//
-	// <Roger_Notes> The following operation are ONLY for USB PHY test chip.
-	// 2008.10.07.
-	//
-#if RTL8192SU_USB_PHY_TEST
-	write_nic_byte(dev, 0x41,0xf4);
-	write_nic_byte(dev, 0x40,0x00);
-	write_nic_byte(dev, 0x42,0x00);
-	write_nic_byte(dev, 0x42,0x01);
-	write_nic_byte(dev, 0x40,0x0f);
-	write_nic_byte(dev, 0x42,0x00);
-	write_nic_byte(dev, 0x42,0x01);
-#endif
-
 #if 0 //LZM 090219
 	//
 	// Suggested by SD1 Alex, 2008-06-14.
