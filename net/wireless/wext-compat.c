@@ -1136,8 +1136,11 @@ int cfg80211_wext_giwrate(struct net_device *dev,
 	if (!rdev->ops->get_station)
 		return -EOPNOTSUPP;
 
-	addr = wdev->wext.connect.bssid;
-	if (!addr)
+	if (wdev->current_bss)
+		addr = wdev->current_bss->pub.bssid;
+	else if (wdev->wext.connect.bssid)
+		addr = wdev->wext.connect.bssid;
+	else
 		return -EOPNOTSUPP;
 
 	err = rdev->ops->get_station(&rdev->wiphy, dev, addr, &sinfo);
