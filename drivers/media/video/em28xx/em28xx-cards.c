@@ -58,6 +58,8 @@ static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
+#define MT9V011_VERSION                 0x8243
+
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS */
 static unsigned long em28xx_devused;
 
@@ -1702,6 +1704,46 @@ static inline void em28xx_set_model(struct em28xx *dev)
 				       EM28XX_I2C_FREQ_100_KHZ;
 }
 
+/* HINT method: webcam I2C chips
+ *
+ * This method work for webcams with Micron sensors
+ */
+static int em28xx_hint_sensor(struct em28xx *dev)
+{
+	int rc;
+	char *sensor_name;
+	unsigned char cmd;
+	__be16 version_be;
+	u16 version;
+
+	if (dev->model != EM2820_BOARD_UNKNOWN)
+		return 0;
+
+	dev->i2c_client.addr = 0xba >> 1;
+	cmd = 0;
+	i2c_master_send(&dev->i2c_client, &cmd, 1);
+	rc = i2c_master_recv(&dev->i2c_client, (char *)&version_be, 2);
+	if (rc != 2)
+		return -EINVAL;
+
+	version = be16_to_cpu(version_be);
+
+	switch (version) {
+	case MT9V011_VERSION:
+		dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
+		sensor_name = "mt9v011";
+		break;
+	default:
+		printk("Unknown Sensor 0x%04x\n", be16_to_cpu(version));
+		return -EINVAL;
+	}
+
+	em28xx_errdev("Sensor is %s, assuming that webcam is %s\n",
+		      sensor_name, em28xx_boards[dev->model].name);
+
+	return 0;
+}
+
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
  * this won't work for boards with generic PCI IDs
  */
@@ -2367,6 +2409,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			__func__, errCode);
 		return errCode;
 	}
+
+	em28xx_hint_sensor(dev);
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
