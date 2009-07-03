@@ -7014,9 +7014,6 @@ start:
 	//
 	rtl8192SU_MacConfigAfterFwDownload(dev);
 
-#if (RTL8192S_DISABLE_FW_DM == 1)
-	write_nic_dword(dev, WFM5, FW_DM_DISABLE);
-#endif
 	//priv->bLbusEnable = TRUE;
 	//if(priv->RegRfOff == TRUE)
 	//	priv->eRFPowerState = eRfOff;

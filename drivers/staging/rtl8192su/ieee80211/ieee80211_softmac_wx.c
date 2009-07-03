@@ -330,13 +330,11 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 #ifndef RTL8192SE
 	ieee->InitialGainHandler(ieee->dev,IG_Backup);
 #endif
-#if(RTL8192S_DISABLE_FW_DM == 0)
 	if (ieee->SetFwCmdHandler)
 	{
 		ieee->SetFwCmdHandler(ieee->dev, FW_CMD_DIG_HALT);
 		ieee->SetFwCmdHandler(ieee->dev, FW_CMD_HIGH_PWR_DISABLE);
 	}
-#endif
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT && ieee->pHTInfo->bCurBW40MHz) {
 		b40M = 1;
 		chan_offset = ieee->pHTInfo->CurSTAExtChnlOffset;
@@ -361,13 +359,11 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 #ifndef RTL8192SE
 	ieee->InitialGainHandler(ieee->dev,IG_Restore);
 #endif
-#if(RTL8192S_DISABLE_FW_DM == 0)
 	if (ieee->SetFwCmdHandler)
 	{
 		ieee->SetFwCmdHandler(ieee->dev, FW_CMD_DIG_RESUME);
 		ieee->SetFwCmdHandler(ieee->dev, FW_CMD_HIGH_PWR_ENABLE);
 	}
-#endif
 	ieee->state = IEEE80211_LINKED;
 	ieee->link_change(ieee->dev);
 	// To prevent the immediately calling watch_dog after scan.

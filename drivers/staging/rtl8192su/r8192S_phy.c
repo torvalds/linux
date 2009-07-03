@@ -3074,7 +3074,6 @@ PHY_ScanOperationBackup8192S(
 
 
 
-#if(RTL8192S_DISABLE_FW_DM == 0)
 
 	if(!Adapter->bDriverStopped)
 	{
@@ -3103,7 +3102,6 @@ PHY_ScanOperationBackup8192S(
 				break;
 		}
 	}
-#endif
 }
 #endif
 
