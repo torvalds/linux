@@ -1444,9 +1444,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 	}
 
 	wlandev->linkstatus = (hw->link_status == HFA384x_LINK_CONNECTED);
-#ifdef WIRELESS_EXT
 	p80211wext_event_associated(wlandev, wlandev->linkstatus);
-#endif
 
 failed:
 	return;
