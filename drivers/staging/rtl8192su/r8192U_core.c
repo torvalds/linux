@@ -2957,19 +2957,6 @@ short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb)
 	memset(tx_desc, 0, sizeof(tx_desc_819x_usb));
 
 
-#if RTL8192SU_FPGA_UNSPECIFIED_NETWORK
-		if(IsQoSDataFrame(skb->data))
-		{
-			tcb_desc->bAMPDUEnable = TRUE;
-			tx_desc->NonQos = 0;
-		}
-		else
-			tcb_desc->bAMPDUEnable = FALSE;
-
-		tcb_desc->bPacketBW = TRUE;
-		priv->CurrentChannelBW = HT_CHANNEL_WIDTH_20_40;
-#endif
-
 #if (defined (RTL8192SU_FPGA_2MAC_VERIFICATION)||defined (RTL8192SU_ASIC_VERIFICATION))
 		tx_desc->NonQos = (IsQoSDataFrame(skb->data)==TRUE)? 0:1;
 #endif
@@ -7280,15 +7267,6 @@ start:
 
 // <Roger_Notes> We return status here for temporal FPGA verification. 2008.05.12.
 //
-#if RTL8192SU_FPGA_UNSPECIFIED_NETWORK
-	//
-	// To send specific number of packets to verify MAC Lookback mode.
-	//
-	//SendRandomTxPkt(Adapter, 0); // Burst mode for verification.
-	//rtStatus = RT_STATUS_FAILURE;
-	rtStatus = true;
-        goto end;
-#endif
 
 // The following IO was for FPGA verification purpose. Added by Roger, 2008.09.11.
 #if 0
