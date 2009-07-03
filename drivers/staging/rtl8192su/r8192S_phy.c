@@ -418,9 +418,6 @@ u32 rtl8192_QueryBBReg(struct net_device* dev, u32 RegAddr, u32 BitMask)
 
   	u32	ReturnValue = 0, OriginalValue, BitShift;
 
-#if (DISABLE_BB_RF == 1)
-	return 0;
-#endif
 
 	RT_TRACE(COMP_RF, "--->PHY_QueryBBReg(): RegAddr(%#x), BitMask(%#x)\n", RegAddr, BitMask);
 
@@ -481,9 +478,6 @@ void rtl8192_setBBreg(struct net_device* dev, u32 RegAddr, u32 BitMask, u32 Data
 {
 	u32	OriginalValue, BitShift, NewValue;
 
-#if (DISABLE_BB_RF == 1)
-	return;
-#endif
 
 	RT_TRACE(COMP_RF, "--->PHY_SetBBReg(): RegAddr(%#x), BitMask(%#x), Data(%#x)\n", RegAddr, BitMask, Data);
 
@@ -557,9 +551,6 @@ u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u3
 	u32 Original_Value, Readback_Value, BitShift;//, flags;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-#if (DISABLE_BB_RF == 1)
-	return 0;
-#endif
 
 	RT_TRACE(COMP_RF, "--->PHY_QueryRFReg(): RegAddr(%#x), eRFPath(%#x), BitMask(%#x)\n", RegAddr, eRFPath,BitMask);
 
@@ -636,9 +627,6 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32 Original_Value, BitShift, New_Value;//, flags;
-#if (DISABLE_BB_RF == 1)
-	return;
-#endif
 
 	RT_TRACE(COMP_RF, "--->PHY_SetRFReg(): RegAddr(%#x), BitMask(%#x), Data(%#x), eRFPath(%#x)\n",
 		RegAddr, BitMask, Data, eRFPath);
