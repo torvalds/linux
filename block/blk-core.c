@@ -1111,17 +1111,13 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	req->cmd_type = REQ_TYPE_FS;
 
 	/*
-	 * inherit FAILFAST from bio (for read-ahead, and explicit FAILFAST)
+	 * Inherit FAILFAST from bio (for read-ahead, and explicit
+	 * FAILFAST).  FAILFAST flags are identical for req and bio.
 	 */
 	if (bio_rw_ahead(bio))
-		req->cmd_flags |= (REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
-				   REQ_FAILFAST_DRIVER);
-	if (bio_failfast_dev(bio))
-		req->cmd_flags |= REQ_FAILFAST_DEV;
-	if (bio_failfast_transport(bio))
-		req->cmd_flags |= REQ_FAILFAST_TRANSPORT;
-	if (bio_failfast_driver(bio))
-		req->cmd_flags |= REQ_FAILFAST_DRIVER;
+		req->cmd_flags |= REQ_FAILFAST_MASK;
+	else
+		req->cmd_flags |= bio->bi_rw & REQ_FAILFAST_MASK;
 
 	if (unlikely(bio_discard(bio))) {
 		req->cmd_flags |= REQ_DISCARD;
@@ -2239,9 +2235,8 @@ EXPORT_SYMBOL(__blk_end_request_cur);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
 {
-	/* Bit 0 (R/W) is identical in rq->cmd_flags and bio->bi_rw, and
-	   we want BIO_RW_AHEAD (bit 1) to imply REQ_FAILFAST (bit 1). */
-	rq->cmd_flags |= (bio->bi_rw & 3);
+	/* Bit 0 (R/W) is identical in rq->cmd_flags and bio->bi_rw */
+	rq->cmd_flags |= bio->bi_rw & REQ_RW;
 
 	if (bio_has_data(bio)) {
 		rq->nr_phys_segments = bio_phys_segments(q, bio);

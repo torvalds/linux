@@ -93,6 +93,7 @@ enum rq_flag_bits {
 	__REQ_FAILFAST_DEV,	/* no driver retries of device errors */
 	__REQ_FAILFAST_TRANSPORT, /* no driver retries of transport errors */
 	__REQ_FAILFAST_DRIVER,	/* no driver retries of driver errors */
+	/* above flags must match BIO_RW_* */
 	__REQ_DISCARD,		/* request to discard sectors */
 	__REQ_SORTED,		/* elevator knows about this request */
 	__REQ_SOFTBARRIER,	/* may not be passed by ioscheduler */
@@ -142,6 +143,9 @@ enum rq_flag_bits {
 #define REQ_INTEGRITY	(1 << __REQ_INTEGRITY)
 #define REQ_NOIDLE	(1 << __REQ_NOIDLE)
 #define REQ_IO_STAT	(1 << __REQ_IO_STAT)
+
+#define REQ_FAILFAST_MASK	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | \
+				 REQ_FAILFAST_DRIVER)
 
 #define BLK_MAX_CDB	16
 

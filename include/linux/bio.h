@@ -142,37 +142,40 @@ struct bio {
  *
  * bit 0 -- data direction
  *	If not set, bio is a read from device. If set, it's a write to device.
- * bit 1 -- rw-ahead when set
- * bit 2 -- barrier
+ * bit 1 -- fail fast device errors
+ * bit 2 -- fail fast transport errors
+ * bit 3 -- fail fast driver errors
+ * bit 4 -- rw-ahead when set
+ * bit 5 -- barrier
  *	Insert a serialization point in the IO queue, forcing previously
  *	submitted IO to be completed before this one is issued.
- * bit 3 -- synchronous I/O hint.
- * bit 4 -- Unplug the device immediately after submitting this bio.
- * bit 5 -- metadata request
+ * bit 6 -- synchronous I/O hint.
+ * bit 7 -- Unplug the device immediately after submitting this bio.
+ * bit 8 -- metadata request
  *	Used for tracing to differentiate metadata and data IO. May also
  *	get some preferential treatment in the IO scheduler
- * bit 6 -- discard sectors
+ * bit 9 -- discard sectors
  *	Informs the lower level device that this range of sectors is no longer
  *	used by the file system and may thus be freed by the device. Used
  *	for flash based storage.
- * bit 7 -- fail fast device errors
- * bit 8 -- fail fast transport errors
- * bit 9 -- fail fast driver errors
  *	Don't want driver retries for any fast fail whatever the reason.
  * bit 10 -- Tell the IO scheduler not to wait for more requests after this
 	one has been submitted, even if it is a SYNC request.
  */
-#define BIO_RW		0	/* Must match RW in req flags (blkdev.h) */
-#define BIO_RW_AHEAD	1	/* Must match FAILFAST in req flags */
-#define BIO_RW_BARRIER	2
-#define BIO_RW_SYNCIO	3
-#define BIO_RW_UNPLUG	4
-#define BIO_RW_META	5
-#define BIO_RW_DISCARD	6
-#define BIO_RW_FAILFAST_DEV		7
-#define BIO_RW_FAILFAST_TRANSPORT	8
-#define BIO_RW_FAILFAST_DRIVER		9
-#define BIO_RW_NOIDLE	10
+enum bio_rw_flags {
+	BIO_RW,
+	BIO_RW_FAILFAST_DEV,
+	BIO_RW_FAILFAST_TRANSPORT,
+	BIO_RW_FAILFAST_DRIVER,
+	/* above flags must match REQ_* */
+	BIO_RW_AHEAD,
+	BIO_RW_BARRIER,
+	BIO_RW_SYNCIO,
+	BIO_RW_UNPLUG,
+	BIO_RW_META,
+	BIO_RW_DISCARD,
+	BIO_RW_NOIDLE,
+};
 
 #define bio_rw_flagged(bio, flag)	((bio)->bi_rw & (1 << (flag)))
 
