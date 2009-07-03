@@ -59,17 +59,25 @@
 extern void *pcpu_base_addr;
 
 typedef struct page * (*pcpu_get_page_fn_t)(unsigned int cpu, int pageno);
-typedef void (*pcpu_populate_pte_fn_t)(unsigned long addr);
+typedef void * (*pcpu_fc_alloc_fn_t)(unsigned int cpu, size_t size);
+typedef void (*pcpu_fc_free_fn_t)(void *ptr, size_t size);
+typedef void (*pcpu_fc_populate_pte_fn_t)(unsigned long addr);
 
 extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
 				size_t static_size, size_t reserved_size,
 				ssize_t dyn_size, ssize_t unit_size,
 				void *base_addr,
-				pcpu_populate_pte_fn_t populate_pte_fn);
+				pcpu_fc_populate_pte_fn_t populate_pte_fn);
 
 extern ssize_t __init pcpu_embed_first_chunk(
 				size_t static_size, size_t reserved_size,
 				ssize_t dyn_size);
+
+extern ssize_t __init pcpu_4k_first_chunk(
+				size_t static_size, size_t reserved_size,
+				pcpu_fc_alloc_fn_t alloc_fn,
+				pcpu_fc_free_fn_t free_fn,
+				pcpu_fc_populate_pte_fn_t populate_pte_fn);
 
 /*
  * Use this to get to a cpu's version of the per-cpu object

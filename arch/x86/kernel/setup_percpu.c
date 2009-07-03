@@ -124,6 +124,19 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 }
 
 /*
+ * Helpers for first chunk memory allocation
+ */
+static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size)
+{
+	return pcpu_alloc_bootmem(cpu, size, size);
+}
+
+static void __init pcpu_fc_free(void *ptr, size_t size)
+{
+	free_bootmem(__pa(ptr), size);
+}
+
+/*
  * Large page remap allocator
  *
  * This allocator uses PMD page as unit.  A PMD page is allocated for
@@ -346,22 +359,11 @@ static ssize_t __init setup_pcpu_embed(size_t static_size, bool chosen)
 }
 
 /*
- * 4k page allocator
+ * 4k allocator
  *
- * This is the basic allocator.  Static percpu area is allocated
- * page-by-page and most of initialization is done by the generic
- * setup function.
+ * Boring fallback 4k allocator.  This allocator puts more pressure on
+ * PTE TLBs but other than that behaves nicely on both UMA and NUMA.
  */
-static struct page **pcpu4k_pages __initdata;
-static int pcpu4k_nr_static_pages __initdata;
-
-static struct page * __init pcpu4k_get_page(unsigned int cpu, int pageno)
-{
-	if (pageno < pcpu4k_nr_static_pages)
-		return pcpu4k_pages[cpu * pcpu4k_nr_static_pages + pageno];
-	return NULL;
-}
-
 static void __init pcpu4k_populate_pte(unsigned long addr)
 {
 	populate_extra_pte(addr);
@@ -369,51 +371,9 @@ static void __init pcpu4k_populate_pte(unsigned long addr)
 
 static ssize_t __init setup_pcpu_4k(size_t static_size)
 {
-	size_t pages_size;
-	unsigned int cpu;
-	int i, j;
-	ssize_t ret;
-
-	pcpu4k_nr_static_pages = PFN_UP(static_size);
-
-	/* unaligned allocations can't be freed, round up to page size */
-	pages_size = PFN_ALIGN(pcpu4k_nr_static_pages * num_possible_cpus()
-			       * sizeof(pcpu4k_pages[0]));
-	pcpu4k_pages = alloc_bootmem(pages_size);
-
-	/* allocate and copy */
-	j = 0;
-	for_each_possible_cpu(cpu)
-		for (i = 0; i < pcpu4k_nr_static_pages; i++) {
-			void *ptr;
-
-			ptr = pcpu_alloc_bootmem(cpu, PAGE_SIZE, PAGE_SIZE);
-			if (!ptr) {
-				pr_warning("PERCPU: failed to allocate "
-					   "4k page for cpu%u\n", cpu);
-				goto enomem;
-			}
-
-			memcpy(ptr, __per_cpu_load + i * PAGE_SIZE, PAGE_SIZE);
-			pcpu4k_pages[j++] = virt_to_page(ptr);
-		}
-
-	/* we're ready, commit */
-	pr_info("PERCPU: Allocated %d 4k pages, static data %zu bytes\n",
-		pcpu4k_nr_static_pages, static_size);
-
-	ret = pcpu_setup_first_chunk(pcpu4k_get_page, static_size,
-				     PERCPU_FIRST_CHUNK_RESERVE, -1,
-				     -1, NULL, pcpu4k_populate_pte);
-	goto out_free_ar;
-
-enomem:
-	while (--j >= 0)
-		free_bootmem(__pa(page_address(pcpu4k_pages[j])), PAGE_SIZE);
-	ret = -ENOMEM;
-out_free_ar:
-	free_bootmem(__pa(pcpu4k_pages), pages_size);
-	return ret;
+	return pcpu_4k_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
+				   pcpu_fc_alloc, pcpu_fc_free,
+				   pcpu4k_populate_pte);
 }
 
 /* for explicit first chunk allocator selection */
