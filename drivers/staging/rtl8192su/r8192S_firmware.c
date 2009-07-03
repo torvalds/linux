@@ -11,7 +11,7 @@
  *        NDIS_STATUS_FAILURE - the following initialization process should be terminated
  *        NDIS_STATUS_SUCCESS - if firmware initialization process success
 **************************************************************************************************/
-#if defined(RTL8192SE)||defined(RTL8192SU)
+#if defined(RTL8192SU)
 #include "r8192U.h"
 #include "r8192S_firmware.h"
 #include <linux/unistd.h>
@@ -50,9 +50,6 @@ bool FirmwareDownloadCode(struct net_device *dev, u8 *	code_virtual_address,u32 
 	u8                  	    bLastIniPkt = 0;
 	u16 			    ExtraDescOffset = 0;
 
-#ifdef RTL8192SE
-	fw_SetRQPN(dev);	// For 92SE only
-#endif
 
 	RT_TRACE(COMP_FIRMWARE, "--->FirmwareDownloadCode()\n" );
 
@@ -117,19 +114,6 @@ cmdsend_downloadcode_fail:
 
 }
 
-#ifdef RTL8192SE
-static void fw_SetRQPN(struct net_device *dev)
-{
-	// Only for 92SE HW bug, we have to set RAPN before every FW download
-	// We can remove the code later.
-	write_nic_dword(dev,  RQPN, 0xffffffff);
-	write_nic_dword(dev,  RQPN+4, 0xffffffff);
-	write_nic_byte(dev,  RQPN+8, 0xff);
-	write_nic_byte(dev,  RQPN+0xB, 0x80);
-	//#if ((HAL_CODE_BASE ==  RTL8192_S) && (PLATFORM != PLATFORM_WINDOWS_USB))
-
-}	/* fw_SetRQPN */
-#endif
 
 RT_STATUS
 FirmwareEnableCPU(struct net_device *dev)
@@ -141,9 +125,6 @@ FirmwareEnableCPU(struct net_device *dev)
 	u32		iCheckTime = 200;
 
 	RT_TRACE(COMP_FIRMWARE, "-->FirmwareEnableCPU()\n" );
-#ifdef RTL8192SE
-	fw_SetRQPN(dev);	// For 92SE only
-#endif
 	// Enable CPU.
 	tmpU1b = read_nic_byte(dev, SYS_CLKR);
 	write_nic_byte(dev,  SYS_CLKR, (tmpU1b|SYS_CPU_CLKSEL)); //AFE source
@@ -302,10 +283,6 @@ FirmwareCheckReady(struct net_device *dev,	u8 LoadFWStatus)
               // <Roger_Notes> USB interface will update reserved followings parameters later!!
               // 2008.08.28.
               //
-#ifdef RTL8192SE
-		//write_nic_dword(dev, RQPN, 0x10101010);
-		//write_nic_byte(dev,  0xAB, 0x80);
-#endif
 
 	       //
               // <Roger_Notes> If right here, we can set TCR/RCR to desired value
@@ -601,9 +578,6 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 	unsigned char	    *seg_ptr;
 	cb_desc		    *tcb_desc;
 	u8                  bLastIniPkt;
-#ifdef RTL8192SE
-	fw_SetRQPN(dev);	// For 92SE only
-#endif
 
 #ifndef RTL8192SU
 	if(buffer_len >= 64000-USB_HWDESC_HEADER_LEN)

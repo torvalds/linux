@@ -516,7 +516,7 @@ bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device* ieee)
 //#endif
 #endif
 #if 1
-#if (defined(RTL8192SE) || (defined(RTL8192SU)))
+#if  defined(RTL8192SU)
        PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	if(ieee->is_ap_in_wep_tkip && ieee->is_ap_in_wep_tkip(ieee->dev))
 	{
@@ -595,7 +595,7 @@ u8 HTIOTActIsForcedRTSCTS(struct ieee80211_device *ieee, struct ieee80211_networ
 	u8	retValue = 0;
 	printk("============>%s(), %d\n", __FUNCTION__, network->realtek_cap_exit);
 	// Force protection
-#if defined(RTL8192SE) || defined(RTL8192SU)
+#if defined(RTL8192SU)
 	if(ieee->pHTInfo->bCurrentHTSupport)
 	{
 		//if(!network->realtek_cap_exit)
@@ -621,14 +621,12 @@ HTIOTActIsForcedAMSDU8K(struct ieee80211_device *ieee, struct ieee80211_network 
 u8 HTIOTActIsCCDFsync(u8* PeerMacAddr)
 {
 	u8	retValue = 0;
-#ifndef RTL8192SE
 	if(	(memcmp(PeerMacAddr, UNKNOWN_BORADCOM, 3)==0) ||
 	    	(memcmp(PeerMacAddr, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0) ||
 	    	(memcmp(PeerMacAddr, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3) ==0))
 	{
 		retValue = 1;
 	}
-#endif
 	return retValue;
 }
 
@@ -642,7 +640,7 @@ HTIOCActRejcectADDBARequest(struct ieee80211_network *network)
 	//if(IS_HARDWARE_TYPE_8192SE(Adapter) ||
 	//	IS_HARDWARE_TYPE_8192SU(Adapter)
 	//)
-#if (defined RTL8192SE || defined RTL8192SU)
+#if  defined RTL8192SU
 	{
 		// Do not reject ADDBA REQ because some of the AP may
 		// keep on sending ADDBA REQ qhich cause DHCP fail or ping loss!
@@ -735,7 +733,7 @@ HTIOTActIsDisableTx40MHz(struct ieee80211_device* ieee,struct ieee80211_network 
 {
 	u8	retValue = 0;
 
-#if (defined RTL8192SU || defined RTL8192SE)
+#if defined RTL8192SU
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	if(	(KEY_TYPE_WEP104 == ieee->pairwise_key_type) ||
 		(KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
@@ -756,7 +754,7 @@ HTIOTActIsTxNoAggregation(struct ieee80211_device* ieee,struct ieee80211_network
 {
 	u8 retValue = 0;
 
-#if (defined RTL8192SU || defined RTL8192SE)
+#if defined RTL8192SU
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	if(	(KEY_TYPE_WEP104 == ieee->pairwise_key_type) ||
 		(KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
@@ -779,7 +777,7 @@ HTIOTActIsDisableTx2SS(struct ieee80211_device* ieee,struct ieee80211_network *n
 {
 	u8	retValue = 0;
 
-#if (defined RTL8192SU || defined RTL8192SE)
+#if defined RTL8192SU
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	if(	(KEY_TYPE_WEP104 == ieee->pairwise_key_type) ||
 		(KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
@@ -799,7 +797,7 @@ HTIOTActIsDisableTx2SS(struct ieee80211_device* ieee,struct ieee80211_network *n
 bool HTIOCActAllowPeerAggOnePacket(struct ieee80211_device* ieee,struct ieee80211_network *network)
 {
 	bool 	retValue = false;
-#if defined(RTL8192SE) || defined(RTL8192SU)
+#if defined(RTL8192SU)
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	{
 		if(pHTInfo->IOTPeer == HT_IOT_PEER_MARVELL)

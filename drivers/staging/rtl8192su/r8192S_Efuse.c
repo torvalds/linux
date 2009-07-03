@@ -708,12 +708,6 @@ EFUSE_ShadowUpdate(struct net_device* dev)
 	for (offset = 0; offset < 16; offset++)
 	{
 		// Offset 0x18-1F are reserved now!!!
-#ifdef RTL8192SE
-		if(priv->card_8192 == NIC_8192SE){
-			if (offset == 3)
-				continue;
-		}
-#endif
 		word_en = 0x0F;
 		base = offset * 8;
 
@@ -729,12 +723,6 @@ EFUSE_ShadowUpdate(struct net_device* dev)
 			}
 
 			// 2008/12/11 MH HW autoload fail workaround for A/BCUT.
-#ifdef RTL8192SE
-			if (first_pg == TRUE && offset == 1 && (priv->card_8192 == NIC_8192SE))
-			{
-				continue;
-			}
-#endif
 
 			if (first_pg == TRUE)
 			{
@@ -774,21 +762,6 @@ EFUSE_ShadowUpdate(struct net_device* dev)
 	// 2008/12/01 MH For Efuse HW load bug workarounf method!!!!
 	// We will force write 0x10EC into address 10&11 after all Efuse content.
 	//
-#ifdef RTL8192SE
-	if (first_pg == TRUE && (priv->card_8192 == NIC_8192SE))
-	{
-		// 2008/12/11 MH Use new method to prevent HW autoload fail.
-		u8	tmpdata[8];
-
-		memcpy(tmpdata, (&priv->EfuseMap[EFUSE_MODIFY_MAP][8]), 8);
-		efuse_PgPacketWrite(dev, 1, 0x0, tmpdata);
-#if 0
-		u1Byte	tmpdata[8] = {0xFF, 0xFF, 0xEC, 0x10, 0xFF, 0xFF, 0xFF, 0xFF};
-
-		efuse_PgPacketWrite(pAdapter, 1, 0xD, tmpdata);
-#endif
-	}
-#endif
 
 
 	// For warm reboot, we must resume Efuse clock to 500K.

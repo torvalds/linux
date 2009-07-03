@@ -327,9 +327,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 
 	ieee->state = IEEE80211_LINKED_SCANNING;
 	ieee->link_change(ieee->dev);
-#ifndef RTL8192SE
 	ieee->InitialGainHandler(ieee->dev,IG_Backup);
-#endif
 	if (ieee->SetFwCmdHandler)
 	{
 		ieee->SetFwCmdHandler(ieee->dev, FW_CMD_DIG_HALT);
@@ -356,9 +354,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 		ieee->set_chan(ieee->dev, chan);
 	}
 
-#ifndef RTL8192SE
 	ieee->InitialGainHandler(ieee->dev,IG_Restore);
-#endif
 	if (ieee->SetFwCmdHandler)
 	{
 		ieee->SetFwCmdHandler(ieee->dev, FW_CMD_DIG_RESUME);
