@@ -76,13 +76,22 @@ u64 atomic64_read(atomic64_t *ptr)
  */
 u64 atomic64_add_return(u64 delta, atomic64_t *ptr)
 {
-	u64 old_val, new_val;
+	/*
+	 * Try first with a (probably incorrect) assumption about
+	 * what we have there. We'll do two loops most likely,
+	 * but we'll get an ownership MESI transaction straight away
+	 * instead of a read transaction followed by a
+	 * flush-for-ownership transaction:
+	 */
+	u64 old_val, new_val, real_val = 1ULL << 32;
 
 	do {
-		old_val = atomic_read(ptr);
+		old_val = real_val;
 		new_val = old_val + delta;
 
-	} while (atomic64_cmpxchg(ptr, old_val, new_val) != old_val);
+		real_val = atomic64_cmpxchg(ptr, old_val, new_val);
+
+	} while (real_val != old_val);
 
 	return new_val;
 }
