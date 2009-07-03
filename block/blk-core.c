@@ -1157,6 +1157,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	const unsigned short prio = bio_prio(bio);
 	const int sync = bio_sync(bio);
 	const int unplug = bio_unplug(bio);
+	const unsigned int ff = bio->bi_rw & REQ_FAILFAST_MASK;
 	int rw_flags;
 
 	if (bio_barrier(bio) && bio_has_data(bio) &&
@@ -1186,6 +1187,9 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 		trace_block_bio_backmerge(q, bio);
 
+		if ((req->cmd_flags & REQ_FAILFAST_MASK) != ff)
+			blk_rq_set_mixed_merge(req);
+
 		req->biotail->bi_next = bio;
 		req->biotail = bio;
 		req->__data_len += bytes;
@@ -1204,6 +1208,12 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 			break;
 
 		trace_block_bio_frontmerge(q, bio);
+
+		if ((req->cmd_flags & REQ_FAILFAST_MASK) != ff) {
+			blk_rq_set_mixed_merge(req);
+			req->cmd_flags &= ~REQ_FAILFAST_MASK;
+			req->cmd_flags |= ff;
+		}
 
 		bio->bi_next = req->bio;
 		req->bio = bio;
@@ -1649,6 +1659,50 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_insert_cloned_request);
 
+/**
+ * blk_rq_err_bytes - determine number of bytes till the next failure boundary
+ * @rq: request to examine
+ *
+ * Description:
+ *     A request could be merge of IOs which require different failure
+ *     handling.  This function determines the number of bytes which
+ *     can be failed from the beginning of the request without
+ *     crossing into area which need to be retried further.
+ *
+ * Return:
+ *     The number of bytes to fail.
+ *
+ * Context:
+ *     queue_lock must be held.
+ */
+unsigned int blk_rq_err_bytes(const struct request *rq)
+{
+	unsigned int ff = rq->cmd_flags & REQ_FAILFAST_MASK;
+	unsigned int bytes = 0;
+	struct bio *bio;
+
+	if (!(rq->cmd_flags & REQ_MIXED_MERGE))
+		return blk_rq_bytes(rq);
+
+	/*
+	 * Currently the only 'mixing' which can happen is between
+	 * different fastfail types.  We can safely fail portions
+	 * which have all the failfast bits that the first one has -
+	 * the ones which are at least as eager to fail as the first
+	 * one.
+	 */
+	for (bio = rq->bio; bio; bio = bio->bi_next) {
+		if ((bio->bi_rw & ff) != ff)
+			break;
+		bytes += bio->bi_size;
+	}
+
+	/* this could lead to infinite loop */
+	BUG_ON(blk_rq_bytes(rq) && !bytes);
+	return bytes;
+}
+EXPORT_SYMBOL_GPL(blk_rq_err_bytes);
+
 static void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
 	if (blk_do_io_stat(req)) {
@@ -1995,6 +2049,12 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	if (blk_fs_request(req) || blk_discard_rq(req))
 		req->__sector += total_bytes >> 9;
 
+	/* mixed attributes always follow the first bio */
+	if (req->cmd_flags & REQ_MIXED_MERGE) {
+		req->cmd_flags &= ~REQ_FAILFAST_MASK;
+		req->cmd_flags |= req->bio->bi_rw & REQ_FAILFAST_MASK;
+	}
+
 	/*
 	 * If total number of sectors is less than the first segment
 	 * size, something has gone terribly wrong.
@@ -2174,6 +2234,25 @@ bool blk_end_request_cur(struct request *rq, int error)
 EXPORT_SYMBOL(blk_end_request_cur);
 
 /**
+ * blk_end_request_err - Finish a request till the next failure boundary.
+ * @rq: the request to finish till the next failure boundary for
+ * @error: must be negative errno
+ *
+ * Description:
+ *     Complete @rq till the next failure boundary.
+ *
+ * Return:
+ *     %false - we are done with this request
+ *     %true  - still buffers pending for this request
+ */
+bool blk_end_request_err(struct request *rq, int error)
+{
+	WARN_ON(error >= 0);
+	return blk_end_request(rq, error, blk_rq_err_bytes(rq));
+}
+EXPORT_SYMBOL_GPL(blk_end_request_err);
+
+/**
  * __blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
  * @error:    %0 for success, < %0 for error
@@ -2231,6 +2310,26 @@ bool __blk_end_request_cur(struct request *rq, int error)
 	return __blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
 EXPORT_SYMBOL(__blk_end_request_cur);
+
+/**
+ * __blk_end_request_err - Finish a request till the next failure boundary.
+ * @rq: the request to finish till the next failure boundary for
+ * @error: must be negative errno
+ *
+ * Description:
+ *     Complete @rq till the next failure boundary.  Must be called
+ *     with queue lock held.
+ *
+ * Return:
+ *     %false - we are done with this request
+ *     %true  - still buffers pending for this request
+ */
+bool __blk_end_request_err(struct request *rq, int error)
+{
+	WARN_ON(error >= 0);
+	return __blk_end_request(rq, error, blk_rq_err_bytes(rq));
+}
+EXPORT_SYMBOL_GPL(__blk_end_request_err);
 
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)

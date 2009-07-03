@@ -115,6 +115,7 @@ enum rq_flag_bits {
 	__REQ_INTEGRITY,	/* integrity metadata has been remapped */
 	__REQ_NOIDLE,		/* Don't anticipate more IO after this one */
 	__REQ_IO_STAT,		/* account I/O stat */
+	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -143,6 +144,7 @@ enum rq_flag_bits {
 #define REQ_INTEGRITY	(1 << __REQ_INTEGRITY)
 #define REQ_NOIDLE	(1 << __REQ_NOIDLE)
 #define REQ_IO_STAT	(1 << __REQ_IO_STAT)
+#define REQ_MIXED_MERGE	(1 << __REQ_MIXED_MERGE)
 
 #define REQ_FAILFAST_MASK	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | \
 				 REQ_FAILFAST_DRIVER)
@@ -832,11 +834,13 @@ static inline void blk_run_address_space(struct address_space *mapping)
 }
 
 /*
- * blk_rq_pos()		: the current sector
- * blk_rq_bytes()	: bytes left in the entire request
- * blk_rq_cur_bytes()	: bytes left in the current segment
- * blk_rq_sectors()	: sectors left in the entire request
- * blk_rq_cur_sectors()	: sectors left in the current segment
+ * blk_rq_pos()			: the current sector
+ * blk_rq_bytes()		: bytes left in the entire request
+ * blk_rq_cur_bytes()		: bytes left in the current segment
+ * blk_rq_err_bytes()		: bytes left till the next error boundary
+ * blk_rq_sectors()		: sectors left in the entire request
+ * blk_rq_cur_sectors()		: sectors left in the current segment
+ * blk_rq_err_sectors()		: sectors left till the next error boundary
  */
 static inline sector_t blk_rq_pos(const struct request *rq)
 {
@@ -853,6 +857,8 @@ static inline int blk_rq_cur_bytes(const struct request *rq)
 	return rq->bio ? bio_cur_bytes(rq->bio) : 0;
 }
 
+extern unsigned int blk_rq_err_bytes(const struct request *rq);
+
 static inline unsigned int blk_rq_sectors(const struct request *rq)
 {
 	return blk_rq_bytes(rq) >> 9;
@@ -861,6 +867,11 @@ static inline unsigned int blk_rq_sectors(const struct request *rq)
 static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 {
 	return blk_rq_cur_bytes(rq) >> 9;
+}
+
+static inline unsigned int blk_rq_err_sectors(const struct request *rq)
+{
+	return blk_rq_err_bytes(rq) >> 9;
 }
 
 /*
@@ -889,10 +900,12 @@ extern bool blk_end_request(struct request *rq, int error,
 			    unsigned int nr_bytes);
 extern void blk_end_request_all(struct request *rq, int error);
 extern bool blk_end_request_cur(struct request *rq, int error);
+extern bool blk_end_request_err(struct request *rq, int error);
 extern bool __blk_end_request(struct request *rq, int error,
 			      unsigned int nr_bytes);
 extern void __blk_end_request_all(struct request *rq, int error);
 extern bool __blk_end_request_cur(struct request *rq, int error);
+extern bool __blk_end_request_err(struct request *rq, int error);
 
 extern void blk_complete_request(struct request *);
 extern void __blk_complete_request(struct request *);
