@@ -342,7 +342,7 @@ static ssize_t __init setup_pcpu_embed(size_t static_size, bool chosen)
 		return -EINVAL;
 
 	return pcpu_embed_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
-				      reserve - PERCPU_FIRST_CHUNK_RESERVE, -1);
+				      reserve - PERCPU_FIRST_CHUNK_RESERVE);
 }
 
 /*

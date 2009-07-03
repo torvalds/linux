@@ -1207,7 +1207,6 @@ static struct page * __init pcpue_get_page(unsigned int cpu, int pageno)
  * @static_size: the size of static percpu area in bytes
  * @reserved_size: the size of reserved percpu area in bytes
  * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
- * @unit_size: unit size in bytes, must be multiple of PAGE_SIZE, -1 for auto
  *
  * This is a helper to ease setting up embedded first percpu chunk and
  * can be called where pcpu_setup_first_chunk() is expected.
@@ -1219,9 +1218,9 @@ static struct page * __init pcpue_get_page(unsigned int cpu, int pageno)
  * page size.
  *
  * When @dyn_size is positive, dynamic area might be larger than
- * specified to fill page alignment.  Also, when @dyn_size is auto,
- * @dyn_size does not fill the whole first chunk but only what's
- * necessary for page alignment after static and reserved areas.
+ * specified to fill page alignment.  When @dyn_size is auto,
+ * @dyn_size is just big enough to fill page alignment after static
+ * and reserved areas.
  *
  * If the needed size is smaller than the minimum or specified unit
  * size, the leftover is returned to the bootmem allocator.
@@ -1231,7 +1230,7 @@ static struct page * __init pcpue_get_page(unsigned int cpu, int pageno)
  * percpu access on success, -errno on failure.
  */
 ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
-				      ssize_t dyn_size, ssize_t unit_size)
+				      ssize_t dyn_size)
 {
 	size_t chunk_size;
 	unsigned int cpu;
@@ -1242,12 +1241,7 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	if (dyn_size != 0)
 		dyn_size = pcpue_size - static_size - reserved_size;
 
-	if (unit_size >= 0) {
-		BUG_ON(unit_size < pcpue_size);
-		pcpue_unit_size = unit_size;
-	} else
-		pcpue_unit_size = max_t(size_t, pcpue_size, PCPU_MIN_UNIT_SIZE);
-
+	pcpue_unit_size = max_t(size_t, pcpue_size, PCPU_MIN_UNIT_SIZE);
 	chunk_size = pcpue_unit_size * num_possible_cpus();
 
 	pcpue_ptr = __alloc_bootmem_nopanic(chunk_size, PAGE_SIZE,
@@ -1304,7 +1298,7 @@ void __init setup_per_cpu_areas(void)
 	 * what the legacy allocator did.
 	 */
 	unit_size = pcpu_embed_first_chunk(static_size, PERCPU_MODULE_RESERVE,
-					   PERCPU_DYNAMIC_RESERVE, -1);
+					   PERCPU_DYNAMIC_RESERVE);
 	if (unit_size < 0)
 		panic("Failed to initialized percpu areas.");
 
