@@ -320,7 +320,7 @@ FirmwareCheckReady(struct net_device *dev,	u8 LoadFWStatus)
 
 		RT_TRACE(COMP_FIRMWARE, "FirmwareCheckReady(): Current RCR settings(%#x)\n", tmpU4b);
 
-#if (defined (RTL8192SU_FPGA_2MAC_VERIFICATION) ||defined (RTL8192SU_ASIC_VERIFICATION))
+#if defined (RTL8192SU_ASIC_VERIFICATION)
 #ifdef NOT_YET   //YJ,TMP
 		priv->TransmitConfig = read_nic_dword(dev, TCR);
 		RT_TRACE(COMP_FIRMWARE, "FirmwareCheckReady(): Current TCR settings(%x)\n", priv->TransmitConfig);
