@@ -175,9 +175,9 @@ EXPORT_SYMBOL(atomic64_sub);
  */
 int atomic64_sub_and_test(u64 delta, atomic64_t *ptr)
 {
-	u64 old_val = atomic64_sub_return(delta, ptr);
+	u64 new_val = atomic64_sub_return(delta, ptr);
 
-	return old_val == 0;
+	return new_val == 0;
 }
 EXPORT_SYMBOL(atomic64_sub_and_test);
 
@@ -244,8 +244,8 @@ EXPORT_SYMBOL(atomic64_inc_and_test);
  */
 int atomic64_add_negative(u64 delta, atomic64_t *ptr)
 {
-	long long old_val = atomic64_add_return(delta, ptr);
+	s64 new_val = atomic64_add_return(delta, ptr);
 
-	return old_val < 0;
+	return new_val < 0;
 }
 EXPORT_SYMBOL(atomic64_add_negative);
