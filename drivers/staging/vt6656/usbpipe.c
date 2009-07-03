@@ -86,49 +86,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Variables  --------------------------*/
 
 /*---------------------  Static Functions  --------------------------*/
-//2007-0508-02<Add>by MikeLiu
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))&&(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-
-static
-VOID
-s_nsInterruptUsbIoCompleteRead(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    );
-
-
-static
-VOID
-s_nsBulkInUsbIoCompleteRead(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    );
-
-
-static
-VOID
-s_nsBulkOutIoCompleteWrite(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    );
-
-
-static
-VOID
-s_nsControlInUsbIoCompleteRead(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    );
-
-static
-VOID
-s_nsControlInUsbIoCompleteWrite(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    );
-
-#else
-
 static
 VOID
 s_nsInterruptUsbIoCompleteRead(
@@ -161,9 +118,6 @@ VOID
 s_nsControlInUsbIoCompleteWrite(
     IN struct urb *urb
     );
-
-#endif
-
 
 /*---------------------  Export Variables  --------------------------*/
 
@@ -338,23 +292,11 @@ PIPEnsControlIn(
     return ntStatus;
 }
 
-//2007-0508-03<Add>by MikeLiu
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))&&(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-
-static
-VOID
-s_nsControlInUsbIoCompleteWrite(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    )
-#else
-
 static
 VOID
 s_nsControlInUsbIoCompleteWrite(
     IN struct urb *urb
     )
-#endif
 {
     PSDevice        pDevice;
 
@@ -391,23 +333,11 @@ s_nsControlInUsbIoCompleteWrite(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-
-//2007-0508-04<Add>by MikeLiu
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))&&(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-static
-VOID
-s_nsControlInUsbIoCompleteRead(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    )
-#else
-
 static
 VOID
 s_nsControlInUsbIoCompleteRead(
     IN struct urb *urb
     )
-#endif
 {
     PSDevice        pDevice;
 
@@ -488,10 +418,7 @@ PIPEnsInterruptRead(
 	                 );
 #else
 
-//2008-0526-01<Add>by MikeLiu
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
     pDevice->pInterruptURB->interval = pDevice->int_interval;
-#endif
 
 usb_fill_bulk_urb(pDevice->pInterruptURB,
 		pDevice->usb,
@@ -503,18 +430,9 @@ usb_fill_bulk_urb(pDevice->pInterruptURB,
 #endif
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	if ((ntStatus = vntwusb_submit_urb(pDevice->pInterruptURB)) != 0) {
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit int URB failed %d\n", ntStatus);
     }
-
-#else
-    if (pDevice->bEventAvailable == FALSE) {
-	    if ((ntStatus = vntwusb_submit_urb(pDevice->pInterruptURB)) != 0) {
-	        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit int URB failed %d\n", ntStatus);
-        }
-    }
-#endif
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----s_nsStartInterruptUsbRead Return(%x)\n",ntStatus);
     return ntStatus;
@@ -535,23 +453,12 @@ usb_fill_bulk_urb(pDevice->pInterruptURB,
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-//2007-0508-05<Add>by MikeLiu
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))&&(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-static
-VOID
-s_nsInterruptUsbIoCompleteRead(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    )
-#else
-
 static
 VOID
 s_nsInterruptUsbIoCompleteRead(
     IN struct urb *urb
     )
 
-#endif
 {
     PSDevice        pDevice;
     NTSTATUS        ntStatus;
@@ -603,18 +510,9 @@ s_nsInterruptUsbIoCompleteRead(
 
     if (pDevice->fKillEventPollingThread != TRUE) {
    #if 0               //reserve int URB submit
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	if ((ntStatus = vntwusb_submit_urb(urb)) != 0) {
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Re-Submit int URB failed %d\n", ntStatus);
     }
-
-    #else
-    if (pDevice->bEventAvailable == FALSE) {
-	    if ((ntStatus = vntwusb_submit_urb(urb)) != 0) {
-	        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Re-Submit int URB failed %d\n", ntStatus);
-        }
-    }
-    #endif
    #else                                                                                     //replace int URB submit by bulk transfer
     #ifdef Safe_Close
        usb_fill_bulk_urb(pDevice->pInterruptURB,
@@ -625,18 +523,10 @@ s_nsInterruptUsbIoCompleteRead(
 		     s_nsInterruptUsbIoCompleteRead,
 		     pDevice);
 
-     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	if ((ntStatus = vntwusb_submit_urb(pDevice->pInterruptURB)) != 0) {
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit int URB failed %d\n", ntStatus);
            }
 
-     #else
-         if (pDevice->bEventAvailable == FALSE) {
-	    if ((ntStatus = vntwusb_submit_urb(pDevice->pInterruptURB)) != 0) {
-	        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit int URB failed %d\n", ntStatus);
-               }
-           }
-      #endif
     #else
         tasklet_schedule(&pDevice->EventWorkItem);
     #endif
@@ -725,23 +615,12 @@ PIPEnsBulkInUsbRead(
  * Return Value: STATUS_INSUFFICIENT_RESOURCES or result of IoCallDriver
  *
  */
-//2007-0508-06<Add>by MikeLiu
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))&&(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-static
-VOID
-s_nsBulkInUsbIoCompleteRead(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    )
-#else
-
 static
 VOID
 s_nsBulkInUsbIoCompleteRead(
     IN struct urb *urb
     )
 
-#endif
 {
     PRCB    pRCB = (PRCB)urb->context;
     PSDevice pDevice = (PSDevice)pRCB->pDevice;
@@ -895,22 +774,11 @@ PIPEnsSendBulkOut(
  *               (IofCompleteRequest) to stop working on the irp.
  *
  */
-//2007-0508-07<Add>by MikeLiu
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))&&(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-static
-VOID
-s_nsBulkOutIoCompleteWrite(
-    IN struct urb *urb,
-    IN struct pt_regs *regs
-    )
-#else
-
 static
 VOID
 s_nsBulkOutIoCompleteWrite(
     IN struct urb *urb
     )
-#endif
 {
     PSDevice            pDevice;
     NTSTATUS            status;

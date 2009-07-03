@@ -524,12 +524,7 @@ vRunCommand(
                     (pMgmt->uScanChannel < CB_MAX_CHANNEL_24G)) {
                     s_vProbeChannel(pDevice);
                     spin_unlock_irq(&pDevice->lock);
-		//2008-0526-02<Add>by MikeLiu
-                  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 		     vCommandTimerWait((HANDLE)pDevice, 100);
-                  #else
-                    vCommandTimerWait((HANDLE)pDevice, WCMD_ACTIVE_SCAN_TIME);
-		#endif
                     return;
                 } else {
                     spin_unlock_irq(&pDevice->lock);

@@ -57,11 +57,6 @@
 #include <linux/sched.h>
 #include <linux/if.h>
 #include <linux/rtnetlink.h>//James
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-#include <linux/config.h>
-#endif
-
 #include <linux/proc_fs.h>
 #include <linux/inetdevice.h>
 #include <linux/reboot.h>

@@ -27,10 +27,6 @@
 #ifndef __DEVICE_CONFIG_H
 #define __DEVICE_CONFIG_H
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-#include <linux/config.h>
-#endif
-
 #include <linux/types.h>
 
 #if !defined(__TTYPE_H__)

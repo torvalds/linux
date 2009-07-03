@@ -337,22 +337,14 @@ int iwctl_giwscan(struct net_device *dev,
 		    iwe.cmd = SIOCGIWAP;
 		    iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 			memcpy(iwe.u.ap_addr.sa_data, pBSS->abyBSSID, WLAN_BSSID_LEN);
-			#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                            current_ev = iwe_stream_add_event(info,current_ev,end_buf, &iwe, IW_EV_ADDR_LEN);
-			#else
-			current_ev = iwe_stream_add_event(current_ev,end_buf, &iwe, IW_EV_ADDR_LEN);
-			#endif
                  //ADD ssid
 	             memset(&iwe, 0, sizeof(iwe));
                       iwe.cmd = SIOCGIWESSID;
                       pItemSSID = (PWLAN_IE_SSID)pBSS->abySSID;
                        iwe.u.data.length = pItemSSID->len;
                        iwe.u.data.flags = 1;
-		  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                       current_ev = iwe_stream_add_point(info,current_ev,end_buf, &iwe, pItemSSID->abySSID);
-		  #else
-       		    current_ev = iwe_stream_add_point(current_ev,end_buf, &iwe, pItemSSID->abySSID);
-		  #endif
 		//ADD mode
 		    memset(&iwe, 0, sizeof(iwe));
 		    iwe.cmd = SIOCGIWMODE;
@@ -363,11 +355,7 @@ int iwctl_giwscan(struct net_device *dev,
                 iwe.u.mode = IW_MODE_ADHOC;
 		    }
 	        iwe.len = IW_EV_UINT_LEN;
-		 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                       current_ev = iwe_stream_add_event(info,current_ev, end_buf, &iwe,  IW_EV_UINT_LEN);
-		 #else
-		    current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe,  IW_EV_UINT_LEN);
-		 #endif
            //ADD frequency
             pSuppRates = (PWLAN_IE_SUPP_RATES)pBSS->abySuppRates;
             pExtSuppRates = (PWLAN_IE_SUPP_RATES)pBSS->abyExtSuppRates;
@@ -376,11 +364,7 @@ int iwctl_giwscan(struct net_device *dev,
            	iwe.u.freq.m = pBSS->uChannel;
            	iwe.u.freq.e = 0;
            	iwe.u.freq.i = 0;
-	     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                   current_ev = iwe_stream_add_event(info,current_ev,end_buf, &iwe, IW_EV_FREQ_LEN);
-	     #else
-           	current_ev = iwe_stream_add_event(current_ev,end_buf, &iwe, IW_EV_FREQ_LEN);
-	     #endif
             //2008-0409-04, <Add> by Einsn Liu
 			{
 			int f = (int)pBSS->uChannel - 1;
@@ -388,11 +372,7 @@ int iwctl_giwscan(struct net_device *dev,
 			iwe.u.freq.m = frequency_list[f] * 100000;
 			iwe.u.freq.e = 1;
 			}
-	     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                   current_ev = iwe_stream_add_event(info,current_ev,end_buf, &iwe, IW_EV_FREQ_LEN);
-	     #else
-           	current_ev = iwe_stream_add_event(current_ev,end_buf, &iwe, IW_EV_FREQ_LEN);
-	     #endif
        		//ADD quality
             memset(&iwe, 0, sizeof(iwe));
 	        iwe.cmd = IWEVQUAL;
@@ -442,11 +422,7 @@ int iwctl_giwscan(struct net_device *dev,
 	        iwe.u.qual.qual = 0;
 		}
 */
-            #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                  current_ev = iwe_stream_add_event(info,current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
-	   #else
-	        current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
-	   #endif
        	//ADD encryption
             memset(&iwe, 0, sizeof(iwe));
             iwe.cmd = SIOCGIWENCODE;
@@ -456,11 +432,7 @@ int iwctl_giwscan(struct net_device *dev,
             }else {
                 iwe.u.data.flags = IW_ENCODE_DISABLED;
             }
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
             current_ev = iwe_stream_add_point(info,current_ev,end_buf, &iwe, pItemSSID->abySSID);
-	#else
-            current_ev = iwe_stream_add_point(current_ev,end_buf, &iwe, pItemSSID->abySSID);
-	#endif
 
             memset(&iwe, 0, sizeof(iwe));
             iwe.cmd = SIOCGIWRATE;
@@ -472,22 +444,14 @@ int iwctl_giwscan(struct net_device *dev,
 			        break;
 		        // Bit rate given in 500 kb/s units (+ 0x80)
 		        iwe.u.bitrate.value = ((pSuppRates->abyRates[kk] & 0x7f) * 500000);
-		     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                           current_val = iwe_stream_add_value(info,current_ev, current_val, end_buf, &iwe, IW_EV_PARAM_LEN);
-		     #else
-		        current_val = iwe_stream_add_value(current_ev, current_val, end_buf, &iwe, IW_EV_PARAM_LEN);
-		     #endif
 	        }
        		for (kk = 0 ; kk < 8 ; kk++) {
 		        if (pExtSuppRates->abyRates[kk] == 0)
 			        break;
 		        // Bit rate given in 500 kb/s units (+ 0x80)
 		        iwe.u.bitrate.value = ((pExtSuppRates->abyRates[kk] & 0x7f) * 500000);
-		    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                          current_val = iwe_stream_add_value(info,current_ev, current_val, end_buf, &iwe, IW_EV_PARAM_LEN);
-		    #else
-		        current_val = iwe_stream_add_value(current_ev, current_val, end_buf, &iwe, IW_EV_PARAM_LEN);
-		   #endif
 	        }
 
 	        if((current_val - current_ev) > IW_EV_LCP_LEN)
@@ -498,33 +462,21 @@ int iwctl_giwscan(struct net_device *dev,
             iwe.cmd = IWEVCUSTOM;
             sprintf(buf, "bcn_int=%d", pBSS->wBeaconInterval);
             iwe.u.data.length = strlen(buf);
-     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
              current_ev = iwe_stream_add_point(info,current_ev, end_buf, &iwe, buf);
-    #else
-            current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, buf);
-    #endif
 
 #if WIRELESS_EXT > 17
             if ((pBSS->wWPALen > 0) && (pBSS->wWPALen <= MAX_WPA_IE_LEN)) {
                 memset(&iwe, 0, sizeof(iwe));
                 iwe.cmd = IWEVGENIE;
                 iwe.u.data.length = pBSS->wWPALen;
-	    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                 current_ev = iwe_stream_add_point(info,current_ev, end_buf, &iwe, pBSS->byWPAIE);
-	   #else
-                current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, pBSS->byWPAIE);
-	   #endif
             }
 
             if ((pBSS->wRSNLen > 0) && (pBSS->wRSNLen <= MAX_WPA_IE_LEN)) {
                 memset(&iwe, 0, sizeof(iwe));
                 iwe.cmd = IWEVGENIE;
                 iwe.u.data.length = pBSS->wRSNLen;
-	   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                 current_ev = iwe_stream_add_point(info,current_ev, end_buf, &iwe, pBSS->byRSNIE);
-	   #else
-                current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, pBSS->byRSNIE);
-	   #endif
             }
 
 #else // WIRELESS_EXT > 17
@@ -537,11 +489,7 @@ int iwctl_giwscan(struct net_device *dev,
 			        p += sprintf(p, "%02x", pBSS->byWPAIE[ii]);
 		        }
 		        iwe.u.data.length = strlen(buf);
-		     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                           current_ev = iwe_stream_add_point(info,current_ev, end_buf, &iwe, buf);
-		     #else
-		        current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, buf);
-		     #endif
 		    }
 
 
@@ -554,11 +502,7 @@ int iwctl_giwscan(struct net_device *dev,
 			        p += sprintf(p, "%02x", pBSS->byRSNIE[ii]);
 		        }
 		        iwe.u.data.length = strlen(buf);
-		     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)   //mike add
                           current_ev = iwe_stream_add_point(info,current_ev, end_buf, &iwe, buf);
-		     #else
-		        current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe, buf);
-		     #endif
 		    }
 #endif
 #endif

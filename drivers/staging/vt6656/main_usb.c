@@ -150,18 +150,10 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
 #define DEVICE_PARAM(N,D) \
         static int N[MAX_UINTS]=OPTION_DEFAULT;\
         module_param_array(N, int, NULL, 0);\
         MODULE_PARM_DESC(N, D);
-
-#else
-#define DEVICE_PARAM(N,D) \
-        static const int N[MAX_UINTS]=OPTION_DEFAULT;\
-        MODULE_PARM(N, "1-" __MODULE_STRING(MAX_UINTS) "i");\
-        MODULE_PARM_DESC(N, D);
-#endif
 
 #define RX_DESC_MIN0     16
 #define RX_DESC_MAX0     128
@@ -331,18 +323,11 @@ struct iw_request_info {};
 
 
 /*---------------------  Static Functions  --------------------------*/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-
 static int vntwusb_found1(struct usb_interface *intf, const struct usb_device_id *id);
 static void vntwusb_disconnect(struct usb_interface *intf);
 #ifdef CONFIG_PM	/* Minimal support for suspend and resume */
 static int vntwusb_suspend(struct usb_interface *intf, pm_message_t message);
 static int vntwusb_resume(struct usb_interface *intf);
-#endif
-#else
-
-static void* vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_id *id);
-static void vntwusb_disconnect(struct usb_device *udev, void *ptr);
 #endif
 static struct net_device_stats *device_get_stats(struct net_device *dev);
 static int  device_open(struct net_device *dev);
@@ -370,10 +355,7 @@ static int Config_FileGetParameter(UCHAR *string, UCHAR *dest,UCHAR *source);
 //2008-0714<Add>by Mike Liu
 static BOOL device_release_WPADEV(PSDevice pDevice);
 
-//2007-1107-01<Add>by MikeLiu
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
 static void usb_device_reset(PSDevice pDevice);
-#endif
 
 
 
@@ -778,12 +760,7 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
                  wpahdr->req_ie_len = 0;
                  skb_put(pDevice->skb, sizeof(viawget_wpa_header));
                  pDevice->skb->dev = pDevice->wpadev;
-//2008-4-3 modify by Chester for wpa
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
                  pDevice->skb->mac_header = pDevice->skb->data;
-#else
-                 pDevice->skb->mac.raw = pDevice->skb->data;
-#endif
                  pDevice->skb->pkt_type = PACKET_HOST;
                  pDevice->skb->protocol = htons(ETH_P_802_2);
                  memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
@@ -848,23 +825,12 @@ static const struct net_device_ops device_netdev_ops = {
 };
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-
 static int
 vntwusb_found1(struct usb_interface *intf, const struct usb_device_id *id)
-#else
-
-static void *
-vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_id *id)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
    BYTE            fake_mac[U_ETHER_ADDR_LEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};//fake MAC address
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 	struct usb_device *udev = interface_to_usbdev(intf);
     int         rc = 0;
-#endif
     struct net_device *netdev = NULL;
     PSDevice    pDevice = NULL;
 
@@ -872,16 +838,9 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
     printk(KERN_NOTICE "%s Ver. %s\n",DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
     printk(KERN_NOTICE "Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
 
-//2008-0922-01<Add>by MikeLiu, add usb counter.
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
   udev = usb_get_dev(udev);
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     netdev = alloc_etherdev(sizeof(DEVICE_INFO));
-#else
-    netdev = init_etherdev(netdev, 0);
-#endif
 
     if (netdev == NULL) {
         printk(KERN_ERR DEVICE_NAME ": allocate net device failed \n");
@@ -895,11 +854,6 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
     pDevice->dev = netdev;
     pDevice->usb = udev;
 
-    // Chain it all together
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-    SET_MODULE_OWNER(netdev);
-#endif
-
     // Set initial settings
     device_set_options(pDevice);
     spin_lock_init(&pDevice->lock);
@@ -912,9 +866,6 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
 #ifdef WIRELESS_EXT
 
 //2007-0508-01<Add>by MikeLiu
-  #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	netdev->get_wireless_stats = iwctl_get_wireless_stats;
-  #endif
 
 #if WIRELESS_EXT > 12
 	netdev->wireless_handlers = (struct iw_handler_def *)&iwctl_handler_def;
@@ -922,17 +873,11 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
 #endif /* WIRELESS_EXT > 12 */
 #endif /* WIRELESS_EXT */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-
    //2008-0623-01<Remark>by MikeLiu
   //2007-0821-01<Add>by MikeLiu
-  // #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
          usb_set_intfdata(intf, pDevice);
 	SET_NETDEV_DEV(netdev, &intf->dev);
-   //#endif
-   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
     memcpy(pDevice->dev->dev_addr, fake_mac, U_ETHER_ADDR_LEN); //use fake mac address
-   #endif
     rc = register_netdev(netdev);
     if (rc != 0) {
         printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
@@ -956,10 +901,7 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
         kfree(pDevice);
    }
 
-//2007-1107-03<Add>by MikeLiu
-   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
          usb_device_reset(pDevice);
-   #endif
 
 #ifdef SndEvt_ToAPI
 {
@@ -972,21 +914,13 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
 #endif
 
 	return 0;
-#else
-    return pDevice;
-#endif
 
 
 err_nomem:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-
  //2008-0922-01<Add>by MikeLiu, decrease usb counter.
     usb_put_dev(udev);
 
     return -ENOMEM;
-#else
-    return NULL;
-#endif
 }
 
 
@@ -1032,7 +966,6 @@ static VOID device_free_rx_bufs(PSDevice pDevice) {
 }
 
 //2007-1107-02<Add>by MikeLiu
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
 static void usb_device_reset(PSDevice pDevice)
 {
  int status;
@@ -1041,7 +974,6 @@ static void usb_device_reset(PSDevice pDevice)
             printk("usb_device_reset fail status=%d\n",status);
 	return ;
 }
-#endif
 
 static VOID device_free_int_bufs(PSDevice pDevice) {
 
@@ -1269,11 +1201,7 @@ static int  device_open(struct net_device *dev) {
     tasklet_init(&pDevice->ReadWorkItem, (void *)RXvWorkItem, (unsigned long)pDevice);
     tasklet_init(&pDevice->EventWorkItem, (void *)INTvWorkItem, (unsigned long)pDevice);
     add_timer(&(pDevice->sMgmtObj.sTimerSecondCallback));
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     pDevice->int_interval = 100;  //Max 100 microframes.
-#else
-    pDevice->int_interval = 0x10; //16 microframes interval(~2ms) for usb 2.0
-#endif
     pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 
     pDevice->bIsRxWorkItemQueued = TRUE;
@@ -1354,9 +1282,7 @@ static int  device_close(struct net_device *dev) {
     PSDevice    pDevice=(PSDevice) netdev_priv(dev);
     PSMgmtObject     pMgmt = &(pDevice->sMgmtObj);
 
-   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
         int uu;
-   #endif
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_close1 \n");
     if (pDevice == NULL)
@@ -1381,8 +1307,6 @@ static int  device_close(struct net_device *dev) {
 //2008-0714-01<Add>by MikeLiu
 device_release_WPADEV(pDevice);
 
- //2007-0821-01<Add>by MikeLiu
-   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
         memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
         pMgmt->bShareKeyAlgorithm = FALSE;
         pDevice->bEncryptionEnable = FALSE;
@@ -1391,7 +1315,6 @@ device_release_WPADEV(pDevice);
             for(uu=0;uu<MAX_KEY_TABLE;uu++)
                 MACvDisableKeyEntry(pDevice,uu);
             spin_unlock_irq(&pDevice->lock);
-   #endif
 
     if ((pDevice->flags & DEVICE_FLAGS_UNPLUG) == FALSE) {
         MACbShutdown(pDevice);
@@ -1444,22 +1367,12 @@ device_release_WPADEV(pDevice);
     return 0;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 
 static void vntwusb_disconnect(struct usb_interface *intf)
 
-#else
-
-static void vntwusb_disconnect(struct usb_device *udev, void *ptr)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 
 	PSDevice  pDevice = usb_get_intfdata(intf);
-#else
-	PSDevice  pDevice = (PSDevice)ptr;
-#endif
-
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_disconnect1.. \n");
     if (pDevice == NULL)
@@ -1477,13 +1390,9 @@ static void vntwusb_disconnect(struct usb_device *udev, void *ptr)
 //2008-0714-01<Add>by MikeLiu
 device_release_WPADEV(pDevice);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-
 	usb_set_intfdata(intf, NULL);
 //2008-0922-01<Add>by MikeLiu, decrease usb counter.
      usb_put_dev(interface_to_usbdev(intf));
-
-#endif
 
     pDevice->flags |= DEVICE_FLAGS_UNPLUG;
     if (pDevice->dev != NULL) {
@@ -1495,11 +1404,7 @@ device_release_WPADEV(pDevice);
    if(wpa_set_wpadev(pDevice, 0)!=0)
      printk("unregister wpadev fail?\n");
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
         free_netdev(pDevice->dev);
-#else
-	    kfree(pDevice->dev);
-#endif
     }
 
 	kfree(pDevice);
@@ -2360,12 +2265,7 @@ static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 MODULE_DEVICE_TABLE(usb, vntwusb_table);
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-
 static struct usb_driver vntwusb_driver = {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-	    .owner =	THIS_MODULE,
-#endif
 	    .name =		DEVICE_NAME,
 	    .probe =	vntwusb_found1,
 	    .disconnect =	vntwusb_disconnect,
@@ -2378,17 +2278,6 @@ static struct usb_driver vntwusb_driver = {
 	   .resume = vntwusb_resume,
 #endif
 };
-
-#else
-
-static struct usb_driver vntwusb_driver = {
-	    name:   DEVICE_NAME,
-	    probe:  vntwusb_found1,
-	    disconnect: vntwusb_disconnect,
-	    id_table:   vntwusb_table,
-};
-
-#endif
 
 static int __init vntwusb_init_module(void)
 {
