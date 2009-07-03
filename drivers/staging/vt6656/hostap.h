@@ -37,14 +37,6 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-#if WIRELESS_EXT < 9
-struct iw_point {
-	caddr_t pointer;
-	__u16 length;
-	__u16 flags;
-};
-#endif /* WIRELESS_EXT < 9 */
-
 #define WLAN_RATE_1M    BIT0
 #define WLAN_RATE_2M    BIT1
 #define WLAN_RATE_5M5   BIT2

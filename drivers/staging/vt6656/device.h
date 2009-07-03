@@ -72,15 +72,10 @@
 #endif
 /* Include Wireless Extension definition and check version - Jean II */
 #include <linux/wireless.h>
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>	// New driver API
-#endif	/* WIRELESS_EXT > 12 */
 
-//2008-0409-07, <Add> by Einsn Liu
-#if WIRELESS_EXT > 17
 #ifndef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #define WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-#endif
 #endif
 
 //2007-0920-01<Add>by MikeLiu
@@ -910,9 +905,7 @@ typedef struct __device_info {
 #endif
     UINT                    uChannel;
 
-#ifdef WIRELESS_EXT
 	struct iw_statistics	wstats;		// wireless stats
-#endif /* WIRELESS_EXT */
     BOOL                    bCommit;
 
 } DEVICE_INFO, *PSDevice;

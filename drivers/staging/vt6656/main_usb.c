@@ -294,7 +294,6 @@ static struct usb_device_id vntwusb_table[] = {
 
 
 
-#ifdef WIRELESS_EXT
 // Frequency list (map channels to frequencies)
 /*
 static const long frequency_list[] = {
@@ -311,14 +310,8 @@ static const long frequency_list[] = {
 #define IW_ENCODE_MODE  (IW_ENCODE_DISABLED | IW_ENCODE_RESTRICTED | IW_ENCODE_OPEN)
 #endif
 
-#if WIRELESS_EXT > 12
 static const struct iw_handler_def	iwctl_handler_def;
-#else
-struct iw_request_info {};
-#endif	//WIRELESS_EXT > 12
 */
-
-#endif /* WIRELESS_EXT */
 
 
 
@@ -863,14 +856,8 @@ vntwusb_found1(struct usb_interface *intf, const struct usb_device_id *id)
 
     netdev->netdev_ops         = &device_netdev_ops;
 
-#ifdef WIRELESS_EXT
-
-//2007-0508-01<Add>by MikeLiu
-
-#if WIRELESS_EXT > 12
+#ifdef CONFIG_WIRELESS_EXT
 	netdev->wireless_handlers = (struct iw_handler_def *)&iwctl_handler_def;
-//	netdev->wireless_handlers = NULL;
-#endif /* WIRELESS_EXT > 12 */
 #endif /* WIRELESS_EXT */
 
    //2008-0623-01<Remark>by MikeLiu
@@ -1752,11 +1739,8 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     PSCmdRequest        pReq;
     //BOOL                bCommit = FALSE;
-#ifdef WIRELESS_EXT
 	struct iwreq *wrq = (struct iwreq *) rq;
 	int                 rc =0;
-#endif //WIRELESS_EXT
-
 
     if (pMgmt == NULL) {
         rc = -EFAULT;
@@ -1764,9 +1748,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
     }
 
     switch(cmd) {
-
-#ifdef WIRELESS_EXT
-//#if WIRELESS_EXT < 13
 
 	case SIOCGIWNAME:
 		rc = iwctl_giwname(dev, NULL, (char *)&(wrq->u.name), NULL);
@@ -1946,7 +1927,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		}
 		break;
 
-#if WIRELESS_EXT > 9
 		// Get the current Tx-Power
 	case SIOCGIWTXPOW:
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWTXPOW \n");
@@ -1958,9 +1938,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
         rc = -EOPNOTSUPP;
 		break;
 
-#endif // WIRELESS_EXT > 9
-
-#if WIRELESS_EXT > 10
 	case SIOCSIWRETRY:
 
 		rc = iwctl_siwretry(dev, NULL, &(wrq->u.retry), NULL);
@@ -1970,8 +1947,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 
 		rc = iwctl_giwretry(dev, NULL, &(wrq->u.retry), NULL);
 		break;
-
-#endif // WIRELESS_EXT > 10
 
 		// Get range of parameters
 	case SIOCGIWRANGE:
@@ -2059,8 +2034,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		break;
 
 
-//#endif // WIRELESS_EXT < 13
-
 //2008-0409-07, <Add> by Einsn Liu
 #ifdef  WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	case SIOCSIWAUTH:
@@ -2118,8 +2091,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 #endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 //End Add -- //2008-0409-07, <Add> by Einsn Liu
 
-#endif // WIRELESS_EXT
-
     case IOCTL_CMD_TEST:
 
 		if (!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
@@ -2164,11 +2135,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		    rc = 0;
 		}
 
-#if WIRELESS_EXT > 8
 		rc = hostap_ioctl(pDevice, &wrq->u.data);
-#else // WIRELESS_EXT > 8
-		rc = hostap_ioctl(pDevice, (struct iw_point *) &wrq->u.data);
-#endif // WIRELESS_EXT > 8
         break;
 
     case IOCTL_CMD_WPA:
@@ -2180,11 +2147,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		    rc = 0;
 		}
 
-#if WIRELESS_EXT > 8
 		rc = wpa_ioctl(pDevice, &wrq->u.data);
-#else // WIRELESS_EXT > 8
-		rc = wpa_ioctl(pDevice, (struct iw_point *) &wrq->u.data);
-#endif // WIRELESS_EXT > 8
         break;
 
 	case SIOCETHTOOL:
