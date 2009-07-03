@@ -46,6 +46,14 @@ config DW_DMAC
 	  Support the Synopsys DesignWare AHB DMA controller.  This
 	  can be integrated in chips such as the Atmel AT32ap7000.
 
+config AT_HDMAC
+	tristate "Atmel AHB DMA support"
+	depends on ARCH_AT91SAM9RL
+	select DMA_ENGINE
+	help
+	  Support the Atmel AHB DMA controller.  This can be integrated in
+	  chips such as the Atmel AT91SAM9RL.
+
 config FSL_DMA
 	tristate "Freescale Elo and Elo Plus DMA support"
 	depends on FSL_SOC
