@@ -164,7 +164,7 @@
  *	 7:2	register number
  *  
  */
-static DEFINE_SPINLOCK(v3_lock);
+static DEFINE_RAW_SPINLOCK(v3_lock);
 
 #define PCI_BUS_NONMEM_START	0x00000000
 #define PCI_BUS_NONMEM_SIZE	SZ_256M
@@ -285,7 +285,7 @@ static int v3_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned long flags;
 	u32 v;
 
-	spin_lock_irqsave(&v3_lock, flags);
+	raw_spin_lock_irqsave(&v3_lock, flags);
 	addr = v3_open_config_window(bus, devfn, where);
 
 	switch (size) {
@@ -303,7 +303,7 @@ static int v3_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	}
 
 	v3_close_config_window();
-	spin_unlock_irqrestore(&v3_lock, flags);
+	raw_spin_unlock_irqrestore(&v3_lock, flags);
 
 	*val = v;
 	return PCIBIOS_SUCCESSFUL;
@@ -315,7 +315,7 @@ static int v3_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned long addr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&v3_lock, flags);
+	raw_spin_lock_irqsave(&v3_lock, flags);
 	addr = v3_open_config_window(bus, devfn, where);
 
 	switch (size) {
@@ -336,7 +336,7 @@ static int v3_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	}
 
 	v3_close_config_window();
-	spin_unlock_irqrestore(&v3_lock, flags);
+	raw_spin_unlock_irqrestore(&v3_lock, flags);
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -515,7 +515,7 @@ void __init pci_v3_preinit(void)
 	hook_fault_code(8, v3_pci_fault, SIGBUS, 0, "external abort on non-linefetch");
 	hook_fault_code(10, v3_pci_fault, SIGBUS, 0, "external abort on non-linefetch");
 
-	spin_lock_irqsave(&v3_lock, flags);
+	raw_spin_lock_irqsave(&v3_lock, flags);
 
 	/*
 	 * Unlock V3 registers, but only if they were previously locked.
@@ -588,7 +588,7 @@ void __init pci_v3_preinit(void)
 		printk(KERN_ERR "PCI: unable to grab PCI error "
 		       "interrupt: %d\n", ret);
 
-	spin_unlock_irqrestore(&v3_lock, flags);
+	raw_spin_unlock_irqrestore(&v3_lock, flags);
 }
 
 void __init pci_v3_postinit(void)
