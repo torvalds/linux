@@ -6,19 +6,14 @@
 
 static inline u64 cmpxchg8b(u64 *ptr, u64 old, u64 new)
 {
+	u32 low = new;
+	u32 high = new >> 32;
+
 	asm volatile(
-
-		LOCK_PREFIX "cmpxchg8b (%[ptr])\n"
-
-		     :		"=A" (old)
-
-		     : [ptr]	"D" (ptr),
-				"A" (old),
-				"b" (ll_low(new)),
-				"c" (ll_high(new))
-
-		     : "memory");
-
+		LOCK_PREFIX "cmpxchg8b %1\n"
+		     : "+A" (old), "+m" (*ptr)
+		     :  "b" (low),  "c" (high)
+		     );
 	return old;
 }
 
