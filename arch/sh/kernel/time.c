@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/rtc.h>
 #include <asm/clock.h>
+#include <asm/hwblk.h>
 #include <asm/rtc.h>
 
 /* Dummy RTC ops */
@@ -96,6 +97,7 @@ void __init time_init(void)
 	if (board_time_init)
 		board_time_init();
 
+	hwblk_init();
 	clk_init();
 
 	rtc_sh_get_time(&xtime);
