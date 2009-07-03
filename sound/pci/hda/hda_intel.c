@@ -1464,6 +1464,12 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 	mutex_unlock(&chip->open_mutex);
 
+	if (snd_BUG_ON(!runtime->hw.channels_min || !runtime->hw.channels_max))
+		return -EINVAL;
+	if (snd_BUG_ON(!runtime->hw.formats))
+		return -EINVAL;
+	if (snd_BUG_ON(!runtime->hw.rates))
+		return -EINVAL;
 	return 0;
 }
 
