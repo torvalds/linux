@@ -2957,9 +2957,7 @@ short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb)
 	memset(tx_desc, 0, sizeof(tx_desc_819x_usb));
 
 
-#if defined (RTL8192SU_ASIC_VERIFICATION)
 		tx_desc->NonQos = (IsQoSDataFrame(skb->data)==TRUE)? 0:1;
-#endif
 
 	/* Fill Tx descriptor */
 	//memset(tx_fwinfo,0,sizeof(tx_fwinfo_819x_usb));
@@ -4029,9 +4027,7 @@ bool GetNmodeSupportBySecCfg8192(struct net_device*dev)
         int wpa_ie_len= ieee->wpa_ie_len;
         struct ieee80211_crypt_data* crypt;
         int encrypt;
-#if defined (RTL8192SU_ASIC_VERIFICATION)
 	return TRUE;
-#endif
 
         crypt = ieee->crypt[ieee->tx_keyidx];
 	//we use connecting AP's capability instead of only security config on our driver to distinguish whether it should use N mode or G mode
@@ -4883,13 +4879,9 @@ static void rtl8192SU_ReadAdapterInfo8192SEEPROM(struct net_device* dev)
 	RT_TRACE(COMP_EPROM, "MAC addr:"MAC_FMT"\n", MAC_ARG(dev->dev_addr));
 
 	priv->rf_type = RTL819X_DEFAULT_RF_TYPE; //default 1T2R
-#if defined (RTL8192SU_ASIC_VERIFICATION)
 	priv->rf_chip = RF_6052;
 	priv->rf_type = RTL819X_DEFAULT_RF_TYPE;
 	//priv->card_8192_version = VERSION_8192SU_A; //Over write for temporally experiment. 2008.10.16. By Roger.
-#else
-	priv->rf_chip = RF_8256;
-#endif
 
 	{
 #if 0
@@ -5215,12 +5207,8 @@ rtl8192SU_ReadAdapterInfo8192SEFuse(struct net_device* dev)
 	// 2007/11/15 MH For RTL8192USB we assign as 1T2R now.
 	priv->rf_type = RTL819X_DEFAULT_RF_TYPE;	// default : 1T2R
 
-#if defined (RTL8192SU_ASIC_VERIFICATION)
 	priv->rf_chip = RF_6052;
 	priv->rf_type = RTL819X_DEFAULT_RF_TYPE;
-#else
-	priv->rf_chip = RF_8256;
-#endif
 
 	{
 		//
@@ -5660,11 +5648,7 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 	//	priv->rf_type = RF_1T2R;
 	//}
 
-#if defined (RTL8192SU_ASIC_VERIFICATION)
 	priv->rf_chip = RF_6052;
-#else
-	priv->rf_chip = RF_8256;
-#endif
 
 	priv->rf_chip = RF_6052;//lzm test
 	RT_TRACE(COMP_INIT, "BoardType = 0x%2x\n", priv->EEPROMBoardType);
@@ -7778,9 +7762,7 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 	RESET_TYPE	RxResetType = RESET_TYPE_NORESET;
 	RT_RF_POWER_STATE 	rfState;
 
-#if defined (RTL8192SU_ASIC_VERIFICATION)
 	return RESET_TYPE_NORESET;
-#endif
 
 	rfState = priv->ieee80211->eRFPowerState;
 
