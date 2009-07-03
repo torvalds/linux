@@ -6922,9 +6922,6 @@ static struct hda_verb alc882_adc1_init_verbs[] = {
 	{ }
 };
 
-/* HACK - expand to two elements */
-#define alc882_init_verbs	alc882_base_init_verbs, alc882_adc1_init_verbs
-
 static struct hda_verb alc882_eapd_verbs[] = {
 	/* change to EAPD mode */
 	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
@@ -8492,7 +8489,8 @@ static struct snd_pci_quirk alc882_ssid_cfg_tbl[] = {
 static struct alc_config_preset alc882_presets[] = {
 	[ALC882_3ST_DIG] = {
 		.mixers = { alc882_base_mixer },
-		.init_verbs = { alc882_init_verbs },
+		.init_verbs = { alc882_base_init_verbs,
+				alc882_adc1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
@@ -8504,7 +8502,8 @@ static struct alc_config_preset alc882_presets[] = {
 	},
 	[ALC882_6ST_DIG] = {
 		.mixers = { alc882_base_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_init_verbs },
+		.init_verbs = { alc882_base_init_verbs,
+				alc882_adc1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
@@ -8515,7 +8514,8 @@ static struct alc_config_preset alc882_presets[] = {
 	},
 	[ALC882_ARIMA] = {
 		.mixers = { alc882_base_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_init_verbs, alc882_eapd_verbs },
+		.init_verbs = { alc882_base_init_verbs, alc882_adc1_init_verbs,
+				alc882_eapd_verbs },
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc882_sixstack_modes),
@@ -8524,8 +8524,8 @@ static struct alc_config_preset alc882_presets[] = {
 	},
 	[ALC882_W2JC] = {
 		.mixers = { alc882_w2jc_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_init_verbs, alc882_eapd_verbs,
-				alc880_gpio1_init_verbs },
+		.init_verbs = { alc882_base_init_verbs, alc882_adc1_init_verbs,
+				alc882_eapd_verbs, alc880_gpio1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
@@ -8587,7 +8587,8 @@ static struct alc_config_preset alc882_presets[] = {
 	},
 	[ALC882_TARGA] = {
 		.mixers = { alc882_targa_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_init_verbs, alc882_targa_verbs},
+		.init_verbs = { alc882_base_init_verbs, alc882_adc1_init_verbs,
+				alc882_targa_verbs},
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
@@ -8603,7 +8604,8 @@ static struct alc_config_preset alc882_presets[] = {
 	},
 	[ALC882_ASUS_A7J] = {
 		.mixers = { alc882_asus_a7j_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_init_verbs, alc882_asus_a7j_verbs},
+		.init_verbs = { alc882_base_init_verbs, alc882_adc1_init_verbs,
+				alc882_asus_a7j_verbs},
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
@@ -8617,8 +8619,8 @@ static struct alc_config_preset alc882_presets[] = {
 	},
 	[ALC882_ASUS_A7M] = {
 		.mixers = { alc882_asus_a7m_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_init_verbs, alc882_eapd_verbs,
-				alc880_gpio1_init_verbs,
+		.init_verbs = { alc882_base_init_verbs, alc882_adc1_init_verbs,
+				alc882_eapd_verbs, alc880_gpio1_init_verbs,
 				alc882_asus_a7m_verbs },
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
