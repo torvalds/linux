@@ -604,6 +604,7 @@ config USB_ZERO_HNPTEST
 config USB_AUDIO
 	tristate "Audio Gadget (EXPERIMENTAL)"
 	depends on SND
+	select SND_PCM
 	help
 	  Gadget Audio is compatible with USB Audio Class specification 1.0.
 	  It will include at least one AudioControl interface, zero or more
