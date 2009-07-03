@@ -74,7 +74,7 @@
 
 /* if 220 exists, can not set External Memory WB and L2 not_cached, either External Memory not_cached and L2 WB */
 #if ANOMALY_05000220 && \
-	((defined(CONFIG_BFIN_WB) && defined(CONFIG_BFIN_L2_NOT_CACHED)) || \
-	 (!defined(CONFIG_BFIN_DCACHE) && defined(CONFIG_BFIN_L2_WB)))
+	((defined(CONFIG_BFIN_EXTMEM_WRITEBACK) && !defined(CONFIG_BFIN_L2_DCACHEABLE)) || \
+	 (!defined(CONFIG_BFIN_EXTMEM_DCACHEABLE) && defined(CONFIG_BFIN_L2_WRITEBACK)))
 # error You are exposing Anomaly 220 in this config, either config L2 as Write Through, or make External Memory WB.
 #endif

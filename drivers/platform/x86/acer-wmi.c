@@ -958,12 +958,12 @@ static void acer_rfkill_update(struct work_struct *ignored)
 
 	status = get_u32(&state, ACER_CAP_WIRELESS);
 	if (ACPI_SUCCESS(status))
-		rfkill_set_sw_state(wireless_rfkill, !!state);
+		rfkill_set_sw_state(wireless_rfkill, !state);
 
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
 		status = get_u32(&state, ACER_CAP_BLUETOOTH);
 		if (ACPI_SUCCESS(status))
-			rfkill_set_sw_state(bluetooth_rfkill, !!state);
+			rfkill_set_sw_state(bluetooth_rfkill, !state);
 	}
 
 	schedule_delayed_work(&acer_rfkill_work, round_jiffies_relative(HZ));

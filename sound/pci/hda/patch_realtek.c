@@ -250,13 +250,6 @@ enum {
 	ALC883_MODEL_LAST,
 };
 
-/* styles of capture selection */
-enum {
-	CAPT_MUX = 0,	/* only mux based */
-	CAPT_MIX,	/* only mixer based */
-	CAPT_1MUX_MIX,	/* first mux and other mixers */
-};
-
 /* for GPIO Poll */
 #define GPIO_MASK	0x03
 
@@ -306,7 +299,6 @@ struct alc_spec {
 	hda_nid_t *adc_nids;
 	hda_nid_t *capsrc_nids;
 	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
-	int capture_style;		/* capture style (CAPT_*) */
 
 	/* capture source */
 	unsigned int num_mux_defs;
@@ -420,12 +412,13 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 	unsigned int mux_idx;
 	hda_nid_t nid = spec->capsrc_nids ?
 		spec->capsrc_nids[adc_idx] : spec->adc_nids[adc_idx];
+	unsigned int type;
 
 	mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
 	imux = &spec->input_mux[mux_idx];
 
-	if (spec->capture_style &&
-	    !(spec->capture_style == CAPT_1MUX_MIX && !adc_idx)) {
+	type = (get_wcaps(codec, nid) & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+	if (type == AC_WID_AUD_MIX) {
 		/* Matrix-mixer style (e.g. ALC882) */
 		unsigned int *cur_val = &spec->cur_mux[adc_idx];
 		unsigned int i, idx;
@@ -952,12 +945,13 @@ static void alc_fix_pll_init(struct hda_codec *codec, hda_nid_t nid,
 static void alc_automute_pin(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	unsigned int present;
+	unsigned int present, pincap;
 	unsigned int nid = spec->autocfg.hp_pins[0];
 	int i;
 
-	/* need to execute and sync at first */
-	snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
+	pincap = snd_hda_query_pin_caps(codec, nid);
+	if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
+		snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
 	present = snd_hda_codec_read(codec, nid, 0,
 				     AC_VERB_GET_PIN_SENSE, 0);
 	spec->jack_present = (present & AC_PINSENSE_PRESENCE) != 0;
@@ -1399,7 +1393,7 @@ static struct hda_verb alc888_fujitsu_xa3530_verbs[] = {
 static void alc_automute_amp(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	unsigned int val, mute;
+	unsigned int val, mute, pincap;
 	hda_nid_t nid;
 	int i;
 
@@ -1408,6 +1402,10 @@ static void alc_automute_amp(struct hda_codec *codec)
 		nid = spec->autocfg.hp_pins[i];
 		if (!nid)
 			break;
+		pincap = snd_hda_query_pin_caps(codec, nid);
+		if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
+			snd_hda_codec_read(codec, nid, 0,
+					   AC_VERB_SET_PIN_SENSE, 0);
 		val = snd_hda_codec_read(codec, nid, 0,
 					 AC_VERB_GET_PIN_SENSE, 0);
 		if (val & AC_PINSENSE_PRESENCE) {
@@ -1478,6 +1476,10 @@ static struct hda_verb alc888_acer_aspire_4930g_verbs[] = {
 static struct hda_verb alc888_acer_aspire_6530g_verbs[] = {
 /* Bias voltage on for external mic port */
 	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN | PIN_VREF80},
+/* Front Mic: set to PIN_IN (empty by default) */
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+/* Unselect Front Mic by default in input mixer 3 */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0xb)},
 /* Enable unsolicited event for HP jack */
 	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
 /* Enable speaker output */
@@ -1567,18 +1569,22 @@ static struct hda_input_mux alc888_2_capture_sources[2] = {
 static struct hda_input_mux alc888_acer_aspire_6530_sources[2] = {
 	/* Interal mic only available on one ADC */
 	{
-		.num_items = 3,
+		.num_items = 5,
 		.items = {
 			{ "Ext Mic", 0x0 },
+			{ "Line In", 0x2 },
 			{ "CD", 0x4 },
+			{ "Input Mix", 0xa },
 			{ "Int Mic", 0xb },
 		},
 	},
 	{
-		.num_items = 2,
+		.num_items = 4,
 		.items = {
 			{ "Ext Mic", 0x0 },
+			{ "Line In", 0x2 },
 			{ "CD", 0x4 },
+			{ "Input Mix", 0xa },
 		},
 	}
 };
@@ -1643,6 +1649,17 @@ static void alc888_acer_aspire_4930g_init_hook(struct hda_codec *codec)
 
 	spec->autocfg.hp_pins[0] = 0x15;
 	spec->autocfg.speaker_pins[0] = 0x14;
+	alc_automute_amp(codec);
+}
+
+static void alc888_acer_aspire_6530g_init_hook(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->autocfg.speaker_pins[1] = 0x16;
+	spec->autocfg.speaker_pins[2] = 0x17;
 	alc_automute_amp(codec);
 }
 
@@ -7557,7 +7574,6 @@ static int patch_alc882(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc882_pcm_digital_playback;
 	spec->stream_digital_capture = &alc882_pcm_digital_capture;
 
-	spec->capture_style = CAPT_MIX; /* matrix-style capture */
 	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
@@ -8197,6 +8213,8 @@ static struct snd_kcontrol_new alc888_acer_aspire_6530_mixer[] = {
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("LFE Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("LFE Playback Switch", 0x0f, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
@@ -9072,7 +9090,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0157, "Acer X3200", ALC883_AUTO),
 	SND_PCI_QUIRK(0x1025, 0x0158, "Acer AX1700-U3700A", ALC883_AUTO),
 	SND_PCI_QUIRK(0x1025, 0x015e, "Acer Aspire 6930G",
-		ALC888_ACER_ASPIRE_4930G),
+		ALC888_ACER_ASPIRE_6530G),
 	SND_PCI_QUIRK(0x1025, 0x0166, "Acer Aspire 6530G",
 		ALC888_ACER_ASPIRE_6530G),
 	/* default Acer -- disabled as it causes more problems.
@@ -9325,7 +9343,7 @@ static struct alc_config_preset alc883_presets[] = {
 			ARRAY_SIZE(alc888_2_capture_sources),
 		.input_mux = alc888_acer_aspire_6530_sources,
 		.unsol_event = alc_automute_amp_unsol_event,
-		.init_hook = alc888_acer_aspire_4930g_init_hook,
+		.init_hook = alc888_acer_aspire_6530g_init_hook,
 	},
 	[ALC888_ACER_ASPIRE_8930G] = {
 		.mixers = { alc888_base_mixer,
@@ -9781,7 +9799,6 @@ static int patch_alc883(struct hda_codec *codec)
 		}
 		if (!spec->capsrc_nids)
 			spec->capsrc_nids = alc883_capsrc_nids;
-		spec->capture_style = CAPT_MIX; /* matrix-style capture */
 		spec->init_amp = ALC_INIT_DEFAULT; /* always initialize */
 		break;
 	case 0x10ec0889:
@@ -9791,8 +9808,6 @@ static int patch_alc883(struct hda_codec *codec)
 		}
 		if (!spec->capsrc_nids)
 			spec->capsrc_nids = alc889_capsrc_nids;
-		spec->capture_style = CAPT_1MUX_MIX; /* 1mux/Nmix-style
-							capture */
 		break;
 	default:
 		if (!spec->num_adc_nids) {
@@ -9801,7 +9816,6 @@ static int patch_alc883(struct hda_codec *codec)
 		}
 		if (!spec->capsrc_nids)
 			spec->capsrc_nids = alc883_capsrc_nids;
-		spec->capture_style = CAPT_MIX; /* matrix-style capture */
 		break;
 	}
 
@@ -10913,9 +10927,27 @@ static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-/* identical with ALC880 */
-#define alc262_auto_create_analog_input_ctls \
-	alc880_auto_create_analog_input_ctls
+static int alc262_auto_create_analog_input_ctls(struct alc_spec *spec,
+						const struct auto_pin_cfg *cfg)
+{
+	int err;
+
+	err = alc880_auto_create_analog_input_ctls(spec, cfg);
+	if (err < 0)
+		return err;
+	/* digital-mic input pin is excluded in alc880_auto_create..()
+	 * because it's under 0x18
+	 */
+	if (cfg->input_pins[AUTO_PIN_MIC] == 0x12 ||
+	    cfg->input_pins[AUTO_PIN_FRONT_MIC] == 0x12) {
+		struct hda_input_mux *imux = &spec->private_imux[0];
+		imux->items[imux->num_items].label = "Int Mic";
+		imux->items[imux->num_items].index = 0x09;
+		imux->num_items++;
+	}
+	return 0;
+}
+
 
 /*
  * generic initialization of ADC, input mixers and output mixers
@@ -11332,6 +11364,7 @@ static struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x8203, "Sony UX-90", ALC262_HIPPO),
 	SND_PCI_QUIRK(0x104d, 0x820f, "Sony ASSAMD", ALC262_SONY_ASSAMD),
 	SND_PCI_QUIRK(0x104d, 0x9016, "Sony VAIO", ALC262_AUTO), /* dig-only */
+	SND_PCI_QUIRK(0x104d, 0x9025, "Sony VAIO Z21MN", ALC262_TOSHIBA_S06),
 	SND_PCI_QUIRK_MASK(0x104d, 0xff00, 0x9000, "Sony VAIO",
 			   ALC262_SONY_ASSAMD),
 	SND_PCI_QUIRK(0x1179, 0x0001, "Toshiba dynabook SS RX1",
@@ -11539,6 +11572,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.capsrc_nids = alc262_dmic_capsrc_nids,
 		.dac_nids = alc262_dac_nids,
 		.adc_nids = alc262_dmic_adc_nids, /* ADC0 */
+		.num_adc_nids = 1, /* single ADC */
 		.dig_out_nid = ALC262_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
@@ -11640,21 +11674,36 @@ static int patch_alc262(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc262_pcm_digital_playback;
 	spec->stream_digital_capture = &alc262_pcm_digital_capture;
 
-	spec->capture_style = CAPT_MIX;
 	if (!spec->adc_nids && spec->input_mux) {
-		/* check whether NID 0x07 is valid */
-		unsigned int wcap = get_wcaps(codec, 0x07);
-
-		/* get type */
-		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
-		if (wcap != AC_WID_AUD_IN) {
-			spec->adc_nids = alc262_adc_nids_alt;
-			spec->num_adc_nids = ARRAY_SIZE(alc262_adc_nids_alt);
-			spec->capsrc_nids = alc262_capsrc_nids_alt;
+		int i;
+		/* check whether the digital-mic has to be supported */
+		for (i = 0; i < spec->input_mux->num_items; i++) {
+			if (spec->input_mux->items[i].index >= 9)
+				break;
+		}
+		if (i < spec->input_mux->num_items) {
+			/* use only ADC0 */
+			spec->adc_nids = alc262_dmic_adc_nids;
+			spec->num_adc_nids = 1;
+			spec->capsrc_nids = alc262_dmic_capsrc_nids;
 		} else {
-			spec->adc_nids = alc262_adc_nids;
-			spec->num_adc_nids = ARRAY_SIZE(alc262_adc_nids);
-			spec->capsrc_nids = alc262_capsrc_nids;
+			/* all analog inputs */
+			/* check whether NID 0x07 is valid */
+			unsigned int wcap = get_wcaps(codec, 0x07);
+
+			/* get type */
+			wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+			if (wcap != AC_WID_AUD_IN) {
+				spec->adc_nids = alc262_adc_nids_alt;
+				spec->num_adc_nids =
+					ARRAY_SIZE(alc262_adc_nids_alt);
+				spec->capsrc_nids = alc262_capsrc_nids_alt;
+			} else {
+				spec->adc_nids = alc262_adc_nids;
+				spec->num_adc_nids =
+					ARRAY_SIZE(alc262_adc_nids);
+				spec->capsrc_nids = alc262_capsrc_nids;
+			}
 		}
 	}
 	if (!spec->cap_mixer && !spec->no_analog)
@@ -12413,6 +12462,8 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
+
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
 
 	return 1;
 }
@@ -13244,26 +13295,8 @@ static int alc269_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-static int alc269_auto_create_analog_input_ctls(struct alc_spec *spec,
-						const struct auto_pin_cfg *cfg)
-{
-	int err;
-
-	err = alc880_auto_create_analog_input_ctls(spec, cfg);
-	if (err < 0)
-		return err;
-	/* digital-mic input pin is excluded in alc880_auto_create..()
-	 * because it's under 0x18
-	 */
-	if (cfg->input_pins[AUTO_PIN_MIC] == 0x12 ||
-	    cfg->input_pins[AUTO_PIN_FRONT_MIC] == 0x12) {
-		struct hda_input_mux *imux = &spec->private_imux[0];
-		imux->items[imux->num_items].label = "Int Mic";
-		imux->items[imux->num_items].index = 0x05;
-		imux->num_items++;
-	}
-	return 0;
-}
+#define alc269_auto_create_analog_input_ctls \
+	alc262_auto_create_analog_input_ctls
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc269_loopbacks	alc880_loopbacks
@@ -13339,6 +13372,8 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 
 	if (!spec->cap_mixer && !spec->no_analog)
 		set_capture_mixer(spec);
+
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
 
 	return 1;
 }
@@ -15554,7 +15589,6 @@ static int patch_alc861vd(struct hda_codec *codec)
 	spec->adc_nids = alc861vd_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids);
 	spec->capsrc_nids = alc861vd_capsrc_nids;
-	spec->capture_style = CAPT_MIX;
 
 	set_capture_mixer(spec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
@@ -17474,7 +17508,6 @@ static int patch_alc662(struct hda_codec *codec)
 	spec->adc_nids = alc662_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc662_adc_nids);
 	spec->capsrc_nids = alc662_capsrc_nids;
-	spec->capture_style = CAPT_MIX;
 
 	if (!spec->cap_mixer)
 		set_capture_mixer(spec);

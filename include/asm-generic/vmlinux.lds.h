@@ -441,7 +441,8 @@
 	}
 
 #ifdef CONFIG_CONSTRUCTORS
-#define KERNEL_CTORS()	VMLINUX_SYMBOL(__ctors_start) = .; \
+#define KERNEL_CTORS()	. = ALIGN(8);			   \
+			VMLINUX_SYMBOL(__ctors_start) = .; \
 			*(.ctors)			   \
 			VMLINUX_SYMBOL(__ctors_end) = .;
 #else
@@ -625,7 +626,7 @@
 	*(.init.ramfs)							\
 	VMLINUX_SYMBOL(__initramfs_end) = .;
 #else
-#define INITRAMFS
+#define INIT_RAM_FS
 #endif
 
 #define DISCARDS							\

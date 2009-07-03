@@ -3397,7 +3397,6 @@ fc_destroy_bsgjob(struct fc_bsg_job *job)
 	kfree(job);
 }
 
-
 /**
  * fc_bsg_jobdone - completion routine for bsg requests that the LLD has
  *                  completed
@@ -3408,15 +3407,10 @@ fc_bsg_jobdone(struct fc_bsg_job *job)
 {
 	struct request *req = job->req;
 	struct request *rsp = req->next_rq;
-	unsigned long flags;
 	int err;
 
-	spin_lock_irqsave(&job->job_lock, flags);
-	job->state_flags |= FC_RQST_STATE_DONE;
-	job->ref_cnt--;
-	spin_unlock_irqrestore(&job->job_lock, flags);
-
 	err = job->req->errors = job->reply->result;
+
 	if (err < 0)
 		/* we're only returning the result field in the reply */
 		job->req->sense_len = sizeof(uint32_t);
@@ -3433,12 +3427,26 @@ fc_bsg_jobdone(struct fc_bsg_job *job)
 		rsp->resid_len -= min(job->reply->reply_payload_rcv_len,
 				      rsp->resid_len);
 	}
-
-	blk_end_request_all(req, err);
-
-	fc_destroy_bsgjob(job);
+	blk_complete_request(req);
 }
 
+/**
+ * fc_bsg_softirq_done - softirq done routine for destroying the bsg requests
+ * @req:        BSG request that holds the job to be destroyed
+ */
+static void fc_bsg_softirq_done(struct request *rq)
+{
+	struct fc_bsg_job *job = rq->special;
+	unsigned long flags;
+
+	spin_lock_irqsave(&job->job_lock, flags);
+	job->state_flags |= FC_RQST_STATE_DONE;
+	job->ref_cnt--;
+	spin_unlock_irqrestore(&job->job_lock, flags);
+
+	blk_end_request_all(rq, rq->errors);
+	fc_destroy_bsgjob(job);
+}
 
 /**
  * fc_bsg_job_timeout - handler for when a bsg request timesout
@@ -3471,18 +3479,12 @@ fc_bsg_job_timeout(struct request *req)
 				"abort failed with status %d\n", err);
 	}
 
-	if (!done) {
-		spin_lock_irqsave(&job->job_lock, flags);
-		job->ref_cnt--;
-		spin_unlock_irqrestore(&job->job_lock, flags);
-		fc_destroy_bsgjob(job);
-	}
-
 	/* the blk_end_sync_io() doesn't check the error */
-	return BLK_EH_HANDLED;
+	if (done)
+		return BLK_EH_NOT_HANDLED;
+	else
+		return BLK_EH_HANDLED;
 }
-
-
 
 static int
 fc_bsg_map_buffer(struct fc_bsg_buffer *buf, struct request *req)
@@ -3668,13 +3670,14 @@ static void
 fc_bsg_goose_queue(struct fc_rport *rport)
 {
 	int flagset;
+	unsigned long flags;
 
 	if (!rport->rqst_q)
 		return;
 
 	get_device(&rport->dev);
 
-	spin_lock(rport->rqst_q->queue_lock);
+	spin_lock_irqsave(rport->rqst_q->queue_lock, flags);
 	flagset = test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags) &&
 		  !test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags);
 	if (flagset)
@@ -3682,7 +3685,7 @@ fc_bsg_goose_queue(struct fc_rport *rport)
 	__blk_run_queue(rport->rqst_q);
 	if (flagset)
 		queue_flag_clear(QUEUE_FLAG_REENTER, rport->rqst_q);
-	spin_unlock(rport->rqst_q->queue_lock);
+	spin_unlock_irqrestore(rport->rqst_q->queue_lock, flags);
 
 	put_device(&rport->dev);
 }
@@ -3859,7 +3862,7 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 	struct request_queue *q;
 	int err;
-	char bsg_name[BUS_ID_SIZE]; /*20*/
+	char bsg_name[20];
 
 	fc_host->rqst_q = NULL;
 
@@ -3879,6 +3882,7 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 
 	q->queuedata = shost;
 	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
+	blk_queue_softirq_done(q, fc_bsg_softirq_done);
 	blk_queue_rq_timed_out(q, fc_bsg_job_timeout);
 	blk_queue_rq_timeout(q, FC_DEFAULT_BSG_TIMEOUT);
 
@@ -3924,6 +3928,7 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
 
 	q->queuedata = rport;
 	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
+	blk_queue_softirq_done(q, fc_bsg_softirq_done);
 	blk_queue_rq_timed_out(q, fc_bsg_job_timeout);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 

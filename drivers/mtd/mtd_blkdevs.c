@@ -291,7 +291,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	gd->private_data = new;
 	new->blkcore_priv = gd;
 	gd->queue = tr->blkcore_priv->rq;
-	gd->driverfs_dev = new->mtd->dev.parent;
+	gd->driverfs_dev = &new->mtd->dev;
 
 	if (new->readonly)
 		set_disk_ro(gd, 1);

@@ -211,8 +211,6 @@ static const int i2c_detect_tries = 5;
 static struct usb_device_id device_table [] = {
 	{ USB_DEVICE(VEND_OMNIVISION, PROD_OV511) },
 	{ USB_DEVICE(VEND_OMNIVISION, PROD_OV511PLUS) },
-	{ USB_DEVICE(VEND_OMNIVISION, PROD_OV518) },
-	{ USB_DEVICE(VEND_OMNIVISION, PROD_OV518PLUS) },
 	{ USB_DEVICE(VEND_MATTEL, PROD_ME2CAM) },
 	{ }  /* Terminating entry */
 };

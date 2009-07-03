@@ -361,9 +361,6 @@ static int ide_tune_dma(ide_drive_t *drive)
 	if (__ide_dma_bad_drive(drive))
 		return 0;
 
-	if (ide_id_dma_bug(drive))
-		return 0;
-
 	if (hwif->host_flags & IDE_HFLAG_TRUST_BIOS_FOR_DMA)
 		return config_drive_for_dma(drive);
 
@@ -392,24 +389,6 @@ static int ide_dma_check(ide_drive_t *drive)
 	ide_set_max_pio(drive);
 
 	return -1;
-}
-
-int ide_id_dma_bug(ide_drive_t *drive)
-{
-	u16 *id = drive->id;
-
-	if (id[ATA_ID_FIELD_VALID] & 4) {
-		if ((id[ATA_ID_UDMA_MODES] >> 8) &&
-		    (id[ATA_ID_MWDMA_MODES] >> 8))
-			goto err_out;
-	} else if ((id[ATA_ID_MWDMA_MODES] >> 8) &&
-		   (id[ATA_ID_SWDMA_MODES] >> 8))
-		goto err_out;
-
-	return 0;
-err_out:
-	printk(KERN_ERR "%s: bad DMA info in identify block\n", drive->name);
-	return 1;
 }
 
 int ide_set_dma(ide_drive_t *drive)

@@ -13,6 +13,7 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>

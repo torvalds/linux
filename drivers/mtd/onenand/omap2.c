@@ -565,7 +565,7 @@ int omap2_onenand_rephase(void)
 				      NULL, __adjust_timing);
 }
 
-static void __devexit omap2_onenand_shutdown(struct platform_device *pdev)
+static void omap2_onenand_shutdown(struct platform_device *pdev)
 {
 	struct omap2_onenand *c = dev_get_drvdata(&pdev->dev);
 
@@ -777,7 +777,7 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 
 static struct platform_driver omap2_onenand_driver = {
 	.probe		= omap2_onenand_probe,
-	.remove		= omap2_onenand_remove,
+	.remove		= __devexit_p(omap2_onenand_remove),
 	.shutdown	= omap2_onenand_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,

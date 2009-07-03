@@ -19,30 +19,41 @@ Last reviewed: 06/02/2009
  not be updated in a timely fashion and a hardware system reset (also known as
  an Automatic Server Recovery (ASR)) event will occur.
 
- The hpwdt driver also has three (3) module parameters. They are the following:
+ The hpwdt driver also has four (4) module parameters. They are the following:
 
  soft_margin - allows the user to set the watchdog timer value
  allow_kdump - allows the user to save off a kernel dump image after an NMI
  nowayout    - basic watchdog parameter that does not allow the timer to
                be restarted or an impending ASR to be escaped.
+ priority    - determines whether or not the hpwdt driver is first on the
+               die_notify list to handle NMIs or last. The default value
+               for this module parameter is 0 or LAST. If the user wants to
+               enable NMI sourcing then reload the hpwdt driver with
+               priority=1 (and boot with nmi_watchdog=0).
 
  NOTE: More information about watchdog drivers in general, including the ioctl
        interface to /dev/watchdog can be found in
        Documentation/watchdog/watchdog-api.txt and Documentation/IPMI.txt.
 
- The NMI sourcing capability is disabled when the driver discovers that the
- nmi_watchdog is turned on (nmi_watchdog = 1). This is due to the inability to
+ The priority parameter was introduced due to other kernel software that relied
+ on handling NMIs (like oprofile). Keeping hpwdt's priority at 0 (or LAST)
+ enables the users of NMIs for non critical events to be work as expected.
+
+ The NMI sourcing capability is disabled by default due to the inability to
  distinguish between "NMI Watchdog Ticks" and "HW generated NMI events" in the
  Linux kernel. What this means is that the hpwdt nmi handler code is called
  each time the NMI signal fires off. This could amount to several thousands of
  NMIs in a matter of seconds. If a user sees the Linux kernel's "dazed and
  confused" message in the logs or if the system gets into a hung state, then
- the user should reboot with nmi_watchdog=0.
+ the hpwdt driver can be reloaded with the "priority" module parameter set
+ (priority=1).
 
  1. If the kernel has not been booted with nmi_watchdog turned off then
     edit /boot/grub/menu.lst and place the nmi_watchdog=0 at the end of the
     currently booting kernel line.
  2. reboot the sever
+ 3. Once the system comes up perform a rmmod hpwdt
+ 4. insmod /lib/modules/`uname -r`/kernel/drivers/char/watchdog/hpwdt.ko priority=1
 
  Now, the hpwdt can successfully receive and source the NMI and provide a log
  message that details the reason for the NMI (as determined by the HP BIOS).

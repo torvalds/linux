@@ -32,6 +32,8 @@ int no_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 
+int iommu_pass_through;
+
 dma_addr_t bad_dma_address __read_mostly = 0;
 EXPORT_SYMBOL(bad_dma_address);
 
@@ -210,6 +212,10 @@ static __init int iommu_setup(char *p)
 		if (!strncmp(p, "soft", 4))
 			swiotlb = 1;
 #endif
+		if (!strncmp(p, "pt", 2)) {
+			iommu_pass_through = 1;
+			return 1;
+		}
 
 		gart_parse_options(p);
 

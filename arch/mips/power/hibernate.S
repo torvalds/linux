@@ -43,15 +43,6 @@ LEAF(swsusp_arch_resume)
 	bne t1, t3, 1b
 	PTR_L t0, PBE_NEXT(t0)
 	bnez t0, 0b
-	/* flush caches to make sure context is in memory */
-	PTR_L t0, __flush_cache_all
-	jalr t0
-	/* flush tlb entries */
-#ifdef CONFIG_SMP
-	jal	flush_tlb_all
-#else
-	jal	local_flush_tlb_all
-#endif
 	PTR_LA t0, saved_regs
 	PTR_L ra, PT_R31(t0)
 	PTR_L sp, PT_R29(t0)

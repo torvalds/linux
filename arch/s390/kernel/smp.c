@@ -856,13 +856,20 @@ static ssize_t show_idle_count(struct sys_device *dev,
 {
 	struct s390_idle_data *idle;
 	unsigned long long idle_count;
+	unsigned int sequence;
 
 	idle = &per_cpu(s390_idle, dev->id);
-	spin_lock(&idle->lock);
+repeat:
+	sequence = idle->sequence;
+	smp_rmb();
+	if (sequence & 1)
+		goto repeat;
 	idle_count = idle->idle_count;
 	if (idle->idle_enter)
 		idle_count++;
-	spin_unlock(&idle->lock);
+	smp_rmb();
+	if (idle->sequence != sequence)
+		goto repeat;
 	return sprintf(buf, "%llu\n", idle_count);
 }
 static SYSDEV_ATTR(idle_count, 0444, show_idle_count, NULL);
@@ -872,15 +879,22 @@ static ssize_t show_idle_time(struct sys_device *dev,
 {
 	struct s390_idle_data *idle;
 	unsigned long long now, idle_time, idle_enter;
+	unsigned int sequence;
 
 	idle = &per_cpu(s390_idle, dev->id);
-	spin_lock(&idle->lock);
 	now = get_clock();
+repeat:
+	sequence = idle->sequence;
+	smp_rmb();
+	if (sequence & 1)
+		goto repeat;
 	idle_time = idle->idle_time;
 	idle_enter = idle->idle_enter;
 	if (idle_enter != 0ULL && idle_enter < now)
 		idle_time += now - idle_enter;
-	spin_unlock(&idle->lock);
+	smp_rmb();
+	if (idle->sequence != sequence)
+		goto repeat;
 	return sprintf(buf, "%llu\n", idle_time >> 12);
 }
 static SYSDEV_ATTR(idle_time_us, 0444, show_idle_time, NULL);
@@ -908,11 +922,7 @@ static int __cpuinit smp_cpu_notify(struct notifier_block *self,
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
 		idle = &per_cpu(s390_idle, cpu);
-		spin_lock_irq(&idle->lock);
-		idle->idle_enter = 0;
-		idle->idle_time = 0;
-		idle->idle_count = 0;
-		spin_unlock_irq(&idle->lock);
+		memset(idle, 0, sizeof(struct s390_idle_data));
 		if (sysfs_create_group(&s->kobj, &cpu_online_attr_group))
 			return NOTIFY_BAD;
 		break;

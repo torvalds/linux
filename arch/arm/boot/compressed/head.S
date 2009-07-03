@@ -674,6 +674,15 @@ proc_types:
 		b	__armv4_mmu_cache_off
 		b	__armv5tej_mmu_cache_flush
 
+#ifdef CONFIG_CPU_FEROCEON_OLD_ID
+		/* this conflicts with the standard ARMv5TE entry */
+		.long	0x41009260		@ Old Feroceon
+		.long	0xff00fff0
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv5tej_mmu_cache_flush
+#endif
+
 		.word	0x66015261		@ FA526
 		.word	0xff01fff1
 		b	__fa526_cache_on

@@ -37,6 +37,7 @@
 #include <linux/wm97xx_batt.h>
 #include <linux/mtd/physmap.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/regulator/max1586.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -717,12 +718,51 @@ static struct wm97xx_batt_info mioa701_battery_data = {
 };
 
 /*
+ * Voltage regulation
+ */
+static struct regulator_consumer_supply max1586_consumers[] = {
+	{
+		.supply = "vcc_core",
+	}
+};
+
+static struct regulator_init_data max1586_v3_info = {
+	.constraints = {
+		.name = "vcc_core range",
+		.min_uV = 1000000,
+		.max_uV = 1705000,
+		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(max1586_consumers),
+	.consumer_supplies = max1586_consumers,
+};
+
+static struct max1586_subdev_data max1586_subdevs[] = {
+	{ .name = "vcc_core", .id = MAX1586_V3,
+	  .platform_data = &max1586_v3_info },
+};
+
+static struct max1586_platform_data max1586_info = {
+	.subdevs = max1586_subdevs,
+	.num_subdevs = ARRAY_SIZE(max1586_subdevs),
+	.v3_gain = MAX1586_GAIN_NO_R24, /* 700..1475 mV */
+};
+
+/*
  * Camera interface
  */
 struct pxacamera_platform_data mioa701_pxacamera_platform_data = {
 	.flags  = PXA_CAMERA_MASTER | PXA_CAMERA_DATAWIDTH_8 |
 		PXA_CAMERA_PCLK_EN | PXA_CAMERA_MCLK_EN,
 	.mclk_10khz = 5000,
+};
+
+static struct i2c_board_info __initdata mioa701_pi2c_devices[] = {
+	{
+		I2C_BOARD_INFO("max1586", 0x14),
+		.platform_data = &max1586_info,
+	},
 };
 
 static struct soc_camera_link iclink = {
@@ -825,7 +865,9 @@ static void __init mioa701_machine_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gsm_init();
 
+	i2c_register_board_info(1, ARRAY_AND_SIZE(mioa701_pi2c_devices));
 	pxa_set_i2c_info(&i2c_pdata);
+	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_camera_info(&mioa701_pxacamera_platform_data);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(mioa701_i2c_devices));
 }

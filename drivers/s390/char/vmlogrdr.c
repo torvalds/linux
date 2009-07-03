@@ -663,7 +663,7 @@ static struct attribute *vmlogrdr_attrs[] = {
 static int vmlogrdr_pm_prepare(struct device *dev)
 {
 	int rc;
-	struct vmlogrdr_priv_t *priv = dev->driver_data;
+	struct vmlogrdr_priv_t *priv = dev_get_drvdata(dev);
 
 	rc = 0;
 	if (priv) {
@@ -753,7 +753,7 @@ static int vmlogrdr_register_device(struct vmlogrdr_priv_t *priv)
 		dev->bus = &iucv_bus;
 		dev->parent = iucv_root;
 		dev->driver = &vmlogrdr_driver;
-		dev->driver_data = priv;
+		dev_set_drvdata(dev, priv);
 		/*
 		 * The release function could be called after the
 		 * module has been unloaded. It's _only_ task is to

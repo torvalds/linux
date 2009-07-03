@@ -2,7 +2,7 @@
 #define _PERF_SYMBOL_ 1
 
 #include <linux/types.h>
-#include "../types.h"
+#include "types.h"
 #include "list.h"
 #include "rbtree.h"
 
@@ -20,8 +20,9 @@ struct symbol {
 struct dso {
 	struct list_head node;
 	struct rb_root	 syms;
-	unsigned int	 sym_priv_size;
 	struct symbol    *(*find_symbol)(struct dso *, u64 ip);
+	unsigned int	 sym_priv_size;
+	unsigned char	 prelinked;
 	char		 name[0];
 };
 

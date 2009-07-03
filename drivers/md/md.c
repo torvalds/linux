@@ -3573,7 +3573,8 @@ suspend_lo_store(mddev_t *mddev, const char *buf, size_t len)
 	char *e;
 	unsigned long long new = simple_strtoull(buf, &e, 10);
 
-	if (mddev->pers->quiesce == NULL)
+	if (mddev->pers == NULL || 
+	    mddev->pers->quiesce == NULL)
 		return -EINVAL;
 	if (buf == e || (*e && *e != '\n'))
 		return -EINVAL;
@@ -3601,7 +3602,8 @@ suspend_hi_store(mddev_t *mddev, const char *buf, size_t len)
 	char *e;
 	unsigned long long new = simple_strtoull(buf, &e, 10);
 
-	if (mddev->pers->quiesce == NULL)
+	if (mddev->pers == NULL ||
+	    mddev->pers->quiesce == NULL)
 		return -EINVAL;
 	if (buf == e || (*e && *e != '\n'))
 		return -EINVAL;
@@ -3844,11 +3846,9 @@ static int md_alloc(dev_t dev, char *name)
 	flush_scheduled_work();
 
 	mutex_lock(&disks_mutex);
-	if (mddev->gendisk) {
-		mutex_unlock(&disks_mutex);
-		mddev_put(mddev);
-		return -EEXIST;
-	}
+	error = -EEXIST;
+	if (mddev->gendisk)
+		goto abort;
 
 	if (name) {
 		/* Need to ensure that 'name' is not a duplicate.
@@ -3860,17 +3860,15 @@ static int md_alloc(dev_t dev, char *name)
 			if (mddev2->gendisk &&
 			    strcmp(mddev2->gendisk->disk_name, name) == 0) {
 				spin_unlock(&all_mddevs_lock);
-				return -EEXIST;
+				goto abort;
 			}
 		spin_unlock(&all_mddevs_lock);
 	}
 
+	error = -ENOMEM;
 	mddev->queue = blk_alloc_queue(GFP_KERNEL);
-	if (!mddev->queue) {
-		mutex_unlock(&disks_mutex);
-		mddev_put(mddev);
-		return -ENOMEM;
-	}
+	if (!mddev->queue)
+		goto abort;
 	mddev->queue->queuedata = mddev;
 
 	/* Can be unlocked because the queue is new: no concurrency */
@@ -3880,11 +3878,9 @@ static int md_alloc(dev_t dev, char *name)
 
 	disk = alloc_disk(1 << shift);
 	if (!disk) {
-		mutex_unlock(&disks_mutex);
 		blk_cleanup_queue(mddev->queue);
 		mddev->queue = NULL;
-		mddev_put(mddev);
-		return -ENOMEM;
+		goto abort;
 	}
 	disk->major = MAJOR(mddev->unit);
 	disk->first_minor = unit << shift;
@@ -3906,16 +3902,22 @@ static int md_alloc(dev_t dev, char *name)
 	mddev->gendisk = disk;
 	error = kobject_init_and_add(&mddev->kobj, &md_ktype,
 				     &disk_to_dev(disk)->kobj, "%s", "md");
-	mutex_unlock(&disks_mutex);
-	if (error)
+	if (error) {
+		/* This isn't possible, but as kobject_init_and_add is marked
+		 * __must_check, we must do something with the result
+		 */
 		printk(KERN_WARNING "md: cannot register %s/md - name in use\n",
 		       disk->disk_name);
-	else {
+		error = 0;
+	}
+ abort:
+	mutex_unlock(&disks_mutex);
+	if (!error) {
 		kobject_uevent(&mddev->kobj, KOBJ_ADD);
 		mddev->sysfs_state = sysfs_get_dirent(mddev->kobj.sd, "array_state");
 	}
 	mddev_put(mddev);
-	return 0;
+	return error;
 }
 
 static struct kobject *md_probe(dev_t dev, int *part, void *data)
@@ -6334,10 +6336,16 @@ void md_do_sync(mddev_t *mddev)
 			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
 
-		if (j >= mddev->resync_max)
-			wait_event(mddev->recovery_wait,
-				   mddev->resync_max > j
-				   || kthread_should_stop());
+		while (j >= mddev->resync_max && !kthread_should_stop()) {
+			/* As this condition is controlled by user-space,
+			 * we can block indefinitely, so use '_interruptible'
+			 * to avoid triggering warnings.
+			 */
+			flush_signals(current); /* just in case */
+			wait_event_interruptible(mddev->recovery_wait,
+						 mddev->resync_max > j
+						 || kthread_should_stop());
+		}
 
 		if (kthread_should_stop())
 			goto interrupted;

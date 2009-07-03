@@ -276,6 +276,9 @@ static struct net_device *ieee802154_nl_get_dev(struct genl_info *info)
 	else
 		return NULL;
 
+	if (!dev)
+		return NULL;
+
 	if (dev->type != ARPHRD_IEEE802154) {
 		dev_put(dev);
 		return NULL;
@@ -520,4 +523,7 @@ static void __exit ieee802154_nl_exit(void)
 	genl_unregister_family(&ieee802154_coordinator_family);
 }
 module_exit(ieee802154_nl_exit);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("ieee 802.15.4 configuration interface");
 

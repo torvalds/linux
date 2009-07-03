@@ -3243,9 +3243,6 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 	int is_known, rc;
 	struct dasd_uid temp_uid;
 
-	/* allow new IO again */
-	device->stopped &= ~DASD_STOPPED_PM;
-
 	private = (struct dasd_eckd_private *) device->private;
 
 	/* Read Configuration Data */
@@ -3295,12 +3292,7 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 	return 0;
 
 out_err:
-	/*
-	 * if the resume failed for the DASD we put it in
-	 * an UNRESUMED stop state
-	 */
-	device->stopped |= DASD_UNRESUMED_PM;
-	return 0;
+	return -1;
 }
 
 static struct ccw_driver dasd_eckd_driver = {

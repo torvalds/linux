@@ -307,8 +307,9 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
+		rc = -ENOMEM;
 		FreeXid(xid);
-		return -ENOMEM;
+		return rc;
 	}
 
 	if (oplockEnabled)
@@ -540,8 +541,9 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 			buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
 			if (buf == NULL) {
 				kfree(full_path);
+				rc = -ENOMEM;
 				FreeXid(xid);
-				return -ENOMEM;
+				return rc;
 			}
 
 			rc = CIFSSMBOpen(xid, pTcon, full_path,

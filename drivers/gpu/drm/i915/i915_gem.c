@@ -1006,7 +1006,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->struct_mutex);
 #if WATCH_BUF
-	DRM_INFO("set_domain_ioctl %p(%d), %08x %08x\n",
+	DRM_INFO("set_domain_ioctl %p(%zd), %08x %08x\n",
 		 obj, obj->size, read_domains, write_domain);
 #endif
 	if (read_domains & I915_GEM_DOMAIN_GTT) {
@@ -1050,7 +1050,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	}
 
 #if WATCH_BUF
-	DRM_INFO("%s: sw_finish %d (%p %d)\n",
+	DRM_INFO("%s: sw_finish %d (%p %zd)\n",
 		 __func__, args->handle, obj, obj->size);
 #endif
 	obj_priv = obj->driver_private;
@@ -2423,7 +2423,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	}
 
 #if WATCH_BUF
-	DRM_INFO("Binding object of size %d at 0x%08x\n",
+	DRM_INFO("Binding object of size %zd at 0x%08x\n",
 		 obj->size, obj_priv->gtt_offset);
 #endif
 	ret = i915_gem_object_get_pages(obj);
@@ -4227,6 +4227,7 @@ i915_gem_lastclose(struct drm_device *dev)
 void
 i915_gem_load(struct drm_device *dev)
 {
+	int i;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	spin_lock_init(&dev_priv->mm.active_list_lock);
@@ -4245,6 +4246,18 @@ i915_gem_load(struct drm_device *dev)
 		dev_priv->num_fence_regs = 16;
 	else
 		dev_priv->num_fence_regs = 8;
+
+	/* Initialize fence registers to zero */
+	if (IS_I965G(dev)) {
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_965_0 + (i * 8), 0);
+	} else {
+		for (i = 0; i < 8; i++)
+			I915_WRITE(FENCE_REG_830_0 + (i * 4), 0);
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				I915_WRITE(FENCE_REG_945_8 + (i * 4), 0);
+	}
 
 	i915_gem_detect_bit_6_swizzle(dev);
 }

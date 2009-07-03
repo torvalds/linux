@@ -520,7 +520,9 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
 
 	memset(&sym, 0, sizeof(sym));
-
+	self->prelinked = elf_section_by_name(elf, &ehdr, &shdr,
+					      ".gnu.prelink_undo",
+					      NULL) != NULL;
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
 		struct symbol *f;
 		u64 obj_start;
@@ -535,7 +537,13 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 		gelf_getshdr(sec, &shdr);
 		obj_start = sym.st_value;
 
-		sym.st_value -= shdr.sh_addr - shdr.sh_offset;
+		if (self->prelinked) {
+			if (verbose >= 2)
+				printf("adjusting symbol: st_value: %Lx sh_addr: %Lx sh_offset: %Lx\n",
+					(u64)sym.st_value, (u64)shdr.sh_addr, (u64)shdr.sh_offset);
+
+			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
+		}
 
 		f = symbol__new(sym.st_value, sym.st_size,
 				elf_sym__name(&sym, symstrs),
@@ -568,6 +576,8 @@ int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 
 	if (!name)
 		return -1;
+
+	self->prelinked = 0;
 
 	if (strncmp(self->name, "/tmp/perf-", 10) == 0)
 		return dso__load_perf_map(self, filter, verbose);
@@ -629,7 +639,7 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 	if (vmlinux)
 		err = dso__load_vmlinux(self, vmlinux, filter, verbose);
 
-	if (err)
+	if (err < 0)
 		err = dso__load_kallsyms(self, filter, verbose);
 
 	return err;

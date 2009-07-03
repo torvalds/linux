@@ -106,6 +106,7 @@
 #define EM2860_BOARD_TERRATEC_GRABBY		  67
 #define EM2860_BOARD_TERRATEC_AV350		  68
 #define EM2882_BOARD_KWORLD_ATSC_315U		  69
+#define EM2882_BOARD_EVGA_INDTUBE		  70
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

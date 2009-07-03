@@ -1750,12 +1750,12 @@ static void mv643xx_eth_program_unicast_filter(struct net_device *dev)
 
 	uc_addr_set(mp, dev->dev_addr);
 
-	port_config = rdlp(mp, PORT_CONFIG);
+	port_config = rdlp(mp, PORT_CONFIG) & ~UNICAST_PROMISCUOUS_MODE;
+
 	nibbles = uc_addr_filter_mask(dev);
 	if (!nibbles) {
 		port_config |= UNICAST_PROMISCUOUS_MODE;
-		wrlp(mp, PORT_CONFIG, port_config);
-		return;
+		nibbles = 0xffff;
 	}
 
 	for (i = 0; i < 16; i += 4) {
@@ -1776,7 +1776,6 @@ static void mv643xx_eth_program_unicast_filter(struct net_device *dev)
 		wrl(mp, off, v);
 	}
 
-	port_config &= ~UNICAST_PROMISCUOUS_MODE;
 	wrlp(mp, PORT_CONFIG, port_config);
 }
 

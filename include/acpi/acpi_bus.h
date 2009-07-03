@@ -114,10 +114,13 @@ struct acpi_device_ops {
 	acpi_op_notify notify;
 };
 
+#define ACPI_DRIVER_ALL_NOTIFY_EVENTS	0x1	/* system AND device events */
+
 struct acpi_driver {
 	char name[80];
 	char class[80];
 	const struct acpi_device_id *ids; /* Supported Hardware IDs */
+	unsigned int flags;
 	struct acpi_device_ops ops;
 	struct device_driver drv;
 	struct module *owner;
@@ -168,7 +171,7 @@ struct acpi_device_dir {
 
 /* Plug and Play */
 
-typedef char acpi_bus_id[5];
+typedef char acpi_bus_id[8];
 typedef unsigned long acpi_bus_address;
 typedef char acpi_hardware_id[15];
 typedef char acpi_unique_id[9];
@@ -365,10 +368,10 @@ struct acpi_bus_type {
 int register_acpi_bus_type(struct acpi_bus_type *);
 int unregister_acpi_bus_type(struct acpi_bus_type *);
 struct device *acpi_get_physical_device(acpi_handle);
-struct device *acpi_get_physical_pci_device(acpi_handle);
 
 /* helper */
 acpi_handle acpi_get_child(acpi_handle, acpi_integer);
+int acpi_is_root_bridge(acpi_handle);
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int, unsigned int);
 #define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)((dev)->archdata.acpi_handle))
 

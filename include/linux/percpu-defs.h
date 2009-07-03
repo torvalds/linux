@@ -61,7 +61,8 @@
 #define DEFINE_PER_CPU_SECTION(type, name, sec)				\
 	__PCPU_DUMMY_ATTRS char __pcpu_scope_##name;			\
 	__PCPU_DUMMY_ATTRS char __pcpu_unique_##name;			\
-	__PCPU_ATTRS(sec) __weak __typeof__(type) per_cpu__##name
+	__PCPU_ATTRS(sec) PER_CPU_DEF_ATTRIBUTES __weak			\
+	__typeof__(type) per_cpu__##name
 #else
 /*
  * Normal declaration and definition macros.
@@ -70,7 +71,8 @@
 	extern __PCPU_ATTRS(sec) __typeof__(type) per_cpu__##name
 
 #define DEFINE_PER_CPU_SECTION(type, name, sec)				\
-	__PCPU_ATTRS(sec) __typeof__(type) per_cpu__##name
+	__PCPU_ATTRS(sec) PER_CPU_DEF_ATTRIBUTES			\
+	__typeof__(type) per_cpu__##name
 #endif
 
 /*

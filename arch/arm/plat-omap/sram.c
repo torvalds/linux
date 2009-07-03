@@ -133,7 +133,12 @@ void __init omap_detect_sram(void)
 			if (cpu_is_omap34xx()) {
 				omap_sram_base = OMAP3_SRAM_PUB_VA;
 				omap_sram_start = OMAP3_SRAM_PUB_PA;
-				omap_sram_size = 0x8000; /* 32K */
+				if ((omap_type() == OMAP2_DEVICE_TYPE_EMU) ||
+				    (omap_type() == OMAP2_DEVICE_TYPE_SEC)) {
+					omap_sram_size = 0x7000; /* 28K */
+				} else {
+					omap_sram_size = 0x8000; /* 32K */
+				}
 			} else {
 				omap_sram_base = OMAP2_SRAM_PUB_VA;
 				omap_sram_start = OMAP2_SRAM_PUB_PA;
@@ -371,15 +376,17 @@ static inline int omap243x_sram_init(void)
 static u32 (*_omap3_sram_configure_core_dpll)(u32 sdrc_rfr_ctrl,
 					      u32 sdrc_actim_ctrla,
 					      u32 sdrc_actim_ctrlb,
-					      u32 m2, u32 unlock_dll);
+					      u32 m2, u32 unlock_dll,
+					      u32 f, u32 sdrc_mr, u32 inc);
 u32 omap3_configure_core_dpll(u32 sdrc_rfr_ctrl, u32 sdrc_actim_ctrla,
-			      u32 sdrc_actim_ctrlb, u32 m2, u32 unlock_dll)
+			      u32 sdrc_actim_ctrlb, u32 m2, u32 unlock_dll,
+			      u32 f, u32 sdrc_mr, u32 inc)
 {
 	BUG_ON(!_omap3_sram_configure_core_dpll);
 	return _omap3_sram_configure_core_dpll(sdrc_rfr_ctrl,
 					       sdrc_actim_ctrla,
 					       sdrc_actim_ctrlb, m2,
-					       unlock_dll);
+					       unlock_dll, f, sdrc_mr, inc);
 }
 
 /* REVISIT: Should this be same as omap34xx_sram_init() after off-idle? */

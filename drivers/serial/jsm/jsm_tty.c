@@ -467,7 +467,7 @@ int __devinit jsm_uart_port_init(struct jsm_board *brd)
 			printk(KERN_INFO "jsm: linemap is full, added device failed\n");
 			continue;
 		} else
-			set_bit((int)line, linemap);
+			set_bit(line, linemap);
 		brd->channels[i]->uart_port.line = line;
 		if (uart_add_one_port (&jsm_uart_driver, &brd->channels[i]->uart_port))
 			printk(KERN_INFO "jsm: add device failed\n");
@@ -503,7 +503,7 @@ int jsm_remove_uart_port(struct jsm_board *brd)
 
 		ch = brd->channels[i];
 
-		clear_bit((int)(ch->uart_port.line), linemap);
+		clear_bit(ch->uart_port.line, linemap);
 		uart_remove_one_port(&jsm_uart_driver, &brd->channels[i]->uart_port);
 	}
 

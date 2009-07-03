@@ -46,10 +46,53 @@ struct key_entry {
 	u16 keycode;
 };
 
-enum { KE_KEY, KE_SW, KE_END };
+enum { KE_KEY, KE_SW, KE_IGNORE, KE_END };
+
+/*
+ * Certain keys are flagged as KE_IGNORE. All of these are either
+ * notifications (rather than requests for change) or are also sent
+ * via the keyboard controller so should not be sent again.
+ */
 
 static struct key_entry dell_wmi_keymap[] = {
 	{KE_KEY, 0xe045, KEY_PROG1},
+	{KE_KEY, 0xe009, KEY_EJECTCD},
+
+	/* These also contain the brightness level at offset 6 */
+	{KE_KEY, 0xe006, KEY_BRIGHTNESSUP},
+	{KE_KEY, 0xe005, KEY_BRIGHTNESSDOWN},
+
+	/* Battery health status button */
+	{KE_KEY, 0xe007, KEY_BATTERY},
+
+	/* This is actually for all radios. Although physically a
+	 * switch, the notification does not provide an indication of
+	 * state and so it should be reported as a key */
+	{KE_KEY, 0xe008, KEY_WLAN},
+
+	/* The next device is at offset 6, the active devices are at
+	   offset 8 and the attached devices at offset 10 */
+	{KE_KEY, 0xe00b, KEY_DISPLAYTOGGLE},
+
+	{KE_IGNORE, 0xe00c, KEY_KBDILLUMTOGGLE},
+
+	/* BIOS error detected */
+	{KE_IGNORE, 0xe00d, KEY_RESERVED},
+
+	/* Wifi Catcher */
+	{KE_KEY, 0xe011, KEY_PROG2},
+
+	/* Ambient light sensor toggle */
+	{KE_IGNORE, 0xe013, KEY_RESERVED},
+
+	{KE_IGNORE, 0xe020, KEY_MUTE},
+	{KE_IGNORE, 0xe02e, KEY_VOLUMEDOWN},
+	{KE_IGNORE, 0xe030, KEY_VOLUMEUP},
+	{KE_IGNORE, 0xe033, KEY_KBDILLUMUP},
+	{KE_IGNORE, 0xe034, KEY_KBDILLUMDOWN},
+	{KE_IGNORE, 0xe03a, KEY_CAPSLOCK},
+	{KE_IGNORE, 0xe045, KEY_NUMLOCK},
+	{KE_IGNORE, 0xe046, KEY_SCROLLLOCK},
 	{KE_END, 0}
 };
 
@@ -122,15 +165,20 @@ static void dell_wmi_notify(u32 value, void *context)
 
 	if (obj && obj->type == ACPI_TYPE_BUFFER) {
 		int *buffer = (int *)obj->buffer.pointer;
-		key = dell_wmi_get_entry_by_scancode(buffer[1]);
+		/*
+		 *  The upper bytes of the event may contain
+		 *  additional information, so mask them off for the
+		 *  scancode lookup
+		 */
+		key = dell_wmi_get_entry_by_scancode(buffer[1] & 0xFFFF);
 		if (key) {
 			input_report_key(dell_wmi_input_dev, key->keycode, 1);
 			input_sync(dell_wmi_input_dev);
 			input_report_key(dell_wmi_input_dev, key->keycode, 0);
 			input_sync(dell_wmi_input_dev);
-		} else
+		} else if (buffer[1] & 0xFFFF)
 			printk(KERN_INFO "dell-wmi: Unknown key %x pressed\n",
-			       buffer[1]);
+			       buffer[1] & 0xFFFF);
 	}
 }
 

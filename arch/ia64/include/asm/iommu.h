@@ -9,6 +9,11 @@ extern void pci_iommu_shutdown(void);
 extern void no_iommu_init(void);
 extern int force_iommu, no_iommu;
 extern int iommu_detected;
+#ifdef	CONFIG_DMAR
+extern int iommu_pass_through;
+#else
+#define iommu_pass_through	(0)
+#endif
 extern void iommu_dma_init(void);
 extern void machvec_init(const char *name);
 

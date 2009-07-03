@@ -70,7 +70,6 @@ struct smb_vol {
 	mode_t file_mode;
 	mode_t dir_mode;
 	unsigned secFlg;
-	bool rw:1;
 	bool retry:1;
 	bool intr:1;
 	bool setuids:1;
@@ -832,7 +831,6 @@ cifs_parse_mount_options(char *options, const char *devname,
 	vol->dir_mode = vol->file_mode = S_IRUGO | S_IXUGO | S_IWUSR;
 
 	/* vol->retry default is 0 (i.e. "soft" limited retry not hard retry) */
-	vol->rw = true;
 	/* default is always to request posix paths. */
 	vol->posix_paths = 1;
 	/* default to using server inode numbers where available */
@@ -1199,7 +1197,9 @@ cifs_parse_mount_options(char *options, const char *devname,
 		} else if (strnicmp(data, "guest", 5) == 0) {
 			/* ignore */
 		} else if (strnicmp(data, "rw", 2) == 0) {
-			vol->rw = true;
+			/* ignore */
+		} else if (strnicmp(data, "ro", 2) == 0) {
+			/* ignore */
 		} else if (strnicmp(data, "noblocksend", 11) == 0) {
 			vol->noblocksnd = 1;
 		} else if (strnicmp(data, "noautotune", 10) == 0) {
@@ -1218,8 +1218,6 @@ cifs_parse_mount_options(char *options, const char *devname,
 			    parse these options again and set anything and it
 			    is ok to just ignore them */
 			continue;
-		} else if (strnicmp(data, "ro", 2) == 0) {
-			vol->rw = false;
 		} else if (strnicmp(data, "hard", 4) == 0) {
 			vol->retry = 1;
 		} else if (strnicmp(data, "soft", 4) == 0) {
@@ -1386,8 +1384,10 @@ cifs_find_tcp_session(struct sockaddr_storage *addr)
 		     server->addr.sockAddr.sin_addr.s_addr))
 			continue;
 		else if (addr->ss_family == AF_INET6 &&
-			 !ipv6_addr_equal(&server->addr.sockAddr6.sin6_addr,
-					  &addr6->sin6_addr))
+			 (!ipv6_addr_equal(&server->addr.sockAddr6.sin6_addr,
+					   &addr6->sin6_addr) ||
+			  server->addr.sockAddr6.sin6_scope_id !=
+					   addr6->sin6_scope_id))
 			continue;
 
 		++server->srv_count;
@@ -1433,28 +1433,15 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 
 	memset(&addr, 0, sizeof(struct sockaddr_storage));
 
+	cFYI(1, ("UNC: %s ip: %s", volume_info->UNC, volume_info->UNCip));
+
 	if (volume_info->UNCip && volume_info->UNC) {
-		rc = cifs_inet_pton(AF_INET, volume_info->UNCip,
-				    &sin_server->sin_addr.s_addr);
-
-		if (rc <= 0) {
-			/* not ipv4 address, try ipv6 */
-			rc = cifs_inet_pton(AF_INET6, volume_info->UNCip,
-					    &sin_server6->sin6_addr.in6_u);
-			if (rc > 0)
-				addr.ss_family = AF_INET6;
-		} else {
-			addr.ss_family = AF_INET;
-		}
-
-		if (rc <= 0) {
+		rc = cifs_convert_address(volume_info->UNCip, &addr);
+		if (!rc) {
 			/* we failed translating address */
 			rc = -EINVAL;
 			goto out_err;
 		}
-
-		cFYI(1, ("UNC: %s ip: %s", volume_info->UNC,
-			 volume_info->UNCip));
 	} else if (volume_info->UNCip) {
 		/* BB using ip addr as tcp_ses name to connect to the
 		   DFS root below */
@@ -1513,14 +1500,14 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		cFYI(1, ("attempting ipv6 connect"));
 		/* BB should we allow ipv6 on port 139? */
 		/* other OS never observed in Wild doing 139 with v6 */
+		sin_server6->sin6_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr6, sin_server6,
 			sizeof(struct sockaddr_in6));
-		sin_server6->sin6_port = htons(volume_info->port);
 		rc = ipv6_connect(tcp_ses);
 	} else {
+		sin_server->sin_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr, sin_server,
 			sizeof(struct sockaddr_in));
-		sin_server->sin_port = htons(volume_info->port);
 		rc = ipv4_connect(tcp_ses);
 	}
 	if (rc < 0) {

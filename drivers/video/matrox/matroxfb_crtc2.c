@@ -289,13 +289,16 @@ static int matroxfb_dh_release(struct fb_info* info, int user) {
 #undef m2info
 }
 
-static void matroxfb_dh_init_fix(struct matroxfb_dh_fb_info *m2info) {
+static void matroxfb_dh_init_fix(struct matroxfb_dh_fb_info *m2info)
+{
 	struct fb_fix_screeninfo *fix = &m2info->fbcon.fix;
 
 	strcpy(fix->id, "MATROX DH");
 
+	mutex_lock(&m2info->fbcon.mm_lock);
 	fix->smem_start = m2info->video.base;
 	fix->smem_len = m2info->video.len_usable;
+	mutex_unlock(&m2info->fbcon.mm_lock);
 	fix->ypanstep = 1;
 	fix->ywrapstep = 0;
 	fix->xpanstep = 8;	/* TBD */

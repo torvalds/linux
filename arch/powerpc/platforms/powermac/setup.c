@@ -103,11 +103,6 @@ unsigned long smu_cmdbuf_abs;
 EXPORT_SYMBOL(smu_cmdbuf_abs);
 #endif
 
-#ifdef CONFIG_SMP
-extern struct smp_ops_t psurge_smp_ops;
-extern struct smp_ops_t core99_smp_ops;
-#endif /* CONFIG_SMP */
-
 static void pmac_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *np;
@@ -341,34 +336,6 @@ static void __init pmac_setup_arch(void)
 		ROOT_DEV = DEFAULT_ROOT_DEVICE;
 #endif
 
-#ifdef CONFIG_SMP
-	/* Check for Core99 */
-	ic = of_find_node_by_name(NULL, "uni-n");
-	if (!ic)
-		ic = of_find_node_by_name(NULL, "u3");
-	if (!ic)
-		ic = of_find_node_by_name(NULL, "u4");
-	if (ic) {
-		of_node_put(ic);
-		smp_ops = &core99_smp_ops;
-	}
-#ifdef CONFIG_PPC32
-	else {
-		/*
-		 * We have to set bits in cpu_possible_map here since the
-		 * secondary CPU(s) aren't in the device tree, and
-		 * setup_per_cpu_areas only allocates per-cpu data for
-		 * CPUs in the cpu_possible_map.
-		 */
-		int cpu;
-
-		for (cpu = 1; cpu < 4 && cpu < NR_CPUS; ++cpu)
-			cpu_set(cpu, cpu_possible_map);
-		smp_ops = &psurge_smp_ops;
-	}
-#endif
-#endif /* CONFIG_SMP */
-
 #ifdef CONFIG_ADB
 	if (strstr(cmd_line, "adb_sync")) {
 		extern int __adb_probe_sync;
@@ -511,6 +478,14 @@ static void __init pmac_init_early(void)
 
 #ifdef CONFIG_PPC64
 	iommu_init_early_dart();
+#endif
+
+	/* SMP Init has to be done early as we need to patch up
+	 * cpu_possible_map before interrupt stacks are allocated
+	 * or kaboom...
+	 */
+#ifdef CONFIG_SMP
+	pmac_setup_smp();
 #endif
 }
 

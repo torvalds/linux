@@ -595,9 +595,8 @@ enum {
 	HSPI,
 	GPIO0, GPIO1,
 	Thermal,
-	INTC0, INTC1, INTC2, INTC3, INTC4, INTC5, INTC6, INTC7,
-
-	/* interrupt groups */
+	INTICI0, INTICI1, INTICI2, INTICI3,
+	INTICI4, INTICI5, INTICI6, INTICI7,
 };
 
 static struct intc_vect vectors[] __initdata = {
@@ -638,10 +637,12 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(HSPI, 0xe80),
 	INTC_VECT(GPIO0, 0xea0), INTC_VECT(GPIO1, 0xec0),
 	INTC_VECT(Thermal, 0xee0),
+	INTC_VECT(INTICI0, 0xf00), INTC_VECT(INTICI1, 0xf20),
+	INTC_VECT(INTICI2, 0xf40), INTC_VECT(INTICI3, 0xf60),
+	INTC_VECT(INTICI4, 0xf80), INTC_VECT(INTICI5, 0xfa0),
+	INTC_VECT(INTICI6, 0xfc0), INTC_VECT(INTICI7, 0xfe0),
 };
 
-/* FIXME: Main CPU support only now */
-#if 1 /* Main CPU */
 #define CnINTMSK0	0xfe410030
 #define CnINTMSK1	0xfe410040
 #define CnINTMSKCLR0	0xfe410050
@@ -654,21 +655,6 @@ static struct intc_vect vectors[] __initdata = {
 #define CnINT2MSKCR1	0xfe410a34
 #define CnINT2MSKCR2	0xfe410a38
 #define CnINT2MSKCR3	0xfe410a3c
-#else /* Sub CPU */
-#define CnINTMSK0	0xfe410034
-#define CnINTMSK1	0xfe410044
-#define CnINTMSKCLR0	0xfe410054
-#define CnINTMSKCLR1	0xfe410064
-#define CnINT2MSKR0	0xfe410b20
-#define CnINT2MSKR1	0xfe410b24
-#define CnINT2MSKR2	0xfe410b28
-#define CnINT2MSKR3	0xfe410b2c
-#define CnINT2MSKCR0	0xfe410b30
-#define CnINT2MSKCR1	0xfe410b34
-#define CnINT2MSKCR2	0xfe410b38
-#define CnINT2MSKCR3	0xfe410b3c
-#endif
-
 #define INTMSK2		0xfe410068
 #define INTMSKCLR2	0xfe41006c
 
@@ -753,6 +739,9 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 						  GPIO1, Thermal } },
 	{ 0xfe41085c, 0, 32, 8, /* INT2PRI23 */ { 0, 0, 0, 0 } },
 	{ 0xfe410860, 0, 32, 8, /* INT2PRI24 */ { 0, 0, 0, 0 } },
+	{ 0xfe410090, 0xfe4100a0, 32, 4, /* CnICIPRI / CnICIPRICLR */
+	  { INTICI7, INTICI6, INTICI5, INTICI4,
+	    INTICI3, INTICI2, INTICI1, INTICI0 }, INTC_SMP(4, 2) },
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7786", vectors, NULL,

@@ -1591,8 +1591,6 @@ static int ntty_open(struct tty_struct *tty, struct file *file)
 
 	/* Enable interrupt downlink for channel */
 	if (port->port.count == 1) {
-		/* FIXME: is this needed now ? */
-		tty->low_latency = 1;
 		tty->driver_data = port;
 		tty_port_tty_set(&port->port, tty);
 		DBG1("open: %d", port->token_dl);

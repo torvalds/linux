@@ -1207,8 +1207,8 @@ static inline int use_zero_page(struct vm_area_struct *vma)
 
 
 int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		     unsigned long start, int len, int flags,
-		struct page **pages, struct vm_area_struct **vmas)
+		     unsigned long start, int nr_pages, int flags,
+		     struct page **pages, struct vm_area_struct **vmas)
 {
 	int i;
 	unsigned int vm_flags = 0;
@@ -1217,7 +1217,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	int ignore = !!(flags & GUP_FLAGS_IGNORE_VMA_PERMISSIONS);
 	int ignore_sigkill = !!(flags & GUP_FLAGS_IGNORE_SIGKILL);
 
-	if (len <= 0)
+	if (nr_pages <= 0)
 		return 0;
 	/* 
 	 * Require read or write permissions.
@@ -1269,7 +1269,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				vmas[i] = gate_vma;
 			i++;
 			start += PAGE_SIZE;
-			len--;
+			nr_pages--;
 			continue;
 		}
 
@@ -1280,7 +1280,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 		if (is_vm_hugetlb_page(vma)) {
 			i = follow_hugetlb_page(mm, vma, pages, vmas,
-						&start, &len, i, write);
+						&start, &nr_pages, i, write);
 			continue;
 		}
 
@@ -1311,8 +1311,10 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			while (!(page = follow_page(vma, start, foll_flags))) {
 				int ret;
 
-				/* FOLL_WRITE matches FAULT_FLAG_WRITE! */
-				ret = handle_mm_fault(mm, vma, start, foll_flags & FOLL_WRITE);
+				ret = handle_mm_fault(mm, vma, start,
+					(foll_flags & FOLL_WRITE) ?
+					FAULT_FLAG_WRITE : 0);
+
 				if (ret & VM_FAULT_ERROR) {
 					if (ret & VM_FAULT_OOM)
 						return i ? i : -ENOMEM;
@@ -1355,9 +1357,9 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				vmas[i] = vma;
 			i++;
 			start += PAGE_SIZE;
-			len--;
-		} while (len && start < vma->vm_end);
-	} while (len);
+			nr_pages--;
+		} while (nr_pages && start < vma->vm_end);
+	} while (nr_pages);
 	return i;
 }
 
@@ -1366,7 +1368,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
  * @tsk:	task_struct of target task
  * @mm:		mm_struct of target mm
  * @start:	starting user address
- * @len:	number of pages from start to pin
+ * @nr_pages:	number of pages from start to pin
  * @write:	whether pages will be written to by the caller
  * @force:	whether to force write access even if user mapping is
  *		readonly. This will result in the page being COWed even
@@ -1378,7 +1380,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
  *		Or NULL if the caller does not require them.
  *
  * Returns number of pages pinned. This may be fewer than the number
- * requested. If len is 0 or negative, returns 0. If no pages
+ * requested. If nr_pages is 0 or negative, returns 0. If no pages
  * were pinned, returns -errno. Each page returned must be released
  * with a put_page() call when it is finished with. vmas will only
  * remain valid while mmap_sem is held.
@@ -1412,7 +1414,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
  * See also get_user_pages_fast, for performance critical applications.
  */
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		unsigned long start, int len, int write, int force,
+		unsigned long start, int nr_pages, int write, int force,
 		struct page **pages, struct vm_area_struct **vmas)
 {
 	int flags = 0;
@@ -1422,9 +1424,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	if (force)
 		flags |= GUP_FLAGS_FORCE;
 
-	return __get_user_pages(tsk, mm,
-				start, len, flags,
-				pages, vmas);
+	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
 }
 
 EXPORT_SYMBOL(get_user_pages);
@@ -2517,7 +2517,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
 	page = lookup_swap_cache(entry);
 	if (!page) {
-		grab_swap_token(); /* Contend for token _before_ read-in */
+		grab_swap_token(mm); /* Contend for token _before_ read-in */
 		page = swapin_readahead(entry,
 					GFP_HIGHUSER_MOVABLE, vma, address);
 		if (!page) {

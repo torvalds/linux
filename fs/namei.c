@@ -1698,8 +1698,11 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	if (error)
 		return ERR_PTR(error);
 	error = path_walk(pathname, &nd);
-	if (error)
+	if (error) {
+		if (nd.root.mnt)
+			path_put(&nd.root);
 		return ERR_PTR(error);
+	}
 	if (unlikely(!audit_dummy_context()))
 		audit_inode(pathname, nd.path.dentry);
 
@@ -1758,7 +1761,13 @@ do_last:
 			goto exit;
 		}
 		filp = nameidata_to_filp(&nd, open_flag);
+		if (IS_ERR(filp))
+			ima_counts_put(&nd.path,
+				       acc_mode & (MAY_READ | MAY_WRITE |
+						   MAY_EXEC));
 		mnt_drop_write(nd.path.mnt);
+		if (nd.root.mnt)
+			path_put(&nd.root);
 		return filp;
 	}
 
@@ -1812,6 +1821,9 @@ ok:
 		goto exit;
 	}
 	filp = nameidata_to_filp(&nd, open_flag);
+	if (IS_ERR(filp))
+		ima_counts_put(&nd.path,
+			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC));
 	/*
 	 * It is now safe to drop the mnt write
 	 * because the filp has had a write taken
@@ -1819,6 +1831,8 @@ ok:
 	 */
 	if (will_write)
 		mnt_drop_write(nd.path.mnt);
+	if (nd.root.mnt)
+		path_put(&nd.root);
 	return filp;
 
 exit_mutex_unlock:
@@ -1859,6 +1873,8 @@ do_link:
 		 * with "intent.open".
 		 */
 		release_open_intent(&nd);
+		if (nd.root.mnt)
+			path_put(&nd.root);
 		return ERR_PTR(error);
 	}
 	nd.flags &= ~LOOKUP_PARENT;

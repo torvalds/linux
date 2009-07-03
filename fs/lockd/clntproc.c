@@ -126,7 +126,6 @@ static void nlmclnt_setlockargs(struct nlm_rqst *req, struct file_lock *fl)
 	struct nlm_lock	*lock = &argp->lock;
 
 	nlmclnt_next_cookie(&argp->cookie);
-	argp->state   = nsm_local_state;
 	memcpy(&lock->fh, NFS_FH(fl->fl_file->f_path.dentry->d_inode), sizeof(struct nfs_fh));
 	lock->caller  = utsname()->nodename;
 	lock->oh.data = req->a_owner;
@@ -165,6 +164,7 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 	/* Set up the argument struct */
 	nlmclnt_setlockargs(call, fl);
 
+	lock_kernel();
 	if (IS_SETLK(cmd) || IS_SETLKW(cmd)) {
 		if (fl->fl_type != F_UNLCK) {
 			call->a_args.block = IS_SETLKW(cmd) ? 1 : 0;
@@ -178,6 +178,7 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 
 	fl->fl_ops->fl_release_private(fl);
 	fl->fl_ops = NULL;
+	unlock_kernel();
 
 	dprintk("lockd: clnt proc returns %d\n", status);
 	return status;
@@ -519,6 +520,7 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 
 	if (nsm_monitor(host) < 0)
 		goto out;
+	req->a_args.state = nsm_local_state;
 
 	fl->fl_flags |= FL_ACCESS;
 	status = do_vfs_lock(fl);

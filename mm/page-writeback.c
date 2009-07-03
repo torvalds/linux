@@ -541,8 +541,11 @@ static void balance_dirty_pages(struct address_space *mapping)
 		 * filesystems (i.e. NFS) in which data may have been
 		 * written to the server's write cache, but has not yet
 		 * been flushed to permanent storage.
+		 * Only move pages to writeback if this bdi is over its
+		 * threshold otherwise wait until the disk writes catch
+		 * up.
 		 */
-		if (bdi_nr_reclaimable) {
+		if (bdi_nr_reclaimable > bdi_thresh) {
 			writeback_inodes(&wbc);
 			pages_written += write_chunk - wbc.nr_to_write;
 			get_dirty_limits(&background_thresh, &dirty_thresh,

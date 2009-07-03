@@ -68,10 +68,14 @@ struct davinci_nand_pdata {		/* platform_data */
 
 	/* none  == NAND_ECC_NONE (strongly *not* advised!!)
 	 * soft  == NAND_ECC_SOFT
-	 * 1-bit == NAND_ECC_HW
-	 * 4-bit == NAND_ECC_HW_SYNDROME (not on all chips)
+	 * else  == NAND_ECC_HW, according to ecc_bits
+	 *
+	 * All DaVinci-family chips support 1-bit hardware ECC.
+	 * Newer ones also support 4-bit ECC, but are awkward
+	 * using it with large page chips.
 	 */
 	nand_ecc_modes_t	ecc_mode;
+	u8			ecc_bits;
 
 	/* e.g. NAND_BUSWIDTH_16 or NAND_USE_FLASH_BBT */
 	unsigned		options;

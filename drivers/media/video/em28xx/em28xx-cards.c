@@ -139,6 +139,24 @@ static struct em28xx_reg_seq kworld_330u_digital[] = {
 	{ -1,			-1,	-1,		-1},
 };
 
+/* Evga inDtube
+   GPIO0 - Enable digital power (s5h1409) - low to enable
+   GPIO1 - Enable analog power (tvp5150/emp202) - low to enable
+   GPIO4 - xc3028 reset
+   GOP3  - s5h1409 reset
+ */
+static struct em28xx_reg_seq evga_indtube_analog[] = {
+	{EM28XX_R08_GPIO,	0x79,   0xff,		60},
+	{	-1,		-1,	-1,		-1},
+};
+
+static struct em28xx_reg_seq evga_indtube_digital[] = {
+	{EM28XX_R08_GPIO,	0x7a,	0xff,		 1},
+	{EM2880_R04_GPO,	0x04,	0xff,		10},
+	{EM2880_R04_GPO,	0x0c,	0xff,		 1},
+	{ -1,			-1,	-1,		-1},
+};
+
 /* Callback for the most boards */
 static struct em28xx_reg_seq default_tuner_gpio[] = {
 	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
@@ -1449,6 +1467,33 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = terratec_av350_unmute_gpio,
 		} },
 	},
+	[EM2882_BOARD_EVGA_INDTUBE] = {
+		.name         = "Evga inDtube",
+		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
+		.decoder      = EM28XX_TVP5150,
+		.xclk         = EM28XX_XCLK_FREQUENCY_12MHZ, /* NEC IR */
+		.mts_firmware = 1,
+		.has_dvb      = 1,
+		.dvb_gpio     = evga_indtube_digital,
+		.ir_codes     = ir_codes_evga_indtube,
+		.input        = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = evga_indtube_analog,
+		}, {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = evga_indtube_analog,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = evga_indtube_analog,
+		} },
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1571,6 +1616,7 @@ static struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	{0x72cc5a8b, EM2820_BOARD_PROLINK_PLAYTV_BOX4_USB2, TUNER_YMEC_TVF_5533MF},
 	{0x966a0441, EM2880_BOARD_KWORLD_DVB_310U, TUNER_XC2028},
 	{0x9567eb1a, EM2880_BOARD_EMPIRE_DUAL_TV, TUNER_XC2028},
+	{0xcee44a99, EM2882_BOARD_EVGA_INDTUBE, TUNER_XC2028},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
@@ -1833,6 +1879,10 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	case EM2883_BOARD_KWORLD_HYBRID_330U:
 		ctl->demod = XC3028_FE_CHINA;
 		ctl->fname = XC2028_DEFAULT_FIRMWARE;
+		break;
+	case EM2882_BOARD_EVGA_INDTUBE:
+		ctl->demod = XC3028_FE_CHINA;
+		ctl->fname = XC3028L_DEFAULT_FIRMWARE;
 		break;
 	default:
 		ctl->demod = XC3028_FE_OREN538;
@@ -2101,6 +2151,12 @@ void em28xx_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_MSI_DIGIVOX_AD:
 		if (!em28xx_hint_board(dev))
 			em28xx_set_model(dev);
+
+		/* In cases where we had to use a board hint, the call to
+		   em28xx_set_mode() in em28xx_pre_card_setup() was a no-op,
+		   so make the call now so the analog GPIOs are set properly
+		   before probing the i2c bus. */
+		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		break;
 	}
 

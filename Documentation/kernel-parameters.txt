@@ -229,14 +229,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			to assume that this machine's pmtimer latches its value
 			and always returns good values.
 
- 	acpi.power_nocheck=	[HW,ACPI]
- 			Format: 1/0 enable/disable the check of power state.
- 			On some bogus BIOS the _PSC object/_STA object of
- 			power resource can't return the correct device power
- 			state. In such case it is unneccessary to check its
- 			power state again in power transition.
- 			1 : disable the power state check
-
 	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
 			Format: { level | edge | high | low }
 
@@ -1006,6 +998,7 @@ and is between 256 and 4096 characters. It is defined in the file
 		nomerge
 		forcesac
 		soft
+		pt	[x86, IA64]
 
 	io7=		[HW] IO7 for Marvel based alpha systems
 			See comment before marvel_specify_io7 in
@@ -1369,6 +1362,27 @@ and is between 256 and 4096 characters. It is defined in the file
 	min_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory below this
 			physical address is ignored.
 
+	mini2440=	[ARM,HW,KNL]
+			Format:[0..2][b][c][t]
+			Default: "0tb"
+			MINI2440 configuration specification:
+			0 - The attached screen is the 3.5" TFT
+			1 - The attached screen is the 7" TFT
+			2 - The VGA Shield is attached (1024x768)
+			Leaving out the screen size parameter will not load
+			the TFT driver, and the framebuffer will be left
+			unconfigured.
+			b - Enable backlight. The TFT backlight pin will be
+			linked to the kernel VESA blanking code and a GPIO
+			LED. This parameter is not necessary when using the
+			VGA shield.
+			c - Enable the s3c camera interface.
+			t - Reserved for enabling touchscreen support. The
+			touchscreen support is not enabled in the mainstream
+			kernel as of 2.6.30, a preliminary port can be found
+			in the "bleeding edge" mini2440 support kernel at
+			http://repo.or.cz/w/linux-2.6/mini2440.git
+
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
 			parameter allows control of the logging verbosity for
@@ -1409,6 +1423,16 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	mtdparts=	[MTD]
 			See drivers/mtd/cmdlinepart.c.
+
+	onenand.bdry=	[HW,MTD] Flex-OneNAND Boundary Configuration
+
+			Format: [die0_boundary][,die0_lock][,die1_boundary][,die1_lock]
+
+			boundary - index of last SLC block on Flex-OneNAND.
+				   The remaining blocks are configured as MLC blocks.
+			lock	 - Configure if Flex-OneNAND boundary should be locked.
+				   Once locked, the boundary cannot be changed.
+				   1 indicates lock status, 0 indicates unlock status.
 
 	mtdset=		[ARM]
 			ARM/S3C2412 JIVE boot control
@@ -1776,6 +1800,9 @@ and is between 256 and 4096 characters. It is defined in the file
 				root domains (aka PCI segments, in ACPI-speak).
 		nommconf	[X86] Disable use of MMCONFIG for PCI
 				Configuration
+		check_enable_amd_mmconf [X86] check for and enable
+				properly configured MMIO access to PCI
+				config space on AMD family 10h CPU
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of MSI interrupts system-wide.
@@ -1865,6 +1892,12 @@ and is between 256 and 4096 characters. It is defined in the file
 				PAGE_SIZE is used as alignment.
 				PCI-PCI bridge can be specified, if resource
 				windows need to be expanded.
+		ecrc=		Enable/disable PCIe ECRC (transaction layer
+				end-to-end CRC checking).
+				bios: Use BIOS/firmware settings. This is the
+				the default.
+				off: Turn ECRC off
+				on: Turn ECRC on.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
@@ -2440,7 +2473,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	tp720=		[HW,PS2]
 
-	trace_buf_size=nn[KMG] [ftrace] will set tracing buffer size.
+	trace_buf_size=nn[KMG]
+			[FTRACE] will set tracing buffer size.
 
 	trix=		[HW,OSS] MediaTrix AudioTrix Pro
 			Format:

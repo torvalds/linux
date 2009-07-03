@@ -1847,7 +1847,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr, struct velocity_td_
 	 */
 	if (tdinfo->skb_dma) {
 
-		pktlen = (skb->len > ETH_ZLEN ? : ETH_ZLEN);
+		pktlen = max_t(unsigned int, skb->len, ETH_ZLEN);
 		for (i = 0; i < tdinfo->nskb_dma; i++) {
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 			pci_unmap_single(vptr->pdev, tdinfo->skb_dma[i], le16_to_cpu(td->tdesc1.len), PCI_DMA_TODEVICE);

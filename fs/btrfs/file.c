@@ -151,7 +151,10 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	}
 	if (end_pos > isize) {
 		i_size_write(inode, end_pos);
-		btrfs_update_inode(trans, root, inode);
+		/* we've only changed i_size in ram, and we haven't updated
+		 * the disk i_size.  There is no need to log the inode
+		 * at this time.
+		 */
 	}
 	err = btrfs_end_transaction(trans, root);
 out_unlock:

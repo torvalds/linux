@@ -118,7 +118,14 @@ int try_to_munlock(struct page *);
 #define anon_vma_prepare(vma)	(0)
 #define anon_vma_link(vma)	do {} while (0)
 
-#define page_referenced(page, locked, cnt, flags) TestClearPageReferenced(page)
+static inline int page_referenced(struct page *page, int is_locked,
+				  struct mem_cgroup *cnt,
+				  unsigned long *vm_flags)
+{
+	*vm_flags = 0;
+	return TestClearPageReferenced(page);
+}
+
 #define try_to_unmap(page, refs) SWAP_FAIL
 
 static inline int page_mkclean(struct page *page)

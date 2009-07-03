@@ -56,7 +56,6 @@ struct rfkill {
 	u32			idx;
 
 	bool			registered;
-	bool			suspended;
 	bool			persistent;
 
 	const struct rfkill_ops	*ops;
@@ -224,7 +223,7 @@ static void rfkill_send_events(struct rfkill *rfkill, enum rfkill_operation op)
 
 static void rfkill_event(struct rfkill *rfkill)
 {
-	if (!rfkill->registered || rfkill->suspended)
+	if (!rfkill->registered)
 		return;
 
 	kobject_uevent(&rfkill->dev.kobj, KOBJ_CHANGE);
@@ -270,6 +269,9 @@ static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
 	unsigned long flags;
 	int err;
 
+	if (unlikely(rfkill->dev.power.power_state.event & PM_EVENT_SLEEP))
+		return;
+
 	/*
 	 * Some platforms (...!) generate input events which affect the
 	 * _hard_ kill state -- whenever something tries to change the
@@ -291,9 +293,6 @@ static void rfkill_set_block(struct rfkill *rfkill, bool blocked)
 
 	rfkill->state |= RFKILL_BLOCK_SW_SETCALL;
 	spin_unlock_irqrestore(&rfkill->lock, flags);
-
-	if (unlikely(rfkill->dev.power.power_state.event & PM_EVENT_SLEEP))
-		return;
 
 	err = rfkill->ops->set_block(rfkill->data, blocked);
 
@@ -508,18 +507,31 @@ bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked)
 	blocked = blocked || hwblock;
 	spin_unlock_irqrestore(&rfkill->lock, flags);
 
-	if (!rfkill->registered) {
-		rfkill->persistent = true;
-	} else {
-		if (prev != blocked && !hwblock)
-			schedule_work(&rfkill->uevent_work);
+	if (!rfkill->registered)
+		return blocked;
 
-		rfkill_led_trigger_event(rfkill);
-	}
+	if (prev != blocked && !hwblock)
+		schedule_work(&rfkill->uevent_work);
+
+	rfkill_led_trigger_event(rfkill);
 
 	return blocked;
 }
 EXPORT_SYMBOL(rfkill_set_sw_state);
+
+void rfkill_init_sw_state(struct rfkill *rfkill, bool blocked)
+{
+	unsigned long flags;
+
+	BUG_ON(!rfkill);
+	BUG_ON(rfkill->registered);
+
+	spin_lock_irqsave(&rfkill->lock, flags);
+	__rfkill_set_sw_state(rfkill, blocked);
+	rfkill->persistent = true;
+	spin_unlock_irqrestore(&rfkill->lock, flags);
+}
+EXPORT_SYMBOL(rfkill_init_sw_state);
 
 void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
 {
@@ -598,6 +610,15 @@ static ssize_t rfkill_idx_show(struct device *dev,
 	return sprintf(buf, "%d\n", rfkill->idx);
 }
 
+static ssize_t rfkill_persistent_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct rfkill *rfkill = to_rfkill(dev);
+
+	return sprintf(buf, "%d\n", rfkill->persistent);
+}
+
 static u8 user_state_from_blocked(unsigned long state)
 {
 	if (state & RFKILL_BLOCK_HW)
@@ -656,6 +677,7 @@ static struct device_attribute rfkill_dev_attrs[] = {
 	__ATTR(name, S_IRUGO, rfkill_name_show, NULL),
 	__ATTR(type, S_IRUGO, rfkill_type_show, NULL),
 	__ATTR(index, S_IRUGO, rfkill_idx_show, NULL),
+	__ATTR(persistent, S_IRUGO, rfkill_persistent_show, NULL),
 	__ATTR(state, S_IRUGO|S_IWUSR, rfkill_state_show, rfkill_state_store),
 	__ATTR(claim, S_IRUGO|S_IWUSR, rfkill_claim_show, rfkill_claim_store),
 	__ATTR_NULL
@@ -718,8 +740,6 @@ static int rfkill_suspend(struct device *dev, pm_message_t state)
 
 	rfkill_pause_polling(rfkill);
 
-	rfkill->suspended = true;
-
 	return 0;
 }
 
@@ -728,10 +748,10 @@ static int rfkill_resume(struct device *dev)
 	struct rfkill *rfkill = to_rfkill(dev);
 	bool cur;
 
-	cur = !!(rfkill->state & RFKILL_BLOCK_SW);
-	rfkill_set_block(rfkill, cur);
-
-	rfkill->suspended = false;
+	if (!rfkill->persistent) {
+		cur = !!(rfkill->state & RFKILL_BLOCK_SW);
+		rfkill_set_block(rfkill, cur);
+	}
 
 	rfkill_resume_polling(rfkill);
 

@@ -639,7 +639,7 @@ static int stac92xx_smux_enum_put(struct snd_kcontrol *kcontrol,
 static unsigned int stac92xx_vref_set(struct hda_codec *codec,
 					hda_nid_t nid, unsigned int new_vref)
 {
-	unsigned int error;
+	int error;
 	unsigned int pincfg;
 	pincfg = snd_hda_codec_read(codec, nid, 0,
 				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
@@ -2703,7 +2703,7 @@ static int stac92xx_dc_bias_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int new_vref = 0;
-	unsigned int error;
+	int error;
 	hda_nid_t nid = kcontrol->private_value;
 
 	if (ucontrol->value.enumerated.item[0] == 0)
@@ -4035,7 +4035,7 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
-#ifdef CONFIG_SND_JACK
+#ifdef CONFIG_SND_HDA_INPUT_JACK
 static void stac92xx_free_jack_priv(struct snd_jack *jack)
 {
 	struct sigmatel_jack *jacks = jack->private_data;
@@ -4047,7 +4047,7 @@ static void stac92xx_free_jack_priv(struct snd_jack *jack)
 static int stac92xx_add_jack(struct hda_codec *codec,
 		hda_nid_t nid, int type)
 {
-#ifdef CONFIG_SND_JACK
+#ifdef CONFIG_SND_HDA_INPUT_JACK
 	struct sigmatel_spec *spec = codec->spec;
 	struct sigmatel_jack *jack;
 	int def_conf = snd_hda_codec_get_pincfg(codec, nid);
@@ -4336,7 +4336,7 @@ static int stac92xx_init(struct hda_codec *codec)
 
 static void stac92xx_free_jacks(struct hda_codec *codec)
 {
-#ifdef CONFIG_SND_JACK
+#ifdef CONFIG_SND_HDA_INPUT_JACK
 	/* free jack instances manually when clearing/reconfiguring */
 	struct sigmatel_spec *spec = codec->spec;
 	if (!codec->bus->shutdown && spec->jacks.list) {

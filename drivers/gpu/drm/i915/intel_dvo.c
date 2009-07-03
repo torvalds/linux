@@ -384,10 +384,9 @@ void intel_dvo_init(struct drm_device *dev)
 {
 	struct intel_output *intel_output;
 	struct intel_dvo_device *dvo;
-	struct intel_i2c_chan *i2cbus = NULL;
+	struct i2c_adapter *i2cbus = NULL;
 	int ret = 0;
 	int i;
-	int gpio_inited = 0;
 	int encoder_type = DRM_MODE_ENCODER_NONE;
 	intel_output = kzalloc (sizeof(struct intel_output), GFP_KERNEL);
 	if (!intel_output)
@@ -420,14 +419,11 @@ void intel_dvo_init(struct drm_device *dev)
 		 * It appears that everything is on GPIOE except for panels
 		 * on i830 laptops, which are on GPIOB (DVOA).
 		 */
-		if (gpio_inited != gpio) {
-			if (i2cbus != NULL)
-				intel_i2c_destroy(i2cbus);
-			if (!(i2cbus = intel_i2c_create(dev, gpio,
-				gpio == GPIOB ? "DVOI2C_B" : "DVOI2C_E"))) {
-				continue;
-			}
-			gpio_inited = gpio;
+		if (i2cbus != NULL)
+			intel_i2c_destroy(i2cbus);
+		if (!(i2cbus = intel_i2c_create(dev, gpio,
+			gpio == GPIOB ? "DVOI2C_B" : "DVOI2C_E"))) {
+			continue;
 		}
 
 		if (dvo->dev_ops!= NULL)

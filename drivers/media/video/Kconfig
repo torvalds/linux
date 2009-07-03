@@ -866,9 +866,13 @@ config USB_W9968CF
 	  module will be called w9968cf.
 
 config USB_OV511
-	tristate "USB OV511 Camera support"
+	tristate "USB OV511 Camera support (DEPRECATED)"
 	depends on VIDEO_V4L1
 	---help---
+	  This driver is DEPRECATED please use the gspca ov519 module
+	  instead. Note that for the ov511 / ov518 support of the gspca module
+	  you need atleast version 0.6.0 of libv4l.
+
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. See <file:Documentation/video4linux/ov511.txt>
 	  for more information and for a list of supported cameras.

@@ -1378,6 +1378,37 @@ static int sata_fsl_remove(struct of_device *ofdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int sata_fsl_suspend(struct of_device *op, pm_message_t state)
+{
+	struct ata_host *host = dev_get_drvdata(&op->dev);
+	return ata_host_suspend(host, state);
+}
+
+static int sata_fsl_resume(struct of_device *op)
+{
+	struct ata_host *host = dev_get_drvdata(&op->dev);
+	struct sata_fsl_host_priv *host_priv = host->private_data;
+	int ret;
+	void __iomem *hcr_base = host_priv->hcr_base;
+	struct ata_port *ap = host->ports[0];
+	struct sata_fsl_port_priv *pp = ap->private_data;
+
+	ret = sata_fsl_init_controller(host);
+	if (ret) {
+		dev_printk(KERN_ERR, &op->dev,
+			"Error initialize hardware\n");
+		return ret;
+	}
+
+	/* Recovery the CHBA register in host controller cmd register set */
+	iowrite32(pp->cmdslot_paddr & 0xffffffff, hcr_base + CHBA);
+
+	ata_host_resume(host);
+	return 0;
+}
+#endif
+
 static struct of_device_id fsl_sata_match[] = {
 	{
 		.compatible = "fsl,pq-sata",
@@ -1392,6 +1423,10 @@ static struct of_platform_driver fsl_sata_driver = {
 	.match_table	= fsl_sata_match,
 	.probe		= sata_fsl_probe,
 	.remove		= sata_fsl_remove,
+#ifdef CONFIG_PM
+	.suspend	= sata_fsl_suspend,
+	.resume		= sata_fsl_resume,
+#endif
 };
 
 static int __init sata_fsl_init(void)
