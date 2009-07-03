@@ -62,9 +62,17 @@ void atomic64_set(atomic64_t *ptr, u64 new_val)
  */
 u64 atomic64_read(atomic64_t *ptr)
 {
-	u64 old = 1LL << 32;
+	u64 res;
 
-	return cmpxchg8b(&ptr->counter, old, old);
+	asm volatile(
+		"mov %%ebx, %%eax\n\t"
+		"mov %%ecx, %%edx\n\t"
+		LOCK_PREFIX "cmpxchg8b %1\n"
+			: "+A" (res)
+			: "m" (*ptr)
+		);
+
+	return res;
 }
 
 /**
