@@ -36,7 +36,7 @@ u64 atomic64_xchg(atomic64_t *ptr, u64 new_val)
 	u64 old_val;
 
 	do {
-		old_val = atomic_read(ptr);
+		old_val = __atomic64_read(ptr);
 	} while (atomic64_cmpxchg(ptr, old_val, new_val) != old_val);
 
 	return old_val;
