@@ -1662,11 +1662,6 @@ typedef struct r8192_priv
 	bool	bDmDisableProtect;
 	bool	bIgnoreDiffRateTxPowerOffset;
 
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-	u8  EEPROMTxPowerLevelCCK24G[14];		// CCK 2.4G channel 1~14
-	//u8  EEPROMTxPowerLevelOFDM24G[14];	// OFDM 2.4G channel 1~14
-	//u8  EEPROMTxPowerLevelOFDM5G[24];	// OFDM 5G
-#else
 	// For EEPROM TX Power Index like 8190 series
 	u8  EEPROMRfACCKChnl1TxPwLevel[3];	//RF-A CCK Tx Power Level at channel 7
 	u8  EEPROMRfAOfdmChnlTxPwLevel[3];//RF-A CCK Tx Power Level at [0],[1],[2] = channel 1,7,13
@@ -1678,7 +1673,6 @@ typedef struct r8192_priv
 	u8  RfCckChnlAreaTxPwr[2][3];
 	u8  RfOfdmChnlAreaTxPwr1T[2][3];
 	u8  RfOfdmChnlAreaTxPwr2T[2][3];
-#endif
 
 	// Add For EEPROM Efuse switch and  Efuse Shadow map Setting
 	bool		EepromOrEfuse;

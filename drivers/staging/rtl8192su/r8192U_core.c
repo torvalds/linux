@@ -5056,26 +5056,6 @@ rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device* dev)
 	priv->EEPROMTxPwrTkMode = EEPROM_Default_TxPwrTkMode;
 
 
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-	for(i=0; i<6; i++)
-		{
-		priv->EEPROMHT2T_TxPwr[i] = EEPROM_Default_HT2T_TxPwr;
-		}
-
-		for(i=0; i<14; i++)
-		{
-		priv->EEPROMTxPowerLevelCCK24G[i] = (u8)(EEPROM_Default_TxPower & 0xff);
-			priv->EEPROMTxPowerLevelOFDM24G[i] = (u8)(EEPROM_Default_TxPower & 0xff);
-		}
-
-	//
-	// Update HAL variables.
-	//
-	memcpy( priv->TxPowerLevelOFDM24G, priv->EEPROMTxPowerLevelOFDM24G, 14);
-	memcpy( priv->TxPowerLevelCCK, priv->EEPROMTxPowerLevelCCK24G, 14);
-	//RT_PRINT_DATA(COMP_INIT|COMP_EFUSE, DBG_LOUD, ("HAL CCK 2.4G TxPwr: \n"), priv->TxPowerLevelCCK, 14);
-	//RT_PRINT_DATA(COMP_INIT|COMP_EFUSE, DBG_LOUD, ("HAL OFDM 2.4G TxPwr: \n"), priv->TxPowerLevelOFDM24G, 14);
-#else
 
 	for (rf_path = 0; rf_path < 2; rf_path++)
 	{
@@ -5125,7 +5105,6 @@ rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device* dev)
 		//priv->RfTxPwrLevelOfdm1T[0][i] ,
 		//priv->RfTxPwrLevelOfdm2T[0][i] );
 		}
-#endif
 
 	//
 	// Update remained HAL variables.
@@ -5349,50 +5328,8 @@ static void rtl8192SU_ReadAdapterInfo8192SEEPROM(struct net_device* dev)
 
 			RT_TRACE(COMP_INIT, "BoardType = %#x\n", priv->EEPROMBoardType);
 
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-
-			//
-			// Buffer TxPwIdx(i.e., from offset 0x58~0x75, total 30Bytes)
-			//
-			if(bLoad_From_EEPOM)
-			{
-				for(i = 0; i < 30; i += 2)
-				{
-					tmpValue = eprom_read(dev, (u16) ((EEPROM_TxPowerBase+i)>>1));
-					*((u16 *)(&tmpBuffer[i])) = tmpValue;
-				}
-			}
-
-			//
-			// Update CCK, OFDM Tx Power Index from above buffer.
-			//
-			if(bLoad_From_EEPOM)
-			{
-				for(i=0; i<14; i++)
-				{
-					priv->EEPROMTxPowerLevelCCK24G[i] = (u8)tmpBuffer[i+1];
-					priv->EEPROMTxPowerLevelOFDM24G[i] = (u8)tmpBuffer[i+15];
-				}
-
-			}
-			else
-			{
-				for(i=0; i<14; i++)
-				{
-					priv->EEPROMTxPowerLevelCCK24G[i] = (u8)(EEPROM_Default_TxPower & 0xff);
-					priv->EEPROMTxPowerLevelOFDM24G[i] = (u8)(EEPROM_Default_TxPower & 0xff);
-				}
-			}
-
-			for(i=0; i<14; i++)
-			{
-				RT_TRACE(COMP_INIT, "CCK 2.4G Tx Power Level, Index %d = 0x%02x\n", i, priv->EEPROMTxPowerLevelCCK24G[i]);
-				RT_TRACE(COMP_INIT, "OFDM 2.4G Tx Power Level, Index %d = 0x%02x\n", i, priv->EEPROMTxPowerLevelOFDM24G[i]);
-			}
-#else
 			// Please add code in the section!!!!
 			// And merge tx power difference section.
-#endif
 
 			//
 			// Get TSSI value for each path.
@@ -5422,47 +5359,10 @@ static void rtl8192SU_ReadAdapterInfo8192SEEPROM(struct net_device* dev)
 			RT_TRACE(COMP_INIT, "TSSI_A = %#x, TSSI_B = %#x\n", priv->EEPROMTSSI_A, priv->EEPROMTSSI_B);
 			RT_TRACE(COMP_INIT, "TxPwrTkMod = %#x\n", priv->EEPROMTxPwrTkMode);
 
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-			//
-			// Get HT 2T Path A and B Power Index.
-			//
-			if(bLoad_From_EEPOM)
-			{
-				for(i = 0; i < 6; i += 2)
-				{
-					tmpValue = eprom_read(dev, (u16) ((EEPROM_HT2T_CH1_A+i)>>1));
-					*((u16*)(&priv->EEPROMHT2T_TxPwr[i])) = tmpValue;
-				}
-			}
-			else
-			{ // Default setting for Empty EEPROM
-				for(i=0; i<6; i++)
-				{
-					priv->EEPROMHT2T_TxPwr[i] = EEPROM_Default_HT2T_TxPwr;
-				}
-			}
 
-			for(i=0; i<6; i++)
-			{
-				RT_TRACE(COMP_INIT, "EEPROMHT2T_TxPwr, Index %d = 0x%02x\n", i, priv->EEPROMHT2T_TxPwr[i]);
-			}
-#else
-
-#endif
 		}
 
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-		//
-		// Update HAL variables.
-		//
-		for(i=0; i<14; i++)
-		{
-			priv->TxPowerLevelOFDM24G[i] = priv->EEPROMTxPowerLevelOFDM24G[i];
-			priv->TxPowerLevelCCK[i] = priv->EEPROMTxPowerLevelCCK24G[i];
-		}
-#else
 
-#endif
 		priv->TxPowerDiff = priv->EEPROMPwDiff;
 		// Antenna B gain offset to antenna A, bit0~3
 		priv->AntennaTxPwDiff[0] = (priv->EEPROMTxPowerDiff & 0xf);
@@ -5750,47 +5650,8 @@ rtl8192SU_ReadAdapterInfo8192SEFuse(struct net_device* dev)
 
 		//if(pHalData->EEPROM_Def_Ver == 0)
 		{
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-			//
-			// Get CCK Tx Power Index.
-			//
-			if(!priv->AutoloadFailFlag)
-			{
-				ReadEFuse(dev, EEPROM_TxPwIndex_CCK_24G, 14, (unsigned char*)CCKTxPwr);
-				for(i=0; i<14; i++)
-				{
-					RT_TRACE(COMP_INIT, "CCK 2.4G Tx Power Level, Index %d = 0x%02x\n", i, CCKTxPwr[i]);
-					priv->EEPROMTxPowerLevelCCK24G[i] = CCKTxPwr[i];
-				}
-			}
-			else
-			{ // Default setting for Empty EEPROM
-				for(i=0; i<14; i++)
-					priv->EEPROMTxPowerLevelCCK24G[i] = (u8)(EEPROM_Default_TxPower & 0xff);
-			}
-
-			//
-			// Get OFDM Tx Power Index.
-			//
-			if(!priv->AutoloadFailFlag)
-			{
-				ReadEFuse(dev, EEPROM_TxPwIndex_OFDM_24G, 14, (unsigned char*)OFDMTxPwr);
-				for(i=0; i<14; i++)
-				{
-					RT_TRACE(COMP_INIT, "OFDM 2.4G Tx Power Level, Index %d = 0x%02x\n", i, OFDMTxPwr[i]);
-					priv->EEPROMTxPowerLevelOFDM24G[i] = OFDMTxPwr[i];
-				}
-			}
-			else
-			{ // Default setting for Empty EEPROM
-				usValue = 0x10;
-				for(i=0; i<14; i++)
-					priv->EEPROMTxPowerLevelOFDM24G[i] = (u8)usValue;
-			}
-#else
 			// Please add code in the section!!!!
 			// And merge tx power difference section.
-#endif
 
 			//
 			// Get TSSI value for each path.
@@ -5853,18 +5714,7 @@ rtl8192SU_ReadAdapterInfo8192SEFuse(struct net_device* dev)
 			}
 		}
 
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-		//
-		// Update HAL variables.
-		//
-		for(i=0; i<14; i++)
-		{
-			priv->TxPowerLevelOFDM24G[i] = priv->EEPROMTxPowerLevelOFDM24G[i];
-			priv->TxPowerLevelCCK[i] = priv->EEPROMTxPowerLevelCCK24G[i];
-		}
-#else
 
-#endif
 		priv->TxPowerDiff = priv->EEPROMPwDiff;
 		// Antenna B gain offset to antenna A, bit0~3
 		priv->AntennaTxPwDiff[0] = (priv->EEPROMTxPowerDiff & 0xf);
@@ -6254,52 +6104,6 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 	RT_TRACE(COMP_INIT, "TxPwrTkMod = %#x\n", priv->EEPROMTxPwrTkMode);
 
 
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-
-	//
-	// <Roger_Notes> The following settings are EFUSE version dependence.
-	// So we need to adjust reading offset.
-	// 2008.11.22.
-	//
-	{
-			//
-			// Get HT 2T Path A and B Power Index.
-			//
-			//if(!priv->AutoloadFailFlag)
-			{
-				for(i=0; i<6; i++)
-				{
-				priv->EEPROMHT2T_TxPwr[i] = *(u8 *)&hwinfo[EEPROM_HT2T_CH1_A+i];
-				}
-			}
-
-		//RT_PRINT_DATA(COMP_EFUSE, "HT2T TxPwr: \n"), pHalData->EEPROMHT2T_TxPwr, 6);
-
-		//
-		// Get CCK and OFDM Tx Power Index.
-		//
-		//if(!priv->AutoloadFailFlag)
-		{
-			for(i=0; i<14; i++)
-			{
-				priv->EEPROMTxPowerLevelCCK24G[i] = *(u8 *)&hwinfo[EEPROM_TxPwIndex_CCK_24G+i];
-				priv->EEPROMTxPowerLevelOFDM24G[i] = *(u8 *)&hwinfo[EEPROM_TxPwIndex_OFDM_24G+i];
-			}
-		}
-
-		//RT_PRINT_DATA(COMP_EFUSE, DBG_LOUD, ("CCK 2.4G TxPwr: \n"), pHalData->EEPROMTxPowerLevelCCK24G, 14);
-		//RT_PRINT_DATA(COMP_EFUSE, DBG_LOUD, ("OFDM 2.4G TxPwr: \n"), pHalData->EEPROMTxPowerLevelOFDM24G, 14);
-
-		//
-		// Update HAL variables.
-		//
-		memcpy( priv->TxPowerLevelOFDM24G, priv->EEPROMTxPowerLevelOFDM24G, 14);
-		memcpy( priv->TxPowerLevelCCK, priv->EEPROMTxPowerLevelCCK24G, 14);
-		//RT_PRINT_DATA(COMP_EFUSE, DBG_LOUD, ("HAL CCK 2.4G TxPwr: \n"), pHalData->TxPowerLevelCCK, 14);
-		//RT_PRINT_DATA(COMP_EFUSE, DBG_LOUD, ("HAL OFDM 2.4G TxPwr: \n"), pHalData->TxPowerLevelOFDM24G, 14);
-
-	}
-#else // Support new version of EFUSE content, 2008.11.22.
 	{
 		//
 		// Buffer TxPwIdx(i.e., from offset 0x55~0x66, total 18Bytes)
@@ -6467,7 +6271,6 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 		priv->TxPwrbandEdgeLegacyOfdm[RF90_PATH_B][0],
 		priv->TxPwrbandEdgeLegacyOfdm[RF90_PATH_B][1]);
 	RT_TRACE((COMP_INIT&COMP_DBG), "Band-edge enable flag = %d\n", priv->TxPwrbandEdgeFlag);
-#endif
 
 	//
 	// Update remained HAL variables.

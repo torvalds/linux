@@ -2639,10 +2639,6 @@ PHY_GetTxPowerLevel8192S(
 	//
 //	if(priv->epromtype == EPROM_93c46)
 	{
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-		powerlevel = priv->TxPowerLevelCCK[index];
-		powerlevelOFDM24G = priv->TxPowerLevelOFDM24G[index];
-#else
 		//
 		// Mainly we use RF-A Tx Power to write the Tx Power registers, but the RF-B Tx
 		// Power must be calculated by the antenna diff.
@@ -2821,7 +2817,6 @@ PHY_GetTxPowerLevel8192S(
 
 		// Notify Tx power difference for B/C/D to A!!!
 		rtl8192_setBBreg(dev, rFPGA0_TxGainStage, (bXBTxAGC|bXCTxAGC|bXDTxAGC), u4RegValue);
-#endif
 	}
 
 	//

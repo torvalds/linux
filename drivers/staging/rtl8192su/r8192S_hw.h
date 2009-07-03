@@ -1282,17 +1282,11 @@ Default: 00b.
 #define 		EEPROM_Default_TxPower		0x1010
 #define		EEPROM_Default_HT2T_TxPwr		0x10
 
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-#define 		EEPROM_Default_TxPowerBase	0x0
-#define 		EEPROM_Default_ThermalMeter	0x12
-#define 		EEPROM_Default_PwDiff			0x4
-#else
 #define		EEPROM_Default_LegacyHTTxPowerDiff	0x3
 #define		EEPROM_Default_ThermalMeter		0x12
 #define		EEPROM_Default_AntTxPowerDiff		0x0
 #define		EEPROM_Default_TxPwDiff_CrystalCap	0x5
 #define		EEPROM_Default_TxPowerLevel		0x22
-#endif
 
 #define		EEPROM_CHANNEL_PLAN_FCC				0x0
 #define		EEPROM_CHANNEL_PLAN_IC				0x1
@@ -1330,25 +1324,6 @@ Default: 00b.
 
 
 	// <Roger_Notes> The followin are for different version of EEPROM contents purpose. 2008.11.22.
-#ifdef EEPROM_OLD_FORMAT_SUPPORT
-#define 		EEPROM_PwDiff					0x54 // Difference of gain index between legacy and high throughput OFDM.
-#define 		EEPROM_ThermalMeter			0x55 // Thermal meter default value.
-#define 		EEPROM_Reserved				0x56 // Reserved.
-#define 		EEPROM_CrystalCap				0x57 // Crystal Cap.
-#define 		EEPROM_TxPowerBase			0x58 // Tx Power of serving station.
-#define 		EEPROM_TxPwIndex_CCK_24G	0x59 // 0x59~0x66
-#define 		EEPROM_TxPwIndex_OFDM_24G	0x67 // 0x67~0x74
-#define 		EEPROM_TSSI_A					0x75 //TSSI value of path A.
-#define 		EEPROM_TSSI_B					0x76 //TSSI value of path B.
-#define 		EEPROM_TxPwTkMode			0x77 //Tx Power tracking mode.
-#define 		EEPROM_HT2T_CH1_A			0x78 //HT 2T path A channel 1 Power Index.
-#define 		EEPROM_HT2T_CH7_A			0x79 //HT 2T path A channel 7 Power Index.
-#define 		EEPROM_HT2T_CH13_A			0x7a //HT 2T path A channel 13 Power Index.
-#define 		EEPROM_HT2T_CH1_B			0x7b //HT 2T path B channel 1 Power Index.
-#define 		EEPROM_HT2T_CH7_B			0x7c //HT 2T path B channel 7 Power Index.
-#define 		EEPROM_HT2T_CH13_B			0x7d //HT 2T path B channel 13 Power Index.
-#define 		EEPROM_BoardType				0x7e //0x0: RTL8188SU, 0x1: RTL8191SU, 0x2: RTL8192SU, 0x3: RTL8191GU
-#else
 #define 		EEPROM_BoardType				0x54 //0x0: RTL8188SU, 0x1: RTL8191SU, 0x2: RTL8192SU, 0x3: RTL8191GU
 #define		EEPROM_TxPwIndex				0x55 //0x55-0x66, Tx Power index.
 #define 		EEPROM_PwDiff					0x67 // Difference of gain index between legacy and high throughput OFDM.
@@ -1366,7 +1341,6 @@ Default: 00b.
 #define 		EEPROM_TX_PWR_OFDM_DIFF		0x71// OFDM Tx Power Index Difference
 #define 		EEPROM_TX_PWR_BAND_EDGE	0x73// TX Power offset at band-edge channel
 #define 		TX_PWR_BAND_EDGE_CHK		0x79// Check if band-edge scheme is enabled
-#endif
 #define		EEPROM_Default_LegacyHTTxPowerDiff	0x3
 #define		EEPROM_USB_Default_OPTIONAL_FUNC	0x8
 #define		EEPROM_USB_Default_PHY_PARAM		0x0
