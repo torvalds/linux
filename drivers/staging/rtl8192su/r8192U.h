@@ -42,11 +42,7 @@
 
 #include "ieee80211/ieee80211.h"
 
-#ifdef RTL8192SU
 #include "r8192S_firmware.h"
-#else
-#include "r819xU_firmware.h"
-#endif
 
 //#define RTL8192U
 #define RTL819xU_MODULE_NAME "rtl819xU"
@@ -305,7 +301,6 @@ do { if(rt_global_debug_component & component) \
 #define 	OFDM_Table_Length	19
 #define	CCK_Table_length	12
 
-#ifdef RTL8192SU
 //
 //Tx Descriptor for RLT8192SU(Normal mode)
 //
@@ -423,51 +418,9 @@ typedef struct _tx_status_desc_8192s_usb{
 	u8		RxAGC3;
 	u8		RxAGC4;
 }tx_status_desc_8192s_usb, *ptx_status_desc_8192s_usb;
-#else
-/* for rtl819x */
-typedef struct _tx_desc_819x_usb {
-        //DWORD 0
-        u16	PktSize;
-        u8	Offset;
-        u8	Reserved0:3;
-        u8	CmdInit:1;
-        u8	LastSeg:1;
-        u8	FirstSeg:1;
-        u8	LINIP:1;
-        u8	OWN:1;
-
-        //DWORD 1
-        u8	TxFWInfoSize;
-        u8	RATid:3;
-        u8	DISFB:1;
-        u8	USERATE:1;
-        u8	MOREFRAG:1;
-        u8	NoEnc:1;
-        u8	PIFS:1;
-        u8	QueueSelect:5;
-        u8	NoACM:1;
-        u8	Reserved1:2;
-        u8	SecCAMID:5;
-        u8	SecDescAssign:1;
-        u8	SecType:2;
-
-        //DWORD 2
-        u16	TxBufferSize;
-        //u16 Reserved2;
-        u8	ResvForPaddingLen:7;
-        u8	Reserved3:1;
-        u8	Reserved4;
-
-        //DWORD 3, 4, 5
-        u32	Reserved5;
-        u32	Reserved6;
-        u32	Reserved7;
-}tx_desc_819x_usb, *ptx_desc_819x_usb;
-#endif
 
 
 
-#ifdef RTL8192SU
 //
 //Tx Descriptor for RLT8192SU(Load FW mode)
 //
@@ -532,39 +485,7 @@ typedef struct _tx_h2c_cmd_hdr_8192s_usb{
 	// DWORD 1
 	u32		Rsvd0;
 }tx_h2c_cmd_hdr_8192s_usb, *ptx_h2c_cmd_hdr_8192s_usb;
-#else
-typedef struct _tx_desc_cmd_819x_usb {
-        //DWORD 0
-	u16	Reserved0;
-	u8	Reserved1;
-	u8	Reserved2:3;
-	u8	CmdInit:1;
-	u8	LastSeg:1;
-	u8	FirstSeg:1;
-	u8	LINIP:1;
-	u8	OWN:1;
 
-        //DOWRD 1
-	//u32	Reserved3;
-	u8	TxFWInfoSize;
-	u8	Reserved3;
-	u8	QueueSelect;
-	u8	Reserved4;
-
-        //DOWRD 2
-	u16 	TxBufferSize;
-	u16	Reserved5;
-
-       //DWORD 3,4,5
-	//u32	TxBufferAddr;
-	//u32	NextDescAddress;
-	u32	Reserved6;
-	u32	Reserved7;
-	u32	Reserved8;
-}tx_desc_cmd_819x_usb, *ptx_desc_cmd_819x_usb;
-#endif
-
-#ifdef RTL8192SU
 typedef struct _tx_fwinfo_819x_usb{
 	//DWORD 0
 	u8			TxRate:7;
@@ -593,38 +514,6 @@ typedef struct _tx_fwinfo_819x_usb{
 	u32			Tx_INFO_RSVD:6;
 	u32			PacketID:13;
 }tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
-#else
-typedef struct _tx_fwinfo_819x_usb {
-        //DOWRD 0
-        u8		TxRate:7;
-        u8		CtsEnable:1;
-        u8		RtsRate:7;
-        u8		RtsEnable:1;
-        u8		TxHT:1;
-        u8		Short:1;                //Short PLCP for CCK, or short GI for 11n MCS
-        u8		TxBandwidth:1;          // This is used for HT MCS rate only.
-        u8		TxSubCarrier:2;         // This is used for legacy OFDM rate only.
-        u8		STBC:2;
-        u8		AllowAggregation:1;
-        u8		RtsHT:1;                //Interpre RtsRate field as high throughput data rate
-        u8		RtsShort:1;             //Short PLCP for CCK, or short GI for 11n MCS
-        u8		RtsBandwidth:1;         // This is used for HT MCS rate only.
-        u8		RtsSubcarrier:2;        // This is used for legacy OFDM rate only.
-        u8		RtsSTBC:2;
-        u8		EnableCPUDur:1;         //Enable firmware to recalculate and assign packet duration
-
-        //DWORD 1
-        u32		RxMF:2;
-        u32		RxAMD:3;
-        u32		TxPerPktInfoFeedback:1;//1 indicate Tx info gathtered by firmware and returned by Rx Cmd
-        u32		Reserved1:2;
-        u32		TxAGCOffSet:4;
-        u32		TxAGCSign:1;
-        u32		Tx_INFO_RSVD:6;
-	u32		PacketID:13;
-        //u32                Reserved;
-}tx_fwinfo_819x_usb, *ptx_fwinfo_819x_usb;
-#endif
 
 typedef struct rtl8192_rx_info {
 	struct urb *urb;
@@ -632,7 +521,6 @@ typedef struct rtl8192_rx_info {
 	u8 out_pipe;
 }rtl8192_rx_info ;
 
-#ifdef RTL8192SU
 //typedef struct _RX_DESC_STATUS_8192SU{
 typedef struct rx_desc_819x_usb{
 	//DWORD 0
@@ -695,36 +583,8 @@ typedef struct rx_desc_819x_usb{
 	u32		TSFL;
 //}RX_DESC_STATUS_8192SU, *PRX_DESC_STATUS_8192SU;
 }rx_desc_819x_usb, *prx_desc_819x_usb;
-#else
-typedef struct rx_desc_819x_usb{
-	//DOWRD 0
-	u16                 Length:14;
-	u16                 CRC32:1;
-	u16                 ICV:1;
-	u8                  RxDrvInfoSize;
-	u8                  Shift:2;
-	u8                  PHYStatus:1;
-	u8                  SWDec:1;
-	//u8                LastSeg:1;
-	//u8                FirstSeg:1;
-	//u8                EOR:1;
-	//u8                OWN:1;
-	u8                  Reserved1:4;
-
-	//DWORD 1
-	u32                 Reserved2;
-
-	//DWORD 2
-	//u32               Reserved3;
-
-	//DWORD 3
-	//u32                BufferAddress;
-
-}rx_desc_819x_usb, *prx_desc_819x_usb;
-#endif
 
 
-#ifdef RTL8192SU
 //
 // Driver info are written to the begining of the RxBuffer
 //
@@ -800,41 +660,11 @@ typedef struct rx_drvinfo_819x_usb{
 	u8			reserve:4;
 
 }rx_drvinfo_819x_usb, *prx_drvinfo_819x_usb;
-#else
-typedef struct rx_drvinfo_819x_usb{
-	//DWORD 0
-	u16                 Reserved1:12;
-	u16                 PartAggr:1;
-	u16                 FirstAGGR:1;
-	u16                 Reserved2:2;
-
-	u8                  RxRate:7;
-	u8                  RxHT:1;
-
-	u8                  BW:1;
-	u8                  SPLCP:1;
-	u8                  Reserved3:2;
-	u8                  PAM:1;
-	u8                  Mcast:1;
-	u8                  Bcast:1;
-	u8                  Reserved4:1;
-
-	//DWORD 1
-	u32                  TSFL;
-
-}rx_drvinfo_819x_usb, *prx_drvinfo_819x_usb;
-#endif
 
 	#define HWSET_MAX_SIZE_92S	128
-#ifdef RTL8192SU
 	#define MAX_802_11_HEADER_LENGTH 40
 	#define MAX_PKT_AGG_NUM		256
 	#define TX_PACKET_SHIFT_BYTES USB_HWDESC_HEADER_LEN
-#else
-	#define MAX_802_11_HEADER_LENGTH        (40 + MAX_FIRMWARE_INFORMATION_SIZE)
-	#define	MAX_PKT_AGG_NUM		64
-	#define TX_PACKET_SHIFT_BYTES (USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
-#endif
 
 #define MAX_DEV_ADDR_SIZE		8  /* support till 64 bit bus width OS */
 #define MAX_FIRMWARE_INFORMATION_SIZE   32 /*2006/04/30 by Emily forRTL8190*/
@@ -908,7 +738,6 @@ typedef struct _rt_firmare_seg_container {
 	u8	*seg_ptr;
 }fw_seg_container, *pfw_seg_container;
 
-#ifdef RTL8192SU
 //--------------------------------------------------------------------------------
 // 8192S Firmware related
 //--------------------------------------------------------------------------------
@@ -1006,16 +835,6 @@ typedef struct _rt_firmware{
 	//u16               firmware_buf_size;//in 92u temp FIXLZM
 
 }rt_firmware, *prt_firmware;
-#else
-typedef struct _rt_firmware{
-	firmware_status_e firmware_status;
-	u16               cmdpacket_frag_thresold;
-#define RTL8190_MAX_FIRMWARE_CODE_SIZE  64000   //64k
-#define MAX_FW_INIT_STEP                3
-	u8                firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
-	u16               firmware_buf_size[MAX_FW_INIT_STEP];
-}rt_firmware, *prt_firmware;
-#endif
 typedef struct _rt_firmware_info_819xUsb{
 	u8		sz_info[16];
 }rt_firmware_info_819xUsb, *prt_firmware_info_819xUsb;
@@ -1659,11 +1478,7 @@ typedef struct r8192_priv
 /*PHY related*/
 	BB_REGISTER_DEFINITION_T	PHYRegDef[4];	//Radio A/B/C/D
 	// Read/write are allow for following hardware information variables
-#ifdef RTL8192SU
 	u32	MCSTxPowerLevelOriginalOffset[7];//FIXLZM
-#else
-	u32	MCSTxPowerLevelOriginalOffset[6];
-#endif
 	u32	CCKTxPowerLevelOriginalOffset;
 	u8	TxPowerLevelCCK[14];			// CCK channel 1~14
 	u8	TxPowerLevelOFDM24G[14];		// OFDM 2.4G channel 1~14
@@ -1945,14 +1760,9 @@ struct ssid_thread {
 };
 #endif
 
-#ifdef RTL8192SU
 short rtl8192SU_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb);
 bool FirmwareDownload92S(struct net_device *dev);
-#else
-short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
-bool init_firmware(struct net_device *dev);
-#endif
 
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);

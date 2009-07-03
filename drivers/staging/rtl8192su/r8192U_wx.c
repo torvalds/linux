@@ -17,15 +17,9 @@
    project Authors.
 */
 
-#ifdef RTL8192SU
 #include <linux/string.h>
 #include "r8192U.h"
 #include "r8192S_hw.h"
-#else
-#include <linux/string.h>
-#include "r8192U.h"
-#include "r8192U_hw.h"
-#endif
 
 #include "ieee80211/dot11d.h"
 
@@ -344,7 +338,6 @@ static int r8192_wx_force_reset(struct net_device *dev,
 
 }
 
-#ifdef RTL8192SU
 static int r8191su_wx_get_firm_version(struct net_device *dev,
 		struct iw_request_info *info,
 		struct iw_param *wrqu, char *extra)
@@ -360,7 +353,6 @@ static int r8191su_wx_get_firm_version(struct net_device *dev,
 	up(&priv->wx_sem);
 	return 0;
 }
-#endif
 
 
 
@@ -1232,14 +1224,12 @@ static const struct iw_priv_args r8192_private_args[] = {
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "forcereset"
 	}
 
-#ifdef RTL8192SU
 	,
 	{
 		SIOCIWFIRSTPRIV + 0x5,
 		IW_PRIV_TYPE_NONE, IW_PRIV_TYPE_INT|IW_PRIV_SIZE_FIXED|1,
 		"firm_ver"
 	}
-#endif
 };
 
 
@@ -1262,9 +1252,7 @@ static iw_handler r8192_private_handler[] = {
 #endif
 	r8192_wx_force_reset,
         (iw_handler)NULL,
-#ifdef RTL8192SU
         (iw_handler)r8191su_wx_get_firm_version,
-#endif
 };
 
 struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)

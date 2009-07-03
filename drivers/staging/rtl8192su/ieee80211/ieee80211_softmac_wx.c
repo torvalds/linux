@@ -230,7 +230,6 @@ int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	u32 tmp_rate = 0;
-#ifdef RTL8192SU
 	//printk("===>mode:%d, halfNmode:%d\n", ieee->mode, ieee->bHalfWirelessN24GMode);
 	if (ieee->mode & (IEEE_A | IEEE_B | IEEE_G))
 		tmp_rate = ieee->rate;
@@ -243,10 +242,6 @@ int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
 		else
 			tmp_rate = HTMcsToDataRate(ieee, 15);
 	}
-#else
-	tmp_rate = TxCountToDataRate(ieee, ieee->softmac_stats.CurrentShowTxate);
-
-#endif
 	wrqu->bitrate.value = tmp_rate * 500000;
 
 	return 0;

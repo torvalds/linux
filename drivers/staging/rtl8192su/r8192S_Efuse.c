@@ -35,7 +35,6 @@
 //
 // In the future, we will always support EFUSE!!
 //
-#ifdef RTL8192SU
 /*---------------------------Define Local Constant---------------------------*/
 #define 	_POWERON_DELAY_
 #define 	_PRE_EXECUTE_READ_CMD_
@@ -2401,7 +2400,6 @@ void efuset_test_func_write(struct net_device* dev)
 
 
 
-#endif	// #if (HAL_CODE_BASE == RTL8192_S)
 
 
 

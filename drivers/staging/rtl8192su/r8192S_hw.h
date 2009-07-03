@@ -49,10 +49,8 @@ typedef	enum _RT_RF_TYPE_DEFINITION
 	RF_1T2R = 0,
 	RF_2T4R,
 	RF_2T2R,
-#ifdef RTL8192SU
 	RF_1T1R,
 	RF_2T2R_GREEN,
-#endif
 	//RF_3T3R,
 	//RF_3T4R,
 	//RF_4T4R,

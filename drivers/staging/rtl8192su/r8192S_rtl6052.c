@@ -23,15 +23,9 @@
 #include "r8192U.h"
 #include "r8192S_rtl6052.h"
 
-#ifdef RTL8192SU
 #include "r8192S_hw.h"
 #include "r8192S_phyreg.h"
 #include "r8192S_phy.h"
-#else
-#include "r8192U_hw.h"
-#include "r819xU_phyreg.h"
-#include "r819xU_phy.h"
-#endif
 
 
 /*---------------------------Define Local Constant---------------------------*/
@@ -162,7 +156,6 @@ void PHY_RF6052SetBandwidth(struct net_device* dev, HT_CHANNEL_WIDTH Bandwidth)	
 
 
 	//if (priv->card_8192 == NIC_8192SE)
-#ifdef RTL8192SU  //YJ,test,090113
 	{
 		switch(Bandwidth)
 		{
@@ -184,26 +177,6 @@ void PHY_RF6052SetBandwidth(struct net_device* dev, HT_CHANNEL_WIDTH Bandwidth)	
 		}
 	}
 //	else
-#else
-	{
-	for(eRFPath = 0; eRFPath <priv->NumTotalRFPath; eRFPath++)
-	{
-		switch(Bandwidth)
-		{
-			case HT_CHANNEL_WIDTH_20:
-					//PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)RF90_PATH_A, RF_CHNLBW, (BIT10|BIT11), 0x01);
-				break;
-			case HT_CHANNEL_WIDTH_20_40:
-					//PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)RF90_PATH_A, RF_CHNLBW, (BIT10|BIT11), 0x00);
-				break;
-			default:
-					RT_TRACE(COMP_DBG, "PHY_SetRF8225Bandwidth(): unknown Bandwidth: %#X\n",Bandwidth );
-				break;
-
-		}
-	}
-	}
-#endif
 }
 
 

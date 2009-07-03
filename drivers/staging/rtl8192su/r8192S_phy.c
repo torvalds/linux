@@ -35,17 +35,11 @@
 #include "r8192U_dm.h"
 #include "r8192S_rtl6052.h"
 
-#ifdef RTL8192SU
 #include "r8192S_hw.h"
 #include "r8192S_phy.h"
 #include "r8192S_phyreg.h"
 #include "r8192SU_HWImg.h"
 //#include "r8192S_FwImgDTM.h"
-#else
-#include "r8192U_hw.h"
-#include "r819xU_phy.h"
-#include "r819xU_phyreg.h"
-#endif
 
 #include "ieee80211/dot11d.h"
 
@@ -58,26 +52,6 @@
 
 /*------------------------Define local variable------------------------------*/
 // 2004-05-11
-#ifndef RTL8192SU
-static u32	RF_CHANNEL_TABLE_ZEBRA[]={
-		0,
-		0x085c,//2412 1
-		0x08dc,//2417 2
-		0x095c,//2422 3
-		0x09dc,//2427 4
-		0x0a5c,//2432 5
-		0x0adc,//2437 6
-		0x0b5c,//2442 7
-		0x0bdc,//2447 8
-		0x0c5c,//2452 9
-		0x0cdc,//2457 10
-		0x0d5c,//2462 11
-		0x0ddc,//2467 12
-		0x0e5c,//2472 13
-		//0x0f5c,//2484
-		0x0f72,//2484  //20040810
-};
-#endif
 
 static	u32
 phy_CalculateBitShift(u32 BitMask);
@@ -114,7 +88,6 @@ static u8 phy_DbmToTxPwrIdx( struct net_device* dev, WIRELESS_MODE WirelessMode,
 void phy_SetFwCmdIOCallback(struct net_device* dev);
 
 //#if ((HAL_CODE_BASE == RTL8192_S) && (DEV_BUS_TYPE==USB_INTERFACE))
-#ifdef RTL8192SU
 //
 // Description:
 //	Base Band read by 4181 to make sure that operation could be done in unlimited cycle.
@@ -382,7 +355,6 @@ void phy_SetUsbRFReg(struct net_device* dev,RF90_RADIO_PATH_E eRFPath,u32	RegAdd
 
 }
 
-#endif
 
 /*---------------------Define local function prototype-----------------------*/
 
@@ -422,7 +394,6 @@ u32 rtl8192_QueryBBReg(struct net_device* dev, u32 RegAddr, u32 BitMask)
 	// 2008.09.06.
 	//
 //#if ((HAL_CODE_BASE == RTL8192_S) && (DEV_BUS_TYPE==USB_INTERFACE))
-#ifdef RTL8192SU
 	if(IS_BB_REG_OFFSET_92S(RegAddr))
 	{
 		//if(RT_USB_CANNOT_IO(Adapter))	return	FALSE;
@@ -436,7 +407,6 @@ u32 rtl8192_QueryBBReg(struct net_device* dev, u32 RegAddr, u32 BitMask)
 	OriginalValue = phy_QueryUsbBBReg(dev, RegAddr);
 	}
 	else
-#endif
 	{
 	OriginalValue = read_nic_dword(dev, RegAddr);
 	}
@@ -482,7 +452,6 @@ void rtl8192_setBBreg(struct net_device* dev, u32 RegAddr, u32 BitMask, u32 Data
 	// 2008.09.06.
 	//
 //#if ((HAL_CODE_BASE == RTL8192_S) && (DEV_BUS_TYPE==USB_INTERFACE))
-#ifdef RTL8192SU
 	if(IS_BB_REG_OFFSET_92S(RegAddr))
 	{
 		if((RegAddr & 0x03) != 0)
@@ -501,7 +470,6 @@ void rtl8192_setBBreg(struct net_device* dev, u32 RegAddr, u32 BitMask, u32 Data
 			phy_SetUsbBBReg(dev, RegAddr, Data);
 	}
 	else
-#endif
 	{
 		if(BitMask!= bMaskDWord)
 		{//if not "double word" write
@@ -571,19 +539,8 @@ u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u3
 	// 2008.09.06.
 	//
 //#if (HAL_CODE_BASE == RTL8192_S && DEV_BUS_TYPE==USB_INTERFACE)
-#ifdef RTL8192SU
 	//if(RT_USB_CANNOT_IO(Adapter))	return FALSE;
 	Original_Value = phy_QueryUsbRFReg(dev, eRFPath, RegAddr);
-#else
-	if (priv->Rf_Mode == RF_OP_By_FW)
-	{
-		Original_Value = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
-	}
-	else
-	{
-		Original_Value = phy_RFSerialRead(dev, eRFPath, RegAddr);
-	}
-#endif
 
 	BitShift =  phy_CalculateBitShift(BitMask);
 	Readback_Value = (Original_Value & BitMask) >> BitShift;
@@ -647,7 +604,6 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 	// 2008.09.06.
 	//
 //#if (HAL_CODE_BASE == RTL8192_S && DEV_BUS_TYPE==USB_INTERFACE)
-#ifdef RTL8192SU
 		//if(RT_USB_CANNOT_IO(Adapter))	return;
 
 		if (BitMask != bRFRegOffsetMask) // RF data is 12 bits only
@@ -659,37 +615,6 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 		}
 		else
 			phy_SetUsbRFReg(dev, eRFPath, RegAddr, Data);
-#else
-	if (priv->Rf_Mode == RF_OP_By_FW)
-	{
-		//DbgPrint("eRFPath-%d Addr[%02x] = %08x\n", eRFPath, RegAddr, Data);
-		if (BitMask != bRFRegOffsetMask) // RF data is 12 bits only
-		{
-			Original_Value = phy_FwRFSerialRead(dev, eRFPath, RegAddr);
-			BitShift =  phy_CalculateBitShift(BitMask);
-			New_Value = (((Original_Value) & (~BitMask)) | (Data<< BitShift));
-
-			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, New_Value);
-		}
-		else
-			phy_FwRFSerialWrite(dev, eRFPath, RegAddr, Data);
-	}
-	else
-	{
-		//DbgPrint("eRFPath-%d Addr[%02x] = %08x\n", eRFPath, RegAddr, Data);
-		if (BitMask != bRFRegOffsetMask) // RF data is 12 bits only
-		{
-			Original_Value = phy_RFSerialRead(dev, eRFPath, RegAddr);
-			BitShift =  phy_CalculateBitShift(BitMask);
-			New_Value = (((Original_Value) & (~BitMask)) | (Data<< BitShift));
-
-			phy_RFSerialWrite(dev, eRFPath, RegAddr, New_Value);
-		}
-		else
-			phy_RFSerialWrite(dev, eRFPath, RegAddr, Data);
-
-	}
-#endif
 	//PlatformReleaseSpinLock(dev, RT_RF_OPERATE_SPINLOCK);
 	//spin_unlock_irqrestore(&priv->rf_lock, flags);   //YJ,test,090113
 	up(&priv->rf_sem);
@@ -1477,11 +1402,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 				if(Rtl819XRadioA_Array_Table[i] == 0xfe)
 					{ // Deay specific ms. Only RF configuration require delay.
 //#if (DEV_BUS_TYPE == USB_INTERFACE)
-#ifdef RTL8192SU
 						mdelay(1000);
-#else
-						mdelay(50);
-#endif
 				}
 					else if (Rtl819XRadioA_Array_Table[i] == 0xfd)
 						mdelay(5);
@@ -1505,11 +1426,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 				if(Rtl819XRadioB_Array_Table[i] == 0xfe)
 					{ // Deay specific ms. Only RF configuration require delay.
 //#if (DEV_BUS_TYPE == USB_INTERFACE)
-#ifdef RTL8192SU
 						mdelay(1000);
-#else
-						mdelay(50);
-#endif
 				}
 					else if (Rtl819XRadioB_Array_Table[i] == 0xfd)
 						mdelay(5);
@@ -2969,9 +2886,7 @@ void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EX
 #endif
 	if((priv->up) )// && !(RT_CANNOT_IO(Adapter) && Adapter->bInSetPower) )
 	{
-#if   defined(RTL8192SU)
 	SetBWModeCallback8192SUsbWorkItem(dev);
-#endif
 	}
 	else
 	{
@@ -3086,9 +3001,7 @@ u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
 
 	if((priv->up))// && !(RT_CANNOT_IO(Adapter) && Adapter->bInSetPower))
 	{
-#if   defined(RTL8192SU)
 	SwChnlCallback8192SUsbWorkItem(dev);
-#endif
 #ifdef TO_DO_LIST
 	if(bResult)
 		{
@@ -3339,13 +3252,9 @@ phy_SwChnlStepByStep(
 		case CmdID_RF_WriteReg:	// Only modify channel for the register now !!!!!
 			for(eRFPath = 0; eRFPath <priv->NumTotalRFPath; eRFPath++)
 			{
-#if defined RTL8192SU
 			// For new T65 RF 0222d register 0x18 bit 0-9 = channel number.
 				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, CurrentCmd->Para1, 0x1f, (CurrentCmd->Para2));
 				//printk("====>%x, %x, read_back:%x\n", CurrentCmd->Para2,CurrentCmd->Para1, rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, CurrentCmd->Para1, 0x1f));
-#else
-				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, CurrentCmd->Para1, bRFRegOffsetMask, ((CurrentCmd->Para2)<<7));
-#endif
 			}
 			break;
                 default:
@@ -3813,7 +3722,6 @@ extern void PHY_IQCalibrateBcut(struct net_device* dev)
 //
 //-------------------------Move to other DIR later----------------------------*/
 //#if (DEV_BUS_TYPE == USB_INTERFACE)
-#ifdef RTL8192SU
 
 //    use in phy only (in win it's timer)
 void SwChnlCallback8192SUsb(struct net_device *dev)
@@ -4190,7 +4098,6 @@ void SetBWModeCallback8192SUsbWorkItem(struct net_device *dev)
 }
 
 //--------------------------Move to oter DIR later-------------------------------*/
-#ifdef RTL8192SU
 void InitialGain8192S(struct net_device *dev,	u8 Operation)
 {
 #ifdef TO_DO_LIST
@@ -4198,7 +4105,6 @@ void InitialGain8192S(struct net_device *dev,	u8 Operation)
 #endif
 
 }
-#endif
 
 void InitialGain819xUsb(struct net_device *dev,	u8 Operation)
 {
@@ -4284,7 +4190,6 @@ extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 	}
 }
 
-#endif	// #if (DEV_BUS_TYPE == USB_INTERFACE)
 
 //-----------------------------------------------------------------------------
 //	Description:

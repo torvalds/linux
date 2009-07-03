@@ -495,11 +495,7 @@ void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_
 			{
 				tcb_desc->bCTSEnable	= true;
 				tcb_desc->rts_rate  = 	MGN_24M;
-#if defined(RTL8192SU)
 				tcb_desc->bRTSEnable = false;
-#else
-				tcb_desc->bRTSEnable = true;
-#endif
 				break;
 			}
 			else if(pHTInfo->IOTAction & (HT_IOT_ACT_FORCED_RTS|HT_IOT_ACT_PURE_N_MODE))
