@@ -2563,7 +2563,7 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 	case 20:
 	case 24:
 	case 32:
-		if (maxbps >= 32)
+		if (maxbps >= 32 || format == SNDRV_PCM_FORMAT_FLOAT_LE)
 			val |= 0x40;
 		else if (maxbps >= 24)
 			val |= 0x30;
@@ -2692,7 +2692,8 @@ static int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 		}
 		if (streams & AC_SUPFMT_FLOAT32) {
 			formats |= SNDRV_PCM_FMTBIT_FLOAT_LE;
-			bps = 32;
+			if (!bps)
+				bps = 32;
 		}
 		if (streams == AC_SUPFMT_AC3) {
 			/* should be exclusive */
