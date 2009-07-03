@@ -7033,17 +7033,6 @@ start:
 		//PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, bMaskByte0, 0x11);
 	}
 
-#if (RTL8192SU_DISABLE_IQK==0)
-		// For 1T2R IQK only currently.
-		if (priv->card_8192_version == VERSION_8192S_BCUT)
-		{
-			PHY_IQCalibrateBcut(dev);
-		}
-		else if (priv->card_8192_version == VERSION_8192S_ACUT)
-		{
-			PHY_IQCalibrate(dev);
-		}
-#endif
 
 	//LZM 090219
 	// Set CCK and OFDM Block "ON"
