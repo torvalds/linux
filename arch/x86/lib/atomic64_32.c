@@ -4,7 +4,7 @@
 #include <asm/cmpxchg.h>
 #include <asm/atomic.h>
 
-static inline u64 cmpxchg8b(u64 *ptr, u64 old, u64 new)
+static noinline u64 cmpxchg8b(u64 *ptr, u64 old, u64 new)
 {
 	u32 low = new;
 	u32 high = new >> 32;
@@ -74,7 +74,7 @@ u64 atomic64_read(atomic64_t *ptr)
  *
  * Atomically adds @delta to @ptr and returns @delta + *@ptr
  */
-u64 atomic64_add_return(u64 delta, atomic64_t *ptr)
+noinline u64 atomic64_add_return(u64 delta, atomic64_t *ptr)
 {
 	/*
 	 * Try first with a (probably incorrect) assumption about
