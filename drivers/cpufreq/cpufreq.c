@@ -1070,8 +1070,6 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 #endif
 
-	unlock_policy_rwsem_write(cpu);
-
 	if (cpufreq_driver->target)
 		__cpufreq_governor(data, CPUFREQ_GOV_STOP);
 
@@ -1087,6 +1085,8 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 
 	if (cpufreq_driver->exit)
 		cpufreq_driver->exit(data);
+
+	unlock_policy_rwsem_write(cpu);
 
 	free_cpumask_var(data->related_cpus);
 	free_cpumask_var(data->cpus);
