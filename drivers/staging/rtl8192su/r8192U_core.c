@@ -2981,10 +2981,6 @@ short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb)
 	/* DWORD 0 */
 	tx_desc->TxHT = (tcb_desc->data_rate&0x80)?1:0;
 
-#ifdef RTL8192SU_DISABLE_CCK_RATE
-		if(tx_hal_is_cck_rate(tcb_desc->data_rate))
-			tcb_desc->data_rate = MGN_6M;
-#endif
 
 	tx_desc->TxRate = MRateToHwRate8190Pci(tcb_desc->data_rate);
 	//tx_desc->EnableCPUDur = tcb_desc->bTxEnableFwCalcDur;
@@ -3567,11 +3563,7 @@ void rtl8192SU_net_update(struct net_device *dev)
 	//update Basic rate: RR, BRSR
 	rtl8192_config_rate(dev, &rate_config);	//HalSetBrateCfg
 
-#ifdef RTL8192SU_DISABLE_CCK_RATE
-	priv->basic_rate = rate_config  = rate_config & 0x150; // Disable CCK 11M, 5.5M, 2M, and 1M rates.
-#else
 	priv->basic_rate = rate_config  = rate_config & 0x15f;
-#endif
 
 	// Set RRSR rate table.
 	write_nic_byte(dev, RRSR, rate_config&0xff);
@@ -3700,11 +3692,7 @@ void rtl8192SU_update_ratr_table(struct net_device* dev)
 			break;
 	}
 
-#ifdef RTL8192SU_DISABLE_CCK_RATE
-	ratr_value &= 0x0FFFFFF0;
-#else
 	ratr_value &= 0x0FFFFFFF;
-#endif
 
 	// Get MAX MCS available.
 	if (   (bNMode && ((ieee->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_SHORT_GI)==0)) &&
@@ -6763,11 +6751,7 @@ static void rtl8192SU_MacConfigAfterFwDownload(struct net_device *dev)
 
 	// Set Data Auto Rate Fallback Reg. Added by Roger, 2008.09.22.
 	for (i = 0; i < 8; i++)
-#ifdef RTL8192SU_DISABLE_CCK_RATE
-		write_nic_dword(dev, ARFR0+i*4, 0x1f0ff0f0);
-#else
 		write_nic_dword(dev, ARFR0+i*4, 0x1f0ffff0);
-#endif
 
 	//
 	// Set driver info, we only accept PHY status now.
@@ -6877,11 +6861,7 @@ void rtl8192SU_HwConfigureRTL8192SUsb(struct net_device *dev)
 	// 2008.09.23.
 	//
 	regTmp = read_nic_byte(dev, INIRTSMCS_SEL);
-#ifdef RTL8192SU_DISABLE_CCK_RATE
-	regRRSR = ((regRRSR & 0x000ffff0)<<8) | regTmp;
-#else
 	regRRSR = ((regRRSR & 0x000fffff)<<8) | regTmp;
-#endif
 
 	//
 	// Update SIFS timing.
@@ -6918,11 +6898,7 @@ void rtl8192SU_HwConfigureRTL8192SUsb(struct net_device *dev)
 
 	// Set Data Auto Rate Fallback Reg. Added by Roger, 2008.09.22.
 	for (i = 0; i < 8; i++)
-#ifdef RTL8192SU_DISABLE_CCK_RATE
-		write_nic_dword(dev, ARFR0+i*4, 0x1f0ff0f0);
-#else
 		write_nic_dword(dev, ARFR0+i*4, 0x1f0ffff0);
-#endif
 
 	//
 	// Aggregation length limit. Revised by Roger. 2008.09.22.
