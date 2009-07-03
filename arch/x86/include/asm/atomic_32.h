@@ -19,7 +19,10 @@
  *
  * Atomically reads the value of @v.
  */
-#define atomic_read(v)		((v)->counter)
+static inline int atomic_read(const atomic_t *v)
+{
+	return v->counter;
+}
 
 /**
  * atomic_set - set atomic variable
