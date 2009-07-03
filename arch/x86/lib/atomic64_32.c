@@ -1,5 +1,7 @@
 #include <linux/compiler.h>
+#include <linux/module.h>
 #include <linux/types.h>
+
 #include <asm/processor.h>
 #include <asm/cmpxchg.h>
 #include <asm/atomic.h>
@@ -21,6 +23,7 @@ u64 atomic64_cmpxchg(atomic64_t *ptr, u64 old_val, u64 new_val)
 {
 	return cmpxchg8b(&ptr->counter, old_val, new_val);
 }
+EXPORT_SYMBOL(atomic64_cmpxchg);
 
 /**
  * atomic64_xchg - xchg atomic64 variable
@@ -41,6 +44,7 @@ u64 atomic64_xchg(atomic64_t *ptr, u64 new_val)
 
 	return old_val;
 }
+EXPORT_SYMBOL(atomic64_xchg);
 
 /**
  * atomic64_set - set atomic64 variable
@@ -53,6 +57,7 @@ void atomic64_set(atomic64_t *ptr, u64 new_val)
 {
 	atomic64_xchg(ptr, new_val);
 }
+EXPORT_SYMBOL(atomic64_read);
 
 /**
  * atomic64_read - read atomic64 variable
@@ -74,6 +79,7 @@ u64 atomic64_read(atomic64_t *ptr)
 
 	return res;
 }
+EXPORT_SYMBOL(atomic64_read);
 
 /**
  * atomic64_add_return - add and return
@@ -103,21 +109,25 @@ noinline u64 atomic64_add_return(u64 delta, atomic64_t *ptr)
 
 	return new_val;
 }
+EXPORT_SYMBOL(atomic64_add_return);
 
 u64 atomic64_sub_return(u64 delta, atomic64_t *ptr)
 {
 	return atomic64_add_return(-delta, ptr);
 }
+EXPORT_SYMBOL(atomic64_sub_return);
 
 u64 atomic64_inc_return(atomic64_t *ptr)
 {
 	return atomic64_add_return(1, ptr);
 }
+EXPORT_SYMBOL(atomic64_inc_return);
 
 u64 atomic64_dec_return(atomic64_t *ptr)
 {
 	return atomic64_sub_return(1, ptr);
 }
+EXPORT_SYMBOL(atomic64_dec_return);
 
 /**
  * atomic64_add - add integer to atomic64 variable
@@ -130,6 +140,7 @@ void atomic64_add(u64 delta, atomic64_t *ptr)
 {
 	atomic64_add_return(delta, ptr);
 }
+EXPORT_SYMBOL(atomic64_add);
 
 /**
  * atomic64_sub - subtract the atomic64 variable
@@ -142,6 +153,7 @@ void atomic64_sub(u64 delta, atomic64_t *ptr)
 {
 	atomic64_add(-delta, ptr);
 }
+EXPORT_SYMBOL(atomic64_sub);
 
 /**
  * atomic64_sub_and_test - subtract value from variable and test result
@@ -158,6 +170,7 @@ int atomic64_sub_and_test(u64 delta, atomic64_t *ptr)
 
 	return old_val == 0;
 }
+EXPORT_SYMBOL(atomic64_sub_and_test);
 
 /**
  * atomic64_inc - increment atomic64 variable
@@ -169,6 +182,7 @@ void atomic64_inc(atomic64_t *ptr)
 {
 	atomic64_add(1, ptr);
 }
+EXPORT_SYMBOL(atomic64_inc);
 
 /**
  * atomic64_dec - decrement atomic64 variable
@@ -180,6 +194,7 @@ void atomic64_dec(atomic64_t *ptr)
 {
 	atomic64_sub(1, ptr);
 }
+EXPORT_SYMBOL(atomic64_dec);
 
 /**
  * atomic64_dec_and_test - decrement and test
@@ -193,6 +208,7 @@ int atomic64_dec_and_test(atomic64_t *ptr)
 {
 	return atomic64_sub_and_test(1, ptr);
 }
+EXPORT_SYMBOL(atomic64_dec_and_test);
 
 /**
  * atomic64_inc_and_test - increment and test
@@ -206,6 +222,7 @@ int atomic64_inc_and_test(atomic64_t *ptr)
 {
 	return atomic64_sub_and_test(-1, ptr);
 }
+EXPORT_SYMBOL(atomic64_inc_and_test);
 
 /**
  * atomic64_add_negative - add and test if negative
@@ -222,3 +239,4 @@ int atomic64_add_negative(u64 delta, atomic64_t *ptr)
 
 	return old_val < 0;
 }
+EXPORT_SYMBOL(atomic64_add_negative);
