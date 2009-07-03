@@ -250,7 +250,7 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 /* An 64bit atomic type */
 
 typedef struct {
-	unsigned long long __aligned(8) counter;
+	u64 __aligned(8) counter;
 } atomic64_t;
 
 #define ATOMIC64_INIT(val)	{ (val) }
@@ -264,31 +264,7 @@ typedef struct {
  */
 #define __atomic64_read(ptr)		((ptr)->counter)
 
-static inline unsigned long long
-cmpxchg8b(unsigned long long *ptr, unsigned long long old, unsigned long long new)
-{
-	asm volatile(
-
-		LOCK_PREFIX "cmpxchg8b (%[ptr])\n"
-
-		     :		"=A" (old)
-
-		     : [ptr]	"D" (ptr),
-				"A" (old),
-				"b" (ll_low(new)),
-				"c" (ll_high(new))
-
-		     : "memory");
-
-	return old;
-}
-
-static inline unsigned long long
-atomic64_cmpxchg(atomic64_t *ptr, unsigned long long old_val,
-		 unsigned long long new_val)
-{
-	return cmpxchg8b(&ptr->counter, old_val, new_val);
-}
+extern u64 atomic64_cmpxchg(atomic64_t *ptr, u64 old_val, u64 new_val);
 
 /**
  * atomic64_xchg - xchg atomic64 variable
@@ -298,18 +274,7 @@ atomic64_cmpxchg(atomic64_t *ptr, unsigned long long old_val,
  * Atomically xchgs the value of @ptr to @new_val and returns
  * the old value.
  */
-
-static inline unsigned long long
-atomic64_xchg(atomic64_t *ptr, unsigned long long new_val)
-{
-	unsigned long long old_val;
-
-	do {
-		old_val = atomic_read(ptr);
-	} while (atomic64_cmpxchg(ptr, old_val, new_val) != old_val);
-
-	return old_val;
-}
+extern u64 atomic64_xchg(atomic64_t *ptr, u64 new_val);
 
 /**
  * atomic64_set - set atomic64 variable
@@ -318,10 +283,7 @@ atomic64_xchg(atomic64_t *ptr, unsigned long long new_val)
  *
  * Atomically sets the value of @ptr to @new_val.
  */
-static inline void atomic64_set(atomic64_t *ptr, unsigned long long new_val)
-{
-	atomic64_xchg(ptr, new_val);
-}
+extern void atomic64_set(atomic64_t *ptr, u64 new_val);
 
 /**
  * atomic64_read - read atomic64 variable
@@ -329,16 +291,7 @@ static inline void atomic64_set(atomic64_t *ptr, unsigned long long new_val)
  *
  * Atomically reads the value of @ptr and returns it.
  */
-static inline unsigned long long atomic64_read(atomic64_t *ptr)
-{
-	unsigned long long curr_val;
-
-	do {
-		curr_val = __atomic64_read(ptr);
-	} while (atomic64_cmpxchg(ptr, curr_val, curr_val) != curr_val);
-
-	return curr_val;
-}
+extern u64 atomic64_read(atomic64_t *ptr);
 
 /**
  * atomic64_add_return - add and return
@@ -347,34 +300,14 @@ static inline unsigned long long atomic64_read(atomic64_t *ptr)
  *
  * Atomically adds @delta to @ptr and returns @delta + *@ptr
  */
-static inline unsigned long long
-atomic64_add_return(unsigned long long delta, atomic64_t *ptr)
-{
-	unsigned long long old_val, new_val;
+extern u64 atomic64_add_return(u64 delta, atomic64_t *ptr);
 
-	do {
-		old_val = atomic_read(ptr);
-		new_val = old_val + delta;
-
-	} while (atomic64_cmpxchg(ptr, old_val, new_val) != old_val);
-
-	return new_val;
-}
-
-static inline long atomic64_sub_return(unsigned long long delta, atomic64_t *ptr)
-{
-	return atomic64_add_return(-delta, ptr);
-}
-
-static inline long atomic64_inc_return(atomic64_t *ptr)
-{
-	return atomic64_add_return(1, ptr);
-}
-
-static inline long atomic64_dec_return(atomic64_t *ptr)
-{
-	return atomic64_sub_return(1, ptr);
-}
+/*
+ * Other variants with different arithmetic operators:
+ */
+extern u64 atomic64_sub_return(u64 delta, atomic64_t *ptr);
+extern u64 atomic64_inc_return(atomic64_t *ptr);
+extern u64 atomic64_dec_return(atomic64_t *ptr);
 
 /**
  * atomic64_add - add integer to atomic64 variable
@@ -383,10 +316,7 @@ static inline long atomic64_dec_return(atomic64_t *ptr)
  *
  * Atomically adds @delta to @ptr.
  */
-static inline void atomic64_add(unsigned long long delta, atomic64_t *ptr)
-{
-	atomic64_add_return(delta, ptr);
-}
+extern void atomic64_add(u64 delta, atomic64_t *ptr);
 
 /**
  * atomic64_sub - subtract the atomic64 variable
@@ -395,10 +325,7 @@ static inline void atomic64_add(unsigned long long delta, atomic64_t *ptr)
  *
  * Atomically subtracts @delta from @ptr.
  */
-static inline void atomic64_sub(unsigned long long delta, atomic64_t *ptr)
-{
-	atomic64_add(-delta, ptr);
-}
+extern void atomic64_sub(u64 delta, atomic64_t *ptr);
 
 /**
  * atomic64_sub_and_test - subtract value from variable and test result
@@ -409,13 +336,7 @@ static inline void atomic64_sub(unsigned long long delta, atomic64_t *ptr)
  * true if the result is zero, or false for all
  * other cases.
  */
-static inline int
-atomic64_sub_and_test(unsigned long long delta, atomic64_t *ptr)
-{
-	unsigned long long old_val = atomic64_sub_return(delta, ptr);
-
-	return old_val == 0;
-}
+extern int atomic64_sub_and_test(u64 delta, atomic64_t *ptr);
 
 /**
  * atomic64_inc - increment atomic64 variable
@@ -423,10 +344,7 @@ atomic64_sub_and_test(unsigned long long delta, atomic64_t *ptr)
  *
  * Atomically increments @ptr by 1.
  */
-static inline void atomic64_inc(atomic64_t *ptr)
-{
-	atomic64_add(1, ptr);
-}
+extern void atomic64_inc(atomic64_t *ptr);
 
 /**
  * atomic64_dec - decrement atomic64 variable
@@ -434,10 +352,7 @@ static inline void atomic64_inc(atomic64_t *ptr)
  *
  * Atomically decrements @ptr by 1.
  */
-static inline void atomic64_dec(atomic64_t *ptr)
-{
-	atomic64_sub(1, ptr);
-}
+extern void atomic64_dec(atomic64_t *ptr);
 
 /**
  * atomic64_dec_and_test - decrement and test
@@ -447,10 +362,7 @@ static inline void atomic64_dec(atomic64_t *ptr)
  * returns true if the result is 0, or false for all other
  * cases.
  */
-static inline int atomic64_dec_and_test(atomic64_t *ptr)
-{
-	return atomic64_sub_and_test(1, ptr);
-}
+extern int atomic64_dec_and_test(atomic64_t *ptr);
 
 /**
  * atomic64_inc_and_test - increment and test
@@ -460,10 +372,7 @@ static inline int atomic64_dec_and_test(atomic64_t *ptr)
  * and returns true if the result is zero, or false for all
  * other cases.
  */
-static inline int atomic64_inc_and_test(atomic64_t *ptr)
-{
-	return atomic64_sub_and_test(-1, ptr);
-}
+extern int atomic64_inc_and_test(atomic64_t *ptr);
 
 /**
  * atomic64_add_negative - add and test if negative
@@ -474,13 +383,7 @@ static inline int atomic64_inc_and_test(atomic64_t *ptr)
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-static inline int
-atomic64_add_negative(unsigned long long delta, atomic64_t *ptr)
-{
-	long long old_val = atomic64_add_return(delta, ptr);
-
-	return old_val < 0;
-}
+extern int atomic64_add_negative(u64 delta, atomic64_t *ptr);
 
 #include <asm-generic/atomic-long.h>
 #endif /* _ASM_X86_ATOMIC_32_H */
