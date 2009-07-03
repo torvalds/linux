@@ -187,10 +187,10 @@ static inline int atomic_add_return(int i, atomic_t *v)
 
 #ifdef CONFIG_M386
 no_xadd: /* Legacy 386 processor */
-	local_irq_save(flags);
+	raw_local_irq_save(flags);
 	__i = atomic_read(v);
 	atomic_set(v, i + __i);
-	local_irq_restore(flags);
+	raw_local_irq_restore(flags);
 	return i + __i;
 #endif
 }
