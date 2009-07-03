@@ -5319,10 +5319,12 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	/* Add pointers to enable iwspy support. */
 	priv->wireless_data.spy_data = &priv->spy_data;
+#ifdef CONFIG_WIRELESS_EXT
 	netdev->wireless_data = &priv->wireless_data;
+	netdev->wireless_handlers = &at76_handler_def;
+#endif
 
 	netdev->watchdog_timeo = 2 * HZ;
-	netdev->wireless_handlers = &at76_handler_def;
 	dev_alloc_name(netdev, "wlan%d");
 
 	ret = register_netdev(priv->netdev);
