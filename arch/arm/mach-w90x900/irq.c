@@ -10,8 +10,7 @@
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * the Free Software Foundation;version 2 of the License.
  *
  */
 
@@ -29,9 +28,114 @@
 #include <mach/hardware.h>
 #include <mach/regs-irq.h>
 
+struct group_irq {
+	unsigned long		gpen;
+	unsigned int		enabled;
+	void			(*enable)(struct group_irq *, int enable);
+};
+
+static DEFINE_SPINLOCK(groupirq_lock);
+
+#define DEFINE_GROUP(_name, _ctrlbit, _num)			\
+struct group_irq group_##_name = {				\
+		.enable		= w90x900_group_enable,		\
+		.gpen		= ((2 ^ _num) - 1) << _ctrlbit,	\
+	}
+
+static void w90x900_group_enable(struct group_irq *gpirq, int enable);
+
+static DEFINE_GROUP(nirq0, 0, 4);
+static DEFINE_GROUP(nirq1, 4, 4);
+static DEFINE_GROUP(usbh, 8, 2);
+static DEFINE_GROUP(ottimer, 16, 3);
+static DEFINE_GROUP(gdma, 20, 2);
+static DEFINE_GROUP(sc, 24, 2);
+static DEFINE_GROUP(i2c, 26, 2);
+static DEFINE_GROUP(ps2, 28, 2);
+
+static int group_irq_enable(struct group_irq *group_irq)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&groupirq_lock, flags);
+	if (group_irq->enabled++ == 0)
+		(group_irq->enable)(group_irq, 1);
+	spin_unlock_irqrestore(&groupirq_lock, flags);
+
+	return 0;
+}
+
+static void group_irq_disable(struct group_irq *group_irq)
+{
+	unsigned long flags;
+
+	WARN_ON(group_irq->enabled == 0);
+
+	spin_lock_irqsave(&groupirq_lock, flags);
+	if (--group_irq->enabled == 0)
+		(group_irq->enable)(group_irq, 0);
+	spin_unlock_irqrestore(&groupirq_lock, flags);
+}
+
+static void w90x900_group_enable(struct group_irq *gpirq, int enable)
+{
+	unsigned int groupen = gpirq->gpen;
+	unsigned long regval;
+
+	regval = __raw_readl(REG_AIC_GEN);
+
+	if (enable)
+		regval |= groupen;
+	else
+		regval &= ~groupen;
+
+	__raw_writel(regval, REG_AIC_GEN);
+}
+
 static void w90x900_irq_mask(unsigned int irq)
 {
+	struct group_irq *group_irq;
+
+	group_irq = NULL;
+
 	__raw_writel(1 << irq, REG_AIC_MDCR);
+
+	switch (irq) {
+	case IRQ_GROUP0:
+		group_irq = &group_nirq0;
+		break;
+
+	case IRQ_GROUP1:
+		group_irq = &group_nirq1;
+		break;
+
+	case IRQ_USBH:
+		group_irq = &group_usbh;
+		break;
+
+	case IRQ_T_INT_GROUP:
+		group_irq = &group_ottimer;
+		break;
+
+	case IRQ_GDMAGROUP:
+		group_irq = &group_gdma;
+		break;
+
+	case IRQ_SCGROUP:
+		group_irq = &group_sc;
+		break;
+
+	case IRQ_I2CGROUP:
+		group_irq = &group_i2c;
+		break;
+
+	case IRQ_P2SGROUP:
+		group_irq = &group_ps2;
+		break;
+	}
+
+	if (group_irq)
+		group_irq_disable(group_irq);
 }
 
 /*
@@ -46,14 +150,48 @@ static void w90x900_irq_ack(unsigned int irq)
 
 static void w90x900_irq_unmask(unsigned int irq)
 {
-	unsigned long mask;
+	struct group_irq *group_irq;
 
-	if (irq == IRQ_T_INT_GROUP) {
-		mask = __raw_readl(REG_AIC_GEN);
-		__raw_writel(TIME_GROUP_IRQ | mask, REG_AIC_GEN);
-		__raw_writel(1 << IRQ_T_INT_GROUP, REG_AIC_MECR);
-	}
+	group_irq = NULL;
+
 	__raw_writel(1 << irq, REG_AIC_MECR);
+
+	switch (irq) {
+	case IRQ_GROUP0:
+		group_irq = &group_nirq0;
+		break;
+
+	case IRQ_GROUP1:
+		group_irq = &group_nirq1;
+		break;
+
+	case IRQ_USBH:
+		group_irq = &group_usbh;
+		break;
+
+	case IRQ_T_INT_GROUP:
+		group_irq = &group_ottimer;
+		break;
+
+	case IRQ_GDMAGROUP:
+		group_irq = &group_gdma;
+		break;
+
+	case IRQ_SCGROUP:
+		group_irq = &group_sc;
+		break;
+
+	case IRQ_I2CGROUP:
+		group_irq = &group_i2c;
+		break;
+
+	case IRQ_P2SGROUP:
+		group_irq = &group_ps2;
+		break;
+	}
+
+	if (group_irq)
+		group_irq_enable(group_irq);
 }
 
 static struct irq_chip w90x900_irq_chip = {
