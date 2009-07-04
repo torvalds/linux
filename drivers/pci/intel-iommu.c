@@ -2368,15 +2368,15 @@ error:
 	return ret;
 }
 
+/* Returns a number of VTD pages, but aligned to MM page size */
 static inline unsigned long aligned_nrpages(unsigned long host_addr,
 					    size_t size)
 {
 	host_addr &= ~PAGE_MASK;
-	host_addr += size + PAGE_SIZE - 1;
-
-	return host_addr >> VTD_PAGE_SHIFT;
+	return PAGE_ALIGN(host_addr + size) >> VTD_PAGE_SHIFT;
 }
 
+/* This takes a number of _MM_ pages, not VTD pages */
 static struct iova *intel_alloc_iova(struct device *dev,
 				     struct dmar_domain *domain,
 				     unsigned long nrpages, uint64_t dma_mask)
@@ -2506,7 +2506,8 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	iommu = domain_get_iommu(domain);
 	size = aligned_nrpages(paddr, size);
 
-	iova = intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
+	iova = intel_alloc_iova(hwdev, domain, dma_to_mm_pfn(size),
+				pdev->dma_mask);
 	if (!iova)
 		goto error;
 
@@ -2797,7 +2798,8 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	for_each_sg(sglist, sg, nelems, i)
 		size += aligned_nrpages(sg->offset, sg->length);
 
-	iova = intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
+	iova = intel_alloc_iova(hwdev, domain, dma_to_mm_pfn(size),
+				pdev->dma_mask);
 	if (!iova) {
 		sglist->dma_length = 0;
 		return 0;
