@@ -114,8 +114,7 @@ struct ath5k_softc {
 	struct pci_dev		*pdev;		/* for dma mapping */
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
-	/* FIXME: how many does it really need? */
-	struct ieee80211_tx_queue_stats tx_stats[16];
+	struct ieee80211_tx_queue_stats tx_stats[AR5K_NUM_TX_QUEUES];
 	struct ieee80211_low_level_stats ll_stats;
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
@@ -171,9 +170,8 @@ struct ath5k_softc {
 	struct list_head	txbuf;		/* transmit buffer */
 	spinlock_t		txbuflock;
 	unsigned int		txbuf_len;	/* buf count in txbuf list */
-	struct ath5k_txq	txqs[2];	/* beacon and tx */
-
-	struct ath5k_txq	*txq;		/* beacon and tx*/
+	struct ath5k_txq	txqs[AR5K_NUM_TX_QUEUES];	/* tx queues */
+	struct ath5k_txq	*txq;		/* main tx queue */
 	struct tasklet_struct	txtq;		/* tx intr tasklet */
 	struct ath5k_led	tx_led;		/* tx led */
 
@@ -187,6 +185,7 @@ struct ath5k_softc {
 				bintval,	/* beacon interval in TU */
 				bsent;
 	unsigned int		nexttbtt;	/* next beacon time in TU */
+	struct ath5k_txq	*cabq;		/* content after beacon */
 
 	struct timer_list	calib_tim;	/* calibration timer */
 	int 			power_level;	/* Requested tx power in dbm */

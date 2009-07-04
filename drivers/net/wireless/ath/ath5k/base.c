@@ -218,6 +218,8 @@ static struct pci_driver ath5k_pci_driver = {
  * Prototypes - MAC 802.11 stack related functions
  */
 static int ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
+		struct ath5k_txq *txq);
 static int ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan);
 static int ath5k_reset_wake(struct ath5k_softc *sc);
 static int ath5k_start(struct ieee80211_hw *hw);
@@ -301,7 +303,8 @@ static void	ath5k_desc_free(struct ath5k_softc *sc,
 static int 	ath5k_rxbuf_setup(struct ath5k_softc *sc,
 				struct ath5k_buf *bf);
 static int 	ath5k_txbuf_setup(struct ath5k_softc *sc,
-				struct ath5k_buf *bf);
+				struct ath5k_buf *bf,
+				struct ath5k_txq *txq);
 static inline void ath5k_txbuf_free(struct ath5k_softc *sc,
 				struct ath5k_buf *bf)
 {
@@ -516,6 +519,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	/* Initialize driver private data */
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		    IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM;
 
@@ -789,12 +793,18 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 		goto err_desc;
 	}
 	sc->bhalq = ret;
+	sc->cabq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_CAB, 0);
+	if (IS_ERR(sc->cabq)) {
+		ATH5K_ERR(sc, "can't setup cab queue\n");
+		ret = PTR_ERR(sc->cabq);
+		goto err_bhal;
+	}
 
 	sc->txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BK);
 	if (IS_ERR(sc->txq)) {
 		ATH5K_ERR(sc, "can't setup xmit queue\n");
 		ret = PTR_ERR(sc->txq);
-		goto err_bhal;
+		goto err_queues;
 	}
 
 	tasklet_init(&sc->rxtq, ath5k_tasklet_rx, (unsigned long)sc);
@@ -1232,10 +1242,10 @@ ath5k_rxbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 }
 
 static int
-ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
+ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
+		  struct ath5k_txq *txq)
 {
 	struct ath5k_hw *ah = sc->ah;
-	struct ath5k_txq *txq = sc->txq;
 	struct ath5k_desc *ds = bf->desc;
 	struct sk_buff *skb = bf->skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -2103,6 +2113,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 {
 	struct ath5k_buf *bf = sc->bbuf;
 	struct ath5k_hw *ah = sc->ah;
+	struct sk_buff *skb;
 
 	ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON, "in beacon_send\n");
 
@@ -2155,6 +2166,12 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	ath5k_hw_start_tx_dma(ah, sc->bhalq);
 	ATH5K_DBG(sc, ATH5K_DEBUG_BEACON, "TXDP[%u] = %llx (%p)\n",
 		sc->bhalq, (unsigned long long)bf->daddr, bf->desc);
+
+	skb = ieee80211_get_buffered_bc(sc->hw, sc->vif);
+	while (skb) {
+		ath5k_tx_queue(sc->hw, skb, sc->cabq);
+		skb = ieee80211_get_buffered_bc(sc->hw, sc->vif);
+	}
 
 	sc->bsent++;
 }
@@ -2603,6 +2620,14 @@ static int
 ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ath5k_softc *sc = hw->priv;
+
+	return ath5k_tx_queue(hw, skb, sc->txq);
+}
+
+static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
+			  struct ath5k_txq *txq)
+{
+	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_buf *bf;
 	unsigned long flags;
 	int hdrlen;
@@ -2646,7 +2671,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	bf->skb = skb;
 
-	if (ath5k_txbuf_setup(sc, bf)) {
+	if (ath5k_txbuf_setup(sc, bf, txq)) {
 		bf->skb = NULL;
 		spin_lock_irqsave(&sc->txbuflock, flags);
 		list_add_tail(&bf->list, &sc->txbuf);

@@ -411,7 +411,6 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 			AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_MISC(queue),
 				AR5K_QCU_MISC_FRSHED_BCN_SENT_GT |
 				AR5K_QCU_MISC_CBREXP_DIS |
-				AR5K_QCU_MISC_RDY_VEOL_POLICY |
 				AR5K_QCU_MISC_CBREXP_BCN_DIS);
 
 			ath5k_hw_reg_write(ah, ((AR5K_TUNE_BEACON_INTERVAL -
