@@ -2117,6 +2117,17 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 	return 0;
 }
 
+static int iommu_should_identity_map(struct pci_dev *pdev, int startup)
+{
+	if (iommu_identity_mapping == 2)
+		return IS_GFX_DEVICE(pdev);
+
+	if (!startup)
+		return pdev->dma_mask > DMA_BIT_MASK(32);
+
+	return 1;
+}
+
 static int iommu_prepare_static_identity_mapping(void)
 {
 	struct pci_dev *pdev = NULL;
@@ -2127,7 +2138,7 @@ static int iommu_prepare_static_identity_mapping(void)
 		return -EFAULT;
 
 	for_each_pci_dev(pdev) {
-		if (iommu_identity_mapping == 1 || IS_GFX_DEVICE(pdev)) {
+		if (iommu_should_identity_map(pdev, 1)) {
 			printk(KERN_INFO "IOMMU: identity mapping for device %s\n",
 			       pci_name(pdev));
 
@@ -2448,14 +2459,6 @@ static int iommu_dummy(struct pci_dev *pdev)
 	return pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO;
 }
 
-static int iommu_should_identity_map(struct pci_dev *pdev)
-{
-	if (iommu_identity_mapping == 2)
-		return IS_GFX_DEVICE(pdev);
-	else
-		return pdev->dma_mask > DMA_BIT_MASK(32);
-}
-
 /* Check if the pdev needs to go through non-identity map and unmap process.*/
 static int iommu_no_mapping(struct device *dev)
 {
@@ -2474,7 +2477,7 @@ static int iommu_no_mapping(struct device *dev)
 
 	found = identity_mapping(pdev);
 	if (found) {
-		if (iommu_should_identity_map(pdev))
+		if (iommu_should_identity_map(pdev, 0))
 			return 1;
 		else {
 			/*
@@ -2491,7 +2494,7 @@ static int iommu_no_mapping(struct device *dev)
 		 * In case of a detached 64 bit DMA device from vm, the device
 		 * is put into si_domain for identity mapping.
 		 */
-		if (iommu_should_identity_map(pdev)) {
+		if (iommu_should_identity_map(pdev, 0)) {
 			int ret;
 			ret = domain_add_dev_info(si_domain, pdev);
 			if (ret)
