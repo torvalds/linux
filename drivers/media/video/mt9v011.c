@@ -124,24 +124,12 @@ static const struct i2c_reg_value mt9v011_init_default[] = {
 		{ R0D_MT9V011_RESET, 0x0001 },
 		{ R0D_MT9V011_RESET, 0x0000 },
 
-		{ R09_MT9V011_SHUTTER_WIDTH, 0x0418 },
-		{ R0A_MT9V011_CLK_SPEED, 0x0000 },
 		{ R0C_MT9V011_SHUTTER_DELAY, 0x0000 },
-		{ R1E_MT9V011_DIGITAL_ZOOM,  0x0000 },
-		{ R20_MT9V011_READ_MODE, 0x1100 },
+		{ R09_MT9V011_SHUTTER_WIDTH, 0x1fc },
 
-		/*
-		 * Those registers are not docummented at the datasheet.
-		 * However, the original driver initializes them
-		 */
-		{ 0x30, 0x0005 },
-		{ 0x34, 0x0100 },
-		{ 0x3d, 0x068f },
-		{ 0x40, 0x01e0 },
-		{ 0x52, 0x0100 },
-		{ 0x58, 0x0038 },	/* Datasheet default 0x0078 */
-		{ 0x59, 0x0723 },	/* Datasheet default 0x0703 */
-		{ 0x62, 0x041a },	/* Datasheet default 0x0418 */
+		{ R0A_MT9V011_CLK_SPEED, 0x0000 },
+		{ R1E_MT9V011_DIGITAL_ZOOM,  0x0000 },
+		{ R20_MT9V011_READ_MODE, 0x1000 },
 
 		{ R07_MT9V011_OUT_CTRL, 0x000a },	/* chip enable */
 };
@@ -177,6 +165,9 @@ static void set_res(struct v4l2_subdev *sd)
 	 * hblank and vblank should be adjusted, in order to warrant that
 	 * we'll preserve the line timings for 30 fps, no matter what resolution
 	 * is selected.
+	 * NOTE: datasheet says that width (and height) should be filled with
+	 * width-1. However, this doesn't work, since one pixel per line will
+	 * be missing.
 	 */
 
 	hstart = 14 + (640 - core->width) / 2;
