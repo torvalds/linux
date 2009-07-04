@@ -3670,13 +3670,14 @@ static void
 fc_bsg_goose_queue(struct fc_rport *rport)
 {
 	int flagset;
+	unsigned long flags;
 
 	if (!rport->rqst_q)
 		return;
 
 	get_device(&rport->dev);
 
-	spin_lock(rport->rqst_q->queue_lock);
+	spin_lock_irqsave(rport->rqst_q->queue_lock, flags);
 	flagset = test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags) &&
 		  !test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags);
 	if (flagset)
@@ -3684,7 +3685,7 @@ fc_bsg_goose_queue(struct fc_rport *rport)
 	__blk_run_queue(rport->rqst_q);
 	if (flagset)
 		queue_flag_clear(QUEUE_FLAG_REENTER, rport->rqst_q);
-	spin_unlock(rport->rqst_q->queue_lock);
+	spin_unlock_irqrestore(rport->rqst_q->queue_lock, flags);
 
 	put_device(&rport->dev);
 }

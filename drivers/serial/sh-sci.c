@@ -707,12 +707,13 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 {
-	unsigned short ssr_status, scr_status;
+	unsigned short ssr_status, scr_status, err_enabled;
 	struct uart_port *port = ptr;
 	irqreturn_t ret = IRQ_NONE;
 
 	ssr_status = sci_in(port, SCxSR);
 	scr_status = sci_in(port, SCSCR);
+	err_enabled = scr_status & (SCI_CTRL_FLAGS_REIE | SCI_CTRL_FLAGS_RIE);
 
 	/* Tx Interrupt */
 	if ((ssr_status & 0x0020) && (scr_status & SCI_CTRL_FLAGS_TIE))
@@ -721,10 +722,10 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	if ((ssr_status & 0x0002) && (scr_status & SCI_CTRL_FLAGS_RIE))
 		ret = sci_rx_interrupt(irq, ptr);
 	/* Error Interrupt */
-	if ((ssr_status & 0x0080) && (scr_status & SCI_CTRL_FLAGS_REIE))
+	if ((ssr_status & 0x0080) && err_enabled)
 		ret = sci_er_interrupt(irq, ptr);
 	/* Break Interrupt */
-	if ((ssr_status & 0x0010) && (scr_status & SCI_CTRL_FLAGS_REIE))
+	if ((ssr_status & 0x0010) && err_enabled)
 		ret = sci_br_interrupt(irq, ptr);
 
 	return ret;

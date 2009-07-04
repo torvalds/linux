@@ -1788,7 +1788,7 @@ static void merge_func(struct btrfs_work *work)
 		btrfs_end_transaction(trans, root);
 	}
 
-	btrfs_drop_dead_root(reloc_root);
+	btrfs_drop_snapshot(reloc_root, 0);
 
 	if (atomic_dec_and_test(async->num_pending))
 		complete(async->done);
@@ -2075,9 +2075,6 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 
 			ret = btrfs_drop_subtree(trans, root, eb, upper->eb);
 			BUG_ON(ret);
-
-			btrfs_tree_unlock(eb);
-			free_extent_buffer(eb);
 		}
 		if (!lowest) {
 			btrfs_tree_unlock(upper->eb);
