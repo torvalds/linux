@@ -2,7 +2,7 @@
  * Page fault handler for SH with an MMU.
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2003 - 2008  Paul Mundt
+ *  Copyright (C) 2003 - 2009  Paul Mundt
  *
  *  Based on linux/arch/i386/mm/fault.c:
  *   Copyright (C) 1995  Linus Torvalds
@@ -35,6 +35,74 @@ static inline int notify_page_fault(struct pt_regs *regs, int trap)
 	return ret;
 }
 
+static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
+{
+	unsigned index = pgd_index(address);
+	pgd_t *pgd_k;
+	pud_t *pud, *pud_k;
+	pmd_t *pmd, *pmd_k;
+
+	pgd += index;
+	pgd_k = init_mm.pgd + index;
+
+	if (!pgd_present(*pgd_k))
+		return NULL;
+
+	pud = pud_offset(pgd, address);
+	pud_k = pud_offset(pgd_k, address);
+	if (!pud_present(*pud_k))
+		return NULL;
+
+	pmd = pmd_offset(pud, address);
+	pmd_k = pmd_offset(pud_k, address);
+	if (!pmd_present(*pmd_k))
+		return NULL;
+
+	if (!pmd_present(*pmd))
+		set_pmd(pmd, *pmd_k);
+	else
+		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
+
+	return pmd_k;
+}
+
+/*
+ * Handle a fault on the vmalloc or module mapping area
+ */
+static noinline int vmalloc_fault(unsigned long address)
+{
+	pgd_t *pgd_k;
+	pmd_t *pmd_k;
+	pte_t *pte_k;
+
+	/* Make sure we are in vmalloc area: */
+	if (!(address >= VMALLOC_START && address < VMALLOC_END))
+		return -1;
+
+	/*
+	 * Synchronize this task's top level page-table
+	 * with the 'reference' page table.
+	 *
+	 * Do _not_ use "current" here. We might be inside
+	 * an interrupt in the middle of a task switch..
+	 */
+	pgd_k = get_TTB();
+	pmd_k = vmalloc_sync_one(__va((unsigned long)pgd_k), address);
+	if (!pmd_k)
+		return -1;
+
+	pte_k = pte_offset_kernel(pmd_k, address);
+	if (!pte_present(*pte_k))
+		return -1;
+
+	return 0;
+}
+
+static int fault_in_kernel_space(unsigned long address)
+{
+	return address >= TASK_SIZE;
+}
+
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
@@ -44,6 +112,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 					unsigned long writeaccess,
 					unsigned long address)
 {
+	unsigned long vec;
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
@@ -51,59 +120,30 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	int fault;
 	siginfo_t info;
 
-	/*
-	 * We don't bother with any notifier callbacks here, as they are
-	 * all handled through the __do_page_fault() fast-path.
-	 */
-
 	tsk = current;
+	mm = tsk->mm;
 	si_code = SEGV_MAPERR;
+	vec = lookup_exception_vector();
 
-	if (unlikely(address >= TASK_SIZE)) {
-		/*
-		 * Synchronize this task's top level page-table
-		 * with the 'reference' page table.
-		 *
-		 * Do _not_ use "tsk" here. We might be inside
-		 * an interrupt in the middle of a task switch..
-		 */
-		int offset = pgd_index(address);
-		pgd_t *pgd, *pgd_k;
-		pud_t *pud, *pud_k;
-		pmd_t *pmd, *pmd_k;
-
-		pgd = get_TTB() + offset;
-		pgd_k = swapper_pg_dir + offset;
-
-		if (!pgd_present(*pgd)) {
-			if (!pgd_present(*pgd_k))
-				goto bad_area_nosemaphore;
-			set_pgd(pgd, *pgd_k);
+	/*
+	 * We fault-in kernel-space virtual memory on-demand. The
+	 * 'reference' page table is init_mm.pgd.
+	 *
+	 * NOTE! We MUST NOT take any locks for this case. We may
+	 * be in an interrupt or a critical region, and should
+	 * only copy the information from the master page table,
+	 * nothing more.
+	 */
+	if (unlikely(fault_in_kernel_space(address))) {
+		if (vmalloc_fault(address) >= 0)
 			return;
-		}
-
-		pud = pud_offset(pgd, address);
-		pud_k = pud_offset(pgd_k, address);
-
-		if (!pud_present(*pud)) {
-			if (!pud_present(*pud_k))
-				goto bad_area_nosemaphore;
-			set_pud(pud, *pud_k);
+		if (notify_page_fault(regs, vec))
 			return;
-		}
 
-		pmd = pmd_offset(pud, address);
-		pmd_k = pmd_offset(pud_k, address);
-		if (pmd_present(*pmd) || !pmd_present(*pmd_k))
-			goto bad_area_nosemaphore;
-		set_pmd(pmd, *pmd_k);
-
-		return;
+		goto bad_area_nosemaphore;
 	}
 
-	mm = tsk->mm;
-
-	if (unlikely(notify_page_fault(regs, lookup_exception_vector())))
+	if (unlikely(notify_page_fault(regs, vec)))
 		return;
 
 	/* Only enable interrupts if they were on before the fault */
@@ -113,8 +153,8 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt, have no user context or are running
+	 * in an atomic region then we must not take the fault:
 	 */
 	if (in_atomic() || !mm)
 		goto no_context;
@@ -130,10 +170,11 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		goto bad_area;
 	if (expand_stack(vma, address))
 		goto bad_area;
-/*
- * Ok, we have a good vm_area for this memory access, so
- * we can handle it..
- */
+
+	/*
+	 * Ok, we have a good vm_area for this memory access, so
+	 * we can handle it..
+	 */
 good_area:
 	si_code = SEGV_ACCERR;
 	if (writeaccess) {
@@ -171,10 +212,10 @@ survive:
 	up_read(&mm->mmap_sem);
 	return;
 
-/*
- * Something tried to access memory that isn't in our memory map..
- * Fix it, but check if it's kernel or user first..
- */
+	/*
+	 * Something tried to access memory that isn't in our memory map..
+	 * Fix it, but check if it's kernel or user first..
+	 */
 bad_area:
 	up_read(&mm->mmap_sem);
 
