@@ -27,8 +27,9 @@
 
 /* L2CAP defaults */
 #define L2CAP_DEFAULT_MTU		672
+#define L2CAP_DEFAULT_MIN_MTU		48
 #define L2CAP_DEFAULT_FLUSH_TO		0xffff
-#define L2CAP_DEFAULT_RX_WINDOW		1
+#define L2CAP_DEFAULT_TX_WINDOW		1
 #define L2CAP_DEFAULT_MAX_RECEIVE	1
 #define L2CAP_DEFAULT_RETRANS_TO	300    /* 300 milliseconds */
 #define L2CAP_DEFAULT_MONITOR_TO	1000   /* 1 second */
@@ -272,6 +273,9 @@ struct l2cap_pinfo {
 	__u16		omtu;
 	__u16		flush_to;
 	__u8		mode;
+	__u8		num_conf_req;
+	__u8		num_conf_rsp;
+
 	__u8		fcs;
 	__u8		sec_level;
 	__u8		role_switch;
@@ -280,9 +284,14 @@ struct l2cap_pinfo {
 	__u8		conf_req[64];
 	__u8		conf_len;
 	__u8		conf_state;
-	__u8		conf_retry;
 
 	__u8		ident;
+
+	__u8		remote_tx_win;
+	__u8		remote_max_tx;
+	__u16		retrans_timeout;
+	__u16		monitor_timeout;
+	__u16		max_pdu_size;
 
 	__le16		sport;
 
@@ -291,12 +300,17 @@ struct l2cap_pinfo {
 	struct sock		*prev_c;
 };
 
-#define L2CAP_CONF_REQ_SENT	0x01
-#define L2CAP_CONF_INPUT_DONE	0x02
-#define L2CAP_CONF_OUTPUT_DONE	0x04
-#define L2CAP_CONF_CONNECT_PEND	0x80
+#define L2CAP_CONF_REQ_SENT       0x01
+#define L2CAP_CONF_INPUT_DONE     0x02
+#define L2CAP_CONF_OUTPUT_DONE    0x04
+#define L2CAP_CONF_MTU_DONE       0x08
+#define L2CAP_CONF_MODE_DONE      0x10
+#define L2CAP_CONF_CONNECT_PEND   0x20
+#define L2CAP_CONF_STATE2_DEVICE  0x80
 
-#define L2CAP_CONF_MAX_RETRIES	2
+#define L2CAP_CONF_MAX_CONF_REQ 2
+#define L2CAP_CONF_MAX_CONF_RSP 2
+
 
 void l2cap_load(void);
 
