@@ -73,7 +73,7 @@ static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 		 * Prefetch_EN / IORDY_EN / PA[3:0] bits of register A
 		 */
 		AP &= ~0x3f;
-		if (ata_id_iordy_disable(drive->id))
+		if (ide_pio_need_iordy(drive, speed - XFER_PIO_0))
 			AP |= 0x20;	/* set IORDY_EN bit */
 		if (drive->media == ide_disk)
 			AP |= 0x10;	/* set Prefetch_EN bit */
@@ -102,6 +102,27 @@ static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 static void pdc202xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	pdc202xx_set_mode(drive, XFER_PIO_0 + pio);
+}
+
+static int pdc202xx_test_irq(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	unsigned long high_16	= pci_resource_start(dev, 4);
+	u8 sc1d			= inb(high_16 + 0x1d);
+
+	if (hwif->channel) {
+		/*
+		 * bit 7: error, bit 6: interrupting,
+		 * bit 5: FIFO full, bit 4: FIFO empty
+		 */
+		return ((sc1d & 0x50) == 0x40) ? 1 : 0;
+	} else	{
+		/*
+		 * bit 3: error, bit 2: interrupting,
+		 * bit 1: FIFO full, bit 0: FIFO empty
+		 */
+		return ((sc1d & 0x05) == 0x04) ? 1 : 0;
+	}
 }
 
 static u8 pdc2026x_cable_detect(ide_hwif_t *hwif)
@@ -231,6 +252,7 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 static const struct ide_port_ops pdc20246_port_ops = {
 	.set_pio_mode		= pdc202xx_set_pio_mode,
 	.set_dma_mode		= pdc202xx_set_mode,
+	.test_irq		= pdc202xx_test_irq,
 };
 
 static const struct ide_port_ops pdc2026x_port_ops = {

@@ -594,7 +594,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	else if (secFlags & CIFSSEC_MAY_KRB5)
 		server->secType = Kerberos;
 	else if (secFlags & CIFSSEC_MAY_NTLMSSP)
-		server->secType = NTLMSSP;
+		server->secType = RawNTLMSSP;
 	else if (secFlags & CIFSSEC_MAY_LANMAN)
 		server->secType = LANMAN;
 /* #ifdef CONFIG_CIFS_EXPERIMENTAL
@@ -729,7 +729,7 @@ CIFSSMBTDis(const int xid, struct cifsTconInfo *tcon)
 	 * the tcon is no longer on the list, so no need to take lock before
 	 * checking this.
 	 */
-	if (tcon->need_reconnect)
+	if ((tcon->need_reconnect) || (tcon->ses->need_reconnect))
 		return 0;
 
 	rc = small_smb_init(SMB_COM_TREE_DISCONNECT, 0, tcon,

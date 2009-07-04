@@ -230,6 +230,13 @@ L:	linux-acenic@sunsite.dk
 S:	Maintained
 F:	drivers/net/acenic*
 
+ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
+P: Peter Feuerer
+M: peter@piie.net
+W: http://piie.net/?section=acerhdf
+S: Maintained
+F: drivers/platform/x86/acerhdf.c
+
 ACER WMI LAPTOP EXTRAS
 P:	Carlos Corbacho
 M:	carlos@strangeworlds.co.uk
@@ -653,6 +660,8 @@ M:	laforge@openezx.org
 L:	openezx-devel@lists.openezx.org (subscribers-only)
 W:	http://www.openezx.org/
 S:	Maintained
+T:	topgit git://git.openezx.org/openezx.git
+F:	arch/arm/mach-pxa/ezx.c
 
 ARM/FARADAY FA526 PORT
 P:	Paulius Zaleckas
@@ -774,10 +783,24 @@ P:	Philipp Zabel
 M:	philipp.zabel@gmail.com
 S:	Maintained
 
+ARM/MIOA701 MACHINE SUPPORT
+P:	Robert Jarzmik
+M:	robert.jarzmik@free.fr
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+F:	arch/arm/mach-pxa/mioa701.c
+S:	Maintained
+
 ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
 P:	Michael Petchkovsky
 M:	mkpetch@internode.on.net
 S:	Maintained
+
+ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
+P:	Nelson Castillo
+M:	arhuaco@freaks-unidos.net
+L:	openmoko-kernel@lists.openmoko.org (subscribers-only)
+W:	http://wiki.openmoko.org/wiki/Neo_FreeRunner
+S:	Supported
 
 ARM/TOSA MACHINE SUPPORT
 P:	Dmitry Eremin-Solenikov
@@ -789,6 +812,12 @@ S:	Maintained
 ARM/PALMTX,PALMT5,PALMLD,PALMTE2 SUPPORT
 P:	Marek Vasut
 M:	marek.vasut@gmail.com
+W:	http://hackndev.com
+S:	Maintained
+
+ARM/PALM TREO 680 SUPPORT
+P:	Tomas Cech
+M:	sleep_walker@suse.cz
 W:	http://hackndev.com
 S:	Maintained
 
@@ -838,12 +867,22 @@ M:	alex@shark-linux.de
 W:	http://www.shark-linux.de/shark.html
 S:	Maintained
 
+ARM/SAMSUNG ARM ARCHITECTURES
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/plat-s3c/
+F:	arch/arm/plat-s3c24xx/
+
 ARM/S3C2410 ARM ARCHITECTURE
 P:	Ben Dooks
 M:	ben-linux@fluff.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
+F:	arch/arm/mach-s3c2410/
 
 ARM/S3C2440 ARM ARCHITECTURE
 P:	Ben Dooks
@@ -851,6 +890,39 @@ M:	ben-linux@fluff.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
+F:	arch/arm/mach-s3c2440/
+
+ARM/S3C2442 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c2442/
+
+ARM/S3C2443 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c2443/
+
+ARM/S3C6400 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c6400/
+
+ARM/S3C6410 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c6410/
 
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 P:	Lennert Buytenhek
@@ -891,8 +963,7 @@ M:	corentincj@iksaif.net
 P:	Karol Kozimor
 M:	sziwan@users.sourceforge.net
 L:	acpi4asus-user@lists.sourceforge.net
-W:	http://sourceforge.net/projects/acpi4asus
-W:	http://xf.iksaif.net/acpi4asus
+W:	http://acpi4asus.sf.net
 S:	Maintained
 F:	arch/x86/kernel/acpi/boot.c
 F:	drivers/platform/x86/asus_acpi.c
@@ -908,8 +979,7 @@ ASUS LAPTOP EXTRAS DRIVER
 P:	Corentin Chary
 M:	corentincj@iksaif.net
 L:	acpi4asus-user@lists.sourceforge.net
-W:	http://sourceforge.net/projects/acpi4asus
-W:	http://xf.iksaif.net/acpi4asus
+W:	http://acpi4asus.sf.net
 S:	Maintained
 F:	drivers/platform/x86/asus-laptop.c
 
@@ -1009,6 +1079,13 @@ W:	http://www.atmel.com/products/AT91/
 W:	http://www.at91.com/
 S:	Maintained
 F:	drivers/mmc/host/at91_mci.c
+
+ATMEL AT91 / AT32 MCI DRIVER
+P:	Nicolas Ferre
+M:	nicolas.ferre@atmel.com
+S:	Maintained
+F:	drivers/mmc/host/atmel-mci.c
+F:	drivers/mmc/host/atmel-mci-regs.h
 
 ATMEL AT91 / AT32 SERIAL DRIVER
 P:	Haavard Skinnemoen
@@ -1607,7 +1684,7 @@ P:	Mikael Starvik
 M:	starvik@axis.com
 P:	Jesper Nilsson
 M:	jesper.nilsson@axis.com
-L:	dev-etrax@axis.com
+L:	linux-cris-kernel@axis.com
 W:	http://developer.axis.com
 S:	Maintained
 F:	arch/cris/
@@ -2053,9 +2130,9 @@ F:	drivers/edac/i5400_edac.c
 
 EDAC-I82975X
 P:	Ranganathan Desikan
-M:	rdesikan@jetzbroadband.com
+M:	ravi@jetztechnologies.com
 P:	Arvind R.
-M:	arvind@acarlab.com
+M:	arvind@jetztechnologies.com
 L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
@@ -2081,7 +2158,7 @@ EEEPC LAPTOP EXTRAS DRIVER
 P:	Corentin Chary
 M:	corentincj@iksaif.net
 L:	acpi4asus-user@lists.sourceforge.net
-W:	http://sourceforge.net/projects/acpi4asus
+W:	http://acpi4asus.sf.net
 S:	Maintained
 F:	drivers/platform/x86/eeepc-laptop.c
 
@@ -2453,6 +2530,14 @@ F:	drivers/net/wan/pc300too.c
 F:	drivers/net/wan/pci200syn.c
 F:	drivers/net/wan/wanxl*
 
+GENERIC INCLUDE/ASM HEADER FILES
+P:	Arnd Bergmann
+M:	arnd@arndb.de
+L:	linux-arch@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arnd/asm-generic.git
+S:	Maintained
+F:	include/asm-generic
+
 GFS2 FILE SYSTEM
 P:	Steven Whitehouse
 M:	swhiteho@redhat.com
@@ -2766,7 +2851,9 @@ S:	Maintained
 
 IA64 (Itanium) PLATFORM
 P:	Tony Luck
+P:	Fenghua Yu
 M:	tony.luck@intel.com
+M:	fenghua.yu@intel.com
 L:	linux-ia64@vger.kernel.org
 W:	http://www.ia64-linux.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux-2.6.git
@@ -2795,10 +2882,10 @@ S:	Supported
 F:	drivers/scsi/ips.*
 
 IDE SUBSYSTEM
-P:	Bartlomiej Zolnierkiewicz
-M:	bzolnier@gmail.com
+P:	David S. Miller
+M:	davem@davemloft.net
 L:	linux-ide@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bart/ide-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/ide-2.6.git
 S:	Maintained
 F:	Documentation/ide/
 F:	drivers/ide/
@@ -2844,9 +2931,9 @@ P:	Dmitry Eremin-Solenikov
 M:	dbaryshkov@gmail.com
 P:	Sergey Lapin
 M:	slapin@ossfans.org
-L:	linux-zigbee-devel@lists.sourceforge.net
+L:	linux-zigbee-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://apps.sourceforge.net/trac/linux-zigbee
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lumag/lowpan.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lowpan/lowpan.git
 S:	Maintained
 F:	net/ieee802154/
 F:	drivers/ieee802154/
@@ -3223,7 +3310,6 @@ W:	http://www.linux-mtd.infradead.org/doc/jffs2.html
 S:	Maintained
 F:	fs/jffs2/
 F:	include/linux/jffs2.h
-F:	include/mtd/jffs2-user.h
 
 JOURNALLING LAYER FOR BLOCK DEVICES (JBD)
 P:	Stephen Tweedie
@@ -5094,6 +5180,13 @@ L:	sdhci-devel@lists.ossman.eu
 S:	Maintained
 F:	drivers/mmc/host/sdhci.*
 
+SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) SAMSUNG DRIVER
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	sdhci-devel@lists.ossman.eu
+S:	Maintained
+F:	drivers/mmc/host/sdhci-s3c.c
+
 SECURITY SUBSYSTEM
 P:	James Morris
 M:	jmorris@namei.org
@@ -5485,8 +5578,8 @@ F:	drivers/staging/
 
 STARFIRE/DURALAN NETWORK DRIVER
 P:	Ion Badulescu
-M:	ionut@cs.columbia.edu
-S:	Maintained
+M:	ionut@badula.org
+S:	Odd Fixes
 F:	drivers/net/starfire*
 
 STARMODE RADIO IP (STRIP) PROTOCOL DRIVER
@@ -5619,6 +5712,13 @@ S:	Maintained
 F:	drivers/misc/tifm*
 F:	drivers/mmc/host/tifm_sd.c
 F:	include/linux/tifm.h
+
+TI TWL4030 SERIES SOC CODEC DRIVER
+P:	Peter Ujfalusi
+M:	peter.ujfalusi@nokia.com
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	sound/soc/codecs/twl4030*
 
 TIPC NETWORK LAYER
 P:	Per Liden
@@ -6215,6 +6315,14 @@ L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	Documentation/i2c/busses/i2c-viapro
 F:	drivers/i2c/busses/i2c-viapro.c
+
+VIA SD/MMC CARD CONTROLLER DRIVER
+P:	Joseph Chan
+M:	JosephChan@via.com.tw
+P:	Harald Welte
+M:	HaraldWelte@viatech.com
+S:	Maintained
+F:	drivers/mmc/host/via-sdmmc.c
 
 VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER
 P:	Joseph Chan

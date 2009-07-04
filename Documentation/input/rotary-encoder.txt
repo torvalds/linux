@@ -67,7 +67,12 @@ data with it.
 struct rotary_encoder_platform_data is declared in
 include/linux/rotary-encoder.h and needs to be filled with the number of
 steps the encoder has and can carry information about externally inverted
-signals (because of used invertig buffer or other reasons).
+signals (because of an inverting buffer or other reasons). The encoder
+can be set up to deliver input information as either an absolute or relative
+axes. For relative axes the input event returns +/-1 for each step. For
+absolute axes the position of the encoder can either roll over between zero
+and the number of steps or will clamp at the maximum and zero depending on
+the configuration.
 
 Because GPIO to IRQ mapping is platform specific, this information must
 be given in seperately to the driver. See the example below.
@@ -85,6 +90,8 @@ be given in seperately to the driver. See the example below.
 static struct rotary_encoder_platform_data my_rotary_encoder_info = {
 	.steps		= 24,
 	.axis		= ABS_X,
+	.relative_axis	= false,
+	.rollover	= false,
 	.gpio_a		= GPIO_ROTARY_A,
 	.gpio_b		= GPIO_ROTARY_B,
 	.inverted_a	= 0,

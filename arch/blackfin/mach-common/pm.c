@@ -132,7 +132,7 @@ int bf53x_resume_l1_mem(unsigned char *memptr)
 	return 0;
 }
 
-#ifdef CONFIG_BFIN_WB
+#if defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK)
 static void flushinv_all_dcache(void)
 {
 	u32 way, bank, subbank, set;
@@ -175,7 +175,7 @@ static inline void dcache_disable(void)
 #ifdef CONFIG_BFIN_DCACHE
 	unsigned long ctrl;
 
-#ifdef CONFIG_BFIN_WB
+#if defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK)
 	flushinv_all_dcache();
 #endif
 	SSYNC();

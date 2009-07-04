@@ -636,7 +636,7 @@ static void persistent_commit_exception(struct dm_exception_store *store,
 	/*
 	 * Commit exceptions to disk.
 	 */
-	if (ps->valid && area_io(ps, WRITE))
+	if (ps->valid && area_io(ps, WRITE_BARRIER))
 		ps->valid = 0;
 
 	/*

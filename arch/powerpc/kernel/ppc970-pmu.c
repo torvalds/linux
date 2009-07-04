@@ -10,7 +10,9 @@
  */
 #include <linux/string.h>
 #include <linux/perf_counter.h>
+#include <linux/string.h>
 #include <asm/reg.h>
+#include <asm/cputable.h>
 
 /*
  * Bits in event code for PPC970
@@ -183,7 +185,7 @@ static int p970_marked_instr_event(u64 event)
 }
 
 /* Masks and values for using events from the various units */
-static u64 unit_cons[PM_LASTUNIT+1][2] = {
+static unsigned long unit_cons[PM_LASTUNIT+1][2] = {
 	[PM_FPU] =   { 0xc80000000000ull, 0x040000000000ull },
 	[PM_VPU] =   { 0xc80000000000ull, 0xc40000000000ull },
 	[PM_ISU] =   { 0x080000000000ull, 0x020000000000ull },
@@ -192,10 +194,11 @@ static u64 unit_cons[PM_LASTUNIT+1][2] = {
 	[PM_STS] =   { 0x380000000000ull, 0x310000000000ull },
 };
 
-static int p970_get_constraint(u64 event, u64 *maskp, u64 *valp)
+static int p970_get_constraint(u64 event, unsigned long *maskp,
+			       unsigned long *valp)
 {
 	int pmc, byte, unit, sh, spcsel;
-	u64 mask = 0, value = 0;
+	unsigned long mask = 0, value = 0;
 	int grp = -1;
 
 	pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
@@ -222,7 +225,7 @@ static int p970_get_constraint(u64 event, u64 *maskp, u64 *valp)
 			grp = byte & 1;
 		/* Set byte lane select field */
 		mask  |= 0xfULL << (28 - 4 * byte);
-		value |= (u64)unit << (28 - 4 * byte);
+		value |= (unsigned long)unit << (28 - 4 * byte);
 	}
 	if (grp == 0) {
 		/* increment PMC1/2/5/6 field */
@@ -236,7 +239,7 @@ static int p970_get_constraint(u64 event, u64 *maskp, u64 *valp)
 	spcsel = (event >> PM_SPCSEL_SH) & PM_SPCSEL_MSK;
 	if (spcsel) {
 		mask  |= 3ull << 48;
-		value |= (u64)spcsel << 48;
+		value |= (unsigned long)spcsel << 48;
 	}
 	*maskp = mask;
 	*valp = value;
@@ -257,9 +260,9 @@ static int p970_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 }
 
 static int p970_compute_mmcr(u64 event[], int n_ev,
-			     unsigned int hwc[], u64 mmcr[])
+			     unsigned int hwc[], unsigned long mmcr[])
 {
-	u64 mmcr0 = 0, mmcr1 = 0, mmcra = 0;
+	unsigned long mmcr0 = 0, mmcr1 = 0, mmcra = 0;
 	unsigned int pmc, unit, byte, psel;
 	unsigned int ttm, grp;
 	unsigned int pmc_inuse = 0;
@@ -320,7 +323,7 @@ static int p970_compute_mmcr(u64 event[], int n_ev,
 			continue;
 		ttm = unitmap[i];
 		++ttmuse[(ttm >> 2) & 1];
-		mmcr1 |= (u64)(ttm & ~4) << MMCR1_TTM1SEL_SH;
+		mmcr1 |= (unsigned long)(ttm & ~4) << MMCR1_TTM1SEL_SH;
 	}
 	/* Check only one unit per TTMx */
 	if (ttmuse[0] > 1 || ttmuse[1] > 1)
@@ -340,7 +343,8 @@ static int p970_compute_mmcr(u64 event[], int n_ev,
 			if (unit == PM_LSU1L && byte >= 2)
 				mmcr1 |= 1ull << (MMCR1_TTM3SEL_SH + 3 - byte);
 		}
-		mmcr1 |= (u64)ttm << (MMCR1_TD_CP_DBG0SEL_SH - 2 * byte);
+		mmcr1 |= (unsigned long)ttm
+			<< (MMCR1_TD_CP_DBG0SEL_SH - 2 * byte);
 	}
 
 	/* Second pass: assign PMCs, set PMCxSEL and PMCx_ADDER_SEL fields */
@@ -386,7 +390,8 @@ static int p970_compute_mmcr(u64 event[], int n_ev,
 	for (pmc = 0; pmc < 2; ++pmc)
 		mmcr0 |= pmcsel[pmc] << (MMCR0_PMC1SEL_SH - 7 * pmc);
 	for (; pmc < 8; ++pmc)
-		mmcr1 |= (u64)pmcsel[pmc] << (MMCR1_PMC3SEL_SH - 5 * (pmc - 2));
+		mmcr1 |= (unsigned long)pmcsel[pmc]
+			<< (MMCR1_PMC3SEL_SH - 5 * (pmc - 2));
 	if (pmc_inuse & 1)
 		mmcr0 |= MMCR0_PMC1CE;
 	if (pmc_inuse & 0xfe)
@@ -401,7 +406,7 @@ static int p970_compute_mmcr(u64 event[], int n_ev,
 	return 0;
 }
 
-static void p970_disable_pmc(unsigned int pmc, u64 mmcr[])
+static void p970_disable_pmc(unsigned int pmc, unsigned long mmcr[])
 {
 	int shift, i;
 
@@ -467,16 +472,28 @@ static int ppc970_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 };
 
-struct power_pmu ppc970_pmu = {
-	.n_counter = 8,
-	.max_alternatives = 2,
-	.add_fields = 0x001100005555ull,
-	.test_adder = 0x013300000000ull,
-	.compute_mmcr = p970_compute_mmcr,
-	.get_constraint = p970_get_constraint,
-	.get_alternatives = p970_get_alternatives,
-	.disable_pmc = p970_disable_pmc,
-	.n_generic = ARRAY_SIZE(ppc970_generic_events),
-	.generic_events = ppc970_generic_events,
-	.cache_events = &ppc970_cache_events,
+static struct power_pmu ppc970_pmu = {
+	.name			= "PPC970/FX/MP",
+	.n_counter		= 8,
+	.max_alternatives	= 2,
+	.add_fields		= 0x001100005555ull,
+	.test_adder		= 0x013300000000ull,
+	.compute_mmcr		= p970_compute_mmcr,
+	.get_constraint		= p970_get_constraint,
+	.get_alternatives	= p970_get_alternatives,
+	.disable_pmc		= p970_disable_pmc,
+	.n_generic		= ARRAY_SIZE(ppc970_generic_events),
+	.generic_events		= ppc970_generic_events,
+	.cache_events		= &ppc970_cache_events,
 };
+
+static int init_ppc970_pmu(void)
+{
+	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970")
+	    && strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970MP"))
+		return -ENODEV;
+
+	return register_power_pmu(&ppc970_pmu);
+}
+
+arch_initcall(init_ppc970_pmu);

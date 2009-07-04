@@ -2045,11 +2045,10 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	drm_radeon_private_t *dev_priv;
 	int ret = 0;
 
-	dev_priv = drm_alloc(sizeof(drm_radeon_private_t), DRM_MEM_DRIVER);
+	dev_priv = kzalloc(sizeof(drm_radeon_private_t), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
 
-	memset(dev_priv, 0, sizeof(drm_radeon_private_t));
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->flags = flags;
 
@@ -2103,7 +2102,7 @@ int radeon_master_create(struct drm_device *dev, struct drm_master *master)
 	unsigned long sareapage;
 	int ret;
 
-	master_priv = drm_calloc(1, sizeof(*master_priv), DRM_MEM_DRIVER);
+	master_priv = kzalloc(sizeof(*master_priv), GFP_KERNEL);
 	if (!master_priv)
 		return -ENOMEM;
 
@@ -2137,7 +2136,7 @@ void radeon_master_destroy(struct drm_device *dev, struct drm_master *master)
 	if (master_priv->sarea)
 		drm_rmmap_locked(dev, master_priv->sarea);
 
-	drm_free(master_priv, sizeof(*master_priv), DRM_MEM_DRIVER);
+	kfree(master_priv);
 
 	master->driver_priv = NULL;
 }
@@ -2171,7 +2170,7 @@ int radeon_driver_unload(struct drm_device *dev)
 
 	drm_rmmap(dev, dev_priv->mmio);
 
-	drm_free(dev_priv, sizeof(*dev_priv), DRM_MEM_DRIVER);
+	kfree(dev_priv);
 
 	dev->dev_private = NULL;
 	return 0;

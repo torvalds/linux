@@ -313,7 +313,7 @@ static int __init radeon_init(void)
 {
 	driver = &driver_old;
 	driver->num_ioctls = radeon_max_ioctl;
-#if defined(CONFIG_DRM_RADEON_KMS) && defined(CONFIG_X86)
+#if defined(CONFIG_DRM_RADEON_KMS)
 	/* if enabled by default */
 	if (radeon_modeset == -1) {
 		DRM_INFO("radeon default to kernel modesetting.\n");
@@ -345,7 +345,7 @@ static void __exit radeon_exit(void)
 	drm_exit(driver);
 }
 
-late_initcall(radeon_init);
+module_init(radeon_init);
 module_exit(radeon_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);

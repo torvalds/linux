@@ -99,9 +99,11 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 {
 	struct bdb_lvds_options *lvds_options;
 	struct bdb_lvds_lfp_data *lvds_lfp_data;
+	struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
 	struct bdb_lvds_lfp_data_entry *entry;
 	struct lvds_dvo_timing *dvo_timing;
 	struct drm_display_mode *panel_fixed_mode;
+	int lfp_data_size;
 
 	/* Defaults if we can't find VBT info */
 	dev_priv->lvds_dither = 0;
@@ -119,13 +121,20 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	if (!lvds_lfp_data)
 		return;
 
+	lvds_lfp_data_ptrs = find_section(bdb, BDB_LVDS_LFP_DATA_PTRS);
+	if (!lvds_lfp_data_ptrs)
+		return;
+
 	dev_priv->lvds_vbt = 1;
 
-	entry = &lvds_lfp_data->data[lvds_options->panel_type];
+	lfp_data_size = lvds_lfp_data_ptrs->ptr[1].dvo_timing_offset -
+		lvds_lfp_data_ptrs->ptr[0].dvo_timing_offset;
+	entry = (struct bdb_lvds_lfp_data_entry *)
+		((uint8_t *)lvds_lfp_data->data + (lfp_data_size *
+						   lvds_options->panel_type));
 	dvo_timing = &entry->dvo_timing;
 
-	panel_fixed_mode = drm_calloc(1, sizeof(*panel_fixed_mode),
-				      DRM_MEM_DRIVER);
+	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 
 	fill_detail_timing_data(panel_fixed_mode, dvo_timing);
 
@@ -156,8 +165,7 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	if (!dvo_timing)
 		return;
 
-	panel_fixed_mode = drm_calloc(1, sizeof(*panel_fixed_mode),
-				      DRM_MEM_DRIVER);
+	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 
 	if (!panel_fixed_mode)
 		return;

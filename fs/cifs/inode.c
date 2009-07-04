@@ -988,8 +988,9 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	 * sb->s_vfs_rename_mutex here */
 	full_path = build_path_from_dentry(dentry);
 	if (full_path == NULL) {
+		rc = -ENOMEM;
 		FreeXid(xid);
-		return -ENOMEM;
+		return rc;
 	}
 
 	if ((tcon->ses->capabilities & CAP_UNIX) &&
@@ -1118,8 +1119,9 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
+		rc = -ENOMEM;
 		FreeXid(xid);
-		return -ENOMEM;
+		return rc;
 	}
 
 	if ((pTcon->ses->capabilities & CAP_UNIX) &&
@@ -1303,8 +1305,9 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
+		rc = -ENOMEM;
 		FreeXid(xid);
-		return -ENOMEM;
+		return rc;
 	}
 
 	rc = CIFSSMBRmDir(xid, pTcon, full_path, cifs_sb->local_nls,
@@ -1508,8 +1511,9 @@ int cifs_revalidate(struct dentry *direntry)
 	   since that would deadlock */
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
+		rc = -ENOMEM;
 		FreeXid(xid);
-		return -ENOMEM;
+		return rc;
 	}
 	cFYI(1, ("Revalidate: %s inode 0x%p count %d dentry: 0x%p d_time %ld "
 		 "jiffies %ld", full_path, direntry->d_inode,
@@ -1911,8 +1915,9 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
+		rc = -ENOMEM;
 		FreeXid(xid);
-		return -ENOMEM;
+		return rc;
 	}
 
 	/*

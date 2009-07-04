@@ -284,6 +284,18 @@ static const struct sdhci_pci_fixes sdhci_jmicron = {
 	.resume		= jmicron_resume,
 };
 
+static int via_probe(struct sdhci_pci_chip *chip)
+{
+	if (chip->pdev->revision == 0x10)
+		chip->quirks |= SDHCI_QUIRK_DELAY_AFTER_POWER;
+
+	return 0;
+}
+
+static const struct sdhci_pci_fixes sdhci_via = {
+	.probe		= via_probe,
+};
+
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
 		.vendor		= PCI_VENDOR_ID_RICOH,
@@ -347,6 +359,14 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_VIA,
+		.device		= 0x95d0,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_via,
 	},
 
 	{	/* Generic SD host controller */

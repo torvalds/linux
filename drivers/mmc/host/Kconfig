@@ -94,6 +94,31 @@ config MMC_SDHCI_PLTFM
 
 	  If unsure, say N.
 
+config MMC_SDHCI_S3C
+	tristate "SDHCI support on Samsung S3C SoC"
+	depends on MMC_SDHCI && (PLAT_S3C24XX || PLAT_S3C64XX)
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  often referrered to as the HSMMC block in some of the Samsung S3C
+	  range of SoC.
+
+	  Note, due to the problems with DMA, the DMA support is only
+	  available with CONFIG_EXPERIMENTAL is selected.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_S3C_DMA
+	bool "DMA support on S3C SDHCI"
+	depends on MMC_SDHCI_S3C && EXPERIMENTAL
+	help
+	  Enable DMA support on the Samsung S3C SDHCI glue. The DMA
+	  has proved to be problematic if the controller encounters
+	  certain errors, and thus should be treated with care.
+
+	  YMMV.
+
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
 	depends on ARCH_OMAP
@@ -265,3 +290,14 @@ config MMC_CB710
 	  This driver can also be built as a module. If so, the module
 	  will be called cb710-mmc.
 
+config MMC_VIA_SDMMC
+	tristate "VIA SD/MMC Card Reader Driver"
+	depends on PCI
+	help
+	  This selects the VIA SD/MMC Card Reader driver, say Y or M here.
+	  VIA provides one multi-functional card reader which integrated into
+	  some motherboards manufactured by VIA. This card reader supports
+	  SD/MMC/SDHC.
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.

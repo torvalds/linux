@@ -563,7 +563,6 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 	union ixgbe_adv_rx_desc *rx_desc;
 	struct ixgbe_rx_buffer *bi;
 	unsigned int i;
-	unsigned int bufsz = rx_ring->rx_buf_len + NET_IP_ALIGN;
 
 	i = rx_ring->next_to_use;
 	bi = &rx_ring->rx_buffer_info[i];
@@ -593,7 +592,9 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 
 		if (!bi->skb) {
 			struct sk_buff *skb;
-			skb = netdev_alloc_skb(adapter->netdev, bufsz);
+			skb = netdev_alloc_skb(adapter->netdev,
+			                       (rx_ring->rx_buf_len +
+			                        NET_IP_ALIGN));
 
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
@@ -608,7 +609,8 @@ static void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 			skb_reserve(skb, NET_IP_ALIGN);
 
 			bi->skb = skb;
-			bi->dma = pci_map_single(pdev, skb->data, bufsz,
+			bi->dma = pci_map_single(pdev, skb->data,
+			                         rx_ring->rx_buf_len,
 			                         PCI_DMA_FROMDEVICE);
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
@@ -732,6 +734,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			pci_unmap_single(pdev, rx_buffer_info->dma,
 			                 rx_ring->rx_buf_len,
 			                 PCI_DMA_FROMDEVICE);
+			rx_buffer_info->dma = 0;
 			skb_put(skb, len);
 		}
 
@@ -2701,7 +2704,10 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	 */
 	err = hw->phy.ops.identify(hw);
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		DPRINTK(PROBE, ERR, "PHY not supported on this NIC %d\n", err);
+		dev_err(&adapter->pdev->dev, "failed to initialize because "
+			"an unsupported SFP+ module type was detected.\n"
+			"Reload the driver after installing a supported "
+			"module.\n");
 		ixgbe_down(adapter);
 		return err;
 	}
@@ -2812,9 +2818,11 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 		}
 		if (!rx_buffer_info->page)
 			continue;
-		pci_unmap_page(pdev, rx_buffer_info->page_dma, PAGE_SIZE / 2,
-		               PCI_DMA_FROMDEVICE);
-		rx_buffer_info->page_dma = 0;
+		if (rx_buffer_info->page_dma) {
+			pci_unmap_page(pdev, rx_buffer_info->page_dma,
+			               PAGE_SIZE / 2, PCI_DMA_FROMDEVICE);
+			rx_buffer_info->page_dma = 0;
+		}
 		put_page(rx_buffer_info->page);
 		rx_buffer_info->page = NULL;
 		rx_buffer_info->page_offset = 0;
@@ -3720,10 +3728,11 @@ static void ixgbe_sfp_task(struct work_struct *work)
 			goto reschedule;
 		ret = hw->phy.ops.reset(hw);
 		if (ret == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-			DPRINTK(PROBE, ERR, "failed to initialize because an "
-			        "unsupported SFP+ module type was detected.\n"
-			        "Reload the driver after installing a "
-			        "supported module.\n");
+			dev_err(&adapter->pdev->dev, "failed to initialize "
+				"because an unsupported SFP+ module type "
+				"was detected.\n"
+				"Reload the driver after installing a "
+				"supported module.\n");
 			unregister_netdev(adapter->netdev);
 		} else {
 			DPRINTK(PROBE, INFO, "detected SFP+: %d\n",
@@ -4502,7 +4511,8 @@ static void ixgbe_multispeed_fiber_task(struct work_struct *work)
 	u32 autoneg;
 
 	adapter->flags |= IXGBE_FLAG_IN_SFP_LINK_TASK;
-	if (hw->mac.ops.get_link_capabilities)
+	autoneg = hw->phy.autoneg_advertised;
+	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
 		hw->mac.ops.get_link_capabilities(hw, &autoneg,
 		                                  &hw->mac.autoneg);
 	if (hw->mac.ops.setup_link_speed)
@@ -4526,7 +4536,10 @@ static void ixgbe_sfp_config_module_task(struct work_struct *work)
 	adapter->flags |= IXGBE_FLAG_IN_SFP_MOD_TASK;
 	err = hw->phy.ops.identify_sfp(hw);
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		DPRINTK(PROBE, ERR, "PHY not supported on this NIC %d\n", err);
+		dev_err(&adapter->pdev->dev, "failed to initialize because "
+			"an unsupported SFP+ module type was detected.\n"
+			"Reload the driver after installing a supported "
+			"module.\n");
 		ixgbe_down(adapter);
 		return;
 	}
@@ -5513,8 +5526,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			  round_jiffies(jiffies + (2 * HZ)));
 		err = 0;
 	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		dev_err(&adapter->pdev->dev, "failed to load because an "
-		        "unsupported SFP+ module type was detected.\n");
+		dev_err(&adapter->pdev->dev, "failed to initialize because "
+			"an unsupported SFP+ module type was detected.\n"
+			"Reload the driver after installing a supported "
+			"module.\n");
 		goto err_sw_init;
 	} else if (err) {
 		dev_err(&adapter->pdev->dev, "HW Init failed: %d\n", err);

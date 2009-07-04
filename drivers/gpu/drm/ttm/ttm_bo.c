@@ -282,7 +282,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 
 		ret = ttm_tt_set_placement_caching(bo->ttm, mem->placement);
 		if (ret)
-			return ret;
+			goto out_err;
 
 		if (mem->mem_type != TTM_PL_SYSTEM) {
 			ret = ttm_tt_bind(bo->ttm, mem);
@@ -527,9 +527,12 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, unsigned mem_type,
 	ret = ttm_bo_wait(bo, false, interruptible, no_wait);
 	spin_unlock(&bo->lock);
 
-	if (ret && ret != -ERESTART) {
-		printk(KERN_ERR TTM_PFX "Failed to expire sync object before "
-		       "buffer eviction.\n");
+	if (unlikely(ret != 0)) {
+		if (ret != -ERESTART) {
+			printk(KERN_ERR TTM_PFX
+			       "Failed to expire sync object before "
+			       "buffer eviction.\n");
+		}
 		goto out;
 	}
 

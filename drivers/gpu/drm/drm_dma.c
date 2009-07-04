@@ -47,7 +47,7 @@ int drm_dma_setup(struct drm_device *dev)
 {
 	int i;
 
-	dev->dma = drm_alloc(sizeof(*dev->dma), DRM_MEM_DRIVER);
+	dev->dma = kmalloc(sizeof(*dev->dma), GFP_KERNEL);
 	if (!dev->dma)
 		return -ENOMEM;
 
@@ -88,36 +88,19 @@ void drm_dma_takedown(struct drm_device *dev)
 					drm_pci_free(dev, dma->bufs[i].seglist[j]);
 				}
 			}
-			drm_free(dma->bufs[i].seglist,
-				 dma->bufs[i].seg_count
-				 * sizeof(*dma->bufs[0].seglist), DRM_MEM_SEGS);
+			kfree(dma->bufs[i].seglist);
 		}
 		if (dma->bufs[i].buf_count) {
 			for (j = 0; j < dma->bufs[i].buf_count; j++) {
-				if (dma->bufs[i].buflist[j].dev_private) {
-					drm_free(dma->bufs[i].buflist[j].
-						 dev_private,
-						 dma->bufs[i].buflist[j].
-						 dev_priv_size, DRM_MEM_BUFS);
-				}
+				kfree(dma->bufs[i].buflist[j].dev_private);
 			}
-			drm_free(dma->bufs[i].buflist,
-				 dma->bufs[i].buf_count *
-				 sizeof(*dma->bufs[0].buflist), DRM_MEM_BUFS);
+			kfree(dma->bufs[i].buflist);
 		}
 	}
 
-	if (dma->buflist) {
-		drm_free(dma->buflist,
-			 dma->buf_count * sizeof(*dma->buflist), DRM_MEM_BUFS);
-	}
-
-	if (dma->pagelist) {
-		drm_free(dma->pagelist,
-			 dma->page_count * sizeof(*dma->pagelist),
-			 DRM_MEM_PAGES);
-	}
-	drm_free(dev->dma, sizeof(*dev->dma), DRM_MEM_DRIVER);
+	kfree(dma->buflist);
+	kfree(dma->pagelist);
+	kfree(dev->dma);
 	dev->dma = NULL;
 }
 

@@ -133,6 +133,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->gpu_offset = 0;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
+		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE | TTM_MEMTYPE_FLAG_CMA;
 #if __OS_HAS_AGP
 		if (rdev->flags & RADEON_IS_AGP) {
 			if (!(drm_core_has_AGP(rdev->ddev) && rdev->ddev->agp)) {
@@ -143,8 +144,9 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			man->io_offset = rdev->mc.agp_base;
 			man->io_size = rdev->mc.gtt_size;
 			man->io_addr = NULL;
-			man->flags = TTM_MEMTYPE_FLAG_NEEDS_IOREMAP |
-				     TTM_MEMTYPE_FLAG_MAPPABLE;
+			if (!rdev->ddev->agp->cant_use_aperture)
+				man->flags = TTM_MEMTYPE_FLAG_NEEDS_IOREMAP |
+					     TTM_MEMTYPE_FLAG_MAPPABLE;
 			man->available_caching = TTM_PL_FLAG_UNCACHED |
 						 TTM_PL_FLAG_WC;
 			man->default_caching = TTM_PL_FLAG_WC;
@@ -154,8 +156,6 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			man->io_offset = 0;
 			man->io_size = 0;
 			man->io_addr = NULL;
-			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE |
-				     TTM_MEMTYPE_FLAG_CMA;
 		}
 		break;
 	case TTM_PL_VRAM:

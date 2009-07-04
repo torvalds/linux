@@ -280,15 +280,9 @@ static int mt9m001_try_fmt(struct soc_camera_device *icd,
 {
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	if (pix->height < 32 + icd->y_skip_top)
-		pix->height = 32 + icd->y_skip_top;
-	if (pix->height > 1024 + icd->y_skip_top)
-		pix->height = 1024 + icd->y_skip_top;
-	if (pix->width < 48)
-		pix->width = 48;
-	if (pix->width > 1280)
-		pix->width = 1280;
-	pix->width &= ~0x01; /* has to be even, unsure why was ~3 */
+	v4l_bound_align_image(&pix->width, 48, 1280, 1,
+			      &pix->height, 32 + icd->y_skip_top,
+			      1024 + icd->y_skip_top, 0, 0);
 
 	return 0;
 }

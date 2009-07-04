@@ -472,6 +472,7 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 
 static void nes_retrans_expired(struct nes_cm_node *cm_node)
 {
+	struct iw_cm_id *cm_id = cm_node->cm_id;
 	switch (cm_node->state) {
 	case NES_CM_STATE_SYN_RCVD:
 	case NES_CM_STATE_CLOSING:
@@ -479,7 +480,9 @@ static void nes_retrans_expired(struct nes_cm_node *cm_node)
 		break;
 	case NES_CM_STATE_LAST_ACK:
 	case NES_CM_STATE_FIN_WAIT1:
-	case NES_CM_STATE_MPAREJ_RCVD:
+		if (cm_node->cm_id)
+			cm_id->rem_ref(cm_id);
+		cm_node->state = NES_CM_STATE_CLOSED;
 		send_reset(cm_node, NULL);
 		break;
 	default:
@@ -1406,6 +1409,7 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	case NES_CM_STATE_CLOSED:
 		drop_packet(skb);
 		break;
+	case NES_CM_STATE_FIN_WAIT1:
 	case NES_CM_STATE_LAST_ACK:
 		cm_node->cm_id->rem_ref(cm_node->cm_id);
 	case NES_CM_STATE_TIME_WAIT:
@@ -1413,8 +1417,6 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		rem_ref_cm_node(cm_node->cm_core, cm_node);
 		drop_packet(skb);
 		break;
-	case NES_CM_STATE_FIN_WAIT1:
-		nes_debug(NES_DBG_CM, "Bad state %s[%u]\n", __func__, __LINE__);
 	default:
 		drop_packet(skb);
 		break;

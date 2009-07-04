@@ -966,6 +966,43 @@ static void kill_suid(struct dentry *dentry)
 	mutex_unlock(&dentry->d_inode->i_mutex);
 }
 
+/*
+ * Gathered writes: If another process is currently writing to the file,
+ * there's a high chance this is another nfsd (triggered by a bulk write
+ * from a client's biod). Rather than syncing the file with each write
+ * request, we sleep for 10 msec.
+ *
+ * I don't know if this roughly approximates C. Juszak's idea of
+ * gathered writes, but it's a nice and simple solution (IMHO), and it
+ * seems to work:-)
+ *
+ * Note: we do this only in the NFSv2 case, since v3 and higher have a
+ * better tool (separate unstable writes and commits) for solving this
+ * problem.
+ */
+static int wait_for_concurrent_writes(struct file *file)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	static ino_t last_ino;
+	static dev_t last_dev;
+	int err = 0;
+
+	if (atomic_read(&inode->i_writecount) > 1
+	    || (last_ino == inode->i_ino && last_dev == inode->i_sb->s_dev)) {
+		dprintk("nfsd: write defer %d\n", task_pid_nr(current));
+		msleep(10);
+		dprintk("nfsd: write resume %d\n", task_pid_nr(current));
+	}
+
+	if (inode->i_state & I_DIRTY) {
+		dprintk("nfsd: write sync %d\n", task_pid_nr(current));
+		err = nfsd_sync(file);
+	}
+	last_ino = inode->i_ino;
+	last_dev = inode->i_sb->s_dev;
+	return err;
+}
+
 static __be32
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
@@ -978,6 +1015,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	__be32			err = 0;
 	int			host_err;
 	int			stable = *stablep;
+	int			use_wgather;
 
 #ifdef MSNFS
 	err = nfserr_perm;
@@ -996,9 +1034,10 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	 *  -	the sync export option has been set, or
 	 *  -	the client requested O_SYNC behavior (NFSv3 feature).
 	 *  -   The file system doesn't support fsync().
-	 * When gathered writes have been configured for this volume,
+	 * When NFSv2 gathered writes have been configured for this volume,
 	 * flushing the data to disk is handled separately below.
 	 */
+	use_wgather = (rqstp->rq_vers == 2) && EX_WGATHER(exp);
 
 	if (!file->f_op->fsync) {/* COMMIT3 cannot work */
 	       stable = 2;
@@ -1007,7 +1046,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 
 	if (!EX_ISSYNC(exp))
 		stable = 0;
-	if (stable && !EX_WGATHER(exp)) {
+	if (stable && !use_wgather) {
 		spin_lock(&file->f_lock);
 		file->f_flags |= O_SYNC;
 		spin_unlock(&file->f_lock);
@@ -1017,52 +1056,20 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	oldfs = get_fs(); set_fs(KERNEL_DS);
 	host_err = vfs_writev(file, (struct iovec __user *)vec, vlen, &offset);
 	set_fs(oldfs);
-	if (host_err >= 0) {
-		*cnt = host_err;
-		nfsdstats.io_write += host_err;
-		fsnotify_modify(file->f_path.dentry);
-	}
+	if (host_err < 0)
+		goto out_nfserr;
+	*cnt = host_err;
+	nfsdstats.io_write += host_err;
+	fsnotify_modify(file->f_path.dentry);
 
 	/* clear setuid/setgid flag after write */
-	if (host_err >= 0 && (inode->i_mode & (S_ISUID | S_ISGID)))
+	if (inode->i_mode & (S_ISUID | S_ISGID))
 		kill_suid(dentry);
 
-	if (host_err >= 0 && stable) {
-		static ino_t	last_ino;
-		static dev_t	last_dev;
+	if (stable && use_wgather)
+		host_err = wait_for_concurrent_writes(file);
 
-		/*
-		 * Gathered writes: If another process is currently
-		 * writing to the file, there's a high chance
-		 * this is another nfsd (triggered by a bulk write
-		 * from a client's biod). Rather than syncing the
-		 * file with each write request, we sleep for 10 msec.
-		 *
-		 * I don't know if this roughly approximates
-		 * C. Juszak's idea of gathered writes, but it's a
-		 * nice and simple solution (IMHO), and it seems to
-		 * work:-)
-		 */
-		if (EX_WGATHER(exp)) {
-			if (atomic_read(&inode->i_writecount) > 1
-			    || (last_ino == inode->i_ino && last_dev == inode->i_sb->s_dev)) {
-				dprintk("nfsd: write defer %d\n", task_pid_nr(current));
-				msleep(10);
-				dprintk("nfsd: write resume %d\n", task_pid_nr(current));
-			}
-
-			if (inode->i_state & I_DIRTY) {
-				dprintk("nfsd: write sync %d\n", task_pid_nr(current));
-				host_err=nfsd_sync(file);
-			}
-#if 0
-			wake_up(&inode->i_wait);
-#endif
-		}
-		last_ino = inode->i_ino;
-		last_dev = inode->i_sb->s_dev;
-	}
-
+out_nfserr:
 	dprintk("nfsd: write complete host_err=%d\n", host_err);
 	if (host_err >= 0)
 		err = 0;

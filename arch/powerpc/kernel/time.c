@@ -53,6 +53,7 @@
 #include <linux/posix-timers.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
+#include <linux/perf_counter.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -525,6 +526,26 @@ void __init iSeries_time_init_early(void)
 }
 #endif /* CONFIG_PPC_ISERIES */
 
+#if defined(CONFIG_PERF_COUNTERS) && defined(CONFIG_PPC32)
+DEFINE_PER_CPU(u8, perf_counter_pending);
+
+void set_perf_counter_pending(void)
+{
+	get_cpu_var(perf_counter_pending) = 1;
+	set_dec(1);
+	put_cpu_var(perf_counter_pending);
+}
+
+#define test_perf_counter_pending()	__get_cpu_var(perf_counter_pending)
+#define clear_perf_counter_pending()	__get_cpu_var(perf_counter_pending) = 0
+
+#else  /* CONFIG_PERF_COUNTERS && CONFIG_PPC32 */
+
+#define test_perf_counter_pending()	0
+#define clear_perf_counter_pending()
+
+#endif /* CONFIG_PERF_COUNTERS && CONFIG_PPC32 */
+
 /*
  * For iSeries shared processors, we have to let the hypervisor
  * set the hardware decrementer.  We set a virtual decrementer
@@ -551,6 +572,10 @@ void timer_interrupt(struct pt_regs * regs)
 	set_dec(DECREMENTER_MAX);
 
 #ifdef CONFIG_PPC32
+	if (test_perf_counter_pending()) {
+		clear_perf_counter_pending();
+		perf_counter_do_pending();
+	}
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
 		do_IRQ(regs);
 #endif

@@ -722,9 +722,6 @@ int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input);
 int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input);
 int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev);
 int cx231xx_set_audio_input(struct cx231xx *dev, u8 input);
-void get_scale(struct cx231xx *dev,
-	       unsigned int width, unsigned int height,
-	       unsigned int *hscale, unsigned int *vscale);
 
 /* Provided by cx231xx-video.c */
 int cx231xx_register_extension(struct cx231xx_ops *dev);

@@ -24,6 +24,7 @@
 
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -46,6 +47,9 @@
 #else
 #define no_ecc		0
 #endif
+
+static int on_flash_bbt = 0;
+module_param(on_flash_bbt, int, 0);
 
 /* Register access macros */
 #define ecc_readl(add, reg)				\
@@ -459,10 +463,15 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 
 	if (host->board->det_pin) {
 		if (gpio_get_value(host->board->det_pin)) {
-			printk("No SmartMedia card inserted.\n");
+			printk(KERN_INFO "No SmartMedia card inserted.\n");
 			res = ENXIO;
 			goto err_no_card;
 		}
+	}
+
+	if (on_flash_bbt) {
+		printk(KERN_INFO "atmel_nand: Use On Flash BBT\n");
+		nand_chip->options |= NAND_USE_FLASH_BBT;
 	}
 
 	/* first scan to find the device and get the page size */
@@ -525,7 +534,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 							 &num_partitions);
 
 	if ((!partitions) || (num_partitions == 0)) {
-		printk(KERN_ERR "atmel_nand: No parititions defined, or unsupported device.\n");
+		printk(KERN_ERR "atmel_nand: No partitions defined, or unsupported device.\n");
 		res = ENXIO;
 		goto err_no_partitions;
 	}

@@ -22,6 +22,7 @@
 
 #include <asm/system.h>
 
+#include "nfs4_fs.h"
 #include "internal.h"
 #include "iostat.h"
 #include "fscache.h"
@@ -46,6 +47,7 @@ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
 		p->npages = pagecount;
+		p->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 		if (pagecount <= ARRAY_SIZE(p->page_array))
 			p->pagevec = p->page_array;
 		else {
@@ -357,19 +359,25 @@ static void nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data
 	struct nfs_readres *resp = &data->res;
 
 	if (resp->eof || resp->count == argp->count)
-		return;
+		goto out;
 
 	/* This is a short read! */
 	nfs_inc_stats(data->inode, NFSIOS_SHORTREAD);
 	/* Has the server at least made some progress? */
 	if (resp->count == 0)
-		return;
+		goto out;
 
 	/* Yes, so retry the read at the end of the data */
 	argp->offset += resp->count;
 	argp->pgbase += resp->count;
 	argp->count -= resp->count;
-	rpc_restart_call(task);
+	nfs4_restart_rpc(task, NFS_SERVER(data->inode)->nfs_client);
+	return;
+out:
+	nfs4_sequence_free_slot(NFS_SERVER(data->inode)->nfs_client,
+				&data->res.seq_res);
+	return;
+
 }
 
 /*
@@ -406,7 +414,23 @@ static void nfs_readpage_release_partial(void *calldata)
 	nfs_readdata_release(calldata);
 }
 
+#if defined(CONFIG_NFS_V4_1)
+void nfs_read_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs_read_data *data = calldata;
+
+	if (nfs4_setup_sequence(NFS_SERVER(data->inode)->nfs_client,
+				&data->args.seq_args, &data->res.seq_res,
+				0, task))
+		return;
+	rpc_call_start(task);
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 static const struct rpc_call_ops nfs_read_partial_ops = {
+#if defined(CONFIG_NFS_V4_1)
+	.rpc_call_prepare = nfs_read_prepare,
+#endif /* CONFIG_NFS_V4_1 */
 	.rpc_call_done = nfs_readpage_result_partial,
 	.rpc_release = nfs_readpage_release_partial,
 };
@@ -470,6 +494,9 @@ static void nfs_readpage_release_full(void *calldata)
 }
 
 static const struct rpc_call_ops nfs_read_full_ops = {
+#if defined(CONFIG_NFS_V4_1)
+	.rpc_call_prepare = nfs_read_prepare,
+#endif /* CONFIG_NFS_V4_1 */
 	.rpc_call_done = nfs_readpage_result_full,
 	.rpc_release = nfs_readpage_release_full,
 };

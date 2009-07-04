@@ -301,12 +301,6 @@ struct blk_queue_tag {
 #define BLK_SCSI_MAX_CMDS	(256)
 #define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
 
-struct blk_cmd_filter {
-	unsigned long read_ok[BLK_SCSI_CMD_PER_LONG];
-	unsigned long write_ok[BLK_SCSI_CMD_PER_LONG];
-	struct kobject kobj;
-};
-
 struct queue_limits {
 	unsigned long		bounce_pfn;
 	unsigned long		seg_boundary_mask;
@@ -445,7 +439,6 @@ struct request_queue
 #if defined(CONFIG_BLK_DEV_BSG)
 	struct bsg_class_device bsg_dev;
 #endif
-	struct blk_cmd_filter cmd_filter;
 };
 
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */
@@ -998,13 +991,7 @@ static inline int sb_issue_discard(struct super_block *sb,
 	return blkdev_issue_discard(sb->s_bdev, block, nr_blocks, GFP_KERNEL);
 }
 
-/*
-* command filter functions
-*/
-extern int blk_verify_command(struct blk_cmd_filter *filter,
-			      unsigned char *cmd, fmode_t has_write_perm);
-extern void blk_unregister_filter(struct gendisk *disk);
-extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
+extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);
 
 #define MAX_PHYS_SEGMENTS 128
 #define MAX_HW_SEGMENTS 128

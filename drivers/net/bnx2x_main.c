@@ -8637,6 +8637,14 @@ static int bnx2x_nway_reset(struct net_device *dev)
 	return 0;
 }
 
+static u32
+bnx2x_get_link(struct net_device *dev)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	return bp->link_vars.link_up;
+}
+
 static int bnx2x_get_eeprom_len(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -10034,7 +10042,7 @@ static struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_msglevel		= bnx2x_get_msglevel,
 	.set_msglevel		= bnx2x_set_msglevel,
 	.nway_reset		= bnx2x_nway_reset,
-	.get_link		= ethtool_op_get_link,
+	.get_link		= bnx2x_get_link,
 	.get_eeprom_len		= bnx2x_get_eeprom_len,
 	.get_eeprom		= bnx2x_get_eeprom,
 	.set_eeprom		= bnx2x_set_eeprom,

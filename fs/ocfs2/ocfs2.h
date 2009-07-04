@@ -34,6 +34,7 @@
 #include <linux/workqueue.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/lockdep.h>
 #ifndef CONFIG_OCFS2_COMPAT_JBD
 # include <linux/jbd2.h>
 #else
@@ -152,6 +153,14 @@ struct ocfs2_lock_res {
 	unsigned int		 l_lock_max_exmode; 	   /* Max wait for EX */
 	unsigned int		 l_lock_refresh;	   /* Disk refreshes */
 #endif
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	 l_lockdep_map;
+#endif
+};
+
+enum ocfs2_orphan_scan_state {
+	ORPHAN_SCAN_ACTIVE,
+	ORPHAN_SCAN_INACTIVE
 };
 
 struct ocfs2_orphan_scan {
@@ -162,6 +171,7 @@ struct ocfs2_orphan_scan {
 	struct timespec		os_scantime;  /* time this node ran the scan */
 	u32			os_count;      /* tracks node specific scans */
 	u32  			os_seqno;       /* tracks cluster wide scans */
+	atomic_t		os_state;              /* ACTIVE or INACTIVE */
 };
 
 struct ocfs2_dlm_debug {

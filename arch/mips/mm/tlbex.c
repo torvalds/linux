@@ -23,6 +23,7 @@
 #include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/smp.h>
 #include <linux/string.h>
 #include <linux/init.h>
 

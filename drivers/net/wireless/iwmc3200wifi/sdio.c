@@ -454,10 +454,18 @@ static int iwm_sdio_probe(struct sdio_func *func,
 
 	INIT_WORK(&hw->isr_worker, iwm_sdio_isr_worker);
 
+	ret = iwm_if_add(iwm);
+	if (ret) {
+		dev_err(dev, "add SDIO interface failed\n");
+		goto destroy_wq;
+	}
+
 	dev_info(dev, "IWM SDIO probe\n");
 
 	return 0;
 
+ destroy_wq:
+	destroy_workqueue(hw->isr_wq);
  debugfs_exit:
 	iwm_debugfs_exit(iwm);
  if_free:
@@ -471,9 +479,10 @@ static void iwm_sdio_remove(struct sdio_func *func)
 	struct iwm_priv *iwm = hw_to_iwm(hw);
 	struct device *dev = &func->dev;
 
+	iwm_if_remove(iwm);
+	destroy_workqueue(hw->isr_wq);
 	iwm_debugfs_exit(iwm);
 	iwm_if_free(iwm);
-	destroy_workqueue(hw->isr_wq);
 
 	sdio_set_drvdata(func, NULL);
 

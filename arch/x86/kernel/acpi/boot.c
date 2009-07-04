@@ -44,11 +44,7 @@
 
 static int __initdata acpi_force = 0;
 u32 acpi_rsdt_forced;
-#ifdef	CONFIG_ACPI
-int acpi_disabled = 0;
-#else
-int acpi_disabled = 1;
-#endif
+int acpi_disabled;
 EXPORT_SYMBOL(acpi_disabled);
 
 #ifdef	CONFIG_X86_64
@@ -121,72 +117,6 @@ void __init __acpi_unmap_table(char *map, unsigned long size)
 
 	early_iounmap(map, size);
 }
-
-#ifdef CONFIG_PCI_MMCONFIG
-
-static int acpi_mcfg_64bit_base_addr __initdata = FALSE;
-
-/* The physical address of the MMCONFIG aperture.  Set from ACPI tables. */
-struct acpi_mcfg_allocation *pci_mmcfg_config;
-int pci_mmcfg_config_num;
-
-static int __init acpi_mcfg_oem_check(struct acpi_table_mcfg *mcfg)
-{
-	if (!strcmp(mcfg->header.oem_id, "SGI"))
-		acpi_mcfg_64bit_base_addr = TRUE;
-
-	return 0;
-}
-
-int __init acpi_parse_mcfg(struct acpi_table_header *header)
-{
-	struct acpi_table_mcfg *mcfg;
-	unsigned long i;
-	int config_size;
-
-	if (!header)
-		return -EINVAL;
-
-	mcfg = (struct acpi_table_mcfg *)header;
-
-	/* how many config structures do we have */
-	pci_mmcfg_config_num = 0;
-	i = header->length - sizeof(struct acpi_table_mcfg);
-	while (i >= sizeof(struct acpi_mcfg_allocation)) {
-		++pci_mmcfg_config_num;
-		i -= sizeof(struct acpi_mcfg_allocation);
-	};
-	if (pci_mmcfg_config_num == 0) {
-		printk(KERN_ERR PREFIX "MMCONFIG has no entries\n");
-		return -ENODEV;
-	}
-
-	config_size = pci_mmcfg_config_num * sizeof(*pci_mmcfg_config);
-	pci_mmcfg_config = kmalloc(config_size, GFP_KERNEL);
-	if (!pci_mmcfg_config) {
-		printk(KERN_WARNING PREFIX
-		       "No memory for MCFG config tables\n");
-		return -ENOMEM;
-	}
-
-	memcpy(pci_mmcfg_config, &mcfg[1], config_size);
-
-	acpi_mcfg_oem_check(mcfg);
-
-	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		if ((pci_mmcfg_config[i].address > 0xFFFFFFFF) &&
-		    !acpi_mcfg_64bit_base_addr) {
-			printk(KERN_ERR PREFIX
-			       "MMCONFIG not in low 4GB of memory\n");
-			kfree(pci_mmcfg_config);
-			pci_mmcfg_config_num = 0;
-			return -ENODEV;
-		}
-	}
-
-	return 0;
-}
-#endif				/* CONFIG_PCI_MMCONFIG */
 
 #ifdef CONFIG_X86_LOCAL_APIC
 static int __init acpi_parse_madt(struct acpi_table_header *table)
@@ -1515,14 +1445,6 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Compaq"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "Workstation W8000"),
-		     },
-	 },
-	{
-	 .callback = force_acpi_ht,
-	 .ident = "ASUS P4B266",
-	 .matches = {
-		     DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
-		     DMI_MATCH(DMI_BOARD_NAME, "P4B266"),
 		     },
 	 },
 	{

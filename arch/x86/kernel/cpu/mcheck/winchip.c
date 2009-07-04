@@ -9,9 +9,8 @@
 
 #include <asm/processor.h>
 #include <asm/system.h>
+#include <asm/mce.h>
 #include <asm/msr.h>
-
-#include "mce.h"
 
 /* Machine check handler for WinChip C6: */
 static void winchip_machine_check(struct pt_regs *regs, long error_code)

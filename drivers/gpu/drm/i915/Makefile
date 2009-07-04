@@ -13,6 +13,8 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o i915_mem.o \
 	  intel_crt.o \
 	  intel_lvds.o \
 	  intel_bios.o \
+	  intel_dp.o \
+	  intel_dp_i2c.o \
 	  intel_hdmi.o \
 	  intel_sdvo.o \
 	  intel_modes.o \

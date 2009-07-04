@@ -18,6 +18,13 @@ config HAVE_FUNCTION_TRACER
 config HAVE_FUNCTION_GRAPH_TRACER
 	bool
 
+config HAVE_FUNCTION_GRAPH_FP_TEST
+	bool
+	help
+	 An arch may pass in a unique value (frame pointer) to both the
+	 entering and exiting of a function. On exit, the value is compared
+	 and if it does not match, then it will panic the kernel.
+
 config HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	bool
 	help
@@ -121,6 +128,7 @@ config FUNCTION_GRAPH_TRACER
 	bool "Kernel Function Graph Tracer"
 	depends on HAVE_FUNCTION_GRAPH_TRACER
 	depends on FUNCTION_TRACER
+	depends on !X86_32 || !CC_OPTIMIZE_FOR_SIZE
 	default y
 	help
 	  Enable the kernel to trace a function at both its return

@@ -867,15 +867,22 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 	tty_ldisc_wait_idle(tty);
 
 	/*
-	 * Shutdown the current line discipline, and reset it to N_TTY.
-	 *
-	 * FIXME: this MUST get fixed for the new reflocking
+	 * Now kill off the ldisc
 	 */
+	tty_ldisc_close(tty, tty->ldisc);
+	tty_ldisc_put(tty->ldisc);
+	/* Force an oops if we mess this up */
+	tty->ldisc = NULL;
 
-	tty_ldisc_reinit(tty);
+	/* Ensure the next open requests the N_TTY ldisc */
+	tty_set_termios_ldisc(tty, N_TTY);
+
 	/* This will need doing differently if we need to lock */
 	if (o_tty)
 		tty_ldisc_release(o_tty, NULL);
+
+	/* And the memory resources remaining (buffers, termios) will be
+	   disposed of when the kref hits zero */
 }
 
 /**

@@ -643,9 +643,9 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (batch->num_cliprects) {
-		cliprects = drm_calloc(batch->num_cliprects,
-				       sizeof(struct drm_clip_rect),
-				       DRM_MEM_DRIVER);
+		cliprects = kcalloc(batch->num_cliprects,
+				    sizeof(struct drm_clip_rect),
+				    GFP_KERNEL);
 		if (cliprects == NULL)
 			return -ENOMEM;
 
@@ -664,9 +664,7 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 
 fail_free:
-	drm_free(cliprects,
-		 batch->num_cliprects * sizeof(struct drm_clip_rect),
-		 DRM_MEM_DRIVER);
+	kfree(cliprects);
 
 	return ret;
 }
@@ -692,7 +690,7 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	if (cmdbuf->num_cliprects < 0)
 		return -EINVAL;
 
-	batch_data = drm_alloc(cmdbuf->sz, DRM_MEM_DRIVER);
+	batch_data = kmalloc(cmdbuf->sz, GFP_KERNEL);
 	if (batch_data == NULL)
 		return -ENOMEM;
 
@@ -701,9 +699,8 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 		goto fail_batch_free;
 
 	if (cmdbuf->num_cliprects) {
-		cliprects = drm_calloc(cmdbuf->num_cliprects,
-				       sizeof(struct drm_clip_rect),
-				       DRM_MEM_DRIVER);
+		cliprects = kcalloc(cmdbuf->num_cliprects,
+				    sizeof(struct drm_clip_rect), GFP_KERNEL);
 		if (cliprects == NULL)
 			goto fail_batch_free;
 
@@ -726,11 +723,9 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 
 fail_clip_free:
-	drm_free(cliprects,
-		 cmdbuf->num_cliprects * sizeof(struct drm_clip_rect),
-		 DRM_MEM_DRIVER);
+	kfree(cliprects);
 fail_batch_free:
-	drm_free(batch_data, cmdbuf->sz, DRM_MEM_DRIVER);
+	kfree(batch_data);
 
 	return ret;
 }
@@ -1067,7 +1062,7 @@ int i915_master_create(struct drm_device *dev, struct drm_master *master)
 {
 	struct drm_i915_master_private *master_priv;
 
-	master_priv = drm_calloc(1, sizeof(*master_priv), DRM_MEM_DRIVER);
+	master_priv = kzalloc(sizeof(*master_priv), GFP_KERNEL);
 	if (!master_priv)
 		return -ENOMEM;
 
@@ -1082,7 +1077,7 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	if (!master_priv)
 		return;
 
-	drm_free(master_priv, sizeof(*master_priv), DRM_MEM_DRIVER);
+	kfree(master_priv);
 
 	master->driver_priv = NULL;
 }
@@ -1111,11 +1106,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->types[8] = _DRM_STAT_SECONDARY;
 	dev->types[9] = _DRM_STAT_DMA;
 
-	dev_priv = drm_alloc(sizeof(drm_i915_private_t), DRM_MEM_DRIVER);
+	dev_priv = kzalloc(sizeof(drm_i915_private_t), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
-
-	memset(dev_priv, 0, sizeof(drm_i915_private_t));
 
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->dev = dev;
@@ -1153,13 +1146,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			 "performance may suffer.\n");
 	}
 
-#ifdef CONFIG_HIGHMEM64G
-	/* don't enable GEM on PAE - needs agp + set_memory_* interface fixes */
-	dev_priv->has_gem = 0;
-#else
 	/* enable GEM by default */
 	dev_priv->has_gem = 1;
-#endif
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
@@ -1221,7 +1209,7 @@ out_iomapfree:
 out_rmmap:
 	iounmap(dev_priv->regs);
 free_priv:
-	drm_free(dev_priv, sizeof(struct drm_i915_private), DRM_MEM_DRIVER);
+	kfree(dev_priv);
 	return ret;
 }
 
@@ -1261,8 +1249,7 @@ int i915_driver_unload(struct drm_device *dev)
 		i915_gem_lastclose(dev);
 	}
 
-	drm_free(dev->dev_private, sizeof(drm_i915_private_t),
-		 DRM_MEM_DRIVER);
+	kfree(dev->dev_private);
 
 	return 0;
 }
@@ -1273,7 +1260,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 
 	DRM_DEBUG_DRIVER(I915_DRV, "\n");
 	i915_file_priv = (struct drm_i915_file_private *)
-	    drm_alloc(sizeof(*i915_file_priv), DRM_MEM_FILES);
+	    kmalloc(sizeof(*i915_file_priv), GFP_KERNEL);
 
 	if (!i915_file_priv)
 		return -ENOMEM;
@@ -1326,7 +1313,7 @@ void i915_driver_postclose(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_i915_file_private *i915_file_priv = file_priv->driver_priv;
 
-	drm_free(i915_file_priv, sizeof(*i915_file_priv), DRM_MEM_FILES);
+	kfree(i915_file_priv);
 }
 
 struct drm_ioctl_desc i915_ioctls[] = {

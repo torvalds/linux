@@ -95,7 +95,7 @@ acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, cha
 }
 static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 
-static int acpi_bus_hot_remove_device(void *context)
+static void acpi_bus_hot_remove_device(void *context)
 {
 	struct acpi_device *device;
 	acpi_handle handle = context;
@@ -104,10 +104,10 @@ static int acpi_bus_hot_remove_device(void *context)
 	acpi_status status = AE_OK;
 
 	if (acpi_bus_get_device(handle, &device))
-		return 0;
+		return;
 
 	if (!device)
-		return 0;
+		return;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"Hot-removing device %s...\n", dev_name(&device->dev)));
@@ -115,7 +115,7 @@ static int acpi_bus_hot_remove_device(void *context)
 	if (acpi_bus_trim(device, 1)) {
 		printk(KERN_ERR PREFIX
 				"Removing device failed\n");
-		return -1;
+		return;
 	}
 
 	/* power off device */
@@ -142,9 +142,10 @@ static int acpi_bus_hot_remove_device(void *context)
 	 */
 	status = acpi_evaluate_object(handle, "_EJ0", &arg_list, NULL);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		printk(KERN_WARNING PREFIX
+				"Eject device failed\n");
 
-	return 0;
+	return;
 }
 
 static ssize_t
@@ -155,7 +156,6 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	acpi_status status;
 	acpi_object_type type = 0;
 	struct acpi_device *acpi_device = to_acpi_device(d);
-	struct task_struct *task;
 
 	if ((!count) || (buf[0] != '1')) {
 		return -EINVAL;
@@ -172,11 +172,7 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 		goto err;
 	}
 
-	/* remove the device in another thread to fix the deadlock issue */
-	task = kthread_run(acpi_bus_hot_remove_device,
-				acpi_device->handle, "acpi_hot_remove_device");
-	if (IS_ERR(task))
-		ret = PTR_ERR(task);
+	acpi_os_hotplug_execute(acpi_bus_hot_remove_device, acpi_device->handle);
 err:
 	return ret;
 }
@@ -198,12 +194,12 @@ acpi_device_path_show(struct device *dev, struct device_attribute *attr, char *b
 	int result;
 
 	result = acpi_get_name(acpi_dev->handle, ACPI_FULL_PATHNAME, &path);
-	if(result)
+	if (result)
 		goto end;
 
 	result = sprintf(buf, "%s\n", (char*)path.pointer);
 	kfree(path.pointer);
-  end:
+end:
 	return result;
 }
 static DEVICE_ATTR(path, 0444, acpi_device_path_show, NULL);
@@ -217,21 +213,21 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 	/*
 	 * Devices gotten from FADT don't have a "path" attribute
 	 */
-	if(dev->handle) {
+	if (dev->handle) {
 		result = device_create_file(&dev->dev, &dev_attr_path);
-		if(result)
+		if (result)
 			goto end;
 	}
 
-	if(dev->flags.hardware_id) {
+	if (dev->flags.hardware_id) {
 		result = device_create_file(&dev->dev, &dev_attr_hid);
-		if(result)
+		if (result)
 			goto end;
 	}
 
-	if (dev->flags.hardware_id || dev->flags.compatible_ids){
+	if (dev->flags.hardware_id || dev->flags.compatible_ids) {
 		result = device_create_file(&dev->dev, &dev_attr_modalias);
-		if(result)
+		if (result)
 			goto end;
 	}
 
@@ -242,7 +238,7 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
 	if (ACPI_SUCCESS(status))
 		result = device_create_file(&dev->dev, &dev_attr_eject);
-  end:
+end:
 	return result;
 }
 
@@ -262,9 +258,9 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	if (dev->flags.hardware_id || dev->flags.compatible_ids)
 		device_remove_file(&dev->dev, &dev_attr_modalias);
 
-	if(dev->flags.hardware_id)
+	if (dev->flags.hardware_id)
 		device_remove_file(&dev->dev, &dev_attr_hid);
-	if(dev->handle)
+	if (dev->handle)
 		device_remove_file(&dev->dev, &dev_attr_path);
 }
 /* --------------------------------------------------------------------------
@@ -512,7 +508,7 @@ static int acpi_device_register(struct acpi_device *device,
 			break;
 		}
 	}
-	if(!found) {
+	if (!found) {
 		acpi_device_bus_id = new_bus_id;
 		strcpy(acpi_device_bus_id->bus_id, device->flags.hardware_id ? device->pnp.hardware_id : "device");
 		acpi_device_bus_id->instance_no = 0;
@@ -530,22 +526,21 @@ static int acpi_device_register(struct acpi_device *device,
 	if (device->parent)
 		device->dev.parent = &parent->dev;
 	device->dev.bus = &acpi_bus_type;
-	device_initialize(&device->dev);
 	device->dev.release = &acpi_device_release;
-	result = device_add(&device->dev);
-	if(result) {
-		dev_err(&device->dev, "Error adding device\n");
+	result = device_register(&device->dev);
+	if (result) {
+		dev_err(&device->dev, "Error registering device\n");
 		goto end;
 	}
 
 	result = acpi_device_setup_files(device);
-	if(result)
+	if (result)
 		printk(KERN_ERR PREFIX "Error creating sysfs interface for device %s\n",
 		       dev_name(&device->dev));
 
 	device->removal_type = ACPI_BUS_REMOVAL_NORMAL;
 	return 0;
-  end:
+end:
 	mutex_lock(&acpi_device_lock);
 	if (device->parent)
 		list_del(&device->node);
@@ -577,14 +572,13 @@ static void acpi_device_unregister(struct acpi_device *device, int type)
  * @device: the device to add and initialize
  * @driver: driver for the device
  *
- * Used to initialize a device via its device driver.  Called whenever a 
+ * Used to initialize a device via its device driver.  Called whenever a
  * driver is bound to a device.  Invokes the driver's add() ops.
  */
 static int
 acpi_bus_driver_init(struct acpi_device *device, struct acpi_driver *driver)
 {
 	int result = 0;
-
 
 	if (!device || !driver)
 		return -EINVAL;
@@ -802,7 +796,7 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	if (!acpi_match_device_ids(device, button_device_ids))
 		device->wakeup.flags.run_wake = 1;
 
-      end:
+end:
 	if (ACPI_FAILURE(status))
 		device->flags.wake_capable = 0;
 	return 0;
@@ -1070,7 +1064,7 @@ static void acpi_device_set_id(struct acpi_device *device,
 		break;
 	}
 
-	/* 
+	/*
 	 * \_SB
 	 * ----
 	 * Fix for the system root bus device -- the only root-level device.
@@ -1320,7 +1314,7 @@ acpi_add_single_object(struct acpi_device **child,
 			device->parent->ops.bind(device);
 	}
 
-      end:
+end:
 	if (!result)
 		*child = device;
 	else {
@@ -1464,7 +1458,6 @@ acpi_bus_add(struct acpi_device **child,
 
 	return result;
 }
-
 EXPORT_SYMBOL(acpi_bus_add);
 
 int acpi_bus_start(struct acpi_device *device)
@@ -1484,7 +1477,6 @@ int acpi_bus_start(struct acpi_device *device)
 	}
 	return result;
 }
-
 EXPORT_SYMBOL(acpi_bus_start);
 
 int acpi_bus_trim(struct acpi_device *start, int rmdevice)
@@ -1541,7 +1533,6 @@ int acpi_bus_trim(struct acpi_device *start, int rmdevice)
 	return err;
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
-
 
 static int acpi_bus_scan_fixed(struct acpi_device *root)
 {
@@ -1610,6 +1601,6 @@ int __init acpi_scan_init(void)
 	if (result)
 		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
 
-      Done:
+Done:
 	return result;
 }

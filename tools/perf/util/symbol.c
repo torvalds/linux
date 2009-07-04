@@ -9,9 +9,9 @@
 
 const char *sym_hist_filter;
 
-static struct symbol *symbol__new(__u64 start, __u64 len,
+static struct symbol *symbol__new(u64 start, u64 len,
 				  const char *name, unsigned int priv_size,
-				  __u64 obj_start, int verbose)
+				  u64 obj_start, int verbose)
 {
 	size_t namelen = strlen(name) + 1;
 	struct symbol *self = calloc(1, priv_size + sizeof(*self) + namelen);
@@ -21,14 +21,14 @@ static struct symbol *symbol__new(__u64 start, __u64 len,
 
 	if (verbose >= 2)
 		printf("new symbol: %016Lx [%08lx]: %s, hist: %p, obj_start: %p\n",
-			(__u64)start, (unsigned long)len, name, self->hist, (void *)(unsigned long)obj_start);
+			(u64)start, (unsigned long)len, name, self->hist, (void *)(unsigned long)obj_start);
 
 	self->obj_start= obj_start;
 	self->hist = NULL;
 	self->hist_sum = 0;
 
 	if (sym_hist_filter && !strcmp(name, sym_hist_filter))
-		self->hist = calloc(sizeof(__u64), len);
+		self->hist = calloc(sizeof(u64), len);
 
 	if (priv_size) {
 		memset(self, 0, priv_size);
@@ -89,7 +89,7 @@ static void dso__insert_symbol(struct dso *self, struct symbol *sym)
 {
 	struct rb_node **p = &self->syms.rb_node;
 	struct rb_node *parent = NULL;
-	const __u64 ip = sym->start;
+	const u64 ip = sym->start;
 	struct symbol *s;
 
 	while (*p != NULL) {
@@ -104,7 +104,7 @@ static void dso__insert_symbol(struct dso *self, struct symbol *sym)
 	rb_insert_color(&sym->rb_node, &self->syms);
 }
 
-struct symbol *dso__find_symbol(struct dso *self, __u64 ip)
+struct symbol *dso__find_symbol(struct dso *self, u64 ip)
 {
 	struct rb_node *n;
 
@@ -151,7 +151,7 @@ static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int verb
 		goto out_failure;
 
 	while (!feof(file)) {
-		__u64 start;
+		u64 start;
 		struct symbol *sym;
 		int line_len, len;
 		char symbol_type;
@@ -232,7 +232,7 @@ static int dso__load_perf_map(struct dso *self, symbol_filter_t filter, int verb
 		goto out_failure;
 
 	while (!feof(file)) {
-		__u64 start, size;
+		u64 start, size;
 		struct symbol *sym;
 		int line_len, len;
 
@@ -353,7 +353,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, Elf *elf,
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
-	__u64 plt_offset;
+	u64 plt_offset;
 	GElf_Shdr shdr_plt;
 	struct symbol *f;
 	GElf_Shdr shdr_rel_plt;
@@ -520,10 +520,12 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
 
 	memset(&sym, 0, sizeof(sym));
-
+	self->prelinked = elf_section_by_name(elf, &ehdr, &shdr,
+					      ".gnu.prelink_undo",
+					      NULL) != NULL;
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
 		struct symbol *f;
-		__u64 obj_start;
+		u64 obj_start;
 
 		if (!elf_sym__is_function(&sym))
 			continue;
@@ -535,7 +537,13 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 		gelf_getshdr(sec, &shdr);
 		obj_start = sym.st_value;
 
-		sym.st_value -= shdr.sh_addr - shdr.sh_offset;
+		if (self->prelinked) {
+			if (verbose >= 2)
+				printf("adjusting symbol: st_value: %Lx sh_addr: %Lx sh_offset: %Lx\n",
+					(u64)sym.st_value, (u64)shdr.sh_addr, (u64)shdr.sh_offset);
+
+			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
+		}
 
 		f = symbol__new(sym.st_value, sym.st_size,
 				elf_sym__name(&sym, symstrs),
@@ -568,6 +576,8 @@ int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 
 	if (!name)
 		return -1;
+
+	self->prelinked = 0;
 
 	if (strncmp(self->name, "/tmp/perf-", 10) == 0)
 		return dso__load_perf_map(self, filter, verbose);
@@ -629,7 +639,7 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 	if (vmlinux)
 		err = dso__load_vmlinux(self, vmlinux, filter, verbose);
 
-	if (err)
+	if (err < 0)
 		err = dso__load_kallsyms(self, filter, verbose);
 
 	return err;

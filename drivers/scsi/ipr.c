@@ -131,13 +131,13 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 };
 
 static const struct ipr_chip_t ipr_chip[] = {
-	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE, &ipr_chip_cfg[1] },
-	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP, &ipr_chip_cfg[1] }
+	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE, IPR_USE_LSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE, IPR_USE_LSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN, IPR_USE_LSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN, IPR_USE_LSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E, IPR_USE_MSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE, IPR_USE_LSI, &ipr_chip_cfg[1] },
+	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP, IPR_USE_LSI, &ipr_chip_cfg[1] }
 };
 
 static int ipr_max_bus_speeds [] = {
@@ -7367,6 +7367,7 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 	INIT_LIST_HEAD(&ioa_cfg->used_res_q);
 	INIT_WORK(&ioa_cfg->work_q, ipr_worker_thread);
 	init_waitqueue_head(&ioa_cfg->reset_wait_q);
+	init_waitqueue_head(&ioa_cfg->msi_wait_q);
 	ioa_cfg->sdt_state = INACTIVE;
 	if (ipr_enable_cache)
 		ioa_cfg->cache_state = CACHE_ENABLED;
@@ -7398,22 +7399,105 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 }
 
 /**
- * ipr_get_chip_cfg - Find adapter chip configuration
+ * ipr_get_chip_info - Find adapter chip information
  * @dev_id:		PCI device id struct
  *
  * Return value:
- * 	ptr to chip config on success / NULL on failure
+ * 	ptr to chip information on success / NULL on failure
  **/
-static const struct ipr_chip_cfg_t * __devinit
-ipr_get_chip_cfg(const struct pci_device_id *dev_id)
+static const struct ipr_chip_t * __devinit
+ipr_get_chip_info(const struct pci_device_id *dev_id)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ipr_chip); i++)
 		if (ipr_chip[i].vendor == dev_id->vendor &&
 		    ipr_chip[i].device == dev_id->device)
-			return ipr_chip[i].cfg;
+			return &ipr_chip[i];
 	return NULL;
+}
+
+/**
+ * ipr_test_intr - Handle the interrupt generated in ipr_test_msi().
+ * @pdev:		PCI device struct
+ *
+ * Description: Simply set the msi_received flag to 1 indicating that
+ * Message Signaled Interrupts are supported.
+ *
+ * Return value:
+ * 	0 on success / non-zero on failure
+ **/
+static irqreturn_t __devinit ipr_test_intr(int irq, void *devp)
+{
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)devp;
+	unsigned long lock_flags = 0;
+	irqreturn_t rc = IRQ_HANDLED;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+
+	ioa_cfg->msi_received = 1;
+	wake_up(&ioa_cfg->msi_wait_q);
+
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return rc;
+}
+
+/**
+ * ipr_test_msi - Test for Message Signaled Interrupt (MSI) support.
+ * @pdev:		PCI device struct
+ *
+ * Description: The return value from pci_enable_msi() can not always be
+ * trusted.  This routine sets up and initiates a test interrupt to determine
+ * if the interrupt is received via the ipr_test_intr() service routine.
+ * If the tests fails, the driver will fall back to LSI.
+ *
+ * Return value:
+ * 	0 on success / non-zero on failure
+ **/
+static int __devinit ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg,
+				  struct pci_dev *pdev)
+{
+	int rc;
+	volatile u32 int_reg;
+	unsigned long lock_flags = 0;
+
+	ENTER;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	init_waitqueue_head(&ioa_cfg->msi_wait_q);
+	ioa_cfg->msi_received = 0;
+	ipr_mask_and_clear_interrupts(ioa_cfg, ~IPR_PCII_IOA_TRANS_TO_OPER);
+	writel(IPR_PCII_IO_DEBUG_ACKNOWLEDGE, ioa_cfg->regs.clr_interrupt_mask_reg);
+	int_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+
+	rc = request_irq(pdev->irq, ipr_test_intr, 0, IPR_NAME, ioa_cfg);
+	if (rc) {
+		dev_err(&pdev->dev, "Can not assign irq %d\n", pdev->irq);
+		return rc;
+	} else if (ipr_debug)
+		dev_info(&pdev->dev, "IRQ assigned: %d\n", pdev->irq);
+
+	writel(IPR_PCII_IO_DEBUG_ACKNOWLEDGE, ioa_cfg->regs.sense_interrupt_reg);
+	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg);
+	wait_event_timeout(ioa_cfg->msi_wait_q, ioa_cfg->msi_received, HZ);
+	ipr_mask_and_clear_interrupts(ioa_cfg, ~IPR_PCII_IOA_TRANS_TO_OPER);
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	if (!ioa_cfg->msi_received) {
+		/* MSI test failed */
+		dev_info(&pdev->dev, "MSI test failed.  Falling back to LSI.\n");
+		rc = -EOPNOTSUPP;
+	} else if (ipr_debug)
+		dev_info(&pdev->dev, "MSI test succeeded.\n");
+
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+
+	free_irq(pdev->irq, ioa_cfg);
+
+	LEAVE;
+
+	return rc;
 }
 
 /**
@@ -7441,11 +7525,6 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 		goto out;
 	}
 
-	if (!(rc = pci_enable_msi(pdev)))
-		dev_info(&pdev->dev, "MSI enabled\n");
-	else if (ipr_debug)
-		dev_info(&pdev->dev, "Cannot enable MSI\n");
-
 	dev_info(&pdev->dev, "Found IOA with IRQ: %d\n", pdev->irq);
 
 	host = scsi_host_alloc(&driver_template, sizeof(*ioa_cfg));
@@ -7461,13 +7540,15 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	ata_host_init(&ioa_cfg->ata_host, &pdev->dev,
 		      sata_port_info.flags, &ipr_sata_ops);
 
-	ioa_cfg->chip_cfg = ipr_get_chip_cfg(dev_id);
+	ioa_cfg->ipr_chip = ipr_get_chip_info(dev_id);
 
-	if (!ioa_cfg->chip_cfg) {
+	if (!ioa_cfg->ipr_chip) {
 		dev_err(&pdev->dev, "Unknown adapter chipset 0x%04X 0x%04X\n",
 			dev_id->vendor, dev_id->device);
 		goto out_scsi_host_put;
 	}
+
+	ioa_cfg->chip_cfg = ioa_cfg->ipr_chip->cfg;
 
 	if (ipr_transop_timeout)
 		ioa_cfg->transop_timeout = ipr_transop_timeout;
@@ -7519,6 +7600,18 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 		goto cleanup_nomem;
 	}
 
+	/* Enable MSI style interrupts if they are supported. */
+	if (ioa_cfg->ipr_chip->intr_type == IPR_USE_MSI && !pci_enable_msi(pdev)) {
+		rc = ipr_test_msi(ioa_cfg, pdev);
+		if (rc == -EOPNOTSUPP)
+			pci_disable_msi(pdev);
+		else if (rc)
+			goto out_msi_disable;
+		else
+			dev_info(&pdev->dev, "MSI enabled with IRQ: %d\n", pdev->irq);
+	} else if (ipr_debug)
+		dev_info(&pdev->dev, "Cannot enable MSI.\n");
+
 	/* Save away PCI config space for use following IOA reset */
 	rc = pci_save_state(pdev);
 
@@ -7556,7 +7649,9 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 		ioa_cfg->ioa_unit_checked = 1;
 
 	ipr_mask_and_clear_interrupts(ioa_cfg, ~IPR_PCII_IOA_TRANS_TO_OPER);
-	rc = request_irq(pdev->irq, ipr_isr, IRQF_SHARED, IPR_NAME, ioa_cfg);
+	rc = request_irq(pdev->irq, ipr_isr,
+			 ioa_cfg->msi_received ? 0 : IRQF_SHARED,
+			 IPR_NAME, ioa_cfg);
 
 	if (rc) {
 		dev_err(&pdev->dev, "Couldn't register IRQ %d! rc=%d\n",
@@ -7583,12 +7678,13 @@ cleanup_nolog:
 	ipr_free_mem(ioa_cfg);
 cleanup_nomem:
 	iounmap(ipr_regs);
+out_msi_disable:
+	pci_disable_msi(pdev);
 out_release_regions:
 	pci_release_regions(pdev);
 out_scsi_host_put:
 	scsi_host_put(host);
 out_disable:
-	pci_disable_msi(pdev);
 	pci_disable_device(pdev);
 	goto out;
 }

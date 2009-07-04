@@ -551,6 +551,9 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	/* cp setup */
 	WREG32(0x718, pre_write_timer | (pre_write_limit << 28));
 	WREG32(RADEON_CP_RB_CNTL,
+#ifdef __BIG_ENDIAN
+	       RADEON_BUF_SWAP_32BIT |
+#endif
 	       REG_SET(RADEON_RB_BUFSZ, rb_bufsz) |
 	       REG_SET(RADEON_RB_BLKSZ, rb_blksz) |
 	       REG_SET(RADEON_MAX_FETCH, max_fetch) |
@@ -644,7 +647,7 @@ int r100_cp_reset(struct radeon_device *rdev)
  */
 int r100_cs_parse_packet0(struct radeon_cs_parser *p,
 			  struct radeon_cs_packet *pkt,
-			  unsigned *auth, unsigned n,
+			  const unsigned *auth, unsigned n,
 			  radeon_packet0_check_t check)
 {
 	unsigned reg;
@@ -654,6 +657,10 @@ int r100_cs_parse_packet0(struct radeon_cs_parser *p,
 
 	idx = pkt->idx + 1;
 	reg = pkt->reg;
+	/* Check that register fall into register range
+	 * determined by the number of entry (n) in the
+	 * safe register bitmap.
+	 */
 	if (pkt->one_reg_wr) {
 		if ((reg >> 7) > n) {
 			return -EINVAL;
@@ -679,24 +686,6 @@ int r100_cs_parse_packet0(struct radeon_cs_parser *p,
 		} else {
 			reg += 4;
 		}
-	}
-	return 0;
-}
-
-int r100_cs_parse_packet3(struct radeon_cs_parser *p,
-			  struct radeon_cs_packet *pkt,
-			  unsigned *auth, unsigned n,
-			  radeon_packet3_check_t check)
-{
-	unsigned i, m;
-
-	if ((pkt->opcode >> 5) > n) {
-		return -EINVAL;
-	}
-	i = pkt->opcode >> 5;
-	m = 1 << (pkt->opcode & 31);
-	if (auth[i] & m) {
-		return check(p, pkt);
 	}
 	return 0;
 }
@@ -901,6 +890,25 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	return 0;
 }
 
+int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
+					 struct radeon_cs_packet *pkt,
+					 struct radeon_object *robj)
+{
+	struct radeon_cs_chunk *ib_chunk;
+	unsigned idx;
+
+	ib_chunk = &p->chunks[p->chunk_ib_idx];
+	idx = pkt->idx + 1;
+	if ((ib_chunk->kdata[idx+2] + 1) > radeon_object_size(robj)) {
+		DRM_ERROR("[drm] Buffer too small for PACKET3 INDX_BUFFER "
+			  "(need %u have %lu) !\n",
+			  ib_chunk->kdata[idx+2] + 1,
+			  radeon_object_size(robj));
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int r100_packet3_check(struct radeon_cs_parser *p,
 			      struct radeon_cs_packet *pkt)
 {
@@ -954,6 +962,10 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 			return r;
 		}
 		ib[idx+1] = ib_chunk->kdata[idx+1] + ((u32)reloc->lobj.gpu_offset);
+		r = r100_cs_track_check_pkt3_indx_buffer(p, pkt, reloc->robj);
+		if (r) {
+			return r;
+		}
 		break;
 	case 0x23:
 		/* FIXME: cleanup */
@@ -999,18 +1011,18 @@ int r100_cs_parse(struct radeon_cs_parser *p)
 		}
 		p->idx += pkt.count + 2;
 		switch (pkt.type) {
-		case PACKET_TYPE0:
-			r = r100_packet0_check(p, &pkt);
-			break;
-		case PACKET_TYPE2:
-			break;
-		case PACKET_TYPE3:
-			r = r100_packet3_check(p, &pkt);
-			break;
-		default:
-			DRM_ERROR("Unknown packet type %d !\n",
-					pkt.type);
-			return -EINVAL;
+			case PACKET_TYPE0:
+				r = r100_packet0_check(p, &pkt);
+				break;
+			case PACKET_TYPE2:
+				break;
+			case PACKET_TYPE3:
+				r = r100_packet3_check(p, &pkt);
+				break;
+			default:
+				DRM_ERROR("Unknown packet type %d !\n",
+					  pkt.type);
+				return -EINVAL;
 		}
 		if (r) {
 			return r;
@@ -1267,12 +1279,6 @@ void r100_vram_info(struct radeon_device *rdev)
 
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
-	if (rdev->mc.aper_size > rdev->mc.vram_size) {
-		/* Why does some hw doesn't have CONFIG_MEMSIZE properly
-		 * setup ? */
-		rdev->mc.vram_size = rdev->mc.aper_size;
-		WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
-	}
 }
 
 
@@ -1350,6 +1356,11 @@ void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
 		writel(v, ((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
 	}
+}
+
+int r100_init(struct radeon_device *rdev)
+{
+	return 0;
 }
 
 /*

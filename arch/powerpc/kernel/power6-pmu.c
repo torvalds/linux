@@ -10,7 +10,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/perf_counter.h>
+#include <linux/string.h>
 #include <asm/reg.h>
+#include <asm/cputable.h>
 
 /*
  * Bits in event code for POWER6
@@ -41,9 +43,9 @@
 #define MMCR1_NESTSEL_SH	45
 #define MMCR1_NESTSEL_MSK	0x7
 #define MMCR1_NESTSEL(m)	(((m) >> MMCR1_NESTSEL_SH) & MMCR1_NESTSEL_MSK)
-#define MMCR1_PMC1_LLA		((u64)1 << 44)
-#define MMCR1_PMC1_LLA_VALUE	((u64)1 << 39)
-#define MMCR1_PMC1_ADDR_SEL	((u64)1 << 35)
+#define MMCR1_PMC1_LLA		(1ul << 44)
+#define MMCR1_PMC1_LLA_VALUE	(1ul << 39)
+#define MMCR1_PMC1_ADDR_SEL	(1ul << 35)
 #define MMCR1_PMC1SEL_SH	24
 #define MMCR1_PMCSEL_SH(n)	(MMCR1_PMC1SEL_SH - (n) * 8)
 #define MMCR1_PMCSEL_MSK	0xff
@@ -173,10 +175,10 @@ static int power6_marked_instr_event(u64 event)
  * Assign PMC numbers and compute MMCR1 value for a set of events
  */
 static int p6_compute_mmcr(u64 event[], int n_ev,
-			   unsigned int hwc[], u64 mmcr[])
+			   unsigned int hwc[], unsigned long mmcr[])
 {
-	u64 mmcr1 = 0;
-	u64 mmcra = 0;
+	unsigned long mmcr1 = 0;
+	unsigned long mmcra = 0;
 	int i;
 	unsigned int pmc, ev, b, u, s, psel;
 	unsigned int ttmset = 0;
@@ -215,7 +217,7 @@ static int p6_compute_mmcr(u64 event[], int n_ev,
 			/* check for conflict on this byte of event bus */
 			if ((ttmset & (1 << b)) && MMCR1_TTMSEL(mmcr1, b) != u)
 				return -1;
-			mmcr1 |= (u64)u << MMCR1_TTMSEL_SH(b);
+			mmcr1 |= (unsigned long)u << MMCR1_TTMSEL_SH(b);
 			ttmset |= 1 << b;
 			if (u == 5) {
 				/* Nest events have a further mux */
@@ -224,7 +226,7 @@ static int p6_compute_mmcr(u64 event[], int n_ev,
 				    MMCR1_NESTSEL(mmcr1) != s)
 					return -1;
 				ttmset |= 0x10;
-				mmcr1 |= (u64)s << MMCR1_NESTSEL_SH;
+				mmcr1 |= (unsigned long)s << MMCR1_NESTSEL_SH;
 			}
 			if (0x30 <= psel && psel <= 0x3d) {
 				/* these need the PMCx_ADDR_SEL bits */
@@ -243,7 +245,7 @@ static int p6_compute_mmcr(u64 event[], int n_ev,
 		if (power6_marked_instr_event(event[i]))
 			mmcra |= MMCRA_SAMPLE_ENABLE;
 		if (pmc < 4)
-			mmcr1 |= (u64)psel << MMCR1_PMCSEL_SH(pmc);
+			mmcr1 |= (unsigned long)psel << MMCR1_PMCSEL_SH(pmc);
 	}
 	mmcr[0] = 0;
 	if (pmc_inuse & 1)
@@ -265,10 +267,11 @@ static int p6_compute_mmcr(u64 event[], int n_ev,
  *	20-23, 24-27, 28-31 ditto for bytes 1, 2, 3
  *	32-34	select field: nest (subunit) event selector
  */
-static int p6_get_constraint(u64 event, u64 *maskp, u64 *valp)
+static int p6_get_constraint(u64 event, unsigned long *maskp,
+			     unsigned long *valp)
 {
 	int pmc, byte, sh, subunit;
-	u64 mask = 0, value = 0;
+	unsigned long mask = 0, value = 0;
 
 	pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
 	if (pmc) {
@@ -282,11 +285,11 @@ static int p6_get_constraint(u64 event, u64 *maskp, u64 *valp)
 		byte = (event >> PM_BYTE_SH) & PM_BYTE_MSK;
 		sh = byte * 4 + (16 - PM_UNIT_SH);
 		mask |= PM_UNIT_MSKS << sh;
-		value |= (u64)(event & PM_UNIT_MSKS) << sh;
+		value |= (unsigned long)(event & PM_UNIT_MSKS) << sh;
 		if ((event & PM_UNIT_MSKS) == (5 << PM_UNIT_SH)) {
 			subunit = (event >> PM_SUBUNIT_SH) & PM_SUBUNIT_MSK;
-			mask  |= (u64)PM_SUBUNIT_MSK << 32;
-			value |= (u64)subunit << 32;
+			mask  |= (unsigned long)PM_SUBUNIT_MSK << 32;
+			value |= (unsigned long)subunit << 32;
 		}
 	}
 	if (pmc <= 4) {
@@ -458,7 +461,7 @@ static int p6_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 	return nalt;
 }
 
-static void p6_disable_pmc(unsigned int pmc, u64 mmcr[])
+static void p6_disable_pmc(unsigned int pmc, unsigned long mmcr[])
 {
 	/* Set PMCxSEL to 0 to disable PMCx */
 	if (pmc <= 3)
@@ -515,18 +518,29 @@ static int power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 };
 
-struct power_pmu power6_pmu = {
-	.n_counter = 6,
-	.max_alternatives = MAX_ALT,
-	.add_fields = 0x1555,
-	.test_adder = 0x3000,
-	.compute_mmcr = p6_compute_mmcr,
-	.get_constraint = p6_get_constraint,
-	.get_alternatives = p6_get_alternatives,
-	.disable_pmc = p6_disable_pmc,
-	.limited_pmc_event = p6_limited_pmc_event,
-	.flags = PPMU_LIMITED_PMC5_6 | PPMU_ALT_SIPR,
-	.n_generic = ARRAY_SIZE(power6_generic_events),
-	.generic_events = power6_generic_events,
-	.cache_events = &power6_cache_events,
+static struct power_pmu power6_pmu = {
+	.name			= "POWER6",
+	.n_counter		= 6,
+	.max_alternatives	= MAX_ALT,
+	.add_fields		= 0x1555,
+	.test_adder		= 0x3000,
+	.compute_mmcr		= p6_compute_mmcr,
+	.get_constraint		= p6_get_constraint,
+	.get_alternatives	= p6_get_alternatives,
+	.disable_pmc		= p6_disable_pmc,
+	.limited_pmc_event	= p6_limited_pmc_event,
+	.flags			= PPMU_LIMITED_PMC5_6 | PPMU_ALT_SIPR,
+	.n_generic		= ARRAY_SIZE(power6_generic_events),
+	.generic_events		= power6_generic_events,
+	.cache_events		= &power6_cache_events,
 };
+
+static int init_power6_pmu(void)
+{
+	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power6"))
+		return -ENODEV;
+
+	return register_power_pmu(&power6_pmu);
+}
+
+arch_initcall(init_power6_pmu);

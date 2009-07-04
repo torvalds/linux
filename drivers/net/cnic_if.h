@@ -296,4 +296,6 @@ extern int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops);
 
 extern int cnic_unregister_driver(int ulp_type);
 
+extern struct cnic_eth_dev *bnx2_cnic_probe(struct net_device *dev);
+
 #endif

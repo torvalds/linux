@@ -10,7 +10,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/perf_counter.h>
+#include <linux/string.h>
 #include <asm/reg.h>
+#include <asm/cputable.h>
 
 /*
  * Bits in event code for POWER7
@@ -71,10 +73,11 @@
  *     0-9: Count of events needing PMC1..PMC5
  */
 
-static int power7_get_constraint(u64 event, u64 *maskp, u64 *valp)
+static int power7_get_constraint(u64 event, unsigned long *maskp,
+				 unsigned long *valp)
 {
 	int pmc, sh;
-	u64 mask = 0, value = 0;
+	unsigned long mask = 0, value = 0;
 
 	pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
 	if (pmc) {
@@ -224,10 +227,10 @@ static int power7_marked_instr_event(u64 event)
 }
 
 static int power7_compute_mmcr(u64 event[], int n_ev,
-			       unsigned int hwc[], u64 mmcr[])
+			       unsigned int hwc[], unsigned long mmcr[])
 {
-	u64 mmcr1 = 0;
-	u64 mmcra = 0;
+	unsigned long mmcr1 = 0;
+	unsigned long mmcra = 0;
 	unsigned int pmc, unit, combine, l2sel, psel;
 	unsigned int pmc_inuse = 0;
 	int i;
@@ -265,11 +268,14 @@ static int power7_compute_mmcr(u64 event[], int n_ev,
 			--pmc;
 		}
 		if (pmc <= 3) {
-			mmcr1 |= (u64) unit << (MMCR1_TTM0SEL_SH - 4 * pmc);
-			mmcr1 |= (u64) combine << (MMCR1_PMC1_COMBINE_SH - pmc);
+			mmcr1 |= (unsigned long) unit
+				<< (MMCR1_TTM0SEL_SH - 4 * pmc);
+			mmcr1 |= (unsigned long) combine
+				<< (MMCR1_PMC1_COMBINE_SH - pmc);
 			mmcr1 |= psel << MMCR1_PMCSEL_SH(pmc);
 			if (unit == 6)	/* L2 events */
-				mmcr1 |= (u64) l2sel << MMCR1_L2SEL_SH;
+				mmcr1 |= (unsigned long) l2sel
+					<< MMCR1_L2SEL_SH;
 		}
 		if (power7_marked_instr_event(event[i]))
 			mmcra |= MMCRA_SAMPLE_ENABLE;
@@ -287,10 +293,10 @@ static int power7_compute_mmcr(u64 event[], int n_ev,
 	return 0;
 }
 
-static void power7_disable_pmc(unsigned int pmc, u64 mmcr[])
+static void power7_disable_pmc(unsigned int pmc, unsigned long mmcr[])
 {
 	if (pmc <= 3)
-		mmcr[1] &= ~(0xffULL << MMCR1_PMCSEL_SH(pmc));
+		mmcr[1] &= ~(0xffUL << MMCR1_PMCSEL_SH(pmc));
 }
 
 static int power7_generic_events[] = {
@@ -342,16 +348,27 @@ static int power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 };
 
-struct power_pmu power7_pmu = {
-	.n_counter = 6,
-	.max_alternatives = MAX_ALT + 1,
-	.add_fields = 0x1555ull,
-	.test_adder = 0x3000ull,
-	.compute_mmcr = power7_compute_mmcr,
-	.get_constraint = power7_get_constraint,
-	.get_alternatives = power7_get_alternatives,
-	.disable_pmc = power7_disable_pmc,
-	.n_generic = ARRAY_SIZE(power7_generic_events),
-	.generic_events = power7_generic_events,
-	.cache_events = &power7_cache_events,
+static struct power_pmu power7_pmu = {
+	.name			= "POWER7",
+	.n_counter		= 6,
+	.max_alternatives	= MAX_ALT + 1,
+	.add_fields		= 0x1555ul,
+	.test_adder		= 0x3000ul,
+	.compute_mmcr		= power7_compute_mmcr,
+	.get_constraint		= power7_get_constraint,
+	.get_alternatives	= power7_get_alternatives,
+	.disable_pmc		= power7_disable_pmc,
+	.n_generic		= ARRAY_SIZE(power7_generic_events),
+	.generic_events		= power7_generic_events,
+	.cache_events		= &power7_cache_events,
 };
+
+static int init_power7_pmu(void)
+{
+	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power7"))
+		return -ENODEV;
+
+	return register_power_pmu(&power7_pmu);
+}
+
+arch_initcall(init_power7_pmu);

@@ -24,7 +24,10 @@ D(12)	KM_SOFTIRQ1,
 D(13)	KM_SYNC_ICACHE,
 D(14)	KM_SYNC_DCACHE,
 D(15)	KM_UML_USERCOPY, /* UML specific, for copy_*_user - used in do_op_one_page */
-D(16)	KM_TYPE_NR
+D(16)	KM_IRQ_PTE,
+D(17)	KM_NMI,
+D(18)	KM_NMI_PTE,
+D(19)	KM_TYPE_NR
 };
 
 #undef D

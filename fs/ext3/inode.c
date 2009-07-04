@@ -2752,10 +2752,6 @@ struct inode *ext3_iget(struct super_block *sb, unsigned long ino)
 		return inode;
 
 	ei = EXT3_I(inode);
-#ifdef CONFIG_EXT3_FS_POSIX_ACL
-	ei->i_acl = EXT3_ACL_NOT_CACHED;
-	ei->i_default_acl = EXT3_ACL_NOT_CACHED;
-#endif
 	ei->i_block_alloc_info = NULL;
 
 	ret = __ext3_get_inode_loc(inode, &iloc, 0);

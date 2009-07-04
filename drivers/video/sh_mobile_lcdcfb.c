@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/vmalloc.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/atomic.h>
 
@@ -33,6 +34,7 @@ struct sh_mobile_lcdc_chan {
 	struct fb_info info;
 	dma_addr_t dma_handle;
 	struct fb_deferred_io defio;
+	struct scatterlist *sglist;
 	unsigned long frame_end;
 	wait_queue_head_t frame_end_wait;
 };
@@ -206,16 +208,38 @@ static void sh_mobile_lcdc_clk_on(struct sh_mobile_lcdc_priv *priv) {}
 static void sh_mobile_lcdc_clk_off(struct sh_mobile_lcdc_priv *priv) {}
 #endif
 
+static int sh_mobile_lcdc_sginit(struct fb_info *info,
+				  struct list_head *pagelist)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	unsigned int nr_pages_max = info->fix.smem_len >> PAGE_SHIFT;
+	struct page *page;
+	int nr_pages = 0;
+
+	sg_init_table(ch->sglist, nr_pages_max);
+
+	list_for_each_entry(page, pagelist, lru)
+		sg_set_page(&ch->sglist[nr_pages++], page, PAGE_SIZE, 0);
+
+	return nr_pages;
+}
+
 static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
 				       struct list_head *pagelist)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
+	unsigned int nr_pages;
 
 	/* enable clocks before accessing hardware */
 	sh_mobile_lcdc_clk_on(ch->lcdc);
 
+	nr_pages = sh_mobile_lcdc_sginit(info, pagelist);
+	dma_map_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
+
 	/* trigger panel update */
 	lcdc_write_chan(ch, LDSM2R, 1);
+
+	dma_unmap_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
 }
 
 static void sh_mobile_lcdc_deferred_io_touch(struct fb_info *info)
@@ -846,21 +870,31 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < j; i++) {
-		error = register_framebuffer(&priv->ch[i].info);
+		struct sh_mobile_lcdc_chan *ch = priv->ch + i;
+
+		info = &ch->info;
+
+		if (info->fbdefio) {
+			priv->ch->sglist = vmalloc(sizeof(struct scatterlist) *
+					info->fix.smem_len >> PAGE_SHIFT);
+			if (!priv->ch->sglist) {
+				dev_err(&pdev->dev, "cannot allocate sglist\n");
+				goto err1;
+			}
+		}
+
+		error = register_framebuffer(info);
 		if (error < 0)
 			goto err1;
-	}
 
-	for (i = 0; i < j; i++) {
-		info = &priv->ch[i].info;
 		dev_info(info->dev,
 			 "registered %s/%s as %dx%d %dbpp.\n",
 			 pdev->name,
-			 (priv->ch[i].cfg.chan == LCDC_CHAN_MAINLCD) ?
+			 (ch->cfg.chan == LCDC_CHAN_MAINLCD) ?
 			 "mainlcd" : "sublcd",
-			 (int) priv->ch[i].cfg.lcd_cfg.xres,
-			 (int) priv->ch[i].cfg.lcd_cfg.yres,
-			 priv->ch[i].cfg.bpp);
+			 (int) ch->cfg.lcd_cfg.xres,
+			 (int) ch->cfg.lcd_cfg.yres,
+			 ch->cfg.bpp);
 
 		/* deferred io mode: disable clock to save power */
 		if (info->fbdefio)
@@ -891,6 +925,9 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 
 		if (!info->device)
 			continue;
+
+		if (priv->ch[i].sglist)
+			vfree(priv->ch[i].sglist);
 
 		dma_free_coherent(&pdev->dev, info->fix.smem_len,
 				  info->screen_base, priv->ch[i].dma_handle);

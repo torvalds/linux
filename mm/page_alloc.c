@@ -488,7 +488,6 @@ static inline void __free_one_page(struct page *page,
  */
 static inline void free_page_mlock(struct page *page)
 {
-	__ClearPageMlocked(page);
 	__dec_zone_page_state(page, NR_MLOCK);
 	__count_vm_event(UNEVICTABLE_MLOCKFREED);
 }
@@ -558,7 +557,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	unsigned long flags;
 	int i;
 	int bad = 0;
-	int clearMlocked = PageMlocked(page);
+	int wasMlocked = TestClearPageMlocked(page);
 
 	kmemcheck_free_shadow(page, order);
 
@@ -576,7 +575,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	kernel_map_pages(page, 1 << order, 0);
 
 	local_irq_save(flags);
-	if (unlikely(clearMlocked))
+	if (unlikely(wasMlocked))
 		free_page_mlock(page);
 	__count_vm_events(PGFREE, 1 << order);
 	free_one_page(page_zone(page), page, order,
@@ -1022,7 +1021,7 @@ static void free_hot_cold_page(struct page *page, int cold)
 	struct zone *zone = page_zone(page);
 	struct per_cpu_pages *pcp;
 	unsigned long flags;
-	int clearMlocked = PageMlocked(page);
+	int wasMlocked = TestClearPageMlocked(page);
 
 	kmemcheck_free_shadow(page, 0);
 
@@ -1041,7 +1040,7 @@ static void free_hot_cold_page(struct page *page, int cold)
 	pcp = &zone_pcp(zone, get_cpu())->pcp;
 	set_page_private(page, get_pageblock_migratetype(page));
 	local_irq_save(flags);
-	if (unlikely(clearMlocked))
+	if (unlikely(wasMlocked))
 		free_page_mlock(page);
 	__count_vm_event(PGFREE);
 
@@ -1154,10 +1153,10 @@ again:
 			 * properly detect and handle allocation failures.
 			 *
 			 * We most definitely don't want callers attempting to
-			 * allocate greater than single-page units with
+			 * allocate greater than order-1 page units with
 			 * __GFP_NOFAIL.
 			 */
-			WARN_ON_ONCE(order > 0);
+			WARN_ON_ONCE(order > 1);
 		}
 		spin_lock_irqsave(&zone->lock, flags);
 		page = __rmqueue(zone, order, migratetype);
@@ -3027,7 +3026,7 @@ bad:
 		if (dzone == zone)
 			break;
 		kfree(zone_pcp(dzone, cpu));
-		zone_pcp(dzone, cpu) = NULL;
+		zone_pcp(dzone, cpu) = &boot_pageset[cpu];
 	}
 	return -ENOMEM;
 }
@@ -3042,7 +3041,7 @@ static inline void free_zone_pagesets(int cpu)
 		/* Free per_cpu_pageset if it is slab allocated */
 		if (pset != &boot_pageset[cpu])
 			kfree(pset);
-		zone_pcp(zone, cpu) = NULL;
+		zone_pcp(zone, cpu) = &boot_pageset[cpu];
 	}
 }
 
@@ -4033,6 +4032,8 @@ static void __init find_zone_movable_pfns_for_nodes(unsigned long *movable_pfn)
 	int i, nid;
 	unsigned long usable_startpfn;
 	unsigned long kernelcore_node, kernelcore_remaining;
+	/* save the state before borrow the nodemask */
+	nodemask_t saved_node_state = node_states[N_HIGH_MEMORY];
 	unsigned long totalpages = early_calculate_totalpages();
 	int usable_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
 
@@ -4060,7 +4061,7 @@ static void __init find_zone_movable_pfns_for_nodes(unsigned long *movable_pfn)
 
 	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
 	if (!required_kernelcore)
-		return;
+		goto out;
 
 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
 	find_usable_zone_for_movable();
@@ -4159,6 +4160,10 @@ restart:
 	for (nid = 0; nid < MAX_NUMNODES; nid++)
 		zone_movable_pfn[nid] =
 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+
+out:
+	/* restore the node_state */
+	node_states[N_HIGH_MEMORY] = saved_node_state;
 }
 
 /* Any regular memory on that node ? */
@@ -4243,11 +4248,6 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 						early_node_map[i].start_pfn,
 						early_node_map[i].end_pfn);
 
-	/*
-	 * find_zone_movable_pfns_for_nodes/early_calculate_totalpages init
-	 * that node_mask, clear it at first
-	 */
-	nodes_clear(node_states[N_HIGH_MEMORY]);
 	/* Initialise every node */
 	mminit_verify_pageflags_layout();
 	setup_nr_node_ids();
@@ -4660,7 +4660,7 @@ int percpu_pagelist_fraction_sysctl_handler(ctl_table *table, int write,
 	ret = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
 	if (!write || (ret == -EINVAL))
 		return ret;
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		for_each_online_cpu(cpu) {
 			unsigned long  high;
 			high = zone->present_pages / percpu_pagelist_fraction;

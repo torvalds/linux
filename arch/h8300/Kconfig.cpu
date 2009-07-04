@@ -13,7 +13,7 @@ config H8300H_GENERIC
 
 config H8300H_AKI3068NET
 	bool "AE-3068/69"
-	select CONFIG_H83068
+	select H83068
 	help
 	  AKI-H8/3068F / AKI-H8/3069F Flashmicom LAN Board Support
 	  More Information. (Japanese Only)
@@ -24,7 +24,7 @@ config H8300H_AKI3068NET
 
 config H8300H_H8MAX
 	bool "H8MAX"
-	select CONFIG_H83068
+	select H83068
 	help
 	  H8MAX Evaluation Board Support
 	  More Information. (Japanese Only)
@@ -32,7 +32,7 @@ config H8300H_H8MAX
 
 config H8300H_SIM
 	bool "H8/300H Simulator"
-	select CONFIG_H83007
+	select H83007
 	help
 	  GDB Simulator Support
 	  More Information.
@@ -45,7 +45,7 @@ config H8S_GENERIC
 
 config H8S_EDOSK2674
 	bool "EDOSK-2674"
-	select CONFIG_H8S2768
+	select H8S2678
 	help
 	  Renesas EDOSK-2674 Evaluation Board Support
 	  More Information.

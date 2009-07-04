@@ -1426,6 +1426,8 @@ sub dump_struct($$) {
 	# strip comments:
 	$members =~ s/\/\*.*?\*\///gos;
 	$nested =~ s/\/\*.*?\*\///gos;
+	# strip kmemcheck_bitfield_{begin,end}.*;
+	$members =~ s/kmemcheck_bitfield_.*?;//gos;
 
 	create_parameterlist($members, ';', $file);
 	check_sections($file, $declaration_name, "struct", $sectcheck, $struct_actual, $nested);
@@ -1651,6 +1653,15 @@ sub push_parameter($$$) {
 	}
 	}
 
+	# strip spaces from $param so that it is one continous string
+	# on @parameterlist;
+	# this fixes a problem where check_sections() cannot find
+	# a parameter like "addr[6 + 2]" because it actually appears
+	# as "addr[6", "+", "2]" on the parameter list;
+	# but it's better to maintain the param string unchanged for output,
+	# so just weaken the string compare in check_sections() to ignore
+	# "[blah" in a parameter string;
+	###$param =~ s/\s*//g;
 	push @parameterlist, $param;
 	$parametertypes{$param} = $type;
 }
@@ -1669,6 +1680,14 @@ sub check_sections($$$$$$) {
 			$prm_clean = $prms[$px];
 			$prm_clean =~ s/\[.*\]//;
 			$prm_clean =~ s/__attribute__\s*\(\([a-z,_\*\s\(\)]*\)\)//;
+			# ignore array size in a parameter string;
+			# however, the original param string may contain
+			# spaces, e.g.:  addr[6 + 2]
+			# and this appears in @prms as "addr[6" since the
+			# parameter list is split at spaces;
+			# hence just ignore "[..." for the sections check;
+			$prm_clean =~ s/\[.*//;
+
 			##$prm_clean =~ s/^\**//;
 			if ($prm_clean eq $sects[$sx]) {
 				$err = 0;

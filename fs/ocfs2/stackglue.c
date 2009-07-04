@@ -6,7 +6,7 @@
  * Code which implements an OCFS2 specific interface to underlying
  * cluster stacks.
  *
- * Copyright (C) 2007 Oracle.  All rights reserved.
+ * Copyright (C) 2007, 2009 Oracle.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -271,11 +271,12 @@ int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
 }
 EXPORT_SYMBOL_GPL(ocfs2_dlm_lock_status);
 
-/*
- * Why don't we cast to ocfs2_meta_lvb?  The "clean" answer is that we
- * don't cast at the glue level.  The real answer is that the header
- * ordering is nigh impossible.
- */
+int ocfs2_dlm_lvb_valid(union ocfs2_dlm_lksb *lksb)
+{
+	return active_stack->sp_ops->lvb_valid(lksb);
+}
+EXPORT_SYMBOL_GPL(ocfs2_dlm_lvb_valid);
+
 void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb)
 {
 	return active_stack->sp_ops->lock_lvb(lksb);

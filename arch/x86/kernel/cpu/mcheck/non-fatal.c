@@ -17,9 +17,8 @@
 
 #include <asm/processor.h>
 #include <asm/system.h>
+#include <asm/mce.h>
 #include <asm/msr.h>
-
-#include "mce.h"
 
 static int		firstbank;
 

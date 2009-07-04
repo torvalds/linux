@@ -112,6 +112,9 @@ static void iwm_statistics_request(struct work_struct *work)
 	iwm_send_umac_stats_req(iwm, 0);
 }
 
+int __iwm_up(struct iwm_priv *iwm);
+int __iwm_down(struct iwm_priv *iwm);
+
 static void iwm_reset_worker(struct work_struct *work)
 {
 	struct iwm_priv *iwm;
@@ -119,6 +122,19 @@ static void iwm_reset_worker(struct work_struct *work)
 	int uninitialized_var(ret), retry = 0;
 
 	iwm = container_of(work, struct iwm_priv, reset_worker);
+
+	/*
+	 * XXX: The iwm->mutex is introduced purely for this reset work,
+	 * because the other users for iwm_up and iwm_down are only netdev
+	 * ndo_open and ndo_stop which are already protected by rtnl.
+	 * Please remove iwm->mutex together if iwm_reset_worker() is not
+	 * required in the future.
+	 */
+	if (!mutex_trylock(&iwm->mutex)) {
+		IWM_WARN(iwm, "We are in the middle of interface bringing "
+			 "UP/DOWN. Skip driver resetting.\n");
+		return;
+	}
 
 	if (iwm->umac_profile_active) {
 		profile = kmalloc(sizeof(struct iwm_umac_profile), GFP_KERNEL);
@@ -128,10 +144,10 @@ static void iwm_reset_worker(struct work_struct *work)
 			IWM_ERR(iwm, "Couldn't alloc memory for profile\n");
 	}
 
-	iwm_down(iwm);
+	__iwm_down(iwm);
 
 	while (retry++ < 3) {
-		ret = iwm_up(iwm);
+		ret = __iwm_up(iwm);
 		if (!ret)
 			break;
 
@@ -142,7 +158,7 @@ static void iwm_reset_worker(struct work_struct *work)
 		IWM_WARN(iwm, "iwm_up() failed: %d\n", ret);
 
 		kfree(profile);
-		return;
+		goto out;
 	}
 
 	if (profile) {
@@ -151,6 +167,9 @@ static void iwm_reset_worker(struct work_struct *work)
 		iwm_send_mlme_profile(iwm);
 		kfree(profile);
 	}
+
+ out:
+	mutex_unlock(&iwm->mutex);
 }
 
 static void iwm_watchdog(unsigned long data)
@@ -215,8 +234,19 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	init_timer(&iwm->watchdog);
 	iwm->watchdog.function = iwm_watchdog;
 	iwm->watchdog.data = (unsigned long)iwm;
+	mutex_init(&iwm->mutex);
 
 	return 0;
+}
+
+void iwm_priv_deinit(struct iwm_priv *iwm)
+{
+	int i;
+
+	for (i = 0; i < IWM_TX_QUEUES; i++)
+		destroy_workqueue(iwm->txq[i].wq);
+
+	destroy_workqueue(iwm->rx_wq);
 }
 
 /*
@@ -466,7 +496,7 @@ void iwm_link_off(struct iwm_priv *iwm)
 
 	iwm_rx_free(iwm);
 
-	cancel_delayed_work(&iwm->stats_request);
+	cancel_delayed_work_sync(&iwm->stats_request);
 	memset(wstats, 0, sizeof(struct iw_statistics));
 	wstats->qual.updated = IW_QUAL_ALL_INVALID;
 
@@ -511,7 +541,7 @@ static int iwm_channels_init(struct iwm_priv *iwm)
 	return 0;
 }
 
-int iwm_up(struct iwm_priv *iwm)
+int __iwm_up(struct iwm_priv *iwm)
 {
 	int ret;
 	struct iwm_notif *notif_reboot, *notif_ack = NULL;
@@ -647,7 +677,18 @@ int iwm_up(struct iwm_priv *iwm)
 	return -EIO;
 }
 
-int iwm_down(struct iwm_priv *iwm)
+int iwm_up(struct iwm_priv *iwm)
+{
+	int ret;
+
+	mutex_lock(&iwm->mutex);
+	ret = __iwm_up(iwm);
+	mutex_unlock(&iwm->mutex);
+
+	return ret;
+}
+
+int __iwm_down(struct iwm_priv *iwm)
 {
 	int ret;
 
@@ -677,4 +718,15 @@ int iwm_down(struct iwm_priv *iwm)
 	}
 
 	return 0;
+}
+
+int iwm_down(struct iwm_priv *iwm)
+{
+	int ret;
+
+	mutex_lock(&iwm->mutex);
+	ret = __iwm_down(iwm);
+	mutex_unlock(&iwm->mutex);
+
+	return ret;
 }

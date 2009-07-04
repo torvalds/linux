@@ -1048,8 +1048,6 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	if (retval)
 		return retval;
 
-	/* unmark here for very high baud rate (ex. 921600 bps) used */
-	tty->low_latency = 1;
 	return 0;
 }
 

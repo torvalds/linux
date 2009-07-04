@@ -870,7 +870,11 @@ static int intelfb_single_fb_probe(struct drm_device *dev)
  */
 void intelfb_restore(void)
 {
-	drm_crtc_helper_set_config(&kernelfb_mode);
+	int ret;
+	if ((ret = drm_crtc_helper_set_config(&kernelfb_mode)) != 0) {
+		printk(KERN_ERR "Failed to restore crtc configuration: %d\n",
+		       ret);
+	}
 }
 
 static void intelfb_restore_work_fn(struct work_struct *ignored)

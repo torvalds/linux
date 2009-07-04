@@ -586,7 +586,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		return;
 	}
 
-	if (ftrace_push_return_trace(old, self_addr, &trace.depth) == -EBUSY) {
+	if (ftrace_push_return_trace(old, self_addr, &trace.depth, 0) == -EBUSY) {
 		*parent = old;
 		return;
 	}

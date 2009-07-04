@@ -13,7 +13,6 @@
 #include <asm/segment.h>
 #include <asm/page_types.h>
 #include <asm/pgtable_types.h>
-#include <asm/desc.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>

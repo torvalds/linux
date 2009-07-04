@@ -64,7 +64,8 @@ static int ide_get_identity_ioctl(ide_drive_t *drive, unsigned int cmd,
 		goto out;
 	}
 
-	id = kmalloc(size, GFP_KERNEL);
+	/* ata_id_to_hd_driveid() relies on 'id' to be fully allocated. */
+	id = kmalloc(ATA_ID_WORDS * 2, GFP_KERNEL);
 	if (id == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -118,7 +119,6 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 	u8 args[4], xfer_rate = 0;
 	struct ide_cmd cmd;
 	struct ide_taskfile *tf = &cmd.tf;
-	u16 *id = drive->id;
 
 	if (NULL == (void *) arg) {
 		struct request *rq;
@@ -161,14 +161,10 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 
 	if (tf->command == ATA_CMD_SET_FEATURES &&
 	    tf->feature == SETFEATURES_XFER &&
-	    tf->nsect >= XFER_SW_DMA_0 &&
-	    (id[ATA_ID_UDMA_MODES] ||
-	     id[ATA_ID_MWDMA_MODES] ||
-	     id[ATA_ID_SWDMA_MODES])) {
-		xfer_rate = args[1];
-		if (tf->nsect > XFER_UDMA_2 && !eighty_ninty_three(drive)) {
-			printk(KERN_WARNING "%s: UDMA speeds >UDMA33 cannot "
-					    "be set\n", drive->name);
+	    tf->nsect >= XFER_SW_DMA_0) {
+		xfer_rate = ide_find_dma_mode(drive, XFER_UDMA_6);
+		if (xfer_rate != tf->nsect) {
+			err = -EINVAL;
 			goto abort;
 		}
 	}

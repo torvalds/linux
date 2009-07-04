@@ -28,7 +28,6 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <linux/version.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/highmem.h>
@@ -68,7 +67,7 @@ static void ttm_tt_cache_flush_clflush(struct page *pages[],
 		ttm_tt_clflush_page(*pages++);
 	mb();
 }
-#else
+#elif !defined(__powerpc__)
 static void ttm_tt_ipi_handler(void *null)
 {
 	;
@@ -82,6 +81,15 @@ void ttm_tt_cache_flush(struct page *pages[], unsigned long num_pages)
 	if (cpu_has_clflush) {
 		ttm_tt_cache_flush_clflush(pages, num_pages);
 		return;
+	}
+#elif defined(__powerpc__)
+	unsigned long i;
+
+	for (i = 0; i < num_pages; ++i) {
+		if (pages[i]) {
+			unsigned long start = (unsigned long)page_address(pages[i]);
+			flush_dcache_range(start, start + PAGE_SIZE);
+		}
 	}
 #else
 	if (on_each_cpu(ttm_tt_ipi_handler, NULL, 1) != 0)

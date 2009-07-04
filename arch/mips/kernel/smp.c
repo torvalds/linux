@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
 #include <linux/module.h>
@@ -44,7 +45,7 @@
 #include <asm/mipsmtregs.h>
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-static volatile cpumask_t cpu_callin_map;	/* Bitmask of started secondaries */
+volatile cpumask_t cpu_callin_map;	/* Bitmask of started secondaries */
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 int __cpu_logical_map[NR_CPUS];		/* Map logical to physical */
 
@@ -200,6 +201,8 @@ void __devinit smp_prepare_boot_cpu(void)
  * and keep control until "cpu_online(cpu)" is set.  Note: cpu is
  * physical, not logical.
  */
+static struct task_struct *cpu_idle_thread[NR_CPUS];
+
 int __cpuinit __cpu_up(unsigned int cpu)
 {
 	struct task_struct *idle;
@@ -209,9 +212,16 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	 * The following code is purely to make sure
 	 * Linux can schedule processes on this slave.
 	 */
-	idle = fork_idle(cpu);
-	if (IS_ERR(idle))
-		panic(KERN_ERR "Fork failed for CPU %d", cpu);
+	if (!cpu_idle_thread[cpu]) {
+		idle = fork_idle(cpu);
+		cpu_idle_thread[cpu] = idle;
+
+		if (IS_ERR(idle))
+			panic(KERN_ERR "Fork failed for CPU %d", cpu);
+	} else {
+		idle = cpu_idle_thread[cpu];
+		init_idle(idle, cpu);
+	}
 
 	mp_ops->boot_secondary(cpu, idle);
 

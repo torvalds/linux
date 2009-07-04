@@ -601,6 +601,7 @@ config CAVIUM_OCTEON_SIMULATOR
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_HOTPLUG_CPU
 	select SYS_HAS_CPU_CAVIUM_OCTEON
 	help
 	  The Octeon simulator is software performance model of the Cavium
@@ -615,6 +616,7 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_HOTPLUG_CPU
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_HAS_CPU_CAVIUM_OCTEON
 	select SWAP_IO_SPACE
@@ -784,8 +786,17 @@ config SYS_HAS_EARLY_PRINTK
 	bool
 
 config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP && HOTPLUG && SYS_SUPPORTS_HOTPLUG_CPU
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+	  (Note: power management support will enable this option
+	    automatically on SMP systems. )
+	  Say N if you want to disable CPU hotplug.
+
+config SYS_SUPPORTS_HOTPLUG_CPU
 	bool
-	default n
 
 config I8259
 	bool
@@ -2136,11 +2147,11 @@ menu "Power management options"
 
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y
-	depends on !SMP
+	depends on SYS_SUPPORTS_HOTPLUG_CPU
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on !SMP
+	depends on SYS_SUPPORTS_HOTPLUG_CPU
 
 source "kernel/power/Kconfig"
 

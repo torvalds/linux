@@ -167,6 +167,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	sc->stripes = stripes;
 	sc->stripe_width = width;
 	ti->split_io = chunk_size;
+	ti->num_flush_requests = stripes;
 
 	sc->chunk_mask = ((sector_t) chunk_size) - 1;
 	for (sc->chunk_shift = 0; chunk_size; sc->chunk_shift++)
@@ -211,10 +212,18 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 		      union map_info *map_context)
 {
 	struct stripe_c *sc = (struct stripe_c *) ti->private;
+	sector_t offset, chunk;
+	uint32_t stripe;
 
-	sector_t offset = bio->bi_sector - ti->begin;
-	sector_t chunk = offset >> sc->chunk_shift;
-	uint32_t stripe = sector_div(chunk, sc->stripes);
+	if (unlikely(bio_empty_barrier(bio))) {
+		BUG_ON(map_context->flush_request >= sc->stripes);
+		bio->bi_bdev = sc->stripe[map_context->flush_request].dev->bdev;
+		return DM_MAPIO_REMAPPED;
+	}
+
+	offset = bio->bi_sector - ti->begin;
+	chunk = offset >> sc->chunk_shift;
+	stripe = sector_div(chunk, sc->stripes);
 
 	bio->bi_bdev = sc->stripe[stripe].dev->bdev;
 	bio->bi_sector = sc->stripe[stripe].physical_start +
@@ -304,15 +313,31 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 	return error;
 }
 
+static int stripe_iterate_devices(struct dm_target *ti,
+				  iterate_devices_callout_fn fn, void *data)
+{
+	struct stripe_c *sc = ti->private;
+	int ret = 0;
+	unsigned i = 0;
+
+	do
+		ret = fn(ti, sc->stripe[i].dev,
+			 sc->stripe[i].physical_start, data);
+	while (!ret && ++i < sc->stripes);
+
+	return ret;
+}
+
 static struct target_type stripe_target = {
 	.name   = "striped",
-	.version = {1, 1, 0},
+	.version = {1, 2, 0},
 	.module = THIS_MODULE,
 	.ctr    = stripe_ctr,
 	.dtr    = stripe_dtr,
 	.map    = stripe_map,
 	.end_io = stripe_end_io,
 	.status = stripe_status,
+	.iterate_devices = stripe_iterate_devices,
 };
 
 int __init dm_stripe_init(void)

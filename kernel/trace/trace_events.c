@@ -300,10 +300,18 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
+	struct ftrace_event_call *call = NULL;
+	loff_t l;
+
 	mutex_lock(&event_mutex);
-	if (*pos == 0)
-		m->private = ftrace_events.next;
-	return t_next(m, NULL, pos);
+
+	m->private = ftrace_events.next;
+	for (l = 0; l <= *pos; ) {
+		call = t_next(m, NULL, &l);
+		if (!call)
+			break;
+	}
+	return call;
 }
 
 static void *
@@ -332,10 +340,18 @@ s_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *s_start(struct seq_file *m, loff_t *pos)
 {
+	struct ftrace_event_call *call = NULL;
+	loff_t l;
+
 	mutex_lock(&event_mutex);
-	if (*pos == 0)
-		m->private = ftrace_events.next;
-	return s_next(m, NULL, pos);
+
+	m->private = ftrace_events.next;
+	for (l = 0; l <= *pos; ) {
+		call = s_next(m, NULL, &l);
+		if (!call)
+			break;
+	}
+	return call;
 }
 
 static int t_show(struct seq_file *m, void *v)

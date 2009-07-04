@@ -187,9 +187,10 @@ static struct drm_mm_node *drm_mm_split_at_start(struct drm_mm_node *parent,
 }
 
 
-
-struct drm_mm_node *drm_mm_get_block(struct drm_mm_node *node,
-				     unsigned long size, unsigned alignment)
+struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *node,
+					     unsigned long size,
+					     unsigned alignment,
+					     int atomic)
 {
 
 	struct drm_mm_node *align_splitoff = NULL;
@@ -200,7 +201,7 @@ struct drm_mm_node *drm_mm_get_block(struct drm_mm_node *node,
 
 	if (tmp) {
 		align_splitoff =
-		    drm_mm_split_at_start(node, alignment - tmp, 0);
+		    drm_mm_split_at_start(node, alignment - tmp, atomic);
 		if (unlikely(align_splitoff == NULL))
 			return NULL;
 	}
@@ -209,7 +210,7 @@ struct drm_mm_node *drm_mm_get_block(struct drm_mm_node *node,
 		list_del_init(&node->fl_entry);
 		node->free = 0;
 	} else {
-		node = drm_mm_split_at_start(node, size, 0);
+		node = drm_mm_split_at_start(node, size, atomic);
 	}
 
 	if (align_splitoff)
@@ -217,42 +218,7 @@ struct drm_mm_node *drm_mm_get_block(struct drm_mm_node *node,
 
 	return node;
 }
-
-EXPORT_SYMBOL(drm_mm_get_block);
-
-struct drm_mm_node *drm_mm_get_block_atomic(struct drm_mm_node *parent,
-					    unsigned long size,
-					    unsigned alignment)
-{
-
-	struct drm_mm_node *align_splitoff = NULL;
-	struct drm_mm_node *child;
-	unsigned tmp = 0;
-
-	if (alignment)
-		tmp = parent->start % alignment;
-
-	if (tmp) {
-		align_splitoff =
-		    drm_mm_split_at_start(parent, alignment - tmp, 1);
-		if (unlikely(align_splitoff == NULL))
-			return NULL;
-	}
-
-	if (parent->size == size) {
-		list_del_init(&parent->fl_entry);
-		parent->free = 0;
-		return parent;
-	} else {
-		child = drm_mm_split_at_start(parent, size, 1);
-	}
-
-	if (align_splitoff)
-		drm_mm_put_block(align_splitoff);
-
-	return child;
-}
-EXPORT_SYMBOL(drm_mm_get_block_atomic);
+EXPORT_SYMBOL(drm_mm_get_block_generic);
 
 /*
  * Put a block. Merge with the previous and / or next block if they are free.

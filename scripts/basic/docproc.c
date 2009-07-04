@@ -385,7 +385,7 @@ int main(int argc, char *argv[])
 	if (!srctree)
 		srctree = getcwd(NULL, 0);
 	kernsrctree = getenv("KBUILD_SRC");
-	if (!kernsrctree)
+	if (!kernsrctree || !*kernsrctree)
 		kernsrctree = srctree;
 	if (argc != 3) {
 		usage();

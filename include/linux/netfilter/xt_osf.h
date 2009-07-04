@@ -20,6 +20,8 @@
 #ifndef _XT_OSF_H
 #define _XT_OSF_H
 
+#include <linux/types.h>
+
 #define MAXGENRELEN		32
 
 #define XT_OSF_GENRE		(1<<0)

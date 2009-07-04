@@ -89,7 +89,7 @@ drm_gem_init(struct drm_device *dev)
 	atomic_set(&dev->gtt_count, 0);
 	atomic_set(&dev->gtt_memory, 0);
 
-	mm = drm_calloc(1, sizeof(struct drm_gem_mm), DRM_MEM_MM);
+	mm = kzalloc(sizeof(struct drm_gem_mm), GFP_KERNEL);
 	if (!mm) {
 		DRM_ERROR("out of memory\n");
 		return -ENOMEM;
@@ -98,14 +98,14 @@ drm_gem_init(struct drm_device *dev)
 	dev->mm_private = mm;
 
 	if (drm_ht_create(&mm->offset_hash, 19)) {
-		drm_free(mm, sizeof(struct drm_gem_mm), DRM_MEM_MM);
+		kfree(mm);
 		return -ENOMEM;
 	}
 
 	if (drm_mm_init(&mm->offset_manager, DRM_FILE_PAGE_OFFSET_START,
 			DRM_FILE_PAGE_OFFSET_SIZE)) {
 		drm_ht_remove(&mm->offset_hash);
-		drm_free(mm, sizeof(struct drm_gem_mm), DRM_MEM_MM);
+		kfree(mm);
 		return -ENOMEM;
 	}
 
@@ -119,7 +119,7 @@ drm_gem_destroy(struct drm_device *dev)
 
 	drm_mm_takedown(&mm->offset_manager);
 	drm_ht_remove(&mm->offset_hash);
-	drm_free(mm, sizeof(struct drm_gem_mm), DRM_MEM_MM);
+	kfree(mm);
 	dev->mm_private = NULL;
 }
 

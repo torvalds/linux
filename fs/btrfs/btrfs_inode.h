@@ -53,10 +53,6 @@ struct btrfs_inode {
 	/* used to order data wrt metadata */
 	struct btrfs_ordered_inode_tree ordered_tree;
 
-	/* standard acl pointers */
-	struct posix_acl *i_acl;
-	struct posix_acl *i_default_acl;
-
 	/* for keeping track of orphaned inodes */
 	struct list_head i_orphan;
 

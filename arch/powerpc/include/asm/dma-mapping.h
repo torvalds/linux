@@ -309,7 +309,9 @@ static inline void dma_sync_single_for_cpu(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_single_range_for_cpu(dev, dma_handle, 0,
+
+	if (dma_ops->sync_single_range_for_cpu)
+		dma_ops->sync_single_range_for_cpu(dev, dma_handle, 0,
 					   size, direction);
 }
 
@@ -320,7 +322,9 @@ static inline void dma_sync_single_for_device(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_single_range_for_device(dev, dma_handle,
+
+	if (dma_ops->sync_single_range_for_device)
+		dma_ops->sync_single_range_for_device(dev, dma_handle,
 					      0, size, direction);
 }
 
@@ -331,7 +335,9 @@ static inline void dma_sync_sg_for_cpu(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_sg_for_cpu(dev, sgl, nents, direction);
+
+	if (dma_ops->sync_sg_for_cpu)
+		dma_ops->sync_sg_for_cpu(dev, sgl, nents, direction);
 }
 
 static inline void dma_sync_sg_for_device(struct device *dev,
@@ -341,7 +347,9 @@ static inline void dma_sync_sg_for_device(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_sg_for_device(dev, sgl, nents, direction);
+
+	if (dma_ops->sync_sg_for_device)
+		dma_ops->sync_sg_for_device(dev, sgl, nents, direction);
 }
 
 static inline void dma_sync_single_range_for_cpu(struct device *dev,
@@ -351,7 +359,9 @@ static inline void dma_sync_single_range_for_cpu(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_single_range_for_cpu(dev, dma_handle,
+
+	if (dma_ops->sync_single_range_for_cpu)
+		dma_ops->sync_single_range_for_cpu(dev, dma_handle,
 					   offset, size, direction);
 }
 
@@ -362,7 +372,9 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-	dma_ops->sync_single_range_for_device(dev, dma_handle, offset,
+
+	if (dma_ops->sync_single_range_for_device)
+		dma_ops->sync_single_range_for_device(dev, dma_handle, offset,
 					      size, direction);
 }
 #else /* CONFIG_PPC_NEED_DMA_SYNC_OPS */

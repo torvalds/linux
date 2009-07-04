@@ -51,7 +51,7 @@
 
 #include "radeon_mode.h"
 #include "radeon_reg.h"
-
+#include "r300.h"
 
 /*
  * Modules parameters.
@@ -496,6 +496,7 @@ int r100_debugfs_cp_init(struct radeon_device *rdev);
  * ASIC specific functions.
  */
 struct radeon_asic {
+	int (*init)(struct radeon_device *rdev);
 	void (*errata)(struct radeon_device *rdev);
 	void (*vram_info)(struct radeon_device *rdev);
 	int (*gpu_reset)(struct radeon_device *rdev);
@@ -536,6 +537,10 @@ struct radeon_asic {
 	void (*set_clock_gating)(struct radeon_device *rdev, int enable);
 };
 
+union radeon_asic_config {
+	struct r300_asic	r300;
+};
+
 
 /*
  * IOCTL.
@@ -573,6 +578,7 @@ struct radeon_device {
 	struct drm_device		*ddev;
 	struct pci_dev			*pdev;
 	/* ASIC */
+	union radeon_asic_config	config;
 	enum radeon_family		family;
 	unsigned long			flags;
 	int				usec_timeout;
@@ -763,6 +769,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 /*
  * ASICs macro.
  */
+#define radeon_init(rdev) (rdev)->asic->init((rdev))
 #define radeon_cs_parse(p) rdev->asic->cs_parse((p))
 #define radeon_errata(rdev) (rdev)->asic->errata((rdev))
 #define radeon_vram_info(rdev) (rdev)->asic->vram_info((rdev))

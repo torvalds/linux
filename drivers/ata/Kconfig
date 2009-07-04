@@ -679,6 +679,14 @@ config PATA_PLATFORM
 
 	  If unsure, say N.
 
+config PATA_AT91
+	tristate "PATA support for AT91SAM9260"
+	depends on ARM && ARCH_AT91
+	help
+	  This option enables support for IDE devices on the Atmel AT91SAM9260 SoC.
+
+	  If unsure, say N.
+
 config PATA_OF_PLATFORM
 	tristate "OpenFirmware platform device PATA support"
 	depends on PATA_PLATFORM && PPC_OF

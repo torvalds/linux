@@ -972,8 +972,6 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 			snd_hda_codec_read(codec, nid, 0,
 					   AC_VERB_GET_SUBSYSTEM_ID, 0);
 	}
-	if (bus->modelname)
-		codec->modelname = kstrdup(bus->modelname, GFP_KERNEL);
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec,
