@@ -2122,6 +2122,36 @@ static int iommu_should_identity_map(struct pci_dev *pdev, int startup)
 	if (iommu_identity_mapping == 2)
 		return IS_GFX_DEVICE(pdev);
 
+	/*
+	 * We want to start off with all devices in the 1:1 domain, and
+	 * take them out later if we find they can't access all of memory.
+	 *
+	 * However, we can't do this for PCI devices behind bridges,
+	 * because all PCI devices behind the same bridge will end up
+	 * with the same source-id on their transactions.
+	 *
+	 * Practically speaking, we can't change things around for these
+	 * devices at run-time, because we can't be sure there'll be no
+	 * DMA transactions in flight for any of their siblings.
+	 * 
+	 * So PCI devices (unless they're on the root bus) as well as
+	 * their parent PCI-PCI or PCIe-PCI bridges must be left _out_ of
+	 * the 1:1 domain, just in _case_ one of their siblings turns out
+	 * not to be able to map all of memory.
+	 */
+	if (!pdev->is_pcie) {
+		if (!pci_is_root_bus(pdev->bus))
+			return 0;
+		if (pdev->class >> 8 == PCI_CLASS_BRIDGE_PCI)
+			return 0;
+	} else if (pdev->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
+		return 0;
+
+	/* 
+	 * At boot time, we don't yet know if devices will be 64-bit capable.
+	 * Assume that they will -- if they turn out not to be, then we can 
+	 * take them out of the 1:1 domain later.
+	 */
 	if (!startup)
 		return pdev->dma_mask > DMA_BIT_MASK(32);
 
