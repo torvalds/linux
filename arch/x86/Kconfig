@@ -1913,6 +1913,18 @@ config DMAR_DEFAULT_ON
 	  recommended you say N here while the DMAR code remains
 	  experimental.
 
+config DMAR_BROKEN_GFX_WA
+	def_bool n
+	prompt "Workaround broken graphics drivers (going away soon)"
+	depends on DMAR
+	---help---
+	  Current Graphics drivers tend to use physical address
+	  for DMA and avoid using DMA APIs. Setting this config
+	  option permits the IOMMU driver to set a unity map for
+	  all the OS-visible memory. Hence the driver can continue
+	  to use physical addresses for DMA, at least until this
+	  option is removed in the 2.6.32 kernel.
+
 config DMAR_FLOPPY_WA
 	def_bool y
 	depends on DMAR

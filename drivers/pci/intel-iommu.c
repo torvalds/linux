@@ -2127,16 +2127,18 @@ static int iommu_prepare_static_identity_mapping(void)
 		return -EFAULT;
 
 	for_each_pci_dev(pdev) {
-		printk(KERN_INFO "IOMMU: identity mapping for device %s\n",
-		       pci_name(pdev));
+		if (iommu_identity_mapping == 1 || IS_GFX_DEVICE(pdev)) {
+			printk(KERN_INFO "IOMMU: identity mapping for device %s\n",
+			       pci_name(pdev));
 
-		ret = domain_context_mapping(si_domain, pdev,
-					     CONTEXT_TT_MULTI_LEVEL);
-		if (ret)
-			return ret;
-		ret = domain_add_dev_info(si_domain, pdev);
-		if (ret)
-			return ret;
+			ret = domain_context_mapping(si_domain, pdev,
+						     CONTEXT_TT_MULTI_LEVEL);
+			if (ret)
+				return ret;
+			ret = domain_add_dev_info(si_domain, pdev);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
@@ -2291,6 +2293,10 @@ int __init init_dmars(void)
 	 * identity mapping if iommu_identity_mapping is set.
 	 */
 	if (!iommu_pass_through) {
+#ifdef CONFIG_DMAR_BROKEN_GFX_WA
+		if (!iommu_identity_mapping)
+			iommu_identity_mapping = 2;
+#endif
 		if (iommu_identity_mapping)
 			iommu_prepare_static_identity_mapping();
 		/*
@@ -2444,7 +2450,10 @@ static int iommu_dummy(struct pci_dev *pdev)
 
 static int iommu_should_identity_map(struct pci_dev *pdev)
 {
-	return pdev->dma_mask > DMA_BIT_MASK(32);
+	if (iommu_identity_mapping == 2)
+		return IS_GFX_DEVICE(pdev);
+	else
+		return pdev->dma_mask > DMA_BIT_MASK(32);
 }
 
 /* Check if the pdev needs to go through non-identity map and unmap process.*/
