@@ -2442,6 +2442,11 @@ static int iommu_dummy(struct pci_dev *pdev)
 	return pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO;
 }
 
+static int iommu_should_identity_map(struct pci_dev *pdev)
+{
+	return pdev->dma_mask > DMA_BIT_MASK(32);
+}
+
 /* Check if the pdev needs to go through non-identity map and unmap process.*/
 static int iommu_no_mapping(struct pci_dev *pdev)
 {
@@ -2455,7 +2460,7 @@ static int iommu_no_mapping(struct pci_dev *pdev)
 
 	found = identity_mapping(pdev);
 	if (found) {
-		if (pdev->dma_mask > DMA_BIT_MASK(32))
+		if (iommu_should_identity_map(pdev))
 			return 1;
 		else {
 			/*
@@ -2472,7 +2477,7 @@ static int iommu_no_mapping(struct pci_dev *pdev)
 		 * In case of a detached 64 bit DMA device from vm, the device
 		 * is put into si_domain for identity mapping.
 		 */
-		if (pdev->dma_mask > DMA_BIT_MASK(32)) {
+		if (iommu_should_identity_map(pdev)) {
 			int ret;
 			ret = domain_add_dev_info(si_domain, pdev);
 			if (ret)
