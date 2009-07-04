@@ -2475,6 +2475,9 @@ static int iommu_no_mapping(struct pci_dev *pdev)
 		if (pdev->dma_mask > DMA_BIT_MASK(32)) {
 			int ret;
 			ret = domain_add_dev_info(si_domain, pdev);
+			if (ret)
+				return 0;
+			ret = domain_context_mapping(si_domain, pdev, CONTEXT_TT_MULTI_LEVEL);
 			if (!ret) {
 				printk(KERN_INFO "64bit %s uses identity mapping\n",
 				       pci_name(pdev));
