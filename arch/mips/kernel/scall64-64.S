@@ -489,4 +489,6 @@ sys_call_table:
 	PTR	sys_inotify_init1
 	PTR	sys_preadv
 	PTR	sys_pwritev			/* 5390 */
+	PTR	sys_rt_tgsigqueueinfo
+	PTR	sys_perf_counter_open
 	.size	sys_call_table,.-sys_call_table
