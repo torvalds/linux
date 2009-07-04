@@ -2172,23 +2172,23 @@ static int icmp_checkentry(const struct xt_mtchk_param *par)
 	return (icmpinfo->invflags & ~IPT_ICMP_INV) ? -EINVAL : 0;
 }
 
-/* The built-in targets: standard (NULL) and error. */
-static struct xt_target ipt_standard_target __read_mostly = {
-	.name		= IPT_STANDARD_TARGET,
-	.targetsize	= sizeof(int),
-	.family		= NFPROTO_IPV4,
+static struct xt_target ipt_builtin_tg[] __read_mostly = {
+	{
+		.name             = IPT_STANDARD_TARGET,
+		.targetsize       = sizeof(int),
+		.family           = NFPROTO_IPV4,
 #ifdef CONFIG_COMPAT
-	.compatsize	= sizeof(compat_int_t),
-	.compat_from_user = compat_standard_from_user,
-	.compat_to_user	= compat_standard_to_user,
+		.compatsize       = sizeof(compat_int_t),
+		.compat_from_user = compat_standard_from_user,
+		.compat_to_user   = compat_standard_to_user,
 #endif
-};
-
-static struct xt_target ipt_error_target __read_mostly = {
-	.name		= IPT_ERROR_TARGET,
-	.target		= ipt_error,
-	.targetsize	= IPT_FUNCTION_MAXNAMELEN,
-	.family		= NFPROTO_IPV4,
+	},
+	{
+		.name             = IPT_ERROR_TARGET,
+		.target           = ipt_error,
+		.targetsize       = IPT_FUNCTION_MAXNAMELEN,
+		.family           = NFPROTO_IPV4,
+	},
 };
 
 static struct nf_sockopt_ops ipt_sockopts = {
@@ -2208,13 +2208,15 @@ static struct nf_sockopt_ops ipt_sockopts = {
 	.owner		= THIS_MODULE,
 };
 
-static struct xt_match icmp_matchstruct __read_mostly = {
-	.name		= "icmp",
-	.match		= icmp_match,
-	.matchsize	= sizeof(struct ipt_icmp),
-	.checkentry	= icmp_checkentry,
-	.proto		= IPPROTO_ICMP,
-	.family		= NFPROTO_IPV4,
+static struct xt_match ipt_builtin_mt[] __read_mostly = {
+	{
+		.name       = "icmp",
+		.match      = icmp_match,
+		.matchsize  = sizeof(struct ipt_icmp),
+		.checkentry = icmp_checkentry,
+		.proto      = IPPROTO_ICMP,
+		.family     = NFPROTO_IPV4,
+	},
 };
 
 static int __net_init ip_tables_net_init(struct net *net)
@@ -2241,13 +2243,10 @@ static int __init ip_tables_init(void)
 		goto err1;
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	ret = xt_register_target(&ipt_standard_target);
+	ret = xt_register_targets(ipt_builtin_tg, ARRAY_SIZE(ipt_builtin_tg));
 	if (ret < 0)
 		goto err2;
-	ret = xt_register_target(&ipt_error_target);
-	if (ret < 0)
-		goto err3;
-	ret = xt_register_match(&icmp_matchstruct);
+	ret = xt_register_matches(ipt_builtin_mt, ARRAY_SIZE(ipt_builtin_mt));
 	if (ret < 0)
 		goto err4;
 
@@ -2260,11 +2259,9 @@ static int __init ip_tables_init(void)
 	return 0;
 
 err5:
-	xt_unregister_match(&icmp_matchstruct);
+	xt_unregister_matches(ipt_builtin_mt, ARRAY_SIZE(ipt_builtin_mt));
 err4:
-	xt_unregister_target(&ipt_error_target);
-err3:
-	xt_unregister_target(&ipt_standard_target);
+	xt_unregister_targets(ipt_builtin_tg, ARRAY_SIZE(ipt_builtin_tg));
 err2:
 	unregister_pernet_subsys(&ip_tables_net_ops);
 err1:
@@ -2275,10 +2272,8 @@ static void __exit ip_tables_fini(void)
 {
 	nf_unregister_sockopt(&ipt_sockopts);
 
-	xt_unregister_match(&icmp_matchstruct);
-	xt_unregister_target(&ipt_error_target);
-	xt_unregister_target(&ipt_standard_target);
-
+	xt_unregister_matches(ipt_builtin_mt, ARRAY_SIZE(ipt_builtin_mt));
+	xt_unregister_targets(ipt_builtin_tg, ARRAY_SIZE(ipt_builtin_tg));
 	unregister_pernet_subsys(&ip_tables_net_ops);
 }
 

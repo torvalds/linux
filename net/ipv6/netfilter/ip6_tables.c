@@ -2190,22 +2190,23 @@ static int icmp6_checkentry(const struct xt_mtchk_param *par)
 }
 
 /* The built-in targets: standard (NULL) and error. */
-static struct xt_target ip6t_standard_target __read_mostly = {
-	.name		= IP6T_STANDARD_TARGET,
-	.targetsize	= sizeof(int),
-	.family		= NFPROTO_IPV6,
+static struct xt_target ip6t_builtin_tg[] __read_mostly = {
+	{
+		.name             = IP6T_STANDARD_TARGET,
+		.targetsize       = sizeof(int),
+		.family           = NFPROTO_IPV6,
 #ifdef CONFIG_COMPAT
-	.compatsize	= sizeof(compat_int_t),
-	.compat_from_user = compat_standard_from_user,
-	.compat_to_user	= compat_standard_to_user,
+		.compatsize       = sizeof(compat_int_t),
+		.compat_from_user = compat_standard_from_user,
+		.compat_to_user   = compat_standard_to_user,
 #endif
-};
-
-static struct xt_target ip6t_error_target __read_mostly = {
-	.name		= IP6T_ERROR_TARGET,
-	.target		= ip6t_error,
-	.targetsize	= IP6T_FUNCTION_MAXNAMELEN,
-	.family		= NFPROTO_IPV6,
+	},
+	{
+		.name             = IP6T_ERROR_TARGET,
+		.target           = ip6t_error,
+		.targetsize       = IP6T_FUNCTION_MAXNAMELEN,
+		.family           = NFPROTO_IPV6,
+	},
 };
 
 static struct nf_sockopt_ops ip6t_sockopts = {
@@ -2225,13 +2226,15 @@ static struct nf_sockopt_ops ip6t_sockopts = {
 	.owner		= THIS_MODULE,
 };
 
-static struct xt_match icmp6_matchstruct __read_mostly = {
-	.name		= "icmp6",
-	.match		= icmp6_match,
-	.matchsize	= sizeof(struct ip6t_icmp),
-	.checkentry	= icmp6_checkentry,
-	.proto		= IPPROTO_ICMPV6,
-	.family		= NFPROTO_IPV6,
+static struct xt_match ip6t_builtin_mt[] __read_mostly = {
+	{
+		.name       = "icmp6",
+		.match      = icmp6_match,
+		.matchsize  = sizeof(struct ip6t_icmp),
+		.checkentry = icmp6_checkentry,
+		.proto      = IPPROTO_ICMPV6,
+		.family     = NFPROTO_IPV6,
+	},
 };
 
 static int __net_init ip6_tables_net_init(struct net *net)
@@ -2258,13 +2261,10 @@ static int __init ip6_tables_init(void)
 		goto err1;
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	ret = xt_register_target(&ip6t_standard_target);
+	ret = xt_register_targets(ip6t_builtin_tg, ARRAY_SIZE(ip6t_builtin_tg));
 	if (ret < 0)
 		goto err2;
-	ret = xt_register_target(&ip6t_error_target);
-	if (ret < 0)
-		goto err3;
-	ret = xt_register_match(&icmp6_matchstruct);
+	ret = xt_register_matches(ip6t_builtin_mt, ARRAY_SIZE(ip6t_builtin_mt));
 	if (ret < 0)
 		goto err4;
 
@@ -2277,11 +2277,9 @@ static int __init ip6_tables_init(void)
 	return 0;
 
 err5:
-	xt_unregister_match(&icmp6_matchstruct);
+	xt_unregister_matches(ip6t_builtin_mt, ARRAY_SIZE(ip6t_builtin_mt));
 err4:
-	xt_unregister_target(&ip6t_error_target);
-err3:
-	xt_unregister_target(&ip6t_standard_target);
+	xt_unregister_targets(ip6t_builtin_tg, ARRAY_SIZE(ip6t_builtin_tg));
 err2:
 	unregister_pernet_subsys(&ip6_tables_net_ops);
 err1:
@@ -2292,10 +2290,8 @@ static void __exit ip6_tables_fini(void)
 {
 	nf_unregister_sockopt(&ip6t_sockopts);
 
-	xt_unregister_match(&icmp6_matchstruct);
-	xt_unregister_target(&ip6t_error_target);
-	xt_unregister_target(&ip6t_standard_target);
-
+	xt_unregister_matches(ip6t_builtin_mt, ARRAY_SIZE(ip6t_builtin_mt));
+	xt_unregister_targets(ip6t_builtin_tg, ARRAY_SIZE(ip6t_builtin_tg));
 	unregister_pernet_subsys(&ip6_tables_net_ops);
 }
 

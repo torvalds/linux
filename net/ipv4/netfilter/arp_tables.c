@@ -1828,22 +1828,23 @@ void arpt_unregister_table(struct xt_table *table)
 }
 
 /* The built-in targets: standard (NULL) and error. */
-static struct xt_target arpt_standard_target __read_mostly = {
-	.name		= ARPT_STANDARD_TARGET,
-	.targetsize	= sizeof(int),
-	.family		= NFPROTO_ARP,
+static struct xt_target arpt_builtin_tg[] __read_mostly = {
+	{
+		.name             = ARPT_STANDARD_TARGET,
+		.targetsize       = sizeof(int),
+		.family           = NFPROTO_ARP,
 #ifdef CONFIG_COMPAT
-	.compatsize	= sizeof(compat_int_t),
-	.compat_from_user = compat_standard_from_user,
-	.compat_to_user	= compat_standard_to_user,
+		.compatsize       = sizeof(compat_int_t),
+		.compat_from_user = compat_standard_from_user,
+		.compat_to_user   = compat_standard_to_user,
 #endif
-};
-
-static struct xt_target arpt_error_target __read_mostly = {
-	.name		= ARPT_ERROR_TARGET,
-	.target		= arpt_error,
-	.targetsize	= ARPT_FUNCTION_MAXNAMELEN,
-	.family		= NFPROTO_ARP,
+	},
+	{
+		.name             = ARPT_ERROR_TARGET,
+		.target           = arpt_error,
+		.targetsize       = ARPT_FUNCTION_MAXNAMELEN,
+		.family           = NFPROTO_ARP,
+	},
 };
 
 static struct nf_sockopt_ops arpt_sockopts = {
@@ -1887,12 +1888,9 @@ static int __init arp_tables_init(void)
 		goto err1;
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	ret = xt_register_target(&arpt_standard_target);
+	ret = xt_register_targets(arpt_builtin_tg, ARRAY_SIZE(arpt_builtin_tg));
 	if (ret < 0)
 		goto err2;
-	ret = xt_register_target(&arpt_error_target);
-	if (ret < 0)
-		goto err3;
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&arpt_sockopts);
@@ -1903,9 +1901,7 @@ static int __init arp_tables_init(void)
 	return 0;
 
 err4:
-	xt_unregister_target(&arpt_error_target);
-err3:
-	xt_unregister_target(&arpt_standard_target);
+	xt_unregister_targets(arpt_builtin_tg, ARRAY_SIZE(arpt_builtin_tg));
 err2:
 	unregister_pernet_subsys(&arp_tables_net_ops);
 err1:
@@ -1915,8 +1911,7 @@ err1:
 static void __exit arp_tables_fini(void)
 {
 	nf_unregister_sockopt(&arpt_sockopts);
-	xt_unregister_target(&arpt_error_target);
-	xt_unregister_target(&arpt_standard_target);
+	xt_unregister_targets(arpt_builtin_tg, ARRAY_SIZE(arpt_builtin_tg));
 	unregister_pernet_subsys(&arp_tables_net_ops);
 }
 
