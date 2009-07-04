@@ -56,6 +56,7 @@ static struct v4l2_queryctrl mt9v011_qctrl[] = {
 
 struct mt9v011 {
 	struct v4l2_subdev sd;
+	unsigned width, height;
 
 	u16 global_gain, red_bal, blue_bal;
 };
@@ -103,7 +104,7 @@ static void mt9v011_write(struct v4l2_subdev *sd, unsigned char addr,
 
 	v4l2_dbg(2, debug, sd,
 		 "mt9v011: writing 0x%02x 0x%04x\n", buffer[0], value);
-	rc = i2c_master_send(c, &buffer, 3);
+	rc = i2c_master_send(c, buffer, 3);
 	if (rc != 3)
 		v4l2_dbg(0, debug, sd,
 			 "i2c i/o error: rc == %d (should be 3)\n", rc);
@@ -123,12 +124,6 @@ static const struct i2c_reg_value mt9v011_init_default[] = {
 		{ R0D_MT9V011_RESET, 0x0001 },
 		{ R0D_MT9V011_RESET, 0x0000 },
 
-		{ R01_MT9V011_ROWSTART, 0x0008 },
-		{ R02_MT9V011_COLSTART, 0x0014 },
-		{ R03_MT9V011_HEIGHT, 0x01e0 },
-		{ R04_MT9V011_WIDTH, 0x0280 },
-		{ R05_MT9V011_HBLANK, 0x007b },
-		{ R06_MT9V011_VBLANK, 0x001c },
 		{ R09_MT9V011_SHUTTER_WIDTH, 0x0418 },
 		{ R0A_MT9V011_CLK_SPEED, 0x0000 },
 		{ R0C_MT9V011_SHUTTER_DELAY, 0x0000 },
@@ -171,25 +166,40 @@ static void set_balance(struct v4l2_subdev *sd)
 	mt9v011_write(sd, R2D_MT9V011_RED_GAIN, red_gain);
 }
 
+static void set_res(struct v4l2_subdev *sd)
+{
+	struct mt9v011 *core = to_mt9v011(sd);
+	unsigned vstart, hstart;
+
+	/*
+	 * The mt9v011 doesn't have scaling. So, in order to select the desired
+	 * resolution, we're cropping at the middle of the sensor.
+	 * hblank and vblank should be adjusted, in order to warrant that
+	 * we'll preserve the line timings for 30 fps, no matter what resolution
+	 * is selected.
+	 */
+
+	hstart = 14 + (640 - core->width) / 2;
+	mt9v011_write(sd, R02_MT9V011_COLSTART, hstart);
+	mt9v011_write(sd, R04_MT9V011_WIDTH, core->width);
+	mt9v011_write(sd, R05_MT9V011_HBLANK, 771 - core->width);
+
+	vstart = 8 + (640 - core->height) / 2;
+	mt9v011_write(sd, R01_MT9V011_ROWSTART, vstart);
+	mt9v011_write(sd, R03_MT9V011_HEIGHT, core->height);
+	mt9v011_write(sd, R06_MT9V011_VBLANK, 508 - core->height);
+};
+
 static int mt9v011_reset(struct v4l2_subdev *sd, u32 val)
 {
-	u16 version;
 	int i;
-
-	version = mt9v011_read(sd, R00_MT9V011_CHIP_VERSION);
-
-	if (version != MT9V011_VERSION) {
-		v4l2_info(sd, "*** unknown micron chip detected (0x%04x.\n",
-			  version);
-		return -EINVAL;
-
-	}
 
 	for (i = 0; i < ARRAY_SIZE(mt9v011_init_default); i++)
 		mt9v011_write(sd, mt9v011_init_default[i].reg,
 			       mt9v011_init_default[i].value);
 
 	set_balance(sd);
+	set_res(sd);
 
 	return 0;
 };
@@ -250,6 +260,50 @@ static int mt9v011_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
+static int mt9v011_enum_fmt(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmt)
+{
+	if (fmt->index > 0)
+		return -EINVAL;
+
+	fmt->flags = 0;
+	strcpy(fmt->description, "8 bpp Bayer GRGR..BGBG");
+	fmt->pixelformat = V4L2_PIX_FMT_SGRBG8;
+
+	return 0;
+}
+
+static int mt9v011_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+{
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+
+	if (pix->pixelformat != V4L2_PIX_FMT_SGRBG8)
+		return -EINVAL;
+
+	v4l_bound_align_image(&pix->width, 48, 639, 1,
+			      &pix->height, 32, 480, 1, 0);
+
+	return 0;
+}
+
+static int mt9v011_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+{
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+	struct mt9v011 *core = to_mt9v011(sd);
+	int rc;
+
+	rc = mt9v011_try_fmt(sd, fmt);
+	if (rc < 0)
+		return -EINVAL;
+
+	core->width = pix->width;
+	core->height = pix->height;
+
+	set_res(sd);
+
+	return 0;
+}
+
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int mt9v011_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
@@ -303,8 +357,15 @@ static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 #endif
 };
 
+static const struct v4l2_subdev_video_ops mt9v011_video_ops = {
+	.enum_fmt = mt9v011_enum_fmt,
+	.try_fmt = mt9v011_try_fmt,
+	.s_fmt = mt9v011_s_fmt,
+};
+
 static const struct v4l2_subdev_ops mt9v011_ops = {
-	.core = &mt9v011_core_ops,
+	.core  = &mt9v011_core_ops,
+	.video = &mt9v011_video_ops,
 };
 
 
@@ -315,6 +376,7 @@ static const struct v4l2_subdev_ops mt9v011_ops = {
 static int mt9v011_probe(struct i2c_client *c,
 			 const struct i2c_device_id *id)
 {
+	u16 version;
 	struct mt9v011 *core;
 	struct v4l2_subdev *sd;
 
@@ -327,10 +389,22 @@ static int mt9v011_probe(struct i2c_client *c,
 	if (!core)
 		return -ENOMEM;
 
-	core->global_gain = 0x0024;
-
 	sd = &core->sd;
 	v4l2_i2c_subdev_init(sd, c, &mt9v011_ops);
+
+	/* Check if the sensor is really a MT9V011 */
+	version = mt9v011_read(sd, R00_MT9V011_CHIP_VERSION);
+	if (version != MT9V011_VERSION) {
+		v4l2_info(sd, "*** unknown micron chip detected (0x%04x.\n",
+			  version);
+		kfree(core);
+		return -EINVAL;
+	}
+
+	core->global_gain = 0x0024;
+	core->width  = 640;
+	core->height = 480;
+
 	v4l_info(c, "chip found @ 0x%02x (%s)\n",
 		 c->addr << 1, c->adapter->name);
 
