@@ -2447,8 +2447,11 @@ static int iommu_no_mapping(struct pci_dev *pdev)
 {
 	int found;
 
+	if (iommu_dummy(pdev))
+		return 1;
+
 	if (!iommu_identity_mapping)
-		return iommu_dummy(pdev);
+		return 0;
 
 	found = identity_mapping(pdev);
 	if (found) {
@@ -2480,7 +2483,7 @@ static int iommu_no_mapping(struct pci_dev *pdev)
 		}
 	}
 
-	return iommu_dummy(pdev);
+	return 0;
 }
 
 static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
