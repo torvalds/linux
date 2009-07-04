@@ -2457,10 +2457,15 @@ static int iommu_should_identity_map(struct pci_dev *pdev)
 }
 
 /* Check if the pdev needs to go through non-identity map and unmap process.*/
-static int iommu_no_mapping(struct pci_dev *pdev)
+static int iommu_no_mapping(struct device *dev)
 {
+	struct pci_dev *pdev;
 	int found;
 
+	if (unlikely(dev->bus != &pci_bus_type))
+		return 1;
+
+	pdev = to_pci_dev(dev);
 	if (iommu_dummy(pdev))
 		return 1;
 
@@ -2516,7 +2521,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 
 	BUG_ON(dir == DMA_NONE);
 
-	if (iommu_no_mapping(pdev))
+	if (iommu_no_mapping(hwdev))
 		return paddr;
 
 	domain = get_valid_domain_for_dev(pdev);
@@ -2656,7 +2661,7 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	struct iova *iova;
 	struct intel_iommu *iommu;
 
-	if (iommu_no_mapping(pdev))
+	if (iommu_no_mapping(dev))
 		return;
 
 	domain = find_domain(pdev);
@@ -2747,7 +2752,7 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	struct iova *iova;
 	struct intel_iommu *iommu;
 
-	if (iommu_no_mapping(pdev))
+	if (iommu_no_mapping(hwdev))
 		return;
 
 	domain = find_domain(pdev);
@@ -2806,7 +2811,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	struct intel_iommu *iommu;
 
 	BUG_ON(dir == DMA_NONE);
-	if (iommu_no_mapping(pdev))
+	if (iommu_no_mapping(hwdev))
 		return intel_nontranslate_map_sg(hwdev, sglist, nelems, dir);
 
 	domain = get_valid_domain_for_dev(pdev);
