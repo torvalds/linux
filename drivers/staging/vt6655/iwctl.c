@@ -80,8 +80,6 @@ extern WORD TxRate_iwconfig;//2008-5-8 <add> by chester
 #define SUPPORTED_WIRELESS_EXT                  17
 #endif
 
-#ifdef WIRELESS_EXT
-
 static const long frequency_list[] = {
     2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484,
     4915, 4920, 4925, 4935, 4940, 4945, 4960, 4980,
@@ -89,8 +87,6 @@ static const long frequency_list[] = {
     5260, 5280, 5300, 5320, 5500, 5520, 5540, 5560, 5580, 5600, 5620, 5640, 5660, 5680,
     5700, 5745, 5765, 5785, 5805, 5825
 	};
-
-#endif
 
 
 /*---------------------  Static Classes  ----------------------------*/
@@ -104,8 +100,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
-
-#ifdef WIRELESS_EXT
 
 struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 {
@@ -2314,7 +2308,3 @@ const struct iw_handler_def	iwctl_handler_def =
 	.private	= NULL,
 	.private_args	= NULL,
 };
-
-
-
-#endif // WIRELESS_EXT

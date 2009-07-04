@@ -50,8 +50,6 @@ extern "C" {                            /* Assume C declarations for C++ */
 #endif /* __cplusplus */
 
 
-#ifdef WIRELESS_EXT
-
 struct iw_statistics *iwctl_get_wireless_stats (struct net_device *dev);
 
 
@@ -230,8 +228,6 @@ int iwctl_siwmlme(struct net_device *dev,
 			char *extra);
 #endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 
-
-#endif
 
 extern const struct iw_handler_def	iwctl_handler_def;
 extern const struct iw_priv_args	iwctl_private_args;

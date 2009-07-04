@@ -856,9 +856,7 @@ vntwusb_found1(struct usb_interface *intf, const struct usb_device_id *id)
 
     netdev->netdev_ops         = &device_netdev_ops;
 
-#ifdef CONFIG_WIRELESS_EXT
 	netdev->wireless_handlers = (struct iw_handler_def *)&iwctl_handler_def;
-#endif /* WIRELESS_EXT */
 
    //2008-0623-01<Remark>by MikeLiu
   //2007-0821-01<Add>by MikeLiu

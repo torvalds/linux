@@ -1146,9 +1146,7 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
     dev->irq                = pcid->irq;
     dev->netdev_ops         = &device_netdev_ops;
 
-#ifdef CONFIG_WIRELESS_EXT
 	dev->wireless_handlers = (struct iw_handler_def *)&iwctl_handler_def;
-#endif
 
     rc = register_netdev(dev);
     if (rc)
@@ -3396,10 +3394,8 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
 #endif
 
-#ifdef WIRELESS_EXT
 	struct iwreq *wrq = (struct iwreq *) rq;
 	int                 rc =0;
-#endif
     PSMgmtObject        pMgmt = pDevice->pMgmt;
     PSCmdRequest        pReq;
 
@@ -3410,8 +3406,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
     }
 
     switch(cmd) {
-
-#ifdef WIRELESS_EXT
 
 	case SIOCGIWNAME:
 		rc = iwctl_giwname(dev, NULL, (char *)&(wrq->u.name), NULL);
@@ -3750,8 +3744,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 
 #endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 //End Add -- //2008-0409-07, <Add> by Einsn Liu
-
-#endif // WIRELESS_EXT
 
     case IOCTL_CMD_TEST:
 

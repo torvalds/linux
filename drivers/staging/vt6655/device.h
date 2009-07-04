@@ -950,9 +950,7 @@ typedef struct __device_info {
     UINT                    uChannel;
     BOOL                    bMACSuspend;
 
-#ifdef WIRELESS_EXT
 	struct iw_statistics	wstats;		// wireless stats
-#endif /* WIRELESS_EXT */
     BOOL                    bCommit;
 
 } DEVICE_INFO, *PSDevice;
