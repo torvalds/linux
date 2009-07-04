@@ -84,6 +84,12 @@ config MACH_MP900C
 	bool "Nec Mobilepro 900/c"
 	select PXA25x
 
+config MACH_BALLOON3
+	bool "Balloon 3 board"
+	select PXA27x
+	select IWMMXT
+	select PXA_HAVE_BOARD_IRQS
+
 config ARCH_PXA_IDP
 	bool "Accelent Xscale IDP"
 	select PXA25x
