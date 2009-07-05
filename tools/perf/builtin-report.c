@@ -1684,9 +1684,19 @@ static int __cmd_report(void)
 
 	sample_type = perf_header__sample_type();
 
-	if (sort__has_parent && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
-		fprintf(stderr, "selected --sort parent, but no callchain data\n");
-		exit(-1);
+	if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
+		if (sort__has_parent) {
+			fprintf(stderr, "selected --sort parent, but no"
+					" callchain data. Did you call"
+					" perf record without -g?\n");
+			exit(-1);
+		}
+		if (callchain) {
+			fprintf(stderr, "selected -c but no callchain data."
+					" Did you call perf record without"
+					" -g?\n");
+			exit(-1);
+		}
 	}
 
 	if (load_kernel() < 0) {
