@@ -58,6 +58,8 @@ static char		*parent_pattern = default_parent_pattern;
 static regex_t		parent_regex;
 
 static int		exclude_other = 1;
+
+static char		callchain_default_opt[] = "flat,0";
 static int		callchain;
 static enum chain_mode	callchain_mode;
 static double		callchain_min_percent = 0.0;
@@ -1871,7 +1873,7 @@ static const struct option options[] = {
 		    "Only display entries with parent-match"),
 	OPT_CALLBACK_DEFAULT('c', "callchain", NULL, "output_type,min_percent",
 		     "Display callchains using output_type and min percent threshold. "
-		     "Default: flat,0", &parse_callchain_opt, "flat,100"),
+		     "Default: flat,0", &parse_callchain_opt, callchain_default_opt),
 	OPT_STRING('d', "dsos", &dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('C', "comms", &comm_list_str, "comm[,comm...]",
