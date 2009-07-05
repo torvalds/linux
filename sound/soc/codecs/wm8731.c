@@ -560,7 +560,8 @@ static int wm8731_register(struct wm8731_priv *wm8731)
 
 	if (wm8731_codec) {
 		dev_err(codec->dev, "Another WM8731 is registered\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	mutex_init(&codec->mutex);
@@ -583,8 +584,8 @@ static int wm8731_register(struct wm8731_priv *wm8731)
 
 	ret = wm8731_reset(codec);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset\n");
-		return ret;
+		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
+		goto err;
 	}
 
 	wm8731_dai.dev = codec->dev;
@@ -610,17 +611,23 @@ static int wm8731_register(struct wm8731_priv *wm8731)
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		return ret;
+		goto err;
 	}
 
 	ret = snd_soc_register_dai(&wm8731_dai);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
 		snd_soc_unregister_codec(codec);
-		return ret;
+		goto err_codec;
 	}
 
 	return 0;
+
+err_codec:
+	snd_soc_unregister_codec(codec);
+err:
+	kfree(wm8731);
+	return ret;
 }
 
 static void wm8731_unregister(struct wm8731_priv *wm8731)
