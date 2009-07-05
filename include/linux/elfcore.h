@@ -125,6 +125,8 @@ static inline int elf_core_copy_task_regs(struct task_struct *t, elf_gregset_t* 
 #ifdef ELF_CORE_COPY_TASK_REGS
 	
 	return ELF_CORE_COPY_TASK_REGS(t, elfregs);
+#else
+	elf_core_copy_regs(elfregs, task_pt_regs(t));
 #endif
 	return 0;
 }
