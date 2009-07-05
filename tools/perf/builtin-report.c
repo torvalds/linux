@@ -59,10 +59,10 @@ static regex_t		parent_regex;
 
 static int		exclude_other = 1;
 
-static char		callchain_default_opt[] = "flat,0";
+static char		callchain_default_opt[] = "graph,0.5";
 static int		callchain;
 static enum chain_mode	callchain_mode;
-static double		callchain_min_percent = 0.0;
+static double		callchain_min_percent = 0.5;
 
 static u64		sample_type;
 
