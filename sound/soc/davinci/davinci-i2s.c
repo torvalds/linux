@@ -146,11 +146,14 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 				spcr & ~mask);
 		toggle_clock(dev, playback);
 	}
-	/* Start the sample generator and enable transmitter/receiver */
-	spcr |= DAVINCI_MCBSP_SPCR_GRST;
-	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, spcr);
+	if (dev->pcr & (DAVINCI_MCBSP_PCR_FSXM | DAVINCI_MCBSP_PCR_FSRM |
+			DAVINCI_MCBSP_PCR_CLKXM | DAVINCI_MCBSP_PCR_CLKRM)) {
+		/* Start the sample generator */
+		spcr |= DAVINCI_MCBSP_SPCR_GRST;
+		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, spcr);
+	}
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+	if (playback) {
 		/* Stop the DMA to avoid data loss */
 		/* while the transmitter is out of reset to handle XSYNCERR */
 		if (platform->pcm_ops->trigger) {
@@ -181,23 +184,16 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 			if (ret < 0)
 				printk(KERN_DEBUG "Playback DMA start failed\n");
 		}
-		/* Enable the transmitter */
-		spcr = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
-		spcr |= DAVINCI_MCBSP_SPCR_XRST;
-		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, spcr);
-
-	} else {
-
-		/* Enable the reciever */
-		spcr = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
-		spcr |= DAVINCI_MCBSP_SPCR_RRST;
-		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, spcr);
 	}
 
-
-	/* Start frame sync */
+	/* Enable transmitter or receiver */
 	spcr = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
-	spcr |= DAVINCI_MCBSP_SPCR_FRST;
+	spcr |= mask;
+
+	if (dev->pcr & (DAVINCI_MCBSP_PCR_FSXM | DAVINCI_MCBSP_PCR_FSRM)) {
+		/* Start frame sync */
+		spcr |= DAVINCI_MCBSP_SPCR_FRST;
+	}
 	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, spcr);
 }
 
