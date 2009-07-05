@@ -32,13 +32,14 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
 		rnode = rb_entry(parent, struct callchain_node, rb_node);
 
 		switch (mode) {
-		case FLAT:
+		case CHAIN_FLAT:
 			if (rnode->hit < chain->hit)
 				p = &(*p)->rb_left;
 			else
 				p = &(*p)->rb_right;
 			break;
-		case GRAPH:
+		case CHAIN_GRAPH_ABS: /* Falldown */
+		case CHAIN_GRAPH_REL:
 			if (rnode->cumul_hit < chain->cumul_hit)
 				p = &(*p)->rb_left;
 			else
@@ -53,41 +54,94 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
 	rb_insert_color(&chain->rb_node, root);
 }
 
-/*
- * Once we get every callchains from the stream, we can now
- * sort them by hit
- */
-void sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
-		     u64 min_hit)
+static void
+__sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
+		  u64 min_hit)
 {
 	struct callchain_node *child;
 
 	chain_for_each_child(child, node)
-		sort_chain_flat(rb_root, child, min_hit);
+		__sort_chain_flat(rb_root, child, min_hit);
 
 	if (node->hit && node->hit >= min_hit)
-		rb_insert_callchain(rb_root, node, FLAT);
+		rb_insert_callchain(rb_root, node, CHAIN_FLAT);
 }
 
-static void __sort_chain_graph(struct callchain_node *node, u64 min_hit)
+/*
+ * Once we get every callchains from the stream, we can now
+ * sort them by hit
+ */
+static void
+sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
+		u64 min_hit, struct callchain_param *param __used)
+{
+	__sort_chain_flat(rb_root, node, min_hit);
+}
+
+static void __sort_chain_graph_abs(struct callchain_node *node,
+				   u64 min_hit)
 {
 	struct callchain_node *child;
 
 	node->rb_root = RB_ROOT;
 
 	chain_for_each_child(child, node) {
-		__sort_chain_graph(child, min_hit);
+		__sort_chain_graph_abs(child, min_hit);
 		if (child->cumul_hit >= min_hit)
-			rb_insert_callchain(&node->rb_root, child, GRAPH);
+			rb_insert_callchain(&node->rb_root, child,
+					    CHAIN_GRAPH_ABS);
 	}
 }
 
-void
-sort_chain_graph(struct rb_root *rb_root, struct callchain_node *chain_root,
-		 u64 min_hit)
+static void
+sort_chain_graph_abs(struct rb_root *rb_root, struct callchain_node *chain_root,
+		     u64 min_hit, struct callchain_param *param __used)
 {
-	__sort_chain_graph(chain_root, min_hit);
+	__sort_chain_graph_abs(chain_root, min_hit);
 	rb_root->rb_node = chain_root->rb_root.rb_node;
+}
+
+static void __sort_chain_graph_rel(struct callchain_node *node,
+				   double min_percent)
+{
+	struct callchain_node *child;
+	u64 min_hit;
+
+	node->rb_root = RB_ROOT;
+	min_hit = node->cumul_hit * min_percent / 100.0;
+
+	chain_for_each_child(child, node) {
+		__sort_chain_graph_rel(child, min_percent);
+		if (child->cumul_hit >= min_hit)
+			rb_insert_callchain(&node->rb_root, child,
+					    CHAIN_GRAPH_REL);
+	}
+}
+
+static void
+sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_node *chain_root,
+		     u64 min_hit __used, struct callchain_param *param)
+{
+	__sort_chain_graph_rel(chain_root, param->min_percent);
+	rb_root->rb_node = chain_root->rb_root.rb_node;
+}
+
+int register_callchain_param(struct callchain_param *param)
+{
+	switch (param->mode) {
+	case CHAIN_GRAPH_ABS:
+		param->sort = sort_chain_graph_abs;
+		break;
+	case CHAIN_GRAPH_REL:
+		param->sort = sort_chain_graph_rel;
+		break;
+	case CHAIN_FLAT:
+		param->sort = sort_chain_flat;
+		break;
+	default:
+		return -1;
+	}
+	return 0;
 }
 
 /*

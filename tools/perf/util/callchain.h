@@ -7,8 +7,9 @@
 #include "symbol.h"
 
 enum chain_mode {
-	FLAT,
-	GRAPH
+	CHAIN_FLAT,
+	CHAIN_GRAPH_ABS,
+	CHAIN_GRAPH_REL
 };
 
 struct callchain_node {
@@ -21,6 +22,17 @@ struct callchain_node {
 	unsigned int		val_nr;
 	u64			hit;
 	u64			cumul_hit; /* hit + hits of children */
+};
+
+struct callchain_param;
+
+typedef void (*sort_chain_func_t)(struct rb_root *, struct callchain_node *,
+				 u64, struct callchain_param *);
+
+struct callchain_param {
+	enum chain_mode 	mode;
+	double			min_percent;
+	sort_chain_func_t	sort;
 };
 
 struct callchain_list {
@@ -36,10 +48,7 @@ static inline void callchain_init(struct callchain_node *node)
 	INIT_LIST_HEAD(&node->val);
 }
 
+int register_callchain_param(struct callchain_param *param);
 void append_chain(struct callchain_node *root, struct ip_callchain *chain,
 		  struct symbol **syms);
-void sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
-		     u64 min_hit);
-void sort_chain_graph(struct rb_root *rb_root, struct callchain_node *node,
-		      u64 min_hit);
 #endif
