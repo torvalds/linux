@@ -394,15 +394,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 -----------------------------
 
-What:	obsolete generic irq defines and typedefs
-When:	2.6.30
-Why:	The defines and typedefs (hw_interrupt_type, no_irq_type, irq_desc_t)
-	have been kept around for migration reasons. After more than two years
-	it's time to remove them finally
-Who:	Thomas Gleixner <tglx@linutronix.de>
-
----------------------------
-
 What:	fakephp and associated sysfs files in /sys/bus/pci/slots/
 When:	2011
 Why:	In 2.6.27, the semantics of /sys/bus/pci/slots was redefined to
