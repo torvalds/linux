@@ -34,13 +34,36 @@
 
 #include "mtrr.h"
 
-/* Should be related to MTRR_VAR_RANGES nums */
-#define RANGE_NUM 256
-
 struct res_range {
 	unsigned long	start;
 	unsigned long	end;
 };
+
+struct var_mtrr_range_state {
+	unsigned long	base_pfn;
+	unsigned long	size_pfn;
+	mtrr_type	type;
+};
+
+struct var_mtrr_state {
+	unsigned long	range_startk;
+	unsigned long	range_sizek;
+	unsigned long	chunk_sizek;
+	unsigned long	gran_sizek;
+	unsigned int	reg;
+};
+
+/* Should be related to MTRR_VAR_RANGES nums */
+#define RANGE_NUM				256
+
+static struct res_range __initdata		range[RANGE_NUM];
+static int __initdata				nr_range;
+
+static struct var_mtrr_range_state __initdata	range_state[RANGE_NUM];
+
+static int __initdata debug_print;
+#define Dprintk(x...) do { if (debug_print) printk(KERN_DEBUG x); } while (0)
+
 
 static int __init
 add_range(struct res_range *range, int nr_range,
@@ -147,18 +170,6 @@ static int __init cmp_range(const void *x1, const void *x2)
 	return start1 - start2;
 }
 
-struct var_mtrr_range_state {
-	unsigned long	base_pfn;
-	unsigned long	size_pfn;
-	mtrr_type	type;
-};
-
-static struct var_mtrr_range_state __initdata range_state[RANGE_NUM];
-
-static int __initdata debug_print;
-#define Dprintk(x...) do { if (debug_print) printk(KERN_DEBUG x); } while (0)
-
-
 #define BIOS_BUG_MSG KERN_WARNING \
 	"WARNING: BIOS bug: VAR MTRR %d contains strange UC entry under 1M, check with your system vendor!\n"
 
@@ -200,9 +211,7 @@ x86_get_mtrr_mem_range(struct res_range *range, int nr_range,
 		if (base < (1<<(20-PAGE_SHIFT)) && mtrr_state.have_fixed &&
 		    (mtrr_state.enabled & 1)) {
 			/* Var MTRR contains UC entry below 1M? Skip it: */
-			printk(KERN_WARNING "WARNING: BIOS bug: VAR MTRR %d "
-				"contains strange UC entry under 1M, check "
-				"with your system vendor!\n", i);
+			printk(BIOS_BUG_MSG, i);
 			if (base + size <= (1<<(20-PAGE_SHIFT)))
 				continue;
 			size -= (1<<(20-PAGE_SHIFT)) - base;
@@ -244,9 +253,6 @@ x86_get_mtrr_mem_range(struct res_range *range, int nr_range,
 	return nr_range;
 }
 
-static struct res_range __initdata range[RANGE_NUM];
-static int __initdata nr_range;
-
 #ifdef CONFIG_MTRR_SANITIZER
 
 static unsigned long __init sum_ranges(struct res_range *range, int nr_range)
@@ -283,14 +289,6 @@ static int __init mtrr_cleanup_debug_setup(char *str)
 	return 0;
 }
 early_param("mtrr_cleanup_debug", mtrr_cleanup_debug_setup);
-
-struct var_mtrr_state {
-	unsigned long	range_startk;
-	unsigned long	range_sizek;
-	unsigned long	chunk_sizek;
-	unsigned long	gran_sizek;
-	unsigned int	reg;
-};
 
 static void __init
 set_var_mtrr(unsigned int reg, unsigned long basek, unsigned long sizek,
