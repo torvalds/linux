@@ -139,7 +139,9 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 		else
 			clear_bit(irq_source_id, irq_state);
 		sig_level = !!(*irq_state);
-	} else /* Deal with MSI/MSI-X */
+	} else if (!level)
+		return ret;
+	else /* Deal with MSI/MSI-X */
 		sig_level = 1;
 
 	/* Not possible to detect if the guest uses the PIC or the
