@@ -130,10 +130,10 @@ static void toggle_clock(struct davinci_mcbsp_dev *dev, int playback)
 	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_PCR_REG, dev->pcr);
 }
 
-static void davinci_mcbsp_start(struct snd_pcm_substream *substream)
+static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
+		struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_platform *platform = socdev->card->platform;
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
@@ -202,12 +202,9 @@ static void davinci_mcbsp_start(struct snd_pcm_substream *substream)
 	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, spcr);
 }
 
-static void davinci_mcbsp_stop(struct snd_pcm_substream *substream)
+static void davinci_mcbsp_stop(struct davinci_mcbsp_dev *dev, int playback)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
 	u32 spcr;
-	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	/* Reset transmitter/receiver and sample rate/frame sync generators */
 	spcr = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
@@ -427,18 +424,21 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
 	int ret = 0;
+	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		davinci_mcbsp_start(substream);
+		davinci_mcbsp_start(dev, substream);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		davinci_mcbsp_stop(substream);
+		davinci_mcbsp_stop(dev, playback);
 		break;
 	default:
 		ret = -EINVAL;
