@@ -35,6 +35,7 @@
 #include "kvm_cache_regs.h"
 #include "irq.h"
 #include "trace.h"
+#include "x86.h"
 
 #ifndef CONFIG_X86_64
 #define mod_64(x, y) ((x) - (y) * div64_u64(x, y))
@@ -140,6 +141,21 @@ static inline int apic_lvtt_period(struct kvm_lapic *apic)
 static inline int apic_lvt_nmi_mode(u32 lvt_val)
 {
 	return (lvt_val & (APIC_MODE_MASK | APIC_LVT_MASKED)) == APIC_DM_NMI;
+}
+
+void kvm_apic_set_version(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	struct kvm_cpuid_entry2 *feat;
+	u32 v = APIC_VERSION;
+
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return;
+
+	feat = kvm_find_cpuid_entry(apic->vcpu, 0x1, 0);
+	if (feat && (feat->ecx & (1 << (X86_FEATURE_X2APIC & 31))))
+		v |= APIC_LVR_DIRECTED_EOI;
+	apic_set_reg(apic, APIC_LVR, v);
 }
 
 static unsigned int apic_lvt_mask[APIC_LVT_NUM] = {
@@ -442,9 +458,11 @@ static void apic_set_eoi(struct kvm_lapic *apic)
 		trigger_mode = IOAPIC_LEVEL_TRIG;
 	else
 		trigger_mode = IOAPIC_EDGE_TRIG;
-	mutex_lock(&apic->vcpu->kvm->irq_lock);
-	kvm_ioapic_update_eoi(apic->vcpu->kvm, vector, trigger_mode);
-	mutex_unlock(&apic->vcpu->kvm->irq_lock);
+	if (!(apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_DIRECTED_EOI)) {
+		mutex_lock(&apic->vcpu->kvm->irq_lock);
+		kvm_ioapic_update_eoi(apic->vcpu->kvm, vector, trigger_mode);
+		mutex_unlock(&apic->vcpu->kvm->irq_lock);
+	}
 }
 
 static void apic_send_ipi(struct kvm_lapic *apic)
@@ -694,8 +712,11 @@ static int apic_mmio_write(struct kvm_io_device *this,
 		apic_set_reg(apic, APIC_DFR, val | 0x0FFFFFFF);
 		break;
 
-	case APIC_SPIV:
-		apic_set_reg(apic, APIC_SPIV, val & 0x3ff);
+	case APIC_SPIV: {
+		u32 mask = 0x3ff;
+		if (apic_get_reg(apic, APIC_LVR) & APIC_LVR_DIRECTED_EOI)
+			mask |= APIC_SPIV_DIRECTED_EOI;
+		apic_set_reg(apic, APIC_SPIV, val & mask);
 		if (!(val & APIC_SPIV_APIC_ENABLED)) {
 			int i;
 			u32 lvt_val;
@@ -710,7 +731,7 @@ static int apic_mmio_write(struct kvm_io_device *this,
 
 		}
 		break;
-
+	}
 	case APIC_ICR:
 		/* No delay here, so we always clear the pending bit */
 		apic_set_reg(apic, APIC_ICR, val & ~(1 << 12));
@@ -837,7 +858,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	hrtimer_cancel(&apic->lapic_timer.timer);
 
 	apic_set_reg(apic, APIC_ID, vcpu->vcpu_id << 24);
-	apic_set_reg(apic, APIC_LVR, APIC_VERSION);
+	kvm_apic_set_version(apic->vcpu);
 
 	for (i = 0; i < APIC_LVT_NUM; i++)
 		apic_set_reg(apic, APIC_LVTT + 0x10 * i, APIC_LVT_MASKED);
@@ -1041,7 +1062,8 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
 
 	apic->base_address = vcpu->arch.apic_base &
 			     MSR_IA32_APICBASE_BASE;
-	apic_set_reg(apic, APIC_LVR, APIC_VERSION);
+	kvm_apic_set_version(vcpu);
+
 	apic_update_ppr(apic);
 	hrtimer_cancel(&apic->lapic_timer.timer);
 	update_divide_count(apic);
