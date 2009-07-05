@@ -19,12 +19,6 @@
 #include <linux/oom.h>
 #include <linux/sched.h>
 
-static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask);
-
-static struct shrinker lowmem_shrinker = {
-	.shrink = lowmem_shrink,
-	.seeks = DEFAULT_SEEKS * 16
-};
 static uint32_t lowmem_debug_level = 2;
 static int lowmem_adj[6] = {
 	0,
@@ -139,6 +133,11 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 	read_unlock(&tasklist_lock);
 	return rem;
 }
+
+static struct shrinker lowmem_shrinker = {
+	.shrink = lowmem_shrink,
+	.seeks = DEFAULT_SEEKS * 16
+};
 
 static int __init lowmem_init(void)
 {
