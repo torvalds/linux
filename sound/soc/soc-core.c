@@ -1125,6 +1125,23 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 	return ret;
 }
 
+/**
+ * snd_soc_codec_volatile_register: Report if a register is volatile.
+ *
+ * @codec: CODEC to query.
+ * @reg: Register to query.
+ *
+ * Boolean function indiciating if a CODEC register is volatile.
+ */
+int snd_soc_codec_volatile_register(struct snd_soc_codec *codec, int reg)
+{
+	if (codec->volatile_register)
+		return codec->volatile_register(reg);
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_codec_volatile_register);
+
 /* codec register dump */
 static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 {

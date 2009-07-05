@@ -191,6 +191,7 @@ int snd_soc_register_platform(struct snd_soc_platform *platform);
 void snd_soc_unregister_platform(struct snd_soc_platform *platform);
 int snd_soc_register_codec(struct snd_soc_codec *codec);
 void snd_soc_unregister_codec(struct snd_soc_codec *codec);
+int snd_soc_codec_volatile_register(struct snd_soc_codec *codec, int reg);
 
 #ifdef CONFIG_PM
 int snd_soc_suspend_device(struct device *dev);
@@ -361,6 +362,7 @@ struct snd_soc_codec {
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 	int (*display_register)(struct snd_soc_codec *, char *,
 				size_t, unsigned int);
+	int (*volatile_register)(unsigned int);
 	hw_write_t hw_write;
 	hw_read_t hw_read;
 	void *reg_cache;
