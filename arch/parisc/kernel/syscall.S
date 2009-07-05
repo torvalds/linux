@@ -355,7 +355,7 @@ tracesys_exit:
 
 tracesys_sigexit:
 	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
-	LDREG	0(%r1), %r1
+	LDREG	TI_TASK(%r1), %r1
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
