@@ -163,6 +163,9 @@ static irqreturn_t temp_isr(int irq, void *context)
 		value ^= 1;
 		mdelay(500);
 	}
+
+	/* Not reached */
+	return IRQ_HANDLED;
 }
 
 static int pika_setup_leds(void)
