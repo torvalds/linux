@@ -238,9 +238,9 @@ struct xt_mtdtor_param {
  */
 struct xt_target_param {
 	const struct net_device *in, *out;
-	unsigned int hooknum;
 	const struct xt_target *target;
 	const void *targinfo;
+	unsigned int hooknum;
 	u_int8_t family;
 };
 
