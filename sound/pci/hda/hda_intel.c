@@ -1455,6 +1455,17 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 		return err;
 	}
 	snd_pcm_limit_hw_rates(runtime);
+	/* sanity check */
+	if (snd_BUG_ON(!runtime->hw.channels_min) ||
+	    snd_BUG_ON(!runtime->hw.channels_max) ||
+	    snd_BUG_ON(!runtime->hw.formats) ||
+	    snd_BUG_ON(!runtime->hw.rates)) {
+		azx_release_device(azx_dev);
+		hinfo->ops.close(hinfo, apcm->codec, substream);
+		snd_hda_power_down(apcm->codec);
+		mutex_unlock(&chip->open_mutex);
+		return -EINVAL;
+	}
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	azx_dev->substream = substream;
 	azx_dev->running = 0;
@@ -1463,13 +1474,6 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	runtime->private_data = azx_dev;
 	snd_pcm_set_sync(substream);
 	mutex_unlock(&chip->open_mutex);
-
-	if (snd_BUG_ON(!runtime->hw.channels_min || !runtime->hw.channels_max))
-		return -EINVAL;
-	if (snd_BUG_ON(!runtime->hw.formats))
-		return -EINVAL;
-	if (snd_BUG_ON(!runtime->hw.rates))
-		return -EINVAL;
 	return 0;
 }
 
