@@ -243,7 +243,7 @@ static void ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 }
 
 static unsigned int
-ebt_ulog_tg(struct sk_buff *skb, const struct xt_target_param *par)
+ebt_ulog_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	ebt_ulog_packet(par->hooknum, skb, par->in, par->out,
 	                par->targinfo, NULL);

@@ -84,7 +84,7 @@ tee_tg_route4(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 }
 
 static unsigned int
-tee_tg4(struct sk_buff *skb, const struct xt_target_param *par)
+tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tee_tginfo *info = par->targinfo;
 	struct iphdr *iph;
@@ -165,7 +165,7 @@ tee_tg_route6(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 }
 
 static unsigned int
-tee_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tee_tginfo *info = par->targinfo;
 

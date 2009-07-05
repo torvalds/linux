@@ -38,7 +38,7 @@ static int netmap_tg_check(const struct xt_tgchk_param *par)
 }
 
 static unsigned int
-netmap_tg(struct sk_buff *skb, const struct xt_target_param *par)
+netmap_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;

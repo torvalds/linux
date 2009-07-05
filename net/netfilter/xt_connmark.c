@@ -37,7 +37,7 @@ MODULE_ALIAS("ipt_connmark");
 MODULE_ALIAS("ip6t_connmark");
 
 static unsigned int
-connmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
+connmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_connmark_tginfo1 *info = par->targinfo;
 	enum ip_conntrack_info ctinfo;
@@ -91,7 +91,7 @@ static void connmark_tg_destroy(const struct xt_tgdtor_param *par)
 }
 
 static bool
-connmark_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+connmark_mt(const struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_connmark_mtinfo1 *info = par->matchinfo;
 	enum ip_conntrack_info ctinfo;

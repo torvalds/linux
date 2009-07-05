@@ -516,7 +516,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 }
 
 static bool
-hashlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+hashlimit_mt(const struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
 	struct xt_hashlimit_htable *hinfo = info->hinfo;

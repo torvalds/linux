@@ -72,7 +72,7 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 }
 
 static bool
-multiport_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+multiport_mt(const struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const __be16 *pptr;
 	__be16 _ports[2];

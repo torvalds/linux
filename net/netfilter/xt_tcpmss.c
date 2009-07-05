@@ -25,7 +25,7 @@ MODULE_ALIAS("ipt_tcpmss");
 MODULE_ALIAS("ip6t_tcpmss");
 
 static bool
-tcpmss_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+tcpmss_mt(const struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tcpmss_match_info *info = par->matchinfo;
 	const struct tcphdr *th;

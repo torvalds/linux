@@ -110,7 +110,7 @@ match_policy_out(const struct sk_buff *skb, const struct xt_policy_info *info,
 }
 
 static bool
-policy_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+policy_mt(const struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_policy_info *info = par->matchinfo;
 	int ret;

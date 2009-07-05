@@ -224,7 +224,7 @@ static inline int arp_checkentry(const struct arpt_arp *arp)
 }
 
 static unsigned int
-arpt_error(struct sk_buff *skb, const struct xt_target_param *par)
+arpt_error(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	if (net_ratelimit())
 		printk("arp_tables: error: '%s'\n",

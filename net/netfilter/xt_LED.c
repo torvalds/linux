@@ -49,7 +49,7 @@ struct xt_led_info_internal {
 };
 
 static unsigned int
-led_tg(struct sk_buff *skb, const struct xt_target_param *par)
+led_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_led_info *ledinfo = par->targinfo;
 	struct xt_led_info_internal *ledinternal = ledinfo->internal_data;

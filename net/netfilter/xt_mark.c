@@ -25,7 +25,7 @@ MODULE_ALIAS("ipt_MARK");
 MODULE_ALIAS("ip6t_MARK");
 
 static unsigned int
-mark_tg(struct sk_buff *skb, const struct xt_target_param *par)
+mark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_mark_tginfo2 *info = par->targinfo;
 
@@ -34,7 +34,7 @@ mark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 }
 
 static bool
-mark_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+mark_mt(const struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_mark_mtinfo1 *info = par->matchinfo;
 

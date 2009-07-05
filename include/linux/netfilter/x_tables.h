@@ -182,8 +182,6 @@ struct xt_counters_info {
 
 #include <linux/netdevice.h>
 
-#define xt_match_param xt_action_param
-#define xt_target_param xt_action_param
 /**
  * struct xt_action_param - parameters for matches/targets
  *

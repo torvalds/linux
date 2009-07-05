@@ -13,7 +13,7 @@
 #include <linux/netfilter_bridge/ebt_802_3.h>
 
 static bool
-ebt_802_3_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+ebt_802_3_mt(const struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_802_3_info *info = par->matchinfo;
 	const struct ebt_802_3_hdr *hdr = ebt_802_3_hdr(skb);

@@ -32,7 +32,8 @@ type_match(u_int8_t min, u_int8_t max, u_int8_t type, bool invert)
 	return (type >= min && type <= max) ^ invert;
 }
 
-static bool mh_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
+static bool mh_mt6(const struct sk_buff *skb,
+		   const struct xt_action_param *par)
 {
 	struct ip6_mh _mh;
 	const struct ip6_mh *mh;

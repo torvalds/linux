@@ -165,7 +165,7 @@ ip_checkentry(const struct ipt_ip *ip)
 }
 
 static unsigned int
-ipt_error(struct sk_buff *skb, const struct xt_target_param *par)
+ipt_error(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	if (net_ratelimit())
 		pr_info("error: `%s'\n", (const char *)par->targinfo);
@@ -2138,7 +2138,7 @@ icmp_type_code_match(u_int8_t test_type, u_int8_t min_code, u_int8_t max_code,
 }
 
 static bool
-icmp_match(const struct sk_buff *skb, const struct xt_match_param *par)
+icmp_match(const struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct icmphdr *ic;
 	struct icmphdr _icmph;

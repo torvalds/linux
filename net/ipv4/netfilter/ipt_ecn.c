@@ -67,7 +67,8 @@ static inline bool match_tcp(const struct sk_buff *skb,
 	return true;
 }
 
-static bool ecn_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+static bool ecn_mt(const struct sk_buff *skb,
+		   const struct xt_action_param *par)
 {
 	const struct ipt_ecn_info *info = par->matchinfo;
 

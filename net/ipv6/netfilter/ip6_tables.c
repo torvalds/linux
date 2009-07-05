@@ -197,7 +197,7 @@ ip6_checkentry(const struct ip6t_ip6 *ipv6)
 }
 
 static unsigned int
-ip6t_error(struct sk_buff *skb, const struct xt_target_param *par)
+ip6t_error(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	if (net_ratelimit())
 		pr_info("error: `%s'\n", (const char *)par->targinfo);
@@ -2154,7 +2154,7 @@ icmp6_type_code_match(u_int8_t test_type, u_int8_t min_code, u_int8_t max_code,
 }
 
 static bool
-icmp6_match(const struct sk_buff *skb, const struct xt_match_param *par)
+icmp6_match(const struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct icmp6hdr *ic;
 	struct icmp6hdr _icmph;

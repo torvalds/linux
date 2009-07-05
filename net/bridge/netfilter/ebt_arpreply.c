@@ -16,7 +16,7 @@
 #include <linux/netfilter_bridge/ebt_arpreply.h>
 
 static unsigned int
-ebt_arpreply_tg(struct sk_buff *skb, const struct xt_target_param *par)
+ebt_arpreply_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_arpreply_info *info = par->targinfo;
 	const __be32 *siptr, *diptr;

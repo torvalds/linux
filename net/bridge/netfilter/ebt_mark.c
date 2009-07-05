@@ -19,7 +19,7 @@
 #include <linux/netfilter_bridge/ebt_mark_t.h>
 
 static unsigned int
-ebt_mark_tg(struct sk_buff *skb, const struct xt_target_param *par)
+ebt_mark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_mark_t_info *info = par->targinfo;
 	int action = info->target & -16;
