@@ -82,6 +82,20 @@ struct rfkill_event {
 	__u8  soft, hard;
 } __packed;
 
+/*
+ * We are planning to be backward and forward compatible with changes
+ * to the event struct, by adding new, optional, members at the end.
+ * When reading an event (whether the kernel from userspace or vice
+ * versa) we need to accept anything that's at least as large as the
+ * version 1 event size, but might be able to accept other sizes in
+ * the future.
+ *
+ * One exception is the kernel -- we already have two event sizes in
+ * that we've made the 'hard' member optional since our only option
+ * is to ignore it anyway.
+ */
+#define RFKILL_EVENT_SIZE_V1	8
+
 /* ioctl for turning off rfkill-input (if present) */
 #define RFKILL_IOC_MAGIC	'R'
 #define RFKILL_IOC_NOINPUT	1
