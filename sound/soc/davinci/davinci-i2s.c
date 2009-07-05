@@ -210,14 +210,10 @@ static void davinci_mcbsp_stop(struct davinci_mcbsp_dev *dev, int playback)
 }
 
 static int davinci_i2s_startup(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
+			       struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
-
+	struct davinci_mcbsp_dev *dev = cpu_dai->private_data;
 	cpu_dai->dma_data = dev->dma_params[substream->stream];
-
 	return 0;
 }
 
