@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/amba/pl061.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/cnt32_to_63.h>
@@ -706,6 +707,16 @@ static struct clcd_board clcd_plat_data = {
 	.remove		= versatile_clcd_remove,
 };
 
+static struct pl061_platform_data gpio0_plat_data = {
+	.gpio_base	= 0,
+	.irq_base	= IRQ_GPIO0_START,
+};
+
+static struct pl061_platform_data gpio1_plat_data = {
+	.gpio_base	= 8,
+	.irq_base	= IRQ_GPIO1_START,
+};
+
 #define AACI_IRQ	{ IRQ_AACI, NO_IRQ }
 #define AACI_DMA	{ 0x80, 0x81 }
 #define MMCI0_IRQ	{ IRQ_MMCI0A,IRQ_SIC_MMCI0B }
@@ -768,8 +779,8 @@ AMBA_DEVICE(clcd,  "dev:20",  CLCD,     &clcd_plat_data);
 AMBA_DEVICE(dmac,  "dev:30",  DMAC,     NULL);
 AMBA_DEVICE(sctl,  "dev:e0",  SCTL,     NULL);
 AMBA_DEVICE(wdog,  "dev:e1",  WATCHDOG, NULL);
-AMBA_DEVICE(gpio0, "dev:e4",  GPIO0,    NULL);
-AMBA_DEVICE(gpio1, "dev:e5",  GPIO1,    NULL);
+AMBA_DEVICE(gpio0, "dev:e4",  GPIO0,    &gpio0_plat_data);
+AMBA_DEVICE(gpio1, "dev:e5",  GPIO1,    &gpio1_plat_data);
 AMBA_DEVICE(rtc,   "dev:e8",  RTC,      NULL);
 AMBA_DEVICE(sci0,  "dev:f0",  SCI,      NULL);
 AMBA_DEVICE(uart0, "dev:f1",  UART0,    NULL);

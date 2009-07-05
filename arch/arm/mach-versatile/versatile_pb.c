@@ -23,6 +23,7 @@
 #include <linux/device.h>
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/pl061.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
@@ -43,6 +44,16 @@
 static struct mmc_platform_data mmc1_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= mmc_status,
+};
+
+static struct pl061_platform_data gpio2_plat_data = {
+	.gpio_base	= 16,
+	.irq_base	= IRQ_GPIO2_START,
+};
+
+static struct pl061_platform_data gpio3_plat_data = {
+	.gpio_base	= 24,
+	.irq_base	= IRQ_GPIO3_START,
 };
 
 #define UART3_IRQ	{ IRQ_SIC_UART3, NO_IRQ }
@@ -70,8 +81,8 @@ AMBA_DEVICE(sci1,  "fpga:0a", SCI1,     NULL);
 AMBA_DEVICE(mmc1,  "fpga:0b", MMCI1,    &mmc1_plat_data);
 
 /* DevChip Primecells */
-AMBA_DEVICE(gpio2, "dev:e6",  GPIO2,    NULL);
-AMBA_DEVICE(gpio3, "dev:e7",  GPIO3,    NULL);
+AMBA_DEVICE(gpio2, "dev:e6",  GPIO2,    &gpio2_plat_data);
+AMBA_DEVICE(gpio3, "dev:e7",  GPIO3,    &gpio3_plat_data);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&uart3_device,
