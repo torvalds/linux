@@ -1308,7 +1308,8 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		    buffer->data_size < sizeof(*fp) ||
 		    !IS_ALIGNED(*offp, sizeof(void *))) {
 			printk(KERN_ERR "binder: transaction release %d bad"
-					"offset %zd, size %zd\n", debug_id, *offp, buffer->data_size);
+					"offset %zd, size %zd\n", debug_id,
+					*offp, buffer->data_size);
 			continue;
 		}
 		fp = (struct flat_binder_object *)(buffer->data + *offp);
@@ -1317,7 +1318,8 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		case BINDER_TYPE_WEAK_BINDER: {
 			struct binder_node *node = binder_get_node(proc, fp->binder);
 			if (node == NULL) {
-				printk(KERN_ERR "binder: transaction release %d bad node %p\n", debug_id, fp->binder);
+				printk(KERN_ERR "binder: transaction release %d"
+				       " bad node %p\n", debug_id, fp->binder);
 				break;
 			}
 			binder_debug(BINDER_DEBUG_TRANSACTION,
@@ -1329,7 +1331,9 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 		case BINDER_TYPE_WEAK_HANDLE: {
 			struct binder_ref *ref = binder_get_ref(proc, fp->handle);
 			if (ref == NULL) {
-				printk(KERN_ERR "binder: transaction release %d bad handle %ld\n", debug_id, fp->handle);
+				printk(KERN_ERR "binder: transaction release %d"
+				       " bad handle %ld\n", debug_id,
+				       fp->handle);
 				break;
 			}
 			binder_debug(BINDER_DEBUG_TRANSACTION,
@@ -1346,7 +1350,8 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 			break;
 
 		default:
-			printk(KERN_ERR "binder: transaction release %d bad object type %lx\n", debug_id, fp->type);
+			printk(KERN_ERR "binder: transaction release %d bad "
+			       "object type %lx\n", debug_id, fp->type);
 			break;
 		}
 	}
@@ -1599,7 +1604,8 @@ static void binder_transaction(struct binder_proc *proc,
 			else
 				fp->type = BINDER_TYPE_WEAK_HANDLE;
 			fp->handle = ref->desc;
-			binder_inc_ref(ref, fp->type == BINDER_TYPE_HANDLE, &thread->todo);
+			binder_inc_ref(ref, fp->type == BINDER_TYPE_HANDLE,
+				       &thread->todo);
 
 			binder_debug(BINDER_DEBUG_TRANSACTION,
 				     "        node %d u%p -> ref %d desc %d\n",
