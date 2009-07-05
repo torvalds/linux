@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/pl061.h>
 #include <linux/io.h>
 
 #include <asm/irq.h>
@@ -98,6 +99,21 @@ static void __init realview_pba8_map_io(void)
 	iotable_init(realview_pba8_io_desc, ARRAY_SIZE(realview_pba8_io_desc));
 }
 
+static struct pl061_platform_data gpio0_plat_data = {
+	.gpio_base	= 0,
+	.irq_base	= -1,
+};
+
+static struct pl061_platform_data gpio1_plat_data = {
+	.gpio_base	= 8,
+	.irq_base	= -1,
+};
+
+static struct pl061_platform_data gpio2_plat_data = {
+	.gpio_base	= 16,
+	.irq_base	= -1,
+};
+
 /*
  * RealView PBA8Core AMBA devices
  */
@@ -156,9 +172,9 @@ AMBA_DEVICE(uart3,	"fpga:09",	PBA8_UART3,	NULL);
 AMBA_DEVICE(smc,	"dev:00",	PBA8_SMC,	NULL);
 AMBA_DEVICE(sctl,	"dev:e0",	SCTL,		NULL);
 AMBA_DEVICE(wdog,	"dev:e1",	PBA8_WATCHDOG, NULL);
-AMBA_DEVICE(gpio0,	"dev:e4",	PBA8_GPIO0,	NULL);
-AMBA_DEVICE(gpio1,	"dev:e5",	GPIO1,		NULL);
-AMBA_DEVICE(gpio2,	"dev:e6",	GPIO2,		NULL);
+AMBA_DEVICE(gpio0,	"dev:e4",	PBA8_GPIO0,	&gpio0_plat_data);
+AMBA_DEVICE(gpio1,	"dev:e5",	GPIO1,		&gpio1_plat_data);
+AMBA_DEVICE(gpio2,	"dev:e6",	GPIO2,		&gpio2_plat_data);
 AMBA_DEVICE(rtc,	"dev:e8",	PBA8_RTC,	NULL);
 AMBA_DEVICE(sci0,	"dev:f0",	SCI,		NULL);
 AMBA_DEVICE(uart0,	"dev:f1",	PBA8_UART0,	NULL);
