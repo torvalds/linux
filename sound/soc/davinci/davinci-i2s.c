@@ -138,7 +138,6 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 	struct snd_soc_platform *platform = socdev->card->platform;
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 	u32 spcr;
-	int ret;
 	u32 mask = playback ? DAVINCI_MCBSP_SPCR_XRST : DAVINCI_MCBSP_SPCR_RRST;
 	spcr = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
 	if (spcr & mask) {
@@ -155,7 +154,7 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 		/* Stop the DMA to avoid data loss */
 		/* while the transmitter is out of reset to handle XSYNCERR */
 		if (platform->pcm_ops->trigger) {
-			ret = platform->pcm_ops->trigger(substream,
+			int ret = platform->pcm_ops->trigger(substream,
 				SNDRV_PCM_TRIGGER_STOP);
 			if (ret < 0)
 				printk(KERN_DEBUG "Playback DMA stop failed\n");
@@ -177,7 +176,7 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 
 		/* Restart the DMA */
 		if (platform->pcm_ops->trigger) {
-			ret = platform->pcm_ops->trigger(substream,
+			int ret = platform->pcm_ops->trigger(substream,
 				SNDRV_PCM_TRIGGER_START);
 			if (ret < 0)
 				printk(KERN_DEBUG "Playback DMA start failed\n");
