@@ -658,8 +658,6 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 
 	agp_gatt_table = gatt;
 
-	enable_gart_translations();
-
 	error = sysdev_class_register(&gart_sysdev_class);
 	if (!error)
 		error = sysdev_register(&device_gart);
@@ -816,6 +814,14 @@ void __init gart_iommu_init(void)
 	 * the pages as Not-Present:
 	 */
 	wbinvd();
+	
+	/*
+	 * Now all caches are flushed and we can safely enable
+	 * GART hardware.  Doing it early leaves the possibility
+	 * of stale cache entries that can lead to GART PTE
+	 * errors.
+	 */
+	enable_gart_translations();
 
 	/*
 	 * Try to workaround a bug (thanks to BenH):
