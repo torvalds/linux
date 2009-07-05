@@ -1,5 +1,5 @@
 # TODO: all of these should be removed
-EXTRA_CFLAGS += -DLINUX -D__KERNEL__ -DMODULE  -DEXPORT_SYMTAB -D__NO_VERSION__
+EXTRA_CFLAGS += -DLINUX -D__KERNEL__ -DMODULE -D__NO_VERSION__
 EXTRA_CFLAGS += -DHOSTAP
 
 vt6655-y +=	device_main.o \

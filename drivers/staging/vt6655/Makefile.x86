@@ -128,7 +128,7 @@ test_cc = $(shell which $(cc) > /dev/null 2>&1 && echo $(cc))
 CC := $(foreach cc, $(CC), $(test_cc))
 CC := $(firstword $(CC))
 
-CFLAGS += -Wall -DLINUX -D__KERNEL__ -DMODULE  -DEXPORT_SYMTAB -D__NO_VERSION__ -O2 -pipe
+CFLAGS += -Wall -DLINUX -D__KERNEL__ -DMODULE -D__NO_VERSION__ -O2 -pipe
 CFLAGS += -I$(KSRC)/include -Wstrict-prototypes -fomit-frame-pointer
 CFLAGS += $(shell [ -f $(KSRC)/include/linux/modversions.h ] && \
             echo "-DMODVERSIONS -include $(KSRC)/include/linux/modversions.h")

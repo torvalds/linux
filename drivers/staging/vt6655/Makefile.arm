@@ -118,7 +118,7 @@ OBJS :=	device_main.o card.o mac.o baseband.o wctl.o 80211mgr.o \
 CC := /usr/local/bin/arm-linux-gcc
 LD := /usr/local/bin/arm-linux-ld
 
-CFLAGS += -Wall -DLINUX -D__KERNEL__ -DMODULE  -DEXPORT_SYMTAB -D__NO_VERSION__ -O2 -pipe
+CFLAGS += -Wall -DLINUX -D__KERNEL__ -DMODULE -D__NO_VERSION__ -O2 -pipe
 #CFLAGS += -Wstrict-prototypes -fomit-frame-pointer
 COPTS+= -march=armv4 -fno-strict-aliasing -fno-common
 #COPTS+= -mapcs-32 -mtune=xscale  -mshort-load-bytes -msoft-float -mfp=2
