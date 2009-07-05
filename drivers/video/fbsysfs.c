@@ -62,6 +62,9 @@ struct fb_info *framebuffer_alloc(size_t size, struct device *dev)
 	mutex_init(&info->bl_curve_mutex);
 #endif
 
+	mutex_init(&info->lock);
+	mutex_init(&info->mm_lock);
+
 	return info;
 #undef PADDING
 #undef BYTES_PER_LONG

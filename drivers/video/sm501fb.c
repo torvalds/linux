@@ -1624,8 +1624,6 @@ static int __devinit sm501fb_start_one(struct sm501fb_info *info,
 	if (!fbi)
 		return 0;
 
-	mutex_init(&info->fb[head]->mm_lock);
-
 	ret = sm501fb_init_fb(info->fb[head], head, drvname);
 	if (ret) {
 		dev_err(info->dev, "cannot initialise fb %s\n", drvname);
