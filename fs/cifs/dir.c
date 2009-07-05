@@ -643,6 +643,15 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 			}
 	}
 
+	/*
+	 * O_EXCL: optimize away the lookup, but don't hash the dentry. Let
+	 * the VFS handle the create.
+	 */
+	if (nd->flags & LOOKUP_EXCL) {
+		d_instantiate(direntry, NULL);
+		return 0;
+	}
+
 	/* can not grab the rename sem here since it would
 	deadlock in the cases (beginning of sys_rename itself)
 	in which we already have the sb rename sem */
