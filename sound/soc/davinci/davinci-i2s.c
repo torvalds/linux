@@ -420,6 +420,20 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int davinci_i2s_prepare(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
+	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+	davinci_mcbsp_stop(dev, playback);
+	if ((dev->pcr & DAVINCI_MCBSP_PCR_FSXM) == 0) {
+		/* codec is master */
+		davinci_mcbsp_start(dev, substream);
+	}
+	return 0;
+}
+
 static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
@@ -427,6 +441,8 @@ static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
 	int ret = 0;
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+	if ((dev->pcr & DAVINCI_MCBSP_PCR_FSXM) == 0)
+		return 0;	/* return if codec is master */
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -442,8 +458,16 @@ static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	default:
 		ret = -EINVAL;
 	}
-
 	return ret;
+}
+
+static void davinci_i2s_shutdown(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
+	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+	davinci_mcbsp_stop(dev, playback);
 }
 
 static int davinci_i2s_probe(struct platform_device *pdev,
@@ -531,6 +555,8 @@ static void davinci_i2s_remove(struct platform_device *pdev,
 
 static struct snd_soc_dai_ops davinci_i2s_dai_ops = {
 	.startup	= davinci_i2s_startup,
+	.shutdown	= davinci_i2s_shutdown,
+	.prepare	= davinci_i2s_prepare,
 	.trigger	= davinci_i2s_trigger,
 	.hw_params	= davinci_i2s_hw_params,
 	.set_fmt	= davinci_i2s_set_dai_fmt,
