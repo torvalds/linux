@@ -515,7 +515,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ioarea = request_mem_region(mem->start, (mem->end - mem->start) + 1,
+	ioarea = request_mem_region(mem->start, resource_size(mem),
 				    pdev->name);
 	if (!ioarea) {
 		dev_err(&pdev->dev, "I2C region already claimed\n");
@@ -578,7 +578,7 @@ err_free_mem:
 	put_device(&pdev->dev);
 	kfree(dev);
 err_release_region:
-	release_mem_region(mem->start, (mem->end - mem->start) + 1);
+	release_mem_region(mem->start, resource_size(mem));
 
 	return r;
 }
@@ -601,7 +601,7 @@ static int davinci_i2c_remove(struct platform_device *pdev)
 	kfree(dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, (mem->end - mem->start) + 1);
+	release_mem_region(mem->start, resource_size(mem));
 	return 0;
 }
 
