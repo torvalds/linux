@@ -6,50 +6,59 @@
 
 /*** main I/O area port indices ***/
 /* (only 0x70 of 0x80 bytes saved/restored by Windows driver) */
-#define AZF_IO_SIZE_CODEC	0x80
-#define AZF_IO_SIZE_CODEC_PM	0x70
+#define AZF_IO_SIZE_CTRL	0x80
+#define AZF_IO_SIZE_CTRL_PM	0x70
 
-/* the driver initialisation suggests a layout of 4 main areas:
- * from 0x00 (playback), from 0x20 (recording) and from 0x40 (maybe MPU401??).
+/* the driver initialisation suggests a layout of 4 areas
+ * within the main card control I/O:
+ * from 0x00 (playback codec), from 0x20 (recording codec)
+ * and from 0x40 (most certainly I2S out codec).
  * And another area from 0x60 to 0x6f (DirectX timer, IRQ management,
  * power management etc.???). */
 
-/** playback area **/
-#define IDX_IO_PLAY_FLAGS       0x00 /* PU:0x0000 */
+#define AZF_IO_OFFS_CODEC_PLAYBACK	0x00
+#define AZF_IO_OFFS_CODEC_CAPTURE	0x20
+#define AZF_IO_OFFS_CODEC_I2S_OUT	0x40
+
+#define IDX_IO_CODEC_DMA_FLAGS       0x00 /* PU:0x0000 */
      /* able to reactivate output after output muting due to 8/16bit
       * output change, just like 0x0002.
       * 0x0001 is the only bit that's able to start the DMA counter */
-  #define DMA_RESUME			0x0001 /* paused if cleared ? */
+  #define DMA_RESUME			0x0001 /* paused if cleared? */
      /* 0x0002 *temporarily* set during DMA stopping. hmm
       * both 0x0002 and 0x0004 set in playback setup. */
      /* able to reactivate output after output muting due to 8/16bit
       * output change, just like 0x0001. */
-  #define DMA_PLAY_SOMETHING1		0x0002 /* \ alternated (toggled) */
+  #define DMA_RUN_SOMETHING1		0x0002 /* \ alternated (toggled) */
      /* 0x0004: NOT able to reactivate output */
-  #define DMA_PLAY_SOMETHING2		0x0004 /* / bits */
+  #define DMA_RUN_SOMETHING2		0x0004 /* / bits */
   #define SOMETHING_ALMOST_ALWAYS_SET	0x0008 /* ???; can be modified */
   #define DMA_EPILOGUE_SOMETHING	0x0010
   #define DMA_SOMETHING_ELSE		0x0020 /* ??? */
-  #define SOMETHING_UNMODIFIABLE	0xffc0 /* unused ? not modifiable */
-#define IDX_IO_PLAY_IRQTYPE     0x02 /* PU:0x0001 */
+  #define SOMETHING_UNMODIFIABLE	0xffc0 /* unused? not modifiable */
+#define IDX_IO_CODEC_IRQTYPE     0x02 /* PU:0x0001 */
   /* write back to flags in case flags are set, in order to ACK IRQ in handler
    * (bit 1 of port 0x64 indicates interrupt for one of these three types)
    * sometimes in this case it just writes 0xffff to globally ACK all IRQs
    * settings written are not reflected when reading back, though.
-   * seems to be IRQ, too (frequently used: port |= 0x07 !), but who knows ? */
-  #define IRQ_PLAY_SOMETHING		0x0001 /* something & ACK */
-  #define IRQ_FINISHED_PLAYBUF_1	0x0002 /* 1st dmabuf finished & ACK */
-  #define IRQ_FINISHED_PLAYBUF_2	0x0004 /* 2nd dmabuf finished & ACK */
+   * seems to be IRQ, too (frequently used: port |= 0x07 !), but who knows? */
+  #define IRQ_SOMETHING			0x0001 /* something & ACK */
+  #define IRQ_FINISHED_DMABUF_1		0x0002 /* 1st dmabuf finished & ACK */
+  #define IRQ_FINISHED_DMABUF_2		0x0004 /* 2nd dmabuf finished & ACK */
   #define IRQMASK_SOME_STATUS_1		0x0008 /* \ related bits */
   #define IRQMASK_SOME_STATUS_2		0x0010 /* / (checked together in loop) */
-  #define IRQMASK_UNMODIFIABLE		0xffe0 /* unused ? not modifiable */
-#define IDX_IO_PLAY_DMA_START_1 0x04 /* start address of 1st DMA play area, PU:0x00000000 */
-#define IDX_IO_PLAY_DMA_START_2 0x08 /* start address of 2nd DMA play area, PU:0x00000000 */
-#define IDX_IO_PLAY_DMA_LEN_1   0x0c /* length of 1st DMA play area, PU:0x0000 */
-#define IDX_IO_PLAY_DMA_LEN_2   0x0e /* length of 2nd DMA play area, PU:0x0000 */
-#define IDX_IO_PLAY_DMA_CURRPOS 0x10 /* current DMA position, PU:0x00000000 */
-#define IDX_IO_PLAY_DMA_CURROFS	0x14 /* offset within current DMA play area, PU:0x0000 */
-#define IDX_IO_PLAY_SOUNDFORMAT 0x16 /* PU:0x0010 */
+  #define IRQMASK_UNMODIFIABLE		0xffe0 /* unused? not modifiable */
+  /* start address of 1st DMA transfer area, PU:0x00000000 */
+#define IDX_IO_CODEC_DMA_START_1 0x04
+  /* start address of 2nd DMA transfer area, PU:0x00000000 */
+#define IDX_IO_CODEC_DMA_START_2 0x08
+  /* both lengths of DMA transfer areas, PU:0x00000000
+     length1: offset 0x0c, length2: offset 0x0e */
+#define IDX_IO_CODEC_DMA_LENGTHS 0x0c
+#define IDX_IO_CODEC_DMA_CURRPOS 0x10 /* current DMA position, PU:0x00000000 */
+  /* offset within current DMA transfer area, PU:0x0000 */
+#define IDX_IO_CODEC_DMA_CURROFS 0x14
+#define IDX_IO_CODEC_SOUNDFORMAT 0x16 /* PU:0x0010 */
   /* all unspecified bits can't be modified */
   #define SOUNDFORMAT_FREQUENCY_MASK	0x000f
   #define SOUNDFORMAT_XTAL1		0x00
@@ -76,6 +85,7 @@
   #define SOUNDFORMAT_FLAG_16BIT	0x0010
   #define SOUNDFORMAT_FLAG_2CHANNELS	0x0020
 
+
 /* define frequency helpers, for maximum value safety */
 enum azf_freq_t {
 #define AZF_FREQ(rate) AZF_FREQ_##rate = rate
@@ -96,29 +106,6 @@ enum azf_freq_t {
 #undef AZF_FREQ
 };
 
-/** recording area (see also: playback bit flag definitions) **/
-#define IDX_IO_REC_FLAGS	0x20 /* ??, PU:0x0000 */
-#define IDX_IO_REC_IRQTYPE	0x22 /* ??, PU:0x0000 */
-  #define IRQ_REC_SOMETHING		0x0001 /* something & ACK */
-  #define IRQ_FINISHED_RECBUF_1		0x0002 /* 1st dmabuf finished & ACK */
-  #define IRQ_FINISHED_RECBUF_2		0x0004 /* 2nd dmabuf finished & ACK */
-  /* hmm, maybe these are just the corresponding *recording* flags ?
-   * but OTOH they are most likely at port 0x22 instead */
-  #define IRQMASK_SOME_STATUS_1		0x0008 /* \ related bits */
-  #define IRQMASK_SOME_STATUS_2		0x0010 /* / (checked together in loop) */
-#define IDX_IO_REC_DMA_START_1  0x24 /* PU:0x00000000 */
-#define IDX_IO_REC_DMA_START_2  0x28 /* PU:0x00000000 */
-#define IDX_IO_REC_DMA_LEN_1    0x2c /* PU:0x0000 */
-#define IDX_IO_REC_DMA_LEN_2    0x2e /* PU:0x0000 */
-#define IDX_IO_REC_DMA_CURRPOS  0x30 /* PU:0x00000000 */
-#define IDX_IO_REC_DMA_CURROFS  0x34 /* PU:0x00000000 */
-#define IDX_IO_REC_SOUNDFORMAT  0x36 /* PU:0x0000 */
-
-/** hmm, what is this I/O area for? MPU401?? or external DAC via I2S?? (after playback, recording, ???, timer) **/
-#define IDX_IO_SOMETHING_FLAGS	0x40 /* gets set to 0x34 just like port 0x0 and 0x20 on card init, PU:0x0000 */
-/* general */
-#define IDX_IO_42H		0x42 /* PU:0x0001 */
-
 /** DirectX timer, main interrupt area (FIXME: and something else?) **/ 
 #define IDX_IO_TIMER_VALUE	0x60 /* found this timer area by pure luck :-) */
   /* timer countdown value; triggers IRQ when timer is finished */
@@ -138,7 +125,7 @@ enum azf_freq_t {
 
   #define IRQ_PLAYBACK	0x0001
   #define IRQ_RECORDING	0x0002
-  #define IRQ_UNKNOWN1	0x0004 /* most probably I2S port */
+  #define IRQ_I2S_OUT	0x0004 /* this IS I2S, right!? (untested) */
   #define IRQ_GAMEPORT	0x0008 /* Interrupt of Digital(ly) Enhanced Game Port */
   #define IRQ_MPU401	0x0010
   #define IRQ_TIMER	0x0020 /* DirectX timer */
@@ -271,6 +258,12 @@ enum {
    * 01 --> 1/20
    * 11 --> 1/200: */
   #define GAME_HWCFG_ADC_COUNTER_FREQ_MASK	0x06
+
+  /* FIXME: these values might be reversed... */
+  #define GAME_HWCFG_ADC_COUNTER_FREQ_STD	0
+  #define GAME_HWCFG_ADC_COUNTER_FREQ_1_2	1
+  #define GAME_HWCFG_ADC_COUNTER_FREQ_1_20	2
+  #define GAME_HWCFG_ADC_COUNTER_FREQ_1_200	3
 
   /* enable gameport legacy I/O address (0x200)
    * I was unable to locate any configurability for a different address: */
