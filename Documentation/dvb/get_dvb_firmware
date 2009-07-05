@@ -413,13 +413,14 @@ sub mpc718 {
 
 	while (<IN>) {
 	    $currlen = length($_);
-	    if ($prevlen == $currlen || $currlen <= 64) {
+	    if ($prevlen == $currlen && $currlen <= 64) {
 		chop; chop; # Get rid of "TUNER GO"
 		s/^\0\0//;  # get rid of leading 00 00 if it's there
 		printf OUT "$_";
 		$found = 1;
 		last;
 	    }
+	    $prevlen = $currlen;
 	}
     }
     close OUT;
