@@ -264,20 +264,19 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 }
 #endif
 
-
-void syscall_trace(int why)
+long do_syscall_trace_enter(struct pt_regs *regs)
 {
-	struct pt_regs *regs = &current->thread.regs;
+	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    tracehook_report_syscall_entry(regs))
+		return -1L;
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-	/*
-	 * Report the system call for tracing.  Entry tracing can
-	 * decide to abort the call.  We handle that by setting an
-	 * invalid syscall number (-1) to force an ENOSYS error.
-	 */
-	if (why)
-		tracehook_report_syscall_exit(regs, 0);
-	else if (tracehook_report_syscall_entry(regs))
-		regs->gr[20] = -1;	/* force ENOSYS */
+	return regs->gr[20];
+}
+
+void do_syscall_trace_exit(struct pt_regs *regs)
+{
+	int stepping = !!(current->ptrace & (PT_SINGLESTEP|PT_BLOCKSTEP));
+
+	if (stepping || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, stepping);
 }
