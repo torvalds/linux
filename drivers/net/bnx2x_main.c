@@ -9069,12 +9069,12 @@ static int bnx2x_set_coalesce(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 
 	bp->rx_ticks = (u16) coal->rx_coalesce_usecs;
-	if (bp->rx_ticks > 3000)
-		bp->rx_ticks = 3000;
+	if (bp->rx_ticks > BNX2X_MAX_COALESCE_TOUT)
+		bp->rx_ticks = BNX2X_MAX_COALESCE_TOUT;
 
 	bp->tx_ticks = (u16) coal->tx_coalesce_usecs;
-	if (bp->tx_ticks > 0x3000)
-		bp->tx_ticks = 0x3000;
+	if (bp->tx_ticks > BNX2X_MAX_COALESCE_TOUT)
+		bp->tx_ticks = BNX2X_MAX_COALESCE_TOUT;
 
 	if (netif_running(dev))
 		bnx2x_update_coalesce(bp);
