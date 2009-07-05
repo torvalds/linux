@@ -1224,6 +1224,7 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_aver_ezmaker,
 	&ivtv_card_aver_m104,
 	&ivtv_card_buffalo,
+	&ivtv_card_aver_ultra1500mce,
 
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */
