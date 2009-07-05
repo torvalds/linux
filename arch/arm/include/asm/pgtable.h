@@ -285,15 +285,6 @@ extern struct page *empty_zero_page;
 #define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
 #define pte_special(pte)	(0)
 
-/*
- * The following only works if pte_present() is not true.
- */
-#define pte_file(pte)		(pte_val(pte) & L_PTE_FILE)
-#define pte_to_pgoff(x)		(pte_val(x) >> 2)
-#define pgoff_to_pte(x)		__pte(((x) << 2) | L_PTE_FILE)
-
-#define PTE_FILE_MAX_BITS	30
-
 #define PTE_BIT_FUNC(fn,op) \
 static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
 
@@ -413,6 +404,20 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  * is increased beyond what we presently support.
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
+
+/*
+ * Encode and decode a file entry.  File entries are stored in the Linux
+ * page tables as follows:
+ *
+ *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *   <------------------------ offset -------------------------> 1 0
+ */
+#define pte_file(pte)		(pte_val(pte) & L_PTE_FILE)
+#define pte_to_pgoff(x)		(pte_val(x) >> 2)
+#define pgoff_to_pte(x)		__pte(((x) << 2) | L_PTE_FILE)
+
+#define PTE_FILE_MAX_BITS	30
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 /* FIXME: this is not correct */
