@@ -785,8 +785,8 @@ static struct binder_buffer *binder_alloc_buf(struct binder_proc *proc,
 	if (is_async) {
 		proc->free_async_space -= size + sizeof(struct binder_buffer);
 		binder_debug(BINDER_DEBUG_BUFFER_ALLOC_ASYNC,
-		             "binder: %d: binder_alloc_buf size %zd "
-		             "async free %zd\n", proc->pid, size,
+			     "binder: %d: binder_alloc_buf size %zd "
+			     "async free %zd\n", proc->pid, size,
 			     proc->free_async_space);
 	}
 
@@ -1146,7 +1146,7 @@ static void binder_delete_ref(struct binder_ref *ref)
 		binder_debug(BINDER_DEBUG_DEAD_BINDER,
 			     "binder: %d delete ref %d desc %d "
 			     "has death notification\n", ref->proc->pid,
-		             ref->debug_id, ref->desc);
+			     ref->debug_id, ref->desc);
 		list_del(&ref->death->work.entry);
 		kfree(ref->death);
 		binder_stats_deleted(BINDER_STAT_DEATH);
@@ -2331,7 +2331,7 @@ retry:
 				if (!weak && !strong) {
 					binder_debug(BINDER_DEBUG_INTERNAL_REFS,
 						     "binder: %d:%d node %d u%p c%p deleted\n",
-					    	     proc->pid, thread->pid, node->debug_id,
+						     proc->pid, thread->pid, node->debug_id,
 						     node->ptr, node->cookie);
 					rb_erase(&node->rb_node, &proc->nodes);
 					kfree(node);
