@@ -30,6 +30,7 @@
  */
 
 struct cs_spec {
+	int board_config;
 	struct auto_pin_cfg autocfg;
 	struct hda_multi_out multiout;
 	struct snd_kcontrol *vmaster_sw;
@@ -56,6 +57,13 @@ struct cs_spec {
 
 	unsigned int hp_detect:1;
 	unsigned int mic_detect:1;
+};
+
+/* available models */
+enum {
+	CS420X_MBP55,
+	CS420X_AUTO,
+	CS420X_MODELS
 };
 
 /* Vendor-specific processing widget */
@@ -1038,6 +1046,49 @@ static int cs_parse_auto_config(struct hda_codec *codec)
 	return 0;
 }
 
+static const char *cs420x_models[CS420X_MODELS] = {
+	[CS420X_MBP55] = "mbp55",
+	[CS420X_AUTO] = "auto",
+};
+
+
+static struct snd_pci_quirk cs420x_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x10de, 0xcb79, "MacBookPro 5,5", CS420X_MBP55),
+	{} /* terminator */
+};
+
+struct cs_pincfg {
+	hda_nid_t nid;
+	u32 val;
+};
+
+static struct cs_pincfg mbp55_pincfgs[] = {
+	{ 0x09, 0x012b4030 },
+	{ 0x0a, 0x90100121 },
+	{ 0x0b, 0x90100120 },
+	{ 0x0c, 0x400000f0 },
+	{ 0x0d, 0x90a00110 },
+	{ 0x0e, 0x400000f0 },
+	{ 0x0f, 0x400000f0 },
+	{ 0x10, 0x014be040 },
+	{ 0x12, 0x400000f0 },
+	{ 0x15, 0x400000f0 },
+	{} /* terminator */
+};
+
+static struct cs_pincfg *cs_pincfgs[CS420X_MODELS] = {
+	[CS420X_MBP55] = mbp55_pincfgs,
+};
+
+static void fix_pincfg(struct hda_codec *codec, int model)
+{
+	const struct cs_pincfg *cfg = cs_pincfgs[model];
+	if (!cfg)
+		return;
+	for (; cfg->nid; cfg++)
+		snd_hda_codec_set_pincfg(codec, cfg->nid, cfg->val);
+}
+
 
 static int patch_cs420x(struct hda_codec *codec)
 {
@@ -1048,6 +1099,12 @@ static int patch_cs420x(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
+
+	spec->board_config =
+		snd_hda_check_board_config(codec, CS420X_MODELS,
+					   cs420x_models, cs420x_cfg_tbl);
+	if (spec->board_config >= 0)
+		fix_pincfg(codec, spec->board_config);
 
 	err = cs_parse_auto_config(codec);
 	if (err < 0)
