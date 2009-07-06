@@ -937,10 +937,6 @@ void __init setup_arch(char **cmdline_p)
 			       CPU, bfin_revid());
 	}
 
-	/* We can't run on BF548-0.1 due to ANOMALY 05000448 */
-	if (bfin_cpuid() == 0x27de && bfin_revid() == 1)
-		panic("You can't run on this processor due to 05000448");
-
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu MHz System Clock\n",
