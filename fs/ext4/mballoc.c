@@ -2909,7 +2909,11 @@ int __init init_ext4_mballoc(void)
 
 void exit_ext4_mballoc(void)
 {
-	/* XXX: synchronize_rcu(); */
+	/* 
+	 * Wait for completion of call_rcu()'s on ext4_pspace_cachep
+	 * before destroying the slab cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(ext4_pspace_cachep);
 	kmem_cache_destroy(ext4_ac_cachep);
 	kmem_cache_destroy(ext4_free_ext_cachep);
