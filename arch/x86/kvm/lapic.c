@@ -834,7 +834,7 @@ static int apic_mmio_write(struct kvm_io_device *this,
 	if (len != 4 || (offset & 0xf)) {
 		/* Don't shout loud, $infamous_os would cause only noise. */
 		apic_debug("apic write: bad size=%d %lx\n", len, (long)address);
-		return;
+		return 0;
 	}
 
 	val = *(u32*)data;
