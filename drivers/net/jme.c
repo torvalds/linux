@@ -554,7 +554,7 @@ jme_free_tx_resources(struct jme_adapter *jme)
 {
 	int i;
 	struct jme_ring *txring = &(jme->txring[0]);
-	struct jme_buffer_info *txbi = txring->bufinf;
+	struct jme_buffer_info *txbi;
 
 	if (txring->alloc) {
 		for (i = 0 ; i < jme->tx_ring_size ; ++i) {
@@ -653,7 +653,7 @@ jme_disable_tx_engine(struct jme_adapter *jme)
 static void
 jme_set_clean_rxdesc(struct jme_adapter *jme, int i)
 {
-	struct jme_ring *rxring = jme->rxring;
+	struct jme_ring *rxring = &(jme->rxring[0]);
 	register struct rxdesc *rxdesc = rxring->desc;
 	struct jme_buffer_info *rxbi = rxring->bufinf;
 	rxdesc += i;
@@ -790,9 +790,9 @@ jme_enable_rx_engine(struct jme_adapter *jme)
 	/*
 	 * Setup RX DMA Bass Address
 	 */
-	jwrite32(jme, JME_RXDBA_LO, (__u64)jme->rxring[0].dma & 0xFFFFFFFFUL);
+	jwrite32(jme, JME_RXDBA_LO, (__u64)(jme->rxring[0].dma) & 0xFFFFFFFFUL);
 	jwrite32(jme, JME_RXDBA_HI, (__u64)(jme->rxring[0].dma) >> 32);
-	jwrite32(jme, JME_RXNDA, (__u64)jme->rxring[0].dma & 0xFFFFFFFFUL);
+	jwrite32(jme, JME_RXNDA, (__u64)(jme->rxring[0].dma) & 0xFFFFFFFFUL);
 
 	/*
 	 * Setup RX Descriptor Count
@@ -1296,7 +1296,7 @@ jme_rx_empty_tasklet(unsigned long arg)
 static void
 jme_wake_queue_if_stopped(struct jme_adapter *jme)
 {
-	struct jme_ring *txring = jme->txring;
+	struct jme_ring *txring = &(jme->txring[0]);
 
 	smp_wmb();
 	if (unlikely(netif_queue_stopped(jme->dev) &&
@@ -1668,7 +1668,7 @@ static int
 jme_alloc_txdesc(struct jme_adapter *jme,
 			struct sk_buff *skb)
 {
-	struct jme_ring *txring = jme->txring;
+	struct jme_ring *txring = &(jme->txring[0]);
 	int idx, nr_alloc, mask = jme->tx_ring_mask;
 
 	idx = txring->next_to_use;
@@ -1722,7 +1722,7 @@ jme_fill_tx_map(struct pci_dev *pdev,
 static void
 jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 {
-	struct jme_ring *txring = jme->txring;
+	struct jme_ring *txring = &(jme->txring[0]);
 	struct txdesc *txdesc = txring->desc, *ctxdesc;
 	struct jme_buffer_info *txbi = txring->bufinf, *ctxbi;
 	u8 hidma = jme->dev->features & NETIF_F_HIGHDMA;
@@ -1835,7 +1835,7 @@ jme_tx_vlan(struct sk_buff *skb, __le16 *vlan, u8 *flags)
 static int
 jme_fill_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 {
-	struct jme_ring *txring = jme->txring;
+	struct jme_ring *txring = &(jme->txring[0]);
 	struct txdesc *txdesc;
 	struct jme_buffer_info *txbi;
 	u8 flags;
@@ -1883,7 +1883,7 @@ jme_fill_tx_desc(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 static void
 jme_stop_queue_if_full(struct jme_adapter *jme)
 {
-	struct jme_ring *txring = jme->txring;
+	struct jme_ring *txring = &(jme->txring[0]);
 	struct jme_buffer_info *txbi = txring->bufinf;
 	int idx = atomic_read(&txring->next_to_clean);
 
