@@ -3671,7 +3671,7 @@ static const struct pmu perf_ops_task_clock = {
 void perf_tpcounter_event(int event_id)
 {
 	struct perf_sample_data data = {
-		.regs = get_irq_regs();
+		.regs = get_irq_regs(),
 		.addr = 0,
 	};
 
@@ -3687,16 +3687,12 @@ extern void ftrace_profile_disable(int);
 
 static void tp_perf_counter_destroy(struct perf_counter *counter)
 {
-	ftrace_profile_disable(perf_event_id(&counter->attr));
+	ftrace_profile_disable(counter->attr.config);
 }
 
 static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 {
-	int event_id = perf_event_id(&counter->attr);
-	int ret;
-
-	ret = ftrace_profile_enable(event_id);
-	if (ret)
+	if (ftrace_profile_enable(counter->attr.config))
 		return NULL;
 
 	counter->destroy = tp_perf_counter_destroy;
