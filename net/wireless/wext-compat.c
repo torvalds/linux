@@ -154,7 +154,7 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct iw_range *range = (struct iw_range *) extra;
 	enum ieee80211_band band;
-	int c = 0;
+	int i, c = 0;
 
 	if (!wdev)
 		return -EOPNOTSUPP;
@@ -201,8 +201,8 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	range->avg_qual.noise = range->max_qual.noise / 2;
 	range->avg_qual.updated = range->max_qual.updated;
 
-	for (c = 0; c < wdev->wiphy->n_cipher_suites; c++) {
-		switch (wdev->wiphy->cipher_suites[c]) {
+	for (i = 0; i < wdev->wiphy->n_cipher_suites; i++) {
+		switch (wdev->wiphy->cipher_suites[i]) {
 		case WLAN_CIPHER_SUITE_TKIP:
 			range->enc_capa |= (IW_ENC_CAPA_CIPHER_TKIP |
 					    IW_ENC_CAPA_WPA);
@@ -226,7 +226,6 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	}
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band ++) {
-		int i;
 		struct ieee80211_supported_band *sband;
 
 		sband = wdev->wiphy->bands[band];
