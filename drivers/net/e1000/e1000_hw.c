@@ -1955,7 +1955,7 @@ static s32 e1000_setup_copper_link(struct e1000_hw *hw)
     s32 ret_val;
     u16 i;
     u16 phy_data;
-    u16 reg_data;
+    u16 reg_data = 0;
 
     DEBUGFUNC("e1000_setup_copper_link");
 
