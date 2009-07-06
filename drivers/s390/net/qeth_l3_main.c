@@ -2793,6 +2793,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				card->perf_stats.sg_frags_sent += nr_frags + 1;
 			}
 		}
+		rc = NETDEV_TX_OK;
 	} else {
 		if (data_offset >= 0)
 			kmem_cache_free(qeth_core_header_cache, hdr);

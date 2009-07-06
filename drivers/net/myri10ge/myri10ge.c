@@ -2968,13 +2968,13 @@ static int myri10ge_sw_tso(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 	dev_kfree_skb_any(skb);
-	return 0;
+	return NETDEV_TX_OK;
 
 drop:
 	ss = &mgp->ss[skb_get_queue_mapping(skb)];
 	dev_kfree_skb_any(skb);
 	ss->stats.tx_dropped += 1;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static struct net_device_stats *myri10ge_get_stats(struct net_device *dev)

@@ -164,7 +164,7 @@ static int ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ifb_private *dp = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
-	int ret = 0;
+	int ret = NETDEV_TX_OK;
 	u32 from = G_TC_FROM(skb->tc_verd);
 
 	stats->rx_packets++;

@@ -194,7 +194,7 @@ static int dlci_transmit(struct sk_buff *skb, struct net_device *dev)
 	ret = 0;
 
 	if (!skb || !dev)
-		return(0);
+		return NETDEV_TX_OK;
 
 	dlp = netdev_priv(dev);
 
@@ -219,7 +219,7 @@ static int dlci_transmit(struct sk_buff *skb, struct net_device *dev)
 	/* Alan Cox recommends always returning 0, and always freeing the packet */
 	/* experience suggest a slightly more conservative approach */
 
-	if (!ret)
+	if (ret == NETDEV_TX_OK)
 	{
 		dev_kfree_skb(skb);
 		netif_wake_queue(dev);

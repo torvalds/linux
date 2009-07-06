@@ -1365,7 +1365,7 @@ static int nsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 	
 	self = netdev_priv(dev);
 
-	IRDA_ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return NETDEV_TX_OK;);
 
 	iobase = self->io.fir_base;
 

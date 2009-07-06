@@ -3218,7 +3218,7 @@ static int dfx_xmt_queue_pkt(
 		bp->xmt_length_errors++;		/* bump error counter */
 		netif_wake_queue(dev);
 		dev_kfree_skb(skb);
-		return(0);				/* return "success" */
+		return NETDEV_TX_OK;			/* return "success" */
 	}
 	/*
 	 * See if adapter link is available, if not, free buffer
@@ -3241,7 +3241,7 @@ static int dfx_xmt_queue_pkt(
 			bp->xmt_discards++;					/* bump error counter */
 			dev_kfree_skb(skb);		/* free sk_buff now */
 			netif_wake_queue(dev);
-			return(0);							/* return "success" */
+			return NETDEV_TX_OK;		/* return "success" */
 			}
 		}
 
@@ -3345,7 +3345,7 @@ static int dfx_xmt_queue_pkt(
 	dfx_port_write_long(bp, PI_PDQ_K_REG_TYPE_2_PROD, bp->rcv_xmt_reg.lword);
 	spin_unlock_irqrestore(&bp->lock, flags);
 	netif_wake_queue(dev);
-	return(0);							/* packet queued to adapter */
+	return NETDEV_TX_OK;	/* packet queued to adapter */
 	}
 
 

@@ -2891,7 +2891,7 @@ static int wavelan_packet_xmit(struct sk_buff *skb, struct net_device * dev)
 #ifdef DEBUG_TX_TRACE
 	printk(KERN_DEBUG "%s: <-wavelan_packet_xmit()\n", dev->name);
 #endif
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*********************** HARDWARE CONFIGURATION ***********************/

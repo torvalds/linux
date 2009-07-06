@@ -4609,7 +4609,7 @@ static int smctr_send_packet(struct sk_buff *skb, struct net_device *dev)
         if(tp->QueueSkb > 0)
 		netif_wake_queue(dev);
 		
-        return (0);
+        return NETDEV_TX_OK;
 }
 
 static int smctr_send_lobe_media_test(struct net_device *dev)

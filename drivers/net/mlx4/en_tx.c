@@ -764,7 +764,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Poll CQ here */
 	mlx4_en_xmit_poll(priv, tx_ind);
 
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_drop:
 	dev_kfree_skb_any(skb);

@@ -1413,7 +1413,7 @@ out:
 	}
 	read_unlock(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 void bond_alb_monitor(struct work_struct *work)

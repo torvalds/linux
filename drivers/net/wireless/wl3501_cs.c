@@ -1348,7 +1348,6 @@ static int wl3501_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (rc) {
 		++dev->stats.tx_dropped;
 		netif_stop_queue(dev);
-		rc = NETDEV_TX_OK;
 	} else {
 		++dev->stats.tx_packets;
 		dev->stats.tx_bytes += skb->len;
@@ -1358,7 +1357,7 @@ static int wl3501_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_stop_queue(dev);
 	}
 	spin_unlock_irqrestore(&this->lock, flags);
-	return rc;
+	return NETDEV_TX_OK;
 }
 
 static int wl3501_open(struct net_device *dev)

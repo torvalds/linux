@@ -148,7 +148,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	if (lp->sk_count <= 3) {
 		schedule_work(&((hysdn_card *) dev->ml_priv)->irq_queue);
 	}
-	return (0);		/* success */
+	return NETDEV_TX_OK;	/* success */
 }				/* net_send_packet */
 
 

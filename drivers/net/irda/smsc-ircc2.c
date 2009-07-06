@@ -886,10 +886,10 @@ static int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 
 	IRDA_DEBUG(1, "%s\n", __func__);
 
-	IRDA_ASSERT(dev != NULL, return 0;);
+	IRDA_ASSERT(dev != NULL, return NETDEV_TX_OK;);
 
 	self = netdev_priv(dev);
-	IRDA_ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return NETDEV_TX_OK;);
 
 	netif_stop_queue(dev);
 
@@ -914,7 +914,7 @@ static int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 			smsc_ircc_change_speed(self, speed);
 			spin_unlock_irqrestore(&self->lock, flags);
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		self->new_speed = speed;
 	}
@@ -935,7 +935,7 @@ static int smsc_ircc_hard_xmit_sir(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -1190,9 +1190,9 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 	s32 speed;
 	int mtt;
 
-	IRDA_ASSERT(dev != NULL, return 0;);
+	IRDA_ASSERT(dev != NULL, return NETDEV_TX_OK;);
 	self = netdev_priv(dev);
-	IRDA_ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return NETDEV_TX_OK;);
 
 	netif_stop_queue(dev);
 
@@ -1210,7 +1210,7 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 			smsc_ircc_change_speed(self, speed);
 			spin_unlock_irqrestore(&self->lock, flags);
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 
 		self->new_speed = speed;
@@ -1242,7 +1242,7 @@ static int smsc_ircc_hard_xmit_fir(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irqrestore(&self->lock, flags);
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

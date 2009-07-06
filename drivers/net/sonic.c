@@ -211,7 +211,7 @@ static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev)
 	length = skb->len;
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 
@@ -265,7 +265,7 @@ static int sonic_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

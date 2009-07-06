@@ -1966,10 +1966,10 @@ static int ali_ircc_sir_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	
 	IRDA_DEBUG(2, "%s(), ---------------- Start ----------------\n", __func__ );
 	
-	IRDA_ASSERT(dev != NULL, return 0;);
+	IRDA_ASSERT(dev != NULL, return NETDEV_TX_OK;);
 	
 	self = netdev_priv(dev);
-	IRDA_ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return NETDEV_TX_OK;);
 
 	iobase = self->io.sir_base;
 

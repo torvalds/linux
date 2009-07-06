@@ -682,7 +682,7 @@ static int tms380tr_hardware_send_packet(struct sk_buff *skb, struct net_device 
 	tms380tr_exec_sifcmd(dev, CMD_TX_VALID);
 	spin_unlock_irqrestore(&tp->lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

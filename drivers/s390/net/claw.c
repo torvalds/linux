@@ -350,6 +350,8 @@ claw_tx(struct sk_buff *skb, struct net_device *dev)
 	CLAW_DBF_TEXT_(4, trace, "clawtx%d", rc);
 	if (rc)
 		rc = NETDEV_TX_BUSY;
+	else
+		rc = NETDEV_TX_OK;
         return rc;
 }   /*  end of claw_tx */
 

@@ -981,7 +981,7 @@ toshoboe_hard_xmit (struct sk_buff *skb, struct net_device *dev)
 
   self = netdev_priv(dev);
 
-  IRDA_ASSERT (self != NULL, return 0; );
+  IRDA_ASSERT (self != NULL, return NETDEV_TX_OK; );
 
   IRDA_DEBUG (1, "%s.tx:%x(%x)%x\n", __func__
       ,skb->len,self->txpending,INB (OBOE_ENABLEH));

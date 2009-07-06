@@ -354,7 +354,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 	p80211_metawep_t p80211_wep;
 
 	if (skb == NULL)
-		return 0;
+		return NETDEV_TX_OK;
 
 	if (wlandev->state != WLAN_DEVICE_OPEN) {
 		result = 1;

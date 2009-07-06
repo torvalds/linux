@@ -4277,7 +4277,7 @@ out:
 		dev_kfree_skb(skb);
 	}
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 
@@ -4308,7 +4308,7 @@ out:
 
 	read_unlock(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -4354,7 +4354,7 @@ out:
 		dev_kfree_skb(skb);
 	}
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -4414,7 +4414,7 @@ out:
 
 	/* frame sent to all suitable interfaces */
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*------------------------- Device initialization ---------------------------*/

@@ -1051,12 +1051,12 @@ isdn_net_xmit(struct net_device *ndev, struct sk_buff *skb)
 	isdn_net_dev *nd;
 	isdn_net_local *slp;
 	isdn_net_local *lp = (isdn_net_local *) netdev_priv(ndev);
-	int retv = 0;
+	int retv = NETDEV_TX_OK;
 
 	if (((isdn_net_local *) netdev_priv(ndev))->master) {
 		printk("isdn BUG at %s:%d!\n", __FILE__, __LINE__);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* For the other encaps the header has already been built */

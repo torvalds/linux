@@ -3040,7 +3040,7 @@ int rtl8180_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
 		spin_unlock_irqrestore(&priv->tx_lock,flags);
 
 		dev_kfree_skb_any(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	rtl8180_tx(dev, skb->data, skb->len, priority,
@@ -3051,7 +3051,7 @@ int rtl8180_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
 	spin_unlock_irqrestore(&priv->tx_lock,flags);
 
 	dev_kfree_skb_any(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 // longpre 144+48 shortpre 72+24

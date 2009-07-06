@@ -2431,7 +2431,7 @@ out:
 		dev_kfree_skb(skb);
 	}
 	read_unlock(&bond->lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type* ptype, struct net_device *orig_dev)

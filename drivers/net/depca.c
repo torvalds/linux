@@ -1793,7 +1793,7 @@ static int __init get_hw_addr(struct net_device *dev)
 static int load_packet(struct net_device *dev, struct sk_buff *skb)
 {
 	struct depca_private *lp = netdev_priv(dev);
-	int i, entry, end, len, status = 0;
+	int i, entry, end, len, status = NETDEV_TX_OK;
 
 	entry = lp->tx_new;	/* Ring around buffer number. */
 	end = (entry + (skb->len - 1) / TX_BUFF_SZ) & lp->txRingMask;

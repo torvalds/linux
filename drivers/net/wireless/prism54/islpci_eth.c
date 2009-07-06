@@ -234,7 +234,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	/* unlock the driver code */
 	spin_unlock_irqrestore(&priv->slock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 
       drop_free:
 	ndev->stats.tx_dropped++;

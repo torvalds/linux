@@ -832,7 +832,7 @@ static int via_ircc_hard_xmit_sir(struct sk_buff *skb,
 	__u32 speed;
 
 	self = netdev_priv(dev);
-	IRDA_ASSERT(self != NULL, return 0;);
+	IRDA_ASSERT(self != NULL, return NETDEV_TX_OK;);
 	iobase = self->io.fir_base;
 
 	netif_stop_queue(dev);

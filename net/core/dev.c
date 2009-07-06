@@ -1704,7 +1704,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			skb_dst_drop(skb);
 
 		rc = ops->ndo_start_xmit(skb, dev);
-		if (rc == 0)
+		if (rc == NETDEV_TX_OK)
 			txq_trans_update(txq);
 		/*
 		 * TODO: if skb_orphan() was called by
@@ -1730,7 +1730,7 @@ gso:
 		skb->next = nskb->next;
 		nskb->next = NULL;
 		rc = ops->ndo_start_xmit(nskb, dev);
-		if (unlikely(rc)) {
+		if (unlikely(rc != NETDEV_TX_OK)) {
 			nskb->next = skb->next;
 			skb->next = nskb;
 			return rc;
@@ -1744,7 +1744,7 @@ gso:
 
 out_kfree_skb:
 	kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static u32 skb_tx_hashrnd;

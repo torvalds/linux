@@ -1223,7 +1223,7 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	isdn_net_dev *nd;
 	unsigned int proto = PPP_IP;     /* 0x21 */
 	struct ippp_struct *ipt,*ipts;
-	int slot, retval = 0;
+	int slot, retval = NETDEV_TX_OK;
 
 	mlp = (isdn_net_local *) netdev_priv(netdev);
 	nd = mlp->netdev;       /* get master lp */
@@ -1240,7 +1240,7 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (!(ipts->pppcfg & SC_ENABLE_IP)) {	/* PPP connected ? */
 		if (ipts->debug & 0x1)
 			printk(KERN_INFO "%s: IP frame delayed.\n", netdev->name);
-		retval = 1;
+		retval = NETDEV_TX_BUSY;
 		goto out;
 	}
 
@@ -1261,7 +1261,7 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	lp = isdn_net_get_locked_lp(nd);
 	if (!lp) {
 		printk(KERN_WARNING "%s: all channels busy - requeuing!\n", netdev->name);
-		retval = 1;
+		retval = NETDEV_TX_BUSY;
 		goto out;
 	}
 	/* we have our lp locked from now on */

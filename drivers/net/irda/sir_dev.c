@@ -590,7 +590,7 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 	int err;
 	s32 speed;
 
-	IRDA_ASSERT(dev != NULL, return 0;);
+	IRDA_ASSERT(dev != NULL, return NETDEV_TX_OK;);
 
 	netif_stop_queue(ndev);
 

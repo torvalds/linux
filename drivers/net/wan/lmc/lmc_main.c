@@ -1428,7 +1428,7 @@ static int lmc_start_xmit(struct sk_buff *skb, struct net_device *dev)
     lmc_softc_t *sc = dev_to_sc(dev);
     u32 flag;
     int entry;
-    int ret = 0;
+    int ret = NETDEV_TX_OK;
     unsigned long flags;
 
     lmc_trace(dev, "lmc_start_xmit in");

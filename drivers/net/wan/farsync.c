@@ -2294,7 +2294,7 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dbg(DBG_ASS,
 		    "Tried to transmit but no carrier on card %d port %d\n",
 		    card->card_no, port->index);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* Drop it if it's too big! MTU failure ? */
@@ -2303,7 +2303,7 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		    LEN_TX_BUFFER);
 		dev_kfree_skb(skb);
 		dev->stats.tx_errors++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/*
@@ -2337,7 +2337,7 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_errors++;
 		dbg(DBG_ASS, "Tx queue overflow card %d port %d\n",
 		    card->card_no, port->index);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/*
@@ -2354,7 +2354,7 @@ fst_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	fst_q_work_item(&fst_work_txq, card->card_no);
 	tasklet_schedule(&fst_tx_task);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

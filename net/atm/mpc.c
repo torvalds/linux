@@ -554,7 +554,7 @@ static int mpc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	while (i < mpc->number_of_mps_macs) {
 		if (!compare_ether_addr(eth->h_dest, (mpc->mps_macs + i*ETH_ALEN)))
 			if ( send_via_shortcut(skb, mpc) == 0 )           /* try shortcut */
-				return 0;                                 /* success!     */
+				return NETDEV_TX_OK;                      /* success!     */
 		i++;
 	}
 

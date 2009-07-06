@@ -744,6 +744,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		card->stats.tx_bytes += tx_bytes;
 		if (new_skb != skb)
 			dev_kfree_skb_any(skb);
+		rc = NETDEV_TX_OK;
 	} else {
 		if (data_offset >= 0)
 			kmem_cache_free(qeth_core_header_cache, hdr);

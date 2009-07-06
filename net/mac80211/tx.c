@@ -1627,7 +1627,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	u32 sta_flags = 0;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
-		ret = 0;
+		ret = NETDEV_TX_OK;
 		goto fail;
 	}
 
@@ -1664,7 +1664,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		if (!sdata->u.mesh.mshcfg.dot11MeshTTL) {
 			/* Do not send frames with mesh_ttl == 0 */
 			sdata->u.mesh.mshstats.dropped_frames_ttl++;
-			ret = 0;
+			ret = NETDEV_TX_OK;
 			goto fail;
 		}
 		memset(&mesh_hdr, 0, sizeof(mesh_hdr));
@@ -1724,7 +1724,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		hdrlen = 24;
 		break;
 	default:
-		ret = 0;
+		ret = NETDEV_TX_OK;
 		goto fail;
 	}
 
@@ -1766,7 +1766,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 
 		I802_DEBUG_INC(local->tx_handlers_drop_unauth_port);
 
-		ret = 0;
+		ret = NETDEV_TX_OK;
 		goto fail;
 	}
 
@@ -1858,10 +1858,10 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	dev->trans_start = jiffies;
 	dev_queue_xmit(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 
  fail:
-	if (!ret)
+	if (ret == NETDEV_TX_OK)
 		dev_kfree_skb(skb);
 
 	return ret;

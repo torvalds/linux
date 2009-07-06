@@ -485,7 +485,7 @@ static int el_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (el_debug > 2)
 				pr_debug(" queued xmit.\n");
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		/* A receive upset our load, despite our best efforts */
 		if (el_debug > 2)

@@ -1376,14 +1376,14 @@ static int netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 	if (skb == NULL) {
 		IUCV_DBF_TEXT(data, 2, "netiucv_tx: skb is NULL\n");
 		privptr->stats.tx_dropped++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	if (skb_headroom(skb) < NETIUCV_HDRLEN) {
 		IUCV_DBF_TEXT(data, 2,
 			"netiucv_tx: skb_headroom < NETIUCV_HDRLEN\n");
 		dev_kfree_skb(skb);
 		privptr->stats.tx_dropped++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/**
@@ -1395,7 +1395,7 @@ static int netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 		privptr->stats.tx_dropped++;
 		privptr->stats.tx_errors++;
 		privptr->stats.tx_carrier_errors++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (netiucv_test_and_set_busy(dev)) {

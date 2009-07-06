@@ -1182,7 +1182,7 @@ static int dscc4_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (dscc4_tx_quiescent(dpriv, dev))
 		dscc4_do_tx(dpriv, dev);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int dscc4_close(struct net_device *dev)
