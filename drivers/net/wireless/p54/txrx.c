@@ -199,7 +199,7 @@ static int p54_tx_qos_accounting_alloc(struct p54_common *priv,
 	queue = &priv->tx_stats[p54_queue];
 
 	spin_lock_irqsave(&priv->tx_stats_lock, flags);
-	if (unlikely(queue->len > queue->limit && IS_QOS_QUEUE(p54_queue))) {
+	if (unlikely(queue->len >= queue->limit && IS_QOS_QUEUE(p54_queue))) {
 		spin_unlock_irqrestore(&priv->tx_stats_lock, flags);
 		return -ENOSPC;
 	}
@@ -222,8 +222,11 @@ static void p54_tx_qos_accounting_free(struct p54_common *priv,
 	if (skb && IS_DATA_FRAME(skb)) {
 		struct p54_hdr *hdr = (void *) skb->data;
 		struct p54_tx_data *data = (void *) hdr->data;
+		unsigned long flags;
 
+		spin_lock_irqsave(&priv->tx_stats_lock, flags);
 		priv->tx_stats[data->hw_queue].len--;
+		spin_unlock_irqrestore(&priv->tx_stats_lock, flags);
 	}
 	p54_wake_queues(priv);
 }
@@ -462,7 +465,6 @@ static void p54_rx_eeprom_readback(struct p54_common *priv,
 
 	priv->eeprom = NULL;
 	tmp = p54_find_and_unlink_skb(priv, hdr->req_id);
-	p54_tx_qos_accounting_free(priv, tmp);
 	dev_kfree_skb_any(tmp);
 	complete(&priv->eeprom_comp);
 }
@@ -489,7 +491,6 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	priv->noise = p54_rssi_to_dbm(priv, le32_to_cpu(stats->noise));
 
 	tmp = p54_find_and_unlink_skb(priv, hdr->req_id);
-	p54_tx_qos_accounting_free(priv, tmp);
 	dev_kfree_skb_any(tmp);
 }
 
