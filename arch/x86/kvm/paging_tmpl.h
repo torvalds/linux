@@ -125,13 +125,15 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 	gpa_t pte_gpa;
 	int rsvd_fault = 0;
 
-	pgprintk("%s: addr %lx\n", __func__, addr);
+	trace_kvm_mmu_pagetable_walk(addr, write_fault, user_fault,
+				     fetch_fault);
 walk:
 	walker->level = vcpu->arch.mmu.root_level;
 	pte = vcpu->arch.cr3;
 #if PTTYPE == 64
 	if (!is_long_mode(vcpu)) {
 		pte = kvm_pdptr_read(vcpu, (addr >> 30) & 3);
+		trace_kvm_mmu_paging_element(pte, walker->level);
 		if (!is_present_gpte(pte))
 			goto not_present;
 		--walker->level;
@@ -150,10 +152,9 @@ walk:
 		pte_gpa += index * sizeof(pt_element_t);
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
-		pgprintk("%s: table_gfn[%d] %lx\n", __func__,
-			 walker->level - 1, table_gfn);
 
 		kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte));
+		trace_kvm_mmu_paging_element(pte, walker->level);
 
 		if (!is_present_gpte(pte))
 			goto not_present;
@@ -175,6 +176,8 @@ walk:
 #endif
 
 		if (!(pte & PT_ACCESSED_MASK)) {
+			trace_kvm_mmu_set_accessed_bit(table_gfn, index,
+						       sizeof(pte));
 			mark_page_dirty(vcpu->kvm, table_gfn);
 			if (FNAME(cmpxchg_gpte)(vcpu->kvm, table_gfn,
 			    index, pte, pte|PT_ACCESSED_MASK))
@@ -208,6 +211,7 @@ walk:
 	if (write_fault && !is_dirty_gpte(pte)) {
 		bool ret;
 
+		trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
 		mark_page_dirty(vcpu->kvm, table_gfn);
 		ret = FNAME(cmpxchg_gpte)(vcpu->kvm, table_gfn, index, pte,
 			    pte|PT_DIRTY_MASK);
@@ -239,6 +243,7 @@ err:
 		walker->error_code |= PFERR_FETCH_MASK;
 	if (rsvd_fault)
 		walker->error_code |= PFERR_RSVD_MASK;
+	trace_kvm_mmu_walker_error(walker->error_code);
 	return 0;
 }
 
