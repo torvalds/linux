@@ -619,7 +619,7 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 		if (strcmp(current->comm, cmd) && printk_ratelimit()) {
 			printk(KERN_WARNING
 			       "sg_write: data in/out %d/%d bytes for SCSI command 0x%x--"
-			       "guessing data in;\n" KERN_WARNING "   "
+			       "guessing data in;\n   "
 			       "program %s not setting count and/or reply_len properly\n",
 			       old_hdr.reply_len - (int)SZ_SG_HEADER,
 			       input_size, (unsigned int) cmnd[0],

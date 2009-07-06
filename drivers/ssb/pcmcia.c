@@ -583,7 +583,7 @@ static int ssb_pcmcia_sprom_write_all(struct ssb_bus *bus, const u16 *sprom)
 			ssb_printk(".");
 		err = ssb_pcmcia_sprom_write(bus, i, sprom[i]);
 		if (err) {
-			ssb_printk("\n" KERN_NOTICE PFX
+			ssb_printk(KERN_NOTICE PFX
 				   "Failed to write to SPROM.\n");
 			failed = 1;
 			break;
@@ -591,7 +591,7 @@ static int ssb_pcmcia_sprom_write_all(struct ssb_bus *bus, const u16 *sprom)
 	}
 	err = ssb_pcmcia_sprom_command(bus, SSB_PCMCIA_SPROMCTL_WRITEDIS);
 	if (err) {
-		ssb_printk("\n" KERN_NOTICE PFX
+		ssb_printk(KERN_NOTICE PFX
 			   "Could not disable SPROM write access.\n");
 		failed = 1;
 	}

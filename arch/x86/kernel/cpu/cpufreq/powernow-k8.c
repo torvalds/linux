@@ -1259,7 +1259,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	static const char ACPI_PSS_BIOS_BUG_MSG[] =
 		KERN_ERR FW_BUG PFX "No compatible ACPI _PSS objects found.\n"
-		KERN_ERR FW_BUG PFX "Try again with latest BIOS.\n";
+		FW_BUG PFX "Try again with latest BIOS.\n";
 	struct powernow_k8_data *data;
 	struct init_on_cpu init_on_cpu;
 	int rc;
