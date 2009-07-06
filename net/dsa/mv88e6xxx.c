@@ -418,7 +418,7 @@ static int mv88e6xxx_stats_wait(struct dsa_switch *ds)
 	int i;
 
 	for (i = 0; i < 10; i++) {
-		ret = REG_READ(REG_GLOBAL2, 0x1d);
+		ret = REG_READ(REG_GLOBAL, 0x1d);
 		if ((ret & 0x8000) == 0)
 			return 0;
 	}

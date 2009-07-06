@@ -1274,15 +1274,17 @@ static irqreturn_t be_intx(int irq, void *dev)
 {
 	struct be_adapter *adapter = dev;
 	struct be_ctrl_info *ctrl = &adapter->ctrl;
-	int rx, tx;
+        int isr;
 
-	tx = event_handle(ctrl, &adapter->tx_eq);
-	rx = event_handle(ctrl, &adapter->rx_eq);
+	isr = ioread32(ctrl->csr + CEV_ISR0_OFFSET +
+                      ctrl->pci_func * CEV_ISR_SIZE);
+	if (!isr)
+                return IRQ_NONE;
 
-	if (rx || tx)
-		return IRQ_HANDLED;
-	else
-		return IRQ_NONE;
+        event_handle(ctrl, &adapter->tx_eq);
+        event_handle(ctrl, &adapter->rx_eq);
+
+        return IRQ_HANDLED;
 }
 
 static irqreturn_t be_msix_rx(int irq, void *dev)
