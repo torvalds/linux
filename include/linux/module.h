@@ -315,7 +315,7 @@ struct module
 	 */
 	Elf_Sym *symtab, *core_symtab;
 	unsigned int num_symtab, core_num_syms;
-	char *strtab;
+	char *strtab, *core_strtab;
 
 	/* Section attributes */
 	struct module_sect_attrs *sect_attrs;
