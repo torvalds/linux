@@ -378,45 +378,6 @@ static inline void spitz_init_spi(void) {}
  * The card detect interrupt isn't debounced so we delay it by 250ms
  * to give the card a chance to fully insert/eject.
  */
-
-static struct pxamci_platform_data spitz_mci_platform_data;
-
-static int spitz_mci_init(struct device *dev, irq_handler_t spitz_detect_int, void *data)
-{
-	int err;
-
-	err = gpio_request(SPITZ_GPIO_nSD_DETECT, "nSD_DETECT");
-	if (err)
-		goto err_out;
-
-	err = gpio_request(SPITZ_GPIO_nSD_WP, "nSD_WP");
-	if (err)
-		goto err_free_1;
-
-	gpio_direction_input(SPITZ_GPIO_nSD_DETECT);
-	gpio_direction_input(SPITZ_GPIO_nSD_WP);
-
-	spitz_mci_platform_data.detect_delay = msecs_to_jiffies(250);
-
-	err = request_irq(SPITZ_IRQ_GPIO_nSD_DETECT, spitz_detect_int,
-			  IRQF_DISABLED | IRQF_TRIGGER_RISING |
-			  IRQF_TRIGGER_FALLING,
-			  "MMC card detect", data);
-	if (err) {
-		pr_err("%s: MMC/SD: can't request MMC card detect IRQ\n",
-				__func__);
-		goto err_free_2;
-	}
-	return 0;
-
-err_free_2:
-	gpio_free(SPITZ_GPIO_nSD_WP);
-err_free_1:
-	gpio_free(SPITZ_GPIO_nSD_DETECT);
-err_out:
-	return err;
-}
-
 static void spitz_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
@@ -427,24 +388,12 @@ static void spitz_mci_setpower(struct device *dev, unsigned int vdd)
 		spitz_card_pwr_ctrl(SPITZ_PWR_SD, 0x0000);
 }
 
-static int spitz_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(SPITZ_GPIO_nSD_WP);
-}
-
-static void spitz_mci_exit(struct device *dev, void *data)
-{
-	free_irq(SPITZ_IRQ_GPIO_nSD_DETECT, data);
-	gpio_free(SPITZ_GPIO_nSD_WP);
-	gpio_free(SPITZ_GPIO_nSD_DETECT);
-}
-
 static struct pxamci_platform_data spitz_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= spitz_mci_init,
-	.get_ro		= spitz_mci_get_ro,
-	.setpower 	= spitz_mci_setpower,
-	.exit		= spitz_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.setpower 		= spitz_mci_setpower,
+	.gpio_card_detect	= SPITZ_GPIO_nSD_DETECT,
+	.gpio_card_ro		= SPITZ_GPIO_nSD_WP,
+	.gpio_power		= -1,
 };
 
 
@@ -695,6 +644,7 @@ static void __init common_init(void)
 	spitz_init_spi();
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	spitz_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&spitz_mci_platform_data);
 	pxa_set_ohci_info(&spitz_ohci_platform_data);
 	pxa_set_ficp_info(&spitz_ficp_platform_data);

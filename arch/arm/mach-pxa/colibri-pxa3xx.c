@@ -95,10 +95,13 @@ static void colibri_pxa3xx_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data colibri_pxa3xx_mci_platform_data = {
-	.detect_delay	= 20,
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.init		= colibri_pxa3xx_mci_init,
-	.exit		= colibri_pxa3xx_mci_exit,
+	.detect_delay		= 20,
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.init			= colibri_pxa3xx_mci_init,
+	.exit			= colibri_pxa3xx_mci_exit,
+	.gpio_card_detect	= -1,
+	.gpio_card_ro		= -1,
+	.gpio_power		= -1,
 };
 
 void __init colibri_pxa3xx_init_mmc(mfp_cfg_t *pins, int len, int detect_pin)

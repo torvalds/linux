@@ -307,77 +307,11 @@ static struct platform_device corgiled_device = {
  * The card detect interrupt isn't debounced so we delay it by 250ms
  * to give the card a chance to fully insert/eject.
  */
-static struct pxamci_platform_data corgi_mci_platform_data;
-
-static int corgi_mci_init(struct device *dev, irq_handler_t corgi_detect_int, void *data)
-{
-	int err;
-
-	err = gpio_request(CORGI_GPIO_nSD_DETECT, "nSD_DETECT");
-	if (err)
-		goto err_out;
-
-	err = gpio_request(CORGI_GPIO_nSD_WP, "nSD_WP");
-	if (err)
-		goto err_free_1;
-
-	err = gpio_request(CORGI_GPIO_SD_PWR, "SD_PWR");
-	if (err)
-		goto err_free_2;
-
-	gpio_direction_input(CORGI_GPIO_nSD_DETECT);
-	gpio_direction_input(CORGI_GPIO_nSD_WP);
-	gpio_direction_output(CORGI_GPIO_SD_PWR, 0);
-
-	corgi_mci_platform_data.detect_delay = msecs_to_jiffies(250);
-
-	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int,
-				IRQF_DISABLED | IRQF_TRIGGER_RISING |
-				IRQF_TRIGGER_FALLING,
-				"MMC card detect", data);
-	if (err) {
-		pr_err("%s: MMC/SD: can't request MMC card detect IRQ\n",
-				__func__);
-		goto err_free_3;
-	}
-	return 0;
-
-err_free_3:
-	gpio_free(CORGI_GPIO_SD_PWR);
-err_free_2:
-	gpio_free(CORGI_GPIO_nSD_WP);
-err_free_1:
-	gpio_free(CORGI_GPIO_nSD_DETECT);
-err_out:
-	return err;
-}
-
-static void corgi_mci_setpower(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data* p_d = dev->platform_data;
-
-	gpio_set_value(CORGI_GPIO_SD_PWR, ((1 << vdd) & p_d->ocr_mask));
-}
-
-static int corgi_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(CORGI_GPIO_nSD_WP);
-}
-
-static void corgi_mci_exit(struct device *dev, void *data)
-{
-	free_irq(CORGI_IRQ_GPIO_nSD_DETECT, data);
-	gpio_free(CORGI_GPIO_SD_PWR);
-	gpio_free(CORGI_GPIO_nSD_WP);
-	gpio_free(CORGI_GPIO_nSD_DETECT);
-}
-
 static struct pxamci_platform_data corgi_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= corgi_mci_init,
-	.get_ro		= corgi_mci_get_ro,
-	.setpower 	= corgi_mci_setpower,
-	.exit		= corgi_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.gpio_card_detect	= -1,
+	.gpio_card_ro		= CORGI_GPIO_nSD_WP,
+	.gpio_power		= CORGI_GPIO_SD_PWR,
 };
 
 
@@ -636,6 +570,7 @@ static void __init corgi_init(void)
 	corgi_init_spi();
 
  	pxa_set_udc_info(&udc_info);
+	corgi_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

@@ -143,83 +143,11 @@ static unsigned long palmld_pin_config[] __initdata = {
 /******************************************************************************
  * SD/MMC card controller
  ******************************************************************************/
-static int palmld_mci_init(struct device *dev, irq_handler_t palmld_detect_int,
-				void *data)
-{
-	int err = 0;
-
-	/* Setup an interrupt for detecting card insert/remove events */
-	err = gpio_request(GPIO_NR_PALMLD_SD_DETECT_N, "SD IRQ");
-	if (err)
-		goto err;
-	err = gpio_direction_input(GPIO_NR_PALMLD_SD_DETECT_N);
-	if (err)
-		goto err2;
-	err = request_irq(gpio_to_irq(GPIO_NR_PALMLD_SD_DETECT_N),
-			palmld_detect_int, IRQF_DISABLED | IRQF_SAMPLE_RANDOM |
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			"SD/MMC card detect", data);
-	if (err) {
-		printk(KERN_ERR "%s: cannot request SD/MMC card detect IRQ\n",
-				__func__);
-		goto err2;
-	}
-
-	err = gpio_request(GPIO_NR_PALMLD_SD_POWER, "SD_POWER");
-	if (err)
-		goto err3;
-	err = gpio_direction_output(GPIO_NR_PALMLD_SD_POWER, 0);
-	if (err)
-		goto err4;
-
-	err = gpio_request(GPIO_NR_PALMLD_SD_READONLY, "SD_READONLY");
-	if (err)
-		goto err4;
-	err = gpio_direction_input(GPIO_NR_PALMLD_SD_READONLY);
-	if (err)
-		goto err5;
-
-	printk(KERN_DEBUG "%s: irq registered\n", __func__);
-
-	return 0;
-
-err5:
-	gpio_free(GPIO_NR_PALMLD_SD_READONLY);
-err4:
-	gpio_free(GPIO_NR_PALMLD_SD_POWER);
-err3:
-	free_irq(gpio_to_irq(GPIO_NR_PALMLD_SD_DETECT_N), data);
-err2:
-	gpio_free(GPIO_NR_PALMLD_SD_DETECT_N);
-err:
-	return err;
-}
-
-static void palmld_mci_exit(struct device *dev, void *data)
-{
-	gpio_free(GPIO_NR_PALMLD_SD_READONLY);
-	gpio_free(GPIO_NR_PALMLD_SD_POWER);
-	free_irq(gpio_to_irq(GPIO_NR_PALMLD_SD_DETECT_N), data);
-	gpio_free(GPIO_NR_PALMLD_SD_DETECT_N);
-}
-
-static void palmld_mci_power(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *p_d = dev->platform_data;
-	gpio_set_value(GPIO_NR_PALMLD_SD_POWER, p_d->ocr_mask & (1 << vdd));
-}
-
-static int palmld_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO_NR_PALMLD_SD_READONLY);
-}
-
 static struct pxamci_platform_data palmld_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.setpower	= palmld_mci_power,
-	.get_ro		= palmld_mci_get_ro,
-	.init 		= palmld_mci_init,
-	.exit		= palmld_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO_NR_PALMLD_SD_DETECT_N,
+	.gpio_card_ro		= GPIO_NR_PALMLD_SD_READONLY,
+	.gpio_power		= GPIO_NR_PALMLD_SD_POWER,
 };
 
 /******************************************************************************

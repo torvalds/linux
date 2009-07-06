@@ -271,56 +271,12 @@ static inline void cmx270_init_ohci(void) {}
 #endif
 
 #if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
-static int cmx270_mci_init(struct device *dev,
-			   irq_handler_t cmx270_detect_int,
-			   void *data)
-{
-	int err;
-
-	err = gpio_request(GPIO105_MMC_POWER, "MMC/SD power");
-	if (err) {
-		dev_warn(dev, "power gpio unavailable\n");
-		return err;
-	}
-
-	gpio_direction_output(GPIO105_MMC_POWER, 0);
-
-	err = request_irq(CMX270_MMC_IRQ, cmx270_detect_int,
-			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
-			  "MMC card detect", data);
-	if (err) {
-		gpio_free(GPIO105_MMC_POWER);
-		dev_err(dev, "cmx270_mci_init: MMC/SD: can't"
-			" request MMC card detect IRQ\n");
-	}
-
-	return err;
-}
-
-static void cmx270_mci_setpower(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *p_d = dev->platform_data;
-
-	if ((1 << vdd) & p_d->ocr_mask) {
-		dev_dbg(dev, "power on\n");
-		gpio_set_value(GPIO105_MMC_POWER, 0);
-	} else {
-		gpio_set_value(GPIO105_MMC_POWER, 1);
-		dev_dbg(dev, "power off\n");
-	}
-}
-
-static void cmx270_mci_exit(struct device *dev, void *data)
-{
-	free_irq(CMX270_MMC_IRQ, data);
-	gpio_free(GPIO105_MMC_POWER);
-}
-
 static struct pxamci_platform_data cmx270_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= cmx270_mci_init,
-	.setpower 	= cmx270_mci_setpower,
-	.exit		= cmx270_mci_exit,
+	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO83_MMC_IRQ,
+	.gpio_card_ro		= -1,
+	.gpio_power		= GPIO105_MMC_POWER,
+	.gpio_power_invert	= 1,
 };
 
 static void __init cmx270_init_mmc(void)

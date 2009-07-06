@@ -321,11 +321,14 @@ static void pcm990_mci_exit(struct device *dev, void *data)
 #define MSECS_PER_JIFFY (1000/HZ)
 
 static struct pxamci_platform_data pcm990_mci_platform_data = {
-	.detect_delay	= 250 / MSECS_PER_JIFFY,
-	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.init 		= pcm990_mci_init,
-	.setpower 	= pcm990_mci_setpower,
-	.exit		= pcm990_mci_exit,
+	.detect_delay		= 250 / MSECS_PER_JIFFY,
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.init 			= pcm990_mci_init,
+	.setpower 		= pcm990_mci_setpower,
+	.exit			= pcm990_mci_exit,
+	.gpio_card_detect	= -1,
+	.gpio_card_ro		= -1,
+	.gpio_power		= -1,
 };
 
 static struct pxaohci_platform_data pcm990_ohci_platform_data = {

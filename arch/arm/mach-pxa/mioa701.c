@@ -434,72 +434,15 @@ struct gpio_vbus_mach_info gpio_vbus_data = {
 /*
  * SDIO/MMC Card controller
  */
-static void mci_setpower(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *p_d = dev->platform_data;
-
-	if ((1 << vdd) & p_d->ocr_mask)
-		gpio_set_value(GPIO91_SDIO_EN, 1);	/* enable SDIO power */
-	else
-		gpio_set_value(GPIO91_SDIO_EN, 0);	/* disable SDIO power */
-}
-
-static int mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO78_SDIO_RO);
-}
-
-struct gpio_ress mci_gpios[] = {
-	MIO_GPIO_IN(GPIO78_SDIO_RO, 	"SDIO readonly detect"),
-	MIO_GPIO_IN(GPIO15_SDIO_INSERT,	"SDIO insertion detect"),
-	MIO_GPIO_OUT(GPIO91_SDIO_EN, 0,	"SDIO power enable")
-};
-
-static void mci_exit(struct device *dev, void *data)
-{
-	mio_gpio_free(ARRAY_AND_SIZE(mci_gpios));
-	free_irq(gpio_to_irq(GPIO15_SDIO_INSERT), data);
-}
-
-static struct pxamci_platform_data mioa701_mci_info;
-
 /**
  * The card detect interrupt isn't debounced so we delay it by 250ms
  * to give the card a chance to fully insert/eject.
  */
-static int mci_init(struct device *dev, irq_handler_t detect_int, void *data)
-{
-	int rc;
-	int irq = gpio_to_irq(GPIO15_SDIO_INSERT);
-
-	rc = mio_gpio_request(ARRAY_AND_SIZE(mci_gpios));
-	if (rc)
-		goto err_gpio;
-	/* enable RE/FE interrupt on card insertion and removal */
-	rc = request_irq(irq, detect_int,
-			 IRQF_DISABLED | IRQF_TRIGGER_RISING |
-			 IRQF_TRIGGER_FALLING,
-			 "MMC card detect", data);
-	if (rc)
-		goto err_irq;
-
-	mioa701_mci_info.detect_delay = msecs_to_jiffies(250);
-	return 0;
-
-err_irq:
-	dev_err(dev, "mioa701_mci_init: MMC/SD:"
-		" can't request MMC card detect IRQ\n");
-	mio_gpio_free(ARRAY_AND_SIZE(mci_gpios));
-err_gpio:
-	return rc;
-}
-
 static struct pxamci_platform_data mioa701_mci_info = {
-	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34,
-	.init	  = mci_init,
-	.get_ro	  = mci_get_ro,
-	.setpower = mci_setpower,
-	.exit	  = mci_exit,
+	.ocr_mask 		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.gpio_card_detect	= GPIO15_SDIO_INSERT,
+	.gpio_card_ro		= GPIO78_SDIO_RO,
+	.gpio_power		= GPIO91_SDIO_EN,
 };
 
 /* FlashRAM */
@@ -841,7 +784,7 @@ static void mioa701_restart(char c, const char *cmd)
 static struct gpio_ress global_gpios[] = {
 	MIO_GPIO_OUT(GPIO9_CHARGE_EN, 1, "Charger enable"),
 	MIO_GPIO_OUT(GPIO18_POWEROFF, 0, "Power Off"),
-	MIO_GPIO_OUT(GPIO87_LCD_POWER, 0, "LCD Power")
+	MIO_GPIO_OUT(GPIO87_LCD_POWER, 0, "LCD Power"),
 };
 
 static void __init mioa701_machine_init(void)
@@ -855,6 +798,7 @@ static void __init mioa701_machine_init(void)
 	mio_gpio_request(ARRAY_AND_SIZE(global_gpios));
 	bootstrap_init();
 	set_pxa_fb_info(&mioa701_pxafb_info);
+	mioa701_mci_info.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&mioa701_mci_info);
 	pxa_set_keypad_info(&mioa701_keypad_info);
 	wm97xx_bat_set_pdata(&mioa701_battery_data);
