@@ -25,7 +25,7 @@ use IO::Handle;
 		"tda10046lifeview", "av7110", "dec2000t", "dec2540t",
 		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
-		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2" );
+		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718" );
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -379,6 +379,57 @@ sub cx18 {
     $allfiles =~ s/^\s//;
 
     $allfiles;
+}
+
+sub mpc718 {
+    my $archive = 'Yuan MPC718 TV Tuner Card 2.13.10.1016.zip';
+    my $url = "ftp://ftp.work.acer-euro.com/desktop/aspire_idea510/vista/Drivers/$archive";
+    my $fwfile = "dvb-cx18-mpc718-mt352.fw";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+
+    checkstandard();
+    wgetfile($archive, $url);
+    unzip($archive, $tmpdir);
+
+    my $sourcefile = "$tmpdir/Yuan MPC718 TV Tuner Card 2.13.10.1016/mpc718_32bit/yuanrap.sys";
+    my $found = 0;
+
+    open IN, '<', $sourcefile or die "Couldn't open $sourcefile to extract $fwfile data\n";
+    binmode IN;
+    open OUT, '>', $fwfile;
+    binmode OUT;
+    {
+	# Block scope because we change the line terminator variable $/
+	my $prevlen = 0;
+	my $currlen;
+
+	# Buried in the data segment are 3 runs of almost identical
+	# register-value pairs that end in 0x5d 0x01 which is a "TUNER GO"
+	# command for the MT352.
+	# Pull out the middle run (because it's easy) of register-value
+	# pairs to make the "firmware" file.
+
+	local $/ = "\x5d\x01"; # MT352 "TUNER GO"
+
+	while (<IN>) {
+	    $currlen = length($_);
+	    if ($prevlen == $currlen && $currlen <= 64) {
+		chop; chop; # Get rid of "TUNER GO"
+		s/^\0\0//;  # get rid of leading 00 00 if it's there
+		printf OUT "$_";
+		$found = 1;
+		last;
+	    }
+	    $prevlen = $currlen;
+	}
+    }
+    close OUT;
+    close IN;
+    if (!$found) {
+	unlink $fwfile;
+	die "Couldn't find valid register-value sequence in $sourcefile for $fwfile\n";
+    }
+    $fwfile;
 }
 
 sub cx23885 {
