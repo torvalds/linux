@@ -657,6 +657,11 @@ static int io_init(struct ubi_device *ubi)
 	if (ubi->mtd->block_isbad && ubi->mtd->block_markbad)
 		ubi->bad_allowed = 1;
 
+	if (ubi->mtd->type == MTD_NORFLASH) {
+		ubi_assert(ubi->mtd->writesize == 1);
+		ubi->nor_flash = 1;
+	}
+
 	ubi->min_io_size = ubi->mtd->writesize;
 	ubi->hdrs_min_io_size = ubi->mtd->writesize >> ubi->mtd->subpage_sft;
 

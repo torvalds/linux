@@ -373,6 +373,7 @@ struct ubi_wl_entry;
  * @vid_hdr_shift: contains @vid_hdr_offset - @vid_hdr_aloffset
  * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
  *               not
+ * @nor_flash: non-zero if working on top of NOR flash
  * @mtd: MTD device descriptor
  *
  * @peb_buf1: a buffer of PEB size used for different purposes
@@ -454,7 +455,8 @@ struct ubi_device {
 	int vid_hdr_offset;
 	int vid_hdr_aloffset;
 	int vid_hdr_shift;
-	int bad_allowed;
+	unsigned int bad_allowed:1;
+	unsigned int nor_flash:1;
 	struct mtd_info *mtd;
 
 	void *peb_buf1;

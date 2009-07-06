@@ -266,8 +266,8 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 	addr = (loff_t)pnum * ubi->peb_size + offset;
 	err = ubi->mtd->write(ubi->mtd, addr, len, &written, buf);
 	if (err) {
-		ubi_err("error %d while writing %d bytes to PEB %d:%d, written"
-			" %zd bytes", err, len, pnum, offset, written);
+		ubi_err("error %d while writing %d bytes to PEB %d:%d, written "
+			"%zd bytes", err, len, pnum, offset, written);
 		ubi_dbg_dump_stack();
 	} else
 		ubi_assert(written == len);
@@ -454,6 +454,54 @@ out:
 }
 
 /**
+ * nor_erase_prepare - prepare a NOR flash PEB for erasure.
+ * @ubi: UBI device description object
+ * @pnum: physical eraseblock number to prepare
+ *
+ * NOR flash, or at least some of them, have peculiar embedded PEB erasure
+ * algorithm: the PEB is first filled with zeroes, then it is erased. And
+ * filling with zeroes starts from the end of the PEB. This was observed with
+ * Spansion S29GL512N NOR flash.
+ *
+ * This means that in case of a power cut we may end up with intact data at the
+ * beginning of the PEB, and all zeroes at the end of PEB. In other words, the
+ * EC and VID headers are OK, but a large chunk of data at the end of PEB is
+ * zeroed. This makes UBI mistakenly treat this PEB as used and associate it
+ * with an LEB, which leads to subsequent failures (e.g., UBIFS fails).
+ *
+ * This function is called before erasing NOR PEBs and it zeroes out EC and VID
+ * magic numbers in order to invalidate them and prevent the failures. Returns
+ * zero in case of success and a negative error code in case of failure.
+ */
+static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
+{
+	int err;
+	size_t written;
+	loff_t addr;
+	uint32_t data = 0;
+
+	addr = (loff_t)pnum * ubi->peb_size;
+	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, &data);
+	if (err) {
+		ubi_err("error %d while writing 4 bytes to PEB %d:0, written "
+			"%zd bytes", err, pnum, 0, written);
+		ubi_dbg_dump_stack();
+		return err;
+	}
+
+	addr += ubi->vid_hdr_aloffset;
+	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, &data);
+	if (err) {
+		ubi_err("error %d while writing 4 bytes to PEB %d:%d, written "
+			"%zd bytes", err, pnum, ubi->vid_hdr_aloffset, written);
+		ubi_dbg_dump_stack();
+		return err;
+	}
+
+	return 0;
+}
+
+/**
  * ubi_io_sync_erase - synchronously erase a physical eraseblock.
  * @ubi: UBI device description object
  * @pnum: physical eraseblock number to erase
@@ -482,6 +530,12 @@ int ubi_io_sync_erase(struct ubi_device *ubi, int pnum, int torture)
 	if (ubi->ro_mode) {
 		ubi_err("read-only mode");
 		return -EROFS;
+	}
+
+	if (ubi->nor_flash) {
+		err = nor_erase_prepare(ubi, pnum);
+		if (err)
+			return err;
 	}
 
 	if (torture) {
