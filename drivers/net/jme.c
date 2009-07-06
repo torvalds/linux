@@ -1566,6 +1566,7 @@ jme_open(struct net_device *netdev)
 	jme_clear_pm(jme);
 	JME_NAPI_ENABLE(jme);
 
+	tasklet_enable(&jme->linkch_task);
 	tasklet_enable(&jme->txclean_task);
 	tasklet_hi_enable(&jme->rxclean_task);
 	tasklet_hi_enable(&jme->rxempty_task);
@@ -1647,10 +1648,10 @@ jme_close(struct net_device *netdev)
 
 	JME_NAPI_DISABLE(jme);
 
-	tasklet_kill(&jme->linkch_task);
-	tasklet_kill(&jme->txclean_task);
-	tasklet_kill(&jme->rxclean_task);
-	tasklet_kill(&jme->rxempty_task);
+	tasklet_disable(&jme->linkch_task);
+	tasklet_disable(&jme->txclean_task);
+	tasklet_disable(&jme->rxclean_task);
+	tasklet_disable(&jme->rxempty_task);
 
 	jme_reset_ghc_speed(jme);
 	jme_disable_rx_engine(jme);
@@ -2768,6 +2769,7 @@ jme_init_one(struct pci_dev *pdev,
 	tasklet_init(&jme->rxempty_task,
 		     &jme_rx_empty_tasklet,
 		     (unsigned long) jme);
+	tasklet_disable_nosync(&jme->linkch_task);
 	tasklet_disable_nosync(&jme->txclean_task);
 	tasklet_disable_nosync(&jme->rxclean_task);
 	tasklet_disable_nosync(&jme->rxempty_task);
