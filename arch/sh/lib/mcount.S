@@ -72,7 +72,7 @@ ftrace_caller:
 	mov.l	@r0, r0
 	tst	r0, r0
 	bf	ftrace_stub
-	
+
 	MCOUNT_ENTER()
 
 	.globl ftrace_call
