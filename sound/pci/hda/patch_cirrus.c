@@ -471,12 +471,9 @@ static int parse_digital_input(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int idx;
 
-	if (!cfg->dig_in_pin)
-		return 0;
-	spec->dig_in = get_adc(codec, cfg->dig_in_pin, &idx);
-	if (!spec->dig_in)
-		return 0;
-	return snd_hda_create_spdif_in_ctls(codec, spec->dig_in);
+	if (cfg->dig_in_pin)
+		spec->dig_in = get_adc(codec, cfg->dig_in_pin, &idx);
+	return 0;
 }
 
 /*
