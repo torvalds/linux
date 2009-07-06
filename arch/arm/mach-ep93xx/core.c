@@ -16,40 +16,23 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/spinlock.h>
-#include <linux/sched.h>
+#include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/serial.h>
-#include <linux/tty.h>
-#include <linux/bitops.h>
-#include <linux/serial_8250.h>
-#include <linux/serial_core.h>
-#include <linux/device.h>
-#include <linux/mm.h>
 #include <linux/dma-mapping.h>
-#include <linux/time.h>
 #include <linux/timex.h>
-#include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
-#include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 
-#include <asm/types.h>
-#include <asm/setup.h>
-#include <asm/memory.h>
 #include <mach/hardware.h>
-#include <asm/irq.h>
-#include <asm/system.h>
-#include <asm/tlbflush.h>
-#include <asm/pgtable.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
-#include <mach/gpio.h>
 
 #include <asm/hardware/vic.h>
 
