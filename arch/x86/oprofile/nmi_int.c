@@ -674,6 +674,9 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	if (ret)
 		return ret;
 
+	if (!model->num_virt_counters)
+		model->num_virt_counters = model->num_counters;
+
 	init_sysfs();
 	using_nmi = 1;
 	printk(KERN_INFO "oprofile: using NMI interrupt.\n");
