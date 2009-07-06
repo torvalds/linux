@@ -49,7 +49,8 @@ static struct dentry		*stat_dir;
  * but it will at least advance closer to the next one
  * to be released.
  */
-static struct rb_node *release_next(struct rb_node *node)
+static struct rb_node *release_next(struct tracer_stat *ts,
+				    struct rb_node *node)
 {
 	struct stat_node *snode;
 	struct rb_node *parent = rb_parent(node);
@@ -67,6 +68,8 @@ static struct rb_node *release_next(struct rb_node *node)
 			parent->rb_right = NULL;
 
 		snode = container_of(node, struct stat_node, node);
+		if (ts->stat_release)
+			ts->stat_release(snode->stat);
 		kfree(snode);
 
 		return parent;
@@ -78,7 +81,7 @@ static void reset_stat_session(struct stat_session *session)
 	struct rb_node *node = session->stat_root.rb_node;
 
 	while (node)
-		node = release_next(node);
+		node = release_next(session->ts, node);
 
 	session->stat_root = RB_ROOT;
 }
