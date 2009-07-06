@@ -657,7 +657,8 @@ static void ext4_mb_mark_free_simple(struct super_block *sb,
 	}
 }
 
-static void ext4_mb_generate_buddy(struct super_block *sb,
+static noinline_for_stack
+void ext4_mb_generate_buddy(struct super_block *sb,
 				void *buddy, void *bitmap, ext4_group_t group)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
@@ -1480,7 +1481,8 @@ static void ext4_mb_measure_extent(struct ext4_allocation_context *ac,
 	ext4_mb_check_limits(ac, e4b, 0);
 }
 
-static int ext4_mb_try_best_found(struct ext4_allocation_context *ac,
+static noinline_for_stack
+int ext4_mb_try_best_found(struct ext4_allocation_context *ac,
 					struct ext4_buddy *e4b)
 {
 	struct ext4_free_extent ex = ac->ac_b_ex;
@@ -1507,7 +1509,8 @@ static int ext4_mb_try_best_found(struct ext4_allocation_context *ac,
 	return 0;
 }
 
-static int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
+static noinline_for_stack
+int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 				struct ext4_buddy *e4b)
 {
 	ext4_group_t group = ac->ac_g_ex.fe_group;
@@ -1566,7 +1569,8 @@ static int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
  * The routine scans buddy structures (not bitmap!) from given order
  * to max order and tries to find big enough chunk to satisfy the req
  */
-static void ext4_mb_simple_scan_group(struct ext4_allocation_context *ac,
+static noinline_for_stack
+void ext4_mb_simple_scan_group(struct ext4_allocation_context *ac,
 					struct ext4_buddy *e4b)
 {
 	struct super_block *sb = ac->ac_sb;
@@ -1609,7 +1613,8 @@ static void ext4_mb_simple_scan_group(struct ext4_allocation_context *ac,
  * In order to optimize scanning, caller must pass number of
  * free blocks in the group, so the routine can know upper limit.
  */
-static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
+static noinline_for_stack
+void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 					struct ext4_buddy *e4b)
 {
 	struct super_block *sb = ac->ac_sb;
@@ -1668,7 +1673,8 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
  * we try to find stripe-aligned chunks for stripe-size requests
  * XXX should do so at least for multiples of stripe size as well
  */
-static void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
+static noinline_for_stack
+void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 				 struct ext4_buddy *e4b)
 {
 	struct super_block *sb = ac->ac_sb;
@@ -1831,7 +1837,8 @@ void ext4_mb_put_buddy_cache_lock(struct super_block *sb,
 
 }
 
-static int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
+static noinline_for_stack
+int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
 {
 
 	int ret;
@@ -3457,7 +3464,8 @@ static void ext4_mb_generate_from_freelist(struct super_block *sb, void *bitmap,
  * used in in-core bitmap. buddy must be generated from this bitmap
  * Need to be called with ext4 group lock held
  */
-static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
+static noinline_for_stack
+void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 					ext4_group_t group)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
