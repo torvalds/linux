@@ -2,11 +2,47 @@
 #define _TRACE_KVMMMU_H
 
 #include <linux/tracepoint.h>
+#include <linux/ftrace_event.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvmmmu
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE mmutrace
+
+#define KVM_MMU_PAGE_FIELDS \
+	__field(__u64, gfn) \
+	__field(__u32, role) \
+	__field(__u32, root_count) \
+	__field(__u32, unsync)
+
+#define KVM_MMU_PAGE_ASSIGN(sp)			     \
+	__entry->gfn = sp->gfn;			     \
+	__entry->role = sp->role.word;		     \
+	__entry->root_count = sp->root_count;        \
+	__entry->unsync = sp->unsync;
+
+#define KVM_MMU_PAGE_PRINTK() ({				        \
+	const char *ret = p->buffer + p->len;				\
+	static const char *access_str[] = {			        \
+		"---", "--x", "w--", "w-x", "-u-", "-ux", "wu-", "wux"  \
+	};							        \
+	union kvm_mmu_page_role role;				        \
+								        \
+	role.word = __entry->role;					\
+									\
+	trace_seq_printf(p, "sp gfn %llx %u/%u q%u%s %s%s %spge"	\
+			 " %snxe root %u %s%c",				\
+			 __entry->gfn, role.level, role.glevels,	\
+			 role.quadrant,					\
+			 role.direct ? " direct" : "",			\
+			 access_str[role.access],			\
+			 role.invalid ? " invalid" : "",		\
+			 role.cr4_pge ? "" : "!",			\
+			 role.nxe ? "" : "!",				\
+			 __entry->root_count,				\
+			 __entry->unsync ? "unsync" : "sync", 0);	\
+	ret;								\
+		})
 
 #define kvm_mmu_trace_pferr_flags       \
 	{ PFERR_PRESENT_MASK, "P" },	\
@@ -109,6 +145,73 @@ TRACE_EVENT(
 
 	TP_printk("pferr %x %s", __entry->pferr,
 		  __print_flags(__entry->pferr, "|", kvm_mmu_trace_pferr_flags))
+);
+
+TRACE_EVENT(
+	kvm_mmu_get_page,
+	TP_PROTO(struct kvm_mmu_page *sp, bool created),
+	TP_ARGS(sp, created),
+
+	TP_STRUCT__entry(
+		KVM_MMU_PAGE_FIELDS
+		__field(bool, created)
+		),
+
+	TP_fast_assign(
+		KVM_MMU_PAGE_ASSIGN(sp)
+		__entry->created = created;
+		),
+
+	TP_printk("%s %s", KVM_MMU_PAGE_PRINTK(),
+		  __entry->created ? "new" : "existing")
+);
+
+TRACE_EVENT(
+	kvm_mmu_sync_page,
+	TP_PROTO(struct kvm_mmu_page *sp),
+	TP_ARGS(sp),
+
+	TP_STRUCT__entry(
+		KVM_MMU_PAGE_FIELDS
+		),
+
+	TP_fast_assign(
+		KVM_MMU_PAGE_ASSIGN(sp)
+		),
+
+	TP_printk("%s", KVM_MMU_PAGE_PRINTK())
+);
+
+TRACE_EVENT(
+	kvm_mmu_unsync_page,
+	TP_PROTO(struct kvm_mmu_page *sp),
+	TP_ARGS(sp),
+
+	TP_STRUCT__entry(
+		KVM_MMU_PAGE_FIELDS
+		),
+
+	TP_fast_assign(
+		KVM_MMU_PAGE_ASSIGN(sp)
+		),
+
+	TP_printk("%s", KVM_MMU_PAGE_PRINTK())
+);
+
+TRACE_EVENT(
+	kvm_mmu_zap_page,
+	TP_PROTO(struct kvm_mmu_page *sp),
+	TP_ARGS(sp),
+
+	TP_STRUCT__entry(
+		KVM_MMU_PAGE_FIELDS
+		),
+
+	TP_fast_assign(
+		KVM_MMU_PAGE_ASSIGN(sp)
+		),
+
+	TP_printk("%s", KVM_MMU_PAGE_PRINTK())
 );
 
 #endif /* _TRACE_KVMMMU_H */

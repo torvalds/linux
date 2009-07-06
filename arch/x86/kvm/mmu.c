@@ -1122,6 +1122,7 @@ static int kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		return 1;
 	}
 
+	trace_kvm_mmu_sync_page(sp);
 	if (rmap_write_protect(vcpu->kvm, sp->gfn))
 		kvm_flush_remote_tlbs(vcpu->kvm);
 	kvm_unlink_unsync_page(vcpu->kvm, sp);
@@ -1244,8 +1245,6 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
 		role.quadrant = quadrant;
 	}
-	pgprintk("%s: looking gfn %lx role %x\n", __func__,
-		 gfn, role.word);
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, tmp, bucket, hash_link)
@@ -1262,14 +1261,13 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 				set_bit(KVM_REQ_MMU_SYNC, &vcpu->requests);
 				kvm_mmu_mark_parents_unsync(vcpu, sp);
 			}
-			pgprintk("%s: found\n", __func__);
+			trace_kvm_mmu_get_page(sp, false);
 			return sp;
 		}
 	++vcpu->kvm->stat.mmu_cache_miss;
 	sp = kvm_mmu_alloc_page(vcpu, parent_pte);
 	if (!sp)
 		return sp;
-	pgprintk("%s: adding gfn %lx role %x\n", __func__, gfn, role.word);
 	sp->gfn = gfn;
 	sp->role = role;
 	hlist_add_head(&sp->hash_link, bucket);
@@ -1282,6 +1280,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		vcpu->arch.mmu.prefetch_page(vcpu, sp);
 	else
 		nonpaging_prefetch_page(vcpu, sp);
+	trace_kvm_mmu_get_page(sp, true);
 	return sp;
 }
 
@@ -1410,6 +1409,8 @@ static int mmu_zap_unsync_children(struct kvm *kvm,
 static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	int ret;
+
+	trace_kvm_mmu_zap_page(sp);
 	++kvm->stat.mmu_shadow_zapped;
 	ret = mmu_zap_unsync_children(kvm, sp);
 	kvm_mmu_page_unlink_children(kvm, sp);
@@ -1656,6 +1657,7 @@ static int kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	struct kvm_mmu_page *s;
 	struct hlist_node *node, *n;
 
+	trace_kvm_mmu_unsync_page(sp);
 	index = kvm_page_table_hashfn(sp->gfn);
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	/* don't unsync if pagetable is shadowed with multiple roles */
