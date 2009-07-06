@@ -140,7 +140,7 @@ do {									\
 #define E1000_FC_HIGH_DIFF 0x1638  /* High: 5688 bytes below Rx FIFO size */
 #define E1000_FC_LOW_DIFF 0x1640   /* Low:  5696 bytes below Rx FIFO size */
 
-#define E1000_FC_PAUSE_TIME 0x0680 /* 858 usec */
+#define E1000_FC_PAUSE_TIME 0xFFFF /* pause for the max or until send xon */
 
 /* How many Tx Descriptors do we need to call netif_wake_queue ? */
 #define E1000_TX_QUEUE_WAKE	16
@@ -164,6 +164,7 @@ do {									\
 struct e1000_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
+	struct page *page;
 	unsigned long time_stamp;
 	u16 length;
 	u16 next_to_watch;
@@ -205,6 +206,7 @@ struct e1000_rx_ring {
 	unsigned int next_to_clean;
 	/* array of buffer information structs */
 	struct e1000_buffer *buffer_info;
+	struct sk_buff *rx_skb_top;
 
 	/* cpu for rx queue */
 	int cpu;
