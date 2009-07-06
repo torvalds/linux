@@ -372,7 +372,6 @@ struct jme_buffer_info {
 /*
  * The structure holding buffer information and ring descriptors all together.
  */
-#define MAX_RING_DESC_NR	1024
 struct jme_ring {
 	void *alloc;		/* pointer to allocated memory */
 	void *desc;		/* pointer to ring memory  */
@@ -380,7 +379,7 @@ struct jme_ring {
 	dma_addr_t dma;		/* phys address for ring dma */
 
 	/* Buffer information corresponding to each descriptor */
-	struct jme_buffer_info bufinf[MAX_RING_DESC_NR];
+	struct jme_buffer_info *bufinf;
 
 	int next_to_use;
 	atomic_t next_to_clean;
