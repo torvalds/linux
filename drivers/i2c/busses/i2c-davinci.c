@@ -187,6 +187,11 @@ static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_CLKH_REG, clkh);
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_CLKL_REG, clkl);
 
+	/* Respond at reserved "SMBus Host" slave address" (and zero);
+	 * we seem to have no option to not respond...
+	 */
+	davinci_i2c_write_reg(dev, DAVINCI_I2C_OAR_REG, 0x08);
+
 	dev_dbg(dev->dev, "input_clock = %d, CLK = %d\n", input_clock, clk);
 	dev_dbg(dev->dev, "PSC  = %d\n",
 		davinci_i2c_read_reg(dev, DAVINCI_I2C_PSC_REG));
@@ -387,7 +392,7 @@ static void terminate_write(struct davinci_i2c_dev *dev)
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, w);
 
 	if (!dev->terminate)
-		dev_err(dev->dev, "TDR IRQ while no data to send\n");
+		dev_dbg(dev->dev, "TDR IRQ while no data to send\n");
 }
 
 /*
@@ -473,9 +478,14 @@ static irqreturn_t i2c_davinci_isr(int this_irq, void *dev_id)
 			break;
 
 		case DAVINCI_I2C_IVR_AAS:
-			dev_warn(dev->dev, "Address as slave interrupt\n");
-		}/* switch */
-	}/* while */
+			dev_dbg(dev->dev, "Address as slave interrupt\n");
+			break;
+
+		default:
+			dev_warn(dev->dev, "Unrecognized irq stat %d\n", stat);
+			break;
+		}
+	}
 
 	return count ? IRQ_HANDLED : IRQ_NONE;
 }
