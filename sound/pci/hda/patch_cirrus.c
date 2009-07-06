@@ -572,12 +572,13 @@ static struct snd_kcontrol_new cs_capture_ctls[] = {
 	HDA_BIND_VOL("Capture Volume", 0),
 };
 
-static int change_cur_input(struct hda_codec *codec, unsigned int idx)
+static int change_cur_input(struct hda_codec *codec, unsigned int idx,
+			    int force)
 {
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	
-	if (spec->cur_input == idx)
+	if (spec->cur_input == idx && !force)
 		return 0;
 	if (spec->cur_adc && spec->cur_adc != spec->adc_nid[idx]) {
 		/* stream is running, let's swap the current ADC */
@@ -630,7 +631,7 @@ static int cs_capture_source_put(struct snd_kcontrol *kcontrol,
 	if (idx >= spec->num_inputs)
 		return -EINVAL;
 	idx = spec->input_idx[idx];
-	return change_cur_input(codec, idx);
+	return change_cur_input(codec, idx, 0);
 }
 
 static struct snd_kcontrol_new cs_capture_source = {
@@ -773,11 +774,11 @@ static void cs_automic(struct hda_codec *codec)
 	present = snd_hda_codec_read(codec, nid, 0,
 				     AC_VERB_GET_PIN_SENSE, 0);
 	if (present & AC_PINSENSE_PRESENCE)
-		change_cur_input(codec, spec->automic_idx);
+		change_cur_input(codec, spec->automic_idx, 0);
 	else {
 		unsigned int imic = (spec->automic_idx == AUTO_PIN_MIC) ?
 			AUTO_PIN_FRONT_MIC : AUTO_PIN_MIC;
-		change_cur_input(codec, imic);
+		change_cur_input(codec, imic, 0);
 	}
 }
 
@@ -857,6 +858,7 @@ static void init_input(struct hda_codec *codec)
 					    AC_VERB_SET_UNSOLICITED_ENABLE,
 					    AC_USRSP_EN | MIC_EVENT);
 	}
+	change_cur_input(codec, spec->cur_input, 1);
 	if (spec->mic_detect)
 		cs_automic(codec);
 }
