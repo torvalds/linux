@@ -362,7 +362,7 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 	wssport[dev] = pnp_port_start(pdev, 0);
 	wssdma[dev] = pnp_dma(pdev, 0);
 	wssirq[dev] = pnp_irq(pdev, 0);
-	if (acard->type == CMI8330)
+	if (pnp_port_start(pdev, 1))
 		fmport[dev] = pnp_port_start(pdev, 1);
 
 	/* allocate SB16 resources */
@@ -377,8 +377,13 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 	sbdma8[dev] = pnp_dma(pdev, 0);
 	sbdma16[dev] = pnp_dma(pdev, 1);
 	sbirq[dev] = pnp_irq(pdev, 0);
-	if (acard->type == CMI8329)
-		fmport[dev] = pnp_port_start(pdev, 1);
+	/* On CMI8239, the OPL3 port might be present in SB16 PnP resources */
+	if (fmport[dev] == SNDRV_AUTO_PORT) {
+		if (pnp_port_start(pdev, 1))
+			fmport[dev] = pnp_port_start(pdev, 1);
+		else
+			fmport[dev] = 0x388;	/* Or hardwired */
+	}
 
 	/* allocate MPU-401 resources */
 	pdev = acard->mpu;
