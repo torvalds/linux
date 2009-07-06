@@ -880,27 +880,27 @@ jme_rxsum_ok(struct jme_adapter *jme, u16 flags)
 	if (!(flags & (RXWBFLAG_TCPON | RXWBFLAG_UDPON | RXWBFLAG_IPV4)))
 		return false;
 
-	if (unlikely(!(flags & RXWBFLAG_MF) &&
-	(flags & RXWBFLAG_TCPON) && !(flags & RXWBFLAG_TCPCS))) {
-		msg_rx_err(jme, "TCP Checksum error.\n");
-		goto out_sumerr;
+	if (unlikely((flags & (RXWBFLAG_MF | RXWBFLAG_TCPON | RXWBFLAG_TCPCS))
+			== RXWBFLAG_TCPON)) {
+		if (flags & RXWBFLAG_IPV4)
+			msg_rx_err(jme, "TCP Checksum error\n");
+		return false;
 	}
 
-	if (unlikely(!(flags & RXWBFLAG_MF) &&
-	(flags & RXWBFLAG_UDPON) && !(flags & RXWBFLAG_UDPCS))) {
-		msg_rx_err(jme, "UDP Checksum error.\n");
-		goto out_sumerr;
+	if (unlikely((flags & (RXWBFLAG_MF | RXWBFLAG_UDPON | RXWBFLAG_UDPCS))
+			== RXWBFLAG_UDPON)) {
+		if (flags & RXWBFLAG_IPV4)
+			msg_rx_err(jme, "UDP Checksum error.\n");
+		return false;
 	}
 
-	if (unlikely((flags & RXWBFLAG_IPV4) && !(flags & RXWBFLAG_IPCS))) {
+	if (unlikely((flags & (RXWBFLAG_IPV4 | RXWBFLAG_IPCS))
+			== RXWBFLAG_IPV4)) {
 		msg_rx_err(jme, "IPv4 Checksum error.\n");
-		goto out_sumerr;
+		return false;
 	}
 
 	return true;
-
-out_sumerr:
-	return false;
 }
 
 static void
