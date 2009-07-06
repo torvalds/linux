@@ -246,8 +246,10 @@ static void p54u_tx_lm87(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct lm87_tx_hdr *hdr = (void *)skb->data - sizeof(*hdr);
 
 	data_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!data_urb)
+	if (!data_urb) {
+		p54_free_skb(dev, skb);
 		return;
+	}
 
 	hdr->chksum = p54u_lm87_chksum((__le32 *)skb->data, skb->len);
 	hdr->device_addr = ((struct p54_hdr *)skb->data)->req_id;
@@ -269,27 +271,22 @@ static void p54u_tx_lm87(struct ieee80211_hw *dev, struct sk_buff *skb)
 static void p54u_tx_net2280(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct p54u_priv *priv = dev->priv;
-	struct urb *int_urb, *data_urb;
+	struct urb *int_urb = NULL, *data_urb = NULL;
 	struct net2280_tx_hdr *hdr = (void *)skb->data - sizeof(*hdr);
-	struct net2280_reg_write *reg;
-	int err = 0;
+	struct net2280_reg_write *reg = NULL;
+	int err = -ENOMEM;
 
 	reg = kmalloc(sizeof(*reg), GFP_ATOMIC);
 	if (!reg)
-		return;
+		goto out;
 
 	int_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!int_urb) {
-		kfree(reg);
-		return;
-	}
+	if (!int_urb)
+		goto out;
 
 	data_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!data_urb) {
-		kfree(reg);
-		usb_free_urb(int_urb);
-		return;
-	}
+	if (!data_urb)
+		goto out;
 
 	reg->port = cpu_to_le16(NET2280_DEV_U32);
 	reg->addr = cpu_to_le32(P54U_DEV_BASE);
@@ -304,11 +301,12 @@ static void p54u_tx_net2280(struct ieee80211_hw *dev, struct sk_buff *skb)
 		p54u_tx_dummy_cb, dev);
 
 	/*
-	 * This flag triggers a code path in the USB subsystem that will
-	 * free what's inside the transfer_buffer after the callback routine
-	 * has completed.
+	 * URB_FREE_BUFFER triggers a code path in the USB subsystem that will
+	 * free what is inside the transfer_buffer after the last reference to
+	 * the int_urb is dropped.
 	 */
 	int_urb->transfer_flags |= URB_FREE_BUFFER | URB_ZERO_PACKET;
+	reg = NULL;
 
 	usb_fill_bulk_urb(data_urb, priv->udev,
 			  usb_sndbulkpipe(priv->udev, P54U_PIPE_DATA),
@@ -329,12 +327,12 @@ static void p54u_tx_net2280(struct ieee80211_hw *dev, struct sk_buff *skb)
 		usb_unanchor_urb(data_urb);
 		goto out;
 	}
- out:
+out:
 	usb_free_urb(int_urb);
 	usb_free_urb(data_urb);
 
 	if (err) {
-		skb_pull(skb, sizeof(*hdr));
+		kfree(reg);
 		p54_free_skb(dev, skb);
 	}
 }
