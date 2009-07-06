@@ -51,7 +51,7 @@
 #define FEC_IMASK		0x008 /* Interrupt mask reg */
 #define FEC_IVEC		0x00c /* Interrupt vec status reg */
 #define FEC_R_DES_ACTIVE	0x010 /* Receive descriptor reg */
-#define FEC_X_DES_ACTIVE	0x01c /* Transmit descriptor reg */
+#define FEC_X_DES_ACTIVE	0x014 /* Transmit descriptor reg */
 #define FEC_MII_DATA		0x040 /* MII manage frame reg */
 #define FEC_MII_SPEED		0x044 /* MII speed control reg */
 #define FEC_R_BOUND		0x08c /* FIFO receive bound reg */
