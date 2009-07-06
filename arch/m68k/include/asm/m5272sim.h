@@ -12,7 +12,6 @@
 #define	m5272sim_h
 /****************************************************************************/
 
-
 /*
  *	Define the 5272 SIM register set addresses.
  */
@@ -76,8 +75,40 @@
 /*
  *	Define system peripheral IRQ usage.
  */
-#define	MCF_IRQ_TIMER		69		/* Timer0, Level 6 */
-#define	MCF_IRQ_PROFILER	70		/* Timer1, Level 7 */
+#define	MCFINT_VECBASE		64		/* Base of interrupts */
+#define	MCF_IRQ_SPURIOUS	64		/* User Spurious */
+#define	MCF_IRQ_EINT1		65		/* External Interrupt 1 */
+#define	MCF_IRQ_EINT2		66		/* External Interrupt 2 */
+#define	MCF_IRQ_EINT3		67		/* External Interrupt 3 */
+#define	MCF_IRQ_EINT4		68		/* External Interrupt 4 */
+#define	MCF_IRQ_TIMER1		69		/* Timer 1 */
+#define	MCF_IRQ_TIMER2		70		/* Timer 2 */
+#define	MCF_IRQ_TIMER3		71		/* Timer 3 */
+#define	MCF_IRQ_TIMER4		72		/* Timer 4 */
+#define	MCF_IRQ_UART1		73		/* UART 1 */
+#define	MCF_IRQ_UART2		74		/* UART 2 */
+#define	MCF_IRQ_PLIP		75		/* PLIC 2Khz Periodic */
+#define	MCF_IRQ_PLIA		76		/* PLIC Asynchronous */
+#define	MCF_IRQ_USB0		77		/* USB Endpoint 0 */
+#define	MCF_IRQ_USB1		78		/* USB Endpoint 1 */
+#define	MCF_IRQ_USB2		79		/* USB Endpoint 2 */
+#define	MCF_IRQ_USB3		80		/* USB Endpoint 3 */
+#define	MCF_IRQ_USB4		81		/* USB Endpoint 4 */
+#define	MCF_IRQ_USB5		82		/* USB Endpoint 5 */
+#define	MCF_IRQ_USB6		83		/* USB Endpoint 6 */
+#define	MCF_IRQ_USB7		84		/* USB Endpoint 7 */
+#define	MCF_IRQ_DMA		85		/* DMA Controller */
+#define	MCF_IRQ_ERX		86		/* Ethernet Receiver */
+#define	MCF_IRQ_ETX		87		/* Ethernet Transmitter */
+#define	MCF_IRQ_ENTC		88		/* Ethernet Non-Time Critical */
+#define	MCF_IRQ_QSPI		89		/* Queued Serial Interface */
+#define	MCF_IRQ_EINT5		90		/* External Interrupt 5 */
+#define	MCF_IRQ_EINT6		91		/* External Interrupt 6 */
+#define	MCF_IRQ_SWTO		92		/* Software Watchdog */
+#define	MCFINT_VECMAX		95		/* Maxmum interrupt */
+
+#define	MCF_IRQ_TIMER		MCF_IRQ_TIMER1
+#define	MCF_IRQ_PROFILER	MCF_IRQ_TIMER2
 
 /*
  * Generic GPIO support
