@@ -88,12 +88,10 @@ static int resize_info_buffer(struct snd_info_buffer *buffer,
 	char *nbuf;
 
 	nsize = PAGE_ALIGN(nsize);
-	nbuf = kmalloc(nsize, GFP_KERNEL);
+	nbuf = krealloc(buffer->buffer, nsize, GFP_KERNEL);
 	if (! nbuf)
 		return -ENOMEM;
 
-	memcpy(nbuf, buffer->buffer, buffer->len);
-	kfree(buffer->buffer);
 	buffer->buffer = nbuf;
 	buffer->len = nsize;
 	return 0;
