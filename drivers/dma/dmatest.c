@@ -508,11 +508,11 @@ static int dmatest_add_channel(struct dma_chan *chan)
 
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask)) {
 		cnt = dmatest_add_threads(dtc, DMA_MEMCPY);
-		thread_count += cnt > 0 ?: 0;
+		thread_count += cnt > 0 ? cnt : 0;
 	}
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		cnt = dmatest_add_threads(dtc, DMA_XOR);
-		thread_count += cnt > 0 ?: 0;
+		thread_count += cnt > 0 ? cnt : 0;
 	}
 
 	pr_info("dmatest: Started %u threads using %s\n",
