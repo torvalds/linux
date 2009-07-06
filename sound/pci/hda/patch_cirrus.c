@@ -56,7 +56,6 @@ struct cs_spec {
 
 	unsigned int hp_detect:1;
 	unsigned int mic_detect:1;
-	unsigned int built_up:1;
 };
 
 #define HP_EVENT	1
@@ -213,7 +212,6 @@ static int cs_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
 		spec->multiout.max_channels;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = cs_pcm_analog_capture;
-	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = spec->num_inputs;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid =
 		spec->adc_nid[spec->cur_input];
 	codec->num_pcms++;
@@ -242,6 +240,10 @@ static int cs_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+/*
+ * parse codec topology
+ */
+
 static hda_nid_t get_dac(struct hda_codec *codec, hda_nid_t pin)
 {
 	hda_nid_t dac;
@@ -251,6 +253,169 @@ static hda_nid_t get_dac(struct hda_codec *codec, hda_nid_t pin)
 		return 0;
 	return dac;
 }
+
+static int is_ext_mic(struct hda_codec *codec, unsigned int idx)
+{
+	struct cs_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t pin = cfg->input_pins[idx];
+	unsigned int val = snd_hda_query_pin_caps(codec, pin);
+	if (!(val & AC_PINCAP_PRES_DETECT))
+		return 0;
+	val = snd_hda_codec_get_pincfg(codec, pin);
+	return (get_defcfg_connect(val) == AC_JACK_PORT_COMPLEX);
+}
+
+static hda_nid_t get_adc(struct hda_codec *codec, hda_nid_t pin,
+			 unsigned int *idxp)
+{
+	int i;
+	hda_nid_t nid;
+
+	nid = codec->start_nid;
+	for (i = 0; i < codec->num_nodes; i++, nid++) {
+		hda_nid_t pins[2];
+		unsigned int type;
+		int j, nums;
+		type = (get_wcaps(codec, nid) & AC_WCAP_TYPE)
+			>> AC_WCAP_TYPE_SHIFT;
+		if (type != AC_WID_AUD_IN)
+			continue;
+		nums = snd_hda_get_connections(codec, nid, pins,
+					       ARRAY_SIZE(pins));
+		if (nums <= 0)
+			continue;
+		for (j = 0; j < nums; j++) {
+			if (pins[j] == pin) {
+				*idxp = j;
+				return nid;
+			}
+		}
+	}
+	return 0;
+}
+
+static int parse_output(struct hda_codec *codec)
+{
+	struct cs_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i, err, extra_nids;
+	hda_nid_t dac;
+
+	for (i = 0; i < cfg->line_outs; i++) {
+		dac = get_dac(codec, cfg->line_out_pins[i]);
+		if (!dac)
+			break;
+		spec->dac_nid[i] = dac;
+	}
+	spec->multiout.num_dacs = i;
+	spec->multiout.dac_nids = spec->dac_nid;
+	spec->multiout.max_channels = i * 2;
+
+	/* add HP and speakers */
+	extra_nids = 0;
+	for (i = 0; i < cfg->hp_outs; i++) {
+		dac = get_dac(codec, cfg->hp_pins[i]);
+		if (!dac)
+			break;
+		if (!i)
+			spec->multiout.hp_nid = dac;
+		else
+			spec->multiout.extra_out_nid[extra_nids++] = dac;
+	}
+	for (i = 0; i < cfg->speaker_outs; i++) {
+		dac = get_dac(codec, cfg->speaker_pins[i]);
+		if (!dac)
+			break;
+		spec->multiout.extra_out_nid[extra_nids++] = dac;
+	}
+
+	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) {
+		cfg->speaker_outs = cfg->line_outs;
+		memcpy(cfg->speaker_pins, cfg->line_out_pins,
+		       sizeof(cfg->speaker_pins));
+		cfg->line_outs = 0;
+	}
+
+	return 0;
+}
+
+static int parse_input(struct hda_codec *codec)
+{
+	struct cs_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i, n, err;
+
+	for (i = 0; i < AUTO_PIN_LAST; i++) {
+		hda_nid_t pin = cfg->input_pins[i];
+		struct snd_kcontrol *kctl;
+		if (!pin)
+			continue;
+		spec->input_idx[spec->num_inputs] = i;
+		spec->capsrc_idx[i] = spec->num_inputs++;
+		spec->cur_input = i;
+		spec->adc_nid[i] = get_adc(codec, pin, &spec->adc_idx[i]);
+	}
+	if (!spec->num_inputs)
+		return 0;
+
+	/* check whether the automatic mic switch is available */
+	if (spec->num_inputs == 2 &&
+	    spec->adc_nid[AUTO_PIN_MIC] && spec->adc_nid[AUTO_PIN_FRONT_MIC]) {
+		if (is_ext_mic(codec, cfg->input_pins[AUTO_PIN_FRONT_MIC])) {
+			if (!is_ext_mic(codec, cfg->input_pins[AUTO_PIN_MIC])) {
+				spec->mic_detect = 1;
+				spec->automic_idx = AUTO_PIN_FRONT_MIC;
+			}
+		} else {
+			if (is_ext_mic(codec, cfg->input_pins[AUTO_PIN_MIC])) {
+				spec->mic_detect = 1;
+				spec->automic_idx = AUTO_PIN_MIC;
+			}
+		}
+	}
+	return 0;
+}
+
+
+static int parse_digital_output(struct hda_codec *codec)
+{
+	struct cs_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t nid;
+	int err;
+
+	if (!cfg->dig_outs)
+		return 0;
+	if (snd_hda_get_connections(codec, cfg->dig_out_pins[0], &nid, 1) < 1)
+		return 0;
+	spec->multiout.dig_out_nid = nid;
+	spec->multiout.share_spdif = 1;
+	if (cfg->dig_outs > 1 &&
+	    snd_hda_get_connections(codec, cfg->dig_out_pins[1], &nid, 1) > 0) {
+		spec->slave_dig_outs[0] = nid;
+		codec->slave_dig_outs = spec->slave_dig_outs;
+	}
+	return 0;
+}
+
+static int parse_digital_input(struct hda_codec *codec)
+{
+	struct cs_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int idx;
+
+	if (!cfg->dig_in_pin)
+		return 0;
+	spec->dig_in = get_adc(codec, cfg->dig_in_pin, &idx);
+	if (!spec->dig_in)
+		return 0;
+	return snd_hda_create_spdif_in_ctls(codec, spec->dig_in);
+}
+
+/*
+ * create mixer controls
+ */
 
 static const char *dir_sfx[2] = { "Playback", "Capture" };
 
@@ -376,55 +541,26 @@ static int build_output(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, err, extra_nids;
-	hda_nid_t dac;
+	int i, err;
 
 	for (i = 0; i < cfg->line_outs; i++) {
-		dac = get_dac(codec, cfg->line_out_pins[i]);
-		if (!dac)
-			break;
-		spec->dac_nid[i] = dac;
-		err = add_output(codec, dac, i, cfg->line_outs,
-				 cfg->line_out_type);
+		err = add_output(codec, get_dac(codec, cfg->line_out_pins[i]),
+				 i, cfg->line_outs, cfg->line_out_type);
 		if (err < 0)
 			return err;
 	}
-	spec->multiout.num_dacs = i;
-	spec->multiout.dac_nids = spec->dac_nid;
-	spec->multiout.max_channels = i * 2;
-
-	/* add HP and speakers */
-	extra_nids = 0;
 	for (i = 0; i < cfg->hp_outs; i++) {
-		dac = get_dac(codec, cfg->hp_pins[i]);
-		if (!dac)
-			break;
-		if (!i)
-			spec->multiout.hp_nid = dac;
-		else
-			spec->multiout.extra_out_nid[extra_nids++] = dac;
-		err = add_output(codec, dac, i, cfg->hp_outs, AUTO_PIN_HP_OUT);
+		err = add_output(codec, get_dac(codec, cfg->hp_pins[i]),
+				 i, cfg->hp_outs, AUTO_PIN_HP_OUT);
 		if (err < 0)
 			return err;
 	}
 	for (i = 0; i < cfg->speaker_outs; i++) {
-		dac = get_dac(codec, cfg->speaker_pins[i]);
-		if (!dac)
-			break;
-		spec->multiout.extra_out_nid[extra_nids++] = dac;
-		err = add_output(codec, dac, i, cfg->speaker_outs,
-				 AUTO_PIN_SPEAKER_OUT);
+		err = add_output(codec, get_dac(codec, cfg->speaker_pins[i]),
+				 i, cfg->speaker_outs, AUTO_PIN_SPEAKER_OUT);
 		if (err < 0)
 			return err;
 	}
-
-	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) {
-		cfg->speaker_outs = cfg->line_outs;
-		memcpy(cfg->speaker_pins, cfg->line_out_pins,
-		       sizeof(cfg->speaker_pins));
-		cfg->line_outs = 0;
-	}
-
 	return 0;
 }
 
@@ -506,48 +642,6 @@ static struct snd_kcontrol_new cs_capture_source = {
 	.put = cs_capture_source_put,
 };
 
-
-static int is_ext_mic(struct hda_codec *codec, unsigned int idx)
-{
-	struct cs_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	hda_nid_t pin = cfg->input_pins[idx];
-	unsigned int val = snd_hda_query_pin_caps(codec, pin);
-	if (!(val & AC_PINCAP_PRES_DETECT))
-		return 0;
-	val = snd_hda_codec_get_pincfg(codec, pin);
-	return (get_defcfg_connect(val) == AC_JACK_PORT_COMPLEX);
-}
-
-static hda_nid_t get_adc(struct hda_codec *codec, hda_nid_t pin,
-			 unsigned int *idxp)
-{
-	int i;
-	hda_nid_t nid;
-
-	nid = codec->start_nid;
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
-		hda_nid_t pins[2];
-		unsigned int type;
-		int j, nums;
-		type = (get_wcaps(codec, nid) & AC_WCAP_TYPE)
-			>> AC_WCAP_TYPE_SHIFT;
-		if (type != AC_WID_AUD_IN)
-			continue;
-		nums = snd_hda_get_connections(codec, nid, pins,
-					       ARRAY_SIZE(pins));
-		if (nums <= 0)
-			continue;
-		for (j = 0; j < nums; j++) {
-			if (pins[j] == pin) {
-				*idxp = j;
-				return nid;
-			}
-		}
-	}
-	return 0;
-}
-
 static struct hda_bind_ctls *make_bind_capture(struct hda_codec *codec,
 					       struct hda_ctl_ops *ops)
 {
@@ -574,37 +668,10 @@ static struct hda_bind_ctls *make_bind_capture(struct hda_codec *codec,
 static int build_input(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, n, err;
+	int i, err;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t pin = cfg->input_pins[i];
-		struct snd_kcontrol *kctl;
-		if (!pin)
-			continue;
-		spec->input_idx[spec->num_inputs] = i;
-		spec->capsrc_idx[i] = spec->num_inputs++;
-		spec->cur_input = i;
-		spec->adc_nid[i] = get_adc(codec, pin, &spec->adc_idx[i]);
-	}
 	if (!spec->num_inputs)
 		return 0;
-
-	/* check whether the automatic mic switch is available */
-	if (spec->num_inputs == 2 &&
-	    spec->adc_nid[AUTO_PIN_MIC] && spec->adc_nid[AUTO_PIN_FRONT_MIC]) {
-		if (is_ext_mic(codec, cfg->input_pins[AUTO_PIN_FRONT_MIC])) {
-			if (!is_ext_mic(codec, cfg->input_pins[AUTO_PIN_MIC])) {
-				spec->mic_detect = 1;
-				spec->automic_idx = AUTO_PIN_FRONT_MIC;
-			}
-		} else {
-			if (is_ext_mic(codec, cfg->input_pins[AUTO_PIN_MIC])) {
-				spec->mic_detect = 1;
-				spec->automic_idx = AUTO_PIN_MIC;
-			}
-		}
-	}
 
 	/* make bind-capture */
 	spec->capture_bind[0] = make_bind_capture(codec, &snd_hda_bind_sw);
@@ -632,46 +699,34 @@ static int build_input(struct hda_codec *codec)
 	return 0;
 }
 
+/*
+ */
+
 static int build_digital_output(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	hda_nid_t nid;
 	int err;
 
-	if (!cfg->dig_outs)
-		return 0;
-	if (snd_hda_get_connections(codec, cfg->dig_out_pins[0], &nid, 1) < 1)
-		return 0;
-	spec->multiout.dig_out_nid = nid;
 	err = snd_hda_create_spdif_out_ctls(codec, spec->multiout.dig_out_nid);
 	if (err < 0)
 		return err;
 	err = snd_hda_create_spdif_share_sw(codec, &spec->multiout);
 	if (err < 0)
 		return err;
-	spec->multiout.share_spdif = 1;
-	if (cfg->dig_outs > 1 &&
-	    snd_hda_get_connections(codec, cfg->dig_out_pins[1], &nid, 1) > 0) {
-		spec->slave_dig_outs[0] = nid;
-		codec->slave_dig_outs = spec->slave_dig_outs;
-	}
 	return 0;
 }
 
 static int build_digital_input(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int idx;
-
-	if (!cfg->dig_in_pin)
-		return 0;
-	spec->dig_in = get_adc(codec, cfg->dig_in_pin, &idx);
-	if (!spec->dig_in)
-		return 0;
-	return snd_hda_create_spdif_in_ctls(codec, spec->dig_in);
+	if (spec->dig_in)
+		return snd_hda_create_spdif_in_ctls(codec, spec->dig_in);
+	return 0;
 }
+
+/*
+ * auto-mute and auto-mic switching
+ */
 
 static void cs_automute(struct hda_codec *codec)
 {
@@ -810,8 +865,6 @@ static int cs_init(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 
-	if (!spec->built_up)
-		return 0;
 	init_output(codec);
 	init_input(codec);
 	return 0;
@@ -834,7 +887,6 @@ static int cs_build_controls(struct hda_codec *codec)
 	err = build_digital_input(codec);
 	if (err < 0)
 		return err;
-	spec->built_up = 1;
 	return cs_init(codec);
 }
 
@@ -889,6 +941,19 @@ static int patch_cs420x(struct hda_codec *codec)
 	codec->spec = spec;
 
 	err = cs_parse_auto_config(codec);
+	if (err < 0)
+		goto error;
+
+	err = parse_output(codec);
+	if (err < 0)
+		goto error;
+	err = parse_input(codec);
+	if (err < 0)
+		goto error;
+	err = parse_digital_output(codec);
+	if (err < 0)
+		goto error;
+	err = parse_digital_input(codec);
 	if (err < 0)
 		goto error;
 
