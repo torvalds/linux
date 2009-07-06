@@ -410,13 +410,10 @@ struct jme_ring {
 /*
  * Jmac Adapter Private data
  */
-#define SHADOW_REG_NR 8
 struct jme_adapter {
 	struct pci_dev          *pdev;
 	struct net_device       *dev;
 	void __iomem            *regs;
-	dma_addr_t		shadow_dma;
-	u32			*shadow_regs;
 	struct mii_if_info	mii_if;
 	struct jme_ring		rxring[RX_RING_NR];
 	struct jme_ring		txring[TX_RING_NR];
@@ -461,10 +458,6 @@ struct jme_adapter {
 					  unsigned short vlan_tag);
 	DECLARE_NAPI_STRUCT
 	DECLARE_NET_DEVICE_STATS
-};
-
-enum shadow_reg_val {
-	SHADOW_IEVE = 0,
 };
 
 enum jme_flags_bits {
@@ -1100,13 +1093,6 @@ enum jme_chipmode_bit_masks {
 enum jme_chipmode_shifts {
 	CM_FPGAVER_SHIFT	= 16,
 	CM_CHIPREV_SHIFT	= 8,
-};
-
-/*
- * Shadow base address register bits
- */
-enum jme_shadow_base_address_bits {
-	SHBA_POSTEN	= 0x1,
 };
 
 /*
