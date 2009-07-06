@@ -3583,7 +3583,8 @@ int ext4_block_truncate_page(handle_t *handle,
 	struct page *page;
 	int err = 0;
 
-	page = grab_cache_page(mapping, from >> PAGE_CACHE_SHIFT);
+	page = find_or_create_page(mapping, from >> PAGE_CACHE_SHIFT,
+				   mapping_gfp_mask(mapping) & ~__GFP_FS);
 	if (!page)
 		return -EINVAL;
 
