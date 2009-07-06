@@ -319,6 +319,9 @@ static int  option_resume(struct usb_serial *serial);
 #define TOSHIBA_VENDOR_ID			0x0930
 #define TOSHIBA_PRODUCT_HSDPA_MINICARD		0x1302
 
+#define ALINK_VENDOR_ID				0x1e0e
+#define ALINK_PRODUCT_3GU			0x9200
+
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
@@ -542,7 +545,8 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H20_4515) },
 	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H20_4519) },
 	{ USB_DEVICE(TOSHIBA_VENDOR_ID, TOSHIBA_PRODUCT_HSDPA_MINICARD ) }, /* Toshiba 3G HSDPA == Novatel Expedite EU870D MiniCard */
-	{ USB_DEVICE(0x1e0e, 0x9000) },
+	{ USB_DEVICE(ALINK_VENDOR_ID, 0x9000) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ALINK_VENDOR_ID, ALINK_PRODUCT_3GU, 0xff, 0xff, 0xff) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
