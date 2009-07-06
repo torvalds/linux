@@ -1862,13 +1862,68 @@ static char elf_type(const Elf_Sym *sym,
 	return '?';
 }
 
+static bool is_core_symbol(const Elf_Sym *src, const Elf_Shdr *sechdrs,
+                           unsigned int shnum)
+{
+	const Elf_Shdr *sec;
+
+	if (src->st_shndx == SHN_UNDEF
+	    || src->st_shndx >= shnum
+	    || !src->st_name)
+		return false;
+
+	sec = sechdrs + src->st_shndx;
+	if (!(sec->sh_flags & SHF_ALLOC)
+#ifndef CONFIG_KALLSYMS_ALL
+	    || !(sec->sh_flags & SHF_EXECINSTR)
+#endif
+	    || (sec->sh_entsize & INIT_OFFSET_MASK))
+		return false;
+
+	return true;
+}
+
+static unsigned long layout_symtab(struct module *mod,
+				   Elf_Shdr *sechdrs,
+				   unsigned int symindex,
+				   const Elf_Ehdr *hdr,
+				   const char *secstrings)
+{
+	unsigned long symoffs;
+	Elf_Shdr *symsect = sechdrs + symindex;
+	const Elf_Sym *src;
+	unsigned int i, nsrc, ndst;
+
+	/* Put symbol section at end of init part of module. */
+	symsect->sh_flags |= SHF_ALLOC;
+	symsect->sh_entsize = get_offset(mod, &mod->init_size, symsect,
+					 symindex) | INIT_OFFSET_MASK;
+	DEBUGP("\t%s\n", secstrings + symsect->sh_name);
+
+	src = (void *)hdr + symsect->sh_offset;
+	nsrc = symsect->sh_size / sizeof(*src);
+	for (ndst = i = 1; i < nsrc; ++i, ++src)
+		if (is_core_symbol(src, sechdrs, hdr->e_shnum))
+			++ndst;
+
+	/* Append room for core symbols at end of core part. */
+	symoffs = ALIGN(mod->core_size, symsect->sh_addralign ?: 1);
+	mod->core_size = symoffs + ndst * sizeof(Elf_Sym);
+
+	return symoffs;
+}
+
 static void add_kallsyms(struct module *mod,
 			 Elf_Shdr *sechdrs,
+			 unsigned int shnum,
 			 unsigned int symindex,
 			 unsigned int strindex,
+			 unsigned long symoffs,
 			 const char *secstrings)
 {
-	unsigned int i;
+	unsigned int i, ndst;
+	const Elf_Sym *src;
+	Elf_Sym *dst;
 
 	mod->symtab = (void *)sechdrs[symindex].sh_addr;
 	mod->num_symtab = sechdrs[symindex].sh_size / sizeof(Elf_Sym);
@@ -1878,12 +1933,32 @@ static void add_kallsyms(struct module *mod,
 	for (i = 0; i < mod->num_symtab; i++)
 		mod->symtab[i].st_info
 			= elf_type(&mod->symtab[i], sechdrs, secstrings, mod);
+
+	mod->core_symtab = dst = mod->module_core + symoffs;
+	src = mod->symtab;
+	*dst = *src;
+	for (ndst = i = 1; i < mod->num_symtab; ++i, ++src) {
+		if (!is_core_symbol(src, sechdrs, shnum))
+			continue;
+		dst[ndst] = *src;
+		++ndst;
+	}
+	mod->core_num_syms = ndst;
 }
 #else
+static inline unsigned long layout_symtab(struct module *mod,
+					  Elf_Shdr *sechdrs,
+					  unsigned int symindex,
+					  const Elf_Hdr *hdr,
+					  const char *secstrings)
+{
+}
 static inline void add_kallsyms(struct module *mod,
 				Elf_Shdr *sechdrs,
+				unsigned int shnum,
 				unsigned int symindex,
 				unsigned int strindex,
+				unsigned long symoffs,
 				const char *secstrings)
 {
 }
@@ -1959,6 +2034,9 @@ static noinline struct module *load_module(void __user *umod,
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
+#ifdef CONFIG_KALLSYMS
+	unsigned long symoffs;
+#endif
 	mm_segment_t old_fs;
 
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
@@ -2041,8 +2119,7 @@ static noinline struct module *load_module(void __user *umod,
 	sechdrs[infoindex].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	sechdrs[versindex].sh_flags &= ~(unsigned long)SHF_ALLOC;
 #ifdef CONFIG_KALLSYMS
-	/* Keep symbol and string tables for decoding later. */
-	sechdrs[symindex].sh_flags |= SHF_ALLOC;
+	/* Keep string table for decoding later. */
 	sechdrs[strindex].sh_flags |= SHF_ALLOC;
 #endif
 
@@ -2109,6 +2186,7 @@ static noinline struct module *load_module(void __user *umod,
 	   this is done generically; there doesn't appear to be any
 	   special cases for the architectures. */
 	layout_sections(mod, hdr, sechdrs, secstrings);
+	symoffs = layout_symtab(mod, sechdrs, symindex, hdr, secstrings);
 
 	/* Do the allocs. */
 	ptr = module_alloc_update_bounds(mod->core_size);
@@ -2313,7 +2391,8 @@ static noinline struct module *load_module(void __user *umod,
 	percpu_modcopy(mod->percpu, (void *)sechdrs[pcpuindex].sh_addr,
 		       sechdrs[pcpuindex].sh_size);
 
-	add_kallsyms(mod, sechdrs, symindex, strindex, secstrings);
+	add_kallsyms(mod, sechdrs, hdr->e_shnum, symindex, strindex,
+		     symoffs, secstrings);
 
 	if (!mod->taints) {
 		struct _ddebug *debug;
@@ -2491,6 +2570,10 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	/* Drop initial reference. */
 	module_put(mod);
 	trim_init_extable(mod);
+#ifdef CONFIG_KALLSYMS
+	mod->num_symtab = mod->core_num_syms;
+	mod->symtab = mod->core_symtab;
+#endif
 	module_free(mod, mod->module_init);
 	mod->module_init = NULL;
 	mod->init_size = 0;
