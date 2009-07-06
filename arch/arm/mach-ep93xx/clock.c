@@ -26,7 +26,7 @@ struct clk {
 	unsigned long	rate;
 	int		users;
 	int		sw_locked;
-	u32		enable_reg;
+	void __iomem	*enable_reg;
 	u32		enable_mask;
 
 	unsigned long	(*get_rate)(struct clk *clk);
