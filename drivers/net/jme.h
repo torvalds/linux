@@ -247,7 +247,7 @@ enum jme_txdesc_flags_bits {
 };
 
 #define TXDESC_MSS_SHIFT	2
-enum jme_rxdescwb_flags_bits {
+enum jme_txwbdesc_flags_bits {
 	TXWBFLAG_OWN	= 0x80,
 	TXWBFLAG_INT	= 0x40,
 	TXWBFLAG_TMOUT	= 0x20,
