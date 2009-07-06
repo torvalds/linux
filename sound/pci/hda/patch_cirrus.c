@@ -58,6 +58,64 @@ struct cs_spec {
 	unsigned int mic_detect:1;
 };
 
+/* Vendor-specific processing widget */
+#define CS420X_VENDOR_NID	0x11
+#define CS_DIG_OUT1_PIN_NID	0x10
+#define CS_DIG_OUT2_PIN_NID	0x15
+#define CS_DMIC1_PIN_NID	0x12
+#define CS_DMIC2_PIN_NID	0x0e
+
+/* coef indices */
+#define IDX_SPDIF_STAT		0x0000
+#define IDX_SPDIF_CTL		0x0001
+#define IDX_ADC_CFG		0x0002
+/* SZC bitmask, 4 modes below:
+ * 0 = immediate,
+ * 1 = digital immediate, analog zero-cross
+ * 2 = digtail & analog soft-ramp
+ * 3 = digital soft-ramp, analog zero-cross
+ */
+#define   CS_COEF_ADC_SZC_MASK		(3 << 0)
+#define   CS_COEF_ADC_MIC_SZC_MODE	(3 << 0) /* SZC setup for mic */
+#define   CS_COEF_ADC_LI_SZC_MODE	(3 << 0) /* SZC setup for line-in */
+/* PGA mode: 0 = differential, 1 = signle-ended */
+#define   CS_COEF_ADC_MIC_PGA_MODE	(1 << 5) /* PGA setup for mic */
+#define   CS_COEF_ADC_LI_PGA_MODE	(1 << 6) /* PGA setup for line-in */
+#define IDX_DAC_CFG		0x0003
+/* SZC bitmask, 4 modes below:
+ * 0 = Immediate
+ * 1 = zero-cross
+ * 2 = soft-ramp
+ * 3 = soft-ramp on zero-cross
+ */
+#define   CS_COEF_DAC_HP_SZC_MODE	(3 << 0) /* nid 0x02 */
+#define   CS_COEF_DAC_LO_SZC_MODE	(3 << 2) /* nid 0x03 */
+#define   CS_COEF_DAC_SPK_SZC_MODE	(3 << 4) /* nid 0x04 */
+
+#define IDX_BEEP_CFG		0x0004
+/* 0x0008 - test reg key */
+/* 0x0009 - 0x0014 -> 12 test regs */
+/* 0x0015 - visibility reg */
+
+
+static int cs_vendor_coef_get(struct hda_codec *codec, unsigned int idx)
+{
+	snd_hda_codec_write(codec, CS420X_VENDOR_NID, 0,
+			    AC_VERB_SET_COEF_INDEX, idx);
+	return snd_hda_codec_read(codec, CS420X_VENDOR_NID, 0,
+				  AC_VERB_GET_PROC_COEF, 0);
+}
+
+static void cs_vendor_coef_set(struct hda_codec *codec, unsigned int idx,
+			       unsigned int coef)
+{
+	snd_hda_codec_write(codec, CS420X_VENDOR_NID, 0,
+			    AC_VERB_SET_COEF_INDEX, idx);
+	snd_hda_codec_write(codec, CS420X_VENDOR_NID, 0,
+			    AC_VERB_SET_PROC_COEF, coef);
+}
+
+
 #define HP_EVENT	1
 #define MIC_EVENT	2
 
@@ -293,6 +351,14 @@ static hda_nid_t get_adc(struct hda_codec *codec, hda_nid_t pin,
 		}
 	}
 	return 0;
+}
+
+static int is_active_pin(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct cs_spec *spec = codec->spec;
+	unsigned int val;
+	val = snd_hda_codec_get_pincfg(codec, nid);
+	return (get_defcfg_connect(val) != AC_JACK_PORT_NONE);
 }
 
 static int parse_output(struct hda_codec *codec)
@@ -833,6 +899,7 @@ static void init_input(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
+	unsigned int coef;
 	int i;
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
@@ -861,14 +928,57 @@ static void init_input(struct hda_codec *codec)
 	change_cur_input(codec, spec->cur_input, 1);
 	if (spec->mic_detect)
 		cs_automic(codec);
+
+	coef = 0x000a; /* ADC1/2 - Digital and Analog Soft Ramp */
+	if (is_active_pin(codec, CS_DMIC2_PIN_NID))
+		coef |= 0x0500; /* DMIC2 enable 2 channels, disable GPIO1 */
+	if (is_active_pin(codec, CS_DMIC1_PIN_NID))
+		coef |= 0x1800; /* DMIC1 enable 2 channels, disable GPIO0 
+				 * No effect if SPDIF_OUT2 is slected in 
+				 * IDX_SPDIF_CTL.
+				  */
+	cs_vendor_coef_set(codec, IDX_ADC_CFG, coef);
+}
+
+static struct hda_verb cs_coef_init_verbs[] = {
+	{0x11, AC_VERB_SET_PROC_STATE, 1},
+	{0x11, AC_VERB_SET_COEF_INDEX, IDX_DAC_CFG},
+	{0x11, AC_VERB_SET_PROC_COEF,
+	 (0x002a /* DAC1/2/3 SZCMode Soft Ramp */
+	  | 0x0040 /* Mute DACs on FIFO error */
+	  | 0x1000 /* Enable DACs High Pass Filter */
+	  | 0x0400 /* Disable Coefficient Auto increment */
+	  )},
+	/* Beep */
+	{0x11, AC_VERB_SET_COEF_INDEX, IDX_DAC_CFG},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x0007}, /* Enable Beep thru DAC1/2/3 */
+
+	{} /* terminator */
+};
+
+/* SPDIF setup */
+static void init_digital(struct hda_codec *codec)
+{
+	unsigned int coef;
+
+	coef = 0x0002; /* SRC_MUTE soft-mute on SPDIF (if no lock) */
+	coef |= 0x0008; /* Replace with mute on error */
+	if (is_active_pin(codec, CS_DIG_OUT2_PIN_NID))
+		coef |= 0x4000; /* RX to TX1 or TX2 Loopthru / SPDIF2
+				 * SPDIF_OUT2 is shared with GPIO1 and
+				 * DMIC_SDA2.
+				 */
+	cs_vendor_coef_set(codec, IDX_SPDIF_CTL, coef);
 }
 
 static int cs_init(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 
+	snd_hda_sequence_write(codec, cs_coef_init_verbs);
 	init_output(codec);
 	init_input(codec);
+	init_digital(codec);
 	return 0;
 }
 
