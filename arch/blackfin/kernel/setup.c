@@ -810,6 +810,8 @@ void __init setup_arch(char **cmdline_p)
 {
 	unsigned long sclk, cclk;
 
+	enable_shadow_console();
+
 	/* Check to make sure we are running on the right processor */
 	if (unlikely(CPUID != bfin_cpuid()))
 		printk(KERN_ERR "ERROR: Not running on ADSP-%s: unknown CPUID 0x%04x Rev 0.%d\n",
