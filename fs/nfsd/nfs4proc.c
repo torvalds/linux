@@ -123,6 +123,35 @@ nfsd4_check_open_attributes(struct svc_rqst *rqstp,
 	return status;
 }
 
+static int
+is_create_with_attrs(struct nfsd4_open *open)
+{
+	return open->op_create == NFS4_OPEN_CREATE
+		&& (open->op_createmode == NFS4_CREATE_UNCHECKED
+		    || open->op_createmode == NFS4_CREATE_GUARDED
+		    || open->op_createmode == NFS4_CREATE_EXCLUSIVE4_1);
+}
+
+/*
+ * if error occurs when setting the acl, just clear the acl bit
+ * in the returned attr bitmap.
+ */
+static void
+do_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		struct nfs4_acl *acl, u32 *bmval)
+{
+	__be32 status;
+
+	status = nfsd4_set_nfs4_acl(rqstp, fhp, acl);
+	if (status)
+		/*
+		 * We should probably fail the whole open at this point,
+		 * but we've already created the file, so it's too late;
+		 * So this seems the least of evils:
+		 */
+		bmval[0] &= ~FATTR4_WORD0_ACL;
+}
+
 static inline void
 fh_dup2(struct svc_fh *dst, struct svc_fh *src)
 {
@@ -205,6 +234,9 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 	}
 	if (status)
 		goto out;
+
+	if (is_create_with_attrs(open) && open->op_acl != NULL)
+		do_set_nfs4_acl(rqstp, &resfh, open->op_acl, open->op_bmval);
 
 	set_change_info(&open->op_cinfo, current_fh);
 	fh_dup2(current_fh, &resfh);
@@ -536,12 +568,17 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfserr_badtype;
 	}
 
-	if (!status) {
-		fh_unlock(&cstate->current_fh);
-		set_change_info(&create->cr_cinfo, &cstate->current_fh);
-		fh_dup2(&cstate->current_fh, &resfh);
-	}
+	if (status)
+		goto out;
 
+	if (create->cr_acl != NULL)
+		do_set_nfs4_acl(rqstp, &resfh, create->cr_acl,
+				create->cr_bmval);
+
+	fh_unlock(&cstate->current_fh);
+	set_change_info(&create->cr_cinfo, &cstate->current_fh);
+	fh_dup2(&cstate->current_fh, &resfh);
+out:
 	fh_put(&resfh);
 	return status;
 }
