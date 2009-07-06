@@ -10,6 +10,15 @@ struct swsusp_arch_regs {
 	struct pt_regs user_regs;
 	unsigned long bank1_regs[8];
 };
+
+void sh_mobile_call_standby(unsigned long mode);
+
+#ifdef CONFIG_CPU_IDLE
+void sh_mobile_setup_cpuidle(void);
+#else
+static inline void sh_mobile_setup_cpuidle(void) {}
+#endif
+
 #endif
 
 /* flags passed to assembly suspend code */

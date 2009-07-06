@@ -506,7 +506,6 @@ struct m66592 {
 	int interrupt;
 	int isochronous;
 	int num_dma;
-	int bi_bufnum;	/* bulk and isochronous's bufnum */
 };
 
 #define gadget_to_m66592(_gadget) container_of(_gadget, struct m66592, gadget)
