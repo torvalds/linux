@@ -729,7 +729,10 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 
 	err = mlx4_QUERY_FW(dev);
 	if (err) {
-		mlx4_err(dev, "QUERY_FW command failed, aborting.\n");
+		if (err == -EACCES)
+			mlx4_info(dev, "non-primary physical function, skipping.\n");
+		else
+			mlx4_err(dev, "QUERY_FW command failed, aborting.\n");
 		return err;
 	}
 
