@@ -42,7 +42,7 @@ void nl80211_send_roamed(struct cfg80211_registered_device *rdev,
 			 const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp);
 void nl80211_send_disconnected(struct cfg80211_registered_device *rdev,
 			       struct net_device *netdev, u16 reason,
-			       u8 *ie, size_t ie_len, bool from_ap, gfp_t gfp);
+			       const u8 *ie, size_t ie_len, bool from_ap);
 
 void
 nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,

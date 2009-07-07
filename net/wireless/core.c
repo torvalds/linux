@@ -257,6 +257,71 @@ static void cfg80211_rfkill_sync_work(struct work_struct *work)
 	cfg80211_rfkill_set_block(drv, rfkill_blocked(drv->rfkill));
 }
 
+static void cfg80211_process_events(struct wireless_dev *wdev)
+{
+	struct cfg80211_event *ev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdev->event_lock, flags);
+	while (!list_empty(&wdev->event_list)) {
+		ev = list_first_entry(&wdev->event_list,
+				      struct cfg80211_event, list);
+		list_del(&ev->list);
+		spin_unlock_irqrestore(&wdev->event_lock, flags);
+
+		wdev_lock(wdev);
+		switch (ev->type) {
+		case EVENT_CONNECT_RESULT:
+			__cfg80211_connect_result(
+				wdev->netdev, ev->cr.bssid,
+				ev->cr.req_ie, ev->cr.req_ie_len,
+				ev->cr.resp_ie, ev->cr.resp_ie_len,
+				ev->cr.status,
+				ev->cr.status == WLAN_STATUS_SUCCESS);
+			break;
+		case EVENT_ROAMED:
+			__cfg80211_roamed(wdev, ev->rm.bssid,
+					  ev->rm.req_ie, ev->rm.req_ie_len,
+					  ev->rm.resp_ie, ev->rm.resp_ie_len);
+			break;
+		case EVENT_DISCONNECTED:
+			__cfg80211_disconnected(wdev->netdev,
+						ev->dc.ie, ev->dc.ie_len,
+						ev->dc.reason, true);
+			break;
+		case EVENT_IBSS_JOINED:
+			__cfg80211_ibss_joined(wdev->netdev, ev->ij.bssid);
+			break;
+		}
+		wdev_unlock(wdev);
+
+		kfree(ev);
+
+		spin_lock_irqsave(&wdev->event_lock, flags);
+	}
+	spin_unlock_irqrestore(&wdev->event_lock, flags);
+}
+
+static void cfg80211_event_work(struct work_struct *work)
+{
+	struct cfg80211_registered_device *rdev;
+	struct wireless_dev *wdev;
+
+	rdev = container_of(work, struct cfg80211_registered_device,
+			    event_work);
+
+	rtnl_lock();
+	cfg80211_lock_rdev(rdev);
+	mutex_lock(&rdev->devlist_mtx);
+
+	list_for_each_entry(wdev, &rdev->netdev_list, list)
+		cfg80211_process_events(wdev);
+
+	mutex_unlock(&rdev->devlist_mtx);
+	cfg80211_unlock_rdev(rdev);
+	rtnl_unlock();
+}
+
 /* exported functions */
 
 struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
@@ -299,6 +364,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	INIT_LIST_HEAD(&drv->netdev_list);
 	spin_lock_init(&drv->bss_lock);
 	INIT_LIST_HEAD(&drv->bss_list);
+	INIT_WORK(&drv->scan_done_wk, __cfg80211_scan_done);
 
 	device_initialize(&drv->wiphy.dev);
 	drv->wiphy.dev.class = &ieee80211_class;
@@ -316,6 +382,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 
 	INIT_WORK(&drv->rfkill_sync, cfg80211_rfkill_sync_work);
 	INIT_WORK(&drv->conn_work, cfg80211_conn_work);
+	INIT_WORK(&drv->event_work, cfg80211_event_work);
 
 	/*
 	 * Initialize wiphy parameters to IEEE 802.11 MIB default values.
@@ -477,6 +544,9 @@ void wiphy_unregister(struct wiphy *wiphy)
 	mutex_unlock(&drv->mtx);
 
 	cancel_work_sync(&drv->conn_work);
+	cancel_work_sync(&drv->scan_done_wk);
+	kfree(drv->scan_req);
+	flush_work(&drv->event_work);
 
 	cfg80211_debugfs_drv_del(drv);
 
@@ -535,6 +605,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 
 	switch (state) {
 	case NETDEV_REGISTER:
+		mutex_init(&wdev->mtx);
+		INIT_LIST_HEAD(&wdev->event_list);
+		spin_lock_init(&wdev->event_lock);
 		mutex_lock(&rdev->devlist_mtx);
 		list_add(&wdev->list, &rdev->netdev_list);
 		if (sysfs_create_link(&dev->dev.kobj, &rdev->wiphy.dev.kobj,
@@ -566,15 +639,17 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			cfg80211_leave_ibss(rdev, dev, true);
 			break;
 		case NL80211_IFTYPE_STATION:
+			wdev_lock(wdev);
 #ifdef CONFIG_WIRELESS_EXT
 			kfree(wdev->wext.ie);
 			wdev->wext.ie = NULL;
 			wdev->wext.ie_len = 0;
 			wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
 #endif
-			cfg80211_disconnect(rdev, dev,
-					    WLAN_REASON_DEAUTH_LEAVING, true);
+			__cfg80211_disconnect(rdev, dev,
+					      WLAN_REASON_DEAUTH_LEAVING, true);
 			cfg80211_mlme_down(rdev, dev);
+			wdev_unlock(wdev);
 			break;
 		default:
 			break;
@@ -582,20 +657,24 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		break;
 	case NETDEV_UP:
 #ifdef CONFIG_WIRELESS_EXT
+		cfg80211_lock_rdev(rdev);
+		wdev_lock(wdev);
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
 			if (wdev->wext.ibss.ssid_len)
-				cfg80211_join_ibss(rdev, dev,
-						   &wdev->wext.ibss);
+				__cfg80211_join_ibss(rdev, dev,
+						     &wdev->wext.ibss);
 			break;
 		case NL80211_IFTYPE_STATION:
 			if (wdev->wext.connect.ssid_len)
-				cfg80211_connect(rdev, dev,
-						 &wdev->wext.connect);
+				__cfg80211_connect(rdev, dev,
+						   &wdev->wext.connect);
 			break;
 		default:
 			break;
 		}
+		wdev_unlock(wdev);
+		cfg80211_unlock_rdev(rdev);
 #endif
 		break;
 	case NETDEV_UNREGISTER:
@@ -605,6 +684,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			list_del_init(&wdev->list);
 		}
 		mutex_unlock(&rdev->devlist_mtx);
+		mutex_destroy(&wdev->mtx);
 		break;
 	case NETDEV_PRE_UP:
 		if (rfkill_blocked(rdev->rfkill))

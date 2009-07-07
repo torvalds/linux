@@ -57,12 +57,14 @@ struct cfg80211_registered_device {
 	u32 bss_generation;
 	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
 	unsigned long suspend_at;
+	struct work_struct scan_done_wk;
 
 #ifdef CONFIG_NL80211_TESTMODE
 	struct genl_info *testmode_info;
 #endif
 
 	struct work_struct conn_work;
+	struct work_struct event_work;
 
 #ifdef CONFIG_CFG80211_DEBUGFS
 	/* Debugfs entries */
@@ -170,11 +172,72 @@ struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx);
 extern struct cfg80211_registered_device *
 cfg80211_get_dev_from_ifindex(int ifindex);
 
+static inline void cfg80211_lock_rdev(struct cfg80211_registered_device *drv)
+{
+	mutex_lock(&drv->mtx);
+}
+
 static inline void cfg80211_unlock_rdev(struct cfg80211_registered_device *drv)
 {
 	BUG_ON(IS_ERR(drv) || !drv);
 	mutex_unlock(&drv->mtx);
 }
+
+static inline void wdev_lock(struct wireless_dev *wdev)
+	__acquires(wdev)
+{
+	mutex_lock(&wdev->mtx);
+	__acquire(wdev->mtx);
+}
+
+static inline void wdev_unlock(struct wireless_dev *wdev)
+	__releases(wdev)
+{
+	__release(wdev->mtx);
+	mutex_unlock(&wdev->mtx);
+}
+
+#define ASSERT_RDEV_LOCK(rdev) WARN_ON(!mutex_is_locked(&(rdev)->mtx));
+#define ASSERT_WDEV_LOCK(wdev) WARN_ON(!mutex_is_locked(&(wdev)->mtx));
+
+enum cfg80211_event_type {
+	EVENT_CONNECT_RESULT,
+	EVENT_ROAMED,
+	EVENT_DISCONNECTED,
+	EVENT_IBSS_JOINED,
+};
+
+struct cfg80211_event {
+	struct list_head list;
+	enum cfg80211_event_type type;
+
+	union {
+		struct {
+			u8 bssid[ETH_ALEN];
+			const u8 *req_ie;
+			const u8 *resp_ie;
+			size_t req_ie_len;
+			size_t resp_ie_len;
+			u16 status;
+		} cr;
+		struct {
+			u8 bssid[ETH_ALEN];
+			const u8 *req_ie;
+			const u8 *resp_ie;
+			size_t req_ie_len;
+			size_t resp_ie_len;
+		} rm;
+		struct {
+			const u8 *ie;
+			size_t ie_len;
+			u16 reason;
+		} dc;
+		struct {
+			u8 bssid[ETH_ALEN];
+		} ij;
+	};
+};
+
 
 /* free object */
 extern void cfg80211_dev_free(struct cfg80211_registered_device *drv);
@@ -191,25 +254,46 @@ void cfg80211_bss_age(struct cfg80211_registered_device *dev,
                       unsigned long age_secs);
 
 /* IBSS */
+int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev,
+			 struct cfg80211_ibss_params *params);
 int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
 		       struct cfg80211_ibss_params *params);
 void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
+void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid);
 
 /* MLME */
+int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev,
+			 struct ieee80211_channel *chan,
+			 enum nl80211_auth_type auth_type,
+			 const u8 *bssid,
+			 const u8 *ssid, int ssid_len,
+			 const u8 *ie, int ie_len);
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev, struct ieee80211_channel *chan,
 		       enum nl80211_auth_type auth_type, const u8 *bssid,
 		       const u8 *ssid, int ssid_len,
 		       const u8 *ie, int ie_len);
+int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev,
+			  struct ieee80211_channel *chan,
+			  const u8 *bssid, const u8 *prev_bssid,
+			  const u8 *ssid, int ssid_len,
+			  const u8 *ie, int ie_len, bool use_mfp,
+			  struct cfg80211_crypto_settings *crypt);
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, struct ieee80211_channel *chan,
 			const u8 *bssid, const u8 *prev_bssid,
 			const u8 *ssid, int ssid_len,
 			const u8 *ie, int ie_len, bool use_mfp,
 			struct cfg80211_crypto_settings *crypt);
+int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
+			   struct net_device *dev, const u8 *bssid,
+			   const u8 *ie, int ie_len, u16 reason);
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, const u8 *bssid,
 			 const u8 *ie, int ie_len, u16 reason);
@@ -218,24 +302,38 @@ int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 			   const u8 *ie, int ie_len, u16 reason);
 void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
+void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
+			       const u8 *req_ie, size_t req_ie_len,
+			       const u8 *resp_ie, size_t resp_ie_len,
+			       u16 status, bool wextev);
 
 /* SME */
+int __cfg80211_connect(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev,
+		       struct cfg80211_connect_params *connect);
 int cfg80211_connect(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev,
 		     struct cfg80211_connect_params *connect);
+int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev, u16 reason,
+			  bool wextev);
 int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u16 reason,
 			bool wextev);
+void __cfg80211_roamed(struct wireless_dev *wdev, const u8 *bssid,
+		       const u8 *req_ie, size_t req_ie_len,
+		       const u8 *resp_ie, size_t resp_ie_len);
 
 void cfg80211_conn_work(struct work_struct *work);
 
 /* internal helpers */
 int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
 				   const u8 *mac_addr);
-void __cfg80211_disconnected(struct net_device *dev, gfp_t gfp, u8 *ie,
+void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 			     size_t ie_len, u16 reason, bool from_ap);
 void cfg80211_sme_scan_done(struct net_device *dev);
 void cfg80211_sme_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
 void cfg80211_sme_disassoc(struct net_device *dev, int idx);
+void __cfg80211_scan_done(struct work_struct *wk);
 
 #endif /* __NET_WIRELESS_CORE_H */

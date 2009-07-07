@@ -555,6 +555,7 @@ struct cfg80211_scan_request {
 	/* internal */
 	struct wiphy *wiphy;
 	int ifidx;
+	bool aborted;
 };
 
 /**
@@ -998,9 +999,11 @@ struct cfg80211_ops {
 	int	(*assoc)(struct wiphy *wiphy, struct net_device *dev,
 			 struct cfg80211_assoc_request *req);
 	int	(*deauth)(struct wiphy *wiphy, struct net_device *dev,
-			  struct cfg80211_deauth_request *req);
+			  struct cfg80211_deauth_request *req,
+			  void *cookie);
 	int	(*disassoc)(struct wiphy *wiphy, struct net_device *dev,
-			    struct cfg80211_disassoc_request *req);
+			    struct cfg80211_disassoc_request *req,
+			    void *cookie);
 
 	int	(*connect)(struct wiphy *wiphy, struct net_device *dev,
 			   struct cfg80211_connect_params *sme);
@@ -1249,9 +1252,11 @@ struct wireless_dev {
 	struct wiphy *wiphy;
 	enum nl80211_iftype iftype;
 
-	/* private to the generic wireless code */
+	/* the remainder of this struct should be private to cfg80211 */
 	struct list_head list;
 	struct net_device *netdev;
+
+	struct mutex mtx;
 
 	/* currently used for IBSS and SME - might be rearranged later */
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
@@ -1262,6 +1267,9 @@ struct wireless_dev {
 		CFG80211_SME_CONNECTED,
 	} sme_state;
 	struct cfg80211_conn *conn;
+
+	struct list_head event_list;
+	spinlock_t event_lock;
 
 	struct cfg80211_internal_bss *authtry_bsses[MAX_AUTH_BSSES];
 	struct cfg80211_internal_bss *auth_bsses[MAX_AUTH_BSSES];
@@ -1765,24 +1773,30 @@ void cfg80211_send_assoc_timeout(struct net_device *dev, const u8 *addr);
  * @dev: network device
  * @buf: deauthentication frame (header + body)
  * @len: length of the frame data
+ * @cookie: cookie from ->deauth if called within that callback,
+ *	%NULL otherwise
  *
  * This function is called whenever deauthentication has been processed in
  * station mode. This includes both received deauthentication frames and
  * locally generated ones. This function may sleep.
  */
-void cfg80211_send_deauth(struct net_device *dev, const u8 *buf, size_t len);
+void cfg80211_send_deauth(struct net_device *dev, const u8 *buf, size_t len,
+			  void *cookie);
 
 /**
  * cfg80211_send_disassoc - notification of processed disassociation
  * @dev: network device
  * @buf: disassociation response frame (header + body)
  * @len: length of the frame data
+ * @cookie: cookie from ->disassoc if called within that callback,
+ *	%NULL otherwise
  *
  * This function is called whenever disassociation has been processed in
  * station mode. This includes both received disassociation frames and locally
  * generated ones. This function may sleep.
  */
-void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len);
+void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len,
+			    void *cookie);
 
 /**
  * cfg80211_michael_mic_failure - notification of Michael MIC failure (TKIP)
