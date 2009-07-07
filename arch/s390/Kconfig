@@ -121,6 +121,9 @@ config 32BIT
 	bool
 	default y if !64BIT
 
+config KTIME_SCALAR
+	def_bool 32BIT
+
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---
