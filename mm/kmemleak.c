@@ -106,6 +106,7 @@
 #define MSECS_MIN_AGE		5000	/* minimum object age for reporting */
 #define SECS_FIRST_SCAN		60	/* delay before the first scan */
 #define SECS_SCAN_WAIT		600	/* subsequent auto scanning delay */
+#define GRAY_LIST_PASSES	25	/* maximum number of gray list scans */
 
 #define BYTES_PER_POINTER	sizeof(void *)
 
@@ -157,6 +158,8 @@ struct kmemleak_object {
 #define OBJECT_REPORTED		(1 << 1)
 /* flag set to not scan the object */
 #define OBJECT_NO_SCAN		(1 << 2)
+/* flag set on newly allocated objects */
+#define OBJECT_NEW		(1 << 3)
 
 /* the list of all allocated objects */
 static LIST_HEAD(object_list);
@@ -268,6 +271,11 @@ static int color_white(const struct kmemleak_object *object)
 static int color_gray(const struct kmemleak_object *object)
 {
 	return object->min_count != -1 && object->count >= object->min_count;
+}
+
+static int color_black(const struct kmemleak_object *object)
+{
+	return object->min_count == -1;
 }
 
 /*
@@ -447,7 +455,7 @@ static void create_object(unsigned long ptr, size_t size, int min_count,
 	INIT_HLIST_HEAD(&object->area_list);
 	spin_lock_init(&object->lock);
 	atomic_set(&object->use_count, 1);
-	object->flags = OBJECT_ALLOCATED;
+	object->flags = OBJECT_ALLOCATED | OBJECT_NEW;
 	object->pointer = ptr;
 	object->size = size;
 	object->min_count = min_count;
@@ -901,6 +909,7 @@ static void kmemleak_scan(void)
 	struct task_struct *task;
 	int i;
 	int new_leaks = 0;
+	int gray_list_pass = 0;
 
 	jiffies_last_scan = jiffies;
 
@@ -921,6 +930,7 @@ static void kmemleak_scan(void)
 #endif
 		/* reset the reference count (whiten the object) */
 		object->count = 0;
+		object->flags &= ~OBJECT_NEW;
 		if (color_gray(object) && get_object(object))
 			list_add_tail(&object->gray_list, &gray_list);
 
@@ -983,6 +993,7 @@ static void kmemleak_scan(void)
 	 * kmemleak objects cannot be freed from outside the loop because their
 	 * use_count was increased.
 	 */
+repeat:
 	object = list_entry(gray_list.next, typeof(*object), gray_list);
 	while (&object->gray_list != &gray_list) {
 		cond_resched();
@@ -1000,12 +1011,38 @@ static void kmemleak_scan(void)
 
 		object = tmp;
 	}
+
+	if (scan_should_stop() || ++gray_list_pass >= GRAY_LIST_PASSES)
+		goto scan_end;
+
+	/*
+	 * Check for new objects allocated during this scanning and add them
+	 * to the gray list.
+	 */
+	rcu_read_lock();
+	list_for_each_entry_rcu(object, &object_list, object_list) {
+		spin_lock_irqsave(&object->lock, flags);
+		if ((object->flags & OBJECT_NEW) && !color_black(object) &&
+		    get_object(object)) {
+			object->flags &= ~OBJECT_NEW;
+			list_add_tail(&object->gray_list, &gray_list);
+		}
+		spin_unlock_irqrestore(&object->lock, flags);
+	}
+	rcu_read_unlock();
+
+	if (!list_empty(&gray_list))
+		goto repeat;
+
+scan_end:
 	WARN_ON(!list_empty(&gray_list));
 
 	/*
-	 * If scanning was stopped do not report any new unreferenced objects.
+	 * If scanning was stopped or new objects were being allocated at a
+	 * higher rate than gray list scanning, do not report any new
+	 * unreferenced objects.
 	 */
-	if (scan_should_stop())
+	if (scan_should_stop() || gray_list_pass >= GRAY_LIST_PASSES)
 		return;
 
 	/*
