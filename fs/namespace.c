@@ -22,6 +22,7 @@
 #include <linux/seq_file.h>
 #include <linux/mnt_namespace.h>
 #include <linux/namei.h>
+#include <linux/nsproxy.h>
 #include <linux/security.h>
 #include <linux/mount.h>
 #include <linux/ramfs.h>
