@@ -320,6 +320,9 @@ static void via_auto_set_output_and_unmute(struct hda_codec *codec,
 			    pin_type);
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 			    AMP_OUT_UNMUTE);
+	if (snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD)
+		snd_hda_codec_write(codec, nid, 0, 
+				    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
 }
 
 
