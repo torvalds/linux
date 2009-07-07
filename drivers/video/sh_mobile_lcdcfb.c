@@ -42,11 +42,9 @@ struct sh_mobile_lcdc_chan {
 struct sh_mobile_lcdc_priv {
 	void __iomem *base;
 	int irq;
-#ifdef CONFIG_HAVE_CLK
 	atomic_t clk_usecnt;
 	struct clk *dot_clk;
 	struct clk *clk;
-#endif
 	unsigned long lddckr;
 	struct sh_mobile_lcdc_chan ch[2];
 	int started;
@@ -185,7 +183,6 @@ struct sh_mobile_lcdc_sys_bus_ops sh_mobile_lcdc_sys_bus_ops = {
 	lcdc_sys_read_data,
 };
 
-#ifdef CONFIG_HAVE_CLK
 static void sh_mobile_lcdc_clk_on(struct sh_mobile_lcdc_priv *priv)
 {
 	if (atomic_inc_and_test(&priv->clk_usecnt)) {
@@ -203,10 +200,6 @@ static void sh_mobile_lcdc_clk_off(struct sh_mobile_lcdc_priv *priv)
 		clk_disable(priv->clk);
 	}
 }
-#else
-static void sh_mobile_lcdc_clk_on(struct sh_mobile_lcdc_priv *priv) {}
-static void sh_mobile_lcdc_clk_off(struct sh_mobile_lcdc_priv *priv) {}
-#endif
 
 static int sh_mobile_lcdc_sginit(struct fb_info *info,
 				  struct list_head *pagelist)
@@ -515,7 +508,6 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		board_cfg = &ch->cfg.board_cfg;
 		if (board_cfg->display_off)
 			board_cfg->display_off(board_cfg->board_data);
-
 	}
 
 	/* stop the lcdc */
@@ -574,9 +566,7 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 				       int clock_source,
 				       struct sh_mobile_lcdc_priv *priv)
 {
-#ifdef CONFIG_HAVE_CLK
 	char clk_name[8];
-#endif
 	char *str;
 	int icksel;
 
@@ -590,7 +580,6 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 
 	priv->lddckr = icksel << 16;
 
-#ifdef CONFIG_HAVE_CLK
 	atomic_set(&priv->clk_usecnt, -1);
 	snprintf(clk_name, sizeof(clk_name), "lcdc%d", pdev->id);
 	priv->clk = clk_get(&pdev->dev, clk_name);
@@ -598,7 +587,7 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
 		return PTR_ERR(priv->clk);
 	}
-	
+
 	if (str) {
 		priv->dot_clk = clk_get(&pdev->dev, str);
 		if (IS_ERR(priv->dot_clk)) {
@@ -607,7 +596,6 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 			return PTR_ERR(priv->dot_clk);
 		}
 	}
-#endif
 
 	return 0;
 }
@@ -934,11 +922,9 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 		fb_dealloc_cmap(&info->cmap);
 	}
 
-#ifdef CONFIG_HAVE_CLK
 	if (priv->dot_clk)
 		clk_put(priv->dot_clk);
 	clk_put(priv->clk);
-#endif
 
 	if (priv->base)
 		iounmap(priv->base);
