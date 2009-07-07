@@ -103,7 +103,6 @@
  * Kmemleak configuration and common defines.
  */
 #define MAX_TRACE		16	/* stack trace length */
-#define REPORTS_NR		50	/* maximum number of reported leaks */
 #define MSECS_MIN_AGE		5000	/* minimum object age for reporting */
 #define SECS_FIRST_SCAN		60	/* delay before the first scan */
 #define SECS_SCAN_WAIT		600	/* subsequent auto scanning delay */
@@ -195,9 +194,6 @@ static signed long jiffies_scan_wait;
 static int kmemleak_stack_scan = 1;
 /* protects the memory scanning, parameters and debug/kmemleak file access */
 static DEFINE_MUTEX(scan_mutex);
-
-/* number of leaks reported (for limitation purposes) */
-static int reported_leaks;
 
 /*
  * Early object allocation/freeing logging. Kmemleak is initialized after the
@@ -1106,11 +1102,6 @@ static void *kmemleak_seq_start(struct seq_file *seq, loff_t *pos)
 	struct kmemleak_object *object;
 	loff_t n = *pos;
 
-	if (!n)
-		reported_leaks = 0;
-	if (reported_leaks >= REPORTS_NR)
-		return NULL;
-
 	rcu_read_lock();
 	list_for_each_entry_rcu(object, &object_list, object_list) {
 		if (n-- > 0)
@@ -1135,8 +1126,6 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	struct list_head *n = &prev_obj->object_list;
 
 	++(*pos);
-	if (reported_leaks >= REPORTS_NR)
-		goto out;
 
 	rcu_read_lock();
 	list_for_each_continue_rcu(n, &object_list) {
@@ -1145,7 +1134,7 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 			break;
 	}
 	rcu_read_unlock();
-out:
+
 	put_object(prev_obj);
 	return next_obj;
 }
@@ -1168,10 +1157,8 @@ static int kmemleak_seq_show(struct seq_file *seq, void *v)
 	unsigned long flags;
 
 	spin_lock_irqsave(&object->lock, flags);
-	if ((object->flags & OBJECT_REPORTED) && unreferenced_object(object)) {
+	if ((object->flags & OBJECT_REPORTED) && unreferenced_object(object))
 		print_unreferenced(seq, object);
-		reported_leaks++;
-	}
 	spin_unlock_irqrestore(&object->lock, flags);
 	return 0;
 }
