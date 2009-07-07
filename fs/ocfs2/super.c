@@ -1182,7 +1182,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	wake_up(&osb->osb_mount_event);
 
 	/* Start this when the mount is almost sure of being successful */
-	ocfs2_orphan_scan_init(osb);
+	ocfs2_orphan_scan_start(osb);
 
 	mlog_exit(status);
 	return status;
@@ -1980,6 +1980,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	snprintf(osb->dev_str, sizeof(osb->dev_str), "%u,%u",
 		 MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev));
+
+	ocfs2_orphan_scan_init(osb);
 
 	status = ocfs2_recovery_init(osb);
 	if (status) {
