@@ -784,7 +784,6 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 		mesh_path_add(dst_addr, sdata);
 		mpath = mesh_path_lookup(dst_addr, sdata);
 		if (!mpath) {
-			dev_kfree_skb(skb);
 			sdata->u.mesh.mshstats.dropped_frames_no_route++;
 			err = -ENOSPC;
 			goto endlookup;
@@ -804,6 +803,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 		memcpy(hdr->addr1, mpath->next_hop->sta.addr,
 				ETH_ALEN);
 	} else {
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		if (!(mpath->flags & MESH_PATH_RESOLVING)) {
 			/* Start discovery only if it is not running yet */
 			mesh_queue_preq(mpath, PREQ_Q_F_START);
@@ -815,6 +815,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 			skb_unlink(skb_to_free, &mpath->frame_queue);
 		}
 
+		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 		skb_queue_tail(&mpath->frame_queue, skb);
 		if (skb_to_free)
 			mesh_path_discard_frame(skb_to_free, sdata);

@@ -499,11 +499,9 @@ enddel:
  */
 void mesh_path_tx_pending(struct mesh_path *mpath)
 {
-	struct sk_buff *skb;
-
-	while ((skb = skb_dequeue(&mpath->frame_queue)) &&
-			(mpath->flags & MESH_PATH_ACTIVE))
-		dev_queue_xmit(skb);
+	if (mpath->flags & MESH_PATH_ACTIVE)
+		ieee80211_add_pending_skbs(mpath->sdata->local,
+				&mpath->frame_queue);
 }
 
 /**

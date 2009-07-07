@@ -1419,9 +1419,6 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 				dev_put(sdata->dev);
 				return;
 			}
-		if (memcmp(sdata->dev->dev_addr, hdr->addr4, ETH_ALEN) != 0)
-			IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
-						     fwded_frames);
 	} else if (unlikely(sdata->vif.type == NL80211_IFTYPE_MONITOR)) {
 		int hdrlen;
 		u16 len_rthdr;
