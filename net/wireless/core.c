@@ -171,12 +171,6 @@ cfg80211_get_dev_from_ifindex(int ifindex)
 	return drv;
 }
 
-void cfg80211_put_dev(struct cfg80211_registered_device *drv)
-{
-	BUG_ON(IS_ERR(drv));
-	mutex_unlock(&drv->mtx);
-}
-
 /* requires cfg80211_mutex to be held */
 int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			char *newname)

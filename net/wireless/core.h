@@ -146,7 +146,7 @@ __cfg80211_drv_from_info(struct genl_info *info);
  * If successful, it returns non-NULL and also locks
  * the driver's mutex!
  *
- * This means that you need to call cfg80211_put_dev()
+ * This means that you need to call cfg80211_unlock_rdev()
  * before being allowed to acquire &cfg80211_mutex!
  *
  * This is necessary because we need to lock the global
@@ -170,7 +170,11 @@ struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx);
 extern struct cfg80211_registered_device *
 cfg80211_get_dev_from_ifindex(int ifindex);
 
-extern void cfg80211_put_dev(struct cfg80211_registered_device *drv);
+static inline void cfg80211_unlock_rdev(struct cfg80211_registered_device *drv)
+{
+	BUG_ON(IS_ERR(drv) || !drv);
+	mutex_unlock(&drv->mtx);
+}
 
 /* free object */
 extern void cfg80211_dev_free(struct cfg80211_registered_device *drv);
