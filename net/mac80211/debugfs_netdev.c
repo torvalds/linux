@@ -100,7 +100,6 @@ IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
 IEEE80211_IF_FILE(prev_bssid, u.mgd.prev_bssid, MAC);
 IEEE80211_IF_FILE(ssid_len, u.mgd.ssid_len, SIZE);
 IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
-IEEE80211_IF_FILE(ap_capab, u.mgd.ap_capab, HEX);
 IEEE80211_IF_FILE(capab, u.mgd.capab, HEX);
 IEEE80211_IF_FILE(extra_ie_len, u.mgd.extra_ie_len, SIZE);
 IEEE80211_IF_FILE(auth_tries, u.mgd.auth_tries, DEC);
@@ -186,7 +185,6 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(prev_bssid, sta);
 	DEBUGFS_ADD(ssid_len, sta);
 	DEBUGFS_ADD(aid, sta);
-	DEBUGFS_ADD(ap_capab, sta);
 	DEBUGFS_ADD(capab, sta);
 	DEBUGFS_ADD(extra_ie_len, sta);
 	DEBUGFS_ADD(auth_tries, sta);
@@ -318,7 +316,6 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_DEL(prev_bssid, sta);
 	DEBUGFS_DEL(ssid_len, sta);
 	DEBUGFS_DEL(aid, sta);
-	DEBUGFS_DEL(ap_capab, sta);
 	DEBUGFS_DEL(capab, sta);
 	DEBUGFS_DEL(extra_ie_len, sta);
 	DEBUGFS_DEL(auth_tries, sta);

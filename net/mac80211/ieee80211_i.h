@@ -268,7 +268,7 @@ struct ieee80211_if_managed {
 	} state;
 
 	u16 aid;
-	u16 ap_capab, capab;
+	u16 capab;
 	u8 *extra_ie; /* to be added to the end of AssocReq */
 	size_t extra_ie_len;
 
@@ -288,7 +288,6 @@ struct ieee80211_if_managed {
 
 	unsigned long request;
 
-	unsigned long last_probe;
 	unsigned long last_beacon;
 
 	unsigned int flags;
@@ -472,7 +471,6 @@ struct ieee80211_sub_if_data {
 			struct dentry *prev_bssid;
 			struct dentry *ssid_len;
 			struct dentry *aid;
-			struct dentry *ap_capab;
 			struct dentry *capab;
 			struct dentry *extra_ie_len;
 			struct dentry *auth_tries;

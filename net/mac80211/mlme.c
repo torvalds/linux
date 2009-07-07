@@ -879,7 +879,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_bss_put(local, bss);
 	}
 
-	ifmgd->last_probe = jiffies;
 	ieee80211_led_assoc(local, 1);
 
 	sdata->vif.bss_conf.assoc = 1;
@@ -1488,7 +1487,6 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 
 	printk(KERN_DEBUG "%s: associated\n", sdata->dev->name);
 	ifmgd->aid = aid;
-	ifmgd->ap_capab = capab_info;
 
 	kfree(ifmgd->assocresp_ies);
 	ifmgd->assocresp_ies_len = len - (pos - (u8 *) mgmt);
