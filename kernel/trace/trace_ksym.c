@@ -302,13 +302,13 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 				ret = count;
 				goto unlock_ret_path;
 			}
-		}
+		} else
+			ret = count;
 		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
 		kfree(entry->ksym_hbp);
 		kfree(entry);
-		ret = count;
 		goto err_ret;
 	} else {
 		/* Check for malformed request: (4) */
