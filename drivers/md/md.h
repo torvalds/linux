@@ -201,7 +201,7 @@ struct mddev_s
 	 * INTR:     resync needs to be aborted for some reason
 	 * DONE:     thread is done and is waiting to be reaped
 	 * REQUEST:  user-space has requested a sync (used with SYNC)
-	 * CHECK:    user-space request for for check-only, no repair
+	 * CHECK:    user-space request for check-only, no repair
 	 * RESHAPE:  A reshape is happening
 	 *
 	 * If neither SYNC or RESHAPE are set, then it is a recovery.
