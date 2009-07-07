@@ -91,7 +91,7 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 	int i;
 
 	/* clear all counters */
-	for (i = 0 ; i < NUM_CONTROLS; ++i) {
+	for (i = 0; i < NUM_CONTROLS; ++i) {
 		if (unlikely(!msrs->controls[i].addr))
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
@@ -229,7 +229,7 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 	u64 val;
 	int i;
 
-	for (i = 0 ; i < NUM_COUNTERS; ++i) {
+	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (!reset_value[i])
 			continue;
 		rdmsrl(msrs->counters[i].addr, val);
@@ -250,7 +250,7 @@ static void op_amd_start(struct op_msrs const * const msrs)
 {
 	u64 val;
 	int i;
-	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
+	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (reset_value[i]) {
 			rdmsrl(msrs->controls[i].addr, val);
 			val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
@@ -270,7 +270,7 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	 * Subtle: stop on all counters to avoid race with setting our
 	 * pm callback
 	 */
-	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
+	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (!reset_value[i])
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
@@ -285,11 +285,11 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 {
 	int i;
 
-	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
+	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (msrs->counters[i].addr)
 			release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
 	}
-	for (i = 0 ; i < NUM_CONTROLS ; ++i) {
+	for (i = 0; i < NUM_CONTROLS; ++i) {
 		if (msrs->controls[i].addr)
 			release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
 	}

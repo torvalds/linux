@@ -558,7 +558,7 @@ static void p4_setup_ctrs(struct op_x86_model_spec const *model,
 	}
 
 	/* clear the cccrs we will use */
-	for (i = 0 ; i < num_counters ; i++) {
+	for (i = 0; i < num_counters; i++) {
 		if (unlikely(!msrs->controls[i].addr))
 			continue;
 		rdmsr(p4_counters[VIRT_CTR(stag, i)].cccr_address, low, high);
@@ -575,7 +575,7 @@ static void p4_setup_ctrs(struct op_x86_model_spec const *model,
 	}
 
 	/* setup all counters */
-	for (i = 0 ; i < num_counters ; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if (counter_config[i].enabled && msrs->controls[i].addr) {
 			reset_value[i] = counter_config[i].count;
 			pmc_setup_one_p4_counter(i);
@@ -678,7 +678,7 @@ static void p4_shutdown(struct op_msrs const * const msrs)
 {
 	int i;
 
-	for (i = 0 ; i < num_counters ; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if (msrs->counters[i].addr)
 			release_perfctr_nmi(msrs->counters[i].addr);
 	}
@@ -687,7 +687,7 @@ static void p4_shutdown(struct op_msrs const * const msrs)
 	 * conjunction with the counter registers (hence the starting offset).
 	 * This saves a few bits.
 	 */
-	for (i = num_counters ; i < num_controls ; ++i) {
+	for (i = num_counters; i < num_controls; ++i) {
 		if (msrs->controls[i].addr)
 			release_evntsel_nmi(msrs->controls[i].addr);
 	}

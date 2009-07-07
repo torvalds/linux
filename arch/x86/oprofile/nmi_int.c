@@ -516,12 +516,12 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	register_cpu_notifier(&oprofile_cpu_nb);
 #endif
 	/* default values, can be overwritten by model */
-	ops->create_files = nmi_create_files;
-	ops->setup = nmi_setup;
-	ops->shutdown = nmi_shutdown;
-	ops->start = nmi_start;
-	ops->stop = nmi_stop;
-	ops->cpu_type = cpu_type;
+	ops->create_files	= nmi_create_files;
+	ops->setup		= nmi_setup;
+	ops->shutdown		= nmi_shutdown;
+	ops->start		= nmi_start;
+	ops->stop		= nmi_stop;
+	ops->cpu_type		= cpu_type;
 
 	if (model->init)
 		ret = model->init(ops);

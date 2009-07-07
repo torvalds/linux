@@ -81,7 +81,7 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 	}
 
 	/* clear all counters */
-	for (i = 0 ; i < num_counters; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if (unlikely(!msrs->controls[i].addr))
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
@@ -125,7 +125,7 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 	if (unlikely(!reset_value))
 		goto out;
 
-	for (i = 0 ; i < num_counters; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
 		rdmsrl(msrs->counters[i].addr, val);
@@ -188,11 +188,11 @@ static void ppro_shutdown(struct op_msrs const * const msrs)
 {
 	int i;
 
-	for (i = 0 ; i < num_counters ; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if (msrs->counters[i].addr)
 			release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
 	}
-	for (i = 0 ; i < num_counters ; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if (msrs->controls[i].addr)
 			release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
 	}
