@@ -211,6 +211,7 @@ struct via_spec {
 	unsigned int num_adc_nids;
 	hda_nid_t *adc_nids;
 	hda_nid_t dig_in_nid;
+	hda_nid_t dig_in_pin;
 
 	/* capture source */
 	const struct hda_input_mux *input_mux;
@@ -998,25 +999,11 @@ static int via_init(struct hda_codec *codec)
 
 	/* Lydia Add for EAPD enable */
 	if (!spec->dig_in_nid) { /* No Digital In connection */
-		if (IS_VT1708_VENDORID(codec->vendor_id)) {
-			snd_hda_codec_write(codec, VT1708_DIGIN_PIN, 0,
+		if (spec->dig_in_pin) {
+			snd_hda_codec_write(codec, spec->dig_in_pin, 0,
 					    AC_VERB_SET_PIN_WIDGET_CONTROL,
 					    PIN_OUT);
-			snd_hda_codec_write(codec, VT1708_DIGIN_PIN, 0,
-					    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
-		} else if (IS_VT1709_10CH_VENDORID(codec->vendor_id) ||
-			   IS_VT1709_6CH_VENDORID(codec->vendor_id)) {
-			snd_hda_codec_write(codec, VT1709_DIGIN_PIN, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    PIN_OUT);
-			snd_hda_codec_write(codec, VT1709_DIGIN_PIN, 0,
-					    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
-		} else if (IS_VT1708B_8CH_VENDORID(codec->vendor_id) ||
-			   IS_VT1708B_4CH_VENDORID(codec->vendor_id)) {
-			snd_hda_codec_write(codec, VT1708B_DIGIN_PIN, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    PIN_OUT);
-			snd_hda_codec_write(codec, VT1708B_DIGIN_PIN, 0,
+			snd_hda_codec_write(codec, spec->dig_in_pin, 0,
 					    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
 		}
 	} else /* enable SPDIF-input pin */
@@ -1326,6 +1313,7 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 
 	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = VT1708_DIGOUT_NID;
+	spec->dig_in_pin = VT1708_DIGIN_PIN;
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = VT1708_DIGIN_NID;
 
@@ -1799,6 +1787,7 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 
 	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = VT1709_DIGOUT_NID;
+	spec->dig_in_pin = VT1709_DIGIN_PIN;
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = VT1709_DIGIN_NID;
 
@@ -2344,6 +2333,7 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 
 	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = VT1708B_DIGOUT_NID;
+	spec->dig_in_pin = VT1708B_DIGIN_PIN;
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = VT1708B_DIGIN_NID;
 
