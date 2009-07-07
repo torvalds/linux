@@ -463,9 +463,6 @@ retry:
 			goto out_err;
 
 		spin_lock(&group->inotify_data.idr_lock);
-		/* if entry is added to the idr we keep the reference obtained
-		 * through fsnotify_mark_add.  remember to drop this reference
-		 * when entry is removed from idr */
 		ret = idr_get_new_above(&group->inotify_data.idr, entry,
 					++group->inotify_data.last_wd,
 					&ientry->wd);
@@ -476,7 +473,12 @@ retry:
 			goto out_err;
 		}
 		atomic_inc(&group->inotify_data.user->inotify_watches);
+
+		/* we put the mark on the idr, take a reference */
+		fsnotify_get_mark(entry);
 	}
+
+	ret = ientry->wd;
 
 	spin_lock(&entry->lock);
 
@@ -508,7 +510,11 @@ retry:
 			fsnotify_recalc_group_mask(group);
 	}
 
-	return ientry->wd;
+	/* this either matches fsnotify_find_mark_entry, or init_mark_entry
+	 * depending on which path we took... */
+	fsnotify_put_mark(entry);
+
+	return ret;
 
 out_err:
 	/* see this isn't supposed to happen, just kill the watch */
