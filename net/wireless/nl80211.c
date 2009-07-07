@@ -3680,10 +3680,6 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 
 	wiphy = &rdev->wiphy;
 
-	connect.bssid = NULL;
-	connect.channel = NULL;
-	connect.auth_type = NL80211_AUTHTYPE_OPEN_SYSTEM;
-
 	if (info->attrs[NL80211_ATTR_MAC])
 		connect.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 	connect.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);

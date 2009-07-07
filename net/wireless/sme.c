@@ -295,9 +295,8 @@ void cfg80211_sme_rx_auth(struct net_device *dev,
 		wdev->conn->state = CFG80211_CONN_AUTHENTICATE_NEXT;
 		schedule_work(&rdev->conn_work);
 	} else if (status_code != WLAN_STATUS_SUCCESS) {
-		wdev->sme_state = CFG80211_SME_IDLE;
-		kfree(wdev->conn);
-		wdev->conn = NULL;
+		__cfg80211_connect_result(dev, mgmt->bssid, NULL, 0, NULL, 0,
+					  status_code, false);
 	} else if (wdev->sme_state == CFG80211_SME_CONNECTING &&
 		 wdev->conn->state == CFG80211_CONN_AUTHENTICATING) {
 		wdev->conn->state = CFG80211_CONN_ASSOCIATE_NEXT;
