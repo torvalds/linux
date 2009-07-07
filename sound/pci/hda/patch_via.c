@@ -210,6 +210,7 @@ struct via_spec {
 	/* capture */
 	unsigned int num_adc_nids;
 	hda_nid_t *adc_nids;
+	hda_nid_t mux_nids[3];
 	hda_nid_t dig_in_nid;
 	hda_nid_t dig_in_pin;
 
@@ -393,25 +394,11 @@ static int via_mux_enum_put(struct snd_kcontrol *kcontrol,
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	unsigned int vendor_id = codec->vendor_id;
 
-	/* AIW0  lydia 060801 add for correct sw0 input select */
-	if (IS_VT1708_VENDORID(vendor_id) && (adc_idx == 0))
-		return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
-					     0x18, &spec->cur_mux[adc_idx]);
-	else if ((IS_VT1709_10CH_VENDORID(vendor_id) ||
-		  IS_VT1709_6CH_VENDORID(vendor_id)) && (adc_idx == 0))
-		return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
-					     0x19, &spec->cur_mux[adc_idx]);
-	else if ((IS_VT1708B_8CH_VENDORID(vendor_id) ||
-		  IS_VT1708B_4CH_VENDORID(vendor_id)) && (adc_idx == 0))
-		return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
-					     0x17, &spec->cur_mux[adc_idx]);
-	else if (IS_VT1702_VENDORID(vendor_id) && (adc_idx == 0))
-		return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
-					     0x13, &spec->cur_mux[adc_idx]);
-	else
-		return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
-					     spec->adc_nids[adc_idx],
-					     &spec->cur_mux[adc_idx]);
+	if (!spec->mux_nids[adc_idx])
+		return -EINVAL;
+	return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
+				     spec->mux_nids[adc_idx],
+				     &spec->cur_mux[adc_idx]);
 }
 
 static int via_independent_hp_info(struct snd_kcontrol *kcontrol,
@@ -1343,6 +1330,29 @@ static int via_auto_init(struct hda_codec *codec)
 	return 0;
 }
 
+static int get_mux_nids(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	hda_nid_t nid, conn[8];
+	unsigned int type;
+	int i, n;
+
+	for (i = 0; i < spec->num_adc_nids; i++) {
+		nid = spec->adc_nids[i];
+		while (nid) {
+			n = snd_hda_get_connections(codec, nid, conn,
+						    ARRAY_SIZE(conn));
+			if (n <= 0)
+				break;
+			if (n > 1) {
+				spec->mux_nids[i] = nid;
+				break;
+			}
+			nid = conn[0];
+		}
+	}
+}
+
 static int patch_vt1708(struct hda_codec *codec)
 {
 	struct via_spec *spec;
@@ -1851,6 +1861,7 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1709_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(vt1709_adc_nids);
+		get_mux_nids(codec);
 		spec->mixers[spec->num_mixers] = vt1709_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -1944,6 +1955,7 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1709_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(vt1709_adc_nids);
+		get_mux_nids(codec);
 		spec->mixers[spec->num_mixers] = vt1709_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -2397,6 +2409,7 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1708B_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(vt1708B_adc_nids);
+		get_mux_nids(codec);
 		spec->mixers[spec->num_mixers] = vt1708B_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -2448,6 +2461,7 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1708B_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(vt1708B_adc_nids);
+		get_mux_nids(codec);
 		spec->mixers[spec->num_mixers] = vt1708B_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -2882,6 +2896,7 @@ static int patch_vt1708S(struct hda_codec *codec)
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1708S_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(vt1708S_adc_nids);
+		get_mux_nids(codec);
 		spec->mixers[spec->num_mixers] = vt1708S_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -3199,6 +3214,7 @@ static int patch_vt1702(struct hda_codec *codec)
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1702_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(vt1702_adc_nids);
+		get_mux_nids(codec);
 		spec->mixers[spec->num_mixers] = vt1702_capture_mixer;
 		spec->num_mixers++;
 	}
