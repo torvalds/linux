@@ -35,7 +35,6 @@
 #define KSYM_TRACER_MAX HBP_NUM
 
 #define KSYM_TRACER_OP_LEN 3 /* rw- */
-#define KSYM_FILTER_ENTRY_LEN (KSYM_NAME_LEN + KSYM_TRACER_OP_LEN + 1)
 
 struct trace_ksym {
 	struct hw_breakpoint	*ksym_hbp;
@@ -230,25 +229,33 @@ static ssize_t ksym_trace_filter_read(struct file *filp, char __user *ubuf,
 {
 	struct trace_ksym *entry;
 	struct hlist_node *node;
-	char buf[KSYM_FILTER_ENTRY_LEN * KSYM_TRACER_MAX];
-	ssize_t ret, cnt = 0;
+	struct trace_seq *s;
+	ssize_t cnt = 0;
+	int ret;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+	trace_seq_init(s);
 
 	mutex_lock(&ksym_tracer_mutex);
 
 	hlist_for_each_entry(entry, node, &ksym_filter_head, ksym_hlist) {
-		cnt += snprintf(&buf[cnt], KSYM_FILTER_ENTRY_LEN - cnt, "%s:",
-				entry->ksym_hbp->info.name);
+		ret = trace_seq_printf(s, "%s:", entry->ksym_hbp->info.name);
 		if (entry->ksym_hbp->info.type == HW_BREAKPOINT_WRITE)
-			cnt += snprintf(&buf[cnt], KSYM_FILTER_ENTRY_LEN - cnt,
-								"-w-\n");
+			ret = trace_seq_puts(s, "-w-\n");
 		else if (entry->ksym_hbp->info.type == HW_BREAKPOINT_RW)
-			cnt += snprintf(&buf[cnt], KSYM_FILTER_ENTRY_LEN - cnt,
-								"rw-\n");
+			ret = trace_seq_puts(s, "rw-\n");
+		WARN_ON_ONCE(!ret);
 	}
-	ret = simple_read_from_buffer(ubuf, count, ppos, buf, strlen(buf));
+
+	cnt = simple_read_from_buffer(ubuf, count, ppos, s->buffer, s->len);
+
 	mutex_unlock(&ksym_tracer_mutex);
 
-	return ret;
+	kfree(s);
+
+	return cnt;
 }
 
 static ssize_t ksym_trace_filter_write(struct file *file,
