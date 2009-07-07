@@ -165,6 +165,8 @@ unsigned long get_wchan(struct task_struct *p);
 	eip; })
 #define	KSTK_ESP(tsk)	((tsk) == current ? rdusp() : (tsk)->thread.usp)
 
+#define task_pt_regs(tsk)	((struct pt_regs *) ((tsk)->thread.esp0))
+
 #define cpu_relax()	barrier()
 
 #endif
