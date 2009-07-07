@@ -404,6 +404,8 @@ skip_send_ignore:
 
 	/* removed from idr, drop that reference */
 	fsnotify_put_mark(entry);
+
+	atomic_dec(&group->inotify_data.user->inotify_watches);
 }
 
 /* ding dong the mark is dead */
