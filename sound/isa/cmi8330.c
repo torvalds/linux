@@ -389,12 +389,12 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 	pdev = acard->mpu;
 
 	err = pnp_activate_dev(pdev);
-	if (err < 0) {
-		snd_printk(KERN_ERR "MPU-401 PnP configure failure\n");
-		return -EBUSY;
+	if (err < 0)
+		snd_printk(KERN_ERR "MPU-401 PnP configure failure: will be disabled\n");
+	else {
+		mpuport[dev] = pnp_port_start(pdev, 0);
+		mpuirq[dev] = pnp_irq(pdev, 0);
 	}
-	mpuport[dev] = pnp_port_start(pdev, 0);
-	mpuirq[dev] = pnp_irq(pdev, 0);
 	return 0;
 }
 #endif
