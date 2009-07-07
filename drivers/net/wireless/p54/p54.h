@@ -208,6 +208,7 @@ struct p54_common {
 	u32 tsf_low32, tsf_high32;
 	u32 basic_rate_mask;
 	u16 aid;
+	bool powersave_override;
 	__le32 beacon_req_id;
 
 	/* cryptographic engine information */

@@ -288,6 +288,45 @@ static int p54_rssi_to_dbm(struct p54_common *priv, int rssi)
 			 priv->rssical_db[band].add) / 4;
 }
 
+/*
+ * Even if the firmware is capable of dealing with incoming traffic,
+ * while dozing, we have to prepared in case mac80211 uses PS-POLL
+ * to retrieve outstanding frames from our AP.
+ * (see comment in net/mac80211/mlme.c @ line 1993)
+ */
+static void p54_pspoll_workaround(struct p54_common *priv, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (void *) skb->data;
+	struct ieee80211_tim_ie *tim_ie;
+	u8 *tim;
+	u8 tim_len;
+	bool new_psm;
+
+	/* only beacons have a TIM IE */
+	if (!ieee80211_is_beacon(hdr->frame_control))
+		return;
+
+	if (!priv->aid)
+		return;
+
+	/* only consider beacons from the associated BSSID */
+	if (compare_ether_addr(hdr->addr3, priv->bssid))
+		return;
+
+	tim = p54_find_ie(skb, WLAN_EID_TIM);
+	if (!tim)
+		return;
+
+	tim_len = tim[1];
+	tim_ie = (struct ieee80211_tim_ie *) &tim[2];
+
+	new_psm = ieee80211_check_tim(tim_ie, tim_len, priv->aid);
+	if (new_psm != priv->powersave_override) {
+		priv->powersave_override = new_psm;
+		p54_set_ps(priv);
+	}
+}
+
 static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 {
 	struct p54_rx_data *hdr = (struct p54_rx_data *) skb->data;
@@ -340,6 +379,9 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 
 	skb_pull(skb, header_len);
 	skb_trim(skb, le16_to_cpu(hdr->len));
+	if (unlikely(priv->hw->conf.flags & IEEE80211_CONF_PS))
+		p54_pspoll_workaround(priv, skb);
+
 	ieee80211_rx_irqsafe(priv->hw, skb);
 
 	queue_delayed_work(priv->hw->workqueue, &priv->work,

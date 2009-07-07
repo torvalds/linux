@@ -65,6 +65,28 @@ static int p54_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
 	return p54_update_beacon_tim(priv, sta->aid, set);
 }
 
+u8 *p54_find_ie(struct sk_buff *skb, u8 ie)
+{
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
+	u8 *pos, *end;
+
+	if (skb->len <= sizeof(mgmt))
+		return NULL;
+
+	pos = (u8 *)mgmt->u.beacon.variable;
+	end = skb->data + skb->len;
+	while (pos < end) {
+		if (pos + 2 + pos[1] > end)
+			return NULL;
+
+		if (pos[0] == ie)
+			return pos;
+
+		pos += 2 + pos[1];
+	}
+	return NULL;
+}
+
 static int p54_beacon_format_ie_tim(struct sk_buff *skb)
 {
 	/*
@@ -72,44 +94,35 @@ static int p54_beacon_format_ie_tim(struct sk_buff *skb)
 	 * The dummy TIM MUST be at the end of the beacon frame,
 	 * because it'll be overwritten!
 	 */
+	u8 *tim;
+	u8 dtim_len;
+	u8 dtim_period;
+	u8 *next;
 
-	struct ieee80211_mgmt *mgmt = (void *)skb->data;
-	u8 *pos, *end;
+	tim = p54_find_ie(skb, WLAN_EID_TIM);
+	if (!tim)
+		return 0;
 
-	if (skb->len <= sizeof(mgmt))
+	dtim_len = tim[1];
+	dtim_period = tim[3];
+	next = tim + 2 + dtim_len;
+
+	if (dtim_len < 3)
 		return -EINVAL;
 
-	pos = (u8 *)mgmt->u.beacon.variable;
-	end = skb->data + skb->len;
-	while (pos < end) {
-		if (pos + 2 + pos[1] > end)
-			return -EINVAL;
+	memmove(tim, next, skb_tail_pointer(skb) - next);
+	tim = skb_tail_pointer(skb) - (dtim_len + 2);
 
-		if (pos[0] == WLAN_EID_TIM) {
-			u8 dtim_len = pos[1];
-			u8 dtim_period = pos[3];
-			u8 *next = pos + 2 + dtim_len;
+	/* add the dummy at the end */
+	tim[0] = WLAN_EID_TIM;
+	tim[1] = 3;
+	tim[2] = 0;
+	tim[3] = dtim_period;
+	tim[4] = 0;
 
-			if (dtim_len < 3)
-				return -EINVAL;
+	if (dtim_len > 3)
+		skb_trim(skb, skb->len - (dtim_len - 3));
 
-			memmove(pos, next, end - next);
-
-			if (dtim_len > 3)
-				skb_trim(skb, skb->len - (dtim_len - 3));
-
-			pos = end - (dtim_len + 2);
-
-			/* add the dummy at the end */
-			pos[0] = WLAN_EID_TIM;
-			pos[1] = 3;
-			pos[2] = 0;
-			pos[3] = dtim_period;
-			pos[4] = 0;
-			return 0;
-		}
-		pos += 2 + pos[1];
-	}
 	return 0;
 }
 
@@ -384,6 +397,9 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 			priv->wakeup_timer = info->beacon_int *
 					     info->dtim_period * 5;
 			p54_setup_mac(priv);
+		} else {
+			priv->wakeup_timer = 500;
+			priv->aid = 0;
 		}
 	}
 
@@ -517,6 +533,9 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	skb_queue_head_init(&priv->tx_pending);
 	dev->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_DBM |
+		     IEEE80211_HW_SUPPORTS_PS |
+		     IEEE80211_HW_PS_NULLFUNC_STACK |
+		     IEEE80211_HW_BEACON_FILTER |
 		     IEEE80211_HW_NOISE_DBM;
 
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |

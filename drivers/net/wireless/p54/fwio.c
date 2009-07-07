@@ -585,7 +585,8 @@ int p54_set_ps(struct p54_common *priv)
 	unsigned int i;
 	u16 mode;
 
-	if (priv->hw->conf.flags & IEEE80211_CONF_PS)
+	if (priv->hw->conf.flags & IEEE80211_CONF_PS &&
+	    !priv->powersave_override)
 		mode = P54_PSM | P54_PSM_BEACON_TIMEOUT | P54_PSM_DTIM |
 		       P54_PSM_CHECKSUM | P54_PSM_MCBC;
 	else
@@ -607,8 +608,8 @@ int p54_set_ps(struct p54_common *priv)
 
 	psm->beacon_rssi_skip_max = 200;
 	psm->rssi_delta_threshold = 0;
-	psm->nr = 10;
-	psm->exclude[0] = 0;
+	psm->nr = 1;
+	psm->exclude[0] = WLAN_EID_TIM;
 
 	p54_tx(priv, skb);
 	return 0;
