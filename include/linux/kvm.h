@@ -409,6 +409,9 @@ struct kvm_guest_debug {
 #define KVM_CAP_PIT2 33
 #endif
 #define KVM_CAP_SET_BOOT_CPU_ID 34
+#ifdef __KVM_HAVE_PIT_STATE2
+#define KVM_CAP_PIT_STATE2 35
+#endif
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -585,6 +588,9 @@ struct kvm_debug_guest {
 
 #define KVM_IA64_VCPU_GET_STACK   _IOR(KVMIO,  0x9a, void *)
 #define KVM_IA64_VCPU_SET_STACK   _IOW(KVMIO,  0x9b, void *)
+
+#define KVM_GET_PIT2   _IOR(KVMIO,   0x9f, struct kvm_pit_state2)
+#define KVM_SET_PIT2   _IOW(KVMIO,   0xa0, struct kvm_pit_state2)
 
 #define KVM_TRC_INJ_VIRQ         (KVM_TRC_HANDLER + 0x02)
 #define KVM_TRC_REDELIVER_EVT    (KVM_TRC_HANDLER + 0x03)

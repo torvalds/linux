@@ -332,20 +332,33 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 	case 1:
         /* FIXME: enhance mode 4 precision */
 	case 4:
-		create_pit_timer(ps, val, 0);
+		if (!(ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)) {
+			create_pit_timer(ps, val, 0);
+		}
 		break;
 	case 2:
 	case 3:
-		create_pit_timer(ps, val, 1);
+		if (!(ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)){
+			create_pit_timer(ps, val, 1);
+		}
 		break;
 	default:
 		destroy_pit_timer(&ps->pit_timer);
 	}
 }
 
-void kvm_pit_load_count(struct kvm *kvm, int channel, u32 val)
+void kvm_pit_load_count(struct kvm *kvm, int channel, u32 val, int hpet_legacy_start)
 {
-	pit_load_count(kvm, channel, val);
+	u8 saved_mode;
+	if (hpet_legacy_start) {
+		/* save existing mode for later reenablement */
+		saved_mode = kvm->arch.vpit->pit_state.channels[0].mode;
+		kvm->arch.vpit->pit_state.channels[0].mode = 0xff; /* disable timer */
+		pit_load_count(kvm, channel, val);
+		kvm->arch.vpit->pit_state.channels[0].mode = saved_mode;
+	} else {
+		pit_load_count(kvm, channel, val);
+	}
 }
 
 static inline struct kvm_pit *dev_to_pit(struct kvm_io_device *dev)
@@ -554,6 +567,7 @@ void kvm_pit_reset(struct kvm_pit *pit)
 	struct kvm_kpit_channel_state *c;
 
 	mutex_lock(&pit->pit_state.lock);
+	pit->pit_state.flags = 0;
 	for (i = 0; i < 3; i++) {
 		c = &pit->pit_state.channels[i];
 		c->mode = 0xff;

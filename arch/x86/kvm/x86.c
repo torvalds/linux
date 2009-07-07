@@ -1213,6 +1213,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_ASSIGN_DEV_IRQ:
 	case KVM_CAP_IRQFD:
 	case KVM_CAP_PIT2:
+	case KVM_CAP_PIT_STATE2:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -2078,7 +2079,36 @@ static int kvm_vm_ioctl_set_pit(struct kvm *kvm, struct kvm_pit_state *ps)
 
 	mutex_lock(&kvm->arch.vpit->pit_state.lock);
 	memcpy(&kvm->arch.vpit->pit_state, ps, sizeof(struct kvm_pit_state));
-	kvm_pit_load_count(kvm, 0, ps->channels[0].count);
+	kvm_pit_load_count(kvm, 0, ps->channels[0].count, 0);
+	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
+	return r;
+}
+
+static int kvm_vm_ioctl_get_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps)
+{
+	int r = 0;
+
+	mutex_lock(&kvm->arch.vpit->pit_state.lock);
+	memcpy(ps->channels, &kvm->arch.vpit->pit_state.channels,
+		sizeof(ps->channels));
+	ps->flags = kvm->arch.vpit->pit_state.flags;
+	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
+	return r;
+}
+
+static int kvm_vm_ioctl_set_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps)
+{
+	int r = 0, start = 0;
+	u32 prev_legacy, cur_legacy;
+	mutex_lock(&kvm->arch.vpit->pit_state.lock);
+	prev_legacy = kvm->arch.vpit->pit_state.flags & KVM_PIT_FLAGS_HPET_LEGACY;
+	cur_legacy = ps->flags & KVM_PIT_FLAGS_HPET_LEGACY;
+	if (!prev_legacy && cur_legacy)
+		start = 1;
+	memcpy(&kvm->arch.vpit->pit_state.channels, &ps->channels,
+	       sizeof(kvm->arch.vpit->pit_state.channels));
+	kvm->arch.vpit->pit_state.flags = ps->flags;
+	kvm_pit_load_count(kvm, 0, kvm->arch.vpit->pit_state.channels[0].count, start);
 	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
 	return r;
 }
@@ -2140,6 +2170,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	 */
 	union {
 		struct kvm_pit_state ps;
+		struct kvm_pit_state2 ps2;
 		struct kvm_memory_alias alias;
 		struct kvm_pit_config pit_config;
 	} u;
@@ -2317,6 +2348,32 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (!kvm->arch.vpit)
 			goto out;
 		r = kvm_vm_ioctl_set_pit(kvm, &u.ps);
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_GET_PIT2: {
+		r = -ENXIO;
+		if (!kvm->arch.vpit)
+			goto out;
+		r = kvm_vm_ioctl_get_pit2(kvm, &u.ps2);
+		if (r)
+			goto out;
+		r = -EFAULT;
+		if (copy_to_user(argp, &u.ps2, sizeof(u.ps2)))
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_SET_PIT2: {
+		r = -EFAULT;
+		if (copy_from_user(&u.ps2, argp, sizeof(u.ps2)))
+			goto out;
+		r = -ENXIO;
+		if (!kvm->arch.vpit)
+			goto out;
+		r = kvm_vm_ioctl_set_pit2(kvm, &u.ps2);
 		if (r)
 			goto out;
 		r = 0;
