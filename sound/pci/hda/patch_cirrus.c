@@ -53,6 +53,10 @@ struct cs_spec {
 
 	struct hda_bind_ctls *capture_bind[2];
 
+	unsigned int gpio_mask;
+	unsigned int gpio_dir;
+	unsigned int gpio_data;
+
 	struct hda_pcm pcm_rec[2];	/* PCM information */
 
 	unsigned int hp_detect:1;
@@ -981,6 +985,16 @@ static int cs_init(struct hda_codec *codec)
 	struct cs_spec *spec = codec->spec;
 
 	snd_hda_sequence_write(codec, cs_coef_init_verbs);
+
+	if (spec->gpio_mask) {
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_MASK,
+				    spec->gpio_mask);
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DIRECTION,
+				    spec->gpio_dir);
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+				    spec->gpio_data);
+	}
+
 	init_output(codec);
 	init_input(codec);
 	init_digital(codec);
@@ -1041,6 +1055,19 @@ static int cs_parse_auto_config(struct hda_codec *codec)
 	int err;
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
+	if (err < 0)
+		return err;
+
+	err = parse_output(codec);
+	if (err < 0)
+		return err;
+	err = parse_input(codec);
+	if (err < 0)
+		return err;
+	err = parse_digital_output(codec);
+	if (err < 0)
+		return err;
+	err = parse_digital_input(codec);
 	if (err < 0)
 		return err;
 	return 0;
@@ -1106,20 +1133,16 @@ static int patch_cs420x(struct hda_codec *codec)
 	if (spec->board_config >= 0)
 		fix_pincfg(codec, spec->board_config);
 
-	err = cs_parse_auto_config(codec);
-	if (err < 0)
-		goto error;
+	switch (spec->board_config) {
+	case CS420X_MBP55:
+		/* GPIO3 = EAPD? */
+		spec->gpio_mask = 0x08;
+		spec->gpio_dir = 0x08;
+		spec->gpio_data = 0x08;
+		break;
+	}
 
-	err = parse_output(codec);
-	if (err < 0)
-		goto error;
-	err = parse_input(codec);
-	if (err < 0)
-		goto error;
-	err = parse_digital_output(codec);
-	if (err < 0)
-		goto error;
-	err = parse_digital_input(codec);
+	err = cs_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
 
