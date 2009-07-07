@@ -22,7 +22,7 @@ MODULE_ALIAS("ip6t_physdev");
 
 
 static bool
-physdev_mt(const struct sk_buff *skb, const struct xt_action_param *par)
+physdev_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	const struct xt_physdev_info *info = par->matchinfo;

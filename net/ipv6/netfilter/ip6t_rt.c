@@ -36,8 +36,7 @@ segsleft_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 	return r;
 }
 
-static bool rt_mt6(const struct sk_buff *skb,
-		   const struct xt_action_param *par)
+static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct ipv6_rt_hdr _route;
 	const struct ipv6_rt_hdr *rh;

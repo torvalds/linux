@@ -17,7 +17,7 @@
 #include <linux/netfilter/xt_iprange.h>
 
 static bool
-iprange_mt4(const struct sk_buff *skb, const struct xt_action_param *par)
+iprange_mt4(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_iprange_mtinfo *info = par->matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);
@@ -68,7 +68,7 @@ iprange_ipv6_sub(const struct in6_addr *a, const struct in6_addr *b)
 }
 
 static bool
-iprange_mt6(const struct sk_buff *skb, const struct xt_action_param *par)
+iprange_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_iprange_mtinfo *info = par->matchinfo;
 	const struct ipv6hdr *iph = ipv6_hdr(skb);

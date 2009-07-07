@@ -91,7 +91,7 @@ static void connmark_tg_destroy(const struct xt_tgdtor_param *par)
 }
 
 static bool
-connmark_mt(const struct sk_buff *skb, const struct xt_action_param *par)
+connmark_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_connmark_mtinfo1 *info = par->matchinfo;
 	enum ip_conntrack_info ctinfo;

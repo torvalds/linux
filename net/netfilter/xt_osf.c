@@ -194,7 +194,7 @@ static inline int xt_osf_ttl(const struct sk_buff *skb, const struct xt_osf_info
 }
 
 static bool
-xt_osf_match_packet(const struct sk_buff *skb, const struct xt_action_param *p)
+xt_osf_match_packet(const struct sk_buff *skb, struct xt_action_param *p)
 {
 	const struct xt_osf_info *info = p->matchinfo;
 	const struct iphdr *ip = ip_hdr(skb);

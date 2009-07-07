@@ -34,7 +34,7 @@ mark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 }
 
 static bool
-mark_mt(const struct sk_buff *skb, const struct xt_action_param *par)
+mark_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_mark_mtinfo1 *info = par->matchinfo;
 

@@ -35,7 +35,7 @@ id_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 }
 
 static bool
-frag_mt6(const struct sk_buff *skb, const struct xt_action_param *par)
+frag_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct frag_hdr _frag;
 	const struct frag_hdr *fh;

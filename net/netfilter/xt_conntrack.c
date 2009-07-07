@@ -113,7 +113,7 @@ ct_proto_port_check(const struct xt_conntrack_mtinfo2 *info,
 }
 
 static bool
-conntrack_mt(const struct sk_buff *skb, const struct xt_action_param *par,
+conntrack_mt(const struct sk_buff *skb, struct xt_action_param *par,
              u16 state_mask, u16 status_mask)
 {
 	const struct xt_conntrack_mtinfo2 *info = par->matchinfo;
@@ -191,7 +191,7 @@ conntrack_mt(const struct sk_buff *skb, const struct xt_action_param *par,
 }
 
 static bool
-conntrack_mt_v1(const struct sk_buff *skb, const struct xt_action_param *par)
+conntrack_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_conntrack_mtinfo1 *info = par->matchinfo;
 
@@ -199,7 +199,7 @@ conntrack_mt_v1(const struct sk_buff *skb, const struct xt_action_param *par)
 }
 
 static bool
-conntrack_mt_v2(const struct sk_buff *skb, const struct xt_action_param *par)
+conntrack_mt_v2(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_conntrack_mtinfo2 *info = par->matchinfo;
 

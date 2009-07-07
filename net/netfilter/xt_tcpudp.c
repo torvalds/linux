@@ -62,8 +62,7 @@ tcp_find_option(u_int8_t option,
 	return invert;
 }
 
-static bool tcp_mt(const struct sk_buff *skb,
-		   const struct xt_action_param *par)
+static bool tcp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct tcphdr *th;
 	struct tcphdr _tcph;
@@ -129,8 +128,7 @@ static int tcp_mt_check(const struct xt_mtchk_param *par)
 	return (tcpinfo->invflags & ~XT_TCP_INV_MASK) ? -EINVAL : 0;
 }
 
-static bool udp_mt(const struct sk_buff *skb,
-		   const struct xt_action_param *par)
+static bool udp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct udphdr *uh;
 	struct udphdr _udph;

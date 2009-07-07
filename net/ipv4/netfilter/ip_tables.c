@@ -2138,7 +2138,7 @@ icmp_type_code_match(u_int8_t test_type, u_int8_t min_code, u_int8_t max_code,
 }
 
 static bool
-icmp_match(const struct sk_buff *skb, const struct xt_action_param *par)
+icmp_match(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct icmphdr *ic;
 	struct icmphdr _icmph;
