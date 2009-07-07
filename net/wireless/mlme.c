@@ -122,14 +122,8 @@ void cfg80211_send_deauth(struct net_device *dev, const u8 *buf, size_t len)
 			break;
 		}
 	}
-/*
- * mac80211 currently triggers this warning,
- * so disable for now (it's harmless, just
- * means that we got a spurious event)
 
 	WARN_ON(!done);
-
- */
 
 	if (wdev->sme_state == CFG80211_SME_CONNECTED) {
 		u16 reason_code;
