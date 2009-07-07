@@ -716,16 +716,16 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	err_enabled = scr_status & (SCI_CTRL_FLAGS_REIE | SCI_CTRL_FLAGS_RIE);
 
 	/* Tx Interrupt */
-	if ((ssr_status & 0x0020) && (scr_status & SCI_CTRL_FLAGS_TIE))
+	if ((ssr_status & SCxSR_TDxE(port)) && (scr_status & SCI_CTRL_FLAGS_TIE))
 		ret = sci_tx_interrupt(irq, ptr);
 	/* Rx Interrupt */
-	if ((ssr_status & 0x0002) && (scr_status & SCI_CTRL_FLAGS_RIE))
+	if ((ssr_status & SCxSR_RDxF(port)) && (scr_status & SCI_CTRL_FLAGS_RIE))
 		ret = sci_rx_interrupt(irq, ptr);
 	/* Error Interrupt */
-	if ((ssr_status & 0x0080) && err_enabled)
+	if ((ssr_status & SCxSR_ERRORS(port)) && err_enabled)
 		ret = sci_er_interrupt(irq, ptr);
 	/* Break Interrupt */
-	if ((ssr_status & 0x0010) && err_enabled)
+	if ((ssr_status & SCxSR_BRK(port)) && err_enabled)
 		ret = sci_br_interrupt(irq, ptr);
 
 	return ret;
