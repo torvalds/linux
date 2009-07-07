@@ -86,6 +86,20 @@ static inline int put_reg(struct task_struct *task, int regno,
 	return 0;
 }
 
+void user_enable_single_step(struct task_struct *task)
+{
+	unsigned long srflags;
+	srflags = get_reg(task, PT_SR) | (TRACE_BITS << 16);
+	put_reg(task, PT_SR, srflags);
+}
+
+void user_disable_single_step(struct task_struct *task)
+{
+	unsigned long srflags;
+	srflags = get_reg(task, PT_SR) & ~(TRACE_BITS << 16);
+	put_reg(task, PT_SR, srflags);
+}
+
 /*
  * Called by kernel/ptrace.c when detaching..
  *
@@ -93,10 +107,8 @@ static inline int put_reg(struct task_struct *task, int regno,
  */
 void ptrace_disable(struct task_struct *child)
 {
-	unsigned long tmp;
 	/* make sure the single step bit is not set. */
-	tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
-	put_reg(child, PT_SR, tmp);
+	user_disable_single_step(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
