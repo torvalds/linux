@@ -1544,9 +1544,6 @@ void __init kmem_cache_init(void)
 	}
 
 	g_cpucache_up = EARLY;
-
-	/* Annotate slab for lockdep -- annotate the malloc caches */
-	init_lock_keys();
 }
 
 void __init kmem_cache_init_late(void)
@@ -1562,6 +1559,9 @@ void __init kmem_cache_init_late(void)
 
 	/* Done! */
 	g_cpucache_up = FULL;
+
+	/* Annotate slab for lockdep -- annotate the malloc caches */
+	init_lock_keys();
 
 	/*
 	 * Register a cpu startup notifier callback that initializes
@@ -2547,7 +2547,7 @@ void kmem_cache_destroy(struct kmem_cache *cachep)
 	}
 
 	if (unlikely(cachep->flags & SLAB_DESTROY_BY_RCU))
-		synchronize_rcu();
+		rcu_barrier();
 
 	__kmem_cache_destroy(cachep);
 	mutex_unlock(&cache_chain_mutex);

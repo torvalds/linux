@@ -226,8 +226,18 @@ static inline void addQ(struct hlist_head *list, CommandList_struct *c)
 
 static inline void removeQ(CommandList_struct *c)
 {
-	if (WARN_ON(hlist_unhashed(&c->list)))
+	/*
+	 * After kexec/dump some commands might still
+	 * be in flight, which the firmware will try
+	 * to complete. Resetting the firmware doesn't work
+	 * with old fw revisions, so we have to mark
+	 * them off as 'stale' to prevent the driver from
+	 * falling over.
+	 */
+	if (WARN_ON(hlist_unhashed(&c->list))) {
+		c->cmd_type = CMD_MSG_STALE;
 		return;
+	}
 
 	hlist_del_init(&c->list);
 }
@@ -4246,7 +4256,8 @@ static void fail_all_cmds(unsigned long ctlr)
 	while (!hlist_empty(&h->cmpQ)) {
 		c = hlist_entry(h->cmpQ.first, CommandList_struct, list);
 		removeQ(c);
-		c->err_info->CommandStatus = CMD_HARDWARE_ERR;
+		if (c->cmd_type != CMD_MSG_STALE)
+			c->err_info->CommandStatus = CMD_HARDWARE_ERR;
 		if (c->cmd_type == CMD_RWREQ) {
 			complete_command(h, c, 0);
 		} else if (c->cmd_type == CMD_IOCTL_PEND)

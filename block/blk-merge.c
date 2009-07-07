@@ -350,6 +350,12 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	if (blk_integrity_rq(req) != blk_integrity_rq(next))
 		return 0;
 
+	/* don't merge requests of different failfast settings */
+	if (blk_failfast_dev(req)	!= blk_failfast_dev(next)	||
+	    blk_failfast_transport(req)	!= blk_failfast_transport(next)	||
+	    blk_failfast_driver(req)	!= blk_failfast_driver(next))
+		return 0;
+
 	/*
 	 * If we are allowed to merge, then append bio list
 	 * from next to rq and release next. merge_requests_fn
