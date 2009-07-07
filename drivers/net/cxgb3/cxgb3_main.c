@@ -964,6 +964,75 @@ static int bind_qsets(struct adapter *adap)
 
 #define FW_FNAME "cxgb3/t3fw-%d.%d.%d.bin"
 #define TPSRAM_NAME "cxgb3/t3%c_psram-%d.%d.%d.bin"
+#define AEL2005_OPT_EDC_NAME "cxgb3/ael2005_opt_edc.bin"
+#define AEL2005_TWX_EDC_NAME "cxgb3/ael2005_twx_edc.bin"
+#define AEL2020_TWX_EDC_NAME "cxgb3/ael2005_twx_edc.bin"
+
+static inline const char *get_edc_fw_name(int edc_idx)
+{
+	const char *fw_name = NULL;
+
+	switch (edc_idx) {
+	case EDC_OPT_AEL2005:
+		fw_name = AEL2005_OPT_EDC_NAME;
+		break;
+	case EDC_TWX_AEL2005:
+		fw_name = AEL2005_TWX_EDC_NAME;
+		break;
+	case EDC_TWX_AEL2020:
+		fw_name = AEL2020_TWX_EDC_NAME;
+		break;
+	}
+	return fw_name;
+}
+
+int t3_get_edc_fw(struct cphy *phy, int edc_idx, int size)
+{
+	struct adapter *adapter = phy->adapter;
+	const struct firmware *fw;
+	char buf[64];
+	u32 csum;
+	const __be32 *p;
+	u16 *cache = phy->phy_cache;
+	int i, ret;
+
+	snprintf(buf, sizeof(buf), get_edc_fw_name(edc_idx));
+
+	ret = request_firmware(&fw, buf, &adapter->pdev->dev);
+	if (ret < 0) {
+		dev_err(&adapter->pdev->dev,
+			"could not upgrade firmware: unable to load %s\n",
+			buf);
+		return ret;
+	}
+
+	/* check size, take checksum in account */
+	if (fw->size > size + 4) {
+		CH_ERR(adapter, "firmware image too large %u, expected %d\n",
+		       (unsigned int)fw->size, size + 4);
+		ret = -EINVAL;
+	}
+
+	/* compute checksum */
+	p = (const __be32 *)fw->data;
+	for (csum = 0, i = 0; i < fw->size / sizeof(csum); i++)
+		csum += ntohl(p[i]);
+
+	if (csum != 0xffffffff) {
+		CH_ERR(adapter, "corrupted firmware image, checksum %u\n",
+		       csum);
+		ret = -EINVAL;
+	}
+
+	for (i = 0; i < size / 4 ; i++) {
+		*cache++ = (be32_to_cpu(p[i]) & 0xffff0000) >> 16;
+		*cache++ = be32_to_cpu(p[i]) & 0xffff;
+	}
+
+	release_firmware(fw);
+
+	return ret;
+}
 
 static int upgrade_fw(struct adapter *adap)
 {

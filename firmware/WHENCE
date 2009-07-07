@@ -418,6 +418,23 @@ License: GPLv2 or OpenIB.org BSD license, no source visible
 
 --------------------------------------------------------------------------
 
+Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
+
+File: cxgb3/ael2005_opt_edc.bin.ihex
+File: cxgb3/ael2005_twx_edc.bin.ihex
+File: cxgb3/ael2020_twx_edc.bin.ihex
+
+Licence:
+ *	Copyright (c) 2007-2009 NetLogic Microsystems, Inc.
+ *
+ *	Permission is hereby granted for the distribution of this firmware
+ *	data in hexadecimal or equivalent format, provided this copyright
+ *	notice is accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
 Driver: e100 -- Intel PRO/100 Ethernet NIC
 
 File: e100/d101m_ucode.bin

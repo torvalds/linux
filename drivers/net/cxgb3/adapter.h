@@ -320,4 +320,6 @@ int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
 		unsigned char *data);
 irqreturn_t t3_sge_intr_msix(int irq, void *cookie);
 
+int t3_get_edc_fw(struct cphy *phy, int edc_idx, int size);
+
 #endif				/* __T3_ADAPTER_H__ */
