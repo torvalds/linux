@@ -285,6 +285,13 @@ static struct clk timer2_clk = {
 	.flags = ALWAYS_ENABLED, /* no LPSC, always enabled; c.f. spruep9a */
 };
 
+
+static struct clk ide_clk = {
+	.name = "ide",
+	.parent = &pll1_sysclk4,
+	.lpsc = DAVINCI_LPSC_ATA,
+};
+
 static struct clk vpif0_clk = {
 	.name = "vpif0",
 	.parent = &ref_clk,
@@ -336,6 +343,7 @@ struct davinci_clk dm646x_clks[] = {
 	CLK(NULL, "timer0", &timer0_clk),
 	CLK(NULL, "timer1", &timer1_clk),
 	CLK("watchdog", NULL, &timer2_clk),
+	CLK("palm_bk3710", NULL, &ide_clk),
 	CLK(NULL, "vpif0", &vpif0_clk),
 	CLK(NULL, "vpif1", &vpif1_clk),
 	CLK(NULL, NULL, NULL),
@@ -399,7 +407,7 @@ static struct platform_device dm646x_emac_device = {
  */
 static const struct mux_config dm646x_pins[] = {
 #ifdef CONFIG_DAVINCI_MUX
-MUX_CFG(DM646X, ATAEN,		0,   0,     1,	  1,	 true)
+MUX_CFG(DM646X, ATAEN,		0,   0,     5,	  1,	 true)
 
 MUX_CFG(DM646X, AUDCK1,		0,   29,    1,	  0,	 false)
 
