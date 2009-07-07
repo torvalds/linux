@@ -995,7 +995,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 				goto err_free_sk;
 		}
 
-		err = -EINVAL;
 		err = register_netdevice(tun->dev);
 		if (err < 0)
 			goto err_free_sk;
