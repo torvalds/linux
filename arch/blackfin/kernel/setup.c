@@ -187,6 +187,8 @@ void __init bfin_relocate_l1_mem(void)
 	unsigned long l1_data_b_length;
 	unsigned long l2_length;
 
+	early_shadow_stamp();
+
 	/*
 	 * due to the ALIGN(4) in the arch/blackfin/kernel/vmlinux.lds.S
 	 * we know that everything about l1 text/data is nice and aligned,
@@ -1352,6 +1354,7 @@ const struct seq_operations cpuinfo_op = {
 
 void __init cmdline_init(const char *r0)
 {
+	early_shadow_stamp();
 	if (r0)
 		strncpy(command_line, r0, COMMAND_LINE_SIZE);
 }

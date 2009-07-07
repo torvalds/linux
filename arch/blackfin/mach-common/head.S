@@ -153,6 +153,8 @@ ENTRY(__start)
 
 #ifdef CONFIG_EARLY_PRINTK
 	call _init_early_exception_vectors;
+	r0 = (EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+	sti r0;
 #endif
 
 	r0 = 0 (x);
@@ -212,12 +214,21 @@ ENTRY(__start)
 	[p0] = p1;
 	csync;
 
+#ifdef CONFIG_EARLY_PRINTK
+	r0 = (EVT_IVG15 | EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU) (z);
+#else
 	r0 = EVT_IVG15 (z);
+#endif
 	sti r0;
 
 	raise 15;
+#ifdef CONFIG_EARLY_PRINTK
+	p0.l = _early_trap;
+	p0.h = _early_trap;
+#else
 	p0.l = .LWAIT_HERE;
 	p0.h = .LWAIT_HERE;
+#endif
 	reti = p0;
 #if ANOMALY_05000281
 	nop; nop; nop;

@@ -19,6 +19,7 @@
 #include <asm/cacheflush.h>
 #include <asm/dma.h>
 #include <asm/uaccess.h>
+#include <asm/early_printk.h>
 
 /*
  * To make sure we work around 05000119 - we always check DMA_DONE bit,
@@ -236,6 +237,7 @@ void blackfin_dma_resume(void)
  */
 void __init blackfin_dma_early_init(void)
 {
+	early_shadow_stamp();
 	bfin_write_MDMA_S0_CONFIG(0);
 	bfin_write_MDMA_S1_CONFIG(0);
 }
@@ -245,6 +247,8 @@ void __init early_dma_memcpy(void *pdst, const void *psrc, size_t size)
 	unsigned long dst = (unsigned long)pdst;
 	unsigned long src = (unsigned long)psrc;
 	struct dma_register *dst_ch, *src_ch;
+
+	early_shadow_stamp();
 
 	/* We assume that everything is 4 byte aligned, so include
 	 * a basic sanity check
@@ -300,6 +304,8 @@ void __init early_dma_memcpy(void *pdst, const void *psrc, size_t size)
 
 void __init early_dma_memcpy_done(void)
 {
+	early_shadow_stamp();
+
 	while ((bfin_read_MDMA_S0_CONFIG() && !(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE)) ||
 	       (bfin_read_MDMA_S1_CONFIG() && !(bfin_read_MDMA_D1_IRQ_STATUS() & DMA_DONE)))
 		continue;
