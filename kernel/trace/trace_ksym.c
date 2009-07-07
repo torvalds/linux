@@ -453,8 +453,10 @@ device_initcall(init_ksym_trace);
 #ifdef CONFIG_PROFILE_KSYM_TRACER
 static int ksym_tracer_stat_headers(struct seq_file *m)
 {
-	seq_printf(m, "   Access type    ");
-	seq_printf(m, "            Symbol                     Counter     \n");
+	seq_puts(m, "  Access Type ");
+	seq_puts(m, "  Symbol                                       Counter\n");
+	seq_puts(m, "  ----------- ");
+	seq_puts(m, "  ------                                       -------\n");
 	return 0;
 }
 
@@ -472,27 +474,27 @@ static int ksym_tracer_stat_show(struct seq_file *m, void *v)
 
 	switch (access_type) {
 	case HW_BREAKPOINT_WRITE:
-		seq_printf(m, "     W     ");
+		seq_puts(m, "  W           ");
 		break;
 	case HW_BREAKPOINT_RW:
-		seq_printf(m, "     RW    ");
+		seq_puts(m, "  RW          ");
 		break;
 	default:
-		seq_printf(m, "     NA    ");
+		seq_puts(m, "  NA          ");
 	}
 
 	if (lookup_symbol_name(entry->ksym_addr, fn_name) >= 0)
-		seq_printf(m, "               %s                 ", fn_name);
+		seq_printf(m, "  %-36s", fn_name);
 	else
-		seq_printf(m, "               <NA>                ");
+		seq_printf(m, "  %-36s", "<NA>");
+	seq_printf(m, " %15lu\n", entry->counter);
 
-	seq_printf(m, "%15lu\n", entry->counter);
 	return 0;
 }
 
 static void *ksym_tracer_stat_start(struct tracer_stat *trace)
 {
-	return &(ksym_filter_head.first);
+	return ksym_filter_head.first;
 }
 
 static void *
