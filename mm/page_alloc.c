@@ -4745,8 +4745,10 @@ void *__init alloc_large_system_hash(const char *tablename,
 			 * some pages at the end of hash table which
 			 * alloc_pages_exact() automatically does
 			 */
-			if (get_order(size) < MAX_ORDER)
+			if (get_order(size) < MAX_ORDER) {
 				table = alloc_pages_exact(size, GFP_ATOMIC);
+				kmemleak_alloc(table, size, 1, GFP_ATOMIC);
+			}
 		}
 	} while (!table && size > PAGE_SIZE && --log2qty);
 
@@ -4763,16 +4765,6 @@ void *__init alloc_large_system_hash(const char *tablename,
 		*_hash_shift = log2qty;
 	if (_hash_mask)
 		*_hash_mask = (1 << log2qty) - 1;
-
-	/*
-	 * If hashdist is set, the table allocation is done with __vmalloc()
-	 * which invokes the kmemleak_alloc() callback. This function may also
-	 * be called before the slab and kmemleak are initialised when
-	 * kmemleak simply buffers the request to be executed later
-	 * (GFP_ATOMIC flag ignored in this case).
-	 */
-	if (!hashdist)
-		kmemleak_alloc(table, size, 1, GFP_ATOMIC);
 
 	return table;
 }
