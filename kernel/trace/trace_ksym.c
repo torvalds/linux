@@ -264,11 +264,7 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 	unsigned long ksym_addr = 0;
 	int ret, op, changed = 0;
 
-	/* Ignore echo "" > ksym_trace_filter */
-	if (count == 0)
-		return 0;
-
-	input_string = kzalloc(count, GFP_KERNEL);
+	input_string = kzalloc(count + 1, GFP_KERNEL);
 	if (!input_string)
 		return -ENOMEM;
 
@@ -276,6 +272,7 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 		kfree(input_string);
 		return -EFAULT;
 	}
+	input_string[count] = '\0';
 
 	ret = op = parse_ksym_trace_str(input_string, &ksymname, &ksym_addr);
 	if (ret < 0) {
