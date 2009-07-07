@@ -155,6 +155,7 @@ struct kvm {
 		spinlock_t        lock;
 		struct list_head  items;
 	} irqfds;
+	struct list_head ioeventfds;
 #endif
 	struct kvm_vm_stat stat;
 	struct kvm_arch arch;
@@ -528,19 +529,24 @@ static inline void kvm_free_irq_routing(struct kvm *kvm) {}
 
 #ifdef CONFIG_HAVE_KVM_EVENTFD
 
-void kvm_irqfd_init(struct kvm *kvm);
+void kvm_eventfd_init(struct kvm *kvm);
 int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags);
 void kvm_irqfd_release(struct kvm *kvm);
+int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 
 #else
 
-static inline void kvm_irqfd_init(struct kvm *kvm) {}
+static inline void kvm_eventfd_init(struct kvm *kvm) {}
 static inline int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags)
 {
 	return -EINVAL;
 }
 
 static inline void kvm_irqfd_release(struct kvm *kvm) {}
+static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+{
+	return -ENOSYS;
+}
 
 #endif /* CONFIG_HAVE_KVM_EVENTFD */
 

@@ -21,6 +21,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/kvm.h>
 #include <linux/workqueue.h>
 #include <linux/syscalls.h>
 #include <linux/wait.h>
@@ -28,6 +29,9 @@
 #include <linux/file.h>
 #include <linux/list.h>
 #include <linux/eventfd.h>
+#include <linux/kernel.h>
+
+#include "iodev.h"
 
 /*
  * --------------------------------------------------------------------
@@ -234,10 +238,11 @@ fail:
 }
 
 void
-kvm_irqfd_init(struct kvm *kvm)
+kvm_eventfd_init(struct kvm *kvm)
 {
 	spin_lock_init(&kvm->irqfds.lock);
 	INIT_LIST_HEAD(&kvm->irqfds.items);
+	INIT_LIST_HEAD(&kvm->ioeventfds);
 }
 
 /*
@@ -327,3 +332,247 @@ static void __exit irqfd_module_exit(void)
 
 module_init(irqfd_module_init);
 module_exit(irqfd_module_exit);
+
+/*
+ * --------------------------------------------------------------------
+ * ioeventfd: translate a PIO/MMIO memory write to an eventfd signal.
+ *
+ * userspace can register a PIO/MMIO address with an eventfd for receiving
+ * notification when the memory has been touched.
+ * --------------------------------------------------------------------
+ */
+
+struct _ioeventfd {
+	struct list_head     list;
+	u64                  addr;
+	int                  length;
+	struct eventfd_ctx  *eventfd;
+	u64                  datamatch;
+	struct kvm_io_device dev;
+	bool                 wildcard;
+};
+
+static inline struct _ioeventfd *
+to_ioeventfd(struct kvm_io_device *dev)
+{
+	return container_of(dev, struct _ioeventfd, dev);
+}
+
+static void
+ioeventfd_release(struct _ioeventfd *p)
+{
+	eventfd_ctx_put(p->eventfd);
+	list_del(&p->list);
+	kfree(p);
+}
+
+static bool
+ioeventfd_in_range(struct _ioeventfd *p, gpa_t addr, int len, const void *val)
+{
+	u64 _val;
+
+	if (!(addr == p->addr && len == p->length))
+		/* address-range must be precise for a hit */
+		return false;
+
+	if (p->wildcard)
+		/* all else equal, wildcard is always a hit */
+		return true;
+
+	/* otherwise, we have to actually compare the data */
+
+	BUG_ON(!IS_ALIGNED((unsigned long)val, len));
+
+	switch (len) {
+	case 1:
+		_val = *(u8 *)val;
+		break;
+	case 2:
+		_val = *(u16 *)val;
+		break;
+	case 4:
+		_val = *(u32 *)val;
+		break;
+	case 8:
+		_val = *(u64 *)val;
+		break;
+	default:
+		return false;
+	}
+
+	return _val == p->datamatch ? true : false;
+}
+
+/* MMIO/PIO writes trigger an event if the addr/val match */
+static int
+ioeventfd_write(struct kvm_io_device *this, gpa_t addr, int len,
+		const void *val)
+{
+	struct _ioeventfd *p = to_ioeventfd(this);
+
+	if (!ioeventfd_in_range(p, addr, len, val))
+		return -EOPNOTSUPP;
+
+	eventfd_signal(p->eventfd, 1);
+	return 0;
+}
+
+/*
+ * This function is called as KVM is completely shutting down.  We do not
+ * need to worry about locking just nuke anything we have as quickly as possible
+ */
+static void
+ioeventfd_destructor(struct kvm_io_device *this)
+{
+	struct _ioeventfd *p = to_ioeventfd(this);
+
+	ioeventfd_release(p);
+}
+
+static const struct kvm_io_device_ops ioeventfd_ops = {
+	.write      = ioeventfd_write,
+	.destructor = ioeventfd_destructor,
+};
+
+/* assumes kvm->slots_lock held */
+static bool
+ioeventfd_check_collision(struct kvm *kvm, struct _ioeventfd *p)
+{
+	struct _ioeventfd *_p;
+
+	list_for_each_entry(_p, &kvm->ioeventfds, list)
+		if (_p->addr == p->addr && _p->length == p->length &&
+		    (_p->wildcard || p->wildcard ||
+		     _p->datamatch == p->datamatch))
+			return true;
+
+	return false;
+}
+
+static int
+kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+{
+	int                       pio = args->flags & KVM_IOEVENTFD_FLAG_PIO;
+	struct kvm_io_bus        *bus = pio ? &kvm->pio_bus : &kvm->mmio_bus;
+	struct _ioeventfd        *p;
+	struct eventfd_ctx       *eventfd;
+	int                       ret;
+
+	/* must be natural-word sized */
+	switch (args->len) {
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* check for range overflow */
+	if (args->addr + args->len < args->addr)
+		return -EINVAL;
+
+	/* check for extra flags that we don't understand */
+	if (args->flags & ~KVM_IOEVENTFD_VALID_FLAG_MASK)
+		return -EINVAL;
+
+	eventfd = eventfd_ctx_fdget(args->fd);
+	if (IS_ERR(eventfd))
+		return PTR_ERR(eventfd);
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	INIT_LIST_HEAD(&p->list);
+	p->addr    = args->addr;
+	p->length  = args->len;
+	p->eventfd = eventfd;
+
+	/* The datamatch feature is optional, otherwise this is a wildcard */
+	if (args->flags & KVM_IOEVENTFD_FLAG_DATAMATCH)
+		p->datamatch = args->datamatch;
+	else
+		p->wildcard = true;
+
+	down_write(&kvm->slots_lock);
+
+	/* Verify that there isnt a match already */
+	if (ioeventfd_check_collision(kvm, p)) {
+		ret = -EEXIST;
+		goto unlock_fail;
+	}
+
+	kvm_iodevice_init(&p->dev, &ioeventfd_ops);
+
+	ret = __kvm_io_bus_register_dev(bus, &p->dev);
+	if (ret < 0)
+		goto unlock_fail;
+
+	list_add_tail(&p->list, &kvm->ioeventfds);
+
+	up_write(&kvm->slots_lock);
+
+	return 0;
+
+unlock_fail:
+	up_write(&kvm->slots_lock);
+
+fail:
+	kfree(p);
+	eventfd_ctx_put(eventfd);
+
+	return ret;
+}
+
+static int
+kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+{
+	int                       pio = args->flags & KVM_IOEVENTFD_FLAG_PIO;
+	struct kvm_io_bus        *bus = pio ? &kvm->pio_bus : &kvm->mmio_bus;
+	struct _ioeventfd        *p, *tmp;
+	struct eventfd_ctx       *eventfd;
+	int                       ret = -ENOENT;
+
+	eventfd = eventfd_ctx_fdget(args->fd);
+	if (IS_ERR(eventfd))
+		return PTR_ERR(eventfd);
+
+	down_write(&kvm->slots_lock);
+
+	list_for_each_entry_safe(p, tmp, &kvm->ioeventfds, list) {
+		bool wildcard = !(args->flags & KVM_IOEVENTFD_FLAG_DATAMATCH);
+
+		if (p->eventfd != eventfd  ||
+		    p->addr != args->addr  ||
+		    p->length != args->len ||
+		    p->wildcard != wildcard)
+			continue;
+
+		if (!p->wildcard && p->datamatch != args->datamatch)
+			continue;
+
+		__kvm_io_bus_unregister_dev(bus, &p->dev);
+		ioeventfd_release(p);
+		ret = 0;
+		break;
+	}
+
+	up_write(&kvm->slots_lock);
+
+	eventfd_ctx_put(eventfd);
+
+	return ret;
+}
+
+int
+kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
+{
+	if (args->flags & KVM_IOEVENTFD_FLAG_DEASSIGN)
+		return kvm_deassign_ioeventfd(kvm, args);
+
+	return kvm_assign_ioeventfd(kvm, args);
+}
