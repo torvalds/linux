@@ -210,6 +210,7 @@ static DEFINE_MUTEX(scan_mutex);
 enum {
 	KMEMLEAK_ALLOC,
 	KMEMLEAK_FREE,
+	KMEMLEAK_FREE_PART,
 	KMEMLEAK_NOT_LEAK,
 	KMEMLEAK_IGNORE,
 	KMEMLEAK_SCAN_AREA,
@@ -523,27 +524,17 @@ out:
  * Remove the metadata (struct kmemleak_object) for a memory block from the
  * object_list and object_tree_root and decrement its use_count.
  */
-static void delete_object(unsigned long ptr)
+static void __delete_object(struct kmemleak_object *object)
 {
 	unsigned long flags;
-	struct kmemleak_object *object;
 
 	write_lock_irqsave(&kmemleak_lock, flags);
-	object = lookup_object(ptr, 0);
-	if (!object) {
-#ifdef DEBUG
-		kmemleak_warn("Freeing unknown object at 0x%08lx\n",
-			      ptr);
-#endif
-		write_unlock_irqrestore(&kmemleak_lock, flags);
-		return;
-	}
 	prio_tree_remove(&object_tree_root, &object->tree_node);
 	list_del_rcu(&object->object_list);
 	write_unlock_irqrestore(&kmemleak_lock, flags);
 
 	WARN_ON(!(object->flags & OBJECT_ALLOCATED));
-	WARN_ON(atomic_read(&object->use_count) < 1);
+	WARN_ON(atomic_read(&object->use_count) < 2);
 
 	/*
 	 * Locking here also ensures that the corresponding memory block
@@ -555,6 +546,64 @@ static void delete_object(unsigned long ptr)
 	put_object(object);
 }
 
+/*
+ * Look up the metadata (struct kmemleak_object) corresponding to ptr and
+ * delete it.
+ */
+static void delete_object_full(unsigned long ptr)
+{
+	struct kmemleak_object *object;
+
+	object = find_and_get_object(ptr, 0);
+	if (!object) {
+#ifdef DEBUG
+		kmemleak_warn("Freeing unknown object at 0x%08lx\n",
+			      ptr);
+#endif
+		return;
+	}
+	__delete_object(object);
+	put_object(object);
+}
+
+/*
+ * Look up the metadata (struct kmemleak_object) corresponding to ptr and
+ * delete it. If the memory block is partially freed, the function may create
+ * additional metadata for the remaining parts of the block.
+ */
+static void delete_object_part(unsigned long ptr, size_t size)
+{
+	struct kmemleak_object *object;
+	unsigned long start, end;
+
+	object = find_and_get_object(ptr, 1);
+	if (!object) {
+#ifdef DEBUG
+		kmemleak_warn("Partially freeing unknown object at 0x%08lx "
+			      "(size %zu)\n", ptr, size);
+#endif
+		return;
+	}
+	__delete_object(object);
+
+	/*
+	 * Create one or two objects that may result from the memory block
+	 * split. Note that partial freeing is only done by free_bootmem() and
+	 * this happens before kmemleak_init() is called. The path below is
+	 * only executed during early log recording in kmemleak_init(), so
+	 * GFP_KERNEL is enough.
+	 */
+	start = object->pointer;
+	end = object->pointer + object->size;
+	if (ptr > start)
+		create_object(start, ptr - start, object->min_count,
+			      GFP_KERNEL);
+	if (ptr + size < end)
+		create_object(ptr + size, end - ptr - size, object->min_count,
+			      GFP_KERNEL);
+
+	put_object(object);
+}
 /*
  * Make a object permanently as gray-colored so that it can no longer be
  * reported as a leak. This is used in general to mark a false positive.
@@ -719,11 +768,26 @@ void kmemleak_free(const void *ptr)
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
-		delete_object((unsigned long)ptr);
+		delete_object_full((unsigned long)ptr);
 	else if (atomic_read(&kmemleak_early_log))
 		log_early(KMEMLEAK_FREE, ptr, 0, 0, 0, 0);
 }
 EXPORT_SYMBOL_GPL(kmemleak_free);
+
+/*
+ * Partial memory freeing function callback. This function is usually called
+ * from bootmem allocator when (part of) a memory block is freed.
+ */
+void kmemleak_free_part(const void *ptr, size_t size)
+{
+	pr_debug("%s(0x%p)\n", __func__, ptr);
+
+	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
+		delete_object_part((unsigned long)ptr, size);
+	else if (atomic_read(&kmemleak_early_log))
+		log_early(KMEMLEAK_FREE_PART, ptr, size, 0, 0, 0);
+}
+EXPORT_SYMBOL_GPL(kmemleak_free_part);
 
 /*
  * Mark an already allocated memory block as a false positive. This will cause
@@ -1318,7 +1382,7 @@ static int kmemleak_cleanup_thread(void *arg)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(object, &object_list, object_list)
-		delete_object(object->pointer);
+		delete_object_full(object->pointer);
 	rcu_read_unlock();
 	mutex_unlock(&scan_mutex);
 
@@ -1412,6 +1476,9 @@ void __init kmemleak_init(void)
 			break;
 		case KMEMLEAK_FREE:
 			kmemleak_free(log->ptr);
+			break;
+		case KMEMLEAK_FREE_PART:
+			kmemleak_free_part(log->ptr, log->size);
 			break;
 		case KMEMLEAK_NOT_LEAK:
 			kmemleak_not_leak(log->ptr);
