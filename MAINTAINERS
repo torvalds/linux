@@ -5803,17 +5803,17 @@ P:	Jiri Kosina
 M:	trivial@kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/trivial.git
 S:	Maintained
-F:	drivers/char/tty_*
-F:	drivers/serial/serial_core.c
-F:	include/linux/serial_core.h
-F:	include/linux/serial.h
-F:	include/linux/tty.h
 
 TTY LAYER
 P:	Alan Cox
 M:	alan@lxorguk.ukuu.org.uk
 S:	Maintained
 T:	stgit http://zeniv.linux.org.uk/~alan/ttydev/
+F:	drivers/char/tty_*
+F:	drivers/serial/serial_core.c
+F:	include/linux/serial_core.h
+F:	include/linux/serial.h
+F:	include/linux/tty.h
 
 TULIP NETWORK DRIVERS
 P:	Grant Grundler
