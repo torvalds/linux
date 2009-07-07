@@ -30,10 +30,10 @@ MODULE_DESCRIPTION("wireless configuration support");
 /* RCU might be appropriate here since we usually
  * only read the list, and that can happen quite
  * often because we need to do it for each command */
-LIST_HEAD(cfg80211_drv_list);
+LIST_HEAD(cfg80211_rdev_list);
 
 /*
- * This is used to protect the cfg80211_drv_list, cfg80211_regdomain,
+ * This is used to protect the cfg80211_rdev_list, cfg80211_regdomain,
  * country_ie_regdomain, the reg_beacon_list and the the last regulatory
  * request receipt (last_request).
  */
@@ -43,18 +43,18 @@ DEFINE_MUTEX(cfg80211_mutex);
 static struct dentry *ieee80211_debugfs_dir;
 
 /* requires cfg80211_mutex to be held! */
-struct cfg80211_registered_device *cfg80211_drv_by_wiphy_idx(int wiphy_idx)
+struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
 {
-	struct cfg80211_registered_device *result = NULL, *drv;
+	struct cfg80211_registered_device *result = NULL, *rdev;
 
 	if (!wiphy_idx_valid(wiphy_idx))
 		return NULL;
 
 	assert_cfg80211_lock();
 
-	list_for_each_entry(drv, &cfg80211_drv_list, list) {
-		if (drv->wiphy_idx == wiphy_idx) {
-			result = drv;
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		if (rdev->wiphy_idx == wiphy_idx) {
+			result = rdev;
 			break;
 		}
 	}
@@ -64,32 +64,32 @@ struct cfg80211_registered_device *cfg80211_drv_by_wiphy_idx(int wiphy_idx)
 
 int get_wiphy_idx(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	if (!wiphy)
 		return WIPHY_IDX_STALE;
-	drv = wiphy_to_dev(wiphy);
-	return drv->wiphy_idx;
+	rdev = wiphy_to_dev(wiphy);
+	return rdev->wiphy_idx;
 }
 
-/* requires cfg80211_drv_mutex to be held! */
+/* requires cfg80211_rdev_mutex to be held! */
 struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 
 	if (!wiphy_idx_valid(wiphy_idx))
 		return NULL;
 
 	assert_cfg80211_lock();
 
-	drv = cfg80211_drv_by_wiphy_idx(wiphy_idx);
-	if (!drv)
+	rdev = cfg80211_rdev_by_wiphy_idx(wiphy_idx);
+	if (!rdev)
 		return NULL;
-	return &drv->wiphy;
+	return &rdev->wiphy;
 }
 
 /* requires cfg80211_mutex to be held! */
 struct cfg80211_registered_device *
-__cfg80211_drv_from_info(struct genl_info *info)
+__cfg80211_rdev_from_info(struct genl_info *info)
 {
 	int ifindex;
 	struct cfg80211_registered_device *bywiphyidx = NULL, *byifidx = NULL;
@@ -99,7 +99,7 @@ __cfg80211_drv_from_info(struct genl_info *info)
 	assert_cfg80211_lock();
 
 	if (info->attrs[NL80211_ATTR_WIPHY]) {
-		bywiphyidx = cfg80211_drv_by_wiphy_idx(
+		bywiphyidx = cfg80211_rdev_by_wiphy_idx(
 				nla_get_u32(info->attrs[NL80211_ATTR_WIPHY]));
 		err = -ENODEV;
 	}
@@ -134,26 +134,26 @@ __cfg80211_drv_from_info(struct genl_info *info)
 struct cfg80211_registered_device *
 cfg80211_get_dev_from_info(struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 
 	mutex_lock(&cfg80211_mutex);
-	drv = __cfg80211_drv_from_info(info);
+	rdev = __cfg80211_rdev_from_info(info);
 
 	/* if it is not an error we grab the lock on
 	 * it to assure it won't be going away while
 	 * we operate on it */
-	if (!IS_ERR(drv))
-		mutex_lock(&drv->mtx);
+	if (!IS_ERR(rdev))
+		mutex_lock(&rdev->mtx);
 
 	mutex_unlock(&cfg80211_mutex);
 
-	return drv;
+	return rdev;
 }
 
 struct cfg80211_registered_device *
 cfg80211_get_dev_from_ifindex(int ifindex)
 {
-	struct cfg80211_registered_device *drv = ERR_PTR(-ENODEV);
+	struct cfg80211_registered_device *rdev = ERR_PTR(-ENODEV);
 	struct net_device *dev;
 
 	mutex_lock(&cfg80211_mutex);
@@ -161,21 +161,21 @@ cfg80211_get_dev_from_ifindex(int ifindex)
 	if (!dev)
 		goto out;
 	if (dev->ieee80211_ptr) {
-		drv = wiphy_to_dev(dev->ieee80211_ptr->wiphy);
-		mutex_lock(&drv->mtx);
+		rdev = wiphy_to_dev(dev->ieee80211_ptr->wiphy);
+		mutex_lock(&rdev->mtx);
 	} else
-		drv = ERR_PTR(-ENODEV);
+		rdev = ERR_PTR(-ENODEV);
 	dev_put(dev);
  out:
 	mutex_unlock(&cfg80211_mutex);
-	return drv;
+	return rdev;
 }
 
 /* requires cfg80211_mutex to be held */
 int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			char *newname)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev2;
 	int wiphy_idx, taken = -1, result, digits;
 
 	assert_cfg80211_lock();
@@ -201,8 +201,8 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 		return 0;
 
 	/* Ensure another device does not already have this name. */
-	list_for_each_entry(drv, &cfg80211_drv_list, list)
-		if (strcmp(newname, dev_name(&drv->wiphy.dev)) == 0)
+	list_for_each_entry(rdev2, &cfg80211_rdev_list, list)
+		if (strcmp(newname, dev_name(&rdev2->wiphy.dev)) == 0)
 			return -EINVAL;
 
 	result = device_rename(&rdev->wiphy.dev, newname);
@@ -224,26 +224,26 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 
 static void cfg80211_rfkill_poll(struct rfkill *rfkill, void *data)
 {
-	struct cfg80211_registered_device *drv = data;
+	struct cfg80211_registered_device *rdev = data;
 
-	drv->ops->rfkill_poll(&drv->wiphy);
+	rdev->ops->rfkill_poll(&rdev->wiphy);
 }
 
 static int cfg80211_rfkill_set_block(void *data, bool blocked)
 {
-	struct cfg80211_registered_device *drv = data;
+	struct cfg80211_registered_device *rdev = data;
 	struct wireless_dev *wdev;
 
 	if (!blocked)
 		return 0;
 
 	rtnl_lock();
-	mutex_lock(&drv->devlist_mtx);
+	mutex_lock(&rdev->devlist_mtx);
 
-	list_for_each_entry(wdev, &drv->netdev_list, list)
+	list_for_each_entry(wdev, &rdev->netdev_list, list)
 		dev_close(wdev->netdev);
 
-	mutex_unlock(&drv->devlist_mtx);
+	mutex_unlock(&rdev->devlist_mtx);
 	rtnl_unlock();
 
 	return 0;
@@ -251,10 +251,10 @@ static int cfg80211_rfkill_set_block(void *data, bool blocked)
 
 static void cfg80211_rfkill_sync_work(struct work_struct *work)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 
-	drv = container_of(work, struct cfg80211_registered_device, rfkill_sync);
-	cfg80211_rfkill_set_block(drv, rfkill_blocked(drv->rfkill));
+	rdev = container_of(work, struct cfg80211_registered_device, rfkill_sync);
+	cfg80211_rfkill_set_block(rdev, rfkill_blocked(rdev->rfkill));
 }
 
 static void cfg80211_process_events(struct wireless_dev *wdev)
@@ -328,79 +328,79 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 {
 	static int wiphy_counter;
 
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int alloc_size;
 
 	WARN_ON(!ops->add_key && ops->del_key);
 	WARN_ON(ops->add_key && !ops->del_key);
 
-	alloc_size = sizeof(*drv) + sizeof_priv;
+	alloc_size = sizeof(*rdev) + sizeof_priv;
 
-	drv = kzalloc(alloc_size, GFP_KERNEL);
-	if (!drv)
+	rdev = kzalloc(alloc_size, GFP_KERNEL);
+	if (!rdev)
 		return NULL;
 
-	drv->ops = ops;
+	rdev->ops = ops;
 
 	mutex_lock(&cfg80211_mutex);
 
-	drv->wiphy_idx = wiphy_counter++;
+	rdev->wiphy_idx = wiphy_counter++;
 
-	if (unlikely(!wiphy_idx_valid(drv->wiphy_idx))) {
+	if (unlikely(!wiphy_idx_valid(rdev->wiphy_idx))) {
 		wiphy_counter--;
 		mutex_unlock(&cfg80211_mutex);
 		/* ugh, wrapped! */
-		kfree(drv);
+		kfree(rdev);
 		return NULL;
 	}
 
 	mutex_unlock(&cfg80211_mutex);
 
 	/* give it a proper name */
-	dev_set_name(&drv->wiphy.dev, PHY_NAME "%d", drv->wiphy_idx);
+	dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
 
-	mutex_init(&drv->mtx);
-	mutex_init(&drv->devlist_mtx);
-	INIT_LIST_HEAD(&drv->netdev_list);
-	spin_lock_init(&drv->bss_lock);
-	INIT_LIST_HEAD(&drv->bss_list);
-	INIT_WORK(&drv->scan_done_wk, __cfg80211_scan_done);
+	mutex_init(&rdev->mtx);
+	mutex_init(&rdev->devlist_mtx);
+	INIT_LIST_HEAD(&rdev->netdev_list);
+	spin_lock_init(&rdev->bss_lock);
+	INIT_LIST_HEAD(&rdev->bss_list);
+	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
 
-	device_initialize(&drv->wiphy.dev);
-	drv->wiphy.dev.class = &ieee80211_class;
-	drv->wiphy.dev.platform_data = drv;
+	device_initialize(&rdev->wiphy.dev);
+	rdev->wiphy.dev.class = &ieee80211_class;
+	rdev->wiphy.dev.platform_data = rdev;
 
-	drv->rfkill_ops.set_block = cfg80211_rfkill_set_block;
-	drv->rfkill = rfkill_alloc(dev_name(&drv->wiphy.dev),
-				   &drv->wiphy.dev, RFKILL_TYPE_WLAN,
-				   &drv->rfkill_ops, drv);
+	rdev->rfkill_ops.set_block = cfg80211_rfkill_set_block;
+	rdev->rfkill = rfkill_alloc(dev_name(&rdev->wiphy.dev),
+				   &rdev->wiphy.dev, RFKILL_TYPE_WLAN,
+				   &rdev->rfkill_ops, rdev);
 
-	if (!drv->rfkill) {
-		kfree(drv);
+	if (!rdev->rfkill) {
+		kfree(rdev);
 		return NULL;
 	}
 
-	INIT_WORK(&drv->rfkill_sync, cfg80211_rfkill_sync_work);
-	INIT_WORK(&drv->conn_work, cfg80211_conn_work);
-	INIT_WORK(&drv->event_work, cfg80211_event_work);
+	INIT_WORK(&rdev->rfkill_sync, cfg80211_rfkill_sync_work);
+	INIT_WORK(&rdev->conn_work, cfg80211_conn_work);
+	INIT_WORK(&rdev->event_work, cfg80211_event_work);
 
 	/*
 	 * Initialize wiphy parameters to IEEE 802.11 MIB default values.
 	 * Fragmentation and RTS threshold are disabled by default with the
 	 * special -1 value.
 	 */
-	drv->wiphy.retry_short = 7;
-	drv->wiphy.retry_long = 4;
-	drv->wiphy.frag_threshold = (u32) -1;
-	drv->wiphy.rts_threshold = (u32) -1;
+	rdev->wiphy.retry_short = 7;
+	rdev->wiphy.retry_long = 4;
+	rdev->wiphy.frag_threshold = (u32) -1;
+	rdev->wiphy.rts_threshold = (u32) -1;
 
-	return &drv->wiphy;
+	return &rdev->wiphy;
 }
 EXPORT_SYMBOL(wiphy_new);
 
 int wiphy_register(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 	int res;
 	enum ieee80211_band band;
 	struct ieee80211_supported_band *sband;
@@ -454,11 +454,11 @@ int wiphy_register(struct wiphy *wiphy)
 	/* check and set up bitrates */
 	ieee80211_set_bitrate_flags(wiphy);
 
-	res = device_add(&drv->wiphy.dev);
+	res = device_add(&rdev->wiphy.dev);
 	if (res)
 		return res;
 
-	res = rfkill_register(drv->rfkill);
+	res = rfkill_register(rdev->rfkill);
 	if (res)
 		goto out_rm_dev;
 
@@ -467,16 +467,16 @@ int wiphy_register(struct wiphy *wiphy)
 	/* set up regulatory info */
 	wiphy_update_regulatory(wiphy, NL80211_REGDOM_SET_BY_CORE);
 
-	list_add(&drv->list, &cfg80211_drv_list);
+	list_add(&rdev->list, &cfg80211_rdev_list);
 
 	mutex_unlock(&cfg80211_mutex);
 
 	/* add to debugfs */
-	drv->wiphy.debugfsdir =
-		debugfs_create_dir(wiphy_name(&drv->wiphy),
+	rdev->wiphy.debugfsdir =
+		debugfs_create_dir(wiphy_name(&rdev->wiphy),
 				   ieee80211_debugfs_dir);
-	if (IS_ERR(drv->wiphy.debugfsdir))
-		drv->wiphy.debugfsdir = NULL;
+	if (IS_ERR(rdev->wiphy.debugfsdir))
+		rdev->wiphy.debugfsdir = NULL;
 
 	if (wiphy->custom_regulatory) {
 		struct regulatory_request request;
@@ -489,48 +489,48 @@ int wiphy_register(struct wiphy *wiphy)
 		nl80211_send_reg_change_event(&request);
 	}
 
-	cfg80211_debugfs_drv_add(drv);
+	cfg80211_debugfs_rdev_add(rdev);
 
 	return 0;
 
  out_rm_dev:
-	device_del(&drv->wiphy.dev);
+	device_del(&rdev->wiphy.dev);
 	return res;
 }
 EXPORT_SYMBOL(wiphy_register);
 
 void wiphy_rfkill_start_polling(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
-	if (!drv->ops->rfkill_poll)
+	if (!rdev->ops->rfkill_poll)
 		return;
-	drv->rfkill_ops.poll = cfg80211_rfkill_poll;
-	rfkill_resume_polling(drv->rfkill);
+	rdev->rfkill_ops.poll = cfg80211_rfkill_poll;
+	rfkill_resume_polling(rdev->rfkill);
 }
 EXPORT_SYMBOL(wiphy_rfkill_start_polling);
 
 void wiphy_rfkill_stop_polling(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
-	rfkill_pause_polling(drv->rfkill);
+	rfkill_pause_polling(rdev->rfkill);
 }
 EXPORT_SYMBOL(wiphy_rfkill_stop_polling);
 
 void wiphy_unregister(struct wiphy *wiphy)
 {
-	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
-	rfkill_unregister(drv->rfkill);
+	rfkill_unregister(rdev->rfkill);
 
 	/* protect the device list */
 	mutex_lock(&cfg80211_mutex);
 
-	BUG_ON(!list_empty(&drv->netdev_list));
+	BUG_ON(!list_empty(&rdev->netdev_list));
 
 	/*
-	 * Try to grab drv->mtx. If a command is still in progress,
+	 * Try to grab rdev->mtx. If a command is still in progress,
 	 * hopefully the driver will refuse it since it's tearing
 	 * down the device already. We wait for this command to complete
 	 * before unlinking the item from the list.
@@ -539,38 +539,38 @@ void wiphy_unregister(struct wiphy *wiphy)
 	 * get to lock contention here if userspace issues a command
 	 * that identified the hardware by wiphy index.
 	 */
-	mutex_lock(&drv->mtx);
+	mutex_lock(&rdev->mtx);
 	/* unlock again before freeing */
-	mutex_unlock(&drv->mtx);
+	mutex_unlock(&rdev->mtx);
 
-	cancel_work_sync(&drv->conn_work);
-	cancel_work_sync(&drv->scan_done_wk);
-	kfree(drv->scan_req);
-	flush_work(&drv->event_work);
+	cancel_work_sync(&rdev->conn_work);
+	cancel_work_sync(&rdev->scan_done_wk);
+	kfree(rdev->scan_req);
+	flush_work(&rdev->event_work);
 
-	cfg80211_debugfs_drv_del(drv);
+	cfg80211_debugfs_rdev_del(rdev);
 
 	/* If this device got a regulatory hint tell core its
 	 * free to listen now to a new shiny device regulatory hint */
 	reg_device_remove(wiphy);
 
-	list_del(&drv->list);
-	device_del(&drv->wiphy.dev);
-	debugfs_remove(drv->wiphy.debugfsdir);
+	list_del(&rdev->list);
+	device_del(&rdev->wiphy.dev);
+	debugfs_remove(rdev->wiphy.debugfsdir);
 
 	mutex_unlock(&cfg80211_mutex);
 }
 EXPORT_SYMBOL(wiphy_unregister);
 
-void cfg80211_dev_free(struct cfg80211_registered_device *drv)
+void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 {
 	struct cfg80211_internal_bss *scan, *tmp;
-	rfkill_destroy(drv->rfkill);
-	mutex_destroy(&drv->mtx);
-	mutex_destroy(&drv->devlist_mtx);
-	list_for_each_entry_safe(scan, tmp, &drv->bss_list, list)
+	rfkill_destroy(rdev->rfkill);
+	mutex_destroy(&rdev->mtx);
+	mutex_destroy(&rdev->devlist_mtx);
+	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&scan->pub);
-	kfree(drv);
+	kfree(rdev);
 }
 
 void wiphy_free(struct wiphy *wiphy)
@@ -581,10 +581,10 @@ EXPORT_SYMBOL(wiphy_free);
 
 void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked)
 {
-	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
-	if (rfkill_set_hw_state(drv->rfkill, blocked))
-		schedule_work(&drv->rfkill_sync);
+	if (rfkill_set_hw_state(rdev->rfkill, blocked))
+		schedule_work(&rdev->rfkill_sync);
 }
 EXPORT_SYMBOL(wiphy_rfkill_set_hw_state);
 

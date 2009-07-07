@@ -1061,10 +1061,10 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 
 static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 
-	list_for_each_entry(drv, &cfg80211_drv_list, list)
-		wiphy_update_regulatory(&drv->wiphy, initiator);
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list)
+		wiphy_update_regulatory(&rdev->wiphy, initiator);
 }
 
 static void handle_reg_beacon(struct wiphy *wiphy,
@@ -1614,7 +1614,7 @@ static void reg_process_pending_hints(void)
 /* Processes beacon hints -- this has nothing to do with country IEs */
 static void reg_process_pending_beacon_hints(void)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct reg_beacon *pending_beacon, *tmp;
 
 	mutex_lock(&cfg80211_mutex);
@@ -1633,8 +1633,8 @@ static void reg_process_pending_beacon_hints(void)
 		list_del_init(&pending_beacon->list);
 
 		/* Applies the beacon hint to current wiphys */
-		list_for_each_entry(drv, &cfg80211_drv_list, list)
-			wiphy_update_new_beacon(&drv->wiphy, pending_beacon);
+		list_for_each_entry(rdev, &cfg80211_rdev_list, list)
+			wiphy_update_new_beacon(&rdev->wiphy, pending_beacon);
 
 		/* Remembers the beacon hint for new wiphys or reg changes */
 		list_add_tail(&pending_beacon->list, &reg_beacon_list);
@@ -1814,23 +1814,23 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	if (likely(last_request->initiator ==
 	    NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    wiphy_idx_valid(last_request->wiphy_idx))) {
-		struct cfg80211_registered_device *drv_last_ie;
+		struct cfg80211_registered_device *rdev_last_ie;
 
-		drv_last_ie =
-			cfg80211_drv_by_wiphy_idx(last_request->wiphy_idx);
+		rdev_last_ie =
+			cfg80211_rdev_by_wiphy_idx(last_request->wiphy_idx);
 
 		/*
 		 * Lets keep this simple -- we trust the first AP
 		 * after we intersect with CRDA
 		 */
-		if (likely(&drv_last_ie->wiphy == wiphy)) {
+		if (likely(&rdev_last_ie->wiphy == wiphy)) {
 			/*
 			 * Ignore IEs coming in on this wiphy with
 			 * the same alpha2 and environment cap
 			 */
-			if (likely(alpha2_equal(drv_last_ie->country_ie_alpha2,
+			if (likely(alpha2_equal(rdev_last_ie->country_ie_alpha2,
 				  alpha2) &&
-				  env == drv_last_ie->env)) {
+				  env == rdev_last_ie->env)) {
 				goto out;
 			}
 			/*
@@ -1846,9 +1846,9 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 			 * Ignore IEs coming in on two separate wiphys with
 			 * the same alpha2 and environment cap
 			 */
-			if (likely(alpha2_equal(drv_last_ie->country_ie_alpha2,
+			if (likely(alpha2_equal(rdev_last_ie->country_ie_alpha2,
 				  alpha2) &&
-				  env == drv_last_ie->env)) {
+				  env == rdev_last_ie->env)) {
 				goto out;
 			}
 			/* We could potentially intersect though */
@@ -1995,14 +1995,14 @@ static void print_regdomain(const struct ieee80211_regdomain *rd)
 
 		if (last_request->initiator ==
 		    NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-			struct cfg80211_registered_device *drv;
-			drv = cfg80211_drv_by_wiphy_idx(
+			struct cfg80211_registered_device *rdev;
+			rdev = cfg80211_rdev_by_wiphy_idx(
 				last_request->wiphy_idx);
-			if (drv) {
+			if (rdev) {
 				printk(KERN_INFO "cfg80211: Current regulatory "
 					"domain updated by AP to: %c%c\n",
-					drv->country_ie_alpha2[0],
-					drv->country_ie_alpha2[1]);
+					rdev->country_ie_alpha2[0],
+					rdev->country_ie_alpha2[1]);
 			} else
 				printk(KERN_INFO "cfg80211: Current regulatory "
 					"domain intersected: \n");
@@ -2063,7 +2063,7 @@ static inline void reg_country_ie_process_debug(
 static int __set_regdom(const struct ieee80211_regdomain *rd)
 {
 	const struct ieee80211_regdomain *intersected_rd = NULL;
-	struct cfg80211_registered_device *drv = NULL;
+	struct cfg80211_registered_device *rdev = NULL;
 	struct wiphy *request_wiphy;
 	/* Some basic sanity checks first */
 
@@ -2202,11 +2202,11 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	if (!intersected_rd)
 		return -EINVAL;
 
-	drv = wiphy_to_dev(request_wiphy);
+	rdev = wiphy_to_dev(request_wiphy);
 
-	drv->country_ie_alpha2[0] = rd->alpha2[0];
-	drv->country_ie_alpha2[1] = rd->alpha2[1];
-	drv->env = last_request->country_ie_env;
+	rdev->country_ie_alpha2[0] = rd->alpha2[0];
+	rdev->country_ie_alpha2[1] = rd->alpha2[1];
+	rdev->env = last_request->country_ie_env;
 
 	BUG_ON(intersected_rd == rd);
 

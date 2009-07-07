@@ -97,13 +97,13 @@ bool wiphy_idx_valid(int wiphy_idx)
 }
 
 extern struct mutex cfg80211_mutex;
-extern struct list_head cfg80211_drv_list;
+extern struct list_head cfg80211_rdev_list;
 
 #define assert_cfg80211_lock() WARN_ON(!mutex_is_locked(&cfg80211_mutex))
 
 /*
  * You can use this to mark a wiphy_idx as not having an associated wiphy.
- * It guarantees cfg80211_drv_by_wiphy_idx(wiphy_idx) will return NULL
+ * It guarantees cfg80211_rdev_by_wiphy_idx(wiphy_idx) will return NULL
  */
 #define WIPHY_IDX_STALE -1
 
@@ -136,11 +136,11 @@ static inline void cfg80211_unhold_bss(struct cfg80211_internal_bss *bss)
 }
 
 
-struct cfg80211_registered_device *cfg80211_drv_by_wiphy_idx(int wiphy_idx);
+struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx);
 int get_wiphy_idx(struct wiphy *wiphy);
 
 struct cfg80211_registered_device *
-__cfg80211_drv_from_info(struct genl_info *info);
+__cfg80211_rdev_from_info(struct genl_info *info);
 
 /*
  * This function returns a pointer to the driver
@@ -153,7 +153,7 @@ __cfg80211_drv_from_info(struct genl_info *info);
  *
  * This is necessary because we need to lock the global
  * mutex to get an item off the list safely, and then
- * we lock the drv mutex so it doesn't go away under us.
+ * we lock the rdev mutex so it doesn't go away under us.
  *
  * We don't want to keep cfg80211_mutex locked
  * for all the time in order to allow requests on
@@ -165,22 +165,22 @@ __cfg80211_drv_from_info(struct genl_info *info);
 extern struct cfg80211_registered_device *
 cfg80211_get_dev_from_info(struct genl_info *info);
 
-/* requires cfg80211_drv_mutex to be held! */
+/* requires cfg80211_rdev_mutex to be held! */
 struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx);
 
 /* identical to cfg80211_get_dev_from_info but only operate on ifindex */
 extern struct cfg80211_registered_device *
 cfg80211_get_dev_from_ifindex(int ifindex);
 
-static inline void cfg80211_lock_rdev(struct cfg80211_registered_device *drv)
+static inline void cfg80211_lock_rdev(struct cfg80211_registered_device *rdev)
 {
-	mutex_lock(&drv->mtx);
+	mutex_lock(&rdev->mtx);
 }
 
-static inline void cfg80211_unlock_rdev(struct cfg80211_registered_device *drv)
+static inline void cfg80211_unlock_rdev(struct cfg80211_registered_device *rdev)
 {
-	BUG_ON(IS_ERR(drv) || !drv);
-	mutex_unlock(&drv->mtx);
+	BUG_ON(IS_ERR(rdev) || !rdev);
+	mutex_unlock(&rdev->mtx);
 }
 
 static inline void wdev_lock(struct wireless_dev *wdev)
@@ -240,9 +240,9 @@ struct cfg80211_event {
 
 
 /* free object */
-extern void cfg80211_dev_free(struct cfg80211_registered_device *drv);
+extern void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
 
-extern int cfg80211_dev_rename(struct cfg80211_registered_device *drv,
+extern int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			       char *newname);
 
 void ieee80211_set_bitrate_flags(struct wiphy *wiphy);

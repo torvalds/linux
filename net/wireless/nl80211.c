@@ -29,9 +29,9 @@ static struct genl_family nl80211_fam = {
 	.maxattr = NL80211_ATTR_MAX,
 };
 
-/* internal helper: get drv and dev */
-static int get_drv_dev_by_info_ifindex(struct nlattr **attrs,
-				       struct cfg80211_registered_device **drv,
+/* internal helper: get rdev and dev */
+static int get_rdev_dev_by_info_ifindex(struct nlattr **attrs,
+				       struct cfg80211_registered_device **rdev,
 				       struct net_device **dev)
 {
 	int ifindex;
@@ -44,10 +44,10 @@ static int get_drv_dev_by_info_ifindex(struct nlattr **attrs,
 	if (!*dev)
 		return -ENODEV;
 
-	*drv = cfg80211_get_dev_from_ifindex(ifindex);
-	if (IS_ERR(*drv)) {
+	*rdev = cfg80211_get_dev_from_ifindex(ifindex);
+	if (IS_ERR(*rdev)) {
 		dev_put(*dev);
-		return PTR_ERR(*drv);
+		return PTR_ERR(*rdev);
 	}
 
 	return 0;
@@ -378,7 +378,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 	struct cfg80211_registered_device *dev;
 
 	mutex_lock(&cfg80211_mutex);
-	list_for_each_entry(dev, &cfg80211_drv_list, list) {
+	list_for_each_entry(dev, &cfg80211_rdev_list, list) {
 		if (++idx <= start)
 			continue;
 		if (nl80211_send_wiphy(skb, NETLINK_CB(cb->skb).pid,
@@ -460,7 +460,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 	mutex_lock(&cfg80211_mutex);
 
-	rdev = __cfg80211_drv_from_info(info);
+	rdev = __cfg80211_rdev_from_info(info);
 	if (IS_ERR(rdev)) {
 		mutex_unlock(&cfg80211_mutex);
 		result = PTR_ERR(rdev);
@@ -683,7 +683,7 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 	struct wireless_dev *wdev;
 
 	mutex_lock(&cfg80211_mutex);
-	list_for_each_entry(dev, &cfg80211_drv_list, list) {
+	list_for_each_entry(dev, &cfg80211_rdev_list, list) {
 		if (wp_idx < wp_start) {
 			wp_idx++;
 			continue;
@@ -724,7 +724,7 @@ static int nl80211_get_interface(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *netdev;
 	int err;
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &dev, &netdev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &dev, &netdev);
 	if (err)
 		return err;
 
@@ -780,7 +780,7 @@ static int parse_monitor_flags(struct nlattr *nla, u32 *mntrflags)
 
 static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct vif_params params;
 	int err;
 	enum nl80211_iftype otype, ntype;
@@ -792,7 +792,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
@@ -808,8 +808,8 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	if (!drv->ops->change_virtual_intf ||
-	    !(drv->wiphy.interface_modes & (1 << ntype))) {
+	if (!rdev->ops->change_virtual_intf ||
+	    !(rdev->wiphy.interface_modes & (1 << ntype))) {
 		err = -EOPNOTSUPP;
 		goto unlock;
 	}
@@ -839,7 +839,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (change)
-		err = drv->ops->change_virtual_intf(&drv->wiphy, dev,
+		err = rdev->ops->change_virtual_intf(&rdev->wiphy, dev,
 						    ntype, flags, &params);
 	else
 		err = 0;
@@ -853,7 +853,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 
  unlock:
 	dev_put(dev);
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
  unlock_rtnl:
 	rtnl_unlock();
 	return err;
@@ -861,7 +861,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct vif_params params;
 	int err;
 	enum nl80211_iftype type = NL80211_IFTYPE_UNSPECIFIED;
@@ -880,14 +880,14 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	drv = cfg80211_get_dev_from_info(info);
-	if (IS_ERR(drv)) {
-		err = PTR_ERR(drv);
+	rdev = cfg80211_get_dev_from_info(info);
+	if (IS_ERR(rdev)) {
+		err = PTR_ERR(rdev);
 		goto unlock_rtnl;
 	}
 
-	if (!drv->ops->add_virtual_intf ||
-	    !(drv->wiphy.interface_modes & (1 << type))) {
+	if (!rdev->ops->add_virtual_intf ||
+	    !(rdev->wiphy.interface_modes & (1 << type))) {
 		err = -EOPNOTSUPP;
 		goto unlock;
 	}
@@ -901,12 +901,12 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 	err = parse_monitor_flags(type == NL80211_IFTYPE_MONITOR ?
 				  info->attrs[NL80211_ATTR_MNTR_FLAGS] : NULL,
 				  &flags);
-	err = drv->ops->add_virtual_intf(&drv->wiphy,
+	err = rdev->ops->add_virtual_intf(&rdev->wiphy,
 		nla_data(info->attrs[NL80211_ATTR_IFNAME]),
 		type, err ? NULL : &flags, &params);
 
  unlock:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
  unlock_rtnl:
 	rtnl_unlock();
 	return err;
@@ -914,27 +914,27 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_del_interface(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int ifindex, err;
 	struct net_device *dev;
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 	ifindex = dev->ifindex;
 	dev_put(dev);
 
-	if (!drv->ops->del_virtual_intf) {
+	if (!rdev->ops->del_virtual_intf) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	err = drv->ops->del_virtual_intf(&drv->wiphy, ifindex);
+	err = rdev->ops->del_virtual_intf(&rdev->wiphy, ifindex);
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
  unlock_rtnl:
 	rtnl_unlock();
 	return err;
@@ -968,7 +968,7 @@ static void get_key_callback(void *c, struct key_params *params)
 
 static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	u8 key_idx = 0;
@@ -990,11 +990,11 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	if (!drv->ops->get_key) {
+	if (!rdev->ops->get_key) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1020,7 +1020,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	if (mac_addr)
 		NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, mac_addr);
 
-	err = drv->ops->get_key(&drv->wiphy, dev, key_idx, mac_addr,
+	err = rdev->ops->get_key(&rdev->wiphy, dev, key_idx, mac_addr,
 				&cookie, get_key_callback);
 
 	if (err)
@@ -1037,7 +1037,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	err = -ENOBUFS;
 	nlmsg_free(msg);
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  unlock_rtnl:
 	rtnl_unlock();
@@ -1047,7 +1047,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	u8 key_idx;
@@ -1072,24 +1072,24 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
 	if (info->attrs[NL80211_ATTR_KEY_DEFAULT])
-		func = drv->ops->set_default_key;
+		func = rdev->ops->set_default_key;
 	else
-		func = drv->ops->set_default_mgmt_key;
+		func = rdev->ops->set_default_mgmt_key;
 
 	if (!func) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	err = func(&drv->wiphy, dev, key_idx);
+	err = func(&rdev->wiphy, dev, key_idx);
 #ifdef CONFIG_WIRELESS_EXT
 	if (!err) {
-		if (func == drv->ops->set_default_key)
+		if (func == rdev->ops->set_default_key)
 			dev->ieee80211_ptr->wext.default_key = key_idx;
 		else
 			dev->ieee80211_ptr->wext.default_mgmt_key = key_idx;
@@ -1097,7 +1097,7 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 #endif
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
 
  unlock_rtnl:
@@ -1108,7 +1108,7 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err, i;
 	struct net_device *dev;
 	struct key_params params;
@@ -1143,27 +1143,27 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	for (i = 0; i < drv->wiphy.n_cipher_suites; i++)
-		if (params.cipher == drv->wiphy.cipher_suites[i])
+	for (i = 0; i < rdev->wiphy.n_cipher_suites; i++)
+		if (params.cipher == rdev->wiphy.cipher_suites[i])
 			break;
-	if (i == drv->wiphy.n_cipher_suites) {
+	if (i == rdev->wiphy.n_cipher_suites) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	if (!drv->ops->add_key) {
+	if (!rdev->ops->add_key) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	err = drv->ops->add_key(&drv->wiphy, dev, key_idx, mac_addr, &params);
+	err = rdev->ops->add_key(&rdev->wiphy, dev, key_idx, mac_addr, &params);
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  unlock_rtnl:
 	rtnl_unlock();
@@ -1173,7 +1173,7 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	u8 key_idx = 0;
@@ -1190,16 +1190,16 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	if (!drv->ops->del_key) {
+	if (!rdev->ops->del_key) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	err = drv->ops->del_key(&drv->wiphy, dev, key_idx, mac_addr);
+	err = rdev->ops->del_key(&rdev->wiphy, dev, key_idx, mac_addr);
 
 #ifdef CONFIG_WIRELESS_EXT
 	if (!err) {
@@ -1211,7 +1211,7 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 #endif
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
 
  unlock_rtnl:
@@ -1224,7 +1224,7 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 {
         int (*call)(struct wiphy *wiphy, struct net_device *dev,
 		    struct beacon_parameters *info);
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	struct beacon_parameters params;
@@ -1235,7 +1235,7 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
@@ -1254,10 +1254,10 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 			goto out;
 		}
 
-		call = drv->ops->add_beacon;
+		call = rdev->ops->add_beacon;
 		break;
 	case NL80211_CMD_SET_BEACON:
-		call = drv->ops->set_beacon;
+		call = rdev->ops->set_beacon;
 		break;
 	default:
 		WARN_ON(1);
@@ -1303,10 +1303,10 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = call(&drv->wiphy, dev, &params);
+	err = call(&rdev->wiphy, dev, &params);
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  unlock_rtnl:
 	rtnl_unlock();
@@ -1316,17 +1316,17 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_del_beacon(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	if (!drv->ops->del_beacon) {
+	if (!rdev->ops->del_beacon) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1335,10 +1335,10 @@ static int nl80211_del_beacon(struct sk_buff *skb, struct genl_info *info)
 		err = -EOPNOTSUPP;
 		goto out;
 	}
-	err = drv->ops->del_beacon(&drv->wiphy, dev);
+	err = rdev->ops->del_beacon(&rdev->wiphy, dev);
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  unlock_rtnl:
 	rtnl_unlock();
@@ -1581,7 +1581,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 
 static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	struct station_info sinfo;
@@ -1597,16 +1597,16 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	if (!drv->ops->get_station) {
+	if (!rdev->ops->get_station) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	err = drv->ops->get_station(&drv->wiphy, dev, mac_addr, &sinfo);
+	err = rdev->ops->get_station(&rdev->wiphy, dev, mac_addr, &sinfo);
 	if (err)
 		goto out;
 
@@ -1624,7 +1624,7 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
  out_free:
 	nlmsg_free(msg);
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -1655,7 +1655,7 @@ static int get_vlan(struct nlattr *vlanattr,
 
 static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	struct station_parameters params;
@@ -1697,11 +1697,11 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
+	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], rdev, &params.vlan);
 	if (err)
 		goto out;
 
@@ -1750,17 +1750,17 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto out;
 
-	if (!drv->ops->change_station) {
+	if (!rdev->ops->change_station) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	err = drv->ops->change_station(&drv->wiphy, dev, mac_addr, &params);
+	err = rdev->ops->change_station(&rdev->wiphy, dev, mac_addr, &params);
 
  out:
 	if (params.vlan)
 		dev_put(params.vlan);
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -1770,7 +1770,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	struct station_parameters params;
@@ -1810,11 +1810,11 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
+	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], rdev, &params.vlan);
 	if (err)
 		goto out;
 
@@ -1850,7 +1850,7 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto out;
 
-	if (!drv->ops->add_station) {
+	if (!rdev->ops->add_station) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1860,12 +1860,12 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = drv->ops->add_station(&drv->wiphy, dev, mac_addr, &params);
+	err = rdev->ops->add_station(&rdev->wiphy, dev, mac_addr, &params);
 
  out:
 	if (params.vlan)
 		dev_put(params.vlan);
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -1875,7 +1875,7 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	u8 *mac_addr = NULL;
@@ -1885,7 +1885,7 @@ static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
@@ -1896,15 +1896,15 @@ static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (!drv->ops->del_station) {
+	if (!rdev->ops->del_station) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	err = drv->ops->del_station(&drv->wiphy, dev, mac_addr);
+	err = rdev->ops->del_station(&rdev->wiphy, dev, mac_addr);
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -2044,7 +2044,7 @@ static int nl80211_dump_mpath(struct sk_buff *skb,
 
 static int nl80211_get_mpath(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	struct mpath_info pinfo;
@@ -2061,11 +2061,11 @@ static int nl80211_get_mpath(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	if (!drv->ops->get_mpath) {
+	if (!rdev->ops->get_mpath) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2075,7 +2075,7 @@ static int nl80211_get_mpath(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = drv->ops->get_mpath(&drv->wiphy, dev, dst, next_hop, &pinfo);
+	err = rdev->ops->get_mpath(&rdev->wiphy, dev, dst, next_hop, &pinfo);
 	if (err)
 		goto out;
 
@@ -2093,7 +2093,7 @@ static int nl80211_get_mpath(struct sk_buff *skb, struct genl_info *info)
  out_free:
 	nlmsg_free(msg);
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -2103,7 +2103,7 @@ static int nl80211_get_mpath(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_set_mpath(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	u8 *dst = NULL;
@@ -2120,11 +2120,11 @@ static int nl80211_set_mpath(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	if (!drv->ops->change_mpath) {
+	if (!rdev->ops->change_mpath) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2139,10 +2139,10 @@ static int nl80211_set_mpath(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = drv->ops->change_mpath(&drv->wiphy, dev, dst, next_hop);
+	err = rdev->ops->change_mpath(&rdev->wiphy, dev, dst, next_hop);
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -2151,7 +2151,7 @@ static int nl80211_set_mpath(struct sk_buff *skb, struct genl_info *info)
 }
 static int nl80211_new_mpath(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	u8 *dst = NULL;
@@ -2168,11 +2168,11 @@ static int nl80211_new_mpath(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	if (!drv->ops->add_mpath) {
+	if (!rdev->ops->add_mpath) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2187,10 +2187,10 @@ static int nl80211_new_mpath(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = drv->ops->add_mpath(&drv->wiphy, dev, dst, next_hop);
+	err = rdev->ops->add_mpath(&rdev->wiphy, dev, dst, next_hop);
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -2200,7 +2200,7 @@ static int nl80211_new_mpath(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_del_mpath(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	u8 *dst = NULL;
@@ -2210,19 +2210,19 @@ static int nl80211_del_mpath(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	if (!drv->ops->del_mpath) {
+	if (!rdev->ops->del_mpath) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
-	err = drv->ops->del_mpath(&drv->wiphy, dev, dst);
+	err = rdev->ops->del_mpath(&rdev->wiphy, dev, dst);
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -2232,7 +2232,7 @@ static int nl80211_del_mpath(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
 	struct bss_parameters params;
@@ -2261,11 +2261,11 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	if (!drv->ops->change_bss) {
+	if (!rdev->ops->change_bss) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2275,10 +2275,10 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = drv->ops->change_bss(&drv->wiphy, dev, &params);
+	err = rdev->ops->change_bss(&rdev->wiphy, dev, &params);
 
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -2369,7 +2369,7 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 static int nl80211_get_mesh_params(struct sk_buff *skb,
 	struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct mesh_config cur_params;
 	int err;
 	struct net_device *dev;
@@ -2380,17 +2380,17 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 	rtnl_lock();
 
 	/* Look up our device */
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	if (!drv->ops->get_mesh_params) {
+	if (!rdev->ops->get_mesh_params) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
 
 	/* Get the mesh params */
-	err = drv->ops->get_mesh_params(&drv->wiphy, dev, &cur_params);
+	err = rdev->ops->get_mesh_params(&rdev->wiphy, dev, &cur_params);
 	if (err)
 		goto out;
 
@@ -2444,7 +2444,7 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 	err = -EMSGSIZE;
  out:
 	/* Cleanup */
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -2482,7 +2482,7 @@ static int nl80211_set_mesh_params(struct sk_buff *skb, struct genl_info *info)
 {
 	int err;
 	u32 mask;
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	struct mesh_config cfg;
 	struct nlattr *tb[NL80211_MESHCONF_ATTR_MAX + 1];
@@ -2497,11 +2497,11 @@ static int nl80211_set_mesh_params(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	if (!drv->ops->set_mesh_params) {
+	if (!rdev->ops->set_mesh_params) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2546,11 +2546,11 @@ static int nl80211_set_mesh_params(struct sk_buff *skb, struct genl_info *info)
 			nla_get_u16);
 
 	/* Apply changes */
-	err = drv->ops->set_mesh_params(&drv->wiphy, dev, &cfg, mask);
+	err = rdev->ops->set_mesh_params(&rdev->wiphy, dev, &cfg, mask);
 
  out:
 	/* cleanup */
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -2737,7 +2737,7 @@ static int validate_scan_freqs(struct nlattr *freqs)
 
 static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	struct cfg80211_scan_request *request;
 	struct cfg80211_ssid *ssid;
@@ -2753,13 +2753,13 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto out_rtnl;
 
-	wiphy = &drv->wiphy;
+	wiphy = &rdev->wiphy;
 
-	if (!drv->ops->scan) {
+	if (!rdev->ops->scan) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2769,7 +2769,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (drv->scan_req) {
+	if (rdev->scan_req) {
 		err = -EBUSY;
 		goto out;
 	}
@@ -2876,21 +2876,21 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	request->ifidx = dev->ifindex;
-	request->wiphy = &drv->wiphy;
+	request->wiphy = &rdev->wiphy;
 
-	drv->scan_req = request;
-	err = drv->ops->scan(&drv->wiphy, dev, request);
+	rdev->scan_req = request;
+	err = rdev->ops->scan(&rdev->wiphy, dev, request);
 
 	if (!err)
-		nl80211_send_scan_start(drv, dev);
+		nl80211_send_scan_start(rdev, dev);
 
  out_free:
 	if (err) {
-		drv->scan_req = NULL;
+		rdev->scan_req = NULL;
 		kfree(request);
 	}
  out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
  out_rtnl:
 	rtnl_unlock();
@@ -3043,7 +3043,7 @@ static bool nl80211_valid_cipher_suite(u32 cipher)
 
 static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	struct ieee80211_channel *chan;
 	const u8 *bssid, *ssid, *ie = NULL;
@@ -3067,11 +3067,11 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	if (!drv->ops->auth) {
+	if (!rdev->ops->auth) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3087,7 +3087,7 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
-	chan = ieee80211_get_channel(&drv->wiphy,
+	chan = ieee80211_get_channel(&rdev->wiphy,
 		nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]));
 	if (!chan || (chan->flags & IEEE80211_CHAN_DISABLED)) {
 		err = -EINVAL;
@@ -3108,11 +3108,11 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = cfg80211_mlme_auth(drv, dev, chan, auth_type, bssid,
+	err = cfg80211_mlme_auth(rdev, dev, chan, auth_type, bssid,
 				 ssid, ssid_len, ie, ie_len);
 
 out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
 unlock_rtnl:
 	rtnl_unlock();
@@ -3202,7 +3202,7 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &rdev, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
@@ -3268,7 +3268,7 @@ unlock_rtnl:
 
 static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	const u8 *ie = NULL, *bssid;
 	int err, ie_len = 0;
@@ -3285,11 +3285,11 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	if (!drv->ops->deauth) {
+	if (!rdev->ops->deauth) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3318,10 +3318,10 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
 
-	err = cfg80211_mlme_deauth(drv, dev, bssid, ie, ie_len, reason_code);
+	err = cfg80211_mlme_deauth(rdev, dev, bssid, ie, ie_len, reason_code);
 
 out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
 unlock_rtnl:
 	rtnl_unlock();
@@ -3330,7 +3330,7 @@ unlock_rtnl:
 
 static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	const u8 *ie = NULL, *bssid;
 	int err, ie_len = 0;
@@ -3347,11 +3347,11 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	if (!drv->ops->disassoc) {
+	if (!rdev->ops->disassoc) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3380,10 +3380,10 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
 
-	err = cfg80211_mlme_disassoc(drv, dev, bssid, ie, ie_len, reason_code);
+	err = cfg80211_mlme_disassoc(rdev, dev, bssid, ie, ie_len, reason_code);
 
 out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
 unlock_rtnl:
 	rtnl_unlock();
@@ -3392,7 +3392,7 @@ unlock_rtnl:
 
 static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	struct cfg80211_ibss_params ibss;
 	struct wiphy *wiphy;
@@ -3419,11 +3419,11 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	if (!drv->ops->join_ibss) {
+	if (!rdev->ops->join_ibss) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3438,7 +3438,7 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	wiphy = &drv->wiphy;
+	wiphy = &rdev->wiphy;
 
 	if (info->attrs[NL80211_ATTR_MAC])
 		ibss.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
@@ -3461,10 +3461,10 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 
 	ibss.channel_fixed = !!info->attrs[NL80211_ATTR_FREQ_FIXED];
 
-	err = cfg80211_join_ibss(drv, dev, &ibss);
+	err = cfg80211_join_ibss(rdev, dev, &ibss);
 
 out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
 unlock_rtnl:
 	rtnl_unlock();
@@ -3473,17 +3473,17 @@ unlock_rtnl:
 
 static int nl80211_leave_ibss(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	int err;
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
-	if (!drv->ops->leave_ibss) {
+	if (!rdev->ops->leave_ibss) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -3498,10 +3498,10 @@ static int nl80211_leave_ibss(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = cfg80211_leave_ibss(drv, dev, false);
+	err = cfg80211_leave_ibss(rdev, dev, false);
 
 out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
 unlock_rtnl:
 	rtnl_unlock();
@@ -3632,7 +3632,7 @@ EXPORT_SYMBOL(cfg80211_testmode_event);
 
 static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	struct cfg80211_connect_params connect;
 	struct wiphy *wiphy;
@@ -3663,7 +3663,7 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 		return err;
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
@@ -3677,7 +3677,7 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	wiphy = &drv->wiphy;
+	wiphy = &rdev->wiphy;
 
 	connect.bssid = NULL;
 	connect.channel = NULL;
@@ -3704,10 +3704,10 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	err = cfg80211_connect(drv, dev, &connect);
+	err = cfg80211_connect(rdev, dev, &connect);
 
 out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
 unlock_rtnl:
 	rtnl_unlock();
@@ -3716,7 +3716,7 @@ unlock_rtnl:
 
 static int nl80211_disconnect(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *drv;
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	int err;
 	u16 reason;
@@ -3731,7 +3731,7 @@ static int nl80211_disconnect(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 
-	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	err = get_rdev_dev_by_info_ifindex(info->attrs, &rdev, &dev);
 	if (err)
 		goto unlock_rtnl;
 
@@ -3745,10 +3745,10 @@ static int nl80211_disconnect(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = cfg80211_disconnect(drv, dev, reason, true);
+	err = cfg80211_disconnect(rdev, dev, reason, true);
 
 out:
-	cfg80211_unlock_rdev(drv);
+	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
 unlock_rtnl:
 	rtnl_unlock();

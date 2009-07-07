@@ -33,15 +33,15 @@ struct cfg80211_conn {
 
 static int cfg80211_conn_scan(struct wireless_dev *wdev)
 {
-	struct cfg80211_registered_device *drv = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_scan_request *request;
 	int n_channels, err;
 
 	ASSERT_RTNL();
-	ASSERT_RDEV_LOCK(drv);
+	ASSERT_RDEV_LOCK(rdev);
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (drv->scan_req)
+	if (rdev->scan_req)
 		return -EBUSY;
 
 	if (wdev->conn->params.channel) {
@@ -87,16 +87,16 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	request->ssids[0].ssid_len = wdev->conn->params.ssid_len;
 
 	request->ifidx = wdev->netdev->ifindex;
-	request->wiphy = &drv->wiphy;
+	request->wiphy = &rdev->wiphy;
 
-	drv->scan_req = request;
+	rdev->scan_req = request;
 
-	err = drv->ops->scan(wdev->wiphy, wdev->netdev, request);
+	err = rdev->ops->scan(wdev->wiphy, wdev->netdev, request);
 	if (!err) {
 		wdev->conn->state = CFG80211_CONN_SCANNING;
-		nl80211_send_scan_start(drv, wdev->netdev);
+		nl80211_send_scan_start(rdev, wdev->netdev);
 	} else {
-		drv->scan_req = NULL;
+		rdev->scan_req = NULL;
 		kfree(request);
 	}
 	return err;
@@ -104,7 +104,7 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 
 static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 {
-	struct cfg80211_registered_device *drv = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_connect_params *params;
 	int err;
 
@@ -119,15 +119,15 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 	case CFG80211_CONN_SCAN_AGAIN:
 		return cfg80211_conn_scan(wdev);
 	case CFG80211_CONN_AUTHENTICATE_NEXT:
-		BUG_ON(!drv->ops->auth);
+		BUG_ON(!rdev->ops->auth);
 		wdev->conn->state = CFG80211_CONN_AUTHENTICATING;
-		return __cfg80211_mlme_auth(drv, wdev->netdev,
+		return __cfg80211_mlme_auth(rdev, wdev->netdev,
 					    params->channel, params->auth_type,
 					    params->bssid,
 					    params->ssid, params->ssid_len,
 					    NULL, 0);
 	case CFG80211_CONN_ASSOCIATE_NEXT:
-		BUG_ON(!drv->ops->assoc);
+		BUG_ON(!rdev->ops->assoc);
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
 		/*
 		 * We could, later, implement roaming here and then actually
@@ -135,14 +135,14 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 		 * that some APs don't like that -- so we'd need to retry
 		 * the association.
 		 */
-		err = __cfg80211_mlme_assoc(drv, wdev->netdev,
+		err = __cfg80211_mlme_assoc(rdev, wdev->netdev,
 					    params->channel, params->bssid,
 					    NULL,
 					    params->ssid, params->ssid_len,
 					    params->ie, params->ie_len,
 					    false, &params->crypto);
 		if (err)
-			__cfg80211_mlme_deauth(drv, wdev->netdev, params->bssid,
+			__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 					       NULL, 0,
 					       WLAN_REASON_DEAUTH_LEAVING);
 		return err;
@@ -153,15 +153,15 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 
 void cfg80211_conn_work(struct work_struct *work)
 {
-	struct cfg80211_registered_device *drv =
+	struct cfg80211_registered_device *rdev =
 		container_of(work, struct cfg80211_registered_device, conn_work);
 	struct wireless_dev *wdev;
 
 	rtnl_lock();
-	cfg80211_lock_rdev(drv);
-	mutex_lock(&drv->devlist_mtx);
+	cfg80211_lock_rdev(rdev);
+	mutex_lock(&rdev->devlist_mtx);
 
-	list_for_each_entry(wdev, &drv->netdev_list, list) {
+	list_for_each_entry(wdev, &rdev->netdev_list, list) {
 		wdev_lock(wdev);
 		if (!netif_running(wdev->netdev)) {
 			wdev_unlock(wdev);
@@ -181,14 +181,14 @@ void cfg80211_conn_work(struct work_struct *work)
 		wdev_unlock(wdev);
 	}
 
-	mutex_unlock(&drv->devlist_mtx);
-	cfg80211_unlock_rdev(drv);
+	mutex_unlock(&rdev->devlist_mtx);
+	cfg80211_unlock_rdev(rdev);
 	rtnl_unlock();
 }
 
 static bool cfg80211_get_conn_bss(struct wireless_dev *wdev)
 {
-	struct cfg80211_registered_device *drv = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_bss *bss;
 	u16 capa = WLAN_CAPABILITY_ESS;
 
@@ -209,7 +209,7 @@ static bool cfg80211_get_conn_bss(struct wireless_dev *wdev)
 	wdev->conn->params.bssid = wdev->conn->bssid;
 	wdev->conn->params.channel = bss->channel;
 	wdev->conn->state = CFG80211_CONN_AUTHENTICATE_NEXT;
-	schedule_work(&drv->conn_work);
+	schedule_work(&rdev->conn_work);
 
 	cfg80211_put_bss(bss);
 	return true;
@@ -218,7 +218,7 @@ static bool cfg80211_get_conn_bss(struct wireless_dev *wdev)
 static void __cfg80211_sme_scan_done(struct net_device *dev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *drv = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 
 	ASSERT_WDEV_LOCK(wdev);
 
@@ -235,7 +235,7 @@ static void __cfg80211_sme_scan_done(struct net_device *dev)
 	if (!cfg80211_get_conn_bss(wdev)) {
 		/* not found */
 		if (wdev->conn->state == CFG80211_CONN_SCAN_AGAIN)
-			schedule_work(&drv->conn_work);
+			schedule_work(&rdev->conn_work);
 		else
 			__cfg80211_connect_result(
 					wdev->netdev,
