@@ -855,7 +855,7 @@ static int cfg80211_set_wpa_version(struct wireless_dev *wdev, u32 wpa_versions)
 	return 0;
 }
 
-int cfg80211_set_cipher_group(struct wireless_dev *wdev, u32 cipher)
+static int cfg80211_set_cipher_group(struct wireless_dev *wdev, u32 cipher)
 {
 	wdev->wext.connect.crypto.cipher_group = 0;
 
@@ -880,7 +880,7 @@ int cfg80211_set_cipher_group(struct wireless_dev *wdev, u32 cipher)
 	return 0;
 }
 
-int cfg80211_set_cipher_pairwise(struct wireless_dev *wdev, u32 cipher)
+static int cfg80211_set_cipher_pairwise(struct wireless_dev *wdev, u32 cipher)
 {
 	int nr_ciphers = 0;
 	u32 *ciphers_pairwise = wdev->wext.connect.crypto.ciphers_pairwise;
@@ -918,7 +918,7 @@ int cfg80211_set_cipher_pairwise(struct wireless_dev *wdev, u32 cipher)
 }
 
 
-int cfg80211_set_key_mgt(struct wireless_dev *wdev, u32 key_mgt)
+static int cfg80211_set_key_mgt(struct wireless_dev *wdev, u32 key_mgt)
 {
 	int nr_akm_suites = 0;
 

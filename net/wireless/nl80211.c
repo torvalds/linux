@@ -3239,11 +3239,11 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_USE_MFP]) {
-		enum nl80211_mfp use_mfp =
+		enum nl80211_mfp mfp =
 			nla_get_u32(info->attrs[NL80211_ATTR_USE_MFP]);
-		if (use_mfp == NL80211_MFP_REQUIRED)
+		if (mfp == NL80211_MFP_REQUIRED)
 			use_mfp = true;
-		else if (use_mfp != NL80211_MFP_NO) {
+		else if (mfp != NL80211_MFP_NO) {
 			err = -EINVAL;
 			goto out;
 		}
