@@ -429,8 +429,7 @@ static int __exit hitfb_remove(struct platform_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int hitfb_suspend(struct platform_device *dev, pm_message_t state)
+static int hitfb_suspend(struct device *dev)
 {
 	u16 v;
 
@@ -442,7 +441,7 @@ static int hitfb_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int hitfb_resume(struct platform_device *dev)
+static int hitfb_resume(struct device *dev)
 {
 	u16 v;
 
@@ -456,17 +455,19 @@ static int hitfb_resume(struct platform_device *dev)
 
 	return 0;
 }
-#endif
+
+static struct dev_pm_ops hitfb_dev_pm_ops = {
+	.suspend	= hitfb_suspend,
+	.resume		= hitfb_resume,
+};
 
 static struct platform_driver hitfb_driver = {
 	.probe		= hitfb_probe,
 	.remove		= __exit_p(hitfb_remove),
-#ifdef CONFIG_PM
-	.suspend	= hitfb_suspend,
-	.resume		= hitfb_resume,
-#endif
 	.driver		= {
 		.name	= "hitfb",
+		.owner	= THIS_MODULE,
+		.pm	= &hitfb_dev_pm_ops,
 	},
 };
 
