@@ -539,6 +539,8 @@ static const struct kvm_io_device_ops picdev_ops = {
 struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 {
 	struct kvm_pic *s;
+	int ret;
+
 	s = kzalloc(sizeof(struct kvm_pic), GFP_KERNEL);
 	if (!s)
 		return NULL;
@@ -555,6 +557,11 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	 * Initialize PIO device
 	 */
 	kvm_iodevice_init(&s->dev, &picdev_ops);
-	kvm_io_bus_register_dev(kvm, &kvm->pio_bus, &s->dev);
+	ret = kvm_io_bus_register_dev(kvm, &kvm->pio_bus, &s->dev);
+	if (ret < 0) {
+		kfree(s);
+		return NULL;
+	}
+
 	return s;
 }

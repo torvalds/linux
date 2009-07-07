@@ -342,6 +342,7 @@ static const struct kvm_io_device_ops ioapic_mmio_ops = {
 int kvm_ioapic_init(struct kvm *kvm)
 {
 	struct kvm_ioapic *ioapic;
+	int ret;
 
 	ioapic = kzalloc(sizeof(struct kvm_ioapic), GFP_KERNEL);
 	if (!ioapic)
@@ -350,7 +351,10 @@ int kvm_ioapic_init(struct kvm *kvm)
 	kvm_ioapic_reset(ioapic);
 	kvm_iodevice_init(&ioapic->dev, &ioapic_mmio_ops);
 	ioapic->kvm = kvm;
-	kvm_io_bus_register_dev(kvm, &kvm->mmio_bus, &ioapic->dev);
-	return 0;
+	ret = kvm_io_bus_register_dev(kvm, &kvm->mmio_bus, &ioapic->dev);
+	if (ret < 0)
+		kfree(ioapic);
+
+	return ret;
 }
 

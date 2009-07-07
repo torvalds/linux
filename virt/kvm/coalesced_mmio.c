@@ -92,6 +92,7 @@ static const struct kvm_io_device_ops coalesced_mmio_ops = {
 int kvm_coalesced_mmio_init(struct kvm *kvm)
 {
 	struct kvm_coalesced_mmio_dev *dev;
+	int ret;
 
 	dev = kzalloc(sizeof(struct kvm_coalesced_mmio_dev), GFP_KERNEL);
 	if (!dev)
@@ -100,9 +101,12 @@ int kvm_coalesced_mmio_init(struct kvm *kvm)
 	kvm_iodevice_init(&dev->dev, &coalesced_mmio_ops);
 	dev->kvm = kvm;
 	kvm->coalesced_mmio_dev = dev;
-	kvm_io_bus_register_dev(kvm, &kvm->mmio_bus, &dev->dev);
 
-	return 0;
+	ret = kvm_io_bus_register_dev(kvm, &kvm->mmio_bus, &dev->dev);
+	if (ret < 0)
+		kfree(dev);
+
+	return ret;
 }
 
 int kvm_vm_ioctl_register_coalesced_mmio(struct kvm *kvm,

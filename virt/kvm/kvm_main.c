@@ -2533,21 +2533,50 @@ int kvm_io_bus_read(struct kvm_io_bus *bus, gpa_t addr, int len, void *val)
 	return -EOPNOTSUPP;
 }
 
-void kvm_io_bus_register_dev(struct kvm *kvm, struct kvm_io_bus *bus,
+int kvm_io_bus_register_dev(struct kvm *kvm, struct kvm_io_bus *bus,
 			     struct kvm_io_device *dev)
 {
+	int ret;
+
 	down_write(&kvm->slots_lock);
-	__kvm_io_bus_register_dev(bus, dev);
+	ret = __kvm_io_bus_register_dev(bus, dev);
+	up_write(&kvm->slots_lock);
+
+	return ret;
+}
+
+/* An unlocked version. Caller must have write lock on slots_lock. */
+int __kvm_io_bus_register_dev(struct kvm_io_bus *bus,
+			      struct kvm_io_device *dev)
+{
+	if (bus->dev_count > NR_IOBUS_DEVS-1)
+		return -ENOSPC;
+
+	bus->devs[bus->dev_count++] = dev;
+
+	return 0;
+}
+
+void kvm_io_bus_unregister_dev(struct kvm *kvm,
+			       struct kvm_io_bus *bus,
+			       struct kvm_io_device *dev)
+{
+	down_write(&kvm->slots_lock);
+	__kvm_io_bus_unregister_dev(bus, dev);
 	up_write(&kvm->slots_lock);
 }
 
 /* An unlocked version. Caller must have write lock on slots_lock. */
-void __kvm_io_bus_register_dev(struct kvm_io_bus *bus,
-			     struct kvm_io_device *dev)
+void __kvm_io_bus_unregister_dev(struct kvm_io_bus *bus,
+				 struct kvm_io_device *dev)
 {
-	BUG_ON(bus->dev_count > (NR_IOBUS_DEVS-1));
+	int i;
 
-	bus->devs[bus->dev_count++] = dev;
+	for (i = 0; i < bus->dev_count; i++)
+		if (bus->devs[i] == dev) {
+			bus->devs[i] = bus->devs[--bus->dev_count];
+			break;
+		}
 }
 
 static struct notifier_block kvm_cpu_notifier = {

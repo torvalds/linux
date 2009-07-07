@@ -64,10 +64,14 @@ int kvm_io_bus_write(struct kvm_io_bus *bus, gpa_t addr, int len,
 		     const void *val);
 int kvm_io_bus_read(struct kvm_io_bus *bus, gpa_t addr, int len,
 		    void *val);
-void __kvm_io_bus_register_dev(struct kvm_io_bus *bus,
+int __kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 			       struct kvm_io_device *dev);
-void kvm_io_bus_register_dev(struct kvm *kvm, struct kvm_io_bus *bus,
-			     struct kvm_io_device *dev);
+int kvm_io_bus_register_dev(struct kvm *kvm, struct kvm_io_bus *bus,
+			    struct kvm_io_device *dev);
+void __kvm_io_bus_unregister_dev(struct kvm_io_bus *bus,
+				 struct kvm_io_device *dev);
+void kvm_io_bus_unregister_dev(struct kvm *kvm, struct kvm_io_bus *bus,
+			       struct kvm_io_device *dev);
 
 struct kvm_vcpu {
 	struct kvm *kvm;
