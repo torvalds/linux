@@ -92,7 +92,11 @@ void cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext)
 {
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
+
+	if (!wdev->ssid_len)
+		return -ENOLINK;
 
 	err = rdev->ops->leave_ibss(&rdev->wiphy, dev);
 

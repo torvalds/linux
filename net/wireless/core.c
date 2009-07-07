@@ -567,9 +567,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #endif
 		break;
 	case NETDEV_GOING_DOWN:
-		if (!wdev->ssid_len)
-			break;
-
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
 			cfg80211_leave_ibss(rdev, dev, true);
