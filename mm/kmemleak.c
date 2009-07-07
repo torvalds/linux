@@ -807,7 +807,7 @@ static int scan_should_stop(void)
  * found to the gray list.
  */
 static void scan_block(void *_start, void *_end,
-		       struct kmemleak_object *scanned)
+		       struct kmemleak_object *scanned, int allow_resched)
 {
 	unsigned long *ptr;
 	unsigned long *start = PTR_ALIGN(_start, BYTES_PER_POINTER);
@@ -818,6 +818,8 @@ static void scan_block(void *_start, void *_end,
 		unsigned long pointer = *ptr;
 		struct kmemleak_object *object;
 
+		if (allow_resched)
+			cond_resched();
 		if (scan_should_stop())
 			break;
 
@@ -881,12 +883,12 @@ static void scan_object(struct kmemleak_object *object)
 		goto out;
 	if (hlist_empty(&object->area_list))
 		scan_block((void *)object->pointer,
-			   (void *)(object->pointer + object->size), object);
+			   (void *)(object->pointer + object->size), object, 0);
 	else
 		hlist_for_each_entry(area, elem, &object->area_list, node)
 			scan_block((void *)(object->pointer + area->offset),
 				   (void *)(object->pointer + area->offset
-					    + area->length), object);
+					    + area->length), object, 0);
 out:
 	spin_unlock_irqrestore(&object->lock, flags);
 }
@@ -931,14 +933,14 @@ static void kmemleak_scan(void)
 	rcu_read_unlock();
 
 	/* data/bss scanning */
-	scan_block(_sdata, _edata, NULL);
-	scan_block(__bss_start, __bss_stop, NULL);
+	scan_block(_sdata, _edata, NULL, 1);
+	scan_block(__bss_start, __bss_stop, NULL, 1);
 
 #ifdef CONFIG_SMP
 	/* per-cpu sections scanning */
 	for_each_possible_cpu(i)
 		scan_block(__per_cpu_start + per_cpu_offset(i),
-			   __per_cpu_end + per_cpu_offset(i), NULL);
+			   __per_cpu_end + per_cpu_offset(i), NULL, 1);
 #endif
 
 	/*
@@ -960,7 +962,7 @@ static void kmemleak_scan(void)
 			/* only scan if page is in use */
 			if (page_count(page) == 0)
 				continue;
-			scan_block(page, page + 1, NULL);
+			scan_block(page, page + 1, NULL, 1);
 		}
 	}
 
@@ -972,7 +974,8 @@ static void kmemleak_scan(void)
 		read_lock(&tasklist_lock);
 		for_each_process(task)
 			scan_block(task_stack_page(task),
-				   task_stack_page(task) + THREAD_SIZE, NULL);
+				   task_stack_page(task) + THREAD_SIZE,
+				   NULL, 0);
 		read_unlock(&tasklist_lock);
 	}
 
