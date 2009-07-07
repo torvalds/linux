@@ -276,6 +276,14 @@ static inline struct port_info *adap2pinfo(struct adapter *adap, int idx)
 	return netdev_priv(adap->port[idx]);
 }
 
+static inline int phy2portid(struct cphy *phy)
+{
+	struct adapter *adap = phy->adapter;
+	struct port_info *port0 = adap2pinfo(adap, 0);
+
+	return &port0->phy == phy ? 0 : 1;
+}
+
 #define OFFLOAD_DEVMAP_BIT 15
 
 #define tdev2adap(d) container_of(d, struct adapter, tdev)
