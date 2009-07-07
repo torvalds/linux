@@ -92,6 +92,7 @@ typedef struct board_info {
 	u16		tx_pkt_cnt;
 	u16		queue_pkt_len;
 	u16		queue_start_addr;
+	u16		queue_ip_summed;
 	u16		dbug_cnt;
 	u8		io_mode;		/* 0:word, 2:byte */
 	u8		phy_addr;
@@ -124,6 +125,10 @@ typedef struct board_info {
 
 	struct mii_if_info mii;
 	u32		msg_enable;
+
+	int		rx_csum;
+	int		can_csum;
+	int		ip_summed;
 } board_info_t;
 
 /* debug code */
@@ -460,6 +465,40 @@ static int dm9000_nway_reset(struct net_device *dev)
 	return mii_nway_restart(&dm->mii);
 }
 
+static uint32_t dm9000_get_rx_csum(struct net_device *dev)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+	return dm->rx_csum;
+}
+
+static int dm9000_set_rx_csum(struct net_device *dev, uint32_t data)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+	unsigned long flags;
+
+	if (dm->can_csum) {
+		dm->rx_csum = data;
+
+		spin_lock_irqsave(&dm->lock, flags);
+		iow(dm, DM9000_RCSR, dm->rx_csum ? RCSR_CSUM : 0);
+		spin_unlock_irqrestore(&dm->lock, flags);
+
+		return 0;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int dm9000_set_tx_csum(struct net_device *dev, uint32_t data)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+	int ret = -EOPNOTSUPP;
+
+	if (dm->can_csum)
+		ret = ethtool_op_set_tx_csum(dev, data);
+	return ret;
+}
+
 static u32 dm9000_get_link(struct net_device *dev)
 {
 	board_info_t *dm = to_dm9000_board(dev);
@@ -540,6 +579,10 @@ static const struct ethtool_ops dm9000_ethtool_ops = {
  	.get_eeprom_len		= dm9000_get_eeprom_len,
  	.get_eeprom		= dm9000_get_eeprom,
  	.set_eeprom		= dm9000_set_eeprom,
+	.get_rx_csum		= dm9000_get_rx_csum,
+	.set_rx_csum		= dm9000_set_rx_csum,
+	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.set_tx_csum		= dm9000_set_tx_csum,
 };
 
 static void dm9000_show_carrier(board_info_t *db,
@@ -685,6 +728,9 @@ dm9000_init_dm9000(struct net_device *dev)
 	/* I/O mode */
 	db->io_mode = ior(db, DM9000_ISR) >> 6;	/* ISR bit7:6 keeps I/O mode */
 
+	/* Checksum mode */
+	dm9000_set_rx_csum(dev, db->rx_csum);
+
 	/* GPIO0 on pre-activate PHY */
 	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
 	iow(db, DM9000_GPCR, GPCR_GEP_CNTL);	/* Let GPIO0 output */
@@ -743,6 +789,29 @@ static void dm9000_timeout(struct net_device *dev)
 	spin_unlock_irqrestore(&db->lock, flags);
 }
 
+static void dm9000_send_packet(struct net_device *dev,
+			       int ip_summed,
+			       u16 pkt_len)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+
+	/* The DM9000 is not smart enough to leave fragmented packets alone. */
+	if (dm->ip_summed != ip_summed) {
+		if (ip_summed == CHECKSUM_NONE)
+			iow(dm, DM9000_TCCR, 0);
+		else
+			iow(dm, DM9000_TCCR, TCCR_IP | TCCR_UDP | TCCR_TCP);
+		dm->ip_summed = ip_summed;
+	}
+
+	/* Set TX length to DM9000 */
+	iow(dm, DM9000_TXPLL, pkt_len);
+	iow(dm, DM9000_TXPLH, pkt_len >> 8);
+
+	/* Issue TX polling command */
+	iow(dm, DM9000_TCR, TCR_TXREQ);	/* Cleared after TX complete */
+}
+
 /*
  *  Hardware start transmission.
  *  Send a packet to media from the upper layer.
@@ -769,17 +838,11 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	db->tx_pkt_cnt++;
 	/* TX control: First packet immediately send, second packet queue */
 	if (db->tx_pkt_cnt == 1) {
-		/* Set TX length to DM9000 */
-		iow(db, DM9000_TXPLL, skb->len);
-		iow(db, DM9000_TXPLH, skb->len >> 8);
-
-		/* Issue TX polling command */
-		iow(db, DM9000_TCR, TCR_TXREQ);	/* Cleared after TX complete */
-
-		dev->trans_start = jiffies;	/* save the time stamp */
+		dm9000_send_packet(dev, skb->ip_summed, skb->len);
 	} else {
 		/* Second packet */
 		db->queue_pkt_len = skb->len;
+		db->queue_ip_summed = skb->ip_summed;
 		netif_stop_queue(dev);
 	}
 
@@ -809,12 +872,9 @@ static void dm9000_tx_done(struct net_device *dev, board_info_t *db)
 			dev_dbg(db->dev, "tx done, NSR %02x\n", tx_status);
 
 		/* Queue packet check & send */
-		if (db->tx_pkt_cnt > 0) {
-			iow(db, DM9000_TXPLL, db->queue_pkt_len);
-			iow(db, DM9000_TXPLH, db->queue_pkt_len >> 8);
-			iow(db, DM9000_TCR, TCR_TXREQ);
-			dev->trans_start = jiffies;
-		}
+		if (db->tx_pkt_cnt > 0)
+			dm9000_send_packet(dev, db->queue_ip_summed,
+					   db->queue_pkt_len);
 		netif_wake_queue(dev);
 	}
 }
@@ -846,14 +906,14 @@ dm9000_rx(struct net_device *dev)
 		rxbyte = readb(db->io_data);
 
 		/* Status check: this byte must be 0 or 1 */
-		if (rxbyte > DM9000_PKT_RDY) {
+		if (rxbyte & DM9000_PKT_ERR) {
 			dev_warn(db->dev, "status check fail: %d\n", rxbyte);
 			iow(db, DM9000_RCR, 0x00);	/* Stop Device */
 			iow(db, DM9000_ISR, IMR_PAR);	/* Stop INT request */
 			return;
 		}
 
-		if (rxbyte != DM9000_PKT_RDY)
+		if (!(rxbyte & DM9000_PKT_RDY))
 			return;
 
 		/* A packet ready now  & Get status/length */
@@ -914,6 +974,12 @@ dm9000_rx(struct net_device *dev)
 
 			/* Pass to upper layer */
 			skb->protocol = eth_type_trans(skb, dev);
+			if (db->rx_csum) {
+				if ((((rxbyte & 0x1c) << 3) & rxbyte) == 0)
+					skb->ip_summed = CHECKSUM_UNNECESSARY;
+				else
+					skb->ip_summed = CHECKSUM_NONE;
+			}
 			netif_rx(skb);
 			dev->stats.rx_packets++;
 
@@ -922,7 +988,7 @@ dm9000_rx(struct net_device *dev)
 
 			(db->dumpblk)(db->io_data, RxLen);
 		}
-	} while (rxbyte == DM9000_PKT_RDY);
+	} while (rxbyte & DM9000_PKT_RDY);
 }
 
 static irqreturn_t dm9000_interrupt(int irq, void *dev_id)
@@ -1347,6 +1413,13 @@ dm9000_probe(struct platform_device *pdev)
 	default:
 		dev_dbg(db->dev, "ID %02x => defaulting to DM9000E\n", id_val);
 		db->type = TYPE_DM9000E;
+	}
+
+	/* dm9000a/b are capable of hardware checksum offload */
+	if (db->type == TYPE_DM9000A || db->type == TYPE_DM9000B) {
+		db->can_csum = 1;
+		db->rx_csum = 1;
+		ndev->features |= NETIF_F_IP_CSUM;
 	}
 
 	/* from this point we assume that we have found a DM9000 */
