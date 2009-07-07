@@ -96,6 +96,10 @@ config S390
 	select INIT_ALL_POSSIBLE
 	select HAVE_PERF_COUNTERS
 
+config SCHED_OMIT_FRAME_POINTER
+	bool
+	default y
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
