@@ -41,8 +41,6 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_numa.h>
 #include <asm/acpi.h>
-#include <linux/dmi.h>
-
 
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,

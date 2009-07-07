@@ -31,6 +31,7 @@
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <linux/dmi.h>
 
 static int debug;
 static int check_sta_before_sun;
