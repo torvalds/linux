@@ -179,7 +179,7 @@ static int parse_ksym_trace_str(char *input_string, char **ksymname,
 int process_new_ksym_entry(char *ksymname, int op, unsigned long addr)
 {
 	struct trace_ksym *entry;
-	int ret;
+	int ret = -ENOMEM;
 
 	if (ksym_filter_entry_count >= KSYM_TRACER_MAX) {
 		printk(KERN_ERR "ksym_tracer: Maximum limit:(%d) reached. No"
@@ -193,12 +193,13 @@ int process_new_ksym_entry(char *ksymname, int op, unsigned long addr)
 		return -ENOMEM;
 
 	entry->ksym_hbp = kzalloc(sizeof(struct hw_breakpoint), GFP_KERNEL);
-	if (!entry->ksym_hbp) {
-		kfree(entry);
-		return -ENOMEM;
-	}
+	if (!entry->ksym_hbp)
+		goto err;
 
-	entry->ksym_hbp->info.name = ksymname;
+	entry->ksym_hbp->info.name = kstrdup(ksymname, GFP_KERNEL);
+	if (!entry->ksym_hbp->info.name)
+		goto err;
+
 	entry->ksym_hbp->info.type = op;
 	entry->ksym_addr = entry->ksym_hbp->info.address = addr;
 #ifdef CONFIG_X86
@@ -210,14 +211,18 @@ int process_new_ksym_entry(char *ksymname, int op, unsigned long addr)
 	if (ret < 0) {
 		printk(KERN_INFO "ksym_tracer request failed. Try again"
 					" later!!\n");
-		kfree(entry->ksym_hbp);
-		kfree(entry);
-		return -EAGAIN;
+		ret = -EAGAIN;
+		goto err;
 	}
 	hlist_add_head_rcu(&(entry->ksym_hlist), &ksym_filter_head);
 	ksym_filter_entry_count++;
-
 	return 0;
+err:
+	if (entry->ksym_hbp)
+		kfree(entry->ksym_hbp->info.name);
+	kfree(entry->ksym_hbp);
+	kfree(entry);
+	return ret;
 }
 
 static ssize_t ksym_trace_filter_read(struct file *filp, char __user *ubuf,
@@ -289,7 +294,7 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 			if (entry->ksym_hbp->info.type != op)
 				changed = 1;
 			else
-				goto err_ret;
+				goto out;
 			break;
 		}
 	}
@@ -298,34 +303,29 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 		entry->ksym_hbp->info.type = op;
 		if (op > 0) {
 			ret = register_kernel_hw_breakpoint(entry->ksym_hbp);
-			if (ret == 0) {
-				ret = count;
-				goto unlock_ret_path;
-			}
-		} else
-			ret = count;
+			if (ret == 0)
+				goto out;
+		}
 		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
+		kfree(entry->ksym_hbp->info.name);
 		kfree(entry->ksym_hbp);
 		kfree(entry);
-		goto err_ret;
+		goto out;
 	} else {
 		/* Check for malformed request: (4) */
 		if (op == 0)
-			goto err_ret;
+			goto out;
 		ret = process_new_ksym_entry(ksymname, op, ksym_addr);
-		if (ret)
-			goto err_ret;
 	}
-	ret = count;
-	goto unlock_ret_path;
+out:
+	mutex_unlock(&ksym_tracer_mutex);
 
-err_ret:
 	kfree(input_string);
 
-unlock_ret_path:
-	mutex_unlock(&ksym_tracer_mutex);
+	if (!ret)
+		ret = count;
 	return ret;
 }
 
@@ -349,14 +349,7 @@ static void ksym_trace_reset(struct trace_array *tr)
 		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
-		/* Free the 'input_string' only if reset
-		 * after startup self-test
-		 */
-#ifdef CONFIG_FTRACE_SELFTEST
-		if (strncmp(entry->ksym_hbp->info.name, KSYM_SELFTEST_ENTRY,
-					strlen(KSYM_SELFTEST_ENTRY)) != 0)
-#endif /* CONFIG_FTRACE_SELFTEST*/
-			kfree(entry->ksym_hbp->info.name);
+		kfree(entry->ksym_hbp->info.name);
 		kfree(entry->ksym_hbp);
 		kfree(entry);
 	}
