@@ -46,7 +46,7 @@ static bool ah_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		 * can't.  Hence, no choice but to drop.
 		 */
 		pr_debug("Dropping evil AH tinygram.\n");
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return 0;
 	}
 

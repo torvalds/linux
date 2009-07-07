@@ -73,7 +73,7 @@ out:
 	return info->invert;
 
 dropit:
-	*par->hotdrop = true;
+	par->hotdrop = true;
 	return false;
 }
 

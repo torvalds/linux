@@ -77,7 +77,7 @@ static bool tcp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		*/
 		if (par->fragoff == 1) {
 			pr_debug("Dropping evil TCP offset=1 frag.\n");
-			*par->hotdrop = true;
+			par->hotdrop = true;
 		}
 		/* Must not be a fragment. */
 		return false;
@@ -90,7 +90,7 @@ static bool tcp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		pr_debug("Dropping evil TCP offset=0 tinygram.\n");
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
@@ -108,13 +108,13 @@ static bool tcp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		return false;
 	if (tcpinfo->option) {
 		if (th->doff * 4 < sizeof(_tcph)) {
-			*par->hotdrop = true;
+			par->hotdrop = true;
 			return false;
 		}
 		if (!tcp_find_option(tcpinfo->option, skb, par->thoff,
 				     th->doff*4 - sizeof(_tcph),
 				     tcpinfo->invflags & XT_TCP_INV_OPTION,
-				     par->hotdrop))
+				     &par->hotdrop))
 			return false;
 	}
 	return true;
@@ -143,7 +143,7 @@ static bool udp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		pr_debug("Dropping evil UDP tinygram.\n");
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 

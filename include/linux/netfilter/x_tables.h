@@ -196,6 +196,9 @@ struct xt_counters_info {
  * @hook:	hook number given packet came from
  * @family:	Actual NFPROTO_* through which the function is invoked
  * 		(helpful when match->family == NFPROTO_UNSPEC)
+ *
+ * Fields written to by extensions:
+ *
  * @hotdrop:	drop packet if we had inspection problems
  * Network namespace obtainable using dev_net(in/out)
  */
@@ -212,7 +215,7 @@ struct xt_action_param {
 	unsigned int thoff;
 	unsigned int hooknum;
 	u_int8_t family;
-	bool *hotdrop;
+	bool hotdrop;
 };
 
 /**

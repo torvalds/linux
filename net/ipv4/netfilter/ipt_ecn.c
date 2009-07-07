@@ -78,7 +78,7 @@ static bool ecn_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR)) {
 		if (ip_hdr(skb)->protocol != IPPROTO_TCP)
 			return false;
-		if (!match_tcp(skb, info, par->hotdrop))
+		if (!match_tcp(skb, info, &par->hotdrop))
 			return false;
 	}
 

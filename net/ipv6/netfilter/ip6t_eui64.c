@@ -27,7 +27,7 @@ eui64_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 	if (!(skb_mac_header(skb) >= skb->head &&
 	      skb_mac_header(skb) + ETH_HLEN <= skb->data) &&
 	    par->fragoff != 0) {
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 

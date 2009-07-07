@@ -268,7 +268,7 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			goto out;
 		e = recent_entry_init(t, &addr, par->family, ttl);
 		if (e == NULL)
-			*par->hotdrop = true;
+			par->hotdrop = true;
 		ret = !ret;
 		goto out;
 	}

@@ -186,13 +186,12 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	struct ebt_entries *chaininfo;
 	const char *base;
 	const struct ebt_table_info *private;
-	bool hotdrop = false;
 	struct xt_action_param acpar;
 
 	acpar.family  = NFPROTO_BRIDGE;
 	acpar.in      = in;
 	acpar.out     = out;
-	acpar.hotdrop = &hotdrop;
+	acpar.hotdrop = false;
 	acpar.hooknum = hook;
 
 	read_lock_bh(&table->lock);
@@ -216,7 +215,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 
 		if (EBT_MATCH_ITERATE(point, ebt_do_match, skb, &acpar) != 0)
 			goto letscontinue;
-		if (hotdrop) {
+		if (acpar.hotdrop) {
 			read_unlock_bh(&table->lock);
 			return NF_DROP;
 		}

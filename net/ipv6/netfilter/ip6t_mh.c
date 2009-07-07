@@ -47,14 +47,14 @@ static bool mh_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
 		pr_debug("Dropping evil MH tinygram.\n");
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
 	if (mh->ip6mh_proto != IPPROTO_NONE) {
 		pr_debug("Dropping invalid MH Payload Proto: %u\n",
 			 mh->ip6mh_proto);
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 

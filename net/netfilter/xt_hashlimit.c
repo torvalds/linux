@@ -562,7 +562,7 @@ hashlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	return info->cfg.mode & XT_HASHLIMIT_INVERT;
 
  hotdrop:
-	*par->hotdrop = true;
+	par->hotdrop = true;
 	return false;
 }
 

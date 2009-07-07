@@ -107,7 +107,7 @@ dccp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	dh = skb_header_pointer(skb, par->thoff, sizeof(_dh), &_dh);
 	if (dh == NULL) {
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
@@ -120,7 +120,7 @@ dccp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		&& DCCHECK(match_types(dh, info->typemask),
 			   XT_DCCP_TYPE, info->flags, info->invflags)
 		&& DCCHECK(match_option(info->option, skb, par->thoff, dh,
-					par->hotdrop),
+					&par->hotdrop),
 			   XT_DCCP_OPTION, info->flags, info->invflags);
 }
 
