@@ -3506,6 +3506,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	smp_mb__after_clear_bit();
 
 	if (vcpu->requests || need_resched() || signal_pending(current)) {
+		set_bit(KVM_REQ_KICK, &vcpu->requests);
 		local_irq_enable();
 		preempt_enable();
 		r = 1;
