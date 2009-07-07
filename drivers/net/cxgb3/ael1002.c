@@ -224,12 +224,6 @@ static int ael1006_reset(struct cphy *phy, int wait)
 	return t3_phy_reset(phy, MDIO_MMD_PMAPMD, wait);
 }
 
-static int ael1006_power_down(struct cphy *phy, int enable)
-{
-	return mdio_set_flag(&phy->mdio, phy->mdio.prtad, MDIO_MMD_PMAPMD,
-			     MDIO_CTRL1, MDIO_CTRL1_LPOWER, enable);
-}
-
 static struct cphy_ops ael1006_ops = {
 	.reset = ael1006_reset,
 	.intr_enable = t3_phy_lasi_intr_enable,
@@ -237,7 +231,7 @@ static struct cphy_ops ael1006_ops = {
 	.intr_clear = t3_phy_lasi_intr_clear,
 	.intr_handler = t3_phy_lasi_intr_handler,
 	.get_link_status = get_link_status_r,
-	.power_down = ael1006_power_down,
+	.power_down = ael1002_power_down,
 	.mmds = MDIO_DEVS_PMAPMD | MDIO_DEVS_PCS | MDIO_DEVS_PHYXS,
 };
 
@@ -1840,7 +1834,7 @@ static struct cphy_ops qt2045_ops = {
 	.intr_clear = t3_phy_lasi_intr_clear,
 	.intr_handler = t3_phy_lasi_intr_handler,
 	.get_link_status = get_link_status_x,
-	.power_down = ael1006_power_down,
+	.power_down = ael1002_power_down,
 	.mmds = MDIO_DEVS_PMAPMD | MDIO_DEVS_PCS | MDIO_DEVS_PHYXS,
 };
 
