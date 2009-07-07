@@ -1101,6 +1101,11 @@ static void *kmemleak_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct kmemleak_object *object;
 	loff_t n = *pos;
+	int err;
+
+	err = mutex_lock_interruptible(&scan_mutex);
+	if (err < 0)
+		return ERR_PTR(err);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(object, &object_list, object_list) {
@@ -1144,8 +1149,15 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
  */
 static void kmemleak_seq_stop(struct seq_file *seq, void *v)
 {
-	if (v)
-		put_object(v);
+	if (!IS_ERR(v)) {
+		/*
+		 * kmemleak_seq_start may return ERR_PTR if the scan_mutex
+		 * waiting was interrupted, so only release it if !IS_ERR.
+		 */
+		mutex_unlock(&scan_mutex);
+		if (v)
+			put_object(v);
+	}
 }
 
 /*
@@ -1172,36 +1184,15 @@ static const struct seq_operations kmemleak_seq_ops = {
 
 static int kmemleak_open(struct inode *inode, struct file *file)
 {
-	int ret = 0;
-
 	if (!atomic_read(&kmemleak_enabled))
 		return -EBUSY;
 
-	ret = mutex_lock_interruptible(&scan_mutex);
-	if (ret < 0)
-		goto out;
-	if (file->f_mode & FMODE_READ) {
-		ret = seq_open(file, &kmemleak_seq_ops);
-		if (ret < 0)
-			goto scan_unlock;
-	}
-	return ret;
-
-scan_unlock:
-	mutex_unlock(&scan_mutex);
-out:
-	return ret;
+	return seq_open(file, &kmemleak_seq_ops);
 }
 
 static int kmemleak_release(struct inode *inode, struct file *file)
 {
-	int ret = 0;
-
-	if (file->f_mode & FMODE_READ)
-		seq_release(inode, file);
-	mutex_unlock(&scan_mutex);
-
-	return ret;
+	return seq_release(inode, file);
 }
 
 /*
@@ -1221,14 +1212,16 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 {
 	char buf[64];
 	int buf_size;
-
-	if (!atomic_read(&kmemleak_enabled))
-		return -EBUSY;
+	int ret;
 
 	buf_size = min(size, (sizeof(buf) - 1));
 	if (strncpy_from_user(buf, user_buf, buf_size) < 0)
 		return -EFAULT;
 	buf[buf_size] = 0;
+
+	ret = mutex_lock_interruptible(&scan_mutex);
+	if (ret < 0)
+		return ret;
 
 	if (strncmp(buf, "off", 3) == 0)
 		kmemleak_disable();
@@ -1242,11 +1235,10 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 		stop_scan_thread();
 	else if (strncmp(buf, "scan=", 5) == 0) {
 		unsigned long secs;
-		int err;
 
-		err = strict_strtoul(buf + 5, 0, &secs);
-		if (err < 0)
-			return err;
+		ret = strict_strtoul(buf + 5, 0, &secs);
+		if (ret < 0)
+			goto out;
 		stop_scan_thread();
 		if (secs) {
 			jiffies_scan_wait = msecs_to_jiffies(secs * 1000);
@@ -1255,7 +1247,12 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 	} else if (strncmp(buf, "scan", 4) == 0)
 		kmemleak_scan();
 	else
-		return -EINVAL;
+		ret = -EINVAL;
+
+out:
+	mutex_unlock(&scan_mutex);
+	if (ret < 0)
+		return ret;
 
 	/* ignore the rest of the buffer, only one command at a time */
 	*ppos += size;
