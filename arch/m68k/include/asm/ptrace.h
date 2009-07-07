@@ -90,11 +90,11 @@ extern void show_regs(struct pt_regs *);
  */
 struct task_struct;
 
-#ifdef CONFIG_MMU
 #define arch_has_single_step()	(1)
 extern void user_enable_single_step(struct task_struct *);
 extern void user_disable_single_step(struct task_struct *);
 
+#ifdef CONFIG_MMU
 #define arch_has_block_step()	(1)
 extern void user_enable_block_step(struct task_struct *);
 #endif
