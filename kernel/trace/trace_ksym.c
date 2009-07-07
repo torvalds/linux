@@ -158,21 +158,21 @@ static int ksym_trace_get_access_type(char *str)
 static int parse_ksym_trace_str(char *input_string, char **ksymname,
 							unsigned long *addr)
 {
-	char *delimiter = ":";
 	int ret;
 
-	ret = -EINVAL;
-	*ksymname = strsep(&input_string, delimiter);
+	strstrip(input_string);
+
+	*ksymname = strsep(&input_string, ":");
 	*addr = kallsyms_lookup_name(*ksymname);
 
 	/* Check for malformed request: (2), (1) and (5) */
 	if ((!input_string) ||
-		(strlen(input_string) != (KSYM_TRACER_OP_LEN + 1)) ||
-			(*addr == 0))
-		goto return_code;
+	    (strlen(input_string) != KSYM_TRACER_OP_LEN) ||
+	    (*addr == 0))
+		return -EINVAL;;
+
 	ret = ksym_trace_get_access_type(input_string);
 
-return_code:
 	return ret;
 }
 
