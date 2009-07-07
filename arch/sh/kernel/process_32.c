@@ -288,8 +288,14 @@ static void ubc_set_tracing(int asid, unsigned long pc)
 __notrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev, struct task_struct *next)
 {
+	struct thread_struct *next_t = &next->thread;
+
 #if defined(CONFIG_SH_FPU)
 	unlazy_fpu(prev, task_pt_regs(prev));
+
+	/* we're going to use this soon, after a few expensive things */
+	if (next->fpu_counter > 5)
+		prefetch(&next_t->fpu.hard);
 #endif
 
 #ifdef CONFIG_MMU
@@ -320,6 +326,16 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 		ctrl_outw(0, UBC_BBRB);
 #endif
 	}
+
+#if defined(CONFIG_SH_FPU)
+	/* If the task has used fpu the last 5 timeslices, just do a full
+	 * restore of the math state immediately to avoid the trap; the
+	 * chances of needing FPU soon are obviously high now
+	 */
+	if (next->fpu_counter > 5) {
+		fpu_state_restore(task_pt_regs(next));
+	}
+#endif
 
 	return prev;
 }

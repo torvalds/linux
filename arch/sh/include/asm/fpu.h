@@ -19,6 +19,7 @@ static inline void grab_fpu(struct pt_regs *regs)
 struct task_struct;
 
 extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
+void fpu_state_restore(struct pt_regs *regs);
 #else
 
 #define release_fpu(regs)	do { } while (0)
@@ -44,6 +45,8 @@ static inline void unlazy_fpu(struct task_struct *tsk, struct pt_regs *regs)
 	preempt_disable();
 	if (test_tsk_thread_flag(tsk, TIF_USEDFPU))
 		save_fpu(tsk, regs);
+	else
+		tsk->fpu_counter = 0;
 	preempt_enable();
 }
 

@@ -483,18 +483,18 @@ BUILD_TRAP_HANDLER(fpu_error)
 	force_sig(SIGFPE, tsk);
 }
 
-BUILD_TRAP_HANDLER(fpu_state_restore)
+void fpu_state_restore(struct pt_regs *regs)
 {
 	struct task_struct *tsk = current;
-	TRAP_HANDLER_DECL;
 
 	grab_fpu(regs);
-	if (!user_mode(regs)) {
+	if (unlikely(!user_mode(regs))) {
 		printk(KERN_ERR "BUG: FPU is used in kernel mode.\n");
+		BUG();
 		return;
 	}
 
-	if (used_math()) {
+	if (likely(used_math())) {
 		/* Using the FPU again.  */
 		restore_fpu(tsk);
 	} else {
@@ -503,4 +503,12 @@ BUILD_TRAP_HANDLER(fpu_state_restore)
 		set_used_math();
 	}
 	set_tsk_thread_flag(tsk, TIF_USEDFPU);
+	tsk->fpu_counter++;
+}
+
+BUILD_TRAP_HANDLER(fpu_state_restore)
+{
+	TRAP_HANDLER_DECL;
+
+	fpu_state_restore(regs);
 }
