@@ -41,6 +41,9 @@ mac80211-$(CONFIG_MAC80211_MESH) += \
 
 mac80211-$(CONFIG_PM) += pm.o
 
+mac80211-$(CONFIG_MAC80211_DRIVER_API_TRACER) += driver-trace.o
+CFLAGS_driver-trace.o := -I$(src)
+
 # objects for PID algorithm
 rc80211_pid-y := rc80211_pid_algo.o
 rc80211_pid-$(CONFIG_MAC80211_DEBUGFS) += rc80211_pid_debugfs.o
