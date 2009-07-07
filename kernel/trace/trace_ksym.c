@@ -114,24 +114,22 @@ void ksym_hbp_handler(struct hw_breakpoint *hbp, struct pt_regs *regs)
  * --x : Set Execution Break points (Not available yet)
  *
  */
-static int ksym_trace_get_access_type(char *access_str)
+static int ksym_trace_get_access_type(char *str)
 {
-	int pos, access = 0;
+	int access = 0;
 
-	for (pos = 0; pos < KSYM_TRACER_OP_LEN; pos++) {
-		switch (access_str[pos]) {
-		case 'r':
-			access += (pos == 0) ? 4 : -1;
-			break;
-		case 'w':
-			access += (pos == 1) ? 2 : -1;
-			break;
-		case '-':
-			break;
-		default:
-			return -EINVAL;
-		}
-	}
+	if (str[0] == 'r')
+		access += 4;
+	else if (str[0] != '-')
+		return -EINVAL;
+
+	if (str[1] == 'w')
+		access += 2;
+	else if (str[1] != '-')
+		return -EINVAL;
+
+	if (str[2] != '-')
+		return -EINVAL;
 
 	switch (access) {
 	case 6:
@@ -140,8 +138,6 @@ static int ksym_trace_get_access_type(char *access_str)
 	case 2:
 		access = HW_BREAKPOINT_WRITE;
 		break;
-	case 0:
-		access = 0;
 	}
 
 	return access;
