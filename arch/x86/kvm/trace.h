@@ -264,6 +264,91 @@ TRACE_EVENT(kvm_cr,
 #define trace_kvm_cr_read(cr, val)		trace_kvm_cr(0, cr, val)
 #define trace_kvm_cr_write(cr, val)		trace_kvm_cr(1, cr, val)
 
+TRACE_EVENT(kvm_pic_set_irq,
+	    TP_PROTO(__u8 chip, __u8 pin, __u8 elcr, __u8 imr, bool coalesced),
+	    TP_ARGS(chip, pin, elcr, imr, coalesced),
+
+	TP_STRUCT__entry(
+		__field(	__u8,		chip		)
+		__field(	__u8,		pin		)
+		__field(	__u8,		elcr		)
+		__field(	__u8,		imr		)
+		__field(	bool,		coalesced	)
+	),
+
+	TP_fast_assign(
+		__entry->chip		= chip;
+		__entry->pin		= pin;
+		__entry->elcr		= elcr;
+		__entry->imr		= imr;
+		__entry->coalesced	= coalesced;
+	),
+
+	TP_printk("chip %u pin %u (%s%s)%s",
+		  __entry->chip, __entry->pin,
+		  (__entry->elcr & (1 << __entry->pin)) ? "level":"edge",
+		  (__entry->imr & (1 << __entry->pin)) ? "|masked":"",
+		  __entry->coalesced ? " (coalesced)" : "")
+);
+
+#define kvm_apic_dst_shorthand		\
+	{0x0, "dst"},			\
+	{0x1, "self"},			\
+	{0x2, "all"},			\
+	{0x3, "all-but-self"}
+
+TRACE_EVENT(kvm_apic_ipi,
+	    TP_PROTO(__u32 icr_low, __u32 dest_id),
+	    TP_ARGS(icr_low, dest_id),
+
+	TP_STRUCT__entry(
+		__field(	__u32,		icr_low		)
+		__field(	__u32,		dest_id		)
+	),
+
+	TP_fast_assign(
+		__entry->icr_low	= icr_low;
+		__entry->dest_id	= dest_id;
+	),
+
+	TP_printk("dst %x vec %u (%s|%s|%s|%s|%s)",
+		  __entry->dest_id, (u8)__entry->icr_low,
+		  __print_symbolic((__entry->icr_low >> 8 & 0x7),
+				   kvm_deliver_mode),
+		  (__entry->icr_low & (1<<11)) ? "logical" : "physical",
+		  (__entry->icr_low & (1<<14)) ? "assert" : "de-assert",
+		  (__entry->icr_low & (1<<15)) ? "level" : "edge",
+		  __print_symbolic((__entry->icr_low >> 18 & 0x3),
+				   kvm_apic_dst_shorthand))
+);
+
+TRACE_EVENT(kvm_apic_accept_irq,
+	    TP_PROTO(__u32 apicid, __u16 dm, __u8 tm, __u8 vec, bool coalesced),
+	    TP_ARGS(apicid, dm, tm, vec, coalesced),
+
+	TP_STRUCT__entry(
+		__field(	__u32,		apicid		)
+		__field(	__u16,		dm		)
+		__field(	__u8,		tm		)
+		__field(	__u8,		vec		)
+		__field(	bool,		coalesced	)
+	),
+
+	TP_fast_assign(
+		__entry->apicid		= apicid;
+		__entry->dm		= dm;
+		__entry->tm		= tm;
+		__entry->vec		= vec;
+		__entry->coalesced	= coalesced;
+	),
+
+	TP_printk("apicid %x vec %u (%s|%s)%s",
+		  __entry->apicid, __entry->vec,
+		  __print_symbolic((__entry->dm >> 8 & 0x7), kvm_deliver_mode),
+		  __entry->tm ? "level" : "edge",
+		  __entry->coalesced ? " (coalesced)" : "")
+);
+
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */

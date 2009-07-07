@@ -36,6 +36,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/current.h>
+#include <trace/events/kvm.h>
 
 #include "ioapic.h"
 #include "lapic.h"
@@ -193,6 +194,7 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 			    (!edge && !entry.fields.remote_irr))
 				ret = ioapic_service(ioapic, irq);
 		}
+		trace_kvm_ioapic_set_irq(entry.bits, irq, ret == 0);
 	}
 	return ret;
 }

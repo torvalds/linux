@@ -30,6 +30,7 @@
 #include "irq.h"
 
 #include <linux/kvm_host.h>
+#include "trace.h"
 
 static void pic_lock(struct kvm_pic *s)
 	__acquires(&s->lock)
@@ -190,6 +191,8 @@ int kvm_pic_set_irq(void *opaque, int irq, int level)
 	if (irq >= 0 && irq < PIC_NUM_PINS) {
 		ret = pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
 		pic_update_irq(s);
+		trace_kvm_pic_set_irq(irq >> 3, irq & 7, s->pics[irq >> 3].elcr,
+				      s->pics[irq >> 3].imr, ret == 0);
 	}
 	pic_unlock(s);
 

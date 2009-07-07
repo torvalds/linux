@@ -100,6 +100,8 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 {
 	struct kvm_lapic_irq irq;
 
+	trace_kvm_msi_set_irq(e->msi.address_lo, e->msi.data);
+
 	irq.dest_id = (e->msi.address_lo &
 			MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
 	irq.vector = (e->msi.data &

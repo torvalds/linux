@@ -375,6 +375,8 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			break;
 
 		result = !apic_test_and_set_irr(vector, apic);
+		trace_kvm_apic_accept_irq(vcpu->vcpu_id, delivery_mode,
+					  trig_mode, vector, result);
 		if (!result) {
 			if (trig_mode)
 				apic_debug("level trig mode repeatedly for "
@@ -492,6 +494,8 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 		irq.dest_id = icr_high;
 	else
 		irq.dest_id = GET_APIC_DEST_FIELD(icr_high);
+
+	trace_kvm_apic_ipi(icr_low, irq.dest_id);
 
 	apic_debug("icr_high 0x%x, icr_low 0x%x, "
 		   "short_hand 0x%x, dest 0x%x, trig_mode 0x%x, level 0x%x, "
