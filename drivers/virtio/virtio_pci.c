@@ -669,7 +669,7 @@ static int __init virtio_pci_init(void)
 
 	err = pci_register_driver(&virtio_pci_driver);
 	if (err)
-		device_unregister(virtio_pci_root);
+		root_device_unregister(virtio_pci_root);
 
 	return err;
 }
