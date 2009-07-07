@@ -95,29 +95,9 @@ IEEE80211_IF_FILE(force_unicast_rateidx, force_unicast_rateidx, DEC);
 IEEE80211_IF_FILE(max_ratectrl_rateidx, max_ratectrl_rateidx, DEC);
 
 /* STA attributes */
-IEEE80211_IF_FILE(state, u.mgd.state, DEC);
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
-IEEE80211_IF_FILE(prev_bssid, u.mgd.prev_bssid, MAC);
-IEEE80211_IF_FILE(ssid_len, u.mgd.ssid_len, SIZE);
 IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
 IEEE80211_IF_FILE(capab, u.mgd.capab, HEX);
-IEEE80211_IF_FILE(extra_ie_len, u.mgd.extra_ie_len, SIZE);
-IEEE80211_IF_FILE(auth_tries, u.mgd.auth_tries, DEC);
-IEEE80211_IF_FILE(assoc_tries, u.mgd.assoc_tries, DEC);
-IEEE80211_IF_FILE(auth_alg, u.mgd.auth_alg, DEC);
-IEEE80211_IF_FILE(auth_transaction, u.mgd.auth_transaction, DEC);
-
-static ssize_t ieee80211_if_fmt_flags(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	return scnprintf(buf, buflen, "%s%s%s%s%s\n",
-		 sdata->u.mgd.flags & IEEE80211_STA_PREV_BSSID_SET ? "prev BSSID\n" : "",
-		 sdata->u.mgd.flags & IEEE80211_STA_AUTHENTICATED ? "AUTH\n" : "",
-		 sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED ? "ASSOC\n" : "",
-		 sdata->u.mgd.flags & IEEE80211_STA_PROBEREQ_POLL ? "PROBEREQ POLL\n" : "",
-		 sdata->vif.bss_conf.use_cts_prot ? "CTS prot\n" : "");
-}
-__IEEE80211_IF_FILE(flags);
 
 /* AP attributes */
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
@@ -180,18 +160,9 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(force_unicast_rateidx, sta);
 	DEBUGFS_ADD(max_ratectrl_rateidx, sta);
 
-	DEBUGFS_ADD(state, sta);
 	DEBUGFS_ADD(bssid, sta);
-	DEBUGFS_ADD(prev_bssid, sta);
-	DEBUGFS_ADD(ssid_len, sta);
 	DEBUGFS_ADD(aid, sta);
 	DEBUGFS_ADD(capab, sta);
-	DEBUGFS_ADD(extra_ie_len, sta);
-	DEBUGFS_ADD(auth_tries, sta);
-	DEBUGFS_ADD(assoc_tries, sta);
-	DEBUGFS_ADD(auth_alg, sta);
-	DEBUGFS_ADD(auth_transaction, sta);
-	DEBUGFS_ADD(flags, sta);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
@@ -311,18 +282,9 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_DEL(force_unicast_rateidx, sta);
 	DEBUGFS_DEL(max_ratectrl_rateidx, sta);
 
-	DEBUGFS_DEL(state, sta);
 	DEBUGFS_DEL(bssid, sta);
-	DEBUGFS_DEL(prev_bssid, sta);
-	DEBUGFS_DEL(ssid_len, sta);
 	DEBUGFS_DEL(aid, sta);
 	DEBUGFS_DEL(capab, sta);
-	DEBUGFS_DEL(extra_ie_len, sta);
-	DEBUGFS_DEL(auth_tries, sta);
-	DEBUGFS_DEL(assoc_tries, sta);
-	DEBUGFS_DEL(auth_alg, sta);
-	DEBUGFS_DEL(auth_transaction, sta);
-	DEBUGFS_DEL(flags, sta);
 }
 
 static void del_ap_files(struct ieee80211_sub_if_data *sdata)

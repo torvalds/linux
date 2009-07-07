@@ -121,19 +121,6 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	return bss;
 }
 
-void ieee80211_rx_bss_remove(struct ieee80211_sub_if_data *sdata, u8 *bssid,
-			     int freq, u8 *ssid, u8 ssid_len)
-{
-	struct ieee80211_bss *bss;
-	struct ieee80211_local *local = sdata->local;
-
-	bss = ieee80211_rx_bss_get(local, bssid, freq, ssid, ssid_len);
-	if (bss) {
-		cfg80211_unlink_bss(local->hw.wiphy, (void *)bss);
-		ieee80211_rx_bss_put(local, bss);
-	}
-}
-
 ieee80211_rx_result
 ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 {
@@ -327,7 +314,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 
 		/* Tell AP we're back */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			if (sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED) {
+			if (sdata->u.mgd.associated) {
 				ieee80211_scan_ps_disable(sdata);
 				netif_tx_wake_all_queues(sdata->dev);
 			}
@@ -383,7 +370,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 				sdata, BSS_CHANGED_BEACON_ENABLED);
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			if (sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED) {
+			if (sdata->u.mgd.associated) {
 				netif_tx_stop_all_queues(sdata->dev);
 				ieee80211_scan_ps_enable(sdata);
 			}
@@ -443,10 +430,8 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 
 	if (req != &local->int_scan_req &&
 	    sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    (ifmgd->state == IEEE80211_STA_MLME_DIRECT_PROBE ||
-	     ifmgd->state == IEEE80211_STA_MLME_AUTHENTICATE ||
-	     ifmgd->state == IEEE80211_STA_MLME_ASSOCIATE)) {
-		/* actually wait for the assoc to finish/time out */
+	    !list_empty(&ifmgd->work_list)) {
+		/* actually wait for the work it's doing to finish/time out */
 		set_bit(IEEE80211_STA_REQ_SCAN, &ifmgd->request);
 		return 0;
 	}

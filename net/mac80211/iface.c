@@ -233,9 +233,6 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_configure_filter(local);
 		netif_addr_unlock_bh(local->mdev);
 		break;
-	case NL80211_IFTYPE_STATION:
-		sdata->u.mgd.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
-		/* fall through */
 	default:
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
@@ -366,18 +363,6 @@ static int ieee80211_stop(struct net_device *dev)
 	rcu_read_unlock();
 
 	/*
-	 * Announce that we are leaving the network, in case we are a
-	 * station interface type. This must be done before removing
-	 * all stations associated with sta_info_flush, otherwise STA
-	 * information will be gone and no announce being done.
-	 */
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		if (sdata->u.mgd.state != IEEE80211_STA_MLME_DISABLED)
-			ieee80211_sta_deauthenticate(sdata,
-				WLAN_REASON_DEAUTH_LEAVING);
-	}
-
-	/*
 	 * Remove all stations associated with this interface.
 	 *
 	 * This must be done before calling ops->remove_interface()
@@ -462,7 +447,6 @@ static int ieee80211_stop(struct net_device *dev)
 		netif_addr_unlock_bh(local->mdev);
 		break;
 	case NL80211_IFTYPE_STATION:
-		memset(sdata->u.mgd.bssid, 0, ETH_ALEN);
 		del_timer_sync(&sdata->u.mgd.chswitch_timer);
 		del_timer_sync(&sdata->u.mgd.timer);
 		/*
@@ -485,10 +469,6 @@ static int ieee80211_stop(struct net_device *dev)
 		 */
 		synchronize_rcu();
 		skb_queue_purge(&sdata->u.mgd.skb_queue);
-
-		kfree(sdata->u.mgd.extra_ie);
-		sdata->u.mgd.extra_ie = NULL;
-		sdata->u.mgd.extra_ie_len = 0;
 		/* fall through */
 	case NL80211_IFTYPE_ADHOC:
 		if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
@@ -650,11 +630,6 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 			kfree_skb(sdata->u.ibss.presp);
 		break;
 	case NL80211_IFTYPE_STATION:
-		kfree(sdata->u.mgd.extra_ie);
-		kfree(sdata->u.mgd.assocreq_ies);
-		kfree(sdata->u.mgd.assocresp_ies);
-		kfree(sdata->u.mgd.sme_auth_ie);
-		break;
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_MONITOR:
@@ -937,7 +912,8 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 			continue;
 		/* do not count disabled managed interfaces */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    sdata->u.mgd.state == IEEE80211_STA_MLME_DISABLED)
+		    !sdata->u.mgd.associated &&
+		    list_empty(&sdata->u.mgd.work_list))
 			continue;
 		/* do not count unused IBSS interfaces */
 		if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&

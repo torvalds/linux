@@ -227,11 +227,32 @@ struct mesh_preq_queue {
 	u8 flags;
 };
 
+enum ieee80211_mgd_state {
+	IEEE80211_MGD_STATE_IDLE,
+	IEEE80211_MGD_STATE_PROBE,
+	IEEE80211_MGD_STATE_AUTH,
+	IEEE80211_MGD_STATE_ASSOC,
+};
+
+struct ieee80211_mgd_work {
+	struct list_head list;
+	struct ieee80211_bss *bss;
+	int ie_len;
+	u8 prev_bssid[ETH_ALEN];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len;
+	unsigned long timeout;
+	enum ieee80211_mgd_state state;
+	u16 auth_alg, auth_transaction;
+
+	int tries;
+
+	/* must be last */
+	u8 ie[0]; /* for auth or assoc frame, not probe */
+};
+
 /* flags used in struct ieee80211_if_managed.flags */
 enum ieee80211_sta_flags {
-	IEEE80211_STA_PREV_BSSID_SET	= BIT(0),
-	IEEE80211_STA_AUTHENTICATED	= BIT(1),
-	IEEE80211_STA_ASSOCIATED	= BIT(2),
 	IEEE80211_STA_PROBEREQ_POLL	= BIT(3),
 	IEEE80211_STA_CONTROL_PORT	= BIT(4),
 	IEEE80211_STA_WMM_ENABLED	= BIT(5),
@@ -243,8 +264,6 @@ enum ieee80211_sta_flags {
 /* flags for MLME request */
 enum ieee80211_sta_request {
 	IEEE80211_STA_REQ_SCAN,
-	IEEE80211_STA_REQ_AUTH,
-	IEEE80211_STA_REQ_RUN,
 };
 
 struct ieee80211_if_managed {
@@ -254,34 +273,16 @@ struct ieee80211_if_managed {
 	struct work_struct chswitch_work;
 	struct work_struct beacon_loss_work;
 
-	u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
+	struct mutex mtx;
+	struct ieee80211_bss *associated;
+	struct list_head work_list;
 
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	size_t ssid_len;
-
-	enum {
-		IEEE80211_STA_MLME_DISABLED,
-		IEEE80211_STA_MLME_DIRECT_PROBE,
-		IEEE80211_STA_MLME_AUTHENTICATE,
-		IEEE80211_STA_MLME_ASSOCIATE,
-		IEEE80211_STA_MLME_ASSOCIATED,
-	} state;
+	u8 bssid[ETH_ALEN];
 
 	u16 aid;
 	u16 capab;
-	u8 *extra_ie; /* to be added to the end of AssocReq */
-	size_t extra_ie_len;
-
-	/* The last AssocReq/Resp IEs */
-	u8 *assocreq_ies, *assocresp_ies;
-	size_t assocreq_ies_len, assocresp_ies_len;
 
 	struct sk_buff_head skb_queue;
-
-	int assoc_scan_tries; /* number of scans done pre-association */
-	int direct_probe_tries; /* retries for direct probes */
-	int auth_tries; /* retries for auth req */
-	int assoc_tries; /* retries for assoc req */
 
 	unsigned long timers_running; /* used for quiesce/restart */
 	bool powersave; /* powersave requested for this iface */
@@ -292,9 +293,6 @@ struct ieee80211_if_managed {
 
 	unsigned int flags;
 
-	int auth_alg; /* currently used IEEE 802.11 authentication algorithm */
-	int auth_transaction;
-
 	u32 beacon_crc;
 
 	enum {
@@ -304,10 +302,6 @@ struct ieee80211_if_managed {
 	} mfp; /* management frame protection */
 
 	int wmm_last_param_set;
-
-	/* Extra IE data for management frames */
-	u8 *sme_auth_ie;
-	size_t sme_auth_ie_len;
 };
 
 enum ieee80211_ibss_request {
@@ -466,18 +460,9 @@ struct ieee80211_sub_if_data {
 	union {
 		struct {
 			struct dentry *drop_unencrypted;
-			struct dentry *state;
 			struct dentry *bssid;
-			struct dentry *prev_bssid;
-			struct dentry *ssid_len;
 			struct dentry *aid;
 			struct dentry *capab;
-			struct dentry *extra_ie_len;
-			struct dentry *auth_tries;
-			struct dentry *assoc_tries;
-			struct dentry *auth_alg;
-			struct dentry *auth_transaction;
-			struct dentry *flags;
 			struct dentry *force_unicast_rateidx;
 			struct dentry *max_ratectrl_rateidx;
 		} sta;
@@ -928,11 +913,16 @@ extern const struct iw_handler_def ieee80211_iw_handler_def;
 
 /* STA code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
+int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
+		       struct cfg80211_auth_request *req);
+int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
+			struct cfg80211_assoc_request *req);
+int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
+			 struct cfg80211_deauth_request *req);
+int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
+			   struct cfg80211_disassoc_request *req);
 ieee80211_rx_result ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 					  struct sk_buff *skb);
-void ieee80211_sta_req_auth(struct ieee80211_sub_if_data *sdata);
-int ieee80211_sta_deauthenticate(struct ieee80211_sub_if_data *sdata, u16 reason);
-int ieee80211_sta_disassociate(struct ieee80211_sub_if_data *sdata, u16 reason);
 void ieee80211_send_pspoll(struct ieee80211_local *local,
 			   struct ieee80211_sub_if_data *sdata);
 void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency);
@@ -966,8 +956,6 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 void ieee80211_scan_cancel(struct ieee80211_local *local);
 ieee80211_rx_result
 ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
-int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
-			       const char *ie, size_t len);
 
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
 struct ieee80211_bss *
@@ -983,8 +971,6 @@ ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len);
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss);
-void ieee80211_rx_bss_remove(struct ieee80211_sub_if_data *sdata, u8 *bssid,
-			     int freq, u8 *ssid, u8 ssid_len);
 
 /* interface handling */
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,

@@ -1172,122 +1172,25 @@ static int ieee80211_scan(struct wiphy *wiphy,
 static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 			  struct cfg80211_auth_request *req)
 {
-	struct ieee80211_sub_if_data *sdata;
-	const u8 *ssid;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	switch (req->auth_type) {
-	case NL80211_AUTHTYPE_OPEN_SYSTEM:
-		sdata->u.mgd.auth_alg = WLAN_AUTH_OPEN;
-		break;
-	case NL80211_AUTHTYPE_SHARED_KEY:
-		sdata->u.mgd.auth_alg = WLAN_AUTH_SHARED_KEY;
-		break;
-	case NL80211_AUTHTYPE_FT:
-		sdata->u.mgd.auth_alg = WLAN_AUTH_FT;
-		break;
-	case NL80211_AUTHTYPE_NETWORK_EAP:
-		sdata->u.mgd.auth_alg = WLAN_AUTH_LEAP;
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	memcpy(sdata->u.mgd.bssid, req->bss->bssid, ETH_ALEN);
-
-	sdata->local->oper_channel = req->bss->channel;
-	ieee80211_hw_config(sdata->local, 0);
-
-	ssid = ieee80211_bss_get_ie(req->bss, WLAN_EID_SSID);
-	if (!ssid)
-		return -EINVAL;
-	sdata->u.mgd.ssid_len = *(ssid + 1);
-	memcpy(sdata->u.mgd.ssid, ssid + 2, sdata->u.mgd.ssid_len);
-
-	kfree(sdata->u.mgd.sme_auth_ie);
-	sdata->u.mgd.sme_auth_ie = NULL;
-	sdata->u.mgd.sme_auth_ie_len = 0;
-	if (req->ie) {
-		sdata->u.mgd.sme_auth_ie = kmalloc(req->ie_len, GFP_KERNEL);
-		if (sdata->u.mgd.sme_auth_ie == NULL)
-			return -ENOMEM;
-		memcpy(sdata->u.mgd.sme_auth_ie, req->ie, req->ie_len);
-		sdata->u.mgd.sme_auth_ie_len = req->ie_len;
-	}
-
-	sdata->u.mgd.state = IEEE80211_STA_MLME_DIRECT_PROBE;
-	ieee80211_sta_req_auth(sdata);
-	return 0;
+	return ieee80211_mgd_auth(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
 static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 			   struct cfg80211_assoc_request *req)
 {
-	struct ieee80211_sub_if_data *sdata;
-	int ret, i;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (memcmp(sdata->u.mgd.bssid, req->bss->bssid, ETH_ALEN) != 0 ||
-	    !(sdata->u.mgd.flags & IEEE80211_STA_AUTHENTICATED))
-		return -ENOLINK; /* not authenticated */
-
-	sdata->u.mgd.flags &= ~IEEE80211_STA_DISABLE_11N;
-
-	for (i = 0; i < req->crypto.n_ciphers_pairwise; i++)
-		if (req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP40 ||
-		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_TKIP ||
-		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP104)
-			sdata->u.mgd.flags |= IEEE80211_STA_DISABLE_11N;
-
-	sdata->local->oper_channel = req->bss->channel;
-	ieee80211_hw_config(sdata->local, 0);
-
-	ret = ieee80211_sta_set_extra_ie(sdata, req->ie, req->ie_len);
-	if (ret && ret != -EALREADY)
-		return ret;
-
-	if (req->use_mfp) {
-		sdata->u.mgd.mfp = IEEE80211_MFP_REQUIRED;
-		sdata->u.mgd.flags |= IEEE80211_STA_MFP_ENABLED;
-	} else {
-		sdata->u.mgd.mfp = IEEE80211_MFP_DISABLED;
-		sdata->u.mgd.flags &= ~IEEE80211_STA_MFP_ENABLED;
-	}
-
-	if (req->prev_bssid) {
-		sdata->u.mgd.flags |= IEEE80211_STA_PREV_BSSID_SET;
-		memcpy(sdata->u.mgd.prev_bssid, req->prev_bssid, ETH_ALEN);
-	} else
-		sdata->u.mgd.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
-
-	if (req->crypto.control_port)
-		sdata->u.mgd.flags |= IEEE80211_STA_CONTROL_PORT;
-	else
-		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
-
-	sdata->u.mgd.state = IEEE80211_STA_MLME_ASSOCIATE;
-	ieee80211_sta_req_auth(sdata);
-	return 0;
+	return ieee80211_mgd_assoc(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
 static int ieee80211_deauth(struct wiphy *wiphy, struct net_device *dev,
 			    struct cfg80211_deauth_request *req)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	/* TODO: req->ie, req->peer_addr */
-	return ieee80211_sta_deauthenticate(sdata, req->reason_code);
+	return ieee80211_mgd_deauth(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
 static int ieee80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
 			      struct cfg80211_disassoc_request *req)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	/* TODO: req->ie, req->peer_addr */
-	return ieee80211_sta_disassociate(sdata, req->reason_code);
+	return ieee80211_mgd_disassoc(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
 static int ieee80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,

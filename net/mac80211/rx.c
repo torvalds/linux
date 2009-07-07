@@ -1641,12 +1641,7 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 
 	if (compare_ether_addr(mgmt->sa, sdata->u.mgd.bssid) != 0 ||
 	    compare_ether_addr(mgmt->bssid, sdata->u.mgd.bssid) != 0) {
-		/* Not from the current AP. */
-		return;
-	}
-
-	if (sdata->u.mgd.state == IEEE80211_STA_MLME_ASSOCIATE) {
-		/* Association in progress; ignore SA Query */
+		/* Not from the current AP or not associated yet. */
 		return;
 	}
 
@@ -1683,7 +1678,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	struct ieee80211_local *local = rx->local;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
-	struct ieee80211_bss *bss;
 	int len = rx->skb->len;
 
 	if (!ieee80211_is_action(mgmt->frame_control))
@@ -1761,17 +1755,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (memcmp(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN))
 				return RX_DROP_MONITOR;
 
-			bss = ieee80211_rx_bss_get(local, sdata->u.mgd.bssid,
-					   local->hw.conf.channel->center_freq,
-					   sdata->u.mgd.ssid,
-					   sdata->u.mgd.ssid_len);
-			if (!bss)
-				return RX_DROP_MONITOR;
-
-			ieee80211_sta_process_chanswitch(sdata,
-				     &mgmt->u.action.u.chan_switch.sw_elem, bss);
-			ieee80211_rx_bss_put(local, bss);
-			break;
+			return ieee80211_sta_rx_mgmt(sdata, rx->skb);
 		}
 		break;
 	case WLAN_CATEGORY_SA_QUERY:
@@ -2026,13 +2010,8 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_STATION:
 		if (!bssid)
 			return 0;
-		if (!ieee80211_bssid_match(bssid, sdata->u.mgd.bssid)) {
-			if (!(rx->flags & IEEE80211_RX_IN_SCAN))
-				return 0;
-			rx->flags &= ~IEEE80211_RX_RA_MATCH;
-		} else if (!multicast &&
-			   compare_ether_addr(sdata->dev->dev_addr,
-					      hdr->addr1) != 0) {
+		if (!multicast &&
+		    compare_ether_addr(sdata->dev->dev_addr, hdr->addr1) != 0) {
 			if (!(sdata->dev->flags & IFF_PROMISC))
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
