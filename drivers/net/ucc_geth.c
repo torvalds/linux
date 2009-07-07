@@ -209,9 +209,10 @@ static struct sk_buff *get_new_skb(struct ucc_geth_private *ugeth,
 {
 	struct sk_buff *skb = NULL;
 
-	skb = dev_alloc_skb(ugeth->ug_info->uf_info.max_rx_buf_length +
-				  UCC_GETH_RX_DATA_BUF_ALIGNMENT);
-
+	skb = __skb_dequeue(&ugeth->rx_recycle);
+	if (!skb)
+		skb = dev_alloc_skb(ugeth->ug_info->uf_info.max_rx_buf_length +
+				    UCC_GETH_RX_DATA_BUF_ALIGNMENT);
 	if (skb == NULL)
 		return NULL;
 
@@ -1986,6 +1987,8 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 		iounmap(ugeth->ug_regs);
 		ugeth->ug_regs = NULL;
 	}
+
+	skb_queue_purge(&ugeth->rx_recycle);
 }
 
 static void ucc_geth_set_multi(struct net_device *dev)
@@ -2201,6 +2204,8 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 			ugeth_err("%s: Failed to ioremap regs.", __func__);
 		return -ENOMEM;
 	}
+
+	skb_queue_head_init(&ugeth->rx_recycle);
 
 	return 0;
 }
@@ -3208,8 +3213,10 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 			if (netif_msg_rx_err(ugeth))
 				ugeth_err("%s, %d: ERROR!!! skb - 0x%08x",
 					   __func__, __LINE__, (u32) skb);
-			if (skb)
-				dev_kfree_skb_any(skb);
+			if (skb) {
+				skb->data = skb->head + NET_SKB_PAD;
+				__skb_queue_head(&ugeth->rx_recycle, skb);
+			}
 
 			ugeth->rx_skbuff[rxQ][ugeth->skb_currx[rxQ]] = NULL;
 			dev->stats.rx_dropped++;
@@ -3267,6 +3274,8 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 
 	/* Normal processing. */
 	while ((bd_status & T_R) == 0) {
+		struct sk_buff *skb;
+
 		/* BD contains already transmitted buffer.   */
 		/* Handle the transmitted buffer and release */
 		/* the BD to be used with the current frame  */
@@ -3276,9 +3285,16 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 
 		dev->stats.tx_packets++;
 
-		/* Free the sk buffer associated with this TxBD */
-		dev_kfree_skb(ugeth->
-				  tx_skbuff[txQ][ugeth->skb_dirtytx[txQ]]);
+		skb = ugeth->tx_skbuff[txQ][ugeth->skb_dirtytx[txQ]];
+
+		if (skb_queue_len(&ugeth->rx_recycle) < RX_BD_RING_LEN &&
+			     skb_recycle_check(skb,
+				    ugeth->ug_info->uf_info.max_rx_buf_length +
+				    UCC_GETH_RX_DATA_BUF_ALIGNMENT))
+			__skb_queue_head(&ugeth->rx_recycle, skb);
+		else
+			dev_kfree_skb(skb);
+
 		ugeth->tx_skbuff[txQ][ugeth->skb_dirtytx[txQ]] = NULL;
 		ugeth->skb_dirtytx[txQ] =
 		    (ugeth->skb_dirtytx[txQ] +
@@ -3307,15 +3323,15 @@ static int ucc_geth_poll(struct napi_struct *napi, int budget)
 
 	ug_info = ugeth->ug_info;
 
-	howmany = 0;
-	for (i = 0; i < ug_info->numQueuesRx; i++)
-		howmany += ucc_geth_rx(ugeth, i, budget - howmany);
-
 	/* Tx event processing */
 	spin_lock(&ugeth->lock);
 	for (i = 0; i < ug_info->numQueuesTx; i++)
 		ucc_geth_tx(ugeth->ndev, i);
 	spin_unlock(&ugeth->lock);
+
+	howmany = 0;
+	for (i = 0; i < ug_info->numQueuesRx; i++)
+		howmany += ucc_geth_rx(ugeth, i, budget - howmany);
 
 	if (howmany < budget) {
 		napi_complete(napi);
