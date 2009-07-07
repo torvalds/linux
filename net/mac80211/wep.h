@@ -22,10 +22,6 @@ void ieee80211_wep_encrypt_data(struct crypto_blkcipher *tfm, u8 *rc4key,
 				size_t klen, u8 *data, size_t data_len);
 int ieee80211_wep_decrypt_data(struct crypto_blkcipher *tfm, u8 *rc4key,
 			       size_t klen, u8 *data, size_t data_len);
-int ieee80211_wep_encrypt(struct ieee80211_local *local, struct sk_buff *skb,
-			  struct ieee80211_key *key);
-int ieee80211_wep_decrypt(struct ieee80211_local *local, struct sk_buff *skb,
-			  struct ieee80211_key *key);
 bool ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key);
 
 ieee80211_rx_result
