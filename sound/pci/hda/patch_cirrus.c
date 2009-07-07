@@ -497,7 +497,7 @@ static const char *dir_sfx[2] = { "Playback", "Capture" };
 static int add_mute(struct hda_codec *codec, const char *name, int index,
 		    unsigned int pval, int dir, struct snd_kcontrol **kctlp)
 {
-	char tmp[32];
+	char tmp[44];
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_MUTE_IDX(tmp, index, 0, 0, HDA_OUTPUT);
 	knew.private_value = pval;
