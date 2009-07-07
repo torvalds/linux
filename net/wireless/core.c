@@ -331,8 +331,13 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	struct cfg80211_registered_device *rdev;
 	int alloc_size;
 
-	WARN_ON(!ops->add_key && ops->del_key);
-	WARN_ON(ops->add_key && !ops->del_key);
+	WARN_ON(ops->add_key && (!ops->del_key || !ops->set_default_key));
+	WARN_ON(ops->auth && (!ops->assoc || !ops->deauth || !ops->disassoc));
+	WARN_ON(ops->connect && !ops->disconnect);
+	WARN_ON(ops->join_ibss && !ops->leave_ibss);
+	WARN_ON(ops->add_virtual_intf && !ops->del_virtual_intf);
+	WARN_ON(ops->add_station && !ops->del_station);
+	WARN_ON(ops->add_mpath && !ops->del_mpath);
 
 	alloc_size = sizeof(*rdev) + sizeof_priv;
 
@@ -687,6 +692,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		mutex_destroy(&wdev->mtx);
 		break;
 	case NETDEV_PRE_UP:
+		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))
+			return notifier_from_errno(-EOPNOTSUPP);
 		if (rfkill_blocked(rdev->rfkill))
 			return notifier_from_errno(-ERFKILL);
 		break;
