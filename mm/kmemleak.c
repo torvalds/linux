@@ -1039,6 +1039,7 @@ static int kmemleak_scan_thread(void *arg)
 	static int first_run = 1;
 
 	pr_info("Automatic memory scanning thread started\n");
+	set_user_nice(current, 10);
 
 	/*
 	 * Wait before the first scan to allow the system to fully initialize.
