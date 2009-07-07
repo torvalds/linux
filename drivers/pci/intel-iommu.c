@@ -2455,8 +2455,7 @@ static struct iova *intel_alloc_iova(struct device *dev,
 	return iova;
 }
 
-static struct dmar_domain *
-get_valid_domain_for_dev(struct pci_dev *pdev)
+static struct dmar_domain *__get_valid_domain_for_dev(struct pci_dev *pdev)
 {
 	struct dmar_domain *domain;
 	int ret;
@@ -2482,6 +2481,18 @@ get_valid_domain_for_dev(struct pci_dev *pdev)
 	}
 
 	return domain;
+}
+
+static inline struct dmar_domain *get_valid_domain_for_dev(struct pci_dev *dev)
+{
+	struct device_domain_info *info;
+
+	/* No lock here, assumes no domain exit in normal case */
+	info = dev->dev.archdata.iommu;
+	if (likely(info))
+		return info->domain;
+
+	return __get_valid_domain_for_dev(dev);
 }
 
 static int iommu_dummy(struct pci_dev *pdev)
