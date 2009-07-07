@@ -879,9 +879,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_bss_put(local, bss);
 	}
 
-	ifmgd->flags |= IEEE80211_STA_PREV_BSSID_SET;
-	memcpy(ifmgd->prev_bssid, sdata->u.mgd.bssid, ETH_ALEN);
-
 	ifmgd->last_probe = jiffies;
 	ieee80211_led_assoc(local, 1);
 
@@ -1470,10 +1467,6 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	if (status_code != WLAN_STATUS_SUCCESS) {
 		printk(KERN_DEBUG "%s: AP denied association (code=%d)\n",
 		       sdata->dev->name, status_code);
-		/* if this was a reassociation, ensure we try a "full"
-		 * association next time. This works around some broken APs
-		 * which do not correctly reject reassociation requests. */
-		ifmgd->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 		cfg80211_send_rx_assoc(sdata->dev, (u8 *) mgmt, len,
 				       GFP_KERNEL);
 		/* Wait for SME to decide what to do next */

@@ -335,7 +335,8 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, struct ieee80211_channel *chan,
-			const u8 *bssid, const u8 *ssid, int ssid_len,
+			const u8 *bssid, const u8 *prev_bssid,
+			const u8 *ssid, int ssid_len,
 			const u8 *ie, int ie_len, bool use_mfp,
 			struct cfg80211_crypto_settings *crypt)
 {
@@ -353,6 +354,7 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	req.ie_len = ie_len;
 	memcpy(&req.crypto, crypt, sizeof(req.crypto));
 	req.use_mfp = use_mfp;
+	req.prev_bssid = prev_bssid;
 	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
 				   WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
 	if (!req.bss)

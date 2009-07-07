@@ -1256,6 +1256,12 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 		sdata->u.mgd.flags &= ~IEEE80211_STA_MFP_ENABLED;
 	}
 
+	if (req->prev_bssid) {
+		sdata->u.mgd.flags |= IEEE80211_STA_PREV_BSSID_SET;
+		memcpy(sdata->u.mgd.prev_bssid, req->prev_bssid, ETH_ALEN);
+	} else
+		sdata->u.mgd.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
+
 	if (req->crypto.control_port)
 		sdata->u.mgd.flags |= IEEE80211_STA_CONTROL_PORT;
 	else

@@ -664,10 +664,11 @@ struct cfg80211_auth_request {
  * @ie_len: Length of ie buffer in octets
  * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
  * @crypto: crypto settings
+ * @prev_bssid: previous BSSID, if not %NULL use reassociate frame
  */
 struct cfg80211_assoc_request {
 	struct cfg80211_bss *bss;
-	const u8 *ie;
+	const u8 *ie, *prev_bssid;
 	size_t ie_len;
 	struct cfg80211_crypto_settings crypto;
 	bool use_mfp;

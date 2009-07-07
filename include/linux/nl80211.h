@@ -564,6 +564,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_RESP_IE: (Re)association response information elements as
  *	sent by peer, for ROAM and successful CONNECT events.
  *
+ * @NL80211_ATTR_PREV_BSSID: previous BSSID, to be used by in ASSOCIATE
+ *	commands to specify using a reassociate frame
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -686,6 +689,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_REQ_IE,
 	NL80211_ATTR_RESP_IE,
+
+	NL80211_ATTR_PREV_BSSID,
 
 	/* add attributes here, update the policy in nl80211.c */
 

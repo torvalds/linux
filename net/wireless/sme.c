@@ -125,8 +125,14 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 	case CFG80211_CONN_ASSOCIATE_NEXT:
 		BUG_ON(!drv->ops->assoc);
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
+		/*
+		 * We could, later, implement roaming here and then actually
+		 * set prev_bssid to non-NULL. But then we need to be aware
+		 * that some APs don't like that -- so we'd need to retry
+		 * the association.
+		 */
 		err = cfg80211_mlme_assoc(drv, wdev->netdev,
-					  params->channel, params->bssid,
+					  params->channel, params->bssid, NULL,
 					  params->ssid, params->ssid_len,
 					  params->ie, params->ie_len,
 					  false, &params->crypto);

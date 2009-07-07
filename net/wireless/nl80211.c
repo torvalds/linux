@@ -71,6 +71,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_IFNAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ-1 },
 
 	[NL80211_ATTR_MAC] = { .type = NLA_BINARY, .len = ETH_ALEN },
+	[NL80211_ATTR_PREV_BSSID] = { .type = NLA_BINARY, .len = ETH_ALEN },
 
 	[NL80211_ATTR_KEY_DATA] = { .type = NLA_BINARY,
 				    .len = WLAN_MAX_KEY_LEN },
@@ -3187,7 +3188,7 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev;
 	struct cfg80211_crypto_settings crypto;
 	struct ieee80211_channel *chan;
-	const u8 *bssid, *ssid, *ie = NULL;
+	const u8 *bssid, *ssid, *ie = NULL, *prev_bssid = NULL;
 	int err, ssid_len, ie_len = 0;
 	bool use_mfp = false;
 
@@ -3248,10 +3249,13 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
+	if (info->attrs[NL80211_ATTR_PREV_BSSID])
+		prev_bssid = nla_data(info->attrs[NL80211_ATTR_PREV_BSSID]);
+
 	err = nl80211_crypto_settings(info, &crypto, 1);
 	if (!err)
-		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid, ssid,
-					  ssid_len, ie, ie_len, use_mfp,
+		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid, prev_bssid,
+					  ssid, ssid_len, ie, ie_len, use_mfp,
 					  &crypto);
 
 out:
