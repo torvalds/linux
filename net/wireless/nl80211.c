@@ -73,6 +73,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_MAC] = { .type = NLA_BINARY, .len = ETH_ALEN },
 	[NL80211_ATTR_PREV_BSSID] = { .type = NLA_BINARY, .len = ETH_ALEN },
 
+	[NL80211_ATTR_KEY] = { .type = NLA_NESTED, },
 	[NL80211_ATTR_KEY_DATA] = { .type = NLA_BINARY,
 				    .len = WLAN_MAX_KEY_LEN },
 	[NL80211_ATTR_KEY_IDX] = { .type = NLA_U8 },
@@ -132,6 +133,18 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_PRIVACY] = { .type = NLA_FLAG },
 	[NL80211_ATTR_CIPHER_SUITE_GROUP] = { .type = NLA_U32 },
 	[NL80211_ATTR_WPA_VERSIONS] = { .type = NLA_U32 },
+};
+
+/* policy for the attributes */
+static struct nla_policy
+nl80211_key_policy[NL80211_KEY_MAX + 1] __read_mostly = {
+	[NL80211_KEY_DATA] = { .type = NLA_BINARY,
+				    .len = WLAN_MAX_KEY_LEN },
+	[NL80211_KEY_IDX] = { .type = NLA_U8 },
+	[NL80211_KEY_CIPHER] = { .type = NLA_U32 },
+	[NL80211_KEY_SEQ] = { .type = NLA_BINARY, .len = 8 },
+	[NL80211_KEY_DEFAULT] = { .type = NLA_FLAG },
+	[NL80211_KEY_DEFAULT_MGMT] = { .type = NLA_FLAG },
 };
 
 /* IE validation */
@@ -197,6 +210,100 @@ static int nl80211_msg_put_channel(struct sk_buff *msg,
 }
 
 /* netlink command implementations */
+
+struct key_parse {
+	struct key_params p;
+	int idx;
+	bool def, defmgmt;
+};
+
+static int nl80211_parse_key_new(struct nlattr *key, struct key_parse *k)
+{
+	struct nlattr *tb[NL80211_KEY_MAX + 1];
+	int err = nla_parse_nested(tb, NL80211_KEY_MAX, key,
+				   nl80211_key_policy);
+	if (err)
+		return err;
+
+	k->def = !!tb[NL80211_KEY_DEFAULT];
+	k->defmgmt = !!tb[NL80211_KEY_DEFAULT_MGMT];
+
+	if (tb[NL80211_KEY_IDX])
+		k->idx = nla_get_u8(tb[NL80211_KEY_IDX]);
+
+	if (tb[NL80211_KEY_DATA]) {
+		k->p.key = nla_data(tb[NL80211_KEY_DATA]);
+		k->p.key_len = nla_len(tb[NL80211_KEY_DATA]);
+	}
+
+	if (tb[NL80211_KEY_SEQ]) {
+		k->p.seq = nla_data(tb[NL80211_KEY_SEQ]);
+		k->p.seq_len = nla_len(tb[NL80211_KEY_SEQ]);
+	}
+
+	if (tb[NL80211_KEY_CIPHER])
+		k->p.cipher = nla_get_u32(tb[NL80211_KEY_CIPHER]);
+
+	return 0;
+}
+
+static int nl80211_parse_key_old(struct genl_info *info, struct key_parse *k)
+{
+	if (info->attrs[NL80211_ATTR_KEY_DATA]) {
+		k->p.key = nla_data(info->attrs[NL80211_ATTR_KEY_DATA]);
+		k->p.key_len = nla_len(info->attrs[NL80211_ATTR_KEY_DATA]);
+	}
+
+	if (info->attrs[NL80211_ATTR_KEY_SEQ]) {
+		k->p.seq = nla_data(info->attrs[NL80211_ATTR_KEY_SEQ]);
+		k->p.seq_len = nla_len(info->attrs[NL80211_ATTR_KEY_SEQ]);
+	}
+
+	if (info->attrs[NL80211_ATTR_KEY_IDX])
+		k->idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
+
+	if (info->attrs[NL80211_ATTR_KEY_CIPHER])
+		k->p.cipher = nla_get_u32(info->attrs[NL80211_ATTR_KEY_CIPHER]);
+
+	k->def = !!info->attrs[NL80211_ATTR_KEY_DEFAULT];
+	k->defmgmt = !!info->attrs[NL80211_ATTR_KEY_DEFAULT_MGMT];
+
+	return 0;
+}
+
+static int nl80211_parse_key(struct genl_info *info, struct key_parse *k)
+{
+	int err;
+
+	memset(k, 0, sizeof(*k));
+	k->idx = -1;
+
+	if (info->attrs[NL80211_ATTR_KEY])
+		err = nl80211_parse_key_new(info->attrs[NL80211_ATTR_KEY], k);
+	else
+		err = nl80211_parse_key_old(info, k);
+
+	if (err)
+		return err;
+
+	if (k->def && k->defmgmt)
+		return -EINVAL;
+
+	if (k->idx != -1) {
+		if (k->defmgmt) {
+			if (k->idx < 4 || k->idx > 5)
+				return -EINVAL;
+		} else if (k->def) {
+			if (k->idx < 0 || k->idx > 3)
+				return -EINVAL;
+		} else {
+			if (k->idx < 0 || k->idx > 5)
+				return -EINVAL;
+		}
+	}
+
+	return 0;
+}
 
 static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 			      struct cfg80211_registered_device *dev)
@@ -943,10 +1050,12 @@ static int nl80211_del_interface(struct sk_buff *skb, struct genl_info *info)
 struct get_key_cookie {
 	struct sk_buff *msg;
 	int error;
+	int idx;
 };
 
 static void get_key_callback(void *c, struct key_params *params)
 {
+	struct nlattr *key;
 	struct get_key_cookie *cookie = c;
 
 	if (params->key)
@@ -960,6 +1069,26 @@ static void get_key_callback(void *c, struct key_params *params)
 	if (params->cipher)
 		NLA_PUT_U32(cookie->msg, NL80211_ATTR_KEY_CIPHER,
 			    params->cipher);
+
+	key = nla_nest_start(cookie->msg, NL80211_ATTR_KEY);
+	if (!key)
+		goto nla_put_failure;
+
+	if (params->key)
+		NLA_PUT(cookie->msg, NL80211_KEY_DATA,
+			params->key_len, params->key);
+
+	if (params->seq)
+		NLA_PUT(cookie->msg, NL80211_KEY_SEQ,
+			params->seq_len, params->seq);
+
+	if (params->cipher)
+		NLA_PUT_U32(cookie->msg, NL80211_KEY_CIPHER,
+			    params->cipher);
+
+	NLA_PUT_U8(cookie->msg, NL80211_ATTR_KEY_IDX, cookie->idx);
+
+	nla_nest_end(cookie->msg, key);
 
 	return;
  nla_put_failure:
@@ -1014,6 +1143,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	cookie.msg = msg;
+	cookie.idx = key_idx;
 
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
 	NLA_PUT_U8(msg, NL80211_ATTR_KEY_IDX, key_idx);
@@ -1049,26 +1179,21 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev;
+	struct key_parse key;
 	int err;
 	struct net_device *dev;
-	u8 key_idx;
 	int (*func)(struct wiphy *wiphy, struct net_device *netdev,
 		    u8 key_index);
 
-	if (!info->attrs[NL80211_ATTR_KEY_IDX])
+	err = nl80211_parse_key(info, &key);
+	if (err)
+		return err;
+
+	if (key.idx < 0)
 		return -EINVAL;
 
-	key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
-
-	if (info->attrs[NL80211_ATTR_KEY_DEFAULT_MGMT]) {
-		if (key_idx < 4 || key_idx > 5)
-			return -EINVAL;
-	} else if (key_idx > 3)
-		return -EINVAL;
-
-	/* currently only support setting default key */
-	if (!info->attrs[NL80211_ATTR_KEY_DEFAULT] &&
-	    !info->attrs[NL80211_ATTR_KEY_DEFAULT_MGMT])
+	/* only support setting default key */
+	if (!key.def && !key.defmgmt)
 		return -EINVAL;
 
 	rtnl_lock();
@@ -1077,7 +1202,7 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock_rtnl;
 
-	if (info->attrs[NL80211_ATTR_KEY_DEFAULT])
+	if (key.def)
 		func = rdev->ops->set_default_key;
 	else
 		func = rdev->ops->set_default_mgmt_key;
@@ -1087,13 +1212,13 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = func(&rdev->wiphy, dev, key_idx);
+	err = func(&rdev->wiphy, dev, key.idx);
 #ifdef CONFIG_WIRELESS_EXT
 	if (!err) {
 		if (func == rdev->ops->set_default_key)
-			dev->ieee80211_ptr->wext.default_key = key_idx;
+			dev->ieee80211_ptr->wext.default_key = key.idx;
 		else
-			dev->ieee80211_ptr->wext.default_mgmt_key = key_idx;
+			dev->ieee80211_ptr->wext.default_mgmt_key = key.idx;
 	}
 #endif
 
@@ -1112,34 +1237,20 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev;
 	int err, i;
 	struct net_device *dev;
-	struct key_params params;
-	u8 key_idx = 0;
+	struct key_parse key;
 	u8 *mac_addr = NULL;
 
-	memset(&params, 0, sizeof(params));
+	err = nl80211_parse_key(info, &key);
+	if (err)
+		return err;
 
-	if (!info->attrs[NL80211_ATTR_KEY_CIPHER])
+	if (!key.p.key)
 		return -EINVAL;
-
-	if (info->attrs[NL80211_ATTR_KEY_DATA]) {
-		params.key = nla_data(info->attrs[NL80211_ATTR_KEY_DATA]);
-		params.key_len = nla_len(info->attrs[NL80211_ATTR_KEY_DATA]);
-	}
-
-	if (info->attrs[NL80211_ATTR_KEY_SEQ]) {
-		params.seq = nla_data(info->attrs[NL80211_ATTR_KEY_SEQ]);
-		params.seq_len = nla_len(info->attrs[NL80211_ATTR_KEY_SEQ]);
-	}
-
-	if (info->attrs[NL80211_ATTR_KEY_IDX])
-		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
-
-	params.cipher = nla_get_u32(info->attrs[NL80211_ATTR_KEY_CIPHER]);
 
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (cfg80211_validate_key_settings(&params, key_idx, mac_addr))
+	if (cfg80211_validate_key_settings(&key.p, key.idx, mac_addr))
 		return -EINVAL;
 
 	rtnl_lock();
@@ -1149,7 +1260,7 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 		goto unlock_rtnl;
 
 	for (i = 0; i < rdev->wiphy.n_cipher_suites; i++)
-		if (params.cipher == rdev->wiphy.cipher_suites[i])
+		if (key.p.cipher == rdev->wiphy.cipher_suites[i])
 			break;
 	if (i == rdev->wiphy.n_cipher_suites) {
 		err = -EINVAL;
@@ -1161,7 +1272,7 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = rdev->ops->add_key(&rdev->wiphy, dev, key_idx, mac_addr, &params);
+	err = rdev->ops->add_key(&rdev->wiphy, dev, key.idx, mac_addr, &key.p);
 
  out:
 	cfg80211_unlock_rdev(rdev);
@@ -1177,14 +1288,12 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev;
 	int err;
 	struct net_device *dev;
-	u8 key_idx = 0;
 	u8 *mac_addr = NULL;
+	struct key_parse key;
 
-	if (info->attrs[NL80211_ATTR_KEY_IDX])
-		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
-
-	if (key_idx > 5)
-		return -EINVAL;
+	err = nl80211_parse_key(info, &key);
+	if (err)
+		return err;
 
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
@@ -1200,13 +1309,13 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = rdev->ops->del_key(&rdev->wiphy, dev, key_idx, mac_addr);
+	err = rdev->ops->del_key(&rdev->wiphy, dev, key.idx, mac_addr);
 
 #ifdef CONFIG_WIRELESS_EXT
 	if (!err) {
-		if (key_idx == dev->ieee80211_ptr->wext.default_key)
+		if (key.idx == dev->ieee80211_ptr->wext.default_key)
 			dev->ieee80211_ptr->wext.default_key = -1;
-		else if (key_idx == dev->ieee80211_ptr->wext.default_mgmt_key)
+		else if (key.idx == dev->ieee80211_ptr->wext.default_mgmt_key)
 			dev->ieee80211_ptr->wext.default_mgmt_key = -1;
 	}
 #endif
