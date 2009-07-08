@@ -61,7 +61,7 @@ BUILD_INTERRUPT(thermal_interrupt,THERMAL_APIC_VECTOR)
 BUILD_INTERRUPT(threshold_interrupt,THRESHOLD_APIC_VECTOR)
 #endif
 
-#ifdef CONFIG_X86_NEW_MCE
+#ifdef CONFIG_X86_MCE
 BUILD_INTERRUPT(mce_self_interrupt,MCE_SELF_VECTOR)
 #endif
 

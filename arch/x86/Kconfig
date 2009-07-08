@@ -781,15 +781,10 @@ config X86_MCE
 	  The action the kernel takes depends on the severity of the problem,
 	  ranging from warning messages to halting the machine.
 
-config X86_NEW_MCE
-	depends on X86_MCE
-	bool
-	default y
-
 config X86_MCE_INTEL
 	def_bool y
 	prompt "Intel MCE features"
-	depends on X86_NEW_MCE && X86_LOCAL_APIC
+	depends on X86_MCE && X86_LOCAL_APIC
 	---help---
 	   Additional support for intel specific MCE features such as
 	   the thermal monitor.
@@ -797,7 +792,7 @@ config X86_MCE_INTEL
 config X86_MCE_AMD
 	def_bool y
 	prompt "AMD MCE features"
-	depends on X86_NEW_MCE && X86_LOCAL_APIC
+	depends on X86_MCE && X86_LOCAL_APIC
 	---help---
 	   Additional support for AMD specific MCE features such as
 	   the DRAM Error Threshold.
@@ -817,7 +812,7 @@ config X86_MCE_THRESHOLD
 	default y
 
 config X86_MCE_INJECT
-	depends on X86_NEW_MCE
+	depends on X86_MCE
 	tristate "Machine check injector support"
 	---help---
 	  Provide support for injecting machine checks for testing purposes.
