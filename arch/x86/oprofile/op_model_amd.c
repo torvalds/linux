@@ -9,12 +9,15 @@
  * @author Philippe Elie
  * @author Graydon Hoare
  * @author Robert Richter <robert.richter@amd.com>
- * @author Barry Kasindorf
+ * @author Barry Kasindorf <barry.kasindorf@amd.com>
+ * @author Jason Yeh <jason.yeh@amd.com>
+ * @author Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
  */
 
 #include <linux/oprofile.h>
 #include <linux/device.h>
 #include <linux/pci.h>
+#include <linux/percpu.h>
 
 #include <asm/ptrace.h>
 #include <asm/msr.h>
@@ -25,12 +28,23 @@
 
 #define NUM_COUNTERS 4
 #define NUM_CONTROLS 4
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+#define NUM_VIRT_COUNTERS 32
+#define NUM_VIRT_CONTROLS 32
+#else
+#define NUM_VIRT_COUNTERS NUM_COUNTERS
+#define NUM_VIRT_CONTROLS NUM_CONTROLS
+#endif
+
 #define OP_EVENT_MASK			0x0FFF
 #define OP_CTR_OVERFLOW			(1ULL<<31)
 
 #define MSR_AMD_EVENTSEL_RESERVED	((0xFFFFFCF0ULL<<32)|(1ULL<<21))
 
-static unsigned long reset_value[NUM_COUNTERS];
+static unsigned long reset_value[NUM_VIRT_COUNTERS];
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+DECLARE_PER_CPU(int, switch_index);
+#endif
 
 #ifdef CONFIG_OPROFILE_IBS
 
@@ -82,6 +96,16 @@ static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
 		else
 			msrs->controls[i].addr = 0;
 	}
+
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+	for (i = 0; i < NUM_VIRT_COUNTERS; i++) {
+		int hw_counter = i % NUM_CONTROLS;
+		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
+			msrs->multiplex[i].addr = MSR_K7_PERFCTR0 + hw_counter;
+		else
+			msrs->multiplex[i].addr = 0;
+	}
+#endif
 }
 
 static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
@@ -89,6 +113,15 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 {
 	u64 val;
 	int i;
+
+	/* setup reset_value */
+	for (i = 0; i < NUM_VIRT_COUNTERS; ++i) {
+		if (counter_config[i].enabled) {
+			reset_value[i] = counter_config[i].count;
+		} else {
+			reset_value[i] = 0;
+		}
+	}
 
 	/* clear all counters */
 	for (i = 0; i < NUM_CONTROLS; ++i) {
@@ -108,19 +141,48 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 
 	/* enable active counters */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (counter_config[i].enabled && msrs->counters[i].addr) {
-			reset_value[i] = counter_config[i].count;
-			wrmsrl(msrs->counters[i].addr,
-			       -(u64)counter_config[i].count);
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+		int offset = i + __get_cpu_var(switch_index);
+#else
+		int offset = i;
+#endif
+		if (counter_config[offset].enabled && msrs->counters[i].addr) {
+			/* setup counter registers */
+			wrmsrl(msrs->counters[i].addr, -(u64)reset_value[offset]);
+
+			/* setup control registers */
 			rdmsrl(msrs->controls[i].addr, val);
 			val &= model->reserved;
-			val |= op_x86_get_ctrl(model, &counter_config[i]);
+			val |= op_x86_get_ctrl(model, &counter_config[offset]);
 			wrmsrl(msrs->controls[i].addr, val);
-		} else {
-			reset_value[i] = 0;
 		}
 	}
 }
+
+
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+
+static void op_amd_switch_ctrl(struct op_x86_model_spec const *model,
+			       struct op_msrs const * const msrs)
+{
+	u64 val;
+	int i;
+
+	/* enable active counters */
+	for (i = 0; i < NUM_COUNTERS; ++i) {
+		int offset = i + __get_cpu_var(switch_index);
+		if (counter_config[offset].enabled) {
+			/* setup control registers */
+			rdmsrl(msrs->controls[i].addr, val);
+			val &= model->reserved;
+			val |= op_x86_get_ctrl(model, &counter_config[offset]);
+			wrmsrl(msrs->controls[i].addr, val);
+		}
+	}
+}
+
+#endif
+
 
 #ifdef CONFIG_OPROFILE_IBS
 
@@ -230,14 +292,19 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 	int i;
 
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (!reset_value[i])
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+		int offset = i + __get_cpu_var(switch_index);
+#else
+		int offset = i;
+#endif
+		if (!reset_value[offset])
 			continue;
 		rdmsrl(msrs->counters[i].addr, val);
 		/* bit is clear if overflowed: */
 		if (val & OP_CTR_OVERFLOW)
 			continue;
-		oprofile_add_sample(regs, i);
-		wrmsrl(msrs->counters[i].addr, -(u64)reset_value[i]);
+		oprofile_add_sample(regs, offset);
+		wrmsrl(msrs->counters[i].addr, -(u64)reset_value[offset]);
 	}
 
 	op_amd_handle_ibs(regs, msrs);
@@ -250,8 +317,14 @@ static void op_amd_start(struct op_msrs const * const msrs)
 {
 	u64 val;
 	int i;
+
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (reset_value[i]) {
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+		int offset = i + __get_cpu_var(switch_index);
+#else
+		int offset = i;
+#endif
+		if (reset_value[offset]) {
 			rdmsrl(msrs->controls[i].addr, val);
 			val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
 			wrmsrl(msrs->controls[i].addr, val);
@@ -271,7 +344,11 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	 * pm callback
 	 */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+		if (!reset_value[i + per_cpu(switch_index, smp_processor_id())])
+#else
 		if (!reset_value[i])
+#endif
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
 		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
@@ -289,7 +366,7 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 		if (msrs->counters[i].addr)
 			release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
 	}
-	for (i = 0; i < NUM_CONTROLS; ++i) {
+	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (msrs->controls[i].addr)
 			release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
 	}
@@ -463,6 +540,8 @@ static void op_amd_exit(void) {}
 struct op_x86_model_spec const op_amd_spec = {
 	.num_counters		= NUM_COUNTERS,
 	.num_controls		= NUM_CONTROLS,
+	.num_virt_counters	= NUM_VIRT_COUNTERS,
+	.num_virt_controls	= NUM_VIRT_CONTROLS,
 	.reserved		= MSR_AMD_EVENTSEL_RESERVED,
 	.event_mask		= OP_EVENT_MASK,
 	.init			= op_amd_init,
@@ -473,4 +552,7 @@ struct op_x86_model_spec const op_amd_spec = {
 	.start			= &op_amd_start,
 	.stop			= &op_amd_stop,
 	.shutdown		= &op_amd_shutdown,
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+	.switch_ctrl		= &op_amd_switch_ctrl,
+#endif
 };

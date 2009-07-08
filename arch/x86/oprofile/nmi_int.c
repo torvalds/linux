@@ -1,11 +1,14 @@
 /**
  * @file nmi_int.c
  *
- * @remark Copyright 2002-2008 OProfile authors
+ * @remark Copyright 2002-2009 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon <levon@movementarian.org>
  * @author Robert Richter <robert.richter@amd.com>
+ * @author Barry Kasindorf <barry.kasindorf@amd.com>
+ * @author Jason Yeh <jason.yeh@amd.com>
+ * @author Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
  */
 
 #include <linux/init.h>
@@ -24,12 +27,25 @@
 #include "op_counter.h"
 #include "op_x86_model.h"
 
+
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+DEFINE_PER_CPU(int, switch_index);
+#endif
+
+
 static struct op_x86_model_spec const *model;
 static DEFINE_PER_CPU(struct op_msrs, cpu_msrs);
 static DEFINE_PER_CPU(unsigned long, saved_lvtpc);
 
 /* 0 == registered but off, 1 == registered and on */
 static int nmi_enabled = 0;
+
+
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+extern atomic_t multiplex_counter;
+#endif
+
+struct op_counter_config counter_config[OP_MAX_COUNTER];
 
 /* common functions */
 
@@ -95,6 +111,11 @@ static void free_msrs(void)
 		per_cpu(cpu_msrs, i).counters = NULL;
 		kfree(per_cpu(cpu_msrs, i).controls);
 		per_cpu(cpu_msrs, i).controls = NULL;
+
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+		kfree(per_cpu(cpu_msrs, i).multiplex);
+		per_cpu(cpu_msrs, i).multiplex = NULL;
+#endif
 	}
 }
 
@@ -103,6 +124,9 @@ static int allocate_msrs(void)
 	int success = 1;
 	size_t controls_size = sizeof(struct op_msr) * model->num_controls;
 	size_t counters_size = sizeof(struct op_msr) * model->num_counters;
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+	size_t multiplex_size = sizeof(struct op_msr) * model->num_virt_counters;
+#endif
 
 	int i;
 	for_each_possible_cpu(i) {
@@ -118,6 +142,14 @@ static int allocate_msrs(void)
 			success = 0;
 			break;
 		}
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+		per_cpu(cpu_msrs, i).multiplex =
+				kmalloc(multiplex_size, GFP_KERNEL);
+		if (!per_cpu(cpu_msrs, i).multiplex) {
+			success = 0;
+			break;
+		}
+#endif
 	}
 
 	if (!success)
@@ -126,6 +158,25 @@ static int allocate_msrs(void)
 	return success;
 }
 
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+
+static void nmi_setup_cpu_mux(struct op_msrs const * const msrs)
+{
+	int i;
+	struct op_msr *multiplex = msrs->multiplex;
+
+	for (i = 0; i < model->num_virt_counters; ++i) {
+		if (counter_config[i].enabled) {
+			multiplex[i].saved = -(u64)counter_config[i].count;
+		} else {
+			multiplex[i].addr  = 0;
+			multiplex[i].saved = 0;
+		}
+	}
+}
+
+#endif
+
 static void nmi_cpu_setup(void *dummy)
 {
 	int cpu = smp_processor_id();
@@ -133,6 +184,9 @@ static void nmi_cpu_setup(void *dummy)
 	nmi_cpu_save_registers(msrs);
 	spin_lock(&oprofilefs_lock);
 	model->setup_ctrs(model, msrs);
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+	nmi_setup_cpu_mux(msrs);
+#endif
 	spin_unlock(&oprofilefs_lock);
 	per_cpu(saved_lvtpc, cpu) = apic_read(APIC_LVTPC);
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
@@ -173,13 +227,51 @@ static int nmi_setup(void)
 			memcpy(per_cpu(cpu_msrs, cpu).controls,
 				per_cpu(cpu_msrs, 0).controls,
 				sizeof(struct op_msr) * model->num_controls);
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+			memcpy(per_cpu(cpu_msrs, cpu).multiplex,
+				per_cpu(cpu_msrs, 0).multiplex,
+				sizeof(struct op_msr) * model->num_virt_counters);
+#endif
 		}
-
 	}
 	on_each_cpu(nmi_cpu_setup, NULL, 1);
 	nmi_enabled = 1;
 	return 0;
 }
+
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+
+static void nmi_cpu_save_mpx_registers(struct op_msrs *msrs)
+{
+	unsigned int si = __get_cpu_var(switch_index);
+	struct op_msr *multiplex = msrs->multiplex;
+	unsigned int i;
+
+	for (i = 0; i < model->num_counters; ++i) {
+		int offset = i + si;
+		if (multiplex[offset].addr) {
+			rdmsrl(multiplex[offset].addr,
+			       multiplex[offset].saved);
+		}
+	}
+}
+
+static void nmi_cpu_restore_mpx_registers(struct op_msrs *msrs)
+{
+	unsigned int si = __get_cpu_var(switch_index);
+	struct op_msr *multiplex = msrs->multiplex;
+	unsigned int i;
+
+	for (i = 0; i < model->num_counters; ++i) {
+		int offset = i + si;
+		if (multiplex[offset].addr) {
+			wrmsrl(multiplex[offset].addr,
+			       multiplex[offset].saved);
+		}
+	}
+}
+
+#endif
 
 static void nmi_cpu_restore_registers(struct op_msrs *msrs)
 {
@@ -214,6 +306,9 @@ static void nmi_cpu_shutdown(void *dummy)
 	apic_write(APIC_LVTPC, per_cpu(saved_lvtpc, cpu));
 	apic_write(APIC_LVTERR, v);
 	nmi_cpu_restore_registers(msrs);
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+	__get_cpu_var(switch_index) = 0;
+#endif
 }
 
 static void nmi_shutdown(void)
@@ -252,16 +347,15 @@ static void nmi_stop(void)
 	on_each_cpu(nmi_cpu_stop, NULL, 1);
 }
 
-struct op_counter_config counter_config[OP_MAX_COUNTER];
-
 static int nmi_create_files(struct super_block *sb, struct dentry *root)
 {
 	unsigned int i;
 
-	for (i = 0; i < model->num_counters; ++i) {
+	for (i = 0; i < model->num_virt_counters; ++i) {
 		struct dentry *dir;
 		char buf[4];
 
+#ifndef CONFIG_OPROFILE_EVENT_MULTIPLEX
 		/* quick little hack to _not_ expose a counter if it is not
 		 * available for use.  This should protect userspace app.
 		 * NOTE:  assumes 1:1 mapping here (that counters are organized
@@ -269,6 +363,7 @@ static int nmi_create_files(struct super_block *sb, struct dentry *root)
 		 */
 		if (unlikely(!avail_to_resrv_perfctr_nmi_bit(i)))
 			continue;
+#endif /* CONFIG_OPROFILE_EVENT_MULTIPLEX */
 
 		snprintf(buf,  sizeof(buf), "%d", i);
 		dir = oprofilefs_mkdir(sb, root, buf);
@@ -282,6 +377,57 @@ static int nmi_create_files(struct super_block *sb, struct dentry *root)
 
 	return 0;
 }
+
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+
+static void nmi_cpu_switch(void *dummy)
+{
+	int cpu = smp_processor_id();
+	int si = per_cpu(switch_index, cpu);
+	struct op_msrs *msrs = &per_cpu(cpu_msrs, cpu);
+
+	nmi_cpu_stop(NULL);
+	nmi_cpu_save_mpx_registers(msrs);
+
+	/* move to next set */
+	si += model->num_counters;
+	if ((si > model->num_virt_counters) || (counter_config[si].count == 0))
+		per_cpu(switch_index, cpu) = 0;
+	else
+		per_cpu(switch_index, cpu) = si;
+
+	model->switch_ctrl(model, msrs);
+	nmi_cpu_restore_mpx_registers(msrs);
+
+	nmi_cpu_start(NULL);
+}
+
+
+/*
+ * Quick check to see if multiplexing is necessary.
+ * The check should be sufficient since counters are used
+ * in ordre.
+ */
+static int nmi_multiplex_on(void)
+{
+	return counter_config[model->num_counters].count ? 0 : -EINVAL;
+}
+
+static int nmi_switch_event(void)
+{
+	if (!model->switch_ctrl)
+		return -ENOSYS;		/* not implemented */
+	if (nmi_multiplex_on() < 0)
+		return -EINVAL;		/* not necessary */
+
+	on_each_cpu(nmi_cpu_switch, NULL, 1);
+
+	atomic_inc(&multiplex_counter);
+
+	return 0;
+}
+
+#endif
 
 #ifdef CONFIG_SMP
 static int oprofile_cpu_notifier(struct notifier_block *b, unsigned long action,
@@ -516,12 +662,18 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	register_cpu_notifier(&oprofile_cpu_nb);
 #endif
 	/* default values, can be overwritten by model */
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+	__raw_get_cpu_var(switch_index) = 0;
+#endif
 	ops->create_files	= nmi_create_files;
 	ops->setup		= nmi_setup;
 	ops->shutdown		= nmi_shutdown;
 	ops->start		= nmi_start;
 	ops->stop		= nmi_stop;
 	ops->cpu_type		= cpu_type;
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+	ops->switch_events	= nmi_switch_event;
+#endif
 
 	if (model->init)
 		ret = model->init(ops);

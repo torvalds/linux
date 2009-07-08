@@ -23,6 +23,7 @@ struct op_msr {
 struct op_msrs {
 	struct op_msr *counters;
 	struct op_msr *controls;
+	struct op_msr *multiplex;
 };
 
 struct pt_regs;
@@ -35,6 +36,8 @@ struct oprofile_operations;
 struct op_x86_model_spec {
 	unsigned int	num_counters;
 	unsigned int	num_controls;
+	unsigned int	num_virt_counters;
+	unsigned int	num_virt_controls;
 	u64		reserved;
 	u16		event_mask;
 	int		(*init)(struct oprofile_operations *ops);
@@ -47,6 +50,10 @@ struct op_x86_model_spec {
 	void		(*start)(struct op_msrs const * const msrs);
 	void		(*stop)(struct op_msrs const * const msrs);
 	void		(*shutdown)(struct op_msrs const * const msrs);
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+	void		(*switch_ctrl)(struct op_x86_model_spec const *model,
+				       struct op_msrs const * const msrs);
+#endif
 };
 
 struct op_counter_config;
