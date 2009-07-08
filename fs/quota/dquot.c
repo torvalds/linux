@@ -2042,8 +2042,8 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 		 * changes */
 		invalidate_bdev(sb->s_bdev);
 	}
-	mutex_lock(&inode->i_mutex);
 	mutex_lock(&dqopt->dqonoff_mutex);
+	mutex_lock_nested(&inode->i_mutex, I_MUTEX_QUOTA);
 	if (sb_has_quota_loaded(sb, type)) {
 		error = -EBUSY;
 		goto out_lock;
@@ -2094,7 +2094,6 @@ out_file_init:
 	dqopt->files[type] = NULL;
 	iput(inode);
 out_lock:
-	mutex_unlock(&dqopt->dqonoff_mutex);
 	if (oldflags != -1) {
 		down_write(&dqopt->dqptr_sem);
 		/* Set the flags back (in the case of accidental quotaon()
@@ -2104,6 +2103,7 @@ out_lock:
 		up_write(&dqopt->dqptr_sem);
 	}
 	mutex_unlock(&inode->i_mutex);
+	mutex_unlock(&dqopt->dqonoff_mutex);
 out_fmt:
 	put_quota_format(fmt);
 
