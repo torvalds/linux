@@ -267,11 +267,11 @@ static int msr_to_offset(u32 msr)
 	unsigned bank = __get_cpu_var(injectm.bank);
 	if (msr == rip_msr)
 		return offsetof(struct mce, ip);
-	if (msr == MSR_IA32_MC0_STATUS + bank*4)
+	if (msr == MSR_IA32_MCx_STATUS(bank))
 		return offsetof(struct mce, status);
-	if (msr == MSR_IA32_MC0_ADDR + bank*4)
+	if (msr == MSR_IA32_MCx_ADDR(bank))
 		return offsetof(struct mce, addr);
-	if (msr == MSR_IA32_MC0_MISC + bank*4)
+	if (msr == MSR_IA32_MCx_MISC(bank))
 		return offsetof(struct mce, misc);
 	if (msr == MSR_IA32_MCG_STATUS)
 		return offsetof(struct mce, mcgstatus);
@@ -485,7 +485,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		m.tsc = 0;
 
 		barrier();
-		m.status = mce_rdmsrl(MSR_IA32_MC0_STATUS + i*4);
+		m.status = mce_rdmsrl(MSR_IA32_MCx_STATUS(i));
 		if (!(m.status & MCI_STATUS_VAL))
 			continue;
 
@@ -500,9 +500,9 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 			continue;
 
 		if (m.status & MCI_STATUS_MISCV)
-			m.misc = mce_rdmsrl(MSR_IA32_MC0_MISC + i*4);
+			m.misc = mce_rdmsrl(MSR_IA32_MCx_MISC(i));
 		if (m.status & MCI_STATUS_ADDRV)
-			m.addr = mce_rdmsrl(MSR_IA32_MC0_ADDR + i*4);
+			m.addr = mce_rdmsrl(MSR_IA32_MCx_ADDR(i));
 
 		if (!(flags & MCP_TIMESTAMP))
 			m.tsc = 0;
@@ -518,7 +518,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		/*
 		 * Clear state for this bank.
 		 */
-		mce_wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+		mce_wrmsrl(MSR_IA32_MCx_STATUS(i), 0);
 	}
 
 	/*
@@ -539,7 +539,7 @@ static int mce_no_way_out(struct mce *m, char **msg)
 	int i;
 
 	for (i = 0; i < banks; i++) {
-		m->status = mce_rdmsrl(MSR_IA32_MC0_STATUS + i*4);
+		m->status = mce_rdmsrl(MSR_IA32_MCx_STATUS(i));
 		if (mce_severity(m, tolerant, msg) >= MCE_PANIC_SEVERITY)
 			return 1;
 	}
@@ -823,7 +823,7 @@ static void mce_clear_state(unsigned long *toclear)
 
 	for (i = 0; i < banks; i++) {
 		if (test_bit(i, toclear))
-			mce_wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+			mce_wrmsrl(MSR_IA32_MCx_STATUS(i), 0);
 	}
 }
 
@@ -904,7 +904,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		m.addr = 0;
 		m.bank = i;
 
-		m.status = mce_rdmsrl(MSR_IA32_MC0_STATUS + i*4);
+		m.status = mce_rdmsrl(MSR_IA32_MCx_STATUS(i));
 		if ((m.status & MCI_STATUS_VAL) == 0)
 			continue;
 
@@ -945,9 +945,9 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 			kill_it = 1;
 
 		if (m.status & MCI_STATUS_MISCV)
-			m.misc = mce_rdmsrl(MSR_IA32_MC0_MISC + i*4);
+			m.misc = mce_rdmsrl(MSR_IA32_MCx_MISC(i));
 		if (m.status & MCI_STATUS_ADDRV)
-			m.addr = mce_rdmsrl(MSR_IA32_MC0_ADDR + i*4);
+			m.addr = mce_rdmsrl(MSR_IA32_MCx_ADDR(i));
 
 		/*
 		 * Action optional error. Queue address for later processing.
@@ -1216,8 +1216,8 @@ static void mce_init(void)
 		struct mce_bank *b = &mce_banks[i];
 		if (!b->init)
 			continue;
-		wrmsrl(MSR_IA32_MC0_CTL+4*i, b->ctl);
-		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+		wrmsrl(MSR_IA32_MCx_CTL(i), b->ctl);
+		wrmsrl(MSR_IA32_MCx_STATUS(i), 0);
 	}
 }
 
@@ -1589,7 +1589,7 @@ static int mce_disable(void)
 	for (i = 0; i < banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
 		if (b->init)
-			wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+			wrmsrl(MSR_IA32_MCx_CTL(i), 0);
 	}
 	return 0;
 }
@@ -1876,7 +1876,7 @@ static void mce_disable_cpu(void *h)
 	for (i = 0; i < banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
 		if (b->init)
-			wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+			wrmsrl(MSR_IA32_MCx_CTL(i), 0);
 	}
 }
 
@@ -1893,7 +1893,7 @@ static void mce_reenable_cpu(void *h)
 	for (i = 0; i < banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
 		if (b->init)
-			wrmsrl(MSR_IA32_MC0_CTL + i*4, b->ctl);
+			wrmsrl(MSR_IA32_MCx_CTL(i), b->ctl);
 	}
 }
 
