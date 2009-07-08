@@ -45,17 +45,6 @@
 
 #include "mce-internal.h"
 
-/* Handle unconfigured int18 (should never happen) */
-static void unexpected_machine_check(struct pt_regs *regs, long error_code)
-{
-	printk(KERN_ERR "CPU#%d: Unexpected int18 (Machine Check).\n",
-	       smp_processor_id());
-}
-
-/* Call the installed machine check handler for this CPU setup. */
-void (*machine_check_vector)(struct pt_regs *, long error_code) =
-						unexpected_machine_check;
-
 int mce_disabled __read_mostly;
 
 #define MISC_MCELOG_MINOR	227
@@ -1321,6 +1310,17 @@ static void mce_init_timer(void)
 	t->expires = round_jiffies(jiffies + *n);
 	add_timer(t);
 }
+
+/* Handle unconfigured int18 (should never happen) */
+static void unexpected_machine_check(struct pt_regs *regs, long error_code)
+{
+	printk(KERN_ERR "CPU#%d: Unexpected int18 (Machine Check).\n",
+	       smp_processor_id());
+}
+
+/* Call the installed machine check handler for this CPU setup. */
+void (*machine_check_vector)(struct pt_regs *, long error_code) =
+						unexpected_machine_check;
 
 /*
  * Called for each booted CPU to set up machine checks.
