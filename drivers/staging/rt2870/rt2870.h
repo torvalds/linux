@@ -219,6 +219,7 @@
 	{USB_DEVICE(0x0789,0x0163)}, /* Logitec 2870 */		\
 	{USB_DEVICE(0x0789,0x0164)}, /* Logitec 2870 */		\
 	{USB_DEVICE(0x1EDA,0x2310)}, /* AirTies 3070 */		\
+	{USB_DEVICE(0x1737,0x0077)}, /* Linksys WUSB54GC-EU v3 */	\
 	{ }/* Terminating entry */                      \
 }
 #endif
