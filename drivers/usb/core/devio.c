@@ -325,21 +325,34 @@ static void async_completed(struct urb *urb)
 	struct async *as = urb->context;
 	struct dev_state *ps = as->ps;
 	struct siginfo sinfo;
+	struct pid *pid = NULL;
+	uid_t uid = 0;
+	uid_t euid = 0;
+	u32 secid = 0;
+	int signr;
 
 	spin_lock(&ps->lock);
 	list_move_tail(&as->asynclist, &ps->async_completed);
-	spin_unlock(&ps->lock);
 	as->status = urb->status;
-	if (as->signr) {
+	signr = as->signr;
+	if (signr) {
 		sinfo.si_signo = as->signr;
 		sinfo.si_errno = as->status;
 		sinfo.si_code = SI_ASYNCIO;
 		sinfo.si_addr = as->userurb;
-		kill_pid_info_as_uid(as->signr, &sinfo, as->pid, as->uid,
-				      as->euid, as->secid);
+		pid = as->pid;
+		uid = as->uid;
+		euid = as->euid;
+		secid = as->secid;
 	}
 	snoop(&urb->dev->dev, "urb complete\n");
 	snoop_urb(urb, as->userurb);
+	spin_unlock(&ps->lock);
+
+	if (signr)
+		kill_pid_info_as_uid(sinfo.si_signo, &sinfo, pid, uid,
+				      euid, secid);
+
 	wake_up(&ps->wait);
 }
 
