@@ -460,11 +460,11 @@ int hibernation_platform_enter(void)
 
 	error = hibernation_ops->prepare();
 	if (error)
-		goto Platofrm_finish;
+		goto Platform_finish;
 
 	error = disable_nonboot_cpus();
 	if (error)
-		goto Platofrm_finish;
+		goto Platform_finish;
 
 	local_irq_disable();
 	sysdev_suspend(PMSG_HIBERNATE);
@@ -476,7 +476,7 @@ int hibernation_platform_enter(void)
 	 * We don't need to reenable the nonboot CPUs or resume consoles, since
 	 * the system is going to be halted anyway.
 	 */
- Platofrm_finish:
+ Platform_finish:
 	hibernation_ops->finish();
 
 	dpm_suspend_noirq(PMSG_RESTORE);
