@@ -21,7 +21,7 @@ static u32 *uart;
 
 static u32 *get_uart_base(void)
 {
-	if (__machine_arch_type == MACH_TYPE_DAVINCI_DA8XX_EVM)
+	if (__machine_arch_type == MACH_TYPE_DAVINCI_DA830_EVM)
 		return (u32 *)DA8XX_UART2_BASE;
 	else
 		return (u32 *)DAVINCI_UART0_BASE;
