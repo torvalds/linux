@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/crc-ccitt.h>
-#include "isdnhdlc.h"
+#include <linux/isdn/hdlc.h>
 
 /*-------------------------------------------------------------------*/
 
