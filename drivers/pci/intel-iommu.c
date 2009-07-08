@@ -1309,7 +1309,6 @@ static void iommu_detach_domain(struct dmar_domain *domain,
 }
 
 static struct iova_domain reserved_iova_list;
-static struct lock_class_key reserved_alloc_key;
 static struct lock_class_key reserved_rbtree_key;
 
 static void dmar_init_reserved_ranges(void)
@@ -1320,8 +1319,6 @@ static void dmar_init_reserved_ranges(void)
 
 	init_iova_domain(&reserved_iova_list, DMA_32BIT_PFN);
 
-	lockdep_set_class(&reserved_iova_list.iova_alloc_lock,
-		&reserved_alloc_key);
 	lockdep_set_class(&reserved_iova_list.iova_rbtree_lock,
 		&reserved_rbtree_key);
 

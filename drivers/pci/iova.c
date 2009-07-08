@@ -22,7 +22,6 @@
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long pfn_32bit)
 {
-	spin_lock_init(&iovad->iova_alloc_lock);
 	spin_lock_init(&iovad->iova_rbtree_lock);
 	iovad->rbroot = RB_ROOT;
 	iovad->cached32_node = NULL;
@@ -205,7 +204,6 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 	unsigned long limit_pfn,
 	bool size_aligned)
 {
-	unsigned long flags;
 	struct iova *new_iova;
 	int ret;
 
@@ -219,11 +217,9 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 	if (size_aligned)
 		size = __roundup_pow_of_two(size);
 
-	spin_lock_irqsave(&iovad->iova_alloc_lock, flags);
 	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn,
 			new_iova, size_aligned);
 
-	spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
 	if (ret) {
 		free_iova_mem(new_iova);
 		return NULL;
@@ -381,8 +377,7 @@ reserve_iova(struct iova_domain *iovad,
 	struct iova *iova;
 	unsigned int overlap = 0;
 
-	spin_lock_irqsave(&iovad->iova_alloc_lock, flags);
-	spin_lock(&iovad->iova_rbtree_lock);
+	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	for (node = rb_first(&iovad->rbroot); node; node = rb_next(node)) {
 		if (__is_range_overlap(node, pfn_lo, pfn_hi)) {
 			iova = container_of(node, struct iova, node);
@@ -402,8 +397,7 @@ reserve_iova(struct iova_domain *iovad,
 	iova = __insert_new_range(iovad, pfn_lo, pfn_hi);
 finish:
 
-	spin_unlock(&iovad->iova_rbtree_lock);
-	spin_unlock_irqrestore(&iovad->iova_alloc_lock, flags);
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 	return iova;
 }
 
@@ -420,8 +414,7 @@ copy_reserved_iova(struct iova_domain *from, struct iova_domain *to)
 	unsigned long flags;
 	struct rb_node *node;
 
-	spin_lock_irqsave(&from->iova_alloc_lock, flags);
-	spin_lock(&from->iova_rbtree_lock);
+	spin_lock_irqsave(&from->iova_rbtree_lock, flags);
 	for (node = rb_first(&from->rbroot); node; node = rb_next(node)) {
 		struct iova *iova = container_of(node, struct iova, node);
 		struct iova *new_iova;
@@ -430,6 +423,5 @@ copy_reserved_iova(struct iova_domain *from, struct iova_domain *to)
 			printk(KERN_ERR "Reserve iova range %lx@%lx failed\n",
 				iova->pfn_lo, iova->pfn_lo);
 	}
-	spin_unlock(&from->iova_rbtree_lock);
-	spin_unlock_irqrestore(&from->iova_alloc_lock, flags);
+	spin_unlock_irqrestore(&from->iova_rbtree_lock, flags);
 }
