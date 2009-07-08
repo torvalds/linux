@@ -130,7 +130,7 @@ SOC_DOUBLE_R_TLV("Capture Volume", WM8731_LINVOL, WM8731_RINVOL, 0, 31, 0,
 SOC_DOUBLE_R("Line Capture Switch", WM8731_LINVOL, WM8731_RINVOL, 7, 1, 1),
 
 SOC_SINGLE("Mic Boost (+20dB)", WM8731_APANA, 0, 1, 0),
-SOC_SINGLE("Capture Mic Switch", WM8731_APANA, 1, 1, 1),
+SOC_SINGLE("Mic Capture Switch", WM8731_APANA, 1, 1, 1),
 
 SOC_SINGLE_TLV("Sidetone Playback Volume", WM8731_APANA, 6, 3, 1,
 	       sidetone_tlv),
