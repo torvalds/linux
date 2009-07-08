@@ -597,14 +597,14 @@ static int apic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 	static const u64 rmask = 0x43ff01ffffffe70cULL;
 
 	if ((alignment + len) > 4) {
-		printk(KERN_ERR "KVM_APIC_READ: alignment error %x %d\n",
-				offset, len);
+		apic_debug("KVM_APIC_READ: alignment error %x %d\n",
+			   offset, len);
 		return 1;
 	}
 
 	if (offset > 0x3f0 || !(rmask & (1ULL << (offset >> 4)))) {
-		printk(KERN_ERR "KVM_APIC_READ: read reserved register %x\n",
-				offset);
+		apic_debug("KVM_APIC_READ: read reserved register %x\n",
+			   offset);
 		return 1;
 	}
 
