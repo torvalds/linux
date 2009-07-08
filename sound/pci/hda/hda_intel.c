@@ -2333,9 +2333,19 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	gcap = azx_readw(chip, GCAP);
 	snd_printdd(SFX "chipset global capabilities = 0x%x\n", gcap);
 
-	/* ATI chips seems buggy about 64bit DMA addresses */
-	if (chip->driver_type == AZX_DRIVER_ATI)
-		gcap &= ~ICH6_GCAP_64OK;
+	/* disable SB600 64bit support for safety */
+	if ((chip->driver_type == AZX_DRIVER_ATI) ||
+	    (chip->driver_type == AZX_DRIVER_ATIHDMI)) {
+		struct pci_dev *p_smbus;
+		p_smbus = pci_get_device(PCI_VENDOR_ID_ATI,
+					 PCI_DEVICE_ID_ATI_SBX00_SMBUS,
+					 NULL);
+		if (p_smbus) {
+			if (p_smbus->revision < 0x30)
+				gcap &= ~ICH6_GCAP_64OK;
+			pci_dev_put(p_smbus);
+		}
+	}
 
 	/* allow 64bit DMA address if supported by H/W */
 	if ((gcap & ICH6_GCAP_64OK) && !pci_set_dma_mask(pci, DMA_BIT_MASK(64)))
