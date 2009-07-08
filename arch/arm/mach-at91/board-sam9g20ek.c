@@ -221,6 +221,7 @@ static struct gpio_led ek_leds[] = {
 static struct i2c_board_info __initdata ek_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("24c512", 0x50),
+		I2C_BOARD_INFO("wm8731", 0x1b),
 	},
 };
 
