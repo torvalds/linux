@@ -123,5 +123,10 @@ static inline struct crypto_shash *crypto_spawn_shash(
 	return crypto_spawn_tfm2(&spawn->base);
 }
 
+static inline void *crypto_shash_ctx_aligned(struct crypto_shash *tfm)
+{
+	return crypto_tfm_ctx_aligned(&tfm->base);
+}
+
 #endif	/* _CRYPTO_INTERNAL_HASH_H */
 
