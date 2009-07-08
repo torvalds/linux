@@ -180,7 +180,7 @@ int crypto_shash_import(struct shash_desc *desc, const u8 *in)
 	memcpy(shash_desc_ctx(desc), in, crypto_shash_descsize(tfm));
 
 	if (alg->reinit)
-		alg->reinit(desc);
+		return alg->reinit(desc);
 
 	return 0;
 }
