@@ -6,6 +6,7 @@
  * controllers.
  *
  * Copyright (C)
+ *	2009	Karsten Keil		<keil@b1-systems.de>
  *	2002	Wolfgang Mües		<wolfgang@iksw-muees.de>
  *	2001	Frode Isaksen		<fisaksen@bewan.com>
  *	2001	Kai Germaschewski	<kai.germaschewski@gmx.de>
@@ -50,8 +51,14 @@ struct isdnhdlc_vars {
 	u32 do_adapt56:1;
 	/* set if in closing phase (need to send CRC + flag) */
 	u32 do_closing:1;
+	/* set if data is bitreverse */
+	u32 do_bitreverse:1;
 };
 
+/* Feature Flags */
+#define HDLC_56KBIT	0x01
+#define HDLC_DCHANNEL	0x02
+#define HDLC_BITREVERSE	0x04
 
 /*
   The return value from isdnhdlc_decode is
@@ -62,13 +69,12 @@ struct isdnhdlc_vars {
 #define HDLC_CRC_ERROR         2
 #define HDLC_LENGTH_ERROR      3
 
-extern void	isdnhdlc_rcv_init(struct isdnhdlc_vars *hdlc, int do_adapt56);
+extern void	isdnhdlc_rcv_init(struct isdnhdlc_vars *hdlc, u32 features);
 
 extern int	isdnhdlc_decode(struct isdnhdlc_vars *hdlc, const u8 *src,
 			int slen, int *count, u8 *dst, int dsize);
 
-extern void	isdnhdlc_out_init(struct isdnhdlc_vars *hdlc, int is_d_channel,
-			int do_adapt56);
+extern void	isdnhdlc_out_init(struct isdnhdlc_vars *hdlc, u32 features);
 
 extern int	isdnhdlc_encode(struct isdnhdlc_vars *hdlc, const u8 *src,
 			u16 slen, int *count, u8 *dst, int dsize);

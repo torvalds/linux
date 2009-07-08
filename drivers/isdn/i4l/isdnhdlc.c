@@ -2,6 +2,7 @@
  * isdnhdlc.c  --  General purpose ISDN HDLC decoder.
  *
  * Copyright (C)
+ *	2009	Karsten Keil		<keil@b1-systems.de>
  *	2002	Wolfgang Mües		<wolfgang@iksw-muees.de>
  *	2001	Frode Isaksen		<fisaksen@bewan.com>
  *      2001	Kai Germaschewski	<kai.germaschewski@gmx.de>
@@ -25,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/crc-ccitt.h>
 #include <linux/isdn/hdlc.h>
+#include <linux/bitrev.h>
 
 /*-------------------------------------------------------------------*/
 
@@ -48,35 +50,21 @@ enum {
 	HDLC_SENDFLAG_B1A6, HDLC_SENDFLAG_B7, STOPPED
 };
 
-void isdnhdlc_rcv_init(struct isdnhdlc_vars *hdlc, int do_adapt56)
+void isdnhdlc_rcv_init(struct isdnhdlc_vars *hdlc, u32 features)
 {
-	hdlc->bit_shift = 0;
-	hdlc->hdlc_bits1 = 0;
-	hdlc->data_bits = 0;
-	hdlc->ffbit_shift = 0;
-	hdlc->data_received = 0;
+	memset(hdlc, 0, sizeof(struct isdnhdlc_vars));
 	hdlc->state = HDLC_GET_DATA;
-	hdlc->do_adapt56 = do_adapt56;
-	hdlc->dchannel = 0;
-	hdlc->crc = 0;
-	hdlc->cbin = 0;
-	hdlc->shift_reg = 0;
-	hdlc->ffvalue = 0;
-	hdlc->dstpos = 0;
+	if (features & HDLC_56KBIT)
+		hdlc->do_adapt56 = 1;
+	if (features & HDLC_BITREVERSE)
+		hdlc->do_bitreverse = 1;
 }
 EXPORT_SYMBOL(isdnhdlc_out_init);
 
-void isdnhdlc_out_init(struct isdnhdlc_vars *hdlc, int is_d_channel,
-	int do_adapt56)
+void isdnhdlc_out_init(struct isdnhdlc_vars *hdlc, u32 features)
 {
-	hdlc->bit_shift = 0;
-	hdlc->hdlc_bits1 = 0;
-	hdlc->data_bits = 0;
-	hdlc->ffbit_shift = 0;
-	hdlc->data_received = 0;
-	hdlc->do_closing = 0;
-	hdlc->ffvalue = 0;
-	if (is_d_channel) {
+	memset(hdlc, 0, sizeof(struct isdnhdlc_vars));
+	if (features & HDLC_DCHANNEL) {
 		hdlc->dchannel = 1;
 		hdlc->state = HDLC_SEND_FIRST_FLAG;
 	} else {
@@ -85,16 +73,13 @@ void isdnhdlc_out_init(struct isdnhdlc_vars *hdlc, int is_d_channel,
 		hdlc->ffvalue = 0x7e;
 	}
 	hdlc->cbin = 0x7e;
-	hdlc->bit_shift = 0;
-	if (do_adapt56) {
+	if (features & HDLC_56KBIT) {
 		hdlc->do_adapt56 = 1;
-		hdlc->data_bits = 0;
 		hdlc->state = HDLC_SENDFLAG_B0;
-	} else {
-		hdlc->do_adapt56 = 0;
+	} else
 		hdlc->data_bits = 8;
-	}
-	hdlc->shift_reg = 0;
+	if (features & HDLC_BITREVERSE)
+		hdlc->do_bitreverse = 1;
 }
 EXPORT_SYMBOL(isdnhdlc_rcv_init);
 
@@ -188,7 +173,11 @@ int isdnhdlc_decode(struct isdnhdlc_vars *hdlc, const u8 *src, int slen,
 
 	while (slen > 0) {
 		if (hdlc->bit_shift == 0) {
-			hdlc->cbin = *src++;
+			/* the code is for bitreverse streams */
+			if (hdlc->do_bitreverse == 0)
+				hdlc->cbin = bitrev8(*src++);
+			else
+				hdlc->cbin = *src++;
 			slen--;
 			hdlc->bit_shift = 8;
 			if (hdlc->do_adapt56)
@@ -405,12 +394,15 @@ int isdnhdlc_encode(struct isdnhdlc_vars *hdlc, const u8 *src, u16 slen,
 		case STOPPED:
 			while (dsize--)
 				*dst++ = 0xff;
-
 			return dsize;
 		case HDLC_SEND_FAST_FLAG:
 			hdlc->do_closing = 0;
 			if (slen == 0) {
-				*dst++ = hdlc->ffvalue;
+				/* the code is for bitreverse streams */
+				if (hdlc->do_bitreverse == 0)
+					*dst++ = bitrev8(hdlc->ffvalue);
+				else
+					*dst++ = hdlc->ffvalue;
 				len++;
 				dsize--;
 				break;
@@ -594,7 +586,11 @@ int isdnhdlc_encode(struct isdnhdlc_vars *hdlc, const u8 *src, u16 slen,
 				hdlc->cbin = 0x7e;
 				hdlc->state = HDLC_SEND_FIRST_FLAG;
 			} else {
-				*dst++ = hdlc->cbin;
+				/* the code is for bitreverse streams */
+				if (hdlc->do_bitreverse == 0)
+					*dst++ = bitrev8(hdlc->cbin);
+				else
+					*dst++ = hdlc->cbin;
 				hdlc->bit_shift = 0;
 				hdlc->data_bits = 0;
 				len++;
@@ -612,7 +608,11 @@ int isdnhdlc_encode(struct isdnhdlc_vars *hdlc, const u8 *src, u16 slen,
 			}
 		}
 		if (hdlc->data_bits == 8) {
-			*dst++ = hdlc->cbin;
+			/* the code is for bitreverse streams */
+			if (hdlc->do_bitreverse == 0)
+				*dst++ = bitrev8(hdlc->cbin);
+			else
+				*dst++ = hdlc->cbin;
 			hdlc->data_bits = 0;
 			len++;
 			dsize--;
