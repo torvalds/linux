@@ -901,7 +901,7 @@ static int print_device_status(struct device *dev, void *data)
 static int ready_to_wait_for_devices;
 
 /*
- * On a 10 second timeout, wait for all devices currently configured.  We need
+ * On a 5-minute timeout, wait for all devices currently configured.  We need
  * to do this to guarantee that the filesystems and / or network devices
  * needed for boot are available, before we can allow the boot to proceed.
  *
@@ -916,17 +916,29 @@ static int ready_to_wait_for_devices;
  */
 static void wait_for_devices(struct xenbus_driver *xendrv)
 {
-	unsigned long timeout = jiffies + 10*HZ;
+	unsigned long start = jiffies;
 	struct device_driver *drv = xendrv ? &xendrv->driver : NULL;
+	unsigned int seconds_waited = 0;
 
 	if (!ready_to_wait_for_devices || !xen_domain())
 		return;
 
 	while (exists_connecting_device(drv)) {
-		if (time_after(jiffies, timeout))
-			break;
+		if (time_after(jiffies, start + (seconds_waited+5)*HZ)) {
+			if (!seconds_waited)
+				printk(KERN_WARNING "XENBUS: Waiting for "
+				       "devices to initialise: ");
+			seconds_waited += 5;
+			printk("%us...", 300 - seconds_waited);
+			if (seconds_waited == 300)
+				break;
+		}
+
 		schedule_timeout_interruptible(HZ/10);
 	}
+
+	if (seconds_waited)
+		printk("\n");
 
 	bus_for_each_dev(&xenbus_frontend.bus, NULL, drv,
 			 print_device_status);
