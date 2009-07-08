@@ -488,6 +488,23 @@ int crypto_init_spawn(struct crypto_spawn *spawn, struct crypto_alg *alg,
 }
 EXPORT_SYMBOL_GPL(crypto_init_spawn);
 
+int crypto_init_spawn2(struct crypto_spawn *spawn, struct crypto_alg *alg,
+		       struct crypto_instance *inst,
+		       const struct crypto_type *frontend)
+{
+	int err = -EINVAL;
+
+	if (frontend && (alg->cra_flags ^ frontend->type) & frontend->maskset)
+		goto out;
+
+	spawn->frontend = frontend;
+	err = crypto_init_spawn(spawn, alg, inst, frontend->maskset);
+
+out:
+	return err;
+}
+EXPORT_SYMBOL_GPL(crypto_init_spawn2);
+
 void crypto_drop_spawn(struct crypto_spawn *spawn)
 {
 	down_write(&crypto_alg_sem);
@@ -496,12 +513,10 @@ void crypto_drop_spawn(struct crypto_spawn *spawn)
 }
 EXPORT_SYMBOL_GPL(crypto_drop_spawn);
 
-struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
-				    u32 mask)
+static struct crypto_alg *crypto_spawn_alg(struct crypto_spawn *spawn)
 {
 	struct crypto_alg *alg;
 	struct crypto_alg *alg2;
-	struct crypto_tfm *tfm;
 
 	down_read(&crypto_alg_sem);
 	alg = spawn->alg;
@@ -515,6 +530,19 @@ struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 			crypto_shoot_alg(alg);
 		return ERR_PTR(-EAGAIN);
 	}
+
+	return alg;
+}
+
+struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
+				    u32 mask)
+{
+	struct crypto_alg *alg;
+	struct crypto_tfm *tfm;
+
+	alg = crypto_spawn_alg(spawn);
+	if (IS_ERR(alg))
+		return ERR_CAST(alg);
 
 	tfm = ERR_PTR(-EINVAL);
 	if (unlikely((alg->cra_flags ^ type) & mask))
@@ -531,6 +559,27 @@ out_put_alg:
 	return tfm;
 }
 EXPORT_SYMBOL_GPL(crypto_spawn_tfm);
+
+void *crypto_spawn_tfm2(struct crypto_spawn *spawn)
+{
+	struct crypto_alg *alg;
+	struct crypto_tfm *tfm;
+
+	alg = crypto_spawn_alg(spawn);
+	if (IS_ERR(alg))
+		return ERR_CAST(alg);
+
+	tfm = crypto_create_tfm(alg, spawn->frontend);
+	if (IS_ERR(tfm))
+		goto out_put_alg;
+
+	return tfm;
+
+out_put_alg:
+	crypto_mod_put(alg);
+	return tfm;
+}
+EXPORT_SYMBOL_GPL(crypto_spawn_tfm2);
 
 int crypto_register_notifier(struct notifier_block *nb)
 {
