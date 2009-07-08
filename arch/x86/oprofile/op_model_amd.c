@@ -99,7 +99,7 @@ static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
 
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 	for (i = 0; i < NUM_VIRT_COUNTERS; i++) {
-		int hw_counter = i % NUM_CONTROLS;
+		int hw_counter = i % NUM_COUNTERS;
 		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
 			msrs->multiplex[i].addr = MSR_K7_PERFCTR0 + hw_counter;
 		else
@@ -366,7 +366,7 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 		if (msrs->counters[i].addr)
 			release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
 	}
-	for (i = 0; i < NUM_COUNTERS; ++i) {
+	for (i = 0; i < NUM_CONTROLS; ++i) {
 		if (msrs->controls[i].addr)
 			release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
 	}
