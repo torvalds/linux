@@ -644,7 +644,9 @@ const char *crypto_attr_alg_name(struct rtattr *rta)
 }
 EXPORT_SYMBOL_GPL(crypto_attr_alg_name);
 
-struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask)
+struct crypto_alg *crypto_attr_alg2(struct rtattr *rta,
+				    const struct crypto_type *frontend,
+				    u32 type, u32 mask)
 {
 	const char *name;
 	int err;
@@ -654,9 +656,9 @@ struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask)
 	if (IS_ERR(name))
 		return ERR_PTR(err);
 
-	return crypto_alg_mod_lookup(name, type, mask);
+	return crypto_find_alg(name, frontend, type, mask);
 }
-EXPORT_SYMBOL_GPL(crypto_attr_alg);
+EXPORT_SYMBOL_GPL(crypto_attr_alg2);
 
 int crypto_attr_u32(struct rtattr *rta, u32 *num)
 {

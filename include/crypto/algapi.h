@@ -136,7 +136,16 @@ static inline void crypto_set_spawn(struct crypto_spawn *spawn,
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
 int crypto_check_attr_type(struct rtattr **tb, u32 type);
 const char *crypto_attr_alg_name(struct rtattr *rta);
-struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask);
+struct crypto_alg *crypto_attr_alg2(struct rtattr *rta,
+				    const struct crypto_type *frontend,
+				    u32 type, u32 mask);
+
+static inline struct crypto_alg *crypto_attr_alg(struct rtattr *rta,
+						 u32 type, u32 mask)
+{
+	return crypto_attr_alg2(rta, NULL, type, mask);
+}
+
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
 void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
 			     unsigned int head);

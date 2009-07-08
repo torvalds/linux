@@ -503,6 +503,27 @@ out:
 }
 EXPORT_SYMBOL_GPL(crypto_create_tfm);
 
+struct crypto_alg *crypto_find_alg(const char *alg_name,
+				   const struct crypto_type *frontend,
+				   u32 type, u32 mask)
+{
+	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask) =
+		crypto_alg_mod_lookup;
+
+	if (frontend) {
+		type &= frontend->maskclear;
+		mask &= frontend->maskclear;
+		type |= frontend->type;
+		mask |= frontend->maskset;
+
+		if (frontend->lookup)
+			lookup = frontend->lookup;
+	}
+
+	return lookup(alg_name, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_find_alg);
+
 /*
  *	crypto_alloc_tfm - Locate algorithm and allocate transform
  *	@alg_name: Name of algorithm
@@ -526,21 +547,13 @@ EXPORT_SYMBOL_GPL(crypto_create_tfm);
 void *crypto_alloc_tfm(const char *alg_name,
 		       const struct crypto_type *frontend, u32 type, u32 mask)
 {
-	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask);
 	void *tfm;
 	int err;
-
-	type &= frontend->maskclear;
-	mask &= frontend->maskclear;
-	type |= frontend->type;
-	mask |= frontend->maskset;
-
-	lookup = frontend->lookup ?: crypto_alg_mod_lookup;
 
 	for (;;) {
 		struct crypto_alg *alg;
 
-		alg = lookup(alg_name, type, mask);
+		alg = crypto_find_alg(alg_name, frontend, type, mask);
 		if (IS_ERR(alg)) {
 			err = PTR_ERR(alg);
 			goto err;
