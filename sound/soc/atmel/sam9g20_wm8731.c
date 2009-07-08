@@ -56,6 +56,13 @@
 
 #define MCLK_RATE 12000000
 
+/*
+ * As shipped the board does not have inputs.  However, it is relatively
+ * straightforward to modify the board to hook them up so support is left
+ * in the driver.
+ */
+#undef ENABLE_MIC_INPUT
+
 static struct clk *mclk;
 
 static int at91sam9g20ek_startup(struct snd_pcm_substream *substream)
@@ -170,8 +177,13 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_nc_pin(codec, "RLINEIN");
 	snd_soc_dapm_nc_pin(codec, "LLINEIN");
 
-	/* always connected */
+#ifdef ENABLE_MIC_INPUT
 	snd_soc_dapm_enable_pin(codec, "Int Mic");
+#else
+	snd_soc_dapm_nc_pin(codec, "Int Mic");
+#endif
+
+	/* always connected */
 	snd_soc_dapm_enable_pin(codec, "Ext Spk");
 
 	snd_soc_dapm_sync(codec);
