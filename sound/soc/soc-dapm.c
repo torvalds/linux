@@ -997,6 +997,9 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 			pr_err("Failed to apply active bias: %d\n", ret);
 	}
 
+	pop_dbg(codec->pop_time, "DAPM sequencing finished, waiting %dms\n",
+		codec->pop_time);
+
 	return 0;
 }
 
