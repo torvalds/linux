@@ -843,7 +843,7 @@ postcore_initcall(xenbus_probe_init);
 
 MODULE_LICENSE("GPL");
 
-static int is_disconnected_device(struct device *dev, void *data)
+static int is_device_connecting(struct device *dev, void *data)
 {
 	struct xenbus_device *xendev = to_xenbus_device(dev);
 	struct device_driver *drv = data;
@@ -861,14 +861,15 @@ static int is_disconnected_device(struct device *dev, void *data)
 		return 0;
 
 	xendrv = to_xenbus_driver(dev->driver);
-	return (xendev->state != XenbusStateConnected ||
-		(xendrv->is_ready && !xendrv->is_ready(xendev)));
+	return (xendev->state < XenbusStateConnected ||
+		(xendev->state == XenbusStateConnected &&
+		 xendrv->is_ready && !xendrv->is_ready(xendev)));
 }
 
-static int exists_disconnected_device(struct device_driver *drv)
+static int exists_connecting_device(struct device_driver *drv)
 {
 	return bus_for_each_dev(&xenbus_frontend.bus, NULL, drv,
-				is_disconnected_device);
+				is_device_connecting);
 }
 
 static int print_device_status(struct device *dev, void *data)
@@ -918,7 +919,7 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 	if (!ready_to_wait_for_devices || !xen_domain())
 		return;
 
-	while (exists_disconnected_device(drv)) {
+	while (exists_connecting_device(drv)) {
 		if (time_after(jiffies, timeout))
 			break;
 		schedule_timeout_interruptible(HZ/10);
