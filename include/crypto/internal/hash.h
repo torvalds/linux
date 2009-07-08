@@ -53,7 +53,8 @@ int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
 
 int crypto_register_shash(struct shash_alg *alg);
 int crypto_unregister_shash(struct shash_alg *alg);
-
+int shash_register_instance(struct crypto_template *tmpl,
+			    struct shash_instance *inst);
 void shash_free_instance(struct crypto_instance *inst);
 
 int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,

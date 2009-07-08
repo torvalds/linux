@@ -480,7 +480,7 @@ struct crypto_shash *crypto_alloc_shash(const char *alg_name, u32 type,
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_shash);
 
-int crypto_register_shash(struct shash_alg *alg)
+static int shash_prepare_alg(struct shash_alg *alg)
 {
 	struct crypto_alg *base = &alg->base;
 
@@ -491,6 +491,17 @@ int crypto_register_shash(struct shash_alg *alg)
 	base->cra_type = &crypto_shash_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SHASH;
+	return 0;
+}
+
+int crypto_register_shash(struct shash_alg *alg)
+{
+	struct crypto_alg *base = &alg->base;
+	int err;
+
+	err = shash_prepare_alg(alg);
+	if (err)
+		return err;
 
 	return crypto_register_alg(base);
 }
@@ -501,6 +512,19 @@ int crypto_unregister_shash(struct shash_alg *alg)
 	return crypto_unregister_alg(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_shash);
+
+int shash_register_instance(struct crypto_template *tmpl,
+			    struct shash_instance *inst)
+{
+	int err;
+
+	err = shash_prepare_alg(&inst->alg);
+	if (err)
+		return err;
+
+	return crypto_register_instance(tmpl, shash_crypto_instance(inst));
+}
+EXPORT_SYMBOL_GPL(shash_register_instance);
 
 void shash_free_instance(struct crypto_instance *inst)
 {
