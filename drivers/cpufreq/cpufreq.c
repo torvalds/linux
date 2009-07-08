@@ -773,7 +773,6 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	struct cpufreq_policy new_policy;
 	struct cpufreq_policy *policy;
 	struct freq_attr **drv_attr;
-	struct sys_device *cpu_sys_dev;
 	unsigned long flags;
 	unsigned int j;
 
@@ -936,6 +935,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	/* symlink affected CPUs */
 	for_each_cpu(j, policy->cpus) {
 		struct cpufreq_policy *managed_policy;
+		struct sys_device *cpu_sys_dev;
 
 		if (j == cpu)
 			continue;
