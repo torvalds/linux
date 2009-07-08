@@ -798,19 +798,16 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 		goto module_out;
 	}
 
+	ret = -ENOMEM;
 	policy = kzalloc(sizeof(struct cpufreq_policy), GFP_KERNEL);
-	if (!policy) {
-		ret = -ENOMEM;
+	if (!policy)
 		goto nomem_out;
-	}
-	if (!alloc_cpumask_var(&policy->cpus, GFP_KERNEL)) {
-		ret = -ENOMEM;
+
+	if (!alloc_cpumask_var(&policy->cpus, GFP_KERNEL))
 		goto err_free_policy;
-	}
-	if (!zalloc_cpumask_var(&policy->related_cpus, GFP_KERNEL)) {
-		ret = -ENOMEM;
+
+	if (!zalloc_cpumask_var(&policy->related_cpus, GFP_KERNEL))
 		goto err_free_cpumask;
-	}
 
 	policy->cpu = cpu;
 	cpumask_copy(policy->cpus, cpumask_of(cpu));
