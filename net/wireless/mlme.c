@@ -328,7 +328,8 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 			 enum nl80211_auth_type auth_type,
 			 const u8 *bssid,
 			 const u8 *ssid, int ssid_len,
-			 const u8 *ie, int ie_len)
+			 const u8 *ie, int ie_len,
+			 const u8 *key, int key_len, int key_idx)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_auth_request req;
@@ -336,6 +337,10 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	int i, err, slot = -1, nfree = 0;
 
 	ASSERT_WDEV_LOCK(wdev);
+
+	if (auth_type == NL80211_AUTHTYPE_SHARED_KEY)
+		if (!key || !key_len || key_idx < 0 || key_idx > 4)
+			return -EINVAL;
 
 	if (wdev->current_bss &&
 	    memcmp(bssid, wdev->current_bss->pub.bssid, ETH_ALEN) == 0)
@@ -359,6 +364,9 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	req.auth_type = auth_type;
 	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
 				   WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
+	req.key = key;
+	req.key_len = key_len;
+	req.key_idx = key_idx;
 	if (!req.bss)
 		return -ENOENT;
 
@@ -396,13 +404,15 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev, struct ieee80211_channel *chan,
 		       enum nl80211_auth_type auth_type, const u8 *bssid,
 		       const u8 *ssid, int ssid_len,
-		       const u8 *ie, int ie_len)
+		       const u8 *ie, int ie_len,
+		       const u8 *key, int key_len, int key_idx)
 {
 	int err;
 
 	wdev_lock(dev->ieee80211_ptr);
 	err = __cfg80211_mlme_auth(rdev, dev, chan, auth_type, bssid,
-				   ssid, ssid_len, ie, ie_len);
+				   ssid, ssid_len, ie, ie_len,
+				   key, key_len, key_idx);
 	wdev_unlock(dev->ieee80211_ptr);
 
 	return err;

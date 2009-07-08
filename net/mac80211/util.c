@@ -31,6 +31,7 @@
 #include "mesh.h"
 #include "wme.h"
 #include "led.h"
+#include "wep.h"
 
 /* privid for wiphys to determine whether they belong to us or not */
 void *mac80211_wiphy_privid = &mac80211_wiphy_privid;
@@ -804,12 +805,13 @@ u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg,
-			 u8 *extra, size_t extra_len,
-			 const u8 *bssid, int encrypt)
+			 u8 *extra, size_t extra_len, const u8 *bssid,
+			 const u8 *key, u8 key_len, u8 key_idx)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
+	int err;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
 			    sizeof(*mgmt) + 6 + extra_len);
@@ -824,8 +826,6 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	memset(mgmt, 0, 24 + 6);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_AUTH);
-	if (encrypt)
-		mgmt->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 	memcpy(mgmt->da, bssid, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, bssid, ETH_ALEN);
@@ -835,7 +835,13 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	if (extra)
 		memcpy(skb_put(skb, extra_len), extra, extra_len);
 
-	ieee80211_tx_skb(sdata, skb, encrypt);
+	if (auth_alg == WLAN_AUTH_SHARED_KEY && transaction == 3) {
+		mgmt->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+		err = ieee80211_wep_encrypt(local, skb, key, key_len, key_idx);
+		WARN_ON(err);
+	}
+
+	ieee80211_tx_skb(sdata, skb, 0);
 }
 
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,

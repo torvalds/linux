@@ -954,7 +954,7 @@ ieee80211_authenticate(struct ieee80211_sub_if_data *sdata,
 	       sdata->dev->name, wk->bss->cbss.bssid, wk->tries);
 
 	ieee80211_send_auth(sdata, 1, wk->auth_alg, wk->ie, wk->ie_len,
-			    wk->bss->cbss.bssid, 0);
+			    wk->bss->cbss.bssid, NULL, 0, 0);
 	wk->auth_transaction = 2;
 
 	wk->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
@@ -1176,7 +1176,8 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 		return;
 	ieee80211_send_auth(sdata, 3, wk->auth_alg,
 			    elems.challenge - 2, elems.challenge_len + 2,
-			    wk->bss->cbss.bssid, 1);
+			    wk->bss->cbss.bssid,
+			    wk->key, wk->key_len, wk->key_idx);
 	wk->auth_transaction = 4;
 }
 
@@ -2173,6 +2174,12 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	if (req->ie && req->ie_len) {
 		memcpy(wk->ie, req->ie, req->ie_len);
 		wk->ie_len = req->ie_len;
+	}
+
+	if (req->key && req->key_len) {
+		wk->key_len = req->key_len;
+		wk->key_idx = req->key_idx;
+		memcpy(wk->key, req->key, req->key_len);
 	}
 
 	ssid = ieee80211_bss_get_ie(req->bss, WLAN_EID_SSID);

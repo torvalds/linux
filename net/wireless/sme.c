@@ -125,7 +125,9 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					    params->channel, params->auth_type,
 					    params->bssid,
 					    params->ssid, params->ssid_len,
-					    NULL, 0);
+					    NULL, 0,
+					    params->key, params->key_len,
+					    params->key_idx);
 	case CFG80211_CONN_ASSOCIATE_NEXT:
 		BUG_ON(!rdev->ops->assoc);
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
@@ -279,8 +281,12 @@ void cfg80211_sme_rx_auth(struct net_device *dev,
 		/* select automatically between only open, shared, leap */
 		switch (wdev->conn->params.auth_type) {
 		case NL80211_AUTHTYPE_OPEN_SYSTEM:
-			wdev->conn->params.auth_type =
-				NL80211_AUTHTYPE_SHARED_KEY;
+			if (wdev->connect_keys)
+				wdev->conn->params.auth_type =
+					NL80211_AUTHTYPE_SHARED_KEY;
+			else
+				wdev->conn->params.auth_type =
+					NL80211_AUTHTYPE_NETWORK_EAP;
 			break;
 		case NL80211_AUTHTYPE_SHARED_KEY:
 			wdev->conn->params.auth_type =
@@ -353,10 +359,8 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 #endif
 
 	if (status == WLAN_STATUS_SUCCESS &&
-	    wdev->sme_state == CFG80211_SME_IDLE) {
-		wdev->sme_state = CFG80211_SME_CONNECTED;
-		return;
-	}
+	    wdev->sme_state == CFG80211_SME_IDLE)
+		goto success;
 
 	if (wdev->sme_state != CFG80211_SME_CONNECTING)
 		return;
@@ -370,24 +374,29 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	if (wdev->conn)
 		wdev->conn->state = CFG80211_CONN_IDLE;
 
-	if (status == WLAN_STATUS_SUCCESS) {
-		bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
-				       wdev->ssid, wdev->ssid_len,
-				       WLAN_CAPABILITY_ESS,
-				       WLAN_CAPABILITY_ESS);
-
-		if (WARN_ON(!bss))
-			return;
-
-		cfg80211_hold_bss(bss_from_pub(bss));
-		wdev->current_bss = bss_from_pub(bss);
-
-		wdev->sme_state = CFG80211_SME_CONNECTED;
-	} else {
+	if (status != WLAN_STATUS_SUCCESS) {
 		wdev->sme_state = CFG80211_SME_IDLE;
 		kfree(wdev->conn);
 		wdev->conn = NULL;
+		kfree(wdev->connect_keys);
+		wdev->connect_keys = NULL;
+		return;
 	}
+
+	bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
+			       wdev->ssid, wdev->ssid_len,
+			       WLAN_CAPABILITY_ESS,
+			       WLAN_CAPABILITY_ESS);
+
+	if (WARN_ON(!bss))
+		return;
+
+	cfg80211_hold_bss(bss_from_pub(bss));
+	wdev->current_bss = bss_from_pub(bss);
+
+ success:
+	wdev->sme_state = CFG80211_SME_CONNECTED;
+	cfg80211_upload_connect_keys(wdev);
 }
 
 void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
@@ -516,6 +525,8 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 			     size_t ie_len, u16 reason, bool from_ap)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	int i;
 #ifdef CONFIG_WIRELESS_EXT
 	union iwreq_data wrqu;
 #endif
@@ -543,8 +554,15 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 		wdev->conn = NULL;
 	}
 
-	nl80211_send_disconnected(wiphy_to_dev(wdev->wiphy), dev,
-				  reason, ie, ie_len, from_ap);
+	nl80211_send_disconnected(rdev, dev, reason, ie, ie_len, from_ap);
+
+	/*
+	 * Delete all the keys ... pairwise keys can't really
+	 * exist any more anyway, but default keys might.
+	 */
+	if (rdev->ops->del_key)
+		for (i = 0; i < 6; i++)
+			rdev->ops->del_key(wdev->wiphy, dev, i, NULL);
 
 #ifdef CONFIG_WIRELESS_EXT
 	memset(&wrqu, 0, sizeof(wrqu));
@@ -580,7 +598,8 @@ EXPORT_SYMBOL(cfg80211_disconnected);
 
 int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
-		       struct cfg80211_connect_params *connect)
+		       struct cfg80211_connect_params *connect,
+		       struct cfg80211_cached_keys *connkeys)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -589,6 +608,24 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 
 	if (wdev->sme_state != CFG80211_SME_IDLE)
 		return -EALREADY;
+
+	if (WARN_ON(wdev->connect_keys)) {
+		kfree(wdev->connect_keys);
+		wdev->connect_keys = NULL;
+	}
+
+	if (connkeys && connkeys->def >= 0) {
+		int idx;
+
+		idx = connkeys->def;
+		/* If given a WEP key we may need it for shared key auth */
+		if (connkeys->params[idx].cipher == WLAN_CIPHER_SUITE_WEP40 ||
+		    connkeys->params[idx].cipher == WLAN_CIPHER_SUITE_WEP104) {
+			connect->key_idx = idx;
+			connect->key = connkeys->params[idx].key;
+			connect->key_len = connkeys->params[idx].key_len;
+		}
+	}
 
 	if (!rdev->ops->connect) {
 		if (!rdev->ops->auth || !rdev->ops->assoc)
@@ -640,6 +677,7 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 			cfg80211_get_conn_bss(wdev);
 
 		wdev->sme_state = CFG80211_SME_CONNECTING;
+		wdev->connect_keys = connkeys;
 
 		/* we're good if we have both BSSID and channel */
 		if (wdev->conn->params.bssid && wdev->conn->params.channel) {
@@ -662,13 +700,16 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 			kfree(wdev->conn);
 			wdev->conn = NULL;
 			wdev->sme_state = CFG80211_SME_IDLE;
+			wdev->connect_keys = NULL;
 		}
 
 		return err;
 	} else {
 		wdev->sme_state = CFG80211_SME_CONNECTING;
+		wdev->connect_keys = connkeys;
 		err = rdev->ops->connect(&rdev->wiphy, dev, connect);
 		if (err) {
+			wdev->connect_keys = NULL;
 			wdev->sme_state = CFG80211_SME_IDLE;
 			return err;
 		}
@@ -682,12 +723,13 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 
 int cfg80211_connect(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev,
-		     struct cfg80211_connect_params *connect)
+		     struct cfg80211_connect_params *connect,
+		     struct cfg80211_cached_keys *connkeys)
 {
 	int err;
 
 	wdev_lock(dev->ieee80211_ptr);
-	err = __cfg80211_connect(rdev, dev, connect);
+	err = __cfg80211_connect(rdev, dev, connect, connkeys);
 	wdev_unlock(dev->ieee80211_ptr);
 
 	return err;
@@ -703,6 +745,9 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 
 	if (wdev->sme_state == CFG80211_SME_IDLE)
 		return -EINVAL;
+
+	kfree(wdev->connect_keys);
+	wdev->connect_keys = NULL;
 
 	if (!rdev->ops->disconnect) {
 		if (!rdev->ops->deauth)

@@ -247,6 +247,9 @@ struct ieee80211_mgd_work {
 
 	int tries;
 
+	u8 key[WLAN_KEY_LEN_WEP104];
+	u8 key_len, key_idx;
+
 	/* must be last */
 	u8 ie[0]; /* for auth or assoc frame, not probe */
 };
@@ -321,6 +324,7 @@ struct ieee80211_if_ibss {
 
 	bool fixed_bssid;
 	bool fixed_channel;
+	bool privacy;
 
 	u8 bssid[ETH_ALEN];
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
@@ -1093,8 +1097,8 @@ int ieee80211_add_pending_skbs(struct ieee80211_local *local,
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg,
-			 u8 *extra, size_t extra_len,
-			 const u8 *bssid, int encrypt);
+			 u8 *extra, size_t extra_len, const u8 *bssid,
+			 const u8 *key, u8 key_len, u8 key_idx);
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     const u8 *ie, size_t ie_len);
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
