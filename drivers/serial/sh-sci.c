@@ -707,24 +707,25 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 {
-	unsigned short ssr_status, scr_status;
+	unsigned short ssr_status, scr_status, err_enabled;
 	struct uart_port *port = ptr;
 	irqreturn_t ret = IRQ_NONE;
 
 	ssr_status = sci_in(port, SCxSR);
 	scr_status = sci_in(port, SCSCR);
+	err_enabled = scr_status & (SCI_CTRL_FLAGS_REIE | SCI_CTRL_FLAGS_RIE);
 
 	/* Tx Interrupt */
-	if ((ssr_status & 0x0020) && (scr_status & SCI_CTRL_FLAGS_TIE))
+	if ((ssr_status & SCxSR_TDxE(port)) && (scr_status & SCI_CTRL_FLAGS_TIE))
 		ret = sci_tx_interrupt(irq, ptr);
 	/* Rx Interrupt */
-	if ((ssr_status & 0x0002) && (scr_status & SCI_CTRL_FLAGS_RIE))
+	if ((ssr_status & SCxSR_RDxF(port)) && (scr_status & SCI_CTRL_FLAGS_RIE))
 		ret = sci_rx_interrupt(irq, ptr);
 	/* Error Interrupt */
-	if ((ssr_status & 0x0080) && (scr_status & SCI_CTRL_FLAGS_REIE))
+	if ((ssr_status & SCxSR_ERRORS(port)) && err_enabled)
 		ret = sci_er_interrupt(irq, ptr);
 	/* Break Interrupt */
-	if ((ssr_status & 0x0010) && (scr_status & SCI_CTRL_FLAGS_REIE))
+	if ((ssr_status & SCxSR_BRK(port)) && err_enabled)
 		ret = sci_br_interrupt(irq, ptr);
 
 	return ret;
