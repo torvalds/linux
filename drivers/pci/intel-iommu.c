@@ -3600,6 +3600,9 @@ static void intel_iommu_unmap_range(struct iommu_domain *domain,
 {
 	struct dmar_domain *dmar_domain = domain->priv;
 
+	if (!size)
+		return;
+
 	dma_pte_clear_range(dmar_domain, iova >> VTD_PAGE_SHIFT,
 			    (iova + size - 1) >> VTD_PAGE_SHIFT);
 
