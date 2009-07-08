@@ -38,6 +38,10 @@ struct shash_instance {
 	struct shash_alg alg;
 };
 
+struct crypto_shash_spawn {
+	struct crypto_spawn base;
+};
+
 extern const struct crypto_type crypto_ahash_type;
 
 int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err);
@@ -51,6 +55,10 @@ int crypto_register_shash(struct shash_alg *alg);
 int crypto_unregister_shash(struct shash_alg *alg);
 
 void shash_free_instance(struct crypto_instance *inst);
+
+int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
+			    struct shash_alg *alg,
+			    struct crypto_instance *inst);
 
 static inline void *crypto_ahash_ctx(struct crypto_ahash *tfm)
 {
@@ -104,6 +112,12 @@ static inline struct shash_instance *shash_alloc_instance(
 {
 	return crypto_alloc_instance2(name, alg,
 				      sizeof(struct shash_alg) - sizeof(*alg));
+}
+
+static inline struct crypto_shash *crypto_spawn_shash(
+	struct crypto_shash_spawn *spawn)
+{
+	return crypto_spawn_tfm2(&spawn->base);
 }
 
 #endif	/* _CRYPTO_INTERNAL_HASH_H */
