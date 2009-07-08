@@ -45,7 +45,7 @@
 // *** If you have a solution for the bug in current version of driver, please mail to me.
 // Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. ***
 MODULE_AUTHOR("Paul Lin <paul_lin@ralinktech.com>");
-MODULE_DESCRIPTION("RT2870 Wireless Lan Linux Driver");
+MODULE_DESCRIPTION(RT28xx_CHIP_NAME " Wireless LAN Linux Driver");
 MODULE_LICENSE("GPL");
 #ifdef MODULE_VERSION
 MODULE_VERSION(STA_DRIVER_VERSION);
@@ -1441,7 +1441,7 @@ VOID RT2870_BssBeaconStart(
 		pAd->CommonCfg.BeaconAdjust = 0;
 		pAd->CommonCfg.BeaconFactor = 0xffffffff / (pAd->CommonCfg.BeaconPeriod << 10);
 		pAd->CommonCfg.BeaconRemain = (0xffffffff % (pAd->CommonCfg.BeaconPeriod << 10)) + 1;
-		printk("RT2870_BssBeaconStart:BeaconFactor=%d, BeaconRemain=%d!\n", pAd->CommonCfg.BeaconFactor, pAd->CommonCfg.BeaconRemain);
+		printk(RT28xx_CHIP_NAME "_BssBeaconStart:BeaconFactor=%d, BeaconRemain=%d!\n", pAd->CommonCfg.BeaconFactor, pAd->CommonCfg.BeaconRemain);
 		RTMPSetTimer(&pAd->CommonCfg.BeaconUpdateTimer, pAd->CommonCfg.BeaconPeriod);
 
 	}

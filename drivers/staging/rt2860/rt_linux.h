@@ -90,22 +90,23 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 
 // add by kathy
 
-#ifdef RT2860
-#define STA_PROFILE_PATH			"/etc/Wireless/RT2860STA/RT2860STA.dat"
-#define STA_RTMP_FIRMWARE_FILE_NAME "/etc/Wireless/RT2860STA/RT2860STA.bin"
-#define STA_NIC_DEVICE_NAME			"RT2860STA"
-#define STA_DRIVER_VERSION			"1.8.1.1"
-#endif
-#ifdef RT2870
-#define STA_PROFILE_PATH			"/etc/Wireless/RT2870STA/RT2870STA.dat"
-#define STA_RT2870_IMAGE_FILE_NAME  "/etc/Wireless/RT2870STA/rt2870.bin"
-#define STA_NIC_DEVICE_NAME			"RT2870STA"
-#ifndef RT30xx
-#define STA_DRIVER_VERSION			"1.4.0.0"
-#endif
-#ifdef RT30xx
-#define STA_DRIVER_VERSION			"2.0.1.0"
-#endif
+/* order of "if defined()" is important, because for 3070 driver
+   both RT2870 and RT3070 are defined */
+#if defined(RT2860)
+ #define STA_PROFILE_PATH			"/etc/Wireless/RT2860STA/RT2860STA.dat"
+ #define STA_RTMP_FIRMWARE_FILE_NAME "/etc/Wireless/RT2860STA/RT2860STA.bin"
+ #define STA_NIC_DEVICE_NAME			"RT2860STA"
+ #define STA_DRIVER_VERSION			"1.8.1.1"
+#elif defined(RT3070)
+ #define STA_PROFILE_PATH			"/etc/Wireless/RT3070STA/RT3070STA.dat"
+ #define STA_RT2870_IMAGE_FILE_NAME  "/etc/Wireless/RT3070STA/rt2870.bin"
+ #define STA_NIC_DEVICE_NAME			"RT3070STA"
+ #define STA_DRIVER_VERSION			"2.0.1.0"
+#elif defined(RT2870)
+ #define STA_PROFILE_PATH			"/etc/Wireless/RT2870STA/RT2870STA.dat"
+ #define STA_RT2870_IMAGE_FILE_NAME  "/etc/Wireless/RT2870STA/rt2870.bin"
+ #define STA_NIC_DEVICE_NAME			"RT2870STA"
+ #define STA_DRIVER_VERSION			"1.4.0.0"
 #endif
 
 #ifdef RT2860

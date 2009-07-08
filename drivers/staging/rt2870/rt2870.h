@@ -527,7 +527,11 @@ extern UCHAR EpToQueue[6];
 	{	RTUSB_SET_BULK_FLAG(pAd, fRTUSB_BULK_OUT_PSPOLL);	\
 		RTUSBKickBulkOut(pAd); }
 
+#ifdef RT30xx
+#define RT28xx_CHIP_NAME            "RT3070"
+#else
 #define RT28xx_CHIP_NAME            "RT2870"
+#endif
 #define USB_CYC_CFG                 0x02a4
 #ifndef RT30xx
 #define STATUS_SUCCESS				0x00

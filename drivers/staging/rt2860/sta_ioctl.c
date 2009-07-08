@@ -531,12 +531,7 @@ rt_ioctl_giwname(struct net_device *dev,
 		   char *name, char *extra)
 {
 //	PRTMP_ADAPTER pAdapter = dev->ml_priv;
-#ifdef RT2860
-    strncpy(name, "RT2860 Wireless", IFNAMSIZ);
-#endif
-#ifdef RT2870
-	strncpy(name, "RT2870 Wireless", IFNAMSIZ);
-#endif // RT2870 //
+	strncpy(name, RT28xx_CHIP_NAME " Wireless", IFNAMSIZ);
 	return 0;
 }
 
