@@ -1223,12 +1223,6 @@ static int __devinit install_fb(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	if (fsl_diu_set_par(info)) {
-		printk(KERN_ERR "fb_set_par failed");
-		fb_dealloc_cmap(&info->cmap);
-		return -EINVAL;
-	}
-
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR "register_framebuffer failed");
 		unmap_video_memory(info);
