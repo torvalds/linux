@@ -35,6 +35,7 @@
 
 #include "drm_pciids.h"
 #include <linux/console.h>
+#include "drm_crtc_helper.h"
 
 static unsigned int i915_modeset = -1;
 module_param_named(modeset, i915_modeset, int, 0400);
@@ -114,6 +115,10 @@ static int i915_resume(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 
 		drm_irq_install(dev);
+	}
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		/* Resume the modeset for every activated CRTC */
+		drm_helper_resume_force_mode(dev);
 	}
 
 	return ret;
