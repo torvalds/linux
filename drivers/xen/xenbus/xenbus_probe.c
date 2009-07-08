@@ -885,10 +885,13 @@ static int print_device_status(struct device *dev, void *data)
 		/* Information only: is this too noisy? */
 		printk(KERN_INFO "XENBUS: Device with no driver: %s\n",
 		       xendev->nodename);
-	} else if (xendev->state != XenbusStateConnected) {
+	} else if (xendev->state < XenbusStateConnected) {
+		enum xenbus_state rstate = XenbusStateUnknown;
+		if (xendev->otherend)
+			rstate = xenbus_read_driver_state(xendev->otherend);
 		printk(KERN_WARNING "XENBUS: Timeout connecting "
-		       "to device: %s (state %d)\n",
-		       xendev->nodename, xendev->state);
+		       "to device: %s (local state %d, remote state %d)\n",
+		       xendev->nodename, xendev->state, rstate);
 	}
 
 	return 0;
