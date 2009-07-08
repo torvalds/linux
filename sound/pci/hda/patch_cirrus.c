@@ -110,7 +110,7 @@ enum {
 /* 0x0015 - visibility reg */
 
 
-static int cs_vendor_coef_get(struct hda_codec *codec, unsigned int idx)
+static inline int cs_vendor_coef_get(struct hda_codec *codec, unsigned int idx)
 {
 	snd_hda_codec_write(codec, CS420X_VENDOR_NID, 0,
 			    AC_VERB_SET_COEF_INDEX, idx);
@@ -118,8 +118,8 @@ static int cs_vendor_coef_get(struct hda_codec *codec, unsigned int idx)
 				  AC_VERB_GET_PROC_COEF, 0);
 }
 
-static void cs_vendor_coef_set(struct hda_codec *codec, unsigned int idx,
-			       unsigned int coef)
+static inline void cs_vendor_coef_set(struct hda_codec *codec, unsigned int idx,
+				      unsigned int coef)
 {
 	snd_hda_codec_write(codec, CS420X_VENDOR_NID, 0,
 			    AC_VERB_SET_COEF_INDEX, idx);
@@ -367,7 +367,6 @@ static hda_nid_t get_adc(struct hda_codec *codec, hda_nid_t pin,
 
 static int is_active_pin(struct hda_codec *codec, hda_nid_t nid)
 {
-	struct cs_spec *spec = codec->spec;
 	unsigned int val;
 	val = snd_hda_codec_get_pincfg(codec, nid);
 	return (get_defcfg_connect(val) != AC_JACK_PORT_NONE);
@@ -377,7 +376,7 @@ static int parse_output(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, err, extra_nids;
+	int i, extra_nids;
 	hda_nid_t dac;
 
 	for (i = 0; i < cfg->line_outs; i++) {
@@ -422,11 +421,10 @@ static int parse_input(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, n, err;
+	int i;
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t pin = cfg->input_pins[i];
-		struct snd_kcontrol *kctl;
 		if (!pin)
 			continue;
 		spec->input_idx[spec->num_inputs] = i;
@@ -461,7 +459,6 @@ static int parse_digital_output(struct hda_codec *codec)
 	struct cs_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t nid;
-	int err;
 
 	if (!cfg->dig_outs)
 		return 0;
@@ -651,7 +648,6 @@ static int change_cur_input(struct hda_codec *codec, unsigned int idx,
 			    int force)
 {
 	struct cs_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
 	
 	if (spec->cur_input == idx && !force)
 		return 0;
@@ -1003,7 +999,6 @@ static int cs_init(struct hda_codec *codec)
 
 static int cs_build_controls(struct hda_codec *codec)
 {
-	struct cs_spec *spec = codec->spec;
 	int err;
 
 	err = build_output(codec);
