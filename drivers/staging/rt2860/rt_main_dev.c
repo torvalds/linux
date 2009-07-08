@@ -190,7 +190,7 @@ int rt28xx_close(IN PNET_DEV dev)
 	BOOLEAN 		Cancelled = FALSE;
 	UINT32			i = 0;
 #ifdef RT2870
-	DECLARE_WAIT_QUEUE_HEAD(unlink_wakeup);
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(unlink_wakeup);
 	DECLARE_WAITQUEUE(wait, current);
 
 	//RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_REMOVE_IN_PROGRESS);
