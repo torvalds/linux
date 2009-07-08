@@ -518,5 +518,15 @@ int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
 }
 EXPORT_SYMBOL_GPL(crypto_init_shash_spawn);
 
+struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask)
+{
+	struct crypto_alg *alg;
+
+	alg = crypto_attr_alg2(rta, &crypto_shash_type, type, mask);
+	return IS_ERR(alg) ? ERR_CAST(alg) :
+	       container_of(alg, struct shash_alg, base);
+}
+EXPORT_SYMBOL_GPL(shash_attr_alg);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Synchronous cryptographic hash type");
