@@ -32,4 +32,7 @@ dev_archdata_get_node(const struct dev_archdata *ad)
 	return ad->prom_node;
 }
 
+struct pdev_archdata {
+};
+
 #endif /* _ASM_SPARC_DEVICE_H */

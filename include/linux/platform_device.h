@@ -22,6 +22,9 @@ struct platform_device {
 	struct resource	* resource;
 
 	struct platform_device_id	*id_entry;
+
+	/* arch specific additions */
+	struct pdev_archdata	archdata;
 };
 
 #define platform_get_device_id(pdev)	((pdev)->id_entry)
