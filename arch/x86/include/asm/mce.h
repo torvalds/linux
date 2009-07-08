@@ -130,10 +130,11 @@ void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct sys_device, mce_dev);
 
 /*
- * To support more than 128 would need to escape the predefined
- * Linux defined extended banks first.
+ * Maximum banks number.
+ * This is the limit of the current register layout on
+ * Intel CPUs.
  */
-#define MAX_NR_BANKS (MCE_EXTENDED_BANK - 1)
+#define MAX_NR_BANKS 32
 
 #ifdef CONFIG_X86_MCE_INTEL
 extern int mce_cmci_disabled;
