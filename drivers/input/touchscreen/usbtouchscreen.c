@@ -13,6 +13,7 @@
  *  - IdealTEK URTC1000
  *  - General Touch
  *  - GoTop Super_Q2/GogoPen/PenPower tablets
+ *  - JASTEC USB touch controller/DigiTech DTR-02U
  *
  * Copyright (C) 2004-2007 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
@@ -118,6 +119,7 @@ enum {
 	DEVTYPE_IDEALTEK,
 	DEVTYPE_GENERAL_TOUCH,
 	DEVTYPE_GOTOP,
+	DEVTYPE_JASTEC,
 };
 
 #define USB_DEVICE_HID_CLASS(vend, prod) \
@@ -189,6 +191,10 @@ static struct usb_device_id usbtouch_devices[] = {
 	{USB_DEVICE(0x08f2, 0x007f), .driver_info = DEVTYPE_GOTOP},
 	{USB_DEVICE(0x08f2, 0x00ce), .driver_info = DEVTYPE_GOTOP},
 	{USB_DEVICE(0x08f2, 0x00f4), .driver_info = DEVTYPE_GOTOP},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_JASTEC
+	{USB_DEVICE(0x0f92, 0x0001), .driver_info = DEVTYPE_JASTEC},
 #endif
 
 	{}
@@ -559,6 +565,21 @@ static int gotop_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 	dev->x = ((pkt[1] & 0x38) << 4) | pkt[2];
 	dev->y = ((pkt[1] & 0x07) << 7) | pkt[3];
 	dev->touch = pkt[0] & 0x01;
+
+	return 1;
+}
+#endif
+
+/*****************************************************************************
+ * JASTEC Part
+ */
+#ifdef CONFIG_TOUCHSCREEN_USB_JASTEC
+static int jastec_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+{
+	dev->x = ((pkt[0] & 0x3f) << 6) | (pkt[2] & 0x3f);
+	dev->y = ((pkt[1] & 0x3f) << 6) | (pkt[3] & 0x3f);
+	dev->touch = (pkt[0] & 0x40) >> 6;
+
 	return 1;
 }
 #endif
@@ -700,6 +721,17 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.max_yc		= 0x03ff,
 		.rept_size	= 4,
 		.read_data	= gotop_read_data,
+	},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_JASTEC
+	[DEVTYPE_JASTEC] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x0fff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x0fff,
+		.rept_size	= 4,
+		.read_data	= jastec_read_data,
 	},
 #endif
 };
