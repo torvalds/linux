@@ -28,7 +28,6 @@
 #include <linux/serial_8250.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
-#include <linux/version.h>
 #include <linux/vlynq.h>
 #include <linux/leds.h>
 #include <linux/string.h>
