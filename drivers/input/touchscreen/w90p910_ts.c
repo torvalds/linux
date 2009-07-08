@@ -241,13 +241,13 @@ static int __devinit w90x900ts_probe(struct platform_device *pdev)
 		goto fail1;
 	}
 
-	if (!request_mem_region(res->start, res->end - res->start + 1,
+	if (!request_mem_region(res->start, resource_size(res),
 				pdev->name)) {
 		err = -EBUSY;
 		goto fail1;
 	}
 
-	w90p910_ts->ts_reg = ioremap(res->start, res->end - res->start + 1);
+	w90p910_ts->ts_reg = ioremap(res->start, resource_size(res));
 	if (!w90p910_ts->ts_reg) {
 		err = -ENOMEM;
 		goto fail2;
@@ -296,7 +296,7 @@ static int __devinit w90x900ts_probe(struct platform_device *pdev)
 
 fail4:	free_irq(w90p910_ts->irq_num, w90p910_ts);
 fail3:	iounmap(w90p910_ts->ts_reg);
-fail2:	release_mem_region(res->start, res->end - res->start + 1);
+fail2:	release_mem_region(res->start, resource_size(res));
 fail1:	input_free_device(input_dev);
 	kfree(w90p910_ts);
 	return err;
@@ -312,7 +312,7 @@ static int __devexit w90x900ts_remove(struct platform_device *pdev)
 	iounmap(w90p910_ts->ts_reg);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	input_unregister_device(w90p910_ts->input);
 	kfree(w90p910_ts);

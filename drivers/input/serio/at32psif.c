@@ -231,7 +231,7 @@ static int __init psif_probe(struct platform_device *pdev)
 		goto out_free_io;
 	}
 
-	psif->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	psif->regs = ioremap(regs->start, resource_size(regs));
 	if (!psif->regs) {
 		ret = -ENOMEM;
 		dev_dbg(&pdev->dev, "could not map I/O memory\n");
