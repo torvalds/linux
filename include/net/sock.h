@@ -1271,6 +1271,9 @@ static inline int sk_has_allocations(const struct sock *sk)
  * in its cache, and so does the tp->rcv_nxt update on CPU2 side.  The CPU1
  * could then endup calling schedule and sleep forever if there are no more
  * data on the socket.
+ *
+ * The sk_has_sleeper is always called right after a call to read_lock, so we
+ * can use smp_mb__after_lock barrier.
  */
 static inline int sk_has_sleeper(struct sock *sk)
 {
@@ -1280,7 +1283,7 @@ static inline int sk_has_sleeper(struct sock *sk)
 	 *
 	 * This memory barrier is paired in the sock_poll_wait.
 	 */
-	smp_mb();
+	smp_mb__after_lock();
 	return sk->sk_sleep && waitqueue_active(sk->sk_sleep);
 }
 
