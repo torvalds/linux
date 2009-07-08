@@ -392,7 +392,6 @@ static int via_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct via_spec *spec = codec->spec;
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	unsigned int vendor_id = codec->vendor_id;
 
 	if (!spec->mux_nids[adc_idx])
 		return -EINVAL;
@@ -1340,6 +1339,10 @@ static int get_mux_nids(struct hda_codec *codec)
 	for (i = 0; i < spec->num_adc_nids; i++) {
 		nid = spec->adc_nids[i];
 		while (nid) {
+			type = (get_wcaps(codec, nid) & AC_WCAP_TYPE)
+				>> AC_WCAP_TYPE_SHIFT;
+			if (type == AC_WID_PIN)
+				break;
 			n = snd_hda_get_connections(codec, nid, conn,
 						    ARRAY_SIZE(conn));
 			if (n <= 0)
@@ -1351,6 +1354,7 @@ static int get_mux_nids(struct hda_codec *codec)
 			nid = conn[0];
 		}
 	}
+	return 0;
 }
 
 static int patch_vt1708(struct hda_codec *codec)
