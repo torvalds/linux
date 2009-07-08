@@ -784,6 +784,57 @@ int cpufreq_add_dev_symlink(unsigned int cpu, struct cpufreq_policy *policy)
 	return ret;
 }
 
+int cpufreq_add_dev_interface(unsigned int cpu, struct cpufreq_policy *policy,
+		struct sys_device *sys_dev)
+{
+	struct freq_attr **drv_attr;
+	unsigned long flags;
+	int ret = 0;
+	unsigned int j;
+
+	/* prepare interface data */
+	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq,
+				   &sys_dev->kobj, "cpufreq");
+	if (ret)
+		return ret;
+
+	/* set up files for this cpu device */
+	drv_attr = cpufreq_driver->attr;
+	while ((drv_attr) && (*drv_attr)) {
+		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
+		if (ret)
+			goto err_out_kobj_put;
+		drv_attr++;
+	}
+	if (cpufreq_driver->get) {
+		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
+		if (ret)
+			goto err_out_kobj_put;
+	}
+	if (cpufreq_driver->target) {
+		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
+		if (ret)
+			goto err_out_kobj_put;
+	}
+
+	spin_lock_irqsave(&cpufreq_driver_lock, flags);
+	for_each_cpu(j, policy->cpus) {
+	if (!cpu_online(j))
+		continue;
+		per_cpu(cpufreq_cpu_data, j) = policy;
+		per_cpu(policy_cpu, j) = policy->cpu;
+	}
+	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+	ret = cpufreq_add_dev_symlink(cpu, policy);
+	return ret;
+
+err_out_kobj_put:
+	kobject_put(&policy->kobj);
+	wait_for_completion(&policy->kobj_unregister);
+	return ret;
+}
+
 
 /**
  * cpufreq_add_dev - add a CPU device
@@ -800,7 +851,6 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	int ret = 0;
 	struct cpufreq_policy new_policy;
 	struct cpufreq_policy *policy;
-	struct freq_attr **drv_attr;
 	unsigned long flags;
 	unsigned int j;
 
@@ -923,41 +973,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 #endif
 	memcpy(&new_policy, policy, sizeof(struct cpufreq_policy));
 
-	/* prepare interface data */
-	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq, &sys_dev->kobj,
-				   "cpufreq");
-	if (ret)
-		goto out_driver_exit;
-
-	/* set up files for this cpu device */
-	drv_attr = cpufreq_driver->attr;
-	while ((drv_attr) && (*drv_attr)) {
-		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
-		if (ret)
-			goto err_out_kobj_put;
-		drv_attr++;
-	}
-	if (cpufreq_driver->get) {
-		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
-		if (ret)
-			goto err_out_kobj_put;
-	}
-	if (cpufreq_driver->target) {
-		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
-		if (ret)
-			goto err_out_kobj_put;
-	}
-
-	spin_lock_irqsave(&cpufreq_driver_lock, flags);
-	for_each_cpu(j, policy->cpus) {
-		if (!cpu_online(j))
-			continue;
-		per_cpu(cpufreq_cpu_data, j) = policy;
-		per_cpu(policy_cpu, j) = policy->cpu;
-	}
-	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-
-	ret = cpufreq_add_dev_symlink(cpu, policy->cpus, policy);
+	ret = cpufreq_add_dev_interface(cpu, policy, sys_dev);
 	if (ret)
 		goto err_out_unregister;
 
@@ -990,7 +1006,6 @@ err_out_unregister:
 		per_cpu(cpufreq_cpu_data, j) = NULL;
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
-err_out_kobj_put:
 	kobject_put(&policy->kobj);
 	wait_for_completion(&policy->kobj_unregister);
 
