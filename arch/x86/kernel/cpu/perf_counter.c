@@ -84,6 +84,14 @@ static u64 p6_pmu_event_map(int event)
 	return p6_perfmon_event_map[event];
 }
 
+/*
+ * Counter setting that is specified not to count anything.
+ * We use this to effectively disable a counter.
+ *
+ * L2_RQSTS with 0 MESI unit mask.
+ */
+#define P6_NOP_COUNTER			0x0000002EULL
+
 static u64 p6_pmu_raw_event(u64 event)
 {
 #define P6_EVNTSEL_EVENT_MASK		0x000000FFULL
@@ -704,6 +712,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 {
 	struct perf_counter_attr *attr = &counter->attr;
 	struct hw_perf_counter *hwc = &counter->hw;
+	u64 config;
 	int err;
 
 	if (!x86_pmu_initialized())
@@ -756,10 +765,19 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 
 	if (attr->config >= x86_pmu.max_events)
 		return -EINVAL;
+
 	/*
 	 * The generic map:
 	 */
-	hwc->config |= x86_pmu.event_map(attr->config);
+	config = x86_pmu.event_map(attr->config);
+
+	if (config == 0)
+		return -ENOENT;
+
+	if (config == -1LL)
+		return -EINVAL;
+
+	hwc->config |= config;
 
 	return 0;
 }
@@ -767,7 +785,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 static void p6_pmu_disable_all(void)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-	unsigned long val;
+	u64 val;
 
 	if (!cpuc->enabled)
 		return;
@@ -917,10 +935,10 @@ static inline void
 p6_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-	unsigned long val = ARCH_PERFMON_EVENTSEL0_ENABLE;
+	u64 val = P6_NOP_COUNTER;
 
-	if (!cpuc->enabled)
-		val = 0;
+	if (cpuc->enabled)
+		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
 
 	(void)checking_wrmsrl(hwc->config_base + idx, val);
 }
