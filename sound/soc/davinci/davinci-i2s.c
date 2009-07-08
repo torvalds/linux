@@ -22,6 +22,8 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
+#include <mach/asp.h>
+
 #include "davinci-pcm.h"
 
 
