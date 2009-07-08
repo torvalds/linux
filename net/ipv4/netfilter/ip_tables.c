@@ -315,7 +315,6 @@ ipt_do_table(struct sk_buff *skb,
 
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	const struct iphdr *ip;
-	u_int16_t datalen;
 	bool hotdrop = false;
 	/* Initializing verdict to NF_DROP keeps gcc happy. */
 	unsigned int verdict = NF_DROP;
@@ -328,7 +327,6 @@ ipt_do_table(struct sk_buff *skb,
 
 	/* Initialization */
 	ip = ip_hdr(skb);
-	datalen = skb->len - ip->ihl * 4;
 	indev = in ? in->name : nulldevname;
 	outdev = out ? out->name : nulldevname;
 	/* We handle fragments by dealing with the first fragment as
@@ -427,8 +425,6 @@ ipt_do_table(struct sk_buff *skb,
 #endif
 		/* Target might have changed stuff. */
 		ip = ip_hdr(skb);
-		datalen = skb->len - ip->ihl * 4;
-
 		if (verdict == IPT_CONTINUE)
 			e = ipt_next_entry(e);
 		else
