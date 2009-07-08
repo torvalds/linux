@@ -1634,6 +1634,8 @@ static void setfreq(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (gspca_dev->ctrl_dis & (1 << FREQ_IDX))
+		return;
 	if (sd->sensor == SENSOR_OV7660) {
 		switch (sd->freq) {
 		case 0: /* Banding filter disabled */
