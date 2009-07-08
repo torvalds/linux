@@ -26,6 +26,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include "wm8731.h"
 
@@ -113,20 +114,26 @@ static const struct soc_enum wm8731_enum[] = {
 	SOC_ENUM_SINGLE(WM8731_APDIGI, 1, 4, wm8731_deemph),
 };
 
+static const DECLARE_TLV_DB_SCALE(in_tlv, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(sidetone_tlv, -1500, 300, 0);
+static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
+
 static const struct snd_kcontrol_new wm8731_snd_controls[] = {
 
-SOC_DOUBLE_R("Master Playback Volume", WM8731_LOUT1V, WM8731_ROUT1V,
-	0, 127, 0),
+SOC_DOUBLE_R_TLV("Master Playback Volume", WM8731_LOUT1V, WM8731_ROUT1V,
+		 0, 127, 0, out_tlv),
 SOC_DOUBLE_R("Master Playback ZC Switch", WM8731_LOUT1V, WM8731_ROUT1V,
 	7, 1, 0),
 
-SOC_DOUBLE_R("Capture Volume", WM8731_LINVOL, WM8731_RINVOL, 0, 31, 0),
+SOC_DOUBLE_R_TLV("Capture Volume", WM8731_LINVOL, WM8731_RINVOL, 0, 31, 0,
+		 in_tlv),
 SOC_DOUBLE_R("Line Capture Switch", WM8731_LINVOL, WM8731_RINVOL, 7, 1, 1),
 
 SOC_SINGLE("Mic Boost (+20dB)", WM8731_APANA, 0, 1, 0),
 SOC_SINGLE("Capture Mic Switch", WM8731_APANA, 1, 1, 1),
 
-SOC_SINGLE("Sidetone Playback Volume", WM8731_APANA, 6, 3, 1),
+SOC_SINGLE_TLV("Sidetone Playback Volume", WM8731_APANA, 6, 3, 1,
+	       sidetone_tlv),
 
 SOC_SINGLE("ADC High Pass Filter Switch", WM8731_APDIGI, 0, 1, 1),
 SOC_SINGLE("Store DC Offset Switch", WM8731_APDIGI, 4, 1, 0),
