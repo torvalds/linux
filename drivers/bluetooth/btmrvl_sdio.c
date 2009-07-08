@@ -481,12 +481,14 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 		goto exit;
 	}
 
-	if ((u32) skb->data & (BTSDIO_DMA_ALIGN - 1)) {
-		skb_put(skb, (u32) skb->data & (BTSDIO_DMA_ALIGN - 1));
-		skb_pull(skb, (u32) skb->data & (BTSDIO_DMA_ALIGN - 1));
+	if ((unsigned long) skb->data & (BTSDIO_DMA_ALIGN - 1)) {
+		skb_put(skb, (unsigned long) skb->data &
+					(BTSDIO_DMA_ALIGN - 1));
+		skb_pull(skb, (unsigned long) skb->data &
+					(BTSDIO_DMA_ALIGN - 1));
 	}
 
-	payload = skb->tail;
+	payload = skb->data;
 
 	ret = sdio_readsb(card->func, payload, card->ioport,
 			  buf_block_len * blksz);
@@ -773,7 +775,7 @@ static int btmrvl_sdio_host_to_card(struct btmrvl_private *priv,
 	}
 
 	buf = payload;
-	if ((u32) payload & (BTSDIO_DMA_ALIGN - 1)) {
+	if ((unsigned long) payload & (BTSDIO_DMA_ALIGN - 1)) {
 		tmpbufsz = ALIGN_SZ(nb, BTSDIO_DMA_ALIGN);
 		tmpbuf = kmalloc(tmpbufsz, GFP_KERNEL);
 		memset(tmpbuf, 0, tmpbufsz);
