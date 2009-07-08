@@ -47,7 +47,7 @@ enum {
 	HDLC_SEND_DATA, HDLC_SEND_CRC1, HDLC_SEND_FAST_FLAG,
 	HDLC_SEND_FIRST_FLAG, HDLC_SEND_CRC2, HDLC_SEND_CLOSING_FLAG,
 	HDLC_SEND_IDLE1, HDLC_SEND_FAST_IDLE, HDLC_SENDFLAG_B0,
-	HDLC_SENDFLAG_B1A6, HDLC_SENDFLAG_B7, STOPPED
+	HDLC_SENDFLAG_B1A6, HDLC_SENDFLAG_B7, STOPPED, HDLC_SENDFLAG_ONE
 };
 
 void isdnhdlc_rcv_init(struct isdnhdlc_vars *hdlc, u32 features)
@@ -362,6 +362,9 @@ int isdnhdlc_encode(struct isdnhdlc_vars *hdlc, const u8 *src, u16 slen,
 
 	*count = slen;
 
+	/* special handling for one byte frames */
+	if ((slen == 1) && (hdlc->state == HDLC_SEND_FAST_FLAG))
+		hdlc->state = HDLC_SENDFLAG_ONE;
 	while (dsize > 0) {
 		if (hdlc->bit_shift == 0) {
 			if (slen && !hdlc->do_closing) {
@@ -407,6 +410,8 @@ int isdnhdlc_encode(struct isdnhdlc_vars *hdlc, const u8 *src, u16 slen,
 				dsize--;
 				break;
 			}
+			/* fall through */
+		case HDLC_SENDFLAG_ONE:
 			if (hdlc->bit_shift == 8) {
 				hdlc->cbin = hdlc->ffvalue >>
 					(8 - hdlc->data_bits);
