@@ -128,5 +128,10 @@ static inline void *crypto_shash_ctx_aligned(struct crypto_shash *tfm)
 	return crypto_tfm_ctx_aligned(&tfm->base);
 }
 
+static inline struct crypto_shash *__crypto_shash_cast(struct crypto_tfm *tfm)
+{
+	return (struct crypto_shash *)tfm;
+}
+
 #endif	/* _CRYPTO_INTERNAL_HASH_H */
 
