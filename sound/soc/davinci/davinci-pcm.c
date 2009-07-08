@@ -206,6 +206,7 @@ static int davinci_pcm_prepare(struct snd_pcm_substream *substream)
 	/* Copy self-linked parameter RAM entry into master channel */
 	edma_read_slot(prtd->slave_lch, &temp);
 	edma_write_slot(prtd->master_lch, &temp);
+	davinci_pcm_enqueue_dma(substream);
 
 	return 0;
 }
