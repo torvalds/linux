@@ -65,29 +65,6 @@
 
 static struct clk *mclk;
 
-static int at91sam9g20ek_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	int ret;
-
-	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
-		MCLK_RATE, SND_SOC_CLOCK_IN);
-	if (ret < 0) {
-		clk_disable(mclk);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void at91sam9g20ek_shutdown(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-
-	dev_dbg(rtd->socdev->dev, "shutdown");
-}
-
 static int at91sam9g20ek_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
@@ -112,9 +89,7 @@ static int at91sam9g20ek_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops at91sam9g20ek_ops = {
-	.startup = at91sam9g20ek_startup,
 	.hw_params = at91sam9g20ek_hw_params,
-	.shutdown = at91sam9g20ek_shutdown,
 };
 
 static int at91sam9g20ek_set_bias_level(struct snd_soc_card *card,
@@ -163,9 +138,19 @@ static const struct snd_soc_dapm_route intercon[] = {
  */
 static int at91sam9g20ek_wm8731_init(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dai *codec_dai = &codec->dai[0];
+	int ret;
+
 	printk(KERN_DEBUG
 			"at91sam9g20ek_wm8731 "
 			": at91sam9g20ek_wm8731_init() called\n");
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
+		MCLK_RATE, SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		printk(KERN_ERR "Failed to set WM8731 SYSCLK: %d\n", ret);
+		return ret;
+	}
 
 	/* Add specific widgets */
 	snd_soc_dapm_new_controls(codec, at91sam9g20ek_dapm_widgets,
