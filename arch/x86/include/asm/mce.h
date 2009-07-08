@@ -115,13 +115,6 @@ void mcheck_init(struct cpuinfo_x86 *c);
 static inline void mcheck_init(struct cpuinfo_x86 *c) {}
 #endif
 
-#ifdef CONFIG_X86_OLD_MCE
-extern int nr_mce_banks;
-void amd_mcheck_init(struct cpuinfo_x86 *c);
-void intel_p4_mcheck_init(struct cpuinfo_x86 *c);
-void intel_p6_mcheck_init(struct cpuinfo_x86 *c);
-#endif
-
 #ifdef CONFIG_X86_ANCIENT_MCE
 void intel_p5_mcheck_init(struct cpuinfo_x86 *c);
 void winchip_mcheck_init(struct cpuinfo_x86 *c);
@@ -208,11 +201,7 @@ extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 void intel_init_thermal(struct cpuinfo_x86 *c);
 
-#ifdef CONFIG_X86_NEW_MCE
 void mce_log_therm_throt_event(__u64 status);
-#else
-static inline void mce_log_therm_throt_event(__u64 status) {}
-#endif
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */
