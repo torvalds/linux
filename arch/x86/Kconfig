@@ -823,7 +823,7 @@ config X86_MCE_AMD
 
 config X86_ANCIENT_MCE
 	def_bool n
-	depends on X86_32
+	depends on X86_32 && X86_MCE
 	prompt "Support for old Pentium 5 / WinChip machine checks"
 	---help---
 	  Include support for machine check handling on old Pentium 5 or WinChip
