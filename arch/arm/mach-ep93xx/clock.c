@@ -50,20 +50,20 @@ static unsigned long get_uart_rate(struct clk *clk);
 
 static struct clk clk_uart1 = {
 	.sw_locked	= 1,
-	.enable_reg	= EP93XX_SYSCON_DEVICE_CONFIG,
-	.enable_mask	= EP93XX_SYSCON_DEVICE_CONFIG_U1EN,
+	.enable_reg	= EP93XX_SYSCON_DEVCFG,
+	.enable_mask	= EP93XX_SYSCON_DEVCFG_U1EN,
 	.get_rate	= get_uart_rate,
 };
 static struct clk clk_uart2 = {
 	.sw_locked	= 1,
-	.enable_reg	= EP93XX_SYSCON_DEVICE_CONFIG,
-	.enable_mask	= EP93XX_SYSCON_DEVICE_CONFIG_U2EN,
+	.enable_reg	= EP93XX_SYSCON_DEVCFG,
+	.enable_mask	= EP93XX_SYSCON_DEVCFG_U2EN,
 	.get_rate	= get_uart_rate,
 };
 static struct clk clk_uart3 = {
 	.sw_locked	= 1,
-	.enable_reg	= EP93XX_SYSCON_DEVICE_CONFIG,
-	.enable_mask	= EP93XX_SYSCON_DEVICE_CONFIG_U3EN,
+	.enable_reg	= EP93XX_SYSCON_DEVCFG,
+	.enable_mask	= EP93XX_SYSCON_DEVCFG_U3EN,
 	.get_rate	= get_uart_rate,
 };
 static struct clk clk_pll1;
@@ -160,9 +160,11 @@ int clk_enable(struct clk *clk)
 		u32 value;
 
 		value = __raw_readl(clk->enable_reg);
+		value |= clk->enable_mask;
 		if (clk->sw_locked)
-			__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
-		__raw_writel(value | clk->enable_mask, clk->enable_reg);
+			ep93xx_syscon_swlocked_write(value, clk->enable_reg);
+		else
+			__raw_writel(value, clk->enable_reg);
 	}
 
 	return 0;
@@ -175,9 +177,11 @@ void clk_disable(struct clk *clk)
 		u32 value;
 
 		value = __raw_readl(clk->enable_reg);
+		value &= ~clk->enable_mask;
 		if (clk->sw_locked)
-			__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
-		__raw_writel(value & ~clk->enable_mask, clk->enable_reg);
+			ep93xx_syscon_swlocked_write(value, clk->enable_reg);
+		else
+			__raw_writel(value, clk->enable_reg);
 	}
 }
 EXPORT_SYMBOL(clk_disable);
