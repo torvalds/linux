@@ -939,8 +939,23 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 	struct kmem_cache *slab;
 
 	slab = prot->slab;
-	if (slab != NULL)
-		sk = kmem_cache_alloc(slab, priority);
+	if (slab != NULL) {
+		sk = kmem_cache_alloc(slab, priority & ~__GFP_ZERO);
+		if (!sk)
+			return sk;
+		if (priority & __GFP_ZERO) {
+			/*
+			 * caches using SLAB_DESTROY_BY_RCU should let
+			 * sk_node.next un-modified. Special care is taken
+			 * when initializing object to zero.
+			 */
+			if (offsetof(struct sock, sk_node.next) != 0)
+				memset(sk, 0, offsetof(struct sock, sk_node.next));
+			memset(&sk->sk_node.pprev, 0,
+			       prot->obj_size - offsetof(struct sock,
+							 sk_node.pprev));
+		}
+	}
 	else
 		sk = kmalloc(prot->obj_size, priority);
 
