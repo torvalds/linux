@@ -375,6 +375,27 @@ static struct regulator_ops da9034_regulator_ldo12_ops = {
 	.enable_bit	= (ebit),					\
 }
 
+#define DA9030_DVC(_id, min, max, step, vreg, nbits, ureg, ubit, ereg, ebit) \
+{									\
+	.desc	= {							\
+		.name	= #_id,						\
+		.ops	= &da9034_regulator_dvc_ops,			\
+		.type	= REGULATOR_VOLTAGE,				\
+		.id	= DA9030_ID_##_id,				\
+		.owner	= THIS_MODULE,					\
+	},								\
+	.min_uV		= (min) * 1000,					\
+	.max_uV		= (max) * 1000,					\
+	.step_uV	= (step) * 1000,				\
+	.vol_reg	= DA9030_##vreg,				\
+	.vol_shift	= (0),						\
+	.vol_nbits	= (nbits),					\
+	.update_reg	= DA9030_##ureg,				\
+	.update_bit	= (ubit),					\
+	.enable_reg	= DA9030_##ereg,				\
+	.enable_bit	= (ebit),					\
+}
+
 #define DA9034_DVC(_id, min, max, step, vreg, nbits, ureg, ubit, ereg, ebit) \
 {									\
 	.desc	= {							\
@@ -425,6 +446,8 @@ static struct regulator_ops da9034_regulator_ldo12_ops = {
 
 static struct da903x_regulator_info da903x_regulator_info[] = {
 	/* DA9030 */
+	DA9030_DVC(BUCK2, 850, 1625, 25, BUCK2DVM1, 5, BUCK2DVM1, 7, RCTL11, 0),
+
 	DA9030_LDO( 1, 1200, 3200, 100,    LDO1, 0, 5, RCTL12, 1),
 	DA9030_LDO( 2, 1800, 3200, 100,   LDO23, 0, 4, RCTL12, 2),
 	DA9030_LDO( 3, 1800, 3200, 100,   LDO23, 4, 4, RCTL12, 3),
