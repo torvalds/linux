@@ -1216,13 +1216,13 @@ static void fealnx_tx_timeout(struct net_device *dev)
 	{
 		printk(KERN_DEBUG "  Rx ring %p: ", np->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
-			printk(PR_CONT " %8.8x",
+			printk(KERN_CONT " %8.8x",
 			       (unsigned int) np->rx_ring[i].status);
 		printk(KERN_CONT "\n");
 		printk(KERN_DEBUG "  Tx ring %p: ", np->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
-			printk(PR_CONT " %4.4x", np->tx_ring[i].status);
-		printk(PR_CONT "\n");
+			printk(KERN_CONT " %4.4x", np->tx_ring[i].status);
+		printk(KERN_CONT "\n");
 	}
 
 	spin_lock_irqsave(&np->lock, flags);
