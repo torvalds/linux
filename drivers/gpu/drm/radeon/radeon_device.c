@@ -552,7 +552,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	 * for RN50/M6/M7 - Novell bug 204882 ?
 	 */
 	if (rdev->mc.vram_size < rdev->mc.aper_size) {
-		rdev->mc.aper_size = rdev->mc.vram_size;
+		rdev->mc.vram_size = rdev->mc.aper_size;
 	}
 	/* Add an MTRR for the VRAM */
 	rdev->mc.vram_mtrr = mtrr_add(rdev->mc.aper_base, rdev->mc.aper_size,
