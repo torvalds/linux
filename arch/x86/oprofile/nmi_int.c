@@ -106,9 +106,35 @@ inline int op_x86_phys_to_virt(int phys)
 	return __get_cpu_var(switch_index) + phys;
 }
 
+static void nmi_shutdown_mux(void)
+{
+	int i;
+	for_each_possible_cpu(i) {
+		kfree(per_cpu(cpu_msrs, i).multiplex);
+		per_cpu(cpu_msrs, i).multiplex = NULL;
+		per_cpu(switch_index, i) = 0;
+	}
+}
+
+static int nmi_setup_mux(void)
+{
+	size_t multiplex_size =
+		sizeof(struct op_msr) * model->num_virt_counters;
+	int i;
+	for_each_possible_cpu(i) {
+		per_cpu(cpu_msrs, i).multiplex =
+			kmalloc(multiplex_size, GFP_KERNEL);
+		if (!per_cpu(cpu_msrs, i).multiplex)
+			return 0;
+	}
+	return 1;
+}
+
 #else
 
 inline int op_x86_phys_to_virt(int phys) { return phys; }
+static inline void nmi_shutdown_mux(void) { }
+static inline int nmi_setup_mux(void) { return 1; }
 
 #endif
 
@@ -120,51 +146,27 @@ static void free_msrs(void)
 		per_cpu(cpu_msrs, i).counters = NULL;
 		kfree(per_cpu(cpu_msrs, i).controls);
 		per_cpu(cpu_msrs, i).controls = NULL;
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-		kfree(per_cpu(cpu_msrs, i).multiplex);
-		per_cpu(cpu_msrs, i).multiplex = NULL;
-#endif
 	}
 }
 
 static int allocate_msrs(void)
 {
-	int success = 1;
 	size_t controls_size = sizeof(struct op_msr) * model->num_controls;
 	size_t counters_size = sizeof(struct op_msr) * model->num_counters;
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	size_t multiplex_size = sizeof(struct op_msr) * model->num_virt_counters;
-#endif
 
 	int i;
 	for_each_possible_cpu(i) {
 		per_cpu(cpu_msrs, i).counters = kmalloc(counters_size,
-								GFP_KERNEL);
-		if (!per_cpu(cpu_msrs, i).counters) {
-			success = 0;
-			break;
-		}
+							GFP_KERNEL);
+		if (!per_cpu(cpu_msrs, i).counters)
+			return 0;
 		per_cpu(cpu_msrs, i).controls = kmalloc(controls_size,
-								GFP_KERNEL);
-		if (!per_cpu(cpu_msrs, i).controls) {
-			success = 0;
-			break;
-		}
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-		per_cpu(cpu_msrs, i).multiplex =
-				kmalloc(multiplex_size, GFP_KERNEL);
-		if (!per_cpu(cpu_msrs, i).multiplex) {
-			success = 0;
-			break;
-		}
-#endif
+							GFP_KERNEL);
+		if (!per_cpu(cpu_msrs, i).controls)
+			return 0;
 	}
 
-	if (!success)
-		free_msrs();
-
-	return success;
+	return 1;
 }
 
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
@@ -218,11 +220,15 @@ static int nmi_setup(void)
 	int cpu;
 
 	if (!allocate_msrs())
-		return -ENOMEM;
+		err = -ENOMEM;
+	else if (!nmi_setup_mux())
+		err = -ENOMEM;
+	else
+		err = register_die_notifier(&profile_exceptions_nb);
 
-	err = register_die_notifier(&profile_exceptions_nb);
 	if (err) {
 		free_msrs();
+		nmi_shutdown_mux();
 		return err;
 	}
 
@@ -314,9 +320,6 @@ static void nmi_cpu_shutdown(void *dummy)
 	apic_write(APIC_LVTPC, per_cpu(saved_lvtpc, cpu));
 	apic_write(APIC_LVTERR, v);
 	nmi_cpu_restore_registers(msrs);
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	per_cpu(switch_index, cpu) = 0;
-#endif
 }
 
 static void nmi_shutdown(void)
@@ -326,6 +329,7 @@ static void nmi_shutdown(void)
 	nmi_enabled = 0;
 	on_each_cpu(nmi_cpu_shutdown, NULL, 1);
 	unregister_die_notifier(&profile_exceptions_nb);
+	nmi_shutdown_mux();
 	msrs = &get_cpu_var(cpu_msrs);
 	model->shutdown(msrs);
 	free_msrs();
