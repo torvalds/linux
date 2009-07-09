@@ -168,12 +168,12 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 
 	if (data->flags & MMC_DATA_READ) {
 		host->dma_dir = DMA_FROM_DEVICE;
-		dcmd = DCMD_INCTRGADDR | DCMD_FLOWTRG;
+		dcmd = DCMD_INCTRGADDR | DCMD_FLOWSRC;
 		DRCMR(host->dma_drcmrtx) = 0;
 		DRCMR(host->dma_drcmrrx) = host->dma | DRCMR_MAPVLD;
 	} else {
 		host->dma_dir = DMA_TO_DEVICE;
-		dcmd = DCMD_INCSRCADDR | DCMD_FLOWSRC;
+		dcmd = DCMD_INCSRCADDR | DCMD_FLOWTRG;
 		DRCMR(host->dma_drcmrrx) = 0;
 		DRCMR(host->dma_drcmrtx) = host->dma | DRCMR_MAPVLD;
 	}
