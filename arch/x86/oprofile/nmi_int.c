@@ -130,11 +130,30 @@ static int nmi_setup_mux(void)
 	return 1;
 }
 
+static void nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs)
+{
+	int i;
+	struct op_msr *multiplex = msrs->multiplex;
+
+	for (i = 0; i < model->num_virt_counters; ++i) {
+		if (counter_config[i].enabled) {
+			multiplex[i].saved = -(u64)counter_config[i].count;
+		} else {
+			multiplex[i].addr  = 0;
+			multiplex[i].saved = 0;
+		}
+	}
+
+	per_cpu(switch_index, cpu) = 0;
+}
+
 #else
 
 inline int op_x86_phys_to_virt(int phys) { return phys; }
 static inline void nmi_shutdown_mux(void) { }
 static inline int nmi_setup_mux(void) { return 1; }
+static inline void
+nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs) { }
 
 #endif
 
@@ -168,32 +187,6 @@ static int allocate_msrs(void)
 
 	return 1;
 }
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-
-static void nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs)
-{
-	int i;
-	struct op_msr *multiplex = msrs->multiplex;
-
-	for (i = 0; i < model->num_virt_counters; ++i) {
-		if (counter_config[i].enabled) {
-			multiplex[i].saved = -(u64)counter_config[i].count;
-		} else {
-			multiplex[i].addr  = 0;
-			multiplex[i].saved = 0;
-		}
-	}
-
-	per_cpu(switch_index, cpu) = 0;
-}
-
-#else
-
-static inline void
-nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs) { }
-
-#endif
 
 static void nmi_cpu_setup(void *dummy)
 {
