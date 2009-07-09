@@ -5,7 +5,11 @@ client generated ones by default (mount option "serverino" turned
 on by default if server supports it).  Add forceuid and forcegid
 mount options (so that when negotiating unix extensions specifying
 which uid mounted does not immediately force the server's reported
-uids to be overridden).  Add support for scope moutn parm.
+uids to be overridden).  Add support for scope mount parm. Improve
+hard link detection to use same inode for both.  Do not set
+read-only dos attribute on directories (for chmod) since Windows
+explorer special cases this attribute bit for directories for
+a different purpose.
 
 Version 1.58
 ------------
