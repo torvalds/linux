@@ -779,6 +779,9 @@ static int build_digital_output(struct hda_codec *codec)
 	struct cs_spec *spec = codec->spec;
 	int err;
 
+	if (!spec->multiout.dig_out_nid)
+		return 0;
+
 	err = snd_hda_create_spdif_out_ctls(codec, spec->multiout.dig_out_nid);
 	if (err < 0)
 		return err;
