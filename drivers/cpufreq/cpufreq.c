@@ -776,9 +776,6 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	struct sys_device *cpu_sys_dev;
 	unsigned long flags;
 	unsigned int j;
-#ifdef CONFIG_SMP
-	struct cpufreq_policy *managed_policy;
-#endif
 
 	if (cpu_is_offline(cpu))
 		return 0;
@@ -854,6 +851,8 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 #endif
 
 	for_each_cpu(j, policy->cpus) {
+		struct cpufreq_policy *managed_policy;
+
 		if (cpu == j)
 			continue;
 
@@ -932,6 +931,8 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 
 	/* symlink affected CPUs */
 	for_each_cpu(j, policy->cpus) {
+		struct cpufreq_policy *managed_policy;
+
 		if (j == cpu)
 			continue;
 		if (!cpu_online(j))
