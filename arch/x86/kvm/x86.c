@@ -223,13 +223,6 @@ void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code)
 }
 EXPORT_SYMBOL_GPL(kvm_queue_exception_e);
 
-static void __queue_exception(struct kvm_vcpu *vcpu)
-{
-	kvm_x86_ops->queue_exception(vcpu, vcpu->arch.exception.nr,
-				     vcpu->arch.exception.has_error_code,
-				     vcpu->arch.exception.error_code);
-}
-
 /*
  * Load the pae pdptrs.  Return true is they are all valid.
  */
@@ -3491,9 +3484,16 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->update_cr8_intercept(vcpu, tpr, max_irr);
 }
 
-static void inject_pending_irq(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static void inject_pending_event(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	/* try to reinject previous events if any */
+	if (vcpu->arch.exception.pending) {
+		kvm_x86_ops->queue_exception(vcpu, vcpu->arch.exception.nr,
+					  vcpu->arch.exception.has_error_code,
+					  vcpu->arch.exception.error_code);
+		return;
+	}
+
 	if (vcpu->arch.nmi_injected) {
 		kvm_x86_ops->set_nmi(vcpu);
 		return;
@@ -3574,10 +3574,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		goto out;
 	}
 
-	if (vcpu->arch.exception.pending)
-		__queue_exception(vcpu);
-	else
-		inject_pending_irq(vcpu, kvm_run);
+	inject_pending_event(vcpu, kvm_run);
 
 	/* enable NMI/IRQ window open exits if needed */
 	if (vcpu->arch.nmi_pending)
