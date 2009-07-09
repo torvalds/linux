@@ -82,6 +82,7 @@ struct iwl_debugfs {
 		struct dentry *file_channels;
 		struct dentry *file_status;
 		struct dentry *file_interrupt;
+		struct dentry *file_qos;
 	} dbgfs_data_files;
 	struct dir_rf_files {
 		struct dentry *file_disable_sensitivity;

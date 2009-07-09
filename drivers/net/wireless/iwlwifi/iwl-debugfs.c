@@ -566,6 +566,28 @@ static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_qos_read(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0, i;
+	char buf[256];
+	const size_t bufsz = sizeof(buf);
+	ssize_t ret;
+
+	for (i = 0; i < AC_NUM; i++) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+			"\tcw_min\tcw_max\taifsn\ttxop\n");
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"AC[%d]\t%u\t%u\t%u\t%u\n", i,
+				priv->qos_data.def_qos_parm.ac[i].cw_min,
+				priv->qos_data.def_qos_parm.ac[i].cw_max,
+				priv->qos_data.def_qos_parm.ac[i].aifsn,
+				priv->qos_data.def_qos_parm.ac[i].edca_txop);
+	}
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	return ret;
+}
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
@@ -576,6 +598,7 @@ DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_FILE_OPS(channels);
 DEBUGFS_READ_FILE_OPS(status);
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
+DEBUGFS_READ_FILE_OPS(qos);
 
 /*
  * Create the debugfs files and directories
@@ -612,6 +635,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(channels, data);
 	DEBUGFS_ADD_FILE(status, data);
 	DEBUGFS_ADD_FILE(interrupt, data);
+	DEBUGFS_ADD_FILE(qos, data);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
@@ -646,6 +670,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_channels);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_status);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_interrupt);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_qos);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);
