@@ -1653,15 +1653,18 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 	struct iscsi_endpoint *ep;
 	int rc = 0;
 
-	if (shost)
+	if (shost) {
 		/* driver is given scsi host to work with */
 		hba = iscsi_host_priv(shost);
-	else
+		/* Register the device with cnic if not already done so */
+		bnx2i_register_device(hba);
+	} else
 		/*
 		 * check if the given destination can be reached through
 		 * a iscsi capable NetXtreme2 device
 		 */
 		hba = bnx2i_check_route(dst_addr);
+
 	if (!hba) {
 		rc = -ENOMEM;
 		goto check_busy;

@@ -185,14 +185,17 @@ void bnx2i_stop(void *handle)
  */
 void bnx2i_register_device(struct bnx2i_hba *hba)
 {
+	int rc;
+
 	if (test_bit(ADAPTER_STATE_GOING_DOWN, &hba->adapter_state) ||
 	    test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
 		return;
 	}
 
-	hba->cnic->register_device(hba->cnic, CNIC_ULP_ISCSI, hba);
+	rc = hba->cnic->register_device(hba->cnic, CNIC_ULP_ISCSI, hba);
 
-	set_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
+	if (!rc)
+		set_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
 }
 
 
