@@ -97,6 +97,29 @@ static void nmi_cpu_save_registers(struct op_msrs *msrs)
 	}
 }
 
+static void nmi_cpu_start(void *dummy)
+{
+	struct op_msrs const *msrs = &__get_cpu_var(cpu_msrs);
+	model->start(msrs);
+}
+
+static int nmi_start(void)
+{
+	on_each_cpu(nmi_cpu_start, NULL, 1);
+	return 0;
+}
+
+static void nmi_cpu_stop(void *dummy)
+{
+	struct op_msrs const *msrs = &__get_cpu_var(cpu_msrs);
+	model->stop(msrs);
+}
+
+static void nmi_stop(void)
+{
+	on_each_cpu(nmi_cpu_stop, NULL, 1);
+}
+
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 
 static DEFINE_PER_CPU(int, switch_index);
@@ -169,6 +192,53 @@ static void nmi_cpu_restore_mpx_registers(struct op_msrs *msrs)
 		if (multiplex[virt].addr)
 			wrmsrl(multiplex[virt].addr, multiplex[virt].saved);
 	}
+}
+
+static void nmi_cpu_switch(void *dummy)
+{
+	int cpu = smp_processor_id();
+	int si = per_cpu(switch_index, cpu);
+	struct op_msrs *msrs = &per_cpu(cpu_msrs, cpu);
+
+	nmi_cpu_stop(NULL);
+	nmi_cpu_save_mpx_registers(msrs);
+
+	/* move to next set */
+	si += model->num_counters;
+	if ((si > model->num_virt_counters) || (counter_config[si].count == 0))
+		per_cpu(switch_index, cpu) = 0;
+	else
+		per_cpu(switch_index, cpu) = si;
+
+	model->switch_ctrl(model, msrs);
+	nmi_cpu_restore_mpx_registers(msrs);
+
+	nmi_cpu_start(NULL);
+}
+
+
+/*
+ * Quick check to see if multiplexing is necessary.
+ * The check should be sufficient since counters are used
+ * in ordre.
+ */
+static int nmi_multiplex_on(void)
+{
+	return counter_config[model->num_counters].count ? 0 : -EINVAL;
+}
+
+static int nmi_switch_event(void)
+{
+	if (!model->switch_ctrl)
+		return -ENOSYS;		/* not implemented */
+	if (nmi_multiplex_on() < 0)
+		return -EINVAL;		/* not necessary */
+
+	on_each_cpu(nmi_cpu_switch, NULL, 1);
+
+	atomic_inc(&multiplex_counter);
+
+	return 0;
 }
 
 #else
@@ -325,29 +395,6 @@ static void nmi_shutdown(void)
 	put_cpu_var(cpu_msrs);
 }
 
-static void nmi_cpu_start(void *dummy)
-{
-	struct op_msrs const *msrs = &__get_cpu_var(cpu_msrs);
-	model->start(msrs);
-}
-
-static int nmi_start(void)
-{
-	on_each_cpu(nmi_cpu_start, NULL, 1);
-	return 0;
-}
-
-static void nmi_cpu_stop(void *dummy)
-{
-	struct op_msrs const *msrs = &__get_cpu_var(cpu_msrs);
-	model->stop(msrs);
-}
-
-static void nmi_stop(void)
-{
-	on_each_cpu(nmi_cpu_stop, NULL, 1);
-}
-
 static int nmi_create_files(struct super_block *sb, struct dentry *root)
 {
 	unsigned int i;
@@ -378,57 +425,6 @@ static int nmi_create_files(struct super_block *sb, struct dentry *root)
 
 	return 0;
 }
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-
-static void nmi_cpu_switch(void *dummy)
-{
-	int cpu = smp_processor_id();
-	int si = per_cpu(switch_index, cpu);
-	struct op_msrs *msrs = &per_cpu(cpu_msrs, cpu);
-
-	nmi_cpu_stop(NULL);
-	nmi_cpu_save_mpx_registers(msrs);
-
-	/* move to next set */
-	si += model->num_counters;
-	if ((si > model->num_virt_counters) || (counter_config[si].count == 0))
-		per_cpu(switch_index, cpu) = 0;
-	else
-		per_cpu(switch_index, cpu) = si;
-
-	model->switch_ctrl(model, msrs);
-	nmi_cpu_restore_mpx_registers(msrs);
-
-	nmi_cpu_start(NULL);
-}
-
-
-/*
- * Quick check to see if multiplexing is necessary.
- * The check should be sufficient since counters are used
- * in ordre.
- */
-static int nmi_multiplex_on(void)
-{
-	return counter_config[model->num_counters].count ? 0 : -EINVAL;
-}
-
-static int nmi_switch_event(void)
-{
-	if (!model->switch_ctrl)
-		return -ENOSYS;		/* not implemented */
-	if (nmi_multiplex_on() < 0)
-		return -EINVAL;		/* not necessary */
-
-	on_each_cpu(nmi_cpu_switch, NULL, 1);
-
-	atomic_inc(&multiplex_counter);
-
-	return 0;
-}
-
-#endif
 
 #ifdef CONFIG_SMP
 static int oprofile_cpu_notifier(struct notifier_block *b, unsigned long action,
