@@ -134,14 +134,6 @@ SECTIONS
 	__bss_stop = .;
 	_end = .;
 
-	/* Sections to be discarded */
-	/DISCARD/ : {
-		EXIT_TEXT
-		EXIT_DATA
-		*(.exitcall.exit)
-		*(.discard)
-	}
-
 	.mdebug 0 : {
 		*(.mdebug)
 	}
@@ -151,4 +143,6 @@ SECTIONS
 
 	STABS_DEBUG
 	DWARF_DEBUG
+
+	DISCARDS
 }

@@ -178,7 +178,7 @@ SECTIONS
 
   .comment 0 : { *(.comment) }
 
-  /DISCARD/ : { *(.discard) }
+  DISCARDS
 }
 
 __kernel_image_size_no_bss = __bss_start - __kernel_image_start;

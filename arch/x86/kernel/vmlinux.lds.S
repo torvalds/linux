@@ -387,15 +387,12 @@ SECTIONS
 		_end = .;
 	}
 
-	/* Sections to be discarded */
-	/DISCARD/ : {
-		*(.exitcall.exit)
-		*(.eh_frame)
-		*(.discard)
-	}
-
         STABS_DEBUG
         DWARF_DEBUG
+
+	/* Sections to be discarded */
+	DISCARDS
+	/DISCARD/ : { *(.eh_frame) }
 }
 
 

@@ -280,16 +280,6 @@ SECTIONS
     *(.ResetVector.text)
   }
 
-  /* Sections to be discarded */
-  /DISCARD/ :
-  {
-	*(.exit.literal)
-	EXIT_TEXT
-	EXIT_DATA
-        *(.exitcall.exit)
-	*(.discard)
-  }
-
   .xt.lit : { *(.xt.lit) }
   .xt.prop : { *(.xt.prop) }
 
@@ -322,4 +312,8 @@ SECTIONS
     *(.xt.lit)
     *(.gnu.linkonce.p*)
   }
+
+  /* Sections to be discarded */
+  DISCARDS
+  /DISCARD/ : { *(.exit.literal) }
 }

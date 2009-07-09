@@ -171,13 +171,8 @@ SECTIONS
 	}
 	_end = . ;
 
-	/DISCARD/ : {
-		EXIT_TEXT
-		EXIT_DATA
-		*(.exitcall.exit)
-		*(.discard)
-	}
-
 	STABS_DEBUG
 	DWARF_DEBUG
+
+	DISCARDS
 }

@@ -152,10 +152,6 @@ SECTIONS
 	__end = . ;
 	__ramstart = .;
 	}
-	/DISCARD/ : {
-		*(.exitcall.exit)
-		*(.discard)
-	}
         .romfs :	
 	{
 		*(.romfs*)
@@ -166,4 +162,6 @@ SECTIONS
 	COMMAND_START = . - 0x200 ;
 	__ramend = . ;
 	}
+
+	DISCARDS
 }

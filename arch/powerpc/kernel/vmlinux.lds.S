@@ -37,13 +37,6 @@ jiffies = jiffies_64 + 4;
 #endif
 SECTIONS
 {
-	/* Sections to be discarded. */
-	/DISCARD/ : {
-	*(.exitcall.exit)
-	*(.discard)
-	EXIT_DATA
-	}
-
 	. = KERNELBASE;
 
 /*
@@ -299,4 +292,7 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	_end = . ;
 	PROVIDE32 (end = .);
+
+	/* Sections to be discarded. */
+	DISCARDS
 }

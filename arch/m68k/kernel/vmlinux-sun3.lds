@@ -77,14 +77,6 @@ __init_begin = .;
 
   _end = . ;
 
-  /* Sections to be discarded */
-  /DISCARD/ : {
-	EXIT_TEXT
-	EXIT_DATA
-	*(.exitcall.exit)
-	*(.discard)
-	}
-
   .crap : {
 	/* Stabs debugging sections.  */
 	*(.stab)
@@ -97,4 +89,6 @@ __init_begin = .;
 	*(.note)
   }
 
+  /* Sections to be discarded */
+  DISCARDS
 }

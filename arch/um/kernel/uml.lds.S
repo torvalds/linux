@@ -101,5 +101,5 @@ SECTIONS
 
   DWARF_DEBUG
 
-  /DISCARD/	: { *(.discard) }
+  DISCARDS
 }

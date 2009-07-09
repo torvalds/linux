@@ -24,15 +24,14 @@ PHDRS {
 }
 SECTIONS
 {
-  /* Sections to be discarded */
+  /* unwind exit sections must be discarded before the rest of the
+     sections get included. */
   /DISCARD/ : {
-	EXIT_TEXT
-	EXIT_DATA
-	*(.exitcall.exit)
-	*(.discard)
 	*(.IA_64.unwind.exit.text)
 	*(.IA_64.unwind_info.exit.text)
-	}
+	*(.comment)
+	*(.note)
+  }
 
   v = PAGE_OFFSET;	/* this symbol is here to make debugging easier... */
   phys_start = _start - LOAD_OFFSET;
@@ -317,7 +316,7 @@ SECTIONS
   .debug_funcnames 0 : { *(.debug_funcnames) }
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames  0 : { *(.debug_varnames) }
-  /* These must appear regardless of  .  */
-  /DISCARD/ : { *(.comment) }
-  /DISCARD/ : { *(.note) }
+
+  /* Default discards */
+  DISCARDS
 }

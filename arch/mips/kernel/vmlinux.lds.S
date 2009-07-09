@@ -176,18 +176,6 @@ SECTIONS
 
 	_end = . ;
 
-	/* Sections to be discarded */
-	/DISCARD/ : {
-		*(.exitcall.exit)
-		*(.discard)
-
-		/* ABI crap starts here */
-		*(.MIPS.options)
-		*(.options)
-		*(.pdr)
-		*(.reginfo)
-	}
-
 	/* These mark the ABI of the kernel for debuggers.  */
 	.mdebug.abi32 : {
 		KEEP(*(.mdebug.abi32))
@@ -212,5 +200,15 @@ SECTIONS
 	.gptab.sbss : {
 		*(.gptab.bss)
 		*(.gptab.sbss)
+	}
+
+	/* Sections to be discarded */
+	DISCARDS
+	/DISCARD/ : {
+		/* ABI crap starts here */
+		*(.MIPS.options)
+		*(.options)
+		*(.pdr)
+		*(.reginfo)
 	}
 }
