@@ -748,7 +748,6 @@ static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 		memcpy(this_urb->transfer_buffer, buf, todo);
 		this_urb->transfer_buffer_length = todo;
 
-		this_urb->dev = port->serial->dev;
 		err = usb_submit_urb(this_urb, GFP_ATOMIC);
 		if (err) {
 			dbg("usb_submit_urb %p (write bulk) failed "
@@ -876,7 +875,6 @@ static void option_instat_callback(struct urb *urb)
 
 	/* Resubmit urb so we continue receiving IRQ data */
 	if (status != -ESHUTDOWN && status != -ENOENT) {
-		urb->dev = serial->dev;
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err)
 			dbg("%s: resubmit intr urb failed. (%d)",
@@ -937,39 +935,17 @@ static int option_open(struct tty_struct *tty,
 
 	dbg("%s", __func__);
 
-	/* Reset low level data toggle and start reading from endpoints */
+	/* Start reading from the IN endpoint */
 	for (i = 0; i < N_IN_URB; i++) {
 		urb = portdata->in_urbs[i];
 		if (!urb)
 			continue;
-		if (urb->dev != serial->dev) {
-			dbg("%s: dev %p != %p", __func__,
-				urb->dev, serial->dev);
-			continue;
-		}
-
-		/*
-		 * make sure endpoint data toggle is synchronized with the
-		 * device
-		 */
-		usb_clear_halt(urb->dev, urb->pipe);
-
 		err = usb_submit_urb(urb, GFP_KERNEL);
 		if (err) {
 			dbg("%s: submit urb %d failed (%d) %d",
 				__func__, i, err,
 				urb->transfer_buffer_length);
 		}
-	}
-
-	/* Reset low level data toggle on out endpoints */
-	for (i = 0; i < N_OUT_URB; i++) {
-		urb = portdata->out_urbs[i];
-		if (!urb)
-			continue;
-		urb->dev = serial->dev;
-		/* usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
-				usb_pipeout(urb->pipe), 0); */
 	}
 
 	option_send_setup(port);
@@ -1234,7 +1210,6 @@ static int option_resume(struct usb_serial *serial)
 			dbg("%s: No interrupt URB for port %d\n", __func__, i);
 			continue;
 		}
-		port->interrupt_in_urb->dev = serial->dev;
 		err = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);
 		dbg("Submitted interrupt URB for port %d (result %d)", i, err);
 		if (err < 0) {
