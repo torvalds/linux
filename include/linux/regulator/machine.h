@@ -171,6 +171,12 @@ struct regulator_init_data {
 
 int regulator_suspend_prepare(suspend_state_t state);
 
+#ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
+#else
+static inline void regulator_has_full_constraints(void)
+{
+}
+#endif
 
 #endif
