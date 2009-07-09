@@ -944,6 +944,8 @@
 #define MARVELL_VID		0x9e88
 #define MARVELL_SHEEVAPLUG_PID	0x9e8f
 
+#define FTDI_TURTELIZER_PID	0xBDC8 /* JTAG/RS-232 adapter by egnite GmBH */
+
 /*
  *   BmRequestType:  1100 0000b
  *   bRequest:       FTDI_E2_READ
