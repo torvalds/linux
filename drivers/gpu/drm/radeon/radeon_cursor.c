@@ -113,7 +113,7 @@ static void radeon_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
 		WREG32(AVIVO_D1CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset, gpu_addr);
 	else
 		/* offset is from DISP(2)_BASE_ADDRESS */
-		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, gpu_addr);
+		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, (gpu_addr-radeon_crtc->legacy_display_base_addr));
 }
 
 int radeon_crtc_cursor_set(struct drm_crtc *crtc,

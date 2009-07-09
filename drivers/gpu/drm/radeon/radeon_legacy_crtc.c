@@ -244,7 +244,12 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	if (radeon_gem_object_pin(obj, RADEON_GEM_DOMAIN_VRAM, &base)) {
 		return -EINVAL;
 	}
-	crtc_offset = (u32)base;
+	/* if scanout was in GTT this really wouldn't work */
+	/* crtc offset is from display base addr not FB location */
+	radeon_crtc->legacy_display_base_addr = rdev->mc.vram_location;
+
+	base -= radeon_crtc->legacy_display_base_addr;
+
 	crtc_offset_cntl = 0;
 
 	pitch_pixels = crtc->fb->pitch / (crtc->fb->bits_per_pixel / 8);
@@ -303,11 +308,9 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	base &= ~7;
 
-	/* update sarea TODO */
-
 	crtc_offset = (u32)base;
 
-	WREG32(RADEON_DISPLAY_BASE_ADDR + radeon_crtc->crtc_offset, rdev->mc.vram_location);
+	WREG32(RADEON_DISPLAY_BASE_ADDR + radeon_crtc->crtc_offset, radeon_crtc->legacy_display_base_addr);
 
 	if (ASIC_IS_R300(rdev)) {
 		if (radeon_crtc->crtc_id)
