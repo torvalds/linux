@@ -110,6 +110,11 @@ static inline struct shash_instance *shash_instance(
 			    struct shash_instance, alg);
 }
 
+static inline void *shash_instance_ctx(struct shash_instance *inst)
+{
+	return crypto_instance_ctx(shash_crypto_instance(inst));
+}
+
 static inline struct shash_instance *shash_alloc_instance(
 	const char *name, struct crypto_alg *alg)
 {
