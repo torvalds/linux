@@ -107,8 +107,11 @@ static void stop_switch_worker(void)
 
 static void switch_worker(struct work_struct *work)
 {
-	if (!oprofile_ops.switch_events())
-		start_switch_worker();
+	if (oprofile_ops.switch_events())
+		return;
+
+	atomic_inc(&oprofile_stats.multiplex_counter);
+	start_switch_worker();
 }
 
 /* User inputs in ms, converts to jiffies */

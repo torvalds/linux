@@ -34,11 +34,6 @@ static DEFINE_PER_CPU(unsigned long, saved_lvtpc);
 /* 0 == registered but off, 1 == registered and on */
 static int nmi_enabled = 0;
 
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-extern atomic_t multiplex_counter;
-#endif
-
 struct op_counter_config counter_config[OP_MAX_COUNTER];
 
 /* common functions */
@@ -252,8 +247,6 @@ static int nmi_switch_event(void)
 		return -EINVAL;		/* not necessary */
 
 	on_each_cpu(nmi_cpu_switch, NULL, 1);
-
-	atomic_inc(&multiplex_counter);
 
 	return 0;
 }

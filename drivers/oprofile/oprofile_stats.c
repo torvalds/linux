@@ -16,9 +16,6 @@
 #include "cpu_buffer.h"
 
 struct oprofile_stat_struct oprofile_stats;
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-atomic_t multiplex_counter;
-#endif
 
 void oprofile_reset_stats(void)
 {
@@ -37,9 +34,7 @@ void oprofile_reset_stats(void)
 	atomic_set(&oprofile_stats.sample_lost_no_mapping, 0);
 	atomic_set(&oprofile_stats.event_lost_overflow, 0);
 	atomic_set(&oprofile_stats.bt_lost_no_mapping, 0);
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	atomic_set(&multiplex_counter, 0);
-#endif
+	atomic_set(&oprofile_stats.multiplex_counter, 0);
 }
 
 
@@ -84,6 +79,6 @@ void oprofile_create_stats_files(struct super_block *sb, struct dentry *root)
 		&oprofile_stats.bt_lost_no_mapping);
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 	oprofilefs_create_ro_atomic(sb, dir, "multiplex_counter",
-		&multiplex_counter);
+		&oprofile_stats.multiplex_counter);
 #endif
 }
