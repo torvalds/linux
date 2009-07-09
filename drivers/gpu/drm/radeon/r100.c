@@ -215,7 +215,6 @@ int r100_mc_init(struct radeon_device *rdev)
 	r100_pci_gart_disable(rdev);
 
 	/* Setup GPU memory space */
-	rdev->mc.vram_location = 0xFFFFFFFFUL;
 	rdev->mc.gtt_location = 0xFFFFFFFFUL;
 	if (rdev->flags & RADEON_IS_AGP) {
 		r = radeon_agp_init(rdev);
@@ -1265,6 +1264,8 @@ void r100_vram_info(struct radeon_device *rdev)
 		/* read NB_TOM to get the amount of ram stolen for the GPU */
 		tom = RREG32(RADEON_NB_TOM);
 		rdev->mc.vram_size = (((tom >> 16) - (tom & 0xffff) + 1) << 16);
+		/* for IGPs we need to keep VRAM where it was put by the BIOS */
+		rdev->mc.vram_location = (tom & 0xffff) << 16;
 		WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
 	} else {
 		rdev->mc.vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
@@ -1275,6 +1276,8 @@ void r100_vram_info(struct radeon_device *rdev)
 			rdev->mc.vram_size = 8192 * 1024;
 			WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
 		}
+		/* let driver place VRAM */
+		rdev->mc.vram_location = 0xFFFFFFFFUL;
 	}
 
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);

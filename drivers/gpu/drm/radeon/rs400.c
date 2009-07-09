@@ -235,7 +235,6 @@ int rs400_mc_init(struct radeon_device *rdev)
 	rdev->mc.gtt_location = rdev->mc.vram_size;
 	rdev->mc.gtt_location += (rdev->mc.gtt_size - 1);
 	rdev->mc.gtt_location &= ~(rdev->mc.gtt_size - 1);
-	rdev->mc.vram_location = 0xFFFFFFFFUL;
 	r = radeon_mc_setup(rdev);
 	if (r) {
 		return r;
@@ -305,7 +304,10 @@ void rs400_vram_info(struct radeon_device *rdev)
 	rdev->mc.vram_size = (((tom >> 16) - (tom & 0xffff) + 1) << 16);
 	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
 
-	/* Could aper size report 0 ? */
+	/* RS480 IGPs don't seem to translate to main RAM, they
+	 * just reserve and scan out of it. So setting VRAM location
+	 * to say 0, will actually trash the OS. */
+	rdev->mc.vram_location = (tom & 0xffff) << 16;
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
 }
