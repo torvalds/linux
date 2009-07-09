@@ -159,7 +159,7 @@ static struct em28xx_reg_seq evga_indtube_digital[] = {
 
 /* Pinnacle Hybrid Pro eb1a:2881 */
 static struct em28xx_reg_seq pinnacle_hybrid_pro_analog[] = {
-	{EM28XX_R08_GPIO,	0x6f,   ~EM_GPIO_4,	10},
+	{EM28XX_R08_GPIO,	0xfd,   ~EM_GPIO_4,	10},
 	{	-1,		-1,	-1,		-1},
 };
 
