@@ -23,8 +23,8 @@ SECTIONS {
 		_stext = . ;
 		*(.text .text.*)
 		*(.fixup)
-
-		*(.exitcall.exit)
+               EXIT_TEXT
+               EXIT_CALL
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
