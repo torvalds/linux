@@ -723,6 +723,7 @@ struct rq_map_data {
 	int nr_entries;
 	unsigned long offset;
 	int null_mapped;
+	int from_user;
 };
 
 struct req_iterator {
