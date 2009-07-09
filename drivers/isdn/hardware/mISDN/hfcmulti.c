@@ -3416,22 +3416,8 @@ deactivate_bchannel(struct bchannel *bch)
 	u_long			flags;
 
 	spin_lock_irqsave(&hc->lock, flags);
-	if (test_and_clear_bit(FLG_TX_NEXT, &bch->Flags)) {
-		dev_kfree_skb(bch->next_skb);
-		bch->next_skb = NULL;
-	}
-	if (bch->tx_skb) {
-		dev_kfree_skb(bch->tx_skb);
-		bch->tx_skb = NULL;
-	}
-	bch->tx_idx = 0;
-	if (bch->rx_skb) {
-		dev_kfree_skb(bch->rx_skb);
-		bch->rx_skb = NULL;
-	}
+	mISDN_clear_bchannel(bch);
 	hc->chan[bch->slot].coeff_count = 0;
-	test_and_clear_bit(FLG_ACTIVE, &bch->Flags);
-	test_and_clear_bit(FLG_TX_BUSY, &bch->Flags);
 	hc->chan[bch->slot].rx_off = 0;
 	hc->chan[bch->slot].conf = -1;
 	mode_hfcmulti(hc, bch->slot, ISDN_P_NONE, -1, 0, -1, 0);
