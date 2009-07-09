@@ -1808,8 +1808,8 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	pgprintk("%s: setting spte %llx\n", __func__, *sptep);
 	pgprintk("instantiating %s PTE (%s) at %ld (%llx) addr %p\n",
 		 is_large_pte(*sptep)? "2MB" : "4kB",
-		 is_present_pte(*sptep)?"RW":"R", gfn,
-		 *shadow_pte, sptep);
+		 *sptep & PT_PRESENT_MASK ?"RW":"R", gfn,
+		 *sptep, sptep);
 	if (!was_rmapped && is_large_pte(*sptep))
 		++vcpu->kvm->stat.lpages;
 
