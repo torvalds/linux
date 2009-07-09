@@ -1935,19 +1935,6 @@ int kvm_highest_pending_irq(struct kvm_vcpu *vcpu)
     return find_highest_bits((int *)&vpd->irr[0]);
 }
 
-int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
-{
-	if (kvm_highest_pending_irq(vcpu) != -1)
-		return 1;
-	return 0;
-}
-
-int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
-{
-	/* do real check here */
-	return 1;
-}
-
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.timer_fired;
@@ -1960,7 +1947,8 @@ gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE;
+	return (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE) ||
+		(kvm_highest_pending_irq(vcpu) != -1);
 }
 
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
