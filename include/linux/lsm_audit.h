@@ -68,6 +68,7 @@ struct common_audit_data {
 	} u;
 	/* this union contains LSM specific data */
 	union {
+#ifdef CONFIG_SECURITY_SMACK
 		/* SMACK data */
 		struct smack_audit_data {
 			const char *function;
@@ -76,6 +77,8 @@ struct common_audit_data {
 			char *request;
 			int result;
 		} smack_audit_data;
+#endif
+#ifdef CONFIG_SECURITY_SELINUX
 		/* SELinux data */
 		struct {
 			u32 ssid;
@@ -86,6 +89,7 @@ struct common_audit_data {
 			struct av_decision *avd;
 			int result;
 		} selinux_audit_data;
+#endif
 	};
 	/* these callback will be implemented by a specific LSM */
 	void (*lsm_pre_audit)(struct audit_buffer *, void *);
