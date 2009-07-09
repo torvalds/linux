@@ -87,13 +87,6 @@ static void nmi_cpu_save_registers(struct op_msrs *msrs)
 	}
 }
 
-static void nmi_save_registers(void *dummy)
-{
-	int cpu = smp_processor_id();
-	struct op_msrs *msrs = &per_cpu(cpu_msrs, cpu);
-	nmi_cpu_save_registers(msrs);
-}
-
 static void free_msrs(void)
 {
 	int i;
@@ -137,6 +130,7 @@ static void nmi_cpu_setup(void *dummy)
 {
 	int cpu = smp_processor_id();
 	struct op_msrs *msrs = &per_cpu(cpu_msrs, cpu);
+	nmi_cpu_save_registers(msrs);
 	spin_lock(&oprofilefs_lock);
 	model->setup_ctrs(model, msrs);
 	spin_unlock(&oprofilefs_lock);
@@ -182,13 +176,12 @@ static int nmi_setup(void)
 		}
 
 	}
-	on_each_cpu(nmi_save_registers, NULL, 1);
 	on_each_cpu(nmi_cpu_setup, NULL, 1);
 	nmi_enabled = 1;
 	return 0;
 }
 
-static void nmi_restore_registers(struct op_msrs *msrs)
+static void nmi_cpu_restore_registers(struct op_msrs *msrs)
 {
 	struct op_msr *counters = msrs->counters;
 	struct op_msr *controls = msrs->controls;
@@ -220,7 +213,7 @@ static void nmi_cpu_shutdown(void *dummy)
 	apic_write(APIC_LVTERR, v | APIC_LVT_MASKED);
 	apic_write(APIC_LVTPC, per_cpu(saved_lvtpc, cpu));
 	apic_write(APIC_LVTERR, v);
-	nmi_restore_registers(msrs);
+	nmi_cpu_restore_registers(msrs);
 }
 
 static void nmi_shutdown(void)
