@@ -577,6 +577,7 @@ struct snd_soc_dai wm8510_dai = {
 		.rates = WM8510_RATES,
 		.formats = WM8510_FORMATS,},
 	.ops = &wm8510_dai_ops,
+	.symmetric_rates = 1,
 };
 EXPORT_SYMBOL_GPL(wm8510_dai);
 
