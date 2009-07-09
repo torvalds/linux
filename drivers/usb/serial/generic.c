@@ -432,7 +432,7 @@ static void flush_and_resubmit_read_urb(struct usb_serial_port *port)
 	else {
 		/* Push data to tty */
 		for (i = 0; i < urb->actual_length; i++, ch++) {
-			if (!usb_serial_handle_sysrq_char(port, *ch))
+			if (!usb_serial_handle_sysrq_char(tty, port, *ch))
 				tty_insert_flip_char(tty, *ch, TTY_NORMAL);
 		}
 	}
@@ -534,11 +534,12 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 	}
 }
 
-int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
+int usb_serial_handle_sysrq_char(struct tty_struct *tty,
+			struct usb_serial_port *port, unsigned int ch)
 {
 	if (port->sysrq && port->console) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, tty_port_tty_get(&port->port));
+			handle_sysrq(ch, tty);
 			port->sysrq = 0;
 			return 1;
 		}
