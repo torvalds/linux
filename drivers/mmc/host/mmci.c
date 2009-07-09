@@ -515,12 +515,12 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
-	/* Bits 12 thru 19 is the designer */
-	host->hw_designer = (dev->periphid >> 12) & 0xff;
-	/* Bits 20 thru 23 is the revison */
-	host->hw_revision = (dev->periphid >> 20) & 0xf;
+
+	host->hw_designer = amba_manf(dev);
+	host->hw_revision = amba_rev(dev);
 	DBG(host, "designer ID = 0x%02x\n", host->hw_designer);
 	DBG(host, "revision = 0x%01x\n", host->hw_revision);
+
 	host->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
