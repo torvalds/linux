@@ -35,20 +35,6 @@ config LOGO_BLACKFIN_VGA16
 config LOGO_BLACKFIN_CLUT224
 	bool "224-colour Blackfin Processor Linux logo"
 	depends on BLACKFIN
-
-config LOGO_ZEN_CLUT224
-	bool "224-color Zen-Sources logo"
-	depends on LOGO
-	default y
-
-config LOGO_ARCH_CLUT224
-	bool "224-color Arch Linux logo"
-	depends on LOGO
-	default y
-
-config LOGO_GENTOO_CLUT224
-	bool "224-color Gentoo Linux logo"
-	depends on LOGO
 	default y
 
 config LOGO_DEC_CLUT224
