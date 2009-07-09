@@ -154,7 +154,10 @@ int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	addr = (lower_32_bits(addr) >> 8) |
 	       ((upper_32_bits(addr) & 0xff) << 24) |
 	       0xc;
-	writel(cpu_to_le32(addr), ((void __iomem *)ptr) + (i * 4));
+	/* on x86 we want this to be CPU endian, on powerpc
+	 * on powerpc without HW swappers, it'll get swapped on way
+	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
+	writel(addr, ((void __iomem *)ptr) + (i * 4));
 	return 0;
 }
 
