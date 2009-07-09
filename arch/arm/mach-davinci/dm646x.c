@@ -600,6 +600,32 @@ static struct platform_device dm646x_edma_device = {
 	.resource		= edma_resources,
 };
 
+static struct resource ide_resources[] = {
+	{
+		.start          = DM646X_ATA_REG_BASE,
+		.end            = DM646X_ATA_REG_BASE + 0x7ff,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = IRQ_DM646X_IDE,
+		.end            = IRQ_DM646X_IDE,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static u64 ide_dma_mask = DMA_BIT_MASK(32);
+
+static struct platform_device ide_dev = {
+	.name           = "palm_bk3710",
+	.id             = -1,
+	.resource       = ide_resources,
+	.num_resources  = ARRAY_SIZE(ide_resources),
+	.dev = {
+		.dma_mask		= &ide_dma_mask,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+	},
+};
+
 static struct resource dm646x_mcasp0_resources[] = {
 	{
 		.name	= "mcasp0",
@@ -768,6 +794,12 @@ static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.sram_dma		= 0x10010000,
 	.sram_len		= SZ_32K,
 };
+
+void __init dm646x_init_ide()
+{
+	davinci_cfg_reg(DM646X_ATAEN);
+	platform_device_register(&ide_dev);
+}
 
 void __init dm646x_init_mcasp0(struct snd_platform_data *pdata)
 {
