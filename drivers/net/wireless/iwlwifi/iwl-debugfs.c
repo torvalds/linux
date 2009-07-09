@@ -49,7 +49,8 @@
 
 #define DEBUGFS_ADD_FILE(name, parent) do {                             \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
-	debugfs_create_file(#name, 0644, dbgfs->dir_##parent, priv,     \
+	debugfs_create_file(#name, S_IWUSR | S_IRUSR,                   \
+				dbgfs->dir_##parent, priv,              \
 				&iwl_dbgfs_##name##_ops);               \
 	if (!(dbgfs->dbgfs_##parent##_files.file_##name))               \
 		goto err;                                               \
@@ -57,7 +58,8 @@
 
 #define DEBUGFS_ADD_BOOL(name, parent, ptr) do {                        \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
-	debugfs_create_bool(#name, 0644, dbgfs->dir_##parent, ptr);     \
+	debugfs_create_bool(#name, S_IWUSR | S_IRUSR,                   \
+			    dbgfs->dir_##parent, ptr);                  \
 	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name)		\
 			|| !dbgfs->dbgfs_##parent##_files.file_##name)	\
 		goto err;                                               \
@@ -65,7 +67,7 @@
 
 #define DEBUGFS_ADD_X32(name, parent, ptr) do {                        \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
-	debugfs_create_x32(#name, 0444, dbgfs->dir_##parent, ptr);     \
+	debugfs_create_x32(#name, S_IRUSR, dbgfs->dir_##parent, ptr);   \
 	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name)		\
 			|| !dbgfs->dbgfs_##parent##_files.file_##name)	\
 		goto err;                                               \
