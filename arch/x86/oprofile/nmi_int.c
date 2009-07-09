@@ -264,6 +264,16 @@ static inline void mux_init(struct oprofile_operations *ops)
 		ops->switch_events = nmi_switch_event;
 }
 
+static void mux_clone(int cpu)
+{
+	if (!has_mux())
+		return;
+
+	memcpy(per_cpu(cpu_msrs, cpu).multiplex,
+	       per_cpu(cpu_msrs, 0).multiplex,
+	       sizeof(struct op_msr) * model->num_virt_counters);
+}
+
 #else
 
 inline int op_x86_phys_to_virt(int phys) { return phys; }
@@ -272,6 +282,7 @@ static inline int nmi_setup_mux(void) { return 1; }
 static inline void
 nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs) { }
 static inline void mux_init(struct oprofile_operations *ops) { }
+static void mux_clone(int cpu) { }
 
 #endif
 
@@ -350,20 +361,18 @@ static int nmi_setup(void)
 	/* Assume saved/restored counters are the same on all CPUs */
 	model->fill_in_addresses(&per_cpu(cpu_msrs, 0));
 	for_each_possible_cpu(cpu) {
-		if (cpu != 0) {
-			memcpy(per_cpu(cpu_msrs, cpu).counters,
-				per_cpu(cpu_msrs, 0).counters,
-				sizeof(struct op_msr) * model->num_counters);
+		if (!cpu)
+			continue;
 
-			memcpy(per_cpu(cpu_msrs, cpu).controls,
-				per_cpu(cpu_msrs, 0).controls,
-				sizeof(struct op_msr) * model->num_controls);
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-			memcpy(per_cpu(cpu_msrs, cpu).multiplex,
-				per_cpu(cpu_msrs, 0).multiplex,
-				sizeof(struct op_msr) * model->num_virt_counters);
-#endif
-		}
+		memcpy(per_cpu(cpu_msrs, cpu).counters,
+		       per_cpu(cpu_msrs, 0).counters,
+		       sizeof(struct op_msr) * model->num_counters);
+
+		memcpy(per_cpu(cpu_msrs, cpu).controls,
+		       per_cpu(cpu_msrs, 0).controls,
+		       sizeof(struct op_msr) * model->num_controls);
+
+		mux_clone(cpu);
 	}
 	on_each_cpu(nmi_cpu_setup, NULL, 1);
 	nmi_enabled = 1;
