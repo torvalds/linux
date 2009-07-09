@@ -147,6 +147,30 @@ static void nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs)
 	per_cpu(switch_index, cpu) = 0;
 }
 
+static void nmi_cpu_save_mpx_registers(struct op_msrs *msrs)
+{
+	struct op_msr *multiplex = msrs->multiplex;
+	int i;
+
+	for (i = 0; i < model->num_counters; ++i) {
+		int virt = op_x86_phys_to_virt(i);
+		if (multiplex[virt].addr)
+			rdmsrl(multiplex[virt].addr, multiplex[virt].saved);
+	}
+}
+
+static void nmi_cpu_restore_mpx_registers(struct op_msrs *msrs)
+{
+	struct op_msr *multiplex = msrs->multiplex;
+	int i;
+
+	for (i = 0; i < model->num_counters; ++i) {
+		int virt = op_x86_phys_to_virt(i);
+		if (multiplex[virt].addr)
+			wrmsrl(multiplex[virt].addr, multiplex[virt].saved);
+	}
+}
+
 #else
 
 inline int op_x86_phys_to_virt(int phys) { return phys; }
@@ -251,34 +275,6 @@ static int nmi_setup(void)
 	nmi_enabled = 1;
 	return 0;
 }
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-
-static void nmi_cpu_save_mpx_registers(struct op_msrs *msrs)
-{
-	struct op_msr *multiplex = msrs->multiplex;
-	int i;
-
-	for (i = 0; i < model->num_counters; ++i) {
-		int virt = op_x86_phys_to_virt(i);
-		if (multiplex[virt].addr)
-			rdmsrl(multiplex[virt].addr, multiplex[virt].saved);
-	}
-}
-
-static void nmi_cpu_restore_mpx_registers(struct op_msrs *msrs)
-{
-	struct op_msr *multiplex = msrs->multiplex;
-	int i;
-
-	for (i = 0; i < model->num_counters; ++i) {
-		int virt = op_x86_phys_to_virt(i);
-		if (multiplex[virt].addr)
-			wrmsrl(multiplex[virt].addr, multiplex[virt].saved);
-	}
-}
-
-#endif
 
 static void nmi_cpu_restore_registers(struct op_msrs *msrs)
 {
