@@ -757,6 +757,7 @@ struct event_subsystem {
 	const char		*name;
 	struct dentry		*entry;
 	void			*filter;
+	int			nr_events;
 };
 
 struct filter_pred;
