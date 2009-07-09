@@ -27,7 +27,7 @@
 #include "op_counter.h"
 #include "op_x86_model.h"
 
-static struct op_x86_model_spec const *model;
+static struct op_x86_model_spec *model;
 static DEFINE_PER_CPU(struct op_msrs, cpu_msrs);
 static DEFINE_PER_CPU(unsigned long, saved_lvtpc);
 
@@ -542,7 +542,7 @@ module_param_call(cpu_type, force_cpu_type, NULL, NULL, 0);
 static int __init ppro_init(char **cpu_type)
 {
 	__u8 cpu_model = boot_cpu_data.x86_model;
-	struct op_x86_model_spec const *spec = &op_ppro_spec;	/* default */
+	struct op_x86_model_spec *spec = &op_ppro_spec;	/* default */
 
 	if (force_arch_perfmon && cpu_has_arch_perfmon)
 		return 0;

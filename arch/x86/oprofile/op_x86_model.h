@@ -62,10 +62,10 @@ extern u64 op_x86_get_ctrl(struct op_x86_model_spec const *model,
 			   struct op_counter_config *counter_config);
 extern int op_x86_phys_to_virt(int phys);
 
-extern struct op_x86_model_spec const op_ppro_spec;
-extern struct op_x86_model_spec const op_p4_spec;
-extern struct op_x86_model_spec const op_p4_ht2_spec;
-extern struct op_x86_model_spec const op_amd_spec;
+extern struct op_x86_model_spec op_ppro_spec;
+extern struct op_x86_model_spec op_p4_spec;
+extern struct op_x86_model_spec op_p4_ht2_spec;
+extern struct op_x86_model_spec op_amd_spec;
 extern struct op_x86_model_spec op_arch_perfmon_spec;
 
 #endif /* OP_X86_MODEL_H */

@@ -526,7 +526,7 @@ static void op_amd_exit(void) {}
 
 #endif /* CONFIG_OPROFILE_IBS */
 
-struct op_x86_model_spec const op_amd_spec = {
+struct op_x86_model_spec op_amd_spec = {
 	.num_counters		= NUM_COUNTERS,
 	.num_controls		= NUM_CONTROLS,
 	.num_virt_counters	= NUM_VIRT_COUNTERS,

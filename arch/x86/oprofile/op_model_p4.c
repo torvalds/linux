@@ -695,7 +695,7 @@ static void p4_shutdown(struct op_msrs const * const msrs)
 
 
 #ifdef CONFIG_SMP
-struct op_x86_model_spec const op_p4_ht2_spec = {
+struct op_x86_model_spec op_p4_ht2_spec = {
 	.num_counters		= NUM_COUNTERS_HT2,
 	.num_controls		= NUM_CONTROLS_HT2,
 	.num_virt_counters	= NUM_COUNTERS_HT2,
@@ -709,7 +709,7 @@ struct op_x86_model_spec const op_p4_ht2_spec = {
 };
 #endif
 
-struct op_x86_model_spec const op_p4_spec = {
+struct op_x86_model_spec op_p4_spec = {
 	.num_counters		= NUM_COUNTERS_NON_HT,
 	.num_controls		= NUM_CONTROLS_NON_HT,
 	.num_virt_counters	= NUM_COUNTERS_NON_HT,
