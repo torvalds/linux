@@ -21,6 +21,7 @@
 #include <linux/amba/bus.h>
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
+#include <linux/gpio.h>
 
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
@@ -472,17 +473,41 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 }
 
+static int mmci_get_ro(struct mmc_host *mmc)
+{
+	struct mmci_host *host = mmc_priv(mmc);
+
+	if (host->gpio_wp == -ENOSYS)
+		return -ENOSYS;
+
+	return gpio_get_value(host->gpio_wp);
+}
+
+static int mmci_get_cd(struct mmc_host *mmc)
+{
+	struct mmci_host *host = mmc_priv(mmc);
+	unsigned int status;
+
+	if (host->gpio_cd == -ENOSYS)
+		status = host->plat->status(mmc_dev(host->mmc));
+	else
+		status = gpio_get_value(host->gpio_cd);
+
+	return !status;
+}
+
 static const struct mmc_host_ops mmci_ops = {
 	.request	= mmci_request,
 	.set_ios	= mmci_set_ios,
+	.get_ro		= mmci_get_ro,
+	.get_cd		= mmci_get_cd,
 };
 
 static void mmci_check_status(unsigned long data)
 {
 	struct mmci_host *host = (struct mmci_host *)data;
-	unsigned int status;
+	unsigned int status = mmci_get_cd(host->mmc);
 
-	status = host->plat->status(mmc_dev(host->mmc));
 	if (status ^ host->oldstat)
 		mmc_detect_change(host->mmc, 0);
 
@@ -515,6 +540,9 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
+
+	host->gpio_wp = -ENOSYS;
+	host->gpio_cd = -ENOSYS;
 
 	host->hw_designer = amba_manf(dev);
 	host->hw_revision = amba_rev(dev);
@@ -591,6 +619,25 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	writel(0, host->base + MMCIMASK1);
 	writel(0xfff, host->base + MMCICLEAR);
 
+	if (gpio_is_valid(plat->gpio_cd)) {
+		ret = gpio_request(plat->gpio_cd, DRIVER_NAME " (cd)");
+		if (ret == 0)
+			ret = gpio_direction_input(plat->gpio_cd);
+		if (ret == 0)
+			host->gpio_cd = plat->gpio_cd;
+		else if (ret != -ENOSYS)
+			goto err_gpio_cd;
+	}
+	if (gpio_is_valid(plat->gpio_wp)) {
+		ret = gpio_request(plat->gpio_wp, DRIVER_NAME " (wp)");
+		if (ret == 0)
+			ret = gpio_direction_input(plat->gpio_wp);
+		if (ret == 0)
+			host->gpio_wp = plat->gpio_wp;
+		else if (ret != -ENOSYS)
+			goto err_gpio_wp;
+	}
+
 	ret = request_irq(dev->irq[0], mmci_irq, IRQF_SHARED, DRIVER_NAME " (cmd)", host);
 	if (ret)
 		goto unmap;
@@ -602,6 +649,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	writel(MCI_IRQENABLE, host->base + MMCIMASK0);
 
 	amba_set_drvdata(dev, mmc);
+	host->oldstat = mmci_get_cd(host->mmc);
 
 	mmc_add_host(mmc);
 
@@ -620,6 +668,12 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
  irq0_free:
 	free_irq(dev->irq[0], host);
  unmap:
+	if (host->gpio_wp != -ENOSYS)
+		gpio_free(host->gpio_wp);
+ err_gpio_wp:
+	if (host->gpio_cd != -ENOSYS)
+		gpio_free(host->gpio_cd);
+ err_gpio_cd:
 	iounmap(host->base);
  clk_disable:
 	clk_disable(host->clk);
@@ -654,6 +708,11 @@ static int __devexit mmci_remove(struct amba_device *dev)
 
 		free_irq(dev->irq[0], host);
 		free_irq(dev->irq[1], host);
+
+		if (host->gpio_wp != -ENOSYS)
+			gpio_free(host->gpio_wp);
+		if (host->gpio_cd != -ENOSYS)
+			gpio_free(host->gpio_cd);
 
 		iounmap(host->base);
 		clk_disable(host->clk);
