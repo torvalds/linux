@@ -450,7 +450,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	unsigned int cpu;
 
 	for_each_online_cpu(cpu)
-		bogosum += per_cpu(cpu_data, cpu).loops_per_jiffy;
+		bogosum += loops_per_jiffy;
 
 	printk(KERN_INFO "SMP: Total of %d processors activated "
 	       "(%lu.%02lu BogoMIPS).\n",

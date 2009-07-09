@@ -168,7 +168,6 @@ void __cpuinit bfin_setup_cpudata(unsigned int cpu)
 	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, cpu);
 
 	cpudata->idle = current;
-	cpudata->loops_per_jiffy = loops_per_jiffy;
 	cpudata->imemctl = bfin_read_IMEM_CONTROL();
 	cpudata->dmemctl = bfin_read_DMEM_CONTROL();
 }
@@ -1159,9 +1158,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"
 		"Calibration\t: %lu loops\n",
-		(cpudata->loops_per_jiffy * HZ) / 500000,
-		((cpudata->loops_per_jiffy * HZ) / 5000) % 100,
-		(cpudata->loops_per_jiffy * HZ));
+		(loops_per_jiffy * HZ) / 500000,
+		((loops_per_jiffy * HZ) / 5000) % 100,
+		(loops_per_jiffy * HZ));
 
 	/* Check Cache configutation */
 	switch (cpudata->dmemctl & (1 << DMC0_P | 1 << DMC1_P)) {
