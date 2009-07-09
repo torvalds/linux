@@ -222,16 +222,11 @@ get_entry(void *base, unsigned int offset)
 
 /* All zeroes == unconditional rule. */
 /* Mildly perf critical (only if packet tracing is on) */
-static inline int
-unconditional(const struct ip6t_ip6 *ipv6)
+static inline bool unconditional(const struct ip6t_ip6 *ipv6)
 {
-	unsigned int i;
+	static const struct ip6t_ip6 uncond;
 
-	for (i = 0; i < sizeof(*ipv6); i++)
-		if (((char *)ipv6)[i])
-			break;
-
-	return (i == sizeof(*ipv6));
+	return memcmp(ipv6, &uncond, sizeof(uncond)) == 0;
 }
 
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
