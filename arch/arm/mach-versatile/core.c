@@ -373,6 +373,8 @@ unsigned int mmc_status(struct device *dev)
 static struct mmc_platform_data mmc0_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= mmc_status,
+	.gpio_wp	= -1,
+	.gpio_cd	= -1,
 };
 
 /*

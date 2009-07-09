@@ -44,6 +44,8 @@
 static struct mmc_platform_data mmc1_plat_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.status		= mmc_status,
+	.gpio_wp	= -1,
+	.gpio_cd	= -1,
 };
 
 static struct pl061_platform_data gpio2_plat_data = {
