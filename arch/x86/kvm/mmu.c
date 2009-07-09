@@ -2373,8 +2373,8 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 	spin_unlock(&vcpu->kvm->mmu_lock);
 	if (r)
 		goto out;
+	/* set_cr3() should ensure TLB has been flushed */
 	kvm_x86_ops->set_cr3(vcpu, vcpu->arch.mmu.root_hpa);
-	kvm_mmu_flush_tlb(vcpu);
 out:
 	return r;
 }
