@@ -32,6 +32,7 @@ struct synaptics_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	int use_irq;
+	bool has_relative_report;
 	struct hrtimer timer;
 	struct work_struct  work;
 	uint16_t max[2];
@@ -84,6 +85,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 	uint8_t start_reg;
 	uint8_t buf[15];
 	struct synaptics_ts_data *ts = container_of(work, struct synaptics_ts_data, work);
+	int buf_len = ts->has_relative_report ? 15 : 13;
 
 	msg[0].addr = ts->client->addr;
 	msg[0].flags = 0;
@@ -92,7 +94,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 	start_reg = 0x00;
 	msg[1].addr = ts->client->addr;
 	msg[1].flags = I2C_M_RD;
-	msg[1].len = sizeof(buf);
+	msg[1].len = buf_len;
 	msg[1].buf = buf;
 
 	/* printk("synaptics_ts_work_func\n"); */
@@ -108,7 +110,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 			/*        buf[4], buf[5], buf[6], buf[7], */
 			/*        buf[8], buf[9], buf[10], buf[11], */
 			/*        buf[12], buf[13], buf[14], ret); */
-			if ((buf[14] & 0xc0) != 0x40) {
+			if ((buf[buf_len - 1] & 0xc0) != 0x40) {
 				printk(KERN_WARNING "synaptics_ts_work_func:"
 				       " bad read %x %x %x %x %x %x %x %x %x"
 				       " %x %x %x %x %x %x, ret %d\n",
@@ -122,7 +124,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 				continue;
 			}
 			bad_data = 0;
-			if ((buf[14] & 1) == 0) {
+			if ((buf[buf_len - 1] & 1) == 0) {
 				/* printk("read %d coordinates\n", i); */
 				break;
 			} else {
@@ -393,6 +395,13 @@ static int synaptics_ts_probe(
 		printk(KERN_ERR "i2c_smbus_write_byte_data failed for page select\n");
 		goto err_detect_failed;
 	}
+	ret = i2c_smbus_read_word_data(ts->client, 0x02);
+	if (ret < 0) {
+		printk(KERN_ERR "i2c_smbus_read_word_data failed\n");
+		goto err_detect_failed;
+	}
+	ts->has_relative_report = !(ret & 0x100);
+	printk(KERN_INFO "synaptics_ts_probe: Sensor properties %x\n", ret);
 	ret = i2c_smbus_read_word_data(ts->client, 0x04);
 	if (ret < 0) {
 		printk(KERN_ERR "i2c_smbus_read_word_data failed\n");
