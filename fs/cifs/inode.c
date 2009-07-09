@@ -419,11 +419,11 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 	} else {
 		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
 		fattr->cf_dtype = DT_REG;
-	}
 
-	/* clear write bits if ATTR_READONLY is set */
-	if (fattr->cf_cifsattrs & ATTR_READONLY)
-		fattr->cf_mode &= ~(S_IWUGO);
+		/* clear write bits if ATTR_READONLY is set */
+		if (fattr->cf_cifsattrs & ATTR_READONLY)
+			fattr->cf_mode &= ~(S_IWUGO);
+	}
 
 	fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
 
