@@ -206,8 +206,19 @@ switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_clock_base *base,
 #if defined(CONFIG_NO_HZ) && defined(CONFIG_SMP)
 	if (!pinned && get_sysctl_timer_migration() && idle_cpu(cpu)) {
 		preferred_cpu = get_nohz_load_balancer();
-		if (preferred_cpu >= 0)
-			cpu = preferred_cpu;
+		if (preferred_cpu >= 0) {
+			/*
+			 * We must not check the expiry value when
+			 * preferred_cpu is the current cpu. If base
+			 * != new_base we would loop forever when the
+			 * timer expires before the current programmed
+			 * next timer event.
+			 */
+			if (preferred_cpu != cpu)
+				cpu = preferred_cpu;
+			else
+				preferred_cpu = -1;
+		}
 	}
 #endif
 
