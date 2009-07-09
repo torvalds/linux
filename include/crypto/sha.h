@@ -5,6 +5,8 @@
 #ifndef _CRYPTO_SHA_H
 #define _CRYPTO_SHA_H
 
+#include <linux/types.h>
+
 #define SHA1_DIGEST_SIZE        20
 #define SHA1_BLOCK_SIZE         64
 
@@ -61,5 +63,11 @@
 #define SHA512_H5	0x9b05688c2b3e6c1fULL
 #define SHA512_H6	0x1f83d9abfb41bd6bULL
 #define SHA512_H7	0x5be0cd19137e2179ULL
+
+struct sha1_state {
+	u64 count;
+	u32 state[SHA1_DIGEST_SIZE / 4];
+	u8 buffer[SHA1_BLOCK_SIZE];
+};
 
 #endif
