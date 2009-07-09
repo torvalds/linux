@@ -294,7 +294,7 @@ static void nmi_cpu_shutdown(void *dummy)
 {
 	unsigned int v;
 	int cpu = smp_processor_id();
-	struct op_msrs *msrs = &__get_cpu_var(cpu_msrs);
+	struct op_msrs *msrs = &per_cpu(cpu_msrs, cpu);
 
 	/* restoring APIC_LVTPC can trigger an apic error because the delivery
 	 * mode and vector nr combination can be illegal. That's by design: on
@@ -307,7 +307,7 @@ static void nmi_cpu_shutdown(void *dummy)
 	apic_write(APIC_LVTERR, v);
 	nmi_cpu_restore_registers(msrs);
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	__get_cpu_var(switch_index) = 0;
+	per_cpu(switch_index, cpu) = 0;
 #endif
 }
 
