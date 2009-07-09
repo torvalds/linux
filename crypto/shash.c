@@ -172,19 +172,15 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 }
 EXPORT_SYMBOL_GPL(crypto_shash_digest);
 
-int crypto_shash_import(struct shash_desc *desc, const u8 *in)
+static int shash_no_export(struct shash_desc *desc, void *out)
 {
-	struct crypto_shash *tfm = desc->tfm;
-	struct shash_alg *alg = crypto_shash_alg(tfm);
-
-	memcpy(shash_desc_ctx(desc), in, crypto_shash_descsize(tfm));
-
-	if (alg->reinit)
-		return alg->reinit(desc);
-
-	return 0;
+	return -ENOSYS;
 }
-EXPORT_SYMBOL_GPL(crypto_shash_import);
+
+static int shash_no_import(struct shash_desc *desc, const void *in)
+{
+	return -ENOSYS;
+}
 
 static int shash_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 			      unsigned int keylen)
@@ -484,12 +480,19 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	struct crypto_alg *base = &alg->base;
 
 	if (alg->digestsize > PAGE_SIZE / 8 ||
-	    alg->descsize > PAGE_SIZE / 8)
+	    alg->descsize > PAGE_SIZE / 8 ||
+	    alg->statesize > PAGE_SIZE / 8)
 		return -EINVAL;
 
 	base->cra_type = &crypto_shash_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SHASH;
+
+	if (!alg->import)
+		alg->import = shash_no_import;
+	if (!alg->export)
+		alg->export = shash_no_export;
+
 	return 0;
 }
 

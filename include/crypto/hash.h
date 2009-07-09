@@ -24,7 +24,6 @@ struct shash_desc {
 
 struct shash_alg {
 	int (*init)(struct shash_desc *desc);
-	int (*reinit)(struct shash_desc *desc);
 	int (*update)(struct shash_desc *desc, const u8 *data,
 		      unsigned int len);
 	int (*final)(struct shash_desc *desc, u8 *out);
@@ -32,11 +31,14 @@ struct shash_alg {
 		     unsigned int len, u8 *out);
 	int (*digest)(struct shash_desc *desc, const u8 *data,
 		      unsigned int len, u8 *out);
+	int (*export)(struct shash_desc *desc, void *out);
+	int (*import)(struct shash_desc *desc, const void *in);
 	int (*setkey)(struct crypto_shash *tfm, const u8 *key,
 		      unsigned int keylen);
 
 	unsigned int descsize;
 	unsigned int digestsize;
+	unsigned int statesize;
 
 	struct crypto_alg base;
 };
@@ -251,6 +253,11 @@ static inline unsigned int crypto_shash_digestsize(struct crypto_shash *tfm)
 	return crypto_shash_alg(tfm)->digestsize;
 }
 
+static inline unsigned int crypto_shash_statesize(struct crypto_shash *tfm)
+{
+	return crypto_shash_alg(tfm)->statesize;
+}
+
 static inline u32 crypto_shash_get_flags(struct crypto_shash *tfm)
 {
 	return crypto_tfm_get_flags(crypto_shash_tfm(tfm));
@@ -281,12 +288,15 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
 int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 			unsigned int len, u8 *out);
 
-static inline void crypto_shash_export(struct shash_desc *desc, u8 *out)
+static inline int crypto_shash_export(struct shash_desc *desc, void *out)
 {
-	memcpy(out, shash_desc_ctx(desc), crypto_shash_descsize(desc->tfm));
+	return crypto_shash_alg(desc->tfm)->export(desc, out);
 }
 
-int crypto_shash_import(struct shash_desc *desc, const u8 *in);
+static inline int crypto_shash_import(struct shash_desc *desc, const void *in)
+{
+	return crypto_shash_alg(desc->tfm)->import(desc, in);
+}
 
 static inline int crypto_shash_init(struct shash_desc *desc)
 {
