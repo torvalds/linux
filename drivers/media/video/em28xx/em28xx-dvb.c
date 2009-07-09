@@ -489,6 +489,7 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
 		dvb->frontend = dvb_attach(zl10353_attach,
 					   &em28xx_terratec_xs_zl10353_xc3028,
 					   &dev->i2c_adap);

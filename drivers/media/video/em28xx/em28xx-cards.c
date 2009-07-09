@@ -157,6 +157,20 @@ static struct em28xx_reg_seq evga_indtube_digital[] = {
 	{ -1,			-1,	-1,		-1},
 };
 
+/* Pinnacle Hybrid Pro eb1a:2881 */
+static struct em28xx_reg_seq pinnacle_hybrid_pro_analog[] = {
+	{EM28XX_R08_GPIO,	0x6f,   ~EM_GPIO_4,	10},
+	{	-1,		-1,	-1,		-1},
+};
+
+static struct em28xx_reg_seq pinnacle_hybrid_pro_digital[] = {
+	{EM28XX_R08_GPIO,	0x6e,	~EM_GPIO_4,	10},
+	{EM2880_R04_GPO,	0x04,	0xff,	       100},/* zl10353 reset */
+	{EM2880_R04_GPO,	0x0c,	0xff,		 1},
+	{	-1,		-1,	-1,		-1},
+};
+
+
 /* Callback for the most boards */
 static struct em28xx_reg_seq default_tuner_gpio[] = {
 	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
@@ -1253,25 +1267,26 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2881_BOARD_PINNACLE_HYBRID_PRO] = {
 		.name         = "Pinnacle Hybrid Pro",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
+		.has_dvb      = 1,
+		.dvb_gpio     = pinnacle_hybrid_pro_digital,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
-			.gpio     = default_analog,
+			.gpio     = pinnacle_hybrid_pro_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
-			.gpio     = default_analog,
+			.gpio     = pinnacle_hybrid_pro_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
-			.gpio     = default_analog,
+			.gpio     = pinnacle_hybrid_pro_analog,
 		} },
 	},
 	[EM2882_BOARD_PINNACLE_HYBRID_PRO] = {
@@ -1641,6 +1656,7 @@ static struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	{0x966a0441, EM2880_BOARD_KWORLD_DVB_310U, TUNER_XC2028},
 	{0x9567eb1a, EM2880_BOARD_EMPIRE_DUAL_TV, TUNER_XC2028},
 	{0xcee44a99, EM2882_BOARD_EVGA_INDTUBE, TUNER_XC2028},
+	{0xb8846b20, EM2881_BOARD_PINNACLE_HYBRID_PRO, TUNER_XC2028},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
