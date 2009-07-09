@@ -22,8 +22,6 @@ bool current_is_single_threaded(void)
 	struct task_struct *p, *t;
 	bool ret;
 
-	might_sleep();
-
 	if (atomic_read(&task->signal->live) != 1)
 		return false;
 
@@ -31,7 +29,6 @@ bool current_is_single_threaded(void)
 		return true;
 
 	ret = false;
-	down_write(&mm->mmap_sem);
 	rcu_read_lock();
 	for_each_process(p) {
 		if (unlikely(p->flags & PF_KTHREAD))
@@ -45,12 +42,17 @@ bool current_is_single_threaded(void)
 				goto found;
 			if (likely(t->mm))
 				break;
+			/*
+			 * t->mm == NULL. Make sure next_thread/next_task
+			 * will see other CLONE_VM tasks which might be
+			 * forked before exiting.
+			 */
+			smp_rmb();
 		} while_each_thread(p, t);
 	}
 	ret = true;
 found:
 	rcu_read_unlock();
-	up_write(&mm->mmap_sem);
 
 	return ret;
 }
