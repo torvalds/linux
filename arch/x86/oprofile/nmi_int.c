@@ -160,7 +160,7 @@ static int allocate_msrs(void)
 
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 
-static void nmi_setup_cpu_mux(struct op_msrs const * const msrs)
+static void nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs)
 {
 	int i;
 	struct op_msr *multiplex = msrs->multiplex;
@@ -173,7 +173,14 @@ static void nmi_setup_cpu_mux(struct op_msrs const * const msrs)
 			multiplex[i].saved = 0;
 		}
 	}
+
+	per_cpu(switch_index, cpu) = 0;
 }
+
+#else
+
+static inline void
+nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs) { }
 
 #endif
 
@@ -184,9 +191,7 @@ static void nmi_cpu_setup(void *dummy)
 	nmi_cpu_save_registers(msrs);
 	spin_lock(&oprofilefs_lock);
 	model->setup_ctrs(model, msrs);
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	nmi_setup_cpu_mux(msrs);
-#endif
+	nmi_cpu_setup_mux(cpu, msrs);
 	spin_unlock(&oprofilefs_lock);
 	per_cpu(saved_lvtpc, cpu) = apic_read(APIC_LVTPC);
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
@@ -662,9 +667,6 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	register_cpu_notifier(&oprofile_cpu_nb);
 #endif
 	/* default values, can be overwritten by model */
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	__raw_get_cpu_var(switch_index) = 0;
-#endif
 	ops->create_files	= nmi_create_files;
 	ops->setup		= nmi_setup;
 	ops->shutdown		= nmi_shutdown;
