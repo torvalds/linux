@@ -102,7 +102,6 @@ extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
 				     FILE_UNIX_BASIC_INFO *info,
 				     struct cifs_sb_info *cifs_sb);
 extern void cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr);
-extern struct inode *cifs_new_inode(struct super_block *sb, __u64 *inum);
 extern struct inode *cifs_iget(struct super_block *sb,
 			       struct cifs_fattr *fattr);
 
@@ -113,8 +112,9 @@ extern int cifs_get_inode_info(struct inode **pinode,
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
-extern void acl_to_uid_mode(struct cifs_sb_info *cifs_sb, struct inode *inode,
-			    const char *path, const __u16 *pfid);
+extern void cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
+			      struct cifs_fattr *fattr, struct inode *inode,
+			      const char *path, const __u16 *pfid);
 extern int mode_to_acl(struct inode *inode, const char *path, __u64);
 
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,

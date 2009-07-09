@@ -112,239 +112,74 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 	return dentry;
 }
 
-/* Returns 1 if new inode created, 2 if both dentry and inode were */
-/* Might check in the future if inode number changed so we can rehash inode */
-static int
-construct_dentry(struct qstr *qstring, struct file *file,
-		 struct inode **ptmp_inode, struct dentry **pnew_dentry,
-		 __u64 *inum)
+static void
+cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 {
-	struct dentry *tmp_dentry = NULL;
-	struct super_block *sb = file->f_path.dentry->d_sb;
-	int rc = 0;
+	fattr->cf_uid = cifs_sb->mnt_uid;
+	fattr->cf_gid = cifs_sb->mnt_gid;
 
-	cFYI(1, ("For %s", qstring->name));
-
-	tmp_dentry = d_lookup(file->f_path.dentry, qstring);
-	if (tmp_dentry) {
-		/* BB: overwrite old name? i.e. tmp_dentry->d_name and
-		 * tmp_dentry->d_name.len??
-		 */
-		cFYI(0, ("existing dentry with inode 0x%p",
-			 tmp_dentry->d_inode));
-		*ptmp_inode = tmp_dentry->d_inode;
-		if (*ptmp_inode == NULL) {
-			*ptmp_inode = cifs_new_inode(sb, inum);
-			if (*ptmp_inode == NULL)
-				return rc;
-			rc = 1;
-		}
+	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
+		fattr->cf_mode = S_IFDIR | cifs_sb->mnt_dir_mode;
+		fattr->cf_dtype = DT_DIR;
 	} else {
-		tmp_dentry = d_alloc(file->f_path.dentry, qstring);
-		if (tmp_dentry == NULL) {
-			cERROR(1, ("Failed allocating dentry"));
-			*ptmp_inode = NULL;
-			return rc;
-		}
-
-		if (CIFS_SB(sb)->tcon->nocase)
-			tmp_dentry->d_op = &cifs_ci_dentry_ops;
-		else
-			tmp_dentry->d_op = &cifs_dentry_ops;
-
-		*ptmp_inode = cifs_new_inode(sb, inum);
-		if (*ptmp_inode == NULL)
-			return rc;
-		rc = 2;
+		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
+		fattr->cf_dtype = DT_REG;
 	}
 
-	tmp_dentry->d_time = jiffies;
-	*pnew_dentry = tmp_dentry;
-	return rc;
-}
+	if (fattr->cf_cifsattrs & ATTR_READONLY)
+		fattr->cf_mode &= ~S_IWUGO;
 
-static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
-			  char *buf, unsigned int *pobject_type, int isNewInode)
-{
-	loff_t local_size;
-	struct timespec local_mtime;
-
-	struct cifsInodeInfo *cifsInfo = CIFS_I(tmp_inode);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(tmp_inode->i_sb);
-	__u32 attr;
-	__u64 allocation_size;
-	__u64 end_of_file;
-	umode_t default_mode;
-
-	/* save mtime and size */
-	local_mtime = tmp_inode->i_mtime;
-	local_size  = tmp_inode->i_size;
-
-	if (new_buf_type) {
-		FILE_DIRECTORY_INFO *pfindData = (FILE_DIRECTORY_INFO *)buf;
-
-		attr = le32_to_cpu(pfindData->ExtFileAttributes);
-		allocation_size = le64_to_cpu(pfindData->AllocationSize);
-		end_of_file = le64_to_cpu(pfindData->EndOfFile);
-		tmp_inode->i_atime =
-			cifs_NTtimeToUnix(pfindData->LastAccessTime);
-		tmp_inode->i_mtime =
-			cifs_NTtimeToUnix(pfindData->LastWriteTime);
-		tmp_inode->i_ctime =
-			cifs_NTtimeToUnix(pfindData->ChangeTime);
-	} else { /* legacy, OS2 and DOS style */
-		int offset = cifs_sb->tcon->ses->server->timeAdj;
-		FIND_FILE_STANDARD_INFO *pfindData =
-			(FIND_FILE_STANDARD_INFO *)buf;
-
-		tmp_inode->i_mtime = cnvrtDosUnixTm(pfindData->LastWriteDate,
-						    pfindData->LastWriteTime,
-						    offset);
-		tmp_inode->i_atime = cnvrtDosUnixTm(pfindData->LastAccessDate,
-						    pfindData->LastAccessTime,
-						    offset);
-		tmp_inode->i_ctime = cnvrtDosUnixTm(pfindData->LastWriteDate,
-						    pfindData->LastWriteTime,
-						    offset);
-		attr = le16_to_cpu(pfindData->Attributes);
-		allocation_size = le32_to_cpu(pfindData->AllocationSize);
-		end_of_file = le32_to_cpu(pfindData->DataSize);
-	}
-
-	/* Linux can not store file creation time unfortunately so ignore it */
-
-	cifsInfo->cifsAttrs = attr;
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
-		/* get more accurate mode via ACL - so force inode refresh */
-		cifsInfo->time = 0;
-	} else
-#endif /* CONFIG_CIFS_EXPERIMENTAL */
-		cifsInfo->time = jiffies;
-
-	/* treat dos attribute of read-only as read-only mode bit e.g. 555? */
-	/* 2767 perms - indicate mandatory locking */
-		/* BB fill in uid and gid here? with help from winbind?
-		   or retrieve from NTFS stream extended attribute */
-	if (atomic_read(&cifsInfo->inUse) == 0) {
-		tmp_inode->i_uid = cifs_sb->mnt_uid;
-		tmp_inode->i_gid = cifs_sb->mnt_gid;
-	}
-
-	if (attr & ATTR_DIRECTORY)
-		default_mode = cifs_sb->mnt_dir_mode;
-	else
-		default_mode = cifs_sb->mnt_file_mode;
-
-	/* set initial permissions */
-	if ((atomic_read(&cifsInfo->inUse) == 0) ||
-	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM) == 0)
-		tmp_inode->i_mode = default_mode;
-	else {
-		/* just reenable write bits if !ATTR_READONLY */
-		if ((tmp_inode->i_mode & S_IWUGO) == 0 &&
-		    (attr & ATTR_READONLY) == 0)
-			tmp_inode->i_mode |= (S_IWUGO & default_mode);
-
-		tmp_inode->i_mode &= ~S_IFMT;
-	}
-
-	/* clear write bits if ATTR_READONLY is set */
-	if (attr & ATTR_READONLY)
-		tmp_inode->i_mode &= ~S_IWUGO;
-
-	/* set inode type */
-	if ((attr & ATTR_SYSTEM) &&
-	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)) {
-		if (end_of_file == 0)  {
-			tmp_inode->i_mode |= S_IFIFO;
-			*pobject_type = DT_FIFO;
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL &&
+	    fattr->cf_cifsattrs & ATTR_SYSTEM) {
+		if (fattr->cf_eof == 0)  {
+			fattr->cf_mode &= ~S_IFMT;
+			fattr->cf_mode |= S_IFIFO;
+			fattr->cf_dtype = DT_FIFO;
 		} else {
 			/*
-			 * trying to get the type can be slow, so just call
-			 * this a regular file for now, and mark for reval
+			 * trying to get the type and mode via SFU can be slow,
+			 * so just call those regular files for now, and mark
+			 * for reval
 			 */
-			tmp_inode->i_mode |= S_IFREG;
-			*pobject_type = DT_REG;
-			cifsInfo->time = 0;
-		}
-	} else {
-		if (attr & ATTR_DIRECTORY) {
-			tmp_inode->i_mode |= S_IFDIR;
-			*pobject_type = DT_DIR;
-		} else {
-			tmp_inode->i_mode |= S_IFREG;
-			*pobject_type = DT_REG;
+			fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
 		}
 	}
+}
 
-	/* can not fill in nlink here as in qpathinfo version and Unx search */
-	if (atomic_read(&cifsInfo->inUse) == 0)
-		atomic_set(&cifsInfo->inUse, 1);
+void
+cifs_dir_info_to_fattr(struct cifs_fattr *fattr, FILE_DIRECTORY_INFO *info,
+		       struct cifs_sb_info *cifs_sb)
+{
+	memset(fattr, 0, sizeof(*fattr));
+	fattr->cf_cifsattrs = le32_to_cpu(info->ExtFileAttributes);
+	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
+	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
+	fattr->cf_atime = cifs_NTtimeToUnix(info->LastAccessTime);
+	fattr->cf_ctime = cifs_NTtimeToUnix(info->ChangeTime);
+	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastWriteTime);
 
-	cifsInfo->server_eof = end_of_file;
-	spin_lock(&tmp_inode->i_lock);
-	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
-		/* can not safely change the file size here if the
-		client is writing to it due to potential races */
-		i_size_write(tmp_inode, end_of_file);
+	cifs_fill_common_info(fattr, cifs_sb);
+}
 
-	/* 512 bytes (2**9) is the fake blocksize that must be used */
-	/* for this calculation, even though the reported blocksize is larger */
-		tmp_inode->i_blocks = (512 - 1 + allocation_size) >> 9;
-	}
-	spin_unlock(&tmp_inode->i_lock);
+void
+cifs_std_info_to_fattr(struct cifs_fattr *fattr, FIND_FILE_STANDARD_INFO *info,
+		       struct cifs_sb_info *cifs_sb)
+{
+	int offset = cifs_sb->tcon->ses->server->timeAdj;
 
-	if (allocation_size < end_of_file)
-		cFYI(1, ("May be sparse file, allocation less than file size"));
-	cFYI(1, ("File Size %ld and blocks %llu",
-		(unsigned long)tmp_inode->i_size,
-		(unsigned long long)tmp_inode->i_blocks));
-	if (S_ISREG(tmp_inode->i_mode)) {
-		cFYI(1, ("File inode"));
-		tmp_inode->i_op = &cifs_file_inode_ops;
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
-			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-				tmp_inode->i_fop = &cifs_file_direct_nobrl_ops;
-			else
-				tmp_inode->i_fop = &cifs_file_direct_ops;
-		} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-			tmp_inode->i_fop = &cifs_file_nobrl_ops;
-		else
-			tmp_inode->i_fop = &cifs_file_ops;
+	memset(fattr, 0, sizeof(*fattr));
+	fattr->cf_atime = cnvrtDosUnixTm(info->LastAccessDate,
+					    info->LastAccessTime, offset);
+	fattr->cf_ctime = cnvrtDosUnixTm(info->LastWriteDate,
+					    info->LastWriteTime, offset);
+	fattr->cf_mtime = cnvrtDosUnixTm(info->LastWriteDate,
+					    info->LastWriteTime, offset);
 
-		if ((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
-		   (cifs_sb->tcon->ses->server->maxBuf <
-			PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE))
-			tmp_inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
-		else
-			tmp_inode->i_data.a_ops = &cifs_addr_ops;
+	fattr->cf_cifsattrs = le16_to_cpu(info->Attributes);
+	fattr->cf_bytes = le32_to_cpu(info->AllocationSize);
+	fattr->cf_eof = le32_to_cpu(info->DataSize);
 
-		if (isNewInode)
-			return; /* No sense invalidating pages for new inode
-				   since have not started caching readahead file
-				   data yet */
-
-		if (timespec_equal(&tmp_inode->i_mtime, &local_mtime) &&
-			(local_size == tmp_inode->i_size)) {
-			cFYI(1, ("inode exists but unchanged"));
-		} else {
-			/* file may have changed on server */
-			cFYI(1, ("invalidate inode, readdir detected change"));
-			invalidate_remote_inode(tmp_inode);
-		}
-	} else if (S_ISDIR(tmp_inode->i_mode)) {
-		cFYI(1, ("Directory inode"));
-		tmp_inode->i_op = &cifs_dir_inode_ops;
-		tmp_inode->i_fop = &cifs_dir_ops;
-	} else if (S_ISLNK(tmp_inode->i_mode)) {
-		cFYI(1, ("Symbolic Link inode"));
-		tmp_inode->i_op = &cifs_symlink_inode_ops;
-	} else {
-		cFYI(1, ("Init special inode"));
-		init_special_inode(tmp_inode, tmp_inode->i_mode,
-				   tmp_inode->i_rdev);
-	}
+	cifs_fill_common_info(fattr, cifs_sb);
 }
 
 /* BB eventually need to add the following helper function to
@@ -846,11 +681,10 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 	int rc = 0;
 	struct qstr qstring;
 	struct cifsFileInfo *pCifsF;
-	unsigned int obj_type;
-	__u64  inum;
+	u64    inum;
 	ino_t  ino;
+	struct super_block *sb;
 	struct cifs_sb_info *cifs_sb;
-	struct inode *tmp_inode;
 	struct dentry *tmp_dentry;
 	struct cifs_fattr fattr;
 
@@ -870,71 +704,53 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 	if (rc != 0)
 		return 0;
 
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	sb = file->f_path.dentry->d_sb;
+	cifs_sb = CIFS_SB(sb);
 
 	qstring.name = scratch_buf;
 	rc = cifs_get_name_from_search_buf(&qstring, pfindEntry,
 			pCifsF->srch_inf.info_level,
 			pCifsF->srch_inf.unicode, cifs_sb,
-			max_len,
-			&inum /* returned */);
+			max_len, &inum /* returned */);
 
 	if (rc)
 		return rc;
 
-	/* only these two infolevels return valid inode numbers */
-	if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_UNIX) {
+	if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_UNIX)
 		cifs_unix_basic_to_fattr(&fattr,
 				 &((FILE_UNIX_INFO *) pfindEntry)->basic,
 				 cifs_sb);
-		tmp_dentry = cifs_readdir_lookup(file->f_dentry, &qstring,
-						 &fattr);
-		obj_type = fattr.cf_dtype;
-		ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
-	} else {
-		if (pCifsF->srch_inf.info_level ==
-		    SMB_FIND_FILE_ID_FULL_DIR_INFO)
-			rc = construct_dentry(&qstring, file, &tmp_inode,
-						&tmp_dentry, &inum);
-		else
-			rc = construct_dentry(&qstring, file, &tmp_inode,
-						&tmp_dentry, NULL);
+	else if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_INFO_STANDARD)
+		cifs_std_info_to_fattr(&fattr, (FIND_FILE_STANDARD_INFO *)
+					pfindEntry, cifs_sb);
+	else
+		cifs_dir_info_to_fattr(&fattr, (FILE_DIRECTORY_INFO *)
+					pfindEntry, cifs_sb);
 
-		if ((tmp_inode == NULL) || (tmp_dentry == NULL)) {
-			rc = -ENOMEM;
-			goto out;
-		}
+	/* FIXME: make _to_fattr functions fill this out */
+	if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_ID_FULL_DIR_INFO)
+		fattr.cf_uniqueid = inum;
+	else
+		fattr.cf_uniqueid = iunique(sb, ROOT_I);
 
-		/* we pass in rc below, indicating whether it is a new inode,
-		 * so we can figure out whether to invalidate the inode cached
-		 * data if the file has changed
-		 */
-		if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_INFO_STANDARD)
-			fill_in_inode(tmp_inode, 0, pfindEntry, &obj_type, rc);
-		else
-			fill_in_inode(tmp_inode, 1, pfindEntry, &obj_type, rc);
-
-		/* new inode - needs to be tied to dentry */
-		if (rc) {
-			d_instantiate(tmp_dentry, tmp_inode);
-			if (rc == 2)
-				d_rehash(tmp_dentry);
-		}
-
-		ino = cifs_uniqueid_to_ino_t(tmp_inode->i_ino);
-	}
+	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
+	tmp_dentry = cifs_readdir_lookup(file->f_dentry, &qstring, &fattr);
 
 	rc = filldir(direntry, qstring.name, qstring.len, file->f_pos,
-		     ino, obj_type);
+		     ino, fattr.cf_dtype);
+
+	/*
+	 * we can not return filldir errors to the caller since they are
+	 * "normal" when the stat blocksize is too small - we return remapped
+	 * error instead
+	 *
+	 * FIXME: This looks bogus. filldir returns -EOVERFLOW in the above
+	 * case already. Why should we be clobbering other errors from it?
+	 */
 	if (rc) {
 		cFYI(1, ("filldir rc = %d", rc));
-		/* we can not return filldir errors to the caller
-		since they are "normal" when the stat blocksize
-		is too small - we return remapped error instead */
 		rc = -EOVERFLOW;
 	}
-
-out:
 	dput(tmp_dentry);
 	return rc;
 }
