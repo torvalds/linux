@@ -37,7 +37,6 @@ struct op_x86_model_spec {
 	unsigned int	num_counters;
 	unsigned int	num_controls;
 	unsigned int	num_virt_counters;
-	unsigned int	num_virt_controls;
 	u64		reserved;
 	u16		event_mask;
 	int		(*init)(struct oprofile_operations *ops);

@@ -530,7 +530,6 @@ struct op_x86_model_spec op_amd_spec = {
 	.num_counters		= NUM_COUNTERS,
 	.num_controls		= NUM_CONTROLS,
 	.num_virt_counters	= NUM_VIRT_COUNTERS,
-	.num_virt_controls	= NUM_VIRT_CONTROLS,
 	.reserved		= MSR_AMD_EVENTSEL_RESERVED,
 	.event_mask		= OP_EVENT_MASK,
 	.init			= op_amd_init,
