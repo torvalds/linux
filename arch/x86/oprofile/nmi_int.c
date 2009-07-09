@@ -124,6 +124,11 @@ static void nmi_stop(void)
 
 static DEFINE_PER_CPU(int, switch_index);
 
+static inline int has_mux(void)
+{
+	return !!model->switch_ctrl;
+}
+
 inline int op_x86_phys_to_virt(int phys)
 {
 	return __get_cpu_var(switch_index) + phys;
@@ -132,6 +137,10 @@ inline int op_x86_phys_to_virt(int phys)
 static void nmi_shutdown_mux(void)
 {
 	int i;
+
+	if (!has_mux())
+		return;
+
 	for_each_possible_cpu(i) {
 		kfree(per_cpu(cpu_msrs, i).multiplex);
 		per_cpu(cpu_msrs, i).multiplex = NULL;
@@ -144,12 +153,17 @@ static int nmi_setup_mux(void)
 	size_t multiplex_size =
 		sizeof(struct op_msr) * model->num_virt_counters;
 	int i;
+
+	if (!has_mux())
+		return 1;
+
 	for_each_possible_cpu(i) {
 		per_cpu(cpu_msrs, i).multiplex =
 			kmalloc(multiplex_size, GFP_KERNEL);
 		if (!per_cpu(cpu_msrs, i).multiplex)
 			return 0;
 	}
+
 	return 1;
 }
 
@@ -157,6 +171,9 @@ static void nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs)
 {
 	int i;
 	struct op_msr *multiplex = msrs->multiplex;
+
+	if (!has_mux())
+		return;
 
 	for (i = 0; i < model->num_virt_counters; ++i) {
 		if (counter_config[i].enabled) {
@@ -229,7 +246,7 @@ static int nmi_multiplex_on(void)
 
 static int nmi_switch_event(void)
 {
-	if (!model->switch_ctrl)
+	if (!has_mux())
 		return -ENOSYS;		/* not implemented */
 	if (nmi_multiplex_on() < 0)
 		return -EINVAL;		/* not necessary */
