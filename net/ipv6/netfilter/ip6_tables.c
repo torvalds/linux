@@ -205,21 +205,6 @@ ip6t_error(struct sk_buff *skb, const struct xt_target_param *par)
 	return NF_DROP;
 }
 
-/* Performance critical - called for every packet */
-static inline bool
-do_match(const struct ip6t_entry_match *m, const struct sk_buff *skb,
-	 struct xt_match_param *par)
-{
-	par->match     = m->u.kernel.match;
-	par->matchinfo = m->data;
-
-	/* Stop iteration if it doesn't match */
-	if (!m->u.kernel.match->match(skb, par))
-		return true;
-	else
-		return false;
-}
-
 static inline struct ip6t_entry *
 get_entry(const void *base, unsigned int offset)
 {
@@ -402,9 +387,12 @@ ip6t_do_table(struct sk_buff *skb,
 			continue;
 		}
 
-		xt_ematch_foreach(ematch, e)
-			if (do_match(ematch, skb, &mtpar) != 0)
+		xt_ematch_foreach(ematch, e) {
+			mtpar.match     = ematch->u.kernel.match;
+			mtpar.matchinfo = ematch->data;
+			if (!mtpar.match->match(skb, &mtpar))
 				goto no_match;
+		}
 
 		ADD_COUNTER(e->counters,
 			    ntohs(ipv6_hdr(skb)->payload_len) +
