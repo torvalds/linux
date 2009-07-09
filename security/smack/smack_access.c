@@ -240,9 +240,9 @@ static inline void smack_str_from_perm(char *string, int access)
 static void smack_log_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
-	struct smack_audit_data *sad = &ad->lsm_priv.smack_audit_data;
+	struct smack_audit_data *sad = &ad->smack_audit_data;
 	audit_log_format(ab, "lsm=SMACK fn=%s action=%s",
-			 ad->lsm_priv.smack_audit_data.function,
+			 ad->smack_audit_data.function,
 			 sad->result ? "denied" : "granted");
 	audit_log_format(ab, " subject=");
 	audit_log_untrustedstring(ab, sad->subject);
@@ -275,11 +275,11 @@ void smack_log(char *subject_label, char *object_label, int request,
 	if (result == 0 && (log_policy & SMACK_AUDIT_ACCEPT) == 0)
 		return;
 
-	if (a->lsm_priv.smack_audit_data.function == NULL)
-		a->lsm_priv.smack_audit_data.function = "unknown";
+	if (a->smack_audit_data.function == NULL)
+		a->smack_audit_data.function = "unknown";
 
 	/* end preparing the audit data */
-	sad = &a->lsm_priv.smack_audit_data;
+	sad = &a->smack_audit_data;
 	smack_str_from_perm(request_buffer, request);
 	sad->subject = subject_label;
 	sad->object  = object_label;

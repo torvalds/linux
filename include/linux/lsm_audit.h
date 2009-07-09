@@ -86,7 +86,7 @@ struct common_audit_data {
 			struct av_decision *avd;
 			int result;
 		} selinux_audit_data;
-	} lsm_priv;
+	};
 	/* these callback will be implemented by a specific LSM */
 	void (*lsm_pre_audit)(struct audit_buffer *, void *);
 	void (*lsm_post_audit)(struct audit_buffer *, void *);
