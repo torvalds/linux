@@ -258,6 +258,12 @@ static int nmi_switch_event(void)
 	return 0;
 }
 
+static inline void mux_init(struct oprofile_operations *ops)
+{
+	if (has_mux())
+		ops->switch_events = nmi_switch_event;
+}
+
 #else
 
 inline int op_x86_phys_to_virt(int phys) { return phys; }
@@ -265,6 +271,7 @@ static inline void nmi_shutdown_mux(void) { }
 static inline int nmi_setup_mux(void) { return 1; }
 static inline void
 nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs) { }
+static inline void mux_init(struct oprofile_operations *ops) { }
 
 #endif
 
@@ -682,9 +689,6 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	ops->start		= nmi_start;
 	ops->stop		= nmi_stop;
 	ops->cpu_type		= cpu_type;
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	ops->switch_events	= nmi_switch_event;
-#endif
 
 	if (model->init)
 		ret = model->init(ops);
@@ -693,6 +697,8 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 
 	if (!model->num_virt_counters)
 		model->num_virt_counters = model->num_counters;
+
+	mux_init(ops);
 
 	init_sysfs();
 	using_nmi = 1;
