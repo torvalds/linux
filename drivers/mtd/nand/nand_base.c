@@ -688,8 +688,7 @@ nand_get_device(struct nand_chip *chip, struct mtd_info *mtd, int new_state)
  retry:
 	spin_lock(lock);
 
-	/* Hardware controller shared among independend devices */
-	/* Hardware controller shared among independend devices */
+	/* Hardware controller shared among independent devices */
 	if (!chip->controller->active)
 		chip->controller->active = chip;
 
