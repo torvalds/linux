@@ -389,17 +389,10 @@ kmemtrace_print_alloc_compress(struct trace_iterator *iter)
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	/* Node */
-	ret = trace_seq_printf(s, "%4d   ", entry->node);
+	/* Node and call site*/
+	ret = trace_seq_printf(s, "%4d   %pf\n", entry->node,
+						 (void *)entry->call_site);
 	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	/* Call site */
-	ret = seq_print_ip_sym(s, entry->call_site, 0);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	if (!trace_seq_printf(s, "\n"))
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	return TRACE_TYPE_HANDLED;
@@ -447,17 +440,9 @@ kmemtrace_print_free_compress(struct trace_iterator *iter)
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	/* Skip node */
-	ret = trace_seq_printf(s, "       ");
+	/* Skip node and print call site*/
+	ret = trace_seq_printf(s, "       %pf\n", (void *)entry->call_site);
 	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	/* Call site */
-	ret = seq_print_ip_sym(s, entry->call_site, 0);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	if (!trace_seq_printf(s, "\n"))
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	return TRACE_TYPE_HANDLED;
