@@ -66,11 +66,11 @@ struct common_audit_data {
 		} key_struct;
 #endif
 	} u;
-	const char *function;
 	/* this union contains LSM specific data */
 	union {
 		/* SMACK data */
 		struct smack_audit_data {
+			const char *function;
 			char *subject;
 			char *object;
 			char *request;
@@ -104,7 +104,7 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 /* Initialize an LSM audit data structure. */
 #define COMMON_AUDIT_DATA_INIT(_d, _t) \
 	{ memset((_d), 0, sizeof(struct common_audit_data)); \
-	 (_d)->type = LSM_AUDIT_DATA_##_t; (_d)->function = __func__; }
+	 (_d)->type = LSM_AUDIT_DATA_##_t; }
 
 void common_lsm_audit(struct common_audit_data *a);
 
