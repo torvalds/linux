@@ -227,8 +227,6 @@ static void r520_vram_get_type(struct radeon_device *rdev)
 void r520_vram_info(struct radeon_device *rdev)
 {
 	r520_vram_get_type(rdev);
-	rdev->mc.vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
 
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	r100_vram_init_sizes(rdev);
 }

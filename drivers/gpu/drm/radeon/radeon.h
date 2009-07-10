@@ -541,6 +541,8 @@ union radeon_asic_config {
 	struct r300_asic	r300;
 };
 
+/* r100 */
+void r100_vram_init_sizes(struct radeon_device *rdev);
 
 /*
  * IOCTL.

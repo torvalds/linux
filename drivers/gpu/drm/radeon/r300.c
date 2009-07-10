@@ -585,10 +585,8 @@ void r300_vram_info(struct radeon_device *rdev)
 	} else {
 		rdev->mc.vram_width = 64;
 	}
-	rdev->mc.vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
 
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	r100_vram_init_sizes(rdev);
 }
 
 

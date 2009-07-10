@@ -1360,9 +1360,50 @@ static void r100_vram_get_type(struct radeon_device *rdev)
 	}
 }
 
-void r100_vram_info(struct radeon_device *rdev)
+static u32 r100_get_accessible_vram(struct radeon_device *rdev)
 {
-	r100_vram_get_type(rdev);
+	u32 aper_size;
+	u8 byte;
+
+	aper_size = RREG32(RADEON_CONFIG_APER_SIZE);
+
+	/* Set HDP_APER_CNTL only on cards that are known not to be broken,
+	 * that is has the 2nd generation multifunction PCI interface
+	 */
+	if (rdev->family == CHIP_RV280 ||
+	    rdev->family >= CHIP_RV350) {
+		WREG32_P(RADEON_HOST_PATH_CNTL, RADEON_HDP_APER_CNTL,
+		       ~RADEON_HDP_APER_CNTL);
+		DRM_INFO("Generation 2 PCI interface, using max accessible memory\n");
+		return aper_size * 2;
+	}
+
+	/* Older cards have all sorts of funny issues to deal with. First
+	 * check if it's a multifunction card by reading the PCI config
+	 * header type... Limit those to one aperture size
+	 */
+	pci_read_config_byte(rdev->pdev, 0xe, &byte);
+	if (byte & 0x80) {
+		DRM_INFO("Generation 1 PCI interface in multifunction mode\n");
+		DRM_INFO("Limiting VRAM to one aperture\n");
+		return aper_size;
+	}
+
+	/* Single function older card. We read HDP_APER_CNTL to see how the BIOS
+	 * have set it up. We don't write this as it's broken on some ASICs but
+	 * we expect the BIOS to have done the right thing (might be too optimistic...)
+	 */
+	if (RREG32(RADEON_HOST_PATH_CNTL) & RADEON_HDP_APER_CNTL)
+		return aper_size * 2;
+	return aper_size;
+}
+
+void r100_vram_init_sizes(struct radeon_device *rdev)
+{
+	u64 config_aper_size;
+	u32 accessible;
+
+	config_aper_size = RREG32(RADEON_CONFIG_APER_SIZE);
 
 	if (rdev->flags & RADEON_IS_IGP) {
 		uint32_t tom;
@@ -1383,10 +1424,30 @@ void r100_vram_info(struct radeon_device *rdev)
 		}
 		/* let driver place VRAM */
 		rdev->mc.vram_location = 0xFFFFFFFFUL;
+		 /* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM - 
+		  * Novell bug 204882 + along with lots of ubuntu ones */
+		if (config_aper_size > rdev->mc.vram_size)
+			rdev->mc.vram_size = config_aper_size;
 	}
+
+	/* work out accessible VRAM */
+	accessible = r100_get_accessible_vram(rdev);
 
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+
+	if (accessible > rdev->mc.aper_size)
+		accessible = rdev->mc.aper_size;
+
+	if (rdev->mc.vram_size > rdev->mc.aper_size)
+		rdev->mc.vram_size = rdev->mc.aper_size;
+}
+
+void r100_vram_info(struct radeon_device *rdev)
+{
+	r100_vram_get_type(rdev);
+
+	r100_vram_init_sizes(rdev);
 }
 
 

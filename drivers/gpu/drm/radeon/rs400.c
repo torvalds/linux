@@ -292,24 +292,12 @@ void rs400_gpu_init(struct radeon_device *rdev)
  */
 void rs400_vram_info(struct radeon_device *rdev)
 {
-	uint32_t tom;
-
 	rs400_gart_adjust_size(rdev);
 	/* DDR for all card after R300 & IGP */
 	rdev->mc.vram_is_ddr = true;
 	rdev->mc.vram_width = 128;
 
-	/* read NB_TOM to get the amount of ram stolen for the GPU */
-	tom = RREG32(RADEON_NB_TOM);
-	rdev->mc.vram_size = (((tom >> 16) - (tom & 0xffff) + 1) << 16);
-	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
-
-	/* RS480 IGPs don't seem to translate to main RAM, they
-	 * just reserve and scan out of it. So setting VRAM location
-	 * to say 0, will actually trash the OS. */
-	rdev->mc.vram_location = (tom & 0xffff) << 16;
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	r100_vram_init_sizes(rdev);
 }
 
 
