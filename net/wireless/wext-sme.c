@@ -166,7 +166,7 @@ int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 
 	if (wdev->wext.connect.ssid && len &&
 	    len == wdev->wext.connect.ssid_len &&
-	    memcmp(wdev->wext.connect.ssid, ssid, len))
+	    memcmp(wdev->wext.connect.ssid, ssid, len) == 0)
 		goto out;
 
 	if (wdev->sme_state != CFG80211_SME_IDLE) {
