@@ -783,11 +783,29 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 	is_ram = pat_pagerange_is_ram(paddr, paddr + size);
 
 	/*
-	 * reserve_pfn_range() doesn't support RAM pages. Maintain the current
-	 * behavior with RAM pages by returning success.
+	 * reserve_pfn_range() for RAM pages. We do not refcount to keep
+	 * track of number of mappings of RAM pages. We can assert that
+	 * the type requested matches the type of first page in the range.
 	 */
-	if (is_ram != 0)
+	if (is_ram) {
+		if (!pat_enabled)
+			return 0;
+
+		flags = lookup_memtype(paddr);
+		if (want_flags != flags) {
+			printk(KERN_WARNING
+			"%s:%d map pfn RAM range req %s for %Lx-%Lx, got %s\n",
+				current->comm, current->pid,
+				cattr_name(want_flags),
+				(unsigned long long)paddr,
+				(unsigned long long)(paddr + size),
+				cattr_name(flags));
+			*vma_prot = __pgprot((pgprot_val(*vma_prot) &
+					      (~_PAGE_CACHE_MASK)) |
+					     flags);
+		}
 		return 0;
+	}
 
 	ret = reserve_memtype(paddr, paddr + size, want_flags, &flags);
 	if (ret)
