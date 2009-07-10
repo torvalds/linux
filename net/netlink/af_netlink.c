@@ -83,6 +83,11 @@ struct netlink_sock {
 	struct module		*module;
 };
 
+struct listeners_rcu_head {
+	struct rcu_head rcu_head;
+	void *ptr;
+};
+
 #define NETLINK_KERNEL_SOCKET	0x1
 #define NETLINK_RECV_PKTINFO	0x2
 #define NETLINK_BROADCAST_SEND_ERROR	0x4
@@ -1453,7 +1458,8 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 	if (groups < 32)
 		groups = 32;
 
-	listeners = kzalloc(NLGRPSZ(groups), GFP_KERNEL);
+	listeners = kzalloc(NLGRPSZ(groups) + sizeof(struct listeners_rcu_head),
+			    GFP_KERNEL);
 	if (!listeners)
 		goto out_sock_release;
 
@@ -1501,6 +1507,14 @@ netlink_kernel_release(struct sock *sk)
 EXPORT_SYMBOL(netlink_kernel_release);
 
 
+static void netlink_free_old_listeners(struct rcu_head *rcu_head)
+{
+	struct listeners_rcu_head *lrh;
+
+	lrh = container_of(rcu_head, struct listeners_rcu_head, rcu_head);
+	kfree(lrh->ptr);
+}
+
 /**
  * netlink_change_ngroups - change number of multicast groups
  *
@@ -1516,6 +1530,7 @@ EXPORT_SYMBOL(netlink_kernel_release);
 int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 {
 	unsigned long *listeners, *old = NULL;
+	struct listeners_rcu_head *old_rcu_head;
 	struct netlink_table *tbl = &nl_table[sk->sk_protocol];
 	int err = 0;
 
@@ -1524,7 +1539,9 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 
 	netlink_table_grab();
 	if (NLGRPSZ(tbl->groups) < NLGRPSZ(groups)) {
-		listeners = kzalloc(NLGRPSZ(groups), GFP_ATOMIC);
+		listeners = kzalloc(NLGRPSZ(groups) +
+				    sizeof(struct listeners_rcu_head),
+				    GFP_ATOMIC);
 		if (!listeners) {
 			err = -ENOMEM;
 			goto out_ungrab;
@@ -1532,13 +1549,22 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 		old = tbl->listeners;
 		memcpy(listeners, old, NLGRPSZ(tbl->groups));
 		rcu_assign_pointer(tbl->listeners, listeners);
+		/*
+		 * Free the old memory after an RCU grace period so we
+		 * don't leak it. We use call_rcu() here in order to be
+		 * able to call this function from atomic contexts. The
+		 * allocation of this memory will have reserved enough
+		 * space for struct listeners_rcu_head at the end.
+		 */
+		old_rcu_head = (void *)(tbl->listeners +
+					NLGRPLONGS(tbl->groups));
+		old_rcu_head->ptr = old;
+		call_rcu(&old_rcu_head->rcu_head, netlink_free_old_listeners);
 	}
 	tbl->groups = groups;
 
  out_ungrab:
 	netlink_table_ungrab();
-	synchronize_rcu();
-	kfree(old);
 	return err;
 }
 
