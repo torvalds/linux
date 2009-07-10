@@ -435,15 +435,13 @@ static int nmi_create_files(struct super_block *sb, struct dentry *root)
 		struct dentry *dir;
 		char buf[4];
 
-#ifndef CONFIG_OPROFILE_EVENT_MULTIPLEX
 		/* quick little hack to _not_ expose a counter if it is not
 		 * available for use.  This should protect userspace app.
 		 * NOTE:  assumes 1:1 mapping here (that counters are organized
 		 *        sequentially in their struct assignment).
 		 */
-		if (unlikely(!avail_to_resrv_perfctr_nmi_bit(i)))
+		if (!avail_to_resrv_perfctr_nmi_bit(op_x86_virt_to_phys(i)))
 			continue;
-#endif /* CONFIG_OPROFILE_EVENT_MULTIPLEX */
 
 		snprintf(buf,  sizeof(buf), "%d", i);
 		dir = oprofilefs_mkdir(sb, root, buf);
