@@ -112,6 +112,10 @@ config IA64_UNCACHED_ALLOCATOR
 	bool
 	select GENERIC_ALLOCATOR
 
+config ARCH_USES_PG_UNCACHED
+	def_bool y
+	depends on IA64_UNCACHED_ALLOCATOR
+
 config AUDIT_ARCH
 	bool
 	default y
