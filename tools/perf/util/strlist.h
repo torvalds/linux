@@ -1,7 +1,7 @@
 #ifndef STRLIST_H_
 #define STRLIST_H_
 
-#include "rbtree.h"
+#include <linux/rbtree.h>
 #include <stdbool.h>
 
 struct str_node {
