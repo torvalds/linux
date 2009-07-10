@@ -46,14 +46,82 @@ static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
 		return -EIO;
 }
 
+static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
+			      unsigned int value)
+{
+	u16 *reg_cache = codec->reg_cache;
+	u8 data[3];
+
+	data[0] = reg;
+	data[1] = (value >> 8) & 0xff;
+	data[2] = value & 0xff;
+
+	if (!snd_soc_codec_volatile_register(codec, reg))
+		reg_cache[reg] = value;
+
+	if (codec->hw_write(codec->control_data, data, 3) == 3)
+		return 0;
+	else
+		return -EIO;
+}
+
+static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
+				      unsigned int reg)
+{
+	u16 *cache = codec->reg_cache;
+
+	if (reg >= codec->reg_cache_size ||
+	    snd_soc_codec_volatile_register(codec, reg))
+		return codec->hw_read(codec, reg);
+	else
+		return cache[reg];
+}
+
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+static unsigned int snd_soc_8_16_read_i2c(struct snd_soc_codec *codec,
+					  unsigned int r)
+{
+	struct i2c_msg xfer[2];
+	u8 reg = r;
+	u16 data;
+	int ret;
+	struct i2c_client *client = codec->control_data;
+
+	/* Write register */
+	xfer[0].addr = client->addr;
+	xfer[0].flags = 0;
+	xfer[0].len = 1;
+	xfer[0].buf = &reg;
+
+	/* Read data */
+	xfer[1].addr = client->addr;
+	xfer[1].flags = I2C_M_RD;
+	xfer[1].len = 2;
+	xfer[1].buf = (u8 *)&data;
+
+	ret = i2c_transfer(client->adapter, xfer, 2);
+	if (ret != 2) {
+		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
+		return 0;
+	}
+
+	return (data >> 8) | ((data & 0xff) << 8);
+}
+#else
+#define snd_soc_8_16_read_i2c NULL
+#endif
 
 static struct {
 	int addr_bits;
 	int data_bits;
-	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
+	int (*write)(struct snd_soc_codec *codec, unsigned int, unsigned int);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
+	unsigned int (*i2c_read)(struct snd_soc_codec *, unsigned int);
 } io_types[] = {
 	{ 7, 9, snd_soc_7_9_write, snd_soc_7_9_read },
+	{ 8, 16,
+	  snd_soc_8_16_write, snd_soc_8_16_read,
+	  snd_soc_8_16_read_i2c },
 };
 
 /**
@@ -82,13 +150,6 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 {
 	int i;
 
-	/* We don't support volatile registers yet - refactoring of
-	 * the hw_read operation will be required to do so. */
-	if (codec->volatile_register) {
-		printk(KERN_ERR "Volatile registers not yet supported\n");
-		return -EINVAL;
-	}
-
 	for (i = 0; i < ARRAY_SIZE(io_types); i++)
 		if (io_types[i].addr_bits == addr_bits &&
 		    io_types[i].data_bits == data_bits)
@@ -111,6 +172,8 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 		codec->hw_write = (hw_write_t)i2c_master_send;
 #endif
+		if (io_types[i].i2c_read)
+			codec->hw_read = io_types[i].i2c_read;
 		break;
 
 	case SND_SOC_SPI:
