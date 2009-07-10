@@ -3130,7 +3130,11 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 #endif
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
 			DPRINTK(PROBE, INFO, "FCOE enabled with RSS \n");
-			ixgbe_set_rss_queues(adapter);
+			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
+			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+				ixgbe_set_fdir_queues(adapter);
+			else
+				ixgbe_set_rss_queues(adapter);
 		}
 		/* adding FCoE rx rings to the end */
 		f->mask = adapter->num_rx_queues;
@@ -3388,7 +3392,12 @@ static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 		}
 #endif /* CONFIG_IXGBE_DCB */
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-			ixgbe_cache_ring_rss(adapter);
+			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
+			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+				ixgbe_cache_ring_fdir(adapter);
+			else
+				ixgbe_cache_ring_rss(adapter);
+
 			fcoe_i = f->mask;
 		}
 		for (i = 0; i < f->indices; i++, fcoe_i++)
@@ -5578,12 +5587,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 				netdev->features |= NETIF_F_FCOE_CRC;
 				netdev->features |= NETIF_F_FSO;
 				netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
-				DPRINTK(DRV, INFO, "FCoE enabled, "
-					"disabling Flow Director\n");
-				adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
-				adapter->flags &=
-				        ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-				adapter->atr_sample_rate = 0;
 			} else {
 				adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
 			}
