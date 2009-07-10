@@ -33,7 +33,7 @@
 #include "edac_core.h"
 
 /* To use the new pci_[read/write]_config_qword instead of two dword */
-#define USE_QWORD 1
+#define USE_QWORD 0
 
 /*
  * Alter this version for the module when modifications are made
@@ -57,6 +57,10 @@
 /*
  * i7core Memory Controller Registers
  */
+
+	/* OFFSETS for Device 0 Function 0 */
+
+#define MC_CFG_CONTROL	0x90
 
 	/* OFFSETS for Device 3 Function 0 */
 
@@ -186,6 +190,7 @@ struct pci_id_descr {
 };
 
 struct i7core_pvt {
+	struct pci_dev		*pci_noncore;
 	struct pci_dev		*pci_mcr[MAX_MCR_FUNC + 1];
 	struct pci_dev		*pci_ch[NUM_CHANS][MAX_CHAN_FUNC + 1];
 	struct i7core_info	info;
@@ -221,6 +226,9 @@ struct pci_id_descr pci_devs[] = {
 	{ PCI_DESCR(3, 1, PCI_DEVICE_ID_INTEL_I7_MC_TAD)  },
 	{ PCI_DESCR(3, 2, PCI_DEVICE_ID_INTEL_I7_MC_RAS)  }, /* if RDIMM is supported */
 	{ PCI_DESCR(3, 4, PCI_DEVICE_ID_INTEL_I7_MC_TEST) },
+
+		/* Generic Non-core registers */
+	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NOCORE)  },
 
 		/* Channel 0 */
 	{ PCI_DESCR(4, 0, PCI_DEVICE_ID_INTEL_I7_MC_CH0_CTRL) },
@@ -882,6 +890,16 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	else
 		mask |= (pvt->inject.col & 0x3fffL);
 
+	/* Unlock writes to registers */
+	pci_write_config_dword(pvt->pci_noncore, MC_CFG_CONTROL, 0x2);
+	msleep(100);
+
+	/* Zeroes error count registers */
+	pci_write_config_dword(pvt->pci_mcr[4], MC_TEST_ERR_RCV1, 0);
+	pci_write_config_dword(pvt->pci_mcr[4], MC_TEST_ERR_RCV0, 0);
+	pvt->ce_count_available = 0;
+
+
 #if USE_QWORD
 	pci_write_config_qword(pvt->pci_ch[pvt->inject.channel][0],
 			       MC_CHANNEL_ADDR_MATCH, mask);
@@ -929,10 +947,13 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
 			       MC_CHANNEL_ERROR_MASK, injectmask);
 
+#if 0
+	/* lock writes to registers */
+	pci_write_config_dword(pvt->pci_noncore, MC_CFG_CONTROL, 0);
+#endif
 	debugf0("Error inject addr match 0x%016llx, ecc 0x%08x,"
 		" inject 0x%08x\n",
 		mask, pvt->inject.eccmask, injectmask);
-
 
 
 	return count;
@@ -1124,12 +1145,15 @@ static int mci_bind_devs(struct mem_ctl_info *mci)
 			if (unlikely(func > MAX_CHAN_FUNC))
 				goto error;
 			pvt->pci_ch[slot - 4][func] = pdev;
-		} else
+		} else if (!slot && !func)
+			pvt->pci_noncore = pdev;
+		else
 			goto error;
 
 		debugf0("Associated fn %d.%d, dev = %p\n",
 			PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn), pdev);
 	}
+
 	return 0;
 
 error:
