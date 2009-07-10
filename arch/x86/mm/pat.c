@@ -498,6 +498,55 @@ int free_memtype(u64 start, u64 end)
 }
 
 
+/**
+ * io_reserve_memtype - Request a memory type mapping for a region of memory
+ * @start: start (physical address) of the region
+ * @end: end (physical address) of the region
+ * @type: A pointer to memtype, with requested type. On success, requested
+ * or any other compatible type that was available for the region is returned
+ *
+ * On success, returns 0
+ * On failure, returns non-zero
+ */
+int io_reserve_memtype(resource_size_t start, resource_size_t end,
+			unsigned long *type)
+{
+	unsigned long req_type = *type;
+	unsigned long new_type;
+	int ret;
+
+	WARN_ON_ONCE(iomem_map_sanity_check(start, end - start));
+
+	ret = reserve_memtype(start, end, req_type, &new_type);
+	if (ret)
+		goto out_err;
+
+	if (!is_new_memtype_allowed(req_type, new_type))
+		goto out_free;
+
+	if (kernel_map_sync_memtype(start, end - start, new_type) < 0)
+		goto out_free;
+
+	*type = new_type;
+	return 0;
+
+out_free:
+	free_memtype(start, end);
+	ret = -EBUSY;
+out_err:
+	return ret;
+}
+
+/**
+ * io_free_memtype - Release a memory type mapping for a region of memory
+ * @start: start (physical address) of the region
+ * @end: end (physical address) of the region
+ */
+void io_free_memtype(resource_size_t start, resource_size_t end)
+{
+	free_memtype(start, end);
+}
+
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t vma_prot)
 {
