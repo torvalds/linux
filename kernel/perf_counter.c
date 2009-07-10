@@ -146,6 +146,14 @@ static void put_ctx(struct perf_counter_context *ctx)
 	}
 }
 
+static void unclone_ctx(struct perf_counter_context *ctx)
+{
+	if (ctx->parent_ctx) {
+		put_ctx(ctx->parent_ctx);
+		ctx->parent_ctx = NULL;
+	}
+}
+
 /*
  * Get the perf_counter_context for a task and lock it.
  * This has to cope with with the fact that until it is locked,
@@ -1463,10 +1471,8 @@ static void perf_counter_enable_on_exec(struct task_struct *task)
 	/*
 	 * Unclone this context if we enabled any counter.
 	 */
-	if (enabled && ctx->parent_ctx) {
-		put_ctx(ctx->parent_ctx);
-		ctx->parent_ctx = NULL;
-	}
+	if (enabled)
+		unclone_ctx(ctx);
 
 	spin_unlock(&ctx->lock);
 
@@ -1526,7 +1532,6 @@ __perf_counter_init_context(struct perf_counter_context *ctx,
 
 static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 {
-	struct perf_counter_context *parent_ctx;
 	struct perf_counter_context *ctx;
 	struct perf_cpu_context *cpuctx;
 	struct task_struct *task;
@@ -1586,11 +1591,7 @@ static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
  retry:
 	ctx = perf_lock_task_context(task, &flags);
 	if (ctx) {
-		parent_ctx = ctx->parent_ctx;
-		if (parent_ctx) {
-			put_ctx(parent_ctx);
-			ctx->parent_ctx = NULL;		/* no longer a clone */
-		}
+		unclone_ctx(ctx);
 		spin_unlock_irqrestore(&ctx->lock, flags);
 	}
 
@@ -4255,15 +4256,12 @@ void perf_counter_exit_task(struct task_struct *child)
 	 */
 	spin_lock(&child_ctx->lock);
 	child->perf_counter_ctxp = NULL;
-	if (child_ctx->parent_ctx) {
-		/*
-		 * This context is a clone; unclone it so it can't get
-		 * swapped to another process while we're removing all
-		 * the counters from it.
-		 */
-		put_ctx(child_ctx->parent_ctx);
-		child_ctx->parent_ctx = NULL;
-	}
+	/*
+	 * If this context is a clone; unclone it so it can't get
+	 * swapped to another process while we're removing all
+	 * the counters from it.
+	 */
+	unclone_ctx(child_ctx);
 	spin_unlock(&child_ctx->lock);
 	local_irq_restore(flags);
 
