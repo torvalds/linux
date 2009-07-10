@@ -313,9 +313,6 @@ static void nilfs_put_super(struct super_block *sb)
 
 	lock_kernel();
 
-	if (sb->s_dirt)
-		nilfs_write_super(sb);
-
 	nilfs_detach_segment_constructor(sbi);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
