@@ -288,63 +288,61 @@ static int pat_pagerange_is_ram(unsigned long start, unsigned long end)
 }
 
 /*
- * For RAM pages, mark the pages as non WB memory type using
- * PageNonWB (PG_arch_1). We allow only one set_memory_uc() or
- * set_memory_wc() on a RAM page at a time before marking it as WB again.
- * This is ok, because only one driver will be owning the page and
- * doing set_memory_*() calls.
+ * For RAM pages, we use page flags to mark the pages with appropriate type.
+ * Here we do two pass:
+ * - Find the memtype of all the pages in the range, look for any conflicts
+ * - In case of no conflicts, set the new memtype for pages in the range
  *
- * For now, we use PageNonWB to track that the RAM page is being mapped
- * as non WB. In future, we will have to use one more flag
- * (or some other mechanism in page_struct) to distinguish between
- * UC and WC mapping.
+ * Caller must hold memtype_lock for atomicity.
  */
 static int reserve_ram_pages_type(u64 start, u64 end, unsigned long req_type,
 				  unsigned long *new_type)
 {
 	struct page *page;
-	u64 pfn, end_pfn;
+	u64 pfn;
+
+	if (req_type == _PAGE_CACHE_UC) {
+		/* We do not support strong UC */
+		WARN_ON_ONCE(1);
+		req_type = _PAGE_CACHE_UC_MINUS;
+	}
+
+	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
+		unsigned long type;
+
+		page = pfn_to_page(pfn);
+		type = get_page_memtype(page);
+		if (type != -1) {
+			printk(KERN_INFO "reserve_ram_pages_type failed "
+				"0x%Lx-0x%Lx, track 0x%lx, req 0x%lx\n",
+				start, end, type, req_type);
+			if (new_type)
+				*new_type = type;
+
+			return -EBUSY;
+		}
+	}
+
+	if (new_type)
+		*new_type = req_type;
 
 	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
 		page = pfn_to_page(pfn);
-		if (page_mapped(page) || PageNonWB(page))
-			goto out;
-
-		SetPageNonWB(page);
+		set_page_memtype(page, req_type);
 	}
 	return 0;
-
-out:
-	end_pfn = pfn;
-	for (pfn = (start >> PAGE_SHIFT); pfn < end_pfn; ++pfn) {
-		page = pfn_to_page(pfn);
-		ClearPageNonWB(page);
-	}
-
-	return -EINVAL;
 }
 
 static int free_ram_pages_type(u64 start, u64 end)
 {
 	struct page *page;
-	u64 pfn, end_pfn;
+	u64 pfn;
 
 	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
 		page = pfn_to_page(pfn);
-		if (page_mapped(page) || !PageNonWB(page))
-			goto out;
-
-		ClearPageNonWB(page);
+		set_page_memtype(page, -1);
 	}
 	return 0;
-
-out:
-	end_pfn = pfn;
-	for (pfn = (start >> PAGE_SHIFT); pfn < end_pfn; ++pfn) {
-		page = pfn_to_page(pfn);
-		SetPageNonWB(page);
-	}
-	return -EINVAL;
 }
 
 /*
@@ -405,11 +403,16 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		*new_type = actual_type;
 
 	is_range_ram = pat_pagerange_is_ram(start, end);
-	if (is_range_ram == 1)
-		return reserve_ram_pages_type(start, end, req_type,
-					      new_type);
-	else if (is_range_ram < 0)
+	if (is_range_ram == 1) {
+
+		spin_lock(&memtype_lock);
+		err = reserve_ram_pages_type(start, end, req_type, new_type);
+		spin_unlock(&memtype_lock);
+
+		return err;
+	} else if (is_range_ram < 0) {
 		return -EINVAL;
+	}
 
 	new  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
 	if (!new)
@@ -505,10 +508,16 @@ int free_memtype(u64 start, u64 end)
 		return 0;
 
 	is_range_ram = pat_pagerange_is_ram(start, end);
-	if (is_range_ram == 1)
-		return free_ram_pages_type(start, end);
-	else if (is_range_ram < 0)
+	if (is_range_ram == 1) {
+
+		spin_lock(&memtype_lock);
+		err = free_ram_pages_type(start, end);
+		spin_unlock(&memtype_lock);
+
+		return err;
+	} else if (is_range_ram < 0) {
 		return -EINVAL;
+	}
 
 	spin_lock(&memtype_lock);
 
