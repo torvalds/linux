@@ -648,6 +648,7 @@ struct b43_wl {
 	u8 nr_devs;
 
 	bool radiotap_enabled;
+	bool radio_enabled;
 
 	/* The beacon we are currently using (AP or IBSS mode).
 	 * This beacon stuff is protected by the irq_lock. */

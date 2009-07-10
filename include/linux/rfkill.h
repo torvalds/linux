@@ -99,7 +99,6 @@ enum rfkill_user_states {
 #undef RFKILL_STATE_UNBLOCKED
 #undef RFKILL_STATE_HARD_BLOCKED
 
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
