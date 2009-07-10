@@ -220,6 +220,10 @@ struct cifs_unix_set_info_args {
 	dev_t	device;
 };
 
+extern int CIFSSMBUnixSetFileInfo(const int xid, struct cifsTconInfo *tcon,
+				  const struct cifs_unix_set_info_args *args,
+				  u16 fid, u32 pid_of_opener);
+
 extern int CIFSSMBUnixSetPathInfo(const int xid, struct cifsTconInfo *pTcon,
 			char *fileName,
 			const struct cifs_unix_set_info_args *args,

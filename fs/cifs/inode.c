@@ -1790,6 +1790,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsTconInfo *pTcon = cifs_sb->tcon;
 	struct cifs_unix_set_info_args *args = NULL;
+	struct cifsFileInfo *open_file;
 
 	cFYI(1, ("setattr_unix on file %s attrs->ia_valid=0x%x",
 		 direntry->d_name.name, attrs->ia_valid));
@@ -1876,10 +1877,18 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		args->ctime = NO_CHANGE_64;
 
 	args->device = 0;
-	rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, args,
+	open_file = find_writable_file(cifsInode);
+	if (open_file) {
+		u16 nfid = open_file->netfid;
+		u32 npid = open_file->pid;
+		rc = CIFSSMBUnixSetFileInfo(xid, pTcon, args, nfid, npid);
+		atomic_dec(&open_file->wrtPending);
+	} else {
+		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, args,
 				    cifs_sb->local_nls,
 				    cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
+	}
 
 	if (!rc)
 		rc = inode_setattr(inode, attrs);
