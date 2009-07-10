@@ -292,9 +292,10 @@ struct wm8961_priv {
 	u16 reg_cache[WM8961_MAX_REGISTER];
 };
 
-static int wm8961_reg_is_volatile(int reg)
+static int wm8961_volatile_register(unsigned int reg)
 {
 	switch (reg) {
+	case WM8961_SOFTWARE_RESET:
 	case WM8961_WRITE_SEQUENCER_7:
 	case WM8961_DC_SERVO_1:
 		return 1;
@@ -304,76 +305,9 @@ static int wm8961_reg_is_volatile(int reg)
 	}
 }
 
-static unsigned int wm8961_read_reg_cache(struct snd_soc_codec *codec,
-					  unsigned int reg)
-{
-	u16 *cache = codec->reg_cache;
-	BUG_ON(reg > WM8961_MAX_REGISTER);
-	return cache[reg];
-}
-
-static unsigned int wm8961_read_hw(struct snd_soc_codec *codec, u8 reg)
-{
-	struct i2c_msg xfer[2];
-	u16 data;
-	int ret;
-	struct i2c_client *client = codec->control_data;
-
-	BUG_ON(reg > WM8961_MAX_REGISTER);
-
-	/* Write register */
-	xfer[0].addr = client->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 1;
-	xfer[0].buf = &reg;
-
-	/* Read data */
-	xfer[1].addr = client->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = 2;
-	xfer[1].buf = (u8 *)&data;
-
-	ret = i2c_transfer(client->adapter, xfer, 2);
-	if (ret != 2) {
-		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
-		return 0;
-	}
-
-	return (data >> 8) | ((data & 0xff) << 8);
-}
-
-static unsigned int wm8961_read(struct snd_soc_codec *codec, unsigned int reg)
-{
-	if (wm8961_reg_is_volatile(reg))
-		return wm8961_read_hw(codec, reg);
-	else
-		return wm8961_read_reg_cache(codec, reg);
-}
-
-static int wm8961_write(struct snd_soc_codec *codec, unsigned int reg,
-			unsigned int value)
-{
-	u16 *cache = codec->reg_cache;
-	u8 data[3];
-
-	BUG_ON(reg > WM8961_MAX_REGISTER);
-
-	if (!wm8961_reg_is_volatile(reg))
-		cache[reg] = value;
-
-	data[0] = reg;
-	data[1] = value >> 8;
-	data[2] = value & 0x00ff;
-
-	if (codec->hw_write(codec->control_data, data, 3) == 3)
-		return 0;
-	else
-		return -EIO;
-}
-
 static int wm8961_reset(struct snd_soc_codec *codec)
 {
-	return wm8961_write(codec, WM8961_SOFTWARE_RESET, 0);
+	return snd_soc_write(codec, WM8961_SOFTWARE_RESET, 0);
 }
 
 /*
@@ -384,33 +318,33 @@ static int wm8961_hp_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	u16 hp_reg = wm8961_read(codec, WM8961_ANALOGUE_HP_0);
-	u16 cp_reg = wm8961_read(codec, WM8961_CHARGE_PUMP_1);
-	u16 pwr_reg = wm8961_read(codec, WM8961_PWR_MGMT_2);
-	u16 dcs_reg = wm8961_read(codec, WM8961_DC_SERVO_1);
+	u16 hp_reg = snd_soc_read(codec, WM8961_ANALOGUE_HP_0);
+	u16 cp_reg = snd_soc_read(codec, WM8961_CHARGE_PUMP_1);
+	u16 pwr_reg = snd_soc_read(codec, WM8961_PWR_MGMT_2);
+	u16 dcs_reg = snd_soc_read(codec, WM8961_DC_SERVO_1);
 	int timeout = 500;
 
 	if (event & SND_SOC_DAPM_POST_PMU) {
 		/* Make sure the output is shorted */
 		hp_reg &= ~(WM8961_HPR_RMV_SHORT | WM8961_HPL_RMV_SHORT);
-		wm8961_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
+		snd_soc_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
 
 		/* Enable the charge pump */
 		cp_reg |= WM8961_CP_ENA;
-		wm8961_write(codec, WM8961_CHARGE_PUMP_1, cp_reg);
+		snd_soc_write(codec, WM8961_CHARGE_PUMP_1, cp_reg);
 		mdelay(5);
 
 		/* Enable the PGA */
 		pwr_reg |= WM8961_LOUT1_PGA | WM8961_ROUT1_PGA;
-		wm8961_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
+		snd_soc_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
 
 		/* Enable the amplifier */
 		hp_reg |= WM8961_HPR_ENA | WM8961_HPL_ENA;
-		wm8961_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
+		snd_soc_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
 
 		/* Second stage enable */
 		hp_reg |= WM8961_HPR_ENA_DLY | WM8961_HPL_ENA_DLY;
-		wm8961_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
+		snd_soc_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
 
 		/* Enable the DC servo & trigger startup */
 		dcs_reg |=
@@ -418,10 +352,10 @@ static int wm8961_hp_event(struct snd_soc_dapm_widget *w,
 			WM8961_DCS_ENA_CHAN_HPL | WM8961_DCS_TRIG_STARTUP_HPL;
 		dev_dbg(codec->dev, "Enabling DC servo\n");
 
-		wm8961_write(codec, WM8961_DC_SERVO_1, dcs_reg);
+		snd_soc_write(codec, WM8961_DC_SERVO_1, dcs_reg);
 		do {
 			msleep(1);
-			dcs_reg = wm8961_read(codec, WM8961_DC_SERVO_1);
+			dcs_reg = snd_soc_read(codec, WM8961_DC_SERVO_1);
 		} while (--timeout &&
 			 dcs_reg & (WM8961_DCS_TRIG_STARTUP_HPR |
 				WM8961_DCS_TRIG_STARTUP_HPL));
@@ -433,39 +367,39 @@ static int wm8961_hp_event(struct snd_soc_dapm_widget *w,
 
 		/* Enable the output stage */
 		hp_reg |= WM8961_HPR_ENA_OUTP | WM8961_HPL_ENA_OUTP;
-		wm8961_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
+		snd_soc_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
 
 		/* Remove the short on the output stage */
 		hp_reg |= WM8961_HPR_RMV_SHORT | WM8961_HPL_RMV_SHORT;
-		wm8961_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
+		snd_soc_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
 	}
 
 	if (event & SND_SOC_DAPM_PRE_PMD) {
 		/* Short the output */
 		hp_reg &= ~(WM8961_HPR_RMV_SHORT | WM8961_HPL_RMV_SHORT);
-		wm8961_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
+		snd_soc_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
 
 		/* Disable the output stage */
 		hp_reg &= ~(WM8961_HPR_ENA_OUTP | WM8961_HPL_ENA_OUTP);
-		wm8961_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
+		snd_soc_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
 
 		/* Disable DC offset cancellation */
 		dcs_reg &= ~(WM8961_DCS_ENA_CHAN_HPR |
 			     WM8961_DCS_ENA_CHAN_HPL);
-		wm8961_write(codec, WM8961_DC_SERVO_1, dcs_reg);
+		snd_soc_write(codec, WM8961_DC_SERVO_1, dcs_reg);
 
 		/* Finish up */
 		hp_reg &= ~(WM8961_HPR_ENA_DLY | WM8961_HPR_ENA |
 			    WM8961_HPL_ENA_DLY | WM8961_HPL_ENA);
-		wm8961_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
+		snd_soc_write(codec, WM8961_ANALOGUE_HP_0, hp_reg);
 
 		/* Disable the PGA */
 		pwr_reg &= ~(WM8961_LOUT1_PGA | WM8961_ROUT1_PGA);
-		wm8961_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
+		snd_soc_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
 
 		/* Disable the charge pump */
 		dev_dbg(codec->dev, "Disabling charge pump\n");
-		wm8961_write(codec, WM8961_CHARGE_PUMP_1,
+		snd_soc_write(codec, WM8961_CHARGE_PUMP_1,
 			     cp_reg & ~WM8961_CP_ENA);
 	}
 
@@ -476,27 +410,27 @@ static int wm8961_spk_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	u16 pwr_reg = wm8961_read(codec, WM8961_PWR_MGMT_2);
-	u16 spk_reg = wm8961_read(codec, WM8961_CLASS_D_CONTROL_1);
+	u16 pwr_reg = snd_soc_read(codec, WM8961_PWR_MGMT_2);
+	u16 spk_reg = snd_soc_read(codec, WM8961_CLASS_D_CONTROL_1);
 
 	if (event & SND_SOC_DAPM_POST_PMU) {
 		/* Enable the PGA */
 		pwr_reg |= WM8961_SPKL_PGA | WM8961_SPKR_PGA;
-		wm8961_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
+		snd_soc_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
 
 		/* Enable the amplifier */
 		spk_reg |= WM8961_SPKL_ENA | WM8961_SPKR_ENA;
-		wm8961_write(codec, WM8961_CLASS_D_CONTROL_1, spk_reg);
+		snd_soc_write(codec, WM8961_CLASS_D_CONTROL_1, spk_reg);
 	}
 
 	if (event & SND_SOC_DAPM_PRE_PMD) {
 		/* Enable the amplifier */
 		spk_reg &= ~(WM8961_SPKL_ENA | WM8961_SPKR_ENA);
-		wm8961_write(codec, WM8961_CLASS_D_CONTROL_1, spk_reg);
+		snd_soc_write(codec, WM8961_CLASS_D_CONTROL_1, spk_reg);
 
 		/* Enable the PGA */
 		pwr_reg &= ~(WM8961_SPKL_PGA | WM8961_SPKR_PGA);
-		wm8961_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
+		snd_soc_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
 	}
 
 	return 0;
@@ -714,10 +648,10 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 		    abs(wm8961_srate[best].rate - fs))
 			best = i;
 	}
-	reg = wm8961_read(codec, WM8961_ADDITIONAL_CONTROL_3);
+	reg = snd_soc_read(codec, WM8961_ADDITIONAL_CONTROL_3);
 	reg &= ~WM8961_SAMPLE_RATE_MASK;
 	reg |= wm8961_srate[best].val;
-	wm8961_write(codec, WM8961_ADDITIONAL_CONTROL_3, reg);
+	snd_soc_write(codec, WM8961_ADDITIONAL_CONTROL_3, reg);
 	dev_dbg(codec->dev, "Selected SRATE %dHz for %dHz\n",
 		wm8961_srate[best].rate, fs);
 
@@ -747,12 +681,12 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 		wm8961_clk_sys_ratio[i].ratio, wm8961->sysclk, fs,
 		wm8961->sysclk / fs);
 
-	reg = wm8961_read(codec, WM8961_CLOCKING_4);
+	reg = snd_soc_read(codec, WM8961_CLOCKING_4);
 	reg &= ~WM8961_CLK_SYS_RATE_MASK;
 	reg |= wm8961_clk_sys_ratio[i].val << WM8961_CLK_SYS_RATE_SHIFT;
-	wm8961_write(codec, WM8961_CLOCKING_4, reg);
+	snd_soc_write(codec, WM8961_CLOCKING_4, reg);
 
-	reg = wm8961_read(codec, WM8961_AUDIO_INTERFACE_0);
+	reg = snd_soc_read(codec, WM8961_AUDIO_INTERFACE_0);
 	reg &= ~WM8961_WL_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -769,15 +703,15 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 	default:
 		return -EINVAL;
 	}
-	wm8961_write(codec, WM8961_AUDIO_INTERFACE_0, reg);
+	snd_soc_write(codec, WM8961_AUDIO_INTERFACE_0, reg);
 
 	/* Sloping stop-band filter is recommended for <= 24kHz */
-	reg = wm8961_read(codec, WM8961_ADC_DAC_CONTROL_2);
+	reg = snd_soc_read(codec, WM8961_ADC_DAC_CONTROL_2);
 	if (fs <= 24000)
 		reg |= WM8961_DACSLOPE;
 	else
 		reg &= WM8961_DACSLOPE;
-	wm8961_write(codec, WM8961_ADC_DAC_CONTROL_2, reg);
+	snd_soc_write(codec, WM8961_ADC_DAC_CONTROL_2, reg);
 
 	return 0;
 }
@@ -788,7 +722,7 @@ static int wm8961_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8961_priv *wm8961 = codec->private_data;
-	u16 reg = wm8961_read(codec, WM8961_CLOCKING1);
+	u16 reg = snd_soc_read(codec, WM8961_CLOCKING1);
 
 	if (freq > 33000000) {
 		dev_err(codec->dev, "MCLK must be <33MHz\n");
@@ -804,7 +738,7 @@ static int wm8961_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		reg &= WM8961_MCLKDIV;
 	}
 
-	wm8961_write(codec, WM8961_CLOCKING1, reg);
+	snd_soc_write(codec, WM8961_CLOCKING1, reg);
 
 	wm8961->sysclk = freq;
 
@@ -814,7 +748,7 @@ static int wm8961_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 static int wm8961_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 aif = wm8961_read(codec, WM8961_AUDIO_INTERFACE_0);
+	u16 aif = snd_soc_read(codec, WM8961_AUDIO_INTERFACE_0);
 
 	aif &= ~(WM8961_BCLKINV | WM8961_LRP |
 		 WM8961_MS | WM8961_FORMAT_MASK);
@@ -874,26 +808,26 @@ static int wm8961_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	return wm8961_write(codec, WM8961_AUDIO_INTERFACE_0, aif);
+	return snd_soc_write(codec, WM8961_AUDIO_INTERFACE_0, aif);
 }
 
 static int wm8961_set_tristate(struct snd_soc_dai *dai, int tristate)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 reg = wm8961_read(codec, WM8961_ADDITIONAL_CONTROL_2);
+	u16 reg = snd_soc_read(codec, WM8961_ADDITIONAL_CONTROL_2);
 
 	if (tristate)
 		reg |= WM8961_TRIS;
 	else
 		reg &= ~WM8961_TRIS;
 
-	return wm8961_write(codec, WM8961_ADDITIONAL_CONTROL_2, reg);
+	return snd_soc_write(codec, WM8961_ADDITIONAL_CONTROL_2, reg);
 }
 
 static int wm8961_digital_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 reg = wm8961_read(codec, WM8961_ADC_DAC_CONTROL_1);
+	u16 reg = snd_soc_read(codec, WM8961_ADC_DAC_CONTROL_1);
 
 	if (mute)
 		reg |= WM8961_DACMU;
@@ -902,7 +836,7 @@ static int wm8961_digital_mute(struct snd_soc_dai *dai, int mute)
 
 	msleep(17);
 
-	return wm8961_write(codec, WM8961_ADC_DAC_CONTROL_1, reg);
+	return snd_soc_write(codec, WM8961_ADC_DAC_CONTROL_1, reg);
 }
 
 static int wm8961_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
@@ -912,17 +846,17 @@ static int wm8961_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
 
 	switch (div_id) {
 	case WM8961_BCLK:
-		reg = wm8961_read(codec, WM8961_CLOCKING2);
+		reg = snd_soc_read(codec, WM8961_CLOCKING2);
 		reg &= ~WM8961_BCLKDIV_MASK;
 		reg |= div;
-		wm8961_write(codec, WM8961_CLOCKING2, reg);
+		snd_soc_write(codec, WM8961_CLOCKING2, reg);
 		break;
 
 	case WM8961_LRCLK:
-		reg = wm8961_read(codec, WM8961_AUDIO_INTERFACE_2);
+		reg = snd_soc_read(codec, WM8961_AUDIO_INTERFACE_2);
 		reg &= ~WM8961_LRCLK_RATE_MASK;
 		reg |= div;
-		wm8961_write(codec, WM8961_AUDIO_INTERFACE_2, reg);
+		snd_soc_write(codec, WM8961_AUDIO_INTERFACE_2, reg);
 		break;
 
 	default:
@@ -949,34 +883,34 @@ static int wm8961_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		if (codec->bias_level == SND_SOC_BIAS_STANDBY) {
 			/* Enable bias generation */
-			reg = wm8961_read(codec, WM8961_ANTI_POP);
+			reg = snd_soc_read(codec, WM8961_ANTI_POP);
 			reg |= WM8961_BUFIOEN | WM8961_BUFDCOPEN;
-			wm8961_write(codec, WM8961_ANTI_POP, reg);
+			snd_soc_write(codec, WM8961_ANTI_POP, reg);
 
 			/* VMID=2*50k, VREF */
-			reg = wm8961_read(codec, WM8961_PWR_MGMT_1);
+			reg = snd_soc_read(codec, WM8961_PWR_MGMT_1);
 			reg &= ~WM8961_VMIDSEL_MASK;
 			reg |= (1 << WM8961_VMIDSEL_SHIFT) | WM8961_VREF;
-			wm8961_write(codec, WM8961_PWR_MGMT_1, reg);
+			snd_soc_write(codec, WM8961_PWR_MGMT_1, reg);
 		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_PREPARE) {
 			/* VREF off */
-			reg = wm8961_read(codec, WM8961_PWR_MGMT_1);
+			reg = snd_soc_read(codec, WM8961_PWR_MGMT_1);
 			reg &= ~WM8961_VREF;
-			wm8961_write(codec, WM8961_PWR_MGMT_1, reg);
+			snd_soc_write(codec, WM8961_PWR_MGMT_1, reg);
 
 			/* Bias generation off */
-			reg = wm8961_read(codec, WM8961_ANTI_POP);
+			reg = snd_soc_read(codec, WM8961_ANTI_POP);
 			reg &= ~(WM8961_BUFIOEN | WM8961_BUFDCOPEN);
-			wm8961_write(codec, WM8961_ANTI_POP, reg);
+			snd_soc_write(codec, WM8961_ANTI_POP, reg);
 
 			/* VMID off */
-			reg = wm8961_read(codec, WM8961_PWR_MGMT_1);
+			reg = snd_soc_read(codec, WM8961_PWR_MGMT_1);
 			reg &= ~WM8961_VMIDSEL_MASK;
-			wm8961_write(codec, WM8961_PWR_MGMT_1, reg);
+			snd_soc_write(codec, WM8961_PWR_MGMT_1, reg);
 		}
 		break;
 
@@ -1101,7 +1035,7 @@ static int wm8961_resume(struct platform_device *pdev)
 		if (i == WM8961_SOFTWARE_RESET)
 			continue;
 
-		wm8961_write(codec, i, reg_cache[i]);
+		snd_soc_write(codec, i, reg_cache[i]);
 	}
 
 	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -1140,26 +1074,32 @@ static int wm8961_register(struct wm8961_priv *wm8961)
 	codec->private_data = wm8961;
 	codec->name = "WM8961";
 	codec->owner = THIS_MODULE;
-	codec->read = wm8961_read;
-	codec->write = wm8961_write;
 	codec->dai = &wm8961_dai;
 	codec->num_dai = 1;
 	codec->reg_cache_size = ARRAY_SIZE(wm8961->reg_cache);
 	codec->reg_cache = &wm8961->reg_cache;
 	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->set_bias_level = wm8961_set_bias_level;
+	codec->volatile_register = wm8961_volatile_register;
 
 	memcpy(codec->reg_cache, wm8961_reg_defaults,
 	       sizeof(wm8961_reg_defaults));
 
-	reg = wm8961_read_hw(codec, WM8961_SOFTWARE_RESET);
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		goto err;
+	}
+
+	reg = snd_soc_read(codec, WM8961_SOFTWARE_RESET);
 	if (reg != 0x1801) {
 		dev_err(codec->dev, "Device is not a WM8961: ID=0x%x\n", reg);
 		ret = -EINVAL;
 		goto err;
 	}
 
-	reg = wm8961_read_hw(codec, WM8961_RIGHT_INPUT_VOLUME);
+	/* This isn't volatile - readback doesn't correspond to write */
+	reg = codec->hw_read(codec, WM8961_RIGHT_INPUT_VOLUME);
 	dev_info(codec->dev, "WM8961 family %d revision %c\n",
 		 (reg & WM8961_DEVICE_ID_MASK) >> WM8961_DEVICE_ID_SHIFT,
 		 ((reg & WM8961_CHIP_REV_MASK) >> WM8961_CHIP_REV_SHIFT)
@@ -1172,37 +1112,37 @@ static int wm8961_register(struct wm8961_priv *wm8961)
 	}
 
 	/* Enable class W */
-	reg = wm8961_read(codec, WM8961_CHARGE_PUMP_B);
+	reg = snd_soc_read(codec, WM8961_CHARGE_PUMP_B);
 	reg |= WM8961_CP_DYN_PWR_MASK;
-	wm8961_write(codec, WM8961_CHARGE_PUMP_B, reg);
+	snd_soc_write(codec, WM8961_CHARGE_PUMP_B, reg);
 
 	/* Latch volume update bits (right channel only, we always
 	 * write both out) and default ZC on. */
-	reg = wm8961_read(codec, WM8961_ROUT1_VOLUME);
-	wm8961_write(codec, WM8961_ROUT1_VOLUME,
+	reg = snd_soc_read(codec, WM8961_ROUT1_VOLUME);
+	snd_soc_write(codec, WM8961_ROUT1_VOLUME,
 		     reg | WM8961_LO1ZC | WM8961_OUT1VU);
-	wm8961_write(codec, WM8961_LOUT1_VOLUME, reg | WM8961_LO1ZC);
-	reg = wm8961_read(codec, WM8961_ROUT2_VOLUME);
-	wm8961_write(codec, WM8961_ROUT2_VOLUME,
+	snd_soc_write(codec, WM8961_LOUT1_VOLUME, reg | WM8961_LO1ZC);
+	reg = snd_soc_read(codec, WM8961_ROUT2_VOLUME);
+	snd_soc_write(codec, WM8961_ROUT2_VOLUME,
 		     reg | WM8961_SPKRZC | WM8961_SPKVU);
-	wm8961_write(codec, WM8961_LOUT2_VOLUME, reg | WM8961_SPKLZC);
+	snd_soc_write(codec, WM8961_LOUT2_VOLUME, reg | WM8961_SPKLZC);
 
-	reg = wm8961_read(codec, WM8961_RIGHT_ADC_VOLUME);
-	wm8961_write(codec, WM8961_RIGHT_ADC_VOLUME, reg | WM8961_ADCVU);
-	reg = wm8961_read(codec, WM8961_RIGHT_INPUT_VOLUME);
-	wm8961_write(codec, WM8961_RIGHT_INPUT_VOLUME, reg | WM8961_IPVU);
+	reg = snd_soc_read(codec, WM8961_RIGHT_ADC_VOLUME);
+	snd_soc_write(codec, WM8961_RIGHT_ADC_VOLUME, reg | WM8961_ADCVU);
+	reg = snd_soc_read(codec, WM8961_RIGHT_INPUT_VOLUME);
+	snd_soc_write(codec, WM8961_RIGHT_INPUT_VOLUME, reg | WM8961_IPVU);
 
 	/* Use soft mute by default */
-	reg = wm8961_read(codec, WM8961_ADC_DAC_CONTROL_2);
+	reg = snd_soc_read(codec, WM8961_ADC_DAC_CONTROL_2);
 	reg |= WM8961_DACSMM;
-	wm8961_write(codec, WM8961_ADC_DAC_CONTROL_2, reg);
+	snd_soc_write(codec, WM8961_ADC_DAC_CONTROL_2, reg);
 
 	/* Use automatic clocking mode by default; for now this is all
 	 * we support.
 	 */
-	reg = wm8961_read(codec, WM8961_CLOCKING_3);
+	reg = snd_soc_read(codec, WM8961_CLOCKING_3);
 	reg &= ~WM8961_MANUAL_MODE;
-	wm8961_write(codec, WM8961_CLOCKING_3, reg);
+	snd_soc_write(codec, WM8961_CLOCKING_3, reg);
 
 	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1250,7 +1190,6 @@ static __devinit int wm8961_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	codec = &wm8961->codec;
-	codec->hw_write = (hw_write_t)i2c_master_send;
 
 	i2c_set_clientdata(i2c, wm8961);
 	codec->control_data = i2c;
