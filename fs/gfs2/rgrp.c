@@ -285,27 +285,19 @@ void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd)
 	}
 
 	tmp = rgd->rd_data - rgd->rd_free - rgd->rd_dinodes;
-	if (count[1] + count[2] != tmp) {
+	if (count[1] != tmp) {
 		if (gfs2_consist_rgrpd(rgd))
 			fs_err(sdp, "used data mismatch:  %u != %u\n",
 			       count[1], tmp);
 		return;
 	}
 
-	if (count[3] != rgd->rd_dinodes) {
+	if (count[2] + count[3] != rgd->rd_dinodes) {
 		if (gfs2_consist_rgrpd(rgd))
 			fs_err(sdp, "used metadata mismatch:  %u != %u\n",
-			       count[3], rgd->rd_dinodes);
+			       count[2] + count[3], rgd->rd_dinodes);
 		return;
 	}
-
-	if (count[2] > count[3]) {
-		if (gfs2_consist_rgrpd(rgd))
-			fs_err(sdp, "unlinked inodes > inodes:  %u\n",
-			       count[2]);
-		return;
-	}
-
 }
 
 static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
