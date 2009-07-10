@@ -848,11 +848,6 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 	unsigned long vma_size = vma->vm_end - vma->vm_start;
 	pgprot_t pgprot;
 
-	/*
-	 * For now, only handle remap_pfn_range() vmas where
-	 * is_linear_pfn_mapping() == TRUE. Handling of
-	 * vm_insert_pfn() is TBD.
-	 */
 	if (is_linear_pfn_mapping(vma)) {
 		/*
 		 * reserve the whole chunk covered by vma. We need the
@@ -880,19 +875,23 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
 			unsigned long pfn, unsigned long size)
 {
+	unsigned long flags;
 	resource_size_t paddr;
 	unsigned long vma_size = vma->vm_end - vma->vm_start;
 
-	/*
-	 * For now, only handle remap_pfn_range() vmas where
-	 * is_linear_pfn_mapping() == TRUE. Handling of
-	 * vm_insert_pfn() is TBD.
-	 */
 	if (is_linear_pfn_mapping(vma)) {
 		/* reserve the whole chunk starting from vm_pgoff */
 		paddr = (resource_size_t)vma->vm_pgoff << PAGE_SHIFT;
 		return reserve_pfn_range(paddr, vma_size, prot, 0);
 	}
+
+	if (!pat_enabled)
+		return 0;
+
+	/* for vm_insert_pfn and friends, we set prot based on lookup */
+	flags = lookup_memtype(pfn << PAGE_SHIFT);
+	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
+			 flags);
 
 	return 0;
 }
@@ -908,11 +907,6 @@ void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
 	resource_size_t paddr;
 	unsigned long vma_size = vma->vm_end - vma->vm_start;
 
-	/*
-	 * For now, only handle remap_pfn_range() vmas where
-	 * is_linear_pfn_mapping() == TRUE. Handling of
-	 * vm_insert_pfn() is TBD.
-	 */
 	if (is_linear_pfn_mapping(vma)) {
 		/* free the whole chunk starting from vm_pgoff */
 		paddr = (resource_size_t)vma->vm_pgoff << PAGE_SHIFT;
