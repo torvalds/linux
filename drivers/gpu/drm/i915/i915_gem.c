@@ -1266,7 +1266,7 @@ out_free_list:
  * mapping will then trigger a page fault on the next user access, allowing
  * fixup by i915_gem_fault().
  */
-static void
+void
 i915_gem_release_mmap(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
