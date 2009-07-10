@@ -373,7 +373,7 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 		musb_save_toggle(qh, is_in, urb);
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (urb->error_count)
+		if (status == 0 && urb->error_count)
 			status = -EXDEV;
 		break;
 	}
