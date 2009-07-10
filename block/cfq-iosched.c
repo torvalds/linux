@@ -134,11 +134,6 @@ struct cfq_data {
 	struct rb_root prio_trees[CFQ_PRIO_LISTS];
 
 	unsigned int busy_queues;
-	/*
-	 * Used to track any pending rt requests so we can pre-empt current
-	 * non-RT cfqq in service when this value is non-zero.
-	 */
-	unsigned int busy_rt_queues;
 
 	int rq_in_driver[2];
 	int sync_flight;
@@ -653,8 +648,6 @@ static void cfq_add_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 	cfq_mark_cfqq_on_rr(cfqq);
 	cfqd->busy_queues++;
-	if (cfq_class_rt(cfqq))
-		cfqd->busy_rt_queues++;
 
 	cfq_resort_rr_list(cfqd, cfqq);
 }
@@ -678,8 +671,6 @@ static void cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 
 	BUG_ON(!cfqd->busy_queues);
 	cfqd->busy_queues--;
-	if (cfq_class_rt(cfqq))
-		cfqd->busy_rt_queues--;
 }
 
 /*
@@ -1183,20 +1174,6 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	 */
 	if (cfq_slice_used(cfqq) && !cfq_cfqq_must_dispatch(cfqq))
 		goto expire;
-
-	/*
-	 * If we have a RT cfqq waiting, then we pre-empt the current non-rt
-	 * cfqq.
-	 */
-	if (!cfq_class_rt(cfqq) && cfqd->busy_rt_queues) {
-		/*
-		 * We simulate this as cfqq timed out so that it gets to bank
-		 * the remaining of its time slice.
-		 */
-		cfq_log_cfqq(cfqd, cfqq, "preempt");
-		cfq_slice_expired(cfqd, 1);
-		goto new_queue;
-	}
 
 	/*
 	 * The active queue has requests and isn't expired, allow it to
