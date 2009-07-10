@@ -221,14 +221,14 @@ struct i7core_dev_info {
 	.dev_id = (device_id)
 
 struct pci_id_descr pci_devs[] = {
+		/* Generic Non-core registers */
+	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NOCORE)  },
+
 		/* Memory controller */
 	{ PCI_DESCR(3, 0, PCI_DEVICE_ID_INTEL_I7_MCR)     },
 	{ PCI_DESCR(3, 1, PCI_DEVICE_ID_INTEL_I7_MC_TAD)  },
 	{ PCI_DESCR(3, 2, PCI_DEVICE_ID_INTEL_I7_MC_RAS)  }, /* if RDIMM is supported */
 	{ PCI_DESCR(3, 4, PCI_DEVICE_ID_INTEL_I7_MC_TEST) },
-
-		/* Generic Non-core registers */
-	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NOCORE)  },
 
 		/* Channel 0 */
 	{ PCI_DESCR(4, 0, PCI_DEVICE_ID_INTEL_I7_MC_CH0_CTRL) },
@@ -255,7 +255,7 @@ struct pci_id_descr pci_devs[] = {
  * This should match the first device at pci_devs table
  */
 static const struct pci_device_id i7core_pci_tbl[] __devinitdata = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_I7_MCR)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_X58_HUB_MGMT)},
 	{0,}			/* 0 terminated list. */
 };
 
@@ -1069,6 +1069,15 @@ static int i7core_get_devices(void)
 	for (i = 0; i < N_DEVS; i++) {
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 					pci_devs[i].dev_id, NULL);
+
+		if (!pdev && !i) {
+			pcibios_scan_specific_bus(254);
+			pcibios_scan_specific_bus(255);
+
+			pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+						pci_devs[i].dev_id, NULL);
+		}
+
 		if (likely(pdev))
 			pci_devs[i].pdev = pdev;
 		else {
