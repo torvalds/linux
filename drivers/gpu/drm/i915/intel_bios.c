@@ -97,6 +97,7 @@ static void
 parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 			    struct bdb_header *bdb)
 {
+	struct drm_device *dev = dev_priv->dev;
 	struct bdb_lvds_options *lvds_options;
 	struct bdb_lvds_lfp_data *lvds_lfp_data;
 	struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs;
@@ -132,7 +133,14 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	entry = (struct bdb_lvds_lfp_data_entry *)
 		((uint8_t *)lvds_lfp_data->data + (lfp_data_size *
 						   lvds_options->panel_type));
-	dvo_timing = &entry->dvo_timing;
+
+	/* On IGDNG mobile, LVDS data block removes panel fitting registers.
+	   So dec 2 dword from dvo_timing offset */
+	if (IS_IGDNG(dev))
+		dvo_timing = (struct lvds_dvo_timing *)
+					((u8 *)&entry->dvo_timing - 8);
+	else
+		dvo_timing = &entry->dvo_timing;
 
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 
