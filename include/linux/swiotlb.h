@@ -14,7 +14,6 @@ struct scatterlist;
  */
 #define IO_TLB_SEGSIZE	128
 
-
 /*
  * log of the size of each IO TLB slab.  The number of slabs is command line
  * controllable.
@@ -24,7 +23,6 @@ struct scatterlist;
 extern void
 swiotlb_init(void);
 
-extern void *swiotlb_alloc_boot(size_t bytes, unsigned long nslabs);
 extern void *swiotlb_alloc(unsigned order, unsigned long nslabs);
 
 extern dma_addr_t swiotlb_phys_to_bus(struct device *hwdev,

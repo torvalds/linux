@@ -13,11 +13,6 @@
 
 int swiotlb __read_mostly;
 
-void * __init swiotlb_alloc_boot(size_t size, unsigned long nslabs)
-{
-	return alloc_bootmem_low_pages(size);
-}
-
 void *swiotlb_alloc(unsigned order, unsigned long nslabs)
 {
 	return (void *)__get_free_pages(GFP_DMA | __GFP_NOWARN, order);
