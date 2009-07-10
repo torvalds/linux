@@ -826,8 +826,8 @@ void cfg80211_sme_disassoc(struct net_device *dev, int idx)
 		return;
 
 	memcpy(bssid, wdev->auth_bsses[idx]->pub.bssid, ETH_ALEN);
-	if (cfg80211_mlme_deauth(rdev, dev, bssid,
-				 NULL, 0, WLAN_REASON_DEAUTH_LEAVING)) {
+	if (__cfg80211_mlme_deauth(rdev, dev, bssid,
+				   NULL, 0, WLAN_REASON_DEAUTH_LEAVING)) {
 		/* whatever -- assume gone anyway */
 		cfg80211_unhold_bss(wdev->auth_bsses[idx]);
 		cfg80211_put_bss(&wdev->auth_bsses[idx]->pub);
