@@ -1918,8 +1918,10 @@ out_sems:
 
 	mutex_unlock(&inode->i_mutex);
 
+	if (written)
+		ret = written;
 	mlog_exit(ret);
-	return written ? written : ret;
+	return ret;
 }
 
 static int ocfs2_splice_to_file(struct pipe_inode_info *pipe,
