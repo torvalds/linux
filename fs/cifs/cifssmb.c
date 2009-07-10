@@ -5074,10 +5074,114 @@ SetAttrLgcyRetry:
 }
 #endif /* temporarily unneeded SetAttr legacy function */
 
+static void
+cifs_fill_unix_set_info(FILE_UNIX_BASIC_INFO *data_offset,
+			const struct cifs_unix_set_info_args *args)
+{
+	u64 mode = args->mode;
+
+	/*
+	 * Samba server ignores set of file size to zero due to bugs in some
+	 * older clients, but we should be precise - we use SetFileSize to
+	 * set file size and do not want to truncate file size to zero
+	 * accidently as happened on one Samba server beta by putting
+	 * zero instead of -1 here
+	 */
+	data_offset->EndOfFile = cpu_to_le64(NO_CHANGE_64);
+	data_offset->NumOfBytes = cpu_to_le64(NO_CHANGE_64);
+	data_offset->LastStatusChange = cpu_to_le64(args->ctime);
+	data_offset->LastAccessTime = cpu_to_le64(args->atime);
+	data_offset->LastModificationTime = cpu_to_le64(args->mtime);
+	data_offset->Uid = cpu_to_le64(args->uid);
+	data_offset->Gid = cpu_to_le64(args->gid);
+	/* better to leave device as zero when it is  */
+	data_offset->DevMajor = cpu_to_le64(MAJOR(args->device));
+	data_offset->DevMinor = cpu_to_le64(MINOR(args->device));
+	data_offset->Permissions = cpu_to_le64(mode);
+
+	if (S_ISREG(mode))
+		data_offset->Type = cpu_to_le32(UNIX_FILE);
+	else if (S_ISDIR(mode))
+		data_offset->Type = cpu_to_le32(UNIX_DIR);
+	else if (S_ISLNK(mode))
+		data_offset->Type = cpu_to_le32(UNIX_SYMLINK);
+	else if (S_ISCHR(mode))
+		data_offset->Type = cpu_to_le32(UNIX_CHARDEV);
+	else if (S_ISBLK(mode))
+		data_offset->Type = cpu_to_le32(UNIX_BLOCKDEV);
+	else if (S_ISFIFO(mode))
+		data_offset->Type = cpu_to_le32(UNIX_FIFO);
+	else if (S_ISSOCK(mode))
+		data_offset->Type = cpu_to_le32(UNIX_SOCKET);
+}
+
 int
-CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *tcon, char *fileName,
-		   const struct cifs_unix_set_info_args *args,
-		   const struct nls_table *nls_codepage, int remap)
+CIFSSMBUnixSetFileInfo(const int xid, struct cifsTconInfo *tcon,
+		       const struct cifs_unix_set_info_args *args,
+		       u16 fid, u32 pid_of_opener)
+{
+	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
+	FILE_UNIX_BASIC_INFO *data_offset;
+	int rc = 0;
+	u16 params, param_offset, offset, byte_count, count;
+
+	cFYI(1, ("Set Unix Info (via SetFileInfo)"));
+	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
+
+	if (rc)
+		return rc;
+
+	pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
+	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));
+
+	params = 6;
+	pSMB->MaxSetupCount = 0;
+	pSMB->Reserved = 0;
+	pSMB->Flags = 0;
+	pSMB->Timeout = 0;
+	pSMB->Reserved2 = 0;
+	param_offset = offsetof(struct smb_com_transaction2_sfi_req, Fid) - 4;
+	offset = param_offset + params;
+
+	data_offset = (FILE_UNIX_BASIC_INFO *)
+				((char *)(&pSMB->hdr.Protocol) + offset);
+	count = sizeof(FILE_UNIX_BASIC_INFO);
+
+	pSMB->MaxParameterCount = cpu_to_le16(2);
+	/* BB find max SMB PDU from sess */
+	pSMB->MaxDataCount = cpu_to_le16(1000);
+	pSMB->SetupCount = 1;
+	pSMB->Reserved3 = 0;
+	pSMB->SubCommand = cpu_to_le16(TRANS2_SET_FILE_INFORMATION);
+	byte_count = 3 /* pad */  + params + count;
+	pSMB->DataCount = cpu_to_le16(count);
+	pSMB->ParameterCount = cpu_to_le16(params);
+	pSMB->TotalDataCount = pSMB->DataCount;
+	pSMB->TotalParameterCount = pSMB->ParameterCount;
+	pSMB->ParameterOffset = cpu_to_le16(param_offset);
+	pSMB->DataOffset = cpu_to_le16(offset);
+	pSMB->Fid = fid;
+	pSMB->InformationLevel = cpu_to_le16(SMB_SET_FILE_UNIX_BASIC);
+	pSMB->Reserved4 = 0;
+	pSMB->hdr.smb_buf_length += byte_count;
+	pSMB->ByteCount = cpu_to_le16(byte_count);
+
+	cifs_fill_unix_set_info(data_offset, args);
+
+	rc = SendReceiveNoRsp(xid, tcon->ses, (struct smb_hdr *) pSMB, 0);
+	if (rc)
+		cFYI(1, ("Send error in Set Time (SetFileInfo) = %d", rc));
+
+	/* Note: On -EAGAIN error only caller can retry on handle based calls
+		since file handle passed in no longer valid */
+
+	return rc;
+}
+
+int
+CIFSSMBUnixSetPathInfo(const int xid, struct cifsTconInfo *tcon, char *fileName,
+		       const struct cifs_unix_set_info_args *args,
+		       const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -5086,7 +5190,6 @@ CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *tcon, char *fileName,
 	int bytes_returned = 0;
 	FILE_UNIX_BASIC_INFO *data_offset;
 	__u16 params, param_offset, offset, count, byte_count;
-	__u64 mode = args->mode;
 
 	cFYI(1, ("In SetUID/GID/Mode"));
 setPermsRetry:
@@ -5137,38 +5240,8 @@ setPermsRetry:
 	pSMB->InformationLevel = cpu_to_le16(SMB_SET_FILE_UNIX_BASIC);
 	pSMB->Reserved4 = 0;
 	pSMB->hdr.smb_buf_length += byte_count;
-	/* Samba server ignores set of file size to zero due to bugs in some
-	older clients, but we should be precise - we use SetFileSize to
-	set file size and do not want to truncate file size to zero
-	accidently as happened on one Samba server beta by putting
-	zero instead of -1 here */
-	data_offset->EndOfFile = cpu_to_le64(NO_CHANGE_64);
-	data_offset->NumOfBytes = cpu_to_le64(NO_CHANGE_64);
-	data_offset->LastStatusChange = cpu_to_le64(args->ctime);
-	data_offset->LastAccessTime = cpu_to_le64(args->atime);
-	data_offset->LastModificationTime = cpu_to_le64(args->mtime);
-	data_offset->Uid = cpu_to_le64(args->uid);
-	data_offset->Gid = cpu_to_le64(args->gid);
-	/* better to leave device as zero when it is  */
-	data_offset->DevMajor = cpu_to_le64(MAJOR(args->device));
-	data_offset->DevMinor = cpu_to_le64(MINOR(args->device));
-	data_offset->Permissions = cpu_to_le64(mode);
 
-	if (S_ISREG(mode))
-		data_offset->Type = cpu_to_le32(UNIX_FILE);
-	else if (S_ISDIR(mode))
-		data_offset->Type = cpu_to_le32(UNIX_DIR);
-	else if (S_ISLNK(mode))
-		data_offset->Type = cpu_to_le32(UNIX_SYMLINK);
-	else if (S_ISCHR(mode))
-		data_offset->Type = cpu_to_le32(UNIX_CHARDEV);
-	else if (S_ISBLK(mode))
-		data_offset->Type = cpu_to_le32(UNIX_BLOCKDEV);
-	else if (S_ISFIFO(mode))
-		data_offset->Type = cpu_to_le32(UNIX_FIFO);
-	else if (S_ISSOCK(mode))
-		data_offset->Type = cpu_to_le32(UNIX_SOCKET);
-
+	cifs_fill_unix_set_info(data_offset, args);
 
 	pSMB->ByteCount = cpu_to_le16(byte_count);
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
