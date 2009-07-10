@@ -574,6 +574,51 @@ unlock_ret:
 
 
 /**
+ * lookup_memtype - Looksup the memory type for a physical address
+ * @paddr: physical address of which memory type needs to be looked up
+ *
+ * Only to be called when PAT is enabled
+ *
+ * Returns _PAGE_CACHE_WB, _PAGE_CACHE_WC, _PAGE_CACHE_UC_MINUS or
+ * _PAGE_CACHE_UC
+ */
+static unsigned long lookup_memtype(u64 paddr)
+{
+	int rettype = _PAGE_CACHE_WB;
+	struct memtype *entry;
+
+	if (is_ISA_range(paddr, paddr + PAGE_SIZE - 1))
+		return rettype;
+
+	if (pat_pagerange_is_ram(paddr, paddr + PAGE_SIZE)) {
+		struct page *page;
+		spin_lock(&memtype_lock);
+		page = pfn_to_page(paddr >> PAGE_SHIFT);
+		rettype = get_page_memtype(page);
+		spin_unlock(&memtype_lock);
+		/*
+		 * -1 from get_page_memtype() implies RAM page is in its
+		 * default state and not reserved, and hence of type WB
+		 */
+		if (rettype == -1)
+			rettype = _PAGE_CACHE_WB;
+
+		return rettype;
+	}
+
+	spin_lock(&memtype_lock);
+
+	entry = memtype_rb_search(&memtype_rbroot, paddr);
+	if (entry != NULL)
+		rettype = entry->type;
+	else
+		rettype = _PAGE_CACHE_UC_MINUS;
+
+	spin_unlock(&memtype_lock);
+	return rettype;
+}
+
+/**
  * io_reserve_memtype - Request a memory type mapping for a region of memory
  * @start: start (physical address) of the region
  * @end: end (physical address) of the region
