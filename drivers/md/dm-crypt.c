@@ -776,7 +776,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		 * But don't wait if split was due to the io size restriction
 		 */
 		if (unlikely(out_of_pages))
-			congestion_wait(WRITE, HZ/100);
+			congestion_wait(BLK_RW_ASYNC, HZ/100);
 
 		/*
 		 * With async crypto it is unsafe to share the crypto context
