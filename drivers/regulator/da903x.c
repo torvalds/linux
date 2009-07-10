@@ -87,6 +87,10 @@ struct da903x_regulator_info {
 	int	enable_bit;
 };
 
+static int da9034_ldo12_data[] = { 1700, 1750, 1800, 1850, 1900, 1950,
+				   2000, 2050, 2700, 2750, 2800, 2850,
+				   2900, 2950, 3000, 3050 };
+
 static inline struct device *to_da903x_dev(struct regulator_dev *rdev)
 {
 	return rdev_get_dev(rdev)->parent->parent;
@@ -168,6 +172,17 @@ static int da903x_is_enabled(struct regulator_dev *rdev)
 		return ret;
 
 	return !!(reg_val & (1 << info->enable_bit));
+}
+
+static int da903x_list_voltage(struct regulator_dev *rdev, unsigned selector)
+{
+	struct da903x_regulator_info *info = rdev_get_drvdata(rdev);
+	int ret;
+
+	ret = info->min_uV + info->step_uV * selector;
+	if (ret > info->max_uV)
+		return -EINVAL;
+	return ret;
 }
 
 /* DA9030 specific operations */
@@ -313,9 +328,18 @@ static int da9034_get_ldo12_voltage(struct regulator_dev *rdev)
 	return info->min_uV + info->step_uV * val;
 }
 
+static int da9034_list_ldo12_voltage(struct regulator_dev *rdev,
+				     unsigned selector)
+{
+	if (selector > ARRAY_SIZE(da9034_ldo12_data))
+		return -EINVAL;
+	return da9034_ldo12_data[selector] * 1000;
+}
+
 static struct regulator_ops da903x_regulator_ldo_ops = {
 	.set_voltage	= da903x_set_ldo_voltage,
 	.get_voltage	= da903x_get_voltage,
+	.list_voltage	= da903x_list_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -325,6 +349,7 @@ static struct regulator_ops da903x_regulator_ldo_ops = {
 static struct regulator_ops da9030_regulator_ldo14_ops = {
 	.set_voltage	= da9030_set_ldo14_voltage,
 	.get_voltage	= da9030_get_ldo14_voltage,
+	.list_voltage	= da903x_list_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -334,6 +359,7 @@ static struct regulator_ops da9030_regulator_ldo14_ops = {
 static struct regulator_ops da9030_regulator_ldo1_15_ops = {
 	.set_voltage	= da9030_set_ldo1_15_voltage,
 	.get_voltage	= da903x_get_voltage,
+	.list_voltage	= da903x_list_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -342,6 +368,7 @@ static struct regulator_ops da9030_regulator_ldo1_15_ops = {
 static struct regulator_ops da9034_regulator_dvc_ops = {
 	.set_voltage	= da9034_set_dvc_voltage,
 	.get_voltage	= da903x_get_voltage,
+	.list_voltage	= da903x_list_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -351,6 +378,7 @@ static struct regulator_ops da9034_regulator_dvc_ops = {
 static struct regulator_ops da9034_regulator_ldo12_ops = {
 	.set_voltage	= da9034_set_ldo12_voltage,
 	.get_voltage	= da9034_get_ldo12_voltage,
+	.list_voltage	= da9034_list_ldo12_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
@@ -363,6 +391,7 @@ static struct regulator_ops da9034_regulator_ldo12_ops = {
 		.ops	= &da903x_regulator_ldo_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= _pmic##_ID_LDO##_id,				\
+		.n_voltages = (step) ? ((max - min) / step + 1) : 1,	\
 		.owner	= THIS_MODULE,					\
 	},								\
 	.min_uV		= (min) * 1000,					\
@@ -382,6 +411,7 @@ static struct regulator_ops da9034_regulator_ldo12_ops = {
 		.ops	= &da9034_regulator_dvc_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= DA9030_ID_##_id,				\
+		.n_voltages = (step) ? ((max - min) / step + 1) : 1,	\
 		.owner	= THIS_MODULE,					\
 	},								\
 	.min_uV		= (min) * 1000,					\
@@ -403,6 +433,7 @@ static struct regulator_ops da9034_regulator_ldo12_ops = {
 		.ops	= &da9034_regulator_dvc_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= DA9034_ID_##_id,				\
+		.n_voltages = (step) ? ((max - min) / step + 1) : 1,	\
 		.owner	= THIS_MODULE,					\
 	},								\
 	.min_uV		= (min) * 1000,					\
@@ -424,6 +455,7 @@ static struct regulator_ops da9034_regulator_ldo12_ops = {
 		.ops	= &da9034_regulator_dvc_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= DA9035_ID_##_id,				\
+		.n_voltages = (step) ? ((max - min) / step + 1) : 1,	\
 		.owner	= THIS_MODULE,					\
 	},								\
 	.min_uV		= (min) * 1000,					\
@@ -517,8 +549,10 @@ static int __devinit da903x_regulator_probe(struct platform_device *pdev)
 	}
 
 	/* Workaround for the weird LDO12 voltage setting */
-	if (ri->desc.id == DA9034_ID_LDO12)
+	if (ri->desc.id == DA9034_ID_LDO12) {
 		ri->desc.ops = &da9034_regulator_ldo12_ops;
+		ri->desc.n_voltages = ARRAY_SIZE(da9034_ldo12_data);
+	}
 
 	if (ri->desc.id == DA9030_ID_LDO14)
 		ri->desc.ops = &da9030_regulator_ldo14_ops;
