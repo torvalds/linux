@@ -686,11 +686,11 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 	u8 ttl, dst_flags;
 	u32 lifetime;
 
-	spin_lock(&ifmsh->mesh_preq_queue_lock);
+	spin_lock_bh(&ifmsh->mesh_preq_queue_lock);
 	if (!ifmsh->preq_queue_len ||
 		time_before(jiffies, ifmsh->last_preq +
 				min_preq_int_jiff(sdata))) {
-		spin_unlock(&ifmsh->mesh_preq_queue_lock);
+		spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
 		return;
 	}
 
@@ -698,7 +698,7 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 			struct mesh_preq_queue, list);
 	list_del(&preq_node->list);
 	--ifmsh->preq_queue_len;
-	spin_unlock(&ifmsh->mesh_preq_queue_lock);
+	spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
 
 	rcu_read_lock();
 	mpath = mesh_path_lookup(preq_node->dst, sdata);
