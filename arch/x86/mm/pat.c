@@ -339,6 +339,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		if (new_type) {
 			if (req_type == -1)
 				*new_type = _PAGE_CACHE_WB;
+			else if (req_type == _PAGE_CACHE_WC)
+				*new_type = _PAGE_CACHE_UC_MINUS;
 			else
 				*new_type = req_type & _PAGE_CACHE_MASK;
 		}
@@ -577,7 +579,7 @@ int kernel_map_sync_memtype(u64 base, unsigned long size, unsigned long flags)
 {
 	unsigned long id_sz;
 
-	if (!pat_enabled || base >= __pa(high_memory))
+	if (base >= __pa(high_memory))
 		return 0;
 
 	id_sz = (__pa(high_memory) < base + size) ?
@@ -677,9 +679,6 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 	unsigned long vma_size = vma->vm_end - vma->vm_start;
 	pgprot_t pgprot;
 
-	if (!pat_enabled)
-		return 0;
-
 	/*
 	 * For now, only handle remap_pfn_range() vmas where
 	 * is_linear_pfn_mapping() == TRUE. Handling of
@@ -715,9 +714,6 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
 	resource_size_t paddr;
 	unsigned long vma_size = vma->vm_end - vma->vm_start;
 
-	if (!pat_enabled)
-		return 0;
-
 	/*
 	 * For now, only handle remap_pfn_range() vmas where
 	 * is_linear_pfn_mapping() == TRUE. Handling of
@@ -742,9 +738,6 @@ void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
 {
 	resource_size_t paddr;
 	unsigned long vma_size = vma->vm_end - vma->vm_start;
-
-	if (!pat_enabled)
-		return;
 
 	/*
 	 * For now, only handle remap_pfn_range() vmas where
