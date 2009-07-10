@@ -143,17 +143,6 @@ static BOOL s_bAPModeRxCtl(
     IN INT      iSANodeIndex
     );
 
-#ifdef PRIVATE_OBJ
-
-static BOOL s_bAPModeRxData (
-    IN PSDevice pDevice,
-    IN ref_sk_buff* skb,
-    IN UINT     FrameSize,
-    IN UINT     cbHeaderOffset,
-    IN INT      iSANodeIndex,
-    IN INT      iDANodeIndex
-    );
-#else
 
 static BOOL s_bAPModeRxData (
     IN PSDevice pDevice,
@@ -163,7 +152,6 @@ static BOOL s_bAPModeRxData (
     IN INT      iSANodeIndex,
     IN INT      iDANodeIndex
     );
-#endif
 
 
 static BOOL s_bHandleRxEncryption(
@@ -395,11 +383,7 @@ device_receive_frame (
 	//printk("device_receive_frame:pCurrRD is %x,pRDInfo is %x\n",pCurrRD,pCurrRD->pRDInfo);
 #endif
     struct net_device_stats* pStats=&pDevice->stats;
-#ifdef PRIVATE_OBJ
-    ref_sk_buff*    skb;
-#else
     struct sk_buff* skb;
-#endif
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSRxMgmtPacket  pRxPacket = &(pDevice->pMgmt->sRxPacket);
     PS802_11Header  p802_11Header;
@@ -435,12 +419,8 @@ device_receive_frame (
  BOOL            bRxeapol_key = FALSE;
 
 //    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- device_receive_frame---\n");
-#ifdef PRIVATE_OBJ
-    skb = &(pRDInfo->ref_skb);
-#else
 
     skb = pRDInfo->skb;
-#endif
 
 
 //PLICE_DEBUG->
@@ -541,11 +521,7 @@ device_receive_frame (
             p802_11Header = (PS802_11Header) (pbyFrame);
             // get SA NodeIndex
             if (BSSDBbIsSTAInNodeDB(pMgmt, (PBYTE)(p802_11Header->abyAddr2), &iSANodeIndex)) {
-#ifdef PRIVATE_OBJ
-                pMgmt->sNodeDBTable[iSANodeIndex].ulLastRxJiffer = get_jiffies();
-#else
                 pMgmt->sNodeDBTable[iSANodeIndex].ulLastRxJiffer = jiffies;
-#endif
                 pMgmt->sNodeDBTable[iSANodeIndex].uInActiveCount = 0;
             }
         }
@@ -639,11 +615,7 @@ device_receive_frame (
         pDevice->s802_11Counter.ReceivedFragmentCount++;
         if (bDeFragRx) {
             // defrag complete
-#ifdef PRIVATE_OBJ
-            skb = &(pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].ref_skb);
-#else
             skb = pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].skb;
-#endif
             FrameSize = pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength;
 
         }
@@ -705,16 +677,6 @@ device_receive_frame (
             // hostap Deamon handle 802.11 management
             if (pDevice->bEnableHostapd) {
 	            skb->dev = pDevice->apdev;
-#ifdef PRIVATE_OBJ
-                ref_skb_add_offset(skb->skb, 4);
-                ref_skb_set_dev(pDevice->apdev, skb->skb);
-                skb_put(skb->skb, FrameSize);
-	            skb->mac_header = skb->data;
-	            *(skb->pkt_type) = PACKET_OTHERHOST;
-    	        *(skb->protocol) = htons(ETH_P_802_2);
-	            memset(skb->cb, 0, sizeof(skb->cb));
-	            netif_rx(skb->skb);
-#else
 	            skb->data += 4;
 	            skb->tail += 4;
                      skb_put(skb, FrameSize);
@@ -723,7 +685,6 @@ device_receive_frame (
     	        skb->protocol = htons(ETH_P_802_2);
 	            memset(skb->cb, 0, sizeof(skb->cb));
 	            netif_rx(skb);
-#endif
                 return TRUE;
 	        }
         }
@@ -846,16 +807,6 @@ device_receive_frame (
                 memcpy(&abyMacHdr[0], (skb->data + 4), 24);
                 memcpy((skb->data + 4 + cbIVOffset), &abyMacHdr[0], 24);
             }
-#ifdef PRIVATE_OBJ
-            ref_skb_add_offset(skb->skb, (cbIVOffset + 4));
-            ref_skb_set_dev(pDevice->apdev, skb->skb);
-            skb_put(skb->skb, FrameSize);
-			skb->mac_header = skb->data;
-            *(skb->pkt_type) = PACKET_OTHERHOST;
-	        *(skb->protocol) = htons(ETH_P_802_2);
-            memset(skb->cb, 0, sizeof(skb->cb));
-            netif_rx(skb->skb);
-#else
             skb->data +=  (cbIVOffset + 4);
             skb->tail +=  (cbIVOffset + 4);
             skb_put(skb, FrameSize);
@@ -865,7 +816,6 @@ device_receive_frame (
             skb->protocol = htons(ETH_P_802_2);
             memset(skb->cb, 0, sizeof(skb->cb));
             netif_rx(skb);
-#endif
             return TRUE;
 
 }
@@ -1081,29 +1031,17 @@ device_receive_frame (
 
     }
 
-#ifdef PRIVATE_OBJ
-    ref_skb_add_offset(skb->skb, cbHeaderOffset);
-    skb_put(skb->skb, FrameSize);
-    *(skb->protocol)=eth_type_trans(skb->skb, skb->dev);
-
-#else
 	skb->data += cbHeaderOffset;
 	skb->tail += cbHeaderOffset;
     skb_put(skb, FrameSize);
     skb->protocol=eth_type_trans(skb, skb->dev);
-#endif
 
 
 	//drop frame not met IEEE 802.3
 /*
 	if (pDevice->flags & DEVICE_FLAGS_VAL_PKT_LEN) {
-#ifdef PRIVATE_OBJ
-		if ((*(skb->protocol)==htons(ETH_P_802_3)) &&
-			(*(skb->len)!=htons(skb->mac.ethernet->h_proto))) {
-#else
 		if ((skb->protocol==htons(ETH_P_802_3)) &&
 			(skb->len!=htons(skb->mac.ethernet->h_proto))) {
-#endif
 			pStats->rx_length_errors++;
 			pStats->rx_dropped++;
             if (bDeFragRx) {
@@ -1117,17 +1055,10 @@ device_receive_frame (
 	}
 */
 
-#ifdef PRIVATE_OBJ
-    *(skb->ip_summed)=CHECKSUM_NONE;
-    pStats->rx_bytes +=*(skb->len);
-    pStats->rx_packets++;
-    netif_rx(skb->skb);
-#else
     skb->ip_summed=CHECKSUM_NONE;
     pStats->rx_bytes +=skb->len;
     pStats->rx_packets++;
     netif_rx(skb);
-#endif
 
     if (bDeFragRx) {
         if (!device_alloc_frag_buf(pDevice, &pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx])) {
@@ -1541,18 +1472,6 @@ static BOOL s_bHostWepRxEncryption (
 
 
 
-#ifdef PRIVATE_OBJ
-
-static BOOL s_bAPModeRxData (
-    IN PSDevice pDevice,
-    IN ref_sk_buff* skb,
-    IN UINT     FrameSize,
-    IN UINT     cbHeaderOffset,
-    IN INT      iSANodeIndex,
-    IN INT      iDANodeIndex
-    )
-
-#else
 
 static BOOL s_bAPModeRxData (
     IN PSDevice pDevice,
@@ -1562,20 +1481,13 @@ static BOOL s_bAPModeRxData (
     IN INT      iSANodeIndex,
     IN INT      iDANodeIndex
     )
-#endif
 {
     PSMgmtObject        pMgmt = pDevice->pMgmt;
     BOOL                bRelayAndForward = FALSE;
     BOOL                bRelayOnly = FALSE;
     BYTE                byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     WORD                wAID;
-#ifdef PRIVATE_OBJ
-    struct sk_buff* tmp_skb;
-    ref_sk_buff     s_ref_skb;
-    ref_sk_buff*    skbcpy = &s_ref_skb;
-#else
     struct sk_buff* skbcpy = NULL;
-#endif
 
 
 
@@ -1585,28 +1497,16 @@ static BOOL s_bAPModeRxData (
     if(IS_MULTICAST_ADDRESS((PBYTE)(skb->data+cbHeaderOffset))) {
        if (pMgmt->sNodeDBTable[0].bPSEnable) {
 
-#ifdef PRIVATE_OBJ
-           tmp_skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-           skbcpy = &s_ref_skb;
-           ref_skb_remap(pDevice->dev, skbcpy, tmp_skb);
-#else
            skbcpy = dev_alloc_skb((int)pDevice->rx_buf_sz);
-#endif
         // if any node in PS mode, buffer packet until DTIM.
            if (skbcpy == NULL) {
                DEVICE_PRT(MSG_LEVEL_NOTICE, KERN_INFO "relay multicast no skb available \n");
            }
            else {
                skbcpy->dev = pDevice->dev;
-#ifdef PRIVATE_OBJ
-               *(skbcpy->len) = FrameSize;
-               memcpy(skbcpy->data, skb->data+cbHeaderOffset, FrameSize);
-               skb_queue_tail(&(pMgmt->sNodeDBTable[0].sTxPSQueue), skbcpy->skb);
-#else
                skbcpy->len = FrameSize;
                memcpy(skbcpy->data, skb->data+cbHeaderOffset, FrameSize);
                skb_queue_tail(&(pMgmt->sNodeDBTable[0].sTxPSQueue), skbcpy);
-#endif
                pMgmt->sNodeDBTable[0].wEnQueueCnt++;
                // set tx map
                pMgmt->abyPSTxMap[0] |= byMask[0];
@@ -1623,16 +1523,10 @@ static BOOL s_bAPModeRxData (
                 if (pMgmt->sNodeDBTable[iDANodeIndex].bPSEnable) {
                     // queue this skb until next PS tx, and then release.
 
-#ifdef PRIVATE_OBJ
-                    ref_skb_add_offset(skb->skb, cbHeaderOffset);
-                    skb_put(skb->skb, FrameSize);
-                    skb_queue_tail(&pMgmt->sNodeDBTable[iDANodeIndex].sTxPSQueue, skb->skb);
-#else
 	                skb->data += cbHeaderOffset;
 	                skb->tail += cbHeaderOffset;
                     skb_put(skb, FrameSize);
                     skb_queue_tail(&pMgmt->sNodeDBTable[iDANodeIndex].sTxPSQueue, skb);
-#endif
                     pMgmt->sNodeDBTable[iDANodeIndex].wEnQueueCnt++;
                     wAID = pMgmt->sNodeDBTable[iDANodeIndex].wAID;
                     pMgmt->abyPSTxMap[wAID >> 3] |=  byMask[wAID & 7];

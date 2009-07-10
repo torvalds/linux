@@ -66,11 +66,7 @@
 #ifndef IRQ_RETVAL
 typedef void irqreturn_t;
 
-#ifdef PRIVATE_OBJ
-#define IRQ_RETVAL(x)   (int)x
-#else
 #define IRQ_RETVAL(x)
-#endif
 
 #endif
 

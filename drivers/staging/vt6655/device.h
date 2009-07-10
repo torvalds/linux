@@ -137,11 +137,6 @@
 //#define	TASK_LET
 //PLICE_DEBUG<-
 
-// #ifdef PRIVATE_OBJ
-//#if !defined(__DEVICE_MODULE_H)
-//#include "device_module.h"
-//#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -203,93 +198,9 @@
 
 
 // BUILD OBJ mode
-#ifdef PRIVATE_OBJ
-
-#undef dev_kfree_skb
-#undef dev_kfree_skb_irq
-#undef dev_alloc_skb
-#undef kfree
-#undef del_timer
-#undef init_timer
-#undef add_timer
-#undef kmalloc
-#undef netif_stop_queue
-#undef netif_start_queue
-#undef netif_wake_queue
-#undef netif_queue_stopped
-#undef netif_rx
-#undef netif_running
-#undef udelay
-#undef mdelay
-#undef eth_type_trans
-#undef skb_put
-#undef HZ
-#undef RUN_AT
-#undef pci_alloc_consistent
-#undef pci_free_consistent
-#undef register_netdevice
-#undef register_netdev
-#undef unregister_netdevice
-#undef unregister_netdev
-#undef skb_queue_head_init
-#undef skb_queue_tail
-#undef skb_queue_empty
-#undef free_irq
-#undef copy_from_user
-#undef copy_to_user
-#undef spin_lock_init
-#undef pci_map_single
-#undef pci_unmap_single
-
-// redefine kernel dependent fucntion
-#define dev_kfree_skb       ref_dev_kfree_skb
-#define dev_kfree_skb_irq   ref_dev_kfree_skb_irq
-#define dev_alloc_skb       ref_dev_alloc_skb
-#define kfree               ref_kfree
-#define del_timer           ref_del_timer
-#define init_timer          ref_init_timer
-#define add_timer           ref_add_timer
-#define kmalloc             ref_kmalloc
-#define netif_stop_queue    ref_netif_stop_queue
-#define netif_start_queue   ref_netif_start_queue
-#define netif_wake_queue    ref_netif_wake_queue
-#define netif_queue_stopped ref_netif_queue_stopped
-#define netif_rx            ref_netif_rx
-#define netif_running       ref_netif_running
-#define udelay              ref_udelay
-#define mdelay              ref_mdelay
-#define get_jiffies()       ref_get_jiffies()
-#define RUN_AT(x)           (get_jiffies()+(x))
-#define HZ                  ref_HZ_tick()
-#define eth_type_trans      ref_eth_type_trans
-#define skb_put             ref_skb_put
-#define skb_queue_head_init ref_skb_queue_head_init
-#define skb_queue_tail      ref_skb_queue_tail
-#define skb_queue_empty     ref_skb_queue_empty
-
-#define pci_alloc_consistent    ref_pci_alloc_consistent
-#define pci_free_consistent     ref_pci_free_consistent
-#define register_netdevice      ref_register_netdevice
-#define register_netdev         ref_register_netdev
-#define unregister_netdevice    ref_unregister_netdevice
-#define unregister_netdev       ref_unregister_netdev
-
-#define free_irq                ref_free_irq
-#define copy_from_user          ref_copy_from_user
-#define copy_to_user            ref_copy_to_user
-#define spin_lock_init          ref_spin_lock_init
-#define pci_map_single          ref_pci_map_single
-#define pci_unmap_single        ref_pci_unmap_single
-#endif
 
 
-#ifdef PRIVATE_OBJ
-#undef  printk
-#define DEVICE_PRT(l, p, args...) {if (l<=msglevel) do {} while (0);}
-//#define DEVICE_PRT(l, p, args...) {if (l<=msglevel) printk( p ,##args);}
-#else
 #define DEVICE_PRT(l, p, args...) {if (l<=msglevel) printk( p ,##args);}
-#endif
 
 
 #define	AVAIL_TD(p,q)	((p)->sOpts.nTxDescs[(q)]-((p)->iTDUsed[(q)]))
@@ -452,9 +363,6 @@ typedef struct tagSDeFragControlBlock
     BYTE            abyAddr2[U_ETHER_ADDR_LEN];
 	UINT            uLifetime;
     struct sk_buff* skb;
-#ifdef PRIVATE_OBJ
-    ref_sk_buff     ref_skb;
-#endif
     PBYTE           pbyRxBuffer;
     UINT            cbFrameLength;
     BOOL            bInUse;

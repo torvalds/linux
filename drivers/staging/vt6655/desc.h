@@ -41,12 +41,6 @@
 #if !defined(__TETHER_H__)
 #include "tether.h"
 #endif
-// #ifdef PRIVATE_OBJ
-//#if !defined(__DEVICE_MODULE_H)
-//#include "device_module.h"
-//#endif
-
-
 
 
 /*---------------------  Export Definitions -------------------------*/
@@ -237,9 +231,6 @@
 
 typedef struct tagDEVICE_RD_INFO {
     struct sk_buff* skb;
-#ifdef PRIVATE_OBJ
-    ref_sk_buff ref_skb;
-#endif
     dma_addr_t  skb_dma;
     dma_addr_t  curr_desc;
 } DEVICE_RD_INFO,   *PDEVICE_RD_INFO;

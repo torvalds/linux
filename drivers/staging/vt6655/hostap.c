@@ -106,25 +106,6 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 
     DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Enabling hostapd mode\n", dev->name);
 
-#ifdef PRIVATE_OBJ
-    pDevice->apdev = ref_init_apdev(dev);
-
-    if (pDevice->apdev == NULL)
-		return -ENOMEM;
-
-	if (rtnl_locked)
-		ret = register_netdevice(pDevice->apdev);
-	else
-		ret = register_netdev(pDevice->apdev);
-	if (ret) {
-		DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: register_netdevice(AP) failed!\n",
-		       dev->name);
-		return -1;
-	}
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Registered netdevice %s for AP management\n",
-	       dev->name, pDevice->apdev->name);
-
-#else
     pDevice->apdev = (struct net_device *)kmalloc(sizeof(struct net_device), GFP_KERNEL);
 	if (pDevice->apdev == NULL)
 		return -ENOMEM;
@@ -160,7 +141,6 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 	       dev->name, pDevice->apdev->name);
 
     KeyvInitTable(&pDevice->sKey, pDevice->PortOffset);
-#endif
 
 	return 0;
 }
@@ -308,11 +288,7 @@ static int hostap_add_sta(PSDevice pDevice,
             WLAN_GET_CAP_INFO_SHORTPREAMBLE(pMgmt->sNodeDBTable[uNodeIndex].wCapInfo);
 
     pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)param->u.add_sta.aid;
-#ifdef PRIVATE_OBJ
-    pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer = get_jiffies();
-#else
     pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer = jiffies;
-#endif
     DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Add STA AID= %d \n", pMgmt->sNodeDBTable[uNodeIndex].wAID);
     DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X \n",
                param->sta_addr[0],
@@ -349,13 +325,8 @@ static int hostap_get_info_sta(PSDevice pDevice,
 	UINT uNodeIndex;
 
     if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
-#ifdef PRIVATE_OBJ
-	    param->u.get_info_sta.inactive_sec =
-	        (get_jiffies() - pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer) / HZ;
-#else
 	    param->u.get_info_sta.inactive_sec =
 	        (jiffies - pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer) / HZ;
-#endif
 	    //param->u.get_info_sta.txexc = pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts;
 	}
 	else {

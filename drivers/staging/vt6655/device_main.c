@@ -132,16 +132,8 @@
 
 #include <linux/delay.h>
 #include <linux/kthread.h>
-// #ifdef PRIVATE_OBJ
-//#if !defined(__DEVICE_EXP_H)
-//#include "device_exp.h"
-//#endif
-//#if !defined(__DEVICE_MODULE_H)
-//#include "device_module.h"
-//#endif
 
 
-// #endif
 //#define	DEBUG
 /*---------------------  Static Definitions -------------------------*/
 //static int          msglevel                =MSG_LEVEL_DEBUG;
@@ -151,11 +143,9 @@ static int          msglevel                =   MSG_LEVEL_INFO;
 //
 // Define module options
 //
-#ifndef PRIVATE_OBJ
 MODULE_AUTHOR("VIA Networking Technologies, Inc., <lyndonchen@vntek.com.tw>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver");
-#endif
 
 //PLICE_DEBUG ->
 	static int mlme_kill;
@@ -332,7 +322,6 @@ DEVICE_PARAM(bDiversityANTEnable, "ANT diversity mode");
 //
 
 
-#ifndef PRIVATE_OBJ
 static int          device_nics             =0;
 static PSDevice     pDevice_Infos           =NULL;
 static struct net_device *root_device_dev = NULL;
@@ -347,11 +336,9 @@ static struct pci_device_id device_id_table[] __devinitdata = {
 { 0x1106, 0x3253, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long)&chip_info_table[0]},
 { 0, }
 };
-#endif
 
 /*---------------------  Static Functions  --------------------------*/
 
-#ifndef PRIVATE_OBJ
 
 static int  device_found1(struct pci_dev *pcid, const struct pci_device_id *ent);
 static BOOL device_init_info(struct pci_dev* pcid, PSDevice* ppDevice, PCHIP_INFO);
@@ -378,7 +365,6 @@ struct notifier_block device_notifier = {
 };
 #endif
 
-#endif // #ifndef PRIVATE_OBJ
 
 static void device_init_rd0_ring(PSDevice pDevice);
 static void device_init_rd1_ring(PSDevice pDevice);
@@ -386,9 +372,7 @@ static void device_init_defrag_cb(PSDevice pDevice);
 static void device_init_td0_ring(PSDevice pDevice);
 static void device_init_td1_ring(PSDevice pDevice);
 
-#ifndef PRIVATE_OBJ
 static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
-#endif
 //2008-0714<Add>by Mike Liu
 static BOOL device_release_WPADEV(PSDevice pDevice);
 
@@ -412,7 +396,6 @@ static int Config_FileGetParameter(UCHAR *string, UCHAR *dest,UCHAR *source);
 /*---------------------  Export Functions  --------------------------*/
 
 
-#ifndef PRIVATE_OBJ
 
 static char* get_chip_name(int chip_id) {
     int i;
@@ -432,7 +415,6 @@ static void __devexit device_remove1(struct pci_dev *pcid)
 
 }
 
-#endif
 /*
 static void
 device_set_int_opt(int *opt, int val, int min, int max, int def,char* name,char* devname) {
@@ -978,7 +960,6 @@ static const struct net_device_ops device_netdev_ops = {
 };
 
 
-#ifndef PRIVATE_OBJ
 
 static int
 device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
@@ -1329,7 +1310,6 @@ device_release_WPADEV(pDevice);
         pci_set_drvdata(pDevice->pcid,NULL);
     }
 }
-#endif// ifndef PRIVATE_OBJ
 
 static BOOL device_init_rings(PSDevice pDevice) {
     void*   vir_pool;
@@ -1676,11 +1656,7 @@ static int device_rx_srv(PSDevice pDevice, UINT uIdx) {
             }
         }
         pRD->m_rd0RD0.f1Owner = OWNED_BY_NIC;
-#ifdef PRIVATE_OBJ
-        ref_set_rx_jiffies(pDevice->dev);
-#else
         pDevice->dev->last_rx = jiffies;
-#endif
     }
 
     pDevice->pCurrRD[uIdx]=pRD;
@@ -1693,15 +1669,6 @@ static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
 
     PDEVICE_RD_INFO pRDInfo=pRD->pRDInfo;
 
-#ifdef PRIVATE_OBJ
-
-    pRDInfo->skb=dev_alloc_skb(pDevice->rx_buf_sz);
-    if (pRDInfo->skb==NULL)
-        return FALSE;
-    ref_skb_remap(pDevice->dev, &(pRDInfo->ref_skb), pRDInfo->skb);
-    pRDInfo->skb_dma = pci_map_single(pDevice->pcid, pRDInfo->ref_skb.tail, pDevice->rx_buf_sz,
-                        PCI_DMA_FROMDEVICE);
-#else
 
     pRDInfo->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
 #ifdef	PLICE_DEBUG
@@ -1713,7 +1680,6 @@ static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
     pRDInfo->skb->dev = pDevice->dev;
     pRDInfo->skb_dma = pci_map_single(pDevice->pcid, pRDInfo->skb->tail, pDevice->rx_buf_sz,
                         PCI_DMA_FROMDEVICE);
-#endif
     *((PU32) &(pRD->m_rd0RD0)) = 0;
 
     pRD->m_rd0RD0.wResCount = cpu_to_le16(pDevice->rx_buf_sz);
@@ -1728,20 +1694,11 @@ static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
 
 BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 
-#ifdef PRIVATE_OBJ
-
-    pDeF->skb=dev_alloc_skb(pDevice->rx_buf_sz);
-    if (pDeF->skb==NULL)
-        return FALSE;
-    ref_skb_remap(pDevice->dev, &(pDeF->ref_skb), pDeF->skb);
-
-#else
     pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
     if (pDeF->skb == NULL)
         return FALSE;
     ASSERT(pDeF->skb);
     pDeF->skb->dev = pDevice->dev;
-#endif
 
     return TRUE;
 }
@@ -1760,9 +1717,6 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
     struct sk_buff*          skb;
     UINT                     uNodeIndex;
     PSMgmtObject             pMgmt = pDevice->pMgmt;
-#ifdef PRIVATE_OBJ
-    ref_sk_buff              ref_skb;
-#endif
 
 
     for (pTD = pDevice->apTailTD[uIdx]; pDevice->iTDUsed[uIdx] >0; pTD = pTD->next) {
@@ -1782,9 +1736,6 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
                 uFIFOHeaderSize = pTD->pTDInfo->dwHeaderLength;
                 uFrameSize = pTD->pTDInfo->dwReqCount - uFIFOHeaderSize;
                 pTxBufHead = (PSTxBufHead) (pTD->pTDInfo->buf);
-#ifdef PRIVATE_OBJ
-                ref_skb_remap(pDevice->dev, &ref_skb, pTD->pTDInfo->skb);
-#endif
                 // Update the statistics based on the Transmit status
                 // now, we DO'NT check TSR0_CDH
 
@@ -1809,11 +1760,7 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
                         pDevice->s802_11Counter.TransmittedFragmentCount ++;
                     }
                     pStats->tx_packets++;
-#ifdef PRIVATE_OBJ
-                    pStats->tx_bytes += *(ref_skb.len);
-#else
                     pStats->tx_bytes += pTD->pTDInfo->skb->len;
-#endif
                 }
                 else {
                      DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Tx[%d] dropped & tsr1[%02X] tsr0[%02X].\n",
@@ -1826,14 +1773,6 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
             if ((pTD->pTDInfo->byFlags & TD_FLAGS_PRIV_SKB) != 0) {
                 if (pDevice->bEnableHostapd) {
                     DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "tx call back netif.. \n");
-#ifdef PRIVATE_OBJ
-                    ref_skb_remap(pDevice->apdev, &(ref_skb), pTD->pTDInfo->skb);
-	                ref_skb.mac.raw = ref_skb.data;
-	                *(ref_skb.pkt_type) = PACKET_OTHERHOST;
-    	            //*(ref_skb.protocol) = htons(ETH_P_802_2);
-	                memset(ref_skb.cb, 0, sizeof(ref_skb.cb));
-	                netif_rx(ref_skb.skb);
-#else
                     skb = pTD->pTDInfo->skb;
 	                skb->dev = pDevice->apdev;
 			        skb->mac_header = skb->data;
@@ -1841,7 +1780,6 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
     	            //skb->protocol = htons(ETH_P_802_2);
 	                memset(skb->cb, 0, sizeof(skb->cb));
 	                netif_rx(skb);
-#endif
 	            }
             }
 
@@ -1998,28 +1936,18 @@ INT MlmeThread(
 }
 
 
-#ifdef PRIVATE_OBJ
-
-int __device_open(HANDLE pExDevice) {
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    PSDevice    pDevice = (PSDevice)(pDevice_info->pWDevice);
-
-#else
 
 static int  device_open(struct net_device *dev) {
     PSDevice    pDevice=(PSDevice) netdev_priv(dev);
     int i;
-#endif
     pDevice->rx_buf_sz = PKT_BUF_SZ;
     if (!device_init_rings(pDevice)) {
         return -ENOMEM;
     }
 //2008-5-13 <add> by chester
-#ifndef PRIVATE_OBJ
     i=request_irq(pDevice->pcid->irq, &device_intr, IRQF_SHARED, dev->name, dev);
     if (i)
         return i;
-#endif
 	//printk("DEBUG1\n");
 #ifdef WPA_SM_Transtatus
      extern SWPAResult wpa_Result;
@@ -2085,11 +2013,7 @@ DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "call device_init_registers\n");
 	device_init_registers(pDevice, DEVICE_INIT_COLD);
     MACvReadEtherAddress(pDevice->PortOffset, pDevice->abyCurrentNetAddr);
     memcpy(pDevice->pMgmt->abyMACAddr, pDevice->abyCurrentNetAddr, U_ETHER_ADDR_LEN);
-#ifdef PRIVATE_OBJ
-    __device_set_multi(pExDevice);
-#else
     device_set_multi(pDevice->dev);
-#endif
 
     // Init for Key Management
     KeyvInitTable(&pDevice->sKey, pDevice->PortOffset);
@@ -2141,17 +2065,8 @@ DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "call MACvIntEnable\n");
 }
 
 
-#ifdef PRIVATE_OBJ
-
-int  __device_close(HANDLE pExDevice) {
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    struct net_device *dev = pDevice_info->dev;
-    PSDevice    pDevice = (PSDevice)(pDevice_info->pWDevice);
-
-#else
 static int  device_close(struct net_device *dev) {
     PSDevice  pDevice=(PSDevice) netdev_priv(dev);
-#endif
     PSMgmtObject     pMgmt = pDevice->pMgmt;
  //PLICE_DEBUG->
 #ifdef	THREAD
@@ -2204,19 +2119,10 @@ device_release_WPADEV(pDevice);
     return 0;
 }
 
-#ifdef PRIVATE_OBJ
-
-int  __device_dma0_tx_80211(HANDLE pExDevice, struct sk_buff *skb) {
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    PSDevice    pDevice = (PSDevice)(pDevice_info->pWDevice);
-    ref_sk_buff     ref_skb;
-
-#else
 
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
     PSDevice        pDevice=netdev_priv(dev);
-#endif
     PBYTE           pbMPDU;
     UINT            cbMPDULen = 0;
 
@@ -2237,14 +2143,8 @@ static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
         return 0;
     };
 
-#ifdef PRIVATE_OBJ
-    ref_skb_remap(pDevice->dev, &ref_skb, skb);
-    cbMPDULen = *(ref_skb.len);
-    pbMPDU = ref_skb.data;
-#else
     cbMPDULen = skb->len;
     pbMPDU = skb->data;
-#endif
 
     vDMA0_tx_80211(pDevice, skb, pbMPDU, cbMPDULen);
 
@@ -2268,9 +2168,6 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, UINT uNodeIndex) {
     UINT            ii;
     SKeyItem        STempKey;
 //    BYTE            byKeyIndex = 0;
-#ifdef PRIVATE_OBJ
-    ref_sk_buff     ref_skb;
-#endif
 
 
     if (pDevice->bStopTx0Pkt == TRUE) {
@@ -2292,21 +2189,12 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, UINT uNodeIndex) {
         }
     }
 
-#ifdef PRIVATE_OBJ
-    ref_skb_remap(pDevice->dev, &(ref_skb), skb);
-#endif
     pHeadTD = pDevice->apCurrTD[TYPE_TXDMA0];
 
     pHeadTD->m_td1TD1.byTCR = (TCR_EDP|TCR_STP);
 
-#ifdef PRIVATE_OBJ
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(ref_skb.data), U_HEADER_LEN);
-    cbFrameBodySize = *(ref_skb.len) - U_HEADER_LEN;
-
-#else
     memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), U_HEADER_LEN);
     cbFrameBodySize = skb->len - U_HEADER_LEN;
-#endif
 
     // 802.1H
     if (ntohs(pDevice->sTxEthHeader.wType) > MAX_DATA_LEN) {
@@ -2417,19 +2305,9 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, UINT uNodeIndex) {
 }
 
 //TYPE_AC0DMA data tx
-#ifdef PRIVATE_OBJ
-
-int  __device_xmit(HANDLE pExDevice, struct sk_buff *skb) {
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    PSDevice    pDevice = (PSDevice)(pDevice_info->pWDevice);
-    struct net_device *dev = pDevice_info->dev;
-    ref_sk_buff     ref_skb;
-
-#else
 static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     PSDevice pDevice=netdev_priv(dev);
 
-#endif
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSTxDesc        pHeadTD, pLastTD;
     UINT            uNodeIndex = 0;
@@ -2463,9 +2341,6 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
         return 0;
     }
 
-#ifdef PRIVATE_OBJ
-    ref_skb_remap(pDevice->dev, &ref_skb, skb);
-#endif
 
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
         if (pDevice->uAssocCount == 0) {
@@ -2473,19 +2348,11 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
             spin_unlock_irq(&pDevice->lock);
             return 0;
         }
-#ifdef PRIVATE_OBJ
-        if (IS_MULTICAST_ADDRESS((PBYTE)(ref_skb.data))) {
-#else
         if (IS_MULTICAST_ADDRESS((PBYTE)(skb->data))) {
-#endif
             uNodeIndex = 0;
             bNodeExist = TRUE;
             if (pMgmt->sNodeDBTable[0].bPSEnable) {
-#ifdef PRIVATE_OBJ
-                skb_queue_tail(&(pMgmt->sNodeDBTable[0].sTxPSQueue), ref_skb.skb);
-#else
                 skb_queue_tail(&(pMgmt->sNodeDBTable[0].sTxPSQueue), skb);
-#endif
                 pMgmt->sNodeDBTable[0].wEnQueueCnt++;
                 // set tx map
                 pMgmt->abyPSTxMap[0] |= byMask[0];
@@ -2493,17 +2360,9 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
                 return 0;
             }
 }else {
-#ifdef PRIVATE_OBJ
-            if (BSSDBbIsSTAInNodeDB(pMgmt, (PBYTE)(ref_skb.data), &uNodeIndex)) {
-#else
             if (BSSDBbIsSTAInNodeDB(pMgmt, (PBYTE)(skb->data), &uNodeIndex)) {
-#endif
                 if (pMgmt->sNodeDBTable[uNodeIndex].bPSEnable) {
-#ifdef PRIVATE_OBJ
-                    skb_queue_tail(&pMgmt->sNodeDBTable[uNodeIndex].sTxPSQueue, ref_skb.skb);
-#else
                     skb_queue_tail(&pMgmt->sNodeDBTable[uNodeIndex].sTxPSQueue, skb);
-#endif
                     pMgmt->sNodeDBTable[uNodeIndex].wEnQueueCnt++;
                     // set tx map
                     wAID = pMgmt->sNodeDBTable[uNodeIndex].wAID;
@@ -2538,13 +2397,8 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     pHeadTD->m_td1TD1.byTCR = (TCR_EDP|TCR_STP);
 
 
-#ifdef PRIVATE_OBJ
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(ref_skb.data), U_HEADER_LEN);
-    cbFrameBodySize = *(ref_skb.len) - U_HEADER_LEN;
-#else
     memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), U_HEADER_LEN);
     cbFrameBodySize = skb->len - U_HEADER_LEN;
-#endif
     // 802.1H
     if (ntohs(pDevice->sTxEthHeader.wType) > MAX_DATA_LEN) {
         cbFrameBodySize += 8;
@@ -2763,14 +2617,6 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
     }
 
 
-#ifdef PRIVATE_OBJ
-    vGenerateFIFOHeader(pDevice, byPktTyp, pDevice->pbyTmpBuff, bNeedEncryption,
-                        cbFrameBodySize, TYPE_AC0DMA, pHeadTD,
-                        &pDevice->sTxEthHeader, (PBYTE)ref_skb.data, pTransmitKey, uNodeIndex,
-                        &uMACfragNum,
-                        &cbHeaderSize
-                        );
-#else
 #ifdef	PLICE_DEBUG
 	//if (skb->len == 98)
 	//{
@@ -2783,7 +2629,6 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
                         &uMACfragNum,
                         &cbHeaderSize
                         );
-#endif
 
     if (MACbIsRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PS)) {
         // Disable PS
@@ -2804,11 +2649,7 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
 
     // Save the information needed by the tx interrupt handler
     // to complete the Send request
-#ifdef PRIVATE_OBJ
-    pLastTD->pTDInfo->skb = ref_skb.skb;
-#else
     pLastTD->pTDInfo->skb = skb;
-#endif
     pLastTD->pTDInfo->byFlags = 0;
     pLastTD->pTDInfo->byFlags |= TD_FLAGS_NETIF_SKB;
 #ifdef TxInSleep
@@ -2862,29 +2703,16 @@ BOOL            bTxeapol_key = FALSE;
     MACvTransmitAC0(pDevice->PortOffset);
 //    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "acdma0:pDevice->apCurrTD= %p\n", pHeadTD);
 
-#ifdef PRIVATE_OBJ
-    ref_set_tx_jiffies(pDevice->dev);
-#else
     dev->trans_start = jiffies;
-#endif
 
     spin_unlock_irq(&pDevice->lock);
     return 0;
 
 }
 
-#ifdef PRIVATE_OBJ
-
-int __device_intr(int irq, HANDLE pExDevice, struct pt_regs *regs) {
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    PSDevice    pDevice = (PSDevice)(pDevice_info->pWDevice);
-
-
-#else
 static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
     struct net_device* dev=dev_instance;
     PSDevice     pDevice=(PSDevice) netdev_priv(dev);
-#endif
 
     int             max_count=0;
     DWORD           dwMIBCounter=0;
@@ -3290,18 +3118,9 @@ error2:
 }
 
 
-#ifdef PRIVATE_OBJ
-
-void __device_set_multi(HANDLE pExDevice) {
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    ref_net_device  *dev = &(pDevice_info->ref_dev);
-    PSDevice    pDevice = (PSDevice)(pDevice_info->pWDevice);
-
-#else
 
 static void device_set_multi(struct net_device *dev) {
     PSDevice         pDevice = (PSDevice) netdev_priv(dev);
-#endif
 
     PSMgmtObject     pMgmt = pDevice->pMgmt;
     u32              mc_filter[2];
@@ -3311,24 +3130,13 @@ static void device_set_multi(struct net_device *dev) {
 
     VNSvInPortB(pDevice->PortOffset + MAC_REG_RCR, &(pDevice->byRxMode));
 
-#ifdef PRIVATE_OBJ
-    if (*(dev->flags) & IFF_PROMISC) {         /* Set promiscuous. */
-        DEVICE_PRT(MSG_LEVEL_ERR,KERN_ERR "%s: Promiscuous mode enabled.\n", pDevice->dev->name);
-
-#else
     if (dev->flags & IFF_PROMISC) {         /* Set promiscuous. */
         DEVICE_PRT(MSG_LEVEL_ERR,KERN_NOTICE "%s: Promiscuous mode enabled.\n", dev->name);
-#endif
         /* Unconditionally log net taps. */
         pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST|RCR_UNICAST);
     }
-#ifdef PRIVATE_OBJ
-    else if ((*(dev->mc_count) > pDevice->multicast_limit)
-        ||  (*(dev->flags) & IFF_ALLMULTI)) {
-#else
     else if ((dev->mc_count > pDevice->multicast_limit)
         ||  (dev->flags & IFF_ALLMULTI)) {
-#endif
         MACvSelectPage1(pDevice->PortOffset);
         VNSvOutPortD(pDevice->PortOffset + MAC_REG_MAR0, 0xffffffff);
         VNSvOutPortD(pDevice->PortOffset + MAC_REG_MAR0 + 4, 0xffffffff);
@@ -3337,13 +3145,8 @@ static void device_set_multi(struct net_device *dev) {
     }
     else {
         memset(mc_filter, 0, sizeof(mc_filter));
-#ifdef PRIVATE_OBJ
-        for (i = 0, mclist = dev->mc_list; mclist && i < *(dev->mc_count);
-             i++, mclist = mclist->next) {
-#else
         for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
              i++, mclist = mclist->next) {
-#endif
             int bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
             mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));
         }
@@ -3366,33 +3169,16 @@ static void device_set_multi(struct net_device *dev) {
 }
 
 
-#ifdef PRIVATE_OBJ
-
-struct net_device_stats *__device_get_stats(HANDLE pExDevice) {
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    PSDevice    pDevice = (PSDevice)(pDevice_info->pWDevice);
-
-#else
 static struct net_device_stats *device_get_stats(struct net_device *dev) {
     PSDevice pDevice=(PSDevice) netdev_priv(dev);
-#endif
 
     return &pDevice->stats;
 }
 
 
-#ifdef PRIVATE_OBJ
-
-int __device_ioctl(HANDLE pExDevice, struct ifreq *rq, int cmd) {
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    struct net_device *dev = pDevice_info->dev;
-    PSDevice    pDevice = (PSDevice)(pDevice_info->pWDevice);
-
-#else
 
 static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
-#endif
 
 	struct iwreq *wrq = (struct iwreq *) rq;
 	int                 rc =0;
@@ -3854,7 +3640,6 @@ static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 }
 
 /*------------------------------------------------------------------*/
-#ifndef PRIVATE_OBJ
 
 MODULE_DEVICE_TABLE(pci, device_id_table);
 
@@ -3987,59 +3772,6 @@ viawget_resume(struct pci_dev *pcid)
 
 #endif
 
-#endif //#ifndef PRIVATE_OBJ
 
-#ifdef PRIVATE_OBJ
-
-
-int __device_hw_reset(HANDLE pExDevice){
-     PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-
-     return MACbSoftwareReset(pDevice_info->port_offset);
-}
-
-
-int __device_hw_init(HANDLE pExDevice){
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    PSDevice    pDevice;
-
-    pDevice = (PSDevice)kmalloc(sizeof(DEVICE_INFO), (int)GFP_ATOMIC);
-    if (pDevice == NULL)
-        return FALSE;
-
-    memset(pDevice, 0, sizeof(DEVICE_INFO));
-    pDevice_info->pWDevice = pDevice;
-    pDevice->PortOffset = pDevice_info->port_offset;
-    pDevice->dev = pDevice_info->dev;
-    pDevice->pcid = pDevice_info->pcid;
-    pDevice->chip_id = pDevice_info->chip_id;
-    pDevice->memaddr = pDevice_info->mem_addr;
-    pDevice->ioaddr = pDevice_info->io_addr;
-    pDevice->io_size = pDevice_info->io_size;
-    pDevice->nTxQueues = pDevice_info->nTxQueues;
-    pDevice->multicast_limit = pDevice_info->multicast_limit;
-    pDevice->sMgmtObj.pAdapter = (PVOID)pDevice;
-    pDevice->pMgmt = &(pDevice->sMgmtObj);
-    MACvInitialize(pDevice->PortOffset);
-    device_get_options(pDevice, 0 , pDevice_info->dev->name);
-    device_set_options(pDevice);
-    pDevice->sOpts.flags &= pDevice_info->flags;
-    pDevice->flags = pDevice->sOpts.flags | (pDevice_info->flags & 0xFF000000UL);
-    spin_lock_init(&(pDevice->lock));
-
-    return TRUE;
-}
-
-
-void __device_read_mac(HANDLE pExDevice, PBYTE dev_addr){
-    PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
-    PSDevice    pDevice = (PSDevice)(pDevice_info->pWDevice);
-
-    MACvReadEtherAddress(pDevice->PortOffset, dev_addr);
-    return;
-}
-
-
-#endif
 
 
