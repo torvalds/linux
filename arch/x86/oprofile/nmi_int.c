@@ -129,6 +129,11 @@ inline int op_x86_phys_to_virt(int phys)
 	return __get_cpu_var(switch_index) + phys;
 }
 
+inline int op_x86_virt_to_phys(int virt)
+{
+	return virt % model->num_counters;
+}
+
 static void nmi_shutdown_mux(void)
 {
 	int i;
@@ -270,6 +275,7 @@ static void mux_clone(int cpu)
 #else
 
 inline int op_x86_phys_to_virt(int phys) { return phys; }
+inline int op_x86_virt_to_phys(int virt) { return virt; }
 static inline void nmi_shutdown_mux(void) { }
 static inline int nmi_setup_mux(void) { return 1; }
 static inline void

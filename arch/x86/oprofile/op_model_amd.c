@@ -81,7 +81,7 @@ static void op_mux_fill_in_addresses(struct op_msrs * const msrs)
 	int i;
 
 	for (i = 0; i < NUM_VIRT_COUNTERS; i++) {
-		int hw_counter = i % NUM_COUNTERS;
+		int hw_counter = op_x86_virt_to_phys(i);
 		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
 			msrs->multiplex[i].addr = MSR_K7_PERFCTR0 + hw_counter;
 		else
