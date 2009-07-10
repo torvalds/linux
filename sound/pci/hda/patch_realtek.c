@@ -8587,7 +8587,7 @@ static struct alc_config_preset alc882_presets[] = {
 	[ALC882_TARGA] = {
 		.mixers = { alc882_targa_mixer, alc882_chmode_mixer },
 		.init_verbs = { alc882_base_init_verbs, alc882_adc1_init_verbs,
-				alc882_targa_verbs},
+				alc880_gpio3_init_verbs, alc882_targa_verbs},
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
