@@ -430,7 +430,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	int ret;
 	struct intel_output *intel_output = to_intel_output(connector);
-	struct intel_i2c_chan *ddcbus;
+	struct i2c_adapter *ddcbus;
 	struct drm_device *dev = connector->dev;
 
 
