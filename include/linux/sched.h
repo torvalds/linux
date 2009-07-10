@@ -2075,7 +2075,7 @@ static inline unsigned long wait_task_inactive(struct task_struct *p,
 #define for_each_process(p) \
 	for (p = &init_task ; (p = next_task(p)) != &init_task ; )
 
-extern bool is_single_threaded(struct task_struct *);
+extern bool current_is_single_threaded(void);
 
 /*
  * Careful: do_each_thread/while_each_thread is a double loop so

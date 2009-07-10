@@ -702,7 +702,7 @@ long join_session_keyring(const char *name)
 	/* only permit this if there's a single thread in the thread group -
 	 * this avoids us having to adjust the creds on all threads and risking
 	 * ENOMEM */
-	if (!is_single_threaded(current))
+	if (!current_is_single_threaded())
 		return -EMLINK;
 
 	new = prepare_creds();

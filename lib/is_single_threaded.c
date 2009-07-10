@@ -15,8 +15,9 @@
 /*
  * Returns true if the task does not share ->mm with another thread/process.
  */
-bool is_single_threaded(struct task_struct *task)
+bool current_is_single_threaded(void)
 {
+	struct task_struct *task = current;
 	struct mm_struct *mm = task->mm;
 	struct task_struct *p, *t;
 	bool ret;

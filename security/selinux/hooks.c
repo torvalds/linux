@@ -5187,7 +5187,7 @@ static int selinux_setprocattr(struct task_struct *p,
 
 		/* Only allow single threaded processes to change context */
 		error = -EPERM;
-		if (!is_single_threaded(p)) {
+		if (!current_is_single_threaded()) {
 			error = security_bounded_transition(tsec->sid, sid);
 			if (error)
 				goto abort_change;
