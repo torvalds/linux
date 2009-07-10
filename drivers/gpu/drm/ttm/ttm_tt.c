@@ -131,10 +131,15 @@ static void ttm_tt_free_page_directory(struct ttm_tt *ttm)
 
 static struct page *ttm_tt_alloc_page(unsigned page_flags)
 {
-	if (page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
-		return alloc_page(GFP_HIGHUSER | __GFP_ZERO);
+	gfp_t gfp_flags = GFP_HIGHUSER;
 
-	return alloc_page(GFP_HIGHUSER);
+	if (page_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
+		gfp_flags |= __GFP_ZERO;
+
+	if (page_flags & TTM_PAGE_FLAG_DMA32)
+		gfp_flags |= __GFP_DMA32;
+
+	return alloc_page(gfp_flags);
 }
 
 static void ttm_tt_free_user_pages(struct ttm_tt *ttm)

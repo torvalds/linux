@@ -224,6 +224,9 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 	TTM_ASSERT_LOCKED(&bo->mutex);
 	bo->ttm = NULL;
 
+	if (bdev->need_dma32)
+		page_flags |= TTM_PAGE_FLAG_DMA32;
+
 	switch (bo->type) {
 	case ttm_bo_type_device:
 		if (zero_alloc)
@@ -1332,7 +1335,8 @@ EXPORT_SYMBOL(ttm_bo_device_release);
 
 int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_mem_global *mem_glob,
-		       struct ttm_bo_driver *driver, uint64_t file_page_offset)
+		       struct ttm_bo_driver *driver, uint64_t file_page_offset,
+		       bool need_dma32)
 {
 	int ret = -EINVAL;
 
@@ -1369,6 +1373,7 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	INIT_LIST_HEAD(&bdev->swap_lru);
 	bdev->dev_mapping = NULL;
+	bdev->need_dma32 = need_dma32;
 	ttm_mem_init_shrink(&bdev->shrink, ttm_bo_swapout);
 	ret = ttm_mem_register_shrink(mem_glob, &bdev->shrink);
 	if (unlikely(ret != 0)) {

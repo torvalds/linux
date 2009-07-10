@@ -450,6 +450,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		       uint32_t flags)
 {
 	int r, ret;
+	int dma_bits;
 
 	DRM_INFO("radeon: Initializing kernel modesetting.\n");
 	rdev->shutdown = false;
@@ -492,8 +493,20 @@ int radeon_device_init(struct radeon_device *rdev,
 		return r;
 	}
 
-	/* Report DMA addressing limitation */
-	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(32));
+	/* set DMA mask + need_dma32 flags.
+	 * PCIE - can handle 40-bits.
+	 * IGP - can handle 40-bits (in theory)
+	 * AGP - generally dma32 is safest
+	 * PCI - only dma32
+	 */
+	rdev->need_dma32 = false;
+	if (rdev->flags & RADEON_IS_AGP)
+		rdev->need_dma32 = true;
+	if (rdev->flags & RADEON_IS_PCI)
+		rdev->need_dma32 = true;
+
+	dma_bits = rdev->need_dma32 ? 32 : 40;
+	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
 		printk(KERN_WARNING "radeon: No suitable DMA available.\n");
 	}

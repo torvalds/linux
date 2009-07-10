@@ -121,6 +121,7 @@ struct ttm_backend {
 #define TTM_PAGE_FLAG_SWAPPED         (1 << 4)
 #define TTM_PAGE_FLAG_PERSISTANT_SWAP (1 << 5)
 #define TTM_PAGE_FLAG_ZERO_ALLOC      (1 << 6)
+#define TTM_PAGE_FLAG_DMA32           (1 << 7)
 
 enum ttm_caching_state {
 	tt_uncached,
@@ -429,6 +430,8 @@ struct ttm_bo_device {
 	 */
 
 	struct delayed_work wq;
+
+	bool need_dma32;
 };
 
 /**
@@ -648,7 +651,7 @@ extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
 extern int ttm_bo_device_init(struct ttm_bo_device *bdev,
 			      struct ttm_mem_global *mem_glob,
 			      struct ttm_bo_driver *driver,
-			      uint64_t file_page_offset);
+			      uint64_t file_page_offset, bool need_dma32);
 
 /**
  * ttm_bo_reserve:

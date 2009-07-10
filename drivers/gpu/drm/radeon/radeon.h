@@ -624,6 +624,7 @@ struct radeon_device {
 	bool				gpu_lockup;
 	bool				shutdown;
 	bool				suspend;
+	bool				need_dma32;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
