@@ -436,6 +436,8 @@ extern struct xt_table_info *xt_replace_table(struct xt_table *table,
 
 extern struct xt_match *xt_find_match(u8 af, const char *name, u8 revision);
 extern struct xt_target *xt_find_target(u8 af, const char *name, u8 revision);
+extern struct xt_match *xt_request_find_match(u8 af, const char *name,
+					      u8 revision);
 extern struct xt_target *xt_request_find_target(u8 af, const char *name,
 						u8 revision);
 extern int xt_find_revision(u8 af, const char *name, u8 revision,
