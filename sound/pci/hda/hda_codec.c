@@ -316,6 +316,8 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 		/* single connection */
 		parm = snd_hda_codec_read(codec, nid, 0,
 					  AC_VERB_GET_CONNECT_LIST, 0);
+		if (parm == -1 && codec->bus->rirb_error)
+			return -EIO;
 		conn_list[0] = parm & mask;
 		return 1;
 	}
@@ -327,9 +329,12 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 		int range_val;
 		hda_nid_t val, n;
 
-		if (i % num_elems == 0)
+		if (i % num_elems == 0) {
 			parm = snd_hda_codec_read(codec, nid, 0,
 						  AC_VERB_GET_CONNECT_LIST, i);
+			if (parm == -1 && codec->bus->rirb_error)
+				return -EIO;
+		}
 		range_val = !!(parm & (1 << (shift-1))); /* ranges */
 		val = parm & mask;
 		parm >>= shift;
