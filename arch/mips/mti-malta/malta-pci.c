@@ -27,7 +27,7 @@
 #include <linux/init.h>
 
 #include <asm/gt64120.h>
-
+#include <asm/gcmpregs.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/bonito64.h>
 #include <asm/mips-boards/msc01_pci.h>
@@ -201,7 +201,11 @@ void __init mips_pcibios_init(void)
 		msc_mem_resource.start = start & mask;
 		msc_mem_resource.end = (start & mask) | ~mask;
 		msc_controller.mem_offset = (start & mask) - (map & mask);
-
+#ifdef CONFIG_MIPS_CMP
+		if (gcmp_niocu())
+			gcmp_setregion(0, start, mask,
+				GCMP_GCB_GCMPB_CMDEFTGT_IOCU1);
+#endif
 		MSC_READ(MSC01_PCI_SC2PIOBASL, start);
 		MSC_READ(MSC01_PCI_SC2PIOMSKL, mask);
 		MSC_READ(MSC01_PCI_SC2PIOMAPL, map);
@@ -209,7 +213,11 @@ void __init mips_pcibios_init(void)
 		msc_io_resource.end = (map & mask) | ~mask;
 		msc_controller.io_offset = 0;
 		ioport_resource.end = ~mask;
-
+#ifdef CONFIG_MIPS_CMP
+		if (gcmp_niocu())
+			gcmp_setregion(1, start, mask,
+				GCMP_GCB_GCMPB_CMDEFTGT_IOCU1);
+#endif
 		/* If ranges overlap I/O takes precedence.  */
 		start = start & mask;
 		end = start | ~mask;
