@@ -1209,7 +1209,7 @@ struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 	/* we are under RTNL - globally locked - so can use static structs */
 	static struct iw_statistics wstats;
 	static struct station_info sinfo;
-	u8 *addr;
+	u8 bssid[ETH_ALEN];
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION)
 		return NULL;
@@ -1217,11 +1217,16 @@ struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 	if (!rdev->ops->get_station)
 		return NULL;
 
-	addr = wdev->wext.connect.bssid;
-	if (!addr)
+	/* Grab BSSID of current BSS, if any */
+	wdev_lock(wdev);
+	if (!wdev->current_bss) {
+		wdev_unlock(wdev);
 		return NULL;
+	}
+	memcpy(bssid, wdev->current_bss->pub.bssid, ETH_ALEN);
+	wdev_unlock(wdev);
 
-	if (rdev->ops->get_station(&rdev->wiphy, dev, addr, &sinfo))
+	if (rdev->ops->get_station(&rdev->wiphy, dev, bssid, &sinfo))
 		return NULL;
 
 	memset(&wstats, 0, sizeof(wstats));
