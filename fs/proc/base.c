@@ -234,19 +234,19 @@ static int check_mem_permission(struct task_struct *task)
 
 struct mm_struct *mm_for_maps(struct task_struct *task)
 {
-	struct mm_struct *mm = get_task_mm(task);
+	struct mm_struct *mm;
 
-	if (mm && mm != current->mm) {
-		/*
-		 * task->mm can be changed before security check,
-		 * in that case we must notice the change after.
-		 */
-		if (!ptrace_may_access(task, PTRACE_MODE_READ) ||
-		    mm != task->mm) {
-			mmput(mm);
-			mm = NULL;
-		}
+	if (mutex_lock_killable(&task->cred_guard_mutex))
+		return NULL;
+
+	mm = get_task_mm(task);
+	if (mm && mm != current->mm &&
+			!ptrace_may_access(task, PTRACE_MODE_READ)) {
+		mmput(mm);
+		mm = NULL;
 	}
+	mutex_unlock(&task->cred_guard_mutex);
+
 	return mm;
 }
 
