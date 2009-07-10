@@ -57,7 +57,7 @@ static void __init ek_map_io(void)
 	/* Initialize processor: 16.367 MHz crystal */
 	at91sam9263_initialize(16367660);
 
-	/* DGBU on ttyS0. (Rx & Tx only) */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
 	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */
