@@ -604,10 +604,14 @@ W:	http://maxim.org.za/at91_26.html
 S:	Maintained
 
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
-P:	Lennert Buytenhek
-M:	kernel@wantstofly.org
+P:	Hartley Sweeten
+M:	hsweeten@visionengravers.com
+P:	Ryan Mallon
+M:	ryan@bluewatersys.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
+F:	arch/arm/mach-ep93xx/
+F:	arch/arm/mach-ep93xx/include/mach/
 
 ARM/CIRRUS LOGIC EDB9315A MACHINE SUPPORT
 P:	Lennert Buytenhek
