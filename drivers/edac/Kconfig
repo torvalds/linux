@@ -70,7 +70,7 @@ config EDAC_MM_EDAC
 	  replaced.  If unsure, select 'Y'.
 
 config EDAC_MCE
-	tristate
+	bool
 
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64) K8, F10h, F11h"
