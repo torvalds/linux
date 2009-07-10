@@ -411,6 +411,11 @@ static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
  */
 int __init gcmp_probe(unsigned long addr, unsigned long size)
 {
+	if (mips_revision_sconid != MIPS_REVISION_SCON_ROCIT) {
+		gcmp_present = 0;
+		return gcmp_present;
+	}
+
 	if (gcmp_present >= 0)
 		return gcmp_present;
 
@@ -479,9 +484,14 @@ void __init arch_init_irq(void)
 		GCMPGCB(GICBA) = GIC_BASE_ADDR | GCMP_GCB_GICBA_EN_MSK;
 		gic_present = 1;
 	} else {
-		_msc01_biu_base = (unsigned long) ioremap_nocache(MSC01_BIU_REG_BASE, MSC01_BIU_ADDRSPACE_SZ);
-		gic_present = (REG(_msc01_biu_base, MSC01_SC_CFG) &
-		MSC01_SC_CFG_GICPRES_MSK) >> MSC01_SC_CFG_GICPRES_SHF;
+		if (mips_revision_sconid == MIPS_REVISION_SCON_ROCIT) {
+			_msc01_biu_base = (unsigned long)
+					ioremap_nocache(MSC01_BIU_REG_BASE,
+						MSC01_BIU_ADDRSPACE_SZ);
+			gic_present = (REG(_msc01_biu_base, MSC01_SC_CFG) &
+					MSC01_SC_CFG_GICPRES_MSK) >>
+					MSC01_SC_CFG_GICPRES_SHF;
+		}
 	}
 	if (gic_present)
 		pr_debug("GIC present\n");
