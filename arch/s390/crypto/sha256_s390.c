@@ -42,12 +42,38 @@ static int sha256_init(struct shash_desc *desc)
 	return 0;
 }
 
+static int sha256_export(struct shash_desc *desc, void *out)
+{
+	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
+	struct sha256_state *octx = out;
+
+	octx->count = sctx->count;
+	memcpy(octx->state, sctx->state, sizeof(octx->state));
+	memcpy(octx->buf, sctx->buf, sizeof(octx->buf));
+	return 0;
+}
+
+static int sha256_import(struct shash_desc *desc, const u8 *in)
+{
+	struct sha256_state *sctx = shash_desc_ctx(desc);
+	struct sha256_state *ictx = in;
+
+	sctx->count = ictx->count;
+	memcpy(sctx->state, ictx->state, sizeof(ictx->state));
+	memcpy(sctx->buf, ictx->buf, sizeof(ictx->buf));
+	sctx->func = KIMD_SHA_256;
+	return 0;
+}
+
 static struct shash_alg alg = {
 	.digestsize	=	SHA256_DIGEST_SIZE,
 	.init		=	sha256_init,
 	.update		=	s390_sha_update,
 	.final		=	s390_sha_final,
+	.export		=	sha256_export,
+	.import		=	sha256_import,
 	.descsize	=	sizeof(struct s390_sha_ctx),
+	.statesize	=	sizeof(struct sha256_state),
 	.base		=	{
 		.cra_name	=	"sha256",
 		.cra_driver_name=	"sha256-s390",
