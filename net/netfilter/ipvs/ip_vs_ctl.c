@@ -3231,7 +3231,7 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	genlmsg_end(msg, reply);
-	ret = genlmsg_unicast(msg, info->snd_pid);
+	ret = genlmsg_reply(msg, info);
 	goto out;
 
 nla_put_failure:

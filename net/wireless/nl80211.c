@@ -413,7 +413,7 @@ static int nl80211_get_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 	cfg80211_unlock_rdev(dev);
 
-	return genlmsg_unicast(msg, info->snd_pid);
+	return genlmsg_reply(msg, info);
 
  out_free:
 	nlmsg_free(msg);
@@ -739,7 +739,7 @@ static int nl80211_get_interface(struct sk_buff *skb, struct genl_info *info)
 	dev_put(netdev);
 	cfg80211_unlock_rdev(dev);
 
-	return genlmsg_unicast(msg, info->snd_pid);
+	return genlmsg_reply(msg, info);
 
  out_free:
 	nlmsg_free(msg);
@@ -1030,7 +1030,7 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
-	err = genlmsg_unicast(msg, info->snd_pid);
+	err = genlmsg_reply(msg, info);
 	goto out;
 
  nla_put_failure:
@@ -1618,7 +1618,7 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 				 dev, mac_addr, &sinfo) < 0)
 		goto out_free;
 
-	err = genlmsg_unicast(msg, info->snd_pid);
+	err = genlmsg_reply(msg, info);
 	goto out;
 
  out_free:
@@ -2087,7 +2087,7 @@ static int nl80211_get_mpath(struct sk_buff *skb, struct genl_info *info)
 				 dev, dst, next_hop, &pinfo) < 0)
 		goto out_free;
 
-	err = genlmsg_unicast(msg, info->snd_pid);
+	err = genlmsg_reply(msg, info);
 	goto out;
 
  out_free:
@@ -2436,7 +2436,7 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 			cur_params.dot11MeshHWMPnetDiameterTraversalTime);
 	nla_nest_end(msg, pinfoattr);
 	genlmsg_end(msg, hdr);
-	err = genlmsg_unicast(msg, info->snd_pid);
+	err = genlmsg_reply(msg, info);
 	goto out;
 
  nla_put_failure:
@@ -2624,7 +2624,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 	nla_nest_end(msg, nl_reg_rules);
 
 	genlmsg_end(msg, hdr);
-	err = genlmsg_unicast(msg, info->snd_pid);
+	err = genlmsg_reply(msg, info);
 	goto out;
 
 nla_put_failure:

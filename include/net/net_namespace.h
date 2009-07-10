@@ -26,6 +26,7 @@ struct net_device;
 struct sock;
 struct ctl_table_header;
 struct net_generic;
+struct sock;
 
 struct net {
 	atomic_t		count;		/* To decided when the network
@@ -57,6 +58,7 @@ struct net {
 	spinlock_t		rules_mod_lock;
 
 	struct sock 		*rtnl;			/* rtnetlink socket */
+	struct sock		*genl_sock;
 
 	struct netns_core	core;
 	struct netns_mib	mib;
