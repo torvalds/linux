@@ -178,12 +178,12 @@ static void __cfg80211_send_disassoc(struct net_device *dev,
 	bool from_ap;
 	bool done = false;
 
-	wdev_lock(wdev);
+	ASSERT_WDEV_LOCK(wdev);
 
 	nl80211_send_disassoc(rdev, dev, buf, len, GFP_KERNEL);
 
-	if (!wdev->sme_state == CFG80211_SME_CONNECTED)
-		goto out;
+	if (wdev->sme_state != CFG80211_SME_CONNECTED)
+		return;
 
 	if (wdev->current_bss &&
 	    memcmp(wdev->current_bss, bssid, ETH_ALEN) == 0) {
@@ -205,8 +205,6 @@ static void __cfg80211_send_disassoc(struct net_device *dev,
 
 	from_ap = memcmp(mgmt->da, dev->dev_addr, ETH_ALEN) == 0;
 	__cfg80211_disconnected(dev, NULL, 0, reason_code, from_ap);
- out:
-	wdev_unlock(wdev);
 }
 
 void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len,
