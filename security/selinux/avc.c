@@ -492,23 +492,50 @@ out:
 	return node;
 }
 
-static inline void avc_print_ipv6_addr(struct audit_buffer *ab,
-				       struct in6_addr *addr, __be16 port,
-				       char *name1, char *name2)
+/**
+ * avc_audit_pre_callback - SELinux specific information
+ * will be called by generic audit code
+ * @ab: the audit buffer
+ * @a: audit_data
+ */
+static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 {
-	if (!ipv6_addr_any(addr))
-		audit_log_format(ab, " %s=%pI6", name1, addr);
-	if (port)
-		audit_log_format(ab, " %s=%d", name2, ntohs(port));
+	struct common_audit_data *ad = a;
+	struct av_decision *avd = ad->selinux_audit_data.avd;
+	u32 requested = ad->selinux_audit_data.requested;
+	int result = ad->selinux_audit_data.result;
+	u32 denied, audited;
+	denied = requested & ~avd->allowed;
+	if (denied) {
+		audited = denied;
+		if (!(audited & avd->auditdeny))
+			return;
+	} else if (result) {
+		audited = denied = requested;
+	} else {
+		audited = requested;
+		if (!(audited & avd->auditallow))
+			return;
+	}
+	audit_log_format(ab, "avc:  %s ", denied ? "denied" : "granted");
+	avc_dump_av(ab, ad->selinux_audit_data.tclass,
+			ad->selinux_audit_data.audited);
+	audit_log_format(ab, " for ");
 }
 
-static inline void avc_print_ipv4_addr(struct audit_buffer *ab, __be32 addr,
-				       __be16 port, char *name1, char *name2)
+/**
+ * avc_audit_post_callback - SELinux specific information
+ * will be called by generic audit code
+ * @ab: the audit buffer
+ * @a: audit_data
+ */
+static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 {
-	if (addr)
-		audit_log_format(ab, " %s=%pI4", name1, &addr);
-	if (port)
-		audit_log_format(ab, " %s=%d", name2, ntohs(port));
+	struct common_audit_data *ad = a;
+	audit_log_format(ab, " ");
+	avc_dump_query(ab, ad->selinux_audit_data.ssid,
+			   ad->selinux_audit_data.tsid,
+			   ad->selinux_audit_data.tclass);
 }
 
 /**
@@ -532,163 +559,14 @@ static inline void avc_print_ipv4_addr(struct audit_buffer *ab, __be32 addr,
  */
 void avc_audit(u32 ssid, u32 tsid,
 	       u16 tclass, u32 requested,
-	       struct av_decision *avd, int result, struct avc_audit_data *a)
+	       struct av_decision *avd, int result, struct common_audit_data *a)
 {
-	struct task_struct *tsk = current;
-	struct inode *inode = NULL;
-	u32 denied, audited;
-	struct audit_buffer *ab;
-
-	denied = requested & ~avd->allowed;
-	if (denied) {
-		audited = denied;
-		if (!(audited & avd->auditdeny))
-			return;
-	} else if (result) {
-		audited = denied = requested;
-	} else {
-		audited = requested;
-		if (!(audited & avd->auditallow))
-			return;
-	}
-
-	ab = audit_log_start(current->audit_context, GFP_ATOMIC, AUDIT_AVC);
-	if (!ab)
-		return;		/* audit_panic has been called */
-	audit_log_format(ab, "avc:  %s ", denied ? "denied" : "granted");
-	avc_dump_av(ab, tclass, audited);
-	audit_log_format(ab, " for ");
-	if (a && a->tsk)
-		tsk = a->tsk;
-	if (tsk && tsk->pid) {
-		audit_log_format(ab, " pid=%d comm=", tsk->pid);
-		audit_log_untrustedstring(ab, tsk->comm);
-	}
-	if (a) {
-		switch (a->type) {
-		case AVC_AUDIT_DATA_IPC:
-			audit_log_format(ab, " key=%d", a->u.ipc_id);
-			break;
-		case AVC_AUDIT_DATA_CAP:
-			audit_log_format(ab, " capability=%d", a->u.cap);
-			break;
-		case AVC_AUDIT_DATA_FS:
-			if (a->u.fs.path.dentry) {
-				struct dentry *dentry = a->u.fs.path.dentry;
-				if (a->u.fs.path.mnt) {
-					audit_log_d_path(ab, "path=",
-							 &a->u.fs.path);
-				} else {
-					audit_log_format(ab, " name=");
-					audit_log_untrustedstring(ab, dentry->d_name.name);
-				}
-				inode = dentry->d_inode;
-			} else if (a->u.fs.inode) {
-				struct dentry *dentry;
-				inode = a->u.fs.inode;
-				dentry = d_find_alias(inode);
-				if (dentry) {
-					audit_log_format(ab, " name=");
-					audit_log_untrustedstring(ab, dentry->d_name.name);
-					dput(dentry);
-				}
-			}
-			if (inode)
-				audit_log_format(ab, " dev=%s ino=%lu",
-						 inode->i_sb->s_id,
-						 inode->i_ino);
-			break;
-		case AVC_AUDIT_DATA_NET:
-			if (a->u.net.sk) {
-				struct sock *sk = a->u.net.sk;
-				struct unix_sock *u;
-				int len = 0;
-				char *p = NULL;
-
-				switch (sk->sk_family) {
-				case AF_INET: {
-					struct inet_sock *inet = inet_sk(sk);
-
-					avc_print_ipv4_addr(ab, inet->rcv_saddr,
-							    inet->sport,
-							    "laddr", "lport");
-					avc_print_ipv4_addr(ab, inet->daddr,
-							    inet->dport,
-							    "faddr", "fport");
-					break;
-				}
-				case AF_INET6: {
-					struct inet_sock *inet = inet_sk(sk);
-					struct ipv6_pinfo *inet6 = inet6_sk(sk);
-
-					avc_print_ipv6_addr(ab, &inet6->rcv_saddr,
-							    inet->sport,
-							    "laddr", "lport");
-					avc_print_ipv6_addr(ab, &inet6->daddr,
-							    inet->dport,
-							    "faddr", "fport");
-					break;
-				}
-				case AF_UNIX:
-					u = unix_sk(sk);
-					if (u->dentry) {
-						struct path path = {
-							.dentry = u->dentry,
-							.mnt = u->mnt
-						};
-						audit_log_d_path(ab, "path=",
-								 &path);
-						break;
-					}
-					if (!u->addr)
-						break;
-					len = u->addr->len-sizeof(short);
-					p = &u->addr->name->sun_path[0];
-					audit_log_format(ab, " path=");
-					if (*p)
-						audit_log_untrustedstring(ab, p);
-					else
-						audit_log_n_hex(ab, p, len);
-					break;
-				}
-			}
-
-			switch (a->u.net.family) {
-			case AF_INET:
-				avc_print_ipv4_addr(ab, a->u.net.v4info.saddr,
-						    a->u.net.sport,
-						    "saddr", "src");
-				avc_print_ipv4_addr(ab, a->u.net.v4info.daddr,
-						    a->u.net.dport,
-						    "daddr", "dest");
-				break;
-			case AF_INET6:
-				avc_print_ipv6_addr(ab, &a->u.net.v6info.saddr,
-						    a->u.net.sport,
-						    "saddr", "src");
-				avc_print_ipv6_addr(ab, &a->u.net.v6info.daddr,
-						    a->u.net.dport,
-						    "daddr", "dest");
-				break;
-			}
-			if (a->u.net.netif > 0) {
-				struct net_device *dev;
-
-				/* NOTE: we always use init's namespace */
-				dev = dev_get_by_index(&init_net,
-						       a->u.net.netif);
-				if (dev) {
-					audit_log_format(ab, " netif=%s",
-							 dev->name);
-					dev_put(dev);
-				}
-			}
-			break;
-		}
-	}
-	audit_log_format(ab, " ");
-	avc_dump_query(ab, ssid, tsid, tclass);
-	audit_log_end(ab);
+	a->selinux_audit_data.avd = avd;
+	a->selinux_audit_data.tclass = tclass;
+	a->selinux_audit_data.requested = requested;
+	a->lsm_pre_audit = avc_audit_pre_callback;
+	a->lsm_post_audit = avc_audit_post_callback;
+	common_lsm_audit(a);
 }
 
 /**
@@ -956,7 +834,7 @@ out:
  * another -errno upon other errors.
  */
 int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
-		 u32 requested, struct avc_audit_data *auditdata)
+		 u32 requested, struct common_audit_data *auditdata)
 {
 	struct av_decision avd;
 	int rc;
