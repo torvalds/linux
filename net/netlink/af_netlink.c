@@ -1541,7 +1541,6 @@ int netlink_change_ngroups(struct sock *sk, unsigned int groups)
 	kfree(old);
 	return err;
 }
-EXPORT_SYMBOL(netlink_change_ngroups);
 
 /**
  * netlink_clear_multicast_users - kick off multicast listeners
@@ -1564,7 +1563,6 @@ void netlink_clear_multicast_users(struct sock *ksk, unsigned int group)
 
 	netlink_table_ungrab();
 }
-EXPORT_SYMBOL(netlink_clear_multicast_users);
 
 void netlink_set_nonroot(int protocol, unsigned int flags)
 {
