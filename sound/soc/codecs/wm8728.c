@@ -248,7 +248,8 @@ static int wm8728_resume(struct platform_device *pdev)
  * initialise the WM8728 driver
  * register the mixer and dsp interfaces with the kernel
  */
-static int wm8728_init(struct snd_soc_device *socdev)
+static int wm8728_init(struct snd_soc_device *socdev,
+		       enum snd_soc_control_type control)
 {
 	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret = 0;
@@ -266,7 +267,7 @@ static int wm8728_init(struct snd_soc_device *socdev)
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;
 
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9);
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9, control);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8728: failed to configure cache I/O: %d\n",
 		       ret);
@@ -323,7 +324,7 @@ static int wm8728_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, codec);
 	codec->control_data = i2c;
 
-	ret = wm8728_init(socdev);
+	ret = wm8728_init(socdev, SND_SOC_I2C);
 	if (ret < 0)
 		pr_err("failed to initialise WM8728\n");
 
@@ -403,7 +404,7 @@ static int __devinit wm8728_spi_probe(struct spi_device *spi)
 
 	codec->control_data = spi;
 
-	ret = wm8728_init(socdev);
+	ret = wm8728_init(socdev, SND_SOC_SPI);
 	if (ret < 0)
 		dev_err(&spi->dev, "failed to initialise WM8728\n");
 
@@ -472,7 +473,6 @@ static int wm8728_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
-		codec->hw_write = (hw_write_t)i2c_master_send;
 		ret = wm8728_add_i2c_device(pdev, setup);
 	}
 #endif

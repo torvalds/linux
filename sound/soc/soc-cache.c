@@ -11,6 +11,7 @@
  *  option) any later version.
  */
 
+#include <linux/i2c.h>
 #include <sound/soc.h>
 
 static unsigned int snd_soc_7_9_read(struct snd_soc_codec *codec,
@@ -62,6 +63,7 @@ static struct {
  * @type: Type of cache.
  * @addr_bits: Number of bits of register address data.
  * @data_bits: Number of bits of data per register.
+ * @control: Control bus used.
  *
  * Register formats are frequently shared between many I2C and SPI
  * devices.  In order to promote code reuse the ASoC core provides
@@ -75,7 +77,8 @@ static struct {
  * volatile registers.
  */
 int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
-			       int addr_bits, int data_bits)
+			       int addr_bits, int data_bits,
+			       enum snd_soc_control_type control)
 {
 	int i;
 
@@ -99,6 +102,20 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 
 	codec->write = io_types[i].write;
 	codec->read = io_types[i].read;
+
+	switch (control) {
+	case SND_SOC_CUSTOM:
+		break;
+
+	case SND_SOC_I2C:
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+		codec->hw_write = (hw_write_t)i2c_master_send;
+#endif
+		break;
+
+	case SND_SOC_SPI:
+		break;
+	}
 
 	return 0;
 }

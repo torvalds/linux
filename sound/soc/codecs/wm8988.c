@@ -825,7 +825,8 @@ struct snd_soc_codec_device soc_codec_dev_wm8988 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8988);
 
-static int wm8988_register(struct wm8988_priv *wm8988)
+static int wm8988_register(struct wm8988_priv *wm8988,
+			   enum snd_soc_control_type control)
 {
 	struct snd_soc_codec *codec = &wm8988->codec;
 	int ret;
@@ -854,7 +855,7 @@ static int wm8988_register(struct wm8988_priv *wm8988)
 	memcpy(codec->reg_cache, wm8988_reg,
 	       sizeof(wm8988_reg));
 
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9);
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9, control);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		goto err;
@@ -927,14 +928,13 @@ static int wm8988_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	codec = &wm8988->codec;
-	codec->hw_write = (hw_write_t)i2c_master_send;
 
 	i2c_set_clientdata(i2c, wm8988);
 	codec->control_data = i2c;
 
 	codec->dev = &i2c->dev;
 
-	return wm8988_register(wm8988);
+	return wm8988_register(wm8988, SND_SOC_I2C);
 }
 
 static int wm8988_i2c_remove(struct i2c_client *client)
@@ -1019,7 +1019,7 @@ static int __devinit wm8988_spi_probe(struct spi_device *spi)
 
 	spi->dev.driver_data = wm8988;
 
-	return wm8988_register(wm8988);
+	return wm8988_register(wm8988, SND_SOC_SPI);
 }
 
 static int __devexit wm8988_spi_remove(struct spi_device *spi)
