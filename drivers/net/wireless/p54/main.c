@@ -598,6 +598,10 @@ EXPORT_SYMBOL_GPL(p54_register_common);
 void p54_free_common(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
+	unsigned int i;
+
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+		kfree(priv->band_table[i]);
 
 	kfree(priv->iq_autocal);
 	kfree(priv->output_limit);
