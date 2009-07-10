@@ -833,28 +833,22 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (!sta)
 		return RX_CONTINUE;
 
-	/* Update last_rx only for IBSS packets which are for the current
-	 * BSSID to avoid keeping the current IBSS network alive in cases where
-	 * other STAs are using different BSSID. */
+	/*
+	 * Update last_rx only for IBSS packets which are for the current
+	 * BSSID to avoid keeping the current IBSS network alive in cases
+	 * where other STAs start using different BSSID.
+	 */
 	if (rx->sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len,
 						NL80211_IFTYPE_ADHOC);
 		if (compare_ether_addr(bssid, rx->sdata->u.ibss.bssid) == 0)
 			sta->last_rx = jiffies;
-	} else
-	if (!is_multicast_ether_addr(hdr->addr1) ||
-	    rx->sdata->vif.type == NL80211_IFTYPE_STATION) {
-		/* Update last_rx only for unicast frames in order to prevent
-		 * the Probe Request frames (the only broadcast frames from a
-		 * STA in infrastructure mode) from keeping a connection alive.
+	} else if (!is_multicast_ether_addr(hdr->addr1)) {
+		/*
 		 * Mesh beacons will update last_rx when if they are found to
 		 * match the current local configuration when processed.
 		 */
-		if (rx->sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    ieee80211_is_beacon(hdr->frame_control)) {
-			rx->sdata->u.mgd.last_beacon = jiffies;
-		} else
-			sta->last_rx = jiffies;
+		sta->last_rx = jiffies;
 	}
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
