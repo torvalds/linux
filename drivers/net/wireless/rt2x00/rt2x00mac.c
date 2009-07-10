@@ -454,6 +454,16 @@ static void memcpy_tkip(struct rt2x00lib_crypto *crypto, u8 *key, u8 key_len)
 		       sizeof(crypto->rx_mic));
 }
 
+int rt2x00mac_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		      bool set)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+
+	rt2x00lib_beacondone(rt2x00dev);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_set_tim);
+
 int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		      struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		      struct ieee80211_key_conf *key)
