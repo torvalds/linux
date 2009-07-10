@@ -431,7 +431,7 @@ bmac_init_phy(struct net_device *dev)
 			printk(KERN_DEBUG);
 		printk(KERN_CONT " %.4x", bmac_mif_read(dev, addr));
 	}
-	print(KERN_CONT "\n");
+	printk(KERN_CONT "\n");
 
 	if (bp->is_bmac_plus) {
 		unsigned int capable, ctrl;
