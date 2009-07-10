@@ -208,6 +208,9 @@ static inline struct net *read_pnet(struct net * const *pnet)
 #define for_each_net(VAR)				\
 	list_for_each_entry(VAR, &net_namespace_list, list)
 
+#define for_each_net_rcu(VAR)				\
+	list_for_each_entry_rcu(VAR, &net_namespace_list, list)
+
 #ifdef CONFIG_NET_NS
 #define __net_init
 #define __net_exit
