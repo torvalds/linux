@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/idr.h>
 #include <linux/rculist.h>
+#include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -200,6 +201,26 @@ struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 	return old_net;
 }
 #endif
+
+struct net *get_net_ns_by_pid(pid_t pid)
+{
+	struct task_struct *tsk;
+	struct net *net;
+
+	/* Lookup the network namespace */
+	net = ERR_PTR(-ESRCH);
+	rcu_read_lock();
+	tsk = find_task_by_vpid(pid);
+	if (tsk) {
+		struct nsproxy *nsproxy;
+		nsproxy = task_nsproxy(tsk);
+		if (nsproxy)
+			net = get_net(nsproxy->net_ns);
+	}
+	rcu_read_unlock();
+	return net;
+}
+EXPORT_SYMBOL_GPL(get_net_ns_by_pid);
 
 static int __init net_ns_init(void)
 {
