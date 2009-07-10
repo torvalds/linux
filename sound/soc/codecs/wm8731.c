@@ -591,30 +591,6 @@ static void wm8731_unregister(struct wm8731_priv *wm8731)
 }
 
 #if defined(CONFIG_SPI_MASTER)
-static int wm8731_spi_write(struct spi_device *spi, const char *data, int len)
-{
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-
-	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-
 static int __devinit wm8731_spi_probe(struct spi_device *spi)
 {
 	struct snd_soc_codec *codec;
@@ -626,7 +602,6 @@ static int __devinit wm8731_spi_probe(struct spi_device *spi)
 
 	codec = &wm8731->codec;
 	codec->control_data = spi;
-	codec->hw_write = (hw_write_t)wm8731_spi_write;
 	codec->dev = &spi->dev;
 
 	dev_set_drvdata(&spi->dev, wm8731);

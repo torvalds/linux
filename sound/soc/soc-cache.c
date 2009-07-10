@@ -12,6 +12,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <sound/soc.h>
 
 static unsigned int snd_soc_7_9_read(struct snd_soc_codec *codec,
@@ -45,6 +46,36 @@ static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
 	else
 		return -EIO;
 }
+
+#if defined(CONFIG_SPI_MASTER)
+static int snd_soc_7_9_spi_write(void *control_data, const char *data,
+				 int len)
+{
+	struct spi_device *spi = control_data;
+	struct spi_transfer t;
+	struct spi_message m;
+	u8 msg[2];
+
+	if (len <= 0)
+		return 0;
+
+	msg[0] = data[0];
+	msg[1] = data[1];
+
+	spi_message_init(&m);
+	memset(&t, 0, (sizeof t));
+
+	t.tx_buf = &msg[0];
+	t.len = len;
+
+	spi_message_add_tail(&t, &m);
+	spi_sync(spi, &m);
+
+	return len;
+}
+#else
+#define snd_soc_7_9_spi_write NULL
+#endif
 
 static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 			      unsigned int value)
@@ -115,12 +146,12 @@ static struct {
 	int addr_bits;
 	int data_bits;
 	int (*write)(struct snd_soc_codec *codec, unsigned int, unsigned int);
+	int (*spi_write)(void *, const char *, int);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*i2c_read)(struct snd_soc_codec *, unsigned int);
 } io_types[] = {
-	{ 7, 9, snd_soc_7_9_write, snd_soc_7_9_read },
-	{ 8, 16,
-	  snd_soc_8_16_write, snd_soc_8_16_read,
+	{ 7, 9, snd_soc_7_9_write, snd_soc_7_9_spi_write, snd_soc_7_9_read },
+	{ 8, 16, snd_soc_8_16_write, NULL, snd_soc_8_16_read,
 	  snd_soc_8_16_read_i2c },
 };
 
@@ -177,6 +208,8 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_SPI:
+		if (io_types[i].spi_write)
+			codec->hw_write = io_types[i].spi_write;
 		break;
 	}
 
