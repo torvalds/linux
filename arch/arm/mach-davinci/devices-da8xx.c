@@ -133,7 +133,7 @@ static struct resource da8xx_edma_resources[] = {
 	},
 	{
 		.name	= "edma0",
-		.start	= IRQ_DA8XX_TCERRINT0,
+		.start	= IRQ_DA8XX_CCINT0,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
