@@ -41,9 +41,7 @@ void edac_mce_unregister(struct edac_mce *edac_mce)
 }
 EXPORT_SYMBOL(edac_mce_unregister);
 
-
-
-int edac_mce_queue(struct mce *mce)
+int edac_mce_parse(struct mce *mce)
 {
 	struct edac_mce *edac_mce;
 
@@ -55,4 +53,9 @@ int edac_mce_queue(struct mce *mce)
 	/* Nobody queued the error */
 	return 0;
 }
-EXPORT_SYMBOL_GPL(edac_mce_queue);
+EXPORT_SYMBOL_GPL(edac_mce_parse);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
+MODULE_DESCRIPTION("EDAC Driver for mcelog captured errors");

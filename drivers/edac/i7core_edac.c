@@ -27,6 +27,8 @@
 #include <linux/slab.h>
 #include <linux/edac.h>
 #include <linux/mmzone.h>
+#include <linux/edac_mce.h>
+#include <linux/spinlock.h>
 
 #include "edac_core.h"
 
@@ -195,6 +197,11 @@ struct i7core_pvt {
 	unsigned long	ce_count[MAX_DIMMS];	/* ECC corrected errors counts per dimm */
 	int		last_ce_count[MAX_DIMMS];
 
+	/* mcelog glue */
+	struct edac_mce		edac_mce;
+	struct mce		mce_entry[MCE_LOG_LEN];
+	unsigned		mce_count;
+	spinlock_t		mce_lock;
 };
 
 /* Device name and register DID (Device ID) */
@@ -900,7 +907,7 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	pci_read_config_dword(pvt->pci_ch[pvt->inject.channel][0],
 			       MC_CHANNEL_ADDR_MATCH + 4, &rdmask2);
 
-	debugf0("Inject addr match write 0x%016llx, read: 0x%08x%08x\n",
+	debugf0("Inject addr match write 0x%016llx, read: 0x%08x 0x%08x\n",
 		mask, rdmask1, rdmask2);
 #endif
 #endif
@@ -1162,9 +1169,11 @@ static void check_mc_test_err(struct mem_ctl_info *mci)
 	new1 = DIMM1_COR_ERR(rcv0);
 	new0 = DIMM0_COR_ERR(rcv0);
 
+#if 0
 	debugf2("%s CE rcv1=0x%08x rcv0=0x%08x, %d %d %d\n",
 		(pvt->ce_count_available ? "UPDATE" : "READ"),
 		rcv1, rcv0, new0, new1, new2);
+#endif
 
 	/* Updates CE counters if it is not the first time here */
 	if (pvt->ce_count_available) {
@@ -1195,13 +1204,94 @@ static void check_mc_test_err(struct mem_ctl_info *mci)
 	pvt->last_ce_count[0] = new0;
 }
 
+static void i7core_mce_output_error(struct mem_ctl_info *mci,
+				    struct mce *m)
+{
+	debugf0("CPU %d: Machine Check Exception: %16Lx"
+		"Bank %d: %016Lx\n",
+		m->cpu, m->mcgstatus, m->bank, m->status);
+	if (m->ip) {
+		debugf0("RIP%s %02x:<%016Lx>\n",
+			!(m->mcgstatus & MCG_STATUS_EIPV) ? " !INEXACT!" : "",
+			m->cs, m->ip);
+	}
+	printk(KERN_EMERG "TSC %llx ", m->tsc);
+	if (m->addr)
+		printk("ADDR %llx ", m->addr);
+	if (m->misc)
+		printk("MISC %llx ", m->misc);
+
+#if 0
+	snprintf(msg, sizeof(msg),
+		"%s (Branch=%d DRAM-Bank=%d Buffer ID = %d RDWR=%s "
+		"RAS=%d CAS=%d %s Err=0x%lx (%s))",
+		type, branch >> 1, bank, buf_id, rdwr_str(rdwr), ras, cas,
+		type, allErrors, error_name[errnum]);
+
+	/* Call the helper to output message */
+	edac_mc_handle_fbd_ue(mci, rank, channel, channel + 1, msg);
+#endif
+}
+
 /*
  *	i7core_check_error	Retrieve and process errors reported by the
  *				hardware. Called by the Core module.
  */
 static void i7core_check_error(struct mem_ctl_info *mci)
 {
+	struct i7core_pvt *pvt = mci->pvt_info;
+	int i;
+	unsigned count = 0;
+	struct mce *m = NULL;
+	unsigned long flags;
+
+	debugf0(__FILE__ ": %s()\n", __func__);
+
+	/* Copy all mce errors into a temporary buffer */
+	spin_lock_irqsave(&pvt->mce_lock, flags);
+	if (pvt->mce_count) {
+		m = kmalloc(sizeof(*m) * pvt->mce_count, GFP_ATOMIC);
+		if (m) {
+			count = pvt->mce_count;
+			memcpy(m, &pvt->mce_entry, sizeof(*m) * count);
+		}
+		pvt->mce_count = 0;
+	}
+	spin_unlock_irqrestore(&pvt->mce_lock, flags);
+
+	/* proccess mcelog errors */
+	for (i = 0; i < count; i++)
+		i7core_mce_output_error(mci, &m[i]);
+
+	kfree(m);
+
+	/* check memory count errors */
 	check_mc_test_err(mci);
+}
+
+/*
+ * i7core_mce_check_error	Replicates mcelog routine to get errors
+ *				This routine simply queues mcelog errors, and
+ *				return. The error itself should be handled later
+ *				by i7core_check_error.
+ */
+static int i7core_mce_check_error(void *priv, struct mce *mce)
+{
+	struct i7core_pvt *pvt = priv;
+	unsigned long flags;
+
+	debugf0(__FILE__ ": %s()\n", __func__);
+
+	spin_lock_irqsave(&pvt->mce_lock, flags);
+	if (pvt->mce_count < MCE_LOG_LEN) {
+		memcpy(&pvt->mce_entry[pvt->mce_count], mce, sizeof(*mce));
+		pvt->mce_count++;
+	}
+	spin_unlock_irqrestore(&pvt->mce_lock, flags);
+
+	/* Advice mcelog that the error were handled */
+//	return 1;
+	return 0; // Let's duplicate the log
 }
 
 /*
@@ -1305,6 +1395,18 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	pvt->inject.page = -1;
 	pvt->inject.col = -1;
 
+	/* Registers on edac_mce in order to receive memory errors */
+	pvt->edac_mce.priv = pvt;
+	pvt->edac_mce.check_error = i7core_mce_check_error;
+	spin_lock_init(&pvt->mce_lock);
+
+	rc = edac_mce_register(&pvt->edac_mce);
+	if (unlikely (rc < 0)) {
+		debugf0("MC: " __FILE__
+			": %s(): failed edac_mce_register()\n", __func__);
+		goto fail1;
+	}
+
 	i7core_printk(KERN_INFO, "Driver loaded.\n");
 
 	return 0;
@@ -1324,16 +1426,21 @@ fail0:
 static void __devexit i7core_remove(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
+	struct i7core_pvt *pvt;
 
 	debugf0(__FILE__ ": %s()\n", __func__);
 
 	if (i7core_pci)
 		edac_pci_release_generic_ctl(i7core_pci);
 
-	mci = edac_mc_del_mc(&pdev->dev);
 
+	mci = edac_mc_del_mc(&pdev->dev);
 	if (!mci)
 		return;
+
+	/* Unregisters on edac_mce in order to receive memory errors */
+	pvt = mci->pvt_info;
+	edac_mce_unregister(&pvt->edac_mce);
 
 	/* retrieve references to resources, and free those resources */
 	i7core_put_devices();
