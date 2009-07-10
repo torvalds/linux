@@ -425,9 +425,10 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			args.uid = NO_CHANGE_64;
 			args.gid = NO_CHANGE_64;
 		}
-		CIFSSMBUnixSetInfo(xid, tcon, full_path, &args,
-			cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else {
 		/* BB implement mode setting via Windows security
 		   descriptors e.g. */
@@ -515,10 +516,10 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 			args.uid = NO_CHANGE_64;
 			args.gid = NO_CHANGE_64;
 		}
-		rc = CIFSSMBUnixSetInfo(xid, pTcon, full_path,
-			&args, cifs_sb->local_nls,
-			cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+		rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, &args,
+					    cifs_sb->local_nls,
+					    cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 		if (!rc) {
 			rc = cifs_get_inode_info_unix(&newinode, full_path,

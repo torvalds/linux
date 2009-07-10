@@ -220,7 +220,7 @@ struct cifs_unix_set_info_args {
 	dev_t	device;
 };
 
-extern int CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *pTcon,
+extern int CIFSSMBUnixSetPathInfo(const int xid, struct cifsTconInfo *pTcon,
 			char *fileName,
 			const struct cifs_unix_set_info_args *args,
 			const struct nls_table *nls_codepage,

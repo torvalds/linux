@@ -1241,10 +1241,10 @@ mkdir_get_info:
 				args.uid = NO_CHANGE_64;
 				args.gid = NO_CHANGE_64;
 			}
-			CIFSSMBUnixSetInfo(xid, pTcon, full_path, &args,
-					    cifs_sb->local_nls,
-					    cifs_sb->mnt_cifs_flags &
-					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+			CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, &args,
+					       cifs_sb->local_nls,
+					       cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		} else {
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
 			    (mode & S_IWUGO) == 0) {
@@ -1876,10 +1876,10 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		args->ctime = NO_CHANGE_64;
 
 	args->device = 0;
-	rc = CIFSSMBUnixSetInfo(xid, pTcon, full_path, args,
-				cifs_sb->local_nls,
-				cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	rc = CIFSSMBUnixSetPathInfo(xid, pTcon, full_path, args,
+				    cifs_sb->local_nls,
+				    cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 	if (!rc)
 		rc = inode_setattr(inode, attrs);
