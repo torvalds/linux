@@ -874,13 +874,13 @@ static void amd_pmu_enable_all(void)
 	barrier();
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+		struct perf_counter *counter = cpuc->counters[idx];
 		u64 val;
 
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
-		rdmsrl(MSR_K7_EVNTSEL0 + idx, val);
-		if (val & ARCH_PERFMON_EVENTSEL0_ENABLE)
-			continue;
+
+		val = counter->hw.config;
 		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
 		wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
 	}
@@ -1044,11 +1044,13 @@ intel_pmu_enable_fixed(struct hw_perf_counter *hwc, int __idx)
 static void p6_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	u64 val;
 
+	val = hwc->config;
 	if (cpuc->enabled)
-		x86_pmu_enable_counter(hwc, idx);
-	else
-		x86_pmu_disable_counter(hwc, idx);
+		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+
+	(void)checking_wrmsrl(hwc->config_base + idx, val);
 }
 
 
@@ -1068,8 +1070,6 @@ static void amd_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 
 	if (cpuc->enabled)
 		x86_pmu_enable_counter(hwc, idx);
-	else
-		x86_pmu_disable_counter(hwc, idx);
 }
 
 static int
