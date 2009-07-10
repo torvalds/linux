@@ -70,4 +70,10 @@ struct sha1_state {
 	u8 buffer[SHA1_BLOCK_SIZE];
 };
 
+struct sha256_state {
+	u64 count;
+	u32 state[SHA256_DIGEST_SIZE / 4];
+	u8 buf[SHA256_BLOCK_SIZE];
+};
+
 #endif
