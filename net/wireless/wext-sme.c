@@ -209,11 +209,7 @@ int cfg80211_mgd_wext_giwessid(struct net_device *dev,
 	data->flags = 0;
 
 	wdev_lock(wdev);
-	if (wdev->ssid_len) {
-		data->flags = 1;
-		data->length = wdev->ssid_len;
-		memcpy(ssid, wdev->ssid, data->length);
-	} else if (wdev->wext.connect.ssid && wdev->wext.connect.ssid_len) {
+	if (wdev->wext.connect.ssid && wdev->wext.connect.ssid_len) {
 		data->flags = 1;
 		data->length = wdev->wext.connect.ssid_len;
 		memcpy(ssid, wdev->wext.connect.ssid, data->length);
