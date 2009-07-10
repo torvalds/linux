@@ -29,6 +29,14 @@
 
 #define DA8XX_BOOT_CFG_BASE	(IO_PHYS + 0x14000)
 
+#define DA8XX_PSC0_BASE		0x01c10000
+#define DA8XX_PLL0_BASE		0x01c11000
+#define DA8XX_JTAG_ID_REG	0x01c14018
+#define DA8XX_TIMER64P0_BASE	0x01c20000
+#define DA8XX_TIMER64P1_BASE	0x01c21000
+#define DA8XX_GPIO_BASE		0x01e26000
+#define DA8XX_PSC1_BASE		0x01e27000
+
 void __init da830_init(void);
 
 int da8xx_register_edma(void);

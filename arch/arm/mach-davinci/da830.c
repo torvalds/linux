@@ -27,14 +27,6 @@
 #include "clock.h"
 #include "mux.h"
 
-#define DA830_PSC0_BASE		0x01c10000
-#define DA830_PLL0_BASE		0x01c11000
-#define DA830_JTAG_ID_REG	0x01c14018
-#define DA830_TIMER64P0_BASE	0x01c20000
-#define DA830_TIMER64P1_BASE	0x01c21000
-#define DA830_GPIO_BASE		0x01e26000
-#define DA830_PSC1_BASE		0x01e27000
-
 /* Offsets of the 8 compare registers on the da830 */
 #define DA830_CMP12_0		0x60
 #define DA830_CMP12_1		0x64
@@ -49,7 +41,7 @@
 
 static struct pll_data pll0_data = {
 	.num		= 1,
-	.phys_base	= DA830_PLL0_BASE,
+	.phys_base	= DA8XX_PLL0_BASE,
 	.flags		= PLL_HAS_PREDIV | PLL_HAS_POSTDIV,
 };
 
@@ -1174,8 +1166,8 @@ static struct map_desc da830_io_desc[] = {
 };
 
 static void __iomem *da830_psc_bases[] = {
-	IO_ADDRESS(DA830_PSC0_BASE),
-	IO_ADDRESS(DA830_PSC1_BASE),
+	IO_ADDRESS(DA8XX_PSC0_BASE),
+	IO_ADDRESS(DA8XX_PSC1_BASE),
 };
 
 /* Contents of JTAG ID register used to identify exact cpu type */
@@ -1191,14 +1183,14 @@ static struct davinci_id da830_ids[] = {
 
 static struct davinci_timer_instance da830_timer_instance[2] = {
 	{
-		.base		= IO_ADDRESS(DA830_TIMER64P0_BASE),
+		.base		= IO_ADDRESS(DA8XX_TIMER64P0_BASE),
 		.bottom_irq	= IRQ_DA8XX_TINT12_0,
 		.top_irq	= IRQ_DA8XX_TINT34_0,
 		.cmp_off	= DA830_CMP12_0,
 		.cmp_irq	= IRQ_DA830_T12CMPINT0_0,
 	},
 	{
-		.base		= IO_ADDRESS(DA830_TIMER64P1_BASE),
+		.base		= IO_ADDRESS(DA8XX_TIMER64P1_BASE),
 		.bottom_irq	= IRQ_DA8XX_TINT12_1,
 		.top_irq	= IRQ_DA8XX_TINT34_1,
 		.cmp_off	= DA830_CMP12_0,
@@ -1220,7 +1212,7 @@ static struct davinci_timer_info da830_timer_info = {
 static struct davinci_soc_info davinci_soc_info_da830 = {
 	.io_desc		= da830_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da830_io_desc),
-	.jtag_id_base		= IO_ADDRESS(DA830_JTAG_ID_REG),
+	.jtag_id_base		= IO_ADDRESS(DA8XX_JTAG_ID_REG),
 	.ids			= da830_ids,
 	.ids_num		= ARRAY_SIZE(da830_ids),
 	.cpu_clks		= da830_clks,
@@ -1234,7 +1226,7 @@ static struct davinci_soc_info davinci_soc_info_da830 = {
 	.intc_irq_prios		= da830_default_priorities,
 	.intc_irq_num		= DA830_N_CP_INTC_IRQ,
 	.timer_info		= &da830_timer_info,
-	.gpio_base		= IO_ADDRESS(DA830_GPIO_BASE),
+	.gpio_base		= IO_ADDRESS(DA8XX_GPIO_BASE),
 	.gpio_num		= 128,
 	.gpio_irq		= IRQ_DA8XX_GPIO0,
 	.serial_dev		= &da8xx_serial_device,
