@@ -846,7 +846,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	printk(KERN_DEBUG "set status page addr 0x%08x\n", (u32)hws->addr);
+	DRM_DEBUG("set status page addr 0x%08x\n", (u32)hws->addr);
 
 	dev_priv->status_gfx_addr = hws->addr & (0x1ffff<<12);
 
@@ -885,8 +885,8 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
  * some RAM for the framebuffer at early boot.  This code figures out
  * how much was set aside so we can use it for our own purposes.
  */
-static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
-			  unsigned long *preallocated_size)
+static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
+			  uint32_t *preallocated_size)
 {
 	struct pci_dev *bridge_dev;
 	u16 tmp = 0;
@@ -984,10 +984,11 @@ static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
 	return 0;
 }
 
-static int i915_load_modeset_init(struct drm_device *dev)
+static int i915_load_modeset_init(struct drm_device *dev,
+				  unsigned long prealloc_size,
+				  unsigned long agp_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long agp_size, prealloc_size;
 	int fb_bar = IS_I9XX(dev) ? 2 : 0;
 	int ret = 0;
 
@@ -1001,10 +1002,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	if (IS_I965G(dev) || IS_G33(dev))
 		dev_priv->cursor_needs_physical = false;
-
-	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
-	if (ret)
-		goto out;
 
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
@@ -1082,6 +1079,44 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	master->driver_priv = NULL;
 }
 
+static void i915_get_mem_freq(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 tmp;
+
+	if (!IS_IGD(dev))
+		return;
+
+	tmp = I915_READ(CLKCFG);
+
+	switch (tmp & CLKCFG_FSB_MASK) {
+	case CLKCFG_FSB_533:
+		dev_priv->fsb_freq = 533; /* 133*4 */
+		break;
+	case CLKCFG_FSB_800:
+		dev_priv->fsb_freq = 800; /* 200*4 */
+		break;
+	case CLKCFG_FSB_667:
+		dev_priv->fsb_freq =  667; /* 167*4 */
+		break;
+	case CLKCFG_FSB_400:
+		dev_priv->fsb_freq = 400; /* 100*4 */
+		break;
+	}
+
+	switch (tmp & CLKCFG_MEM_MASK) {
+	case CLKCFG_MEM_533:
+		dev_priv->mem_freq = 533;
+		break;
+	case CLKCFG_MEM_667:
+		dev_priv->mem_freq = 667;
+		break;
+	case CLKCFG_MEM_800:
+		dev_priv->mem_freq = 800;
+		break;
+	}
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -1098,6 +1133,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	resource_size_t base, size;
 	int ret = 0, mmio_bar = IS_I9XX(dev) ? 0 : 1;
+	uint32_t agp_size, prealloc_size;
 
 	/* i915 has 4 more counters */
 	dev->counters += 4;
@@ -1146,8 +1182,21 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			 "performance may suffer.\n");
 	}
 
+	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
+	if (ret)
+		goto out_iomapfree;
+
 	/* enable GEM by default */
 	dev_priv->has_gem = 1;
+
+	if (prealloc_size > agp_size * 3 / 4) {
+		DRM_ERROR("Detected broken video BIOS with %d/%dkB of video "
+			  "memory stolen.\n",
+			  prealloc_size / 1024, agp_size / 1024);
+		DRM_ERROR("Disabling GEM. (try reducing stolen memory or "
+			  "updating the BIOS to fix).\n");
+		dev_priv->has_gem = 0;
+	}
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
@@ -1165,6 +1214,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_iomapfree;
 	}
 
+	i915_get_mem_freq(dev);
+
 	/* On the 945G/GM, the chipset reports the MSI capability on the
 	 * integrated graphics even though the support isn't actually there
 	 * according to the published specs.  It doesn't appear to function
@@ -1180,6 +1231,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		pci_enable_msi(dev->pdev);
 
 	spin_lock_init(&dev_priv->user_irq_lock);
+	spin_lock_init(&dev_priv->error_lock);
 	dev_priv->user_irq_refcount = 0;
 
 	ret = drm_vblank_init(dev, I915_NUM_PIPE);
@@ -1190,7 +1242,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = i915_load_modeset_init(dev);
+		ret = i915_load_modeset_init(dev, prealloc_size, agp_size);
 		if (ret < 0) {
 			DRM_ERROR("failed to init modeset\n");
 			goto out_rmmap;

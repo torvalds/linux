@@ -246,7 +246,7 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	}
 
 	if ((status & DP_AUX_CH_CTL_DONE) == 0) {
-		printk(KERN_ERR "dp_aux_ch not done status 0x%08x\n", status);
+		DRM_ERROR("dp_aux_ch not done status 0x%08x\n", status);
 		return -EBUSY;
 	}
 
@@ -254,11 +254,14 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	 * Timeouts occur when the sink is not connected
 	 */
 	if (status & DP_AUX_CH_CTL_RECEIVE_ERROR) {
-		printk(KERN_ERR "dp_aux_ch receive error status 0x%08x\n", status);
+		DRM_ERROR("dp_aux_ch receive error status 0x%08x\n", status);
 		return -EIO;
 	}
+
+	/* Timeouts occur when the device isn't connected, so they're
+	 * "normal" -- don't fill the kernel log with these */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
-		printk(KERN_ERR "dp_aux_ch timeout status 0x%08x\n", status);
+		DRM_DEBUG("dp_aux_ch timeout status 0x%08x\n", status);
 		return -ETIMEDOUT;
 	}
 
@@ -411,7 +414,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 				dp_priv->link_bw = bws[clock];
 				dp_priv->lane_count = lane_count;
 				adjusted_mode->clock = intel_dp_link_clock(dp_priv->link_bw);
-				printk(KERN_ERR "link bw %02x lane count %d clock %d\n",
+				DRM_DEBUG("Display port link bw %02x lane count %d clock %d\n",
 				       dp_priv->link_bw, dp_priv->lane_count,
 				       adjusted_mode->clock);
 				return true;
