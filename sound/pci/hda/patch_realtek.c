@@ -6919,9 +6919,6 @@ static struct hda_verb alc882_targa_verbs[] = {
 	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
 
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x03},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x03},
 	{ } /* end */
 };
 
@@ -7241,7 +7238,8 @@ static struct alc_config_preset alc882_presets[] = {
 	},
 	[ALC882_TARGA] = {
 		.mixers = { alc882_targa_mixer, alc882_chmode_mixer },
-		.init_verbs = { alc882_init_verbs, alc882_targa_verbs},
+		.init_verbs = { alc882_init_verbs, alc880_gpio3_init_verbs,
+				alc882_targa_verbs},
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.dig_out_nid = ALC882_DIGOUT_NID,
@@ -9238,7 +9236,8 @@ static struct alc_config_preset alc883_presets[] = {
 	},
 	[ALC883_TARGA_DIG] = {
 		.mixers = { alc883_targa_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs, alc883_targa_verbs},
+		.init_verbs = { alc883_init_verbs, alc880_gpio3_init_verbs,
+				alc883_targa_verbs},
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.dig_out_nid = ALC883_DIGOUT_NID,
@@ -9251,7 +9250,8 @@ static struct alc_config_preset alc883_presets[] = {
 	},
 	[ALC883_TARGA_2ch_DIG] = {
 		.mixers = { alc883_targa_2ch_mixer},
-		.init_verbs = { alc883_init_verbs, alc883_targa_verbs},
+		.init_verbs = { alc883_init_verbs, alc880_gpio3_init_verbs,
+				alc883_targa_verbs},
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.adc_nids = alc883_adc_nids_alt,
@@ -12878,9 +12878,9 @@ static struct snd_kcontrol_new alc269_lifebook_mixer[] = {
 
 static struct snd_kcontrol_new alc269_eeepc_mixer[] = {
 	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Speaker Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x02, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
 	{ } /* end */
 };
 
