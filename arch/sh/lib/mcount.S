@@ -111,14 +111,62 @@ mcount_call:
 	jsr	@r6
 	 nop
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	mov.l   .Lftrace_graph_return, r6
+	mov.l   .Lftrace_stub, r7
+	cmp/eq  r6, r7
+	bt      1f
+
+	mov.l   .Lftrace_graph_caller, r0
+	jmp     @r0
+	 nop
+
+1:
+	mov.l	.Lftrace_graph_entry, r6
+	mov.l	.Lftrace_graph_entry_stub, r7
+	cmp/eq	r6, r7
+	bt	skip_trace
+
+	mov.l   .Lftrace_graph_caller, r0
+	jmp	@r0
+	 nop
+
+	.align 2
+.Lftrace_graph_return:
+	.long   ftrace_graph_return
+.Lftrace_graph_entry:
+	.long   ftrace_graph_entry
+.Lftrace_graph_entry_stub:
+	.long   ftrace_graph_entry_stub
+.Lftrace_graph_caller:
+	.long   ftrace_graph_caller
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+	.globl skip_trace
 skip_trace:
 	MCOUNT_LEAVE()
 
 	.align 2
 .Lftrace_trace_function:
-	.long	ftrace_trace_function
+	.long   ftrace_trace_function
 
 #ifdef CONFIG_DYNAMIC_FTRACE
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+/*
+ * NOTE: Do not move either ftrace_graph_call or ftrace_caller
+ * as this will affect the calculation of GRAPH_INSN_OFFSET.
+ */
+	.globl ftrace_graph_call
+ftrace_graph_call:
+	mov.l	.Lskip_trace, r0
+	jmp	@r0
+	 nop
+
+	.align 2
+.Lskip_trace:
+	.long	skip_trace
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
 	.globl ftrace_caller
 ftrace_caller:
 	mov.l	.Lfunction_trace_stop, r0
@@ -136,7 +184,12 @@ ftrace_call:
 	jsr	@r6
 	 nop
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	bra	ftrace_graph_call
+	 nop
+#else
 	MCOUNT_LEAVE()
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /*
@@ -188,3 +241,65 @@ stack_panic:
 .Lpanic_str:
 	.string "Stack error"
 #endif /* CONFIG_STACK_DEBUG */
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	.globl	ftrace_graph_caller
+ftrace_graph_caller:
+	mov.l	2f, r0
+	mov.l	@r0, r0
+	tst	r0, r0
+	bt	1f
+
+	mov.l	3f, r1
+	jmp	@r1
+	 nop
+1:
+	/*
+	 * MCOUNT_ENTER() pushed 5 registers onto the stack, so
+	 * the stack address containing our return address is
+	 * r15 + 20.
+	 */
+	mov	#20, r0
+	add	r15, r0
+	mov	r0, r4
+
+	mov.l	.Lprepare_ftrace_return, r0
+	jsr	@r0
+	 nop
+
+	MCOUNT_LEAVE()
+
+	.align 2
+2:	.long	function_trace_stop
+3:	.long	skip_trace
+.Lprepare_ftrace_return:
+	.long	prepare_ftrace_return
+
+	.globl	return_to_handler
+return_to_handler:
+	/*
+	 * Save the return values.
+	 */
+	mov.l	r0, @-r15
+	mov.l	r1, @-r15
+
+	mov	#0, r4
+
+	mov.l	.Lftrace_return_to_handler, r0
+	jsr	@r0
+	 nop
+
+	/*
+	 * The return value from ftrace_return_handler has the real
+	 * address that we should return to.
+	 */
+	lds	r0, pr
+	mov.l	@r15+, r1
+	rts
+	 mov.l	@r15+, r0
+
+
+	.align 2
+.Lftrace_return_to_handler:
+	.long	ftrace_return_to_handler
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */

@@ -13,8 +13,11 @@ extern void mcount(void);
 #ifdef CONFIG_DYNAMIC_FTRACE
 #define CALL_ADDR		((long)(ftrace_call))
 #define STUB_ADDR		((long)(ftrace_stub))
+#define GRAPH_ADDR		((long)(ftrace_graph_call))
+#define CALLER_ADDR		((long)(ftrace_caller))
 
 #define MCOUNT_INSN_OFFSET	((STUB_ADDR - CALL_ADDR) - 4)
+#define GRAPH_INSN_OFFSET	((CALLER_ADDR - GRAPH_ADDR) - 4)
 
 struct dyn_arch_ftrace {
 	/* No extra data needed on sh */
