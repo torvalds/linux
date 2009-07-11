@@ -192,6 +192,10 @@ ftrace_call:
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
+	.align 2
+.Lfunction_trace_stop:
+	.long	function_trace_stop
+
 /*
  * NOTE: From here on the locations of the .Lftrace_stub label and
  * ftrace_stub itself are fixed. Adding additional data here will skew
@@ -199,7 +203,6 @@ ftrace_call:
  * Place new labels either after the ftrace_stub body, or before
  * ftrace_caller. You have been warned.
  */
-	.align 2
 .Lftrace_stub:
 	.long	ftrace_stub
 
@@ -223,8 +226,6 @@ stack_panic:
 	 nop
 
 	.align 2
-.Lfunction_trace_stop:
-	.long	function_trace_stop
 .L_ebss:
 	.long	_ebss
 .L_init_thread_union:
