@@ -32,7 +32,6 @@
 #include <linux/smb_mount.h>
 #include <linux/ncp_mount.h>
 #include <linux/nfs4_mount.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/ctype.h>
 #include <linux/module.h>

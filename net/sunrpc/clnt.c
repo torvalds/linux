@@ -28,7 +28,6 @@
 #include <linux/kallsyms.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/utsname.h>
 #include <linux/workqueue.h>
 #include <linux/in6.h>

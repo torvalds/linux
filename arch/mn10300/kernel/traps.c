@@ -17,7 +17,6 @@
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>

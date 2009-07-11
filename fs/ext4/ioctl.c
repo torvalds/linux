@@ -12,7 +12,6 @@
 #include <linux/capability.h>
 #include <linux/time.h>
 #include <linux/compat.h>
-#include <linux/smp_lock.h>
 #include <linux/mount.h>
 #include <linux/file.h>
 #include <asm/uaccess.h>

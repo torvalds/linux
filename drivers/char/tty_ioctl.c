@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
