@@ -583,6 +583,7 @@ struct sort_entry {
 	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
 	size_t	(*print)(FILE *fp, struct hist_entry *, unsigned int width);
 	unsigned int *width;
+	bool	elide;
 };
 
 static int64_t cmp_null(void *l, void *r)
@@ -1024,7 +1025,7 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 		ret = fprintf(fp, field_sep ? "%lld" : "%12lld ", self->count);
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (exclude_other && (se == &sort_parent))
+		if (se->elide)
 			continue;
 
 		fprintf(fp, "%s", field_sep ?: "  ");
@@ -1079,7 +1080,7 @@ resolve_symbol(struct thread *thread, struct map **mapp,
 		 * with no symbol hit that has a name longer than
 		 * the ones with symbols sampled.
 		 */
-		if (!map->dso->slen_calculated)
+		if (!sort_dso.elide && !map->dso->slen_calculated)
 			dso__calc_col_width(map->dso);
 
 		if (mapp)
@@ -1356,14 +1357,12 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	unsigned int width;
 	char *col_width = col_width_list_str;
 
-	fprintf(fp, "\n");
-	fprintf(fp, "#\n");
-	fprintf(fp, "# (%Ld samples)\n", (u64)total_samples);
+	fprintf(fp, "# Samples: %Ld\n", (u64)total_samples);
 	fprintf(fp, "#\n");
 
 	fprintf(fp, "# Overhead");
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (exclude_other && (se == &sort_parent))
+		if (se->elide)
 			continue;
 		if (field_sep) {
 			fprintf(fp, "%c%s", *field_sep, se->header);
@@ -1392,7 +1391,7 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		unsigned int i;
 
-		if (exclude_other && (se == &sort_parent))
+		if (se->elide)
 			continue;
 
 		fprintf(fp, "  ");
@@ -2022,7 +2021,8 @@ static void setup_sorting(void)
 }
 
 static void setup_list(struct strlist **list, const char *list_str,
-		       const char *list_name)
+		       struct sort_entry *se, const char *list_name,
+		       FILE *fp)
 {
 	if (list_str) {
 		*list = strlist__new(true, list_str);
@@ -2030,6 +2030,11 @@ static void setup_list(struct strlist **list, const char *list_str,
 			fprintf(stderr, "problems parsing %s list\n",
 				list_name);
 			exit(129);
+		}
+		if (strlist__nr_entries(*list) == 1) {
+			fprintf(fp, "# %s: %s\n", list_name,
+				strlist__entry(*list, 0)->s);
+			se->elide = true;
 		}
 	}
 }
@@ -2044,9 +2049,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 
 	setup_sorting();
 
-	if (parent_pattern != default_parent_pattern)
+	if (parent_pattern != default_parent_pattern) {
 		sort_dimension__add("parent");
-	else
+		sort_parent.elide = 1;
+	} else
 		exclude_other = 0;
 
 	/*
@@ -2055,17 +2061,17 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	if (argc)
 		usage_with_options(report_usage, options);
 
-	setup_list(&dso_list, dso_list_str, "dso");
-	setup_list(&comm_list, comm_list_str, "comm");
-	setup_list(&sym_list, sym_list_str, "symbol");
+	setup_pager();
+
+	setup_list(&dso_list, dso_list_str, &sort_dso, "dso", stdout);
+	setup_list(&comm_list, comm_list_str, &sort_comm, "comm", stdout);
+	setup_list(&sym_list, sym_list_str, &sort_sym, "symbol", stdout);
 
 	if (field_sep && *field_sep == '.') {
 		fputs("'.' is the only non valid --field-separator argument\n",
 		      stderr);
 		exit(129);
 	}
-
-	setup_pager();
 
 	return __cmd_report();
 }
