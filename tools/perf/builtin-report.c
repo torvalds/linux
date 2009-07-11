@@ -51,6 +51,7 @@ static int		verbose;
 static int		modules;
 
 static int		full_paths;
+static int		show_nr_samples;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -1024,6 +1025,13 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 	else
 		ret = fprintf(fp, field_sep ? "%lld" : "%12lld ", self->count);
 
+	if (show_nr_samples) {
+		if (field_sep)
+			fprintf(fp, "%c%lld", *field_sep, self->count);
+		else
+			fprintf(fp, "%11lld", self->count);
+	}
+
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
 			continue;
@@ -1361,6 +1369,12 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	fprintf(fp, "#\n");
 
 	fprintf(fp, "# Overhead");
+	if (show_nr_samples) {
+		if (field_sep)
+			fprintf(fp, "%cSamples", *field_sep);
+		else
+			fputs("  Samples  ", fp);
+	}
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
 			continue;
@@ -1388,6 +1402,8 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 		goto print_entries;
 
 	fprintf(fp, "# ........");
+	if (show_nr_samples)
+		fprintf(fp, " ..........");
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		unsigned int i;
 
@@ -1979,6 +1995,8 @@ static const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
+	OPT_BOOLEAN('n', "show-nr-samples", &show_nr_samples,
+		    "Show a column with the number of samples"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN('P', "full-paths", &full_paths,
