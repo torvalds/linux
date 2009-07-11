@@ -25,6 +25,7 @@ struct dso {
 	struct symbol    *(*find_symbol)(struct dso *, u64 ip);
 	unsigned int	 sym_priv_size;
 	unsigned char	 adjust_symbols;
+	unsigned char	 slen_calculated;
 	char		 name[0];
 };
 

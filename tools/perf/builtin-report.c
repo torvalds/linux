@@ -33,8 +33,10 @@ static char		*vmlinux = NULL;
 
 static char		default_sort_order[] = "comm,dso";
 static char		*sort_order = default_sort_order;
-static char		*dso_list_str, *comm_list_str, *sym_list_str;
+static char		*dso_list_str, *comm_list_str, *sym_list_str,
+			*col_width_list_str;
 static struct strlist	*dso_list, *comm_list, *sym_list;
+static char		*field_sep;
 
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
@@ -128,6 +130,33 @@ typedef union event_union {
 	struct lost_event		lost;
 	struct read_event		read;
 } event_t;
+
+static int repsep_fprintf(FILE *fp, const char *fmt, ...)
+{
+	int n;
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (!field_sep)
+		n = vfprintf(fp, fmt, ap);
+	else {
+		char *bf = NULL;
+		n = vasprintf(&bf, fmt, ap);
+		if (n > 0) {
+			char *sep = bf;
+			while (1) {
+				sep = strchr(sep, *field_sep);
+				if (sep == NULL)
+					break;
+				*sep = '.';
+			}
+		}
+		fputs(bf, fp);
+		free(bf);
+	}
+	va_end(ap);
+	return n;
+}
 
 static LIST_HEAD(dsos);
 static struct dso *kernel_dso;
@@ -360,12 +389,28 @@ static struct thread *thread__new(pid_t pid)
 	return self;
 }
 
+static unsigned int dsos__col_width,
+		    comms__col_width,
+		    threads__col_width;
+
 static int thread__set_comm(struct thread *self, const char *comm)
 {
 	if (self->comm)
 		free(self->comm);
 	self->comm = strdup(comm);
-	return self->comm ? 0 : -ENOMEM;
+	if (!self->comm)
+		return -ENOMEM;
+
+	if (!col_width_list_str && !field_sep &&
+	    (!comm_list || strlist__has_entry(comm_list, comm))) {
+		unsigned int slen = strlen(comm);
+		if (slen > comms__col_width) {
+			comms__col_width = slen;
+			threads__col_width = slen + 6;
+		}
+	}
+
+	return 0;
 }
 
 static size_t thread__fprintf(struct thread *self, FILE *fp)
@@ -536,7 +581,8 @@ struct sort_entry {
 
 	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
 	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
-	size_t	(*print)(FILE *fp, struct hist_entry *);
+	size_t	(*print)(FILE *fp, struct hist_entry *, unsigned int width);
+	unsigned int *width;
 };
 
 static int64_t cmp_null(void *l, void *r)
@@ -558,15 +604,17 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__thread_print(FILE *fp, struct hist_entry *self)
+sort__thread_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	return fprintf(fp, "%16s:%5d", self->thread->comm ?: "", self->thread->pid);
+	return repsep_fprintf(fp, "%*s:%5d", width - 6,
+			      self->thread->comm ?: "", self->thread->pid);
 }
 
 static struct sort_entry sort_thread = {
-	.header = "         Command:  Pid",
+	.header = "Command:  Pid",
 	.cmp	= sort__thread_cmp,
 	.print	= sort__thread_print,
+	.width	= &threads__col_width,
 };
 
 /* --sort comm */
@@ -590,16 +638,17 @@ sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__comm_print(FILE *fp, struct hist_entry *self)
+sort__comm_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	return fprintf(fp, "%16s", self->thread->comm);
+	return repsep_fprintf(fp, "%*s", width, self->thread->comm);
 }
 
 static struct sort_entry sort_comm = {
-	.header		= "         Command",
+	.header		= "Command",
 	.cmp		= sort__comm_cmp,
 	.collapse	= sort__comm_collapse,
 	.print		= sort__comm_print,
+	.width		= &comms__col_width,
 };
 
 /* --sort dso */
@@ -617,18 +666,19 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__dso_print(FILE *fp, struct hist_entry *self)
+sort__dso_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
 	if (self->dso)
-		return fprintf(fp, "%-25s", self->dso->name);
+		return repsep_fprintf(fp, "%-*s", width, self->dso->name);
 
-	return fprintf(fp, "%016llx         ", (u64)self->ip);
+	return repsep_fprintf(fp, "%*llx", width, (u64)self->ip);
 }
 
 static struct sort_entry sort_dso = {
-	.header = "Shared Object            ",
+	.header = "Shared Object",
 	.cmp	= sort__dso_cmp,
 	.print	= sort__dso_print,
+	.width	= &dsos__col_width,
 };
 
 /* --sort symbol */
@@ -648,22 +698,23 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__sym_print(FILE *fp, struct hist_entry *self)
+sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
 {
 	size_t ret = 0;
 
 	if (verbose)
-		ret += fprintf(fp, "%#018llx  ", (u64)self->ip);
+		ret += repsep_fprintf(fp, "%#018llx  ", (u64)self->ip);
 
 	if (self->sym) {
-		ret += fprintf(fp, "[%c] %s",
+		ret += repsep_fprintf(fp, "[%c] %s",
 			self->dso == kernel_dso ? 'k' :
 			self->dso == hypervisor_dso ? 'h' : '.', self->sym->name);
 
 		if (self->sym->module)
-			ret += fprintf(fp, "\t[%s]", self->sym->module->name);
+			ret += repsep_fprintf(fp, "\t[%s]",
+					     self->sym->module->name);
 	} else {
-		ret += fprintf(fp, "%#016llx", (u64)self->ip);
+		ret += repsep_fprintf(fp, "%#016llx", (u64)self->ip);
 	}
 
 	return ret;
@@ -690,19 +741,19 @@ sort__parent_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__parent_print(FILE *fp, struct hist_entry *self)
+sort__parent_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	size_t ret = 0;
-
-	ret += fprintf(fp, "%-20s", self->parent ? self->parent->name : "[other]");
-
-	return ret;
+	return repsep_fprintf(fp, "%-*s", width,
+			      self->parent ? self->parent->name : "[other]");
 }
 
+static unsigned int parent_symbol__col_width;
+
 static struct sort_entry sort_parent = {
-	.header = "Parent symbol       ",
+	.header = "Parent symbol",
 	.cmp	= sort__parent_cmp,
 	.print	= sort__parent_print,
+	.width	= &parent_symbol__col_width,
 };
 
 static int sort__need_collapse = 0;
@@ -967,17 +1018,18 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 		return 0;
 
 	if (total_samples)
-		ret = percent_color_fprintf(fp, "   %6.2f%%",
-				(self->count * 100.0) / total_samples);
+		ret = percent_color_fprintf(fp,
+					    field_sep ? "%.2f" : "   %6.2f%%",
+					(self->count * 100.0) / total_samples);
 	else
-		ret = fprintf(fp, "%12Ld ", self->count);
+		ret = fprintf(fp, field_sep ? "%lld" : "%12lld ", self->count);
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (exclude_other && (se == &sort_parent))
 			continue;
 
-		fprintf(fp, "  ");
-		ret += se->print(fp, self);
+		fprintf(fp, "%s", field_sep ?: "  ");
+		ret += se->print(fp, self, se->width ? *se->width : 0);
 	}
 
 	ret += fprintf(fp, "\n");
@@ -991,6 +1043,18 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 /*
  *
  */
+
+static void dso__calc_col_width(struct dso *self)
+{
+	if (!col_width_list_str && !field_sep &&
+	    (!dso_list || strlist__has_entry(dso_list, self->name))) {
+		unsigned int slen = strlen(self->name);
+		if (slen > dsos__col_width)
+			dsos__col_width = slen;
+	}
+
+	self->slen_calculated = 1;
+}
 
 static struct symbol *
 resolve_symbol(struct thread *thread, struct map **mapp,
@@ -1011,6 +1075,14 @@ resolve_symbol(struct thread *thread, struct map **mapp,
 
 	map = thread__find_map(thread, ip);
 	if (map != NULL) {
+		/*
+		 * We have to do this here as we may have a dso
+		 * with no symbol hit that has a name longer than
+		 * the ones with symbols sampled.
+		 */
+		if (!map->dso->slen_calculated)
+			dso__calc_col_width(map->dso);
+
 		if (mapp)
 			*mapp = map;
 got_map:
@@ -1282,6 +1354,8 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	struct sort_entry *se;
 	struct rb_node *nd;
 	size_t ret = 0;
+	unsigned int width;
+	char *col_width = col_width_list_str;
 
 	fprintf(fp, "\n");
 	fprintf(fp, "#\n");
@@ -1292,9 +1366,28 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (exclude_other && (se == &sort_parent))
 			continue;
-		fprintf(fp, "  %s", se->header);
+		if (field_sep) {
+			fprintf(fp, "%c%s", *field_sep, se->header);
+			continue;
+		}
+		width = strlen(se->header);
+		if (se->width) {
+			if (col_width_list_str) {
+				if (col_width) {
+					*se->width = atoi(col_width);
+					col_width = strchr(col_width, ',');
+					if (col_width)
+						++col_width;
+				}
+			}
+			width = *se->width = max(*se->width, width);
+		}
+		fprintf(fp, "  %*s", width, se->header);
 	}
 	fprintf(fp, "\n");
+
+	if (field_sep)
+		goto print_entries;
 
 	fprintf(fp, "# ........");
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
@@ -1304,13 +1397,18 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 			continue;
 
 		fprintf(fp, "  ");
-		for (i = 0; i < strlen(se->header); i++)
+		if (se->width)
+			width = *se->width;
+		else
+			width = strlen(se->header);
+		for (i = 0; i < width; i++)
 			fprintf(fp, ".");
 	}
 	fprintf(fp, "\n");
 
 	fprintf(fp, "#\n");
 
+print_entries:
 	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
 		pos = rb_entry(nd, struct hist_entry, rb_node);
 		ret += hist_entry__fprintf(fp, pos, total_samples);
@@ -1900,6 +1998,12 @@ static const struct option options[] = {
 		   "only consider symbols in these comms"),
 	OPT_STRING('S', "symbols", &sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
+	OPT_STRING('w', "column-widths", &col_width_list_str,
+		   "width[,width...]",
+		   "don't try to adjust column width, use these fixed values"),
+	OPT_STRING('t', "field-separator", &field_sep, "separator",
+		   "separator for columns, no spaces will be added between "
+		   "columns '.' is reserved."),
 	OPT_END()
 };
 
@@ -1955,6 +2059,12 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	setup_list(&dso_list, dso_list_str, "dso");
 	setup_list(&comm_list, comm_list_str, "comm");
 	setup_list(&sym_list, sym_list_str, "symbol");
+
+	if (field_sep && *field_sep == '.') {
+		fputs("'.' is the only non valid --field-separator argument\n",
+		      stderr);
+		exit(129);
+	}
 
 	setup_pager();
 
