@@ -22,6 +22,12 @@
 
 static const struct crypto_type crypto_shash_type;
 
+static int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
+			   unsigned int keylen)
+{
+	return -ENOSYS;
+}
+
 static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 				  unsigned int keylen)
 {
@@ -49,9 +55,6 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
 {
 	struct shash_alg *shash = crypto_shash_alg(tfm);
 	unsigned long alignmask = crypto_shash_alignmask(tfm);
-
-	if (!shash->setkey)
-		return -ENOSYS;
 
 	if ((unsigned long)key & alignmask)
 		return shash_setkey_unaligned(tfm, key, keylen);
@@ -494,6 +497,8 @@ static int shash_prepare_alg(struct shash_alg *alg)
 		alg->import = shash_no_import;
 	if (!alg->export)
 		alg->export = shash_no_export;
+	if (!alg->setkey)
+		alg->setkey = shash_no_setkey;
 
 	return 0;
 }
