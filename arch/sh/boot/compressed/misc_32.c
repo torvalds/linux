@@ -26,7 +26,10 @@
 #undef memcpy
 #define memzero(s, n)     memset ((s), 0, (n))
 
-static void error(char *m);
+/* cache.c */
+#define CACHE_ENABLE      0
+#define CACHE_DISABLE     1
+int cache_control(unsigned int command);
 
 extern char input_data[];
 extern int input_len;
@@ -111,9 +114,15 @@ static void error(char *x)
 	while(1);	/* Halt */
 }
 
+#ifdef CONFIG_SUPERH64
+#define stackalign	8
+#else
+#define stackalign	4
+#endif
+
 #define STACK_SIZE (4096)
-long user_stack [STACK_SIZE];
-long* stack_start = &user_stack[STACK_SIZE];
+long __attribute__ ((aligned(stackalign))) user_stack[STACK_SIZE];
+long *stack_start = &user_stack[STACK_SIZE];
 
 void decompress_kernel(void)
 {
@@ -129,6 +138,8 @@ void decompress_kernel(void)
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
 
 	puts("Uncompressing Linux... ");
+	cache_control(CACHE_ENABLE);
 	decompress(input_data, input_len, NULL, NULL, output, NULL, error);
+	cache_control(CACHE_DISABLE);
 	puts("Ok, booting the kernel.\n");
 }
