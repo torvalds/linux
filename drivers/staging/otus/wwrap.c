@@ -1015,11 +1015,6 @@ void kevent(struct work_struct *work)
                container_of(work, struct usbdrv_private, kevent);
     zdev_t *dev = macp->device;
 
-    if (macp == NULL)
-    {
-        return;
-    }
-
     if (test_and_set_bit(0, (void *)&smp_kevent_Lock))
     {
         //schedule_work(&macp->kevent);
