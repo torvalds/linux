@@ -1851,6 +1851,7 @@ relock:
 		if (ret)
 			goto out_dio;
 
+		count = ocount;
 		ret = generic_write_checks(file, ppos, &count,
 					   S_ISBLK(inode->i_mode));
 		if (ret)
