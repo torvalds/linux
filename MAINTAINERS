@@ -4407,7 +4407,7 @@ W:	http://www.nongnu.org/orinoco/
 S:	Maintained
 F:	drivers/net/wireless/orinoco/
 
-OSD LIBRARY
+OSD LIBRARY and FILESYSTEM
 P:	Boaz Harrosh
 M:	bharrosh@panasas.com
 P:	Benny Halevy
@@ -4416,6 +4416,9 @@ L:	osd-dev@open-osd.org
 W:	http://open-osd.org
 T:	git git://git.open-osd.org/open-osd.git
 S:	Maintained
+F:	drivers/scsi/osd/
+F:	drivers/include/scsi/osd_*
+F:	fs/exofs/
 
 P54 WIRELESS DRIVER
 P:	Michael Wu
