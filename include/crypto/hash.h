@@ -186,7 +186,7 @@ static inline struct ahash_request *ahash_request_alloc(
 
 static inline void ahash_request_free(struct ahash_request *req)
 {
-	kfree(req);
+	kzfree(req);
 }
 
 static inline struct ahash_request *ahash_request_cast(
