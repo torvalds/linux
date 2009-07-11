@@ -5854,7 +5854,7 @@ UBI FILE SYSTEM (UBIFS)
 P:	Artem Bityutskiy
 M:	dedekind@infradead.org
 P:	Adrian Hunter
-M:	ext-adrian.hunter@nokia.com
+M:	adrian.hunter@nokia.com
 L:	linux-mtd@lists.infradead.org
 T:	git git://git.infradead.org/ubifs-2.6.git
 W:	http://www.linux-mtd.infradead.org/doc/ubifs.html
