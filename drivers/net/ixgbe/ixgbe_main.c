@@ -2697,19 +2697,23 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 
 	/*
 	 * For hot-pluggable SFP+ devices, a new SFP+ module may have
-	 * arrived before interrupts were enabled.  We need to kick off
-	 * the SFP+ module setup first, then try to bring up link.
+	 * arrived before interrupts were enabled but after probe.  Such
+	 * devices wouldn't have their type identified yet. We need to
+	 * kick off the SFP+ module setup first, then try to bring up link.
 	 * If we're not hot-pluggable SFP+, we just need to configure link
 	 * and bring it up.
 	 */
-	err = hw->phy.ops.identify(hw);
-	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		dev_err(&adapter->pdev->dev, "failed to initialize because "
-			"an unsupported SFP+ module type was detected.\n"
-			"Reload the driver after installing a supported "
-			"module.\n");
-		ixgbe_down(adapter);
-		return err;
+	if (hw->phy.type == ixgbe_phy_unknown) {
+		err = hw->phy.ops.identify(hw);
+		if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
+			/*
+			 * Take the device down and schedule the sfp tasklet
+			 * which will unregister_netdev and log it.
+			 */
+			ixgbe_down(adapter);
+			schedule_work(&adapter->sfp_config_module_task);
+			return err;
+		}
 	}
 
 	if (ixgbe_is_sfp(hw)) {
@@ -3126,7 +3130,11 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 #endif
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
 			DPRINTK(PROBE, INFO, "FCOE enabled with RSS \n");
-			ixgbe_set_rss_queues(adapter);
+			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
+			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+				ixgbe_set_fdir_queues(adapter);
+			else
+				ixgbe_set_rss_queues(adapter);
 		}
 		/* adding FCoE rx rings to the end */
 		f->mask = adapter->num_rx_queues;
@@ -3384,7 +3392,12 @@ static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 		}
 #endif /* CONFIG_IXGBE_DCB */
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-			ixgbe_cache_ring_rss(adapter);
+			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
+			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+				ixgbe_cache_ring_fdir(adapter);
+			else
+				ixgbe_cache_ring_rss(adapter);
+
 			fcoe_i = f->mask;
 		}
 		for (i = 0; i < f->indices; i++, fcoe_i++)
@@ -3724,7 +3737,7 @@ static void ixgbe_sfp_task(struct work_struct *work)
 	if ((hw->phy.type == ixgbe_phy_nl) &&
 	    (hw->phy.sfp_type == ixgbe_sfp_type_not_present)) {
 		s32 ret = hw->phy.ops.identify_sfp(hw);
-		if (ret)
+		if (ret == IXGBE_ERR_SFP_NOT_PRESENT)
 			goto reschedule;
 		ret = hw->phy.ops.reset(hw);
 		if (ret == IXGBE_ERR_SFP_NOT_SUPPORTED) {
@@ -4534,13 +4547,17 @@ static void ixgbe_sfp_config_module_task(struct work_struct *work)
 	u32 err;
 
 	adapter->flags |= IXGBE_FLAG_IN_SFP_MOD_TASK;
+
+	/* Time for electrical oscillations to settle down */
+	msleep(100);
 	err = hw->phy.ops.identify_sfp(hw);
+
 	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
 		dev_err(&adapter->pdev->dev, "failed to initialize because "
 			"an unsupported SFP+ module type was detected.\n"
 			"Reload the driver after installing a supported "
 			"module.\n");
-		ixgbe_down(adapter);
+		unregister_netdev(adapter->netdev);
 		return;
 	}
 	hw->mac.ops.setup_sfp(hw);
@@ -5570,12 +5587,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 				netdev->features |= NETIF_F_FCOE_CRC;
 				netdev->features |= NETIF_F_FSO;
 				netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
-				DPRINTK(DRV, INFO, "FCoE enabled, "
-					"disabling Flow Director\n");
-				adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
-				adapter->flags &=
-				        ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-				adapter->atr_sample_rate = 0;
 			} else {
 				adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
 			}

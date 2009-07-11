@@ -308,7 +308,6 @@ cifs_alloc_inode(struct super_block *sb)
 	if (!cifs_inode)
 		return NULL;
 	cifs_inode->cifsAttrs = 0x20;	/* default */
-	atomic_set(&cifs_inode->inUse, 0);
 	cifs_inode->time = 0;
 	cifs_inode->write_behind_rc = 0;
 	/* Until the file is open and we have gotten oplock

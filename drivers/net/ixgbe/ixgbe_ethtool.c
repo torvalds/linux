@@ -1830,7 +1830,6 @@ static int ixgbe_wol_exclusion(struct ixgbe_adapter *adapter,
 		break;
 	default:
 		wol->supported = 0;
-		retval = 0;
 	}
 
 	return retval;

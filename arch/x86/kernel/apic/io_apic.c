@@ -1716,25 +1716,19 @@ __apicdebuginit(void) print_IO_APIC(void)
 	return;
 }
 
-__apicdebuginit(void) print_APIC_bitfield(int base)
+__apicdebuginit(void) print_APIC_field(int base)
 {
-	unsigned int v;
-	int i, j;
+	int i;
 
 	if (apic_verbosity == APIC_QUIET)
 		return;
 
-	printk(KERN_DEBUG "0123456789abcdef0123456789abcdef\n" KERN_DEBUG);
-	for (i = 0; i < 8; i++) {
-		v = apic_read(base + i*0x10);
-		for (j = 0; j < 32; j++) {
-			if (v & (1<<j))
-				printk("1");
-			else
-				printk("0");
-		}
-		printk("\n");
-	}
+	printk(KERN_DEBUG);
+
+	for (i = 0; i < 8; i++)
+		printk(KERN_CONT "%08x", apic_read(base + i*0x10));
+
+	printk(KERN_CONT "\n");
 }
 
 __apicdebuginit(void) print_local_APIC(void *dummy)
@@ -1745,7 +1739,7 @@ __apicdebuginit(void) print_local_APIC(void *dummy)
 	if (apic_verbosity == APIC_QUIET)
 		return;
 
-	printk("\n" KERN_DEBUG "printing local APIC contents on CPU#%d/%d:\n",
+	printk(KERN_DEBUG "printing local APIC contents on CPU#%d/%d:\n",
 		smp_processor_id(), hard_smp_processor_id());
 	v = apic_read(APIC_ID);
 	printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v, read_apic_id());
@@ -1786,11 +1780,11 @@ __apicdebuginit(void) print_local_APIC(void *dummy)
 	printk(KERN_DEBUG "... APIC SPIV: %08x\n", v);
 
 	printk(KERN_DEBUG "... APIC ISR field:\n");
-	print_APIC_bitfield(APIC_ISR);
+	print_APIC_field(APIC_ISR);
 	printk(KERN_DEBUG "... APIC TMR field:\n");
-	print_APIC_bitfield(APIC_TMR);
+	print_APIC_field(APIC_TMR);
 	printk(KERN_DEBUG "... APIC IRR field:\n");
-	print_APIC_bitfield(APIC_IRR);
+	print_APIC_field(APIC_IRR);
 
 	if (APIC_INTEGRATED(ver)) {             /* !82489DX */
 		if (maxlvt > 3)         /* Due to the Pentium erratum 3AP. */

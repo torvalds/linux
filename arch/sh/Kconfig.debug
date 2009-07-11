@@ -123,4 +123,15 @@ config SH64_SR_WATCH
 	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"
 	depends on SUPERH64
 
+config STACK_DEBUG
+	bool "Enable diagnostic checks of the kernel stack"
+	depends on FUNCTION_TRACER
+	select DEBUG_STACKOVERFLOW
+	default n
+	help
+	  This option allows checks to be performed on the kernel stack
+	  at runtime. Saying Y here will add overhead to every function
+	  call and will therefore incur a major performance hit. Most
+	  users should say N.
+
 endmenu

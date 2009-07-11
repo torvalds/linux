@@ -1756,9 +1756,10 @@ static void print_sb_1(struct mdp_superblock_1 *sb)
 	__u8 *uuid;
 
 	uuid = sb->set_uuid;
-	printk(KERN_INFO "md:  SB: (V:%u) (F:0x%08x) Array-ID:<%02x%02x%02x%02x"
-			":%02x%02x:%02x%02x:%02x%02x:%02x%02x%02x%02x%02x%02x>\n"
-	       KERN_INFO "md:    Name: \"%s\" CT:%llu\n",
+	printk(KERN_INFO
+	       "md:  SB: (V:%u) (F:0x%08x) Array-ID:<%02x%02x%02x%02x"
+	       ":%02x%02x:%02x%02x:%02x%02x:%02x%02x%02x%02x%02x%02x>\n"
+	       "md:    Name: \"%s\" CT:%llu\n",
 		le32_to_cpu(sb->major_version),
 		le32_to_cpu(sb->feature_map),
 		uuid[0], uuid[1], uuid[2], uuid[3],
@@ -1770,12 +1771,13 @@ static void print_sb_1(struct mdp_superblock_1 *sb)
 		       & MD_SUPERBLOCK_1_TIME_SEC_MASK);
 
 	uuid = sb->device_uuid;
-	printk(KERN_INFO "md:       L%u SZ%llu RD:%u LO:%u CS:%u DO:%llu DS:%llu SO:%llu"
+	printk(KERN_INFO
+	       "md:       L%u SZ%llu RD:%u LO:%u CS:%u DO:%llu DS:%llu SO:%llu"
 			" RO:%llu\n"
-	       KERN_INFO "md:     Dev:%08x UUID: %02x%02x%02x%02x:%02x%02x:%02x%02x:%02x%02x"
-			":%02x%02x%02x%02x%02x%02x\n"
-	       KERN_INFO "md:       (F:0x%08x) UT:%llu Events:%llu ResyncOffset:%llu CSUM:0x%08x\n"
-	       KERN_INFO "md:         (MaxDev:%u) \n",
+	       "md:     Dev:%08x UUID: %02x%02x%02x%02x:%02x%02x:%02x%02x:%02x%02x"
+	                ":%02x%02x%02x%02x%02x%02x\n"
+	       "md:       (F:0x%08x) UT:%llu Events:%llu ResyncOffset:%llu CSUM:0x%08x\n"
+	       "md:         (MaxDev:%u) \n",
 		le32_to_cpu(sb->level),
 		(unsigned long long)le64_to_cpu(sb->size),
 		le32_to_cpu(sb->raid_disks),

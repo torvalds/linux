@@ -122,9 +122,10 @@ static inline void elf_core_copy_kernel_regs(elf_gregset_t *elfregs, struct pt_r
 
 static inline int elf_core_copy_task_regs(struct task_struct *t, elf_gregset_t* elfregs)
 {
-#ifdef ELF_CORE_COPY_TASK_REGS
-	
+#if defined (ELF_CORE_COPY_TASK_REGS)
 	return ELF_CORE_COPY_TASK_REGS(t, elfregs);
+#elif defined (task_pt_regs)
+	elf_core_copy_regs(elfregs, task_pt_regs(t));
 #endif
 	return 0;
 }

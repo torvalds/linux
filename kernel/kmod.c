@@ -24,7 +24,6 @@
 #include <linux/unistd.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
-#include <linux/mnt_namespace.h>
 #include <linux/completion.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
