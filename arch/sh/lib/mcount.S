@@ -1,7 +1,7 @@
 /*
  * arch/sh/lib/mcount.S
  *
- *  Copyright (C) 2008  Paul Mundt
+ *  Copyright (C) 2008, 2009  Paul Mundt
  *  Copyright (C) 2008, 2009  Matt Fleming
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -86,13 +86,18 @@
 	.type	mcount,@function
 _mcount:
 mcount:
+	STACK_CHECK()
+
+#ifndef CONFIG_FUNCTION_TRACER
+	rts
+	 nop
+#else
 #ifndef CONFIG_DYNAMIC_FTRACE
 	mov.l	.Lfunction_trace_stop, r0
 	mov.l	@r0, r0
 	tst	r0, r0
 	bf	ftrace_stub
 #endif
-	STACK_CHECK()
 
 	MCOUNT_ENTER()
 
@@ -174,8 +179,6 @@ ftrace_caller:
 	tst	r0, r0
 	bf	ftrace_stub
 
-	STACK_CHECK()
-
 	MCOUNT_ENTER()
 
 	.globl ftrace_call
@@ -210,38 +213,6 @@ ftrace_call:
 ftrace_stub:
 	rts
 	 nop
-
-#ifdef CONFIG_STACK_DEBUG
-	.globl	stack_panic
-stack_panic:
-	mov.l	.Ldump_stack, r0
-	jsr	@r0
-	 nop
-
-	mov.l	.Lpanic, r0
-	jsr	@r0
-	 mov.l	.Lpanic_s, r4
-
-	rts
-	 nop
-
-	.align 2
-.L_ebss:
-	.long	_ebss
-.L_init_thread_union:
-	.long	init_thread_union
-.Lpanic:
-	.long	panic
-.Lpanic_s:
-	.long	.Lpanic_str
-.Ldump_stack:
-	.long	dump_stack
-
-	.section	.rodata
-	.align 2
-.Lpanic_str:
-	.string "Stack error"
-#endif /* CONFIG_STACK_DEBUG */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.globl	ftrace_graph_caller
@@ -304,3 +275,36 @@ return_to_handler:
 .Lftrace_return_to_handler:
 	.long	ftrace_return_to_handler
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+#endif /* CONFIG_FUNCTION_TRACER */
+
+#ifdef CONFIG_STACK_DEBUG
+	.globl	stack_panic
+stack_panic:
+	mov.l	.Ldump_stack, r0
+	jsr	@r0
+	 nop
+
+	mov.l	.Lpanic, r0
+	jsr	@r0
+	 mov.l	.Lpanic_s, r4
+
+	rts
+	 nop
+
+	.align 2
+.L_ebss:
+	.long	_ebss
+.L_init_thread_union:
+	.long	init_thread_union
+.Lpanic:
+	.long	panic
+.Lpanic_s:
+	.long	.Lpanic_str
+.Ldump_stack:
+	.long	dump_stack
+
+	.section	.rodata
+	.align 2
+.Lpanic_str:
+	.string "Stack error"
+#endif /* CONFIG_STACK_DEBUG */
