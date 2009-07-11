@@ -16,6 +16,7 @@
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/slab.h>
+#include <linux/blkdev.h>
 
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 
