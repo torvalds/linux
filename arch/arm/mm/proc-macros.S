@@ -80,12 +80,6 @@
 #if L_PTE_SHARED != PTE_EXT_SHARED
 #error PTE shared bit mismatch
 #endif
-#if L_PTE_BUFFERABLE != PTE_BUFFERABLE
-#error PTE bufferable bit mismatch
-#endif
-#if L_PTE_CACHEABLE != PTE_CACHEABLE
-#error PTE cacheable bit mismatch
-#endif
 #if (L_PTE_EXEC+L_PTE_USER+L_PTE_WRITE+L_PTE_DIRTY+L_PTE_YOUNG+\
      L_PTE_FILE+L_PTE_PRESENT) > L_PTE_SHARED
 #error Invalid Linux PTE bit settings

@@ -164,8 +164,6 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define L_PTE_PRESENT		(1 << 0)
 #define L_PTE_FILE		(1 << 1)	/* only when !PRESENT */
 #define L_PTE_YOUNG		(1 << 1)
-#define L_PTE_BUFFERABLE	(1 << 2)	/* obsolete, matches PTE */
-#define L_PTE_CACHEABLE		(1 << 3)	/* obsolete, matches PTE */
 #define L_PTE_DIRTY		(1 << 6)
 #define L_PTE_WRITE		(1 << 7)
 #define L_PTE_USER		(1 << 8)
