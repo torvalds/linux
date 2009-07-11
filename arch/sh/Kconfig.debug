@@ -134,4 +134,9 @@ config STACK_DEBUG
 	  call and will therefore incur a major performance hit. Most
 	  users should say N.
 
+config MCOUNT
+	def_bool y
+	depends on SUPERH32
+	depends on STACK_DEBUG || FUNCTION_TRACER
+
 endmenu
