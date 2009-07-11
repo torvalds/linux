@@ -23,6 +23,7 @@
 #include <linux/tick.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
+#include <linux/ftrace.h>
 #include <linux/preempt.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -264,8 +265,8 @@ static void ubc_set_tracing(int asid, unsigned long pc)
  *	switch_to(x,y) should switch tasks from x to y.
  *
  */
-struct task_struct *__switch_to(struct task_struct *prev,
-				struct task_struct *next)
+__notrace_funcgraph struct task_struct *
+__switch_to(struct task_struct *prev, struct task_struct *next)
 {
 #if defined(CONFIG_SH_FPU)
 	unlazy_fpu(prev, task_pt_regs(prev));
