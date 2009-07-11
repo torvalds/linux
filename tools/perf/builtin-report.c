@@ -705,10 +705,9 @@ sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
 	if (verbose)
 		ret += repsep_fprintf(fp, "%#018llx  ", (u64)self->ip);
 
+	ret += repsep_fprintf(fp, "[%c] ", self->level);
 	if (self->sym) {
-		ret += repsep_fprintf(fp, "[%c] %s",
-			self->dso == kernel_dso ? 'k' :
-			self->dso == hypervisor_dso ? 'h' : '.', self->sym->name);
+		ret += repsep_fprintf(fp, "%s", self->sym->name);
 
 		if (self->sym->module)
 			ret += repsep_fprintf(fp, "\t[%s]",
