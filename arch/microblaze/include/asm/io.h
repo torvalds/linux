@@ -14,7 +14,6 @@
 #include <asm/byteorder.h>
 #include <asm/page.h>
 #include <linux/types.h>
-#include <asm/byteorder.h>
 #include <linux/mm.h>          /* Get struct page {...} */
 
 
