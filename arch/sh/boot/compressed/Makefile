@@ -5,6 +5,7 @@
 #
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \
+		   vmlinux.bin.bz2 vmlinux.bin.lzma \
 		   head_$(BITS).o misc_$(BITS).o piggy.o
 
 OBJECTS = $(obj)/head_$(BITS).o $(obj)/misc_$(BITS).o $(obj)/cache.o
@@ -38,10 +39,22 @@ $(obj)/vmlinux: $(OBJECTS) $(obj)/piggy.o $(LIBGCC) FORCE
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-$(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
+vmlinux.bin.all-y := $(obj)/vmlinux.bin
+
+$(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,gzip)
+$(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y) FORCE
+	$(call if_changed,bzip2)
+$(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y) FORCE
+	$(call if_changed,lzma)
+
+suffix-$(CONFIG_KERNEL_GZIP)	:= gz
+suffix-$(CONFIG_KERNEL_BZIP2)	:= bz2
+suffix-$(CONFIG_KERNEL_LZMA)	:= lzma
 
 OBJCOPYFLAGS += -R .empty_zero_page
 
-$(obj)/piggy.o: $(obj)/piggy.S $(obj)/vmlinux.bin.gz FORCE
-	$(call if_changed,as_o_S)
+LDFLAGS_piggy.o := -r --format binary --oformat $(ld-bfd) -T
+
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y) FORCE
+	$(call if_changed,ld)

@@ -18,6 +18,8 @@ config SUPERH
 	select HAVE_DMA_API_DEBUG
 	select HAVE_PERF_COUNTERS
 	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZMA
 	select RTC_LIB
 	select GENERIC_ATOMIC64
 	help
