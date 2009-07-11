@@ -6,9 +6,9 @@
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \
 		   vmlinux.bin.bz2 vmlinux.bin.lzma \
-		   head_$(BITS).o misc_$(BITS).o piggy.o
+		   head_$(BITS).o misc.o piggy.o
 
-OBJECTS = $(obj)/head_$(BITS).o $(obj)/misc_$(BITS).o $(obj)/cache.o
+OBJECTS = $(obj)/head_$(BITS).o $(obj)/misc.o $(obj)/cache.o
 
 ifdef CONFIG_SH_STANDARD_BIOS
 OBJECTS += $(obj)/../../kernel/sh_bios.o
