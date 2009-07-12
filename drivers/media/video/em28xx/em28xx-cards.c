@@ -205,7 +205,7 @@ static struct em28xx_reg_seq silvercrest_reg_seq[] = {
  */
 struct em28xx_board em28xx_boards[] = {
 	[EM2750_BOARD_UNKNOWN] = {
-		.name          = "Unknown EM2750/EM2751 webcam grabber",
+		.name          = "EM2710/EM2750/EM2751 webcam grabber",
 		.xclk          = EM28XX_XCLK_FREQUENCY_48MHZ,
 		.tuner_type    = TUNER_ABSENT,
 		.is_webcam     = 1,
@@ -1720,7 +1720,8 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	__be16 version_be;
 	u16 version;
 
-	if (dev->model != EM2820_BOARD_UNKNOWN)
+	if (dev->model != EM2820_BOARD_UNKNOWN &&
+	    dev->model != EM2750_BOARD_UNKNOWN)
 		return 0;
 
 	dev->i2c_client.addr = 0xba >> 1;
@@ -1738,11 +1739,11 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		sensor_name = "mt9v011";
 		break;
 	default:
-		printk("Unknown Sensor 0x%04x\n", be16_to_cpu(version));
+		printk("Unknown Micron Sensor 0x%04x\n", be16_to_cpu(version));
 		return -EINVAL;
 	}
 
-	em28xx_errdev("Sensor is %s, assuming that webcam is %s\n",
+	em28xx_errdev("Sensor is %s, using model %s entry.\n",
 		      sensor_name, em28xx_boards[dev->model].name);
 
 	return 0;
