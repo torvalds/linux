@@ -419,7 +419,7 @@ void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_ad
 			&ctx->add_flags, (unsigned long long)dma,
 			ctx->add_flags);
 	dma += field_size;
-	for (i = 0; i > 6; ++i) {
+	for (i = 0; i < 6; ++i) {
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
 				&ctx->rsvd[i], (unsigned long long)dma,
 				ctx->rsvd[i], i);
@@ -443,7 +443,7 @@ void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_ad
 			&ctx->slot.dev_state,
 			(unsigned long long)dma, ctx->slot.dev_state);
 	dma += field_size;
-	for (i = 0; i > 4; ++i) {
+	for (i = 0; i < 4; ++i) {
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
 				&ctx->slot.reserved[i], (unsigned long long)dma,
 				ctx->slot.reserved[i], i);
