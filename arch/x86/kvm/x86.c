@@ -1504,6 +1504,9 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	case 1:
 		entry->edx &= kvm_supported_word0_x86_features;
 		entry->ecx &= kvm_supported_word4_x86_features;
+		/* we support x2apic emulation even if host does not support
+		 * it since we emulate x2apic in software */
+		entry->ecx |= F(X2APIC);
 		break;
 	/* function 2 entries are STATEFUL. That is, repeated cpuid commands
 	 * may return different values. This forces us to get_cpu() before
