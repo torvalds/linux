@@ -61,12 +61,14 @@ config EARLY_PRINTK
 	  select both the EARLY_SCIF_CONSOLE and SH_STANDARD_BIOS, using
 	  the kernel command line option to toggle back and forth.
 
-config DEBUG_STACKOVERFLOW
+config STACK_DEBUG
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL && SUPERH32
 	help
 	  This option will cause messages to be printed if free stack space
-	  drops below a certain limit.
+	  drops below a certain limit. Saying Y here will add overhead to
+	  every function call and will therefore incur a major
+	  performance hit. Most users should say N.
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
@@ -123,15 +125,9 @@ config SH64_SR_WATCH
 	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"
 	depends on SUPERH64
 
-config STACK_DEBUG
-	bool "Enable diagnostic checks of the kernel stack"
-	depends on FUNCTION_TRACER
-	select DEBUG_STACKOVERFLOW
-	default n
-	help
-	  This option allows checks to be performed on the kernel stack
-	  at runtime. Saying Y here will add overhead to every function
-	  call and will therefore incur a major performance hit. Most
-	  users should say N.
+config MCOUNT
+	def_bool y
+	depends on SUPERH32
+	depends on STACK_DEBUG || FUNCTION_TRACER
 
 endmenu
