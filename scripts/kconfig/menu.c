@@ -528,5 +528,6 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help)
 	} else {
 		str_append(help, nohelp_text);
 	}
-	get_symbol_str(help, sym);
+	if (sym)
+		get_symbol_str(help, sym);
 }
