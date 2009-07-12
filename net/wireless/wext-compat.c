@@ -880,8 +880,18 @@ static int cfg80211_set_wpa_version(struct wireless_dev *wdev, u32 wpa_versions)
 	wdev->wext.connect.crypto.wpa_versions = 0;
 
 	if (wpa_versions & ~(IW_AUTH_WPA_VERSION_WPA |
-			     IW_AUTH_WPA_VERSION_WPA2))
+			     IW_AUTH_WPA_VERSION_WPA2|
+		             IW_AUTH_WPA_VERSION_DISABLED))
 		return -EINVAL;
+
+	if ((wpa_versions & IW_AUTH_WPA_VERSION_DISABLED) &&
+	    (wpa_versions & (IW_AUTH_WPA_VERSION_WPA|
+			     IW_AUTH_WPA_VERSION_WPA2)))
+		return -EINVAL;
+
+	if (wpa_versions & IW_AUTH_WPA_VERSION_DISABLED)
+		wdev->wext.connect.crypto.wpa_versions &=
+			~(NL80211_WPA_VERSION_1|NL80211_WPA_VERSION_2);
 
 	if (wpa_versions & IW_AUTH_WPA_VERSION_WPA)
 		wdev->wext.connect.crypto.wpa_versions |=
