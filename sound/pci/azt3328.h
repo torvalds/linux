@@ -120,8 +120,10 @@ enum azf_freq_t {
 #define IDX_IO_IRQSTATUS        0x64
   /* some IRQ bit in here might also be used to signal a power-management timer
    * timeout, to request shutdown of the chip (e.g. AD1815JS has such a thing).
-   * Some OPL3 hardware (e.g. in LM4560) has some special timer hardware which
-   * can trigger an OPL3 timer IRQ, so maybe there's such a thing as well... */
+   * OPL3 hardware contains several timers which confusingly in most cases
+   * are NOT routed to an IRQ, but some designs (e.g. LM4560) DO support that,
+   * so I wouldn't be surprised at all to discover that AZF3328
+   * supports that thing as well... */
 
   #define IRQ_PLAYBACK	0x0001
   #define IRQ_RECORDING	0x0002
@@ -129,8 +131,8 @@ enum azf_freq_t {
   #define IRQ_GAMEPORT	0x0008 /* Interrupt of Digital(ly) Enhanced Game Port */
   #define IRQ_MPU401	0x0010
   #define IRQ_TIMER	0x0020 /* DirectX timer */
-  #define IRQ_UNKNOWN2	0x0040 /* probably unused, or possibly I2S port? */
-  #define IRQ_UNKNOWN3	0x0080 /* probably unused, or possibly I2S port? */
+  #define IRQ_UNKNOWN2	0x0040 /* probably unused, or possibly OPL3 timer? */
+  #define IRQ_UNKNOWN3	0x0080 /* probably unused, or possibly OPL3 timer? */
 #define IDX_IO_66H		0x66    /* writing 0xffff returns 0x0000 */
   /* this is set to e.g. 0x3ff or 0x300, and writable;
    * maybe some buffer limit, but I couldn't find out more, PU:0x00ff: */
@@ -193,7 +195,7 @@ enum azf_freq_t {
 /*** Gameport area port indices ***/
 /* (only 0x06 of 0x08 bytes saved/restored by Windows driver) */ 
 #define AZF_IO_SIZE_GAME		0x08
-#define AZF_IO_SIZE_GAME_PM	0x06
+#define AZF_IO_SIZE_GAME_PM		0x06
 
 enum {
 	AZF_GAME_LEGACY_IO_PORT = 0x200
@@ -274,6 +276,7 @@ enum {
 #define AZF_IO_SIZE_MPU_PM	0x04
 
 /*** OPL3 synth ***/
+/* (only 0x06 of 0x08 bytes saved/restored by Windows driver) */
 #define AZF_IO_SIZE_OPL3	0x08
 #define AZF_IO_SIZE_OPL3_PM	0x06
 /* hmm, given that a standard OPL3 has 4 registers only,
@@ -332,5 +335,8 @@ enum {
 /* driver internal flags */
 #define SET_CHAN_LEFT	1
 #define SET_CHAN_RIGHT	2
+
+/* helper macro to align I/O port ranges to 32bit I/O width */
+#define AZF_ALIGN(x) (((x) + 3) & (~3))
 
 #endif /* __SOUND_AZT3328_H  */
