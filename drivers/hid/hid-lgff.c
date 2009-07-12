@@ -151,11 +151,6 @@ int lgff_init(struct hid_device* hid)
 
 	/* Check that the report looks ok */
 	report = list_entry(report_list->next, struct hid_report, list);
-	if (!report) {
-		err_hid("NULL output report");
-		return -1;
-	}
-
 	field = report->field[0];
 	if (!field) {
 		err_hid("NULL field");
