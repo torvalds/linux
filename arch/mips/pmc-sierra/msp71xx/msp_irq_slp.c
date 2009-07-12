@@ -45,13 +45,6 @@ static inline void mask_msp_slp_irq(unsigned int irq)
  */
 static inline void ack_msp_slp_irq(unsigned int irq)
 {
-	mask_msp_slp_irq(irq);
-
-	/*
-	 * only really necessary for 18, 16-14 and sometimes 3:0 (since
-	 * these can be edge sensitive) but it doesn't hurt  for the others.
-	 */
-
 	/* check for PER interrupt range */
 	if (irq < MSP_PER_INTBASE)
 		*SLP_INT_STS_REG = (1 << (irq - MSP_SLP_INTBASE));
@@ -62,8 +55,7 @@ static inline void ack_msp_slp_irq(unsigned int irq)
 static struct irq_chip msp_slp_irq_controller = {
 	.name = "MSP_SLP",
 	.ack = ack_msp_slp_irq,
-	.mask = ack_msp_slp_irq,
-	.mask_ack = ack_msp_slp_irq,
+	.mask = mask_msp_slp_irq,
 	.unmask = unmask_msp_slp_irq,
 };
 
