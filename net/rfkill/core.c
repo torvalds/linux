@@ -549,6 +549,10 @@ void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
 	swprev = !!(rfkill->state & RFKILL_BLOCK_SW);
 	hwprev = !!(rfkill->state & RFKILL_BLOCK_HW);
 	__rfkill_set_sw_state(rfkill, sw);
+	if (hw)
+		rfkill->state |= RFKILL_BLOCK_HW;
+	else
+		rfkill->state &= ~RFKILL_BLOCK_HW;
 
 	spin_unlock_irqrestore(&rfkill->lock, flags);
 
