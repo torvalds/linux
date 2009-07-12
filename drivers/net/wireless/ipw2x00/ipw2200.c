@@ -7250,9 +7250,6 @@ static void ipw_bg_qos_activate(struct work_struct *work)
 	struct ipw_priv *priv =
 		container_of(work, struct ipw_priv, qos_activate);
 
-	if (priv == NULL)
-		return;
-
 	mutex_lock(&priv->mutex);
 
 	if (priv->status & STATUS_ASSOCIATED)
