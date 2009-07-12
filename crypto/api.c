@@ -285,13 +285,6 @@ static int crypto_init_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	switch (crypto_tfm_alg_type(tfm)) {
 	case CRYPTO_ALG_TYPE_CIPHER:
 		return crypto_init_cipher_ops(tfm);
-		
-	case CRYPTO_ALG_TYPE_DIGEST:
-		if ((mask & CRYPTO_ALG_TYPE_HASH_MASK) !=
-		    CRYPTO_ALG_TYPE_HASH_MASK)
-			return crypto_init_digest_ops_async(tfm);
-		else
-			return crypto_init_digest_ops(tfm);
 
 	case CRYPTO_ALG_TYPE_COMPRESS:
 		return crypto_init_compress_ops(tfm);
@@ -318,11 +311,7 @@ static void crypto_exit_ops(struct crypto_tfm *tfm)
 	case CRYPTO_ALG_TYPE_CIPHER:
 		crypto_exit_cipher_ops(tfm);
 		break;
-		
-	case CRYPTO_ALG_TYPE_DIGEST:
-		crypto_exit_digest_ops(tfm);
-		break;
-		
+
 	case CRYPTO_ALG_TYPE_COMPRESS:
 		crypto_exit_compress_ops(tfm);
 		break;
@@ -349,11 +338,7 @@ static unsigned int crypto_ctxsize(struct crypto_alg *alg, u32 type, u32 mask)
 	case CRYPTO_ALG_TYPE_CIPHER:
 		len += crypto_cipher_ctxsize(alg);
 		break;
-		
-	case CRYPTO_ALG_TYPE_DIGEST:
-		len += crypto_digest_ctxsize(alg);
-		break;
-		
+
 	case CRYPTO_ALG_TYPE_COMPRESS:
 		len += crypto_compress_ctxsize(alg);
 		break;

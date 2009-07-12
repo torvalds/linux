@@ -60,18 +60,6 @@ static inline void crypto_exit_proc(void)
 { }
 #endif
 
-static inline unsigned int crypto_digest_ctxsize(struct crypto_alg *alg)
-{
-	unsigned int len = alg->cra_ctxsize;
-
-	if (alg->cra_alignmask) {
-		len = ALIGN(len, (unsigned long)alg->cra_alignmask + 1);
-		len += alg->cra_digest.dia_digestsize;
-	}
-
-	return len;
-}
-
 static inline unsigned int crypto_cipher_ctxsize(struct crypto_alg *alg)
 {
 	return alg->cra_ctxsize;
@@ -86,12 +74,9 @@ struct crypto_alg *crypto_mod_get(struct crypto_alg *alg);
 struct crypto_alg *crypto_alg_lookup(const char *name, u32 type, u32 mask);
 struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask);
 
-int crypto_init_digest_ops(struct crypto_tfm *tfm);
-int crypto_init_digest_ops_async(struct crypto_tfm *tfm);
 int crypto_init_cipher_ops(struct crypto_tfm *tfm);
 int crypto_init_compress_ops(struct crypto_tfm *tfm);
 
-void crypto_exit_digest_ops(struct crypto_tfm *tfm);
 void crypto_exit_cipher_ops(struct crypto_tfm *tfm);
 void crypto_exit_compress_ops(struct crypto_tfm *tfm);
 
