@@ -245,7 +245,7 @@ static struct s5h1409_config em28xx_s5h1409_with_xc3028 = {
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK
 };
 
-static struct zl10353_config em28xx_terratec_xs_zl10353_xc3028 = {
+static struct zl10353_config em28xx_zl10353_xc3028_no_i2c_gate = {
 	.demod_address = (0x1e >> 1),
 	.no_tuner = 1,
 	.disable_i2c_gate_ctrl = 1,
@@ -477,7 +477,6 @@ static int dvb_init(struct em28xx *dev)
 			goto out_free;
 		}
 		break;
-	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2880_BOARD_KWORLD_DVB_310U:
 	case EM2880_BOARD_EMPIRE_DUAL_TV:
 		dvb->frontend = dvb_attach(zl10353_attach,
@@ -488,10 +487,19 @@ static int dvb_init(struct em28xx *dev)
 			goto out_free;
 		}
 		break;
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+		dvb->frontend = dvb_attach(zl10353_attach,
+					   &em28xx_zl10353_xc3028_no_i2c_gate,
+					   &dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		break;
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
 		dvb->frontend = dvb_attach(zl10353_attach,
-					   &em28xx_terratec_xs_zl10353_xc3028,
+					   &em28xx_zl10353_xc3028_no_i2c_gate,
 					   &dev->i2c_adap);
 		if (dvb->frontend == NULL) {
 			/* This board could have either a zl10353 or a mt352.
