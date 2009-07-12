@@ -272,7 +272,7 @@ static int mt352_terratec_xs_init(struct dvb_frontend *fe)
 	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x32 };
 	static u8 trl_nom_cfg[]    = { TRL_NOMINAL_RATE_1, 0x64, 0x00 };
 	static u8 tps_given_cfg[]  = { TPS_GIVEN_1, 0x40, 0x80, 0x50 };
-	static u8 tuner_go[]       = { TUNER_GO, 0x5d};
+	static u8 tuner_go[]       = { TUNER_GO, 0x01};
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
 	udelay(200);
