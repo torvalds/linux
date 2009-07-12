@@ -390,7 +390,7 @@ struct em28xx_board {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 	unsigned int has_snapshot_button:1;
-	unsigned int is_27xx:1;
+	unsigned int is_webcam:1;
 	unsigned int valid:1;
 
 	unsigned char xclk, i2c_speed;

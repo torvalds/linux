@@ -652,7 +652,7 @@ int em28xx_set_outfmt(struct em28xx *dev)
 
 	outfmt  = dev->format->reg;
 
-	if (dev->board.is_27xx) {
+	if (dev->board.is_webcam) {
 		vinmode = 0x0d;
 		vinctl  = 0x00;
 	} else {
@@ -707,7 +707,7 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 	u8 mode;
 	/* the em2800 scaler only supports scaling down to 50% */
 
-	if (dev->board.is_27xx) {
+	if (dev->board.is_webcam) {
 		/* FIXME: Don't use the scaler yet */
 		mode = 0;
 	} else if (dev->board.is_em2800) {

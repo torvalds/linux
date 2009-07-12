@@ -450,7 +450,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2820_BOARD_SILVERCREST_WEBCAM] = {
 		.name         = "Silvercrest Webcam 1.3mpix",
 		.tuner_type   = TUNER_ABSENT,
-		.is_27xx      = 1,
+		.is_webcam    = 1,
 		.decoder      = EM28XX_MT9V011,
 		.input        = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
@@ -1772,7 +1772,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 			em28xx_info("chip ID is em2750\n");
 			break;
 		case CHIP_ID_EM2820:
-			if (dev->board.is_27xx)
+			if (dev->board.is_webcam)
 				em28xx_info("chip is em2710\n");
 			else
 				em28xx_info("chip ID is em2820\n");

@@ -726,7 +726,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	if (dev->board.is_27xx) {
+	if (dev->board.is_webcam) {
 		/* FIXME: This is the only supported fmt */
 		width  = 640;
 		height = 480;
@@ -768,7 +768,7 @@ static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
 	struct em28xx_fmt     *fmt;
 
 	/* FIXME: This is the only supported fmt */
-	if (dev->board.is_27xx) {
+	if (dev->board.is_webcam) {
 		width  = 640;
 		height = 480;
 	}
