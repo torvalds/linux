@@ -353,8 +353,9 @@ static int cryptd_hash_init_tfm(struct crypto_tfm *tfm)
 		return PTR_ERR(hash);
 
 	ctx->child = hash;
-	tfm->crt_ahash.reqsize = sizeof(struct cryptd_hash_request_ctx) +
-				 crypto_shash_descsize(hash);
+	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
+				 sizeof(struct cryptd_hash_request_ctx) +
+				 crypto_shash_descsize(hash));
 	return 0;
 }
 
