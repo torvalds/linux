@@ -202,9 +202,8 @@ static int shash_async_init(struct ahash_request *req)
 	return crypto_shash_init(desc);
 }
 
-static int shash_async_update(struct ahash_request *req)
+int shash_ahash_update(struct ahash_request *req, struct shash_desc *desc)
 {
-	struct shash_desc *desc = ahash_request_ctx(req);
 	struct crypto_hash_walk walk;
 	int nbytes;
 
@@ -214,13 +213,19 @@ static int shash_async_update(struct ahash_request *req)
 
 	return nbytes;
 }
+EXPORT_SYMBOL_GPL(shash_ahash_update);
+
+static int shash_async_update(struct ahash_request *req)
+{
+	return shash_ahash_update(req, ahash_request_ctx(req));
+}
 
 static int shash_async_final(struct ahash_request *req)
 {
 	return crypto_shash_final(ahash_request_ctx(req), req->result);
 }
 
-static int shash_async_digest(struct ahash_request *req)
+int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc)
 {
 	struct scatterlist *sg = req->src;
 	unsigned int offset = sg->offset;
@@ -228,34 +233,31 @@ static int shash_async_digest(struct ahash_request *req)
 	int err;
 
 	if (nbytes < min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset)) {
-		struct crypto_shash **ctx =
-			crypto_ahash_ctx(crypto_ahash_reqtfm(req));
-		struct shash_desc *desc = ahash_request_ctx(req);
 		void *data;
-
-		desc->tfm = *ctx;
-		desc->flags = req->base.flags;
 
 		data = crypto_kmap(sg_page(sg), 0);
 		err = crypto_shash_digest(desc, data + offset, nbytes,
 					  req->result);
 		crypto_kunmap(data, 0);
 		crypto_yield(desc->flags);
-		goto out;
-	}
+	} else
+		err = crypto_shash_init(desc) ?:
+		      shash_ahash_update(req, desc) ?:
+		      crypto_shash_final(desc, req->result);
 
-	err = shash_async_init(req);
-	if (err)
-		goto out;
-
-	err = shash_async_update(req);
-	if (err)
-		goto out;
-
-	err = shash_async_final(req);
-
-out:
 	return err;
+}
+EXPORT_SYMBOL_GPL(shash_ahash_digest);
+
+static int shash_async_digest(struct ahash_request *req)
+{
+	struct crypto_shash **ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
+	struct shash_desc *desc = ahash_request_ctx(req);
+
+	desc->tfm = *ctx;
+	desc->flags = req->base.flags;
+
+	return shash_ahash_digest(req, desc);
 }
 
 static void crypto_exit_shash_ops_async(struct crypto_tfm *tfm)

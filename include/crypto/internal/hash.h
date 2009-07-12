@@ -63,6 +63,9 @@ int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
 
 struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
 
+int shash_ahash_update(struct ahash_request *req, struct shash_desc *desc);
+int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc);
+
 static inline void *crypto_ahash_ctx(struct crypto_ahash *tfm)
 {
 	return crypto_tfm_ctx(&tfm->base);
