@@ -436,11 +436,7 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	inst->alg.cra_type = &crypto_aead_type;
 
 	inst->alg.cra_aead.ivsize = enc->cra_ablkcipher.ivsize;
-	inst->alg.cra_aead.maxauthsize = auth->cra_type == &crypto_hash_type ?
-					 auth->cra_hash.digestsize :
-					 auth->cra_type ?
-					 __crypto_shash_alg(auth)->digestsize :
-					 auth->cra_digest.dia_digestsize;
+	inst->alg.cra_aead.maxauthsize = __crypto_shash_alg(auth)->digestsize;
 
 	inst->alg.cra_ctxsize = sizeof(struct crypto_authenc_ctx);
 
