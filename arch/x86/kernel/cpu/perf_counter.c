@@ -1583,10 +1583,8 @@ static int p6_pmu_init(void)
 		break;
 	case 9:
 	case 13:
-		/* for Pentium M, we need to check if PMU exist */
-		rdmsr(MSR_IA32_MISC_ENABLE, low, high);
-		if (low & MSR_IA32_MISC_ENABLE_EMON)
-			break;
+		/* Pentium M */
+		break;
 	default:
 		pr_cont("unsupported p6 CPU model %d ",
 			boot_cpu_data.x86_model);
