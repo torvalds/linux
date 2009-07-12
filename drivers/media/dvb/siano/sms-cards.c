@@ -124,91 +124,15 @@ int sms_board_event(struct smscore_device_t *coredev,
 
 	switch (gevent) {
 	case BOARD_EVENT_POWER_INIT: /* including hotplug */
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			/* set I/O and turn off all LEDs */
-			smscore_gpio_configure(coredev,
-					board->board_cfg.leds_power,
-					&MyGpioConfig);
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.leds_power, 0);
-			smscore_gpio_configure(coredev, board->board_cfg.led0,
-					&MyGpioConfig);
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.led0, 0);
-			smscore_gpio_configure(coredev, board->board_cfg.led1,
-					&MyGpioConfig);
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.led1, 0);
-			break;
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
-			/* set I/O and turn off LNA */
-			smscore_gpio_configure(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					&MyGpioConfig);
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					0);
-			break;
-		}
 		break; /* BOARD_EVENT_BIND */
 
 	case BOARD_EVENT_POWER_SUSPEND:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.leds_power, 0);
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led0, 0);
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 0);
-			break;
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					0);
-			break;
-		}
 		break; /* BOARD_EVENT_POWER_SUSPEND */
 
 	case BOARD_EVENT_POWER_RESUME:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.leds_power, 1);
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led0, 1);
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 0);
-			break;
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					1);
-			break;
-		}
 		break; /* BOARD_EVENT_POWER_RESUME */
 
 	case BOARD_EVENT_BIND:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-				board->board_cfg.leds_power, 1);
-			smscore_gpio_set_level(coredev,
-				board->board_cfg.led0, 1);
-			smscore_gpio_set_level(coredev,
-				board->board_cfg.led1, 0);
-			break;
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
-		case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
-			smscore_gpio_set_level(coredev,
-					board->board_cfg.foreign_lna0_ctrl,
-					1);
-			break;
-		}
 		break; /* BOARD_EVENT_BIND */
 
 	case BOARD_EVENT_SCAN_PROG:
@@ -218,20 +142,8 @@ int sms_board_event(struct smscore_device_t *coredev,
 	case BOARD_EVENT_EMERGENCY_WARNING_SIGNAL:
 		break; /* BOARD_EVENT_EMERGENCY_WARNING_SIGNAL */
 	case BOARD_EVENT_FE_LOCK:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-			board->board_cfg.led1, 1);
-			break;
-		}
 		break; /* BOARD_EVENT_FE_LOCK */
 	case BOARD_EVENT_FE_UNLOCK:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 0);
-			break;
-		}
 		break; /* BOARD_EVENT_FE_UNLOCK */
 	case BOARD_EVENT_DEMOD_LOCK:
 		break; /* BOARD_EVENT_DEMOD_LOCK */
@@ -248,20 +160,8 @@ int sms_board_event(struct smscore_device_t *coredev,
 	case BOARD_EVENT_RECEPTION_LOST_0:
 		break; /* BOARD_EVENT_RECEPTION_LOST_0 */
 	case BOARD_EVENT_MULTIPLEX_OK:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 1);
-			break;
-		}
 		break; /* BOARD_EVENT_MULTIPLEX_OK */
 	case BOARD_EVENT_MULTIPLEX_ERRORS:
-		switch (board_id) {
-		case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-			smscore_gpio_set_level(coredev,
-						board->board_cfg.led1, 0);
-			break;
-		}
 		break; /* BOARD_EVENT_MULTIPLEX_ERRORS */
 
 	default:
