@@ -1001,7 +1001,8 @@ static int crypto4xx_alg_init(struct crypto_tfm *tfm)
 	if (alg->cra_type == &crypto_ablkcipher_type)
 		tfm->crt_ablkcipher.reqsize = sizeof(struct crypto4xx_ctx);
 	else if (alg->cra_type == &crypto_ahash_type)
-		tfm->crt_ahash.reqsize = sizeof(struct crypto4xx_ctx);
+		crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
+					 sizeof(struct crypto4xx_ctx));
 
 	return 0;
 }
