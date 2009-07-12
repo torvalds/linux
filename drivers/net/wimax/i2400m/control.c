@@ -263,7 +263,7 @@ int i2400m_msg_check_status(const struct i2400m_l3l4_hdr *l3l4_hdr,
 
 	if (status == 0)
 		return 0;
-	if (status > ARRAY_SIZE(ms_to_errno)) {
+	if (status >= ARRAY_SIZE(ms_to_errno)) {
 		str = "unknown status code";
 		result = -EBADR;
 	} else {
