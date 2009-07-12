@@ -1689,7 +1689,7 @@ static void atl1c_clean_rx_irq(struct atl1c_adapter *adapter, u8 que,
 		if (likely(RRS_RXD_IS_VALID(rrs->word3))) {
 			rfd_num = (rrs->word0 >> RRS_RX_RFD_CNT_SHIFT) &
 				RRS_RX_RFD_CNT_MASK;
-			if (unlikely(rfd_num) != 1)
+			if (unlikely(rfd_num != 1))
 				/* TODO support mul rfd*/
 				if (netif_msg_rx_err(adapter))
 					dev_warn(&pdev->dev,
