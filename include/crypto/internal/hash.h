@@ -77,6 +77,12 @@ static inline struct ahash_alg *crypto_ahash_alg(
 	return &crypto_ahash_tfm(tfm)->__crt_alg->cra_ahash;
 }
 
+static inline void crypto_ahash_set_reqsize(struct crypto_ahash *tfm,
+					    unsigned int reqsize)
+{
+	crypto_ahash_crt(tfm)->reqsize = reqsize;
+}
+
 static inline int ahash_enqueue_request(struct crypto_queue *queue,
 					     struct ahash_request *request)
 {
