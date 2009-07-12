@@ -358,9 +358,13 @@ struct em28xx_input {
 #define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
 
 enum em28xx_decoder {
-	EM28XX_NODECODER,
+	EM28XX_NODECODER = 0,
 	EM28XX_TVP5150,
 	EM28XX_SAA711X,
+};
+
+enum em28xx_sensor {
+	EM28XX_NOSENSOR = 0,
 	EM28XX_MT9V011,
 };
 
@@ -473,6 +477,8 @@ struct em28xx {
 
 	struct v4l2_device v4l2_dev;
 	struct em28xx_board board;
+
+	enum em28xx_sensor em28xx_sensor;
 
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;

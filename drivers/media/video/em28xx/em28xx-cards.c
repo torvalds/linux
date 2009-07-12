@@ -454,7 +454,6 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Silvercrest Webcam 1.3mpix",
 		.tuner_type   = TUNER_ABSENT,
 		.is_webcam    = 1,
-		.decoder      = EM28XX_MT9V011,
 		.input        = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
@@ -1737,6 +1736,7 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	case MT9V011_VERSION:
 		dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
 		sensor_name = "mt9v011";
+		dev->em28xx_sensor = EM28XX_MT9V011;
 		break;
 	default:
 		printk("Unknown Micron Sensor 0x%04x\n", be16_to_cpu(version));
@@ -2267,7 +2267,7 @@ void em28xx_card_setup(struct em28xx *dev)
 		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 			"tvp5150", "tvp5150", tvp5150_addrs);
 
-	if (dev->board.decoder == EM28XX_MT9V011)
+	if (dev->em28xx_sensor == EM28XX_MT9V011)
 		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 			"mt9v011", "mt9v011", mt9v011_addrs);
 
