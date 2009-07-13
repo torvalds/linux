@@ -1301,7 +1301,7 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 		if (tmpret) {
 			mlog_errno(tmpret);
 			if (ret == 0)
-				tmpret = ret;
+				ret = tmpret;
 		}
 	}
 
