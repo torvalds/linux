@@ -428,10 +428,12 @@ config RTL8187
 	  Micronet SP907GK V5
 	  Encore ENUWI-G2
 	  Trendnet TEW-424UB
-	  ASUS P5B Deluxe
+	  ASUS P5B Deluxe/P5K Premium motherboards
 	  Toshiba Satellite Pro series of laptops
 	  Asus Wireless Link
 	  Linksys WUSB54GC-EU v2
+	    (v1 = rt73usb; v3 is rt2070-based,
+	     use staging/rt3070 or try rt2800usb)
 
 	  Thanks to Realtek for their support!
 
