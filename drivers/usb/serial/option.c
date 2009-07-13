@@ -66,8 +66,10 @@ static int  option_tiocmget(struct tty_struct *tty, struct file *file);
 static int  option_tiocmset(struct tty_struct *tty, struct file *file,
 				unsigned int set, unsigned int clear);
 static int  option_send_setup(struct usb_serial_port *port);
+#ifdef CONFIG_PM
 static int  option_suspend(struct usb_serial *serial, pm_message_t message);
 static int  option_resume(struct usb_serial *serial);
+#endif
 
 /* Vendor and product IDs */
 #define OPTION_VENDOR_ID			0x0AF0
@@ -555,8 +557,10 @@ static struct usb_driver option_driver = {
 	.name       = "option",
 	.probe      = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
+#ifdef CONFIG_PM
 	.suspend    = usb_serial_suspend,
 	.resume     = usb_serial_resume,
+#endif
 	.id_table   = option_ids,
 	.no_dynamic_id = 	1,
 };
@@ -588,8 +592,10 @@ static struct usb_serial_driver option_1port_device = {
 	.disconnect        = option_disconnect,
 	.release           = option_release,
 	.read_int_callback = option_instat_callback,
+#ifdef CONFIG_PM
 	.suspend           = option_suspend,
 	.resume            = option_resume,
+#endif
 };
 
 static int debug;
@@ -1185,6 +1191,7 @@ static void option_release(struct usb_serial *serial)
 	}
 }
 
+#ifdef CONFIG_PM
 static int option_suspend(struct usb_serial *serial, pm_message_t message)
 {
 	dbg("%s entered", __func__);
@@ -1243,6 +1250,7 @@ static int option_resume(struct usb_serial *serial)
 	}
 	return 0;
 }
+#endif
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
