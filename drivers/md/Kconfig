@@ -121,7 +121,7 @@ config MD_RAID10
 config MD_RAID456
 	tristate "RAID-4/RAID-5/RAID-6 mode"
 	depends on BLK_DEV_MD
-	select MD_RAID6_PQ
+	select RAID6_PQ
 	select ASYNC_MEMCPY
 	select ASYNC_XOR
 	select ASYNC_PQ
@@ -165,12 +165,9 @@ config MULTICORE_RAID456
 
 	  If unsure, say N.
 
-config MD_RAID6_PQ
-	tristate
-
 config ASYNC_RAID6_TEST
 	tristate "Self test for hardware accelerated raid6 recovery"
-	depends on MD_RAID6_PQ
+	depends on RAID6_PQ
 	select ASYNC_RAID6_RECOV
 	---help---
 	  This is a one-shot self test that permutes through the
