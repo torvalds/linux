@@ -1163,6 +1163,9 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	const u8 *ssid;
 	bool already = false;
 
+	if (!netif_running(sdata->dev))
+		return;
+
 	mutex_lock(&ifmgd->mtx);
 
 	if (!ifmgd->associated)

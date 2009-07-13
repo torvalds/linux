@@ -449,16 +449,18 @@ static int ieee80211_stop(struct net_device *dev)
 	case NL80211_IFTYPE_STATION:
 		del_timer_sync(&sdata->u.mgd.chswitch_timer);
 		del_timer_sync(&sdata->u.mgd.timer);
+		del_timer_sync(&sdata->u.mgd.conn_mon_timer);
+		del_timer_sync(&sdata->u.mgd.bcn_mon_timer);
 		/*
-		 * If the timer fired while we waited for it, it will have
-		 * requeued the work. Now the work will be running again
+		 * If any of the timers fired while we waited for it, it will
+		 * have queued its work. Now the work will be running again
 		 * but will not rearm the timer again because it checks
 		 * whether the interface is running, which, at this point,
 		 * it no longer is.
 		 */
 		cancel_work_sync(&sdata->u.mgd.work);
 		cancel_work_sync(&sdata->u.mgd.chswitch_work);
-
+		cancel_work_sync(&sdata->u.mgd.monitor_work);
 		cancel_work_sync(&sdata->u.mgd.beacon_loss_work);
 
 		/*
