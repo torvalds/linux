@@ -215,6 +215,23 @@ static int mt9v011_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return -EINVAL;
 }
 
+static int mt9v011_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
+{
+	int i;
+
+	v4l2_dbg(1, debug, sd, "queryctrl called\n");
+
+	for (i = 0; i < ARRAY_SIZE(mt9v011_qctrl); i++)
+		if (qc->id && qc->id == mt9v011_qctrl[i].id) {
+			memcpy(qc, &(mt9v011_qctrl[i]),
+			       sizeof(*qc));
+			return 0;
+		}
+
+	return -EINVAL;
+}
+
+
 static int mt9v011_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct mt9v011 *core = to_mt9v011(sd);
@@ -338,6 +355,7 @@ static int mt9v011_g_chip_ident(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
+	.queryctrl = mt9v011_queryctrl,
 	.g_ctrl = mt9v011_g_ctrl,
 	.s_ctrl = mt9v011_s_ctrl,
 	.reset = mt9v011_reset,
