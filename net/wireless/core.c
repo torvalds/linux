@@ -548,11 +548,6 @@ void wiphy_unregister(struct wiphy *wiphy)
 	/* unlock again before freeing */
 	mutex_unlock(&rdev->mtx);
 
-	cancel_work_sync(&rdev->conn_work);
-	cancel_work_sync(&rdev->scan_done_wk);
-	kfree(rdev->scan_req);
-	flush_work(&rdev->event_work);
-
 	cfg80211_debugfs_rdev_del(rdev);
 
 	/* If this device got a regulatory hint tell core its
@@ -564,6 +559,11 @@ void wiphy_unregister(struct wiphy *wiphy)
 	debugfs_remove(rdev->wiphy.debugfsdir);
 
 	mutex_unlock(&cfg80211_mutex);
+
+	cancel_work_sync(&rdev->conn_work);
+	cancel_work_sync(&rdev->scan_done_wk);
+	kfree(rdev->scan_req);
+	flush_work(&rdev->event_work);
 }
 EXPORT_SYMBOL(wiphy_unregister);
 
