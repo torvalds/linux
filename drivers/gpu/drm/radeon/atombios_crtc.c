@@ -203,6 +203,12 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	if (ASIC_IS_AVIVO(rdev)) {
 		uint32_t ss_cntl;
 
+		if ((rdev->family == CHIP_RS600) ||
+		    (rdev->family == CHIP_RS690) ||
+		    (rdev->family == CHIP_RS740))
+			pll_flags |= (RADEON_PLL_USE_FRAC_FB_DIV |
+				      RADEON_PLL_PREFER_CLOSEST_LOWER);
+
 		if (ASIC_IS_DCE32(rdev) && mode->clock > 200000)	/* range limits??? */
 			pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 		else
