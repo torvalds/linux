@@ -131,9 +131,11 @@ int __ext4_journal_get_undo_access(const char *where, handle_t *handle,
 int __ext4_journal_get_write_access(const char *where, handle_t *handle,
 				struct buffer_head *bh);
 
+/* When called with an invalid handle, this will still do a put on the BH */
 int __ext4_journal_forget(const char *where, handle_t *handle,
 				struct buffer_head *bh);
 
+/* When called with an invalid handle, this will still do a put on the BH */
 int __ext4_journal_revoke(const char *where, handle_t *handle,
 				ext4_fsblk_t blocknr, struct buffer_head *bh);
 

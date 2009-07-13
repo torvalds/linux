@@ -78,15 +78,13 @@ static int ext4_inode_is_fast_symlink(struct inode *inode)
  * but there may still be a record of it in the journal, and that record
  * still needs to be revoked.
  *
- * If the handle isn't valid we're not journaling so there's nothing to do.
+ * If the handle isn't valid we're not journaling, but we still need to
+ * call into ext4_journal_revoke() to put the buffer head.
  */
 int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
 		struct buffer_head *bh, ext4_fsblk_t blocknr)
 {
 	int err;
-
-	if (!ext4_handle_valid(handle))
-		return 0;
 
 	might_sleep();
 
