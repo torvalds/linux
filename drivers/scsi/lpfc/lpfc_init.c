@@ -4130,8 +4130,7 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 	/* Allocate memory for HBA structure */
 	phba = kzalloc(sizeof(struct lpfc_hba), GFP_KERNEL);
 	if (!phba) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"1417 Failed to allocate hba struct.\n");
+		dev_err(&pdev->dev, "failed to allocate hba struct\n");
 		return NULL;
 	}
 
