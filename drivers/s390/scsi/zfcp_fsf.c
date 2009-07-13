@@ -722,7 +722,7 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_adapter *adapter,
 		req = zfcp_fsf_alloc_qtcb(pool);
 
 	if (unlikely(!req))
-		return ERR_PTR(-EIO);
+		return ERR_PTR(-ENOMEM);
 
 	if (adapter->req_no == 0)
 		adapter->req_no++;
