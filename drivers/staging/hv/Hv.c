@@ -1,0 +1,672 @@
+/*
+ *
+ * Copyright (c) 2009, Microsoft Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+ * Place - Suite 330, Boston, MA 02111-1307 USA.
+ *
+ * Authors:
+ *   Haiyang Zhang <haiyangz@microsoft.com>
+ *   Hank Janssen  <hjanssen@microsoft.com>
+ *
+ */
+
+
+#include "logging.h"
+#include "VmbusPrivate.h"
+
+//
+// Globals
+//
+
+// The one and only
+HV_CONTEXT gHvContext={
+	.SynICInitialized = FALSE,
+	.HypercallPage = NULL,
+	.SignalEventParam = NULL,
+	.SignalEventBuffer = NULL,
+};
+
+
+/*++
+
+Name:
+	HvQueryHypervisorPresence()
+
+Description:
+	Query the cpuid for presense of windows hypervisor
+
+--*/
+static int
+HvQueryHypervisorPresence (
+    void
+    )
+{
+    unsigned int eax;
+    unsigned int ebx;
+    unsigned int ecx;
+    unsigned int edx;
+    unsigned int op;
+
+    eax = 0;
+    ebx = 0;
+    ecx = 0;
+    edx = 0;
+    op = HvCpuIdFunctionVersionAndFeatures;
+    do_cpuid(op, &eax, &ebx, &ecx, &edx);
+
+	return (ecx & HV_PRESENT_BIT);
+}
+
+
+/*++
+
+Name:
+	HvQueryHypervisorInfo()
+
+Description:
+	Get version info of the windows hypervisor
+
+--*/
+static int
+HvQueryHypervisorInfo (
+    void
+    )
+{
+    unsigned int eax;
+    unsigned int ebx;
+    unsigned int ecx;
+    unsigned int edx;
+    unsigned int maxLeaf;
+    unsigned int op;
+
+    //
+    // Its assumed that this is called after confirming that Viridian is present.
+    // Query id and revision.
+    //
+
+    eax = 0;
+    ebx = 0;
+    ecx = 0;
+    edx = 0;
+    op = HvCpuIdFunctionHvVendorAndMaxFunction;
+    do_cpuid(op, &eax, &ebx, &ecx, &edx);
+
+    DPRINT_INFO(VMBUS, "Vendor ID: %c%c%c%c%c%c%c%c%c%c%c%c",
+           (ebx & 0xFF),
+           ((ebx >> 8) & 0xFF),
+           ((ebx >> 16) & 0xFF),
+           ((ebx >> 24) & 0xFF),
+           (ecx & 0xFF),
+           ((ecx >> 8) & 0xFF),
+           ((ecx >> 16) & 0xFF),
+           ((ecx >> 24) & 0xFF),
+           (edx & 0xFF),
+           ((edx >> 8) & 0xFF),
+           ((edx >> 16) & 0xFF),
+           ((edx >> 24) & 0xFF));
+
+    maxLeaf = eax;
+    eax = 0;
+    ebx = 0;
+    ecx = 0;
+    edx = 0;
+    op = HvCpuIdFunctionHvInterface;
+    do_cpuid(op, &eax, &ebx, &ecx, &edx);
+
+    DPRINT_INFO(VMBUS, "Interface ID: %c%c%c%c",
+           (eax & 0xFF),
+           ((eax >> 8) & 0xFF),
+           ((eax >> 16) & 0xFF),
+           ((eax >> 24) & 0xFF));
+
+	 if (maxLeaf >= HvCpuIdFunctionMsHvVersion) {
+        eax = 0;
+        ebx = 0;
+        ecx = 0;
+        edx = 0;
+        op = HvCpuIdFunctionMsHvVersion;
+        do_cpuid(op, &eax, &ebx, &ecx, &edx);
+        DPRINT_INFO(VMBUS, "OS Build:%d-%d.%d-%d-%d.%d",
+               eax,
+               ebx >> 16,
+               ebx & 0xFFFF,
+               ecx,
+               edx >> 24,
+               edx & 0xFFFFFF);
+    }
+    return maxLeaf;
+}
+
+
+/*++
+
+Name:
+	HvDoHypercall()
+
+Description:
+	Invoke the specified hypercall
+
+--*/
+static UINT64
+HvDoHypercall (
+    UINT64  Control,
+    void*   Input,
+    void*   Output
+    )
+{
+#ifdef x86_64
+    UINT64 hvStatus=0;
+    UINT64 inputAddress = (Input)? GetPhysicalAddress(Input) : 0;
+	UINT64 outputAddress = (Output)? GetPhysicalAddress(Output) : 0;
+    volatile void* hypercallPage = gHvContext.HypercallPage;
+
+    DPRINT_DBG(VMBUS, "Hypercall <control %llx input phys %llx virt %p output phys %llx virt %p hypercall %p>",
+		Control,
+		inputAddress,
+		Input,
+		outputAddress,
+		Output,
+		hypercallPage);
+
+	__asm__ __volatile__ ("mov %0, %%r8" : : "r" (outputAddress):  "r8");
+	__asm__ __volatile__ ("call *%3" : "=a"(hvStatus): "c" (Control), "d" (inputAddress), "m" (hypercallPage));
+
+    DPRINT_DBG(VMBUS, "Hypercall <return %llx>",  hvStatus);
+
+    return hvStatus;
+
+#else
+
+    UINT32 controlHi = Control >> 32;
+    UINT32 controlLo = Control & 0xFFFFFFFF;
+    UINT32 hvStatusHi = 1;
+    UINT32 hvStatusLo = 1;
+    UINT64 inputAddress = (Input) ? GetPhysicalAddress(Input) : 0;
+    UINT32 inputAddressHi = inputAddress >> 32;
+    UINT32 inputAddressLo = inputAddress & 0xFFFFFFFF;
+	UINT64 outputAddress = (Output) ?GetPhysicalAddress(Output) : 0;
+    UINT32 outputAddressHi = outputAddress >> 32;
+    UINT32 outputAddressLo = outputAddress & 0xFFFFFFFF;
+    volatile void* hypercallPage = gHvContext.HypercallPage;
+
+    DPRINT_DBG(VMBUS, "Hypercall <control %llx input %p output %p>",
+		Control,
+		Input,
+		Output);
+
+	__asm__ __volatile__ ("call *%8" : "=d"(hvStatusHi), "=a"(hvStatusLo) : "d" (controlHi), "a" (controlLo), "b" (inputAddressHi), "c" (inputAddressLo), "D"(outputAddressHi), "S"(outputAddressLo), "m" (hypercallPage));
+
+
+    DPRINT_DBG(VMBUS, "Hypercall <return %llx>",  hvStatusLo | ((UINT64)hvStatusHi << 32));
+
+    return (hvStatusLo | ((UINT64)hvStatusHi << 32));
+#endif // x86_64
+}
+
+/*++
+
+Name:
+	HvInit()
+
+Description:
+	Main initialization routine. This routine must be called
+	before any other routines in here are called
+
+--*/
+static int
+HvInit (
+    void
+    )
+{
+	int ret=0;
+    int maxLeaf;
+	HV_X64_MSR_HYPERCALL_CONTENTS hypercallMsr;
+	void* virtAddr=0;
+	ULONG_PTR physAddr=0;
+
+	DPRINT_ENTER(VMBUS);
+
+	memset(gHvContext.synICEventPage, 0, sizeof(HANDLE)*MAX_NUM_CPUS);
+	memset(gHvContext.synICMessagePage, 0, sizeof(HANDLE)*MAX_NUM_CPUS);
+
+	if (!HvQueryHypervisorPresence())
+	{
+		DPRINT_ERR(VMBUS, "No Windows hypervisor detected!!");
+		goto Cleanup;
+	}
+
+	DPRINT_INFO(VMBUS, "Windows hypervisor detected! Retrieving more info...");
+
+    maxLeaf = HvQueryHypervisorInfo();
+    //HvQueryHypervisorFeatures(maxLeaf);
+
+	// Determine if we are running on xenlinux (ie x2v shim) or native linux
+	gHvContext.GuestId = ReadMsr(HV_X64_MSR_GUEST_OS_ID);
+
+	if (gHvContext.GuestId == 0)
+	{
+		// Write our OS info
+		WriteMsr(HV_X64_MSR_GUEST_OS_ID, HV_LINUX_GUEST_ID);
+
+		gHvContext.GuestId = HV_LINUX_GUEST_ID;
+	}
+
+	// See if the hypercall page is already set
+	hypercallMsr.AsUINT64 = ReadMsr(HV_X64_MSR_HYPERCALL);
+
+	if (gHvContext.GuestId == HV_LINUX_GUEST_ID)
+	{
+		// Allocate the hypercall page memory
+		//virtAddr = PageAlloc(1);
+		virtAddr = VirtualAllocExec(PAGE_SIZE);
+
+		if (!virtAddr)
+		{
+			DPRINT_ERR(VMBUS, "unable to allocate hypercall page!!");
+			goto Cleanup;
+		}
+
+		hypercallMsr.Enable = 1;
+		//hypercallMsr.GuestPhysicalAddress = Logical2PhysicalAddr(virtAddr) >> PAGE_SHIFT;
+		hypercallMsr.GuestPhysicalAddress = Virtual2Physical(virtAddr) >> PAGE_SHIFT;
+		WriteMsr(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
+
+        // Confirm that hypercall page did get setup.
+		hypercallMsr.AsUINT64 = 0;
+		hypercallMsr.AsUINT64 = ReadMsr(HV_X64_MSR_HYPERCALL);
+
+		if (!hypercallMsr.Enable)
+		{
+			DPRINT_ERR(VMBUS, "unable to set hypercall page!!");
+			goto Cleanup;
+		}
+
+		gHvContext.HypercallPage = virtAddr;
+	}
+	else
+	{
+		DPRINT_ERR(VMBUS, "Unknown guest id (0x%llx)!!", gHvContext.GuestId);
+		goto Cleanup;
+	}
+
+    DPRINT_INFO(VMBUS, "Hypercall page VA=0x%08x, PA=0x%08x",
+               (unsigned long)gHvContext.HypercallPage,
+               (unsigned long)hypercallMsr.GuestPhysicalAddress << PAGE_SHIFT);
+
+	// Setup the global signal event param for the signal event hypercall
+	gHvContext.SignalEventBuffer = MemAlloc(sizeof(HV_INPUT_SIGNAL_EVENT_BUFFER));
+	if (!gHvContext.SignalEventBuffer)
+	{
+		goto Cleanup;
+	}
+
+	gHvContext.SignalEventParam = (PHV_INPUT_SIGNAL_EVENT)(ALIGN_UP((ULONG_PTR)gHvContext.SignalEventBuffer, HV_HYPERCALL_PARAM_ALIGN));
+	gHvContext.SignalEventParam->ConnectionId.AsUINT32 = 0;
+	gHvContext.SignalEventParam->ConnectionId.u.Id = VMBUS_EVENT_CONNECTION_ID;
+	gHvContext.SignalEventParam->FlagNumber = 0;
+	gHvContext.SignalEventParam->RsvdZ = 0;
+
+    //DPRINT_DBG(VMBUS, "My id %llu", HvGetCurrentPartitionId());
+
+	DPRINT_EXIT(VMBUS);
+
+    return ret;
+
+Cleanup:
+	if (virtAddr)
+	{
+		if (hypercallMsr.Enable)
+		{
+			hypercallMsr.AsUINT64 = 0;
+			WriteMsr(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
+		}
+
+		VirtualFree(virtAddr);
+	}
+	ret = -1;
+	DPRINT_EXIT(VMBUS);
+
+	return ret;
+}
+
+
+/*++
+
+Name:
+	HvCleanup()
+
+Description:
+	Cleanup routine. This routine is called normally during driver unloading or exiting.
+
+--*/
+void
+HvCleanup (
+    void
+    )
+{
+	HV_X64_MSR_HYPERCALL_CONTENTS hypercallMsr;
+
+	DPRINT_ENTER(VMBUS);
+
+	if (gHvContext.SignalEventBuffer)
+	{
+		MemFree(gHvContext.SignalEventBuffer);
+		gHvContext.SignalEventBuffer = NULL;
+		gHvContext.SignalEventParam = NULL;
+	}
+
+	if (gHvContext.GuestId == HV_LINUX_GUEST_ID)
+	{
+		if (gHvContext.HypercallPage)
+		{
+			hypercallMsr.AsUINT64 = 0;
+			WriteMsr(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
+			VirtualFree(gHvContext.HypercallPage);
+			gHvContext.HypercallPage = NULL;
+		}
+	}
+
+	DPRINT_EXIT(VMBUS);
+
+}
+
+
+/*++
+
+Name:
+	HvPostMessage()
+
+Description:
+	Post a message using the hypervisor message IPC. This
+	involves a hypercall.
+
+--*/
+HV_STATUS
+HvPostMessage(
+	HV_CONNECTION_ID connectionId,
+	HV_MESSAGE_TYPE  messageType,
+	PVOID            payload,
+	SIZE_T           payloadSize
+	)
+{
+	struct alignedInput {
+		UINT64					alignment8;
+		HV_INPUT_POST_MESSAGE	msg;
+	};
+
+	PHV_INPUT_POST_MESSAGE alignedMsg;
+	HV_STATUS status;
+	ULONG_PTR addr;
+
+	if (payloadSize > HV_MESSAGE_PAYLOAD_BYTE_COUNT)
+	{
+		return -1;
+	}
+
+	addr = (ULONG_PTR)MemAllocAtomic(sizeof(struct alignedInput));
+
+	if (!addr)
+	{
+		return -1;
+	}
+
+	alignedMsg = (PHV_INPUT_POST_MESSAGE)(ALIGN_UP(addr, HV_HYPERCALL_PARAM_ALIGN));
+
+	alignedMsg->ConnectionId = connectionId;
+	alignedMsg->MessageType = messageType;
+	alignedMsg->PayloadSize = payloadSize;
+	memcpy((void*)alignedMsg->Payload, payload, payloadSize);
+
+	status = HvDoHypercall(HvCallPostMessage, alignedMsg, 0) & 0xFFFF;
+
+	MemFree((void*)addr);
+
+	return status;
+}
+
+
+/*++
+
+Name:
+	HvSignalEvent()
+
+Description:
+	Signal an event on the specified connection using the hypervisor event IPC. This
+	involves a hypercall.
+
+--*/
+HV_STATUS
+HvSignalEvent(
+	)
+{
+	HV_STATUS status;
+
+	status = HvDoHypercall(HvCallSignalEvent, gHvContext.SignalEventParam, 0) & 0xFFFF;
+
+	return status;
+}
+
+
+/*++
+
+Name:
+	HvSynicInit()
+
+Description:
+	Initialize the Synthethic Interrupt Controller. If it is already initialized by
+	another entity (ie x2v shim), we need to retrieve the initialized message and event pages.
+	Otherwise, we create and initialize the message and event pages.
+
+--*/
+int
+HvSynicInit (
+	UINT32 irqVector
+	)
+{
+	UINT64			version;
+	HV_SYNIC_SIMP	simp;
+	HV_SYNIC_SIEFP	siefp;
+    HV_SYNIC_SINT	sharedSint;
+	HV_SYNIC_SCONTROL sctrl;
+	UINT64			guestID;
+	int ret=0;
+
+	DPRINT_ENTER(VMBUS);
+
+	if (!gHvContext.HypercallPage)
+	{
+		DPRINT_EXIT(VMBUS);
+		return ret;
+	}
+
+	// Check the version
+	version = ReadMsr(HV_X64_MSR_SVERSION);
+
+	DPRINT_INFO(VMBUS, "SynIC version: %llx", version);
+
+	// TODO: Handle SMP
+	if (gHvContext.GuestId == HV_XENLINUX_GUEST_ID)
+	{
+		DPRINT_INFO(VMBUS, "Skipping SIMP and SIEFP setup since it is already set.");
+
+		simp.AsUINT64 = ReadMsr(HV_X64_MSR_SIMP);
+		siefp.AsUINT64 = ReadMsr(HV_X64_MSR_SIEFP);
+
+		DPRINT_DBG(VMBUS, "Simp: %llx, Sifep: %llx", simp.AsUINT64, siefp.AsUINT64);
+
+		// Determine if we are running on xenlinux (ie x2v shim) or native linux
+		guestID = ReadMsr(HV_X64_MSR_GUEST_OS_ID);
+
+		if (guestID == HV_LINUX_GUEST_ID)
+		{
+			gHvContext.synICMessagePage[0] = GetVirtualAddress(simp.BaseSimpGpa << PAGE_SHIFT);
+			gHvContext.synICEventPage[0] = GetVirtualAddress(siefp.BaseSiefpGpa << PAGE_SHIFT);
+		}
+		else
+		{
+			DPRINT_ERR(VMBUS, "unknown guest id!!");
+			goto Cleanup;
+		}
+		DPRINT_DBG(VMBUS, "MAPPED: Simp: %p, Sifep: %p", gHvContext.synICMessagePage[0], gHvContext.synICEventPage[0]);
+	}
+	else
+	{
+		gHvContext.synICMessagePage[0] = PageAlloc(1);
+		if (gHvContext.synICMessagePage[0] == NULL)
+		{
+			DPRINT_ERR(VMBUS, "unable to allocate SYNIC message page!!");
+			goto Cleanup;
+		}
+
+		gHvContext.synICEventPage[0] = PageAlloc(1);
+		if (gHvContext.synICEventPage[0] == NULL)
+		{
+			DPRINT_ERR(VMBUS, "unable to allocate SYNIC event page!!");
+			goto Cleanup;
+		}
+
+		//
+		// Setup the Synic's message page
+		//
+		simp.AsUINT64 = ReadMsr(HV_X64_MSR_SIMP);
+		simp.SimpEnabled = 1;
+		simp.BaseSimpGpa = GetPhysicalAddress(gHvContext.synICMessagePage[0]) >> PAGE_SHIFT;
+
+		DPRINT_DBG(VMBUS, "HV_X64_MSR_SIMP msr set to: %llx", simp.AsUINT64);
+
+		WriteMsr(HV_X64_MSR_SIMP, simp.AsUINT64);
+
+		//
+		// Setup the Synic's event page
+		//
+		siefp.AsUINT64 = ReadMsr(HV_X64_MSR_SIEFP);
+		siefp.SiefpEnabled = 1;
+		siefp.BaseSiefpGpa = GetPhysicalAddress(gHvContext.synICEventPage[0]) >> PAGE_SHIFT;
+
+		DPRINT_DBG(VMBUS, "HV_X64_MSR_SIEFP msr set to: %llx", siefp.AsUINT64);
+
+		WriteMsr(HV_X64_MSR_SIEFP, siefp.AsUINT64);
+	}
+	//
+    // Setup the interception SINT.
+    //
+	//WriteMsr((HV_X64_MSR_SINT0 + HV_SYNIC_INTERCEPTION_SINT_INDEX),
+    //             interceptionSint.AsUINT64);
+
+    //
+    // Setup the shared SINT.
+    //
+	sharedSint.AsUINT64 = ReadMsr(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT);
+
+	sharedSint.AsUINT64 = 0;
+    sharedSint.Vector = irqVector; //HV_SHARED_SINT_IDT_VECTOR + 0x20;
+    sharedSint.Masked = FALSE;
+    sharedSint.AutoEoi = TRUE;
+
+	DPRINT_DBG(VMBUS, "HV_X64_MSR_SINT1 msr set to: %llx", sharedSint.AsUINT64);
+
+	WriteMsr(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
+
+	// Enable the global synic bit
+	sctrl.AsUINT64 = ReadMsr(HV_X64_MSR_SCONTROL);
+	sctrl.Enable = 1;
+
+    WriteMsr(HV_X64_MSR_SCONTROL, sctrl.AsUINT64);
+
+	gHvContext.SynICInitialized = TRUE;
+
+	DPRINT_EXIT(VMBUS);
+
+	return ret;
+
+Cleanup:
+	ret = -1;
+
+	if (gHvContext.GuestId == HV_LINUX_GUEST_ID)
+	{
+		if (gHvContext.synICEventPage[0])
+		{
+			PageFree(gHvContext.synICEventPage[0],1);
+		}
+
+		if (gHvContext.synICMessagePage[0])
+		{
+			PageFree(gHvContext.synICMessagePage[0], 1);
+		}
+	}
+
+	DPRINT_EXIT(VMBUS);
+
+	return ret;
+
+}
+
+/*++
+
+Name:
+	HvSynicCleanup()
+
+Description:
+	Cleanup routine for HvSynicInit().
+
+--*/
+VOID
+HvSynicCleanup(
+	VOID
+	)
+{
+    HV_SYNIC_SINT	sharedSint;
+	HV_SYNIC_SIMP	simp;
+	HV_SYNIC_SIEFP	siefp;
+
+	DPRINT_ENTER(VMBUS);
+
+	if (!gHvContext.SynICInitialized)
+	{
+		DPRINT_EXIT(VMBUS);
+		return;
+	}
+
+	sharedSint.AsUINT64 = ReadMsr(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT);
+
+	sharedSint.Masked = 1;
+
+	// Disable the interrupt
+    WriteMsr(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
+
+	// Disable and free the resources only if we are running as native linux
+	// since in xenlinux, we are sharing the resources with the x2v shim
+	if (gHvContext.GuestId == HV_LINUX_GUEST_ID)
+	{
+		simp.AsUINT64 = ReadMsr(HV_X64_MSR_SIMP);
+		simp.SimpEnabled = 0;
+		simp.BaseSimpGpa = 0;
+
+		WriteMsr(HV_X64_MSR_SIMP, simp.AsUINT64);
+
+		siefp.AsUINT64 = ReadMsr(HV_X64_MSR_SIEFP);
+		siefp.SiefpEnabled = 0;
+		siefp.BaseSiefpGpa = 0;
+
+		WriteMsr(HV_X64_MSR_SIEFP, siefp.AsUINT64);
+
+		PageFree(gHvContext.synICMessagePage[0], 1);
+		PageFree(gHvContext.synICEventPage[0], 1);
+	}
+
+	DPRINT_EXIT(VMBUS);
+}
+
+
+// eof
