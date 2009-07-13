@@ -856,6 +856,7 @@ static int strip_change_mtu(struct net_device *dev, int new_mtu)
 	unsigned char *orbuff = strip_info->rx_buff;
 	unsigned char *osbuff = strip_info->sx_buff;
 	unsigned char *otbuff = strip_info->tx_buff;
+	unsigned long flags;
 
 	if (new_mtu > MAX_SEND_MTU) {
 		printk(KERN_ERR
@@ -864,11 +865,11 @@ static int strip_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 	}
 
-	spin_lock_bh(&strip_lock);
+	spin_lock_irqsave(&strip_lock, flags);
 	if (!allocate_buffers(strip_info, new_mtu)) {
 		printk(KERN_ERR "%s: unable to grow strip buffers, MTU change cancelled.\n",
 		       strip_info->dev->name);
-		spin_unlock_bh(&strip_lock);
+		spin_unlock_irqrestore(&strip_lock, flags);
 		return -ENOMEM;
 	}
 
@@ -892,7 +893,7 @@ static int strip_change_mtu(struct net_device *dev, int new_mtu)
 		}
 	}
 	strip_info->tx_head = strip_info->tx_buff;
-	spin_unlock_bh(&strip_lock);
+	spin_unlock_irqrestore(&strip_lock, flags);
 
 	printk(KERN_NOTICE "%s: strip MTU changed fom %d to %d.\n",
 	       strip_info->dev->name, old_mtu, strip_info->mtu);
@@ -983,10 +984,13 @@ static void strip_seq_neighbours(struct seq_file *seq,
 			   const MetricomNodeTable * table,
 			   const char *title)
 {
-	/* We wrap this in a do/while loop, so if the table changes */
-	/* while we're reading it, we just go around and try again. */
+	unsigned long flags;
 	struct timeval t;
 
+	/*
+	 * We wrap this in a do/while loop, so if the table changes
+	 * while we're reading it, we just go around and try again.
+	 */
 	do {
 		int i;
 		t = table->timestamp;
@@ -995,9 +999,9 @@ static void strip_seq_neighbours(struct seq_file *seq,
 		for (i = 0; i < table->num_nodes; i++) {
 			MetricomNode node;
 
-			spin_lock_bh(&strip_lock);
+			spin_lock_irqsave(&strip_lock, flags);
 			node = table->node[i];
-			spin_unlock_bh(&strip_lock);
+			spin_unlock_irqrestore(&strip_lock, flags);
 			seq_printf(seq, "  %s\n", node.c);
 		}
 	} while (table->timestamp.tv_sec != t.tv_sec
@@ -1536,6 +1540,7 @@ static void strip_send(struct strip *strip_info, struct sk_buff *skb)
 static int strip_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct strip *strip_info = netdev_priv(dev);
+	unsigned long flags;
 
 	if (!netif_running(dev)) {
 		printk(KERN_ERR "%s: xmit call when iface is down\n",
@@ -1574,11 +1579,11 @@ static int strip_xmit(struct sk_buff *skb, struct net_device *dev)
 			       strip_info->dev->name, sx_pps_count / 8);
 	}
 
-	spin_lock_bh(&strip_lock);
+	spin_lock_irqsave(&strip_lock, flags);
 
 	strip_send(strip_info, skb);
 
-	spin_unlock_bh(&strip_lock);
+	spin_unlock_irqrestore(&strip_lock, flags);
 
 	if (skb)
 		dev_kfree_skb(skb);
@@ -2263,12 +2268,13 @@ static void strip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 {
 	struct strip *strip_info = tty->disc_data;
 	const unsigned char *end = cp + count;
+	unsigned long flags;
 
 	if (!strip_info || strip_info->magic != STRIP_MAGIC
 	    || !netif_running(strip_info->dev))
 		return;
 
-	spin_lock_bh(&strip_lock);
+	spin_lock_irqsave(&strip_lock, flags);
 #if 0
 	{
 		struct timeval tv;
@@ -2335,7 +2341,7 @@ static void strip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		}
 		cp++;
 	}
-	spin_unlock_bh(&strip_lock);
+	spin_unlock_irqrestore(&strip_lock, flags);
 }
 
 
@@ -2523,9 +2529,11 @@ static void strip_dev_setup(struct net_device *dev)
 
 static void strip_free(struct strip *strip_info)
 {
-	spin_lock_bh(&strip_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&strip_lock, flags);
 	list_del_rcu(&strip_info->list);
-	spin_unlock_bh(&strip_lock);
+	spin_unlock_irqrestore(&strip_lock, flags);
 
 	strip_info->magic = 0;
 
@@ -2539,6 +2547,7 @@ static void strip_free(struct strip *strip_info)
 static struct strip *strip_alloc(void)
 {
 	struct list_head *n;
+	unsigned long flags;
 	struct net_device *dev;
 	struct strip *strip_info;
 
@@ -2562,7 +2571,7 @@ static struct strip *strip_alloc(void)
 	strip_info->idle_timer.function = strip_IdleTask;
 
 
-	spin_lock_bh(&strip_lock);
+	spin_lock_irqsave(&strip_lock, flags);
  rescan:
 	/*
 	 * Search the list to find where to put our new entry
@@ -2581,7 +2590,7 @@ static struct strip *strip_alloc(void)
 	sprintf(dev->name, "st%ld", dev->base_addr);
 
 	list_add_tail_rcu(&strip_info->list, &strip_list);
-	spin_unlock_bh(&strip_lock);
+	spin_unlock_irqrestore(&strip_lock, flags);
 
 	return strip_info;
 }

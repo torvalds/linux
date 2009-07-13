@@ -398,13 +398,14 @@ static DEFINE_RWLOCK(disc_data_lock);
                                                                                 
 static struct sixpack *sp_get(struct tty_struct *tty)
 {
+	unsigned long flags;
 	struct sixpack *sp;
 
-	read_lock(&disc_data_lock);
+	read_lock_irqsave(&disc_data_lock, flags);
 	sp = tty->disc_data;
 	if (sp)
 		atomic_inc(&sp->refcnt);
-	read_unlock(&disc_data_lock);
+	read_unlock_irqrestore(&disc_data_lock, flags);
 
 	return sp;
 }
@@ -688,12 +689,13 @@ out:
  */
 static void sixpack_close(struct tty_struct *tty)
 {
+	unsigned long flags;
 	struct sixpack *sp;
 
-	write_lock(&disc_data_lock);
+	write_lock_irqsave(&disc_data_lock, flags);
 	sp = tty->disc_data;
 	tty->disc_data = NULL;
-	write_unlock(&disc_data_lock);
+	write_unlock_irqrestore(&disc_data_lock, flags);
 	if (!sp)
 		return;
 
