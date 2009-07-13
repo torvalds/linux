@@ -120,7 +120,8 @@ static int dump_midi(struct snd_rawmidi_substream *substream, const char *buf, i
 		return -EINVAL;
 	runtime = substream->runtime;
 	if ((tmp = runtime->avail) < count) {
-		snd_printd("warning, output event was lost (count = %i, available = %i)\n", count, tmp);
+		if (printk_ratelimit())
+			snd_printk(KERN_ERR "MIDI output buffer overrun\n");
 		return -ENOMEM;
 	}
 	if (snd_rawmidi_kernel_write(substream, buf, count) < count)
