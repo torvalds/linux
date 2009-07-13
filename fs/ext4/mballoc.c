@@ -4227,14 +4227,9 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ext4_get_group_no_and_offset(sb, goal, &group, &block);
 
 	/* set up allocation goals */
+	memset(ac, 0, sizeof(struct ext4_allocation_context));
 	ac->ac_b_ex.fe_logical = ar->logical;
-	ac->ac_b_ex.fe_group = 0;
-	ac->ac_b_ex.fe_start = 0;
-	ac->ac_b_ex.fe_len = 0;
 	ac->ac_status = AC_STATUS_CONTINUE;
-	ac->ac_groups_scanned = 0;
-	ac->ac_ex_scanned = 0;
-	ac->ac_found = 0;
 	ac->ac_sb = sb;
 	ac->ac_inode = ar->inode;
 	ac->ac_o_ex.fe_logical = ar->logical;
@@ -4245,15 +4240,7 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	ac->ac_g_ex.fe_group = group;
 	ac->ac_g_ex.fe_start = block;
 	ac->ac_g_ex.fe_len = len;
-	ac->ac_f_ex.fe_len = 0;
 	ac->ac_flags = ar->flags;
-	ac->ac_2order = 0;
-	ac->ac_criteria = 0;
-	ac->ac_pa = NULL;
-	ac->ac_bitmap_page = NULL;
-	ac->ac_buddy_page = NULL;
-	ac->alloc_semp = NULL;
-	ac->ac_lg = NULL;
 
 	/* we have to define context: we'll we work with a file or
 	 * locality group. this is a policy, actually */
@@ -4521,10 +4508,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	}
 
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
-	if (ac) {
-		ac->ac_sb = sb;
-		ac->ac_inode = ar->inode;
-	} else {
+	if (!ac) {
 		ar->len = 0;
 		*errp = -ENOMEM;
 		goto out1;
