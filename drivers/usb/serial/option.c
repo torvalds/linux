@@ -831,7 +831,6 @@ static void option_instat_callback(struct urb *urb)
 	int status = urb->status;
 	struct usb_serial_port *port =  urb->context;
 	struct option_port_private *portdata = usb_get_serial_port_data(port);
-	struct usb_serial *serial = port->serial;
 
 	dbg("%s", __func__);
 	dbg("%s: urb %p port %p has data %p", __func__, urb, port, portdata);
@@ -927,7 +926,6 @@ static int option_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp)
 {
 	struct option_port_private *portdata;
-	struct usb_serial *serial = port->serial;
 	int i, err;
 	struct urb *urb;
 
