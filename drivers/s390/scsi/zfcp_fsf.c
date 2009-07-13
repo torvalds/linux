@@ -1053,14 +1053,14 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 	bytes = zfcp_qdio_sbals_from_sg(req, SBAL_FLAGS0_TYPE_WRITE_READ,
 					sg_req, max_sbals);
 	if (bytes <= 0)
-		return -ENOMEM;
+		return -EIO;
 	req->qtcb->bottom.support.req_buf_length = bytes;
 	req->sbale_curr = ZFCP_LAST_SBALE_PER_SBAL;
 
 	bytes = zfcp_qdio_sbals_from_sg(req, SBAL_FLAGS0_TYPE_WRITE_READ,
 					sg_resp, max_sbals);
 	if (bytes <= 0)
-		return -ENOMEM;
+		return -EIO;
 	req->qtcb->bottom.support.resp_buf_length = bytes;
 
 	return 0;
@@ -2559,7 +2559,6 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	bytes = zfcp_qdio_sbals_from_sg(req, direction, fsf_cfdc->sg,
 					FSF_MAX_SBALS_PER_REQ);
 	if (bytes != ZFCP_CFDC_MAX_SIZE) {
-		retval = -ENOMEM;
 		zfcp_fsf_req_free(req);
 		goto out;
 	}
