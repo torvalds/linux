@@ -287,7 +287,7 @@ static int store_debug_level(struct file *file, const char *buffer,
 	return strnlen(buf, count);
 }
 
-static int __init ieee80211_init(void)
+int __init ieee80211_debug_init(void)
 {
 	struct proc_dir_entry *e;
 
@@ -313,7 +313,7 @@ static int __init ieee80211_init(void)
 	return 0;
 }
 
-static void __exit ieee80211_exit(void)
+void __exit ieee80211_debug_exit(void)
 {
 	if (ieee80211_proc) {
 		remove_proc_entry("debug_level", ieee80211_proc);
@@ -325,11 +325,4 @@ static void __exit ieee80211_exit(void)
 #include <linux/moduleparam.h>
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
-
-
-module_exit(ieee80211_exit);
-module_init(ieee80211_init);
 #endif
-
-EXPORT_SYMBOL(alloc_ieee80211);
-EXPORT_SYMBOL(free_ieee80211);

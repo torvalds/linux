@@ -927,6 +927,3 @@ int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 1;
 
 }
-EXPORT_SYMBOL(rtl8192_ieee80211_xmit);
-
-EXPORT_SYMBOL(ieee80211_txb_free);

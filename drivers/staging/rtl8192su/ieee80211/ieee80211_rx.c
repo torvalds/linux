@@ -2703,6 +2703,3 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 
 	}
 }
-
-EXPORT_SYMBOL(ieee80211_rx_mgt);
-EXPORT_SYMBOL(ieee80211_rx);

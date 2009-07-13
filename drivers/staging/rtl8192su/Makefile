@@ -21,9 +21,11 @@ r8192s_usb-objs :=		\
 	r8192S_firmware.o	\
 	r8192S_Efuse.o		\
 	r8192U_core.o		\
-	r8192U_pm.o
-
-ieee80211-rsl-objs :=			\
+	r8192U_pm.o		\
+	ieee80211/ieee80211_crypt.o		\
+	ieee80211/ieee80211_crypt_tkip.o	\
+	ieee80211/ieee80211_crypt_ccmp.o	\
+	ieee80211/ieee80211_crypt_wep.o		\
 	ieee80211/ieee80211_rx.o	\
 	ieee80211/ieee80211_softmac.o	\
 	ieee80211/ieee80211_tx.o	\
@@ -36,10 +38,3 @@ ieee80211-rsl-objs :=			\
 	ieee80211/dot11d.o
 
 obj-$(CONFIG_RTL8192SU) += r8192s_usb.o
-obj-$(CONFIG_RTL8192SU) += ieee80211-rsl.o
-obj-$(CONFIG_RTL8192SU) += ieee80211/ieee80211_crypt.o
-obj-$(CONFIG_RTL8192SU) += ieee80211/ieee80211_crypt_tkip.o
-obj-$(CONFIG_RTL8192SU) += ieee80211/ieee80211_crypt_ccmp.o
-obj-$(CONFIG_RTL8192SU) += ieee80211/ieee80211_crypt_wep.o
-
-

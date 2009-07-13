@@ -7547,8 +7547,55 @@ static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf)
 	RT_TRACE(COMP_DOWN, "wlan driver removed\n");
 }
 
+/* fun with the built-in ieee80211 stack... */
+extern int ieee80211_debug_init(void);
+extern void ieee80211_debug_exit(void);
+extern int ieee80211_crypto_init(void);
+extern void ieee80211_crypto_deinit(void);
+extern int ieee80211_crypto_tkip_init(void);
+extern void ieee80211_crypto_tkip_exit(void);
+extern int ieee80211_crypto_ccmp_init(void);
+extern void ieee80211_crypto_ccmp_exit(void);
+extern int ieee80211_crypto_wep_init(void);
+extern void ieee80211_crypto_wep_exit(void);
+
 static int __init rtl8192_usb_module_init(void)
 {
+	int ret;
+
+#ifdef CONFIG_IEEE80211_DEBUG
+	ret = ieee80211_debug_init();
+	if (ret) {
+		printk(KERN_ERR "ieee80211_debug_init() failed %d\n", ret);
+		return ret;
+	}
+#endif
+	ret = ieee80211_crypto_init();
+	if (ret) {
+		printk(KERN_ERR "ieee80211_crypto_init() failed %d\n", ret);
+		return ret;
+	}
+
+	ret = ieee80211_crypto_tkip_init();
+	if (ret) {
+		printk(KERN_ERR "ieee80211_crypto_tkip_init() failed %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = ieee80211_crypto_ccmp_init();
+	if (ret) {
+		printk(KERN_ERR "ieee80211_crypto_ccmp_init() failed %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = ieee80211_crypto_wep_init();
+	if (ret) {
+		printk(KERN_ERR "ieee80211_crypto_wep_init() failed %d\n", ret);
+		return ret;
+	}
+
 	printk(KERN_INFO "\nLinux kernel driver for RTL8192 based WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan\n");
 	RT_TRACE(COMP_INIT, "Initializing module");
@@ -7564,6 +7611,14 @@ static void __exit rtl8192_usb_module_exit(void)
 
 	RT_TRACE(COMP_DOWN, "Exiting");
 	rtl8192_proc_module_remove();
+
+	ieee80211_crypto_tkip_exit();
+	ieee80211_crypto_ccmp_exit();
+	ieee80211_crypto_wep_exit();
+	ieee80211_crypto_deinit();
+#ifdef CONFIG_IEEE80211_DEBUG
+	ieee80211_debug_exit();
+#endif
 }
 
 

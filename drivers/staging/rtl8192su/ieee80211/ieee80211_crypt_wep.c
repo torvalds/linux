@@ -283,14 +283,12 @@ static struct ieee80211_crypto_ops ieee80211_crypt_wep = {
 	.owner			= THIS_MODULE,
 };
 
-
-static int __init ieee80211_crypto_wep_init(void)
+int __init ieee80211_crypto_wep_init(void)
 {
 	return ieee80211_register_crypto_ops(&ieee80211_crypt_wep);
 }
 
-
-static void __exit ieee80211_crypto_wep_exit(void)
+void __exit ieee80211_crypto_wep_exit(void)
 {
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_wep);
 }
@@ -300,7 +298,3 @@ void ieee80211_wep_null(void)
 //	printk("============>%s()\n", __FUNCTION__);
         return;
 }
-EXPORT_SYMBOL(ieee80211_wep_null);
-
-module_init(ieee80211_crypto_wep_init);
-module_exit(ieee80211_crypto_wep_exit);

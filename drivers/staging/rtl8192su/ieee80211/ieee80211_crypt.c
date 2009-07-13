@@ -204,8 +204,7 @@ static struct ieee80211_crypto_ops ieee80211_crypt_null = {
 	.owner			= THIS_MODULE,
 };
 
-
-static int __init ieee80211_crypto_init(void)
+int __init ieee80211_crypto_init(void)
 {
 	int ret = -ENOMEM;
 
@@ -226,8 +225,7 @@ out:
 	return ret;
 }
 
-
-static void __exit ieee80211_crypto_deinit(void)
+void __exit ieee80211_crypto_deinit(void)
 {
 	struct list_head *ptr, *n;
 
@@ -246,14 +244,3 @@ static void __exit ieee80211_crypto_deinit(void)
 
 	kfree(hcrypt);
 }
-
-EXPORT_SYMBOL(ieee80211_crypt_deinit_entries);
-EXPORT_SYMBOL(ieee80211_crypt_deinit_handler);
-EXPORT_SYMBOL(ieee80211_crypt_delayed_deinit);
-
-EXPORT_SYMBOL(ieee80211_register_crypto_ops);
-EXPORT_SYMBOL(ieee80211_unregister_crypto_ops);
-EXPORT_SYMBOL(ieee80211_get_crypto_ops);
-
-module_init(ieee80211_crypto_init);
-module_exit(ieee80211_crypto_deinit);

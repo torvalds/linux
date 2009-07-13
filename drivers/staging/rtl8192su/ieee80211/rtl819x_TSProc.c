@@ -633,5 +633,3 @@ void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
 	else
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __FUNCTION__);
 }
-
-EXPORT_SYMBOL(RemovePeerTS);

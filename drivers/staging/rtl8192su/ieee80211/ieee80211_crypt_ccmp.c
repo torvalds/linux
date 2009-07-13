@@ -473,19 +473,12 @@ static struct ieee80211_crypto_ops ieee80211_crypt_ccmp = {
 	.owner			= THIS_MODULE,
 };
 
-
-static int __init ieee80211_crypto_ccmp_init(void)
+int __init ieee80211_crypto_ccmp_init(void)
 {
 	return ieee80211_register_crypto_ops(&ieee80211_crypt_ccmp);
 }
 
-
-static void __exit ieee80211_crypto_ccmp_exit(void)
+void __exit ieee80211_crypto_ccmp_exit(void)
 {
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_ccmp);
 }
-
-EXPORT_SYMBOL(ieee80211_ccmp_null);
-
-module_init(ieee80211_crypto_ccmp_init);
-module_exit(ieee80211_crypto_ccmp_exit);
