@@ -34,7 +34,8 @@ TRACE_EVENT(ext4_free_inode,
 
 	TP_printk("dev %s ino %lu mode %d uid %u gid %u blocks %llu",
 		  jbd2_dev_to_name(__entry->dev), __entry->ino, __entry->mode,
-		  __entry->uid, __entry->gid, __entry->blocks)
+		  __entry->uid, __entry->gid,
+		  (unsigned long long) __entry->blocks)
 );
 
 TRACE_EVENT(ext4_request_inode,
@@ -189,7 +190,7 @@ TRACE_EVENT(ext4_journalled_write_end,
 		  __entry->copied)
 );
 
-TRACE_EVENT(ext4_da_writepage,
+TRACE_EVENT(ext4_writepage,
 	TP_PROTO(struct inode *inode, struct page *page),
 
 	TP_ARGS(inode, page),
@@ -339,49 +340,6 @@ TRACE_EVENT(ext4_da_write_end,
 	TP_printk("dev %s ino %lu pos %llu len %u copied %u",
 		  jbd2_dev_to_name(__entry->dev), __entry->ino, __entry->pos, __entry->len,
 		  __entry->copied)
-);
-
-TRACE_EVENT(ext4_normal_writepage,
-	TP_PROTO(struct inode *inode, struct page *page),
-
-	TP_ARGS(inode, page),
-
-	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
-		__field(	ino_t,	ino			)
-		__field(	pgoff_t, index			)
-	),
-
-	TP_fast_assign(
-		__entry->dev	= inode->i_sb->s_dev;
-		__entry->ino	= inode->i_ino;
-		__entry->index	= page->index;
-	),
-
-	TP_printk("dev %s ino %lu page_index %lu",
-		  jbd2_dev_to_name(__entry->dev), __entry->ino, __entry->index)
-);
-
-TRACE_EVENT(ext4_journalled_writepage,
-	TP_PROTO(struct inode *inode, struct page *page),
-
-	TP_ARGS(inode, page),
-
-	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
-		__field(	ino_t,	ino			)
-		__field(	pgoff_t, index			)
-
-	),
-
-	TP_fast_assign(
-		__entry->dev	= inode->i_sb->s_dev;
-		__entry->ino	= inode->i_ino;
-		__entry->index	= page->index;
-	),
-
-	TP_printk("dev %s ino %lu page_index %lu",
-		  jbd2_dev_to_name(__entry->dev), __entry->ino, __entry->index)
 );
 
 TRACE_EVENT(ext4_discard_blocks,
