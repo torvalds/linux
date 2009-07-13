@@ -1,0 +1,1413 @@
+/*
+ *
+ * Copyright (c) 2009, Microsoft Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+ * Place - Suite 330, Boston, MA 02111-1307 USA.
+ *
+ * Authors:
+ *   Haiyang Zhang <haiyangz@microsoft.com>
+ *   Hank Janssen  <hjanssen@microsoft.com>
+ *
+ */
+
+
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/device.h>
+#include <linux/blkdev.h>
+
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_host.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_tcq.h>
+#include <scsi/scsi_eh.h>
+#include <scsi/scsi_devinfo.h>
+
+#ifdef KERNEL_2_6_5
+#else
+#include <scsi/scsi_dbg.h>
+#endif
+
+#include "logging.h"
+#include "vmbus.h"
+
+#include "StorVscApi.h"
+
+//
+// #defines
+//
+
+//
+// Data types
+//
+struct host_device_context {
+    struct work_struct		host_rescan_work;  //must be 1st field
+    struct device_context	*device_ctx; // point back to our device context
+#ifdef KERNEL_2_6_27
+    struct kmem_cache               *request_pool;
+#else
+    kmem_cache_t			*request_pool;
+#endif
+    unsigned int			port;
+    unsigned char			path;
+    unsigned char			target;
+};
+
+struct storvsc_cmd_request {
+	struct list_head	entry;
+	struct scsi_cmnd	*cmd;
+
+	unsigned int bounce_sgl_count;
+	struct scatterlist	*bounce_sgl;
+
+	STORVSC_REQUEST		request;
+	// !!!DO NOT ADD ANYTHING BELOW HERE!!!
+	// The extension buffer falls right here and is pointed to by request.Extension;
+};
+
+struct storvsc_driver_context {
+	// !! These must be the first 2 fields !!
+	struct driver_context	drv_ctx;
+	STORVSC_DRIVER_OBJECT	drv_obj;
+};
+
+// Static decl
+static int storvsc_probe(struct device *dev);
+static int storvsc_queuecommand(struct scsi_cmnd *scmnd, void (*done)(struct scsi_cmnd *));
+static int storvsc_device_alloc(struct scsi_device *);
+static int storvsc_device_configure(struct scsi_device *);
+static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
+#ifdef KERNEL_2_6_27
+static void storvsc_host_rescan_callback(struct work_struct *work);
+#else
+static void storvsc_host_rescan_callback(void* context);
+#endif
+static void storvsc_host_rescan(DEVICE_OBJECT* device_obj);
+static int storvsc_remove(struct device *dev);
+
+static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count, unsigned int len);
+static void destroy_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count);
+static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count);
+static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl, struct scatterlist *bounce_sgl, unsigned int orig_sgl_count);
+static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl, struct scatterlist *bounce_sgl, unsigned int orig_sgl_count);
+
+static int storvsc_report_luns(struct scsi_device *sdev, unsigned int luns[], unsigned int *lun_count);
+static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev, sector_t capacity, int *info);
+
+
+static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
+
+// The one and only one
+static struct storvsc_driver_context g_storvsc_drv;
+
+// Scsi driver
+static struct scsi_host_template scsi_driver = {
+	.module						= THIS_MODULE,
+	.name						= "storvsc_host_t",
+	.bios_param					= storvsc_get_chs,
+	.queuecommand				= storvsc_queuecommand,
+	.eh_host_reset_handler		= storvsc_host_reset_handler,
+	.slave_alloc				= storvsc_device_alloc,
+	.slave_configure			= storvsc_device_configure,
+	.cmd_per_lun				= 1,
+	.can_queue					= STORVSC_MAX_IO_REQUESTS*STORVSC_MAX_TARGETS, // 64 max_queue * 1 target
+	.this_id					= -1,
+	// no use setting to 0 since ll_blk_rw reset it to 1
+	.sg_tablesize				= MAX_MULTIPAGE_BUFFER_COUNT,// currently 32
+	// ENABLE_CLUSTERING allows mutiple physically contig bio_vecs to merge into 1 sg element. If set, we must
+	// limit the max_segment_size to PAGE_SIZE, otherwise we may get 1 sg element that represents multiple
+	// physically contig pfns (ie sg[x].length > PAGE_SIZE).
+	.use_clustering				= ENABLE_CLUSTERING,
+	// Make sure we dont get a sg segment crosses a page boundary
+	.dma_boundary				= PAGE_SIZE-1,
+};
+
+
+/*++
+
+Name:	storvsc_drv_init()
+
+Desc:	StorVsc driver initialization.
+
+--*/
+int storvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+{
+	int ret=0;
+	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_storvsc_drv.drv_obj;
+	struct driver_context *drv_ctx=&g_storvsc_drv.drv_ctx;
+
+	DPRINT_ENTER(STORVSC_DRV);
+
+	vmbus_get_interface(&storvsc_drv_obj->Base.VmbusChannelInterface);
+
+	storvsc_drv_obj->RingBufferSize = storvsc_ringbuffer_size;
+	storvsc_drv_obj->OnHostRescan = storvsc_host_rescan;
+
+	// Callback to client driver to complete the initialization
+	pfn_drv_init(&storvsc_drv_obj->Base);
+
+	DPRINT_INFO(STORVSC_DRV, "request extension size %u, max outstanding reqs %u", storvsc_drv_obj->RequestExtSize, storvsc_drv_obj->MaxOutstandingRequestsPerChannel);
+
+	if (storvsc_drv_obj->MaxOutstandingRequestsPerChannel < STORVSC_MAX_IO_REQUESTS)
+	{
+		DPRINT_ERR(STORVSC_DRV, "The number of outstanding io requests (%d) is larger than that supported (%d) internally.",
+			STORVSC_MAX_IO_REQUESTS, storvsc_drv_obj->MaxOutstandingRequestsPerChannel);
+		return -1;
+	}
+
+	drv_ctx->driver.name = storvsc_drv_obj->Base.name;
+	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->Base.deviceType, sizeof(GUID));
+
+#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
+	drv_ctx->driver.probe = storvsc_probe;
+	drv_ctx->driver.remove = storvsc_remove;
+#else
+	drv_ctx->probe = storvsc_probe;
+	drv_ctx->remove = storvsc_remove;
+#endif
+
+	// The driver belongs to vmbus
+	vmbus_child_driver_register(drv_ctx);
+
+	DPRINT_EXIT(STORVSC_DRV);
+
+	return ret;
+}
+
+
+static int storvsc_drv_exit_cb(struct device *dev, void *data)
+{
+	struct device **curr = (struct device **)data;
+	*curr = dev;
+	return 1; // stop iterating
+}
+
+/*++
+
+Name:	storvsc_drv_exit()
+
+Desc:
+
+--*/
+void storvsc_drv_exit(void)
+{
+	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_storvsc_drv.drv_obj;
+	struct driver_context *drv_ctx=&g_storvsc_drv.drv_ctx;
+
+	struct device *current_dev=NULL;
+
+#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
+#define driver_for_each_device(drv, start, data, fn) \
+	struct list_head *ptr, *n; \
+	list_for_each_safe(ptr, n, &((drv)->devices)) {\
+		struct device *curr_dev;\
+		curr_dev = list_entry(ptr, struct device, driver_list);\
+		fn(curr_dev, data);\
+	}
+#endif // KERNEL_2_6_9
+
+	DPRINT_ENTER(STORVSC_DRV);
+
+	while (1)
+	{
+		current_dev = NULL;
+
+		// Get the device
+		driver_for_each_device(&drv_ctx->driver, NULL, (void*)&current_dev, storvsc_drv_exit_cb);
+
+		if (current_dev == NULL)
+			break;
+
+		// Initiate removal from the top-down
+		device_unregister(current_dev);
+	}
+
+	if (storvsc_drv_obj->Base.OnCleanup)
+		storvsc_drv_obj->Base.OnCleanup(&storvsc_drv_obj->Base);
+
+	vmbus_child_driver_unregister(drv_ctx);
+
+	DPRINT_EXIT(STORVSC_DRV);
+
+	return;
+}
+
+/*++
+
+Name:	storvsc_probe()
+
+Desc:	Add a new device for this driver
+
+--*/
+static int storvsc_probe(struct device *device)
+{
+	int ret=0;
+
+	struct driver_context *driver_ctx = driver_to_driver_context(device->driver);
+	struct storvsc_driver_context *storvsc_drv_ctx = (struct storvsc_driver_context*)driver_ctx;
+	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
+
+	struct device_context *device_ctx = device_to_device_context(device);
+	DEVICE_OBJECT* device_obj = &device_ctx->device_obj;
+
+	struct Scsi_Host *host;
+	struct host_device_context *host_device_ctx;
+	STORVSC_DEVICE_INFO device_info;
+
+	DPRINT_ENTER(STORVSC_DRV);
+
+	if (!storvsc_drv_obj->Base.OnDeviceAdd)
+		return -1;
+
+	host = scsi_host_alloc(&scsi_driver, sizeof(struct host_device_context));
+	if (!host)
+	{
+		DPRINT_ERR(STORVSC_DRV, "unable to allocate scsi host object");
+		return -ENOMEM;
+	}
+
+	device->driver_data = host;
+
+	host_device_ctx = (struct host_device_context*)host->hostdata;
+	memset(host_device_ctx, 0, sizeof(struct host_device_context));
+
+	host_device_ctx->port = host->host_no;
+	host_device_ctx->device_ctx = device_ctx;
+
+#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
+#elif defined(KERNEL_2_6_27)
+	INIT_WORK(&host_device_ctx->host_rescan_work, storvsc_host_rescan_callback);
+#else
+	INIT_WORK(&host_device_ctx->host_rescan_work, storvsc_host_rescan_callback, device_obj);
+#endif
+
+#if defined(KERNEL_2_6_27)
+	host_device_ctx->request_pool =
+	    kmem_cache_create
+	    (device_ctx->device.bus_id,
+	     sizeof(struct storvsc_cmd_request) + storvsc_drv_obj->RequestExtSize,
+	     0,
+	     SLAB_HWCACHE_ALIGN, NULL);
+#else
+	host_device_ctx->request_pool =
+	    kmem_cache_create
+	    (device_ctx->device.bus_id,
+	     sizeof(struct storvsc_cmd_request) + storvsc_drv_obj->RequestExtSize,
+	     0,
+	     SLAB_HWCACHE_ALIGN, NULL, NULL);
+#endif
+
+	if (!host_device_ctx->request_pool)
+	{
+		scsi_host_put(host);
+		DPRINT_EXIT(STORVSC_DRV);
+
+		return -ENOMEM;
+	}
+
+	device_info.PortNumber = host->host_no;
+	// Call to the vsc driver to add the device
+	ret = storvsc_drv_obj->Base.OnDeviceAdd(device_obj, (void*)&device_info);
+	if (ret != 0)
+	{
+		DPRINT_ERR(STORVSC_DRV, "unable to add scsi vsc device");
+		kmem_cache_destroy(host_device_ctx->request_pool);
+		scsi_host_put(host);
+		DPRINT_EXIT(STORVSC_DRV);
+
+		return -1;
+	}
+
+	//host_device_ctx->port = device_info.PortNumber;
+	host_device_ctx->path = device_info.PathId;
+	host_device_ctx->target = device_info.TargetId;
+
+	host->max_lun = STORVSC_MAX_LUNS_PER_TARGET;	// max # of devices per target
+	host->max_id = STORVSC_MAX_TARGETS;			// max # of targets per channel
+	host->max_channel = STORVSC_MAX_CHANNELS -1;	// max # of channels
+
+	// Register the HBA and start the scsi bus scan
+	ret = scsi_add_host(host, device);
+	if (ret != 0)
+	{
+		DPRINT_ERR(STORVSC_DRV, "unable to add scsi host device");
+
+		storvsc_drv_obj->Base.OnDeviceRemove(device_obj);
+
+		kmem_cache_destroy(host_device_ctx->request_pool);
+		scsi_host_put(host);
+		DPRINT_EXIT(STORVSC_DRV);
+
+		return -1;
+	}
+
+	scsi_scan_host(host);
+
+	DPRINT_EXIT(STORVSC_DRV);
+
+	return ret;
+}
+
+
+/*++
+
+Name:	storvsc_remove()
+
+Desc:	Callback when our device is removed
+
+--*/
+static int storvsc_remove(struct device *device)
+{
+	int ret=0;
+
+	struct driver_context *driver_ctx = driver_to_driver_context(device->driver);
+	struct storvsc_driver_context *storvsc_drv_ctx = (struct storvsc_driver_context*)driver_ctx;
+	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
+
+	struct device_context *device_ctx = device_to_device_context(device);
+	DEVICE_OBJECT* device_obj = &device_ctx->device_obj;
+
+	struct Scsi_Host *host = (struct Scsi_Host *)device->driver_data;
+	struct host_device_context *host_device_ctx=(struct host_device_context*)host->hostdata;
+
+
+	DPRINT_ENTER(STORVSC_DRV);
+
+	if (!storvsc_drv_obj->Base.OnDeviceRemove)
+	{
+		DPRINT_EXIT(STORVSC_DRV);
+		return -1;
+	}
+
+	// Call to the vsc driver to let it know that the device is being removed
+	ret = storvsc_drv_obj->Base.OnDeviceRemove(device_obj);
+	if (ret != 0)
+	{
+		// TODO:
+		DPRINT_ERR(STORVSC, "unable to remove vsc device (ret %d)", ret);
+	}
+
+	if (host_device_ctx->request_pool)
+	{
+		kmem_cache_destroy(host_device_ctx->request_pool);
+		host_device_ctx->request_pool = NULL;
+	}
+
+	DPRINT_INFO(STORVSC, "removing host adapter (%p)...", host);
+	scsi_remove_host(host);
+
+	DPRINT_INFO(STORVSC, "releasing host adapter (%p)...", host);
+	scsi_host_put(host);
+
+	DPRINT_EXIT(STORVSC_DRV);
+
+	return ret;
+}
+
+/*++
+
+Name:	storvsc_commmand_completion()
+
+Desc:	Command completion processing
+
+--*/
+static void storvsc_commmand_completion(STORVSC_REQUEST* request)
+{
+	struct storvsc_cmd_request *cmd_request = (struct storvsc_cmd_request*)request->Context;
+	struct scsi_cmnd *scmnd = cmd_request->cmd;
+	struct host_device_context *host_device_ctx = (struct host_device_context*)scmnd->device->host->hostdata;
+	void (*scsi_done_fn)(struct scsi_cmnd *);
+#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
+#else
+	struct scsi_sense_hdr sense_hdr;
+#endif
+
+	ASSERT(request == &cmd_request->request);
+	ASSERT((unsigned long)scmnd->host_scribble == (unsigned long)cmd_request);
+	ASSERT(scmnd);
+	ASSERT(scmnd->scsi_done);
+
+	DPRINT_ENTER(STORVSC_DRV);
+
+	if (cmd_request->bounce_sgl_count)// using bounce buffer
+	{
+		//printk("copy_from_bounce_buffer\n");
+
+		// FIXME: We can optimize on writes by just skipping this
+#ifdef KERNEL_2_6_27
+		copy_from_bounce_buffer(scsi_sglist(scmnd), cmd_request->bounce_sgl, scsi_sg_count(scmnd));
+#else
+		copy_from_bounce_buffer(scmnd->request_buffer, cmd_request->bounce_sgl, scmnd->use_sg);
+#endif
+		destroy_bounce_buffer(cmd_request->bounce_sgl, cmd_request->bounce_sgl_count);
+	}
+
+	scmnd->result = request->Status;
+
+	if (scmnd->result)
+	{
+#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
+		DPRINT_INFO(STORVSC_DRV, "scsi result nonzero - %d", scmnd->result);
+#else
+		if (scsi_normalize_sense(scmnd->sense_buffer, request->SenseBufferSize, &sense_hdr))
+		{
+			scsi_print_sense_hdr("storvsc", &sense_hdr);
+		}
+#endif
+	}
+
+	ASSERT(request->BytesXfer <= request->DataBuffer.Length);
+#ifdef KERNEL_2_6_27
+	scsi_set_resid(scmnd, request->DataBuffer.Length - request->BytesXfer);
+#else
+	scmnd->resid = request->DataBuffer.Length - request->BytesXfer;
+#endif
+
+	scsi_done_fn = scmnd->scsi_done;
+
+	scmnd->host_scribble = NULL;
+	scmnd->scsi_done = NULL;
+
+	// !!DO NOT MODIFY the scmnd after this call
+	scsi_done_fn(scmnd);
+
+	kmem_cache_free(host_device_ctx->request_pool, cmd_request);
+
+	DPRINT_EXIT(STORVSC_DRV);
+}
+
+static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count)
+{
+	int i=0;
+
+	// No need to check
+	if (sg_count < 2)
+		return -1;
+
+	// We have at least 2 sg entries
+	for ( i=0; i<sg_count; i++ )
+	{
+		if (i == 0) // make sure 1st one does not have hole
+		{
+			if (sgl[i].offset + sgl[i].length != PAGE_SIZE)
+				return i;
+		}
+		else if (i == sg_count - 1) // make sure last one does not have hole
+		{
+			if (sgl[i].offset != 0)
+				return i;
+		}
+		else // make sure no hole in the middle
+		{
+			if (sgl[i].length != PAGE_SIZE || sgl[i].offset != 0)
+			{
+				return i;
+			}
+		}
+	}
+	return -1;
+}
+
+static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count, unsigned int len)
+{
+	int i;
+	int num_pages=0;
+	struct scatterlist* bounce_sgl;
+	struct page *page_buf;
+
+	num_pages = ALIGN_UP(len, PAGE_SIZE) >> PAGE_SHIFT;
+
+	bounce_sgl = kzalloc(num_pages * sizeof(struct scatterlist), GFP_ATOMIC);
+	if (!bounce_sgl)
+	{
+		return NULL;
+	}
+
+	for(i=0; i<num_pages; i++)
+	{
+		page_buf = alloc_page(GFP_ATOMIC);
+		if (!page_buf)
+		{
+			goto cleanup;
+		}
+#ifdef KERNEL_2_6_27
+		sg_set_page(&bounce_sgl[i], page_buf, 0, 0);
+#else
+		bounce_sgl[i].page = page_buf;
+		bounce_sgl[i].offset = 0;
+		bounce_sgl[i].length = 0;
+#endif
+	}
+
+	return bounce_sgl;
+
+cleanup:
+	destroy_bounce_buffer(bounce_sgl, num_pages);
+	return NULL;
+}
+
+static void destroy_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count)
+{
+	int i;
+	struct page *page_buf;
+
+	for (i=0; i<sg_count; i++)
+	{
+#ifdef KERNEL_2_6_27
+		if ((page_buf = sg_page((&sgl[i]))) != NULL)
+#else
+		if ((page_buf = sgl[i].page) != NULL)
+#endif
+
+		{
+			__free_page(page_buf);
+		}
+	}
+
+	kfree(sgl);
+}
+
+// Assume the bounce_sgl has enough room ie using the create_bounce_buffer()
+static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl, struct scatterlist *bounce_sgl, unsigned int orig_sgl_count)
+{
+	int i=0,j=0;
+	unsigned long src, dest;
+	unsigned int srclen, destlen, copylen;
+	unsigned int total_copied=0;
+	unsigned long bounce_addr=0;
+	unsigned long src_addr=0;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	for (i=0; i<orig_sgl_count; i++)
+	{
+#ifdef KERNEL_2_6_27
+		src_addr = (unsigned long)kmap_atomic(sg_page((&orig_sgl[i])), KM_IRQ0) + orig_sgl[i].offset;
+#else
+		src_addr = (unsigned long)kmap_atomic(orig_sgl[i].page, KM_IRQ0) + orig_sgl[i].offset;
+#endif
+		src = src_addr;
+		srclen = orig_sgl[i].length;
+
+		//if (PageHighMem(orig_sgl[i].page))
+		//	printk("HighMem page detected - addr %p", (void*)src);
+
+		ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE);
+
+		if (j == 0)
+		{
+#ifdef KERNEL_2_6_27
+			bounce_addr = (unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])), KM_IRQ0);
+#else
+			bounce_addr = (unsigned long)kmap_atomic(bounce_sgl[j].page, KM_IRQ0);
+#endif
+		}
+
+		while (srclen)
+		{
+			// assume bounce offset always == 0
+			dest = bounce_addr + bounce_sgl[j].length;
+			destlen = PAGE_SIZE - bounce_sgl[j].length;
+
+			copylen = MIN(srclen, destlen);
+			memcpy((void*)dest, (void*)src, copylen);
+
+			total_copied += copylen;
+			bounce_sgl[j].length += copylen;
+			srclen -= copylen;
+			src += copylen;
+
+			if (bounce_sgl[j].length == PAGE_SIZE) // full..move to next entry
+			{
+				kunmap_atomic((void*)bounce_addr, KM_IRQ0);
+				j++;
+
+				// if we need to use another bounce buffer
+				if (srclen || i != orig_sgl_count -1)
+				{
+#ifdef KERNEL_2_6_27
+					bounce_addr = (unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])), KM_IRQ0);
+#else
+					bounce_addr = (unsigned long)kmap_atomic(bounce_sgl[j].page, KM_IRQ0);
+#endif
+				}
+			}
+			else if (srclen == 0 && i == orig_sgl_count -1) // // unmap the last bounce that is < PAGE_SIZE
+			{
+				kunmap_atomic((void*)bounce_addr, KM_IRQ0);
+			}
+		}
+
+		kunmap_atomic((void*)(src_addr - orig_sgl[i].offset), KM_IRQ0);
+	}
+
+	local_irq_restore(flags);
+
+	return total_copied;
+}
+
+// Assume the original sgl has enough room
+static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl, struct scatterlist *bounce_sgl, unsigned int orig_sgl_count)
+{
+	int i=0,j=0;
+	unsigned long src, dest;
+	unsigned int srclen, destlen, copylen;
+	unsigned int total_copied=0;
+	unsigned long bounce_addr=0;
+	unsigned long dest_addr=0;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	for (i=0; i<orig_sgl_count; i++)
+	{
+#ifdef KERNEL_2_6_27
+		dest_addr = (unsigned long)kmap_atomic(sg_page((&orig_sgl[i])), KM_IRQ0) + orig_sgl[i].offset;
+#else
+		dest_addr = (unsigned long)kmap_atomic(orig_sgl[i].page, KM_IRQ0) + orig_sgl[i].offset;
+#endif
+		dest = dest_addr;
+		destlen = orig_sgl[i].length;
+		ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE);
+
+		if (j == 0)
+		{
+#ifdef KERNEL_2_6_27
+			bounce_addr = (unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])), KM_IRQ0);
+#else
+			bounce_addr = (unsigned long)kmap_atomic(bounce_sgl[j].page, KM_IRQ0);
+#endif
+		}
+
+		while (destlen)
+		{
+			src = bounce_addr + bounce_sgl[j].offset;
+			srclen = bounce_sgl[j].length - bounce_sgl[j].offset;
+
+			copylen = MIN(srclen, destlen);
+			memcpy((void*)dest, (void*)src, copylen);
+
+			total_copied += copylen;
+			bounce_sgl[j].offset += copylen;
+			destlen -= copylen;
+			dest += copylen;
+
+			if (bounce_sgl[j].offset == bounce_sgl[j].length) // full
+			{
+				kunmap_atomic((void*)bounce_addr, KM_IRQ0);
+				j++;
+
+				// if we need to use another bounce buffer
+				if (destlen || i != orig_sgl_count -1)
+				{
+#ifdef KERNEL_2_6_27
+					bounce_addr = (unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])), KM_IRQ0);
+#else
+					bounce_addr = (unsigned long)kmap_atomic(bounce_sgl[j].page, KM_IRQ0);
+#endif
+				}
+			}
+			else if (destlen == 0 && i == orig_sgl_count -1) // unmap the last bounce that is < PAGE_SIZE
+			{
+				kunmap_atomic((void*)bounce_addr, KM_IRQ0);
+			}
+		}
+
+		kunmap_atomic((void*)(dest_addr - orig_sgl[i].offset), KM_IRQ0);
+	}
+
+	local_irq_restore(flags);
+
+	return total_copied;
+}
+
+
+/*++
+
+Name:	storvsc_queuecommand()
+
+Desc:	Initiate command processing
+
+--*/
+static int storvsc_queuecommand(struct scsi_cmnd *scmnd, void (*done)(struct scsi_cmnd *))
+{
+	int ret=0;
+	struct host_device_context *host_device_ctx = (struct host_device_context*)scmnd->device->host->hostdata;
+	struct device_context *device_ctx=host_device_ctx->device_ctx;
+	struct driver_context *driver_ctx = driver_to_driver_context(device_ctx->device.driver);
+	struct storvsc_driver_context *storvsc_drv_ctx = (struct storvsc_driver_context*)driver_ctx;
+	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
+
+	STORVSC_REQUEST *request;
+	struct storvsc_cmd_request *cmd_request;
+	unsigned int request_size=0;
+	int i;
+	struct scatterlist *sgl;
+
+	DPRINT_ENTER(STORVSC_DRV);
+
+#ifdef KERNEL_2_6_27
+	DPRINT_DBG(STORVSC_DRV, "scmnd %p dir %d, use_sg %d buf %p len %d queue depth %d tagged %d",
+		scmnd,
+		scmnd->sc_data_direction,
+		scsi_sg_count(scmnd),
+		scsi_sglist(scmnd),
+		scsi_bufflen(scmnd),
+		scmnd->device->queue_depth,
+		scmnd->device->tagged_supported);
+#else
+	DPRINT_DBG(STORVSC_DRV, "scmnd %p dir %d, use_sg %d buf %p len %d queue depth %d tagged %d",
+		scmnd,
+		scmnd->sc_data_direction,
+		scmnd->use_sg,
+		scmnd->request_buffer,
+		scmnd->request_bufflen,
+		scmnd->device->queue_depth,
+		scmnd->device->tagged_supported);
+#endif
+
+	// If retrying, no need to prep the cmd
+	if (scmnd->host_scribble)
+	{
+		ASSERT(scmnd->scsi_done != NULL);
+
+		cmd_request = (struct storvsc_cmd_request* )scmnd->host_scribble;
+		DPRINT_INFO(STORVSC_DRV, "retrying scmnd %p cmd_request %p", scmnd, cmd_request);
+
+		goto retry_request;
+	}
+
+	ASSERT(scmnd->scsi_done == NULL);
+	ASSERT(scmnd->host_scribble == NULL);
+
+	scmnd->scsi_done = done;
+
+	request_size = sizeof(struct storvsc_cmd_request);
+
+	cmd_request = kmem_cache_alloc(host_device_ctx->request_pool, GFP_ATOMIC);
+	if (!cmd_request)
+	{
+		DPRINT_ERR(STORVSC_DRV, "scmnd (%p) - unable to allocate storvsc_cmd_request...marking queue busy", scmnd);
+
+		scmnd->scsi_done = NULL;
+		return SCSI_MLQUEUE_DEVICE_BUSY;
+	}
+
+	// Setup the cmd request
+	cmd_request->bounce_sgl_count = 0;
+	cmd_request->bounce_sgl = NULL;
+	cmd_request->cmd = scmnd;
+
+	scmnd->host_scribble = (unsigned char*)cmd_request;
+
+	request = &cmd_request->request;
+
+	request->Extension = (void*)((unsigned long)cmd_request + request_size);
+	DPRINT_DBG(STORVSC_DRV, "req %p size %d ext %d", request, request_size, storvsc_drv_obj->RequestExtSize);
+
+	// Build the SRB
+	switch(scmnd->sc_data_direction)
+	{
+	case DMA_TO_DEVICE:
+		request->Type = WRITE_TYPE;
+		break;
+	case DMA_FROM_DEVICE:
+		request->Type = READ_TYPE;
+		break;
+	default:
+		request->Type = UNKNOWN_TYPE;
+		break;
+	}
+
+	request->OnIOCompletion = storvsc_commmand_completion;
+	request->Context = cmd_request;//scmnd;
+
+	//request->PortId = scmnd->device->channel;
+	request->Host = host_device_ctx->port;
+	request->Bus = scmnd->device->channel;
+	request->TargetId = scmnd->device->id;
+	request->LunId = scmnd->device->lun;
+
+	ASSERT(scmnd->cmd_len <= 16);
+	request->CdbLen = scmnd->cmd_len;
+	request->Cdb = scmnd->cmnd;
+
+	request->SenseBuffer = scmnd->sense_buffer;
+	request->SenseBufferSize = SCSI_SENSE_BUFFERSIZE;
+
+
+#ifdef KERNEL_2_6_27
+	request->DataBuffer.Length = scsi_bufflen(scmnd);
+	if (scsi_sg_count(scmnd))
+#else
+	request->DataBuffer.Length = scmnd->request_bufflen;
+	if (scmnd->use_sg)
+#endif
+	{
+#ifdef KERNEL_2_6_27
+		sgl = (struct scatterlist*)scsi_sglist(scmnd);
+#else
+		sgl = (struct scatterlist*)(scmnd->request_buffer);
+#endif
+
+		// check if we need to bounce the sgl
+#ifdef KERNEL_2_6_27
+		if (do_bounce_buffer(sgl, scsi_sg_count(scmnd)) != -1)
+#else
+		if (do_bounce_buffer(sgl, scmnd->use_sg) != -1)
+#endif
+		{
+			DPRINT_INFO(STORVSC_DRV, "need to bounce buffer for this scmnd %p", scmnd);
+#ifdef KERNEL_2_6_27
+			cmd_request->bounce_sgl = create_bounce_buffer(sgl, scsi_sg_count(scmnd), scsi_bufflen(scmnd));
+#else
+			cmd_request->bounce_sgl = create_bounce_buffer(
+			    sgl,
+			    scmnd->use_sg, scmnd->request_bufflen);
+#endif
+			if (!cmd_request->bounce_sgl)
+			{
+				DPRINT_ERR(STORVSC_DRV, "unable to create bounce buffer for this scmnd %p", scmnd);
+
+				scmnd->scsi_done = NULL;
+				scmnd->host_scribble = NULL;
+				kmem_cache_free(host_device_ctx->request_pool, cmd_request);
+
+				return SCSI_MLQUEUE_HOST_BUSY;
+			}
+
+#ifdef KERNEL_2_6_27
+			cmd_request->bounce_sgl_count = ALIGN_UP(scsi_bufflen(scmnd), PAGE_SIZE) >> PAGE_SHIFT;
+#else
+			cmd_request->bounce_sgl_count = ALIGN_UP(scmnd->request_bufflen, PAGE_SIZE) >> PAGE_SHIFT;
+#endif
+
+			//printk("bouncing buffer allocated %p original buffer %p\n", bounce_sgl, sgl);
+			//printk("copy_to_bounce_buffer\n");
+			// FIXME: We can optimize on reads by just skipping this
+#ifdef KERNEL_2_6_27
+			copy_to_bounce_buffer(sgl, cmd_request->bounce_sgl, scsi_sg_count(scmnd));
+#else
+			copy_to_bounce_buffer(sgl, cmd_request->bounce_sgl, scmnd->use_sg);
+#endif
+
+			sgl = cmd_request->bounce_sgl;
+		}
+
+		request->DataBuffer.Offset = sgl[0].offset;
+
+#ifdef KERNEL_2_6_27
+		for (i = 0; i < scsi_sg_count(scmnd); i++ )
+#else
+		for (i = 0; i < scmnd->use_sg; i++ )
+#endif
+		{
+			DPRINT_DBG(STORVSC_DRV, "sgl[%d] len %d offset %d \n", i, sgl[i].length, sgl[i].offset);
+#ifdef KERNEL_2_6_27
+			request->DataBuffer.PfnArray[i] = page_to_pfn(sg_page((&sgl[i])));
+#else
+			request->DataBuffer.PfnArray[i] = page_to_pfn(sgl[i].page);
+#endif
+		}
+	}
+
+#ifdef KERNEL_2_6_27
+	else if (scsi_sglist(scmnd))
+	{
+		ASSERT(scsi_bufflen(scmnd) <= PAGE_SIZE);
+		request->DataBuffer.Offset = virt_to_phys(scsi_sglist(scmnd)) & (PAGE_SIZE-1);
+		request->DataBuffer.PfnArray[0] = virt_to_phys(scsi_sglist(scmnd)) >> PAGE_SHIFT;
+	}
+	else
+	{
+		ASSERT(scsi_bufflen(scmnd) == 0);
+	}
+#else
+	else if (scmnd->request_buffer)
+	{
+		ASSERT(scmnd->request_bufflen <= PAGE_SIZE);
+		request->DataBuffer.Offset = virt_to_phys(scmnd->request_buffer) & (PAGE_SIZE-1);
+		request->DataBuffer.PfnArray[0] = virt_to_phys(scmnd->request_buffer) >> PAGE_SHIFT;
+	}
+	else
+	{
+		ASSERT(scmnd->request_bufflen == 0);
+	}
+#endif
+
+retry_request:
+
+	// Invokes the vsc to start an IO
+	ret = storvsc_drv_obj->OnIORequest(&device_ctx->device_obj, &cmd_request->request);
+	if (ret == -1) // no more space
+	{
+		DPRINT_ERR(STORVSC_DRV, "scmnd (%p) - queue FULL...marking queue busy", scmnd);
+
+		if (cmd_request->bounce_sgl_count)
+		{
+			// FIXME: We can optimize on writes by just skipping this
+#ifdef KERNEL_2_6_27
+			copy_from_bounce_buffer(scsi_sglist(scmnd), cmd_request->bounce_sgl, scsi_sg_count(scmnd));
+#else
+			copy_from_bounce_buffer(
+			    scmnd->request_buffer,
+			    cmd_request->bounce_sgl,
+			    scmnd->use_sg);
+#endif
+			destroy_bounce_buffer(cmd_request->bounce_sgl, cmd_request->bounce_sgl_count);
+		}
+
+		kmem_cache_free(host_device_ctx->request_pool, cmd_request);
+
+		scmnd->scsi_done = NULL;
+		scmnd->host_scribble = NULL;
+
+		ret = SCSI_MLQUEUE_DEVICE_BUSY;
+	}
+
+	DPRINT_EXIT(STORVSC_DRV);
+
+	return ret;
+}
+
+#ifdef KERNEL_2_6_27
+static int storvsc_merge_bvec(struct request_queue *q, struct bvec_merge_data *bmd, struct bio_vec *bvec)
+{
+	return bvec->bv_len; //checking done by caller.
+}
+#else
+static int storvsc_merge_bvec(struct request_queue *q, struct bio *bio, struct bio_vec *bvec)
+{
+	// Check if we are adding a new bvec
+	if (bio->bi_vcnt > 0)
+	{
+		//printk("storvsc_merge_bvec() - cnt %u offset %u len %u\n", bio->bi_vcnt, bvec->bv_offset, bvec->bv_len);
+
+		struct bio_vec *prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
+		if (bvec == prev)
+			return bvec->bv_len; // success
+
+		// Adding new bvec. Make sure the prev one is a complete page
+		if (prev->bv_len == PAGE_SIZE && prev->bv_offset == 0)
+		{
+			return bvec->bv_len; // success
+		}
+		else
+		{
+			// Dont reject if the new bvec starts off from the prev one since
+			// they will be merge into 1 bvec or blk_rq_map_sg() will merge them into 1 sg element
+			if ((bvec->bv_page == prev->bv_page) &&
+				(bvec->bv_offset == prev->bv_offset + prev->bv_len))
+			{
+				return bvec->bv_len; // success
+			}
+			else
+			{
+				DPRINT_INFO(STORVSC_DRV, "detected holes in bio request (%p) - cnt %u offset %u len %u", bio, bio->bi_vcnt, bvec->bv_offset, bvec->bv_len);
+				return 0; // dont add the bvec to this bio since we dont allow holes in the middle of a multi-pages bio
+			}
+		}
+	}
+
+	return bvec->bv_len; // success
+
+}
+
+#endif
+
+/*++
+
+Name:	storvsc_device_configure()
+
+Desc:	Configure the specified scsi device
+
+--*/
+static int storvsc_device_alloc(struct scsi_device *sdevice)
+{
+#ifdef KERNEL_2_6_5
+#else
+	DPRINT_DBG(STORVSC_DRV, "sdev (%p) - setting device flag to %d", sdevice, BLIST_SPARSELUN);
+	// This enables luns to be located sparsely. Otherwise, we may not discovered them.
+	sdevice->sdev_bflags |= BLIST_SPARSELUN | BLIST_LARGELUN;
+#endif
+	return 0;
+}
+
+static int storvsc_device_configure(struct scsi_device *sdevice)
+{
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - curr queue depth %d", sdevice, sdevice->queue_depth);
+
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - setting queue depth to %d", sdevice, STORVSC_MAX_IO_REQUESTS);
+	scsi_adjust_queue_depth(sdevice, MSG_SIMPLE_TAG, STORVSC_MAX_IO_REQUESTS);
+
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - setting max segment size to %d", sdevice, PAGE_SIZE);
+	blk_queue_max_segment_size(sdevice->request_queue, PAGE_SIZE);
+
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - adding merge bio vec routine", sdevice);
+	blk_queue_merge_bvec(sdevice->request_queue, storvsc_merge_bvec);
+
+	blk_queue_bounce_limit(sdevice->request_queue, BLK_BOUNCE_ANY);
+	//sdevice->timeout = (2000 * HZ);//(75 * HZ);
+
+	return 0;
+}
+
+/*++
+
+Name:	storvsc_host_reset_handler()
+
+Desc:	Reset the scsi HBA
+
+--*/
+static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
+{
+	int ret=SUCCESS;
+	struct host_device_context *host_device_ctx = (struct host_device_context*)scmnd->device->host->hostdata;
+	struct device_context *device_ctx = host_device_ctx->device_ctx;
+	struct driver_context *driver_ctx = driver_to_driver_context(device_ctx->device.driver);
+	struct storvsc_driver_context *storvsc_drv_ctx = (struct storvsc_driver_context*)driver_ctx;
+
+	STORVSC_DRIVER_OBJECT *storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
+
+	DPRINT_ENTER(STORVSC_DRV);
+
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host resetting...", scmnd->device, &device_ctx->device_obj);
+
+	// Invokes the vsc to reset the host/bus
+	ASSERT(storvsc_drv_obj->OnHostReset);
+	ret = storvsc_drv_obj->OnHostReset(&device_ctx->device_obj);
+	if (ret != 0)
+	{
+		DPRINT_EXIT(STORVSC_DRV);
+		return ret;
+	}
+
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host reseted", scmnd->device, &device_ctx->device_obj);
+
+	DPRINT_EXIT(STORVSC_DRV);
+
+	return ret;
+}
+
+/*++
+
+Name:	storvsc_host_rescan
+
+Desc:	Rescan the scsi HBA
+
+--*/
+#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
+#else
+
+#ifdef KERNEL_2_6_27
+static void storvsc_host_rescan_callback(struct work_struct *work)
+{
+	DEVICE_OBJECT* device_obj =
+	    &((struct host_device_context*)work)->device_ctx->device_obj;
+#else
+static void storvsc_host_rescan_callback(void* context)
+{
+
+	DEVICE_OBJECT* device_obj = (DEVICE_OBJECT*)context;
+#endif
+	struct device_context* device_ctx = to_device_context(device_obj);
+	struct Scsi_Host *host = (struct Scsi_Host *)device_ctx->device.driver_data;
+	struct scsi_device *sdev;
+	struct host_device_context *host_device_ctx;
+	struct scsi_device **sdevs_remove_list;
+	unsigned int sdevs_count=0;
+	unsigned int found;
+	unsigned int i;
+	unsigned int lun_count=0;
+	unsigned int *lun_list;
+
+	DPRINT_ENTER(STORVSC_DRV);
+
+	host_device_ctx = (struct host_device_context*)host->hostdata;
+	lun_list = kzalloc(sizeof(unsigned int)*STORVSC_MAX_LUNS_PER_TARGET, GFP_ATOMIC);
+	if (!lun_list)
+	{
+		DPRINT_ERR(STORVSC_DRV, "unable to allocate lun list");
+		return;
+	}
+
+	sdevs_remove_list = kzalloc(sizeof(void*)*STORVSC_MAX_LUNS_PER_TARGET, GFP_ATOMIC);
+	if (!sdevs_remove_list)
+	{
+		kfree(lun_list);
+		DPRINT_ERR(STORVSC_DRV, "unable to allocate lun remove list");
+		return;
+	}
+
+	DPRINT_INFO(STORVSC_DRV, "rescanning host for new scsi devices...", device_obj, host_device_ctx->target, host_device_ctx->path);
+
+	// Rescan for new device
+	scsi_scan_target(&host->shost_gendev, host_device_ctx->path, host_device_ctx->target, SCAN_WILD_CARD, 1);
+
+	DPRINT_INFO(STORVSC_DRV, "rescanning host for removed scsi device...");
+
+	// Use the 1st device to send the report luns cmd
+	shost_for_each_device(sdev, host)
+	{
+		lun_count=STORVSC_MAX_LUNS_PER_TARGET;
+		storvsc_report_luns(sdev, lun_list, &lun_count);
+
+		DPRINT_INFO(STORVSC_DRV, "report luns on scsi device (%p) found %u luns ", sdev, lun_count);
+		DPRINT_INFO(STORVSC_DRV, "existing luns on scsi device (%p) host (%d)", sdev, host->host_no);
+
+		scsi_device_put(sdev);
+		break;
+	}
+
+	for (i=0; i<lun_count; i++)
+	{
+		DPRINT_INFO(STORVSC_DRV, "%d) lun %u", i, lun_list[i]);
+	}
+
+	// Rescan for devices that may have been removed.
+	// We do not have to worry that new devices may have been added since
+	// this callback is serialized by the workqueue ie add/remove are done here.
+	shost_for_each_device(sdev, host)
+	{
+		// See if this device is still here
+		found = 0;
+		for (i=0; i<lun_count; i++)
+		{
+			if (sdev->lun == lun_list[i])
+			{
+				found = 1;
+				break;
+			}
+		}
+		if (!found)
+		{
+			DPRINT_INFO(STORVSC_DRV, "lun (%u) does not exists", sdev->lun);
+			sdevs_remove_list[sdevs_count++] = sdev;
+		}
+	}
+
+	// Now remove the devices
+	for (i=0; i< sdevs_count; i++)
+	{
+		DPRINT_INFO(STORVSC_DRV, "removing scsi device (%p) lun (%u)...",
+					sdevs_remove_list[i], sdevs_remove_list[i]->lun);
+
+		// make sure it is not removed from underneath us
+		if (!scsi_device_get(sdevs_remove_list[i]))
+		{
+			scsi_remove_device(sdevs_remove_list[i]);
+			scsi_device_put(sdevs_remove_list[i]);
+		}
+	}
+
+	DPRINT_INFO(STORVSC_DRV, "rescan completed on dev obj (%p) target (%u) bus (%u)", device_obj, host_device_ctx->target, host_device_ctx->path);
+
+	kfree(lun_list);
+	kfree(sdevs_remove_list);
+
+	DPRINT_EXIT(STORVSC_DRV);
+}
+
+static int storvsc_report_luns(struct scsi_device *sdev, unsigned int luns[], unsigned int *lun_count)
+{
+	int i,j;
+	unsigned int lun=0;
+	unsigned int num_luns;
+	int result;
+	unsigned char *data;
+#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
+#else
+	struct scsi_sense_hdr sshdr;
+#endif
+	unsigned char cmd[16]={0};
+	unsigned int report_len = 8*(STORVSC_MAX_LUNS_PER_TARGET+1); // Add 1 to cover the report_lun header
+	unsigned long long *report_luns;
+	const unsigned int in_lun_count = *lun_count;
+
+	*lun_count = 0;
+
+	report_luns = kzalloc(report_len, GFP_ATOMIC);
+	if (!report_luns)
+	{
+		return -ENOMEM;
+	}
+
+	cmd[0] = REPORT_LUNS;
+
+	// cmd length
+	*(unsigned int*)&cmd[6] = cpu_to_be32(report_len);
+
+	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, (unsigned char*)report_luns, report_len, &sshdr, 30*HZ, 3);
+	if (result != 0)
+	{
+		kfree(report_luns);
+		return -EBUSY;
+	}
+
+	// get the length from the first four bytes
+	report_len = be32_to_cpu(*(unsigned int*)&report_luns[0]);
+
+	num_luns = (report_len / sizeof(unsigned long long));
+	if (num_luns > in_lun_count)
+	{
+		kfree(report_luns);
+		return -EINVAL;
+	}
+
+	*lun_count = num_luns;
+
+	DPRINT_DBG(STORVSC_DRV, "report luns on scsi device (%p) found %u luns ", sdev, num_luns);
+
+	// lun id starts at 1
+	for (i=1; i< num_luns+1; i++)
+	{
+		lun = 0;
+		data = (unsigned char*)&report_luns[i];
+		for (j = 0; j < sizeof(lun); j += 2)
+		 {
+			 lun = lun | (((data[j] << 8) | data[j + 1]) << (j * 8));
+		 }
+
+		luns[i-1] = lun;
+	}
+
+	kfree(report_luns);
+	return 0;
+}
+#endif // KERNEL_2_6_9
+
+static void storvsc_host_rescan(DEVICE_OBJECT* device_obj)
+{
+	struct device_context* device_ctx = to_device_context(device_obj);
+	struct Scsi_Host *host = (struct Scsi_Host *)device_ctx->device.driver_data;
+	struct host_device_context *host_device_ctx;
+
+	DPRINT_ENTER(STORVSC_DRV);
+#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
+	DPRINT_ERR(STORVSC_DRV, "rescan not supported on 2.6.9 kernels!! You will need to reboot if you have added or removed the scsi lun device");
+#else
+
+	host_device_ctx = (struct host_device_context*)host->hostdata;
+
+	DPRINT_INFO(STORVSC_DRV, "initiating rescan on dev obj (%p) target (%u) bus (%u)...", device_obj, host_device_ctx->target, host_device_ctx->path);
+
+	// We need to queue this since the scanning may block and the caller may be in an intr context
+	//scsi_queue_work(host, &host_device_ctx->host_rescan_work);
+	schedule_work(&host_device_ctx->host_rescan_work);
+#endif // KERNEL_2_6_9
+	DPRINT_EXIT(STORVSC_DRV);
+}
+
+static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev, sector_t capacity, int *info)
+{
+	sector_t total_sectors = capacity;
+	sector_t cylinder_times_heads=0;
+	sector_t temp=0;
+
+	int sectors_per_track=0;
+	int heads=0;
+	int cylinders=0;
+	int rem=0;
+
+    if (total_sectors > (65535 * 16 * 255)) {
+        total_sectors = (65535 * 16 * 255);
+    }
+
+    if (total_sectors >= (65535 * 16 * 63)) {
+        sectors_per_track = 255;
+        heads = 16;
+
+		cylinder_times_heads = total_sectors;
+		rem = sector_div(cylinder_times_heads, sectors_per_track); // sector_div stores the quotient in cylinder_times_heads
+    }
+	else
+	{
+        sectors_per_track = 17;
+
+		cylinder_times_heads = total_sectors;
+        rem = sector_div(cylinder_times_heads, sectors_per_track); 	// sector_div stores the quotient in cylinder_times_heads
+
+		temp = cylinder_times_heads + 1023;
+		rem = sector_div(temp, 1024); 	// sector_div stores the quotient in temp
+
+		heads = temp;
+
+        if (heads < 4) {
+            heads = 4;
+        }
+
+        if (cylinder_times_heads >= (heads * 1024) || (heads > 16)) {
+            sectors_per_track = 31;
+            heads = 16;
+
+			cylinder_times_heads = total_sectors;
+            rem = sector_div(cylinder_times_heads, sectors_per_track); // sector_div stores the quotient in cylinder_times_heads
+        }
+
+        if (cylinder_times_heads >= (heads * 1024)) {
+            sectors_per_track = 63;
+            heads = 16;
+
+			cylinder_times_heads = total_sectors;
+            rem = sector_div(cylinder_times_heads, sectors_per_track); // sector_div stores the quotient in cylinder_times_heads
+        }
+    }
+
+	temp = cylinder_times_heads;
+    rem = sector_div(temp, heads); // sector_div stores the quotient in temp
+	cylinders = temp;
+
+	info[0] = heads;
+    info[1] = sectors_per_track;
+    info[2] = cylinders;
+
+	DPRINT_INFO(STORVSC_DRV, "CHS (%d, %d, %d)", cylinders, heads, sectors_per_track);
+
+    return 0;
+}
+
+MODULE_LICENSE("GPL");
+
+static int __init storvsc_init(void)
+{
+	int ret;
+
+	DPRINT_ENTER(STORVSC_DRV);
+
+	DPRINT_INFO(STORVSC_DRV, "Storvsc initializing....");
+
+	ret = storvsc_drv_init(StorVscInitialize);
+
+	DPRINT_EXIT(STORVSC_DRV);
+
+	return ret;
+}
+
+static void __exit storvsc_exit(void)
+{
+	DPRINT_ENTER(STORVSC_DRV);
+
+	storvsc_drv_exit();
+
+	DPRINT_ENTER(STORVSC_DRV);
+}
+
+module_param(storvsc_ringbuffer_size, int, S_IRUGO);
+
+module_init(storvsc_init);
+module_exit(storvsc_exit);
+
+// eof
