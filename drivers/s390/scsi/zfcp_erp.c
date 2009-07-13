@@ -848,11 +848,17 @@ void zfcp_erp_port_strategy_open_lookup(struct work_struct *work)
 					      gid_pn_work);
 
 	retval = zfcp_fc_ns_gid_pn(&port->erp_action);
-	if (retval == -ENOMEM)
+	if (!retval) {
+		port->erp_action.step = ZFCP_ERP_STEP_NAMESERVER_LOOKUP;
+		goto out;
+	}
+	if (retval == -ENOMEM) {
 		zfcp_erp_notify(&port->erp_action, ZFCP_STATUS_ERP_LOWMEM);
-	port->erp_action.step = ZFCP_ERP_STEP_NAMESERVER_LOOKUP;
-	if (retval)
-		zfcp_erp_notify(&port->erp_action, 0);
+		goto out;
+	}
+	/* all other error condtions */
+	zfcp_erp_notify(&port->erp_action, 0);
+out:
 	zfcp_port_put(port);
 }
 
