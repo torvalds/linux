@@ -193,6 +193,7 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 			mlog(ML_ERROR, "Size %llu, clusters %u\n", (unsigned long long)i_size_read(inode), OCFS2_I(inode)->ip_clusters);
 			dump_stack();
+			goto bail;
 		}
 
 		past_eof = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
