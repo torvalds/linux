@@ -1539,7 +1539,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			info = IEEE80211_SKB_CB(fwd_skb);
 			memset(info, 0, sizeof(*info));
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
-			fwd_skb->iif = rx->dev->ifindex;
+			info->control.vif = &rx->sdata->vif;
 			ieee80211_select_queue(local, fwd_skb);
 			if (is_multicast_ether_addr(fwd_hdr->addr3))
 				memcpy(fwd_hdr->addr1, fwd_hdr->addr3,
