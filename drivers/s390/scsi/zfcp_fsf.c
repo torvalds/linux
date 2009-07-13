@@ -670,8 +670,11 @@ static int zfcp_fsf_req_sbal_get(struct zfcp_adapter *adapter)
 			       zfcp_fsf_sbal_check(adapter), 5 * HZ);
 	if (ret > 0)
 		return 0;
-	if (!ret)
+	if (!ret) {
 		atomic_inc(&adapter->qdio_outb_full);
+		/* assume hanging outbound queue, try queue recovery */
+		zfcp_erp_adapter_reopen(adapter, 0, "fsrsg_1", NULL);
+	}
 
 	spin_lock_bh(&adapter->req_q_lock);
 	return -EIO;
