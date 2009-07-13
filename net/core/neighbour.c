@@ -1316,7 +1316,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 }
 EXPORT_SYMBOL(pneigh_enqueue);
 
-static inline struct neigh_parms *lookup_neigh_params(struct neigh_table *tbl,
+static inline struct neigh_parms *lookup_neigh_parms(struct neigh_table *tbl,
 						      struct net *net, int ifindex)
 {
 	struct neigh_parms *p;
@@ -1337,7 +1337,7 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 	struct net *net = dev_net(dev);
 	const struct net_device_ops *ops = dev->netdev_ops;
 
-	ref = lookup_neigh_params(tbl, net, 0);
+	ref = lookup_neigh_parms(tbl, net, 0);
 	if (!ref)
 		return NULL;
 
@@ -1906,7 +1906,7 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		if (tbp[NDTPA_IFINDEX])
 			ifindex = nla_get_u32(tbp[NDTPA_IFINDEX]);
 
-		p = lookup_neigh_params(tbl, net, ifindex);
+		p = lookup_neigh_parms(tbl, net, ifindex);
 		if (p == NULL) {
 			err = -ENOENT;
 			goto errout_tbl_lock;
