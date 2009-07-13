@@ -218,23 +218,18 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	else
 		unmapped_base = TASK_UNMAPPED_BASE_USER64;
 
-	if (is_kernel_addr(pc))
+	if (is_kernel_addr(pc) || is_kernel_addr(stack) ||
+	    is_kernel_addr(unmapped_base))
 		return;
+
 	slb_allocate(pc);
 
-	if (esids_match(pc,stack))
-		return;
+	if (!esids_match(pc, stack))
+		slb_allocate(stack);
 
-	if (is_kernel_addr(stack))
-		return;
-	slb_allocate(stack);
-
-	if (esids_match(pc,unmapped_base) || esids_match(stack,unmapped_base))
-		return;
-
-	if (is_kernel_addr(unmapped_base))
-		return;
-	slb_allocate(unmapped_base);
+	if (!esids_match(pc, unmapped_base) &&
+	    !esids_match(stack, unmapped_base))
+		slb_allocate(unmapped_base);
 }
 
 static inline void patch_slb_encoding(unsigned int *insn_addr,
