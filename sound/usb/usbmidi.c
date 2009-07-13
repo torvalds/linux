@@ -45,6 +45,7 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/usb.h>
+#include <linux/wait.h>
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 #include <sound/asequencer.h>
@@ -124,9 +125,10 @@ struct snd_usb_midi_out_endpoint {
 		struct snd_usb_midi_out_endpoint *ep;
 	} urbs[OUTPUT_URBS];
 	unsigned int active_urbs;
+	unsigned int drain_urbs;
 	int max_transfer;		/* size of urb buffer */
 	struct tasklet_struct tasklet;
-
+	unsigned int next_urb;
 	spinlock_t buffer_lock;
 
 	struct usbmidi_out_port {
@@ -145,6 +147,8 @@ struct snd_usb_midi_out_endpoint {
 		uint8_t data[2];
 	} ports[0x10];
 	int current_port;
+
+	wait_queue_head_t drain_wait;
 };
 
 struct snd_usb_midi_in_endpoint {
@@ -259,9 +263,15 @@ static void snd_usbmidi_out_urb_complete(struct urb* urb)
 {
 	struct out_urb_context *context = urb->context;
 	struct snd_usb_midi_out_endpoint* ep = context->ep;
+	unsigned int urb_index;
 
 	spin_lock(&ep->buffer_lock);
-	ep->active_urbs &= ~(1 << (context - ep->urbs));
+	urb_index = context - ep->urbs;
+	ep->active_urbs &= ~(1 << urb_index);
+	if (unlikely(ep->drain_urbs)) {
+		ep->drain_urbs &= ~(1 << urb_index);
+		wake_up(&ep->drain_wait);
+	}
 	spin_unlock(&ep->buffer_lock);
 	if (urb->status < 0) {
 		int err = snd_usbmidi_urb_error(urb->status);
@@ -291,28 +301,28 @@ static void snd_usbmidi_do_output(struct snd_usb_midi_out_endpoint* ep)
 		return;
 	}
 
+	urb_index = ep->next_urb;
 	for (;;) {
-		urb = NULL;
-		for (urb_index = 0; urb_index < OUTPUT_URBS; ++urb_index)
-			if (!(ep->active_urbs & (1 << urb_index))) {
-				urb = ep->urbs[urb_index].urb;
+		if (!(ep->active_urbs & (1 << urb_index))) {
+			urb = ep->urbs[urb_index].urb;
+			urb->transfer_buffer_length = 0;
+			ep->umidi->usb_protocol_ops->output(ep, urb);
+			if (urb->transfer_buffer_length == 0)
 				break;
-			}
-		if (!urb)
-			break;
 
-		urb->transfer_buffer_length = 0;
-		ep->umidi->usb_protocol_ops->output(ep, urb);
-		if (urb->transfer_buffer_length == 0)
+			dump_urb("sending", urb->transfer_buffer,
+				 urb->transfer_buffer_length);
+			urb->dev = ep->umidi->chip->dev;
+			if (snd_usbmidi_submit_urb(urb, GFP_ATOMIC) < 0)
+				break;
+			ep->active_urbs |= 1 << urb_index;
+		}
+		if (++urb_index >= OUTPUT_URBS)
+			urb_index = 0;
+		if (urb_index == ep->next_urb)
 			break;
-
-		dump_urb("sending", urb->transfer_buffer,
-			 urb->transfer_buffer_length);
-		urb->dev = ep->umidi->chip->dev;
-		if (snd_usbmidi_submit_urb(urb, GFP_ATOMIC) < 0)
-			break;
-		ep->active_urbs |= 1 << urb_index;
 	}
+	ep->next_urb = urb_index;
 	spin_unlock_irqrestore(&ep->buffer_lock, flags);
 }
 
@@ -913,6 +923,35 @@ static void snd_usbmidi_output_trigger(struct snd_rawmidi_substream *substream, 
 	}
 }
 
+static void snd_usbmidi_output_drain(struct snd_rawmidi_substream *substream)
+{
+	struct usbmidi_out_port* port = substream->runtime->private_data;
+	struct snd_usb_midi_out_endpoint *ep = port->ep;
+	unsigned int drain_urbs;
+	DEFINE_WAIT(wait);
+	long timeout = msecs_to_jiffies(50);
+
+	/*
+	 * The substream buffer is empty, but some data might still be in the
+	 * currently active URBs, so we have to wait for those to complete.
+	 */
+	spin_lock_irq(&ep->buffer_lock);
+	drain_urbs = ep->active_urbs;
+	if (drain_urbs) {
+		ep->drain_urbs |= drain_urbs;
+		do {
+			prepare_to_wait(&ep->drain_wait, &wait,
+					TASK_UNINTERRUPTIBLE);
+			spin_unlock_irq(&ep->buffer_lock);
+			timeout = schedule_timeout(timeout);
+			spin_lock_irq(&ep->buffer_lock);
+			drain_urbs &= ep->drain_urbs;
+		} while (drain_urbs && timeout);
+		finish_wait(&ep->drain_wait, &wait);
+	}
+	spin_unlock_irq(&ep->buffer_lock);
+}
+
 static int snd_usbmidi_input_open(struct snd_rawmidi_substream *substream)
 {
 	return 0;
@@ -937,6 +976,7 @@ static struct snd_rawmidi_ops snd_usbmidi_output_ops = {
 	.open = snd_usbmidi_output_open,
 	.close = snd_usbmidi_output_close,
 	.trigger = snd_usbmidi_output_trigger,
+	.drain = snd_usbmidi_output_drain,
 };
 
 static struct snd_rawmidi_ops snd_usbmidi_input_ops = {
@@ -1103,6 +1143,7 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 
 	spin_lock_init(&ep->buffer_lock);
 	tasklet_init(&ep->tasklet, snd_usbmidi_out_tasklet, (unsigned long)ep);
+	init_waitqueue_head(&ep->drain_wait);
 
 	for (i = 0; i < 0x10; ++i)
 		if (ep_info->out_cables & (1 << i)) {
