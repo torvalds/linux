@@ -27,9 +27,6 @@
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP crypt: WEP");
 MODULE_LICENSE("GPL");
-#ifndef OPENSUSE_SLED
-#define OPENSUSE_SLED 0
-#endif
 
 struct prism2_wep_data {
 	u32 iv;

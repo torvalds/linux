@@ -31,10 +31,6 @@ MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP crypt: TKIP");
 MODULE_LICENSE("GPL");
 
-#ifndef OPENSUSE_SLED
-#define OPENSUSE_SLED 0
-#endif
-
 struct ieee80211_tkip_data {
 #define TKIP_KEY_LEN 32
 	u8 key[TKIP_KEY_LEN];

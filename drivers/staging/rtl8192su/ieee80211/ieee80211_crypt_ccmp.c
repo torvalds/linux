@@ -31,10 +31,6 @@ MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP crypt: CCMP");
 MODULE_LICENSE("GPL");
 
-#ifndef OPENSUSE_SLED
-#define OPENSUSE_SLED 0
-#endif
-
 #define AES_BLOCK_LEN 16
 #define CCMP_HDR_LEN 8
 #define CCMP_MIC_LEN 8
