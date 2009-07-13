@@ -498,6 +498,7 @@ config TOUCHSCREEN_TSC2007
 
 config TOUCHSCREEN_W90X900
 	tristate "W90P910 touchscreen driver"
+	depends on HAVE_CLK
 	help
 	  Say Y here if you have a W90P910 based touchscreen.
 
