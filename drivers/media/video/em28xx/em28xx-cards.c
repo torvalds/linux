@@ -234,6 +234,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2820_BOARD_UNKNOWN] = {
 		.name          = "Unknown EM2750/28xx video grabber",
 		.tuner_type    = TUNER_ABSENT,
+		.is_webcam     = 1,	/* To enable sensor probe */
 	},
 	[EM2750_BOARD_DLCW_130] = {
 		/* Beijing Huaqi Information Digital Technology Co., Ltd */
@@ -1719,10 +1720,6 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	__be16 version_be;
 	u16 version;
 
-	if (dev->model != EM2820_BOARD_UNKNOWN &&
-	    dev->model != EM2750_BOARD_UNKNOWN)
-		return 0;
-
 	dev->i2c_client.addr = 0xba >> 1;
 	cmd = 0;
 	i2c_master_send(&dev->i2c_client, &cmd, 1);
@@ -1777,10 +1774,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 			em28xx_info("chip ID is em2750\n");
 			break;
 		case CHIP_ID_EM2820:
-			if (dev->board.is_webcam)
-				em28xx_info("chip is em2710\n");
-			else
-				em28xx_info("chip ID is em2820\n");
+			em28xx_info("chip ID is em2710 or em2820\n");
 			break;
 		case CHIP_ID_EM2840:
 			em28xx_info("chip ID is em2840\n");
@@ -2415,7 +2409,13 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		return errCode;
 	}
 
-	em28xx_hint_sensor(dev);
+	/*
+	 * If the device can be a webcam, seek for a sensor.
+	 * If sensor is not found, then it isn't a webcam.
+	 */
+	if (dev->board.is_webcam)
+		if (em28xx_hint_sensor(dev) < 0)
+			dev->board.is_webcam = 0;
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
