@@ -401,7 +401,7 @@ int selinux_xfrm_state_delete(struct xfrm_state *x)
  * gone thru the IPSec process.
  */
 int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
-				struct common_audit_data *ad)
+				struct avc_audit_data *ad)
 {
 	int i, rc = 0;
 	struct sec_path *sp;
@@ -442,7 +442,7 @@ int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
  * checked in the selinux_xfrm_state_pol_flow_match hook above.
  */
 int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
-					struct common_audit_data *ad, u8 proto)
+					struct avc_audit_data *ad, u8 proto)
 {
 	struct dst_entry *dst;
 	int rc = 0;
