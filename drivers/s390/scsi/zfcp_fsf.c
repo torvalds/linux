@@ -1731,15 +1731,16 @@ static void zfcp_fsf_close_physical_port_handler(struct zfcp_fsf_req *req)
 		zfcp_fsf_access_denied_port(req, port);
 		break;
 	case FSF_PORT_BOXED:
-		zfcp_erp_port_boxed(port, "fscpph2", req);
-		req->status |= ZFCP_STATUS_FSFREQ_ERROR |
-			       ZFCP_STATUS_FSFREQ_RETRY;
 		/* can't use generic zfcp_erp_modify_port_status because
 		 * ZFCP_STATUS_COMMON_OPEN must not be reset for the port */
 		atomic_clear_mask(ZFCP_STATUS_PORT_PHYS_OPEN, &port->status);
 		list_for_each_entry(unit, &port->unit_list_head, list)
 			atomic_clear_mask(ZFCP_STATUS_COMMON_OPEN,
 					  &unit->status);
+		zfcp_erp_port_boxed(port, "fscpph2", req);
+		req->status |= ZFCP_STATUS_FSFREQ_ERROR |
+			       ZFCP_STATUS_FSFREQ_RETRY;
+
 		break;
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		switch (header->fsf_status_qual.word[0]) {
