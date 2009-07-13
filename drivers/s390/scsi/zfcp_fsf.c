@@ -1627,10 +1627,10 @@ static void zfcp_fsf_open_wka_port_handler(struct zfcp_fsf_req *req)
 	case FSF_ACCESS_DENIED:
 		wka_port->status = ZFCP_WKA_PORT_OFFLINE;
 		break;
-	case FSF_PORT_ALREADY_OPEN:
-		break;
 	case FSF_GOOD:
 		wka_port->handle = header->port_handle;
+		/* fall through */
+	case FSF_PORT_ALREADY_OPEN:
 		wka_port->status = ZFCP_WKA_PORT_ONLINE;
 	}
 out:
