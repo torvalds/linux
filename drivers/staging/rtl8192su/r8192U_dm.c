@@ -17,7 +17,6 @@ Major Change History:
 
 #include "r8192U.h"
 #include "r8192U_dm.h"
-//#include "r8190_rtl8256.h"
 #include "r819xU_cmdpkt.h"
 #include "r8192S_hw.h"
 #include "r8192S_phy.h"

@@ -60,7 +60,6 @@ double __extendsfdf2(float a) {return a;}
 
 #include <asm/uaccess.h>
 #include "r8192U.h"
-//#include "r8190_rtl8256.h" /* RTL8225 Radio frontend */
 #include "r8180_93cx6.h"   /* Card EEPROM */
 #include "r8192U_wx.h"
 

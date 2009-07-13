@@ -17,7 +17,6 @@
 
 #include "r8192S_hw.h"
 #include "r8192SU_HWImg.h"
-//#include "r8192S_FwImgDTM.h"
 
 #include <linux/firmware.h>
 

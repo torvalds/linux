@@ -39,7 +39,6 @@
 #include "r8192S_phy.h"
 #include "r8192S_phyreg.h"
 #include "r8192SU_HWImg.h"
-//#include "r8192S_FwImgDTM.h"
 
 #include "ieee80211/dot11d.h"
 
