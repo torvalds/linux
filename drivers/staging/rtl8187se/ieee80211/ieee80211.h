@@ -457,19 +457,21 @@ Total: 28-2340 bytes
 */
 
 /* Management Frame Information Element Types */
-#define MFIE_TYPE_SSID       0
-#define MFIE_TYPE_RATES      1
-#define MFIE_TYPE_FH_SET     2
-#define MFIE_TYPE_DS_SET     3
-#define MFIE_TYPE_CF_SET     4
-#define MFIE_TYPE_TIM        5
-#define MFIE_TYPE_IBSS_SET   6
-#define MFIE_TYPE_COUNTRY  7 //+YJ,080625
-#define MFIE_TYPE_CHALLENGE  16
-#define MFIE_TYPE_ERP        42
-#define MFIE_TYPE_RSN	     48
-#define MFIE_TYPE_RATES_EX   50
-#define MFIE_TYPE_GENERIC    221
+enum {
+	MFIE_TYPE_SSID = 0,
+	MFIE_TYPE_RATES = 1,
+	MFIE_TYPE_FH_SET = 2,
+	MFIE_TYPE_DS_SET = 3,
+	MFIE_TYPE_CF_SET = 4,
+	MFIE_TYPE_TIM = 5,
+	MFIE_TYPE_IBSS_SET = 6,
+	MFIE_TYPE_COUNTRY = 7,
+	MFIE_TYPE_CHALLENGE = 16,
+	MFIE_TYPE_ERP = 42,
+	MFIE_TYPE_RSN = 48,
+	MFIE_TYPE_RATES_EX = 50,
+	MFIE_TYPE_GENERIC = 221,
+};
 
 struct ieee80211_header_data {
 	u16 frame_ctl;
