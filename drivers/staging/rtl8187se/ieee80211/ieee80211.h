@@ -133,102 +133,14 @@ typedef struct ieee_param {
    represents the 2304 bytes of real data, plus a possible 8 bytes of
    WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
 
-
-#define IEEE80211_HLEN			30
-#define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
-
-/* this is stolen and modified from the madwifi driver*/
-#define IEEE80211_FC0_TYPE_MASK		0x0c
-#define IEEE80211_FC0_TYPE_DATA		0x08
-#define IEEE80211_FC0_SUBTYPE_MASK	0xB0
-#define IEEE80211_FC0_SUBTYPE_QOS	0x80
-
-#define IEEE80211_QOS_HAS_SEQ(fc) \
-	(((fc) & (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) == \
-	 (IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_QOS))
-
-/* this is stolen from ipw2200 driver */
-#define IEEE_IBSS_MAC_HASH_SIZE 31
-struct ieee_ibss_seq {
-	u8 mac[ETH_ALEN];
-	u16 seq_num[17];
-	u16 frag_num[17];
-	unsigned long packet_time[17];
-	struct list_head list;
-};
-
-struct ieee80211_hdr_4addr {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_4addrqos {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-	u16 qos_ctl;
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_3addr {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_3addrqos {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-	u16 qos_ctl;
-} __attribute__ ((packed));
-
-enum eap_type {
-	EAP_PACKET = 0,
-	EAPOL_START,
-	EAPOL_LOGOFF,
-	EAPOL_KEY,
-	EAPOL_ENCAP_ASF_ALERT
-};
-
-static const char *eap_types[] = {
-	[EAP_PACKET]		= "EAP-Packet",
-	[EAPOL_START]		= "EAPOL-Start",
-	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
-	[EAPOL_KEY]		= "EAPOL-Key",
-	[EAPOL_ENCAP_ASF_ALERT]	= "EAPOL-Encap-ASF-Alert"
-};
-
-static inline const char *eap_get_type(int type)
-{
-	return (type >= ARRAY_SIZE(eap_types)) ? "Unknown" : eap_types[type];
-}
-
-struct eapol {
-	u8 snap[6];
-	u16 ethertype;
-	u8 version;
-	u8 type;
-	u16 length;
-} __attribute__ ((packed));
-
 #define IEEE80211_3ADDR_LEN 24
 #define IEEE80211_4ADDR_LEN 30
 #define IEEE80211_FCS_LEN    4
+#define IEEE80211_HLEN			IEEE80211_4ADDR_LEN
+#define IEEE80211_FRAME_LEN		(IEEE80211_DATA_LEN + IEEE80211_HLEN)
+#define IEEE80211_MGMT_HDR_LEN 24
+#define IEEE80211_DATA_HDR3_LEN 24
+#define IEEE80211_DATA_HDR4_LEN 30
 
 #define MIN_FRAG_THRESHOLD     256U
 #define	MAX_FRAG_THRESHOLD     2346U
@@ -248,6 +160,10 @@ do { if (ieee80211_debug_level & (level)) \
 #else
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
+
+#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], \
+		   ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
 
 /*
  * To use the debug system;
@@ -344,11 +260,6 @@ struct ieee80211_snap_hdr {
 #define WLAN_CAPABILITY_BSS (1<<0)
 #define WLAN_CAPABILITY_SHORT_SLOT (1<<10)
 
-#define IEEE80211_MGMT_HDR_LEN 24
-#define IEEE80211_DATA_HDR3_LEN 24
-#define IEEE80211_DATA_HDR4_LEN 30
-
-
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
 #define IEEE80211_STATMASK_RSSI (1<<1)
 #define IEEE80211_STATMASK_NOISE (1<<2)
@@ -415,8 +326,25 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_NUM_CCK_RATES	            4
 #define IEEE80211_OFDM_SHIFT_MASK_A         4
 
+/* this is stolen and modified from the madwifi driver*/
+#define IEEE80211_FC0_TYPE_MASK		0x0c
+#define IEEE80211_FC0_TYPE_DATA		0x08
+#define IEEE80211_FC0_SUBTYPE_MASK	0xB0
+#define IEEE80211_FC0_SUBTYPE_QOS	0x80
 
+#define IEEE80211_QOS_HAS_SEQ(fc) \
+	(((fc) & (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) == \
+	 (IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_QOS))
 
+/* this is stolen from ipw2200 driver */
+#define IEEE_IBSS_MAC_HASH_SIZE 31
+struct ieee_ibss_seq {
+	u8 mac[ETH_ALEN];
+	u16 seq_num[17];
+	u16 frag_num[17];
+	unsigned long packet_time[17];
+	struct list_head list;
+};
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
@@ -475,26 +403,6 @@ struct ieee80211_stats {
 	unsigned int rx_message_in_bad_msg_fragments;
 };
 
-struct ieee80211_softmac_stats{
-	unsigned int rx_ass_ok;
-	unsigned int rx_ass_err;
-	unsigned int rx_probe_rq;
-	unsigned int tx_probe_rs;
-	unsigned int tx_beacons;
-	unsigned int rx_auth_rq;
-	unsigned int rx_auth_rs_ok;
-	unsigned int rx_auth_rs_err;
-	unsigned int tx_auth_rq;
-	unsigned int no_auth_rs;
-	unsigned int no_ass_rs;
-	unsigned int tx_ass_rq;
-	unsigned int rx_ass_rq;
-	unsigned int tx_probe_rq;
-	unsigned int reassoc;
-	unsigned int swtxstop;
-	unsigned int swtxawake;
-};
-
 struct ieee80211_device;
 
 #include "ieee80211_crypt.h"
@@ -548,17 +456,6 @@ Total: 28-2340 bytes
 
 */
 
-struct ieee80211_header_data {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
-	u16 seq_ctrl;
-};
-
-#define BEACON_PROBE_SSID_ID_POSITION 12
-
 /* Management Frame Information Element Types */
 #define MFIE_TYPE_SSID       0
 #define MFIE_TYPE_RATES      1
@@ -574,20 +471,54 @@ struct ieee80211_header_data {
 #define MFIE_TYPE_RATES_EX   50
 #define MFIE_TYPE_GENERIC    221
 
-typedef enum
-{
-	COUNTRY_CODE_FCC = 0,
-	COUNTRY_CODE_IC = 1,
-	COUNTRY_CODE_ETSI = 2,
-	COUNTRY_CODE_SPAIN = 3,
-	COUNTRY_CODE_FRANCE = 4,
-	COUNTRY_CODE_MKK = 5,
-	COUNTRY_CODE_MKK1 = 6,
-	COUNTRY_CODE_ISRAEL = 7,
-	COUNTRY_CODE_TELEC = 8,
-	COUNTRY_CODE_GLOBAL_DOMAIN = 9,
-	COUNTRY_CODE_WORLD_WIDE_13_INDEX = 10
-}country_code_type_t;
+struct ieee80211_header_data {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[6];
+	u8 addr2[6];
+	u8 addr3[6];
+	u16 seq_ctrl;
+};
+
+struct ieee80211_hdr_3addr {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_4addr {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u8 addr4[ETH_ALEN];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_3addrqos {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u16 qos_ctl;
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_4addrqos {
+	u16 frame_ctl;
+	u16 duration_id;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	u16 seq_ctl;
+	u8 addr4[ETH_ALEN];
+	u16 qos_ctl;
+} __attribute__ ((packed));
 
 struct ieee80211_info_element_hdr {
 	u8 id;
@@ -600,26 +531,6 @@ struct ieee80211_info_element {
 	u8 data[0];
 } __attribute__ ((packed));
 
-/*
- * These are the data types that can make up management packets
- *
-	u16 auth_algorithm;
-	u16 auth_sequence;
-	u16 beacon_interval;
-	u16 capability;
-	u8 current_ap[ETH_ALEN];
-	u16 listen_interval;
-	struct {
-		u16 association_id:14, reserved:2;
-	} __attribute__ ((packed));
-	u32 time_stamp[2];
-	u16 reason;
-	u16 status;
-*/
-
-#define IEEE80211_DEFAULT_TX_ESSID "Penguin"
-#define IEEE80211_DEFAULT_BASIC_RATE 10
-
 struct ieee80211_authentication {
 	struct ieee80211_header_data header;
 	u16 algorithm;
@@ -628,6 +539,15 @@ struct ieee80211_authentication {
 	//struct ieee80211_info_element_hdr info_element;
 } __attribute__ ((packed));
 
+struct ieee80211_disassoc_frame {
+	struct ieee80211_hdr_3addr header;
+	u16    reasoncode;
+} __attribute__ ((packed));
+
+struct ieee80211_probe_request {
+	struct ieee80211_header_data header;
+	/* struct ieee80211_info_element info_element; */
+} __attribute__ ((packed));
 
 struct ieee80211_probe_response {
 	struct ieee80211_header_data header;
@@ -635,11 +555,6 @@ struct ieee80211_probe_response {
 	u16 beacon_interval;
 	u16 capability;
 	struct ieee80211_info_element info_element;
-} __attribute__ ((packed));
-
-struct ieee80211_probe_request {
-	struct ieee80211_header_data header;
-	/*struct ieee80211_info_element info_element;*/
 } __attribute__ ((packed));
 
 struct ieee80211_assoc_request_frame {
@@ -658,11 +573,6 @@ struct ieee80211_assoc_response_frame {
 	struct ieee80211_info_element info_element; /* supported rates */
 } __attribute__ ((packed));
 
-struct ieee80211_disassoc_frame{
-        struct ieee80211_hdr_3addr header;
-        u16    reasoncode;
-}__attribute__ ((packed));
-
 struct ieee80211_txb {
 	u8 nr_frags;
 	u8 encrypted;
@@ -671,6 +581,32 @@ struct ieee80211_txb {
 	u16 payload_size;
 	struct sk_buff *fragments[0];
 };
+
+/* SWEEP TABLE ENTRIES NUMBER */
+#define MAX_SWEEP_TAB_ENTRIES			42
+#define MAX_SWEEP_TAB_ENTRIES_PER_PACKET	7
+
+/* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
+ * only use 8, and then use extended rates for the remaining supported
+ * rates.  Other APs, however, stick all of their supported rates on the
+ * main rates information element... */
+#define MAX_RATES_LENGTH			((u8)12)
+#define MAX_RATES_EX_LENGTH			((u8)16)
+
+#define MAX_NETWORK_COUNT			128
+
+#define MAX_CHANNEL_NUMBER			165
+
+#define IEEE80211_SOFTMAC_SCAN_TIME		100 /* (HZ / 2) */
+#define IEEE80211_SOFTMAC_ASSOC_RETRY_TIME	(HZ * 2)
+
+#define CRC_LENGTH	4U
+
+#define MAX_WPA_IE_LEN	64
+
+#define NETWORK_EMPTY_ESSID	(1 << 0)
+#define NETWORK_HAS_OFDM	(1 << 1)
+#define NETWORK_HAS_CCK		(1 << 2)
 
 struct ieee80211_wmm_ac_param {
 	u8 ac_aci_acm_aifsn;
@@ -703,23 +639,82 @@ struct ieee80211_wmm_tspec_elem {
 	u16 medium_time;
 }__attribute__((packed));
 
+enum eap_type {
+	EAP_PACKET = 0,
+	EAPOL_START,
+	EAPOL_LOGOFF,
+	EAPOL_KEY,
+	EAPOL_ENCAP_ASF_ALERT
+};
+
+static const char *eap_types[] = {
+	[EAP_PACKET]		= "EAP-Packet",
+	[EAPOL_START]		= "EAPOL-Start",
+	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
+	[EAPOL_KEY]		= "EAPOL-Key",
+	[EAPOL_ENCAP_ASF_ALERT]	= "EAPOL-Encap-ASF-Alert"
+};
+
+static inline const char *eap_get_type(int type)
+{
+	return (type >= ARRAY_SIZE(eap_types)) ? "Unknown" : eap_types[type];
+}
+
+struct eapol {
+	u8 snap[6];
+	u16 ethertype;
+	u8 version;
+	u8 type;
+	u16 length;
+} __attribute__ ((packed));
+
+struct ieee80211_softmac_stats {
+	unsigned int rx_ass_ok;
+	unsigned int rx_ass_err;
+	unsigned int rx_probe_rq;
+	unsigned int tx_probe_rs;
+	unsigned int tx_beacons;
+	unsigned int rx_auth_rq;
+	unsigned int rx_auth_rs_ok;
+	unsigned int rx_auth_rs_err;
+	unsigned int tx_auth_rq;
+	unsigned int no_auth_rs;
+	unsigned int no_ass_rs;
+	unsigned int tx_ass_rq;
+	unsigned int rx_ass_rq;
+	unsigned int tx_probe_rq;
+	unsigned int reassoc;
+	unsigned int swtxstop;
+	unsigned int swtxawake;
+};
+
+#define BEACON_PROBE_SSID_ID_POSITION 12
+
+/*
+ * These are the data types that can make up management packets
+ *
+	u16 auth_algorithm;
+	u16 auth_sequence;
+	u16 beacon_interval;
+	u16 capability;
+	u8 current_ap[ETH_ALEN];
+	u16 listen_interval;
+	struct {
+		u16 association_id:14, reserved:2;
+	} __attribute__ ((packed));
+	u32 time_stamp[2];
+	u16 reason;
+	u16 status;
+*/
+
+#define IEEE80211_DEFAULT_TX_ESSID "Penguin"
+#define IEEE80211_DEFAULT_BASIC_RATE 10
+
 enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 #define MAX_SP_Len  (WMM_all_frame << 4)
 #define IEEE80211_QOS_TID 0x0f
 #define QOS_CTL_NOTCONTAIN_ACK (0x01 << 5)
 
-/* SWEEP TABLE ENTRIES NUMBER*/
-#define MAX_SWEEP_TAB_ENTRIES		  42
-#define MAX_SWEEP_TAB_ENTRIES_PER_PACKET  7
-/* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
- * only use 8, and then use extended rates for the remaining supported
- * rates.  Other APs, however, stick all of their supported rates on the
- * main rates information element... */
-#define MAX_RATES_LENGTH                  ((u8)12)
-#define MAX_RATES_EX_LENGTH               ((u8)16)
-#define MAX_NETWORK_COUNT                  128
-//#define MAX_CHANNEL_NUMBER                 161
-#define MAX_CHANNEL_NUMBER                 165 //YJ,modified,080625
 #define MAX_IE_LEN						0xFF //+YJ,080625
 
 typedef struct _CHANNEL_LIST{
@@ -727,23 +722,12 @@ typedef struct _CHANNEL_LIST{
 	u8	Len;
 }CHANNEL_LIST, *PCHANNEL_LIST;
 
-#define IEEE80211_SOFTMAC_SCAN_TIME	  100//400
-//(HZ / 2)
 //by amy for ps
 #define IEEE80211_WATCH_DOG_TIME    2000
 //by amy for ps
 //by amy for antenna
 #define ANTENNA_DIVERSITY_TIMER_PERIOD		1000 // 1000 m
 //by amy for antenna
-#define IEEE80211_SOFTMAC_ASSOC_RETRY_TIME (HZ * 2)
-
-#define CRC_LENGTH                 4U
-
-#define MAX_WPA_IE_LEN 64
-
-#define NETWORK_EMPTY_ESSID (1<<0)
-#define NETWORK_HAS_OFDM    (1<<1)
-#define NETWORK_HAS_CCK     (1<<2)
 
 #define IEEE80211_DTIM_MBCAST 4
 #define IEEE80211_DTIM_UCAST 2
@@ -882,8 +866,6 @@ enum ieee80211_state {
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
@@ -893,6 +875,19 @@ typedef struct tx_pending_t{
 	struct ieee80211_txb *txb;
 }tx_pending_t;
 
+enum {
+	COUNTRY_CODE_FCC = 0,
+	COUNTRY_CODE_IC = 1,
+	COUNTRY_CODE_ETSI = 2,
+	COUNTRY_CODE_SPAIN = 3,
+	COUNTRY_CODE_FRANCE = 4,
+	COUNTRY_CODE_MKK = 5,
+	COUNTRY_CODE_MKK1 = 6,
+	COUNTRY_CODE_ISRAEL = 7,
+	COUNTRY_CODE_TELEC = 8,
+	COUNTRY_CODE_GLOBAL_DOMAIN = 9,
+	COUNTRY_CODE_WORLD_WIDE_13_INDEX = 10
+};
 
 struct ieee80211_device {
 	struct net_device *dev;
