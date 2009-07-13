@@ -973,6 +973,11 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		case R300_TX_OFFSET_0+52:
 		case R300_TX_OFFSET_0+56:
 		case R300_TX_OFFSET_0+60:
+			/* rn50 has no 3D engine so fail on any 3d setup */
+			if (ASIC_IS_RN50(p->rdev)) {
+				DRM_ERROR("attempt to use RN50 3D engine failed\n");
+				return -EINVAL;
+			}
 			r = r100_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",

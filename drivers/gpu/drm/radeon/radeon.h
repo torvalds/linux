@@ -673,6 +673,8 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 /*
  * ASICs helpers.
  */
+#define ASIC_IS_RN50(rdev) ((rdev->pdev->device == 0x515e) || \
+			    (rdev->pdev->device == 0x5969))
 #define ASIC_IS_RV100(rdev) ((rdev->family == CHIP_RV100) || \
 		(rdev->family == CHIP_RV200) || \
 		(rdev->family == CHIP_RS100) || \
