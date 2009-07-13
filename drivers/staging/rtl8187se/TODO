@@ -1,6 +1,5 @@
 TODO:
 - prepare private ieee80211 stack for merge with rtl8192su's version:
-  - remove [IN]_OPENSUSE_SLED definitions
   - remove ENABLE_IPS ifdefs
   - rename struct ieee80211_hdr to struct ieee80211_hdr_4addr
   - rename struct ieee80211_hdr_3addr_QOS to struct ieee80211_hdr_3addrqos
