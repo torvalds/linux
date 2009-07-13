@@ -299,8 +299,8 @@ union ehci_shadow {
  * These appear in both the async and (for interrupt) periodic schedules.
  */
 
-struct ehci_qh {
-	/* first part defined by EHCI spec */
+/* first part defined by EHCI spec */
+struct ehci_qh_hw {
 	__hc32			hw_next;	/* see EHCI 3.6.1 */
 	__hc32			hw_info1;       /* see EHCI 3.6.2 */
 #define	QH_HEAD		0x00008000
@@ -318,7 +318,10 @@ struct ehci_qh {
 	__hc32			hw_token;
 	__hc32			hw_buf [5];
 	__hc32			hw_buf_hi [5];
+} __attribute__ ((aligned(32)));
 
+struct ehci_qh {
+	struct ehci_qh_hw	*hw;
 	/* the rest is HCD-private */
 	dma_addr_t		qh_dma;		/* address of qh */
 	union ehci_shadow	qh_next;	/* ptr to qh; or periodic */
@@ -358,7 +361,7 @@ struct ehci_qh {
 
 	struct usb_device	*dev;		/* access to TT */
 	unsigned		clearing_tt:1;	/* Clear-TT-Buf in progress */
-} __attribute__ ((aligned (32)));
+};
 
 /*-------------------------------------------------------------------------*/
 
