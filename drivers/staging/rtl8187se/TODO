@@ -1,6 +1,5 @@
 TODO:
 - prepare private ieee80211 stack for merge with rtl8192su's version:
-  - rename struct ieee80211_hdr_3addr_QOS to struct ieee80211_hdr_3addrqos
   - rename struct ieee80211_hdr_QOS to struct ieee80211_hdr_4addrqos
   - add hwsec_active flag to struct ieee80211_device
   - add bHwSec flag to cb_desc structure

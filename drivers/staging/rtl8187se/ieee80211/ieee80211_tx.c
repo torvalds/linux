@@ -310,17 +310,17 @@ int ieee80211_xmit(struct sk_buff *skb,
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;
-	struct ieee80211_hdr_3addr_QOS *frag_hdr;
+	struct ieee80211_hdr_3addrqos *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
 	unsigned long flags;
 	struct net_device_stats *stats = &ieee->stats;
 	int ether_type, encrypt;
-	int bytes, fc, QOS_ctl, hdr_len;
+	int bytes, fc, qos_ctl, hdr_len;
 	struct sk_buff *skb_frag;
-	struct ieee80211_hdr_3addr_QOS header = { /* Ensure zero initialized */
+	struct ieee80211_hdr_3addrqos header = { /* Ensure zero initialized */
 		.duration_id = 0,
 		.seq_ctl = 0,
-		.QOS_ctl = 0
+		.qos_ctl = 0
 	};
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
 
@@ -419,22 +419,23 @@ int ieee80211_xmit(struct sk_buff *skb,
 		if (is_multicast_ether_addr(header.addr1) ||
 		is_broadcast_ether_addr(header.addr1)) {
 			frag_size = MAX_FRAG_THRESHOLD;
-			QOS_ctl = QOS_CTL_NOTCONTAIN_ACK;
+			qos_ctl = QOS_CTL_NOTCONTAIN_ACK;
 		}
 		else {
 			//printk(KERN_WARNING "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&frag_size = %d\n", frag_size);
 			frag_size = ieee->fts;//default:392
-			QOS_ctl = 0;
+			qos_ctl = 0;
 		}
 
 		if (ieee->current_network.QoS_Enable)	{
 			hdr_len = IEEE80211_3ADDR_LEN + 2;
-			QOS_ctl |= skb->priority; //set in the ieee80211_classify
-			header.QOS_ctl = cpu_to_le16(QOS_ctl);
+			/* skb->priority is set in the ieee80211_classify() */
+			qos_ctl |= skb->priority;
+			header.qos_ctl = cpu_to_le16(qos_ctl);
 		} else {
 			hdr_len = IEEE80211_3ADDR_LEN;
 		}
-		//printk(KERN_WARNING "header size = %d, QOS_ctl = %x\n", hdr_len,QOS_ctl);
+
 		/* Determine amount of payload per fragment.  Regardless of if
 		* this stack is providing the full 802.11 header, one will
 		* eventually be affixed to this fragment -- so we must account for
@@ -477,7 +478,7 @@ int ieee80211_xmit(struct sk_buff *skb,
 			if (encrypt)
 				skb_reserve(skb_frag, crypt->ops->extra_prefix_len);
 
-			frag_hdr = (struct ieee80211_hdr_3addr_QOS *)skb_put(skb_frag, hdr_len);
+			frag_hdr = (struct ieee80211_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
 			memcpy(frag_hdr, &header, hdr_len);
 
 			/* If this is not the last fragment, then add the MOREFRAGS

@@ -104,7 +104,7 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 	unsigned int frag = WLAN_GET_SEQ_FRAG(sc);
 	unsigned int seq = WLAN_GET_SEQ_SEQ(sc);
 	struct ieee80211_frag_entry *entry;
-	struct ieee80211_hdr_3addr_QOS *hdr_3addr_QoS;
+	struct ieee80211_hdr_3addrqos *hdr_3addrqos;
 	struct ieee80211_hdr_QOS *hdr_4addr_QoS;
 	u8 tid;
 
@@ -114,8 +114,8 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else if (IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_3addr_QoS = (struct ieee80211_hdr_3addr_QOS *)hdr;
-	  tid = le16_to_cpu(hdr_3addr_QoS->QOS_ctl) & IEEE80211_QOS_TID;
+	  hdr_3addrqos = (struct ieee80211_hdr_3addrqos *)hdr;
+	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QOS_TID;
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else {
@@ -171,7 +171,7 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
 	u16 sc = le16_to_cpu(hdr->seq_ctl);
 	unsigned int seq = WLAN_GET_SEQ_SEQ(sc);
 	struct ieee80211_frag_entry *entry;
-	struct ieee80211_hdr_3addr_QOS *hdr_3addr_QoS;
+	struct ieee80211_hdr_3addrqos *hdr_3addrqos;
 	struct ieee80211_hdr_QOS *hdr_4addr_QoS;
 	u8 tid;
 
@@ -181,8 +181,8 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else if (IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_3addr_QoS = (struct ieee80211_hdr_3addr_QOS *)hdr;
-	  tid = le16_to_cpu(hdr_3addr_QoS->QOS_ctl) & IEEE80211_QOS_TID;
+	  hdr_3addrqos = (struct ieee80211_hdr_3addrqos *)hdr;
+	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QOS_TID;
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else {
@@ -377,7 +377,7 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 	u16 frag = WLAN_GET_SEQ_FRAG(sc);
 	u16 *last_seq, *last_frag;
 	unsigned long *last_time;
-	struct ieee80211_hdr_3addr_QOS *hdr_3addr_QoS;
+	struct ieee80211_hdr_3addrqos *hdr_3addrqos;
 	struct ieee80211_hdr_QOS *hdr_4addr_QoS;
 	u8 tid;
 
@@ -388,8 +388,8 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else if(IEEE80211_QOS_HAS_SEQ(fc)) { //QoS
-	  hdr_3addr_QoS = (struct ieee80211_hdr_3addr_QOS*)header;
-	  tid = le16_to_cpu(hdr_3addr_QoS->QOS_ctl) & IEEE80211_QOS_TID;
+	  hdr_3addrqos = (struct ieee80211_hdr_3addrqos *)header;
+	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QOS_TID;
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else { // no QoS
@@ -476,7 +476,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	struct net_device *dev = ieee->dev;
 	//struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	struct ieee80211_hdr_4addr *hdr;
-	//struct ieee80211_hdr_3addr_QOS *hdr;
 
 	size_t hdrlen;
 	u16 fc, type, stype, sc;
@@ -484,7 +483,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	unsigned int frag;
 	u8 *payload;
 	u16 ethertype;
-//	u16 QOS_ctl = 0;
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
