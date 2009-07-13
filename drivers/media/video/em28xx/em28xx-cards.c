@@ -58,8 +58,6 @@ static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
-#define MT9V011_VERSION                 0x8243
-
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS */
 static unsigned long em28xx_devused;
 
@@ -1730,10 +1728,12 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	version = be16_to_cpu(version_be);
 
 	switch (version) {
-	case MT9V011_VERSION:
+	case 0x8243:		/* mt9v011 640x480 1.3 Mpix sensor */
 		dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
 		sensor_name = "mt9v011";
 		dev->em28xx_sensor = EM28XX_MT9V011;
+		dev->sensor_xres = 640;
+		dev->sensor_yres = 480;
 		break;
 	default:
 		printk("Unknown Micron Sensor 0x%04x\n", be16_to_cpu(version));

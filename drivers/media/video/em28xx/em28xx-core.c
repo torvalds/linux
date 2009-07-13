@@ -707,10 +707,7 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 	u8 mode;
 	/* the em2800 scaler only supports scaling down to 50% */
 
-	if (dev->board.is_webcam) {
-		/* FIXME: Don't use the scaler yet */
-		mode = 0;
-	} else if (dev->board.is_em2800) {
+	if (dev->board.is_em2800) {
 		mode = (v ? 0x20 : 0x00) | (h ? 0x10 : 0x00);
 	} else {
 		u8 buf[2];

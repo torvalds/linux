@@ -479,6 +479,7 @@ struct em28xx {
 	struct em28xx_board board;
 
 	enum em28xx_sensor em28xx_sensor;
+	int sensor_xres, sensor_yres;
 
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
@@ -760,17 +761,23 @@ static inline int em28xx_gamma_set(struct em28xx *dev, s32 val)
 /*FIXME: maxw should be dependent of alt mode */
 static inline unsigned int norm_maxw(struct em28xx *dev)
 {
+	if (dev->board.is_webcam)
+		return dev->sensor_xres;
+
 	if (dev->board.max_range_640_480)
 		return 640;
-	else
-		return 720;
+
+	return 720;
 }
 
 static inline unsigned int norm_maxh(struct em28xx *dev)
 {
+	if (dev->board.is_webcam)
+		return dev->sensor_yres;
+
 	if (dev->board.max_range_640_480)
 		return 480;
-	else
-		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
+
+	return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
 }
 #endif
