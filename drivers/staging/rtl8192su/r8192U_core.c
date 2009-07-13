@@ -1966,14 +1966,6 @@ short rtl8192SU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 	idx_pipe = txqueue2outpipe(priv,queue_index);
 	//printk("=============>%s queue_index:%d, outpipe:%d\n", __func__,queue_index,priv->RtOutPipes[idx_pipe]);
 
-#ifdef JOHN_DUMP_TXDESC
-	int i;
-	printk("Len = %d\n", skb->len);
-	for (i = 0; i < 8; i++)
-		printk("%2.2x ", *((u8*)skb->data+i));
-	printk("\n");
-#endif
-
 	usb_fill_bulk_urb(tx_urb,
 	                            priv->udev,
 	                            usb_sndbulkpipe(priv->udev,priv->RtOutPipes[idx_pipe]),
