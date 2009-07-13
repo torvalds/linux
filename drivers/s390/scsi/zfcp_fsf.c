@@ -1010,6 +1010,23 @@ skip_fsfstatus:
 		send_ct->handler(send_ct->handler_data);
 }
 
+static void zfcp_fsf_setup_ct_els_unchained(struct qdio_buffer_element *sbale,
+					    struct scatterlist *sg_req,
+					    struct scatterlist *sg_resp)
+{
+	sbale[0].flags |= SBAL_FLAGS0_TYPE_WRITE_READ;
+	sbale[2].addr   = sg_virt(sg_req);
+	sbale[2].length = sg_req->length;
+	sbale[3].addr   = sg_virt(sg_resp);
+	sbale[3].length = sg_resp->length;
+	sbale[3].flags |= SBAL_FLAGS_LAST_ENTRY;
+}
+
+static int zfcp_fsf_one_sbal(struct scatterlist *sg)
+{
+	return sg_is_last(sg) && sg->length <= PAGE_SIZE;
+}
+
 static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 				       struct scatterlist *sg_req,
 				       struct scatterlist *sg_resp,
@@ -1020,16 +1037,16 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 	int bytes;
 
 	if (!(feat & FSF_FEATURE_ELS_CT_CHAINED_SBALS)) {
-		if (sg_req->length > PAGE_SIZE || sg_resp->length > PAGE_SIZE ||
-		    !sg_is_last(sg_req) || !sg_is_last(sg_resp))
+		if (!zfcp_fsf_one_sbal(sg_req) || !zfcp_fsf_one_sbal(sg_resp))
 			return -EOPNOTSUPP;
 
-		sbale[0].flags |= SBAL_FLAGS0_TYPE_WRITE_READ;
-		sbale[2].addr   = sg_virt(sg_req);
-		sbale[2].length = sg_req->length;
-		sbale[3].addr   = sg_virt(sg_resp);
-		sbale[3].length = sg_resp->length;
-		sbale[3].flags |= SBAL_FLAGS_LAST_ENTRY;
+		zfcp_fsf_setup_ct_els_unchained(sbale, sg_req, sg_resp);
+		return 0;
+	}
+
+	/* use single, unchained SBAL if it can hold the request */
+	if (zfcp_fsf_one_sbal(sg_req) && zfcp_fsf_one_sbal(sg_resp)) {
+		zfcp_fsf_setup_ct_els_unchained(sbale, sg_req, sg_resp);
 		return 0;
 	}
 
