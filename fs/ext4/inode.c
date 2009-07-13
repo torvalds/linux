@@ -1513,14 +1513,14 @@ retry:
 		 * Add inode to orphan list in case we crash before
 		 * truncate finishes
 		 */
-		if (pos + len > inode->i_size)
+		if (pos + len > inode->i_size && ext4_can_truncate(inode))
 			ext4_orphan_add(handle, inode);
 
 		ext4_journal_stop(handle);
 		if (pos + len > inode->i_size) {
-			vmtruncate(inode, inode->i_size);
+			ext4_truncate(inode);
 			/*
-			 * If vmtruncate failed early the inode might
+			 * If truncate failed early the inode might
 			 * still be on the orphan list; we need to
 			 * make sure the inode is removed from the
 			 * orphan list in that case.
@@ -1614,7 +1614,7 @@ static int ext4_ordered_write_end(struct file *file,
 		ret2 = ext4_generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
 		copied = ret2;
-		if (pos + len > inode->i_size)
+		if (pos + len > inode->i_size && ext4_can_truncate(inode))
 			/* if we have allocated more blocks and copied
 			 * less. We will have blocks allocated outside
 			 * inode->i_size. So truncate them
@@ -1628,9 +1628,9 @@ static int ext4_ordered_write_end(struct file *file,
 		ret = ret2;
 
 	if (pos + len > inode->i_size) {
-		vmtruncate(inode, inode->i_size);
+		ext4_truncate(inode);
 		/*
-		 * If vmtruncate failed early the inode might still be
+		 * If truncate failed early the inode might still be
 		 * on the orphan list; we need to make sure the inode
 		 * is removed from the orphan list in that case.
 		 */
@@ -1655,7 +1655,7 @@ static int ext4_writeback_write_end(struct file *file,
 	ret2 = ext4_generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
 	copied = ret2;
-	if (pos + len > inode->i_size)
+	if (pos + len > inode->i_size && ext4_can_truncate(inode))
 		/* if we have allocated more blocks and copied
 		 * less. We will have blocks allocated outside
 		 * inode->i_size. So truncate them
@@ -1670,9 +1670,9 @@ static int ext4_writeback_write_end(struct file *file,
 		ret = ret2;
 
 	if (pos + len > inode->i_size) {
-		vmtruncate(inode, inode->i_size);
+		ext4_truncate(inode);
 		/*
-		 * If vmtruncate failed early the inode might still be
+		 * If truncate failed early the inode might still be
 		 * on the orphan list; we need to make sure the inode
 		 * is removed from the orphan list in that case.
 		 */
@@ -1722,7 +1722,7 @@ static int ext4_journalled_write_end(struct file *file,
 
 	unlock_page(page);
 	page_cache_release(page);
-	if (pos + len > inode->i_size)
+	if (pos + len > inode->i_size && ext4_can_truncate(inode))
 		/* if we have allocated more blocks and copied
 		 * less. We will have blocks allocated outside
 		 * inode->i_size. So truncate them
@@ -1733,9 +1733,9 @@ static int ext4_journalled_write_end(struct file *file,
 	if (!ret)
 		ret = ret2;
 	if (pos + len > inode->i_size) {
-		vmtruncate(inode, inode->i_size);
+		ext4_truncate(inode);
 		/*
-		 * If vmtruncate failed early the inode might still be
+		 * If truncate failed early the inode might still be
 		 * on the orphan list; we need to make sure the inode
 		 * is removed from the orphan list in that case.
 		 */
@@ -2907,7 +2907,7 @@ retry:
 		 * i_size_read because we hold i_mutex.
 		 */
 		if (pos + len > inode->i_size)
-			vmtruncate(inode, inode->i_size);
+			ext4_truncate(inode);
 	}
 
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
