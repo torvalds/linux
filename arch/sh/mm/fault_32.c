@@ -60,8 +60,15 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 
 	if (!pmd_present(*pmd))
 		set_pmd(pmd, *pmd_k);
-	else
+	else {
+		/*
+		 * The page tables are fully synchronised so there must
+		 * be another reason for the fault. Return NULL here to
+		 * signal that we have not taken care of the fault.
+		 */
 		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
+		return NULL;
+	}
 
 	return pmd_k;
 }
@@ -87,7 +94,7 @@ static noinline int vmalloc_fault(unsigned long address)
 	 * an interrupt in the middle of a task switch..
 	 */
 	pgd_k = get_TTB();
-	pmd_k = vmalloc_sync_one(__va((unsigned long)pgd_k), address);
+	pmd_k = vmalloc_sync_one(pgd_k, address);
 	if (!pmd_k)
 		return -1;
 
