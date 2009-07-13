@@ -738,6 +738,11 @@ static int qt_startup(struct usb_serial *serial)
 		if (!qt_port) {
 			dbg("%s: kmalloc for quatech_port (%d) failed!.",
 			    __func__, i);
+			for(--i; i >= 0; i--) {
+				port = serial->port[i];
+				kfree(usb_get_serial_port_data(port));
+				usb_set_serial_port_data(port, NULL);
+			}
 			return -ENOMEM;
 		}
 		spin_lock_init(&qt_port->lock);
