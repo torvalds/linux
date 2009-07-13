@@ -436,7 +436,7 @@ void print_events(void)
 
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++, syms++) {
 		type = syms->type + 1;
-		if (type > ARRAY_SIZE(event_type_descriptors))
+		if (type >= ARRAY_SIZE(event_type_descriptors))
 			type = 0;
 
 		if (type != prev_type)
