@@ -1695,29 +1695,6 @@ static bool phy_SetRFPowerState8192SU(struct net_device* dev,RT_RF_POWER_STATE e
 			case eRfOff:
 			  	if (priv->ieee80211->eRFPowerState == eRfSleep || priv->ieee80211->eRFPowerState == eRfOff)
 						break;
-#ifdef NOT_YET
-				// Make sure BusyQueue is empty befor turn off RFE pwoer.
-				for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
-				{
-					if(RTIsListEmpty(&Adapter->TcbBusyQueue[QueueID]))
-					{
-						QueueID++;
-						continue;
-					}
-					else
-					{
-						RT_TRACE(COMP_POWER, "eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
-						udelay(10);
-						i++;
-					}
-
-					if(i >= MAX_DOZE_WAITING_TIMES_9x)
-					{
-						RT_TRACE(COMP_POWER, "\n\n\n SetZebraRFPowerState8185B(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
-						break;
-					}
-				}
-#endif
 				//
 				//RF Off/Sleep sequence. Designed/tested from SD4 Scott, SD1 Grent and Jonbon.
 				// Added by Bruce, 2008-11-22.

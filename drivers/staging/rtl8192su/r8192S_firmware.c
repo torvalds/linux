@@ -290,11 +290,6 @@ FirmwareCheckReady(struct net_device *dev,	u8 LoadFWStatus)
 
 		RT_TRACE(COMP_FIRMWARE, "FirmwareCheckReady(): Current RCR settings(%#x)\n", tmpU4b);
 
-#ifdef NOT_YET   //YJ,TMP
-		priv->TransmitConfig = read_nic_dword(dev, TCR);
-		RT_TRACE(COMP_FIRMWARE, "FirmwareCheckReady(): Current TCR settings(%x)\n", priv->TransmitConfig);
-		pHalData->FwRsvdTxPageCfg = read_nic_byte(dev, FW_RSVD_PG_CRTL);
-#endif
 
 		// Set to normal mode.
 		write_nic_byte(dev, LBKMD_SEL, LBK_NORMAL);
