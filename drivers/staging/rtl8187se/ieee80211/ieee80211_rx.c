@@ -105,12 +105,12 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 	unsigned int seq = WLAN_GET_SEQ_SEQ(sc);
 	struct ieee80211_frag_entry *entry;
 	struct ieee80211_hdr_3addrqos *hdr_3addrqos;
-	struct ieee80211_hdr_QOS *hdr_4addr_QoS;
+	struct ieee80211_hdr_4addrqos *hdr_4addrqos;
 	u8 tid;
 
 	if (((fc & IEEE80211_FCTL_DSTODS) == IEEE80211_FCTL_DSTODS)&&IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_4addr_QoS = (struct ieee80211_hdr_QOS *)hdr;
-	  tid = le16_to_cpu(hdr_4addr_QoS->QOS_ctl) & IEEE80211_QOS_TID;
+	  hdr_4addrqos = (struct ieee80211_hdr_4addrqos *)hdr;
+	  tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QOS_TID;
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else if (IEEE80211_QOS_HAS_SEQ(fc)) {
@@ -172,12 +172,12 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
 	unsigned int seq = WLAN_GET_SEQ_SEQ(sc);
 	struct ieee80211_frag_entry *entry;
 	struct ieee80211_hdr_3addrqos *hdr_3addrqos;
-	struct ieee80211_hdr_QOS *hdr_4addr_QoS;
+	struct ieee80211_hdr_4addrqos *hdr_4addrqos;
 	u8 tid;
 
 	if(((fc & IEEE80211_FCTL_DSTODS) == IEEE80211_FCTL_DSTODS)&&IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_4addr_QoS = (struct ieee80211_hdr_QOS *)hdr;
-	  tid = le16_to_cpu(hdr_4addr_QoS->QOS_ctl) & IEEE80211_QOS_TID;
+	  hdr_4addrqos = (struct ieee80211_hdr_4addrqos *)hdr;
+	  tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QOS_TID;
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else if (IEEE80211_QOS_HAS_SEQ(fc)) {
@@ -378,13 +378,13 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 	u16 *last_seq, *last_frag;
 	unsigned long *last_time;
 	struct ieee80211_hdr_3addrqos *hdr_3addrqos;
-	struct ieee80211_hdr_QOS *hdr_4addr_QoS;
+	struct ieee80211_hdr_4addrqos *hdr_4addrqos;
 	u8 tid;
 
 	//TO2DS and QoS
 	if(((fc & IEEE80211_FCTL_DSTODS) == IEEE80211_FCTL_DSTODS)&&IEEE80211_QOS_HAS_SEQ(fc)) {
-	  hdr_4addr_QoS = (struct ieee80211_hdr_QOS *)header;
-	  tid = le16_to_cpu(hdr_4addr_QoS->QOS_ctl) & IEEE80211_QOS_TID;
+	  hdr_4addrqos = (struct ieee80211_hdr_4addrqos *)header;
+	  tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QOS_TID;
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else if(IEEE80211_QOS_HAS_SEQ(fc)) { //QoS

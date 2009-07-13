@@ -180,7 +180,7 @@ struct ieee80211_hdr_4addr {
 	u8 addr4[ETH_ALEN];
 } __attribute__ ((packed));
 
-struct ieee80211_hdr_QOS {
+struct ieee80211_hdr_4addrqos {
 	u16 frame_ctl;
 	u16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -188,7 +188,7 @@ struct ieee80211_hdr_QOS {
 	u8 addr3[ETH_ALEN];
 	u16 seq_ctl;
 	u8 addr4[ETH_ALEN];
-	u16 QOS_ctl;
+	u16 qos_ctl;
 } __attribute__ ((packed));
 
 struct ieee80211_hdr_3addr {
