@@ -1310,6 +1310,7 @@
 #define bfin_write_PPI_CONTROL(val)    bfin_write16(PPI_CONTROL, val)
 #define bfin_read_PPI_STATUS()         bfin_read16(PPI_STATUS)
 #define bfin_write_PPI_STATUS(val)     bfin_write16(PPI_STATUS, val)
+#define bfin_clear_PPI_STATUS()        bfin_read_PPI_STATUS()
 #define bfin_read_PPI_DELAY()          bfin_read16(PPI_DELAY)
 #define bfin_write_PPI_DELAY(val)      bfin_write16(PPI_DELAY, val)
 #define bfin_read_PPI_COUNT()          bfin_read16(PPI_COUNT)
