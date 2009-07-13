@@ -187,6 +187,7 @@ struct radeon_crtc {
 	int cursor_width;
 	int cursor_height;
 	uint32_t legacy_display_base_addr;
+	uint32_t legacy_cursor_offset;
 };
 
 #define RADEON_USE_RMX 1
