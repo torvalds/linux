@@ -1167,8 +1167,8 @@ static void __exit exit_mac80211_hwsim(void)
 {
 	printk(KERN_DEBUG "mac80211_hwsim: unregister radios\n");
 
-	unregister_netdev(hwsim_mon);
 	mac80211_hwsim_free();
+	unregister_netdev(hwsim_mon);
 }
 
 
