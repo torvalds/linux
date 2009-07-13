@@ -2220,9 +2220,6 @@ extern int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 extern int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
-extern int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
-                            struct iw_request_info *info,
-                            union iwreq_data* wrqu, char *extra);
 extern int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                             struct iw_request_info *info,
                             union iwreq_data* wrqu, char *extra);
