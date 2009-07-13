@@ -194,13 +194,11 @@ static int r8180_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 		return 0;
 
 	down(&priv->wx_sem);
-#ifdef ENABLE_IPS
 //	printk("set mode ENABLE_IPS\n");
 	if(priv->bInactivePs){
 		if(wrqu->mode == IW_MODE_ADHOC)
 			IPSLeave(dev);
 	}
-#endif
 	ret = ieee80211_wx_set_mode(priv->ieee80211,a,wrqu,b);
 
 	//rtl8180_commit(dev);
@@ -363,7 +361,6 @@ static int r8180_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 
 	down(&priv->wx_sem);
 	if(priv->up){
-#ifdef ENABLE_IPS
 //		printk("set scan ENABLE_IPS\n");
 		priv->ieee80211->actscanning = true;
 		if(priv->bInactivePs && (priv->ieee80211->state != IEEE80211_LINKED)){
@@ -386,7 +383,6 @@ static int r8180_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			ret = 0;
 		}
 		else
-#endif
 		{
 			//YJ,add,080828, prevent scan in BusyTraffic
 			//FIXME: Need to consider last scan time
@@ -439,11 +435,9 @@ static int r8180_wx_set_essid(struct net_device *dev,
 		return 0;
 
 	down(&priv->wx_sem);
-#ifdef ENABLE_IPS
 	//printk("set essid ENABLE_IPS\n");
 	if(priv->bInactivePs)
 		IPSLeave(dev);
-#endif
 //	printk("haha:set essid %s essid_len = %d essid_flgs = %d\n",b,  wrqu->essid.length, wrqu->essid.flags);
 
 	ret = ieee80211_wx_set_essid(priv->ieee80211,a,wrqu,b);

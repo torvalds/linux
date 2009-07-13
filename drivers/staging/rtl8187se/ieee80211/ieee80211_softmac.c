@@ -574,7 +574,6 @@ out:
 		DOT11D_ScanComplete(ieee);
 }
 
-#ifdef ENABLE_IPS
 void ieee80211_softmac_scan_wq(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -617,43 +616,6 @@ out:
 		DOT11D_ScanComplete(ieee);
 	return;
 }
-#else
-void ieee80211_softmac_scan_wq(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-        struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, softmac_scan_wq);
-        short watchdog = 0;
-	u8 channel_map[MAX_CHANNEL_NUMBER+1];
-	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
-//      printk("enter scan wq,watchdog is %d\n",watchdog);
-        down(&ieee->scan_sem);
-
-        do{
-                ieee->current_network.channel =
-                        (ieee->current_network.channel + 1) % MAX_CHANNEL_NUMBER;
-                if (watchdog++ > MAX_CHANNEL_NUMBER)
-                                goto out; /* no good chans */
-
-        }while(!channel_map[ieee->current_network.channel]);
-
-//      printk("current_network.channel:%d\n", ieee->current_network.channel);
-        if (ieee->scanning == 0 )
-        {
-                printk("error out, scanning = 0\n");
-                goto out;
-        }
-        ieee->set_chan(ieee->dev, ieee->current_network.channel);
-	if(channel_map[ieee->current_network.channel] == 1)
-		ieee80211_send_probe_requests(ieee);
-
-	queue_delayed_work(ieee->wq, &ieee->softmac_scan_wq, IEEE80211_SOFTMAC_SCAN_TIME);
-out:
-	up(&ieee->scan_sem);
-	if(IS_DOT11D_ENABLE(ieee))
-		DOT11D_ScanComplete(ieee);
-}
-
-#endif
 
 void ieee80211_beacons_start(struct ieee80211_device *ieee)
 {

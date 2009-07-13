@@ -3598,13 +3598,11 @@ void rtl8180_watch_dog(struct net_device *dev)
 	u32 TotalRxNum = 0;
 	u16 SlotIndex = 0;
 	u16 i = 0;
-#ifdef ENABLE_IPS
 	if(priv->ieee80211->actscanning == false){
 		if((priv->ieee80211->iw_mode != IW_MODE_ADHOC) && (priv->ieee80211->state == IEEE80211_NOLINK) && (priv->ieee80211->beinretry == false) && (priv->eRFPowerState == eRfOn)){
 			IPSEnter(dev);
 		}
 	}
-#endif
 	//YJ,add,080828,for link state check
 	if((priv->ieee80211->state == IEEE80211_LINKED) && (priv->ieee80211->iw_mode == IW_MODE_INFRA)){
 		SlotIndex = (priv->link_detect.SlotIndex++) % priv->link_detect.SlotNum;
@@ -3667,12 +3665,10 @@ int _rtl8180_up(struct net_device *dev)
 	rtl8185b_adapter_start(dev);
 	rtl8185b_rx_enable(dev);
 	rtl8185b_tx_enable(dev);
-#ifdef ENABLE_IPS
 	if(priv->bInactivePs){
 		if(priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 			IPSLeave(dev);
 	}
-#endif
 #ifdef RATE_ADAPT
        timer_rate_adaptive((unsigned long)dev);
 #endif

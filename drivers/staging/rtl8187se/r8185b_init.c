@@ -2546,7 +2546,6 @@ void rtl8185b_adapter_start(struct net_device *dev)
 		InitWirelessMode = ieee->mode;
 	}
 //by amy for power save
-#ifdef ENABLE_IPS
 //	printk("initialize ENABLE_IPS\n");
 	priv->eRFPowerState = eRfOff;
 	priv->RfOffReason = 0;
@@ -2571,7 +2570,6 @@ void rtl8185b_adapter_start(struct net_device *dev)
 	//	printk("rf off cost jiffies:%lx\n", (tmp2-tmp)*1000/HZ);
 
 	}
-#endif
 //	IPSEnter(dev);
 //by amy for power save
 #ifdef TODO

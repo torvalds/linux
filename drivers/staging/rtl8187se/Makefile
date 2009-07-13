@@ -4,8 +4,6 @@
 #EXTRA_CFLAGS += -O2
 #CC            = gcc
 
-#added for EeePC testing
-EXTRA_CFLAGS += -DENABLE_IPS
 EXTRA_CFLAGS += -DSW_ANTE
 EXTRA_CFLAGS += -DTX_TRACK
 EXTRA_CFLAGS += -DHIGH_POWER
