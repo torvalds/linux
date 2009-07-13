@@ -32,9 +32,7 @@ void __cfg80211_scan_done(struct work_struct *wk)
 	mutex_lock(&rdev->mtx);
 	request = rdev->scan_req;
 
-	dev = dev_get_by_index(&init_net, request->ifidx);
-	if (!dev)
-		goto out;
+	dev = request->dev;
 
 	/*
 	 * This must be before sending the other events!
@@ -58,7 +56,6 @@ void __cfg80211_scan_done(struct work_struct *wk)
 
 	dev_put(dev);
 
- out:
 	cfg80211_unlock_rdev(rdev);
 	wiphy_to_dev(request->wiphy)->scan_req = NULL;
 	kfree(request);
@@ -66,17 +63,10 @@ void __cfg80211_scan_done(struct work_struct *wk)
 
 void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 {
-	struct net_device *dev = dev_get_by_index(&init_net, request->ifidx);
-	if (WARN_ON(!dev)) {
-		kfree(request);
-		return;
-	}
-
 	WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req);
 
 	request->aborted = aborted;
 	schedule_work(&wiphy_to_dev(request->wiphy)->scan_done_wk);
-	dev_put(dev);
 }
 EXPORT_SYMBOL(cfg80211_scan_done);
 
@@ -592,7 +582,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	if (!netif_running(dev))
 		return -ENETDOWN;
 
-	rdev = cfg80211_get_dev_from_ifindex(dev->ifindex);
+	rdev = cfg80211_get_dev_from_ifindex(dev_net(dev), dev->ifindex);
 
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
@@ -617,7 +607,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	}
 
 	creq->wiphy = wiphy;
-	creq->ifidx = dev->ifindex;
+	creq->dev = dev;
 	creq->ssids = (void *)(creq + 1);
 	creq->channels = (void *)(creq->ssids + 1);
 	creq->n_channels = n_channels;
@@ -654,8 +644,10 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	if (err) {
 		rdev->scan_req = NULL;
 		kfree(creq);
-	} else
+	} else {
 		nl80211_send_scan_start(rdev, dev);
+		dev_hold(dev);
+	}
  out:
 	cfg80211_unlock_rdev(rdev);
 	return err;
@@ -948,7 +940,7 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 	if (!netif_running(dev))
 		return -ENETDOWN;
 
-	rdev = cfg80211_get_dev_from_ifindex(dev->ifindex);
+	rdev = cfg80211_get_dev_from_ifindex(dev_net(dev), dev->ifindex);
 
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);

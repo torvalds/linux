@@ -86,7 +86,7 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 		wdev->conn->params.ssid_len);
 	request->ssids[0].ssid_len = wdev->conn->params.ssid_len;
 
-	request->ifidx = wdev->netdev->ifindex;
+	request->dev = wdev->netdev;
 	request->wiphy = &rdev->wiphy;
 
 	rdev->scan_req = request;
@@ -95,6 +95,7 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	if (!err) {
 		wdev->conn->state = CFG80211_CONN_SCANNING;
 		nl80211_send_scan_start(rdev, wdev->netdev);
+		dev_hold(wdev->netdev);
 	} else {
 		rdev->scan_req = NULL;
 		kfree(request);

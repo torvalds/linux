@@ -106,7 +106,7 @@ __cfg80211_rdev_from_info(struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_IFINDEX]) {
 		ifindex = nla_get_u32(info->attrs[NL80211_ATTR_IFINDEX]);
-		dev = dev_get_by_index(&init_net, ifindex);
+		dev = dev_get_by_index(genl_info_net(info), ifindex);
 		if (dev) {
 			if (dev->ieee80211_ptr)
 				byifidx =
@@ -151,13 +151,13 @@ cfg80211_get_dev_from_info(struct genl_info *info)
 }
 
 struct cfg80211_registered_device *
-cfg80211_get_dev_from_ifindex(int ifindex)
+cfg80211_get_dev_from_ifindex(struct net *net, int ifindex)
 {
 	struct cfg80211_registered_device *rdev = ERR_PTR(-ENODEV);
 	struct net_device *dev;
 
 	mutex_lock(&cfg80211_mutex);
-	dev = dev_get_by_index(&init_net, ifindex);
+	dev = dev_get_by_index(net, ifindex);
 	if (!dev)
 		goto out;
 	if (dev->ieee80211_ptr) {
@@ -220,6 +220,42 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	nl80211_notify_dev_rename(rdev);
 
 	return 0;
+}
+
+int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
+			  struct net *net)
+{
+	struct wireless_dev *wdev;
+	int err = 0;
+
+	if (!rdev->wiphy.netnsok)
+		return -EOPNOTSUPP;
+
+	list_for_each_entry(wdev, &rdev->netdev_list, list) {
+		wdev->netdev->features &= ~NETIF_F_NETNS_LOCAL;
+		err = dev_change_net_namespace(wdev->netdev, net, "wlan%d");
+		if (err)
+			break;
+		wdev->netdev->features |= NETIF_F_NETNS_LOCAL;
+	}
+
+	if (err) {
+		/* failed -- clean up to old netns */
+		net = wiphy_net(&rdev->wiphy);
+
+		list_for_each_entry_continue_reverse(wdev, &rdev->netdev_list,
+						     list) {
+			wdev->netdev->features &= ~NETIF_F_NETNS_LOCAL;
+			err = dev_change_net_namespace(wdev->netdev, net,
+							"wlan%d");
+			WARN_ON(err);
+			wdev->netdev->features |= NETIF_F_NETNS_LOCAL;
+		}
+	}
+
+	wiphy_net_set(&rdev->wiphy, net);
+
+	return err;
 }
 
 static void cfg80211_rfkill_poll(struct rfkill *rfkill, void *data)
@@ -374,6 +410,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	device_initialize(&rdev->wiphy.dev);
 	rdev->wiphy.dev.class = &ieee80211_class;
 	rdev->wiphy.dev.platform_data = rdev;
+
+	wiphy_net_set(&rdev->wiphy, &init_net);
 
 	rdev->rfkill_ops.set_block = cfg80211_rfkill_set_block;
 	rdev->rfkill = rfkill_alloc(dev_name(&rdev->wiphy.dev),
@@ -615,6 +653,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		spin_lock_init(&wdev->event_lock);
 		mutex_lock(&rdev->devlist_mtx);
 		list_add(&wdev->list, &rdev->netdev_list);
+		/* can only change netns with wiphy */
+		dev->features |= NETIF_F_NETNS_LOCAL;
+
 		if (sysfs_create_link(&dev->dev.kobj, &rdev->wiphy.dev.kobj,
 				      "phy80211")) {
 			printk(KERN_ERR "wireless: failed to add phy80211 "
@@ -705,9 +746,31 @@ static struct notifier_block cfg80211_netdev_notifier = {
 	.notifier_call = cfg80211_netdev_notifier_call,
 };
 
-static int cfg80211_init(void)
+static void __net_exit cfg80211_pernet_exit(struct net *net)
+{
+	struct cfg80211_registered_device *rdev;
+
+	rtnl_lock();
+	mutex_lock(&cfg80211_mutex);
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		if (net_eq(wiphy_net(&rdev->wiphy), net))
+			WARN_ON(cfg80211_switch_netns(rdev, &init_net));
+	}
+	mutex_unlock(&cfg80211_mutex);
+	rtnl_unlock();
+}
+
+static struct pernet_operations cfg80211_pernet_ops = {
+	.exit = cfg80211_pernet_exit,
+};
+
+static int __init cfg80211_init(void)
 {
 	int err;
+
+	err = register_pernet_device(&cfg80211_pernet_ops);
+	if (err)
+		goto out_fail_pernet;
 
 	err = wiphy_sysfs_init();
 	if (err)
@@ -736,9 +799,10 @@ out_fail_nl80211:
 out_fail_notifier:
 	wiphy_sysfs_exit();
 out_fail_sysfs:
+	unregister_pernet_device(&cfg80211_pernet_ops);
+out_fail_pernet:
 	return err;
 }
-
 subsys_initcall(cfg80211_init);
 
 static void cfg80211_exit(void)
@@ -748,5 +812,6 @@ static void cfg80211_exit(void)
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
 	wiphy_sysfs_exit();
 	regulatory_exit();
+	unregister_pernet_device(&cfg80211_pernet_ops);
 }
 module_exit(cfg80211_exit);
