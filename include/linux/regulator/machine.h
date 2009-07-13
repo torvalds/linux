@@ -141,6 +141,13 @@ struct regulator_consumer_supply {
 	const char *supply;	/* consumer supply - e.g. "vcc" */
 };
 
+/* Initialize struct regulator_consumer_supply */
+#define REGULATOR_SUPPLY(_name, _dev_name)			\
+{								\
+	.supply		= _name,				\
+	.dev_name	= _dev_name,				\
+}
+
 /**
  * struct regulator_init_data - regulator platform initialisation data.
  *
