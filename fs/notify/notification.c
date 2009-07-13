@@ -136,10 +136,15 @@ static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new
 {
 	if ((old->mask == new->mask) &&
 	    (old->to_tell == new->to_tell) &&
-	    (old->data_type == new->data_type)) {
+	    (old->data_type == new->data_type) &&
+	    (old->name_len == new->name_len)) {
 		switch (old->data_type) {
 		case (FSNOTIFY_EVENT_INODE):
-			if (old->inode == new->inode)
+			/* remember, after old was put on the wait_q we aren't
+			 * allowed to look at the inode any more, only thing
+			 * left to check was if the file_name is the same */
+			if (old->name_len &&
+			    !strcmp(old->file_name, new->file_name))
 				return true;
 			break;
 		case (FSNOTIFY_EVENT_PATH):
