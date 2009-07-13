@@ -93,20 +93,20 @@ typedef unsigned int ext4_group_t;
 struct ext4_allocation_request {
 	/* target inode for block we're allocating */
 	struct inode *inode;
-	/* logical block in target inode */
-	ext4_lblk_t logical;
-	/* phys. target (a hint) */
-	ext4_fsblk_t goal;
-	/* the closest logical allocated block to the left */
-	ext4_lblk_t lleft;
-	/* phys. block for ^^^ */
-	ext4_fsblk_t pleft;
-	/* the closest logical allocated block to the right */
-	ext4_lblk_t lright;
-	/* phys. block for ^^^ */
-	ext4_fsblk_t pright;
 	/* how many blocks we want to allocate */
 	unsigned int len;
+	/* logical block in target inode */
+	ext4_lblk_t logical;
+	/* the closest logical allocated block to the left */
+	ext4_lblk_t lleft;
+	/* the closest logical allocated block to the right */
+	ext4_lblk_t lright;
+	/* phys. target (a hint) */
+	ext4_fsblk_t goal;
+	/* phys. block for the closest logical allocated block to the left */
+	ext4_fsblk_t pleft;
+	/* phys. block for the closest logical allocated block to the right */
+	ext4_fsblk_t pright;
 	/* flags. see above EXT4_MB_HINT_* */
 	unsigned int flags;
 };
