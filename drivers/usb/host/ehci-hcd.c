@@ -127,6 +127,8 @@ timer_action(struct ehci_hcd *ehci, enum ehci_timer_action action)
 
 		switch (action) {
 		case TIMER_IO_WATCHDOG:
+			if (!ehci->need_io_watchdog)
+				return;
 			t = EHCI_IO_JIFFIES;
 			break;
 		case TIMER_ASYNC_OFF:
@@ -508,6 +510,10 @@ static int ehci_init(struct usb_hcd *hcd)
 
 	spin_lock_init(&ehci->lock);
 
+	/*
+	 * keep io watchdog by default, those good HCDs could turn off it later
+	 */
+	ehci->need_io_watchdog = 1;
 	init_timer(&ehci->watchdog);
 	ehci->watchdog.function = ehci_watchdog;
 	ehci->watchdog.data = (unsigned long) ehci;
