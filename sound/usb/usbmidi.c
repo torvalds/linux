@@ -62,6 +62,7 @@
  */
 #define ERROR_DELAY_JIFFIES (HZ / 10)
 
+#define OUTPUT_URBS 7
 #define INPUT_URBS 7
 
 
@@ -92,7 +93,7 @@ struct snd_usb_midi_endpoint;
 
 struct usb_protocol_ops {
 	void (*input)(struct snd_usb_midi_in_endpoint*, uint8_t*, int);
-	void (*output)(struct snd_usb_midi_out_endpoint*);
+	void (*output)(struct snd_usb_midi_out_endpoint *ep, struct urb *urb);
 	void (*output_packet)(struct urb*, uint8_t, uint8_t, uint8_t, uint8_t);
 	void (*init_out_endpoint)(struct snd_usb_midi_out_endpoint*);
 	void (*finish_out_endpoint)(struct snd_usb_midi_out_endpoint*);
@@ -118,8 +119,11 @@ struct snd_usb_midi {
 
 struct snd_usb_midi_out_endpoint {
 	struct snd_usb_midi* umidi;
-	struct urb* urb;
-	int urb_active;
+	struct out_urb_context {
+		struct urb *urb;
+		struct snd_usb_midi_out_endpoint *ep;
+	} urbs[OUTPUT_URBS];
+	unsigned int active_urbs;
 	int max_transfer;		/* size of urb buffer */
 	struct tasklet_struct tasklet;
 
@@ -253,10 +257,11 @@ static void snd_usbmidi_in_urb_complete(struct urb* urb)
 
 static void snd_usbmidi_out_urb_complete(struct urb* urb)
 {
-	struct snd_usb_midi_out_endpoint* ep = urb->context;
+	struct out_urb_context *context = urb->context;
+	struct snd_usb_midi_out_endpoint* ep = context->ep;
 
 	spin_lock(&ep->buffer_lock);
-	ep->urb_active = 0;
+	ep->active_urbs &= ~(1 << (context - ep->urbs));
 	spin_unlock(&ep->buffer_lock);
 	if (urb->status < 0) {
 		int err = snd_usbmidi_urb_error(urb->status);
@@ -276,23 +281,37 @@ static void snd_usbmidi_out_urb_complete(struct urb* urb)
  */
 static void snd_usbmidi_do_output(struct snd_usb_midi_out_endpoint* ep)
 {
-	struct urb* urb = ep->urb;
+	unsigned int urb_index;
+	struct urb* urb;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ep->buffer_lock, flags);
-	if (ep->urb_active || ep->umidi->chip->shutdown) {
+	if (ep->umidi->chip->shutdown) {
 		spin_unlock_irqrestore(&ep->buffer_lock, flags);
 		return;
 	}
 
-	urb->transfer_buffer_length = 0;
-	ep->umidi->usb_protocol_ops->output(ep);
+	for (;;) {
+		urb = NULL;
+		for (urb_index = 0; urb_index < OUTPUT_URBS; ++urb_index)
+			if (!(ep->active_urbs & (1 << urb_index))) {
+				urb = ep->urbs[urb_index].urb;
+				break;
+			}
+		if (!urb)
+			break;
 
-	if (urb->transfer_buffer_length > 0) {
+		urb->transfer_buffer_length = 0;
+		ep->umidi->usb_protocol_ops->output(ep, urb);
+		if (urb->transfer_buffer_length == 0)
+			break;
+
 		dump_urb("sending", urb->transfer_buffer,
 			 urb->transfer_buffer_length);
 		urb->dev = ep->umidi->chip->dev;
-		ep->urb_active = snd_usbmidi_submit_urb(urb, GFP_ATOMIC) >= 0;
+		if (snd_usbmidi_submit_urb(urb, GFP_ATOMIC) < 0)
+			break;
+		ep->active_urbs |= 1 << urb_index;
 	}
 	spin_unlock_irqrestore(&ep->buffer_lock, flags);
 }
@@ -334,13 +353,14 @@ static void snd_usbmidi_error_timer(unsigned long data)
 static int send_bulk_static_data(struct snd_usb_midi_out_endpoint* ep,
 				 const void *data, int len)
 {
-	int err;
+	int err = 0;
 	void *buf = kmemdup(data, len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 	dump_urb("sending", buf, len);
-	err = usb_bulk_msg(ep->umidi->chip->dev, ep->urb->pipe, buf, len,
-			   NULL, 250);
+	if (ep->urbs[0].urb)
+		err = usb_bulk_msg(ep->umidi->chip->dev, ep->urbs[0].urb->pipe,
+				   buf, len, NULL, 250);
 	kfree(buf);
 	return err;
 }
@@ -558,9 +578,9 @@ static void snd_usbmidi_transmit_byte(struct usbmidi_out_port* port,
 	}
 }
 
-static void snd_usbmidi_standard_output(struct snd_usb_midi_out_endpoint* ep)
+static void snd_usbmidi_standard_output(struct snd_usb_midi_out_endpoint* ep,
+					struct urb *urb)
 {
-	struct urb* urb = ep->urb;
 	int p;
 
 	/* FIXME: lower-numbered ports can starve higher-numbered ports */
@@ -617,14 +637,15 @@ static void snd_usbmidi_novation_input(struct snd_usb_midi_in_endpoint* ep,
 	snd_usbmidi_input_data(ep, 0, &buffer[2], buffer[0] - 1);
 }
 
-static void snd_usbmidi_novation_output(struct snd_usb_midi_out_endpoint* ep)
+static void snd_usbmidi_novation_output(struct snd_usb_midi_out_endpoint* ep,
+					struct urb *urb)
 {
 	uint8_t* transfer_buffer;
 	int count;
 
 	if (!ep->ports[0].active)
 		return;
-	transfer_buffer = ep->urb->transfer_buffer;
+	transfer_buffer = urb->transfer_buffer;
 	count = snd_rawmidi_transmit(ep->ports[0].substream,
 				     &transfer_buffer[2],
 				     ep->max_transfer - 2);
@@ -634,7 +655,7 @@ static void snd_usbmidi_novation_output(struct snd_usb_midi_out_endpoint* ep)
 	}
 	transfer_buffer[0] = 0;
 	transfer_buffer[1] = count;
-	ep->urb->transfer_buffer_length = 2 + count;
+	urb->transfer_buffer_length = 2 + count;
 }
 
 static struct usb_protocol_ops snd_usbmidi_novation_ops = {
@@ -652,20 +673,21 @@ static void snd_usbmidi_raw_input(struct snd_usb_midi_in_endpoint* ep,
 	snd_usbmidi_input_data(ep, 0, buffer, buffer_length);
 }
 
-static void snd_usbmidi_raw_output(struct snd_usb_midi_out_endpoint* ep)
+static void snd_usbmidi_raw_output(struct snd_usb_midi_out_endpoint* ep,
+				   struct urb *urb)
 {
 	int count;
 
 	if (!ep->ports[0].active)
 		return;
 	count = snd_rawmidi_transmit(ep->ports[0].substream,
-				     ep->urb->transfer_buffer,
+				     urb->transfer_buffer,
 				     ep->max_transfer);
 	if (count < 1) {
 		ep->ports[0].active = 0;
 		return;
 	}
-	ep->urb->transfer_buffer_length = count;
+	urb->transfer_buffer_length = count;
 }
 
 static struct usb_protocol_ops snd_usbmidi_raw_ops = {
@@ -685,23 +707,25 @@ static void snd_usbmidi_us122l_input(struct snd_usb_midi_in_endpoint *ep,
 		snd_usbmidi_input_data(ep, 0, buffer, buffer_length);
 }
 
-static void snd_usbmidi_us122l_output(struct snd_usb_midi_out_endpoint *ep)
+static void snd_usbmidi_us122l_output(struct snd_usb_midi_out_endpoint *ep,
+				      struct urb *urb)
 {
 	int count;
 
 	if (!ep->ports[0].active)
 		return;
-	count = ep->urb->dev->speed == USB_SPEED_HIGH ? 1 : 2;
+	count = snd_usb_get_speed(ep->umidi->chip->dev) == USB_SPEED_HIGH
+		? 1 : 2;
 	count = snd_rawmidi_transmit(ep->ports[0].substream,
-				     ep->urb->transfer_buffer,
+				     urb->transfer_buffer,
 				     count);
 	if (count < 1) {
 		ep->ports[0].active = 0;
 		return;
 	}
 
-	memset(ep->urb->transfer_buffer + count, 0xFD, 9 - count);
-	ep->urb->transfer_buffer_length = count;
+	memset(urb->transfer_buffer + count, 0xFD, 9 - count);
+	urb->transfer_buffer_length = count;
 }
 
 static struct usb_protocol_ops snd_usbmidi_122l_ops = {
@@ -790,10 +814,11 @@ static void snd_usbmidi_emagic_input(struct snd_usb_midi_in_endpoint* ep,
 	}
 }
 
-static void snd_usbmidi_emagic_output(struct snd_usb_midi_out_endpoint* ep)
+static void snd_usbmidi_emagic_output(struct snd_usb_midi_out_endpoint* ep,
+				      struct urb *urb)
 {
 	int port0 = ep->current_port;
-	uint8_t* buf = ep->urb->transfer_buffer;
+	uint8_t* buf = urb->transfer_buffer;
 	int buf_free = ep->max_transfer;
 	int length, i;
 
@@ -833,7 +858,7 @@ static void snd_usbmidi_emagic_output(struct snd_usb_midi_out_endpoint* ep)
 		*buf = 0xff;
 		--buf_free;
 	}
-	ep->urb->transfer_buffer_length = ep->max_transfer - buf_free;
+	urb->transfer_buffer_length = ep->max_transfer - buf_free;
 }
 
 static struct usb_protocol_ops snd_usbmidi_emagic_ops = {
@@ -920,6 +945,14 @@ static struct snd_rawmidi_ops snd_usbmidi_input_ops = {
 	.trigger = snd_usbmidi_input_trigger
 };
 
+static void free_urb_and_buffer(struct snd_usb_midi *umidi, struct urb *urb,
+				unsigned int buffer_length)
+{
+	usb_buffer_free(umidi->chip->dev, buffer_length,
+			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_urb(urb);
+}
+
 /*
  * Frees an input endpoint.
  * May be called when ep hasn't been initialized completely.
@@ -928,15 +961,10 @@ static void snd_usbmidi_in_endpoint_delete(struct snd_usb_midi_in_endpoint* ep)
 {
 	unsigned int i;
 
-	for (i = 0; i < INPUT_URBS; ++i) {
-		if (ep->urbs[i]) {
-			usb_buffer_free(ep->umidi->chip->dev,
-					ep->urbs[i]->transfer_buffer_length,
-					ep->urbs[i]->transfer_buffer,
-					ep->urbs[i]->transfer_dma);
-			usb_free_urb(ep->urbs[i]);
-		}
-	}
+	for (i = 0; i < INPUT_URBS; ++i)
+		if (ep->urbs[i])
+			free_urb_and_buffer(ep->umidi, ep->urbs[i],
+					    ep->urbs[i]->transfer_buffer_length);
 	kfree(ep);
 }
 
@@ -1009,12 +1037,12 @@ static unsigned int snd_usbmidi_count_bits(unsigned int x)
  */
 static void snd_usbmidi_out_endpoint_delete(struct snd_usb_midi_out_endpoint* ep)
 {
-	if (ep->urb) {
-		usb_buffer_free(ep->umidi->chip->dev, ep->max_transfer,
-				ep->urb->transfer_buffer,
-				ep->urb->transfer_dma);
-		usb_free_urb(ep->urb);
-	}
+	unsigned int i;
+
+	for (i = 0; i < OUTPUT_URBS; ++i)
+		if (ep->urbs[i].urb)
+			free_urb_and_buffer(ep->umidi, ep->urbs[i].urb,
+					    ep->max_transfer);
 	kfree(ep);
 }
 
@@ -1026,7 +1054,7 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 			 		   struct snd_usb_midi_endpoint* rep)
 {
 	struct snd_usb_midi_out_endpoint* ep;
-	int i;
+	unsigned int i;
 	unsigned int pipe;
 	void* buffer;
 
@@ -1036,35 +1064,42 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 		return -ENOMEM;
 	ep->umidi = umidi;
 
-	ep->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!ep->urb) {
-		snd_usbmidi_out_endpoint_delete(ep);
-		return -ENOMEM;
+	for (i = 0; i < OUTPUT_URBS; ++i) {
+		ep->urbs[i].urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!ep->urbs[i].urb) {
+			snd_usbmidi_out_endpoint_delete(ep);
+			return -ENOMEM;
+		}
+		ep->urbs[i].ep = ep;
 	}
 	if (ep_info->out_interval)
 		pipe = usb_sndintpipe(umidi->chip->dev, ep_info->out_ep);
 	else
 		pipe = usb_sndbulkpipe(umidi->chip->dev, ep_info->out_ep);
 	if (umidi->chip->usb_id == USB_ID(0x0a92, 0x1020)) /* ESI M4U */
-		/* FIXME: we need more URBs to get reasonable bandwidth here: */
 		ep->max_transfer = 4;
 	else
 		ep->max_transfer = usb_maxpacket(umidi->chip->dev, pipe, 1);
-	buffer = usb_buffer_alloc(umidi->chip->dev, ep->max_transfer,
-				  GFP_KERNEL, &ep->urb->transfer_dma);
-	if (!buffer) {
-		snd_usbmidi_out_endpoint_delete(ep);
-		return -ENOMEM;
+	for (i = 0; i < OUTPUT_URBS; ++i) {
+		buffer = usb_buffer_alloc(umidi->chip->dev,
+					  ep->max_transfer, GFP_KERNEL,
+					  &ep->urbs[i].urb->transfer_dma);
+		if (!buffer) {
+			snd_usbmidi_out_endpoint_delete(ep);
+			return -ENOMEM;
+		}
+		if (ep_info->out_interval)
+			usb_fill_int_urb(ep->urbs[i].urb, umidi->chip->dev,
+					 pipe, buffer, ep->max_transfer,
+					 snd_usbmidi_out_urb_complete,
+					 &ep->urbs[i], ep_info->out_interval);
+		else
+			usb_fill_bulk_urb(ep->urbs[i].urb, umidi->chip->dev,
+					  pipe, buffer, ep->max_transfer,
+					  snd_usbmidi_out_urb_complete,
+					  &ep->urbs[i]);
+		ep->urbs[i].urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 	}
-	if (ep_info->out_interval)
-		usb_fill_int_urb(ep->urb, umidi->chip->dev, pipe, buffer,
-				 ep->max_transfer, snd_usbmidi_out_urb_complete,
-				 ep, ep_info->out_interval);
-	else
-		usb_fill_bulk_urb(ep->urb, umidi->chip->dev,
-				  pipe, buffer, ep->max_transfer,
-				  snd_usbmidi_out_urb_complete, ep);
-	ep->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 	spin_lock_init(&ep->buffer_lock);
 	tasklet_init(&ep->tasklet, snd_usbmidi_out_tasklet, (unsigned long)ep);
@@ -1120,8 +1155,9 @@ void snd_usbmidi_disconnect(struct list_head* p)
 		struct snd_usb_midi_endpoint* ep = &umidi->endpoints[i];
 		if (ep->out)
 			tasklet_kill(&ep->out->tasklet);
-		if (ep->out && ep->out->urb) {
-			usb_kill_urb(ep->out->urb);
+		if (ep->out) {
+			for (j = 0; j < OUTPUT_URBS; ++j)
+				usb_kill_urb(ep->out->urbs[j].urb);
 			if (umidi->usb_protocol_ops->finish_out_endpoint)
 				umidi->usb_protocol_ops->finish_out_endpoint(ep->out);
 		}
