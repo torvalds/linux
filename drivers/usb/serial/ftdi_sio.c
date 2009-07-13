@@ -33,6 +33,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -2121,7 +2122,7 @@ static void ftdi_process_read(struct work_struct *work)
 				/* Note that the error flag is duplicated for
 				   every character received since we don't know
 				   which character it applied to */
-				if (!usb_serial_handle_sysrq_char(port,
+				if (!usb_serial_handle_sysrq_char(tty, port,
 						data[packet_offset + i]))
 					tty_insert_flip_char(tty,
 						data[packet_offset + i],

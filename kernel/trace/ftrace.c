@@ -3160,10 +3160,10 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 	ret  = proc_dointvec(table, write, file, buffer, lenp, ppos);
 
-	if (ret || !write || (last_ftrace_enabled == ftrace_enabled))
+	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
 		goto out;
 
-	last_ftrace_enabled = ftrace_enabled;
+	last_ftrace_enabled = !!ftrace_enabled;
 
 	if (ftrace_enabled) {
 

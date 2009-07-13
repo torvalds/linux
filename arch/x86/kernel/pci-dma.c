@@ -211,11 +211,11 @@ static __init int iommu_setup(char *p)
 #ifdef CONFIG_SWIOTLB
 		if (!strncmp(p, "soft", 4))
 			swiotlb = 1;
+#endif
 		if (!strncmp(p, "pt", 2)) {
 			iommu_pass_through = 1;
 			return 1;
 		}
-#endif
 
 		gart_parse_options(p);
 

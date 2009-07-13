@@ -75,11 +75,10 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	case ACTIVE_LIST:
 		seq_printf(m, "Active:\n");
 		lock = &dev_priv->mm.active_list_lock;
-		spin_lock(lock);
 		head = &dev_priv->mm.active_list;
 		break;
 	case INACTIVE_LIST:
-		seq_printf(m, "Inctive:\n");
+		seq_printf(m, "Inactive:\n");
 		head = &dev_priv->mm.inactive_list;
 		break;
 	case FLUSHING_LIST:
@@ -91,6 +90,8 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		return 0;
 	}
 
+	if (lock)
+		spin_lock(lock);
 	list_for_each_entry(obj_priv, head, list)
 	{
 		struct drm_gem_object *obj = obj_priv->obj;
@@ -104,7 +105,10 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		if (obj->name)
 			seq_printf(m, " (name: %d)", obj->name);
 		if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
-			seq_printf(m, " (fence: %d)\n", obj_priv->fence_reg);
+			seq_printf(m, " (fence: %d)", obj_priv->fence_reg);
+		if (obj_priv->gtt_space != NULL)
+			seq_printf(m, " (gtt_offset: %08x)", obj_priv->gtt_offset);
+
 		seq_printf(m, "\n");
 	}
 
@@ -323,6 +327,39 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_error_state(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_error_state *error;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->error_lock, flags);
+	if (!dev_priv->first_error) {
+		seq_printf(m, "no error state collected\n");
+		goto out;
+	}
+
+	error = dev_priv->first_error;
+
+	seq_printf(m, "EIR: 0x%08x\n", error->eir);
+	seq_printf(m, "  PGTBL_ER: 0x%08x\n", error->pgtbl_er);
+	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);
+	seq_printf(m, "  IPEIR: 0x%08x\n", error->ipeir);
+	seq_printf(m, "  IPEHR: 0x%08x\n", error->ipehr);
+	seq_printf(m, "  INSTDONE: 0x%08x\n", error->instdone);
+	seq_printf(m, "  ACTHD: 0x%08x\n", error->acthd);
+	if (IS_I965G(dev)) {
+		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps);
+		seq_printf(m, "  INSTDONE1: 0x%08x\n", error->instdone1);
+	}
+
+out:
+	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+
+	return 0;
+}
 
 static struct drm_info_list i915_gem_debugfs_list[] = {
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
@@ -336,6 +373,7 @@ static struct drm_info_list i915_gem_debugfs_list[] = {
 	{"i915_ringbuffer_data", i915_ringbuffer_data, 0},
 	{"i915_ringbuffer_info", i915_ringbuffer_info, 0},
 	{"i915_batchbuffers", i915_batchbuffer_info, 0},
+	{"i915_error_state", i915_error_state, 0},
 };
 #define I915_GEM_DEBUGFS_ENTRIES ARRAY_SIZE(i915_gem_debugfs_list)
 

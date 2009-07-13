@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005-2007 Cavium Networks
+ * Copyright (C) 2005-2009 Cavium Networks
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -17,8 +17,7 @@
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-npi-defs.h>
 #include <asm/octeon/cvmx-pci-defs.h>
-
-#include "pci-common.h"
+#include <asm/octeon/pci-octeon.h>
 
 #define USE_OCTEON_INTERNAL_ARBITER
 
@@ -53,6 +52,126 @@ union octeon_pci_address {
 		uint64_t reg:8;
 	} s;
 };
+
+int __initdata (*octeon_pcibios_map_irq)(const struct pci_dev *dev,
+					 u8 slot, u8 pin);
+enum octeon_dma_bar_type octeon_dma_bar_type = OCTEON_DMA_BAR_TYPE_INVALID;
+
+/**
+ * Map a PCI device to the appropriate interrupt line
+ *
+ * @dev:    The Linux PCI device structure for the device to map
+ * @slot:   The slot number for this device on __BUS 0__. Linux
+ *               enumerates through all the bridges and figures out the
+ *               slot on Bus 0 where this device eventually hooks to.
+ * @pin:    The PCI interrupt pin read from the device, then swizzled
+ *               as it goes through each bridge.
+ * Returns Interrupt number for the device
+ */
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	if (octeon_pcibios_map_irq)
+		return octeon_pcibios_map_irq(dev, slot, pin);
+	else
+		panic("octeon_pcibios_map_irq not set.");
+}
+
+
+/*
+ * Called to perform platform specific PCI setup
+ */
+int pcibios_plat_dev_init(struct pci_dev *dev)
+{
+	uint16_t config;
+	uint32_t dconfig;
+	int pos;
+	/*
+	 * Force the Cache line setting to 64 bytes. The standard
+	 * Linux bus scan doesn't seem to set it. Octeon really has
+	 * 128 byte lines, but Intel bridges get really upset if you
+	 * try and set values above 64 bytes. Value is specified in
+	 * 32bit words.
+	 */
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, 64 / 4);
+	/* Set latency timers for all devices */
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 48);
+
+	/* Enable reporting System errors and parity errors on all devices */
+	/* Enable parity checking and error reporting */
+	pci_read_config_word(dev, PCI_COMMAND, &config);
+	config |= PCI_COMMAND_PARITY | PCI_COMMAND_SERR;
+	pci_write_config_word(dev, PCI_COMMAND, config);
+
+	if (dev->subordinate) {
+		/* Set latency timers on sub bridges */
+		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER, 48);
+		/* More bridge error detection */
+		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &config);
+		config |= PCI_BRIDGE_CTL_PARITY | PCI_BRIDGE_CTL_SERR;
+		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, config);
+	}
+
+	/* Enable the PCIe normal error reporting */
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (pos) {
+		/* Update Device Control */
+		pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &config);
+		/* Correctable Error Reporting */
+		config |= PCI_EXP_DEVCTL_CERE;
+		/* Non-Fatal Error Reporting */
+		config |= PCI_EXP_DEVCTL_NFERE;
+		/* Fatal Error Reporting */
+		config |= PCI_EXP_DEVCTL_FERE;
+		/* Unsupported Request */
+		config |= PCI_EXP_DEVCTL_URRE;
+		pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, config);
+	}
+
+	/* Find the Advanced Error Reporting capability */
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	if (pos) {
+		/* Clear Uncorrectable Error Status */
+		pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS,
+				      &dconfig);
+		pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS,
+				       dconfig);
+		/* Enable reporting of all uncorrectable errors */
+		/* Uncorrectable Error Mask - turned on bits disable errors */
+		pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, 0);
+		/*
+		 * Leave severity at HW default. This only controls if
+		 * errors are reported as uncorrectable or
+		 * correctable, not if the error is reported.
+		 */
+		/* PCI_ERR_UNCOR_SEVER - Uncorrectable Error Severity */
+		/* Clear Correctable Error Status */
+		pci_read_config_dword(dev, pos + PCI_ERR_COR_STATUS, &dconfig);
+		pci_write_config_dword(dev, pos + PCI_ERR_COR_STATUS, dconfig);
+		/* Enable reporting of all correctable errors */
+		/* Correctable Error Mask - turned on bits disable errors */
+		pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, 0);
+		/* Advanced Error Capabilities */
+		pci_read_config_dword(dev, pos + PCI_ERR_CAP, &dconfig);
+		/* ECRC Generation Enable */
+		if (config & PCI_ERR_CAP_ECRC_GENC)
+			config |= PCI_ERR_CAP_ECRC_GENE;
+		/* ECRC Check Enable */
+		if (config & PCI_ERR_CAP_ECRC_CHKC)
+			config |= PCI_ERR_CAP_ECRC_CHKE;
+		pci_write_config_dword(dev, pos + PCI_ERR_CAP, dconfig);
+		/* PCI_ERR_HEADER_LOG - Header Log Register (16 bytes) */
+		/* Report all errors to the root complex */
+		pci_write_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND,
+				       PCI_ERR_ROOT_CMD_COR_EN |
+				       PCI_ERR_ROOT_CMD_NONFATAL_EN |
+				       PCI_ERR_ROOT_CMD_FATAL_EN);
+		/* Clear the Root status register */
+		pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, &dconfig);
+		pci_write_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, dconfig);
+	}
+
+	return 0;
+}
 
 /**
  * Return the mapping of PCI device number to IRQ line. Each
@@ -136,9 +255,8 @@ int __init octeon_pci_pcibios_map_irq(const struct pci_dev *dev,
 }
 
 
-/**
+/*
  * Read a value from configuration space
- *
  */
 static int octeon_read_config(struct pci_bus *bus, unsigned int devfn,
 			      int reg, int size, u32 *val)
@@ -174,15 +292,8 @@ static int octeon_read_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 
-/**
+/*
  * Write a value to PCI configuration space
- *
- * @bus:
- * @devfn:
- * @reg:
- * @size:
- * @val:
- * Returns
  */
 static int octeon_write_config(struct pci_bus *bus, unsigned int devfn,
 			       int reg, int size, u32 val)
@@ -251,10 +362,8 @@ static struct pci_controller octeon_pci_controller = {
 };
 
 
-/**
+/*
  * Low level initialize the Octeon PCI controller
- *
- * Returns
  */
 static void octeon_pci_initialize(void)
 {
@@ -398,7 +507,7 @@ static void octeon_pci_initialize(void)
 		pci_int_arb_cfg.s.en = 1;	/* Internal arbiter enable */
 		cvmx_write_csr(CVMX_NPI_PCI_INT_ARB_CFG, pci_int_arb_cfg.u64);
 	}
-#endif				/* USE_OCTEON_INTERNAL_ARBITER */
+#endif	/* USE_OCTEON_INTERNAL_ARBITER */
 
 	/*
 	 * Preferrably written to 1 to set MLTD. [RDSATI,TRTAE,
@@ -457,10 +566,8 @@ static void octeon_pci_initialize(void)
 }
 
 
-/**
+/*
  * Initialize the Octeon PCI controller
- *
- * Returns
  */
 static int __init octeon_pci_setup(void)
 {

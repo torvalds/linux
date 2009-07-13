@@ -293,7 +293,7 @@ out_end:
 	drive->failed_pc = NULL;
 	if (blk_fs_request(rq) == 0 && rq->errors == 0)
 		rq->errors = -EIO;
-	ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
+	ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
 	return ide_stopped;
 }
 

@@ -234,8 +234,8 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 	int	status;
 
 	skb->protocol = eth_type_trans (skb, dev->net);
-	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += skb->len;
+	dev->net->stats.rx_packets++;
+	dev->net->stats.rx_bytes += skb->len;
 
 	if (netif_msg_rx_status (dev))
 		devdbg (dev, "< rx, len %zu, type 0x%x",
@@ -397,7 +397,7 @@ static inline void rx_process (struct usbnet *dev, struct sk_buff *skb)
 		if (netif_msg_rx_err (dev))
 			devdbg (dev, "drop");
 error:
-		dev->stats.rx_errors++;
+		dev->net->stats.rx_errors++;
 		skb_queue_tail (&dev->done, skb);
 	}
 }
@@ -420,8 +420,8 @@ static void rx_complete (struct urb *urb)
 	case 0:
 		if (skb->len < dev->net->hard_header_len) {
 			entry->state = rx_cleanup;
-			dev->stats.rx_errors++;
-			dev->stats.rx_length_errors++;
+			dev->net->stats.rx_errors++;
+			dev->net->stats.rx_length_errors++;
 			if (netif_msg_rx_err (dev))
 				devdbg (dev, "rx length %d", skb->len);
 		}
@@ -433,7 +433,7 @@ static void rx_complete (struct urb *urb)
 	 * storm, recovering as needed.
 	 */
 	case -EPIPE:
-		dev->stats.rx_errors++;
+		dev->net->stats.rx_errors++;
 		usbnet_defer_kevent (dev, EVENT_RX_HALT);
 		// FALLTHROUGH
 
@@ -451,7 +451,7 @@ static void rx_complete (struct urb *urb)
 	case -EPROTO:
 	case -ETIME:
 	case -EILSEQ:
-		dev->stats.rx_errors++;
+		dev->net->stats.rx_errors++;
 		if (!timer_pending (&dev->delay)) {
 			mod_timer (&dev->delay, jiffies + THROTTLE_JIFFIES);
 			if (netif_msg_link (dev))
@@ -465,12 +465,12 @@ block:
 
 	/* data overrun ... flush fifo? */
 	case -EOVERFLOW:
-		dev->stats.rx_over_errors++;
+		dev->net->stats.rx_over_errors++;
 		// FALLTHROUGH
 
 	default:
 		entry->state = rx_cleanup;
-		dev->stats.rx_errors++;
+		dev->net->stats.rx_errors++;
 		if (netif_msg_rx_err (dev))
 			devdbg (dev, "rx status %d", urb_status);
 		break;
@@ -583,8 +583,8 @@ int usbnet_stop (struct net_device *net)
 
 	if (netif_msg_ifdown (dev))
 		devinfo (dev, "stop stats: rx/tx %ld/%ld, errs %ld/%ld",
-			dev->stats.rx_packets, dev->stats.tx_packets,
-			dev->stats.rx_errors, dev->stats.tx_errors
+			net->stats.rx_packets, net->stats.tx_packets,
+			net->stats.rx_errors, net->stats.tx_errors
 			);
 
 	// ensure there are no more active urbs
@@ -891,10 +891,10 @@ static void tx_complete (struct urb *urb)
 	struct usbnet		*dev = entry->dev;
 
 	if (urb->status == 0) {
-		dev->stats.tx_packets++;
-		dev->stats.tx_bytes += entry->length;
+		dev->net->stats.tx_packets++;
+		dev->net->stats.tx_bytes += entry->length;
 	} else {
-		dev->stats.tx_errors++;
+		dev->net->stats.tx_errors++;
 
 		switch (urb->status) {
 		case -EPIPE:
@@ -1020,7 +1020,7 @@ int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 			devdbg (dev, "drop, code %d", retval);
 drop:
 		retval = NET_XMIT_SUCCESS;
-		dev->stats.tx_dropped++;
+		dev->net->stats.tx_dropped++;
 		if (skb)
 			dev_kfree_skb_any (skb);
 		usb_free_urb (urb);

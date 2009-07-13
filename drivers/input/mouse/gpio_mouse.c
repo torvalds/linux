@@ -46,7 +46,7 @@ static void gpio_mouse_scan(struct input_polled_dev *dev)
 	input_sync(input);
 }
 
-static int __init gpio_mouse_probe(struct platform_device *pdev)
+static int __devinit gpio_mouse_probe(struct platform_device *pdev)
 {
 	struct gpio_mouse_platform_data *pdata = pdev->dev.platform_data;
 	struct input_polled_dev *input_poll;
@@ -170,10 +170,8 @@ static int __devexit gpio_mouse_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:gpio_mouse");
-
 static struct platform_driver gpio_mouse_device_driver = {
+	.probe		= gpio_mouse_probe,
 	.remove		= __devexit_p(gpio_mouse_remove),
 	.driver		= {
 		.name	= "gpio_mouse",
@@ -183,8 +181,7 @@ static struct platform_driver gpio_mouse_device_driver = {
 
 static int __init gpio_mouse_init(void)
 {
-	return platform_driver_probe(&gpio_mouse_device_driver,
-			gpio_mouse_probe);
+	return platform_driver_register(&gpio_mouse_device_driver);
 }
 module_init(gpio_mouse_init);
 
@@ -197,3 +194,5 @@ module_exit(gpio_mouse_exit);
 MODULE_AUTHOR("Hans-Christian Egtvedt <hcegtvedt@atmel.com>");
 MODULE_DESCRIPTION("GPIO mouse driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:gpio_mouse"); /* work with hotplug and coldplug */
+

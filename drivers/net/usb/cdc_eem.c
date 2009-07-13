@@ -319,7 +319,7 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 				return crc == crc2;
 
 			if (unlikely(crc != crc2)) {
-				dev->stats.rx_errors++;
+				dev->net->stats.rx_errors++;
 				dev_kfree_skb_any(skb2);
 			} else
 				usbnet_skb_return(dev, skb2);

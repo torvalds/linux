@@ -75,8 +75,9 @@ static int mac53c94_queue(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *
 		int i;
 		printk(KERN_DEBUG "mac53c94_queue %p: command is", cmd);
 		for (i = 0; i < cmd->cmd_len; ++i)
-			printk(" %.2x", cmd->cmnd[i]);
-		printk("\n" KERN_DEBUG "use_sg=%d request_bufflen=%d request_buffer=%p\n",
+			printk(KERN_CONT " %.2x", cmd->cmnd[i]);
+		printk(KERN_CONT "\n");
+		printk(KERN_DEBUG "use_sg=%d request_bufflen=%d request_buffer=%p\n",
 		       scsi_sg_count(cmd), scsi_bufflen(cmd), scsi_sglist(cmd));
 	}
 #endif

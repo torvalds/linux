@@ -3470,10 +3470,16 @@ int snd_hda_multi_out_analog_open(struct hda_codec *codec,
 		}
 		mutex_lock(&codec->spdif_mutex);
 		if (mout->share_spdif) {
-			runtime->hw.rates &= mout->spdif_rates;
-			runtime->hw.formats &= mout->spdif_formats;
-			if (mout->spdif_maxbps < hinfo->maxbps)
-				hinfo->maxbps = mout->spdif_maxbps;
+			if ((runtime->hw.rates & mout->spdif_rates) &&
+			    (runtime->hw.formats & mout->spdif_formats)) {
+				runtime->hw.rates &= mout->spdif_rates;
+				runtime->hw.formats &= mout->spdif_formats;
+				if (mout->spdif_maxbps < hinfo->maxbps)
+					hinfo->maxbps = mout->spdif_maxbps;
+			} else {
+				mout->share_spdif = 0;
+				/* FIXME: need notify? */
+			}
 		}
 		mutex_unlock(&codec->spdif_mutex);
 	}

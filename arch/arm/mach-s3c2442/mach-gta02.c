@@ -433,8 +433,7 @@ static struct s3c2410_nand_set gta02_nand_sets[] = {
 		 */
 		.name		= "neo1973-nand",
 		.nr_chips	= 1,
-		.use_bbt	= 1,
-		.force_soft_ecc	= 1,
+		.flash_bbt	= 1,
 	},
 };
 

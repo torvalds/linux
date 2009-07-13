@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 #include "../pci.h"

@@ -45,7 +45,6 @@
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
-#include <linux/smp_lock.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/module.h>

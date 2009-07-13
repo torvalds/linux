@@ -32,7 +32,6 @@
 #include <linux/smb_mount.h>
 #include <linux/ncp_mount.h>
 #include <linux/nfs4_mount.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
@@ -1486,8 +1485,8 @@ int compat_do_execve(char * filename,
 	if (!bprm)
 		goto out_files;
 
-	retval = mutex_lock_interruptible(&current->cred_guard_mutex);
-	if (retval < 0)
+	retval = -ERESTARTNOINTR;
+	if (mutex_lock_interruptible(&current->cred_guard_mutex))
 		goto out_free;
 	current->in_execve = 1;
 

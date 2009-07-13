@@ -97,4 +97,8 @@ extern void setup_per_cpu_areas(void);
 #define PER_CPU_ATTRIBUTES
 #endif
 
+#ifndef PER_CPU_DEF_ATTRIBUTES
+#define PER_CPU_DEF_ATTRIBUTES
+#endif
+
 #endif /* _ASM_GENERIC_PERCPU_H_ */

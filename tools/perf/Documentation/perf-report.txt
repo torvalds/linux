@@ -13,13 +13,25 @@ SYNOPSIS
 DESCRIPTION
 -----------
 This command displays the performance counter profile information recorded
-via perf report.
+via perf record.
 
 OPTIONS
 -------
 -i::
 --input=::
         Input file name. (default: perf.data)
+-d::
+--dsos=::
+	Only consider symbols in these dsos. CSV that understands
+	file://filename entries.
+-C::
+--comms=::
+	Only consider symbols in these comms. CSV that understands
+	file://filename entries.
+-S::
+--symbols=::
+	Only consider these symbols. CSV that understands
+	file://filename entries.
 
 SEE ALSO
 --------

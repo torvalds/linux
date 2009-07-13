@@ -171,7 +171,7 @@ static int hp_wmi_tablet_state(void)
 static int hp_wmi_set_block(void *data, bool blocked)
 {
 	unsigned long b = (unsigned long) data;
-	int query = BIT(b + 8) | ((!!blocked) << b);
+	int query = BIT(b + 8) | ((!blocked) << b);
 
 	return hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, query);
 }

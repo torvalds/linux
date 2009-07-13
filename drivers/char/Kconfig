@@ -1029,10 +1029,6 @@ config CS5535_GPIO
 
 	  If compiled as a module, it will be called cs5535_gpio.
 
-config GPIO_VR41XX
-	tristate "NEC VR4100 series General-purpose I/O Unit support"
-	depends on CPU_VR41XX
-
 config RAW_DRIVER
 	tristate "RAW driver (/dev/raw/rawN)"
 	depends on BLOCK

@@ -23,7 +23,6 @@
 #include <linux/errno.h>
 #include <linux/phonedev.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 

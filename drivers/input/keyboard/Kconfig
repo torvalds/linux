@@ -12,6 +12,42 @@ menuconfig INPUT_KEYBOARD
 
 if INPUT_KEYBOARD
 
+config KEYBOARD_AAED2000
+	tristate "AAED-2000 keyboard"
+	depends on MACH_AAED2000
+	select INPUT_POLLDEV
+	default y
+	help
+	  Say Y here to enable the keyboard on the Agilent AAED-2000
+	  development board.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called aaed2000_kbd.
+
+config KEYBOARD_AMIGA
+	tristate "Amiga keyboard"
+	depends on AMIGA
+	help
+	  Say Y here if you are running Linux on any AMIGA and have a keyboard
+	  attached.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called amikbd.
+
+config ATARI_KBD_CORE
+	bool
+
+config KEYBOARD_ATARI
+	tristate "Atari keyboard"
+	depends on ATARI
+	select ATARI_KBD_CORE
+	help
+	  Say Y here if you are running Linux on any Atari and have a keyboard
+	  attached.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atakbd.
+
 config KEYBOARD_ATKBD
 	tristate "AT keyboard" if EMBEDDED || !X86
 	default y
@@ -68,16 +104,25 @@ config KEYBOARD_ATKBD_RDI_KEYCODES
 	  right-hand column will be interpreted as the key shown in the
 	  left-hand column.
 
-config KEYBOARD_SUNKBD
-	tristate "Sun Type 4 and Type 5 keyboard"
-	select SERIO
+config KEYBOARD_BFIN
+	tristate "Blackfin BF54x keypad support"
+	depends on (BF54x && !BF544)
 	help
-	  Say Y here if you want to use a Sun Type 4 or Type 5 keyboard,
-	  connected either to the Sun keyboard connector or to an serial
-	  (RS-232) port via a simple adapter.
+	  Say Y here if you want to use the BF54x keypad.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called sunkbd.
+	  module will be called bf54x-keys.
+
+config KEYBOARD_CORGI
+	tristate "Corgi keyboard"
+	depends on PXA_SHARPSL
+	default y
+	help
+	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C7xx
+	  series of PDAs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called corgikbd.
 
 config KEYBOARD_LKKBD
 	tristate "DECstation/VAXstation LK201/LK401 keyboard"
@@ -91,113 +136,38 @@ config KEYBOARD_LKKBD
 	  To compile this driver as a module, choose M here: the
 	  module will be called lkkbd.
 
-config KEYBOARD_LOCOMO
-	tristate "LoCoMo Keyboard Support"
-	depends on SHARP_LOCOMO && INPUT_KEYBOARD
+config KEYBOARD_EP93XX
+	tristate "EP93xx Matrix Keypad support"
+	depends on ARCH_EP93XX
 	help
-	  Say Y here if you are running Linux on a Sharp Zaurus Collie or Poodle based PDA
+	  Say Y here to enable the matrix keypad on the Cirrus EP93XX.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called locomokbd.
+	  module will be called ep93xx_keypad.
 
-config KEYBOARD_XTKBD
-	tristate "XT keyboard"
-	select SERIO
+config KEYBOARD_GPIO
+	tristate "GPIO Buttons"
+	depends on GENERIC_GPIO
 	help
-	  Say Y here if you want to use the old IBM PC/XT keyboard (or
-	  compatible) on your system. This is only possible with a
-	  parallel port keyboard adapter, you cannot connect it to the
-	  keyboard port on a PC that runs Linux.
+	  This driver implements support for buttons connected
+	  to GPIO pins of various CPUs (and some other chips).
+
+	  Say Y here if your device has buttons connected
+	  directly to such GPIO pins.  Your board-specific
+	  setup logic must also provide a platform device,
+	  with configuration data saying which GPIOs are used.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called xtkbd.
+	  module will be called gpio_keys.
 
-config KEYBOARD_NEWTON
-	tristate "Newton keyboard"
-	select SERIO
+config KEYBOARD_MATRIX
+	tristate "GPIO driven matrix keypad support"
+	depends on GENERIC_GPIO
 	help
-	  Say Y here if you have a Newton keyboard on a serial port.
+	  Enable support for GPIO driven matrix keypad.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called newtonkbd.
-
-config KEYBOARD_STOWAWAY
-	tristate "Stowaway keyboard"
-	select SERIO
-	help
-	  Say Y here if you have a Stowaway keyboard on a serial port.
-	  Stowaway compatible keyboards like Dicota Input-PDA keyboard
-	  are also supported by this driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called stowaway.
-
-config KEYBOARD_CORGI
-	tristate "Corgi keyboard"
-	depends on PXA_SHARPSL
-	default y
-	help
-	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C7xx
-	  series of PDAs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called corgikbd.
-
-config KEYBOARD_SPITZ
-	tristate "Spitz keyboard"
-	depends on PXA_SHARPSL
-	default y
-	help
-	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C1000,
-	  SL-C3000 and Sl-C3100 series of PDAs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called spitzkbd.
-
-config KEYBOARD_TOSA
-	tristate "Tosa keyboard"
-	depends on MACH_TOSA
-	default y
-	help
-	  Say Y here to enable the keyboard on the Sharp Zaurus SL-6000x (Tosa)
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tosakbd.
-
-config KEYBOARD_TOSA_USE_EXT_KEYCODES
-	bool "Tosa keyboard: use extended keycodes"
-	depends on KEYBOARD_TOSA
-	default n
-	help
-	  Say Y here to enable the tosa keyboard driver to generate extended
-	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
-	  by either console keyboard driver or by Kdrive keybd driver.
-
-	  Say Y only if you know, what you are doing!
-
-config KEYBOARD_AMIGA
-	tristate "Amiga keyboard"
-	depends on AMIGA
-	help
-	  Say Y here if you are running Linux on any AMIGA and have a keyboard
-	  attached.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called amikbd.
-
-config ATARI_KBD_CORE
-	bool
-
-config KEYBOARD_ATARI
-	tristate "Atari keyboard"
-	depends on ATARI
-	select ATARI_KBD_CORE
-	help
-	  Say Y here if you are running Linux on any Atari and have a keyboard
-	  attached.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called atakbd.
+	  module will be called matrix_keypad.
 
 config KEYBOARD_HIL_OLD
 	tristate "HP HIL keyboard support (simple driver)"
@@ -261,20 +231,39 @@ config KEYBOARD_LM8323
 	  To compile this driver as a module, choose M here: the
 	  module will be called lm8323.
 
-config KEYBOARD_OMAP
-	tristate "TI OMAP keypad support"
-	depends on (ARCH_OMAP1 || ARCH_OMAP2)
+config KEYBOARD_LOCOMO
+	tristate "LoCoMo Keyboard Support"
+	depends on SHARP_LOCOMO
 	help
-	  Say Y here if you want to use the OMAP keypad.
+	  Say Y here if you are running Linux on a Sharp Zaurus Collie or Poodle based PDA
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called omap-keypad.
+	  module will be called locomokbd.
+
+config KEYBOARD_MAPLE
+	tristate "Maple bus keyboard"
+	depends on SH_DREAMCAST && MAPLE
+	help
+	  Say Y here if you have a Dreamcast console running Linux and have
+	  a keyboard attached to its Maple bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called maple_keyb.
+
+config KEYBOARD_NEWTON
+	tristate "Newton keyboard"
+	select SERIO
+	help
+	  Say Y here if you have a Newton keyboard on a serial port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called newtonkbd.
 
 config KEYBOARD_PXA27x
 	tristate "PXA27x/PXA3xx keypad support"
 	depends on PXA27x || PXA3xx
 	help
-	  Enable support for PXA27x/PXA3xx keypad controller
+	  Enable support for PXA27x/PXA3xx keypad controller.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxa27x_keypad.
@@ -288,51 +277,38 @@ config KEYBOARD_PXA930_ROTARY
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxa930_rotary.
 
-config KEYBOARD_AAED2000
-	tristate "AAED-2000 keyboard"
-	depends on MACH_AAED2000
-	select INPUT_POLLDEV
+config KEYBOARD_SPITZ
+	tristate "Spitz keyboard"
+	depends on PXA_SHARPSL
 	default y
 	help
-	  Say Y here to enable the keyboard on the Agilent AAED-2000
-	  development board.
+	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C1000,
+	  SL-C3000 and Sl-C3100 series of PDAs.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called aaed2000_kbd.
+	  module will be called spitzkbd.
 
-config KEYBOARD_GPIO
-	tristate "GPIO Buttons"
-	depends on GENERIC_GPIO
+config KEYBOARD_STOWAWAY
+	tristate "Stowaway keyboard"
+	select SERIO
 	help
-	  This driver implements support for buttons connected
-	  to GPIO pins of various CPUs (and some other chips).
-
-	  Say Y here if your device has buttons connected
-	  directly to such GPIO pins.  Your board-specific
-	  setup logic must also provide a platform device,
-	  with configuration data saying which GPIOs are used.
+	  Say Y here if you have a Stowaway keyboard on a serial port.
+	  Stowaway compatible keyboards like Dicota Input-PDA keyboard
+	  are also supported by this driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called gpio-keys.
+	  module will be called stowaway.
 
-config KEYBOARD_MAPLE
-	tristate "Maple bus keyboard"
-	depends on SH_DREAMCAST && MAPLE
+config KEYBOARD_SUNKBD
+	tristate "Sun Type 4 and Type 5 keyboard"
+	select SERIO
 	help
-	  Say Y here if you have a Dreamcast console running Linux and have
-	  a keyboard attached to its Maple bus.
+	  Say Y here if you want to use a Sun Type 4 or Type 5 keyboard,
+	  connected either to the Sun keyboard connector or to an serial
+	  (RS-232) port via a simple adapter.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called maple_keyb.
-
-config KEYBOARD_BFIN
-	tristate "Blackfin BF54x keypad support"
-	depends on (BF54x && !BF544)
-	help
-	  Say Y here if you want to use the BF54x keypad.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bf54x-keys.
+	  module will be called sunkbd.
 
 config KEYBOARD_SH_KEYSC
 	tristate "SuperH KEYSC keypad support"
@@ -344,13 +320,45 @@ config KEYBOARD_SH_KEYSC
 	  To compile this driver as a module, choose M here: the
 	  module will be called sh_keysc.
 
-config KEYBOARD_EP93XX
-	tristate "EP93xx Matrix Keypad support"
-	depends on ARCH_EP93XX
+config KEYBOARD_OMAP
+	tristate "TI OMAP keypad support"
+	depends on (ARCH_OMAP1 || ARCH_OMAP2)
 	help
-	  Say Y here to enable the matrix keypad on the Cirrus EP93XX.
+	  Say Y here if you want to use the OMAP keypad.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ep93xx_keypad.
+	  module will be called omap-keypad.
+
+config KEYBOARD_TOSA
+	tristate "Tosa keyboard"
+	depends on MACH_TOSA
+	default y
+	help
+	  Say Y here to enable the keyboard on the Sharp Zaurus SL-6000x (Tosa)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tosakbd.
+
+config KEYBOARD_TOSA_USE_EXT_KEYCODES
+	bool "Tosa keyboard: use extended keycodes"
+	depends on KEYBOARD_TOSA
+	help
+	  Say Y here to enable the tosa keyboard driver to generate extended
+	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
+	  by either console keyboard driver or by Kdrive keybd driver.
+
+	  Say Y only if you know, what you are doing!
+
+config KEYBOARD_XTKBD
+	tristate "XT keyboard"
+	select SERIO
+	help
+	  Say Y here if you want to use the old IBM PC/XT keyboard (or
+	  compatible) on your system. This is only possible with a
+	  parallel port keyboard adapter, you cannot connect it to the
+	  keyboard port on a PC that runs Linux.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xtkbd.
 
 endif

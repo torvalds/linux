@@ -26,6 +26,9 @@ TRACE_EVENT_FORMAT(funcgraph_exit, TRACE_GRAPH_RET,
 		   ftrace_graph_ret_entry, ignore,
 	TRACE_STRUCT(
 		TRACE_FIELD(unsigned long, ret.func, func)
+		TRACE_FIELD(unsigned long long, ret.calltime, calltime)
+		TRACE_FIELD(unsigned long long, ret.rettime, rettime)
+		TRACE_FIELD(unsigned long, ret.overrun, overrun)
 		TRACE_FIELD(int, ret.depth, depth)
 	),
 	TP_RAW_FMT("<-- %lx (%d)")

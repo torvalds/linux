@@ -867,12 +867,22 @@ M:	alex@shark-linux.de
 W:	http://www.shark-linux.de/shark.html
 S:	Maintained
 
+ARM/SAMSUNG ARM ARCHITECTURES
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/plat-s3c/
+F:	arch/arm/plat-s3c24xx/
+
 ARM/S3C2410 ARM ARCHITECTURE
 P:	Ben Dooks
 M:	ben-linux@fluff.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
+F:	arch/arm/mach-s3c2410/
 
 ARM/S3C2440 ARM ARCHITECTURE
 P:	Ben Dooks
@@ -880,6 +890,39 @@ M:	ben-linux@fluff.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
+F:	arch/arm/mach-s3c2440/
+
+ARM/S3C2442 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c2442/
+
+ARM/S3C2443 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c2443/
+
+ARM/S3C6400 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c6400/
+
+ARM/S3C6410 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c6410/
 
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 P:	Lennert Buytenhek
@@ -2087,9 +2130,9 @@ F:	drivers/edac/i5400_edac.c
 
 EDAC-I82975X
 P:	Ranganathan Desikan
-M:	rdesikan@jetzbroadband.com
+M:	ravi@jetztechnologies.com
 P:	Arvind R.
-M:	arvind@acarlab.com
+M:	arvind@jetztechnologies.com
 L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
@@ -2808,7 +2851,9 @@ S:	Maintained
 
 IA64 (Itanium) PLATFORM
 P:	Tony Luck
+P:	Fenghua Yu
 M:	tony.luck@intel.com
+M:	fenghua.yu@intel.com
 L:	linux-ia64@vger.kernel.org
 W:	http://www.ia64-linux.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux-2.6.git
@@ -2886,7 +2931,7 @@ P:	Dmitry Eremin-Solenikov
 M:	dbaryshkov@gmail.com
 P:	Sergey Lapin
 M:	slapin@ossfans.org
-L:	linux-zigbee-devel@lists.sourceforge.net
+L:	linux-zigbee-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://apps.sourceforge.net/trac/linux-zigbee
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lowpan/lowpan.git
 S:	Maintained
@@ -4362,7 +4407,7 @@ W:	http://www.nongnu.org/orinoco/
 S:	Maintained
 F:	drivers/net/wireless/orinoco/
 
-OSD LIBRARY
+OSD LIBRARY and FILESYSTEM
 P:	Boaz Harrosh
 M:	bharrosh@panasas.com
 P:	Benny Halevy
@@ -4371,6 +4416,9 @@ L:	osd-dev@open-osd.org
 W:	http://open-osd.org
 T:	git git://git.open-osd.org/open-osd.git
 S:	Maintained
+F:	drivers/scsi/osd/
+F:	drivers/include/scsi/osd_*
+F:	fs/exofs/
 
 P54 WIRELESS DRIVER
 P:	Michael Wu
@@ -5533,8 +5581,8 @@ F:	drivers/staging/
 
 STARFIRE/DURALAN NETWORK DRIVER
 P:	Ion Badulescu
-M:	ionut@cs.columbia.edu
-S:	Maintained
+M:	ionut@badula.org
+S:	Odd Fixes
 F:	drivers/net/starfire*
 
 STARMODE RADIO IP (STRIP) PROTOCOL DRIVER
@@ -5758,17 +5806,17 @@ P:	Jiri Kosina
 M:	trivial@kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/trivial.git
 S:	Maintained
-F:	drivers/char/tty_*
-F:	drivers/serial/serial_core.c
-F:	include/linux/serial_core.h
-F:	include/linux/serial.h
-F:	include/linux/tty.h
 
 TTY LAYER
 P:	Alan Cox
 M:	alan@lxorguk.ukuu.org.uk
 S:	Maintained
 T:	stgit http://zeniv.linux.org.uk/~alan/ttydev/
+F:	drivers/char/tty_*
+F:	drivers/serial/serial_core.c
+F:	include/linux/serial_core.h
+F:	include/linux/serial.h
+F:	include/linux/tty.h
 
 TULIP NETWORK DRIVERS
 P:	Grant Grundler
@@ -5806,7 +5854,7 @@ UBI FILE SYSTEM (UBIFS)
 P:	Artem Bityutskiy
 M:	dedekind@infradead.org
 P:	Adrian Hunter
-M:	ext-adrian.hunter@nokia.com
+M:	adrian.hunter@nokia.com
 L:	linux-mtd@lists.infradead.org
 T:	git git://git.infradead.org/ubifs-2.6.git
 W:	http://www.linux-mtd.infradead.org/doc/ubifs.html

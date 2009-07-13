@@ -18,8 +18,7 @@
 #include <asm/octeon/cvmx-pescx-defs.h>
 #include <asm/octeon/cvmx-pexp-defs.h>
 #include <asm/octeon/cvmx-helper-errata.h>
-
-#include "pci-common.h"
+#include <asm/octeon/pci-octeon.h>
 
 union cvmx_pcie_address {
 	uint64_t u64;
@@ -976,13 +975,13 @@ static int cvmx_pcie_rc_initialize(int pcie_port)
 /**
  * Map a PCI device to the appropriate interrupt line
  *
- * @param dev    The Linux PCI device structure for the device to map
- * @param slot   The slot number for this device on __BUS 0__. Linux
+ * @dev:    The Linux PCI device structure for the device to map
+ * @slot:   The slot number for this device on __BUS 0__. Linux
  *               enumerates through all the bridges and figures out the
  *               slot on Bus 0 where this device eventually hooks to.
- * @param pin    The PCI interrupt pin read from the device, then swizzled
+ * @pin:    The PCI interrupt pin read from the device, then swizzled
  *               as it goes through each bridge.
- * @return Interrupt number for the device
+ * Returns Interrupt number for the device
  */
 int __init octeon_pcie_pcibios_map_irq(const struct pci_dev *dev,
 				       u8 slot, u8 pin)
@@ -1025,12 +1024,12 @@ int __init octeon_pcie_pcibios_map_irq(const struct pci_dev *dev,
 /**
  * Read a value from configuration space
  *
- * @param bus
- * @param devfn
- * @param reg
- * @param size
- * @param val
- * @return
+ * @bus:
+ * @devfn:
+ * @reg:
+ * @size:
+ * @val:
+ * Returns
  */
 static inline int octeon_pcie_read_config(int pcie_port, struct pci_bus *bus,
 					  unsigned int devfn, int reg, int size,
@@ -1156,12 +1155,12 @@ static int octeon_pcie1_read_config(struct pci_bus *bus, unsigned int devfn,
 /**
  * Write a value to PCI configuration space
  *
- * @param bus
- * @param devfn
- * @param reg
- * @param size
- * @param val
- * @return
+ * @bus:
+ * @devfn:
+ * @reg:
+ * @size:
+ * @val:
+ * Returns
  */
 static inline int octeon_pcie_write_config(int pcie_port, struct pci_bus *bus,
 					   unsigned int devfn, int reg,
@@ -1254,7 +1253,7 @@ static struct pci_controller octeon_pcie1_controller = {
 /**
  * Initialize the Octeon PCIe controllers
  *
- * @return
+ * Returns
  */
 static int __init octeon_pcie_setup(void)
 {

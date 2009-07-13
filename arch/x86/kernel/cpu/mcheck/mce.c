@@ -194,14 +194,14 @@ static void print_mce(struct mce *m)
 		       m->cs, m->ip);
 		if (m->cs == __KERNEL_CS)
 			print_symbol("{%s}", m->ip);
-		printk("\n");
+		printk(KERN_CONT "\n");
 	}
 	printk(KERN_EMERG "TSC %llx ", m->tsc);
 	if (m->addr)
-		printk("ADDR %llx ", m->addr);
+		printk(KERN_CONT "ADDR %llx ", m->addr);
 	if (m->misc)
-		printk("MISC %llx ", m->misc);
-	printk("\n");
+		printk(KERN_CONT "MISC %llx ", m->misc);
+	printk(KERN_CONT "\n");
 	printk(KERN_EMERG "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
 			m->cpuvendor, m->cpuid, m->time, m->socketid,
 			m->apicid);
@@ -209,13 +209,13 @@ static void print_mce(struct mce *m)
 
 static void print_mce_head(void)
 {
-	printk(KERN_EMERG "\n" KERN_EMERG "HARDWARE ERROR\n");
+	printk(KERN_EMERG "\nHARDWARE ERROR\n");
 }
 
 static void print_mce_tail(void)
 {
 	printk(KERN_EMERG "This is not a software problem!\n"
-	       KERN_EMERG "Run through mcelog --ascii to decode and contact your hardware vendor\n");
+	       "Run through mcelog --ascii to decode and contact your hardware vendor\n");
 }
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */

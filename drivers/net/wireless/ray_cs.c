@@ -2427,11 +2427,10 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 
 #ifdef PCMCIA_DEBUG
 	if (pc_debug > 3) {
-		int i;
-		printk(KERN_DEBUG "skb->data before untranslate");
-		for (i = 0; i < 64; i++)
-			printk("%02x ", skb->data[i]);
-		printk("\n" KERN_DEBUG
+		print_hex_dump(KERN_DEBUG, "skb->data before untranslate: ",
+			       DUMP_PREFIX_NONE, 16, 1,
+			       skb->data, 64, true);
+		printk(KERN_DEBUG
 		       "type = %08x, xsap = %02x%02x%02x, org = %02x02x02x\n",
 		       ntohs(type), psnap->dsap, psnap->ssap, psnap->ctrl,
 		       psnap->org[0], psnap->org[1], psnap->org[2]);

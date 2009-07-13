@@ -251,7 +251,7 @@ static void g5_pfunc_switch_volt(int speed_mode)
 static struct pmf_function *pfunc_cpu_setfreq_high;
 static struct pmf_function *pfunc_cpu_setfreq_low;
 static struct pmf_function *pfunc_cpu_getfreq;
-static struct pmf_function *pfunc_slewing_done;;
+static struct pmf_function *pfunc_slewing_done;
 
 static int g5_pfunc_switch_freq(int speed_mode)
 {
