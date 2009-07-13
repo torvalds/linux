@@ -249,12 +249,9 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 static int midisynth_unuse(void *private_data, struct snd_seq_port_subscribe *info)
 {
 	struct seq_midisynth *msynth = private_data;
-	unsigned char buf = 0xff; /* MIDI reset */
 
 	if (snd_BUG_ON(!msynth->output_rfile.output))
 		return -EINVAL;
-	/* sending single MIDI reset message to shut the device up */
-	snd_rawmidi_kernel_write(msynth->output_rfile.output, &buf, 1);
 	snd_rawmidi_drain_output(msynth->output_rfile.output);
 	return snd_rawmidi_kernel_release(&msynth->output_rfile);
 }
