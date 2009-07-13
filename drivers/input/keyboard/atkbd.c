@@ -895,6 +895,13 @@ static unsigned int atkbd_amilo_pa1510_forced_release_keys[] = {
 };
 
 /*
+ * Amilo Pi 3525 key release for Fn+Volume keys not working
+ */
+static unsigned int atkbd_amilo_pi3525_forced_release_keys[] = {
+	0x20, 0xa0, 0x2e, 0xae, 0x30, 0xb0, -1U
+};
+
+/*
  * Amilo Xi 3650 key release for light touch bar not working
  */
 static unsigned int atkbd_amilo_xi3650_forced_release_keys[] = {
@@ -1566,6 +1573,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_forced_release,
 		.driver_data = atkbd_amilo_pa1510_forced_release_keys,
+	},
+	{
+		.ident = "Fujitsu Amilo Pi 3525",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pi 3525"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_amilo_pi3525_forced_release_keys,
 	},
 	{
 		.ident = "Fujitsu Amilo Xi 3650",
