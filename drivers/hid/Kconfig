@@ -152,6 +152,13 @@ config HID_GYRATION
 	---help---
 	Support for Gyration remote control.
 
+config HID_TWINHAN
+	tristate "Twinhan" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Twinhan IR remote control.
+
 config HID_KENSINGTON
 	tristate "Kensington" if EMBEDDED
 	depends on USB_HID
