@@ -787,6 +787,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 			    name, ieee80211_if_setup);
 	if (!ndev)
 		return -ENOMEM;
+	dev_net_set(ndev, wiphy_net(local->hw.wiphy));
 
 	ndev->needed_headroom = local->tx_headroom +
 				4*6 /* four MAC addresses */
