@@ -50,3 +50,4 @@ obj-$(CONFIG_RDC_17F3101X)	+= pata_rdc/
 obj-$(CONFIG_FB_UDL)		+= udlfb/
 obj-$(CONFIG_MSM_ADSP)		+= dream/qdsp5/ dream/smd/
 obj-$(CONFIG_MSM_CAMERA)	+= dream/camera/
+obj-$(CONFIG_HYPERV)		+= hv/

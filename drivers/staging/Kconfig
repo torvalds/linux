@@ -137,5 +137,7 @@ source "drivers/staging/dream/camera/Kconfig"
 
 source "drivers/staging/udlfb/Kconfig"
 
+source "drivers/staging/hv/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

@@ -1,0 +1,8 @@
+config HYPERV
+	tristate "Microsoft Hyper-V client drivers"
+	depends on X86
+	default n
+	help
+	  Select this option to run Linux as a Hyper-V client operating
+	  system.
+
