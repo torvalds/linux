@@ -39,12 +39,6 @@ static const char *ieee80211_modes[] = {
 	"?", "a", "b", "ab", "g", "ag", "bg", "abg"
 };
 
-#ifdef FEDORACORE_9
-#define IN_FEDORACORE_9 1
-#else
-#define IN_FEDORACORE_9 0
-#endif
-
 #define MAX_CUSTOM_LEN 64
 static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 		                           char *start, char *stop,
