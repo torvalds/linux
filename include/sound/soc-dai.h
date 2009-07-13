@@ -27,8 +27,8 @@ struct snd_pcm_substream;
 #define SND_SOC_DAIFMT_I2S		0 /* I2S mode */
 #define SND_SOC_DAIFMT_RIGHT_J		1 /* Right Justified mode */
 #define SND_SOC_DAIFMT_LEFT_J		2 /* Left Justified mode */
-#define SND_SOC_DAIFMT_DSP_A		3 /* L data msb after FRM LRC */
-#define SND_SOC_DAIFMT_DSP_B		4 /* L data msb during FRM LRC */
+#define SND_SOC_DAIFMT_DSP_A		3 /* L data MSB after FRM LRC */
+#define SND_SOC_DAIFMT_DSP_B		4 /* L data MSB during FRM LRC */
 #define SND_SOC_DAIFMT_AC97		5 /* AC97 */
 
 /* left and right justified also known as MSB and LSB respectively */
@@ -38,7 +38,7 @@ struct snd_pcm_substream;
 /*
  * DAI Clock gating.
  *
- * DAI bit clocks can be be gated (disabled) when not the DAI is not
+ * DAI bit clocks can be be gated (disabled) when the DAI is not
  * sending or receiving PCM data in a frame. This can be used to save power.
  */
 #define SND_SOC_DAIFMT_CONT		(0 << 4) /* continuous clock */
@@ -51,21 +51,21 @@ struct snd_pcm_substream;
  * format.
  */
 #define SND_SOC_DAIFMT_NB_NF		(0 << 8) /* normal bit clock + frame */
-#define SND_SOC_DAIFMT_NB_IF		(1 << 8) /* normal bclk + inv frm */
-#define SND_SOC_DAIFMT_IB_NF		(2 << 8) /* invert bclk + nor frm */
-#define SND_SOC_DAIFMT_IB_IF		(3 << 8) /* invert bclk + frm */
+#define SND_SOC_DAIFMT_NB_IF		(1 << 8) /* normal BCLK + inv FRM */
+#define SND_SOC_DAIFMT_IB_NF		(2 << 8) /* invert BCLK + nor FRM */
+#define SND_SOC_DAIFMT_IB_IF		(3 << 8) /* invert BCLK + FRM */
 
 /*
  * DAI hardware clock masters.
  *
  * This is wrt the codec, the inverse is true for the interface
- * i.e. if the codec is clk and frm master then the interface is
+ * i.e. if the codec is clk and FRM master then the interface is
  * clk and frame slave.
  */
-#define SND_SOC_DAIFMT_CBM_CFM		(0 << 12) /* codec clk & frm master */
-#define SND_SOC_DAIFMT_CBS_CFM		(1 << 12) /* codec clk slave & frm master */
+#define SND_SOC_DAIFMT_CBM_CFM		(0 << 12) /* codec clk & FRM master */
+#define SND_SOC_DAIFMT_CBS_CFM		(1 << 12) /* codec clk slave & FRM master */
 #define SND_SOC_DAIFMT_CBM_CFS		(2 << 12) /* codec clk master & frame slave */
-#define SND_SOC_DAIFMT_CBS_CFS		(3 << 12) /* codec clk & frm slave */
+#define SND_SOC_DAIFMT_CBS_CFS		(3 << 12) /* codec clk & FRM slave */
 
 #define SND_SOC_DAIFMT_FORMAT_MASK	0x000f
 #define SND_SOC_DAIFMT_CLOCK_MASK	0x00f0
@@ -116,12 +116,12 @@ int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute);
 /*
  * Digital Audio Interface.
  *
- * Describes the Digital Audio Interface in terms of it's ALSA, DAI and AC97
- * operations an capabilities. Codec and platfom drivers will register a this
+ * Describes the Digital Audio Interface in terms of its ALSA, DAI and AC97
+ * operations and capabilities. Codec and platform drivers will register this
  * structure for every DAI they have.
  *
  * This structure covers the clocking, formating and ALSA operations for each
- * interface a
+ * interface.
  */
 struct snd_soc_dai_ops {
 	/*
