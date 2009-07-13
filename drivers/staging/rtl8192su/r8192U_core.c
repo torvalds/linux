@@ -2708,8 +2708,8 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 
 /* handle manage frame frame beacon and probe response */
 static int rtl8192_handle_beacon(struct net_device * dev,
-                              struct ieee80211_beacon * beacon,
-                              struct ieee80211_network * network)
+				 struct ieee80211_probe_response *beacon,
+				 struct ieee80211_network *network)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 

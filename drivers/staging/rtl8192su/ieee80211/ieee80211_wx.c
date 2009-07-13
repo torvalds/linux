@@ -541,7 +541,8 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                         return -EINVAL;
         }
 
-        sec.flags |= SEC_ENABLED;// | SEC_ENCRYPT;
+	sec.flags |= SEC_ENABLED;
+
         if ((encoding->flags & IW_ENCODE_DISABLED) ||
             ext->alg == IW_ENCODE_ALG_NONE) {
                 if (*crypt)
@@ -644,15 +645,12 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                 sec.key_sizes[idx] = ext->key_len;
                 sec.flags |= (1 << idx);
                 if (ext->alg == IW_ENCODE_ALG_WEP) {
-                      //  sec.encode_alg[idx] = SEC_ALG_WEP;
                         sec.flags |= SEC_LEVEL;
                         sec.level = SEC_LEVEL_1;
                 } else if (ext->alg == IW_ENCODE_ALG_TKIP) {
-                      //  sec.encode_alg[idx] = SEC_ALG_TKIP;
                         sec.flags |= SEC_LEVEL;
                         sec.level = SEC_LEVEL_2;
                 } else if (ext->alg == IW_ENCODE_ALG_CCMP) {
-                       // sec.encode_alg[idx] = SEC_ALG_CCMP;
                         sec.flags |= SEC_LEVEL;
                         sec.level = SEC_LEVEL_3;
                 }
