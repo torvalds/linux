@@ -310,7 +310,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
         struct blkcipher_desc desc = {.tfm = tkey->tx_tfm_arc4};
 	int len;
 	u8  *pos;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u8 rc4key[16],*icv;
 	u32 crc;
 	struct scatterlist sg;
@@ -321,7 +321,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	    skb->len < hdr_len)
 		return -1;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
 	if (!tkey->tx_phase1_done) {
 		tkip_mixing_phase1(tkey->tx_ttak, tkey->key, hdr->addr2,
@@ -369,7 +369,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 keyidx, *pos;
 	u32 iv32;
 	u16 iv16;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u8 icv[4];
 	u32 crc;
 	struct scatterlist sg;
@@ -379,7 +379,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
@@ -494,9 +494,9 @@ static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
 
 static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 {
-	struct ieee80211_hdr *hdr11;
+	struct ieee80211_hdr_4addr *hdr11;
 
-	hdr11 = (struct ieee80211_hdr *) skb->data;
+	hdr11 = (struct ieee80211_hdr_4addr *)skb->data;
 	switch (le16_to_cpu(hdr11->frame_ctl) &
 		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
 	case IEEE80211_FCTL_TODS:
@@ -527,9 +527,9 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 *pos;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
 	if (skb_tailroom(skb) < 8 || skb->len < hdr_len) {
 		printk(KERN_DEBUG "Invalid packet for Michael MIC add "
@@ -556,7 +556,7 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 }
 
 static void ieee80211_michael_mic_failure(struct net_device *dev,
-				       struct ieee80211_hdr *hdr,
+				       struct ieee80211_hdr_4addr *hdr,
 				       int keyidx)
 {
 	union iwreq_data wrqu;
@@ -581,9 +581,9 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 mic[8];
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
 	if (!tkey->key_set)
 		return -1;
@@ -601,8 +601,8 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
-		struct ieee80211_hdr *hdr;
-		hdr = (struct ieee80211_hdr *) skb->data;
+		struct ieee80211_hdr_4addr *hdr;
+		hdr = (struct ieee80211_hdr_4addr *)skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from " MAC_FMT " keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", MAC_ARG(hdr->addr2),

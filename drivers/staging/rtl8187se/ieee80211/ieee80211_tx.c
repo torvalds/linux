@@ -192,11 +192,11 @@ int ieee80211_encrypt_fragment(
         return -1;
 
 #ifdef CONFIG_IEEE80211_CRYPT_TKIP
-	struct ieee80211_hdr *header;
+	struct ieee80211_hdr_4addr *header;
 
 	if (ieee->tkip_countermeasures &&
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
-		header = (struct ieee80211_hdr *) frag->data;
+		header = (struct ieee80211_hdr_4addr *)frag->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
 			       "TX packet to " MAC_FMT "\n",
@@ -317,10 +317,6 @@ int ieee80211_xmit(struct sk_buff *skb,
 	int ether_type, encrypt;
 	int bytes, fc, QOS_ctl, hdr_len;
 	struct sk_buff *skb_frag;
-	//struct ieee80211_hdr header = { /* Ensure zero initialized */
-	//	.duration_id = 0,
-	//	.seq_ctl = 0
-	//};
 	struct ieee80211_hdr_3addr_QOS header = { /* Ensure zero initialized */
 		.duration_id = 0,
 		.seq_ctl = 0,

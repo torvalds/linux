@@ -1540,7 +1540,7 @@ void rtl8180_rx(struct net_device *dev)
 	u8	LNA=0, BB=0;
 	u8 	LNA_gain[4]={02, 17, 29, 39};
 	u8  Antenna = 0;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u16 fc,type;
 	u8 bHwError = 0,bCRC = 0,bICV = 0;
 	bool	bCckRate = false;
@@ -1736,7 +1736,7 @@ void rtl8180_rx(struct net_device *dev)
 			| (((*(priv->rxringtail))& (0x08000000)) != 0 )| (((~(*(priv->rxringtail)))& (0x10000000)) != 0 )| (((~(*(priv->rxringtail)))& (0x20000000)) != 0 );
 		bCRC = ((*(priv->rxringtail)) & (0x00002000)) >> 13;
 		bICV = ((*(priv->rxringtail)) & (0x00001000)) >> 12;
-            hdr = (struct ieee80211_hdr *)priv->rxbuffer->buf;
+		hdr = (struct ieee80211_hdr_4addr *)priv->rxbuffer->buf;
 		    fc = le16_to_cpu(hdr->frame_ctl);
 	        type = WLAN_FC_GET_TYPE(fc);
 

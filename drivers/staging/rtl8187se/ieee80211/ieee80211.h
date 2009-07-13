@@ -170,7 +170,7 @@ struct ieee_ibss_seq {
 	struct list_head list;
 };
 
-struct ieee80211_hdr {
+struct ieee80211_hdr_4addr {
 	u16 frame_ctl;
 	u16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -1450,7 +1450,7 @@ extern void ieee80211_txb_free(struct ieee80211_txb *);
 extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats);
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
-			     struct ieee80211_hdr *header,
+			     struct ieee80211_hdr_4addr *header,
 			     struct ieee80211_rx_stats *stats);
 
 /* ieee80211_wx.c */
