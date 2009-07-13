@@ -75,6 +75,7 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
 			 uint32_t offset, uint32_t obj_size);
 int r100_clear_surface_reg(struct radeon_device *rdev, int reg);
+void r100_bandwidth_update(struct radeon_device *rdev);
 
 static struct radeon_asic r100_asic = {
 	.init = &r100_init,
@@ -106,6 +107,7 @@ static struct radeon_asic r100_asic = {
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &r100_bandwidth_update,
 };
 
 
@@ -165,6 +167,7 @@ static struct radeon_asic r300_asic = {
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &r100_bandwidth_update,
 };
 
 /*
@@ -204,6 +207,7 @@ static struct radeon_asic r420_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &r100_bandwidth_update,
 };
 
 
@@ -250,6 +254,7 @@ static struct radeon_asic rs400_asic = {
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &r100_bandwidth_update,
 };
 
 
@@ -267,6 +272,7 @@ void rs600_gart_tlb_flush(struct radeon_device *rdev);
 int rs600_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
+void rs600_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rs600_asic = {
 	.init = &r300_init,
 	.errata = &rs600_errata,
@@ -295,6 +301,7 @@ static struct radeon_asic rs600_asic = {
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
+	.bandwidth_update = &rs600_bandwidth_update,
 };
 
 
@@ -307,6 +314,7 @@ int rs690_mc_init(struct radeon_device *rdev);
 void rs690_mc_fini(struct radeon_device *rdev);
 uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
+void rs690_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rs690_asic = {
 	.init = &r300_init,
 	.errata = &rs690_errata,
@@ -337,6 +345,7 @@ static struct radeon_asic rs690_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &rs690_bandwidth_update,
 };
 
 
@@ -354,6 +363,7 @@ void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rv515_ring_start(struct radeon_device *rdev);
 uint32_t rv515_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
 void rv515_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
+void rv515_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic rv515_asic = {
 	.init = &rv515_init,
 	.errata = &rv515_errata,
@@ -384,6 +394,7 @@ static struct radeon_asic rv515_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &rv515_bandwidth_update,
 };
 
 
@@ -394,6 +405,7 @@ void r520_errata(struct radeon_device *rdev);
 void r520_vram_info(struct radeon_device *rdev);
 int r520_mc_init(struct radeon_device *rdev);
 void r520_mc_fini(struct radeon_device *rdev);
+void r520_bandwidth_update(struct radeon_device *rdev);
 static struct radeon_asic r520_asic = {
 	.init = &rv515_init,
 	.errata = &r520_errata,
@@ -424,6 +436,7 @@ static struct radeon_asic r520_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &r520_bandwidth_update,
 };
 
 /*

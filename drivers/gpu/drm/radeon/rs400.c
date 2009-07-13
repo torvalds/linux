@@ -29,6 +29,7 @@
 #include <drm/drmP.h>
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_share.h"
 
 /* rs400,rs480 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);

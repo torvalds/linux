@@ -28,6 +28,7 @@
 #include "drmP.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_share.h"
 
 /* r520,rv530,rv560,rv570,r580 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);
@@ -226,7 +227,20 @@ static void r520_vram_get_type(struct radeon_device *rdev)
 
 void r520_vram_info(struct radeon_device *rdev)
 {
+	fixed20_12 a;
+
 	r520_vram_get_type(rdev);
 
 	r100_vram_init_sizes(rdev);
+	/* FIXME: we should enforce default clock in case GPU is not in
+	 * default setup
+	 */
+	a.full = rfixed_const(100);
+	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
+	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+}
+
+void r520_bandwidth_update(struct radeon_device *rdev)
+{
+	rv515_bandwidth_avivo_update(rdev);
 }

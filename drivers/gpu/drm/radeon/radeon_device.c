@@ -561,6 +561,11 @@ int radeon_device_init(struct radeon_device *rdev,
 			radeon_combios_asic_init(rdev->ddev);
 		}
 	}
+	/* Initialize clocks */
+	r = radeon_clocks_init(rdev);
+	if (r) {
+		return r;
+	}
 	/* Get vram informations */
 	radeon_vram_info(rdev);
 
@@ -572,11 +577,6 @@ int radeon_device_init(struct radeon_device *rdev,
 		 (unsigned)rdev->mc.aper_size >> 20);
 	DRM_INFO("RAM width %dbits %cDR\n",
 		 rdev->mc.vram_width, rdev->mc.vram_is_ddr ? 'D' : 'S');
-	/* Initialize clocks */
-	r = radeon_clocks_init(rdev);
-	if (r) {
-		return r;
-	}
 	/* Initialize memory controller (also test AGP) */
 	r = radeon_mc_init(rdev);
 	if (r) {

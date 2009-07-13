@@ -113,6 +113,7 @@ enum radeon_family {
 	CHIP_RV770,
 	CHIP_RV730,
 	CHIP_RV710,
+	CHIP_RS880,
 	CHIP_LAST,
 };
 
@@ -490,6 +491,39 @@ struct radeon_wb {
 	uint64_t		gpu_addr;
 };
 
+/**
+ * struct radeon_pm - power management datas
+ * @max_bandwidth:      maximum bandwidth the gpu has (MByte/s)
+ * @igp_sideport_mclk:  sideport memory clock Mhz (rs690,rs740,rs780,rs880)
+ * @igp_system_mclk:    system clock Mhz (rs690,rs740,rs780,rs880)
+ * @igp_ht_link_clk:    ht link clock Mhz (rs690,rs740,rs780,rs880)
+ * @igp_ht_link_width:  ht link width in bits (rs690,rs740,rs780,rs880)
+ * @k8_bandwidth:       k8 bandwidth the gpu has (MByte/s) (IGP)
+ * @sideport_bandwidth: sideport bandwidth the gpu has (MByte/s) (IGP)
+ * @ht_bandwidth:       ht bandwidth the gpu has (MByte/s) (IGP)
+ * @core_bandwidth:     core GPU bandwidth the gpu has (MByte/s) (IGP)
+ * @sclk:          	GPU clock Mhz (core bandwith depends of this clock)
+ * @needed_bandwidth:   current bandwidth needs
+ *
+ * It keeps track of various data needed to take powermanagement decision.
+ * Bandwith need is used to determine minimun clock of the GPU and memory.
+ * Equation between gpu/memory clock and available bandwidth is hw dependent
+ * (type of memory, bus size, efficiency, ...)
+ */
+struct radeon_pm {
+	fixed20_12		max_bandwidth;
+	fixed20_12		igp_sideport_mclk;
+	fixed20_12		igp_system_mclk;
+	fixed20_12		igp_ht_link_clk;
+	fixed20_12		igp_ht_link_width;
+	fixed20_12		k8_bandwidth;
+	fixed20_12		sideport_bandwidth;
+	fixed20_12		ht_bandwidth;
+	fixed20_12		core_bandwidth;
+	fixed20_12		sclk;
+	fixed20_12		needed_bandwidth;
+};
+
 
 /*
  * Benchmarking
@@ -551,19 +585,17 @@ struct radeon_asic {
 	void (*set_memory_clock)(struct radeon_device *rdev, uint32_t mem_clock);
 	void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
 	void (*set_clock_gating)(struct radeon_device *rdev, int enable);
-
 	int (*set_surface_reg)(struct radeon_device *rdev, int reg,
 			       uint32_t tiling_flags, uint32_t pitch,
 			       uint32_t offset, uint32_t obj_size);
 	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
+	void (*bandwidth_update)(struct radeon_device *rdev);
 };
 
 union radeon_asic_config {
 	struct r300_asic	r300;
 };
 
-/* r100 */
-void r100_vram_init_sizes(struct radeon_device *rdev);
 
 /*
  * IOCTL.
@@ -646,6 +678,7 @@ struct radeon_device {
 	struct radeon_irq		irq;
 	struct radeon_asic		*asic;
 	struct radeon_gem		gem;
+	struct radeon_pm		pm;
 	struct mutex			cs_mutex;
 	struct radeon_wb		wb;
 	bool				gpu_lockup;
@@ -829,5 +862,6 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->set_clock_gating((rdev), (e))
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
+#define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
 
 #endif

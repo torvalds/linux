@@ -301,6 +301,11 @@ void rs600_vram_info(struct radeon_device *rdev)
 	rdev->mc.vram_width = 128;
 }
 
+void rs600_bandwidth_update(struct radeon_device *rdev)
+{
+	/* FIXME: implement, should this be like rs690 ? */
+}
+
 
 /*
  * Indirect registers accessor

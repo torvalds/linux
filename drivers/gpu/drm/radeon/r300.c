@@ -31,6 +31,7 @@
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_drm.h"
+#include "radeon_share.h"
 
 /* r300,r350,rv350,rv370,rv380 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);

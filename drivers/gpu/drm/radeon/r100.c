@@ -1784,3 +1784,486 @@ void r100_clear_surface_reg(struct radeon_device *rdev, int reg)
 	int surf_index = reg * 16;
 	WREG32(RADEON_SURFACE0_INFO + surf_index, 0);
 }
+
+void r100_bandwidth_update(struct radeon_device *rdev)
+{
+	fixed20_12 trcd_ff, trp_ff, tras_ff, trbs_ff, tcas_ff;
+	fixed20_12 sclk_ff, mclk_ff, sclk_eff_ff, sclk_delay_ff;
+	fixed20_12 peak_disp_bw, mem_bw, pix_clk, pix_clk2, temp_ff, crit_point_ff;
+	uint32_t temp, data, mem_trcd, mem_trp, mem_tras;
+	fixed20_12 memtcas_ff[8] = {
+		fixed_init(1),
+		fixed_init(2),
+		fixed_init(3),
+		fixed_init(0),
+		fixed_init_half(1),
+		fixed_init_half(2),
+		fixed_init(0),
+	};
+	fixed20_12 memtcas_rs480_ff[8] = {
+		fixed_init(0),
+		fixed_init(1),
+		fixed_init(2),
+		fixed_init(3),
+		fixed_init(0),
+		fixed_init_half(1),
+		fixed_init_half(2),
+		fixed_init_half(3),
+	};
+	fixed20_12 memtcas2_ff[8] = {
+		fixed_init(0),
+		fixed_init(1),
+		fixed_init(2),
+		fixed_init(3),
+		fixed_init(4),
+		fixed_init(5),
+		fixed_init(6),
+		fixed_init(7),
+	};
+	fixed20_12 memtrbs[8] = {
+		fixed_init(1),
+		fixed_init_half(1),
+		fixed_init(2),
+		fixed_init_half(2),
+		fixed_init(3),
+		fixed_init_half(3),
+		fixed_init(4),
+		fixed_init_half(4)
+	};
+	fixed20_12 memtrbs_r4xx[8] = {
+		fixed_init(4),
+		fixed_init(5),
+		fixed_init(6),
+		fixed_init(7),
+		fixed_init(8),
+		fixed_init(9),
+		fixed_init(10),
+		fixed_init(11)
+	};
+	fixed20_12 min_mem_eff;
+	fixed20_12 mc_latency_sclk, mc_latency_mclk, k1;
+	fixed20_12 cur_latency_mclk, cur_latency_sclk;
+	fixed20_12 disp_latency, disp_latency_overhead, disp_drain_rate,
+		disp_drain_rate2, read_return_rate;
+	fixed20_12 time_disp1_drop_priority;
+	int c;
+	int cur_size = 16;       /* in octawords */
+	int critical_point = 0, critical_point2;
+/* 	uint32_t read_return_rate, time_disp1_drop_priority; */
+	int stop_req, max_stop_req;
+	struct drm_display_mode *mode1 = NULL;
+	struct drm_display_mode *mode2 = NULL;
+	uint32_t pixel_bytes1 = 0;
+	uint32_t pixel_bytes2 = 0;
+
+	if (rdev->mode_info.crtcs[0]->base.enabled) {
+		mode1 = &rdev->mode_info.crtcs[0]->base.mode;
+		pixel_bytes1 = rdev->mode_info.crtcs[0]->base.fb->bits_per_pixel / 8;
+	}
+	if (rdev->mode_info.crtcs[1]->base.enabled) {
+		mode2 = &rdev->mode_info.crtcs[1]->base.mode;
+		pixel_bytes2 = rdev->mode_info.crtcs[1]->base.fb->bits_per_pixel / 8;
+	}
+
+	min_mem_eff.full = rfixed_const_8(0);
+	/* get modes */
+	if ((rdev->disp_priority == 2) && ASIC_IS_R300(rdev)) {
+		uint32_t mc_init_misc_lat_timer = RREG32(R300_MC_INIT_MISC_LAT_TIMER);
+		mc_init_misc_lat_timer &= ~(R300_MC_DISP1R_INIT_LAT_MASK << R300_MC_DISP1R_INIT_LAT_SHIFT);
+		mc_init_misc_lat_timer &= ~(R300_MC_DISP0R_INIT_LAT_MASK << R300_MC_DISP0R_INIT_LAT_SHIFT);
+		/* check crtc enables */
+		if (mode2)
+			mc_init_misc_lat_timer |= (1 << R300_MC_DISP1R_INIT_LAT_SHIFT);
+		if (mode1)
+			mc_init_misc_lat_timer |= (1 << R300_MC_DISP0R_INIT_LAT_SHIFT);
+		WREG32(R300_MC_INIT_MISC_LAT_TIMER, mc_init_misc_lat_timer);
+	}
+
+	/*
+	 * determine is there is enough bw for current mode
+	 */
+	mclk_ff.full = rfixed_const(rdev->clock.default_mclk);
+	temp_ff.full = rfixed_const(100);
+	mclk_ff.full = rfixed_div(mclk_ff, temp_ff);
+	sclk_ff.full = rfixed_const(rdev->clock.default_sclk);
+	sclk_ff.full = rfixed_div(sclk_ff, temp_ff);
+
+	temp = (rdev->mc.vram_width / 8) * (rdev->mc.vram_is_ddr ? 2 : 1);
+	temp_ff.full = rfixed_const(temp);
+	mem_bw.full = rfixed_mul(mclk_ff, temp_ff);
+
+	pix_clk.full = 0;
+	pix_clk2.full = 0;
+	peak_disp_bw.full = 0;
+	if (mode1) {
+		temp_ff.full = rfixed_const(1000);
+		pix_clk.full = rfixed_const(mode1->clock); /* convert to fixed point */
+		pix_clk.full = rfixed_div(pix_clk, temp_ff);
+		temp_ff.full = rfixed_const(pixel_bytes1);
+		peak_disp_bw.full += rfixed_mul(pix_clk, temp_ff);
+	}
+	if (mode2) {
+		temp_ff.full = rfixed_const(1000);
+		pix_clk2.full = rfixed_const(mode2->clock); /* convert to fixed point */
+		pix_clk2.full = rfixed_div(pix_clk2, temp_ff);
+		temp_ff.full = rfixed_const(pixel_bytes2);
+		peak_disp_bw.full += rfixed_mul(pix_clk2, temp_ff);
+	}
+
+	mem_bw.full = rfixed_mul(mem_bw, min_mem_eff);
+	if (peak_disp_bw.full >= mem_bw.full) {
+		DRM_ERROR("You may not have enough display bandwidth for current mode\n"
+			  "If you have flickering problem, try to lower resolution, refresh rate, or color depth\n");
+	}
+
+	/*  Get values from the EXT_MEM_CNTL register...converting its contents. */
+	temp = RREG32(RADEON_MEM_TIMING_CNTL);
+	if ((rdev->family == CHIP_RV100) || (rdev->flags & RADEON_IS_IGP)) { /* RV100, M6, IGPs */
+		mem_trcd = ((temp >> 2) & 0x3) + 1;
+		mem_trp  = ((temp & 0x3)) + 1;
+		mem_tras = ((temp & 0x70) >> 4) + 1;
+	} else if (rdev->family == CHIP_R300 ||
+		   rdev->family == CHIP_R350) { /* r300, r350 */
+		mem_trcd = (temp & 0x7) + 1;
+		mem_trp = ((temp >> 8) & 0x7) + 1;
+		mem_tras = ((temp >> 11) & 0xf) + 4;
+	} else if (rdev->family == CHIP_RV350 ||
+		   rdev->family <= CHIP_RV380) {
+		/* rv3x0 */
+		mem_trcd = (temp & 0x7) + 3;
+		mem_trp = ((temp >> 8) & 0x7) + 3;
+		mem_tras = ((temp >> 11) & 0xf) + 6;
+	} else if (rdev->family == CHIP_R420 ||
+		   rdev->family == CHIP_R423 ||
+		   rdev->family == CHIP_RV410) {
+		/* r4xx */
+		mem_trcd = (temp & 0xf) + 3;
+		if (mem_trcd > 15)
+			mem_trcd = 15;
+		mem_trp = ((temp >> 8) & 0xf) + 3;
+		if (mem_trp > 15)
+			mem_trp = 15;
+		mem_tras = ((temp >> 12) & 0x1f) + 6;
+		if (mem_tras > 31)
+			mem_tras = 31;
+	} else { /* RV200, R200 */
+		mem_trcd = (temp & 0x7) + 1;
+		mem_trp = ((temp >> 8) & 0x7) + 1;
+		mem_tras = ((temp >> 12) & 0xf) + 4;
+	}
+	/* convert to FF */
+	trcd_ff.full = rfixed_const(mem_trcd);
+	trp_ff.full = rfixed_const(mem_trp);
+	tras_ff.full = rfixed_const(mem_tras);
+
+	/* Get values from the MEM_SDRAM_MODE_REG register...converting its */
+	temp = RREG32(RADEON_MEM_SDRAM_MODE_REG);
+	data = (temp & (7 << 20)) >> 20;
+	if ((rdev->family == CHIP_RV100) || rdev->flags & RADEON_IS_IGP) {
+		if (rdev->family == CHIP_RS480) /* don't think rs400 */
+			tcas_ff = memtcas_rs480_ff[data];
+		else
+			tcas_ff = memtcas_ff[data];
+	} else
+		tcas_ff = memtcas2_ff[data];
+
+	if (rdev->family == CHIP_RS400 ||
+	    rdev->family == CHIP_RS480) {
+		/* extra cas latency stored in bits 23-25 0-4 clocks */
+		data = (temp >> 23) & 0x7;
+		if (data < 5)
+			tcas_ff.full += rfixed_const(data);
+	}
+
+	if (ASIC_IS_R300(rdev) && !(rdev->flags & RADEON_IS_IGP)) {
+		/* on the R300, Tcas is included in Trbs.
+		 */
+		temp = RREG32(RADEON_MEM_CNTL);
+		data = (R300_MEM_NUM_CHANNELS_MASK & temp);
+		if (data == 1) {
+			if (R300_MEM_USE_CD_CH_ONLY & temp) {
+				temp = RREG32(R300_MC_IND_INDEX);
+				temp &= ~R300_MC_IND_ADDR_MASK;
+				temp |= R300_MC_READ_CNTL_CD_mcind;
+				WREG32(R300_MC_IND_INDEX, temp);
+				temp = RREG32(R300_MC_IND_DATA);
+				data = (R300_MEM_RBS_POSITION_C_MASK & temp);
+			} else {
+				temp = RREG32(R300_MC_READ_CNTL_AB);
+				data = (R300_MEM_RBS_POSITION_A_MASK & temp);
+			}
+		} else {
+			temp = RREG32(R300_MC_READ_CNTL_AB);
+			data = (R300_MEM_RBS_POSITION_A_MASK & temp);
+		}
+		if (rdev->family == CHIP_RV410 ||
+		    rdev->family == CHIP_R420 ||
+		    rdev->family == CHIP_R423)
+			trbs_ff = memtrbs_r4xx[data];
+		else
+			trbs_ff = memtrbs[data];
+		tcas_ff.full += trbs_ff.full;
+	}
+
+	sclk_eff_ff.full = sclk_ff.full;
+
+	if (rdev->flags & RADEON_IS_AGP) {
+		fixed20_12 agpmode_ff;
+		agpmode_ff.full = rfixed_const(radeon_agpmode);
+		temp_ff.full = rfixed_const_666(16);
+		sclk_eff_ff.full -= rfixed_mul(agpmode_ff, temp_ff);
+	}
+	/* TODO PCIE lanes may affect this - agpmode == 16?? */
+
+	if (ASIC_IS_R300(rdev)) {
+		sclk_delay_ff.full = rfixed_const(250);
+	} else {
+		if ((rdev->family == CHIP_RV100) ||
+		    rdev->flags & RADEON_IS_IGP) {
+			if (rdev->mc.vram_is_ddr)
+				sclk_delay_ff.full = rfixed_const(41);
+			else
+				sclk_delay_ff.full = rfixed_const(33);
+		} else {
+			if (rdev->mc.vram_width == 128)
+				sclk_delay_ff.full = rfixed_const(57);
+			else
+				sclk_delay_ff.full = rfixed_const(41);
+		}
+	}
+
+	mc_latency_sclk.full = rfixed_div(sclk_delay_ff, sclk_eff_ff);
+
+	if (rdev->mc.vram_is_ddr) {
+		if (rdev->mc.vram_width == 32) {
+			k1.full = rfixed_const(40);
+			c  = 3;
+		} else {
+			k1.full = rfixed_const(20);
+			c  = 1;
+		}
+	} else {
+		k1.full = rfixed_const(40);
+		c  = 3;
+	}
+
+	temp_ff.full = rfixed_const(2);
+	mc_latency_mclk.full = rfixed_mul(trcd_ff, temp_ff);
+	temp_ff.full = rfixed_const(c);
+	mc_latency_mclk.full += rfixed_mul(tcas_ff, temp_ff);
+	temp_ff.full = rfixed_const(4);
+	mc_latency_mclk.full += rfixed_mul(tras_ff, temp_ff);
+	mc_latency_mclk.full += rfixed_mul(trp_ff, temp_ff);
+	mc_latency_mclk.full += k1.full;
+
+	mc_latency_mclk.full = rfixed_div(mc_latency_mclk, mclk_ff);
+	mc_latency_mclk.full += rfixed_div(temp_ff, sclk_eff_ff);
+
+	/*
+	  HW cursor time assuming worst case of full size colour cursor.
+	*/
+	temp_ff.full = rfixed_const((2 * (cur_size - (rdev->mc.vram_is_ddr + 1))));
+	temp_ff.full += trcd_ff.full;
+	if (temp_ff.full < tras_ff.full)
+		temp_ff.full = tras_ff.full;
+	cur_latency_mclk.full = rfixed_div(temp_ff, mclk_ff);
+
+	temp_ff.full = rfixed_const(cur_size);
+	cur_latency_sclk.full = rfixed_div(temp_ff, sclk_eff_ff);
+	/*
+	  Find the total latency for the display data.
+	*/
+	disp_latency_overhead.full = rfixed_const(80);
+	disp_latency_overhead.full = rfixed_div(disp_latency_overhead, sclk_ff);
+	mc_latency_mclk.full += disp_latency_overhead.full + cur_latency_mclk.full;
+	mc_latency_sclk.full += disp_latency_overhead.full + cur_latency_sclk.full;
+
+	if (mc_latency_mclk.full > mc_latency_sclk.full)
+		disp_latency.full = mc_latency_mclk.full;
+	else
+		disp_latency.full = mc_latency_sclk.full;
+
+	/* setup Max GRPH_STOP_REQ default value */
+	if (ASIC_IS_RV100(rdev))
+		max_stop_req = 0x5c;
+	else
+		max_stop_req = 0x7c;
+
+	if (mode1) {
+		/*  CRTC1
+		    Set GRPH_BUFFER_CNTL register using h/w defined optimal values.
+		    GRPH_STOP_REQ <= MIN[ 0x7C, (CRTC_H_DISP + 1) * (bit depth) / 0x10 ]
+		*/
+		stop_req = mode1->hdisplay * pixel_bytes1 / 16;
+
+		if (stop_req > max_stop_req)
+			stop_req = max_stop_req;
+
+		/*
+		  Find the drain rate of the display buffer.
+		*/
+		temp_ff.full = rfixed_const((16/pixel_bytes1));
+		disp_drain_rate.full = rfixed_div(pix_clk, temp_ff);
+
+		/*
+		  Find the critical point of the display buffer.
+		*/
+		crit_point_ff.full = rfixed_mul(disp_drain_rate, disp_latency);
+		crit_point_ff.full += rfixed_const_half(0);
+
+		critical_point = rfixed_trunc(crit_point_ff);
+
+		if (rdev->disp_priority == 2) {
+			critical_point = 0;
+		}
+
+		/*
+		  The critical point should never be above max_stop_req-4.  Setting
+		  GRPH_CRITICAL_CNTL = 0 will thus force high priority all the time.
+		*/
+		if (max_stop_req - critical_point < 4)
+			critical_point = 0;
+
+		if (critical_point == 0 && mode2 && rdev->family == CHIP_R300) {
+			/* some R300 cards have problem with this set to 0, when CRTC2 is enabled.*/
+			critical_point = 0x10;
+		}
+
+		temp = RREG32(RADEON_GRPH_BUFFER_CNTL);
+		temp &= ~(RADEON_GRPH_STOP_REQ_MASK);
+		temp |= (stop_req << RADEON_GRPH_STOP_REQ_SHIFT);
+		temp &= ~(RADEON_GRPH_START_REQ_MASK);
+		if ((rdev->family == CHIP_R350) &&
+		    (stop_req > 0x15)) {
+			stop_req -= 0x10;
+		}
+		temp |= (stop_req << RADEON_GRPH_START_REQ_SHIFT);
+		temp |= RADEON_GRPH_BUFFER_SIZE;
+		temp &= ~(RADEON_GRPH_CRITICAL_CNTL   |
+			  RADEON_GRPH_CRITICAL_AT_SOF |
+			  RADEON_GRPH_STOP_CNTL);
+		/*
+		  Write the result into the register.
+		*/
+		WREG32(RADEON_GRPH_BUFFER_CNTL, ((temp & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
+						       (critical_point << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
+
+#if 0
+		if ((rdev->family == CHIP_RS400) ||
+		    (rdev->family == CHIP_RS480)) {
+			/* attempt to program RS400 disp regs correctly ??? */
+			temp = RREG32(RS400_DISP1_REG_CNTL);
+			temp &= ~(RS400_DISP1_START_REQ_LEVEL_MASK |
+				  RS400_DISP1_STOP_REQ_LEVEL_MASK);
+			WREG32(RS400_DISP1_REQ_CNTL1, (temp |
+						       (critical_point << RS400_DISP1_START_REQ_LEVEL_SHIFT) |
+						       (critical_point << RS400_DISP1_STOP_REQ_LEVEL_SHIFT)));
+			temp = RREG32(RS400_DMIF_MEM_CNTL1);
+			temp &= ~(RS400_DISP1_CRITICAL_POINT_START_MASK |
+				  RS400_DISP1_CRITICAL_POINT_STOP_MASK);
+			WREG32(RS400_DMIF_MEM_CNTL1, (temp |
+						      (critical_point << RS400_DISP1_CRITICAL_POINT_START_SHIFT) |
+						      (critical_point << RS400_DISP1_CRITICAL_POINT_STOP_SHIFT)));
+		}
+#endif
+
+		DRM_DEBUG("GRPH_BUFFER_CNTL from to %x\n",
+			  /* 	  (unsigned int)info->SavedReg->grph_buffer_cntl, */
+			  (unsigned int)RREG32(RADEON_GRPH_BUFFER_CNTL));
+	}
+
+	if (mode2) {
+		u32 grph2_cntl;
+		stop_req = mode2->hdisplay * pixel_bytes2 / 16;
+
+		if (stop_req > max_stop_req)
+			stop_req = max_stop_req;
+
+		/*
+		  Find the drain rate of the display buffer.
+		*/
+		temp_ff.full = rfixed_const((16/pixel_bytes2));
+		disp_drain_rate2.full = rfixed_div(pix_clk2, temp_ff);
+
+		grph2_cntl = RREG32(RADEON_GRPH2_BUFFER_CNTL);
+		grph2_cntl &= ~(RADEON_GRPH_STOP_REQ_MASK);
+		grph2_cntl |= (stop_req << RADEON_GRPH_STOP_REQ_SHIFT);
+		grph2_cntl &= ~(RADEON_GRPH_START_REQ_MASK);
+		if ((rdev->family == CHIP_R350) &&
+		    (stop_req > 0x15)) {
+			stop_req -= 0x10;
+		}
+		grph2_cntl |= (stop_req << RADEON_GRPH_START_REQ_SHIFT);
+		grph2_cntl |= RADEON_GRPH_BUFFER_SIZE;
+		grph2_cntl &= ~(RADEON_GRPH_CRITICAL_CNTL   |
+			  RADEON_GRPH_CRITICAL_AT_SOF |
+			  RADEON_GRPH_STOP_CNTL);
+
+		if ((rdev->family == CHIP_RS100) ||
+		    (rdev->family == CHIP_RS200))
+			critical_point2 = 0;
+		else {
+			temp = (rdev->mc.vram_width * rdev->mc.vram_is_ddr + 1)/128;
+			temp_ff.full = rfixed_const(temp);
+			temp_ff.full = rfixed_mul(mclk_ff, temp_ff);
+			if (sclk_ff.full < temp_ff.full)
+				temp_ff.full = sclk_ff.full;
+
+			read_return_rate.full = temp_ff.full;
+
+			if (mode1) {
+				temp_ff.full = read_return_rate.full - disp_drain_rate.full;
+				time_disp1_drop_priority.full = rfixed_div(crit_point_ff, temp_ff);
+			} else {
+				time_disp1_drop_priority.full = 0;
+			}
+			crit_point_ff.full = disp_latency.full + time_disp1_drop_priority.full + disp_latency.full;
+			crit_point_ff.full = rfixed_mul(crit_point_ff, disp_drain_rate2);
+			crit_point_ff.full += rfixed_const_half(0);
+
+			critical_point2 = rfixed_trunc(crit_point_ff);
+
+			if (rdev->disp_priority == 2) {
+				critical_point2 = 0;
+			}
+
+			if (max_stop_req - critical_point2 < 4)
+				critical_point2 = 0;
+
+		}
+
+		if (critical_point2 == 0 && rdev->family == CHIP_R300) {
+			/* some R300 cards have problem with this set to 0 */
+			critical_point2 = 0x10;
+		}
+
+		WREG32(RADEON_GRPH2_BUFFER_CNTL, ((grph2_cntl & ~RADEON_GRPH_CRITICAL_POINT_MASK) |
+						  (critical_point2 << RADEON_GRPH_CRITICAL_POINT_SHIFT)));
+
+		if ((rdev->family == CHIP_RS400) ||
+		    (rdev->family == CHIP_RS480)) {
+#if 0
+			/* attempt to program RS400 disp2 regs correctly ??? */
+			temp = RREG32(RS400_DISP2_REQ_CNTL1);
+			temp &= ~(RS400_DISP2_START_REQ_LEVEL_MASK |
+				  RS400_DISP2_STOP_REQ_LEVEL_MASK);
+			WREG32(RS400_DISP2_REQ_CNTL1, (temp |
+						       (critical_point2 << RS400_DISP1_START_REQ_LEVEL_SHIFT) |
+						       (critical_point2 << RS400_DISP1_STOP_REQ_LEVEL_SHIFT)));
+			temp = RREG32(RS400_DISP2_REQ_CNTL2);
+			temp &= ~(RS400_DISP2_CRITICAL_POINT_START_MASK |
+				  RS400_DISP2_CRITICAL_POINT_STOP_MASK);
+			WREG32(RS400_DISP2_REQ_CNTL2, (temp |
+						       (critical_point2 << RS400_DISP2_CRITICAL_POINT_START_SHIFT) |
+						       (critical_point2 << RS400_DISP2_CRITICAL_POINT_STOP_SHIFT)));
+#endif
+			WREG32(RS400_DISP2_REQ_CNTL1, 0x105DC1CC);
+			WREG32(RS400_DISP2_REQ_CNTL2, 0x2749D000);
+			WREG32(RS400_DMIF_MEM_CNTL1,  0x29CA71DC);
+			WREG32(RS400_DISP1_REQ_CNTL1, 0x28FBC3AC);
+		}
+
+		DRM_DEBUG("GRPH2_BUFFER_CNTL from to %x\n",
+			  (unsigned int)RREG32(RADEON_GRPH2_BUFFER_CNTL));
+	}
+}
