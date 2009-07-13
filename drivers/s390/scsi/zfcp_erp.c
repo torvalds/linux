@@ -854,10 +854,10 @@ void zfcp_erp_port_strategy_open_lookup(struct work_struct *work)
 
 	retval = zfcp_fc_ns_gid_pn(&port->erp_action);
 	if (retval == -ENOMEM)
-		zfcp_erp_notify(&port->erp_action, ZFCP_ERP_NOMEM);
+		zfcp_erp_notify(&port->erp_action, ZFCP_STATUS_ERP_LOWMEM);
 	port->erp_action.step = ZFCP_ERP_STEP_NAMESERVER_LOOKUP;
 	if (retval)
-		zfcp_erp_notify(&port->erp_action, ZFCP_ERP_FAILED);
+		zfcp_erp_notify(&port->erp_action, 0);
 	zfcp_port_put(port);
 }
 
