@@ -21,6 +21,8 @@
 
 #include "spdif_transciever.h"
 
+MODULE_LICENSE("GPL");
+
 #define STUB_RATES	SNDRV_PCM_RATE_8000_96000
 #define STUB_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
 
