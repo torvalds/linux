@@ -237,6 +237,7 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 	memset(&params, 0, sizeof(params));
 	params.avail_min = 1;
 	params.buffer_size = output_buffer_size;
+	params.no_active_sensing = 1;
 	if ((err = snd_rawmidi_output_params(msynth->output_rfile.output, &params)) < 0) {
 		snd_rawmidi_kernel_release(&msynth->output_rfile);
 		return err;
