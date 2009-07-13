@@ -22,11 +22,9 @@ struct seq_file;
 
 struct crypto_type {
 	unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
-	unsigned int (*extsize)(struct crypto_alg *alg,
-				const struct crypto_type *frontend);
+	unsigned int (*extsize)(struct crypto_alg *alg);
 	int (*init)(struct crypto_tfm *tfm, u32 type, u32 mask);
-	int (*init_tfm)(struct crypto_tfm *tfm,
-		        const struct crypto_type *frontend);
+	int (*init_tfm)(struct crypto_tfm *tfm);
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
 	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask);
 

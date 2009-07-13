@@ -448,8 +448,7 @@ static unsigned int crypto_shash_ctxsize(struct crypto_alg *alg, u32 type,
 	return 0;
 }
 
-static int crypto_shash_init_tfm(struct crypto_tfm *tfm,
-				 const struct crypto_type *frontend)
+static int crypto_shash_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_shash *hash = __crypto_shash_cast(tfm);
 
@@ -457,8 +456,7 @@ static int crypto_shash_init_tfm(struct crypto_tfm *tfm,
 	return 0;
 }
 
-static unsigned int crypto_shash_extsize(struct crypto_alg *alg,
-					 const struct crypto_type *frontend)
+static unsigned int crypto_shash_extsize(struct crypto_alg *alg)
 {
 	return alg->cra_ctxsize;
 }

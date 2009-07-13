@@ -457,7 +457,7 @@ void *crypto_create_tfm(struct crypto_alg *alg,
 	int err = -ENOMEM;
 
 	tfmsize = frontend->tfmsize;
-	total = tfmsize + sizeof(*tfm) + frontend->extsize(alg, frontend);
+	total = tfmsize + sizeof(*tfm) + frontend->extsize(alg);
 
 	mem = kzalloc(total, GFP_KERNEL);
 	if (mem == NULL)
@@ -466,7 +466,7 @@ void *crypto_create_tfm(struct crypto_alg *alg,
 	tfm = (struct crypto_tfm *)(mem + tfmsize);
 	tfm->__crt_alg = alg;
 
-	err = frontend->init_tfm(tfm, frontend);
+	err = frontend->init_tfm(tfm);
 	if (err)
 		goto out_free_tfm;
 
