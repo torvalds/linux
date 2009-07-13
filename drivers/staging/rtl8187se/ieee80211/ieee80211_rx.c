@@ -237,51 +237,6 @@ ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	return 0;
 
-	#ifdef NOT_YET
-	if (ieee->iw_mode == IW_MODE_MASTER) {
-		printk(KERN_DEBUG "%s: Master mode not yet suppported.\n",
-		       ieee->dev->name);
-		return 0;
-/*
-  hostap_update_sta_ps(ieee, (struct hostap_ieee80211_hdr *)
-  skb->data);*/
-	}
-
-	if (ieee->hostapd && type == IEEE80211_TYPE_MGMT) {
-		if (stype == WLAN_FC_STYPE_BEACON &&
-		    ieee->iw_mode == IW_MODE_MASTER) {
-			struct sk_buff *skb2;
-			/* Process beacon frames also in kernel driver to
-			 * update STA(AP) table statistics */
-			skb2 = skb_clone(skb, GFP_ATOMIC);
-			if (skb2)
-				hostap_rx(skb2->dev, skb2, rx_stats);
-		}
-
-		/* send management frames to the user space daemon for
-		 * processing */
-		ieee->apdevstats.rx_packets++;
-		ieee->apdevstats.rx_bytes += skb->len;
-		prism2_rx_80211(ieee->apdev, skb, rx_stats, PRISM2_RX_MGMT);
-		return 0;
-	}
-
-	    if (ieee->iw_mode == IW_MODE_MASTER) {
-		if (type != WLAN_FC_TYPE_MGMT && type != WLAN_FC_TYPE_CTRL) {
-			printk(KERN_DEBUG "%s: unknown management frame "
-			       "(type=0x%02x, stype=0x%02x) dropped\n",
-			       skb->dev->name, type, stype);
-			return -1;
-		}
-
-		hostap_rx(skb->dev, skb, rx_stats);
-		return 0;
-	}
-
-	printk(KERN_DEBUG "%s: hostap_rx_frame_mgmt: management frame "
-	       "received in non-Host AP mode\n", skb->dev->name);
-	return -1;
-	#endif
 }
 
 
@@ -527,14 +482,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	unsigned int frag;
 	u8 *payload;
 	u16 ethertype;
-#ifdef NOT_YET
-	struct net_device *wds = NULL;
-	struct sk_buff *skb2 = NULL;
-	struct net_device *wds = NULL;
-	int frame_authorized = 0;
-	int from_assoc_ap = 0;
-	void *sta = NULL;
-#endif
 //	u16 QOS_ctl = 0;
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
@@ -578,22 +525,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	hdrlen = ieee80211_get_hdrlen(fc);
 
-#ifdef NOT_YET
-	/* Put this code here so that we avoid duplicating it in all
-	 * Rx paths. - Jean II */
-#ifdef IW_WIRELESS_SPY		/* defined in iw_handler.h */
-	/* If spy monitoring on */
-	if (iface->spy_data.spy_number > 0) {
-		struct iw_quality wstats;
-		wstats.level = rx_stats->signal;
-		wstats.noise = rx_stats->noise;
-		wstats.updated = 6;	/* No qual value */
-		/* Update spy records */
-		wireless_spy_update(dev, hdr->addr2, &wstats);
-	}
-#endif /* IW_WIRELESS_SPY */
-	hostap_update_rx_stats(local->ap, hdr, rx_stats);
-#endif
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		ieee80211_monitor_rx(ieee, skb, rx_stats);
@@ -607,20 +538,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		if (skb->len >= hdrlen + 3)
 			idx = skb->data[hdrlen + 3] >> 6;
 		crypt = ieee->crypt[idx];
-#ifdef NOT_YET
-		sta = NULL;
-
-		/* Use station specific key to override default keys if the
-		 * receiver address is a unicast address ("individual RA"). If
-		 * bcrx_sta_key parameter is set, station specific key is used
-		 * even with broad/multicast targets (this is against IEEE
-		 * 802.11, but makes it easier to use different keys with
-		 * stations that do not support WEP key mapping). */
-
-		if (!(hdr->addr1[0] & 0x01) || local->bcrx_sta_key)
-			(void) hostap_handle_sta_crypto(local, hdr, &crypt,
-							&sta);
-#endif
 
 		/* allow NULL decrypt to indicate an station specific override
 		 * for default encryption */
@@ -682,46 +599,9 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		break;
 	}
 
-#ifdef NOT_YET
-	if (hostap_rx_frame_wds(ieee, hdr, fc, &wds))
-		goto rx_dropped;
-	if (wds) {
-		skb->dev = dev = wds;
-		stats = hostap_get_stats(dev);
-	}
-
-	if (ieee->iw_mode == IW_MODE_MASTER && !wds &&
-	    (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) == IEEE80211_FCTL_FROMDS &&
-	    ieee->stadev &&
-	    memcmp(hdr->addr2, ieee->assoc_ap_addr, ETH_ALEN) == 0) {
-		/* Frame from BSSID of the AP for which we are a client */
-		skb->dev = dev = ieee->stadev;
-		stats = hostap_get_stats(dev);
-		from_assoc_ap = 1;
-	}
-#endif
 
 	dev->last_rx = jiffies;
 
-#ifdef NOT_YET
-	if ((ieee->iw_mode == IW_MODE_MASTER ||
-	     ieee->iw_mode == IW_MODE_REPEAT) &&
-	    !from_assoc_ap) {
-		switch (hostap_handle_sta_rx(ieee, dev, skb, rx_stats,
-					     wds != NULL)) {
-		case AP_RX_CONTINUE_NOT_AUTHORIZED:
-			frame_authorized = 0;
-			break;
-		case AP_RX_CONTINUE:
-			frame_authorized = 1;
-			break;
-		case AP_RX_DROP:
-			goto rx_dropped;
-		case AP_RX_EXIT:
-			goto rx_exit;
-		}
-	}
-#endif
 
 	/* Nullfunc frames may have PS-bit set, so they must be passed to
 	 * hostap_handle_sta_rx() before being dropped here. */
@@ -864,31 +744,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	payload = skb->data + hdrlen;
 	ethertype = (payload[6] << 8) | payload[7];
 
-#ifdef NOT_YET
-	/* If IEEE 802.1X is used, check whether the port is authorized to send
-	 * the received frame. */
-	if (ieee->ieee802_1x && ieee->iw_mode == IW_MODE_MASTER) {
-		if (ethertype == ETH_P_PAE) {
-			printk(KERN_DEBUG "%s: RX: IEEE 802.1X frame\n",
-			       dev->name);
-			if (ieee->hostapd && ieee->apdev) {
-				/* Send IEEE 802.1X frames to the user
-				 * space daemon for processing */
-				prism2_rx_80211(ieee->apdev, skb, rx_stats,
-						PRISM2_RX_MGMT);
-				ieee->apdevstats.rx_packets++;
-				ieee->apdevstats.rx_bytes += skb->len;
-				goto rx_exit;
-			}
-		} else if (!frame_authorized) {
-			printk(KERN_DEBUG "%s: dropped frame from "
-			       "unauthorized port (IEEE 802.1X): "
-			       "ethertype=0x%04x\n",
-			       dev->name, ethertype);
-			goto rx_dropped;
-		}
-	}
-#endif
 
 	/* convert hdr + possible LLC headers into Ethernet header */
 	if (skb->len - hdrlen >= 8 &&
@@ -910,51 +765,10 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		memcpy(skb_push(skb, ETH_ALEN), dst, ETH_ALEN);
 	}
 
-#ifdef NOT_YET
-	if (wds && ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
-		    IEEE80211_FCTL_TODS) &&
-	    skb->len >= ETH_HLEN + ETH_ALEN) {
-		/* Non-standard frame: get addr4 from its bogus location after
-		 * the payload */
-		memcpy(skb->data + ETH_ALEN,
-		       skb->data + skb->len - ETH_ALEN, ETH_ALEN);
-		skb_trim(skb, skb->len - ETH_ALEN);
-	}
-#endif
 
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
 
-#ifdef NOT_YET
-	if (ieee->iw_mode == IW_MODE_MASTER && !wds &&
-	    ieee->ap->bridge_packets) {
-		if (dst[0] & 0x01) {
-			/* copy multicast frame both to the higher layers and
-			 * to the wireless media */
-			ieee->ap->bridged_multicast++;
-			skb2 = skb_clone(skb, GFP_ATOMIC);
-			if (skb2 == NULL)
-				printk(KERN_DEBUG "%s: skb_clone failed for "
-				       "multicast frame\n", dev->name);
-		} else if (hostap_is_sta_assoc(ieee->ap, dst)) {
-			/* send frame directly to the associated STA using
-			 * wireless media and not passing to higher layers */
-			ieee->ap->bridged_unicast++;
-			skb2 = skb;
-			skb = NULL;
-		}
-	}
-
-	if (skb2 != NULL) {
-		/* send to wireless media */
-		skb2->protocol = __constant_htons(ETH_P_802_3);
-		skb2->mac.raw = skb2->nh.raw = skb2->data;
-		/* skb2->nh.raw = skb2->data + ETH_HLEN; */
-		skb2->dev = dev;
-		dev_queue_xmit(skb2);
-	}
-
-#endif
 	if (skb) {
 		skb->protocol = eth_type_trans(skb, dev);
 		memset(skb->cb, 0, sizeof(skb->cb));
@@ -965,10 +779,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 
  rx_exit:
-#ifdef NOT_YET
-	if (sta)
-		hostap_handle_sta_release(sta);
-#endif
 	return 1;
 
  rx_dropped:
