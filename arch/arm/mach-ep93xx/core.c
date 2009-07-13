@@ -541,10 +541,8 @@ static struct platform_device ep93xx_eth_device = {
 
 void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 {
-	if (copy_addr) {
-		memcpy(data->dev_addr,
-			(void *)(EP93XX_ETHERNET_BASE + 0x50), 6);
-	}
+	if (copy_addr)
+		memcpy_fromio(data->dev_addr, EP93XX_ETHERNET_BASE + 0x50, 6);
 
 	ep93xx_eth_data = *data;
 	platform_device_register(&ep93xx_eth_device);
