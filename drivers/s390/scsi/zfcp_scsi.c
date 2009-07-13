@@ -534,6 +534,9 @@ static void zfcp_scsi_rport_register(struct zfcp_port *port)
 	struct fc_rport_identifiers ids;
 	struct fc_rport *rport;
 
+	if (port->rport)
+		return;
+
 	ids.node_name = port->wwnn;
 	ids.port_name = port->wwpn;
 	ids.port_id = port->d_id;
@@ -557,8 +560,10 @@ static void zfcp_scsi_rport_block(struct zfcp_port *port)
 {
 	struct fc_rport *rport = port->rport;
 
-	if (rport)
+	if (rport) {
 		fc_remote_port_delete(rport);
+		port->rport = NULL;
+	}
 }
 
 void zfcp_scsi_schedule_rport_register(struct zfcp_port *port)
