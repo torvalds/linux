@@ -118,6 +118,9 @@ static int option_inquiry(struct us_data *us)
 
 	result = memcmp(buffer+8, "Option", 6);
 
+	if (result != 0)
+		result = memcmp(buffer+8, "ZCOPTION", 8);
+
 	/* Read the CSW */
 	usb_stor_bulk_transfer_buf(us,
 			us->recv_bulk_pipe,

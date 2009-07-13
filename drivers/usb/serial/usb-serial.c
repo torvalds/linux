@@ -221,7 +221,8 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 	tty->driver_data = port;
 	tty_port_tty_set(&port->port, tty);
 
-	if (port->port.count == 1) {
+	/* If the console is attached, the device is already open */
+	if (port->port.count == 1 && !port->console) {
 
 		/* lock this module before we call it
 		 * this may fail, which means we must bail out,
