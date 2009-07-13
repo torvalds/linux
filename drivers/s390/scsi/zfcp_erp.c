@@ -801,7 +801,7 @@ static int zfcp_erp_port_forced_strategy(struct zfcp_erp_action *erp_action)
 			return ZFCP_ERP_FAILED;
 
 	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
-		if (status & ZFCP_STATUS_PORT_PHYS_OPEN)
+		if (!(status & ZFCP_STATUS_PORT_PHYS_OPEN))
 			return ZFCP_ERP_SUCCEEDED;
 	}
 	return ZFCP_ERP_FAILED;
