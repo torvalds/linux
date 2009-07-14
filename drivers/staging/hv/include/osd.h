@@ -97,7 +97,6 @@ typedef struct _DLIST_ENTRY {
 //
 // unsigned types
 //
-typedef unsigned short		UINT16;
 typedef unsigned int		UINT32;
 #ifdef __x86_64__
 typedef unsigned long		UINT64;
@@ -113,7 +112,6 @@ typedef unsigned char		UCHAR;
 //
 // signed types
 //
-typedef short				INT16;
 typedef int					INT32;
 #ifdef __x86_64__
 typedef long				INT64;

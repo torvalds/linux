@@ -69,8 +69,8 @@ typedef struct
     UINT64  InterruptLatencyIn100nsUnits;
     UINT32  InterfaceRevision;
     UINT32  ServerContextAreaSize;  // in bytes
-    UINT16  ChannelFlags;
-    UINT16  MmioMegabytes;          // in bytes * 1024 * 1024
+    u16  ChannelFlags;
+    u16  MmioMegabytes;          // in bytes * 1024 * 1024
 
     union
     {

@@ -33,10 +33,10 @@
 
 // The format must be the same as VMDATA_GPA_DIRECT
 typedef struct _VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
-    UINT16				Type;
-    UINT16				DataOffset8;
-    UINT16				Length8;
-    UINT16				Flags;
+    u16				Type;
+    u16				DataOffset8;
+    u16				Length8;
+    u16				Flags;
     UINT64				TransactionId;
 	UINT32				Reserved;
 	UINT32				RangeCount;
@@ -46,10 +46,10 @@ typedef struct _VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
 
 // The format must be the same as VMDATA_GPA_DIRECT
 typedef struct _VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
-    UINT16				Type;
-    UINT16				DataOffset8;
-    UINT16				Length8;
-    UINT16				Flags;
+    u16				Type;
+    u16				DataOffset8;
+    u16				Length8;
+    u16				Flags;
     UINT64				TransactionId;
 	UINT32				Reserved;
 	UINT32				RangeCount;		// Always 1 in this case

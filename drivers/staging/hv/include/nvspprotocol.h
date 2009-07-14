@@ -144,7 +144,7 @@ typedef struct _NVSP_1_MESSAGE_SEND_NDIS_VERSION
 typedef struct _NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER
 {
     GPADL_HANDLE                            GpadlHandle;
-    UINT16                                  Id;
+    u16                                  Id;
 } NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER, *PNVSP_1_MESSAGE_SEND_RECEIVE_BUFFER;
 
 typedef struct _NVSP_1_RECEIVE_BUFFER_SECTION
@@ -192,7 +192,7 @@ typedef struct _NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER_COMPLETE
 //
 typedef struct _NVSP_1_MESSAGE_REVOKE_RECEIVE_BUFFER
 {
-    UINT16                                  Id;
+    u16                                  Id;
 } NVSP_1_MESSAGE_REVOKE_RECEIVE_BUFFER, *PNVSP_1_MESSAGE_REVOKE_RECEIVE_BUFFER;
 
 //
@@ -203,7 +203,7 @@ typedef struct _NVSP_1_MESSAGE_REVOKE_RECEIVE_BUFFER
 typedef struct _NVSP_1_MESSAGE_SEND_SEND_BUFFER
 {
     GPADL_HANDLE                            GpadlHandle;
-    UINT16                                  Id;
+    u16                                  Id;
 } NVSP_1_MESSAGE_SEND_SEND_BUFFER, *PNVSP_1_MESSAGE_SEND_SEND_BUFFER;
 
 //
@@ -231,7 +231,7 @@ typedef struct _NVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE
 //
 typedef struct _NVSP_1_MESSAGE_REVOKE_SEND_BUFFER
 {
-    UINT16                                  Id;
+    u16                                  Id;
 } NVSP_1_MESSAGE_REVOKE_SEND_BUFFER, *PNVSP_1_MESSAGE_REVOKE_SEND_BUFFER;
 
 //

@@ -79,10 +79,10 @@ typedef struct
 
 typedef struct
 {
-    UINT16 Type;
-    UINT16 DataOffset8;
-    UINT16 Length8;
-    UINT16 Flags;
+    u16 Type;
+    u16 DataOffset8;
+    u16 Length8;
+    u16 Flags;
     UINT64 TransactionId;
 } VMPACKET_DESCRIPTOR, *PVMPACKET_DESCRIPTOR;
 
@@ -112,7 +112,7 @@ typedef struct VMTRANSFER_PAGE_PACKET_HEADER {
 
 #endif
 
-    UINT16                  TransferPageSetId;
+    u16                  TransferPageSetId;
     BOOLEAN                 SenderOwnsSet;
     u8                   Reserved;
     UINT32                  RangeCount;
@@ -152,8 +152,8 @@ typedef struct _VMADD_REMOVE_TRANSFER_PAGE_SET {
 #endif
 
     UINT32  Gpadl;
-    UINT16  TransferPageSetId;
-    UINT16  Reserved;
+    u16  TransferPageSetId;
+    u16  Reserved;
 
 } VMADD_REMOVE_TRANSFER_PAGE_SET, *PVMADD_REMOVE_TRANSFER_PAGE_SET;
 

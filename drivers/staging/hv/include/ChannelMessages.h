@@ -188,8 +188,8 @@ typedef struct _VMBUS_CHANNEL_GPADL_HEADER
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
     UINT32      ChildRelId;
     UINT32      Gpadl;
-    UINT16      RangeBufLen;
-    UINT16      RangeCount;
+    u16      RangeBufLen;
+    u16      RangeCount;
     GPA_RANGE   Range[0];
 } VMBUS_CHANNEL_GPADL_HEADER, *PVMBUS_CHANNEL_GPADL_HEADER;
 

@@ -217,8 +217,8 @@ typedef struct _HV_PORT_INFO
         {
             HV_SYNIC_SINT_INDEX TargetSint;
             HV_VP_INDEX TargetVp;
-            UINT16 BaseFlagNumber;
-            UINT16 FlagCount;
+            u16 BaseFlagNumber;
+            u16 FlagCount;
             UINT32 RsvdZ;
         } EventPortInfo;
 
@@ -431,8 +431,8 @@ typedef union _HV_MONITOR_TRIGGER_GROUP
 typedef struct _HV_MONITOR_PARAMETER
 {
     HV_CONNECTION_ID    ConnectionId;
-    UINT16              FlagNumber;
-    UINT16              RsvdZ;
+    u16              FlagNumber;
+    u16              RsvdZ;
 } HV_MONITOR_PARAMETER, *PHV_MONITOR_PARAMETER;
 
 typedef union _HV_MONITOR_TRIGGER_STATE
@@ -478,7 +478,7 @@ typedef struct _HV_MONITOR_PAGE
 
     INT32                    NextCheckTime[4][32];
 
-    UINT16                   Latency[4][32];
+    u16                   Latency[4][32];
     UINT64                   RsvdZ3[32];
 
     HV_MONITOR_PARAMETER     Parameter[4][32];

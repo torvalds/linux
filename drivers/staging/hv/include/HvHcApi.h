@@ -55,6 +55,6 @@ typedef struct _HV_INPUT_POST_MESSAGE
 typedef struct _HV_INPUT_SIGNAL_EVENT
 {
     HV_CONNECTION_ID ConnectionId;
-    UINT16           FlagNumber;
-    UINT16           RsvdZ;
+    u16           FlagNumber;
+    u16           RsvdZ;
 } HV_INPUT_SIGNAL_EVENT, *PHV_INPUT_SIGNAL_EVENT;

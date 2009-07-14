@@ -777,7 +777,7 @@ VmbusChannelSendPacket(
 	desc.Type = Type;//VmbusPacketTypeDataInBand;
 	desc.Flags = Flags;//VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
     desc.DataOffset8 = sizeof(VMPACKET_DESCRIPTOR) >> 3; // in 8-bytes granularity
-    desc.Length8 = (UINT16)(packetLenAligned >> 3);
+    desc.Length8 = (u16)(packetLenAligned >> 3);
     desc.TransactionId = RequestId;
 
 	bufferList[0].Data = &desc;
@@ -851,7 +851,7 @@ VmbusChannelSendPacketPageBuffer(
 	desc.Type = VmbusPacketTypeDataUsingGpaDirect;
 	desc.Flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
     desc.DataOffset8 = descSize >> 3; // in 8-bytes grandularity
-    desc.Length8 = (UINT16)(packetLenAligned >> 3);
+    desc.Length8 = (u16)(packetLenAligned >> 3);
     desc.TransactionId = RequestId;
 	desc.RangeCount = PageCount;
 
@@ -936,7 +936,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 	desc.Type = VmbusPacketTypeDataUsingGpaDirect;
 	desc.Flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
     desc.DataOffset8 = descSize >> 3; // in 8-bytes grandularity
-    desc.Length8 = (UINT16)(packetLenAligned >> 3);
+    desc.Length8 = (u16)(packetLenAligned >> 3);
     desc.TransactionId = RequestId;
 	desc.RangeCount = 1;
 

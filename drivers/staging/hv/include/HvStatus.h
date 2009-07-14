@@ -26,7 +26,7 @@
 //
 // Status codes for hypervisor operations.
 //
-typedef UINT16 HV_STATUS, *PHV_STATUS;
+typedef u16 HV_STATUS, *PHV_STATUS;
 
 //
 // MessageId: HV_STATUS_SUCCESS
