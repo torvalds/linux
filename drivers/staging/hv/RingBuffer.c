@@ -156,10 +156,10 @@ Description:
 	Get the start of the ring buffer
 
 --*/
-static inline PVOID
+static inline void *
 GetRingBuffer(RING_BUFFER_INFO* RingInfo)
 {
-	return (PVOID)RingInfo->RingBuffer->Buffer;
+	return (void *)RingInfo->RingBuffer->Buffer;
 }
 
 
@@ -228,13 +228,13 @@ static UINT32
 CopyToRingBuffer(
 	RING_BUFFER_INFO	*RingInfo,
 	UINT32				StartWriteOffset,
-	PVOID				Src,
+	void *				Src,
 	UINT32				SrcLen);
 
 static UINT32
 CopyFromRingBuffer(
 	RING_BUFFER_INFO	*RingInfo,
-	PVOID				Dest,
+	void *				Dest,
 	UINT32				DestLen,
 	UINT32				StartReadOffset);
 
@@ -486,7 +486,7 @@ Description:
 int
 RingBufferRead(
 	RING_BUFFER_INFO*	InRingInfo,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32				Offset
 	)
@@ -557,10 +557,10 @@ UINT32
 CopyToRingBuffer(
 	RING_BUFFER_INFO	*RingInfo,
 	UINT32				StartWriteOffset,
-	PVOID				Src,
+	void *				Src,
 	UINT32				SrcLen)
 {
-	PVOID ringBuffer=GetRingBuffer(RingInfo);
+	void * ringBuffer=GetRingBuffer(RingInfo);
 	UINT32 ringBufferSize=GetRingBufferSize(RingInfo);
 	UINT32 fragLen;
 
@@ -597,11 +597,11 @@ Description:
 UINT32
 CopyFromRingBuffer(
 	RING_BUFFER_INFO	*RingInfo,
-	PVOID				Dest,
+	void *				Dest,
 	UINT32				DestLen,
 	UINT32				StartReadOffset)
 {
-	PVOID ringBuffer=GetRingBuffer(RingInfo);
+	void * ringBuffer=GetRingBuffer(RingInfo);
 	UINT32 ringBufferSize=GetRingBufferSize(RingInfo);
 
 	UINT32 fragLen;

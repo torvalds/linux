@@ -133,7 +133,6 @@ typedef long long			LONGLONG;
 typedef unsigned long		SIZE_T;
 typedef void				VOID;
 //typedef unsigned char		GUID[16];
-typedef void*				PVOID;
 typedef unsigned char		BOOL;
 typedef unsigned char		BOOLEAN;
 typedef void*				HANDLE;
@@ -246,9 +245,9 @@ extern void	SpinlockRelease(HANDLE hSpin);
 void* Physical2LogicalAddr(ULONG_PTR PhysAddr);
 
 #define GetPhysicalAddress Logical2PhysicalAddr
-ULONG_PTR Logical2PhysicalAddr(PVOID LogicalAddr);
+ULONG_PTR Logical2PhysicalAddr(void * LogicalAddr);
 
-ULONG_PTR Virtual2Physical(PVOID VirtAddr);
+ULONG_PTR Virtual2Physical(void * VirtAddr);
 
 void* PageMapVirtualAddress(unsigned long Pfn);
 void PageUnmapVirtualAddress(void* VirtAddr);

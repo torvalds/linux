@@ -82,12 +82,12 @@ VmbusChannelOnVersionResponse(
 
 static void
 VmbusChannelProcessOffer(
-	PVOID context
+	void * context
 	);
 
 static void
 VmbusChannelProcessRescindOffer(
-	PVOID context
+	void * context
 	);
 
 
@@ -233,7 +233,7 @@ Description:
 --*/
 static void
 VmbusChannelProcessOffer(
-	PVOID context
+	void * context
 	)
 {
 	int ret=0;
@@ -317,7 +317,7 @@ Description:
 --*/
 static void
 VmbusChannelProcessRescindOffer(
-	PVOID context
+	void * context
 	)
 {
 	VMBUS_CHANNEL* channel=(VMBUS_CHANNEL*)context;

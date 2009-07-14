@@ -49,7 +49,7 @@ typedef int (*PFN_ON_CLOSE)(DEVICE_OBJECT *Device);
 
 typedef void (*PFN_QUERY_LINKSTATUS)(DEVICE_OBJECT *Device);
 typedef int (*PFN_ON_SEND)(DEVICE_OBJECT *dev, PNETVSC_PACKET packet);
-typedef void (*PFN_ON_SENDRECVCOMPLETION)(PVOID Context);
+typedef void (*PFN_ON_SENDRECVCOMPLETION)(void * Context);
 
 typedef int (*PFN_ON_RECVCALLBACK)(DEVICE_OBJECT *dev, PNETVSC_PACKET packet);
 typedef void (*PFN_ON_LINKSTATUS_CHANGED)(DEVICE_OBJECT *dev, UINT32 Status);
@@ -80,18 +80,18 @@ typedef struct _NETVSC_PACKET {
 	union {
 		struct{
 			UINT64						ReceiveCompletionTid;
-			PVOID						ReceiveCompletionContext;
+			void *						ReceiveCompletionContext;
 			PFN_ON_SENDRECVCOMPLETION	OnReceiveCompletion;
 		} Recv;
 		struct{
 			UINT64						SendCompletionTid;
-			PVOID						SendCompletionContext;
+			void *						SendCompletionContext;
 			PFN_ON_SENDRECVCOMPLETION	OnSendCompletion;
 		} Send;
 	} Completion;
 
 	// This points to the memory after PageBuffers
-	PVOID					Extension;
+	void *					Extension;
 
 	UINT32					TotalDataBufferLength;
 	// Points to the send/receive buffer where the ethernet frame is

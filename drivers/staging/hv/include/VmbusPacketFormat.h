@@ -287,7 +287,7 @@ typedef union {
 } VMPACKET_LARGEST_POSSIBLE_HEADER, *PVMPACKET_LARGEST_POSSIBLE_HEADER;
 
 #define VMPACKET_DATA_START_ADDRESS(__packet)                           \
-    (PVOID)(((PUCHAR)__packet) + ((PVMPACKET_DESCRIPTOR)__packet)->DataOffset8 * 8)
+    (void *)(((PUCHAR)__packet) + ((PVMPACKET_DESCRIPTOR)__packet)->DataOffset8 * 8)
 
 #define VMPACKET_DATA_LENGTH(__packet)                                  \
     ((((PVMPACKET_DESCRIPTOR)__packet)->Length8 - ((PVMPACKET_DESCRIPTOR)__packet)->DataOffset8) * 8)

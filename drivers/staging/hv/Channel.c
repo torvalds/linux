@@ -32,7 +32,7 @@
 //
 static int
 VmbusChannelCreateGpadlHeader(
-	PVOID					Kbuffer,	// must be phys and virt contiguous
+	void *					Kbuffer,	// must be phys and virt contiguous
 	UINT32					Size,		// page-size multiple
 	VMBUS_CHANNEL_MSGINFO	**msgInfo,
 	UINT32					*MessageCount
@@ -204,10 +204,10 @@ VmbusChannelOpen(
 	VMBUS_CHANNEL			*NewChannel,
 	UINT32					SendRingBufferSize,
 	UINT32					RecvRingBufferSize,
-	PVOID					UserData,
+	void *					UserData,
 	UINT32					UserDataLen,
 	PFN_CHANNEL_CALLBACK	pfnOnChannelCallback,
-	PVOID					Context
+	void *					Context
 	)
 {
 	int ret=0;
@@ -392,7 +392,7 @@ Description:
 --*/
 static int
 VmbusChannelCreateGpadlHeader(
-	PVOID					Kbuffer,	// from kmalloc()
+	void *					Kbuffer,	// from kmalloc()
 	UINT32					Size,		// page-size multiple
 	VMBUS_CHANNEL_MSGINFO	**MsgInfo,
 	UINT32					*MessageCount)
@@ -515,7 +515,7 @@ Description:
 int
 VmbusChannelEstablishGpadl(
 	VMBUS_CHANNEL	*Channel,
-	PVOID			Kbuffer,	// from kmalloc()
+	void *			Kbuffer,	// from kmalloc()
 	UINT32			Size,		// page-size multiple
 	UINT32			*GpadlHandle
 	)
@@ -752,7 +752,7 @@ Description:
 int
 VmbusChannelSendPacket(
 	VMBUS_CHANNEL		*Channel,
-	const PVOID			Buffer,
+	const void *			Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId,
 	VMBUS_PACKET_TYPE	Type,
@@ -820,7 +820,7 @@ VmbusChannelSendPacketPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	PAGE_BUFFER			PageBuffers[],
 	UINT32				PageCount,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId
 )
@@ -902,7 +902,7 @@ int
 VmbusChannelSendPacketMultiPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId
 )
@@ -984,7 +984,7 @@ Description:
 int
 VmbusChannelRecvPacket(
 	VMBUS_CHANNEL		*Channel,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32*				BufferActualLen,
 	UINT64*				RequestId
@@ -1061,7 +1061,7 @@ Description:
 int
 VmbusChannelRecvPacketRaw(
 	VMBUS_CHANNEL		*Channel,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32*				BufferActualLen,
 	UINT64*				RequestId

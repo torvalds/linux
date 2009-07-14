@@ -28,10 +28,10 @@ IVmbusChannelOpen(
 	PDEVICE_OBJECT		Device,
 	UINT32				SendBufferSize,
 	UINT32				RecvRingBufferSize,
-	PVOID				UserData,
+	void *				UserData,
 	UINT32				UserDataLen,
 	VMBUS_CHANNEL_CALLBACK ChannelCallback,
-	PVOID				Context
+	void *				Context
 	)
 {
 	return VmbusChannelOpen( (VMBUS_CHANNEL*)Device->context,
@@ -56,7 +56,7 @@ IVmbusChannelClose(
 static int
 IVmbusChannelSendPacket(
 	PDEVICE_OBJECT		Device,
-	const PVOID			Buffer,
+	const void *			Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId,
 	UINT32				Type,
@@ -76,7 +76,7 @@ IVmbusChannelSendPacketPageBuffer(
 	PDEVICE_OBJECT		Device,
 	PAGE_BUFFER			PageBuffers[],
 	UINT32				PageCount,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId
 	)
@@ -93,7 +93,7 @@ static int
 IVmbusChannelSendPacketMultiPageBuffer(
 	PDEVICE_OBJECT		Device,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId
 	)
@@ -108,7 +108,7 @@ IVmbusChannelSendPacketMultiPageBuffer(
 static int
 IVmbusChannelRecvPacket (
 	PDEVICE_OBJECT		Device,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32*				BufferActualLen,
 	UINT64*				RequestId
@@ -124,7 +124,7 @@ IVmbusChannelRecvPacket (
 static int
 IVmbusChannelRecvPacketRaw(
 	PDEVICE_OBJECT		Device,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32*				BufferActualLen,
 	UINT64*				RequestId
@@ -140,7 +140,7 @@ IVmbusChannelRecvPacketRaw(
 static int
 IVmbusChannelEstablishGpadl(
 	PDEVICE_OBJECT		Device,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32*				GpadlHandle
 	)

@@ -59,7 +59,7 @@ NetVscOnCleanup(
 
 static void
 NetVscOnChannelCallback(
-	PVOID context
+	void * context
 	);
 
 static int
@@ -107,7 +107,7 @@ NetVscOnReceive(
 
 static void
 NetVscOnReceiveCompletion(
-	PVOID Context
+	void * Context
 	);
 
 static void
@@ -1337,7 +1337,7 @@ retry_send_cmplt:
 //
 static void
 NetVscOnReceiveCompletion(
-	PVOID Context)
+	void * Context)
 {
 	NETVSC_PACKET *packet = (NETVSC_PACKET*)Context;
 	DEVICE_OBJECT *device = (DEVICE_OBJECT*)packet->Device;
@@ -1393,7 +1393,7 @@ NetVscOnReceiveCompletion(
 
 void
 NetVscOnChannelCallback(
-	PVOID Context
+	void * Context
 	)
 {
 	const int netPacketSize=2048;

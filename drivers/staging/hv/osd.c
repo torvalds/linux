@@ -414,14 +414,14 @@ void* Physical2LogicalAddr(ULONG_PTR PhysAddr)
 	return logicalAddr;
 }
 
-ULONG_PTR Logical2PhysicalAddr(PVOID LogicalAddr)
+ULONG_PTR Logical2PhysicalAddr(void * LogicalAddr)
 {
 	BUG_ON(!virt_addr_valid(LogicalAddr));
 	return virt_to_phys(LogicalAddr);
 }
 
 
-ULONG_PTR Virtual2Physical(PVOID VirtAddr)
+ULONG_PTR Virtual2Physical(void * VirtAddr)
 {
 	ULONG_PTR pfn = vmalloc_to_pfn(VirtAddr);
 

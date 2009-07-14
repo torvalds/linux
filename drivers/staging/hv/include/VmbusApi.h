@@ -88,16 +88,16 @@ typedef int (*PFN_ON_CHILDDEVICE_ADD)(PDEVICE_OBJECT RootDevice, PDEVICE_OBJECT 
 typedef void (*PFN_ON_CHILDDEVICE_REMOVE)(PDEVICE_OBJECT Device);
 
 // Vmbus channel interface
-typedef void (*VMBUS_CHANNEL_CALLBACK)(PVOID context);
+typedef void (*VMBUS_CHANNEL_CALLBACK)(void * context);
 
 typedef int	(*VMBUS_CHANNEL_OPEN)(
 	PDEVICE_OBJECT		Device,
 	UINT32				SendBufferSize,
 	UINT32				RecvRingBufferSize,
-	PVOID				UserData,
+	void *				UserData,
 	UINT32				UserDataLen,
 	VMBUS_CHANNEL_CALLBACK ChannelCallback,
-	PVOID				Context
+	void *				Context
 	);
 
 typedef void (*VMBUS_CHANNEL_CLOSE)(
@@ -106,7 +106,7 @@ typedef void (*VMBUS_CHANNEL_CLOSE)(
 
 typedef int	(*VMBUS_CHANNEL_SEND_PACKET)(
 	PDEVICE_OBJECT		Device,
-	const PVOID			Buffer,
+	const void *			Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId,
 	UINT32				Type,
@@ -117,7 +117,7 @@ typedef int	(*VMBUS_CHANNEL_SEND_PACKET_PAGEBUFFER)(
 	PDEVICE_OBJECT		Device,
 	PAGE_BUFFER			PageBuffers[],
 	UINT32				PageCount,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId
 	);
@@ -125,14 +125,14 @@ typedef int	(*VMBUS_CHANNEL_SEND_PACKET_PAGEBUFFER)(
 typedef int	(*VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER)(
 	PDEVICE_OBJECT		Device,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId
 );
 
 typedef int	(*VMBUS_CHANNEL_RECV_PACKET)(
 	PDEVICE_OBJECT		Device,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32*				BufferActualLen,
 	UINT64*				RequestId
@@ -140,7 +140,7 @@ typedef int	(*VMBUS_CHANNEL_RECV_PACKET)(
 
 typedef int	(*VMBUS_CHANNEL_RECV_PACKET_PAW)(
 	PDEVICE_OBJECT		Device,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32*				BufferActualLen,
 	UINT64*				RequestId
@@ -148,7 +148,7 @@ typedef int	(*VMBUS_CHANNEL_RECV_PACKET_PAW)(
 
 typedef int	(*VMBUS_CHANNEL_ESTABLISH_GPADL)(
 	PDEVICE_OBJECT		Device,
-	PVOID				Buffer,	// from kmalloc()
+	void *				Buffer,	// from kmalloc()
 	UINT32				BufferLen,		// page-size multiple
 	UINT32*				GpadlHandle
 	);

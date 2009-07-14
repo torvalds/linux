@@ -65,13 +65,13 @@ typedef struct _NETVSC_DEVICE {
 	HANDLE							ReceivePacketListLock;
 
 	// Send buffer allocated by us but manages by NetVSP
-	PVOID							SendBuffer;
+	void *							SendBuffer;
 	UINT32							SendBufferSize;
 	UINT32							SendBufferGpadlHandle;
 	UINT32							SendSectionSize;
 
 	// Receive buffer allocated by us but manages by NetVSP
-	PVOID							ReceiveBuffer;
+	void *							ReceiveBuffer;
 	UINT32							ReceiveBufferSize;
 	UINT32							ReceiveBufferGpadlHandle;
 	UINT32							ReceiveSectionCount;

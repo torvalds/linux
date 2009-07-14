@@ -28,7 +28,7 @@
 #include "include/osd.h"
 
 typedef struct _SG_BUFFER_LIST {
-	PVOID	Data;
+	void *	Data;
 	UINT32	Length;
 } SG_BUFFER_LIST;
 
@@ -72,7 +72,7 @@ typedef struct _RING_BUFFER_DEBUG_INFO {
 static int
 RingBufferInit(
 	RING_BUFFER_INFO	*RingInfo,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen
 	);
 
@@ -91,14 +91,14 @@ RingBufferWrite(
 static int
 RingBufferPeek(
 	RING_BUFFER_INFO	*RingInfo,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen
 	);
 
 static int
 RingBufferRead(
 	RING_BUFFER_INFO	*RingInfo,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32				Offset
 	);

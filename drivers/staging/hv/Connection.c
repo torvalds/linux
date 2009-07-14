@@ -103,7 +103,7 @@ VmbusConnect(
 	msg->VMBusVersionRequested = VMBUS_REVISION_NUMBER;
 	msg->InterruptPage = GetPhysicalAddress(gVmbusConnection.InterruptPage);
 	msg->MonitorPage1 = GetPhysicalAddress(gVmbusConnection.MonitorPages);
-	msg->MonitorPage2 = GetPhysicalAddress((PVOID)((ULONG_PTR)gVmbusConnection.MonitorPages + PAGE_SIZE));
+	msg->MonitorPage2 = GetPhysicalAddress((void *)((ULONG_PTR)gVmbusConnection.MonitorPages + PAGE_SIZE));
 
 	// Add to list before we send the request since we may receive the response
 	// before returning from this routine
@@ -290,7 +290,7 @@ Description:
 --*/
 static void
 VmbusProcessChannelEvent(
-	PVOID context
+	void * context
 	)
 {
 	VMBUS_CHANNEL* channel;
@@ -385,7 +385,7 @@ Description:
 --*/
 int
 VmbusPostMessage(
-	PVOID			buffer,
+	void *			buffer,
 	SIZE_T			bufferLen
 	)
 {

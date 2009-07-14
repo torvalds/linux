@@ -83,12 +83,12 @@ typedef struct _STORVSC_REQUEST {
 	UCHAR*					SenseBuffer;
 	UINT32					SenseBufferSize;
 
-	PVOID					Context;
+	void *					Context;
 
 	PFN_ON_IO_REQUEST_COMPLTN	OnIOCompletion;
 
 	// This points to the memory after DataBuffer
-	PVOID					Extension;
+	void *					Extension;
 
 	MULTIPAGE_BUFFER		DataBuffer;
 } STORVSC_REQUEST;

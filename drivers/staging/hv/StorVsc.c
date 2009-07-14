@@ -118,7 +118,7 @@ StorVscOnCleanup(
 
 static void
 StorVscOnChannelCallback(
-	PVOID Context
+	void * Context
 	);
 
 static void
@@ -530,7 +530,7 @@ StorVscConnectToVsp(
 	ret = Device->Driver->VmbusChannelInterface.Open(Device,
 		storDriver->RingBufferSize,
 		storDriver->RingBufferSize,
-		(PVOID)&props,
+		(void *)&props,
 		sizeof(VMSTORAGE_CHANNEL_PROPERTIES),
 		StorVscOnChannelCallback,
 		Device
@@ -901,7 +901,7 @@ StorVscOnReceive(
 
 void
 StorVscOnChannelCallback(
-	PVOID Context
+	void * Context
 	)
 {
 	int ret=0;

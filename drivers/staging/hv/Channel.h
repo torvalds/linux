@@ -67,10 +67,10 @@ VmbusChannelOpen(
 	VMBUS_CHANNEL			*Channel,
 	UINT32					SendRingBufferSize,
 	UINT32					RecvRingBufferSize,
-	PVOID					UserData,
+	void *					UserData,
 	UINT32					UserDataLen,
 	PFN_CHANNEL_CALLBACK	pfnOnChannelCallback,
-	PVOID					Context
+	void *					Context
 	);
 
 static void
@@ -81,7 +81,7 @@ VmbusChannelClose(
 static int
 VmbusChannelSendPacket(
 	VMBUS_CHANNEL		*Channel,
-	const PVOID			Buffer,
+	const void *			Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId,
 	VMBUS_PACKET_TYPE	Type,
@@ -93,7 +93,7 @@ VmbusChannelSendPacketPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	PAGE_BUFFER			PageBuffers[],
 	UINT32				PageCount,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId
 	);
@@ -102,7 +102,7 @@ static int
 VmbusChannelSendPacketMultiPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT64				RequestId
 );
@@ -110,7 +110,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 static int
 VmbusChannelEstablishGpadl(
 	VMBUS_CHANNEL		*Channel,
-	PVOID				Kbuffer,	// from kmalloc()
+	void *				Kbuffer,	// from kmalloc()
 	UINT32				Size,		// page-size multiple
 	UINT32				*GpadlHandle
 	);
@@ -124,7 +124,7 @@ VmbusChannelTeardownGpadl(
 static int
 VmbusChannelRecvPacket(
 	VMBUS_CHANNEL		*Channel,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32*				BufferActualLen,
 	UINT64*				RequestId
@@ -133,7 +133,7 @@ VmbusChannelRecvPacket(
 static int
 VmbusChannelRecvPacketRaw(
 	VMBUS_CHANNEL		*Channel,
-	PVOID				Buffer,
+	void *				Buffer,
 	UINT32				BufferLen,
 	UINT32*				BufferActualLen,
 	UINT64*				RequestId

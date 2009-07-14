@@ -827,10 +827,10 @@ typedef __struct_bcount(MessageLength) struct _RNDIS_MESSAGE
 
 // get pointer to contained message from NDIS_MESSAGE pointer
 #define RNDIS_MESSAGE_PTR_TO_MESSAGE_PTR(RndisMessage)          \
-    ((PVOID) &RndisMessage->Message)
+    ((void *) &RndisMessage->Message)
 
 // get pointer to contained message from NDIS_MESSAGE pointer
 #define RNDIS_MESSAGE_RAW_PTR_TO_MESSAGE_PTR(RndisMessage)      \
-    ((PVOID) RndisMessage)
+    ((void *) RndisMessage)
 
 #endif // _RNDIS_H_

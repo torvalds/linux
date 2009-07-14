@@ -148,7 +148,7 @@ VmbusDisconnect(
 
 static int
 VmbusPostMessage(
-	PVOID			buffer,
+	void *			buffer,
 	SIZE_T			bufSize
 	);
 
