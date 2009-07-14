@@ -950,8 +950,7 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 #ifdef EXOFS_DEBUG_OBJ_ISIZE
 	if ((inode->i_size != sanity) &&
 		(!exofs_inode_is_fast_symlink(inode))) {
-		EXOFS_ERR("WARNING: Size of object from inode and "
-			  "attributes differ (%lld != %llu)\n",
+		EXOFS_ERR("WARNING: Size of inode=%llu != object=%llu\n",
 			  inode->i_size, _LLU(sanity));
 	}
 #endif
