@@ -101,8 +101,6 @@ typedef struct _DLIST_ENTRY {
 typedef unsigned char		BOOL;
 typedef unsigned char		BOOLEAN;
 typedef void*				HANDLE;
-typedef u32				DWORD;
-typedef unsigned char		BYTE;
 
 typedef struct {
 	unsigned char	Data[16];
