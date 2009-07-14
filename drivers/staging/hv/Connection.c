@@ -386,7 +386,7 @@ Description:
 int
 VmbusPostMessage(
 	void *			buffer,
-	SIZE_T			bufferLen
+	size_t			bufferLen
 	)
 {
 	int ret=0;

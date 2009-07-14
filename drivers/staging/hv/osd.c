@@ -312,7 +312,7 @@ void TimerClose(HANDLE hTimer)
 	kfree(t);
 }
 
-SIZE_T GetTickCount(void)
+size_t GetTickCount(void)
 {
 	return jiffies;
 }

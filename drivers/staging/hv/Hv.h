@@ -163,7 +163,7 @@ HvPostMessage(
 	HV_CONNECTION_ID connectionId,
 	HV_MESSAGE_TYPE  messageType,
 	void *            payload,
-	SIZE_T           payloadSize
+	size_t           payloadSize
 	);
 
 static HV_STATUS

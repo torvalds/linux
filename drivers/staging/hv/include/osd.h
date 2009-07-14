@@ -97,7 +97,6 @@ typedef struct _DLIST_ENTRY {
 //
 // Other types
 //
-typedef unsigned long		SIZE_T;
 //typedef unsigned char		GUID[16];
 typedef unsigned char		BOOL;
 typedef unsigned char		BOOLEAN;
@@ -188,7 +187,7 @@ extern HANDLE TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
 extern void TimerClose(HANDLE hTimer);
 extern int TimerStop(HANDLE hTimer);
 extern void TimerStart(HANDLE hTimer, u32 expirationInUs);
-extern SIZE_T GetTickCount(void);
+extern size_t GetTickCount(void);
 
 extern HANDLE WaitEventCreate(void);
 extern void WaitEventClose(HANDLE hWait);
