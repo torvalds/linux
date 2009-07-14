@@ -259,5 +259,77 @@ struct crypto_ahash *crypto_alloc_ahash(const char *alg_name, u32 type,
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_ahash);
 
+static int ahash_prepare_alg(struct ahash_alg *alg)
+{
+	struct crypto_alg *base = &alg->halg.base;
+
+	if (alg->halg.digestsize > PAGE_SIZE / 8 ||
+	    alg->halg.statesize > PAGE_SIZE / 8)
+		return -EINVAL;
+
+	base->cra_type = &crypto_ahash_type;
+	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
+	base->cra_flags |= CRYPTO_ALG_TYPE_AHASH;
+
+	return 0;
+}
+
+int crypto_register_ahash(struct ahash_alg *alg)
+{
+	struct crypto_alg *base = &alg->halg.base;
+	int err;
+
+	err = ahash_prepare_alg(alg);
+	if (err)
+		return err;
+
+	return crypto_register_alg(base);
+}
+EXPORT_SYMBOL_GPL(crypto_register_ahash);
+
+int crypto_unregister_ahash(struct ahash_alg *alg)
+{
+	return crypto_unregister_alg(&alg->halg.base);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_ahash);
+
+int ahash_register_instance(struct crypto_template *tmpl,
+			    struct ahash_instance *inst)
+{
+	int err;
+
+	err = ahash_prepare_alg(&inst->alg);
+	if (err)
+		return err;
+
+	return crypto_register_instance(tmpl, ahash_crypto_instance(inst));
+}
+EXPORT_SYMBOL_GPL(ahash_register_instance);
+
+void ahash_free_instance(struct crypto_instance *inst)
+{
+	crypto_drop_spawn(crypto_instance_ctx(inst));
+	kfree(ahash_instance(inst));
+}
+EXPORT_SYMBOL_GPL(ahash_free_instance);
+
+int crypto_init_ahash_spawn(struct crypto_ahash_spawn *spawn,
+			    struct hash_alg_common *alg,
+			    struct crypto_instance *inst)
+{
+	return crypto_init_spawn2(&spawn->base, &alg->base, inst,
+				  &crypto_ahash_type);
+}
+EXPORT_SYMBOL_GPL(crypto_init_ahash_spawn);
+
+struct hash_alg_common *ahash_attr_alg(struct rtattr *rta, u32 type, u32 mask)
+{
+	struct crypto_alg *alg;
+
+	alg = crypto_attr_alg2(rta, &crypto_ahash_type, type, mask);
+	return IS_ERR(alg) ? ERR_CAST(alg) : __crypto_hash_alg_common(alg);
+}
+EXPORT_SYMBOL_GPL(ahash_attr_alg);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous cryptographic hash type");

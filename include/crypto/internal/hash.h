@@ -34,8 +34,16 @@ struct crypto_hash_walk {
 	unsigned int flags;
 };
 
+struct ahash_instance {
+	struct ahash_alg alg;
+};
+
 struct shash_instance {
 	struct shash_alg alg;
+};
+
+struct crypto_ahash_spawn {
+	struct crypto_spawn base;
 };
 
 struct crypto_shash_spawn {
@@ -53,6 +61,15 @@ int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
 
 int crypto_register_ahash(struct ahash_alg *alg);
 int crypto_unregister_ahash(struct ahash_alg *alg);
+int ahash_register_instance(struct crypto_template *tmpl,
+			    struct ahash_instance *inst);
+void ahash_free_instance(struct crypto_instance *inst);
+
+int crypto_init_ahash_spawn(struct crypto_ahash_spawn *spawn,
+			    struct hash_alg_common *alg,
+			    struct crypto_instance *inst);
+
+struct hash_alg_common *ahash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
 
 int crypto_register_shash(struct shash_alg *alg);
 int crypto_unregister_shash(struct shash_alg *alg);
@@ -86,6 +103,40 @@ static inline void crypto_ahash_set_reqsize(struct crypto_ahash *tfm,
 					    unsigned int reqsize)
 {
 	tfm->reqsize = reqsize;
+}
+
+static inline struct crypto_instance *ahash_crypto_instance(
+	struct ahash_instance *inst)
+{
+	return container_of(&inst->alg.halg.base, struct crypto_instance, alg);
+}
+
+static inline struct ahash_instance *ahash_instance(
+	struct crypto_instance *inst)
+{
+	return container_of(&inst->alg, struct ahash_instance, alg.halg.base);
+}
+
+static inline void *ahash_instance_ctx(struct ahash_instance *inst)
+{
+	return crypto_instance_ctx(ahash_crypto_instance(inst));
+}
+
+static inline unsigned int ahash_instance_headroom(void)
+{
+	return sizeof(struct ahash_alg) - sizeof(struct crypto_alg);
+}
+
+static inline struct ahash_instance *ahash_alloc_instance(
+	const char *name, struct crypto_alg *alg)
+{
+	return crypto_alloc_instance2(name, alg, ahash_instance_headroom());
+}
+
+static inline struct crypto_ahash *crypto_spawn_ahash(
+	struct crypto_ahash_spawn *spawn)
+{
+	return crypto_spawn_tfm2(&spawn->base);
 }
 
 static inline int ahash_enqueue_request(struct crypto_queue *queue,
