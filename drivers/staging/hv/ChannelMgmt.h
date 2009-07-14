@@ -25,12 +25,12 @@
 #ifndef _CHANNEL_MGMT_H_
 #define _CHANNEL_MGMT_H_
 
-#include "osd.h"
-#include "List.h"
+#include "include/osd.h"
+#include "include/List.h"
 #include "RingBuffer.h"
 
-#include "VmbusChannelInterface.h"
-#include "ChannelMessages.h"
+#include "include/VmbusChannelInterface.h"
+#include "include/ChannelMessages.h"
 
 
 

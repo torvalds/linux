@@ -22,7 +22,7 @@
  */
 
 
-#include "logging.h"
+#include "include/logging.h"
 
 #include "VmbusPrivate.h"
 

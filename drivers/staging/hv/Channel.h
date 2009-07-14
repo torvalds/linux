@@ -25,7 +25,7 @@
 #ifndef _CHANNEL_H_
 #define _CHANNEL_H_
 
-#include "osd.h"
+#include "include/osd.h"
 #include "ChannelMgmt.h"
 
 #pragma pack(push,1)

@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <VmbusPacketFormat.h>
+#include "VmbusPacketFormat.h"
 
 #define C_ASSERT(x)
 typedef UINT32 NTSTATUS;

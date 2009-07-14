@@ -25,7 +25,7 @@
 #ifndef _RING_BUFFER_H_
 #define _RING_BUFFER_H_
 
-#include "osd.h"
+#include "include/osd.h"
 
 typedef struct _SG_BUFFER_LIST {
 	PVOID	Data;

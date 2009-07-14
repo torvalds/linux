@@ -21,6 +21,7 @@
  *
  */
 
+#define KERNEL_2_6_27
 
 #include "Vmbus.c"
 #include "Hv.c"

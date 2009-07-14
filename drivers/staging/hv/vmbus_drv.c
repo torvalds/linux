@@ -21,6 +21,7 @@
  *
  */
 
+#define KERNEL_2_6_27
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -29,8 +30,8 @@
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
 
-#include "logging.h"
-#include "vmbus.h"
+#include "include/logging.h"
+#include "include/vmbus.h"
 
 //
 // Defines
@@ -451,7 +452,7 @@ int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 		goto cleanup;
 	}
 	//strcpy(dev_ctx->device.bus_id, dev_ctx->device_obj.name);
-	sprintf(dev_ctx->device.bus_id, "vmbus_0_0");
+	dev_set_name(&dev_ctx->device, "vmbus_0_0");
 	memcpy(&dev_ctx->class_id, &dev_ctx->device_obj.deviceType, sizeof(GUID));
 	memcpy(&dev_ctx->device_id, &dev_ctx->device_obj.deviceInstance, sizeof(GUID));
 
@@ -656,16 +657,16 @@ static int vmbus_child_device_register(DEVICE_OBJECT* root_device_obj, DEVICE_OB
 	//
 	// Make sure we are not registered already
 	//
-	if (child_device_ctx->device.bus_id[0] != '\0')
+	if (strlen(dev_name(&child_device_ctx->device)) != 0)
 	{
-		DPRINT_ERR(VMBUS_DRV, "child device (%p) already registered - busid %s", child_device_ctx, child_device_ctx->device.bus_id);
+		DPRINT_ERR(VMBUS_DRV, "child device (%p) already registered - busid %s", child_device_ctx, dev_name(&child_device_ctx->device));
 
 		ret = -1;
 		goto Cleanup;
 	}
 
 	// Set the device bus id. Otherwise, device_register()will fail.
-	sprintf(child_device_ctx->device.bus_id, "vmbus_0_%d", InterlockedIncrement(&device_num));
+	dev_set_name(&child_device_ctx->device, "vmbus_0_%d", InterlockedIncrement(&device_num));
 
 	// The new device belongs to this bus
 	child_device_ctx->device.bus = &g_vmbus_drv.bus; //device->dev.bus;
@@ -924,7 +925,7 @@ static int vmbus_probe(struct device *child_device)
 		ret = device_ctx->probe_error = driver_ctx->probe(child_device);
 		if (ret != 0)
 		{
-			DPRINT_ERR(VMBUS_DRV, "probe() failed for device %s (%p) on driver %s (%d)...", child_device->bus_id, child_device, child_device->driver->name, ret);
+			DPRINT_ERR(VMBUS_DRV, "probe() failed for device %s (%p) on driver %s (%d)...", dev_name(child_device), child_device, child_device->driver->name, ret);
 
 #ifdef KERNEL_2_6_27
 			INIT_WORK(&device_ctx->probe_failed_work_item, vmbus_probe_failed_cb);

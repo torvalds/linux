@@ -21,6 +21,7 @@
  *
  */
 
+#define KERNEL_2_6_27
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -46,7 +47,7 @@
 #include <asm/kmap_types.h>
 #include <asm/atomic.h>
 
-#include "osd.h"
+#include "include/osd.h"
 
 //
 // Data types

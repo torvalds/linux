@@ -30,14 +30,14 @@
 #endif
 
 #include "Hv.h"
-#include "VmbusApi.h"
+#include "include/VmbusApi.h"
 #include "Channel.h"
 #include "ChannelMgmt.h"
 #include "ChannelInterface.h"
 //#include "ChannelMessages.h"
 #include "RingBuffer.h"
 //#include "Packet.h"
-#include "List.h"
+#include "include/List.h"
 
 //
 // Defines

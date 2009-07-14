@@ -22,8 +22,8 @@
  */
 
 
-#include "osd.h"
-#include "logging.h"
+#include "include/osd.h"
+#include "include/logging.h"
 
 #include "VmbusPrivate.h"
 

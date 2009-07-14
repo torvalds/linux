@@ -25,23 +25,23 @@
 #ifndef __HV_H__
 #define __HV_H__
 
-#include "osd.h"
+#include "include/osd.h"
 
-#include "HvTypes.h"
-#include "HvStatus.h"
+#include "include/HvTypes.h"
+#include "include/HvStatus.h"
 //#include "HvVmApi.h"
 //#include "HvKeApi.h"
 //#include "HvMmApi.h"
 //#include "HvCpuApi.h"
-#include "HvHalApi.h"
-#include "HvVpApi.h"
+#include "include/HvHalApi.h"
+#include "include/HvVpApi.h"
 //#include "HvTrApi.h"
-#include "HvSynicApi.h"
+#include "include/HvSynicApi.h"
 //#include "HvAmApi.h"
 //#include "HvHkApi.h"
 //#include "HvValApi.h"
-#include "HvHcApi.h"
-#include "HvPtApi.h"
+#include "include/HvHcApi.h"
+#include "include/HvPtApi.h"
 
 enum
 {
