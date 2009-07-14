@@ -244,16 +244,15 @@ static int kiss_esc_crc(unsigned char *s, unsigned char *d, unsigned short crc,
 /* Send one completely decapsulated AX.25 packet to the AX.25 layer. */
 static void ax_bump(struct mkiss *ax)
 {
-	unsigned long flags;
 	struct sk_buff *skb;
 	int count;
 
-	spin_lock_irqsave(&ax->buflock, flags);
+	spin_lock_bh(&ax->buflock);
 	if (ax->rbuff[0] > 0x0f) {
 		if (ax->rbuff[0] & 0x80) {
 			if (check_crc_16(ax->rbuff, ax->rcount) < 0) {
 				ax->dev->stats.rx_errors++;
-				spin_unlock_irqrestore(&ax->buflock, flags);
+				spin_unlock_bh(&ax->buflock);
 
 				return;
 			}
@@ -268,7 +267,7 @@ static void ax_bump(struct mkiss *ax)
 		} else if (ax->rbuff[0] & 0x20)  {
 			if (check_crc_flex(ax->rbuff, ax->rcount) < 0) {
 				ax->dev->stats.rx_errors++;
-				spin_unlock_irqrestore(&ax->buflock, flags);
+				spin_unlock_bh(&ax->buflock);
 				return;
 			}
 			if (ax->crcmode != CRC_MODE_FLEX && ax->crcauto) {
@@ -295,7 +294,7 @@ static void ax_bump(struct mkiss *ax)
 		printk(KERN_ERR "mkiss: %s: memory squeeze, dropping packet.\n",
 		       ax->dev->name);
 		ax->dev->stats.rx_dropped++;
-		spin_unlock_irqrestore(&ax->buflock, flags);
+		spin_unlock_bh(&ax->buflock);
 		return;
 	}
 
@@ -304,13 +303,11 @@ static void ax_bump(struct mkiss *ax)
 	netif_rx(skb);
 	ax->dev->stats.rx_packets++;
 	ax->dev->stats.rx_bytes += count;
-	spin_unlock_irqrestore(&ax->buflock, flags);
+	spin_unlock_bh(&ax->buflock);
 }
 
 static void kiss_unesc(struct mkiss *ax, unsigned char s)
 {
-	unsigned long flags;
-
 	switch (s) {
 	case END:
 		/* drop keeptest bit = VSV */
@@ -337,18 +334,18 @@ static void kiss_unesc(struct mkiss *ax, unsigned char s)
 		break;
 	}
 
-	spin_lock_irqsave(&ax->buflock, flags);
+	spin_lock_bh(&ax->buflock);
 	if (!test_bit(AXF_ERROR, &ax->flags)) {
 		if (ax->rcount < ax->buffsize) {
 			ax->rbuff[ax->rcount++] = s;
-			spin_unlock_irqrestore(&ax->buflock, flags);
+			spin_unlock_bh(&ax->buflock);
 			return;
 		}
 
 		ax->dev->stats.rx_over_errors++;
 		set_bit(AXF_ERROR, &ax->flags);
 	}
-	spin_unlock_irqrestore(&ax->buflock, flags);
+	spin_unlock_bh(&ax->buflock);
 }
 
 static int ax_set_mac_address(struct net_device *dev, void *addr)
@@ -370,7 +367,6 @@ static void ax_changedmtu(struct mkiss *ax)
 {
 	struct net_device *dev = ax->dev;
 	unsigned char *xbuff, *rbuff, *oxbuff, *orbuff;
-	unsigned long flags;
 	int len;
 
 	len = dev->mtu * 2;
@@ -396,7 +392,7 @@ static void ax_changedmtu(struct mkiss *ax)
 		return;
 	}
 
-	spin_lock_irqsave(&ax->buflock, flags);
+	spin_lock_bh(&ax->buflock);
 
 	oxbuff    = ax->xbuff;
 	ax->xbuff = xbuff;
@@ -427,7 +423,7 @@ static void ax_changedmtu(struct mkiss *ax)
 	ax->mtu      = dev->mtu + 73;
 	ax->buffsize = len;
 
-	spin_unlock_irqrestore(&ax->buflock, flags);
+	spin_unlock_bh(&ax->buflock);
 
 	kfree(oxbuff);
 	kfree(orbuff);
@@ -437,7 +433,6 @@ static void ax_changedmtu(struct mkiss *ax)
 static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 {
 	struct mkiss *ax = netdev_priv(dev);
-	unsigned long flags;
 	unsigned char *p;
 	int actual, count;
 
@@ -454,7 +449,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 
 	p = icp;
 
-	spin_lock_irqsave(&ax->buflock, flags);
+	spin_lock_bh(&ax->buflock);
 	if ((*p & 0x0f) != 0) {
 		/* Configuration Command (kissparms(1).
 		 * Protocol spec says: never append CRC.
@@ -484,7 +479,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 				ax->crcauto = (cmd ? 0 : 1);
 				printk(KERN_INFO "mkiss: %s: crc mode %s %d\n", ax->dev->name, (len) ? "set to" : "is", cmd);
 			}
-			spin_unlock_irqrestore(&ax->buflock, flags);
+			spin_unlock_bh(&ax->buflock);
 			netif_start_queue(dev);
 
 			return;
@@ -517,7 +512,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 			count = kiss_esc(p, (unsigned char *)ax->xbuff, len);
 		}
   	}
-	spin_unlock_irqrestore(&ax->buflock, flags);
+	spin_unlock_bh(&ax->buflock);
 
 	set_bit(TTY_DO_WRITE_WAKEUP, &ax->tty->flags);
 	actual = ax->tty->ops->write(ax->tty, ax->xbuff, count);
@@ -709,14 +704,13 @@ static DEFINE_RWLOCK(disc_data_lock);
 
 static struct mkiss *mkiss_get(struct tty_struct *tty)
 {
-	unsigned long flags;
 	struct mkiss *ax;
 
-	read_lock_irqsave(&disc_data_lock, flags);
+	read_lock(&disc_data_lock);
 	ax = tty->disc_data;
 	if (ax)
 		atomic_inc(&ax->refcnt);
-	read_unlock_irqrestore(&disc_data_lock, flags);
+	read_unlock(&disc_data_lock);
 
 	return ax;
 }
@@ -815,13 +809,12 @@ out:
 
 static void mkiss_close(struct tty_struct *tty)
 {
-	unsigned long flags;
 	struct mkiss *ax;
 
-	write_lock_irqsave(&disc_data_lock, flags);
+	write_lock(&disc_data_lock);
 	ax = tty->disc_data;
 	tty->disc_data = NULL;
-	write_unlock_irqrestore(&disc_data_lock, flags);
+	write_unlock(&disc_data_lock);
 
 	if (!ax)
 		return;
