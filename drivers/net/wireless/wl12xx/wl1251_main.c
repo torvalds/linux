@@ -349,7 +349,7 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 
 	ret = wl1251_chip_wakeup(wl);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = wl->chip.op_boot(wl);
 	if (ret < 0)
