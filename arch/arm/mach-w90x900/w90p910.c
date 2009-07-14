@@ -57,9 +57,12 @@ static struct map_desc w90p910_iodesc[] __initdata = {
 static DEFINE_CLK(lcd, 0);
 static DEFINE_CLK(audio, 1);
 static DEFINE_CLK(fmi, 4);
+static DEFINE_SUBCLK(ms, 0);
+static DEFINE_SUBCLK(sd, 1);
 static DEFINE_CLK(dmac, 5);
 static DEFINE_CLK(atapi, 6);
 static DEFINE_CLK(emc, 7);
+static DEFINE_SUBCLK(rmii, 2);
 static DEFINE_CLK(usbd, 8);
 static DEFINE_CLK(usbh, 9);
 static DEFINE_CLK(g2d, 10);;
@@ -75,9 +78,12 @@ static struct clk_lookup w90p910_clkregs[] = {
 	DEF_CLKLOOK(&clk_lcd, "w90p910-lcd", NULL),
 	DEF_CLKLOOK(&clk_audio, "w90p910-audio", NULL),
 	DEF_CLKLOOK(&clk_fmi, "w90p910-fmi", NULL),
+	DEF_CLKLOOK(&clk_ms, "w90p910-fmi", "MS"),
+	DEF_CLKLOOK(&clk_sd, "w90p910-fmi", "SD"),
 	DEF_CLKLOOK(&clk_dmac, "w90p910-dmac", NULL),
 	DEF_CLKLOOK(&clk_atapi, "w90p910-atapi", NULL),
 	DEF_CLKLOOK(&clk_emc, "w90p910-emc", NULL),
+	DEF_CLKLOOK(&clk_rmii, "w90p910-emc", "RMII"),
 	DEF_CLKLOOK(&clk_usbd, "w90p910-usbd", NULL),
 	DEF_CLKLOOK(&clk_usbh, "w90p910-usbh", NULL),
 	DEF_CLKLOOK(&clk_g2d, "w90p910-g2d", NULL),

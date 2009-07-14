@@ -13,6 +13,7 @@
 #include <asm/clkdev.h>
 
 void w90x900_clk_enable(struct clk *clk, int enable);
+void w90x900_subclk_enable(struct clk *clk, int enable);
 void clks_register(struct clk_lookup *clks, size_t num);
 
 struct clk {
@@ -26,6 +27,13 @@ struct clk clk_##_name = {				\
 		.enable	= w90x900_clk_enable,		\
 		.cken	= (1 << _ctrlbit),		\
 	}
+
+#define DEFINE_SUBCLK(_name, _ctrlbit)			\
+struct clk clk_##_name = {				\
+		.enable	= w90x900_subclk_enable,	\
+		.cken	= (1 << _ctrlbit),		\
+	}
+
 
 #define DEF_CLKLOOK(_clk, _devname, _conname)		\
 	{						\

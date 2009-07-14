@@ -25,6 +25,8 @@
 
 #include "clock.h"
 
+#define SUBCLK 0x24
+
 static DEFINE_SPINLOCK(clocks_lock);
 
 int clk_enable(struct clk *clk)
@@ -67,6 +69,22 @@ void w90x900_clk_enable(struct clk *clk, int enable)
 
 	__raw_writel(clken, W90X900_VA_CLKPWR);
 }
+
+void w90x900_subclk_enable(struct clk *clk, int enable)
+{
+	unsigned int clocks = clk->cken;
+	unsigned long clken;
+
+	clken = __raw_readl(W90X900_VA_CLKPWR + SUBCLK);
+
+	if (enable)
+		clken |= clocks;
+	else
+		clken &= ~clocks;
+
+	__raw_writel(clken, W90X900_VA_CLKPWR + SUBCLK);
+}
+
 
 void clks_register(struct clk_lookup *clks, size_t num)
 {
