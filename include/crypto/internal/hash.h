@@ -69,6 +69,11 @@ int crypto_init_ahash_spawn(struct crypto_ahash_spawn *spawn,
 			    struct hash_alg_common *alg,
 			    struct crypto_instance *inst);
 
+static inline void crypto_drop_ahash(struct crypto_ahash_spawn *spawn)
+{
+	crypto_drop_spawn(&spawn->base);
+}
+
 struct hash_alg_common *ahash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
 
 int crypto_register_shash(struct shash_alg *alg);
@@ -80,6 +85,11 @@ void shash_free_instance(struct crypto_instance *inst);
 int crypto_init_shash_spawn(struct crypto_shash_spawn *spawn,
 			    struct shash_alg *alg,
 			    struct crypto_instance *inst);
+
+static inline void crypto_drop_shash(struct crypto_shash_spawn *spawn)
+{
+	crypto_drop_spawn(&spawn->base);
+}
 
 struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
 
