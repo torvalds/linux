@@ -383,8 +383,13 @@ struct raid5_private_data {
 					    * (fresh device added).
 					    * Cleared when a sync completes.
 					    */
-
-	struct page 		*spare_page; /* Used when checking P/Q in raid6 */
+	/* per cpu variables */
+	struct raid5_percpu {
+		struct page	*spare_page; /* Used when checking P/Q in raid6 */
+	} *percpu;
+#ifdef CONFIG_HOTPLUG_CPU
+	struct notifier_block	cpu_notify;
+#endif
 
 	/*
 	 * Free stripes pool
