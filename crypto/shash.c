@@ -270,7 +270,6 @@ static void crypto_exit_shash_ops_async(struct crypto_tfm *tfm)
 int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 {
 	struct crypto_alg *calg = tfm->__crt_alg;
-	struct shash_alg *alg = __crypto_shash_alg(calg);
 	struct crypto_ahash *crt = __crypto_ahash_cast(tfm);
 	struct crypto_shash **ctx = crypto_tfm_ctx(tfm);
 	struct crypto_shash *shash;
@@ -293,7 +292,6 @@ int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 	crt->digest = shash_async_digest;
 	crt->setkey = shash_async_setkey;
 
-	crt->digestsize = alg->digestsize;
 	crt->reqsize = sizeof(struct shash_desc) + crypto_shash_descsize(shash);
 
 	return 0;

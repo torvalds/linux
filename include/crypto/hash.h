@@ -89,7 +89,6 @@ struct crypto_ahash {
 	int (*setkey)(struct crypto_ahash *tfm, const u8 *key,
 		      unsigned int keylen);
 
-	unsigned int digestsize;
 	unsigned int reqsize;
 	struct crypto_tfm base;
 };
@@ -137,7 +136,7 @@ static inline struct hash_alg_common *crypto_hash_alg_common(
 
 static inline unsigned int crypto_ahash_digestsize(struct crypto_ahash *tfm)
 {
-	return tfm->digestsize;
+	return crypto_hash_alg_common(tfm)->digestsize;
 }
 
 static inline unsigned int crypto_ahash_statesize(struct crypto_ahash *tfm)

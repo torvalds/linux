@@ -115,12 +115,10 @@ struct crypto_async_request;
 struct crypto_aead;
 struct crypto_blkcipher;
 struct crypto_hash;
-struct crypto_ahash;
 struct crypto_rng;
 struct crypto_tfm;
 struct crypto_type;
 struct aead_givcrypt_request;
-struct ahash_request;
 struct skcipher_givcrypt_request;
 
 typedef void (*crypto_completion_t)(struct crypto_async_request *req, int err);
@@ -211,18 +209,6 @@ struct ablkcipher_alg {
 	unsigned int ivsize;
 };
 
-struct old_ahash_alg {
-	int (*init)(struct ahash_request *req);
-	int (*reinit)(struct ahash_request *req);
-	int (*update)(struct ahash_request *req);
-	int (*final)(struct ahash_request *req);
-	int (*digest)(struct ahash_request *req);
-	int (*setkey)(struct crypto_ahash *tfm, const u8 *key,
-			unsigned int keylen);
-
-	unsigned int digestsize;
-};
-
 struct aead_alg {
 	int (*setkey)(struct crypto_aead *tfm, const u8 *key,
 	              unsigned int keylen);
@@ -309,7 +295,6 @@ struct rng_alg {
 #define cra_cipher	cra_u.cipher
 #define cra_digest	cra_u.digest
 #define cra_hash	cra_u.hash
-#define cra_ahash	cra_u.ahash
 #define cra_compress	cra_u.compress
 #define cra_rng		cra_u.rng
 
@@ -337,7 +322,6 @@ struct crypto_alg {
 		struct cipher_alg cipher;
 		struct digest_alg digest;
 		struct hash_alg hash;
-		struct old_ahash_alg ahash;
 		struct compress_alg compress;
 		struct rng_alg rng;
 	} cra_u;

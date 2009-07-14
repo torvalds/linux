@@ -175,46 +175,19 @@ static int ahash_nosetkey(struct crypto_ahash *tfm, const u8 *key,
 	return -ENOSYS;
 }
 
-static int crypto_init_ahash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
-{
-	struct old_ahash_alg *alg = &tfm->__crt_alg->cra_ahash;
-	struct crypto_ahash *crt = __crypto_ahash_cast(tfm);
-	struct ahash_alg *nalg = crypto_ahash_alg(crt);
-
-	if (alg->digestsize > PAGE_SIZE / 8)
-		return -EINVAL;
-
-	crt->init = alg->init;
-	crt->update = alg->update;
-	crt->final  = alg->final;
-	crt->digest = alg->digest;
-	crt->setkey = alg->setkey ? ahash_setkey : ahash_nosetkey;
-	crt->digestsize = alg->digestsize;
-
-	nalg->setkey = alg->setkey;
-	nalg->halg.digestsize = alg->digestsize;
-
-	return 0;
-}
-
 static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_ahash *hash = __crypto_ahash_cast(tfm);
 	struct ahash_alg *alg = crypto_ahash_alg(hash);
-	struct old_ahash_alg *oalg = crypto_old_ahash_alg(hash);
 
 	if (tfm->__crt_alg->cra_type != &crypto_ahash_type)
 		return crypto_init_shash_ops_async(tfm);
-
-	if (oalg->init)
-		return crypto_init_ahash_ops(tfm, 0, 0);
 
 	hash->init = alg->init;
 	hash->update = alg->update;
 	hash->final  = alg->final;
 	hash->digest = alg->digest;
 	hash->setkey = alg->setkey ? ahash_setkey : ahash_nosetkey;
-	hash->digestsize = alg->halg.digestsize;
 
 	return 0;
 }

@@ -109,12 +109,6 @@ static inline struct ahash_alg *__crypto_ahash_alg(struct crypto_alg *alg)
 			    halg);
 }
 
-static inline struct old_ahash_alg *crypto_old_ahash_alg(
-	struct crypto_ahash *tfm)
-{
-	return &crypto_ahash_tfm(tfm)->__crt_alg->cra_ahash;
-}
-
 static inline void crypto_ahash_set_reqsize(struct crypto_ahash *tfm,
 					    unsigned int reqsize)
 {
