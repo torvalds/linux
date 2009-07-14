@@ -72,7 +72,7 @@ typedef struct _NETVSC_PACKET {
 	DLIST_ENTRY				ListEntry;
 
 	DEVICE_OBJECT			*Device;
-	BOOL					IsDataPacket;
+	bool					IsDataPacket;
 
 	// Valid only for receives when we break a xfer page packet into multiple netvsc packets
 	XFERPAGE_PACKET		*XferPagePacket;
@@ -131,7 +131,7 @@ typedef struct _NETVSC_DRIVER_OBJECT {
 
 typedef struct _NETVSC_DEVICE_INFO {
     unsigned char	MacAddr[6];
-    BOOL	LinkState;	// 0 - link up, 1 - link down
+    bool	LinkState;	// 0 - link up, 1 - link down
 } NETVSC_DEVICE_INFO;
 
 //

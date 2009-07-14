@@ -383,7 +383,7 @@ RndisFilterReceiveResponse(
 	LIST_ENTRY *anchor;
 	LIST_ENTRY *curr;
 	RNDIS_REQUEST *request=NULL;
-	BOOL found=FALSE;
+	bool found=FALSE;
 
 	DPRINT_ENTER(NETVSC);
 

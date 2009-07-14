@@ -113,7 +113,7 @@ typedef struct VMTRANSFER_PAGE_PACKET_HEADER {
 #endif
 
     u16                  TransferPageSetId;
-    BOOLEAN                 SenderOwnsSet;
+    bool                 SenderOwnsSet;
     u8                   Reserved;
     u32                  RangeCount;
     VMTRANSFER_PAGE_RANGE   Ranges[1];

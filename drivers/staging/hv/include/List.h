@@ -56,7 +56,7 @@ typedef DLIST_ENTRY *PLIST_ENTRY;
 
 
 /*
- *  BOOLEAN
+ *  bool
  *  IsListEmpty(
  *      PLIST_ENTRY ListHead
  *      );

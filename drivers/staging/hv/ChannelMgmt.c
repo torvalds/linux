@@ -240,7 +240,7 @@ VmbusChannelProcessOffer(
 	VMBUS_CHANNEL* newChannel=(VMBUS_CHANNEL*)context;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
-	BOOL fNew=TRUE;
+	bool fNew=TRUE;
 	VMBUS_CHANNEL* channel;
 
 	DPRINT_ENTER(VMBUS);

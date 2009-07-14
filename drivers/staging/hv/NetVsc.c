@@ -1344,7 +1344,7 @@ NetVscOnReceiveCompletion(
 	DEVICE_OBJECT *device = (DEVICE_OBJECT*)packet->Device;
 	NETVSC_DEVICE* netDevice;
 	u64	transactionId=0;
-	BOOL fSendReceiveComp = FALSE;
+	bool fSendReceiveComp = FALSE;
 
 	DPRINT_ENTER(NETVSC);
 

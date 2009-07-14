@@ -113,7 +113,7 @@ typedef struct {
 	u64	GuestId;			// XenLinux or native Linux. If XenLinux, the hypercall and synic pages has already been initialized
 	void*	HypercallPage;
 
-	BOOL	SynICInitialized;
+	bool	SynICInitialized;
 	// This is used as an input param to HvCallSignalEvent hypercall. The input param is immutable
 	// in our usage and must be dynamic mem (vs stack or global).
 	HV_INPUT_SIGNAL_EVENT_BUFFER *SignalEventBuffer;

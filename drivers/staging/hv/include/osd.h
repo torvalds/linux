@@ -98,8 +98,6 @@ typedef struct _DLIST_ENTRY {
 // Other types
 //
 //typedef unsigned char		GUID[16];
-typedef unsigned char		BOOL;
-typedef unsigned char		BOOLEAN;
 typedef void*				HANDLE;
 
 typedef struct {
