@@ -195,7 +195,7 @@ Description:
 --*/
 int
 VmbusDisconnect(
-	VOID
+	void
 	)
 {
 	int ret=0;
@@ -323,9 +323,9 @@ Description:
 	Handler for events
 
 --*/
-VOID
+void
 VmbusOnEvents(
-  VOID
+  void
 	)
 {
 	int dword;

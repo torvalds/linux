@@ -621,9 +621,9 @@ Description:
 	Cleanup routine for HvSynicInit().
 
 --*/
-VOID
+void
 HvSynicCleanup(
-	VOID
+	void
 	)
 {
     HV_SYNIC_SINT	sharedSint;

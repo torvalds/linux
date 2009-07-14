@@ -120,7 +120,7 @@ static int
 RndisFilterQueryDevice(
 	RNDIS_DEVICE	*Device,
 	UINT32			Oid,
-	VOID			*Result,
+	void			*Result,
 	UINT32			*ResultSize
 	);
 
@@ -585,7 +585,7 @@ static int
 RndisFilterQueryDevice(
 	RNDIS_DEVICE	*Device,
 	UINT32			Oid,
-	VOID			*Result,
+	void			*Result,
 	UINT32			*ResultSize
 	)
 {

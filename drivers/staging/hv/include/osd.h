@@ -131,7 +131,6 @@ typedef long long			LONGLONG;
 // Other types
 //
 typedef unsigned long		SIZE_T;
-typedef void				VOID;
 //typedef unsigned char		GUID[16];
 typedef unsigned char		BOOL;
 typedef unsigned char		BOOLEAN;
@@ -219,7 +218,7 @@ extern void* MemAlloc(unsigned int size);
 extern void* MemAllocZeroed(unsigned int size);
 extern void* MemAllocAtomic(unsigned int size);
 extern void MemFree(void* buf);
-extern void MemoryFence(VOID);
+extern void MemoryFence(void);
 
 extern HANDLE TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
 extern void TimerClose(HANDLE hTimer);

@@ -375,7 +375,7 @@ int WaitEventWaitEx(HANDLE hWait, UINT32 TimeoutInMs)
 	return ret;
 }
 
-HANDLE SpinlockCreate(VOID)
+HANDLE SpinlockCreate(void)
 {
 	SPINLOCK* spin = kmalloc(sizeof(SPINLOCK), GFP_KERNEL);
 	if (!spin)
@@ -387,21 +387,21 @@ HANDLE SpinlockCreate(VOID)
 	return spin;
 }
 
-VOID SpinlockAcquire(HANDLE hSpin)
+void SpinlockAcquire(HANDLE hSpin)
 {
 	SPINLOCK* spin = (SPINLOCK* )hSpin;
 
 	spin_lock_irqsave(&spin->lock, spin->flags);
 }
 
-VOID SpinlockRelease(HANDLE hSpin)
+void SpinlockRelease(HANDLE hSpin)
 {
 	SPINLOCK* spin = (SPINLOCK* )hSpin;
 
 	spin_unlock_irqrestore(&spin->lock, spin->flags);
 }
 
-VOID SpinlockClose(HANDLE hSpin)
+void SpinlockClose(HANDLE hSpin)
 {
 	SPINLOCK* spin = (SPINLOCK* )hSpin;
 	kfree(spin);

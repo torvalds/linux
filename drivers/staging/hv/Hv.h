@@ -150,12 +150,12 @@ static inline void WriteMsr(int msr, UINT64 val)
 //
 static int
 HvInit(
-    VOID
+    void
     );
 
-static VOID
+static void
 HvCleanup(
-    VOID
+    void
     );
 
 static HV_STATUS
@@ -168,7 +168,7 @@ HvPostMessage(
 
 static HV_STATUS
 HvSignalEvent(
-	VOID
+	void
 	);
 
 static int
@@ -176,9 +176,9 @@ HvSynicInit(
 	UINT32		irqVector
 	);
 
-static VOID
+static void
 HvSynicCleanup(
-	VOID
+	void
 	);
 
 #endif // __HV_H__

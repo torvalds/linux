@@ -677,7 +677,7 @@ Description:
 	Close the specified channel
 
 --*/
-VOID
+void
 VmbusChannelClose(
 	VMBUS_CHANNEL	*Channel
 	)

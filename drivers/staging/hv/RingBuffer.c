@@ -301,7 +301,7 @@ Description:
 int
 RingBufferInit(
 	RING_BUFFER_INFO	*RingInfo,
-	VOID				*Buffer,
+	void				*Buffer,
 	UINT32				BufferLen
 	)
 {

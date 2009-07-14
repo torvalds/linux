@@ -672,7 +672,7 @@ Description:
 	This is invoked in the vmbus worker thread context.
 
 --*/
-VOID
+void
 VmbusOnChannelMessage(
 	void *Context
 	)
@@ -722,7 +722,7 @@ Description:
 --*/
 int
 VmbusChannelRequestOffers(
-	VOID
+	void
 	)
 {
 	int ret=0;
@@ -785,7 +785,7 @@ Description:
 --*/
 void
 VmbusChannelReleaseUnattachedChannels(
-	VOID
+	void
 	)
 {
 	LIST_ENTRY *entry;

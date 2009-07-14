@@ -59,7 +59,7 @@ typedef struct _VMBUS_CHANNEL {
 	UINT32						RingBufferGpadlHandle;
 
 	// Allocated memory for ring buffer
-	VOID*						RingBufferPages;
+	void *						RingBufferPages;
 	UINT32						RingBufferPageCount;
 	RING_BUFFER_INFO			Outbound;	// send to parent
 	RING_BUFFER_INFO			Inbound;	// receive from parent

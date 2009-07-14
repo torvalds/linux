@@ -73,12 +73,12 @@ typedef struct _VMBUS_CONNECTION {
 	// calls Hv to generate a port event. The other end
 	// receives the port event and parse the recvInterruptPage
 	// to see which bit is set
-	VOID*								InterruptPage;
-	VOID*								SendInterruptPage;
-	VOID*								RecvInterruptPage;
+	void *								InterruptPage;
+	void *								SendInterruptPage;
+	void *								RecvInterruptPage;
 
 	// 2 pages - 1st page for parent->child notification and 2nd is child->parent notification
-	VOID*								MonitorPages;
+	void *								MonitorPages;
 	LIST_ENTRY							ChannelMsgList;
 	HANDLE								ChannelMsgLock;
 
@@ -138,12 +138,12 @@ GetChannelFromRelId(
 //
 static int
 VmbusConnect(
-	VOID
+	void
 	);
 
 static int
 VmbusDisconnect(
-	VOID
+	void
 	);
 
 static int
@@ -157,9 +157,9 @@ VmbusSetEvent(
 	UINT32 childRelId
 	);
 
-static VOID
+static void
 VmbusOnEvents(
-  VOID
+  void
 	);
 
 
