@@ -117,9 +117,6 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 		}
 	}
 
-	if (!clnt->trans_mod)
-		clnt->trans_mod = v9fs_get_default_trans();
-
 	kfree(options);
 	return ret;
 }
@@ -688,6 +685,9 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	err = parse_opts(options, clnt);
 	if (err < 0)
 		goto error;
+
+	if (!clnt->trans_mod)
+		clnt->trans_mod = v9fs_get_default_trans();
 
 	if (clnt->trans_mod == NULL) {
 		err = -EPROTONOSUPPORT;
