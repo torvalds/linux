@@ -21,7 +21,7 @@
  */
 
 
-#include "../storvsc/StorVsc.c"
+#include "StorVsc.c"
 
 static const char* gBlkDriverName="blkvsc";
 

@@ -20,6 +20,7 @@
  *
  */
 
+#define KERNEL_2_6_27
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -34,10 +35,10 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dbg.h>
 
-#include "logging.h"
-#include "vmbus.h"
+#include "include/logging.h"
+#include "include/vmbus.h"
 
-#include "StorVscApi.h"
+#include "include/StorVscApi.h"
 
 //
 // #defines
@@ -313,7 +314,7 @@ static int blkvsc_probe(struct device *device)
 	ASSERT(sizeof(struct blkvsc_request_group) <= sizeof(struct blkvsc_request));
 
 #ifdef KERNEL_2_6_27
-        blkdev->request_pool = kmem_cache_create(device_ctx->device.bus_id,
+        blkdev->request_pool = kmem_cache_create(dev_name(&device_ctx->device),
                 sizeof(struct blkvsc_request) + storvsc_drv_obj->RequestExtSize, 0,
                 SLAB_HWCACHE_ALIGN, NULL);
 #else
@@ -426,7 +427,7 @@ static int blkvsc_probe(struct device *device)
 	}
 
 	set_capacity(blkdev->gd, blkdev->capacity * (blkdev->sector_size/512));
-	blk_queue_hardsect_size(blkdev->gd->queue, blkdev->sector_size);
+	blk_queue_logical_block_size(blkdev->gd->queue, blkdev->sector_size);
 	// go!
 	add_disk(blkdev->gd);
 
@@ -982,7 +983,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 	int pending=0;
 	struct blkvsc_request_group *group=NULL;
 
-	DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p sect %llu \n", blkdev, req, req->sector);
+	DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p sect %llu \n", blkdev, req, blk_rq_pos(req));
 
 	// Create a group to tie req to list of blkvsc_reqs
 	group = (struct blkvsc_request_group*)kmem_cache_alloc(blkdev->request_pool, GFP_ATOMIC);
@@ -994,7 +995,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 	INIT_LIST_HEAD(&group->blkvsc_req_list);
 	group->outstanding = group->status = 0;
 
-	start_sector = req->sector;
+	start_sector = blk_rq_pos(req);
 
 	// foreach bio in the request
 	if (req->bio)
@@ -1314,13 +1315,13 @@ static void blkvsc_request(struct request_queue *queue)
 	int ret=0;
 
 	DPRINT_DBG(BLKVSC_DRV, "- enter \n");
-	while ((req = elv_next_request(queue)) != NULL)
+	while ((req = blk_peek_request(queue)) != NULL)
 	{
 		DPRINT_DBG(BLKVSC_DRV, "- req %p\n", req);
 
 		blkdev = req->rq_disk->private_data;
 		if (blkdev->shutting_down || !blk_fs_request(req) || blkdev->media_not_present) {
-			end_request(req, 0);
+			__blk_end_request_cur(req, 0);
 			continue;
 		}
 
@@ -1333,7 +1334,7 @@ static void blkvsc_request(struct request_queue *queue)
 			break;
 		}
 
-		blkdev_dequeue_request(req);
+		blk_start_request(req);
 
 		ret = blkvsc_do_request(blkdev, req);
 		if (ret > 0)
@@ -1410,7 +1411,7 @@ static int blkvsc_revalidate_disk(struct gendisk *gd)
 	{
 		blkvsc_do_read_capacity(blkdev);
 		set_capacity(blkdev->gd, blkdev->capacity * (blkdev->sector_size/512));
-		blk_queue_hardsect_size(gd->queue, blkdev->sector_size);
+		blk_queue_logical_block_size(gd->queue, blkdev->sector_size);
 	}
 	return 0;
 }
