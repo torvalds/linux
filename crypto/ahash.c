@@ -145,7 +145,7 @@ static int ahash_setkey_unaligned(struct crypto_ahash *tfm, const u8 *key,
 	unsigned long absize;
 
 	absize = keylen + alignmask;
-	buffer = kmalloc(absize, GFP_ATOMIC);
+	buffer = kmalloc(absize, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
