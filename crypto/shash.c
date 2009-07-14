@@ -45,8 +45,7 @@ static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
 	err = shash->setkey(tfm, alignbuffer, keylen);
-	memset(alignbuffer, 0, keylen);
-	kfree(buffer);
+	kzfree(buffer);
 	return err;
 }
 
@@ -79,13 +78,16 @@ static int shash_update_unaligned(struct shash_desc *desc, const u8 *data,
 				     ((unsigned long)data & alignmask);
 	u8 buf[shash_align_buffer_size(unaligned_len, alignmask)]
 		__attribute__ ((aligned));
+	int err;
 
 	if (unaligned_len > len)
 		unaligned_len = len;
 
 	memcpy(buf, data, unaligned_len);
+	err = shash->update(desc, buf, unaligned_len);
+	memset(buf, 0, unaligned_len);
 
-	return shash->update(desc, buf, unaligned_len) ?:
+	return err ?:
 	       shash->update(desc, data + unaligned_len, len - unaligned_len);
 }
 
@@ -114,7 +116,13 @@ static int shash_final_unaligned(struct shash_desc *desc, u8 *out)
 	int err;
 
 	err = shash->final(desc, buf);
+	if (err)
+		goto out;
+
 	memcpy(out, buf, ds);
+
+out:
+	memset(buf, 0, ds);
 	return err;
 }
 
