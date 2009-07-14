@@ -259,22 +259,18 @@ static int bf5xx_i2s_resume(struct snd_soc_dai *dai)
 	if (!dai->active)
 		return 0;
 
-	ret = sport_config_rx(sport_handle, RFSR | RCKFE, RSFSE|0x1f, 0, 0);
+	ret = sport_config_rx(sport, RFSR | RCKFE, RSFSE|0x1f, 0, 0);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	ret = sport_config_tx(sport_handle, TFSR | TCKFE, TSFSE|0x1f, 0, 0);
+	ret = sport_config_tx(sport, TFSR | TCKFE, TSFSE|0x1f, 0, 0);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		return -EBUSY;
 	}
 
-	if (dai->capture.active)
-		sport_rx_start(sport);
-	if (dai->playback.active)
-		sport_tx_start(sport);
 	return 0;
 }
 
