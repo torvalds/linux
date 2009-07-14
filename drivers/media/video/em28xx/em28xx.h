@@ -478,8 +478,10 @@ struct em28xx {
 	struct v4l2_device v4l2_dev;
 	struct em28xx_board board;
 
+	/* Webcam specific fields */
 	enum em28xx_sensor em28xx_sensor;
 	int sensor_xres, sensor_yres;
+	int sensor_xtal;
 
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;

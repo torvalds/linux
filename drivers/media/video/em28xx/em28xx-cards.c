@@ -1734,6 +1734,7 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		dev->em28xx_sensor = EM28XX_MT9V011;
 		dev->sensor_xres = 640;
 		dev->sensor_yres = 480;
+		dev->sensor_xtal = 6300000;
 		break;
 	default:
 		printk("Unknown Micron Sensor 0x%04x\n", be16_to_cpu(version));
@@ -2261,9 +2262,13 @@ void em28xx_card_setup(struct em28xx *dev)
 		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 			"tvp5150", "tvp5150", tvp5150_addrs);
 
-	if (dev->em28xx_sensor == EM28XX_MT9V011)
-		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"mt9v011", "mt9v011", mt9v011_addrs);
+	if (dev->em28xx_sensor == EM28XX_MT9V011) {
+		struct v4l2_subdev *sd;
+
+		sd = v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+			 &dev->i2c_adap, "mt9v011", "mt9v011", mt9v011_addrs);
+		v4l2_subdev_call(sd, core, s_config, 0, &dev->sensor_xtal);
+	}
 
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
