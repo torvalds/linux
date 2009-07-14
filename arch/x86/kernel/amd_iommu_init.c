@@ -260,6 +260,14 @@ static void iommu_enable(struct amd_iommu *iommu)
 
 static void iommu_disable(struct amd_iommu *iommu)
 {
+	/* Disable command buffer */
+	iommu_feature_disable(iommu, CONTROL_CMDBUF_EN);
+
+	/* Disable event logging and event interrupts */
+	iommu_feature_disable(iommu, CONTROL_EVT_INT_EN);
+	iommu_feature_disable(iommu, CONTROL_EVT_LOG_EN);
+
+	/* Disable IOMMU hardware itself */
 	iommu_feature_disable(iommu, CONTROL_IOMMU_EN);
 }
 
@@ -464,6 +472,8 @@ static u8 * __init alloc_event_buffer(struct amd_iommu *iommu)
 	if (iommu->evt_buf == NULL)
 		return NULL;
 
+	iommu->evt_buf_size = EVT_BUFFER_SIZE;
+
 	return iommu->evt_buf;
 }
 
@@ -477,6 +487,10 @@ static void iommu_enable_event_buffer(struct amd_iommu *iommu)
 
 	memcpy_toio(iommu->mmio_base + MMIO_EVT_BUF_OFFSET,
 		    &entry, sizeof(entry));
+
+	/* set head and tail to zero manually */
+	writel(0x00, iommu->mmio_base + MMIO_EVT_HEAD_OFFSET);
+	writel(0x00, iommu->mmio_base + MMIO_EVT_TAIL_OFFSET);
 
 	iommu_feature_enable(iommu, CONTROL_EVT_LOG_EN);
 }
@@ -679,6 +693,7 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			devid = e->devid;
 			devid_to = e->ext >> 8;
+			set_dev_entry_from_acpi(iommu, devid   , e->flags, 0);
 			set_dev_entry_from_acpi(iommu, devid_to, e->flags, 0);
 			amd_iommu_alias_table[devid] = devid_to;
 			break;
@@ -737,11 +752,13 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			devid = e->devid;
 			for (dev_i = devid_start; dev_i <= devid; ++dev_i) {
-				if (alias)
+				if (alias) {
 					amd_iommu_alias_table[dev_i] = devid_to;
-				set_dev_entry_from_acpi(iommu,
-						amd_iommu_alias_table[dev_i],
-						flags, ext_flags);
+					set_dev_entry_from_acpi(iommu,
+						devid_to, flags, ext_flags);
+				}
+				set_dev_entry_from_acpi(iommu, dev_i,
+							flags, ext_flags);
 			}
 			break;
 		default:
@@ -1042,6 +1059,7 @@ static void enable_iommus(void)
 	struct amd_iommu *iommu;
 
 	for_each_iommu(iommu) {
+		iommu_disable(iommu);
 		iommu_set_device_table(iommu);
 		iommu_enable_command_buffer(iommu);
 		iommu_enable_event_buffer(iommu);
@@ -1066,12 +1084,6 @@ static void disable_iommus(void)
 
 static int amd_iommu_resume(struct sys_device *dev)
 {
-	/*
-	 * Disable IOMMUs before reprogramming the hardware registers.
-	 * IOMMU is still enabled from the resume kernel.
-	 */
-	disable_iommus();
-
 	/* re-load the hardware */
 	enable_iommus();
 
@@ -1079,8 +1091,8 @@ static int amd_iommu_resume(struct sys_device *dev)
 	 * we have to flush after the IOMMUs are enabled because a
 	 * disabled IOMMU will never execute the commands we send
 	 */
-	amd_iommu_flush_all_domains();
 	amd_iommu_flush_all_devices();
+	amd_iommu_flush_all_domains();
 
 	return 0;
 }
@@ -1271,6 +1283,11 @@ free:
 	free_unity_maps();
 
 	goto out;
+}
+
+void amd_iommu_shutdown(void)
+{
+	disable_iommus();
 }
 
 /****************************************************************************

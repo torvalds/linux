@@ -117,7 +117,7 @@ Using the pktcdvd debugfs interface
 
 To read pktcdvd device infos in human readable form, do:
 
-	# cat /debug/pktcdvd/pktcdvd[0-7]/info
+	# cat /sys/kernel/debug/pktcdvd/pktcdvd[0-7]/info
 
 For a description of the debugfs interface look into the file:
 

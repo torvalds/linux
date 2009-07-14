@@ -58,7 +58,6 @@
 #define S3C24XX_SZ_SPI		SZ_1M
 #define S3C24XX_SZ_SDI		SZ_1M
 #define S3C24XX_SZ_NAND		SZ_1M
-#define S3C24XX_SZ_USBHOST	SZ_1M
 
 /* GPIO ports */
 

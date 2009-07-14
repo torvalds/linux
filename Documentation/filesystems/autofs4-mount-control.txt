@@ -369,7 +369,7 @@ The call requires an initialized struct autofs_dev_ioctl. There are two
 possible variations. Both use the path field set to the path of the mount
 point to check and the size field adjusted appropriately. One uses the
 ioctlfd field to identify a specific mount point to check while the other
-variation uses the path and optionaly arg1 set to an autofs mount type.
+variation uses the path and optionally arg1 set to an autofs mount type.
 The call returns 1 if this is a mount point and sets arg1 to the device
 number of the mount and field arg2 to the relevant super block magic
 number (described below) or 0 if it isn't a mountpoint. In both cases

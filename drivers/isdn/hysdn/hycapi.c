@@ -67,7 +67,7 @@ hycapi_reset_ctr(struct capi_ctr *ctrl)
 	printk(KERN_NOTICE "HYCAPI hycapi_reset_ctr\n");
 #endif
 	capilib_release(&cinfo->ncci_head);
-	capi_ctr_reseted(ctrl);
+	capi_ctr_down(ctrl);
 }
 
 /******************************
@@ -347,7 +347,7 @@ int hycapi_capi_stop(hysdn_card *card)
 	if(cinfo) {
 		ctrl = &cinfo->capi_ctrl;
 /*		ctrl->suspend_output(ctrl); */
-		capi_ctr_reseted(ctrl);
+		capi_ctr_down(ctrl);
 	}
 	return 0;
 }

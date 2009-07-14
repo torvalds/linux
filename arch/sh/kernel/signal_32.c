@@ -332,8 +332,8 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 
 /* These symbols are defined with the addresses in the vsyscall page.
    See vsyscall-trapa.S.  */
-extern void __user __kernel_sigreturn;
-extern void __user __kernel_rt_sigreturn;
+extern void __kernel_sigreturn(void);
+extern void __kernel_rt_sigreturn(void);
 
 static int setup_frame(int sig, struct k_sigaction *ka,
 			sigset_t *set, struct pt_regs *regs)

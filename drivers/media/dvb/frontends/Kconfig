@@ -35,6 +35,21 @@ config DVB_STB6100
 	  A Silicon tuner from ST used in conjunction with the STB0899
 	  demodulator. Say Y when you want to support this tuner.
 
+config DVB_STV090x
+	tristate "STV0900/STV0903(A/B) based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  DVB-S/S2/DSS Multistandard Professional/Broadcast demodulators.
+	  Say Y when you want to support these frontends.
+
+config DVB_STV6110x
+	tristate "STV6110/(A) based tuners"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A Silicon tuner that supports DVB-S and DVB-S2 modes
+
 comment "DVB-S (satellite) frontends"
 	depends on DVB_CORE
 
@@ -505,6 +520,13 @@ config DVB_ISL6421
 	default m if DVB_FE_CUSTOMISE
 	help
 	  An SEC control chip.
+
+config DVB_ISL6423
+	tristate "ISL6423 SEC controller"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A SEC controller chip from Intersil
 
 config DVB_LGS8GL5
 	tristate "Silicon Legend LGS-8GL5 demodulator (OFDM)"

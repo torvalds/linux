@@ -145,18 +145,14 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 			goto exit_unlock;
 		}
 
-		ret = iwl_grab_nic_access(priv);
-		if (ret)
-			goto exit_unlock;
-
-		/* Device expects a multiple of 8 */
-		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write & ~0x7);
-		iwl_release_nic_access(priv);
+		q->write_actual = (q->write & ~0x7);
+		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write_actual);
 
 	/* Else device is assumed to be awake */
 	} else {
 		/* Device expects a multiple of 8 */
-		iwl_write32(priv, rx_wrt_ptr_reg, q->write & ~0x7);
+		q->write_actual = (q->write & ~0x7);
+		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write_actual);
 	}
 
 	q->need_update = 0;
@@ -218,7 +214,7 @@ int iwl_rx_queue_restock(struct iwl_priv *priv)
 
 	/* If we've added more space for the firmware to place data, tell it.
 	 * Increment device's write pointer in multiples of 8. */
-	if (write != (rxq->write & ~0x7)) {
+	if (rxq->write_actual != (rxq->write & ~0x7)) {
 		spin_lock_irqsave(&rxq->lock, flags);
 		rxq->need_update = 1;
 		spin_unlock_irqrestore(&rxq->lock, flags);
@@ -238,7 +234,7 @@ EXPORT_SYMBOL(iwl_rx_queue_restock);
  * Also restock the Rx queue via iwl_rx_queue_restock.
  * This is called as a scheduled work item (except for during initialization)
  */
-void iwl_rx_allocate(struct iwl_priv *priv)
+void iwl_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
@@ -260,7 +256,8 @@ void iwl_rx_allocate(struct iwl_priv *priv)
 
 		/* Alloc a new receive buffer */
 		rxb->skb = alloc_skb(priv->hw_params.rx_buf_size + 256,
-				     GFP_KERNEL);
+						priority);
+
 		if (!rxb->skb) {
 			IWL_CRIT(priv, "Can not allocate SKB buffers\n");
 			/* We don't reschedule replenish work here -- we will
@@ -295,13 +292,21 @@ void iwl_rx_replenish(struct iwl_priv *priv)
 {
 	unsigned long flags;
 
-	iwl_rx_allocate(priv);
+	iwl_rx_allocate(priv, GFP_KERNEL);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_rx_queue_restock(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 EXPORT_SYMBOL(iwl_rx_replenish);
+
+void iwl_rx_replenish_now(struct iwl_priv *priv)
+{
+	iwl_rx_allocate(priv, GFP_ATOMIC);
+
+	iwl_rx_queue_restock(priv);
+}
+EXPORT_SYMBOL(iwl_rx_replenish_now);
 
 
 /* Assumes that the skb field of the buffers in 'pool' is kept accurate.
@@ -358,6 +363,7 @@ int iwl_rx_queue_alloc(struct iwl_priv *priv)
 	/* Set us so that we have processed and used all buffers, but have
 	 * not restocked the Rx queue with fresh buffers */
 	rxq->read = rxq->write = 0;
+	rxq->write_actual = 0;
 	rxq->free_count = 0;
 	rxq->need_update = 0;
 	return 0;
@@ -396,6 +402,7 @@ void iwl_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	/* Set us so that we have processed and used all buffers, but have
 	 * not restocked the Rx queue with fresh buffers */
 	rxq->read = rxq->write = 0;
+	rxq->write_actual = 0;
 	rxq->free_count = 0;
 	spin_unlock_irqrestore(&rxq->lock, flags);
 }
@@ -403,18 +410,12 @@ EXPORT_SYMBOL(iwl_rx_queue_reset);
 
 int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
-	int ret;
-	unsigned long flags;
 	u32 rb_size;
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
-	const u32 rb_timeout = 0; /* FIXME: RX_RB_TIMEOUT why this stalls RX */
+	u32 rb_timeout = 0; /* FIXME: RX_RB_TIMEOUT for all devices? */
 
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
+	if (!priv->cfg->use_isr_legacy)
+		rb_timeout = RX_RB_TIMEOUT;
 
 	if (priv->cfg->mod_params->amsdu_size_8K)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
@@ -452,34 +453,18 @@ int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 			   (rb_timeout << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
 			   (rfdnlog << FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
 
-	iwl_release_nic_access(priv);
-
 	iwl_write32(priv, CSR_INT_COALESCING, 0x40);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
 
 int iwl_rxq_stop(struct iwl_priv *priv)
 {
-	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (unlikely(ret)) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* stop Rx DMA */
 	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
 	iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
 			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
-
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -582,8 +567,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 
 	iwl_leds_background(priv);
 
-	if (priv->cfg->ops->lib->temperature && change)
-		priv->cfg->ops->lib->temperature(priv);
+	if (priv->cfg->ops->lib->temp_ops.temperature && change)
+		priv->cfg->ops->lib->temp_ops.temperature(priv);
 }
 EXPORT_SYMBOL(iwl_rx_statistics);
 
@@ -1101,13 +1086,6 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	/* set the preamble flag if appropriate */
 	if (rx_start->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
-
-	/* Take shortcut when only in monitor mode */
-	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
-		iwl_pass_packet_to_mac80211(priv, include_phy,
-						 rxb, &rx_status);
-		return;
-	}
 
 	network_packet = iwl_is_network_packet(priv, header);
 	if (network_packet) {

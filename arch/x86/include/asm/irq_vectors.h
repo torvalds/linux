@@ -25,6 +25,7 @@
  */
 
 #define NMI_VECTOR			0x02
+#define MCE_VECTOR			0x12
 
 /*
  * IDT vectors usable for external interrupt sources start
@@ -87,13 +88,8 @@
 #define CALL_FUNCTION_VECTOR		0xfc
 #define CALL_FUNCTION_SINGLE_VECTOR	0xfb
 #define THERMAL_APIC_VECTOR		0xfa
-
-#ifdef CONFIG_X86_32
-/* 0xf8 - 0xf9 : free */
-#else
-# define THRESHOLD_APIC_VECTOR		0xf9
-# define UV_BAU_MESSAGE			0xf8
-#endif
+#define THRESHOLD_APIC_VECTOR		0xf9
+#define REBOOT_VECTOR			0xf8
 
 /* f0-f7 used for spreading out TLB flushes: */
 #define INVALIDATE_TLB_VECTOR_END	0xf7
@@ -116,6 +112,13 @@
  * Performance monitoring pending work vector:
  */
 #define LOCAL_PENDING_VECTOR		0xec
+
+#define UV_BAU_MESSAGE			0xec
+
+/*
+ * Self IPI vector for machine checks
+ */
+#define MCE_SELF_VECTOR			0xeb
 
 /*
  * First APIC vector available to drivers: (vectors 0x30-0xee) we

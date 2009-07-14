@@ -6,6 +6,7 @@ obj-$(CONFIG_COMEDI)			+= comedi_fc.o
 obj-$(CONFIG_COMEDI)			+= comedi_bond.o
 obj-$(CONFIG_COMEDI)			+= comedi_test.o
 obj-$(CONFIG_COMEDI)			+= comedi_parport.o
+obj-$(CONFIG_COMEDI)			+= pcm_common.o
 
 # Comedi PCI drivers
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= 8255.o
@@ -125,6 +126,8 @@ obj-$(CONFIG_COMEDI_PCMCIA_DRIVERS)	+= ni_mio_cs.o
 obj-$(CONFIG_COMEDI_PCMCIA_DRIVERS)	+= quatech_daqp_cs.o
 
 # Comedi USB drivers
+obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= dt9812.o
 obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= usbdux.o
 obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= usbduxfast.o
-obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= dt9812.o
+obj-$(CONFIG_COMEDI_USB_DRIVERS)	+= vmk80xx.o
+

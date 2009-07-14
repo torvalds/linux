@@ -73,6 +73,7 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/serial.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
@@ -872,11 +873,16 @@ static int carrier_raised(struct tty_port *port)
 	return (sGetChanStatusLo(&info->channel) & CD_ACT) ? 1 : 0;
 }
 
-static void raise_dtr_rts(struct tty_port *port)
+static void dtr_rts(struct tty_port *port, int on)
 {
 	struct r_port *info = container_of(port, struct r_port, port);
-	sSetDTR(&info->channel);
-	sSetRTS(&info->channel);
+	if (on) {
+		sSetDTR(&info->channel);
+		sSetRTS(&info->channel);
+	} else {
+		sClrDTR(&info->channel);
+		sClrRTS(&info->channel);
+	}
 }
 
 /*
@@ -934,7 +940,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 	/*
 	 * Info->count is now 1; so it's safe to sleep now.
 	 */
-	if (!test_bit(ASYNC_INITIALIZED, &port->flags)) {
+	if (!test_bit(ASYNCB_INITIALIZED, &port->flags)) {
 		cp = &info->channel;
 		sSetRxTrigger(cp, TRIG_1);
 		if (sGetChanStatus(cp) & CD_ACT)
@@ -958,7 +964,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 		sEnRxFIFO(cp);
 		sEnTransmit(cp);
 
-		set_bit(ASYNC_INITIALIZED, &info->port.flags);
+		set_bit(ASYNCB_INITIALIZED, &info->port.flags);
 
 		/*
 		 * Set up the tty->alt_speed kludge
@@ -1641,7 +1647,7 @@ static int rp_write(struct tty_struct *tty,
 	/*  Write remaining data into the port's xmit_buf */
 	while (1) {
 		/* Hung up ? */
-		if (!test_bit(ASYNC_NORMAL_ACTIVE, &info->port.flags))
+		if (!test_bit(ASYNCB_NORMAL_ACTIVE, &info->port.flags))
 			goto end;
 		c = min(count, XMIT_BUF_SIZE - info->xmit_cnt - 1);
 		c = min(c, XMIT_BUF_SIZE - info->xmit_head);
@@ -2250,7 +2256,7 @@ static const struct tty_operations rocket_ops = {
 
 static const struct tty_port_operations rocket_port_ops = {
 	.carrier_raised = carrier_raised,
-	.raise_dtr_rts = raise_dtr_rts,
+	.dtr_rts = dtr_rts,
 };
 
 /*

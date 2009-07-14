@@ -187,40 +187,40 @@ union  ia64_rr {
  * state comes earlier:
  */
 struct cpuinfo_ia64 {
-	__u32 softirq_pending;
-	__u64 itm_delta;	/* # of clock cycles between clock ticks */
-	__u64 itm_next;		/* interval timer mask value to use for next clock tick */
-	__u64 nsec_per_cyc;	/* (1000000000<<IA64_NSEC_PER_CYC_SHIFT)/itc_freq */
-	__u64 unimpl_va_mask;	/* mask of unimplemented virtual address bits (from PAL) */
-	__u64 unimpl_pa_mask;	/* mask of unimplemented physical address bits (from PAL) */
-	__u64 itc_freq;		/* frequency of ITC counter */
-	__u64 proc_freq;	/* frequency of processor */
-	__u64 cyc_per_usec;	/* itc_freq/1000000 */
-	__u64 ptce_base;
-	__u32 ptce_count[2];
-	__u32 ptce_stride[2];
+	unsigned int softirq_pending;
+	unsigned long itm_delta;	/* # of clock cycles between clock ticks */
+	unsigned long itm_next;		/* interval timer mask value to use for next clock tick */
+	unsigned long nsec_per_cyc;	/* (1000000000<<IA64_NSEC_PER_CYC_SHIFT)/itc_freq */
+	unsigned long unimpl_va_mask;	/* mask of unimplemented virtual address bits (from PAL) */
+	unsigned long unimpl_pa_mask;	/* mask of unimplemented physical address bits (from PAL) */
+	unsigned long itc_freq;		/* frequency of ITC counter */
+	unsigned long proc_freq;	/* frequency of processor */
+	unsigned long cyc_per_usec;	/* itc_freq/1000000 */
+	unsigned long ptce_base;
+	unsigned int ptce_count[2];
+	unsigned int ptce_stride[2];
 	struct task_struct *ksoftirqd;	/* kernel softirq daemon for this CPU */
 
 #ifdef CONFIG_SMP
-	__u64 loops_per_jiffy;
+	unsigned long loops_per_jiffy;
 	int cpu;
-	__u32 socket_id;	/* physical processor socket id */
-	__u16 core_id;		/* core id */
-	__u16 thread_id;	/* thread id */
-	__u16 num_log;		/* Total number of logical processors on
+	unsigned int socket_id;	/* physical processor socket id */
+	unsigned short core_id;	/* core id */
+	unsigned short thread_id; /* thread id */
+	unsigned short num_log;	/* Total number of logical processors on
 				 * this socket that were successfully booted */
-	__u8  cores_per_socket;	/* Cores per processor socket */
-	__u8  threads_per_core;	/* Threads per core */
+	unsigned char cores_per_socket;	/* Cores per processor socket */
+	unsigned char threads_per_core;	/* Threads per core */
 #endif
 
 	/* CPUID-derived information: */
-	__u64 ppn;
-	__u64 features;
-	__u8 number;
-	__u8 revision;
-	__u8 model;
-	__u8 family;
-	__u8 archrev;
+	unsigned long ppn;
+	unsigned long features;
+	unsigned char number;
+	unsigned char revision;
+	unsigned char model;
+	unsigned char family;
+	unsigned char archrev;
 	char vendor[16];
 	char *model_name;
 
@@ -329,8 +329,8 @@ struct thread_struct {
 #else
 # define INIT_THREAD_PM
 #endif
-	__u64 dbr[IA64_NUM_DBG_REGS];
-	__u64 ibr[IA64_NUM_DBG_REGS];
+	unsigned long dbr[IA64_NUM_DBG_REGS];
+	unsigned long ibr[IA64_NUM_DBG_REGS];
 	struct ia64_fpreg fph[96];	/* saved/loaded on demand */
 };
 

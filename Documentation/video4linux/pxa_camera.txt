@@ -26,6 +26,55 @@ Global video workflow
 
      Once the last buffer is filled in, the QCI interface stops.
 
+  c) Capture global finite state machine schema
+
+      +----+                             +---+  +----+
+      | DQ |                             | Q |  | DQ |
+      |    v                             |   v  |    v
+    +-----------+                     +------------------------+
+    |   STOP    |                     | Wait for capture start |
+    +-----------+         Q           +------------------------+
++-> | QCI: stop | ------------------> | QCI: run               | <------------+
+|   | DMA: stop |                     | DMA: stop              |              |
+|   +-----------+             +-----> +------------------------+              |
+|                            /                            |                   |
+|                           /             +---+  +----+   |                   |
+|capture list empty        /              | Q |  | DQ |   | QCI Irq EOF       |
+|                         /               |   v  |    v   v                   |
+|   +--------------------+             +----------------------+               |
+|   | DMA hotlink missed |             |    Capture running   |               |
+|   +--------------------+             +----------------------+               |
+|   | QCI: run           |     +-----> | QCI: run             | <-+           |
+|   | DMA: stop          |    /        | DMA: run             |   |           |
+|   +--------------------+   /         +----------------------+   | Other     |
+|     ^                     /DMA still            |               | channels  |
+|     | capture list       /  running             | DMA Irq End   | not       |
+|     | not empty         /                       |               | finished  |
+|     |                  /                        v               | yet       |
+|   +----------------------+           +----------------------+   |           |
+|   |  Videobuf released   |           |  Channel completed   |   |           |
+|   +----------------------+           +----------------------+   |           |
++-- | QCI: run             |           | QCI: run             | --+           |
+    | DMA: run             |           | DMA: run             |               |
+    +----------------------+           +----------------------+               |
+               ^                      /           |                           |
+               |          no overrun /            | overrun                   |
+               |                    /             v                           |
+    +--------------------+         /   +----------------------+               |
+    |  Frame completed   |        /    |     Frame overran    |               |
+    +--------------------+ <-----+     +----------------------+ restart frame |
+    | QCI: run           |             | QCI: stop            | --------------+
+    | DMA: run           |             | DMA: stop            |
+    +--------------------+             +----------------------+
+
+    Legend: - each box is a FSM state
+            - each arrow is the condition to transition to another state
+            - an arrow with a comment is a mandatory transition (no condition)
+            - arrow "Q" means : a buffer was enqueued
+            - arrow "DQ" means : a buffer was dequeued
+            - "QCI: stop" means the QCI interface is not enabled
+            - "DMA: stop" means all 3 DMA channels are stopped
+            - "DMA: run" means at least 1 DMA channel is still running
 
 DMA usage
 ---------

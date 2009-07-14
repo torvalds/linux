@@ -463,7 +463,6 @@ static void ext3_xattr_update_super_block(handle_t *handle,
 
 	if (ext3_journal_get_write_access(handle, EXT3_SB(sb)->s_sbh) == 0) {
 		EXT3_SET_COMPAT_FEATURE(sb, EXT3_FEATURE_COMPAT_EXT_ATTR);
-		sb->s_dirt = 1;
 		ext3_journal_dirty_metadata(handle, EXT3_SB(sb)->s_sbh);
 	}
 }

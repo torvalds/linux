@@ -391,6 +391,7 @@ int extHint(struct inode *ip, s64 offset, xad_t * xp)
 		}
 		XADaddress(xp, xaddr);
 		XADlength(xp, xlen);
+		XADoffset(xp, prev);
 		/*
 		 * only preserve the abnr flag within the xad flags
 		 * of the returned hint.

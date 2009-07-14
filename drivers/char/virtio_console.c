@@ -188,6 +188,9 @@ static void hvc_handle_input(struct virtqueue *vq)
  * Finally we put our input buffer in the input queue, ready to receive. */
 static int __devinit virtcons_probe(struct virtio_device *dev)
 {
+	vq_callback_t *callbacks[] = { hvc_handle_input, NULL};
+	const char *names[] = { "input", "output" };
+	struct virtqueue *vqs[2];
 	int err;
 
 	vdev = dev;
@@ -199,20 +202,15 @@ static int __devinit virtcons_probe(struct virtio_device *dev)
 		goto fail;
 	}
 
-	/* Find the input queue. */
+	/* Find the queues. */
 	/* FIXME: This is why we want to wean off hvc: we do nothing
 	 * when input comes in. */
-	in_vq = vdev->config->find_vq(vdev, 0, hvc_handle_input);
-	if (IS_ERR(in_vq)) {
-		err = PTR_ERR(in_vq);
+	err = vdev->config->find_vqs(vdev, 2, vqs, callbacks, names);
+	if (err)
 		goto free;
-	}
 
-	out_vq = vdev->config->find_vq(vdev, 1, NULL);
-	if (IS_ERR(out_vq)) {
-		err = PTR_ERR(out_vq);
-		goto free_in_vq;
-	}
+	in_vq = vqs[0];
+	out_vq = vqs[1];
 
 	/* Start using the new console output. */
 	virtio_cons.get_chars = get_chars;
@@ -233,17 +231,15 @@ static int __devinit virtcons_probe(struct virtio_device *dev)
 	hvc = hvc_alloc(0, 0, &virtio_cons, PAGE_SIZE);
 	if (IS_ERR(hvc)) {
 		err = PTR_ERR(hvc);
-		goto free_out_vq;
+		goto free_vqs;
 	}
 
 	/* Register the input buffer the first time. */
 	add_inbuf();
 	return 0;
 
-free_out_vq:
-	vdev->config->del_vq(out_vq);
-free_in_vq:
-	vdev->config->del_vq(in_vq);
+free_vqs:
+	vdev->config->del_vqs(vdev);
 free:
 	kfree(inbuf);
 fail:

@@ -58,10 +58,6 @@ struct nilfs_inode_info {
 	 */
 	struct rw_semaphore xattr_sem;
 #endif
-#ifdef CONFIG_NILFS_POSIX_ACL
-	struct posix_acl *i_acl;
-	struct posix_acl *i_default_acl;
-#endif
 	struct buffer_head *i_bh;	/* i_bh contains a new or dirty
 					   disk inode */
 	struct inode vfs_inode;
@@ -263,6 +259,7 @@ extern void nilfs_dirty_inode(struct inode *);
 extern struct dentry *nilfs_get_parent(struct dentry *);
 
 /* super.c */
+extern struct inode *nilfs_alloc_inode_common(struct the_nilfs *);
 extern struct inode *nilfs_alloc_inode(struct super_block *);
 extern void nilfs_destroy_inode(struct inode *);
 extern void nilfs_error(struct super_block *, const char *, const char *, ...)

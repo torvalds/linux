@@ -78,6 +78,8 @@ enum {
 	/* The number of ticks to wait for the device to signal that
 	 * it is ready */
 	I2400MS_INIT_SLEEP_INTERVAL = 10,
+	/* How long to wait for the device to settle after reset */
+	I2400MS_SETTLE_TIME = 40,
 };
 
 
@@ -105,6 +107,10 @@ struct i2400ms {
 	char tx_wq_name[32];
 
 	struct dentry *debugfs_dentry;
+
+	wait_queue_head_t bm_wfa_wq;
+	int bm_wait_result;
+	size_t bm_ack_size;
 };
 
 
@@ -129,4 +135,7 @@ extern ssize_t i2400ms_bus_bm_cmd_send(struct i2400m *,
 extern ssize_t i2400ms_bus_bm_wait_for_ack(struct i2400m *,
 					   struct i2400m_bootrom_header *,
 					   size_t);
+extern void i2400ms_bus_bm_release(struct i2400m *);
+extern int i2400ms_bus_bm_setup(struct i2400m *);
+
 #endif /* #ifndef __I2400M_SDIO_H__ */

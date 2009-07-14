@@ -282,7 +282,7 @@ CONFIG_ALIGNMENT_TRAP=y
 #
 CONFIG_ZBOOT_ROM_TEXT=0x0
 CONFIG_ZBOOT_ROM_BSS=0x0
-CONFIG_CMDLINE="init=/sbin/preinit ubi.mtd=4 root=ubi0:rootfs rootfstype=ubifs rw console=ttyMTD5"
+CONFIG_CMDLINE="init=/sbin/preinit ubi.mtd=rootfs root=ubi0:rootfs rootfstype=ubifs rootflags=bulk_read,no_chk_data_crc rw console=ttyMTD,log console=tty0"
 # CONFIG_XIP_KERNEL is not set
 # CONFIG_KEXEC is not set
 

@@ -38,7 +38,7 @@ struct nilfs_btnode_chkey_ctxt {
 };
 
 void nilfs_btnode_cache_init_once(struct address_space *);
-void nilfs_btnode_cache_init(struct address_space *);
+void nilfs_btnode_cache_init(struct address_space *, struct backing_dev_info *);
 void nilfs_btnode_cache_clear(struct address_space *);
 int nilfs_btnode_submit_block(struct address_space *, __u64, sector_t,
 			      struct buffer_head **, int);

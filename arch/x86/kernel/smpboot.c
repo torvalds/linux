@@ -873,7 +873,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 
 	err = do_boot_cpu(apicid, cpu);
 
-	zap_low_mappings();
+	zap_low_mappings(false);
 	low_mappings = 0;
 #else
 	err = do_boot_cpu(apicid, cpu);

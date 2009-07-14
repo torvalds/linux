@@ -530,7 +530,7 @@ static int nsp_negate_signal(struct scsi_cmnd *SCpnt, unsigned char mask,
 		if (reg == 0xff) {
 			break;
 		}
-	} while ((time_out-- != 0) && (reg & mask) != 0);
+	} while ((--time_out != 0) && (reg & mask) != 0);
 
 	if (time_out == 0) {
 		nsp_msg(KERN_DEBUG, " %s signal off timeut", str);
@@ -801,7 +801,7 @@ static void nsp_pio_read(struct scsi_cmnd *SCpnt)
 
 	data->FifoCount = ocount;
 
-	if (time_out == 0) {
+	if (time_out < 0) {
 		nsp_msg(KERN_DEBUG, "pio read timeout resid=%d this_residual=%d buffers_residual=%d",
 			scsi_get_resid(SCpnt), SCpnt->SCp.this_residual,
 			SCpnt->SCp.buffers_residual);
@@ -897,7 +897,7 @@ static void nsp_pio_write(struct scsi_cmnd *SCpnt)
 
 	data->FifoCount = ocount;
 
-	if (time_out == 0) {
+	if (time_out < 0) {
 		nsp_msg(KERN_DEBUG, "pio write timeout resid=0x%x",
 		                                        scsi_get_resid(SCpnt));
 	}

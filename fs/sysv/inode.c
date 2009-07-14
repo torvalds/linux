@@ -21,7 +21,6 @@
  *  the superblock.
  */
 
-#include <linux/smp_lock.h>
 #include <linux/highuid.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -31,15 +30,12 @@
 #include <asm/byteorder.h>
 #include "sysv.h"
 
-/* This is only called on sync() and umount(), when s_dirt=1. */
-static void sysv_write_super(struct super_block *sb)
+static int sysv_sync_fs(struct super_block *sb, int wait)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 	unsigned long time = get_seconds(), old_time;
 
-	lock_kernel();
-	if (sb->s_flags & MS_RDONLY)
-		goto clean;
+	lock_super(sb);
 
 	/*
 	 * If we are going to write out the super block,
@@ -53,24 +49,38 @@ static void sysv_write_super(struct super_block *sb)
 		*sbi->s_sb_time = cpu_to_fs32(sbi, time);
 		mark_buffer_dirty(sbi->s_bh2);
 	}
-clean:
-	sb->s_dirt = 0;
-	unlock_kernel();
+
+	unlock_super(sb);
+
+	return 0;
+}
+
+static void sysv_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		sysv_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
 }
 
 static int sysv_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
+	lock_super(sb);
 	if (sbi->s_forced_ro)
 		*flags |= MS_RDONLY;
 	if (!(*flags & MS_RDONLY))
 		sb->s_dirt = 1;
+	unlock_super(sb);
 	return 0;
 }
 
 static void sysv_put_super(struct super_block *sb)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
+
+	if (sb->s_dirt)
+		sysv_write_super(sb);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		/* XXX ext2 also updates the state here */
@@ -236,7 +246,7 @@ bad_inode:
 	return ERR_PTR(-EIO);
 }
 
-static struct buffer_head * sysv_update_inode(struct inode * inode)
+int sysv_write_inode(struct inode *inode, int wait)
 {
 	struct super_block * sb = inode->i_sb;
 	struct sysv_sb_info * sbi = SYSV_SB(sb);
@@ -244,17 +254,18 @@ static struct buffer_head * sysv_update_inode(struct inode * inode)
 	struct sysv_inode * raw_inode;
 	struct sysv_inode_info * si;
 	unsigned int ino, block;
+	int err = 0;
 
 	ino = inode->i_ino;
 	if (!ino || ino > sbi->s_ninodes) {
 		printk("Bad inode number on dev %s: %d is out of range\n",
 		       inode->i_sb->s_id, ino);
-		return NULL;
+		return -EIO;
 	}
 	raw_inode = sysv_raw_inode(sb, ino, &bh);
 	if (!raw_inode) {
 		printk("unable to read i-node block\n");
-		return NULL;
+		return -EIO;
 	}
 
 	raw_inode->i_mode = cpu_to_fs16(sbi, inode->i_mode);
@@ -273,37 +284,21 @@ static struct buffer_head * sysv_update_inode(struct inode * inode)
 		write3byte(sbi, (u8 *)&si->i_data[block],
 			&raw_inode->i_data[3*block]);
 	mark_buffer_dirty(bh);
-	return bh;
-}
-
-int sysv_write_inode(struct inode * inode, int wait)
-{
-	struct buffer_head *bh;
-	lock_kernel();
-	bh = sysv_update_inode(inode);
+	if (wait) {
+                sync_dirty_buffer(bh);
+                if (buffer_req(bh) && !buffer_uptodate(bh)) {
+                        printk ("IO error syncing sysv inode [%s:%08x]\n",
+                                sb->s_id, ino);
+                        err = -EIO;
+                }
+        }
 	brelse(bh);
-	unlock_kernel();
 	return 0;
 }
 
-int sysv_sync_inode(struct inode * inode)
+int sysv_sync_inode(struct inode *inode)
 {
-        int err = 0;
-        struct buffer_head *bh;
-
-        bh = sysv_update_inode(inode);
-        if (bh && buffer_dirty(bh)) {
-                sync_dirty_buffer(bh);
-                if (buffer_req(bh) && !buffer_uptodate(bh)) {
-                        printk ("IO error syncing sysv inode [%s:%08lx]\n",
-                                inode->i_sb->s_id, inode->i_ino);
-                        err = -1;
-                }
-        }
-        else if (!bh)
-                err = -1;
-        brelse (bh);
-        return err;
+	return sysv_write_inode(inode, 1);
 }
 
 static void sysv_delete_inode(struct inode *inode)
@@ -311,9 +306,7 @@ static void sysv_delete_inode(struct inode *inode)
 	truncate_inode_pages(&inode->i_data, 0);
 	inode->i_size = 0;
 	sysv_truncate(inode);
-	lock_kernel();
 	sysv_free_inode(inode);
-	unlock_kernel();
 }
 
 static struct kmem_cache *sysv_inode_cachep;
@@ -347,6 +340,7 @@ const struct super_operations sysv_sops = {
 	.delete_inode	= sysv_delete_inode,
 	.put_super	= sysv_put_super,
 	.write_super	= sysv_write_super,
+	.sync_fs	= sysv_sync_fs,
 	.remount_fs	= sysv_remount,
 	.statfs		= sysv_statfs,
 };

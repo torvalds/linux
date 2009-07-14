@@ -419,8 +419,9 @@ retry:
 				 * not implemented.
 				 */
 				if (err == UBI_IO_BAD_VID_HDR) {
-					ubi_warn("bad VID header at PEB %d, LEB"
-						 "%d:%d", pnum, vol_id, lnum);
+					ubi_warn("corrupted VID header at PEB "
+						 "%d, LEB %d:%d", pnum, vol_id,
+						 lnum);
 					err = -EBADMSG;
 				} else
 					ubi_ro_mode(ubi);
@@ -940,6 +941,33 @@ write_error:
 }
 
 /**
+ * is_error_sane - check whether a read error is sane.
+ * @err: code of the error happened during reading
+ *
+ * This is a helper function for 'ubi_eba_copy_leb()' which is called when we
+ * cannot read data from the target PEB (an error @err happened). If the error
+ * code is sane, then we treat this error as non-fatal. Otherwise the error is
+ * fatal and UBI will be switched to R/O mode later.
+ *
+ * The idea is that we try not to switch to R/O mode if the read error is
+ * something which suggests there was a real read problem. E.g., %-EIO. Or a
+ * memory allocation failed (-%ENOMEM). Otherwise, it is safer to switch to R/O
+ * mode, simply because we do not know what happened at the MTD level, and we
+ * cannot handle this. E.g., the underlying driver may have become crazy, and
+ * it is safer to switch to R/O mode to preserve the data.
+ *
+ * And bear in mind, this is about reading from the target PEB, i.e. the PEB
+ * which we have just written.
+ */
+static int is_error_sane(int err)
+{
+	if (err == -EIO || err == -ENOMEM || err == UBI_IO_BAD_VID_HDR ||
+	    err == -ETIMEDOUT)
+		return 0;
+	return 1;
+}
+
+/**
  * ubi_eba_copy_leb - copy logical eraseblock.
  * @ubi: UBI device description object
  * @from: physical eraseblock number from where to copy
@@ -950,12 +978,7 @@ write_error:
  * physical eraseblock @to. The @vid_hdr buffer may be changed by this
  * function. Returns:
  *   o %0 in case of success;
- *   o %1 if the operation was canceled because the volume is being deleted
- *        or because the PEB was put meanwhile;
- *   o %2 if the operation was canceled because there was a write error to the
- *        target PEB;
- *   o %-EAGAIN if the operation was canceled because a bit-flip was detected
- *     in the target PEB;
+ *   o %MOVE_CANCEL_RACE, %MOVE_TARGET_WR_ERR, %MOVE_CANCEL_BITFLIPS, etc;
  *   o a negative error code in case of failure.
  */
 int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
@@ -968,7 +991,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	vol_id = be32_to_cpu(vid_hdr->vol_id);
 	lnum = be32_to_cpu(vid_hdr->lnum);
 
-	dbg_eba("copy LEB %d:%d, PEB %d to PEB %d", vol_id, lnum, from, to);
+	dbg_wl("copy LEB %d:%d, PEB %d to PEB %d", vol_id, lnum, from, to);
 
 	if (vid_hdr->vol_type == UBI_VID_STATIC) {
 		data_size = be32_to_cpu(vid_hdr->data_size);
@@ -986,13 +1009,12 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 * be locked in 'ubi_wl_put_peb()' and wait for the WL worker to finish.
 	 */
 	vol = ubi->volumes[idx];
+	spin_unlock(&ubi->volumes_lock);
 	if (!vol) {
 		/* No need to do further work, cancel */
-		dbg_eba("volume %d is being removed, cancel", vol_id);
-		spin_unlock(&ubi->volumes_lock);
-		return 1;
+		dbg_wl("volume %d is being removed, cancel", vol_id);
+		return MOVE_CANCEL_RACE;
 	}
-	spin_unlock(&ubi->volumes_lock);
 
 	/*
 	 * We do not want anybody to write to this logical eraseblock while we
@@ -1004,12 +1026,13 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 * (@from). This task locks the LEB and goes sleep in the
 	 * 'ubi_wl_put_peb()' function on the @ubi->move_mutex. In turn, we are
 	 * holding @ubi->move_mutex and go sleep on the LEB lock. So, if the
-	 * LEB is already locked, we just do not move it and return %1.
+	 * LEB is already locked, we just do not move it and return
+	 * %MOVE_CANCEL_RACE, which means that UBI will re-try, but later.
 	 */
 	err = leb_write_trylock(ubi, vol_id, lnum);
 	if (err) {
-		dbg_eba("contention on LEB %d:%d, cancel", vol_id, lnum);
-		return err;
+		dbg_wl("contention on LEB %d:%d, cancel", vol_id, lnum);
+		return MOVE_CANCEL_RACE;
 	}
 
 	/*
@@ -1018,25 +1041,26 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 * cancel it.
 	 */
 	if (vol->eba_tbl[lnum] != from) {
-		dbg_eba("LEB %d:%d is no longer mapped to PEB %d, mapped to "
-			"PEB %d, cancel", vol_id, lnum, from,
-			vol->eba_tbl[lnum]);
-		err = 1;
+		dbg_wl("LEB %d:%d is no longer mapped to PEB %d, mapped to "
+		       "PEB %d, cancel", vol_id, lnum, from,
+		       vol->eba_tbl[lnum]);
+		err = MOVE_CANCEL_RACE;
 		goto out_unlock_leb;
 	}
 
 	/*
 	 * OK, now the LEB is locked and we can safely start moving it. Since
-	 * this function utilizes the @ubi->peb1_buf buffer which is shared
-	 * with some other functions, so lock the buffer by taking the
+	 * this function utilizes the @ubi->peb_buf1 buffer which is shared
+	 * with some other functions - we lock the buffer by taking the
 	 * @ubi->buf_mutex.
 	 */
 	mutex_lock(&ubi->buf_mutex);
-	dbg_eba("read %d bytes of data", aldata_size);
+	dbg_wl("read %d bytes of data", aldata_size);
 	err = ubi_io_read_data(ubi, ubi->peb_buf1, from, 0, aldata_size);
 	if (err && err != UBI_IO_BITFLIPS) {
 		ubi_warn("error %d while reading data from PEB %d",
 			 err, from);
+		err = MOVE_SOURCE_RD_ERR;
 		goto out_unlock_buf;
 	}
 
@@ -1059,7 +1083,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	cond_resched();
 
 	/*
-	 * It may turn out to me that the whole @from physical eraseblock
+	 * It may turn out to be that the whole @from physical eraseblock
 	 * contains only 0xFF bytes. Then we have to only write the VID header
 	 * and do not write any data. This also means we should not set
 	 * @vid_hdr->copy_flag, @vid_hdr->data_size, and @vid_hdr->data_crc.
@@ -1074,7 +1098,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	err = ubi_io_write_vid_hdr(ubi, to, vid_hdr);
 	if (err) {
 		if (err == -EIO)
-			err = 2;
+			err = MOVE_TARGET_WR_ERR;
 		goto out_unlock_buf;
 	}
 
@@ -1083,10 +1107,13 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	/* Read the VID header back and check if it was written correctly */
 	err = ubi_io_read_vid_hdr(ubi, to, vid_hdr, 1);
 	if (err) {
-		if (err != UBI_IO_BITFLIPS)
-			ubi_warn("cannot read VID header back from PEB %d", to);
-		else
-			err = -EAGAIN;
+		if (err != UBI_IO_BITFLIPS) {
+			ubi_warn("error %d while reading VID header back from "
+				  "PEB %d", err, to);
+			if (is_error_sane(err))
+				err = MOVE_TARGET_RD_ERR;
+		} else
+			err = MOVE_CANCEL_BITFLIPS;
 		goto out_unlock_buf;
 	}
 
@@ -1094,7 +1121,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		err = ubi_io_write_data(ubi, ubi->peb_buf1, to, 0, aldata_size);
 		if (err) {
 			if (err == -EIO)
-				err = 2;
+				err = MOVE_TARGET_WR_ERR;
 			goto out_unlock_buf;
 		}
 
@@ -1107,11 +1134,13 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 
 		err = ubi_io_read_data(ubi, ubi->peb_buf2, to, 0, aldata_size);
 		if (err) {
-			if (err != UBI_IO_BITFLIPS)
-				ubi_warn("cannot read data back from PEB %d",
-					 to);
-			else
-				err = -EAGAIN;
+			if (err != UBI_IO_BITFLIPS) {
+				ubi_warn("error %d while reading data back "
+					 "from PEB %d", err, to);
+				if (is_error_sane(err))
+					err = MOVE_TARGET_RD_ERR;
+			} else
+				err = MOVE_CANCEL_BITFLIPS;
 			goto out_unlock_buf;
 		}
 

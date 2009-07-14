@@ -29,7 +29,7 @@ struct cpu_hw_counters {
 	struct perf_counter *counter[MAX_HWCOUNTERS];
 	u64 events[MAX_HWCOUNTERS];
 	unsigned int flags[MAX_HWCOUNTERS];
-	u64 mmcr[3];
+	unsigned long mmcr[3];
 	struct perf_counter *limited_counter[MAX_LIMITED_HWCOUNTERS];
 	u8  limited_hwidx[MAX_LIMITED_HWCOUNTERS];
 };
@@ -45,6 +45,115 @@ struct power_pmu *ppmu;
  * then we need to use the FCHV bit to ignore kernel events.
  */
 static unsigned int freeze_counters_kernel = MMCR0_FCS;
+
+/*
+ * 32-bit doesn't have MMCRA but does have an MMCR2,
+ * and a few other names are different.
+ */
+#ifdef CONFIG_PPC32
+
+#define MMCR0_FCHV		0
+#define MMCR0_PMCjCE		MMCR0_PMCnCE
+
+#define SPRN_MMCRA		SPRN_MMCR2
+#define MMCRA_SAMPLE_ENABLE	0
+
+static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
+{
+	return 0;
+}
+static inline void perf_set_pmu_inuse(int inuse) { }
+static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp) { }
+static inline u32 perf_get_misc_flags(struct pt_regs *regs)
+{
+	return 0;
+}
+static inline void perf_read_regs(struct pt_regs *regs) { }
+static inline int perf_intr_is_nmi(struct pt_regs *regs)
+{
+	return 0;
+}
+
+#endif /* CONFIG_PPC32 */
+
+/*
+ * Things that are specific to 64-bit implementations.
+ */
+#ifdef CONFIG_PPC64
+
+static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
+{
+	unsigned long mmcra = regs->dsisr;
+
+	if ((mmcra & MMCRA_SAMPLE_ENABLE) && !(ppmu->flags & PPMU_ALT_SIPR)) {
+		unsigned long slot = (mmcra & MMCRA_SLOT) >> MMCRA_SLOT_SHIFT;
+		if (slot > 1)
+			return 4 * (slot - 1);
+	}
+	return 0;
+}
+
+static inline void perf_set_pmu_inuse(int inuse)
+{
+	get_lppaca()->pmcregs_in_use = inuse;
+}
+
+/*
+ * The user wants a data address recorded.
+ * If we're not doing instruction sampling, give them the SDAR
+ * (sampled data address).  If we are doing instruction sampling, then
+ * only give them the SDAR if it corresponds to the instruction
+ * pointed to by SIAR; this is indicated by the [POWER6_]MMCRA_SDSYNC
+ * bit in MMCRA.
+ */
+static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp)
+{
+	unsigned long mmcra = regs->dsisr;
+	unsigned long sdsync = (ppmu->flags & PPMU_ALT_SIPR) ?
+		POWER6_MMCRA_SDSYNC : MMCRA_SDSYNC;
+
+	if (!(mmcra & MMCRA_SAMPLE_ENABLE) || (mmcra & sdsync))
+		*addrp = mfspr(SPRN_SDAR);
+}
+
+static inline u32 perf_get_misc_flags(struct pt_regs *regs)
+{
+	unsigned long mmcra = regs->dsisr;
+
+	if (TRAP(regs) != 0xf00)
+		return 0;	/* not a PMU interrupt */
+
+	if (ppmu->flags & PPMU_ALT_SIPR) {
+		if (mmcra & POWER6_MMCRA_SIHV)
+			return PERF_EVENT_MISC_HYPERVISOR;
+		return (mmcra & POWER6_MMCRA_SIPR) ?
+			PERF_EVENT_MISC_USER : PERF_EVENT_MISC_KERNEL;
+	}
+	if (mmcra & MMCRA_SIHV)
+		return PERF_EVENT_MISC_HYPERVISOR;
+	return (mmcra & MMCRA_SIPR) ? PERF_EVENT_MISC_USER :
+		PERF_EVENT_MISC_KERNEL;
+}
+
+/*
+ * Overload regs->dsisr to store MMCRA so we only need to read it once
+ * on each interrupt.
+ */
+static inline void perf_read_regs(struct pt_regs *regs)
+{
+	regs->dsisr = mfspr(SPRN_MMCRA);
+}
+
+/*
+ * If interrupts were soft-disabled when a PMU interrupt occurs, treat
+ * it as an NMI.
+ */
+static inline int perf_intr_is_nmi(struct pt_regs *regs)
+{
+	return !regs->softe;
+}
+
+#endif /* CONFIG_PPC64 */
 
 static void perf_counter_interrupt(struct pt_regs *regs);
 
@@ -78,12 +187,14 @@ static unsigned long read_pmc(int idx)
 	case 6:
 		val = mfspr(SPRN_PMC6);
 		break;
+#ifdef CONFIG_PPC64
 	case 7:
 		val = mfspr(SPRN_PMC7);
 		break;
 	case 8:
 		val = mfspr(SPRN_PMC8);
 		break;
+#endif /* CONFIG_PPC64 */
 	default:
 		printk(KERN_ERR "oops trying to read PMC%d\n", idx);
 		val = 0;
@@ -115,12 +226,14 @@ static void write_pmc(int idx, unsigned long val)
 	case 6:
 		mtspr(SPRN_PMC6, val);
 		break;
+#ifdef CONFIG_PPC64
 	case 7:
 		mtspr(SPRN_PMC7, val);
 		break;
 	case 8:
 		mtspr(SPRN_PMC8, val);
 		break;
+#endif /* CONFIG_PPC64 */
 	default:
 		printk(KERN_ERR "oops trying to write PMC%d\n", idx);
 	}
@@ -135,15 +248,15 @@ static void write_pmc(int idx, unsigned long val)
 static int power_check_constraints(u64 event[], unsigned int cflags[],
 				   int n_ev)
 {
-	u64 mask, value, nv;
+	unsigned long mask, value, nv;
 	u64 alternatives[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
-	u64 amasks[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
-	u64 avalues[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
-	u64 smasks[MAX_HWCOUNTERS], svalues[MAX_HWCOUNTERS];
+	unsigned long amasks[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
+	unsigned long avalues[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
+	unsigned long smasks[MAX_HWCOUNTERS], svalues[MAX_HWCOUNTERS];
 	int n_alt[MAX_HWCOUNTERS], choice[MAX_HWCOUNTERS];
 	int i, j;
-	u64 addf = ppmu->add_fields;
-	u64 tadd = ppmu->test_adder;
+	unsigned long addf = ppmu->add_fields;
+	unsigned long tadd = ppmu->test_adder;
 
 	if (n_ev > ppmu->n_counter)
 		return -1;
@@ -283,7 +396,7 @@ static int check_excludes(struct perf_counter **ctrs, unsigned int cflags[],
 
 static void power_pmu_read(struct perf_counter *counter)
 {
-	long val, delta, prev;
+	s64 val, delta, prev;
 
 	if (!counter->hw.idx)
 		return;
@@ -403,14 +516,12 @@ static void write_mmcr0(struct cpu_hw_counters *cpuhw, unsigned long mmcr0)
 void hw_perf_disable(void)
 {
 	struct cpu_hw_counters *cpuhw;
-	unsigned long ret;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	cpuhw = &__get_cpu_var(cpu_hw_counters);
 
-	ret = cpuhw->disabled;
-	if (!ret) {
+	if (!cpuhw->disabled) {
 		cpuhw->disabled = 1;
 		cpuhw->n_added = 0;
 
@@ -479,7 +590,7 @@ void hw_perf_enable(void)
 		mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 		mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 		if (cpuhw->n_counters == 0)
-			get_lppaca()->pmcregs_in_use = 0;
+			perf_set_pmu_inuse(0);
 		goto out_enable;
 	}
 
@@ -512,7 +623,7 @@ void hw_perf_enable(void)
 	 * bit set and set the hardware counters to their initial values.
 	 * Then unfreeze the counters.
 	 */
-	get_lppaca()->pmcregs_in_use = 1;
+	perf_set_pmu_inuse(1);
 	mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 	mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
 	mtspr(SPRN_MMCR0, (cpuhw->mmcr[0] & ~(MMCR0_PMC1CE | MMCR0_PMCjCE))
@@ -913,6 +1024,8 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 	case PERF_TYPE_RAW:
 		ev = counter->attr.config;
 		break;
+	default:
+		return ERR_PTR(-EINVAL);
 	}
 	counter->hw.config_base = ev;
 	counter->hw.idx = 0;
@@ -1007,13 +1120,12 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
  * things if requested.  Note that interrupts are hard-disabled
  * here so there is no possibility of being interrupted.
  */
-static void record_and_restart(struct perf_counter *counter, long val,
+static void record_and_restart(struct perf_counter *counter, unsigned long val,
 			       struct pt_regs *regs, int nmi)
 {
 	u64 period = counter->hw.sample_period;
 	s64 prev, delta, left;
 	int record = 0;
-	u64 addr, mmcra, sdsync;
 
 	/* we don't have to worry about interrupts here */
 	prev = atomic64_read(&counter->hw.prev_count);
@@ -1033,8 +1145,8 @@ static void record_and_restart(struct perf_counter *counter, long val,
 				left = period;
 			record = 1;
 		}
-		if (left < 0x80000000L)
-			val = 0x80000000L - left;
+		if (left < 0x80000000LL)
+			val = 0x80000000LL - left;
 	}
 
 	/*
@@ -1047,22 +1159,9 @@ static void record_and_restart(struct perf_counter *counter, long val,
 			.period	= counter->hw.last_period,
 		};
 
-		if (counter->attr.sample_type & PERF_SAMPLE_ADDR) {
-			/*
-			 * The user wants a data address recorded.
-			 * If we're not doing instruction sampling,
-			 * give them the SDAR (sampled data address).
-			 * If we are doing instruction sampling, then only
-			 * give them the SDAR if it corresponds to the
-			 * instruction pointed to by SIAR; this is indicated
-			 * by the [POWER6_]MMCRA_SDSYNC bit in MMCRA.
-			 */
-			mmcra = regs->dsisr;
-			sdsync = (ppmu->flags & PPMU_ALT_SIPR) ?
-				POWER6_MMCRA_SDSYNC : MMCRA_SDSYNC;
-			if (!(mmcra & MMCRA_SAMPLE_ENABLE) || (mmcra & sdsync))
-				data.addr = mfspr(SPRN_SDAR);
-		}
+		if (counter->attr.sample_type & PERF_SAMPLE_ADDR)
+			perf_get_data_addr(regs, &data.addr);
+
 		if (perf_counter_overflow(counter, nmi, &data)) {
 			/*
 			 * Interrupts are coming too fast - throttle them
@@ -1088,25 +1187,12 @@ static void record_and_restart(struct perf_counter *counter, long val,
  */
 unsigned long perf_misc_flags(struct pt_regs *regs)
 {
-	unsigned long mmcra;
+	u32 flags = perf_get_misc_flags(regs);
 
-	if (TRAP(regs) != 0xf00) {
-		/* not a PMU interrupt */
-		return user_mode(regs) ? PERF_EVENT_MISC_USER :
-			PERF_EVENT_MISC_KERNEL;
-	}
-
-	mmcra = regs->dsisr;
-	if (ppmu->flags & PPMU_ALT_SIPR) {
-		if (mmcra & POWER6_MMCRA_SIHV)
-			return PERF_EVENT_MISC_HYPERVISOR;
-		return (mmcra & POWER6_MMCRA_SIPR) ? PERF_EVENT_MISC_USER :
-			PERF_EVENT_MISC_KERNEL;
-	}
-	if (mmcra & MMCRA_SIHV)
-		return PERF_EVENT_MISC_HYPERVISOR;
-	return (mmcra & MMCRA_SIPR) ? PERF_EVENT_MISC_USER :
-			PERF_EVENT_MISC_KERNEL;
+	if (flags)
+		return flags;
+	return user_mode(regs) ? PERF_EVENT_MISC_USER :
+		PERF_EVENT_MISC_KERNEL;
 }
 
 /*
@@ -1115,20 +1201,12 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
  */
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
-	unsigned long mmcra;
 	unsigned long ip;
-	unsigned long slot;
 
 	if (TRAP(regs) != 0xf00)
 		return regs->nip;	/* not a PMU interrupt */
 
-	ip = mfspr(SPRN_SIAR);
-	mmcra = regs->dsisr;
-	if ((mmcra & MMCRA_SAMPLE_ENABLE) && !(ppmu->flags & PPMU_ALT_SIPR)) {
-		slot = (mmcra & MMCRA_SLOT) >> MMCRA_SLOT_SHIFT;
-		if (slot > 1)
-			ip += 4 * (slot - 1);
-	}
+	ip = mfspr(SPRN_SIAR) + perf_ip_adjust(regs);
 	return ip;
 }
 
@@ -1140,7 +1218,7 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	int i;
 	struct cpu_hw_counters *cpuhw = &__get_cpu_var(cpu_hw_counters);
 	struct perf_counter *counter;
-	long val;
+	unsigned long val;
 	int found = 0;
 	int nmi;
 
@@ -1148,16 +1226,9 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 		freeze_limited_counters(cpuhw, mfspr(SPRN_PMC5),
 					mfspr(SPRN_PMC6));
 
-	/*
-	 * Overload regs->dsisr to store MMCRA so we only need to read it once.
-	 */
-	regs->dsisr = mfspr(SPRN_MMCRA);
+	perf_read_regs(regs);
 
-	/*
-	 * If interrupts were soft-disabled when this PMU interrupt
-	 * occurred, treat it as an NMI.
-	 */
-	nmi = !regs->softe;
+	nmi = perf_intr_is_nmi(regs);
 	if (nmi)
 		nmi_enter();
 	else
@@ -1214,50 +1285,22 @@ void hw_perf_counter_setup(int cpu)
 	cpuhw->mmcr[0] = MMCR0_FC;
 }
 
-extern struct power_pmu power4_pmu;
-extern struct power_pmu ppc970_pmu;
-extern struct power_pmu power5_pmu;
-extern struct power_pmu power5p_pmu;
-extern struct power_pmu power6_pmu;
-extern struct power_pmu power7_pmu;
-
-static int init_perf_counters(void)
+int register_power_pmu(struct power_pmu *pmu)
 {
-	unsigned long pvr;
+	if (ppmu)
+		return -EBUSY;		/* something's already registered */
 
-	/* XXX should get this from cputable */
-	pvr = mfspr(SPRN_PVR);
-	switch (PVR_VER(pvr)) {
-	case PV_POWER4:
-	case PV_POWER4p:
-		ppmu = &power4_pmu;
-		break;
-	case PV_970:
-	case PV_970FX:
-	case PV_970MP:
-		ppmu = &ppc970_pmu;
-		break;
-	case PV_POWER5:
-		ppmu = &power5_pmu;
-		break;
-	case PV_POWER5p:
-		ppmu = &power5p_pmu;
-		break;
-	case 0x3e:
-		ppmu = &power6_pmu;
-		break;
-	case 0x3f:
-		ppmu = &power7_pmu;
-		break;
-	}
+	ppmu = pmu;
+	pr_info("%s performance monitor hardware support registered\n",
+		pmu->name);
 
+#ifdef MSR_HV
 	/*
 	 * Use FCHV to ignore kernel events if MSR.HV is set.
 	 */
 	if (mfmsr() & MSR_HV)
 		freeze_counters_kernel = MMCR0_FCHV;
+#endif /* CONFIG_PPC64 */
 
 	return 0;
 }
-
-arch_initcall(init_perf_counters);

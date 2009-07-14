@@ -342,7 +342,7 @@ sn_common_bus_fixup(struct pci_bus *bus,
 		struct pcibus_bussoft *b = SN_PCIBUS_BUSSOFT(bus);
 
 		printk(KERN_WARNING "Device ASIC=%u XID=%u PBUSNUM=%u "
-		       "L_IO=%lx L_MEM=%lx BASE=%lx\n",
+		       "L_IO=%llx L_MEM=%llx BASE=%llx\n",
 		       b->bs_asic_type, b->bs_xid, b->bs_persist_busnum,
 		       b->bs_legacy_io, b->bs_legacy_mem, b->bs_base);
 		printk(KERN_WARNING "on node %d but only %d nodes online."
@@ -435,7 +435,8 @@ void sn_generate_path(struct pci_bus *pci_bus, char *address)
 	bricktype = MODULE_GET_BTYPE(moduleid);
 	if ((bricktype == L1_BRICKTYPE_191010) ||
 	    (bricktype == L1_BRICKTYPE_1932))
-			sprintf(address, "%s^%d", address, geo_slot(geoid));
+			sprintf(address + strlen(address), "^%d",
+						geo_slot(geoid));
 }
 
 void __devinit

@@ -612,6 +612,11 @@ static struct resource bfin_spi0_resource[] = {
 	[1] = {
 		.start = CH_SPI0,
 		.end   = CH_SPI0,
+		.flags = IORESOURCE_DMA,
+	},
+	[2] = {
+		.start = IRQ_SPI0,
+		.end   = IRQ_SPI0,
 		.flags = IORESOURCE_IRQ,
 	}
 };
@@ -626,6 +631,11 @@ static struct resource bfin_spi1_resource[] = {
 	[1] = {
 		.start = CH_SPI1,
 		.end   = CH_SPI1,
+		.flags = IORESOURCE_DMA,
+	},
+	[2] = {
+		.start = IRQ_SPI1,
+		.end   = IRQ_SPI1,
 		.flags = IORESOURCE_IRQ,
 	}
 };

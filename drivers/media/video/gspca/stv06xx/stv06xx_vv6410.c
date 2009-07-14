@@ -80,12 +80,26 @@ static const struct ctrl vv6410_ctrl[] = {
 			.minimum	= 0,
 			.maximum	= 15,
 			.step		= 1,
-			.default_value  = 0
+			.default_value  = 10
 		},
 		.set = vv6410_set_analog_gain,
 		.get = vv6410_get_analog_gain
+	},
+#define EXPOSURE_IDX 3
+	{
+		{
+			.id		= V4L2_CID_EXPOSURE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "exposure",
+			.minimum	= 0,
+			.maximum	= 32768,
+			.step		= 1,
+			.default_value  = 20000
+		},
+		.set = vv6410_set_exposure,
+		.get = vv6410_get_exposure
 	}
-};
+	};
 
 static int vv6410_probe(struct sd *sd)
 {
@@ -121,6 +135,7 @@ static int vv6410_probe(struct sd *sd)
 static int vv6410_init(struct sd *sd)
 {
 	int err = 0, i;
+	s32 *sensor_settings = sd->sensor_priv;
 
 	for (i = 0; i < ARRAY_SIZE(stv_bridge_init); i++) {
 		/* if NULL then len contains single value */
@@ -142,6 +157,16 @@ static int vv6410_init(struct sd *sd)
 
 	err = stv06xx_write_sensor_bytes(sd, (u8 *) vv6410_sensor_init,
 					 ARRAY_SIZE(vv6410_sensor_init));
+	if (err < 0)
+		return err;
+
+	err = vv6410_set_exposure(&sd->gspca_dev,
+				   sensor_settings[EXPOSURE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = vv6410_set_analog_gain(&sd->gspca_dev,
+				      sensor_settings[GAIN_IDX]);
 
 	return (err < 0) ? err : 0;
 }
@@ -317,4 +342,51 @@ static int vv6410_set_analog_gain(struct gspca_dev *gspca_dev, __s32 val)
 	err = stv06xx_write_sensor(sd, VV6410_ANALOGGAIN, 0xf0 | (val & 0xf));
 
 	return (err < 0) ? err : 0;
+}
+
+static int vv6410_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[EXPOSURE_IDX];
+
+	PDEBUG(D_V4L2, "Read exposure %d", *val);
+
+	return 0;
+}
+
+static int vv6410_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
+{
+	int err;
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+	unsigned int fine, coarse;
+
+	sensor_settings[EXPOSURE_IDX] = val;
+
+	val = (val * val >> 14) + val / 4;
+
+	fine = val % VV6410_CIF_LINELENGTH;
+	coarse = min(512, val / VV6410_CIF_LINELENGTH);
+
+	PDEBUG(D_V4L2, "Set coarse exposure to %d, fine expsure to %d",
+	       coarse, fine);
+
+	err = stv06xx_write_sensor(sd, VV6410_FINEH, fine >> 8);
+	if (err < 0)
+		goto out;
+
+	err = stv06xx_write_sensor(sd, VV6410_FINEL, fine & 0xff);
+	if (err < 0)
+		goto out;
+
+	err = stv06xx_write_sensor(sd, VV6410_COARSEH, coarse >> 8);
+	if (err < 0)
+		goto out;
+
+	err = stv06xx_write_sensor(sd, VV6410_COARSEL, coarse & 0xff);
+
+out:
+	return err;
 }

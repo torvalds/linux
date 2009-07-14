@@ -32,25 +32,12 @@
 #define DBG pr_debug
 #endif
 
-static irqreturn_t ipi_function_handler(int irq, void *msg)
-{
-	smp_message_recv((int)(long)msg);
-	return IRQ_HANDLED;
-}
-
 /**
   * ps3_ipi_virqs - a per cpu array of virqs for ipi use
   */
 
 #define MSG_COUNT 4
 static DEFINE_PER_CPU(unsigned int, ps3_ipi_virqs[MSG_COUNT]);
-
-static const char *names[MSG_COUNT] = {
-	"ipi call",
-	"ipi reschedule",
-	"ipi migrate",
-	"ipi debug brk"
-};
 
 static void do_message_pass(int target, int msg)
 {
@@ -119,8 +106,7 @@ static void __init ps3_smp_setup_cpu(int cpu)
 		DBG("%s:%d: (%d, %d) => virq %u\n",
 			__func__, __LINE__, cpu, i, virqs[i]);
 
-		result = request_irq(virqs[i], ipi_function_handler,
-			IRQF_DISABLED, names[i], (void*)(long)i);
+		result = smp_request_message_ipi(virqs[i], i);
 
 		if (result)
 			virqs[i] = NO_IRQ;

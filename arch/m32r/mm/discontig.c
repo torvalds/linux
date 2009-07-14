@@ -154,9 +154,9 @@ unsigned long __init zone_sizes_init(void)
 	 *  Use all area of internal RAM.
 	 *  see __alloc_pages()
 	 */
-	NODE_DATA(1)->node_zones->pages_min = 0;
-	NODE_DATA(1)->node_zones->pages_low = 0;
-	NODE_DATA(1)->node_zones->pages_high = 0;
+	NODE_DATA(1)->node_zones->watermark[WMARK_MIN] = 0;
+	NODE_DATA(1)->node_zones->watermark[WMARK_LOW] = 0;
+	NODE_DATA(1)->node_zones->watermark[WMARK_HIGH] = 0;
 
 	return holes;
 }

@@ -205,15 +205,15 @@ static int dlci_transmit(struct sk_buff *skb, struct net_device *dev)
 	{
 		case DLCI_RET_OK:
 			dev->stats.tx_packets++;
-			ret = 0;
+			ret = NETDEV_TX_OK;
 			break;
 			case DLCI_RET_ERR:
 			dev->stats.tx_errors++;
-			ret = 0;
+			ret = NETDEV_TX_OK;
 			break;
 			case DLCI_RET_DROP:
 			dev->stats.tx_dropped++;
-			ret = 1;
+			ret = NETDEV_TX_BUSY;
 			break;
 	}
 	/* Alan Cox recommends always returning 0, and always freeing the packet */

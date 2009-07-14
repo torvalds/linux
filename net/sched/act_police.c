@@ -294,6 +294,8 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 	if (police->tcfp_ewma_rate &&
 	    police->tcf_rate_est.bps >= police->tcfp_ewma_rate) {
 		police->tcf_qstats.overlimits++;
+		if (police->tcf_action == TC_ACT_SHOT)
+			police->tcf_qstats.drops++;
 		spin_unlock(&police->tcf_lock);
 		return police->tcf_action;
 	}
@@ -327,6 +329,8 @@ static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
 	}
 
 	police->tcf_qstats.overlimits++;
+	if (police->tcf_action == TC_ACT_SHOT)
+		police->tcf_qstats.drops++;
 	spin_unlock(&police->tcf_lock);
 	return police->tcf_action;
 }

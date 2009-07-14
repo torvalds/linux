@@ -36,9 +36,14 @@ typedef int (*param_set_fn)(const char *val, struct kernel_param *kp);
 /* Returns length written or -errno.  Buffer is 4k (ie. be short!) */
 typedef int (*param_get_fn)(char *buffer, struct kernel_param *kp);
 
+/* Flag bits for kernel_param.flags */
+#define KPARAM_KMALLOCED	1
+#define KPARAM_ISBOOL		2
+
 struct kernel_param {
 	const char *name;
-	unsigned int perm;
+	u16 perm;
+	u16 flags;
 	param_set_fn set;
 	param_get_fn get;
 	union {
@@ -79,7 +84,7 @@ struct kparam_array
    parameters.  perm sets the visibility in sysfs: 000 means it's
    not there, read bits mean it's readable, write bits mean it's
    writable. */
-#define __module_param_call(prefix, name, set, get, arg, perm)		\
+#define __module_param_call(prefix, name, set, get, arg, isbool, perm)	\
 	/* Default value instead of permissions? */			\
 	static int __param_perm_check_##name __attribute__((unused)) =	\
 	BUILD_BUG_ON_ZERO((perm) < 0 || (perm) > 0777 || ((perm) & 2))	\
@@ -88,10 +93,13 @@ struct kparam_array
 	static struct kernel_param __moduleparam_const __param_##name	\
 	__used								\
     __attribute__ ((unused,__section__ ("__param"),aligned(sizeof(void *)))) \
-	= { __param_str_##name, perm, set, get, { arg } }
+	= { __param_str_##name, perm, isbool ? KPARAM_ISBOOL : 0,	\
+	    set, get, { arg } }
 
 #define module_param_call(name, set, get, arg, perm)			      \
-	__module_param_call(MODULE_PARAM_PREFIX, name, set, get, arg, perm)
+	__module_param_call(MODULE_PARAM_PREFIX,			      \
+			    name, set, get, arg,			      \
+			    __same_type(*(arg), bool), perm)
 
 /* Helper functions: type is byte, short, ushort, int, uint, long,
    ulong, charp, bool or invbool, or XXX if you define param_get_XXX,
@@ -120,15 +128,16 @@ struct kparam_array
 #define core_param(name, var, type, perm)				\
 	param_check_##type(name, &(var));				\
 	__module_param_call("", name, param_set_##type, param_get_##type, \
-			    &var, perm)
+			    &var, __same_type(var, bool), perm)
 #endif /* !MODULE */
 
 /* Actually copy string: maxlen param is usually sizeof(string). */
 #define module_param_string(name, string, len, perm)			\
 	static const struct kparam_string __param_string_##name		\
 		= { len, string };					\
-	module_param_call(name, param_set_copystring, param_get_string,	\
-			  .str = &__param_string_##name, perm);		\
+	__module_param_call(MODULE_PARAM_PREFIX, name,			\
+			    param_set_copystring, param_get_string,	\
+			    .str = &__param_string_##name, 0, perm);	\
 	__MODULE_PARM_TYPE(name, "string")
 
 /* Called on module insert or kernel boot */
@@ -186,21 +195,30 @@ extern int param_set_charp(const char *val, struct kernel_param *kp);
 extern int param_get_charp(char *buffer, struct kernel_param *kp);
 #define param_check_charp(name, p) __param_check(name, p, char *)
 
+/* For historical reasons "bool" parameters can be (unsigned) "int". */
 extern int param_set_bool(const char *val, struct kernel_param *kp);
 extern int param_get_bool(char *buffer, struct kernel_param *kp);
-#define param_check_bool(name, p) __param_check(name, p, int)
+#define param_check_bool(name, p)					\
+	static inline void __check_##name(void)				\
+	{								\
+		BUILD_BUG_ON(!__same_type(*(p), bool) &&		\
+			     !__same_type(*(p), unsigned int) &&	\
+			     !__same_type(*(p), int));			\
+	}
 
 extern int param_set_invbool(const char *val, struct kernel_param *kp);
 extern int param_get_invbool(char *buffer, struct kernel_param *kp);
-#define param_check_invbool(name, p) __param_check(name, p, int)
+#define param_check_invbool(name, p) __param_check(name, p, bool)
 
 /* Comma-separated array: *nump is set to number they actually specified. */
 #define module_param_array_named(name, array, type, nump, perm)		\
 	static const struct kparam_array __param_arr_##name		\
 	= { ARRAY_SIZE(array), nump, param_set_##type, param_get_##type,\
 	    sizeof(array[0]), array };					\
-	module_param_call(name, param_array_set, param_array_get, 	\
-			  .arr = &__param_arr_##name, perm);		\
+	__module_param_call(MODULE_PARAM_PREFIX, name,			\
+			    param_array_set, param_array_get,		\
+			    .arr = &__param_arr_##name,			\
+			    __same_type(array[0], bool), perm);		\
 	__MODULE_PARM_TYPE(name, "array of " #type)
 
 #define module_param_array(name, type, nump, perm)		\

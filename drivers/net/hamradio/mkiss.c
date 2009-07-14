@@ -531,7 +531,7 @@ static int ax_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!netif_running(dev))  {
 		printk(KERN_ERR "mkiss: %s: xmit call when iface is down\n", dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	if (netif_queue_stopped(dev)) {
@@ -541,7 +541,7 @@ static int ax_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if (time_before(jiffies, dev->trans_start + 20 * HZ)) {
 			/* 20 sec timeout not reached */
-			return 1;
+			return NETDEV_TX_BUSY;
 		}
 
 		printk(KERN_ERR "mkiss: %s: transmit timed out, %s?\n", dev->name,

@@ -198,7 +198,8 @@ static void __devexit rtl8180_pci_remove(struct pci_dev *pdev);
 static void rtl8180_shutdown (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	dev->stop(dev);
+	if (dev->netdev_ops->ndo_stop)
+		dev->netdev_ops->ndo_stop(dev);
 	pci_disable_device(pdev);
 }
 
@@ -4551,8 +4552,6 @@ short rtl8180_init(struct net_device *dev)
 		//DMESG("Reported EEPROM chip is a 93c46 (1Kbit)");
 	}
 
-	dev->get_stats = rtl8180_stats;
-
 	dev->dev_addr[0]=eprom_read(dev,MAC_ADR) & 0xff;
 	dev->dev_addr[1]=(eprom_read(dev,MAC_ADR) & 0xff00)>>8;
 	dev->dev_addr[2]=eprom_read(dev,MAC_ADR+1) & 0xff;
@@ -5832,6 +5831,18 @@ int rtl8180_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
      -----------------------------PCI STUFF---------------------------
 *****************************************************************************/
 
+static const struct net_device_ops rtl8180_netdev_ops = {
+	.ndo_open		= rtl8180_open,
+	.ndo_stop		= rtl8180_close,
+	.ndo_get_stats		= rtl8180_stats,
+	.ndo_tx_timeout		= rtl8180_restart,
+	.ndo_do_ioctl		= rtl8180_ioctl,
+	.ndo_set_multicast_list	= r8180_set_multicast,
+	.ndo_set_mac_address	= r8180_set_mac_adr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_start_xmit		= ieee80211_xmit,
+};
 
 static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id)
@@ -5936,14 +5947,8 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	dev->irq = pdev->irq;
 	priv->irq = 0;
 
-	dev->open = rtl8180_open;
-	dev->stop = rtl8180_close;
-	//dev->hard_start_xmit = ieee80211_xmit;
-	dev->tx_timeout = rtl8180_restart;
+	dev->netdev_ops = &rtl8180_netdev_ops;
 	dev->wireless_handlers = &r8180_wx_handlers_def;
-	dev->do_ioctl = rtl8180_ioctl;
-	dev->set_multicast_list = r8180_set_multicast;
-	dev->set_mac_address = r8180_set_mac_adr;
 
 #if WIRELESS_EXT >= 12
 #if WIRELESS_EXT < 17

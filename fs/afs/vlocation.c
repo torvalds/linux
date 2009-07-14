@@ -65,6 +65,8 @@ static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vl,
 				goto out;
 			goto rotate;
 		case -ENOMEDIUM:
+		case -EKEYREJECTED:
+		case -EKEYEXPIRED:
 			goto out;
 		default:
 			ret = -EIO;

@@ -1319,7 +1319,6 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
         }
 
 	pcm->info_flags = 0;
-	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	strcpy(pcm->name, "CA0106");
 
 	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 
@@ -1877,7 +1876,7 @@ static int snd_ca0106_resume(struct pci_dev *pci)
 
 // PCI IDs
 static struct pci_device_id snd_ca0106_ids[] = {
-	{ 0x1102, 0x0007, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },	/* Audigy LS or Live 24bit */
+	{ PCI_VDEVICE(CREATIVE, 0x0007), 0 },	/* Audigy LS or Live 24bit */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, snd_ca0106_ids);

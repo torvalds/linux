@@ -474,7 +474,7 @@ static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 		disk->fops = &ida_fops;
 		if (j && !drv->nr_blks)
 			continue;
-		blk_queue_hardsect_size(hba[i]->queue, drv->blk_size);
+		blk_queue_logical_block_size(hba[i]->queue, drv->blk_size);
 		set_capacity(disk, drv->nr_blks);
 		disk->queue = hba[i]->queue;
 		disk->private_data = drv;
@@ -903,7 +903,7 @@ static void do_ida_request(struct request_queue *q)
 		goto startio;
 
 queue_next:
-	creq = elv_next_request(q);
+	creq = blk_peek_request(q);
 	if (!creq)
 		goto startio;
 
@@ -912,17 +912,18 @@ queue_next:
 	if ((c = cmd_alloc(h,1)) == NULL)
 		goto startio;
 
-	blkdev_dequeue_request(creq);
+	blk_start_request(creq);
 
 	c->ctlr = h->ctlr;
 	c->hdr.unit = (drv_info_t *)(creq->rq_disk->private_data) - h->drv;
 	c->hdr.size = sizeof(rblk_t) >> 2;
 	c->size += sizeof(rblk_t);
 
-	c->req.hdr.blk = creq->sector;
+	c->req.hdr.blk = blk_rq_pos(creq);
 	c->rq = creq;
 DBGPX(
-	printk("sector=%d, nr_sectors=%d\n", creq->sector, creq->nr_sectors);
+	printk("sector=%d, nr_sectors=%u\n",
+	       blk_rq_pos(creq), blk_rq_sectors(creq));
 );
 	sg_init_table(tmp_sg, SG_MAX);
 	seg = blk_rq_map_sg(q, creq, tmp_sg);
@@ -940,9 +941,9 @@ DBGPX(
 						 tmp_sg[i].offset,
 						 tmp_sg[i].length, dir);
 	}
-DBGPX(	printk("Submitting %d sectors in %d segments\n", creq->nr_sectors, seg); );
+DBGPX(	printk("Submitting %u sectors in %d segments\n", blk_rq_sectors(creq), seg); );
 	c->req.hdr.sg_cnt = seg;
-	c->req.hdr.blk_cnt = creq->nr_sectors;
+	c->req.hdr.blk_cnt = blk_rq_sectors(creq);
 	c->req.hdr.cmd = (rq_data_dir(creq) == READ) ? IDA_READ : IDA_WRITE;
 	c->type = CMD_RWREQ;
 
@@ -1024,8 +1025,7 @@ static inline void complete_command(cmdlist_t *cmd, int timeout)
 				cmd->req.sg[i].size, ddir);
 
 	DBGPX(printk("Done with %p\n", rq););
-	if (__blk_end_request(rq, error, blk_rq_bytes(rq)))
-		BUG();
+	__blk_end_request_all(rq, error);
 }
 
 /*
@@ -1546,7 +1546,7 @@ static int revalidate_allvol(ctlr_info_t *host)
 		drv_info_t *drv = &host->drv[i];
 		if (i && !drv->nr_blks)
 			continue;
-		blk_queue_hardsect_size(host->queue, drv->blk_size);
+		blk_queue_logical_block_size(host->queue, drv->blk_size);
 		set_capacity(disk, drv->nr_blks);
 		disk->queue = host->queue;
 		disk->private_data = drv;

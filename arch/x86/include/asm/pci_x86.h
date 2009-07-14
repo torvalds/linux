@@ -121,6 +121,9 @@ extern int __init pcibios_init(void);
 extern int __init pci_mmcfg_arch_init(void);
 extern void __init pci_mmcfg_arch_free(void);
 
+extern struct acpi_mcfg_allocation *pci_mmcfg_config;
+extern int pci_mmcfg_config_num;
+
 /*
  * AMD Fam10h CPUs are buggy, and cannot access MMIO config space
  * on their northbrige except through the * %eax register. As such, you MUST

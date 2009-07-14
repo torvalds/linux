@@ -318,6 +318,7 @@ static void __init iomm_table_allocate_entry(struct pci_dev *dev, int bar_num)
 {
 	struct resource *bar_res = &dev->resource[bar_num];
 	long bar_size = pci_resource_len(dev, bar_num);
+	struct device_node *dn = pci_device_to_OF_node(dev);
 
 	/*
 	 * No space to allocate, quick exit, skip Allocation.
@@ -335,9 +336,9 @@ static void __init iomm_table_allocate_entry(struct pci_dev *dev, int bar_num)
 	 * Allocate the number of table entries needed for BAR.
 	 */
 	while (bar_size > 0 ) {
-		iomm_table[current_iomm_table_entry] = dev->sysdata;
+		iomm_table[current_iomm_table_entry] = dn;
 		ds_addr_table[current_iomm_table_entry] =
-			iseries_ds_addr(dev->sysdata) | (bar_num << 24);
+			iseries_ds_addr(dn) | (bar_num << 24);
 		bar_size -= IOMM_TABLE_ENTRY_SIZE;
 		++current_iomm_table_entry;
 	}
@@ -410,7 +411,7 @@ void __init iSeries_pcibios_fixup_resources(struct pci_dev *pdev)
 	struct device_node *node;
 	int i;
 
-	node = find_device_node(bus, pdev->devfn);
+	node = pci_device_to_OF_node(pdev);
 	pr_debug("PCI: iSeries %s, pdev %p, node %p\n",
 		 pci_name(pdev), pdev, node);
 	if (!node) {
@@ -441,7 +442,6 @@ void __init iSeries_pcibios_fixup_resources(struct pci_dev *pdev)
 		}
 	}
 
-	pdev->sysdata = node;
 	allocate_device_bars(pdev);
 	iseries_device_information(pdev, bus, *sub_bus);
 }

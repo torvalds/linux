@@ -111,6 +111,15 @@ out:
 	return ret;
 }
 
+int btrfs_set_root_node(struct btrfs_root_item *item,
+			struct extent_buffer *node)
+{
+	btrfs_set_root_bytenr(item, node->start);
+	btrfs_set_root_level(item, btrfs_header_level(node));
+	btrfs_set_root_generation(item, btrfs_header_generation(node));
+	return 0;
+}
+
 /*
  * copy the data in 'item' into the btree
  */
@@ -164,8 +173,7 @@ int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root
  * offset lower than the latest root.  They need to be queued for deletion to
  * finish what was happening when we crashed.
  */
-int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
-			  struct btrfs_root *latest)
+int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid)
 {
 	struct btrfs_root *dead_root;
 	struct btrfs_item *item;
@@ -227,10 +235,7 @@ again:
 			goto err;
 		}
 
-		if (objectid == BTRFS_TREE_RELOC_OBJECTID)
-			ret = btrfs_add_dead_reloc_root(dead_root);
-		else
-			ret = btrfs_add_dead_root(dead_root, latest);
+		ret = btrfs_add_dead_root(dead_root);
 		if (ret)
 			goto err;
 		goto again;

@@ -268,7 +268,7 @@ struct ehea_qp_init_attr {
 };
 
 /*
- * Event Queue attributes, passed as paramter
+ * Event Queue attributes, passed as parameter
  */
 struct ehea_eq_attr {
 	u32 type;

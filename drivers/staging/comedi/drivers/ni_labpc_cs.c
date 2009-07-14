@@ -60,7 +60,7 @@ NI manuals:
 */
 
 #undef LABPC_DEBUG
-//#define LABPC_DEBUG   // enable debugging messages
+/* #define LABPC_DEBUG */   /*  enable debugging messages */
 
 #include "../comedidev.h"
 
@@ -79,64 +79,64 @@ NI manuals:
 
 static struct pcmcia_device *pcmcia_cur_dev = NULL;
 
-static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it);
+static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
-static const labpc_board labpc_cs_boards[] = {
+static const struct labpc_board_struct labpc_cs_boards[] = {
 	{
-	      name:	"daqcard-1200",
-	      device_id:0x103,	// 0x10b is manufacturer id, 0x103 is device id
-	      ai_speed:10000,
-	      bustype:	pcmcia_bustype,
-	      register_layout:labpc_1200_layout,
-	      has_ao:	1,
-	      ai_range_table:&range_labpc_1200_ai,
-	      ai_range_code:labpc_1200_ai_gain_bits,
-	      ai_range_is_unipolar:labpc_1200_is_unipolar,
-	      ai_scan_up:0,
-	      memory_mapped_io:0,
+	.name = "daqcard-1200",
+	.device_id = 0x103,	/*  0x10b is manufacturer id, 0x103 is device id */
+	.ai_speed = 10000,
+	.bustype = pcmcia_bustype,
+	.register_layout = labpc_1200_layout,
+	.has_ao = 1,
+	.ai_range_table = &range_labpc_1200_ai,
+	.ai_range_code = labpc_1200_ai_gain_bits,
+	.ai_range_is_unipolar = labpc_1200_is_unipolar,
+	.ai_scan_up = 0,
+	.memory_mapped_io = 0,
 		},
 	/* duplicate entry, to support using alternate name */
 	{
-	      name:	"ni_labpc_cs",
-	      device_id:0x103,
-	      ai_speed:10000,
-	      bustype:	pcmcia_bustype,
-	      register_layout:labpc_1200_layout,
-	      has_ao:	1,
-	      ai_range_table:&range_labpc_1200_ai,
-	      ai_range_code:labpc_1200_ai_gain_bits,
-	      ai_range_is_unipolar:labpc_1200_is_unipolar,
-	      ai_scan_up:0,
-	      memory_mapped_io:0,
+	.name = "ni_labpc_cs",
+	.device_id = 0x103,
+	.ai_speed = 10000,
+	.bustype = pcmcia_bustype,
+	.register_layout = labpc_1200_layout,
+	.has_ao = 1,
+	.ai_range_table = &range_labpc_1200_ai,
+	.ai_range_code = labpc_1200_ai_gain_bits,
+	.ai_range_is_unipolar = labpc_1200_is_unipolar,
+	.ai_scan_up = 0,
+	.memory_mapped_io = 0,
 		},
 };
 
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define thisboard ((const labpc_board *)dev->board_ptr)
+#define thisboard ((const struct labpc_board_struct *)dev->board_ptr)
 
 static struct comedi_driver driver_labpc_cs = {
 	.driver_name = "ni_labpc_cs",
 	.module = THIS_MODULE,
 	.attach = &labpc_attach,
 	.detach = &labpc_common_detach,
-	.num_names = sizeof(labpc_cs_boards) / sizeof(labpc_board),
+	.num_names = ARRAY_SIZE(labpc_cs_boards),
 	.board_name = &labpc_cs_boards[0].name,
-	.offset = sizeof(labpc_board),
+	.offset = sizeof(struct labpc_board_struct),
 };
 
-static int labpc_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	struct pcmcia_device *link;
 
 	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(labpc_private)) < 0)
+	if (alloc_private(dev, sizeof(struct labpc_private)) < 0)
 		return -ENOMEM;
 
-	// get base address, irq etc. based on bustype
+	/*  get base address, irq etc. based on bustype */
 	switch (thisboard->bustype) {
 	case pcmcia_bustype:
 		link = pcmcia_cur_dev;	/* XXX hack */
@@ -213,12 +213,12 @@ static void labpc_cs_detach(struct pcmcia_device *);
 
 static const dev_info_t dev_info = "daqcard-1200";
 
-typedef struct local_info_t {
+struct local_info_t {
 	struct pcmcia_device *link;
 	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
-} local_info_t;
+};
 
 /*======================================================================
 
@@ -234,12 +234,12 @@ typedef struct local_info_t {
 
 static int labpc_cs_attach(struct pcmcia_device *link)
 {
-	local_info_t *local;
+	struct local_info_t *local;
 
 	DEBUG(0, "labpc_cs_attach()\n");
 
 	/* Allocate space for private device-specific data */
-	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc(sizeof(struct local_info_t), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
 	local->link = link;
@@ -287,7 +287,7 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 	   detach().
 	 */
 	if (link->dev_node) {
-		((local_info_t *) link->priv)->stop = 1;
+		((struct local_info_t *) link->priv)->stop = 1;
 		labpc_release(link);
 	}
 
@@ -307,7 +307,7 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 
 static void labpc_config(struct pcmcia_device *link)
 {
-	local_info_t *dev = link->priv;
+	struct local_info_t *dev = link->priv;
 	tuple_t tuple;
 	cisparse_t parse;
 	int last_ret;
@@ -327,15 +327,21 @@ static void labpc_config(struct pcmcia_device *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
+
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
-	if ((last_ret = pcmcia_get_tuple_data(link, &tuple))) {
+
+	last_ret = pcmcia_get_tuple_data(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
-	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse))) {
+
+	last_ret = pcmcia_parse_tuple(&tuple, &parse);
+	if (last_ret) {
 		cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
@@ -355,7 +361,8 @@ static void labpc_config(struct pcmcia_device *link)
 	   will only use the CIS to fill in implementation-defined details.
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
@@ -422,7 +429,8 @@ static void labpc_config(struct pcmcia_device *link)
 		break;
 
 	      next_entry:
-		if ((last_ret = pcmcia_get_next_tuple(link, &tuple))) {
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
+		if (last_ret) {
 			cs_error(link, GetNextTuple, last_ret);
 			goto cs_failed;
 		}
@@ -433,18 +441,21 @@ static void labpc_config(struct pcmcia_device *link)
 	   handler to the interrupt, unless the 'Handler' member of the
 	   irq structure is initialized.
 	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		if ((last_ret = pcmcia_request_irq(link, &link->irq))) {
+	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
+		last_ret = pcmcia_request_irq(link, &link->irq);
+		if (last_ret) {
 			cs_error(link, RequestIRQ, last_ret);
 			goto cs_failed;
 		}
+	}
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf))) {
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+	if (last_ret) {
 		cs_error(link, RequestConfiguration, last_ret);
 		goto cs_failed;
 	}
@@ -501,7 +512,7 @@ static void labpc_release(struct pcmcia_device *link)
 
 static int labpc_cs_suspend(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info_t *local = link->priv;
 
 	/* Mark the device as stopped, to block IO until later */
 	local->stop = 1;
@@ -510,7 +521,7 @@ static int labpc_cs_suspend(struct pcmcia_device *link)
 
 static int labpc_cs_resume(struct pcmcia_device *link)
 {
-	local_info_t *local = link->priv;
+	struct local_info_t *local = link->priv;
 
 	local->stop = 0;
 	return 0;

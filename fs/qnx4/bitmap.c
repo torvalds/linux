@@ -13,14 +13,9 @@
  * 28-06-1998 by Frank Denis : qnx4_free_inode (to be fixed) .
  */
 
-#include <linux/time.h>
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
-#include <linux/stat.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
 #include <linux/buffer_head.h>
 #include <linux/bitops.h>
+#include "qnx4.h"
 
 #if 0
 int qnx4_new_block(struct super_block *sb)

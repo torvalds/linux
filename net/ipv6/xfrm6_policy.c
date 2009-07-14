@@ -157,7 +157,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	ipv6_addr_copy(&fl->fl6_dst, reverse ? &hdr->saddr : &hdr->daddr);
 	ipv6_addr_copy(&fl->fl6_src, reverse ? &hdr->daddr : &hdr->saddr);
 
-	while (pskb_may_pull(skb, nh + offset + 1 - skb->data)) {
+	while (nh + offset + 1 < skb->data ||
+	       pskb_may_pull(skb, nh + offset + 1 - skb->data)) {
 		nh = skb_network_header(skb);
 		exthdr = (struct ipv6_opt_hdr *)(nh + offset);
 
@@ -177,7 +178,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 		case IPPROTO_TCP:
 		case IPPROTO_SCTP:
 		case IPPROTO_DCCP:
-			if (!onlyproto && pskb_may_pull(skb, nh + offset + 4 - skb->data)) {
+			if (!onlyproto && (nh + offset + 4 < skb->data ||
+			     pskb_may_pull(skb, nh + offset + 4 - skb->data))) {
 				__be16 *ports = (__be16 *)exthdr;
 
 				fl->fl_ip_sport = ports[!!reverse];

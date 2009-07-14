@@ -19,7 +19,6 @@
 #include <linux/jiffies.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/namei.h>
 #include "fat.h"
@@ -502,11 +501,11 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 	if (utf8) {
 		int name_len = strlen(name);
 
-		*outlen = utf8_mbstowcs((wchar_t *)outname, name, PATH_MAX);
+		*outlen = utf8s_to_utf16s(name, PATH_MAX, (wchar_t *) outname);
 
 		/*
 		 * We stripped '.'s before and set len appropriately,
-		 * but utf8_mbstowcs doesn't care about len
+		 * but utf8s_to_utf16s doesn't care about len
 		 */
 		*outlen -= (name_len - len);
 
@@ -965,7 +964,7 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 		int start = MSDOS_I(new_dir)->i_logstart;
 		dotdot_de->start = cpu_to_le16(start);
 		dotdot_de->starthi = cpu_to_le16(start >> 16);
-		mark_buffer_dirty(dotdot_bh);
+		mark_buffer_dirty_inode(dotdot_bh, old_inode);
 		if (IS_DIRSYNC(new_dir)) {
 			err = sync_dirty_buffer(dotdot_bh);
 			if (err)
@@ -1009,7 +1008,7 @@ error_dotdot:
 		int start = MSDOS_I(old_dir)->i_logstart;
 		dotdot_de->start = cpu_to_le16(start);
 		dotdot_de->starthi = cpu_to_le16(start >> 16);
-		mark_buffer_dirty(dotdot_bh);
+		mark_buffer_dirty_inode(dotdot_bh, old_inode);
 		corrupt |= sync_dirty_buffer(dotdot_bh);
 	}
 error_inode:
@@ -1030,7 +1029,7 @@ error_inode:
 		sinfo.bh = NULL;
 	}
 	if (corrupt < 0) {
-		fat_fs_panic(new_dir->i_sb,
+		fat_fs_error(new_dir->i_sb,
 			     "%s: Filesystem corrupted (i_pos %lld)",
 			     __func__, sinfo.i_pos);
 	}

@@ -1484,7 +1484,7 @@ static int emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
  stop_queue:
 	netif_stop_queue(ndev);
 	DBG2(dev, "stopped TX queue" NL);
-	return 1;
+	return NETDEV_TX_BUSY;
 }
 
 /* Tx lock BHs */

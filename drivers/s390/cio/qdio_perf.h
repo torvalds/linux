@@ -9,7 +9,6 @@
 #define QDIO_PERF_H
 
 #include <linux/types.h>
-#include <linux/device.h>
 #include <asm/atomic.h>
 
 struct qdio_perf_stats {
@@ -50,10 +49,13 @@ struct qdio_perf_stats {
 extern struct qdio_perf_stats perf_stats;
 extern int qdio_performance_stats;
 
+static inline void qdio_perf_stat_inc(atomic_long_t *count)
+{
+	if (qdio_performance_stats)
+		atomic_long_inc(count);
+}
+
 int qdio_setup_perf_stats(void);
 void qdio_remove_perf_stats(void);
-
-extern void qdio_perf_stat_inc(atomic_long_t *count);
-extern void qdio_perf_stat_dec(atomic_long_t *count);
 
 #endif

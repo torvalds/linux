@@ -132,7 +132,7 @@ kobject_name():
     const char *kobject_name(const struct kobject * kobj);
 
 There is a helper function to both initialize and add the kobject to the
-kernel at the same time, called supprisingly enough kobject_init_and_add():
+kernel at the same time, called surprisingly enough kobject_init_and_add():
 
     int kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
                              struct kobject *parent, const char *fmt, ...);

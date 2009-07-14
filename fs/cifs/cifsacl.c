@@ -327,7 +327,7 @@ static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
 
 static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 		       struct cifs_sid *pownersid, struct cifs_sid *pgrpsid,
-		       struct inode *inode)
+		       struct cifs_fattr *fattr)
 {
 	int i;
 	int num_aces = 0;
@@ -340,7 +340,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	if (!pdacl) {
 		/* no DACL in the security descriptor, set
 		   all the permissions for user/group/other */
-		inode->i_mode |= S_IRWXUGO;
+		fattr->cf_mode |= S_IRWXUGO;
 		return;
 	}
 
@@ -357,7 +357,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	/* reset rwx permissions for user/group/other.
 	   Also, if num_aces is 0 i.e. DACL has no ACEs,
 	   user/group/other have no permissions */
-	inode->i_mode &= ~(S_IRWXUGO);
+	fattr->cf_mode &= ~(S_IRWXUGO);
 
 	acl_base = (char *)pdacl;
 	acl_size = sizeof(struct cifs_acl);
@@ -379,17 +379,17 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 			if (compare_sids(&(ppace[i]->sid), pownersid))
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
-						     &(inode->i_mode),
+						     &fattr->cf_mode,
 						     &user_mask);
 			if (compare_sids(&(ppace[i]->sid), pgrpsid))
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
-						     &(inode->i_mode),
+						     &fattr->cf_mode,
 						     &group_mask);
 			if (compare_sids(&(ppace[i]->sid), &sid_everyone))
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
-						     &(inode->i_mode),
+						     &fattr->cf_mode,
 						     &other_mask);
 
 /*			memcpy((void *)(&(cifscred->aces[i])),
@@ -464,7 +464,7 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 
 /* Convert CIFS ACL to POSIX form */
 static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
-			  struct inode *inode)
+			  struct cifs_fattr *fattr)
 {
 	int rc;
 	struct cifs_sid *owner_sid_ptr, *group_sid_ptr;
@@ -472,7 +472,7 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 	char *end_of_acl = ((char *)pntsd) + acl_len;
 	__u32 dacloffset;
 
-	if ((inode == NULL) || (pntsd == NULL))
+	if (pntsd == NULL)
 		return -EIO;
 
 	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
@@ -497,7 +497,7 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 
 	if (dacloffset)
 		parse_dacl(dacl_ptr, end_of_acl, owner_sid_ptr,
-			   group_sid_ptr, inode);
+			   group_sid_ptr, fattr);
 	else
 		cFYI(1, ("no ACL")); /* BB grant all or default perms? */
 
@@ -507,7 +507,6 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 			sizeof(struct cifs_sid));
 	memcpy((void *)(&(cifscred->gsid)), (void *)group_sid_ptr,
 			sizeof(struct cifs_sid)); */
-
 
 	return 0;
 }
@@ -552,134 +551,143 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 	return rc;
 }
 
-
-/* Retrieve an ACL from the server */
-static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
-				       const char *path, const __u16 *pfid)
+static struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
+		__u16 fid, u32 *pacllen)
 {
-	struct cifsFileInfo *open_file = NULL;
-	bool unlock_file = false;
-	int xid;
-	int rc = -EIO;
-	__u16 fid;
-	struct super_block *sb;
-	struct cifs_sb_info *cifs_sb;
 	struct cifs_ntsd *pntsd = NULL;
-
-	cFYI(1, ("get mode from ACL for %s", path));
-
-	if (inode == NULL)
-		return NULL;
+	int xid, rc;
 
 	xid = GetXid();
-	if (pfid == NULL)
-		open_file = find_readable_file(CIFS_I(inode));
-	else
-		fid = *pfid;
+	rc = CIFSSMBGetCIFSACL(xid, cifs_sb->tcon, fid, &pntsd, pacllen);
+	FreeXid(xid);
 
-	sb = inode->i_sb;
-	if (sb == NULL) {
-		FreeXid(xid);
-		return NULL;
-	}
-	cifs_sb = CIFS_SB(sb);
 
-	if (open_file) {
-		unlock_file = true;
-		fid = open_file->netfid;
-	} else if (pfid == NULL) {
-		int oplock = 0;
-		/* open file */
-		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
-				READ_CONTROL, 0, &fid, &oplock, NULL,
-				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc != 0) {
-			cERROR(1, ("Unable to open file to get ACL"));
-			FreeXid(xid);
-			return NULL;
-		}
+	cFYI(1, ("GetCIFSACL rc = %d ACL len %d", rc, *pacllen));
+	return pntsd;
+}
+
+static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
+		const char *path, u32 *pacllen)
+{
+	struct cifs_ntsd *pntsd = NULL;
+	int oplock = 0;
+	int xid, rc;
+	__u16 fid;
+
+	xid = GetXid();
+
+	rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN, READ_CONTROL, 0,
+			 &fid, &oplock, NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc) {
+		cERROR(1, ("Unable to open file to get ACL"));
+		goto out;
 	}
 
 	rc = CIFSSMBGetCIFSACL(xid, cifs_sb->tcon, fid, &pntsd, pacllen);
 	cFYI(1, ("GetCIFSACL rc = %d ACL len %d", rc, *pacllen));
-	if (unlock_file == true) /* find_readable_file increments ref count */
-		atomic_dec(&open_file->wrtPending);
-	else if (pfid == NULL) /* if opened above we have to close the handle */
-		CIFSSMBClose(xid, cifs_sb->tcon, fid);
-	/* else handle was passed in by caller */
 
+	CIFSSMBClose(xid, cifs_sb->tcon, fid);
+ out:
 	FreeXid(xid);
 	return pntsd;
+}
+
+/* Retrieve an ACL from the server */
+static struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
+				      struct inode *inode, const char *path,
+				      u32 *pacllen)
+{
+	struct cifs_ntsd *pntsd = NULL;
+	struct cifsFileInfo *open_file = NULL;
+
+	if (inode)
+		open_file = find_readable_file(CIFS_I(inode));
+	if (!open_file)
+		return get_cifs_acl_by_path(cifs_sb, path, pacllen);
+
+	pntsd = get_cifs_acl_by_fid(cifs_sb, open_file->netfid, pacllen);
+	atomic_dec(&open_file->wrtPending);
+	return pntsd;
+}
+
+static int set_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb, __u16 fid,
+		struct cifs_ntsd *pnntsd, u32 acllen)
+{
+	int xid, rc;
+
+	xid = GetXid();
+	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
+	FreeXid(xid);
+
+	cFYI(DBG2, ("SetCIFSACL rc = %d", rc));
+	return rc;
+}
+
+static int set_cifs_acl_by_path(struct cifs_sb_info *cifs_sb, const char *path,
+		struct cifs_ntsd *pnntsd, u32 acllen)
+{
+	int oplock = 0;
+	int xid, rc;
+	__u16 fid;
+
+	xid = GetXid();
+
+	rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN, WRITE_DAC, 0,
+			 &fid, &oplock, NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc) {
+		cERROR(1, ("Unable to open file to set ACL"));
+		goto out;
+	}
+
+	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
+	cFYI(DBG2, ("SetCIFSACL rc = %d", rc));
+
+	CIFSSMBClose(xid, cifs_sb->tcon, fid);
+ out:
+	FreeXid(xid);
+	return rc;
 }
 
 /* Set an ACL on the server */
 static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 				struct inode *inode, const char *path)
 {
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *open_file;
-	bool unlock_file = false;
-	int xid;
-	int rc = -EIO;
-	__u16 fid;
-	struct super_block *sb;
-	struct cifs_sb_info *cifs_sb;
+	int rc;
 
 	cFYI(DBG2, ("set ACL for %s from mode 0x%x", path, inode->i_mode));
 
-	if (!inode)
-		return rc;
-
-	sb = inode->i_sb;
-	if (sb == NULL)
-		return rc;
-
-	cifs_sb = CIFS_SB(sb);
-	xid = GetXid();
-
 	open_file = find_readable_file(CIFS_I(inode));
-	if (open_file) {
-		unlock_file = true;
-		fid = open_file->netfid;
-	} else {
-		int oplock = 0;
-		/* open file */
-		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
-				WRITE_DAC, 0, &fid, &oplock, NULL,
-				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc != 0) {
-			cERROR(1, ("Unable to open file to set ACL"));
-			FreeXid(xid);
-			return rc;
-		}
-	}
+	if (!open_file)
+		return set_cifs_acl_by_path(cifs_sb, path, pnntsd, acllen);
 
-	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
-	cFYI(DBG2, ("SetCIFSACL rc = %d", rc));
-	if (unlock_file)
-		atomic_dec(&open_file->wrtPending);
-	else
-		CIFSSMBClose(xid, cifs_sb->tcon, fid);
-
-	FreeXid(xid);
-
+	rc = set_cifs_acl_by_fid(cifs_sb, open_file->netfid, pnntsd, acllen);
+	atomic_dec(&open_file->wrtPending);
 	return rc;
 }
 
 /* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
-void acl_to_uid_mode(struct inode *inode, const char *path, const __u16 *pfid)
+void
+cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
+		  struct inode *inode, const char *path, const __u16 *pfid)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	u32 acllen = 0;
 	int rc = 0;
 
 	cFYI(DBG2, ("converting ACL to mode for %s", path));
-	pntsd = get_cifs_acl(&acllen, inode, path, pfid);
+
+	if (pfid)
+		pntsd = get_cifs_acl_by_fid(cifs_sb, *pfid, &acllen);
+	else
+		pntsd = get_cifs_acl(cifs_sb, inode, path, &acllen);
 
 	/* if we can retrieve the ACL, now parse Access Control Entries, ACEs */
 	if (pntsd)
-		rc = parse_sec_desc(pntsd, acllen, inode);
+		rc = parse_sec_desc(pntsd, acllen, fattr);
 	if (rc)
 		cFYI(1, ("parse sec desc failed rc = %d", rc));
 
@@ -698,7 +706,7 @@ int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 	cFYI(DBG2, ("set ACL from mode for %s", path));
 
 	/* Get the security descriptor */
-	pntsd = get_cifs_acl(&secdesclen, inode, path, NULL);
+	pntsd = get_cifs_acl(CIFS_SB(inode->i_sb), inode, path, &secdesclen);
 
 	/* Add three ACEs for owner, group, everyone getting rid of
 	   other ACEs as chmod disables ACEs and set the security descriptor */

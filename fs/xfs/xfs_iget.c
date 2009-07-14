@@ -18,6 +18,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
+#include "xfs_acl.h"
 #include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
@@ -500,10 +501,7 @@ xfs_ireclaim(
 	 * ilock one but will still hold the iolock.
 	 */
 	xfs_ilock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-	/*
-	 * Release dquots (and their references) if any.
-	 */
-	XFS_QM_DQDETACH(ip->i_mount, ip);
+	xfs_qm_dqdetach(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 
 	switch (ip->i_d.di_mode & S_IFMT) {

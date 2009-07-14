@@ -31,6 +31,7 @@ Status: experimental
 
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 #include <linux/delay.h>
 #include <linux/pci.h>
@@ -61,19 +62,19 @@ struct das16cs_board {
 };
 static const struct das16cs_board das16cs_boards[] = {
 	{
-	      device_id:0x0000,/* unknown */
-	      name:	"PC-CARD DAS16/16",
-	      n_ao_chans:0,
+	.device_id = 0x0000,/* unknown */
+	.name = "PC-CARD DAS16/16",
+	.n_ao_chans = 0,
 		},
 	{
-	      device_id:0x0039,
-	      name:	"PC-CARD DAS16/16-AO",
-	      n_ao_chans:2,
+	.device_id = 0x0039,
+	.name = "PC-CARD DAS16/16-AO",
+	.n_ao_chans = 2,
 		},
 	{
-	      device_id:0x4009,
-	      name:	"PCM-DAS16s/16",
-	      n_ao_chans:0,
+	.device_id = 0x4009,
+	.name = "PCM-DAS16s/16",
+	.n_ao_chans = 0,
 		},
 };
 
@@ -89,13 +90,13 @@ struct das16cs_private {
 };
 #define devpriv ((struct das16cs_private *)dev->private)
 
-static int das16cs_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int das16cs_detach(struct comedi_device * dev);
+static int das16cs_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int das16cs_detach(struct comedi_device *dev);
 static struct comedi_driver driver_das16cs = {
-      driver_name:"cb_das16_cs",
-      module:THIS_MODULE,
-      attach:das16cs_attach,
-      detach:das16cs_detach,
+	.driver_name = "cb_das16_cs",
+	.module = THIS_MODULE,
+	.attach = das16cs_attach,
+	.detach = das16cs_detach,
 };
 
 static struct pcmcia_device *cur_dev = NULL;
@@ -108,26 +109,26 @@ static const struct comedi_lrange das16cs_ai_range = { 4, {
 	}
 };
 
-static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG);
-static int das16cs_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16cs_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int das16cs_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int das16cs_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16cs_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16cs_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16cs_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16cs_timer_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16cs_timer_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static irqreturn_t das16cs_interrupt(int irq, void *d);
+static int das16cs_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16cs_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int das16cs_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int das16cs_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16cs_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16cs_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16cs_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16cs_timer_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16cs_timer_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
-static int get_prodid(struct comedi_device * dev, struct pcmcia_device *link)
+static int get_prodid(struct comedi_device *dev, struct pcmcia_device *link)
 {
 	tuple_t tuple;
 	u_short buf[128];
@@ -165,7 +166,7 @@ static const struct das16cs_board *das16cs_probe(struct comedi_device * dev,
 	return NULL;
 }
 
-static int das16cs_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int das16cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pcmcia_device *link;
 	struct comedi_subdevice *s;
@@ -187,8 +188,8 @@ static int das16cs_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	}
 	printk("\n");
 
-	ret = comedi_request_irq(link->irq.AssignedIRQ, das16cs_interrupt,
-		IRQF_SHARED, "cb_das16_cs", dev);
+	ret = request_irq(link->irq.AssignedIRQ, das16cs_interrupt,
+			  IRQF_SHARED, "cb_das16_cs", dev);
 	if (ret < 0) {
 		return ret;
 	}
@@ -265,20 +266,20 @@ static int das16cs_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	return 1;
 }
 
-static int das16cs_detach(struct comedi_device * dev)
+static int das16cs_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: das16cs: remove\n", dev->minor);
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	return 0;
 }
 
-static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t das16cs_interrupt(int irq, void *d)
 {
-	//struct comedi_device *dev = d;
+	/* struct comedi_device *dev = d; */
 	return IRQ_HANDLED;
 }
 
@@ -286,8 +287,8 @@ static irqreturn_t das16cs_interrupt(int irq, void *d PT_REGS_ARG)
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
-static int das16cs_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16cs_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int to;
@@ -328,13 +329,13 @@ static int das16cs_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 	return i;
 }
 
-static int das16cs_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s)
+static int das16cs_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	return -EINVAL;
 }
 
-static int das16cs_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int das16cs_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0;
 	int tmp;
@@ -489,8 +490,8 @@ static int das16cs_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevic
 	return 0;
 }
 
-static int das16cs_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16cs_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -503,7 +504,7 @@ static int das16cs_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 		d = data[i];
 
 		outw(devpriv->status1, dev->iobase + 4);
-		comedi_udelay(1);
+		udelay(1);
 
 		status1 = devpriv->status1 & ~0xf;
 		if (chan)
@@ -513,17 +514,17 @@ static int das16cs_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 
 /* 		printk("0x%04x\n",status1);*/
 		outw(status1, dev->iobase + 4);
-		comedi_udelay(1);
+		udelay(1);
 
 		for (bit = 15; bit >= 0; bit--) {
 			int b = (d >> bit) & 0x1;
 			b <<= 1;
 /*			printk("0x%04x\n",status1 | b | 0x0000);*/
 			outw(status1 | b | 0x0000, dev->iobase + 4);
-			comedi_udelay(1);
+			udelay(1);
 /*			printk("0x%04x\n",status1 | b | 0x0004);*/
 			outw(status1 | b | 0x0004, dev->iobase + 4);
-			comedi_udelay(1);
+			udelay(1);
 		}
 /*		make high both DAC0CS and DAC1CS to load
 		new data and update analog output*/
@@ -535,8 +536,8 @@ static int das16cs_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 
 /* AO subdevices should have a read insn as well as a write insn.
  * Usually this means copying a value stored in devpriv. */
-static int das16cs_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16cs_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -552,8 +553,8 @@ static int das16cs_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice 
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int das16cs_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16cs_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -572,8 +573,8 @@ static int das16cs_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 	return 2;
 }
 
-static int das16cs_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16cs_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 	int bits;
@@ -610,14 +611,14 @@ static int das16cs_dio_insn_config(struct comedi_device * dev, struct comedi_sub
 	return insn->n;
 }
 
-static int das16cs_timer_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16cs_timer_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	return -EINVAL;
 }
 
-static int das16cs_timer_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16cs_timer_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	return -EINVAL;
 }
@@ -766,15 +767,22 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
+
 	last_fn = GetFirstTuple;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret != 0)
 		goto cs_failed;
+
 	last_fn = GetTupleData;
-	if ((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0)
+	last_ret = pcmcia_get_tuple_data(link, &tuple);
+	if (last_ret != 0)
 		goto cs_failed;
+
 	last_fn = ParseTuple;
-	if ((last_ret = pcmcia_parse_tuple(link, &tuple, &parse)) != 0)
+	last_ret = pcmcia_parse_tuple(&tuple, &parse);
+	if (last_ret != 0)
 		goto cs_failed;
+
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
@@ -792,13 +800,16 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	last_fn = GetFirstTuple;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
+
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret)
 		goto cs_failed;
+
 	while (1) {
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 		if (pcmcia_get_tuple_data(link, &tuple))
 			goto next_entry;
-		if (pcmcia_parse_tuple(link, &tuple, &parse))
+		if (pcmcia_parse_tuple(&tuple, &parse))
 			goto next_entry;
 
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
@@ -844,7 +855,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 
 	      next_entry:
 		last_fn = GetNextTuple;
-		if ((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0)
+
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
+		if (last_ret)
 			goto cs_failed;
 	}
 
@@ -855,7 +868,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
 		last_fn = RequestIRQ;
-		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0)
+
+		last_ret = pcmcia_request_irq(link, &link->irq);
+		if (last_ret)
 			goto cs_failed;
 	}
 	/*
@@ -864,7 +879,8 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	   card and host interface into "Memory and IO" mode.
 	 */
 	last_fn = RequestConfiguration;
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0)
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+	if (last_ret)
 		goto cs_failed;
 
 	/*
@@ -973,4 +989,4 @@ void __exit cleanup_module(void)
 
 #else
 COMEDI_INITCLEANUP(driver_das16cs);
-#endif //CONFIG_PCMCIA
+#endif /* CONFIG_PCMCIA */

@@ -161,12 +161,12 @@ lan_init_chip(struct parisc_device *dev)
 
 	if (!dev->irq) {
 		printk(KERN_ERR "%s: IRQ not found for i82596 at 0x%lx\n",
-			__FILE__, dev->hpa.start);
+			__FILE__, (unsigned long)dev->hpa.start);
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "Found i82596 at 0x%lx, IRQ %d\n", dev->hpa.start,
-			dev->irq);
+	printk(KERN_INFO "Found i82596 at 0x%lx, IRQ %d\n",
+			(unsigned long)dev->hpa.start, dev->irq);
 
 	netdevice = alloc_etherdev(sizeof(struct i596_private));
 	if (!netdevice)

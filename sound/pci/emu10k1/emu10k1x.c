@@ -858,7 +858,6 @@ static int __devinit snd_emu10k1x_pcm(struct emu10k1x *emu, int device, struct s
 	}
 
 	pcm->info_flags = 0;
-	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	switch(device) {
 	case 0:
 		strcpy(pcm->name, "EMU10K1X Front");
@@ -1608,7 +1607,7 @@ static void __devexit snd_emu10k1x_remove(struct pci_dev *pci)
 
 // PCI IDs
 static struct pci_device_id snd_emu10k1x_ids[] = {
-	{ 0x1102, 0x0006, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },	/* Dell OEM version (EMU10K1) */
+	{ PCI_VDEVICE(CREATIVE, 0x0006), 0 },	/* Dell OEM version (EMU10K1) */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, snd_emu10k1x_ids);

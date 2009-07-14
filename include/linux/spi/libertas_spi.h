@@ -22,9 +22,6 @@ struct libertas_spi_platform_data {
 	 * speed, you may want to use 0 here. */
 	u16 use_dummy_writes;
 
-	/* GPIO number to use as chip select */
-	u16 gpio_cs;
-
 	/* Board specific setup/teardown */
 	int (*setup)(struct spi_device *spi);
 	int (*teardown)(struct spi_device *spi);

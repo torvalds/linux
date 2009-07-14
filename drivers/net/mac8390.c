@@ -620,19 +620,12 @@ static int __init mac8390_initdev(struct net_device * dev, struct nubus_dev * nd
 
 	/* Good, done, now spit out some messages */
 	printk(KERN_INFO "%s: %s in slot %X (type %s)\n",
-		   dev->name, ndev->board->name, ndev->board->slot, cardname[type]);
-	printk(KERN_INFO "MAC ");
-	{
-		int i;
-		for (i = 0; i < 6; i++) {
-			printk("%2.2x", dev->dev_addr[i]);
-			if (i < 5)
-				printk(":");
-		}
-	}
-	printk(" IRQ %d, %d KB shared memory at %#lx,  %d-bit access.\n",
-		   dev->irq, (int)((dev->mem_end - dev->mem_start)/0x1000) * 4,
-		   dev->mem_start, access_bitmode?32:16);
+	       dev->name, ndev->board->name, ndev->board->slot, cardname[type]);
+	printk(KERN_INFO
+	       "MAC %pM IRQ %d, %d KB shared memory at %#lx, %d-bit access.\n",
+	       dev->dev_addr, dev->irq,
+	       (unsigned int)(dev->mem_end - dev->mem_start) >> 10,
+	       dev->mem_start, access_bitmode ? 32 : 16);
 	return 0;
 }
 

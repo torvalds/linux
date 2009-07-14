@@ -71,6 +71,7 @@ static const struct pvr2_device_desc pvr2_device_29xxx = {
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_29XXX,
 };
 
 
@@ -284,6 +285,11 @@ static struct tda10048_config hauppauge_tda10048_config = {
 	.output_mode    = TDA10048_PARALLEL_OUTPUT,
 	.fwbulkwritelen = TDA10048_BULKWRITE_50,
 	.inversion      = TDA10048_INVERSION_ON,
+	.dtv6_if_freq_khz = TDA10048_IF_3300,
+	.dtv7_if_freq_khz = TDA10048_IF_3800,
+	.dtv8_if_freq_khz = TDA10048_IF_4300,
+	.clk_freq_khz   = TDA10048_CLK_16000,
+	.disable_gate_access = 1,
 };
 
 static struct tda829x_config tda829x_no_probe = {

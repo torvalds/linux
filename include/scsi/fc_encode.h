@@ -107,7 +107,6 @@ static inline int fc_ct_fill(struct fc_lport *lport, struct fc_frame *fp,
 		break;
 
 	default:
-		FC_DBG("Invalid op code %x \n", op);
 		return -EINVAL;
 	}
 	*r_ctl = FC_RCTL_DD_UNSOL_CTL;
@@ -298,7 +297,6 @@ static inline int fc_els_fill(struct fc_lport *lport, struct fc_rport *rport,
 		break;
 
 	default:
-		FC_DBG("Invalid op code %x \n", op);
 		return -EINVAL;
 	}
 

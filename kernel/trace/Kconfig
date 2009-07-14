@@ -18,6 +18,13 @@ config HAVE_FUNCTION_TRACER
 config HAVE_FUNCTION_GRAPH_TRACER
 	bool
 
+config HAVE_FUNCTION_GRAPH_FP_TEST
+	bool
+	help
+	 An arch may pass in a unique value (frame pointer) to both the
+	 entering and exiting of a function. On exit, the value is compared
+	 and if it does not match, then it will panic the kernel.
+
 config HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	bool
 	help
@@ -121,6 +128,7 @@ config FUNCTION_GRAPH_TRACER
 	bool "Kernel Function Graph Tracer"
 	depends on HAVE_FUNCTION_GRAPH_TRACER
 	depends on FUNCTION_TRACER
+	depends on !X86_32 || !CC_OPTIMIZE_FOR_SIZE
 	default y
 	help
 	  Enable the kernel to trace a function at both its return
@@ -147,7 +155,7 @@ config IRQSOFF_TRACER
 	  disabled by default and can be runtime (re-)started
 	  via:
 
-	      echo 0 > /debugfs/tracing/tracing_max_latency
+	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
 
 	  (Note that kernel size and overhead increases with this option
 	  enabled. This option and the preempt-off timing option can be
@@ -168,7 +176,7 @@ config PREEMPT_TRACER
 	  disabled by default and can be runtime (re-)started
 	  via:
 
-	      echo 0 > /debugfs/tracing/tracing_max_latency
+	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
 
 	  (Note that kernel size and overhead increases with this option
 	  enabled. This option and the irqs-off timing option can be
@@ -218,13 +226,13 @@ config BOOT_TRACER
 	  the timings of the initcalls and traces key events and the identity
 	  of tasks that can cause boot delays, such as context-switches.
 
-	  Its aim is to be parsed by the /scripts/bootgraph.pl tool to
+	  Its aim is to be parsed by the scripts/bootgraph.pl tool to
 	  produce pretty graphics about boot inefficiencies, giving a visual
 	  representation of the delays during initcalls - but the raw
 	  /debug/tracing/trace text output is readable too.
 
-	  You must pass in ftrace=initcall to the kernel command line
-	  to enable this on bootup.
+	  You must pass in initcall_debug and ftrace=initcall to the kernel
+	  command line to enable this on bootup.
 
 config TRACE_BRANCH_PROFILING
 	bool
@@ -261,7 +269,7 @@ config PROFILE_ANNOTATED_BRANCHES
 	  This tracer profiles all the the likely and unlikely macros
 	  in the kernel. It will display the results in:
 
-	  /debugfs/tracing/profile_annotated_branch
+	  /sys/kernel/debug/tracing/profile_annotated_branch
 
 	  Note: this will add a significant overhead, only turn this
 	  on if you need to profile the system's use of these macros.
@@ -274,7 +282,7 @@ config PROFILE_ALL_BRANCHES
 	  taken in the kernel is recorded whether it hit or miss.
 	  The results will be displayed in:
 
-	  /debugfs/tracing/profile_branch
+	  /sys/kernel/debug/tracing/profile_branch
 
 	  This option also enables the likely/unlikely profiler.
 
@@ -323,7 +331,7 @@ config STACK_TRACER
 	select KALLSYMS
 	help
 	  This special tracer records the maximum stack footprint of the
-	  kernel and displays it in debugfs/tracing/stack_trace.
+	  kernel and displays it in /sys/kernel/debug/tracing/stack_trace.
 
 	  This tracer works by hooking into every function call that the
 	  kernel executes, and keeping a maximum stack depth value and

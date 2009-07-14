@@ -47,6 +47,7 @@
 #include "acnamesp.h"
 #include "actables.h"
 #include "acdispat.h"
+#include "acevents.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exconfig")
@@ -56,6 +57,10 @@ static acpi_status
 acpi_ex_add_table(u32 table_index,
 		  struct acpi_namespace_node *parent_node,
 		  union acpi_operand_object **ddb_handle);
+
+static acpi_status
+acpi_ex_region_read(union acpi_operand_object *obj_desc,
+		    u32 length, u8 *buffer);
 
 /*******************************************************************************
  *
@@ -91,6 +96,7 @@ acpi_ex_add_table(u32 table_index,
 
 	/* Init the table handle */
 
+	obj_desc->common.flags |= AOPOBJ_DATA_VALID;
 	obj_desc->reference.class = ACPI_REFCLASS_TABLE;
 	*ddb_handle = obj_desc;
 
@@ -229,6 +235,8 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 				       walk_state);
 		if (ACPI_FAILURE(status)) {
 			(void)acpi_ex_unload_table(ddb_handle);
+
+			acpi_ut_remove_reference(ddb_handle);
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -250,6 +258,47 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	*return_desc = ddb_handle;
 	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ex_region_read
+ *
+ * PARAMETERS:  obj_desc        - Region descriptor
+ *              Length          - Number of bytes to read
+ *              Buffer          - Pointer to where to put the data
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Read data from an operation region. The read starts from the
+ *              beginning of the region.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ex_region_read(union acpi_operand_object *obj_desc, u32 length, u8 *buffer)
+{
+	acpi_status status;
+	acpi_integer value;
+	u32 region_offset = 0;
+	u32 i;
+
+	/* Bytewise reads */
+
+	for (i = 0; i < length; i++) {
+		status = acpi_ev_address_space_dispatch(obj_desc, ACPI_READ,
+							region_offset, 8,
+							&value);
+		if (ACPI_FAILURE(status)) {
+			return status;
+		}
+
+		*buffer = (u8)value;
+		buffer++;
+		region_offset++;
+	}
+
+	return AE_OK;
 }
 
 /*******************************************************************************
@@ -314,18 +363,23 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 			}
 		}
 
-		/*
-		 * Map the table header and get the actual table length. The region
-		 * length is not guaranteed to be the same as the table length.
-		 */
-		table = acpi_os_map_memory(obj_desc->region.address,
-					   sizeof(struct acpi_table_header));
+		/* Get the table header first so we can get the table length */
+
+		table = ACPI_ALLOCATE(sizeof(struct acpi_table_header));
 		if (!table) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
+		status =
+		    acpi_ex_region_read(obj_desc,
+					sizeof(struct acpi_table_header),
+					ACPI_CAST_PTR(u8, table));
 		length = table->length;
-		acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
+		ACPI_FREE(table);
+
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
 
 		/* Must have at least an ACPI table header */
 
@@ -334,10 +388,19 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * The memory region is not guaranteed to remain stable and we must
-		 * copy the table to a local buffer. For example, the memory region
-		 * is corrupted after suspend on some machines. Dynamically loaded
-		 * tables are usually small, so this overhead is minimal.
+		 * The original implementation simply mapped the table, with no copy.
+		 * However, the memory region is not guaranteed to remain stable and
+		 * we must copy the table to a local buffer. For example, the memory
+		 * region is corrupted after suspend on some machines. Dynamically
+		 * loaded tables are usually small, so this overhead is minimal.
+		 *
+		 * The latest implementation (5/2009) does not use a mapping at all.
+		 * We use the low-level operation region interface to read the table
+		 * instead of the obvious optimization of using a direct mapping.
+		 * This maintains a consistent use of operation regions across the
+		 * entire subsystem. This is important if additional processing must
+		 * be performed in the (possibly user-installed) operation region
+		 * handler. For example, acpi_exec and ASLTS depend on this.
 		 */
 
 		/* Allocate a buffer for the table */
@@ -347,16 +410,15 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
-		/* Map the entire table and copy it */
+		/* Read the entire table */
 
-		table = acpi_os_map_memory(obj_desc->region.address, length);
-		if (!table) {
+		status = acpi_ex_region_read(obj_desc, length,
+					     ACPI_CAST_PTR(u8,
+							   table_desc.pointer));
+		if (ACPI_FAILURE(status)) {
 			ACPI_FREE(table_desc.pointer);
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(status);
 		}
-
-		ACPI_MEMCPY(table_desc.pointer, table, length);
-		acpi_os_unmap_memory(table, length);
 
 		table_desc.address = obj_desc->region.address;
 		break;
@@ -454,6 +516,10 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(status);
 	}
 
+	/* Remove the reference by added by acpi_ex_store above */
+
+	acpi_ut_remove_reference(ddb_handle);
+
 	/* Invoke table handler if present */
 
 	if (acpi_gbl_table_handler) {
@@ -495,19 +561,30 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	/*
 	 * Validate the handle
-	 * Although the handle is partially validated in acpi_ex_reconfiguration(),
+	 * Although the handle is partially validated in acpi_ex_reconfiguration()
 	 * when it calls acpi_ex_resolve_operands(), the handle is more completely
 	 * validated here.
+	 *
+	 * Handle must be a valid operand object of type reference. Also, the
+	 * ddb_handle must still be marked valid (table has not been previously
+	 * unloaded)
 	 */
 	if ((!ddb_handle) ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(ddb_handle) != ACPI_DESC_TYPE_OPERAND) ||
-	    (ddb_handle->common.type != ACPI_TYPE_LOCAL_REFERENCE)) {
+	    (ddb_handle->common.type != ACPI_TYPE_LOCAL_REFERENCE) ||
+	    (!(ddb_handle->common.flags & AOPOBJ_DATA_VALID))) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Get the table index from the ddb_handle */
 
 	table_index = table_desc->reference.value;
+
+	/* Ensure the table is still loaded */
+
+	if (!acpi_tb_is_table_loaded(table_index)) {
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
 
 	/* Invoke table handler if present */
 
@@ -530,8 +607,10 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	(void)acpi_tb_release_owner_id(table_index);
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
-	/* Table unloaded, remove a reference to the ddb_handle object */
-
-	acpi_ut_remove_reference(ddb_handle);
+	/*
+	 * Invalidate the handle. We do this because the handle may be stored
+	 * in a named object and may not be actually deleted until much later.
+	 */
+	ddb_handle->common.flags &= ~AOPOBJ_DATA_VALID;
 	return_ACPI_STATUS(AE_OK);
 }

@@ -1551,7 +1551,7 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 		spin_unlock_irq(&lp->lock);
 		if (net_debug) printk("cs89x0: Tx buffer not free!\n");
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	/* Write the contents of the packet */
 	writewords(dev->base_addr, TX_FRAME_PORT,skb->data,(skb->len+1) >>1);

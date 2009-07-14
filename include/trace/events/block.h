@@ -25,9 +25,8 @@ TRACE_EVENT(block_rq_abort,
 
 	TP_fast_assign(
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = blk_pc_request(rq) ? 0 : rq->hard_sector;
-		__entry->nr_sector = blk_pc_request(rq) ?
-						0 : rq->hard_nr_sectors;
+		__entry->sector    = blk_pc_request(rq) ? 0 : blk_rq_pos(rq);
+		__entry->nr_sector = blk_pc_request(rq) ? 0 : blk_rq_sectors(rq);
 		__entry->errors    = rq->errors;
 
 		blk_fill_rwbs_rq(__entry->rwbs, rq);
@@ -59,10 +58,9 @@ TRACE_EVENT(block_rq_insert,
 
 	TP_fast_assign(
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = blk_pc_request(rq) ? 0 : rq->hard_sector;
-		__entry->nr_sector = blk_pc_request(rq) ?
-						0 : rq->hard_nr_sectors;
-		__entry->bytes     = blk_pc_request(rq) ? rq->data_len : 0;
+		__entry->sector    = blk_pc_request(rq) ? 0 : blk_rq_pos(rq);
+		__entry->nr_sector = blk_pc_request(rq) ? 0 : blk_rq_sectors(rq);
+		__entry->bytes     = blk_pc_request(rq) ? blk_rq_bytes(rq) : 0;
 
 		blk_fill_rwbs_rq(__entry->rwbs, rq);
 		blk_dump_cmd(__get_str(cmd), rq);
@@ -94,10 +92,9 @@ TRACE_EVENT(block_rq_issue,
 
 	TP_fast_assign(
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = blk_pc_request(rq) ? 0 : rq->hard_sector;
-		__entry->nr_sector = blk_pc_request(rq) ?
-						0 : rq->hard_nr_sectors;
-		__entry->bytes     = blk_pc_request(rq) ? rq->data_len : 0;
+		__entry->sector    = blk_pc_request(rq) ? 0 : blk_rq_pos(rq);
+		__entry->nr_sector = blk_pc_request(rq) ? 0 : blk_rq_sectors(rq);
+		__entry->bytes     = blk_pc_request(rq) ? blk_rq_bytes(rq) : 0;
 
 		blk_fill_rwbs_rq(__entry->rwbs, rq);
 		blk_dump_cmd(__get_str(cmd), rq);
@@ -128,9 +125,8 @@ TRACE_EVENT(block_rq_requeue,
 
 	TP_fast_assign(
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = blk_pc_request(rq) ? 0 : rq->hard_sector;
-		__entry->nr_sector = blk_pc_request(rq) ?
-						0 : rq->hard_nr_sectors;
+		__entry->sector    = blk_pc_request(rq) ? 0 : blk_rq_pos(rq);
+		__entry->nr_sector = blk_pc_request(rq) ? 0 : blk_rq_sectors(rq);
 		__entry->errors	   = rq->errors;
 
 		blk_fill_rwbs_rq(__entry->rwbs, rq);
@@ -161,9 +157,8 @@ TRACE_EVENT(block_rq_complete,
 
 	TP_fast_assign(
 		__entry->dev	   = rq->rq_disk ? disk_devt(rq->rq_disk) : 0;
-		__entry->sector    = blk_pc_request(rq) ? 0 : rq->hard_sector;
-		__entry->nr_sector = blk_pc_request(rq) ?
-						0 : rq->hard_nr_sectors;
+		__entry->sector    = blk_pc_request(rq) ? 0 : blk_rq_pos(rq);
+		__entry->nr_sector = blk_pc_request(rq) ? 0 : blk_rq_sectors(rq);
 		__entry->errors    = rq->errors;
 
 		blk_fill_rwbs_rq(__entry->rwbs, rq);

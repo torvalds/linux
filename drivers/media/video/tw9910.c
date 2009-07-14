@@ -875,9 +875,11 @@ static int tw9910_probe(struct i2c_client *client,
 	const struct tw9910_scale_ctrl *scale;
 	int                             i, ret;
 
-	info = client->dev.platform_data;
-	if (!info)
+	if (!client->dev.platform_data)
 		return -EINVAL;
+
+	info = container_of(client->dev.platform_data,
+			    struct tw9910_video_info, link);
 
 	if (!i2c_check_functionality(to_i2c_adapter(client->dev.parent),
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {

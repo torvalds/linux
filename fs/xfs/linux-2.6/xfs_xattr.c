@@ -29,67 +29,6 @@
 #include <linux/xattr.h>
 
 
-/*
- * ACL handling.  Should eventually be moved into xfs_acl.c
- */
-
-static int
-xfs_decode_acl(const char *name)
-{
-	if (strcmp(name, "posix_acl_access") == 0)
-		return _ACL_TYPE_ACCESS;
-	else if (strcmp(name, "posix_acl_default") == 0)
-		return _ACL_TYPE_DEFAULT;
-	return -EINVAL;
-}
-
-/*
- * Get system extended attributes which at the moment only
- * includes Posix ACLs.
- */
-static int
-xfs_xattr_system_get(struct inode *inode, const char *name,
-		void *buffer, size_t size)
-{
-	int acl;
-
-	acl = xfs_decode_acl(name);
-	if (acl < 0)
-		return acl;
-
-	return xfs_acl_vget(inode, buffer, size, acl);
-}
-
-static int
-xfs_xattr_system_set(struct inode *inode, const char *name,
-		const void *value, size_t size, int flags)
-{
-	int acl;
-
-	acl = xfs_decode_acl(name);
-	if (acl < 0)
-		return acl;
-	if (flags & XATTR_CREATE)
-		return -EINVAL;
-
-	if (!value)
-		return xfs_acl_vremove(inode, acl);
-
-	return xfs_acl_vset(inode, (void *)value, size, acl);
-}
-
-static struct xattr_handler xfs_xattr_system_handler = {
-	.prefix	= XATTR_SYSTEM_PREFIX,
-	.get	= xfs_xattr_system_get,
-	.set	= xfs_xattr_system_set,
-};
-
-
-/*
- * Real xattr handling.  The only difference between the namespaces is
- * a flag passed to the low-level attr code.
- */
-
 static int
 __xfs_xattr_get(struct inode *inode, const char *name,
 		void *value, size_t size, int xflags)
@@ -199,7 +138,9 @@ struct xattr_handler *xfs_xattr_handlers[] = {
 	&xfs_xattr_user_handler,
 	&xfs_xattr_trusted_handler,
 	&xfs_xattr_security_handler,
+#ifdef CONFIG_XFS_POSIX_ACL
 	&xfs_xattr_system_handler,
+#endif
 	NULL
 };
 
@@ -310,7 +251,7 @@ xfs_vn_listxattr(struct dentry *dentry, char *data, size_t size)
 	/*
 	 * Then add the two synthetic ACL attributes.
 	 */
-	if (xfs_acl_vhasacl_access(inode)) {
+	if (posix_acl_access_exists(inode)) {
 		error = list_one_attr(POSIX_ACL_XATTR_ACCESS,
 				strlen(POSIX_ACL_XATTR_ACCESS) + 1,
 				data, size, &context.count);
@@ -318,7 +259,7 @@ xfs_vn_listxattr(struct dentry *dentry, char *data, size_t size)
 			return error;
 	}
 
-	if (xfs_acl_vhasacl_default(inode)) {
+	if (posix_acl_default_exists(inode)) {
 		error = list_one_attr(POSIX_ACL_XATTR_DEFAULT,
 				strlen(POSIX_ACL_XATTR_DEFAULT) + 1,
 				data, size, &context.count);

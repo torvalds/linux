@@ -1021,6 +1021,16 @@ static const struct ethtool_ops ops = {
 	.get_link = veth_get_link,
 };
 
+static const struct net_device_ops veth_netdev_ops = {
+	.ndo_open		= veth_open,
+	.ndo_stop		= veth_close,
+	.ndo_start_xmit		= veth_start_xmit,
+	.ndo_change_mtu		= veth_change_mtu,
+	.ndo_set_multicast_list	= veth_set_multicast_list,
+	.ndo_set_mac_address	= NULL,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static struct net_device *veth_probe_one(int vlan,
 		struct vio_dev *vio_dev)
 {
@@ -1067,12 +1077,7 @@ static struct net_device *veth_probe_one(int vlan,
 
 	memcpy(&port->mac_addr, mac_addr, ETH_ALEN);
 
-	dev->open = veth_open;
-	dev->hard_start_xmit = veth_start_xmit;
-	dev->stop = veth_close;
-	dev->change_mtu = veth_change_mtu;
-	dev->set_mac_address = NULL;
-	dev->set_multicast_list = veth_set_multicast_list;
+	dev->netdev_ops = &veth_netdev_ops;
 	SET_ETHTOOL_OPS(dev, &ops);
 
 	SET_NETDEV_DEV(dev, vdev);

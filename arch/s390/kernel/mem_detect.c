@@ -1,6 +1,7 @@
 /*
- *    Copyright IBM Corp. 2008
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
+ * Copyright IBM Corp. 2008, 2009
+ *
+ * Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/kernel.h>
@@ -8,20 +9,6 @@
 #include <asm/ipl.h>
 #include <asm/sclp.h>
 #include <asm/setup.h>
-
-static inline int tprot(unsigned long addr)
-{
-	int rc = -EFAULT;
-
-	asm volatile(
-		"	tprot	0(%1),0\n"
-		"0:	ipm	%0\n"
-		"	srl	%0,28\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "+d" (rc) : "a" (addr) : "cc");
-	return rc;
-}
 
 #define ADDR2G (1ULL << 31)
 

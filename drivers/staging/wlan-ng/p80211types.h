@@ -61,7 +61,6 @@
 /* Project Includes */
 /*================================================================*/
 
-
 /*----------------------------------------------------------------*/
 /* The following constants are indexes into the Mib Category List */
 /* and the Message Category List */
@@ -345,11 +344,11 @@ struct catlistitem;
 /*  metadata items.  Some components may choose to use more, */
 /*  less or different metadata items. */
 
-typedef void (*p80211_totext_t) (struct catlistitem *, u32 did, u8 *itembuf,
+typedef void (*p80211_totext_t) (struct catlistitem *, u32 did, u8 * itembuf,
 				 char *textbuf);
-typedef void (*p80211_fromtext_t) (struct catlistitem *, u32 did, u8 *itembuf,
+typedef void (*p80211_fromtext_t) (struct catlistitem *, u32 did, u8 * itembuf,
 				   char *textbuf);
-typedef u32(*p80211_valid_t) (struct catlistitem *, u32 did, u8 *itembuf);
+typedef u32(*p80211_valid_t) (struct catlistitem *, u32 did, u8 * itembuf);
 
 /*----------------------------------------------------------------*/
 /* Enumeration Lists */

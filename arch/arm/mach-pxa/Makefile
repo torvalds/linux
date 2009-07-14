@@ -15,7 +15,6 @@ endif
 
 # Generic drivers that other drivers may depend upon
 obj-$(CONFIG_PXA_SSP)		+= ssp.o
-obj-$(CONFIG_PXA_PWM)		+= pwm.o
 
 # SoC-specific code
 obj-$(CONFIG_PXA25x)		+= mfp-pxa2xx.o pxa2xx.o pxa25x.o
@@ -47,6 +46,7 @@ obj-$(CONFIG_MACH_PCM027)	+= pcm027.o
 obj-$(CONFIG_MACH_PCM990_BASEBOARD)	+= pcm990-baseboard.o
 obj-$(CONFIG_MACH_TOSA)		+= tosa.o
 obj-$(CONFIG_MACH_EM_X270)	+= em-x270.o
+obj-$(CONFIG_MACH_H4700)	+= hx4700.o
 obj-$(CONFIG_MACH_MAGICIAN)	+= magician.o
 obj-$(CONFIG_MACH_HIMALAYA)	+= himalaya.o
 obj-$(CONFIG_MACH_MIOA701)	+= mioa701.o mioa701_bootresume.o
@@ -62,6 +62,7 @@ obj-$(CONFIG_MACH_PALMT5)	+= palmt5.o
 obj-$(CONFIG_MACH_PALMTX)	+= palmtx.o
 obj-$(CONFIG_MACH_PALMLD)	+= palmld.o
 obj-$(CONFIG_MACH_PALMZ72)	+= palmz72.o
+obj-$(CONFIG_MACH_TREO680)	+= treo680.o
 obj-$(CONFIG_ARCH_VIPER)	+= viper.o
 
 ifeq ($(CONFIG_MACH_ZYLONITE),y)
@@ -78,6 +79,7 @@ obj-$(CONFIG_MACH_CM_X300)      += cm-x300.o
 obj-$(CONFIG_PXA_EZX)           += ezx.o
 
 obj-$(CONFIG_MACH_INTELMOTE2)   += imote2.o
+obj-$(CONFIG_MACH_STARGATE2)	+= stargate2.o
 obj-$(CONFIG_MACH_CSB726)	+= csb726.o
 obj-$(CONFIG_CSB726_CSB701)	+= csb701.o
 

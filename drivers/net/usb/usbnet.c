@@ -37,6 +37,7 @@
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ctype.h>
 #include <linux/ethtool.h>
 #include <linux/workqueue.h>
 #include <linux/mii.h>
@@ -156,6 +157,36 @@ int usbnet_get_endpoints(struct usbnet *dev, struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(usbnet_get_endpoints);
 
+static u8 nibble(unsigned char c)
+{
+	if (likely(isdigit(c)))
+		return c - '0';
+	c = toupper(c);
+	if (likely(isxdigit(c)))
+		return 10 + c - 'A';
+	return 0;
+}
+
+int usbnet_get_ethernet_addr(struct usbnet *dev, int iMACAddress)
+{
+	int 		tmp, i;
+	unsigned char	buf [13];
+
+	tmp = usb_string(dev->udev, iMACAddress, buf, sizeof buf);
+	if (tmp != 12) {
+		dev_dbg(&dev->udev->dev,
+			"bad MAC string %d fetch, %d\n", iMACAddress, tmp);
+		if (tmp >= 0)
+			tmp = -EINVAL;
+		return tmp;
+	}
+	for (i = tmp = 0; i < 6; i++, tmp += 2)
+		dev->net->dev_addr [i] =
+			(nibble(buf [tmp]) << 4) + nibble(buf [tmp + 1]);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usbnet_get_ethernet_addr);
+
 static void intr_complete (struct urb *urb);
 
 static int init_status (struct usbnet *dev, struct usb_interface *intf)
@@ -203,8 +234,8 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 	int	status;
 
 	skb->protocol = eth_type_trans (skb, dev->net);
-	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += skb->len;
+	dev->net->stats.rx_packets++;
+	dev->net->stats.rx_bytes += skb->len;
 
 	if (netif_msg_rx_status (dev))
 		devdbg (dev, "< rx, len %zu, type 0x%x",
@@ -366,7 +397,7 @@ static inline void rx_process (struct usbnet *dev, struct sk_buff *skb)
 		if (netif_msg_rx_err (dev))
 			devdbg (dev, "drop");
 error:
-		dev->stats.rx_errors++;
+		dev->net->stats.rx_errors++;
 		skb_queue_tail (&dev->done, skb);
 	}
 }
@@ -389,8 +420,8 @@ static void rx_complete (struct urb *urb)
 	case 0:
 		if (skb->len < dev->net->hard_header_len) {
 			entry->state = rx_cleanup;
-			dev->stats.rx_errors++;
-			dev->stats.rx_length_errors++;
+			dev->net->stats.rx_errors++;
+			dev->net->stats.rx_length_errors++;
 			if (netif_msg_rx_err (dev))
 				devdbg (dev, "rx length %d", skb->len);
 		}
@@ -398,11 +429,11 @@ static void rx_complete (struct urb *urb)
 
 	/* stalls need manual reset. this is rare ... except that
 	 * when going through USB 2.0 TTs, unplug appears this way.
-	 * we avoid the highspeed version of the ETIMEOUT/EILSEQ
+	 * we avoid the highspeed version of the ETIMEDOUT/EILSEQ
 	 * storm, recovering as needed.
 	 */
 	case -EPIPE:
-		dev->stats.rx_errors++;
+		dev->net->stats.rx_errors++;
 		usbnet_defer_kevent (dev, EVENT_RX_HALT);
 		// FALLTHROUGH
 
@@ -420,7 +451,7 @@ static void rx_complete (struct urb *urb)
 	case -EPROTO:
 	case -ETIME:
 	case -EILSEQ:
-		dev->stats.rx_errors++;
+		dev->net->stats.rx_errors++;
 		if (!timer_pending (&dev->delay)) {
 			mod_timer (&dev->delay, jiffies + THROTTLE_JIFFIES);
 			if (netif_msg_link (dev))
@@ -434,12 +465,12 @@ block:
 
 	/* data overrun ... flush fifo? */
 	case -EOVERFLOW:
-		dev->stats.rx_over_errors++;
+		dev->net->stats.rx_over_errors++;
 		// FALLTHROUGH
 
 	default:
 		entry->state = rx_cleanup;
-		dev->stats.rx_errors++;
+		dev->net->stats.rx_errors++;
 		if (netif_msg_rx_err (dev))
 			devdbg (dev, "rx status %d", urb_status);
 		break;
@@ -552,8 +583,8 @@ int usbnet_stop (struct net_device *net)
 
 	if (netif_msg_ifdown (dev))
 		devinfo (dev, "stop stats: rx/tx %ld/%ld, errs %ld/%ld",
-			dev->stats.rx_packets, dev->stats.tx_packets,
-			dev->stats.rx_errors, dev->stats.tx_errors
+			net->stats.rx_packets, net->stats.tx_packets,
+			net->stats.rx_errors, net->stats.tx_errors
 			);
 
 	// ensure there are no more active urbs
@@ -860,10 +891,10 @@ static void tx_complete (struct urb *urb)
 	struct usbnet		*dev = entry->dev;
 
 	if (urb->status == 0) {
-		dev->stats.tx_packets++;
-		dev->stats.tx_bytes += entry->length;
+		dev->net->stats.tx_packets++;
+		dev->net->stats.tx_bytes += entry->length;
 	} else {
-		dev->stats.tx_errors++;
+		dev->net->stats.tx_errors++;
 
 		switch (urb->status) {
 		case -EPIPE:
@@ -989,7 +1020,7 @@ int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 			devdbg (dev, "drop, code %d", retval);
 drop:
 		retval = NET_XMIT_SUCCESS;
-		dev->stats.tx_dropped++;
+		dev->net->stats.tx_dropped++;
 		if (skb)
 			dev_kfree_skb_any (skb);
 		usb_free_urb (urb);
@@ -1185,12 +1216,6 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 #endif
 
 	net->netdev_ops = &usbnet_netdev_ops;
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	net->hard_start_xmit = usbnet_start_xmit;
-	net->open = usbnet_open;
-	net->stop = usbnet_stop;
-	net->tx_timeout = usbnet_tx_timeout;
-#endif
 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	net->ethtool_ops = &usbnet_ethtool_ops;
 

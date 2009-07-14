@@ -599,6 +599,21 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ * Polling receive - used by netconsole and other diagnostic tools
+ * to allow network i/o with interrupts disabled.
+ */
+static void macb_poll_controller(struct net_device *dev)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	macb_interrupt(dev->irq, dev);
+	local_irq_restore(flags);
+}
+#endif
+
 static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
@@ -630,7 +645,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			"BUG! Tx Ring full when queue awake!\n");
 		dev_dbg(&bp->pdev->dev, "tx_head = %u, tx_tail = %u\n",
 			bp->tx_head, bp->tx_tail);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	entry = bp->tx_head;
@@ -1094,6 +1109,9 @@ static const struct net_device_ops macb_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= macb_poll_controller,
+#endif
 };
 
 static int __init macb_probe(struct platform_device *pdev)

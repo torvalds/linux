@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/gfs2_ondisk.h>
 #include <asm/atomic.h>
+#include <linux/slow-work.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -113,12 +114,18 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		goto fail_unregister;
 
+	error = slow_work_register_user();
+	if (error)
+		goto fail_slow;
+
 	gfs2_register_debugfs();
 
 	printk("GFS2 (built %s %s) installed\n", __DATE__, __TIME__);
 
 	return 0;
 
+fail_slow:
+	unregister_filesystem(&gfs2meta_fs_type);
 fail_unregister:
 	unregister_filesystem(&gfs2_fs_type);
 fail:
@@ -156,6 +163,7 @@ static void __exit exit_gfs2_fs(void)
 	gfs2_unregister_debugfs();
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
+	slow_work_unregister_user();
 
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);

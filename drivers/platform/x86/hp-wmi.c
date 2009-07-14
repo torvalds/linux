@@ -47,7 +47,7 @@ MODULE_ALIAS("wmi:5FB7F034-2C63-45e9-BE91-3D44E2C707E4");
 #define HPWMI_DISPLAY_QUERY 0x1
 #define HPWMI_HDDTEMP_QUERY 0x2
 #define HPWMI_ALS_QUERY 0x3
-#define HPWMI_DOCK_QUERY 0x4
+#define HPWMI_HARDWARE_QUERY 0x4
 #define HPWMI_WIRELESS_QUERY 0x5
 #define HPWMI_HOTKEY_QUERY 0xc
 
@@ -75,10 +75,9 @@ struct key_entry {
 	u16 keycode;
 };
 
-enum { KE_KEY, KE_SW, KE_END };
+enum { KE_KEY, KE_END };
 
 static struct key_entry hp_wmi_keymap[] = {
-	{KE_SW, 0x01, SW_DOCK},
 	{KE_KEY, 0x02, KEY_BRIGHTNESSUP},
 	{KE_KEY, 0x03, KEY_BRIGHTNESSDOWN},
 	{KE_KEY, 0x20e6, KEY_PROG1},
@@ -151,61 +150,64 @@ static int hp_wmi_als_state(void)
 
 static int hp_wmi_dock_state(void)
 {
-	return hp_wmi_perform_query(HPWMI_DOCK_QUERY, 0, 0);
+	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, 0);
+
+	if (ret < 0)
+		return ret;
+
+	return ret & 0x1;
 }
 
-static int hp_wmi_wifi_set(void *data, enum rfkill_state state)
+static int hp_wmi_tablet_state(void)
 {
-	if (state)
-		return hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, 0x101);
-	else
-		return hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, 0x100);
+	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, 0);
+
+	if (ret < 0)
+		return ret;
+
+	return (ret & 0x4) ? 1 : 0;
 }
 
-static int hp_wmi_bluetooth_set(void *data, enum rfkill_state state)
+static int hp_wmi_set_block(void *data, bool blocked)
 {
-	if (state)
-		return hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, 0x202);
-	else
-		return hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, 0x200);
+	unsigned long b = (unsigned long) data;
+	int query = BIT(b + 8) | ((!blocked) << b);
+
+	return hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, query);
 }
 
-static int hp_wmi_wwan_set(void *data, enum rfkill_state state)
-{
-	if (state)
-		return hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, 0x404);
-	else
-		return hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1, 0x400);
-}
+static const struct rfkill_ops hp_wmi_rfkill_ops = {
+	.set_block = hp_wmi_set_block,
+};
 
-static int hp_wmi_wifi_state(void)
+static bool hp_wmi_wifi_state(void)
 {
 	int wireless = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, 0);
 
 	if (wireless & 0x100)
-		return RFKILL_STATE_UNBLOCKED;
+		return false;
 	else
-		return RFKILL_STATE_SOFT_BLOCKED;
+		return true;
 }
 
-static int hp_wmi_bluetooth_state(void)
+static bool hp_wmi_bluetooth_state(void)
 {
 	int wireless = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, 0);
 
 	if (wireless & 0x10000)
-		return RFKILL_STATE_UNBLOCKED;
+		return false;
 	else
-		return RFKILL_STATE_SOFT_BLOCKED;
+		return true;
 }
 
-static int hp_wmi_wwan_state(void)
+static bool hp_wmi_wwan_state(void)
 {
 	int wireless = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, 0);
 
 	if (wireless & 0x1000000)
-		return RFKILL_STATE_UNBLOCKED;
+		return false;
 	else
-		return RFKILL_STATE_SOFT_BLOCKED;
+		return true;
 }
 
 static ssize_t show_display(struct device *dev, struct device_attribute *attr,
@@ -244,6 +246,15 @@ static ssize_t show_dock(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", value);
 }
 
+static ssize_t show_tablet(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	int value = hp_wmi_tablet_state();
+	if (value < 0)
+		return -EINVAL;
+	return sprintf(buf, "%d\n", value);
+}
+
 static ssize_t set_als(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
@@ -256,6 +267,7 @@ static DEVICE_ATTR(display, S_IRUGO, show_display, NULL);
 static DEVICE_ATTR(hddtemp, S_IRUGO, show_hddtemp, NULL);
 static DEVICE_ATTR(als, S_IRUGO | S_IWUSR, show_als, set_als);
 static DEVICE_ATTR(dock, S_IRUGO, show_dock, NULL);
+static DEVICE_ATTR(tablet, S_IRUGO, show_tablet, NULL);
 
 static struct key_entry *hp_wmi_get_entry_by_scancode(int code)
 {
@@ -338,23 +350,23 @@ static void hp_wmi_notify(u32 value, void *context)
 						 key->keycode, 0);
 				input_sync(hp_wmi_input_dev);
 				break;
-			case KE_SW:
-				input_report_switch(hp_wmi_input_dev,
-						    key->keycode,
-						    hp_wmi_dock_state());
-				input_sync(hp_wmi_input_dev);
-				break;
 			}
+		} else if (eventcode == 0x1) {
+			input_report_switch(hp_wmi_input_dev, SW_DOCK,
+					    hp_wmi_dock_state());
+			input_report_switch(hp_wmi_input_dev, SW_TABLET_MODE,
+					    hp_wmi_tablet_state());
+			input_sync(hp_wmi_input_dev);
 		} else if (eventcode == 0x5) {
 			if (wifi_rfkill)
-				rfkill_force_state(wifi_rfkill,
-						   hp_wmi_wifi_state());
+				rfkill_set_sw_state(wifi_rfkill,
+						    hp_wmi_wifi_state());
 			if (bluetooth_rfkill)
-				rfkill_force_state(bluetooth_rfkill,
-						   hp_wmi_bluetooth_state());
+				rfkill_set_sw_state(bluetooth_rfkill,
+						    hp_wmi_bluetooth_state());
 			if (wwan_rfkill)
-				rfkill_force_state(wwan_rfkill,
-						   hp_wmi_wwan_state());
+				rfkill_set_sw_state(wwan_rfkill,
+						    hp_wmi_wwan_state());
 		} else
 			printk(KERN_INFO "HP WMI: Unknown key pressed - %x\n",
 			       eventcode);
@@ -381,17 +393,18 @@ static int __init hp_wmi_input_setup(void)
 			set_bit(EV_KEY, hp_wmi_input_dev->evbit);
 			set_bit(key->keycode, hp_wmi_input_dev->keybit);
 			break;
-		case KE_SW:
-			set_bit(EV_SW, hp_wmi_input_dev->evbit);
-			set_bit(key->keycode, hp_wmi_input_dev->swbit);
-
-			/* Set initial dock state */
-			input_report_switch(hp_wmi_input_dev, key->keycode,
-					    hp_wmi_dock_state());
-			input_sync(hp_wmi_input_dev);
-			break;
 		}
 	}
+
+	set_bit(EV_SW, hp_wmi_input_dev->evbit);
+	set_bit(SW_DOCK, hp_wmi_input_dev->swbit);
+	set_bit(SW_TABLET_MODE, hp_wmi_input_dev->swbit);
+
+	/* Set initial hardware state */
+	input_report_switch(hp_wmi_input_dev, SW_DOCK, hp_wmi_dock_state());
+	input_report_switch(hp_wmi_input_dev, SW_TABLET_MODE,
+			    hp_wmi_tablet_state());
+	input_sync(hp_wmi_input_dev);
 
 	err = input_register_device(hp_wmi_input_dev);
 
@@ -409,6 +422,7 @@ static void cleanup_sysfs(struct platform_device *device)
 	device_remove_file(&device->dev, &dev_attr_hddtemp);
 	device_remove_file(&device->dev, &dev_attr_als);
 	device_remove_file(&device->dev, &dev_attr_dock);
+	device_remove_file(&device->dev, &dev_attr_tablet);
 }
 
 static int __init hp_wmi_bios_setup(struct platform_device *device)
@@ -428,36 +442,35 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 	err = device_create_file(&device->dev, &dev_attr_dock);
 	if (err)
 		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_tablet);
+	if (err)
+		goto add_sysfs_error;
 
 	if (wireless & 0x1) {
-		wifi_rfkill = rfkill_allocate(&device->dev, RFKILL_TYPE_WLAN);
-		wifi_rfkill->name = "hp-wifi";
-		wifi_rfkill->state = hp_wmi_wifi_state();
-		wifi_rfkill->toggle_radio = hp_wmi_wifi_set;
-		wifi_rfkill->user_claim_unsupported = 1;
+		wifi_rfkill = rfkill_alloc("hp-wifi", &device->dev,
+					   RFKILL_TYPE_WLAN,
+					   &hp_wmi_rfkill_ops,
+					   (void *) 0);
 		err = rfkill_register(wifi_rfkill);
 		if (err)
-			goto add_sysfs_error;
+			goto register_wifi_error;
 	}
 
 	if (wireless & 0x2) {
-		bluetooth_rfkill = rfkill_allocate(&device->dev,
-						   RFKILL_TYPE_BLUETOOTH);
-		bluetooth_rfkill->name = "hp-bluetooth";
-		bluetooth_rfkill->state = hp_wmi_bluetooth_state();
-		bluetooth_rfkill->toggle_radio = hp_wmi_bluetooth_set;
-		bluetooth_rfkill->user_claim_unsupported = 1;
+		bluetooth_rfkill = rfkill_alloc("hp-bluetooth", &device->dev,
+						RFKILL_TYPE_BLUETOOTH,
+						&hp_wmi_rfkill_ops,
+						(void *) 1);
 		err = rfkill_register(bluetooth_rfkill);
 		if (err)
 			goto register_bluetooth_error;
 	}
 
 	if (wireless & 0x4) {
-		wwan_rfkill = rfkill_allocate(&device->dev, RFKILL_TYPE_WWAN);
-		wwan_rfkill->name = "hp-wwan";
-		wwan_rfkill->state = hp_wmi_wwan_state();
-		wwan_rfkill->toggle_radio = hp_wmi_wwan_set;
-		wwan_rfkill->user_claim_unsupported = 1;
+		wwan_rfkill = rfkill_alloc("hp-wwan", &device->dev,
+					   RFKILL_TYPE_WWAN,
+					   &hp_wmi_rfkill_ops,
+					   (void *) 2);
 		err = rfkill_register(wwan_rfkill);
 		if (err)
 			goto register_wwan_err;
@@ -465,11 +478,15 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 
 	return 0;
 register_wwan_err:
+	rfkill_destroy(wwan_rfkill);
 	if (bluetooth_rfkill)
 		rfkill_unregister(bluetooth_rfkill);
 register_bluetooth_error:
+	rfkill_destroy(bluetooth_rfkill);
 	if (wifi_rfkill)
 		rfkill_unregister(wifi_rfkill);
+register_wifi_error:
+	rfkill_destroy(wifi_rfkill);
 add_sysfs_error:
 	cleanup_sysfs(device);
 	return err;
@@ -479,35 +496,35 @@ static int __exit hp_wmi_bios_remove(struct platform_device *device)
 {
 	cleanup_sysfs(device);
 
-	if (wifi_rfkill)
+	if (wifi_rfkill) {
 		rfkill_unregister(wifi_rfkill);
-	if (bluetooth_rfkill)
+		rfkill_destroy(wifi_rfkill);
+	}
+	if (bluetooth_rfkill) {
 		rfkill_unregister(bluetooth_rfkill);
-	if (wwan_rfkill)
+		rfkill_destroy(wifi_rfkill);
+	}
+	if (wwan_rfkill) {
 		rfkill_unregister(wwan_rfkill);
+		rfkill_destroy(wwan_rfkill);
+	}
 
 	return 0;
 }
 
 static int hp_wmi_resume_handler(struct platform_device *device)
 {
-	struct key_entry *key;
-
 	/*
-	 * Docking state may have changed while suspended, so trigger
-	 * an input event for the current state. As this is a switch,
+	 * Hardware state may have changed while suspended, so trigger
+	 * input events for the current state. As this is a switch,
 	 * the input layer will only actually pass it on if the state
 	 * changed.
 	 */
-	for (key = hp_wmi_keymap; key->type != KE_END; key++) {
-		switch (key->type) {
-		case KE_SW:
-			input_report_switch(hp_wmi_input_dev, key->keycode,
-					    hp_wmi_dock_state());
-			input_sync(hp_wmi_input_dev);
-			break;
-		}
-	}
+
+	input_report_switch(hp_wmi_input_dev, SW_DOCK, hp_wmi_dock_state());
+	input_report_switch(hp_wmi_input_dev, SW_TABLET_MODE,
+			    hp_wmi_tablet_state());
+	input_sync(hp_wmi_input_dev);
 
 	return 0;
 }

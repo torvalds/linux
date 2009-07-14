@@ -26,7 +26,8 @@ config SAMPLE_TRACE_EVENTS
 	  This build trace event example modules.
 
 config SAMPLE_KOBJECT
-	tristate "Build kobject examples"
+	tristate "Build kobject examples -- loadable modules only"
+	depends on m
 	help
 	  This config option will allow you to build a number of
 	  different kobject sample modules showing how to use kobjects,

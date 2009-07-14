@@ -377,7 +377,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
-	int ret = 1;
+	int ret = NETDEV_TX_BUSY;
 	u16 fc;
 	struct hostap_tx_data tx;
 	ap_tx_ret tx_ret;

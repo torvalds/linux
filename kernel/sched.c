@@ -69,7 +69,6 @@
 #include <linux/pagemap.h>
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
-#include <linux/bootmem.h>
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
 #include <linux/ftrace.h>
@@ -241,7 +240,7 @@ static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 		hard = hrtimer_get_expires(&rt_b->rt_period_timer);
 		delta = ktime_to_ns(ktime_sub(hard, soft));
 		__hrtimer_start_range_ns(&rt_b->rt_period_timer, soft, delta,
-				HRTIMER_MODE_ABS, 0);
+				HRTIMER_MODE_ABS_PINNED, 0);
 	}
 	spin_unlock(&rt_b->rt_runtime_lock);
 }
@@ -1156,7 +1155,7 @@ static __init void init_hrtick(void)
 static void hrtick_start(struct rq *rq, u64 delay)
 {
 	__hrtimer_start_range_ns(&rq->hrtick_timer, ns_to_ktime(delay), 0,
-			HRTIMER_MODE_REL, 0);
+			HRTIMER_MODE_REL_PINNED, 0);
 }
 
 static inline void init_hrtick(void)
@@ -1979,7 +1978,8 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 		if (task_hot(p, old_rq->clock, NULL))
 			schedstat_inc(p, se.nr_forced2_migrations);
 #endif
-		perf_counter_task_migration(p, new_cpu);
+		perf_swcounter_event(PERF_COUNT_SW_CPU_MIGRATIONS,
+				     1, 1, NULL, 0);
 	}
 	p->se.vruntime -= old_cfsrq->min_vruntime -
 					 new_cfsrq->min_vruntime;
@@ -2193,6 +2193,7 @@ void kick_process(struct task_struct *p)
 		smp_send_reschedule(cpu);
 	preempt_enable();
 }
+EXPORT_SYMBOL_GPL(kick_process);
 
 /*
  * Return a low guess at the load of a migration-source cpu weighted
@@ -4397,6 +4398,11 @@ static struct {
 	.load_balancer = ATOMIC_INIT(-1),
 };
 
+int get_nohz_load_balancer(void)
+{
+	return atomic_read(&nohz.load_balancer);
+}
+
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
 /**
  * lowest_flag_domain - Return lowest sched_domain containing flag.
@@ -6535,6 +6541,11 @@ SYSCALL_DEFINE0(sched_yield)
 	return 0;
 }
 
+static inline int should_resched(void)
+{
+	return need_resched() && !(preempt_count() & PREEMPT_ACTIVE);
+}
+
 static void __cond_resched(void)
 {
 #ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
@@ -6554,8 +6565,7 @@ static void __cond_resched(void)
 
 int __sched _cond_resched(void)
 {
-	if (need_resched() && !(preempt_count() & PREEMPT_ACTIVE) &&
-					system_state == SYSTEM_RUNNING) {
+	if (should_resched()) {
 		__cond_resched();
 		return 1;
 	}
@@ -6573,12 +6583,12 @@ EXPORT_SYMBOL(_cond_resched);
  */
 int cond_resched_lock(spinlock_t *lock)
 {
-	int resched = need_resched() && system_state == SYSTEM_RUNNING;
+	int resched = should_resched();
 	int ret = 0;
 
 	if (spin_needbreak(lock) || resched) {
 		spin_unlock(lock);
-		if (resched && need_resched())
+		if (resched)
 			__cond_resched();
 		else
 			cpu_relax();
@@ -6593,7 +6603,7 @@ int __sched cond_resched_softirq(void)
 {
 	BUG_ON(!in_softirq());
 
-	if (need_resched() && system_state == SYSTEM_RUNNING) {
+	if (should_resched()) {
 		local_bh_enable();
 		__cond_resched();
 		local_bh_disable();
@@ -7040,7 +7050,7 @@ static int migration_thread(void *data)
 
 		if (cpu_is_offline(cpu)) {
 			spin_unlock_irq(&rq->lock);
-			goto wait_to_die;
+			break;
 		}
 
 		if (rq->active_balance) {
@@ -7066,16 +7076,7 @@ static int migration_thread(void *data)
 		complete(&req->done);
 	}
 	__set_current_state(TASK_RUNNING);
-	return 0;
 
-wait_to_die:
-	/* Wait for kthread_stop */
-	set_current_state(TASK_INTERRUPTIBLE);
-	while (!kthread_should_stop()) {
-		schedule();
-		set_current_state(TASK_INTERRUPTIBLE);
-	}
-	__set_current_state(TASK_RUNNING);
 	return 0;
 }
 
@@ -7489,6 +7490,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		rq = task_rq_lock(p, &flags);
 		__setscheduler(rq, p, SCHED_FIFO, MAX_RT_PRIO-1);
 		task_rq_unlock(rq, &flags);
+		get_task_struct(p);
 		cpu_rq(cpu)->migration_thread = p;
 		break;
 
@@ -7519,6 +7521,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		kthread_bind(cpu_rq(cpu)->migration_thread,
 			     cpumask_any(cpu_online_mask));
 		kthread_stop(cpu_rq(cpu)->migration_thread);
+		put_task_struct(cpu_rq(cpu)->migration_thread);
 		cpu_rq(cpu)->migration_thread = NULL;
 		break;
 
@@ -7528,6 +7531,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		migrate_live_tasks(cpu);
 		rq = cpu_rq(cpu);
 		kthread_stop(rq->migration_thread);
+		put_task_struct(rq->migration_thread);
 		rq->migration_thread = NULL;
 		/* Idle task back to normal (off runqueue, low prio) */
 		spin_lock_irq(&rq->lock);
@@ -7823,26 +7827,23 @@ static void rq_attach_root(struct rq *rq, struct root_domain *rd)
 		free_rootdomain(old_rd);
 }
 
-static int __init_refok init_rootdomain(struct root_domain *rd, bool bootmem)
+static int init_rootdomain(struct root_domain *rd, bool bootmem)
 {
+	gfp_t gfp = GFP_KERNEL;
+
 	memset(rd, 0, sizeof(*rd));
 
-	if (bootmem) {
-		alloc_bootmem_cpumask_var(&def_root_domain.span);
-		alloc_bootmem_cpumask_var(&def_root_domain.online);
-		alloc_bootmem_cpumask_var(&def_root_domain.rto_mask);
-		cpupri_init(&rd->cpupri, true);
-		return 0;
-	}
+	if (bootmem)
+		gfp = GFP_NOWAIT;
 
-	if (!alloc_cpumask_var(&rd->span, GFP_KERNEL))
+	if (!alloc_cpumask_var(&rd->span, gfp))
 		goto out;
-	if (!alloc_cpumask_var(&rd->online, GFP_KERNEL))
+	if (!alloc_cpumask_var(&rd->online, gfp))
 		goto free_span;
-	if (!alloc_cpumask_var(&rd->rto_mask, GFP_KERNEL))
+	if (!alloc_cpumask_var(&rd->rto_mask, gfp))
 		goto free_online;
 
-	if (cpupri_init(&rd->cpupri, false) != 0)
+	if (cpupri_init(&rd->cpupri, bootmem) != 0)
 		goto free_rto_mask;
 	return 0;
 
@@ -9032,6 +9033,8 @@ void __init sched_init_smp(void)
 }
 #endif /* CONFIG_SMP */
 
+const_debug unsigned int sysctl_timer_migration = 1;
+
 int in_sched_functions(unsigned long addr)
 {
 	return in_lock_functions(addr) ||
@@ -9166,7 +9169,7 @@ void __init sched_init(void)
 	 * we use alloc_bootmem().
 	 */
 	if (alloc_size) {
-		ptr = (unsigned long)alloc_bootmem(alloc_size);
+		ptr = (unsigned long)kzalloc(alloc_size, GFP_NOWAIT);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 		init_task_group.se = (struct sched_entity **)ptr;
@@ -9357,13 +9360,13 @@ void __init sched_init(void)
 	current->sched_class = &fair_sched_class;
 
 	/* Allocate the nohz_cpu_mask if CONFIG_CPUMASK_OFFSTACK */
-	alloc_bootmem_cpumask_var(&nohz_cpu_mask);
+	alloc_cpumask_var(&nohz_cpu_mask, GFP_NOWAIT);
 #ifdef CONFIG_SMP
 #ifdef CONFIG_NO_HZ
-	alloc_bootmem_cpumask_var(&nohz.cpu_mask);
-	alloc_bootmem_cpumask_var(&nohz.ilb_grp_nohz_mask);
+	alloc_cpumask_var(&nohz.cpu_mask, GFP_NOWAIT);
+	alloc_cpumask_var(&nohz.ilb_grp_nohz_mask, GFP_NOWAIT);
 #endif
-	alloc_bootmem_cpumask_var(&cpu_isolated_map);
+	alloc_cpumask_var(&cpu_isolated_map, GFP_NOWAIT);
 #endif /* SMP */
 
 	perf_counter_init();

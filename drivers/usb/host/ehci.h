@@ -116,6 +116,7 @@ struct ehci_hcd {			/* one per controller */
 	struct timer_list	watchdog;
 	unsigned long		actions;
 	unsigned		stamp;
+	unsigned		random_frame;
 	unsigned long		next_statechange;
 	u32			command;
 
@@ -353,7 +354,9 @@ struct ehci_qh {
 	unsigned short		period;		/* polling interval */
 	unsigned short		start;		/* where polling starts */
 #define NO_FRAME ((unsigned short)~0)			/* pick new start */
+
 	struct usb_device	*dev;		/* access to TT */
+	unsigned		clearing_tt:1;	/* Clear-TT-Buf in progress */
 } __attribute__ ((aligned (32)));
 
 /*-------------------------------------------------------------------------*/

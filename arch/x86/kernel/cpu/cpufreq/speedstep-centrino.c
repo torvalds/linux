@@ -323,14 +323,8 @@ static unsigned int get_cur_freq(unsigned int cpu)
 {
 	unsigned l, h;
 	unsigned clock_freq;
-	cpumask_t saved_mask;
 
-	saved_mask = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-	if (smp_processor_id() != cpu)
-		return 0;
-
-	rdmsr(MSR_IA32_PERF_STATUS, l, h);
+	rdmsr_on_cpu(cpu, MSR_IA32_PERF_STATUS, &l, &h);
 	clock_freq = extract_clock(l, cpu, 0);
 
 	if (unlikely(clock_freq == 0)) {
@@ -340,11 +334,9 @@ static unsigned int get_cur_freq(unsigned int cpu)
 		 * P-state transition (like TM2). Get the last freq set 
 		 * in PERF_CTL.
 		 */
-		rdmsr(MSR_IA32_PERF_CTL, l, h);
+		rdmsr_on_cpu(cpu, MSR_IA32_PERF_CTL, &l, &h);
 		clock_freq = extract_clock(l, cpu, 1);
 	}
-
-	set_cpus_allowed_ptr(current, &saved_mask);
 	return clock_freq;
 }
 
@@ -467,15 +459,10 @@ static int centrino_target (struct cpufreq_policy *policy,
 	struct cpufreq_freqs	freqs;
 	int			retval = 0;
 	unsigned int		j, k, first_cpu, tmp;
-	cpumask_var_t saved_mask, covered_cpus;
+	cpumask_var_t covered_cpus;
 
-	if (unlikely(!alloc_cpumask_var(&saved_mask, GFP_KERNEL)))
+	if (unlikely(!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL)))
 		return -ENOMEM;
-	if (unlikely(!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL))) {
-		free_cpumask_var(saved_mask);
-		return -ENOMEM;
-	}
-	cpumask_copy(saved_mask, &current->cpus_allowed);
 
 	if (unlikely(per_cpu(centrino_model, cpu) == NULL)) {
 		retval = -ENODEV;
@@ -493,7 +480,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 
 	first_cpu = 1;
 	for_each_cpu(j, policy->cpus) {
-		const struct cpumask *mask;
+		int good_cpu;
 
 		/* cpufreq holds the hotplug lock, so we are safe here */
 		if (!cpu_online(j))
@@ -504,32 +491,30 @@ static int centrino_target (struct cpufreq_policy *policy,
 		 * Make sure we are running on CPU that wants to change freq
 		 */
 		if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
-			mask = policy->cpus;
+			good_cpu = cpumask_any_and(policy->cpus,
+						   cpu_online_mask);
 		else
-			mask = cpumask_of(j);
+			good_cpu = j;
 
-		set_cpus_allowed_ptr(current, mask);
-		preempt_disable();
-		if (unlikely(!cpu_isset(smp_processor_id(), *mask))) {
+		if (good_cpu >= nr_cpu_ids) {
 			dprintk("couldn't limit to CPUs in this domain\n");
 			retval = -EAGAIN;
 			if (first_cpu) {
 				/* We haven't started the transition yet. */
-				goto migrate_end;
+				goto out;
 			}
-			preempt_enable();
 			break;
 		}
 
 		msr = per_cpu(centrino_model, cpu)->op_points[newstate].index;
 
 		if (first_cpu) {
-			rdmsr(MSR_IA32_PERF_CTL, oldmsr, h);
+			rdmsr_on_cpu(good_cpu, MSR_IA32_PERF_CTL, &oldmsr, &h);
 			if (msr == (oldmsr & 0xffff)) {
 				dprintk("no change needed - msr was and needs "
 					"to be %x\n", oldmsr);
 				retval = 0;
-				goto migrate_end;
+				goto out;
 			}
 
 			freqs.old = extract_clock(oldmsr, cpu, 0);
@@ -553,14 +538,11 @@ static int centrino_target (struct cpufreq_policy *policy,
 			oldmsr |= msr;
 		}
 
-		wrmsr(MSR_IA32_PERF_CTL, oldmsr, h);
-		if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY) {
-			preempt_enable();
+		wrmsr_on_cpu(good_cpu, MSR_IA32_PERF_CTL, oldmsr, h);
+		if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
 			break;
-		}
 
-		cpu_set(j, *covered_cpus);
-		preempt_enable();
+		cpumask_set_cpu(j, covered_cpus);
 	}
 
 	for_each_cpu(k, policy->cpus) {
@@ -578,10 +560,8 @@ static int centrino_target (struct cpufreq_policy *policy,
 		 * Best effort undo..
 		 */
 
-		for_each_cpu_mask_nr(j, *covered_cpus) {
-			set_cpus_allowed_ptr(current, &cpumask_of_cpu(j));
-			wrmsr(MSR_IA32_PERF_CTL, oldmsr, h);
-		}
+		for_each_cpu(j, covered_cpus)
+			wrmsr_on_cpu(j, MSR_IA32_PERF_CTL, oldmsr, h);
 
 		tmp = freqs.new;
 		freqs.new = freqs.old;
@@ -593,15 +573,9 @@ static int centrino_target (struct cpufreq_policy *policy,
 			cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 		}
 	}
-	set_cpus_allowed_ptr(current, saved_mask);
 	retval = 0;
-	goto out;
 
-migrate_end:
-	preempt_enable();
-	set_cpus_allowed_ptr(current, saved_mask);
 out:
-	free_cpumask_var(saved_mask);
 	free_cpumask_var(covered_cpus);
 	return retval;
 }

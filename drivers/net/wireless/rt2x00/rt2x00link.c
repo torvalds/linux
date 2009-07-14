@@ -387,7 +387,7 @@ void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna)
 		rt2x00link_antenna_reset(rt2x00dev);
 }
 
-void rt2x00link_reset_qual(struct rt2x00_dev *rt2x00dev)
+static void rt2x00link_reset_qual(struct rt2x00_dev *rt2x00dev)
 {
 	struct link_qual *qual = &rt2x00dev->link.qual;
 

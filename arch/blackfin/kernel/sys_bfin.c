@@ -29,7 +29,6 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
@@ -76,11 +75,6 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			  unsigned long fd, unsigned long pgoff)
 {
 	return do_mmap2(addr, len, prot, flags, fd, pgoff);
-}
-
-asmlinkage int sys_getpagesize(void)
-{
-	return PAGE_SIZE;
 }
 
 asmlinkage void *sys_sram_alloc(size_t size, unsigned long flags)

@@ -110,10 +110,6 @@ USHORT RtmpPCI_WriteSingleTxResource(
 	UCHAR			*pDMAHeaderBufVA;
 	USHORT			TxIdx, RetTxIdx;
 	PTXD_STRUC		pTxD;
-#ifdef RT_BIG_ENDIAN
-    PTXD_STRUC      pDestTxD;
-    TXD_STRUC       TxD;
-#endif
 	UINT32			BufBasePaLow;
 	PRTMP_TX_RING	pTxRing;
 	USHORT			hwHeaderLen;
@@ -137,13 +133,8 @@ USHORT RtmpPCI_WriteSingleTxResource(
 	//
 	// build Tx Descriptor
 	//
-#ifndef RT_BIG_ENDIAN
 	pTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
-#else
-	pDestTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
-	TxD = *pDestTxD;
-	pTxD = &TxD;
-#endif
+
 	NdisZeroMemory(pTxD, TXD_SIZE);
 
 	pTxD->SDPtr0 = BufBasePaLow;
@@ -154,12 +145,6 @@ USHORT RtmpPCI_WriteSingleTxResource(
 	pTxD->LastSec1 = (bIsLast) ? 1 : 0;
 
 	RTMPWriteTxDescriptor(pAd, pTxD, FALSE, FIFO_EDCA);
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange((PUCHAR)(pDMAHeaderBufVA + TXINFO_SIZE), TYPE_TXWI);
-	RTMPFrameEndianChange(pAd, (PUCHAR)(pDMAHeaderBufVA + TXINFO_SIZE + TXWI_SIZE), DIR_WRITE, FALSE);
-	RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-    WriteBackToDescriptor((PUCHAR)pDestTxD, (PUCHAR)pTxD, FALSE, TYPE_TXD);
-#endif // RT_BIG_ENDIAN //
 
 	RetTxIdx = TxIdx;
 	//
@@ -184,10 +169,6 @@ USHORT RtmpPCI_WriteMultiTxResource(
 	UCHAR			*pDMAHeaderBufVA;
 	USHORT			TxIdx, RetTxIdx;
 	PTXD_STRUC		pTxD;
-#ifdef RT_BIG_ENDIAN
-    PTXD_STRUC      pDestTxD;
-    TXD_STRUC       TxD;
-#endif
 	UINT32			BufBasePaLow;
 	PRTMP_TX_RING	pTxRing;
 	USHORT			hwHdrLen;
@@ -231,13 +212,8 @@ USHORT RtmpPCI_WriteMultiTxResource(
 	//
 	// build Tx Descriptor
 	//
-#ifndef RT_BIG_ENDIAN
 	pTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
-#else
-	pDestTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
-	TxD = *pDestTxD;
-	pTxD = &TxD;
-#endif
+
 	NdisZeroMemory(pTxD, TXD_SIZE);
 
 	pTxD->SDPtr0 = BufBasePaLow;
@@ -248,17 +224,6 @@ USHORT RtmpPCI_WriteMultiTxResource(
 	pTxD->LastSec1 = (bIsLast) ? 1 : 0;
 
 	RTMPWriteTxDescriptor(pAd, pTxD, FALSE, FIFO_EDCA);
-
-#ifdef RT_BIG_ENDIAN
-	if (frameNum == 0)
-		RTMPFrameEndianChange(pAd, (PUCHAR)(pDMAHeaderBufVA+ TXINFO_SIZE + TXWI_SIZE), DIR_WRITE, FALSE);
-
-	if (frameNum != 0)
-		RTMPWIEndianChange((PUCHAR)(pDMAHeaderBufVA + TXINFO_SIZE), TYPE_TXWI);
-
-	RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-	WriteBackToDescriptor((PUCHAR)pDestTxD, (PUCHAR)pTxD, FALSE, TYPE_TXD);
-#endif // RT_BIG_ENDIAN //
 
 	RetTxIdx = TxIdx;
 	//
@@ -290,10 +255,6 @@ VOID RtmpPCI_FinalWriteTxResource(
 	pTxRing = &pAd->TxRing[pTxBlk->QueIdx];
 	pTxWI = (PTXWI_STRUC) pTxRing->Cell[FirstTxIdx].DmaBuf.AllocVa;
 	pTxWI->MPDUtotalByteCount = totalMPDUSize;
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange((PUCHAR)pTxWI, TYPE_TXWI);
-#endif // RT_BIG_ENDIAN //
-
 }
 
 
@@ -303,10 +264,6 @@ VOID RtmpPCIDataLastTxIdx(
 	IN	USHORT			LastTxIdx)
 {
 	PTXD_STRUC		pTxD;
-#ifdef RT_BIG_ENDIAN
-    PTXD_STRUC      pDestTxD;
-    TXD_STRUC       TxD;
-#endif
 	PRTMP_TX_RING	pTxRing;
 
 	//
@@ -317,21 +274,9 @@ VOID RtmpPCIDataLastTxIdx(
 	//
 	// build Tx Descriptor
 	//
-#ifndef RT_BIG_ENDIAN
 	pTxD = (PTXD_STRUC) pTxRing->Cell[LastTxIdx].AllocVa;
-#else
-	pDestTxD = (PTXD_STRUC) pTxRing->Cell[LastTxIdx].AllocVa;
-	TxD = *pDestTxD;
-	pTxD = &TxD;
-#endif
 
 	pTxD->LastSec1 = 1;
-
-#ifdef RT_BIG_ENDIAN
-	RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-    WriteBackToDescriptor((PUCHAR)pDestTxD, (PUCHAR)pTxD, FALSE, TYPE_TXD);
-#endif // RT_BIG_ENDIAN //
-
 }
 
 
@@ -344,10 +289,6 @@ USHORT	RtmpPCI_WriteFragTxResource(
 	UCHAR			*pDMAHeaderBufVA;
 	USHORT			TxIdx, RetTxIdx;
 	PTXD_STRUC		pTxD;
-#ifdef RT_BIG_ENDIAN
-    PTXD_STRUC      pDestTxD;
-    TXD_STRUC       TxD;
-#endif
 	UINT32			BufBasePaLow;
 	PRTMP_TX_RING	pTxRing;
 	USHORT			hwHeaderLen;
@@ -373,13 +314,8 @@ USHORT	RtmpPCI_WriteFragTxResource(
 	//
 	// Build Tx Descriptor
 	//
-#ifndef RT_BIG_ENDIAN
 	pTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
-#else
-	pDestTxD = (PTXD_STRUC) pTxRing->Cell[TxIdx].AllocVa;
-	TxD = *pDestTxD;
-	pTxD = &TxD;
-#endif
+
 	NdisZeroMemory(pTxD, TXD_SIZE);
 
 	if (fragNum == pTxBlk->TotalFragNum)
@@ -396,13 +332,6 @@ USHORT	RtmpPCI_WriteFragTxResource(
 	pTxD->LastSec1 = 1;
 
 	RTMPWriteTxDescriptor(pAd, pTxD, FALSE, FIFO_EDCA);
-
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange((PUCHAR)(pDMAHeaderBufVA + TXINFO_SIZE), TYPE_TXWI);
-	RTMPFrameEndianChange(pAd, (PUCHAR)(pDMAHeaderBufVA + TXINFO_SIZE + TXWI_SIZE), DIR_WRITE, FALSE);
-	RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-    WriteBackToDescriptor((PUCHAR)pDestTxD, (PUCHAR)pTxD, FALSE, TYPE_TXD);
-#endif // RT_BIG_ENDIAN //
 
 	RetTxIdx = TxIdx;
 	pTxBlk->Priv += pTxBlk->SrcBufLen;
@@ -431,20 +360,9 @@ int RtmpPCIMgmtKickOut(
 	IN UINT 			SrcBufLen)
 {
 	PTXD_STRUC		pTxD;
-#ifdef RT_BIG_ENDIAN
-    PTXD_STRUC      pDestTxD;
-    TXD_STRUC       TxD;
-#endif
 	ULONG			SwIdx = pAd->MgmtRing.TxCpuIdx;
 
-#ifdef RT_BIG_ENDIAN
-    pDestTxD  = (PTXD_STRUC)pAd->MgmtRing.Cell[SwIdx].AllocVa;
-    TxD = *pDestTxD;
-    pTxD = &TxD;
-    RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-#else
 	pTxD  = (PTXD_STRUC) pAd->MgmtRing.Cell[SwIdx].AllocVa;
-#endif
 
 	pAd->MgmtRing.Cell[SwIdx].pNdisPacket = pPacket;
 	pAd->MgmtRing.Cell[SwIdx].pNextNdisPacket = NULL;
@@ -457,11 +375,6 @@ int RtmpPCIMgmtKickOut(
 	pTxD->SDPtr0 = PCI_MAP_SINGLE(pAd, pSrcBufVA, SrcBufLen, 0, PCI_DMA_TODEVICE);;
 	pTxD->SDLen0 = SrcBufLen;
 
-#ifdef RT_BIG_ENDIAN
-	RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-    WriteBackToDescriptor((PUCHAR)pDestTxD, (PUCHAR)pTxD, FALSE, TYPE_TXD);
-#endif
-
 	pAd->RalinkCounters.KickTxCount++;
 	pAd->RalinkCounters.OneSecTxDoneCount++;
 
@@ -473,8 +386,6 @@ int RtmpPCIMgmtKickOut(
 	return 0;
 }
 
-
-#ifdef CONFIG_STA_SUPPORT
 /*
 	========================================================================
 
@@ -570,12 +481,11 @@ NDIS_STATUS RTMPCheckRxError(
 		if (pRxD->CipherErr == 2)
 		{
 			pWpaKey = &pAd->SharedKey[BSS0][pRxWI->KeyIndex];
-#ifdef WPA_SUPPLICANT_SUPPORT
+
             if (pAd->StaCfg.WpaSupplicantUP)
                 WpaSendMicFailureToWpaSupplicant(pAd,
                                    (pWpaKey->Type == PAIRWISEKEY) ? TRUE:FALSE);
             else
-#endif // WPA_SUPPLICANT_SUPPORT //
 			    RTMPReportMicError(pAd, pWpaKey);
 
             if (((pRxD->CipherErr & 2) == 2) && pAd->CommonCfg.bWirelessEvent && INFRA_ON(pAd))
@@ -1128,8 +1038,6 @@ VOID  RadioOnExec(
 	}
 }
 
-#endif // CONFIG_STA_SUPPORT //
-
 VOID RT28xxPciMlmeRadioOn(
 	IN PRTMP_ADAPTER pAd)
 {
@@ -1163,7 +1071,6 @@ VOID RT28xxPciMlmeRadioOn(
 	    RTMPSetLED(pAd, LED_RADIO_ON);
     }
 
-#ifdef CONFIG_STA_SUPPORT
     if ((pAd->OpMode == OPMODE_STA) &&
         (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)))
     {
@@ -1176,7 +1083,6 @@ VOID RT28xxPciMlmeRadioOn(
     	RTMPCancelTimer(&pAd->Mlme.RadioOnOffTimer,	&Cancelled);
     	RTMPSetTimer(&pAd->Mlme.RadioOnOffTimer, 10);
     }
-#endif // CONFIG_STA_SUPPORT //
 }
 
 VOID RT28xxPciMlmeRadioOFF(
@@ -1199,8 +1105,6 @@ VOID RT28xxPciMlmeRadioOFF(
 	// Set LED
 	RTMPSetLED(pAd, LED_RADIO_OFF);
 
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
     {
     	BOOLEAN		Cancelled;
 
@@ -1249,7 +1153,6 @@ VOID RT28xxPciMlmeRadioOFF(
 			return;
 		}
     }
-#endif // CONFIG_STA_SUPPORT //
 
 	// Set Radio off flag
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);

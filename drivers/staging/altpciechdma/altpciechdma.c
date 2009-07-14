@@ -399,6 +399,7 @@ static inline void ape_chdma_desc_set(struct ape_chdma_desc *desc, dma_addr_t ad
 	desc->rc_addr_l = cpu_to_le32(pci_dma_l(addr));
 }
 
+#if ALTPCIECHDMA_CDEV
 /*
  * ape_sg_to_chdma_table() - Create a device descriptor table from a scatterlist.
  *
@@ -456,6 +457,7 @@ static int ape_sg_to_chdma_table(struct scatterlist *sgl, int nents, int first, 
 	j++;
 	return j;
 }
+#endif
 
 /* compare buffers */
 static inline int compare(u32 *p, u32 *q, int len)
@@ -540,8 +542,8 @@ static int __devinit dma_test(struct ape_dev *ape, struct pci_dev *dev)
 		printk(KERN_DEBUG "Could not allocate coherent DMA buffer.\n");
 		goto fail;
 	}
-	printk(KERN_DEBUG "Allocated cache-coherent DMA buffer (virtual address = 0x%016llx, bus address = 0x%016llx).\n",
-		(u64)buffer_virt, (u64)buffer_bus);
+	printk(KERN_DEBUG "Allocated cache-coherent DMA buffer (virtual address = %p, bus address = 0x%016llx).\n",
+	       buffer_virt, (u64)buffer_bus);
 
 	/* fill first half of buffer with its virtual address as data */
 	for (i = 0; i < 4 * PAGE_SIZE; i += 4)
@@ -783,7 +785,7 @@ static int __devinit probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto err_ape;
 	}
 	ape->pci_dev = dev;
-	dev->dev.driver_data = (void *)ape;
+	dev_set_drvdata(&dev->dev, ape);
 	printk(KERN_DEBUG "probe() ape = 0x%p\n", ape);
 
 	printk(KERN_DEBUG "sizeof(struct ape_chdma_table) = %d.\n",
@@ -801,8 +803,8 @@ static int __devinit probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto err_table;
 	}
 
-	printk(KERN_DEBUG "table_virt = 0x%16llx, table_bus = 0x%16llx.\n",
-		(u64)ape->table_virt, (u64)ape->table_bus);
+	printk(KERN_DEBUG "table_virt = %p, table_bus = 0x%16llx.\n",
+		ape->table_virt, (u64)ape->table_bus);
 
 	/* enable device */
 	rc = pci_enable_device(dev);
@@ -913,9 +915,11 @@ static int __devinit probe(struct pci_dev *dev, const struct pci_device_id *id)
 	rc = 0;
 	printk(KERN_DEBUG "probe() successful.\n");
 	goto end;
+#if ALTPCIECHDMA_CDEV
 err_cdev:
 	/* unmap the BARs */
 	unmap_bars(ape, dev);
+#endif
 err_map:
 	/* free allocated irq */
 	if (ape->irq_line >= 0)
@@ -930,7 +934,7 @@ err_irq:
 		pci_release_regions(dev);
 err_mask:
 err_regions:
-err_rev:
+/*err_rev:*/
 /* clean up everything before device enable() */
 err_enable:
 	if (ape->table_virt)
@@ -946,19 +950,11 @@ end:
 
 static void __devexit remove(struct pci_dev *dev)
 {
-	struct ape_dev *ape;
+	struct ape_dev *ape = dev_get_drvdata(&dev->dev);
+
 	printk(KERN_DEBUG "remove(0x%p)\n", dev);
-	if ((dev == 0) || (dev->dev.driver_data == 0)) {
-		printk(KERN_DEBUG "remove(dev = 0x%p) dev->dev.driver_data = 0x%p\n",
-			dev, (dev? dev->dev.driver_data: NULL));
-		return;
-	}
-	ape = (struct ape_dev *)dev->dev.driver_data;
-	printk(KERN_DEBUG "remove(dev = 0x%p) where dev->dev.driver_data = 0x%p\n", dev, ape);
-	if (ape->pci_dev != dev) {
-		printk(KERN_DEBUG "dev->dev.driver_data->pci_dev (0x%08lx) != dev (0x%08lx)\n",
-		(unsigned long)ape->pci_dev, (unsigned long)dev);
-	}
+	printk(KERN_DEBUG "remove(dev = 0x%p) where ape = 0x%p\n", dev, ape);
+
 	/* remove character device */
 #if ALTPCIECHDMA_CDEV
 	sg_exit(ape);
@@ -1151,7 +1147,7 @@ static struct pci_driver pci_driver = {
 	.name = DRV_NAME,
 	.id_table = ids,
 	.probe = probe,
-	.remove = remove,
+	.remove = __devexit_p(remove),
 	/* resume, suspend are optional */
 };
 

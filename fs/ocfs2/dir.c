@@ -2900,6 +2900,8 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	alloc = ocfs2_clusters_for_bytes(sb, bytes);
 	dx_alloc = 0;
 
+	down_write(&oi->ip_alloc_sem);
+
 	if (ocfs2_supports_indexed_dirs(osb)) {
 		credits += ocfs2_add_dir_index_credits(sb);
 
@@ -2940,8 +2942,6 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 		goto out;
 	}
 
-	down_write(&oi->ip_alloc_sem);
-
 	/*
 	 * Prepare for worst case allocation scenario of two separate
 	 * extents in the unindexed tree.
@@ -2953,7 +2953,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		mlog_errno(ret);
-		goto out_sem;
+		goto out;
 	}
 
 	if (vfs_dq_alloc_space_nodirty(dir,
@@ -3172,10 +3172,8 @@ out_commit:
 
 	ocfs2_commit_trans(osb, handle);
 
-out_sem:
-	up_write(&oi->ip_alloc_sem);
-
 out:
+	up_write(&oi->ip_alloc_sem);
 	if (data_ac)
 		ocfs2_free_alloc_context(data_ac);
 	if (meta_ac)
@@ -3322,11 +3320,15 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		brelse(new_bh);
 		new_bh = NULL;
 
+		down_write(&OCFS2_I(dir)->ip_alloc_sem);
+		drop_alloc_sem = 1;
 		dir_i_size = i_size_read(dir);
 		credits = OCFS2_SIMPLE_DIR_EXTEND_CREDITS;
 		goto do_extend;
 	}
 
+	down_write(&OCFS2_I(dir)->ip_alloc_sem);
+	drop_alloc_sem = 1;
 	dir_i_size = i_size_read(dir);
 	mlog(0, "extending dir %llu (i_size = %lld)\n",
 	     (unsigned long long)OCFS2_I(dir)->ip_blkno, dir_i_size);
@@ -3369,9 +3371,6 @@ do_extend:
 	if (ocfs2_dir_indexed(dir))
 		credits++; /* For attaching the new dirent block to the
 			    * dx_root */
-
-	down_write(&OCFS2_I(dir)->ip_alloc_sem);
-	drop_alloc_sem = 1;
 
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
@@ -3435,10 +3434,10 @@ bail_bh:
 	*new_de_bh = new_bh;
 	get_bh(*new_de_bh);
 bail:
-	if (drop_alloc_sem)
-		up_write(&OCFS2_I(dir)->ip_alloc_sem);
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
+	if (drop_alloc_sem)
+		up_write(&OCFS2_I(dir)->ip_alloc_sem);
 
 	if (data_ac)
 		ocfs2_free_alloc_context(data_ac);

@@ -34,7 +34,6 @@
 #define BF561_FAMILY
 
 #include "bf561.h"
-#include "mem_map.h"
 #include "defBF561.h"
 #include "anomaly.h"
 

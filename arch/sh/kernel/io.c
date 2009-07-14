@@ -12,6 +12,7 @@
  * for more details.
  */
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 

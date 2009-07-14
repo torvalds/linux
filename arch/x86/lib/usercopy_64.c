@@ -127,7 +127,7 @@ EXPORT_SYMBOL(__strnlen_user);
 
 long strnlen_user(const char __user *s, long n)
 {
-	if (!access_ok(VERIFY_READ, s, n))
+	if (!access_ok(VERIFY_READ, s, 1))
 		return 0;
 	return __strnlen_user(s, n);
 }

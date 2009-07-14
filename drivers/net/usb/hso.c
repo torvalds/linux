@@ -482,7 +482,7 @@ static ssize_t hso_sysfs_show_porttype(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct hso_device *hso_dev = dev->driver_data;
+	struct hso_device *hso_dev = dev_get_drvdata(dev);
 	char *port_name;
 
 	if (!hso_dev)
@@ -816,7 +816,7 @@ static int hso_net_start_xmit(struct sk_buff *skb, struct net_device *net)
 	}
 	dev_kfree_skb(skb);
 	/* we're done */
-	return result;
+	return NETDEV_TX_OK;
 }
 
 static void hso_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
@@ -899,15 +899,14 @@ static void packetizeRx(struct hso_net *odev, unsigned char *ip_pkt,
 					continue;
 				}
 				/* Allocate an sk_buff */
-				odev->skb_rx_buf = dev_alloc_skb(frame_len);
+				odev->skb_rx_buf = netdev_alloc_skb(odev->net,
+								    frame_len);
 				if (!odev->skb_rx_buf) {
 					/* We got no receive buffer. */
 					D1("could not allocate memory");
 					odev->rx_parse_state = WAIT_SYNC;
 					return;
 				}
-				/* Here's where it came from */
-				odev->skb_rx_buf->dev = odev->net;
 
 				/* Copy what we got so far. make room for iphdr
 				 * after tail. */
@@ -2313,7 +2312,7 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 	serial->parent->dev = tty_register_device(tty_drv, minor,
 					&serial->parent->interface->dev);
 	dev = serial->parent->dev;
-	dev->driver_data = serial->parent;
+	dev_set_drvdata(dev, serial->parent);
 	i = device_create_file(dev, &dev_attr_hsotype);
 
 	/* fill in specific data for later use */
@@ -2481,10 +2480,10 @@ static int add_net_device(struct hso_device *hso_dev)
 	return 0;
 }
 
-static int hso_radio_toggle(void *data, enum rfkill_state state)
+static int hso_rfkill_set_block(void *data, bool blocked)
 {
 	struct hso_device *hso_dev = data;
-	int enabled = (state == RFKILL_STATE_ON);
+	int enabled = !blocked;
 	int rv;
 
 	mutex_lock(&hso_dev->mutex);
@@ -2498,6 +2497,10 @@ static int hso_radio_toggle(void *data, enum rfkill_state state)
 	return rv;
 }
 
+static const struct rfkill_ops hso_rfkill_ops = {
+	.set_block = hso_rfkill_set_block,
+};
+
 /* Creates and sets up everything for rfkill */
 static void hso_create_rfkill(struct hso_device *hso_dev,
 			     struct usb_interface *interface)
@@ -2506,29 +2509,25 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 	struct device *dev = &hso_net->net->dev;
 	char *rfkn;
 
-	hso_net->rfkill = rfkill_allocate(&interface_to_usbdev(interface)->dev,
-				 RFKILL_TYPE_WWAN);
-	if (!hso_net->rfkill) {
-		dev_err(dev, "%s - Out of memory\n", __func__);
-		return;
-	}
 	rfkn = kzalloc(20, GFP_KERNEL);
-	if (!rfkn) {
-		rfkill_free(hso_net->rfkill);
-		hso_net->rfkill = NULL;
+	if (!rfkn)
 		dev_err(dev, "%s - Out of memory\n", __func__);
-		return;
-	}
+
 	snprintf(rfkn, 20, "hso-%d",
 		 interface->altsetting->desc.bInterfaceNumber);
-	hso_net->rfkill->name = rfkn;
-	hso_net->rfkill->state = RFKILL_STATE_ON;
-	hso_net->rfkill->data = hso_dev;
-	hso_net->rfkill->toggle_radio = hso_radio_toggle;
-	if (rfkill_register(hso_net->rfkill) < 0) {
+
+	hso_net->rfkill = rfkill_alloc(rfkn,
+				       &interface_to_usbdev(interface)->dev,
+				       RFKILL_TYPE_WWAN,
+				       &hso_rfkill_ops, hso_dev);
+	if (!hso_net->rfkill) {
+		dev_err(dev, "%s - Out of memory\n", __func__);
 		kfree(rfkn);
-		hso_net->rfkill->name = NULL;
-		rfkill_free(hso_net->rfkill);
+		return;
+	}
+	if (rfkill_register(hso_net->rfkill) < 0) {
+		rfkill_destroy(hso_net->rfkill);
+		kfree(rfkn);
 		hso_net->rfkill = NULL;
 		dev_err(dev, "%s - Failed to register rfkill\n", __func__);
 		return;
@@ -3165,8 +3164,10 @@ static void hso_free_interface(struct usb_interface *interface)
 			hso_stop_net_device(network_table[i]);
 			cancel_work_sync(&network_table[i]->async_put_intf);
 			cancel_work_sync(&network_table[i]->async_get_intf);
-			if (rfk)
+			if (rfk) {
 				rfkill_unregister(rfk);
+				rfkill_destroy(rfk);
+			}
 			hso_free_net_device(network_table[i]);
 		}
 	}

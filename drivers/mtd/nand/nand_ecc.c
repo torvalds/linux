@@ -428,8 +428,8 @@ EXPORT_SYMBOL(nand_calculate_ecc);
 int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
 		      unsigned char *read_ecc, unsigned char *calc_ecc)
 {
-	unsigned char b0, b1, b2;
-	unsigned char byte_addr, bit_addr;
+	unsigned char b0, b1, b2, bit_addr;
+	unsigned int byte_addr;
 	/* 256 or 512 bytes/ecc  */
 	const uint32_t eccsize_mult =
 			(((struct nand_chip *)mtd->priv)->ecc.size) >> 8;

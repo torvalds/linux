@@ -110,6 +110,12 @@ static int remap_area_pages(unsigned long start, unsigned long pfn,
 	return err;
 }
 
+int ioremap_page(unsigned long virt, unsigned long phys,
+		 const struct mem_type *mtype)
+{
+	return remap_area_pages(virt, __phys_to_pfn(phys), PAGE_SIZE, mtype);
+}
+EXPORT_SYMBOL(ioremap_page);
 
 void __check_kvm_seq(struct mm_struct *mm)
 {

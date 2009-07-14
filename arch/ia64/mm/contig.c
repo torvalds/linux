@@ -107,10 +107,10 @@ unsigned long bootmap_start;
  * bootmap_start.  This address must be page-aligned.
  */
 static int __init
-find_bootmap_location (unsigned long start, unsigned long end, void *arg)
+find_bootmap_location (u64 start, u64 end, void *arg)
 {
-	unsigned long needed = *(unsigned long *)arg;
-	unsigned long range_start, range_end, free_start;
+	u64 needed = *(unsigned long *)arg;
+	u64 range_start, range_end, free_start;
 	int i;
 
 #if IGNORE_PFN0
@@ -229,8 +229,7 @@ find_memory (void)
 	alloc_per_cpu_data();
 }
 
-static int
-count_pages (u64 start, u64 end, void *arg)
+static int count_pages(u64 start, u64 end, void *arg)
 {
 	unsigned long *count = arg;
 

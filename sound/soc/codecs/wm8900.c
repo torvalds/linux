@@ -778,11 +778,11 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	}
 
 	if (target > 100000000)
-		printk(KERN_WARNING "wm8900: FLL rate %d out of range, Fref=%d"
-		       " Fout=%d\n", target, Fref, Fout);
+		printk(KERN_WARNING "wm8900: FLL rate %u out of range, Fref=%u"
+		       " Fout=%u\n", target, Fref, Fout);
 	if (div > 32) {
 		printk(KERN_ERR "wm8900: Invalid FLL division rate %u, "
-		       "Fref=%d, Fout=%d, target=%d\n",
+		       "Fref=%u, Fout=%u, target=%u\n",
 		       div, Fref, Fout, target);
 		return -EINVAL;
 	}

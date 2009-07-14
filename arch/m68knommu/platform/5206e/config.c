@@ -11,17 +11,12 @@
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfdma.h>
 #include <asm/mcfuart.h>
-
-/***************************************************************************/
-
-void coldfire_reset(void);
 
 /***************************************************************************/
 
@@ -109,6 +104,17 @@ void mcf_settimericr(unsigned int timer, unsigned int level)
 
 /***************************************************************************/
 
+void m5206e_cpu_reset(void)
+{
+	local_irq_disable();
+	/* Set watchdog to soft reset, and enabled */
+	__raw_writeb(0xc0, MCF_MBAR + MCFSIM_SYPCR);
+	for (;;)
+		/* wait for watchdog to timeout */;
+}
+
+/***************************************************************************/
+
 void __init config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
@@ -119,7 +125,7 @@ void __init config_BSP(char *commandp, int size)
 	commandp[size-1] = 0;
 #endif /* CONFIG_NETtel */
 
-	mach_reset = coldfire_reset;
+	mach_reset = m5206e_cpu_reset;
 }
 
 /***************************************************************************/

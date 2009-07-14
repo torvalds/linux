@@ -1,7 +1,7 @@
 SH7760/SH7763 integrated LCDC Framebuffer driver
 ================================================
 
-0. Overwiew
+0. Overview
 -----------
 The SH7760/SH7763 have an integrated LCD Display controller (LCDC) which
 supports (in theory) resolutions ranging from 1x1 to 1024x1024,

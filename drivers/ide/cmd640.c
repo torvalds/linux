@@ -153,6 +153,7 @@ static int cmd640_vlb;
 #define ARTTIM23	0x57
 #define   ARTTIM23_DIS_RA2	0x04
 #define   ARTTIM23_DIS_RA3	0x08
+#define   ARTTIM23_IDE23INTR	0x10
 #define DRWTIM23	0x58
 #define BRST		0x59
 
@@ -629,12 +630,24 @@ static void cmd640_init_dev(ide_drive_t *drive)
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 }
 
+static int cmd640_test_irq(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
+	u8  irq_stat, irq_mask	= hwif->channel ? ARTTIM23_IDE23INTR :
+						  CFR_IDE01INTR;
+
+	pci_read_config_byte(dev, irq_reg, &irq_stat);
+
+	return (irq_stat & irq_mask) ? 1 : 0;
+}
 
 static const struct ide_port_ops cmd640_port_ops = {
 	.init_dev		= cmd640_init_dev,
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	.set_pio_mode		= cmd640_set_pio_mode,
 #endif
+	.test_irq		= cmd640_test_irq,
 };
 
 static int pci_conf1(void)
@@ -708,7 +721,7 @@ static int __init cmd640x_init(void)
 	int second_port_cmd640 = 0, rc;
 	const char *bus_type, *port2;
 	u8 b, cfr;
-	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
+	struct ide_hw hw[2], *hws[2];
 
 	if (cmd640_vlb && probe_for_cmd640_vlb()) {
 		bus_type = "VLB";
@@ -762,11 +775,9 @@ static int __init cmd640x_init(void)
 
 	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
 	hw[0].irq = 14;
-	hw[0].chipset = ide_cmd640;
 
 	ide_std_init_ports(&hw[1], 0x170, 0x376);
 	hw[1].irq = 15;
-	hw[1].chipset = ide_cmd640;
 
 	printk(KERN_INFO "cmd640: buggy cmd640%c interface on %s, config=0x%02x"
 			 "\n", 'a' + cmd640_chip_version - 1, bus_type, cfr);
@@ -824,7 +835,8 @@ static int __init cmd640x_init(void)
 	cmd640_dump_regs();
 #endif
 
-	return ide_host_add(&cmd640_port_info, hws, NULL);
+	return ide_host_add(&cmd640_port_info, hws, second_port_cmd640 ? 2 : 1,
+			    NULL);
 }
 
 module_param_named(probe_vlb, cmd640_vlb, bool, 0);

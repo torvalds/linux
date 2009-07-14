@@ -289,6 +289,20 @@ void * __init extend_brk(size_t size, size_t align)
 	return ret;
 }
 
+#ifdef CONFIG_X86_64
+static void __init init_gbpages(void)
+{
+	if (direct_gbpages && cpu_has_gbpages)
+		printk(KERN_INFO "Using GB pages for direct mapping\n");
+	else
+		direct_gbpages = 0;
+}
+#else
+static inline void init_gbpages(void)
+{
+}
+#endif
+
 static void __init reserve_brk(void)
 {
 	if (_brk_end > _brk_start)
@@ -301,15 +315,13 @@ static void __init reserve_brk(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 
-#ifdef CONFIG_X86_32
-
 #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
 static void __init relocate_initrd(void)
 {
 
 	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
 	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
-	u64 end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+	u64 end_of_lowmem = max_low_pfn_mapped << PAGE_SHIFT;
 	u64 ramdisk_here;
 	unsigned long slop, clen, mapaddr;
 	char *p, *q;
@@ -365,14 +377,13 @@ static void __init relocate_initrd(void)
 		ramdisk_image, ramdisk_image + ramdisk_size - 1,
 		ramdisk_here, ramdisk_here + ramdisk_size - 1);
 }
-#endif
 
 static void __init reserve_initrd(void)
 {
 	u64 ramdisk_image = boot_params.hdr.ramdisk_image;
 	u64 ramdisk_size  = boot_params.hdr.ramdisk_size;
 	u64 ramdisk_end   = ramdisk_image + ramdisk_size;
-	u64 end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+	u64 end_of_lowmem = max_low_pfn_mapped << PAGE_SHIFT;
 
 	if (!boot_params.hdr.type_of_loader ||
 	    !ramdisk_image || !ramdisk_size)
@@ -402,14 +413,8 @@ static void __init reserve_initrd(void)
 		return;
 	}
 
-#ifdef CONFIG_X86_32
 	relocate_initrd();
-#else
-	printk(KERN_ERR "initrd extends beyond end of memory "
-	       "(0x%08llx > 0x%08llx)\ndisabling initrd\n",
-	       ramdisk_end, end_of_lowmem);
-	initrd_start = 0;
-#endif
+
 	free_early(ramdisk_image, ramdisk_end);
 }
 #else
@@ -879,6 +884,8 @@ void __init setup_arch(char **cmdline_p)
 			max_pfn_mapped<<PAGE_SHIFT);
 
 	reserve_brk();
+
+	init_gbpages();
 
 	/* max_pfn_mapped is updated here */
 	max_low_pfn_mapped = init_memory_mapping(0, max_low_pfn<<PAGE_SHIFT);

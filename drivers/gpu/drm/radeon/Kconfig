@@ -1,0 +1,34 @@
+config DRM_RADEON_KMS
+	bool "Enable modesetting on radeon by default"
+	depends on DRM_RADEON
+	select DRM_TTM
+	help
+	  Choose this option if you want kernel modesetting enabled by default,
+	  and you have a new enough userspace to support this. Running old
+	  userspaces with this enabled will cause pain.
+
+	  When kernel modesetting is enabled the IOCTL of radeon/drm
+	  driver are considered as invalid and an error message is printed
+	  in the log and they return failure.
+
+	  KMS enabled userspace will use new API to talk with the radeon/drm
+	  driver. The new API provide functions to create/destroy/share/mmap
+	  buffer object which are then managed by the kernel memory manager
+	  (here TTM). In order to submit command to the GPU the userspace
+	  provide a buffer holding the command stream, along this buffer
+	  userspace have to provide a list of buffer object used by the
+	  command stream. The kernel radeon driver will then place buffer
+	  in GPU accessible memory and will update command stream to reflect
+	  the position of the different buffers.
+
+	  The kernel will also perform security check on command stream
+	  provided by the user, we want to catch and forbid any illegal use
+	  of the GPU such as DMA into random system memory or into memory
+	  not owned by the process supplying the command stream. This part
+	  of the code is still incomplete and this why we propose that patch
+	  as a staging driver addition, future security might forbid current
+	  experimental userspace to run.
+
+	  This code support the following hardware : R1XX,R2XX,R3XX,R4XX,R5XX
+	  (radeon up to X1950). Works is underway to provide support for R6XX,
+	  R7XX and newer hardware (radeon from HD2XXX to HD4XXX).

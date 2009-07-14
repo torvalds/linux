@@ -181,7 +181,7 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 		nd->flags);
 	/*
 	 * For an expire of a covered direct or offset mount we need
-	 * to beeak out of follow_down() at the autofs mount trigger
+	 * to break out of follow_down() at the autofs mount trigger
 	 * (d_mounted--), so we can see the expiring flag, and manage
 	 * the blocking and following here until the expire is completed.
 	 */
@@ -190,7 +190,7 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 		if (ino->flags & AUTOFS_INF_EXPIRING) {
 			spin_unlock(&sbi->fs_lock);
 			/* Follow down to our covering mount. */
-			if (!follow_down(&nd->path.mnt, &nd->path.dentry))
+			if (!follow_down(&nd->path))
 				goto done;
 			goto follow;
 		}
@@ -230,8 +230,7 @@ follow:
 	 * to follow it.
 	 */
 	if (d_mountpoint(dentry)) {
-		if (!autofs4_follow_mount(&nd->path.mnt,
-					  &nd->path.dentry)) {
+		if (!autofs4_follow_mount(&nd->path)) {
 			status = -ENOENT;
 			goto out_error;
 		}

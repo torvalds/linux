@@ -163,10 +163,11 @@ sunplus		055f:c650	Mustek MDC5500Z
 zc3xx		055f:d003	Mustek WCam300A
 zc3xx		055f:d004	Mustek WCam300 AN
 conex		0572:0041	Creative Notebook cx11646
-ov519		05a9:0519	OmniVision
+ov519		05a9:0519	OV519 Microphone
 ov519		05a9:0530	OmniVision
-ov519		05a9:4519	OmniVision
+ov519		05a9:4519	Webcam Classic
 ov519		05a9:8519	OmniVision
+ov519		05a9:a518	D-Link DSB-C310 Webcam
 sunplus		05da:1018	Digital Dream Enigma 1.3
 stk014		05e1:0893	Syntek DV4000
 spca561		060b:a001	Maxell Compact Pc PM3
@@ -178,6 +179,7 @@ spca506		06e1:a190	ADS Instant VCD
 ov534		06f8:3002	Hercules Blog Webcam
 ov534		06f8:3003	Hercules Dualpix HD Weblog
 sonixj		06f8:3004	Hercules Classic Silver
+sonixj		06f8:3008	Hercules Deluxe Optical Glass
 spca508		0733:0110	ViewQuest VQ110
 spca508		0130:0130	Clone Digital Webcam 11043
 spca501		0733:0401	Intel Create and Share
@@ -209,6 +211,7 @@ sunplus		08ca:2050	Medion MD 41437
 sunplus		08ca:2060	Aiptek PocketDV5300
 tv8532		0923:010f	ICM532 cams
 mars		093a:050f	Mars-Semi Pc-Camera
+mr97310a	093a:010f	Sakar Digital no. 77379
 pac207		093a:2460	Qtec Webcam 100
 pac207		093a:2461	HP Webcam
 pac207		093a:2463	Philips SPC 220 NC
@@ -265,6 +268,11 @@ sonixj		0c45:60ec	SN9C105+MO4000
 sonixj		0c45:60fb	Surfer NoName
 sonixj		0c45:60fc	LG-LIC300
 sonixj		0c45:60fe	Microdia Audio
+sonixj		0c45:6100	PC Camera (SN9C128)
+sonixj		0c45:610a	PC Camera (SN9C128)
+sonixj		0c45:610b	PC Camera (SN9C128)
+sonixj		0c45:610c	PC Camera (SN9C128)
+sonixj		0c45:610e	PC Camera (SN9C128)
 sonixj		0c45:6128	Microdia/Sonix SNP325
 sonixj		0c45:612a	Avant Camera
 sonixj		0c45:612c	Typhoon Rasy Cam 1.3MPix

@@ -14,6 +14,7 @@
 
 #include <asm/traps.h>			/* dotraplinkage, ...		*/
 #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
+#include <asm/kmemcheck.h>		/* kmemcheck_*(), ...		*/
 
 /*
  * Page fault error code bits:
@@ -425,10 +426,11 @@ static noinline int vmalloc_fault(unsigned long address)
 }
 
 static const char errata93_warning[] =
-KERN_ERR "******* Your BIOS seems to not contain a fix for K8 errata #93\n"
-KERN_ERR "******* Working around it, but it may cause SEGVs or burn power.\n"
-KERN_ERR "******* Please consider a BIOS update.\n"
-KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
+KERN_ERR 
+"******* Your BIOS seems to not contain a fix for K8 errata #93\n"
+"******* Working around it, but it may cause SEGVs or burn power.\n"
+"******* Please consider a BIOS update.\n"
+"******* Disabling USB legacy in the BIOS may also help.\n";
 
 /*
  * No vm86 mode in 64-bit mode:
@@ -951,10 +953,16 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	tsk = current;
 	mm = tsk->mm;
 
-	prefetchw(&mm->mmap_sem);
-
 	/* Get the faulting address: */
 	address = read_cr2();
+
+	/*
+	 * Detect and handle instructions that would cause a page fault for
+	 * both a tracked kernel page and a userspace page.
+	 */
+	if (kmemcheck_active(regs))
+		kmemcheck_hide(regs);
+	prefetchw(&mm->mmap_sem);
 
 	if (unlikely(kmmio_fault(regs, address)))
 		return;
@@ -973,9 +981,13 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * protection error (error_code & 9) == 0.
 	 */
 	if (unlikely(fault_in_kernel_space(address))) {
-		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
-		    vmalloc_fault(address) >= 0)
-			return;
+		if (!(error_code & (PF_RSVD | PF_USER | PF_PROT))) {
+			if (vmalloc_fault(address) >= 0)
+				return;
+
+			if (kmemcheck_fault(regs, address, error_code))
+				return;
+		}
 
 		/* Can handle a stale RO->RW TLB: */
 		if (spurious_fault(error_code, address))
@@ -1102,7 +1114,7 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault:
 	 */
-	fault = handle_mm_fault(mm, vma, address, write);
+	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
 
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		mm_fault_error(regs, error_code, address, fault);

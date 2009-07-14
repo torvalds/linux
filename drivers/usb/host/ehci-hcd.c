@@ -1003,6 +1003,8 @@ idle_timeout:
 		schedule_timeout_uninterruptible(1);
 		goto rescan;
 	case QH_STATE_IDLE:		/* fully unlinked */
+		if (qh->clearing_tt)
+			goto idle_timeout;
 		if (list_empty (&qh->qtd_list)) {
 			qh_put (qh);
 			break;
@@ -1022,6 +1024,48 @@ nogood:
 done:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 	return;
+}
+
+static void
+ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+	struct ehci_qh		*qh;
+	int			eptype = usb_endpoint_type(&ep->desc);
+	int			epnum = usb_endpoint_num(&ep->desc);
+	int			is_out = usb_endpoint_dir_out(&ep->desc);
+	unsigned long		flags;
+
+	if (eptype != USB_ENDPOINT_XFER_BULK && eptype != USB_ENDPOINT_XFER_INT)
+		return;
+
+	spin_lock_irqsave(&ehci->lock, flags);
+	qh = ep->hcpriv;
+
+	/* For Bulk and Interrupt endpoints we maintain the toggle state
+	 * in the hardware; the toggle bits in udev aren't used at all.
+	 * When an endpoint is reset by usb_clear_halt() we must reset
+	 * the toggle bit in the QH.
+	 */
+	if (qh) {
+		usb_settoggle(qh->dev, epnum, is_out, 0);
+		if (!list_empty(&qh->qtd_list)) {
+			WARN_ONCE(1, "clear_halt for a busy endpoint\n");
+		} else if (qh->qh_state == QH_STATE_LINKED) {
+
+			/* The toggle value in the QH can't be updated
+			 * while the QH is active.  Unlink it now;
+			 * re-linking will call qh_refresh().
+			 */
+			if (eptype == USB_ENDPOINT_XFER_BULK) {
+				unlink_async(ehci, qh);
+			} else {
+				intr_deschedule(ehci, qh);
+				(void) qh_schedule(ehci, qh);
+			}
+		}
+	}
+	spin_unlock_irqrestore(&ehci->lock, flags);
 }
 
 static int ehci_get_frame (struct usb_hcd *hcd)
@@ -1097,7 +1141,7 @@ static int __init ehci_hcd_init(void)
 		 sizeof(struct ehci_itd), sizeof(struct ehci_sitd));
 
 #ifdef DEBUG
-	ehci_debug_root = debugfs_create_dir("ehci", NULL);
+	ehci_debug_root = debugfs_create_dir("ehci", usb_debug_root);
 	if (!ehci_debug_root) {
 		retval = -ENOENT;
 		goto err_debug;

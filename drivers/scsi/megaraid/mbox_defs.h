@@ -686,7 +686,7 @@ typedef struct {
  * @type	: Type of the device
  * @cur_status	: current status of the device
  * @tag_depth	: Level of tagging
- * @sync_neg	: sync negotiation - ENABLE or DISBALE
+ * @sync_neg	: sync negotiation - ENABLE or DISABLE
  * @size	: configurable size in terms of 512 byte
  */
 typedef struct {

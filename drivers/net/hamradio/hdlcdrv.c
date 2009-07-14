@@ -409,7 +409,7 @@ static int hdlcdrv_send_packet(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 	if (sm->skb)
-		return -1;
+		return NETDEV_TX_LOCKED;
 	netif_stop_queue(dev);
 	sm->skb = skb;
 	return 0;

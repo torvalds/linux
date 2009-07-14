@@ -415,7 +415,7 @@ static int pll_factors(struct _pll_div *pll_div, unsigned int target,
 	unsigned int K, Ndiv, Nmod;
 	int i;
 
-	pr_debug("wm8580: PLL %dHz->%dHz\n", source, target);
+	pr_debug("wm8580: PLL %uHz->%uHz\n", source, target);
 
 	/* Scale the output frequency up; the PLL should run in the
 	 * region of 90-100MHz.
@@ -447,7 +447,7 @@ static int pll_factors(struct _pll_div *pll_div, unsigned int target,
 
 	if ((Ndiv < 5) || (Ndiv > 13)) {
 		printk(KERN_ERR
-			"WM8580 N=%d outside supported range\n", Ndiv);
+			"WM8580 N=%u outside supported range\n", Ndiv);
 		return -EINVAL;
 	}
 

@@ -500,18 +500,21 @@ int em28xx_audio_setup(struct em28xx *dev)
 
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
-	if (cfg < 0)
+	em28xx_info("Config register raw data: 0x%02x\n", cfg);
+	if (cfg < 0) {
+		/* Register read error?  */
 		cfg = EM28XX_CHIPCFG_AC97; /* Be conservative */
-	else
-		em28xx_info("Config register raw data: 0x%02x\n", cfg);
-
-	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		    EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) == 0x00) {
+		/* The device doesn't have vendor audio at all */
+		dev->has_alsa_audio = 0;
+		dev->audio_mode.has_audio = 0;
+		return 0;
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		   EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
 		em28xx_info("I2S Audio (3 sample rates)\n");
 		dev->audio_mode.i2s_3rates = 1;
-	}
-	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		    EM28XX_CHIPCFG_I2S_5_SAMPRATES) {
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		   EM28XX_CHIPCFG_I2S_5_SAMPRATES) {
 		em28xx_info("I2S Audio (5 sample rates)\n");
 		dev->audio_mode.i2s_5rates = 1;
 	}
@@ -645,17 +648,28 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 int em28xx_set_outfmt(struct em28xx *dev)
 {
 	int ret;
+	int vinmode, vinctl, outfmt;
+
+	outfmt  = dev->format->reg;
+
+	if (dev->board.is_27xx) {
+		vinmode = 0x0d;
+		vinctl  = 0x00;
+	} else {
+		vinmode = 0x10;
+		vinctl  = 0x11;
+	}
 
 	ret = em28xx_write_reg_bits(dev, EM28XX_R27_OUTFMT,
-				    dev->format->reg | 0x20, 0x3f);
+				outfmt | 0x20, 0xff);
+	if (ret < 0)
+			return ret;
+
+	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, vinmode);
 	if (ret < 0)
 		return ret;
 
-	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, 0x10);
-	if (ret < 0)
-		return ret;
-
-	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, 0x11);
+	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctl);
 }
 
 static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
@@ -692,13 +706,19 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 {
 	u8 mode;
 	/* the em2800 scaler only supports scaling down to 50% */
-	if (dev->board.is_em2800)
+
+	if (dev->board.is_27xx) {
+		/* FIXME: Don't use the scaler yet */
+		mode = 0;
+	} else if (dev->board.is_em2800) {
 		mode = (v ? 0x20 : 0x00) | (h ? 0x10 : 0x00);
-	else {
+	} else {
 		u8 buf[2];
+
 		buf[0] = h;
 		buf[1] = h >> 8;
 		em28xx_write_regs(dev, EM28XX_R30_HSCALELOW, (char *)buf, 2);
+
 		buf[0] = v;
 		buf[1] = v >> 8;
 		em28xx_write_regs(dev, EM28XX_R32_VSCALELOW, (char *)buf, 2);
@@ -717,8 +737,11 @@ int em28xx_resolution_set(struct em28xx *dev)
 	height = norm_maxh(dev) >> 1;
 
 	em28xx_set_outfmt(dev);
+
+
 	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
 	em28xx_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
+
 	return em28xx_scaler_set(dev, dev->hscale, dev->vscale);
 }
 
@@ -938,7 +961,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 	dev->isoc_ctl.transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
 					      GFP_KERNEL);
 	if (!dev->isoc_ctl.transfer_buffer) {
-		em28xx_errdev("cannot allocate memory for usbtransfer\n");
+		em28xx_errdev("cannot allocate memory for usb transfer\n");
 		kfree(dev->isoc_ctl.urb);
 		return -ENOMEM;
 	}
@@ -1011,6 +1034,41 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(em28xx_init_isoc);
+
+/* Determine the packet size for the DVB stream for the given device
+   (underlying value programmed into the eeprom) */
+int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev)
+{
+	unsigned int chip_cfg2;
+	unsigned int packet_size = 564;
+
+	if (dev->chip_id == CHIP_ID_EM2874) {
+		/* FIXME - for now assume 564 like it was before, but the
+		   em2874 code should be added to return the proper value... */
+		packet_size = 564;
+	} else {
+		/* TS max packet size stored in bits 1-0 of R01 */
+		chip_cfg2 = em28xx_read_reg(dev, EM28XX_R01_CHIPCFG2);
+		switch (chip_cfg2 & EM28XX_CHIPCFG2_TS_PACKETSIZE_MASK) {
+		case EM28XX_CHIPCFG2_TS_PACKETSIZE_188:
+			packet_size = 188;
+			break;
+		case EM28XX_CHIPCFG2_TS_PACKETSIZE_376:
+			packet_size = 376;
+			break;
+		case EM28XX_CHIPCFG2_TS_PACKETSIZE_564:
+			packet_size = 564;
+			break;
+		case EM28XX_CHIPCFG2_TS_PACKETSIZE_752:
+			packet_size = 752;
+			break;
+		}
+	}
+
+	em28xx_coredbg("dvb max packet size=%d\n", packet_size);
+	return packet_size;
+}
+EXPORT_SYMBOL_GPL(em28xx_isoc_dvb_max_packetsize);
 
 /*
  * em28xx_wake_i2c()

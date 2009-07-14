@@ -226,9 +226,10 @@ static void reg_vif_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 	dev->netdev_ops		= &reg_vif_netdev_ops,
 	dev->destructor		= free_netdev;
+	dev->features		|= NETIF_F_NETNS_LOCAL;
 }
 
-static struct net_device *ipmr_reg_vif(void)
+static struct net_device *ipmr_reg_vif(struct net *net)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
@@ -237,6 +238,8 @@ static struct net_device *ipmr_reg_vif(void)
 
 	if (dev == NULL)
 		return NULL;
+
+	dev_net_set(dev, net);
 
 	if (register_netdevice(dev)) {
 		free_netdev(dev);
@@ -448,7 +451,7 @@ static int vif_add(struct net *net, struct vifctl *vifc, int mrtsock)
 		 */
 		if (net->ipv4.mroute_reg_vif_num >= 0)
 			return -EADDRINUSE;
-		dev = ipmr_reg_vif();
+		dev = ipmr_reg_vif(net);
 		if (!dev)
 			return -ENOBUFS;
 		err = dev_set_allmulti(dev, 1);
@@ -651,7 +654,7 @@ static int ipmr_cache_report(struct net *net,
 	ip_hdr(skb)->protocol = 0;			/* Flag to the kernel this is a route add */
 	msg = (struct igmpmsg *)skb_network_header(skb);
 	msg->im_vif = vifi;
-	skb->dst = dst_clone(pkt->dst);
+	skb_dst_set(skb, dst_clone(skb_dst(pkt)));
 
 	/*
 	 *	Add our header
@@ -1031,16 +1034,6 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 		if (v != net->ipv4.mroute_do_pim) {
 			net->ipv4.mroute_do_pim = v;
 			net->ipv4.mroute_do_assert = v;
-#ifdef CONFIG_IP_PIMSM_V2
-			if (net->ipv4.mroute_do_pim)
-				ret = inet_add_protocol(&pim_protocol,
-							IPPROTO_PIM);
-			else
-				ret = inet_del_protocol(&pim_protocol,
-							IPPROTO_PIM);
-			if (ret < 0)
-				ret = -EAGAIN;
-#endif
 		}
 		rtnl_unlock();
 		return ret;
@@ -1201,7 +1194,7 @@ static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 	iph->protocol	=	IPPROTO_IPIP;
 	iph->ihl	=	5;
 	iph->tot_len	=	htons(skb->len);
-	ip_select_ident(iph, skb->dst, NULL);
+	ip_select_ident(iph, skb_dst(skb), NULL);
 	ip_send_check(iph);
 
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
@@ -1212,7 +1205,7 @@ static inline int ipmr_forward_finish(struct sk_buff *skb)
 {
 	struct ip_options * opt	= &(IPCB(skb)->opt);
 
-	IP_INC_STATS_BH(dev_net(skb->dst->dev), IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTFORWDATAGRAMS);
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
@@ -1290,8 +1283,8 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 	vif->pkt_out++;
 	vif->bytes_out += skb->len;
 
-	dst_release(skb->dst);
-	skb->dst = &rt->u.dst;
+	skb_dst_drop(skb);
+	skb_dst_set(skb, &rt->u.dst);
 	ip_decrease_ttl(ip_hdr(skb));
 
 	/* FIXME: forward and output firewalls used to be called here.
@@ -1354,7 +1347,7 @@ static int ip_mr_forward(struct sk_buff *skb, struct mfc_cache *cache, int local
 	if (net->ipv4.vif_table[vif].dev != skb->dev) {
 		int true_vifi;
 
-		if (skb->rtable->fl.iif == 0) {
+		if (skb_rtable(skb)->fl.iif == 0) {
 			/* It is our own packet, looped back.
 			   Very complicated situation...
 
@@ -1430,7 +1423,7 @@ int ip_mr_input(struct sk_buff *skb)
 {
 	struct mfc_cache *cache;
 	struct net *net = dev_net(skb->dev);
-	int local = skb->rtable->rt_flags&RTCF_LOCAL;
+	int local = skb_rtable(skb)->rt_flags & RTCF_LOCAL;
 
 	/* Packet is looped back after forward, it should not be
 	   forwarded second time, but still can be delivered locally.
@@ -1543,8 +1536,7 @@ static int __pim_rcv(struct sk_buff *skb, unsigned int pimlen)
 	skb->protocol = htons(ETH_P_IP);
 	skb->ip_summed = 0;
 	skb->pkt_type = PACKET_HOST;
-	dst_release(skb->dst);
-	skb->dst = NULL;
+	skb_dst_drop(skb);
 	reg_dev->stats.rx_bytes += skb->len;
 	reg_dev->stats.rx_packets++;
 	nf_reset(skb);
@@ -1646,7 +1638,7 @@ int ipmr_get_route(struct net *net,
 {
 	int err;
 	struct mfc_cache *cache;
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 
 	read_lock(&mrt_lock);
 	cache = ipmr_cache_find(net, rt->rt_src, rt->rt_dst);
@@ -1955,6 +1947,7 @@ static const struct file_operations ipmr_mfc_fops = {
 #ifdef CONFIG_IP_PIMSM_V2
 static struct net_protocol pim_protocol = {
 	.handler	=	pim_rcv,
+	.netns_ok	=	1,
 };
 #endif
 
@@ -2041,8 +2034,19 @@ int __init ip_mr_init(void)
 	err = register_netdevice_notifier(&ip_mr_notifier);
 	if (err)
 		goto reg_notif_fail;
+#ifdef CONFIG_IP_PIMSM_V2
+	if (inet_add_protocol(&pim_protocol, IPPROTO_PIM) < 0) {
+		printk(KERN_ERR "ip_mr_init: can't add PIM protocol\n");
+		err = -EAGAIN;
+		goto add_proto_fail;
+	}
+#endif
 	return 0;
 
+#ifdef CONFIG_IP_PIMSM_V2
+add_proto_fail:
+	unregister_netdevice_notifier(&ip_mr_notifier);
+#endif
 reg_notif_fail:
 	del_timer(&ipmr_expire_timer);
 	unregister_pernet_subsys(&ipmr_net_ops);

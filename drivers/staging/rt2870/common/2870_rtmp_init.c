@@ -266,27 +266,6 @@ NDIS_STATUS	NICInitTransmit(
 		//
 		// MGMT_RING_SIZE
 		//
-#if 0
-		for(i=0; i<MGMT_RING_SIZE; i++) // 8
-		{
-			PTX_CONTEXT	pMLMEContext = &(pAd->MLMEContext[i]);
-
-
-			NdisZeroMemory(pMLMEContext, sizeof(TX_CONTEXT));
-
-			//Allocate URB
-			LM_USB_ALLOC(pObj, pMLMEContext, PTX_BUFFER, sizeof(TX_BUFFER), Status,
-							("<-- ERROR in Alloc TX MLMEContext[%d] urb!! \n", i),
-							out2,
-							("<-- ERROR in Alloc TX MLMEContext[%d] TX_BUFFER !! \n", i),
-							out2);
-
-			pMLMEContext->pAd = pAd;
-			pMLMEContext->pIrp = NULL;
-			pMLMEContext->InUse = FALSE;
-			pMLMEContext->IRPPending = FALSE;
-		}
-#else
 		// Allocate MGMT ring descriptor's memory
 		pAd->MgmtDescRing.AllocSize = MGMT_RING_SIZE * sizeof(TX_CONTEXT);
 		RTMPAllocateMemory(&pAd->MgmtDescRing.AllocVa, pAd->MgmtDescRing.AllocSize);
@@ -336,7 +315,6 @@ NDIS_STATUS	NICInitTransmit(
 		pAd->MgmtRing.TxSwFreeIdx = MGMT_RING_SIZE;
 		pAd->MgmtRing.TxCpuIdx = 0;
 		pAd->MgmtRing.TxDmaIdx = 0;
-#endif
 
 		//
 		// BEACON_RING_SIZE
@@ -518,10 +496,6 @@ NDIS_STATUS	RTMPAllocTxRxRingMemory(
 			NdisAllocateSpinLock(&pAd->TxContextQueueLock[num]);
 		}
 
-#ifdef RALINK_ATE
-		NdisAllocateSpinLock(&pAd->GenericLock);
-#endif // RALINK_ATE //
-
 //		NdisAllocateSpinLock(&pAd->MemLock);	// Not used in RT28XX
 
 //		NdisAllocateSpinLock(&pAd->MacTabLock); // init it in UserCfgInit()
@@ -665,7 +639,7 @@ VOID	RTMPFreeTxRxRingMemory(
 
 
 	// Free Tx frame resource
-	for (acidx = 0; acidx < 4; acidx++)
+		for(acidx=0; acidx<4; acidx++)
 		{
 		PHT_TX_CONTEXT pHTTXContext = &(pAd->TxContext[acidx]);
 			if (pHTTXContext)
@@ -684,9 +658,7 @@ VOID	RTMPFreeTxRxRingMemory(
 	NdisFreeSpinLock(&pAd->MLMEBulkOutLock);
 
 	NdisFreeSpinLock(&pAd->CmdQLock);
-#ifdef RALINK_ATE
-	NdisFreeSpinLock(&pAd->GenericLock);
-#endif // RALINK_ATE //
+
 	// Clear all pending bulk-out request flags.
 	RTUSB_CLEAR_BULK_FLAG(pAd, 0xffffffff);
 
@@ -727,9 +699,14 @@ NDIS_STATUS AdapterBlockAllocateMemory(
 
 	usb_dev = pObj->pUsb_Dev;
 
+#ifndef RT30xx
 	pObj->MLMEThr_task		= NULL;
 	pObj->RTUSBCmdThr_task	= NULL;
-
+#endif
+#ifdef RT30xx
+	pObj->MLMEThr_pid	= NULL;
+	pObj->RTUSBCmdThr_pid	= NULL;
+#endif
 	*ppAd = (PVOID)vmalloc(sizeof(RTMP_ADAPTER));
 
 	if (*ppAd)
@@ -765,7 +742,12 @@ NDIS_STATUS	 CreateThreads(
 {
 	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+#ifndef RT30xx
 	struct task_struct *tsk;
+#endif
+#ifdef RT30xx
+	pid_t pid_number;
+#endif
 
 	//init_MUTEX(&(pAd->usbdev_semaphore));
 
@@ -779,39 +761,76 @@ NDIS_STATUS	 CreateThreads(
 	init_completion (&pAd->TimerQComplete);
 
 	// Creat MLME Thread
+#ifndef RT30xx
 	pObj->MLMEThr_task = NULL;
-	tsk = kthread_run(MlmeThread, pAd, pAd->net_dev->name);
+	tsk = kthread_run(MlmeThread, pAd, "%s", pAd->net_dev->name);
 
 	if (IS_ERR(tsk)) {
+#endif
+#ifdef RT30xx
+	pObj->MLMEThr_pid = NULL;
+	pid_number = kernel_thread(MlmeThread, pAd, CLONE_VM);
+	if (pid_number < 0)
+	{
+#endif
 		printk (KERN_WARNING "%s: unable to start Mlme thread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
 
+#ifndef RT30xx
 	pObj->MLMEThr_task = tsk;
+#endif
+#ifdef RT30xx
+	pObj->MLMEThr_pid = find_get_pid(pid_number);
+#endif
 	// Wait for the thread to start
 	wait_for_completion(&(pAd->mlmeComplete));
 
 	// Creat Command Thread
+#ifndef RT30xx
 	pObj->RTUSBCmdThr_task = NULL;
-	tsk = kthread_run(RTUSBCmdThread, pAd, pAd->net_dev->name);
+	tsk = kthread_run(RTUSBCmdThread, pAd, "%s", pAd->net_dev->name);
 
 	if (IS_ERR(tsk) < 0)
+#endif
+#ifdef RT30xx
+	pObj->RTUSBCmdThr_pid = NULL;
+	pid_number = kernel_thread(RTUSBCmdThread, pAd, CLONE_VM);
+	if (pid_number < 0)
+#endif
 	{
 		printk (KERN_WARNING "%s: unable to start RTUSBCmd thread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
 
+#ifndef RT30xx
 	pObj->RTUSBCmdThr_task = tsk;
+#endif
+#ifdef RT30xx
+	pObj->RTUSBCmdThr_pid = find_get_pid(pid_number);
+#endif
 	wait_for_completion(&(pAd->CmdQComplete));
 
+#ifndef RT30xx
 	pObj->TimerQThr_task = NULL;
-	tsk = kthread_run(TimerQThread, pAd, pAd->net_dev->name);
+	tsk = kthread_run(TimerQThread, pAd, "%s", pAd->net_dev->name);
 	if (IS_ERR(tsk) < 0)
+#endif
+#ifdef RT30xx
+	pObj->TimerQThr_pid = NULL;
+	pid_number = kernel_thread(TimerQThread, pAd, CLONE_VM);
+	if (pid_number < 0)
+#endif
 	{
 		printk (KERN_WARNING "%s: unable to start TimerQThread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
+#ifndef RT30xx
 	pObj->TimerQThr_task = tsk;
+#endif
+#ifdef RT30xx
+	pObj->TimerQThr_pid = find_get_pid(pid_number);
+#endif
 	// Wait for the thread to start
 	wait_for_completion(&(pAd->TimerQComplete));
 
@@ -831,8 +850,6 @@ NDIS_STATUS	 CreateThreads(
 	return NDIS_STATUS_SUCCESS;
 }
 
-
-#ifdef CONFIG_STA_SUPPORT
 /*
 ========================================================================
 Routine Description:
@@ -1013,7 +1030,6 @@ VOID	RTMPAddBSSIDCipher(
 		DBGPRINT_RAW(RT_DEBUG_TRACE,(" %x:", pKey->KeyMaterial[i]));
 	DBGPRINT(RT_DEBUG_TRACE,("	 \n"));
 }
-#endif // CONFIG_STA_SUPPORT //
 
 /*
 ========================================================================
@@ -1084,18 +1100,13 @@ PNDIS_PACKET GetPacketFromRxRing(
 	// skip USB frame length field
 	pData += RT2870_RXDMALEN_FIELD_SIZE;
 	pRxWI = (PRXWI_STRUC)pData;
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange(pData, TYPE_RXWI);
-#endif // RT_BIG_ENDIAN //
+
 	if (pRxWI->MPDUtotalByteCount > ThisFrameLen)
 	{
 		DBGPRINT(RT_DEBUG_ERROR, ("%s():pRxWIMPDUtotalByteCount(%d) large than RxDMALen(%ld)\n",
 									__func__, pRxWI->MPDUtotalByteCount, ThisFrameLen));
 		goto label_null;
 	}
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange(pData, TYPE_RXWI);
-#endif // RT_BIG_ENDIAN //
 
 	// allocate a rx packet
 	pSkb = dev_alloc_skb(ThisFrameLen);
@@ -1112,9 +1123,6 @@ PNDIS_PACKET GetPacketFromRxRing(
 
 	// copy RxD
 	*pSaveRxD = *(PRXINFO_STRUC)(pData + ThisFrameLen);
-#ifdef RT_BIG_ENDIAN
-	RTMPDescriptorEndianChange((PUCHAR)pSaveRxD, TYPE_RXINFO);
-#endif // RT_BIG_ENDIAN //
 
 	// update next packet read position.
 	pAd->ReadPosition += (ThisFrameLen + RT2870_RXDMALEN_FIELD_SIZE + RXINFO_SIZE);	// 8 for (RT2870_RXDMALEN_FIELD_SIZE + sizeof(RXINFO_STRUC))
@@ -1197,17 +1205,6 @@ static void rx_done_tasklet(unsigned long data)
 
 	ASSERT((pRxContext->InUse == pRxContext->IRPPending));
 
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-    {
-		// If the driver is in ATE mode and Rx frame is set into here.
-		if (pAd->ContinBulkIn == TRUE)
-		{
-			RTUSBBulkReceive(pAd);
-		}
-	}
-	else
-#endif // RALINK_ATE //
 	RTUSBBulkReceive(pAd);
 
 	return;
@@ -1310,9 +1307,9 @@ static void rt2870_hcca_dma_done_tasklet(unsigned long data)
 	UCHAR				BulkOutPipeId = 4;
 	purbb_t				pUrb;
 
-
+#ifndef RT30xx
 	DBGPRINT_RAW(RT_DEBUG_ERROR, ("--->hcca_dma_done_tasklet\n"));
-
+#endif
 
 	pUrb			= (purbb_t)data;
 	pHTTXContext	= (PHT_TX_CONTEXT)pUrb->context;
@@ -1342,13 +1339,19 @@ static void rt2870_hcca_dma_done_tasklet(unsigned long data)
 				RTMPDeQueuePacket(pAd, FALSE, BulkOutPipeId, MAX_TX_PROCESS);
 			}
 
+#ifndef RT30xx
 			RTUSB_SET_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NORMAL);
+#endif
+#ifdef RT30xx
+			RTUSB_SET_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NORMAL<<4);
+#endif
 			RTUSBKickBulkOut(pAd);
 		}
 	}
 
+#ifndef RT30xx
 	DBGPRINT_RAW(RT_DEBUG_ERROR, ("<---hcca_dma_done_tasklet\n"));
-
+#endif
 		return;
 }
 

@@ -46,7 +46,6 @@
 #include <linux/reiserfs_acl.h>
 #include <asm/uaccess.h>
 #include <net/checksum.h>
-#include <linux/smp_lock.h>
 #include <linux/stat.h>
 #include <linux/quotaops.h>
 
@@ -981,7 +980,8 @@ int reiserfs_lookup_privroot(struct super_block *s)
 				strlen(PRIVROOT_NAME));
 	if (!IS_ERR(dentry)) {
 		REISERFS_SB(s)->priv_root = dentry;
-		s->s_root->d_op = &xattr_lookup_poison_ops;
+		if (!reiserfs_expose_privroot(s))
+			s->s_root->d_op = &xattr_lookup_poison_ops;
 		if (dentry->d_inode)
 			dentry->d_inode->i_flags |= S_PRIVATE;
 	} else

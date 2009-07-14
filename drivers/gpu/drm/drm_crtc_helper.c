@@ -1090,6 +1090,8 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 		if (ret == false)
 			DRM_ERROR("failed to set mode on crtc %p\n", crtc);
 	}
+	/* disable the unused connectors while restoring the modesetting */
+	drm_helper_disable_unused_functions(dev);
 	return 0;
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);

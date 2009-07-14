@@ -57,7 +57,7 @@ static void start_instruction(void *h)
 static int wait_instruction_complete(void *h, enum mcs_op opc)
 {
 	int status;
-	cycles_t start_time = get_cycles();
+	unsigned long start_time = get_cycles();
 
 	while (1) {
 		cpu_relax();
@@ -65,25 +65,16 @@ static int wait_instruction_complete(void *h, enum mcs_op opc)
 		if (status != CCHSTATUS_ACTIVE)
 			break;
 		if (GRU_OPERATION_TIMEOUT < (get_cycles() - start_time))
-			panic("GRU %p is malfunctioning\n", h);
+			panic("GRU %p is malfunctioning: start %ld, end %ld\n",
+			      h, start_time, (unsigned long)get_cycles());
 	}
 	if (gru_options & OPT_STATS)
 		update_mcs_stats(opc, get_cycles() - start_time);
 	return status;
 }
 
-int cch_allocate(struct gru_context_configuration_handle *cch,
-		int asidval, int sizeavail, unsigned long cbrmap,
-		unsigned long dsrmap)
+int cch_allocate(struct gru_context_configuration_handle *cch)
 {
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		cch->asid[i] = (asidval++);
-		cch->sizeavail[i] = sizeavail;
-	}
-	cch->dsr_allocation_map = dsrmap;
-	cch->cbr_allocation_map = cbrmap;
 	cch->opc = CCHOP_ALLOCATE;
 	start_instruction(cch);
 	return wait_instruction_complete(cch, cchop_allocate);

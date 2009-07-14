@@ -12,6 +12,8 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_timer.h>
+#include <linux/io.h>
 
 enum {
 	UNUSED = 0,
@@ -249,9 +251,105 @@ static struct platform_device rtc_device = {
 	.resource	= rtc_resources,
 };
 
+static struct sh_timer_config mtu2_0_platform_data = {
+	.name = "MTU2_0",
+	.channel_offset = -0x80,
+	.timer_bit = 0,
+	.clk = "peripheral_clk",
+	.clockevent_rating = 200,
+};
+
+static struct resource mtu2_0_resources[] = {
+	[0] = {
+		.name	= "MTU2_0",
+		.start	= 0xfffe4300,
+		.end	= 0xfffe4326,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 108,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mtu2_0_device = {
+	.name		= "sh_mtu2",
+	.id		= 0,
+	.dev = {
+		.platform_data	= &mtu2_0_platform_data,
+	},
+	.resource	= mtu2_0_resources,
+	.num_resources	= ARRAY_SIZE(mtu2_0_resources),
+};
+
+static struct sh_timer_config mtu2_1_platform_data = {
+	.name = "MTU2_1",
+	.channel_offset = -0x100,
+	.timer_bit = 1,
+	.clk = "peripheral_clk",
+	.clockevent_rating = 200,
+};
+
+static struct resource mtu2_1_resources[] = {
+	[0] = {
+		.name	= "MTU2_1",
+		.start	= 0xfffe4380,
+		.end	= 0xfffe4390,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 116,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mtu2_1_device = {
+	.name		= "sh_mtu2",
+	.id		= 1,
+	.dev = {
+		.platform_data	= &mtu2_1_platform_data,
+	},
+	.resource	= mtu2_1_resources,
+	.num_resources	= ARRAY_SIZE(mtu2_1_resources),
+};
+
+static struct sh_timer_config mtu2_2_platform_data = {
+	.name = "MTU2_2",
+	.channel_offset = 0x80,
+	.timer_bit = 2,
+	.clk = "peripheral_clk",
+	.clockevent_rating = 200,
+};
+
+static struct resource mtu2_2_resources[] = {
+	[0] = {
+		.name	= "MTU2_2",
+		.start	= 0xfffe4000,
+		.end	= 0xfffe400a,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 124,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mtu2_2_device = {
+	.name		= "sh_mtu2",
+	.id		= 2,
+	.dev = {
+		.platform_data	= &mtu2_2_platform_data,
+	},
+	.resource	= mtu2_2_resources,
+	.num_resources	= ARRAY_SIZE(mtu2_2_resources),
+};
+
 static struct platform_device *sh7201_devices[] __initdata = {
 	&sci_device,
 	&rtc_device,
+	&mtu2_0_device,
+	&mtu2_1_device,
+	&mtu2_2_device,
 };
 
 static int __init sh7201_devices_setup(void)
@@ -264,4 +362,21 @@ __initcall(sh7201_devices_setup);
 void __init plat_irq_setup(void)
 {
 	register_intc_controller(&intc_desc);
+}
+
+static struct platform_device *sh7201_early_devices[] __initdata = {
+	&mtu2_0_device,
+	&mtu2_1_device,
+	&mtu2_2_device,
+};
+
+#define STBCR3 0xfffe0408
+
+void __init plat_early_device_setup(void)
+{
+	/* enable MTU2 clock */
+	__raw_writeb(__raw_readb(STBCR3) & ~0x20, STBCR3);
+
+	early_platform_add_devices(sh7201_early_devices,
+				   ARRAY_SIZE(sh7201_early_devices));
 }

@@ -116,7 +116,7 @@ extern unsigned long uml_physmem;
 #define virt_addr_valid(v) pfn_valid(phys_to_pfn(__pa(v)))
 
 #include <asm-generic/memory_model.h>
-#include <asm-generic/page.h>
+#include <asm-generic/getorder.h>
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* __UM_PAGE_H */

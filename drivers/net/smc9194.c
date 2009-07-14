@@ -503,7 +503,7 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 		/* THIS SHOULD NEVER HAPPEN. */
 		dev->stats.tx_aborted_errors++;
 		printk(CARDNAME": Bad Craziness - sent packet while busy.\n" );
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	lp->saved_skb = skb;
 

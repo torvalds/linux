@@ -189,9 +189,6 @@ USHORT	RtmpUSB_WriteFragTxResource(
 	}
 
 	NdisMoveMemory(pWirelessPacket, pTxBlk->HeaderBuf, TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, (PUCHAR)(pWirelessPacket + TXINFO_SIZE + TXWI_SIZE), DIR_WRITE, FALSE);
-#endif // RT_BIG_ENDIAN //
 	pWirelessPacket += (TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
 	pHTTXContext->CurWriteRealPos += (TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
 
@@ -295,6 +292,7 @@ USHORT RtmpUSB_WriteSingleTxResource(
 		pTxBlk->Priv = (TXINFO_SIZE + USBDMApktLen);
 
 		// For TxInfo, the length of USBDMApktLen = TXWI_SIZE + 802.11 header + payload
+		//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
 		RTMPWriteTxInfo(pAd, pTxInfo, (USHORT)(USBDMApktLen), FALSE, FIFO_EDCA, FALSE /*NextValid*/,  FALSE);
 
 		if ((pHTTXContext->CurWritePosition + 3906 + pTxBlk->Priv) > MAX_TXBULK_LIMIT)
@@ -303,9 +301,6 @@ USHORT RtmpUSB_WriteSingleTxResource(
 			bTxQLastRound = TRUE;
 		}
 		NdisMoveMemory(pWirelessPacket, pTxBlk->HeaderBuf, TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
-#ifdef RT_BIG_ENDIAN
-		RTMPFrameEndianChange(pAd, (PUCHAR)(pWirelessPacket + TXINFO_SIZE + TXWI_SIZE), DIR_WRITE, FALSE);
-#endif // RT_BIG_ENDIAN //
 		pWirelessPacket += (TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
 
 		// We unlock it here to prevent the first 8 bytes maybe over-writed issue.
@@ -417,9 +412,6 @@ USHORT RtmpUSB_WriteMultiTxResource(
 
 			// Copy it.
 			NdisMoveMemory(pWirelessPacket, pTxBlk->HeaderBuf, pTxBlk->Priv);
-#ifdef RT_BIG_ENDIAN
-			RTMPFrameEndianChange(pAd, (PUCHAR)(pWirelessPacket+ TXINFO_SIZE + TXWI_SIZE), DIR_WRITE, FALSE);
-#endif // RT_BIG_ENDIAN //
 			pHTTXContext->CurWriteRealPos += pTxBlk->Priv;
 			pWirelessPacket += pTxBlk->Priv;
 		}
@@ -687,14 +679,7 @@ VOID RtmpUSBNullFrameKickOut(
 		pTxWI = (PTXWI_STRUC)&pWirelessPkt[TXINFO_SIZE];
 		RTMPWriteTxWI(pAd, pTxWI,  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, 0, BSSID_WCID, (sizeof(HEADER_802_11)),
 			0, 0, (UCHAR)pAd->CommonCfg.MlmeTransmit.field.MCS, IFS_HTTXOP, FALSE, &pAd->CommonCfg.MlmeTransmit);
-#ifdef RT_BIG_ENDIAN
-		RTMPWIEndianChange((PUCHAR)pTxWI, TYPE_TXWI);
-#endif // RT_BIG_ENDIAN //
-
 		RTMPMoveMemory(&pWirelessPkt[TXWI_SIZE+TXINFO_SIZE], &pAd->NullFrame, sizeof(HEADER_802_11));
-#ifdef RT_BIG_ENDIAN
-		RTMPFrameEndianChange(pAd, (PUCHAR)&pWirelessPkt[TXINFO_SIZE + TXWI_SIZE], DIR_WRITE, FALSE);
-#endif // RT_BIG_ENDIAN //
 		pAd->NullContext.BulkOutSize =  TXINFO_SIZE + TXWI_SIZE + sizeof(pAd->NullFrame) + 4;
 
 		// Fill out frame length information for global Bulk out arbitor
@@ -708,7 +693,6 @@ VOID RtmpUSBNullFrameKickOut(
 
 }
 
-#ifdef CONFIG_STA_SUPPORT
 /*
 	========================================================================
 
@@ -826,7 +810,12 @@ VOID RT28xxUsbStaAsicForceWakeup(
 	AutoWakeupCfg.word = 0;
 	RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
 
+#ifndef RT30xx
 	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x00);
+#endif
+#ifdef RT30xx
+	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x02);
+#endif
 
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
 }
@@ -854,7 +843,6 @@ VOID RT28xxUsbStaAsicSleepThenAutoWakeup(
 	OPSTATUS_SET_FLAG(pAd, fOP_STATUS_DOZE);
 
 }
-#endif // CONFIG_STA_SUPPORT //
 
 VOID RT28xxUsbMlmeRadioOn(
 	IN PRTMP_ADAPTER pAd)
@@ -864,25 +852,30 @@ VOID RT28xxUsbMlmeRadioOn(
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))
 		return;
 
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
+#ifndef RT30xx
     	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x00);
+#endif
+#ifdef RT30xx
+    	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x02);
+#endif
 		RTMPusecDelay(10000);
-	}
-#endif // CONFIG_STA_SUPPORT //
+
 	NICResetFromError(pAd);
 
 	// Enable Tx/Rx
 	RTMPEnableRxTx(pAd);
 
+#ifdef RT3070
+	if (IS_RT3071(pAd))
+	{
+		RT30xxReverseRFSleepModeSetup(pAd);
+	}
+#endif // RT3070 //
+
 	// Clear Radio off flag
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		RTUSBBulkReceive(pAd);
-#endif // CONFIG_STA_SUPPORT //
+	RTUSBBulkReceive(pAd);
 
 	// Set LED
 	RTMPSetLED(pAd, LED_RADIO_ON);
@@ -904,8 +897,6 @@ VOID RT28xxUsbMlmeRadioOFF(
 	// Set Radio off flag
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Link down first if any association exists
 		if (INFRA_ON(pAd) || ADHOC_ON(pAd))
@@ -916,9 +907,8 @@ VOID RT28xxUsbMlmeRadioOFF(
 		// Clean up old bss table
 		BssTableInit(&pAd->ScanTab);
 	}
-#endif // CONFIG_STA_SUPPORT //
 
-
+#ifndef RT30xx
 	// Disable MAC Tx/Rx
 	RTMP_IO_READ32(pAd, MAC_SYS_CTRL, &Value);
 	Value &= (0xfffffff3);
@@ -932,6 +922,7 @@ VOID RT28xxUsbMlmeRadioOFF(
 
 	// TX_PIN_CFG => value = 0x0 => 20mA
 	RTMP_IO_WRITE32(pAd, TX_PIN_CFG, 0);
+#endif
 
 	if (pAd->CommonCfg.BBPCurrentBW == BW_40)
 	{
@@ -944,6 +935,14 @@ VOID RT28xxUsbMlmeRadioOFF(
 		AsicTurnOffRFClk(pAd, pAd->CommonCfg.Channel);
 	}
 
+#ifdef RT30xx
+	// Disable Tx/Rx DMA
+	RTUSBReadMACRegister(pAd, WPDMA_GLO_CFG, &GloCfg.word);	   // disable DMA
+	GloCfg.field.EnableTxDMA = 0;
+	GloCfg.field.EnableRxDMA = 0;
+	RTUSBWriteMACRegister(pAd, WPDMA_GLO_CFG, GloCfg.word);	   // abort all TX rings
+#endif
+
 	// Waiting for DMA idle
 	i = 0;
 	do
@@ -955,9 +954,13 @@ VOID RT28xxUsbMlmeRadioOFF(
 		RTMPusecDelay(1000);
 	}while (i++ < 100);
 
-#ifdef CONFIG_STA_SUPPORT
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x02);
-#endif // CONFIG_STA_SUPPORT //
+#ifdef RT30xx
+	// Disable MAC Tx/Rx
+	RTMP_IO_READ32(pAd, MAC_SYS_CTRL, &Value);
+	Value &= (0xfffffff3);
+	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, Value);
+#endif
+
+	AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x02);
 }
 

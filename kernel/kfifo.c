@@ -72,9 +72,9 @@ struct kfifo *kfifo_alloc(unsigned int size, gfp_t gfp_mask, spinlock_t *lock)
 
 	/*
 	 * round up to the next power of 2, since our 'let the indices
-	 * wrap' tachnique works only in this case.
+	 * wrap' technique works only in this case.
 	 */
-	if (size & (size - 1)) {
+	if (!is_power_of_2(size)) {
 		BUG_ON(size > 0x80000000);
 		size = roundup_pow_of_two(size);
 	}

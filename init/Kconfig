@@ -16,6 +16,11 @@ config DEFCONFIG_LIST
 	default "$ARCH_DEFCONFIG"
 	default "arch/$ARCH/defconfig"
 
+config CONSTRUCTORS
+	bool
+	depends on !UML
+	default y
+
 menu "General setup"
 
 config EXPERIMENTAL
@@ -302,7 +307,8 @@ config AUDITSYSCALL
 
 config AUDIT_TREE
 	def_bool y
-	depends on AUDITSYSCALL && INOTIFY
+	depends on AUDITSYSCALL
+	select INOTIFY
 
 menu "RCU Subsystem"
 
@@ -615,13 +621,13 @@ config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "Create deprecated sysfs layout for older userspace tools"
+	bool "remove sysfs features which may confuse old userspace tools"
 	depends on SYSFS
-	default y
+	default n
 	select SYSFS_DEPRECATED
 	help
 	  This option switches the layout of sysfs to the deprecated
-	  version.
+	  version. Do not use it on recent distributions.
 
 	  The current sysfs layout features a unified device tree at
 	  /sys/devices/, which is able to express a hierarchy between
@@ -808,14 +814,6 @@ config KALLSYMS_EXTRA_PASS
 	   you wait for kallsyms to be fixed.
 
 
-config STRIP_ASM_SYMS
-	bool "Strip assembler-generated symbols during link"
-	default n
-	help
-	  Strip internal assembler-generated symbols during a link (symbols
-	  that look like '.Lxxx') so they don't pollute the output of
-	  get_wchan() and suchlike.
-
 config HOTPLUG
 	bool "Support for hot-pluggable devices" if EMBEDDED
 	default y
@@ -935,6 +933,8 @@ config AIO
 
 config HAVE_PERF_COUNTERS
 	bool
+	help
+	  See tools/perf/design.txt for details.
 
 menu "Performance Counters"
 
@@ -994,6 +994,14 @@ config SLUB_DEBUG
 	  result in significant savings in code size. This also disables
 	  SLUB sysfs support. /sys/slab will not exist and there will be
 	  no support for cache validation etc.
+
+config STRIP_ASM_SYMS
+	bool "Strip assembler-generated symbols during link"
+	default n
+	help
+	  Strip internal assembler-generated symbols during a link (symbols
+	  that look like '.Lxxx') so they don't pollute the output of
+	  get_wchan() and suchlike.
 
 config COMPAT_BRK
 	bool "Disable heap randomization"

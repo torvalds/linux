@@ -68,13 +68,14 @@ struct iwl_debugfs {
 	struct dentry *dir_rf;
 	struct dir_data_files {
 		struct dentry *file_sram;
-		struct dentry *file_eeprom;
+		struct dentry *file_nvm;
 		struct dentry *file_stations;
 		struct dentry *file_rx_statistics;
 		struct dentry *file_tx_statistics;
 		struct dentry *file_log_event;
 		struct dentry *file_channels;
 		struct dentry *file_status;
+		struct dentry *file_interrupt;
 	} dbgfs_data_files;
 	struct dir_rf_files {
 		struct dentry *file_disable_sensitivity;

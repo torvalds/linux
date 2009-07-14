@@ -337,6 +337,14 @@ static void __init rbtx4927_device_init(void)
 	rbtx4927_ne_init();
 	tx4927_wdt_init();
 	rbtx4927_mtd_init();
+	if (TX4927_REV_PCODE() == 0x4927) {
+		tx4927_dmac_init(2);
+		tx4927_aclc_init(0, 1);
+	} else {
+		tx4938_dmac_init(0, 2);
+		tx4938_aclc_init();
+	}
+	platform_device_register_simple("txx9aclc-generic", -1, NULL, 0);
 	txx9_iocled_init(RBTX4927_LED_ADDR - IO_BASE, -1, 3, 1, "green", NULL);
 	rbtx4927_gpioled_init();
 }

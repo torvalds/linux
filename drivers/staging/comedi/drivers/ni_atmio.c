@@ -93,6 +93,7 @@ are not supported.
 
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>
@@ -114,156 +115,156 @@ are not supported.
 
 #define MAX_N_CALDACS 32
 
-static const ni_board ni_boards[] = {
-      {device_id:44,
-	      isapnp_id:0x0000,/* XXX unknown */
-	      name:	"at-mio-16e-1",
-	      n_adchan:16,
-	      adbits:	12,
-	      ai_fifo_depth:8192,
-	      alwaysdither:0,
-	      gainlkup:ai_gain_16,
-	      ai_speed:800,
-	      n_aochan:2,
-	      aobits:	12,
-	      ao_fifo_depth:2048,
+static const struct ni_board_struct ni_boards[] = {
+	{.device_id = 44,
+	.isapnp_id = 0x0000,/* XXX unknown */
+	.name = "at-mio-16e-1",
+	.n_adchan = 16,
+	.adbits = 12,
+	.ai_fifo_depth = 8192,
+	.alwaysdither = 0,
+	.gainlkup = ai_gain_16,
+	.ai_speed = 800,
+	.n_aochan = 2,
+	.aobits = 12,
+	.ao_fifo_depth = 2048,
 			.ao_range_table = &range_ni_E_ao_ext,
-	      ao_unipolar:1,
-	      ao_speed:1000,
-	      has_8255:0,
+	.ao_unipolar = 1,
+	.ao_speed = 1000,
+	.has_8255 = 0,
 			.num_p0_dio_channels = 8,
-	      caldac:	{mb88341},
+	.caldac = {mb88341},
 		},
-      {device_id:25,
-	      isapnp_id:0x1900,
-	      name:	"at-mio-16e-2",
-	      n_adchan:16,
-	      adbits:	12,
-	      ai_fifo_depth:2048,
-	      alwaysdither:0,
-	      gainlkup:ai_gain_16,
-	      ai_speed:2000,
-	      n_aochan:2,
-	      aobits:	12,
-	      ao_fifo_depth:2048,
+	{.device_id = 25,
+	.isapnp_id = 0x1900,
+	.name = "at-mio-16e-2",
+	.n_adchan = 16,
+	.adbits = 12,
+	.ai_fifo_depth = 2048,
+	.alwaysdither = 0,
+	.gainlkup = ai_gain_16,
+	.ai_speed = 2000,
+	.n_aochan = 2,
+	.aobits = 12,
+	.ao_fifo_depth = 2048,
 			.ao_range_table = &range_ni_E_ao_ext,
-	      ao_unipolar:1,
-	      ao_speed:1000,
-	      has_8255:0,
+	.ao_unipolar = 1,
+	.ao_speed = 1000,
+	.has_8255 = 0,
 			.num_p0_dio_channels = 8,
-	      caldac:	{mb88341},
+	.caldac = {mb88341},
 		},
-      {device_id:36,
-	      isapnp_id:0x2400,
-	      name:	"at-mio-16e-10",
-	      n_adchan:16,
-	      adbits:	12,
-	      ai_fifo_depth:512,
-	      alwaysdither:0,
-	      gainlkup:ai_gain_16,
-	      ai_speed:10000,
-	      n_aochan:2,
-	      aobits:	12,
-	      ao_fifo_depth:0,
+	{.device_id = 36,
+	.isapnp_id = 0x2400,
+	.name = "at-mio-16e-10",
+	.n_adchan = 16,
+	.adbits = 12,
+	.ai_fifo_depth = 512,
+	.alwaysdither = 0,
+	.gainlkup = ai_gain_16,
+	.ai_speed = 10000,
+	.n_aochan = 2,
+	.aobits = 12,
+	.ao_fifo_depth = 0,
 			.ao_range_table = &range_ni_E_ao_ext,
-	      ao_unipolar:1,
-	      ao_speed:10000,
+	.ao_unipolar = 1,
+	.ao_speed = 10000,
 			.num_p0_dio_channels = 8,
-	      caldac:	{ad8804_debug},
-	      has_8255:0,
+	.caldac = {ad8804_debug},
+	.has_8255 = 0,
 		},
-      {device_id:37,
-	      isapnp_id:0x2500,
-	      name:	"at-mio-16de-10",
-	      n_adchan:16,
-	      adbits:	12,
-	      ai_fifo_depth:512,
-	      alwaysdither:0,
-	      gainlkup:ai_gain_16,
-	      ai_speed:10000,
-	      n_aochan:2,
-	      aobits:	12,
-	      ao_fifo_depth:0,
+	{.device_id = 37,
+	.isapnp_id = 0x2500,
+	.name = "at-mio-16de-10",
+	.n_adchan = 16,
+	.adbits = 12,
+	.ai_fifo_depth = 512,
+	.alwaysdither = 0,
+	.gainlkup = ai_gain_16,
+	.ai_speed = 10000,
+	.n_aochan = 2,
+	.aobits = 12,
+	.ao_fifo_depth = 0,
 			.ao_range_table = &range_ni_E_ao_ext,
-	      ao_unipolar:1,
-	      ao_speed:10000,
+	.ao_unipolar = 1,
+	.ao_speed = 10000,
 			.num_p0_dio_channels = 8,
-	      caldac:	{ad8804_debug},
-	      has_8255:1,
+	.caldac = {ad8804_debug},
+	.has_8255 = 1,
 		},
-      {device_id:38,
-	      isapnp_id:0x2600,
-	      name:	"at-mio-64e-3",
-	      n_adchan:64,
-	      adbits:	12,
-	      ai_fifo_depth:2048,
-	      alwaysdither:0,
-	      gainlkup:ai_gain_16,
-	      ai_speed:2000,
-	      n_aochan:2,
-	      aobits:	12,
-	      ao_fifo_depth:2048,
+	{.device_id = 38,
+	.isapnp_id = 0x2600,
+	.name = "at-mio-64e-3",
+	.n_adchan = 64,
+	.adbits = 12,
+	.ai_fifo_depth = 2048,
+	.alwaysdither = 0,
+	.gainlkup = ai_gain_16,
+	.ai_speed = 2000,
+	.n_aochan = 2,
+	.aobits = 12,
+	.ao_fifo_depth = 2048,
 			.ao_range_table = &range_ni_E_ao_ext,
-	      ao_unipolar:1,
-	      ao_speed:1000,
-	      has_8255:0,
+	.ao_unipolar = 1,
+	.ao_speed = 1000,
+	.has_8255 = 0,
 			.num_p0_dio_channels = 8,
-	      caldac:	{ad8804_debug},
+	.caldac = {ad8804_debug},
 		},
-      {device_id:39,
-	      isapnp_id:0x2700,
-	      name:	"at-mio-16xe-50",
-	      n_adchan:16,
-	      adbits:	16,
-	      ai_fifo_depth:512,
-	      alwaysdither:1,
-	      gainlkup:ai_gain_8,
-	      ai_speed:50000,
-	      n_aochan:2,
-	      aobits:	12,
-	      ao_fifo_depth:0,
+	{.device_id = 39,
+	.isapnp_id = 0x2700,
+	.name = "at-mio-16xe-50",
+	.n_adchan = 16,
+	.adbits = 16,
+	.ai_fifo_depth = 512,
+	.alwaysdither = 1,
+	.gainlkup = ai_gain_8,
+	.ai_speed = 50000,
+	.n_aochan = 2,
+	.aobits = 12,
+	.ao_fifo_depth = 0,
 			.ao_range_table = &range_bipolar10,
-	      ao_unipolar:0,
-	      ao_speed:50000,
+	.ao_unipolar = 0,
+	.ao_speed = 50000,
 			.num_p0_dio_channels = 8,
-	      caldac:	{dac8800, dac8043},
-	      has_8255:0,
+	.caldac = {dac8800, dac8043},
+	.has_8255 = 0,
 		},
-      {device_id:50,
-	      isapnp_id:0x0000,/* XXX unknown */
-	      name:	"at-mio-16xe-10",
-	      n_adchan:16,
-	      adbits:	16,
-	      ai_fifo_depth:512,
-	      alwaysdither:1,
-	      gainlkup:ai_gain_14,
-	      ai_speed:10000,
-	      n_aochan:2,
-	      aobits:	16,
-	      ao_fifo_depth:2048,
+	{.device_id = 50,
+	.isapnp_id = 0x0000,/* XXX unknown */
+	.name = "at-mio-16xe-10",
+	.n_adchan = 16,
+	.adbits = 16,
+	.ai_fifo_depth = 512,
+	.alwaysdither = 1,
+	.gainlkup = ai_gain_14,
+	.ai_speed = 10000,
+	.n_aochan = 2,
+	.aobits = 16,
+	.ao_fifo_depth = 2048,
 			.ao_range_table = &range_ni_E_ao_ext,
-	      ao_unipolar:1,
-	      ao_speed:1000,
+	.ao_unipolar = 1,
+	.ao_speed = 1000,
 			.num_p0_dio_channels = 8,
-	      caldac:	{dac8800, dac8043, ad8522},
-	      has_8255:0,
+	.caldac = {dac8800, dac8043, ad8522},
+	.has_8255 = 0,
 		},
-      {device_id:51,
-	      isapnp_id:0x0000,/* XXX unknown */
-	      name:	"at-ai-16xe-10",
-	      n_adchan:16,
-	      adbits:	16,
-	      ai_fifo_depth:512,
-	      alwaysdither:1,	/* unknown */
-	      gainlkup:ai_gain_14,
-	      ai_speed:10000,
-	      n_aochan:0,
-	      aobits:	0,
-	      ao_fifo_depth:0,
-	      ao_unipolar:0,
+	{.device_id = 51,
+	.isapnp_id = 0x0000,/* XXX unknown */
+	.name = "at-ai-16xe-10",
+	.n_adchan = 16,
+	.adbits = 16,
+	.ai_fifo_depth = 512,
+	.alwaysdither = 1,	/* unknown */
+	.gainlkup = ai_gain_14,
+	.ai_speed = 10000,
+	.n_aochan = 0,
+	.aobits = 0,
+	.ao_fifo_depth = 0,
+	.ao_unipolar = 0,
 			.num_p0_dio_channels = 8,
-	      caldac:	{dac8800, dac8043, ad8522},
-	      has_8255:0,
+	.caldac = {dac8800, dac8043, ad8522},
+	.has_8255 = 0,
 		}
 };
 
@@ -276,18 +277,19 @@ static const int ni_irqpin[] =
 
 #define NI_E_IRQ_FLAGS		0
 
-typedef struct {
+struct ni_private {
 	struct pnp_dev *isapnp_dev;
- NI_PRIVATE_COMMON} ni_private;
-#define devpriv ((ni_private *)dev->private)
+	NI_PRIVATE_COMMON
+};
+#define devpriv ((struct ni_private *)dev->private)
 
 /* How we access registers */
 
-#define ni_writel(a,b)		(outl((a),(b)+dev->iobase))
+#define ni_writel(a, b)		(outl((a), (b)+dev->iobase))
 #define ni_readl(a)		(inl((a)+dev->iobase))
-#define ni_writew(a,b)		(outw((a),(b)+dev->iobase))
+#define ni_writew(a, b)		(outw((a), (b)+dev->iobase))
 #define ni_readw(a)		(inw((a)+dev->iobase))
-#define ni_writeb(a,b)		(outb((a),(b)+dev->iobase))
+#define ni_writeb(a, b)		(outb((a), (b)+dev->iobase))
 #define ni_readb(a)		(inb((a)+dev->iobase))
 
 /* How we access windowed registers */
@@ -296,72 +298,72 @@ typedef struct {
  * read/written directly in the I/O space of the board.  The
  * AT-MIO devices map the low 8 STC registers to iobase+addr*2. */
 
-static void ni_atmio_win_out(struct comedi_device * dev, uint16_t data, int addr)
+static void ni_atmio_win_out(struct comedi_device *dev, uint16_t data, int addr)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if ((addr) < 8) {
 		ni_writew(data, addr * 2);
 	} else {
 		ni_writew(addr, Window_Address);
 		ni_writew(data, Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
-static uint16_t ni_atmio_win_in(struct comedi_device * dev, int addr)
+static uint16_t ni_atmio_win_in(struct comedi_device *dev, int addr)
 {
 	unsigned long flags;
 	uint16_t ret;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if (addr < 8) {
 		ret = ni_readw(addr * 2);
 	} else {
 		ni_writew(addr, Window_Address);
 		ret = ni_readw(Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 
 	return ret;
 }
 
 static struct pnp_device_id device_ids[] = {
-	{.id = "NIC1900",.driver_data = 0},
-	{.id = "NIC2400",.driver_data = 0},
-	{.id = "NIC2500",.driver_data = 0},
-	{.id = "NIC2600",.driver_data = 0},
-	{.id = "NIC2700",.driver_data = 0},
+	{.id = "NIC1900", .driver_data = 0},
+	{.id = "NIC2400", .driver_data = 0},
+	{.id = "NIC2500", .driver_data = 0},
+	{.id = "NIC2600", .driver_data = 0},
+	{.id = "NIC2700", .driver_data = 0},
 	{.id = ""}
 };
 
 MODULE_DEVICE_TABLE(pnp, device_ids);
 
-static int ni_atmio_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int ni_atmio_detach(struct comedi_device * dev);
+static int ni_atmio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int ni_atmio_detach(struct comedi_device *dev);
 static struct comedi_driver driver_atmio = {
-      driver_name:"ni_atmio",
-      module:THIS_MODULE,
-      attach:ni_atmio_attach,
-      detach:ni_atmio_detach,
+	.driver_name = "ni_atmio",
+	.module = THIS_MODULE,
+	.attach = ni_atmio_attach,
+	.detach = ni_atmio_detach,
 };
 
 COMEDI_INITCLEANUP(driver_atmio);
 
 #include "ni_mio_common.c"
 
-static int ni_getboardtype(struct comedi_device * dev);
+static int ni_getboardtype(struct comedi_device *dev);
 
 /* clean up allocated resources */
-static int ni_atmio_detach(struct comedi_device * dev)
+static int ni_atmio_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
 
 	if (dev->iobase)
 		release_region(dev->iobase, NI_SIZE);
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (devpriv->isapnp_dev)
 		pnp_device_detach(devpriv->isapnp_dev);
@@ -404,7 +406,7 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 	return 0;
 }
 
-static int ni_atmio_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int ni_atmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pnp_dev *isapnp_dev;
 	int ret;
@@ -413,8 +415,10 @@ static int ni_atmio_attach(struct comedi_device * dev, struct comedi_devconfig *
 	unsigned int irq;
 
 	/* allocate private area */
-	if ((ret = ni_alloc_private(dev)) < 0)
+	ret = ni_alloc_private(dev);
+	if (ret < 0)
 		return ret;
+
 	devpriv->stc_writew = &ni_atmio_win_out;
 	devpriv->stc_readw = &ni_atmio_win_in;
 	devpriv->stc_writel = &win_out2;
@@ -475,8 +479,10 @@ static int ni_atmio_attach(struct comedi_device * dev, struct comedi_devconfig *
 			return -EINVAL;
 		}
 		printk(" ( irq = %u )", irq);
-		if ((ret = comedi_request_irq(irq, ni_E_interrupt,
-					NI_E_IRQ_FLAGS, "ni_atmio", dev)) < 0) {
+		ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+				  "ni_atmio", dev);
+
+		if (ret < 0) {
 			printk(" irq not available\n");
 			return -EINVAL;
 		}
@@ -485,14 +491,15 @@ static int ni_atmio_attach(struct comedi_device * dev, struct comedi_devconfig *
 
 	/* generic E series stuff in ni_mio_common.c */
 
-	if ((ret = ni_E_init(dev, it)) < 0) {
+	ret = ni_E_init(dev, it);
+	if (ret < 0) {
 		return ret;
 	}
 
 	return 0;
 }
 
-static int ni_getboardtype(struct comedi_device * dev)
+static int ni_getboardtype(struct comedi_device *dev)
 {
 	int device_id = ni_read_eeprom(dev, 511);
 	int i;

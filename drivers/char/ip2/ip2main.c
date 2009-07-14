@@ -1315,8 +1315,8 @@ static inline void  isig(int sig, struct tty_struct *tty, int flush)
 	if (tty->pgrp)
 		kill_pgrp(tty->pgrp, sig, 1);
 	if (flush || !L_NOFLSH(tty)) {
-		if ( tty->ldisc.ops->flush_buffer )  
-			tty->ldisc.ops->flush_buffer(tty);
+		if ( tty->ldisc->ops->flush_buffer )  
+			tty->ldisc->ops->flush_buffer(tty);
 		i2InputFlush( tty->driver_data );
 	}
 }

@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/clk.h>
 
 #include <sound/core.h>

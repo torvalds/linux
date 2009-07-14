@@ -275,7 +275,7 @@ static int add_mount_helper(struct vfsmount *newmnt, struct nameidata *nd,
 	case -EBUSY:
 		/* someone else made a mount here whilst we were busy */
 		while (d_mountpoint(nd->path.dentry) &&
-		       follow_down(&nd->path.mnt, &nd->path.dentry))
+		       follow_down(&nd->path))
 			;
 		err = 0;
 	default:

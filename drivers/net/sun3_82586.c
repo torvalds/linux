@@ -1023,7 +1023,7 @@ static int sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 #if(NUM_XMIT_BUFFS > 1)
 	if(test_and_set_bit(0,(void *) &p->lock)) {
 		printk("%s: Queue was locked\n",dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	else
 #endif

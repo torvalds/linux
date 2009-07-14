@@ -719,7 +719,7 @@ static void zfcp_erp_adapter_strategy_close(struct zfcp_erp_action *act)
 	zfcp_qdio_close(adapter);
 	zfcp_fsf_req_dismiss_all(adapter);
 	adapter->fsf_req_seq_no = 0;
-	zfcp_fc_wka_port_force_offline(&adapter->nsp);
+	zfcp_fc_wka_port_force_offline(&adapter->gs->ds);
 	/* all ports and units are closed */
 	zfcp_erp_modify_adapter_status(adapter, "erascl1", NULL,
 				       ZFCP_STATUS_COMMON_OPEN, ZFCP_CLEAR);
@@ -880,6 +880,7 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 				zfcp_port_put(port);
 			return ZFCP_ERP_CONTINUES;
 		}
+		/* fall through */
 	case ZFCP_ERP_STEP_NAMESERVER_LOOKUP:
 		if (!port->d_id)
 			return ZFCP_ERP_FAILED;
@@ -894,8 +895,13 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 				act->step = ZFCP_ERP_STEP_PORT_CLOSING;
 				return ZFCP_ERP_CONTINUES;
 			}
-		/* fall through otherwise */
 		}
+		if (port->d_id && !(p_status & ZFCP_STATUS_COMMON_NOESC)) {
+			port->d_id = 0;
+			_zfcp_erp_port_reopen(port, 0, "erpsoc1", NULL);
+			return ZFCP_ERP_EXIT;
+		}
+		/* fall through otherwise */
 	}
 	return ZFCP_ERP_FAILED;
 }

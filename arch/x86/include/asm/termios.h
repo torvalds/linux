@@ -67,6 +67,7 @@ static inline int user_termio_to_kernel_termios(struct ktermios *termios,
 	SET_LOW_TERMIOS_BITS(termios, termio, c_oflag);
 	SET_LOW_TERMIOS_BITS(termios, termio, c_cflag);
 	SET_LOW_TERMIOS_BITS(termios, termio, c_lflag);
+	get_user(termios->c_line, &termio->c_line);
 	return copy_from_user(termios->c_cc, termio->c_cc, NCC);
 }
 

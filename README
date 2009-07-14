@@ -174,8 +174,17 @@ CONFIGURING the kernel:
 	"make silentoldconfig"
 			   Like above, but avoids cluttering the screen
 			   with questions already answered.
+			   Additionally updates the dependencies.
 	"make defconfig"   Create a ./.config file by using the default
-			   symbol values from arch/$ARCH/defconfig.
+			   symbol values from either arch/$ARCH/defconfig
+			   or arch/$ARCH/configs/${PLATFORM}_defconfig,
+			   depending on the architecture.
+	"make ${PLATFORM}_defconfig"
+			  Create a ./.config file by using the default
+			  symbol values from
+			  arch/$ARCH/configs/${PLATFORM}_defconfig.
+			  Use "make help" to get a list of all available
+			  platforms of your architecture.
 	"make allyesconfig"
 			   Create a ./.config file by setting symbol
 			   values to 'y' as much as possible.

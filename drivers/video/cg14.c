@@ -196,9 +196,7 @@ struct cg14_par {
 	u32			flags;
 #define CG14_FLAG_BLANKED	0x00000001
 
-	unsigned long		physbase;
 	unsigned long		iospace;
-	unsigned long		fbsize;
 
 	struct sbus_mmap_map	mmap_map[CG14_MMAP_ENTRIES];
 
@@ -271,7 +269,7 @@ static int cg14_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct cg14_par *par = (struct cg14_par *) info->par;
 
 	return sbusfb_mmap_helper(par->mmap_map,
-				  par->physbase, par->fbsize,
+				  info->fix.smem_start, info->fix.smem_len,
 				  par->iospace, vma);
 }
 
@@ -343,7 +341,8 @@ static int cg14_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 
 	default:
 		ret = sbusfb_ioctl_helper(cmd, arg, info,
-					  FBTYPE_MDICOLOR, 8, par->fbsize);
+					  FBTYPE_MDICOLOR, 8,
+					  info->fix.smem_len);
 		break;
 	};
 
@@ -462,7 +461,7 @@ static void cg14_unmap_regs(struct of_device *op, struct fb_info *info,
 			   par->cursor, sizeof(struct cg14_cursor));
 	if (info->screen_base)
 		of_iounmap(&op->resource[1],
-			   info->screen_base, par->fbsize);
+			   info->screen_base, info->fix.smem_len);
 }
 
 static int __devinit cg14_probe(struct of_device *op, const struct of_device_id *match)
@@ -488,14 +487,14 @@ static int __devinit cg14_probe(struct of_device *op, const struct of_device_id 
 
 	linebytes = of_getintprop_default(dp, "linebytes",
 					  info->var.xres);
-	par->fbsize = PAGE_ALIGN(linebytes * info->var.yres);
+	info->fix.smem_len = PAGE_ALIGN(linebytes * info->var.yres);
 
 	if (!strcmp(dp->parent->name, "sbus") ||
 	    !strcmp(dp->parent->name, "sbi")) {
-		par->physbase = op->resource[0].start;
+		info->fix.smem_start = op->resource[0].start;
 		par->iospace = op->resource[0].flags & IORESOURCE_BITS;
 	} else {
-		par->physbase = op->resource[1].start;
+		info->fix.smem_start = op->resource[1].start;
 		par->iospace = op->resource[0].flags & IORESOURCE_BITS;
 	}
 
@@ -507,7 +506,7 @@ static int __devinit cg14_probe(struct of_device *op, const struct of_device_id 
 				 sizeof(struct cg14_cursor), "cg14 cursor");
 
 	info->screen_base = of_ioremap(&op->resource[1], 0,
-				       par->fbsize, "cg14 ram");
+				       info->fix.smem_len, "cg14 ram");
 
 	if (!par->regs || !par->clut || !par->cursor || !info->screen_base)
 		goto out_unmap_regs;
@@ -557,7 +556,7 @@ static int __devinit cg14_probe(struct of_device *op, const struct of_device_id 
 
 	printk(KERN_INFO "%s: cgfourteen at %lx:%lx, %dMB\n",
 	       dp->full_name,
-	       par->iospace, par->physbase,
+	       par->iospace, info->fix.smem_start,
 	       par->ramsize >> 20);
 
 	return 0;

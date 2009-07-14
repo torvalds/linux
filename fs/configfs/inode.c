@@ -33,9 +33,14 @@
 #include <linux/backing-dev.h>
 #include <linux/capability.h>
 #include <linux/sched.h>
+#include <linux/lockdep.h>
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"
+
+#ifdef CONFIG_LOCKDEP
+static struct lock_class_key default_group_class[MAX_LOCK_DEPTH];
+#endif
 
 extern struct super_block * configfs_sb;
 
@@ -150,6 +155,38 @@ struct inode * configfs_new_inode(mode_t mode, struct configfs_dirent * sd)
 	return inode;
 }
 
+#ifdef CONFIG_LOCKDEP
+
+static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
+					  struct inode *inode)
+{
+	int depth = sd->s_depth;
+
+	if (depth > 0) {
+		if (depth <= ARRAY_SIZE(default_group_class)) {
+			lockdep_set_class(&inode->i_mutex,
+					  &default_group_class[depth - 1]);
+		} else {
+			/*
+			 * In practice the maximum level of locking depth is
+			 * already reached. Just inform about possible reasons.
+			 */
+			printk(KERN_INFO "configfs: Too many levels of inodes"
+			       " for the locking correctness validator.\n");
+			printk(KERN_INFO "Spurious warnings may appear.\n");
+		}
+	}
+}
+
+#else /* CONFIG_LOCKDEP */
+
+static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
+					  struct inode *inode)
+{
+}
+
+#endif /* CONFIG_LOCKDEP */
+
 int configfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
 {
 	int error = 0;
@@ -162,6 +199,7 @@ int configfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *
 					struct inode *p_inode = dentry->d_parent->d_inode;
 					p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
 				}
+				configfs_set_inode_lock_class(sd, inode);
 				goto Proceed;
 			}
 			else

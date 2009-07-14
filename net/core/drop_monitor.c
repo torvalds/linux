@@ -22,8 +22,10 @@
 #include <linux/timer.h>
 #include <linux/bitops.h>
 #include <net/genetlink.h>
+#include <net/netevent.h>
 
 #include <trace/events/skb.h>
+#include <trace/events/napi.h>
 
 #include <asm/unaligned.h>
 
@@ -38,7 +40,8 @@ static void send_dm_alert(struct work_struct *unused);
  * and the work handle that will send up
  * netlink alerts
  */
-struct sock *dm_sock;
+static int trace_state = TRACE_OFF;
+static spinlock_t trace_state_lock = SPIN_LOCK_UNLOCKED;
 
 struct per_cpu_dm_data {
 	struct work_struct dm_alert_work;
@@ -47,11 +50,18 @@ struct per_cpu_dm_data {
 	struct timer_list send_timer;
 };
 
+struct dm_hw_stat_delta {
+	struct net_device *dev;
+	struct list_head list;
+	struct rcu_head rcu;
+	unsigned long last_drop_val;
+};
+
 static struct genl_family net_drop_monitor_family = {
 	.id             = GENL_ID_GENERATE,
 	.hdrsize        = 0,
 	.name           = "NET_DM",
-	.version        = 1,
+	.version        = 2,
 	.maxattr        = NET_DM_CMD_MAX,
 };
 
@@ -59,19 +69,24 @@ static DEFINE_PER_CPU(struct per_cpu_dm_data, dm_cpu_data);
 
 static int dm_hit_limit = 64;
 static int dm_delay = 1;
-
+static unsigned long dm_hw_check_delta = 2*HZ;
+static LIST_HEAD(hw_stats_list);
 
 static void reset_per_cpu_data(struct per_cpu_dm_data *data)
 {
 	size_t al;
 	struct net_dm_alert_msg *msg;
+	struct nlattr *nla;
 
 	al = sizeof(struct net_dm_alert_msg);
 	al += dm_hit_limit * sizeof(struct net_dm_drop_point);
+	al += sizeof(struct nlattr);
+
 	data->skb = genlmsg_new(al, GFP_KERNEL);
 	genlmsg_put(data->skb, 0, 0, &net_drop_monitor_family,
 			0, NET_DM_CMD_ALERT);
-	msg = __nla_reserve_nohdr(data->skb, sizeof(struct net_dm_alert_msg));
+	nla = nla_reserve(data->skb, NLA_UNSPEC, sizeof(struct net_dm_alert_msg));
+	msg = nla_data(nla);
 	memset(msg, 0, al);
 	atomic_set(&data->dm_hit_count, dm_hit_limit);
 }
@@ -111,10 +126,11 @@ static void sched_send_work(unsigned long unused)
 	schedule_work(&data->dm_alert_work);
 }
 
-static void trace_kfree_skb_hit(struct sk_buff *skb, void *location)
+static void trace_drop_common(struct sk_buff *skb, void *location)
 {
 	struct net_dm_alert_msg *msg;
 	struct nlmsghdr *nlh;
+	struct nlattr *nla;
 	int i;
 	struct per_cpu_dm_data *data = &__get_cpu_var(dm_cpu_data);
 
@@ -127,7 +143,8 @@ static void trace_kfree_skb_hit(struct sk_buff *skb, void *location)
 	}
 
 	nlh = (struct nlmsghdr *)data->skb->data;
-	msg = genlmsg_data(nlmsg_data(nlh));
+	nla = genlmsg_data(nlmsg_data(nlh));
+	msg = nla_data(nla);
 	for (i = 0; i < msg->entries; i++) {
 		if (!memcmp(&location, msg->points[i].pc, sizeof(void *))) {
 			msg->points[i].count++;
@@ -139,6 +156,7 @@ static void trace_kfree_skb_hit(struct sk_buff *skb, void *location)
 	 * We need to create a new entry
 	 */
 	__nla_reserve_nohdr(data->skb, sizeof(struct net_dm_drop_point));
+	nla->nla_len += NLA_ALIGN(sizeof(struct net_dm_drop_point));
 	memcpy(msg->points[msg->entries].pc, &location, sizeof(void *));
 	msg->points[msg->entries].count = 1;
 	msg->entries++;
@@ -152,23 +170,79 @@ out:
 	return;
 }
 
+static void trace_kfree_skb_hit(struct sk_buff *skb, void *location)
+{
+	trace_drop_common(skb, location);
+}
+
+static void trace_napi_poll_hit(struct napi_struct *napi)
+{
+	struct dm_hw_stat_delta *new_stat;
+
+	/*
+	 * Ratelimit our check time to dm_hw_check_delta jiffies
+	 */
+	if (!time_after(jiffies, napi->dev->last_rx + dm_hw_check_delta))
+		return;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(new_stat, &hw_stats_list, list) {
+		if ((new_stat->dev == napi->dev)  &&
+		    (napi->dev->stats.rx_dropped != new_stat->last_drop_val)) {
+			trace_drop_common(NULL, NULL);
+			new_stat->last_drop_val = napi->dev->stats.rx_dropped;
+			break;
+		}
+	}
+	rcu_read_unlock();
+}
+
+
+static void free_dm_hw_stat(struct rcu_head *head)
+{
+	struct dm_hw_stat_delta *n;
+	n = container_of(head, struct dm_hw_stat_delta, rcu);
+	kfree(n);
+}
+
 static int set_all_monitor_traces(int state)
 {
 	int rc = 0;
+	struct dm_hw_stat_delta *new_stat = NULL;
+	struct dm_hw_stat_delta *temp;
+
+	spin_lock(&trace_state_lock);
 
 	switch (state) {
 	case TRACE_ON:
 		rc |= register_trace_kfree_skb(trace_kfree_skb_hit);
+		rc |= register_trace_napi_poll(trace_napi_poll_hit);
 		break;
 	case TRACE_OFF:
 		rc |= unregister_trace_kfree_skb(trace_kfree_skb_hit);
+		rc |= unregister_trace_napi_poll(trace_napi_poll_hit);
 
 		tracepoint_synchronize_unregister();
+
+		/*
+		 * Clean the device list
+		 */
+		list_for_each_entry_safe(new_stat, temp, &hw_stats_list, list) {
+			if (new_stat->dev == NULL) {
+				list_del_rcu(&new_stat->list);
+				call_rcu(&new_stat->rcu, free_dm_hw_stat);
+			}
+		}
 		break;
 	default:
 		rc = 1;
 		break;
 	}
+
+	if (!rc)
+		trace_state = state;
+
+	spin_unlock(&trace_state_lock);
 
 	if (rc)
 		return -EINPROGRESS;
@@ -197,6 +271,44 @@ static int net_dm_cmd_trace(struct sk_buff *skb,
 	return -ENOTSUPP;
 }
 
+static int dropmon_net_event(struct notifier_block *ev_block,
+			unsigned long event, void *ptr)
+{
+	struct net_device *dev = ptr;
+	struct dm_hw_stat_delta *new_stat = NULL;
+	struct dm_hw_stat_delta *tmp;
+
+	switch (event) {
+	case NETDEV_REGISTER:
+		new_stat = kzalloc(sizeof(struct dm_hw_stat_delta), GFP_KERNEL);
+
+		if (!new_stat)
+			goto out;
+
+		new_stat->dev = dev;
+		INIT_RCU_HEAD(&new_stat->rcu);
+		spin_lock(&trace_state_lock);
+		list_add_rcu(&new_stat->list, &hw_stats_list);
+		spin_unlock(&trace_state_lock);
+		break;
+	case NETDEV_UNREGISTER:
+		spin_lock(&trace_state_lock);
+		list_for_each_entry_safe(new_stat, tmp, &hw_stats_list, list) {
+			if (new_stat->dev == dev) {
+				new_stat->dev = NULL;
+				if (trace_state == TRACE_OFF) {
+					list_del_rcu(&new_stat->list);
+					call_rcu(&new_stat->rcu, free_dm_hw_stat);
+					break;
+				}
+			}
+		}
+		spin_unlock(&trace_state_lock);
+		break;
+	}
+out:
+	return NOTIFY_DONE;
+}
 
 static struct genl_ops dropmon_ops[] = {
 	{
@@ -211,6 +323,10 @@ static struct genl_ops dropmon_ops[] = {
 		.cmd = NET_DM_CMD_STOP,
 		.doit = net_dm_cmd_trace,
 	},
+};
+
+static struct notifier_block dropmon_net_notifier = {
+	.notifier_call = dropmon_net_event
 };
 
 static int __init init_net_drop_monitor(void)
@@ -236,10 +352,16 @@ static int __init init_net_drop_monitor(void)
 		ret = genl_register_ops(&net_drop_monitor_family,
 					&dropmon_ops[i]);
 		if (ret) {
-			printk(KERN_CRIT "failed to register operation %d\n",
+			printk(KERN_CRIT "Failed to register operation %d\n",
 				dropmon_ops[i].cmd);
 			goto out_unreg;
 		}
+	}
+
+	rc = register_netdevice_notifier(&dropmon_net_notifier);
+	if (rc < 0) {
+		printk(KERN_CRIT "Failed to register netdevice notifier\n");
+		goto out_unreg;
 	}
 
 	rc = 0;
@@ -252,6 +374,7 @@ static int __init init_net_drop_monitor(void)
 		data->send_timer.data = cpu;
 		data->send_timer.function = sched_send_work;
 	}
+
 	goto out;
 
 out_unreg:

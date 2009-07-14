@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
+ * Copyright (C) 2007-2009 PetaLogix
  * Copyright (C) 2006 Atmark Techno, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -12,6 +14,9 @@
 #include <asm/byteorder.h>
 #include <asm/page.h>
 #include <linux/types.h>
+#include <asm/byteorder.h>
+#include <linux/mm.h>          /* Get struct page {...} */
+
 
 #define IO_SPACE_LIMIT (0xFFFFFFFF)
 
@@ -112,6 +117,30 @@ static inline void writel(unsigned int v, volatile void __iomem *addr)
 #define memcpy_fromio(a, b, c)	memcpy((a), (void *)(b), (c))
 #define memcpy_toio(a, b, c)	memcpy((void *)(a), (b), (c))
 
+#ifdef CONFIG_MMU
+
+#define mm_ptov(addr)		((void *)__phys_to_virt(addr))
+#define mm_vtop(addr)		((unsigned long)__virt_to_phys(addr))
+#define phys_to_virt(addr)	((void *)__phys_to_virt(addr))
+#define virt_to_phys(addr)	((unsigned long)__virt_to_phys(addr))
+#define virt_to_bus(addr)	((unsigned long)__virt_to_phys(addr))
+
+#define __page_address(page) \
+		(PAGE_OFFSET + (((page) - mem_map) << PAGE_SHIFT))
+#define page_to_phys(page)	virt_to_phys((void *)__page_address(page))
+#define page_to_bus(page)	(page_to_phys(page))
+#define bus_to_virt(addr)	(phys_to_virt(addr))
+
+extern void iounmap(void *addr);
+/*extern void *__ioremap(phys_addr_t address, unsigned long size,
+		unsigned long flags);*/
+extern void __iomem *ioremap(phys_addr_t address, unsigned long size);
+#define ioremap_writethrough(addr, size) ioremap((addr), (size))
+#define ioremap_nocache(addr, size)      ioremap((addr), (size))
+#define ioremap_fullcache(addr, size)    ioremap((addr), (size))
+
+#else /* CONFIG_MMU */
+
 /**
  *	virt_to_phys - map virtual addresses to physical
  *	@address: address to remap
@@ -159,6 +188,8 @@ static inline void __iomem *__ioremap(phys_addr_t address, unsigned long size,
 #define ioremap(physaddr, size)	((void __iomem *)(unsigned long)(physaddr))
 #define iounmap(addr)		((void)0)
 #define ioremap_nocache(physaddr, size)	ioremap(physaddr, size)
+
+#endif /* CONFIG_MMU */
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem

@@ -29,6 +29,11 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
+struct stv0900_reg {
+	u16 addr;
+	u8  val;
+};
+
 struct stv0900_config {
 	u8 demod_address;
 	u32 xtal;
@@ -38,7 +43,7 @@ struct stv0900_config {
 
 	u8 path1_mode;
 	u8 path2_mode;
-
+	struct stv0900_reg *ts_config_regs;
 	u8 tun1_maddress;/* 0, 1, 2, 3 for 0xc0, 0xc2, 0xc4, 0xc6 */
 	u8 tun2_maddress;
 	u8 tun1_adc;/* 1 for stv6110, 2 for stb6100 */

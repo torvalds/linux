@@ -98,6 +98,7 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_IOCTL1_INFO		1
 #define SNDRV_PCM_IOCTL1_CHANNEL_INFO	2
 #define SNDRV_PCM_IOCTL1_GSTATE		3
+#define SNDRV_PCM_IOCTL1_FIFO_SIZE	4
 
 #define SNDRV_PCM_TRIGGER_STOP		0
 #define SNDRV_PCM_TRIGGER_START		1
@@ -270,6 +271,7 @@ struct snd_pcm_runtime {
 	snd_pcm_uframes_t hw_ptr_base;	/* Position at buffer restart */
 	snd_pcm_uframes_t hw_ptr_interrupt; /* Position at interrupt time */
 	unsigned long hw_ptr_jiffies;	/* Time when hw_ptr is updated */
+	snd_pcm_sframes_t delay;	/* extra delay; typically FIFO size */
 
 	/* -- HW params -- */
 	snd_pcm_access_t access;	/* access mode */
@@ -485,80 +487,6 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream, struct file *file,
 void snd_pcm_detach_substream(struct snd_pcm_substream *substream);
 void snd_pcm_vma_notify_data(void *client, void *data);
 int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file, struct vm_area_struct *area);
-
-#if BITS_PER_LONG >= 64
-
-static inline void div64_32(u_int64_t *n, u_int32_t div, u_int32_t *rem)
-{
-	*rem = *n % div;
-	*n /= div;
-}
-
-#elif defined(i386)
-
-static inline void div64_32(u_int64_t *n, u_int32_t div, u_int32_t *rem)
-{
-	u_int32_t low, high;
-	low = *n & 0xffffffff;
-	high = *n >> 32;
-	if (high) {
-		u_int32_t high1 = high % div;
-		high /= div;
-		asm("divl %2":"=a" (low), "=d" (*rem):"rm" (div), "a" (low), "d" (high1));
-		*n = (u_int64_t)high << 32 | low;
-	} else {
-		*n = low / div;
-		*rem = low % div;
-	}
-}
-#else
-
-static inline void divl(u_int32_t high, u_int32_t low,
-			u_int32_t div,
-			u_int32_t *q, u_int32_t *r)
-{
-	u_int64_t n = (u_int64_t)high << 32 | low;
-	u_int64_t d = (u_int64_t)div << 31;
-	u_int32_t q1 = 0;
-	int c = 32;
-	while (n > 0xffffffffU) {
-		q1 <<= 1;
-		if (n >= d) {
-			n -= d;
-			q1 |= 1;
-		}
-		d >>= 1;
-		c--;
-	}
-	q1 <<= c;
-	if (n) {
-		low = n;
-		*q = q1 | (low / div);
-		*r = low % div;
-	} else {
-		*r = 0;
-		*q = q1;
-	}
-	return;
-}
-
-static inline void div64_32(u_int64_t *n, u_int32_t div, u_int32_t *rem)
-{
-	u_int32_t low, high;
-	low = *n & 0xffffffff;
-	high = *n >> 32;
-	if (high) {
-		u_int32_t high1 = high % div;
-		u_int32_t low1 = low;
-		high /= div;
-		divl(high1, low1, div, &low, rem);
-		*n = (u_int64_t)high << 32 | low;
-	} else {
-		*n = low / div;
-		*rem = low % div;
-	}
-}
-#endif
 
 /*
  *  PCM library

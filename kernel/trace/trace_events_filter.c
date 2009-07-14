@@ -27,8 +27,6 @@
 #include "trace.h"
 #include "trace_output.h"
 
-static DEFINE_MUTEX(filter_mutex);
-
 enum filter_op_ids
 {
 	OP_OR,
@@ -178,7 +176,7 @@ static int filter_pred_string(struct filter_pred *pred, void *event,
 static int filter_pred_strloc(struct filter_pred *pred, void *event,
 			      int val1, int val2)
 {
-	int str_loc = *(int *)(event + pred->offset);
+	unsigned short str_loc = *(unsigned short *)(event + pred->offset);
 	char *addr = (char *)(event + str_loc);
 	int cmp, match;
 
@@ -294,12 +292,12 @@ void print_event_filter(struct ftrace_event_call *call, struct trace_seq *s)
 {
 	struct event_filter *filter = call->filter;
 
-	mutex_lock(&filter_mutex);
+	mutex_lock(&event_mutex);
 	if (filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
 		trace_seq_printf(s, "none\n");
-	mutex_unlock(&filter_mutex);
+	mutex_unlock(&event_mutex);
 }
 
 void print_subsystem_event_filter(struct event_subsystem *system,
@@ -307,12 +305,12 @@ void print_subsystem_event_filter(struct event_subsystem *system,
 {
 	struct event_filter *filter = system->filter;
 
-	mutex_lock(&filter_mutex);
+	mutex_lock(&event_mutex);
 	if (filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
 		trace_seq_printf(s, "none\n");
-	mutex_unlock(&filter_mutex);
+	mutex_unlock(&event_mutex);
 }
 
 static struct ftrace_event_field *
@@ -381,6 +379,7 @@ void destroy_preds(struct ftrace_event_call *call)
 			filter_free_pred(filter->preds[i]);
 	}
 	kfree(filter->preds);
+	kfree(filter->filter_string);
 	kfree(filter);
 	call->filter = NULL;
 }
@@ -433,7 +432,6 @@ static void filter_free_subsystem_preds(struct event_subsystem *system)
 		filter->n_preds = 0;
 	}
 
-	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
 		if (!call->define_fields)
 			continue;
@@ -443,7 +441,6 @@ static void filter_free_subsystem_preds(struct event_subsystem *system)
 			remove_filter_string(call->filter);
 		}
 	}
-	mutex_unlock(&event_mutex);
 }
 
 static int filter_add_pred_fn(struct filter_parse_state *ps,
@@ -546,6 +543,7 @@ static int filter_add_pred(struct filter_parse_state *ps,
 	filter_pred_fn_t fn;
 	unsigned long long val;
 	int string_type;
+	int ret;
 
 	pred->fn = filter_pred_none;
 
@@ -581,7 +579,11 @@ static int filter_add_pred(struct filter_parse_state *ps,
 			pred->not = 1;
 		return filter_add_pred_fn(ps, call, pred, fn);
 	} else {
-		if (strict_strtoull(pred->str_val, 0, &val)) {
+		if (field->is_signed)
+			ret = strict_strtoll(pred->str_val, 0, &val);
+		else
+			ret = strict_strtoull(pred->str_val, 0, &val);
+		if (ret) {
 			parse_error(ps, FILT_ERR_ILLEGAL_INTVAL, 0);
 			return -EINVAL;
 		}
@@ -625,7 +627,6 @@ static int filter_add_subsystem_pred(struct filter_parse_state *ps,
 	filter->preds[filter->n_preds] = pred;
 	filter->n_preds++;
 
-	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
 
 		if (!call->define_fields)
@@ -636,14 +637,12 @@ static int filter_add_subsystem_pred(struct filter_parse_state *ps,
 
 		err = filter_add_pred(ps, call, pred);
 		if (err) {
-			mutex_unlock(&event_mutex);
 			filter_free_subsystem_preds(system);
 			parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
 			goto out;
 		}
 		replace_filter_string(call->filter, filter_string);
 	}
-	mutex_unlock(&event_mutex);
 out:
 	return err;
 }
@@ -1070,12 +1069,12 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 
 	struct filter_parse_state *ps;
 
-	mutex_lock(&filter_mutex);
+	mutex_lock(&event_mutex);
 
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_disable_preds(call);
 		remove_filter_string(call->filter);
-		mutex_unlock(&filter_mutex);
+		mutex_unlock(&event_mutex);
 		return 0;
 	}
 
@@ -1103,7 +1102,7 @@ out:
 	postfix_clear(ps);
 	kfree(ps);
 out_unlock:
-	mutex_unlock(&filter_mutex);
+	mutex_unlock(&event_mutex);
 
 	return err;
 }
@@ -1115,12 +1114,12 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 
 	struct filter_parse_state *ps;
 
-	mutex_lock(&filter_mutex);
+	mutex_lock(&event_mutex);
 
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_free_subsystem_preds(system);
 		remove_filter_string(system->filter);
-		mutex_unlock(&filter_mutex);
+		mutex_unlock(&event_mutex);
 		return 0;
 	}
 
@@ -1148,7 +1147,7 @@ out:
 	postfix_clear(ps);
 	kfree(ps);
 out_unlock:
-	mutex_unlock(&filter_mutex);
+	mutex_unlock(&event_mutex);
 
 	return err;
 }

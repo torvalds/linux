@@ -37,6 +37,9 @@ static inline int gpio_direction_input(unsigned gpio)
 
 static inline int gpio_direction_output(unsigned gpio, int value)
 {
+	/* first set the gpio out value */
+	ssb_gpio_out(&ssb_bcm47xx, 1 << gpio, value ? 1 << gpio : 0);
+	/* then set the gpio mode */
 	ssb_gpio_outen(&ssb_bcm47xx, 1 << gpio, 1 << gpio);
 	return 0;
 }

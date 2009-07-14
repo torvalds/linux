@@ -168,7 +168,16 @@ tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
 tcp_ecn - BOOLEAN
-	Enable Explicit Congestion Notification in TCP.
+	Enable Explicit Congestion Notification (ECN) in TCP. ECN is only
+	used when both ends of the TCP flow support it. It is useful to
+	avoid losses due to congestion (when the bottleneck router supports
+	ECN).
+	Possible values are:
+		0 disable ECN
+		1 ECN enabled
+		2 Only server-side ECN enabled. If the other end does
+		  not support ECN, behavior is like with ECN disabled.
+	Default: 2
 
 tcp_fack - BOOLEAN
 	Enable FACK congestion avoidance and fast retransmission.
@@ -1047,6 +1056,13 @@ disable_ipv6 - BOOLEAN
 	will be dynamically set to TRUE if DAD fails for the link-local
 	address.
 	Default: FALSE (enable IPv6 operation)
+
+	When this value is changed from 1 to 0 (IPv6 is being enabled),
+	it will dynamically create a link-local address on the given
+	interface and start Duplicate Address Detection, if necessary.
+
+	When this value is changed from 0 to 1 (IPv6 is being disabled),
+	it will dynamically delete all address on the given interface.
 
 accept_dad - INTEGER
 	Whether to accept DAD (Duplicate Address Detection).

@@ -440,3 +440,18 @@ by this process or by another, and doesn't affect any counters that
 this process has created on other processes.  It only enables or
 disables the group leaders, not any other members in the groups.
 
+
+Arch requirements
+-----------------
+
+If your architecture does not have hardware performance metrics, you can
+still use the generic software counters based on hrtimers for sampling.
+
+So to start with, in order to add HAVE_PERF_COUNTERS to your Kconfig, you
+will need at least this:
+	- asm/perf_counter.h - a basic stub will suffice at first
+	- support for atomic64 types (and associated helper functions)
+	- set_perf_counter_pending() implemented
+
+If your architecture does have hardware capabilities, you can override the
+weak stub hw_perf_counter_init() to register hardware counters.

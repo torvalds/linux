@@ -1,13 +1,16 @@
 /*
- * Memory MAP
- * Common header file for blackfin BF561 of processors.
+ * BF561 memory map
+ *
+ * Copyright 2004-2009 Analog Devices Inc.
+ * Licensed under the GPL-2 or later.
  */
 
-#ifndef _MEM_MAP_561_H_
-#define _MEM_MAP_561_H_
+#ifndef __BFIN_MACH_MEM_MAP_H__
+#define __BFIN_MACH_MEM_MAP_H__
 
-#define COREMMR_BASE           0xFFE00000	 /* Core MMRs */
-#define SYSMMR_BASE            0xFFC00000	 /* System MMRs */
+#ifndef __BFIN_MEM_MAP_H__
+# error "do not include mach/mem_map.h directly -- use asm/mem_map.h"
+#endif
 
 /* Async Memory Banks */
 #define ASYNC_BANK3_BASE	0x2C000000	 /* Async Bank 3 */
@@ -82,9 +85,6 @@
 #define COREA_L1_SCRATCH_START	0xFFB00000
 #define COREB_L1_SCRATCH_START	0xFF700000
 
-#define L1_SCRATCH_START	COREA_L1_SCRATCH_START
-#define L1_SCRATCH_LENGTH	0x1000
-
 #ifdef __ASSEMBLY__
 
 /*
@@ -155,14 +155,42 @@
 	dreg = ROT dreg BY -1;		\
 	dreg = CC;
 
-#else
-#define GET_PDA_SAFE(preg)		\
-	preg.l = _cpu_pda;		\
-	preg.h = _cpu_pda;
+static inline unsigned long get_l1_scratch_start_cpu(int cpu)
+{
+	return cpu ? COREB_L1_SCRATCH_START : COREA_L1_SCRATCH_START;
+}
+static inline unsigned long get_l1_code_start_cpu(int cpu)
+{
+	return cpu ? COREB_L1_CODE_START : COREA_L1_CODE_START;
+}
+static inline unsigned long get_l1_data_a_start_cpu(int cpu)
+{
+	return cpu ? COREB_L1_DATA_A_START : COREA_L1_DATA_A_START;
+}
+static inline unsigned long get_l1_data_b_start_cpu(int cpu)
+{
+	return cpu ? COREB_L1_DATA_B_START : COREA_L1_DATA_B_START;
+}
 
-#define GET_PDA(preg, dreg)	GET_PDA_SAFE(preg)
+static inline unsigned long get_l1_scratch_start(void)
+{
+	return get_l1_scratch_start_cpu(blackfin_core_id());
+}
+static inline unsigned long get_l1_code_start(void)
+{
+	return get_l1_code_start_cpu(blackfin_core_id());
+}
+static inline unsigned long get_l1_data_a_start(void)
+{
+	return get_l1_data_a_start_cpu(blackfin_core_id());
+}
+static inline unsigned long get_l1_data_b_start(void)
+{
+	return get_l1_data_b_start_cpu(blackfin_core_id());
+}
+
 #endif /* CONFIG_SMP */
 
 #endif /* __ASSEMBLY__ */
 
-#endif				/* _MEM_MAP_533_H_ */
+#endif

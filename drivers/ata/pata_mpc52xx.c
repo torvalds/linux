@@ -694,7 +694,7 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 	struct bcom_task *dmatsk = NULL;
 
 	/* Get ipb frequency */
-	ipb_freq = mpc52xx_find_ipb_freq(op->node);
+	ipb_freq = mpc5xxx_get_bus_frequency(op->node);
 	if (!ipb_freq) {
 		dev_err(&op->dev, "could not determine IPB bus frequency\n");
 		return -ENODEV;

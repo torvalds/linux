@@ -135,6 +135,7 @@ ENTRY(ftrace_graph_caller)
 
 	leaq 8(%rbp), %rdi
 	movq 0x38(%rsp), %rsi
+	movq (%rbp), %rdx
 	subq $MCOUNT_INSN_SIZE, %rsi
 
 	call	prepare_ftrace_return
@@ -150,6 +151,7 @@ GLOBAL(return_to_handler)
 	/* Save the return values */
 	movq %rax, (%rsp)
 	movq %rdx, 8(%rsp)
+	movq %rbp, %rdi
 
 	call ftrace_return_to_handler
 
@@ -963,6 +965,8 @@ END(\sym)
 #ifdef CONFIG_SMP
 apicinterrupt IRQ_MOVE_CLEANUP_VECTOR \
 	irq_move_cleanup_interrupt smp_irq_move_cleanup_interrupt
+apicinterrupt REBOOT_VECTOR \
+	reboot_interrupt smp_reboot_interrupt
 #endif
 
 #ifdef CONFIG_X86_UV
@@ -994,9 +998,14 @@ apicinterrupt INVALIDATE_TLB_VECTOR_START+7 \
 #endif
 
 apicinterrupt THRESHOLD_APIC_VECTOR \
-	threshold_interrupt mce_threshold_interrupt
+	threshold_interrupt smp_threshold_interrupt
 apicinterrupt THERMAL_APIC_VECTOR \
 	thermal_interrupt smp_thermal_interrupt
+
+#ifdef CONFIG_X86_MCE
+apicinterrupt MCE_SELF_VECTOR \
+	mce_self_interrupt smp_mce_self_interrupt
+#endif
 
 #ifdef CONFIG_SMP
 apicinterrupt CALL_FUNCTION_SINGLE_VECTOR \
@@ -1379,7 +1388,7 @@ errorentry xen_stack_segment do_stack_segment
 errorentry general_protection do_general_protection
 errorentry page_fault do_page_fault
 #ifdef CONFIG_X86_MCE
-paranoidzeroentry machine_check do_machine_check
+paranoidzeroentry machine_check *machine_check_vector(%rip)
 #endif
 
 	/*

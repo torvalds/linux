@@ -16,4 +16,7 @@
 #define ARB_DMA_PARK		(1<<25)	   /* Be parked with DMA when idle */
 #define ARB_CORE_PARK		(1<<24)	   /* Be parked with core when idle */
 #define ARB_LOCK_FLAG		(1<<23)	   /* Only Locking masters gain access to the bus */
+
+extern int __init pxa27x_set_pwrmode(unsigned int mode);
+
 #endif /* __MACH_PXA27x_H */

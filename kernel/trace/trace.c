@@ -17,6 +17,7 @@
 #include <linux/writeback.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
+#include <linux/smp_lock.h>
 #include <linux/notifier.h>
 #include <linux/irqflags.h>
 #include <linux/debugfs.h>
@@ -284,13 +285,12 @@ void trace_wake_up(void)
 static int __init set_buf_size(char *str)
 {
 	unsigned long buf_size;
-	int ret;
 
 	if (!str)
 		return 0;
-	ret = strict_strtoul(str, 0, &buf_size);
+	buf_size = memparse(str, &str);
 	/* nr_entries can not be zero */
-	if (ret < 0 || buf_size == 0)
+	if (buf_size == 0)
 		return 0;
 	trace_buf_size = buf_size;
 	return 1;
@@ -344,7 +344,7 @@ static raw_spinlock_t ftrace_max_lock =
 /*
  * Copy the new maximum trace into the separate maximum-trace
  * structure. (this way the maximum trace is permanently saved,
- * for later retrieval via /debugfs/tracing/latency_trace)
+ * for later retrieval via /sys/kernel/debug/tracing/latency_trace)
  */
 static void
 __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
@@ -2053,25 +2053,23 @@ static int tracing_open(struct inode *inode, struct file *file)
 static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct tracer *t = m->private;
+	struct tracer *t = v;
 
 	(*pos)++;
 
 	if (t)
 		t = t->next;
 
-	m->private = t;
-
 	return t;
 }
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
-	struct tracer *t = m->private;
+	struct tracer *t;
 	loff_t l = 0;
 
 	mutex_lock(&trace_types_lock);
-	for (; t && l < *pos; t = t_next(m, t, &l))
+	for (t = trace_types; t && l < *pos; t = t_next(m, t, &l))
 		;
 
 	return t;
@@ -2107,18 +2105,10 @@ static struct seq_operations show_traces_seq_ops = {
 
 static int show_traces_open(struct inode *inode, struct file *file)
 {
-	int ret;
-
 	if (tracing_disabled)
 		return -ENODEV;
 
-	ret = seq_open(file, &show_traces_seq_ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		m->private = trace_types;
-	}
-
-	return ret;
+	return seq_open(file, &show_traces_seq_ops);
 }
 
 static ssize_t
@@ -2191,10 +2181,11 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 	if (!alloc_cpumask_var(&tracing_cpumask_new, GFP_KERNEL))
 		return -ENOMEM;
 
-	mutex_lock(&tracing_cpumask_update_lock);
 	err = cpumask_parse_user(ubuf, count, tracing_cpumask_new);
 	if (err)
 		goto err_unlock;
+
+	mutex_lock(&tracing_cpumask_update_lock);
 
 	local_irq_disable();
 	__raw_spin_lock(&ftrace_max_lock);
@@ -2223,8 +2214,7 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 	return count;
 
 err_unlock:
-	mutex_unlock(&tracing_cpumask_update_lock);
-	free_cpumask_var(tracing_cpumask);
+	free_cpumask_var(tracing_cpumask_new);
 
 	return err;
 }
@@ -2414,21 +2404,20 @@ static const struct file_operations tracing_iter_fops = {
 
 static const char readme_msg[] =
 	"tracing mini-HOWTO:\n\n"
-	"# mkdir /debug\n"
-	"# mount -t debugfs nodev /debug\n\n"
-	"# cat /debug/tracing/available_tracers\n"
+	"# mount -t debugfs nodev /sys/kernel/debug\n\n"
+	"# cat /sys/kernel/debug/tracing/available_tracers\n"
 	"wakeup preemptirqsoff preemptoff irqsoff function sched_switch nop\n\n"
-	"# cat /debug/tracing/current_tracer\n"
+	"# cat /sys/kernel/debug/tracing/current_tracer\n"
 	"nop\n"
-	"# echo sched_switch > /debug/tracing/current_tracer\n"
-	"# cat /debug/tracing/current_tracer\n"
+	"# echo sched_switch > /sys/kernel/debug/tracing/current_tracer\n"
+	"# cat /sys/kernel/debug/tracing/current_tracer\n"
 	"sched_switch\n"
-	"# cat /debug/tracing/trace_options\n"
+	"# cat /sys/kernel/debug/tracing/trace_options\n"
 	"noprint-parent nosym-offset nosym-addr noverbose\n"
-	"# echo print-parent > /debug/tracing/trace_options\n"
-	"# echo 1 > /debug/tracing/tracing_enabled\n"
-	"# cat /debug/tracing/trace > /tmp/trace.txt\n"
-	"# echo 0 > /debug/tracing/tracing_enabled\n"
+	"# echo print-parent > /sys/kernel/debug/tracing/trace_options\n"
+	"# echo 1 > /sys/kernel/debug/tracing/tracing_enabled\n"
+	"# cat /sys/kernel/debug/tracing/trace > /tmp/trace.txt\n"
+	"# echo 0 > /sys/kernel/debug/tracing/tracing_enabled\n"
 ;
 
 static ssize_t
@@ -3627,7 +3616,7 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 	struct trace_seq *s;
 	unsigned long cnt;
 
-	s = kmalloc(sizeof(*s), GFP_ATOMIC);
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return ENOMEM;
 

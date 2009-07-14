@@ -736,6 +736,8 @@ static void ncp_put_super(struct super_block *sb)
 {
 	struct ncp_server *server = NCP_SBP(sb);
 
+	lock_kernel();
+
 	ncp_lock_server(server);
 	ncp_disconnect(server);
 	ncp_unlock_server(server);
@@ -769,6 +771,8 @@ static void ncp_put_super(struct super_block *sb)
 	vfree(server->packet);
 	sb->s_fs_info = NULL;
 	kfree(server);
+
+	unlock_kernel();
 }
 
 static int ncp_statfs(struct dentry *dentry, struct kstatfs *buf)

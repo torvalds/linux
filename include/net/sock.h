@@ -54,6 +54,7 @@
 
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
+#include <linux/poll.h>
 
 #include <asm/atomic.h>
 #include <net/dst.h>
@@ -218,9 +219,11 @@ struct sock {
 #define sk_hash			__sk_common.skc_hash
 #define sk_prot			__sk_common.skc_prot
 #define sk_net			__sk_common.skc_net
+	kmemcheck_bitfield_begin(flags);
 	unsigned char		sk_shutdown : 2,
 				sk_no_check : 2,
 				sk_userlocks : 4;
+	kmemcheck_bitfield_end(flags);
 	unsigned char		sk_protocol;
 	unsigned short		sk_type;
 	int			sk_rcvbuf;
@@ -1206,6 +1209,107 @@ static inline int skb_copy_to_page(struct sock *sk, char __user *from,
 	return 0;
 }
 
+/**
+ * sk_wmem_alloc_get - returns write allocations
+ * @sk: socket
+ *
+ * Returns sk_wmem_alloc minus initial offset of one
+ */
+static inline int sk_wmem_alloc_get(const struct sock *sk)
+{
+	return atomic_read(&sk->sk_wmem_alloc) - 1;
+}
+
+/**
+ * sk_rmem_alloc_get - returns read allocations
+ * @sk: socket
+ *
+ * Returns sk_rmem_alloc
+ */
+static inline int sk_rmem_alloc_get(const struct sock *sk)
+{
+	return atomic_read(&sk->sk_rmem_alloc);
+}
+
+/**
+ * sk_has_allocations - check if allocations are outstanding
+ * @sk: socket
+ *
+ * Returns true if socket has write or read allocations
+ */
+static inline int sk_has_allocations(const struct sock *sk)
+{
+	return sk_wmem_alloc_get(sk) || sk_rmem_alloc_get(sk);
+}
+
+/**
+ * sk_has_sleeper - check if there are any waiting processes
+ * @sk: socket
+ *
+ * Returns true if socket has waiting processes
+ *
+ * The purpose of the sk_has_sleeper and sock_poll_wait is to wrap the memory
+ * barrier call. They were added due to the race found within the tcp code.
+ *
+ * Consider following tcp code paths:
+ *
+ * CPU1                  CPU2
+ *
+ * sys_select            receive packet
+ *   ...                 ...
+ *   __add_wait_queue    update tp->rcv_nxt
+ *   ...                 ...
+ *   tp->rcv_nxt check   sock_def_readable
+ *   ...                 {
+ *   schedule               ...
+ *                          if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+ *                              wake_up_interruptible(sk->sk_sleep)
+ *                          ...
+ *                       }
+ *
+ * The race for tcp fires when the __add_wait_queue changes done by CPU1 stay
+ * in its cache, and so does the tp->rcv_nxt update on CPU2 side.  The CPU1
+ * could then endup calling schedule and sleep forever if there are no more
+ * data on the socket.
+ *
+ * The sk_has_sleeper is always called right after a call to read_lock, so we
+ * can use smp_mb__after_lock barrier.
+ */
+static inline int sk_has_sleeper(struct sock *sk)
+{
+	/*
+	 * We need to be sure we are in sync with the
+	 * add_wait_queue modifications to the wait queue.
+	 *
+	 * This memory barrier is paired in the sock_poll_wait.
+	 */
+	smp_mb__after_lock();
+	return sk->sk_sleep && waitqueue_active(sk->sk_sleep);
+}
+
+/**
+ * sock_poll_wait - place memory barrier behind the poll_wait call.
+ * @filp:           file
+ * @wait_address:   socket wait queue
+ * @p:              poll_table
+ *
+ * See the comments in the sk_has_sleeper function.
+ */
+static inline void sock_poll_wait(struct file *filp,
+		wait_queue_head_t *wait_address, poll_table *p)
+{
+	if (p && wait_address) {
+		poll_wait(filp, wait_address, p);
+		/*
+		 * We need to be sure we are in sync with the
+		 * socket flags modification.
+		 *
+		 * This memory barrier is paired in the sk_has_sleeper.
+		*/
+		smp_mb();
+	}
+}
+
 /*
  * 	Queue a received datagram if it will fit. Stream and sequenced
  *	protocols can't normally use this as they need to fit buffers in
@@ -1217,14 +1321,20 @@ static inline int skb_copy_to_page(struct sock *sk, char __user *from,
 
 static inline void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 {
-	sock_hold(sk);
+	skb_orphan(skb);
 	skb->sk = sk;
 	skb->destructor = sock_wfree;
+	/*
+	 * We used to take a refcount on sk, but following operation
+	 * is enough to guarantee sk_free() wont free this sock until
+	 * all in-flight packets are completed
+	 */
 	atomic_add(skb->truesize, &sk->sk_wmem_alloc);
 }
 
 static inline void skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
 {
+	skb_orphan(skb);
 	skb->sk = sk;
 	skb->destructor = sock_rfree;
 	atomic_add(skb->truesize, &sk->sk_rmem_alloc);

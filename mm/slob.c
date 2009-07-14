@@ -46,7 +46,7 @@
  * NUMA support in SLOB is fairly simplistic, pushing most of the real
  * logic down to the page allocator, and simply doing the node accounting
  * on the upper levels. In the event that a node id is explicitly
- * provided, alloc_pages_node() with the specified node id is used
+ * provided, alloc_pages_exact_node() with the specified node id is used
  * instead. The common case (or when the node id isn't explicitly provided)
  * will default to the current node, as per numa_node_id().
  *
@@ -67,6 +67,7 @@
 #include <linux/rcupdate.h>
 #include <linux/list.h>
 #include <linux/kmemtrace.h>
+#include <linux/kmemleak.h>
 #include <asm/atomic.h>
 
 /*
@@ -132,17 +133,17 @@ static LIST_HEAD(free_slob_large);
  */
 static inline int is_slob_page(struct slob_page *sp)
 {
-	return PageSlobPage((struct page *)sp);
+	return PageSlab((struct page *)sp);
 }
 
 static inline void set_slob_page(struct slob_page *sp)
 {
-	__SetPageSlobPage((struct page *)sp);
+	__SetPageSlab((struct page *)sp);
 }
 
 static inline void clear_slob_page(struct slob_page *sp)
 {
-	__ClearPageSlobPage((struct page *)sp);
+	__ClearPageSlab((struct page *)sp);
 }
 
 static inline struct slob_page *slob_page(const void *addr)
@@ -243,7 +244,7 @@ static void *slob_new_pages(gfp_t gfp, int order, int node)
 
 #ifdef CONFIG_NUMA
 	if (node != -1)
-		page = alloc_pages_node(node, gfp, order);
+		page = alloc_pages_exact_node(node, gfp, order);
 	else
 #endif
 		page = alloc_pages(gfp, order);
@@ -509,6 +510,7 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 				   size, PAGE_SIZE << order, gfp, node);
 	}
 
+	kmemleak_alloc(ret, size, 1, gfp);
 	return ret;
 }
 EXPORT_SYMBOL(__kmalloc_node);
@@ -521,6 +523,7 @@ void kfree(const void *block)
 
 	if (unlikely(ZERO_OR_NULL_PTR(block)))
 		return;
+	kmemleak_free(block);
 
 	sp = slob_page(block);
 	if (is_slob_page(sp)) {
@@ -584,12 +587,16 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 	} else if (flags & SLAB_PANIC)
 		panic("Cannot create slab cache %s\n", name);
 
+	kmemleak_alloc(c, sizeof(struct kmem_cache), 1, GFP_KERNEL);
 	return c;
 }
 EXPORT_SYMBOL(kmem_cache_create);
 
 void kmem_cache_destroy(struct kmem_cache *c)
 {
+	kmemleak_free(c);
+	if (c->flags & SLAB_DESTROY_BY_RCU)
+		rcu_barrier();
 	slob_free(c, sizeof(struct kmem_cache));
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
@@ -613,6 +620,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 	if (c->ctor)
 		c->ctor(b);
 
+	kmemleak_alloc_recursive(b, c->size, 1, c->flags, flags);
 	return b;
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node);
@@ -635,6 +643,7 @@ static void kmem_rcu_free(struct rcu_head *head)
 
 void kmem_cache_free(struct kmem_cache *c, void *b)
 {
+	kmemleak_free_recursive(b, c->flags);
 	if (unlikely(c->flags & SLAB_DESTROY_BY_RCU)) {
 		struct slob_rcu *slob_rcu;
 		slob_rcu = b + (c->size - sizeof(struct slob_rcu));

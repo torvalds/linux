@@ -528,7 +528,7 @@ void show_regs(struct pt_regs * regs)
 
 	for (i = 0;  i < 32;  i++) {
 		if ((i % REGS_PER_LINE) == 0)
-			printk("\n" KERN_INFO "GPR%02d: ", i);
+			printk("\nGPR%02d: ", i);
 		printk(REG " ", regs->gpr[i]);
 		if (i == LAST_VOLATILE && !FULL_REGS(regs))
 			break;
@@ -650,7 +650,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.ksp_limit = (unsigned long)task_stack_page(p) +
 				_ALIGN_UP(sizeof(struct thread_info), 16);
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_STD_MMU_64
 	if (cpu_has_feature(CPU_FTR_SLB)) {
 		unsigned long sp_vsid;
 		unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;

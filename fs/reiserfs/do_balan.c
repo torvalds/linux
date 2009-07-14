@@ -1270,9 +1270,8 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 
 					RFALSE(ih, "PAP-12210: ih must be 0");
 
-					if (is_direntry_le_ih
-					    (aux_ih =
-					     B_N_PITEM_HEAD(tbS0, item_pos))) {
+					aux_ih = B_N_PITEM_HEAD(tbS0, item_pos);
+					if (is_direntry_le_ih(aux_ih)) {
 						/* we append to directory item */
 
 						int entry_count;

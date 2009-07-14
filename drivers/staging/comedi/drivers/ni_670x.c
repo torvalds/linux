@@ -41,6 +41,7 @@ Commands are not supported.
 
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include "mite.h"
@@ -69,29 +70,29 @@ struct ni_670x_board {
 
 static const struct ni_670x_board ni_670x_boards[] = {
 	{
-	      dev_id:	0x2c90,
-	      name:	"PCI-6703",
-	      ao_chans:16,
-	      ao_bits:	16,
+	.dev_id = 0x2c90,
+	.name = "PCI-6703",
+	.ao_chans = 16,
+	.ao_bits = 16,
 		},
 	{
-	      dev_id:	0x1920,
-	      name:	"PXI-6704",
-	      ao_chans:32,
-	      ao_bits:	16,
+	.dev_id = 0x1920,
+	.name = "PXI-6704",
+	.ao_chans = 32,
+	.ao_bits = 16,
 		},
 	{
-	      dev_id:	0x1290,
-	      name:	"PCI-6704",
-	      ao_chans:32,
-	      ao_bits:	16,
+	.dev_id = 0x1290,
+	.name = "PCI-6704",
+	.ao_chans = 32,
+	.ao_bits = 16,
 		},
 };
 
 static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
 	{PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NATINST, 0x1920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	//{ PCI_VENDOR_ID_NATINST, 0x0000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	/* { PCI_VENDOR_ID_NATINST, 0x0000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
 	{0}
 };
 
@@ -111,32 +112,32 @@ struct ni_670x_private {
 #define devpriv ((struct ni_670x_private *)dev->private)
 #define n_ni_670x_boards (sizeof(ni_670x_boards)/sizeof(ni_670x_boards[0]))
 
-static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int ni_670x_detach(struct comedi_device * dev);
+static int ni_670x_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int ni_670x_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_ni_670x = {
-      driver_name:"ni_670x",
-      module:THIS_MODULE,
-      attach:ni_670x_attach,
-      detach:ni_670x_detach,
+	.driver_name = "ni_670x",
+	.module = THIS_MODULE,
+	.attach = ni_670x_attach,
+	.detach = ni_670x_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_ni_670x, ni_670x_pci_table);
 
 static struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
 
-static int ni_670x_find_device(struct comedi_device * dev, int bus, int slot);
+static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot);
 
-static int ni_670x_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ni_670x_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ni_670x_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int ni_670x_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ni_670x_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ni_670x_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ni_670x_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
-static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int ni_670x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret;
@@ -144,7 +145,8 @@ static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * 
 
 	printk("comedi%d: ni_670x: ", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(struct ni_670x_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct ni_670x_private));
+	if (ret < 0)
 		return ret;
 
 	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);
@@ -205,7 +207,7 @@ static int ni_670x_attach(struct comedi_device * dev, struct comedi_devconfig * 
 	return 1;
 }
 
-static int ni_670x_detach(struct comedi_device * dev)
+static int ni_670x_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: ni_670x: remove\n", dev->minor);
 
@@ -216,13 +218,13 @@ static int ni_670x_detach(struct comedi_device * dev)
 		mite_unsetup(devpriv->mite);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	return 0;
 }
 
-static int ni_670x_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_670x_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -247,8 +249,8 @@ static int ni_670x_ao_winsn(struct comedi_device * dev, struct comedi_subdevice 
 	return i;
 }
 
-static int ni_670x_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_670x_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -259,8 +261,8 @@ static int ni_670x_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice 
 	return i;
 }
 
-static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_670x_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -281,8 +283,8 @@ static int ni_670x_dio_insn_bits(struct comedi_device * dev, struct comedi_subde
 	return 2;
 }
 
-static int ni_670x_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int ni_670x_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -308,7 +310,7 @@ static int ni_670x_dio_insn_config(struct comedi_device * dev, struct comedi_sub
 	return insn->n;
 }
 
-static int ni_670x_find_device(struct comedi_device * dev, int bus, int slot)
+static int ni_670x_find_device(struct comedi_device *dev, int bus, int slot)
 {
 	struct mite_struct *mite;
 	int i;

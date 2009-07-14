@@ -141,17 +141,17 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 	bridge->version = &agp_current_version;
 
 	if (bridge->driver->needs_scratch_page) {
-		void *addr = bridge->driver->agp_alloc_page(bridge);
+		struct page *page = bridge->driver->agp_alloc_page(bridge);
 
-		if (!addr) {
+		if (!page) {
 			dev_err(&bridge->dev->dev,
 				"can't get memory for scratch page\n");
 			return -ENOMEM;
 		}
 
-		bridge->scratch_page_real = virt_to_gart(addr);
+		bridge->scratch_page_real = phys_to_gart(page_to_phys(page));
 		bridge->scratch_page =
-		    bridge->driver->mask_memory(bridge, bridge->scratch_page_real, 0);
+		    bridge->driver->mask_memory(bridge, page, 0);
 	}
 
 	size_value = bridge->driver->fetch_size();

@@ -165,10 +165,7 @@ extern void cleanup_highmap(void);
 
 /* fs/proc/kcore.c */
 #define	kc_vaddr_to_offset(v) ((v) & __VIRTUAL_MASK)
-#define	kc_offset_to_vaddr(o)				\
-	(((o) & (1UL << (__VIRTUAL_MASK_SHIFT - 1)))	\
-	 ? ((o) | ~__VIRTUAL_MASK)			\
-	 : (o))
+#define	kc_offset_to_vaddr(o) ((o) | ~__VIRTUAL_MASK)
 
 #define __HAVE_ARCH_PTE_SAME
 #endif /* !__ASSEMBLY__ */

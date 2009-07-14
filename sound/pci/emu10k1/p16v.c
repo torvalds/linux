@@ -644,7 +644,7 @@ int __devinit snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm *
 	int err;
         int capture=1;
   
-	/* snd_printk("KERN_DEBUG snd_p16v_pcm called. device=%d\n", device); */
+	/* snd_printk(KERN_DEBUG "snd_p16v_pcm called. device=%d\n", device); */
 	emu->p16v_device_offset = device;
 	if (rpcm)
 		*rpcm = NULL;

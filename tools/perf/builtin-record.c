@@ -14,6 +14,8 @@
 #include "util/parse-events.h"
 #include "util/string.h"
 
+#include "util/header.h"
+
 #include <unistd.h>
 #include <sched.h>
 
@@ -37,33 +39,40 @@ static pid_t			target_pid			= -1;
 static int			inherit				= 1;
 static int			force				= 0;
 static int			append_file			= 0;
+static int			call_graph			= 0;
 static int			verbose				= 0;
+static int			inherit_stat			= 0;
+static int			no_samples			= 0;
 
 static long			samples;
 static struct timeval		last_read;
 static struct timeval		this_read;
 
-static __u64			bytes_written;
+static u64			bytes_written;
 
 static struct pollfd		event_array[MAX_NR_CPUS * MAX_COUNTERS];
 
 static int			nr_poll;
 static int			nr_cpu;
 
+static int			file_new = 1;
+
+struct perf_header		*header;
+
 struct mmap_event {
 	struct perf_event_header	header;
-	__u32				pid;
-	__u32				tid;
-	__u64				start;
-	__u64				len;
-	__u64				pgoff;
+	u32				pid;
+	u32				tid;
+	u64				start;
+	u64				len;
+	u64				pgoff;
 	char				filename[PATH_MAX];
 };
 
 struct comm_event {
 	struct perf_event_header	header;
-	__u32				pid;
-	__u32				tid;
+	u32				pid;
+	u32				tid;
 	char				comm[16];
 };
 
@@ -77,15 +86,41 @@ struct mmap_data {
 
 static struct mmap_data		mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
-static unsigned int mmap_read_head(struct mmap_data *md)
+static unsigned long mmap_read_head(struct mmap_data *md)
 {
 	struct perf_counter_mmap_page *pc = md->base;
-	int head;
+	long head;
 
 	head = pc->data_head;
 	rmb();
 
 	return head;
+}
+
+static void mmap_write_tail(struct mmap_data *md, unsigned long tail)
+{
+	struct perf_counter_mmap_page *pc = md->base;
+
+	/*
+	 * ensure all reads are done before we write the tail out.
+	 */
+	/* mb(); */
+	pc->data_tail = tail;
+}
+
+static void write_output(void *buf, size_t size)
+{
+	while (size) {
+		int ret = write(output, buf, size);
+
+		if (ret < 0)
+			die("failed to write");
+
+		size -= ret;
+		buf += ret;
+
+		bytes_written += ret;
+	}
 }
 
 static void mmap_read(struct mmap_data *md)
@@ -108,7 +143,7 @@ static void mmap_read(struct mmap_data *md)
 	 * In either case, truncate and restart at head.
 	 */
 	diff = head - old;
-	if (diff > md->mask / 2 || diff < 0) {
+	if (diff < 0) {
 		struct timeval iv;
 		unsigned long msecs;
 
@@ -136,36 +171,17 @@ static void mmap_read(struct mmap_data *md)
 		size = md->mask + 1 - (old & md->mask);
 		old += size;
 
-		while (size) {
-			int ret = write(output, buf, size);
-
-			if (ret < 0)
-				die("failed to write");
-
-			size -= ret;
-			buf += ret;
-
-			bytes_written += ret;
-		}
+		write_output(buf, size);
 	}
 
 	buf = &data[old & md->mask];
 	size = head - old;
 	old += size;
 
-	while (size) {
-		int ret = write(output, buf, size);
-
-		if (ret < 0)
-			die("failed to write");
-
-		size -= ret;
-		buf += ret;
-
-		bytes_written += ret;
-	}
+	write_output(buf, size);
 
 	md->prev = old;
+	mmap_write_tail(md, old);
 }
 
 static volatile int done = 0;
@@ -191,7 +207,7 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 	struct comm_event comm_ev;
 	char filename[PATH_MAX];
 	char bf[BUFSIZ];
-	int fd, ret;
+	int fd;
 	size_t size;
 	char *field, *sep;
 	DIR *tasks;
@@ -201,8 +217,12 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "couldn't open %s\n", filename);
-		exit(EXIT_FAILURE);
+		/*
+		 * We raced with a task exiting - just return:
+		 */
+		if (verbose)
+			fprintf(stderr, "couldn't open %s\n", filename);
+		return;
 	}
 	if (read(fd, bf, sizeof(bf)) < 0) {
 		fprintf(stderr, "couldn't read %s\n", filename);
@@ -223,17 +243,13 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 
 	comm_ev.pid = pid;
 	comm_ev.header.type = PERF_EVENT_COMM;
-	size = ALIGN(size, sizeof(__u64));
+	size = ALIGN(size, sizeof(u64));
 	comm_ev.header.size = sizeof(comm_ev) - (sizeof(comm_ev.comm) - size);
 
 	if (!full) {
 		comm_ev.tid = pid;
 
-		ret = write(output, &comm_ev, comm_ev.header.size);
-		if (ret < 0) {
-			perror("failed to write");
-			exit(-1);
-		}
+		write_output(&comm_ev, comm_ev.header.size);
 		return;
 	}
 
@@ -248,11 +264,7 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 
 		comm_ev.tid = pid;
 
-		ret = write(output, &comm_ev, comm_ev.header.size);
-		if (ret < 0) {
-			perror("failed to write");
-			exit(-1);
-		}
+		write_output(&comm_ev, comm_ev.header.size);
 	}
 	closedir(tasks);
 	return;
@@ -272,13 +284,17 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
-		fprintf(stderr, "couldn't open %s\n", filename);
-		exit(EXIT_FAILURE);
+		/*
+		 * We raced with a task exiting - just return:
+		 */
+		if (verbose)
+			fprintf(stderr, "couldn't open %s\n", filename);
+		return;
 	}
 	while (1) {
 		char bf[BUFSIZ], *pbf = bf;
 		struct mmap_event mmap_ev = {
-			.header.type = PERF_EVENT_MMAP,
+			.header = { .type = PERF_EVENT_MMAP },
 		};
 		int n;
 		size_t size;
@@ -295,33 +311,29 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 			continue;
 		pbf += n + 3;
 		if (*pbf == 'x') { /* vm_exec */
-			char *execname = strrchr(bf, ' ');
+			char *execname = strchr(bf, '/');
 
-			if (execname == NULL || execname[1] != '/')
+			if (execname == NULL)
 				continue;
 
-			execname += 1;
 			size = strlen(execname);
 			execname[size - 1] = '\0'; /* Remove \n */
 			memcpy(mmap_ev.filename, execname, size);
-			size = ALIGN(size, sizeof(__u64));
+			size = ALIGN(size, sizeof(u64));
 			mmap_ev.len -= mmap_ev.start;
 			mmap_ev.header.size = (sizeof(mmap_ev) -
 					       (sizeof(mmap_ev.filename) - size));
 			mmap_ev.pid = pid;
 			mmap_ev.tid = pid;
 
-			if (write(output, &mmap_ev, mmap_ev.header.size) < 0) {
-				perror("failed to write");
-				exit(-1);
-			}
+			write_output(&mmap_ev, mmap_ev.header.size);
 		}
 	}
 
 	fclose(fp);
 }
 
-static void synthesize_samples(void)
+static void synthesize_all(void)
 {
 	DIR *proc;
 	struct dirent dirent, *next;
@@ -345,23 +357,57 @@ static void synthesize_samples(void)
 
 static int group_fd;
 
+static struct perf_header_attr *get_header_attr(struct perf_counter_attr *a, int nr)
+{
+	struct perf_header_attr *h_attr;
+
+	if (nr < header->attrs) {
+		h_attr = header->attr[nr];
+	} else {
+		h_attr = perf_header_attr__new(a);
+		perf_header__add_attr(header, h_attr);
+	}
+
+	return h_attr;
+}
+
 static void create_counter(int counter, int cpu, pid_t pid)
 {
 	struct perf_counter_attr *attr = attrs + counter;
-	int track = 1;
+	struct perf_header_attr *h_attr;
+	int track = !counter; /* only the first counter needs these */
+	struct {
+		u64 count;
+		u64 time_enabled;
+		u64 time_running;
+		u64 id;
+	} read_data;
+
+	attr->read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
+				  PERF_FORMAT_TOTAL_TIME_RUNNING |
+				  PERF_FORMAT_ID;
 
 	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+
 	if (freq) {
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 		attr->freq		= 1;
 		attr->sample_freq	= freq;
 	}
+
+	if (no_samples)
+		attr->sample_freq = 0;
+
+	if (inherit_stat)
+		attr->inherit_stat = 1;
+
+	if (call_graph)
+		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
+
 	attr->mmap		= track;
 	attr->comm		= track;
 	attr->inherit		= (cpu < 0) && inherit;
 	attr->disabled		= 1;
-
-	track = 0; /* only the first counter needs these */
 
 try_again:
 	fd[nr_cpu][counter] = sys_perf_counter_open(attr, pid, cpu, group_fd, 0);
@@ -393,6 +439,22 @@ try_again:
 		exit(-1);
 	}
 
+	h_attr = get_header_attr(attr, counter);
+
+	if (!file_new) {
+		if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
+			fprintf(stderr, "incompatible append\n");
+			exit(-1);
+		}
+	}
+
+	if (read(fd[nr_cpu][counter], &read_data, sizeof(read_data)) == -1) {
+		perror("Unable to read perf file descriptor\n");
+		exit(-1);
+	}
+
+	perf_header_attr__add_id(h_attr, read_data.id);
+
 	assert(fd[nr_cpu][counter] >= 0);
 	fcntl(fd[nr_cpu][counter], F_SETFL, O_NONBLOCK);
 
@@ -410,7 +472,7 @@ try_again:
 	mmap_array[nr_cpu][counter].prev = 0;
 	mmap_array[nr_cpu][counter].mask = mmap_pages*page_size - 1;
 	mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
-			PROT_READ, MAP_SHARED, fd[nr_cpu][counter], 0);
+			PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter], 0);
 	if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
 		error("failed to mmap with %d (%s)\n", errno, strerror(errno));
 		exit(-1);
@@ -423,11 +485,6 @@ static void open_counters(int cpu, pid_t pid)
 {
 	int counter;
 
-	if (pid > 0) {
-		pid_synthesize_comm_event(pid, 0);
-		pid_synthesize_mmap_samples(pid);
-	}
-
 	group_fd = -1;
 	for (counter = 0; counter < nr_counters; counter++)
 		create_counter(counter, cpu, pid);
@@ -435,11 +492,18 @@ static void open_counters(int cpu, pid_t pid)
 	nr_cpu++;
 }
 
+static void atexit_header(void)
+{
+	header->data_size += bytes_written;
+
+	perf_header__write(header, output);
+}
+
 static int __cmd_record(int argc, const char **argv)
 {
 	int i, counter;
 	struct stat st;
-	pid_t pid;
+	pid_t pid = 0;
 	int flags;
 	int ret;
 
@@ -447,6 +511,10 @@ static int __cmd_record(int argc, const char **argv)
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	assert(nr_cpus <= MAX_NR_CPUS);
 	assert(nr_cpus >= 0);
+
+	atexit(sig_atexit);
+	signal(SIGCHLD, sig_handler);
+	signal(SIGINT, sig_handler);
 
 	if (!stat(output_name, &st) && !force && !append_file) {
 		fprintf(stderr, "Error, output file %s exists, use -A to append or -f to overwrite.\n",
@@ -456,7 +524,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	flags = O_CREAT|O_RDWR;
 	if (append_file)
-		flags |= O_APPEND;
+		file_new = 0;
 	else
 		flags |= O_TRUNC;
 
@@ -466,14 +534,30 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
+	if (!file_new)
+		header = perf_header__read(output);
+	else
+		header = perf_header__new();
+
+	atexit(atexit_header);
+
 	if (!system_wide) {
-		open_counters(-1, target_pid != -1 ? target_pid : getpid());
+		pid = target_pid;
+		if (pid == -1)
+			pid = getpid();
+
+		open_counters(-1, pid);
 	} else for (i = 0; i < nr_cpus; i++)
 		open_counters(i, target_pid);
 
-	atexit(sig_atexit);
-	signal(SIGCHLD, sig_handler);
-	signal(SIGINT, sig_handler);
+	if (file_new)
+		perf_header__write(header, output);
+
+	if (!system_wide) {
+		pid_synthesize_comm_event(pid, 0);
+		pid_synthesize_mmap_samples(pid);
+	} else
+		synthesize_all();
 
 	if (target_pid == -1 && argc) {
 		pid = fork();
@@ -498,10 +582,7 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
-	if (system_wide)
-		synthesize_samples();
-
-	while (!done) {
+	for (;;) {
 		int hits = samples;
 
 		for (i = 0; i < nr_cpu; i++) {
@@ -509,8 +590,11 @@ static int __cmd_record(int argc, const char **argv)
 				mmap_read(&mmap_array[i][counter]);
 		}
 
-		if (hits == samples)
+		if (hits == samples) {
+			if (done)
+				break;
 			ret = poll(event_array, nr_poll, 100);
+		}
 	}
 
 	/*
@@ -555,12 +639,18 @@ static const struct option options[] = {
 		    "profile at this frequency"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
+	OPT_BOOLEAN('g', "call-graph", &call_graph,
+		    "do call-graph (stack chain/backtrace) recording"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
+	OPT_BOOLEAN('s', "stat", &inherit_stat,
+		    "per thread counts"),
+	OPT_BOOLEAN('n', "no-samples", &no_samples,
+		    "don't sample"),
 	OPT_END()
 };
 
-int cmd_record(int argc, const char **argv, const char *prefix)
+int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
@@ -568,8 +658,11 @@ int cmd_record(int argc, const char **argv, const char *prefix)
 	if (!argc && target_pid == -1 && !system_wide)
 		usage_with_options(record_usage, options);
 
-	if (!nr_counters)
-		nr_counters = 1;
+	if (!nr_counters) {
+		nr_counters	= 1;
+		attrs[0].type	= PERF_TYPE_HARDWARE;
+		attrs[0].config = PERF_COUNT_HW_CPU_CYCLES;
+	}
 
 	for (counter = 0; counter < nr_counters; counter++) {
 		if (attrs[counter].sample_period)

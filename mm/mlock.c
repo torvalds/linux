@@ -31,7 +31,6 @@ int can_do_mlock(void)
 }
 EXPORT_SYMBOL(can_do_mlock);
 
-#ifdef CONFIG_UNEVICTABLE_LRU
 /*
  * Mlocked pages are marked with PageMlocked() flag for efficient testing
  * in vmscan and, possibly, the fault path; and to support semi-accurate
@@ -260,27 +259,6 @@ static int __mlock_posix_error_return(long retval)
 		retval = -EAGAIN;
 	return retval;
 }
-
-#else /* CONFIG_UNEVICTABLE_LRU */
-
-/*
- * Just make pages present if VM_LOCKED.  No-op if unlocking.
- */
-static long __mlock_vma_pages_range(struct vm_area_struct *vma,
-				   unsigned long start, unsigned long end,
-				   int mlock)
-{
-	if (mlock && (vma->vm_flags & VM_LOCKED))
-		return make_pages_present(start, end);
-	return 0;
-}
-
-static inline int __mlock_posix_error_return(long retval)
-{
-	return 0;
-}
-
-#endif /* CONFIG_UNEVICTABLE_LRU */
 
 /**
  * mlock_vma_pages_range() - mlock pages in specified vma range.

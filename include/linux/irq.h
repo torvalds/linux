@@ -157,7 +157,7 @@ struct irq_2_iommu;
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
  * @lock:		locking for SMP
  * @affinity:		IRQ affinity on SMP
- * @cpu:		cpu index useful for balancing
+ * @node:		node index useful for balancing
  * @pending_mask:	pending rebalanced interrupts
  * @threads_active:	number of irqaction threads currently running
  * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
@@ -423,30 +423,26 @@ extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 /**
  * alloc_desc_masks - allocate cpumasks for irq_desc
  * @desc:	pointer to irq_desc struct
- * @cpu:	cpu which will be handling the cpumasks
+ * @node:	node which will be handling the cpumasks
  * @boot:	true if need bootmem
  *
  * Allocates affinity and pending_mask cpumask if required.
  * Returns true if successful (or not required).
  */
 static inline bool alloc_desc_masks(struct irq_desc *desc, int node,
-								bool boot)
+							bool boot)
 {
+	gfp_t gfp = GFP_ATOMIC;
+
+	if (boot)
+		gfp = GFP_NOWAIT;
+
 #ifdef CONFIG_CPUMASK_OFFSTACK
-	if (boot) {
-		alloc_bootmem_cpumask_var(&desc->affinity);
-
-#ifdef CONFIG_GENERIC_PENDING_IRQ
-		alloc_bootmem_cpumask_var(&desc->pending_mask);
-#endif
-		return true;
-	}
-
-	if (!alloc_cpumask_var_node(&desc->affinity, GFP_ATOMIC, node))
+	if (!alloc_cpumask_var_node(&desc->affinity, gfp, node))
 		return false;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	if (!alloc_cpumask_var_node(&desc->pending_mask, GFP_ATOMIC, node)) {
+	if (!alloc_cpumask_var_node(&desc->pending_mask, gfp, node)) {
 		free_cpumask_var(desc->affinity);
 		return false;
 	}

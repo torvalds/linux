@@ -87,7 +87,7 @@ struct lguest_data lguest_data = {
 
 /*G:037 async_hcall() is pretty simple: I'm quite proud of it really.  We have a
  * ring buffer of stored hypercalls which the Host will run though next time we
- * do a normal hypercall.  Each entry in the ring has 4 slots for the hypercall
+ * do a normal hypercall.  Each entry in the ring has 5 slots for the hypercall
  * arguments, and a "hcall_status" word which is 0 if the call is ready to go,
  * and 255 once the Host has finished with it.
  *
@@ -96,7 +96,8 @@ struct lguest_data lguest_data = {
  * effect of causing the Host to run all the stored calls in the ring buffer
  * which empties it for next time! */
 static void async_hcall(unsigned long call, unsigned long arg1,
-			unsigned long arg2, unsigned long arg3)
+			unsigned long arg2, unsigned long arg3,
+			unsigned long arg4)
 {
 	/* Note: This code assumes we're uniprocessor. */
 	static unsigned int next_call;
@@ -108,12 +109,13 @@ static void async_hcall(unsigned long call, unsigned long arg1,
 	local_irq_save(flags);
 	if (lguest_data.hcall_status[next_call] != 0xFF) {
 		/* Table full, so do normal hcall which will flush table. */
-		kvm_hypercall3(call, arg1, arg2, arg3);
+		kvm_hypercall4(call, arg1, arg2, arg3, arg4);
 	} else {
 		lguest_data.hcalls[next_call].arg0 = call;
 		lguest_data.hcalls[next_call].arg1 = arg1;
 		lguest_data.hcalls[next_call].arg2 = arg2;
 		lguest_data.hcalls[next_call].arg3 = arg3;
+		lguest_data.hcalls[next_call].arg4 = arg4;
 		/* Arguments must all be written before we mark it to go */
 		wmb();
 		lguest_data.hcall_status[next_call] = 0;
@@ -141,7 +143,7 @@ static void lazy_hcall1(unsigned long call,
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
 		kvm_hypercall1(call, arg1);
 	else
-		async_hcall(call, arg1, 0, 0);
+		async_hcall(call, arg1, 0, 0, 0);
 }
 
 static void lazy_hcall2(unsigned long call,
@@ -151,7 +153,7 @@ static void lazy_hcall2(unsigned long call,
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
 		kvm_hypercall2(call, arg1, arg2);
 	else
-		async_hcall(call, arg1, arg2, 0);
+		async_hcall(call, arg1, arg2, 0, 0);
 }
 
 static void lazy_hcall3(unsigned long call,
@@ -162,8 +164,22 @@ static void lazy_hcall3(unsigned long call,
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
 		kvm_hypercall3(call, arg1, arg2, arg3);
 	else
-		async_hcall(call, arg1, arg2, arg3);
+		async_hcall(call, arg1, arg2, arg3, 0);
 }
+
+#ifdef CONFIG_X86_PAE
+static void lazy_hcall4(unsigned long call,
+		       unsigned long arg1,
+		       unsigned long arg2,
+		       unsigned long arg3,
+		       unsigned long arg4)
+{
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
+		kvm_hypercall4(call, arg1, arg2, arg3, arg4);
+	else
+		async_hcall(call, arg1, arg2, arg3, arg4);
+}
+#endif
 
 /* When lazy mode is turned off reset the per-cpu lazy mode variable and then
  * issue the do-nothing hypercall to flush any stored calls. */
@@ -179,7 +195,7 @@ static void lguest_end_context_switch(struct task_struct *next)
 	paravirt_end_context_switch(next);
 }
 
-/*G:033
+/*G:032
  * After that diversion we return to our first native-instruction
  * replacements: four functions for interrupt control.
  *
@@ -199,30 +215,28 @@ static unsigned long save_fl(void)
 {
 	return lguest_data.irq_enabled;
 }
-PV_CALLEE_SAVE_REGS_THUNK(save_fl);
-
-/* restore_flags() just sets the flags back to the value given. */
-static void restore_fl(unsigned long flags)
-{
-	lguest_data.irq_enabled = flags;
-}
-PV_CALLEE_SAVE_REGS_THUNK(restore_fl);
 
 /* Interrupts go off... */
 static void irq_disable(void)
 {
 	lguest_data.irq_enabled = 0;
 }
+
+/* Let's pause a moment.  Remember how I said these are called so often?
+ * Jeremy Fitzhardinge optimized them so hard early in 2009 that he had to
+ * break some rules.  In particular, these functions are assumed to save their
+ * own registers if they need to: normal C functions assume they can trash the
+ * eax register.  To use normal C functions, we use
+ * PV_CALLEE_SAVE_REGS_THUNK(), which pushes %eax onto the stack, calls the
+ * C function, then restores it. */
+PV_CALLEE_SAVE_REGS_THUNK(save_fl);
 PV_CALLEE_SAVE_REGS_THUNK(irq_disable);
-
-/* Interrupts go on... */
-static void irq_enable(void)
-{
-	lguest_data.irq_enabled = X86_EFLAGS_IF;
-}
-PV_CALLEE_SAVE_REGS_THUNK(irq_enable);
-
 /*:*/
+
+/* These are in i386_head.S */
+extern void lg_irq_enable(void);
+extern void lg_restore_fl(unsigned long flags);
+
 /*M:003 Note that we don't check for outstanding interrupts when we re-enable
  * them (or when we unmask an interrupt).  This seems to work for the moment,
  * since interrupts are rare and we'll just get the interrupt on the next timer
@@ -368,8 +382,8 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 	case 1:	/* Basic feature request. */
 		/* We only allow kernel to see SSE3, CMPXCHG16B and SSSE3 */
 		*cx &= 0x00002201;
-		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, TSC, FPU. */
-		*dx &= 0x07808111;
+		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, TSC, FPU, PAE. */
+		*dx &= 0x07808151;
 		/* The Host can do a nice optimization if it knows that the
 		 * kernel mappings (addresses above 0xC0000000 or whatever
 		 * PAGE_OFFSET is set to) haven't changed.  But Linux calls
@@ -387,6 +401,11 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 		 * processor information there is, limit it to known fields. */
 		if (*ax > 0x80000008)
 			*ax = 0x80000008;
+		break;
+	case 0x80000001:
+		/* Here we should fix nx cap depending on host. */
+		/* For this version of PAE, we just clear NX bit. */
+		*dx &= ~(1 << 20);
 		break;
 	}
 }
@@ -521,25 +540,52 @@ static void lguest_write_cr4(unsigned long val)
 static void lguest_pte_update(struct mm_struct *mm, unsigned long addr,
 			       pte_t *ptep)
 {
+#ifdef CONFIG_X86_PAE
+	lazy_hcall4(LHCALL_SET_PTE, __pa(mm->pgd), addr,
+		    ptep->pte_low, ptep->pte_high);
+#else
 	lazy_hcall3(LHCALL_SET_PTE, __pa(mm->pgd), addr, ptep->pte_low);
+#endif
 }
 
 static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pteval)
 {
-	*ptep = pteval;
+	native_set_pte(ptep, pteval);
 	lguest_pte_update(mm, addr, ptep);
 }
 
-/* The Guest calls this to set a top-level entry.  Again, we set the entry then
- * tell the Host which top-level page we changed, and the index of the entry we
- * changed. */
+/* The Guest calls lguest_set_pud to set a top-level entry and lguest_set_pmd
+ * to set a middle-level entry when PAE is activated.
+ * Again, we set the entry then tell the Host which page we changed,
+ * and the index of the entry we changed. */
+#ifdef CONFIG_X86_PAE
+static void lguest_set_pud(pud_t *pudp, pud_t pudval)
+{
+	native_set_pud(pudp, pudval);
+
+	/* 32 bytes aligned pdpt address and the index. */
+	lazy_hcall2(LHCALL_SET_PGD, __pa(pudp) & 0xFFFFFFE0,
+		   (__pa(pudp) & 0x1F) / sizeof(pud_t));
+}
+
 static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
-	*pmdp = pmdval;
+	native_set_pmd(pmdp, pmdval);
 	lazy_hcall2(LHCALL_SET_PMD, __pa(pmdp) & PAGE_MASK,
-		   (__pa(pmdp) & (PAGE_SIZE - 1)) / 4);
+		   (__pa(pmdp) & (PAGE_SIZE - 1)) / sizeof(pmd_t));
 }
+#else
+
+/* The Guest calls lguest_set_pmd to set a top-level entry when PAE is not
+ * activated. */
+static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
+{
+	native_set_pmd(pmdp, pmdval);
+	lazy_hcall2(LHCALL_SET_PGD, __pa(pmdp) & PAGE_MASK,
+		   (__pa(pmdp) & (PAGE_SIZE - 1)) / sizeof(pmd_t));
+}
+#endif
 
 /* There are a couple of legacy places where the kernel sets a PTE, but we
  * don't know the top level any more.  This is useless for us, since we don't
@@ -552,10 +598,30 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
  * which brings boot back to 0.25 seconds. */
 static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
-	*ptep = pteval;
+	native_set_pte(ptep, pteval);
 	if (cr3_changed)
 		lazy_hcall1(LHCALL_FLUSH_TLB, 1);
 }
+
+#ifdef CONFIG_X86_PAE
+static void lguest_set_pte_atomic(pte_t *ptep, pte_t pte)
+{
+	native_set_pte_atomic(ptep, pte);
+	if (cr3_changed)
+		lazy_hcall1(LHCALL_FLUSH_TLB, 1);
+}
+
+void lguest_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	native_pte_clear(mm, addr, ptep);
+	lguest_pte_update(mm, addr, ptep);
+}
+
+void lguest_pmd_clear(pmd_t *pmdp)
+{
+	lguest_set_pmd(pmdp, __pmd(0));
+}
+#endif
 
 /* Unfortunately for Lguest, the pv_mmu_ops for page tables were based on
  * native page table operations.  On native hardware you can set a new page
@@ -628,13 +694,12 @@ static void __init lguest_init_IRQ(void)
 {
 	unsigned int i;
 
-	for (i = 0; i < LGUEST_IRQS; i++) {
-		int vector = FIRST_EXTERNAL_VECTOR + i;
+	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
 		/* Some systems map "vectors" to interrupts weirdly.  Lguest has
 		 * a straightforward 1 to 1 mapping, so force that here. */
-		__get_cpu_var(vector_irq)[vector] = i;
-		if (vector != SYSCALL_VECTOR)
-			set_intr_gate(vector, interrupt[i]);
+		__get_cpu_var(vector_irq)[i] = i - FIRST_EXTERNAL_VECTOR;
+		if (i != SYSCALL_VECTOR)
+			set_intr_gate(i, interrupt[i - FIRST_EXTERNAL_VECTOR]);
 	}
 	/* This call is required to set up for 4k stacks, where we have
 	 * separate stacks for hard and soft interrupts. */
@@ -973,10 +1038,10 @@ static void lguest_restart(char *reason)
  *
  * Our current solution is to allow the paravirt back end to optionally patch
  * over the indirect calls to replace them with something more efficient.  We
- * patch the four most commonly called functions: disable interrupts, enable
- * interrupts, restore interrupts and save interrupts.  We usually have 6 or 10
- * bytes to patch into: the Guest versions of these operations are small enough
- * that we can fit comfortably.
+ * patch two of the simplest of the most commonly called functions: disable
+ * interrupts and save interrupts.  We usually have 6 or 10 bytes to patch
+ * into: the Guest versions of these operations are small enough that we can
+ * fit comfortably.
  *
  * First we need assembly templates of each of the patchable Guest operations,
  * and these are in i386_head.S. */
@@ -987,8 +1052,6 @@ static const struct lguest_insns
 	const char *start, *end;
 } lguest_insns[] = {
 	[PARAVIRT_PATCH(pv_irq_ops.irq_disable)] = { lgstart_cli, lgend_cli },
-	[PARAVIRT_PATCH(pv_irq_ops.irq_enable)] = { lgstart_sti, lgend_sti },
-	[PARAVIRT_PATCH(pv_irq_ops.restore_fl)] = { lgstart_popf, lgend_popf },
 	[PARAVIRT_PATCH(pv_irq_ops.save_fl)] = { lgstart_pushf, lgend_pushf },
 };
 
@@ -1026,6 +1089,7 @@ __init void lguest_init(void)
 	pv_info.name = "lguest";
 	pv_info.paravirt_enabled = 1;
 	pv_info.kernel_rpl = 1;
+	pv_info.shared_kernel_pmd = 1;
 
 	/* We set up all the lguest overrides for sensitive operations.  These
 	 * are detailed with the operations themselves. */
@@ -1033,9 +1097,9 @@ __init void lguest_init(void)
 	/* interrupt-related operations */
 	pv_irq_ops.init_IRQ = lguest_init_IRQ;
 	pv_irq_ops.save_fl = PV_CALLEE_SAVE(save_fl);
-	pv_irq_ops.restore_fl = PV_CALLEE_SAVE(restore_fl);
+	pv_irq_ops.restore_fl = __PV_IS_CALLEE_SAVE(lg_restore_fl);
 	pv_irq_ops.irq_disable = PV_CALLEE_SAVE(irq_disable);
-	pv_irq_ops.irq_enable = PV_CALLEE_SAVE(irq_enable);
+	pv_irq_ops.irq_enable = __PV_IS_CALLEE_SAVE(lg_irq_enable);
 	pv_irq_ops.safe_halt = lguest_safe_halt;
 
 	/* init-time operations */
@@ -1071,6 +1135,12 @@ __init void lguest_init(void)
 	pv_mmu_ops.set_pte = lguest_set_pte;
 	pv_mmu_ops.set_pte_at = lguest_set_pte_at;
 	pv_mmu_ops.set_pmd = lguest_set_pmd;
+#ifdef CONFIG_X86_PAE
+	pv_mmu_ops.set_pte_atomic = lguest_set_pte_atomic;
+	pv_mmu_ops.pte_clear = lguest_pte_clear;
+	pv_mmu_ops.pmd_clear = lguest_pmd_clear;
+	pv_mmu_ops.set_pud = lguest_set_pud;
+#endif
 	pv_mmu_ops.read_cr2 = lguest_read_cr2;
 	pv_mmu_ops.read_cr3 = lguest_read_cr3;
 	pv_mmu_ops.lazy_mode.enter = paravirt_enter_lazy_mmu;

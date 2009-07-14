@@ -566,13 +566,31 @@ static void t3_process_tid_release_list(struct work_struct *work)
 		spin_unlock_bh(&td->tid_release_lock);
 
 		skb = alloc_skb(sizeof(struct cpl_tid_release),
-				GFP_KERNEL | __GFP_NOFAIL);
+				GFP_KERNEL);
+		if (!skb)
+			skb = td->nofail_skb;
+		if (!skb) {
+			spin_lock_bh(&td->tid_release_lock);
+			p->ctx = (void *)td->tid_release_list;
+			td->tid_release_list = (struct t3c_tid_entry *)p;
+			break;
+		}
 		mk_tid_release(skb, p - td->tid_maps.tid_tab);
 		cxgb3_ofld_send(tdev, skb);
 		p->ctx = NULL;
+		if (skb == td->nofail_skb)
+			td->nofail_skb =
+				alloc_skb(sizeof(struct cpl_tid_release),
+					GFP_KERNEL);
 		spin_lock_bh(&td->tid_release_lock);
 	}
+	td->release_list_incomplete = (td->tid_release_list == NULL) ? 0 : 1;
 	spin_unlock_bh(&td->tid_release_lock);
+
+	if (!td->nofail_skb)
+		td->nofail_skb =
+			alloc_skb(sizeof(struct cpl_tid_release),
+				GFP_KERNEL);
 }
 
 /* use ctx as a next pointer in the tid release list */
@@ -585,7 +603,7 @@ void cxgb3_queue_tid_release(struct t3cdev *tdev, unsigned int tid)
 	p->ctx = (void *)td->tid_release_list;
 	p->client = NULL;
 	td->tid_release_list = p;
-	if (!p->ctx)
+	if (!p->ctx || td->release_list_incomplete)
 		schedule_work(&td->tid_release_task);
 	spin_unlock_bh(&td->tid_release_lock);
 }
@@ -1274,6 +1292,9 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	if (list_empty(&adapter_list))
 		register_netevent_notifier(&nb);
 
+	t->nofail_skb = alloc_skb(sizeof(struct cpl_tid_release), GFP_KERNEL);
+	t->release_list_incomplete = 0;
+
 	add_adapter(adapter);
 	return 0;
 
@@ -1298,6 +1319,8 @@ void cxgb3_offload_deactivate(struct adapter *adapter)
 	T3C_DATA(tdev) = NULL;
 	t3_free_l2t(L2DATA(tdev));
 	L2DATA(tdev) = NULL;
+	if (t->nofail_skb)
+		kfree_skb(t->nofail_skb);
 	kfree(t);
 }
 

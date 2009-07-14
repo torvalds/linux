@@ -24,29 +24,6 @@
 
 #include "mpc512x.h"
 
-unsigned long
-mpc512x_find_ips_freq(struct device_node *node)
-{
-	struct device_node *np;
-	const unsigned int *p_ips_freq = NULL;
-
-	of_node_get(node);
-	while (node) {
-		p_ips_freq = of_get_property(node, "bus-frequency", NULL);
-		if (p_ips_freq)
-			break;
-
-		np = of_get_parent(node);
-		of_node_put(node);
-		node = np;
-	}
-	if (node)
-		of_node_put(node);
-
-	return p_ips_freq ? *p_ips_freq : 0;
-}
-EXPORT_SYMBOL(mpc512x_find_ips_freq);
-
 void __init mpc512x_init_IRQ(void)
 {
 	struct device_node *np;

@@ -10,7 +10,7 @@
 #define _ASM_MUTEX_H
 
 #ifndef CONFIG_SMP
-#include <asm-generic/mutex-dec.h>
+#include <asm-generic/mutex.h>
 #else
 
 static inline void

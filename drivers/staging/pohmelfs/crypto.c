@@ -832,8 +832,7 @@ int pohmelfs_trans_crypt(struct netfs_trans *trans, struct pohmelfs_sb *psb)
 	return pohmelfs_crypto_thread_get(psb, pohmelfs_trans_crypt_action, trans);
 }
 
-struct pohmelfs_crypto_input_action_data
-{
+struct pohmelfs_crypto_input_action_data {
 	struct page			*page;
 	struct pohmelfs_crypto_engine	*e;
 	u64				iv;

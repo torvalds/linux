@@ -19,6 +19,32 @@ static inline const char *plural(int n)
 	return (n == 1 ? "" : "s");
 }
 
+/* FIXME: this is a kludge */
+static int find_next_descriptor_more(unsigned char *buffer, int size,
+    int dt1, int dt2, int dt3, int *num_skipped)
+{
+	struct usb_descriptor_header *h;
+	int n = 0;
+	unsigned char *buffer0 = buffer;
+
+	/* Find the next descriptor of type dt1 or dt2 or dt3 */
+	while (size > 0) {
+		h = (struct usb_descriptor_header *) buffer;
+		if (h->bDescriptorType == dt1 || h->bDescriptorType == dt2 ||
+				h->bDescriptorType == dt3)
+			break;
+		buffer += h->bLength;
+		size -= h->bLength;
+		++n;
+	}
+
+	/* Store the number of descriptors skipped and return the
+	 * number of bytes skipped */
+	if (num_skipped)
+		*num_skipped = n;
+	return buffer - buffer0;
+}
+
 static int find_next_descriptor(unsigned char *buffer, int size,
     int dt1, int dt2, int *num_skipped)
 {
@@ -43,6 +69,129 @@ static int find_next_descriptor(unsigned char *buffer, int size,
 	return buffer - buffer0;
 }
 
+static int usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
+		int inum, int asnum, struct usb_host_endpoint *ep,
+		int num_ep, unsigned char *buffer, int size)
+{
+	unsigned char *buffer_start = buffer;
+	struct usb_ss_ep_comp_descriptor	*desc;
+	int retval;
+	int num_skipped;
+	int max_tx;
+	int i;
+
+	/* Allocate space for the SS endpoint companion descriptor */
+	ep->ss_ep_comp = kzalloc(sizeof(struct usb_host_ss_ep_comp),
+			GFP_KERNEL);
+	if (!ep->ss_ep_comp)
+		return -ENOMEM;
+	desc = (struct usb_ss_ep_comp_descriptor *) buffer;
+	if (desc->bDescriptorType != USB_DT_SS_ENDPOINT_COMP) {
+		dev_warn(ddev, "No SuperSpeed endpoint companion for config %d "
+				" interface %d altsetting %d ep %d: "
+				"using minimum values\n",
+				cfgno, inum, asnum, ep->desc.bEndpointAddress);
+		ep->ss_ep_comp->desc.bLength = USB_DT_SS_EP_COMP_SIZE;
+		ep->ss_ep_comp->desc.bDescriptorType = USB_DT_SS_ENDPOINT_COMP;
+		ep->ss_ep_comp->desc.bMaxBurst = 0;
+		/*
+		 * Leave bmAttributes as zero, which will mean no streams for
+		 * bulk, and isoc won't support multiple bursts of packets.
+		 * With bursts of only one packet, and a Mult of 1, the max
+		 * amount of data moved per endpoint service interval is one
+		 * packet.
+		 */
+		if (usb_endpoint_xfer_isoc(&ep->desc) ||
+				usb_endpoint_xfer_int(&ep->desc))
+			ep->ss_ep_comp->desc.wBytesPerInterval =
+				ep->desc.wMaxPacketSize;
+		/*
+		 * The next descriptor is for an Endpoint or Interface,
+		 * no extra descriptors to copy into the companion structure,
+		 * and we didn't eat up any of the buffer.
+		 */
+		retval = 0;
+		goto valid;
+	}
+	memcpy(&ep->ss_ep_comp->desc, desc, USB_DT_SS_EP_COMP_SIZE);
+	desc = &ep->ss_ep_comp->desc;
+	buffer += desc->bLength;
+	size -= desc->bLength;
+
+	/* Eat up the other descriptors we don't care about */
+	ep->ss_ep_comp->extra = buffer;
+	i = find_next_descriptor(buffer, size, USB_DT_ENDPOINT,
+			USB_DT_INTERFACE, &num_skipped);
+	ep->ss_ep_comp->extralen = i;
+	buffer += i;
+	size -= i;
+	retval = buffer - buffer_start + i;
+	if (num_skipped > 0)
+		dev_dbg(ddev, "skipped %d descriptor%s after %s\n",
+				num_skipped, plural(num_skipped),
+				"SuperSpeed endpoint companion");
+
+	/* Check the various values */
+	if (usb_endpoint_xfer_control(&ep->desc) && desc->bMaxBurst != 0) {
+		dev_warn(ddev, "Control endpoint with bMaxBurst = %d in "
+				"config %d interface %d altsetting %d ep %d: "
+				"setting to zero\n", desc->bMaxBurst,
+				cfgno, inum, asnum, ep->desc.bEndpointAddress);
+		desc->bMaxBurst = 0;
+	}
+	if (desc->bMaxBurst > 15) {
+		dev_warn(ddev, "Endpoint with bMaxBurst = %d in "
+				"config %d interface %d altsetting %d ep %d: "
+				"setting to 15\n", desc->bMaxBurst,
+				cfgno, inum, asnum, ep->desc.bEndpointAddress);
+		desc->bMaxBurst = 15;
+	}
+	if ((usb_endpoint_xfer_control(&ep->desc) || usb_endpoint_xfer_int(&ep->desc))
+			&& desc->bmAttributes != 0) {
+		dev_warn(ddev, "%s endpoint with bmAttributes = %d in "
+				"config %d interface %d altsetting %d ep %d: "
+				"setting to zero\n",
+				usb_endpoint_xfer_control(&ep->desc) ? "Control" : "Bulk",
+				desc->bmAttributes,
+				cfgno, inum, asnum, ep->desc.bEndpointAddress);
+		desc->bmAttributes = 0;
+	}
+	if (usb_endpoint_xfer_bulk(&ep->desc) && desc->bmAttributes > 16) {
+		dev_warn(ddev, "Bulk endpoint with more than 65536 streams in "
+				"config %d interface %d altsetting %d ep %d: "
+				"setting to max\n",
+				cfgno, inum, asnum, ep->desc.bEndpointAddress);
+		desc->bmAttributes = 16;
+	}
+	if (usb_endpoint_xfer_isoc(&ep->desc) && desc->bmAttributes > 2) {
+		dev_warn(ddev, "Isoc endpoint has Mult of %d in "
+				"config %d interface %d altsetting %d ep %d: "
+				"setting to 3\n", desc->bmAttributes + 1,
+				cfgno, inum, asnum, ep->desc.bEndpointAddress);
+		desc->bmAttributes = 2;
+	}
+	if (usb_endpoint_xfer_isoc(&ep->desc)) {
+		max_tx = ep->desc.wMaxPacketSize * (desc->bMaxBurst + 1) *
+			(desc->bmAttributes + 1);
+	} else if (usb_endpoint_xfer_int(&ep->desc)) {
+		max_tx = ep->desc.wMaxPacketSize * (desc->bMaxBurst + 1);
+	} else {
+		goto valid;
+	}
+	if (desc->wBytesPerInterval > max_tx) {
+		dev_warn(ddev, "%s endpoint with wBytesPerInterval of %d in "
+				"config %d interface %d altsetting %d ep %d: "
+				"setting to %d\n",
+				usb_endpoint_xfer_isoc(&ep->desc) ? "Isoc" : "Int",
+				desc->wBytesPerInterval,
+				cfgno, inum, asnum, ep->desc.bEndpointAddress,
+				max_tx);
+		desc->wBytesPerInterval = max_tx;
+	}
+valid:
+	return retval;
+}
+
 static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
     int asnum, struct usb_host_interface *ifp, int num_ep,
     unsigned char *buffer, int size)
@@ -50,7 +199,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 	unsigned char *buffer0 = buffer;
 	struct usb_endpoint_descriptor *d;
 	struct usb_host_endpoint *endpoint;
-	int n, i, j;
+	int n, i, j, retval;
 
 	d = (struct usb_endpoint_descriptor *) buffer;
 	buffer += d->bLength;
@@ -92,6 +241,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 	if (usb_endpoint_xfer_int(d)) {
 		i = 1;
 		switch (to_usb_device(ddev)->speed) {
+		case USB_SPEED_SUPER:
 		case USB_SPEED_HIGH:
 			/* Many device manufacturers are using full-speed
 			 * bInterval values in high-speed interrupt endpoint
@@ -161,17 +311,39 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 				cfgno, inum, asnum, d->bEndpointAddress,
 				maxp);
 	}
+	/* Allocate room for and parse any SS endpoint companion descriptors */
+	if (to_usb_device(ddev)->speed == USB_SPEED_SUPER) {
+		endpoint->extra = buffer;
+		i = find_next_descriptor_more(buffer, size, USB_DT_SS_ENDPOINT_COMP,
+				USB_DT_ENDPOINT, USB_DT_INTERFACE, &n);
+		endpoint->extralen = i;
+		buffer += i;
+		size -= i;
 
-	/* Skip over any Class Specific or Vendor Specific descriptors;
-	 * find the next endpoint or interface descriptor */
-	endpoint->extra = buffer;
-	i = find_next_descriptor(buffer, size, USB_DT_ENDPOINT,
-	    USB_DT_INTERFACE, &n);
-	endpoint->extralen = i;
+		if (size > 0) {
+			retval = usb_parse_ss_endpoint_companion(ddev, cfgno,
+					inum, asnum, endpoint, num_ep, buffer,
+					size);
+			if (retval >= 0) {
+				buffer += retval;
+				retval = buffer - buffer0;
+			}
+		} else {
+			retval = buffer - buffer0;
+		}
+	} else {
+		/* Skip over any Class Specific or Vendor Specific descriptors;
+		 * find the next endpoint or interface descriptor */
+		endpoint->extra = buffer;
+		i = find_next_descriptor(buffer, size, USB_DT_ENDPOINT,
+				USB_DT_INTERFACE, &n);
+		endpoint->extralen = i;
+		retval = buffer - buffer0 + i;
+	}
 	if (n > 0)
 		dev_dbg(ddev, "skipped %d descriptor%s after %s\n",
 		    n, plural(n), "endpoint");
-	return buffer - buffer0 + i;
+	return retval;
 
 skip_to_next_endpoint_or_interface_descriptor:
 	i = find_next_descriptor(buffer, size, USB_DT_ENDPOINT,
@@ -451,6 +623,8 @@ static int usb_parse_configuration(struct device *ddev, int cfgidx,
 			return -ENOMEM;
 		kref_init(&intfc->ref);
 	}
+
+	/* FIXME: parse the BOS descriptor */
 
 	/* Skip over any Class Specific or Vendor Specific descriptors;
 	 * find the first interface descriptor */

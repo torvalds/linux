@@ -120,6 +120,8 @@ enum perf_counter_sample_format {
 	PERF_SAMPLE_ID				= 1U << 6,
 	PERF_SAMPLE_CPU				= 1U << 7,
 	PERF_SAMPLE_PERIOD			= 1U << 8,
+
+	PERF_SAMPLE_MAX = 1U << 9,		/* non-ABI */
 };
 
 /*
@@ -131,17 +133,26 @@ enum perf_counter_read_format {
 	PERF_FORMAT_TOTAL_TIME_ENABLED		= 1U << 0,
 	PERF_FORMAT_TOTAL_TIME_RUNNING		= 1U << 1,
 	PERF_FORMAT_ID				= 1U << 2,
+
+	PERF_FORMAT_MAX = 1U << 3, 		/* non-ABI */
 };
+
+#define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
 
 /*
  * Hardware event to monitor via a performance monitoring counter:
  */
 struct perf_counter_attr {
+
 	/*
 	 * Major type: hardware/software/tracepoint/etc.
 	 */
 	__u32			type;
-	__u32			__reserved_1;
+
+	/*
+	 * Size of the attr structure, for fwd/bwd compat.
+	 */
+	__u32			size;
 
 	/*
 	 * Type specific configuration information.
@@ -167,13 +178,15 @@ struct perf_counter_attr {
 				mmap           :  1, /* include mmap data     */
 				comm	       :  1, /* include comm data     */
 				freq           :  1, /* use freq, not period  */
+				inherit_stat   :  1, /* per task counts       */
+				enable_on_exec :  1, /* next exec enables     */
 
-				__reserved_2   : 53;
+				__reserved_1   : 51;
 
 	__u32			wakeup_events;	/* wakeup every n events */
-	__u32			__reserved_3;
+	__u32			__reserved_2;
 
-	__u64			__reserved_4;
+	__u64			__reserved_3;
 };
 
 /*
@@ -221,14 +234,28 @@ struct perf_counter_mmap_page {
 	__u32	lock;			/* seqlock for synchronization */
 	__u32	index;			/* hardware counter identifier */
 	__s64	offset;			/* add to hardware counter value */
+	__u64	time_enabled;		/* time counter active */
+	__u64	time_running;		/* time counter on cpu */
+
+		/*
+		 * Hole for extension of the self monitor capabilities
+		 */
+
+	__u64	__reserved[123];	/* align to 1k */
 
 	/*
 	 * Control data for the mmap() data buffer.
 	 *
-	 * User-space reading this value should issue an rmb(), on SMP capable
-	 * platforms, after reading this value -- see perf_counter_wakeup().
+	 * User-space reading the @data_head value should issue an rmb(), on
+	 * SMP capable platforms, after reading this value -- see
+	 * perf_counter_wakeup().
+	 *
+	 * When the mapping is PROT_WRITE the @data_tail value should be
+	 * written by userspace to reflect the last read data. In this case
+	 * the kernel will not over-write unread data.
 	 */
 	__u64   data_head;		/* head in the data section */
+	__u64	data_tail;		/* user-space written tail */
 };
 
 #define PERF_EVENT_MISC_CPUMODE_MASK		(3 << 0)
@@ -236,7 +263,6 @@ struct perf_counter_mmap_page {
 #define PERF_EVENT_MISC_KERNEL			(1 << 0)
 #define PERF_EVENT_MISC_USER			(2 << 0)
 #define PERF_EVENT_MISC_HYPERVISOR		(3 << 0)
-#define PERF_EVENT_MISC_OVERFLOW		(1 << 2)
 
 struct perf_event_header {
 	__u32	type;
@@ -261,6 +287,15 @@ enum perf_event_type {
 	 * };
 	 */
 	PERF_EVENT_MMAP			= 1,
+
+	/*
+	 * struct {
+	 * 	struct perf_event_header	header;
+	 * 	u64				id;
+	 * 	u64				lost;
+	 * };
+	 */
+	PERF_EVENT_LOST			= 2,
 
 	/*
 	 * struct {
@@ -301,29 +336,51 @@ enum perf_event_type {
 	PERF_EVENT_FORK			= 7,
 
 	/*
-	 * When header.misc & PERF_EVENT_MISC_OVERFLOW the event_type field
-	 * will be PERF_RECORD_*
-	 *
+	 * struct {
+	 * 	struct perf_event_header	header;
+	 * 	u32				pid, tid;
+	 * 	u64				value;
+	 * 	{ u64		time_enabled; 	} && PERF_FORMAT_ENABLED
+	 * 	{ u64		time_running; 	} && PERF_FORMAT_RUNNING
+	 * 	{ u64		parent_id;	} && PERF_FORMAT_ID
+	 * };
+	 */
+	PERF_EVENT_READ			= 8,
+
+	/*
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *
-	 *	{ u64			ip;	  } && PERF_RECORD_IP
-	 *	{ u32			pid, tid; } && PERF_RECORD_TID
-	 *	{ u64			time;     } && PERF_RECORD_TIME
-	 *	{ u64			addr;     } && PERF_RECORD_ADDR
-	 *	{ u64			config;   } && PERF_RECORD_CONFIG
-	 *	{ u32			cpu, res; } && PERF_RECORD_CPU
+	 *	{ u64			ip;	  } && PERF_SAMPLE_IP
+	 *	{ u32			pid, tid; } && PERF_SAMPLE_TID
+	 *	{ u64			time;     } && PERF_SAMPLE_TIME
+	 *	{ u64			addr;     } && PERF_SAMPLE_ADDR
+	 *	{ u64			id;	  } && PERF_SAMPLE_ID
+	 *	{ u32			cpu, res; } && PERF_SAMPLE_CPU
+	 * 	{ u64			period;   } && PERF_SAMPLE_PERIOD
 	 *
 	 *	{ u64			nr;
-	 *	  { u64 id, val; }	cnt[nr];  } && PERF_RECORD_GROUP
+	 *	  { u64 id, val; }	cnt[nr];  } && PERF_SAMPLE_GROUP
 	 *
-	 *	{ u16			nr,
-	 *				hv,
-	 *				kernel,
-	 *				user;
-	 *	  u64			ips[nr];  } && PERF_RECORD_CALLCHAIN
+	 *	{ u64			nr,
+	 *	  u64			ips[nr];  } && PERF_SAMPLE_CALLCHAIN
 	 * };
 	 */
+	PERF_EVENT_SAMPLE		= 9,
+
+	PERF_EVENT_MAX,			/* non-ABI */
+};
+
+enum perf_callchain_context {
+	PERF_CONTEXT_HV			= (__u64)-32,
+	PERF_CONTEXT_KERNEL		= (__u64)-128,
+	PERF_CONTEXT_USER		= (__u64)-512,
+
+	PERF_CONTEXT_GUEST		= (__u64)-2048,
+	PERF_CONTEXT_GUEST_KERNEL	= (__u64)-2176,
+	PERF_CONTEXT_GUEST_USER		= (__u64)-2560,
+
+	PERF_CONTEXT_MAX		= (__u64)-4095,
 };
 
 #ifdef __KERNEL__
@@ -344,6 +401,13 @@ enum perf_event_type {
 #include <linux/fs.h>
 #include <linux/pid_namespace.h>
 #include <asm/atomic.h>
+
+#define PERF_MAX_STACK_DEPTH		255
+
+struct perf_callchain_entry {
+	__u64				nr;
+	__u64				ip[PERF_MAX_STACK_DEPTH];
+};
 
 struct task_struct;
 
@@ -403,6 +467,7 @@ struct file;
 struct perf_mmap_data {
 	struct rcu_head			rcu_head;
 	int				nr_pages;	/* nr of data pages  */
+	int				writable;	/* are we writable   */
 	int				nr_locked;	/* nr pages mlocked  */
 
 	atomic_t			poll;		/* POLL_ for wakeups */
@@ -412,8 +477,8 @@ struct perf_mmap_data {
 	atomic_long_t			done_head;	/* completed head    */
 
 	atomic_t			lock;		/* concurrent writes */
-
 	atomic_t			wakeup;		/* needs a wakeup    */
+	atomic_t			lost;		/* nr records lost   */
 
 	struct perf_counter_mmap_page   *user_page;
 	void				*data_pages[0];
@@ -539,6 +604,7 @@ struct perf_counter_context {
 	int				nr_counters;
 	int				nr_active;
 	int				is_active;
+	int				nr_stat;
 	atomic_t			refcount;
 	struct task_struct		*task;
 
@@ -593,6 +659,7 @@ extern void perf_counter_task_tick(struct task_struct *task, int cpu);
 extern int perf_counter_init_task(struct task_struct *child);
 extern void perf_counter_exit_task(struct task_struct *child);
 extern void perf_counter_free_task(struct task_struct *task);
+extern void set_perf_counter_pending(void);
 extern void perf_counter_do_pending(void);
 extern void perf_counter_print_debug(void);
 extern void __perf_disable(void);
@@ -621,10 +688,20 @@ extern int perf_counter_overflow(struct perf_counter *counter, int nmi,
 static inline int is_software_counter(struct perf_counter *counter)
 {
 	return (counter->attr.type != PERF_TYPE_RAW) &&
-		(counter->attr.type != PERF_TYPE_HARDWARE);
+		(counter->attr.type != PERF_TYPE_HARDWARE) &&
+		(counter->attr.type != PERF_TYPE_HW_CACHE);
 }
 
-extern void perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);
+extern atomic_t perf_swcounter_enabled[PERF_COUNT_SW_MAX];
+
+extern void __perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);
+
+static inline void
+perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
+{
+	if (atomic_read(&perf_swcounter_enabled[event]))
+		__perf_swcounter_event(event, nr, nmi, regs, addr);
+}
 
 extern void __perf_counter_mmap(struct vm_area_struct *vma);
 
@@ -636,18 +713,6 @@ static inline void perf_counter_mmap(struct vm_area_struct *vma)
 
 extern void perf_counter_comm(struct task_struct *tsk);
 extern void perf_counter_fork(struct task_struct *tsk);
-
-extern void perf_counter_task_migration(struct task_struct *task, int cpu);
-
-#define MAX_STACK_DEPTH			255
-
-struct perf_callchain_entry {
-	u16				nr;
-	u16				hv;
-	u16				kernel;
-	u16				user;
-	u64				ip[MAX_STACK_DEPTH];
-};
 
 extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
@@ -689,8 +754,6 @@ static inline void perf_counter_mmap(struct vm_area_struct *vma)	{ }
 static inline void perf_counter_comm(struct task_struct *tsk)		{ }
 static inline void perf_counter_fork(struct task_struct *tsk)		{ }
 static inline void perf_counter_init(void)				{ }
-static inline void perf_counter_task_migration(struct task_struct *task,
-					       int cpu)			{ }
 #endif
 
 #endif /* __KERNEL__ */

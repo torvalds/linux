@@ -244,15 +244,15 @@ static void write_header(void)
 static void write_footer(void)
 {
     fputs("\n};\n\n", out);
-    fprintf(out, "struct linux_logo %s __initdata = {\n", logoname);
-    fprintf(out, "    .type\t= %s,\n", logo_types[logo_type]);
-    fprintf(out, "    .width\t= %d,\n", logo_width);
-    fprintf(out, "    .height\t= %d,\n", logo_height);
+    fprintf(out, "const struct linux_logo %s __initconst = {\n", logoname);
+    fprintf(out, "\t.type\t\t= %s,\n", logo_types[logo_type]);
+    fprintf(out, "\t.width\t\t= %d,\n", logo_width);
+    fprintf(out, "\t.height\t\t= %d,\n", logo_height);
     if (logo_type == LINUX_LOGO_CLUT224) {
-	fprintf(out, "    .clutsize\t= %d,\n", logo_clutsize);
-	fprintf(out, "    .clut\t= %s_clut,\n", logoname);
+	fprintf(out, "\t.clutsize\t= %d,\n", logo_clutsize);
+	fprintf(out, "\t.clut\t\t= %s_clut,\n", logoname);
     }
-    fprintf(out, "    .data\t= %s_data\n", logoname);
+    fprintf(out, "\t.data\t\t= %s_data\n", logoname);
     fputs("};\n\n", out);
 
     /* close logo file */

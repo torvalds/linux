@@ -28,11 +28,18 @@ struct ip_tunnel
 	unsigned int			prl_count;	/* # of entries in PRL */
 };
 
+/* ISATAP: default interval between RS in secondy */
+#define IPTUNNEL_RS_DEFAULT_DELAY	(900)
+
 struct ip_tunnel_prl_entry
 {
 	struct ip_tunnel_prl_entry	*next;
 	__be32				addr;
 	u16				flags;
+	unsigned long			rs_delay;
+	struct timer_list		rs_timer;
+	struct ip_tunnel		*tunnel;
+	spinlock_t			lock;
 };
 
 #define IPTUNNEL_XMIT() do {						\

@@ -947,7 +947,7 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 				if (fifo->dch)
 					recv_Dchannel(fifo->dch);
 				if (fifo->bch)
-					recv_Bchannel(fifo->bch);
+					recv_Bchannel(fifo->bch, MISDN_ID_ANY);
 				if (fifo->ech)
 					recv_Echannel(fifo->ech,
 						     &hw->dch);
@@ -969,7 +969,7 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 	} else {
 		/* deliver transparent data to layer2 */
 		if (rx_skb->len >= poll)
-			recv_Bchannel(fifo->bch);
+			recv_Bchannel(fifo->bch, MISDN_ID_ANY);
 	}
 	spin_unlock(&hw->lock);
 }

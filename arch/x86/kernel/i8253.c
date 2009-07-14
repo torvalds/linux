@@ -7,6 +7,7 @@
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
+#include <linux/timex.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>

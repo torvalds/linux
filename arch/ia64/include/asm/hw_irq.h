@@ -106,7 +106,7 @@ extern struct irq_cfg irq_cfg[NR_IRQS];
 #define irq_to_domain(x)	irq_cfg[(x)].domain
 DECLARE_PER_CPU(int[IA64_NUM_VECTORS], vector_irq);
 
-extern struct hw_interrupt_type irq_type_ia64_lsapic;	/* CPU-internal interrupt controller */
+extern struct irq_chip irq_type_ia64_lsapic;	/* CPU-internal interrupt controller */
 
 #ifdef CONFIG_PARAVIRT_GUEST
 #include <asm/paravirt.h>
@@ -146,7 +146,7 @@ static inline void ia64_native_resend_irq(unsigned int vector)
  * Default implementations for the irq-descriptor API:
  */
 
-extern irq_desc_t irq_desc[NR_IRQS];
+extern struct irq_desc irq_desc[NR_IRQS];
 
 #ifndef CONFIG_IA64_GENERIC
 static inline ia64_vector __ia64_irq_to_vector(int irq)

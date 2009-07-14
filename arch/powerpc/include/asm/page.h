@@ -231,6 +231,11 @@ extern void copy_user_page(void *to, void *from, unsigned long vaddr,
 		struct page *p);
 extern int page_is_ram(unsigned long pfn);
 
+#ifdef CONFIG_PPC_SMLPAR
+void arch_free_page(struct page *page, int order);
+#define HAVE_ARCH_FREE_PAGE
+#endif
+
 struct vm_area_struct;
 
 typedef struct page *pgtable_t;

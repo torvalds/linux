@@ -48,7 +48,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 {
 	struct nf_conntrack_expect *exp;
 	struct iphdr *iph = ip_hdr(skb);
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 	struct in_device *in_dev;
 	__be32 mask = 0;
 

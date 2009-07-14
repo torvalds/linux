@@ -143,7 +143,7 @@ static void musb_conn_timer_handler(unsigned long _musb)
 	u16 val;
 
 	spin_lock_irqsave(&musb->lock, flags);
-	switch (musb->xceiv.state) {
+	switch (musb->xceiv->state) {
 	case OTG_STATE_A_IDLE:
 	case OTG_STATE_A_WAIT_BCON:
 		/* Start a new session */
@@ -154,7 +154,7 @@ static void musb_conn_timer_handler(unsigned long _musb)
 		val = musb_readw(musb->mregs, MUSB_DEVCTL);
 		if (!(val & MUSB_DEVCTL_BDEVICE)) {
 			gpio_set_value(musb->config->gpio_vrsel, 1);
-			musb->xceiv.state = OTG_STATE_A_WAIT_BCON;
+			musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
 		} else {
 			gpio_set_value(musb->config->gpio_vrsel, 0);
 
@@ -247,6 +247,11 @@ int __init musb_platform_init(struct musb *musb)
 	}
 	gpio_direction_output(musb->config->gpio_vrsel, 0);
 
+	usb_nop_xceiv_register();
+	musb->xceiv = otg_get_transceiver();
+	if (!musb->xceiv)
+		return -ENODEV;
+
 	if (ANOMALY_05000346) {
 		bfin_write_USB_APHY_CALIB(ANOMALY_05000346_value);
 		SSYNC();
@@ -291,7 +296,7 @@ int __init musb_platform_init(struct musb *musb)
 			musb_conn_timer_handler, (unsigned long) musb);
 	}
 	if (is_peripheral_enabled(musb))
-		musb->xceiv.set_power = bfin_set_power;
+		musb->xceiv->set_power = bfin_set_power;
 
 	musb->isr = blackfin_interrupt;
 

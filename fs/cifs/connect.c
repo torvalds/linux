@@ -35,6 +35,7 @@
 #include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
+#include <linux/inet.h>
 #include <net/ipv6.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
@@ -61,7 +62,6 @@ struct smb_vol {
 	char *domainname;
 	char *UNC;
 	char *UNCip;
-	char *in6_addr;   /* ipv6 address as human readable form of in6_addr */
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[16]; /* netbios name of client */
 	char target_rfc1001_name[16]; /* netbios name of server for Win9x/ME */
@@ -70,7 +70,6 @@ struct smb_vol {
 	mode_t file_mode;
 	mode_t dir_mode;
 	unsigned secFlg;
-	bool rw:1;
 	bool retry:1;
 	bool intr:1;
 	bool setuids:1;
@@ -827,14 +826,15 @@ cifs_parse_mount_options(char *options, const char *devname,
 	vol->target_rfc1001_name[0] = 0;
 	vol->linux_uid = current_uid();  /* use current_euid() instead? */
 	vol->linux_gid = current_gid();
-	vol->dir_mode = S_IRWXUGO;
-	/* 2767 perms indicate mandatory locking support */
-	vol->file_mode = (S_IRWXUGO | S_ISGID) & (~S_IXGRP);
+
+	/* default to only allowing write access to owner of the mount */
+	vol->dir_mode = vol->file_mode = S_IRUGO | S_IXUGO | S_IWUSR;
 
 	/* vol->retry default is 0 (i.e. "soft" limited retry not hard retry) */
-	vol->rw = true;
 	/* default is always to request posix paths. */
 	vol->posix_paths = 1;
+	/* default to using server inode numbers where available */
+	vol->server_ino = 1;
 
 	if (!options)
 		return 1;
@@ -955,10 +955,12 @@ cifs_parse_mount_options(char *options, const char *devname,
 				}
 				strcpy(vol->password, value);
 			}
-		} else if (strnicmp(data, "ip", 2) == 0) {
+		} else if (!strnicmp(data, "ip", 2) ||
+			   !strnicmp(data, "addr", 4)) {
 			if (!value || !*value) {
 				vol->UNCip = NULL;
-			} else if (strnlen(value, 35) < 35) {
+			} else if (strnlen(value, INET6_ADDRSTRLEN) <
+							INET6_ADDRSTRLEN) {
 				vol->UNCip = value;
 			} else {
 				printk(KERN_WARNING "CIFS: ip address "
@@ -1092,17 +1094,17 @@ cifs_parse_mount_options(char *options, const char *devname,
 				return 1;
 			}
 		} else if (strnicmp(data, "uid", 3) == 0) {
-			if (value && *value) {
+			if (value && *value)
 				vol->linux_uid =
 					simple_strtoul(value, &value, 0);
+		} else if (strnicmp(data, "forceuid", 8) == 0) {
 				vol->override_uid = 1;
-			}
 		} else if (strnicmp(data, "gid", 3) == 0) {
-			if (value && *value) {
+			if (value && *value)
 				vol->linux_gid =
 					simple_strtoul(value, &value, 0);
+		} else if (strnicmp(data, "forcegid", 8) == 0) {
 				vol->override_gid = 1;
-			}
 		} else if (strnicmp(data, "file_mode", 4) == 0) {
 			if (value && *value) {
 				vol->file_mode =
@@ -1195,7 +1197,9 @@ cifs_parse_mount_options(char *options, const char *devname,
 		} else if (strnicmp(data, "guest", 5) == 0) {
 			/* ignore */
 		} else if (strnicmp(data, "rw", 2) == 0) {
-			vol->rw = true;
+			/* ignore */
+		} else if (strnicmp(data, "ro", 2) == 0) {
+			/* ignore */
 		} else if (strnicmp(data, "noblocksend", 11) == 0) {
 			vol->noblocksnd = 1;
 		} else if (strnicmp(data, "noautotune", 10) == 0) {
@@ -1214,8 +1218,6 @@ cifs_parse_mount_options(char *options, const char *devname,
 			    parse these options again and set anything and it
 			    is ok to just ignore them */
 			continue;
-		} else if (strnicmp(data, "ro", 2) == 0) {
-			vol->rw = false;
 		} else if (strnicmp(data, "hard", 4) == 0) {
 			vol->retry = 1;
 		} else if (strnicmp(data, "soft", 4) == 0) {
@@ -1315,16 +1317,6 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->direct_io = 1;
 		} else if (strnicmp(data, "forcedirectio", 13) == 0) {
 			vol->direct_io = 1;
-		} else if (strnicmp(data, "in6_addr", 8) == 0) {
-			if (!value || !*value) {
-				vol->in6_addr = NULL;
-			} else if (strnlen(value, 49) == 48) {
-				vol->in6_addr = value;
-			} else {
-				printk(KERN_WARNING "CIFS: ip v6 address not "
-						    "48 characters long\n");
-				return 1;
-			}
 		} else if (strnicmp(data, "noac", 4) == 0) {
 			printk(KERN_WARNING "CIFS: Mount option noac not "
 				"supported. Instead set "
@@ -1392,8 +1384,10 @@ cifs_find_tcp_session(struct sockaddr_storage *addr)
 		     server->addr.sockAddr.sin_addr.s_addr))
 			continue;
 		else if (addr->ss_family == AF_INET6 &&
-			 !ipv6_addr_equal(&server->addr.sockAddr6.sin6_addr,
-					  &addr6->sin6_addr))
+			 (!ipv6_addr_equal(&server->addr.sockAddr6.sin6_addr,
+					   &addr6->sin6_addr) ||
+			  server->addr.sockAddr6.sin6_scope_id !=
+					   addr6->sin6_scope_id))
 			continue;
 
 		++server->srv_count;
@@ -1439,28 +1433,15 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 
 	memset(&addr, 0, sizeof(struct sockaddr_storage));
 
+	cFYI(1, ("UNC: %s ip: %s", volume_info->UNC, volume_info->UNCip));
+
 	if (volume_info->UNCip && volume_info->UNC) {
-		rc = cifs_inet_pton(AF_INET, volume_info->UNCip,
-				    &sin_server->sin_addr.s_addr);
-
-		if (rc <= 0) {
-			/* not ipv4 address, try ipv6 */
-			rc = cifs_inet_pton(AF_INET6, volume_info->UNCip,
-					    &sin_server6->sin6_addr.in6_u);
-			if (rc > 0)
-				addr.ss_family = AF_INET6;
-		} else {
-			addr.ss_family = AF_INET;
-		}
-
-		if (rc <= 0) {
+		rc = cifs_convert_address(volume_info->UNCip, &addr);
+		if (!rc) {
 			/* we failed translating address */
 			rc = -EINVAL;
 			goto out_err;
 		}
-
-		cFYI(1, ("UNC: %s ip: %s", volume_info->UNC,
-			 volume_info->UNCip));
 	} else if (volume_info->UNCip) {
 		/* BB using ip addr as tcp_ses name to connect to the
 		   DFS root below */
@@ -1519,14 +1500,14 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		cFYI(1, ("attempting ipv6 connect"));
 		/* BB should we allow ipv6 on port 139? */
 		/* other OS never observed in Wild doing 139 with v6 */
+		sin_server6->sin6_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr6, sin_server6,
 			sizeof(struct sockaddr_in6));
-		sin_server6->sin6_port = htons(volume_info->port);
 		rc = ipv6_connect(tcp_ses);
 	} else {
+		sin_server->sin_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr, sin_server,
 			sizeof(struct sockaddr_in));
-		sin_server->sin_port = htons(volume_info->port);
 		rc = ipv4_connect(tcp_ses);
 	}
 	if (rc < 0) {

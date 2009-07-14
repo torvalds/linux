@@ -1,0 +1,9 @@
+Things to do for this driver to get merged into the main portion of the
+kernel:
+	- checkpatch cleanups
+	- sparse clean
+	- remove proc code
+	- tie into CAN socket interfaces if possible
+	- figure out sane userspace api
+
+Send patches to Greg Kroah-Hartman <greg@kroah.com>

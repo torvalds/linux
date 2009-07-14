@@ -113,8 +113,13 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 				  struct msi_msg *msg)
 {
 	struct fsl_msi *msi_data = fsl_msi;
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	u32 base = 0;
 
-	msg->address_lo = msi_data->msi_addr_lo;
+	pci_bus_read_config_dword(hose->bus,
+		PCI_DEVFN(0, 0), PCI_BASE_ADDRESS_0, &base);
+
+	msg->address_lo = msi_data->msi_addr_lo + base;
 	msg->address_hi = msi_data->msi_addr_hi;
 	msg->data = hwirq;
 
@@ -271,7 +276,7 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 	msi->irqhost->host_data = msi;
 
 	msi->msi_addr_hi = 0x0;
-	msi->msi_addr_lo = res.start + features->msiir_offset;
+	msi->msi_addr_lo = features->msiir_offset + (res.start & 0xfffff);
 
 	rc = fsl_msi_init_allocator(msi);
 	if (rc) {

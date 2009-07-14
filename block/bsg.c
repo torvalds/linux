@@ -186,7 +186,7 @@ static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
 		return -EFAULT;
 
 	if (hdr->subprotocol == BSG_SUB_PROTOCOL_SCSI_CMD) {
-		if (blk_verify_command(&q->cmd_filter, rq->cmd, has_write_perm))
+		if (blk_verify_command(rq->cmd, has_write_perm))
 			return -EPERM;
 	} else if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
@@ -315,7 +315,6 @@ out:
 	blk_put_request(rq);
 	if (next_rq) {
 		blk_rq_unmap_user(next_rq->bio);
-		next_rq->bio = NULL;
 		blk_put_request(next_rq);
 	}
 	return ERR_PTR(ret);
@@ -446,15 +445,14 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	}
 
 	if (rq->next_rq) {
-		hdr->dout_resid = rq->data_len;
-		hdr->din_resid = rq->next_rq->data_len;
+		hdr->dout_resid = rq->resid_len;
+		hdr->din_resid = rq->next_rq->resid_len;
 		blk_rq_unmap_user(bidi_bio);
-		rq->next_rq->bio = NULL;
 		blk_put_request(rq->next_rq);
 	} else if (rq_data_dir(rq) == READ)
-		hdr->din_resid = rq->data_len;
+		hdr->din_resid = rq->resid_len;
 	else
-		hdr->dout_resid = rq->data_len;
+		hdr->dout_resid = rq->resid_len;
 
 	/*
 	 * If the request generated a negative error number, return it
@@ -468,7 +466,6 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	blk_rq_unmap_user(bio);
 	if (rq->cmd != rq->__cmd)
 		kfree(rq->cmd);
-	rq->bio = NULL;
 	blk_put_request(rq);
 
 	return ret;
@@ -1065,6 +1062,11 @@ EXPORT_SYMBOL_GPL(bsg_register_queue);
 
 static struct cdev bsg_cdev;
 
+static char *bsg_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "bsg/%s", dev_name(dev));
+}
+
 static int __init bsg_init(void)
 {
 	int ret, i;
@@ -1085,6 +1087,7 @@ static int __init bsg_init(void)
 		ret = PTR_ERR(bsg_class);
 		goto destroy_kmemcache;
 	}
+	bsg_class->nodename = bsg_nodename;
 
 	ret = alloc_chrdev_region(&devid, 0, BSG_MAX_DEVS, "bsg");
 	if (ret)

@@ -48,6 +48,7 @@
 /* Hardware registers for omap2 and omap3 */
 #define OMAP24XX_DMA4_BASE		(L4_24XX_BASE + 0x56000)
 #define OMAP34XX_DMA4_BASE		(L4_34XX_BASE + 0x56000)
+#define OMAP44XX_DMA4_BASE		(L4_44XX_BASE + 0x56000)
 
 #define OMAP_DMA4_REVISION		0x00
 #define OMAP_DMA4_GCR			0x78
@@ -144,6 +145,7 @@
 #define OMAP_DMA4_CSSA_U(n)		0
 #define OMAP_DMA4_CDSA_L(n)		0
 #define OMAP_DMA4_CDSA_U(n)		0
+#define OMAP1_DMA_COLOR(n)		0
 
 /*----------------------------------------------------------------------------*/
 
@@ -387,6 +389,21 @@
 #define DMA_THREAD_FIFO_25		(0x02 << 14)
 #define DMA_THREAD_FIFO_50		(0x03 << 14)
 
+/* DMA4_OCP_SYSCONFIG bits */
+#define DMA_SYSCONFIG_MIDLEMODE_MASK		(3 << 12)
+#define DMA_SYSCONFIG_CLOCKACTIVITY_MASK	(3 << 8)
+#define DMA_SYSCONFIG_EMUFREE			(1 << 5)
+#define DMA_SYSCONFIG_SIDLEMODE_MASK		(3 << 3)
+#define DMA_SYSCONFIG_SOFTRESET			(1 << 2)
+#define DMA_SYSCONFIG_AUTOIDLE			(1 << 0)
+
+#define DMA_SYSCONFIG_MIDLEMODE(n)		((n) << 12)
+#define DMA_SYSCONFIG_SIDLEMODE(n)		((n) << 3)
+
+#define DMA_IDLEMODE_SMARTIDLE			0x2
+#define DMA_IDLEMODE_NO_IDLE			0x1
+#define DMA_IDLEMODE_FORCE_IDLE			0x0
+
 /* Chaining modes*/
 #ifndef CONFIG_ARCH_OMAP1
 #define OMAP_DMA_STATIC_CHAIN		0x1
@@ -531,7 +548,7 @@ extern int omap_get_dma_index(int lch, int *ei, int *fi);
 /* Chaining APIs */
 #ifndef CONFIG_ARCH_OMAP1
 extern int omap_request_dma_chain(int dev_id, const char *dev_name,
-				  void (*callback) (int chain_id, u16 ch_status,
+				  void (*callback) (int lch, u16 ch_status,
 						    void *data),
 				  int *chain_id, int no_of_chans,
 				  int chain_mode,

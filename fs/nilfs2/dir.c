@@ -43,7 +43,6 @@
  */
 
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include "nilfs.h"
 #include "page.h"
 

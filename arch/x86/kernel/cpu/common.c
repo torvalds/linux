@@ -108,7 +108,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 	/* data */
 	[GDT_ENTRY_APMBIOS_BASE+2]	= { { { 0x0000ffff, 0x00409200 } } },
 
-	[GDT_ENTRY_ESPFIX_SS]		= { { { 0x00000000, 0x00c09200 } } },
+	[GDT_ENTRY_ESPFIX_SS]		= { { { 0x0000ffff, 0x00cf9200 } } },
 	[GDT_ENTRY_PERCPU]		= { { { 0x0000ffff, 0x00cf9200 } } },
 	GDT_STACK_CANARY_INIT
 #endif
@@ -487,7 +487,6 @@ out:
 static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
-	static int printed;
 	int i;
 
 	for (i = 0; i < X86_VENDOR_NUM; i++) {
@@ -504,13 +503,9 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 		}
 	}
 
-	if (!printed) {
-		printed++;
-		printk(KERN_ERR
-		    "CPU: vendor_id '%s' unknown, using generic init.\n", v);
-
-		printk(KERN_ERR "CPU: Your system may be unstable.\n");
-	}
+	printk_once(KERN_ERR
+			"CPU: vendor_id '%s' unknown, using generic init.\n" \
+			"CPU: Your system may be unstable.\n", v);
 
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
 	this_cpu = &default_cpu;

@@ -37,7 +37,6 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 
 #include "medefines.h"
 #include "meerror.h"
@@ -801,19 +800,11 @@ me8200_di_subdevice_t *me8200_di_constructor(uint32_t me8200_regbase,
 	subdevice->irq = irq;
 	if (subdevice->version > 0) {	// NEW
 		err = request_irq(subdevice->irq, me8200_isr_EX,
-#ifdef IRQF_DISABLED
 				  IRQF_DISABLED | IRQF_SHARED,
-#else
-				  SA_INTERRUPT | SA_SHIRQ,
-#endif
 				  ME8200_NAME, (void *)subdevice);
 	} else {		//OLD
 		err = request_irq(subdevice->irq, me8200_isr,
-#ifdef IRQF_DISABLED
 				  IRQF_DISABLED | IRQF_SHARED,
-#else
-				  SA_INTERRUPT | SA_SHIRQ,
-#endif
 				  ME8200_NAME, (void *)subdevice);
 	}
 

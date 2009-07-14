@@ -111,9 +111,7 @@
 	level "   bits in the Watchpoint Instruction Address Control register (WPIACTL) is set.\n"
 #define EXC_0x2A(level) \
 	"Instruction fetch misaligned address violation\n" \
-	level " - Attempted misaligned instruction cache fetch. On a misaligned instruction fetch\n" \
-	level "   exception, the return address provided in RETX is the destination address which is\n" \
-	level "   misaligned, rather than the address of the offending instruction.\n"
+	level " - Attempted misaligned instruction cache fetch.\n"
 #define EXC_0x2B(level) \
 	"CPLB protection violation\n" \
 	level " - Illegal instruction fetch access (memory protection violation).\n"

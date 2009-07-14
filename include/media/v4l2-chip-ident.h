@@ -137,6 +137,12 @@ enum {
 	/* module saa7191: just ident 7191 */
 	V4L2_IDENT_SAA7191 = 7191,
 
+	/* module ths7303: just ident 7303 */
+	V4L2_IDENT_THS7303 = 7303,
+
+	/* module adv7343: just ident 7343 */
+	V4L2_IDENT_ADV7343 = 7343,
+
 	/* module wm8739: just ident 8739 */
 	V4L2_IDENT_WM8739 = 8739,
 
@@ -148,6 +154,9 @@ enum {
 
 	/* module cafe_ccic, just ident 8801 */
 	V4L2_IDENT_CAFE = 8801,
+
+	/* module mt9v011, just ident 8243 */
+	V4L2_IDENT_MT9V011 = 8243,
 
 	/* module tw9910: just ident 9910 */
 	V4L2_IDENT_TW9910 = 9910,

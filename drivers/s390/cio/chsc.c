@@ -549,8 +549,7 @@ cleanup:
 	return ret;
 }
 
-static int
-__chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
+int __chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
 {
 	struct {
 		struct chsc_header request;

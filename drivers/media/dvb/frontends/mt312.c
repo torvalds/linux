@@ -77,7 +77,7 @@ static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2) {
-		printk(KERN_ERR "%s: ret == %d\n", __func__, ret);
+		printk(KERN_DEBUG "%s: ret == %d\n", __func__, ret);
 		return -EREMOTEIO;
 	}
 

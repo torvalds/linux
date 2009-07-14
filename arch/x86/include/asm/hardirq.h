@@ -22,7 +22,7 @@ typedef struct {
 #endif
 #ifdef CONFIG_X86_MCE
 	unsigned int irq_thermal_count;
-# ifdef CONFIG_X86_64
+# ifdef CONFIG_X86_MCE_THRESHOLD
 	unsigned int irq_threshold_count;
 # endif
 #endif

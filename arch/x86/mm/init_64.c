@@ -104,7 +104,7 @@ static __ref void *spp_getpage(void)
 	void *ptr;
 
 	if (after_bootmem)
-		ptr = (void *) get_zeroed_page(GFP_ATOMIC);
+		ptr = (void *) get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
 	else
 		ptr = alloc_bootmem_pages(PAGE_SIZE);
 
@@ -281,7 +281,7 @@ static __ref void *alloc_low_page(unsigned long *phys)
 	void *adr;
 
 	if (after_bootmem) {
-		adr = (void *)get_zeroed_page(GFP_ATOMIC);
+		adr = (void *)get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
 		*phys = __pa(adr);
 
 		return adr;
@@ -527,7 +527,7 @@ phys_pud_update(pgd_t *pgd, unsigned long addr, unsigned long end,
 	return phys_pud_init(pud, addr, end, page_size_mask);
 }
 
-unsigned long __init
+unsigned long __meminit
 kernel_physical_mapping_init(unsigned long start,
 			     unsigned long end,
 			     unsigned long page_size_mask)
@@ -598,6 +598,15 @@ void __init paging_init(void)
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
+
+	/*
+	 * clear the default setting with node 0
+	 * note: don't use nodes_clear here, that is really clearing when
+	 *	 numa support is not compiled in, and later node_set_state
+	 *	 will not set it back.
+	 */
+	node_clear_state(0, N_NORMAL_MEMORY);
+
 	free_area_init_nodes(max_zone_pfns);
 }
 

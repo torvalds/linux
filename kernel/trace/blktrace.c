@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
+#include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
 
@@ -669,12 +670,12 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 
 	if (blk_pc_request(rq)) {
 		what |= BLK_TC_ACT(BLK_TC_PC);
-		__blk_add_trace(bt, 0, rq->data_len, rw, what, rq->errors,
-				rq->cmd_len, rq->cmd);
+		__blk_add_trace(bt, 0, blk_rq_bytes(rq), rw,
+				what, rq->errors, rq->cmd_len, rq->cmd);
 	} else  {
 		what |= BLK_TC_ACT(BLK_TC_FS);
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
-				rw, what, rq->errors, 0, NULL);
+		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq), rw,
+				what, rq->errors, 0, NULL);
 	}
 }
 
@@ -881,11 +882,11 @@ void blk_add_driver_data(struct request_queue *q,
 		return;
 
 	if (blk_pc_request(rq))
-		__blk_add_trace(bt, 0, rq->data_len, 0, BLK_TA_DRV_DATA,
-				rq->errors, len, data);
+		__blk_add_trace(bt, 0, blk_rq_bytes(rq), 0,
+				BLK_TA_DRV_DATA, rq->errors, len, data);
 	else
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
-				0, BLK_TA_DRV_DATA, rq->errors, len, data);
+		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq), 0,
+				BLK_TA_DRV_DATA, rq->errors, len, data);
 }
 EXPORT_SYMBOL_GPL(blk_add_driver_data);
 
@@ -1724,10 +1725,7 @@ void blk_fill_rwbs_rq(char *rwbs, struct request *rq)
 	if (blk_discard_rq(rq))
 		rw |= (1 << BIO_RW_DISCARD);
 
-	if (blk_pc_request(rq))
-		bytes = rq->data_len;
-	else
-		bytes = rq->hard_nr_sectors << 9;
+	bytes = blk_rq_bytes(rq);
 
 	blk_fill_rwbs(rwbs, rw, bytes);
 }

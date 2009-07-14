@@ -40,22 +40,7 @@ struct kvm_ioapic {
 	u32 id;
 	u32 irr;
 	u32 pad;
-	union ioapic_redir_entry {
-		u64 bits;
-		struct {
-			u8 vector;
-			u8 delivery_mode:3;
-			u8 dest_mode:1;
-			u8 delivery_status:1;
-			u8 polarity:1;
-			u8 remote_irr:1;
-			u8 trig_mode:1;
-			u8 mask:1;
-			u8 reserve:7;
-			u8 reserved[4];
-			u8 dest_id;
-		} fields;
-	} redirtbl[IOAPIC_NUM_PINS];
+	union kvm_ioapic_redirect_entry redirtbl[IOAPIC_NUM_PINS];
 	struct kvm_io_device dev;
 	struct kvm *kvm;
 	void (*ack_notifier)(void *opaque, int irq);
@@ -79,13 +64,13 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 	return kvm->arch.vioapic;
 }
 
-struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
-				       unsigned long bitmap);
+int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
+		int short_hand, int dest, int dest_mode);
+int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2);
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector, int trigger_mode);
 int kvm_ioapic_init(struct kvm *kvm);
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level);
 void kvm_ioapic_reset(struct kvm_ioapic *ioapic);
-u32 kvm_ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
-				u8 dest_mode);
-
+int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
+		struct kvm_lapic_irq *irq);
 #endif

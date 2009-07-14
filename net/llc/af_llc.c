@@ -935,7 +935,7 @@ static int llc_ui_getname(struct socket *sock, struct sockaddr *uaddr,
 
 		if (llc->dev) {
 			sllc.sllc_arphrd = llc->dev->type;
-			memcpy(&sllc.sllc_mac, &llc->dev->dev_addr,
+			memcpy(&sllc.sllc_mac, llc->dev->dev_addr,
 			       IFHWADDRLEN);
 		}
 	}

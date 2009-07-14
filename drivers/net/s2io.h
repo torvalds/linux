@@ -18,15 +18,6 @@
 #define vBIT(val, loc, sz)	(((u64)val) << (64-loc-sz))
 #define INV(d)  ((d&0xff)<<24) | (((d>>8)&0xff)<<16) | (((d>>16)&0xff)<<8)| ((d>>24)&0xff)
 
-#ifndef BOOL
-#define BOOL    int
-#endif
-
-#ifndef TRUE
-#define TRUE    1
-#define FALSE   0
-#endif
-
 #undef SUCCESS
 #define SUCCESS 0
 #define FAILURE -1

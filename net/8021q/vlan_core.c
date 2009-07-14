@@ -114,9 +114,9 @@ int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
 EXPORT_SYMBOL(vlan_gro_receive);
 
 int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
-		   unsigned int vlan_tci, struct napi_gro_fraginfo *info)
+		   unsigned int vlan_tci)
 {
-	struct sk_buff *skb = napi_fraginfo_skb(napi, info);
+	struct sk_buff *skb = napi_frags_skb(napi);
 
 	if (!skb)
 		return NET_RX_DROP;

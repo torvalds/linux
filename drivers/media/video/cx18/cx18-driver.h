@@ -80,8 +80,9 @@
 #define CX18_CARD_YUAN_MPC718 	      3	/* Yuan MPC718 */
 #define CX18_CARD_CNXT_RAPTOR_PAL     4	/* Conexant Raptor PAL */
 #define CX18_CARD_TOSHIBA_QOSMIO_DVBT 5 /* Toshiba Qosmio Interal DVB-T/Analog*/
-#define CX18_CARD_LEADTEK_PVR2100     6 /* Leadtek WinFast PVR2100/DVR3100 H */
-#define CX18_CARD_LAST 		      6
+#define CX18_CARD_LEADTEK_PVR2100     6 /* Leadtek WinFast PVR2100 */
+#define CX18_CARD_LEADTEK_DVR3100H    7 /* Leadtek WinFast DVR3100 H */
+#define CX18_CARD_LAST 		      7
 
 #define CX18_ENC_STREAM_TYPE_MPG  0
 #define CX18_ENC_STREAM_TYPE_TS   1
@@ -254,6 +255,7 @@ struct cx18_options {
 #define CX18_F_S_INTERNAL_USE	5	/* this stream is used internally (sliced VBI processing) */
 #define CX18_F_S_STREAMOFF	7	/* signal end of stream EOS */
 #define CX18_F_S_APPL_IO        8	/* this stream is used read/written by an application */
+#define CX18_F_S_STOPPING	9	/* telling the fw to stop capturing */
 
 /* per-cx18, i_flags */
 #define CX18_F_I_LOADED_FW		0 	/* Loaded firmware 1st time */
@@ -285,6 +287,7 @@ struct cx18_queue {
 	struct list_head list;
 	atomic_t buffers;
 	u32 bytesused;
+	spinlock_t lock;
 };
 
 struct cx18_dvb {
@@ -305,7 +308,7 @@ struct cx18_scb; /* forward reference */
 
 
 #define CX18_MAX_MDL_ACKS 2
-#define CX18_MAX_EPU_WORK_ORDERS (CX18_MAX_FW_MDLS_PER_STREAM + 7)
+#define CX18_MAX_IN_WORK_ORDERS (CX18_MAX_FW_MDLS_PER_STREAM + 7)
 /* CPU_DE_RELEASE_MDL can burst CX18_MAX_FW_MDLS_PER_STREAM orders in a group */
 
 #define CX18_F_EWO_MB_STALE_UPON_RECEIPT 0x1
@@ -313,7 +316,7 @@ struct cx18_scb; /* forward reference */
 #define CX18_F_EWO_MB_STALE \
 	     (CX18_F_EWO_MB_STALE_UPON_RECEIPT | CX18_F_EWO_MB_STALE_WHILE_PROC)
 
-struct cx18_epu_work_order {
+struct cx18_in_work_order {
 	struct work_struct work;
 	atomic_t pending;
 	struct cx18 *cx;
@@ -337,7 +340,6 @@ struct cx18_stream {
 	unsigned mdl_offset;
 
 	u32 id;
-	struct mutex qlock; 	/* locks access to the queues */
 	unsigned long s_flags;	/* status flags, see above */
 	int dma;		/* can be PCI_DMA_TODEVICE,
 				   PCI_DMA_FROMDEVICE or
@@ -352,6 +354,8 @@ struct cx18_stream {
 	struct cx18_queue q_free;	/* free buffers */
 	struct cx18_queue q_busy;	/* busy buffers - in use by firmware */
 	struct cx18_queue q_full;	/* full buffers - data for user apps */
+
+	struct work_struct out_work_order;
 
 	/* DVB / Digital Transport */
 	struct cx18_dvb dvb;
@@ -568,9 +572,13 @@ struct cx18 {
 	u32 sw2_irq_mask;
 	u32 hw2_irq_mask;
 
-	struct workqueue_struct *work_queue;
-	struct cx18_epu_work_order epu_work_order[CX18_MAX_EPU_WORK_ORDERS];
+	struct workqueue_struct *in_work_queue;
+	char in_workq_name[11]; /* "cx18-NN-in" */
+	struct cx18_in_work_order in_work_order[CX18_MAX_IN_WORK_ORDERS];
 	char epu_debug_str[256]; /* CX18_EPU_DEBUG is rare: use shared space */
+
+	struct workqueue_struct *out_work_queue;
+	char out_workq_name[12]; /* "cx18-NN-out" */
 
 	/* i2c */
 	struct i2c_adapter i2c_adap[2];

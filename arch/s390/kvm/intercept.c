@@ -154,17 +154,25 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 static int handle_validity(struct kvm_vcpu *vcpu)
 {
 	int viwhy = vcpu->arch.sie_block->ipb >> 16;
+	int rc;
+
 	vcpu->stat.exit_validity++;
-	if (viwhy == 0x37) {
-		fault_in_pages_writeable((char __user *)
-					 vcpu->kvm->arch.guest_origin +
-					 vcpu->arch.sie_block->prefix,
-					 PAGE_SIZE);
-		return 0;
-	}
-	VCPU_EVENT(vcpu, 2, "unhandled validity intercept code %d",
-		   viwhy);
-	return -ENOTSUPP;
+	if ((viwhy == 0x37) && (vcpu->arch.sie_block->prefix
+		<= vcpu->kvm->arch.guest_memsize - 2*PAGE_SIZE)){
+		rc = fault_in_pages_writeable((char __user *)
+			 vcpu->kvm->arch.guest_origin +
+			 vcpu->arch.sie_block->prefix,
+			 2*PAGE_SIZE);
+		if (rc)
+			/* user will receive sigsegv, exit to user */
+			rc = -ENOTSUPP;
+	} else
+		rc = -ENOTSUPP;
+
+	if (rc)
+		VCPU_EVENT(vcpu, 2, "unhandled validity intercept code %d",
+			   viwhy);
+	return rc;
 }
 
 static int handle_instruction(struct kvm_vcpu *vcpu)

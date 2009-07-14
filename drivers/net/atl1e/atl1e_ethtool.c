@@ -365,6 +365,8 @@ static int atl1e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & WAKE_PHY)
 		adapter->wol |= AT_WUFC_LNKC;
 
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
 	return 0;
 }
 

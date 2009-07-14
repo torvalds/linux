@@ -288,7 +288,7 @@ static inline void TCP_ECN_send_syn(struct sock *sk, struct sk_buff *skb)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->ecn_flags = 0;
-	if (sysctl_tcp_ecn) {
+	if (sysctl_tcp_ecn == 1) {
 		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_ECE | TCPCB_FLAG_CWR;
 		tp->ecn_flags = TCP_ECN_OK;
 	}
@@ -725,7 +725,8 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb,
 				 unsigned int mss_now)
 {
-	if (skb->len <= mss_now || !sk_can_gso(sk)) {
+	if (skb->len <= mss_now || !sk_can_gso(sk) ||
+	    skb->ip_summed == CHECKSUM_NONE) {
 		/* Avoid the costly divide in the normal
 		 * non-TSO case.
 		 */
@@ -2202,7 +2203,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	/* Reserve space for headers. */
 	skb_reserve(skb, MAX_TCP_HEADER);
 
-	skb->dst = dst_clone(dst);
+	skb_dst_set(skb, dst_clone(dst));
 
 	mss = dst_metric(dst, RTAX_ADVMSS);
 	if (tp->rx_opt.user_mss && tp->rx_opt.user_mss < mss)

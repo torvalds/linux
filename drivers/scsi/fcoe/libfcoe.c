@@ -56,15 +56,28 @@ static void fcoe_ctlr_recv_work(struct work_struct *);
 
 static u8 fcoe_all_fcfs[ETH_ALEN] = FIP_ALL_FCF_MACS;
 
-static u32 fcoe_ctlr_debug;	/* 1 for basic, 2 for noisy debug */
+unsigned int libfcoe_debug_logging;
+module_param_named(debug_logging, libfcoe_debug_logging, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
 
-#define FIP_DBG_LVL(level, fmt, args...) 				\
+#define LIBFCOE_LOGGING     0x01 /* General logging, not categorized */
+#define LIBFCOE_FIP_LOGGING 0x02 /* FIP logging */
+
+#define LIBFCOE_CHECK_LOGGING(LEVEL, CMD)				\
+do {                                                            	\
+	if (unlikely(libfcoe_debug_logging & LEVEL))			\
 		do {							\
-			if (fcoe_ctlr_debug >= (level))			\
-				FC_DBG(fmt, ##args);			\
-		} while (0)
+			CMD;						\
+		} while (0);						\
+} while (0);
 
-#define FIP_DBG(fmt, args...)	FIP_DBG_LVL(1, fmt, ##args)
+#define LIBFCOE_DBG(fmt, args...)					\
+	LIBFCOE_CHECK_LOGGING(LIBFCOE_LOGGING,				\
+			      printk(KERN_INFO "libfcoe: " fmt, ##args);)
+
+#define LIBFCOE_FIP_DBG(fmt, args...)					\
+	LIBFCOE_CHECK_LOGGING(LIBFCOE_FIP_LOGGING,			\
+			      printk(KERN_INFO "fip: " fmt, ##args);)
 
 /*
  * Return non-zero if FCF fcoe_size has been validated.
@@ -198,6 +211,8 @@ static void fcoe_ctlr_solicit(struct fcoe_ctlr *fip, struct fcoe_fcf *fcf)
 	sol->fip.fip_subcode = FIP_SC_SOL;
 	sol->fip.fip_dl_len = htons(sizeof(sol->desc) / FIP_BPW);
 	sol->fip.fip_flags = htons(FIP_FL_FPMA);
+	if (fip->spma)
+		sol->fip.fip_flags |= htons(FIP_FL_SPMA);
 
 	sol->desc.mac.fd_desc.fip_dtype = FIP_DT_MAC;
 	sol->desc.mac.fd_desc.fip_dlen = sizeof(sol->desc.mac) / FIP_BPW;
@@ -213,7 +228,7 @@ static void fcoe_ctlr_solicit(struct fcoe_ctlr *fip, struct fcoe_fcf *fcf)
 	sol->desc.size.fd_size = htons(fcoe_size);
 
 	skb_put(skb, sizeof(*sol));
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	fip->send(fip, skb);
@@ -241,7 +256,7 @@ void fcoe_ctlr_link_up(struct fcoe_ctlr *fip)
 		fip->last_link = 1;
 		fip->link = 1;
 		spin_unlock_bh(&fip->lock);
-		FIP_DBG("%s", "setting AUTO mode.\n");
+		LIBFCOE_FIP_DBG("%s", "setting AUTO mode.\n");
 		fc_linkup(fip->lp);
 		fcoe_ctlr_solicit(fip, NULL);
 	} else
@@ -350,6 +365,8 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
 	kal->fip.fip_dl_len = htons((sizeof(kal->mac) +
 				    ports * sizeof(*vn)) / FIP_BPW);
 	kal->fip.fip_flags = htons(FIP_FL_FPMA);
+	if (fip->spma)
+		kal->fip.fip_flags |= htons(FIP_FL_SPMA);
 
 	kal->mac.fd_desc.fip_dtype = FIP_DT_MAC;
 	kal->mac.fd_desc.fip_dlen = sizeof(kal->mac) / FIP_BPW;
@@ -365,7 +382,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
 	}
 
 	skb_put(skb, len);
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	fip->send(fip, skb);
@@ -413,6 +430,8 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	cap->fip.fip_subcode = FIP_SC_REQ;
 	cap->fip.fip_dl_len = htons((dlen + sizeof(*mac)) / FIP_BPW);
 	cap->fip.fip_flags = htons(FIP_FL_FPMA);
+	if (fip->spma)
+		cap->fip.fip_flags |= htons(FIP_FL_SPMA);
 
 	cap->encaps.fd_desc.fip_dtype = dtype;
 	cap->encaps.fd_desc.fip_dlen = dlen / FIP_BPW;
@@ -421,10 +440,12 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	memset(mac, 0, sizeof(mac));
 	mac->fd_desc.fip_dtype = FIP_DT_MAC;
 	mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
-	if (dtype != ELS_FLOGI)
+	if (dtype != FIP_DT_FLOGI)
 		memcpy(mac->fd_mac, fip->data_src_addr, ETH_ALEN);
+	else if (fip->spma)
+		memcpy(mac->fd_mac, fip->ctl_src_addr, ETH_ALEN);
 
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	return 0;
@@ -447,14 +468,10 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	u16 old_xid;
 	u8 op;
 
-	if (fip->state == FIP_ST_NON_FIP)
-		return 0;
-
 	fh = (struct fc_frame_header *)skb->data;
 	op = *(u8 *)(fh + 1);
 
-	switch (op) {
-	case ELS_FLOGI:
+	if (op == ELS_FLOGI) {
 		old_xid = fip->flogi_oxid;
 		fip->flogi_oxid = ntohs(fh->fh_ox_id);
 		if (fip->state == FIP_ST_AUTO) {
@@ -466,6 +483,15 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			fip->map_dest = 1;
 			return 0;
 		}
+		if (fip->state == FIP_ST_NON_FIP)
+			fip->map_dest = 1;
+	}
+
+	if (fip->state == FIP_ST_NON_FIP)
+		return 0;
+
+	switch (op) {
+	case ELS_FLOGI:
 		op = FIP_DT_FLOGI;
 		break;
 	case ELS_FDISC:
@@ -601,7 +627,8 @@ static int fcoe_ctlr_parse_adv(struct sk_buff *skb, struct fcoe_fcf *fcf)
 			       ((struct fip_mac_desc *)desc)->fd_mac,
 			       ETH_ALEN);
 			if (!is_valid_ether_addr(fcf->fcf_mac)) {
-				FIP_DBG("invalid MAC addr in FIP adv\n");
+				LIBFCOE_FIP_DBG("Invalid MAC address "
+						"in FIP adv\n");
 				return -EINVAL;
 			}
 			break;
@@ -634,8 +661,8 @@ static int fcoe_ctlr_parse_adv(struct sk_buff *skb, struct fcoe_fcf *fcf)
 		case FIP_DT_LOGO:
 		case FIP_DT_ELP:
 		default:
-			FIP_DBG("unexpected descriptor type %x in FIP adv\n",
-				desc->fip_dtype);
+			LIBFCOE_FIP_DBG("unexpected descriptor type %x "
+					"in FIP adv\n", desc->fip_dtype);
 			/* standard says ignore unknown descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
 				return -EINVAL;
@@ -651,8 +678,8 @@ static int fcoe_ctlr_parse_adv(struct sk_buff *skb, struct fcoe_fcf *fcf)
 	return 0;
 
 len_err:
-	FIP_DBG("FIP length error in descriptor type %x len %zu\n",
-		desc->fip_dtype, dlen);
+	LIBFCOE_FIP_DBG("FIP length error in descriptor type %x len %zu\n",
+			desc->fip_dtype, dlen);
 	return -EINVAL;
 }
 
@@ -715,9 +742,10 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	}
 	mtu_valid = fcoe_ctlr_mtu_valid(fcf);
 	fcf->time = jiffies;
-	FIP_DBG_LVL(found ? 2 : 1, "%s FCF for fab %llx map %x val %d\n",
-		    found ? "old" : "new",
-		    fcf->fabric_name, fcf->fc_map, mtu_valid);
+	if (!found) {
+		LIBFCOE_FIP_DBG("New FCF for fab %llx map %x val %d\n",
+				fcf->fabric_name, fcf->fc_map, mtu_valid);
+	}
 
 	/*
 	 * If this advertisement is not solicited and our max receive size
@@ -794,7 +822,8 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			       ((struct fip_mac_desc *)desc)->fd_mac,
 			       ETH_ALEN);
 			if (!is_valid_ether_addr(granted_mac)) {
-				FIP_DBG("invalid MAC addrs in FIP ELS\n");
+				LIBFCOE_FIP_DBG("Invalid MAC address "
+						"in FIP ELS\n");
 				goto drop;
 			}
 			break;
@@ -812,8 +841,8 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			els_dtype = desc->fip_dtype;
 			break;
 		default:
-			FIP_DBG("unexpected descriptor type %x "
-				"in FIP adv\n", desc->fip_dtype);
+			LIBFCOE_FIP_DBG("unexpected descriptor type %x "
+					"in FIP adv\n", desc->fip_dtype);
 			/* standard says ignore unknown descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
 				goto drop;
@@ -854,8 +883,8 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	return;
 
 len_err:
-	FIP_DBG("FIP length error in descriptor type %x len %zu\n",
-		desc->fip_dtype, dlen);
+	LIBFCOE_FIP_DBG("FIP length error in descriptor type %x len %zu\n",
+			desc->fip_dtype, dlen);
 drop:
 	kfree_skb(skb);
 }
@@ -881,7 +910,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	struct fc_lport *lp = fip->lp;
 	u32	desc_mask;
 
-	FIP_DBG("Clear Virtual Link received\n");
+	LIBFCOE_FIP_DBG("Clear Virtual Link received\n");
 	if (!fcf)
 		return;
 	if (!fcf || !fc_host_port_id(lp->host))
@@ -939,9 +968,9 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	 * reset only if all required descriptors were present and valid.
 	 */
 	if (desc_mask) {
-		FIP_DBG("missing descriptors mask %x\n", desc_mask);
+		LIBFCOE_FIP_DBG("missing descriptors mask %x\n", desc_mask);
 	} else {
-		FIP_DBG("performing Clear Virtual Link\n");
+		LIBFCOE_FIP_DBG("performing Clear Virtual Link\n");
 		fcoe_ctlr_reset(fip, FIP_ST_ENABLED);
 	}
 }
@@ -989,10 +1018,6 @@ static int fcoe_ctlr_recv_handler(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	op = ntohs(fiph->fip_op);
 	sub = fiph->fip_subcode;
 
-	FIP_DBG_LVL(2, "ver %x op %x/%x dl %x fl %x\n",
-		    FIP_VER_DECAPS(fiph->fip_ver), op, sub,
-		    ntohs(fiph->fip_dl_len), ntohs(fiph->fip_flags));
-
 	if (FIP_VER_DECAPS(fiph->fip_ver) != FIP_VER)
 		goto drop;
 	if (ntohs(fiph->fip_dl_len) * FIP_BPW + sizeof(*fiph) > skb->len)
@@ -1004,7 +1029,7 @@ static int fcoe_ctlr_recv_handler(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		fip->map_dest = 0;
 		fip->state = FIP_ST_ENABLED;
 		state = FIP_ST_ENABLED;
-		FIP_DBG("using FIP mode\n");
+		LIBFCOE_FIP_DBG("Using FIP mode\n");
 	}
 	spin_unlock_bh(&fip->lock);
 	if (state != FIP_ST_ENABLED)
@@ -1039,14 +1064,15 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 	struct fcoe_fcf *best = NULL;
 
 	list_for_each_entry(fcf, &fip->fcfs, list) {
-		FIP_DBG("consider FCF for fab %llx VFID %d map %x val %d\n",
-			fcf->fabric_name, fcf->vfid,
-			fcf->fc_map, fcoe_ctlr_mtu_valid(fcf));
+		LIBFCOE_FIP_DBG("consider FCF for fab %llx VFID %d map %x "
+				"val %d\n", fcf->fabric_name, fcf->vfid,
+				fcf->fc_map, fcoe_ctlr_mtu_valid(fcf));
 		if (!fcoe_ctlr_fcf_usable(fcf)) {
-			FIP_DBG("FCF for fab %llx map %x %svalid %savailable\n",
-				fcf->fabric_name, fcf->fc_map,
-				(fcf->flags & FIP_FL_SOL) ? "" : "in",
-				(fcf->flags & FIP_FL_AVAIL) ? "" : "un");
+			LIBFCOE_FIP_DBG("FCF for fab %llx map %x %svalid "
+					"%savailable\n", fcf->fabric_name,
+					fcf->fc_map, (fcf->flags & FIP_FL_SOL)
+					? "" : "in", (fcf->flags & FIP_FL_AVAIL)
+					? "" : "un");
 			continue;
 		}
 		if (!best) {
@@ -1056,7 +1082,8 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 		if (fcf->fabric_name != best->fabric_name ||
 		    fcf->vfid != best->vfid ||
 		    fcf->fc_map != best->fc_map) {
-			FIP_DBG("conflicting fabric, VFID, or FC-MAP\n");
+			LIBFCOE_FIP_DBG("Conflicting fabric, VFID, "
+					"or FC-MAP\n");
 			return;
 		}
 		if (fcf->pri < best->pri)
@@ -1100,7 +1127,7 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 	if (sel != fcf) {
 		fcf = sel;		/* the old FCF may have been freed */
 		if (sel) {
-			printk(KERN_INFO "host%d: FIP selected "
+			printk(KERN_INFO "libfcoe: host%d: FIP selected "
 			       "Fibre-Channel Forwarder MAC %s\n",
 			       fip->lp->host->host_no,
 			       print_mac(buf, sel->fcf_mac));
@@ -1110,7 +1137,7 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 			fip->ctlr_ka_time = jiffies + sel->fka_period;
 			fip->link = 1;
 		} else {
-			printk(KERN_NOTICE "host%d: "
+			printk(KERN_NOTICE "libfcoe: host%d: "
 			       "FIP Fibre-Channel Forwarder timed out.  "
 			       "Starting FCF discovery.\n",
 			       fip->lp->host->host_no);
@@ -1234,7 +1261,7 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_frame *fp, u8 *sa)
 			return -EINVAL;
 		}
 		fip->state = FIP_ST_NON_FIP;
-		FIP_DBG("received FLOGI LS_ACC using non-FIP mode\n");
+		LIBFCOE_FIP_DBG("received FLOGI LS_ACC using non-FIP mode\n");
 
 		/*
 		 * FLOGI accepted.
@@ -1263,7 +1290,7 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_frame *fp, u8 *sa)
 			memcpy(fip->dest_addr, sa, ETH_ALEN);
 			fip->map_dest = 0;
 			if (fip->state == FIP_ST_NON_FIP)
-				FIP_DBG("received FLOGI REQ, "
+				LIBFCOE_FIP_DBG("received FLOGI REQ, "
 						"using non-FIP mode\n");
 			fip->state = FIP_ST_NON_FIP;
 		}

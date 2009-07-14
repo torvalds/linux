@@ -1,258 +1,165 @@
-#ifndef _ASM_GENERIC_ATOMIC_H
-#define _ASM_GENERIC_ATOMIC_H
 /*
- * Copyright (C) 2005 Silicon Graphics, Inc.
- *	Christoph Lameter
+ * Generic C implementation of atomic counter operations
+ * Originally implemented for MN10300.
  *
- * Allows to provide arch independent atomic definitions without the need to
- * edit all arch specific atomic.h files.
+ * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
+ * Written by David Howells (dhowells@redhat.com)
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public Licence
+ * as published by the Free Software Foundation; either version
+ * 2 of the Licence, or (at your option) any later version.
+ */
+#ifndef __ASM_GENERIC_ATOMIC_H
+#define __ASM_GENERIC_ATOMIC_H
+
+#ifdef CONFIG_SMP
+#error not SMP safe
+#endif
+
+/*
+ * Atomic operations that C can't guarantee us.  Useful for
+ * resource counting etc..
  */
 
-#include <asm/types.h>
+#define ATOMIC_INIT(i)	{ (i) }
 
-/*
- * Suppport for atomic_long_t
+#ifdef __KERNEL__
+
+/**
+ * atomic_read - read atomic variable
+ * @v: pointer of type atomic_t
  *
- * Casts for parameters are avoided for existing atomic functions in order to
- * avoid issues with cast-as-lval under gcc 4.x and other limitations that the
- * macros of a platform may have.
+ * Atomically reads the value of @v.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
  */
+#define atomic_read(v)	((v)->counter)
 
-#if BITS_PER_LONG == 64
+/**
+ * atomic_set - set atomic variable
+ * @v: pointer of type atomic_t
+ * @i: required value
+ *
+ * Atomically sets the value of @v to @i.  Note that the guaranteed
+ * useful range of an atomic_t is only 24 bits.
+ */
+#define atomic_set(v, i) (((v)->counter) = (i))
 
-typedef atomic64_t atomic_long_t;
+#include <asm/system.h>
 
-#define ATOMIC_LONG_INIT(i)	ATOMIC64_INIT(i)
-
-static inline long atomic_long_read(atomic_long_t *l)
+/**
+ * atomic_add_return - add integer to atomic variable
+ * @i: integer value to add
+ * @v: pointer of type atomic_t
+ *
+ * Atomically adds @i to @v and returns the result
+ * Note that the guaranteed useful range of an atomic_t is only 24 bits.
+ */
+static inline int atomic_add_return(int i, atomic_t *v)
 {
-	atomic64_t *v = (atomic64_t *)l;
+	unsigned long flags;
+	int temp;
 
-	return (long)atomic64_read(v);
+	local_irq_save(flags);
+	temp = v->counter;
+	temp += i;
+	v->counter = temp;
+	local_irq_restore(flags);
+
+	return temp;
 }
 
-static inline void atomic_long_set(atomic_long_t *l, long i)
+/**
+ * atomic_sub_return - subtract integer from atomic variable
+ * @i: integer value to subtract
+ * @v: pointer of type atomic_t
+ *
+ * Atomically subtracts @i from @v and returns the result
+ * Note that the guaranteed useful range of an atomic_t is only 24 bits.
+ */
+static inline int atomic_sub_return(int i, atomic_t *v)
 {
-	atomic64_t *v = (atomic64_t *)l;
+	unsigned long flags;
+	int temp;
 
-	atomic64_set(v, i);
+	local_irq_save(flags);
+	temp = v->counter;
+	temp -= i;
+	v->counter = temp;
+	local_irq_restore(flags);
+
+	return temp;
 }
 
-static inline void atomic_long_inc(atomic_long_t *l)
+static inline int atomic_add_negative(int i, atomic_t *v)
 {
-	atomic64_t *v = (atomic64_t *)l;
-
-	atomic64_inc(v);
+	return atomic_add_return(i, v) < 0;
 }
 
-static inline void atomic_long_dec(atomic_long_t *l)
+static inline void atomic_add(int i, atomic_t *v)
 {
-	atomic64_t *v = (atomic64_t *)l;
-
-	atomic64_dec(v);
+	atomic_add_return(i, v);
 }
 
-static inline void atomic_long_add(long i, atomic_long_t *l)
+static inline void atomic_sub(int i, atomic_t *v)
 {
-	atomic64_t *v = (atomic64_t *)l;
-
-	atomic64_add(i, v);
+	atomic_sub_return(i, v);
 }
 
-static inline void atomic_long_sub(long i, atomic_long_t *l)
+static inline void atomic_inc(atomic_t *v)
 {
-	atomic64_t *v = (atomic64_t *)l;
-
-	atomic64_sub(i, v);
+	atomic_add_return(1, v);
 }
 
-static inline int atomic_long_sub_and_test(long i, atomic_long_t *l)
+static inline void atomic_dec(atomic_t *v)
 {
-	atomic64_t *v = (atomic64_t *)l;
-
-	return atomic64_sub_and_test(i, v);
+	atomic_sub_return(1, v);
 }
 
-static inline int atomic_long_dec_and_test(atomic_long_t *l)
-{
-	atomic64_t *v = (atomic64_t *)l;
+#define atomic_dec_return(v)		atomic_sub_return(1, (v))
+#define atomic_inc_return(v)		atomic_add_return(1, (v))
 
-	return atomic64_dec_and_test(v);
+#define atomic_sub_and_test(i, v)	(atomic_sub_return((i), (v)) == 0)
+#define atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)
+#define atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
+
+#define atomic_add_unless(v, a, u)				\
+({								\
+	int c, old;						\
+	c = atomic_read(v);					\
+	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c) \
+		c = old;					\
+	c != (u);						\
+})
+
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+
+static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
+{
+	unsigned long flags;
+
+	mask = ~mask;
+	local_irq_save(flags);
+	*addr &= mask;
+	local_irq_restore(flags);
 }
 
-static inline int atomic_long_inc_and_test(atomic_long_t *l)
-{
-	atomic64_t *v = (atomic64_t *)l;
+#define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
+#define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
 
-	return atomic64_inc_and_test(v);
-}
+#define cmpxchg_local(ptr, o, n)				  	       \
+	((__typeof__(*(ptr)))__cmpxchg_local_generic((ptr), (unsigned long)(o),\
+			(unsigned long)(n), sizeof(*(ptr))))
 
-static inline int atomic_long_add_negative(long i, atomic_long_t *l)
-{
-	atomic64_t *v = (atomic64_t *)l;
+#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
 
-	return atomic64_add_negative(i, v);
-}
+/* Assume that atomic operations are already serializing */
+#define smp_mb__before_atomic_dec()	barrier()
+#define smp_mb__after_atomic_dec()	barrier()
+#define smp_mb__before_atomic_inc()	barrier()
+#define smp_mb__after_atomic_inc()	barrier()
 
-static inline long atomic_long_add_return(long i, atomic_long_t *l)
-{
-	atomic64_t *v = (atomic64_t *)l;
+#include <asm-generic/atomic-long.h>
 
-	return (long)atomic64_add_return(i, v);
-}
-
-static inline long atomic_long_sub_return(long i, atomic_long_t *l)
-{
-	atomic64_t *v = (atomic64_t *)l;
-
-	return (long)atomic64_sub_return(i, v);
-}
-
-static inline long atomic_long_inc_return(atomic_long_t *l)
-{
-	atomic64_t *v = (atomic64_t *)l;
-
-	return (long)atomic64_inc_return(v);
-}
-
-static inline long atomic_long_dec_return(atomic_long_t *l)
-{
-	atomic64_t *v = (atomic64_t *)l;
-
-	return (long)atomic64_dec_return(v);
-}
-
-static inline long atomic_long_add_unless(atomic_long_t *l, long a, long u)
-{
-	atomic64_t *v = (atomic64_t *)l;
-
-	return (long)atomic64_add_unless(v, a, u);
-}
-
-#define atomic_long_inc_not_zero(l) atomic64_inc_not_zero((atomic64_t *)(l))
-
-#define atomic_long_cmpxchg(l, old, new) \
-	(atomic64_cmpxchg((atomic64_t *)(l), (old), (new)))
-#define atomic_long_xchg(v, new) \
-	(atomic64_xchg((atomic64_t *)(v), (new)))
-
-#else  /*  BITS_PER_LONG == 64  */
-
-typedef atomic_t atomic_long_t;
-
-#define ATOMIC_LONG_INIT(i)	ATOMIC_INIT(i)
-static inline long atomic_long_read(atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return (long)atomic_read(v);
-}
-
-static inline void atomic_long_set(atomic_long_t *l, long i)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	atomic_set(v, i);
-}
-
-static inline void atomic_long_inc(atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	atomic_inc(v);
-}
-
-static inline void atomic_long_dec(atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	atomic_dec(v);
-}
-
-static inline void atomic_long_add(long i, atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	atomic_add(i, v);
-}
-
-static inline void atomic_long_sub(long i, atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	atomic_sub(i, v);
-}
-
-static inline int atomic_long_sub_and_test(long i, atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return atomic_sub_and_test(i, v);
-}
-
-static inline int atomic_long_dec_and_test(atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return atomic_dec_and_test(v);
-}
-
-static inline int atomic_long_inc_and_test(atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return atomic_inc_and_test(v);
-}
-
-static inline int atomic_long_add_negative(long i, atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return atomic_add_negative(i, v);
-}
-
-static inline long atomic_long_add_return(long i, atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return (long)atomic_add_return(i, v);
-}
-
-static inline long atomic_long_sub_return(long i, atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return (long)atomic_sub_return(i, v);
-}
-
-static inline long atomic_long_inc_return(atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return (long)atomic_inc_return(v);
-}
-
-static inline long atomic_long_dec_return(atomic_long_t *l)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return (long)atomic_dec_return(v);
-}
-
-static inline long atomic_long_add_unless(atomic_long_t *l, long a, long u)
-{
-	atomic_t *v = (atomic_t *)l;
-
-	return (long)atomic_add_unless(v, a, u);
-}
-
-#define atomic_long_inc_not_zero(l) atomic_inc_not_zero((atomic_t *)(l))
-
-#define atomic_long_cmpxchg(l, old, new) \
-	(atomic_cmpxchg((atomic_t *)(l), (old), (new)))
-#define atomic_long_xchg(v, new) \
-	(atomic_xchg((atomic_t *)(v), (new)))
-
-#endif  /*  BITS_PER_LONG == 64  */
-
-#endif  /*  _ASM_GENERIC_ATOMIC_H  */
+#endif /* __KERNEL__ */
+#endif /* __ASM_GENERIC_ATOMIC_H */

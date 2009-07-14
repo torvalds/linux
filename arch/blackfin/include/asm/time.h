@@ -37,4 +37,5 @@ extern unsigned long long __bfin_cycles_off;
 extern unsigned int __bfin_cycles_mod;
 #endif
 
+extern void __init setup_core_timer(void);
 #endif

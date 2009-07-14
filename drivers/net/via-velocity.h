@@ -1503,7 +1503,6 @@ struct velocity_info {
 
 	struct pci_dev *pdev;
 	struct net_device *dev;
-	struct net_device_stats stats;
 
 	struct vlan_group    *vlgrp;
 	u8 ip_addr[4];
