@@ -407,23 +407,23 @@ void SpinlockClose(HANDLE hSpin)
 	kfree(spin);
 }
 
-void* Physical2LogicalAddr(ULONG_PTR PhysAddr)
+void* Physical2LogicalAddr(unsigned long PhysAddr)
 {
 	void* logicalAddr = phys_to_virt(PhysAddr);
 	BUG_ON(!virt_addr_valid(logicalAddr));
 	return logicalAddr;
 }
 
-ULONG_PTR Logical2PhysicalAddr(void * LogicalAddr)
+unsigned long Logical2PhysicalAddr(void * LogicalAddr)
 {
 	BUG_ON(!virt_addr_valid(LogicalAddr));
 	return virt_to_phys(LogicalAddr);
 }
 
 
-ULONG_PTR Virtual2Physical(void * VirtAddr)
+unsigned long Virtual2Physical(void * VirtAddr)
 {
-	ULONG_PTR pfn = vmalloc_to_pfn(VirtAddr);
+	unsigned long pfn = vmalloc_to_pfn(VirtAddr);
 
 	return pfn << PAGE_SHIFT;
 }

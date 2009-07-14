@@ -233,7 +233,7 @@ HvInit (
     int maxLeaf;
 	HV_X64_MSR_HYPERCALL_CONTENTS hypercallMsr;
 	void* virtAddr=0;
-	ULONG_PTR physAddr=0;
+	unsigned long physAddr=0;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -311,7 +311,7 @@ HvInit (
 		goto Cleanup;
 	}
 
-	gHvContext.SignalEventParam = (PHV_INPUT_SIGNAL_EVENT)(ALIGN_UP((ULONG_PTR)gHvContext.SignalEventBuffer, HV_HYPERCALL_PARAM_ALIGN));
+	gHvContext.SignalEventParam = (PHV_INPUT_SIGNAL_EVENT)(ALIGN_UP((unsigned long)gHvContext.SignalEventBuffer, HV_HYPERCALL_PARAM_ALIGN));
 	gHvContext.SignalEventParam->ConnectionId.Asu32 = 0;
 	gHvContext.SignalEventParam->ConnectionId.u.Id = VMBUS_EVENT_CONNECTION_ID;
 	gHvContext.SignalEventParam->FlagNumber = 0;
@@ -407,14 +407,14 @@ HvPostMessage(
 
 	PHV_INPUT_POST_MESSAGE alignedMsg;
 	HV_STATUS status;
-	ULONG_PTR addr;
+	unsigned long addr;
 
 	if (payloadSize > HV_MESSAGE_PAYLOAD_BYTE_COUNT)
 	{
 		return -1;
 	}
 
-	addr = (ULONG_PTR)MemAllocAtomic(sizeof(struct alignedInput));
+	addr = (unsigned long)MemAllocAtomic(sizeof(struct alignedInput));
 
 	if (!addr)
 	{

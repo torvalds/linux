@@ -115,8 +115,6 @@ typedef void*				HANDLE;
 typedef u32				DWORD;
 typedef unsigned char		BYTE;
 
-typedef unsigned long		ULONG_PTR;
-
 typedef struct {
 	unsigned char	Data[16];
 } GUID;
@@ -217,12 +215,12 @@ extern void	SpinlockRelease(HANDLE hSpin);
 
 
 #define GetVirtualAddress Physical2LogicalAddr
-void* Physical2LogicalAddr(ULONG_PTR PhysAddr);
+void* Physical2LogicalAddr(unsigned long PhysAddr);
 
 #define GetPhysicalAddress Logical2PhysicalAddr
-ULONG_PTR Logical2PhysicalAddr(void * LogicalAddr);
+unsigned long Logical2PhysicalAddr(void * LogicalAddr);
 
-ULONG_PTR Virtual2Physical(void * VirtAddr);
+unsigned long Virtual2Physical(void * VirtAddr);
 
 void* PageMapVirtualAddress(unsigned long Pfn);
 void PageUnmapVirtualAddress(void* VirtAddr);

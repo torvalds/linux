@@ -79,7 +79,7 @@ VmbusConnect(
 	}
 
 	gVmbusConnection.RecvInterruptPage = gVmbusConnection.InterruptPage;
-	gVmbusConnection.SendInterruptPage = (void*)((ULONG_PTR)gVmbusConnection.InterruptPage + (PAGE_SIZE >> 1));
+	gVmbusConnection.SendInterruptPage = (void*)((unsigned long)gVmbusConnection.InterruptPage + (PAGE_SIZE >> 1));
 
 	// Setup the monitor notification facility. The 1st page for parent->child and the 2nd page for child->parent
 	gVmbusConnection.MonitorPages = PageAlloc(2);
@@ -103,7 +103,7 @@ VmbusConnect(
 	msg->VMBusVersionRequested = VMBUS_REVISION_NUMBER;
 	msg->InterruptPage = GetPhysicalAddress(gVmbusConnection.InterruptPage);
 	msg->MonitorPage1 = GetPhysicalAddress(gVmbusConnection.MonitorPages);
-	msg->MonitorPage2 = GetPhysicalAddress((void *)((ULONG_PTR)gVmbusConnection.MonitorPages + PAGE_SIZE));
+	msg->MonitorPage2 = GetPhysicalAddress((void *)((unsigned long)gVmbusConnection.MonitorPages + PAGE_SIZE));
 
 	// Add to list before we send the request since we may receive the response
 	// before returning from this routine
@@ -294,7 +294,7 @@ VmbusProcessChannelEvent(
 	)
 {
 	VMBUS_CHANNEL* channel;
-	u32 relId = (u32)(ULONG_PTR)context;
+	u32 relId = (u32)(unsigned long)context;
 
 	ASSERT(relId > 0);
 
@@ -362,7 +362,7 @@ VmbusOnEvents(
 						{
 							//QueueWorkItem(VmbusProcessEvent, (void*)relid);
 							//ret = WorkQueueQueueWorkItem(gVmbusConnection.workQueue, VmbusProcessChannelEvent, (void*)relid);
-							VmbusProcessChannelEvent((void*)(ULONG_PTR)relid);
+							VmbusProcessChannelEvent((void*)(unsigned long)relid);
 						}
 					}
 				}

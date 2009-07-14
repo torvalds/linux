@@ -298,7 +298,7 @@ NetVscInitializeReceiveBufferWithNetVsp(
 		ret = -1;
 		goto Cleanup;
 	}
-	ASSERT(((ULONG_PTR)netDevice->ReceiveBuffer & (PAGE_SIZE-1)) == 0); // page-aligned buffer
+	ASSERT(((unsigned long)netDevice->ReceiveBuffer & (PAGE_SIZE-1)) == 0); // page-aligned buffer
 
 	DPRINT_INFO(NETVSC, "Establishing receive buffer's GPADL...");
 
@@ -333,7 +333,7 @@ NetVscInitializeReceiveBufferWithNetVsp(
 	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															initPacket,
 															sizeof(NVSP_MESSAGE),
-															(ULONG_PTR)initPacket,
+															(unsigned long)initPacket,
 															VmbusPacketTypeDataInBand,
 															VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0)
@@ -425,7 +425,7 @@ NetVscInitializeSendBufferWithNetVsp(
 		ret = -1;
 		goto Cleanup;
 	}
-	ASSERT(((ULONG_PTR)netDevice->SendBuffer & (PAGE_SIZE-1)) == 0); // page-aligned buffer
+	ASSERT(((unsigned long)netDevice->SendBuffer & (PAGE_SIZE-1)) == 0); // page-aligned buffer
 
 	DPRINT_INFO(NETVSC, "Establishing send buffer's GPADL...");
 
@@ -460,7 +460,7 @@ NetVscInitializeSendBufferWithNetVsp(
 	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															initPacket,
 															sizeof(NVSP_MESSAGE),
-															(ULONG_PTR)initPacket,
+															(unsigned long)initPacket,
 															VmbusPacketTypeDataInBand,
 															VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0)
@@ -521,7 +521,7 @@ NetVscDestroyReceiveBuffer(
 		ret = NetDevice->Device->Driver->VmbusChannelInterface.SendPacket(NetDevice->Device,
 																			revokePacket,
 																			sizeof(NVSP_MESSAGE),
-																			(ULONG_PTR)revokePacket,
+																			(unsigned long)revokePacket,
 																			VmbusPacketTypeDataInBand,
 																			0);
 		// If we failed here, we might as well return and have a leak rather than continue and a bugchk
@@ -602,7 +602,7 @@ NetVscDestroySendBuffer(
 		ret = NetDevice->Device->Driver->VmbusChannelInterface.SendPacket(NetDevice->Device,
 																			revokePacket,
 																			sizeof(NVSP_MESSAGE),
-																			(ULONG_PTR)revokePacket,
+																			(unsigned long)revokePacket,
 																			VmbusPacketTypeDataInBand,
 																			0);
 		// If we failed here, we might as well return and have a leak rather than continue and a bugchk
@@ -681,7 +681,7 @@ NetVscConnectToVsp(
 	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															initPacket,
 															sizeof(NVSP_MESSAGE),
-															(ULONG_PTR)initPacket,
+															(unsigned long)initPacket,
 															VmbusPacketTypeDataInBand,
 															VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -728,7 +728,7 @@ NetVscConnectToVsp(
 	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															initPacket,
 															sizeof(NVSP_MESSAGE),
-															(ULONG_PTR)initPacket,
+															(unsigned long)initPacket,
 															VmbusPacketTypeDataInBand,
 															0);
 	if (ret != 0)
@@ -1000,7 +1000,7 @@ NetVscOnSendCompletion(
 		return;
 	}
 
-	nvspPacket = (NVSP_MESSAGE*)((ULONG_PTR)Packet + (Packet->DataOffset8 << 3));
+	nvspPacket = (NVSP_MESSAGE*)((unsigned long)Packet + (Packet->DataOffset8 << 3));
 
 	DPRINT_DBG(NETVSC, "send completion packet - type %d", nvspPacket->Header.MessageType);
 
@@ -1015,7 +1015,7 @@ NetVscOnSendCompletion(
 	else if (nvspPacket->Header.MessageType == NvspMessage1TypeSendRNDISPacketComplete)
 	{
 		// Get the send context
-		nvscPacket = (NETVSC_PACKET *)(ULONG_PTR)Packet->TransactionId;
+		nvscPacket = (NETVSC_PACKET *)(unsigned long)Packet->TransactionId;
 		ASSERT(nvscPacket);
 
 		// Notify the layer above us
@@ -1072,14 +1072,14 @@ NetVscOnSend(
 																			Packet->PageBufferCount,
 																			&sendMessage,
 																			sizeof(NVSP_MESSAGE),
-																			(ULONG_PTR)Packet);
+																			(unsigned long)Packet);
 	}
 	else
 	{
 		ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 																&sendMessage,
 																sizeof(NVSP_MESSAGE),
-																(ULONG_PTR)Packet,
+																(unsigned long)Packet,
 																VmbusPacketTypeDataInBand,
 																VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -1109,8 +1109,8 @@ NetVscOnReceive(
 	NVSP_MESSAGE *nvspPacket;
 	NETVSC_PACKET *netvscPacket=NULL;
 	LIST_ENTRY* entry;
-	ULONG_PTR start;
-	ULONG_PTR end, endVirtual;
+	unsigned long start;
+	unsigned long end, endVirtual;
 	//NETVSC_DRIVER_OBJECT *netvscDriver;
 	XFERPAGE_PACKET *xferpagePacket=NULL;
 	LIST_ENTRY listHead;
@@ -1136,7 +1136,7 @@ NetVscOnReceive(
 		return;
 	}
 
-	nvspPacket = (NVSP_MESSAGE*)((ULONG_PTR)Packet + (Packet->DataOffset8 << 3));
+	nvspPacket = (NVSP_MESSAGE*)((unsigned long)Packet + (Packet->DataOffset8 << 3));
 
 	// Make sure this is a valid nvsp packet
 	if (nvspPacket->Header.MessageType != NvspMessage1TypeSendRNDISPacket )
@@ -1230,10 +1230,10 @@ NetVscOnReceive(
 
 		netvscPacket->PageBuffers[0].Length = vmxferpagePacket->Ranges[i].ByteCount;
 
-		start = GetPhysicalAddress((void*)((ULONG_PTR)netDevice->ReceiveBuffer + vmxferpagePacket->Ranges[i].ByteOffset));
+		start = GetPhysicalAddress((void*)((unsigned long)netDevice->ReceiveBuffer + vmxferpagePacket->Ranges[i].ByteOffset));
 
 		netvscPacket->PageBuffers[0].Pfn = start >> PAGE_SHIFT;
-		endVirtual = (ULONG_PTR)netDevice->ReceiveBuffer
+		endVirtual = (unsigned long)netDevice->ReceiveBuffer
 		    + vmxferpagePacket->Ranges[i].ByteOffset
 		    + vmxferpagePacket->Ranges[i].ByteCount -1;
 		end = GetPhysicalAddress((void*)endVirtual);

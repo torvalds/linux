@@ -362,11 +362,11 @@ RndisFilterSendRequest(
 
 	packet->PageBuffers[0].Pfn = GetPhysicalAddress(&Request->RequestMessage) >> PAGE_SHIFT;
 	packet->PageBuffers[0].Length = Request->RequestMessage.MessageLength;
-	packet->PageBuffers[0].Offset = (ULONG_PTR)&Request->RequestMessage & (PAGE_SIZE -1);
+	packet->PageBuffers[0].Offset = (unsigned long)&Request->RequestMessage & (PAGE_SIZE -1);
 
 	packet->Completion.Send.SendCompletionContext = Request;//packet;
 	packet->Completion.Send.OnSendCompletion = RndisFilterOnSendRequestCompletion;
-	packet->Completion.Send.SendCompletionTid = (ULONG_PTR)Device;
+	packet->Completion.Send.SendCompletionTid = (unsigned long)Device;
 
 	ret = gRndisFilter.InnerDriver.OnSend(Device->NetDevice->Device, packet);
 	DPRINT_EXIT(NETVSC);
@@ -523,7 +523,7 @@ RndisFilterOnReceive(
 
 	rndisHeader = (RNDIS_MESSAGE*)PageMapVirtualAddress(Packet->PageBuffers[0].Pfn);
 
-	rndisHeader = (void*)((ULONG_PTR)rndisHeader + Packet->PageBuffers[0].Offset);
+	rndisHeader = (void*)((unsigned long)rndisHeader + Packet->PageBuffers[0].Offset);
 
 	// Make sure we got a valid rndis message
 	// FIXME: There seems to be a bug in set completion msg where its MessageLength is 16 bytes but
@@ -531,7 +531,7 @@ RndisFilterOnReceive(
 #if 0
 	if ( Packet->TotalDataBufferLength != rndisHeader->MessageLength )
 	{
-		PageUnmapVirtualAddress((void*)(ULONG_PTR)rndisHeader - Packet->PageBuffers[0].Offset);
+		PageUnmapVirtualAddress((void*)(unsigned long)rndisHeader - Packet->PageBuffers[0].Offset);
 
 		DPRINT_ERR(NETVSC, "invalid rndis message? (expected %u bytes got %u)...dropping this message!",
 			rndisHeader->MessageLength, Packet->TotalDataBufferLength);
@@ -548,7 +548,7 @@ RndisFilterOnReceive(
 
 	memcpy(&rndisMessage, rndisHeader, (rndisHeader->MessageLength > sizeof(RNDIS_MESSAGE))?sizeof(RNDIS_MESSAGE):rndisHeader->MessageLength);
 
-	PageUnmapVirtualAddress((void*)(ULONG_PTR)rndisHeader - Packet->PageBuffers[0].Offset);
+	PageUnmapVirtualAddress((void*)(unsigned long)rndisHeader - Packet->PageBuffers[0].Offset);
 
 	DumpRndisMessage(&rndisMessage);
 
@@ -633,7 +633,7 @@ RndisFilterQueryDevice(
 	}
 
 	memcpy(Result,
-			(void*)((ULONG_PTR)queryComplete + queryComplete->InformationBufferOffset),
+			(void*)((unsigned long)queryComplete + queryComplete->InformationBufferOffset),
 			queryComplete->InformationBufferLength);
 
 	*ResultSize = queryComplete->InformationBufferLength;
@@ -703,7 +703,7 @@ RndisFilterSetPacketFilter(
 	set->InformationBufferLength = sizeof(u32);
 	set->InformationBufferOffset = sizeof(RNDIS_SET_REQUEST);
 
-	memcpy((void*)(ULONG_PTR)set + sizeof(RNDIS_SET_REQUEST), &NewFilter, sizeof(u32));
+	memcpy((void*)(unsigned long)set + sizeof(RNDIS_SET_REQUEST), &NewFilter, sizeof(u32));
 
 	ret = RndisFilterSendRequest(Device, request);
 	if (ret != 0)
@@ -1113,7 +1113,7 @@ RndisFilterOnSend(
 
 	Packet->IsDataPacket = TRUE;
 	Packet->PageBuffers[0].Pfn		= GetPhysicalAddress(rndisMessage) >> PAGE_SHIFT;
-	Packet->PageBuffers[0].Offset	= (ULONG_PTR)rndisMessage & (PAGE_SIZE-1);
+	Packet->PageBuffers[0].Offset	= (unsigned long)rndisMessage & (PAGE_SIZE-1);
 	Packet->PageBuffers[0].Length	= rndisMessageSize;
 
 	// Save the packet send completion and context

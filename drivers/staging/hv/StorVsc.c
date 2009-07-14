@@ -388,7 +388,7 @@ static int StorVscChannelInit(DEVICE_OBJECT *Device)
 	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															vstorPacket,
 															sizeof(VSTOR_PACKET),
-															(ULONG_PTR)request,
+															(unsigned long)request,
 															VmbusPacketTypeDataInBand,
 															VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if ( ret != 0)
@@ -418,7 +418,7 @@ static int StorVscChannelInit(DEVICE_OBJECT *Device)
 	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															vstorPacket,
 															sizeof(VSTOR_PACKET),
-															(ULONG_PTR)request,
+															(unsigned long)request,
 															VmbusPacketTypeDataInBand,
 															VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if ( ret != 0)
@@ -447,7 +447,7 @@ static int StorVscChannelInit(DEVICE_OBJECT *Device)
 	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															vstorPacket,
 															sizeof(VSTOR_PACKET),
-															(ULONG_PTR)request,
+															(unsigned long)request,
 															VmbusPacketTypeDataInBand,
 															VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -481,7 +481,7 @@ static int StorVscChannelInit(DEVICE_OBJECT *Device)
 	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															vstorPacket,
 															sizeof(VSTOR_PACKET),
-															(ULONG_PTR)request,
+															(unsigned long)request,
 															VmbusPacketTypeDataInBand,
 															VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -650,7 +650,7 @@ StorVscOnHostReset(
 	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															vstorPacket,
 															sizeof(VSTOR_PACKET),
-															(ULONG_PTR)&storDevice->ResetRequest,
+															(unsigned long)&storDevice->ResetRequest,
 															VmbusPacketTypeDataInBand,
 															VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0)
@@ -752,14 +752,14 @@ StorVscOnIORequest(
 				&requestExtension->Request->DataBuffer,
 				vstorPacket,
 				sizeof(VSTOR_PACKET),
-				(ULONG_PTR)requestExtension);
+				(unsigned long)requestExtension);
 	}
 	else
 	{
 		ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
 															vstorPacket,
 															sizeof(VSTOR_PACKET),
-															(ULONG_PTR)requestExtension,
+															(unsigned long)requestExtension,
 															VmbusPacketTypeDataInBand,
 															VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
@@ -938,7 +938,7 @@ StorVscOnChannelCallback(
 
 			//ASSERT(bytesRecvd == sizeof(VSTOR_PACKET));
 
-			request = (STORVSC_REQUEST_EXTENSION*)(ULONG_PTR)requestId;
+			request = (STORVSC_REQUEST_EXTENSION*)(unsigned long)requestId;
 			ASSERT(request);
 
 			//if (vstorPacket.Flags & SYNTHETIC_FLAG)

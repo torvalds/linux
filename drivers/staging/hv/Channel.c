@@ -228,9 +228,9 @@ VmbusChannelOpen(
 	out = PageAlloc((SendRingBufferSize + RecvRingBufferSize) >> PAGE_SHIFT);
 	//out = MemAllocZeroed(sendRingBufferSize + recvRingBufferSize);
 	ASSERT(out);
-	ASSERT(((ULONG_PTR)out & (PAGE_SIZE-1)) == 0);
+	ASSERT(((unsigned long)out & (PAGE_SIZE-1)) == 0);
 
-	in = (void*)((ULONG_PTR)out + SendRingBufferSize);
+	in = (void*)((unsigned long)out + SendRingBufferSize);
 
 	NewChannel->RingBufferPages = out;
 	NewChannel->RingBufferPageCount = (SendRingBufferSize + RecvRingBufferSize) >> PAGE_SHIFT;

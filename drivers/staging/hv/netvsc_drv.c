@@ -386,7 +386,7 @@ Desc:	Send completion processing
 static void netvsc_xmit_completion(void *context)
 {
 	NETVSC_PACKET *packet = (NETVSC_PACKET *)context;
-	struct sk_buff *skb = (struct sk_buff *)(ULONG_PTR)packet->Completion.Send.SendCompletionTid;
+	struct sk_buff *skb = (struct sk_buff *)(unsigned long)packet->Completion.Send.SendCompletionTid;
 	struct net_device* net;
 
 	DPRINT_ENTER(NETVSC_DRV);
@@ -478,7 +478,7 @@ static int netvsc_start_xmit (struct sk_buff *skb, struct net_device *net)
 	// Set the completion routine
 	packet->Completion.Send.OnSendCompletion = netvsc_xmit_completion;
 	packet->Completion.Send.SendCompletionContext = packet;
-	packet->Completion.Send.SendCompletionTid = (ULONG_PTR)skb;
+	packet->Completion.Send.SendCompletionTid = (unsigned long)skb;
 
 retry_send:
 	ret = net_drv_obj->OnSend(&net_device_ctx->device_ctx->device_obj, packet);
