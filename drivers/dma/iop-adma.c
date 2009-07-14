@@ -1257,7 +1257,7 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 
 	dev_printk(KERN_INFO, &pdev->dev, "Intel(R) IOP: "
 	  "( %s%s%s%s%s%s%s%s%s%s)\n",
-	  dma_has_cap(DMA_PQ_XOR, dma_dev->cap_mask) ? "pq_xor " : "",
+	  dma_has_cap(DMA_PQ, dma_dev->cap_mask) ? "pq " : "",
 	  dma_has_cap(DMA_PQ_UPDATE, dma_dev->cap_mask) ? "pq_update " : "",
 	  dma_has_cap(DMA_PQ_VAL, dma_dev->cap_mask) ? "pq_val " : "",
 	  dma_has_cap(DMA_XOR, dma_dev->cap_mask) ? "xor " : "",

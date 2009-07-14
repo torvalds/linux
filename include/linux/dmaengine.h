@@ -52,7 +52,7 @@ enum dma_status {
 enum dma_transaction_type {
 	DMA_MEMCPY,
 	DMA_XOR,
-	DMA_PQ_XOR,
+	DMA_PQ,
 	DMA_DUAL_XOR,
 	DMA_PQ_UPDATE,
 	DMA_XOR_VAL,
@@ -70,20 +70,28 @@ enum dma_transaction_type {
 
 /**
  * enum dma_ctrl_flags - DMA flags to augment operation preparation,
- * 	control completion, and communicate status.
+ *  control completion, and communicate status.
  * @DMA_PREP_INTERRUPT - trigger an interrupt (callback) upon completion of
- * 	this transaction
+ *  this transaction
  * @DMA_CTRL_ACK - the descriptor cannot be reused until the client
- * 	acknowledges receipt, i.e. has has a chance to establish any
- * 	dependency chains
+ *  acknowledges receipt, i.e. has has a chance to establish any dependency
+ *  chains
  * @DMA_COMPL_SKIP_SRC_UNMAP - set to disable dma-unmapping the source buffer(s)
  * @DMA_COMPL_SKIP_DEST_UNMAP - set to disable dma-unmapping the destination(s)
+ * @DMA_PREP_PQ_DISABLE_P - prevent generation of P while generating Q
+ * @DMA_PREP_PQ_DISABLE_Q - prevent generation of Q while generating P
+ * @DMA_PREP_CONTINUE - indicate to a driver that it is reusing buffers as
+ *  sources that were the result of a previous operation, in the case of a PQ
+ *  operation it continues the calculation with new sources
  */
 enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
 	DMA_CTRL_ACK = (1 << 1),
 	DMA_COMPL_SKIP_SRC_UNMAP = (1 << 2),
 	DMA_COMPL_SKIP_DEST_UNMAP = (1 << 3),
+	DMA_PREP_PQ_DISABLE_P = (1 << 4),
+	DMA_PREP_PQ_DISABLE_Q = (1 << 5),
+	DMA_PREP_CONTINUE = (1 << 6),
 };
 
 /**
@@ -226,6 +234,7 @@ struct dma_async_tx_descriptor {
  * @global_node: list_head for global dma_device_list
  * @cap_mask: one or more dma_capability flags
  * @max_xor: maximum number of xor sources, 0 if no capability
+ * @max_pq: maximum number of PQ sources and PQ-continue capability
  * @dev_id: unique device ID
  * @dev: struct device reference for dma mapping api
  * @device_alloc_chan_resources: allocate resources and return the
@@ -234,6 +243,8 @@ struct dma_async_tx_descriptor {
  * @device_prep_dma_memcpy: prepares a memcpy operation
  * @device_prep_dma_xor: prepares a xor operation
  * @device_prep_dma_xor_val: prepares a xor validation operation
+ * @device_prep_dma_pq: prepares a pq operation
+ * @device_prep_dma_pq_val: prepares a pqzero_sum operation
  * @device_prep_dma_memset: prepares a memset operation
  * @device_prep_dma_interrupt: prepares an end of chain interrupt operation
  * @device_prep_slave_sg: prepares a slave dma operation
@@ -248,7 +259,9 @@ struct dma_device {
 	struct list_head channels;
 	struct list_head global_node;
 	dma_cap_mask_t  cap_mask;
-	int max_xor;
+	unsigned short max_xor;
+	unsigned short max_pq;
+	#define DMA_HAS_PQ_CONTINUE (1 << 15)
 
 	int dev_id;
 	struct device *dev;
@@ -265,6 +278,14 @@ struct dma_device {
 	struct dma_async_tx_descriptor *(*device_prep_dma_xor_val)(
 		struct dma_chan *chan, dma_addr_t *src,	unsigned int src_cnt,
 		size_t len, enum sum_check_flags *result, unsigned long flags);
+	struct dma_async_tx_descriptor *(*device_prep_dma_pq)(
+		struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
+		unsigned int src_cnt, const unsigned char *scf,
+		size_t len, unsigned long flags);
+	struct dma_async_tx_descriptor *(*device_prep_dma_pq_val)(
+		struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
+		unsigned int src_cnt, const unsigned char *scf, size_t len,
+		enum sum_check_flags *pqres, unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_memset)(
 		struct dma_chan *chan, dma_addr_t dest, int value, size_t len,
 		unsigned long flags);
@@ -282,6 +303,60 @@ struct dma_device {
 			dma_cookie_t *used);
 	void (*device_issue_pending)(struct dma_chan *chan);
 };
+
+static inline void
+dma_set_maxpq(struct dma_device *dma, int maxpq, int has_pq_continue)
+{
+	dma->max_pq = maxpq;
+	if (has_pq_continue)
+		dma->max_pq |= DMA_HAS_PQ_CONTINUE;
+}
+
+static inline bool dmaf_continue(enum dma_ctrl_flags flags)
+{
+	return (flags & DMA_PREP_CONTINUE) == DMA_PREP_CONTINUE;
+}
+
+static inline bool dmaf_p_disabled_continue(enum dma_ctrl_flags flags)
+{
+	enum dma_ctrl_flags mask = DMA_PREP_CONTINUE | DMA_PREP_PQ_DISABLE_P;
+
+	return (flags & mask) == mask;
+}
+
+static inline bool dma_dev_has_pq_continue(struct dma_device *dma)
+{
+	return (dma->max_pq & DMA_HAS_PQ_CONTINUE) == DMA_HAS_PQ_CONTINUE;
+}
+
+static unsigned short dma_dev_to_maxpq(struct dma_device *dma)
+{
+	return dma->max_pq & ~DMA_HAS_PQ_CONTINUE;
+}
+
+/* dma_maxpq - reduce maxpq in the face of continued operations
+ * @dma - dma device with PQ capability
+ * @flags - to check if DMA_PREP_CONTINUE and DMA_PREP_PQ_DISABLE_P are set
+ *
+ * When an engine does not support native continuation we need 3 extra
+ * source slots to reuse P and Q with the following coefficients:
+ * 1/ {00} * P : remove P from Q', but use it as a source for P'
+ * 2/ {01} * Q : use Q to continue Q' calculation
+ * 3/ {00} * Q : subtract Q from P' to cancel (2)
+ *
+ * In the case where P is disabled we only need 1 extra source:
+ * 1/ {01} * Q : use Q to continue Q' calculation
+ */
+static inline int dma_maxpq(struct dma_device *dma, enum dma_ctrl_flags flags)
+{
+	if (dma_dev_has_pq_continue(dma) || !dmaf_continue(flags))
+		return dma_dev_to_maxpq(dma);
+	else if (dmaf_p_disabled_continue(flags))
+		return dma_dev_to_maxpq(dma) - 1;
+	else if (dmaf_continue(flags))
+		return dma_dev_to_maxpq(dma) - 3;
+	BUG();
+}
 
 /* --- public DMA engine API --- */
 

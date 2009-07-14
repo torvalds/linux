@@ -506,7 +506,7 @@ void __init iop13xx_platform_init(void)
 			dma_cap_set(DMA_MEMSET, plat_data->cap_mask);
 			dma_cap_set(DMA_MEMCPY_CRC32C, plat_data->cap_mask);
 			dma_cap_set(DMA_INTERRUPT, plat_data->cap_mask);
-			dma_cap_set(DMA_PQ_XOR, plat_data->cap_mask);
+			dma_cap_set(DMA_PQ, plat_data->cap_mask);
 			dma_cap_set(DMA_PQ_UPDATE, plat_data->cap_mask);
 			dma_cap_set(DMA_PQ_VAL, plat_data->cap_mask);
 			break;

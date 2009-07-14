@@ -62,7 +62,7 @@ do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
 	while (src_cnt) {
 		submit->flags = flags_orig;
 		dma_flags = 0;
-		xor_src_cnt = min(src_cnt, dma->max_xor);
+		xor_src_cnt = min(src_cnt, (int)dma->max_xor);
 		/* if we are submitting additional xors, leave the chain open,
 		 * clear the callback parameters, and leave the destination
 		 * buffer mapped

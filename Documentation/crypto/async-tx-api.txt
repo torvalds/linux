@@ -64,6 +64,9 @@ xor     - xor a series of source buffers and write the result to a
 xor_val - xor a series of source buffers and set a flag if the
 	  result is zero.  The implementation attempts to prevent
 	  writes to memory
+pq	- generate the p+q (raid6 syndrome) from a series of source buffers
+pq_val  - validate that a p and or q buffer are in sync with a given series of
+	  sources
 
 3.3 Descriptor management:
 The return value is non-NULL and points to a 'descriptor' when the operation
