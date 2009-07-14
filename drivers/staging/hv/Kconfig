@@ -6,3 +6,9 @@ config HYPERV
 	  Select this option to run Linux as a Hyper-V client operating
 	  system.
 
+config HYPERV_STORAGE
+	tristate "Microsoft Hyper-V virtual storage driver"
+	depends on SCSI
+	default n
+	help
+	 Select this option to enable the Hyper-V virtual storage driver.
