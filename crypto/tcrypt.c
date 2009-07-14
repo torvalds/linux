@@ -47,6 +47,7 @@ static unsigned int sec;
 
 static char *alg = NULL;
 static u32 type;
+static u32 mask;
 static int mode;
 static char *tvmem[TVMEMSIZE];
 
@@ -887,9 +888,10 @@ static int do_test(int m)
 	return ret;
 }
 
-static int do_alg_test(const char *alg, u32 type)
+static int do_alg_test(const char *alg, u32 type, u32 mask)
 {
-	return crypto_has_alg(alg, type, CRYPTO_ALG_TYPE_MASK) ? 0 : -ENOENT;
+	return crypto_has_alg(alg, type, mask ?: CRYPTO_ALG_TYPE_MASK) ?
+	       0 : -ENOENT;
 }
 
 static int __init tcrypt_mod_init(void)
@@ -904,7 +906,7 @@ static int __init tcrypt_mod_init(void)
 	}
 
 	if (alg)
-		err = do_alg_test(alg, type);
+		err = do_alg_test(alg, type, mask);
 	else
 		err = do_test(mode);
 
@@ -941,6 +943,7 @@ module_exit(tcrypt_mod_fini);
 
 module_param(alg, charp, 0);
 module_param(type, uint, 0);
+module_param(mask, uint, 0);
 module_param(mode, int, 0);
 module_param(sec, uint, 0);
 MODULE_PARM_DESC(sec, "Length in seconds of speed tests "
