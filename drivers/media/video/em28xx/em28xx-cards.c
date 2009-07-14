@@ -1735,6 +1735,11 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		dev->sensor_xres = 640;
 		dev->sensor_yres = 480;
 		dev->sensor_xtal = 6300000;
+
+		/* probably means GRGB 16 bit bayer */
+		dev->vinmode = 0x0d;
+		dev->vinctl = 0x00;
+
 		break;
 	default:
 		printk("Unknown Micron Sensor 0x%04x\n", be16_to_cpu(version));
@@ -2413,6 +2418,12 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			__func__, errCode);
 		return errCode;
 	}
+
+	/*
+	 * Default format, used for tvp5150 or saa711x output formats
+	 */
+	dev->vinmode = 0x10;
+	dev->vinctl  = 0x11;
 
 	/*
 	 * If the device can be a webcam, seek for a sensor.

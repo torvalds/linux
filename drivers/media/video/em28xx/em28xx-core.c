@@ -648,28 +648,17 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 int em28xx_set_outfmt(struct em28xx *dev)
 {
 	int ret;
-	int vinmode, vinctl, outfmt;
-
-	outfmt  = dev->format->reg;
-
-	if (dev->board.is_webcam) {
-		vinmode = 0x0d;
-		vinctl  = 0x00;
-	} else {
-		vinmode = 0x10;
-		vinctl  = 0x11;
-	}
 
 	ret = em28xx_write_reg_bits(dev, EM28XX_R27_OUTFMT,
-				outfmt | 0x20, 0xff);
+				dev->format->reg | 0x20, 0xff);
 	if (ret < 0)
 			return ret;
 
-	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, vinmode);
+	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, dev->vinmode);
 	if (ret < 0)
 		return ret;
 
-	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctl);
+	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, dev->vinctl);
 }
 
 static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,

@@ -483,6 +483,9 @@ struct em28xx {
 	int sensor_xres, sensor_yres;
 	int sensor_xtal;
 
+	/* Vinmode/Vinctl used at the driver */
+	int vinmode, vinctl;
+
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
