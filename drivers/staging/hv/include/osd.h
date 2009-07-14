@@ -95,16 +95,6 @@ typedef struct _DLIST_ENTRY {
 } DLIST_ENTRY;
 
 //
-// unsigned types
-//
-typedef unsigned int		ULONG;
-
-//
-// signed types
-//
-typedef int					LONG;
-
-//
 // Other types
 //
 typedef unsigned long		SIZE_T;

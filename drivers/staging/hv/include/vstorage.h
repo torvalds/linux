@@ -155,7 +155,7 @@ typedef struct
     unsigned char DataIn;
     unsigned char Reserved;
 
-    ULONG DataTransferLength;
+    unsigned int DataTransferLength;
 
     union
     {
@@ -185,11 +185,11 @@ typedef struct
     //
     // Note: port number is only really known on the client side
     //
-    ULONG  PortNumber;
+    unsigned int  PortNumber;
 
-    ULONG  Flags;
+    unsigned int  Flags;
 
-    ULONG  MaxTransferBytes;
+    unsigned int  MaxTransferBytes;
 
     //
     //  This id is unique for each channel and will correspond with
@@ -249,13 +249,13 @@ typedef struct _VSTOR_PACKET
     //  Flags - see below for values
     //
 
-    ULONG     Flags;
+    unsigned int     Flags;
 
     //
     // Status of the request returned from the server side.
     //
 
-    ULONG     Status;
+    unsigned int     Status;
 
     //
     // Data payload area

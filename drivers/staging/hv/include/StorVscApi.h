@@ -117,7 +117,7 @@ typedef struct _STORVSC_DRIVER_OBJECT {
 } STORVSC_DRIVER_OBJECT;
 
 typedef struct _STORVSC_DEVICE_INFO {
-	ULONG	PortNumber;
+	unsigned int	PortNumber;
     unsigned char	PathId;
     unsigned char	TargetId;
 } STORVSC_DEVICE_INFO;

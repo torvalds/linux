@@ -62,7 +62,7 @@ typedef struct _STORVSC_DEVICE{
 
 	//  Each unique Port/Path/Target represents 1 channel ie scsi controller. In reality, the pathid, targetid is always 0
 	// and the port is set by us
-	ULONG						PortNumber;
+	unsigned int						PortNumber;
     unsigned char						PathId;
     unsigned char						TargetId;
 
