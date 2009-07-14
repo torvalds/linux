@@ -27,10 +27,10 @@
 
 #define __struct_bcount(x)
 
-#include "osd.h"
+#include "include/osd.h"
 #include "NetVsc.h"
 
-#include "rndis.h"
+#include "include/rndis.h"
 
 #define RNDIS_HEADER_SIZE	(sizeof(RNDIS_MESSAGE) - sizeof(RNDIS_MESSAGE_CONTAINER))
 

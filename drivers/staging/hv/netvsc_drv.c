@@ -20,6 +20,7 @@
  *
  */
 
+#define KERNEL_2_6_27
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -41,10 +42,10 @@
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 
-#include "logging.h"
-#include "vmbus.h"
+#include "include/logging.h"
+#include "include/vmbus.h"
 
-#include "NetVscApi.h"
+#include "include/NetVscApi.h"
 
 MODULE_LICENSE("GPL");
 
@@ -158,6 +159,14 @@ static void netvsc_set_multicast_list(UNUSED_VAR(struct net_device *net))
 }
 
 
+static const struct net_device_ops device_ops = {
+	.ndo_open = netvsc_open,
+	.ndo_stop = netvsc_close,
+	.ndo_start_xmit	= netvsc_start_xmit,
+	.ndo_get_stats = netvsc_get_stats,
+	.ndo_set_multicast_list = netvsc_set_multicast_list,
+};
+
 /*++
 
 Name:	netvsc_probe()
@@ -225,11 +234,7 @@ static int netvsc_probe(struct device *device)
 
 	memcpy(net->dev_addr, device_info.MacAddr, ETH_ALEN);
 
-	net->open				= netvsc_open;
-	net->hard_start_xmit	= netvsc_start_xmit;
-	net->stop				= netvsc_close;
-	net->get_stats			= netvsc_get_stats;
-	net->set_multicast_list = netvsc_set_multicast_list;
+	net->netdev_ops = &device_ops;
 
 #if !defined(KERNEL_2_6_27)
 	SET_MODULE_OWNER(net);

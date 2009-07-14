@@ -24,12 +24,12 @@
 #ifndef _NETVSC_H_
 #define _NETVSC_H_
 
-#include "VmbusPacketFormat.h"
-#include "nvspprotocol.h"
+#include "include/VmbusPacketFormat.h"
+#include "include/nvspprotocol.h"
 
-#include "List.h"
+#include "include/List.h"
 
-#include "NetVscApi.h"
+#include "include/NetVscApi.h"
 //
 // #defines
 //

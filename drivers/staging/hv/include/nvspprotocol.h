@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <VmbusChannelInterface.h>
+#include "VmbusChannelInterface.h"
 
 #define NVSP_INVALID_PROTOCOL_VERSION           ((UINT32)0xFFFFFFFF)
 

@@ -21,10 +21,11 @@
  *
  */
 
+#define KERNEL_2_6_27
 
-#include "logging.h"
+#include "include/logging.h"
 
-#include "NetVscApi.h"
+#include "include/NetVscApi.h"
 #include "RndisFilter.h"
 
 //
