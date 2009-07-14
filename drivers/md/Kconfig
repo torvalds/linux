@@ -124,6 +124,8 @@ config MD_RAID456
 	select MD_RAID6_PQ
 	select ASYNC_MEMCPY
 	select ASYNC_XOR
+	select ASYNC_PQ
+	select ASYNC_RAID6_RECOV
 	---help---
 	  A RAID-5 set of N drives with a capacity of C MB per drive provides
 	  the capacity of C * (N - 1) MB, and protects against a failure

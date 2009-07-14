@@ -176,7 +176,9 @@
  */
 enum check_states {
 	check_state_idle = 0,
-	check_state_run, /* parity check */
+	check_state_run, /* xor parity check */
+	check_state_run_q, /* q-parity check */
+	check_state_run_pq, /* pq dual parity check */
 	check_state_check_result,
 	check_state_compute_run, /* parity repair */
 	check_state_compute_result,
@@ -216,7 +218,7 @@ struct stripe_head {
 	 * @target - STRIPE_OP_COMPUTE_BLK target
 	 */
 	struct stripe_operations {
-		int		     target;
+		int 		     target, target2;
 		enum sum_check_flags zero_sum_result;
 	} ops;
 	struct r5dev {
@@ -299,7 +301,7 @@ struct r6_state {
 #define STRIPE_OP_COMPUTE_BLK	1
 #define STRIPE_OP_PREXOR	2
 #define STRIPE_OP_BIODRAIN	3
-#define STRIPE_OP_POSTXOR	4
+#define STRIPE_OP_RECONSTRUCT	4
 #define STRIPE_OP_CHECK	5
 
 /*
