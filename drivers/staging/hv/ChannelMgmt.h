@@ -128,27 +128,27 @@ typedef struct _VMBUS_CHANNEL_MSGINFO {
 // Routines
 //
 
-INTERNAL VMBUS_CHANNEL*
+static VMBUS_CHANNEL*
 AllocVmbusChannel(
 	void
 	);
 
-INTERNAL void
+static void
 FreeVmbusChannel(
 	VMBUS_CHANNEL *Channel
 	);
 
-INTERNAL void
+static void
 VmbusOnChannelMessage(
 	void *Context
 	);
 
-INTERNAL int
+static int
 VmbusChannelRequestOffers(
 	void
 	);
 
-INTERNAL void
+static void
 VmbusChannelReleaseUnattachedChannels(
 	void
 	);

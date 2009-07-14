@@ -27,12 +27,12 @@
 
 #include "include/VmbusApi.h"
 
-INTERNAL void
+static void
 GetChannelInterface(
 	VMBUS_CHANNEL_INTERFACE *ChannelInterface
 	);
 
-INTERNAL void
+static void
 GetChannelInfo(
 	PDEVICE_OBJECT		Device,
 	DEVICE_INFO			*DeviceInfo

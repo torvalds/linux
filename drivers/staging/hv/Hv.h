@@ -148,17 +148,17 @@ static inline void WriteMsr(int msr, UINT64 val)
 //
 // Hv Interface
 //
-INTERNAL int
+static int
 HvInit(
     VOID
     );
 
-INTERNAL VOID
+static VOID
 HvCleanup(
     VOID
     );
 
-INTERNAL HV_STATUS
+static HV_STATUS
 HvPostMessage(
 	HV_CONNECTION_ID connectionId,
 	HV_MESSAGE_TYPE  messageType,
@@ -166,17 +166,17 @@ HvPostMessage(
 	SIZE_T           payloadSize
 	);
 
-INTERNAL HV_STATUS
+static HV_STATUS
 HvSignalEvent(
 	VOID
 	);
 
-INTERNAL int
+static int
 HvSynicInit(
 	UINT32		irqVector
 	);
 
-INTERNAL VOID
+static VOID
 HvSynicCleanup(
 	VOID
 	);

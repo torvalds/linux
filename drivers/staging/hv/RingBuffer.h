@@ -69,33 +69,33 @@ typedef struct _RING_BUFFER_DEBUG_INFO {
 // Interface
 //
 
-INTERNAL int
+static int
 RingBufferInit(
 	RING_BUFFER_INFO	*RingInfo,
 	PVOID				Buffer,
 	UINT32				BufferLen
 	);
 
-INTERNAL void
+static void
 RingBufferCleanup(
 	RING_BUFFER_INFO	*RingInfo
 	);
 
-INTERNAL int
+static int
 RingBufferWrite(
 	RING_BUFFER_INFO	*RingInfo,
 	SG_BUFFER_LIST		SgBuffers[],
 	UINT32				SgBufferCount
 	);
 
-INTERNAL int
+static int
 RingBufferPeek(
 	RING_BUFFER_INFO	*RingInfo,
 	PVOID				Buffer,
 	UINT32				BufferLen
 	);
 
-INTERNAL int
+static int
 RingBufferRead(
 	RING_BUFFER_INFO	*RingInfo,
 	PVOID				Buffer,
@@ -103,18 +103,18 @@ RingBufferRead(
 	UINT32				Offset
 	);
 
-INTERNAL UINT32
+static UINT32
 GetRingBufferInterruptMask(
 	RING_BUFFER_INFO *RingInfo
 	);
 
-INTERNAL void
+static void
 DumpRingInfo(
 	RING_BUFFER_INFO* RingInfo,
 	char *Prefix
 	);
 
-INTERNAL void
+static void
 RingBufferGetDebugInfo(
 	RING_BUFFER_INFO		*RingInfo,
 	RING_BUFFER_DEBUG_INFO	*DebugInfo

@@ -23,7 +23,7 @@
 
 #include "VmbusPrivate.h"
 
-INTERNAL int
+static int
 IVmbusChannelOpen(
 	PDEVICE_OBJECT		Device,
 	UINT32				SendBufferSize,
@@ -44,7 +44,7 @@ IVmbusChannelOpen(
 }
 
 
-INTERNAL void
+static void
 IVmbusChannelClose(
 	PDEVICE_OBJECT		Device
 	)
@@ -53,7 +53,7 @@ IVmbusChannelClose(
 }
 
 
-INTERNAL int
+static int
 IVmbusChannelSendPacket(
 	PDEVICE_OBJECT		Device,
 	const PVOID			Buffer,
@@ -71,7 +71,7 @@ IVmbusChannelSendPacket(
 									Flags);
 }
 
-INTERNAL int
+static int
 IVmbusChannelSendPacketPageBuffer(
 	PDEVICE_OBJECT		Device,
 	PAGE_BUFFER			PageBuffers[],
@@ -89,7 +89,7 @@ IVmbusChannelSendPacketPageBuffer(
 												RequestId);
 }
 
-INTERNAL int
+static int
 IVmbusChannelSendPacketMultiPageBuffer(
 	PDEVICE_OBJECT		Device,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
@@ -105,7 +105,7 @@ IVmbusChannelSendPacketMultiPageBuffer(
 													RequestId);
 }
 
-INTERNAL int
+static int
 IVmbusChannelRecvPacket (
 	PDEVICE_OBJECT		Device,
 	PVOID				Buffer,
@@ -121,7 +121,7 @@ IVmbusChannelRecvPacket (
 									RequestId);
 }
 
-INTERNAL int
+static int
 IVmbusChannelRecvPacketRaw(
 	PDEVICE_OBJECT		Device,
 	PVOID				Buffer,
@@ -137,7 +137,7 @@ IVmbusChannelRecvPacketRaw(
 										RequestId);
 }
 
-INTERNAL int
+static int
 IVmbusChannelEstablishGpadl(
 	PDEVICE_OBJECT		Device,
 	PVOID				Buffer,
@@ -151,7 +151,7 @@ IVmbusChannelEstablishGpadl(
 										GpadlHandle);
 }
 
-INTERNAL int
+static int
 IVmbusChannelTeardownGpadl(
    PDEVICE_OBJECT		Device,
    UINT32				GpadlHandle
@@ -162,7 +162,7 @@ IVmbusChannelTeardownGpadl(
 
 }
 
-INTERNAL void
+static void
 GetChannelInterface(
 	VMBUS_CHANNEL_INTERFACE *ChannelInterface
 	)
@@ -180,7 +180,7 @@ GetChannelInterface(
 }
 
 
-INTERNAL void
+static void
 GetChannelInfo(
 	PDEVICE_OBJECT		Device,
 	DEVICE_INFO			*DeviceInfo

@@ -25,10 +25,6 @@
 #ifndef _VMBUS_PRIVATE_H_
 #define _VMBUS_PRIVATE_H_
 
-#ifndef INTERNAL
-#define INTERNAL static
-#endif
-
 #include "Hv.h"
 #include "include/VmbusApi.h"
 #include "Channel.h"
@@ -114,25 +110,25 @@ extern VMBUS_CONNECTION gVmbusConnection;
 //
 // General vmbus interface
 //
-INTERNAL DEVICE_OBJECT*
+static DEVICE_OBJECT*
 VmbusChildDeviceCreate(
 	GUID deviceType,
 	GUID deviceInstance,
 	void *context);
 
-INTERNAL int
+static int
 VmbusChildDeviceAdd(
 	DEVICE_OBJECT* Device);
 
-INTERNAL void
+static void
 VmbusChildDeviceRemove(
    DEVICE_OBJECT* Device);
 
-//INTERNAL void
+//static void
 //VmbusChildDeviceDestroy(
 //	DEVICE_OBJECT*);
 
-INTERNAL VMBUS_CHANNEL*
+static VMBUS_CHANNEL*
 GetChannelFromRelId(
 	UINT32 relId
 	);
@@ -140,28 +136,28 @@ GetChannelFromRelId(
 //
 // Connection interface
 //
-INTERNAL int
+static int
 VmbusConnect(
 	VOID
 	);
 
-INTERNAL int
+static int
 VmbusDisconnect(
 	VOID
 	);
 
-INTERNAL int
+static int
 VmbusPostMessage(
 	PVOID			buffer,
 	SIZE_T			bufSize
 	);
 
-INTERNAL int
+static int
 VmbusSetEvent(
 	UINT32 childRelId
 	);
 
-INTERNAL VOID
+static VOID
 VmbusOnEvents(
   VOID
 	);
