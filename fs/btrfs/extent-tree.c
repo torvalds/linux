@@ -3649,7 +3649,6 @@ refill_cluster:
 			goto loop;
 checks:
 		search_start = stripe_align(root, offset);
-
 		/* move on to the next group */
 		if (search_start + num_bytes >= search_end) {
 			btrfs_add_free_space(block_group, offset, num_bytes);
@@ -7040,6 +7039,16 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		mutex_init(&cache->cache_mutex);
 		INIT_LIST_HEAD(&cache->list);
 		INIT_LIST_HEAD(&cache->cluster_list);
+		cache->sectorsize = root->sectorsize;
+
+		/*
+		 * we only want to have 32k of ram per block group for keeping
+		 * track of free space, and if we pass 1/2 of that we want to
+		 * start converting things over to using bitmaps
+		 */
+		cache->extents_thresh = ((1024 * 32) / 2) /
+			sizeof(struct btrfs_free_space);
+
 		read_extent_buffer(leaf, &cache->item,
 				   btrfs_item_ptr_offset(leaf, path->slots[0]),
 				   sizeof(cache->item));
@@ -7091,6 +7100,15 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	cache->key.objectid = chunk_offset;
 	cache->key.offset = size;
 	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
+	cache->sectorsize = root->sectorsize;
+
+	/*
+	 * we only want to have 32k of ram per block group for keeping track
+	 * of free space, and if we pass 1/2 of that we want to start
+	 * converting things over to using bitmaps
+	 */
+	cache->extents_thresh = ((1024 * 32) / 2) /
+		sizeof(struct btrfs_free_space);
 	atomic_set(&cache->count, 1);
 	spin_lock_init(&cache->lock);
 	spin_lock_init(&cache->tree_lock);
@@ -7102,6 +7120,11 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	btrfs_set_block_group_chunk_objectid(&cache->item, chunk_objectid);
 	cache->flags = type;
 	btrfs_set_block_group_flags(&cache->item, type);
+
+	cache->cached = 1;
+	ret = btrfs_add_free_space(cache, chunk_offset, size);
+	BUG_ON(ret);
+	remove_sb_from_cache(root, cache);
 
 	ret = update_space_info(root->fs_info, cache->flags, size, bytes_used,
 				&cache->space_info);
