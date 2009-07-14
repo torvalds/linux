@@ -141,7 +141,7 @@ C_ASSERT(SENSE_BUFFER_SIZE == 0x12);
 
 typedef struct
 {
-    USHORT Length;
+    unsigned short Length;
     unsigned char SrbStatus;
     unsigned char ScsiStatus;
 
@@ -178,7 +178,7 @@ C_ASSERT((sizeof(VMSCSI_REQUEST) % 4) == 0);
 
 typedef struct
 {
-    USHORT ProtocolVersion;
+    unsigned short ProtocolVersion;
     unsigned char  PathId;
     unsigned char  TargetId;
 
@@ -213,7 +213,7 @@ typedef struct
     // Major (MSW) and minor (LSW) version numbers.
     //
 
-    USHORT MajorMinor;
+    unsigned short MajorMinor;
 
 
     //
@@ -222,7 +222,7 @@ typedef struct
     // indicate incompatibility--but it does indicate mismatched builds.
     //
 
-    USHORT Revision;
+    unsigned short Revision;
 
 } VMSTORAGE_PROTOCOL_VERSION, *PVMSTORAGE_PROTOCOL_VERSION;
 

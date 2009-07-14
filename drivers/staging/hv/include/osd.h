@@ -100,7 +100,6 @@ typedef struct _DLIST_ENTRY {
 
 typedef unsigned long long	ULONGLONG;
 typedef unsigned int		ULONG;
-typedef unsigned short		USHORT;
 
 //
 // signed types
