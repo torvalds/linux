@@ -71,17 +71,17 @@ typedef enum _STORVSC_REQUEST_TYPE{
 
 typedef struct _STORVSC_REQUEST {
 	STORVSC_REQUEST_TYPE		Type;
-	UINT32					Host;
-	UINT32					Bus;
-	UINT32					TargetId;
-	UINT32					LunId;
+	u32					Host;
+	u32					Bus;
+	u32					TargetId;
+	u32					LunId;
 	u8 *					Cdb;
-	UINT32					CdbLen;
-	UINT32					Status;
-	UINT32					BytesXfer;
+	u32					CdbLen;
+	u32					Status;
+	u32					BytesXfer;
 
 	UCHAR*					SenseBuffer;
-	UINT32					SenseBufferSize;
+	u32					SenseBufferSize;
 
 	void *					Context;
 
@@ -99,13 +99,13 @@ typedef struct _STORVSC_DRIVER_OBJECT {
 	DRIVER_OBJECT			Base; // Must be the first field
 
 	// Set by caller (in bytes)
-	UINT32					RingBufferSize;
+	u32					RingBufferSize;
 
 	// Allocate this much private extension for each I/O request
-	UINT32					RequestExtSize;
+	u32					RequestExtSize;
 
 	// Maximum # of requests in flight per channel/device
-	UINT32					MaxOutstandingRequestsPerChannel;
+	u32					MaxOutstandingRequestsPerChannel;
 
 	// Set by the caller to allow us to re-enumerate the bus on the host
 	PFN_ON_HOST_RESCAN		OnHostRescan;

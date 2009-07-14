@@ -64,7 +64,7 @@ typedef struct _VMBUS_CONNECTION {
 
 	VMBUS_CONNECT_STATE					ConnectState;
 
-	UINT32								NextGpadlHandle;
+	u32								NextGpadlHandle;
 
 	// Represents channel interrupts. Each bit position
 	// represents a channel.
@@ -130,7 +130,7 @@ VmbusChildDeviceRemove(
 
 static VMBUS_CHANNEL*
 GetChannelFromRelId(
-	UINT32 relId
+	u32 relId
 	);
 
 //
@@ -154,7 +154,7 @@ VmbusPostMessage(
 
 static int
 VmbusSetEvent(
-	UINT32 childRelId
+	u32 childRelId
 	);
 
 static void

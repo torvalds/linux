@@ -41,9 +41,9 @@ typedef enum _HV_CALL_CODE
 typedef struct _HV_INPUT_POST_MESSAGE
 {
     HV_CONNECTION_ID    ConnectionId;
-    UINT32              Reserved;
+    u32              Reserved;
     HV_MESSAGE_TYPE     MessageType;
-    UINT32              PayloadSize;
+    u32              PayloadSize;
     UINT64              Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
 } HV_INPUT_POST_MESSAGE, *PHV_INPUT_POST_MESSAGE;
 

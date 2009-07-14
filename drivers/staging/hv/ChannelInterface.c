@@ -26,10 +26,10 @@
 static int
 IVmbusChannelOpen(
 	PDEVICE_OBJECT		Device,
-	UINT32				SendBufferSize,
-	UINT32				RecvRingBufferSize,
+	u32				SendBufferSize,
+	u32				RecvRingBufferSize,
 	void *				UserData,
-	UINT32				UserDataLen,
+	u32				UserDataLen,
 	VMBUS_CHANNEL_CALLBACK ChannelCallback,
 	void *				Context
 	)
@@ -57,10 +57,10 @@ static int
 IVmbusChannelSendPacket(
 	PDEVICE_OBJECT		Device,
 	const void *			Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId,
-	UINT32				Type,
-	UINT32				Flags
+	u32				Type,
+	u32				Flags
 	)
 {
 	return VmbusChannelSendPacket((VMBUS_CHANNEL*)Device->context,
@@ -75,9 +75,9 @@ static int
 IVmbusChannelSendPacketPageBuffer(
 	PDEVICE_OBJECT		Device,
 	PAGE_BUFFER			PageBuffers[],
-	UINT32				PageCount,
+	u32				PageCount,
 	void *				Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId
 	)
 {
@@ -94,7 +94,7 @@ IVmbusChannelSendPacketMultiPageBuffer(
 	PDEVICE_OBJECT		Device,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId
 	)
 {
@@ -109,8 +109,8 @@ static int
 IVmbusChannelRecvPacket (
 	PDEVICE_OBJECT		Device,
 	void *				Buffer,
-	UINT32				BufferLen,
-	UINT32*				BufferActualLen,
+	u32				BufferLen,
+	u32*				BufferActualLen,
 	UINT64*				RequestId
 	)
 {
@@ -125,8 +125,8 @@ static int
 IVmbusChannelRecvPacketRaw(
 	PDEVICE_OBJECT		Device,
 	void *				Buffer,
-	UINT32				BufferLen,
-	UINT32*				BufferActualLen,
+	u32				BufferLen,
+	u32*				BufferActualLen,
 	UINT64*				RequestId
 	)
 {
@@ -141,8 +141,8 @@ static int
 IVmbusChannelEstablishGpadl(
 	PDEVICE_OBJECT		Device,
 	void *				Buffer,
-	UINT32				BufferLen,
-	UINT32*				GpadlHandle
+	u32				BufferLen,
+	u32*				GpadlHandle
 	)
 {
 	return VmbusChannelEstablishGpadl((VMBUS_CHANNEL*)Device->context,
@@ -154,7 +154,7 @@ IVmbusChannelEstablishGpadl(
 static int
 IVmbusChannelTeardownGpadl(
    PDEVICE_OBJECT		Device,
-   UINT32				GpadlHandle
+   u32				GpadlHandle
 	)
 {
 	return VmbusChannelTeardownGpadl((VMBUS_CHANNEL*)Device->context,

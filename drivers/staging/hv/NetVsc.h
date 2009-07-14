@@ -66,15 +66,15 @@ typedef struct _NETVSC_DEVICE {
 
 	// Send buffer allocated by us but manages by NetVSP
 	void *							SendBuffer;
-	UINT32							SendBufferSize;
-	UINT32							SendBufferGpadlHandle;
-	UINT32							SendSectionSize;
+	u32							SendBufferSize;
+	u32							SendBufferGpadlHandle;
+	u32							SendSectionSize;
 
 	// Receive buffer allocated by us but manages by NetVSP
 	void *							ReceiveBuffer;
-	UINT32							ReceiveBufferSize;
-	UINT32							ReceiveBufferGpadlHandle;
-	UINT32							ReceiveSectionCount;
+	u32							ReceiveBufferSize;
+	u32							ReceiveBufferGpadlHandle;
+	u32							ReceiveSectionCount;
 	PNVSP_1_RECEIVE_BUFFER_SECTION	ReceiveSections;
 
 	// Used for NetVSP initialization protocol

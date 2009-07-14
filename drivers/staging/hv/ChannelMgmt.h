@@ -56,11 +56,11 @@ typedef struct _VMBUS_CHANNEL {
 	u8						MonitorGroup;
 	u8						MonitorBit;
 
-	UINT32						RingBufferGpadlHandle;
+	u32						RingBufferGpadlHandle;
 
 	// Allocated memory for ring buffer
 	void *						RingBufferPages;
-	UINT32						RingBufferPageCount;
+	u32						RingBufferPageCount;
 	RING_BUFFER_INFO			Outbound;	// send to parent
 	RING_BUFFER_INFO			Inbound;	// receive from parent
 	HANDLE						InboundLock;
@@ -76,17 +76,17 @@ typedef struct _VMBUS_CHANNEL {
 
 
 typedef struct _VMBUS_CHANNEL_DEBUG_INFO {
-	UINT32						RelId;
+	u32						RelId;
 	VMBUS_CHANNEL_STATE			State;
 	GUID						InterfaceType;
     GUID						InterfaceInstance;
-	UINT32						MonitorId;
-	UINT32						ServerMonitorPending;
-	UINT32						ServerMonitorLatency;
-	UINT32						ServerMonitorConnectionId;
-	UINT32						ClientMonitorPending;
-	UINT32						ClientMonitorLatency;
-	UINT32						ClientMonitorConnectionId;
+	u32						MonitorId;
+	u32						ServerMonitorPending;
+	u32						ServerMonitorLatency;
+	u32						ServerMonitorConnectionId;
+	u32						ClientMonitorPending;
+	u32						ClientMonitorLatency;
+	u32						ClientMonitorConnectionId;
 
 	RING_BUFFER_DEBUG_INFO		Inbound;
 	RING_BUFFER_DEBUG_INFO		Outbound;
@@ -117,7 +117,7 @@ typedef struct _VMBUS_CHANNEL_MSGINFO {
 
 	VMBUS_CHANNEL_MESSAGE_RESPONSE Response;
 
-	UINT32			MessageSize;
+	u32			MessageSize;
 	// The channel message that goes out on the "wire".
 	// It will contain at minimum the VMBUS_CHANNEL_MESSAGE_HEADER header
 	unsigned char	Msg[0];

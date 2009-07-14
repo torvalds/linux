@@ -908,7 +908,7 @@ StorVscOnChannelCallback(
 	int ret=0;
 	DEVICE_OBJECT *device = (DEVICE_OBJECT*)Context;
 	STORVSC_DEVICE *storDevice;
-	UINT32 bytesRecvd;
+	u32 bytesRecvd;
 	UINT64 requestId;
 	UCHAR packet[ALIGN_UP(sizeof(VSTOR_PACKET),8)];
 	STORVSC_REQUEST_EXTENSION *request;

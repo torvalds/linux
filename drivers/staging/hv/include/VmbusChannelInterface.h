@@ -67,8 +67,8 @@ typedef struct
     GUID    InterfaceType;
     GUID    InterfaceInstance;
     UINT64  InterruptLatencyIn100nsUnits;
-    UINT32  InterfaceRevision;
-    UINT32  ServerContextAreaSize;  // in bytes
+    u32  InterfaceRevision;
+    u32  ServerContextAreaSize;  // in bytes
     u16  ChannelFlags;
     u16  MmioMegabytes;          // in bytes * 1024 * 1024
 
@@ -89,11 +89,11 @@ typedef struct
         //
         struct
         {
-            UINT32  PipeMode;
+            u32  PipeMode;
             UCHAR   UserDefined[MAX_PIPE_USER_DEFINED_BYTES];
         } Pipe;
     } u;
-	UINT32	Padding;
+	u32	Padding;
 } VMBUS_CHANNEL_OFFER, *PVMBUS_CHANNEL_OFFER;
 #pragma pack(pop)
 
@@ -107,7 +107,7 @@ typedef struct
 //          FIELD_OFFSET(VMBUS_CHANNEL_OFFER, u.Standard.UserDefined)));
 //
 
-typedef UINT32 GPADL_HANDLE;
+typedef u32 GPADL_HANDLE;
 
 //
 // Server Flags

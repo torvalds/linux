@@ -28,21 +28,21 @@
 //
 //  Basic types
 //
-typedef UINT32                                  RNDIS_REQUEST_ID;
-typedef UINT32                                  RNDIS_HANDLE;
-typedef UINT32                                  RNDIS_STATUS;
-typedef UINT32                                  RNDIS_REQUEST_TYPE;
-typedef UINT32                                  RNDIS_OID;
-typedef UINT32                                  RNDIS_CLASS_ID;
-typedef UINT32                                  RNDIS_MEDIUM;
-typedef UINT32                                  *PRNDIS_REQUEST_ID;
-typedef UINT32                                  *PRNDIS_HANDLE;
-typedef UINT32                                  *PRNDIS_STATUS;
-typedef UINT32                                  *PRNDIS_REQUEST_TYPE;
-typedef UINT32                                  *PRNDIS_OID;
-typedef UINT32                                  *PRNDIS_CLASS_ID;
-typedef UINT32                                  *PRNDIS_MEDIUM;
-typedef UINT32                                  RNDIS_AF;
+typedef u32                                  RNDIS_REQUEST_ID;
+typedef u32                                  RNDIS_HANDLE;
+typedef u32                                  RNDIS_STATUS;
+typedef u32                                  RNDIS_REQUEST_TYPE;
+typedef u32                                  RNDIS_OID;
+typedef u32                                  RNDIS_CLASS_ID;
+typedef u32                                  RNDIS_MEDIUM;
+typedef u32                                  *PRNDIS_REQUEST_ID;
+typedef u32                                  *PRNDIS_HANDLE;
+typedef u32                                  *PRNDIS_STATUS;
+typedef u32                                  *PRNDIS_REQUEST_TYPE;
+typedef u32                                  *PRNDIS_OID;
+typedef u32                                  *PRNDIS_CLASS_ID;
+typedef u32                                  *PRNDIS_MEDIUM;
+typedef u32                                  RNDIS_AF;
 
 //
 //  Status codes
@@ -369,9 +369,9 @@ typedef UINT32                                  RNDIS_AF;
 typedef struct _RNDIS_INITIALIZE_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
-    UINT32                                  MajorVersion;
-    UINT32                                  MinorVersion;
-    UINT32                                  MaxTransferSize;
+    u32                                  MajorVersion;
+    u32                                  MinorVersion;
+    u32                                  MaxTransferSize;
 } RNDIS_INITIALIZE_REQUEST, *PRNDIS_INITIALIZE_REQUEST;
 
 
@@ -382,15 +382,15 @@ typedef struct _RNDIS_INITIALIZE_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
     RNDIS_STATUS                            Status;
-    UINT32                                  MajorVersion;
-    UINT32                                  MinorVersion;
-    UINT32                                  DeviceFlags;
+    u32                                  MajorVersion;
+    u32                                  MinorVersion;
+    u32                                  DeviceFlags;
     RNDIS_MEDIUM                            Medium;
-    UINT32                                  MaxPacketsPerMessage;
-    UINT32                                  MaxTransferSize;
-    UINT32                                  PacketAlignmentFactor;
-    UINT32                                  AFListOffset;
-    UINT32                                  AFListSize;
+    u32                                  MaxPacketsPerMessage;
+    u32                                  MaxTransferSize;
+    u32                                  PacketAlignmentFactor;
+    u32                                  AFListOffset;
+    u32                                  AFListSize;
 } RNDIS_INITIALIZE_COMPLETE, *PRNDIS_INITIALIZE_COMPLETE;
 
 
@@ -401,8 +401,8 @@ typedef struct _RNDIS_INITIALIZE_COMPLETE
 typedef struct _RNDIS_CO_ADDRESS_FAMILY
 {
     RNDIS_AF                                AddressFamily;
-    UINT32                                  MajorVersion;
-    UINT32                                  MinorVersion;
+    u32                                  MajorVersion;
+    u32                                  MinorVersion;
 } RNDIS_CO_ADDRESS_FAMILY, *PRNDIS_CO_ADDRESS_FAMILY;
 
 
@@ -422,8 +422,8 @@ typedef struct _RNDIS_QUERY_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
     RNDIS_OID                               Oid;
-    UINT32                                  InformationBufferLength;
-    UINT32                                  InformationBufferOffset;
+    u32                                  InformationBufferLength;
+    u32                                  InformationBufferOffset;
     RNDIS_HANDLE                            DeviceVcHandle;
 } RNDIS_QUERY_REQUEST, *PRNDIS_QUERY_REQUEST;
 
@@ -435,8 +435,8 @@ typedef struct _RNDIS_QUERY_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
     RNDIS_STATUS                            Status;
-    UINT32                                  InformationBufferLength;
-    UINT32                                  InformationBufferOffset;
+    u32                                  InformationBufferLength;
+    u32                                  InformationBufferOffset;
 } RNDIS_QUERY_COMPLETE, *PRNDIS_QUERY_COMPLETE;
 
 
@@ -447,8 +447,8 @@ typedef struct _RNDIS_SET_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
     RNDIS_OID                               Oid;
-    UINT32                                  InformationBufferLength;
-    UINT32                                  InformationBufferOffset;
+    u32                                  InformationBufferLength;
+    u32                                  InformationBufferOffset;
     RNDIS_HANDLE                            DeviceVcHandle;
 } RNDIS_SET_REQUEST, *PRNDIS_SET_REQUEST;
 
@@ -468,7 +468,7 @@ typedef struct _RNDIS_SET_COMPLETE
 //
 typedef struct _RNDIS_RESET_REQUEST
 {
-    UINT32                                  Reserved;
+    u32                                  Reserved;
 } RNDIS_RESET_REQUEST, *PRNDIS_RESET_REQUEST;
 
 //
@@ -477,7 +477,7 @@ typedef struct _RNDIS_RESET_REQUEST
 typedef struct _RNDIS_RESET_COMPLETE
 {
     RNDIS_STATUS                            Status;
-    UINT32                                  AddressingReset;
+    u32                                  AddressingReset;
 } RNDIS_RESET_COMPLETE, *PRNDIS_RESET_COMPLETE;
 
 
@@ -487,8 +487,8 @@ typedef struct _RNDIS_RESET_COMPLETE
 typedef struct _RNDIS_INDICATE_STATUS
 {
     RNDIS_STATUS                            Status;
-    UINT32                                  StatusBufferLength;
-    UINT32                                  StatusBufferOffset;
+    u32                                  StatusBufferLength;
+    u32                                  StatusBufferOffset;
 } RNDIS_INDICATE_STATUS, *PRNDIS_INDICATE_STATUS;
 
 
@@ -499,7 +499,7 @@ typedef struct _RNDIS_INDICATE_STATUS
 typedef struct _RNDIS_DIAGNOSTIC_INFO
 {
     RNDIS_STATUS                            DiagStatus;
-    UINT32                                  ErrorOffset;
+    u32                                  ErrorOffset;
 } RNDIS_DIAGNOSTIC_INFO, *PRNDIS_DIAGNOSTIC_INFO;
 
 
@@ -531,15 +531,15 @@ typedef struct _RNDIS_KEEPALIVE_COMPLETE
 //
 typedef struct _RNDIS_PACKET
 {
-    UINT32                                  DataOffset;
-    UINT32                                  DataLength;
-    UINT32                                  OOBDataOffset;
-    UINT32                                  OOBDataLength;
-    UINT32                                  NumOOBDataElements;
-    UINT32                                  PerPacketInfoOffset;
-    UINT32                                  PerPacketInfoLength;
+    u32                                  DataOffset;
+    u32                                  DataLength;
+    u32                                  OOBDataOffset;
+    u32                                  OOBDataLength;
+    u32                                  NumOOBDataElements;
+    u32                                  PerPacketInfoOffset;
+    u32                                  PerPacketInfoLength;
     RNDIS_HANDLE                            VcHandle;
-    UINT32                                  Reserved;
+    u32                                  Reserved;
 } RNDIS_PACKET, *PRNDIS_PACKET;
 
 //
@@ -547,9 +547,9 @@ typedef struct _RNDIS_PACKET
 //
 typedef struct _RNDIS_OOBD
 {
-    UINT32                                  Size;
+    u32                                  Size;
     RNDIS_CLASS_ID                          Type;
-    UINT32                                  ClassInformationOffset;
+    u32                                  ClassInformationOffset;
 } RNDIS_OOBD, *PRNDIS_OOBD;
 
 //
@@ -557,9 +557,9 @@ typedef struct _RNDIS_OOBD
 //
 typedef struct _RNDIS_PER_PACKET_INFO
 {
-    UINT32                                  Size;
-    UINT32                                  Type;
-    UINT32                                  PerPacketInformationOffset;
+    u32                                  Size;
+    u32                                  Type;
+    u32                                  PerPacketInformationOffset;
 } RNDIS_PER_PACKET_INFO, *PRNDIS_PER_PACKET_INFO;
 
 
@@ -569,11 +569,11 @@ typedef struct _RNDIS_PER_PACKET_INFO
 //
 typedef struct _RNDIS_CONFIG_PARAMETER_INFO
 {
-    UINT32                                  ParameterNameOffset;
-    UINT32                                  ParameterNameLength;
-    UINT32                                  ParameterType;
-    UINT32                                  ParameterValueOffset;
-    UINT32                                  ParameterValueLength;
+    u32                                  ParameterNameOffset;
+    u32                                  ParameterNameLength;
+    u32                                  ParameterType;
+    u32                                  ParameterValueOffset;
+    u32                                  ParameterValueLength;
 } RNDIS_CONFIG_PARAMETER_INFO, *PRNDIS_CONFIG_PARAMETER_INFO;
 
 //
@@ -636,8 +636,8 @@ typedef struct _RCONDIS_MP_QUERY_REQUEST
     RNDIS_REQUEST_TYPE                      RequestType;
     RNDIS_OID                               Oid;
     RNDIS_HANDLE                            DeviceVcHandle;
-    UINT32                                  InformationBufferLength;
-    UINT32                                  InformationBufferOffset;
+    u32                                  InformationBufferLength;
+    u32                                  InformationBufferOffset;
 } RCONDIS_MP_QUERY_REQUEST, *PRCONDIS_MP_QUERY_REQUEST;
 
 
@@ -650,8 +650,8 @@ typedef struct _RCONDIS_MP_SET_REQUEST
     RNDIS_REQUEST_TYPE                      RequestType;
     RNDIS_OID                               Oid;
     RNDIS_HANDLE                            DeviceVcHandle;
-    UINT32                                  InformationBufferLength;
-    UINT32                                  InformationBufferOffset;
+    u32                                  InformationBufferLength;
+    u32                                  InformationBufferOffset;
 } RCONDIS_MP_SET_REQUEST, *PRCONDIS_MP_SET_REQUEST;
 
 
@@ -662,8 +662,8 @@ typedef struct _RCONDIS_INDICATE_STATUS
 {
     RNDIS_HANDLE                            NdisVcHandle;
     RNDIS_STATUS                            Status;
-    UINT32                                  StatusBufferLength;
-    UINT32                                  StatusBufferOffset;
+    u32                                  StatusBufferLength;
+    u32                                  StatusBufferOffset;
 } RCONDIS_INDICATE_STATUS, *PRCONDIS_INDICATE_STATUS;
 
 
@@ -673,30 +673,30 @@ typedef struct _RCONDIS_INDICATE_STATUS
 
 typedef struct _RCONDIS_SPECIFIC_PARAMETERS
 {
-    UINT32                                  ParameterType;
-    UINT32                                  ParameterLength;
-    UINT32                                  ParameterOffset;
+    u32                                  ParameterType;
+    u32                                  ParameterLength;
+    u32                                  ParameterOffset;
 } RCONDIS_SPECIFIC_PARAMETERS, *PRCONDIS_SPECIFIC_PARAMETERS;
 
 typedef struct _RCONDIS_MEDIA_PARAMETERS
 {
-    UINT32                                  Flags;
-    UINT32                                  Reserved1;
-    UINT32                                  Reserved2;
+    u32                                  Flags;
+    u32                                  Reserved1;
+    u32                                  Reserved2;
     RCONDIS_SPECIFIC_PARAMETERS             MediaSpecific;
 } RCONDIS_MEDIA_PARAMETERS, *PRCONDIS_MEDIA_PARAMETERS;
 
 
 typedef struct _RNDIS_FLOWSPEC
 {
-    UINT32                                  TokenRate;
-    UINT32                                  TokenBucketSize;
-    UINT32                                  PeakBandwidth;
-    UINT32                                  Latency;
-    UINT32                                  DelayVariation;
-    UINT32                                  ServiceType;
-    UINT32                                  MaxSduSize;
-    UINT32                                  MinimumPolicedSize;
+    u32                                  TokenRate;
+    u32                                  TokenBucketSize;
+    u32                                  PeakBandwidth;
+    u32                                  Latency;
+    u32                                  DelayVariation;
+    u32                                  ServiceType;
+    u32                                  MaxSduSize;
+    u32                                  MinimumPolicedSize;
 } RNDIS_FLOWSPEC, *PRNDIS_FLOWSPEC;
 
 typedef struct _RCONDIS_CALL_MANAGER_PARAMETERS
@@ -712,12 +712,12 @@ typedef struct _RCONDIS_CALL_MANAGER_PARAMETERS
 typedef struct _RCONDIS_MP_ACTIVATE_VC_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
-    UINT32                                  Flags;
+    u32                                  Flags;
     RNDIS_HANDLE                            DeviceVcHandle;
-    UINT32                                  MediaParamsOffset;
-    UINT32                                  MediaParamsLength;
-    UINT32                                  CallMgrParamsOffset;
-    UINT32                                  CallMgrParamsLength;
+    u32                                  MediaParamsOffset;
+    u32                                  MediaParamsLength;
+    u32                                  CallMgrParamsOffset;
+    u32                                  CallMgrParamsLength;
 } RCONDIS_MP_ACTIVATE_VC_REQUEST, *PRCONDIS_MP_ACTIVATE_VC_REQUEST;
 
 //
@@ -736,7 +736,7 @@ typedef struct _RCONDIS_MP_ACTIVATE_VC_COMPLETE
 typedef struct _RCONDIS_MP_DEACTIVATE_VC_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
-    UINT32                                  Flags;
+    u32                                  Flags;
     RNDIS_HANDLE                            DeviceVcHandle;
 } RCONDIS_MP_DEACTIVATE_VC_REQUEST, *PRCONDIS_MP_DEACTIVATE_VC_REQUEST;
 
@@ -786,13 +786,13 @@ typedef union _RNDIS_MESSAGE_CONTAINER
 //
 typedef __struct_bcount(MessageLength) struct _RNDIS_MESSAGE
 {
-    UINT32                                  NdisMessageType;
+    u32                                  NdisMessageType;
 
     //
     // Total length of this message, from the beginning
     // of the RNDIS_MESSAGE struct, in bytes.
     //
-    UINT32                                  MessageLength;
+    u32                                  MessageLength;
 
     // Actual message
     RNDIS_MESSAGE_CONTAINER                 Message;

@@ -26,7 +26,7 @@
 
 #include "VmbusChannelInterface.h"
 
-#define NVSP_INVALID_PROTOCOL_VERSION           ((UINT32)0xFFFFFFFF)
+#define NVSP_INVALID_PROTOCOL_VERSION           ((u32)0xFFFFFFFF)
 
 #define NVSP_PROTOCOL_VERSION_1                 2
 #define NVSP_MIN_PROTOCOL_VERSION               NVSP_PROTOCOL_VERSION_1
@@ -84,7 +84,7 @@ typedef enum _NVSP_STATUS
 
 typedef struct _NVSP_MESSAGE_HEADER
 {
-    UINT32                                  MessageType;
+    u32                                  MessageType;
 } NVSP_MESSAGE_HEADER, *PNVSP_MESSAGE_HEADER;
 
 //
@@ -99,8 +99,8 @@ typedef struct _NVSP_MESSAGE_HEADER
 //
 typedef struct _NVSP_MESSAGE_INIT
 {
-    UINT32                                  MinProtocolVersion;
-    UINT32                                  MaxProtocolVersion;
+    u32                                  MinProtocolVersion;
+    u32                                  MaxProtocolVersion;
 } NVSP_MESSAGE_INIT, *PNVSP_MESSAGE_INIT;
 
 //
@@ -110,9 +110,9 @@ typedef struct _NVSP_MESSAGE_INIT
 //
 typedef struct _NVSP_MESSAGE_INIT_COMPLETE
 {
-    UINT32                                  NegotiatedProtocolVersion;
-    UINT32                                  MaximumMdlChainLength;
-    UINT32                                  Status;
+    u32                                  NegotiatedProtocolVersion;
+    u32                                  MaximumMdlChainLength;
+    u32                                  Status;
 } NVSP_MESSAGE_INIT_COMPLETE, *PNVSP_MESSAGE_INIT_COMPLETE;
 
 typedef union _NVSP_MESSAGE_INIT_UBER
@@ -132,8 +132,8 @@ typedef union _NVSP_MESSAGE_INIT_UBER
 //
 typedef struct _NVSP_1_MESSAGE_SEND_NDIS_VERSION
 {
-    UINT32                                  NdisMajorVersion;
-    UINT32                                  NdisMinorVersion;
+    u32                                  NdisMajorVersion;
+    u32                                  NdisMinorVersion;
 } NVSP_1_MESSAGE_SEND_NDIS_VERSION, *PNVSP_1_MESSAGE_SEND_NDIS_VERSION;
 
 //
@@ -149,10 +149,10 @@ typedef struct _NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER
 
 typedef struct _NVSP_1_RECEIVE_BUFFER_SECTION
 {
-    UINT32                                  Offset;
-    UINT32                                  SubAllocationSize;
-    UINT32                                  NumSubAllocations;
-    UINT32                                  EndOffset;
+    u32                                  Offset;
+    u32                                  SubAllocationSize;
+    u32                                  NumSubAllocations;
+    u32                                  EndOffset;
 } NVSP_1_RECEIVE_BUFFER_SECTION, *PNVSP_1_RECEIVE_BUFFER_SECTION;
 
 //
@@ -162,8 +162,8 @@ typedef struct _NVSP_1_RECEIVE_BUFFER_SECTION
 //
 typedef struct _NVSP_1_MESSAGE_SEND_RECEIVE_BUFFER_COMPLETE
 {
-    UINT32                                  Status;
-    UINT32                                  NumSections;
+    u32                                  Status;
+    u32                                  NumSections;
 
     //
     // The receive buffer is split into two parts, a large
@@ -213,7 +213,7 @@ typedef struct _NVSP_1_MESSAGE_SEND_SEND_BUFFER
 //
 typedef struct _NVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE
 {
-    UINT32                                  Status;
+    u32                                  Status;
 
     //
     // The VSC gets to choose the size of the send buffer and
@@ -221,7 +221,7 @@ typedef struct _NVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE
     // This was done to enable dynamic reconfigurations when
     // the cost of GPA-direct buffers decreases.
     //
-    UINT32                                  SectionSize;
+    u32                                  SectionSize;
 } NVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE, *PNVSP_1_MESSAGE_SEND_SEND_BUFFER_COMPLETE;
 
 //
@@ -246,7 +246,7 @@ typedef struct _NVSP_1_MESSAGE_SEND_RNDIS_PACKET
     // the Network VSP only has one. Therefore, the channel
     // travels with the RNDIS packet.
     //
-    UINT32                                  ChannelType;
+    u32                                  ChannelType;
 
     //
     // This field is used to send part or all of the data
@@ -256,8 +256,8 @@ typedef struct _NVSP_1_MESSAGE_SEND_RNDIS_PACKET
     // and all of the data was sent through other VMBus
     // mechanisms.
     //
-    UINT32                                  SendBufferSectionIndex;
-    UINT32                                  SendBufferSectionSize;
+    u32                                  SendBufferSectionIndex;
+    u32                                  SendBufferSectionSize;
 } NVSP_1_MESSAGE_SEND_RNDIS_PACKET, *PNVSP_1_MESSAGE_SEND_RNDIS_PACKET;
 
 //
@@ -268,7 +268,7 @@ typedef struct _NVSP_1_MESSAGE_SEND_RNDIS_PACKET
 //
 typedef struct _NVSP_1_MESSAGE_SEND_RNDIS_PACKET_COMPLETE
 {
-    UINT32                                  Status;
+    u32                                  Status;
 } NVSP_1_MESSAGE_SEND_RNDIS_PACKET_COMPLETE, *PNVSP_1_MESSAGE_SEND_RNDIS_PACKET_COMPLETE;
 
 typedef union _NVSP_MESSAGE_1_UBER

@@ -253,7 +253,7 @@ Description:
 --*/
 VMBUS_CHANNEL*
 GetChannelFromRelId(
-	UINT32 relId
+	u32 relId
 	)
 {
 	VMBUS_CHANNEL* channel;
@@ -294,7 +294,7 @@ VmbusProcessChannelEvent(
 	)
 {
 	VMBUS_CHANNEL* channel;
-	UINT32 relId = (UINT32)(ULONG_PTR)context;
+	u32 relId = (u32)(ULONG_PTR)context;
 
 	ASSERT(relId > 0);
 
@@ -333,7 +333,7 @@ VmbusOnEvents(
 	int maxdword = MAX_NUM_CHANNELS_SUPPORTED >> 5;
 	int bit;
 	int relid;
-	UINT32* recvInterruptPage = gVmbusConnection.RecvInterruptPage;
+	u32* recvInterruptPage = gVmbusConnection.RecvInterruptPage;
 	//VMBUS_CHANNEL_MESSAGE* receiveMsg;
 
 	DPRINT_ENTER(VMBUS);
@@ -393,7 +393,7 @@ VmbusPostMessage(
 	HV_CONNECTION_ID connId;
 
 
-	connId.AsUINT32 =0;
+	connId.Asu32 =0;
 	connId.u.Id = VMBUS_MESSAGE_CONNECTION_ID;
 	ret = HvPostMessage(
 			connId,
@@ -414,14 +414,14 @@ Description:
 
 --*/
 int
-VmbusSetEvent(UINT32 childRelId)
+VmbusSetEvent(u32 childRelId)
 {
 	int ret=0;
 
 	DPRINT_ENTER(VMBUS);
 
-	// Each UINT32 represents 32 channels
-	BitSet((UINT32*)gVmbusConnection.SendInterruptPage + (childRelId >> 5), childRelId & 31);
+	// Each u32 represents 32 channels
+	BitSet((u32*)gVmbusConnection.SendInterruptPage + (childRelId >> 5), childRelId & 31);
 	ret = HvSignalEvent();
 
 	DPRINT_EXIT(VMBUS);

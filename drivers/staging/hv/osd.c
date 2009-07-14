@@ -289,7 +289,7 @@ HANDLE TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context)
 	return t;
 }
 
-void TimerStart(HANDLE hTimer, UINT32 expirationInUs)
+void TimerStart(HANDLE hTimer, u32 expirationInUs)
 {
 	TIMER* t  = (TIMER* )hTimer;
 
@@ -363,7 +363,7 @@ int WaitEventWait(HANDLE hWait)
 	return ret;
 }
 
-int WaitEventWaitEx(HANDLE hWait, UINT32 TimeoutInMs)
+int WaitEventWaitEx(HANDLE hWait, u32 TimeoutInMs)
 {
 	int ret=0;
 	WAITEVENT* waitEvent = (WAITEVENT* )hWait;

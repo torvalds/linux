@@ -38,8 +38,8 @@ typedef struct _VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
     u16				Length8;
     u16				Flags;
     UINT64				TransactionId;
-	UINT32				Reserved;
-	UINT32				RangeCount;
+	u32				Reserved;
+	u32				RangeCount;
     PAGE_BUFFER			Range[MAX_PAGE_BUFFER_COUNT];
 } VMBUS_CHANNEL_PACKET_PAGE_BUFFER;
 
@@ -51,8 +51,8 @@ typedef struct _VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
     u16				Length8;
     u16				Flags;
     UINT64				TransactionId;
-	UINT32				Reserved;
-	UINT32				RangeCount;		// Always 1 in this case
+	u32				Reserved;
+	u32				RangeCount;		// Always 1 in this case
 	MULTIPAGE_BUFFER	Range;
 } VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER;
 
@@ -65,10 +65,10 @@ typedef struct _VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
 static int
 VmbusChannelOpen(
 	VMBUS_CHANNEL			*Channel,
-	UINT32					SendRingBufferSize,
-	UINT32					RecvRingBufferSize,
+	u32					SendRingBufferSize,
+	u32					RecvRingBufferSize,
 	void *					UserData,
-	UINT32					UserDataLen,
+	u32					UserDataLen,
 	PFN_CHANNEL_CALLBACK	pfnOnChannelCallback,
 	void *					Context
 	);
@@ -82,19 +82,19 @@ static int
 VmbusChannelSendPacket(
 	VMBUS_CHANNEL		*Channel,
 	const void *			Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId,
 	VMBUS_PACKET_TYPE	Type,
-	UINT32				Flags
+	u32				Flags
 );
 
 static int
 VmbusChannelSendPacketPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	PAGE_BUFFER			PageBuffers[],
-	UINT32				PageCount,
+	u32				PageCount,
 	void *				Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId
 	);
 
@@ -103,7 +103,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId
 );
 
@@ -111,22 +111,22 @@ static int
 VmbusChannelEstablishGpadl(
 	VMBUS_CHANNEL		*Channel,
 	void *				Kbuffer,	// from kmalloc()
-	UINT32				Size,		// page-size multiple
-	UINT32				*GpadlHandle
+	u32				Size,		// page-size multiple
+	u32				*GpadlHandle
 	);
 
 static int
 VmbusChannelTeardownGpadl(
 	VMBUS_CHANNEL	*Channel,
-	UINT32			GpadlHandle
+	u32			GpadlHandle
 	);
 
 static int
 VmbusChannelRecvPacket(
 	VMBUS_CHANNEL		*Channel,
 	void *				Buffer,
-	UINT32				BufferLen,
-	UINT32*				BufferActualLen,
+	u32				BufferLen,
+	u32*				BufferActualLen,
 	UINT64*				RequestId
 	);
 
@@ -134,8 +134,8 @@ static int
 VmbusChannelRecvPacketRaw(
 	VMBUS_CHANNEL		*Channel,
 	void *				Buffer,
-	UINT32				BufferLen,
-	UINT32*				BufferActualLen,
+	u32				BufferLen,
+	u32*				BufferActualLen,
 	UINT64*				RequestId
 	);
 

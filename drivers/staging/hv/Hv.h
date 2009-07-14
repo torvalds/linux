@@ -173,7 +173,7 @@ HvSignalEvent(
 
 static int
 HvSynicInit(
-	UINT32		irqVector
+	u32		irqVector
 	);
 
 static void

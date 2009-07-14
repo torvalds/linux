@@ -49,16 +49,16 @@ typedef struct _DEVICE_OBJECT *PDEVICE_OBJECT;
 
 // Single-page buffer
 typedef struct _PAGE_BUFFER {
-	UINT32	Length;
-	UINT32	Offset;
+	u32	Length;
+	u32	Offset;
 	UINT64	Pfn;
 } PAGE_BUFFER;
 
 // Multiple-page buffer
 typedef struct _MULTIPAGE_BUFFER {
 	// Length and Offset determines the # of pfns in the array
-	UINT32	Length;
-	UINT32	Offset;
+	u32	Length;
+	u32	Offset;
 	UINT64	PfnArray[MAX_MULTIPAGE_BUFFER_COUNT];
 }MULTIPAGE_BUFFER;
 
@@ -92,10 +92,10 @@ typedef void (*VMBUS_CHANNEL_CALLBACK)(void * context);
 
 typedef int	(*VMBUS_CHANNEL_OPEN)(
 	PDEVICE_OBJECT		Device,
-	UINT32				SendBufferSize,
-	UINT32				RecvRingBufferSize,
+	u32				SendBufferSize,
+	u32				RecvRingBufferSize,
 	void *				UserData,
-	UINT32				UserDataLen,
+	u32				UserDataLen,
 	VMBUS_CHANNEL_CALLBACK ChannelCallback,
 	void *				Context
 	);
@@ -107,18 +107,18 @@ typedef void (*VMBUS_CHANNEL_CLOSE)(
 typedef int	(*VMBUS_CHANNEL_SEND_PACKET)(
 	PDEVICE_OBJECT		Device,
 	const void *			Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId,
-	UINT32				Type,
-	UINT32				Flags
+	u32				Type,
+	u32				Flags
 );
 
 typedef int	(*VMBUS_CHANNEL_SEND_PACKET_PAGEBUFFER)(
 	PDEVICE_OBJECT		Device,
 	PAGE_BUFFER			PageBuffers[],
-	UINT32				PageCount,
+	u32				PageCount,
 	void *				Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId
 	);
 
@@ -126,61 +126,61 @@ typedef int	(*VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER)(
 	PDEVICE_OBJECT		Device,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId
 );
 
 typedef int	(*VMBUS_CHANNEL_RECV_PACKET)(
 	PDEVICE_OBJECT		Device,
 	void *				Buffer,
-	UINT32				BufferLen,
-	UINT32*				BufferActualLen,
+	u32				BufferLen,
+	u32*				BufferActualLen,
 	UINT64*				RequestId
 	);
 
 typedef int	(*VMBUS_CHANNEL_RECV_PACKET_PAW)(
 	PDEVICE_OBJECT		Device,
 	void *				Buffer,
-	UINT32				BufferLen,
-	UINT32*				BufferActualLen,
+	u32				BufferLen,
+	u32*				BufferActualLen,
 	UINT64*				RequestId
 	);
 
 typedef int	(*VMBUS_CHANNEL_ESTABLISH_GPADL)(
 	PDEVICE_OBJECT		Device,
 	void *				Buffer,	// from kmalloc()
-	UINT32				BufferLen,		// page-size multiple
-	UINT32*				GpadlHandle
+	u32				BufferLen,		// page-size multiple
+	u32*				GpadlHandle
 	);
 
 typedef int	(*VMBUS_CHANNEL_TEARDOWN_GPADL)(
 	PDEVICE_OBJECT		Device,
-	UINT32				GpadlHandle
+	u32				GpadlHandle
 	);
 
 
 typedef struct _PORT_INFO {
-	UINT32		InterruptMask;
-	UINT32		ReadIndex;
-	UINT32		WriteIndex;
-	UINT32		BytesAvailToRead;
-	UINT32		BytesAvailToWrite;
+	u32		InterruptMask;
+	u32		ReadIndex;
+	u32		WriteIndex;
+	u32		BytesAvailToRead;
+	u32		BytesAvailToWrite;
 } PORT_INFO;
 
 
 typedef struct _DEVICE_INFO {
-	UINT32		ChannelId;
-	UINT32		ChannelState;
+	u32		ChannelId;
+	u32		ChannelState;
 	GUID		ChannelType;
 	GUID		ChannelInstance;
 
-	UINT32						MonitorId;
-	UINT32						ServerMonitorPending;
-	UINT32						ServerMonitorLatency;
-	UINT32						ServerMonitorConnectionId;
-	UINT32						ClientMonitorPending;
-	UINT32						ClientMonitorLatency;
-	UINT32						ClientMonitorConnectionId;
+	u32						MonitorId;
+	u32						ServerMonitorPending;
+	u32						ServerMonitorLatency;
+	u32						ServerMonitorConnectionId;
+	u32						ClientMonitorPending;
+	u32						ClientMonitorLatency;
+	u32						ClientMonitorConnectionId;
 
 	PORT_INFO	Inbound;
 	PORT_INFO	Outbound;

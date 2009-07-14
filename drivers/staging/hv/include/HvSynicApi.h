@@ -84,7 +84,7 @@
 
 #define HV_EVENT_FLAGS_COUNT        (256 * 8)
 #define HV_EVENT_FLAGS_BYTE_COUNT   (256)
-#define HV_EVENT_FLAGS_DWORD_COUNT  (256 / sizeof(UINT32))
+#define HV_EVENT_FLAGS_DWORD_COUNT  (256 / sizeof(u32))
 
 //
 // Define hypervisor message types.
@@ -139,7 +139,7 @@ typedef enum _HV_MESSAGE_TYPE
 // Define the synthetic interrupt source index type.
 //
 
-typedef UINT32 HV_SYNIC_SINT_INDEX, *PHV_SYNIC_SINT_INDEX;
+typedef u32 HV_SYNIC_SINT_INDEX, *PHV_SYNIC_SINT_INDEX;
 
 //
 // Define partition identifier type.
@@ -158,12 +158,12 @@ typedef UINT64 HV_PARTITION_ID, *PHV_PARTITION_ID;
 
 typedef union _HV_CONNECTION_ID
 {
-    UINT32 AsUINT32;
+    u32 Asu32;
 
     struct
     {
-        UINT32 Id:24;
-        UINT32 Reserved:8;
+        u32 Id:24;
+        u32 Reserved:8;
     } u;
 
 } HV_CONNECTION_ID, *PHV_CONNECTION_ID;
@@ -174,12 +174,12 @@ typedef union _HV_CONNECTION_ID
 
 typedef union _HV_PORT_ID
 {
-    UINT32 AsUINT32;
+    u32 Asu32;
 
     struct
     {
-        UINT32 Id:24;
-        UINT32 Reserved:8;
+        u32 Id:24;
+        u32 Reserved:8;
     } u ;
 
 } HV_PORT_ID, *PHV_PORT_ID;
@@ -202,7 +202,7 @@ typedef enum _HV_PORT_TYPE
 typedef struct _HV_PORT_INFO
 {
     HV_PORT_TYPE PortType;
-    UINT32 Padding;
+    u32 Padding;
 
     union
     {
@@ -219,7 +219,7 @@ typedef struct _HV_PORT_INFO
             HV_VP_INDEX TargetVp;
             u16 BaseFlagNumber;
             u16 FlagCount;
-            UINT32 RsvdZ;
+            u32 RsvdZ;
         } EventPortInfo;
 
         struct
@@ -235,7 +235,7 @@ typedef const HV_PORT_INFO *PCHV_PORT_INFO;
 typedef struct _HV_CONNECTION_INFO
 {
     HV_PORT_TYPE PortType;
-    UINT32 Padding;
+    u32 Padding;
 
     union
     {
@@ -296,8 +296,8 @@ typedef struct _HV_MESSAGE_HEADER
 //
 typedef struct _HV_TIMER_MESSAGE_PAYLOAD
 {
-    UINT32          TimerIndex;
-    UINT32          Reserved;
+    u32          TimerIndex;
+    u32          Reserved;
     HV_NANO100_TIME ExpirationTime;     // When the timer expired
     HV_NANO100_TIME DeliveryTime;       // When the message was delivered
 } HV_TIMER_MESSAGE_PAYLOAD, *PHV_TIMER_MESSAGE_PAYLOAD;
@@ -338,7 +338,7 @@ typedef struct _HV_MESSAGE_PAGE
 typedef union _HV_SYNIC_EVENT_FLAGS
 {
     u8 Flags8[HV_EVENT_FLAGS_BYTE_COUNT];
-    UINT32 Flags32[HV_EVENT_FLAGS_DWORD_COUNT];
+    u32 Flags32[HV_EVENT_FLAGS_DWORD_COUNT];
 } HV_SYNIC_EVENT_FLAGS, *PHV_SYNIC_EVENT_FLAGS;
 
 
@@ -422,8 +422,8 @@ typedef union _HV_MONITOR_TRIGGER_GROUP
 
     struct
     {
-        UINT32 Pending;
-        UINT32 Armed;
+        u32 Pending;
+        u32 Armed;
     };
 
 } HV_MONITOR_TRIGGER_GROUP, *PHV_MONITOR_TRIGGER_GROUP;
@@ -437,12 +437,12 @@ typedef struct _HV_MONITOR_PARAMETER
 
 typedef union _HV_MONITOR_TRIGGER_STATE
 {
-    UINT32 AsUINT32;
+    u32 Asu32;
 
     struct
     {
-        UINT32 GroupEnable : 4;
-        UINT32 RsvdZ       : 28;
+        u32 GroupEnable : 4;
+        u32 RsvdZ       : 28;
     };
 
 } HV_MONITOR_TRIGGER_STATE, *PHV_MONITOR_TRIGGER_STATE;
@@ -471,12 +471,12 @@ typedef union _HV_MONITOR_TRIGGER_STATE
 typedef struct _HV_MONITOR_PAGE
 {
     HV_MONITOR_TRIGGER_STATE TriggerState;
-    UINT32                   RsvdZ1;
+    u32                   RsvdZ1;
 
     HV_MONITOR_TRIGGER_GROUP TriggerGroup[4];
     UINT64                   RsvdZ2[3];
 
-    INT32                    NextCheckTime[4][32];
+    s32                    NextCheckTime[4][32];
 
     u16                   Latency[4][32];
     UINT64                   RsvdZ3[32];

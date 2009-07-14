@@ -41,8 +41,8 @@ typedef struct
     {
         struct
         {
-            volatile UINT32  In;        // Offset in bytes from the ring base
-            volatile UINT32  Out;       // Offset in bytes from the ring base
+            volatile u32  In;        // Offset in bytes from the ring base
+            volatile u32  Out;       // Offset in bytes from the ring base
         };
         volatile LONGLONG    InOut;
     };
@@ -52,7 +52,7 @@ typedef struct
     // endpoint should not send any interrupts.
     //
 
-    volatile UINT32 InterruptMask;
+    volatile u32 InterruptMask;
 
 } VMRCB, *PVMRCB;
 
@@ -86,7 +86,7 @@ typedef struct
     UINT64 TransactionId;
 } VMPACKET_DESCRIPTOR, *PVMPACKET_DESCRIPTOR;
 
-typedef UINT32 PREVIOUS_PACKET_OFFSET, *PPREVIOUS_PACKET_OFFSET;
+typedef u32 PREVIOUS_PACKET_OFFSET, *PPREVIOUS_PACKET_OFFSET;
 
 typedef struct
 {
@@ -96,8 +96,8 @@ typedef struct
 
 typedef struct
 {
-    UINT32  ByteCount;
-    UINT32  ByteOffset;
+    u32  ByteCount;
+    u32  ByteOffset;
 } VMTRANSFER_PAGE_RANGE, *PVMTRANSFER_PAGE_RANGE;
 
 #ifdef __cplusplus
@@ -115,7 +115,7 @@ typedef struct VMTRANSFER_PAGE_PACKET_HEADER {
     u16                  TransferPageSetId;
     BOOLEAN                 SenderOwnsSet;
     u8                   Reserved;
-    UINT32                  RangeCount;
+    u32                  RangeCount;
     VMTRANSFER_PAGE_RANGE   Ranges[1];
 
 } VMTRANSFER_PAGE_PACKET_HEADER, *PVMTRANSFER_PAGE_PACKET_HEADER;
@@ -134,8 +134,8 @@ typedef struct _VMGPADL_PACKET_HEADER {
 #endif
 
 
-    UINT32  Gpadl;
-    UINT32  Reserved;
+    u32  Gpadl;
+    u32  Reserved;
 
 } VMGPADL_PACKET_HEADER, *PVMGPADL_PACKET_HEADER;
 
@@ -151,7 +151,7 @@ typedef struct _VMADD_REMOVE_TRANSFER_PAGE_SET {
 
 #endif
 
-    UINT32  Gpadl;
+    u32  Gpadl;
     u16  TransferPageSetId;
     u16  Reserved;
 
@@ -166,8 +166,8 @@ typedef struct _VMADD_REMOVE_TRANSFER_PAGE_SET {
 
 typedef struct _GPA_RANGE {
 
-    UINT32  ByteCount;
-    UINT32  ByteOffset;
+    u32  ByteCount;
+    u32  ByteOffset;
     UINT64  PfnArray[0];
 
 } GPA_RANGE, *PGPA_RANGE;
@@ -196,8 +196,8 @@ typedef struct _VMESTABLISH_GPADL {
 
 #endif
 
-    UINT32      Gpadl;
-    UINT32      RangeCount;
+    u32      Gpadl;
+    u32      RangeCount;
     GPA_RANGE   Range[1];
 
 } VMESTABLISH_GPADL, *PVMESTABLISH_GPADL;
@@ -220,8 +220,8 @@ typedef struct _VMTEARDOWN_GPADL {
 
 #endif
 
-    UINT32  Gpadl;
-    UINT32  Reserved; // for alignment to a 8-byte boundary
+    u32  Gpadl;
+    u32  Reserved; // for alignment to a 8-byte boundary
 } VMTEARDOWN_GPADL, *PVMTEARDOWN_GPADL;
 
 
@@ -242,8 +242,8 @@ typedef struct _VMDATA_GPA_DIRECT {
 
 #endif
 
-    UINT32      Reserved;
-    UINT32      RangeCount;
+    u32      Reserved;
+    u32      RangeCount;
     GPA_RANGE   Range[1];
 
 } VMDATA_GPA_DIRECT, *PVMDATA_GPA_DIRECT;
@@ -267,8 +267,8 @@ typedef struct _VMADDITIONAL_DATA {
 #endif
 
     UINT64  TotalBytes;
-    UINT32  ByteOffset;
-    UINT32  ByteCount;
+    u32  ByteOffset;
+    u32  ByteCount;
     UCHAR   Data[1];
 
 } VMADDITIONAL_DATA, *PVMADDITIONAL_DATA;

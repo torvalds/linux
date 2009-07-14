@@ -97,7 +97,6 @@ typedef struct _DLIST_ENTRY {
 //
 // unsigned types
 //
-typedef unsigned int		UINT32;
 #ifdef __x86_64__
 typedef unsigned long		UINT64;
 #else
@@ -112,7 +111,6 @@ typedef unsigned char		UCHAR;
 //
 // signed types
 //
-typedef int					INT32;
 #ifdef __x86_64__
 typedef long				INT64;
 #else
@@ -131,7 +129,7 @@ typedef unsigned long		SIZE_T;
 typedef unsigned char		BOOL;
 typedef unsigned char		BOOLEAN;
 typedef void*				HANDLE;
-typedef UINT32				DWORD;
+typedef u32				DWORD;
 typedef char*				PCHAR;
 typedef unsigned char		BYTE;
 
@@ -148,7 +146,7 @@ typedef void (*PFN_TIMER_CALLBACK)(void* context);
 #ifdef __x86_64__
 
 #define RDMSR(reg, v) {                                                        \
-    UINT32 h, l;                                                                 \
+    u32 h, l;                                                                 \
      __asm__ __volatile__("rdmsr"                                                               \
     : "=a" (l), "=d" (h)                                                       \
     : "c" (reg));                                                              \
@@ -156,9 +154,9 @@ typedef void (*PFN_TIMER_CALLBACK)(void* context);
 }
 
 #define WRMSR(reg, v) {                                                        \
-    UINT32 h, l;                                                               \
-    l = (UINT32)(((UINT64)(v)) & 0xFFFFFFFF);                                  \
-    h = (UINT32)((((UINT64)(v)) >> 32) & 0xFFFFFFFF);                          \
+    u32 h, l;                                                               \
+    l = (u32)(((UINT64)(v)) & 0xFFFFFFFF);                                  \
+    h = (u32)((((UINT64)(v)) >> 32) & 0xFFFFFFFF);                          \
      __asm__ __volatile__("wrmsr"                                              \
     : /* no outputs */                                                         \
     : "c" (reg), "a" (l), "d" (h));                                            \
@@ -219,7 +217,7 @@ extern void MemoryFence(void);
 extern HANDLE TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
 extern void TimerClose(HANDLE hTimer);
 extern int TimerStop(HANDLE hTimer);
-extern void TimerStart(HANDLE hTimer, UINT32 expirationInUs);
+extern void TimerStart(HANDLE hTimer, u32 expirationInUs);
 extern SIZE_T GetTickCount(void);
 
 extern HANDLE WaitEventCreate(void);
@@ -228,7 +226,7 @@ extern void WaitEventSet(HANDLE hWait);
 extern int	WaitEventWait(HANDLE hWait);
 
 // If >0, hWait got signaled. If ==0, timeout. If < 0, error
-extern int	WaitEventWaitEx(HANDLE hWait, UINT32 TimeoutInMs);
+extern int	WaitEventWaitEx(HANDLE hWait, u32 TimeoutInMs);
 
 extern HANDLE SpinlockCreate(void);
 extern void SpinlockClose(HANDLE hSpin);

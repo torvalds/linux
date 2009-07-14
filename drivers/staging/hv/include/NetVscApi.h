@@ -52,14 +52,14 @@ typedef int (*PFN_ON_SEND)(DEVICE_OBJECT *dev, PNETVSC_PACKET packet);
 typedef void (*PFN_ON_SENDRECVCOMPLETION)(void * Context);
 
 typedef int (*PFN_ON_RECVCALLBACK)(DEVICE_OBJECT *dev, PNETVSC_PACKET packet);
-typedef void (*PFN_ON_LINKSTATUS_CHANGED)(DEVICE_OBJECT *dev, UINT32 Status);
+typedef void (*PFN_ON_LINKSTATUS_CHANGED)(DEVICE_OBJECT *dev, u32 Status);
 
 // Represent the xfer page packet which contains 1 or more netvsc packet
 typedef struct _XFERPAGE_PACKET {
 	DLIST_ENTRY			ListEntry;
 
 	// # of netvsc packets this xfer packet contains
-	UINT32				Count;
+	u32				Count;
 } XFERPAGE_PACKET;
 
 
@@ -93,9 +93,9 @@ typedef struct _NETVSC_PACKET {
 	// This points to the memory after PageBuffers
 	void *					Extension;
 
-	UINT32					TotalDataBufferLength;
+	u32					TotalDataBufferLength;
 	// Points to the send/receive buffer where the ethernet frame is
-	UINT32					PageBufferCount;
+	u32					PageBufferCount;
 	PAGE_BUFFER				PageBuffers[NETVSC_PACKET_MAXPAGE];
 
 } NETVSC_PACKET;
@@ -105,11 +105,11 @@ typedef struct _NETVSC_PACKET {
 typedef struct _NETVSC_DRIVER_OBJECT {
 	DRIVER_OBJECT				Base; // Must be the first field
 
-	UINT32						RingBufferSize;
-	UINT32						RequestExtSize;
+	u32						RingBufferSize;
+	u32						RequestExtSize;
 
 	// Additional num  of page buffers to allocate
-	UINT32						AdditionalRequestPageBufferCount;
+	u32						AdditionalRequestPageBufferCount;
 
 	// This is set by the caller to allow us to callback when we receive a packet
 	// from the "wire"

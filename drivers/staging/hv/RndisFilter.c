@@ -50,8 +50,8 @@ typedef struct _RNDIS_DEVICE {
 	NETVSC_DEVICE			*NetDevice;
 
 	RNDIS_DEVICE_STATE		State;
-	UINT32					LinkStatus;
-	UINT32					NewRequestId;
+	u32					LinkStatus;
+	u32					NewRequestId;
 
 	HANDLE					RequestLock;
 	LIST_ENTRY				RequestList;
@@ -120,9 +120,9 @@ RndisFilterOnReceive(
 static int
 RndisFilterQueryDevice(
 	RNDIS_DEVICE	*Device,
-	UINT32			Oid,
+	u32			Oid,
 	void			*Result,
-	UINT32			*ResultSize
+	u32			*ResultSize
 	);
 
 static inline int
@@ -138,7 +138,7 @@ RndisFilterQueryDeviceLinkStatus(
 static int
 RndisFilterSetPacketFilter(
 	RNDIS_DEVICE	*Device,
-	UINT32			NewFilter
+	u32			NewFilter
 	);
 
 static int
@@ -235,7 +235,7 @@ static inline void PutRndisDevice(RNDIS_DEVICE *Device)
 	MemFree(Device);
 }
 
-static inline RNDIS_REQUEST* GetRndisRequest(RNDIS_DEVICE *Device, UINT32 MessageType, UINT32 MessageLength)
+static inline RNDIS_REQUEST* GetRndisRequest(RNDIS_DEVICE *Device, u32 MessageType, u32 MessageLength)
 {
 	RNDIS_REQUEST *request;
 	RNDIS_MESSAGE *rndisMessage;
@@ -465,7 +465,7 @@ RndisFilterReceiveData(
 	)
 {
 	RNDIS_PACKET *rndisPacket;
-	UINT32 dataOffset;
+	u32 dataOffset;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -585,13 +585,13 @@ RndisFilterOnReceive(
 static int
 RndisFilterQueryDevice(
 	RNDIS_DEVICE	*Device,
-	UINT32			Oid,
+	u32			Oid,
 	void			*Result,
-	UINT32			*ResultSize
+	u32			*ResultSize
 	)
 {
 	RNDIS_REQUEST *request;
-	UINT32 inresultSize = *ResultSize;
+	u32 inresultSize = *ResultSize;
 	RNDIS_QUERY_REQUEST *query;
 	RNDIS_QUERY_COMPLETE *queryComplete;
 	int ret=0;
@@ -653,7 +653,7 @@ RndisFilterQueryDeviceMac(
 	RNDIS_DEVICE	*Device
 	)
 {
-	UINT32 size=HW_MACADDR_LEN;
+	u32 size=HW_MACADDR_LEN;
 
 	return RndisFilterQueryDevice(Device,
 									RNDIS_OID_802_3_PERMANENT_ADDRESS,
@@ -666,7 +666,7 @@ RndisFilterQueryDeviceLinkStatus(
 	RNDIS_DEVICE	*Device
 	)
 {
-	UINT32 size=sizeof(UINT32);
+	u32 size=sizeof(u32);
 
 	return RndisFilterQueryDevice(Device,
 									RNDIS_OID_GEN_MEDIA_CONNECT_STATUS,
@@ -677,20 +677,20 @@ RndisFilterQueryDeviceLinkStatus(
 static int
 RndisFilterSetPacketFilter(
 	RNDIS_DEVICE	*Device,
-	UINT32			NewFilter
+	u32			NewFilter
 	)
 {
 	RNDIS_REQUEST *request;
 	RNDIS_SET_REQUEST *set;
 	RNDIS_SET_COMPLETE *setComplete;
-	UINT32 status;
+	u32 status;
 	int ret;
 
 	DPRINT_ENTER(NETVSC);
 
-	ASSERT(RNDIS_MESSAGE_SIZE(RNDIS_SET_REQUEST) + sizeof(UINT32) <= sizeof(RNDIS_MESSAGE));
+	ASSERT(RNDIS_MESSAGE_SIZE(RNDIS_SET_REQUEST) + sizeof(u32) <= sizeof(RNDIS_MESSAGE));
 
-	request = GetRndisRequest(Device, REMOTE_NDIS_SET_MSG, RNDIS_MESSAGE_SIZE(RNDIS_SET_REQUEST) + sizeof(UINT32));
+	request = GetRndisRequest(Device, REMOTE_NDIS_SET_MSG, RNDIS_MESSAGE_SIZE(RNDIS_SET_REQUEST) + sizeof(u32));
 	if (!request)
 	{
 		ret = -1;
@@ -700,10 +700,10 @@ RndisFilterSetPacketFilter(
 	// Setup the rndis set
 	set = &request->RequestMessage.Message.SetRequest;
 	set->Oid = RNDIS_OID_GEN_CURRENT_PACKET_FILTER;
-	set->InformationBufferLength = sizeof(UINT32);
+	set->InformationBufferLength = sizeof(u32);
 	set->InformationBufferOffset = sizeof(RNDIS_SET_REQUEST);
 
-	memcpy((void*)(ULONG_PTR)set + sizeof(RNDIS_SET_REQUEST), &NewFilter, sizeof(UINT32));
+	memcpy((void*)(ULONG_PTR)set + sizeof(RNDIS_SET_REQUEST), &NewFilter, sizeof(u32));
 
 	ret = RndisFilterSendRequest(Device, request);
 	if (ret != 0)
@@ -795,7 +795,7 @@ RndisFilterInitDevice(
 	RNDIS_REQUEST *request;
 	RNDIS_INITIALIZE_REQUEST *init;
 	RNDIS_INITIALIZE_COMPLETE *initComplete;
-	UINT32 status;
+	u32 status;
 	int ret;
 
 	DPRINT_ENTER(NETVSC);
@@ -1091,7 +1091,7 @@ RndisFilterOnSend(
 	RNDIS_FILTER_PACKET *filterPacket;
 	RNDIS_MESSAGE *rndisMessage;
 	RNDIS_PACKET *rndisPacket;
-	UINT32 rndisMessageSize;
+	u32 rndisMessageSize;
 
 	DPRINT_ENTER(NETVSC);
 

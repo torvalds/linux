@@ -1402,7 +1402,7 @@ NetVscOnChannelCallback(
 	DEVICE_OBJECT *device=(DEVICE_OBJECT*)Context;
 	NETVSC_DEVICE *netDevice;
 
-	UINT32 bytesRecvd;
+	u32 bytesRecvd;
 	UINT64 requestId;
 	UCHAR packet[netPacketSize];
 	VMPACKET_DESCRIPTOR *desc;

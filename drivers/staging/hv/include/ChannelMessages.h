@@ -27,7 +27,7 @@
 #include "VmbusPacketFormat.h"
 
 #define C_ASSERT(x)
-typedef UINT32 NTSTATUS;
+typedef u32 NTSTATUS;
 
 #pragma pack(push,1)
 
@@ -68,14 +68,14 @@ typedef enum _VMBUS_CHANNEL_MESSAGE_TYPE
 typedef struct _VMBUS_CHANNEL_MESSAGE_HEADER
 {
     VMBUS_CHANNEL_MESSAGE_TYPE  MessageType;
-    UINT32                      Padding;
+    u32                      Padding;
 } VMBUS_CHANNEL_MESSAGE_HEADER, *PVMBUS_CHANNEL_MESSAGE_HEADER;
 
 // Query VMBus Version parameters
 typedef struct _VMBUS_CHANNEL_QUERY_VMBUS_VERSION
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32 Version;
+    u32 Version;
 } VMBUS_CHANNEL_QUERY_VMBUS_VERSION, *PVMBUS_CHANNEL_QUERY_VMBUS_VERSION;
 
 // VMBus Version Supported parameters
@@ -90,7 +90,7 @@ typedef struct _VMBUS_CHANNEL_OFFER_CHANNEL
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
     VMBUS_CHANNEL_OFFER Offer;
-    UINT32  ChildRelId;
+    u32  ChildRelId;
     u8   MonitorId;
     BOOLEAN MonitorAllocated;
 } VMBUS_CHANNEL_OFFER_CHANNEL, *PVMBUS_CHANNEL_OFFER_CHANNEL;
@@ -104,7 +104,7 @@ C_ASSERT(sizeof(VMBUS_CHANNEL_OFFER_CHANNEL) <= MAXIMUM_SYNIC_MESSAGE_BYTES);
 typedef struct _VMBUS_CHANNEL_RESCIND_OFFER
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32          ChildRelId;
+    u32          ChildRelId;
 } VMBUS_CHANNEL_RESCIND_OFFER, *PVMBUS_CHANNEL_RESCIND_OFFER;
 
 // Request Offer -- no parameters, SynIC message contains the partition ID
@@ -121,12 +121,12 @@ typedef struct _VMBUS_CHANNEL_OPEN_CHANNEL
     //
     // Identifies the specific VMBus channel that is being opened.
     //
-    UINT32          ChildRelId;
+    u32          ChildRelId;
 
     //
     // ID making a particular open request at a channel offer unique.
     //
-    UINT32          OpenId;
+    u32          OpenId;
 
     //
     // GPADL for the channel's ring buffer.
@@ -143,7 +143,7 @@ typedef struct _VMBUS_CHANNEL_OPEN_CHANNEL
     // by RingBufferGpadlHandle. The downstream ring buffer follows it at this
     // offset (in pages).
     //
-    UINT32          DownstreamRingBufferPageOffset;
+    u32          DownstreamRingBufferPageOffset;
 
     //
     // User-specific data to be passed along to the server endpoint.
@@ -159,8 +159,8 @@ typedef VMBUS_CHANNEL_OPEN_CHANNEL VMBUS_CHANNEL_REOPEN_CHANNEL, *PVMBUS_CHANNEL
 typedef struct _VMBUS_CHANNEL_OPEN_RESULT
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32      ChildRelId;
-    UINT32      OpenId;
+    u32      ChildRelId;
+    u32      OpenId;
     NTSTATUS    Status;
 } VMBUS_CHANNEL_OPEN_RESULT, *PVMBUS_CHANNEL_OPEN_RESULT;
 
@@ -168,7 +168,7 @@ typedef struct _VMBUS_CHANNEL_OPEN_RESULT
 typedef struct _VMBUS_CHANNEL_CLOSE_CHANNEL
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32      ChildRelId;
+    u32      ChildRelId;
 } VMBUS_CHANNEL_CLOSE_CHANNEL, *PVMBUS_CHANNEL_CLOSE_CHANNEL;
 
 // Channel Message GPADL
@@ -186,8 +186,8 @@ typedef struct _VMBUS_CHANNEL_CLOSE_CHANNEL
 typedef struct _VMBUS_CHANNEL_GPADL_HEADER
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32      ChildRelId;
-    UINT32      Gpadl;
+    u32      ChildRelId;
+    u32      Gpadl;
     u16      RangeBufLen;
     u16      RangeCount;
     GPA_RANGE   Range[0];
@@ -201,8 +201,8 @@ typedef struct _VMBUS_CHANNEL_GPADL_HEADER
 typedef struct _VMBUS_CHANNEL_GPADL_BODY
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32              MessageNumber;
-    UINT32              Gpadl;
+    u32              MessageNumber;
+    u32              Gpadl;
     UINT64              Pfn[0];
 } VMBUS_CHANNEL_GPADL_BODY, *PVMBUS_CHANNEL_GPADL_BODY;
 
@@ -210,22 +210,22 @@ typedef struct _VMBUS_CHANNEL_GPADL_BODY
 typedef struct _VMBUS_CHANNEL_GPADL_CREATED
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32              ChildRelId;
-    UINT32              Gpadl;
-    UINT32              CreationStatus;
+    u32              ChildRelId;
+    u32              Gpadl;
+    u32              CreationStatus;
 } VMBUS_CHANNEL_GPADL_CREATED, *PVMBUS_CHANNEL_GPADL_CREATED;
 
 typedef struct _VMBUS_CHANNEL_GPADL_TEARDOWN
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32              ChildRelId;
-    UINT32              Gpadl;
+    u32              ChildRelId;
+    u32              Gpadl;
 } VMBUS_CHANNEL_GPADL_TEARDOWN, *PVMBUS_CHANNEL_GPADL_TEARDOWN;
 
 typedef struct _VMBUS_CHANNEL_GPADL_TORNDOWN
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32              Gpadl;
+    u32              Gpadl;
 } VMBUS_CHANNEL_GPADL_TORNDOWN, *PVMBUS_CHANNEL_GPADL_TORNDOWN;
 
 #ifdef VMBUS_FEATURE_PARENT_OR_PEER_MEMORY_MAPPED_INTO_A_CHILD
@@ -234,28 +234,28 @@ typedef struct _VMBUS_CHANNEL_VIEW_RANGE_ADD
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
     PHYSICAL_ADDRESS    ViewRangeBase;
     UINT64              ViewRangeLength;
-    UINT32              ChildRelId;
+    u32              ChildRelId;
 } VMBUS_CHANNEL_VIEW_RANGE_ADD, *PVMBUS_CHANNEL_VIEW_RANGE_ADD;
 
 typedef struct _VMBUS_CHANNEL_VIEW_RANGE_REMOVE
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
     PHYSICAL_ADDRESS    ViewRangeBase;
-    UINT32              ChildRelId;
+    u32              ChildRelId;
 } VMBUS_CHANNEL_VIEW_RANGE_REMOVE, *PVMBUS_CHANNEL_VIEW_RANGE_REMOVE;
 #endif
 
 typedef struct _VMBUS_CHANNEL_RELID_RELEASED
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32              ChildRelId;
+    u32              ChildRelId;
 } VMBUS_CHANNEL_RELID_RELEASED, *PVMBUS_CHANNEL_RELID_RELEASED;
 
 typedef struct _VMBUS_CHANNEL_INITIATE_CONTACT
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
-    UINT32              VMBusVersionRequested;
-    UINT32              Padding2;
+    u32              VMBusVersionRequested;
+    u32              Padding2;
     UINT64              InterruptPage;
     UINT64              MonitorPage1;
     UINT64              MonitorPage2;

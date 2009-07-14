@@ -188,16 +188,16 @@ HvDoHypercall (
 
 #else
 
-    UINT32 controlHi = Control >> 32;
-    UINT32 controlLo = Control & 0xFFFFFFFF;
-    UINT32 hvStatusHi = 1;
-    UINT32 hvStatusLo = 1;
+    u32 controlHi = Control >> 32;
+    u32 controlLo = Control & 0xFFFFFFFF;
+    u32 hvStatusHi = 1;
+    u32 hvStatusLo = 1;
     UINT64 inputAddress = (Input) ? GetPhysicalAddress(Input) : 0;
-    UINT32 inputAddressHi = inputAddress >> 32;
-    UINT32 inputAddressLo = inputAddress & 0xFFFFFFFF;
+    u32 inputAddressHi = inputAddress >> 32;
+    u32 inputAddressLo = inputAddress & 0xFFFFFFFF;
 	UINT64 outputAddress = (Output) ?GetPhysicalAddress(Output) : 0;
-    UINT32 outputAddressHi = outputAddress >> 32;
-    UINT32 outputAddressLo = outputAddress & 0xFFFFFFFF;
+    u32 outputAddressHi = outputAddress >> 32;
+    u32 outputAddressLo = outputAddress & 0xFFFFFFFF;
     volatile void* hypercallPage = gHvContext.HypercallPage;
 
     DPRINT_DBG(VMBUS, "Hypercall <control %llx input %p output %p>",
@@ -312,7 +312,7 @@ HvInit (
 	}
 
 	gHvContext.SignalEventParam = (PHV_INPUT_SIGNAL_EVENT)(ALIGN_UP((ULONG_PTR)gHvContext.SignalEventBuffer, HV_HYPERCALL_PARAM_ALIGN));
-	gHvContext.SignalEventParam->ConnectionId.AsUINT32 = 0;
+	gHvContext.SignalEventParam->ConnectionId.Asu32 = 0;
 	gHvContext.SignalEventParam->ConnectionId.u.Id = VMBUS_EVENT_CONNECTION_ID;
 	gHvContext.SignalEventParam->FlagNumber = 0;
 	gHvContext.SignalEventParam->RsvdZ = 0;
@@ -471,7 +471,7 @@ Description:
 --*/
 int
 HvSynicInit (
-	UINT32 irqVector
+	u32 irqVector
 	)
 {
 	UINT64			version;

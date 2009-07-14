@@ -307,7 +307,7 @@ VmbusOnDeviceAdd(
 	void			*AdditionalInfo
 	)
 {
-	UINT32 *irqvector = (UINT32*) AdditionalInfo;
+	u32 *irqvector = (u32*) AdditionalInfo;
 	int ret=0;
 
 	DPRINT_ENTER(VMBUS);

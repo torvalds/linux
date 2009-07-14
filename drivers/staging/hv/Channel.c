@@ -33,9 +33,9 @@
 static int
 VmbusChannelCreateGpadlHeader(
 	void *					Kbuffer,	// must be phys and virt contiguous
-	UINT32					Size,		// page-size multiple
+	u32					Size,		// page-size multiple
 	VMBUS_CHANNEL_MSGINFO	**msgInfo,
-	UINT32					*MessageCount
+	u32					*MessageCount
 	);
 
 static void
@@ -77,7 +77,7 @@ DumpMonitorPage(
 	{
 		for (j=0; j<32; j++)
 		{
-			DPRINT_DBG(VMBUS, "param-conn id (%d)(%d) - %d", i, j, MonitorPage->Parameter[i][j].ConnectionId.AsUINT32);
+			DPRINT_DBG(VMBUS, "param-conn id (%d)(%d) - %d", i, j, MonitorPage->Parameter[i][j].ConnectionId.Asu32);
 			DPRINT_DBG(VMBUS, "param-flag (%d)(%d) - %d", i, j, MonitorPage->Parameter[i][j].FlagNumber);
 
 		}
@@ -105,13 +105,13 @@ VmbusChannelSetEvent(
 
 	if (Channel->OfferMsg.MonitorAllocated)
 	{
-		// Each UINT32 represents 32 channels
-		BitSet((UINT32*)gVmbusConnection.SendInterruptPage + (Channel->OfferMsg.ChildRelId >> 5), Channel->OfferMsg.ChildRelId & 31);
+		// Each u32 represents 32 channels
+		BitSet((u32*)gVmbusConnection.SendInterruptPage + (Channel->OfferMsg.ChildRelId >> 5), Channel->OfferMsg.ChildRelId & 31);
 
 		monitorPage = (HV_MONITOR_PAGE*)gVmbusConnection.MonitorPages;
 		monitorPage++; // Get the child to parent monitor page
 
-		BitSet((UINT32*) &monitorPage->TriggerGroup[Channel->MonitorGroup].Pending, Channel->MonitorBit);
+		BitSet((u32*) &monitorPage->TriggerGroup[Channel->MonitorGroup].Pending, Channel->MonitorBit);
 	}
 	else
 	{
@@ -133,13 +133,13 @@ VmbusChannelClearEvent(
 
 	if (Channel->OfferMsg.MonitorAllocated)
 	{
-		// Each UINT32 represents 32 channels
-		BitClear((UINT32*)gVmbusConnection.SendInterruptPage + (Channel->OfferMsg.ChildRelId >> 5), Channel->OfferMsg.ChildRelId & 31);
+		// Each u32 represents 32 channels
+		BitClear((u32*)gVmbusConnection.SendInterruptPage + (Channel->OfferMsg.ChildRelId >> 5), Channel->OfferMsg.ChildRelId & 31);
 
 		monitorPage = (HV_MONITOR_PAGE*)gVmbusConnection.MonitorPages;
 		monitorPage++; // Get the child to parent monitor page
 
-		BitClear((UINT32*) &monitorPage->TriggerGroup[Channel->MonitorGroup].Pending, Channel->MonitorBit);
+		BitClear((u32*) &monitorPage->TriggerGroup[Channel->MonitorGroup].Pending, Channel->MonitorBit);
 	}
 
 	DPRINT_EXIT(VMBUS);
@@ -164,7 +164,7 @@ VmbusChannelGetDebugInfo(
 	HV_MONITOR_PAGE *monitorPage;
     u8 monitorGroup    = (u8)Channel->OfferMsg.MonitorId / 32;
     u8 monitorOffset   = (u8)Channel->OfferMsg.MonitorId % 32;
-	//UINT32 monitorBit	= 1 << monitorOffset;
+	//u32 monitorBit	= 1 << monitorOffset;
 
 	DebugInfo->RelId = Channel->OfferMsg.ChildRelId;
 	DebugInfo->State = Channel->State;
@@ -202,10 +202,10 @@ Description:
 int
 VmbusChannelOpen(
 	VMBUS_CHANNEL			*NewChannel,
-	UINT32					SendRingBufferSize,
-	UINT32					RecvRingBufferSize,
+	u32					SendRingBufferSize,
+	u32					RecvRingBufferSize,
 	void *					UserData,
-	UINT32					UserDataLen,
+	u32					UserDataLen,
 	PFN_CHANNEL_CALLBACK	pfnOnChannelCallback,
 	void *					Context
 	)
@@ -330,7 +330,7 @@ Description:
 --*/
 static void DumpGpadlBody(
 	VMBUS_CHANNEL_GPADL_BODY	*Gpadl,
-	UINT32						Len)
+	u32						Len)
 {
 	int i=0;
 	int pfnCount=0;
@@ -393,9 +393,9 @@ Description:
 static int
 VmbusChannelCreateGpadlHeader(
 	void *					Kbuffer,	// from kmalloc()
-	UINT32					Size,		// page-size multiple
+	u32					Size,		// page-size multiple
 	VMBUS_CHANNEL_MSGINFO	**MsgInfo,
-	UINT32					*MessageCount)
+	u32					*MessageCount)
 {
 	int i;
 	int pageCount;
@@ -404,7 +404,7 @@ VmbusChannelCreateGpadlHeader(
 	VMBUS_CHANNEL_GPADL_BODY* gpadlBody;
 	VMBUS_CHANNEL_MSGINFO* msgHeader;
 	VMBUS_CHANNEL_MSGINFO* msgBody;
-	UINT32				msgSize;
+	u32				msgSize;
 
 	int pfnSum, pfnCount, pfnLeft, pfnCurr, pfnSize;
 
@@ -465,7 +465,7 @@ VmbusChannelCreateGpadlHeader(
 			(*MessageCount)++;
 			gpadlBody = (VMBUS_CHANNEL_GPADL_BODY*)msgBody->Msg;
 
-			// FIXME: Gpadl is UINT32 and we are using a pointer which could be 64-bit
+			// FIXME: Gpadl is u32 and we are using a pointer which could be 64-bit
 			//gpadlBody->Gpadl = kbuffer;
 			for (i=0; i<pfnCurr; i++)
 			{
@@ -516,8 +516,8 @@ int
 VmbusChannelEstablishGpadl(
 	VMBUS_CHANNEL	*Channel,
 	void *			Kbuffer,	// from kmalloc()
-	UINT32			Size,		// page-size multiple
-	UINT32			*GpadlHandle
+	u32			Size,		// page-size multiple
+	u32			*GpadlHandle
 	)
 {
 	int ret=0;
@@ -528,10 +528,10 @@ VmbusChannelEstablishGpadl(
 	VMBUS_CHANNEL_MSGINFO *msgInfo;
 	VMBUS_CHANNEL_MSGINFO *subMsgInfo;
 
-	UINT32 msgCount;
+	u32 msgCount;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
-	UINT32 nextGpadlHandle;
+	u32 nextGpadlHandle;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -619,7 +619,7 @@ Description:
 int
 VmbusChannelTeardownGpadl(
 	VMBUS_CHANNEL	*Channel,
-	UINT32			GpadlHandle
+	u32			GpadlHandle
 	)
 {
 	int ret=0;
@@ -753,16 +753,16 @@ int
 VmbusChannelSendPacket(
 	VMBUS_CHANNEL		*Channel,
 	const void *			Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId,
 	VMBUS_PACKET_TYPE	Type,
-	UINT32				Flags
+	u32				Flags
 )
 {
 	int ret=0;
 	VMPACKET_DESCRIPTOR desc;
-	UINT32 packetLen = sizeof(VMPACKET_DESCRIPTOR) + BufferLen;
-	UINT32 packetLenAligned = ALIGN_UP(packetLen, sizeof(UINT64));
+	u32 packetLen = sizeof(VMPACKET_DESCRIPTOR) + BufferLen;
+	u32 packetLenAligned = ALIGN_UP(packetLen, sizeof(UINT64));
 	SG_BUFFER_LIST bufferList[3];
 	UINT64 alignedData=0;
 
@@ -819,18 +819,18 @@ int
 VmbusChannelSendPacketPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	PAGE_BUFFER			PageBuffers[],
-	UINT32				PageCount,
+	u32				PageCount,
 	void *				Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId
 )
 {
 	int ret=0;
 	int i=0;
 	VMBUS_CHANNEL_PACKET_PAGE_BUFFER desc;
-	UINT32 descSize;
-	UINT32 packetLen;
-	UINT32 packetLenAligned;
+	u32 descSize;
+	u32 packetLen;
+	u32 packetLenAligned;
 	SG_BUFFER_LIST bufferList[3];
 	UINT64 alignedData=0;
 
@@ -903,18 +903,18 @@ VmbusChannelSendPacketMultiPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
-	UINT32				BufferLen,
+	u32				BufferLen,
 	UINT64				RequestId
 )
 {
 	int ret=0;
 	VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER desc;
-	UINT32 descSize;
-	UINT32 packetLen;
-	UINT32 packetLenAligned;
+	u32 descSize;
+	u32 packetLen;
+	u32 packetLenAligned;
 	SG_BUFFER_LIST bufferList[3];
 	UINT64 alignedData=0;
-	UINT32 PfnCount = NUM_PAGES_SPANNED(MultiPageBuffer->Offset, MultiPageBuffer->Length);
+	u32 PfnCount = NUM_PAGES_SPANNED(MultiPageBuffer->Offset, MultiPageBuffer->Length);
 
 	DPRINT_ENTER(VMBUS);
 
@@ -985,14 +985,14 @@ int
 VmbusChannelRecvPacket(
 	VMBUS_CHANNEL		*Channel,
 	void *				Buffer,
-	UINT32				BufferLen,
-	UINT32*				BufferActualLen,
+	u32				BufferLen,
+	u32*				BufferActualLen,
 	UINT64*				RequestId
 	)
 {
 	VMPACKET_DESCRIPTOR desc;
-	UINT32 packetLen;
-	UINT32 userLen;
+	u32 packetLen;
+	u32 userLen;
 	int ret;
 
 	DPRINT_ENTER(VMBUS);
@@ -1062,14 +1062,14 @@ int
 VmbusChannelRecvPacketRaw(
 	VMBUS_CHANNEL		*Channel,
 	void *				Buffer,
-	UINT32				BufferLen,
-	UINT32*				BufferActualLen,
+	u32				BufferLen,
+	u32*				BufferActualLen,
 	UINT64*				RequestId
 	)
 {
 	VMPACKET_DESCRIPTOR desc;
-	UINT32 packetLen;
-	UINT32 userLen;
+	u32 packetLen;
+	u32 userLen;
 	int ret;
 
 	DPRINT_ENTER(VMBUS);
