@@ -1465,7 +1465,7 @@ static int fn_trie_lookup(struct fib_table *tb, const struct flowi *flp,
 			cindex = tkey_extract_bits(mask_pfx(key, current_prefix_length),
 						   pos, bits);
 
-		n = tnode_get_child(pn, cindex);
+		n = tnode_get_child_rcu(pn, cindex);
 
 		if (n == NULL) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -1600,7 +1600,7 @@ backtrace:
 		if (chopped_off <= pn->bits) {
 			cindex &= ~(1 << (chopped_off-1));
 		} else {
-			struct tnode *parent = node_parent((struct node *) pn);
+			struct tnode *parent = node_parent_rcu((struct node *) pn);
 			if (!parent)
 				goto failed;
 
@@ -1813,7 +1813,7 @@ static struct leaf *trie_firstleaf(struct trie *t)
 static struct leaf *trie_nextleaf(struct leaf *l)
 {
 	struct node *c = (struct node *) l;
-	struct tnode *p = node_parent(c);
+	struct tnode *p = node_parent_rcu(c);
 
 	if (!p)
 		return NULL;	/* trie with just one leaf */
