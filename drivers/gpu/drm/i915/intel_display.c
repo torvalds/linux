@@ -1623,44 +1623,67 @@ static struct intel_watermark_params igd_cursor_hplloff_wm = {
 	IGD_FIFO_LINE_SIZE
 };
 static struct intel_watermark_params i945_wm_info = {
-	I915_FIFO_LINE_SIZE,
-	I915_MAX_WM,
-	1,
-	0,
-	IGD_FIFO_LINE_SIZE
-};
-static struct intel_watermark_params i915_wm_info = {
 	I945_FIFO_SIZE,
 	I915_MAX_WM,
 	1,
-	0,
+	2,
+	I915_FIFO_LINE_SIZE
+};
+static struct intel_watermark_params i915_wm_info = {
+	I915_FIFO_SIZE,
+	I915_MAX_WM,
+	1,
+	2,
 	I915_FIFO_LINE_SIZE
 };
 static struct intel_watermark_params i855_wm_info = {
 	I855GM_FIFO_SIZE,
 	I915_MAX_WM,
 	1,
-	0,
+	2,
 	I830_FIFO_LINE_SIZE
 };
 static struct intel_watermark_params i830_wm_info = {
 	I830_FIFO_SIZE,
 	I915_MAX_WM,
 	1,
-	0,
+	2,
 	I830_FIFO_LINE_SIZE
 };
 
+/**
+ * intel_calculate_wm - calculate watermark level
+ * @clock_in_khz: pixel clock
+ * @wm: chip FIFO params
+ * @pixel_size: display pixel size
+ * @latency_ns: memory latency for the platform
+ *
+ * Calculate the watermark level (the level at which the display plane will
+ * start fetching from memory again).  Each chip has a different display
+ * FIFO size and allocation, so the caller needs to figure that out and pass
+ * in the correct intel_watermark_params structure.
+ *
+ * As the pixel clock runs, the FIFO will be drained at a rate that depends
+ * on the pixel size.  When it reaches the watermark level, it'll start
+ * fetching FIFO line sized based chunks from memory until the FIFO fills
+ * past the watermark point.  If the FIFO drains completely, a FIFO underrun
+ * will occur, and a display engine hang could result.
+ */
 static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 					struct intel_watermark_params *wm,
 					int pixel_size,
 					unsigned long latency_ns)
 {
-	unsigned long bytes_required, wm_size;
+	unsigned long entries_required, wm_size;
 
-	bytes_required = (clock_in_khz * pixel_size * latency_ns) / 1000000;
-	bytes_required /= wm->cacheline_size;
-	wm_size = wm->fifo_size - bytes_required - wm->guard_size;
+	entries_required = (clock_in_khz * pixel_size * latency_ns) / 1000000;
+	entries_required /= wm->cacheline_size;
+
+	DRM_DEBUG("FIFO entries required for mode: %d\n", entries_required);
+
+	wm_size = wm->fifo_size - (entries_required + wm->guard_size);
+
+	DRM_DEBUG("FIFO watermark level: %d\n", wm_size);
 
 	if (wm_size > wm->max_wm)
 		wm_size = wm->max_wm;
@@ -1799,8 +1822,37 @@ static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
 	return;
 }
 
-const static int latency_ns = 5000; /* default for non-igd platforms */
+const static int latency_ns = 3000; /* default for non-igd platforms */
 
+static int intel_get_fifo_size(struct drm_device *dev, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t dsparb = I915_READ(DSPARB);
+	int size;
+
+	if (IS_I9XX(dev)) {
+		if (plane == 0)
+			size = dsparb & 0x7f;
+		else
+			size = ((dsparb >> DSPARB_CSTART_SHIFT) & 0x7f) -
+				(dsparb & 0x7f);
+	} else if (IS_I85X(dev)) {
+		if (plane == 0)
+			size = dsparb & 0x1ff;
+		else
+			size = ((dsparb >> DSPARB_BEND_SHIFT) & 0x1ff) -
+				(dsparb & 0x1ff);
+		size >>= 1; /* Convert to cachelines */
+	} else {
+		size = dsparb & 0x7f;
+		size >>= 1; /* Convert to cachelines */
+	}
+
+	DRM_DEBUG("FIFO size - (0x%08x) %s: %d\n", dsparb, plane ? "B" : "A",
+		  size);
+
+	return size;
+}
 
 static void i965_update_wm(struct drm_device *dev)
 {
@@ -1817,101 +1869,87 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 			   int planeb_clock, int sr_hdisplay, int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t fwater_lo = I915_READ(FW_BLC) & MM_FIFO_WATERMARK;
-	uint32_t fwater_hi = I915_READ(FW_BLC2) & LM_FIFO_WATERMARK;
-	int bsize, asize, cwm, bwm = 1, awm = 1, srwm = 1;
-	uint32_t dsparb = I915_READ(DSPARB);
-	int planea_entries, planeb_entries;
-	struct intel_watermark_params *wm_params;
+	uint32_t fwater_lo;
+	uint32_t fwater_hi;
+	int total_size, cacheline_size, cwm, srwm = 1;
+	int planea_wm, planeb_wm;
+	struct intel_watermark_params planea_params, planeb_params;
 	unsigned long line_time_us;
 	int sr_clock, sr_entries = 0;
 
+	/* Create copies of the base settings for each pipe */
 	if (IS_I965GM(dev) || IS_I945GM(dev))
-		wm_params = &i945_wm_info;
+		planea_params = planeb_params = i945_wm_info;
 	else if (IS_I9XX(dev))
-		wm_params = &i915_wm_info;
+		planea_params = planeb_params = i915_wm_info;
 	else
-		wm_params = &i855_wm_info;
+		planea_params = planeb_params = i855_wm_info;
 
-	planea_entries = intel_calculate_wm(planea_clock, wm_params,
-					    pixel_size, latency_ns);
-	planeb_entries = intel_calculate_wm(planeb_clock, wm_params,
-					    pixel_size, latency_ns);
+	/* Grab a couple of global values before we overwrite them */
+	total_size = planea_params.fifo_size;
+	cacheline_size = planea_params.cacheline_size;
 
-	DRM_DEBUG("FIFO entries - A: %d, B: %d\n", planea_entries,
-		  planeb_entries);
+	/* Update per-plane FIFO sizes */
+	planea_params.fifo_size = intel_get_fifo_size(dev, 0);
+	planeb_params.fifo_size = intel_get_fifo_size(dev, 1);
 
-	if (IS_I9XX(dev)) {
-		asize = dsparb & 0x7f;
-		bsize = (dsparb >> DSPARB_CSTART_SHIFT) & 0x7f;
-	} else {
-		asize = dsparb & 0x1ff;
-		bsize = (dsparb >> DSPARB_BEND_SHIFT) & 0x1ff;
-	}
-	DRM_DEBUG("FIFO size - A: %d, B: %d\n", asize, bsize);
-
-	/* Two extra entries for padding */
-	awm = asize - (planea_entries + 2);
-	bwm = bsize - (planeb_entries + 2);
-
-	/* Sanity check against potentially bad FIFO allocations */
-	if (awm <= 0) {
-		/* pipe is on but has too few FIFO entries */
-		if (planea_entries != 0)
-			DRM_DEBUG("plane A needs more FIFO entries\n");
-		awm = 1;
-	}
-	if (bwm <= 0) {
-		if (planeb_entries != 0)
-			DRM_DEBUG("plane B needs more FIFO entries\n");
-		bwm = 1;
-	}
+	planea_wm = intel_calculate_wm(planea_clock, &planea_params,
+				       pixel_size, latency_ns);
+	planeb_wm = intel_calculate_wm(planeb_clock, &planeb_params,
+				       pixel_size, latency_ns);
+	DRM_DEBUG("FIFO watermarks - A: %d, B: %d\n", planea_wm, planeb_wm);
 
 	/*
 	 * Overlay gets an aggressive default since video jitter is bad.
 	 */
 	cwm = 2;
 
-	/* Calc sr entries for one pipe configs */
+	/* Calc sr entries for one plane configs */
 	if (!planea_clock || !planeb_clock) {
+		/* self-refresh has much higher latency */
+		const static int sr_latency_ns = 6000;
+
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = (sr_hdisplay * 1000) / sr_clock;
-		sr_entries = (((latency_ns / line_time_us) + 1) * pixel_size *
-			      sr_hdisplay) / 1000;
-		sr_entries = roundup(sr_entries / wm_params->cacheline_size, 1);
-		if (sr_entries < wm_params->fifo_size)
-			srwm = wm_params->fifo_size - sr_entries;
+		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+
+		/* Use ns/us then divide to preserve precision */
+		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
+			      pixel_size * sr_hdisplay) / 1000;
+		sr_entries = roundup(sr_entries / cacheline_size, 1);
+		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
+		srwm = total_size - sr_entries;
+		if (srwm < 0)
+			srwm = 1;
 	}
 
 	DRM_DEBUG("Setting FIFO watermarks - A: %d, B: %d, C: %d, SR %d\n",
-		  awm, bwm, cwm, srwm);
+		  planea_wm, planeb_wm, cwm, srwm);
 
-	fwater_lo = fwater_lo | ((bwm & 0x3f) << 16) | (awm & 0x3f);
-	fwater_hi = fwater_hi | (cwm & 0x1f);
+	fwater_lo = ((planeb_wm & 0x3f) << 16) | (planea_wm & 0x3f);
+	fwater_hi = (cwm & 0x1f);
+
+	/* Set request length to 8 cachelines per fetch */
+	fwater_lo = fwater_lo | (1 << 24) | (1 << 8);
+	fwater_hi = fwater_hi | (1 << 8);
 
 	I915_WRITE(FW_BLC, fwater_lo);
 	I915_WRITE(FW_BLC2, fwater_hi);
 	if (IS_I9XX(dev))
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN | (srwm & 0x3f));
+		I915_WRITE(FW_BLC_SELF, (srwm & 0x3f));
 }
 
 static void i830_update_wm(struct drm_device *dev, int planea_clock,
 			   int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t dsparb = I915_READ(DSPARB);
 	uint32_t fwater_lo = I915_READ(FW_BLC) & MM_FIFO_WATERMARK;
-	unsigned int asize, awm;
-	int planea_entries;
+	int planea_wm;
 
-	planea_entries = intel_calculate_wm(planea_clock, &i830_wm_info,
-					    pixel_size, latency_ns);
+	i830_wm_info.fifo_size = intel_get_fifo_size(dev, 0);
 
-	asize = dsparb & 0x7f;
-
-	awm = asize - planea_entries;
-
-	fwater_lo = fwater_lo | awm;
+	planea_wm = intel_calculate_wm(planea_clock, &i830_wm_info,
+				       pixel_size, latency_ns);
+	fwater_lo = fwater_lo | planea_wm;
 
 	I915_WRITE(FW_BLC, fwater_lo);
 }
@@ -1984,7 +2022,7 @@ static void intel_update_watermarks(struct drm_device *dev)
 	if (enabled <= 0)
 		return;
 
-	/* Single pipe configs can enable self refresh */
+	/* Single plane configs can enable self refresh */
 	if (enabled == 1 && IS_IGD(dev))
 		igd_enable_cxsr(dev, sr_clock, pixel_size);
 	else if (IS_IGD(dev))

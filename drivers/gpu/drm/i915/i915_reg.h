@@ -1618,7 +1618,7 @@
 #define I830_FIFO_LINE_SIZE	32
 #define I945_FIFO_SIZE		127 /* 945 & 965 */
 #define I915_FIFO_SIZE		95
-#define I855GM_FIFO_SIZE	255
+#define I855GM_FIFO_SIZE	127 /* In cachelines */
 #define I830_FIFO_SIZE		95
 #define I915_MAX_WM		0x3f
 
