@@ -44,7 +44,7 @@ typedef struct
             volatile u32  In;        // Offset in bytes from the ring base
             volatile u32  Out;       // Offset in bytes from the ring base
         };
-        volatile LONGLONG    InOut;
+        volatile long long InOut;
     };
 
     //

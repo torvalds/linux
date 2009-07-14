@@ -196,7 +196,7 @@ typedef struct
     //  vendor specific data in the inquirydata
     //
 
-    ULONGLONG UniqueId;
+    unsigned long long UniqueId;
 
 } VMSTORAGE_CHANNEL_PROPERTIES, *PVMSTORAGE_CHANNEL_PROPERTIES;
 

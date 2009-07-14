@@ -97,15 +97,12 @@ typedef struct _DLIST_ENTRY {
 //
 // unsigned types
 //
-
-typedef unsigned long long	ULONGLONG;
 typedef unsigned int		ULONG;
 
 //
 // signed types
 //
 typedef int					LONG;
-typedef long long			LONGLONG;
 
 //
 // Other types
