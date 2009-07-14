@@ -1098,7 +1098,6 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 
 	if (data) {
 		memmove(data, dataptr, count);
-		data += count;
 	}
 
 	if (udata) {
@@ -1192,9 +1191,9 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 
 	err = p9pdu_readf(req->rc, clnt->dotu, "wS", &ignored, ret);
 	if (err) {
-		ret = ERR_PTR(err);
 		p9pdu_dump(1, req->rc);
-		goto free_and_error;
+		p9_free_req(clnt, req);
+		goto error;
 	}
 
 	P9_DPRINTK(P9_DEBUG_9P,
@@ -1211,8 +1210,6 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 	p9_free_req(clnt, req);
 	return ret;
 
-free_and_error:
-	p9_free_req(clnt, req);
 error:
 	kfree(ret);
 	return ERR_PTR(err);
