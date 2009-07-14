@@ -36,7 +36,6 @@
 #include <asm/thread_info.h>
 #include <asm/firmware.h>
 #include <asm/page_64.h>
-#include <asm/exception.h>
 #include <asm/irqflags.h>
 
 /* The physical memory is layed out such that the secondary processor

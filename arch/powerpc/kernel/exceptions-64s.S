@@ -12,6 +12,8 @@
  *
  */
 
+#include <asm/exception-64s.h>
+
 /*
  * We layout physical memory as follows:
  * 0x0000 - 0x00ff : Secondary processor spin code

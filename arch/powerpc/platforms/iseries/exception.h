@@ -24,7 +24,7 @@
  *  as published by the Free Software Foundation; either version
  *  2 of the License, or (at your option) any later version.
  */
-#include <asm/exception.h>
+#include <asm/exception-64s.h>
 
 #define EXCEPTION_PROLOG_ISERIES_1					\
 	mfmsr	r10;							\
