@@ -58,7 +58,7 @@ IVmbusChannelSendPacket(
 	PDEVICE_OBJECT		Device,
 	const void *			Buffer,
 	u32				BufferLen,
-	UINT64				RequestId,
+	u64				RequestId,
 	u32				Type,
 	u32				Flags
 	)
@@ -78,7 +78,7 @@ IVmbusChannelSendPacketPageBuffer(
 	u32				PageCount,
 	void *				Buffer,
 	u32				BufferLen,
-	UINT64				RequestId
+	u64				RequestId
 	)
 {
 	return VmbusChannelSendPacketPageBuffer((VMBUS_CHANNEL*)Device->context,
@@ -95,7 +95,7 @@ IVmbusChannelSendPacketMultiPageBuffer(
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
 	u32				BufferLen,
-	UINT64				RequestId
+	u64				RequestId
 	)
 {
 	return VmbusChannelSendPacketMultiPageBuffer((VMBUS_CHANNEL*)Device->context,
@@ -111,7 +111,7 @@ IVmbusChannelRecvPacket (
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
-	UINT64*				RequestId
+	u64*				RequestId
 	)
 {
 	return VmbusChannelRecvPacket((VMBUS_CHANNEL*)Device->context,
@@ -127,7 +127,7 @@ IVmbusChannelRecvPacketRaw(
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
-	UINT64*				RequestId
+	u64*				RequestId
 	)
 {
 	return VmbusChannelRecvPacketRaw((VMBUS_CHANNEL*)Device->context,

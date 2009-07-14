@@ -24,7 +24,7 @@
 
 #pragma once
 
-typedef UINT64 HV_GPA, *PHV_GPA;
+typedef u64 HV_GPA, *PHV_GPA;
 
 #define HV_X64_PAGE_SIZE (4096)
 #define HV_PAGE_SIZE HV_X64_PAGE_SIZE

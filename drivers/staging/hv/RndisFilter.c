@@ -56,7 +56,7 @@ typedef struct _RNDIS_DEVICE {
 	HANDLE					RequestLock;
 	LIST_ENTRY				RequestList;
 
-	UCHAR					HwMacAddr[HW_MACADDR_LEN];
+	unsigned char					HwMacAddr[HW_MACADDR_LEN];
 } RNDIS_DEVICE;
 
 

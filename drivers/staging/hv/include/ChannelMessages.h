@@ -148,7 +148,7 @@ typedef struct _VMBUS_CHANNEL_OPEN_CHANNEL
     //
     // User-specific data to be passed along to the server endpoint.
     //
-    UCHAR           UserData[MAX_USER_DEFINED_BYTES];
+    unsigned char           UserData[MAX_USER_DEFINED_BYTES];
 
 } VMBUS_CHANNEL_OPEN_CHANNEL, *PVMBUS_CHANNEL_OPEN_CHANNEL;
 
@@ -203,7 +203,7 @@ typedef struct _VMBUS_CHANNEL_GPADL_BODY
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
     u32              MessageNumber;
     u32              Gpadl;
-    UINT64              Pfn[0];
+    u64              Pfn[0];
 } VMBUS_CHANNEL_GPADL_BODY, *PVMBUS_CHANNEL_GPADL_BODY;
 
 
@@ -233,7 +233,7 @@ typedef struct _VMBUS_CHANNEL_VIEW_RANGE_ADD
 {
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
     PHYSICAL_ADDRESS    ViewRangeBase;
-    UINT64              ViewRangeLength;
+    u64              ViewRangeLength;
     u32              ChildRelId;
 } VMBUS_CHANNEL_VIEW_RANGE_ADD, *PVMBUS_CHANNEL_VIEW_RANGE_ADD;
 
@@ -256,9 +256,9 @@ typedef struct _VMBUS_CHANNEL_INITIATE_CONTACT
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
     u32              VMBusVersionRequested;
     u32              Padding2;
-    UINT64              InterruptPage;
-    UINT64              MonitorPage1;
-    UINT64              MonitorPage2;
+    u64              InterruptPage;
+    u64              MonitorPage1;
+    u64              MonitorPage2;
 } VMBUS_CHANNEL_INITIATE_CONTACT, *PVMBUS_CHANNEL_INITIATE_CONTACT;
 
 typedef struct _VMBUS_CHANNEL_VERSION_RESPONSE

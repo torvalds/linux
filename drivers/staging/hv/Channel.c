@@ -335,7 +335,7 @@ static void DumpGpadlBody(
 	int i=0;
 	int pfnCount=0;
 
-	pfnCount = (Len - sizeof(VMBUS_CHANNEL_GPADL_BODY))/ sizeof(UINT64);
+	pfnCount = (Len - sizeof(VMBUS_CHANNEL_GPADL_BODY))/ sizeof(u64);
 	DPRINT_DBG(VMBUS, "gpadl body - len %d pfn count %d", Len, pfnCount);
 
 	for (i=0; i< pfnCount; i++)
@@ -416,12 +416,12 @@ VmbusChannelCreateGpadlHeader(
 
 	// do we need a gpadl body msg
 	pfnSize = MAX_SIZE_CHANNEL_MESSAGE - sizeof(VMBUS_CHANNEL_GPADL_HEADER) - sizeof(GPA_RANGE);
-	pfnCount = pfnSize / sizeof(UINT64);
+	pfnCount = pfnSize / sizeof(u64);
 
 	if (pageCount > pfnCount) // we need a gpadl body
 	{
 		// fill in the header
-		msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pfnCount*sizeof(UINT64);
+		msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pfnCount*sizeof(u64);
 		msgHeader =  MemAllocZeroed(msgSize);
 
 		INITIALIZE_LIST_HEAD(&msgHeader->SubMsgList);
@@ -429,7 +429,7 @@ VmbusChannelCreateGpadlHeader(
 
 		gpaHeader = (VMBUS_CHANNEL_GPADL_HEADER*)msgHeader->Msg;
 		gpaHeader->RangeCount = 1;
-		gpaHeader->RangeBufLen = sizeof(GPA_RANGE) + pageCount*sizeof(UINT64);
+		gpaHeader->RangeBufLen = sizeof(GPA_RANGE) + pageCount*sizeof(u64);
 		gpaHeader->Range[0].ByteOffset = 0;
 		gpaHeader->Range[0].ByteCount = Size;
 		for (i=0; i<pfnCount; i++)
@@ -444,7 +444,7 @@ VmbusChannelCreateGpadlHeader(
 
 		// how many pfns can we fit
 		pfnSize = MAX_SIZE_CHANNEL_MESSAGE - sizeof(VMBUS_CHANNEL_GPADL_BODY);
-		pfnCount = pfnSize / sizeof(UINT64);
+		pfnCount = pfnSize / sizeof(u64);
 
 		// fill in the body
 		while (pfnLeft)
@@ -458,7 +458,7 @@ VmbusChannelCreateGpadlHeader(
 				pfnCurr = pfnLeft;
 			}
 
-			msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_BODY) + pfnCurr*sizeof(UINT64);
+			msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_BODY) + pfnCurr*sizeof(u64);
 			msgBody =  MemAllocZeroed(msgSize);
 			ASSERT(msgBody);
 			msgBody->MessageSize = msgSize;
@@ -481,13 +481,13 @@ VmbusChannelCreateGpadlHeader(
 	else
 	{
 		// everything fits in a header
-		msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pageCount*sizeof(UINT64);
+		msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pageCount*sizeof(u64);
 		msgHeader =  MemAllocZeroed(msgSize);
 		msgHeader->MessageSize=msgSize;
 
 		gpaHeader = (VMBUS_CHANNEL_GPADL_HEADER*)msgHeader->Msg;
 		gpaHeader->RangeCount = 1;
-		gpaHeader->RangeBufLen = sizeof(GPA_RANGE) + pageCount*sizeof(UINT64);
+		gpaHeader->RangeBufLen = sizeof(GPA_RANGE) + pageCount*sizeof(u64);
 		gpaHeader->Range[0].ByteOffset = 0;
 		gpaHeader->Range[0].ByteCount = Size;
 		for (i=0; i<pageCount; i++)
@@ -754,7 +754,7 @@ VmbusChannelSendPacket(
 	VMBUS_CHANNEL		*Channel,
 	const void *			Buffer,
 	u32				BufferLen,
-	UINT64				RequestId,
+	u64				RequestId,
 	VMBUS_PACKET_TYPE	Type,
 	u32				Flags
 )
@@ -762,16 +762,16 @@ VmbusChannelSendPacket(
 	int ret=0;
 	VMPACKET_DESCRIPTOR desc;
 	u32 packetLen = sizeof(VMPACKET_DESCRIPTOR) + BufferLen;
-	u32 packetLenAligned = ALIGN_UP(packetLen, sizeof(UINT64));
+	u32 packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
 	SG_BUFFER_LIST bufferList[3];
-	UINT64 alignedData=0;
+	u64 alignedData=0;
 
 	DPRINT_ENTER(VMBUS);
 	DPRINT_DBG(VMBUS, "channel %p buffer %p len %d", Channel, Buffer, BufferLen);
 
 	DumpVmbusChannel(Channel);
 
-	ASSERT((packetLenAligned - packetLen) < sizeof(UINT64));
+	ASSERT((packetLenAligned - packetLen) < sizeof(u64));
 
 	// Setup the descriptor
 	desc.Type = Type;//VmbusPacketTypeDataInBand;
@@ -822,7 +822,7 @@ VmbusChannelSendPacketPageBuffer(
 	u32				PageCount,
 	void *				Buffer,
 	u32				BufferLen,
-	UINT64				RequestId
+	u64				RequestId
 )
 {
 	int ret=0;
@@ -832,7 +832,7 @@ VmbusChannelSendPacketPageBuffer(
 	u32 packetLen;
 	u32 packetLenAligned;
 	SG_BUFFER_LIST bufferList[3];
-	UINT64 alignedData=0;
+	u64 alignedData=0;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -843,9 +843,9 @@ VmbusChannelSendPacketPageBuffer(
 	// Adjust the size down since VMBUS_CHANNEL_PACKET_PAGE_BUFFER is the largest size we support
 	descSize = sizeof(VMBUS_CHANNEL_PACKET_PAGE_BUFFER) - ((MAX_PAGE_BUFFER_COUNT - PageCount)*sizeof(PAGE_BUFFER));
 	packetLen = descSize + BufferLen;
-	packetLenAligned = ALIGN_UP(packetLen, sizeof(UINT64));
+	packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
 
-	ASSERT((packetLenAligned - packetLen) < sizeof(UINT64));
+	ASSERT((packetLenAligned - packetLen) < sizeof(u64));
 
 	// Setup the descriptor
 	desc.Type = VmbusPacketTypeDataUsingGpaDirect;
@@ -904,7 +904,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
 	u32				BufferLen,
-	UINT64				RequestId
+	u64				RequestId
 )
 {
 	int ret=0;
@@ -913,7 +913,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 	u32 packetLen;
 	u32 packetLenAligned;
 	SG_BUFFER_LIST bufferList[3];
-	UINT64 alignedData=0;
+	u64 alignedData=0;
 	u32 PfnCount = NUM_PAGES_SPANNED(MultiPageBuffer->Offset, MultiPageBuffer->Length);
 
 	DPRINT_ENTER(VMBUS);
@@ -926,11 +926,11 @@ VmbusChannelSendPacketMultiPageBuffer(
 	ASSERT(PfnCount <= MAX_MULTIPAGE_BUFFER_COUNT);
 
 	// Adjust the size down since VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER is the largest size we support
-	descSize = sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER) - ((MAX_MULTIPAGE_BUFFER_COUNT - PfnCount)*sizeof(UINT64));
+	descSize = sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER) - ((MAX_MULTIPAGE_BUFFER_COUNT - PfnCount)*sizeof(u64));
 	packetLen = descSize + BufferLen;
-	packetLenAligned = ALIGN_UP(packetLen, sizeof(UINT64));
+	packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
 
-	ASSERT((packetLenAligned - packetLen) < sizeof(UINT64));
+	ASSERT((packetLenAligned - packetLen) < sizeof(u64));
 
 	// Setup the descriptor
 	desc.Type = VmbusPacketTypeDataUsingGpaDirect;
@@ -943,7 +943,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 	desc.Range.Length = MultiPageBuffer->Length;
 	desc.Range.Offset = MultiPageBuffer->Offset;
 
-	memcpy(desc.Range.PfnArray, MultiPageBuffer->PfnArray, PfnCount*sizeof(UINT64));
+	memcpy(desc.Range.PfnArray, MultiPageBuffer->PfnArray, PfnCount*sizeof(u64));
 
 	bufferList[0].Data = &desc;
 	bufferList[0].Length = descSize;
@@ -987,7 +987,7 @@ VmbusChannelRecvPacket(
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
-	UINT64*				RequestId
+	u64*				RequestId
 	)
 {
 	VMPACKET_DESCRIPTOR desc;
@@ -1064,7 +1064,7 @@ VmbusChannelRecvPacketRaw(
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
-	UINT64*				RequestId
+	u64*				RequestId
 	)
 {
 	VMPACKET_DESCRIPTOR desc;

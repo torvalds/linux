@@ -63,8 +63,8 @@ typedef struct _STORVSC_DEVICE{
 	//  Each unique Port/Path/Target represents 1 channel ie scsi controller. In reality, the pathid, targetid is always 0
 	// and the port is set by us
 	ULONG						PortNumber;
-    UCHAR						PathId;
-    UCHAR						TargetId;
+    unsigned char						PathId;
+    unsigned char						TargetId;
 
 	//LIST_ENTRY					OutstandingRequestList;
 	//HANDLE						OutstandingRequestLock;
@@ -279,9 +279,9 @@ StorVscInitialize(
 	storDriver->RequestExtSize			= sizeof(STORVSC_REQUEST_EXTENSION);
 
 	// Divide the ring buffer data size (which is 1 page less than the ring buffer size since that page is reserved for the ring buffer indices)
-	// by the max request size (which is VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER + VSTOR_PACKET + UINT64)
+	// by the max request size (which is VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER + VSTOR_PACKET + u64)
 	storDriver->MaxOutstandingRequestsPerChannel =
-		((storDriver->RingBufferSize - PAGE_SIZE) / ALIGN_UP(MAX_MULTIPAGE_BUFFER_PACKET + sizeof(VSTOR_PACKET) + sizeof(UINT64),sizeof(UINT64)));
+		((storDriver->RingBufferSize - PAGE_SIZE) / ALIGN_UP(MAX_MULTIPAGE_BUFFER_PACKET + sizeof(VSTOR_PACKET) + sizeof(u64),sizeof(u64)));
 
 	DPRINT_INFO(STORVSC, "max io %u, currently %u\n", storDriver->MaxOutstandingRequestsPerChannel, STORVSC_MAX_IO_REQUESTS);
 
@@ -909,8 +909,8 @@ StorVscOnChannelCallback(
 	DEVICE_OBJECT *device = (DEVICE_OBJECT*)Context;
 	STORVSC_DEVICE *storDevice;
 	u32 bytesRecvd;
-	UINT64 requestId;
-	UCHAR packet[ALIGN_UP(sizeof(VSTOR_PACKET),8)];
+	u64 requestId;
+	unsigned char packet[ALIGN_UP(sizeof(VSTOR_PACKET),8)];
 	STORVSC_REQUEST_EXTENSION *request;
 
 	DPRINT_ENTER(STORVSC);

@@ -97,28 +97,15 @@ typedef struct _DLIST_ENTRY {
 //
 // unsigned types
 //
-#ifdef __x86_64__
-typedef unsigned long		UINT64;
-#else
-typedef unsigned long long	UINT64;
-#endif
 
 typedef unsigned long long	ULONGLONG;
 typedef unsigned int		ULONG;
 typedef unsigned short		USHORT;
-typedef unsigned char		UCHAR;
 
 //
 // signed types
 //
-#ifdef __x86_64__
-typedef long				INT64;
-#else
-typedef long long		INT64;
-#endif
-
 typedef int					LONG;
-typedef char				CHAR;
 typedef long long			LONGLONG;
 
 //
@@ -130,7 +117,6 @@ typedef unsigned char		BOOL;
 typedef unsigned char		BOOLEAN;
 typedef void*				HANDLE;
 typedef u32				DWORD;
-typedef char*				PCHAR;
 typedef unsigned char		BYTE;
 
 typedef unsigned long		ULONG_PTR;
@@ -150,13 +136,13 @@ typedef void (*PFN_TIMER_CALLBACK)(void* context);
      __asm__ __volatile__("rdmsr"                                                               \
     : "=a" (l), "=d" (h)                                                       \
     : "c" (reg));                                                              \
-    v = (((UINT64)h) << 32) | l;                                                         \
+    v = (((u64)h) << 32) | l;                                                         \
 }
 
 #define WRMSR(reg, v) {                                                        \
     u32 h, l;                                                               \
-    l = (u32)(((UINT64)(v)) & 0xFFFFFFFF);                                  \
-    h = (u32)((((UINT64)(v)) >> 32) & 0xFFFFFFFF);                          \
+    l = (u32)(((u64)(v)) & 0xFFFFFFFF);                                  \
+    h = (u32)((((u64)(v)) >> 32) & 0xFFFFFFFF);                          \
      __asm__ __volatile__("wrmsr"                                              \
     : /* no outputs */                                                         \
     : "c" (reg), "a" (l), "d" (h));                                            \
@@ -172,7 +158,7 @@ typedef void (*PFN_TIMER_CALLBACK)(void* context);
 #define WRMSR(reg, v) 			                                               \
      __asm__ __volatile__("wrmsr" 	                                           \
     : /* no outputs */ 				                                           \
-    : "c" (reg), "A" ((UINT64)v))
+    : "c" (reg), "A" ((u64)v))
 
 #endif
 

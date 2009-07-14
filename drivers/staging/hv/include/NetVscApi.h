@@ -79,12 +79,12 @@ typedef struct _NETVSC_PACKET {
 
 	union {
 		struct{
-			UINT64						ReceiveCompletionTid;
+			u64						ReceiveCompletionTid;
 			void *						ReceiveCompletionContext;
 			PFN_ON_SENDRECVCOMPLETION	OnReceiveCompletion;
 		} Recv;
 		struct{
-			UINT64						SendCompletionTid;
+			u64						SendCompletionTid;
 			void *						SendCompletionContext;
 			PFN_ON_SENDRECVCOMPLETION	OnSendCompletion;
 		} Send;
@@ -130,7 +130,7 @@ typedef struct _NETVSC_DRIVER_OBJECT {
 
 
 typedef struct _NETVSC_DEVICE_INFO {
-    UCHAR	MacAddr[6];
+    unsigned char	MacAddr[6];
     BOOL	LinkState;	// 0 - link up, 1 - link down
 } NETVSC_DEVICE_INFO;
 

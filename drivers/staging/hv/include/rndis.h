@@ -811,19 +811,19 @@ typedef __struct_bcount(MessageLength) struct _RNDIS_MESSAGE
 
 // get pointer to info buffer with message pointer
 #define MESSAGE_TO_INFO_BUFFER(Message)                         \
-    (((PUCHAR)(Message)) + Message->InformationBufferOffset)
+    (((unsigned char *)(Message)) + Message->InformationBufferOffset)
 
 // get pointer to status buffer with message pointer
 #define MESSAGE_TO_STATUS_BUFFER(Message)                       \
-    (((PUCHAR)(Message)) + Message->StatusBufferOffset)
+    (((unsigned char *)(Message)) + Message->StatusBufferOffset)
 
 // get pointer to OOBD buffer with message pointer
 #define MESSAGE_TO_OOBD_BUFFER(Message)                         \
-    (((PUCHAR)(Message)) + Message->OOBDataOffset)
+    (((unsigned char *)(Message)) + Message->OOBDataOffset)
 
 // get pointer to data buffer with message pointer
 #define MESSAGE_TO_DATA_BUFFER(Message)                         \
-    (((PUCHAR)(Message)) + Message->PerPacketInfoOffset)
+    (((unsigned char *)(Message)) + Message->PerPacketInfoOffset)
 
 // get pointer to contained message from NDIS_MESSAGE pointer
 #define RNDIS_MESSAGE_PTR_TO_MESSAGE_PTR(RndisMessage)          \

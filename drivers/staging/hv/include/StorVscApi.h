@@ -80,7 +80,7 @@ typedef struct _STORVSC_REQUEST {
 	u32					Status;
 	u32					BytesXfer;
 
-	UCHAR*					SenseBuffer;
+	unsigned char*					SenseBuffer;
 	u32					SenseBufferSize;
 
 	void *					Context;
@@ -118,8 +118,8 @@ typedef struct _STORVSC_DRIVER_OBJECT {
 
 typedef struct _STORVSC_DEVICE_INFO {
 	ULONG	PortNumber;
-    UCHAR	PathId;
-    UCHAR	TargetId;
+    unsigned char	PathId;
+    unsigned char	TargetId;
 } STORVSC_DEVICE_INFO;
 
 //

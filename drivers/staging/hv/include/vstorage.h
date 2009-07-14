@@ -94,7 +94,7 @@
 #define MAX_TRANSFER_LENGTH 0x40000
 #define DEFAULT_PACKET_SIZE (sizeof(VMDATA_GPA_DIRECT) +                            \
                              sizeof(VSTOR_PACKET) +                                 \
-                             (sizeof(UINT64) * (MAX_TRANSFER_LENGTH / PAGE_SIZE)))
+                             (sizeof(u64) * (MAX_TRANSFER_LENGTH / PAGE_SIZE)))
 
 
 
@@ -142,28 +142,28 @@ C_ASSERT(SENSE_BUFFER_SIZE == 0x12);
 typedef struct
 {
     USHORT Length;
-    UCHAR SrbStatus;
-    UCHAR ScsiStatus;
+    unsigned char SrbStatus;
+    unsigned char ScsiStatus;
 
-    UCHAR PortNumber;
-    UCHAR PathId;
-    UCHAR TargetId;
-    UCHAR Lun;
+    unsigned char PortNumber;
+    unsigned char PathId;
+    unsigned char TargetId;
+    unsigned char Lun;
 
-    UCHAR CdbLength;
-    UCHAR SenseInfoLength;
-    UCHAR DataIn;
-    UCHAR Reserved;
+    unsigned char CdbLength;
+    unsigned char SenseInfoLength;
+    unsigned char DataIn;
+    unsigned char Reserved;
 
     ULONG DataTransferLength;
 
     union
     {
-        UCHAR Cdb[CDB16GENERIC_LENGTH];
+        unsigned char Cdb[CDB16GENERIC_LENGTH];
 
-        UCHAR SenseData[SENSE_BUFFER_SIZE];
+        unsigned char SenseData[SENSE_BUFFER_SIZE];
 
-        UCHAR ReservedArray[MAX_DATA_BUFFER_LENGTH_WITH_PADDING];
+        unsigned char ReservedArray[MAX_DATA_BUFFER_LENGTH_WITH_PADDING];
     };
 
 } VMSCSI_REQUEST, *PVMSCSI_REQUEST;
@@ -179,8 +179,8 @@ C_ASSERT((sizeof(VMSCSI_REQUEST) % 4) == 0);
 typedef struct
 {
     USHORT ProtocolVersion;
-    UCHAR  PathId;
-    UCHAR  TargetId;
+    unsigned char  PathId;
+    unsigned char  TargetId;
 
     //
     // Note: port number is only really known on the client side

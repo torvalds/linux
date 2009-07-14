@@ -44,7 +44,7 @@ typedef struct _HV_INPUT_POST_MESSAGE
     u32              Reserved;
     HV_MESSAGE_TYPE     MessageType;
     u32              PayloadSize;
-    UINT64              Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
+    u64              Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
 } HV_INPUT_POST_MESSAGE, *PHV_INPUT_POST_MESSAGE;
 
 

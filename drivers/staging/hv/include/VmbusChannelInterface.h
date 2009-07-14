@@ -66,7 +66,7 @@ typedef struct
 
     GUID    InterfaceType;
     GUID    InterfaceInstance;
-    UINT64  InterruptLatencyIn100nsUnits;
+    u64  InterruptLatencyIn100nsUnits;
     u32  InterfaceRevision;
     u32  ServerContextAreaSize;  // in bytes
     u16  ChannelFlags;
@@ -79,7 +79,7 @@ typedef struct
         //
         struct
         {
-            UCHAR   UserDefined[MAX_USER_DEFINED_BYTES];
+            unsigned char   UserDefined[MAX_USER_DEFINED_BYTES];
         } Standard;
 
         //
@@ -90,7 +90,7 @@ typedef struct
         struct
         {
             u32  PipeMode;
-            UCHAR   UserDefined[MAX_PIPE_USER_DEFINED_BYTES];
+            unsigned char   UserDefined[MAX_PIPE_USER_DEFINED_BYTES];
         } Pipe;
     } u;
 	u32	Padding;

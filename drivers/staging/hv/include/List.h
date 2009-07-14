@@ -260,8 +260,8 @@ typedef DLIST_ENTRY *PLIST_ENTRY;
 
 #ifndef CONTAINING_RECORD
 #define CONTAINING_RECORD(address, type, field) ((type *)( \
-                                                  (PCHAR)(address) - \
-                                                  (PCHAR)(&((type *)0)->field)))
+                                                  (char *)(address) - \
+                                                  (char *)(&((type *)0)->field)))
 #endif /* CONTAINING_RECORD */
 
 #endif /* _LIST_H_ */

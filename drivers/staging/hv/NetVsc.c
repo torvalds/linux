@@ -114,7 +114,7 @@ NetVscOnReceiveCompletion(
 static void
 NetVscSendReceiveCompletion(
 	DEVICE_OBJECT	*Device,
-	UINT64			TransactionId
+	u64			TransactionId
 	);
 
 static inline NETVSC_DEVICE* AllocNetDevice(DEVICE_OBJECT *Device)
@@ -1286,7 +1286,7 @@ NetVscOnReceive(
 static void
 NetVscSendReceiveCompletion(
 	DEVICE_OBJECT	*Device,
-	UINT64			TransactionId
+	u64			TransactionId
 	)
 {
 	NVSP_MESSAGE recvcompMessage;
@@ -1343,7 +1343,7 @@ NetVscOnReceiveCompletion(
 	NETVSC_PACKET *packet = (NETVSC_PACKET*)Context;
 	DEVICE_OBJECT *device = (DEVICE_OBJECT*)packet->Device;
 	NETVSC_DEVICE* netDevice;
-	UINT64	transactionId=0;
+	u64	transactionId=0;
 	BOOL fSendReceiveComp = FALSE;
 
 	DPRINT_ENTER(NETVSC);
@@ -1403,10 +1403,10 @@ NetVscOnChannelCallback(
 	NETVSC_DEVICE *netDevice;
 
 	u32 bytesRecvd;
-	UINT64 requestId;
-	UCHAR packet[netPacketSize];
+	u64 requestId;
+	unsigned char packet[netPacketSize];
 	VMPACKET_DESCRIPTOR *desc;
-	UCHAR	*buffer=packet;
+	unsigned char	*buffer=packet;
 	int		bufferlen=netPacketSize;
 
 

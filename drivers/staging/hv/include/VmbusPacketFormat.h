@@ -83,7 +83,7 @@ typedef struct
     u16 DataOffset8;
     u16 Length8;
     u16 Flags;
-    UINT64 TransactionId;
+    u64 TransactionId;
 } VMPACKET_DESCRIPTOR, *PVMPACKET_DESCRIPTOR;
 
 typedef u32 PREVIOUS_PACKET_OFFSET, *PPREVIOUS_PACKET_OFFSET;
@@ -168,7 +168,7 @@ typedef struct _GPA_RANGE {
 
     u32  ByteCount;
     u32  ByteOffset;
-    UINT64  PfnArray[0];
+    u64  PfnArray[0];
 
 } GPA_RANGE, *PGPA_RANGE;
 
@@ -266,10 +266,10 @@ typedef struct _VMADDITIONAL_DATA {
 
 #endif
 
-    UINT64  TotalBytes;
+    u64  TotalBytes;
     u32  ByteOffset;
     u32  ByteCount;
-    UCHAR   Data[1];
+    unsigned char   Data[1];
 
 } VMADDITIONAL_DATA, *PVMADDITIONAL_DATA;
 
@@ -287,7 +287,7 @@ typedef union {
 } VMPACKET_LARGEST_POSSIBLE_HEADER, *PVMPACKET_LARGEST_POSSIBLE_HEADER;
 
 #define VMPACKET_DATA_START_ADDRESS(__packet)                           \
-    (void *)(((PUCHAR)__packet) + ((PVMPACKET_DESCRIPTOR)__packet)->DataOffset8 * 8)
+    (void *)(((unsigned char *)__packet) + ((PVMPACKET_DESCRIPTOR)__packet)->DataOffset8 * 8)
 
 #define VMPACKET_DATA_LENGTH(__packet)                                  \
     ((((PVMPACKET_DESCRIPTOR)__packet)->Length8 - ((PVMPACKET_DESCRIPTOR)__packet)->DataOffset8) * 8)

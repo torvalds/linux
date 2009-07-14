@@ -184,13 +184,13 @@ Name:
 	GetRingBufferIndices()
 
 Description:
-	Get the read and write indices as UINT64 of the specified ring buffer
+	Get the read and write indices as u64 of the specified ring buffer
 
 --*/
-static inline UINT64
+static inline u64
 GetRingBufferIndices(RING_BUFFER_INFO* RingInfo)
 {
-	return ((UINT64)RingInfo->RingBuffer->WriteIndex << 32) || RingInfo->RingBuffer->ReadIndex;
+	return ((u64)RingInfo->RingBuffer->WriteIndex << 32) || RingInfo->RingBuffer->ReadIndex;
 }
 
 
@@ -359,7 +359,7 @@ RingBufferWrite(
 	u32 totalBytesToWrite=0;
 
 	volatile u32 nextWriteLocation;
-	UINT64 prevIndices=0;
+	u64 prevIndices=0;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -368,7 +368,7 @@ RingBufferWrite(
 		totalBytesToWrite += SgBuffers[i].Length;
 	}
 
-	totalBytesToWrite += sizeof(UINT64);
+	totalBytesToWrite += sizeof(u64);
 
 	SpinlockAcquire(OutRingInfo->RingLock);
 
@@ -408,7 +408,7 @@ RingBufferWrite(
 	nextWriteLocation = CopyToRingBuffer(OutRingInfo,
 												nextWriteLocation,
 												&prevIndices,
-												sizeof(UINT64));
+												sizeof(u64));
 
 	// Make sure we flush all writes before updating the writeIndex
 	MemoryFence();
@@ -494,7 +494,7 @@ RingBufferRead(
 	u32 bytesAvailToWrite;
 	u32 bytesAvailToRead;
 	u32 nextReadLocation=0;
-	UINT64 prevIndices=0;
+	u64 prevIndices=0;
 
 	ASSERT(BufferLen > 0);
 
@@ -525,7 +525,7 @@ RingBufferRead(
 
 	nextReadLocation = CopyFromRingBuffer(InRingInfo,
 											&prevIndices,
-											sizeof(UINT64),
+											sizeof(u64),
 											nextReadLocation);
 
 	// Make sure all reads are done before we update the read index since

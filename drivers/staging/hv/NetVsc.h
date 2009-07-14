@@ -82,7 +82,7 @@ typedef struct _NETVSC_DEVICE {
 	NVSP_MESSAGE					ChannelInitPacket;
 
 	NVSP_MESSAGE					RevokePacket;
-	//UCHAR							HwMacAddr[HW_MACADDR_LEN];
+	//unsigned char							HwMacAddr[HW_MACADDR_LEN];
 
 	// Holds rndis device info
 	void							*Extension;

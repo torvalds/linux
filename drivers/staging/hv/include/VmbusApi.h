@@ -51,7 +51,7 @@ typedef struct _DEVICE_OBJECT *PDEVICE_OBJECT;
 typedef struct _PAGE_BUFFER {
 	u32	Length;
 	u32	Offset;
-	UINT64	Pfn;
+	u64	Pfn;
 } PAGE_BUFFER;
 
 // Multiple-page buffer
@@ -59,7 +59,7 @@ typedef struct _MULTIPAGE_BUFFER {
 	// Length and Offset determines the # of pfns in the array
 	u32	Length;
 	u32	Offset;
-	UINT64	PfnArray[MAX_MULTIPAGE_BUFFER_COUNT];
+	u64	PfnArray[MAX_MULTIPAGE_BUFFER_COUNT];
 }MULTIPAGE_BUFFER;
 
 //0x18 includes the proprietary packet header
@@ -108,7 +108,7 @@ typedef int	(*VMBUS_CHANNEL_SEND_PACKET)(
 	PDEVICE_OBJECT		Device,
 	const void *			Buffer,
 	u32				BufferLen,
-	UINT64				RequestId,
+	u64				RequestId,
 	u32				Type,
 	u32				Flags
 );
@@ -119,7 +119,7 @@ typedef int	(*VMBUS_CHANNEL_SEND_PACKET_PAGEBUFFER)(
 	u32				PageCount,
 	void *				Buffer,
 	u32				BufferLen,
-	UINT64				RequestId
+	u64				RequestId
 	);
 
 typedef int	(*VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER)(
@@ -127,7 +127,7 @@ typedef int	(*VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER)(
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
 	u32				BufferLen,
-	UINT64				RequestId
+	u64				RequestId
 );
 
 typedef int	(*VMBUS_CHANNEL_RECV_PACKET)(
@@ -135,7 +135,7 @@ typedef int	(*VMBUS_CHANNEL_RECV_PACKET)(
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
-	UINT64*				RequestId
+	u64*				RequestId
 	);
 
 typedef int	(*VMBUS_CHANNEL_RECV_PACKET_PAW)(
@@ -143,7 +143,7 @@ typedef int	(*VMBUS_CHANNEL_RECV_PACKET_PAW)(
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
-	UINT64*				RequestId
+	u64*				RequestId
 	);
 
 typedef int	(*VMBUS_CHANNEL_ESTABLISH_GPADL)(

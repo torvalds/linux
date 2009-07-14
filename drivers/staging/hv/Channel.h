@@ -37,7 +37,7 @@ typedef struct _VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
     u16				DataOffset8;
     u16				Length8;
     u16				Flags;
-    UINT64				TransactionId;
+    u64				TransactionId;
 	u32				Reserved;
 	u32				RangeCount;
     PAGE_BUFFER			Range[MAX_PAGE_BUFFER_COUNT];
@@ -50,7 +50,7 @@ typedef struct _VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
     u16				DataOffset8;
     u16				Length8;
     u16				Flags;
-    UINT64				TransactionId;
+    u64				TransactionId;
 	u32				Reserved;
 	u32				RangeCount;		// Always 1 in this case
 	MULTIPAGE_BUFFER	Range;
@@ -83,7 +83,7 @@ VmbusChannelSendPacket(
 	VMBUS_CHANNEL		*Channel,
 	const void *			Buffer,
 	u32				BufferLen,
-	UINT64				RequestId,
+	u64				RequestId,
 	VMBUS_PACKET_TYPE	Type,
 	u32				Flags
 );
@@ -95,7 +95,7 @@ VmbusChannelSendPacketPageBuffer(
 	u32				PageCount,
 	void *				Buffer,
 	u32				BufferLen,
-	UINT64				RequestId
+	u64				RequestId
 	);
 
 static int
@@ -104,7 +104,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
 	u32				BufferLen,
-	UINT64				RequestId
+	u64				RequestId
 );
 
 static int
@@ -127,7 +127,7 @@ VmbusChannelRecvPacket(
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
-	UINT64*				RequestId
+	u64*				RequestId
 	);
 
 static int
@@ -136,7 +136,7 @@ VmbusChannelRecvPacketRaw(
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
-	UINT64*				RequestId
+	u64*				RequestId
 	);
 
 static void

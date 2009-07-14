@@ -28,5 +28,5 @@
 //
 // Time in the hypervisor is measured in 100 nanosecond units
 //
-typedef UINT64 HV_NANO100_TIME,     *PHV_NANO100_TIME;
-typedef UINT64 HV_NANO100_DURATION, *PHV_NANO100_DURATION;
+typedef u64 HV_NANO100_TIME,     *PHV_NANO100_TIME;
+typedef u64 HV_NANO100_DURATION, *PHV_NANO100_DURATION;

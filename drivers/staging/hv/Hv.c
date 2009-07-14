@@ -158,17 +158,17 @@ Description:
 	Invoke the specified hypercall
 
 --*/
-static UINT64
+static u64
 HvDoHypercall (
-    UINT64  Control,
+    u64  Control,
     void*   Input,
     void*   Output
     )
 {
 #ifdef CONFIG_X86_64
-    UINT64 hvStatus=0;
-    UINT64 inputAddress = (Input)? GetPhysicalAddress(Input) : 0;
-	UINT64 outputAddress = (Output)? GetPhysicalAddress(Output) : 0;
+    u64 hvStatus=0;
+    u64 inputAddress = (Input)? GetPhysicalAddress(Input) : 0;
+	u64 outputAddress = (Output)? GetPhysicalAddress(Output) : 0;
     volatile void* hypercallPage = gHvContext.HypercallPage;
 
     DPRINT_DBG(VMBUS, "Hypercall <control %llx input phys %llx virt %p output phys %llx virt %p hypercall %p>",
@@ -192,10 +192,10 @@ HvDoHypercall (
     u32 controlLo = Control & 0xFFFFFFFF;
     u32 hvStatusHi = 1;
     u32 hvStatusLo = 1;
-    UINT64 inputAddress = (Input) ? GetPhysicalAddress(Input) : 0;
+    u64 inputAddress = (Input) ? GetPhysicalAddress(Input) : 0;
     u32 inputAddressHi = inputAddress >> 32;
     u32 inputAddressLo = inputAddress & 0xFFFFFFFF;
-	UINT64 outputAddress = (Output) ?GetPhysicalAddress(Output) : 0;
+	u64 outputAddress = (Output) ?GetPhysicalAddress(Output) : 0;
     u32 outputAddressHi = outputAddress >> 32;
     u32 outputAddressLo = outputAddress & 0xFFFFFFFF;
     volatile void* hypercallPage = gHvContext.HypercallPage;
@@ -208,9 +208,9 @@ HvDoHypercall (
 	__asm__ __volatile__ ("call *%8" : "=d"(hvStatusHi), "=a"(hvStatusLo) : "d" (controlHi), "a" (controlLo), "b" (inputAddressHi), "c" (inputAddressLo), "D"(outputAddressHi), "S"(outputAddressLo), "m" (hypercallPage));
 
 
-    DPRINT_DBG(VMBUS, "Hypercall <return %llx>",  hvStatusLo | ((UINT64)hvStatusHi << 32));
+    DPRINT_DBG(VMBUS, "Hypercall <return %llx>",  hvStatusLo | ((u64)hvStatusHi << 32));
 
-    return (hvStatusLo | ((UINT64)hvStatusHi << 32));
+    return (hvStatusLo | ((u64)hvStatusHi << 32));
 #endif // x86_64
 }
 
@@ -401,7 +401,7 @@ HvPostMessage(
 	)
 {
 	struct alignedInput {
-		UINT64					alignment8;
+		u64					alignment8;
 		HV_INPUT_POST_MESSAGE	msg;
 	};
 
@@ -474,12 +474,12 @@ HvSynicInit (
 	u32 irqVector
 	)
 {
-	UINT64			version;
+	u64			version;
 	HV_SYNIC_SIMP	simp;
 	HV_SYNIC_SIEFP	siefp;
     HV_SYNIC_SINT	sharedSint;
 	HV_SYNIC_SCONTROL sctrl;
-	UINT64			guestID;
+	u64			guestID;
 	int ret=0;
 
 	DPRINT_ENTER(VMBUS);

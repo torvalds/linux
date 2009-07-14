@@ -145,7 +145,7 @@ typedef u32 HV_SYNIC_SINT_INDEX, *PHV_SYNIC_SINT_INDEX;
 // Define partition identifier type.
 //
 
-typedef UINT64 HV_PARTITION_ID, *PHV_PARTITION_ID;
+typedef u64 HV_PARTITION_ID, *PHV_PARTITION_ID;
 
 //
 // Define invalid partition identifier.
@@ -210,7 +210,7 @@ typedef struct _HV_PORT_INFO
         {
             HV_SYNIC_SINT_INDEX TargetSint;
             HV_VP_INDEX TargetVp;
-            UINT64 RsvdZ;
+            u64 RsvdZ;
         } MessagePortInfo;
 
         struct
@@ -225,7 +225,7 @@ typedef struct _HV_PORT_INFO
         struct
         {
             HV_GPA MonitorAddress;
-            UINT64 RsvdZ;
+            u64 RsvdZ;
         } MonitorPortInfo;
     };
 } HV_PORT_INFO, *PHV_PORT_INFO;
@@ -241,12 +241,12 @@ typedef struct _HV_CONNECTION_INFO
     {
         struct
         {
-            UINT64 RsvdZ;
+            u64 RsvdZ;
         } MessageConnectionInfo;
 
         struct
         {
-            UINT64 RsvdZ;
+            u64 RsvdZ;
         } EventConnectionInfo;
 
         struct
@@ -311,7 +311,7 @@ typedef struct _HV_MESSAGE
     HV_MESSAGE_HEADER Header;
     union
     {
-        UINT64 Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
+        u64 Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
     } u ;
 } HV_MESSAGE, *PHV_MESSAGE;
 
@@ -357,11 +357,11 @@ typedef struct _HV_SYNIC_EVENT_FLAGS_PAGE
 //
 typedef union _HV_SYNIC_SCONTROL
 {
-    UINT64 AsUINT64;
+    u64 AsUINT64;
     struct
     {
-        UINT64 Enable:1;
-        UINT64 Reserved:63;
+        u64 Enable:1;
+        u64 Reserved:63;
     };
 } HV_SYNIC_SCONTROL, *PHV_SYNIC_SCONTROL;
 
@@ -371,14 +371,14 @@ typedef union _HV_SYNIC_SCONTROL
 
 typedef union _HV_SYNIC_SINT
 {
-    UINT64 AsUINT64;
+    u64 AsUINT64;
     struct
     {
-        UINT64 Vector    :8;
-        UINT64 Reserved1 :8;
-        UINT64 Masked    :1;
-        UINT64 AutoEoi   :1;
-        UINT64 Reserved2 :46;
+        u64 Vector    :8;
+        u64 Reserved1 :8;
+        u64 Masked    :1;
+        u64 AutoEoi   :1;
+        u64 Reserved2 :46;
     };
 } HV_SYNIC_SINT, *PHV_SYNIC_SINT;
 
@@ -388,12 +388,12 @@ typedef union _HV_SYNIC_SINT
 
 typedef union _HV_SYNIC_SIMP
 {
-    UINT64 AsUINT64;
+    u64 AsUINT64;
     struct
     {
-        UINT64 SimpEnabled : 1;
-        UINT64 Preserved   : 11;
-        UINT64 BaseSimpGpa : 52;
+        u64 SimpEnabled : 1;
+        u64 Preserved   : 11;
+        u64 BaseSimpGpa : 52;
     };
 } HV_SYNIC_SIMP, *PHV_SYNIC_SIMP;
 
@@ -403,12 +403,12 @@ typedef union _HV_SYNIC_SIMP
 
 typedef union _HV_SYNIC_SIEFP
 {
-    UINT64 AsUINT64;
+    u64 AsUINT64;
     struct
     {
-        UINT64 SiefpEnabled : 1;
-        UINT64 Preserved   : 11;
-        UINT64 BaseSiefpGpa : 52;
+        u64 SiefpEnabled : 1;
+        u64 Preserved   : 11;
+        u64 BaseSiefpGpa : 52;
     };
 } HV_SYNIC_SIEFP, *PHV_SYNIC_SIEFP;
 
@@ -418,7 +418,7 @@ typedef union _HV_SYNIC_SIEFP
 
 typedef union _HV_MONITOR_TRIGGER_GROUP
 {
-    UINT64 AsUINT64;
+    u64 AsUINT64;
 
     struct
     {
@@ -474,12 +474,12 @@ typedef struct _HV_MONITOR_PAGE
     u32                   RsvdZ1;
 
     HV_MONITOR_TRIGGER_GROUP TriggerGroup[4];
-    UINT64                   RsvdZ2[3];
+    u64                   RsvdZ2[3];
 
     s32                    NextCheckTime[4][32];
 
     u16                   Latency[4][32];
-    UINT64                   RsvdZ3[32];
+    u64                   RsvdZ3[32];
 
     HV_MONITOR_PARAMETER     Parameter[4][32];
 

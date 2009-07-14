@@ -60,11 +60,11 @@ enum
 
 #define HV_XENLINUX_GUEST_ID_LO     0x00000000
 #define HV_XENLINUX_GUEST_ID_HI		0x0B00B135
-#define HV_XENLINUX_GUEST_ID		(((UINT64)HV_XENLINUX_GUEST_ID_HI << 32) | HV_XENLINUX_GUEST_ID_LO)
+#define HV_XENLINUX_GUEST_ID		(((u64)HV_XENLINUX_GUEST_ID_HI << 32) | HV_XENLINUX_GUEST_ID_LO)
 
 #define HV_LINUX_GUEST_ID_LO		0x00000000
 #define HV_LINUX_GUEST_ID_HI		0xB16B00B5
-#define HV_LINUX_GUEST_ID			(((UINT64)HV_LINUX_GUEST_ID_HI << 32) | HV_LINUX_GUEST_ID_LO)
+#define HV_LINUX_GUEST_ID			(((u64)HV_LINUX_GUEST_ID_HI << 32) | HV_LINUX_GUEST_ID_LO)
 
 #define HV_CPU_POWER_MANAGEMENT     (1 << 0)
 #define HV_RECOMMENDATIONS_MAX      4
@@ -73,7 +73,7 @@ enum
 #define HV_CAPS_MAX                 8
 
 
-#define HV_HYPERCALL_PARAM_ALIGN	sizeof(UINT64)
+#define HV_HYPERCALL_PARAM_ALIGN	sizeof(u64)
 
 //
 // Service definitions
@@ -105,12 +105,12 @@ static const GUID VMBUS_SERVICE_ID = {.Data = {0xb8, 0x80, 0x81, 0x62, 0x8d, 0x3
 
 
 typedef struct {
-	UINT64					Align8;
+	u64					Align8;
 	HV_INPUT_SIGNAL_EVENT	Event;
 } HV_INPUT_SIGNAL_EVENT_BUFFER;
 
 typedef struct {
-	UINT64	GuestId;			// XenLinux or native Linux. If XenLinux, the hypercall and synic pages has already been initialized
+	u64	GuestId;			// XenLinux or native Linux. If XenLinux, the hypercall and synic pages has already been initialized
 	void*	HypercallPage;
 
 	BOOL	SynICInitialized;
@@ -138,7 +138,7 @@ static inline unsigned long long ReadMsr(int msr)
 	return val;
 }
 
-static inline void WriteMsr(int msr, UINT64 val)
+static inline void WriteMsr(int msr, u64 val)
 {
 	WRMSR(msr, val);
 
