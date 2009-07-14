@@ -2741,12 +2741,6 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	}
 }
 
-static void intel_unmap_single(struct device *dev, dma_addr_t dev_addr, size_t size,
-			       int dir)
-{
-	intel_unmap_page(dev, dev_addr, size, dir, NULL);
-}
-
 static void *intel_alloc_coherent(struct device *hwdev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flags)
 {
@@ -2779,7 +2773,7 @@ static void intel_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
 
-	intel_unmap_single(hwdev, dma_handle, size, DMA_BIDIRECTIONAL);
+	intel_unmap_page(hwdev, dma_handle, size, DMA_BIDIRECTIONAL, NULL);
 	free_pages((unsigned long)vaddr, order);
 }
 
