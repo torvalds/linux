@@ -195,7 +195,7 @@ _GLOBAL(generic_secondary_smp_init)
 	mr	r3,r24			/* not found, copy phys to r3	 */
 	b	.kexec_wait		/* next kernel might do better	 */
 
-2:	mtspr	SPRN_SPRG3,r13		/* Save vaddr of paca in SPRG3	 */
+2:	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG */
 	/* From now on, r24 is expected to be logical cpuid */
 	mr	r24,r5
 3:	HMT_LOW
@@ -484,7 +484,7 @@ _GLOBAL(pmac_secondary_start)
 	LOAD_REG_ADDR(r4,paca)		/* Get base vaddr of paca array	*/
 	mulli	r13,r24,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r4		/* for this processor.		*/
-	mtspr	SPRN_SPRG3,r13		/* Save vaddr of paca in SPRG3	*/
+	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG*/
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
@@ -502,10 +502,10 @@ _GLOBAL(pmac_secondary_start)
  *   1. Processor number
  *   2. Segment table pointer (virtual address)
  * On entry the following are set:
- *   r1	= stack pointer.  vaddr for iSeries, raddr (temp stack) for pSeries
- *   r24   = cpu# (in Linux terms)
- *   r13   = paca virtual address
- *   SPRG3 = paca virtual address
+ *   r1	       = stack pointer.  vaddr for iSeries, raddr (temp stack) for pSeries
+ *   r24       = cpu# (in Linux terms)
+ *   r13       = paca virtual address
+ *   SPRG_PACA = paca virtual address
  */
 	.globl	__secondary_start
 __secondary_start:
@@ -641,7 +641,7 @@ _INIT_STATIC(start_here_multiplatform)
 
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
-	bl	.early_setup		/* also sets r13 and SPRG3 */
+	bl	.early_setup		/* also sets r13 and SPRG_PACA */
 
 	LOAD_REG_ADDR(r3, .start_here_common)
 	ld	r4,PACAKMSR(r13)

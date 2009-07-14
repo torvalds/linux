@@ -57,12 +57,12 @@
 	addi	reg,reg,(label)-_stext;	/* virt addr of handler ... */
 
 #define EXCEPTION_PROLOG_1(area)				\
-	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
+	mfspr	r13,SPRN_SPRG_PACA;	/* get paca address into r13 */	\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
 	std	r10,area+EX_R10(r13);					\
 	std	r11,area+EX_R11(r13);					\
 	std	r12,area+EX_R12(r13);					\
-	mfspr	r9,SPRN_SPRG1;						\
+	mfspr	r9,SPRN_SPRG_SCRATCH0;					\
 	std	r9,area+EX_R13(r13);					\
 	mfcr	r9
 
@@ -144,7 +144,7 @@
 	.globl label##_pSeries;				\
 label##_pSeries:					\
 	HMT_MEDIUM;					\
-	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
+	mtspr	SPRN_SPRG_SCRATCH0,r13;		/* save r13 */	\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
 
 #define HSTD_EXCEPTION_PSERIES(n, label)		\
@@ -152,13 +152,13 @@ label##_pSeries:					\
 	.globl label##_pSeries;				\
 label##_pSeries:					\
 	HMT_MEDIUM;					\
-	mtspr	SPRN_SPRG1,r20;		/* save r20 */	\
+	mtspr	SPRN_SPRG_SCRATCH0,r20;	/* save r20 */	\
 	mfspr	r20,SPRN_HSRR0;		/* copy HSRR0 to SRR0 */ \
 	mtspr	SPRN_SRR0,r20;				\
 	mfspr	r20,SPRN_HSRR1;		/* copy HSRR0 to SRR0 */ \
 	mtspr	SPRN_SRR1,r20;				\
-	mfspr	r20,SPRN_SPRG1;		/* restore r20 */ \
-	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
+	mfspr	r20,SPRN_SPRG_SCRATCH0;	/* restore r20 */ \
+	mtspr	SPRN_SPRG_SCRATCH0,r13;		/* save r13 */	\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
 
 
@@ -167,15 +167,15 @@ label##_pSeries:					\
 	.globl label##_pSeries;						\
 label##_pSeries:							\
 	HMT_MEDIUM;							\
-	mtspr	SPRN_SPRG1,r13;		/* save r13 */			\
-	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
+	mtspr	SPRN_SPRG_SCRATCH0,r13;	/* save r13 */			\
+	mfspr	r13,SPRN_SPRG_PACA;	/* get paca address into r13 */	\
 	std	r9,PACA_EXGEN+EX_R9(r13);	/* save r9, r10 */	\
 	std	r10,PACA_EXGEN+EX_R10(r13);				\
 	lbz	r10,PACASOFTIRQEN(r13);					\
 	mfcr	r9;							\
 	cmpwi	r10,0;							\
 	beq	masked_interrupt;					\
-	mfspr	r10,SPRN_SPRG1;						\
+	mfspr	r10,SPRN_SPRG_SCRATCH0;					\
 	std	r10,PACA_EXGEN+EX_R13(r13);				\
 	std	r11,PACA_EXGEN+EX_R11(r13);				\
 	std	r12,PACA_EXGEN+EX_R12(r13);				\

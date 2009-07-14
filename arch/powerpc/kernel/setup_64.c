@@ -142,11 +142,11 @@ early_param("smt-enabled", early_smt_enabled);
 #define check_smt_enabled()
 #endif /* CONFIG_SMP */
 
-/* Put the paca pointer into r13 and SPRG3 */
+/* Put the paca pointer into r13 and SPRG_PACA */
 void __init setup_paca(int cpu)
 {
 	local_paca = &paca[cpu];
-	mtspr(SPRN_SPRG3, local_paca);
+	mtspr(SPRN_SPRG_PACA, local_paca);
 }
 
 /*
