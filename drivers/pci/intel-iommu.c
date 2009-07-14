@@ -2815,11 +2815,18 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	/* free page tables */
 	dma_pte_free_pagetable(domain, start_pfn, last_pfn);
 
-	iommu_flush_iotlb_psi(iommu, domain->id, start_pfn,
-			      (last_pfn - start_pfn + 1));
-
-	/* free iova */
-	__free_iova(&domain->iovad, iova);
+	if (intel_iommu_strict) {
+		iommu_flush_iotlb_psi(iommu, domain->id, start_pfn,
+				      last_pfn - start_pfn + 1);
+		/* free iova */
+		__free_iova(&domain->iovad, iova);
+	} else {
+		add_unmap(domain, iova);
+		/*
+		 * queue up the release of the unmap to save the 1/6th of the
+		 * cpu used up by the iotlb flush operation...
+		 */
+	}
 }
 
 static int intel_nontranslate_map_sg(struct device *hddev,
