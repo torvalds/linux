@@ -77,8 +77,8 @@ static void
 async_tx_channel_switch(struct dma_async_tx_descriptor *depend_tx,
 			struct dma_async_tx_descriptor *tx)
 {
-	struct dma_chan *chan;
-	struct dma_device *device;
+	struct dma_chan *chan = depend_tx->chan;
+	struct dma_device *device = chan->device;
 	struct dma_async_tx_descriptor *intr_tx = (void *) ~0;
 
 	/* first check to see if we can still append to depend_tx */
@@ -90,11 +90,11 @@ async_tx_channel_switch(struct dma_async_tx_descriptor *depend_tx,
 	}
 	spin_unlock_bh(&depend_tx->lock);
 
-	if (!intr_tx)
+	/* attached dependency, flush the parent channel */
+	if (!intr_tx) {
+		device->device_issue_pending(chan);
 		return;
-
-	chan = depend_tx->chan;
-	device = chan->device;
+	}
 
 	/* see if we can schedule an interrupt
 	 * otherwise poll for completion
@@ -128,6 +128,7 @@ async_tx_channel_switch(struct dma_async_tx_descriptor *depend_tx,
 			intr_tx->tx_submit(intr_tx);
 			async_tx_ack(intr_tx);
 		}
+		device->device_issue_pending(chan);
 	} else {
 		if (dma_wait_for_async_tx(depend_tx) == DMA_ERROR)
 			panic("%s: DMA_ERROR waiting for depend_tx\n",

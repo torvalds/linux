@@ -83,6 +83,24 @@ struct async_submit_ctl {
 
 #ifdef CONFIG_DMA_ENGINE
 #define async_tx_issue_pending_all dma_issue_pending_all
+
+/**
+ * async_tx_issue_pending - send pending descriptor to the hardware channel
+ * @tx: descriptor handle to retrieve hardware context
+ *
+ * Note: any dependent operations will have already been issued by
+ * async_tx_channel_switch, or (in the case of no channel switch) will
+ * be already pending on this channel.
+ */
+static inline void async_tx_issue_pending(struct dma_async_tx_descriptor *tx)
+{
+	if (likely(tx)) {
+		struct dma_chan *chan = tx->chan;
+		struct dma_device *dma = chan->device;
+
+		dma->device_issue_pending(chan);
+	}
+}
 #ifdef CONFIG_ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 #include <asm/async_tx.h>
 #else
@@ -94,6 +112,11 @@ __async_tx_find_channel(struct async_submit_ctl *submit,
 #endif /* CONFIG_ARCH_HAS_ASYNC_TX_FIND_CHANNEL */
 #else
 static inline void async_tx_issue_pending_all(void)
+{
+	do { } while (0);
+}
+
+static inline void async_tx_issue_pending(struct dma_async_tx_descriptor *tx)
 {
 	do { } while (0);
 }
