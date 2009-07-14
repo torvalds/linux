@@ -21,12 +21,13 @@
  *
  */
 
+#define KERNEL_2_6_27
 
-#include "logging.h"
+#include "include/logging.h"
 
-#include "StorVscApi.h"
-#include "VmbusPacketFormat.h"
-#include "vstorage.h"
+#include "include/StorVscApi.h"
+#include "include/VmbusPacketFormat.h"
+#include "include/vstorage.h"
 
 
 //

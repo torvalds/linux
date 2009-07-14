@@ -21,6 +21,7 @@
  *
  */
 
+#define KERNEL_2_6_27
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -40,10 +41,10 @@
 #include <scsi/scsi_dbg.h>
 #endif
 
-#include "logging.h"
-#include "vmbus.h"
+#include "include/logging.h"
+#include "include/vmbus.h"
 
-#include "StorVscApi.h"
+#include "include/StorVscApi.h"
 
 //
 // #defines
@@ -296,7 +297,7 @@ static int storvsc_probe(struct device *device)
 #if defined(KERNEL_2_6_27)
 	host_device_ctx->request_pool =
 	    kmem_cache_create
-	    (device_ctx->device.bus_id,
+	    (dev_name(&device_ctx->device),
 	     sizeof(struct storvsc_cmd_request) + storvsc_drv_obj->RequestExtSize,
 	     0,
 	     SLAB_HWCACHE_ALIGN, NULL);
@@ -1250,7 +1251,7 @@ static int storvsc_report_luns(struct scsi_device *sdev, unsigned int luns[], un
 	// cmd length
 	*(unsigned int*)&cmd[6] = cpu_to_be32(report_len);
 
-	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, (unsigned char*)report_luns, report_len, &sshdr, 30*HZ, 3);
+	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, (unsigned char*)report_luns, report_len, &sshdr, 30*HZ, 3, NULL);
 	if (result != 0)
 	{
 		kfree(report_luns);
