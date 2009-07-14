@@ -53,8 +53,8 @@ typedef struct _VMBUS_CHANNEL {
 
 	VMBUS_CHANNEL_OFFER_CHANNEL OfferMsg;
 	// These are based on the OfferMsg.MonitorId. Save it here for easy access.
-	UINT8						MonitorGroup;
-	UINT8						MonitorBit;
+	u8						MonitorGroup;
+	u8						MonitorBit;
 
 	UINT32						RingBufferGpadlHandle;
 

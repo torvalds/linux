@@ -65,14 +65,14 @@ typedef struct
             VMRCB Control;
         };
 
-        UINT8 Reserved[PAGE_SIZE];
+        u8 Reserved[PAGE_SIZE];
     };
 
     //
     // Beginning of the ring data.  Note: It must be guaranteed that
     // this data does not share a page with the control structure.
     //
-    UINT8 Data[1];
+    u8 Data[1];
 } VMRING, *PVMRING;
 
 #pragma pack(push, 1)
@@ -114,7 +114,7 @@ typedef struct VMTRANSFER_PAGE_PACKET_HEADER {
 
     UINT16                  TransferPageSetId;
     BOOLEAN                 SenderOwnsSet;
-    UINT8                   Reserved;
+    u8                   Reserved;
     UINT32                  RangeCount;
     VMTRANSFER_PAGE_RANGE   Ranges[1];
 

@@ -75,7 +75,7 @@ typedef struct _STORVSC_REQUEST {
 	UINT32					Bus;
 	UINT32					TargetId;
 	UINT32					LunId;
-	UINT8*					Cdb;
+	u8 *					Cdb;
 	UINT32					CdbLen;
 	UINT32					Status;
 	UINT32					BytesXfer;

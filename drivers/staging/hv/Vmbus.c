@@ -21,7 +21,7 @@
  *
  */
 
-
+#include <linux/kernel.h>
 #include "include/logging.h"
 #include "VersionInfo.h"
 #include "VmbusPrivate.h"

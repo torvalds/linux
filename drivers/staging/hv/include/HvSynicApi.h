@@ -264,11 +264,11 @@ typedef const HV_CONNECTION_INFO *PCHV_CONNECTION_INFO;
 
 typedef union _HV_MESSAGE_FLAGS
 {
-    UINT8 AsUINT8;
+    u8 Asu8;
     struct
     {
-        UINT8 MessagePending:1;
-        UINT8 Reserved:7;
+        u8 MessagePending:1;
+        u8 Reserved:7;
     };
 } HV_MESSAGE_FLAGS, *PHV_MESSAGE_FLAGS;
 
@@ -280,9 +280,9 @@ typedef union _HV_MESSAGE_FLAGS
 typedef struct _HV_MESSAGE_HEADER
 {
     HV_MESSAGE_TYPE     MessageType;
-    UINT8               PayloadSize;
+    u8               PayloadSize;
     HV_MESSAGE_FLAGS    MessageFlags;
-    UINT8               Reserved[2];
+    u8               Reserved[2];
     union
     {
         HV_PARTITION_ID Sender;
@@ -337,7 +337,7 @@ typedef struct _HV_MESSAGE_PAGE
 
 typedef union _HV_SYNIC_EVENT_FLAGS
 {
-    UINT8 Flags8[HV_EVENT_FLAGS_BYTE_COUNT];
+    u8 Flags8[HV_EVENT_FLAGS_BYTE_COUNT];
     UINT32 Flags32[HV_EVENT_FLAGS_DWORD_COUNT];
 } HV_SYNIC_EVENT_FLAGS, *PHV_SYNIC_EVENT_FLAGS;
 
@@ -483,7 +483,7 @@ typedef struct _HV_MONITOR_PAGE
 
     HV_MONITOR_PARAMETER     Parameter[4][32];
 
-    UINT8                    RsvdZ4[1984];
+    u8                    RsvdZ4[1984];
 
 } HV_MONITOR_PAGE, *PHV_MONITOR_PAGE;
 

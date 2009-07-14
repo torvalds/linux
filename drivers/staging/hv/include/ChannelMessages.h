@@ -91,7 +91,7 @@ typedef struct _VMBUS_CHANNEL_OFFER_CHANNEL
     VMBUS_CHANNEL_MESSAGE_HEADER Header;
     VMBUS_CHANNEL_OFFER Offer;
     UINT32  ChildRelId;
-    UINT8   MonitorId;
+    u8   MonitorId;
     BOOLEAN MonitorAllocated;
 } VMBUS_CHANNEL_OFFER_CHANNEL, *PVMBUS_CHANNEL_OFFER_CHANNEL;
 

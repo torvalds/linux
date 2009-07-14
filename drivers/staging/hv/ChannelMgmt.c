@@ -396,8 +396,8 @@ VmbusChannelOnOffer(
 	DPRINT_DBG(VMBUS, "channel object allocated - %p", newChannel);
 
 	memcpy(&newChannel->OfferMsg, offer, sizeof(VMBUS_CHANNEL_OFFER_CHANNEL));
-	newChannel->MonitorGroup = (UINT8)offer->MonitorId / 32;
-	newChannel->MonitorBit = (UINT8)offer->MonitorId % 32;
+	newChannel->MonitorGroup = (u8)offer->MonitorId / 32;
+	newChannel->MonitorBit = (u8)offer->MonitorId % 32;
 
 	// TODO: Make sure the offer comes from our parent partition
 	WorkQueueQueueWorkItem(newChannel->ControlWQ, VmbusChannelProcessOffer, newChannel);

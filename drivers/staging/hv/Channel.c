@@ -21,7 +21,7 @@
  *
  */
 
-
+#include <linux/kernel.h>
 #include "include/osd.h"
 #include "include/logging.h"
 
@@ -162,8 +162,8 @@ VmbusChannelGetDebugInfo(
 	)
 {
 	HV_MONITOR_PAGE *monitorPage;
-    UINT8 monitorGroup    = (UINT8)Channel->OfferMsg.MonitorId / 32;
-    UINT8 monitorOffset   = (UINT8)Channel->OfferMsg.MonitorId % 32;
+    u8 monitorGroup    = (u8)Channel->OfferMsg.MonitorId / 32;
+    u8 monitorOffset   = (u8)Channel->OfferMsg.MonitorId % 32;
 	//UINT32 monitorBit	= 1 << monitorOffset;
 
 	DebugInfo->RelId = Channel->OfferMsg.ChildRelId;

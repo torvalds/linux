@@ -20,7 +20,7 @@
  *
  */
 
-
+#include <linux/kernel.h>
 #include "StorVsc.c"
 
 static const char* gBlkDriverName="blkvsc";
