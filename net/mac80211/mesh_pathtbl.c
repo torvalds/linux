@@ -494,8 +494,10 @@ void mesh_path_tx_pending(struct mesh_path *mpath)
  * @skb: frame to discard
  * @sdata: network subif the frame was to be sent through
  *
- * If the frame was beign forwarded from another MP, a PERR frame will be sent
- * to the precursor.
+ * If the frame was being forwarded from another MP, a PERR frame will be sent
+ * to the precursor.  The precursor's address (i.e. the previous hop) was saved
+ * in addr1 of the frame-to-be-forwarded, and would only be overwritten once
+ * the destination is successfully resolved.
  *
  * Locking: the function must me called within a rcu_read_lock region
  */
@@ -510,7 +512,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 		u8 *ra, *da;
 
 		da = hdr->addr3;
-		ra = hdr->addr2;
+		ra = hdr->addr1;
 		mpath = mesh_path_lookup(da, sdata);
 		if (mpath)
 			dsn = ++mpath->dsn;
