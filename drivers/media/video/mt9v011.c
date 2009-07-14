@@ -340,6 +340,22 @@ static int mt9v011_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 	return 0;
 }
 
+static int mt9v011_s_config(struct v4l2_subdev *sd, int dumb, void *data)
+{
+	struct mt9v011 *core = to_mt9v011(sd);
+	unsigned *xtal = data;
+
+	v4l2_dbg(1, debug, sd, "s_config called\n");
+
+	if (xtal) {
+		core->xtal = *xtal;
+		v4l2_dbg(1, debug, sd, "xtal set to %d.%03d MHz\n",
+			 *xtal / 1000000, (*xtal / 1000) % 1000);
+	}
+
+	return 0;
+}
+
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int mt9v011_g_register(struct v4l2_subdev *sd,
@@ -388,6 +404,7 @@ static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 	.g_ctrl = mt9v011_g_ctrl,
 	.s_ctrl = mt9v011_s_ctrl,
 	.reset = mt9v011_reset,
+	.s_config = mt9v011_s_config,
 	.g_chip_ident = mt9v011_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = mt9v011_g_register,
