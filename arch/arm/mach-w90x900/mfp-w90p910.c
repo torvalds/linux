@@ -90,7 +90,7 @@ void mfp_set_groupc(struct device *dev)
 }
 EXPORT_SYMBOL(mfp_set_groupc);
 
-void mfp_set_groupi(struct device *dev, int gpio)
+void mfp_set_groupi(struct device *dev)
 {
 	unsigned long mfpen;
 	const char *dev_id;
@@ -103,10 +103,14 @@ void mfp_set_groupi(struct device *dev, int gpio)
 
 	mfpen = __raw_readl(REG_MFSEL);
 
+	mfpen &= ~GPSELEI1;/*default gpio16*/
+
 	if (strcmp(dev_id, "w90p910-wdog") == 0)
 		mfpen |= GPSELEI1;/*enable wdog*/
 		else if (strcmp(dev_id, "w90p910-atapi") == 0)
 			mfpen |= GPSELEI0;/*enable atapi*/
+			else if (strcmp(dev_id, "w90p910-keypad") == 0)
+				mfpen &= ~GPSELEI0;/*enable keypad*/
 
 	__raw_writel(mfpen, REG_MFSEL);
 
