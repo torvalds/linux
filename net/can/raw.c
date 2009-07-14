@@ -306,6 +306,9 @@ static int raw_release(struct socket *sock)
 	ro->bound   = 0;
 	ro->count   = 0;
 
+	sock_orphan(sk);
+	sock->sk = NULL;
+
 	release_sock(sk);
 	sock_put(sk);
 
