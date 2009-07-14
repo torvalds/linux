@@ -40,6 +40,14 @@ static noinline void put_transaction(struct btrfs_transaction *transaction)
 	}
 }
 
+static noinline void switch_commit_root(struct btrfs_root *root)
+{
+	down_write(&root->commit_root_sem);
+	free_extent_buffer(root->commit_root);
+	root->commit_root = btrfs_root_node(root);
+	up_write(&root->commit_root_sem);
+}
+
 /*
  * either allocate a new transaction or hop into the existing one
  */
@@ -458,8 +466,7 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 		ret = btrfs_write_dirty_block_groups(trans, root);
 		BUG_ON(ret);
 	}
-	free_extent_buffer(root->commit_root);
-	root->commit_root = btrfs_root_node(root);
+	switch_commit_root(root);
 	return 0;
 }
 
@@ -537,8 +544,7 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 			btrfs_update_reloc_root(trans, root);
 
 			if (root->commit_root != root->node) {
-				free_extent_buffer(root->commit_root);
-				root->commit_root = btrfs_root_node(root);
+				switch_commit_root(root);
 				btrfs_set_root_node(&root->root_item,
 						    root->node);
 			}
@@ -1002,15 +1008,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_set_root_node(&root->fs_info->tree_root->root_item,
 			    root->fs_info->tree_root->node);
-	free_extent_buffer(root->fs_info->tree_root->commit_root);
-	root->fs_info->tree_root->commit_root =
-				btrfs_root_node(root->fs_info->tree_root);
+	switch_commit_root(root->fs_info->tree_root);
 
 	btrfs_set_root_node(&root->fs_info->chunk_root->root_item,
 			    root->fs_info->chunk_root->node);
-	free_extent_buffer(root->fs_info->chunk_root->commit_root);
-	root->fs_info->chunk_root->commit_root =
-				btrfs_root_node(root->fs_info->chunk_root);
+	switch_commit_root(root->fs_info->chunk_root);
 
 	update_super_roots(root);
 
@@ -1050,6 +1052,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	cur_trans->commit_done = 1;
 
 	root->fs_info->last_trans_committed = cur_trans->transid;
+
 	wake_up(&cur_trans->commit_wait);
 
 	put_transaction(cur_trans);

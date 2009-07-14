@@ -238,6 +238,7 @@ static void unlink_free_space(struct btrfs_block_group_cache *block_group,
 {
 	rb_erase(&info->offset_index, &block_group->free_space_offset);
 	block_group->free_extents--;
+	block_group->free_space -= info->bytes;
 }
 
 static int link_free_space(struct btrfs_block_group_cache *block_group,
@@ -251,6 +252,7 @@ static int link_free_space(struct btrfs_block_group_cache *block_group,
 	if (ret)
 		return ret;
 
+	block_group->free_space += info->bytes;
 	block_group->free_extents++;
 	return ret;
 }
@@ -285,36 +287,40 @@ static void recalculate_thresholds(struct btrfs_block_group_cache *block_group)
 	}
 }
 
-static void bitmap_clear_bits(struct btrfs_free_space *info, u64 offset, u64 bytes,
-			      u64 sectorsize)
+static void bitmap_clear_bits(struct btrfs_block_group_cache *block_group,
+			      struct btrfs_free_space *info, u64 offset,
+			      u64 bytes)
 {
 	unsigned long start, end;
 	unsigned long i;
 
-	start = offset_to_bit(info->offset, sectorsize, offset);
-	end = start + bytes_to_bits(bytes, sectorsize);
+	start = offset_to_bit(info->offset, block_group->sectorsize, offset);
+	end = start + bytes_to_bits(bytes, block_group->sectorsize);
 	BUG_ON(end > BITS_PER_BITMAP);
 
 	for (i = start; i < end; i++)
 		clear_bit(i, info->bitmap);
 
 	info->bytes -= bytes;
+	block_group->free_space -= bytes;
 }
 
-static void bitmap_set_bits(struct btrfs_free_space *info, u64 offset, u64 bytes,
-			    u64 sectorsize)
+static void bitmap_set_bits(struct btrfs_block_group_cache *block_group,
+			    struct btrfs_free_space *info, u64 offset,
+			    u64 bytes)
 {
 	unsigned long start, end;
 	unsigned long i;
 
-	start = offset_to_bit(info->offset, sectorsize, offset);
-	end = start + bytes_to_bits(bytes, sectorsize);
+	start = offset_to_bit(info->offset, block_group->sectorsize, offset);
+	end = start + bytes_to_bits(bytes, block_group->sectorsize);
 	BUG_ON(end > BITS_PER_BITMAP);
 
 	for (i = start; i < end; i++)
 		set_bit(i, info->bitmap);
 
 	info->bytes += bytes;
+	block_group->free_space += bytes;
 }
 
 static int search_bitmap(struct btrfs_block_group_cache *block_group,
@@ -414,13 +420,12 @@ again:
 		(u64)(BITS_PER_BITMAP * block_group->sectorsize) - 1;
 
 	if (*offset > bitmap_info->offset && *offset + *bytes > end) {
-		bitmap_clear_bits(bitmap_info, *offset,
-				  end - *offset + 1, block_group->sectorsize);
+		bitmap_clear_bits(block_group, bitmap_info, *offset,
+				  end - *offset + 1);
 		*bytes -= end - *offset + 1;
 		*offset = end + 1;
 	} else if (*offset >= bitmap_info->offset && *offset + *bytes <= end) {
-		bitmap_clear_bits(bitmap_info, *offset,
-				  *bytes, block_group->sectorsize);
+		bitmap_clear_bits(block_group, bitmap_info, *offset, *bytes);
 		*bytes = 0;
 	}
 
@@ -495,14 +500,13 @@ again:
 		(u64)(BITS_PER_BITMAP * block_group->sectorsize);
 
 	if (offset >= bitmap_info->offset && offset + bytes > end) {
-		bitmap_set_bits(bitmap_info, offset, end - offset,
-				block_group->sectorsize);
+		bitmap_set_bits(block_group, bitmap_info, offset,
+				end - offset);
 		bytes -= end - offset;
 		offset = end;
 		added = 0;
 	} else if (offset >= bitmap_info->offset && offset + bytes <= end) {
-		bitmap_set_bits(bitmap_info, offset, bytes,
-				block_group->sectorsize);
+		bitmap_set_bits(block_group, bitmap_info, offset, bytes);
 		bytes = 0;
 	} else {
 		BUG();
@@ -870,8 +874,7 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 
 	ret = offset;
 	if (entry->bitmap) {
-		bitmap_clear_bits(entry, offset, bytes,
-				  block_group->sectorsize);
+		bitmap_clear_bits(block_group, entry, offset, bytes);
 		if (!entry->bytes) {
 			unlink_free_space(block_group, entry);
 			kfree(entry->bitmap);
@@ -891,6 +894,7 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 
 out:
 	spin_unlock(&block_group->tree_lock);
+
 	return ret;
 }
 
@@ -967,7 +971,7 @@ static u64 btrfs_alloc_from_bitmap(struct btrfs_block_group_cache *block_group,
 		goto out;
 
 	ret = search_start;
-	bitmap_clear_bits(entry, ret, bytes, block_group->sectorsize);
+	bitmap_clear_bits(block_group, entry, ret, bytes);
 out:
 	spin_unlock(&cluster->lock);
 	spin_unlock(&block_group->tree_lock);

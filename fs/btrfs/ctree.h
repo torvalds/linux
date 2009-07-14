@@ -691,6 +691,7 @@ struct btrfs_space_info {
 	struct list_head block_groups;
 	spinlock_t lock;
 	struct rw_semaphore groups_sem;
+	atomic_t caching_threads;
 };
 
 /*
@@ -721,11 +722,17 @@ struct btrfs_free_cluster {
 	struct list_head block_group_list;
 };
 
+enum btrfs_caching_type {
+	BTRFS_CACHE_NO		= 0,
+	BTRFS_CACHE_STARTED	= 1,
+	BTRFS_CACHE_FINISHED	= 2,
+};
+
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
+	struct btrfs_fs_info *fs_info;
 	spinlock_t lock;
-	struct mutex cache_mutex;
 	u64 pinned;
 	u64 reserved;
 	u64 flags;
@@ -733,15 +740,19 @@ struct btrfs_block_group_cache {
 	int extents_thresh;
 	int free_extents;
 	int total_bitmaps;
-	int cached;
 	int ro;
 	int dirty;
+
+	/* cache tracking stuff */
+	wait_queue_head_t caching_q;
+	int cached;
 
 	struct btrfs_space_info *space_info;
 
 	/* free space cache stuff */
 	spinlock_t tree_lock;
 	struct rb_root free_space_offset;
+	u64 free_space;
 
 	/* block group cache stuff */
 	struct rb_node cache_node;
@@ -834,6 +845,7 @@ struct btrfs_fs_info {
 	atomic_t async_submit_draining;
 	atomic_t nr_async_bios;
 	atomic_t async_delalloc_pages;
+	atomic_t async_caching_threads;
 
 	/*
 	 * this is used by the balancing code to wait for all the pending
@@ -949,6 +961,9 @@ struct btrfs_root {
 
 	/* the node lock is held while changing the node pointer */
 	spinlock_t node_lock;
+
+	/* taken when updating the commit root */
+	struct rw_semaphore commit_root_sem;
 
 	struct extent_buffer *commit_root;
 	struct btrfs_root *log_root;
@@ -1911,7 +1926,7 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);
 int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len);
 int btrfs_update_pinned_extents(struct btrfs_root *root,
-				u64 bytenr, u64 num, int pin);
+				u64 bytenr, u64 num, int pin, int mark_free);
 int btrfs_drop_leaf_ref(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct extent_buffer *leaf);
 int btrfs_cross_ref_exist(struct btrfs_trans_handle *trans,
@@ -1996,6 +2011,7 @@ void btrfs_delalloc_reserve_space(struct btrfs_root *root, struct inode *inode,
 				 u64 bytes);
 void btrfs_delalloc_free_space(struct btrfs_root *root, struct inode *inode,
 			      u64 bytes);
+void btrfs_free_super_mirror_extents(struct btrfs_fs_info *info);
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 		     int level, int *slot);
