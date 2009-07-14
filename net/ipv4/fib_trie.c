@@ -327,6 +327,8 @@ static const int inflate_threshold = 50;
 static const int halve_threshold_root = 15;
 static const int inflate_threshold_root = 25;
 
+static int inflate_threshold_root_fix;
+#define INFLATE_FIX_MAX 10	/* a comment in resize() */
 
 static void __alias_free_mem(struct rcu_head *head)
 {
@@ -617,7 +619,8 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	/* Keep root node larger  */
 
 	if (!tn->parent)
-		inflate_threshold_use = inflate_threshold_root;
+		inflate_threshold_use = inflate_threshold_root +
+					inflate_threshold_root_fix;
 	else
 		inflate_threshold_use = inflate_threshold;
 
@@ -641,15 +644,27 @@ static struct node *resize(struct trie *t, struct tnode *tn)
 	}
 
 	if (max_resize < 0) {
-		if (!tn->parent)
-			pr_warning("Fix inflate_threshold_root."
-				   " Now=%d size=%d bits\n",
-				   inflate_threshold_root, tn->bits);
-		else
+		if (!tn->parent) {
+			/*
+			 * It was observed that during large updates even
+			 * inflate_threshold_root = 35 might be needed to avoid
+			 * this warning; but it should be temporary, so let's
+			 * try to handle this automatically.
+			 */
+			if (inflate_threshold_root_fix < INFLATE_FIX_MAX)
+				inflate_threshold_root_fix++;
+			else
+				pr_warning("Fix inflate_threshold_root."
+					   " Now=%d size=%d bits fix=%d\n",
+					   inflate_threshold_root, tn->bits,
+					   inflate_threshold_root_fix);
+		} else {
 			pr_warning("Fix inflate_threshold."
 				   " Now=%d size=%d bits\n",
 				   inflate_threshold, tn->bits);
-	}
+		}
+	} else if (max_resize > 3 && !tn->parent && inflate_threshold_root_fix)
+		inflate_threshold_root_fix--;
 
 	check_tnode(tn);
 
