@@ -649,12 +649,12 @@
  * SPRG usage:
  *
  * All 64-bit:
- *	- SPRG3 stores PACA pointer
+ *	- SPRG1 stores PACA pointer
  *
  * 64-bit server:
  *	- SPRG0 unused (reserved for HV on Power4)
- *	- SPRG1 scratch for exception vectors
- *	- SPRG2 unused
+ *	- SPRG2 scratch for exception vectors
+ *	- SPRG3 unused (user visible)
  *
  * All 32-bit:
  *	- SPRG3 current thread_info pointer
@@ -700,13 +700,13 @@
  *
  */
 #ifdef CONFIG_PPC64
-#define SPRN_SPRG_PACA 		SPRN_SPRG3
+#define SPRN_SPRG_PACA 		SPRN_SPRG1
 #else
 #define SPRN_SPRG_THREAD 	SPRN_SPRG3
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
-#define SPRN_SPRG_SCRATCH0	SPRN_SPRG1
+#define SPRN_SPRG_SCRATCH0	SPRN_SPRG2
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_32
