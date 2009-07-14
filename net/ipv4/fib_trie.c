@@ -164,6 +164,14 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn);
 static struct tnode *halve(struct trie *t, struct tnode *tn);
 /* tnodes to free after resize(); protected by RTNL */
 static struct tnode *tnode_free_head;
+static size_t tnode_free_size;
+
+/*
+ * synchronize_rcu after call_rcu for that many pages; it should be especially
+ * useful before resizing the root node with PREEMPT_NONE configs; the value was
+ * obtained experimentally, aiming to avoid visible slowdown.
+ */
+static const int sync_pages = 128;
 
 static struct kmem_cache *fn_alias_kmem __read_mostly;
 static struct kmem_cache *trie_leaf_kmem __read_mostly;
@@ -393,6 +401,8 @@ static void tnode_free_safe(struct tnode *tn)
 	BUG_ON(IS_LEAF(tn));
 	tn->tnode_free = tnode_free_head;
 	tnode_free_head = tn;
+	tnode_free_size += sizeof(struct tnode) +
+			   (sizeof(struct node *) << tn->bits);
 }
 
 static void tnode_free_flush(void)
@@ -403,6 +413,11 @@ static void tnode_free_flush(void)
 		tnode_free_head = tn->tnode_free;
 		tn->tnode_free = NULL;
 		tnode_free(tn);
+	}
+
+	if (tnode_free_size >= PAGE_SIZE * sync_pages) {
+		tnode_free_size = 0;
+		synchronize_rcu();
 	}
 }
 
