@@ -62,6 +62,7 @@ static __initdata const char banner[] =
 MODULE_DESCRIPTION("PF_CAN raw protocol");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Urs Thuermann <urs.thuermann@volkswagen.de>");
+MODULE_ALIAS("can-proto-1");
 
 #define MASK_ALL 0
 
