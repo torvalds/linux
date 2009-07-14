@@ -51,6 +51,9 @@ int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
 				  struct crypto_hash_walk *walk,
 				  struct scatterlist *sg, unsigned int len);
 
+int crypto_register_ahash(struct ahash_alg *alg);
+int crypto_unregister_ahash(struct ahash_alg *alg);
+
 int crypto_register_shash(struct shash_alg *alg);
 int crypto_unregister_shash(struct shash_alg *alg);
 int shash_register_instance(struct crypto_template *tmpl,
@@ -66,12 +69,14 @@ struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask);
 int shash_ahash_update(struct ahash_request *req, struct shash_desc *desc);
 int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc);
 
+int crypto_init_shash_ops_async(struct crypto_tfm *tfm);
+
 static inline void *crypto_ahash_ctx(struct crypto_ahash *tfm)
 {
-	return crypto_tfm_ctx(&tfm->base);
+	return crypto_tfm_ctx(crypto_ahash_tfm(tfm));
 }
 
-static inline struct ahash_alg *crypto_ahash_alg(
+static inline struct old_ahash_alg *crypto_old_ahash_alg(
 	struct crypto_ahash *tfm)
 {
 	return &crypto_ahash_tfm(tfm)->__crt_alg->cra_ahash;
@@ -80,7 +85,7 @@ static inline struct ahash_alg *crypto_ahash_alg(
 static inline void crypto_ahash_set_reqsize(struct crypto_ahash *tfm,
 					    unsigned int reqsize)
 {
-	crypto_ahash_crt(tfm)->reqsize = reqsize;
+	tfm->reqsize = reqsize;
 }
 
 static inline int ahash_enqueue_request(struct crypto_queue *queue,

@@ -267,11 +267,11 @@ static void crypto_exit_shash_ops_async(struct crypto_tfm *tfm)
 	crypto_free_shash(*ctx);
 }
 
-static int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
+int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 {
 	struct crypto_alg *calg = tfm->__crt_alg;
 	struct shash_alg *alg = __crypto_shash_alg(calg);
-	struct ahash_tfm *crt = &tfm->crt_ahash;
+	struct crypto_ahash *crt = __crypto_ahash_cast(tfm);
 	struct crypto_shash **ctx = crypto_tfm_ctx(tfm);
 	struct crypto_shash *shash;
 
@@ -428,8 +428,6 @@ static int crypto_init_shash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	switch (mask & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_HASH_MASK:
 		return crypto_init_shash_ops_compat(tfm);
-	case CRYPTO_ALG_TYPE_AHASH_MASK:
-		return crypto_init_shash_ops_async(tfm);
 	}
 
 	return -EINVAL;
@@ -441,8 +439,6 @@ static unsigned int crypto_shash_ctxsize(struct crypto_alg *alg, u32 type,
 	switch (mask & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_HASH_MASK:
 		return sizeof(struct shash_desc *);
-	case CRYPTO_ALG_TYPE_AHASH_MASK:
-		return sizeof(struct crypto_shash *);
 	}
 
 	return 0;

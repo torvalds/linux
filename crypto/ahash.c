@@ -24,6 +24,12 @@
 
 #include "internal.h"
 
+static inline struct ahash_alg *crypto_ahash_alg(struct crypto_ahash *hash)
+{
+	return container_of(crypto_hash_alg_common(hash), struct ahash_alg,
+			    halg);
+}
+
 static int hash_walk_next(struct crypto_hash_walk *walk)
 {
 	unsigned int alignmask = walk->alignmask;
@@ -169,30 +175,11 @@ static int ahash_nosetkey(struct crypto_ahash *tfm, const u8 *key,
 	return -ENOSYS;
 }
 
-int crypto_ahash_import(struct ahash_request *req, const u8 *in)
-{
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ahash_alg *alg = crypto_ahash_alg(tfm);
-
-	memcpy(ahash_request_ctx(req), in, crypto_ahash_reqsize(tfm));
-
-	if (alg->reinit)
-		alg->reinit(req);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(crypto_ahash_import);
-
-static unsigned int crypto_ahash_ctxsize(struct crypto_alg *alg, u32 type,
-					u32 mask)
-{
-	return alg->cra_ctxsize;
-}
-
 static int crypto_init_ahash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 {
-	struct ahash_alg *alg = &tfm->__crt_alg->cra_ahash;
-	struct ahash_tfm *crt   = &tfm->crt_ahash;
+	struct old_ahash_alg *alg = &tfm->__crt_alg->cra_ahash;
+	struct crypto_ahash *crt = __crypto_ahash_cast(tfm);
+	struct ahash_alg *nalg = crypto_ahash_alg(crt);
 
 	if (alg->digestsize > PAGE_SIZE / 8)
 		return -EINVAL;
@@ -204,7 +191,40 @@ static int crypto_init_ahash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	crt->setkey = alg->setkey ? ahash_setkey : ahash_nosetkey;
 	crt->digestsize = alg->digestsize;
 
+	nalg->setkey = alg->setkey;
+	nalg->halg.digestsize = alg->digestsize;
+
 	return 0;
+}
+
+static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
+{
+	struct crypto_ahash *hash = __crypto_ahash_cast(tfm);
+	struct ahash_alg *alg = crypto_ahash_alg(hash);
+	struct old_ahash_alg *oalg = crypto_old_ahash_alg(hash);
+
+	if (tfm->__crt_alg->cra_type != &crypto_ahash_type)
+		return crypto_init_shash_ops_async(tfm);
+
+	if (oalg->init)
+		return crypto_init_ahash_ops(tfm, 0, 0);
+
+	hash->init = alg->init;
+	hash->update = alg->update;
+	hash->final  = alg->final;
+	hash->digest = alg->digest;
+	hash->setkey = alg->setkey ? ahash_setkey : ahash_nosetkey;
+	hash->digestsize = alg->halg.digestsize;
+
+	return 0;
+}
+
+static unsigned int crypto_ahash_extsize(struct crypto_alg *alg)
+{
+	if (alg->cra_type == &crypto_ahash_type)
+		return alg->cra_ctxsize;
+
+	return sizeof(struct crypto_shash *);
 }
 
 static void crypto_ahash_show(struct seq_file *m, struct crypto_alg *alg)
@@ -215,17 +235,29 @@ static void crypto_ahash_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
 					     "yes" : "no");
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
-	seq_printf(m, "digestsize   : %u\n", alg->cra_ahash.digestsize);
+	seq_printf(m, "digestsize   : %u\n",
+		   __crypto_hash_alg_common(alg)->digestsize);
 }
 
 const struct crypto_type crypto_ahash_type = {
-	.ctxsize = crypto_ahash_ctxsize,
-	.init = crypto_init_ahash_ops,
+	.extsize = crypto_ahash_extsize,
+	.init_tfm = crypto_ahash_init_tfm,
 #ifdef CONFIG_PROC_FS
 	.show = crypto_ahash_show,
 #endif
+	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
+	.maskset = CRYPTO_ALG_TYPE_AHASH_MASK,
+	.type = CRYPTO_ALG_TYPE_AHASH,
+	.tfmsize = offsetof(struct crypto_ahash, base),
 };
 EXPORT_SYMBOL_GPL(crypto_ahash_type);
+
+struct crypto_ahash *crypto_alloc_ahash(const char *alg_name, u32 type,
+					u32 mask)
+{
+	return crypto_alloc_tfm(alg_name, &crypto_ahash_type, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_alloc_ahash);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous cryptographic hash type");
