@@ -33,6 +33,7 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_IPC     4
 #define LSM_AUDIT_DATA_TASK    5
 #define LSM_AUDIT_DATA_KEY     6
+#define LSM_AUDIT_NO_AUDIT     7
 	struct task_struct *tsk;
 	union 	{
 		struct {
@@ -86,6 +87,7 @@ struct common_audit_data {
 			u16 tclass;
 			u32 requested;
 			u32 audited;
+			u32 denied;
 			struct av_decision *avd;
 			int result;
 		} selinux_audit_data;
