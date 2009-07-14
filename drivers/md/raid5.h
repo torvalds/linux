@@ -386,7 +386,15 @@ struct raid5_private_data {
 	/* per cpu variables */
 	struct raid5_percpu {
 		struct page	*spare_page; /* Used when checking P/Q in raid6 */
+		void		*scribble;   /* space for constructing buffer
+					      * lists and performing address
+					      * conversions
+					      */
 	} *percpu;
+	size_t			scribble_len; /* size of scribble region must be
+					       * associated with conf to handle
+					       * cpu hotplug while reshaping
+					       */
 #ifdef CONFIG_HOTPLUG_CPU
 	struct notifier_block	cpu_notify;
 #endif
