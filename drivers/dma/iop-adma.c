@@ -288,7 +288,12 @@ static void iop_adma_tasklet(unsigned long data)
 {
 	struct iop_adma_chan *iop_chan = (struct iop_adma_chan *) data;
 
-	spin_lock(&iop_chan->lock);
+	/* lockdep will flag depedency submissions as potentially
+	 * recursive locking, this is not the case as a dependency
+	 * submission will never recurse a channels submit routine.
+	 * There are checks in async_tx.c to prevent this.
+	 */
+	spin_lock_nested(&iop_chan->lock, SINGLE_DEPTH_NESTING);
 	__iop_adma_slot_cleanup(iop_chan);
 	spin_unlock(&iop_chan->lock);
 }
