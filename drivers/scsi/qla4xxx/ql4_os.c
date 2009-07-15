@@ -1543,11 +1543,9 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 {
 	struct scsi_qla_host *ha = to_qla_host(cmd->device->host);
 	struct ddb_entry *ddb_entry = cmd->device->hostdata;
-	struct srb *sp;
 	int ret = FAILED, stat;
 
-	sp = (struct srb *) cmd->SCp.ptr;
-	if (!sp || !ddb_entry)
+	if (!ddb_entry)
 		return ret;
 
 	dev_info(&ha->pdev->dev,
