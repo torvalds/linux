@@ -19,3 +19,7 @@ extern struct platform_device mxc_i2c_device0;
 extern struct platform_device mxc_i2c_device1;
 extern struct platform_device mxc_sdhc_device0;
 extern struct platform_device mxc_sdhc_device1;
+extern struct platform_device mxc_otg_udc_device;
+extern struct platform_device mxc_otg_host;
+extern struct platform_device mxc_usbh1;
+extern struct platform_device mxc_usbh2;

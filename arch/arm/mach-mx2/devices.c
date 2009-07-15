@@ -369,6 +369,98 @@ struct platform_device mxc_sdhc_device1 = {
        .resource       = mxc_sdhc2_resources,
 };
 
+static struct resource otg_resources[] = {
+	{
+		.start	= OTG_BASE_ADDR,
+		.end	= OTG_BASE_ADDR + 0x1ff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= MXC_INT_USB3,
+		.end	= MXC_INT_USB3,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 otg_dmamask = 0xffffffffUL;
+
+/* OTG gadget device */
+struct platform_device mxc_otg_udc_device = {
+	.name		= "fsl-usb2-udc",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &otg_dmamask,
+		.coherent_dma_mask	= 0xffffffffUL,
+	},
+	.resource	= otg_resources,
+	.num_resources	= ARRAY_SIZE(otg_resources),
+};
+
+/* OTG host */
+struct platform_device mxc_otg_host = {
+	.name = "mxc-ehci",
+	.id = 0,
+	.dev = {
+		.coherent_dma_mask = 0xffffffff,
+		.dma_mask = &otg_dmamask,
+	},
+	.resource = otg_resources,
+	.num_resources = ARRAY_SIZE(otg_resources),
+};
+
+/* USB host 1 */
+
+static u64 usbh1_dmamask = 0xffffffffUL;
+
+static struct resource mxc_usbh1_resources[] = {
+	{
+		.start = OTG_BASE_ADDR + 0x200,
+		.end = OTG_BASE_ADDR + 0x3ff,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_USB1,
+		.end = MXC_INT_USB1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_usbh1 = {
+	.name = "mxc-ehci",
+	.id = 1,
+	.dev = {
+		.coherent_dma_mask = 0xffffffff,
+		.dma_mask = &usbh1_dmamask,
+	},
+	.resource = mxc_usbh1_resources,
+	.num_resources = ARRAY_SIZE(mxc_usbh1_resources),
+};
+
+/* USB host 2 */
+static u64 usbh2_dmamask = 0xffffffffUL;
+
+static struct resource mxc_usbh2_resources[] = {
+	{
+		.start = OTG_BASE_ADDR + 0x400,
+		.end = OTG_BASE_ADDR + 0x5ff,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_USB2,
+		.end = MXC_INT_USB2,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_usbh2 = {
+	.name = "mxc-ehci",
+	.id = 2,
+	.dev = {
+		.coherent_dma_mask = 0xffffffff,
+		.dma_mask = &usbh2_dmamask,
+	},
+	.resource = mxc_usbh2_resources,
+	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
+};
+
+
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	{
