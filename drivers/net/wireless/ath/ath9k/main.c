@@ -1286,7 +1286,6 @@ void ath_detach(struct ath_softc *sc)
 
 	ath9k_hw_detach(sc->sc_ah);
 	ath9k_exit_debug(sc);
-	ath9k_ps_restore(sc);
 }
 
 static int ath9k_reg_notifier(struct wiphy *wiphy,
