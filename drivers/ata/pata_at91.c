@@ -312,11 +312,12 @@ err_ide_ioremap:
 static int __devexit pata_at91_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
-	struct at91_ide_info *info = host->private_data;
+	struct at91_ide_info *info;
 	struct device *dev = &pdev->dev;
 
 	if (!host)
 		return 0;
+	info = host->private_data;
 
 	ata_host_detach(host);
 
