@@ -103,7 +103,8 @@ static int padlock_sha1_finup(struct shash_desc *desc, const u8 *in,
 	ts_state = irq_ts_save();
 	asm volatile (".byte 0xf3,0x0f,0xa6,0xc8" /* rep xsha1 */
 		      : \
-		      : "c"(state.count + count), "a"(state.count), \
+		      : "c"((unsigned long)state.count + count), \
+			"a"((unsigned long)state.count), \
 			"S"(in), "D"(result));
 	irq_ts_restore(ts_state);
 
@@ -165,7 +166,8 @@ static int padlock_sha256_finup(struct shash_desc *desc, const u8 *in,
 	ts_state = irq_ts_save();
 	asm volatile (".byte 0xf3,0x0f,0xa6,0xd0" /* rep xsha256 */
 		      : \
-		      : "c"(state.count + count), "a"(state.count), \
+		      : "c"((unsigned long)state.count + count), \
+			"a"((unsigned long)state.count), \
 			"S"(in), "D"(result));
 	irq_ts_restore(ts_state);
 
