@@ -777,7 +777,6 @@ static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
 	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
 	 */
 	if ((sc->sc_flags & SC_OP_PROTECT_ENABLE) &&
-	    !(tx_info->flags & IEEE80211_TX_CTL_NO_ACK) &&
 	    (rate_table->info[rix].phy == WLAN_RC_PHY_OFDM ||
 	     WLAN_RC_PHY_HT(rate_table->info[rix].phy))) {
 		rates[0].flags |= IEEE80211_TX_RC_USE_CTS_PROTECT;
@@ -882,9 +881,8 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 	 *
 	 * FIXME: Fix duration
 	 */
-	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK) &&
-	    (ieee80211_has_morefrags(fc) ||
-	     (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG))) {
+	if (ieee80211_has_morefrags(fc) ||
+	    (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG)) {
 		rates[1].count = rates[2].count = rates[3].count = 0;
 		rates[1].idx = rates[2].idx = rates[3].idx = 0;
 		rates[0].count = ATH_TXMAXTRY;
