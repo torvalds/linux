@@ -311,7 +311,7 @@ Cleanup:
 	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
 
 	WaitEventClose(openInfo->WaitEvent);
-	MemFree(openInfo);
+	kfree(openInfo);
 
 	DPRINT_EXIT(VMBUS);
 
@@ -597,7 +597,7 @@ Cleanup:
 	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
 
 	WaitEventClose(msgInfo->WaitEvent);
-	MemFree(msgInfo);
+	kfree(msgInfo);
 
 	DPRINT_EXIT(VMBUS);
 
@@ -658,7 +658,7 @@ VmbusChannelTeardownGpadl(
 	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
 
 	WaitEventClose(info->WaitEvent);
-	MemFree(info);
+	kfree(info);
 
 	DPRINT_EXIT(VMBUS);
 
@@ -720,7 +720,7 @@ VmbusChannelClose(
 
 	PageFree(Channel->RingBufferPages, Channel->RingBufferPageCount);
 
-	MemFree(info);
+	kfree(info);
 
 	// If we are closing the channel during an error path in opening the channel, don't free the channel
 	// since the caller will free the channel

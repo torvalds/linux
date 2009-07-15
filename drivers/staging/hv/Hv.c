@@ -361,7 +361,7 @@ HvCleanup (
 
 	if (gHvContext.SignalEventBuffer)
 	{
-		MemFree(gHvContext.SignalEventBuffer);
+		kfree(gHvContext.SignalEventBuffer);
 		gHvContext.SignalEventBuffer = NULL;
 		gHvContext.SignalEventParam = NULL;
 	}
@@ -430,7 +430,7 @@ HvPostMessage(
 
 	status = HvDoHypercall(HvCallPostMessage, alignedMsg, 0) & 0xFFFF;
 
-	MemFree((void*)addr);
+	kfree((void*)addr);
 
 	return status;
 }

@@ -219,7 +219,7 @@ static inline RNDIS_DEVICE* GetRndisDevice(void)
 	device->RequestLock = SpinlockCreate();
 	if (!device->RequestLock)
 	{
-		MemFree(device);
+		kfree(device);
 		return NULL;
 	}
 
@@ -233,7 +233,7 @@ static inline RNDIS_DEVICE* GetRndisDevice(void)
 static inline void PutRndisDevice(RNDIS_DEVICE *Device)
 {
 	SpinlockClose(Device->RequestLock);
-	MemFree(Device);
+	kfree(Device);
 }
 
 static inline RNDIS_REQUEST* GetRndisRequest(RNDIS_DEVICE *Device, u32 MessageType, u32 MessageLength)
@@ -251,7 +251,7 @@ static inline RNDIS_REQUEST* GetRndisRequest(RNDIS_DEVICE *Device, u32 MessageTy
 	request->WaitEvent = WaitEventCreate();
 	if (!request->WaitEvent)
 	{
-		MemFree(request);
+		kfree(request);
 		return NULL;
 	}
 
@@ -279,7 +279,7 @@ static inline void PutRndisRequest(RNDIS_DEVICE *Device, RNDIS_REQUEST *Request)
 	SpinlockRelease(Device->RequestLock);
 
 	WaitEventClose(Request->WaitEvent);
-	MemFree(Request);
+	kfree(Request);
 }
 
 static inline void DumpRndisMessage(RNDIS_MESSAGE *RndisMessage)

@@ -139,7 +139,7 @@ static inline void FreeNetDevice(NETVSC_DEVICE *Device)
 {
 	ASSERT(Device->RefCount == 0);
 	Device->Device->Extension = NULL;
-	MemFree(Device);
+	kfree(Device);
 }
 
 
@@ -563,7 +563,7 @@ NetVscDestroyReceiveBuffer(
 
 	if (NetDevice->ReceiveSections)
 	{
-		MemFree(NetDevice->ReceiveSections);
+		kfree(NetDevice->ReceiveSections);
 		NetDevice->ReceiveSections = NULL;
 		NetDevice->ReceiveSectionCount = 0;
 	}
@@ -873,7 +873,7 @@ Cleanup:
 		{
 			entry = REMOVE_HEAD_LIST(&netDevice->ReceivePacketList);
 			packet = CONTAINING_RECORD(entry, NETVSC_PACKET, ListEntry);
-			MemFree(packet);
+			kfree(packet);
 		}
 
 		SpinlockClose(netDevice->ReceivePacketListLock);
@@ -949,7 +949,7 @@ NetVscOnDeviceRemove(
 		entry = REMOVE_HEAD_LIST(&netDevice->ReceivePacketList);
 		netvscPacket = CONTAINING_RECORD(entry, NETVSC_PACKET, ListEntry);
 
-		MemFree(netvscPacket);
+		kfree(netvscPacket);
 	}
 
 	SpinlockClose(netDevice->ReceivePacketListLock);
@@ -1456,7 +1456,7 @@ NetVscOnChannelCallback(
 				// reset
 				if (bufferlen > netPacketSize)
 				{
-					MemFree(buffer);
+					kfree(buffer);
 
 					buffer = packet;
 					bufferlen = netPacketSize;
@@ -1469,7 +1469,7 @@ NetVscOnChannelCallback(
 				// reset
 				if (bufferlen > netPacketSize)
 				{
-					MemFree(buffer);
+					kfree(buffer);
 
 					buffer = packet;
 					bufferlen = netPacketSize;

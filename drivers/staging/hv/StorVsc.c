@@ -164,7 +164,7 @@ static inline STORVSC_DEVICE* AllocStorDevice(DEVICE_OBJECT *Device)
 static inline void FreeStorDevice(STORVSC_DEVICE *Device)
 {
 	ASSERT(Device->RefCount == 0);
-	MemFree(Device);
+	kfree(Device);
 }
 
 // Get the stordevice object iff exists and its refcount > 1

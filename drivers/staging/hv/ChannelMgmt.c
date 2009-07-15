@@ -152,7 +152,7 @@ VMBUS_CHANNEL* AllocVmbusChannel(void)
 	channel->InboundLock = SpinlockCreate();
 	if (!channel->InboundLock)
 	{
-		MemFree(channel);
+		kfree(channel);
 		return NULL;
 	}
 
@@ -160,7 +160,7 @@ VMBUS_CHANNEL* AllocVmbusChannel(void)
 	if (!channel->PollTimer)
 	{
 		SpinlockClose(channel->InboundLock);
-		MemFree(channel);
+		kfree(channel);
 		return NULL;
 	}
 
@@ -170,7 +170,7 @@ VMBUS_CHANNEL* AllocVmbusChannel(void)
 	{
 		TimerClose(channel->PollTimer);
 		SpinlockClose(channel->InboundLock);
-		MemFree(channel);
+		kfree(channel);
 		return NULL;
 	}
 
@@ -196,7 +196,7 @@ static inline void ReleaseVmbusChannel(void* Context)
 	WorkQueueClose(channel->ControlWQ);
 	DPRINT_DBG(VMBUS, "channel released (%p)", channel);
 
-	MemFree(channel);
+	kfree(channel);
 
 	DPRINT_EXIT(VMBUS);
 }
@@ -691,7 +691,7 @@ VmbusOnChannelMessage(
 	{
 		DPRINT_ERR(VMBUS, "Received invalid channel message type %d size %d", hdr->MessageType, size);
 		PrintBytes((unsigned char *)msg->u.Payload, size);
-		MemFree(msg);
+		kfree(msg);
 		return;
 	}
 
@@ -705,7 +705,7 @@ VmbusOnChannelMessage(
 	}
 
 	// Free the msg that was allocated in VmbusOnMsgDPC()
-	MemFree(msg);
+	kfree(msg);
 	DPRINT_EXIT(VMBUS);
 }
 
@@ -764,7 +764,7 @@ Cleanup:
 	if (msgInfo)
 	{
 		WaitEventClose(msgInfo->WaitEvent);
-		MemFree(msgInfo);
+		kfree(msgInfo);
 	}
 
 	DPRINT_EXIT(VMBUS);

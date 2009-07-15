@@ -189,11 +189,6 @@ void PageUnmapVirtualAddress(void* VirtAddr)
 	kunmap_atomic(VirtAddr, KM_IRQ0);
 }
 
-void MemFree(void* buf)
-{
-	kfree(buf);
-}
-
 void *MemMapIO(unsigned long phys, unsigned long size)
 {
 #if X2V_LINUX

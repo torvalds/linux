@@ -145,7 +145,7 @@ VmbusConnect(
 
 
 	WaitEventClose(msgInfo->WaitEvent);
-	MemFree(msgInfo);
+	kfree(msgInfo);
 	DPRINT_EXIT(VMBUS);
 
 	return 0;
@@ -175,7 +175,7 @@ Cleanup:
 		if (msgInfo->WaitEvent)
 			WaitEventClose(msgInfo->WaitEvent);
 
-		MemFree(msgInfo);
+		kfree(msgInfo);
 	}
 
 	DPRINT_EXIT(VMBUS);
@@ -233,7 +233,7 @@ VmbusDisconnect(
 Cleanup:
 	if (msg)
 	{
-		MemFree(msg);
+		kfree(msg);
 	}
 
 	DPRINT_EXIT(VMBUS);
