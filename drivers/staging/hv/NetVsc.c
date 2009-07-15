@@ -122,7 +122,7 @@ static inline NETVSC_DEVICE* AllocNetDevice(DEVICE_OBJECT *Device)
 {
 	NETVSC_DEVICE *netDevice;
 
-	netDevice = MemAllocZeroed(sizeof(NETVSC_DEVICE));
+	netDevice = kzalloc(sizeof(NETVSC_DEVICE), GFP_KERNEL);
 	if (!netDevice)
 		return NULL;
 
@@ -815,7 +815,7 @@ NetVscOnDeviceAdd(
 
 	for (i=0; i < NETVSC_RECEIVE_PACKETLIST_COUNT; i++)
 	{
-		packet = MemAllocZeroed(sizeof(NETVSC_PACKET) + (NETVSC_RECEIVE_SG_COUNT* sizeof(PAGE_BUFFER)));
+		packet = kzalloc(sizeof(NETVSC_PACKET) + (NETVSC_RECEIVE_SG_COUNT* sizeof(PAGE_BUFFER)), GFP_KERNEL);
 		if (!packet)
 		{
 			DPRINT_DBG(NETVSC, "unable to allocate netvsc pkts for receive pool (wanted %d got %d)", NETVSC_RECEIVE_PACKETLIST_COUNT, i);

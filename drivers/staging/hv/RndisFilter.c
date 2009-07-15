@@ -210,7 +210,7 @@ static inline RNDIS_DEVICE* GetRndisDevice(void)
 {
 	RNDIS_DEVICE *device;
 
-	device = MemAllocZeroed(sizeof(RNDIS_DEVICE));
+	device = kzalloc(sizeof(RNDIS_DEVICE), GFP_KERNEL);
 	if (!device)
 	{
 		return NULL;
@@ -242,7 +242,7 @@ static inline RNDIS_REQUEST* GetRndisRequest(RNDIS_DEVICE *Device, u32 MessageTy
 	RNDIS_MESSAGE *rndisMessage;
 	RNDIS_SET_REQUEST *set;
 
-	request = MemAllocZeroed(sizeof(RNDIS_REQUEST));
+	request = kzalloc(sizeof(RNDIS_REQUEST), GFP_KERNEL);
 	if (!request)
 	{
 		return NULL;

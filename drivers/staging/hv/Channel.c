@@ -226,7 +226,7 @@ VmbusChannelOpen(
 
 	// Allocate the ring buffer
 	out = PageAlloc((SendRingBufferSize + RecvRingBufferSize) >> PAGE_SHIFT);
-	//out = MemAllocZeroed(sendRingBufferSize + recvRingBufferSize);
+	//out = kzalloc(sendRingBufferSize + recvRingBufferSize, GFP_KERNEL);
 	ASSERT(out);
 	ASSERT(((unsigned long)out & (PAGE_SIZE-1)) == 0);
 
@@ -421,7 +421,7 @@ VmbusChannelCreateGpadlHeader(
 	{
 		// fill in the header
 		msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pfnCount*sizeof(u64);
-		msgHeader =  MemAllocZeroed(msgSize);
+		msgHeader =  kzalloc(msgSize, GFP_KERNEL);
 
 		INITIALIZE_LIST_HEAD(&msgHeader->SubMsgList);
 		msgHeader->MessageSize=msgSize;
@@ -458,7 +458,7 @@ VmbusChannelCreateGpadlHeader(
 			}
 
 			msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_BODY) + pfnCurr*sizeof(u64);
-			msgBody =  MemAllocZeroed(msgSize);
+			msgBody = kzalloc(msgSize, GFP_KERNEL);
 			ASSERT(msgBody);
 			msgBody->MessageSize = msgSize;
 			(*MessageCount)++;
@@ -481,7 +481,7 @@ VmbusChannelCreateGpadlHeader(
 	{
 		// everything fits in a header
 		msgSize = sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_HEADER) + sizeof(GPA_RANGE) + pageCount*sizeof(u64);
-		msgHeader =  MemAllocZeroed(msgSize);
+		msgHeader = kzalloc(msgSize, GFP_KERNEL);
 		msgHeader->MessageSize=msgSize;
 
 		gpaHeader = (VMBUS_CHANNEL_GPADL_HEADER*)msgHeader->Msg;

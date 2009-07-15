@@ -121,7 +121,6 @@ extern void PageFree(void* page, unsigned int count);
 extern void* MemMapIO(unsigned long phys, unsigned long size);
 extern void MemUnmapIO(void* virt);
 
-extern void* MemAllocZeroed(unsigned int size);
 extern void* MemAllocAtomic(unsigned int size);
 extern void MemFree(void* buf);
 extern void MemoryFence(void);

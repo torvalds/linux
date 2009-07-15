@@ -89,7 +89,7 @@ VmbusConnect(
 		goto Cleanup;
 	}
 
-	msgInfo = (VMBUS_CHANNEL_MSGINFO*)MemAllocZeroed(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_INITIATE_CONTACT));
+	msgInfo = kzalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_INITIATE_CONTACT), GFP_KERNEL);
 	if (msgInfo == NULL)
 	{
 		ret = -1;
@@ -207,7 +207,7 @@ VmbusDisconnect(
 	if (gVmbusConnection.ConnectState != Connected)
 		return -1;
 
-	msg = MemAllocZeroed(sizeof(VMBUS_CHANNEL_UNLOAD));
+	msg = kzalloc(sizeof(VMBUS_CHANNEL_UNLOAD), GFP_KERNEL);
 
 	msg->MessageType = ChannelMessageUnload;
 

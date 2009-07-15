@@ -147,7 +147,7 @@ static inline STORVSC_DEVICE* AllocStorDevice(DEVICE_OBJECT *Device)
 {
 	STORVSC_DEVICE *storDevice;
 
-	storDevice = MemAllocZeroed(sizeof(STORVSC_DEVICE));
+	storDevice = kzalloc(sizeof(STORVSC_DEVICE), GFP_KERNEL);
 	if (!storDevice)
 		return NULL;
 
