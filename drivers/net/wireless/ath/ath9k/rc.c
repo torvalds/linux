@@ -148,7 +148,6 @@ static const struct ath_rate_table ar5416_11na_ratetable = {
 			4,  23, 40, 41, 41, 148400 },
 	},
 	50,  /* probe interval */
-	50,  /* rssi reduce interval */
 	WLAN_RC_HT_FLAG,  /* Phy rates allowed initially */
 };
 
@@ -298,7 +297,6 @@ static const struct ath_rate_table ar5416_11ng_ratetable = {
 			8,  27, 44, 45, 45, 148400 },
 		},
 	50,  /* probe interval */
-	50,  /* rssi reduce interval */
 	WLAN_RC_HT_FLAG,  /* Phy rates allowed initially */
 };
 
@@ -331,7 +329,6 @@ static const struct ath_rate_table ar5416_11a_ratetable = {
 			4,  7, 0 },
 	},
 	50,  /* probe interval */
-	50,  /* rssi reduce interval */
 	0,   /* Phy rates allowed initially */
 };
 
@@ -376,7 +373,6 @@ static const struct ath_rate_table ar5416_11g_ratetable = {
 			8,  11, 0 },
 	},
 	50,  /* probe interval */
-	50,  /* rssi reduce interval */
 	0,   /* Phy rates allowed initially */
 };
 
@@ -1070,7 +1066,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	/* Every so often, we reduce the thresholds
 	 * and PER (different for CCK and OFDM). */
 	if (now_msec - ath_rc_priv->per_down_time >=
-	    rate_table->rssi_reduce_interval) {
+	    rate_table->probe_interval) {
 		for (rate = 0; rate < size; rate++) {
 			ath_rc_priv->state[rate].per =
 				7 * ath_rc_priv->state[rate].per / 8;

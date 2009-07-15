@@ -119,7 +119,6 @@ struct ath_rate_table {
 		u32 max_4ms_framelen;
 	} info[RATE_TABLE_SIZE];
 	u32 probe_interval;
-	u32 rssi_reduce_interval;
 	u8 initial_ratemax;
 };
 
