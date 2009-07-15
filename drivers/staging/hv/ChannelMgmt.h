@@ -63,7 +63,7 @@ typedef struct _VMBUS_CHANNEL {
 	u32						RingBufferPageCount;
 	RING_BUFFER_INFO			Outbound;	// send to parent
 	RING_BUFFER_INFO			Inbound;	// receive from parent
-	HANDLE						InboundLock;
+	spinlock_t inbound_lock;
 	HANDLE						ControlWQ;
 
 	// Channel callback are invoked in this workqueue context

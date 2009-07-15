@@ -149,17 +149,11 @@ VMBUS_CHANNEL* AllocVmbusChannel(void)
 		return NULL;
 	}
 
-	channel->InboundLock = SpinlockCreate();
-	if (!channel->InboundLock)
-	{
-		kfree(channel);
-		return NULL;
-	}
+	spin_lock_init(&channel->inbound_lock);
 
 	channel->PollTimer = TimerCreate(VmbusChannelOnTimer, channel);
 	if (!channel->PollTimer)
 	{
-		SpinlockClose(channel->InboundLock);
 		kfree(channel);
 		return NULL;
 	}
@@ -169,7 +163,6 @@ VMBUS_CHANNEL* AllocVmbusChannel(void)
 	if (!channel->ControlWQ)
 	{
 		TimerClose(channel->PollTimer);
-		SpinlockClose(channel->InboundLock);
 		kfree(channel);
 		return NULL;
 	}
@@ -212,7 +205,6 @@ Description:
 --*/
 void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
 {
-	SpinlockClose(Channel->InboundLock);
 	TimerClose(Channel->PollTimer);
 
 	// We have to release the channel's workqueue/thread in the vmbus's workqueue/thread context

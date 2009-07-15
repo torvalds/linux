@@ -991,18 +991,19 @@ VmbusChannelRecvPacket(
 	u32 packetLen;
 	u32 userLen;
 	int ret;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
 	*BufferActualLen = 0;
 	*RequestId = 0;
 
-	SpinlockAcquire(Channel->InboundLock);
+	spin_lock_irqsave(&Channel->inbound_lock, flags);
 
 	ret = RingBufferPeek(&Channel->Inbound, &desc, sizeof(VMPACKET_DESCRIPTOR));
 	if (ret != 0)
 	{
-		SpinlockRelease(Channel->InboundLock);
+		spin_unlock_irqrestore(&Channel->inbound_lock, flags);
 
 		//DPRINT_DBG(VMBUS, "nothing to read!!");
 		DPRINT_EXIT(VMBUS);
@@ -1026,7 +1027,7 @@ VmbusChannelRecvPacket(
 
 	if (userLen > BufferLen)
 	{
-		SpinlockRelease(Channel->InboundLock);
+		spin_unlock_irqrestore(&Channel->inbound_lock, flags);
 
 		DPRINT_ERR(VMBUS, "buffer too small - got %d needs %d", BufferLen, userLen);
 		DPRINT_EXIT(VMBUS);
@@ -1039,7 +1040,7 @@ VmbusChannelRecvPacket(
 	// Copy over the packet to the user buffer
 	ret = RingBufferRead(&Channel->Inbound, Buffer, userLen, (desc.DataOffset8 << 3));
 
-	SpinlockRelease(Channel->InboundLock);
+	spin_unlock_irqrestore(&Channel->inbound_lock, flags);
 
 	DPRINT_EXIT(VMBUS);
 
@@ -1068,18 +1069,19 @@ VmbusChannelRecvPacketRaw(
 	u32 packetLen;
 	u32 userLen;
 	int ret;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
 	*BufferActualLen = 0;
 	*RequestId = 0;
 
-	SpinlockAcquire(Channel->InboundLock);
+	spin_lock_irqsave(&Channel->inbound_lock, flags);
 
 	ret = RingBufferPeek(&Channel->Inbound, &desc, sizeof(VMPACKET_DESCRIPTOR));
 	if (ret != 0)
 	{
-		SpinlockRelease(Channel->InboundLock);
+		spin_unlock_irqrestore(&Channel->inbound_lock, flags);
 
 		//DPRINT_DBG(VMBUS, "nothing to read!!");
 		DPRINT_EXIT(VMBUS);
@@ -1102,7 +1104,7 @@ VmbusChannelRecvPacketRaw(
 
 	if (packetLen > BufferLen)
 	{
-		SpinlockRelease(Channel->InboundLock);
+		spin_unlock_irqrestore(&Channel->inbound_lock, flags);
 
 		DPRINT_ERR(VMBUS, "buffer too small - needed %d bytes but got space for only %d bytes", packetLen, BufferLen);
 		DPRINT_EXIT(VMBUS);
@@ -1114,7 +1116,7 @@ VmbusChannelRecvPacketRaw(
 	// Copy over the entire packet to the user buffer
 	ret = RingBufferRead(&Channel->Inbound, Buffer, packetLen, 0);
 
-	SpinlockRelease(Channel->InboundLock);
+	spin_unlock_irqrestore(&Channel->inbound_lock, flags);
 
 	DPRINT_EXIT(VMBUS);
 
