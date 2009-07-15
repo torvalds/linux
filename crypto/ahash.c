@@ -145,7 +145,6 @@ int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
 static int ahash_setkey_unaligned(struct crypto_ahash *tfm, const u8 *key,
 				unsigned int keylen)
 {
-	struct ahash_alg *ahash = crypto_ahash_alg(tfm);
 	unsigned long alignmask = crypto_ahash_alignmask(tfm);
 	int ret;
 	u8 *buffer, *alignbuffer;
@@ -158,7 +157,7 @@ static int ahash_setkey_unaligned(struct crypto_ahash *tfm, const u8 *key,
 
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
-	ret = ahash->setkey(tfm, alignbuffer, keylen);
+	ret = tfm->setkey(tfm, alignbuffer, keylen);
 	kzfree(buffer);
 	return ret;
 }
@@ -166,13 +165,12 @@ static int ahash_setkey_unaligned(struct crypto_ahash *tfm, const u8 *key,
 int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 			unsigned int keylen)
 {
-	struct ahash_alg *ahash = crypto_ahash_alg(tfm);
 	unsigned long alignmask = crypto_ahash_alignmask(tfm);
 
 	if ((unsigned long)key & alignmask)
 		return ahash_setkey_unaligned(tfm, key, keylen);
 
-	return ahash->setkey(tfm, key, keylen);
+	return tfm->setkey(tfm, key, keylen);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_setkey);
 
