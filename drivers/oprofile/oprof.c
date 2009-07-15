@@ -196,6 +196,7 @@ post_sync:
 int oprofile_set_timeout(unsigned long val_msec)
 {
 	int err = 0;
+	unsigned long time_slice;
 
 	mutex_lock(&start_mutex);
 
@@ -209,9 +210,13 @@ int oprofile_set_timeout(unsigned long val_msec)
 		goto out;
 	}
 
-	timeout_jiffies = msecs_to_jiffies(val_msec);
-	if (timeout_jiffies == MAX_JIFFY_OFFSET)
-		timeout_jiffies = msecs_to_jiffies(MULTIPLEXING_TIMER_DEFAULT);
+	time_slice = msecs_to_jiffies(val_msec);
+	if (time_slice == MAX_JIFFY_OFFSET) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	timeout_jiffies = time_slice;
 
 out:
 	mutex_unlock(&start_mutex);
