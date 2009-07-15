@@ -1796,7 +1796,8 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 	}
 	dev_dbg(codec->dev, "Selected SAMPLE_RATE of %dHz\n",
 		sample_rates[best].rate);
-	clocking3 |= (sample_rates[i].sample_rate << WM8993_SAMPLE_RATE_SHIFT);
+	clocking3 |= (sample_rates[best].sample_rate
+		      << WM8993_SAMPLE_RATE_SHIFT);
 
 	/* BCLK_DIV */
 	best = 0;
