@@ -100,7 +100,6 @@
 #define MAX_SRBS		MAX_CMDS_TO_RISC
 #define MBOX_AEN_REG_COUNT	5
 #define MAX_INIT_RETRIES	5
-#define IOCB_HIWAT_CUSHION	16
 
 /*
  * Buffer sizes
@@ -307,7 +306,6 @@ struct scsi_qla_host {
 	uint32_t tot_ddbs;
 
 	uint16_t	iocb_cnt;
-	uint16_t	iocb_hiwat;
 
 	/* SRB cache. */
 #define SRB_MIN_REQ	128
