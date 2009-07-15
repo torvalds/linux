@@ -172,8 +172,13 @@ static int ds2760_battery_read_status(struct ds2760_device_info *di)
 	di->full_active_uAh = di->raw[DS2760_ACTIVE_FULL] << 8 |
 			      di->raw[DS2760_ACTIVE_FULL + 1];
 
-	scale[0] = di->raw[DS2760_ACTIVE_FULL] << 8 |
-		   di->raw[DS2760_ACTIVE_FULL + 1];
+	/* If the full_active_uAh value is not given, fall back to the rated
+	 * capacity. This is likely to happen when chips are not part of the
+	 * battery pack and is therefore not bootstrapped. */
+	if (di->full_active_uAh == 0)
+		di->full_active_uAh = di->rated_capacity / 1000L;
+
+	scale[0] = di->full_active_uAh;
 	for (i = 1; i < 5; i++)
 		scale[i] = scale[i - 1] + di->raw[DS2760_ACTIVE_FULL + 2 + i];
 
