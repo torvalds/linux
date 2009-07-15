@@ -24,6 +24,7 @@
 #define KERNEL_2_6_27
 
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include "include/logging.h"
 
 #include "include/NetVscApi.h"

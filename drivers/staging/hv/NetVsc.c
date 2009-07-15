@@ -23,6 +23,7 @@
 #define KERNEL_2_6_27
 
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include "include/logging.h"
 #include "NetVsc.h"
 #include "RndisFilter.h"

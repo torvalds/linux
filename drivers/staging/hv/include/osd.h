@@ -29,34 +29,6 @@
 // Defines
 //
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE 0x1000
-#endif
-
-#ifndef PAGE_SHIFT
-#define PAGE_SHIFT 12
-#endif
-
-#ifndef memcpy
-#define memcpy		__builtin_memcpy
-#endif
-
-#ifndef memset
-#define memset		__builtin_memset
-#endif
-
-#ifndef memcmp
-#define memcmp		__builtin_memcmp
-#endif
-
-#ifndef strcpy
-#define strcpy		__builtin_strcpy
-#endif
-
-//
-//#ifndef sprintf
-//#define sprintf				__builtin_sprintf
-//#endif
 
 #define STRUCT_PACKED		__attribute__((__packed__))
 #define STRUCT_ALIGNED(x)	__attribute__((__aligned__(x)))
