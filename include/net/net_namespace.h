@@ -239,13 +239,15 @@ struct pernet_operations {
  * needs per network namespace operations use device pernet operations,
  * otherwise use pernet subsys operations.
  *
- * This is critically important.  Most of the network code cleanup
- * runs with the assumption that dev_remove_pack has been called so no
- * new packets will arrive during and after the cleanup functions have
- * been called.  dev_remove_pack is not per namespace so instead the
- * guarantee of no more packets arriving in a network namespace is
- * provided by ensuring that all network devices and all sockets have
- * left the network namespace before the cleanup methods are called.
+ * Network interfaces need to be removed from a dying netns _before_
+ * subsys notifiers can be called, as most of the network code cleanup
+ * (which is done from subsys notifiers) runs with the assumption that
+ * dev_remove_pack has been called so no new packets will arrive during
+ * and after the cleanup functions have been called.  dev_remove_pack
+ * is not per namespace so instead the guarantee of no more packets
+ * arriving in a network namespace is provided by ensuring that all
+ * network devices and all sockets have left the network namespace
+ * before the cleanup methods are called.
  *
  * For the longest time the ipv4 icmp code was registered as a pernet
  * device which caused kernel oops, and panics during network
