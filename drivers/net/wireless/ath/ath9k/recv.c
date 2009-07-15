@@ -145,6 +145,10 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	u8 ratecode;
 	__le16 fc;
 	struct ieee80211_hw *hw;
+	struct ieee80211_sta *sta;
+	struct ath_node *an;
+	int last_rssi = ATH_RSSI_DUMMY_MARKER;
+
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
@@ -229,11 +233,30 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		}
 	}
 
+	rcu_read_lock();
+	sta = ieee80211_find_sta(sc->hw, hdr->addr2);
+	if (sta) {
+		an = (struct ath_node *) sta->drv_priv;
+		if (ds->ds_rxstat.rs_rssi != ATH9K_RSSI_BAD &&
+		   !ds->ds_rxstat.rs_moreaggr)
+			ATH_RSSI_LPF(an->last_rssi, ds->ds_rxstat.rs_rssi);
+		last_rssi = an->last_rssi;
+	}
+	rcu_read_unlock();
+
+	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
+		ds->ds_rxstat.rs_rssi = ATH_EP_RND(last_rssi,
+					ATH_RSSI_EP_MULTIPLIER);
+	if (ds->ds_rxstat.rs_rssi < 0)
+		ds->ds_rxstat.rs_rssi = 0;
+	else if (ds->ds_rxstat.rs_rssi > 127)
+		ds->ds_rxstat.rs_rssi = 127;
+
 	rx_status->mactime = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
 	rx_status->freq = hw->conf.channel->center_freq;
 	rx_status->noise = sc->ani.noise_floor;
-	rx_status->signal = rx_status->noise + ds->ds_rxstat.rs_rssi;
+	rx_status->signal = ATH_DEFAULT_NOISE_FLOOR + ds->ds_rxstat.rs_rssi;
 	rx_status->antenna = ds->ds_rxstat.rs_antenna;
 
 	/*
