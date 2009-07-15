@@ -252,6 +252,7 @@ static int xcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	}
 
 	inst = shash_alloc_instance("xcbc", alg);
+	err = PTR_ERR(inst);
 	if (IS_ERR(inst))
 		goto out_put_alg;
 
