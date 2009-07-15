@@ -921,18 +921,17 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha,
 	/* Flush any pending ddb changed AENs */
 	qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
 
+	qla4xxx_flush_active_srbs(ha);
+
 	/* Reset the firmware.	If successful, function
 	 * returns with ISP interrupts enabled.
 	 */
-	if (status == QLA_SUCCESS) {
-		DEBUG2(printk("scsi%ld: %s - Performing soft reset..\n",
-			      ha->host_no, __func__));
-		qla4xxx_flush_active_srbs(ha);
-		if (ql4xxx_lock_drvr_wait(ha) == QLA_SUCCESS)
-			status = qla4xxx_soft_reset(ha);
-		else
-			status = QLA_ERROR;
-	}
+	DEBUG2(printk("scsi%ld: %s - Performing soft reset..\n",
+		      ha->host_no, __func__));
+	if (ql4xxx_lock_drvr_wait(ha) == QLA_SUCCESS)
+		status = qla4xxx_soft_reset(ha);
+	else
+		status = QLA_ERROR;
 
 	/* Flush any pending ddb changed AENs */
 	qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
@@ -1661,7 +1660,7 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	ha = (struct scsi_qla_host *) cmd->device->host->hostdata;
 
 	dev_info(&ha->pdev->dev,
-		   "scsi(%ld:%d:%d:%d): ADAPTER RESET ISSUED.\n", ha->host_no,
+		   "scsi(%ld:%d:%d:%d): HOST RESET ISSUED.\n", ha->host_no,
 		   cmd->device->channel, cmd->device->id, cmd->device->lun);
 
 	if (qla4xxx_wait_for_hba_online(ha) != QLA_SUCCESS) {
