@@ -1259,6 +1259,7 @@ void ath_detach(struct ath_softc *sc)
 	ath_deinit_leds(sc);
 	cancel_work_sync(&sc->chan_work);
 	cancel_delayed_work_sync(&sc->wiphy_work);
+	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
@@ -1978,6 +1979,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
 
 	ieee80211_wake_queues(hw);
+
+	queue_delayed_work(sc->hw->workqueue, &sc->tx_complete_work, 0);
 
 mutex_unlock:
 	mutex_unlock(&sc->mutex);

@@ -225,6 +225,8 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_DS_TX_BA(_ds)          ((_ds)->ds_us.tx.ts_flags & ATH9K_TX_BA)
 #define ATH_AN_2_TID(_an, _tidno)  (&(_an)->tid[(_tidno)])
 
+#define ATH_TX_COMPLETE_POLL_INT	1000
+
 enum ATH_AGGR_STATUS {
 	ATH_AGGR_DONE,
 	ATH_AGGR_BAW_CLOSED,
@@ -240,6 +242,7 @@ struct ath_txq {
 	u8 axq_aggr_depth;
 	u32 axq_totalqueued;
 	bool stopped;
+	bool axq_tx_inprogress;
 	struct ath_buf *axq_linkbuf;
 
 	/* first desc of the last descriptor that contains CTS */
@@ -605,6 +608,7 @@ struct ath_softc {
 #endif
 	struct ath_bus_ops *bus_ops;
 	struct ath_beacon_config cur_beacon_conf;
+	struct delayed_work tx_complete_work;
 };
 
 struct ath_wiphy {
