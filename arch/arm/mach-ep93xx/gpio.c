@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/irq.h>
 
 #include <mach/hardware.h>
 
