@@ -24,6 +24,13 @@
 
 #include "internal.h"
 
+struct ahash_request_priv {
+	crypto_completion_t complete;
+	void *data;
+	u8 *result;
+	void *ubuf[] CRYPTO_MINALIGN_ATTR;
+};
+
 static inline struct ahash_alg *crypto_ahash_alg(struct crypto_ahash *hash)
 {
 	return container_of(crypto_hash_alg_common(hash), struct ahash_alg,
@@ -156,7 +163,7 @@ static int ahash_setkey_unaligned(struct crypto_ahash *tfm, const u8 *key,
 	return ret;
 }
 
-static int ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
+int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 			unsigned int keylen)
 {
 	struct ahash_alg *ahash = crypto_ahash_alg(tfm);
@@ -167,9 +174,189 @@ static int ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	return ahash->setkey(tfm, key, keylen);
 }
+EXPORT_SYMBOL_GPL(crypto_ahash_setkey);
 
 static int ahash_nosetkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int keylen)
+{
+	return -ENOSYS;
+}
+
+static inline unsigned int ahash_align_buffer_size(unsigned len,
+						   unsigned long mask)
+{
+	return len + (mask & ~(crypto_tfm_ctx_alignment() - 1));
+}
+
+static void ahash_op_unaligned_finish(struct ahash_request *req, int err)
+{
+	struct ahash_request_priv *priv = req->priv;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	if (!err)
+		memcpy(priv->result, req->result,
+		       crypto_ahash_digestsize(crypto_ahash_reqtfm(req)));
+
+	kzfree(priv);
+}
+
+static void ahash_op_unaligned_done(struct crypto_async_request *req, int err)
+{
+	struct ahash_request *areq = req->data;
+	struct ahash_request_priv *priv = areq->priv;
+	crypto_completion_t complete = priv->complete;
+	void *data = priv->data;
+
+	ahash_op_unaligned_finish(areq, err);
+
+	complete(data, err);
+}
+
+static int ahash_op_unaligned(struct ahash_request *req,
+			      int (*op)(struct ahash_request *))
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	unsigned long alignmask = crypto_ahash_alignmask(tfm);
+	unsigned int ds = crypto_ahash_digestsize(tfm);
+	struct ahash_request_priv *priv;
+	int err;
+
+	priv = kmalloc(sizeof(*priv) + ahash_align_buffer_size(ds, alignmask),
+		       (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
+		       GFP_ATOMIC : GFP_ATOMIC);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->result = req->result;
+	priv->complete = req->base.complete;
+	priv->data = req->base.data;
+
+	req->result = PTR_ALIGN((u8 *)priv->ubuf, alignmask + 1);
+	req->base.complete = ahash_op_unaligned_done;
+	req->base.data = req;
+	req->priv = priv;
+
+	err = op(req);
+	ahash_op_unaligned_finish(req, err);
+
+	return err;
+}
+
+static int crypto_ahash_op(struct ahash_request *req,
+			   int (*op)(struct ahash_request *))
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	unsigned long alignmask = crypto_ahash_alignmask(tfm);
+
+	if ((unsigned long)req->result & alignmask)
+		return ahash_op_unaligned(req, op);
+
+	return op(req);
+}
+
+int crypto_ahash_final(struct ahash_request *req)
+{
+	return crypto_ahash_op(req, crypto_ahash_reqtfm(req)->final);
+}
+EXPORT_SYMBOL_GPL(crypto_ahash_final);
+
+int crypto_ahash_finup(struct ahash_request *req)
+{
+	return crypto_ahash_op(req, crypto_ahash_reqtfm(req)->finup);
+}
+EXPORT_SYMBOL_GPL(crypto_ahash_finup);
+
+int crypto_ahash_digest(struct ahash_request *req)
+{
+	return crypto_ahash_op(req, crypto_ahash_reqtfm(req)->digest);
+}
+EXPORT_SYMBOL_GPL(crypto_ahash_digest);
+
+static void ahash_def_finup_finish2(struct ahash_request *req, int err)
+{
+	struct ahash_request_priv *priv = req->priv;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	if (!err)
+		memcpy(priv->result, req->result,
+		       crypto_ahash_digestsize(crypto_ahash_reqtfm(req)));
+
+	kzfree(priv);
+}
+
+static void ahash_def_finup_done2(struct crypto_async_request *req, int err)
+{
+	struct ahash_request *areq = req->data;
+	struct ahash_request_priv *priv = areq->priv;
+	crypto_completion_t complete = priv->complete;
+	void *data = priv->data;
+
+	ahash_def_finup_finish2(areq, err);
+
+	complete(data, err);
+}
+
+static int ahash_def_finup_finish1(struct ahash_request *req, int err)
+{
+	if (err)
+		goto out;
+
+	req->base.complete = ahash_def_finup_done2;
+	req->base.flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
+	err = crypto_ahash_reqtfm(req)->final(req);
+
+out:
+	ahash_def_finup_finish2(req, err);
+	return err;
+}
+
+static void ahash_def_finup_done1(struct crypto_async_request *req, int err)
+{
+	struct ahash_request *areq = req->data;
+	struct ahash_request_priv *priv = areq->priv;
+	crypto_completion_t complete = priv->complete;
+	void *data = priv->data;
+
+	err = ahash_def_finup_finish1(areq, err);
+
+	complete(data, err);
+}
+
+static int ahash_def_finup(struct ahash_request *req)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	unsigned long alignmask = crypto_ahash_alignmask(tfm);
+	unsigned int ds = crypto_ahash_digestsize(tfm);
+	struct ahash_request_priv *priv;
+
+	priv = kmalloc(sizeof(*priv) + ahash_align_buffer_size(ds, alignmask),
+		       (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
+		       GFP_ATOMIC : GFP_ATOMIC);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->result = req->result;
+	priv->complete = req->base.complete;
+	priv->data = req->base.data;
+
+	req->result = PTR_ALIGN((u8 *)priv->ubuf, alignmask + 1);
+	req->base.complete = ahash_def_finup_done1;
+	req->base.data = req;
+	req->priv = priv;
+
+	return ahash_def_finup_finish1(req, tfm->update(req));
+}
+
+static int ahash_no_export(struct ahash_request *req, void *out)
+{
+	return -ENOSYS;
+}
+
+static int ahash_no_import(struct ahash_request *req, const void *in)
 {
 	return -ENOSYS;
 }
@@ -179,14 +366,25 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 	struct crypto_ahash *hash = __crypto_ahash_cast(tfm);
 	struct ahash_alg *alg = crypto_ahash_alg(hash);
 
+	hash->setkey = ahash_nosetkey;
+	hash->export = ahash_no_export;
+	hash->import = ahash_no_import;
+
 	if (tfm->__crt_alg->cra_type != &crypto_ahash_type)
 		return crypto_init_shash_ops_async(tfm);
 
 	hash->init = alg->init;
 	hash->update = alg->update;
-	hash->final  = alg->final;
+	hash->final = alg->final;
+	hash->finup = alg->finup ?: ahash_def_finup;
 	hash->digest = alg->digest;
-	hash->setkey = alg->setkey ? ahash_setkey : ahash_nosetkey;
+
+	if (alg->setkey)
+		hash->setkey = alg->setkey;
+	if (alg->export)
+		hash->export = alg->export;
+	if (alg->import)
+		hash->import = alg->import;
 
 	return 0;
 }

@@ -31,6 +31,9 @@ struct ahash_request {
 	struct scatterlist *src;
 	u8 *result;
 
+	/* This field may only be used by the ahash API code. */
+	void *priv;
+
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
@@ -175,16 +178,11 @@ static inline void *ahash_request_ctx(struct ahash_request *req)
 	return req->__ctx;
 }
 
-static inline int crypto_ahash_setkey(struct crypto_ahash *tfm,
-				      const u8 *key, unsigned int keylen)
-{
-	return tfm->setkey(tfm, key, keylen);
-}
-
-static inline int crypto_ahash_digest(struct ahash_request *req)
-{
-	return crypto_ahash_reqtfm(req)->digest(req);
-}
+int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
+			unsigned int keylen);
+int crypto_ahash_finup(struct ahash_request *req);
+int crypto_ahash_final(struct ahash_request *req);
+int crypto_ahash_digest(struct ahash_request *req);
 
 static inline int crypto_ahash_export(struct ahash_request *req, void *out)
 {
@@ -204,11 +202,6 @@ static inline int crypto_ahash_init(struct ahash_request *req)
 static inline int crypto_ahash_update(struct ahash_request *req)
 {
 	return crypto_ahash_reqtfm(req)->update(req);
-}
-
-static inline int crypto_ahash_final(struct ahash_request *req)
-{
-	return crypto_ahash_reqtfm(req)->final(req);
 }
 
 static inline void ahash_request_set_tfm(struct ahash_request *req,
