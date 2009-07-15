@@ -1345,7 +1345,7 @@ NetVscOnReceiveCompletion(
 	DEVICE_OBJECT *device = (DEVICE_OBJECT*)packet->Device;
 	NETVSC_DEVICE* netDevice;
 	u64	transactionId=0;
-	bool fSendReceiveComp = FALSE;
+	bool fSendReceiveComp = false;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -1371,7 +1371,7 @@ NetVscOnReceiveCompletion(
 	// Return the xfer page packet itself to the freelist
 	if (packet->XferPagePacket->Count == 0)
 	{
-		fSendReceiveComp = TRUE;
+		fSendReceiveComp = true;
 		transactionId = packet->Completion.Recv.ReceiveCompletionTid;
 
 		INSERT_TAIL_LIST(&netDevice->ReceivePacketList, &packet->XferPagePacket->ListEntry);

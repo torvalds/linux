@@ -357,7 +357,7 @@ RndisFilterSendRequest(
 	// Setup the packet to send it
 	packet = &Request->Packet;
 
-	packet->IsDataPacket = FALSE;
+	packet->IsDataPacket = false;
 	packet->TotalDataBufferLength = Request->RequestMessage.MessageLength;
 	packet->PageBufferCount = 1;
 
@@ -384,7 +384,7 @@ RndisFilterReceiveResponse(
 	LIST_ENTRY *anchor;
 	LIST_ENTRY *curr;
 	RNDIS_REQUEST *request=NULL;
-	bool found=FALSE;
+	bool found = false;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -399,7 +399,7 @@ RndisFilterReceiveResponse(
 			DPRINT_DBG(NETVSC, "found rndis request for this response (id 0x%x req type 0x%x res type 0x%x)",
 				request->RequestMessage.Message.InitializeRequest.RequestId, request->RequestMessage.NdisMessageType, Response->NdisMessageType);
 
-			found = TRUE;
+			found = true;
 			break;
 		}
 	}
@@ -485,7 +485,7 @@ RndisFilterReceiveData(
 	Packet->PageBuffers[0].Offset += dataOffset;
 	Packet->PageBuffers[0].Length -= dataOffset;
 
-	Packet->IsDataPacket = TRUE;
+	Packet->IsDataPacket = true;
 
 	gRndisFilter.InnerDriver.OnReceiveCallback(Device->NetDevice->Device, Packet);
 
@@ -1112,7 +1112,7 @@ RndisFilterOnSend(
 	rndisPacket->DataOffset = sizeof(RNDIS_PACKET);
 	rndisPacket->DataLength = Packet->TotalDataBufferLength;
 
-	Packet->IsDataPacket = TRUE;
+	Packet->IsDataPacket = true;
 	Packet->PageBuffers[0].Pfn		= GetPhysicalAddress(rndisMessage) >> PAGE_SHIFT;
 	Packet->PageBuffers[0].Offset	= (unsigned long)rndisMessage & (PAGE_SIZE-1);
 	Packet->PageBuffers[0].Length	= rndisMessageSize;

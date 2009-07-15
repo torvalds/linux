@@ -31,7 +31,7 @@
 
 // The one and only
 HV_CONTEXT gHvContext={
-	.SynICInitialized = FALSE,
+	.SynICInitialized = false,
 	.HypercallPage = NULL,
 	.SignalEventParam = NULL,
 	.SignalEventBuffer = NULL,
@@ -571,8 +571,8 @@ HvSynicInit (
 
 	sharedSint.AsUINT64 = 0;
     sharedSint.Vector = irqVector; //HV_SHARED_SINT_IDT_VECTOR + 0x20;
-    sharedSint.Masked = FALSE;
-    sharedSint.AutoEoi = TRUE;
+    sharedSint.Masked = false;
+    sharedSint.AutoEoi = true;
 
 	DPRINT_DBG(VMBUS, "HV_X64_MSR_SINT1 msr set to: %llx", sharedSint.AsUINT64);
 
@@ -584,7 +584,7 @@ HvSynicInit (
 
     WriteMsr(HV_X64_MSR_SCONTROL, sctrl.AsUINT64);
 
-	gHvContext.SynICInitialized = TRUE;
+	gHvContext.SynICInitialized = true;
 
 	DPRINT_EXIT(VMBUS);
 

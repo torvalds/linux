@@ -240,7 +240,7 @@ VmbusChannelProcessOffer(
 	VMBUS_CHANNEL* newChannel=(VMBUS_CHANNEL*)context;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
-	bool fNew=TRUE;
+	bool fNew = true;
 	VMBUS_CHANNEL* channel;
 
 	DPRINT_ENTER(VMBUS);
@@ -255,7 +255,7 @@ VmbusChannelProcessOffer(
 		if (!memcmp(&channel->OfferMsg.Offer.InterfaceType, &newChannel->OfferMsg.Offer.InterfaceType,sizeof(GUID)) &&
 			!memcmp(&channel->OfferMsg.Offer.InterfaceInstance, &newChannel->OfferMsg.Offer.InterfaceInstance, sizeof(GUID)))
 		{
-			fNew = FALSE;
+			fNew = false;
 			break;
 		}
 	}

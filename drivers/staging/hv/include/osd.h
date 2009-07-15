@@ -37,20 +37,6 @@
 #define LOWORD(dw)		((unsigned short) (dw))
 #define HIWORD(dw)		((unsigned short) (((unsigned int) (dw) >> 16) & 0xFFFF))
 
-#ifdef FALSE
-#undef FALSE
-#endif
-#define FALSE 0
-
-#ifdef TRUE
-#undef TRUE
-#endif
-#define TRUE  1
-
-#ifndef NULL
-#define NULL  (void *)0
-#endif
-
 typedef struct _DLIST_ENTRY {
    struct _DLIST_ENTRY *Flink;
    struct _DLIST_ENTRY *Blink;
