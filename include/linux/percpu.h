@@ -184,6 +184,11 @@ static inline void free_percpu(void *p)
 
 static inline void __init setup_per_cpu_areas(void) { }
 
+static inline void *pcpu_lpage_remapped(void *kaddr)
+{
+	return NULL;
+}
+
 #endif /* CONFIG_SMP */
 
 #define alloc_percpu(type)	(type *)__alloc_percpu(sizeof(type), \
