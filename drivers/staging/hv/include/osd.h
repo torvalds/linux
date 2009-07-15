@@ -67,9 +67,6 @@
 #define ALIGN_DOWN(value, align)		( (value) & ~(align-1) )
 #define NUM_PAGES_SPANNED(addr, len)	( (ALIGN_UP(addr+len, PAGE_SIZE) - ALIGN_DOWN(addr, PAGE_SIZE)) >> PAGE_SHIFT )
 
-#define MIN(a, b)       ((a) < (b)? (a): (b))
-#define MAX(a, b)       ((a) > (b)? (a): (b))
-
 #define LOWORD(dw)		((unsigned short) (dw))
 #define HIWORD(dw)		((unsigned short) (((unsigned int) (dw) >> 16) & 0xFFFF))
 

@@ -623,7 +623,7 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl, struct s
 			dest = bounce_addr + bounce_sgl[j].length;
 			destlen = PAGE_SIZE - bounce_sgl[j].length;
 
-			copylen = MIN(srclen, destlen);
+			copylen = min(srclen, destlen);
 			memcpy((void*)dest, (void*)src, copylen);
 
 			total_copied += copylen;
@@ -698,7 +698,7 @@ static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl, struct
 			src = bounce_addr + bounce_sgl[j].offset;
 			srclen = bounce_sgl[j].length - bounce_sgl[j].offset;
 
-			copylen = MIN(srclen, destlen);
+			copylen = min(srclen, destlen);
 			memcpy((void*)dest, (void*)src, copylen);
 
 			total_copied += copylen;
