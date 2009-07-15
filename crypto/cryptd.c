@@ -303,6 +303,7 @@ static int cryptd_create_blkcipher(struct crypto_template *tmpl,
 		return PTR_ERR(alg);
 
 	inst = cryptd_alloc_instance(alg, 0, sizeof(*ctx));
+	err = PTR_ERR(inst);
 	if (IS_ERR(inst))
 		goto out_put_alg;
 
@@ -522,6 +523,7 @@ static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	alg = &salg->base;
 	inst = cryptd_alloc_instance(alg, ahash_instance_headroom(),
 				     sizeof(*ctx));
+	err = PTR_ERR(inst);
 	if (IS_ERR(inst))
 		goto out_put_alg;
 
