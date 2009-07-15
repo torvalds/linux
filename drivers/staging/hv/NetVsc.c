@@ -1480,7 +1480,7 @@ NetVscOnChannelCallback(
 		}
 		else if (ret == -2) // Handle large packet
 		{
-			buffer = MemAllocAtomic(bytesRecvd);
+			buffer = kmalloc(bytesRecvd, GFP_ATOMIC);
 			if (buffer == NULL)
 			{
 				// Try again next time around

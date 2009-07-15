@@ -189,11 +189,6 @@ void PageUnmapVirtualAddress(void* VirtAddr)
 	kunmap_atomic(VirtAddr, KM_IRQ0);
 }
 
-void* MemAllocAtomic(unsigned int size)
-{
-	return kmalloc(size, GFP_ATOMIC);
-}
-
 void MemFree(void* buf)
 {
 	kfree(buf);

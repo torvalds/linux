@@ -411,7 +411,7 @@ VmbusOnMsgDPC(
 		}
 		else
 		{
-			copied = MemAllocAtomic(sizeof(HV_MESSAGE));
+			copied = kmalloc(sizeof(HV_MESSAGE), GFP_ATOMIC);
 			if (copied == NULL)
 			{
 				continue;

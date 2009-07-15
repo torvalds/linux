@@ -414,7 +414,7 @@ HvPostMessage(
 		return -1;
 	}
 
-	addr = (unsigned long)MemAllocAtomic(sizeof(struct alignedInput));
+	addr = (unsigned long)kmalloc(sizeof(struct alignedInput), GFP_ATOMIC);
 
 	if (!addr)
 	{

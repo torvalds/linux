@@ -143,13 +143,12 @@ VMBUS_CHANNEL* AllocVmbusChannel(void)
 {
 	VMBUS_CHANNEL* channel;
 
-	channel = (VMBUS_CHANNEL*) MemAllocAtomic(sizeof(VMBUS_CHANNEL));
+	channel = kzalloc(sizeof(VMBUS_CHANNEL), GFP_ATOMIC);
 	if (!channel)
 	{
 		return NULL;
 	}
 
-	memset(channel, 0,sizeof(VMBUS_CHANNEL));
 	channel->InboundLock = SpinlockCreate();
 	if (!channel->InboundLock)
 	{
