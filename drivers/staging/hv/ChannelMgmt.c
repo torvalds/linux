@@ -233,11 +233,12 @@ VmbusChannelProcessOffer(
 	LIST_ENTRY* curr;
 	bool fNew = true;
 	VMBUS_CHANNEL* channel;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
 	// Make sure this is a new offer
-	SpinlockAcquire(gVmbusConnection.ChannelLock);
+	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelList)
 	{
@@ -255,7 +256,7 @@ VmbusChannelProcessOffer(
 	{
 		INSERT_TAIL_LIST(&gVmbusConnection.ChannelList, &newChannel->ListEntry);
 	}
-	SpinlockRelease(gVmbusConnection.ChannelLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 
 	if (!fNew)
 	{
@@ -282,9 +283,9 @@ VmbusChannelProcessOffer(
 		DPRINT_ERR(VMBUS, "unable to add child device object (relid %d)",
 			newChannel->OfferMsg.ChildRelId);
 
-		SpinlockAcquire(gVmbusConnection.ChannelLock);
+		spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 		REMOVE_ENTRY_LIST(&newChannel->ListEntry);
-		SpinlockRelease(gVmbusConnection.ChannelLock);
+		spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 
 		FreeVmbusChannel(newChannel);
 	}
@@ -785,8 +786,9 @@ VmbusChannelReleaseUnattachedChannels(
 	LIST_ENTRY *entry;
 	VMBUS_CHANNEL *channel;
 	VMBUS_CHANNEL *start=NULL;
+	unsigned long flags;
 
-	SpinlockAcquire(gVmbusConnection.ChannelLock);
+	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 
 	while (!IsListEmpty(&gVmbusConnection.ChannelList))
 	{
@@ -813,7 +815,7 @@ VmbusChannelReleaseUnattachedChannels(
 		}
 	}
 
-	SpinlockRelease(gVmbusConnection.ChannelLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 }
 
 // eof

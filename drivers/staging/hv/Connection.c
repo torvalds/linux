@@ -69,7 +69,7 @@ VmbusConnect(
 	spin_lock_init(&gVmbusConnection.channelmsg_lock);
 
 	INITIALIZE_LIST_HEAD(&gVmbusConnection.ChannelList);
-	gVmbusConnection.ChannelLock = SpinlockCreate();
+	spin_lock_init(&gVmbusConnection.channel_lock);
 
 	// Setup the vmbus event connection for channel interrupt abstraction stuff
 	gVmbusConnection.InterruptPage = PageAlloc(1);
@@ -156,7 +156,6 @@ Cleanup:
 	gVmbusConnection.ConnectState = Disconnected;
 
 	WorkQueueClose(gVmbusConnection.WorkQueue);
-	SpinlockClose(gVmbusConnection.ChannelLock);
 
 	if (gVmbusConnection.InterruptPage)
 	{
@@ -258,8 +257,9 @@ GetChannelFromRelId(
 	VMBUS_CHANNEL* foundChannel=NULL;
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
+	unsigned long flags;
 
-	SpinlockAcquire(gVmbusConnection.ChannelLock);
+	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelList)
 	{
 		channel = CONTAINING_RECORD(curr, VMBUS_CHANNEL, ListEntry);
@@ -270,7 +270,7 @@ GetChannelFromRelId(
 			break;
 		}
 	}
-	SpinlockRelease(gVmbusConnection.ChannelLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 
 	return foundChannel;
 }

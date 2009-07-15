@@ -84,7 +84,7 @@ typedef struct _VMBUS_CONNECTION {
 
 	// List of channels
 	LIST_ENTRY							ChannelList;
-	HANDLE								ChannelLock;
+	spinlock_t channel_lock;
 
 	HANDLE								WorkQueue;
 } VMBUS_CONNECTION;

@@ -686,6 +686,7 @@ VmbusChannelClose(
 	int ret=0;
 	VMBUS_CHANNEL_CLOSE_CHANNEL* msg;
 	VMBUS_CHANNEL_MSGINFO* info;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -729,9 +730,9 @@ VmbusChannelClose(
 	// since the caller will free the channel
 	if (Channel->State == CHANNEL_OPEN_STATE)
 	{
-		SpinlockAcquire(gVmbusConnection.ChannelLock);
+		spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 		REMOVE_ENTRY_LIST(&Channel->ListEntry);
-		SpinlockRelease(gVmbusConnection.ChannelLock);
+		spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 
 		FreeVmbusChannel(Channel);
 	}
