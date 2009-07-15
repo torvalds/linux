@@ -43,7 +43,7 @@ typedef struct _RING_BUFFER {
 	// volatile u32 InterruptMask;
 	// Ring data starts here + RingDataStartOffset !!! DO NOT place any fields below this !!!
     u8		Buffer[0];
-} STRUCT_PACKED RING_BUFFER;
+} __attribute__((packed)) RING_BUFFER;
 
 typedef struct _RING_BUFFER_INFO {
     RING_BUFFER*	RingBuffer;

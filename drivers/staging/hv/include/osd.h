@@ -30,9 +30,6 @@
 //
 
 
-#define STRUCT_PACKED		__attribute__((__packed__))
-#define STRUCT_ALIGNED(x)	__attribute__((__aligned__(x)))
-
 #define UNUSED_VAR(v)		v  __attribute__((__unused__))
 
 #define ALIGN_UP(value, align)			( ((value) & (align-1))? ( ((value) + (align-1)) & ~(align-1) ): (value) )
