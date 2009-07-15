@@ -137,11 +137,6 @@ extern int	WaitEventWait(HANDLE hWait);
 // If >0, hWait got signaled. If ==0, timeout. If < 0, error
 extern int	WaitEventWaitEx(HANDLE hWait, u32 TimeoutInMs);
 
-extern HANDLE SpinlockCreate(void);
-extern void SpinlockClose(HANDLE hSpin);
-extern void SpinlockAcquire(HANDLE hSpin);
-extern void	SpinlockRelease(HANDLE hSpin);
-
 
 #define GetVirtualAddress Physical2LogicalAddr
 void* Physical2LogicalAddr(unsigned long PhysAddr);

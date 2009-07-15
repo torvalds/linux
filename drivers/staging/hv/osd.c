@@ -61,11 +61,6 @@ typedef struct _WAITEVENT {
 	wait_queue_head_t event;
 } WAITEVENT;
 
-typedef struct _SPINLOCK {
-	spinlock_t		lock;
-	unsigned long	flags;
-} SPINLOCK;
-
 typedef struct _WORKQUEUE {
 	struct workqueue_struct *queue;
 } WORKQUEUE;
@@ -321,38 +316,6 @@ int WaitEventWaitEx(HANDLE hWait, u32 TimeoutInMs)
 											msecs_to_jiffies(TimeoutInMs));
 	waitEvent->condition = 0;
 	return ret;
-}
-
-HANDLE SpinlockCreate(void)
-{
-	SPINLOCK* spin = kmalloc(sizeof(SPINLOCK), GFP_KERNEL);
-	if (!spin)
-	{
-		return NULL;
-	}
-	spin_lock_init(&spin->lock);
-
-	return spin;
-}
-
-void SpinlockAcquire(HANDLE hSpin)
-{
-	SPINLOCK* spin = (SPINLOCK* )hSpin;
-
-	spin_lock_irqsave(&spin->lock, spin->flags);
-}
-
-void SpinlockRelease(HANDLE hSpin)
-{
-	SPINLOCK* spin = (SPINLOCK* )hSpin;
-
-	spin_unlock_irqrestore(&spin->lock, spin->flags);
-}
-
-void SpinlockClose(HANDLE hSpin)
-{
-	SPINLOCK* spin = (SPINLOCK* )hSpin;
-	kfree(spin);
 }
 
 void* Physical2LogicalAddr(unsigned long PhysAddr)
