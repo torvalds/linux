@@ -2260,8 +2260,27 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath_softc *sc = aphy->sc;
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ath_hw *ah = sc->sc_ah;
+	bool all_wiphys_idle = false, disable_radio = false;
 
 	mutex_lock(&sc->mutex);
+
+	/* Leave this as the first check */
+	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+
+		spin_lock_bh(&sc->wiphy_lock);
+		all_wiphys_idle =  ath9k_all_wiphys_idle(sc);
+		spin_unlock_bh(&sc->wiphy_lock);
+
+		if (conf->flags & IEEE80211_CONF_IDLE){
+			if (all_wiphys_idle)
+				disable_radio = true;
+		}
+		else if (all_wiphys_idle) {
+			ath_radio_enable(sc);
+			DPRINTF(sc, ATH_DBG_CONFIG,
+				"not-idle: enabling radio\n");
+		}
+	}
 
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		if (conf->flags & IEEE80211_CONF_PS) {
@@ -2329,6 +2348,11 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 skip_chan_change:
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		sc->config.txpowlimit = 2 * conf->power_level;
+
+	if (disable_radio) {
+		DPRINTF(sc, ATH_DBG_CONFIG, "idle: disabling radio\n");
+		ath_radio_disable(sc);
+	}
 
 	mutex_unlock(&sc->mutex);
 
