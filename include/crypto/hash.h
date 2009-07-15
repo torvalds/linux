@@ -75,7 +75,8 @@ struct shash_alg {
 	unsigned int descsize;
 
 	/* These fields must match hash_alg_common. */
-	unsigned int digestsize;
+	unsigned int digestsize
+		__attribute__ ((aligned(__alignof__(struct hash_alg_common))));
 	unsigned int statesize;
 
 	struct crypto_alg base;
