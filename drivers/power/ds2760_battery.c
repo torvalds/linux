@@ -381,12 +381,6 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 
 	di->charge_status = POWER_SUPPLY_STATUS_UNKNOWN;
 
-	retval = power_supply_register(&pdev->dev, &di->bat);
-	if (retval) {
-		dev_err(di->dev, "failed to register battery\n");
-		goto batt_failed;
-	}
-
 	/* enable sleep mode feature */
 	ds2760_battery_read_status(di);
 	status = di->raw[DS2760_STATUS_REG];
@@ -396,6 +390,12 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 		status &= ~DS2760_STATUS_PMOD;
 
 	ds2760_battery_write_status(di, status);
+
+	retval = power_supply_register(&pdev->dev, &di->bat);
+	if (retval) {
+		dev_err(di->dev, "failed to register battery\n");
+		goto batt_failed;
+	}
 
 	INIT_DELAYED_WORK(&di->monitor_work, ds2760_battery_work);
 	di->monitor_wqueue = create_singlethread_workqueue(dev_name(&pdev->dev));
