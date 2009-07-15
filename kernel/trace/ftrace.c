@@ -1017,71 +1017,35 @@ static int
 __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
 	unsigned long ftrace_addr;
-	unsigned long ip, fl;
+	unsigned long flag = 0UL;
 
 	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
-	ip = rec->ip;
-
 	/*
-	 * If this record is not to be traced and
-	 * it is not enabled then do nothing.
+	 * If this record is not to be traced or we want to disable it,
+	 * then disable it.
 	 *
-	 * If this record is not to be traced and
-	 * it is enabled then disable it.
+	 * If we want to enable it and filtering is off, then enable it.
 	 *
+	 * If we want to enable it and filtering is on, enable it only if
+	 * it's filtered
 	 */
-	if (rec->flags & FTRACE_FL_NOTRACE) {
-		if (rec->flags & FTRACE_FL_ENABLED)
-			rec->flags &= ~FTRACE_FL_ENABLED;
-		else
-			return 0;
-
-	} else if (ftrace_filtered && enable) {
-		/*
-		 * Filtering is on:
-		 */
-
-		fl = rec->flags & (FTRACE_FL_FILTER | FTRACE_FL_ENABLED);
-
-		/* Record is filtered and enabled, do nothing */
-		if (fl == (FTRACE_FL_FILTER | FTRACE_FL_ENABLED))
-			return 0;
-
-		/* Record is not filtered or enabled, do nothing */
-		if (!fl)
-			return 0;
-
-		/* Record is not filtered but enabled, disable it */
-		if (fl == FTRACE_FL_ENABLED)
-			rec->flags &= ~FTRACE_FL_ENABLED;
-		else
-		/* Otherwise record is filtered but not enabled, enable it */
-			rec->flags |= FTRACE_FL_ENABLED;
-	} else {
-		/* Disable or not filtered */
-
-		if (enable) {
-			/* if record is enabled, do nothing */
-			if (rec->flags & FTRACE_FL_ENABLED)
-				return 0;
-
-			rec->flags |= FTRACE_FL_ENABLED;
-
-		} else {
-
-			/* if record is not enabled, do nothing */
-			if (!(rec->flags & FTRACE_FL_ENABLED))
-				return 0;
-
-			rec->flags &= ~FTRACE_FL_ENABLED;
-		}
+	if (enable && !(rec->flags & FTRACE_FL_NOTRACE)) {
+		if (!ftrace_filtered || (rec->flags & FTRACE_FL_FILTER))
+			flag = FTRACE_FL_ENABLED;
 	}
 
-	if (rec->flags & FTRACE_FL_ENABLED)
+	/* If the state of this record hasn't changed, then do nothing */
+	if ((rec->flags & FTRACE_FL_ENABLED) == flag)
+		return 0;
+
+	if (flag) {
+		rec->flags |= FTRACE_FL_ENABLED;
 		return ftrace_make_call(rec, ftrace_addr);
-	else
-		return ftrace_make_nop(NULL, rec, ftrace_addr);
+	}
+
+	rec->flags &= ~FTRACE_FL_ENABLED;
+	return ftrace_make_nop(NULL, rec, ftrace_addr);
 }
 
 static void ftrace_replace_code(int enable)
