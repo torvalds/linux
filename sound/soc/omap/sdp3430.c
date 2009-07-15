@@ -24,6 +24,7 @@
 
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/i2c/twl4030.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -38,6 +39,9 @@
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
 #include "../codecs/twl4030.h"
+
+#define TWL4030_INTBR_PMBR1	0x0D
+#define EXTMUTE(value)		(value << 2)
 
 static struct snd_soc_card snd_soc_sdp3430;
 
@@ -280,6 +284,7 @@ static struct snd_soc_card snd_soc_sdp3430 = {
 static struct twl4030_setup_data twl4030_setup = {
 	.ramp_delay_value = 3,
 	.sysclk = 26000,
+	.hs_extmute = 1,
 };
 
 /* Audio subsystem */
@@ -311,6 +316,10 @@ static int __init sdp3430_soc_init(void)
 	sdp3430_snd_devdata.dev = &sdp3430_snd_device->dev;
 	*(unsigned int *)sdp3430_dai[0].cpu_dai->private_data = 1; /* McBSP2 */
 	*(unsigned int *)sdp3430_dai[1].cpu_dai->private_data = 2; /* McBSP3 */
+
+	/* Set TWL4030 GPIO6 as EXTMUTE signal */
+	twl4030_i2c_write_u8(TWL4030_MODULE_INTBR, EXTMUTE(0x02),
+							TWL4030_MODULE_INTBR);
 
 	ret = platform_device_add(sdp3430_snd_device);
 	if (ret)
