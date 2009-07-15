@@ -814,19 +814,6 @@ static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
 	tx_info->control.rts_cts_rate_idx = cix;
 }
 
-static u8 ath_rc_rate_getidx(struct ath_softc *sc,
-			     struct ath_rate_priv *ath_rc_priv,
-			     const struct ath_rate_table *rate_table,
-			     u8 rix)
-{
-	u8 nextindex = 0;
-	if (ath_rc_get_nextlowervalid_txrate(rate_table,
-					     ath_rc_priv, rix, &nextindex))
-		return nextindex;
-	else
-		return rix;
-}
-
 static void ath_rc_ratefind(struct ath_softc *sc,
 			    struct ath_rate_priv *ath_rc_priv,
 			    struct ieee80211_tx_rate_control *txrc)
@@ -865,8 +852,8 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 		/* Get the next tried/allowed rate. No RTS for the next series
 		 * after the probe rate
 		 */
-		nrix = ath_rc_rate_getidx(sc, ath_rc_priv,
-					  rate_table, nrix);
+		ath_rc_get_nextlowervalid_txrate(rate_table, ath_rc_priv,
+						 rix, &nrix);
 		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       try_per_rate, nrix, 0);
 
@@ -883,8 +870,8 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 		if (i + 1 == 4)
 			try_per_rate = 4;
 
-		nrix = ath_rc_rate_getidx(sc, ath_rc_priv,
-					  rate_table, nrix);
+		ath_rc_get_nextlowervalid_txrate(rate_table, ath_rc_priv,
+						 rix, &nrix);
 		/* All other rates in the series have RTS enabled */
 		ath_rc_rate_set_series(rate_table, &rates[i], txrc,
 				       try_per_rate, nrix, 1);
