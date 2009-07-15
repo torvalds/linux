@@ -707,6 +707,10 @@ static int configure_clock(struct snd_soc_codec *codec)
 				    target > 3000000)
 					break;
 			}
+
+			if (i == ARRAY_SIZE(clk_sys_rates))
+				return -EINVAL;
+
 		} else if (wm9081->fs) {
 			for (i = 0; i < ARRAY_SIZE(clk_sys_rates); i++) {
 				new_sysclk = clk_sys_rates[i].ratio
@@ -714,6 +718,10 @@ static int configure_clock(struct snd_soc_codec *codec)
 				if (new_sysclk > 3000000)
 					break;
 			}
+
+			if (i == ARRAY_SIZE(clk_sys_rates))
+				return -EINVAL;
+
 		} else {
 			new_sysclk = 12288000;
 		}
