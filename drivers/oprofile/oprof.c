@@ -33,8 +33,7 @@ static DEFINE_MUTEX(start_mutex);
 
 static void switch_worker(struct work_struct *work);
 static DECLARE_DELAYED_WORK(switch_work, switch_worker);
-unsigned long timeout_jiffies;
-#define MULTIPLEXING_TIMER_DEFAULT 1
+#define TIME_SLICE_DEFAULT		1
 
 #endif
 
@@ -102,7 +101,7 @@ out:
 
 static void start_switch_worker(void)
 {
-	schedule_delayed_work(&switch_work, timeout_jiffies);
+	schedule_delayed_work(&switch_work, oprofile_time_slice);
 }
 
 static void switch_worker(struct work_struct *work)
@@ -216,7 +215,7 @@ int oprofile_set_timeout(unsigned long val_msec)
 		goto out;
 	}
 
-	timeout_jiffies = time_slice;
+	oprofile_time_slice = time_slice;
 
 out:
 	mutex_unlock(&start_mutex);
@@ -253,7 +252,7 @@ out:
 
 static void __init oprofile_multiplexing_init(void)
 {
-	timeout_jiffies = msecs_to_jiffies(MULTIPLEXING_TIMER_DEFAULT);
+	oprofile_time_slice = msecs_to_jiffies(TIME_SLICE_DEFAULT);
 }
 
 #endif

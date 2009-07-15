@@ -24,10 +24,11 @@ struct oprofile_operations;
 extern unsigned long oprofile_buffer_size;
 extern unsigned long oprofile_cpu_buffer_size;
 extern unsigned long oprofile_buffer_watershed;
+extern unsigned long oprofile_time_slice;
+
 extern struct oprofile_operations oprofile_ops;
 extern unsigned long oprofile_started;
 extern unsigned long oprofile_backtrace_depth;
-extern unsigned long timeout_jiffies;
 
 struct super_block;
 struct dentry;

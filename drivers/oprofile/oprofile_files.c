@@ -22,14 +22,15 @@
 unsigned long oprofile_buffer_size;
 unsigned long oprofile_cpu_buffer_size;
 unsigned long oprofile_buffer_watershed;
+unsigned long oprofile_time_slice;
 
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 
 static ssize_t timeout_read(struct file *file, char __user *buf,
 		size_t count, loff_t *offset)
 {
-	return oprofilefs_ulong_to_user(jiffies_to_msecs(timeout_jiffies),
-				buf, count, offset);
+	return oprofilefs_ulong_to_user(jiffies_to_msecs(oprofile_time_slice),
+					buf, count, offset);
 }
 
 
