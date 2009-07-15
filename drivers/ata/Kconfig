@@ -26,6 +26,17 @@ config ATA_NONSTANDARD
        bool
        default n
 
+config ATA_VERBOSE_ERROR
+	bool "Verbose ATA error reporting"
+	default y
+	help
+	  This option adds parsing of ATA command descriptions and error bits
+	  in libata kernel output, making it easier to interpret.
+	  This option will enlarge the kernel by approx. 6KB. Disable it only
+	  if kernel size is more important than ease of debugging.
+
+	  If unsure, say Y.
+
 config ATA_ACPI
 	bool "ATA ACPI Support"
 	depends on ACPI && PCI
