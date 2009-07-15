@@ -1104,7 +1104,6 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 	struct fcoe_fcf *sel;
 	struct fcoe_fcf *fcf;
 	unsigned long next_timer = jiffies + msecs_to_jiffies(FIP_VN_KA_PERIOD);
-	DECLARE_MAC_BUF(buf);
 	u8 send_ctlr_ka;
 	u8 send_port_ka;
 
@@ -1128,9 +1127,8 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 		fcf = sel;		/* the old FCF may have been freed */
 		if (sel) {
 			printk(KERN_INFO "libfcoe: host%d: FIP selected "
-			       "Fibre-Channel Forwarder MAC %s\n",
-			       fip->lp->host->host_no,
-			       print_mac(buf, sel->fcf_mac));
+			       "Fibre-Channel Forwarder MAC %pM\n",
+			       fip->lp->host->host_no, sel->fcf_mac);
 			memcpy(fip->dest_addr, sel->fcf_mac, ETH_ALEN);
 			fip->port_ka_time = jiffies +
 					    msecs_to_jiffies(FIP_VN_KA_PERIOD);
