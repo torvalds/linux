@@ -195,6 +195,7 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 		goto out_put_alg;
 
 	inst = shash_alloc_instance("hmac", alg);
+	err = PTR_ERR(inst);
 	if (IS_ERR(inst))
 		goto out_put_alg;
 
