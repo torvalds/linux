@@ -30,8 +30,6 @@
 //
 
 
-#define UNUSED_VAR(v)		v  __attribute__((__unused__))
-
 #define ALIGN_UP(value, align)			( ((value) & (align-1))? ( ((value) + (align-1)) & ~(align-1) ): (value) )
 #define ALIGN_DOWN(value, align)		( (value) & ~(align-1) )
 #define NUM_PAGES_SPANNED(addr, len)	( (ALIGN_UP(addr+len, PAGE_SIZE) - ALIGN_DOWN(addr, PAGE_SIZE)) >> PAGE_SHIFT )

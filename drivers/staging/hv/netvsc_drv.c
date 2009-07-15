@@ -154,7 +154,7 @@ Desc:	Set the multicast list
 
 Remark:	No-op here
 --*/
-static void netvsc_set_multicast_list(UNUSED_VAR(struct net_device *net))
+static void netvsc_set_multicast_list(struct net_device *net)
 {
 }
 
