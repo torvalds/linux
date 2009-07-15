@@ -327,7 +327,7 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 		goto out_unref;
 
 	kmap_offset = dev_offset - bo->vm_node->start;
-	if (unlikely(kmap_offset) >= bo->num_pages) {
+	if (unlikely(kmap_offset >= bo->num_pages)) {
 		ret = -EFBIG;
 		goto out_unref;
 	}
@@ -401,7 +401,7 @@ ssize_t ttm_bo_fbdev_io(struct ttm_buffer_object *bo, const char __user *wbuf,
 	bool dummy;
 
 	kmap_offset = (*f_pos >> PAGE_SHIFT);
-	if (unlikely(kmap_offset) >= bo->num_pages)
+	if (unlikely(kmap_offset >= bo->num_pages))
 		return -EFBIG;
 
 	page_offset = *f_pos & ~PAGE_MASK;
