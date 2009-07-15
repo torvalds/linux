@@ -2286,6 +2286,7 @@ void em28xx_card_setup(struct em28xx *dev)
 		   em28xx_set_mode() in em28xx_pre_card_setup() was a no-op,
 		   so make the call now so the analog GPIOs are set properly
 		   before probing the i2c bus. */
+		em28xx_gpio_set(dev, dev->board.tuner_gpio);
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		break;
 	case EM2820_BOARD_SILVERCREST_WEBCAM:
