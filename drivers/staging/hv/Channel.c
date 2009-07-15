@@ -260,8 +260,7 @@ VmbusChannelOpen(
 		SendRingBufferSize);
 
 	// Create and init the channel open message
-	openInfo =
-		(VMBUS_CHANNEL_MSGINFO*)MemAlloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_OPEN_CHANNEL));
+	openInfo = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_OPEN_CHANNEL), GFP_KERNEL);
 	ASSERT(openInfo != NULL);
 
 	openInfo->WaitEvent = WaitEventCreate();
@@ -630,8 +629,7 @@ VmbusChannelTeardownGpadl(
 
 	ASSERT(GpadlHandle != 0);
 
-	info =
-		(VMBUS_CHANNEL_MSGINFO*)MemAlloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_TEARDOWN));
+	info = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_TEARDOWN), GFP_KERNEL);
 	ASSERT(info != NULL);
 
 	info->WaitEvent = WaitEventCreate();
@@ -693,8 +691,7 @@ VmbusChannelClose(
 	TimerStop(Channel->PollTimer);
 
 	// Send a closing message
-	info =
-		(VMBUS_CHANNEL_MSGINFO*)MemAlloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_CLOSE_CHANNEL));
+	info = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_CLOSE_CHANNEL), GFP_KERNEL);
 	ASSERT(info != NULL);
 
 	//info->waitEvent = WaitEventCreate();

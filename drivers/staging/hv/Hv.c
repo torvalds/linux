@@ -305,7 +305,7 @@ HvInit (
                (unsigned long)hypercallMsr.GuestPhysicalAddress << PAGE_SHIFT);
 
 	// Setup the global signal event param for the signal event hypercall
-	gHvContext.SignalEventBuffer = MemAlloc(sizeof(HV_INPUT_SIGNAL_EVENT_BUFFER));
+	gHvContext.SignalEventBuffer = kmalloc(sizeof(HV_INPUT_SIGNAL_EVENT_BUFFER), GFP_KERNEL);
 	if (!gHvContext.SignalEventBuffer)
 	{
 		goto Cleanup;

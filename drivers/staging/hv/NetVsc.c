@@ -361,7 +361,7 @@ NetVscInitializeReceiveBufferWithNetVsp(
 
 	netDevice->ReceiveSectionCount = initPacket->Messages.Version1Messages.SendReceiveBufferComplete.NumSections;
 
-	netDevice->ReceiveSections = MemAlloc(netDevice->ReceiveSectionCount * sizeof(NVSP_1_RECEIVE_BUFFER_SECTION));
+	netDevice->ReceiveSections = kmalloc(netDevice->ReceiveSectionCount * sizeof(NVSP_1_RECEIVE_BUFFER_SECTION), GFP_KERNEL);
 	if (netDevice->ReceiveSections == NULL)
 	{
 		ret = -1;

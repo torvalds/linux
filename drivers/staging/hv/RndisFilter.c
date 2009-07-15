@@ -943,7 +943,6 @@ RndisFilterOnDeviceAdd(
 
 	DPRINT_ENTER(NETVSC);
 
-	//rndisDevice = MemAlloc(sizeof(RNDIS_DEVICE));
 	rndisDevice = GetRndisDevice();
 	if (!rndisDevice)
 	{

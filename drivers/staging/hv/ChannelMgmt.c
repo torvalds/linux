@@ -731,8 +731,7 @@ VmbusChannelRequestOffers(
 
 	DPRINT_ENTER(VMBUS);
 
-	msgInfo =
-		(VMBUS_CHANNEL_MSGINFO*)MemAlloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_MESSAGE_HEADER));
+	msgInfo = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_MESSAGE_HEADER), GFP_KERNEL);
 	ASSERT(msgInfo != NULL);
 
 	msgInfo->WaitEvent = WaitEventCreate();
