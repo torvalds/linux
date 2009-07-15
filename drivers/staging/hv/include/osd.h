@@ -37,8 +37,6 @@
 #define LOWORD(dw)		((unsigned short) (dw))
 #define HIWORD(dw)		((unsigned short) (((unsigned int) (dw) >> 16) & 0xFFFF))
 
-#define FIELD_OFFSET(t, f)    ((unsigned int)(unsigned long)&(((t *)0)->f))
-
 #ifdef FALSE
 #undef FALSE
 #endif

@@ -98,15 +98,6 @@ typedef struct
 #pragma pack(pop)
 
 
-//
-// Verify the MAX_PIPE_USER_DEFINED_BYTES value.
-//
-//C_ASSERT(MAX_PIPE_USER_DEFINED_BYTES ==
-//         MAX_USER_DEFINED_BYTES -
-//         (FIELD_OFFSET(VMBUS_CHANNEL_OFFER, u.Pipe.UserDefined) -
-//          FIELD_OFFSET(VMBUS_CHANNEL_OFFER, u.Standard.UserDefined)));
-//
-
 typedef u32 GPADL_HANDLE;
 
 //
