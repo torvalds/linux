@@ -337,6 +337,12 @@ static int ds2760_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = di->temp_C;
 		break;
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+		val->intval = di->life_sec;
+		break;
+	case POWER_SUPPLY_PROP_CAPACITY:
+		val->intval = di->rem_capacity;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -353,6 +359,8 @@ static enum power_supply_property ds2760_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_EMPTY,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
 };
 
 static int ds2760_battery_probe(struct platform_device *pdev)
