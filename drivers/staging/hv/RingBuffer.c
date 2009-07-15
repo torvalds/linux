@@ -315,7 +315,7 @@ RingBufferInit(
 	RingInfo->RingSize = BufferLen;
 	RingInfo->RingDataSize = BufferLen - sizeof(RING_BUFFER);
 
-	RingInfo->RingLock = SpinlockCreate();
+	spin_lock_init(&RingInfo->ring_lock);
 
 	return 0;
 }
@@ -334,7 +334,6 @@ RingBufferCleanup(
 	RING_BUFFER_INFO* RingInfo
 	)
 {
-	SpinlockClose(RingInfo->RingLock);
 }
 
 /*++
@@ -360,6 +359,7 @@ RingBufferWrite(
 
 	volatile u32 nextWriteLocation;
 	u64 prevIndices=0;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -370,7 +370,7 @@ RingBufferWrite(
 
 	totalBytesToWrite += sizeof(u64);
 
-	SpinlockAcquire(OutRingInfo->RingLock);
+	spin_lock_irqsave(&OutRingInfo->ring_lock, flags);
 
 	GetRingBufferAvailBytes(OutRingInfo, &byteAvailToRead, &byteAvailToWrite);
 
@@ -384,7 +384,7 @@ RingBufferWrite(
 	{
 		DPRINT_DBG(VMBUS, "No more space left on outbound ring buffer (needed %u, avail %u)", totalBytesToWrite, byteAvailToWrite);
 
-		SpinlockRelease(OutRingInfo->RingLock);
+		spin_unlock_irqrestore(&OutRingInfo->ring_lock, flags);
 
 		DPRINT_EXIT(VMBUS);
 
@@ -418,7 +418,7 @@ RingBufferWrite(
 
 	//DumpRingInfo(OutRingInfo, "AFTER ");
 
-	SpinlockRelease(OutRingInfo->RingLock);
+	spin_unlock_irqrestore(&OutRingInfo->ring_lock, flags);
 
 	DPRINT_EXIT(VMBUS);
 
@@ -445,8 +445,9 @@ RingBufferPeek(
 	u32 bytesAvailToWrite;
 	u32 bytesAvailToRead;
 	u32 nextReadLocation=0;
+	unsigned long flags;
 
-	SpinlockAcquire(InRingInfo->RingLock);
+	spin_lock_irqsave(&InRingInfo->ring_lock, flags);
 
 	GetRingBufferAvailBytes(InRingInfo, &bytesAvailToRead, &bytesAvailToWrite);
 
@@ -455,7 +456,7 @@ RingBufferPeek(
 	{
 		//DPRINT_DBG(VMBUS, "got callback but not enough to read <avail to read %d read size %d>!!", bytesAvailToRead, BufferLen);
 
-		SpinlockRelease(InRingInfo->RingLock);
+		spin_unlock_irqrestore(&InRingInfo->ring_lock, flags);
 
 		return -1;
 	}
@@ -468,7 +469,7 @@ RingBufferPeek(
 											BufferLen,
 											nextReadLocation);
 
-	SpinlockRelease(InRingInfo->RingLock);
+	spin_unlock_irqrestore(&InRingInfo->ring_lock, flags);
 
 	return 0;
 }
@@ -495,10 +496,11 @@ RingBufferRead(
 	u32 bytesAvailToRead;
 	u32 nextReadLocation=0;
 	u64 prevIndices=0;
+	unsigned long flags;
 
 	ASSERT(BufferLen > 0);
 
-	SpinlockAcquire(InRingInfo->RingLock);
+	spin_lock_irqsave(&InRingInfo->ring_lock, flags);
 
 	GetRingBufferAvailBytes(InRingInfo, &bytesAvailToRead, &bytesAvailToWrite);
 
@@ -511,7 +513,7 @@ RingBufferRead(
 	{
 		DPRINT_DBG(VMBUS, "got callback but not enough to read <avail to read %d read size %d>!!", bytesAvailToRead, BufferLen);
 
-		SpinlockRelease(InRingInfo->RingLock);
+		spin_unlock_irqrestore(&InRingInfo->ring_lock, flags);
 
 		return -1;
 	}
@@ -537,7 +539,7 @@ RingBufferRead(
 
 	//DumpRingInfo(InRingInfo, "AFTER ");
 
-	SpinlockRelease(InRingInfo->RingLock);
+	spin_unlock_irqrestore(&InRingInfo->ring_lock, flags);
 
 	return 0;
 }

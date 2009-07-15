@@ -48,7 +48,7 @@ typedef struct _RING_BUFFER {
 typedef struct _RING_BUFFER_INFO {
     RING_BUFFER*	RingBuffer;
     u32			RingSize;			// Include the shared header
-	HANDLE			RingLock;
+	spinlock_t ring_lock;
 
     u32			RingDataSize;		// < ringSize
 	u32			RingDataStartOffset;
