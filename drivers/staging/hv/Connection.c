@@ -53,6 +53,7 @@ VmbusConnect(
 	int ret=0;
 	VMBUS_CHANNEL_MSGINFO *msgInfo=NULL;
 	VMBUS_CHANNEL_INITIATE_CONTACT *msg;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -65,7 +66,7 @@ VmbusConnect(
 	gVmbusConnection.WorkQueue = WorkQueueCreate("vmbusQ");
 
 	INITIALIZE_LIST_HEAD(&gVmbusConnection.ChannelMsgList);
-	gVmbusConnection.ChannelMsgLock = SpinlockCreate();
+	spin_lock_init(&gVmbusConnection.channelmsg_lock);
 
 	INITIALIZE_LIST_HEAD(&gVmbusConnection.ChannelList);
 	gVmbusConnection.ChannelLock = SpinlockCreate();
@@ -107,9 +108,9 @@ VmbusConnect(
 
 	// Add to list before we send the request since we may receive the response
 	// before returning from this routine
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 	INSERT_TAIL_LIST(&gVmbusConnection.ChannelMsgList, &msgInfo->MsgListEntry);
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_DBG(VMBUS, "Vmbus connection -  interrupt pfn %llx, monitor1 pfn %llx,, monitor2 pfn %llx",
 		msg->InterruptPage, msg->MonitorPage1, msg->MonitorPage2);
@@ -156,7 +157,6 @@ Cleanup:
 
 	WorkQueueClose(gVmbusConnection.WorkQueue);
 	SpinlockClose(gVmbusConnection.ChannelLock);
-	SpinlockClose(gVmbusConnection.ChannelMsgLock);
 
 	if (gVmbusConnection.InterruptPage)
 	{
@@ -221,8 +221,6 @@ VmbusDisconnect(
 	PageFree(gVmbusConnection.InterruptPage, 1);
 
 	// TODO: iterate thru the msg list and free up
-
-	SpinlockClose(gVmbusConnection.ChannelMsgLock);
 
 	WorkQueueClose(gVmbusConnection.WorkQueue);
 

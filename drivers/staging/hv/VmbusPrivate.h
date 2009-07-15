@@ -80,7 +80,7 @@ typedef struct _VMBUS_CONNECTION {
 	// 2 pages - 1st page for parent->child notification and 2nd is child->parent notification
 	void *								MonitorPages;
 	LIST_ENTRY							ChannelMsgList;
-	HANDLE								ChannelMsgLock;
+	spinlock_t channelmsg_lock;
 
 	// List of channels
 	LIST_ENTRY							ChannelList;

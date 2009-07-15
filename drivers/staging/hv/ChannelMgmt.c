@@ -472,13 +472,14 @@ VmbusChannelOnOpenResult(
 	VMBUS_CHANNEL_MSGINFO* msgInfo;
 	VMBUS_CHANNEL_MESSAGE_HEADER* requestHeader;
 	VMBUS_CHANNEL_OPEN_CHANNEL* openMsg;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
 	DPRINT_DBG(VMBUS, "vmbus open result - %d", result->Status);
 
 	// Find the open msg, copy the result and signal/unblock the wait event
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
@@ -497,7 +498,7 @@ VmbusChannelOnOpenResult(
 			}
 		}
 	}
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_EXIT(VMBUS);
 }
@@ -525,13 +526,14 @@ VmbusChannelOnGpadlCreated(
 	VMBUS_CHANNEL_MSGINFO *msgInfo;
 	VMBUS_CHANNEL_MESSAGE_HEADER *requestHeader;
 	VMBUS_CHANNEL_GPADL_HEADER *gpadlHeader;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
 	DPRINT_DBG(VMBUS, "vmbus gpadl created result - %d", gpadlCreated->CreationStatus);
 
 	// Find the establish msg, copy the result and signal/unblock the wait event
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
@@ -551,7 +553,7 @@ VmbusChannelOnGpadlCreated(
 			}
 		}
 	}
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_EXIT(VMBUS);
 }
@@ -579,11 +581,12 @@ VmbusChannelOnGpadlTorndown(
 	VMBUS_CHANNEL_MSGINFO* msgInfo;
 	VMBUS_CHANNEL_MESSAGE_HEADER *requestHeader;
 	VMBUS_CHANNEL_GPADL_TEARDOWN *gpadlTeardown;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
 	// Find the open msg, copy the result and signal/unblock the wait event
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
@@ -602,7 +605,7 @@ VmbusChannelOnGpadlTorndown(
 			}
 		}
 	}
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_EXIT(VMBUS);
 }
@@ -630,10 +633,11 @@ VmbusChannelOnVersionResponse(
 	VMBUS_CHANNEL_MESSAGE_HEADER *requestHeader;
 	VMBUS_CHANNEL_INITIATE_CONTACT *initiate;
 	VMBUS_CHANNEL_VERSION_RESPONSE *versionResponse  = (VMBUS_CHANNEL_VERSION_RESPONSE*)hdr;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
 	{
@@ -647,7 +651,7 @@ VmbusChannelOnVersionResponse(
 			WaitEventSet(msgInfo->WaitEvent);
 		}
 	}
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_EXIT(VMBUS);
 }

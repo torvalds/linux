@@ -214,6 +214,7 @@ VmbusChannelOpen(
 	VMBUS_CHANNEL_OPEN_CHANNEL* openMsg;
 	VMBUS_CHANNEL_MSGINFO* openInfo;
 	void *in, *out;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -280,9 +281,9 @@ VmbusChannelOpen(
 		memcpy(openMsg->UserData, UserData, UserDataLen);
 	}
 
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 	INSERT_TAIL_LIST(&gVmbusConnection.ChannelMsgList, &openInfo->MsgListEntry);
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_DBG(VMBUS, "Sending channel open msg...");
 
@@ -306,9 +307,9 @@ VmbusChannelOpen(
 	}
 
 Cleanup:
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 	REMOVE_ENTRY_LIST(&openInfo->MsgListEntry);
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	WaitEventClose(openInfo->WaitEvent);
 	kfree(openInfo);
@@ -531,6 +532,7 @@ VmbusChannelEstablishGpadl(
 	LIST_ENTRY* anchor;
 	LIST_ENTRY* curr;
 	u32 nextGpadlHandle;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -549,9 +551,9 @@ VmbusChannelEstablishGpadl(
 
 	DumpGpadlHeader(gpadlMsg);
 
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 	INSERT_TAIL_LIST(&gVmbusConnection.ChannelMsgList, &msgInfo->MsgListEntry);
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	DPRINT_DBG(VMBUS, "buffer %p, size %d msg cnt %d", Kbuffer, Size, msgCount);
 
@@ -592,9 +594,9 @@ VmbusChannelEstablishGpadl(
 	*GpadlHandle = gpadlMsg->Gpadl;
 
 Cleanup:
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 	REMOVE_ENTRY_LIST(&msgInfo->MsgListEntry);
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	WaitEventClose(msgInfo->WaitEvent);
 	kfree(msgInfo);
@@ -624,6 +626,7 @@ VmbusChannelTeardownGpadl(
 	int ret=0;
 	VMBUS_CHANNEL_GPADL_TEARDOWN *msg;
 	VMBUS_CHANNEL_MSGINFO* info;
+	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -640,9 +643,9 @@ VmbusChannelTeardownGpadl(
     msg->ChildRelId  = Channel->OfferMsg.ChildRelId;
     msg->Gpadl       = GpadlHandle;
 
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 	INSERT_TAIL_LIST(&gVmbusConnection.ChannelMsgList, &info->MsgListEntry);
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	ret = VmbusPostMessage(msg, sizeof(VMBUS_CHANNEL_GPADL_TEARDOWN));
 	if (ret != 0)
@@ -653,9 +656,9 @@ VmbusChannelTeardownGpadl(
 	WaitEventWait(info->WaitEvent);
 
 	// Received a torndown response
-	SpinlockAcquire(gVmbusConnection.ChannelMsgLock);
+	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 	REMOVE_ENTRY_LIST(&info->MsgListEntry);
-	SpinlockRelease(gVmbusConnection.ChannelMsgLock);
+	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
 	WaitEventClose(info->WaitEvent);
 	kfree(info);
