@@ -1144,25 +1144,6 @@ struct crypto4xx_alg_common crypto4xx_alg[] = {
 			}
 		}
 	}},
-	/* Hash SHA1 */
-	{ .type = CRYPTO_ALG_TYPE_AHASH, .u.hash = {
-		.init		= crypto4xx_hash_init,
-		.update		= crypto4xx_hash_update,
-		.final  	= crypto4xx_hash_final,
-		.digest 	= crypto4xx_hash_digest,
-		.halg.digestsize = SHA1_DIGEST_SIZE,
-		.halg.base	= {
-			.cra_name	= "sha1",
-			.cra_driver_name = "sha1-ppc4xx",
-			.cra_priority	= CRYPTO4XX_CRYPTO_PRIORITY,
-			.cra_flags	= CRYPTO_ALG_ASYNC,
-			.cra_blocksize	= SHA1_BLOCK_SIZE,
-			.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
-			.cra_init	= crypto4xx_sha1_alg_init,
-			.cra_exit	= crypto4xx_alg_exit,
-			.cra_module	= THIS_MODULE,
-		}
-	}},
 };
 
 /**
