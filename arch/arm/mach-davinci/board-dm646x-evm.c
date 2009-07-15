@@ -268,7 +268,6 @@ static u8 dm646x_dit_serializer_direction[] = {
 
 static struct snd_platform_data dm646x_evm_snd_data[] = {
 	{
-		.clk_name       = "mcasp0",
 		.tx_dma_offset  = 0x400,
 		.rx_dma_offset  = 0x400,
 		.op_mode        = DAVINCI_MCASP_IIS_MODE,
@@ -278,7 +277,6 @@ static struct snd_platform_data dm646x_evm_snd_data[] = {
 		.eventq_no      = EVENTQ_0,
 	},
 	{
-		.clk_name       = "mcasp1",
 		.tx_dma_offset  = 0x400,
 		.rx_dma_offset  = 0,
 		.op_mode        = DAVINCI_MCASP_DIT_MODE,

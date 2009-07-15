@@ -33,7 +33,6 @@
 #define DAVINCI_ASP1_TX_INT	IRQ_MBXINT
 
 struct snd_platform_data {
-	char *clk_name;
 	u32 tx_dma_offset;
 	u32 rx_dma_offset;
 	enum dma_event_q eventq_no;	/* event queue number */

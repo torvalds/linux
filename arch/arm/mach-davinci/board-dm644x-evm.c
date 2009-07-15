@@ -225,9 +225,7 @@ static struct platform_device ide_dev = {
 	},
 };
 
-static struct snd_platform_data dm644x_evm_snd_data = {
-	.clk_name	= "asp0",
-};
+static struct snd_platform_data dm644x_evm_snd_data;
 
 /*----------------------------------------------------------------------*/
 

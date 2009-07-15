@@ -117,9 +117,7 @@ static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_delay	= 0	/* usec */,
 };
 
-static struct snd_platform_data dm355_evm_snd_data = {
-	.clk_name	= "asp1",
-};
+static struct snd_platform_data dm355_evm_snd_data;
 
 static int dm355evm_mmc_gpios = -EINVAL;
 

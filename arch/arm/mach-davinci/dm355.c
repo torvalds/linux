@@ -361,8 +361,8 @@ static struct davinci_clk dm355_clks[] = {
 	CLK(NULL, "uart1", &uart1_clk),
 	CLK(NULL, "uart2", &uart2_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
-	CLK(NULL, "asp0", &asp0_clk),
-	CLK(NULL, "asp1", &asp1_clk),
+	CLK("davinci-asp.0", NULL, &asp0_clk),
+	CLK("davinci-asp.1", NULL, &asp1_clk),
 	CLK("davinci_mmc.0", NULL, &mmcsd0_clk),
 	CLK("davinci_mmc.1", NULL, &mmcsd1_clk),
 	CLK(NULL, "spi0", &spi0_clk),
@@ -648,7 +648,7 @@ static struct resource dm355_asp1_resources[] = {
 
 static struct platform_device dm355_asp1_device = {
 	.name		= "davinci-asp",
-	.id		= -1,
+	.id		= 1,
 	.num_resources	= ARRAY_SIZE(dm355_asp1_resources),
 	.resource	= dm355_asp1_resources,
 };
