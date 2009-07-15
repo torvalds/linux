@@ -786,10 +786,11 @@ static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
 	tx_info->control.rts_cts_rate_idx = cix;
 }
 
-static void ath_rc_ratefind(struct ath_softc *sc,
-			    struct ath_rate_priv *ath_rc_priv,
-			    struct ieee80211_tx_rate_control *txrc)
+static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
+			 struct ieee80211_tx_rate_control *txrc)
 {
+	struct ath_softc *sc = priv;
+	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	const struct ath_rate_table *rate_table;
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -798,6 +799,9 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 	__le16 fc = hdr->frame_control;
 	u8 try_per_rate, i = 0, rix, nrix;
 	int is_probe = 0;
+
+	if (rate_control_send_low(sta, priv_sta, txrc))
+		return;
 
 	/*
 	 * For Multi Rate Retry we use a different number of
@@ -1513,19 +1517,6 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	ath_debug_stat_rc(sc, skb);
 exit:
 	kfree(tx_info_priv);
-}
-
-static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
-			 struct ieee80211_tx_rate_control *txrc)
-{
-	struct ath_softc *sc = priv;
-	struct ath_rate_priv *ath_rc_priv = priv_sta;
-
-	if (rate_control_send_low(sta, priv_sta, txrc))
-		return;
-
-	/* Find tx rate for unicast frames */
-	ath_rc_ratefind(sc, ath_rc_priv, txrc);
 }
 
 static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
