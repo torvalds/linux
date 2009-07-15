@@ -104,15 +104,15 @@ struct net;
 
 /**
  *	struct sock_common - minimal network layer representation of sockets
+ *	@skc_node: main hash linkage for various protocol lookup tables
+ *	@skc_nulls_node: main hash linkage for UDP/UDP-Lite protocol
+ *	@skc_refcnt: reference count
+ *	@skc_hash: hash value used with various protocol lookup tables
  *	@skc_family: network address family
  *	@skc_state: Connection state
  *	@skc_reuse: %SO_REUSEADDR setting
  *	@skc_bound_dev_if: bound device index if != 0
- *	@skc_node: main hash linkage for various protocol lookup tables
- *	@skc_nulls_node: main hash linkage for UDP/UDP-Lite protocol
  *	@skc_bind_node: bind hash linkage for various protocol lookup tables
- *	@skc_refcnt: reference count
- *	@skc_hash: hash value used with various protocol lookup tables
  *	@skc_prot: protocol handlers inside a network family
  *	@skc_net: reference to the network namespace of this socket
  *
@@ -120,17 +120,21 @@ struct net;
  *	for struct sock and struct inet_timewait_sock.
  */
 struct sock_common {
-	unsigned short		skc_family;
-	volatile unsigned char	skc_state;
-	unsigned char		skc_reuse;
-	int			skc_bound_dev_if;
+	/*
+	 * first fields are not copied in sock_copy()
+	 */
 	union {
 		struct hlist_node	skc_node;
 		struct hlist_nulls_node skc_nulls_node;
 	};
-	struct hlist_node	skc_bind_node;
 	atomic_t		skc_refcnt;
+
 	unsigned int		skc_hash;
+	unsigned short		skc_family;
+	volatile unsigned char	skc_state;
+	unsigned char		skc_reuse;
+	int			skc_bound_dev_if;
+	struct hlist_node	skc_bind_node;
 	struct proto		*skc_prot;
 #ifdef CONFIG_NET_NS
 	struct net	 	*skc_net;
@@ -208,15 +212,17 @@ struct sock {
 	 * don't add nothing before this first member (__sk_common) --acme
 	 */
 	struct sock_common	__sk_common;
+#define sk_node			__sk_common.skc_node
+#define sk_nulls_node		__sk_common.skc_nulls_node
+#define sk_refcnt		__sk_common.skc_refcnt
+
+#define sk_copy_start		__sk_common.skc_hash
+#define sk_hash			__sk_common.skc_hash
 #define sk_family		__sk_common.skc_family
 #define sk_state		__sk_common.skc_state
 #define sk_reuse		__sk_common.skc_reuse
 #define sk_bound_dev_if		__sk_common.skc_bound_dev_if
-#define sk_node			__sk_common.skc_node
-#define sk_nulls_node		__sk_common.skc_nulls_node
 #define sk_bind_node		__sk_common.skc_bind_node
-#define sk_refcnt		__sk_common.skc_refcnt
-#define sk_hash			__sk_common.skc_hash
 #define sk_prot			__sk_common.skc_prot
 #define sk_net			__sk_common.skc_net
 	kmemcheck_bitfield_begin(flags);
