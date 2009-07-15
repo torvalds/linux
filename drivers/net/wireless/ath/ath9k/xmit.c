@@ -382,8 +382,24 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				struct ath_buf *tbf;
 
 				tbf = ath_clone_txbuf(sc, bf_last);
-				if (!tbf)
+				/*
+				 * Update tx baw and complete the frame with
+				 * failed status if we run out of tx buf
+				 */
+				if (!tbf) {
+					spin_lock_bh(&txq->axq_lock);
+					ath_tx_update_baw(sc, tid,
+							  bf->bf_seqno);
+					spin_unlock_bh(&txq->axq_lock);
+
+					bf->bf_state.bf_type |= BUF_XRETRY;
+					ath_tx_rc_status(bf, ds, nbad,
+							 0, false);
+					ath_tx_complete_buf(sc, bf, &bf_head,
+							    0, 0);
 					break;
+				}
+
 				ath9k_hw_cleartxdesc(sc->sc_ah, tbf->bf_desc);
 				list_add_tail(&tbf->list, &bf_head);
 			} else {
