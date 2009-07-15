@@ -1,8 +1,8 @@
-#if !defined(_TRACE_EXT4_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_EXT4_H
-
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM ext4
+
+#if !defined(_TRACE_EXT4_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_EXT4_H
 
 #include <linux/writeback.h>
 #include "../../../fs/ext4/ext4.h"
