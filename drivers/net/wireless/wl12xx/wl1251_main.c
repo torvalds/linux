@@ -435,11 +435,10 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_if_init_conf *conf)
 {
 	struct wl1251 *wl = hw->priv;
-	DECLARE_MAC_BUF(mac);
 	int ret = 0;
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %s",
-		     conf->type, print_mac(mac, conf->mac_addr));
+	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
+		     conf->type, conf->mac_addr);
 
 	mutex_lock(&wl->mutex);
 

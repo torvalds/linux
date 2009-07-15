@@ -2628,7 +2628,6 @@ static int ar9170_read_eeprom(struct ar9170 *ar)
 {
 #define RW	8	/* number of words to read at once */
 #define RB	(sizeof(u32) * RW)
-	DECLARE_MAC_BUF(mbuf);
 	u8 *eeprom = (void *)&ar->eeprom;
 	u8 *addr = ar->eeprom.mac_address;
 	__le32 offsets[RW];

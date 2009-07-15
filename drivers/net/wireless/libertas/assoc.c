@@ -129,7 +129,6 @@ static int lbs_set_authentication(struct lbs_private *priv, u8 bssid[6], u8 auth
 {
 	struct cmd_ds_802_11_authenticate cmd;
 	int ret = -1;
-	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
@@ -138,8 +137,7 @@ static int lbs_set_authentication(struct lbs_private *priv, u8 bssid[6], u8 auth
 
 	cmd.authtype = iw_auth_to_ieee_auth(auth);
 
-	lbs_deb_join("AUTH_CMD: BSSID %s, auth 0x%x\n",
-		print_mac(mac, bssid), cmd.authtype);
+	lbs_deb_join("AUTH_CMD: BSSID %pM, auth 0x%x\n", bssid, cmd.authtype);
 
 	ret = lbs_cmd_with_response(priv, CMD_802_11_AUTHENTICATE, &cmd);
 
@@ -342,8 +340,6 @@ static int lbs_associate(struct lbs_private *priv,
 
 	/* Firmware v9+ indicate authentication suites as a TLV */
 	if (priv->fwrelease >= 0x09000000) {
-		DECLARE_MAC_BUF(mac);
-
 		auth = (struct mrvl_ie_auth_type *) pos;
 		auth->header.type = cpu_to_le16(TLV_TYPE_AUTH_TYPE);
 		auth->header.len = cpu_to_le16(2);
@@ -351,8 +347,8 @@ static int lbs_associate(struct lbs_private *priv,
 		auth->auth = cpu_to_le16(tmpauth);
 		pos += sizeof(auth->header) + 2;
 
-		lbs_deb_join("AUTH_CMD: BSSID %s, auth 0x%x\n",
-			print_mac(mac, bss->bssid), priv->secinfo.auth_mode);
+		lbs_deb_join("AUTH_CMD: BSSID %pM, auth 0x%x\n",
+			bss->bssid, priv->secinfo.auth_mode);
 	}
 
 	/* WPA/WPA2 IEs */
