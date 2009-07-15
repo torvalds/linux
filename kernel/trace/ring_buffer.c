@@ -845,9 +845,14 @@ static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 		 * This will only succeed if an interrupt did
 		 * not come in and change it. In which case, we
 		 * do not want to modify it.
+		 *
+		 * We add (void) to let the compiler know that we do not care
+		 * about the return value of these functions. We use the
+		 * cmpxchg to only update if an interrupt did not already
+		 * do it for us. If the cmpxchg fails, we don't care.
 		 */
-		local_cmpxchg(&next_page->write, old_write, val);
-		local_cmpxchg(&next_page->entries, old_entries, eval);
+		(void)local_cmpxchg(&next_page->write, old_write, val);
+		(void)local_cmpxchg(&next_page->entries, old_entries, eval);
 
 		/*
 		 * No need to worry about races with clearing out the commit.
