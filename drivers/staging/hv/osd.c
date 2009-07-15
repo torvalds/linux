@@ -21,15 +21,12 @@
  *
  */
 
-#define KERNEL_2_6_27
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
-//#include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -86,20 +83,11 @@ typedef struct _WORKITEM {
 
 void LogMsg(const char *fmt, ...)
 {
-#ifdef KERNEL_2_6_5
-	char buf[1024];
-#endif
 	va_list args;
 
 	va_start(args, fmt);
-#ifdef KERNEL_2_6_5
-	vsnprintf(buf, 1024, fmt, args);
-	va_end(args);
-	printk(buf);
-#else
 	vprintk(fmt, args);
 	va_end(args);
-#endif
 }
 
 void BitSet(unsigned int* addr, int bit)
@@ -130,30 +118,12 @@ int BitTestAndSet(unsigned int* addr, int bit)
 
 int InterlockedIncrement(int *val)
 {
-#ifdef KERNEL_2_6_5
-	int i;
-	local_irq_disable();
-	i = atomic_read((atomic_t*)val);
-	atomic_set((atomic_t*)val, i+1);
-	local_irq_enable();
-	return i+1;
-#else
 	return atomic_inc_return((atomic_t*)val);
-#endif
 }
 
 int InterlockedDecrement(int *val)
 {
-#ifdef KERNEL_2_6_5
-	int i;
-	local_irq_disable();
-	i = atomic_read((atomic_t*)val);
-	atomic_set((atomic_t*)val, i-1);
-	local_irq_enable();
-	return i-1;
-#else
 	return atomic_dec_return((atomic_t*)val);
-#endif
 }
 
 #ifndef atomic_cmpxchg
@@ -428,11 +398,7 @@ unsigned long Virtual2Physical(void * VirtAddr)
 	return pfn << PAGE_SHIFT;
 }
 
-#ifdef KERNEL_2_6_27
 void WorkItemCallback(struct work_struct *work)
-#else
-void WorkItemCallback(void* work)
-#endif
 {
 	WORKITEM* w = (WORKITEM*)work;
 
@@ -474,11 +440,7 @@ int WorkQueueQueueWorkItem(HANDLE hWorkQueue, PFN_WORKITEM_CALLBACK workItem, vo
 
 	w->callback = workItem,
 	w->context = context;
-#ifdef KERNEL_2_6_27
 	INIT_WORK(&w->work, WorkItemCallback);
-#else
-	INIT_WORK(&w->work, WorkItemCallback, w);
-#endif
 	return queue_work(wq->queue, &w->work);
 }
 
@@ -492,10 +454,6 @@ void QueueWorkItem(PFN_WORKITEM_CALLBACK workItem, void* context)
 
 	w->callback = workItem,
 	w->context = context;
-#ifdef KERNEL_2_6_27
 	INIT_WORK(&w->work, WorkItemCallback);
-#else
-	INIT_WORK(&w->work, WorkItemCallback, w);
-#endif
 	schedule_work(&w->work);
 }
