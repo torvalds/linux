@@ -1322,12 +1322,13 @@ static void check_mc_test_err(struct mem_ctl_info *mci, u8 socket)
 /*
  * According with tables E-11 and E-12 of chapter E.3.3 of Intel 64 and IA-32
  * Architectures Software Developer’s Manual Volume 3B.
- * The MCA registers are the following ones:
+ * Nehalem are defined as family 0x06, model 0x1a
+ *
+ * The MCA registers used here are the following ones:
  *     struct mce field	MCA Register
- *     m->status	MSR_IA32_MC0_STATUS
- *     m->addr		MSR_IA32_MC0_ADDR
- *     m->misc		MSR_IA32_MC0_MISC
- *     m->mcgstatus	MSR_IA32_MCG_STATUS
+ *     m->status	MSR_IA32_MC8_STATUS
+ *     m->addr		MSR_IA32_MC8_ADDR
+ *     m->misc		MSR_IA32_MC8_MISC
  * In the case of Nehalem, the error information is masked at .status and .misc
  * fields
  */
@@ -1375,10 +1376,11 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 		err = "unknown";
 	}
 
+	/* FIXME: should convert addr into bank and rank information */
 	msg = kasprintf(GFP_ATOMIC,
-		"%s (addr = 0x%08llx Bank=0x%08x, Dimm=%d, Channel=%d, "
-		"syndrome=0x%08x total error count=%d Err=%d (%s))\n",
-		type, (long long) m->addr, m->bank, dimm, channel,
+		"%s (addr = 0x%08llx Dimm=%d, Channel=%d, "
+		"syndrome=0x%08x, count=%d Err=%d (%s))\n",
+		type, (long long) m->addr, dimm, channel,
 		syndrome, core_err_cnt,errnum, err);
 
 	debugf0("%s", msg);
@@ -1445,6 +1447,10 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 	 * outside the memory controller
 	 */
 	if (((mce->status & 0xffff) >> 7) != 1)
+		return 0;
+
+	/* Bank 8 registers are the only ones that we know how to handle */
+	if (mce->bank != 8)
 		return 0;
 
 	spin_lock_irqsave(&pvt->mce_lock, flags);
