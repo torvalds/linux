@@ -17,7 +17,7 @@ void ep93xx_init_irq(void);
 void ep93xx_init_time(unsigned long);
 
 /* EP93xx System Controller software locked register write */
-void ep93xx_syscon_swlocked_write(unsigned int val, unsigned int reg);
+void ep93xx_syscon_swlocked_write(unsigned int val, void __iomem *reg);
 void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits);
 
 static inline void ep93xx_devcfg_set_bits(unsigned int bits)

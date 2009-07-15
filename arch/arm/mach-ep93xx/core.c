@@ -377,7 +377,7 @@ void __init ep93xx_init_irq(void)
  */
 static DEFINE_SPINLOCK(syscon_swlock);
 
-void ep93xx_syscon_swlocked_write(unsigned int val, unsigned int reg)
+void ep93xx_syscon_swlocked_write(unsigned int val, void __iomem *reg)
 {
 	unsigned long flags;
 
