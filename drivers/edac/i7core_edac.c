@@ -1319,33 +1319,75 @@ static void check_mc_test_err(struct mem_ctl_info *mci, u8 socket)
 	pvt->last_ce_count[socket][0] = new0;
 }
 
+/*
+ * According with tables E-11 and E-12 of chapter E.3.3 of Intel 64 and IA-32
+ * Architectures Software Developer’s Manual Volume 3B.
+ * The MCA registers are the following ones:
+ *     struct mce field	MCA Register
+ *     m->status	MSR_IA32_MC0_STATUS
+ *     m->addr		MSR_IA32_MC0_ADDR
+ *     m->misc		MSR_IA32_MC0_MISC
+ *     m->mcgstatus	MSR_IA32_MCG_STATUS
+ * In the case of Nehalem, the error information is masked at .status and .misc
+ * fields
+ */
 static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				    struct mce *m)
 {
-	debugf0("CPU %d: Machine Check Exception: %16Lx"
-		"Bank %d: %016Lx\n",
-		m->cpu, m->mcgstatus, m->bank, m->status);
-	if (m->ip) {
-		debugf0("RIP%s %02x:<%016Lx>\n",
-			!(m->mcgstatus & MCG_STATUS_EIPV) ? " !INEXACT!" : "",
-			m->cs, m->ip);
-	}
-	printk(KERN_EMERG "TSC %llx ", m->tsc);
-	if (m->addr)
-		printk("ADDR %llx ", m->addr);
-	if (m->misc)
-		printk("MISC %llx ", m->misc);
+	char *type="NON-FATAL";
+	char *err, *msg;
+	unsigned long error = m->status & 0x1ff0000l;
+	u32 core_err_cnt = (m->status >> 38) && 0x7fff;
+	u32 dimm = (m->misc >> 16) & 0x3;
+	u32 channel = (m->misc >> 18) & 0x3;
+	u32 syndrome = m->misc >> 32;
+	u32 errnum = find_first_bit(&error, 32);
 
-#if 0
-	snprintf(msg, sizeof(msg),
-		"%s (Branch=%d DRAM-Bank=%d Buffer ID = %d RDWR=%s "
-		"RAS=%d CAS=%d %s Err=0x%lx (%s))",
-		type, branch >> 1, bank, buf_id, rdwr_str(rdwr), ras, cas,
-		type, allErrors, error_name[errnum]);
+	switch (errnum) {
+	case 16:
+		err = "read ECC error";
+		break;
+	case 17:
+		err = "RAS ECC error";
+		break;
+	case 18:
+		err = "write parity error";
+		break;
+	case 19:
+		err = "redundacy loss";
+		break;
+	case 20:
+		err = "reserved";
+		break;
+	case 21:
+		err = "memory range error";
+		break;
+	case 22:
+		err = "RTID out of range";
+		break;
+	case 23:
+		err = "address parity error";
+		break;
+	case 24:
+		err = "byte enable parity error";
+		break;
+	default:
+		err = "unknown";
+	}
+
+	msg = kasprintf(GFP_ATOMIC,
+		"%s (addr = 0x%08llx Bank=0x%08x, Dimm=%d, Channel=%d, "
+		"syndrome=0x%08x total error count=%d Err=%d (%s))\n",
+		type, (long long) m->addr, m->bank, dimm, channel,
+		syndrome, core_err_cnt,errnum, err);
+
+	debugf0("%s", msg);
 
 	/* Call the helper to output message */
-	edac_mc_handle_fbd_ue(mci, rank, channel, channel + 1, msg);
-#endif
+	edac_mc_handle_fbd_ue(mci, 0 /* FIXME: should be rank here */,
+			      0, 0 /* FIXME: should be channel here */, msg);
+
+	kfree(msg);
 }
 
 /*
@@ -1398,6 +1440,13 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 
 	debugf0(__FILE__ ": %s()\n", __func__);
 
+	/*
+	 * Just let mcelog handle it if the error is
+	 * outside the memory controller
+	 */
+	if (((mce->status & 0xffff) >> 7) != 1)
+		return 0;
+
 	spin_lock_irqsave(&pvt->mce_lock, flags);
 	if (pvt->mce_count < MCE_LOG_LEN) {
 		memcpy(&pvt->mce_entry[pvt->mce_count], mce, sizeof(*mce));
@@ -1406,8 +1455,7 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 	spin_unlock_irqrestore(&pvt->mce_lock, flags);
 
 	/* Advice mcelog that the error were handled */
-//	return 1;
-	return 0; // Let's duplicate the log
+	return 1;
 }
 
 /*
