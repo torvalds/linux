@@ -3305,7 +3305,6 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	if (eeval & AR5416_OPFLAGS_11G) {
-		set_bit(ATH9K_MODE_11B, pCap->wireless_modes);
 		set_bit(ATH9K_MODE_11G, pCap->wireless_modes);
 		if (ah->config.ht_enable) {
 			if (!(eeval & AR5416_OPFLAGS_N_2G_HT20))

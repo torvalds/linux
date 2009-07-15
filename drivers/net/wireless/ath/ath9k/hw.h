@@ -113,7 +113,6 @@
 
 enum wireless_mode {
 	ATH9K_MODE_11A = 0,
-	ATH9K_MODE_11B = 2,
 	ATH9K_MODE_11G = 3,
 	ATH9K_MODE_11NA_HT20 = 6,
 	ATH9K_MODE_11NG_HT20 = 7,

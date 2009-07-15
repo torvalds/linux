@@ -380,27 +380,6 @@ static const struct ath_rate_table ar5416_11g_ratetable = {
 	0,   /* Phy rates allowed initially */
 };
 
-static const struct ath_rate_table ar5416_11b_ratetable = {
-	4,
-	{
-		{ VALID, VALID, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
-			900, 0x1b,  0x00, (0x80|2),
-			0, 0, 1, 0, 0 },
-		{ VALID, VALID, WLAN_RC_PHY_CCK, 2000, /* 2 Mb */
-			1800, 0x1a, 0x04, (0x80|4),
-			1, 1, 1, 1, 0 },
-		{ VALID, VALID, WLAN_RC_PHY_CCK, 5500, /* 5.5 Mb */
-			4300, 0x19, 0x04, (0x80|11),
-			1, 2, 2, 2, 0 },
-		{ VALID, VALID, WLAN_RC_PHY_CCK, 11000, /* 11 Mb */
-			7100, 0x18, 0x04, (0x80|22),
-			1, 4, 100, 3, 0 },
-	},
-	100, /* probe interval */
-	100, /* rssi reduce interval */
-	0,   /* Phy rates allowed initially */
-};
-
 static inline int8_t median(int8_t a, int8_t b, int8_t c)
 {
 	if (a >= b) {
@@ -1702,8 +1681,6 @@ static struct rate_control_ops ath_rate_ops = {
 
 void ath_rate_attach(struct ath_softc *sc)
 {
-	sc->hw_rate_table[ATH9K_MODE_11B] =
-		&ar5416_11b_ratetable;
 	sc->hw_rate_table[ATH9K_MODE_11A] =
 		&ar5416_11a_ratetable;
 	sc->hw_rate_table[ATH9K_MODE_11G] =
