@@ -33,7 +33,6 @@ static DEFINE_MUTEX(start_mutex);
 
 static void switch_worker(struct work_struct *work);
 static DECLARE_DELAYED_WORK(switch_work, switch_worker);
-#define TIME_SLICE_DEFAULT		1
 
 #endif
 
@@ -248,22 +247,9 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-
-static void __init oprofile_multiplexing_init(void)
-{
-	oprofile_time_slice = msecs_to_jiffies(TIME_SLICE_DEFAULT);
-}
-
-#endif
-
 static int __init oprofile_init(void)
 {
 	int err;
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	oprofile_multiplexing_init();
-#endif
 
 	err = oprofile_arch_init(&oprofile_ops);
 

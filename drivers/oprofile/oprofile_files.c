@@ -18,6 +18,7 @@
 #define BUFFER_SIZE_DEFAULT		131072
 #define CPU_BUFFER_SIZE_DEFAULT		8192
 #define BUFFER_WATERSHED_DEFAULT	32768	/* FIXME: tune */
+#define TIME_SLICE_DEFAULT		1
 
 unsigned long oprofile_buffer_size;
 unsigned long oprofile_cpu_buffer_size;
@@ -170,6 +171,7 @@ void oprofile_create_files(struct super_block *sb, struct dentry *root)
 	oprofile_buffer_size =		BUFFER_SIZE_DEFAULT;
 	oprofile_cpu_buffer_size =	CPU_BUFFER_SIZE_DEFAULT;
 	oprofile_buffer_watershed =	BUFFER_WATERSHED_DEFAULT;
+	oprofile_time_slice =		msecs_to_jiffies(TIME_SLICE_DEFAULT);
 
 	oprofilefs_create_file(sb, root, "enable", &enable_fops);
 	oprofilefs_create_file_perm(sb, root, "dump", &dump_fops, 0666);
