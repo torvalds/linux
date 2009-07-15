@@ -153,7 +153,7 @@ static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new
 				return true;
 			break;
 		case (FSNOTIFY_EVENT_NONE):
-			return true;
+			return false;
 		};
 	}
 	return false;
@@ -345,18 +345,19 @@ static void initialize_event(struct fsnotify_event *event)
  * @name the filename, if available
  */
 struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, void *data,
-					     int data_type, const char *name, u32 cookie)
+					     int data_type, const char *name, u32 cookie,
+					     gfp_t gfp)
 {
 	struct fsnotify_event *event;
 
-	event = kmem_cache_alloc(fsnotify_event_cachep, GFP_KERNEL);
+	event = kmem_cache_alloc(fsnotify_event_cachep, gfp);
 	if (!event)
 		return NULL;
 
 	initialize_event(event);
 
 	if (name) {
-		event->file_name = kstrdup(name, GFP_KERNEL);
+		event->file_name = kstrdup(name, gfp);
 		if (!event->file_name) {
 			kmem_cache_free(fsnotify_event_cachep, event);
 			return NULL;

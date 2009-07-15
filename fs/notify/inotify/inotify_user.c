@@ -57,7 +57,6 @@ int inotify_max_user_watches __read_mostly;
 
 static struct kmem_cache *inotify_inode_mark_cachep __read_mostly;
 struct kmem_cache *event_priv_cachep __read_mostly;
-static struct fsnotify_event *inotify_ignored_event;
 
 /*
  * When inotify registers a new group it increments this and uses that
@@ -384,12 +383,19 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark_entry *entry,
 				    struct fsnotify_group *group)
 {
 	struct inotify_inode_mark_entry *ientry;
+	struct fsnotify_event *ignored_event;
 	struct inotify_event_private_data *event_priv;
 	struct fsnotify_event_private_data *fsn_event_priv;
 
+	ignored_event = fsnotify_create_event(NULL, FS_IN_IGNORED, NULL,
+					      FSNOTIFY_EVENT_NONE, NULL, 0,
+					      GFP_NOFS);
+	if (!ignored_event)
+		return;
+
 	ientry = container_of(entry, struct inotify_inode_mark_entry, fsn_entry);
 
-	event_priv = kmem_cache_alloc(event_priv_cachep, GFP_KERNEL);
+	event_priv = kmem_cache_alloc(event_priv_cachep, GFP_NOFS);
 	if (unlikely(!event_priv))
 		goto skip_send_ignore;
 
@@ -398,13 +404,16 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark_entry *entry,
 	fsn_event_priv->group = group;
 	event_priv->wd = ientry->wd;
 
-	fsnotify_add_notify_event(group, inotify_ignored_event, fsn_event_priv);
+	fsnotify_add_notify_event(group, ignored_event, fsn_event_priv);
 
 	/* did the private data get added? */
 	if (list_empty(&fsn_event_priv->event_list))
 		inotify_free_event_priv(fsn_event_priv);
 
 skip_send_ignore:
+
+	/* matches the reference taken when the event was created */
+	fsnotify_put_event(ignored_event);
 
 	/* remove this entry from the idr */
 	inotify_remove_from_idr(group, ientry);
@@ -748,9 +757,6 @@ static int __init inotify_user_setup(void)
 
 	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark_entry, SLAB_PANIC);
 	event_priv_cachep = KMEM_CACHE(inotify_event_private_data, SLAB_PANIC);
-	inotify_ignored_event = fsnotify_create_event(NULL, FS_IN_IGNORED, NULL, FSNOTIFY_EVENT_NONE, NULL, 0);
-	if (!inotify_ignored_event)
-		panic("unable to allocate the inotify ignored event\n");
 
 	inotify_max_queued_events = 16384;
 	inotify_max_user_instances = 128;
