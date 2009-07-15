@@ -853,8 +853,20 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 	struct ieee80211_tx_rate *rates = tx_info->control.rates;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 fc = hdr->frame_control;
-	u8 try_per_rate = 0, i = 0, rix, nrix;
+	u8 try_per_rate, i = 0, rix, nrix;
 	int is_probe = 0;
+
+	/*
+	 * For Multi Rate Retry we use a different number of
+	 * retry attempt counts. This ends up looking like this:
+	 *
+	 * MRR[0] = 2
+	 * MRR[1] = 2
+	 * MRR[2] = 2
+	 * MRR[3] = 4
+	 *
+	 */
+	try_per_rate = sc->hw->max_rate_tries;
 
 	rate_table = sc->cur_rate_table;
 	rix = ath_rc_ratefind_ht(sc, ath_rc_priv, rate_table, &is_probe);
@@ -866,7 +878,6 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       1, nrix, 0);
 
-		try_per_rate = (ATH_11N_TXMAXTRY/4);
 		/* Get the next tried/allowed rate. No RTS for the next series
 		 * after the probe rate
 		 */
@@ -877,7 +888,6 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 
 		tx_info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 	} else {
-		try_per_rate = (ATH_11N_TXMAXTRY/4);
 		/* Set the choosen rate. No RTS for first series entry. */
 		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       try_per_rate, nrix, 0);
@@ -885,18 +895,19 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 
 	/* Fill in the other rates for multirate retry */
 	for ( ; i < 4; i++) {
-		u8 try_num;
 		u8 min_rate;
 
-		try_num = ((i + 1) == 4) ?
-			ATH_11N_TXMAXTRY - (try_per_rate * i) : try_per_rate ;
+		/* Use twice the number of tries for the last MRR segment. */
+		if (i + 1 == 4)
+			try_per_rate = 4;
+
 		min_rate = (((i + 1) == 4) && 0);
 
 		nrix = ath_rc_rate_getidx(sc, ath_rc_priv,
 					  rate_table, nrix, 1, min_rate);
 		/* All other rates in the series have RTS enabled */
 		ath_rc_rate_set_series(rate_table, &rates[i], txrc,
-				       try_num, nrix, 1);
+				       try_per_rate, nrix, 1);
 	}
 
 	/*
@@ -1529,7 +1540,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	/*
 	 * If underrun error is seen assume it as an excessive retry only
 	 * if prefetch trigger level have reached the max (0x3f for 5416)
-	 * Adjust the long retry as if the frame was tried ATH_11N_TXMAXTRY
+	 * Adjust the long retry as if the frame was tried hw->max_rate_tries
 	 * times. This affects how ratectrl updates PER for the failed rate.
 	 */
 	if (tx_info_priv->tx.ts_flags &
@@ -1544,7 +1555,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		tx_status = 1;
 
 	ath_rc_tx_status(sc, ath_rc_priv, tx_info, final_ts_idx, tx_status,
-			 (is_underrun) ? ATH_11N_TXMAXTRY :
+			 (is_underrun) ? sc->hw->max_rate_tries :
 			 tx_info_priv->tx.ts_longretry);
 
 	/* Check if aggregation has to be enabled for this tid */
