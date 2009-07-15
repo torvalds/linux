@@ -211,6 +211,7 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = silvercrest_reg_seq,
 		} },
 	},
 	[EM2800_BOARD_UNKNOWN] = {
@@ -1706,6 +1707,32 @@ static inline void em28xx_set_model(struct em28xx *dev)
 				       EM28XX_I2C_FREQ_100_KHZ;
 }
 
+/* FIXME: Should be replaced by a proper mt9m001 driver */
+static int em28xx_initialize_mt9m001(struct em28xx *dev)
+{
+	int i;
+	unsigned char regs[][3] = {
+		{ 0x0d, 0x00, 0x01, },
+		{ 0x0d, 0x00, 0x00, },
+		{ 0x04, 0x05, 0x00, },	/* hres = 1280 */
+		{ 0x03, 0x04, 0x00, },  /* vres = 1024 */
+		{ 0x20, 0x11, 0x00, },
+		{ 0x06, 0x00, 0x10, },
+		{ 0x2b, 0x00, 0x24, },
+		{ 0x2e, 0x00, 0x24, },
+		{ 0x35, 0x00, 0x24, },
+		{ 0x2d, 0x00, 0x20, },
+		{ 0x2c, 0x00, 0x20, },
+		{ 0x09, 0x0a, 0xd4, },
+		{ 0x35, 0x00, 0x57, },
+	};
+
+	for (i = 0; i < ARRAY_SIZE(regs); i++)
+		i2c_master_send(&dev->i2c_client, &regs[i][0], 3);
+
+	return 0;
+}
+
 /* HINT method: webcam I2C chips
  *
  * This method work for webcams with Micron sensors
@@ -1738,6 +1765,19 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 
 		/* probably means GRGB 16 bit bayer */
 		dev->vinmode = 0x0d;
+		dev->vinctl = 0x00;
+
+		break;
+	case 0x8431:
+		dev->model = EM2750_BOARD_UNKNOWN;
+		sensor_name = "mt9m001";
+		dev->em28xx_sensor = EM28XX_MT9M001;
+		em28xx_initialize_mt9m001(dev);
+		dev->sensor_xres = 1280;
+		dev->sensor_yres = 1024;
+
+		/* probably means BGGR 16 bit bayer */
+		dev->vinmode = 0x0c;
 		dev->vinctl = 0x00;
 
 		break;
@@ -2274,6 +2314,7 @@ void em28xx_card_setup(struct em28xx *dev)
 			 &dev->i2c_adap, "mt9v011", "mt9v011", mt9v011_addrs);
 		v4l2_subdev_call(sd, core, s_config, 0, &dev->sensor_xtal);
 	}
+
 
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
