@@ -66,6 +66,10 @@ static unsigned int pmod_enabled;
 module_param(pmod_enabled, bool, 0644);
 MODULE_PARM_DESC(pmod_enabled, "PMOD enable bit");
 
+static unsigned int rated_capacity;
+module_param(rated_capacity, uint, 0644);
+MODULE_PARM_DESC(rated_capacity, "rated battery capacity, 10*mAh or index");
+
 /* Some batteries have their rated capacity stored a N * 10 mAh, while
  * others use an index into this table. */
 static int rated_capacities[] = {
@@ -274,6 +278,17 @@ static void ds2760_battery_write_status(struct ds2760_device_info *di,
 	w1_ds2760_recall_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
 }
 
+static void ds2760_battery_write_rated_capacity(struct ds2760_device_info *di,
+						unsigned char rated_capacity)
+{
+	if (rated_capacity == di->raw[DS2760_RATED_CAPACITY])
+		return;
+
+	w1_ds2760_write(di->w1_dev, &rated_capacity, DS2760_RATED_CAPACITY, 1);
+	w1_ds2760_store_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
+	w1_ds2760_recall_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
+}
+
 static void ds2760_battery_work(struct work_struct *work)
 {
 	struct ds2760_device_info *di = container_of(work,
@@ -398,6 +413,10 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 		status &= ~DS2760_STATUS_PMOD;
 
 	ds2760_battery_write_status(di, status);
+
+	/* set rated capacity from module param */
+	if (rated_capacity)
+		ds2760_battery_write_rated_capacity(di, rated_capacity);
 
 	retval = power_supply_register(&pdev->dev, &di->bat);
 	if (retval) {
