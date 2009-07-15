@@ -48,6 +48,7 @@ struct synaptics_i2c_rmi_platform_data {
 	uint32_t fuzz_y; /* 0x10000 = screen height */
 	int fuzz_p;
 	int fuzz_w;
+	int8_t sensitivity_adjust;
 };
 
 #endif /* _LINUX_SYNAPTICS_I2C_RMI_H */

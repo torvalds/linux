@@ -44,6 +44,7 @@ struct synaptics_ts_data {
 	int snap_down[2];
 	int snap_up[2];
 	uint32_t flags;
+	int8_t sensitivity_adjust;
 	int (*power)(int on);
 	struct early_suspend early_suspend;
 };
@@ -65,6 +66,11 @@ static int synaptics_init_panel(struct synaptics_ts_data *ts)
 	ret = i2c_smbus_write_byte_data(ts->client, 0x41, 0x04); /* Set "No Clip Z" */
 	if (ret < 0)
 		printk(KERN_ERR "i2c_smbus_write_byte_data failed for No Clip Z\n");
+
+	ret = i2c_smbus_write_byte_data(ts->client, 0x44,
+					ts->sensitivity_adjust);
+	if (ret < 0)
+		pr_err("synaptics_ts: failed to set Sensitivity Adjust\n");
 
 err_page_select_failed:
 	ret = i2c_smbus_write_byte_data(ts->client, 0xff, 0x04); /* page select = 0x04 */
@@ -317,6 +323,7 @@ static int synaptics_ts_probe(
 		while (pdata->version > panel_version)
 			pdata++;
 		ts->flags = pdata->flags;
+		ts->sensitivity_adjust = pdata->sensitivity_adjust;
 		inactive_area_left = pdata->inactive_left;
 		inactive_area_right = pdata->inactive_right;
 		inactive_area_top = pdata->inactive_top;
