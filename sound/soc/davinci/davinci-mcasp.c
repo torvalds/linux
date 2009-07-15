@@ -764,7 +764,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	}
 
 	pdata = pdev->dev.platform_data;
-	dev->clk = clk_get(&pdev->dev, pdata->clk_name);
+	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		ret = -ENODEV;
 		goto err_release_region;

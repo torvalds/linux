@@ -528,7 +528,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		goto err_release_region;
 	}
 
-	dev->clk = clk_get(&pdev->dev, pdata->clk_name);
+	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		ret = -ENODEV;
 		goto err_free_mem;
