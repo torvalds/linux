@@ -62,7 +62,7 @@ typedef struct _NETVSC_DEVICE {
 	int								NumOutstandingSends;
 	// List of free preallocated NETVSC_PACKET to represent receive packet
 	LIST_ENTRY						ReceivePacketList;
-	HANDLE							ReceivePacketListLock;
+	spinlock_t receive_packet_list_lock;
 
 	// Send buffer allocated by us but manages by NetVSP
 	void *							SendBuffer;

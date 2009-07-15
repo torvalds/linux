@@ -807,7 +807,7 @@ NetVscOnDeviceAdd(
 
 	// Initialize the NetVSC channel extension
 	netDevice->ReceiveBufferSize = NETVSC_RECEIVE_BUFFER_SIZE;
-	netDevice->ReceivePacketListLock = SpinlockCreate();
+	spin_lock_init(&netDevice->receive_packet_list_lock);
 
 	netDevice->SendBufferSize = NETVSC_SEND_BUFFER_SIZE;
 
@@ -875,8 +875,6 @@ Cleanup:
 			packet = CONTAINING_RECORD(entry, NETVSC_PACKET, ListEntry);
 			kfree(packet);
 		}
-
-		SpinlockClose(netDevice->ReceivePacketListLock);
 
 		ReleaseOutboundNetDevice(Device);
 		ReleaseInboundNetDevice(Device);
@@ -952,7 +950,6 @@ NetVscOnDeviceRemove(
 		kfree(netvscPacket);
 	}
 
-	SpinlockClose(netDevice->ReceivePacketListLock);
 	WaitEventClose(netDevice->ChannelInitEvent);
 	FreeNetDevice(netDevice);
 
@@ -1118,6 +1115,7 @@ NetVscOnReceive(
 
 	int i=0, j=0;
 	int count=0, bytesRemain=0;
+	unsigned long flags;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -1164,7 +1162,7 @@ NetVscOnReceive(
 
 	// Grab free packets (range count + 1) to represent this xfer page packet. +1 to represent
 	// the xfer page packet itself. We grab it here so that we know exactly how many we can fulfil
-	SpinlockAcquire(netDevice->ReceivePacketListLock);
+	spin_lock_irqsave(&netDevice->receive_packet_list_lock, flags);
 	while (!IsListEmpty(&netDevice->ReceivePacketList))
 	{
 		entry = REMOVE_HEAD_LIST(&netDevice->ReceivePacketList);
@@ -1175,7 +1173,7 @@ NetVscOnReceive(
 		if (++count == vmxferpagePacket->RangeCount + 1)
 			break;
 	}
-	SpinlockRelease(netDevice->ReceivePacketListLock);
+	spin_unlock_irqrestore(&netDevice->receive_packet_list_lock, flags);
 
 	// We need at least 2 netvsc pkts (1 to represent the xfer page and at least 1 for the range)
 	// i.e. we can handled some of the xfer page packet ranges...
@@ -1184,7 +1182,7 @@ NetVscOnReceive(
 		DPRINT_ERR(NETVSC, "Got only %d netvsc pkt...needed %d pkts. Dropping this xfer page packet completely!", count, vmxferpagePacket->RangeCount+1);
 
 		// Return it to the freelist
-		SpinlockAcquire(netDevice->ReceivePacketListLock);
+		spin_lock_irqsave(&netDevice->receive_packet_list_lock, flags);
 		for (i=count; i != 0; i--)
 		{
 			entry = REMOVE_HEAD_LIST(&listHead);
@@ -1192,7 +1190,7 @@ NetVscOnReceive(
 
 			INSERT_TAIL_LIST(&netDevice->ReceivePacketList, &netvscPacket->ListEntry);
 		}
-		SpinlockRelease(netDevice->ReceivePacketListLock);
+		spin_unlock_irqrestore(&netDevice->receive_packet_list_lock, flags);
 
 		NetVscSendReceiveCompletion(Device, vmxferpagePacket->d.TransactionId);
 
@@ -1346,6 +1344,7 @@ NetVscOnReceiveCompletion(
 	NETVSC_DEVICE* netDevice;
 	u64	transactionId=0;
 	bool fSendReceiveComp = false;
+	unsigned long flags;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -1362,7 +1361,7 @@ NetVscOnReceiveCompletion(
 	}
 
 	// Overloading use of the lock.
-	SpinlockAcquire(netDevice->ReceivePacketListLock);
+	spin_lock_irqsave(&netDevice->receive_packet_list_lock, flags);
 
 	ASSERT(packet->XferPagePacket->Count > 0);
 	packet->XferPagePacket->Count--;
@@ -1379,7 +1378,7 @@ NetVscOnReceiveCompletion(
 
 	// Put the packet back
 	INSERT_TAIL_LIST(&netDevice->ReceivePacketList, &packet->ListEntry);
-	SpinlockRelease(netDevice->ReceivePacketListLock);
+	spin_unlock_irqrestore(&netDevice->receive_packet_list_lock, flags);
 
 	// Send a receive completion for the xfer page packet
 	if (fSendReceiveComp)
