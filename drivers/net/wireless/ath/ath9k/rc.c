@@ -636,7 +636,7 @@ static u8 ath_rc_get_highest_rix(struct ath_softc *sc,
 		 * 10-15 and we would be worse off then staying
 		 * at the current rate.
 		 */
-		per_thres = ath_rc_priv->state[rate].per;
+		per_thres = ath_rc_priv->per[rate];
 		if (per_thres < 12)
 			per_thres = 12;
 
@@ -881,13 +881,13 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 		100 * 9 / 10
 	};
 
-	last_per = ath_rc_priv->state[tx_rate].per;
+	last_per = ath_rc_priv->per[tx_rate];
 
 	if (xretries) {
 		if (xretries == 1) {
-			ath_rc_priv->state[tx_rate].per += 30;
-			if (ath_rc_priv->state[tx_rate].per > 100)
-				ath_rc_priv->state[tx_rate].per = 100;
+			ath_rc_priv->per[tx_rate] += 30;
+			if (ath_rc_priv->per[tx_rate] > 100)
+				ath_rc_priv->per[tx_rate] = 100;
 		} else {
 			/* xretries == 2 */
 			count = ARRAY_SIZE(nretry_to_per_lookup);
@@ -895,7 +895,7 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 				retries = count - 1;
 
 			/* new_PER = 7/8*old_PER + 1/8*(currentPER) */
-			ath_rc_priv->state[tx_rate].per =
+			ath_rc_priv->per[tx_rate] =
 				(u8)(last_per - (last_per >> 3) + (100 >> 3));
 		}
 
@@ -931,10 +931,10 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 				n_frames = tx_info_priv->n_frames * (retries + 1);
 				cur_per = (100 * n_bad_frames / n_frames) >> 3;
 				new_per = (u8)(last_per - (last_per >> 3) + cur_per);
-				ath_rc_priv->state[tx_rate].per = new_per;
+				ath_rc_priv->per[tx_rate] = new_per;
 			}
 		} else {
-			ath_rc_priv->state[tx_rate].per =
+			ath_rc_priv->per[tx_rate] =
 				(u8)(last_per - (last_per >> 3) +
 				     (nretry_to_per_lookup[retries] >> 3));
 		}
@@ -962,8 +962,8 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 					ath_rc_priv->probe_rate;
 				probe_rate = ath_rc_priv->probe_rate;
 
-				if (ath_rc_priv->state[probe_rate].per > 30)
-					ath_rc_priv->state[probe_rate].per = 20;
+				if (ath_rc_priv->per[probe_rate] > 30)
+					ath_rc_priv->per[probe_rate] = 20;
 
 				ath_rc_priv->probe_rate = 0;
 
@@ -1018,7 +1018,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	if ((tx_rate < 0) || (tx_rate > rate_table->rate_cnt))
 		return;
 
-	last_per = ath_rc_priv->state[tx_rate].per;
+	last_per = ath_rc_priv->per[tx_rate];
 
 	/* Update PER first */
 	state_change = ath_rc_update_per(sc, rate_table, ath_rc_priv,
@@ -1029,7 +1029,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	 * If this rate looks bad (high PER) then stop using it for
 	 * a while (except if we are probing).
 	 */
-	if (ath_rc_priv->state[tx_rate].per >= 55 && tx_rate > 0 &&
+	if (ath_rc_priv->per[tx_rate] >= 55 && tx_rate > 0 &&
 	    rate_table->info[tx_rate].ratekbps <=
 	    rate_table->info[ath_rc_priv->rate_max_phy].ratekbps) {
 		ath_rc_get_lower_rix(rate_table, ath_rc_priv,
@@ -1041,26 +1041,26 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 
 	/* Make sure the rates below this have lower PER */
 	/* Monotonicity is kept only for rates below the current rate. */
-	if (ath_rc_priv->state[tx_rate].per < last_per) {
+	if (ath_rc_priv->per[tx_rate] < last_per) {
 		for (rate = tx_rate - 1; rate >= 0; rate--) {
 			if (rate_table->info[rate].phy !=
 			    rate_table->info[tx_rate].phy)
 				break;
 
-			if (ath_rc_priv->state[rate].per >
-			    ath_rc_priv->state[rate+1].per) {
-				ath_rc_priv->state[rate].per =
-					ath_rc_priv->state[rate+1].per;
+			if (ath_rc_priv->per[rate] >
+			    ath_rc_priv->per[rate+1]) {
+				ath_rc_priv->per[rate] =
+					ath_rc_priv->per[rate+1];
 			}
 		}
 	}
 
 	/* Maintain monotonicity for rates above the current rate */
 	for (rate = tx_rate; rate < size - 1; rate++) {
-		if (ath_rc_priv->state[rate+1].per <
-		    ath_rc_priv->state[rate].per)
-			ath_rc_priv->state[rate+1].per =
-				ath_rc_priv->state[rate].per;
+		if (ath_rc_priv->per[rate+1] <
+		    ath_rc_priv->per[rate])
+			ath_rc_priv->per[rate+1] =
+				ath_rc_priv->per[rate];
 	}
 
 	/* Every so often, we reduce the thresholds
@@ -1068,15 +1068,15 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	if (now_msec - ath_rc_priv->per_down_time >=
 	    rate_table->probe_interval) {
 		for (rate = 0; rate < size; rate++) {
-			ath_rc_priv->state[rate].per =
-				7 * ath_rc_priv->state[rate].per / 8;
+			ath_rc_priv->per[rate] =
+				7 * ath_rc_priv->per[rate] / 8;
 		}
 
 		ath_rc_priv->per_down_time = now_msec;
 	}
 
 	ath_debug_stat_retries(sc, tx_rate, xretries, retries,
-			       ath_rc_priv->state[tx_rate].per);
+			       ath_rc_priv->per[tx_rate]);
 
 }
 
@@ -1213,7 +1213,7 @@ static void ath_rc_init(struct ath_softc *sc,
 
 	/* Initialize thresholds according to the global rate table */
 	for (i = 0 ; i < ath_rc_priv->rate_table_size; i++) {
-		ath_rc_priv->state[i].per = 0;
+		ath_rc_priv->per[i] = 0;
 	}
 
 	/* Determine the valid rates */

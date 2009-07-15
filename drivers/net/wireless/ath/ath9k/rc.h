@@ -122,10 +122,6 @@ struct ath_rate_table {
 	u8 initial_ratemax;
 };
 
-struct ath_tx_ratectrl_state {
-	u8 per;			/* recent estimate of packet error rate (%) */
-};
-
 struct ath_rateset {
 	u8 rs_nrates;
 	u8 rs_rates[ATH_RATE_MAX];
@@ -141,6 +137,7 @@ struct ath_rateset {
  * @per_down_time: msec timestamp for last PER down step
  * @valid_phy_ratecnt: valid rate count
  * @rate_max_phy: phy index for the max rate
+ * @per: PER for every valid rate in %
  * @probe_interval: interval for ratectrl to probe for other rates
  * @prev_data_rix: rate idx of last data frame
  * @ht_cap: HT capabilities
@@ -157,12 +154,12 @@ struct ath_rate_priv {
 	u8 valid_phy_ratecnt[WLAN_RC_PHY_MAX];
 	u8 valid_phy_rateidx[WLAN_RC_PHY_MAX][RATE_TABLE_SIZE];
 	u8 rate_max_phy;
+	u8 per[RATE_TABLE_SIZE];
 	u32 probe_time;
 	u32 per_down_time;
 	u32 probe_interval;
 	u32 prev_data_rix;
 	u32 tx_triglevel_max;
-	struct ath_tx_ratectrl_state state[RATE_TABLE_SIZE];
 	struct ath_rateset neg_rates;
 	struct ath_rateset neg_ht_rates;
 	struct ath_rate_softc *asc;
