@@ -348,7 +348,7 @@ StorVscOnDeviceAdd(
 	deviceInfo->PathId = storDevice->PathId;
 	deviceInfo->TargetId = storDevice->TargetId;
 
-	DPRINT_DBG(STORVSC, "assigned port %u, path %u target %u\n", storDevice->PortNumber, storDevice->PathId, storDevice->TargetId);
+	DPRINT_DBG(STORVSC, "assigned port %lu, path %u target %u\n", storDevice->PortNumber, storDevice->PathId, storDevice->TargetId);
 
 Cleanup:
 	DPRINT_EXIT(STORVSC);
@@ -404,7 +404,7 @@ static int StorVscChannelInit(DEVICE_OBJECT *Device)
 
 	if (vstorPacket->Operation != VStorOperationCompleteIo || vstorPacket->Status != 0)
 	{
-		DPRINT_ERR(STORVSC, "BEGIN_INITIALIZATION_OPERATION failed (op %d status 0x%x)", vstorPacket->Operation, vstorPacket->Status);
+		DPRINT_ERR(STORVSC, "BEGIN_INITIALIZATION_OPERATION failed (op %d status 0x%lx)", vstorPacket->Operation, vstorPacket->Status);
 		goto Cleanup;
 	}
 
@@ -435,7 +435,7 @@ static int StorVscChannelInit(DEVICE_OBJECT *Device)
 	// TODO: Check returned version
 	if (vstorPacket->Operation != VStorOperationCompleteIo || vstorPacket->Status != 0)
 	{
-		DPRINT_ERR(STORVSC, "QUERY_PROTOCOL_VERSION_OPERATION failed (op %d status 0x%x)", vstorPacket->Operation, vstorPacket->Status);
+		DPRINT_ERR(STORVSC, "QUERY_PROTOCOL_VERSION_OPERATION failed (op %d status 0x%lx)", vstorPacket->Operation, vstorPacket->Status);
 		goto Cleanup;
 	}
 
@@ -465,7 +465,7 @@ static int StorVscChannelInit(DEVICE_OBJECT *Device)
 	// TODO: Check returned version
 	if (vstorPacket->Operation != VStorOperationCompleteIo || vstorPacket->Status != 0)
 	{
-		DPRINT_ERR(STORVSC, "QUERY_PROPERTIES_OPERATION failed (op %d status 0x%x)", vstorPacket->Operation, vstorPacket->Status);
+		DPRINT_ERR(STORVSC, "QUERY_PROPERTIES_OPERATION failed (op %d status 0x%lx)", vstorPacket->Operation, vstorPacket->Status);
 		goto Cleanup;
 	}
 
@@ -473,7 +473,7 @@ static int StorVscChannelInit(DEVICE_OBJECT *Device)
 	storDevice->PathId = vstorPacket->StorageChannelProperties.PathId;
 	storDevice->TargetId = vstorPacket->StorageChannelProperties.TargetId;
 
-	DPRINT_DBG(STORVSC, "channel flag 0x%x, max xfer len 0x%x", vstorPacket->StorageChannelProperties.Flags, vstorPacket->StorageChannelProperties.MaxTransferBytes);
+	DPRINT_DBG(STORVSC, "channel flag 0x%lx, max xfer len 0x%lx", vstorPacket->StorageChannelProperties.Flags, vstorPacket->StorageChannelProperties.MaxTransferBytes);
 
 	DPRINT_INFO(STORVSC, "END_INITIALIZATION_OPERATION...");
 
@@ -498,7 +498,7 @@ static int StorVscChannelInit(DEVICE_OBJECT *Device)
 
 	if (vstorPacket->Operation != VStorOperationCompleteIo || vstorPacket->Status != 0)
 	{
-		DPRINT_ERR(STORVSC, "END_INITIALIZATION_OPERATION failed (op %d status 0x%x)", vstorPacket->Operation, vstorPacket->Status);
+		DPRINT_ERR(STORVSC, "END_INITIALIZATION_OPERATION failed (op %d status 0x%lx)", vstorPacket->Operation, vstorPacket->Status);
 		goto Cleanup;
 	}
 
@@ -540,7 +540,7 @@ StorVscConnectToVsp(
 		Device
 		);
 
-	DPRINT_DBG(STORVSC, "storage props: path id %d, tgt id %d, max xfer %d", props.PathId, props.TargetId, props.MaxTransferBytes);
+	DPRINT_DBG(STORVSC, "storage props: path id %d, tgt id %d, max xfer %ld", props.PathId, props.TargetId, props.MaxTransferBytes);
 
 	if (ret != 0)
 	{
@@ -819,7 +819,7 @@ StorVscOnIOCompletion(
 		return;
 	}
 
-	DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION - request extension %p completed bytes xfer %u",
+	DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION - request extension %p completed bytes xfer %lu",
 		RequestExt, VStorPacket->VmSrb.DataTransferLength);
 
 	ASSERT(RequestExt != NULL);

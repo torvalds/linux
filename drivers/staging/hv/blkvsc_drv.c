@@ -918,7 +918,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*reque
 
 	STORVSC_REQUEST *storvsc_req;
 
-	DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - req %p type %s start_sector %llu count %d offset %d len %d\n",
+	DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - req %p type %s start_sector %llu count %ld offset %d len %d\n",
 		blkvsc_req,
 		(blkvsc_req->write)?"WRITE":"READ",
 		blkvsc_req->sector_start,
@@ -1087,7 +1087,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 	{
 		if (pending)
 		{
-			DPRINT_DBG(BLKVSC_DRV, "adding blkvsc_req to pending_list - blkvsc_req %p start_sect %llu sect_count %d (%llu %d)\n",
+			DPRINT_DBG(BLKVSC_DRV, "adding blkvsc_req to pending_list - blkvsc_req %p start_sect %llu sect_count %ld (%llu %ld)\n",
 				blkvsc_req, blkvsc_req->sector_start, blkvsc_req->sector_count, start_sector, num_sectors);
 
 			list_add_tail(&blkvsc_req->pend_entry, &blkdev->pending_list);
@@ -1101,7 +1101,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 				list_add_tail(&blkvsc_req->pend_entry, &blkdev->pending_list);
 			}
 
-			DPRINT_DBG(BLKVSC_DRV, "submitted blkvsc_req %p start_sect %llu sect_count %d (%llu %d) ret %d\n",
+			DPRINT_DBG(BLKVSC_DRV, "submitted blkvsc_req %p start_sect %llu sect_count %ld (%llu %ld) ret %d\n",
 				blkvsc_req, blkvsc_req->sector_start, blkvsc_req->sector_count, start_sector, num_sectors, ret);
 		}
 	}
@@ -1141,7 +1141,7 @@ static void blkvsc_request_completion(STORVSC_REQUEST* request)
 
 	ASSERT(blkvsc_req->group);
 
-	DPRINT_DBG(BLKVSC_DRV, "blkdev %p blkvsc_req %p group %p type %s sect_start %llu sect_count %d len %d group outstd %d total outstd %d\n",
+	DPRINT_DBG(BLKVSC_DRV, "blkdev %p blkvsc_req %p group %p type %s sect_start %llu sect_count %ld len %d group outstd %d total outstd %d\n",
 		blkdev,
 		blkvsc_req,
 		blkvsc_req->group,
@@ -1163,7 +1163,7 @@ static void blkvsc_request_completion(STORVSC_REQUEST* request)
 	{
 		list_for_each_entry_safe(comp_req, tmp, &blkvsc_req->group->blkvsc_req_list, req_entry)
 		{
-			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p sect_start %llu sect_count %d \n",
+			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p sect_start %llu sect_count %ld \n",
 				comp_req,
 				comp_req->sector_start,
 				comp_req->sector_count);
@@ -1222,7 +1222,7 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 		// until we hit the pend_req
 		list_for_each_entry_safe(comp_req, tmp2, &pend_req->group->blkvsc_req_list, req_entry)
 		{
-			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p sect_start %llu sect_count %d \n",
+			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p sect_start %llu sect_count %ld \n",
 				comp_req,
 				comp_req->sector_start,
 				comp_req->sector_count);

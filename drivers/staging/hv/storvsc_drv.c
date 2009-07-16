@@ -1054,7 +1054,7 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - setting queue depth to %d", sdevice, STORVSC_MAX_IO_REQUESTS);
 	scsi_adjust_queue_depth(sdevice, MSG_SIMPLE_TAG, STORVSC_MAX_IO_REQUESTS);
 
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - setting max segment size to %d", sdevice, PAGE_SIZE);
+	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - setting max segment size to %ld", sdevice, PAGE_SIZE);
 	blk_queue_max_segment_size(sdevice->request_queue, PAGE_SIZE);
 
 	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - adding merge bio vec routine", sdevice);
