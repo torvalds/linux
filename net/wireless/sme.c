@@ -227,7 +227,7 @@ static void __cfg80211_sme_scan_done(struct net_device *dev)
 	if (wdev->sme_state != CFG80211_SME_CONNECTING)
 		return;
 
-	if (WARN_ON(!wdev->conn))
+	if (!wdev->conn)
 		return;
 
 	if (wdev->conn->state != CFG80211_CONN_SCANNING &&
