@@ -503,12 +503,9 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 {
 	struct iwm_umac_notif_assoc_complete *complete =
 		(struct iwm_umac_notif_assoc_complete *)buf;
-	union iwreq_data wrqu;
 
 	IWM_DBG_MLME(iwm, INFO, "Association with %pM completed, status: %d\n",
 		     complete->bssid, complete->status);
-
-	memset(&wrqu, 0, sizeof(wrqu));
 
 	clear_bit(IWM_STATUS_ASSOCIATING, &iwm->status);
 
@@ -520,7 +517,10 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 
 		iwm_link_on(iwm);
 
-		memcpy(wrqu.ap_addr.sa_data, complete->bssid, ETH_ALEN);
+		cfg80211_connect_result(iwm_to_ndev(iwm),
+					complete->bssid,
+					NULL, 0, NULL, 0,
+					WLAN_STATUS_SUCCESS, GFP_KERNEL);
 		break;
 	case UMAC_ASSOC_COMPLETE_FAILURE:
 		clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
@@ -528,6 +528,11 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 		iwm->channel = 0;
 
 		iwm_link_off(iwm);
+
+		cfg80211_connect_result(iwm_to_ndev(iwm), complete->bssid,
+					NULL, 0, NULL, 0,
+					WLAN_STATUS_UNSPECIFIED_FAILURE,
+					GFP_KERNEL);
 	default:
 		break;
 	}
@@ -536,9 +541,6 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 		cfg80211_ibss_joined(iwm_to_ndev(iwm), iwm->bssid, GFP_KERNEL);
 		return 0;
 	}
-
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	wireless_send_event(iwm_to_ndev(iwm), SIOCGIWAP, &wrqu, NULL);
 
 	return 0;
 }

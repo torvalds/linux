@@ -305,6 +305,25 @@ static int iwm_cfg80211_set_default_key(struct wiphy *wiphy,
 	return iwm_reset_profile(iwm);
 }
 
+int iwm_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
+			     u8 *mac, struct station_info *sinfo)
+{
+	struct iwm_priv *iwm = ndev_to_iwm(ndev);
+
+	if (memcmp(mac, iwm->bssid, ETH_ALEN))
+		return -ENOENT;
+
+	sinfo->filled |= STATION_INFO_TX_BITRATE;
+	sinfo->txrate.legacy = iwm->rate * 10;
+
+	if (test_bit(IWM_STATUS_ASSOCIATED, &iwm->status)) {
+		sinfo->filled |= STATION_INFO_SIGNAL;
+		sinfo->signal = iwm->wstats.qual.level;
+	}
+
+	return 0;
+}
+
 
 int iwm_cfg80211_inform_bss(struct iwm_priv *iwm)
 {
@@ -500,6 +519,179 @@ static int iwm_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	return 0;
 }
 
+static int iwm_set_auth_type(struct iwm_priv *iwm,
+			     enum nl80211_auth_type sme_auth_type)
+{
+	u8 *auth_type = &iwm->umac_profile->sec.auth_type;
+
+	switch (sme_auth_type) {
+	case NL80211_AUTHTYPE_AUTOMATIC:
+	case NL80211_AUTHTYPE_OPEN_SYSTEM:
+		IWM_DBG_WEXT(iwm, DBG, "OPEN auth\n");
+		*auth_type = UMAC_AUTH_TYPE_OPEN;
+		break;
+	case NL80211_AUTHTYPE_SHARED_KEY:
+		if (iwm->umac_profile->sec.flags &
+		    (UMAC_SEC_FLG_WPA_ON_MSK | UMAC_SEC_FLG_RSNA_ON_MSK)) {
+			IWM_DBG_WEXT(iwm, DBG, "WPA auth alg\n");
+			*auth_type = UMAC_AUTH_TYPE_RSNA_PSK;
+		} else {
+			IWM_DBG_WEXT(iwm, DBG, "WEP shared key auth alg\n");
+			*auth_type = UMAC_AUTH_TYPE_LEGACY_PSK;
+		}
+
+		break;
+	default:
+		IWM_ERR(iwm, "Unsupported auth alg: 0x%x\n", sme_auth_type);
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int iwm_set_wpa_version(struct iwm_priv *iwm, u32 wpa_version)
+{
+	if (!wpa_version) {
+		iwm->umac_profile->sec.flags = UMAC_SEC_FLG_LEGACY_PROFILE;
+		return 0;
+	}
+
+	if (wpa_version & NL80211_WPA_VERSION_2)
+		iwm->umac_profile->sec.flags = UMAC_SEC_FLG_RSNA_ON_MSK;
+
+	if (wpa_version & NL80211_WPA_VERSION_1)
+		iwm->umac_profile->sec.flags |= UMAC_SEC_FLG_WPA_ON_MSK;
+
+	return 0;
+}
+
+static int iwm_set_cipher(struct iwm_priv *iwm, u32 cipher, bool ucast)
+{
+	u8 *profile_cipher = ucast ? &iwm->umac_profile->sec.ucast_cipher :
+		&iwm->umac_profile->sec.mcast_cipher;
+
+	if (!cipher) {
+		*profile_cipher = UMAC_CIPHER_TYPE_NONE;
+		return 0;
+	}
+
+	switch (cipher) {
+	case IW_AUTH_CIPHER_NONE:
+		*profile_cipher = UMAC_CIPHER_TYPE_NONE;
+		break;
+	case WLAN_CIPHER_SUITE_WEP40:
+		*profile_cipher = UMAC_CIPHER_TYPE_WEP_40;
+		break;
+	case WLAN_CIPHER_SUITE_WEP104:
+		*profile_cipher = UMAC_CIPHER_TYPE_WEP_104;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		*profile_cipher = UMAC_CIPHER_TYPE_TKIP;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		*profile_cipher = UMAC_CIPHER_TYPE_CCMP;
+		break;
+	default:
+		IWM_ERR(iwm, "Unsupported cipher: 0x%x\n", cipher);
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int iwm_set_key_mgt(struct iwm_priv *iwm, u32 key_mgt)
+{
+	u8 *auth_type = &iwm->umac_profile->sec.auth_type;
+
+	IWM_DBG_WEXT(iwm, DBG, "key_mgt: 0x%x\n", key_mgt);
+
+	if (key_mgt == WLAN_AKM_SUITE_8021X)
+		*auth_type = UMAC_AUTH_TYPE_8021X;
+	else if (key_mgt == WLAN_AKM_SUITE_PSK) {
+		if (iwm->umac_profile->sec.flags &
+		    (UMAC_SEC_FLG_WPA_ON_MSK | UMAC_SEC_FLG_RSNA_ON_MSK))
+			*auth_type = UMAC_AUTH_TYPE_RSNA_PSK;
+		else
+			*auth_type = UMAC_AUTH_TYPE_LEGACY_PSK;
+	} else {
+		IWM_ERR(iwm, "Invalid key mgt: 0x%x\n", key_mgt);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+
+static int iwm_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
+				 struct cfg80211_connect_params *sme)
+{
+	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
+	struct ieee80211_channel *chan = sme->channel;
+	int ret;
+
+	if (!test_bit(IWM_STATUS_READY, &iwm->status))
+		return -EIO;
+
+	if (!sme->ssid)
+		return -EINVAL;
+
+	if (chan)
+		iwm->channel =
+			ieee80211_frequency_to_channel(chan->center_freq);
+
+	iwm->umac_profile->ssid.ssid_len = sme->ssid_len;
+	memcpy(iwm->umac_profile->ssid.ssid, sme->ssid, sme->ssid_len);
+
+	if (sme->bssid) {
+		IWM_DBG_WEXT(iwm, DBG, "BSSID: %pM\n", sme->bssid);
+		memcpy(&iwm->umac_profile->bssid[0], sme->bssid, ETH_ALEN);
+		iwm->umac_profile->bss_num = 1;
+	} else {
+		memset(&iwm->umac_profile->bssid[0], 0, ETH_ALEN);
+		iwm->umac_profile->bss_num = 0;
+	}
+
+	ret = iwm_set_auth_type(iwm, sme->auth_type);
+	if (ret < 0)
+		return ret;
+
+	ret = iwm_set_wpa_version(iwm, sme->crypto.wpa_versions);
+	if (ret < 0)
+		return ret;
+
+	if (sme->crypto.n_ciphers_pairwise) {
+		ret = iwm_set_cipher(iwm, sme->crypto.ciphers_pairwise[0],
+				     true);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = iwm_set_cipher(iwm, sme->crypto.cipher_group, false);
+	if (ret < 0)
+		return ret;
+
+	if (sme->crypto.n_akm_suites) {
+		ret = iwm_set_key_mgt(iwm, sme->crypto.akm_suites[0]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return iwm_send_mlme_profile(iwm);
+}
+
+static int iwm_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
+				   u16 reason_code)
+{
+	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
+
+	IWM_DBG_WEXT(iwm, DBG, "Active: %d\n", iwm->umac_profile_active);
+
+	if (iwm->umac_profile_active)
+		return iwm_invalidate_mlme_profile(iwm);
+
+	return 0;
+}
+
 static int iwm_cfg80211_set_txpower(struct wiphy *wiphy,
 				    enum tx_power_setting type, int dbm)
 {
@@ -549,8 +741,11 @@ static struct cfg80211_ops iwm_cfg80211_ops = {
 	.get_key = iwm_cfg80211_get_key,
 	.del_key = iwm_cfg80211_del_key,
 	.set_default_key = iwm_cfg80211_set_default_key,
+	.get_station = iwm_cfg80211_get_station,
 	.scan = iwm_cfg80211_scan,
 	.set_wiphy_params = iwm_cfg80211_set_wiphy_params,
+	.connect = iwm_cfg80211_connect,
+	.disconnect = iwm_cfg80211_disconnect,
 	.join_ibss = iwm_cfg80211_join_ibss,
 	.leave_ibss = iwm_cfg80211_leave_ibss,
 	.set_tx_power = iwm_cfg80211_set_txpower,
