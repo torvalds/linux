@@ -74,6 +74,45 @@ static struct op_ibs_config ibs_config;
 
 #endif
 
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+
+static void op_mux_fill_in_addresses(struct op_msrs * const msrs)
+{
+	int i;
+
+	for (i = 0; i < NUM_VIRT_COUNTERS; i++) {
+		int hw_counter = i % NUM_COUNTERS;
+		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
+			msrs->multiplex[i].addr = MSR_K7_PERFCTR0 + hw_counter;
+		else
+			msrs->multiplex[i].addr = 0;
+	}
+}
+
+static void op_mux_switch_ctrl(struct op_x86_model_spec const *model,
+			       struct op_msrs const * const msrs)
+{
+	u64 val;
+	int i;
+
+	/* enable active counters */
+	for (i = 0; i < NUM_COUNTERS; ++i) {
+		int virt = op_x86_phys_to_virt(i);
+		if (!counter_config[virt].enabled)
+			continue;
+		rdmsrl(msrs->controls[i].addr, val);
+		val &= model->reserved;
+		val |= op_x86_get_ctrl(model, &counter_config[virt]);
+		wrmsrl(msrs->controls[i].addr, val);
+	}
+}
+
+#else
+
+static inline void op_mux_fill_in_addresses(struct op_msrs * const msrs) { }
+
+#endif
+
 /* functions for op_amd_spec */
 
 static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
@@ -94,15 +133,7 @@ static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
 			msrs->controls[i].addr = 0;
 	}
 
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	for (i = 0; i < NUM_VIRT_COUNTERS; i++) {
-		int hw_counter = i % NUM_COUNTERS;
-		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
-			msrs->multiplex[i].addr = MSR_K7_PERFCTR0 + hw_counter;
-		else
-			msrs->multiplex[i].addr = 0;
-	}
-#endif
+	op_mux_fill_in_addresses(msrs);
 }
 
 static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
@@ -154,30 +185,6 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 		wrmsrl(msrs->controls[i].addr, val);
 	}
 }
-
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-
-static void op_amd_switch_ctrl(struct op_x86_model_spec const *model,
-			       struct op_msrs const * const msrs)
-{
-	u64 val;
-	int i;
-
-	/* enable active counters */
-	for (i = 0; i < NUM_COUNTERS; ++i) {
-		int virt = op_x86_phys_to_virt(i);
-		if (!counter_config[virt].enabled)
-			continue;
-		rdmsrl(msrs->controls[i].addr, val);
-		val &= model->reserved;
-		val |= op_x86_get_ctrl(model, &counter_config[virt]);
-		wrmsrl(msrs->controls[i].addr, val);
-	}
-}
-
-#endif
-
 
 #ifdef CONFIG_OPROFILE_IBS
 
@@ -535,6 +542,6 @@ struct op_x86_model_spec const op_amd_spec = {
 	.stop			= &op_amd_stop,
 	.shutdown		= &op_amd_shutdown,
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	.switch_ctrl		= &op_amd_switch_ctrl,
+	.switch_ctrl		= &op_mux_switch_ctrl,
 #endif
 };
