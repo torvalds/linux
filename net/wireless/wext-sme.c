@@ -72,13 +72,14 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 	cfg80211_lock_rdev(rdev);
 	wdev_lock(wdev);
 
-	if (wdev->wext.connect.channel == chan) {
-		err = 0;
-		goto out;
-	}
-
 	if (wdev->sme_state != CFG80211_SME_IDLE) {
 		bool event = true;
+
+		if (wdev->wext.connect.channel == chan) {
+			err = 0;
+			goto out;
+		}
+
 		/* if SSID set, we'll try right again, avoid event */
 		if (wdev->wext.connect.ssid_len)
 			event = false;
@@ -164,13 +165,14 @@ int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 
 	err = 0;
 
-	if (wdev->wext.connect.ssid && len &&
-	    len == wdev->wext.connect.ssid_len &&
-	    memcmp(wdev->wext.connect.ssid, ssid, len) == 0)
-		goto out;
-
 	if (wdev->sme_state != CFG80211_SME_IDLE) {
 		bool event = true;
+
+		if (wdev->wext.connect.ssid && len &&
+		    len == wdev->wext.connect.ssid_len &&
+		    memcmp(wdev->wext.connect.ssid, ssid, len) == 0)
+			goto out;
+
 		/* if SSID set now, we'll try to connect, avoid event */
 		if (len)
 			event = false;
@@ -244,17 +246,17 @@ int cfg80211_mgd_wext_siwap(struct net_device *dev,
 	cfg80211_lock_rdev(wiphy_to_dev(wdev->wiphy));
 	wdev_lock(wdev);
 
-	err = 0;
-	/* both automatic */
-	if (!bssid && !wdev->wext.connect.bssid)
-		goto out;
-
-	/* fixed already - and no change */
-	if (wdev->wext.connect.bssid && bssid &&
-	    compare_ether_addr(bssid, wdev->wext.connect.bssid) == 0)
-		goto out;
-
 	if (wdev->sme_state != CFG80211_SME_IDLE) {
+		err = 0;
+		/* both automatic */
+		if (!bssid && !wdev->wext.connect.bssid)
+			goto out;
+
+		/* fixed already - and no change */
+		if (wdev->wext.connect.bssid && bssid &&
+		    compare_ether_addr(bssid, wdev->wext.connect.bssid) == 0)
+			goto out;
+
 		err = __cfg80211_disconnect(wiphy_to_dev(wdev->wiphy),
 					    dev, WLAN_REASON_DEAUTH_LEAVING,
 					    false);
