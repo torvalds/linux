@@ -1339,7 +1339,6 @@ struct ftrace_iterator {
 	unsigned		flags;
 	unsigned char		buffer[FTRACE_BUFF_MAX+1];
 	unsigned		buffer_idx;
-	unsigned		filtered;
 };
 
 static void *
@@ -2268,7 +2267,6 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	}
 
 	if (isspace(ch)) {
-		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
 		ret = ftrace_process_regex(iter->buffer,
 					   iter->buffer_idx, enable);
@@ -2399,7 +2397,6 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 		iter = file->private_data;
 
 	if (iter->buffer_idx) {
-		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
 		ftrace_match_records(iter->buffer, iter->buffer_idx, enable);
 	}
