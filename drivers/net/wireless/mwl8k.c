@@ -187,9 +187,7 @@ struct mwl8k_priv {
 	struct ieee80211_rate rates[12];
 
 	bool radio_on;
-
-	/* RF preamble: Short, Long or Auto */
-	u8	radio_preamble;
+	bool radio_short_preamble;
 
 	/* WMM MODE 1 for enabled; 0 for disabled */
 	bool wmm_mode;
@@ -278,16 +276,9 @@ static const struct ieee80211_rate mwl8k_rates[] = {
 	{ .bitrate = 540, .hw_value = 108, },
 };
 
-/* Radio settings */
-#define MWL8K_RADIO_AUTO_PREAMBLE	0x0005
-#define MWL8K_RADIO_SHORT_PREAMBLE	0x0003
-#define MWL8K_RADIO_LONG_PREAMBLE	0x0001
-
 /* WMM */
 #define MWL8K_WMM_ENABLE		1
 #define MWL8K_WMM_DISABLE		0
-
-#define MWL8K_RADIO_DEFAULT_PREAMBLE	MWL8K_RADIO_LONG_PREAMBLE
 
 /* Slot time */
 
@@ -1741,7 +1732,7 @@ mwl8k_cmd_802_11_radio_control(struct ieee80211_hw *hw, bool enable, bool force)
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_RADIO_CONTROL);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le16(MWL8K_CMD_SET);
-	cmd->control = cpu_to_le16(priv->radio_preamble);
+	cmd->control = cpu_to_le16(priv->radio_short_preamble ? 3 : 1);
 	cmd->radio_on = cpu_to_le16(enable ? 0x0001 : 0x0000);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
@@ -1772,9 +1763,7 @@ mwl8k_set_radio_preamble(struct ieee80211_hw *hw, bool short_preamble)
 		return -EINVAL;
 	priv = hw->priv;
 
-	priv->radio_preamble = (short_preamble ?
-		MWL8K_RADIO_SHORT_PREAMBLE :
-		MWL8K_RADIO_LONG_PREAMBLE);
+	priv->radio_short_preamble = short_preamble;
 
 	return mwl8k_cmd_802_11_radio_control(hw, 1, 1);
 }
@@ -3051,8 +3040,7 @@ static int mwl8k_bss_info_changed_wt(struct work_struct *wt)
 			goto mwl8k_bss_info_changed_exit;
 
 		/* Set radio preamble */
-		if (mwl8k_set_radio_preamble(hw,
-				info->use_short_preamble))
+		if (mwl8k_set_radio_preamble(hw, info->use_short_preamble))
 			goto mwl8k_bss_info_changed_exit;
 
 		/* Set slot time */
@@ -3504,8 +3492,8 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	priv->vif = NULL;
 
 	/* Set default radio state and preamble */
-	priv->radio_preamble = MWL8K_RADIO_DEFAULT_PREAMBLE;
 	priv->radio_on = 0;
+	priv->radio_short_preamble = 0;
 
 	/* Finalize join worker */
 	INIT_WORK(&priv->finalize_join_worker, mwl8k_finalize_join_worker);
