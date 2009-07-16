@@ -122,15 +122,10 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	}
 #endif /* CONFIG_KGDB */
 
-	if (in_atomic() || mm == NULL) {
-		/* FIXME */
-		if (kernel_mode(regs)) {
-			printk(KERN_EMERG
-				"Page fault in kernel mode - Oooou!!! pid %d\n",
-				current->pid);
-			_exception(SIGSEGV, regs, code, address);
-			return;
-		}
+	if (in_atomic() || !mm) {
+		if (kernel_mode(regs))
+			goto bad_area_nosemaphore;
+
 		/* in_atomic() in user mode is really bad,
 		   as is current->mm == NULL. */
 		printk(KERN_EMERG "Page fault in user mode with "
