@@ -43,6 +43,7 @@ static int			call_graph			= 0;
 static int			verbose				= 0;
 static int			inherit_stat			= 0;
 static int			no_samples			= 0;
+static int			sample_address			= 0;
 
 static long			samples;
 static struct timeval		last_read;
@@ -405,6 +406,9 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	if (inherit_stat)
 		attr->inherit_stat = 1;
 
+	if (sample_address)
+		attr->sample_type	|= PERF_SAMPLE_ADDR;
+
 	if (call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
@@ -649,6 +653,8 @@ static const struct option options[] = {
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('s', "stat", &inherit_stat,
 		    "per thread counts"),
+	OPT_BOOLEAN('d', "data", &sample_address,
+		    "Sample addresses"),
 	OPT_BOOLEAN('n', "no-samples", &no_samples,
 		    "don't sample"),
 	OPT_END()
