@@ -1151,14 +1151,7 @@ stopped:
 
 	/* reset the Rx prefetch unit */
 	sky2_write32(hw, Y2_QADDR(rxq, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
-
-	/* Reset the RAM Buffer receive queue */
-	sky2_write8(hw, RB_ADDR(rxq, RB_CTRL), RB_RST_SET);
-
-	/* Reset Rx MAC FIFO */
-	sky2_write8(hw, SK_REG(sky2->port, RX_GMF_CTRL_T), GMF_RST_SET);
-
-	sky2_read8(hw, B0_CTST);
+	mmiowb();
 }
 
 /* Clean out receive buffer area, assumes receiver hardware stopped */
