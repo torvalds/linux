@@ -900,17 +900,18 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 unsigned long bfs_accessed[BITS_TO_LONGS(MAX_LOCKDEP_ENTRIES)];
 static struct circular_queue  lock_cq;
 
-static int __search_shortest_path(struct lock_list *source_entry,
-				struct lock_class *target,
-				struct lock_list **target_entry,
-				int forward)
+static int __bfs(struct lock_list *source_entry,
+			void *data,
+			int (*match)(struct lock_list *entry, void *data),
+			struct lock_list **target_entry,
+			int forward)
 {
 	struct lock_list *entry;
 	struct list_head *head;
 	struct circular_queue *cq = &lock_cq;
 	int ret = 1;
 
-	if (source_entry->class == target) {
+	if (match(source_entry, data)) {
 		*target_entry = source_entry;
 		ret = 0;
 		goto exit;
@@ -945,7 +946,7 @@ static int __search_shortest_path(struct lock_list *source_entry,
 		list_for_each_entry(entry, head, entry) {
 			if (!lock_accessed(entry)) {
 				mark_lock_accessed(entry, lock);
-				if (entry->class == target) {
+				if (match(entry, data)) {
 					*target_entry = entry;
 					ret = 0;
 					goto exit;
@@ -962,19 +963,21 @@ exit:
 	return ret;
 }
 
-static inline int __search_forward_shortest_path(struct lock_list *src_entry,
-				struct lock_class *target,
-				struct lock_list **target_entry)
+static inline int __bfs_forward(struct lock_list *src_entry,
+			void *data,
+			int (*match)(struct lock_list *entry, void *data),
+			struct lock_list **target_entry)
 {
-	return __search_shortest_path(src_entry, target, target_entry, 1);
+	return __bfs(src_entry, data, match, target_entry, 1);
 
 }
 
-static inline int __search_backward_shortest_path(struct lock_list *src_entry,
-				struct lock_class *target,
-				struct lock_list **target_entry)
+static inline int __bfs_backward(struct lock_list *src_entry,
+			void *data,
+			int (*match)(struct lock_list *entry, void *data),
+			struct lock_list **target_entry)
 {
-	return __search_shortest_path(src_entry, target, target_entry, 0);
+	return __bfs(src_entry, data, match, target_entry, 0);
 
 }
 
@@ -1035,6 +1038,11 @@ print_circular_bug_header(struct lock_list *entry, unsigned int depth)
 	return 0;
 }
 
+static inline int class_equal(struct lock_list *entry, void *data)
+{
+	return entry->class == data;
+}
+
 static noinline int print_circular_bug(void)
 {
 	struct task_struct *curr = current;
@@ -1052,9 +1060,10 @@ static noinline int print_circular_bug(void)
 	if (!save_trace(&this.trace))
 		return 0;
 
-	result = __search_forward_shortest_path(&this,
-						hlock_class(check_target),
-						&target);
+	result = __bfs_forward(&this,
+			hlock_class(check_target),
+			class_equal,
+			&target);
 	if (result) {
 		printk("\n%s:search shortest path failed:%d\n", __func__,
 			result);
