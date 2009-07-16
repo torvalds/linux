@@ -673,7 +673,6 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	s8 scale_action = 0;
 	unsigned long flags;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	__le16 fc;
 	u16 rate_mask = sta ? sta->supp_rates[sband->band] : 0;
 	s8 max_rate_idx = -1;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
@@ -681,16 +680,10 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 
 	IWL_DEBUG_RATE(priv, "enter\n");
 
-	/* Send management frames and NO_ACK data using lowest rate. */
-	fc = hdr->frame_control;
-	if (!ieee80211_is_data(fc) || info->flags & IEEE80211_TX_CTL_NO_ACK ||
-	    !sta || !priv_sta) {
-		IWL_DEBUG_RATE(priv, "leave: No STA priv data to update!\n");
-		info->control.rates[0].idx = rate_lowest_index(sband, sta);
-		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-			info->control.rates[0].count = 1;
+	if (rate_control_send_low(sta, priv_sta, txrc))
 		return;
-	}
+
+	rate_mask = sta->supp_rates[sband->band];
 
 	/* get user max rate if set */
 	max_rate_idx = txrc->max_rate_idx;

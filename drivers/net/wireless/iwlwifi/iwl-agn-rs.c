@@ -2481,13 +2481,8 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 	}
 
 	/* Send management frames and NO_ACK data using lowest rate. */
-	if (!ieee80211_is_data(hdr->frame_control) ||
-	    info->flags & IEEE80211_TX_CTL_NO_ACK || !sta || !lq_sta) {
-		info->control.rates[0].idx = rate_lowest_index(sband, sta);
-		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-			info->control.rates[0].count = 1;
+	if (rate_control_send_low(sta, priv_sta, txrc))
 		return;
-	}
 
 	rate_idx  = lq_sta->last_txrate_idx;
 

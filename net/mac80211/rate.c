@@ -198,6 +198,35 @@ static void rate_control_release(struct kref *kref)
 	kfree(ctrl_ref);
 }
 
+static bool rc_no_data_or_no_ack(struct ieee80211_tx_rate_control *txrc)
+{
+	struct sk_buff *skb = txrc->skb;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	__le16 fc;
+
+	fc = hdr->frame_control;
+
+	return ((info->flags & IEEE80211_TX_CTL_NO_ACK) || !ieee80211_is_data(fc));
+}
+
+bool rate_control_send_low(struct ieee80211_sta *sta,
+			   void *priv_sta,
+			   struct ieee80211_tx_rate_control *txrc)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txrc->skb);
+
+	if (!sta || !priv_sta || rc_no_data_or_no_ack(txrc)) {
+		info->control.rates[0].idx = rate_lowest_index(txrc->sband, sta);
+		info->control.rates[0].count =
+			(info->flags & IEEE80211_TX_CTL_NO_ACK) ?
+			1 : txrc->hw->max_rate_tries;
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL(rate_control_send_low);
+
 void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 			   struct sta_info *sta,
 			   struct ieee80211_tx_rate_control *txrc)

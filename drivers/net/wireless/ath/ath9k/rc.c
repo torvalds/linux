@@ -1518,23 +1518,11 @@ exit:
 static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 			 struct ieee80211_tx_rate_control *txrc)
 {
-	struct ieee80211_supported_band *sband = txrc->sband;
-	struct sk_buff *skb = txrc->skb;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
-	__le16 fc = hdr->frame_control;
 
-	/* lowest rate for management and NO_ACK frames */
-	if (!ieee80211_is_data(fc) ||
-	    tx_info->flags & IEEE80211_TX_CTL_NO_ACK || !sta) {
-		tx_info->control.rates[0].idx = rate_lowest_index(sband, sta);
-		tx_info->control.rates[0].count =
-			(tx_info->flags & IEEE80211_TX_CTL_NO_ACK) ?
-				1 : ATH_MGT_TXMAXTRY;
+	if (rate_control_send_low(sta, priv_sta, txrc))
 		return;
-	}
 
 	/* Find tx rate for unicast frames */
 	ath_rc_ratefind(sc, ath_rc_priv, txrc);
