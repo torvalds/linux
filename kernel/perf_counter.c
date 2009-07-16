@@ -2968,8 +2968,10 @@ static void perf_counter_comm_event(struct perf_comm_event *comm_event)
 	struct perf_cpu_context *cpuctx;
 	struct perf_counter_context *ctx;
 	unsigned int size;
-	char *comm = comm_event->task->comm;
+	char comm[TASK_COMM_LEN];
 
+	memset(comm, 0, sizeof(comm));
+	strncpy(comm, comm_event->task->comm, sizeof(comm));
 	size = ALIGN(strlen(comm)+1, sizeof(u64));
 
 	comm_event->comm = comm;
@@ -3088,8 +3090,15 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 	char *buf = NULL;
 	const char *name;
 
+	memset(tmp, 0, sizeof(tmp));
+
 	if (file) {
-		buf = kzalloc(PATH_MAX, GFP_KERNEL);
+		/*
+		 * d_path works from the end of the buffer backwards, so we
+		 * need to add enough zero bytes after the string to handle
+		 * the 64bit alignment we do later.
+		 */
+		buf = kzalloc(PATH_MAX + sizeof(u64), GFP_KERNEL);
 		if (!buf) {
 			name = strncpy(tmp, "//enomem", sizeof(tmp));
 			goto got_name;
@@ -3100,9 +3109,11 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 			goto got_name;
 		}
 	} else {
-		name = arch_vma_name(mmap_event->vma);
-		if (name)
+		if (arch_vma_name(mmap_event->vma)) {
+			name = strncpy(tmp, arch_vma_name(mmap_event->vma),
+				       sizeof(tmp));
 			goto got_name;
+		}
 
 		if (!vma->vm_mm) {
 			name = strncpy(tmp, "[vdso]", sizeof(tmp));
