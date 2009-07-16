@@ -911,7 +911,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		frame_no = 0;
 
 		for (addr = (unsigned int *)((unsigned int)stack & ~0xF), i = 0;
-		     addr <= endstack; addr++, i++) {
+		     addr < endstack; addr++, i++) {
 
 			ret_addr = 0;
 			if (!j && i % 8 == 0)
