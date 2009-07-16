@@ -1002,29 +1002,27 @@ snd_ca0106_pcm_pointer_playback(struct snd_pcm_substream *substream)
 	struct snd_ca0106 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ca0106_pcm *epcm = runtime->private_data;
-	snd_pcm_uframes_t ptr, ptr1, ptr2,ptr3,ptr4 = 0;
+	unsigned int ptr, prev_ptr;
 	int channel = epcm->channel_id;
+	int timeout = 10;
 
 	if (!epcm->running)
 		return 0;
 
-	ptr3 = snd_ca0106_ptr_read(emu, PLAYBACK_LIST_PTR, channel);
-	ptr1 = snd_ca0106_ptr_read(emu, PLAYBACK_POINTER, channel);
-	ptr4 = snd_ca0106_ptr_read(emu, PLAYBACK_LIST_PTR, channel);
-	if (ptr3 != ptr4) ptr1 = snd_ca0106_ptr_read(emu, PLAYBACK_POINTER, channel);
-	ptr2 = bytes_to_frames(runtime, ptr1);
-	ptr2+= (ptr4 >> 3) * runtime->period_size;
-	ptr=ptr2;
-        if (ptr >= runtime->buffer_size)
-		ptr -= runtime->buffer_size;
-	/*
-	printk(KERN_DEBUG "ptr1 = 0x%lx, ptr2=0x%lx, ptr=0x%lx, "
-	       "buffer_size = 0x%x, period_size = 0x%x, bits=%d, rate=%d\n",
-	       ptr1, ptr2, ptr, (int)runtime->buffer_size,
-	       (int)runtime->period_size, (int)runtime->frame_bits,
-	       (int)runtime->rate);
-	*/
-	return ptr;
+	prev_ptr = -1;
+	do {
+		ptr = snd_ca0106_ptr_read(emu, PLAYBACK_LIST_PTR, channel);
+		ptr = (ptr >> 3) * runtime->period_size;
+		ptr += bytes_to_frames(runtime,
+			snd_ca0106_ptr_read(emu, PLAYBACK_POINTER, channel));
+		if (ptr >= runtime->buffer_size)
+			ptr -= runtime->buffer_size;
+		if (prev_ptr == ptr)
+			return ptr;
+		prev_ptr = ptr;
+	} while (--timeout);
+	snd_printk(KERN_WARNING "ca0106: unstable DMA pointer!\n");
+	return 0;
 }
 
 /* pointer_capture callback */
