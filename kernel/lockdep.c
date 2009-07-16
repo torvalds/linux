@@ -42,7 +42,7 @@
 #include <linux/hash.h>
 #include <linux/ftrace.h>
 #include <linux/stringify.h>
-
+#include <linux/bitops.h>
 #include <asm/sections.h>
 
 #include "lockdep_internals.h"
@@ -118,7 +118,7 @@ static inline int debug_locks_off_graph_unlock(void)
 static int lockdep_initialized;
 
 unsigned long nr_list_entries;
-static struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
+struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
 
 /*
  * All data structures here are protected by the global debug_lock.
@@ -897,30 +897,38 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 	return 1;
 }
 
+unsigned long bfs_accessed[BITS_TO_LONGS(MAX_LOCKDEP_ENTRIES)];
 static struct circular_queue  lock_cq;
+
 static int __search_shortest_path(struct lock_list *source_entry,
 				struct lock_class *target,
 				struct lock_list **target_entry,
 				int forward)
 {
 	struct lock_list *entry;
+	struct list_head *head;
 	struct circular_queue *cq = &lock_cq;
 	int ret = 1;
 
-	__cq_init(cq);
-
-	mark_lock_accessed(source_entry, NULL);
 	if (source_entry->class == target) {
 		*target_entry = source_entry;
 		ret = 0;
 		goto exit;
 	}
 
+	if (forward)
+		head = &source_entry->class->locks_after;
+	else
+		head = &source_entry->class->locks_before;
+
+	if (list_empty(head))
+		goto exit;
+
+	__cq_init(cq);
 	__cq_enqueue(cq, (unsigned long)source_entry);
 
 	while (!__cq_empty(cq)) {
 		struct lock_list *lock;
-		struct list_head *head;
 
 		__cq_dequeue(cq, (unsigned long *)&lock);
 
@@ -1040,6 +1048,7 @@ static noinline int print_circular_bug(void)
 		return 0;
 
 	this.class = hlock_class(check_source);
+	this.parent = NULL;
 	if (!save_trace(&this.trace))
 		return 0;
 
@@ -1580,9 +1589,9 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 */
 	check_source = next;
 	check_target = prev;
+
 	if (check_noncircular(hlock_class(next), 0) == 2)
 		return print_circular_bug();
-
 
 	if (!check_prev_add_irq(curr, prev, next))
 		return 0;
