@@ -1674,7 +1674,7 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 					int pixel_size,
 					unsigned long latency_ns)
 {
-	unsigned long entries_required, wm_size;
+	long entries_required, wm_size;
 
 	entries_required = (clock_in_khz * pixel_size * latency_ns) / 1000000;
 	entries_required /= wm->cacheline_size;
@@ -1685,9 +1685,10 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 
 	DRM_DEBUG("FIFO watermark level: %d\n", wm_size);
 
-	if (wm_size > wm->max_wm)
+	/* Don't promote wm_size to unsigned... */
+	if (wm_size > (long)wm->max_wm)
 		wm_size = wm->max_wm;
-	if (wm_size == 0)
+	if (wm_size <= 0)
 		wm_size = wm->default_wm;
 	return wm_size;
 }
