@@ -1906,7 +1906,7 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 	cwm = 2;
 
 	/* Calc sr entries for one plane configs */
-	if (!planea_clock || !planeb_clock) {
+	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
 		/* self-refresh has much higher latency */
 		const static int sr_latency_ns = 6000;
 
@@ -1921,6 +1921,8 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 		srwm = total_size - sr_entries;
 		if (srwm < 0)
 			srwm = 1;
+		if (IS_I9XX(dev))
+			I915_WRITE(FW_BLC_SELF, (srwm & 0x3f));
 	}
 
 	DRM_DEBUG("Setting FIFO watermarks - A: %d, B: %d, C: %d, SR %d\n",
@@ -1935,8 +1937,6 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 
 	I915_WRITE(FW_BLC, fwater_lo);
 	I915_WRITE(FW_BLC2, fwater_hi);
-	if (IS_I9XX(dev))
-		I915_WRITE(FW_BLC_SELF, (srwm & 0x3f));
 }
 
 static void i830_update_wm(struct drm_device *dev, int planea_clock,
