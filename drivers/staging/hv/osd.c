@@ -232,20 +232,6 @@ void TimerClose(HANDLE hTimer)
 	kfree(t);
 }
 
-size_t GetTickCount(void)
-{
-	return jiffies;
-}
-
-signed long long GetTimestamp(void)
-{
-	struct timeval t;
-
-	do_gettimeofday(&t);
-
-	return  timeval_to_ns(&t);
-}
-
 HANDLE WaitEventCreate(void)
 {
 	WAITEVENT* wait = kmalloc(sizeof(WAITEVENT), GFP_KERNEL);

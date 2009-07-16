@@ -121,7 +121,6 @@ extern HANDLE TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
 extern void TimerClose(HANDLE hTimer);
 extern int TimerStop(HANDLE hTimer);
 extern void TimerStart(HANDLE hTimer, u32 expirationInUs);
-extern size_t GetTickCount(void);
 
 extern HANDLE WaitEventCreate(void);
 extern void WaitEventClose(HANDLE hWait);
