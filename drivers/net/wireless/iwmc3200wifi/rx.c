@@ -1359,7 +1359,7 @@ static void iwm_rx_process_packet(struct iwm_priv *iwm,
 
 		skb->dev = iwm_to_ndev(iwm);
 		skb->protocol = eth_type_trans(skb, ndev);
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		skb->ip_summed = CHECKSUM_NONE;
 		memset(skb->cb, 0, sizeof(skb->cb));
 
 		ndev->stats.rx_packets++;
