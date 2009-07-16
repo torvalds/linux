@@ -175,6 +175,8 @@ static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int i, j;
 
+	memset(perm_addr, 0xff, MAX_ADDR_LEN);
+
 	for (i = 0; i < netdev->addr_len; i++)
 		perm_addr[i] = adapter->hw.mac.perm_addr[i];
 
