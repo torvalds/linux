@@ -138,6 +138,7 @@ extern atomic_t nr_find_usage_backwards_recursions;
 #endif
 
 
+extern unsigned int max_bfs_queue_depth;
 extern unsigned long nr_list_entries;
 extern struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
 extern unsigned long bfs_accessed[];
@@ -191,7 +192,7 @@ static inline int __cq_dequeue(struct circular_queue *cq, unsigned long *elem)
 	return 0;
 }
 
-static inline int __cq_get_elem_count(struct circular_queue *cq)
+static inline unsigned int  __cq_get_elem_count(struct circular_queue *cq)
 {
 	return (cq->rear - cq->front)&(MAX_CIRCULAR_QUE_SIZE-1);
 }

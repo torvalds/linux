@@ -929,7 +929,7 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 
 unsigned long bfs_accessed[BITS_TO_LONGS(MAX_LOCKDEP_ENTRIES)];
 static struct circular_queue  lock_cq;
-
+unsigned int max_bfs_queue_depth;
 static int __bfs(struct lock_list *source_entry,
 			void *data,
 			int (*match)(struct lock_list *entry, void *data),
@@ -975,6 +975,7 @@ static int __bfs(struct lock_list *source_entry,
 
 		list_for_each_entry(entry, head, entry) {
 			if (!lock_accessed(entry)) {
+				unsigned int cq_depth;
 				mark_lock_accessed(entry, lock);
 				if (match(entry, data)) {
 					*target_entry = entry;
@@ -986,6 +987,9 @@ static int __bfs(struct lock_list *source_entry,
 					ret = -1;
 					goto exit;
 				}
+				cq_depth = __cq_get_elem_count(cq);
+				if (max_bfs_queue_depth < cq_depth)
+					max_bfs_queue_depth = cq_depth;
 			}
 		}
 	}
