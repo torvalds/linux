@@ -706,8 +706,9 @@ M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
 M:	Dirk Opfer <dirk@opfer-online.de>
 S:	Maintained
 
-ARM/PALMTX,PALMT5,PALMLD,PALMTE2 SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
+ARM/PALMTX,PALMT5,PALMLD,PALMTE2,PALMTC SUPPORT
+P:	Marek Vasut
+M:	marek.vasut@gmail.com
 W:	http://hackndev.com
 S:	Maintained
 
