@@ -229,10 +229,6 @@ struct ixgbe_q_vector {
 #define IXGBE_TX_CTXTDESC_ADV(R, i)	    \
 	(&(((struct ixgbe_adv_tx_context_desc *)((R).desc))[i]))
 
-#define IXGBE_GET_DESC(R, i, type)	(&(((struct type *)((R).desc))[i]))
-#define IXGBE_TX_DESC(R, i)	IXGBE_GET_DESC(R, i, ixgbe_legacy_tx_desc)
-#define IXGBE_RX_DESC(R, i)	IXGBE_GET_DESC(R, i, ixgbe_legacy_rx_desc)
-
 #define IXGBE_MAX_JUMBO_FRAME_SIZE        16128
 #ifdef IXGBE_FCOE
 /* Use 3K as the baby jumbo frame size for FCoE */
