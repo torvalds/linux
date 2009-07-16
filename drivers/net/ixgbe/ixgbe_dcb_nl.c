@@ -106,8 +106,6 @@ static u8 ixgbe_dcbnl_get_state(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	DPRINTK(DRV, INFO, "Get DCB Admin Mode.\n");
-
 	return !!(adapter->flags & IXGBE_FLAG_DCB_ENABLED);
 }
 
@@ -115,8 +113,6 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
 	u8 err = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	DPRINTK(DRV, INFO, "Set DCB Admin Mode.\n");
 
 	if (state > 0) {
 		/* Turn on DCB */
