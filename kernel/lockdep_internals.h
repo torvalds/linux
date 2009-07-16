@@ -219,9 +219,9 @@ static inline struct lock_list *get_lock_parent(struct lock_list *child)
 	return child->parent;
 }
 
-static inline unsigned long get_lock_depth(struct lock_list *child)
+static inline int get_lock_depth(struct lock_list *child)
 {
-	unsigned long depth = 0;
+	int depth = 0;
 	struct lock_list *parent;
 
 	while ((parent = get_lock_parent(child))) {
