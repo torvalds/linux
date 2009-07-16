@@ -512,6 +512,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	int i, len;
 	bool inval = false, rts = false, short_preamble = false;
 	struct ieee80211_tx_rate_control txrc;
+	u32 sta_flags;
 
 	memset(&txrc, 0, sizeof(txrc));
 
@@ -544,7 +545,26 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	     (tx->sta && test_sta_flags(tx->sta, WLAN_STA_SHORT_PREAMBLE))))
 		txrc.short_preamble = short_preamble = true;
 
+	sta_flags = tx->sta ? get_sta_flags(tx->sta) : 0;
 
+	/*
+	 * Lets not bother rate control if we're associated and cannot
+	 * talk to the sta. This should not happen.
+	 */
+	if (WARN((tx->local->sw_scanning) &&
+		 (sta_flags & WLAN_STA_ASSOC) &&
+		 !rate_usable_index_exists(sband, &tx->sta->sta),
+		 "%s: Dropped data frame as no usable bitrate found while "
+		 "scanning and associated. Target station: "
+		 "%pM on %d GHz band\n",
+		 tx->dev->name, hdr->addr1,
+		 tx->channel->band ? 5 : 2))
+		return TX_DROP;
+
+	/*
+	 * If we're associated with the sta at this point we know we can at
+	 * least send the frame at the lowest bit rate.
+	 */
 	rate_control_get_rate(tx->sdata, tx->sta, &txrc);
 
 	if (unlikely(info->control.rates[0].idx < 0))
