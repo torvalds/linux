@@ -704,6 +704,34 @@ enum da830_index {
 	DA830_GPIO2_10,
 };
 
+enum davinci_da850_index {
+	/* UART0 function */
+	DA850_NUART0_CTS,
+	DA850_NUART0_RTS,
+	DA850_UART0_RXD,
+	DA850_UART0_TXD,
+
+	/* UART1 function */
+	DA850_NUART1_CTS,
+	DA850_NUART1_RTS,
+	DA850_UART1_RXD,
+	DA850_UART1_TXD,
+
+	/* UART2 function */
+	DA850_NUART2_CTS,
+	DA850_NUART2_RTS,
+	DA850_UART2_RXD,
+	DA850_UART2_TXD,
+
+	/* I2C1 function */
+	DA850_I2C1_SCL,
+	DA850_I2C1_SDA,
+
+	/* I2C0 function */
+	DA850_I2C0_SDA,
+	DA850_I2C0_SCL,
+};
+
 #ifdef CONFIG_DAVINCI_MUX
 /* setup pin muxing */
 extern int davinci_cfg_reg(unsigned long reg_cfg);

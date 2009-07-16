@@ -59,6 +59,7 @@
 #define PINMUX19		0x4c
 
 void __init da830_init(void);
+void __init da850_init(void);
 
 int da8xx_register_edma(void);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
@@ -92,6 +93,12 @@ extern const short da830_ecap1_pins[];
 extern const short da830_ecap2_pins[];
 extern const short da830_eqep0_pins[];
 extern const short da830_eqep1_pins[];
+
+extern const short da850_uart0_pins[];
+extern const short da850_uart1_pins[];
+extern const short da850_uart2_pins[];
+extern const short da850_i2c0_pins[];
+extern const short da850_i2c1_pins[];
 
 int da8xx_pinmux_setup(const short pins[]);
 

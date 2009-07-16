@@ -33,6 +33,11 @@ config ARCH_DAVINCI_DA830
 	select CP_INTC
 	select ARCH_DAVINCI_DA8XX
 
+config ARCH_DAVINCI_DA850
+	bool "DA850/OMAP-L138 based system"
+	select CP_INTC
+	select ARCH_DAVINCI_DA8XX
+
 config ARCH_DAVINCI_DA8XX
 	bool
 
