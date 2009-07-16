@@ -6610,7 +6610,7 @@ static inline int should_resched(void)
 
 static void __cond_resched(void)
 {
-	__might_sleep(__FILE__, __LINE__);
+	__might_sleep(__FILE__, __LINE__, 0);
 
 	add_preempt_count(PREEMPT_ACTIVE);
 	schedule();
@@ -9429,13 +9429,20 @@ void __init sched_init(void)
 }
 
 #ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
-void __might_sleep(char *file, int line)
+static inline int preempt_count_equals(int preempt_offset)
+{
+	int nested = preempt_count() & ~PREEMPT_ACTIVE;
+
+	return (nested == PREEMPT_INATOMIC_BASE + preempt_offset);
+}
+
+void __might_sleep(char *file, int line, int preempt_offset)
 {
 #ifdef in_atomic
 	static unsigned long prev_jiffy;	/* ratelimiting */
 
-	if ((!in_atomic() && !irqs_disabled()) ||
-		    system_state != SYSTEM_RUNNING || oops_in_progress)
+	if ((preempt_count_equals(preempt_offset) && !irqs_disabled()) ||
+	    system_state != SYSTEM_RUNNING || oops_in_progress)
 		return;
 	if (time_before(jiffies, prev_jiffy + HZ) && prev_jiffy)
 		return;
