@@ -2305,8 +2305,6 @@ extern int __cond_resched_softirq(void);
 	__cond_resched_softirq();				\
 })
 
-#define cond_resched_bkl()	cond_resched()
-
 /*
  * Does a critical section need to be broken due to another
  * task waiting?: (technically does not depend on CONFIG_PREEMPT,
