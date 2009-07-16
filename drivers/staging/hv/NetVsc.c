@@ -24,6 +24,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/delay.h>
 #include "include/logging.h"
 #include "NetVsc.h"
 #include "RndisFilter.h"
@@ -200,7 +201,7 @@ static inline NETVSC_DEVICE* ReleaseOutboundNetDevice(DEVICE_OBJECT *Device)
 	// Busy wait until the ref drop to 2, then set it to 1
 	while (InterlockedCompareExchange(&netDevice->RefCount, 1, 2) != 2)
 	{
-		Sleep(100);
+		udelay(100);
 	}
 
 	return netDevice;
@@ -217,7 +218,7 @@ static inline NETVSC_DEVICE* ReleaseInboundNetDevice(DEVICE_OBJECT *Device)
 	// Busy wait until the ref drop to 1, then set it to 0
 	while (InterlockedCompareExchange(&netDevice->RefCount, 0, 1) != 1)
 	{
-		Sleep(100);
+		udelay(100);
 	}
 
 	Device->Extension = NULL;
@@ -923,7 +924,7 @@ NetVscOnDeviceRemove(
 	{
 		DPRINT_INFO(NETVSC, "waiting for %d requests to complete...", netDevice->NumOutstandingSends);
 
-		Sleep(100);
+		udelay(100);
 	}
 
 	DPRINT_INFO(NETVSC, "Disconnecting from netvsp...");
@@ -1318,7 +1319,7 @@ retry_send_cmplt:
 
 		if (retries < 4)
 		{
-			Sleep(100);
+			udelay(100);
 			goto retry_send_cmplt;
 		}
 		else

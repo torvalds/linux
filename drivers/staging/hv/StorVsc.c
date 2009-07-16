@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/delay.h>
 #include "include/logging.h"
 
 #include "include/StorVscApi.h"
@@ -225,7 +226,7 @@ static inline STORVSC_DEVICE* ReleaseStorDevice(DEVICE_OBJECT *Device)
 	// Busy wait until the ref drop to 2, then set it to 1
 	while (InterlockedCompareExchange(&storDevice->RefCount, 1, 2) != 2)
 	{
-		Sleep(100);
+		udelay(100);
 	}
 
 	return storDevice;
@@ -242,7 +243,7 @@ static inline STORVSC_DEVICE* FinalReleaseStorDevice(DEVICE_OBJECT *Device)
 	// Busy wait until the ref drop to 1, then set it to 0
 	while (InterlockedCompareExchange(&storDevice->RefCount, 0, 1) != 1)
 	{
-		Sleep(100);
+		udelay(100);
 	}
 
 	Device->Extension = NULL;
@@ -582,7 +583,7 @@ StorVscOnDeviceRemove(
 	{
 		DPRINT_INFO(STORVSC, "waiting for %d requests to complete...", storDevice->NumOutstandingRequests);
 
-		Sleep(100);
+		udelay(100);
 	}
 
 	DPRINT_INFO(STORVSC, "removing storage device (%p)...", Device->Extension);

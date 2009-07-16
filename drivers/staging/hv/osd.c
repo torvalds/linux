@@ -131,11 +131,6 @@ int InterlockedCompareExchange(int *val, int new, int curr)
 
 }
 
-void Sleep(unsigned long usecs)
-{
-	udelay(usecs);
-}
-
 void* VirtualAllocExec(unsigned int size)
 {
 #ifdef __x86_64__
