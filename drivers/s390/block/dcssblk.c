@@ -964,7 +964,8 @@ static int dcssblk_freeze(struct device *dev)
 			break;
 	}
 	if (rc)
-		pr_err("Suspend failed because device %s is writeable.\n",
+		pr_err("Suspending the system failed because DCSS device %s "
+		       "is writable\n",
 		       dev_info->segment_name);
 	return rc;
 }
@@ -987,8 +988,8 @@ static int dcssblk_restore(struct device *dev)
 				goto out_panic;
 			}
 			if (start != entry->start || end != entry->end) {
-				pr_err("Mismatch of start / end address after "
-				       "resuming device %s\n",
+				pr_err("The address range of DCSS %s changed "
+				       "while the system was suspended\n",
 				       entry->segment_name);
 				goto out_panic;
 			}

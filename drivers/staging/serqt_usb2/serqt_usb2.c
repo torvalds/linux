@@ -866,7 +866,7 @@ static void qt_release(struct usb_serial *serial)
 
 }
 
-int qt_open(struct tty_struct *tty,
+static int qt_open(struct tty_struct *tty,
 	    struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_serial *serial;
@@ -1041,17 +1041,19 @@ static void qt_block_until_empty(struct tty_struct *tty,
 	}
 }
 
-static void qt_close(struct tty_struct *tty, struct usb_serial_port *port,
-		     struct file *filp)
+static void qt_close( struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct quatech_port *qt_port;
 	struct quatech_port *port0;
+	struct tty_struct *tty;
 	int status;
 	unsigned int index;
 	status = 0;
 
 	dbg("%s - port %d\n", __func__, port->number);
+
+	tty = tty_port_tty_get(&port->port);
 	index = tty->index - serial->minor;
 
 	qt_port = qt_get_port_private(port);

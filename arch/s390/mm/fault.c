@@ -22,7 +22,6 @@
 #include <linux/compat.h>
 #include <linux/smp.h>
 #include <linux/kdebug.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/module.h>

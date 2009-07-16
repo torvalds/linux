@@ -29,7 +29,6 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include <linux/pagevec.h>
 #include <linux/namei.h>
 #include <linux/mount.h>

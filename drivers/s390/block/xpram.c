@@ -443,7 +443,7 @@ fail:
  */
 static void xpram_resume_error(const char *message)
 {
-	pr_err("Resume error: %s\n", message);
+	pr_err("Resuming the system failed: %s\n", message);
 	panic("xpram resume error\n");
 }
 

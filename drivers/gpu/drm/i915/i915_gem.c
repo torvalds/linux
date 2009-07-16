@@ -1252,6 +1252,31 @@ out_free_list:
 	return ret;
 }
 
+/**
+ * i915_gem_release_mmap - remove physical page mappings
+ * @obj: obj in question
+ *
+ * Preserve the reservation of the mmaping with the DRM core code, but
+ * relinquish ownership of the pages back to the system.
+ *
+ * It is vital that we remove the page mapping if we have mapped a tiled
+ * object through the GTT and then lose the fence register due to
+ * resource pressure. Similarly if the object has been moved out of the
+ * aperture, than pages mapped into userspace must be revoked. Removing the
+ * mapping will then trigger a page fault on the next user access, allowing
+ * fixup by i915_gem_fault().
+ */
+void
+i915_gem_release_mmap(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	if (dev->dev_mapping)
+		unmap_mapping_range(dev->dev_mapping,
+				    obj_priv->mmap_offset, obj->size, 1);
+}
+
 static void
 i915_gem_free_mmap_offset(struct drm_gem_object *obj)
 {
@@ -1861,7 +1886,6 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
-	loff_t offset;
 	int ret = 0;
 
 #if WATCH_BUF
@@ -1898,9 +1922,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	BUG_ON(obj_priv->active);
 
 	/* blow away mappings if mapped through GTT */
-	offset = ((loff_t) obj->map_list.hash.key) << PAGE_SHIFT;
-	if (dev->dev_mapping)
-		unmap_mapping_range(dev->dev_mapping, offset, obj->size, 1);
+	i915_gem_release_mmap(obj);
 
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
 		i915_gem_clear_fence_reg(obj);
@@ -2222,7 +2244,6 @@ try_again:
 	/* None available, try to steal one or wait for a user to finish */
 	if (i == dev_priv->num_fence_regs) {
 		uint32_t seqno = dev_priv->mm.next_gem_seqno;
-		loff_t offset;
 
 		if (avail == 0)
 			return -ENOSPC;
@@ -2274,10 +2295,7 @@ try_again:
 		 * Zap this virtual mapping so we can set up a fence again
 		 * for this object next time we need it.
 		 */
-		offset = ((loff_t) reg->obj->map_list.hash.key) << PAGE_SHIFT;
-		if (dev->dev_mapping)
-			unmap_mapping_range(dev->dev_mapping, offset,
-					    reg->obj->size, 1);
+		i915_gem_release_mmap(reg->obj);
 		old_obj_priv->fence_reg = I915_FENCE_REG_NONE;
 	}
 

@@ -42,9 +42,9 @@
  * Instead:  allocate your own, using normal USB-IF procedures.
  */
 
-/* Thanks to NetChip Technologies for donating this product ID. */
-#define AUDIO_VENDOR_NUM		0x0525	/* NetChip */
-#define AUDIO_PRODUCT_NUM		0xa4a1	/* Linux-USB Audio Gadget */
+/* Thanks to Linux Foundation for donating this product ID. */
+#define AUDIO_VENDOR_NUM		0x1d6b	/* Linux Foundation */
+#define AUDIO_PRODUCT_NUM		0x0101	/* Linux-USB Audio Gadget */
 
 /*-------------------------------------------------------------------------*/
 

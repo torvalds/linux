@@ -222,23 +222,12 @@ static void i915_restore_vga(struct drm_device *dev)
 	I915_WRITE8(VGA_DACMASK, dev_priv->saveDACMASK);
 }
 
-int i915_save_state(struct drm_device *dev)
+static void i915_save_modeset_reg(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i;
 
-	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
-
-	/* Render Standby */
-	if (IS_I965G(dev) && IS_MOBILE(dev))
-		dev_priv->saveRENDERSTANDBY = I915_READ(MCHBAR_RENDER_STANDBY);
-
-	/* Hardware status page */
-	dev_priv->saveHWS = I915_READ(HWS_PGA);
-
-	/* Display arbitration control */
-	dev_priv->saveDSPARB = I915_READ(DSPARB);
-
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
 	/* Pipe & plane A info */
 	dev_priv->savePIPEACONF = I915_READ(PIPEACONF);
 	dev_priv->savePIPEASRC = I915_READ(PIPEASRC);
@@ -294,7 +283,122 @@ int i915_save_state(struct drm_device *dev)
 	}
 	i915_save_palette(dev, PIPE_B);
 	dev_priv->savePIPEBSTAT = I915_READ(PIPEBSTAT);
+	return;
+}
+static void i915_restore_modeset_reg(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	/* Pipe & plane A info */
+	/* Prime the clock */
+	if (dev_priv->saveDPLL_A & DPLL_VCO_ENABLE) {
+		I915_WRITE(DPLL_A, dev_priv->saveDPLL_A &
+			   ~DPLL_VCO_ENABLE);
+		DRM_UDELAY(150);
+	}
+	I915_WRITE(FPA0, dev_priv->saveFPA0);
+	I915_WRITE(FPA1, dev_priv->saveFPA1);
+	/* Actually enable it */
+	I915_WRITE(DPLL_A, dev_priv->saveDPLL_A);
+	DRM_UDELAY(150);
+	if (IS_I965G(dev))
+		I915_WRITE(DPLL_A_MD, dev_priv->saveDPLL_A_MD);
+	DRM_UDELAY(150);
+
+	/* Restore mode */
+	I915_WRITE(HTOTAL_A, dev_priv->saveHTOTAL_A);
+	I915_WRITE(HBLANK_A, dev_priv->saveHBLANK_A);
+	I915_WRITE(HSYNC_A, dev_priv->saveHSYNC_A);
+	I915_WRITE(VTOTAL_A, dev_priv->saveVTOTAL_A);
+	I915_WRITE(VBLANK_A, dev_priv->saveVBLANK_A);
+	I915_WRITE(VSYNC_A, dev_priv->saveVSYNC_A);
+	I915_WRITE(BCLRPAT_A, dev_priv->saveBCLRPAT_A);
+
+	/* Restore plane info */
+	I915_WRITE(DSPASIZE, dev_priv->saveDSPASIZE);
+	I915_WRITE(DSPAPOS, dev_priv->saveDSPAPOS);
+	I915_WRITE(PIPEASRC, dev_priv->savePIPEASRC);
+	I915_WRITE(DSPAADDR, dev_priv->saveDSPAADDR);
+	I915_WRITE(DSPASTRIDE, dev_priv->saveDSPASTRIDE);
+	if (IS_I965G(dev)) {
+		I915_WRITE(DSPASURF, dev_priv->saveDSPASURF);
+		I915_WRITE(DSPATILEOFF, dev_priv->saveDSPATILEOFF);
+	}
+
+	I915_WRITE(PIPEACONF, dev_priv->savePIPEACONF);
+
+	i915_restore_palette(dev, PIPE_A);
+	/* Enable the plane */
+	I915_WRITE(DSPACNTR, dev_priv->saveDSPACNTR);
+	I915_WRITE(DSPAADDR, I915_READ(DSPAADDR));
+
+	/* Pipe & plane B info */
+	if (dev_priv->saveDPLL_B & DPLL_VCO_ENABLE) {
+		I915_WRITE(DPLL_B, dev_priv->saveDPLL_B &
+			   ~DPLL_VCO_ENABLE);
+		DRM_UDELAY(150);
+	}
+	I915_WRITE(FPB0, dev_priv->saveFPB0);
+	I915_WRITE(FPB1, dev_priv->saveFPB1);
+	/* Actually enable it */
+	I915_WRITE(DPLL_B, dev_priv->saveDPLL_B);
+	DRM_UDELAY(150);
+	if (IS_I965G(dev))
+		I915_WRITE(DPLL_B_MD, dev_priv->saveDPLL_B_MD);
+	DRM_UDELAY(150);
+
+	/* Restore mode */
+	I915_WRITE(HTOTAL_B, dev_priv->saveHTOTAL_B);
+	I915_WRITE(HBLANK_B, dev_priv->saveHBLANK_B);
+	I915_WRITE(HSYNC_B, dev_priv->saveHSYNC_B);
+	I915_WRITE(VTOTAL_B, dev_priv->saveVTOTAL_B);
+	I915_WRITE(VBLANK_B, dev_priv->saveVBLANK_B);
+	I915_WRITE(VSYNC_B, dev_priv->saveVSYNC_B);
+	I915_WRITE(BCLRPAT_B, dev_priv->saveBCLRPAT_B);
+
+	/* Restore plane info */
+	I915_WRITE(DSPBSIZE, dev_priv->saveDSPBSIZE);
+	I915_WRITE(DSPBPOS, dev_priv->saveDSPBPOS);
+	I915_WRITE(PIPEBSRC, dev_priv->savePIPEBSRC);
+	I915_WRITE(DSPBADDR, dev_priv->saveDSPBADDR);
+	I915_WRITE(DSPBSTRIDE, dev_priv->saveDSPBSTRIDE);
+	if (IS_I965G(dev)) {
+		I915_WRITE(DSPBSURF, dev_priv->saveDSPBSURF);
+		I915_WRITE(DSPBTILEOFF, dev_priv->saveDSPBTILEOFF);
+	}
+
+	I915_WRITE(PIPEBCONF, dev_priv->savePIPEBCONF);
+
+	i915_restore_palette(dev, PIPE_B);
+	/* Enable the plane */
+	I915_WRITE(DSPBCNTR, dev_priv->saveDSPBCNTR);
+	I915_WRITE(DSPBADDR, I915_READ(DSPBADDR));
+
+	return;
+}
+int i915_save_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	pci_read_config_byte(dev->pdev, LBB, &dev_priv->saveLBB);
+
+	/* Render Standby */
+	if (IS_I965G(dev) && IS_MOBILE(dev))
+		dev_priv->saveRENDERSTANDBY = I915_READ(MCHBAR_RENDER_STANDBY);
+
+	/* Hardware status page */
+	dev_priv->saveHWS = I915_READ(HWS_PGA);
+
+	/* Display arbitration control */
+	dev_priv->saveDSPARB = I915_READ(DSPARB);
+
+	/* This is only meaningful in non-KMS mode */
+	/* Don't save them in KMS mode */
+	i915_save_modeset_reg(dev);
 	/* Cursor state */
 	dev_priv->saveCURACNTR = I915_READ(CURACNTR);
 	dev_priv->saveCURAPOS = I915_READ(CURAPOS);
@@ -430,92 +534,9 @@ int i915_restore_state(struct drm_device *dev)
 		I915_WRITE(PIPEA_DP_LINK_N, dev_priv->savePIPEA_DP_LINK_N);
 		I915_WRITE(PIPEB_DP_LINK_N, dev_priv->savePIPEB_DP_LINK_N);
 	}
-	
-	/* Pipe & plane A info */
-	/* Prime the clock */
-	if (dev_priv->saveDPLL_A & DPLL_VCO_ENABLE) {
-		I915_WRITE(DPLL_A, dev_priv->saveDPLL_A &
-			   ~DPLL_VCO_ENABLE);
-		DRM_UDELAY(150);
-	}
-	I915_WRITE(FPA0, dev_priv->saveFPA0);
-	I915_WRITE(FPA1, dev_priv->saveFPA1);
-	/* Actually enable it */
-	I915_WRITE(DPLL_A, dev_priv->saveDPLL_A);
-	DRM_UDELAY(150);
-	if (IS_I965G(dev))
-		I915_WRITE(DPLL_A_MD, dev_priv->saveDPLL_A_MD);
-	DRM_UDELAY(150);
-
-	/* Restore mode */
-	I915_WRITE(HTOTAL_A, dev_priv->saveHTOTAL_A);
-	I915_WRITE(HBLANK_A, dev_priv->saveHBLANK_A);
-	I915_WRITE(HSYNC_A, dev_priv->saveHSYNC_A);
-	I915_WRITE(VTOTAL_A, dev_priv->saveVTOTAL_A);
-	I915_WRITE(VBLANK_A, dev_priv->saveVBLANK_A);
-	I915_WRITE(VSYNC_A, dev_priv->saveVSYNC_A);
-	I915_WRITE(BCLRPAT_A, dev_priv->saveBCLRPAT_A);
-
-	/* Restore plane info */
-	I915_WRITE(DSPASIZE, dev_priv->saveDSPASIZE);
-	I915_WRITE(DSPAPOS, dev_priv->saveDSPAPOS);
-	I915_WRITE(PIPEASRC, dev_priv->savePIPEASRC);
-	I915_WRITE(DSPAADDR, dev_priv->saveDSPAADDR);
-	I915_WRITE(DSPASTRIDE, dev_priv->saveDSPASTRIDE);
-	if (IS_I965G(dev)) {
-		I915_WRITE(DSPASURF, dev_priv->saveDSPASURF);
-		I915_WRITE(DSPATILEOFF, dev_priv->saveDSPATILEOFF);
-	}
-
-	I915_WRITE(PIPEACONF, dev_priv->savePIPEACONF);
-
-	i915_restore_palette(dev, PIPE_A);
-	/* Enable the plane */
-	I915_WRITE(DSPACNTR, dev_priv->saveDSPACNTR);
-	I915_WRITE(DSPAADDR, I915_READ(DSPAADDR));
-
-	/* Pipe & plane B info */
-	if (dev_priv->saveDPLL_B & DPLL_VCO_ENABLE) {
-		I915_WRITE(DPLL_B, dev_priv->saveDPLL_B &
-			   ~DPLL_VCO_ENABLE);
-		DRM_UDELAY(150);
-	}
-	I915_WRITE(FPB0, dev_priv->saveFPB0);
-	I915_WRITE(FPB1, dev_priv->saveFPB1);
-	/* Actually enable it */
-	I915_WRITE(DPLL_B, dev_priv->saveDPLL_B);
-	DRM_UDELAY(150);
-	if (IS_I965G(dev))
-		I915_WRITE(DPLL_B_MD, dev_priv->saveDPLL_B_MD);
-	DRM_UDELAY(150);
-
-	/* Restore mode */
-	I915_WRITE(HTOTAL_B, dev_priv->saveHTOTAL_B);
-	I915_WRITE(HBLANK_B, dev_priv->saveHBLANK_B);
-	I915_WRITE(HSYNC_B, dev_priv->saveHSYNC_B);
-	I915_WRITE(VTOTAL_B, dev_priv->saveVTOTAL_B);
-	I915_WRITE(VBLANK_B, dev_priv->saveVBLANK_B);
-	I915_WRITE(VSYNC_B, dev_priv->saveVSYNC_B);
-	I915_WRITE(BCLRPAT_B, dev_priv->saveBCLRPAT_B);
-
-	/* Restore plane info */
-	I915_WRITE(DSPBSIZE, dev_priv->saveDSPBSIZE);
-	I915_WRITE(DSPBPOS, dev_priv->saveDSPBPOS);
-	I915_WRITE(PIPEBSRC, dev_priv->savePIPEBSRC);
-	I915_WRITE(DSPBADDR, dev_priv->saveDSPBADDR);
-	I915_WRITE(DSPBSTRIDE, dev_priv->saveDSPBSTRIDE);
-	if (IS_I965G(dev)) {
-		I915_WRITE(DSPBSURF, dev_priv->saveDSPBSURF);
-		I915_WRITE(DSPBTILEOFF, dev_priv->saveDSPBTILEOFF);
-	}
-
-	I915_WRITE(PIPEBCONF, dev_priv->savePIPEBCONF);
-
-	i915_restore_palette(dev, PIPE_B);
-	/* Enable the plane */
-	I915_WRITE(DSPBCNTR, dev_priv->saveDSPBCNTR);
-	I915_WRITE(DSPBADDR, I915_READ(DSPBADDR));
-
+	/* This is only meaningful in non-KMS mode */
+	/* Don't restore them in KMS mode */
+	i915_restore_modeset_reg(dev);
 	/* Cursor state */
 	I915_WRITE(CURAPOS, dev_priv->saveCURAPOS);
 	I915_WRITE(CURACNTR, dev_priv->saveCURACNTR);

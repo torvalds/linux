@@ -3,8 +3,9 @@
 
 #include <linux/types.h>
 #include "types.h"
-#include "list.h"
-#include "rbtree.h"
+#include <linux/list.h>
+#include <linux/rbtree.h>
+#include "module.h"
 
 struct symbol {
 	struct rb_node	rb_node;
@@ -13,6 +14,7 @@ struct symbol {
 	u64		obj_start;
 	u64		hist_sum;
 	u64		*hist;
+	struct module	*module;
 	void		*priv;
 	char		name[0];
 };
@@ -22,7 +24,7 @@ struct dso {
 	struct rb_root	 syms;
 	struct symbol    *(*find_symbol)(struct dso *, u64 ip);
 	unsigned int	 sym_priv_size;
-	unsigned char	 prelinked;
+	unsigned char	 adjust_symbols;
 	char		 name[0];
 };
 
@@ -41,7 +43,8 @@ static inline void *dso__sym_priv(struct dso *self, struct symbol *sym)
 struct symbol *dso__find_symbol(struct dso *self, u64 ip);
 
 int dso__load_kernel(struct dso *self, const char *vmlinux,
-		     symbol_filter_t filter, int verbose);
+		     symbol_filter_t filter, int verbose, int modules);
+int dso__load_modules(struct dso *self, symbol_filter_t filter, int verbose);
 int dso__load(struct dso *self, symbol_filter_t filter, int verbose);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);

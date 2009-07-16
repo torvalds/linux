@@ -320,7 +320,7 @@ static int mon_open(struct inode *inode, struct file *filp)
 		goto out_path;
 	}
 	filp->private_data = monpriv;
-	dev_set_drvdata(&monreader_device, monpriv);
+	dev_set_drvdata(monreader_device, monpriv);
 	unlock_kernel();
 	return nonseekable_open(inode, filp);
 
@@ -463,7 +463,7 @@ static struct miscdevice mon_dev = {
  *****************************************************************************/
 static int monreader_freeze(struct device *dev)
 {
-	struct mon_private *monpriv = dev_get_drvdata(&dev);
+	struct mon_private *monpriv = dev_get_drvdata(dev);
 	int rc;
 
 	if (!monpriv)

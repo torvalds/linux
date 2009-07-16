@@ -456,6 +456,7 @@ int mpc5200_audio_dma_create(struct of_device *op)
 		return -ENODEV;
 
 	spin_lock_init(&psc_dma->lock);
+	mutex_init(&psc_dma->mutex);
 	psc_dma->id = be32_to_cpu(*prop);
 	psc_dma->irq = irq;
 	psc_dma->psc_regs = regs;

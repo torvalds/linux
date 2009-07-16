@@ -498,6 +498,15 @@ struct task_cputime {
 		.sum_exec_runtime = 0,				\
 	}
 
+/*
+ * Disable preemption until the scheduler is running.
+ * Reset by start_kernel()->sched_init()->init_idle().
+ *
+ * We include PREEMPT_ACTIVE to avoid cond_resched() from working
+ * before the scheduler is active -- see should_resched().
+ */
+#define INIT_PREEMPT_COUNT	(1 + PREEMPT_ACTIVE)
+
 /**
  * struct thread_group_cputimer - thread group interval timer counts
  * @cputime:		thread group interval timers.
