@@ -2285,17 +2285,12 @@ static inline int need_resched(void)
  * cond_resched_softirq() will enable bhs before scheduling.
  */
 extern int _cond_resched(void);
-#ifdef CONFIG_PREEMPT_BKL
-static inline int cond_resched(void)
-{
-	return 0;
-}
-#else
+
 static inline int cond_resched(void)
 {
 	return _cond_resched();
 }
-#endif
+
 extern int cond_resched_lock(spinlock_t * lock);
 extern int cond_resched_softirq(void);
 static inline int cond_resched_bkl(void)
