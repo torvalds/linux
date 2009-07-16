@@ -274,14 +274,6 @@ static const struct ieee80211_rate mwl8k_rates[] = {
 	{ .bitrate = 540, .hw_value = 108, },
 };
 
-/* Slot time */
-
-/* Short Slot: 9us slot time */
-#define MWL8K_SHORT_SLOTTIME		1
-
-/* Long slot: 20us slot time */
-#define MWL8K_LONG_SLOTTIME		0
-
 /* Set or get info from Firmware */
 #define MWL8K_CMD_SET			0x0001
 #define MWL8K_CMD_GET			0x0000
@@ -1895,7 +1887,7 @@ struct mwl8k_cmd_set_slot {
 	__u8 short_slot;
 } __attribute__((packed));
 
-static int mwl8k_cmd_set_slot(struct ieee80211_hw *hw, int slot_time)
+static int mwl8k_cmd_set_slot(struct ieee80211_hw *hw, bool short_slot_time)
 {
 	struct mwl8k_cmd_set_slot *cmd;
 	int rc;
@@ -1907,7 +1899,7 @@ static int mwl8k_cmd_set_slot(struct ieee80211_hw *hw, int slot_time)
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_SLOT);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le16(MWL8K_CMD_SET);
-	cmd->short_slot = slot_time == MWL8K_SHORT_SLOTTIME ? 1 : 0;
+	cmd->short_slot = short_slot_time;
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	kfree(cmd);
@@ -3038,8 +3030,7 @@ static int mwl8k_bss_info_changed_wt(struct work_struct *wt)
 			goto mwl8k_bss_info_changed_exit;
 
 		/* Set slot time */
-		if (mwl8k_cmd_set_slot(hw, info->use_short_slot ?
-				MWL8K_SHORT_SLOTTIME : MWL8K_LONG_SLOTTIME))
+		if (mwl8k_cmd_set_slot(hw, info->use_short_slot))
 			goto mwl8k_bss_info_changed_exit;
 
 		/* Update peer rate info */
