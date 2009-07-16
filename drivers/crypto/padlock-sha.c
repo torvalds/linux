@@ -94,6 +94,7 @@ static int padlock_sha1_finup(struct shash_desc *desc, const u8 *in,
 			memcpy(state.buffer + leftover, in, count);
 			in = state.buffer;
 			count += leftover;
+			state.count &= ~(SHA1_BLOCK_SIZE - 1);
 		}
 	}
 
@@ -157,6 +158,7 @@ static int padlock_sha256_finup(struct shash_desc *desc, const u8 *in,
 			memcpy(state.buf + leftover, in, count);
 			in = state.buf;
 			count += leftover;
+			state.count &= ~(SHA1_BLOCK_SIZE - 1);
 		}
 	}
 
