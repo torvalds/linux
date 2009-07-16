@@ -144,11 +144,10 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 
 	/* setup reset_value */
 	for (i = 0; i < NUM_VIRT_COUNTERS; ++i) {
-		if (counter_config[i].enabled) {
+		if (counter_config[i].enabled)
 			reset_value[i] = counter_config[i].count;
-		} else {
+		else
 			reset_value[i] = 0;
-		}
 	}
 
 	/* clear all counters */
