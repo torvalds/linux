@@ -98,6 +98,10 @@ struct p54_hdr {
 	(!((((struct p54_hdr *) ((struct sk_buff *) skb)->data)->	\
 	flags) & cpu_to_le16(P54_HDR_FLAG_CONTROL)))
 
+#define GET_HW_QUEUE(skb)						\
+	(((struct p54_tx_data *)((struct p54_hdr *)			\
+	skb->data)->data)->hw_queue)
+
 /*
  * shared interface ID definitions
  * The interface ID is a unique identification of a specific interface.

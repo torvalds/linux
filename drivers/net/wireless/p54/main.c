@@ -130,7 +130,6 @@ static int p54_beacon_update(struct p54_common *priv,
 			struct ieee80211_vif *vif)
 {
 	struct sk_buff *beacon;
-	__le32 old_beacon_req_id;
 	int ret;
 
 	beacon = ieee80211_beacon_get(priv->hw, vif);
@@ -140,15 +139,16 @@ static int p54_beacon_update(struct p54_common *priv,
 	if (ret)
 		return ret;
 
-	old_beacon_req_id = priv->beacon_req_id;
-	priv->beacon_req_id = GET_REQ_ID(beacon);
-
-	ret = p54_tx_80211(priv->hw, beacon);
-	if (ret) {
-		priv->beacon_req_id = old_beacon_req_id;
-		return -ENOSPC;
-	}
-
+	/*
+	 * During operation, the firmware takes care of beaconing.
+	 * The driver only needs to upload a new beacon template, once
+	 * the template was changed by the stack or userspace.
+	 *
+	 * LMAC API 3.2.2 also specifies that the driver does not need
+	 * to cancel the old beacon template by hand, instead the firmware
+	 * will release the previous one through the feedback mechanism.
+	 */
+	WARN_ON(p54_tx_80211(priv->hw, beacon));
 	priv->tsf_high32 = 0;
 	priv->tsf_low32 = 0;
 
@@ -253,9 +253,14 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 
 	mutex_lock(&priv->conf_mutex);
 	priv->vif = NULL;
-	if (priv->beacon_req_id) {
+
+	/*
+	 * LMAC API 3.2.2 states that any active beacon template must be
+	 * canceled by the driver before attempting a mode transition.
+	 */
+	if (le32_to_cpu(priv->beacon_req_id) != 0) {
 		p54_tx_cancel(priv, priv->beacon_req_id);
-		priv->beacon_req_id = cpu_to_le32(0);
+		wait_for_completion_interruptible_timeout(&priv->beacon_comp, HZ);
 	}
 	priv->mode = NL80211_IFTYPE_MONITOR;
 	memset(priv->mac_addr, 0, ETH_ALEN);
@@ -544,6 +549,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 				      BIT(NL80211_IFTYPE_MESH_POINT);
 
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
+	priv->beacon_req_id = cpu_to_le32(0);
 	priv->tx_stats[P54_QUEUE_BEACON].limit = 1;
 	priv->tx_stats[P54_QUEUE_FWSCAN].limit = 1;
 	priv->tx_stats[P54_QUEUE_MGMT].limit = 3;
@@ -567,6 +573,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	mutex_init(&priv->conf_mutex);
 	mutex_init(&priv->eeprom_mutex);
 	init_completion(&priv->eeprom_comp);
+	init_completion(&priv->beacon_comp);
 	INIT_DELAYED_WORK(&priv->work, p54_work);
 
 	return dev;

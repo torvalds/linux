@@ -211,6 +211,7 @@ struct p54_common {
 	u16 aid;
 	bool powersave_override;
 	__le32 beacon_req_id;
+	struct completion beacon_comp;
 
 	/* cryptographic engine information */
 	u8 privacy_caps;

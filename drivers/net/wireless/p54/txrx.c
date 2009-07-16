@@ -134,9 +134,13 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 	range = (void *) info->rate_driver_data;
 	range->start_addr = target_addr;
 	range->end_addr = target_addr + len;
+	data->req_id = cpu_to_le32(target_addr + priv->headroom);
+	if (IS_DATA_FRAME(skb) &&
+	    unlikely(GET_HW_QUEUE(skb) == P54_QUEUE_BEACON))
+		priv->beacon_req_id = data->req_id;
+
 	__skb_queue_after(&priv->tx_queue, target_skb, skb);
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
-	data->req_id = cpu_to_le32(target_addr + priv->headroom);
 	return 0;
 }
 
@@ -209,13 +213,19 @@ static void p54_tx_qos_accounting_free(struct p54_common *priv,
 				       struct sk_buff *skb)
 {
 	if (IS_DATA_FRAME(skb)) {
-		struct p54_hdr *hdr = (void *) skb->data;
-		struct p54_tx_data *data = (void *) hdr->data;
 		unsigned long flags;
 
 		spin_lock_irqsave(&priv->tx_stats_lock, flags);
-		priv->tx_stats[data->hw_queue].len--;
+		priv->tx_stats[GET_HW_QUEUE(skb)].len--;
 		spin_unlock_irqrestore(&priv->tx_stats_lock, flags);
+
+		if (unlikely(GET_HW_QUEUE(skb) == P54_QUEUE_BEACON)) {
+			if (priv->beacon_req_id == GET_REQ_ID(skb)) {
+				/* this is the  active beacon set anymore */
+				priv->beacon_req_id = 0;
+			}
+			complete(&priv->beacon_comp);
+		}
 	}
 	p54_wake_queues(priv);
 }
@@ -403,10 +413,6 @@ static void p54_rx_frame_sent(struct p54_common *priv, struct sk_buff *skb)
 	 * and we don't want to confuse the mac80211 stack.
 	 */
 	if (unlikely(entry_data->hw_queue < P54_QUEUE_FWSCAN)) {
-		if (entry_data->hw_queue == P54_QUEUE_BEACON &&
-		    hdr->req_id == priv->beacon_req_id)
-			priv->beacon_req_id = cpu_to_le32(0);
-
 		dev_kfree_skb_any(entry);
 		return ;
 	}
