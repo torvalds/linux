@@ -53,6 +53,20 @@ config MACH_PCM970_BASEBOARD
 
 endchoice
 
+config MACH_EUKREA_CPUIMX27
+	bool "Eukrea CPUIMX27 module"
+	depends on MACH_MX27
+	help
+	  Include support for Eukrea CPUIMX27 platform. This includes
+	  specific configurations for the module and its peripherals.
+
+config MACH_EUKREA_CPUIMX27_USESDHC2
+	bool "CPUIMX27 integrates SDHC2 module"
+	depends on MACH_EUKREA_CPUIMX27
+	help
+	  This adds support for the internal SDHC2 used on CPUIMX27 used
+	  for wifi or eMMC.
+
 config MACH_MX27_3DS
 	bool "MX27PDK platform"
 	depends on MACH_MX27
