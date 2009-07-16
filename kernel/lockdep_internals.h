@@ -91,6 +91,8 @@ extern unsigned int nr_process_chains;
 extern unsigned int max_lockdep_depth;
 extern unsigned int max_recursion_depth;
 
+extern unsigned int max_bfs_queue_depth;
+
 #ifdef CONFIG_PROVE_LOCKING
 extern unsigned long lockdep_count_forward_deps(struct lock_class *);
 extern unsigned long lockdep_count_backward_deps(struct lock_class *);
@@ -136,98 +138,3 @@ extern atomic_t nr_find_usage_backwards_recursions;
 # define debug_atomic_dec(ptr)		do { } while (0)
 # define debug_atomic_read(ptr)		0
 #endif
-
-
-extern unsigned int max_bfs_queue_depth;
-extern unsigned long nr_list_entries;
-extern struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
-extern unsigned long bfs_accessed[];
-
-/*For good efficiency of modular, we use power of 2*/
-#define  MAX_CIRCULAR_QUE_SIZE	    4096UL
-
-/* The circular_queue and helpers is used to implement the
- * breadth-first search(BFS)algorithem, by which we can build
- * the shortest path from the next lock to be acquired to the
- * previous held lock if there is a circular between them.
- * */
-struct circular_queue{
-	unsigned long element[MAX_CIRCULAR_QUE_SIZE];
-	unsigned int  front, rear;
-};
-
-static inline void __cq_init(struct circular_queue *cq)
-{
-	cq->front = cq->rear = 0;
-	bitmap_zero(bfs_accessed, MAX_LOCKDEP_ENTRIES);
-}
-
-static inline int __cq_empty(struct circular_queue *cq)
-{
-	return (cq->front == cq->rear);
-}
-
-static inline int __cq_full(struct circular_queue *cq)
-{
-	return ((cq->rear + 1)&(MAX_CIRCULAR_QUE_SIZE-1))  == cq->front;
-}
-
-static inline int __cq_enqueue(struct circular_queue *cq, unsigned long elem)
-{
-	if (__cq_full(cq))
-		return -1;
-
-	cq->element[cq->rear] = elem;
-	cq->rear = (cq->rear + 1)&(MAX_CIRCULAR_QUE_SIZE-1);
-	return 0;
-}
-
-static inline int __cq_dequeue(struct circular_queue *cq, unsigned long *elem)
-{
-	if (__cq_empty(cq))
-		return -1;
-
-	*elem = cq->element[cq->front];
-	cq->front = (cq->front + 1)&(MAX_CIRCULAR_QUE_SIZE-1);
-	return 0;
-}
-
-static inline unsigned int  __cq_get_elem_count(struct circular_queue *cq)
-{
-	return (cq->rear - cq->front)&(MAX_CIRCULAR_QUE_SIZE-1);
-}
-
-static inline void mark_lock_accessed(struct lock_list *lock,
-					struct lock_list *parent)
-{
-	unsigned long nr;
-	nr = lock - list_entries;
-	WARN_ON(nr >= nr_list_entries);
-	lock->parent = parent;
-	set_bit(nr, bfs_accessed);
-}
-
-static inline unsigned long lock_accessed(struct lock_list *lock)
-{
-	unsigned long nr;
-	nr = lock - list_entries;
-	WARN_ON(nr >= nr_list_entries);
-	return test_bit(nr, bfs_accessed);
-}
-
-static inline struct lock_list *get_lock_parent(struct lock_list *child)
-{
-	return child->parent;
-}
-
-static inline int get_lock_depth(struct lock_list *child)
-{
-	int depth = 0;
-	struct lock_list *parent;
-
-	while ((parent = get_lock_parent(child))) {
-		child = parent;
-		depth++;
-	}
-	return depth;
-}

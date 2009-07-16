@@ -58,7 +58,6 @@ struct lock_class {
 
 	struct lockdep_subclass_key	*key;
 	unsigned int			subclass;
-	unsigned int			dep_gen_id;
 
 	/*
 	 * IRQ/softirq usage tracking bits:
@@ -150,9 +149,9 @@ struct lock_list {
 	struct stack_trace		trace;
 	int				distance;
 
-	/*The parent field is used to implement breadth-first search,and
-	 *the bit 0 is reused to indicate if the lock has been accessed
-	 *in BFS.
+	/*
+	 * The parent field is used to implement breadth-first search, and the
+	 * bit 0 is reused to indicate if the lock has been accessed in BFS.
 	 */
 	struct lock_list		*parent;
 };

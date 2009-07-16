@@ -43,6 +43,7 @@
 #include <linux/ftrace.h>
 #include <linux/stringify.h>
 #include <linux/bitops.h>
+
 #include <asm/sections.h>
 
 #include "lockdep_internals.h"
@@ -118,7 +119,7 @@ static inline int debug_locks_off_graph_unlock(void)
 static int lockdep_initialized;
 
 unsigned long nr_list_entries;
-struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
+static struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
 
 /*
  * All data structures here are protected by the global debug_lock.
@@ -390,19 +391,6 @@ unsigned int nr_process_chains;
 unsigned int max_lockdep_depth;
 unsigned int max_recursion_depth;
 
-static unsigned int lockdep_dependency_gen_id;
-
-static bool lockdep_dependency_visit(struct lock_class *source,
-				     unsigned int depth)
-{
-	if (!depth)
-		lockdep_dependency_gen_id++;
-	if (source->dep_gen_id == lockdep_dependency_gen_id)
-		return true;
-	source->dep_gen_id = lockdep_dependency_gen_id;
-	return false;
-}
-
 #ifdef CONFIG_DEBUG_LOCKDEP
 /*
  * We cannot printk in early bootup code. Not even early_printk()
@@ -548,88 +536,6 @@ static void lockdep_print_held_locks(struct task_struct *curr)
 	for (i = 0; i < depth; i++) {
 		printk(" #%d: ", i);
 		print_lock(curr->held_locks + i);
-	}
-}
-
-static void print_lock_class_header(struct lock_class *class, int depth)
-{
-	int bit;
-
-	printk("%*s->", depth, "");
-	print_lock_name(class);
-	printk(" ops: %lu", class->ops);
-	printk(" {\n");
-
-	for (bit = 0; bit < LOCK_USAGE_STATES; bit++) {
-		if (class->usage_mask & (1 << bit)) {
-			int len = depth;
-
-			len += printk("%*s   %s", depth, "", usage_str[bit]);
-			len += printk(" at:\n");
-			print_stack_trace(class->usage_traces + bit, len);
-		}
-	}
-	printk("%*s }\n", depth, "");
-
-	printk("%*s ... key      at: ",depth,"");
-	print_ip_sym((unsigned long)class->key);
-}
-
-/*
- * printk the shortest lock dependencies from @start to @end in reverse order:
- */
-static void __used
-print_shortest_lock_dependencies(struct lock_list *leaf,
-				struct lock_list *root)
-{
-	struct lock_list *entry = leaf;
-	int depth;
-
-	/*compute depth from generated tree by BFS*/
-	depth = get_lock_depth(leaf);
-
-	do {
-		print_lock_class_header(entry->class, depth);
-		printk("%*s ... acquired at:\n", depth, "");
-		print_stack_trace(&entry->trace, 2);
-		printk("\n");
-
-		if (depth == 0 && (entry != root)) {
-			printk("lockdep:%s bad BFS generated tree\n", __func__);
-			break;
-		}
-
-		entry = get_lock_parent(entry);
-		depth--;
-	} while (entry && (depth >= 0));
-
-	return;
-}
-/*
- * printk all lock dependencies starting at <entry>:
- */
-static void __used
-print_lock_dependencies(struct lock_class *class, int depth)
-{
-	struct lock_list *entry;
-
-	if (lockdep_dependency_visit(class, depth))
-		return;
-
-	if (DEBUG_LOCKS_WARN_ON(depth >= 20))
-		return;
-
-	print_lock_class_header(class, depth);
-
-	list_for_each_entry(entry, &class->locks_after, entry) {
-		if (DEBUG_LOCKS_WARN_ON(!entry->class))
-			return;
-
-		print_lock_dependencies(entry->class, depth + 1);
-
-		printk("%*s ... acquired at:\n",depth,"");
-		print_stack_trace(&entry->trace, 2);
-		printk("\n");
 	}
 }
 
@@ -927,14 +833,106 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 	return 1;
 }
 
-unsigned long bfs_accessed[BITS_TO_LONGS(MAX_LOCKDEP_ENTRIES)];
-static struct circular_queue  lock_cq;
+/*For good efficiency of modular, we use power of 2*/
+#define MAX_CIRCULAR_QUEUE_SIZE		4096UL
+#define CQ_MASK				(MAX_CIRCULAR_QUEUE_SIZE-1)
+
+/* The circular_queue and helpers is used to implement the
+ * breadth-first search(BFS)algorithem, by which we can build
+ * the shortest path from the next lock to be acquired to the
+ * previous held lock if there is a circular between them.
+ * */
+struct circular_queue {
+	unsigned long element[MAX_CIRCULAR_QUEUE_SIZE];
+	unsigned int  front, rear;
+};
+
+static struct circular_queue lock_cq;
+static unsigned long bfs_accessed[BITS_TO_LONGS(MAX_LOCKDEP_ENTRIES)];
+
 unsigned int max_bfs_queue_depth;
+
+static inline void __cq_init(struct circular_queue *cq)
+{
+	cq->front = cq->rear = 0;
+	bitmap_zero(bfs_accessed, MAX_LOCKDEP_ENTRIES);
+}
+
+static inline int __cq_empty(struct circular_queue *cq)
+{
+	return (cq->front == cq->rear);
+}
+
+static inline int __cq_full(struct circular_queue *cq)
+{
+	return ((cq->rear + 1) & CQ_MASK) == cq->front;
+}
+
+static inline int __cq_enqueue(struct circular_queue *cq, unsigned long elem)
+{
+	if (__cq_full(cq))
+		return -1;
+
+	cq->element[cq->rear] = elem;
+	cq->rear = (cq->rear + 1) & CQ_MASK;
+	return 0;
+}
+
+static inline int __cq_dequeue(struct circular_queue *cq, unsigned long *elem)
+{
+	if (__cq_empty(cq))
+		return -1;
+
+	*elem = cq->element[cq->front];
+	cq->front = (cq->front + 1) & CQ_MASK;
+	return 0;
+}
+
+static inline unsigned int  __cq_get_elem_count(struct circular_queue *cq)
+{
+	return (cq->rear - cq->front) & CQ_MASK;
+}
+
+static inline void mark_lock_accessed(struct lock_list *lock,
+					struct lock_list *parent)
+{
+	unsigned long nr;
+	nr = lock - list_entries;
+	WARN_ON(nr >= nr_list_entries);
+	lock->parent = parent;
+	set_bit(nr, bfs_accessed);
+}
+
+static inline unsigned long lock_accessed(struct lock_list *lock)
+{
+	unsigned long nr;
+	nr = lock - list_entries;
+	WARN_ON(nr >= nr_list_entries);
+	return test_bit(nr, bfs_accessed);
+}
+
+static inline struct lock_list *get_lock_parent(struct lock_list *child)
+{
+	return child->parent;
+}
+
+static inline int get_lock_depth(struct lock_list *child)
+{
+	int depth = 0;
+	struct lock_list *parent;
+
+	while ((parent = get_lock_parent(child))) {
+		child = parent;
+		depth++;
+	}
+	return depth;
+}
+
 static int __bfs(struct lock_list *source_entry,
-			void *data,
-			int (*match)(struct lock_list *entry, void *data),
-			struct lock_list **target_entry,
-			int forward)
+		 void *data,
+		 int (*match)(struct lock_list *entry, void *data),
+		 struct lock_list **target_entry,
+		 int forward)
 {
 	struct lock_list *entry;
 	struct list_head *head;
@@ -1202,14 +1200,6 @@ check_noncircular(struct lock_list *root, struct lock_class *target,
  * without creating any illegal irq-safe -> irq-unsafe lock dependency.
  */
 
-
-#define   BFS_PROCESS_RET(ret)	do { \
-					if (ret < 0) \
-						return print_bfs_bug(ret); \
-					if (ret == 1) \
-						return 1; \
-				} while (0)
-
 static inline int usage_match(struct lock_list *entry, void *bit)
 {
 	return entry->class->usage_mask & (1 << (enum lock_usage_bit)bit);
@@ -1263,6 +1253,60 @@ find_usage_backwards(struct lock_list *root, enum lock_usage_bit bit,
 	return result;
 }
 
+static void print_lock_class_header(struct lock_class *class, int depth)
+{
+	int bit;
+
+	printk("%*s->", depth, "");
+	print_lock_name(class);
+	printk(" ops: %lu", class->ops);
+	printk(" {\n");
+
+	for (bit = 0; bit < LOCK_USAGE_STATES; bit++) {
+		if (class->usage_mask & (1 << bit)) {
+			int len = depth;
+
+			len += printk("%*s   %s", depth, "", usage_str[bit]);
+			len += printk(" at:\n");
+			print_stack_trace(class->usage_traces + bit, len);
+		}
+	}
+	printk("%*s }\n", depth, "");
+
+	printk("%*s ... key      at: ",depth,"");
+	print_ip_sym((unsigned long)class->key);
+}
+
+/*
+ * printk the shortest lock dependencies from @start to @end in reverse order:
+ */
+static void __used
+print_shortest_lock_dependencies(struct lock_list *leaf,
+				struct lock_list *root)
+{
+	struct lock_list *entry = leaf;
+	int depth;
+
+	/*compute depth from generated tree by BFS*/
+	depth = get_lock_depth(leaf);
+
+	do {
+		print_lock_class_header(entry->class, depth);
+		printk("%*s ... acquired at:\n", depth, "");
+		print_stack_trace(&entry->trace, 2);
+		printk("\n");
+
+		if (depth == 0 && (entry != root)) {
+			printk("lockdep:%s bad BFS generated tree\n", __func__);
+			break;
+		}
+
+		entry = get_lock_parent(entry);
+		depth--;
+	} while (entry && (depth >= 0));
+
+	return;
+}
 
 static int
 print_bad_irq_dependency(struct task_struct *curr,
@@ -1349,12 +1393,18 @@ check_usage(struct task_struct *curr, struct held_lock *prev,
 
 	this.class = hlock_class(prev);
 	ret = find_usage_backwards(&this, bit_backwards, &target_entry);
-	BFS_PROCESS_RET(ret);
+	if (ret < 0)
+		return print_bfs_bug(ret);
+	if (ret == 1)
+		return ret;
 
 	that.parent = NULL;
 	that.class = hlock_class(next);
 	ret = find_usage_forwards(&that, bit_forwards, &target_entry1);
-	BFS_PROCESS_RET(ret);
+	if (ret < 0)
+		return print_bfs_bug(ret);
+	if (ret == 1)
+		return ret;
 
 	return print_bad_irq_dependency(curr, &this, &that,
 			target_entry, target_entry1,
@@ -2038,7 +2088,10 @@ check_usage_forwards(struct task_struct *curr, struct held_lock *this,
 	root.parent = NULL;
 	root.class = hlock_class(this);
 	ret = find_usage_forwards(&root, bit, &target_entry);
-	BFS_PROCESS_RET(ret);
+	if (ret < 0)
+		return print_bfs_bug(ret);
+	if (ret == 1)
+		return ret;
 
 	return print_irq_inversion_bug(curr, &root, target_entry,
 					this, 1, irqclass);
@@ -2059,7 +2112,10 @@ check_usage_backwards(struct task_struct *curr, struct held_lock *this,
 	root.parent = NULL;
 	root.class = hlock_class(this);
 	ret = find_usage_backwards(&root, bit, &target_entry);
-	BFS_PROCESS_RET(ret);
+	if (ret < 0)
+		return print_bfs_bug(ret);
+	if (ret == 1)
+		return ret;
 
 	return print_irq_inversion_bug(curr, &root, target_entry,
 					this, 1, irqclass);
