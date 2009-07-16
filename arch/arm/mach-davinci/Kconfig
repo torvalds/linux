@@ -101,6 +101,13 @@ config MACH_DAVINCI_DA830_EVM
 	help
 	  Say Y here to select the TI DA830/OMAP-L137 Evaluation Module.
 
+config MACH_DAVINCI_DA850_EVM
+	bool "TI DA850/OMAP-L138 Reference Platform"
+	default ARCH_DAVINCI_DA850
+	depends on ARCH_DAVINCI_DA850
+	help
+	  Say Y here to select the TI DA850/OMAP-L138 Evaluation Module.
+
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"
 	depends on ARCH_DAVINCI

@@ -26,7 +26,8 @@
 		movne	\rx, #0xfe000000	@ virtual base
 #if defined(CONFIG_ARCH_DAVINCI_DA8XX) && defined(CONFIG_ARCH_DAVINCI_DMx)
 #error Cannot enable DaVinci and DA8XX platforms concurrently
-#elif defined(CONFIG_MACH_DAVINCI_DA830_EVM)
+#elif defined(CONFIG_MACH_DAVINCI_DA830_EVM) || \
+	defined(CONFIG_MACH_DAVINCI_DA850_EVM)
 		orr	\rx, \rx, #0x00d00000	@ physical base address
 		orr	\rx, \rx, #0x0000d000	@ of UART 2
 #else
