@@ -558,6 +558,13 @@ static struct cfg80211_ops iwm_cfg80211_ops = {
 	.set_power_mgmt = iwm_cfg80211_set_power_mgmt,
 };
 
+static const u32 cipher_suites[] = {
+	WLAN_CIPHER_SUITE_WEP40,
+	WLAN_CIPHER_SUITE_WEP104,
+	WLAN_CIPHER_SUITE_TKIP,
+	WLAN_CIPHER_SUITE_CCMP,
+};
+
 struct wireless_dev *iwm_wdev_alloc(int sizeof_bus, struct device *dev)
 {
 	int ret = 0;
@@ -599,6 +606,9 @@ struct wireless_dev *iwm_wdev_alloc(int sizeof_bus, struct device *dev)
 	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &iwm_band_2ghz;
 	wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &iwm_band_5ghz;
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+
+	wdev->wiphy->cipher_suites = cipher_suites;
+	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
 	ret = wiphy_register(wdev->wiphy);
 	if (ret < 0) {
