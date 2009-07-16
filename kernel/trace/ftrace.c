@@ -1403,18 +1403,13 @@ static int t_hash_show(struct seq_file *m, void *v)
 {
 	struct ftrace_func_probe *rec;
 	struct hlist_node *hnd = v;
-	char str[KSYM_SYMBOL_LEN];
 
 	rec = hlist_entry(hnd, struct ftrace_func_probe, node);
 
 	if (rec->ops->print)
 		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
 
-	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-	seq_printf(m, "%s:", str);
-
-	kallsyms_lookup((unsigned long)rec->ops->func, NULL, NULL, NULL, str);
-	seq_printf(m, "%s", str);
+	seq_printf(m, "%pf:%pf", (void *)rec->ip, (void *)rec->ops->func);
 
 	if (rec->data)
 		seq_printf(m, ":%p", rec->data);
@@ -1512,7 +1507,6 @@ static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = v;
-	char str[KSYM_SYMBOL_LEN];
 
 	if (iter->flags & FTRACE_ITER_HASH)
 		return t_hash_show(m, v);
@@ -1525,9 +1519,7 @@ static int t_show(struct seq_file *m, void *v)
 	if (!rec)
 		return 0;
 
-	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-
-	seq_printf(m, "%s\n", str);
+	seq_printf(m, "%pf\n", (void *)rec->ip);
 
 	return 0;
 }
@@ -2508,7 +2500,6 @@ static void g_stop(struct seq_file *m, void *p)
 static int g_show(struct seq_file *m, void *v)
 {
 	unsigned long *ptr = v;
-	char str[KSYM_SYMBOL_LEN];
 
 	if (!ptr)
 		return 0;
@@ -2518,9 +2509,7 @@ static int g_show(struct seq_file *m, void *v)
 		return 0;
 	}
 
-	kallsyms_lookup(*ptr, NULL, NULL, NULL, str);
-
-	seq_printf(m, "%s\n", str);
+	seq_printf(m, "%pf\n", v);
 
 	return 0;
 }
