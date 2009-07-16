@@ -313,6 +313,10 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 		if (*pbf == 'x') { /* vm_exec */
 			char *execname = strchr(bf, '/');
 
+			/* Catch VDSO */
+			if (execname == NULL)
+				execname = strstr(bf, "[vdso]");
+
 			if (execname == NULL)
 				continue;
 
