@@ -128,25 +128,36 @@ iSeries_secondary_smp_loop:
 data_access_iSeries:
 	mtspr	SPRN_SPRG_SCRATCH0,r13
 BEGIN_FTR_SECTION
-	mtspr	SPRN_SPRG_SCRATCH1,r12
-	mfspr	r13,SPRN_DAR
-	mfspr	r12,SPRN_DSISR
-	srdi	r13,r13,60
-	rlwimi	r13,r12,16,0x20
-	mfcr	r12
-	cmpwi	r13,0x2c
+	mfspr	r13,SPRN_SPRG_PACA
+	std	r9,PACA_EXSLB+EX_R9(r13)
+	std	r10,PACA_EXSLB+EX_R10(r13)
+	mfspr	r10,SPRN_DAR
+	mfspr	r9,SPRN_DSISR
+	srdi	r10,r10,60
+	rlwimi	r10,r9,16,0x20
+	mfcr	r9
+	cmpwi	r10,0x2c
 	beq	.do_stab_bolted_iSeries
-	mtcrf	0x80,r12
-	mfspr	r12,SPRN_SPRG_SCRATCH1
-END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
+	ld	r10,PACA_EXSLB+EX_R10(r13)
+	std	r11,PACA_EXGEN+EX_R11(r13)
+	ld	r11,PACA_EXSLB+EX_R9(r13)
+	std	r12,PACA_EXGEN+EX_R12(r13)
+	mfspr	r12,SPRN_SPRG_SCRATCH0
+	std	r10,PACA_EXGEN+EX_R10(r13)
+	std	r11,PACA_EXGEN+EX_R9(r13)
+	std	r12,PACA_EXGEN+EX_R13(r13)
+	EXCEPTION_PROLOG_ISERIES_1
+FTR_SECTION_ELSE
 	EXCEPTION_PROLOG_1(PACA_EXGEN)
 	EXCEPTION_PROLOG_ISERIES_1
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_SLB)
 	b	data_access_common
 
 .do_stab_bolted_iSeries:
-	mtcrf	0x80,r12
-	mfspr	r12,SPRN_SPRG_SCRATCH1
-	EXCEPTION_PROLOG_1(PACA_EXSLB)
+	std	r11,PACA_EXSLB+EX_R11(r13)
+	std	r12,PACA_EXSLB+EX_R12(r13)
+	mfspr	r10,SPRN_SPRG_SCRATCH0
+	std	r10,PACA_EXSLB+EX_R13(r13)
 	EXCEPTION_PROLOG_ISERIES_1
 	b	.do_stab_bolted
 

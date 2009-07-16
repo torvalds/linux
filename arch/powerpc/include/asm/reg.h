@@ -654,7 +654,7 @@
  * 64-bit server:
  *	- SPRG0 unused (reserved for HV on Power4)
  *	- SPRG1 scratch for exception vectors
- *	- SPRG2 scratch for exception vectors
+ *	- SPRG2 unused
  *
  * All 32-bit:
  *	- SPRG3 current thread_info pointer
@@ -707,7 +707,6 @@
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG1
-#define SPRN_SPRG_SCRATCH1	SPRN_SPRG2
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_32

@@ -66,8 +66,7 @@
 	std	r9,area+EX_R13(r13);					\
 	mfcr	r9
 
-#define EXCEPTION_PROLOG_PSERIES(area, label)				\
-	EXCEPTION_PROLOG_1(area);					\
+#define EXCEPTION_PROLOG_PSERIES_1(label)				\
 	ld	r12,PACAKBASE(r13);	/* get high part of &label */	\
 	ld	r10,PACAKMSR(r13);	/* get MSR value for kernel */	\
 	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
@@ -77,6 +76,10 @@
 	mtspr	SPRN_SRR1,r10;						\
 	rfid;								\
 	b	.	/* prevent speculative execution */
+
+#define EXCEPTION_PROLOG_PSERIES(area, label)				\
+	EXCEPTION_PROLOG_1(area);					\
+	EXCEPTION_PROLOG_PSERIES_1(label);
 
 /*
  * The common exception prolog is used for all except a few exceptions
