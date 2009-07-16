@@ -2286,17 +2286,26 @@ static inline int need_resched(void)
  */
 extern int _cond_resched(void);
 
-static inline int cond_resched(void)
-{
-	return _cond_resched();
-}
+#define cond_resched() ({			\
+	__might_sleep(__FILE__, __LINE__, 0);	\
+	_cond_resched();			\
+})
 
-extern int cond_resched_lock(spinlock_t * lock);
-extern int cond_resched_softirq(void);
-static inline int cond_resched_bkl(void)
-{
-	return _cond_resched();
-}
+extern int __cond_resched_lock(spinlock_t *lock);
+
+#define cond_resched_lock(lock) ({				\
+	__might_sleep(__FILE__, __LINE__, PREEMPT_OFFSET);	\
+	__cond_resched_lock(lock);				\
+})
+
+extern int __cond_resched_softirq(void);
+
+#define cond_resched_softirq() ({				\
+	__might_sleep(__FILE__, __LINE__, SOFTIRQ_OFFSET);	\
+	__cond_resched_softirq();				\
+})
+
+#define cond_resched_bkl()	cond_resched()
 
 /*
  * Does a critical section need to be broken due to another
