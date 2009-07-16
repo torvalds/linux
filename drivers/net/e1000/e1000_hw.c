@@ -3035,7 +3035,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
                 /* If TBI compatibility is was previously off, turn it on. For
                  * compatibility with a TBI link partner, we will store bad
                  * packets. Some frames have an additional byte on the end and
-                 * will look like CRC errors to to the hardware.
+                 * will look like CRC errors to the hardware.
                  */
                 if (!hw->tbi_compatibility_on) {
                     hw->tbi_compatibility_on = true;

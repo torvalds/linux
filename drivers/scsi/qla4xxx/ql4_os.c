@@ -1422,7 +1422,7 @@ static void qla4xxx_slave_destroy(struct scsi_device *sdev)
 /**
  * qla4xxx_del_from_active_array - returns an active srb
  * @ha: Pointer to host adapter structure.
- * @index: index into to the active_array
+ * @index: index into the active_array
  *
  * This routine removes and returns the srb at the specified index
  **/
@@ -1500,7 +1500,7 @@ static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha)
 
 /**
  * qla4xxx_eh_wait_for_commands - wait for active cmds to finish.
- * @ha: pointer to to HBA
+ * @ha: pointer to HBA
  * @t: target id
  * @l: lun id
  *

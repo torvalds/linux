@@ -2540,7 +2540,7 @@ static int calc_baud_rate_divisor(int baudrate, int *divisor)
 
 /*****************************************************************************
  * send_cmd_write_uart_register
- *  this function builds up a uart register message and sends to to the device.
+ *  this function builds up a uart register message and sends to the device.
  *****************************************************************************/
 static int send_cmd_write_uart_register(struct edgeport_port *edge_port,
 						__u8 regNum, __u8 regValue)

@@ -570,7 +570,7 @@ void ubi_do_get_volume_info(struct ubi_device *ubi, struct ubi_volume *vol,
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.
- * @rb: a pointer to type 'struct rb_node' to to use as a loop counter
+ * @rb: a pointer to type 'struct rb_node' to use as a loop counter
  * @pos: a pointer to RB-tree entry type to use as a loop counter
  * @root: RB-tree's root
  * @member: the name of the 'struct rb_node' within the RB-tree entry
