@@ -584,12 +584,6 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key)
 	struct iwm_umac_key_tkip *tkip = (struct iwm_umac_key_tkip *)cmd;
 	struct iwm_umac_key_ccmp *ccmp = (struct iwm_umac_key_ccmp *)cmd;
 
-	/*
-	 * We check if our current profile is valid.
-	 * If not, we dont push the key, we just cache them,
-	 * so that with the next siwsessid call, the keys
-	 * will be actually pushed.
-	 */
 	if (!remove) {
 		ret = iwm_check_profile(iwm);
 		if (ret < 0)
@@ -727,7 +721,7 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key)
 
 int iwm_send_mlme_profile(struct iwm_priv *iwm)
 {
-	int ret, i;
+	int ret;
 	struct iwm_umac_profile profile;
 
 	memcpy(&profile, iwm->umac_profile, sizeof(profile));
@@ -741,27 +735,6 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 		IWM_ERR(iwm, "Send profile command failed\n");
 		return ret;
 	}
-
-	for (i = 0; i < IWM_NUM_KEYS; i++)
-		if (iwm->keys[i].key_len) {
-			struct iwm_key *key = &iwm->keys[i];
-
-			/* Wait for the profile before sending the keys */
-			wait_event_interruptible_timeout(iwm->mlme_queue,
-			     (test_bit(IWM_STATUS_ASSOCIATING, &iwm->status) ||
-			      test_bit(IWM_STATUS_ASSOCIATED, &iwm->status)),
-							 3 * HZ);
-
-			ret = iwm_set_key(iwm, 0, key);
-			if (ret)
-				return ret;
-
-			if (iwm->default_key == i) {
-				ret = iwm_set_tx_key(iwm, i);
-				if (ret)
-					return ret;
-			}
-		}
 
 	return 0;
 }

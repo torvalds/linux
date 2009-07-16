@@ -158,34 +158,6 @@ static int iwm_key_init(struct iwm_key *key, u8 key_index,
 	return 0;
 }
 
-static int iwm_reset_profile(struct iwm_priv *iwm)
-{
-	int ret;
-
-	if (!iwm->umac_profile_active)
-		return 0;
-
-	/*
-	 * If there is a current active profile, but no
-	 * default key, it's not worth trying to associate again.
-	 */
-	if (iwm->default_key < 0)
-		return 0;
-
-	/*
-	 * Here we have an active profile, but a key setting changed.
-	 * We thus have to invalidate the current profile, and push the
-	 * new one. Keys will be pushed when association takes place.
-	 */
-	ret = iwm_invalidate_mlme_profile(iwm);
-	if (ret < 0) {
-		IWM_ERR(iwm, "Couldn't invalidate profile\n");
-		return ret;
-	}
-
-	return iwm_send_mlme_profile(iwm);
-}
-
 static int iwm_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 				u8 key_index, const u8 *mac_addr,
 				struct key_params *params)
@@ -245,10 +217,6 @@ static int iwm_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 	if (key_index == iwm->default_key)
 		iwm->default_key = -1;
 
-	/* If the interface is down, we just cache this */
-	if (!test_bit(IWM_STATUS_READY, &iwm->status))
-		return 0;
-
 	return iwm_set_key(iwm, 1, key);
 }
 
@@ -257,7 +225,6 @@ static int iwm_cfg80211_set_default_key(struct wiphy *wiphy,
 					u8 key_index)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
-	int ret;
 
 	IWM_DBG_WEXT(iwm, DBG, "Default key index is: %d\n", key_index);
 
@@ -268,15 +235,7 @@ static int iwm_cfg80211_set_default_key(struct wiphy *wiphy,
 
 	iwm->default_key = key_index;
 
-	/* If the interface is down, we just cache this */
-	if (!test_bit(IWM_STATUS_READY, &iwm->status))
-		return 0;
-
-	ret = iwm_set_tx_key(iwm, key_index);
-	if (ret < 0)
-		return ret;
-
-	return iwm_reset_profile(iwm);
+	return iwm_set_tx_key(iwm, key_index);
 }
 
 int iwm_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
