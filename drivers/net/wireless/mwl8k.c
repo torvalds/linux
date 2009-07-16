@@ -111,17 +111,6 @@ struct mwl8k_rx_queue {
 	struct sk_buff **rx_skb;
 };
 
-struct mwl8k_skb {
-	/*
-	 * The DMA engine requires a modification to the payload.
-	 * If the skbuff is shared/cloned, it needs to be unshared.
-	 * This method is used to ensure the stack always gets back
-	 * the skbuff it sent for transmission.
-	 */
-	struct sk_buff *clone;
-	struct sk_buff *skb;
-};
-
 struct mwl8k_tx_queue {
 	/* hw transmits here */
 	int tx_head;
@@ -132,7 +121,7 @@ struct mwl8k_tx_queue {
 	struct ieee80211_tx_queue_stats tx_stats;
 	struct mwl8k_tx_desc *tx_desc_area;
 	dma_addr_t tx_desc_dma;
-	struct mwl8k_skb *tx_skb;
+	struct sk_buff **tx_skb;
 };
 
 /* Pointers to the firmware data and meta information about it.  */
@@ -714,12 +703,11 @@ struct mwl8k_dma_data {
 } __attribute__((packed));
 
 /* Routines to add/remove DMA header from skb.  */
-static inline int mwl8k_remove_dma_header(struct sk_buff *skb)
+static inline void mwl8k_remove_dma_header(struct sk_buff *skb)
 {
-	struct mwl8k_dma_data *tr = (struct mwl8k_dma_data *)(skb->data);
+	struct mwl8k_dma_data *tr = (struct mwl8k_dma_data *)skb->data;
 	void *dst, *src = &tr->wh;
-	__le16 fc = tr->wh.frame_control;
-	int hdrlen = ieee80211_hdrlen(fc);
+	int hdrlen = ieee80211_hdrlen(tr->wh.frame_control);
 	u16 space = sizeof(struct mwl8k_dma_data) - hdrlen;
 
 	dst = (void *)tr + space;
@@ -727,11 +715,9 @@ static inline int mwl8k_remove_dma_header(struct sk_buff *skb)
 		memmove(dst, src, hdrlen);
 		skb_pull(skb, space);
 	}
-
-	return 0;
 }
 
-static inline struct sk_buff *mwl8k_add_dma_header(struct sk_buff *skb)
+static inline void mwl8k_add_dma_header(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *wh;
 	u32 hdrlen, pktlen;
@@ -763,8 +749,6 @@ static inline struct sk_buff *mwl8k_add_dma_header(struct sk_buff *skb)
 	 * This includes all crypto material including the MIC.
 	 */
 	tr->fwlen = cpu_to_le16(pktlen - hdrlen);
-
-	return skb;
 }
 
 
@@ -967,10 +951,7 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 					MWL8K_RX_MAXSZ, PCI_DMA_FROMDEVICE);
 
 		skb_put(skb, le16_to_cpu(rx_desc->pkt_len));
-		if (mwl8k_remove_dma_header(skb)) {
-			dev_kfree_skb(skb);
-			continue;
-		}
+		mwl8k_remove_dma_header(skb);
 
 		wh = (struct ieee80211_hdr *)skb->data;
 
@@ -1224,7 +1205,6 @@ static void mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int force)
 
 	while (txq->tx_stats.len > 0) {
 		int tx;
-		int rc;
 		struct mwl8k_tx_desc *tx_desc;
 		unsigned long addr;
 		int size;
@@ -1232,7 +1212,6 @@ static void mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int force)
 		struct ieee80211_tx_info *info;
 		u32 status;
 
-		rc = 0;
 		tx = txq->tx_head;
 		tx_desc = txq->tx_desc_area + tx;
 
@@ -1252,39 +1231,17 @@ static void mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int force)
 
 		addr = le32_to_cpu(tx_desc->pkt_phys_addr);
 		size = le16_to_cpu(tx_desc->pkt_len);
-		skb = txq->tx_skb[tx].skb;
-		txq->tx_skb[tx].skb = NULL;
+		skb = txq->tx_skb[tx];
+		txq->tx_skb[tx] = NULL;
 
 		BUG_ON(skb == NULL);
 		pci_unmap_single(priv->pdev, addr, size, PCI_DMA_TODEVICE);
 
-		rc = mwl8k_remove_dma_header(skb);
+		mwl8k_remove_dma_header(skb);
 
 		/* Mark descriptor as unused */
 		tx_desc->pkt_phys_addr = 0;
 		tx_desc->pkt_len = 0;
-
-		if (txq->tx_skb[tx].clone) {
-			/* Replace with original skb
-			 * before returning to stack
-			 * as buffer has been cloned
-			 */
-			dev_kfree_skb(skb);
-			skb = txq->tx_skb[tx].clone;
-			txq->tx_skb[tx].clone = NULL;
-		}
-
-		if (rc) {
-			/* Something has gone wrong here.
-			 * Failed to remove DMA header.
-			 * Print error message and drop packet.
-			 */
-			printk(KERN_ERR "%s: Error removing DMA header from "
-					"tx skb 0x%p.\n", priv->name, skb);
-
-			dev_kfree_skb(skb);
-			continue;
-		}
 
 		info = IEEE80211_SKB_CB(skb);
 		ieee80211_tx_info_clear_status(info);
@@ -1327,7 +1284,6 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	struct mwl8k_tx_desc *tx;
 	struct mwl8k_dma_data *tr;
 	struct mwl8k_vif *mwl8k_vif;
-	struct sk_buff *org_skb = skb;
 	dma_addr_t dma;
 	u16 qos = 0;
 	bool qosframe = false, ampduframe = false;
@@ -1338,21 +1294,12 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	txq = priv->txq + index;
 	tx = txq->tx_desc_area + txq->tx_tail;
 
-	BUG_ON(txq->tx_skb[txq->tx_tail].skb != NULL);
+	BUG_ON(txq->tx_skb[txq->tx_tail] != NULL);
 
 	/*
-	 * Append HW DMA header to start of packet.  Drop packet if
-	 * there is not enough space or a failure to unshare/unclone
-	 * the skb.
+	 * Append HW DMA header to start of packet.
 	 */
-	skb = mwl8k_add_dma_header(skb);
-
-	if (skb == NULL) {
-		printk(KERN_DEBUG "%s: failed to prepend HW DMA "
-			"header, dropping TX frame.\n", priv->name);
-		dev_kfree_skb(org_skb);
-		return NETDEV_TX_OK;
-	}
+	mwl8k_add_dma_header(skb);
 
 	tx_info = IEEE80211_SKB_CB(skb);
 	mwl8k_vif = MWL8K_VIF(tx_info->control.vif);
@@ -1380,8 +1327,6 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 		printk(KERN_DEBUG "%s: failed to dma map skb, "
 			"dropping TX frame.\n", priv->name);
 
-		if (org_skb != NULL)
-			dev_kfree_skb(org_skb);
 		if (skb != NULL)
 			dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
@@ -1437,9 +1382,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	tx->pkt_phys_addr = cpu_to_le32(dma);
 	tx->pkt_len = cpu_to_le16(skb->len);
 
-	txq->tx_skb[txq->tx_tail].skb = skb;
-	txq->tx_skb[txq->tx_tail].clone =
-		skb == org_skb ? NULL : org_skb;
+	txq->tx_skb[txq->tx_tail] = skb;
 
 	spin_lock_bh(&priv->tx_lock);
 
