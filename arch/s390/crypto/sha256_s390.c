@@ -55,7 +55,7 @@ static int sha256_export(struct shash_desc *desc, void *out)
 
 static int sha256_import(struct shash_desc *desc, const u8 *in)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
+	struct s390_sha_ctx *sctx = shash_desc_ctx(desc);
 	struct sha256_state *ictx = in;
 
 	sctx->count = ictx->count;
