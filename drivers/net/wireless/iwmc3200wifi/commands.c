@@ -87,8 +87,7 @@ int iwm_send_wifi_if_cmd(struct iwm_priv *iwm, void *payload, u16 payload_size,
 				   test_and_clear_bit(oid, &iwm->wifi_ntfy[0]),
 				   3 * HZ);
 
-		if (!ret)
-			ret = -EBUSY;
+		return ret ? 0 : -EBUSY;
 	}
 
 	return ret;
@@ -480,8 +479,10 @@ static int iwm_target_read(struct iwm_priv *iwm, __le32 address,
 	target_cmd.eop = 1;
 
 	ret = iwm_hal_send_target_cmd(iwm, &target_cmd, NULL);
-	if (ret < 0)
+	if (ret < 0) {
 		IWM_ERR(iwm, "Couldn't send READ command\n");
+		return ret;
+	}
 
 	/* When succeding, the send_target routine returns the seq number */
 	seq_num = ret;
@@ -501,7 +502,7 @@ static int iwm_target_read(struct iwm_priv *iwm, __le32 address,
 
 	kfree(cmd);
 
-	return ret;
+	return 0;
 }
 
 int iwm_read_mac(struct iwm_priv *iwm, u8 *mac)
@@ -511,7 +512,7 @@ int iwm_read_mac(struct iwm_priv *iwm, u8 *mac)
 
 	ret = iwm_target_read(iwm, cpu_to_le32(WICO_MAC_ADDRESS_ADDR),
 			      mac_align, sizeof(mac_align));
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	if (is_valid_ether_addr(mac_align))
@@ -714,7 +715,7 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key)
 		ret =  iwm_send_wifi_if_cmd(iwm, &key_remove,
 					    sizeof(struct iwm_umac_key_remove),
 					    1);
-		if (ret < 0)
+		if (ret)
 			return ret;
 
 		iwm->keys[key_idx].key_len = 0;
@@ -736,7 +737,7 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 					   sizeof(struct iwm_umac_wifi_if));
 
 	ret = iwm_send_wifi_if_cmd(iwm, &profile, sizeof(profile), 1);
-	if (ret < 0) {
+	if (ret) {
 		IWM_ERR(iwm, "Send profile command failed\n");
 		return ret;
 	}
@@ -752,12 +753,12 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 							 3 * HZ);
 
 			ret = iwm_set_key(iwm, 0, key);
-			if (ret < 0)
+			if (ret)
 				return ret;
 
 			if (iwm->default_key == i) {
 				ret = iwm_set_tx_key(iwm, i);
-				if (ret < 0)
+				if (ret)
 					return ret;
 			}
 		}
@@ -778,15 +779,13 @@ int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 	invalid.reason = WLAN_REASON_UNSPECIFIED;
 
 	ret = iwm_send_wifi_if_cmd(iwm, &invalid, sizeof(invalid), 1);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = wait_event_interruptible_timeout(iwm->mlme_queue,
 				(iwm->umac_profile_active == 0), 2 * HZ);
-	if (!ret)
-		return -EBUSY;
 
-	return 0;
+	return ret ? 0 : -EBUSY;
 }
 
 int iwm_send_umac_stats_req(struct iwm_priv *iwm, u32 flags)
@@ -869,7 +868,7 @@ int iwm_scan_ssids(struct iwm_priv *iwm, struct cfg80211_ssid *ssids,
 	}
 
 	ret = iwm_send_wifi_if_cmd(iwm, &req, sizeof(req), 0);
-	if (ret < 0) {
+	if (ret) {
 		IWM_ERR(iwm, "Couldn't send scan request\n");
 		return ret;
 	}
