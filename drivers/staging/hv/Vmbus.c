@@ -426,7 +426,7 @@ VmbusOnMsgDPC(
 		// Make sure the write to MessageType (ie set to HvMessageTypeNone) happens
 		// before we read the MessagePending and EOMing. Otherwise, the EOMing will not deliver
 		// any more messages since there is no empty slot
-		MemoryFence();
+		mb();
 
 		if (msg->Header.MessageFlags.MessagePending)
 		{

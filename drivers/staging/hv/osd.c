@@ -197,11 +197,6 @@ void MemUnmapIO(void *virt)
 	//iounmap(virt);
 }
 
-void MemoryFence()
-{
-	mb();
-}
-
 void TimerCallback(unsigned long data)
 {
 	TIMER* t = (TIMER*)data;

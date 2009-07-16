@@ -119,8 +119,6 @@ extern void PageFree(void* page, unsigned int count);
 extern void* MemMapIO(unsigned long phys, unsigned long size);
 extern void MemUnmapIO(void* virt);
 
-extern void MemoryFence(void);
-
 extern HANDLE TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
 extern void TimerClose(HANDLE hTimer);
 extern int TimerStop(HANDLE hTimer);
