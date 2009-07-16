@@ -234,15 +234,8 @@ static void t_stop(struct seq_file *m, void *p)
 static int trace_lookup_stack(struct seq_file *m, long i)
 {
 	unsigned long addr = stack_dump_trace[i];
-#ifdef CONFIG_KALLSYMS
-	char str[KSYM_SYMBOL_LEN];
 
-	sprint_symbol(str, addr);
-
-	return seq_printf(m, "%s\n", str);
-#else
-	return seq_printf(m, "%p\n", (void*)addr);
-#endif
+	return seq_printf(m, "%pF\n", (void *)addr);
 }
 
 static void print_disabled(struct seq_file *m)
