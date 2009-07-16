@@ -269,6 +269,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 		media_type = ixgbe_media_type_fiber;
 		break;
 	case IXGBE_DEV_ID_82598AT:
+	case IXGBE_DEV_ID_82598AT2:
 		media_type = ixgbe_media_type_copper;
 		break;
 	default:
