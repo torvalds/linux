@@ -72,19 +72,6 @@ typedef struct _WORKITEM {
 } WORKITEM;
 
 
-//
-// Global
-//
-
-void LogMsg(const char *fmt, ...)
-{
-	va_list args;
-
-	va_start(args, fmt);
-	vprintk(fmt, args);
-	va_end(args);
-}
-
 void BitSet(unsigned int* addr, int bit)
 {
 	set_bit(bit, (unsigned long*)addr);

@@ -53,11 +53,10 @@
 							BLKVSC_DRV)
 
 // Logging Level
-#define CRITICAL_LVL				2
-#define ERROR_LVL					3
-#define WARNING_LVL					4
-#define INFO_LVL					6
-#define DEBUG_LVL					7
+#define ERROR_LVL				3
+#define WARNING_LVL				4
+#define INFO_LVL				6
+#define DEBUG_LVL				7
 #define DEBUG_LVL_ENTEREXIT			8
 #define DEBUG_RING_LVL				9
 
@@ -65,44 +64,53 @@ extern unsigned int vmbus_loglevel;
 
 #define ASSERT(expr)	\
         if (!(expr)) {	\
-		LogMsg("<%d>Assertion failed! %s,%s,%s,line=%d\n", CRITICAL_LVL, #expr,__FILE__,__FUNCTION__,__LINE__);	\
+		printk(KERN_CRIT "Assertion failed! %s,%s,%s,line=%d\n", \
+		       #expr, __FILE__, __func__, __LINE__);	\
 		__asm__ __volatile__("int3");	\
         }
 
 #define DPRINT(mod, lvl, fmt, args...) do {\
-	if (mod & (HIWORD(vmbus_loglevel))) \
-		(lvl <= LOWORD(vmbus_loglevel))?(LogMsg("<%d>" #mod": %s() " fmt "\n", DEBUG_LVL, __FUNCTION__, ## args)):(0);\
+	if ((mod & (HIWORD(vmbus_loglevel))) &&	\
+	    (lvl <= LOWORD(vmbus_loglevel)))	\
+		printk(KERN_DEBUG #mod": %s() " fmt "\n", __func__, ## args);\
 	} while (0)
 
 #define DPRINT_DBG(mod, fmt, args...) do {\
-	if (mod & (HIWORD(vmbus_loglevel))) \
-		(DEBUG_LVL <= LOWORD(vmbus_loglevel))?(LogMsg("<%d>" #mod": %s() " fmt "\n", DEBUG_LVL, __FUNCTION__, ## args)):(0);\
+	if ((mod & (HIWORD(vmbus_loglevel))) &&		\
+	    (DEBUG_LVL <= LOWORD(vmbus_loglevel)))	\
+		printk(KERN_DEBUG #mod": %s() " fmt "\n", __func__, ## args);\
 	} while (0)
 
 #define DPRINT_INFO(mod, fmt, args...) do {\
-	if (mod & (HIWORD(vmbus_loglevel))) \
-		(INFO_LVL <= LOWORD(vmbus_loglevel))?(LogMsg("<%d>" #mod": " fmt "\n", INFO_LVL, ## args)):(0);\
+	if ((mod & (HIWORD(vmbus_loglevel))) &&		\
+	    (INFO_LVL <= LOWORD(vmbus_loglevel)))	\
+		printk(KERN_INFO #mod": " fmt "\n", ## args);\
 	} while (0)
 
 #define DPRINT_WARN(mod, fmt, args...) do {\
-	if (mod & (HIWORD(vmbus_loglevel))) \
-		(WARNING_LVL <= LOWORD(vmbus_loglevel))?(LogMsg("<%d>" #mod": WARNING! " fmt "\n", WARNING_LVL, ## args)):(0);\
+	if ((mod & (HIWORD(vmbus_loglevel))) &&		\
+	    (WARNING_LVL <= LOWORD(vmbus_loglevel)))	\
+	    printk(KERN_WARNING #mod": WARNING! " fmt "\n", ## args);\
 	} while (0)
 
 #define DPRINT_ERR(mod, fmt, args...) do {\
-	if (mod & (HIWORD(vmbus_loglevel))) \
-		(ERROR_LVL <= LOWORD(vmbus_loglevel))?(LogMsg("<%d>" #mod": %s() ERROR!! " fmt "\n", ERROR_LVL, __FUNCTION__, ## args)):(0);\
+	if ((mod & (HIWORD(vmbus_loglevel))) &&		\
+	    (ERROR_LVL <= LOWORD(vmbus_loglevel)))	\
+		printk(KERN_ERR #mod": %s() ERROR!! " fmt "\n",	\
+		       __func__, ## args);\
 	} while (0)
 
 #ifdef DEBUG
 #define DPRINT_ENTER(mod) do {\
-	if (mod & (HIWORD(vmbus_loglevel))) \
-		(DEBUG_LVL_ENTEREXIT <= LOWORD(vmbus_loglevel))?(LogMsg("<%d>" "["#mod"]: %s() enter\n", DEBUG_LVL, __FUNCTION__)):(0);\
+	if ((mod & (HIWORD(vmbus_loglevel))) && \
+	    (DEBUG_LVL_ENTEREXIT <= LOWORD(vmbus_loglevel)))	\
+	    printk(KERN_DEBUG "["#mod"]: %s() enter\n", __func__);\
 	} while (0)
 
 #define DPRINT_EXIT(mod) do {\
-	if (mod & (HIWORD(vmbus_loglevel))) \
-		(DEBUG_LVL_ENTEREXIT <= LOWORD(vmbus_loglevel))?(LogMsg("<%d>" "["#mod"]: %s() exit\n", DEBUG_LVL, __FUNCTION__)):(0);\
+	if ((mod & (HIWORD(vmbus_loglevel))) && \
+	    (DEBUG_LVL_ENTEREXIT <= LOWORD(vmbus_loglevel)))	\
+		printk(KERN_DEBUG "["#mod"]: %s() exit\n", __func__);\
 	} while (0)
 #else
 #define DPRINT_ENTER(mod)
@@ -113,12 +121,12 @@ static inline void PrintBytes(const unsigned char* bytes, int len)
 {
 	int i=0;
 
-	LogMsg("\n<< ");
+	printk("\n<< ");
 	for (i=0; i< len; i++)
 	{
-		LogMsg("0x%x ", bytes[i]);
+		printk("0x%x ", bytes[i]);
 	}
-	LogMsg(">>\n");
+	printk(">>\n");
 }
 
 //
