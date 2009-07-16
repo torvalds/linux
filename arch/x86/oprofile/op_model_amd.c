@@ -42,9 +42,6 @@
 #define MSR_AMD_EVENTSEL_RESERVED	((0xFFFFFCF0ULL<<32)|(1ULL<<21))
 
 static unsigned long reset_value[NUM_VIRT_COUNTERS];
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-DECLARE_PER_CPU(int, switch_index);
-#endif
 
 #ifdef CONFIG_OPROFILE_IBS
 
@@ -141,21 +138,20 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 
 	/* enable active counters */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-		int offset = i + __get_cpu_var(switch_index);
-#else
-		int offset = i;
-#endif
-		if (counter_config[offset].enabled && msrs->counters[i].addr) {
-			/* setup counter registers */
-			wrmsrl(msrs->counters[i].addr, -(u64)reset_value[offset]);
+		int virt = op_x86_phys_to_virt(i);
+		if (!counter_config[virt].enabled)
+			continue;
+		if (!msrs->counters[i].addr)
+			continue;
 
-			/* setup control registers */
-			rdmsrl(msrs->controls[i].addr, val);
-			val &= model->reserved;
-			val |= op_x86_get_ctrl(model, &counter_config[offset]);
-			wrmsrl(msrs->controls[i].addr, val);
-		}
+		/* setup counter registers */
+		wrmsrl(msrs->counters[i].addr, -(u64)reset_value[virt]);
+
+		/* setup control registers */
+		rdmsrl(msrs->controls[i].addr, val);
+		val &= model->reserved;
+		val |= op_x86_get_ctrl(model, &counter_config[virt]);
+		wrmsrl(msrs->controls[i].addr, val);
 	}
 }
 
@@ -170,14 +166,13 @@ static void op_amd_switch_ctrl(struct op_x86_model_spec const *model,
 
 	/* enable active counters */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		int offset = i + __get_cpu_var(switch_index);
-		if (counter_config[offset].enabled) {
-			/* setup control registers */
-			rdmsrl(msrs->controls[i].addr, val);
-			val &= model->reserved;
-			val |= op_x86_get_ctrl(model, &counter_config[offset]);
-			wrmsrl(msrs->controls[i].addr, val);
-		}
+		int virt = op_x86_phys_to_virt(i);
+		if (!counter_config[virt].enabled)
+			continue;
+		rdmsrl(msrs->controls[i].addr, val);
+		val &= model->reserved;
+		val |= op_x86_get_ctrl(model, &counter_config[virt]);
+		wrmsrl(msrs->controls[i].addr, val);
 	}
 }
 
@@ -292,19 +287,15 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 	int i;
 
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-		int offset = i + __get_cpu_var(switch_index);
-#else
-		int offset = i;
-#endif
-		if (!reset_value[offset])
+		int virt = op_x86_phys_to_virt(i);
+		if (!reset_value[virt])
 			continue;
 		rdmsrl(msrs->counters[i].addr, val);
 		/* bit is clear if overflowed: */
 		if (val & OP_CTR_OVERFLOW)
 			continue;
-		oprofile_add_sample(regs, offset);
-		wrmsrl(msrs->counters[i].addr, -(u64)reset_value[offset]);
+		oprofile_add_sample(regs, virt);
+		wrmsrl(msrs->counters[i].addr, -(u64)reset_value[virt]);
 	}
 
 	op_amd_handle_ibs(regs, msrs);
@@ -319,16 +310,11 @@ static void op_amd_start(struct op_msrs const * const msrs)
 	int i;
 
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-		int offset = i + __get_cpu_var(switch_index);
-#else
-		int offset = i;
-#endif
-		if (reset_value[offset]) {
-			rdmsrl(msrs->controls[i].addr, val);
-			val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
-			wrmsrl(msrs->controls[i].addr, val);
-		}
+		if (!reset_value[op_x86_phys_to_virt(i)])
+			continue;
+		rdmsrl(msrs->controls[i].addr, val);
+		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+		wrmsrl(msrs->controls[i].addr, val);
 	}
 
 	op_amd_start_ibs();
@@ -344,11 +330,7 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	 * pm callback
 	 */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-		if (!reset_value[i + per_cpu(switch_index, smp_processor_id())])
-#else
-		if (!reset_value[i])
-#endif
+		if (!reset_value[op_x86_phys_to_virt(i)])
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
 		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;

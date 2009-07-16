@@ -27,12 +27,6 @@
 #include "op_counter.h"
 #include "op_x86_model.h"
 
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-DEFINE_PER_CPU(int, switch_index);
-#endif
-
-
 static struct op_x86_model_spec const *model;
 static DEFINE_PER_CPU(struct op_msrs, cpu_msrs);
 static DEFINE_PER_CPU(unsigned long, saved_lvtpc);
@@ -102,6 +96,21 @@ static void nmi_cpu_save_registers(struct op_msrs *msrs)
 			rdmsrl(controls[i].addr, controls[i].saved);
 	}
 }
+
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+
+static DEFINE_PER_CPU(int, switch_index);
+
+inline int op_x86_phys_to_virt(int phys)
+{
+	return __get_cpu_var(switch_index) + phys;
+}
+
+#else
+
+inline int op_x86_phys_to_virt(int phys) { return phys; }
+
+#endif
 
 static void free_msrs(void)
 {
@@ -248,31 +257,25 @@ static int nmi_setup(void)
 
 static void nmi_cpu_save_mpx_registers(struct op_msrs *msrs)
 {
-	unsigned int si = __get_cpu_var(switch_index);
 	struct op_msr *multiplex = msrs->multiplex;
-	unsigned int i;
+	int i;
 
 	for (i = 0; i < model->num_counters; ++i) {
-		int offset = i + si;
-		if (multiplex[offset].addr) {
-			rdmsrl(multiplex[offset].addr,
-			       multiplex[offset].saved);
-		}
+		int virt = op_x86_phys_to_virt(i);
+		if (multiplex[virt].addr)
+			rdmsrl(multiplex[virt].addr, multiplex[virt].saved);
 	}
 }
 
 static void nmi_cpu_restore_mpx_registers(struct op_msrs *msrs)
 {
-	unsigned int si = __get_cpu_var(switch_index);
 	struct op_msr *multiplex = msrs->multiplex;
-	unsigned int i;
+	int i;
 
 	for (i = 0; i < model->num_counters; ++i) {
-		int offset = i + si;
-		if (multiplex[offset].addr) {
-			wrmsrl(multiplex[offset].addr,
-			       multiplex[offset].saved);
-		}
+		int virt = op_x86_phys_to_virt(i);
+		if (multiplex[virt].addr)
+			wrmsrl(multiplex[virt].addr, multiplex[virt].saved);
 	}
 }
 
