@@ -428,27 +428,6 @@ static struct davinci_clk da830_clks[] = {
 	CLK(NULL,		NULL,		NULL),
 };
 
-#define PINMUX0			0x00
-#define PINMUX1			0x04
-#define PINMUX2			0x08
-#define PINMUX3			0x0c
-#define PINMUX4			0x10
-#define PINMUX5			0x14
-#define PINMUX6			0x18
-#define PINMUX7			0x1c
-#define PINMUX8			0x20
-#define PINMUX9			0x24
-#define PINMUX10		0x28
-#define PINMUX11		0x2c
-#define PINMUX12		0x30
-#define PINMUX13		0x34
-#define PINMUX14		0x38
-#define PINMUX15		0x3c
-#define PINMUX16		0x40
-#define PINMUX17		0x44
-#define PINMUX18		0x48
-#define PINMUX19		0x4c
-
 /*
  * Device specific mux setup
  *
@@ -1035,20 +1014,6 @@ const short da830_eqep1_pins[] __initdata = {
 	DA830_EQEP1I, DA830_EQEP1S, DA830_EQEP1A, DA830_EQEP1B,
 	-1
 };
-
-int da830_pinmux_setup(const short pins[])
-{
-	int i, error = -EINVAL;
-
-	if (pins)
-		for (i = 0; pins[i] >= 0; i++) {
-			error = davinci_cfg_reg(pins[i]);
-			if (error)
-				break;
-		}
-
-	return error;
-}
 
 /* FIQ are pri 0-1; otherwise 2-7, with 7 lowest priority */
 static u8 da830_default_priorities[DA830_N_CP_INTC_IRQ] = {

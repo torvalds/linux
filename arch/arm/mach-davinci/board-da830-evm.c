@@ -61,7 +61,7 @@ static __init void da830_evm_init(void)
 		pr_warning("da830_evm_init: edma registration failed: %d\n",
 				ret);
 
-	ret = da830_pinmux_setup(da830_i2c0_pins);
+	ret = da8xx_pinmux_setup(da830_i2c0_pins);
 	if (ret)
 		pr_warning("da830_evm_init: i2c0 mux setup failed: %d\n",
 				ret);
@@ -75,7 +75,7 @@ static __init void da830_evm_init(void)
 	soc_info->emac_pdata->mdio_max_freq = DA830_EVM_MDIO_FREQUENCY;
 	soc_info->emac_pdata->rmii_en = 1;
 
-	ret = da830_pinmux_setup(da830_cpgmac_pins);
+	ret = da8xx_pinmux_setup(da830_cpgmac_pins);
 	if (ret)
 		pr_warning("da830_evm_init: cpgmac mux setup failed: %d\n",
 				ret);
