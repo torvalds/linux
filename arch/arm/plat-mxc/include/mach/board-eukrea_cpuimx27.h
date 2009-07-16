@@ -22,4 +22,19 @@
 #ifndef __ASM_ARCH_MXC_BOARD_EUKREA_CPUIMX27_H__
 #define __ASM_ARCH_MXC_BOARD_EUKREA_CPUIMX27_H__
 
+#ifndef __ASSEMBLY__
+/*
+ * This CPU module needs a baseboard to work. After basic initializing
+ * its own devices, it calls baseboard's init function.
+ * TODO: Add your own baseboard init function and call it from
+ * inside eukrea_cpuimx27_init().
+ *
+ * This example here is for the development board. Refer
+ * eukrea_mbimx27-baseboard.c
+ */
+
+extern void eukrea_mbimx27_baseboard_init(void);
+
+#endif
+
 #endif /* __ASM_ARCH_MXC_BOARD_EUKREA_CPUIMX27_H__ */
