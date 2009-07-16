@@ -790,17 +790,20 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 * N_TTY.
 	 */
 	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS) {
-		/* Avoid racing set_ldisc */
+		/* Avoid racing set_ldisc or tty_ldisc_release */
 		mutex_lock(&tty->ldisc_mutex);
-		/* Switch back to N_TTY */
-		tty_ldisc_halt(tty);
-		tty_ldisc_wait_idle(tty);
-		tty_ldisc_reinit(tty);
-		/* At this point we have a closed ldisc and we want to
-		   reopen it. We could defer this to the next open but
-		   it means auditing a lot of other paths so this is a FIXME */
-		WARN_ON(tty_ldisc_open(tty, tty->ldisc));
-		tty_ldisc_enable(tty);
+		if (tty->ldisc) {	/* Not yet closed */
+			/* Switch back to N_TTY */
+			tty_ldisc_halt(tty);
+			tty_ldisc_wait_idle(tty);
+			tty_ldisc_reinit(tty);
+			/* At this point we have a closed ldisc and we want to
+			   reopen it. We could defer this to the next open but
+			   it means auditing a lot of other paths so this is
+			   a FIXME */
+			WARN_ON(tty_ldisc_open(tty, tty->ldisc));
+			tty_ldisc_enable(tty);
+		}
 		mutex_unlock(&tty->ldisc_mutex);
 		tty_reset_termios(tty);
 	}
@@ -865,6 +868,7 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 
 	tty_ldisc_wait_idle(tty);
 
+	mutex_lock(&tty->ldisc_mutex);
 	/*
 	 * Now kill off the ldisc
 	 */
@@ -875,6 +879,7 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 
 	/* Ensure the next open requests the N_TTY ldisc */
 	tty_set_termios_ldisc(tty, N_TTY);
+	mutex_unlock(&tty->ldisc_mutex);
 
 	/* This will need doing differently if we need to lock */
 	if (o_tty)
