@@ -1113,7 +1113,7 @@ static int mwl8k_scan_tx_ring(struct mwl8k_priv *priv,
 	return ndescs;
 }
 
-static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw, u32 delay_ms)
+static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	DECLARE_COMPLETION_ONSTACK(cmd_wait);
@@ -1140,7 +1140,7 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw, u32 delay_ms)
 		int newcount;
 
 		timeout = wait_for_completion_timeout(&cmd_wait,
-					msecs_to_jiffies(delay_ms));
+					msecs_to_jiffies(1000));
 		if (timeout)
 			return 0;
 
@@ -1149,8 +1149,8 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw, u32 delay_ms)
 		newcount = mwl8k_txq_busy(priv);
 		spin_unlock_bh(&priv->tx_lock);
 
-		printk(KERN_ERR "%s(%u) TIMEDOUT:%ums Pend:%u-->%u\n",
-		       __func__, __LINE__, delay_ms, count, newcount);
+		printk(KERN_ERR "%s(%u) TIMEDOUT:1000ms Pend:%u-->%u\n",
+		       __func__, __LINE__, count, newcount);
 
 		mwl8k_scan_tx_ring(priv, txinfo);
 		for (index = 0; index < MWL8K_TX_QUEUES; index++)
@@ -2389,77 +2389,7 @@ struct mwl8k_work_struct {
 
 	/* Result code.  */
 	int rc;
-
-	/*
-	 * Optional field. Refer to explanation of MWL8K_WQ_XXX_XXX
-	 * flags for explanation.  Defaults to MWL8K_WQ_DEFAULT_OPTIONS.
-	 */
-	u32 options;
-
-	/* Optional field.  Defaults to MWL8K_CONFIG_TIMEOUT_MS.  */
-	unsigned long timeout_ms;
-
-	/* Optional field.  Defaults to MWL8K_WQ_TXWAIT_ATTEMPTS.  */
-	u32 txwait_attempts;
-
-	/* Optional field.  Defaults to MWL8K_TXWAIT_MS.  */
-	u32 tx_timeout_ms;
-	u32 step;
 };
-
-/* Flags controlling behavior of config queue requests */
-
-/* Caller spins while waiting for completion.  */
-#define MWL8K_WQ_SPIN			0x00000001
-
-/* Wait for TX queues to empty before proceeding with configuration.  */
-#define MWL8K_WQ_TX_WAIT_EMPTY		0x00000002
-
-/* Queue request and return immediately.  */
-#define MWL8K_WQ_POST_REQUEST		0x00000004
-
-/*
- * Caller sleeps and waits for task complete notification.
- * Do not use in atomic context.
- */
-#define MWL8K_WQ_SLEEP			0x00000008
-
-/* Free work struct when task is done.  */
-#define MWL8K_WQ_FREE_WORKSTRUCT	0x00000010
-
-/*
- * Config request is queued and returns to caller imediately.  Use
- * this in atomic context. Work struct is freed by mwl8k_queue_work()
- * when this flag is set.
- */
-#define MWL8K_WQ_QUEUE_ONLY	(MWL8K_WQ_POST_REQUEST | \
-				 MWL8K_WQ_FREE_WORKSTRUCT)
-
-/* Default work queue behavior is to sleep and wait for tx completion.  */
-#define MWL8K_WQ_DEFAULT_OPTIONS (MWL8K_WQ_SLEEP | MWL8K_WQ_TX_WAIT_EMPTY)
-
-/*
- * Default config request timeout.  Add adjustments to make sure the
- * config thread waits long enough for both tx wait and cmd wait before
- * timing out.
- */
-
-/* Time to wait for all TXQs to drain.  TX Doorbell is pressed each time.  */
-#define MWL8K_TXWAIT_TIMEOUT_MS		1000
-
-/* Default number of TX wait attempts.  */
-#define MWL8K_WQ_TXWAIT_ATTEMPTS	4
-
-/* Total time to wait for TXQ to drain.  */
-#define MWL8K_TXWAIT_MS			(MWL8K_TXWAIT_TIMEOUT_MS * \
-						MWL8K_WQ_TXWAIT_ATTEMPTS)
-
-/* Scheduling slop.  */
-#define MWL8K_OS_SCHEDULE_OVERHEAD_MS	200
-
-#define MWL8K_CONFIG_TIMEOUT_MS	(MWL8K_CMD_TIMEOUT_MS + \
-				 MWL8K_TXWAIT_MS + \
-				 MWL8K_OS_SCHEDULE_OVERHEAD_MS)
 
 static void mwl8k_config_thread(struct work_struct *wt)
 {
@@ -2467,6 +2397,7 @@ static void mwl8k_config_thread(struct work_struct *wt)
 	struct ieee80211_hw *hw = worker->hw;
 	struct mwl8k_priv *priv = hw->priv;
 	int rc = 0;
+	int iter;
 
 	spin_lock_irq(&priv->tx_lock);
 	priv->inconfig = true;
@@ -2479,44 +2410,16 @@ static void mwl8k_config_thread(struct work_struct *wt)
 	 * reconfiguration. This avoids interrupting any in-flight
 	 * DMA transfers to the hardware.
 	 */
-	if (worker->options & MWL8K_WQ_TX_WAIT_EMPTY) {
-		u32 timeout;
-		u32 time_remaining;
-		u32 iter;
-		u32 tx_wait_attempts = worker->txwait_attempts;
+	iter = 4;
+	do {
+		rc = mwl8k_tx_wait_empty(hw);
+		if (rc)
+			printk(KERN_ERR "%s() txwait timeout=1000ms "
+				"Retry:%u/%u\n", __func__, 4 - iter + 1, 4);
+	} while (rc && --iter);
 
-		time_remaining = worker->tx_timeout_ms;
-		if (!tx_wait_attempts)
-			tx_wait_attempts = 1;
+	rc = iter ? 0 : -ETIMEDOUT;
 
-		timeout = worker->tx_timeout_ms/tx_wait_attempts;
-		if (!timeout)
-			timeout = 1;
-
-		iter = tx_wait_attempts;
-		do {
-			int wait_time;
-
-			if (time_remaining > timeout) {
-				time_remaining -= timeout;
-				wait_time = timeout;
-			} else
-				wait_time = time_remaining;
-
-			if (!wait_time)
-				wait_time = 1;
-
-			rc = mwl8k_tx_wait_empty(hw, wait_time);
-			if (rc)
-				printk(KERN_ERR "%s() txwait timeout=%ums "
-					"Retry:%u/%u\n", __func__, timeout,
-					tx_wait_attempts - iter + 1,
-					tx_wait_attempts);
-
-		} while (rc && --iter);
-
-		rc = iter ? 0 : -ETIMEDOUT;
-	}
 	if (!rc)
 		rc = worker->wfunc(wt);
 
@@ -2525,37 +2428,22 @@ static void mwl8k_config_thread(struct work_struct *wt)
 	if (priv->pending_tx_pkts && priv->radio_on)
 		mwl8k_tx_start(priv);
 	spin_unlock_irq(&priv->tx_lock);
+
 	ieee80211_wake_queues(hw);
 
 	worker->rc = rc;
-	if (worker->options & MWL8K_WQ_SLEEP)
-		complete(worker->cmd_wait);
-
-	if (worker->options & MWL8K_WQ_FREE_WORKSTRUCT)
-		kfree(wt);
+	complete(worker->cmd_wait);
 }
 
 static int mwl8k_queue_work(struct ieee80211_hw *hw,
 				struct mwl8k_work_struct *worker,
-				struct workqueue_struct *wqueue,
 				int (*wfunc)(struct work_struct *w))
 {
+	struct mwl8k_priv *priv = hw->priv;
 	unsigned long timeout = 0;
 	int rc = 0;
 
 	DECLARE_COMPLETION_ONSTACK(cmd_wait);
-
-	if (!worker->timeout_ms)
-		worker->timeout_ms = MWL8K_CONFIG_TIMEOUT_MS;
-
-	if (!worker->options)
-		worker->options = MWL8K_WQ_DEFAULT_OPTIONS;
-
-	if (!worker->txwait_attempts)
-		worker->txwait_attempts = MWL8K_WQ_TXWAIT_ATTEMPTS;
-
-	if (!worker->tx_timeout_ms)
-		worker->tx_timeout_ms = MWL8K_TXWAIT_MS;
 
 	worker->hw = hw;
 	worker->cmd_wait = &cmd_wait;
@@ -2563,27 +2451,16 @@ static int mwl8k_queue_work(struct ieee80211_hw *hw,
 	worker->wfunc = wfunc;
 
 	INIT_WORK(&worker->wt, mwl8k_config_thread);
-	queue_work(wqueue, &worker->wt);
+	queue_work(priv->config_wq, &worker->wt);
 
-	if (worker->options & MWL8K_WQ_POST_REQUEST) {
-		rc = 0;
-	} else {
-		if (worker->options & MWL8K_WQ_SPIN) {
-			timeout = worker->timeout_ms;
-			while (timeout && (worker->rc > 0)) {
-				mdelay(1);
-				timeout--;
-			}
-		} else if (worker->options & MWL8K_WQ_SLEEP)
-			timeout = wait_for_completion_timeout(&cmd_wait,
-				msecs_to_jiffies(worker->timeout_ms));
+	timeout = wait_for_completion_timeout(&cmd_wait,
+		msecs_to_jiffies(10000));
 
-		if (timeout)
-			rc = worker->rc;
-		else {
-			cancel_work_sync(&worker->wt);
-			rc = -ETIMEDOUT;
-		}
+	if (timeout)
+		rc = worker->rc;
+	else {
+		cancel_work_sync(&worker->wt);
+		rc = -ETIMEDOUT;
 	}
 
 	return rc;
@@ -2669,8 +2546,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 		goto mwl8k_start_disable_irq;
 	}
 
-	rc = mwl8k_queue_work(hw, &worker->header,
-			      priv->config_wq, mwl8k_start_wt);
+	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_start_wt);
 	kfree(worker);
 	if (!rc)
 		return rc;
@@ -2720,8 +2596,7 @@ static void mwl8k_stop(struct ieee80211_hw *hw)
 	if (worker == NULL)
 		return;
 
-	rc = mwl8k_queue_work(hw, &worker->header,
-			      priv->config_wq, mwl8k_stop_wt);
+	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_stop_wt);
 	kfree(worker);
 	if (rc == -ETIMEDOUT)
 		printk(KERN_ERR "%s() timed out\n", __func__);
@@ -2849,15 +2724,14 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	int rc = 0;
 	struct mwl8k_config_worker *worker;
-	struct mwl8k_priv *priv = hw->priv;
 
 	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
 	if (worker == NULL)
 		return -ENOMEM;
 
 	worker->changed = changed;
-	rc = mwl8k_queue_work(hw, &worker->header,
-			      priv->config_wq, mwl8k_config_wt);
+
+	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_config_wt);
 	if (rc == -ETIMEDOUT) {
 		printk(KERN_ERR "%s() timed out.\n", __func__);
 		rc = -EINVAL;
@@ -2950,7 +2824,6 @@ static void mwl8k_bss_info_changed(struct ieee80211_hw *hw,
 				   u32 changed)
 {
 	struct mwl8k_bss_info_changed_worker *worker;
-	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_vif *mv_vif = MWL8K_VIF(vif);
 	int rc;
 
@@ -2967,9 +2840,7 @@ static void mwl8k_bss_info_changed(struct ieee80211_hw *hw,
 	worker->vif = vif;
 	worker->info = info;
 	worker->changed = changed;
-	rc = mwl8k_queue_work(hw, &worker->header,
-			      priv->config_wq,
-			      mwl8k_bss_info_changed_wt);
+	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_bss_info_changed_wt);
 	kfree(worker);
 	if (rc == -ETIMEDOUT)
 		printk(KERN_ERR "%s() timed out\n", __func__);
@@ -3028,7 +2899,6 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 				   unsigned int *total_flags,
 				   u64 multicast)
 {
-	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_configure_filter_worker *worker;
 
 	/* Clear unsupported feature flags */
@@ -3045,8 +2915,7 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 	worker->total_flags = *total_flags;
 	worker->multicast_adr_cmd = (void *)(unsigned long)multicast;
 
-	mwl8k_queue_work(hw, &worker->header, priv->config_wq,
-			 mwl8k_configure_filter_wt);
+	mwl8k_queue_work(hw, &worker->header, mwl8k_configure_filter_wt);
 }
 
 struct mwl8k_set_rts_threshold_worker {
@@ -3072,7 +2941,6 @@ static int mwl8k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
 	int rc;
 	struct mwl8k_set_rts_threshold_worker *worker;
-	struct mwl8k_priv *priv = hw->priv;
 
 	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
 	if (worker == NULL)
@@ -3080,9 +2948,7 @@ static int mwl8k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 	worker->value = value;
 
-	rc = mwl8k_queue_work(hw, &worker->header,
-			      priv->config_wq,
-			      mwl8k_set_rts_threshold_wt);
+	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_set_rts_threshold_wt);
 	kfree(worker);
 
 	if (rc == -ETIMEDOUT) {
@@ -3130,7 +2996,6 @@ static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 {
 	int rc;
 	struct mwl8k_conf_tx_worker *worker;
-	struct mwl8k_priv *priv = hw->priv;
 
 	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
 	if (worker == NULL)
@@ -3138,8 +3003,7 @@ static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	worker->queue = queue;
 	worker->params = params;
-	rc = mwl8k_queue_work(hw, &worker->header,
-			      priv->config_wq, mwl8k_conf_tx_wt);
+	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_conf_tx_wt);
 	kfree(worker);
 	if (rc == -ETIMEDOUT) {
 		printk(KERN_ERR "%s() timed out\n", __func__);
@@ -3183,15 +3047,13 @@ static int mwl8k_get_stats(struct ieee80211_hw *hw,
 {
 	int rc;
 	struct mwl8k_get_stats_worker *worker;
-	struct mwl8k_priv *priv = hw->priv;
 
 	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
 	if (worker == NULL)
 		return -ENOMEM;
 
 	worker->stats = stats;
-	rc = mwl8k_queue_work(hw, &worker->header,
-			      priv->config_wq, mwl8k_get_stats_wt);
+	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_get_stats_wt);
 
 	kfree(worker);
 	if (rc == -ETIMEDOUT) {
