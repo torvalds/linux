@@ -897,6 +897,79 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 	return 1;
 }
 
+static struct circular_queue  lock_cq;
+static int __search_shortest_path(struct lock_list *source_entry,
+				struct lock_class *target,
+				struct lock_list **target_entry,
+				int forward)
+{
+	struct lock_list *entry;
+	struct circular_queue *cq = &lock_cq;
+	int ret = 1;
+
+	__cq_init(cq);
+
+	mark_lock_accessed(source_entry, NULL);
+	if (source_entry->class == target) {
+		*target_entry = source_entry;
+		ret = 0;
+		goto exit;
+	}
+
+	__cq_enqueue(cq, (unsigned long)source_entry);
+
+	while (!__cq_empty(cq)) {
+		struct lock_list *lock;
+		struct list_head *head;
+
+		__cq_dequeue(cq, (unsigned long *)&lock);
+
+		if (!lock->class) {
+			ret = -2;
+			goto exit;
+		}
+
+		if (forward)
+			head = &lock->class->locks_after;
+		else
+			head = &lock->class->locks_before;
+
+		list_for_each_entry(entry, head, entry) {
+			if (!lock_accessed(entry)) {
+				mark_lock_accessed(entry, lock);
+				if (entry->class == target) {
+					*target_entry = entry;
+					ret = 0;
+					goto exit;
+				}
+
+				if (__cq_enqueue(cq, (unsigned long)entry)) {
+					ret = -1;
+					goto exit;
+				}
+			}
+		}
+	}
+exit:
+	return ret;
+}
+
+static inline int __search_forward_shortest_path(struct lock_list *src_entry,
+				struct lock_class *target,
+				struct lock_list **target_entry)
+{
+	return __search_shortest_path(src_entry, target, target_entry, 1);
+
+}
+
+static inline int __search_backward_shortest_path(struct lock_list *src_entry,
+				struct lock_class *target,
+				struct lock_list **target_entry)
+{
+	return __search_shortest_path(src_entry, target, target_entry, 0);
+
+}
+
 /*
  * Recursive, forwards-direction lock-dependency checking, used for
  * both noncyclic checking and for hardirq-unsafe/softirq-unsafe
@@ -934,7 +1007,7 @@ print_circular_bug_header(struct lock_list *entry, unsigned int depth)
 {
 	struct task_struct *curr = current;
 
-	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
+	if (debug_locks_silent)
 		return 0;
 
 	printk("\n=======================================================\n");
@@ -954,19 +1027,41 @@ print_circular_bug_header(struct lock_list *entry, unsigned int depth)
 	return 0;
 }
 
-static noinline int print_circular_bug_tail(void)
+static noinline int print_circular_bug(void)
 {
 	struct task_struct *curr = current;
 	struct lock_list this;
+	struct lock_list *target;
+	struct lock_list *parent;
+	int result;
+	unsigned long depth;
 
-	if (debug_locks_silent)
+	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
 		return 0;
 
 	this.class = hlock_class(check_source);
 	if (!save_trace(&this.trace))
 		return 0;
 
-	print_circular_bug_entry(&this, 0);
+	result = __search_forward_shortest_path(&this,
+						hlock_class(check_target),
+						&target);
+	if (result) {
+		printk("\n%s:search shortest path failed:%d\n", __func__,
+			result);
+		return 0;
+	}
+
+	depth = get_lock_depth(target);
+
+	print_circular_bug_header(target, depth);
+
+	parent = get_lock_parent(target);
+
+	while (parent) {
+		print_circular_bug_entry(parent, --depth);
+		parent = get_lock_parent(parent);
+	}
 
 	printk("\nother info that might help us debug this:\n\n");
 	lockdep_print_held_locks(curr);
@@ -1072,13 +1167,14 @@ check_noncircular(struct lock_class *source, unsigned int depth)
 	 */
 	list_for_each_entry(entry, &source->locks_after, entry) {
 		if (entry->class == hlock_class(check_target))
-			return print_circular_bug_header(entry, depth+1);
+			return 2;
 		debug_atomic_inc(&nr_cyclic_checks);
-		if (!check_noncircular(entry->class, depth+1))
-			return print_circular_bug_entry(entry, depth+1);
+		if (check_noncircular(entry->class, depth+1) == 2)
+			return 2;
 	}
 	return 1;
 }
+
 
 #if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_PROVE_LOCKING)
 /*
@@ -1484,8 +1580,9 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 */
 	check_source = next;
 	check_target = prev;
-	if (!(check_noncircular(hlock_class(next), 0)))
-		return print_circular_bug_tail();
+	if (check_noncircular(hlock_class(next), 0) == 2)
+		return print_circular_bug();
+
 
 	if (!check_prev_add_irq(curr, prev, next))
 		return 0;
