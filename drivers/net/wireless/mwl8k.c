@@ -2883,8 +2883,7 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	/*
 	 * We only support managed interfaces for now.
 	 */
-	if (conf->type != NL80211_IFTYPE_STATION &&
-	    conf->type != NL80211_IFTYPE_MONITOR)
+	if (conf->type != NL80211_IFTYPE_STATION)
 		return -EINVAL;
 
 	/* Clean out driver private area */
@@ -3440,8 +3439,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	hw->queues = MWL8K_TX_QUEUES;
 
-	hw->wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_MONITOR);
+	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	/* Set rssi and noise values to dBm */
 	hw->flags |= IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_NOISE_DBM;
