@@ -117,26 +117,4 @@ extern unsigned int vmbus_loglevel;
 #define DPRINT_EXIT(mod)
 #endif
 
-static inline void PrintBytes(const unsigned char* bytes, int len)
-{
-	int i=0;
-
-	printk("\n<< ");
-	for (i=0; i< len; i++)
-	{
-		printk("0x%x ", bytes[i]);
-	}
-	printk(">>\n");
-}
-
-//
-// Inline
-//
-//static inline void GuidToStr(const GUID g, char *str)
-//{
-//	sprintf(str, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}",
-//	g[3], g[2], g[1], g[0], g[5], g[4], g[7], g[6], g[8], g[9], g[10], g[11], g[12], g[13], g[14], g[15]);
-//
-//}
-
 #endif //_LOGGING_H_

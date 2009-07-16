@@ -713,7 +713,7 @@ StorVscOnIORequest(
 		return -2;
 	}
 
-	//PrintBytes(Request->Cdb, Request->CdbLen);
+	/* print_hex_dump_bytes("", DUMP_PREFIX_NONE, Request->Cdb, Request->CdbLen); */
 
 	requestExtension->Request = Request;
 	requestExtension->Device  = Device;

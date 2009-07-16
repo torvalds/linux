@@ -578,7 +578,7 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 
 	buf = kmap(page_buf);
 
-	//PrintBytes(buf, 64);
+	/* print_hex_dump_bytes("", DUMP_PREFIX_NONE, buf, 64); */
 	// be to le
 	device_type = buf[0] & 0x1F;
 
@@ -603,7 +603,8 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 		blkdev->device_id_len = 64;
 
 	memcpy(blkdev->device_id, &buf[8], blkdev->device_id_len);
-	//PrintBytes(blkdev->device_id, blkdev->device_id_len);
+	/* printk_hex_dump_bytes("", DUMP_PREFIX_NONE, blkdev->device_id,
+	 * 			 blkdev->device_id_len); */
 
 	kunmap(page_buf);
 

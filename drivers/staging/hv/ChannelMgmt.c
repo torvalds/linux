@@ -687,7 +687,8 @@ VmbusOnChannelMessage(
 	if (hdr->MessageType >= ChannelMessageCount)
 	{
 		DPRINT_ERR(VMBUS, "Received invalid channel message type %d size %d", hdr->MessageType, size);
-		PrintBytes((unsigned char *)msg->u.Payload, size);
+		print_hex_dump_bytes("", DUMP_PREFIX_NONE,
+				     (unsigned char *)msg->u.Payload, size);
 		kfree(msg);
 		return;
 	}
