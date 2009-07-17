@@ -2852,42 +2852,14 @@ static int mwl8k_get_tx_stats(struct ieee80211_hw *hw,
 			sizeof(struct ieee80211_tx_queue_stats));
 	}
 	spin_unlock_bh(&priv->tx_lock);
+
 	return 0;
-}
-
-struct mwl8k_get_stats_worker {
-	struct mwl8k_work_struct header;
-	struct ieee80211_low_level_stats *stats;
-};
-
-static int mwl8k_get_stats_wt(struct work_struct *wt)
-{
-	struct mwl8k_get_stats_worker *worker =
-		(struct mwl8k_get_stats_worker *)wt;
-
-	return mwl8k_cmd_802_11_get_stat(worker->header.hw, worker->stats);
 }
 
 static int mwl8k_get_stats(struct ieee80211_hw *hw,
 			   struct ieee80211_low_level_stats *stats)
 {
-	int rc;
-	struct mwl8k_get_stats_worker *worker;
-
-	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
-	if (worker == NULL)
-		return -ENOMEM;
-
-	worker->stats = stats;
-	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_get_stats_wt);
-
-	kfree(worker);
-	if (rc == -ETIMEDOUT) {
-		printk(KERN_ERR "%s() timed out\n", __func__);
-		rc = -EINVAL;
-	}
-
-	return rc;
+	return mwl8k_cmd_802_11_get_stat(hw, stats);
 }
 
 static const struct ieee80211_ops mwl8k_ops = {
