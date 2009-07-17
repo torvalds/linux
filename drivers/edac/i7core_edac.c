@@ -227,9 +227,6 @@ struct i7core_dev_info {
 	.dev_id = (device_id)
 
 struct pci_id_descr pci_devs[] = {
-		/* Generic Non-core registers */
-	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NOCORE)  },
-
 		/* Memory controller */
 	{ PCI_DESCR(3, 0, PCI_DEVICE_ID_INTEL_I7_MCR)     },
 	{ PCI_DESCR(3, 1, PCI_DEVICE_ID_INTEL_I7_MC_TAD)  },
@@ -253,6 +250,16 @@ struct pci_id_descr pci_devs[] = {
 	{ PCI_DESCR(6, 1, PCI_DEVICE_ID_INTEL_I7_MC_CH2_ADDR) },
 	{ PCI_DESCR(6, 2, PCI_DEVICE_ID_INTEL_I7_MC_CH2_RANK) },
 	{ PCI_DESCR(6, 3, PCI_DEVICE_ID_INTEL_I7_MC_CH2_TC)   },
+
+		/* Generic Non-core registers */
+	/*
+	 * This is the PCI device on i7core and on Xeon 35xx (8086:2c41)
+	 * On Xeon 55xx, however, it has a different id (8086:2c40). So,
+	 * the probing code needs to test for the other address in case of
+	 * failure of this one
+	 */
+	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NOCORE)  },
+
 };
 #define N_DEVS ARRAY_SIZE(pci_devs)
 
@@ -1137,6 +1144,16 @@ static int i7core_get_devices(void)
 			pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 						pci_devs[i].dev_id, NULL);
 		}
+
+		/*
+		 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core regs
+		 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
+		 * to probe for the alternate address in case of failure
+		 */
+		if (pci_devs[i].dev_id == PCI_DEVICE_ID_INTEL_I7_NOCORE
+								    && !pdev)
+			pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+				PCI_DEVICE_ID_INTEL_I7_NOCORE_ALT, NULL);
 
 		if (likely(pdev)) {
 			bus = pdev->bus->number;
