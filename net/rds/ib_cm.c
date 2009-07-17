@@ -111,7 +111,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	}
 
 	printk(KERN_NOTICE "RDS/IB: connected to %pI4 version %u.%u%s\n",
-			&conn->c_laddr,
+			&conn->c_faddr,
 			RDS_PROTOCOL_MAJOR(conn->c_version),
 			RDS_PROTOCOL_MINOR(conn->c_version),
 			ic->i_flowctl ? ", flow control" : "");
