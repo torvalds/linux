@@ -774,6 +774,8 @@ struct nx_host_tx_ring {
 	u32 crb_cmd_consumer;
 	u32 num_desc;
 
+	struct netdev_queue *txq;
+
 	struct netxen_cmd_buffer *cmd_buf_arr;
 	struct cmd_desc_type0 *desc_head;
 	dma_addr_t phys_addr;
