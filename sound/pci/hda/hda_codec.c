@@ -150,8 +150,8 @@ make_codec_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
 {
 	u32 val;
 
-	if ((codec->addr & ~0xf) | (direct & ~1) | (nid & ~0x7f) |
-	    (verb & ~0xfff) | (parm & ~0xff)) {
+	if ((codec->addr & ~0xf) || (direct & ~1) || (nid & ~0x7f) ||
+	    (verb & ~0xfff) || (parm & ~0xffff)) {
 		printk(KERN_ERR "hda-codec: out of range cmd %x:%x:%x:%x:%x\n",
 		       codec->addr, direct, nid, verb, parm);
 		return ~0;
