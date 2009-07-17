@@ -165,7 +165,7 @@ HvDoHypercall (
     void*   Output
     )
 {
-#ifdef x86_64
+#ifdef CONFIG_X86_64
     UINT64 hvStatus=0;
     UINT64 inputAddress = (Input)? GetPhysicalAddress(Input) : 0;
 	UINT64 outputAddress = (Output)? GetPhysicalAddress(Output) : 0;
