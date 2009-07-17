@@ -345,8 +345,10 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 
 	/* Fref must be <=13.5MHz */
 	div = 1;
+	fll_div->fll_clk_ref_div = 0;
 	while ((Fref / div) > 13500000) {
 		div *= 2;
+		fll_div->fll_clk_ref_div++;
 
 		if (div > 8) {
 			pr_err("Can't scale %dMHz input down to <=13.5MHz\n",
