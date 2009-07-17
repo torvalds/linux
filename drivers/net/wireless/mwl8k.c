@@ -2622,77 +2622,45 @@ static void mwl8k_remove_interface(struct ieee80211_hw *hw,
 	priv->vif = NULL;
 }
 
-struct mwl8k_config_worker {
-	struct mwl8k_work_struct header;
-	u32 changed;
-};
-
-static int mwl8k_config_wt(struct work_struct *wt)
+static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct mwl8k_config_worker *worker =
-		(struct mwl8k_config_worker *)wt;
-	struct ieee80211_hw *hw = worker->header.hw;
 	struct ieee80211_conf *conf = &hw->conf;
 	struct mwl8k_priv *priv = hw->priv;
-	int rc = 0;
+	int rc;
 
 	if (conf->flags & IEEE80211_CONF_IDLE) {
 		mwl8k_cmd_802_11_radio_disable(hw);
 		priv->current_channel = NULL;
-		goto mwl8k_config_exit;
+		return 0;
 	}
 
-	if (mwl8k_cmd_802_11_radio_enable(hw)) {
-		rc = -EINVAL;
-		goto mwl8k_config_exit;
-	}
+	rc = mwl8k_fw_lock(hw);
+	if (rc)
+		return rc;
+
+	rc = mwl8k_cmd_802_11_radio_enable(hw);
+	if (rc)
+		goto out;
+
+	rc = mwl8k_cmd_set_rf_channel(hw, conf->channel);
+	if (rc)
+		goto out;
 
 	priv->current_channel = conf->channel;
 
-	if (mwl8k_cmd_set_rf_channel(hw, conf->channel)) {
-		rc = -EINVAL;
-		goto mwl8k_config_exit;
-	}
-
 	if (conf->power_level > 18)
 		conf->power_level = 18;
-	if (mwl8k_cmd_802_11_rf_tx_power(hw, conf->power_level)) {
-		rc = -EINVAL;
-		goto mwl8k_config_exit;
-	}
+	rc = mwl8k_cmd_802_11_rf_tx_power(hw, conf->power_level);
+	if (rc)
+		goto out;
 
 	if (mwl8k_cmd_mimo_config(hw, 0x7, 0x7))
 		rc = -EINVAL;
 
-mwl8k_config_exit:
+out:
+	mwl8k_fw_unlock(hw);
+
 	return rc;
-}
-
-static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
-{
-	int rc = 0;
-	struct mwl8k_config_worker *worker;
-
-	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
-	if (worker == NULL)
-		return -ENOMEM;
-
-	worker->changed = changed;
-
-	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_config_wt);
-	if (rc == -ETIMEDOUT) {
-		printk(KERN_ERR "%s() timed out.\n", __func__);
-		rc = -EINVAL;
-	}
-
-	kfree(worker);
-
-	/*
-	 * mac80211 will crash on anything other than -EINVAL on
-	 * error. Looks like wireless extensions which calls mac80211
-	 * may be the actual culprit...
-	 */
-	return rc ? -EINVAL : 0;
 }
 
 struct mwl8k_bss_info_changed_worker {
