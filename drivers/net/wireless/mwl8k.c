@@ -2814,56 +2814,27 @@ static int mwl8k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return mwl8k_rts_threshold(hw, MWL8K_CMD_SET, value);
 }
 
-struct mwl8k_conf_tx_worker {
-	struct mwl8k_work_struct header;
-	u16 queue;
-	const struct ieee80211_tx_queue_params *params;
-};
-
-static int mwl8k_conf_tx_wt(struct work_struct *wt)
-{
-	struct mwl8k_conf_tx_worker *worker =
-	(struct mwl8k_conf_tx_worker *)wt;
-
-	struct ieee80211_hw *hw = worker->header.hw;
-	u16 queue = worker->queue;
-	const struct ieee80211_tx_queue_params *params = worker->params;
-
-	struct mwl8k_priv *priv = hw->priv;
-	int rc = 0;
-
-	if (!priv->wmm_enabled) {
-		if (mwl8k_set_wmm(hw, 1)) {
-			rc = -EINVAL;
-			goto mwl8k_conf_tx_exit;
-		}
-	}
-
-	if (mwl8k_set_edca_params(hw, GET_TXQ(queue), params->cw_min,
-		params->cw_max, params->aifs, params->txop))
-			rc = -EINVAL;
-mwl8k_conf_tx_exit:
-	return rc;
-}
-
 static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			 const struct ieee80211_tx_queue_params *params)
 {
+	struct mwl8k_priv *priv = hw->priv;
 	int rc;
-	struct mwl8k_conf_tx_worker *worker;
 
-	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
-	if (worker == NULL)
-		return -ENOMEM;
+	rc = mwl8k_fw_lock(hw);
+	if (!rc) {
+		if (!priv->wmm_enabled)
+			rc = mwl8k_set_wmm(hw, 1);
 
-	worker->queue = queue;
-	worker->params = params;
-	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_conf_tx_wt);
-	kfree(worker);
-	if (rc == -ETIMEDOUT) {
-		printk(KERN_ERR "%s() timed out\n", __func__);
-		rc = -EINVAL;
+		if (!rc)
+			rc = mwl8k_set_edca_params(hw, queue,
+						   params->cw_min,
+						   params->cw_max,
+						   params->aifs,
+						   params->txop);
+
+		mwl8k_fw_unlock(hw);
 	}
+
 	return rc;
 }
 
