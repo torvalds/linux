@@ -31,6 +31,9 @@ struct r8a66597_platdata {
 	/* This ops can controll port power instead of DVSTCTR register. */
 	void (*port_power)(int port, int power);
 
+	/* set one = on chip controller, set zero = external controller */
+	unsigned	on_chip:1;
+
 	/* (external controller only) set R8A66597_PLATDATA_XTAL_nnMHZ */
 	unsigned	xtal:2;
 
