@@ -1518,8 +1518,12 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 			return retval;
 
 		if (blocks == 1 && !dx_fallback &&
-		    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_DIR_INDEX))
-			return make_indexed_dir(handle, dentry, inode, bh);
+		    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_DIR_INDEX)) {
+			retval = make_indexed_dir(handle, dentry, inode, bh);
+			if (retval == -ENOSPC)
+				brelse(bh);
+			return retval;
+		}
 		brelse(bh);
 	}
 	bh = ext4_append(handle, dir, &block, &retval);
@@ -1528,7 +1532,10 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	de = (struct ext4_dir_entry_2 *) bh->b_data;
 	de->inode = 0;
 	de->rec_len = ext4_rec_len_to_disk(blocksize, blocksize);
-	return add_dirent_to_buf(handle, dentry, inode, de, bh);
+	retval = add_dirent_to_buf(handle, dentry, inode, de, bh);
+	if (retval == -ENOSPC)
+		brelse(bh);
+	return retval;
 }
 
 /*
@@ -1657,7 +1664,8 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 	if (!de)
 		goto cleanup;
 	err = add_dirent_to_buf(handle, dentry, inode, de, bh);
-	bh = NULL;
+	if (err != -ENOSPC)
+		bh = NULL;
 	goto cleanup;
 
 journal_error:
