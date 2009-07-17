@@ -228,6 +228,28 @@ struct platform_device w90x900_device_usbgadget = {
 };
 EXPORT_SYMBOL(w90x900_device_usbgadget);
 
+/* FMI Device */
+
+static struct resource w90p910_fmi_resource[] = {
+	[0] = {
+		.start = W90X900_PA_FMI,
+		.end   = W90X900_PA_FMI + W90X900_SZ_FMI - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_FMI,
+		.end   = IRQ_FMI,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device w90p910_device_fmi = {
+	.name		= "w90p910-fmi",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(w90p910_fmi_resource),
+	.resource	= w90p910_fmi_resource,
+};
+
 static struct map_desc w90p910_iodesc[] __initdata = {
 };
 
@@ -242,6 +264,7 @@ static struct platform_device *w90p910evb_dev[] __initdata = {
 	&w90x900_device_rtc,
 	&w90x900_device_kpi,
 	&w90x900_device_usbgadget,
+	&w90p910_device_fmi,
 };
 
 static void __init w90p910evb_map_io(void)
