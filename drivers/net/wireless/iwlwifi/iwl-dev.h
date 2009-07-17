@@ -772,6 +772,8 @@ struct iwl_calib_result {
 	size_t buf_len;
 };
 
+#define UCODE_ALIVE_TIMEOUT	(5 * HZ)
+
 enum ucode_type {
 	UCODE_NONE = 0,
 	UCODE_INIT,

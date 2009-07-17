@@ -146,7 +146,7 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 
 	IWL_DEBUG_INFO(priv, "Begin load bsm\n");
 
-	priv->ucode_type = UCODE_RT;
+	priv->ucode_type = UCODE_INIT;
 
 	/* make sure bootstrap program is no larger than BSM's SRAM size */
 	if (len > IWL49_MAX_BSM_SIZE)
@@ -256,6 +256,8 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 */
 static void iwl4965_init_alive_start(struct iwl_priv *priv)
 {
+	int ret;
+
 	/* Check alive response for "valid" sign from uCode */
 	if (priv->card_alive_init.is_valid != UCODE_VALID_OK) {
 		/* We had an error bringing up the hardware, so take it
@@ -286,6 +288,28 @@ static void iwl4965_init_alive_start(struct iwl_priv *priv)
 		 * take it all the way back down so we can try again */
 		IWL_DEBUG_INFO(priv, "Couldn't set up uCode pointers.\n");
 		goto restart;
+	}
+	priv->ucode_type = UCODE_RT;
+	if (test_bit(STATUS_RT_UCODE_ALIVE, &priv->status)) {
+		IWL_WARN(priv, "Runtime uCode already alive? "
+			"Waiting for alive anyway\n");
+		clear_bit(STATUS_RT_UCODE_ALIVE, &priv->status);
+	}
+	ret = wait_event_interruptible_timeout(
+			priv->wait_command_queue,
+			test_bit(STATUS_RT_UCODE_ALIVE, &priv->status),
+			UCODE_ALIVE_TIMEOUT);
+	if (!ret) {
+		/* FIXME: if STATUS_RT_UCODE_ALIVE timeout
+		 * go back to restart the download Init uCode again
+		 * this might cause to trap in the restart loop
+		 */
+		priv->ucode_type = UCODE_NONE;
+		if (!test_bit(STATUS_RT_UCODE_ALIVE, &priv->status)) {
+			IWL_ERR(priv, "Runtime timeout after %dms\n",
+				jiffies_to_msecs(UCODE_ALIVE_TIMEOUT));
+			goto restart;
+		}
 	}
 	return;
 
