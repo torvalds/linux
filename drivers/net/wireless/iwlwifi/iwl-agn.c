@@ -964,7 +964,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
-		IWL_DEBUG_RF_KILL(priv, "RF_KILL bit toggled to %s.\n",
+		IWL_WARN(priv, "RF_KILL bit toggled to %s.\n",
 				hw_rf_kill ? "disable radio" : "enable radio");
 
 		priv->isr_stats.rfkill++;
@@ -1137,7 +1137,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
-		IWL_DEBUG_RF_KILL(priv, "RF_KILL bit toggled to %s.\n",
+		IWL_WARN(priv, "RF_KILL bit toggled to %s.\n",
 				hw_rf_kill ? "disable radio" : "enable radio");
 
 		priv->isr_stats.rfkill++;

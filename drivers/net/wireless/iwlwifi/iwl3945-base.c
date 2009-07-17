@@ -926,7 +926,7 @@ static void iwl3945_rx_card_state_notif(struct iwl_priv *priv,
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = priv->status;
 
-	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s\n",
+	IWL_WARN(priv, "Card state received: HW:%s SW:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On");
 
