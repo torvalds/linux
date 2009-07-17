@@ -159,9 +159,6 @@ struct rds_ib_device {
 	struct ib_pd		*pd;
 	struct ib_mr		*mr;
 	struct rds_ib_mr_pool	*mr_pool;
-	int			fmr_page_shift;
-	int			fmr_page_size;
-	u64			fmr_page_mask;
 	unsigned int		fmr_max_remaps;
 	unsigned int		max_fmrs;
 	int			max_sge;

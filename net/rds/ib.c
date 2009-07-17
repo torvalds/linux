@@ -85,9 +85,6 @@ void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->max_wrs = dev_attr->max_qp_wr;
 	rds_ibdev->max_sge = min(dev_attr->max_sge, RDS_IB_MAX_SGE);
 
-	rds_ibdev->fmr_page_shift = max(9, ffs(dev_attr->page_size_cap) - 1);
-	rds_ibdev->fmr_page_size  = 1 << rds_ibdev->fmr_page_shift;
-	rds_ibdev->fmr_page_mask  = ~((u64) rds_ibdev->fmr_page_size - 1);
 	rds_ibdev->fmr_max_remaps = dev_attr->max_map_per_fmr?: 32;
 	rds_ibdev->max_fmrs = dev_attr->max_fmr ?
 			min_t(unsigned int, dev_attr->max_fmr, fmr_pool_size) :
