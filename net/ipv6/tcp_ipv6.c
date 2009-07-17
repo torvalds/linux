@@ -1442,7 +1442,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		 */
 		char *newkey = kmemdup(key->key, key->keylen, GFP_ATOMIC);
 		if (newkey != NULL)
-			tcp_v6_md5_do_add(newsk, &inet6_sk(sk)->daddr,
+			tcp_v6_md5_do_add(newsk, &newnp->daddr,
 					  newkey, key->keylen);
 	}
 #endif
