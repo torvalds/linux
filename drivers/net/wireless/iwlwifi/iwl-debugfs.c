@@ -591,6 +591,33 @@ static ssize_t iwl_dbgfs_qos_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
+#ifdef CONFIG_IWLWIFI_LEDS
+static ssize_t iwl_dbgfs_led_read(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0;
+	char buf[256];
+	const size_t bufsz = sizeof(buf);
+	ssize_t ret;
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "allow blinking: %s\n",
+			 (priv->allow_blinking) ? "True" : "False");
+	if (priv->allow_blinking) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "Led blinking rate: %u\n",
+				 priv->last_blink_rate);
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "Last blink time: %lu\n",
+				 priv->last_blink_time);
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	return ret;
+}
+#endif
+
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(nvm);
@@ -601,6 +628,9 @@ DEBUGFS_READ_FILE_OPS(channels);
 DEBUGFS_READ_FILE_OPS(status);
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(qos);
+#ifdef CONFIG_IWLWIFI_LEDS
+DEBUGFS_READ_FILE_OPS(led);
+#endif
 
 /*
  * Create the debugfs files and directories
@@ -638,6 +668,9 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(status, data);
 	DEBUGFS_ADD_FILE(interrupt, data);
 	DEBUGFS_ADD_FILE(qos, data);
+#ifdef CONFIG_IWLWIFI_LEDS
+	DEBUGFS_ADD_FILE(led, data);
+#endif
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
@@ -673,6 +706,9 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_status);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_interrupt);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_qos);
+#ifdef CONFIG_IWLWIFI_LEDS
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_led);
+#endif
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);
