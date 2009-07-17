@@ -98,7 +98,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	struct ib_qp_attr qp_attr;
 	int err;
 
-	if (event->param.conn.private_data_len) {
+	if (event->param.conn.private_data_len >= sizeof(*dp)) {
 		dp = event->param.conn.private_data;
 
 		rds_ib_set_protocol(conn,
@@ -344,19 +344,32 @@ out:
 	return ret;
 }
 
-static u32 rds_ib_protocol_compatible(const struct rds_ib_connect_private *dp)
+static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event)
 {
+	const struct rds_ib_connect_private *dp = event->param.conn.private_data;
 	u16 common;
 	u32 version = 0;
 
-	/* rdma_cm private data is odd - when there is any private data in the
+	/*
+	 * rdma_cm private data is odd - when there is any private data in the
 	 * request, we will be given a pretty large buffer without telling us the
 	 * original size. The only way to tell the difference is by looking at
 	 * the contents, which are initialized to zero.
 	 * If the protocol version fields aren't set, this is a connection attempt
 	 * from an older version. This could could be 3.0 or 2.0 - we can't tell.
-	 * We really should have changed this for OFED 1.3 :-( */
-	if (dp->dp_protocol_major == 0)
+	 * We really should have changed this for OFED 1.3 :-(
+	 */
+
+	/* Be paranoid. RDS always has privdata */
+	if (!event->param.conn.private_data_len) {
+		printk(KERN_NOTICE "RDS incoming connection has no private data, "
+			"rejecting\n");
+		return 0;
+	}
+
+	/* Even if len is crap *now* I still want to check it. -ASG */
+	if (event->param.conn.private_data_len < sizeof (*dp)
+	    || dp->dp_protocol_major == 0)
 		return RDS_PROTOCOL_3_0;
 
 	common = be16_to_cpu(dp->dp_protocol_minor_mask) & RDS_IB_SUPPORTED_PROTOCOLS;
@@ -388,7 +401,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 	int err, destroy = 1;
 
 	/* Check whether the remote protocol version matches ours. */
-	version = rds_ib_protocol_compatible(dp);
+	version = rds_ib_protocol_compatible(event);
 	if (!version)
 		goto out;
 
