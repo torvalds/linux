@@ -420,14 +420,14 @@ static int __devinit ad1938_spi_probe(struct spi_device *spi)
 	codec->control_data = spi;
 	codec->dev = &spi->dev;
 
-	spi->dev.driver_data = ad1938;
+	dev_set_drvdata(&spi->dev, ad1938);
 
 	return ad1938_register(ad1938);
 }
 
 static int __devexit ad1938_spi_remove(struct spi_device *spi)
 {
-	struct ad1938_priv *ad1938 = spi->dev.driver_data;
+	struct ad1938_priv *ad1938 = dev_get_drvdata(&spi->dev);
 
 	ad1938_unregister(ad1938);
 	return 0;
