@@ -15,6 +15,8 @@
 #define RDS_IB_DEFAULT_RECV_WR		1024
 #define RDS_IB_DEFAULT_SEND_WR		256
 
+#define RDS_IB_DEFAULT_RETRY_COUNT	2
+
 #define RDS_IB_SUPPORTED_PROTOCOLS	0x00000003	/* minor versions supported */
 
 extern struct list_head rds_ib_devices;
@@ -247,6 +249,7 @@ extern struct ib_client rds_ib_client;
 
 extern unsigned int fmr_pool_size;
 extern unsigned int fmr_message_size;
+extern unsigned int rds_ib_retry_count;
 
 extern spinlock_t ib_nodev_conns_lock;
 extern struct list_head ib_nodev_conns;

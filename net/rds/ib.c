@@ -43,11 +43,14 @@
 
 unsigned int fmr_pool_size = RDS_FMR_POOL_SIZE;
 unsigned int fmr_message_size = RDS_FMR_SIZE + 1; /* +1 allows for unaligned MRs */
+unsigned int rds_ib_retry_count = RDS_IB_DEFAULT_RETRY_COUNT;
 
 module_param(fmr_pool_size, int, 0444);
 MODULE_PARM_DESC(fmr_pool_size, " Max number of fmr per HCA");
 module_param(fmr_message_size, int, 0444);
 MODULE_PARM_DESC(fmr_message_size, " Max size of a RDMA transfer");
+module_param(rds_ib_retry_count, int, 0444);
+MODULE_PARM_DESC(rds_ib_retry_count, " Number of hw retries before reporting an error");
 
 struct list_head rds_ib_devices;
 

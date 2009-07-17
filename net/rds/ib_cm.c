@@ -145,7 +145,7 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 	/* XXX tune these? */
 	conn_param->responder_resources = 1;
 	conn_param->initiator_depth = 1;
-	conn_param->retry_count = 7;
+	conn_param->retry_count = min_t(unsigned int, rds_ib_retry_count, 7);
 	conn_param->rnr_retry_count = 7;
 
 	if (dp) {
