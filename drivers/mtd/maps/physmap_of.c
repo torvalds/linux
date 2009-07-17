@@ -190,6 +190,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	const u32 *p;
 	int reg_tuple_size;
 	struct mtd_info **mtd_list = NULL;
+	resource_size_t res_size;
 
 	reg_tuple_size = (of_n_addr_cells(dp) + of_n_size_cells(dp)) * sizeof(u32);
 
@@ -233,8 +234,8 @@ static int __devinit of_flash_probe(struct of_device *dev,
 			(unsigned long long)res.end);
 
 		err = -EBUSY;
-		info->list[i].res = request_mem_region(res.start, res.end -
-						       res.start + 1,
+		res_size = resource_size(&res);
+		info->list[i].res = request_mem_region(res.start, res_size,
 						       dev_name(&dev->dev));
 		if (!info->list[i].res)
 			goto err_out;
@@ -249,7 +250,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 
 		info->list[i].map.name = dev_name(&dev->dev);
 		info->list[i].map.phys = res.start;
-		info->list[i].map.size = res.end - res.start + 1;
+		info->list[i].map.size = res_size;
 		info->list[i].map.bankwidth = *width;
 
 		err = -ENOMEM;
