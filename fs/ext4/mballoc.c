@@ -2571,13 +2571,11 @@ static int ext4_mb_init_backend(struct super_block *sb)
 {
 	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	ext4_group_t i;
-	int metalen;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
 	int num_meta_group_infos;
 	int num_meta_group_infos_max;
 	int array_size;
-	struct ext4_group_info **meta_group_info;
 	struct ext4_group_desc *desc;
 
 	/* This is the number of blocks used by GDT */
@@ -2622,22 +2620,6 @@ static int ext4_mb_init_backend(struct super_block *sb)
 		goto err_freesgi;
 	}
 	EXT4_I(sbi->s_buddy_cache)->i_disksize = 0;
-
-	metalen = sizeof(*meta_group_info) << EXT4_DESC_PER_BLOCK_BITS(sb);
-	for (i = 0; i < num_meta_group_infos; i++) {
-		if ((i + 1) == num_meta_group_infos)
-			metalen = sizeof(*meta_group_info) *
-				(ngroups -
-					(i << EXT4_DESC_PER_BLOCK_BITS(sb)));
-		meta_group_info = kmalloc(metalen, GFP_KERNEL);
-		if (meta_group_info == NULL) {
-			printk(KERN_ERR "EXT4-fs: can't allocate mem for a "
-			       "buddy group\n");
-			goto err_freemeta;
-		}
-		sbi->s_group_info[i] = meta_group_info;
-	}
-
 	for (i = 0; i < ngroups; i++) {
 		desc = ext4_get_group_desc(sb, i, NULL);
 		if (desc == NULL) {
@@ -2655,7 +2637,6 @@ err_freebuddy:
 	while (i-- > 0)
 		kfree(ext4_get_group_info(sb, i));
 	i = num_meta_group_infos;
-err_freemeta:
 	while (i-- > 0)
 		kfree(sbi->s_group_info[i]);
 	iput(sbi->s_buddy_cache);
