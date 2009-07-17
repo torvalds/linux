@@ -458,8 +458,6 @@ int iwl_send_card_state(struct iwl_priv *priv, u32 flags,
 /*****************************************************
  * PCI						     *
  *****************************************************/
-void iwl_disable_interrupts(struct iwl_priv *priv);
-void iwl_enable_interrupts(struct iwl_priv *priv);
 irqreturn_t iwl_isr_legacy(int irq, void *data);
 int iwl_reset_ict(struct iwl_priv *priv);
 void iwl_disable_ict(struct iwl_priv *priv);
