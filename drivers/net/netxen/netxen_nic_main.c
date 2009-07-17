@@ -1535,10 +1535,12 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 		printk(KERN_ALERT
 		       "%s: Device temperature %d degrees C exceeds"
 		       " maximum allowed. Hardware has been shut down.\n",
-		       netxen_nic_driver_name, temp_val);
+		       netdev->name, temp_val);
 
-		netif_carrier_off(netdev);
-		netif_stop_queue(netdev);
+		netif_device_detach(netdev);
+		netxen_nic_down(adapter, netdev);
+		netxen_nic_detach(adapter);
+
 		rv = 1;
 	} else if (temp_state == NX_TEMP_WARN) {
 		if (adapter->temp == NX_TEMP_NORMAL) {
@@ -1546,13 +1548,13 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 			       "%s: Device temperature %d degrees C "
 			       "exceeds operating range."
 			       " Immediate action needed.\n",
-			       netxen_nic_driver_name, temp_val);
+			       netdev->name, temp_val);
 		}
 	} else {
 		if (adapter->temp == NX_TEMP_WARN) {
 			printk(KERN_INFO
 			       "%s: Device temperature is now %d degrees C"
-			       " in normal range.\n", netxen_nic_driver_name,
+			       " in normal range.\n", netdev->name,
 			       temp_val);
 		}
 	}
@@ -1625,7 +1627,7 @@ void netxen_watchdog_task(struct work_struct *work)
 	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, watchdog_task);
 
-	if ((adapter->portnum  == 0) && netxen_nic_check_temp(adapter))
+	if (netxen_nic_check_temp(adapter))
 		return;
 
 	if (!adapter->has_link_events)
