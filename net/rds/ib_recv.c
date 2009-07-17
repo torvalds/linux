@@ -686,7 +686,7 @@ struct rds_ib_ack_state {
 };
 
 static void rds_ib_process_recv(struct rds_connection *conn,
-				struct rds_ib_recv_work *recv, u32 byte_len,
+				struct rds_ib_recv_work *recv, u32 data_len,
 				struct rds_ib_ack_state *state)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
@@ -696,9 +696,9 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	/* XXX shut down the connection if port 0,0 are seen? */
 
 	rdsdebug("ic %p ibinc %p recv %p byte len %u\n", ic, ibinc, recv,
-		 byte_len);
+		 data_len);
 
-	if (byte_len < sizeof(struct rds_header)) {
+	if (data_len < sizeof(struct rds_header)) {
 		rds_ib_conn_error(conn, "incoming message "
 		       "from %pI4 didn't inclue a "
 		       "header, disconnecting and "
@@ -706,9 +706,9 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		       &conn->c_faddr);
 		return;
 	}
-	byte_len -= sizeof(struct rds_header);
+	data_len -= sizeof(struct rds_header);
 
-	ihdr = rds_ib_get_header(conn, recv, byte_len);
+	ihdr = rds_ib_get_header(conn, recv, data_len);
 
 	/* Validate the checksum. */
 	if (!rds_message_verify_checksum(ihdr)) {
@@ -728,7 +728,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	if (ihdr->h_credit)
 		rds_ib_send_add_credits(conn, ihdr->h_credit);
 
-	if (ihdr->h_sport == 0 && ihdr->h_dport == 0 && byte_len == 0) {
+	if (ihdr->h_sport == 0 && ihdr->h_dport == 0 && data_len == 0) {
 		/* This is an ACK-only packet. The fact that it gets
 		 * special treatment here is that historically, ACKs
 		 * were rather special beasts.
