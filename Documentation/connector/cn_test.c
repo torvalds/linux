@@ -32,10 +32,8 @@ static char cn_test_name[] = "cn_test";
 static struct sock *nls;
 static struct timer_list cn_test_timer;
 
-void cn_test_callback(void *data)
+void cn_test_callback(struct cn_msg *msg)
 {
-	struct cn_msg *msg = (struct cn_msg *)data;
-
 	printk("%s: %lu: idx=%x, val=%x, seq=%u, ack=%u, len=%d: %s.\n",
 	       __func__, jiffies, msg->id.idx, msg->id.val,
 	       msg->seq, msg->ack, msg->len, (char *)msg->data);
