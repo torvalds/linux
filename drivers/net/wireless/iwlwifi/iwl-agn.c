@@ -923,7 +923,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IWL_ERR(priv, "Microcode HW error detected.  Restarting.\n");
+		IWL_ERR(priv, "Hardware error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
 		iwl_disable_interrupts(priv);
@@ -1096,7 +1096,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IWL_ERR(priv, "Microcode HW error detected.  Restarting.\n");
+		IWL_ERR(priv, "Hardware error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
 		iwl_disable_interrupts(priv);
