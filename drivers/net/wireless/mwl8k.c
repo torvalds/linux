@@ -2540,38 +2540,14 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	return rc;
 }
 
-struct mwl8k_stop_worker {
-	struct mwl8k_work_struct header;
-};
-
-static int mwl8k_stop_wt(struct work_struct *wt)
-{
-	struct mwl8k_stop_worker *worker = (struct mwl8k_stop_worker *)wt;
-	struct ieee80211_hw *hw = worker->header.hw;
-
-	return mwl8k_cmd_802_11_radio_disable(hw);
-}
-
 static void mwl8k_stop(struct ieee80211_hw *hw)
 {
-	int rc;
-	struct mwl8k_stop_worker *worker;
 	struct mwl8k_priv *priv = hw->priv;
 	int i;
 
-	if (priv->vif != NULL)
-		return;
+	mwl8k_cmd_802_11_radio_disable(hw);
 
 	ieee80211_stop_queues(hw);
-
-	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
-	if (worker == NULL)
-		return;
-
-	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_stop_wt);
-	kfree(worker);
-	if (rc == -ETIMEDOUT)
-		printk(KERN_ERR "%s() timed out\n", __func__);
 
 	/* Disable interrupts */
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
