@@ -1022,10 +1022,15 @@ static int wm8400_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	if (freq_in == wm8400->fll_in && freq_out == wm8400->fll_out)
 		return 0;
 
-	if (freq_out != 0) {
+	if (freq_out) {
 		ret = fll_factors(wm8400, &factors, freq_in, freq_out);
 		if (ret != 0)
 			return ret;
+	} else {
+		/* Bodge GCC 4.4.0 uninitialised variable warning - it
+		 * doesn't seem capable of working out that we exit if
+		 * freq_out is 0 before any of the uses. */
+		memset(&factors, 0, sizeof(factors));
 	}
 
 	wm8400->fll_out = freq_out;
@@ -1040,7 +1045,7 @@ static int wm8400_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	reg &= ~WM8400_FLL_OSC_ENA;
 	wm8400_write(codec, WM8400_FLL_CONTROL_1, reg);
 
-	if (freq_out == 0)
+	if (!freq_out)
 		return 0;
 
 	reg &= ~(WM8400_FLL_REF_FREQ | WM8400_FLL_FRATIO_MASK);
