@@ -2072,6 +2072,8 @@ static const struct net_device_ops orinoco_netdev_ops = {
 	.ndo_start_xmit		= orinoco_xmit,
 	.ndo_set_multicast_list	= orinoco_set_multicast_list,
 	.ndo_change_mtu		= orinoco_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= orinoco_tx_timeout,
 	.ndo_get_stats		= orinoco_get_stats,
 };
