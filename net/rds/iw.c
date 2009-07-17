@@ -83,8 +83,6 @@ void rds_iw_add_one(struct ib_device *device)
 	rds_iwdev->max_wrs = dev_attr->max_qp_wr;
 	rds_iwdev->max_sge = min(dev_attr->max_sge, RDS_IW_MAX_SGE);
 
-	rds_iwdev->page_shift = max(PAGE_SHIFT, ffs(dev_attr->page_size_cap) - 1);
-
 	rds_iwdev->dev = device;
 	rds_iwdev->pd = ib_alloc_pd(device);
 	if (IS_ERR(rds_iwdev->pd))
