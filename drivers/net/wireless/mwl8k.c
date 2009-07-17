@@ -1970,7 +1970,7 @@ struct mwl8k_cmd_rts_threshold {
 } __attribute__((packed));
 
 static int mwl8k_rts_threshold(struct ieee80211_hw *hw,
-			       u16 action, u16 *threshold)
+			       u16 action, u16 threshold)
 {
 	struct mwl8k_cmd_rts_threshold *cmd;
 	int rc;
@@ -1982,7 +1982,7 @@ static int mwl8k_rts_threshold(struct ieee80211_hw *hw,
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_RTS_THRESHOLD);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le16(action);
-	cmd->threshold = cpu_to_le16(*threshold);
+	cmd->threshold = cpu_to_le16(threshold);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 	kfree(cmd);
@@ -2809,45 +2809,9 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 	mwl8k_queue_work(hw, &worker->header, mwl8k_configure_filter_wt);
 }
 
-struct mwl8k_set_rts_threshold_worker {
-	struct mwl8k_work_struct header;
-	u32 value;
-};
-
-static int mwl8k_set_rts_threshold_wt(struct work_struct *wt)
-{
-	struct mwl8k_set_rts_threshold_worker *worker =
-		(struct mwl8k_set_rts_threshold_worker *)wt;
-
-	struct ieee80211_hw *hw = worker->header.hw;
-	u16 threshold = (u16)(worker->value);
-	int rc;
-
-	rc = mwl8k_rts_threshold(hw, MWL8K_CMD_SET, &threshold);
-
-	return rc;
-}
-
 static int mwl8k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
-	int rc;
-	struct mwl8k_set_rts_threshold_worker *worker;
-
-	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
-	if (worker == NULL)
-		return -ENOMEM;
-
-	worker->value = value;
-
-	rc = mwl8k_queue_work(hw, &worker->header, mwl8k_set_rts_threshold_wt);
-	kfree(worker);
-
-	if (rc == -ETIMEDOUT) {
-		printk(KERN_ERR "%s() timed out\n", __func__);
-		rc = -EINVAL;
-	}
-
-	return rc;
+	return mwl8k_rts_threshold(hw, MWL8K_CMD_SET, value);
 }
 
 struct mwl8k_conf_tx_worker {
