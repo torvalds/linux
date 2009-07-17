@@ -155,7 +155,6 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 	}
 
 	INIT_HLIST_NODE(&conn->c_hash_node);
-	conn->c_version = RDS_PROTOCOL_3_0;
 	conn->c_laddr = laddr;
 	conn->c_faddr = faddr;
 	spin_lock_init(&conn->c_lock);
