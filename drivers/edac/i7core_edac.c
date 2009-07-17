@@ -1352,7 +1352,7 @@ static void check_mc_test_err(struct mem_ctl_info *mci, u8 socket)
 static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				    struct mce *m)
 {
-	char *type="NON-FATAL";
+	char *type;
 	char *err, *msg;
 	unsigned long error = m->status & 0x1ff0000l;
 	u32 core_err_cnt = (m->status >> 38) && 0x7fff;
@@ -1360,6 +1360,11 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	u32 channel = (m->misc >> 18) & 0x3;
 	u32 syndrome = m->misc >> 32;
 	u32 errnum = find_first_bit(&error, 32);
+
+	if (m->mcgstatus & 1)
+		type = "FATAL";
+	else
+		type = "NON_FATAL";
 
 	switch (errnum) {
 	case 16:
@@ -1454,7 +1459,8 @@ static void i7core_check_error(struct mem_ctl_info *mci)
  */
 static int i7core_mce_check_error(void *priv, struct mce *mce)
 {
-	struct i7core_pvt *pvt = priv;
+	struct mem_ctl_info *mci = priv;
+	struct i7core_pvt *pvt = mci->pvt_info;
 	unsigned long flags;
 
 	debugf0(__FILE__ ": %s()\n", __func__);
@@ -1476,6 +1482,10 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 		pvt->mce_count++;
 	}
 	spin_unlock_irqrestore(&pvt->mce_lock, flags);
+
+	/* Handle fatal errors immediately */
+	if (mce->mcgstatus & 1)
+		i7core_check_error(mci);
 
 	/* Advice mcelog that the error were handled */
 	return 1;
@@ -1601,7 +1611,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	pvt->inject.col = -1;
 
 	/* Registers on edac_mce in order to receive memory errors */
-	pvt->edac_mce.priv = pvt;
+	pvt->edac_mce.priv = mci;
 	pvt->edac_mce.check_error = i7core_mce_check_error;
 	spin_lock_init(&pvt->mce_lock);
 
