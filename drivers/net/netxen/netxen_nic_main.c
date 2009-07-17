@@ -943,8 +943,8 @@ err_out_free_sw:
 static void
 netxen_nic_detach(struct netxen_adapter *adapter)
 {
-	netxen_release_rx_buffers(adapter);
 	netxen_free_hw_resources(adapter);
+	netxen_release_rx_buffers(adapter);
 	netxen_nic_free_irq(adapter);
 	netxen_free_sw_resources(adapter);
 

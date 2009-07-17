@@ -210,6 +210,7 @@
 #define NETXEN_CTX_SIGNATURE	0xdee0
 #define NETXEN_CTX_SIGNATURE_V2	0x0002dee0
 #define NETXEN_CTX_RESET	0xbad0
+#define NETXEN_CTX_D3_RESET	0xacc0
 #define NETXEN_RCV_PRODUCER(ringid)	(ringid)
 
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
