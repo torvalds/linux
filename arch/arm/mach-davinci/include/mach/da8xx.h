@@ -99,6 +99,7 @@ extern const short da850_uart1_pins[];
 extern const short da850_uart2_pins[];
 extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];
+extern const short da850_cpgmac_pins[];
 
 int da8xx_pinmux_setup(const short pins[]);
 

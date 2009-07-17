@@ -26,6 +26,9 @@
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
 
+#define DA850_EVM_PHY_MASK		0x1
+#define DA850_EVM_MDIO_FREQUENCY	2200000 /* PHY bus frequency */
+
 static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
 	.bus_freq	= 100,	/* kHz */
 	.bus_delay	= 0,	/* usec */
@@ -37,6 +40,7 @@ static struct davinci_uart_config da850_evm_uart_config __initdata = {
 
 static __init void da850_evm_init(void)
 {
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int ret;
 
 	ret = da8xx_register_edma();
@@ -52,6 +56,20 @@ static __init void da850_evm_init(void)
 	ret = da8xx_register_i2c(0, &da850_evm_i2c_0_pdata);
 	if (ret)
 		pr_warning("da850_evm_init: i2c0 registration failed: %d\n",
+				ret);
+
+	soc_info->emac_pdata->phy_mask = DA850_EVM_PHY_MASK;
+	soc_info->emac_pdata->mdio_max_freq = DA850_EVM_MDIO_FREQUENCY;
+	soc_info->emac_pdata->rmii_en = 0;
+
+	ret = da8xx_pinmux_setup(da850_cpgmac_pins);
+	if (ret)
+		pr_warning("da850_evm_init: cpgmac mux setup failed: %d\n",
+				ret);
+
+	ret = da8xx_register_emac();
+	if (ret)
+		pr_warning("da850_evm_init: emac registration failed: %d\n",
 				ret);
 
 	ret = da8xx_register_watchdog();

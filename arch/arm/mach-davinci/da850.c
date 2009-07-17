@@ -283,6 +283,12 @@ static struct clk rmii_clk = {
 	.parent		= &pll0_sysclk7,
 };
 
+static struct clk emac_clk = {
+	.name		= "emac",
+	.parent		= &pll0_sysclk4,
+	.lpsc		= DA8XX_LPSC1_CPGMAC,
+};
+
 static struct davinci_clk da850_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
@@ -319,6 +325,7 @@ static struct davinci_clk da850_clks[] = {
 	CLK(NULL,		"emif3",	&emif3_clk),
 	CLK(NULL,		"arm",		&arm_clk),
 	CLK(NULL,		"rmii",		&rmii_clk),
+	CLK("davinci_emac.1",	NULL,		&emac_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
@@ -347,6 +354,22 @@ static const struct mux_config da850_pins[] = {
 	/* I2C0 function */
 	MUX_CFG(DA850, I2C0_SDA,	4,	12,	15,	2,	false)
 	MUX_CFG(DA850, I2C0_SCL,	4,	8,	15,	2,	false)
+	/* EMAC function */
+	MUX_CFG(DA850, MII_TXEN,	2,	4,	15,	8,	false)
+	MUX_CFG(DA850, MII_TXCLK,	2,	8,	15,	8,	false)
+	MUX_CFG(DA850, MII_COL,		2,	12,	15,	8,	false)
+	MUX_CFG(DA850, MII_TXD_3,	2,	16,	15,	8,	false)
+	MUX_CFG(DA850, MII_TXD_2,	2,	20,	15,	8,	false)
+	MUX_CFG(DA850, MII_TXD_1,	2,	24,	15,	8,	false)
+	MUX_CFG(DA850, MII_TXD_0,	2,	28,	15,	8,	false)
+	MUX_CFG(DA850, MII_RXCLK,	3,	0,	15,	8,	false)
+	MUX_CFG(DA850, MII_RXDV,	3,	4,	15,	8,	false)
+	MUX_CFG(DA850, MII_RXER,	3,	8,	15,	8,	false)
+	MUX_CFG(DA850, MII_CRS,		3,	12,	15,	8,	false)
+	MUX_CFG(DA850, MII_RXD_3,	3,	16,	15,	8,	false)
+	MUX_CFG(DA850, MII_RXD_2,	3,	20,	15,	8,	false)
+	MUX_CFG(DA850, MII_RXD_1,	3,	24,	15,	8,	false)
+	MUX_CFG(DA850, MII_RXD_0,	3,	28,	15,	8,	false)
 #endif
 };
 
@@ -372,6 +395,14 @@ const short da850_i2c0_pins[] __initdata = {
 
 const short da850_i2c1_pins[] __initdata = {
 	DA850_I2C1_SCL, DA850_I2C1_SDA,
+	-1
+};
+
+const short da850_cpgmac_pins[] __initdata = {
+	DA850_MII_TXEN, DA850_MII_TXCLK, DA850_MII_COL, DA850_MII_TXD_3,
+	DA850_MII_TXD_2, DA850_MII_TXD_1, DA850_MII_TXD_0, DA850_MII_RXER,
+	DA850_MII_CRS, DA850_MII_RXCLK, DA850_MII_RXDV, DA850_MII_RXD_3,
+	DA850_MII_RXD_2, DA850_MII_RXD_1, DA850_MII_RXD_0,
 	-1
 };
 
