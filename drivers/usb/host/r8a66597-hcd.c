@@ -2305,9 +2305,9 @@ static struct hc_driver r8a66597_hc_driver = {
 };
 
 #if defined(CONFIG_PM)
-static int r8a66597_suspend(struct platform_device *pdev, pm_message_t state)
+static int r8a66597_suspend(struct device *dev)
 {
-	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
+	struct r8a66597		*r8a66597 = dev_get_drvdata(dev);
 	int port;
 
 	dbg("%s", __func__);
@@ -2323,9 +2323,9 @@ static int r8a66597_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int r8a66597_resume(struct platform_device *pdev)
+static int r8a66597_resume(struct device *dev)
 {
-	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
+	struct r8a66597		*r8a66597 = dev_get_drvdata(dev);
 	struct usb_hcd		*hcd = r8a66597_to_hcd(r8a66597);
 
 	dbg("%s", __func__);
@@ -2335,9 +2335,15 @@ static int r8a66597_resume(struct platform_device *pdev)
 
 	return 0;
 }
+
+static struct dev_pm_ops r8a66597_dev_pm_ops = {
+	.suspend = r8a66597_suspend,
+	.resume = r8a66597_resume,
+};
+
+#define R8A66597_DEV_PM_OPS	(&r8a66597_dev_pm_ops)
 #else	/* if defined(CONFIG_PM) */
-#define r8a66597_suspend	NULL
-#define r8a66597_resume		NULL
+#define R8A66597_DEV_PM_OPS	NULL
 #endif
 
 static int __init_or_module r8a66597_remove(struct platform_device *pdev)
@@ -2473,11 +2479,10 @@ clean_up:
 static struct platform_driver r8a66597_driver = {
 	.probe =	r8a66597_probe,
 	.remove =	r8a66597_remove,
-	.suspend =	r8a66597_suspend,
-	.resume =	r8a66597_resume,
 	.driver		= {
 		.name = (char *) hcd_name,
 		.owner	= THIS_MODULE,
+		.pm	= R8A66597_DEV_PM_OPS,
 	},
 };
 
