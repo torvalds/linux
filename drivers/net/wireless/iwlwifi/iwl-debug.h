@@ -30,6 +30,7 @@
 #define __iwl_debug_h__
 
 struct iwl_priv;
+extern u32 iwl_debug_level;
 
 #define IWL_ERR(p, f, a...) dev_err(&((p)->pci_dev->dev), f, ## a)
 #define IWL_WARN(p, f, a...) dev_warn(&((p)->pci_dev->dev), f, ## a)
@@ -45,7 +46,7 @@ do {									\
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define IWL_DEBUG(__priv, level, fmt, args...)				\
 do {									\
-	if (__priv->debug_level & (level))				\
+	if (iwl_debug_level & (level))					\
 		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
 			 "%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
 			__func__ , ## args);				\
@@ -53,15 +54,15 @@ do {									\
 
 #define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)			\
 do {									\
-	if ((__priv->debug_level & (level)) && net_ratelimit())		\
+	if ((iwl_debug_level & (level)) && net_ratelimit())		\
 		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
 			"%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
 			 __func__ , ## args);				\
 } while (0)
 
-#define iwl_print_hex_dump(priv, level, p, len) 			\
+#define iwl_print_hex_dump(level, p, len) 				\
 do {                                            			\
-	if (priv->debug_level & level)          			\
+	if (iwl_debug_level & level)          				\
 		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
@@ -103,8 +104,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv);
 #else
 #define IWL_DEBUG(__priv, level, fmt, args...)
 #define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)
-static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
-				      void *p, u32 len)
+static inline void iwl_print_hex_dump(int level, void *p, u32 len)
 {}
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
