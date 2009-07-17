@@ -9,38 +9,64 @@
 
 static DEFINE_SPINLOCK(hwblk_lock);
 
-static void hwblk_area_inc(struct hwblk_info *info, int area)
+static void hwblk_area_mod_cnt(struct hwblk_info *info,
+			       int area, int counter, int value, int goal)
 {
 	struct hwblk_area *hap = info->areas + area;
 
-	hap->cnt++;
-	if (hap->cnt == 1)
-		if (hap->flags & HWBLK_AREA_FLAG_PARENT)
-			hwblk_area_inc(info, hap->parent);
+	hap->cnt[counter] += value;
+
+	if (hap->cnt[counter] != goal)
+		return;
+
+	if (hap->flags & HWBLK_AREA_FLAG_PARENT)
+		hwblk_area_mod_cnt(info, hap->parent, counter, value, goal);
 }
 
-static void hwblk_area_dec(struct hwblk_info *info, int area)
+
+static int __hwblk_mod_cnt(struct hwblk_info *info, int hwblk,
+			  int counter, int value, int goal)
 {
-	struct hwblk_area *hap = info->areas + area;
+	struct hwblk *hp = info->hwblks + hwblk;
 
-	if (hap->cnt == 1)
-		if (hap->flags & HWBLK_AREA_FLAG_PARENT)
-			hwblk_area_dec(info, hap->parent);
-	hap->cnt--;
+	hp->cnt[counter] += value;
+	if (hp->cnt[counter] == goal)
+		hwblk_area_mod_cnt(info, hp->area, counter, value, goal);
+
+	return hp->cnt[counter];
 }
 
-static void hwblk_enable(struct hwblk_info *info, int hwblk)
+static void hwblk_mod_cnt(struct hwblk_info *info, int hwblk,
+			  int counter, int value, int goal)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&hwblk_lock, flags);
+	__hwblk_mod_cnt(info, hwblk, counter, value, goal);
+	spin_unlock_irqrestore(&hwblk_lock, flags);
+}
+
+void hwblk_cnt_inc(struct hwblk_info *info, int hwblk, int counter)
+{
+	hwblk_mod_cnt(info, hwblk, counter, 1, 1);
+}
+
+void hwblk_cnt_dec(struct hwblk_info *info, int hwblk, int counter)
+{
+	hwblk_mod_cnt(info, hwblk, counter, -1, 0);
+}
+
+void hwblk_enable(struct hwblk_info *info, int hwblk)
 {
 	struct hwblk *hp = info->hwblks + hwblk;
 	unsigned long tmp;
 	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&hwblk_lock, flags);
 
-	hp->cnt++;
-	if (hp->cnt == 1) {
-		hwblk_area_inc(info, hp->area);
-
+	ret = __hwblk_mod_cnt(info, hwblk, HWBLK_CNT_USAGE, 1, 1);
+	if (ret == 1) {
 		tmp = __raw_readl(hp->mstp);
 		tmp &= ~(1 << hp->bit);
 		__raw_writel(tmp, hp->mstp);
@@ -49,27 +75,26 @@ static void hwblk_enable(struct hwblk_info *info, int hwblk)
 	spin_unlock_irqrestore(&hwblk_lock, flags);
 }
 
-static void hwblk_disable(struct hwblk_info *info, int hwblk)
+void hwblk_disable(struct hwblk_info *info, int hwblk)
 {
 	struct hwblk *hp = info->hwblks + hwblk;
 	unsigned long tmp;
 	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&hwblk_lock, flags);
 
-	if (hp->cnt == 1) {
-		hwblk_area_dec(info, hp->area);
-
+	ret = __hwblk_mod_cnt(info, hwblk, HWBLK_CNT_USAGE, -1, 0);
+	if (ret == 0) {
 		tmp = __raw_readl(hp->mstp);
 		tmp |= 1 << hp->bit;
 		__raw_writel(tmp, hp->mstp);
 	}
-	hp->cnt--;
 
 	spin_unlock_irqrestore(&hwblk_lock, flags);
 }
 
-static struct hwblk_info *hwblk_info;
+struct hwblk_info *hwblk_info;
 
 int __init hwblk_register(struct hwblk_info *info)
 {
