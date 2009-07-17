@@ -2576,11 +2576,17 @@ int ata_eh_reset(struct ata_link *link, int classify,
 			postreset(slave, classes);
 	}
 
-	/* clear cached SError */
+	/*
+	 * Some controllers can't be frozen very well and may set
+	 * spuruious error conditions during reset.  Clear accumulated
+	 * error information.  As reset is the final recovery action,
+	 * nothing is lost by doing this.
+	 */
 	spin_lock_irqsave(link->ap->lock, flags);
-	link->eh_info.serror = 0;
+	memset(&link->eh_info, 0, sizeof(link->eh_info));
 	if (slave)
-		slave->eh_info.serror = 0;
+		memset(&slave->eh_info, 0, sizeof(link->eh_info));
+	ap->pflags &= ~ATA_PFLAG_EH_PENDING;
 	spin_unlock_irqrestore(link->ap->lock, flags);
 
 	/* Make sure onlineness and classification result correspond.
