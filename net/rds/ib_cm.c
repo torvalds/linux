@@ -101,10 +101,13 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	if (event->param.conn.private_data_len >= sizeof(*dp)) {
 		dp = event->param.conn.private_data;
 
-		rds_ib_set_protocol(conn,
+		/* make sure it isn't empty data */
+		if (dp->dp_protocol_major) {
+			rds_ib_set_protocol(conn,
 				RDS_PROTOCOL(dp->dp_protocol_major,
-					dp->dp_protocol_minor));
-		rds_ib_set_flow_control(conn, be32_to_cpu(dp->dp_credit));
+				dp->dp_protocol_minor));
+			rds_ib_set_flow_control(conn, be32_to_cpu(dp->dp_credit));
+		}
 	}
 
 	printk(KERN_NOTICE "RDS/IB: connected to %pI4 version %u.%u%s\n",

@@ -358,17 +358,25 @@ extern ctl_table rds_ib_sysctl_table[];
 /*
  * Helper functions for getting/setting the header and data SGEs in
  * RDS packets (not RDMA)
+ *
+ * From version 3.1 onwards, header is in front of data in the sge.
  */
 static inline struct ib_sge *
 rds_ib_header_sge(struct rds_ib_connection *ic, struct ib_sge *sge)
 {
-	return &sge[0];
+	if (ic->conn->c_version > RDS_PROTOCOL_3_0)
+		return &sge[0];
+	else
+		return &sge[1];
 }
 
 static inline struct ib_sge *
 rds_ib_data_sge(struct rds_ib_connection *ic, struct ib_sge *sge)
 {
-	return &sge[1];
+	if (ic->conn->c_version > RDS_PROTOCOL_3_0)
+		return &sge[1];
+	else
+		return &sge[0];
 }
 
 #endif
