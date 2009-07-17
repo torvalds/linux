@@ -54,7 +54,7 @@ static const char *led_type_str[] = {
 
 
 static const struct {
-	u16 tpt;
+	u16 tpt;	/* Mb/s */
 	u8 on_time;
 	u8 off_time;
 } blink_tbl[] =
@@ -264,13 +264,15 @@ static int iwl_leds_register_led(struct iwl_priv *priv, struct iwl_led *led,
 
 
 /*
- * calculate blink rate according to last 2 sec Tx/Rx activities
+ * calculate blink rate according to last second Tx/Rx activities
  */
 static int iwl_get_blink_rate(struct iwl_priv *priv)
 {
 	int i;
-	u64 current_tpt = priv->tx_stats[2].bytes;
-	/* FIXME: + priv->rx_stats[2].bytes; */
+	/* count both tx and rx traffic to be able to
+	 * handle traffic in either direction
+	 */
+	u64 current_tpt = priv->tx_stats[2].bytes + priv->rx_stats[2].bytes;
 	s64 tpt = current_tpt - priv->led_tpt;
 
 	if (tpt < 0) /* wraparound */
