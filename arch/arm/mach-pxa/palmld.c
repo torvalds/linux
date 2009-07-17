@@ -25,6 +25,9 @@
 #include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
 #include <linux/sysdev.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -138,6 +141,42 @@ static unsigned long palmld_pin_config[] __initdata = {
 
 	/* MISC */
 	GPIO13_GPIO,	/* earphone detect */
+};
+
+/******************************************************************************
+ * NOR Flash
+ ******************************************************************************/
+static struct mtd_partition palmld_partitions[] = {
+	{
+		.name		= "Flash",
+		.offset		= 0x00000000,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0
+	}
+};
+
+static struct physmap_flash_data palmld_flash_data[] = {
+	{
+		.width		= 2,			/* bankwidth in bytes */
+		.parts		= palmld_partitions,
+		.nr_parts	= ARRAY_SIZE(palmld_partitions)
+	}
+};
+
+static struct resource palmld_flash_resource = {
+	.start	= PXA_CS0_PHYS,
+	.end	= PXA_CS0_PHYS + SZ_4M - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct platform_device palmld_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.resource	= &palmld_flash_resource,
+	.num_resources	= 1,
+	.dev 		= {
+		.platform_data = palmld_flash_data,
+	},
 };
 
 /******************************************************************************
@@ -489,6 +528,7 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&palmld_asoc,
 	&palmld_hdd,
+	&palmld_flash,
 };
 
 static struct map_desc palmld_io_desc[] __initdata = {
