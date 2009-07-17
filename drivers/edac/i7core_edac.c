@@ -1352,9 +1352,9 @@ static void check_mc_test_err(struct mem_ctl_info *mci, u8 socket)
 static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				    struct mce *m)
 {
-	char *type;
-	char *err, *msg;
+	char *type, *optype, *err, *msg;
 	unsigned long error = m->status & 0x1ff0000l;
+	u32 optypenum = (m->status >> 4) & 0x07;
 	u32 core_err_cnt = (m->status >> 38) && 0x7fff;
 	u32 dimm = (m->misc >> 16) & 0x3;
 	u32 channel = (m->misc >> 18) & 0x3;
@@ -1365,6 +1365,27 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 		type = "FATAL";
 	else
 		type = "NON_FATAL";
+
+	switch (optypenum) {
+		case 0:
+			optype = "generic undef request";
+			break;
+		case 1:
+			optype = "read error";
+			break;
+		case 2:
+			optype = "write error";
+			break;
+		case 3:
+			optype = "addr/cmd error";
+			break;
+		case 4:
+			optype = "scrubbing error";
+			break;
+		default:
+			optype = "reserved";
+			break;
+	}
 
 	switch (errnum) {
 	case 16:
@@ -1400,10 +1421,11 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 
 	/* FIXME: should convert addr into bank and rank information */
 	msg = kasprintf(GFP_ATOMIC,
-		"%s (addr = 0x%08llx Dimm=%d, Channel=%d, "
-		"syndrome=0x%08x, count=%d Err=%d (%s))\n",
+		"%s (addr = 0x%08llx, Dimm=%d, Channel=%d, "
+		"syndrome=0x%08x, count=%d, Err=%08llx:%08llx (%s: %s))\n",
 		type, (long long) m->addr, dimm, channel,
-		syndrome, core_err_cnt,errnum, err);
+		syndrome, core_err_cnt, (long long)m->status,
+		(long long)m->misc, optype, err);
 
 	debugf0("%s", msg);
 
