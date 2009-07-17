@@ -2221,12 +2221,50 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_work_sync(&priv->txpower_work);
 }
 
+#define IWL4965_UCODE_GET(item)						\
+static u32 iwl4965_ucode_get_##item(const struct iwl_ucode_header *ucode,\
+				    u32 api_ver)			\
+{									\
+	return le32_to_cpu(ucode->u.v1.item);				\
+}
+
+static u32 iwl4965_ucode_get_header_size(u32 api_ver)
+{
+	return UCODE_HEADER_SIZE(1);
+}
+static u32 iwl4965_ucode_get_build(const struct iwl_ucode_header *ucode,
+				   u32 api_ver)
+{
+	return 0;
+}
+static u8 *iwl4965_ucode_get_data(const struct iwl_ucode_header *ucode,
+				  u32 api_ver)
+{
+	return (u8 *) ucode->u.v1.data;
+}
+
+IWL4965_UCODE_GET(inst_size);
+IWL4965_UCODE_GET(data_size);
+IWL4965_UCODE_GET(init_size);
+IWL4965_UCODE_GET(init_data_size);
+IWL4965_UCODE_GET(boot_size);
+
 static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
 	.set_rxon_chain = iwl_set_rxon_chain,
 };
 
+static struct iwl_ucode_ops iwl4965_ucode = {
+	.get_header_size = iwl4965_ucode_get_header_size,
+	.get_build = iwl4965_ucode_get_build,
+	.get_inst_size = iwl4965_ucode_get_inst_size,
+	.get_data_size = iwl4965_ucode_get_data_size,
+	.get_init_size = iwl4965_ucode_get_init_size,
+	.get_init_data_size = iwl4965_ucode_get_init_data_size,
+	.get_boot_size = iwl4965_ucode_get_boot_size,
+	.get_data = iwl4965_ucode_get_data,
+};
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.get_hcmd_size = iwl4965_get_hcmd_size,
 	.build_addsta_hcmd = iwl4965_build_addsta_hcmd,
@@ -2287,6 +2325,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 };
 
 static struct iwl_ops iwl4965_ops = {
+	.ucode = &iwl4965_ucode,
 	.lib = &iwl4965_lib,
 	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,

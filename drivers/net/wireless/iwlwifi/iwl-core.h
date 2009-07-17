@@ -116,6 +116,17 @@ struct iwl_temp_ops {
 	void (*set_ct_kill)(struct iwl_priv *priv);
 };
 
+struct iwl_ucode_ops {
+	u32 (*get_header_size)(u32);
+	u32 (*get_build)(const struct iwl_ucode_header *, u32);
+	u32 (*get_inst_size)(const struct iwl_ucode_header *, u32);
+	u32 (*get_data_size)(const struct iwl_ucode_header *, u32);
+	u32 (*get_init_size)(const struct iwl_ucode_header *, u32);
+	u32 (*get_init_data_size)(const struct iwl_ucode_header *, u32);
+	u32 (*get_boot_size)(const struct iwl_ucode_header *, u32);
+	u8 * (*get_data)(const struct iwl_ucode_header *, u32);
+};
+
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -171,6 +182,7 @@ struct iwl_lib_ops {
 };
 
 struct iwl_ops {
+	const struct iwl_ucode_ops *ucode;
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;

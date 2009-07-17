@@ -2041,7 +2041,7 @@ static void iwl3945_nic_start(struct iwl_priv *priv)
  */
 static int iwl3945_read_ucode(struct iwl_priv *priv)
 {
-	struct iwl_ucode *ucode;
+	const struct iwl_ucode_header *ucode;
 	int ret = -EINVAL, index;
 	const struct firmware *ucode_raw;
 	/* firmware file name contains uCode/driver compatibility version */
@@ -2082,22 +2082,24 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 		goto error;
 
 	/* Make sure that we got at least our header! */
-	if (ucode_raw->size < sizeof(*ucode)) {
+	if (ucode_raw->size <  priv->cfg->ops->ucode->get_header_size(1)) {
 		IWL_ERR(priv, "File size way too small!\n");
 		ret = -EINVAL;
 		goto err_release;
 	}
 
 	/* Data from ucode file:  header followed by uCode images */
-	ucode = (void *)ucode_raw->data;
+	ucode = (struct iwl_ucode_header *)ucode_raw->data;
 
 	priv->ucode_ver = le32_to_cpu(ucode->ver);
 	api_ver = IWL_UCODE_API(priv->ucode_ver);
-	inst_size = le32_to_cpu(ucode->inst_size);
-	data_size = le32_to_cpu(ucode->data_size);
-	init_size = le32_to_cpu(ucode->init_size);
-	init_data_size = le32_to_cpu(ucode->init_data_size);
-	boot_size = le32_to_cpu(ucode->boot_size);
+	inst_size = priv->cfg->ops->ucode->get_inst_size(ucode, api_ver);
+	data_size = priv->cfg->ops->ucode->get_data_size(ucode, api_ver);
+	init_size = priv->cfg->ops->ucode->get_init_size(ucode, api_ver);
+	init_data_size =
+		priv->cfg->ops->ucode->get_init_data_size(ucode, api_ver);
+	boot_size = priv->cfg->ops->ucode->get_boot_size(ucode, api_ver);
+	src = priv->cfg->ops->ucode->get_data(ucode, api_ver);
 
 	/* api_ver should match the api version forming part of the
 	 * firmware filename ... but we don't check for that and only rely
@@ -2138,12 +2140,13 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 
 
 	/* Verify size of file vs. image size info in file's header */
-	if (ucode_raw->size < sizeof(*ucode) +
+	if (ucode_raw->size != priv->cfg->ops->ucode->get_header_size(api_ver) +
 		inst_size + data_size + init_size +
 		init_data_size + boot_size) {
 
-		IWL_DEBUG_INFO(priv, "uCode file size %zd too small\n",
-			       ucode_raw->size);
+		IWL_DEBUG_INFO(priv,
+			"uCode file size %zd does not match expected size\n",
+			ucode_raw->size);
 		ret = -EINVAL;
 		goto err_release;
 	}
@@ -2226,44 +2229,44 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
-	src = &ucode->data[0];
-	len = priv->ucode_code.len;
+	len = inst_size;
 	IWL_DEBUG_INFO(priv,
 		"Copying (but not loading) uCode instr len %zd\n", len);
 	memcpy(priv->ucode_code.v_addr, src, len);
+	src += len;
+
 	IWL_DEBUG_INFO(priv, "uCode instr buf vaddr = 0x%p, paddr = 0x%08x\n",
 		priv->ucode_code.v_addr, (u32)priv->ucode_code.p_addr);
 
 	/* Runtime data (2nd block)
 	 * NOTE:  Copy into backup buffer will be done in iwl3945_up()  */
-	src = &ucode->data[inst_size];
-	len = priv->ucode_data.len;
+	len = data_size;
 	IWL_DEBUG_INFO(priv,
 		"Copying (but not loading) uCode data len %zd\n", len);
 	memcpy(priv->ucode_data.v_addr, src, len);
 	memcpy(priv->ucode_data_backup.v_addr, src, len);
+	src += len;
 
 	/* Initialization instructions (3rd block) */
 	if (init_size) {
-		src = &ucode->data[inst_size + data_size];
-		len = priv->ucode_init.len;
+		len = init_size;
 		IWL_DEBUG_INFO(priv,
 			"Copying (but not loading) init instr len %zd\n", len);
 		memcpy(priv->ucode_init.v_addr, src, len);
+		src += len;
 	}
 
 	/* Initialization data (4th block) */
 	if (init_data_size) {
-		src = &ucode->data[inst_size + data_size + init_size];
-		len = priv->ucode_init_data.len;
+		len = init_data_size;
 		IWL_DEBUG_INFO(priv,
 			"Copying (but not loading) init data len %zd\n", len);
 		memcpy(priv->ucode_init_data.v_addr, src, len);
+		src += len;
 	}
 
 	/* Bootstrap instructions (5th block) */
-	src = &ucode->data[inst_size + data_size + init_size + init_data_size];
-	len = priv->ucode_boot.len;
+	len = boot_size;
 	IWL_DEBUG_INFO(priv,
 		"Copying (but not loading) boot instr len %zd\n", len);
 	memcpy(priv->ucode_boot.v_addr, src, len);

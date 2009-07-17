@@ -2786,9 +2786,48 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	return 0;
 }
 
+#define IWL3945_UCODE_GET(item)						\
+static u32 iwl3945_ucode_get_##item(const struct iwl_ucode_header *ucode,\
+				    u32 api_ver)			\
+{									\
+	return le32_to_cpu(ucode->u.v1.item);				\
+}
+
+static u32 iwl3945_ucode_get_header_size(u32 api_ver)
+{
+	return UCODE_HEADER_SIZE(1);
+}
+static u32 iwl3945_ucode_get_build(const struct iwl_ucode_header *ucode,
+				   u32 api_ver)
+{
+	return 0;
+}
+static u8 *iwl3945_ucode_get_data(const struct iwl_ucode_header *ucode,
+				  u32 api_ver)
+{
+	return (u8 *) ucode->u.v1.data;
+}
+
+IWL3945_UCODE_GET(inst_size);
+IWL3945_UCODE_GET(data_size);
+IWL3945_UCODE_GET(init_size);
+IWL3945_UCODE_GET(init_data_size);
+IWL3945_UCODE_GET(boot_size);
+
 static struct iwl_hcmd_ops iwl3945_hcmd = {
 	.rxon_assoc = iwl3945_send_rxon_assoc,
 	.commit_rxon = iwl3945_commit_rxon,
+};
+
+static struct iwl_ucode_ops iwl3945_ucode = {
+	.get_header_size = iwl3945_ucode_get_header_size,
+	.get_build = iwl3945_ucode_get_build,
+	.get_inst_size = iwl3945_ucode_get_inst_size,
+	.get_data_size = iwl3945_ucode_get_data_size,
+	.get_init_size = iwl3945_ucode_get_init_size,
+	.get_init_data_size = iwl3945_ucode_get_init_data_size,
+	.get_boot_size = iwl3945_ucode_get_boot_size,
+	.get_data = iwl3945_ucode_get_data,
 };
 
 static struct iwl_lib_ops iwl3945_lib = {
@@ -2831,6 +2870,7 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 };
 
 static struct iwl_ops iwl3945_ops = {
+	.ucode = &iwl3945_ucode,
 	.lib = &iwl3945_lib,
 	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
