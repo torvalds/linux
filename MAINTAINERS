@@ -5539,7 +5539,6 @@ S:	Maintained
 F:	drivers/net/starfire*
 
 STARMODE RADIO IP (STRIP) PROTOCOL DRIVER
-W:	http://mosquitonet.Stanford.EDU/strip.html
 S:	Orphan
 F:	drivers/net/wireless/strip.c
 F:	include/linux/if_strip.h
