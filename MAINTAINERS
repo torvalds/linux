@@ -150,7 +150,7 @@ F:	drivers/scsi/53c700*
 
 6PACK NETWORK DRIVER FOR AX.25
 P:	Andreas Koensgen
-M:	ajk@iehk.rwth-aachen.de
+M:	ajk@comnets.uni-bremen.de
 L:	linux-hams@vger.kernel.org
 S:	Maintained
 F:	drivers/net/hamradio/6pack.c
