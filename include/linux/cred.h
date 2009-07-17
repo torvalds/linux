@@ -186,7 +186,8 @@ static inline struct cred *get_new_cred(struct cred *cred)
  */
 static inline const struct cred *get_cred(const struct cred *cred)
 {
-	return get_new_cred((struct cred *) cred);
+	struct cred *nonconst_cred = (struct cred *) cred;
+	return get_new_cred(nonconst_cred);
 }
 
 /**
