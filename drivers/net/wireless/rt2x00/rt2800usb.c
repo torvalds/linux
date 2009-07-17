@@ -1910,7 +1910,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * Before the radio can be enabled, the device first has
 		 * to be woken up. After that it needs a bit of time
-		 * to be fully awake and the radio can be enabled.
+		 * to be fully awake and then the radio can be enabled.
 		 */
 		rt2800usb_set_state(rt2x00dev, STATE_AWAKE);
 		msleep(1);
@@ -1918,7 +1918,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_OFF:
 		/*
-		 * After the radio has been disablee, the device should
+		 * After the radio has been disabled, the device should
 		 * be put to sleep for powersaving.
 		 */
 		rt2800usb_disable_radio(rt2x00dev);

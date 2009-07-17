@@ -341,7 +341,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	int status;
 
 	/*
-	 * Mac80211 might be calling this function while we are trying
+	 * mac80211 might be calling this function while we are trying
 	 * to remove the device or perhaps suspending it.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
@@ -587,7 +587,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	int update_bssid = 0;
 
 	/*
-	 * Mac80211 might be calling this function while we are trying
+	 * mac80211 might be calling this function while we are trying
 	 * to remove the device or perhaps suspending it.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))

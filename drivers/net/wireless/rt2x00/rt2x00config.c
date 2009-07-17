@@ -132,7 +132,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Failsafe: Make sure we are not sending the
 	 * ANTENNA_SW_DIVERSITY state to the driver.
-	 * If that happes fallback to hardware default,
+	 * If that happens, fallback to hardware defaults,
 	 * or our own default.
 	 * The calls to rt2x00lib_config_antenna_check()
 	 * might have caused that we restore back to the already

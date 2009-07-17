@@ -158,7 +158,7 @@ static void rt2x00lib_antenna_diversity_sample(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * During the last period we have sampled the RSSI
-	 * from both antenna's. It now is time to determine
+	 * from both antennas. It now is time to determine
 	 * which antenna demonstrated the best performance.
 	 * When we are already on the antenna with the best
 	 * performance, then there really is nothing for us

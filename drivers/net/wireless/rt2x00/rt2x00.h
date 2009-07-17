@@ -245,7 +245,7 @@ struct link_ant {
 	struct antenna_setup active;
 
 	/*
-	 * RSSI information for the different antenna's.
+	 * RSSI information for the different antennas.
 	 * These statistics are used to determine when
 	 * to switch antenna when using software diversity.
 	 *
@@ -633,7 +633,7 @@ struct rt2x00_dev {
 	 * The structure stored in here depends on the
 	 * system bus (PCI or USB).
 	 * When accessing this variable, the rt2x00dev_{pci,usb}
-	 * macro's should be used for correct typecasting.
+	 * macros should be used for correct typecasting.
 	 */
 	struct device *dev;
 
