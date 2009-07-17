@@ -131,6 +131,10 @@ source "drivers/staging/cpc-usb/Kconfig"
 
 source "drivers/staging/pata_rdc/Kconfig"
 
+source "drivers/staging/dream/smd/Kconfig"
+
+source "drivers/staging/dream/camera/Kconfig"
+
 source "drivers/staging/udlfb/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
