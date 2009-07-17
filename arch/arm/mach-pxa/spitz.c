@@ -560,50 +560,10 @@ static struct pxaohci_platform_data spitz_ohci_platform_data = {
 /*
  * Irda
  */
-static int spitz_irda_startup(struct device *dev)
-{
-	int rc;
-
-	rc = gpio_request(SPITZ_GPIO_IR_ON, "IrDA on");
-	if (rc)
-		goto err;
-
-	rc = gpio_direction_output(SPITZ_GPIO_IR_ON, 1);
-	if (rc)
-		goto err_dir;
-
-	return 0;
-
-err_dir:
-	gpio_free(SPITZ_GPIO_IR_ON);
-err:
-	return rc;
-}
-
-static void spitz_irda_shutdown(struct device *dev)
-{
-	gpio_free(SPITZ_GPIO_IR_ON);
-}
-
-static void spitz_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(SPITZ_GPIO_IR_ON, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
-#ifdef CONFIG_MACH_AKITA
-static void akita_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(AKITA_GPIO_IR_ON, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-#endif
 
 static struct pxaficp_platform_data spitz_ficp_platform_data = {
+/* .gpio_pwdown is set in spitz_init() and akita_init() accordingly */
 	.transceiver_cap	= IR_SIRMODE | IR_OFF,
-	.transceiver_mode	= spitz_irda_transceiver_mode,
-	.startup		= spitz_irda_startup,
-	.shutdown		= spitz_irda_shutdown,
 };
 
 
@@ -782,6 +742,8 @@ static void __init common_init(void)
 #if defined(CONFIG_MACH_SPITZ) || defined(CONFIG_MACH_BORZOI)
 static void __init spitz_init(void)
 {
+	spitz_ficp_platform_data.gpio_pwdown = SPITZ_GPIO_IR_ON;
+
 	platform_scoop_config = &spitz_pcmcia_config;
 
 	common_init();
@@ -824,7 +786,7 @@ static struct nand_ecclayout akita_oobinfo = {
 
 static void __init akita_init(void)
 {
-	spitz_ficp_platform_data.transceiver_mode = akita_irda_transceiver_mode;
+	spitz_ficp_platform_data.gpio_pwdown = AKITA_GPIO_IR_ON;
 
 	sharpsl_nand_platform_data.badblock_pattern = &sharpsl_akita_bbt;
 	sharpsl_nand_platform_data.ecc_layout = &akita_oobinfo;

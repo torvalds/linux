@@ -415,6 +415,7 @@ static void trizeps4_irda_transceiver_mode(struct device *dev, int mode)
 }
 
 static struct pxaficp_platform_data trizeps4_ficp_platform_data = {
+	.gpio_pwdown		= -1,
 	.transceiver_cap	= IR_SIRMODE | IR_FIRMODE | IR_OFF,
 	.transceiver_mode	= trizeps4_irda_transceiver_mode,
 	.startup		= trizeps4_irda_startup,

@@ -230,35 +230,9 @@ static struct platform_device palmz72_backlight = {
 /******************************************************************************
  * IrDA
  ******************************************************************************/
-static int palmz72_irda_startup(struct device *dev)
-{
-	int err;
-	err = gpio_request(GPIO_NR_PALMZ72_IR_DISABLE, "IR DISABLE");
-	if (err)
-		goto err;
-	err = gpio_direction_output(GPIO_NR_PALMZ72_IR_DISABLE, 1);
-	if (err)
-		gpio_free(GPIO_NR_PALMZ72_IR_DISABLE);
-err:
-	return err;
-}
-
-static void palmz72_irda_shutdown(struct device *dev)
-{
-	gpio_free(GPIO_NR_PALMZ72_IR_DISABLE);
-}
-
-static void palmz72_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(GPIO_NR_PALMZ72_IR_DISABLE, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
 static struct pxaficp_platform_data palmz72_ficp_platform_data = {
-	.startup		= palmz72_irda_startup,
-	.shutdown		= palmz72_irda_shutdown,
+	.gpio_pwdown		= GPIO_NR_PALMZ72_IR_DISABLE,
 	.transceiver_cap	= IR_SIRMODE | IR_OFF,
-	.transceiver_mode	= palmz72_irda_transceiver_mode,
 };
 
 /******************************************************************************

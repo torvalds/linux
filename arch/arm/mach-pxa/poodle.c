@@ -302,34 +302,9 @@ static struct pxamci_platform_data poodle_mci_platform_data = {
 /*
  * Irda
  */
-static void poodle_irda_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(POODLE_GPIO_IR_ON, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
-static int poodle_irda_startup(struct device *dev)
-{
-	int err;
-
-	err = gpio_request(POODLE_GPIO_IR_ON, "IR_ON");
-	if (err)
-		return err;
-
-	gpio_direction_output(POODLE_GPIO_IR_ON, 1);
-	return 0;
-}
-
-static void poodle_irda_shutdown(struct device *dev)
-{
-	gpio_free(POODLE_GPIO_IR_ON);
-}
-
 static struct pxaficp_platform_data poodle_ficp_platform_data = {
+	.gpio_pwdown		= POODLE_GPIO_IR_ON,
 	.transceiver_cap	= IR_SIRMODE | IR_OFF,
-	.transceiver_mode	= poodle_irda_transceiver_mode,
-	.startup		= poodle_irda_startup,
-	.shutdown		= poodle_irda_shutdown,
 };
 
 

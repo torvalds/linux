@@ -12,6 +12,8 @@ struct pxaficp_platform_data {
 	void (*transceiver_mode)(struct device *dev, int mode);
 	int (*startup)(struct device *dev);
 	void (*shutdown)(struct device *dev);
+	int gpio_pwdown;		/* powerdown GPIO for the IrDA chip */
+	bool gpio_pwdown_inverted;	/* gpio_pwdown is inverted */
 };
 
 extern void pxa_set_ficp_info(struct pxaficp_platform_data *info);

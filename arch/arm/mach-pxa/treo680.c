@@ -295,44 +295,9 @@ static struct platform_device treo680_backlight = {
 /******************************************************************************
  * IrDA
  ******************************************************************************/
-static void treo680_transceiver_mode(struct device *dev, int mode)
-{
-	gpio_set_value(GPIO_NR_TREO680_IR_EN, mode & IR_OFF);
-	pxa2xx_transceiver_mode(dev, mode);
-}
-
-static int treo680_irda_startup(struct device *dev)
-{
-	int err;
-
-	err = gpio_request(GPIO_NR_TREO680_IR_EN, "Ir port disable");
-	if (err)
-		goto err1;
-
-	err = gpio_direction_output(GPIO_NR_TREO680_IR_EN, 1);
-	if (err)
-		goto err2;
-
-	return 0;
-
-err2:
-	dev_err(dev, "treo680_irda: cannot change IR gpio direction\n");
-	gpio_free(GPIO_NR_TREO680_IR_EN);
-err1:
-	dev_err(dev, "treo680_irda: cannot allocate IR gpio\n");
-	return err;
-}
-
-static void treo680_irda_shutdown(struct device *dev)
-{
-	gpio_free(GPIO_NR_TREO680_IR_EN);
-}
-
 static struct pxaficp_platform_data treo680_ficp_info = {
-	.transceiver_cap  = IR_FIRMODE | IR_SIRMODE | IR_OFF,
-	.startup          = treo680_irda_startup,
-	.shutdown         = treo680_irda_shutdown,
-	.transceiver_mode = treo680_transceiver_mode,
+	.gpio_pwdown		= GPIO_NR_TREO680_IR_EN,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
 };
 
 /******************************************************************************
