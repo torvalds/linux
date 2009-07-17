@@ -90,7 +90,7 @@ struct intel_limit {
 #define I8XX_P2_SLOW		      4
 #define I8XX_P2_FAST		      2
 #define I8XX_P2_LVDS_SLOW	      14
-#define I8XX_P2_LVDS_FAST	      14 /* No fast option */
+#define I8XX_P2_LVDS_FAST	      7
 #define I8XX_P2_SLOW_LIMIT	 165000
 
 #define I9XX_DOT_MIN		  20000
