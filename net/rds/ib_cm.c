@@ -203,9 +203,9 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 		rdma_notify(ic->i_cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
-		printk(KERN_WARNING "RDS/ib: unhandled QP event %u "
-		       "on connection to %pI4\n", event->event,
-		       &conn->c_faddr);
+		rds_ib_conn_error(conn, "RDS/IB: Fatal QP Event %u "
+			"- connection %pI4->%pI4, reconnecting\n",
+			event->event, &conn->c_laddr, &conn->c_faddr);
 		break;
 	}
 }
