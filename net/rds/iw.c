@@ -89,15 +89,10 @@ void rds_iw_add_one(struct ib_device *device)
 		goto free_dev;
 
 	if (!rds_iwdev->dma_local_lkey) {
-		if (device->node_type != RDMA_NODE_RNIC) {
-			rds_iwdev->mr = ib_get_dma_mr(rds_iwdev->pd,
-						IB_ACCESS_LOCAL_WRITE);
-		} else {
-			rds_iwdev->mr = ib_get_dma_mr(rds_iwdev->pd,
-						IB_ACCESS_REMOTE_READ |
-						IB_ACCESS_REMOTE_WRITE |
-						IB_ACCESS_LOCAL_WRITE);
-		}
+		rds_iwdev->mr = ib_get_dma_mr(rds_iwdev->pd,
+					IB_ACCESS_REMOTE_READ |
+					IB_ACCESS_REMOTE_WRITE |
+					IB_ACCESS_LOCAL_WRITE);
 		if (IS_ERR(rds_iwdev->mr))
 			goto err_pd;
 	} else
