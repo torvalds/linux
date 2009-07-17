@@ -239,6 +239,13 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 				APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
 				~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 
+	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_1000) {
+		/* Setting digital SVR for 1000 card to 1.32V */
+		iwl_set_bits_mask_prph(priv, APMG_DIGITAL_SVR_REG,
+					APMG_SVR_DIGITAL_VOLTAGE_1_32,
+					~APMG_SVR_VOLTAGE_CONFIG_BIT_MSK);
+	}
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
