@@ -38,8 +38,6 @@ struct lguest_pages
 #define CHANGED_GDT_TLS		4 /* Actually a subset of CHANGED_GDT */
 #define CHANGED_ALL	        3
 
-struct lguest;
-
 struct lg_cpu {
 	unsigned int id;
 	struct lguest *lg;
