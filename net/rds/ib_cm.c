@@ -116,6 +116,16 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 			RDS_PROTOCOL_MINOR(conn->c_version),
 			ic->i_flowctl ? ", flow control" : "");
 
+	/*
+	 * Init rings and fill recv. this needs to wait until protocol negotiation
+	 * is complete, since ring layout is different from 3.0 to 3.1.
+	 */
+	rds_ib_send_init_ring(ic);
+	rds_ib_recv_init_ring(ic);
+	/* Post receive buffers - as a side effect, this will update
+	 * the posted credit count. */
+	rds_ib_recv_refill(conn, GFP_KERNEL, GFP_HIGHUSER, 1);
+
 	/* Tune RNR behavior */
 	rds_ib_tune_rnr(ic, &qp_attr);
 
@@ -324,7 +334,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		rdsdebug("send allocation failed\n");
 		goto out;
 	}
-	rds_ib_send_init_ring(ic);
+	memset(ic->i_sends, 0, ic->i_send_ring.w_nr * sizeof(struct rds_ib_send_work));
 
 	ic->i_recvs = vmalloc(ic->i_recv_ring.w_nr * sizeof(struct rds_ib_recv_work));
 	if (ic->i_recvs == NULL) {
@@ -332,13 +342,9 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		rdsdebug("recv allocation failed\n");
 		goto out;
 	}
+	memset(ic->i_recvs, 0, ic->i_recv_ring.w_nr * sizeof(struct rds_ib_recv_work));
 
-	rds_ib_recv_init_ring(ic);
 	rds_ib_recv_init_ack(ic);
-
-	/* Post receive buffers - as a side effect, this will update
-	 * the posted credit count. */
-	rds_ib_recv_refill(conn, GFP_KERNEL, GFP_HIGHUSER, 1);
 
 	rdsdebug("conn %p pd %p mr %p cq %p %p\n", conn, ic->i_pd, ic->i_mr,
 		 ic->i_send_cq, ic->i_recv_cq);
