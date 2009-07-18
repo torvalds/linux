@@ -60,7 +60,7 @@ do { \
 	set_desc_limit(&gdt[(selname) >> 3], (size) - 1); \
 } while(0)
 
-static struct desc_struct bad_bios_desc;
+static struct desc_struct bad_bios_desc = GDT_ENTRY_INIT(0x4092, 0, 0);
 
 /*
  * At some point we want to use this stack frame pointer to unwind
@@ -475,9 +475,6 @@ void pnpbios_calls_init(union pnp_bios_install_struct *header)
 	spin_lock_init(&pnp_bios_lock);
 	pnp_bios_callpoint.offset = header->fields.pm16offset;
 	pnp_bios_callpoint.segment = PNP_CS16;
-
-	bad_bios_desc.a = 0;
-	bad_bios_desc.b = 0x00409200;
 
 	set_desc_base(&bad_bios_desc, (unsigned long)__va(0x40UL << 4));
 	set_desc_limit(&bad_bios_desc, 4095 - (0x40 << 4));

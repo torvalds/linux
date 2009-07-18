@@ -403,7 +403,7 @@ static DECLARE_WAIT_QUEUE_HEAD(apm_waitqueue);
 static DECLARE_WAIT_QUEUE_HEAD(apm_suspend_waitqueue);
 static struct apm_user *user_list;
 static DEFINE_SPINLOCK(user_list_lock);
-static struct desc_struct bad_bios_desc = { { { 0, 0x00409200 } } };
+static struct desc_struct bad_bios_desc = GDT_ENTRY_INIT(0x4092, 0, 0);
 
 static const char driver_version[] = "1.16ac";	/* no spaces */
 

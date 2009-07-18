@@ -48,7 +48,7 @@
  * head_32 for boot CPU and setup_per_cpu_areas() for others.
  */
 #define GDT_STACK_CANARY_INIT						\
-	[GDT_ENTRY_STACK_CANARY] = { { { 0x00000018, 0x00409000 } } },
+	[GDT_ENTRY_STACK_CANARY] = GDT_ENTRY_INIT(0x4090, 0, 0x18),
 
 /*
  * Initialize the stackprotector canary value.
