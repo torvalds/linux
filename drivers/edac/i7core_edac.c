@@ -1494,8 +1494,6 @@ static void i7core_check_error(struct mem_ctl_info *mci)
 	struct mce *m = NULL;
 	unsigned long flags;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
-
 	/* Copy all mce errors into a temporary buffer */
 	spin_lock_irqsave(&pvt->mce_lock, flags);
 	if (pvt->mce_count) {
@@ -1530,8 +1528,6 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 	struct mem_ctl_info *mci = priv;
 	struct i7core_pvt *pvt = mci->pvt_info;
 	unsigned long flags;
-
-	debugf0(__FILE__ ": %s()\n", __func__);
 
 	/*
 	 * Just let mcelog handle it if the error is
