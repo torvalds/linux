@@ -142,8 +142,7 @@ unsigned long segment_base(u16 selector)
 		table_base = segment_base(ldt_selector);
 	}
 	d = (struct desc_struct *)(table_base + (selector & ~7));
-	v = d->base0 | ((unsigned long)d->base1 << 16) |
-		((unsigned long)d->base2 << 24);
+	v = get_desc_base(d);
 #ifdef CONFIG_X86_64
 	if (d->s == 0 && (d->type == 2 || d->type == 9 || d->type == 11))
 		v |= ((unsigned long)((struct ldttss_desc64 *)d)->base3) << 32;
@@ -3947,11 +3946,8 @@ static void kvm_set_segment(struct kvm_vcpu *vcpu,
 static void seg_desct_to_kvm_desct(struct desc_struct *seg_desc, u16 selector,
 				   struct kvm_segment *kvm_desct)
 {
-	kvm_desct->base = seg_desc->base0;
-	kvm_desct->base |= seg_desc->base1 << 16;
-	kvm_desct->base |= seg_desc->base2 << 24;
-	kvm_desct->limit = seg_desc->limit0;
-	kvm_desct->limit |= seg_desc->limit << 16;
+	kvm_desct->base = get_desc_base(seg_desc);
+	kvm_desct->limit = get_desc_limit(seg_desc);
 	if (seg_desc->g) {
 		kvm_desct->limit <<= 12;
 		kvm_desct->limit |= 0xfff;
@@ -4030,11 +4026,7 @@ static int save_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 static u32 get_tss_base_addr(struct kvm_vcpu *vcpu,
 			     struct desc_struct *seg_desc)
 {
-	u32 base_addr;
-
-	base_addr = seg_desc->base0;
-	base_addr |= (seg_desc->base1 << 16);
-	base_addr |= (seg_desc->base2 << 24);
+	u32 base_addr = get_desc_base(seg_desc);
 
 	return vcpu->arch.mmu.gva_to_gpa(vcpu, base_addr);
 }
@@ -4323,7 +4315,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason)
 		}
 	}
 
-	if (!nseg_desc.p || (nseg_desc.limit0 | nseg_desc.limit << 16) < 0x67) {
+	if (!nseg_desc.p || get_desc_limit(&nseg_desc) < 0x67) {
 		kvm_queue_exception_e(vcpu, TS_VECTOR, tss_selector & 0xfffc);
 		return 1;
 	}
