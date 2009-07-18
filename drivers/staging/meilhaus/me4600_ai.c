@@ -760,7 +760,7 @@ static int me4600_ai_io_single_read(me_subdevice_t *subdevice,
 	// Mark that StreamConfig is removed.
 	instance->chan_list_len = 0;
 
-	spin_lock_irqsave(instance->ctrl_reg_lock, cpu_flags);
+	spin_lock(instance->ctrl_reg_lock);
 	/// @note Imprtant: Preserve EXT IRQ settings.
 	tmp = inl(instance->ctrl_reg);
 	// Clear FIFOs and dissable interrupts
@@ -824,7 +824,7 @@ static int me4600_ai_io_single_read(me_subdevice_t *subdevice,
 		   instance->ctrl_reg - instance->reg_base,
 		   instance->single_config[channel].ctrl | tmp);
 
-	spin_unlock_irqrestore(instance->ctrl_reg_lock, cpu_flags);
+	spin_unlock(instance->ctrl_reg_lock);
 
 	if (!(instance->single_config[channel].ctrl & ME4600_AI_CTRL_BIT_EX_TRIG)) {	// Software start
 		inl(instance->start_reg);
@@ -877,7 +877,7 @@ static int me4600_ai_io_single_read(me_subdevice_t *subdevice,
 	}
 
 	// Restore settings.
-	spin_lock_irqsave(instance->ctrl_reg_lock, cpu_flags);
+	spin_lock(instance->ctrl_reg_lock);
 	tmp = inl(instance->ctrl_reg);
 	// Clear FIFOs and dissable interrupts.
 	tmp &=
@@ -889,7 +889,7 @@ static int me4600_ai_io_single_read(me_subdevice_t *subdevice,
 	outl(tmp, instance->ctrl_reg);
 	PDEBUG_REG("ctrl_reg outl(0x%lX+0x%lX)=0x%x\n", instance->reg_base,
 		   instance->ctrl_reg - instance->reg_base, tmp);
-	spin_unlock_irqrestore(instance->ctrl_reg_lock, cpu_flags);
+	spin_unlock(instance->ctrl_reg_lock);
 
 	spin_unlock_irqrestore(&instance->subdevice_lock, cpu_flags);
 
@@ -1268,7 +1268,7 @@ static int me4600_ai_io_stream_config(me_subdevice_t *subdevice,
 	}
 
 	instance->status = ai_status_none;
-	spin_lock_irqsave(instance->ctrl_reg_lock, cpu_flags);
+	spin_lock(instance->ctrl_reg_lock);
 	// Stop all actions. Block all interrupts. Clear (disable) FIFOs.
 	ctrl =
 	    ME4600_AI_CTRL_BIT_LE_IRQ_RESET | ME4600_AI_CTRL_BIT_HF_IRQ_RESET |
@@ -1290,7 +1290,7 @@ static int me4600_ai_io_stream_config(me_subdevice_t *subdevice,
 	outl(tmp | ctrl, instance->ctrl_reg);
 	PDEBUG_REG("ctrl_reg outl(0x%lX+0x%lX)=0x%x\n", instance->reg_base,
 		   instance->ctrl_reg - instance->reg_base, tmp | ctrl);
-	spin_unlock_irqrestore(instance->ctrl_reg_lock, cpu_flags);
+	spin_unlock(instance->ctrl_reg_lock);
 
 	// Write the channel list
 	for (i = 0; i < count; i++) {
@@ -1529,7 +1529,7 @@ static int me4600_ai_io_stream_config(me_subdevice_t *subdevice,
 	ctrl |= (ME4600_AI_CTRL_BIT_HF_IRQ | ME4600_AI_CTRL_BIT_SC_IRQ | ME4600_AI_CTRL_BIT_LE_IRQ);	//The last IRQ source (ME4600_AI_CTRL_BIT_LE_IRQ) is unused!
 
 	//Everything is good. Finalize
-	spin_lock_irqsave(instance->ctrl_reg_lock, cpu_flags);
+	spin_lock(instance->ctrl_reg_lock);
 	tmp = inl(instance->ctrl_reg);
 
 	//Preserve EXT IRQ and OFFSET settings. Clean other bits.
@@ -1541,7 +1541,7 @@ static int me4600_ai_io_stream_config(me_subdevice_t *subdevice,
 	outl(ctrl | tmp, instance->ctrl_reg);
 	PDEBUG_REG("ctrl_reg outl(0x%lX+0x%lX)=0x%x\n", instance->reg_base,
 		   instance->ctrl_reg - instance->reg_base, ctrl | tmp);
-	spin_unlock_irqrestore(instance->ctrl_reg_lock, cpu_flags);
+	spin_unlock(instance->ctrl_reg_lock);
 
 	//Set the global parameters end exit.
 	instance->chan_list_len = count;
