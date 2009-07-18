@@ -28,6 +28,8 @@
 #include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -130,6 +132,10 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	/* FFUART */
 	GPIO34_FFUART_RXD,
 	GPIO39_FFUART_TXD,
+
+	/* NAND */
+	GPIO15_nCS_1,
+	GPIO18_RDY,
 
 	/* MISC. */
 	GPIO10_GPIO,	/* hotsync button */
@@ -422,6 +428,68 @@ static struct pxafb_mach_info palmtx_lcd_screen = {
 };
 
 /******************************************************************************
+ * NAND Flash
+ ******************************************************************************/
+static void palmtx_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
+				 unsigned int ctrl)
+{
+	struct nand_chip *this = mtd->priv;
+	unsigned long nandaddr = (unsigned long)this->IO_ADDR_W;
+
+	if (cmd == NAND_CMD_NONE)
+		return;
+
+	if (ctrl & NAND_CLE)
+		writeb(cmd, PALMTX_NAND_CLE_VIRT);
+	else if (ctrl & NAND_ALE)
+		writeb(cmd, PALMTX_NAND_ALE_VIRT);
+	else
+		writeb(cmd, nandaddr);
+}
+
+static struct mtd_partition palmtx_partition_info[] = {
+	[0] = {
+		.name	= "palmtx-0",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL
+	},
+};
+
+static const char *palmtx_part_probes[] = { "cmdlinepart", NULL };
+
+struct platform_nand_data palmtx_nand_platdata = {
+	.chip	= {
+		.nr_chips		= 1,
+		.chip_offset		= 0,
+		.nr_partitions		= ARRAY_SIZE(palmtx_partition_info),
+		.partitions		= palmtx_partition_info,
+		.chip_delay		= 20,
+		.part_probe_types 	= palmtx_part_probes,
+	},
+	.ctrl	= {
+		.cmd_ctrl	= palmtx_nand_cmd_ctl,
+	},
+};
+
+static struct resource palmtx_nand_resource[] = {
+	[0]	= {
+		.start	= PXA_CS1_PHYS,
+		.end	= PXA_CS1_PHYS + SZ_1M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device palmtx_nand = {
+	.name		= "gen_nand",
+	.num_resources	= ARRAY_SIZE(palmtx_nand_resource),
+	.resource	= palmtx_nand_resource,
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &palmtx_nand_platdata,
+	}
+};
+
+/******************************************************************************
  * Power management - standby
  ******************************************************************************/
 static void __init palmtx_pm_init(void)
@@ -447,6 +515,7 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&palmtx_asoc,
 	&palmtx_gpio_vbus,
+	&palmtx_nand,
 };
 
 static struct map_desc palmtx_io_desc[] __initdata = {
@@ -454,8 +523,18 @@ static struct map_desc palmtx_io_desc[] __initdata = {
 	.virtual	= PALMTX_PCMCIA_VIRT,
 	.pfn		= __phys_to_pfn(PALMTX_PCMCIA_PHYS),
 	.length		= PALMTX_PCMCIA_SIZE,
-	.type		= MT_DEVICE
-},
+	.type		= MT_DEVICE,
+}, {
+	.virtual	= PALMTX_NAND_ALE_VIRT,
+	.pfn		= __phys_to_pfn(PALMTX_NAND_ALE_PHYS),
+	.length		= SZ_1M,
+	.type		= MT_DEVICE,
+}, {
+	.virtual	= PALMTX_NAND_CLE_VIRT,
+	.pfn		= __phys_to_pfn(PALMTX_NAND_CLE_PHYS),
+	.length		= SZ_1M,
+	.type		= MT_DEVICE,
+}
 };
 
 static void __init palmtx_map_io(void)
