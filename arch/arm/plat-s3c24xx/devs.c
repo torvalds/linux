@@ -348,7 +348,7 @@ struct platform_device s3c_device_adc = {
 /* HWMON */
 
 struct platform_device s3c_device_hwmon = {
-	.name		= "s3c24xx-hwmon",
+	.name		= "s3c-hwmon",
 	.id		= -1,
 	.dev.parent	= &s3c_device_adc.dev,
 };
