@@ -360,6 +360,9 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	blk_queue_max_phys_segments(vblk->disk->queue, vblk->sg_elems-2);
 	blk_queue_max_hw_segments(vblk->disk->queue, vblk->sg_elems-2);
 
+	/* No need to bounce any requests */
+	blk_queue_bounce_limit(vblk->disk->queue, BLK_BOUNCE_ANY);
+
 	/* No real sector limit. */
 	blk_queue_max_sectors(vblk->disk->queue, -1U);
 
