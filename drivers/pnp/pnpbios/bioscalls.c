@@ -55,9 +55,9 @@ __asm__(".text			\n"
 
 #define Q2_SET_SEL(cpu, selname, address, size) \
 do { \
-struct desc_struct *gdt = get_cpu_gdt_table((cpu)); \
-set_base(gdt[(selname) >> 3], (u32)(address)); \
-set_limit(gdt[(selname) >> 3], size); \
+	struct desc_struct *gdt = get_cpu_gdt_table((cpu)); \
+	set_desc_base(&gdt[(selname) >> 3], (u32)(address)); \
+	set_desc_limit(&gdt[(selname) >> 3], (size) - 1); \
 } while(0)
 
 static struct desc_struct bad_bios_desc;
@@ -479,16 +479,17 @@ void pnpbios_calls_init(union pnp_bios_install_struct *header)
 	bad_bios_desc.a = 0;
 	bad_bios_desc.b = 0x00409200;
 
-	set_base(bad_bios_desc, __va((unsigned long)0x40 << 4));
-	_set_limit((char *)&bad_bios_desc, 4095 - (0x40 << 4));
+	set_desc_base(&bad_bios_desc, (unsigned long)__va(0x40UL << 4));
+	set_desc_limit(&bad_bios_desc, 4095 - (0x40 << 4));
 	for_each_possible_cpu(i) {
 		struct desc_struct *gdt = get_cpu_gdt_table(i);
 		if (!gdt)
 			continue;
-		set_base(gdt[GDT_ENTRY_PNPBIOS_CS32], &pnp_bios_callfunc);
-		set_base(gdt[GDT_ENTRY_PNPBIOS_CS16],
-			 __va(header->fields.pm16cseg));
-		set_base(gdt[GDT_ENTRY_PNPBIOS_DS],
-			 __va(header->fields.pm16dseg));
+		set_desc_base(&gdt[GDT_ENTRY_PNPBIOS_CS32],
+			 (unsigned long)&pnp_bios_callfunc);
+		set_desc_base(&gdt[GDT_ENTRY_PNPBIOS_CS16],
+			 (unsigned long)__va(header->fields.pm16cseg));
+		set_desc_base(&gdt[GDT_ENTRY_PNPBIOS_DS],
+			 (unsigned long)__va(header->fields.pm16dseg));
 	}
 }

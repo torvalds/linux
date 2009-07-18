@@ -90,9 +90,7 @@ static inline void setup_stack_canary_segment(int cpu)
 	struct desc_struct desc;
 
 	desc = gdt_table[GDT_ENTRY_STACK_CANARY];
-	desc.base0 = canary & 0xffff;
-	desc.base1 = (canary >> 16) & 0xff;
-	desc.base2 = (canary >> 24) & 0xff;
+	set_desc_base(&desc, canary);
 	write_gdt_entry(gdt_table, GDT_ENTRY_STACK_CANARY, &desc, DESCTYPE_S);
 #endif
 }
