@@ -290,7 +290,7 @@ static void svm_hardware_enable(void *garbage)
 
 	struct svm_cpu_data *svm_data;
 	uint64_t efer;
-	struct desc_ptr gdt_descr;
+	struct descriptor_table gdt_descr;
 	struct desc_struct *gdt;
 	int me = raw_smp_processor_id();
 
@@ -310,8 +310,8 @@ static void svm_hardware_enable(void *garbage)
 	svm_data->max_asid = cpuid_ebx(SVM_CPUID_FUNC) - 1;
 	svm_data->next_asid = svm_data->max_asid + 1;
 
-	asm volatile ("sgdt %0" : "=m"(gdt_descr));
-	gdt = (struct desc_struct *)gdt_descr.address;
+	kvm_get_gdt(&gdt_descr);
+	gdt = (struct desc_struct *)gdt_descr.base;
 	svm_data->tss_desc = (struct kvm_ldttss_desc *)(gdt + GDT_ENTRY_TSS);
 
 	rdmsrl(MSR_EFER, efer);

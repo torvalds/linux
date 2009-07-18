@@ -132,13 +132,12 @@ unsigned long segment_base(u16 selector)
 	if (selector == 0)
 		return 0;
 
-	asm("sgdt %0" : "=m"(gdt));
+	kvm_get_gdt(&gdt);
 	table_base = gdt.base;
 
 	if (selector & 4) {           /* from ldt */
-		u16 ldt_selector;
+		u16 ldt_selector = kvm_read_ldt();
 
-		asm("sldt %0" : "=g"(ldt_selector));
 		table_base = segment_base(ldt_selector);
 	}
 	d = (struct desc_struct *)(table_base + (selector & ~7));
