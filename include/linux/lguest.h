@@ -11,7 +11,7 @@
 #define LG_CLOCK_MIN_DELTA	100UL
 #define LG_CLOCK_MAX_DELTA	ULONG_MAX
 
-/*G:032 The second method of communicating with the Host is to via "struct
+/*G:031 The second method of communicating with the Host is to via "struct
  * lguest_data".  Once the Guest's initialization hypercall tells the Host where
  * this is, the Guest and Host both publish information in it. :*/
 struct lguest_data

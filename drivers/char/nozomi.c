@@ -828,7 +828,7 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 	struct port *port = &dc->port[index];
 	void __iomem *addr = port->dl_addr[port->toggle_dl];
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
-	int i;
+	int i, ret;
 
 	if (unlikely(!tty)) {
 		DBG1("tty not open for port: %d?", index);
@@ -844,12 +844,14 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 
 		/* disable interrupt in downlink... */
 		disable_transmit_dl(index, dc);
-		return 0;
+		ret = 0;
+		goto put;
 	}
 
 	if (unlikely(size == 0)) {
 		dev_err(&dc->pdev->dev, "size == 0?\n");
-		return 1;
+		ret = 1;
+		goto put;
 	}
 
 	tty_buffer_request_room(tty, size);
@@ -871,8 +873,10 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 	}
 
 	set_bit(index, &dc->flip);
+	ret = 1;
+put:
 	tty_kref_put(tty);
-	return 1;
+	return ret;
 }
 
 /* Debug for interrupts */
