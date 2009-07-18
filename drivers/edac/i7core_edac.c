@@ -410,7 +410,7 @@ static int i7core_get_active_channels(u8 socket, unsigned *channels,
 		}
 	}
 
-	debugf0("Number of active channels on socked %d: %d\n",
+	debugf0("Number of active channels on socket %d: %d\n",
 		socket, *channels);
 
 	return 0;
@@ -1126,107 +1126,137 @@ static void i7core_put_devices(void)
  *
  *			Need to 'get' device 16 func 1 and func 2
  */
-static int i7core_get_devices(void)
+int i7core_get_onedevice(struct pci_dev **prev, int devno)
 {
-	int rc, i;
 	struct pci_dev *pdev = NULL;
 	u8 bus = 0;
 	u8 socket = 0;
 
-	for (i = 0; i < N_DEVS; i++) {
+	pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+			      pci_devs[devno].dev_id, *prev);
+
+	/*
+	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core pci buses
+	 * aren't announced by acpi. So, we need to use a legacy scan probing
+	 * to detect them
+	 */
+	if (unlikely(!pdev && !devno && !prev)) {
+		pcibios_scan_specific_bus(254);
+		pcibios_scan_specific_bus(255);
+
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-					pci_devs[i].dev_id, NULL);
+				      pci_devs[devno].dev_id, *prev);
+	}
 
-		if (!pdev && !i) {
-			pcibios_scan_specific_bus(254);
-			pcibios_scan_specific_bus(255);
+	/*
+	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core regs
+	 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
+	 * to probe for the alternate address in case of failure
+	 */
+	if (pci_devs[devno].dev_id == PCI_DEVICE_ID_INTEL_I7_NOCORE && !pdev)
+		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+				      PCI_DEVICE_ID_INTEL_I7_NOCORE_ALT, *prev);
 
-			pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-						pci_devs[i].dev_id, NULL);
+	if (!pdev) {
+		if (*prev) {
+			*prev = pdev;
+			return 0;
 		}
 
 		/*
-		 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core regs
-		 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
-		 * to probe for the alternate address in case of failure
+		 * Dev 3 function 2 only exists on chips with RDIMMs
+		 * so, it is ok to not found it
 		 */
-		if (pci_devs[i].dev_id == PCI_DEVICE_ID_INTEL_I7_NOCORE
-								    && !pdev)
-			pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				PCI_DEVICE_ID_INTEL_I7_NOCORE_ALT, NULL);
-
-		if (likely(pdev)) {
-			bus = pdev->bus->number;
-
-			if (bus == 0x3f)
-				socket = 0;
-			else
-				socket = 255 - bus;
-
-			if (socket >= NUM_SOCKETS) {
-				i7core_printk(KERN_ERR,
-					"Found unexpected socket for "
-					"dev %02x:%02x.%d PCI ID %04x:%04x\n",
-					bus, pci_devs[i].dev, pci_devs[i].func,
-					PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id);
-
-				rc = -ENODEV;
-				goto error;
-			}
-
-			pci_devs[i].pdev[socket] = pdev;
-		} else {
-			i7core_printk(KERN_ERR,
-				"Device not found: "
-				"dev %02x:%02x.%d PCI ID %04x:%04x\n",
-				bus, pci_devs[i].dev, pci_devs[i].func,
-				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id);
-
-			/* Dev 3 function 2 only exists on chips with RDIMMs */
-			if ((pci_devs[i].dev == 3) && (pci_devs[i].func == 2))
-				continue;
-
-			/* End of list, leave */
-			rc = -ENODEV;
-			goto error;
+		if ((pci_devs[devno].dev == 3) && (pci_devs[devno].func == 2)) {
+			*prev = pdev;
+			return 0;
 		}
 
-		/* Sanity check */
-		if (unlikely(PCI_SLOT(pdev->devfn) != pci_devs[i].dev ||
-			     PCI_FUNC(pdev->devfn) != pci_devs[i].func)) {
-			i7core_printk(KERN_ERR,
-				"Device PCI ID %04x:%04x "
-				"has fn %d.%d instead of fn %d.%d\n",
-				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id,
-				PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
-				pci_devs[i].dev, pci_devs[i].func);
-			rc = -EINVAL;
-			goto error;
-		}
+		i7core_printk(KERN_ERR,
+			"Device not found: dev %02x.%d PCI ID %04x:%04x\n",
+			pci_devs[devno].dev, pci_devs[devno].func,
+			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
 
-		/* Be sure that the device is enabled */
-		rc = pci_enable_device(pdev);
-		if (unlikely(rc < 0)) {
-			i7core_printk(KERN_ERR,
-				"Couldn't enable PCI ID %04x:%04x "
-				"fn %d.%d\n",
-				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id,
-				PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
-			goto error;
-		}
+		/* End of list, leave */
+		return -ENODEV;
+	}
+	bus = pdev->bus->number;
 
-		i7core_printk(KERN_INFO,
-				"Registered socket %d "
-				"dev %02x:%02x.%d PCI ID %04x:%04x\n",
-				socket, bus, pci_devs[i].dev, pci_devs[i].func,
-				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id);
+	if (bus == 0x3f)
+		socket = 0;
+	else
+		socket = 255 - bus;
+
+	if (socket >= NUM_SOCKETS) {
+		i7core_printk(KERN_ERR,
+			"Unexpected socket for "
+			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
+			bus, pci_devs[devno].dev, pci_devs[devno].func,
+			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
+		pci_dev_put(pdev);
+		return -ENODEV;
 	}
 
-	return 0;
+	if (pci_devs[devno].pdev[socket]) {
+		i7core_printk(KERN_ERR,
+			"Duplicated device for "
+			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
+			bus, pci_devs[devno].dev, pci_devs[devno].func,
+			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
+		pci_dev_put(pdev);
+		return -ENODEV;
+	}
 
-error:
-	i7core_put_devices();
-	return -EINVAL;
+	pci_devs[devno].pdev[socket] = pdev;
+
+	/* Sanity check */
+	if (unlikely(PCI_SLOT(pdev->devfn) != pci_devs[devno].dev ||
+			PCI_FUNC(pdev->devfn) != pci_devs[devno].func)) {
+		i7core_printk(KERN_ERR,
+			"Device PCI ID %04x:%04x "
+			"has dev %02x:%02x.%d instead of dev %02x:%02x.%d\n",
+			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id,
+			bus, PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
+			bus, pci_devs[devno].dev, pci_devs[devno].func);
+		return -ENODEV;
+	}
+
+	/* Be sure that the device is enabled */
+	if (unlikely(pci_enable_device(pdev) < 0)) {
+		i7core_printk(KERN_ERR,
+			"Couldn't enable "
+			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
+			bus, pci_devs[devno].dev, pci_devs[devno].func,
+			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
+		return -ENODEV;
+	}
+
+	i7core_printk(KERN_INFO,
+			"Registered socket %d "
+			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
+			socket, bus, pci_devs[devno].dev, pci_devs[devno].func,
+			PCI_VENDOR_ID_INTEL, pci_devs[devno].dev_id);
+
+	*prev = pdev;
+
+	return 0;
+}
+
+static int i7core_get_devices(void)
+{
+	int i;
+	struct pci_dev *pdev = NULL;
+
+	for (i = 0; i < N_DEVS; i++) {
+		pdev = NULL;
+		do {
+			if (i7core_get_onedevice(&pdev, i) < 0) {
+				i7core_put_devices();
+				return -ENODEV;
+			}
+		} while (pdev);
+	}
+	return 0;
 }
 
 static int mci_bind_devs(struct mem_ctl_info *mci)
