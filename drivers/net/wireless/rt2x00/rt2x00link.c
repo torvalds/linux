@@ -173,7 +173,7 @@ static void rt2x00lib_antenna_diversity_sample(struct rt2x00_dev *rt2x00dev)
 	if (ant->flags & ANTENNA_TX_DIVERSITY)
 		new_ant.tx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
 
-	rt2x00lib_config_antenna(rt2x00dev, &new_ant);
+	rt2x00lib_config_antenna(rt2x00dev, new_ant);
 }
 
 static void rt2x00lib_antenna_diversity_eval(struct rt2x00_dev *rt2x00dev)
@@ -213,7 +213,7 @@ static void rt2x00lib_antenna_diversity_eval(struct rt2x00_dev *rt2x00dev)
 	if (ant->flags & ANTENNA_TX_DIVERSITY)
 		new_ant.tx = (new_ant.tx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
 
-	rt2x00lib_config_antenna(rt2x00dev, &new_ant);
+	rt2x00lib_config_antenna(rt2x00dev, new_ant);
 }
 
 static void rt2x00lib_antenna_diversity(struct rt2x00_dev *rt2x00dev)

@@ -378,7 +378,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 		 */
 		if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED)
 			rt2x00lib_config_antenna(rt2x00dev,
-						 &rt2x00dev->default_ant);
+						 rt2x00dev->default_ant);
 
 		/* Turn RX back on */
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
