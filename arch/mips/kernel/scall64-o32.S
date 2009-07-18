@@ -535,4 +535,6 @@ sys_call_table:
 	PTR	sys_inotify_init1
 	PTR	compat_sys_preadv		/* 4330 */
 	PTR	compat_sys_pwritev
+	PTR	compat_sys_rt_tgsigqueueinfo
+	PTR	sys_perf_counter_open
 	.size	sys_call_table,.-sys_call_table

@@ -241,7 +241,7 @@ static void dasd_fba_handle_unsolicited_interrupt(struct dasd_device *device,
 	/* check for unsolicited interrupts */
 	DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 		    "unsolicited interrupt received");
-	device->discipline->dump_sense_dbf(device, NULL, irb, "unsolicited");
+	device->discipline->dump_sense_dbf(device, irb, "unsolicited");
 	dasd_schedule_device_bh(device);
 	return;
 };
@@ -444,17 +444,20 @@ dasd_fba_fill_info(struct dasd_device * device,
 }
 
 static void
-dasd_fba_dump_sense_dbf(struct dasd_device *device, struct dasd_ccw_req *req,
-			 struct irb *irb, char *reason)
+dasd_fba_dump_sense_dbf(struct dasd_device *device, struct irb *irb,
+			char *reason)
 {
-	int sl;
-	if (irb->esw.esw0.erw.cons) {
-		for (sl = 0; sl < 4; sl++) {
-			DBF_DEV_EVENT(DBF_EMERG, device,
-				      "%s: %08x %08x %08x %08x",
-				      reason, irb->ecw[8 * 0], irb->ecw[8 * 1],
-				      irb->ecw[8 * 2], irb->ecw[8 * 3]);
-		}
+	u64 *sense;
+
+	sense = (u64 *) dasd_get_sense(irb);
+	if (sense) {
+		DBF_DEV_EVENT(DBF_EMERG, device,
+			      "%s: %s %02x%02x%02x %016llx %016llx %016llx "
+			      "%016llx", reason,
+			      scsw_is_tm(&irb->scsw) ? "t" : "c",
+			      scsw_cc(&irb->scsw), scsw_cstat(&irb->scsw),
+			      scsw_dstat(&irb->scsw), sense[0], sense[1],
+			      sense[2], sense[3]);
 	} else {
 		DBF_DEV_EVENT(DBF_EMERG, device, "%s",
 			      "SORRY - NO VALID SENSE AVAILABLE\n");

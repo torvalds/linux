@@ -486,11 +486,13 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 {
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun = __tun_get(tfile);
-	struct sock *sk = tun->sk;
+	struct sock *sk;
 	unsigned int mask = 0;
 
 	if (!tun)
 		return POLLERR;
+
+	sk = tun->sk;
 
 	DBG(KERN_INFO "%s: tun_chr_poll\n", tun->dev->name);
 
@@ -1324,20 +1326,22 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun;
 
-
-	rtnl_lock();
 	tun = __tun_get(tfile);
 	if (tun) {
-		DBG(KERN_INFO "%s: tun_chr_close\n", tun->dev->name);
+		struct net_device *dev = tun->dev;
+
+		DBG(KERN_INFO "%s: tun_chr_close\n", dev->name);
 
 		__tun_detach(tun);
 
 		/* If desireable, unregister the netdevice. */
-		if (!(tun->flags & TUN_PERSIST))
-			unregister_netdevice(tun->dev);
-
+		if (!(tun->flags & TUN_PERSIST)) {
+			rtnl_lock();
+			if (dev->reg_state == NETREG_REGISTERED)
+				unregister_netdevice(dev);
+			rtnl_unlock();
+		}
 	}
-	rtnl_unlock();
 
 	tun = tfile->tun;
 	if (tun)

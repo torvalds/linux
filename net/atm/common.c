@@ -92,7 +92,7 @@ static void vcc_sock_destruct(struct sock *sk)
 static void vcc_def_wakeup(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+	if (sk_has_sleeper(sk))
 		wake_up(sk->sk_sleep);
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -110,7 +110,7 @@ static void vcc_write_space(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 
 	if (vcc_writable(sk)) {
-		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+		if (sk_has_sleeper(sk))
 			wake_up_interruptible(sk->sk_sleep);
 
 		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
@@ -594,7 +594,7 @@ unsigned int vcc_poll(struct file *file, struct socket *sock, poll_table *wait)
 	struct atm_vcc *vcc;
 	unsigned int mask;
 
-	poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk->sk_sleep, wait);
 	mask = 0;
 
 	vcc = ATM_SD(sock);

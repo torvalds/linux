@@ -76,7 +76,7 @@ struct of_device *of_device_alloc(struct device_node *np,
 	dev->dev.archdata.of_node = np;
 
 	if (bus_id)
-		dev_set_name(&dev->dev, bus_id);
+		dev_set_name(&dev->dev, "%s", bus_id);
 	else
 		of_device_make_bus_id(dev);
 

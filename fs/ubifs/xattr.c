@@ -55,9 +55,9 @@
  * ACL support is not implemented.
  */
 
+#include "ubifs.h"
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
-#include "ubifs.h"
 
 /*
  * Limit the number of extended attributes per inode so that the total size

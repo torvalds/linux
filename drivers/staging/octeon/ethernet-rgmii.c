@@ -33,7 +33,6 @@
 
 #include "ethernet-defines.h"
 #include "octeon-ethernet.h"
-#include "ethernet-common.h"
 #include "ethernet-util.h"
 
 #include "cvmx-helper.h"
@@ -265,7 +264,7 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 	return return_status;
 }
 
-static int cvm_oct_rgmii_open(struct net_device *dev)
+int cvm_oct_rgmii_open(struct net_device *dev)
 {
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	struct octeon_ethernet *priv = netdev_priv(dev);
@@ -286,7 +285,7 @@ static int cvm_oct_rgmii_open(struct net_device *dev)
 	return 0;
 }
 
-static int cvm_oct_rgmii_stop(struct net_device *dev)
+int cvm_oct_rgmii_stop(struct net_device *dev)
 {
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	struct octeon_ethernet *priv = netdev_priv(dev);
@@ -305,9 +304,7 @@ int cvm_oct_rgmii_init(struct net_device *dev)
 	int r;
 
 	cvm_oct_common_init(dev);
-	dev->open = cvm_oct_rgmii_open;
-	dev->stop = cvm_oct_rgmii_stop;
-	dev->stop(dev);
+	dev->netdev_ops->ndo_stop(dev);
 
 	/*
 	 * Due to GMX errata in CN3XXX series chips, it is necessary

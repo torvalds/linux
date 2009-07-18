@@ -14,9 +14,5 @@ obj-y += dma-octeon.o flash_setup.o
 obj-y += octeon-memcpy.o
 
 obj-$(CONFIG_SMP)                     += smp.o
-obj-$(CONFIG_PCI)                     += pci-common.o
-obj-$(CONFIG_PCI)                     += pci.o
-obj-$(CONFIG_PCI)                     += pcie.o
-obj-$(CONFIG_PCI_MSI)                 += msi.o
 
 EXTRA_CFLAGS += -Werror

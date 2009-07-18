@@ -593,6 +593,7 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 	return 0;
 }
 
+#if 0
 /*
  * when dropping snapshots, we generate a ton of delayed refs, and it makes
  * sense not to join the transaction while it is trying to flush the current
@@ -681,6 +682,7 @@ int btrfs_drop_dead_root(struct btrfs_root *root)
 	btrfs_btree_balance_dirty(tree_root, nr);
 	return ret;
 }
+#endif
 
 /*
  * new snapshots need to be created at a very specific time in the
@@ -1081,7 +1083,7 @@ int btrfs_clean_old_snapshots(struct btrfs_root *root)
 	while (!list_empty(&list)) {
 		root = list_entry(list.next, struct btrfs_root, root_list);
 		list_del_init(&root->root_list);
-		btrfs_drop_dead_root(root);
+		btrfs_drop_snapshot(root, 0);
 	}
 	return 0;
 }

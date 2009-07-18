@@ -1,11 +1,11 @@
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM skb
+
 #if !defined(_TRACE_SKB_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_SKB_H
 
 #include <linux/skbuff.h>
 #include <linux/tracepoint.h>
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM skb
 
 /*
  * Tracepoint for free an sk_buff:

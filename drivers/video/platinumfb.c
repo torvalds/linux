@@ -141,7 +141,9 @@ static int platinumfb_set_par (struct fb_info *info)
   		offset = 0x10;
 
 	info->screen_base = pinfo->frame_buffer + init->fb_offset + offset;
+	mutex_lock(&info->mm_lock);
 	info->fix.smem_start = (pinfo->frame_buffer_phys) + init->fb_offset + offset;
+	mutex_unlock(&info->mm_lock);
 	info->fix.visual = (pinfo->cmode == CMODE_8) ?
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
  	info->fix.line_length = vmode_attrs[pinfo->vmode-1].hres * (1<<pinfo->cmode)

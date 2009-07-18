@@ -705,7 +705,7 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 		first_driver = (adapter->ahw.pci_func == 0);
 
 	if (!first_driver)
-		return 0;
+		goto wait_init;
 
 	first_boot = NXRD32(adapter, NETXEN_CAM_RAM(0x1fc));
 
@@ -717,6 +717,10 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 
 	if (request_fw)
 		netxen_request_firmware(adapter);
+
+	err = netxen_need_fw_reset(adapter);
+	if (err <= 0)
+		return err;
 
 	if (first_boot != 0x55555555) {
 		NXWR32(adapter, CRB_CMDPEG_STATE, 0);
@@ -752,6 +756,7 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 		| (_NETXEN_NIC_LINUX_SUBVERSION);
 	NXWR32(adapter, CRB_DRIVER_VERSION, val);
 
+wait_init:
 	/* Handshake with the card before we register the devices. */
 	err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	if (err) {
@@ -1178,6 +1183,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	free_netdev(netdev);
 }
 
+#ifdef CONFIG_PM
 static int
 netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
 {
@@ -1242,6 +1248,7 @@ netxen_nic_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif
 
 static int netxen_nic_open(struct net_device *netdev)
 {
@@ -1771,8 +1778,10 @@ static struct pci_driver netxen_driver = {
 	.id_table = netxen_pci_tbl,
 	.probe = netxen_nic_probe,
 	.remove = __devexit_p(netxen_nic_remove),
+#ifdef CONFIG_PM
 	.suspend = netxen_nic_suspend,
 	.resume = netxen_nic_resume
+#endif
 };
 
 /* Driver Registration on NetXen card    */

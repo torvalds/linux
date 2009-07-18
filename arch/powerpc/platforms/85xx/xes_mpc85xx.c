@@ -32,7 +32,6 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
-#include <linux/of_platform.h>
 
 /* A few bit definitions needed for fixups on some boards */
 #define MPC85xx_L2CTL_L2E		0x80000000 /* L2 enable */

@@ -243,6 +243,14 @@ static struct s5h1409_config em28xx_s5h1409_with_xc3028 = {
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK
 };
 
+static struct zl10353_config em28xx_terratec_xs_zl10353_xc3028 = {
+	.demod_address = (0x1e >> 1),
+	.no_tuner = 1,
+	.disable_i2c_gate_ctrl = 1,
+	.parallel_ts = 1,
+	.if2 = 45600,
+};
+
 #ifdef EM28XX_DRX397XD_SUPPORT
 /* [TODO] djh - not sure yet what the device config needs to contain */
 static struct drx397xD_config em28xx_drx397xD_with_xc3028 = {
@@ -433,12 +441,30 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
-	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_KWORLD_DVB_310U:
 	case EM2880_BOARD_EMPIRE_DUAL_TV:
 		dvb->frontend = dvb_attach(zl10353_attach,
 					   &em28xx_zl10353_with_xc3028,
 					   &dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		break;
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+		dvb->frontend = dvb_attach(zl10353_attach,
+					   &em28xx_terratec_xs_zl10353_xc3028,
+					   &dev->i2c_adap);
+		if (dvb->frontend == NULL) {
+			/* This board could have either a zl10353 or a mt352.
+			   If the chip id isn't for zl10353, try mt352 */
+
+			/* FIXME: make support for mt352 work */
+			printk(KERN_ERR "version of this board with mt352 not "
+			       "currently supported\n");
+			result = -EINVAL;
+			goto out_free;
+		}
 		if (attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
 			goto out_free;

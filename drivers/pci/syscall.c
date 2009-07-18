@@ -9,7 +9,6 @@
 
 #include <linux/errno.h>
 #include <linux/pci.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <asm/uaccess.h>
 #include "pci.h"

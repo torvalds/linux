@@ -60,7 +60,7 @@ static inline u64 scale_delta(u64 delta, u32 mul_frac, int shift)
 		"adc  %5,%%edx ; "
 		: "=A" (product), "=r" (tmp1), "=r" (tmp2)
 		: "a" ((u32)delta), "1" ((u32)(delta >> 32)), "2" (mul_frac) );
-#elif __x86_64__
+#elif defined(__x86_64__)
 	__asm__ (
 		"mul %%rdx ; shrd $32,%%rdx,%%rax"
 		: "=a" (product) : "0" (delta), "d" ((u64)mul_frac) );

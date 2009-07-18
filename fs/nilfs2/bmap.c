@@ -568,6 +568,7 @@ void nilfs_bmap_abort_update_v(struct nilfs_bmap *bmap,
 }
 
 static struct lock_class_key nilfs_bmap_dat_lock_key;
+static struct lock_class_key nilfs_bmap_mdt_lock_key;
 
 /**
  * nilfs_bmap_read - read a bmap from an inode
@@ -603,7 +604,11 @@ int nilfs_bmap_read(struct nilfs_bmap *bmap, struct nilfs_inode *raw_inode)
 		bmap->b_ptr_type = NILFS_BMAP_PTR_VS;
 		bmap->b_last_allocated_key = 0;
 		bmap->b_last_allocated_ptr = NILFS_BMAP_INVALID_PTR;
+		lockdep_set_class(&bmap->b_sem, &nilfs_bmap_mdt_lock_key);
 		break;
+	case NILFS_IFILE_INO:
+		lockdep_set_class(&bmap->b_sem, &nilfs_bmap_mdt_lock_key);
+		/* Fall through */
 	default:
 		bmap->b_ptr_type = NILFS_BMAP_PTR_VM;
 		bmap->b_last_allocated_key = 0;

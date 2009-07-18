@@ -22,7 +22,7 @@
  */
 
 #define TPACPI_VERSION "0.23"
-#define TPACPI_SYSFS_VERSION 0x020300
+#define TPACPI_SYSFS_VERSION 0x020400
 
 /*
  *  Changelog:
@@ -257,6 +257,8 @@ static struct {
 	u32 wan:1;
 	u32 uwb:1;
 	u32 fan_ctrl_status_undef:1;
+	u32 second_fan:1;
+	u32 beep_needs_two_args:1;
 	u32 input_device_registered:1;
 	u32 platform_drv_registered:1;
 	u32 platform_drv_attrs_registered:1;
@@ -277,8 +279,10 @@ struct thinkpad_id_data {
 	char *bios_version_str;	/* Something like 1ZET51WW (1.03z) */
 	char *ec_version_str;	/* Something like 1ZHT51WW-1.04a */
 
-	u16 bios_model;		/* Big Endian, TP-1Y = 0x5931, 0 = unknown */
+	u16 bios_model;		/* 1Y = 0x5931, 0 = unknown */
 	u16 ec_model;
+	u16 bios_release;	/* 1ZETK1WW = 0x314b, 0 = unknown */
+	u16 ec_release;
 
 	char *model_str;	/* ThinkPad T43 */
 	char *nummodel_str;	/* 9384A9C for a 9384-A9C model */
@@ -354,6 +358,73 @@ static void tpacpi_log_usertask(const char * const what)
 				what, task_tgid_vnr(current), ## arg); \
 		} \
 	} while (0)
+
+/*
+ * Quirk handling helpers
+ *
+ * ThinkPad IDs and versions seen in the field so far
+ * are two-characters from the set [0-9A-Z], i.e. base 36.
+ *
+ * We use values well outside that range as specials.
+ */
+
+#define TPACPI_MATCH_ANY		0xffffU
+#define TPACPI_MATCH_UNKNOWN		0U
+
+/* TPID('1', 'Y') == 0x5931 */
+#define TPID(__c1, __c2) (((__c2) << 8) | (__c1))
+
+#define TPACPI_Q_IBM(__id1, __id2, __quirk)	\
+	{ .vendor = PCI_VENDOR_ID_IBM,		\
+	  .bios = TPID(__id1, __id2),		\
+	  .ec = TPACPI_MATCH_ANY,		\
+	  .quirks = (__quirk) }
+
+#define TPACPI_Q_LNV(__id1, __id2, __quirk)	\
+	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
+	  .bios = TPID(__id1, __id2),		\
+	  .ec = TPACPI_MATCH_ANY,		\
+	  .quirks = (__quirk) }
+
+struct tpacpi_quirk {
+	unsigned int vendor;
+	u16 bios;
+	u16 ec;
+	unsigned long quirks;
+};
+
+/**
+ * tpacpi_check_quirks() - search BIOS/EC version on a list
+ * @qlist:		array of &struct tpacpi_quirk
+ * @qlist_size:		number of elements in @qlist
+ *
+ * Iterates over a quirks list until one is found that matches the
+ * ThinkPad's vendor, BIOS and EC model.
+ *
+ * Returns 0 if nothing matches, otherwise returns the quirks field of
+ * the matching &struct tpacpi_quirk entry.
+ *
+ * The match criteria is: vendor, ec and bios much match.
+ */
+static unsigned long __init tpacpi_check_quirks(
+			const struct tpacpi_quirk *qlist,
+			unsigned int qlist_size)
+{
+	while (qlist_size) {
+		if ((qlist->vendor == thinkpad_id.vendor ||
+				qlist->vendor == TPACPI_MATCH_ANY) &&
+		    (qlist->bios == thinkpad_id.bios_model ||
+				qlist->bios == TPACPI_MATCH_ANY) &&
+		    (qlist->ec == thinkpad_id.ec_model ||
+				qlist->ec == TPACPI_MATCH_ANY))
+			return qlist->quirks;
+
+		qlist_size--;
+		qlist++;
+	}
+	return 0;
+}
+
 
 /****************************************************************************
  ****************************************************************************
@@ -2880,7 +2951,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		/* update bright_acpimode... */
 		tpacpi_check_std_acpi_brightness_support();
 
-	if (tp_features.bright_acpimode) {
+	if (tp_features.bright_acpimode && acpi_video_backlight_support()) {
 		printk(TPACPI_INFO
 		       "This ThinkPad has standard ACPI backlight "
 		       "brightness control, supported by the ACPI "
@@ -4773,7 +4844,7 @@ TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
 	   "LED",		/* all others */
 	   );			/* R30, R31 */
 
-#define TPACPI_LED_NUMLEDS 8
+#define TPACPI_LED_NUMLEDS 16
 static struct tpacpi_led_classdev *tpacpi_leds;
 static enum led_status_t tpacpi_led_state_cache[TPACPI_LED_NUMLEDS];
 static const char * const tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
@@ -4786,15 +4857,20 @@ static const char * const tpacpi_led_names[TPACPI_LED_NUMLEDS] = {
 	"tpacpi::dock_batt",
 	"tpacpi::unknown_led",
 	"tpacpi::standby",
+	"tpacpi::dock_status1",
+	"tpacpi::dock_status2",
+	"tpacpi::unknown_led2",
+	"tpacpi::unknown_led3",
+	"tpacpi::thinkvantage",
 };
-#define TPACPI_SAFE_LEDS	0x0081U
+#define TPACPI_SAFE_LEDS	0x1081U
 
 static inline bool tpacpi_is_led_restricted(const unsigned int led)
 {
 #ifdef CONFIG_THINKPAD_ACPI_UNSAFE_LEDS
 	return false;
 #else
-	return (TPACPI_SAFE_LEDS & (1 << led)) == 0;
+	return (1U & (TPACPI_SAFE_LEDS >> led)) == 0;
 #endif
 }
 
@@ -4956,6 +5032,10 @@ static int __init tpacpi_init_led(unsigned int led)
 
 	tpacpi_leds[led].led = led;
 
+	/* LEDs with no name don't get registered */
+	if (!tpacpi_led_names[led])
+		return 0;
+
 	tpacpi_leds[led].led_classdev.brightness_set = &led_sysfs_set;
 	tpacpi_leds[led].led_classdev.blink_set = &led_sysfs_blink_set;
 	if (led_supported == TPACPI_LED_570)
@@ -4974,10 +5054,59 @@ static int __init tpacpi_init_led(unsigned int led)
 	return rc;
 }
 
+static const struct tpacpi_quirk led_useful_qtable[] __initconst = {
+	TPACPI_Q_IBM('1', 'E', 0x009f), /* A30 */
+	TPACPI_Q_IBM('1', 'N', 0x009f), /* A31 */
+	TPACPI_Q_IBM('1', 'G', 0x009f), /* A31 */
+
+	TPACPI_Q_IBM('1', 'I', 0x0097), /* T30 */
+	TPACPI_Q_IBM('1', 'R', 0x0097), /* T40, T41, T42, R50, R51 */
+	TPACPI_Q_IBM('7', '0', 0x0097), /* T43, R52 */
+	TPACPI_Q_IBM('1', 'Y', 0x0097), /* T43 */
+	TPACPI_Q_IBM('1', 'W', 0x0097), /* R50e */
+	TPACPI_Q_IBM('1', 'V', 0x0097), /* R51 */
+	TPACPI_Q_IBM('7', '8', 0x0097), /* R51e */
+	TPACPI_Q_IBM('7', '6', 0x0097), /* R52 */
+
+	TPACPI_Q_IBM('1', 'K', 0x00bf), /* X30 */
+	TPACPI_Q_IBM('1', 'Q', 0x00bf), /* X31, X32 */
+	TPACPI_Q_IBM('1', 'U', 0x00bf), /* X40 */
+	TPACPI_Q_IBM('7', '4', 0x00bf), /* X41 */
+	TPACPI_Q_IBM('7', '5', 0x00bf), /* X41t */
+
+	TPACPI_Q_IBM('7', '9', 0x1f97), /* T60 (1) */
+	TPACPI_Q_IBM('7', '7', 0x1f97), /* Z60* (1) */
+	TPACPI_Q_IBM('7', 'F', 0x1f97), /* Z61* (1) */
+	TPACPI_Q_IBM('7', 'B', 0x1fb7), /* X60 (1) */
+
+	/* (1) - may have excess leds enabled on MSB */
+
+	/* Defaults (order matters, keep last, don't reorder!) */
+	{ /* Lenovo */
+	  .vendor = PCI_VENDOR_ID_LENOVO,
+	  .bios = TPACPI_MATCH_ANY, .ec = TPACPI_MATCH_ANY,
+	  .quirks = 0x1fffU,
+	},
+	{ /* IBM ThinkPads with no EC version string */
+	  .vendor = PCI_VENDOR_ID_IBM,
+	  .bios = TPACPI_MATCH_ANY, .ec = TPACPI_MATCH_UNKNOWN,
+	  .quirks = 0x00ffU,
+	},
+	{ /* IBM ThinkPads with EC version string */
+	  .vendor = PCI_VENDOR_ID_IBM,
+	  .bios = TPACPI_MATCH_ANY, .ec = TPACPI_MATCH_ANY,
+	  .quirks = 0x00bfU,
+	},
+};
+
+#undef TPACPI_LEDQ_IBM
+#undef TPACPI_LEDQ_LNV
+
 static int __init led_init(struct ibm_init_struct *iibm)
 {
 	unsigned int i;
 	int rc;
+	unsigned long useful_leds;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing LED subdriver\n");
 
@@ -4999,6 +5128,9 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "LED commands are %s, mode %d\n",
 		str_supported(led_supported), led_supported);
 
+	if (led_supported == TPACPI_LED_NONE)
+		return 1;
+
 	tpacpi_leds = kzalloc(sizeof(*tpacpi_leds) * TPACPI_LED_NUMLEDS,
 			      GFP_KERNEL);
 	if (!tpacpi_leds) {
@@ -5006,8 +5138,12 @@ static int __init led_init(struct ibm_init_struct *iibm)
 		return -ENOMEM;
 	}
 
+	useful_leds = tpacpi_check_quirks(led_useful_qtable,
+					  ARRAY_SIZE(led_useful_qtable));
+
 	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
-		if (!tpacpi_is_led_restricted(i)) {
+		if (!tpacpi_is_led_restricted(i) &&
+		    test_bit(i, &useful_leds)) {
 			rc = tpacpi_init_led(i);
 			if (rc < 0) {
 				led_exit();
@@ -5017,12 +5153,11 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	}
 
 #ifdef CONFIG_THINKPAD_ACPI_UNSAFE_LEDS
-	if (led_supported != TPACPI_LED_NONE)
-		printk(TPACPI_NOTICE
-			"warning: userspace override of important "
-			"firmware LEDs is enabled\n");
+	printk(TPACPI_NOTICE
+		"warning: userspace override of important "
+		"firmware LEDs is enabled\n");
 #endif
-	return (led_supported != TPACPI_LED_NONE)? 0 : 1;
+	return 0;
 }
 
 #define str_led_status(s) \
@@ -5052,7 +5187,7 @@ static int led_read(char *p)
 	}
 
 	len += sprintf(p + len, "commands:\t"
-		       "<led> on, <led> off, <led> blink (<led> is 0-7)\n");
+		       "<led> on, <led> off, <led> blink (<led> is 0-15)\n");
 
 	return len;
 }
@@ -5067,7 +5202,7 @@ static int led_write(char *buf)
 		return -ENODEV;
 
 	while ((cmd = next_cmd(&buf))) {
-		if (sscanf(cmd, "%d", &led) != 1 || led < 0 || led > 7)
+		if (sscanf(cmd, "%d", &led) != 1 || led < 0 || led > 15)
 			return -EINVAL;
 
 		if (strstr(cmd, "off")) {
@@ -5101,14 +5236,28 @@ static struct ibm_struct led_driver_data = {
 
 TPACPI_HANDLE(beep, ec, "BEEP");	/* all except R30, R31 */
 
+#define TPACPI_BEEP_Q1 0x0001
+
+static const struct tpacpi_quirk beep_quirk_table[] __initconst = {
+	TPACPI_Q_IBM('I', 'M', TPACPI_BEEP_Q1), /* 570 */
+	TPACPI_Q_IBM('I', 'U', TPACPI_BEEP_Q1), /* 570E - unverified */
+};
+
 static int __init beep_init(struct ibm_init_struct *iibm)
 {
+	unsigned long quirks;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing beep subdriver\n");
 
 	TPACPI_ACPIHANDLE_INIT(beep);
 
 	vdbg_printk(TPACPI_DBG_INIT, "beep is %s\n",
 		str_supported(beep_handle != NULL));
+
+	quirks = tpacpi_check_quirks(beep_quirk_table,
+				     ARRAY_SIZE(beep_quirk_table));
+
+	tp_features.beep_needs_two_args = !!(quirks & TPACPI_BEEP_Q1);
 
 	return (beep_handle)? 0 : 1;
 }
@@ -5141,8 +5290,15 @@ static int beep_write(char *buf)
 			/* beep_cmd set */
 		} else
 			return -EINVAL;
-		if (!acpi_evalf(beep_handle, NULL, NULL, "vdd", beep_cmd, 0))
-			return -EIO;
+		if (tp_features.beep_needs_two_args) {
+			if (!acpi_evalf(beep_handle, NULL, NULL, "vdd",
+					beep_cmd, 0))
+				return -EIO;
+		} else {
+			if (!acpi_evalf(beep_handle, NULL, NULL, "vd",
+					beep_cmd))
+				return -EIO;
+		}
 	}
 
 	return 0;
@@ -5569,6 +5725,10 @@ static struct ibm_struct ecdump_driver_data = {
  *   Bit 3-0: backlight brightness level
  *
  * brightness_get_raw returns status data in the HBRV layout
+ *
+ * WARNING: The X61 has been verified to use HBRV for something else, so
+ * this should be used _only_ on IBM ThinkPads, and maybe with some careful
+ * testing on the very early *60 Lenovo models...
  */
 
 enum {
@@ -5869,6 +6029,12 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			   brightness_mode);
 	}
 
+	/* Safety */
+	if (thinkpad_id.vendor != PCI_VENDOR_ID_IBM &&
+	    (brightness_mode == TPACPI_BRGHT_MODE_ECNVRAM ||
+	     brightness_mode == TPACPI_BRGHT_MODE_EC))
+		return -EINVAL;
+
 	if (tpacpi_brightness_get_raw(&b) < 0)
 		return 1;
 
@@ -6161,6 +6327,21 @@ static struct ibm_struct volume_driver_data = {
  *	For firmware bugs, refer to:
  *	http://thinkwiki.org/wiki/Embedded_Controller_Firmware#Firmware_Issues
  *
+ *	----
+ *
+ *	ThinkPad EC register 0x31 bit 0 (only on select models)
+ *
+ *	When bit 0 of EC register 0x31 is zero, the tachometer registers
+ *	show the speed of the main fan.  When bit 0 of EC register 0x31
+ *	is one, the tachometer registers show the speed of the auxiliary
+ *	fan.
+ *
+ *	Fan control seems to affect both fans, regardless of the state
+ *	of this bit.
+ *
+ *	So far, only the firmware for the X60/X61 non-tablet versions
+ *	seem to support this (firmware TP-7M).
+ *
  * TPACPI_FAN_WR_ACPI_FANS:
  *	ThinkPad X31, X40, X41.  Not available in the X60.
  *
@@ -6187,6 +6368,8 @@ enum {					/* Fan control constants */
 	fan_status_offset = 0x2f,	/* EC register 0x2f */
 	fan_rpm_offset = 0x84,		/* EC register 0x84: LSB, 0x85 MSB (RPM)
 					 * 0x84 must be read before 0x85 */
+	fan_select_offset = 0x31,	/* EC register 0x31 (Firmware 7M)
+					   bit 0 selects which fan is active */
 
 	TP_EC_FAN_FULLSPEED = 0x40,	/* EC fan mode: full speed */
 	TP_EC_FAN_AUTO	    = 0x80,	/* EC fan mode: auto fan control */
@@ -6249,30 +6432,18 @@ TPACPI_HANDLE(sfan, ec, "SFAN",	/* 570 */
  * We assume 0x07 really means auto mode while this quirk is active,
  * as this is far more likely than the ThinkPad being in level 7,
  * which is only used by the firmware during thermal emergencies.
+ *
+ * Enable for TP-1Y (T43), TP-78 (R51e), TP-76 (R52),
+ * TP-70 (T43, R52), which are known to be buggy.
  */
 
-static void fan_quirk1_detect(void)
+static void fan_quirk1_setup(void)
 {
-	/* In some ThinkPads, neither the EC nor the ACPI
-	 * DSDT initialize the HFSP register, and it ends up
-	 * being initially set to 0x07 when it *could* be
-	 * either 0x07 or 0x80.
-	 *
-	 * Enable for TP-1Y (T43), TP-78 (R51e),
-	 * TP-76 (R52), TP-70 (T43, R52), which are known
-	 * to be buggy. */
 	if (fan_control_initial_status == 0x07) {
-		switch (thinkpad_id.ec_model) {
-		case 0x5931: /* TP-1Y */
-		case 0x3837: /* TP-78 */
-		case 0x3637: /* TP-76 */
-		case 0x3037: /* TP-70 */
-			printk(TPACPI_NOTICE
-			       "fan_init: initial fan status is unknown, "
-			       "assuming it is in auto mode\n");
-			tp_features.fan_ctrl_status_undef = 1;
-			;;
-		}
+		printk(TPACPI_NOTICE
+		       "fan_init: initial fan status is unknown, "
+		       "assuming it is in auto mode\n");
+		tp_features.fan_ctrl_status_undef = 1;
 	}
 }
 
@@ -6290,6 +6461,38 @@ static void fan_quirk1_handle(u8 *fan_status)
 			*fan_status = TP_EC_FAN_AUTO;
 		}
 	}
+}
+
+/* Select main fan on X60/X61, NOOP on others */
+static bool fan_select_fan1(void)
+{
+	if (tp_features.second_fan) {
+		u8 val;
+
+		if (ec_read(fan_select_offset, &val) < 0)
+			return false;
+		val &= 0xFEU;
+		if (ec_write(fan_select_offset, val) < 0)
+			return false;
+	}
+	return true;
+}
+
+/* Select secondary fan on X60/X61 */
+static bool fan_select_fan2(void)
+{
+	u8 val;
+
+	if (!tp_features.second_fan)
+		return false;
+
+	if (ec_read(fan_select_offset, &val) < 0)
+		return false;
+	val |= 0x01U;
+	if (ec_write(fan_select_offset, val) < 0)
+		return false;
+
+	return true;
 }
 
 /*
@@ -6369,8 +6572,38 @@ static int fan_get_speed(unsigned int *speed)
 	switch (fan_status_access_mode) {
 	case TPACPI_FAN_RD_TPEC:
 		/* all except 570, 600e/x, 770e, 770x */
+		if (unlikely(!fan_select_fan1()))
+			return -EIO;
 		if (unlikely(!acpi_ec_read(fan_rpm_offset, &lo) ||
 			     !acpi_ec_read(fan_rpm_offset + 1, &hi)))
+			return -EIO;
+
+		if (likely(speed))
+			*speed = (hi << 8) | lo;
+
+		break;
+
+	default:
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static int fan2_get_speed(unsigned int *speed)
+{
+	u8 hi, lo;
+	bool rc;
+
+	switch (fan_status_access_mode) {
+	case TPACPI_FAN_RD_TPEC:
+		/* all except 570, 600e/x, 770e, 770x */
+		if (unlikely(!fan_select_fan2()))
+			return -EIO;
+		rc = !acpi_ec_read(fan_rpm_offset, &lo) ||
+			     !acpi_ec_read(fan_rpm_offset + 1, &hi);
+		fan_select_fan1(); /* play it safe */
+		if (rc)
 			return -EIO;
 
 		if (likely(speed))
@@ -6790,6 +7023,25 @@ static struct device_attribute dev_attr_fan_fan1_input =
 	__ATTR(fan1_input, S_IRUGO,
 		fan_fan1_input_show, NULL);
 
+/* sysfs fan fan2_input ------------------------------------------------ */
+static ssize_t fan_fan2_input_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int res;
+	unsigned int speed;
+
+	res = fan2_get_speed(&speed);
+	if (res < 0)
+		return res;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", speed);
+}
+
+static struct device_attribute dev_attr_fan_fan2_input =
+	__ATTR(fan2_input, S_IRUGO,
+		fan_fan2_input_show, NULL);
+
 /* sysfs fan fan_watchdog (hwmon driver) ------------------------------- */
 static ssize_t fan_fan_watchdog_show(struct device_driver *drv,
 				     char *buf)
@@ -6823,6 +7075,7 @@ static DRIVER_ATTR(fan_watchdog, S_IWUSR | S_IRUGO,
 static struct attribute *fan_attributes[] = {
 	&dev_attr_fan_pwm1_enable.attr, &dev_attr_fan_pwm1.attr,
 	&dev_attr_fan_fan1_input.attr,
+	NULL, /* for fan2_input */
 	NULL
 };
 
@@ -6830,9 +7083,36 @@ static const struct attribute_group fan_attr_group = {
 	.attrs = fan_attributes,
 };
 
+#define	TPACPI_FAN_Q1	0x0001		/* Unitialized HFSP */
+#define TPACPI_FAN_2FAN	0x0002		/* EC 0x31 bit 0 selects fan2 */
+
+#define TPACPI_FAN_QI(__id1, __id2, __quirks)	\
+	{ .vendor = PCI_VENDOR_ID_IBM,		\
+	  .bios = TPACPI_MATCH_ANY,		\
+	  .ec = TPID(__id1, __id2),		\
+	  .quirks = __quirks }
+
+#define TPACPI_FAN_QL(__id1, __id2, __quirks)	\
+	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
+	  .bios = TPACPI_MATCH_ANY,		\
+	  .ec = TPID(__id1, __id2),		\
+	  .quirks = __quirks }
+
+static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
+	TPACPI_FAN_QI('1', 'Y', TPACPI_FAN_Q1),
+	TPACPI_FAN_QI('7', '8', TPACPI_FAN_Q1),
+	TPACPI_FAN_QI('7', '6', TPACPI_FAN_Q1),
+	TPACPI_FAN_QI('7', '0', TPACPI_FAN_Q1),
+	TPACPI_FAN_QL('7', 'M', TPACPI_FAN_2FAN),
+};
+
+#undef TPACPI_FAN_QL
+#undef TPACPI_FAN_QI
+
 static int __init fan_init(struct ibm_init_struct *iibm)
 {
 	int rc;
+	unsigned long quirks;
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
 			"initializing fan subdriver\n");
@@ -6843,11 +7123,15 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 	fan_control_commands = 0;
 	fan_watchdog_maxinterval = 0;
 	tp_features.fan_ctrl_status_undef = 0;
+	tp_features.second_fan = 0;
 	fan_control_desired_level = 7;
 
 	TPACPI_ACPIHANDLE_INIT(fans);
 	TPACPI_ACPIHANDLE_INIT(gfan);
 	TPACPI_ACPIHANDLE_INIT(sfan);
+
+	quirks = tpacpi_check_quirks(fan_quirk_table,
+				     ARRAY_SIZE(fan_quirk_table));
 
 	if (gfan_handle) {
 		/* 570, 600e/x, 770e, 770x */
@@ -6858,7 +7142,13 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		if (likely(acpi_ec_read(fan_status_offset,
 					&fan_control_initial_status))) {
 			fan_status_access_mode = TPACPI_FAN_RD_TPEC;
-			fan_quirk1_detect();
+			if (quirks & TPACPI_FAN_Q1)
+				fan_quirk1_setup();
+			if (quirks & TPACPI_FAN_2FAN) {
+				tp_features.second_fan = 1;
+				dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
+					"secondary fan support enabled\n");
+			}
 		} else {
 			printk(TPACPI_ERR
 			       "ThinkPad ACPI EC access misbehaving, "
@@ -6914,6 +7204,11 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 
 	if (fan_status_access_mode != TPACPI_FAN_NONE ||
 	    fan_control_access_mode != TPACPI_FAN_WR_NONE) {
+		if (tp_features.second_fan) {
+			/* attach second fan tachometer */
+			fan_attributes[ARRAY_SIZE(fan_attributes)-2] =
+					&dev_attr_fan_fan2_input.attr;
+		}
 		rc = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
 					 &fan_attr_group);
 		if (rc < 0)
@@ -7385,6 +7680,24 @@ err_out:
 
 /* Probing */
 
+static bool __pure __init tpacpi_is_fw_digit(const char c)
+{
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z');
+}
+
+/* Most models: xxyTkkWW (#.##c); Ancient 570/600 and -SL lacks (#.##c) */
+static bool __pure __init tpacpi_is_valid_fw_id(const char* const s,
+						const char t)
+{
+	return s && strlen(s) >= 8 &&
+		tpacpi_is_fw_digit(s[0]) &&
+		tpacpi_is_fw_digit(s[1]) &&
+		s[2] == t && s[3] == 'T' &&
+		tpacpi_is_fw_digit(s[4]) &&
+		tpacpi_is_fw_digit(s[5]) &&
+		s[6] == 'W' && s[7] == 'W';
+}
+
 /* returns 0 - probe ok, or < 0 - probe error.
  * Probe ok doesn't mean thinkpad found.
  * On error, kfree() cleanup on tp->* is not performed, caller must do it */
@@ -7411,10 +7724,15 @@ static int __must_check __init get_thinkpad_model_data(
 	tp->bios_version_str = kstrdup(s, GFP_KERNEL);
 	if (s && !tp->bios_version_str)
 		return -ENOMEM;
-	if (!tp->bios_version_str)
+
+	/* Really ancient ThinkPad 240X will fail this, which is fine */
+	if (!tpacpi_is_valid_fw_id(tp->bios_version_str, 'E'))
 		return 0;
+
 	tp->bios_model = tp->bios_version_str[0]
 			 | (tp->bios_version_str[1] << 8);
+	tp->bios_release = (tp->bios_version_str[4] << 8)
+			 | tp->bios_version_str[5];
 
 	/*
 	 * ThinkPad T23 or newer, A31 or newer, R50e or newer,
@@ -7433,8 +7751,21 @@ static int __must_check __init get_thinkpad_model_data(
 			tp->ec_version_str = kstrdup(ec_fw_string, GFP_KERNEL);
 			if (!tp->ec_version_str)
 				return -ENOMEM;
-			tp->ec_model = ec_fw_string[0]
-					| (ec_fw_string[1] << 8);
+
+			if (tpacpi_is_valid_fw_id(ec_fw_string, 'H')) {
+				tp->ec_model = ec_fw_string[0]
+						| (ec_fw_string[1] << 8);
+				tp->ec_release = (ec_fw_string[4] << 8)
+						| ec_fw_string[5];
+			} else {
+				printk(TPACPI_NOTICE
+					"ThinkPad firmware release %s "
+					"doesn't match the known patterns\n",
+					ec_fw_string);
+				printk(TPACPI_NOTICE
+					"please report this to %s\n",
+					TPACPI_MAIL);
+			}
 			break;
 		}
 	}

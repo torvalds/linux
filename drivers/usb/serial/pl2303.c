@@ -94,6 +94,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(YCCABLE_VENDOR_ID, YCCABLE_PRODUCT_ID) },
 	{ USB_DEVICE(SUPERIAL_VENDOR_ID, SUPERIAL_PRODUCT_ID) },
 	{ USB_DEVICE(HP_VENDOR_ID, HP_LD220_PRODUCT_ID) },
+	{ USB_DEVICE(CRESSI_VENDOR_ID, CRESSI_EDY_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
 
@@ -971,18 +972,46 @@ exit:
 			__func__, retval);
 }
 
+static void pl2303_push_data(struct tty_struct *tty,
+		struct usb_serial_port *port, struct urb *urb,
+		u8 line_status)
+{
+	unsigned char *data = urb->transfer_buffer;
+	/* get tty_flag from status */
+	char tty_flag = TTY_NORMAL;
+	/* break takes precedence over parity, */
+	/* which takes precedence over framing errors */
+	if (line_status & UART_BREAK_ERROR)
+		tty_flag = TTY_BREAK;
+	else if (line_status & UART_PARITY_ERROR)
+		tty_flag = TTY_PARITY;
+	else if (line_status & UART_FRAME_ERROR)
+		tty_flag = TTY_FRAME;
+	dbg("%s - tty_flag = %d", __func__, tty_flag);
+
+	tty_buffer_request_room(tty, urb->actual_length + 1);
+	/* overrun is special, not associated with a char */
+	if (line_status & UART_OVERRUN_ERROR)
+		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+	if (port->console && port->sysrq) {
+		int i;
+		for (i = 0; i < urb->actual_length; ++i)
+			if (!usb_serial_handle_sysrq_char(tty, port, data[i]))
+				tty_insert_flip_char(tty, data[i], tty_flag);
+	} else
+		tty_insert_flip_string(tty, data, urb->actual_length);
+	tty_flip_buffer_push(tty);
+}
+
 static void pl2303_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port *port =  urb->context;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
-	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
-	int i;
 	int result;
 	int status = urb->status;
 	u8 line_status;
-	char tty_flag;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -1010,10 +1039,7 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 	}
 
 	usb_serial_debug_data(debug, &port->dev, __func__,
-			      urb->actual_length, data);
-
-	/* get tty_flag from status */
-	tty_flag = TTY_NORMAL;
+			      urb->actual_length, urb->transfer_buffer);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	line_status = priv->line_status;
@@ -1021,26 +1047,9 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 	spin_unlock_irqrestore(&priv->lock, flags);
 	wake_up_interruptible(&priv->delta_msr_wait);
 
-	/* break takes precedence over parity, */
-	/* which takes precedence over framing errors */
-	if (line_status & UART_BREAK_ERROR)
-		tty_flag = TTY_BREAK;
-	else if (line_status & UART_PARITY_ERROR)
-		tty_flag = TTY_PARITY;
-	else if (line_status & UART_FRAME_ERROR)
-		tty_flag = TTY_FRAME;
-	dbg("%s - tty_flag = %d", __func__, tty_flag);
-
 	tty = tty_port_tty_get(&port->port);
 	if (tty && urb->actual_length) {
-		tty_buffer_request_room(tty, urb->actual_length + 1);
-		/* overrun is special, not associated with a char */
-		if (line_status & UART_OVERRUN_ERROR)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		for (i = 0; i < urb->actual_length; ++i)
-			if (!usb_serial_handle_sysrq_char(port, data[i]))
-				tty_insert_flip_char(tty, data[i], tty_flag);
-		tty_flip_buffer_push(tty);
+		pl2303_push_data(tty, port, urb, line_status);
 	}
 	tty_kref_put(tty);
 	/* Schedule the next read _if_ we are still open */

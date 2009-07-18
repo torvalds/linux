@@ -42,10 +42,8 @@
 #include <mach/hardware.h>
 #include <asm/system.h>
 
-#define SUBDEV_NAME_SIZE	(BUS_ID_SIZE + 2)
-
 struct armflash_subdev_info {
-	char			name[SUBDEV_NAME_SIZE];
+	char			*name;
 	struct mtd_info		*mtd;
 	struct map_info		map;
 	struct flash_platform_data *plat;
@@ -134,6 +132,8 @@ static void armflash_subdev_remove(struct armflash_subdev_info *subdev)
 		map_destroy(subdev->mtd);
 	if (subdev->map.virt)
 		iounmap(subdev->map.virt);
+	kfree(subdev->name);
+	subdev->name = NULL;
 	release_mem_region(subdev->map.phys, subdev->map.size);
 }
 
@@ -177,16 +177,22 @@ static int armflash_probe(struct platform_device *dev)
 
 		if (nr == 1)
 			/* No MTD concatenation, just use the default name */
-			snprintf(subdev->name, SUBDEV_NAME_SIZE, "%s",
-				 dev_name(&dev->dev));
+			subdev->name = kstrdup(dev_name(&dev->dev), GFP_KERNEL);
 		else
-			snprintf(subdev->name, SUBDEV_NAME_SIZE, "%s-%d",
-				 dev_name(&dev->dev), i);
+			subdev->name = kasprintf(GFP_KERNEL, "%s-%d",
+						 dev_name(&dev->dev), i);
+		if (!subdev->name) {
+			err = -ENOMEM;
+			break;
+		}
 		subdev->plat = plat;
 
 		err = armflash_subdev_probe(subdev, res);
-		if (err)
+		if (err) {
+			kfree(subdev->name);
+			subdev->name = NULL;
 			break;
+		}
 	}
 	info->nr_subdev = i;
 

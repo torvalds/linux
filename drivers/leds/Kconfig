@@ -75,6 +75,7 @@ config LEDS_ALIX2
 	depends on LEDS_CLASS && X86 && EXPERIMENTAL
 	help
 	  This option enables support for the PCEngines ALIX.2 and ALIX.3 LEDs.
+	  You have to set leds-alix2.force=1 for boards with Award BIOS.
 
 config LEDS_H1940
 	tristate "LED Support for iPAQ H1940 device"
@@ -145,15 +146,16 @@ config LEDS_GPIO_OF
 	  of_platform devices.  For instance, LEDs which are listed in a "dts"
 	  file.
 
-config LEDS_LP5521
-	tristate "LED Support for the LP5521 LEDs"
+config LEDS_LP3944
+	tristate "LED Support for N.S. LP3944 (Fun Light) I2C chip"
 	depends on LEDS_CLASS && I2C
 	help
-	  If you say 'Y' here you get support for the National Semiconductor
-	  LP5521 LED driver used in n8x0 boards.
+    This option enables support for LEDs connected to the National
+    Semiconductor LP3944 Lighting Management Unit (LMU) also known as
+    Fun Light Chip.
 
-	  This driver can be built as a module by choosing 'M'. The module
-	  will be called leds-lp5521.
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-lp3944.
 
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook"

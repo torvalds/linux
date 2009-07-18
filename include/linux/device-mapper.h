@@ -11,6 +11,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 
+struct dm_dev;
 struct dm_target;
 struct dm_table;
 struct mapped_device;
@@ -21,6 +22,7 @@ typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
 union map_info {
 	void *ptr;
 	unsigned long long ll;
+	unsigned flush_request;
 };
 
 /*
@@ -80,6 +82,15 @@ typedef int (*dm_ioctl_fn) (struct dm_target *ti, unsigned int cmd,
 typedef int (*dm_merge_fn) (struct dm_target *ti, struct bvec_merge_data *bvm,
 			    struct bio_vec *biovec, int max_size);
 
+typedef int (*iterate_devices_callout_fn) (struct dm_target *ti,
+					   struct dm_dev *dev,
+					   sector_t physical_start,
+					   void *data);
+
+typedef int (*dm_iterate_devices_fn) (struct dm_target *ti,
+				      iterate_devices_callout_fn fn,
+				      void *data);
+
 /*
  * Returns:
  *    0: The target can handle the next I/O immediately.
@@ -92,7 +103,8 @@ void dm_error(const char *message);
 /*
  * Combine device limits.
  */
-void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev);
+int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
+			 sector_t start, void *data);
 
 struct dm_dev {
 	struct block_device *bdev;
@@ -138,21 +150,10 @@ struct target_type {
 	dm_ioctl_fn ioctl;
 	dm_merge_fn merge;
 	dm_busy_fn busy;
+	dm_iterate_devices_fn iterate_devices;
 
 	/* For internal device-mapper use. */
 	struct list_head list;
-};
-
-struct io_restrictions {
-	unsigned long bounce_pfn;
-	unsigned long seg_boundary_mask;
-	unsigned max_hw_sectors;
-	unsigned max_sectors;
-	unsigned max_segment_size;
-	unsigned short logical_block_size;
-	unsigned short max_hw_segments;
-	unsigned short max_phys_segments;
-	unsigned char no_cluster; /* inverted so that 0 is default */
 };
 
 struct dm_target {
@@ -163,15 +164,18 @@ struct dm_target {
 	sector_t begin;
 	sector_t len;
 
-	/* FIXME: turn this into a mask, and merge with io_restrictions */
 	/* Always a power of 2 */
 	sector_t split_io;
 
 	/*
-	 * These are automatically filled in by
-	 * dm_table_get_device.
+	 * A number of zero-length barrier requests that will be submitted
+	 * to the target for the purpose of flushing cache.
+	 *
+	 * The request number will be placed in union map_info->flush_request.
+	 * It is a responsibility of the target driver to remap these requests
+	 * to the real underlying devices.
 	 */
-	struct io_restrictions limits;
+	unsigned num_flush_requests;
 
 	/* target specific data */
 	void *private;
@@ -230,6 +234,7 @@ struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct mapped_device *md);
 int dm_noflush_suspending(struct dm_target *ti);
 union map_info *dm_get_mapinfo(struct bio *bio);
+union map_info *dm_get_rq_mapinfo(struct request *rq);
 
 /*
  * Geometry functions.
@@ -391,5 +396,13 @@ static inline unsigned long to_bytes(sector_t n)
 {
 	return (n << SECTOR_SHIFT);
 }
+
+/*-----------------------------------------------------------------
+ * Helper for block layer and dm core operations
+ *---------------------------------------------------------------*/
+void dm_dispatch_request(struct request *rq);
+void dm_requeue_unmapped_request(struct request *rq);
+void dm_kill_unmapped_request(struct request *rq, int error);
+int dm_underlying_device_busy(struct request_queue *q);
 
 #endif	/* _LINUX_DEVICE_MAPPER_H */

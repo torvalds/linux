@@ -485,7 +485,7 @@ static void pcnet32_realloc_tx_ring(struct net_device *dev,
 					   &new_ring_dma_addr);
 	if (new_tx_ring == NULL) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Consistent memory allocation failed.\n",
 			       dev->name);
 		return;
@@ -496,7 +496,7 @@ static void pcnet32_realloc_tx_ring(struct net_device *dev,
 				GFP_ATOMIC);
 	if (!new_dma_addr_list) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Memory allocation failed.\n", dev->name);
 		goto free_new_tx_ring;
 	}
@@ -505,7 +505,7 @@ static void pcnet32_realloc_tx_ring(struct net_device *dev,
 				GFP_ATOMIC);
 	if (!new_skb_list) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Memory allocation failed.\n", dev->name);
 		goto free_new_lists;
 	}
@@ -563,7 +563,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 					   &new_ring_dma_addr);
 	if (new_rx_ring == NULL) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Consistent memory allocation failed.\n",
 			       dev->name);
 		return;
@@ -574,7 +574,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 				GFP_ATOMIC);
 	if (!new_dma_addr_list) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Memory allocation failed.\n", dev->name);
 		goto free_new_rx_ring;
 	}
@@ -583,7 +583,7 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 				GFP_ATOMIC);
 	if (!new_skb_list) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR
+			printk(KERN_ERR
 			       "%s: Memory allocation failed.\n", dev->name);
 		goto free_new_lists;
 	}
@@ -1766,38 +1766,38 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		/* Version 0x2623 and 0x2624 */
 		if (((chip_version + 1) & 0xfffe) == 0x2624) {
 			i = a->read_csr(ioaddr, 80) & 0x0C00;	/* Check tx_start_pt */
-			printk("\n" KERN_INFO "    tx_start_pt(0x%04x):", i);
+			printk(KERN_INFO "    tx_start_pt(0x%04x):", i);
 			switch (i >> 10) {
 			case 0:
-				printk("  20 bytes,");
+				printk(KERN_CONT "  20 bytes,");
 				break;
 			case 1:
-				printk("  64 bytes,");
+				printk(KERN_CONT "  64 bytes,");
 				break;
 			case 2:
-				printk(" 128 bytes,");
+				printk(KERN_CONT " 128 bytes,");
 				break;
 			case 3:
-				printk("~220 bytes,");
+				printk(KERN_CONT "~220 bytes,");
 				break;
 			}
 			i = a->read_bcr(ioaddr, 18);	/* Check Burst/Bus control */
-			printk(" BCR18(%x):", i & 0xffff);
+			printk(KERN_CONT " BCR18(%x):", i & 0xffff);
 			if (i & (1 << 5))
-				printk("BurstWrEn ");
+				printk(KERN_CONT "BurstWrEn ");
 			if (i & (1 << 6))
-				printk("BurstRdEn ");
+				printk(KERN_CONT "BurstRdEn ");
 			if (i & (1 << 7))
-				printk("DWordIO ");
+				printk(KERN_CONT "DWordIO ");
 			if (i & (1 << 11))
-				printk("NoUFlow ");
+				printk(KERN_CONT "NoUFlow ");
 			i = a->read_bcr(ioaddr, 25);
-			printk("\n" KERN_INFO "    SRAMSIZE=0x%04x,", i << 8);
+			printk(KERN_INFO "    SRAMSIZE=0x%04x,", i << 8);
 			i = a->read_bcr(ioaddr, 26);
-			printk(" SRAM_BND=0x%04x,", i << 8);
+			printk(KERN_CONT " SRAM_BND=0x%04x,", i << 8);
 			i = a->read_bcr(ioaddr, 27);
 			if (i & (1 << 14))
-				printk("LowLatRx");
+				printk(KERN_CONT "LowLatRx");
 		}
 	}
 
@@ -1996,7 +1996,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 					   &lp->tx_ring_dma_addr);
 	if (lp->tx_ring == NULL) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Consistent memory allocation failed.\n",
 			       name);
 		return -ENOMEM;
@@ -2008,7 +2008,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 					   &lp->rx_ring_dma_addr);
 	if (lp->rx_ring == NULL) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Consistent memory allocation failed.\n",
 			       name);
 		return -ENOMEM;
@@ -2018,7 +2018,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 				  GFP_ATOMIC);
 	if (!lp->tx_dma_addr) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
@@ -2027,7 +2027,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 				  GFP_ATOMIC);
 	if (!lp->rx_dma_addr) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
@@ -2036,7 +2036,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 				GFP_ATOMIC);
 	if (!lp->tx_skbuff) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}
@@ -2045,7 +2045,7 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 				GFP_ATOMIC);
 	if (!lp->rx_skbuff) {
 		if (netif_msg_drv(lp))
-			printk("\n" KERN_ERR PFX
+			printk(KERN_ERR PFX
 			       "%s: Memory allocation failed.\n", name);
 		return -ENOMEM;
 	}

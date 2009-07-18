@@ -25,14 +25,17 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/kernel.h>
 #include "drmP.h"
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "intel_dp.h"
 
 #include "drm_crtc_helper.h"
 
 bool intel_pipe_has_type (struct drm_crtc *crtc, int type);
+static void intel_update_watermarks(struct drm_device *dev);
 
 typedef struct {
     /* given values */
@@ -127,19 +130,6 @@ struct intel_limit {
 #define I9XX_P2_LVDS_FAST		      7
 #define I9XX_P2_LVDS_SLOW_LIMIT		 112000
 
-#define INTEL_LIMIT_I8XX_DVO_DAC    0
-#define INTEL_LIMIT_I8XX_LVDS	    1
-#define INTEL_LIMIT_I9XX_SDVO_DAC   2
-#define INTEL_LIMIT_I9XX_LVDS	    3
-#define INTEL_LIMIT_G4X_SDVO	    4
-#define INTEL_LIMIT_G4X_HDMI_DAC   5
-#define INTEL_LIMIT_G4X_SINGLE_CHANNEL_LVDS   6
-#define INTEL_LIMIT_G4X_DUAL_CHANNEL_LVDS   7
-#define INTEL_LIMIT_IGD_SDVO_DAC    8
-#define INTEL_LIMIT_IGD_LVDS	    9
-#define INTEL_LIMIT_IGDNG_SDVO_DAC  10
-#define INTEL_LIMIT_IGDNG_LVDS	    11
-
 /*The parameter is for SDVO on G4x platform*/
 #define G4X_DOT_SDVO_MIN           25000
 #define G4X_DOT_SDVO_MAX           270000
@@ -218,6 +208,25 @@ struct intel_limit {
 #define G4X_P2_DUAL_CHANNEL_LVDS_FAST           7
 #define G4X_P2_DUAL_CHANNEL_LVDS_LIMIT          0
 
+/*The parameter is for DISPLAY PORT on G4x platform*/
+#define G4X_DOT_DISPLAY_PORT_MIN           161670
+#define G4X_DOT_DISPLAY_PORT_MAX           227000
+#define G4X_N_DISPLAY_PORT_MIN             1
+#define G4X_N_DISPLAY_PORT_MAX             2
+#define G4X_M_DISPLAY_PORT_MIN             97
+#define G4X_M_DISPLAY_PORT_MAX             108
+#define G4X_M1_DISPLAY_PORT_MIN            0x10
+#define G4X_M1_DISPLAY_PORT_MAX            0x12
+#define G4X_M2_DISPLAY_PORT_MIN            0x05
+#define G4X_M2_DISPLAY_PORT_MAX            0x06
+#define G4X_P_DISPLAY_PORT_MIN             10
+#define G4X_P_DISPLAY_PORT_MAX             20
+#define G4X_P1_DISPLAY_PORT_MIN            1
+#define G4X_P1_DISPLAY_PORT_MAX            2
+#define G4X_P2_DISPLAY_PORT_SLOW           10
+#define G4X_P2_DISPLAY_PORT_FAST           10
+#define G4X_P2_DISPLAY_PORT_LIMIT          0
+
 /* IGDNG */
 /* as we calculate clock using (register_value + 2) for
    N/M1/M2, so here the range value for them is (actual_value-2).
@@ -256,8 +265,11 @@ static bool
 intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock);
 
-static const intel_limit_t intel_limits[] = {
-    { /* INTEL_LIMIT_I8XX_DVO_DAC */
+static bool
+intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
+		      int target, int refclk, intel_clock_t *best_clock);
+
+static const intel_limit_t intel_limits_i8xx_dvo = {
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
         .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
         .n   = { .min = I8XX_N_MIN,		.max = I8XX_N_MAX },
@@ -269,8 +281,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_SLOW,	.p2_fast = I8XX_P2_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_I8XX_LVDS */
+};
+
+static const intel_limit_t intel_limits_i8xx_lvds = {
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
         .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
         .n   = { .min = I8XX_N_MIN,		.max = I8XX_N_MAX },
@@ -282,8 +295,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_LVDS_SLOW,	.p2_fast = I8XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_I9XX_SDVO_DAC */
+};
+	
+static const intel_limit_t intel_limits_i9xx_sdvo = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
         .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
         .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
@@ -295,8 +309,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_I9XX_LVDS */
+};
+
+static const intel_limit_t intel_limits_i9xx_lvds = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
         .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
         .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
@@ -311,9 +326,10 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
+};
+
     /* below parameter and function is for G4X Chipset Family*/
-    { /* INTEL_LIMIT_G4X_SDVO */
+static const intel_limit_t intel_limits_g4x_sdvo = {
 	.dot = { .min = G4X_DOT_SDVO_MIN,	.max = G4X_DOT_SDVO_MAX },
 	.vco = { .min = G4X_VCO_MIN,	        .max = G4X_VCO_MAX},
 	.n   = { .min = G4X_N_SDVO_MIN,	        .max = G4X_N_SDVO_MAX },
@@ -327,8 +343,9 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_fast = G4X_P2_SDVO_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_G4X_HDMI_DAC */
+};
+
+static const intel_limit_t intel_limits_g4x_hdmi = {
 	.dot = { .min = G4X_DOT_HDMI_DAC_MIN,	.max = G4X_DOT_HDMI_DAC_MAX },
 	.vco = { .min = G4X_VCO_MIN,	        .max = G4X_VCO_MAX},
 	.n   = { .min = G4X_N_HDMI_DAC_MIN,	.max = G4X_N_HDMI_DAC_MAX },
@@ -342,8 +359,9 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_fast = G4X_P2_HDMI_DAC_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_G4X_SINGLE_CHANNEL_LVDS */
+};
+
+static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
 	.dot = { .min = G4X_DOT_SINGLE_CHANNEL_LVDS_MIN,
 		 .max = G4X_DOT_SINGLE_CHANNEL_LVDS_MAX },
 	.vco = { .min = G4X_VCO_MIN,
@@ -365,8 +383,9 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_fast = G4X_P2_SINGLE_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_G4X_DUAL_CHANNEL_LVDS */
+};
+
+static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
 	.dot = { .min = G4X_DOT_DUAL_CHANNEL_LVDS_MIN,
 		 .max = G4X_DOT_DUAL_CHANNEL_LVDS_MAX },
 	.vco = { .min = G4X_VCO_MIN,
@@ -388,8 +407,32 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_fast = G4X_P2_DUAL_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_IGD_SDVO */
+};
+
+static const intel_limit_t intel_limits_g4x_display_port = {
+        .dot = { .min = G4X_DOT_DISPLAY_PORT_MIN,
+                 .max = G4X_DOT_DISPLAY_PORT_MAX },
+        .vco = { .min = G4X_VCO_MIN,
+                 .max = G4X_VCO_MAX},
+        .n   = { .min = G4X_N_DISPLAY_PORT_MIN,
+                 .max = G4X_N_DISPLAY_PORT_MAX },
+        .m   = { .min = G4X_M_DISPLAY_PORT_MIN,
+                 .max = G4X_M_DISPLAY_PORT_MAX },
+        .m1  = { .min = G4X_M1_DISPLAY_PORT_MIN,
+                 .max = G4X_M1_DISPLAY_PORT_MAX },
+        .m2  = { .min = G4X_M2_DISPLAY_PORT_MIN,
+                 .max = G4X_M2_DISPLAY_PORT_MAX },
+        .p   = { .min = G4X_P_DISPLAY_PORT_MIN,
+                 .max = G4X_P_DISPLAY_PORT_MAX },
+        .p1  = { .min = G4X_P1_DISPLAY_PORT_MIN,
+                 .max = G4X_P1_DISPLAY_PORT_MAX},
+        .p2  = { .dot_limit = G4X_P2_DISPLAY_PORT_LIMIT,
+                 .p2_slow = G4X_P2_DISPLAY_PORT_SLOW,
+                 .p2_fast = G4X_P2_DISPLAY_PORT_FAST },
+        .find_pll = intel_find_pll_g4x_dp,
+};
+
+static const intel_limit_t intel_limits_igd_sdvo = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX},
         .vco = { .min = IGD_VCO_MIN,		.max = IGD_VCO_MAX },
         .n   = { .min = IGD_N_MIN,		.max = IGD_N_MAX },
@@ -401,8 +444,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_IGD_LVDS */
+};
+
+static const intel_limit_t intel_limits_igd_lvds = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
         .vco = { .min = IGD_VCO_MIN,		.max = IGD_VCO_MAX },
         .n   = { .min = IGD_N_MIN,		.max = IGD_N_MAX },
@@ -415,8 +459,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_IGDNG_SDVO_DAC */
+};
+
+static const intel_limit_t intel_limits_igdng_sdvo = {
 	.dot = { .min = IGDNG_DOT_MIN,          .max = IGDNG_DOT_MAX },
 	.vco = { .min = IGDNG_VCO_MIN,          .max = IGDNG_VCO_MAX },
 	.n   = { .min = IGDNG_N_MIN,            .max = IGDNG_N_MAX },
@@ -429,8 +474,9 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_slow = IGDNG_P2_SDVO_DAC_SLOW,
 		 .p2_fast = IGDNG_P2_SDVO_DAC_FAST },
 	.find_pll = intel_igdng_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_IGDNG_LVDS */
+};
+
+static const intel_limit_t intel_limits_igdng_lvds = {
 	.dot = { .min = IGDNG_DOT_MIN,          .max = IGDNG_DOT_MAX },
 	.vco = { .min = IGDNG_VCO_MIN,          .max = IGDNG_VCO_MAX },
 	.n   = { .min = IGDNG_N_MIN,            .max = IGDNG_N_MAX },
@@ -443,16 +489,15 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_slow = IGDNG_P2_LVDS_SLOW,
 		 .p2_fast = IGDNG_P2_LVDS_FAST },
 	.find_pll = intel_igdng_find_best_PLL,
-    },
 };
 
 static const intel_limit_t *intel_igdng_limit(struct drm_crtc *crtc)
 {
 	const intel_limit_t *limit;
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-		limit = &intel_limits[INTEL_LIMIT_IGDNG_LVDS];
+		limit = &intel_limits_igdng_lvds;
 	else
-		limit = &intel_limits[INTEL_LIMIT_IGDNG_SDVO_DAC];
+		limit = &intel_limits_igdng_sdvo;
 
 	return limit;
 }
@@ -467,19 +512,19 @@ static const intel_limit_t *intel_g4x_limit(struct drm_crtc *crtc)
 		if ((I915_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
 		    LVDS_CLKB_POWER_UP)
 			/* LVDS with dual channel */
-			limit = &intel_limits
-					[INTEL_LIMIT_G4X_DUAL_CHANNEL_LVDS];
+			limit = &intel_limits_g4x_dual_channel_lvds;
 		else
 			/* LVDS with dual channel */
-			limit = &intel_limits
-					[INTEL_LIMIT_G4X_SINGLE_CHANNEL_LVDS];
+			limit = &intel_limits_g4x_single_channel_lvds;
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI) ||
 		   intel_pipe_has_type(crtc, INTEL_OUTPUT_ANALOG)) {
-		limit = &intel_limits[INTEL_LIMIT_G4X_HDMI_DAC];
+		limit = &intel_limits_g4x_hdmi;
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO)) {
-		limit = &intel_limits[INTEL_LIMIT_G4X_SDVO];
+		limit = &intel_limits_g4x_sdvo;
+	} else if (intel_pipe_has_type (crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+		limit = &intel_limits_g4x_display_port;
 	} else /* The option is for other outputs */
-		limit = &intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
+		limit = &intel_limits_i9xx_sdvo;
 
 	return limit;
 }
@@ -495,19 +540,19 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
 		limit = intel_g4x_limit(crtc);
 	} else if (IS_I9XX(dev) && !IS_IGD(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits[INTEL_LIMIT_I9XX_LVDS];
+			limit = &intel_limits_i9xx_lvds;
 		else
-			limit = &intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
+			limit = &intel_limits_i9xx_sdvo;
 	} else if (IS_IGD(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits[INTEL_LIMIT_IGD_LVDS];
+			limit = &intel_limits_igd_lvds;
 		else
-			limit = &intel_limits[INTEL_LIMIT_IGD_SDVO_DAC];
+			limit = &intel_limits_igd_sdvo;
 	} else {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits[INTEL_LIMIT_I8XX_LVDS];
+			limit = &intel_limits_i8xx_lvds;
 		else
-			limit = &intel_limits[INTEL_LIMIT_I8XX_DVO_DAC];
+			limit = &intel_limits_i8xx_dvo;
 	}
 	return limit;
 }
@@ -764,6 +809,32 @@ out:
 	return found;
 }
 
+/* DisplayPort has only two frequencies, 162MHz and 270MHz */
+static bool
+intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
+		      int target, int refclk, intel_clock_t *best_clock)
+{
+    intel_clock_t clock;
+    if (target < 200000) {
+	clock.p1 = 2;
+	clock.p2 = 10;
+	clock.n = 2;
+	clock.m1 = 23;
+	clock.m2 = 8;
+    } else {
+	clock.p1 = 1;
+	clock.p2 = 10;
+	clock.n = 1;
+	clock.m1 = 14;
+	clock.m2 = 2;
+    }
+    clock.m = 5 * (clock.m1 + 2) + (clock.m2 + 2);
+    clock.p = (clock.p1 * clock.p2);
+    clock.dot = 96000 * clock.m / (clock.n + 2) / clock.p;
+    memcpy(best_clock, &clock, sizeof(intel_clock_t));
+    return true;
+}
+
 void
 intel_wait_for_vblank(struct drm_device *dev)
 {
@@ -933,7 +1004,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
 	int pch_dpll_reg = (pipe == 0) ? PCH_DPLL_A : PCH_DPLL_B;
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	int dspcntr_reg = (plane == 0) ? DSPACNTR : DSPBCNTR;
@@ -1263,8 +1334,10 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		/* Give the overlay scaler a chance to enable if it's on this pipe */
 		//intel_crtc_dpms_video(crtc, true); TODO
+		intel_update_watermarks(dev);
 	break;
 	case DRM_MODE_DPMS_OFF:
+		intel_update_watermarks(dev);
 		/* Give the overlay scaler a chance to disable if it's on this pipe */
 		//intel_crtc_dpms_video(crtc, FALSE); TODO
 
@@ -1443,7 +1516,6 @@ static int intel_get_core_clock_speed(struct drm_device *dev)
 	return 0; /* Silence gcc warning */
 }
 
-
 /**
  * Return the pipe currently connected to the panel fitter,
  * or -1 if the panel fitter is not present or not in use
@@ -1502,7 +1574,7 @@ igdng_compute_m_n(int bytes_per_pixel, int nlanes,
 
 	temp = (u64) DATA_N * pixel_clock;
 	temp = div_u64(temp, link_clock);
-	m_n->gmch_m = (temp * bytes_per_pixel) / nlanes;
+	m_n->gmch_m = div_u64(temp * bytes_per_pixel, nlanes);
 	m_n->gmch_n = DATA_N;
 	fdi_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
 
@@ -1512,6 +1584,420 @@ igdng_compute_m_n(int bytes_per_pixel, int nlanes,
 	fdi_reduce_ratio(&m_n->link_m, &m_n->link_n);
 }
 
+
+struct intel_watermark_params {
+	unsigned long fifo_size;
+	unsigned long max_wm;
+	unsigned long default_wm;
+	unsigned long guard_size;
+	unsigned long cacheline_size;
+};
+
+/* IGD has different values for various configs */
+static struct intel_watermark_params igd_display_wm = {
+	IGD_DISPLAY_FIFO,
+	IGD_MAX_WM,
+	IGD_DFT_WM,
+	IGD_GUARD_WM,
+	IGD_FIFO_LINE_SIZE
+};
+static struct intel_watermark_params igd_display_hplloff_wm = {
+	IGD_DISPLAY_FIFO,
+	IGD_MAX_WM,
+	IGD_DFT_HPLLOFF_WM,
+	IGD_GUARD_WM,
+	IGD_FIFO_LINE_SIZE
+};
+static struct intel_watermark_params igd_cursor_wm = {
+	IGD_CURSOR_FIFO,
+	IGD_CURSOR_MAX_WM,
+	IGD_CURSOR_DFT_WM,
+	IGD_CURSOR_GUARD_WM,
+	IGD_FIFO_LINE_SIZE,
+};
+static struct intel_watermark_params igd_cursor_hplloff_wm = {
+	IGD_CURSOR_FIFO,
+	IGD_CURSOR_MAX_WM,
+	IGD_CURSOR_DFT_WM,
+	IGD_CURSOR_GUARD_WM,
+	IGD_FIFO_LINE_SIZE
+};
+static struct intel_watermark_params i945_wm_info = {
+	I915_FIFO_LINE_SIZE,
+	I915_MAX_WM,
+	1,
+	0,
+	IGD_FIFO_LINE_SIZE
+};
+static struct intel_watermark_params i915_wm_info = {
+	I945_FIFO_SIZE,
+	I915_MAX_WM,
+	1,
+	0,
+	I915_FIFO_LINE_SIZE
+};
+static struct intel_watermark_params i855_wm_info = {
+	I855GM_FIFO_SIZE,
+	I915_MAX_WM,
+	1,
+	0,
+	I830_FIFO_LINE_SIZE
+};
+static struct intel_watermark_params i830_wm_info = {
+	I830_FIFO_SIZE,
+	I915_MAX_WM,
+	1,
+	0,
+	I830_FIFO_LINE_SIZE
+};
+
+static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
+					struct intel_watermark_params *wm,
+					int pixel_size,
+					unsigned long latency_ns)
+{
+	unsigned long bytes_required, wm_size;
+
+	bytes_required = (clock_in_khz * pixel_size * latency_ns) / 1000000;
+	bytes_required /= wm->cacheline_size;
+	wm_size = wm->fifo_size - bytes_required - wm->guard_size;
+
+	if (wm_size > wm->max_wm)
+		wm_size = wm->max_wm;
+	if (wm_size == 0)
+		wm_size = wm->default_wm;
+	return wm_size;
+}
+
+struct cxsr_latency {
+	int is_desktop;
+	unsigned long fsb_freq;
+	unsigned long mem_freq;
+	unsigned long display_sr;
+	unsigned long display_hpll_disable;
+	unsigned long cursor_sr;
+	unsigned long cursor_hpll_disable;
+};
+
+static struct cxsr_latency cxsr_latency_table[] = {
+	{1, 800, 400, 3382, 33382, 3983, 33983},    /* DDR2-400 SC */
+	{1, 800, 667, 3354, 33354, 3807, 33807},    /* DDR2-667 SC */
+	{1, 800, 800, 3347, 33347, 3763, 33763},    /* DDR2-800 SC */
+
+	{1, 667, 400, 3400, 33400, 4021, 34021},    /* DDR2-400 SC */
+	{1, 667, 667, 3372, 33372, 3845, 33845},    /* DDR2-667 SC */
+	{1, 667, 800, 3386, 33386, 3822, 33822},    /* DDR2-800 SC */
+
+	{1, 400, 400, 3472, 33472, 4173, 34173},    /* DDR2-400 SC */
+	{1, 400, 667, 3443, 33443, 3996, 33996},    /* DDR2-667 SC */
+	{1, 400, 800, 3430, 33430, 3946, 33946},    /* DDR2-800 SC */
+
+	{0, 800, 400, 3438, 33438, 4065, 34065},    /* DDR2-400 SC */
+	{0, 800, 667, 3410, 33410, 3889, 33889},    /* DDR2-667 SC */
+	{0, 800, 800, 3403, 33403, 3845, 33845},    /* DDR2-800 SC */
+
+	{0, 667, 400, 3456, 33456, 4103, 34106},    /* DDR2-400 SC */
+	{0, 667, 667, 3428, 33428, 3927, 33927},    /* DDR2-667 SC */
+	{0, 667, 800, 3443, 33443, 3905, 33905},    /* DDR2-800 SC */
+
+	{0, 400, 400, 3528, 33528, 4255, 34255},    /* DDR2-400 SC */
+	{0, 400, 667, 3500, 33500, 4079, 34079},    /* DDR2-667 SC */
+	{0, 400, 800, 3487, 33487, 4029, 34029},    /* DDR2-800 SC */
+};
+
+static struct cxsr_latency *intel_get_cxsr_latency(int is_desktop, int fsb,
+						   int mem)
+{
+	int i;
+	struct cxsr_latency *latency;
+
+	if (fsb == 0 || mem == 0)
+		return NULL;
+
+	for (i = 0; i < ARRAY_SIZE(cxsr_latency_table); i++) {
+		latency = &cxsr_latency_table[i];
+		if (is_desktop == latency->is_desktop &&
+			fsb == latency->fsb_freq && mem == latency->mem_freq)
+			break;
+	}
+	if (i >= ARRAY_SIZE(cxsr_latency_table)) {
+		DRM_DEBUG("Unknown FSB/MEM found, disable CxSR\n");
+		return NULL;
+	}
+	return latency;
+}
+
+static void igd_disable_cxsr(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg;
+
+	/* deactivate cxsr */
+	reg = I915_READ(DSPFW3);
+	reg &= ~(IGD_SELF_REFRESH_EN);
+	I915_WRITE(DSPFW3, reg);
+	DRM_INFO("Big FIFO is disabled\n");
+}
+
+static void igd_enable_cxsr(struct drm_device *dev, unsigned long clock,
+			    int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg;
+	unsigned long wm;
+	struct cxsr_latency *latency;
+
+	latency = intel_get_cxsr_latency(IS_IGDG(dev), dev_priv->fsb_freq,
+		dev_priv->mem_freq);
+	if (!latency) {
+		DRM_DEBUG("Unknown FSB/MEM found, disable CxSR\n");
+		igd_disable_cxsr(dev);
+		return;
+	}
+
+	/* Display SR */
+	wm = intel_calculate_wm(clock, &igd_display_wm, pixel_size,
+				latency->display_sr);
+	reg = I915_READ(DSPFW1);
+	reg &= 0x7fffff;
+	reg |= wm << 23;
+	I915_WRITE(DSPFW1, reg);
+	DRM_DEBUG("DSPFW1 register is %x\n", reg);
+
+	/* cursor SR */
+	wm = intel_calculate_wm(clock, &igd_cursor_wm, pixel_size,
+				latency->cursor_sr);
+	reg = I915_READ(DSPFW3);
+	reg &= ~(0x3f << 24);
+	reg |= (wm & 0x3f) << 24;
+	I915_WRITE(DSPFW3, reg);
+
+	/* Display HPLL off SR */
+	wm = intel_calculate_wm(clock, &igd_display_hplloff_wm,
+		latency->display_hpll_disable, I915_FIFO_LINE_SIZE);
+	reg = I915_READ(DSPFW3);
+	reg &= 0xfffffe00;
+	reg |= wm & 0x1ff;
+	I915_WRITE(DSPFW3, reg);
+
+	/* cursor HPLL off SR */
+	wm = intel_calculate_wm(clock, &igd_cursor_hplloff_wm, pixel_size,
+				latency->cursor_hpll_disable);
+	reg = I915_READ(DSPFW3);
+	reg &= ~(0x3f << 16);
+	reg |= (wm & 0x3f) << 16;
+	I915_WRITE(DSPFW3, reg);
+	DRM_DEBUG("DSPFW3 register is %x\n", reg);
+
+	/* activate cxsr */
+	reg = I915_READ(DSPFW3);
+	reg |= IGD_SELF_REFRESH_EN;
+	I915_WRITE(DSPFW3, reg);
+
+	DRM_INFO("Big FIFO is enabled\n");
+
+	return;
+}
+
+const static int latency_ns = 5000; /* default for non-igd platforms */
+
+
+static void i965_update_wm(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	DRM_DEBUG("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR 8\n");
+
+	/* 965 has limitations... */
+	I915_WRITE(DSPFW1, (8 << 16) | (8 << 8) | (8 << 0));
+	I915_WRITE(DSPFW2, (8 << 8) | (8 << 0));
+}
+
+static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
+			   int planeb_clock, int sr_hdisplay, int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t fwater_lo = I915_READ(FW_BLC) & MM_FIFO_WATERMARK;
+	uint32_t fwater_hi = I915_READ(FW_BLC2) & LM_FIFO_WATERMARK;
+	int bsize, asize, cwm, bwm = 1, awm = 1, srwm = 1;
+	uint32_t dsparb = I915_READ(DSPARB);
+	int planea_entries, planeb_entries;
+	struct intel_watermark_params *wm_params;
+	unsigned long line_time_us;
+	int sr_clock, sr_entries = 0;
+
+	if (IS_I965GM(dev) || IS_I945GM(dev))
+		wm_params = &i945_wm_info;
+	else if (IS_I9XX(dev))
+		wm_params = &i915_wm_info;
+	else
+		wm_params = &i855_wm_info;
+
+	planea_entries = intel_calculate_wm(planea_clock, wm_params,
+					    pixel_size, latency_ns);
+	planeb_entries = intel_calculate_wm(planeb_clock, wm_params,
+					    pixel_size, latency_ns);
+
+	DRM_DEBUG("FIFO entries - A: %d, B: %d\n", planea_entries,
+		  planeb_entries);
+
+	if (IS_I9XX(dev)) {
+		asize = dsparb & 0x7f;
+		bsize = (dsparb >> DSPARB_CSTART_SHIFT) & 0x7f;
+	} else {
+		asize = dsparb & 0x1ff;
+		bsize = (dsparb >> DSPARB_BEND_SHIFT) & 0x1ff;
+	}
+	DRM_DEBUG("FIFO size - A: %d, B: %d\n", asize, bsize);
+
+	/* Two extra entries for padding */
+	awm = asize - (planea_entries + 2);
+	bwm = bsize - (planeb_entries + 2);
+
+	/* Sanity check against potentially bad FIFO allocations */
+	if (awm <= 0) {
+		/* pipe is on but has too few FIFO entries */
+		if (planea_entries != 0)
+			DRM_DEBUG("plane A needs more FIFO entries\n");
+		awm = 1;
+	}
+	if (bwm <= 0) {
+		if (planeb_entries != 0)
+			DRM_DEBUG("plane B needs more FIFO entries\n");
+		bwm = 1;
+	}
+
+	/*
+	 * Overlay gets an aggressive default since video jitter is bad.
+	 */
+	cwm = 2;
+
+	/* Calc sr entries for one pipe configs */
+	if (!planea_clock || !planeb_clock) {
+		sr_clock = planea_clock ? planea_clock : planeb_clock;
+		line_time_us = (sr_hdisplay * 1000) / sr_clock;
+		sr_entries = (((latency_ns / line_time_us) + 1) * pixel_size *
+			      sr_hdisplay) / 1000;
+		sr_entries = roundup(sr_entries / wm_params->cacheline_size, 1);
+		if (sr_entries < wm_params->fifo_size)
+			srwm = wm_params->fifo_size - sr_entries;
+	}
+
+	DRM_DEBUG("Setting FIFO watermarks - A: %d, B: %d, C: %d, SR %d\n",
+		  awm, bwm, cwm, srwm);
+
+	fwater_lo = fwater_lo | ((bwm & 0x3f) << 16) | (awm & 0x3f);
+	fwater_hi = fwater_hi | (cwm & 0x1f);
+
+	I915_WRITE(FW_BLC, fwater_lo);
+	I915_WRITE(FW_BLC2, fwater_hi);
+	if (IS_I9XX(dev))
+		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN | (srwm & 0x3f));
+}
+
+static void i830_update_wm(struct drm_device *dev, int planea_clock,
+			   int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t dsparb = I915_READ(DSPARB);
+	uint32_t fwater_lo = I915_READ(FW_BLC) & MM_FIFO_WATERMARK;
+	unsigned int asize, awm;
+	int planea_entries;
+
+	planea_entries = intel_calculate_wm(planea_clock, &i830_wm_info,
+					    pixel_size, latency_ns);
+
+	asize = dsparb & 0x7f;
+
+	awm = asize - planea_entries;
+
+	fwater_lo = fwater_lo | awm;
+
+	I915_WRITE(FW_BLC, fwater_lo);
+}
+
+/**
+ * intel_update_watermarks - update FIFO watermark values based on current modes
+ *
+ * Calculate watermark values for the various WM regs based on current mode
+ * and plane configuration.
+ *
+ * There are several cases to deal with here:
+ *   - normal (i.e. non-self-refresh)
+ *   - self-refresh (SR) mode
+ *   - lines are large relative to FIFO size (buffer can hold up to 2)
+ *   - lines are small relative to FIFO size (buffer can hold more than 2
+ *     lines), so need to account for TLB latency
+ *
+ *   The normal calculation is:
+ *     watermark = dotclock * bytes per pixel * latency
+ *   where latency is platform & configuration dependent (we assume pessimal
+ *   values here).
+ *
+ *   The SR calculation is:
+ *     watermark = (trunc(latency/line time)+1) * surface width *
+ *       bytes per pixel
+ *   where
+ *     line time = htotal / dotclock
+ *   and latency is assumed to be high, as above.
+ *
+ * The final value programmed to the register should always be rounded up,
+ * and include an extra 2 entries to account for clock crossings.
+ *
+ * We don't use the sprite, so we can ignore that.  And on Crestline we have
+ * to set the non-SR watermarks to 8.
+  */
+static void intel_update_watermarks(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	struct intel_crtc *intel_crtc;
+	int sr_hdisplay = 0;
+	unsigned long planea_clock = 0, planeb_clock = 0, sr_clock = 0;
+	int enabled = 0, pixel_size = 0;
+
+	if (DSPARB_HWCONTROL(dev))
+		return;
+
+	/* Get the clock config from both planes */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		intel_crtc = to_intel_crtc(crtc);
+		if (crtc->enabled) {
+			enabled++;
+			if (intel_crtc->plane == 0) {
+				DRM_DEBUG("plane A (pipe %d) clock: %d\n",
+					  intel_crtc->pipe, crtc->mode.clock);
+				planea_clock = crtc->mode.clock;
+			} else {
+				DRM_DEBUG("plane B (pipe %d) clock: %d\n",
+					  intel_crtc->pipe, crtc->mode.clock);
+				planeb_clock = crtc->mode.clock;
+			}
+			sr_hdisplay = crtc->mode.hdisplay;
+			sr_clock = crtc->mode.clock;
+			if (crtc->fb)
+				pixel_size = crtc->fb->bits_per_pixel / 8;
+			else
+				pixel_size = 4; /* by default */
+		}
+	}
+
+	if (enabled <= 0)
+		return;
+
+	/* Single pipe configs can enable self refresh */
+	if (enabled == 1 && IS_IGD(dev))
+		igd_enable_cxsr(dev, sr_clock, pixel_size);
+	else if (IS_IGD(dev))
+		igd_disable_cxsr(dev);
+
+	if (IS_I965G(dev))
+		i965_update_wm(dev);
+	else if (IS_I9XX(dev) || IS_MOBILE(dev))
+		i9xx_update_wm(dev, planea_clock, planeb_clock, sr_hdisplay,
+			       pixel_size);
+	else
+		i830_update_wm(dev, planea_clock, pixel_size);
+}
 
 static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *mode,
@@ -1541,7 +2027,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	intel_clock_t clock;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
 	bool ok, is_sdvo = false, is_dvo = false;
-	bool is_crt = false, is_lvds = false, is_tv = false;
+	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
 	const intel_limit_t *limit;
@@ -1585,6 +2071,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_ANALOG:
 			is_crt = true;
 			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+			is_dp = true;
+			break;
 		}
 
 		num_outputs++;
@@ -1600,6 +2089,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	} else {
 		refclk = 48000;
 	}
+	
 
 	/*
 	 * Returns a set of divisors for the desired target clock with the given
@@ -1662,6 +2152,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			else if (IS_IGDNG(dev))
 				dpll |= (sdvo_pixel_multiply - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 		}
+		if (is_dp)
+			dpll |= DPLL_DVO_HIGH_SPEED;
 
 		/* compute bitmask from p1 value */
 		if (IS_IGD(dev))
@@ -1809,6 +2301,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(lvds_reg, lvds);
 		I915_READ(lvds_reg);
 	}
+	if (is_dp)
+		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 
 	I915_WRITE(fp_reg, fp);
 	I915_WRITE(dpll_reg, dpll);
@@ -1871,6 +2365,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Flush the plane changes */
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
+
+	intel_update_watermarks(dev);
+
 	drm_vblank_post_modeset(dev, pipe);
 
 	return ret;
@@ -2359,6 +2856,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	drm_mode_crtc_set_gamma_size(&intel_crtc->base, 256);
 	intel_crtc->pipe = pipe;
+	intel_crtc->plane = pipe;
 	for (i = 0; i < 256; i++) {
 		intel_crtc->lut_r[i] = i;
 		intel_crtc->lut_g[i] = i;
@@ -2475,6 +2973,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 			found = intel_sdvo_init(dev, SDVOB);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
 				intel_hdmi_init(dev, SDVOB);
+			if (!found && SUPPORTS_INTEGRATED_DP(dev))
+				intel_dp_init(dev, DP_B);
 		}
 
 		/* Before G4X SDVOC doesn't have its own detect register */
@@ -2487,7 +2987,11 @@ static void intel_setup_outputs(struct drm_device *dev)
 			found = intel_sdvo_init(dev, SDVOC);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
 				intel_hdmi_init(dev, SDVOC);
+			if (!found && SUPPORTS_INTEGRATED_DP(dev))
+				intel_dp_init(dev, DP_C);
 		}
+		if (SUPPORTS_INTEGRATED_DP(dev) && (I915_READ(DP_D) & DP_DETECTED))
+			intel_dp_init(dev, DP_D);
 	} else
 		intel_dvo_init(dev);
 
@@ -2529,6 +3033,11 @@ static void intel_setup_outputs(struct drm_device *dev)
 			crtc_mask = ((1 << 0) |
 				     (1 << 1));
 			clone_mask = (1 << INTEL_OUTPUT_TVOUT);
+			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+			crtc_mask = ((1 << 0) |
+				     (1 << 1));
+			clone_mask = (1 << INTEL_OUTPUT_DISPLAYPORT);
 			break;
 		}
 		encoder->possible_crtcs = crtc_mask;

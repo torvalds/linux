@@ -819,6 +819,7 @@ struct fb_info {
 	int node;
 	int flags;
 	struct mutex lock;		/* Lock for open/release/ioctl funcs */
+	struct mutex mm_lock;		/* Lock for fb_mmap and smem_* fields */
 	struct fb_var_screeninfo var;	/* Current var */
 	struct fb_fix_screeninfo fix;	/* Current fix */
 	struct fb_monspecs monspecs;	/* Current Monitor specs */

@@ -223,7 +223,6 @@ int radeon_object_pin(struct radeon_object *robj, uint32_t domain,
 {
 	uint32_t flags;
 	uint32_t tmp;
-	void *fbptr;
 	int r;
 
 	flags = radeon_object_flags_from_domain(domain);
@@ -242,10 +241,6 @@ int radeon_object_pin(struct radeon_object *robj, uint32_t domain,
 		DRM_ERROR("radeon: failed to reserve object for pinning it.\n");
 		return r;
 	}
-	if (robj->rdev->fbdev_robj == robj) {
-		mutex_lock(&robj->rdev->fbdev_info->lock);
-		radeon_object_kunmap(robj);
-	}
 	tmp = robj->tobj.mem.placement;
 	ttm_flag_masked(&tmp, flags, TTM_PL_MASK_MEM);
 	robj->tobj.proposed_placement = tmp | TTM_PL_FLAG_NO_EVICT | TTM_PL_MASK_CACHING;
@@ -261,23 +256,12 @@ int radeon_object_pin(struct radeon_object *robj, uint32_t domain,
 		DRM_ERROR("radeon: failed to pin object.\n");
 	}
 	radeon_object_unreserve(robj);
-	if (robj->rdev->fbdev_robj == robj) {
-		if (!r) {
-			r = radeon_object_kmap(robj, &fbptr);
-		}
-		if (!r) {
-			robj->rdev->fbdev_info->screen_base = fbptr;
-			robj->rdev->fbdev_info->fix.smem_start = (unsigned long)fbptr;
-		}
-		mutex_unlock(&robj->rdev->fbdev_info->lock);
-	}
 	return r;
 }
 
 void radeon_object_unpin(struct radeon_object *robj)
 {
 	uint32_t flags;
-	void *fbptr;
 	int r;
 
 	spin_lock(&robj->tobj.lock);
@@ -297,10 +281,6 @@ void radeon_object_unpin(struct radeon_object *robj)
 		DRM_ERROR("radeon: failed to reserve object for unpinning it.\n");
 		return;
 	}
-	if (robj->rdev->fbdev_robj == robj) {
-		mutex_lock(&robj->rdev->fbdev_info->lock);
-		radeon_object_kunmap(robj);
-	}
 	flags = robj->tobj.mem.placement;
 	robj->tobj.proposed_placement = flags & ~TTM_PL_FLAG_NO_EVICT;
 	r = ttm_buffer_object_validate(&robj->tobj,
@@ -310,16 +290,6 @@ void radeon_object_unpin(struct radeon_object *robj)
 		DRM_ERROR("radeon: failed to unpin buffer.\n");
 	}
 	radeon_object_unreserve(robj);
-	if (robj->rdev->fbdev_robj == robj) {
-		if (!r) {
-			r = radeon_object_kmap(robj, &fbptr);
-		}
-		if (!r) {
-			robj->rdev->fbdev_info->screen_base = fbptr;
-			robj->rdev->fbdev_info->fix.smem_start = (unsigned long)fbptr;
-		}
-		mutex_unlock(&robj->rdev->fbdev_info->lock);
-	}
 }
 
 int radeon_object_wait(struct radeon_object *robj)

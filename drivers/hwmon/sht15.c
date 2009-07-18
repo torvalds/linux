@@ -257,7 +257,7 @@ static inline int sht15_update_single_val(struct sht15_data *data,
 				 (data->flag == SHT15_READING_NOTHING),
 				 msecs_to_jiffies(timeout_msecs));
 	if (ret == 0) {/* timeout occurred */
-		disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));;
+		disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));
 		sht15_connection_reset(data);
 		return -ETIME;
 	}

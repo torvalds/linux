@@ -250,15 +250,14 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 	oops_enter();
 
 	/* Amuse the user in a SPARC fashion */
-	if (err) printk(
-KERN_CRIT "      _______________________________ \n"
-KERN_CRIT "     < Your System ate a SPARC! Gah! >\n"
-KERN_CRIT "      ------------------------------- \n"
-KERN_CRIT "             \\   ^__^\n"
-KERN_CRIT "              \\  (xx)\\_______\n"
-KERN_CRIT "                 (__)\\       )\\/\\\n"
-KERN_CRIT "                  U  ||----w |\n"
-KERN_CRIT "                     ||     ||\n");
+	if (err) printk(KERN_CRIT
+			"      _______________________________ \n"
+			"     < Your System ate a SPARC! Gah! >\n"
+			"      ------------------------------- \n"
+			"             \\   ^__^\n"
+			"                 (__)\\       )\\/\\\n"
+			"                  U  ||----w |\n"
+			"                     ||     ||\n");
 	
 	/* unlock the pdc lock if necessary */
 	pdc_emergency_unlock();
@@ -797,7 +796,8 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		else
 			printk(KERN_DEBUG "User Fault (long pointer) (fault %d) ",
 			       code);
-		printk("pid=%d command='%s'\n", task_pid_nr(current), current->comm);
+		printk(KERN_CONT "pid=%d command='%s'\n",
+		       task_pid_nr(current), current->comm);
 		show_regs(regs);
 #endif
 		si.si_signo = SIGSEGV;

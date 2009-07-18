@@ -276,7 +276,7 @@ retry:
 	up_write(&_hash_lock);
 }
 
-static int dm_hash_rename(const char *old, const char *new)
+static int dm_hash_rename(uint32_t cookie, const char *old, const char *new)
 {
 	char *new_name, *old_name;
 	struct hash_cell *hc;
@@ -333,7 +333,7 @@ static int dm_hash_rename(const char *old, const char *new)
 		dm_table_put(table);
 	}
 
-	dm_kobject_uevent(hc->md);
+	dm_kobject_uevent(hc->md, KOBJ_CHANGE, cookie);
 
 	dm_put(hc->md);
 	up_write(&_hash_lock);
@@ -680,6 +680,9 @@ static int dev_remove(struct dm_ioctl *param, size_t param_size)
 
 	__hash_remove(hc);
 	up_write(&_hash_lock);
+
+	dm_kobject_uevent(md, KOBJ_REMOVE, param->event_nr);
+
 	dm_put(md);
 	param->data_size = 0;
 	return 0;
@@ -715,7 +718,7 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 		return r;
 
 	param->data_size = 0;
-	return dm_hash_rename(param->name, new_name);
+	return dm_hash_rename(param->event_nr, param->name, new_name);
 }
 
 static int dev_set_geometry(struct dm_ioctl *param, size_t param_size)
@@ -842,8 +845,11 @@ static int do_resume(struct dm_ioctl *param)
 	if (dm_suspended(md))
 		r = dm_resume(md);
 
-	if (!r)
+
+	if (!r) {
+		dm_kobject_uevent(md, KOBJ_CHANGE, param->event_nr);
 		r = __dev_status(md, param);
+	}
 
 	dm_put(md);
 	return r;
@@ -1044,6 +1050,12 @@ static int populate_table(struct dm_table *table,
 		next = spec->next;
 	}
 
+	r = dm_table_set_type(table);
+	if (r) {
+		DMWARN("unable to set table type");
+		return r;
+	}
+
 	return dm_table_complete(table);
 }
 
@@ -1085,6 +1097,13 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	if (r) {
 		DMERR("%s: could not register integrity profile.",
 		      dm_device_name(md));
+		dm_table_destroy(t);
+		goto out;
+	}
+
+	r = dm_table_alloc_md_mempools(t);
+	if (r) {
+		DMWARN("unable to allocate mempools for this table");
 		dm_table_destroy(t);
 		goto out;
 	}

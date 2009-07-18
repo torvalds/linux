@@ -720,8 +720,8 @@ static bool tcp_in_window(const struct nf_conn *ct,
 /* Caller must linearize skb at tcp header. */
 void nf_conntrack_tcp_update(const struct sk_buff *skb,
 			     unsigned int dataoff,
-			     struct nf_conn *ct,
-			     int dir)
+			     struct nf_conn *ct, int dir,
+			     s16 offset)
 {
 	const struct tcphdr *tcph = (const void *)skb->data + dataoff;
 	const struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[dir];
@@ -734,7 +734,7 @@ void nf_conntrack_tcp_update(const struct sk_buff *skb,
 	/*
 	 * We have to worry for the ack in the reply packet only...
 	 */
-	if (after(end, ct->proto.tcp.seen[dir].td_end))
+	if (ct->proto.tcp.seen[dir].td_end + offset == end)
 		ct->proto.tcp.seen[dir].td_end = end;
 	ct->proto.tcp.last_end = end;
 	spin_unlock_bh(&ct->lock);

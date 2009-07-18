@@ -1725,6 +1725,7 @@ config TLAN
 
 config KS8842
 	tristate "Micrel KSZ8842"
+	depends on HAS_IOMEM
 	help
 	  This platform driver is for Micrel KSZ8842 chip.
 

@@ -128,18 +128,6 @@ static void jfs_destroy_inode(struct inode *inode)
 		ji->active_ag = -1;
 	}
 	spin_unlock_irq(&ji->ag_lock);
-
-#ifdef CONFIG_JFS_POSIX_ACL
-	if (ji->i_acl != JFS_ACL_NOT_CACHED) {
-		posix_acl_release(ji->i_acl);
-		ji->i_acl = JFS_ACL_NOT_CACHED;
-	}
-	if (ji->i_default_acl != JFS_ACL_NOT_CACHED) {
-		posix_acl_release(ji->i_default_acl);
-		ji->i_default_acl = JFS_ACL_NOT_CACHED;
-	}
-#endif
-
 	kmem_cache_free(jfs_inode_cachep, ji);
 }
 
@@ -798,10 +786,6 @@ static void init_once(void *foo)
 	init_rwsem(&jfs_ip->xattr_sem);
 	spin_lock_init(&jfs_ip->ag_lock);
 	jfs_ip->active_ag = -1;
-#ifdef CONFIG_JFS_POSIX_ACL
-	jfs_ip->i_acl = JFS_ACL_NOT_CACHED;
-	jfs_ip->i_default_acl = JFS_ACL_NOT_CACHED;
-#endif
 	inode_init_once(&jfs_ip->vfs_inode);
 }
 

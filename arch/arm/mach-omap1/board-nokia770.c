@@ -36,7 +36,6 @@
 #include <mach/hwa742.h>
 #include <mach/lcd_mipid.h>
 #include <mach/mmc.h>
-#include <mach/usb.h>
 #include <mach/clock.h>
 
 #define ADS7846_PENDOWN_GPIO	15
@@ -205,9 +204,11 @@ static int nokia770_mmc_get_cover_state(struct device *dev, int slot)
 static struct omap_mmc_platform_data nokia770_mmc2_data = {
 	.nr_slots                       = 1,
 	.dma_mask			= 0xffffffff,
+	.max_freq                       = 12000000,
 	.slots[0]       = {
 		.set_power		= nokia770_mmc_set_power,
 		.get_cover_state	= nokia770_mmc_get_cover_state,
+		.ocr_mask               = MMC_VDD_32_33|MMC_VDD_33_34,
 		.name                   = "mmcblk",
 	},
 };

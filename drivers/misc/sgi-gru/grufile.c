@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/io.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>

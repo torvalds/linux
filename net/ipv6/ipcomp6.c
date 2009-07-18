@@ -51,7 +51,7 @@
 #include <linux/mutex.h>
 
 static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-				int type, int code, int offset, __be32 info)
+				u8 type, u8 code, int offset, __be32 info)
 {
 	__be32 spi;
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;

@@ -53,7 +53,7 @@ struct inet6_protocol
 
 	void	(*err_handler)(struct sk_buff *skb,
 			       struct inet6_skb_parm *opt,
-			       int type, int code, int offset,
+			       u8 type, u8 code, int offset,
 			       __be32 info);
 
 	int	(*gso_send_check)(struct sk_buff *skb);

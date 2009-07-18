@@ -210,6 +210,7 @@ EXPORT_SYMBOL_GPL(ide_in_drive_list);
  */
 static const struct drive_list_entry ivb_list[] = {
 	{ "QUANTUM FIREBALLlct10 05"	, "A03.0900"	},
+	{ "QUANTUM FIREBALLlct20 30"	, "APL.0900"	},
 	{ "TSSTcorp CDDVDW SH-S202J"	, "SB00"	},
 	{ "TSSTcorp CDDVDW SH-S202J"	, "SB01"	},
 	{ "TSSTcorp CDDVDW SH-S202N"	, "SB00"	},
@@ -328,9 +329,6 @@ int ide_driveid_update(ide_drive_t *drive)
 	/* anything more ? */
 
 	kfree(id);
-
-	if ((drive->dev_flags & IDE_DFLAG_USING_DMA) && ide_id_dma_bug(drive))
-		ide_dma_off(drive);
 
 	return 1;
 out_err:

@@ -112,8 +112,13 @@ restart:
 	mutex_unlock(&mutex);
 }
 
+/*
+ * sync everything.  Start out by waking pdflush, because that writes back
+ * all queues in parallel.
+ */
 SYSCALL_DEFINE0(sync)
 {
+	wakeup_pdflush(0);
 	sync_filesystems(0);
 	sync_filesystems(1);
 	if (unlikely(laptop_mode))

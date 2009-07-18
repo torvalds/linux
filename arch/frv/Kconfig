@@ -7,6 +7,7 @@ config FRV
 	default y
 	select HAVE_IDE
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_PERF_COUNTERS
 
 config ZONE_DMA
 	bool

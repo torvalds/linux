@@ -1383,34 +1383,31 @@ intel_tv_detect_type (struct drm_crtc *crtc, struct intel_output *intel_output)
 	/*
 	 * Detect TV by polling)
 	 */
-	if (intel_output->load_detect_temp) {
-		/* TV not currently running, prod it with destructive detect */
-		save_tv_dac = tv_dac;
-		tv_ctl = I915_READ(TV_CTL);
-		save_tv_ctl = tv_ctl;
-		tv_ctl &= ~TV_ENC_ENABLE;
-		tv_ctl &= ~TV_TEST_MODE_MASK;
-		tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
-		tv_dac &= ~TVDAC_SENSE_MASK;
-		tv_dac &= ~DAC_A_MASK;
-		tv_dac &= ~DAC_B_MASK;
-		tv_dac &= ~DAC_C_MASK;
-		tv_dac |= (TVDAC_STATE_CHG_EN |
-			   TVDAC_A_SENSE_CTL |
-			   TVDAC_B_SENSE_CTL |
-			   TVDAC_C_SENSE_CTL |
-			   DAC_CTL_OVERRIDE |
-			   DAC_A_0_7_V |
-			   DAC_B_0_7_V |
-			   DAC_C_0_7_V);
-		I915_WRITE(TV_CTL, tv_ctl);
-		I915_WRITE(TV_DAC, tv_dac);
-		intel_wait_for_vblank(dev);
-		tv_dac = I915_READ(TV_DAC);
-		I915_WRITE(TV_DAC, save_tv_dac);
-		I915_WRITE(TV_CTL, save_tv_ctl);
-		intel_wait_for_vblank(dev);
-	}
+	save_tv_dac = tv_dac;
+	tv_ctl = I915_READ(TV_CTL);
+	save_tv_ctl = tv_ctl;
+	tv_ctl &= ~TV_ENC_ENABLE;
+	tv_ctl &= ~TV_TEST_MODE_MASK;
+	tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
+	tv_dac &= ~TVDAC_SENSE_MASK;
+	tv_dac &= ~DAC_A_MASK;
+	tv_dac &= ~DAC_B_MASK;
+	tv_dac &= ~DAC_C_MASK;
+	tv_dac |= (TVDAC_STATE_CHG_EN |
+		   TVDAC_A_SENSE_CTL |
+		   TVDAC_B_SENSE_CTL |
+		   TVDAC_C_SENSE_CTL |
+		   DAC_CTL_OVERRIDE |
+		   DAC_A_0_7_V |
+		   DAC_B_0_7_V |
+		   DAC_C_0_7_V);
+	I915_WRITE(TV_CTL, tv_ctl);
+	I915_WRITE(TV_DAC, tv_dac);
+	intel_wait_for_vblank(dev);
+	tv_dac = I915_READ(TV_DAC);
+	I915_WRITE(TV_DAC, save_tv_dac);
+	I915_WRITE(TV_CTL, save_tv_ctl);
+	intel_wait_for_vblank(dev);
 	/*
 	 *  A B C
 	 *  0 1 1 Composite

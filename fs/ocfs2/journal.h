@@ -144,7 +144,7 @@ static inline void ocfs2_inode_set_new(struct ocfs2_super *osb,
 }
 
 /* Exported only for the journal struct init code in super.c. Do not call. */
-int ocfs2_orphan_scan_init(struct ocfs2_super *osb);
+void ocfs2_orphan_scan_init(struct ocfs2_super *osb);
 void ocfs2_orphan_scan_stop(struct ocfs2_super *osb);
 void ocfs2_orphan_scan_exit(struct ocfs2_super *osb);
 

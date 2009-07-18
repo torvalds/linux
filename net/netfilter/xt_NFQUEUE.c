@@ -40,12 +40,12 @@ nfqueue_tg(struct sk_buff *skb, const struct xt_target_param *par)
 static u32 hash_v4(const struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	u32 ipaddr;
+	__be32 ipaddr;
 
 	/* packets in either direction go into same queue */
 	ipaddr = iph->saddr ^ iph->daddr;
 
-	return jhash_2words(ipaddr, iph->protocol, jhash_initval);
+	return jhash_2words((__force u32)ipaddr, iph->protocol, jhash_initval);
 }
 
 static unsigned int
@@ -63,14 +63,14 @@ nfqueue_tg4_v1(struct sk_buff *skb, const struct xt_target_param *par)
 static u32 hash_v6(const struct sk_buff *skb)
 {
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
-	u32 addr[4];
+	__be32 addr[4];
 
 	addr[0] = ip6h->saddr.s6_addr32[0] ^ ip6h->daddr.s6_addr32[0];
 	addr[1] = ip6h->saddr.s6_addr32[1] ^ ip6h->daddr.s6_addr32[1];
 	addr[2] = ip6h->saddr.s6_addr32[2] ^ ip6h->daddr.s6_addr32[2];
 	addr[3] = ip6h->saddr.s6_addr32[3] ^ ip6h->daddr.s6_addr32[3];
 
-	return jhash2(addr, ARRAY_SIZE(addr), jhash_initval);
+	return jhash2((__force u32 *)addr, ARRAY_SIZE(addr), jhash_initval);
 }
 
 static unsigned int

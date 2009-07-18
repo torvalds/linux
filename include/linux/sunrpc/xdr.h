@@ -12,7 +12,6 @@
 #include <linux/uio.h>
 #include <asm/byteorder.h>
 #include <linux/scatterlist.h>
-#include <linux/smp_lock.h>
 
 /*
  * Buffer adjustment

@@ -757,6 +757,9 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 		case DSC_SDTYPE_DDR2:
 			mtype = MEM_RDDR2;
 			break;
+		case DSC_SDTYPE_DDR3:
+			mtype = MEM_RDDR3;
+			break;
 		default:
 			mtype = MEM_UNKNOWN;
 			break;
@@ -768,6 +771,9 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 			break;
 		case DSC_SDTYPE_DDR2:
 			mtype = MEM_DDR2;
+			break;
+		case DSC_SDTYPE_DDR3:
+			mtype = MEM_DDR3;
 			break;
 		default:
 			mtype = MEM_UNKNOWN;

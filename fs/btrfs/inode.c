@@ -26,7 +26,6 @@
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/string.h>
-#include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
 #include <linux/mpage.h>
 #include <linux/swap.h>
@@ -2122,10 +2121,8 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	 * any xattrs or acls
 	 */
 	maybe_acls = acls_after_inode_item(leaf, path->slots[0], inode->i_ino);
-	if (!maybe_acls) {
-		BTRFS_I(inode)->i_acl = NULL;
-		BTRFS_I(inode)->i_default_acl = NULL;
-	}
+	if (!maybe_acls)
+		cache_no_acl(inode);
 
 	BTRFS_I(inode)->block_group = btrfs_find_block_group(root, 0,
 						alloc_group_block, 0);
@@ -3141,9 +3138,6 @@ static noinline void init_btrfs_i(struct inode *inode)
 {
 	struct btrfs_inode *bi = BTRFS_I(inode);
 
-	bi->i_acl = BTRFS_ACL_NOT_CACHED;
-	bi->i_default_acl = BTRFS_ACL_NOT_CACHED;
-
 	bi->generation = 0;
 	bi->sequence = 0;
 	bi->last_trans = 0;
@@ -3585,12 +3579,6 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		owner = 1;
 	BTRFS_I(inode)->block_group =
 			btrfs_find_block_group(root, 0, alloc_hint, owner);
-	if ((mode & S_IFREG)) {
-		if (btrfs_test_opt(root, NODATASUM))
-			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
-		if (btrfs_test_opt(root, NODATACOW))
-			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW;
-	}
 
 	key[0].objectid = objectid;
 	btrfs_set_key_type(&key[0], BTRFS_INODE_ITEM_KEY);
@@ -3644,6 +3632,13 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_key_type(location, BTRFS_INODE_ITEM_KEY);
 
 	btrfs_inherit_iflags(inode, dir);
+
+	if ((mode & S_IFREG)) {
+		if (btrfs_test_opt(root, NODATASUM))
+			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
+		if (btrfs_test_opt(root, NODATACOW))
+			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW;
+	}
 
 	insert_inode_hash(inode);
 	inode_tree_add(inode);
@@ -4640,8 +4635,6 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->last_trans = 0;
 	ei->logged_trans = 0;
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
-	ei->i_acl = BTRFS_ACL_NOT_CACHED;
-	ei->i_default_acl = BTRFS_ACL_NOT_CACHED;
 	INIT_LIST_HEAD(&ei->i_orphan);
 	INIT_LIST_HEAD(&ei->ordered_operations);
 	return &ei->vfs_inode;
@@ -4654,13 +4647,6 @@ void btrfs_destroy_inode(struct inode *inode)
 
 	WARN_ON(!list_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
-
-	if (BTRFS_I(inode)->i_acl &&
-	    BTRFS_I(inode)->i_acl != BTRFS_ACL_NOT_CACHED)
-		posix_acl_release(BTRFS_I(inode)->i_acl);
-	if (BTRFS_I(inode)->i_default_acl &&
-	    BTRFS_I(inode)->i_default_acl != BTRFS_ACL_NOT_CACHED)
-		posix_acl_release(BTRFS_I(inode)->i_default_acl);
 
 	/*
 	 * Make sure we're properly removed from the ordered operation
@@ -5096,6 +5082,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
 	struct extent_map *em;
 	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root;
 	int ret;
 
 	alloc_start = offset & ~mask;
@@ -5114,6 +5101,13 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 			goto out;
 	}
 
+	root = BTRFS_I(inode)->root;
+
+	ret = btrfs_check_data_free_space(root, inode,
+					  alloc_end - alloc_start);
+	if (ret)
+		goto out;
+
 	locked_end = alloc_end - 1;
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
@@ -5121,7 +5115,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		trans = btrfs_start_transaction(BTRFS_I(inode)->root, 1);
 		if (!trans) {
 			ret = -EIO;
-			goto out;
+			goto out_free;
 		}
 
 		/* the extent lock is ordered inside the running
@@ -5182,6 +5176,8 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		      GFP_NOFS);
 
 	btrfs_end_transaction(trans, BTRFS_I(inode)->root);
+out_free:
+	btrfs_free_reserved_data_space(root, inode, alloc_end - alloc_start);
 out:
 	mutex_unlock(&inode->i_mutex);
 	return ret;
