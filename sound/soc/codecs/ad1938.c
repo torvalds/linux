@@ -43,9 +43,8 @@
 
 /* codec private data */
 struct ad1938_priv {
-        struct snd_soc_codec codec;
+	struct snd_soc_codec codec;
 	u8 reg_cache[AD1938_NUM_REGS];
-
 };
 
 static struct snd_soc_codec *ad1938_codec;
@@ -136,7 +135,7 @@ static int ad1938_set_tdm_slot(struct snd_soc_dai *dai,
 	dac_reg &= ~AD1938_DAC_CHAN_MASK;
 	adc_reg &= ~AD1938_ADC_CHAN_MASK;
 
-	switch(slots) {
+	switch (slots) {
 	case 2:
 		dac_reg |= AD1938_DAC_2_CHANNELS << AD1938_DAC_CHAN_SHFT;
 		adc_reg |= AD1938_ADC_2_CHANNELS << AD1938_ADC_CHAN_SHFT;
@@ -324,7 +323,7 @@ static int ad1938_write_reg(struct snd_soc_codec *codec, unsigned int reg,
 	u8 *reg_cache = codec->reg_cache;
 	int ret = 0;
 
-	if(value != reg_cache[reg]) {
+	if (value != reg_cache[reg]) {
 		uint8_t buf[AD1938_SPI_BUFLEN];
 		struct spi_transfer t = {
 			.tx_buf = buf,
@@ -337,7 +336,8 @@ static int ad1938_write_reg(struct snd_soc_codec *codec, unsigned int reg,
 		buf[2] = value;
 		spi_message_init(&m);
 		spi_message_add_tail(&t, &m);
-		if((ret = spi_sync(codec->control_data, &m)) == 0)
+		ret = spi_sync(codec->control_data, &m);
+		if (ret == 0)
 			reg_cache[reg] = value;
 	}
 
@@ -349,14 +349,14 @@ static int ad1938_write_reg(struct snd_soc_codec *codec, unsigned int reg,
  */
 
 static unsigned int ad1938_read_reg_cache(struct snd_soc_codec *codec,
-                                          unsigned int reg)
+					  unsigned int reg)
 {
-        u8 *reg_cache = codec->reg_cache;
+	u8 *reg_cache = codec->reg_cache;
 
-        if (reg >= codec->reg_cache_size)
-                return -EINVAL;
+	if (reg >= codec->reg_cache_size)
+		return -EINVAL;
 
-        return reg_cache[reg];
+	return reg_cache[reg];
 }
 
 /*
@@ -391,20 +391,20 @@ static unsigned int ad1938_read_reg(struct snd_soc_codec *codec, unsigned int re
 
 static int ad1938_fill_cache(struct snd_soc_codec *codec)
 {
-        int i;
-        u8 *reg_cache = codec->reg_cache;
-        struct spi_device *spi = codec->control_data;
+	int i;
+	u8 *reg_cache = codec->reg_cache;
+	struct spi_device *spi = codec->control_data;
 
-        for (i = 0; i < codec->reg_cache_size; i++) {
-                int ret = ad1938_read_reg(codec, i);
-                if (ret == -EIO) {
-                        dev_err(&spi->dev, "AD1938 SPI read failure\n");
-                        return ret;
-                }
-                reg_cache[i] = ret;
-        }
+	for (i = 0; i < codec->reg_cache_size; i++) {
+		int ret = ad1938_read_reg(codec, i);
+		if (ret == -EIO) {
+			dev_err(&spi->dev, "AD1938 SPI read failure\n");
+			return ret;
+		}
+		reg_cache[i] = ret;
+	}
 
-        return 0;
+	return 0;
 }
 
 static int __devinit ad1938_spi_probe(struct spi_device *spi)
@@ -498,8 +498,8 @@ static int ad1938_register(struct ad1938_priv *ad1938)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-        ad1938_dai.dev = codec->dev;
-        ad1938_codec = codec;
+	ad1938_dai.dev = codec->dev;
+	ad1938_codec = codec;
 
 	/* default setting for ad1938 */
 	codec->write(codec, AD1938_DAC_CHNL_MUTE, 0x0); /* unmute dac channels */
@@ -512,85 +512,85 @@ static int ad1938_register(struct ad1938_priv *ad1938)
 
 	ad1938_fill_cache(codec);
 
-        ret = snd_soc_register_codec(codec);
-        if (ret != 0) {
-                dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-                return ret;
-        }
+	ret = snd_soc_register_codec(codec);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
+		return ret;
+	}
 
-        ret = snd_soc_register_dai(&ad1938_dai);
-        if (ret != 0) {
-                dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-                snd_soc_unregister_codec(codec);
-                return ret;
-        }
+	ret = snd_soc_register_dai(&ad1938_dai);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
+		snd_soc_unregister_codec(codec);
+		return ret;
+	}
 
-        return 0;
+	return 0;
 }
 
 static void ad1938_unregister(struct ad1938_priv *ad1938)
 {
-        ad1938_set_bias_level(&ad1938->codec, SND_SOC_BIAS_OFF);
-        snd_soc_unregister_dai(&ad1938_dai);
-        snd_soc_unregister_codec(&ad1938->codec);
-        kfree(ad1938);
-        ad1938_codec = NULL;
+	ad1938_set_bias_level(&ad1938->codec, SND_SOC_BIAS_OFF);
+	snd_soc_unregister_dai(&ad1938_dai);
+	snd_soc_unregister_codec(&ad1938->codec);
+	kfree(ad1938);
+	ad1938_codec = NULL;
 }
 
 static int ad1938_probe(struct platform_device *pdev)
 {
-        struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-        struct snd_soc_codec *codec;
-        int ret = 0;
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec;
+	int ret = 0;
 
-        if (ad1938_codec == NULL) {
-                dev_err(&pdev->dev, "Codec device not registered\n");
-                return -ENODEV;
-        }
+	if (ad1938_codec == NULL) {
+		dev_err(&pdev->dev, "Codec device not registered\n");
+		return -ENODEV;
+	}
 
-        socdev->card->codec = ad1938_codec;
-        codec = ad1938_codec;
+	socdev->card->codec = ad1938_codec;
+	codec = ad1938_codec;
 
-        /* register pcms */
-        ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-        if (ret < 0) {
-                dev_err(codec->dev, "failed to create pcms: %d\n", ret);
-                goto pcm_err;
-        }
+	/* register pcms */
+	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
+	if (ret < 0) {
+		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
+		goto pcm_err;
+	}
 
-        snd_soc_add_controls(codec, ad1938_snd_controls,
-                             ARRAY_SIZE(ad1938_snd_controls));
-        snd_soc_dapm_new_controls(codec, ad1938_dapm_widgets,
-			ARRAY_SIZE(ad1938_dapm_widgets));
+	snd_soc_add_controls(codec, ad1938_snd_controls,
+			     ARRAY_SIZE(ad1938_snd_controls));
+	snd_soc_dapm_new_controls(codec, ad1938_dapm_widgets,
+				  ARRAY_SIZE(ad1938_dapm_widgets));
 	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
 	snd_soc_dapm_new_widgets(codec);
 
 	ad1938_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	ret = snd_soc_init_card(socdev);
-        if (ret < 0) {
-                dev_err(codec->dev, "failed to register card: %d\n", ret);
-                goto card_err;
-        }
+	if (ret < 0) {
+		dev_err(codec->dev, "failed to register card: %d\n", ret);
+		goto card_err;
+	}
 
-        return ret;
+	return ret;
 
 card_err:
-        snd_soc_free_pcms(socdev);
-        snd_soc_dapm_free(socdev);
+	snd_soc_free_pcms(socdev);
+	snd_soc_dapm_free(socdev);
 pcm_err:
-        return ret;
+	return ret;
 }
 
 /* power down chip */
 static int ad1938_remove(struct platform_device *pdev)
 {
-        struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 
-        snd_soc_free_pcms(socdev);
-        snd_soc_dapm_free(socdev);
+	snd_soc_free_pcms(socdev);
+	snd_soc_dapm_free(socdev);
 
-        return 0;
+	return 0;
 }
 
 #ifdef CONFIG_PM
