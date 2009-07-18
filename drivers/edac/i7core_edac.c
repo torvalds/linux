@@ -1467,9 +1467,9 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 
 	/* FIXME: should convert addr into bank and rank information */
 	msg = kasprintf(GFP_ATOMIC,
-		"%s (addr = 0x%08llx, Dimm=%d, Channel=%d, "
+		"%s (addr = 0x%08llx, socket=%d, Dimm=%d, Channel=%d, "
 		"syndrome=0x%08x, count=%d, Err=%08llx:%08llx (%s: %s))\n",
-		type, (long long) m->addr, dimm, channel,
+		type, (long long) m->addr, m->cpu, dimm, channel,
 		syndrome, core_err_cnt, (long long)m->status,
 		(long long)m->misc, optype, err);
 
