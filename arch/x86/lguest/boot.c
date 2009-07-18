@@ -379,6 +379,11 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 
 	native_cpuid(ax, bx, cx, dx);
 	switch (function) {
+	case 0: /* ID and highest CPUID.  Futureproof a little by sticking to
+		 * older ones. */
+		if (*ax > 5)
+			*ax = 5;
+		break;
 	case 1:	/* Basic feature request. */
 		/* We only allow kernel to see SSE3, CMPXCHG16B and SSSE3 */
 		*cx &= 0x00002201;
