@@ -463,6 +463,30 @@ static struct xc5000_config mygica_x8506_xc5000_config = {
 	.if_khz = 5380,
 };
 
+static int cx23885_dvb_set_frontend(struct dvb_frontend *fe,
+				    struct dvb_frontend_parameters *param)
+{
+	struct cx23885_tsport *port = fe->dvb->priv;
+	struct cx23885_dev *dev = port->dev;
+
+	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1275:
+		switch (param->u.vsb.modulation) {
+		case VSB_8:
+			cx23885_gpio_clear(dev, GPIO_5);
+			break;
+		case QAM_64:
+		case QAM_256:
+		default:
+			cx23885_gpio_set(dev, GPIO_5);
+			break;
+		}
+		break;
+	}
+	return (port->set_frontend_save) ?
+		port->set_frontend_save(fe, param) : -ENODEV;
+}
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
@@ -502,6 +526,12 @@ static int dvb_register(struct cx23885_tsport *port)
 				   0x60, &dev->i2c_bus[1].i2c_adap,
 				   &hauppauge_hvr127x_config);
 		}
+
+		/* FIXME: temporary hack */
+		/* define bridge override to set_frontend */
+		port->set_frontend_save = fe0->dvb.frontend->ops.set_frontend;
+		fe0->dvb.frontend->ops.set_frontend = cx23885_dvb_set_frontend;
+
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 		i2c_bus = &dev->i2c_bus[0];

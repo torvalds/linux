@@ -280,7 +280,7 @@ static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 	assert_spin_locked(&dentry->d_lock);
 
 	parent = dentry->d_parent;
-	if (fsnotify_inode_watches_children(parent->d_inode))
+	if (parent->d_inode && fsnotify_inode_watches_children(parent->d_inode))
 		dentry->d_flags |= DCACHE_FSNOTIFY_PARENT_WATCHED;
 	else
 		dentry->d_flags &= ~DCACHE_FSNOTIFY_PARENT_WATCHED;

@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/err.h>
 #include <asm/ptrace.h>
 
 /* The system call number is given by the user in R3 */

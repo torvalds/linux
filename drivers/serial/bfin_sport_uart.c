@@ -236,7 +236,6 @@ static int sport_startup(struct uart_port *port)
 	int retval;
 
 	pr_debug("%s enter\n", __func__);
-	memset(buffer, 20, '\0');
 	snprintf(buffer, 20, "%s rx", up->name);
 	retval = request_irq(up->rx_irq, sport_uart_rx_irq, IRQF_SAMPLE_RANDOM, buffer, up);
 	if (retval) {

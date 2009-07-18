@@ -29,7 +29,8 @@
 struct gpio_button_data {
 	struct gpio_keys_button *button;
 	struct input_dev *input;
-	struct delayed_work work;
+	struct timer_list timer;
+	struct work_struct work;
 };
 
 struct gpio_keys_drvdata {
@@ -40,7 +41,7 @@ struct gpio_keys_drvdata {
 static void gpio_keys_report_event(struct work_struct *work)
 {
 	struct gpio_button_data *bdata =
-		container_of(work, struct gpio_button_data, work.work);
+		container_of(work, struct gpio_button_data, work);
 	struct gpio_keys_button *button = bdata->button;
 	struct input_dev *input = bdata->input;
 	unsigned int type = button->type ?: EV_KEY;
@@ -50,17 +51,25 @@ static void gpio_keys_report_event(struct work_struct *work)
 	input_sync(input);
 }
 
+static void gpio_keys_timer(unsigned long _data)
+{
+	struct gpio_button_data *data = (struct gpio_button_data *)_data;
+
+	schedule_work(&data->work);
+}
+
 static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 {
 	struct gpio_button_data *bdata = dev_id;
 	struct gpio_keys_button *button = bdata->button;
-	unsigned long delay;
 
 	BUG_ON(irq != gpio_to_irq(button->gpio));
 
-	delay = button->debounce_interval ?
-			msecs_to_jiffies(button->debounce_interval) : 0;
-	schedule_delayed_work(&bdata->work, delay);
+	if (button->debounce_interval)
+		mod_timer(&bdata->timer,
+			jiffies + msecs_to_jiffies(button->debounce_interval));
+	else
+		schedule_work(&bdata->work);
 
 	return IRQ_HANDLED;
 }
@@ -107,7 +116,9 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 		bdata->input = input;
 		bdata->button = button;
-		INIT_DELAYED_WORK(&bdata->work, gpio_keys_report_event);
+		setup_timer(&bdata->timer,
+			    gpio_keys_timer, (unsigned long)bdata);
+		INIT_WORK(&bdata->work, gpio_keys_report_event);
 
 		error = gpio_request(button->gpio, button->desc ?: "gpio_keys");
 		if (error < 0) {
@@ -166,7 +177,9 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
  fail2:
 	while (--i >= 0) {
 		free_irq(gpio_to_irq(pdata->buttons[i].gpio), &ddata->data[i]);
-		cancel_delayed_work_sync(&ddata->data[i].work);
+		if (pdata->buttons[i].debounce_interval)
+			del_timer_sync(&ddata->data[i].timer);
+		cancel_work_sync(&ddata->data[i].work);
 		gpio_free(pdata->buttons[i].gpio);
 	}
 
@@ -190,7 +203,9 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 	for (i = 0; i < pdata->nbuttons; i++) {
 		int irq = gpio_to_irq(pdata->buttons[i].gpio);
 		free_irq(irq, &ddata->data[i]);
-		cancel_delayed_work_sync(&ddata->data[i].work);
+		if (pdata->buttons[i].debounce_interval)
+			del_timer_sync(&ddata->data[i].timer);
+		cancel_work_sync(&ddata->data[i].work);
 		gpio_free(pdata->buttons[i].gpio);
 	}
 

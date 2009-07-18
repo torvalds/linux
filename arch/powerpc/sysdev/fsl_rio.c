@@ -965,7 +965,7 @@ static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 			break;
 		default:
 			str = "Unknown";
-			break;;
+			break;
 		}
 		dev_info(dev, "Hardware port width: %s\n", str);
 

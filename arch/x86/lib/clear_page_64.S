@@ -5,15 +5,14 @@
  * Zero a page. 	
  * rdi	page
  */			
-	ALIGN
-clear_page_c:
+ENTRY(clear_page_c)
 	CFI_STARTPROC
 	movl $4096/8,%ecx
 	xorl %eax,%eax
 	rep stosq
 	ret
 	CFI_ENDPROC
-ENDPROC(clear_page)
+ENDPROC(clear_page_c)
 
 ENTRY(clear_page)
 	CFI_STARTPROC

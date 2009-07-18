@@ -902,7 +902,7 @@ static void tcp_connect_to_sock(struct connection *con)
 	int result = -EHOSTUNREACH;
 	struct sockaddr_storage saddr, src_addr;
 	int addr_len;
-	struct socket *sock;
+	struct socket *sock = NULL;
 
 	if (con->nodeid == 0) {
 		log_print("attempt to connect sock 0 foiled");
@@ -962,6 +962,8 @@ out_err:
 	if (con->sock) {
 		sock_release(con->sock);
 		con->sock = NULL;
+	} else if (sock) {
+		sock_release(sock);
 	}
 	/*
 	 * Some errors are fatal and this list might need adjusting. For other

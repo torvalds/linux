@@ -50,19 +50,22 @@ static void snd_hda_generate_beep(struct work_struct *work)
  * The tone frequency of beep generator on IDT/STAC codecs is
  * defined from the 8bit tone parameter, in Hz,
  *    freq = 48000 * (257 - tone) / 1024
- * that is from 12kHz to 93.75kHz in step of 46.875 hz
+ * that is from 12kHz to 93.75Hz in steps of 46.875 Hz
  */
 static int beep_linear_tone(struct hda_beep *beep, int hz)
 {
+	if (hz <= 0)
+		return 0;
 	hz *= 1000; /* fixed point */
-	hz = hz - DIGBEEP_HZ_MIN;
+	hz = hz - DIGBEEP_HZ_MIN
+		+ DIGBEEP_HZ_STEP / 2; /* round to nearest step */
 	if (hz < 0)
 		hz = 0; /* turn off PC beep*/
 	else if (hz >= (DIGBEEP_HZ_MAX - DIGBEEP_HZ_MIN))
-		hz = 0xff;
+		hz = 1; /* max frequency */
 	else {
 		hz /= DIGBEEP_HZ_STEP;
-		hz++;
+		hz = 255 - hz;
 	}
 	return hz;
 }

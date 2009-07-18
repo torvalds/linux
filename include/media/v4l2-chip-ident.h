@@ -155,6 +155,9 @@ enum {
 	/* module cafe_ccic, just ident 8801 */
 	V4L2_IDENT_CAFE = 8801,
 
+	/* module mt9v011, just ident 8243 */
+	V4L2_IDENT_MT9V011 = 8243,
+
 	/* module tw9910: just ident 9910 */
 	V4L2_IDENT_TW9910 = 9910,
 

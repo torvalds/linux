@@ -325,21 +325,34 @@ static void async_completed(struct urb *urb)
 	struct async *as = urb->context;
 	struct dev_state *ps = as->ps;
 	struct siginfo sinfo;
+	struct pid *pid = NULL;
+	uid_t uid = 0;
+	uid_t euid = 0;
+	u32 secid = 0;
+	int signr;
 
 	spin_lock(&ps->lock);
 	list_move_tail(&as->asynclist, &ps->async_completed);
-	spin_unlock(&ps->lock);
 	as->status = urb->status;
-	if (as->signr) {
+	signr = as->signr;
+	if (signr) {
 		sinfo.si_signo = as->signr;
 		sinfo.si_errno = as->status;
 		sinfo.si_code = SI_ASYNCIO;
 		sinfo.si_addr = as->userurb;
-		kill_pid_info_as_uid(as->signr, &sinfo, as->pid, as->uid,
-				      as->euid, as->secid);
+		pid = as->pid;
+		uid = as->uid;
+		euid = as->euid;
+		secid = as->secid;
 	}
 	snoop(&urb->dev->dev, "urb complete\n");
 	snoop_urb(urb, as->userurb);
+	spin_unlock(&ps->lock);
+
+	if (signr)
+		kill_pid_info_as_uid(sinfo.si_signo, &sinfo, pid, uid,
+				      euid, secid);
+
 	wake_up(&ps->wait);
 }
 
@@ -982,7 +995,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 				USBDEVFS_URB_ZERO_PACKET |
 				USBDEVFS_URB_NO_INTERRUPT))
 		return -EINVAL;
-	if (!uurb->buffer)
+	if (uurb->buffer_length > 0 && !uurb->buffer)
 		return -EINVAL;
 	if (!(uurb->type == USBDEVFS_URB_TYPE_CONTROL &&
 	    (uurb->endpoint & ~USB_ENDPOINT_DIR_MASK) == 0)) {
@@ -1038,11 +1051,6 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			is_in = 0;
 			uurb->endpoint &= ~USB_DIR_IN;
 		}
-		if (!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
-				uurb->buffer, uurb->buffer_length)) {
-			kfree(dr);
-			return -EFAULT;
-		}
 		snoop(&ps->dev->dev, "control urb: bRequest=%02x "
 			"bRrequestType=%02x wValue=%04x "
 			"wIndex=%04x wLength=%04x\n",
@@ -1062,9 +1070,6 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		uurb->number_of_packets = 0;
 		if (uurb->buffer_length > MAX_USBFS_BUFFER_SIZE)
 			return -EINVAL;
-		if (!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
-				uurb->buffer, uurb->buffer_length))
-			return -EFAULT;
 		snoop(&ps->dev->dev, "bulk urb\n");
 		break;
 
@@ -1106,14 +1111,18 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			return -EINVAL;
 		if (uurb->buffer_length > MAX_USBFS_BUFFER_SIZE)
 			return -EINVAL;
-		if (!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
-				uurb->buffer, uurb->buffer_length))
-			return -EFAULT;
 		snoop(&ps->dev->dev, "interrupt urb\n");
 		break;
 
 	default:
 		return -EINVAL;
+	}
+	if (uurb->buffer_length > 0 &&
+			!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
+				uurb->buffer, uurb->buffer_length)) {
+		kfree(isopkt);
+		kfree(dr);
+		return -EFAULT;
 	}
 	as = alloc_async(uurb->number_of_packets);
 	if (!as) {
@@ -1121,12 +1130,15 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		kfree(dr);
 		return -ENOMEM;
 	}
-	as->urb->transfer_buffer = kmalloc(uurb->buffer_length, GFP_KERNEL);
-	if (!as->urb->transfer_buffer) {
-		kfree(isopkt);
-		kfree(dr);
-		free_async(as);
-		return -ENOMEM;
+	if (uurb->buffer_length > 0) {
+		as->urb->transfer_buffer = kmalloc(uurb->buffer_length,
+				GFP_KERNEL);
+		if (!as->urb->transfer_buffer) {
+			kfree(isopkt);
+			kfree(dr);
+			free_async(as);
+			return -ENOMEM;
+		}
 	}
 	as->urb->dev = ps->dev;
 	as->urb->pipe = (uurb->type << 30) |
@@ -1169,7 +1181,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	kfree(isopkt);
 	as->ps = ps;
 	as->userurb = arg;
-	if (uurb->endpoint & USB_DIR_IN)
+	if (is_in && uurb->buffer_length > 0)
 		as->userbuffer = uurb->buffer;
 	else
 		as->userbuffer = NULL;
@@ -1179,9 +1191,9 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	as->uid = cred->uid;
 	as->euid = cred->euid;
 	security_task_getsecid(current, &as->secid);
-	if (!is_in) {
+	if (!is_in && uurb->buffer_length > 0) {
 		if (copy_from_user(as->urb->transfer_buffer, uurb->buffer,
-				as->urb->transfer_buffer_length)) {
+				uurb->buffer_length)) {
 			free_async(as);
 			return -EFAULT;
 		}
@@ -1231,22 +1243,22 @@ static int processcompl(struct async *as, void __user * __user *arg)
 	if (as->userbuffer)
 		if (copy_to_user(as->userbuffer, urb->transfer_buffer,
 				 urb->transfer_buffer_length))
-			return -EFAULT;
+			goto err_out;
 	if (put_user(as->status, &userurb->status))
-		return -EFAULT;
+		goto err_out;
 	if (put_user(urb->actual_length, &userurb->actual_length))
-		return -EFAULT;
+		goto err_out;
 	if (put_user(urb->error_count, &userurb->error_count))
-		return -EFAULT;
+		goto err_out;
 
 	if (usb_endpoint_xfer_isoc(&urb->ep->desc)) {
 		for (i = 0; i < urb->number_of_packets; i++) {
 			if (put_user(urb->iso_frame_desc[i].actual_length,
 				     &userurb->iso_frame_desc[i].actual_length))
-				return -EFAULT;
+				goto err_out;
 			if (put_user(urb->iso_frame_desc[i].status,
 				     &userurb->iso_frame_desc[i].status))
-				return -EFAULT;
+				goto err_out;
 		}
 	}
 
@@ -1255,6 +1267,10 @@ static int processcompl(struct async *as, void __user * __user *arg)
 	if (put_user(addr, (void __user * __user *)arg))
 		return -EFAULT;
 	return 0;
+
+err_out:
+	free_async(as);
+	return -EFAULT;
 }
 
 static struct async *reap_as(struct dev_state *ps)

@@ -356,7 +356,7 @@ static int __devinit tdo24m_probe(struct spi_device *spi)
 	lcd->power = FB_BLANK_POWERDOWN;
 	lcd->mode = MODE_VGA;	/* default to VGA */
 
-	lcd->buf = kmalloc(TDO24M_SPI_BUFF_SIZE, sizeof(GFP_KERNEL));
+	lcd->buf = kmalloc(TDO24M_SPI_BUFF_SIZE, GFP_KERNEL);
 	if (lcd->buf == NULL) {
 		kfree(lcd);
 		return -ENOMEM;

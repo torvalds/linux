@@ -3699,13 +3699,21 @@ static int make_request(struct request_queue *q, struct bio * bi)
 					goto retry;
 				}
 			}
-			/* FIXME what if we get a false positive because these
-			 * are being updated.
-			 */
-			if (logical_sector >= mddev->suspend_lo &&
+
+			if (bio_data_dir(bi) == WRITE &&
+			    logical_sector >= mddev->suspend_lo &&
 			    logical_sector < mddev->suspend_hi) {
 				release_stripe(sh);
-				schedule();
+				/* As the suspend_* range is controlled by
+				 * userspace, we want an interruptible
+				 * wait.
+				 */
+				flush_signals(current);
+				prepare_to_wait(&conf->wait_for_overlap,
+						&w, TASK_INTERRUPTIBLE);
+				if (logical_sector >= mddev->suspend_lo &&
+				    logical_sector < mddev->suspend_hi)
+					schedule();
 				goto retry;
 			}
 
@@ -4452,7 +4460,7 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 static int run(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
-	int working_disks = 0;
+	int working_disks = 0, chunk_size;
 	mdk_rdev_t *rdev;
 
 	if (mddev->recovery_cp != MaxSector)
@@ -4607,6 +4615,14 @@ static int run(mddev_t *mddev)
 	md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 
 	blk_queue_merge_bvec(mddev->queue, raid5_mergeable_bvec);
+	chunk_size = mddev->chunk_sectors << 9;
+	blk_queue_io_min(mddev->queue, chunk_size);
+	blk_queue_io_opt(mddev->queue, chunk_size *
+			 (conf->raid_disks - conf->max_degraded));
+
+	list_for_each_entry(rdev, &mddev->disks, same_set)
+		disk_stack_limits(mddev->gendisk, rdev->bdev,
+				  rdev->data_offset << 9);
 
 	return 0;
 abort:

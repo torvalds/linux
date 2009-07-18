@@ -1,8 +1,6 @@
 /*
  * Copyright (C) 2005, 2006
- * Avishay Traeger (avishay@gmail.com) (avishay@il.ibm.com)
- * Copyright (C) 2005, 2006
- * International Business Machines
+ * Avishay Traeger (avishay@gmail.com)
  * Copyright (C) 2008, 2009
  * Boaz Harrosh <bharrosh@panasas.com>
  *
@@ -47,16 +45,23 @@ static int exofs_file_fsync(struct file *filp, struct dentry *dentry,
 {
 	int ret;
 	struct address_space *mapping = filp->f_mapping;
+	struct inode *inode = dentry->d_inode;
+	struct super_block *sb;
 
 	ret = filemap_write_and_wait(mapping);
 	if (ret)
 		return ret;
 
-	/*Note: file_fsync below also calles sync_blockdev, which is a no-op
-	 *      for exofs, but other then that it does sync_inode and
-	 *      sync_superblock which is what we need here.
-	 */
-	return file_fsync(filp, dentry, datasync);
+	/* sync the inode attributes */
+	ret = write_inode_now(inode, 1);
+
+	/* This is a good place to write the sb */
+	/* TODO: Sechedule an sb-sync on create */
+	sb = inode->i_sb;
+	if (sb->s_dirt)
+		exofs_sync_fs(sb, 1);
+
+	return ret;
 }
 
 static int exofs_flush(struct file *file, fl_owner_t id)

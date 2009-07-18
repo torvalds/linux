@@ -53,6 +53,7 @@ EXPORT_SYMBOL(usb_nop_xceiv_register);
 void usb_nop_xceiv_unregister(void)
 {
 	platform_device_unregister(pd);
+	pd = NULL;
 }
 EXPORT_SYMBOL(usb_nop_xceiv_unregister);
 

@@ -338,7 +338,7 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 		return -EBUSY;
 
 	acard->mpu = pnp_request_card_device(card, id->devs[2].id, NULL);
-	if (acard->play == NULL)
+	if (acard->mpu == NULL)
 		return -EBUSY;
 
 	pdev = acard->cap;

@@ -326,11 +326,9 @@ sbni_pci_probe( struct net_device  *dev )
 		}
 
 		if (pci_irq_line <= 0 || pci_irq_line >= nr_irqs)
-			printk( KERN_WARNING "  WARNING: The PCI BIOS assigned "
-				"this PCI card to IRQ %d, which is unlikely "
-				"to work!.\n"
-				KERN_WARNING " You should use the PCI BIOS "
-				"setup to assign a valid IRQ line.\n",
+			printk( KERN_WARNING
+	"  WARNING: The PCI BIOS assigned this PCI card to IRQ %d, which is unlikely to work!.\n"
+	" You should use the PCI BIOS setup to assign a valid IRQ line.\n",
 				pci_irq_line );
 
 		/* avoiding re-enable dual adapters */

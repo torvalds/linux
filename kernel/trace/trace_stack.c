@@ -326,10 +326,10 @@ stack_trace_sysctl(struct ctl_table *table, int write,
 	ret = proc_dointvec(table, write, file, buffer, lenp, ppos);
 
 	if (ret || !write ||
-	    (last_stack_tracer_enabled == stack_tracer_enabled))
+	    (last_stack_tracer_enabled == !!stack_tracer_enabled))
 		goto out;
 
-	last_stack_tracer_enabled = stack_tracer_enabled;
+	last_stack_tracer_enabled = !!stack_tracer_enabled;
 
 	if (stack_tracer_enabled)
 		register_ftrace_function(&trace_ops);

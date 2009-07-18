@@ -48,10 +48,10 @@
  *   scanned. This list is only modified during a scanning episode when the
  *   scan_mutex is held. At the end of a scan, the gray_list is always empty.
  *   Note that the kmemleak_object.use_count is incremented when an object is
- *   added to the gray_list and therefore cannot be freed
- * - kmemleak_mutex (mutex): prevents multiple users of the "kmemleak" debugfs
- *   file together with modifications to the memory scanning parameters
- *   including the scan_thread pointer
+ *   added to the gray_list and therefore cannot be freed. This mutex also
+ *   prevents multiple users of the "kmemleak" debugfs file together with
+ *   modifications to the memory scanning parameters including the scan_thread
+ *   pointer
  *
  * The kmemleak_object structures have a use_count incremented or decremented
  * using the get_object()/put_object() functions. When the use_count becomes
@@ -103,11 +103,10 @@
  * Kmemleak configuration and common defines.
  */
 #define MAX_TRACE		16	/* stack trace length */
-#define REPORTS_NR		50	/* maximum number of reported leaks */
 #define MSECS_MIN_AGE		5000	/* minimum object age for reporting */
-#define MSECS_SCAN_YIELD	10	/* CPU yielding period */
 #define SECS_FIRST_SCAN		60	/* delay before the first scan */
 #define SECS_SCAN_WAIT		600	/* subsequent auto scanning delay */
+#define GRAY_LIST_PASSES	25	/* maximum number of gray list scans */
 
 #define BYTES_PER_POINTER	sizeof(void *)
 
@@ -159,6 +158,8 @@ struct kmemleak_object {
 #define OBJECT_REPORTED		(1 << 1)
 /* flag set to not scan the object */
 #define OBJECT_NO_SCAN		(1 << 2)
+/* flag set on newly allocated objects */
+#define OBJECT_NEW		(1 << 3)
 
 /* the list of all allocated objects */
 static LIST_HEAD(object_list);
@@ -186,22 +187,16 @@ static atomic_t kmemleak_error = ATOMIC_INIT(0);
 static unsigned long min_addr = ULONG_MAX;
 static unsigned long max_addr;
 
-/* used for yielding the CPU to other tasks during scanning */
-static unsigned long next_scan_yield;
 static struct task_struct *scan_thread;
-static unsigned long jiffies_scan_yield;
+/* used to avoid reporting of recently allocated objects */
 static unsigned long jiffies_min_age;
+static unsigned long jiffies_last_scan;
 /* delay between automatic memory scannings */
 static signed long jiffies_scan_wait;
 /* enables or disables the task stacks scanning */
-static int kmemleak_stack_scan;
-/* mutex protecting the memory scanning */
+static int kmemleak_stack_scan = 1;
+/* protects the memory scanning, parameters and debug/kmemleak file access */
 static DEFINE_MUTEX(scan_mutex);
-/* mutex protecting the access to the /sys/kernel/debug/kmemleak file */
-static DEFINE_MUTEX(kmemleak_mutex);
-
-/* number of leaks reported (for limitation purposes) */
-static int reported_leaks;
 
 /*
  * Early object allocation/freeing logging. Kmemleak is initialized after the
@@ -215,6 +210,7 @@ static int reported_leaks;
 enum {
 	KMEMLEAK_ALLOC,
 	KMEMLEAK_FREE,
+	KMEMLEAK_FREE_PART,
 	KMEMLEAK_NOT_LEAK,
 	KMEMLEAK_IGNORE,
 	KMEMLEAK_SCAN_AREA,
@@ -235,7 +231,7 @@ struct early_log {
 };
 
 /* early logging buffer and current position */
-static struct early_log early_log[200];
+static struct early_log early_log[CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE];
 static int crt_early_log;
 
 static void kmemleak_disable(void);
@@ -278,13 +274,9 @@ static int color_gray(const struct kmemleak_object *object)
 	return object->min_count != -1 && object->count >= object->min_count;
 }
 
-/*
- * Objects are considered referenced if their color is gray and they have not
- * been deleted.
- */
-static int referenced_object(struct kmemleak_object *object)
+static int color_black(const struct kmemleak_object *object)
 {
-	return (object->flags & OBJECT_ALLOCATED) && color_gray(object);
+	return object->min_count == -1;
 }
 
 /*
@@ -295,42 +287,28 @@ static int referenced_object(struct kmemleak_object *object)
 static int unreferenced_object(struct kmemleak_object *object)
 {
 	return (object->flags & OBJECT_ALLOCATED) && color_white(object) &&
-		time_is_before_eq_jiffies(object->jiffies + jiffies_min_age);
+		time_before_eq(object->jiffies + jiffies_min_age,
+			       jiffies_last_scan);
 }
 
 /*
- * Printing of the (un)referenced objects information, either to the seq file
- * or to the kernel log. The print_referenced/print_unreferenced functions
- * must be called with the object->lock held.
+ * Printing of the unreferenced objects information to the seq file. The
+ * print_unreferenced function must be called with the object->lock held.
  */
-#define print_helper(seq, x...)	do {	\
-	struct seq_file *s = (seq);	\
-	if (s)				\
-		seq_printf(s, x);	\
-	else				\
-		pr_info(x);		\
-} while (0)
-
-static void print_referenced(struct kmemleak_object *object)
-{
-	pr_info("referenced object 0x%08lx (size %zu)\n",
-		object->pointer, object->size);
-}
-
 static void print_unreferenced(struct seq_file *seq,
 			       struct kmemleak_object *object)
 {
 	int i;
 
-	print_helper(seq, "unreferenced object 0x%08lx (size %zu):\n",
-		     object->pointer, object->size);
-	print_helper(seq, "  comm \"%s\", pid %d, jiffies %lu\n",
-		     object->comm, object->pid, object->jiffies);
-	print_helper(seq, "  backtrace:\n");
+	seq_printf(seq, "unreferenced object 0x%08lx (size %zu):\n",
+		   object->pointer, object->size);
+	seq_printf(seq, "  comm \"%s\", pid %d, jiffies %lu\n",
+		   object->comm, object->pid, object->jiffies);
+	seq_printf(seq, "  backtrace:\n");
 
 	for (i = 0; i < object->trace_len; i++) {
 		void *ptr = (void *)object->trace[i];
-		print_helper(seq, "    [<%p>] %pS\n", ptr, ptr);
+		seq_printf(seq, "    [<%p>] %pS\n", ptr, ptr);
 	}
 }
 
@@ -478,7 +456,7 @@ static void create_object(unsigned long ptr, size_t size, int min_count,
 	INIT_HLIST_HEAD(&object->area_list);
 	spin_lock_init(&object->lock);
 	atomic_set(&object->use_count, 1);
-	object->flags = OBJECT_ALLOCATED;
+	object->flags = OBJECT_ALLOCATED | OBJECT_NEW;
 	object->pointer = ptr;
 	object->size = size;
 	object->min_count = min_count;
@@ -546,38 +524,86 @@ out:
  * Remove the metadata (struct kmemleak_object) for a memory block from the
  * object_list and object_tree_root and decrement its use_count.
  */
-static void delete_object(unsigned long ptr)
+static void __delete_object(struct kmemleak_object *object)
 {
 	unsigned long flags;
-	struct kmemleak_object *object;
 
 	write_lock_irqsave(&kmemleak_lock, flags);
-	object = lookup_object(ptr, 0);
-	if (!object) {
-		kmemleak_warn("Freeing unknown object at 0x%08lx\n",
-			      ptr);
-		write_unlock_irqrestore(&kmemleak_lock, flags);
-		return;
-	}
 	prio_tree_remove(&object_tree_root, &object->tree_node);
 	list_del_rcu(&object->object_list);
 	write_unlock_irqrestore(&kmemleak_lock, flags);
 
 	WARN_ON(!(object->flags & OBJECT_ALLOCATED));
-	WARN_ON(atomic_read(&object->use_count) < 1);
+	WARN_ON(atomic_read(&object->use_count) < 2);
 
 	/*
 	 * Locking here also ensures that the corresponding memory block
 	 * cannot be freed when it is being scanned.
 	 */
 	spin_lock_irqsave(&object->lock, flags);
-	if (object->flags & OBJECT_REPORTED)
-		print_referenced(object);
 	object->flags &= ~OBJECT_ALLOCATED;
 	spin_unlock_irqrestore(&object->lock, flags);
 	put_object(object);
 }
 
+/*
+ * Look up the metadata (struct kmemleak_object) corresponding to ptr and
+ * delete it.
+ */
+static void delete_object_full(unsigned long ptr)
+{
+	struct kmemleak_object *object;
+
+	object = find_and_get_object(ptr, 0);
+	if (!object) {
+#ifdef DEBUG
+		kmemleak_warn("Freeing unknown object at 0x%08lx\n",
+			      ptr);
+#endif
+		return;
+	}
+	__delete_object(object);
+	put_object(object);
+}
+
+/*
+ * Look up the metadata (struct kmemleak_object) corresponding to ptr and
+ * delete it. If the memory block is partially freed, the function may create
+ * additional metadata for the remaining parts of the block.
+ */
+static void delete_object_part(unsigned long ptr, size_t size)
+{
+	struct kmemleak_object *object;
+	unsigned long start, end;
+
+	object = find_and_get_object(ptr, 1);
+	if (!object) {
+#ifdef DEBUG
+		kmemleak_warn("Partially freeing unknown object at 0x%08lx "
+			      "(size %zu)\n", ptr, size);
+#endif
+		return;
+	}
+	__delete_object(object);
+
+	/*
+	 * Create one or two objects that may result from the memory block
+	 * split. Note that partial freeing is only done by free_bootmem() and
+	 * this happens before kmemleak_init() is called. The path below is
+	 * only executed during early log recording in kmemleak_init(), so
+	 * GFP_KERNEL is enough.
+	 */
+	start = object->pointer;
+	end = object->pointer + object->size;
+	if (ptr > start)
+		create_object(start, ptr - start, object->min_count,
+			      GFP_KERNEL);
+	if (ptr + size < end)
+		create_object(ptr + size, end - ptr - size, object->min_count,
+			      GFP_KERNEL);
+
+	put_object(object);
+}
 /*
  * Make a object permanently as gray-colored so that it can no longer be
  * reported as a leak. This is used in general to mark a false positive.
@@ -696,7 +722,8 @@ static void log_early(int op_type, const void *ptr, size_t size,
 	struct early_log *log;
 
 	if (crt_early_log >= ARRAY_SIZE(early_log)) {
-		kmemleak_stop("Early log buffer exceeded\n");
+		pr_warning("Early log buffer exceeded\n");
+		kmemleak_disable();
 		return;
 	}
 
@@ -741,11 +768,26 @@ void kmemleak_free(const void *ptr)
 	pr_debug("%s(0x%p)\n", __func__, ptr);
 
 	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
-		delete_object((unsigned long)ptr);
+		delete_object_full((unsigned long)ptr);
 	else if (atomic_read(&kmemleak_early_log))
 		log_early(KMEMLEAK_FREE, ptr, 0, 0, 0, 0);
 }
 EXPORT_SYMBOL_GPL(kmemleak_free);
+
+/*
+ * Partial memory freeing function callback. This function is usually called
+ * from bootmem allocator when (part of) a memory block is freed.
+ */
+void kmemleak_free_part(const void *ptr, size_t size)
+{
+	pr_debug("%s(0x%p)\n", __func__, ptr);
+
+	if (atomic_read(&kmemleak_enabled) && ptr && !IS_ERR(ptr))
+		delete_object_part((unsigned long)ptr, size);
+	else if (atomic_read(&kmemleak_early_log))
+		log_early(KMEMLEAK_FREE_PART, ptr, size, 0, 0, 0);
+}
+EXPORT_SYMBOL_GPL(kmemleak_free_part);
 
 /*
  * Mark an already allocated memory block as a false positive. This will cause
@@ -808,21 +850,6 @@ void kmemleak_no_scan(const void *ptr)
 EXPORT_SYMBOL(kmemleak_no_scan);
 
 /*
- * Yield the CPU so that other tasks get a chance to run.  The yielding is
- * rate-limited to avoid excessive number of calls to the schedule() function
- * during memory scanning.
- */
-static void scan_yield(void)
-{
-	might_sleep();
-
-	if (time_is_before_eq_jiffies(next_scan_yield)) {
-		schedule();
-		next_scan_yield = jiffies + jiffies_scan_yield;
-	}
-}
-
-/*
  * Memory scanning is a long process and it needs to be interruptable. This
  * function checks whether such interrupt condition occured.
  */
@@ -848,7 +875,7 @@ static int scan_should_stop(void)
  * found to the gray list.
  */
 static void scan_block(void *_start, void *_end,
-		       struct kmemleak_object *scanned)
+		       struct kmemleak_object *scanned, int allow_resched)
 {
 	unsigned long *ptr;
 	unsigned long *start = PTR_ALIGN(_start, BYTES_PER_POINTER);
@@ -859,17 +886,10 @@ static void scan_block(void *_start, void *_end,
 		unsigned long pointer = *ptr;
 		struct kmemleak_object *object;
 
+		if (allow_resched)
+			cond_resched();
 		if (scan_should_stop())
 			break;
-
-		/*
-		 * When scanning a memory block with a corresponding
-		 * kmemleak_object, the CPU yielding is handled in the calling
-		 * code since it holds the object->lock to avoid the block
-		 * freeing.
-		 */
-		if (!scanned)
-			scan_yield();
 
 		object = find_and_get_object(pointer, 1);
 		if (!object)
@@ -931,12 +951,12 @@ static void scan_object(struct kmemleak_object *object)
 		goto out;
 	if (hlist_empty(&object->area_list))
 		scan_block((void *)object->pointer,
-			   (void *)(object->pointer + object->size), object);
+			   (void *)(object->pointer + object->size), object, 0);
 	else
 		hlist_for_each_entry(area, elem, &object->area_list, node)
 			scan_block((void *)(object->pointer + area->offset),
 				   (void *)(object->pointer + area->offset
-					    + area->length), object);
+					    + area->length), object, 0);
 out:
 	spin_unlock_irqrestore(&object->lock, flags);
 }
@@ -952,6 +972,10 @@ static void kmemleak_scan(void)
 	struct kmemleak_object *object, *tmp;
 	struct task_struct *task;
 	int i;
+	int new_leaks = 0;
+	int gray_list_pass = 0;
+
+	jiffies_last_scan = jiffies;
 
 	/* prepare the kmemleak_object's */
 	rcu_read_lock();
@@ -970,6 +994,7 @@ static void kmemleak_scan(void)
 #endif
 		/* reset the reference count (whiten the object) */
 		object->count = 0;
+		object->flags &= ~OBJECT_NEW;
 		if (color_gray(object) && get_object(object))
 			list_add_tail(&object->gray_list, &gray_list);
 
@@ -978,14 +1003,14 @@ static void kmemleak_scan(void)
 	rcu_read_unlock();
 
 	/* data/bss scanning */
-	scan_block(_sdata, _edata, NULL);
-	scan_block(__bss_start, __bss_stop, NULL);
+	scan_block(_sdata, _edata, NULL, 1);
+	scan_block(__bss_start, __bss_stop, NULL, 1);
 
 #ifdef CONFIG_SMP
 	/* per-cpu sections scanning */
 	for_each_possible_cpu(i)
 		scan_block(__per_cpu_start + per_cpu_offset(i),
-			   __per_cpu_end + per_cpu_offset(i), NULL);
+			   __per_cpu_end + per_cpu_offset(i), NULL, 1);
 #endif
 
 	/*
@@ -1007,7 +1032,7 @@ static void kmemleak_scan(void)
 			/* only scan if page is in use */
 			if (page_count(page) == 0)
 				continue;
-			scan_block(page, page + 1, NULL);
+			scan_block(page, page + 1, NULL, 1);
 		}
 	}
 
@@ -1019,7 +1044,8 @@ static void kmemleak_scan(void)
 		read_lock(&tasklist_lock);
 		for_each_process(task)
 			scan_block(task_stack_page(task),
-				   task_stack_page(task) + THREAD_SIZE, NULL);
+				   task_stack_page(task) + THREAD_SIZE,
+				   NULL, 0);
 		read_unlock(&tasklist_lock);
 	}
 
@@ -1031,9 +1057,10 @@ static void kmemleak_scan(void)
 	 * kmemleak objects cannot be freed from outside the loop because their
 	 * use_count was increased.
 	 */
+repeat:
 	object = list_entry(gray_list.next, typeof(*object), gray_list);
 	while (&object->gray_list != &gray_list) {
-		scan_yield();
+		cond_resched();
 
 		/* may add new objects to the list */
 		if (!scan_should_stop())
@@ -1048,7 +1075,59 @@ static void kmemleak_scan(void)
 
 		object = tmp;
 	}
+
+	if (scan_should_stop() || ++gray_list_pass >= GRAY_LIST_PASSES)
+		goto scan_end;
+
+	/*
+	 * Check for new objects allocated during this scanning and add them
+	 * to the gray list.
+	 */
+	rcu_read_lock();
+	list_for_each_entry_rcu(object, &object_list, object_list) {
+		spin_lock_irqsave(&object->lock, flags);
+		if ((object->flags & OBJECT_NEW) && !color_black(object) &&
+		    get_object(object)) {
+			object->flags &= ~OBJECT_NEW;
+			list_add_tail(&object->gray_list, &gray_list);
+		}
+		spin_unlock_irqrestore(&object->lock, flags);
+	}
+	rcu_read_unlock();
+
+	if (!list_empty(&gray_list))
+		goto repeat;
+
+scan_end:
 	WARN_ON(!list_empty(&gray_list));
+
+	/*
+	 * If scanning was stopped or new objects were being allocated at a
+	 * higher rate than gray list scanning, do not report any new
+	 * unreferenced objects.
+	 */
+	if (scan_should_stop() || gray_list_pass >= GRAY_LIST_PASSES)
+		return;
+
+	/*
+	 * Scanning result reporting.
+	 */
+	rcu_read_lock();
+	list_for_each_entry_rcu(object, &object_list, object_list) {
+		spin_lock_irqsave(&object->lock, flags);
+		if (unreferenced_object(object) &&
+		    !(object->flags & OBJECT_REPORTED)) {
+			object->flags |= OBJECT_REPORTED;
+			new_leaks++;
+		}
+		spin_unlock_irqrestore(&object->lock, flags);
+	}
+	rcu_read_unlock();
+
+	if (new_leaks)
+		pr_info("%d new suspected memory leaks (see "
+			"/sys/kernel/debug/kmemleak)\n", new_leaks);
+
 }
 
 /*
@@ -1060,6 +1139,7 @@ static int kmemleak_scan_thread(void *arg)
 	static int first_run = 1;
 
 	pr_info("Automatic memory scanning thread started\n");
+	set_user_nice(current, 10);
 
 	/*
 	 * Wait before the first scan to allow the system to fully initialize.
@@ -1070,36 +1150,12 @@ static int kmemleak_scan_thread(void *arg)
 	}
 
 	while (!kthread_should_stop()) {
-		struct kmemleak_object *object;
 		signed long timeout = jiffies_scan_wait;
 
 		mutex_lock(&scan_mutex);
-
 		kmemleak_scan();
-		reported_leaks = 0;
-
-		rcu_read_lock();
-		list_for_each_entry_rcu(object, &object_list, object_list) {
-			unsigned long flags;
-
-			if (reported_leaks >= REPORTS_NR)
-				break;
-			spin_lock_irqsave(&object->lock, flags);
-			if (!(object->flags & OBJECT_REPORTED) &&
-			    unreferenced_object(object)) {
-				print_unreferenced(NULL, object);
-				object->flags |= OBJECT_REPORTED;
-				reported_leaks++;
-			} else if ((object->flags & OBJECT_REPORTED) &&
-				   referenced_object(object)) {
-				print_referenced(object);
-				object->flags &= ~OBJECT_REPORTED;
-			}
-			spin_unlock_irqrestore(&object->lock, flags);
-		}
-		rcu_read_unlock();
-
 		mutex_unlock(&scan_mutex);
+
 		/* wait before the next scan */
 		while (timeout && !kthread_should_stop())
 			timeout = schedule_timeout_interruptible(timeout);
@@ -1112,7 +1168,7 @@ static int kmemleak_scan_thread(void *arg)
 
 /*
  * Start the automatic memory scanning thread. This function must be called
- * with the kmemleak_mutex held.
+ * with the scan_mutex held.
  */
 void start_scan_thread(void)
 {
@@ -1127,7 +1183,7 @@ void start_scan_thread(void)
 
 /*
  * Stop the automatic memory scanning thread. This function must be called
- * with the kmemleak_mutex held.
+ * with the scan_mutex held.
  */
 void stop_scan_thread(void)
 {
@@ -1146,13 +1202,11 @@ static void *kmemleak_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct kmemleak_object *object;
 	loff_t n = *pos;
+	int err;
 
-	if (!n) {
-		kmemleak_scan();
-		reported_leaks = 0;
-	}
-	if (reported_leaks >= REPORTS_NR)
-		return NULL;
+	err = mutex_lock_interruptible(&scan_mutex);
+	if (err < 0)
+		return ERR_PTR(err);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(object, &object_list, object_list) {
@@ -1178,8 +1232,6 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	struct list_head *n = &prev_obj->object_list;
 
 	++(*pos);
-	if (reported_leaks >= REPORTS_NR)
-		goto out;
 
 	rcu_read_lock();
 	list_for_each_continue_rcu(n, &object_list) {
@@ -1188,7 +1240,7 @@ static void *kmemleak_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 			break;
 	}
 	rcu_read_unlock();
-out:
+
 	put_object(prev_obj);
 	return next_obj;
 }
@@ -1198,8 +1250,15 @@ out:
  */
 static void kmemleak_seq_stop(struct seq_file *seq, void *v)
 {
-	if (v)
-		put_object(v);
+	if (!IS_ERR(v)) {
+		/*
+		 * kmemleak_seq_start may return ERR_PTR if the scan_mutex
+		 * waiting was interrupted, so only release it if !IS_ERR.
+		 */
+		mutex_unlock(&scan_mutex);
+		if (v)
+			put_object(v);
+	}
 }
 
 /*
@@ -1211,11 +1270,8 @@ static int kmemleak_seq_show(struct seq_file *seq, void *v)
 	unsigned long flags;
 
 	spin_lock_irqsave(&object->lock, flags);
-	if (!unreferenced_object(object))
-		goto out;
-	print_unreferenced(seq, object);
-	reported_leaks++;
-out:
+	if ((object->flags & OBJECT_REPORTED) && unreferenced_object(object))
+		print_unreferenced(seq, object);
 	spin_unlock_irqrestore(&object->lock, flags);
 	return 0;
 }
@@ -1229,43 +1285,15 @@ static const struct seq_operations kmemleak_seq_ops = {
 
 static int kmemleak_open(struct inode *inode, struct file *file)
 {
-	int ret = 0;
-
 	if (!atomic_read(&kmemleak_enabled))
 		return -EBUSY;
 
-	ret = mutex_lock_interruptible(&kmemleak_mutex);
-	if (ret < 0)
-		goto out;
-	if (file->f_mode & FMODE_READ) {
-		ret = mutex_lock_interruptible(&scan_mutex);
-		if (ret < 0)
-			goto kmemleak_unlock;
-		ret = seq_open(file, &kmemleak_seq_ops);
-		if (ret < 0)
-			goto scan_unlock;
-	}
-	return ret;
-
-scan_unlock:
-	mutex_unlock(&scan_mutex);
-kmemleak_unlock:
-	mutex_unlock(&kmemleak_mutex);
-out:
-	return ret;
+	return seq_open(file, &kmemleak_seq_ops);
 }
 
 static int kmemleak_release(struct inode *inode, struct file *file)
 {
-	int ret = 0;
-
-	if (file->f_mode & FMODE_READ) {
-		seq_release(inode, file);
-		mutex_unlock(&scan_mutex);
-	}
-	mutex_unlock(&kmemleak_mutex);
-
-	return ret;
+	return seq_release(inode, file);
 }
 
 /*
@@ -1278,20 +1306,23 @@ static int kmemleak_release(struct inode *inode, struct file *file)
  *   scan=off	- stop the automatic memory scanning thread
  *   scan=...	- set the automatic memory scanning period in seconds (0 to
  *		  disable it)
+ *   scan	- trigger a memory scan
  */
 static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 			      size_t size, loff_t *ppos)
 {
 	char buf[64];
 	int buf_size;
-
-	if (!atomic_read(&kmemleak_enabled))
-		return -EBUSY;
+	int ret;
 
 	buf_size = min(size, (sizeof(buf) - 1));
 	if (strncpy_from_user(buf, user_buf, buf_size) < 0)
 		return -EFAULT;
 	buf[buf_size] = 0;
+
+	ret = mutex_lock_interruptible(&scan_mutex);
+	if (ret < 0)
+		return ret;
 
 	if (strncmp(buf, "off", 3) == 0)
 		kmemleak_disable();
@@ -1305,18 +1336,24 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 		stop_scan_thread();
 	else if (strncmp(buf, "scan=", 5) == 0) {
 		unsigned long secs;
-		int err;
 
-		err = strict_strtoul(buf + 5, 0, &secs);
-		if (err < 0)
-			return err;
+		ret = strict_strtoul(buf + 5, 0, &secs);
+		if (ret < 0)
+			goto out;
 		stop_scan_thread();
 		if (secs) {
 			jiffies_scan_wait = msecs_to_jiffies(secs * 1000);
 			start_scan_thread();
 		}
-	} else
-		return -EINVAL;
+	} else if (strncmp(buf, "scan", 4) == 0)
+		kmemleak_scan();
+	else
+		ret = -EINVAL;
+
+out:
+	mutex_unlock(&scan_mutex);
+	if (ret < 0)
+		return ret;
 
 	/* ignore the rest of the buffer, only one command at a time */
 	*ppos += size;
@@ -1340,14 +1377,12 @@ static int kmemleak_cleanup_thread(void *arg)
 {
 	struct kmemleak_object *object;
 
-	mutex_lock(&kmemleak_mutex);
-	stop_scan_thread();
-	mutex_unlock(&kmemleak_mutex);
-
 	mutex_lock(&scan_mutex);
+	stop_scan_thread();
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(object, &object_list, object_list)
-		delete_object(object->pointer);
+		delete_object_full(object->pointer);
 	rcu_read_unlock();
 	mutex_unlock(&scan_mutex);
 
@@ -1411,7 +1446,6 @@ void __init kmemleak_init(void)
 	int i;
 	unsigned long flags;
 
-	jiffies_scan_yield = msecs_to_jiffies(MSECS_SCAN_YIELD);
 	jiffies_min_age = msecs_to_jiffies(MSECS_MIN_AGE);
 	jiffies_scan_wait = msecs_to_jiffies(SECS_SCAN_WAIT * 1000);
 
@@ -1442,6 +1476,9 @@ void __init kmemleak_init(void)
 			break;
 		case KMEMLEAK_FREE:
 			kmemleak_free(log->ptr);
+			break;
+		case KMEMLEAK_FREE_PART:
+			kmemleak_free_part(log->ptr, log->size);
 			break;
 		case KMEMLEAK_NOT_LEAK:
 			kmemleak_not_leak(log->ptr);
@@ -1486,9 +1523,9 @@ static int __init kmemleak_late_init(void)
 				     &kmemleak_fops);
 	if (!dentry)
 		pr_warning("Failed to create the debugfs kmemleak file\n");
-	mutex_lock(&kmemleak_mutex);
+	mutex_lock(&scan_mutex);
 	start_scan_thread();
-	mutex_unlock(&kmemleak_mutex);
+	mutex_unlock(&scan_mutex);
 
 	pr_info("Kernel memory leak detector initialized\n");
 

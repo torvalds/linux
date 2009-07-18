@@ -1096,8 +1096,19 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 	}
 
 	/* All S-code tables need a 200kHz shift */
-	if (priv->ctrl.demod)
+	if (priv->ctrl.demod) {
 		demod = priv->ctrl.demod + 200;
+		/*
+		 * The DTV7 S-code table needs a 700 kHz shift.
+		 * Thanks to Terry Wu <terrywu2009@gmail.com> for reporting this
+		 *
+		 * DTV7 is only used in Australia.  Germany or Italy may also
+		 * use this firmware after initialization, but a tune to a UHF
+		 * channel should then cause DTV78 to be used.
+		 */
+		if (type & DTV7)
+			demod += 500;
+	}
 
 	return generic_set_freq(fe, p->frequency,
 				T_DIGITAL_TV, type, 0, demod);

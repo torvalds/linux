@@ -201,6 +201,12 @@ static struct fw_device *target_device(struct sbp2_target *tgt)
 #define SBP2_CYCLE_LIMIT		(0xc8 << 12)	/* 200 125us cycles */
 
 /*
+ * There is no transport protocol limit to the CDB length,  but we implement
+ * a fixed length only.  16 bytes is enough for disks larger than 2 TB.
+ */
+#define SBP2_MAX_CDB_SIZE		16
+
+/*
  * The default maximum s/g segment size of a FireWire controller is
  * usually 0x10000, but SBP-2 only allows 0xffff. Since buffers have to
  * be quadlet-aligned, we set the length limit to 0xffff & ~3.
@@ -312,7 +318,7 @@ struct sbp2_command_orb {
 		struct sbp2_pointer next;
 		struct sbp2_pointer data_descriptor;
 		__be32 misc;
-		u8 command_block[12];
+		u8 command_block[SBP2_MAX_CDB_SIZE];
 	} request;
 	struct scsi_cmnd *cmd;
 	scsi_done_fn_t done;
@@ -1145,6 +1151,8 @@ static int sbp2_probe(struct device *dev)
 
 	if (fw_device_enable_phys_dma(device) < 0)
 		goto fail_shost_put;
+
+	shost->max_cmd_len = SBP2_MAX_CDB_SIZE;
 
 	if (scsi_add_host(shost, &unit->device) < 0)
 		goto fail_shost_put;
