@@ -333,7 +333,6 @@ static inline int numcol(u32 col)
 	return cols[col & 0x3];
 }
 
-
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
@@ -355,6 +354,23 @@ static struct pci_dev *get_pdev_slot_func(u8 socket, unsigned slot,
 	return NULL;
 }
 
+/**
+ * i7core_get_active_channels() - gets the number of channels and csrows
+ * @socket:	Quick Path Interconnect socket
+ * @channels:	Number of channels that will be returned
+ * @csrows:	Number of csrows found
+ *
+ * Since EDAC core needs to know in advance the number of available channels
+ * and csrows, in order to allocate memory for csrows/channels, it is needed
+ * to run two similar steps. At the first step, implemented on this function,
+ * it checks the number of csrows/channels present at one socket.
+ * this is used in order to properly allocate the size of mci components.
+ *
+ * It should be noticed that none of the current available datasheets explain
+ * or even mention how csrows are seen by the memory controller. So, we need
+ * to add a fake description for csrows.
+ * So, this driver is attributing one DIMM memory for one csrow.
+ */
 static int i7core_get_active_channels(u8 socket, unsigned *channels,
 				      unsigned *csrows)
 {
