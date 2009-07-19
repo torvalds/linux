@@ -864,7 +864,9 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		}
 	}
 
-	/* Both UBI headers seem to be fine */
+	if (ec_corr)
+		ubi_warn("valid VID header but corrupted EC header at PEB %d",
+			 pnum);
 	err = ubi_scan_add_used(ubi, si, pnum, ec, vidh, bitflips);
 	if (err)
 		return err;
