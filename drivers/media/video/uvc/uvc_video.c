@@ -128,6 +128,9 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 	if (data == NULL)
 		return -ENOMEM;
 
+	if ((video->dev->quirks & UVC_QUIRK_PROBE_DEF) && query == UVC_GET_DEF)
+		return -EIO;
+
 	ret = __uvc_query_ctrl(video->dev, query, 0, video->streaming->intfnum,
 		probe ? UVC_VS_PROBE_CONTROL : UVC_VS_COMMIT_CONTROL, data,
 		size, UVC_CTRL_STREAMING_TIMEOUT);
