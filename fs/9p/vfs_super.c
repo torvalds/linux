@@ -120,7 +120,6 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 
 	P9_DPRINTK(P9_DEBUG_VFS, " \n");
 
-	st = NULL;
 	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
 		return -ENOMEM;
@@ -173,10 +172,8 @@ P9_DPRINTK(P9_DEBUG_VFS, " simple set mount, return 0\n");
 	simple_set_mnt(mnt, sb);
 	return 0;
 
-release_sb:
-	deactivate_locked_super(sb);
-
 free_stat:
+	p9stat_free(st);
 	kfree(st);
 
 clunk_fid:
@@ -185,7 +182,12 @@ clunk_fid:
 close_session:
 	v9fs_session_close(v9ses);
 	kfree(v9ses);
+	return retval;
 
+release_sb:
+	p9stat_free(st);
+	kfree(st);
+	deactivate_locked_super(sb);
 	return retval;
 }
 
@@ -207,6 +209,7 @@ static void v9fs_kill_super(struct super_block *s)
 
 	v9fs_session_close(v9ses);
 	kfree(v9ses);
+	s->s_fs_info = NULL;
 	P9_DPRINTK(P9_DEBUG_VFS, "exiting kill_super\n");
 }
 
