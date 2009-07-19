@@ -220,8 +220,8 @@ static void v9fs_kill_super(struct super_block *s)
 static int v9fs_show_options(struct seq_file *m, struct vfsmount *mnt)
 {
 	struct v9fs_session_info *v9ses = mnt->mnt_sb->s_fs_info;
-
-	seq_printf(m, "%s", v9ses->options);
+	if (v9ses->options != NULL)
+		seq_printf(m, ",%s", v9ses->options);
 	return 0;
 }
 
