@@ -4171,6 +4171,9 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 		return NULL;
 	}
 
+	mutex_init(&phba->ct_event_mutex);
+	INIT_LIST_HEAD(&phba->ct_ev_waiters);
+
 	return phba;
 }
 

@@ -3584,6 +3584,7 @@ struct scsi_host_template lpfc_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= lpfc_hba_attrs,
 	.max_sectors		= 0xFFFF,
+	.vendor_id		= LPFC_NL_VENDOR_ID,
 };
 
 struct scsi_host_template lpfc_vport_template = {

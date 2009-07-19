@@ -441,6 +441,12 @@ enum intr_type_t {
 	MSIX,
 };
 
+struct unsol_rcv_ct_ctx {
+	uint32_t ctxt_id;
+	uint32_t SID;
+	uint32_t oxid;
+};
+
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	int (*lpfc_new_scsi_buf)
@@ -776,6 +782,11 @@ struct lpfc_hba {
 	uint8_t valid_vlan;
 	uint16_t vlan_id;
 	struct list_head fcf_conn_rec_list;
+
+	struct mutex ct_event_mutex; /* synchronize access to ct_ev_waiters */
+	struct list_head ct_ev_waiters;
+	struct unsol_rcv_ct_ctx ct_ctx[64];
+	uint32_t ctx_idx;
 };
 
 static inline struct Scsi_Host *

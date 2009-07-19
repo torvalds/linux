@@ -137,6 +137,9 @@ int lpfc_els_disc_adisc(struct lpfc_vport *);
 int lpfc_els_disc_plogi(struct lpfc_vport *);
 void lpfc_els_timeout(unsigned long);
 void lpfc_els_timeout_handler(struct lpfc_vport *);
+struct lpfc_iocbq *lpfc_prep_els_iocb(struct lpfc_vport *, uint8_t, uint16_t,
+				      uint8_t, struct lpfc_nodelist *,
+				      uint32_t, uint32_t);
 void lpfc_hb_timeout_handler(struct lpfc_hba *);
 
 void lpfc_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
@@ -364,3 +367,8 @@ void lpfc_start_fdiscs(struct lpfc_hba *phba);
 #define HBA_EVENT_LINK_UP                2
 #define HBA_EVENT_LINK_DOWN              3
 
+/* functions to support SGIOv4/bsg interface */
+int lpfc_bsg_request(struct fc_bsg_job *);
+int lpfc_bsg_timeout(struct fc_bsg_job *);
+void lpfc_bsg_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
+			     struct lpfc_iocbq *);

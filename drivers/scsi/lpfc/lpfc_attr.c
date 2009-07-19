@@ -4132,6 +4132,9 @@ struct fc_function_template lpfc_transport_functions = {
 	.vport_disable = lpfc_vport_disable,
 
 	.set_vport_symbolic_name = lpfc_set_vport_symbolic_name,
+
+	.bsg_request = lpfc_bsg_request,
+	.bsg_timeout = lpfc_bsg_timeout,
 };
 
 struct fc_function_template lpfc_vport_transport_functions = {
