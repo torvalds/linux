@@ -1893,7 +1893,7 @@ lpfc_dump_fcoe_param(struct lpfc_hba *phba,
 		/* dump_fcoe_param failed to allocate memory */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
 			"2569 lpfc_dump_fcoe_param: memory"
-			" allocation failed \n");
+			" allocation failed\n");
 		return 1;
 	}
 

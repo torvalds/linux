@@ -668,7 +668,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 				lpfc_printf_log(vport->phba, KERN_WARNING,
 						LOG_VPORT,
 						"1829 CT command failed to "
-						"delete objects on fabric. \n");
+						"delete objects on fabric\n");
 		}
 		/* First look for the Fabric ndlp */
 		ndlp = lpfc_findnode_did(vport, Fabric_DID);

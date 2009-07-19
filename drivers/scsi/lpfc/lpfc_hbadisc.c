@@ -2402,7 +2402,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 		if (!new_fc_vport) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"0546 lpfc_create_static_vport failed to"
-				" create vport \n");
+				" create vport\n");
 			continue;
 		}
 

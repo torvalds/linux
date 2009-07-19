@@ -4304,7 +4304,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	 */
 	if (lpfc_sli4_read_fcoe_params(phba, mboxq))
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_INIT,
-			"2570 Failed to read FCoE parameters \n");
+			"2570 Failed to read FCoE parameters\n");
 
 	/* Issue READ_REV to collect vpd and FW information. */
 	vpd_size = PAGE_SIZE;
@@ -6326,7 +6326,7 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 			KERN_ERR,
 			LOG_SLI,
 			"0346 Ring %d handler: unexpected ASYNC_STATUS"
-			" evt_code 0x%x \n"
+			" evt_code 0x%x\n"
 			"W0  0x%08x W1  0x%08x W2  0x%08x W3  0x%08x\n"
 			"W4  0x%08x W5  0x%08x W6  0x%08x W7  0x%08x\n"
 			"W8  0x%08x W9  0x%08x W10 0x%08x W11 0x%08x\n"

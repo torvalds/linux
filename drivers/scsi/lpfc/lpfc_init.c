@@ -580,7 +580,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 				KERN_ERR,
 				LOG_INIT,
 				"0456 Adapter failed to issue "
-				"ASYNCEVT_ENABLE mbox status x%x \n.",
+				"ASYNCEVT_ENABLE mbox status x%x\n",
 				rc);
 		mempool_free(pmb, phba->mbox_mem_pool);
 	}
@@ -594,7 +594,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT, "0435 Adapter failed "
-				"to get Option ROM version status x%x\n.", rc);
+				"to get Option ROM version status x%x\n", rc);
 		mempool_free(pmb, phba->mbox_mem_pool);
 	}
 
@@ -2923,7 +2923,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	switch (event_type) {
 	case LPFC_FCOE_EVENT_TYPE_NEW_FCF:
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-			"2546 New FCF found index 0x%x tag 0x%x \n",
+			"2546 New FCF found index 0x%x tag 0x%x\n",
 			acqe_fcoe->fcf_index,
 			acqe_fcoe->event_tag);
 		/*
@@ -2949,7 +2949,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 
 	case LPFC_FCOE_EVENT_TYPE_FCF_TABLE_FULL:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2548 FCF Table full count 0x%x tag 0x%x \n",
+			"2548 FCF Table full count 0x%x tag 0x%x\n",
 			bf_get(lpfc_acqe_fcoe_fcf_count, acqe_fcoe),
 			acqe_fcoe->event_tag);
 		break;
@@ -2957,7 +2957,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	case LPFC_FCOE_EVENT_TYPE_FCF_DEAD:
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 			"2549 FCF disconnected fron network index 0x%x"
-			" tag 0x%x \n", acqe_fcoe->fcf_index,
+			" tag 0x%x\n", acqe_fcoe->fcf_index,
 			acqe_fcoe->event_tag);
 		/* If the event is not for currently used fcf do nothing */
 		if (phba->fcf.fcf_indx != acqe_fcoe->fcf_index)
