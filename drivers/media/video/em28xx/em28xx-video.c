@@ -124,7 +124,7 @@ static struct em28xx_fmt format[] = {
 
 /* supported controls */
 /* Common to all boards */
-static struct v4l2_queryctrl em28xx_qctrl[] = {
+static struct v4l2_queryctrl ac97_qctrl[] = {
 	{
 		.id = V4L2_CID_AUDIO_VOLUME,
 		.type = V4L2_CTRL_TYPE_INTEGER,
@@ -1050,9 +1050,9 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	qc->id = id;
 
 	if (!dev->board.has_msp34xx) {
-		for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
-			if (qc->id && qc->id == em28xx_qctrl[i].id) {
-				memcpy(qc, &(em28xx_qctrl[i]), sizeof(*qc));
+		for (i = 0; i < ARRAY_SIZE(ac97_qctrl); i++) {
+			if (qc->id && qc->id == ac97_qctrl[i].id) {
+				memcpy(qc, &(ac97_qctrl[i]), sizeof(*qc));
 				return 0;
 			}
 		}
@@ -1114,10 +1114,10 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
 	else {
 		rc = 1;
-		for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
-			if (ctrl->id == em28xx_qctrl[i].id) {
-				if (ctrl->value < em28xx_qctrl[i].minimum ||
-				    ctrl->value > em28xx_qctrl[i].maximum) {
+		for (i = 0; i < ARRAY_SIZE(ac97_qctrl); i++) {
+			if (ctrl->id == ac97_qctrl[i].id) {
+				if (ctrl->value < ac97_qctrl[i].minimum ||
+				    ctrl->value > ac97_qctrl[i].maximum) {
 					rc = -ERANGE;
 					break;
 				}
@@ -1654,9 +1654,9 @@ static int radio_queryctrl(struct file *file, void *priv,
 		qc->id >= V4L2_CID_LASTP1)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
-		if (qc->id && qc->id == em28xx_qctrl[i].id) {
-			memcpy(qc, &(em28xx_qctrl[i]), sizeof(*qc));
+	for (i = 0; i < ARRAY_SIZE(ac97_qctrl); i++) {
+		if (qc->id && qc->id == ac97_qctrl[i].id) {
+			memcpy(qc, &(ac97_qctrl[i]), sizeof(*qc));
 			return 0;
 		}
 	}
