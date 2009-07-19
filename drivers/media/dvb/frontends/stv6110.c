@@ -101,35 +101,25 @@ static int stv6110_read_regs(struct dvb_frontend *fe, u8 regs[],
 	struct stv6110_priv *priv = fe->tuner_priv;
 	int rc;
 	u8 reg[] = { start };
-	struct i2c_msg msg_wr = {
-		.addr	= priv->i2c_address,
-		.flags	= 0,
-		.buf	= reg,
-		.len	= 1,
+	struct i2c_msg msg[] = {
+		{
+			.addr	= priv->i2c_address,
+			.flags	= 0,
+			.buf	= reg,
+			.len	= 1,
+		}, {
+			.addr	= priv->i2c_address,
+			.flags	= I2C_M_RD,
+			.buf	= regs,
+			.len	= len,
+		},
 	};
 
-	struct i2c_msg msg_rd = {
-		.addr	= priv->i2c_address,
-		.flags	= I2C_M_RD,
-		.buf	= regs,
-		.len	= len,
-	};
-	/* write subaddr */
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	rc = i2c_transfer(priv->i2c, &msg_wr, 1);
-	if (rc != 1)
-		dprintk("%s: i2c error\n", __func__);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-	/* read registers */
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	rc = i2c_transfer(priv->i2c, &msg_rd, 1);
-	if (rc != 1)
+	rc = i2c_transfer(priv->i2c, msg, 2);
+	if (rc != 2)
 		dprintk("%s: i2c error\n", __func__);
 
 	if (fe->ops.i2c_gate_ctrl)
