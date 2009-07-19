@@ -480,20 +480,20 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	loff_t addr;
 	uint32_t data = 0;
 
-	addr = (loff_t)pnum * ubi->peb_size;
-	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, (void *)&data);
-	if (err) {
-		ubi_err("error %d while writing 4 bytes to PEB %d:%d, written "
-			"%zd bytes", err, pnum, 0, written);
-		ubi_dbg_dump_stack();
-		return err;
-	}
-
-	addr += ubi->vid_hdr_aloffset;
+	addr = (loff_t)pnum * ubi->peb_size + ubi->vid_hdr_aloffset;
 	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, (void *)&data);
 	if (err) {
 		ubi_err("error %d while writing 4 bytes to PEB %d:%d, written "
 			"%zd bytes", err, pnum, ubi->vid_hdr_aloffset, written);
+		ubi_dbg_dump_stack();
+		return err;
+	}
+
+	addr -= ubi->vid_hdr_aloffset;
+	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, (void *)&data);
+	if (err) {
+		ubi_err("error %d while writing 4 bytes to PEB %d:%d, written "
+			"%zd bytes", err, pnum, 0, written);
 		ubi_dbg_dump_stack();
 		return err;
 	}
