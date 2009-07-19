@@ -2213,6 +2213,9 @@ static void ieee80211_sta_monitor_work(struct work_struct *work)
 		container_of(work, struct ieee80211_sub_if_data,
 			     u.mgd.monitor_work);
 
+	if (sdata->local->sw_scanning || sdata->local->hw_scanning)
+		return;
+
 	ieee80211_mgd_probe_ap(sdata, false);
 }
 
