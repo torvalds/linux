@@ -113,8 +113,6 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	struct v9fs_session_info *v9ses = NULL;
 	struct p9_wstat *st = NULL;
 	int mode = S_IRWXUGO | S_ISVTX;
-	uid_t uid = current_fsuid();
-	gid_t gid = current_fsgid();
 	struct p9_fid *fid;
 	int retval = 0;
 
@@ -148,9 +146,6 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 		retval = PTR_ERR(inode);
 		goto release_sb;
 	}
-
-	inode->i_uid = uid;
-	inode->i_gid = gid;
 
 	root = d_alloc_root(inode);
 	if (!root) {
