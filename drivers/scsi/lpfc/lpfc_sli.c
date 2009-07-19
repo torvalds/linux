@@ -4702,13 +4702,13 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 
 	spin_lock_irqsave(&phba->hbalock, drvr_flag);
 	if (!pmbox) {
+		phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 		/* processing mbox queue from intr_handler */
 		if (unlikely(psli->sli_flag & LPFC_SLI_ASYNC_MBX_BLK)) {
 			spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 			return MBX_SUCCESS;
 		}
 		processing_queue = 1;
-		phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 		pmbox = lpfc_mbox_get(phba);
 		if (!pmbox) {
 			spin_unlock_irqrestore(&phba->hbalock, drvr_flag);

@@ -527,9 +527,6 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	/* Set up error attention (ERATT) polling timer */
 	mod_timer(&phba->eratt_poll, jiffies + HZ * LPFC_ERATT_POLL_INTERVAL);
 
-	/* Check if the port is disabled */
-	lpfc_sli_read_serdes_param(phba);
-
 	if (phba->hba_flag & LINK_DISABLED) {
 		lpfc_printf_log(phba,
 			KERN_ERR, LOG_INIT,
