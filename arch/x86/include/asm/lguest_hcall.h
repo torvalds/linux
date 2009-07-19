@@ -30,7 +30,7 @@
 #include <asm/hw_irq.h>
 #include <asm/kvm_para.h>
 
-/*G:031 But first, how does our Guest contact the Host to ask for privileged
+/*G:030 But first, how does our Guest contact the Host to ask for privileged
  * operations?  There are two ways: the direct way is to make a "hypercall",
  * to make requests of the Host Itself.
  *

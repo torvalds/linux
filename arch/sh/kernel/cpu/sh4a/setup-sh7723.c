@@ -398,7 +398,7 @@ static struct platform_device rtc_device = {
 };
 
 static struct r8a66597_platdata r8a66597_data = {
-	/* This set zero to all members */
+	.on_chip = 1,
 };
 
 static struct resource sh7723_usb_host_resources[] = {

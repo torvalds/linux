@@ -6,6 +6,7 @@
  *  directory VFS functions
  */
 
+#include <linux/smp_lock.h>
 #include "hpfs_fn.h"
 
 static int hpfs_dir_release(struct inode *inode, struct file *filp)

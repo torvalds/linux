@@ -284,8 +284,7 @@ struct dasd_discipline {
 	dasd_erp_fn_t(*erp_postaction) (struct dasd_ccw_req *);
 	void (*dump_sense) (struct dasd_device *, struct dasd_ccw_req *,
 			    struct irb *);
-	void (*dump_sense_dbf) (struct dasd_device *, struct dasd_ccw_req *,
-			    struct irb *, char *);
+	void (*dump_sense_dbf) (struct dasd_device *, struct irb *, char *);
 
 	void (*handle_unsolicited_interrupt) (struct dasd_device *,
 					      struct irb *);

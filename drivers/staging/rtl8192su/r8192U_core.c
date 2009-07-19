@@ -12132,6 +12132,19 @@ static void HalUsbSetQueuePipeMapping8192SUsb(struct usb_interface *intf, struct
 }
 #endif
 
+static const struct net_device_ops rtl8192_netdev_ops = {
+	.ndo_open		= rtl8192_open,
+	.ndo_stop		= rtl8192_close,
+	.ndo_get_stats		= rtl8192_stats,
+	.ndo_tx_timeout		= tx_timeout,
+	.ndo_do_ioctl		= rtl8192_ioctl,
+	.ndo_set_multicast_list	= r8192_set_multicast,
+	.ndo_set_mac_address	= r8192_set_mac_adr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_start_xmit		= ieee80211_xmit,
+};
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
@@ -12186,15 +12199,7 @@ static void * __devinit rtl8192_usb_probe(struct usb_device *udev,
 	priv->ops = &rtl8192u_ops;
 #endif
 
-	dev->open = rtl8192_open;
-	dev->stop = rtl8192_close;
-	//dev->hard_start_xmit = rtl8192_8023_hard_start_xmit;
-	dev->tx_timeout = tx_timeout;
-	//dev->wireless_handlers = &r8192_wx_handlers_def;
-	dev->do_ioctl = rtl8192_ioctl;
-	dev->set_multicast_list = r8192_set_multicast;
-	dev->set_mac_address = r8192_set_mac_adr;
-	dev->get_stats = rtl8192_stats;
+	dev->netdev_ops = &rtl8192_netdev_ops;
 
          //DMESG("Oops: i'm coming\n");
 #if WIRELESS_EXT >= 12

@@ -687,7 +687,8 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 			 * all of which have the same weight.
 			 */
 			if (sched_feat(NORMALIZED_SLEEPER) &&
-					task_of(se)->policy != SCHED_IDLE)
+					(!entity_is_task(se) ||
+					 task_of(se)->policy != SCHED_IDLE))
 				thresh = calc_delta_fair(thresh, se);
 
 			vruntime -= thresh;

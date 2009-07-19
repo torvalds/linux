@@ -4,6 +4,9 @@
 #include <asm/clock.h>
 #include <asm/io.h>
 
+#define HWBLK_CNT_USAGE 0
+#define HWBLK_CNT_NR 1
+
 #define HWBLK_AREA_FLAG_PARENT (1 << 0) /* valid parent */
 
 #define HWBLK_AREA(_flags, _parent)		\
@@ -13,7 +16,7 @@
 }
 
 struct hwblk_area {
-	unsigned long cnt;
+	int cnt[HWBLK_CNT_NR];
 	unsigned char parent;
 	unsigned char flags;
 };
@@ -29,7 +32,7 @@ struct hwblk {
 	void __iomem *mstp;
 	unsigned char bit;
 	unsigned char area;
-	unsigned long cnt;
+	int cnt[HWBLK_CNT_NR];
 };
 
 struct hwblk_info {
@@ -45,6 +48,12 @@ int arch_hwblk_sleep_mode(void);
 
 int hwblk_register(struct hwblk_info *info);
 int hwblk_init(void);
+
+void hwblk_enable(struct hwblk_info *info, int hwblk);
+void hwblk_disable(struct hwblk_info *info, int hwblk);
+
+void hwblk_cnt_inc(struct hwblk_info *info, int hwblk, int cnt);
+void hwblk_cnt_dec(struct hwblk_info *info, int hwblk, int cnt);
 
 /* allow clocks to enable and disable hardware blocks */
 #define SH_HWBLK_CLK(_name, _id, _parent, _hwblk, _flags)	\

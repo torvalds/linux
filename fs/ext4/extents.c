@@ -1977,6 +1977,7 @@ int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int nrblocks,
 			 */
 			/* 1 bitmap, 1 block group descriptor */
 			ret = 2 + EXT4_META_TRANS_BLOCKS(inode->i_sb);
+			return ret;
 		}
 	}
 

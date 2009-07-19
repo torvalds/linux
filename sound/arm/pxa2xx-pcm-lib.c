@@ -75,7 +75,7 @@ int __pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct pxa2xx_runtime_data *rtd = substream->runtime->private_data;
 
-	if (rtd && rtd->params)
+	if (rtd && rtd->params && rtd->params->drcmr)
 		*rtd->params->drcmr = 0;
 
 	snd_pcm_set_runtime_buffer(substream, NULL);

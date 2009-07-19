@@ -2517,6 +2517,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 
 			ata_eh_about_to_do(link, NULL, ATA_EH_RESET);
 			rc = ata_do_reset(link, reset, classes, deadline, true);
+			if (rc) {
+				failed_link = link;
+				goto fail;
+			}
 		}
 	} else {
 		if (verbose)

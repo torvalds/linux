@@ -304,6 +304,7 @@ static struct platform_device sh_eth_device = {
 };
 
 static struct r8a66597_platdata sh7724_usb0_host_data = {
+	.on_chip = 1,
 };
 
 static struct resource sh7724_usb0_host_resources[] = {

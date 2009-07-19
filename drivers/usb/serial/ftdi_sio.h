@@ -506,6 +506,7 @@
  *
  * Armin Laeuger originally sent the PID for the UM 100 module.
  */
+#define FTDI_R2000KU_TRUE_RNG	0xFB80  /* R2000KU TRUE RNG */
 #define FTDI_ELV_UR100_PID	0xFB58	/* USB-RS232-Umsetzer (UR 100) */
 #define FTDI_ELV_UM100_PID	0xFB5A	/* USB-Modul UM 100 */
 #define FTDI_ELV_UO100_PID	0xFB5B	/* USB-Modul UO 100 */
@@ -614,6 +615,9 @@
 #define FTDI_CCSICDU20_0_PID    0xF9D0
 #define FTDI_CCSICDU40_1_PID    0xF9D1
 #define FTDI_CCSMACHX_2_PID     0xF9D2
+#define FTDI_CCSLOAD_N_GO_3_PID 0xF9D3
+#define FTDI_CCSICDU64_4_PID    0xF9D4
+#define FTDI_CCSPRIME8_5_PID    0xF9D5
 
 /* Inside Accesso contactless reader (http://www.insidefr.com) */
 #define INSIDE_ACCESSO		0xFAD0
@@ -736,6 +740,15 @@
 #define FTDI_PYRAMID_PID	0xE6C8	/* Pyramid Appliance Display */
 
 /*
+ * NDI (www.ndigital.com) product ids
+ */
+#define FTDI_NDI_HUC_PID		0xDA70	/* NDI Host USB Converter */
+#define FTDI_NDI_SPECTRA_SCU_PID	0xDA71	/* NDI Spectra SCU */
+#define FTDI_NDI_FUTURE_2_PID		0xDA72	/* NDI future device #2 */
+#define FTDI_NDI_FUTURE_3_PID		0xDA73	/* NDI future device #3 */
+#define FTDI_NDI_AURORA_SCU_PID		0xDA74	/* NDI Aurora SCU */
+
+/*
  * Posiflex inc retail equipment (http://www.posiflex.com.tw)
  */
 #define POSIFLEX_VID		0x0d3a  /* Vendor ID */
@@ -848,9 +861,6 @@
 #define TML_VID			0x1B91	/* Vendor ID */
 #define TML_USB_SERIAL_PID	0x0064	/* USB - Serial Converter */
 
-/* NDI Polaris System */
-#define FTDI_NDI_HUC_PID        0xDA70
-
 /* Propox devices */
 #define FTDI_PROPOX_JTAGCABLEII_PID	0xD738
 
@@ -933,6 +943,8 @@
  */
 #define MARVELL_VID		0x9e88
 #define MARVELL_SHEEVAPLUG_PID	0x9e8f
+
+#define FTDI_TURTELIZER_PID	0xBDC8 /* JTAG/RS-232 adapter by egnite GmBH */
 
 /*
  *   BmRequestType:  1100 0000b

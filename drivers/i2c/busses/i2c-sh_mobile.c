@@ -563,7 +563,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		goto err_irq;
 	}
 
-	size = (res->end - res->start) + 1;
+	size = resource_size(res);
 
 	pd->reg = ioremap(res->start, size);
 	if (pd->reg == NULL) {

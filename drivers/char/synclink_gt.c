@@ -62,6 +62,7 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>

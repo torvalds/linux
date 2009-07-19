@@ -10,6 +10,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 
 #include <linux/nfs4.h>
