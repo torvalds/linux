@@ -5,7 +5,7 @@
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 
-#ifndef CONFIG_MAC80211_DRIVER_API_TRACER
+#if !defined(CONFIG_MAC80211_DRIVER_API_TRACER) || defined(__CHECKER__)
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) \
 static inline void trace_ ## name(proto) {}
@@ -639,7 +639,7 @@ TRACE_EVENT(drv_ampdu_action,
 		LOCAL_PR_ARG, STA_PR_ARG, __entry->action, __entry->tid, __entry->ret
 	)
 );
-#endif /* __MAC80211_DRIVER_TRACE */
+#endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
