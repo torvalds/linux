@@ -11341,7 +11341,7 @@ lpfc_sli4_init_vpi(struct lpfc_hba *phba, uint16_t vpi)
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq)
 		return -ENOMEM;
-	lpfc_init_vpi(mboxq, vpi);
+	lpfc_init_vpi(phba, mboxq, vpi);
 	mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_INIT_VPI);
 	rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
 	if (rc != MBX_TIMEOUT)

@@ -2155,6 +2155,8 @@ lpfc_online(struct lpfc_hba *phba)
 			vports[i]->fc_flag &= ~FC_OFFLINE_MODE;
 			if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
 				vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				vports[i]->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
 		lpfc_destroy_vport_work_array(phba, vports);
@@ -7370,6 +7372,9 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	/* Perform post initialization setup */
 	lpfc_post_init_setup(phba);
+
+	/* Check if there are static vports to be created. */
+	lpfc_create_static_vport(phba);
 
 	return 0;
 

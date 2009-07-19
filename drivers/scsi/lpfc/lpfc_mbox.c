@@ -52,30 +52,51 @@
  * This routine prepares the mailbox command for dumping list of static
  * vports to be created.
  **/
-void
+int
 lpfc_dump_static_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 		uint16_t offset)
 {
 	MAILBOX_t *mb;
-	void *ctx;
+	struct lpfc_dmabuf *mp;
 
 	mb = &pmb->u.mb;
-	ctx = pmb->context2;
 
 	/* Setup to dump vport info region */
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
 	mb->mbxCommand = MBX_DUMP_MEMORY;
-	mb->un.varDmp.cv = 1;
 	mb->un.varDmp.type = DMP_NV_PARAMS;
 	mb->un.varDmp.entry_index = offset;
 	mb->un.varDmp.region_id = DMP_REGION_VPORT;
-	mb->un.varDmp.word_cnt = DMP_RSP_SIZE/sizeof(uint32_t);
-	mb->un.varDmp.co = 0;
-	mb->un.varDmp.resp_offset = 0;
-	pmb->context2 = ctx;
 	mb->mbxOwner = OWN_HOST;
 
-	return;
+	/* For SLI3 HBAs data is embedded in mailbox */
+	if (phba->sli_rev != LPFC_SLI_REV4) {
+		mb->un.varDmp.cv = 1;
+		mb->un.varDmp.word_cnt = DMP_RSP_SIZE/sizeof(uint32_t);
+		return 0;
+	}
+
+	/* For SLI4 HBAs driver need to allocate memory */
+	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	if (mp)
+		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+
+	if (!mp || !mp->virt) {
+		kfree(mp);
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+			"2605 lpfc_dump_static_vport: memory"
+			" allocation failed\n");
+		return 1;
+	}
+	memset(mp->virt, 0, LPFC_BPL_SIZE);
+	INIT_LIST_HEAD(&mp->list);
+	/* save address for completion */
+	pmb->context2 = (uint8_t *) mp;
+	mb->un.varWords[3] = putPaddrLow(mp->phys);
+	mb->un.varWords[4] = putPaddrHigh(mp->phys);
+	mb->un.varDmp.sli4_length = sizeof(struct static_vport_info);
+
+	return 0;
 }
 
 /**
@@ -1805,6 +1826,7 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 
 /**
  * lpfc_init_vpi - Initialize the INIT_VPI mailbox command
+ * @phba: pointer to the hba structure to init the VPI for.
  * @mbox: pointer to lpfc mbox command to initialize.
  * @vpi: VPI to be initialized.
  *
@@ -1815,11 +1837,14 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
  * successful virtual NPort login.
  **/
 void
-lpfc_init_vpi(struct lpfcMboxq *mbox, uint16_t vpi)
+lpfc_init_vpi(struct lpfc_hba *phba, struct lpfcMboxq *mbox, uint16_t vpi)
 {
 	memset(mbox, 0, sizeof(*mbox));
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_INIT_VPI);
-	bf_set(lpfc_init_vpi_vpi, &mbox->u.mqe.un.init_vpi, vpi);
+	bf_set(lpfc_init_vpi_vpi, &mbox->u.mqe.un.init_vpi,
+	       vpi + phba->vpi_base);
+	bf_set(lpfc_init_vpi_vfi, &mbox->u.mqe.un.init_vpi,
+	       phba->pport->vfi + phba->vfi_base);
 }
 
 /**
