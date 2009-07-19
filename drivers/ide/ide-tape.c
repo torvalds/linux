@@ -1064,6 +1064,7 @@ static int idetape_blkdev_ioctl(ide_drive_t *drive, unsigned int cmd,
 		tape->best_dsc_rw_freq = config.dsc_rw_frequency;
 		break;
 	case 0x0350:
+		memset(&config, 0, sizeof(config));
 		config.dsc_rw_frequency = (int) tape->best_dsc_rw_freq;
 		config.nr_stages = 1;
 		if (copy_to_user(argp, &config, sizeof(config)))
