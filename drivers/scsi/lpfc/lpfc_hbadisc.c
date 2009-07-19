@@ -1054,6 +1054,39 @@ lpfc_fab_name_match(uint8_t *fab_name, struct fcf_record *new_fcf_record)
 }
 
 /**
+ * lpfc_sw_name_match - Check if the fcf switch name match.
+ * @fab_name: pointer to fabric name.
+ * @new_fcf_record: pointer to fcf record.
+ *
+ * This routine compare the fcf record's switch name with provided
+ * switch name. If the switch name are identical this function
+ * returns 1 else return 0.
+ **/
+static uint32_t
+lpfc_sw_name_match(uint8_t *sw_name, struct fcf_record *new_fcf_record)
+{
+	if ((sw_name[0] ==
+		bf_get(lpfc_fcf_record_switch_name_0, new_fcf_record)) &&
+	    (sw_name[1] ==
+		bf_get(lpfc_fcf_record_switch_name_1, new_fcf_record)) &&
+	    (sw_name[2] ==
+		bf_get(lpfc_fcf_record_switch_name_2, new_fcf_record)) &&
+	    (sw_name[3] ==
+		bf_get(lpfc_fcf_record_switch_name_3, new_fcf_record)) &&
+	    (sw_name[4] ==
+		bf_get(lpfc_fcf_record_switch_name_4, new_fcf_record)) &&
+	    (sw_name[5] ==
+		bf_get(lpfc_fcf_record_switch_name_5, new_fcf_record)) &&
+	    (sw_name[6] ==
+		bf_get(lpfc_fcf_record_switch_name_6, new_fcf_record)) &&
+	    (sw_name[7] ==
+		bf_get(lpfc_fcf_record_switch_name_7, new_fcf_record)))
+		return 1;
+	else
+		return 0;
+}
+
+/**
  * lpfc_mac_addr_match - Check if the fcf mac address match.
  * @phba: pointer to lpfc hba data structure.
  * @new_fcf_record: pointer to fcf record.
@@ -1123,6 +1156,22 @@ lpfc_copy_fcf_record(struct lpfc_hba *phba, struct fcf_record *new_fcf_record)
 		bf_get(lpfc_fcf_record_mac_5, new_fcf_record);
 	phba->fcf.fcf_indx = bf_get(lpfc_fcf_record_fcf_index, new_fcf_record);
 	phba->fcf.priority = new_fcf_record->fip_priority;
+	phba->fcf.switch_name[0] =
+		bf_get(lpfc_fcf_record_switch_name_0, new_fcf_record);
+	phba->fcf.switch_name[1] =
+		bf_get(lpfc_fcf_record_switch_name_1, new_fcf_record);
+	phba->fcf.switch_name[2] =
+		bf_get(lpfc_fcf_record_switch_name_2, new_fcf_record);
+	phba->fcf.switch_name[3] =
+		bf_get(lpfc_fcf_record_switch_name_3, new_fcf_record);
+	phba->fcf.switch_name[4] =
+		bf_get(lpfc_fcf_record_switch_name_4, new_fcf_record);
+	phba->fcf.switch_name[5] =
+		bf_get(lpfc_fcf_record_switch_name_5, new_fcf_record);
+	phba->fcf.switch_name[6] =
+		bf_get(lpfc_fcf_record_switch_name_6, new_fcf_record);
+	phba->fcf.switch_name[7] =
+		bf_get(lpfc_fcf_record_switch_name_7, new_fcf_record);
 }
 
 /**
@@ -1239,9 +1288,12 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 
 		if ((conn_entry->conn_rec.flags & FCFCNCT_FBNM_VALID) &&
 			!lpfc_fab_name_match(conn_entry->conn_rec.fabric_name,
-				new_fcf_record))
+					     new_fcf_record))
 			continue;
-
+		if ((conn_entry->conn_rec.flags & FCFCNCT_SWNM_VALID) &&
+			!lpfc_sw_name_match(conn_entry->conn_rec.switch_name,
+					    new_fcf_record))
+			continue;
 		if (conn_entry->conn_rec.flags & FCFCNCT_VLAN_VALID) {
 			/*
 			 * If the vlan bit map does not have the bit set for the
@@ -1424,7 +1476,9 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	spin_lock_irqsave(&phba->hbalock, flags);
 	if (phba->fcf.fcf_flag & FCF_IN_USE) {
 		if (lpfc_fab_name_match(phba->fcf.fabric_name,
-			new_fcf_record) &&
+					new_fcf_record) &&
+		    lpfc_sw_name_match(phba->fcf.switch_name,
+					new_fcf_record) &&
 		    lpfc_mac_addr_match(phba, new_fcf_record)) {
 			phba->fcf.fcf_flag |= FCF_AVAILABLE;
 			spin_unlock_irqrestore(&phba->hbalock, flags);
@@ -1464,9 +1518,9 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		 * If there is a record with lower priority value for
 		 * the current FCF, use that record.
 		 */
-		if (lpfc_fab_name_match(phba->fcf.fabric_name, new_fcf_record)
-			&& (new_fcf_record->fip_priority <
-				phba->fcf.priority)) {
+		if (lpfc_fab_name_match(phba->fcf.fabric_name,
+					new_fcf_record) &&
+		    (new_fcf_record->fip_priority < phba->fcf.priority)) {
 			/* Use this FCF record */
 			lpfc_copy_fcf_record(phba, new_fcf_record);
 			phba->fcf.addr_mode = addr_mode;

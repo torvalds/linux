@@ -4522,12 +4522,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	lpfc_sli4_rb_setup(phba);
 
 	/* Start the ELS watchdog timer */
-	/*
-	 * The driver for SLI4 is not yet ready to process timeouts
-	 * or interrupts.  Once it is, the comment bars can be removed.
-	 */
-	/* mod_timer(&vport->els_tmofunc,
-	 *           jiffies + HZ * (phba->fc_ratov*2)); */
+	mod_timer(&vport->els_tmofunc,
+		  jiffies + HZ * (phba->fc_ratov * 2));
 
 	/* Start heart beat timer */
 	mod_timer(&phba->hb_tmofunc,
@@ -5279,6 +5275,18 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	unsigned long iflags;
 	int rc;
 
+	rc = lpfc_mbox_dev_check(phba);
+	if (unlikely(rc)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+				"(%d):2544 Mailbox command x%x (x%x) "
+				"cannot issue Data: x%x x%x\n",
+				mboxq->vport ? mboxq->vport->vpi : 0,
+				mboxq->u.mb.mbxCommand,
+				lpfc_sli4_mbox_opcode_get(phba, mboxq),
+				psli->sli_flag, flag);
+		goto out_not_finished;
+	}
+
 	/* Detect polling mode and jump to a handler */
 	if (!phba->sli4_hba.intr_enable) {
 		if (flag == MBX_POLL)
@@ -5331,17 +5339,6 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 				"(%d):2543 Mailbox command x%x (x%x) "
-				"cannot issue Data: x%x x%x\n",
-				mboxq->vport ? mboxq->vport->vpi : 0,
-				mboxq->u.mb.mbxCommand,
-				lpfc_sli4_mbox_opcode_get(phba, mboxq),
-				psli->sli_flag, flag);
-		goto out_not_finished;
-	}
-	rc = lpfc_mbox_dev_check(phba);
-	if (unlikely(rc)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
-				"(%d):2544 Mailbox command x%x (x%x) "
 				"cannot issue Data: x%x x%x\n",
 				mboxq->vport ? mboxq->vport->vpi : 0,
 				mboxq->u.mb.mbxCommand,
@@ -5817,19 +5814,21 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 /**
  * lpfc_sli4_scmd_to_wqidx_distr - scsi command to SLI4 WQ index distribution
  * @phba: Pointer to HBA context object.
- * @piocb: Pointer to command iocb.
  *
  * This routine performs a round robin SCSI command to SLI4 FCP WQ index
- * distribution.
+ * distribution.  This is called by __lpfc_sli_issue_iocb_s4() with the hbalock
+ * held.
  *
  * Return: index into SLI4 fast-path FCP queue index.
  **/
 static uint32_t
-lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
+lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba)
 {
-	static uint32_t fcp_qidx;
+	++phba->fcp_qidx;
+	if (phba->fcp_qidx >= phba->cfg_fcp_wq_count)
+		phba->fcp_qidx = 0;
 
-	return fcp_qidx++ % phba->cfg_fcp_wq_count;
+	return phba->fcp_qidx;
 }
 
 /**
@@ -6156,7 +6155,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 		return IOCB_ERROR;
 
 	if (piocb->iocb_flag &  LPFC_IO_FCP) {
-		fcp_wqidx = lpfc_sli4_scmd_to_wqidx_distr(phba, piocb);
+		fcp_wqidx = lpfc_sli4_scmd_to_wqidx_distr(phba);
 		if (lpfc_sli4_wq_put(phba->sli4_hba.fcp_wq[fcp_wqidx], &wqe))
 			return IOCB_ERROR;
 	} else {
@@ -7678,12 +7677,6 @@ lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 					"online0_reg=0x%x, online1_reg=0x%x\n",
 					uerr_sta_lo, uerr_sta_hi,
 					onlnreg0, onlnreg1);
-			/* TEMP: as the driver error recover logic is not
-			 * fully developed, we just log the error message
-			 * and the device error attention action is now
-			 * temporarily disabled.
-			 */
-			return 0;
 			phba->work_status[0] = uerr_sta_lo;
 			phba->work_status[1] = uerr_sta_hi;
 			/* Set the driver HA work bitmap */
@@ -9499,8 +9492,7 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint16_t imax)
 	eq->host_index = 0;
 	eq->hba_index = 0;
 
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
+	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
 }
 
@@ -9604,10 +9596,9 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	cq->queue_id = bf_get(lpfc_mbx_cq_create_q_id, &cq_create->u.response);
 	cq->host_index = 0;
 	cq->hba_index = 0;
-out:
 
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
+out:
+	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
 }
 
@@ -9712,8 +9703,7 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 	/* link the mq onto the parent cq child list */
 	list_add_tail(&mq->list, &cq->child_list);
 out:
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
+	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
 }
 
@@ -9795,8 +9785,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	/* link the wq onto the parent cq child list */
 	list_add_tail(&wq->list, &cq->child_list);
 out:
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
+	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
 }
 
@@ -9970,8 +9959,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	list_add_tail(&drq->list, &cq->child_list);
 
 out:
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
+	mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
 }
 
@@ -10026,8 +10014,7 @@ lpfc_eq_destroy(struct lpfc_hba *phba, struct lpfc_queue *eq)
 
 	/* Remove eq from any list */
 	list_del_init(&eq->list);
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, eq->phba->mbox_mem_pool);
+	mempool_free(mbox, eq->phba->mbox_mem_pool);
 	return status;
 }
 
@@ -10080,8 +10067,7 @@ lpfc_cq_destroy(struct lpfc_hba *phba, struct lpfc_queue *cq)
 	}
 	/* Remove cq from any list */
 	list_del_init(&cq->list);
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, cq->phba->mbox_mem_pool);
+	mempool_free(mbox, cq->phba->mbox_mem_pool);
 	return status;
 }
 
@@ -10134,8 +10120,7 @@ lpfc_mq_destroy(struct lpfc_hba *phba, struct lpfc_queue *mq)
 	}
 	/* Remove mq from any list */
 	list_del_init(&mq->list);
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, mq->phba->mbox_mem_pool);
+	mempool_free(mbox, mq->phba->mbox_mem_pool);
 	return status;
 }
 
@@ -10187,8 +10172,7 @@ lpfc_wq_destroy(struct lpfc_hba *phba, struct lpfc_queue *wq)
 	}
 	/* Remove wq from any list */
 	list_del_init(&wq->list);
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, wq->phba->mbox_mem_pool);
+	mempool_free(mbox, wq->phba->mbox_mem_pool);
 	return status;
 }
 
@@ -10258,8 +10242,7 @@ lpfc_rq_destroy(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	}
 	list_del_init(&hrq->list);
 	list_del_init(&drq->list);
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, hrq->phba->mbox_mem_pool);
+	mempool_free(mbox, hrq->phba->mbox_mem_pool);
 	return status;
 }
 
@@ -10933,6 +10916,7 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 	first_iocbq = lpfc_sli_get_iocbq(vport->phba);
 	if (first_iocbq) {
 		/* Initialize the first IOCB. */
+		first_iocbq->iocb.unsli3.rcvsli3.acc_len = 0;
 		first_iocbq->iocb.ulpStatus = IOSTAT_SUCCESS;
 		first_iocbq->iocb.ulpCommand = CMD_IOCB_RCV_SEQ64_CX;
 		first_iocbq->iocb.ulpContext = be16_to_cpu(fc_hdr->fh_ox_id);
@@ -10945,6 +10929,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 		first_iocbq->iocb.un.cont64[0].tus.f.bdeSize =
 							LPFC_DATA_BUF_SIZE;
 		first_iocbq->iocb.un.rcvels.remoteID = sid;
+		first_iocbq->iocb.unsli3.rcvsli3.acc_len +=
+				bf_get(lpfc_rcqe_length, &seq_dmabuf->rcqe);
 	}
 	iocbq = first_iocbq;
 	/*
@@ -10961,6 +10947,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 			iocbq->iocb.ulpBdeCount++;
 			iocbq->iocb.unsli3.rcvsli3.bde2.tus.f.bdeSize =
 							LPFC_DATA_BUF_SIZE;
+			first_iocbq->iocb.unsli3.rcvsli3.acc_len +=
+				bf_get(lpfc_rcqe_length, &seq_dmabuf->rcqe);
 		} else {
 			iocbq = lpfc_sli_get_iocbq(vport->phba);
 			if (!iocbq) {
@@ -10978,6 +10966,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 			iocbq->iocb.ulpBdeCount = 1;
 			iocbq->iocb.un.cont64[0].tus.f.bdeSize =
 							LPFC_DATA_BUF_SIZE;
+			first_iocbq->iocb.unsli3.rcvsli3.acc_len +=
+				bf_get(lpfc_rcqe_length, &seq_dmabuf->rcqe);
 			iocbq->iocb.un.rcvels.remoteID = sid;
 			list_add_tail(&iocbq->list, &first_iocbq->list);
 		}

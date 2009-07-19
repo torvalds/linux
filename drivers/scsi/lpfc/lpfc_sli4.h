@@ -132,6 +132,7 @@ struct lpfc_sli4_link {
 
 struct lpfc_fcf {
 	uint8_t	 fabric_name[8];
+	uint8_t	 switch_name[8];
 	uint8_t  mac_addr[6];
 	uint16_t fcf_indx;
 	uint16_t fcfi;

@@ -1938,9 +1938,7 @@ lpfc_resume_rpi(struct lpfcMboxq *mbox, struct lpfc_nodelist *ndlp)
 	memset(mbox, 0, sizeof(*mbox));
 	resume_rpi = &mbox->u.mqe.un.resume_rpi;
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_RESUME_RPI);
-	bf_set(lpfc_resume_rpi_rpi, resume_rpi, ndlp->nlp_rpi);
-	bf_set(lpfc_resume_rpi_vpi, resume_rpi,
-	       ndlp->vport->vpi + ndlp->vport->phba->vpi_base);
-	bf_set(lpfc_resume_rpi_vfi, resume_rpi,
-	       ndlp->vport->vfi + ndlp->vport->phba->vfi_base);
+	bf_set(lpfc_resume_rpi_index, resume_rpi, ndlp->nlp_rpi);
+	bf_set(lpfc_resume_rpi_ii, resume_rpi, RESUME_INDEX_RPI);
+	resume_rpi->event_tag = ndlp->phba->fc_eventTag;
 }

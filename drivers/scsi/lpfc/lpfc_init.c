@@ -4488,23 +4488,6 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 	if (!phba->sli4_hba.STAregaddr)
 		return -ENODEV;
 
-	/* With uncoverable error, log the error message and return error */
-	onlnreg0 = readl(phba->sli4_hba.ONLINE0regaddr);
-	onlnreg1 = readl(phba->sli4_hba.ONLINE1regaddr);
-	if ((onlnreg0 != LPFC_ONLINE_NERR) || (onlnreg1 != LPFC_ONLINE_NERR)) {
-		uerrlo_reg.word0 = readl(phba->sli4_hba.UERRLOregaddr);
-		uerrhi_reg.word0 = readl(phba->sli4_hba.UERRHIregaddr);
-		if (uerrlo_reg.word0 || uerrhi_reg.word0) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"1422 HBA Unrecoverable error: "
-					"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
-					"online0_reg=0x%x, online1_reg=0x%x\n",
-					uerrlo_reg.word0, uerrhi_reg.word0,
-					onlnreg0, onlnreg1);
-		}
-		return -ENODEV;
-	}
-
 	/* Wait up to 30 seconds for the SLI Port POST done and ready */
 	for (i = 0; i < 3000; i++) {
 		sta_reg.word0 = readl(phba->sli4_hba.STAregaddr);
@@ -4543,6 +4526,23 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			bf_get(lpfc_scratchpad_slirev, &scratchpad),
 			bf_get(lpfc_scratchpad_featurelevel1, &scratchpad),
 			bf_get(lpfc_scratchpad_featurelevel2, &scratchpad));
+
+	/* With uncoverable error, log the error message and return error */
+	onlnreg0 = readl(phba->sli4_hba.ONLINE0regaddr);
+	onlnreg1 = readl(phba->sli4_hba.ONLINE1regaddr);
+	if ((onlnreg0 != LPFC_ONLINE_NERR) || (onlnreg1 != LPFC_ONLINE_NERR)) {
+		uerrlo_reg.word0 = readl(phba->sli4_hba.UERRLOregaddr);
+		uerrhi_reg.word0 = readl(phba->sli4_hba.UERRHIregaddr);
+		if (uerrlo_reg.word0 || uerrhi_reg.word0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"1422 HBA Unrecoverable error: "
+					"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
+					"online0_reg=0x%x, online1_reg=0x%x\n",
+					uerrlo_reg.word0, uerrhi_reg.word0,
+					onlnreg0, onlnreg1);
+		}
+		return -ENODEV;
+	}
 
 	return port_error;
 }
@@ -7635,19 +7635,17 @@ static int __devinit
 lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	int rc;
-	uint16_t dev_id;
+	struct lpfc_sli_intf intf;
 
-	if (pci_read_config_word(pdev, PCI_DEVICE_ID, &dev_id))
+	if (pci_read_config_dword(pdev, LPFC_SLIREV_CONF_WORD, &intf.word0))
 		return -ENODEV;
 
-	switch (dev_id) {
-	case PCI_DEVICE_ID_TIGERSHARK:
+	if ((bf_get(lpfc_sli_intf_valid, &intf) == LPFC_SLI_INTF_VALID) &&
+		(bf_get(lpfc_sli_intf_rev, &intf) == LPFC_SLIREV_CONF_SLI4))
 		rc = lpfc_pci_probe_one_s4(pdev, pid);
-		break;
-	default:
+	else
 		rc = lpfc_pci_probe_one_s3(pdev, pid);
-		break;
-	}
+
 	return rc;
 }
 
