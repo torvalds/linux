@@ -171,7 +171,6 @@ int v9fs_uflags2omode(int uflags, int extended)
 
 /**
  * v9fs_blank_wstat - helper function to setup a 9P stat structure
- * @v9ses: 9P session info (for determining extended mode)
  * @wstat: structure to initialize
  *
  */
@@ -410,9 +409,9 @@ v9fs_open_created(struct inode *inode, struct file *file)
  * @v9ses: session information
  * @dir: directory that dentry is being created in
  * @dentry:  dentry that is being created
+ * @extension: 9p2000.u extension string to support devices, etc.
  * @perm: create permissions
  * @mode: open mode
- * @extension: 9p2000.u extension string to support devices, etc.
  *
  */
 static struct p9_fid *

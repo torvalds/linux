@@ -67,14 +67,15 @@
  * @pd: Protection Domain pointer
  * @qp: Queue Pair pointer
  * @cq: Completion Queue pointer
+ * @dm_mr: DMA Memory Region pointer
  * @lkey: The local access only memory region key
  * @timeout: Number of uSecs to wait for connection management events
  * @sq_depth: The depth of the Send Queue
  * @sq_sem: Semaphore for the SQ
  * @rq_depth: The depth of the Receive Queue.
+ * @rq_count: Count of requests in the Receive Queue.
  * @addr: The remote peer's address
  * @req_lock: Protects the active request list
- * @send_wait: Wait list when the SQ fills up
  * @cm_done: Completion event for connection management tracking
  */
 struct p9_trans_rdma {
@@ -154,9 +155,9 @@ static match_table_t tokens = {
 };
 
 /**
- * parse_options - parse mount options into session structure
- * @options: options string passed from mount
- * @opts: transport-specific structure to parse options into
+ * parse_opts - parse mount options into rdma options structure
+ * @params: options string passed from mount
+ * @opts: rdma transport-specific structure to parse options into
  *
  * Returns 0 upon success, -ERRNO upon failure
  */
