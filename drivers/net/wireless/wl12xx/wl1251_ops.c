@@ -423,7 +423,7 @@ static void wl1251_irq_work(struct work_struct *work)
 		wl->rx_counter =
 			wl1251_mem_read32(wl, wl->data_path->rx_control_addr);
 
-		/* We handle a frmware bug here */
+		/* We handle a firmware bug here */
 		switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
 		case 0:
 			wl1251_debug(DEBUG_IRQ, "RX: FW and host in sync");
@@ -575,7 +575,7 @@ static int wl1251_hw_init_data_path_config(struct wl1251 *wl)
 	wl->data_path = kzalloc(sizeof(struct acx_data_path_params_resp),
 				GFP_KERNEL);
 	if (!wl->data_path) {
-		wl1251_error("Couldnt allocate data path parameters");
+		wl1251_error("Couldn't allocate data path parameters");
 		return -ENOMEM;
 	}
 

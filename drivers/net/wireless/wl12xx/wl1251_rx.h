@@ -88,7 +88,7 @@ struct wl1251_rx_descriptor {
 	u8 type;
 
 	/*
-	 * Recevied Rate:
+	 * Received Rate:
 	 * 0x0A - 1MBPS
 	 * 0x14 - 2MBPS
 	 * 0x37 - 5_5MBPS
