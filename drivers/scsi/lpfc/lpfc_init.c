@@ -2829,6 +2829,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	att_type = lpfc_sli4_parse_latt_type(phba, acqe_link);
 	if (att_type != AT_LINK_DOWN && att_type != AT_LINK_UP)
 		return;
+	phba->fcoe_eventtag = acqe_link->event_tag;
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -2916,6 +2917,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	uint8_t event_type = bf_get(lpfc_acqe_fcoe_event_type, acqe_fcoe);
 	int rc;
 
+	phba->fcoe_eventtag = acqe_fcoe->event_tag;
 	switch (event_type) {
 	case LPFC_FCOE_EVENT_TYPE_NEW_FCF:
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
@@ -2923,11 +2925,12 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			acqe_fcoe->fcf_index,
 			acqe_fcoe->event_tag);
 		/*
-		 * If the current FCF is in discovered state,
-		 * do nothing.
+		 * If the current FCF is in discovered state, or
+		 * FCF discovery is in progress do nothing.
 		 */
 		spin_lock_irq(&phba->hbalock);
-		if (phba->fcf.fcf_flag & FCF_DISCOVERED) {
+		if ((phba->fcf.fcf_flag & FCF_DISCOVERED) ||
+		   (phba->hba_flag & FCF_DISC_INPROGRESS)) {
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}

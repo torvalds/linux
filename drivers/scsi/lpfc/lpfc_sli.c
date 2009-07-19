@@ -11536,6 +11536,7 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 	uint32_t alloc_len, req_len;
 	struct lpfc_mbx_read_fcf_tbl *read_fcf;
 
+	phba->fcoe_eventtag_at_fcf_scan = phba->fcoe_eventtag;
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -11587,8 +11588,12 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 	if (rc == MBX_NOT_FINISHED) {
 		lpfc_sli4_mbox_cmd_free(phba, mboxq);
 		error = -EIO;
-	} else
+	} else {
+		spin_lock_irq(&phba->hbalock);
+		phba->hba_flag |= FCF_DISC_INPROGRESS;
+		spin_unlock_irq(&phba->hbalock);
 		error = 0;
+	}
 	return error;
 }
 

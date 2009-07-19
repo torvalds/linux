@@ -189,6 +189,7 @@ void lpfc_unreg_vfi(struct lpfcMboxq *, uint16_t);
 void lpfc_reg_fcfi(struct lpfc_hba *, struct lpfcMboxq *);
 void lpfc_unreg_fcfi(struct lpfcMboxq *, uint16_t);
 void lpfc_resume_rpi(struct lpfcMboxq *, struct lpfc_nodelist *);
+int lpfc_check_pending_fcoe_event(struct lpfc_hba *, uint8_t);
 
 void lpfc_config_hbq(struct lpfc_hba *, uint32_t, struct lpfc_hbq_init *,
 	uint32_t , LPFC_MBOXQ_t *);
