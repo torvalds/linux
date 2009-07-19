@@ -344,30 +344,25 @@ v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 
 	ret = NULL;
 	st = p9_client_stat(fid);
-	if (IS_ERR(st)) {
-		err = PTR_ERR(st);
-		st = NULL;
-		goto error;
-	}
+	if (IS_ERR(st))
+		return ERR_CAST(st);
 
 	umode = p9mode2unixmode(v9ses, st->mode);
 	ret = v9fs_get_inode(sb, umode);
 	if (IS_ERR(ret)) {
 		err = PTR_ERR(ret);
-		ret = NULL;
 		goto error;
 	}
 
 	v9fs_stat2inode(st, ret, sb);
 	ret->i_ino = v9fs_qid2ino(&st->qid);
+	p9stat_free(st);
 	kfree(st);
 	return ret;
 
 error:
+	p9stat_free(st);
 	kfree(st);
-	if (ret)
-		iput(ret);
-
 	return ERR_PTR(err);
 }
 
