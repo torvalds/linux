@@ -396,7 +396,7 @@ static struct stv0900_reg stv0900_ts_regs[] = {
 
 static struct stv0900_config netup_stv0900_config = {
 	.demod_address = 0x68,
-	.xtal = 27000000,
+	.xtal = 8000000,
 	.clkmode = 3,/* 0-CLKI, 2-XTALI, else AUTO */
 	.diseqc_mode = 2,/* 2/3 PWM */
 	.ts_config_regs = stv0900_ts_regs,
@@ -408,12 +408,14 @@ static struct stv0900_config netup_stv0900_config = {
 
 static struct stv6110_config netup_stv6110_tunerconfig_a = {
 	.i2c_address = 0x60,
-	.mclk = 27000000,
+	.mclk = 16000000,
+	.clk_div = 1,
 };
 
 static struct stv6110_config netup_stv6110_tunerconfig_b = {
 	.i2c_address = 0x63,
-	.mclk = 27000000,
+	.mclk = 16000000,
+	.clk_div = 1,
 };
 
 static int tbs_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
