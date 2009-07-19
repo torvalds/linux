@@ -470,7 +470,10 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 		dentry->d_op = &v9fs_dentry_operations;
 
 	d_instantiate(dentry, inode);
-	v9fs_fid_add(dentry, fid);
+	err = v9fs_fid_add(dentry, fid);
+	if (err < 0)
+		goto error;
+
 	return ofid;
 
 error:
