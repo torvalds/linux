@@ -409,13 +409,11 @@ static struct stv0900_config netup_stv0900_config = {
 static struct stv6110_config netup_stv6110_tunerconfig_a = {
 	.i2c_address = 0x60,
 	.mclk = 27000000,
-	.iq_wiring = 0,
 };
 
 static struct stv6110_config netup_stv6110_tunerconfig_b = {
 	.i2c_address = 0x63,
 	.mclk = 27000000,
-	.iq_wiring = 1,
 };
 
 static int tbs_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
