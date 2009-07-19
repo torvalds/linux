@@ -52,8 +52,9 @@ static int add_eventfd(struct lguest *lg, unsigned long addr, int fd)
 	new->map[new->num].addr = addr;
 	new->map[new->num].event = eventfd_ctx_fdget(fd);
 	if (IS_ERR(new->map[new->num].event)) {
+		int err =  PTR_ERR(new->map[new->num].event);
 		kfree(new);
-		return PTR_ERR(new->map[new->num].event);
+		return err;
 	}
 	new->num++;
 
@@ -83,7 +84,7 @@ static int attach_eventfd(struct lguest *lg, const unsigned long __user *input)
 	err = add_eventfd(lg, addr, fd);
 	mutex_unlock(&lguest_lock);
 
-	return 0;
+	return err;
 }
 
 /*L:050 Sending an interrupt is done by writing LHREQ_IRQ and an interrupt
