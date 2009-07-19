@@ -18,16 +18,17 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include "gspca.h"
-#include "jpeg.h"
-
-#include <media/v4l2-chip-ident.h>
 #ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/usb/input.h>
 #include <linux/input.h>
 #endif
+
+#include "gspca.h"
+#include "jpeg.h"
+
+#include <media/v4l2-chip-ident.h>
 
 MODULE_AUTHOR("Brian Johnson <brijohn@gmail.com>, "
 		"microdia project <microdia@googlegroups.com>");
