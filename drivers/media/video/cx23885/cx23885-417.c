@@ -58,7 +58,8 @@ MODULE_PARM_DESC(v4l_debug, "enable V4L debug messages");
 
 #define dprintk(level, fmt, arg...)\
 	do { if (v4l_debug >= level) \
-		printk(KERN_DEBUG "%s: " fmt, dev->name , ## arg);\
+		printk(KERN_DEBUG "%s: " fmt, \
+		(dev) ? dev->name : "cx23885[?]", ## arg); \
 	} while (0)
 
 static struct cx23885_tvnorm cx23885_tvnorms[] = {
