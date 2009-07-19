@@ -79,21 +79,37 @@ lpfc_dump_static_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 }
 
 /**
- * lpfc_dump_mem - Prepare a mailbox command for retrieving HBA's VPD memory
+ * lpfc_down_link - Bring down HBAs link.
  * @phba: pointer to lpfc hba data structure.
  * @pmb: pointer to the driver internal queue element for mailbox command.
- * @offset: offset for dumping VPD memory mailbox command.
+ *
+ * This routine prepares a mailbox command to bring down HBA link.
+ **/
+void
+lpfc_down_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb;
+	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
+	mb = &pmb->u.mb;
+	mb->mbxCommand = MBX_DOWN_LINK;
+	mb->mbxOwner = OWN_HOST;
+}
+
+/**
+ * lpfc_dump_mem - Prepare a mailbox command for reading a region.
+ * @phba: pointer to lpfc hba data structure.
+ * @pmb: pointer to the driver internal queue element for mailbox command.
+ * @offset: offset into the region.
+ * @region_id: config region id.
  *
  * The dump mailbox command provides a method for the device driver to obtain
  * various types of information from the HBA device.
  *
- * This routine prepares the mailbox command for dumping HBA Vital Product
- * Data (VPD) memory. This mailbox command is to be used for retrieving a
- * portion (DMP_RSP_SIZE bytes) of a HBA's VPD from the HBA at an address
- * offset specified by the offset parameter.
+ * This routine prepares the mailbox command for dumping HBA's config region.
  **/
 void
-lpfc_dump_mem(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb, uint16_t offset)
+lpfc_dump_mem(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, uint16_t offset,
+		uint16_t region_id)
 {
 	MAILBOX_t *mb;
 	void *ctx;
@@ -107,7 +123,7 @@ lpfc_dump_mem(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb, uint16_t offset)
 	mb->un.varDmp.cv = 1;
 	mb->un.varDmp.type = DMP_NV_PARAMS;
 	mb->un.varDmp.entry_index = offset;
-	mb->un.varDmp.region_id = DMP_REGION_VPD;
+	mb->un.varDmp.region_id = region_id;
 	mb->un.varDmp.word_cnt = (DMP_RSP_SIZE / sizeof (uint32_t));
 	mb->un.varDmp.co = 0;
 	mb->un.varDmp.resp_offset = 0;
@@ -1864,8 +1880,8 @@ lpfc_dump_fcoe_param(struct lpfc_hba *phba,
 
 	mb->mbxCommand = MBX_DUMP_MEMORY;
 	mb->un.varDmp.type = DMP_NV_PARAMS;
-	mb->un.varDmp.region_id = DMP_REGION_FCOEPARAM;
-	mb->un.varDmp.sli4_length = DMP_FCOEPARAM_RGN_SIZE;
+	mb->un.varDmp.region_id = DMP_REGION_23;
+	mb->un.varDmp.sli4_length = DMP_RGN23_SIZE;
 	mb->un.varWords[3] = putPaddrLow(mp->phys);
 	mb->un.varWords[4] = putPaddrHigh(mp->phys);
 	return 0;

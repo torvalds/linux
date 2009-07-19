@@ -211,7 +211,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		goto out_free_mbox;
 
 	do {
-		lpfc_dump_mem(phba, pmb, offset);
+		lpfc_dump_mem(phba, pmb, offset, DMP_REGION_VPD);
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 
 		if (rc != MBX_SUCCESS) {
@@ -425,6 +425,9 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		return -EIO;
 	}
 
+	/* Check if the port is disabled */
+	lpfc_sli_read_link_ste(phba);
+
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
 	if (phba->cfg_hba_queue_depth > (mb->un.varRdConfig.max_xri+1))
 		phba->cfg_hba_queue_depth =
@@ -524,27 +527,49 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	/* Set up error attention (ERATT) polling timer */
 	mod_timer(&phba->eratt_poll, jiffies + HZ * LPFC_ERATT_POLL_INTERVAL);
 
-	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
-	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	lpfc_set_loopback_flag(phba);
-	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-	if (rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+	/* Check if the port is disabled */
+	lpfc_sli_read_serdes_param(phba);
+
+	if (phba->hba_flag & LINK_DISABLED) {
+		lpfc_printf_log(phba,
+			KERN_ERR, LOG_INIT,
+			"2598 Adapter Link is disabled.\n");
+		lpfc_down_link(phba, pmb);
+		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if ((rc != MBX_SUCCESS) && (rc != MBX_BUSY)) {
+			lpfc_printf_log(phba,
+			KERN_ERR, LOG_INIT,
+			"2599 Adapter failed to issue DOWN_LINK"
+			" mbox command rc 0x%x\n", rc);
+
+			mempool_free(pmb, phba->mbox_mem_pool);
+			return -EIO;
+		}
+	} else {
+		lpfc_init_link(phba, pmb, phba->cfg_topology,
+			phba->cfg_link_speed);
+		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		lpfc_set_loopback_flag(phba);
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if (rc != MBX_SUCCESS) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0454 Adapter failed to init, mbxCmd x%x "
 				"INIT_LINK, mbxStatus x%x\n",
 				mb->mbxCommand, mb->mbxStatus);
 
-		/* Clear all interrupt enable conditions */
-		writel(0, phba->HCregaddr);
-		readl(phba->HCregaddr); /* flush */
-		/* Clear all pending interrupts */
-		writel(0xffffffff, phba->HAregaddr);
-		readl(phba->HAregaddr); /* flush */
+			/* Clear all interrupt enable conditions */
+			writel(0, phba->HCregaddr);
+			readl(phba->HCregaddr); /* flush */
+			/* Clear all pending interrupts */
+			writel(0xffffffff, phba->HAregaddr);
+			readl(phba->HAregaddr); /* flush */
 
-		phba->link_state = LPFC_HBA_ERROR;
-		if (rc != MBX_BUSY)
-			mempool_free(pmb, phba->mbox_mem_pool);
-		return -EIO;
+			phba->link_state = LPFC_HBA_ERROR;
+			if (rc != MBX_BUSY)
+				mempool_free(pmb, phba->mbox_mem_pool);
+			return -EIO;
+		}
 	}
 	/* MBOX buffer will be freed in mbox compl */
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);

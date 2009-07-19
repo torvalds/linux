@@ -4139,7 +4139,7 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
 		return -EIO;
 	}
 	data_length = mqe->un.mb_words[5];
-	if (data_length > DMP_FCOEPARAM_RGN_SIZE) {
+	if (data_length > DMP_RGN23_SIZE) {
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 		return -EIO;
@@ -6787,6 +6787,33 @@ lpfc_sli_pcimem_bcopy(void *srcp, void *destp, uint32_t cnt)
 	}
 }
 
+
+/**
+ * lpfc_sli_bemem_bcopy - SLI memory copy function
+ * @srcp: Source memory pointer.
+ * @destp: Destination memory pointer.
+ * @cnt: Number of words required to be copied.
+ *
+ * This function is used for copying data between a data structure
+ * with big endian representation to local endianness.
+ * This function can be called with or without lock.
+ **/
+void
+lpfc_sli_bemem_bcopy(void *srcp, void *destp, uint32_t cnt)
+{
+	uint32_t *src = srcp;
+	uint32_t *dest = destp;
+	uint32_t ldata;
+	int i;
+
+	for (i = 0; i < (int)cnt; i += sizeof(uint32_t)) {
+		ldata = *src;
+		ldata = be32_to_cpu(ldata);
+		*dest = ldata;
+		src++;
+		dest++;
+	}
+}
 
 /**
  * lpfc_sli_ringpostbuf_put - Function to add a buffer to postbufq
@@ -11563,4 +11590,133 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 	} else
 		error = 0;
 	return error;
+}
+
+/**
+ * lpfc_sli_read_link_ste - Read region 23 to decide if link is disabled.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This function read region 23 and parse TLV for port status to
+ * decide if the user disaled the port. If the TLV indicates the
+ * port is disabled, the hba_flag is set accordingly.
+ **/
+void
+lpfc_sli_read_link_ste(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *pmb = NULL;
+	MAILBOX_t *mb;
+	uint8_t *rgn23_data = NULL;
+	uint32_t offset = 0, data_size, sub_tlv_len, tlv_offset;
+	int rc;
+
+	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmb) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2600 lpfc_sli_read_serdes_param failed to"
+			" allocate mailbox memory\n");
+		goto out;
+	}
+	mb = &pmb->u.mb;
+
+	/* Get adapter Region 23 data */
+	rgn23_data = kzalloc(DMP_RGN23_SIZE, GFP_KERNEL);
+	if (!rgn23_data)
+		goto out;
+
+	do {
+		lpfc_dump_mem(phba, pmb, offset, DMP_REGION_23);
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
+
+		if (rc != MBX_SUCCESS) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"2601 lpfc_sli_read_link_ste failed to"
+				" read config region 23 rc 0x%x Status 0x%x\n",
+				rc, mb->mbxStatus);
+			mb->un.varDmp.word_cnt = 0;
+		}
+		/*
+		 * dump mem may return a zero when finished or we got a
+		 * mailbox error, either way we are done.
+		 */
+		if (mb->un.varDmp.word_cnt == 0)
+			break;
+		if (mb->un.varDmp.word_cnt > DMP_RGN23_SIZE - offset)
+			mb->un.varDmp.word_cnt = DMP_RGN23_SIZE - offset;
+
+		lpfc_sli_pcimem_bcopy(((uint8_t *)mb) + DMP_RSP_OFFSET,
+			rgn23_data + offset,
+			mb->un.varDmp.word_cnt);
+		offset += mb->un.varDmp.word_cnt;
+	} while (mb->un.varDmp.word_cnt && offset < DMP_RGN23_SIZE);
+
+	data_size = offset;
+	offset = 0;
+
+	if (!data_size)
+		goto out;
+
+	/* Check the region signature first */
+	if (memcmp(&rgn23_data[offset], LPFC_REGION23_SIGNATURE, 4)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2619 Config region 23 has bad signature\n");
+			goto out;
+	}
+	offset += 4;
+
+	/* Check the data structure version */
+	if (rgn23_data[offset] != LPFC_REGION23_VERSION) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2620 Config region 23 has bad version\n");
+		goto out;
+	}
+	offset += 4;
+
+	/* Parse TLV entries in the region */
+	while (offset < data_size) {
+		if (rgn23_data[offset] == LPFC_REGION23_LAST_REC)
+			break;
+		/*
+		 * If the TLV is not driver specific TLV or driver id is
+		 * not linux driver id, skip the record.
+		 */
+		if ((rgn23_data[offset] != DRIVER_SPECIFIC_TYPE) ||
+		    (rgn23_data[offset + 2] != LINUX_DRIVER_ID) ||
+		    (rgn23_data[offset + 3] != 0)) {
+			offset += rgn23_data[offset + 1] * 4 + 4;
+			continue;
+		}
+
+		/* Driver found a driver specific TLV in the config region */
+		sub_tlv_len = rgn23_data[offset + 1] * 4;
+		offset += 4;
+		tlv_offset = 0;
+
+		/*
+		 * Search for configured port state sub-TLV.
+		 */
+		while ((offset < data_size) &&
+			(tlv_offset < sub_tlv_len)) {
+			if (rgn23_data[offset] == LPFC_REGION23_LAST_REC) {
+				offset += 4;
+				tlv_offset += 4;
+				break;
+			}
+			if (rgn23_data[offset] != PORT_STE_TYPE) {
+				offset += rgn23_data[offset + 1] * 4 + 4;
+				tlv_offset += rgn23_data[offset + 1] * 4 + 4;
+				continue;
+			}
+
+			/* This HBA contains PORT_STE configured */
+			if (!rgn23_data[offset + 2])
+				phba->hba_flag |= LINK_DISABLED;
+
+			goto out;
+		}
+	}
+out:
+	if (pmb)
+		mempool_free(pmb, phba->mbox_mem_pool);
+	kfree(rgn23_data);
+	return;
 }

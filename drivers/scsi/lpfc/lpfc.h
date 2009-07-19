@@ -525,6 +525,7 @@ struct lpfc_hba {
 #define FCP_XRI_ABORT_EVENT	0x20
 #define ELS_XRI_ABORT_EVENT	0x40
 #define ASYNC_EVENT		0x80
+#define LINK_DISABLED		0x100 /* Link disabled by user */
 	struct lpfc_dmabuf slim2p;
 
 	MAILBOX_t *mbox;

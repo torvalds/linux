@@ -394,7 +394,12 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 	case LPFC_INIT_MBX_CMDS:
 	case LPFC_LINK_DOWN:
 	case LPFC_HBA_ERROR:
-		len += snprintf(buf + len, PAGE_SIZE-len, "Link Down\n");
+		if (phba->hba_flag & LINK_DISABLED)
+			len += snprintf(buf + len, PAGE_SIZE-len,
+				"Link Down - User disabled\n");
+		else
+			len += snprintf(buf + len, PAGE_SIZE-len,
+				"Link Down\n");
 		break;
 	case LPFC_LINK_UP:
 	case LPFC_CLEAR_LA:
