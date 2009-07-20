@@ -2722,6 +2722,8 @@ static int pctv340e_frontend_attach(struct dvb_usb_adapter *adap)
 	/* FIXME: not verified yet */
 	dib0700_ctrl_clock(adap->dev, 72, 1);
 
+	msleep(500);
+
 	if (dib7000pc_detection(&adap->dev->i2c_adap) == 0) {
 		/* Demodulator not found for some reason? */
 		return -ENODEV;
