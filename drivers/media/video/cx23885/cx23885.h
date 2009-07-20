@@ -339,6 +339,7 @@ struct cx23885_dev {
 		CX23885_BRIDGE_UNDEFINED = 0,
 		CX23885_BRIDGE_885 = 885,
 		CX23885_BRIDGE_887 = 887,
+		CX23885_BRIDGE_888 = 888,
 	} bridge;
 
 	/* Analog video */
