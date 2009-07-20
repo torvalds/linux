@@ -453,8 +453,8 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 	pci_read_config_dword(pdev, MC_MAX_DOD, &pvt->info.max_dod);
 	pci_read_config_dword(pdev, MC_CHANNEL_MAPPER, &pvt->info.ch_map);
 
-	debugf0("MC control=0x%08x status=0x%08x dod=0x%08x map=0x%08x\n",
-		pvt->info.mc_control, pvt->info.mc_status,
+	debugf0("QPI %d control=0x%08x status=0x%08x dod=0x%08x map=0x%08x\n",
+		socket, pvt->info.mc_control, pvt->info.mc_status,
 		pvt->info.max_dod, pvt->info.ch_map);
 
 	if (ECC_ENABLED(pvt)) {
@@ -469,15 +469,13 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 	}
 
 	/* FIXME: need to handle the error codes */
-	debugf0("DOD Max limits: DIMMS: %d, %d-ranked, %d-banked\n",
+	debugf0("DOD Max limits: DIMMS: %d, %d-ranked, %d-banked "
+		"x%x x 0x%x\n",
 		numdimms(pvt->info.max_dod),
 		numrank(pvt->info.max_dod >> 2),
 		numbank(pvt->info.max_dod >> 4));
-	debugf0("DOD Max rows x colums = 0x%x x 0x%x\n",
 		numrow(pvt->info.max_dod >> 6),
 		numcol(pvt->info.max_dod >> 9));
-
-	debugf0("Memory channel configuration:\n");
 
 	for (i = 0; i < NUM_CHANS; i++) {
 		u32 data, dimm_dod[3], value[8];
@@ -544,10 +542,9 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 
 			pvt->channel[socket][i].dimms++;
 
-			debugf0("\tdimm %d (0x%08x) %d Mb offset: %x, "
-				"numbank: %d,\n\t\t"
-				"numrank: %d, numrow: %#x, numcol: %#x\n",
-				j, dimm_dod[j], size,
+			debugf0("\tdimm %d %d Mb offset: %x, "
+				"bank: %d, rank: %d, row: %#x, col: %#x\n",
+				j, size,
 				RANKOFFSET(dimm_dod[j]),
 				banks, ranks, rows, cols);
 
@@ -599,9 +596,9 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 		pci_read_config_dword(pdev, MC_SAG_CH_5, &value[5]);
 		pci_read_config_dword(pdev, MC_SAG_CH_6, &value[6]);
 		pci_read_config_dword(pdev, MC_SAG_CH_7, &value[7]);
-		debugf0("\t[%i] DIVBY3\tREMOVED\tOFFSET\n", i);
+		debugf1("\t[%i] DIVBY3\tREMOVED\tOFFSET\n", i);
 		for (j = 0; j < 8; j++)
-			debugf0("\t\t%#x\t%#x\t%#x\n",
+			debugf1("\t\t%#x\t%#x\t%#x\n",
 				(value[j] >> 27) & 0x1,
 				(value[j] >> 24) & 0x7,
 				(value[j] && ((1 << 24) - 1)));
