@@ -8,7 +8,7 @@
  *  published by the Free Software Foundation.
  *
  * {sigh}
- * Mororola should be using the CDC ACM USB spec, but instead
+ * Motorola should be using the CDC ACM USB spec, but instead
  * they try to just "do their own thing"...  This driver should handle a
  * few phones in which a basic "dumb serial connection" is needed to be
  * able to get a connection through to them.
