@@ -249,6 +249,14 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "VGN-Z540N"),
 		},
 	},
+	{	/* Handle problems with rebooting on CompuLab SBC-FITPC2 */
+		.callback = set_bios_reboot,
+		.ident = "CompuLab SBC-FITPC2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "CompuLab"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SBC-FITPC2"),
+		},
+	},
 	{ }
 };
 
