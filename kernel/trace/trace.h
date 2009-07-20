@@ -750,13 +750,14 @@ struct event_filter {
 	int			n_preds;
 	struct filter_pred	**preds;
 	char			*filter_string;
+	bool			no_reset;
 };
 
 struct event_subsystem {
 	struct list_head	list;
 	const char		*name;
 	struct dentry		*entry;
-	void			*filter;
+	struct event_filter	*filter;
 	int			nr_events;
 };
 

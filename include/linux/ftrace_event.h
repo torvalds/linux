@@ -101,6 +101,8 @@ void trace_current_buffer_discard_commit(struct ring_buffer_event *event);
 
 void tracing_record_cmdline(struct task_struct *tsk);
 
+struct event_filter;
+
 struct ftrace_event_call {
 	struct list_head	list;
 	char			*name;
@@ -116,7 +118,7 @@ struct ftrace_event_call {
 	int			(*define_fields)(void);
 	struct list_head	fields;
 	int			filter_active;
-	void			*filter;
+	struct event_filter	*filter;
 	void			*mod;
 
 #ifdef CONFIG_EVENT_PROFILE
