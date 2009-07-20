@@ -341,7 +341,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		if (req_ie && status == WLAN_STATUS_SUCCESS) {
 			memset(&wrqu, 0, sizeof(wrqu));
 			wrqu.data.length = req_ie_len;
-			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, req_ie);
+			wireless_send_event(dev, IWEVASSOCREQIE, &wrqu, req_ie);
 		}
 
 		if (resp_ie && status == WLAN_STATUS_SUCCESS) {
@@ -474,7 +474,7 @@ void __cfg80211_roamed(struct wireless_dev *wdev, const u8 *bssid,
 	if (req_ie) {
 		memset(&wrqu, 0, sizeof(wrqu));
 		wrqu.data.length = req_ie_len;
-		wireless_send_event(wdev->netdev, IWEVASSOCRESPIE,
+		wireless_send_event(wdev->netdev, IWEVASSOCREQIE,
 				    &wrqu, req_ie);
 	}
 
