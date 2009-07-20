@@ -43,14 +43,14 @@
 
 /* Version Information */
 #define DRIVER_VERSION "v0.73"
-#define ZR364_VERSION_CODE KERNEL_VERSION(0, 7, 3)
+#define ZR364XX_VERSION_CODE KERNEL_VERSION(0, 7, 3)
 #define DRIVER_AUTHOR "Antoine Jacquet, http://royale.zerezo.com/"
 #define DRIVER_DESC "Zoran 364xx"
 
 
 /* Camera */
 #define FRAMES 1
-#define MAX_FRAME_SIZE 100000
+#define MAX_FRAME_SIZE 200000
 #define BUFFER_SIZE 0x1000
 #define CTRL_TIMEOUT 500
 
@@ -734,7 +734,7 @@ static int zr364xx_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->card, cam->udev->product, sizeof(cap->card));
 	strlcpy(cap->bus_info, dev_name(&cam->udev->dev),
 		sizeof(cap->bus_info));
-	cap->version = ZR364_VERSION_CODE;
+	cap->version = ZR364XX_VERSION_CODE;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
 			    V4L2_CAP_READWRITE |
 			    V4L2_CAP_STREAMING;
@@ -874,9 +874,14 @@ static int zr364xx_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
+	if (!(f->fmt.pix.width == 160 && f->fmt.pix.height == 120) &&
+	    !(f->fmt.pix.width == 640 && f->fmt.pix.height == 480)) {
+		f->fmt.pix.width = 320;
+		f->fmt.pix.height = 240;
+	}
+
 	f->fmt.pix.field = V4L2_FIELD_NONE;
-	f->fmt.pix.width = cam->width;
-	f->fmt.pix.height = cam->height;
+	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = 0;
@@ -907,7 +912,6 @@ static int zr364xx_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-/* Lamarque TODO: implement changing resolution on the fly */
 static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				    struct v4l2_format *f)
 {
@@ -915,6 +919,7 @@ static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct videobuf_queue *q = &cam->vb_vidq;
 	char pixelformat_name[5];
 	int ret = zr364xx_vidioc_try_fmt_vid_cap(file, cam, f);
+	int i;
 
 	if (ret < 0)
 		return ret;
@@ -927,15 +932,55 @@ static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		goto out;
 	}
 
-	f->fmt.pix.field = V4L2_FIELD_NONE;
-	f->fmt.pix.width = cam->width;
-	f->fmt.pix.height = cam->height;
+	if (res_check(cam)) {
+		DBG("%s can't change format after started\n", __func__);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	cam->width = f->fmt.pix.width;
+	cam->height = f->fmt.pix.height;
+	dev_info(&cam->udev->dev, "%s: %dx%d mode selected\n", __func__,
+		 cam->width, cam->height);
 	f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = 0;
 	f->fmt.pix.priv = 0;
 	cam->vb_vidq.field = f->fmt.pix.field;
 	cam->mode.color = V4L2_PIX_FMT_JPEG;
+
+	if (f->fmt.pix.width == 160 && f->fmt.pix.height == 120)
+		mode = 1;
+	else if (f->fmt.pix.width == 640 && f->fmt.pix.height == 480)
+		mode = 2;
+	else
+		mode = 0;
+
+	m0d1[0] = mode;
+	m1[2].value = 0xf000 + mode;
+	m2[1].value = 0xf000 + mode;
+	header2[437] = cam->height / 256;
+	header2[438] = cam->height % 256;
+	header2[439] = cam->width / 256;
+	header2[440] = cam->width % 256;
+
+	for (i = 0; init[cam->method][i].size != -1; i++) {
+		ret =
+		    send_control_msg(cam->udev, 1, init[cam->method][i].value,
+				     0, init[cam->method][i].bytes,
+				     init[cam->method][i].size);
+		if (ret < 0) {
+			dev_err(&cam->udev->dev,
+			   "error during resolution change sequence: %d\n", i);
+			goto out;
+		}
+	}
+
+	/* Added some delay here, since opening/closing the camera quickly,
+	 * like Ekiga does during its startup, can crash the webcam
+	 */
+	mdelay(100);
+	cam->skip = 2;
 	ret = 0;
 
 out:
@@ -1123,6 +1168,7 @@ static int zr364xx_start_acquire(struct zr364xx_camera *cam)
 		cam->buffer.frame[j].ulState = ZR364XX_READ_IDLE;
 		cam->buffer.frame[j].cur_size = 0;
 	}
+	cam->b_acquire = 1;
 	return 0;
 }
 
@@ -1165,7 +1211,6 @@ static int zr364xx_vidioc_streamon(struct file *file, void *priv,
 	res = videobuf_streamon(&cam->vb_vidq);
 	if (res == 0) {
 		zr364xx_start_acquire(cam);
-		cam->b_acquire = 1;
 	} else {
 		res_free(cam);
 	}
