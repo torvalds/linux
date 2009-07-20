@@ -339,9 +339,9 @@
 #define AR5K_SISR2		0x008c			/* Register Address [5211+] */
 #define AR5K_SISR2_QCU_TXURN	0x000003ff	/* Mask for QCU_TXURN */
 #define	AR5K_SISR2_QCU_TXURN_S	0
-#define	AR5K_SISR2_MCABT	0x00100000	/* Master Cycle Abort */
-#define	AR5K_SISR2_SSERR	0x00200000	/* Signaled System Error */
-#define	AR5K_SISR2_DPERR	0x00400000	/* Bus parity error */
+#define	AR5K_SISR2_MCABT	0x00010000	/* Master Cycle Abort */
+#define	AR5K_SISR2_SSERR	0x00020000	/* Signaled System Error */
+#define	AR5K_SISR2_DPERR	0x00040000	/* Bus parity error */
 #define	AR5K_SISR2_TIM		0x01000000	/* [5212+] */
 #define	AR5K_SISR2_CAB_END	0x02000000	/* [5212+] */
 #define	AR5K_SISR2_DTIM_SYNC	0x04000000	/* DTIM sync lost [5212+] */
@@ -430,9 +430,9 @@
 #define AR5K_SIMR2		0x00ac			/* Register Address [5211+] */
 #define AR5K_SIMR2_QCU_TXURN	0x000003ff	/* Mask for QCU_TXURN */
 #define AR5K_SIMR2_QCU_TXURN_S	0
-#define	AR5K_SIMR2_MCABT	0x00100000	/* Master Cycle Abort */
-#define	AR5K_SIMR2_SSERR	0x00200000	/* Signaled System Error */
-#define	AR5K_SIMR2_DPERR	0x00400000	/* Bus parity error */
+#define	AR5K_SIMR2_MCABT	0x00010000	/* Master Cycle Abort */
+#define	AR5K_SIMR2_SSERR	0x00020000	/* Signaled System Error */
+#define	AR5K_SIMR2_DPERR	0x00040000	/* Bus parity error */
 #define	AR5K_SIMR2_TIM		0x01000000	/* [5212+] */
 #define	AR5K_SIMR2_CAB_END	0x02000000	/* [5212+] */
 #define	AR5K_SIMR2_DTIM_SYNC	0x04000000	/* DTIM Sync lost [5212+] */
