@@ -19,6 +19,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <stdarg.h>
+
 #include "dialog.h"
 
 struct dialog_info dlg;
