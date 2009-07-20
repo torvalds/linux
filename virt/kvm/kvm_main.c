@@ -741,8 +741,8 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 	if (alloc_cpumask_var(&cpus, GFP_ATOMIC))
 		cpumask_clear(cpus);
 
-	me = get_cpu();
 	spin_lock(&kvm->requests_lock);
+	me = smp_processor_id();
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (test_and_set_bit(req, &vcpu->requests))
 			continue;
@@ -757,7 +757,6 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 	else
 		called = false;
 	spin_unlock(&kvm->requests_lock);
-	put_cpu();
 	free_cpumask_var(cpus);
 	return called;
 }
