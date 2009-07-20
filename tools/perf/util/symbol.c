@@ -6,8 +6,14 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
+#include <bfd.h>
 
 const char *sym_hist_filter;
+
+#ifndef DMGL_PARAMS
+#define DMGL_PARAMS      (1 << 0)       /* Include function args */
+#define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
+#endif
 
 static struct symbol *symbol__new(u64 start, u64 len,
 				  const char *name, unsigned int priv_size,
@@ -571,6 +577,8 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 						     NULL) != NULL);
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
 		struct symbol *f;
+		const char *name;
+		char *demangled;
 		u64 obj_start;
 		struct section *section = NULL;
 		int is_label = elf_sym__is_label(&sym);
@@ -609,10 +617,19 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 				goto out_elf_end;
 			}
 		}
+		/*
+		 * We need to figure out if the object was created from C++ sources
+		 * DWARF DW_compile_unit has this, but we don't always have access
+		 * to it...
+		 */
+		name = elf_sym__name(&sym, symstrs);
+		demangled = bfd_demangle(NULL, name, DMGL_PARAMS | DMGL_ANSI);
+		if (demangled != NULL)
+			name = demangled;
 
-		f = symbol__new(sym.st_value, sym.st_size,
-				elf_sym__name(&sym, symstrs),
+		f = symbol__new(sym.st_value, sym.st_size, name,
 				self->sym_priv_size, obj_start, verbose);
+		free(demangled);
 		if (!f)
 			goto out_elf_end;
 
