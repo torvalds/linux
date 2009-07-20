@@ -546,13 +546,17 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 		if (!wdev->connect_keys->params[i].cipher)
 			continue;
 		if (rdev->ops->add_key(wdev->wiphy, dev, i, NULL,
-					&wdev->connect_keys->params[i]))
+					&wdev->connect_keys->params[i])) {
 			printk(KERN_ERR "%s: failed to set key %d\n",
 				dev->name, i);
+			continue;
+		}
 		if (wdev->connect_keys->def == i)
-			if (rdev->ops->set_default_key(wdev->wiphy, dev, i))
+			if (rdev->ops->set_default_key(wdev->wiphy, dev, i)) {
 				printk(KERN_ERR "%s: failed to set defkey %d\n",
 					dev->name, i);
+				continue;
+			}
 		if (wdev->connect_keys->defmgmt == i)
 			if (rdev->ops->set_default_mgmt_key(wdev->wiphy, dev, i))
 				printk(KERN_ERR "%s: failed to set mgtdef %d\n",
