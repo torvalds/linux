@@ -474,6 +474,21 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 	return 0;
 }
 
+/*
+ * Some users have reported their EEPROM programmed with
+ * 0x8000 set, this is not a supported regulatory domain
+ * but since we have more than one user with it we need
+ * a solution for them. We default to 0x64, which is the
+ * default Atheros world regulatory domain.
+ */
+static void ath_regd_sanitize(struct ath_regulatory *reg)
+{
+	if (reg->current_rd != COUNTRY_ERD_FLAG)
+		return;
+	printk(KERN_DEBUG "ath: EEPROM regdomain sanitized\n");
+	reg->current_rd = 0x64;
+}
+
 int
 ath_regd_init(struct ath_regulatory *reg,
 	      struct wiphy *wiphy,
@@ -485,6 +500,8 @@ ath_regd_init(struct ath_regulatory *reg,
 
 	if (!reg)
 		return -EINVAL;
+
+	ath_regd_sanitize(reg);
 
 	printk(KERN_DEBUG "ath: EEPROM regdomain: 0x%0x\n", reg->current_rd);
 
