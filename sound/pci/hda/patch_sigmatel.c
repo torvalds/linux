@@ -5855,6 +5855,8 @@ static unsigned int *stac9872_brd_tbl[STAC_9872_MODELS] = {
 };
 
 static struct snd_pci_quirk stac9872_cfg_tbl[] = {
+	SND_PCI_QUIRK_MASK(0x104d, 0xfff0, 0x81e0,
+			   "Sony VAIO F/S", STAC_9872_VAIO),
 	{} /* terminator */
 };
 
@@ -5867,6 +5869,8 @@ static int patch_stac9872(struct hda_codec *codec)
 	if (spec == NULL)
 		return -ENOMEM;
 	codec->spec = spec;
+	spec->num_pins = ARRAY_SIZE(stac9872_pin_nids);
+	spec->pin_nids = stac9872_pin_nids;
 
 	spec->board_config = snd_hda_check_board_config(codec, STAC_9872_MODELS,
 							stac9872_models,
@@ -5878,8 +5882,6 @@ static int patch_stac9872(struct hda_codec *codec)
 		stac92xx_set_config_regs(codec,
 					 stac9872_brd_tbl[spec->board_config]);
 
-	spec->num_pins = ARRAY_SIZE(stac9872_pin_nids);
-	spec->pin_nids = stac9872_pin_nids;
 	spec->multiout.dac_nids = spec->dac_nids;
 	spec->num_adcs = ARRAY_SIZE(stac9872_adc_nids);
 	spec->adc_nids = stac9872_adc_nids;
