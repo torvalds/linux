@@ -858,7 +858,7 @@ static struct platform_device i2c_bfin_twi_device = {
 #endif
 
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
-#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
+#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
 	{
 		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
 	},
