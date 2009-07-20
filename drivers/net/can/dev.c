@@ -473,6 +473,10 @@ int open_candev(struct net_device *dev)
 		return -EINVAL;
 	}
 
+	/* Switch carrier on if device was stopped while in bus-off state */
+	if (!netif_carrier_ok(dev))
+		netif_carrier_on(dev);
+
 	setup_timer(&priv->restart_timer, can_restart, (unsigned long)dev);
 
 	return 0;
