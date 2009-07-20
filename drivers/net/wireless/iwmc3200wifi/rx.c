@@ -517,6 +517,9 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 
 		iwm_link_on(iwm);
 
+		if (iwm->conf.mode == UMAC_MODE_IBSS)
+			goto ibss;
+
 		cfg80211_connect_result(iwm_to_ndev(iwm),
 					complete->bssid,
 					iwm->req_ie, iwm->req_ie_len,
@@ -530,6 +533,9 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 
 		iwm_link_off(iwm);
 
+		if (iwm->conf.mode == UMAC_MODE_IBSS)
+			goto ibss;
+
 		cfg80211_connect_result(iwm_to_ndev(iwm), complete->bssid,
 					NULL, 0, NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
@@ -538,11 +544,10 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 		break;
 	}
 
-	if (iwm->conf.mode == UMAC_MODE_IBSS) {
-		cfg80211_ibss_joined(iwm_to_ndev(iwm), iwm->bssid, GFP_KERNEL);
-		return 0;
-	}
+	return 0;
 
+ ibss:
+	cfg80211_ibss_joined(iwm_to_ndev(iwm), iwm->bssid, GFP_KERNEL);
 	return 0;
 }
 
