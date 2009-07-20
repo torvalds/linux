@@ -1422,7 +1422,7 @@ vpif_init_free_channel_objects:
  */
 static __init int vpif_probe(struct platform_device *pdev)
 {
-	const struct subdev_info *subdevdata;
+	const struct vpif_subdev_info *subdevdata;
 	int i, j = 0, k, q, m, err = 0;
 	struct i2c_adapter *i2c_adap;
 	struct vpif_config *config;
