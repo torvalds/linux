@@ -33,8 +33,6 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
-#define I915_DRV	"i915_drv"
-
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time
  * the head pointer changes, so that EBUSY only happens if the ring
@@ -101,7 +99,7 @@ static int i915_init_phys_hws(struct drm_device *dev)
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 
 	I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
-	DRM_DEBUG_DRIVER(I915_DRV, "Enabled hardware status page\n");
+	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
 	return 0;
 }
 
@@ -187,8 +185,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		master_priv->sarea_priv = (drm_i915_sarea_t *)
 			((u8 *)master_priv->sarea->handle + init->sarea_priv_offset);
 	} else {
-		DRM_DEBUG_DRIVER(I915_DRV,
-				"sarea not found assuming DRI2 userspace\n");
+		DRM_DEBUG_DRIVER("sarea not found assuming DRI2 userspace\n");
 	}
 
 	if (init->ring_size != 0) {
@@ -238,7 +235,7 @@ static int i915_dma_resume(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
-	DRM_DEBUG_DRIVER(I915_DRV, "%s\n", __func__);
+	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	if (dev_priv->ring.map.handle == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
@@ -251,14 +248,14 @@ static int i915_dma_resume(struct drm_device * dev)
 		DRM_ERROR("Can not find hardware status page\n");
 		return -EINVAL;
 	}
-	DRM_DEBUG_DRIVER(I915_DRV, "hw status page @ %p\n",
+	DRM_DEBUG_DRIVER("hw status page @ %p\n",
 				dev_priv->hw_status_page);
 
 	if (dev_priv->status_gfx_addr != 0)
 		I915_WRITE(HWS_PGA, dev_priv->status_gfx_addr);
 	else
 		I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
-	DRM_DEBUG_DRIVER(I915_DRV, "Enabled hardware status page\n");
+	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
 
 	return 0;
 }
@@ -552,7 +549,7 @@ static int i915_dispatch_flip(struct drm_device * dev)
 	if (!master_priv->sarea_priv)
 		return -EINVAL;
 
-	DRM_DEBUG_DRIVER(I915_DRV, "%s: page=%d pfCurrentPage=%d\n",
+	DRM_DEBUG_DRIVER("%s: page=%d pfCurrentPage=%d\n",
 			  __func__,
 			 dev_priv->current_page,
 			 master_priv->sarea_priv->pf_current_page);
@@ -633,8 +630,7 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_DRIVER(I915_DRV,
-			"i915 batchbuffer, start %x used %d cliprects %d\n",
+	DRM_DEBUG_DRIVER("i915 batchbuffer, start %x used %d cliprects %d\n",
 			batch->start, batch->used, batch->num_cliprects);
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -681,8 +677,7 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	void *batch_data;
 	int ret;
 
-	DRM_DEBUG_DRIVER(I915_DRV,
-			"i915 cmdbuffer, buf %p sz %d cliprects %d\n",
+	DRM_DEBUG_DRIVER("i915 cmdbuffer, buf %p sz %d cliprects %d\n",
 			cmdbuf->buf, cmdbuf->sz, cmdbuf->num_cliprects);
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -735,7 +730,7 @@ static int i915_flip_bufs(struct drm_device *dev, void *data,
 {
 	int ret;
 
-	DRM_DEBUG_DRIVER(I915_DRV, "%s\n", __func__);
+	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -778,7 +773,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev_priv->num_fence_regs - dev_priv->fence_reg_start;
 		break;
 	default:
-		DRM_DEBUG_DRIVER(I915_DRV, "Unknown parameter %d\n",
+		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 					param->param);
 		return -EINVAL;
 	}
@@ -819,7 +814,7 @@ static int i915_setparam(struct drm_device *dev, void *data,
 		dev_priv->fence_reg_start = param->value;
 		break;
 	default:
-		DRM_DEBUG_DRIVER(I915_DRV, "unknown parameter %d\n",
+		DRM_DEBUG_DRIVER("unknown parameter %d\n",
 					param->param);
 		return -EINVAL;
 	}
@@ -846,7 +841,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	DRM_DEBUG("set status page addr 0x%08x\n", (u32)hws->addr);
+	DRM_DEBUG_DRIVER("set status page addr 0x%08x\n", (u32)hws->addr);
 
 	dev_priv->status_gfx_addr = hws->addr & (0x1ffff<<12);
 
@@ -868,9 +863,9 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 	I915_WRITE(HWS_PGA, dev_priv->status_gfx_addr);
-	DRM_DEBUG_DRIVER(I915_DRV, "load hws HWS_PGA with gfx mem 0x%x\n",
+	DRM_DEBUG_DRIVER("load hws HWS_PGA with gfx mem 0x%x\n",
 				dev_priv->status_gfx_addr);
-	DRM_DEBUG_DRIVER(I915_DRV, "load hws at %p\n",
+	DRM_DEBUG_DRIVER("load hws at %p\n",
 				dev_priv->hw_status_page);
 	return 0;
 }
@@ -1310,7 +1305,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_i915_file_private *i915_file_priv;
 
-	DRM_DEBUG_DRIVER(I915_DRV, "\n");
+	DRM_DEBUG_DRIVER("\n");
 	i915_file_priv = (struct drm_i915_file_private *)
 	    kmalloc(sizeof(*i915_file_priv), GFP_KERNEL);
 

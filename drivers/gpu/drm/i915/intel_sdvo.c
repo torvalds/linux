@@ -36,7 +36,6 @@
 #include "intel_sdvo_regs.h"
 
 #undef SDVO_DEBUG
-#define I915_SDVO	"i915_sdvo"
 struct intel_sdvo_priv {
 	u8 slave_addr;
 
@@ -178,7 +177,7 @@ static bool intel_sdvo_read_byte(struct intel_output *intel_output, u8 addr,
 		return true;
 	}
 
-	DRM_DEBUG("i2c transfer returned %d\n", ret);
+	DRM_DEBUG_KMS("i2c transfer returned %d\n", ret);
 	return false;
 }
 
@@ -288,7 +287,7 @@ static void intel_sdvo_debug_write(struct intel_output *intel_output, u8 cmd,
 	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
 	int i;
 
-	DRM_DEBUG_KMS(I915_SDVO, "%s: W: %02X ",
+	DRM_DEBUG_KMS("%s: W: %02X ",
 				SDVO_NAME(sdvo_priv), cmd);
 	for (i = 0; i < args_len; i++)
 		DRM_LOG_KMS("%02X ", ((u8 *)args)[i]);
@@ -341,7 +340,7 @@ static void intel_sdvo_debug_response(struct intel_output *intel_output,
 	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
 	int i;
 
-	DRM_DEBUG_KMS(I915_SDVO, "%s: R: ", SDVO_NAME(sdvo_priv));
+	DRM_DEBUG_KMS("%s: R: ", SDVO_NAME(sdvo_priv));
 	for (i = 0; i < response_len; i++)
 		DRM_LOG_KMS("%02X ", ((u8 *)response)[i]);
 	for (; i < 8; i++)
@@ -658,10 +657,10 @@ static int intel_sdvo_get_clock_rate_mult(struct intel_output *intel_output)
 	status = intel_sdvo_read_response(intel_output, &response, 1);
 
 	if (status != SDVO_CMD_STATUS_SUCCESS) {
-		DRM_DEBUG("Couldn't get SDVO clock rate multiplier\n");
+		DRM_DEBUG_KMS("Couldn't get SDVO clock rate multiplier\n");
 		return SDVO_CLOCK_RATE_MULT_1X;
 	} else {
-		DRM_DEBUG("Current clock rate multiplier: %d\n", response);
+		DRM_DEBUG_KMS("Current clock rate multiplier: %d\n", response);
 	}
 
 	return response;
@@ -942,14 +941,14 @@ static void intel_sdvo_set_tv_format(struct intel_output *output)
 	format = &sdvo_priv->tv_format;
 	memset(&unset, 0, sizeof(unset));
 	if (memcmp(format, &unset, sizeof(*format))) {
-		DRM_DEBUG("%s: Choosing default TV format of NTSC-M\n",
+		DRM_DEBUG_KMS("%s: Choosing default TV format of NTSC-M\n",
 				SDVO_NAME(sdvo_priv));
 		format->ntsc_m = 1;
 		intel_sdvo_write_cmd(output, SDVO_CMD_SET_TV_FORMAT, format,
 				sizeof(*format));
 		status = intel_sdvo_read_response(output, NULL, 0);
 		if (status != SDVO_CMD_STATUS_SUCCESS)
-			DRM_DEBUG("%s: Failed to set TV format\n",
+			DRM_DEBUG_KMS("%s: Failed to set TV format\n",
 					SDVO_NAME(sdvo_priv));
 	}
 }
@@ -1220,8 +1219,8 @@ static void intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 		 * a given it the status is a success, we succeeded.
 		 */
 		if (status == SDVO_CMD_STATUS_SUCCESS && !input1) {
-			DRM_DEBUG("First %s output reported failure to sync\n",
-				   SDVO_NAME(sdvo_priv));
+			DRM_DEBUG_KMS("First %s output reported failure to "
+					"sync\n", SDVO_NAME(sdvo_priv));
 		}
 
 		if (0)
@@ -1316,8 +1315,8 @@ static void intel_sdvo_restore(struct drm_connector *connector)
 			intel_wait_for_vblank(dev);
 		status = intel_sdvo_get_trained_inputs(intel_output, &input1, &input2);
 		if (status == SDVO_CMD_STATUS_SUCCESS && !input1)
-			DRM_DEBUG("First %s output reported failure to sync\n",
-				   SDVO_NAME(sdvo_priv));
+			DRM_DEBUG_KMS("First %s output reported failure to "
+					"sync\n", SDVO_NAME(sdvo_priv));
 	}
 
 	intel_sdvo_set_active_outputs(intel_output, sdvo_priv->save_active_outputs);
@@ -1395,7 +1394,7 @@ int intel_sdvo_supports_hotplug(struct drm_connector *connector)
 	u8 response[2];
 	u8 status;
 	struct intel_output *intel_output;
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 
 	if (!connector)
 		return 0;
@@ -1460,7 +1459,7 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 	intel_sdvo_write_cmd(intel_output, SDVO_CMD_GET_ATTACHED_DISPLAYS, NULL, 0);
 	status = intel_sdvo_read_response(intel_output, &response, 2);
 
-	DRM_DEBUG("SDVO response %d %d\n", response[0], response[1]);
+	DRM_DEBUG_KMS("SDVO response %d %d\n", response[0], response[1]);
 
 	if (status != SDVO_CMD_STATUS_SUCCESS)
 		return connector_status_unknown;
@@ -1905,8 +1904,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {
 		if (!intel_sdvo_read_byte(intel_output, i, &ch[i])) {
-			DRM_DEBUG_KMS(I915_SDVO,
-					"No SDVO device found on SDVO%c\n",
+			DRM_DEBUG_KMS("No SDVO device found on SDVO%c\n",
 					output_device == SDVOB ? 'B' : 'C');
 			goto err_i2c;
 		}
@@ -1989,8 +1987,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 
 		sdvo_priv->controlled_output = 0;
 		memcpy (bytes, &sdvo_priv->caps.output_flags, 2);
-		DRM_DEBUG_KMS(I915_SDVO,
-				"%s: Unknown SDVO output type (0x%02x%02x)\n",
+		DRM_DEBUG_KMS("%s: Unknown SDVO output type (0x%02x%02x)\n",
 				  SDVO_NAME(sdvo_priv),
 				  bytes[0], bytes[1]);
 		encoder_type = DRM_MODE_ENCODER_NONE;
@@ -2022,7 +2019,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 					       &sdvo_priv->pixel_clock_max);
 
 
-	DRM_DEBUG_KMS(I915_SDVO, "%s device VID/DID: %02X:%02X.%02X, "
+	DRM_DEBUG_KMS("%s device VID/DID: %02X:%02X.%02X, "
 			"clock range %dMHz - %dMHz, "
 			"input 1: %c, input 2: %c, "
 			"output 1: %c, output 2: %c\n",

@@ -38,8 +38,6 @@
 #include "i915_drv.h"
 #include <linux/acpi.h>
 
-#define I915_LVDS "i915_lvds"
-
 /*
  * the following four scaling options are defined.
  * #define DRM_MODE_SCALE_NON_GPU	0
@@ -673,8 +671,7 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 		struct drm_crtc *crtc = connector->encoder->crtc;
 		struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
 		if (value == DRM_MODE_SCALE_NON_GPU) {
-			DRM_DEBUG_KMS(I915_LVDS,
-					"non_GPU property is unsupported\n");
+			DRM_DEBUG_KMS("non_GPU property is unsupported\n");
 			return 0;
 		}
 		if (lvds_priv->fitting_mode == value) {
@@ -731,8 +728,7 @@ static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
 
 static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
 {
-	DRM_DEBUG_KMS(I915_LVDS,
-		      "Skipping LVDS initialization for %s\n", id->ident);
+	DRM_DEBUG_KMS("Skipping LVDS initialization for %s\n", id->ident);
 	return 1;
 }
 
@@ -1013,7 +1009,7 @@ out:
 	return;
 
 failed:
-	DRM_DEBUG_KMS(I915_LVDS, "No LVDS modes found, disabling.\n");
+	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
 	if (intel_output->ddc_bus)
 		intel_i2c_destroy(intel_output->ddc_bus);
 	drm_connector_cleanup(connector);

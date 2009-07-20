@@ -174,19 +174,19 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 					__func__, fmt, ##args);		\
 	} while (0)
 
-#define DRM_DEBUG_DRIVER(prefix, fmt, args...)				\
+#define DRM_DEBUG_DRIVER(fmt, args...)					\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_DRIVER, prefix,		\
+		drm_ut_debug_printk(DRM_UT_DRIVER, DRM_NAME,		\
 					__func__, fmt, ##args);		\
 	} while (0)
-#define DRM_DEBUG_KMS(prefix, fmt, args...)				\
+#define DRM_DEBUG_KMS(fmt, args...)				\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_KMS, prefix, 		\
+		drm_ut_debug_printk(DRM_UT_KMS, DRM_NAME, 		\
 					 __func__, fmt, ##args);	\
 	} while (0)
-#define DRM_DEBUG_MODE(prefix, fmt, args...)				\
+#define DRM_DEBUG_MODE(fmt, args...)				\
 	do {								\
-		drm_ut_debug_printk(DRM_UT_MODE, prefix, 		\
+		drm_ut_debug_printk(DRM_UT_MODE, DRM_NAME, 		\
 					 __func__, fmt, ##args);	\
 	} while (0)
 #define DRM_LOG(fmt, args...)						\
@@ -210,9 +210,9 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 					NULL, fmt, ##args);		\
 	} while (0)
 #else
-#define DRM_DEBUG_DRIVER(prefix, fmt, args...) do { } while (0)
-#define DRM_DEBUG_KMS(prefix, fmt, args...)	do { } while (0)
-#define DRM_DEBUG_MODE(prefix, fmt, args...)	do { } while (0)
+#define DRM_DEBUG_DRIVER(fmt, args...) do { } while (0)
+#define DRM_DEBUG_KMS(fmt, args...)	do { } while (0)
+#define DRM_DEBUG_MODE(fmt, args...)	do { } while (0)
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
 #define DRM_LOG(fmt, arg...)		do { } while (0)
 #define DRM_LOG_KMS(fmt, args...) do { } while (0)
