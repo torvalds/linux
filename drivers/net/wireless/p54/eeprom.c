@@ -529,7 +529,7 @@ static struct p54_cal_database *p54_convert_db(struct pda_custom_wrapper *src,
 int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 {
 	struct p54_common *priv = dev->priv;
-	struct eeprom_pda_wrap *wrap = NULL;
+	struct eeprom_pda_wrap *wrap;
 	struct pda_entry *entry;
 	unsigned int data_len, entry_len;
 	void *tmp;
@@ -722,7 +722,7 @@ int p54_read_eeprom(struct ieee80211_hw *dev)
 	struct p54_common *priv = dev->priv;
 	size_t eeprom_size = 0x2020, offset = 0, blocksize, maxblocksize;
 	int ret = -ENOMEM;
-	void *eeprom = NULL;
+	void *eeprom;
 
 	maxblocksize = EEPROM_READBACK_LEN;
 	if (priv->fw_var >= 0x509)
