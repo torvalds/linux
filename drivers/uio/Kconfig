@@ -84,4 +84,14 @@ config UIO_SERCOS3
 
 	  If you compile this as a module, it will be called uio_sercos3.
 
+config UIO_PCI_GENERIC
+	tristate "Generic driver for PCI 2.3 and PCI Express cards"
+	depends on PCI
+	default n
+	help
+	  Generic driver that you can bind, dynamically, to any
+	  PCI 2.3 compliant and PCI Express card. It is useful,
+	  primarily, for virtualization scenarios.
+	  If you compile this as a module, it will be called uio_pci_generic.
+
 endif

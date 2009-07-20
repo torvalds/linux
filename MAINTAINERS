@@ -2218,6 +2218,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arnd/asm-generic.git
 S:	Maintained
 F:	include/asm-generic
 
+GENERIC UIO DRIVER FOR PCI DEVICES
+M:	Michael S. Tsirkin <mst@redhat.com>
+L:	kvm@vger.kernel.org
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	drivers/uio/uio_pci_generic.c
+
 GFS2 FILE SYSTEM
 M:	Steven Whitehouse <swhiteho@redhat.com>
 L:	cluster-devel@redhat.com
