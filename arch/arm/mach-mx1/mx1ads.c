@@ -104,12 +104,10 @@ static struct imxi2c_platform_data mx1ads_i2c_data = {
 
 static struct i2c_board_info mx1ads_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("pcf857x", 0x22),
-		.type = "pcf8575",
+		I2C_BOARD_INFO("pcf8575", 0x22),
 		.platform_data = &pcf857x_data[0],
 	}, {
-		I2C_BOARD_INFO("pcf857x", 0x24),
-		.type = "pcf8575",
+		I2C_BOARD_INFO("pcf8575", 0x24),
 		.platform_data = &pcf857x_data[1],
 	},
 };

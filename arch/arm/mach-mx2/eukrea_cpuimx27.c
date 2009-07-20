@@ -135,8 +135,7 @@ static struct imxi2c_platform_data eukrea_cpuimx27_i2c_1_data = {
 
 static struct i2c_board_info eukrea_cpuimx27_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
-		.type = "pcf8563"
+		I2C_BOARD_INFO("pcf8563", 0x51),
 	},
 };
 
