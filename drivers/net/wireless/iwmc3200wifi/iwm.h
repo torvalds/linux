@@ -281,6 +281,11 @@ struct iwm_priv {
 	struct work_struct reset_worker;
 	struct mutex mutex;
 
+	u8 *req_ie;
+	int req_ie_len;
+	u8 *resp_ie;
+	int resp_ie_len;
+
 	char private[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
 

@@ -497,6 +497,13 @@ void iwm_link_off(struct iwm_priv *iwm)
 	memset(wstats, 0, sizeof(struct iw_statistics));
 	wstats->qual.updated = IW_QUAL_ALL_INVALID;
 
+	kfree(iwm->req_ie);
+	iwm->req_ie = NULL;
+	iwm->req_ie_len = 0;
+	kfree(iwm->resp_ie);
+	iwm->resp_ie = NULL;
+	iwm->resp_ie_len = 0;
+
 	del_timer_sync(&iwm->watchdog);
 }
 
