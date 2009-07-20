@@ -28,11 +28,13 @@
 #include <linux/delay.h>
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
+#include <asm/unaligned.h>
 
 #include "dvb_frontend.h"
 
 #include "xc4000.h"
 #include "tuner-i2c.h"
+#include "tuner-xc2028-types.h"
 
 static int debug;
 module_param(debug, int, 0644);
@@ -50,13 +52,34 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 #define dprintk(level, fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc4000", ## arg)
 
-#define XC4000_DEFAULT_FIRMWARE "dvb-fe-xc4000-1.4.26.fw"
-#define XC4000_DEFAULT_FIRMWARE_SIZE 8236
+#define XC4000_DEFAULT_FIRMWARE "xc4000-01.fw"
+#define XC4000_DEFAULT_FIRMWARE_SIZE 8434
+
+
+/* struct for storing firmware table */
+struct firmware_description {
+	unsigned int  type;
+	v4l2_std_id   id;
+	__u16         int_freq;
+	unsigned char *ptr;
+	unsigned int  size;
+};
+
+struct firmware_properties {
+	unsigned int	type;
+	v4l2_std_id	id;
+	v4l2_std_id	std_req;
+	__u16		int_freq;
+	unsigned int	scode_table;
+	int 		scode_nr;
+};
 
 struct xc4000_priv {
 	struct tuner_i2c_props i2c_props;
 	struct list_head hybrid_tuner_instance_list;
-
+	struct firmware_description *firm;
+	int			firm_size;
+	__u16			firm_version;
 	u32 if_khz;
 	u32 freq_hz;
 	u32 bandwidth;
@@ -167,10 +190,6 @@ struct XC_TV_STANDARD {
 #define DK_SECAM_A2MONO 	14
 #define L_SECAM_NICAM		15
 #define LC_SECAM_NICAM		16
-#define DTV6			17
-#define DTV8			18
-#define DTV7_8			19
-#define DTV7			20
 #define FM_Radio_INPUT2 	21
 #define FM_Radio_INPUT1 	22
 
@@ -575,41 +594,357 @@ static int xc4000_readreg(struct xc4000_priv *priv, u16 reg, u16 *val)
 	return XC_RESULT_SUCCESS;
 }
 
+
+static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
+			 v4l2_std_id *id)
+{
+	struct xc4000_priv *priv = fe->tuner_priv;
+	int                 i, best_i = -1, best_nr_matches = 0;
+	unsigned int        type_mask = 0;
+
+	printk("%s called, want type=", __func__);
+	if (debug) {
+//		dump_firm_type(type);
+		printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
+	}
+
+	if (!priv->firm) {
+		printk("Error! firmware not loaded\n");
+		return -EINVAL;
+	}
+
+	if (((type & ~SCODE) == 0) && (*id == 0))
+		*id = V4L2_STD_PAL;
+
+	if (type & BASE)
+		type_mask = BASE_TYPES;
+	else if (type & SCODE) {
+		type &= SCODE_TYPES;
+		type_mask = SCODE_TYPES & ~HAS_IF;
+	} else if (type & DTV_TYPES)
+		type_mask = DTV_TYPES;
+	else if (type & STD_SPECIFIC_TYPES)
+		type_mask = STD_SPECIFIC_TYPES;
+
+	type &= type_mask;
+
+	if (!(type & SCODE))
+		type_mask = ~0;
+
+	/* Seek for exact match */
+	for (i = 0; i < priv->firm_size; i++) {
+		if ((type == (priv->firm[i].type & type_mask)) &&
+		    (*id == priv->firm[i].id))
+			goto found;
+	}
+
+	/* Seek for generic video standard match */
+	for (i = 0; i < priv->firm_size; i++) {
+		v4l2_std_id match_mask;
+		int nr_matches;
+
+		if (type != (priv->firm[i].type & type_mask))
+			continue;
+
+		match_mask = *id & priv->firm[i].id;
+		if (!match_mask)
+			continue;
+
+		if ((*id & match_mask) == *id)
+			goto found; /* Supports all the requested standards */
+
+		nr_matches = hweight64(match_mask);
+		if (nr_matches > best_nr_matches) {
+			best_nr_matches = nr_matches;
+			best_i = i;
+		}
+	}
+
+	if (best_nr_matches > 0) {
+		printk("Selecting best matching firmware (%d bits) for "
+			  "type=", best_nr_matches);
+//		dump_firm_type(type);
+		printk("(%x), id %016llx:\n", type, (unsigned long long)*id);
+		i = best_i;
+		goto found;
+	}
+
+	/*FIXME: Would make sense to seek for type "hint" match ? */
+
+	i = -ENOENT;
+	goto ret;
+
+found:
+	*id = priv->firm[i].id;
+
+ret:
+	printk("%s firmware for type=", (i < 0) ? "Can't find" : "Found");
+	if (debug) {
+//		dump_firm_type(type);
+		printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
+	}
+	return i;
+}
+
+static int load_firmware(struct dvb_frontend *fe, unsigned int type,
+			 v4l2_std_id *id)
+{
+	struct xc4000_priv *priv = fe->tuner_priv;
+	int                pos, rc;
+	unsigned char      *p, *endp, buf[XC_MAX_I2C_WRITE_LENGTH];
+
+	printk("%s called\n", __func__);
+
+	pos = seek_firmware(fe, type, id);
+	if (pos < 0)
+		return pos;
+
+	printk("Loading firmware for type=");
+//	dump_firm_type(priv->firm[pos].type);
+	printk("(%x), id %016llx.\n", priv->firm[pos].type,
+	       (unsigned long long)*id);
+
+	p = priv->firm[pos].ptr;
+	endp = p + priv->firm[pos].size;
+
+	while (p < endp) {
+		__u16 size;
+
+		printk("block %02x %02x %02x %02x %02x %02x\n", p[0], p[1], p[2], p[3], p[4], p[5]);
+
+		/* Checks if there's enough bytes to read */
+		if (p + sizeof(size) > endp) {
+			printk("Firmware chunk size is wrong\n");
+			return -EINVAL;
+		}
+
+		size = be16_to_cpu(*(__u16 *) p);
+		p += sizeof(size);
+
+		printk("djh size=%x\n", size);
+
+		if (size == 0xffff)
+			return 0;
+
+		if (!size) {
+			/* Special callback command received */
+			rc = xc4000_TunerReset(fe);
+			if (rc != XC_RESULT_SUCCESS) {
+				printk("Error at RESET code %d\n",
+				       (*p) & 0x7f);
+				return -EINVAL;
+			}
+			continue;
+		}
+		if (size >= 0xff00) {
+			switch (size) {
+#ifdef DJH_XXX
+			case 0xff00:
+				rc = do_tuner_callback(fe, XC2028_RESET_CLK, 0);
+				if (rc < 0) {
+					printk("Error at RESET code %d\n",
+						  (*p) & 0x7f);
+					return -EINVAL;
+				}
+				break;
+#endif
+			default:
+				printk("Invalid RESET code %d\n",
+					   size & 0x7f);
+				return -EINVAL;
+
+			}
+			continue;
+		}
+
+		/* Checks for a sleep command */
+		if (size & 0x8000) {
+			printk("djh doing msleep for %x\n", (size & 0x7fff));
+			msleep(size & 0x7fff);
+			continue;
+		}
+
+		if ((size + p > endp)) {
+			printk("missing bytes: need %d, have %d\n",
+				   size, (int)(endp - p));
+			return -EINVAL;
+		}
+
+		buf[0] = *p;
+		p++;
+		size--;
+
+		/* Sends message chunks */
+		printk("djh final size %d\n", size);
+		while (size > 0) {
+			int len = (size < XC_MAX_I2C_WRITE_LENGTH - 1) ?
+				   size : XC_MAX_I2C_WRITE_LENGTH - 1;
+
+			memcpy(buf + 1, p, len);
+
+//			rc = i2c_send(priv, buf, len + 1);
+			printk("djh sending %d\n", len + 1);
+			rc = xc_send_i2c_data(priv, buf, len + 1);
+			if (rc < 0) {
+				printk("%d returned from send\n", rc);
+				return -EINVAL;
+			}
+
+			p += len;
+			size -= len;
+		}
+	}
+	return 0;
+}
+
+//static int load_all_firmwares(struct dvb_frontend *fe)
 static int xc4000_fwupload(struct dvb_frontend *fe)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
-	const struct firmware *fw;
-	int ret;
+	const struct firmware *fw   = NULL;
+	const unsigned char   *p, *endp;
+	int                   rc = 0;
+	int		      n, n_array;
+	char		      name[33];
+	char		      *fname;
 
-	/* request the firmware, this will block and timeout */
-	printk(KERN_INFO "xc4000: waiting for firmware upload (%s)...\n",
-		XC4000_DEFAULT_FIRMWARE);
+	printk("%s called\n", __func__);
 
-	ret = request_firmware(&fw, XC4000_DEFAULT_FIRMWARE,
-		priv->i2c_props.adap->dev.parent);
-	if (ret) {
-		printk(KERN_ERR "xc4000: Upload failed. (file not found?)\n");
-		ret = XC_RESULT_RESET_FAILURE;
-		goto out;
-	} else {
-		printk(KERN_DEBUG "xc4000: firmware read %Zu bytes.\n",
-		       fw->size);
-		ret = XC_RESULT_SUCCESS;
+	fname = XC4000_DEFAULT_FIRMWARE;
+
+	printk("Reading firmware %s\n",  fname);
+	rc = request_firmware(&fw, fname, priv->i2c_props.adap->dev.parent);
+	if (rc < 0) {
+		if (rc == -ENOENT)
+			printk("Error: firmware %s not found.\n",
+				   fname);
+		else
+			printk("Error %d while requesting firmware %s \n",
+				   rc, fname);
+
+		return rc;
+	}
+	p = fw->data;
+	endp = p + fw->size;
+
+	if (fw->size < sizeof(name) - 1 + 2 + 2) {
+		printk("Error: firmware file %s has invalid size!\n",
+			  fname);
+		goto corrupt;
 	}
 
-	if (fw->size != XC4000_DEFAULT_FIRMWARE_SIZE) {
-		printk(KERN_ERR "xc4000: firmware incorrect size\n");
-		ret = XC_RESULT_RESET_FAILURE;
-	} else {
-		printk(KERN_INFO "xc4000: firmware uploading...\n");
-		ret = xc_load_i2c_sequence(fe,  fw->data);
-		printk(KERN_INFO "xc4000: firmware upload complete...\n");
+	memcpy(name, p, sizeof(name) - 1);
+	name[sizeof(name) - 1] = 0;
+	p += sizeof(name) - 1;
+
+	priv->firm_version = get_unaligned_le16(p);
+	p += 2;
+
+	n_array = get_unaligned_le16(p);
+	p += 2;
+
+	printk("Loading %d firmware images from %s, type: %s, ver %d.%d\n",
+		   n_array, fname, name,
+		   priv->firm_version >> 8, priv->firm_version & 0xff);
+
+	priv->firm = kzalloc(sizeof(*priv->firm) * n_array, GFP_KERNEL);
+	if (priv->firm == NULL) {
+		printk("Not enough memory to load firmware file.\n");
+		rc = -ENOMEM;
+		goto err;
+	}
+	priv->firm_size = n_array;
+
+	n = -1;
+	while (p < endp) {
+		__u32 type, size;
+		v4l2_std_id id;
+		__u16 int_freq = 0;
+
+		n++;
+		if (n >= n_array) {
+			printk("More firmware images in file than "
+				  "were expected!\n");
+			goto corrupt;
+		}
+
+		/* Checks if there's enough bytes to read */
+		if (endp - p < sizeof(type) + sizeof(id) + sizeof(size))
+			goto header;
+
+		type = get_unaligned_le32(p);
+		p += sizeof(type);
+
+		id = get_unaligned_le64(p);
+		p += sizeof(id);
+
+		if (type & HAS_IF) {
+			int_freq = get_unaligned_le16(p);
+			p += sizeof(int_freq);
+			if (endp - p < sizeof(size))
+				goto header;
+		}
+
+		size = get_unaligned_le32(p);
+		p += sizeof(size);
+
+		if (!size || size > endp - p) {
+			printk("Firmware type ");
+//			dump_firm_type(type);
+			printk("(%x), id %llx is corrupted "
+			       "(size=%d, expected %d)\n",
+			       type, (unsigned long long)id,
+			       (unsigned)(endp - p), size);
+			goto corrupt;
+		}
+
+		priv->firm[n].ptr = kzalloc(size, GFP_KERNEL);
+		if (priv->firm[n].ptr == NULL) {
+			printk("Not enough memory to load firmware file.\n");
+			rc = -ENOMEM;
+			goto err;
+		}
+		printk("Reading firmware type ");
+		if (debug) {
+//			dump_firm_type_and_int_freq(type, int_freq);
+			printk("(%x), id %llx, size=%d.\n",
+			       type, (unsigned long long)id, size);
+		}
+
+		memcpy(priv->firm[n].ptr, p, size);
+		priv->firm[n].type = type;
+		priv->firm[n].id   = id;
+		priv->firm[n].size = size;
+		priv->firm[n].int_freq = int_freq;
+
+		p += size;
 	}
 
-out:
+	if (n + 1 != priv->firm_size) {
+		printk("Firmware file is incomplete!\n");
+		goto corrupt;
+	}
+
+	goto done;
+
+header:
+	printk("Firmware header is incomplete!\n");
+corrupt:
+	rc = -EINVAL;
+	printk("Error: firmware file is corrupted!\n");
+
+err:
+	printk("Releasing partially loaded firmware file.\n");
+//	free_firmware(priv);
+
+done:
 	release_firmware(fw);
-	return ret;
+	if (rc == 0)
+		printk("Firmware files loaded.\n");
+
+	return rc;
 }
+
 
 static void xc_debug_dump(struct xc4000_priv *priv)
 {
@@ -1002,7 +1337,9 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 {
 	struct xc4000_priv *priv = NULL;
 	int instance;
+	v4l2_std_id std0;
 	u16 id = 0;
+	int rc;
 
 	dprintk(1, "%s(%d-%04x)\n", __func__,
 		i2c ? i2c_adapter_id(i2c) : -1,
@@ -1068,6 +1405,31 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 
 	memcpy(&fe->ops.tuner_ops, &xc4000_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
+
+	/* FIXME: For now, load the firmware at startup.  We will remove this
+	   before the code goes to production... */
+	xc4000_fwupload(fe);
+	printk("xc4000_fwupload done\n");
+
+	std0 = 0;
+//	rc = load_firmware(fe, BASE | new_fw.type, &std0);
+	rc = load_firmware(fe, BASE, &std0);
+	if (rc < 0) {
+		tuner_err("Error %d while loading base firmware\n",
+			  rc);
+		goto fail;
+	}
+
+	/* Load INIT1, if needed */
+	tuner_dbg("Load init1 firmware, if exists\n");
+
+//	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &std0);
+	rc = load_firmware(fe, INIT1, &std0);
+	printk("init1 load result %x\n", rc);
+
+	if (xc4000_readreg(priv, XREG_PRODUCT_ID, &id) != XC_RESULT_SUCCESS)
+			goto fail;
+	printk("djh id is now %x\n", id);
 
 	return fe;
 fail:
