@@ -631,7 +631,7 @@ set_rcvbuf:
 
 	case SO_TIMESTAMPING:
 		if (val & ~SOF_TIMESTAMPING_MASK) {
-			ret = EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		sock_valbool_flag(sk, SOCK_TIMESTAMPING_TX_HARDWARE,
