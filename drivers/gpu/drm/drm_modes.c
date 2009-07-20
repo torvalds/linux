@@ -52,7 +52,7 @@
  */
 void drm_mode_debug_printmodeline(struct drm_display_mode *mode)
 {
-	DRM_DEBUG_MODE("Modeline %d:\"%s\" %d %d %d %d %d %d %d %d %d %d "
+	DRM_DEBUG_KMS("Modeline %d:\"%s\" %d %d %d %d %d %d %d %d %d %d "
 			"0x%x 0x%x\n",
 		mode->base.id, mode->name, mode->vrefresh, mode->clock,
 		mode->hdisplay, mode->hsync_start,
@@ -818,7 +818,7 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 			list_del(&mode->head);
 			if (verbose) {
 				drm_mode_debug_printmodeline(mode);
-				DRM_DEBUG_MODE("Not using %s mode %d\n",
+				DRM_DEBUG_KMS("Not using %s mode %d\n",
 					mode->name, mode->status);
 			}
 			drm_mode_destroy(dev, mode);

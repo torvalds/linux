@@ -88,7 +88,6 @@ struct drm_device;
 #define DRM_UT_CORE 		0x01
 #define DRM_UT_DRIVER		0x02
 #define DRM_UT_KMS		0x04
-#define DRM_UT_MODE		0x08
 
 extern void drm_ut_debug_printk(unsigned int request_level,
 				const char *prefix,
@@ -184,11 +183,6 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 		drm_ut_debug_printk(DRM_UT_KMS, DRM_NAME, 		\
 					 __func__, fmt, ##args);	\
 	} while (0)
-#define DRM_DEBUG_MODE(fmt, args...)				\
-	do {								\
-		drm_ut_debug_printk(DRM_UT_MODE, DRM_NAME, 		\
-					 __func__, fmt, ##args);	\
-	} while (0)
 #define DRM_LOG(fmt, args...)						\
 	do {								\
 		drm_ut_debug_printk(DRM_UT_CORE, NULL,			\
@@ -212,7 +206,6 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 #else
 #define DRM_DEBUG_DRIVER(fmt, args...) do { } while (0)
 #define DRM_DEBUG_KMS(fmt, args...)	do { } while (0)
-#define DRM_DEBUG_MODE(fmt, args...)	do { } while (0)
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
 #define DRM_LOG(fmt, arg...)		do { } while (0)
 #define DRM_LOG_KMS(fmt, args...) do { } while (0)
