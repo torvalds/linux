@@ -61,9 +61,9 @@
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/wait.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/if.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/inetdevice.h>
 #include <linux/reboot.h>
@@ -81,7 +81,7 @@
 #include "via-velocity.h"
 
 
-static int velocity_nics = 0;
+static int velocity_nics;
 static int msglevel = MSG_LEVEL_INFO;
 
 /**
@@ -93,7 +93,7 @@ static int msglevel = MSG_LEVEL_INFO;
  *	provided mask buffer.
  */
 
-static void mac_get_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
+static void mac_get_cam_mask(struct mac_regs __iomem *regs, u8 *mask)
 {
 	int i;
 
@@ -111,7 +111,6 @@ static void mac_get_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
 
 	/* Select mar */
 	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
-
 }
 
 
@@ -123,7 +122,7 @@ static void mac_get_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
  *	Store a new mask into a CAM
  */
 
-static void mac_set_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
+static void mac_set_cam_mask(struct mac_regs __iomem *regs, u8 *mask)
 {
 	int i;
 	/* Select CAM mask */
@@ -131,9 +130,9 @@ static void mac_set_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
 
 	writeb(CAMADDR_CAMEN, &regs->CAMADDR);
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 8; i++)
 		writeb(*mask++, &(regs->MARCAM[i]));
-	}
+
 	/* disable CAMEN */
 	writeb(0, &regs->CAMADDR);
 
@@ -141,7 +140,7 @@ static void mac_set_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
 	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
 }
 
-static void mac_set_vlan_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
+static void mac_set_vlan_cam_mask(struct mac_regs __iomem *regs, u8 *mask)
 {
 	int i;
 	/* Select CAM mask */
@@ -149,9 +148,9 @@ static void mac_set_vlan_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
 
 	writeb(CAMADDR_CAMEN | CAMADDR_VCAMSL, &regs->CAMADDR);
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 8; i++)
 		writeb(*mask++, &(regs->MARCAM[i]));
-	}
+
 	/* disable CAMEN */
 	writeb(0, &regs->CAMADDR);
 
@@ -168,7 +167,7 @@ static void mac_set_vlan_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
  *	Load an address or vlan tag into a CAM
  */
 
-static void mac_set_cam(struct mac_regs __iomem * regs, int idx, const u8 *addr)
+static void mac_set_cam(struct mac_regs __iomem *regs, int idx, const u8 *addr)
 {
 	int i;
 
@@ -179,9 +178,9 @@ static void mac_set_cam(struct mac_regs __iomem * regs, int idx, const u8 *addr)
 
 	writeb(CAMADDR_CAMEN | idx, &regs->CAMADDR);
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 6; i++)
 		writeb(*addr++, &(regs->MARCAM[i]));
-	}
+
 	BYTE_REG_BITS_ON(CAMCR_CAMWR, &regs->CAMCR);
 
 	udelay(10);
@@ -192,7 +191,7 @@ static void mac_set_cam(struct mac_regs __iomem * regs, int idx, const u8 *addr)
 	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
 }
 
-static void mac_set_vlan_cam(struct mac_regs __iomem * regs, int idx,
+static void mac_set_vlan_cam(struct mac_regs __iomem *regs, int idx,
 			     const u8 *addr)
 {
 
@@ -224,7 +223,7 @@ static void mac_set_vlan_cam(struct mac_regs __iomem * regs, int idx,
  *	the rest of the logic from the result of sleep/wakeup
  */
 
-static void mac_wol_reset(struct mac_regs __iomem * regs)
+static void mac_wol_reset(struct mac_regs __iomem *regs)
 {
 
 	/* Turn off SWPTAG right after leaving power mode */
@@ -253,10 +252,10 @@ MODULE_AUTHOR("VIA Networking Technologies, Inc.");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VIA Networking Velocity Family Gigabit Ethernet Adapter Driver");
 
-#define VELOCITY_PARAM(N,D) \
-        static int N[MAX_UNITS]=OPTION_DEFAULT;\
+#define VELOCITY_PARAM(N, D) \
+	static int N[MAX_UNITS] = OPTION_DEFAULT;\
 	module_param_array(N, int, NULL, 0); \
-        MODULE_PARM_DESC(N, D);
+	MODULE_PARM_DESC(N, D);
 
 #define RX_DESC_MIN     64
 #define RX_DESC_MAX     255
@@ -336,8 +335,8 @@ VELOCITY_PARAM(flow_control, "Enable flow control ability");
    4: indicate 10Mbps full duplex mode
 
    Note:
-        if EEPROM have been set to the force mode, this option is ignored
-            by driver.
+   if EEPROM have been set to the force mode, this option is ignored
+   by driver.
 */
 VELOCITY_PARAM(speed_duplex, "Setting the speed and duplex mode");
 
@@ -391,14 +390,14 @@ static void mii_init(struct velocity_info *vptr, u32 mii_status);
 static u32 velocity_get_link(struct net_device *dev);
 static u32 velocity_get_opt_media_mode(struct velocity_info *vptr);
 static void velocity_print_link_status(struct velocity_info *vptr);
-static void safe_disable_mii_autopoll(struct mac_regs __iomem * regs);
+static void safe_disable_mii_autopoll(struct mac_regs __iomem *regs);
 static void velocity_shutdown(struct velocity_info *vptr);
 static void enable_flow_control_ability(struct velocity_info *vptr);
-static void enable_mii_autopoll(struct mac_regs __iomem * regs);
-static int velocity_mii_read(struct mac_regs __iomem *, u8 byIdx, u16 * pdata);
+static void enable_mii_autopoll(struct mac_regs __iomem *regs);
+static int velocity_mii_read(struct mac_regs __iomem *, u8 byIdx, u16 *pdata);
 static int velocity_mii_write(struct mac_regs __iomem *, u8 byMiiAddr, u16 data);
-static u32 mii_check_media_mode(struct mac_regs __iomem * regs);
-static u32 check_connection_type(struct mac_regs __iomem * regs);
+static u32 mii_check_media_mode(struct mac_regs __iomem *regs);
+static u32 check_connection_type(struct mac_regs __iomem *regs);
 static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status);
 
 #ifdef CONFIG_PM
@@ -550,7 +549,7 @@ static void __devinit velocity_set_int_opt(int *opt, int val, int min, int max, 
  *	we don't duplicate code for each option.
  */
 
-static void __devinit velocity_set_bool_opt(u32 * opt, int val, int def, u32 flag, char *name, const char *devname)
+static void __devinit velocity_set_bool_opt(u32 *opt, int val, int def, u32 flag, char *name, const char *devname)
 {
 	(*opt) &= (~flag);
 	if (val == -1)
@@ -604,7 +603,7 @@ static void __devinit velocity_get_options(struct velocity_opt *opts, int index,
 
 static void velocity_init_cam_filter(struct velocity_info *vptr)
 {
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 
 	/* Turn on MCFG_PQEN, turn off MCFG_RTGOPT */
 	WORD_REG_BITS_SET(MCFG_PQEN, MCFG_RTGOPT, &regs->MCFG);
@@ -647,19 +646,19 @@ static void velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
-        spin_lock_irq(&vptr->lock);
+	spin_lock_irq(&vptr->lock);
 	velocity_init_cam_filter(vptr);
-        spin_unlock_irq(&vptr->lock);
+	spin_unlock_irq(&vptr->lock);
 }
 
 static void velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
-        spin_lock_irq(&vptr->lock);
+	spin_lock_irq(&vptr->lock);
 	vlan_group_set_device(vptr->vlgrp, vid, NULL);
 	velocity_init_cam_filter(vptr);
-        spin_unlock_irq(&vptr->lock);
+	spin_unlock_irq(&vptr->lock);
 }
 
 static void velocity_init_rx_ring_indexes(struct velocity_info *vptr)
@@ -678,7 +677,7 @@ static void velocity_init_rx_ring_indexes(struct velocity_info *vptr)
 static void velocity_rx_reset(struct velocity_info *vptr)
 {
 
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	int i;
 
 	velocity_init_rx_ring_indexes(vptr);
@@ -707,7 +706,7 @@ static void velocity_rx_reset(struct velocity_info *vptr)
 static void velocity_init_registers(struct velocity_info *vptr,
 				    enum velocity_init_type type)
 {
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	int i, mii_status;
 
 	mac_wol_reset(regs);
@@ -750,9 +749,9 @@ static void velocity_init_registers(struct velocity_info *vptr,
 		mdelay(5);
 
 		mac_eeprom_reload(regs);
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < 6; i++)
 			writeb(vptr->dev->dev_addr[i], &(regs->PAR[i]));
-		}
+
 		/*
 		 *	clear Pre_ACPI bit.
 		 */
@@ -829,7 +828,7 @@ static void velocity_init_registers(struct velocity_info *vptr,
 
 static int velocity_soft_reset(struct velocity_info *vptr)
 {
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	int i = 0;
 
 	writel(CR0_SFRST, &regs->CR0Set);
@@ -881,7 +880,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	const char *drv_string;
 	const struct velocity_info_tbl *info = &chip_info_table[ent->driver_data];
 	struct velocity_info *vptr;
-	struct mac_regs __iomem * regs;
+	struct mac_regs __iomem *regs;
 	int ret = -ENOMEM;
 
 	/* FIXME: this driver, like almost all other ethernet drivers,
@@ -1311,7 +1310,7 @@ static int velocity_init_td_ring(struct velocity_info *vptr)
 					    sizeof(struct velocity_td_info),
 					    GFP_KERNEL);
 		if (!vptr->tx.infos[j])	{
-			while(--j >= 0)
+			while (--j >= 0)
 				kfree(vptr->tx.infos[j]);
 			return -ENOMEM;
 		}
@@ -1328,15 +1327,14 @@ static int velocity_init_td_ring(struct velocity_info *vptr)
 static void velocity_free_td_ring_entry(struct velocity_info *vptr,
 							 int q, int n)
 {
-	struct velocity_td_info * td_info = &(vptr->tx.infos[q][n]);
+	struct velocity_td_info *td_info = &(vptr->tx.infos[q][n]);
 	int i;
 
 	if (td_info == NULL)
 		return;
 
 	if (td_info->skb) {
-		for (i = 0; i < td_info->nskb_dma; i++)
-		{
+		for (i = 0; i < td_info->nskb_dma; i++) {
 			if (td_info->skb_dma[i]) {
 				pci_unmap_single(vptr->pdev, td_info->skb_dma[i],
 					td_info->skb->len, PCI_DMA_TODEVICE);
@@ -1363,10 +1361,9 @@ static void velocity_free_td_ring(struct velocity_info *vptr)
 	for (j = 0; j < vptr->tx.numq; j++) {
 		if (vptr->tx.infos[j] == NULL)
 			continue;
-		for (i = 0; i < vptr->options.numtx; i++) {
+		for (i = 0; i < vptr->options.numtx; i++)
 			velocity_free_td_ring_entry(vptr, j, i);
 
-		}
 		kfree(vptr->tx.infos[j]);
 		vptr->tx.infos[j] = NULL;
 	}
@@ -1447,9 +1444,8 @@ static inline void velocity_rx_csum(struct rx_desc *rd, struct sk_buff *skb)
 		if (rd->rdesc1.CSM & CSM_IPOK) {
 			if ((rd->rdesc1.CSM & CSM_TCPKT) ||
 					(rd->rdesc1.CSM & CSM_UDPKT)) {
-				if (!(rd->rdesc1.CSM & CSM_TUPOK)) {
+				if (!(rd->rdesc1.CSM & CSM_TUPOK))
 					return;
-				}
 			}
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		}
@@ -1671,9 +1667,8 @@ static int velocity_tx_srv(struct velocity_info *vptr, u32 status)
 		}
 		vptr->tx.tail[qnum] = idx;
 
-		if (AVAIL_TD(vptr, qnum) < 1) {
+		if (AVAIL_TD(vptr, qnum) < 1)
 			full = 1;
-		}
 	}
 	/*
 	 *	Look to see if we should kick the transmit network
@@ -1751,7 +1746,7 @@ static void velocity_error(struct velocity_info *vptr, int status)
 {
 
 	if (status & ISR_TXSTLI) {
-		struct mac_regs __iomem * regs = vptr->mac_regs;
+		struct mac_regs __iomem *regs = vptr->mac_regs;
 
 		printk(KERN_ERR "TD structure error TDindex=%hx\n", readw(&regs->TDIdx[0]));
 		BYTE_REG_BITS_ON(TXESR_TDSTR, &regs->TXESR);
@@ -1763,7 +1758,7 @@ static void velocity_error(struct velocity_info *vptr, int status)
 	}
 
 	if (status & ISR_SRCI) {
-		struct mac_regs __iomem * regs = vptr->mac_regs;
+		struct mac_regs __iomem *regs = vptr->mac_regs;
 		int linked;
 
 		if (vptr->options.spd_dpx == SPD_DPX_AUTO) {
@@ -1783,11 +1778,10 @@ static void velocity_error(struct velocity_info *vptr, int status)
 			/*
 			 *	Only enable CD heart beat counter in 10HD mode
 			 */
-			if (!(vptr->mii_status & VELOCITY_DUPLEX_FULL) && (vptr->mii_status & VELOCITY_SPEED_10)) {
+			if (!(vptr->mii_status & VELOCITY_DUPLEX_FULL) && (vptr->mii_status & VELOCITY_SPEED_10))
 				BYTE_REG_BITS_OFF(TESTCFG_HBDIS, &regs->TESTCFG);
-			} else {
+			else
 				BYTE_REG_BITS_ON(TESTCFG_HBDIS, &regs->TESTCFG);
-			}
 		}
 		/*
 		 *	Get link status from PHYSR0
@@ -2023,7 +2017,7 @@ out_0:
 
 static void velocity_shutdown(struct velocity_info *vptr)
 {
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	mac_disable_int(regs);
 	writel(CR0_STOP, &regs->CR0Set);
 	writew(0xFFFF, &regs->TDCSRClr);
@@ -2195,8 +2189,7 @@ static irqreturn_t velocity_intr(int irq, void *dev_instance)
 		if (isr_status & (ISR_PTXI | ISR_PPTXI))
 			max_count += velocity_tx_srv(vptr, isr_status);
 		isr_status = mac_read_isr(vptr->mac_regs);
-		if (max_count > vptr->options.int_works)
-		{
+		if (max_count > vptr->options.int_works) {
 			printk(KERN_WARNING "%s: excessive work at interrupt.\n",
 				dev->name);
 			max_count = 0;
@@ -2221,7 +2214,7 @@ static irqreturn_t velocity_intr(int irq, void *dev_instance)
 static void velocity_set_multi(struct net_device *dev)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	u8 rx_mode;
 	int i;
 	struct dev_mc_list *mclist;
@@ -2270,7 +2263,7 @@ static struct net_device_stats *velocity_get_stats(struct net_device *dev)
 	struct velocity_info *vptr = netdev_priv(dev);
 
 	/* If the hardware is down, don't touch MII */
-	if(!netif_running(dev))
+	if (!netif_running(dev))
 		return &dev->stats;
 
 	spin_lock_irq(&vptr->lock);
@@ -2473,7 +2466,7 @@ static void mii_init(struct velocity_info *vptr, u32 mii_status)
  *	Turn off the autopoll and wait for it to disable on the chip
  */
 
-static void safe_disable_mii_autopoll(struct mac_regs __iomem * regs)
+static void safe_disable_mii_autopoll(struct mac_regs __iomem *regs)
 {
 	u16 ww;
 
@@ -2494,7 +2487,7 @@ static void safe_disable_mii_autopoll(struct mac_regs __iomem * regs)
  *	hardware. Wait for it to enable.
  */
 
-static void enable_mii_autopoll(struct mac_regs __iomem * regs)
+static void enable_mii_autopoll(struct mac_regs __iomem *regs)
 {
 	int ii;
 
@@ -2644,7 +2637,7 @@ static void mii_set_auto_on(struct velocity_info *vptr)
 
 
 /*
-static void mii_set_auto_off(struct velocity_info * vptr)
+static void mii_set_auto_off(struct velocity_info *vptr)
 {
     MII_REG_BITS_OFF(BMCR_AUTO, MII_REG_BMCR, vptr->mac_regs);
 }
@@ -2698,7 +2691,7 @@ static void set_mii_flow_control(struct velocity_info *vptr)
 static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
 {
 	u32 curr_status;
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 
 	vptr->mii_status = mii_check_media_mode(vptr->mac_regs);
 	curr_status = vptr->mii_status & (~VELOCITY_LINK_FAIL);
@@ -2717,9 +2710,8 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
 	   }
 	 */
 
-	if (PHYID_GET_PHY_ID(vptr->phy_id) == PHYID_CICADA_CS8201) {
+	if (PHYID_GET_PHY_ID(vptr->phy_id) == PHYID_CICADA_CS8201)
 		MII_REG_BITS_ON(AUXCR_MDPPS, MII_REG_AUXCR, vptr->mac_regs);
-	}
 
 	/*
 	 *	If connection type is AUTO
@@ -2768,11 +2760,11 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
 
 		MII_REG_BITS_OFF(G1000CR_1000FD | G1000CR_1000, MII_REG_G1000CR, vptr->mac_regs);
 
-		if (!(mii_status & VELOCITY_DUPLEX_FULL) && (mii_status & VELOCITY_SPEED_10)) {
+		if (!(mii_status & VELOCITY_DUPLEX_FULL) && (mii_status & VELOCITY_SPEED_10))
 			BYTE_REG_BITS_OFF(TESTCFG_HBDIS, &regs->TESTCFG);
-		} else {
+		else
 			BYTE_REG_BITS_ON(TESTCFG_HBDIS, &regs->TESTCFG);
-		}
+
 		/* MII_REG_BITS_OFF(BMCR_SPEED1G, MII_REG_BMCR, vptr->mac_regs); */
 		velocity_mii_read(vptr->mac_regs, MII_REG_ANAR, &ANAR);
 		ANAR &= (~(ANAR_TXFD | ANAR_TX | ANAR_10FD | ANAR_10));
@@ -2805,7 +2797,7 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
  *	accordingly
  */
 
-static u32 mii_check_media_mode(struct mac_regs __iomem * regs)
+static u32 mii_check_media_mode(struct mac_regs __iomem *regs)
 {
 	u32 status = 0;
 	u16 ANAR;
@@ -2841,7 +2833,7 @@ static u32 mii_check_media_mode(struct mac_regs __iomem * regs)
 	return status;
 }
 
-static u32 check_connection_type(struct mac_regs __iomem * regs)
+static u32 check_connection_type(struct mac_regs __iomem *regs)
 {
 	u32 status = 0;
 	u8 PHYSR0;
@@ -2886,7 +2878,7 @@ static u32 check_connection_type(struct mac_regs __iomem * regs)
 static void enable_flow_control_ability(struct velocity_info *vptr)
 {
 
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 
 	switch (vptr->options.flow_cntl) {
 
@@ -2963,7 +2955,7 @@ static void velocity_ethtool_down(struct net_device *dev)
 static int velocity_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	u32 status;
 	status = check_connection_type(vptr->mac_regs);
 
@@ -3020,7 +3012,7 @@ static int velocity_set_settings(struct net_device *dev, struct ethtool_cmd *cmd
 static u32 velocity_get_link(struct net_device *dev)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	return BYTE_REG_BITS_IS_ON(PHYSR0_LINKGD, &regs->PHYSR0) ? 1 : 0;
 }
 
@@ -3116,7 +3108,7 @@ static const struct ethtool_ops velocity_ethtool_ops = {
 static int velocity_mii_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	unsigned long flags;
 	struct mii_ioctl_data *miidata = if_mii(ifr);
 	int err;
@@ -3128,7 +3120,7 @@ static int velocity_mii_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd
 	case SIOCGMIIREG:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		if(velocity_mii_read(vptr->mac_regs, miidata->reg_num & 0x1f, &(miidata->val_out)) < 0)
+		if (velocity_mii_read(vptr->mac_regs, miidata->reg_num & 0x1f, &(miidata->val_out)) < 0)
 			return -ETIMEDOUT;
 		break;
 	case SIOCSMIIREG:
@@ -3138,7 +3130,7 @@ static int velocity_mii_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd
 		err = velocity_mii_write(vptr->mac_regs, miidata->reg_num & 0x1f, miidata->val_in);
 		spin_unlock_irqrestore(&vptr->lock, flags);
 		check_connection_type(vptr->mac_regs);
-		if(err)
+		if (err)
 			return err;
 		break;
 	default:
@@ -3160,9 +3152,9 @@ static int velocity_mii_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd
  *	power down states
  */
 
-static void velocity_save_context(struct velocity_info *vptr, struct velocity_context * context)
+static void velocity_save_context(struct velocity_info *vptr, struct velocity_context *context)
 {
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	u16 i;
 	u8 __iomem *ptr = (u8 __iomem *)regs;
 
@@ -3188,13 +3180,12 @@ static void velocity_save_context(struct velocity_info *vptr, struct velocity_co
 
 static void velocity_restore_context(struct velocity_info *vptr, struct velocity_context *context)
 {
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	int i;
 	u8 __iomem *ptr = (u8 __iomem *)regs;
 
-	for (i = MAC_REG_PAR; i < MAC_REG_CR0_SET; i += 4) {
+	for (i = MAC_REG_PAR; i < MAC_REG_CR0_SET; i += 4)
 		writel(*((u32 *) (context->mac_reg + i)), ptr + i);
-	}
 
 	/* Just skip cr0 */
 	for (i = MAC_REG_CR1_SET; i < MAC_REG_CR0_CLR; i++) {
@@ -3204,18 +3195,14 @@ static void velocity_restore_context(struct velocity_info *vptr, struct velocity
 		writeb(*((u8 *) (context->mac_reg + i)), ptr + i);
 	}
 
-	for (i = MAC_REG_MAR; i < MAC_REG_IMR; i += 4) {
+	for (i = MAC_REG_MAR; i < MAC_REG_IMR; i += 4)
 		writel(*((u32 *) (context->mac_reg + i)), ptr + i);
-	}
 
-	for (i = MAC_REG_RDBASE_LO; i < MAC_REG_FIFO_TEST0; i += 4) {
+	for (i = MAC_REG_RDBASE_LO; i < MAC_REG_FIFO_TEST0; i += 4)
 		writel(*((u32 *) (context->mac_reg + i)), ptr + i);
-	}
 
-	for (i = MAC_REG_TDCSR_SET; i <= MAC_REG_RDCSR_SET; i++) {
+	for (i = MAC_REG_TDCSR_SET; i <= MAC_REG_RDCSR_SET; i++)
 		writeb(*((u8 *) (context->mac_reg + i)), ptr + i);
-	}
-
 }
 
 /**
@@ -3227,7 +3214,7 @@ static void velocity_restore_context(struct velocity_info *vptr, struct velocity
  *	we are interested in.
  */
 
-static u16 wol_calc_crc(int size, u8 * pattern, u8 *mask_pattern)
+static u16 wol_calc_crc(int size, u8 *pattern, u8 *mask_pattern)
 {
 	u16 crc = 0xFFFF;
 	u8 mask;
@@ -3266,7 +3253,7 @@ static u16 wol_calc_crc(int size, u8 * pattern, u8 *mask_pattern)
 
 static int velocity_set_wol(struct velocity_info *vptr)
 {
-	struct mac_regs __iomem * regs = vptr->mac_regs;
+	struct mac_regs __iomem *regs = vptr->mac_regs;
 	static u8 buf[256];
 	int i;
 
@@ -3284,9 +3271,8 @@ static int velocity_set_wol(struct velocity_info *vptr)
 	   writew((WOLCR_LINKON_EN|WOLCR_LINKOFF_EN), &regs->WOLCRSet);
 	 */
 
-	if (vptr->wol_opts & VELOCITY_WOL_UCAST) {
+	if (vptr->wol_opts & VELOCITY_WOL_UCAST)
 		writew(WOLCR_UNICAST_EN, &regs->WOLCRSet);
-	}
 
 	if (vptr->wol_opts & VELOCITY_WOL_ARP) {
 		struct arp_packet *arp = (struct arp_packet *) buf;
@@ -3347,7 +3333,7 @@ static int velocity_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct velocity_info *vptr = netdev_priv(dev);
 	unsigned long flags;
 
-	if(!netif_running(vptr->dev))
+	if (!netif_running(vptr->dev))
 		return 0;
 
 	netif_device_detach(vptr->dev);
@@ -3382,7 +3368,7 @@ static int velocity_resume(struct pci_dev *pdev)
 	unsigned long flags;
 	int i;
 
-	if(!netif_running(vptr->dev))
+	if (!netif_running(vptr->dev))
 		return 0;
 
 	pci_set_power_state(pdev, PCI_D0);
@@ -3399,9 +3385,8 @@ static int velocity_resume(struct pci_dev *pdev)
 	velocity_tx_srv(vptr, 0);
 
 	for (i = 0; i < vptr->tx.numq; i++) {
-		if (vptr->tx.used[i]) {
+		if (vptr->tx.used[i])
 			mac_tx_queue_wake(vptr->mac_regs, i);
-		}
 	}
 
 	mac_enable_int(vptr->mac_regs);
