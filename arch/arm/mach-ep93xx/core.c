@@ -22,6 +22,7 @@
 #include <linux/timex.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 #include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
@@ -568,6 +569,34 @@ void __init ep93xx_register_i2c(struct i2c_board_info *devices, int num)
 	platform_device_register(&ep93xx_i2c_device);
 }
 
+
+/*************************************************************************
+ * EP93xx LEDs
+ *************************************************************************/
+static struct gpio_led ep93xx_led_pins[] = {
+	{
+		.name			= "platform:grled",
+		.gpio			= EP93XX_GPIO_LINE_GRLED,
+	}, {
+		.name			= "platform:rdled",
+		.gpio			= EP93XX_GPIO_LINE_RDLED,
+	},
+};
+
+static struct gpio_led_platform_data ep93xx_led_data = {
+	.num_leds	= ARRAY_SIZE(ep93xx_led_pins),
+	.leds		= ep93xx_led_pins,
+};
+
+static struct platform_device ep93xx_leds = {
+	.name		= "leds-gpio",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &ep93xx_led_data,
+	},
+};
+
+
 extern void ep93xx_gpio_init(void);
 
 void __init ep93xx_init_devices(void)
@@ -583,4 +612,5 @@ void __init ep93xx_init_devices(void)
 
 	platform_device_register(&ep93xx_rtc_device);
 	platform_device_register(&ep93xx_ohci_device);
+	platform_device_register(&ep93xx_leds);
 }
