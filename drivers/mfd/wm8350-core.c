@@ -1472,6 +1472,8 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 				   &(wm8350->codec.pdev));
 	wm8350_client_dev_register(wm8350, "wm8350-gpio",
 				   &(wm8350->gpio.pdev));
+	wm8350_client_dev_register(wm8350, "wm8350-hwmon",
+				   &(wm8350->hwmon.pdev));
 	wm8350_client_dev_register(wm8350, "wm8350-power",
 				   &(wm8350->power.pdev));
 	wm8350_client_dev_register(wm8350, "wm8350-rtc", &(wm8350->rtc.pdev));
@@ -1498,6 +1500,7 @@ void wm8350_device_exit(struct wm8350 *wm8350)
 	platform_device_unregister(wm8350->wdt.pdev);
 	platform_device_unregister(wm8350->rtc.pdev);
 	platform_device_unregister(wm8350->power.pdev);
+	platform_device_unregister(wm8350->hwmon.pdev);
 	platform_device_unregister(wm8350->gpio.pdev);
 	platform_device_unregister(wm8350->codec.pdev);
 
