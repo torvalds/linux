@@ -213,10 +213,12 @@ struct held_lock {
 	 * interrupt context:
 	 */
 	unsigned int irq_context:2; /* bit 0 - soft, bit 1 - hard */
-	unsigned int trylock:1;
+	unsigned int trylock:1;						/* 16 bits */
+
 	unsigned int read:2;        /* see lock_acquire() comment */
 	unsigned int check:2;       /* see lock_acquire() comment */
 	unsigned int hardirqs_off:1;
+	unsigned int references:11;					/* 32 bits */
 };
 
 /*

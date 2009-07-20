@@ -2708,13 +2708,15 @@ EXPORT_SYMBOL_GPL(lockdep_init_map);
  */
 static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  int trylock, int read, int check, int hardirqs_off,
-			  struct lockdep_map *nest_lock, unsigned long ip)
+			  struct lockdep_map *nest_lock, unsigned long ip,
+			  int references)
 {
 	struct task_struct *curr = current;
 	struct lock_class *class = NULL;
 	struct held_lock *hlock;
 	unsigned int depth, id;
 	int chain_head = 0;
+	int class_idx;
 	u64 chain_key;
 
 	if (!prove_locking)
@@ -2762,10 +2764,24 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (DEBUG_LOCKS_WARN_ON(depth >= MAX_LOCK_DEPTH))
 		return 0;
 
+	class_idx = class - lock_classes + 1;
+
+	if (depth) {
+		hlock = curr->held_locks + depth - 1;
+		if (hlock->class_idx == class_idx && nest_lock) {
+			if (hlock->references)
+				hlock->references++;
+			else
+				hlock->references = 2;
+
+			return 1;
+		}
+	}
+
 	hlock = curr->held_locks + depth;
 	if (DEBUG_LOCKS_WARN_ON(!class))
 		return 0;
-	hlock->class_idx = class - lock_classes + 1;
+	hlock->class_idx = class_idx;
 	hlock->acquire_ip = ip;
 	hlock->instance = lock;
 	hlock->nest_lock = nest_lock;
@@ -2773,6 +2789,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	hlock->read = read;
 	hlock->check = check;
 	hlock->hardirqs_off = !!hardirqs_off;
+	hlock->references = references;
 #ifdef CONFIG_LOCK_STAT
 	hlock->waittime_stamp = 0;
 	hlock->holdtime_stamp = sched_clock();
@@ -2881,6 +2898,30 @@ static int check_unlock(struct task_struct *curr, struct lockdep_map *lock,
 	return 1;
 }
 
+static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
+{
+	if (hlock->instance == lock)
+		return 1;
+
+	if (hlock->references) {
+		struct lock_class *class = lock->class_cache;
+
+		if (!class)
+			class = look_up_lock_class(lock, 0);
+
+		if (DEBUG_LOCKS_WARN_ON(!class))
+			return 0;
+
+		if (DEBUG_LOCKS_WARN_ON(!hlock->nest_lock))
+			return 0;
+
+		if (hlock->class_idx == class - lock_classes + 1)
+			return 1;
+	}
+
+	return 0;
+}
+
 static int
 __lock_set_class(struct lockdep_map *lock, const char *name,
 		 struct lock_class_key *key, unsigned int subclass,
@@ -2904,7 +2945,7 @@ __lock_set_class(struct lockdep_map *lock, const char *name,
 		 */
 		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
 			break;
-		if (hlock->instance == lock)
+		if (match_held_lock(hlock, lock))
 			goto found_it;
 		prev_hlock = hlock;
 	}
@@ -2923,7 +2964,8 @@ found_it:
 		if (!__lock_acquire(hlock->instance,
 			hlock_class(hlock)->subclass, hlock->trylock,
 				hlock->read, hlock->check, hlock->hardirqs_off,
-				hlock->nest_lock, hlock->acquire_ip))
+				hlock->nest_lock, hlock->acquire_ip,
+				hlock->references))
 			return 0;
 	}
 
@@ -2962,20 +3004,34 @@ lock_release_non_nested(struct task_struct *curr,
 		 */
 		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
 			break;
-		if (hlock->instance == lock)
+		if (match_held_lock(hlock, lock))
 			goto found_it;
 		prev_hlock = hlock;
 	}
 	return print_unlock_inbalance_bug(curr, lock, ip);
 
 found_it:
-	lock_release_holdtime(hlock);
+	if (hlock->instance == lock)
+		lock_release_holdtime(hlock);
+
+	if (hlock->references) {
+		hlock->references--;
+		if (hlock->references) {
+			/*
+			 * We had, and after removing one, still have
+			 * references, the current lock stack is still
+			 * valid. We're done!
+			 */
+			return 1;
+		}
+	}
 
 	/*
 	 * We have the right lock to unlock, 'hlock' points to it.
 	 * Now we remove it from the stack, and add back the other
 	 * entries (if any), recalculating the hash along the way:
 	 */
+
 	curr->lockdep_depth = i;
 	curr->curr_chain_key = hlock->prev_chain_key;
 
@@ -2984,7 +3040,8 @@ found_it:
 		if (!__lock_acquire(hlock->instance,
 			hlock_class(hlock)->subclass, hlock->trylock,
 				hlock->read, hlock->check, hlock->hardirqs_off,
-				hlock->nest_lock, hlock->acquire_ip))
+				hlock->nest_lock, hlock->acquire_ip,
+				hlock->references))
 			return 0;
 	}
 
@@ -3014,7 +3071,7 @@ static int lock_release_nested(struct task_struct *curr,
 	/*
 	 * Is the unlock non-nested:
 	 */
-	if (hlock->instance != lock)
+	if (hlock->instance != lock || hlock->references)
 		return lock_release_non_nested(curr, lock, ip);
 	curr->lockdep_depth--;
 
@@ -3065,7 +3122,9 @@ static int __lock_is_held(struct lockdep_map *lock)
 	int i;
 
 	for (i = 0; i < curr->lockdep_depth; i++) {
-		if (curr->held_locks[i].instance == lock)
+		struct held_lock *hlock = curr->held_locks + i;
+
+		if (match_held_lock(hlock, lock))
 			return 1;
 	}
 
@@ -3148,7 +3207,7 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 
 	current->lockdep_recursion = 1;
 	__lock_acquire(lock, subclass, trylock, read, check,
-		       irqs_disabled_flags(flags), nest_lock, ip);
+		       irqs_disabled_flags(flags), nest_lock, ip, 0);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
 }
@@ -3252,7 +3311,7 @@ __lock_contended(struct lockdep_map *lock, unsigned long ip)
 		 */
 		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
 			break;
-		if (hlock->instance == lock)
+		if (match_held_lock(hlock, lock))
 			goto found_it;
 		prev_hlock = hlock;
 	}
@@ -3260,6 +3319,9 @@ __lock_contended(struct lockdep_map *lock, unsigned long ip)
 	return;
 
 found_it:
+	if (hlock->instance != lock)
+		return;
+
 	hlock->waittime_stamp = sched_clock();
 
 	contention_point = lock_point(hlock_class(hlock)->contention_point, ip);
@@ -3299,7 +3361,7 @@ __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 		 */
 		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
 			break;
-		if (hlock->instance == lock)
+		if (match_held_lock(hlock, lock))
 			goto found_it;
 		prev_hlock = hlock;
 	}
@@ -3307,6 +3369,9 @@ __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 	return;
 
 found_it:
+	if (hlock->instance != lock)
+		return;
+
 	cpu = smp_processor_id();
 	if (hlock->waittime_stamp) {
 		now = sched_clock();
