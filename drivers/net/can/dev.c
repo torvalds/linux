@@ -346,7 +346,7 @@ void can_restart(unsigned long data)
 	skb = dev_alloc_skb(sizeof(struct can_frame));
 	if (skb == NULL) {
 		err = -ENOMEM;
-		goto out;
+		goto restart;
 	}
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_CAN);
@@ -361,13 +361,13 @@ void can_restart(unsigned long data)
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
 
+restart:
 	dev_dbg(dev->dev.parent, "restarted\n");
 	priv->can_stats.restarts++;
 
 	/* Now restart the device */
 	err = priv->do_set_mode(dev, CAN_MODE_START);
 
-out:
 	netif_carrier_on(dev);
 	if (err)
 		dev_err(dev->dev.parent, "Error %d during restart", err);
