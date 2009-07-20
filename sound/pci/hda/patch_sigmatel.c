@@ -2378,6 +2378,7 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0228,
 		      "Dell Vostro 1500", STAC_9205_DELL_M42),
 	/* Gateway */
+	SND_PCI_QUIRK(0x107b, 0x0560, "Gateway T6834c", STAC_9205_EAPD),
 	SND_PCI_QUIRK(0x107b, 0x0565, "Gateway T1616", STAC_9205_EAPD),
 	{} /* terminator */
 };
