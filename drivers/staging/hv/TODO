@@ -1,7 +1,6 @@
 TODO:
 	- fix checkpatch warnings/errors
 	- fix sparse issues
-	- remove compatibility layer
 	- fix HANDLE usage to be "real" pointers
 	- audit the vmbus to verify it is working properly with the
 	  driver model

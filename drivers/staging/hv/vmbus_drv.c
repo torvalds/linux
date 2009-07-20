@@ -21,7 +21,6 @@
  *
  */
 
-#define KERNEL_2_6_27
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -39,9 +38,7 @@
 
 // FIXME! We need to do this dynamically for PIC and APIC system
 #define VMBUS_IRQ				0x5
-#ifdef KERNEL_2_6_27
 #define VMBUS_IRQ_VECTOR     IRQ5_VECTOR
-#endif
 //
 // Data types
 //
@@ -69,20 +66,11 @@ static int vmbus_match(struct device *device, struct device_driver *driver);
 static int vmbus_probe(struct device *device);
 static int vmbus_remove(struct device *device);
 static void vmbus_shutdown(struct device *device);
-#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
-#elif defined(KERNEL_2_6_27)
 static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env);
-#else
-static int vmbus_uevent(struct device *device, char **envp, int num_envp, char *buffer, int buffer_size);
-#endif
 static void vmbus_msg_dpc(unsigned long data);
 static void vmbus_event_dpc(unsigned long data);
 
-#ifdef KERNEL_2_6_27
 static irqreturn_t vmbus_isr(int irq, void* dev_id);
-#else
-static int vmbus_isr(int irq, void* dev_id, struct pt_regs *regs);
-#endif
 
 static void vmbus_device_release(struct device *device);
 static void vmbus_bus_release(struct device *device);
@@ -141,8 +129,6 @@ static ctl_table vmus_root_ctl_table[] = {
 	{ }
 };
 
-#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
-#else
 //
 // Set up per device attributes in /sys/bus/vmbus/devices/<bus device>
 //
@@ -174,20 +160,16 @@ static struct device_attribute vmbus_device_attrs[] = {
 	__ATTR(in_write_bytes_avail, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR_NULL
 };
-#endif
 
 // The one and only one
 static struct vmbus_driver_context g_vmbus_drv={
 	.bus.name	= "vmbus",
 	.bus.match	= vmbus_match,
-#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
-#else
 	.bus.shutdown = vmbus_shutdown,
 	.bus.remove = vmbus_remove,
 	.bus.probe	= vmbus_probe,
 	.bus.uevent = vmbus_uevent,
 	.bus.dev_attrs = vmbus_device_attrs,
-#endif
 };
 
 //
@@ -401,19 +383,11 @@ int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	bus_register(&vmbus_drv_ctx->bus);
 
 	// Get the interrupt resource
-#ifdef KERNEL_2_6_27
 	ret = request_irq(vmbus_irq,
 			  vmbus_isr,
 			  IRQF_SAMPLE_RANDOM,
 			  vmbus_drv_obj->Base.name,
 			  NULL);
-#else
-	ret = request_irq(vmbus_irq,
-			  vmbus_isr,
-			  SA_SAMPLE_RANDOM,
-			  vmbus_drv_obj->Base.name,
-			  NULL);
-#endif
 
 	if (ret != 0)
 	{
@@ -424,15 +398,7 @@ int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 		ret = -1;
 		goto cleanup;
 	}
-#ifdef KERNEL_2_6_27
 	vector = VMBUS_IRQ_VECTOR;
-#else
-#if X2V_LINUX
-	vector = vmbus_irq + FIRST_DEVICE_VECTOR - 2;
-#else
-	vector = vmbus_irq + FIRST_EXTERNAL_VECTOR;
-#endif
-#endif
 
 	DPRINT_INFO(VMBUS_DRV, "irq 0x%x vector 0x%x", vmbus_irq, vector);
 
@@ -738,8 +704,6 @@ Desc:	This routine is invoked when a device is added or removed on the vmbus to 
 		userspace. The udev will then look at its rule and the uevent generated here to load the appropriate driver
 
 --*/
-#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
-#elif defined(KERNEL_2_6_27)
 static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 {
 	struct device_context *device_ctx = device_to_device_context(device);
@@ -791,57 +755,6 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 	return 0;
 }
 
-#else
-static int vmbus_uevent(struct device *device, char **envp, int num_envp, char *buffer, int buffer_size)
-{
-	struct device_context *device_ctx = device_to_device_context(device);
-	int i=0;
-	int len=0;
-	int ret;
-
-	DPRINT_ENTER(VMBUS_DRV);
-
-	DPRINT_INFO(VMBUS_DRV, "generating uevent - VMBUS_DEVICE_CLASS_GUID={%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}",
-		device_ctx->class_id.Data[3], device_ctx->class_id.Data[2], device_ctx->class_id.Data[1], device_ctx->class_id.Data[0],
-		device_ctx->class_id.Data[5], device_ctx->class_id.Data[4],
-		device_ctx->class_id.Data[7], device_ctx->class_id.Data[6],
-		device_ctx->class_id.Data[8], device_ctx->class_id.Data[9], device_ctx->class_id.Data[10], device_ctx->class_id.Data[11],
-		device_ctx->class_id.Data[12], device_ctx->class_id.Data[13], device_ctx->class_id.Data[14], device_ctx->class_id.Data[15]);
-
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-		"VMBUS_DEVICE_CLASS_GUID={%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}",
-		device_ctx->class_id.Data[3], device_ctx->class_id.Data[2], device_ctx->class_id.Data[1], device_ctx->class_id.Data[0],
-		device_ctx->class_id.Data[5], device_ctx->class_id.Data[4],
-		device_ctx->class_id.Data[7], device_ctx->class_id.Data[6],
-		device_ctx->class_id.Data[8], device_ctx->class_id.Data[9], device_ctx->class_id.Data[10], device_ctx->class_id.Data[11],
-		device_ctx->class_id.Data[12], device_ctx->class_id.Data[13], device_ctx->class_id.Data[14], device_ctx->class_id.Data[15]);
-
-	if (ret)
-	{
-		return ret;
-	}
-
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-		"VMBUS_DEVICE_DEVICE_GUID={%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x%02x%02x}",
-		device_ctx->device_id.Data[3], device_ctx->device_id.Data[2], device_ctx->device_id.Data[1], device_ctx->device_id.Data[0],
-		device_ctx->device_id.Data[5], device_ctx->device_id.Data[4],
-		device_ctx->device_id.Data[7], device_ctx->device_id.Data[6],
-		device_ctx->device_id.Data[8], device_ctx->device_id.Data[9], device_ctx->device_id.Data[10], device_ctx->device_id.Data[11],
-		device_ctx->device_id.Data[12], device_ctx->device_id.Data[13], device_ctx->device_id.Data[14], device_ctx->device_id.Data[15]);
-
-	if (ret)
-	{
-		return ret;
-	}
-
-	envp[i] = NULL;
-
-	DPRINT_EXIT(VMBUS_DRV);
-
-	return 0;
-}
-#endif
-
 /*++
 
 Name:	vmbus_match()
@@ -884,11 +797,7 @@ Desc:	Callback when a driver probe failed in vmbus_probe(). We need a callback b
 		invoked inside device_register() i.e. we cannot call device_unregister() inside
 		device_register()
 --*/
-#ifdef KERNEL_2_6_27
 static void vmbus_probe_failed_cb(struct work_struct *context)
-#else
-static void vmbus_probe_failed_cb(void* context)
-#endif
 {
 	struct device_context *device_ctx = (struct device_context*)context;
 
@@ -927,11 +836,7 @@ static int vmbus_probe(struct device *child_device)
 		{
 			DPRINT_ERR(VMBUS_DRV, "probe() failed for device %s (%p) on driver %s (%d)...", dev_name(child_device), child_device, child_device->driver->name, ret);
 
-#ifdef KERNEL_2_6_27
 			INIT_WORK(&device_ctx->probe_failed_work_item, vmbus_probe_failed_cb);
-#else
-			INIT_WORK(&device_ctx->probe_failed_work_item, vmbus_probe_failed_cb, device_ctx);
-#endif
 			schedule_work(&device_ctx->probe_failed_work_item);
 		}
 	}
@@ -1119,11 +1024,7 @@ Name:	vmbus_msg_dpc()
 Desc:	ISR routine
 
 --*/
-#ifdef KERNEL_2_6_27
 static irqreturn_t vmbus_isr(int irq, void* dev_id)
-#else
-static int vmbus_isr(int irq, void* dev_id, struct pt_regs *regs)
-#endif
 {
 	int ret=0;
 	VMBUS_DRIVER_OBJECT* vmbus_driver_obj = &g_vmbus_drv.drv_obj;
@@ -1177,16 +1078,7 @@ static int __init vmbus_init(void)
 	DPRINT_INFO(VMBUS_DRV,
 		"Vmbus initializing.... current log level 0x%x (%x,%x)",
 		vmbus_loglevel, HIWORD(vmbus_loglevel), LOWORD(vmbus_loglevel));
-#ifdef KERNEL_2_6_27
 //Todo: it is used for loglevel, to be ported to new kernel.
-#else
-	vmbus_ctl_table_hdr = register_sysctl_table(vmus_root_ctl_table, 0);
-	if (!vmbus_ctl_table_hdr)
-	{
-		DPRINT_EXIT(VMBUS_DRV);
-		return -ENOMEM;
-	}
-#endif
 
 	ret = vmbus_bus_init(VmbusInitialize);
 
@@ -1208,21 +1100,14 @@ static void __exit vmbus_exit(void)
 	DPRINT_ENTER(VMBUS_DRV);
 
 	vmbus_bus_exit();
-#ifdef KERNEL_2_6_27
 //Todo: it is used for loglevel, to be ported to new kernel.
-#else
-	unregister_sysctl_table(vmbus_ctl_table_hdr);
-#endif
 	DPRINT_EXIT(VMBUS_DRV);
 
 	return;
 }
 
-#if defined(KERNEL_2_6_5)
-#else
 module_param(vmbus_irq, int, S_IRUGO);
 module_param(vmbus_loglevel, int, S_IRUGO);
-#endif
 
 module_init(vmbus_init);
 module_exit(vmbus_exit);

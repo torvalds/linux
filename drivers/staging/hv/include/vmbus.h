@@ -79,17 +79,6 @@ static inline struct driver_context *driver_to_driver_context(struct device_driv
 	return container_of(driver, struct driver_context, driver);
 }
 
-#if defined(KERNEL_2_6_5)
-static inline void* kzalloc(int size, int flags)
-{
-	void *p;
-	p = kmalloc(size, flags);
-	if (p) memset(p, 0, size);
-
-	return p;
-}
-#endif // KERNEL_2_6_5
-
 //
 // Vmbus interface
 //

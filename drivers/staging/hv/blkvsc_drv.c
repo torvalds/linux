@@ -20,8 +20,6 @@
  *
  */
 
-#define KERNEL_2_6_27
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -186,14 +184,9 @@ int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	drv_ctx->driver.name = storvsc_drv_obj->Base.name;
 	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->Base.deviceType, sizeof(GUID));
 
-#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
-	drv_ctx->driver.probe = blkvsc_probe;
-	drv_ctx->driver.remove = blkvsc_remove;
-#else
 	drv_ctx->probe = blkvsc_probe;
 	drv_ctx->remove = blkvsc_remove;
 	drv_ctx->shutdown = blkvsc_shutdown;
-#endif
 
 	// The driver belongs to vmbus
 	vmbus_child_driver_register(drv_ctx);
@@ -224,16 +217,6 @@ void blkvsc_drv_exit(void)
 	struct driver_context *drv_ctx=&g_blkvsc_drv.drv_ctx;
 
 	struct device *current_dev=NULL;
-
-#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
-#define driver_for_each_device(drv, start, data, fn) \
-	struct list_head *ptr, *n; \
-	list_for_each_safe(ptr, n, &((drv)->devices)) {\
-		struct device *curr_dev;\
-		curr_dev = list_entry(ptr, struct device, driver_list);\
-		fn(curr_dev, data);\
-	}
-#endif // KERNEL_2_6_9
 
 	DPRINT_ENTER(BLKVSC_DRV);
 
@@ -313,15 +296,9 @@ static int blkvsc_probe(struct device *device)
 
 	ASSERT(sizeof(struct blkvsc_request_group) <= sizeof(struct blkvsc_request));
 
-#ifdef KERNEL_2_6_27
         blkdev->request_pool = kmem_cache_create(dev_name(&device_ctx->device),
                 sizeof(struct blkvsc_request) + storvsc_drv_obj->RequestExtSize, 0,
                 SLAB_HWCACHE_ALIGN, NULL);
-#else
-	blkdev->request_pool = kmem_cache_create(device_ctx->device.bus_id,
-		sizeof(struct blkvsc_request) + storvsc_drv_obj->RequestExtSize, 0,
-		SLAB_HWCACHE_ALIGN, NULL, NULL);
-#endif
 	if (!blkdev->request_pool)
 	{
 		ret = -ENOMEM;
@@ -1170,7 +1147,6 @@ static void blkvsc_request_completion(STORVSC_REQUEST* request)
 
 			list_del(&comp_req->req_entry);
 
-#ifdef KERNEL_2_6_27
 			if (!__blk_end_request(
 				comp_req->req,
 				(!comp_req->request.Status ? 0: -EIO),
@@ -1180,17 +1156,6 @@ static void blkvsc_request_completion(STORVSC_REQUEST* request)
 				DPRINT_DBG(BLKVSC_DRV, "req %p COMPLETED\n", comp_req->req);
 				kmem_cache_free(blkdev->request_pool, comp_req->group);
 			}
-#else
-			if (!end_that_request_first(comp_req->req, !comp_req->request.Status,  (comp_req->sector_count * (blkdev->sector_size >> 9))))
-			{
-				//All the sectors have been xferred ie the request is done
-				DPRINT_DBG(BLKVSC_DRV, "req %p COMPLETED\n", comp_req->req);
-
-				end_that_request_last(comp_req->req, !comp_req->request.Status);
-
-				kmem_cache_free(blkdev->request_pool, comp_req->group);
-			}
-#endif
 
 			kmem_cache_free(blkdev->request_pool, comp_req);
 		}
@@ -1234,14 +1199,10 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 
 			if (comp_req->req)
 			{
-#ifdef KERNEL_2_6_27
 			ret = __blk_end_request(
 			    comp_req->req,
 			    (!comp_req->request.Status ? 0 : -EIO),
 			    comp_req->sector_count * blkdev->sector_size);
-#else
-			ret = end_that_request_first(comp_req->req, !comp_req->request.Status,  (comp_req->sector_count * (blkdev->sector_size >> 9)));
-#endif
 			ASSERT(ret != 0);
 			}
 
@@ -1256,7 +1217,6 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 
 		if (comp_req->req)
 		{
-#ifdef KERNEL_2_6_27
 		if (!__blk_end_request(
 			pend_req->req,
 			-EIO,
@@ -1266,17 +1226,6 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 			DPRINT_DBG(BLKVSC_DRV, "blkvsc_cancel_pending_reqs() - req %p COMPLETED\n", pend_req->req);
 			kmem_cache_free(blkdev->request_pool, pend_req->group);
 		}
-#else
-		if (!end_that_request_first(pend_req->req, 0,  (pend_req->sector_count * (blkdev->sector_size >> 9))))
-		{
-			//All the sectors have been xferred ie the request is done
-			DPRINT_DBG(BLKVSC_DRV, "blkvsc_cancel_pending_reqs() - req %p COMPLETED\n", pend_req->req);
-
-			end_that_request_last(pend_req->req, 0);
-
-			kmem_cache_free(blkdev->request_pool, pend_req->group);
-		}
-#endif
 		}
 
 		kmem_cache_free(blkdev->request_pool, pend_req);

@@ -20,17 +20,11 @@
  *
  */
 
-#define KERNEL_2_6_27
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/device.h>
-#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
-#include <asm/io.h>
-#else
 #include <linux/io.h>
-#endif
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
@@ -116,13 +110,8 @@ int netvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	drv_ctx->driver.name = net_drv_obj->Base.name;
 	memcpy(&drv_ctx->class_id, &net_drv_obj->Base.deviceType, sizeof(GUID));
 
-#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
-	drv_ctx->driver.probe = netvsc_probe;
-	drv_ctx->driver.remove = netvsc_remove;
-#else
 	drv_ctx->probe = netvsc_probe;
 	drv_ctx->remove = netvsc_remove;
-#endif
 
 	// The driver belongs to vmbus
 	vmbus_child_driver_register(drv_ctx);
@@ -236,9 +225,6 @@ static int netvsc_probe(struct device *device)
 
 	net->netdev_ops = &device_ops;
 
-#if !defined(KERNEL_2_6_27)
-	SET_MODULE_OWNER(net);
-#endif
 	SET_NETDEV_DEV(net, device);
 
 	ret = register_netdev(net);
@@ -485,10 +471,6 @@ retry_send:
 
 	if (ret == 0)
 	{
-#ifdef KERNEL_2_6_5
-#define NETDEV_TX_OK	0
-#define NETDEV_TX_BUSY	0
-#endif
 		ret = NETDEV_TX_OK;
 		net_device_ctx->stats.tx_bytes += skb->len;
 		net_device_ctx->stats.tx_packets++;
@@ -658,15 +640,6 @@ void netvsc_drv_exit(void)
 	struct driver_context *drv_ctx=&g_netvsc_drv.drv_ctx;
 
 	struct device *current_dev=NULL;
-#if defined(KERNEL_2_6_5) || defined(KERNEL_2_6_9)
-#define driver_for_each_device(drv, start, data, fn) \
-	struct list_head *ptr, *n; \
-	list_for_each_safe(ptr, n, &((drv)->devices)) {\
-		struct device *curr_dev;\
-		curr_dev = list_entry(ptr, struct device, driver_list);\
-		fn(curr_dev, data);\
-	}
-#endif
 
 	DPRINT_ENTER(NETVSC_DRV);
 
