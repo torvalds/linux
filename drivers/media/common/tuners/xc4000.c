@@ -691,7 +691,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
 	int                pos, rc;
-	unsigned char      *p, *endp, buf[XC_MAX_I2C_WRITE_LENGTH];
+	unsigned char      *p;
 
 	printk("%s called\n", __func__);
 
@@ -705,96 +705,11 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	       (unsigned long long)*id);
 
 	p = priv->firm[pos].ptr;
-	endp = p + priv->firm[pos].size;
 
-	while (p < endp) {
-		__u16 size;
+	rc = xc_load_i2c_sequence(fe, p);
+	printk("load i2c sequence result=%d\n", rc);
 
-		printk("block %02x %02x %02x %02x %02x %02x\n", p[0], p[1], p[2], p[3], p[4], p[5]);
-
-		/* Checks if there's enough bytes to read */
-		if (p + sizeof(size) > endp) {
-			printk("Firmware chunk size is wrong\n");
-			return -EINVAL;
-		}
-
-		size = be16_to_cpu(*(__u16 *) p);
-		p += sizeof(size);
-
-		printk("djh size=%x\n", size);
-
-		if (size == 0xffff)
-			return 0;
-
-		if (!size) {
-			/* Special callback command received */
-			rc = xc4000_TunerReset(fe);
-			if (rc != XC_RESULT_SUCCESS) {
-				printk("Error at RESET code %d\n",
-				       (*p) & 0x7f);
-				return -EINVAL;
-			}
-			continue;
-		}
-		if (size >= 0xff00) {
-			switch (size) {
-#ifdef DJH_XXX
-			case 0xff00:
-				rc = do_tuner_callback(fe, XC2028_RESET_CLK, 0);
-				if (rc < 0) {
-					printk("Error at RESET code %d\n",
-						  (*p) & 0x7f);
-					return -EINVAL;
-				}
-				break;
-#endif
-			default:
-				printk("Invalid RESET code %d\n",
-					   size & 0x7f);
-				return -EINVAL;
-
-			}
-			continue;
-		}
-
-		/* Checks for a sleep command */
-		if (size & 0x8000) {
-			printk("djh doing msleep for %x\n", (size & 0x7fff));
-			msleep(size & 0x7fff);
-			continue;
-		}
-
-		if ((size + p > endp)) {
-			printk("missing bytes: need %d, have %d\n",
-				   size, (int)(endp - p));
-			return -EINVAL;
-		}
-
-		buf[0] = *p;
-		p++;
-		size--;
-
-		/* Sends message chunks */
-		printk("djh final size %d\n", size);
-		while (size > 0) {
-			int len = (size < XC_MAX_I2C_WRITE_LENGTH - 1) ?
-				   size : XC_MAX_I2C_WRITE_LENGTH - 1;
-
-			memcpy(buf + 1, p, len);
-
-//			rc = i2c_send(priv, buf, len + 1);
-			printk("djh sending %d\n", len + 1);
-			rc = xc_send_i2c_data(priv, buf, len + 1);
-			if (rc < 0) {
-				printk("%d returned from send\n", rc);
-				return -EINVAL;
-			}
-
-			p += len;
-			size -= len;
-		}
-	}
-	return 0;
+	return rc;
 }
 
 //static int load_all_firmwares(struct dvb_frontend *fe)
@@ -1414,7 +1329,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	std0 = 0;
 //	rc = load_firmware(fe, BASE | new_fw.type, &std0);
 	rc = load_firmware(fe, BASE, &std0);
-	if (rc < 0) {
+	if (rc != XC_RESULT_SUCCESS) {
 		tuner_err("Error %d while loading base firmware\n",
 			  rc);
 		goto fail;
