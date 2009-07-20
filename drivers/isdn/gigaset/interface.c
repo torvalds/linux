@@ -408,6 +408,8 @@ static int if_write_room(struct tty_struct *tty)
 	return retval;
 }
 
+/* FIXME: This function does not have error returns */
+
 static int if_chars_in_buffer(struct tty_struct *tty)
 {
 	struct cardstate *cs;

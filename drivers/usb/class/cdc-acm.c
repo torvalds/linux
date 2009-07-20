@@ -750,7 +750,7 @@ static int acm_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 	if (!ACM_READY(acm))
-		return -EINVAL;
+		return 0;
 	/*
 	 * This is inaccurate (overcounts), but it works.
 	 */

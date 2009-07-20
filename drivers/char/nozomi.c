@@ -1866,16 +1866,14 @@ static s32 ntty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
 	struct nozomi *dc = get_dc_by_tty(tty);
-	s32 rval;
+	s32 rval = 0;
 
 	if (unlikely(!dc || !port)) {
-		rval = -ENODEV;
 		goto exit_in_buffer;
 	}
 
 	if (unlikely(!port->port.count)) {
 		dev_err(&dc->pdev->dev, "No tty open?\n");
-		rval = -ENODEV;
 		goto exit_in_buffer;
 	}
 
