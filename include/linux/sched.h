@@ -1111,6 +1111,8 @@ struct sched_entity {
 	u64			wait_max;
 	u64			wait_count;
 	u64			wait_sum;
+	u64			iowait_count;
+	u64			iowait_sum;
 
 	u64			sleep_start;
 	u64			sleep_max;
@@ -1231,6 +1233,8 @@ struct task_struct {
 	unsigned did_exec:1;
 	unsigned in_execve:1;	/* Tell the LSMs that the process is doing an
 				 * execve */
+	unsigned in_iowait:1;
+
 
 	/* Revert to default priority/policy when forking */
 	unsigned sched_reset_on_fork:1;

@@ -652,6 +652,11 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		se->sum_sleep_runtime += delta;
 
 		if (tsk) {
+			if (tsk->in_iowait) {
+				se->iowait_sum += delta;
+				se->iowait_count++;
+			}
+
 			/*
 			 * Blocking time is in units of nanosecs, so shift by
 			 * 20 to get a milliseconds-range estimation of the
