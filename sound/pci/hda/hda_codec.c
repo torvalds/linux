@@ -332,6 +332,12 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 						  AC_VERB_GET_CONNECT_LIST, i);
 		range_val = !!(parm & (1 << (shift-1))); /* ranges */
 		val = parm & mask;
+		if (val == 0) {
+			snd_printk(KERN_WARNING "hda_codec: "
+				   "invalid CONNECT_LIST verb %x[%i]:%x\n",
+				    nid, i, parm);
+			return 0;
+		}
 		parm >>= shift;
 		if (range_val) {
 			/* ranges between the previous and this one */
