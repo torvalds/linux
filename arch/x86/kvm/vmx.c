@@ -3168,7 +3168,7 @@ static void handle_invalid_guest_state(struct kvm_vcpu *vcpu,
 
 		if (err != EMULATE_DONE) {
 			kvm_report_emulation_failure(vcpu, "emulation failure");
-			return;
+			break;
 		}
 
 		if (signal_pending(current))
