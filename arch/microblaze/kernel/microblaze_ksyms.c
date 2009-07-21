@@ -24,6 +24,7 @@
 
 extern char *_ebss;
 EXPORT_SYMBOL_GPL(_ebss);
+
 #ifdef CONFIG_FUNCTION_TRACER
 extern void _mcount(void);
 EXPORT_SYMBOL(_mcount);
