@@ -56,8 +56,8 @@
 #include "bnx2x_init_ops.h"
 #include "bnx2x_dump.h"
 
-#define DRV_MODULE_VERSION	"1.48.105-1"
-#define DRV_MODULE_RELDATE	"2009/04/22"
+#define DRV_MODULE_VERSION	"1.48.113-1"
+#define DRV_MODULE_RELDATE	"2009/07/21"
 #define BNX2X_BC_VER		0x040200
 
 #include <linux/firmware.h>
