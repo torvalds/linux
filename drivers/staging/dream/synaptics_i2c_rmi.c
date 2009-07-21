@@ -247,19 +247,10 @@ static int detect(struct synaptics_ts_data *ts, u32 *panel_version)
 	return 0;
 }
 
-static struct synaptics_i2c_rmi_platform_data fake_pdata;
-
-static int synaptics_ts_probe(
-	struct i2c_client *client, const struct i2c_device_id *id)
+static void compute_areas(struct synaptics_ts_data *ts,
+			  struct synaptics_i2c_rmi_platform_data *pdata,
+			  u16 max_x, u16 max_y)
 {
-	struct synaptics_ts_data *ts;
-	uint8_t buf0[4];
-	uint8_t buf1[8];
-	struct i2c_msg msg[2];
-	int ret = 0;
-	uint16_t max_x, max_y;
-	int fuzz_x, fuzz_y, fuzz_p, fuzz_w;
-	struct synaptics_i2c_rmi_platform_data *pdata;
 	int inactive_area_left;
 	int inactive_area_right;
 	int inactive_area_top;
@@ -272,10 +263,95 @@ static int synaptics_ts_probe(
 	int snap_top_off;
 	int snap_bottom_on;
 	int snap_bottom_off;
-	uint32_t panel_version = 0;
+	int fuzz_x;
+	int fuzz_y;
+	int fuzz_p;
+	int fuzz_w;
+	int swapped = !!(ts->flags & SYNAPTICS_SWAP_XY);
+
+	inactive_area_left = pdata->inactive_left;
+	inactive_area_right = pdata->inactive_right;
+	inactive_area_top = pdata->inactive_top;
+	inactive_area_bottom = pdata->inactive_bottom;
+	snap_left_on = pdata->snap_left_on;
+	snap_left_off = pdata->snap_left_off;
+	snap_right_on = pdata->snap_right_on;
+	snap_right_off = pdata->snap_right_off;
+	snap_top_on = pdata->snap_top_on;
+	snap_top_off = pdata->snap_top_off;
+	snap_bottom_on = pdata->snap_bottom_on;
+	snap_bottom_off = pdata->snap_bottom_off;
+	fuzz_x = pdata->fuzz_x;
+	fuzz_y = pdata->fuzz_y;
+	fuzz_p = pdata->fuzz_p;
+	fuzz_w = pdata->fuzz_w;
+
+	inactive_area_left = inactive_area_left * max_x / 0x10000;
+	inactive_area_right = inactive_area_right * max_x / 0x10000;
+	inactive_area_top = inactive_area_top * max_y / 0x10000;
+	inactive_area_bottom = inactive_area_bottom * max_y / 0x10000;
+	snap_left_on = snap_left_on * max_x / 0x10000;
+	snap_left_off = snap_left_off * max_x / 0x10000;
+	snap_right_on = snap_right_on * max_x / 0x10000;
+	snap_right_off = snap_right_off * max_x / 0x10000;
+	snap_top_on = snap_top_on * max_y / 0x10000;
+	snap_top_off = snap_top_off * max_y / 0x10000;
+	snap_bottom_on = snap_bottom_on * max_y / 0x10000;
+	snap_bottom_off = snap_bottom_off * max_y / 0x10000;
+	fuzz_x = fuzz_x * max_x / 0x10000;
+	fuzz_y = fuzz_y * max_y / 0x10000;
+
+
+	ts->snap_down[swapped] = -inactive_area_left;
+	ts->snap_up[swapped] = max_x + inactive_area_right;
+	ts->snap_down[!swapped] = -inactive_area_top;
+	ts->snap_up[!swapped] = max_y + inactive_area_bottom;
+	ts->snap_down_on[swapped] = snap_left_on;
+	ts->snap_down_off[swapped] = snap_left_off;
+	ts->snap_up_on[swapped] = max_x - snap_right_on;
+	ts->snap_up_off[swapped] = max_x - snap_right_off;
+	ts->snap_down_on[!swapped] = snap_top_on;
+	ts->snap_down_off[!swapped] = snap_top_off;
+	ts->snap_up_on[!swapped] = max_y - snap_bottom_on;
+	ts->snap_up_off[!swapped] = max_y - snap_bottom_off;
+	pr_info("synaptics_ts_probe: max_x %d, max_y %d\n", max_x, max_y);
+	pr_info("synaptics_ts_probe: inactive_x %d %d, inactive_y %d %d\n",
+	       inactive_area_left, inactive_area_right,
+	       inactive_area_top, inactive_area_bottom);
+	pr_info("synaptics_ts_probe: snap_x %d-%d %d-%d, snap_y %d-%d %d-%d\n",
+	       snap_left_on, snap_left_off, snap_right_on, snap_right_off,
+	       snap_top_on, snap_top_off, snap_bottom_on, snap_bottom_off);
+
+	input_set_abs_params(ts->input_dev, ABS_X,
+			     -inactive_area_left, max_x + inactive_area_right,
+			     fuzz_x, 0);
+	input_set_abs_params(ts->input_dev, ABS_Y,
+			     -inactive_area_top, max_y + inactive_area_bottom,
+			     fuzz_y, 0);
+	input_set_abs_params(ts->input_dev, ABS_PRESSURE, 0, 255, fuzz_p, 0);
+	input_set_abs_params(ts->input_dev, ABS_TOOL_WIDTH, 0, 15, fuzz_w, 0);
+	input_set_abs_params(ts->input_dev, ABS_HAT0X, -inactive_area_left,
+			     max_x + inactive_area_right, fuzz_x, 0);
+	input_set_abs_params(ts->input_dev, ABS_HAT0Y, -inactive_area_top,
+			     max_y + inactive_area_bottom, fuzz_y, 0);
+}
+
+static struct synaptics_i2c_rmi_platform_data fake_pdata;
+
+static int __devinit synaptics_ts_probe(
+	struct i2c_client *client, const struct i2c_device_id *id)
+{
+	struct synaptics_ts_data *ts;
+	u8 buf0[4];
+	u8 buf1[8];
+	struct i2c_msg msg[2];
+	int ret = 0;
+	struct synaptics_i2c_rmi_platform_data *pdata;
+	u32 panel_version = 0;
+	u16 max_x, max_y;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		printk(KERN_ERR "synaptics_ts_probe: need I2C_FUNC_I2C\n");
+		pr_err("synaptics_ts_probe: need I2C_FUNC_I2C\n");
 		ret = -ENODEV;
 		goto err_check_functionality_failed;
 	}
@@ -306,65 +382,23 @@ static int synaptics_ts_probe(
 	if (ret)
 		goto err_detect_failed;
 
+	while (pdata->version > panel_version)
+		pdata++;
+	ts->flags = pdata->flags;
 
-	if (pdata) {
-		while (pdata->version > panel_version)
-			pdata++;
-		ts->flags = pdata->flags;
-		inactive_area_left = pdata->inactive_left;
-		inactive_area_right = pdata->inactive_right;
-		inactive_area_top = pdata->inactive_top;
-		inactive_area_bottom = pdata->inactive_bottom;
-		snap_left_on = pdata->snap_left_on;
-		snap_left_off = pdata->snap_left_off;
-		snap_right_on = pdata->snap_right_on;
-		snap_right_off = pdata->snap_right_off;
-		snap_top_on = pdata->snap_top_on;
-		snap_top_off = pdata->snap_top_off;
-		snap_bottom_on = pdata->snap_bottom_on;
-		snap_bottom_off = pdata->snap_bottom_off;
-		fuzz_x = pdata->fuzz_x;
-		fuzz_y = pdata->fuzz_y;
-		fuzz_p = pdata->fuzz_p;
-		fuzz_w = pdata->fuzz_w;
-	} else {
-		inactive_area_left = 0;
-		inactive_area_right = 0;
-		inactive_area_top = 0;
-		inactive_area_bottom = 0;
-		snap_left_on = 0;
-		snap_left_off = 0;
-		snap_right_on = 0;
-		snap_right_off = 0;
-		snap_top_on = 0;
-		snap_top_off = 0;
-		snap_bottom_on = 0;
-		snap_bottom_off = 0;
-		fuzz_x = 0;
-		fuzz_y = 0;
-		fuzz_p = 0;
-		fuzz_w = 0;
-	}
-
-	ret = i2c_smbus_read_byte_data(ts->client, 0xf0);
-	if (ret < 0) {
-		printk(KERN_ERR "i2c_smbus_read_byte_data failed\n");
+	ret = i2c_read(ts, 0xf0, "device control");
+	if (ret < 0)
 		goto err_detect_failed;
-	}
-	printk(KERN_INFO "synaptics_ts_probe: device control %x\n", ret);
+	pr_info("synaptics: device control %x\n", ret);
 
-	ret = i2c_smbus_read_byte_data(ts->client, 0xf1);
-	if (ret < 0) {
-		printk(KERN_ERR "i2c_smbus_read_byte_data failed\n");
+	ret = i2c_read(ts, 0xf1, "interrupt enable");
+	if (ret < 0)
 		goto err_detect_failed;
-	}
-	printk(KERN_INFO "synaptics_ts_probe: interrupt enable %x\n", ret);
+	pr_info("synaptics_ts_probe: interrupt enable %x\n", ret);
 
-	ret = i2c_smbus_write_byte_data(ts->client, 0xf1, 0); /* disable interrupt */
-	if (ret < 0) {
-		printk(KERN_ERR "i2c_smbus_write_byte_data failed\n");
+	ret = i2c_set(ts, 0xf1, 0, "disable interrupt");
+	if (ret < 0)
 		goto err_detect_failed;
-	}
 
 	msg[0].addr = ts->client->addr;
 	msg[0].flags = 0;
@@ -377,18 +411,17 @@ static int synaptics_ts_probe(
 	msg[1].buf = buf1;
 	ret = i2c_transfer(ts->client->adapter, msg, 2);
 	if (ret < 0) {
-		printk(KERN_ERR "i2c_transfer failed\n");
+		pr_err("i2c_transfer failed\n");
 		goto err_detect_failed;
 	}
-	printk(KERN_INFO "synaptics_ts_probe: 0xe0: %x %x %x %x %x %x %x %x\n",
+	pr_info("synaptics_ts_probe: 0xe0: %x %x %x %x %x %x %x %x\n",
 	       buf1[0], buf1[1], buf1[2], buf1[3],
 	       buf1[4], buf1[5], buf1[6], buf1[7]);
 
-	ret = i2c_smbus_write_byte_data(ts->client, 0xff, 0x10); /* page select = 0x10 */
-	if (ret < 0) {
-		printk(KERN_ERR "i2c_smbus_write_byte_data failed for page select\n");
+	ret = i2c_set(ts, 0xff, 0x10, "page select = 0x10");
+	if (ret < 0)
 		goto err_detect_failed;
-	}
+
 	ret = i2c_smbus_read_word_data(ts->client, 0x04);
 	if (ret < 0) {
 		pr_err("i2c_smbus_read_word_data failed\n");
@@ -418,60 +451,29 @@ static int synaptics_ts_probe(
 		goto err_input_dev_alloc_failed;
 	}
 	ts->input_dev->name = "synaptics-rmi-touchscreen";
-	set_bit(EV_SYN, ts->input_dev->evbit);
-	set_bit(EV_KEY, ts->input_dev->evbit);
-	set_bit(BTN_TOUCH, ts->input_dev->keybit);
-	set_bit(BTN_2, ts->input_dev->keybit);
-	set_bit(EV_ABS, ts->input_dev->evbit);
-	inactive_area_left = inactive_area_left * max_x / 0x10000;
-	inactive_area_right = inactive_area_right * max_x / 0x10000;
-	inactive_area_top = inactive_area_top * max_y / 0x10000;
-	inactive_area_bottom = inactive_area_bottom * max_y / 0x10000;
-	snap_left_on = snap_left_on * max_x / 0x10000;
-	snap_left_off = snap_left_off * max_x / 0x10000;
-	snap_right_on = snap_right_on * max_x / 0x10000;
-	snap_right_off = snap_right_off * max_x / 0x10000;
-	snap_top_on = snap_top_on * max_y / 0x10000;
-	snap_top_off = snap_top_off * max_y / 0x10000;
-	snap_bottom_on = snap_bottom_on * max_y / 0x10000;
-	snap_bottom_off = snap_bottom_off * max_y / 0x10000;
-	fuzz_x = fuzz_x * max_x / 0x10000;
-	fuzz_y = fuzz_y * max_y / 0x10000;
-	ts->snap_down[!!(ts->flags & SYNAPTICS_SWAP_XY)] = -inactive_area_left;
-	ts->snap_up[!!(ts->flags & SYNAPTICS_SWAP_XY)] = max_x + inactive_area_right;
-	ts->snap_down[!(ts->flags & SYNAPTICS_SWAP_XY)] = -inactive_area_top;
-	ts->snap_up[!(ts->flags & SYNAPTICS_SWAP_XY)] = max_y + inactive_area_bottom;
-	ts->snap_down_on[!!(ts->flags & SYNAPTICS_SWAP_XY)] = snap_left_on;
-	ts->snap_down_off[!!(ts->flags & SYNAPTICS_SWAP_XY)] = snap_left_off;
-	ts->snap_up_on[!!(ts->flags & SYNAPTICS_SWAP_XY)] = max_x - snap_right_on;
-	ts->snap_up_off[!!(ts->flags & SYNAPTICS_SWAP_XY)] = max_x - snap_right_off;
-	ts->snap_down_on[!(ts->flags & SYNAPTICS_SWAP_XY)] = snap_top_on;
-	ts->snap_down_off[!(ts->flags & SYNAPTICS_SWAP_XY)] = snap_top_off;
-	ts->snap_up_on[!(ts->flags & SYNAPTICS_SWAP_XY)] = max_y - snap_bottom_on;
-	ts->snap_up_off[!(ts->flags & SYNAPTICS_SWAP_XY)] = max_y - snap_bottom_off;
-	printk(KERN_INFO "synaptics_ts_probe: max_x %d, max_y %d\n", max_x, max_y);
-	printk(KERN_INFO "synaptics_ts_probe: inactive_x %d %d, inactive_y %d %d\n",
-	       inactive_area_left, inactive_area_right,
-	       inactive_area_top, inactive_area_bottom);
-	printk(KERN_INFO "synaptics_ts_probe: snap_x %d-%d %d-%d, snap_y %d-%d %d-%d\n",
-	       snap_left_on, snap_left_off, snap_right_on, snap_right_off,
-	       snap_top_on, snap_top_off, snap_bottom_on, snap_bottom_off);
-	input_set_abs_params(ts->input_dev, ABS_X, -inactive_area_left, max_x + inactive_area_right, fuzz_x, 0);
-	input_set_abs_params(ts->input_dev, ABS_Y, -inactive_area_top, max_y + inactive_area_bottom, fuzz_y, 0);
-	input_set_abs_params(ts->input_dev, ABS_PRESSURE, 0, 255, fuzz_p, 0);
-	input_set_abs_params(ts->input_dev, ABS_TOOL_WIDTH, 0, 15, fuzz_w, 0);
-	input_set_abs_params(ts->input_dev, ABS_HAT0X, -inactive_area_left, max_x + inactive_area_right, fuzz_x, 0);
-	input_set_abs_params(ts->input_dev, ABS_HAT0Y, -inactive_area_top, max_y + inactive_area_bottom, fuzz_y, 0);
-	/* ts->input_dev->name = ts->keypad_info->name; */
+	ts->input_dev->phys = "msm/input0";
+	ts->input_dev->id.bustype = BUS_I2C;
+
+	__set_bit(EV_SYN, ts->input_dev->evbit);
+	__set_bit(EV_KEY, ts->input_dev->evbit);
+	__set_bit(BTN_TOUCH, ts->input_dev->keybit);
+	__set_bit(BTN_2, ts->input_dev->keybit);
+	__set_bit(EV_ABS, ts->input_dev->evbit);
+
+	compute_areas(ts, pdata, max_x, max_y);
+
+
 	ret = input_register_device(ts->input_dev);
 	if (ret) {
-		printk(KERN_ERR "synaptics_ts_probe: Unable to register %s input device\n", ts->input_dev->name);
+		pr_err("synaptics: Unable to register %s input device\n",
+		       ts->input_dev->name);
 		goto err_input_register_device_failed;
 	}
 	if (client->irq) {
-		ret = request_irq(client->irq, synaptics_ts_irq_handler, 0, client->name, ts);
+		ret = request_irq(client->irq, synaptics_ts_irq_handler,
+				  0, client->name, ts);
 		if (ret == 0) {
-			ret = i2c_smbus_write_byte_data(ts->client, 0xf1, 0x01); /* enable abs int */
+			ret = i2c_set(ts, 0xf1, 0x01, "enable abs int");
 			if (ret)
 				free_irq(client->irq, ts);
 		}
