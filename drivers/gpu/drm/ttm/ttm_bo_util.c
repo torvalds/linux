@@ -509,8 +509,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	if (evict) {
 		ret = ttm_bo_wait(bo, false, false, false);
 		spin_unlock(&bo->lock);
-		driver->sync_obj_unref(&bo->sync_obj);
-
+		if (tmp_obj)
+			driver->sync_obj_unref(&tmp_obj);
 		if (ret)
 			return ret;
 
@@ -532,6 +532,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 
 		set_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
 		spin_unlock(&bo->lock);
+		if (tmp_obj)
+			driver->sync_obj_unref(&tmp_obj);
 
 		ret = ttm_buffer_object_transfer(bo, &ghost_obj);
 		if (ret)
