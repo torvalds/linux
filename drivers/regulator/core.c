@@ -1025,25 +1025,15 @@ overflow_err:
 	return NULL;
 }
 
-/**
- * regulator_get - lookup and obtain a reference to a regulator.
- * @dev: device for regulator "consumer"
- * @id: Supply name or regulator ID.
- *
- * Returns a struct regulator corresponding to the regulator producer,
- * or IS_ERR() condition containing errno.
- *
- * Use of supply names configured via regulator_set_device_supply() is
- * strongly encouraged.  It is recommended that the supply name used
- * should match the name used for the supply and/or the relevant
- * device pins in the datasheet.
- */
-struct regulator *regulator_get(struct device *dev, const char *id)
+/* Internal regulator request function */
+static struct regulator *_regulator_get(struct device *dev, const char *id,
+					int exclusive)
 {
 	struct regulator_dev *rdev;
 	struct regulator_map *map;
 	struct regulator *regulator = ERR_PTR(-ENODEV);
 	const char *devname = NULL;
+	int ret;
 
 	if (id == NULL) {
 		printk(KERN_ERR "regulator: get() with no identifier\n");
@@ -1070,6 +1060,16 @@ struct regulator *regulator_get(struct device *dev, const char *id)
 	return regulator;
 
 found:
+	if (rdev->exclusive) {
+		regulator = ERR_PTR(-EPERM);
+		goto out;
+	}
+
+	if (exclusive && rdev->open_count) {
+		regulator = ERR_PTR(-EBUSY);
+		goto out;
+	}
+
 	if (!try_module_get(rdev->owner))
 		goto out;
 
@@ -1079,11 +1079,68 @@ found:
 		module_put(rdev->owner);
 	}
 
+	rdev->open_count++;
+	if (exclusive) {
+		rdev->exclusive = 1;
+
+		ret = _regulator_is_enabled(rdev);
+		if (ret > 0)
+			rdev->use_count = 1;
+		else
+			rdev->use_count = 0;
+	}
+
 out:
 	mutex_unlock(&regulator_list_mutex);
+
 	return regulator;
 }
+
+/**
+ * regulator_get - lookup and obtain a reference to a regulator.
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Returns a struct regulator corresponding to the regulator producer,
+ * or IS_ERR() condition containing errno.
+ *
+ * Use of supply names configured via regulator_set_device_supply() is
+ * strongly encouraged.  It is recommended that the supply name used
+ * should match the name used for the supply and/or the relevant
+ * device pins in the datasheet.
+ */
+struct regulator *regulator_get(struct device *dev, const char *id)
+{
+	return _regulator_get(dev, id, 0);
+}
 EXPORT_SYMBOL_GPL(regulator_get);
+
+/**
+ * regulator_get_exclusive - obtain exclusive access to a regulator.
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Returns a struct regulator corresponding to the regulator producer,
+ * or IS_ERR() condition containing errno.  Other consumers will be
+ * unable to obtain this reference is held and the use count for the
+ * regulator will be initialised to reflect the current state of the
+ * regulator.
+ *
+ * This is intended for use by consumers which cannot tolerate shared
+ * use of the regulator such as those which need to force the
+ * regulator off for correct operation of the hardware they are
+ * controlling.
+ *
+ * Use of supply names configured via regulator_set_device_supply() is
+ * strongly encouraged.  It is recommended that the supply name used
+ * should match the name used for the supply and/or the relevant
+ * device pins in the datasheet.
+ */
+struct regulator *regulator_get_exclusive(struct device *dev, const char *id)
+{
+	return _regulator_get(dev, id, 1);
+}
+EXPORT_SYMBOL_GPL(regulator_get_exclusive);
 
 /**
  * regulator_put - "free" the regulator source
@@ -1112,6 +1169,9 @@ void regulator_put(struct regulator *regulator)
 	}
 	list_del(&regulator->list);
 	kfree(regulator);
+
+	rdev->open_count--;
+	rdev->exclusive = 0;
 
 	module_put(rdev->owner);
 	mutex_unlock(&regulator_list_mutex);

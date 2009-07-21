@@ -162,6 +162,8 @@ struct regulator_desc {
 struct regulator_dev {
 	struct regulator_desc *desc;
 	int use_count;
+	int open_count;
+	int exclusive;
 
 	/* lists we belong to */
 	struct list_head list; /* list of all regulators */

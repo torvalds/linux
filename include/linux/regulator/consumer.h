@@ -125,6 +125,8 @@ struct regulator_bulk_data {
 /* regulator get and put */
 struct regulator *__must_check regulator_get(struct device *dev,
 					     const char *id);
+struct regulator *__must_check regulator_get_exclusive(struct device *dev,
+						       const char *id);
 void regulator_put(struct regulator *regulator);
 
 /* regulator output control and status */
