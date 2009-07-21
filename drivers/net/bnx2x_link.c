@@ -5494,6 +5494,11 @@ u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 		}
 		REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE +
 			    params->port*4, 0);
+
+		bnx2x_set_led(bp, params->port, LED_MODE_OPER,
+			    vars->line_speed, params->hw_led_mode,
+			    params->chip_id);
+
 	} else
 	/* No loopback */
 	{
