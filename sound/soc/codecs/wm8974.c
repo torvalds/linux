@@ -162,7 +162,7 @@ SOC_SINGLE_TLV("PCM Volume", WM8974_DACVOL, 0, 255, 0, digital_tlv),
 
 SOC_SINGLE("High Pass Filter Switch", WM8974_ADC, 8, 1, 0),
 SOC_SINGLE("High Pass Cut Off", WM8974_ADC, 4, 7, 0),
-SOC_SINGLE("ADC Inversion Switch", WM8974_COMP, 0, 1, 0),
+SOC_SINGLE("ADC Inversion Switch", WM8974_ADC, 0, 1, 0),
 
 SOC_SINGLE_TLV("Capture Volume", WM8974_ADCVOL,  0, 255, 0, digital_tlv),
 
