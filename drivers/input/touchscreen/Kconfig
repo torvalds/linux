@@ -366,11 +366,11 @@ config TOUCHSCREEN_WM97XX_ATMEL
 	  be called atmel-wm97xx.
 
 config TOUCHSCREEN_WM97XX_MAINSTONE
-	tristate "WM97xx Mainstone accelerated touch"
+	tristate "WM97xx Mainstone/Palm accelerated touch"
 	depends on TOUCHSCREEN_WM97XX && ARCH_PXA
 	help
 	  Say Y here for support for streaming mode with WM97xx touchscreens
-	  on Mainstone systems.
+	  on Mainstone, Palm Tungsten T5, TX and LifeDrive systems.
 
 	  If unsure, say N.
 
