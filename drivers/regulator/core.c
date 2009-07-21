@@ -872,6 +872,7 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 	const char *supply)
 {
 	struct regulator_map *node;
+	int has_dev;
 
 	if (consumer_dev && consumer_dev_name)
 		return -EINVAL;
@@ -881,6 +882,11 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 
 	if (supply == NULL)
 		return -EINVAL;
+
+	if (consumer_dev_name != NULL)
+		has_dev = 1;
+	else
+		has_dev = 0;
 
 	list_for_each_entry(node, &regulator_map_list, list) {
 		if (consumer_dev_name != node->dev_name)
@@ -896,17 +902,19 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 		return -EBUSY;
 	}
 
-	node = kmalloc(sizeof(struct regulator_map), GFP_KERNEL);
+	node = kzalloc(sizeof(struct regulator_map), GFP_KERNEL);
 	if (node == NULL)
 		return -ENOMEM;
 
 	node->regulator = rdev;
-	node->dev_name = kstrdup(consumer_dev_name, GFP_KERNEL);
 	node->supply = supply;
 
-	if (node->dev_name == NULL) {
-		kfree(node);
-		return -ENOMEM;
+	if (has_dev) {
+		node->dev_name = kstrdup(consumer_dev_name, GFP_KERNEL);
+		if (node->dev_name == NULL) {
+			kfree(node);
+			return -ENOMEM;
+		}
 	}
 
 	list_add(&node->list, &regulator_map_list);
