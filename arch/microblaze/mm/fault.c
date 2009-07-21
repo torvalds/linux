@@ -69,7 +69,7 @@ static int store_updates_sp(struct pt_regs *regs)
  * It is called from do_page_fault above and from some of the procedures
  * in traps.c.
  */
-static void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
+void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 {
 	const struct exception_table_entry *fixup;
 /* MS: no context */
