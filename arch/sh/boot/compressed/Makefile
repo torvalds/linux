@@ -48,10 +48,6 @@ $(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y) FORCE
 $(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,lzma)
 
-suffix-$(CONFIG_KERNEL_GZIP)	:= gz
-suffix-$(CONFIG_KERNEL_BZIP2)	:= bz2
-suffix-$(CONFIG_KERNEL_LZMA)	:= lzma
-
 OBJCOPYFLAGS += -R .empty_zero_page
 
 LDFLAGS_piggy.o := -r --format binary --oformat $(ld-bfd) -T

@@ -57,7 +57,7 @@ static int v9fs_vfs_readpage(struct file *filp, struct page *page)
 	buffer = kmap(page);
 	offset = page_offset(page);
 
-	retval = v9fs_file_readn(filp, buffer, NULL, offset, PAGE_CACHE_SIZE);
+	retval = v9fs_file_readn(filp, buffer, NULL, PAGE_CACHE_SIZE, offset);
 	if (retval < 0)
 		goto done;
 

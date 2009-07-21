@@ -1113,7 +1113,10 @@ PsxCreat:
 psx_create_err:
 	cifs_buf_release(pSMB);
 
-	cifs_stats_inc(&tcon->num_mkdirs);
+	if (posix_flags & SMB_O_DIRECTORY)
+		cifs_stats_inc(&tcon->num_posixmkdirs);
+	else
+		cifs_stats_inc(&tcon->num_posixopens);
 
 	if (rc == -EAGAIN)
 		goto PsxCreat;

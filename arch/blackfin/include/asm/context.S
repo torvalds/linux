@@ -223,9 +223,10 @@
 	[--sp] = RETN;
 	[--sp] = RETE;
 	[--sp] = SEQSTAT;
-#ifdef CONFIG_KGDB
-	r1.l = lo(IPEND);
-	r1.h = hi(IPEND);
+#ifdef CONFIG_DEBUG_KERNEL
+	p1.l = lo(IPEND);
+	p1.h = hi(IPEND);
+	r1 = [p1];
 	[--sp] = r1;
 #else
 	[--sp] = r0;	/* Skip IPEND as well. */
