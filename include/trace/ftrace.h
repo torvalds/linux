@@ -144,6 +144,9 @@
 #undef TP_fast_assign
 #define TP_fast_assign(args...) args
 
+#undef TP_perf_assign
+#define TP_perf_assign(args...)
+
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
 static int								\
@@ -345,6 +348,88 @@ static inline int ftrace_get_offsets_##call(				\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
+#ifdef CONFIG_EVENT_PROFILE
+
+/*
+ * Generate the functions needed for tracepoint perf_counter support.
+ *
+ * static void ftrace_profile_<call>(proto)
+ * {
+ * 	extern void perf_tpcounter_event(int, u64, u64);
+ * 	u64 __addr = 0, __count = 1;
+ *
+ * 	<assign>   <-- here we expand the TP_perf_assign() macro
+ *
+ * 	perf_tpcounter_event(event_<call>.id, __addr, __count);
+ * }
+ *
+ * static int ftrace_profile_enable_<call>(struct ftrace_event_call *event_call)
+ * {
+ * 	int ret = 0;
+ *
+ * 	if (!atomic_inc_return(&event_call->profile_count))
+ * 		ret = register_trace_<call>(ftrace_profile_<call>);
+ *
+ * 	return ret;
+ * }
+ *
+ * static void ftrace_profile_disable_<call>(struct ftrace_event_call *event_call)
+ * {
+ * 	if (atomic_add_negative(-1, &event->call->profile_count))
+ * 		unregister_trace_<call>(ftrace_profile_<call>);
+ * }
+ *
+ */
+
+#undef TP_fast_assign
+#define TP_fast_assign(args...)
+
+#undef TP_perf_assign
+#define TP_perf_assign(args...) args
+
+#undef __perf_addr
+#define __perf_addr(a) __addr = (a)
+
+#undef __perf_count
+#define __perf_count(c) __count = (c)
+
+#undef TRACE_EVENT
+#define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
+									\
+static void ftrace_profile_##call(proto)				\
+{									\
+	extern void perf_tpcounter_event(int, u64, u64);		\
+	u64 __addr = 0, __count = 1;					\
+	{ assign; }							\
+	perf_tpcounter_event(event_##call.id, __addr, __count);		\
+}									\
+									\
+static int ftrace_profile_enable_##call(struct ftrace_event_call *event_call) \
+{									\
+	int ret = 0;							\
+									\
+	if (!atomic_inc_return(&event_call->profile_count))		\
+		ret = register_trace_##call(ftrace_profile_##call);	\
+									\
+	return ret;							\
+}									\
+									\
+static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
+{									\
+	if (atomic_add_negative(-1, &event_call->profile_count))	\
+		unregister_trace_##call(ftrace_profile_##call);		\
+}
+
+#include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
+
+#undef TP_fast_assign
+#define TP_fast_assign(args...) args
+
+#undef TP_perf_assign
+#define TP_perf_assign(args...)
+
+#endif
+
 /*
  * Stage 4 of the trace events.
  *
@@ -447,28 +532,6 @@ static inline int ftrace_get_offsets_##call(				\
 #define TP_FMT(fmt, args...)	fmt "\n", ##args
 
 #ifdef CONFIG_EVENT_PROFILE
-#define _TRACE_PROFILE(call, proto, args)				\
-static void ftrace_profile_##call(proto)				\
-{									\
-	extern void perf_tpcounter_event(int);				\
-	perf_tpcounter_event(event_##call.id);				\
-}									\
-									\
-static int ftrace_profile_enable_##call(struct ftrace_event_call *event_call) \
-{									\
-	int ret = 0;							\
-									\
-	if (!atomic_inc_return(&event_call->profile_count))		\
-		ret = register_trace_##call(ftrace_profile_##call);	\
-									\
-	return ret;							\
-}									\
-									\
-static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
-{									\
-	if (atomic_add_negative(-1, &event_call->profile_count))	\
-		unregister_trace_##call(ftrace_profile_##call);		\
-}
 
 #define _TRACE_PROFILE_INIT(call)					\
 	.profile_count = ATOMIC_INIT(-1),				\
@@ -476,7 +539,6 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
 	.profile_disable = ftrace_profile_disable_##call,
 
 #else
-#define _TRACE_PROFILE(call, proto, args)
 #define _TRACE_PROFILE_INIT(call)
 #endif
 
@@ -502,7 +564,6 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
-_TRACE_PROFILE(call, PARAMS(proto), PARAMS(args))			\
 									\
 static struct ftrace_event_call event_##call;				\
 									\
@@ -586,6 +647,5 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#undef _TRACE_PROFILE
 #undef _TRACE_PROFILE_INIT
 
