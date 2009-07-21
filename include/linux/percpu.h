@@ -34,8 +34,6 @@
 
 #ifdef CONFIG_SMP
 
-#ifndef CONFIG_HAVE_LEGACY_PER_CPU_AREA
-
 /* minimum unit size, also is the maximum supported allocation size */
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(64 << 10)
 
@@ -130,28 +128,6 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
 #define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
 
 extern void *__alloc_reserved_percpu(size_t size, size_t align);
-
-#else /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
-
-struct percpu_data {
-	void *ptrs[1];
-};
-
-/* pointer disguising messes up the kmemleak objects tracking */
-#ifndef CONFIG_DEBUG_KMEMLEAK
-#define __percpu_disguise(pdata) (struct percpu_data *)~(unsigned long)(pdata)
-#else
-#define __percpu_disguise(pdata) (struct percpu_data *)(pdata)
-#endif
-
-#define per_cpu_ptr(ptr, cpu)						\
-({									\
-        struct percpu_data *__p = __percpu_disguise(ptr);		\
-        (__typeof__(ptr))__p->ptrs[(cpu)];				\
-})
-
-#endif /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
-
 extern void *__alloc_percpu(size_t size, size_t align);
 extern void free_percpu(void *__pdata);
 

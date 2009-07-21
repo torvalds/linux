@@ -46,8 +46,6 @@
  *
  * To use this allocator, arch code should do the followings.
  *
- * - drop CONFIG_HAVE_LEGACY_PER_CPU_AREA
- *
  * - define __addr_to_pcpu_ptr() and __pcpu_ptr_to_addr() to translate
  *   regular address to percpu pointer and back if they need to be
  *   different from the default
