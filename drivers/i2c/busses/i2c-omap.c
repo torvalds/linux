@@ -685,8 +685,10 @@ omap_i2c_isr(int this_irq, void *dev_id)
 			err |= OMAP_I2C_STAT_AL;
 		}
 		if (stat & (OMAP_I2C_STAT_ARDY | OMAP_I2C_STAT_NACK |
-					OMAP_I2C_STAT_AL))
+					OMAP_I2C_STAT_AL)) {
 			omap_i2c_complete_cmd(dev, err);
+			return IRQ_HANDLED;
+		}
 		if (stat & (OMAP_I2C_STAT_RRDY | OMAP_I2C_STAT_RDR)) {
 			u8 num_bytes = 1;
 			if (dev->fifo_size) {
