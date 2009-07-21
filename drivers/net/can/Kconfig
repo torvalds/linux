@@ -61,11 +61,12 @@ config CAN_SJA1000_OF_PLATFORM
 	  you may want to enable this option.
 
 config CAN_EMS_PCI
-	tristate "EMS CPC-PCI and CPC-PCIe Card"
+	tristate "EMS CPC-PCI, CPC-PCIe and CPC-104P Card"
 	depends on PCI && CAN_SJA1000
 	---help---
-	  This driver is for the one or two channel CPC-PCI and CPC-PCIe
-	  cards from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
+	  This driver is for the one, two or four channel CPC-PCI,
+	  CPC-PCIe and CPC-104P cards from EMS Dr. Thomas Wuensche
+	  (http://www.ems-wuensche.de).
 
 config CAN_KVASER_PCI
 	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
