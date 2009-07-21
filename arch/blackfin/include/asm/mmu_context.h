@@ -127,17 +127,17 @@ static inline void protect_page(struct mm_struct *mm, unsigned long addr,
 	unsigned long idx = page >> 5;
 	unsigned long bit = 1 << (page & 31);
 
-	if (flags & VM_MAYREAD)
+	if (flags & VM_READ)
 		mask[idx] |= bit;
 	else
 		mask[idx] &= ~bit;
 	mask += page_mask_nelts;
-	if (flags & VM_MAYWRITE)
+	if (flags & VM_WRITE)
 		mask[idx] |= bit;
 	else
 		mask[idx] &= ~bit;
 	mask += page_mask_nelts;
-	if (flags & VM_MAYEXEC)
+	if (flags & VM_EXEC)
 		mask[idx] |= bit;
 	else
 		mask[idx] &= ~bit;
