@@ -784,7 +784,7 @@ static const struct net_device_ops meth_netdev_ops = {
 /*
  * The init function.
  */
-static int __init meth_probe(struct platform_device *pdev)
+static int __devinit meth_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct meth_private *priv;
