@@ -853,7 +853,7 @@ static unsigned int count_highmem_pages(void)
 	struct zone *zone;
 	unsigned int n = 0;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		unsigned long pfn, max_zone_pfn;
 
 		if (!is_highmem(zone))
@@ -916,7 +916,7 @@ static unsigned int count_data_pages(void)
 	unsigned long pfn, max_zone_pfn;
 	unsigned int n = 0;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		if (is_highmem(zone))
 			continue;
 
@@ -1010,7 +1010,7 @@ copy_data_pages(struct memory_bitmap *copy_bm, struct memory_bitmap *orig_bm)
 	struct zone *zone;
 	unsigned long pfn;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		unsigned long max_zone_pfn;
 
 		mark_free_pages(zone);
@@ -1065,7 +1065,7 @@ void swsusp_free(void)
 	struct zone *zone;
 	unsigned long pfn, max_zone_pfn;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
 		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
 			if (pfn_valid(pfn)) {
@@ -1397,7 +1397,7 @@ static int enough_free_mem(unsigned int nr_pages, unsigned int nr_highmem)
 	struct zone *zone;
 	unsigned int free = alloc_normal;
 
-	for_each_zone(zone)
+	for_each_populated_zone(zone)
 		if (!is_highmem(zone))
 			free += zone_page_state(zone, NR_FREE_PAGES);
 
@@ -1688,7 +1688,7 @@ static int mark_unsafe_pages(struct memory_bitmap *bm)
 	unsigned long pfn, max_zone_pfn;
 
 	/* Clear page flags */
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
 		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
 			if (pfn_valid(pfn))
