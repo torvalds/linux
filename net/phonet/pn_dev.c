@@ -218,6 +218,11 @@ static int phonet_init_net(struct net *net)
 	if (!pnn)
 		return -ENOMEM;
 
+	if (!proc_net_fops_create(net, "phonet", 0, &pn_sock_seq_fops)) {
+		kfree(pnn);
+		return -ENOMEM;
+	}
+
 	INIT_LIST_HEAD(&pnn->pndevs.list);
 	spin_lock_init(&pnn->pndevs.lock);
 	net_assign_generic(net, phonet_net_id, pnn);
@@ -233,6 +238,8 @@ static void phonet_exit_net(struct net *net)
 	for_each_netdev(net, dev)
 		phonet_device_destroy(dev);
 	rtnl_unlock();
+
+	proc_net_remove(net, "phonet");
 	kfree(pnn);
 }
 
