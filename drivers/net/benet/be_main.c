@@ -742,7 +742,7 @@ done:
 	return;
 }
 
-/* Process the RX completion indicated by rxcp when LRO is disabled */
+/* Process the RX completion indicated by rxcp when GRO is disabled */
 static void be_rx_compl_process(struct be_adapter *adapter,
 			struct be_eth_rx_compl *rxcp)
 {
@@ -789,13 +789,14 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	return;
 }
 
-/* Process the RX completion indicated by rxcp when LRO is enabled */
-static void be_rx_compl_process_lro(struct be_adapter *adapter,
+/* Process the RX completion indicated by rxcp when GRO is enabled */
+static void be_rx_compl_process_gro(struct be_adapter *adapter,
 			struct be_eth_rx_compl *rxcp)
 {
 	struct be_rx_page_info *page_info;
-	struct skb_frag_struct rx_frags[BE_MAX_FRAGS_PER_FRAME];
+	struct sk_buff *skb = NULL;
 	struct be_queue_info *rxq = &adapter->rx_obj.q;
+	struct be_eq_obj *eq_obj =  &adapter->rx_eq;
 	u32 num_rcvd, pkt_size, remaining, vlanf, curr_frag_len;
 	u16 i, rxq_idx = 0, vid, j;
 
@@ -803,6 +804,12 @@ static void be_rx_compl_process_lro(struct be_adapter *adapter,
 	pkt_size = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
 	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
+
+	skb = napi_get_frags(&eq_obj->napi);
+	if (!skb) {
+		be_rx_compl_discard(adapter, rxcp);
+		return;
+	}
 
 	remaining = pkt_size;
 	for (i = 0, j = -1; i < num_rcvd; i++) {
@@ -814,13 +821,14 @@ static void be_rx_compl_process_lro(struct be_adapter *adapter,
 		if (i == 0 || page_info->page_offset == 0) {
 			/* First frag or Fresh page */
 			j++;
-			rx_frags[j].page = page_info->page;
-			rx_frags[j].page_offset = page_info->page_offset;
-			rx_frags[j].size = 0;
+			skb_shinfo(skb)->frags[j].page = page_info->page;
+			skb_shinfo(skb)->frags[j].page_offset =
+							page_info->page_offset;
+			skb_shinfo(skb)->frags[j].size = 0;
 		} else {
 			put_page(page_info->page);
 		}
-		rx_frags[j].size += curr_frag_len;
+		skb_shinfo(skb)->frags[j].size += curr_frag_len;
 
 		remaining -= curr_frag_len;
 		index_inc(&rxq_idx, rxq->len);
@@ -828,9 +836,14 @@ static void be_rx_compl_process_lro(struct be_adapter *adapter,
 	}
 	BUG_ON(j > MAX_SKB_FRAGS);
 
+	skb_shinfo(skb)->nr_frags = j + 1;
+	skb->len = pkt_size;
+	skb->data_len = pkt_size;
+	skb->truesize += pkt_size;
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
 	if (likely(!vlanf)) {
-		lro_receive_frags(&adapter->rx_obj.lro_mgr, rx_frags, pkt_size,
-				pkt_size, NULL, 0);
+		napi_gro_frags(&eq_obj->napi);
 	} else {
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
 		vid = be16_to_cpu(vid);
@@ -838,9 +851,7 @@ static void be_rx_compl_process_lro(struct be_adapter *adapter,
 		if (!adapter->vlan_grp || adapter->num_vlans == 0)
 			return;
 
-		lro_vlan_hwaccel_receive_frags(&adapter->rx_obj.lro_mgr,
-			rx_frags, pkt_size, pkt_size, adapter->vlan_grp,
-			vid, NULL, 0);
+		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp, vid);
 	}
 
 	be_rx_stats_update(adapter, pkt_size, num_rcvd);
@@ -1183,7 +1194,6 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 	struct be_queue_info *eq, *q, *cq;
 	int rc;
 
-	adapter->max_rx_coal = BE_MAX_FRAGS_PER_FRAME;
 	adapter->big_page_size = (1 << get_order(rx_frag_size)) * PAGE_SIZE;
 	adapter->rx_eq.max_eqd = BE_MAX_EQD;
 	adapter->rx_eq.min_eqd = 0;
@@ -1305,7 +1315,7 @@ static irqreturn_t be_msix_tx_mcc(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static inline bool do_lro(struct be_adapter *adapter,
+static inline bool do_gro(struct be_adapter *adapter,
 			struct be_eth_rx_compl *rxcp)
 {
 	int err = AMAP_GET_BITS(struct amap_eth_rx_compl, err, rxcp);
@@ -1314,8 +1324,7 @@ static inline bool do_lro(struct be_adapter *adapter,
 	if (err)
 		drvr_stats(adapter)->be_rxcp_err++;
 
-	return (!tcp_frame || err || (adapter->max_rx_coal <= 1)) ?
-		false : true;
+	return (tcp_frame && !err) ? true : false;
 }
 
 int be_poll_rx(struct napi_struct *napi, int budget)
@@ -1332,15 +1341,13 @@ int be_poll_rx(struct napi_struct *napi, int budget)
 		if (!rxcp)
 			break;
 
-		if (do_lro(adapter, rxcp))
-			be_rx_compl_process_lro(adapter, rxcp);
+		if (do_gro(adapter, rxcp))
+			be_rx_compl_process_gro(adapter, rxcp);
 		else
 			be_rx_compl_process(adapter, rxcp);
 
 		be_rx_compl_reset(rxcp);
 	}
-
-	lro_flush_all(&adapter->rx_obj.lro_mgr);
 
 	/* Refill the queue */
 	if (atomic_read(&adapter->rx_obj.q.used) < RX_FRAGS_REFILL_WM)
@@ -1656,57 +1663,6 @@ static int be_close(struct net_device *netdev)
 	return 0;
 }
 
-static int be_get_frag_header(struct skb_frag_struct *frag, void **mac_hdr,
-				void **ip_hdr, void **tcpudp_hdr,
-				u64 *hdr_flags, void *priv)
-{
-	struct ethhdr *eh;
-	struct vlan_ethhdr *veh;
-	struct iphdr *iph;
-	u8 *va = page_address(frag->page) + frag->page_offset;
-	unsigned long ll_hlen;
-
-	prefetch(va);
-	eh = (struct ethhdr *)va;
-	*mac_hdr = eh;
-	ll_hlen = ETH_HLEN;
-	if (eh->h_proto != htons(ETH_P_IP)) {
-		if (eh->h_proto == htons(ETH_P_8021Q)) {
-			veh = (struct vlan_ethhdr *)va;
-			if (veh->h_vlan_encapsulated_proto != htons(ETH_P_IP))
-				return -1;
-
-			ll_hlen += VLAN_HLEN;
-		} else {
-			return -1;
-		}
-	}
-	*hdr_flags = LRO_IPV4;
-	iph = (struct iphdr *)(va + ll_hlen);
-	*ip_hdr = iph;
-	if (iph->protocol != IPPROTO_TCP)
-		return -1;
-	*hdr_flags |= LRO_TCP;
-	*tcpudp_hdr = (u8 *) (*ip_hdr) + (iph->ihl << 2);
-
-	return 0;
-}
-
-static void be_lro_init(struct be_adapter *adapter, struct net_device *netdev)
-{
-	struct net_lro_mgr *lro_mgr;
-
-	lro_mgr = &adapter->rx_obj.lro_mgr;
-	lro_mgr->dev = netdev;
-	lro_mgr->features = LRO_F_NAPI;
-	lro_mgr->ip_summed = CHECKSUM_UNNECESSARY;
-	lro_mgr->ip_summed_aggr = CHECKSUM_UNNECESSARY;
-	lro_mgr->max_desc = BE_MAX_LRO_DESCRIPTORS;
-	lro_mgr->lro_arr = adapter->rx_obj.lro_desc;
-	lro_mgr->get_frag_header = be_get_frag_header;
-	lro_mgr->max_aggr = BE_MAX_FRAGS_PER_FRAME;
-}
-
 static struct net_device_ops be_netdev_ops = {
 	.ndo_open		= be_open,
 	.ndo_stop		= be_close,
@@ -1727,7 +1683,7 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
 		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM;
+		NETIF_F_IPV6_CSUM | NETIF_F_GRO;
 
 	netdev->flags |= IFF_MULTICAST;
 
@@ -1736,8 +1692,6 @@ static void be_netdev_init(struct net_device *netdev)
 	BE_SET_NETDEV_OPS(netdev, &be_netdev_ops);
 
 	SET_ETHTOOL_OPS(netdev, &be_ethtool_ops);
-
-	be_lro_init(adapter, netdev);
 
 	netif_napi_add(netdev, &adapter->rx_eq.napi, be_poll_rx,
 		BE_NAPI_WEIGHT);

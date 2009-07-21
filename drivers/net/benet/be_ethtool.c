@@ -127,8 +127,6 @@ be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 	struct be_eq_obj *rx_eq = &adapter->rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 
-	coalesce->rx_max_coalesced_frames = adapter->max_rx_coal;
-
 	coalesce->rx_coalesce_usecs = rx_eq->cur_eqd;
 	coalesce->rx_coalesce_usecs_high = rx_eq->max_eqd;
 	coalesce->rx_coalesce_usecs_low = rx_eq->min_eqd;
@@ -144,8 +142,7 @@ be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 }
 
 /*
- * This routine is used to set interrup coalescing delay *as well as*
- * the number of pkts to coalesce for LRO.
+ * This routine is used to set interrup coalescing delay
  */
 static int
 be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
@@ -160,10 +157,6 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 
 	if (coalesce->use_adaptive_tx_coalesce == 1)
 		return -EINVAL;
-
-	adapter->max_rx_coal = coalesce->rx_max_coalesced_frames;
-	if (adapter->max_rx_coal > BE_MAX_FRAGS_PER_FRAME)
-		adapter->max_rx_coal = BE_MAX_FRAGS_PER_FRAME;
 
 	/* if AIC is being turned on now, start with an EQD of 0 */
 	if (rx_eq->enable_aic == 0 &&

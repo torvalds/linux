@@ -28,11 +28,10 @@
 #include <linux/if_vlan.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
-#include <linux/inet_lro.h>
 
 #include "be_hw.h"
 
-#define DRV_VER			"2.0.348"
+#define DRV_VER			"2.0.400"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
 #define OC_NAME			"Emulex OneConnect 10Gbps NIC"
@@ -71,9 +70,6 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST 		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
-
-#define BE_MAX_LRO_DESCRIPTORS  16
-#define BE_MAX_FRAGS_PER_FRAME  (min((u32) 16, (u32) MAX_SKB_FRAGS))
 
 struct be_dma_mem {
 	void *va;
@@ -189,8 +185,6 @@ struct be_drvr_stats {
 	u32 be_polls;		/* number of times NAPI called poll function */
 	u32 be_rx_events;	/* number of ucast rx completion events  */
 	u32 be_rx_compl;	/* number of rx completion entries processed */
-	u32 be_lro_hgram_data[8];	/* histogram of LRO data packets */
-	u32 be_lro_hgram_ack[8];	/* histogram of LRO ACKs */
 	ulong be_rx_jiffies;
 	u64 be_rx_bytes;
 	u64 be_rx_bytes_prev;
@@ -233,8 +227,6 @@ struct be_rx_obj {
 	struct be_queue_info q;
 	struct be_queue_info cq;
 	struct be_rx_page_info page_info_tbl[RX_Q_LEN];
-	struct net_lro_mgr lro_mgr;
-	struct net_lro_desc lro_desc[BE_MAX_LRO_DESCRIPTORS];
 };
 
 #define BE_NUM_MSIX_VECTORS		2	/* 1 each for Tx and Rx */
@@ -271,7 +263,6 @@ struct be_adapter {
 
 	/* Ethtool knobs and info */
 	bool rx_csum; 		/* BE card must perform rx-checksumming */
-	u32 max_rx_coal;
 	char fw_ver[FW_VER_LEN];
 	u32 if_handle;		/* Used to configure filtering */
 	u32 pmac_id;		/* MAC addr handle used by BE card */
