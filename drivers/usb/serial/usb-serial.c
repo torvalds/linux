@@ -1157,15 +1157,19 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 
 	serial->suspending = 1;
 
+	if (serial->type->suspend) {
+		r = serial->type->suspend(serial, message);
+		if (r < 0)
+			goto err_out;
+	}
+
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		if (port)
 			kill_traffic(port);
 	}
 
-	if (serial->type->suspend)
-		r = serial->type->suspend(serial, message);
-
+err_out:
 	return r;
 }
 EXPORT_SYMBOL(usb_serial_suspend);
