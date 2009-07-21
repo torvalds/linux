@@ -9691,7 +9691,14 @@ static void bnx2x_self_test(struct net_device *dev,
 		etest->flags &= ~ETH_TEST_FL_OFFLINE;
 
 	if (etest->flags & ETH_TEST_FL_OFFLINE) {
+		int port = BP_PORT(bp);
+		u32 val;
 		u8 link_up;
+
+		/* save current value of input enable for TX port IF */
+		val = REG_RD(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4);
+		/* disable input for TX port IF */
+		REG_WR(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4, 0);
 
 		link_up = bp->link_vars.link_up;
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
@@ -9712,6 +9719,10 @@ static void bnx2x_self_test(struct net_device *dev,
 			etest->flags |= ETH_TEST_FL_FAILED;
 
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+
+		/* restore input for TX port IF */
+		REG_WR(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4, val);
+
 		bnx2x_nic_load(bp, LOAD_NORMAL);
 		/* wait until link state is restored */
 		bnx2x_wait_for_link(bp, link_up);

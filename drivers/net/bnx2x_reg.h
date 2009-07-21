@@ -1660,6 +1660,8 @@
 #define NIG_REG_EGRESS_PBF0_IN_EN				 0x100cc
 /* [RW 1] Input enable for TX PBF user packet port1 IF */
 #define NIG_REG_EGRESS_PBF1_IN_EN				 0x100d0
+/* [RW 1] Input enable for TX UMP management packet port0 IF */
+#define NIG_REG_EGRESS_UMP0_IN_EN				 0x100d4
 /* [RW 1] Input enable for RX_EMAC0 IF */
 #define NIG_REG_EMAC0_IN_EN					 0x100a4
 /* [RW 1] output enable for TX EMAC pause port 0 IF */
