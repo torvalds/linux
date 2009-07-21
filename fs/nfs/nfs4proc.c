@@ -2040,15 +2040,9 @@ static int _nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
-	int status;
 
 	nfs_fattr_init(info->fattr);
-	status = nfs4_recover_expired_lease(server);
-	if (!status)
-		status = nfs4_check_client_ready(server->nfs_client);
-	if (!status)
-		status = nfs4_call_sync(server, &msg, &args, &res, 0);
-	return status;
+	return nfs4_call_sync(server, &msg, &args, &res, 0);
 }
 
 static int nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
@@ -4791,6 +4785,22 @@ int nfs4_proc_destroy_session(struct nfs4_session *session)
 
 	dprintk("<-- nfs4_proc_destroy_session\n");
 	return status;
+}
+
+int nfs4_init_session(struct nfs_server *server)
+{
+	struct nfs_client *clp = server->nfs_client;
+	int ret;
+
+	if (!nfs4_has_session(clp))
+		return 0;
+
+	clp->cl_session->fc_attrs.max_rqst_sz = server->wsize;
+	clp->cl_session->fc_attrs.max_resp_sz = server->rsize;
+	ret = nfs4_recover_expired_lease(server);
+	if (!ret)
+		ret = nfs4_check_client_ready(clp);
+	return ret;
 }
 
 /*
