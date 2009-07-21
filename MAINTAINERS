@@ -4984,7 +4984,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtl818*
+F:	drivers/net/wireless/rtl818x/rtl8180*
 
 RTL8187 WIRELESS DRIVER
 P:	Herton Ronaldo Krzesinski
