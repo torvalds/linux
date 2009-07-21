@@ -50,6 +50,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -80,6 +81,7 @@
 #include <netdb.h>
 #include <pwd.h>
 #include <inttypes.h>
+#include "../../../include/linux/magic.h"
 
 #ifndef NO_ICONV
 #include <iconv.h>
