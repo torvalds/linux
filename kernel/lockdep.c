@@ -843,15 +843,18 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 	return 1;
 }
 
-/*For good efficiency of modular, we use power of 2*/
+/*
+ * For good efficiency of modular, we use power of 2
+ */
 #define MAX_CIRCULAR_QUEUE_SIZE		4096UL
 #define CQ_MASK				(MAX_CIRCULAR_QUEUE_SIZE-1)
 
-/* The circular_queue and helpers is used to implement the
+/*
+ * The circular_queue and helpers is used to implement the
  * breadth-first search(BFS)algorithem, by which we can build
  * the shortest path from the next lock to be acquired to the
  * previous held lock if there is a circular between them.
- * */
+ */
 struct circular_queue {
 	unsigned long element[MAX_CIRCULAR_QUEUE_SIZE];
 	unsigned int  front, rear;
@@ -907,6 +910,7 @@ static inline void mark_lock_accessed(struct lock_list *lock,
 					struct lock_list *parent)
 {
 	unsigned long nr;
+
 	nr = lock - list_entries;
 	WARN_ON(nr >= nr_list_entries);
 	lock->parent = parent;
@@ -916,6 +920,7 @@ static inline void mark_lock_accessed(struct lock_list *lock,
 static inline unsigned long lock_accessed(struct lock_list *lock)
 {
 	unsigned long nr;
+
 	nr = lock - list_entries;
 	WARN_ON(nr >= nr_list_entries);
 	return test_bit(nr, bfs_accessed);
