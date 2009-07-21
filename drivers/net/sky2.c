@@ -4117,7 +4117,7 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "\nRx ring hw get=%d put=%d last=%d\n",
 		   sky2_read16(hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_GET_IDX)),
-		   last = sky2_read16(hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_PUT_IDX)),
+		   sky2_read16(hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_PUT_IDX)),
 		   sky2_read16(hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_LAST_IDX)));
 
 	sky2_read32(hw, B0_Y2_SP_LISR);
