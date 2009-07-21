@@ -44,6 +44,7 @@ struct synaptics_ts_data {
 	int snap_down[2];
 	int snap_up[2];
 	uint32_t flags;
+	int reported_finger_count;
 	int8_t sensitivity_adjust;
 	int (*power)(int on);
 	struct early_suspend early_suspend;
@@ -205,6 +206,26 @@ static void synaptics_ts_work_func(struct work_struct *work)
 					input_report_abs(ts->input_dev, ABS_HAT0X, pos[1][0]);
 					input_report_abs(ts->input_dev, ABS_HAT0Y, pos[1][1]);
 				}
+
+				if (!finger)
+					z = 0;
+				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, z);
+				input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, w);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, pos[0][0]);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, pos[0][1]);
+				input_mt_sync(ts->input_dev);
+				if (finger2_pressed) {
+					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, z);
+					input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, w);
+					input_report_abs(ts->input_dev, ABS_MT_POSITION_X, pos[1][0]);
+					input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, pos[1][1]);
+					input_mt_sync(ts->input_dev);
+				} else if (ts->reported_finger_count > 1) {
+					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+					input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0);
+					input_mt_sync(ts->input_dev);
+				}
+				ts->reported_finger_count = finger;
 				input_sync(ts->input_dev);
 			}
 		}
@@ -481,6 +502,10 @@ static int synaptics_ts_probe(
 	input_set_abs_params(ts->input_dev, ABS_TOOL_WIDTH, 0, 15, fuzz_w, 0);
 	input_set_abs_params(ts->input_dev, ABS_HAT0X, -inactive_area_left, max_x + inactive_area_right, fuzz_x, 0);
 	input_set_abs_params(ts->input_dev, ABS_HAT0Y, -inactive_area_top, max_y + inactive_area_bottom, fuzz_y, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, -inactive_area_left, max_x + inactive_area_right, fuzz_x, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, -inactive_area_top, max_y + inactive_area_bottom, fuzz_y, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, fuzz_p, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 15, fuzz_w, 0);
 	/* ts->input_dev->name = ts->keypad_info->name; */
 	ret = input_register_device(ts->input_dev);
 	if (ret) {
