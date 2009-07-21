@@ -64,6 +64,7 @@ extern int radeon_agpmode;
 extern int radeon_vram_limit;
 extern int radeon_gart_size;
 extern int radeon_benchmarking;
+extern int radeon_testing;
 extern int radeon_connector_table;
 
 /*
@@ -532,6 +533,12 @@ struct radeon_pm {
  * Benchmarking
  */
 void radeon_benchmark(struct radeon_device *rdev);
+
+
+/*
+ * Testing
+ */
+void radeon_test_moves(struct radeon_device *rdev);
 
 
 /*

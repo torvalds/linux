@@ -638,6 +638,9 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (!ret) {
 		DRM_INFO("radeon: kernel modesetting successfully initialized.\n");
 	}
+	if (radeon_testing) {
+		radeon_test_moves(rdev);
+	}
 	if (radeon_benchmarking) {
 		radeon_benchmark(rdev);
 	}
