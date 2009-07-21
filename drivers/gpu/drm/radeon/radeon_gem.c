@@ -157,9 +157,9 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_info *args = data;
 
-	args->vram_size = rdev->mc.vram_size;
+	args->vram_size = rdev->mc.real_vram_size;
 	/* FIXME: report somethings that makes sense */
-	args->vram_visible = rdev->mc.vram_size - (4 * 1024 * 1024);
+	args->vram_visible = rdev->mc.real_vram_size - (4 * 1024 * 1024);
 	args->gart_size = rdev->mc.gtt_size;
 	return 0;
 }

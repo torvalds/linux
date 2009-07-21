@@ -121,7 +121,7 @@ int radeon_mc_setup(struct radeon_device *rdev)
 	if (rdev->mc.vram_location != 0xFFFFFFFFUL) {
 		/* vram location was already setup try to put gtt after
 		 * if it fits */
-		tmp = rdev->mc.vram_location + rdev->mc.vram_size;
+		tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size;
 		tmp = (tmp + rdev->mc.gtt_size - 1) & ~(rdev->mc.gtt_size - 1);
 		if ((0xFFFFFFFFUL - tmp) >= rdev->mc.gtt_size) {
 			rdev->mc.gtt_location = tmp;
@@ -136,13 +136,13 @@ int radeon_mc_setup(struct radeon_device *rdev)
 	} else if (rdev->mc.gtt_location != 0xFFFFFFFFUL) {
 		/* gtt location was already setup try to put vram before
 		 * if it fits */
-		if (rdev->mc.vram_size < rdev->mc.gtt_location) {
+		if (rdev->mc.mc_vram_size < rdev->mc.gtt_location) {
 			rdev->mc.vram_location = 0;
 		} else {
 			tmp = rdev->mc.gtt_location + rdev->mc.gtt_size;
-			tmp += (rdev->mc.vram_size - 1);
-			tmp &= ~(rdev->mc.vram_size - 1);
-			if ((0xFFFFFFFFUL - tmp) >= rdev->mc.vram_size) {
+			tmp += (rdev->mc.mc_vram_size - 1);
+			tmp &= ~(rdev->mc.mc_vram_size - 1);
+			if ((0xFFFFFFFFUL - tmp) >= rdev->mc.mc_vram_size) {
 				rdev->mc.vram_location = tmp;
 			} else {
 				printk(KERN_ERR "[drm] vram too big to fit "
@@ -152,12 +152,14 @@ int radeon_mc_setup(struct radeon_device *rdev)
 		}
 	} else {
 		rdev->mc.vram_location = 0;
-		rdev->mc.gtt_location = rdev->mc.vram_size;
+		rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 	}
-	DRM_INFO("radeon: VRAM %uM\n", rdev->mc.vram_size >> 20);
+	DRM_INFO("radeon: VRAM %uM\n", rdev->mc.real_vram_size >> 20);
 	DRM_INFO("radeon: VRAM from 0x%08X to 0x%08X\n",
 		 rdev->mc.vram_location,
-		 rdev->mc.vram_location + rdev->mc.vram_size - 1);
+		 rdev->mc.vram_location + rdev->mc.mc_vram_size - 1);
+	if (rdev->mc.real_vram_size != rdev->mc.mc_vram_size)
+		DRM_INFO("radeon: VRAM less than aperture workaround enabled\n");
 	DRM_INFO("radeon: GTT %uM\n", rdev->mc.gtt_size >> 20);
 	DRM_INFO("radeon: GTT from 0x%08X to 0x%08X\n",
 		 rdev->mc.gtt_location,
@@ -573,7 +575,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->mc.vram_mtrr = mtrr_add(rdev->mc.aper_base, rdev->mc.aper_size,
 				      MTRR_TYPE_WRCOMB, 1);
 	DRM_INFO("Detected VRAM RAM=%uM, BAR=%uM\n",
-		 rdev->mc.vram_size >> 20,
+		 rdev->mc.real_vram_size >> 20,
 		 (unsigned)rdev->mc.aper_size >> 20);
 	DRM_INFO("RAM width %dbits %cDR\n",
 		 rdev->mc.vram_width, rdev->mc.vram_is_ddr ? 'D' : 'S');

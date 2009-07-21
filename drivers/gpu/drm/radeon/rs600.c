@@ -223,7 +223,7 @@ int rs600_mc_init(struct radeon_device *rdev)
 		printk(KERN_WARNING "Failed to wait MC idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(RS600_MC_FB_TOP, tmp >> 16);
 	tmp |= REG_SET(RS600_MC_FB_START, rdev->mc.vram_location >> 16);
 	WREG32_MC(RS600_MC_FB_LOCATION, tmp);

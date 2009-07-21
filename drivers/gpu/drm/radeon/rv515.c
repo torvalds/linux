@@ -100,10 +100,10 @@ int rv515_mc_init(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 	/* Write VRAM size in case we are limiting it */
-	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
+	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
 	tmp = REG_SET(MC_FB_START, rdev->mc.vram_location >> 16);
 	WREG32(0x134, tmp);
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(MC_FB_TOP, tmp >> 16);
 	tmp |= REG_SET(MC_FB_START, rdev->mc.vram_location >> 16);
 	WREG32_MC(MC_FB_LOCATION, tmp);
@@ -369,10 +369,7 @@ void rv515_vram_info(struct radeon_device *rdev)
 	fixed20_12 a;
 
 	rv515_vram_get_type(rdev);
-	rdev->mc.vram_size = RREG32(CONFIG_MEMSIZE);
 
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
 	/* FIXME: we should enforce default clock in case GPU is not in
 	 * default setup
 	 */

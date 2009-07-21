@@ -332,8 +332,11 @@ struct radeon_mc {
 	unsigned		gtt_location;
 	unsigned		gtt_size;
 	unsigned		vram_location;
-	unsigned		vram_size;
+	/* for some chips with <= 32MB we need to lie
+	 * about vram size near mc fb location */
+	unsigned		mc_vram_size;
 	unsigned		vram_width;
+	unsigned		real_vram_size;
 	int			vram_mtrr;
 	bool			vram_is_ddr;
 };

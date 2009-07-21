@@ -233,7 +233,7 @@ int rs400_mc_init(struct radeon_device *rdev)
 
 	rs400_gpu_init(rdev);
 	rs400_gart_disable(rdev);
-	rdev->mc.gtt_location = rdev->mc.vram_size;
+	rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 	rdev->mc.gtt_location += (rdev->mc.gtt_size - 1);
 	rdev->mc.gtt_location &= ~(rdev->mc.gtt_size - 1);
 	r = radeon_mc_setup(rdev);
@@ -247,7 +247,7 @@ int rs400_mc_init(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(RADEON_MC_FB_TOP, tmp >> 16);
 	tmp |= REG_SET(RADEON_MC_FB_START, rdev->mc.vram_location >> 16);
 	WREG32(RADEON_MC_FB_LOCATION, tmp);

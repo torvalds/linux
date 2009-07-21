@@ -454,7 +454,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		return r;
 	}
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM, 0,
-			   ((rdev->mc.aper_size) >> PAGE_SHIFT));
+			   ((rdev->mc.real_vram_size) >> PAGE_SHIFT));
 	if (r) {
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
@@ -471,7 +471,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		return r;
 	}
 	DRM_INFO("radeon: %uM of VRAM memory ready\n",
-		 rdev->mc.vram_size / (1024 * 1024));
+		 rdev->mc.real_vram_size / (1024 * 1024));
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_TT, 0,
 			   ((rdev->mc.gtt_size) >> PAGE_SHIFT));
 	if (r) {

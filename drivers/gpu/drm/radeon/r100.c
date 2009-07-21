@@ -173,8 +173,12 @@ void r100_mc_setup(struct radeon_device *rdev)
 		DRM_ERROR("Failed to register debugfs file for R100 MC !\n");
 	}
 	/* Write VRAM size in case we are limiting it */
-	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
+	/* Novell bug 204882 for RN50/M6/M7 with 8/16/32MB VRAM,
+	 * if the aperture is 64MB but we have 32MB VRAM
+	 * we report only 32MB VRAM but we have to set MC_FB_LOCATION
+	 * to 64MB, otherwise the gpu accidentially dies */
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(RADEON_MC_FB_TOP, tmp >> 16);
 	tmp |= REG_SET(RADEON_MC_FB_START, rdev->mc.vram_location >> 16);
 	WREG32(RADEON_MC_FB_LOCATION, tmp);
@@ -1447,25 +1451,28 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 		uint32_t tom;
 		/* read NB_TOM to get the amount of ram stolen for the GPU */
 		tom = RREG32(RADEON_NB_TOM);
-		rdev->mc.vram_size = (((tom >> 16) - (tom & 0xffff) + 1) << 16);
+		rdev->mc.real_vram_size = (((tom >> 16) - (tom & 0xffff) + 1) << 16);
 		/* for IGPs we need to keep VRAM where it was put by the BIOS */
 		rdev->mc.vram_location = (tom & 0xffff) << 16;
-		WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
+		WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
+		rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
 	} else {
-		rdev->mc.vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
+		rdev->mc.real_vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
 		/* Some production boards of m6 will report 0
 		 * if it's 8 MB
 		 */
-		if (rdev->mc.vram_size == 0) {
-			rdev->mc.vram_size = 8192 * 1024;
-			WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
+		if (rdev->mc.real_vram_size == 0) {
+			rdev->mc.real_vram_size = 8192 * 1024;
+			WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
 		}
 		/* let driver place VRAM */
 		rdev->mc.vram_location = 0xFFFFFFFFUL;
 		 /* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM - 
 		  * Novell bug 204882 + along with lots of ubuntu ones */
-		if (config_aper_size > rdev->mc.vram_size)
-			rdev->mc.vram_size = config_aper_size;
+		if (config_aper_size > rdev->mc.real_vram_size)
+			rdev->mc.mc_vram_size = config_aper_size;
+		else
+			rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
 	}
 
 	/* work out accessible VRAM */
@@ -1477,8 +1484,11 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 	if (accessible > rdev->mc.aper_size)
 		accessible = rdev->mc.aper_size;
 
-	if (rdev->mc.vram_size > rdev->mc.aper_size)
-		rdev->mc.vram_size = rdev->mc.aper_size;
+	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
+		rdev->mc.mc_vram_size = rdev->mc.aper_size;
+
+	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
+		rdev->mc.real_vram_size = rdev->mc.aper_size;
 }
 
 void r100_vram_info(struct radeon_device *rdev)

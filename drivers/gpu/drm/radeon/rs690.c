@@ -67,7 +67,7 @@ int rs690_mc_init(struct radeon_device *rdev)
 	rs400_gart_disable(rdev);
 
 	/* Setup GPU memory space */
-	rdev->mc.gtt_location = rdev->mc.vram_size;
+	rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 	rdev->mc.gtt_location += (rdev->mc.gtt_size - 1);
 	rdev->mc.gtt_location &= ~(rdev->mc.gtt_size - 1);
 	rdev->mc.vram_location = 0xFFFFFFFFUL;
@@ -82,7 +82,7 @@ int rs690_mc_init(struct radeon_device *rdev)
 		printk(KERN_WARNING "Failed to wait MC idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(RS690_MC_FB_TOP, tmp >> 16);
 	tmp |= REG_SET(RS690_MC_FB_START, rdev->mc.vram_location >> 16);
 	WREG32_MC(RS690_MCCFG_FB_LOCATION, tmp);
@@ -228,7 +228,8 @@ void rs690_vram_info(struct radeon_device *rdev)
 	} else {
 		rdev->mc.vram_width = 64;
 	}
-	rdev->mc.vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
+	rdev->mc.real_vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
+	rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
 
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);

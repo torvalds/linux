@@ -95,8 +95,8 @@ int r520_mc_init(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 	/* Write VRAM size in case we are limiting it */
-	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(R520_MC_FB_TOP, tmp >> 16);
 	tmp |= REG_SET(R520_MC_FB_START, rdev->mc.vram_location >> 16);
 	WREG32_MC(R520_MC_FB_LOCATION, tmp);
