@@ -2419,13 +2419,13 @@ static int __init probe_motherboard(void)
 	dt = of_find_node_by_name(NULL, "device-tree");
 	if (dt != NULL)
 		model = of_get_property(dt, "model", NULL);
-	for(i=0; model && i<(sizeof(pmac_mb_defs)/sizeof(struct pmac_mb_def)); i++) {
+	for(i=0; model && i<ARRAY_SIZE(pmac_mb_defs); i++) {
 	    if (strcmp(model, pmac_mb_defs[i].model_string) == 0) {
 		pmac_mb = pmac_mb_defs[i];
 		goto found;
 	    }
 	}
-	for(i=0; i<(sizeof(pmac_mb_defs)/sizeof(struct pmac_mb_def)); i++) {
+	for(i=0; i<ARRAY_SIZE(pmac_mb_defs); i++) {
 	    if (machine_is_compatible(pmac_mb_defs[i].model_string)) {
 		pmac_mb = pmac_mb_defs[i];
 		goto found;
