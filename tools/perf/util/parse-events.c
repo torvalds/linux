@@ -5,6 +5,7 @@
 #include "parse-events.h"
 #include "exec_cmd.h"
 #include "string.h"
+#include "cache.h"
 
 extern char *strcasestr(const char *haystack, const char *needle);
 
@@ -12,14 +13,14 @@ int					nr_counters;
 
 struct perf_counter_attr		attrs[MAX_COUNTERS];
 
-static char default_debugfs_path[] = "/sys/kernel/debug/tracing/events";
-
 struct event_symbol {
 	u8	type;
 	u64	config;
 	char	*symbol;
 	char	*alias;
 };
+
+char debugfs_path[MAXPATHLEN];
 
 #define CHW(x) .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_##x
 #define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
@@ -114,27 +115,27 @@ static unsigned long hw_cache_stat[C(MAX)] = {
 
 #define for_each_subsystem(sys_dir, sys_dirent, sys_next, file, st)	       \
 	while (!readdir_r(sys_dir, &sys_dirent, &sys_next) && sys_next)	       \
-	if (snprintf(file, MAXPATHLEN, "%s/%s", default_debugfs_path,	       \
-			sys_dirent.d_name) &&				       \
+	if (snprintf(file, MAXPATHLEN, "%s/%s", debugfs_path,	       	       \
+			sys_dirent.d_name) &&		       		       \
 	   (!stat(file, &st)) && (S_ISDIR(st.st_mode)) &&		       \
 	   (strcmp(sys_dirent.d_name, ".")) &&				       \
 	   (strcmp(sys_dirent.d_name, "..")))
 
 #define for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next, file, st)    \
 	while (!readdir_r(evt_dir, &evt_dirent, &evt_next) && evt_next)        \
-	if (snprintf(file, MAXPATHLEN, "%s/%s/%s", default_debugfs_path,       \
-			sys_dirent.d_name, evt_dirent.d_name) &&	       \
+	if (snprintf(file, MAXPATHLEN, "%s/%s/%s", debugfs_path,	       \
+		     sys_dirent.d_name, evt_dirent.d_name) &&		       \
 	   (!stat(file, &st)) && (S_ISDIR(st.st_mode)) &&		       \
 	   (strcmp(evt_dirent.d_name, ".")) &&				       \
 	   (strcmp(evt_dirent.d_name, "..")))
 
 #define MAX_EVENT_LENGTH 30
 
-static int valid_debugfs_mount(void)
+int valid_debugfs_mount(const char *debugfs)
 {
 	struct statfs st_fs;
 
-	if (statfs(default_debugfs_path, &st_fs) < 0)
+	if (statfs(debugfs, &st_fs) < 0)
 		return -ENOENT;
 	else if (st_fs.f_type != (long) DEBUGFS_MAGIC)
 		return -ENOENT;
@@ -152,10 +153,10 @@ static char *tracepoint_id_to_name(u64 config)
 	u64 id;
 	char evt_path[MAXPATHLEN];
 
-	if (valid_debugfs_mount())
+	if (valid_debugfs_mount(debugfs_path))
 		return "unkown";
 
-	sys_dir = opendir(default_debugfs_path);
+	sys_dir = opendir(debugfs_path);
 	if (!sys_dir)
 		goto cleanup;
 
@@ -166,7 +167,7 @@ static char *tracepoint_id_to_name(u64 config)
 		for_each_event(sys_dirent, evt_dir, evt_dirent, evt_next,
 								evt_path, st) {
 			snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id",
-				 default_debugfs_path, sys_dirent.d_name,
+				 debugfs_path, sys_dirent.d_name,
 				 evt_dirent.d_name);
 			fd = open(evt_path, O_RDONLY);
 			if (fd < 0)
@@ -363,7 +364,7 @@ static int parse_tracepoint_event(const char **strp,
 	u64 id;
 	char evt_path[MAXPATHLEN];
 
-	if (valid_debugfs_mount())
+	if (valid_debugfs_mount(debugfs_path))
 		return 0;
 
 	evt_name = strchr(*strp, ':');
@@ -381,8 +382,8 @@ static int parse_tracepoint_event(const char **strp,
 	if (evt_length >= MAX_EVENT_LENGTH)
 		return 0;
 
-	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", default_debugfs_path,
-				sys_name, evt_name);
+	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", debugfs_path,
+		 sys_name, evt_name);
 	fd = open(evt_path, O_RDONLY);
 	if (fd < 0)
 		return 0;
@@ -568,10 +569,10 @@ static void print_tracepoint_events(void)
 	struct stat st;
 	char evt_path[MAXPATHLEN];
 
-	if (valid_debugfs_mount())
+	if (valid_debugfs_mount(debugfs_path))
 		return;
 
-	sys_dir = opendir(default_debugfs_path);
+	sys_dir = opendir(debugfs_path);
 	if (!sys_dir)
 		goto cleanup;
 
