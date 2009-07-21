@@ -155,6 +155,20 @@ static void unclone_ctx(struct perf_counter_context *ctx)
 }
 
 /*
+ * If we inherit counters we want to return the parent counter id
+ * to userspace.
+ */
+static u64 primary_counter_id(struct perf_counter *counter)
+{
+	u64 id = counter->id;
+
+	if (counter->parent)
+		id = counter->parent->id;
+
+	return id;
+}
+
+/*
  * Get the perf_counter_context for a task and lock it.
  * This has to cope with with the fact that until it is locked,
  * the context could get moved to another task.
@@ -1296,7 +1310,6 @@ static void perf_counter_cpu_sched_in(struct perf_cpu_context *cpuctx, int cpu)
 #define MAX_INTERRUPTS (~0ULL)
 
 static void perf_log_throttle(struct perf_counter *counter, int enable);
-static void perf_log_period(struct perf_counter *counter, u64 period);
 
 static void perf_adjust_period(struct perf_counter *counter, u64 events)
 {
@@ -1314,8 +1327,6 @@ static void perf_adjust_period(struct perf_counter *counter, u64 events)
 
 	if (!sample_period)
 		sample_period = 1;
-
-	perf_log_period(counter, sample_period);
 
 	hwc->sample_period = sample_period;
 }
@@ -1705,7 +1716,7 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 		values[n++] = counter->total_time_running +
 			atomic64_read(&counter->child_total_time_running);
 	if (counter->attr.read_format & PERF_FORMAT_ID)
-		values[n++] = counter->id;
+		values[n++] = primary_counter_id(counter);
 	mutex_unlock(&counter->child_mutex);
 
 	if (count < n * sizeof(u64))
@@ -1812,8 +1823,6 @@ static int perf_counter_period(struct perf_counter *counter, u64 __user *arg)
 
 		counter->attr.sample_freq = value;
 	} else {
-		perf_log_period(counter, value);
-
 		counter->attr.sample_period = value;
 		counter->hw.sample_period = value;
 	}
@@ -2662,6 +2671,9 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 	if (sample_type & PERF_SAMPLE_ID)
 		header.size += sizeof(u64);
 
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
+		header.size += sizeof(u64);
+
 	if (sample_type & PERF_SAMPLE_CPU) {
 		header.size += sizeof(cpu_entry);
 
@@ -2705,7 +2717,13 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 	if (sample_type & PERF_SAMPLE_ADDR)
 		perf_output_put(&handle, data->addr);
 
-	if (sample_type & PERF_SAMPLE_ID)
+	if (sample_type & PERF_SAMPLE_ID) {
+		u64 id = primary_counter_id(counter);
+
+		perf_output_put(&handle, id);
+	}
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
 		perf_output_put(&handle, counter->id);
 
 	if (sample_type & PERF_SAMPLE_CPU)
@@ -2728,7 +2746,7 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 			if (sub != counter)
 				sub->pmu->read(sub);
 
-			group_entry.id = sub->id;
+			group_entry.id = primary_counter_id(sub);
 			group_entry.counter = atomic64_read(&sub->count);
 
 			perf_output_put(&handle, group_entry);
@@ -2788,15 +2806,8 @@ perf_counter_read_event(struct perf_counter *counter,
 	}
 
 	if (counter->attr.read_format & PERF_FORMAT_ID) {
-		u64 id;
-
 		event.header.size += sizeof(u64);
-		if (counter->parent)
-			id = counter->parent->id;
-		else
-			id = counter->id;
-
-		event.format[i++] = id;
+		event.format[i++] = primary_counter_id(counter);
 	}
 
 	ret = perf_output_begin(&handle, counter, event.header.size, 0, 0);
@@ -3191,49 +3202,6 @@ void __perf_counter_mmap(struct vm_area_struct *vma)
 }
 
 /*
- * Log sample_period changes so that analyzing tools can re-normalize the
- * event flow.
- */
-
-struct freq_event {
-	struct perf_event_header	header;
-	u64				time;
-	u64				id;
-	u64				period;
-};
-
-static void perf_log_period(struct perf_counter *counter, u64 period)
-{
-	struct perf_output_handle handle;
-	struct freq_event event;
-	int ret;
-
-	if (counter->hw.sample_period == period)
-		return;
-
-	if (counter->attr.sample_type & PERF_SAMPLE_PERIOD)
-		return;
-
-	event = (struct freq_event) {
-		.header = {
-			.type = PERF_EVENT_PERIOD,
-			.misc = 0,
-			.size = sizeof(event),
-		},
-		.time = sched_clock(),
-		.id = counter->id,
-		.period = period,
-	};
-
-	ret = perf_output_begin(&handle, counter, sizeof(event), 1, 0);
-	if (ret)
-		return;
-
-	perf_output_put(&handle, event);
-	perf_output_end(&handle);
-}
-
-/*
  * IRQ throttle logging
  */
 
@@ -3246,14 +3214,16 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 		struct perf_event_header	header;
 		u64				time;
 		u64				id;
+		u64				stream_id;
 	} throttle_event = {
 		.header = {
 			.type = PERF_EVENT_THROTTLE + 1,
 			.misc = 0,
 			.size = sizeof(throttle_event),
 		},
-		.time	= sched_clock(),
-		.id	= counter->id,
+		.time		= sched_clock(),
+		.id		= primary_counter_id(counter),
+		.stream_id	= counter->id,
 	};
 
 	ret = perf_output_begin(&handle, counter, sizeof(throttle_event), 1, 0);

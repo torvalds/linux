@@ -101,13 +101,6 @@ struct fork_event {
 	u32 pid, ppid;
 };
 
-struct period_event {
-	struct perf_event_header header;
-	u64 time;
-	u64 id;
-	u64 sample_period;
-};
-
 struct lost_event {
 	struct perf_event_header header;
 	u64 id;
@@ -127,7 +120,6 @@ typedef union event_union {
 	struct mmap_event		mmap;
 	struct comm_event		comm;
 	struct fork_event		fork;
-	struct period_event		period;
 	struct lost_event		lost;
 	struct read_event		read;
 } event_t;
@@ -1636,19 +1628,6 @@ process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-process_period_event(event_t *event, unsigned long offset, unsigned long head)
-{
-	dprintf("%p [%p]: PERF_EVENT_PERIOD: time:%Ld, id:%Ld: period:%Ld\n",
-		(void *)(offset + head),
-		(void *)(long)(event->header.size),
-		event->period.time,
-		event->period.id,
-		event->period.sample_period);
-
-	return 0;
-}
-
-static int
 process_lost_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	dprintf("%p [%p]: PERF_EVENT_LOST: id:%Ld: lost:%Ld\n",
@@ -1728,9 +1707,6 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 	case PERF_EVENT_FORK:
 		return process_fork_event(event, offset, head);
-
-	case PERF_EVENT_PERIOD:
-		return process_period_event(event, offset, head);
 
 	case PERF_EVENT_LOST:
 		return process_lost_event(event, offset, head);

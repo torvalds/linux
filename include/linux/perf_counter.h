@@ -120,8 +120,9 @@ enum perf_counter_sample_format {
 	PERF_SAMPLE_ID				= 1U << 6,
 	PERF_SAMPLE_CPU				= 1U << 7,
 	PERF_SAMPLE_PERIOD			= 1U << 8,
+	PERF_SAMPLE_STREAM_ID			= 1U << 9,
 
-	PERF_SAMPLE_MAX = 1U << 9,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 10,		/* non-ABI */
 };
 
 /*
@@ -312,16 +313,7 @@ enum perf_event_type {
 	 *	struct perf_event_header	header;
 	 *	u64				time;
 	 *	u64				id;
-	 *	u64				sample_period;
-	 * };
-	 */
-	PERF_EVENT_PERIOD		= 4,
-
-	/*
-	 * struct {
-	 *	struct perf_event_header	header;
-	 *	u64				time;
-	 *	u64				id;
+	 *	u64				stream_id;
 	 * };
 	 */
 	PERF_EVENT_THROTTLE		= 5,
@@ -356,6 +348,7 @@ enum perf_event_type {
 	 *	{ u64			time;     } && PERF_SAMPLE_TIME
 	 *	{ u64			addr;     } && PERF_SAMPLE_ADDR
 	 *	{ u64			id;	  } && PERF_SAMPLE_ID
+	 *	{ u64			stream_id;} && PERF_SAMPLE_STREAM_ID
 	 *	{ u32			cpu, res; } && PERF_SAMPLE_CPU
 	 * 	{ u64			period;   } && PERF_SAMPLE_PERIOD
 	 *
