@@ -1638,24 +1638,26 @@ pxafb_freq_policy(struct notifier_block *nb, unsigned long val, void *data)
  * Power management hooks.  Note that we won't be called from IRQ context,
  * unlike the blank functions above, so we may sleep.
  */
-static int pxafb_suspend(struct platform_device *dev, pm_message_t state)
+static int pxafb_suspend(struct device *dev)
 {
-	struct pxafb_info *fbi = platform_get_drvdata(dev);
+	struct pxafb_info *fbi = dev_get_drvdata(dev);
 
 	set_ctrlr_state(fbi, C_DISABLE_PM);
 	return 0;
 }
 
-static int pxafb_resume(struct platform_device *dev)
+static int pxafb_resume(struct device *dev)
 {
-	struct pxafb_info *fbi = platform_get_drvdata(dev);
+	struct pxafb_info *fbi = dev_get_drvdata(dev);
 
 	set_ctrlr_state(fbi, C_ENABLE_PM);
 	return 0;
 }
-#else
-#define pxafb_suspend	NULL
-#define pxafb_resume	NULL
+
+static struct dev_pm_ops pxafb_pm_ops = {
+	.suspend	= pxafb_suspend,
+	.resume		= pxafb_resume,
+};
 #endif
 
 static int __devinit pxafb_init_video_memory(struct pxafb_info *fbi)
@@ -2248,11 +2250,12 @@ static int __devexit pxafb_remove(struct platform_device *dev)
 static struct platform_driver pxafb_driver = {
 	.probe		= pxafb_probe,
 	.remove 	= __devexit_p(pxafb_remove),
-	.suspend	= pxafb_suspend,
-	.resume		= pxafb_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "pxa2xx-fb",
+#ifdef CONFIG_PM
+		.pm	= &pxafb_pm_ops,
+#endif
 	},
 };
 
