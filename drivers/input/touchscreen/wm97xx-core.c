@@ -204,7 +204,7 @@ void wm97xx_set_gpio(struct wm97xx *wm, u32 gpio,
 	else
 		reg &= ~gpio;
 
-	if (wm->id == WM9712_ID2)
+	if (wm->id == WM9712_ID2 && wm->variant != WM97xx_WM1613)
 		wm97xx_reg_write(wm, AC97_GPIO_STATUS, reg << 1);
 	else
 		wm97xx_reg_write(wm, AC97_GPIO_STATUS, reg);
@@ -307,7 +307,7 @@ static void wm97xx_pen_irq_worker(struct work_struct *work)
 					 WM97XX_GPIO_13);
 		}
 
-		if (wm->id == WM9712_ID2)
+		if (wm->id == WM9712_ID2 && wm->variant != WM97xx_WM1613)
 			wm97xx_reg_write(wm, AC97_GPIO_STATUS, (status &
 						~WM97XX_GPIO_13) << 1);
 		else
@@ -581,6 +581,8 @@ static int wm97xx_probe(struct device *dev)
 	}
 
 	wm->id = wm97xx_reg_read(wm, AC97_VENDOR_ID2);
+
+	wm->variant = WM97xx_GENERIC;
 
 	dev_info(wm->dev, "detected a wm97%02x codec\n", wm->id & 0xff);
 
