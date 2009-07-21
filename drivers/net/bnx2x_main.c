@@ -706,6 +706,8 @@ static void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 
 	/* disable interrupt handling */
 	atomic_inc(&bp->intr_sem);
+	smp_wmb(); /* Ensure that bp->intr_sem update is SMP-safe */
+
 	if (disable_hw)
 		/* prevent the HW from sending interrupts */
 		bnx2x_int_disable(bp);
@@ -6642,7 +6644,12 @@ static void bnx2x_napi_disable(struct bnx2x *bp)
 
 static void bnx2x_netif_start(struct bnx2x *bp)
 {
-	if (atomic_dec_and_test(&bp->intr_sem)) {
+	int intr_sem;
+
+	intr_sem = atomic_dec_and_test(&bp->intr_sem);
+	smp_wmb(); /* Ensure that bp->intr_sem update is SMP-safe */
+
+	if (intr_sem) {
 		if (netif_running(bp->dev)) {
 			bnx2x_napi_enable(bp);
 			bnx2x_int_enable(bp);
@@ -8229,6 +8236,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 
 	/* Disable interrupt handling until HW is initialized */
 	atomic_set(&bp->intr_sem, 1);
+	smp_wmb(); /* Ensure that bp->intr_sem update is SMP-safe */
 
 	mutex_init(&bp->port.phy_mutex);
 
