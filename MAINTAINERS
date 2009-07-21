@@ -1569,6 +1569,13 @@ S:	Supported
 F:	fs/configfs/
 F:	include/linux/configfs.h
 
+CONNECTOR
+P:	Evgeniy Polyakov
+M:	zbr@ioremap.net
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/connector/
+
 CONTROL GROUPS (CGROUPS)
 P:	Paul Menage
 M:	menage@google.com
