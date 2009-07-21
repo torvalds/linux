@@ -726,9 +726,10 @@ static struct uart_driver serial_pxa_reg = {
 	.cons		= PXA_CONSOLE,
 };
 
-static int serial_pxa_suspend(struct platform_device *dev, pm_message_t state)
+#ifdef CONFIG_PM
+static int serial_pxa_suspend(struct device *dev)
 {
-        struct uart_pxa_port *sport = platform_get_drvdata(dev);
+        struct uart_pxa_port *sport = dev_get_drvdata(dev);
 
         if (sport)
                 uart_suspend_port(&serial_pxa_reg, &sport->port);
@@ -736,15 +737,21 @@ static int serial_pxa_suspend(struct platform_device *dev, pm_message_t state)
         return 0;
 }
 
-static int serial_pxa_resume(struct platform_device *dev)
+static int serial_pxa_resume(struct device *dev)
 {
-        struct uart_pxa_port *sport = platform_get_drvdata(dev);
+        struct uart_pxa_port *sport = dev_get_drvdata(dev);
 
         if (sport)
                 uart_resume_port(&serial_pxa_reg, &sport->port);
 
         return 0;
 }
+
+static struct dev_pm_ops serial_pxa_pm_ops = {
+	.suspend	= serial_pxa_suspend,
+	.resume		= serial_pxa_resume,
+};
+#endif
 
 static int serial_pxa_probe(struct platform_device *dev)
 {
@@ -825,11 +832,12 @@ static struct platform_driver serial_pxa_driver = {
         .probe          = serial_pxa_probe,
         .remove         = serial_pxa_remove,
 
-	.suspend	= serial_pxa_suspend,
-	.resume		= serial_pxa_resume,
 	.driver		= {
 	        .name	= "pxa2xx-uart",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &serial_pxa_pm_ops,
+#endif
 	},
 };
 
