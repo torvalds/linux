@@ -146,6 +146,8 @@ void regulator_bulk_free(int num_consumers,
 
 int regulator_count_voltages(struct regulator *regulator);
 int regulator_list_voltage(struct regulator *regulator, unsigned selector);
+int regulator_is_supported_voltage(struct regulator *regulator,
+				   int min_uV, int max_uV);
 int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV);
 int regulator_get_voltage(struct regulator *regulator);
 int regulator_set_current_limit(struct regulator *regulator,
