@@ -171,6 +171,7 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len > (rcv->mtu + MTU_PAD))
 		goto rx_drop;
 
+        skb->tstamp.tv64 = 0;
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, rcv);
 	if (dev->features & NETIF_F_NO_CSUM)
