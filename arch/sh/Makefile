@@ -189,14 +189,16 @@ KBUILD_AFLAGS		+= $(cflags-y)
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
 libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
 
-PHONY += maketools FORCE
+BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.srec \
+	       zImage vmlinux.srec
+PHONY += maketools $(BOOT_TARGETS) FORCE
 
 maketools:  include/linux/version.h FORCE
 	$(Q)$(MAKE) $(build)=arch/sh/tools include/asm-sh/machtypes.h
 
 all: $(KBUILD_IMAGE)
 
-zImage uImage uImage.srec vmlinux.srec: vmlinux
+$(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 compressed: zImage
@@ -208,10 +210,13 @@ archclean:
 	$(Q)$(MAKE) $(clean)=arch/sh/kernel/vsyscall
 
 define archhelp
-	@echo '* zImage 	           - Compressed kernel image'
+	@echo '  zImage 	           - Compressed kernel image'
 	@echo '  vmlinux.srec	           - Create an ELF S-record'
-	@echo '  uImage  	           - Create a bootable image for U-Boot'
-	@echo '  uImage.srec  	           - Create an S-record for U-Boot'
+	@echo '* uImage  	           - Alias to bootable U-Boot image'
+	@echo '  uImage.srec	           - Create an S-record for U-Boot'
+	@echo '* uImage.gz	           - Kernel-only image for U-Boot (gzip)'
+	@echo '  uImage.bz2	           - Kernel-only image for U-Boot (bzip2)'
+	@echo '  uImage.lzma	           - Kernel-only image for U-Boot (lzma)'
 endef
 
 CLEAN_FILES += include/asm-sh/machtypes.h
