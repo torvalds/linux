@@ -1,4 +1,5 @@
 config MSM_SMD
+	depends on ARCH_MSM
 	default y
 	bool "MSM Shared Memory Driver (SMD)"
 	help
