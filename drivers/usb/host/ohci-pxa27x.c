@@ -477,25 +477,25 @@ static int ohci_hcd_pxa27x_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef	CONFIG_PM
-static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM
+static int ohci_hcd_pxa27x_drv_suspend(struct device *dev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct pxa27x_ohci *ohci = to_pxa27x_ohci(hcd);
 
 	if (time_before(jiffies, ohci->ohci.next_statechange))
 		msleep(5);
 	ohci->ohci.next_statechange = jiffies;
 
-	pxa27x_stop_hc(ohci, &pdev->dev);
+	pxa27x_stop_hc(ohci, dev);
 	hcd->state = HC_STATE_SUSPENDED;
 
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
+static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct pxa27x_ohci *ohci = to_pxa27x_ohci(hcd);
 	int status;
 
@@ -503,12 +503,17 @@ static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 		msleep(5);
 	ohci->ohci.next_statechange = jiffies;
 
-	if ((status = pxa27x_start_hc(ohci, &pdev->dev)) < 0)
+	if ((status = pxa27x_start_hc(ohci, dev)) < 0)
 		return status;
 
 	ohci_finish_controller_resume(hcd);
 	return 0;
 }
+
+static struct dev_pm_ops ohci_hcd_pxa27x_pm_ops = {
+	.suspend	= ohci_hcd_pxa27x_drv_suspend,
+	.resume		= ohci_hcd_pxa27x_drv_resume,
+};
 #endif
 
 /* work with hotplug and coldplug */
@@ -518,13 +523,12 @@ static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.probe		= ohci_hcd_pxa27x_drv_probe,
 	.remove		= ohci_hcd_pxa27x_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
-#ifdef CONFIG_PM
-	.suspend	= ohci_hcd_pxa27x_drv_suspend,
-	.resume		= ohci_hcd_pxa27x_drv_resume,
-#endif
 	.driver		= {
 		.name	= "pxa27x-ohci",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &ohci_hcd_pxa27x_pm_ops,
+#endif
 	},
 };
 
