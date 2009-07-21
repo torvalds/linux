@@ -286,8 +286,7 @@ static int regulator_virtual_consumer_probe(struct platform_device *pdev)
 
 	drvdata = kzalloc(sizeof(struct virtual_consumer_data), GFP_KERNEL);
 	if (drvdata == NULL) {
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	mutex_init(&drvdata->lock);
@@ -302,8 +301,11 @@ static int regulator_virtual_consumer_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(attributes); i++) {
 		ret = device_create_file(&pdev->dev, attributes[i]);
-		if (ret != 0)
-			goto err;
+		if (ret != 0) {
+			dev_err(&pdev->dev, "Failed to create attr %d: %d\n",
+				i, ret);
+			goto err_regulator;
+		}
 	}
 
 	drvdata->mode = regulator_get_mode(drvdata->regulator);
@@ -312,6 +314,8 @@ static int regulator_virtual_consumer_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_regulator:
+	regulator_put(drvdata->regulator);
 err:
 	for (i = 0; i < ARRAY_SIZE(attributes); i++)
 		device_remove_file(&pdev->dev, attributes[i]);
