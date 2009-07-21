@@ -1483,9 +1483,10 @@ out:
 }
 
 static int
-dm9000_drv_suspend(struct platform_device *dev, pm_message_t state)
+dm9000_drv_suspend(struct device *dev)
 {
-	struct net_device *ndev = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 	board_info_t *db;
 
 	if (ndev) {
@@ -1501,9 +1502,10 @@ dm9000_drv_suspend(struct platform_device *dev, pm_message_t state)
 }
 
 static int
-dm9000_drv_resume(struct platform_device *dev)
+dm9000_drv_resume(struct device *dev)
 {
-	struct net_device *ndev = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 	board_info_t *db = netdev_priv(ndev);
 
 	if (ndev) {
@@ -1519,6 +1521,11 @@ dm9000_drv_resume(struct platform_device *dev)
 	}
 	return 0;
 }
+
+static struct dev_pm_ops dm9000_drv_pm_ops = {
+	.suspend	= dm9000_drv_suspend,
+	.resume		= dm9000_drv_resume,
+};
 
 static int __devexit
 dm9000_drv_remove(struct platform_device *pdev)
@@ -1539,11 +1546,10 @@ static struct platform_driver dm9000_driver = {
 	.driver	= {
 		.name    = "dm9000",
 		.owner	 = THIS_MODULE,
+		.pm	 = &dm9000_drv_pm_ops,
 	},
 	.probe   = dm9000_probe,
 	.remove  = __devexit_p(dm9000_drv_remove),
-	.suspend = dm9000_drv_suspend,
-	.resume  = dm9000_drv_resume,
 };
 
 static int __init
