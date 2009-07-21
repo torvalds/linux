@@ -1206,6 +1206,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_PIT2:
 	case KVM_CAP_PIT_STATE2:
+	case KVM_CAP_SET_IDENTITY_MAP_ADDR:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -1906,6 +1907,13 @@ static int kvm_vm_ioctl_set_tss_addr(struct kvm *kvm, unsigned long addr)
 	return ret;
 }
 
+static int kvm_vm_ioctl_set_identity_map_addr(struct kvm *kvm,
+					      u64 ident_addr)
+{
+	kvm->arch.ept_identity_map_addr = ident_addr;
+	return 0;
+}
+
 static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
 					  u32 kvm_nr_mmu_pages)
 {
@@ -2173,6 +2181,17 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (r < 0)
 			goto out;
 		break;
+	case KVM_SET_IDENTITY_MAP_ADDR: {
+		u64 ident_addr;
+
+		r = -EFAULT;
+		if (copy_from_user(&ident_addr, argp, sizeof ident_addr))
+			goto out;
+		r = kvm_vm_ioctl_set_identity_map_addr(kvm, ident_addr);
+		if (r < 0)
+			goto out;
+		break;
+	}
 	case KVM_SET_MEMORY_REGION: {
 		struct kvm_memory_region kvm_mem;
 		struct kvm_userspace_memory_region kvm_userspace_mem;

@@ -435,6 +435,7 @@ struct kvm_ioeventfd {
 #define KVM_CAP_PIT_STATE2 35
 #endif
 #define KVM_CAP_IOEVENTFD 36
+#define KVM_CAP_SET_IDENTITY_MAP_ADDR 37
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -512,6 +513,7 @@ struct kvm_irqfd {
 #define KVM_SET_USER_MEMORY_REGION _IOW(KVMIO, 0x46,\
 					struct kvm_userspace_memory_region)
 #define KVM_SET_TSS_ADDR          _IO(KVMIO, 0x47)
+#define KVM_SET_IDENTITY_MAP_ADDR _IOW(KVMIO, 0x48, __u64)
 /* Device model IOC */
 #define KVM_CREATE_IRQCHIP	  _IO(KVMIO,  0x60)
 #define KVM_IRQ_LINE		  _IOW(KVMIO, 0x61, struct kvm_irq_level)

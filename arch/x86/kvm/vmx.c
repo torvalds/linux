@@ -1719,7 +1719,7 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		eptp = construct_eptp(cr3);
 		vmcs_write64(EPT_POINTER, eptp);
 		guest_cr3 = is_paging(vcpu) ? vcpu->arch.cr3 :
-			VMX_EPT_IDENTITY_PAGETABLE_ADDR;
+			vcpu->kvm->arch.ept_identity_map_addr;
 	}
 
 	vmx_flush_tlb(vcpu);
@@ -2122,7 +2122,7 @@ static int init_rmode_identity_map(struct kvm *kvm)
 	if (likely(kvm->arch.ept_identity_pagetable_done))
 		return 1;
 	ret = 0;
-	identity_map_pfn = VMX_EPT_IDENTITY_PAGETABLE_ADDR >> PAGE_SHIFT;
+	identity_map_pfn = kvm->arch.ept_identity_map_addr >> PAGE_SHIFT;
 	r = kvm_clear_guest_page(kvm, identity_map_pfn, 0, PAGE_SIZE);
 	if (r < 0)
 		goto out;
@@ -2191,14 +2191,15 @@ static int alloc_identity_pagetable(struct kvm *kvm)
 		goto out;
 	kvm_userspace_mem.slot = IDENTITY_PAGETABLE_PRIVATE_MEMSLOT;
 	kvm_userspace_mem.flags = 0;
-	kvm_userspace_mem.guest_phys_addr = VMX_EPT_IDENTITY_PAGETABLE_ADDR;
+	kvm_userspace_mem.guest_phys_addr =
+		kvm->arch.ept_identity_map_addr;
 	kvm_userspace_mem.memory_size = PAGE_SIZE;
 	r = __kvm_set_memory_region(kvm, &kvm_userspace_mem, 0);
 	if (r)
 		goto out;
 
 	kvm->arch.ept_identity_pagetable = gfn_to_page(kvm,
-			VMX_EPT_IDENTITY_PAGETABLE_ADDR >> PAGE_SHIFT);
+			kvm->arch.ept_identity_map_addr >> PAGE_SHIFT);
 out:
 	up_write(&kvm->slots_lock);
 	return r;
@@ -3814,9 +3815,13 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		if (alloc_apic_access_page(kvm) != 0)
 			goto free_vmcs;
 
-	if (enable_ept)
+	if (enable_ept) {
+		if (!kvm->arch.ept_identity_map_addr)
+			kvm->arch.ept_identity_map_addr =
+				VMX_EPT_IDENTITY_PAGETABLE_ADDR;
 		if (alloc_identity_pagetable(kvm) != 0)
 			goto free_vmcs;
+	}
 
 	return &vmx->vcpu;
 
