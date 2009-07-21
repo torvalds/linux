@@ -64,11 +64,13 @@
  * IRQTF_RUNTHREAD - signals that the interrupt handler thread should run
  * IRQTF_DIED      - handler thread died
  * IRQTF_WARNED    - warning "IRQ_WAKE_THREAD w/o thread_fn" has been printed
+ * IRQTF_AFFINITY  - irq thread is requested to adjust affinity
  */
 enum {
 	IRQTF_RUNTHREAD,
 	IRQTF_DIED,
 	IRQTF_WARNED,
+	IRQTF_AFFINITY,
 };
 
 typedef irqreturn_t (*irq_handler_t)(int, void *);
