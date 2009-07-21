@@ -2598,6 +2598,22 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 	}
 }
 
+static inline void bnx2x_fan_failure(struct bnx2x *bp)
+{
+	int port = BP_PORT(bp);
+
+	/* mark the failure */
+	bp->link_params.ext_phy_config &= ~PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK;
+	bp->link_params.ext_phy_config |= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE;
+	SHMEM_WR(bp, dev_info.port_hw_config[port].external_phy_config,
+		 bp->link_params.ext_phy_config);
+
+	/* log the failure */
+	printk(KERN_ERR PFX "Fan Failure on Network Controller %s has caused"
+	       " the driver to shutdown the card to prevent permanent"
+	       " damage.  Please contact Dell Support for assistance\n",
+	       bp->dev->name);
+}
 static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 {
 	int port = BP_PORT(bp);
@@ -2615,36 +2631,21 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 
 		BNX2X_ERR("SPIO5 hw attention\n");
 
+		/* Fan failure attention */
 		switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
-			/* Fan failure attention */
-
-			/* The PHY reset is controlled by GPIO 1 */
-			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
-				       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
 			/* Low power mode is controlled by GPIO 2 */
 			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
 				       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
-			/* mark the failure */
-			bp->link_params.ext_phy_config &=
-					~PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK;
-			bp->link_params.ext_phy_config |=
-					PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE;
-			SHMEM_WR(bp,
-				 dev_info.port_hw_config[port].
-							external_phy_config,
-				 bp->link_params.ext_phy_config);
-			/* log the failure */
-			printk(KERN_ERR PFX "Fan Failure on Network"
-			       " Controller %s has caused the driver to"
-			       " shutdown the card to prevent permanent"
-			       " damage.  Please contact Dell Support for"
-			       " assistance\n", bp->dev->name);
+			/* The PHY reset is controlled by GPIO 1 */
+			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
+				       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
 			break;
 
 		default:
 			break;
 		}
+		bnx2x_fan_failure(bp);
 	}
 
 	if (attn & (AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0 |
@@ -5509,6 +5510,58 @@ static void bnx2x_reset_common(struct bnx2x *bp)
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR, 0x1403);
 }
 
+
+static void bnx2x_setup_fan_failure_detection(struct bnx2x *bp)
+{
+	u32 val;
+	u8 port;
+	u8 is_required = 0;
+
+	val = SHMEM_RD(bp, dev_info.shared_hw_config.config2) &
+	      SHARED_HW_CFG_FAN_FAILURE_MASK;
+
+	if (val == SHARED_HW_CFG_FAN_FAILURE_ENABLED)
+		is_required = 1;
+
+	/*
+	 * The fan failure mechanism is usually related to the PHY type since
+	 * the power consumption of the board is affected by the PHY. Currently,
+	 * fan is required for most designs with SFX7101, BCM8727 and BCM8481.
+	 */
+	else if (val == SHARED_HW_CFG_FAN_FAILURE_PHY_TYPE)
+		for (port = PORT_0; port < PORT_MAX; port++) {
+			u32 phy_type =
+				SHMEM_RD(bp, dev_info.port_hw_config[port].
+					 external_phy_config) &
+				PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK;
+			is_required |=
+				((phy_type ==
+				  PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101) ||
+				 (phy_type ==
+				  PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481));
+		}
+
+	DP(NETIF_MSG_HW, "fan detection setting: %d\n", is_required);
+
+	if (is_required == 0)
+		return;
+
+	/* Fan failure is indicated by SPIO 5 */
+	bnx2x_set_spio(bp, MISC_REGISTERS_SPIO_5,
+		       MISC_REGISTERS_SPIO_INPUT_HI_Z);
+
+	/* set to active low mode */
+	val = REG_RD(bp, MISC_REG_SPIO_INT);
+	val |= ((1 << MISC_REGISTERS_SPIO_5) <<
+				MISC_REGISTERS_SPIO_INT_OLD_SET_POS);
+	REG_WR(bp, MISC_REG_SPIO_INT, val);
+
+	/* enable interrupt to signal the IGU */
+	val = REG_RD(bp, MISC_REG_SPIO_EVENT_EN);
+	val |= (1 << MISC_REGISTERS_SPIO_5);
+	REG_WR(bp, MISC_REG_SPIO_EVENT_EN, val);
+}
+
 static int bnx2x_init_common(struct bnx2x *bp)
 {
 	u32 val, i;
@@ -5738,26 +5791,11 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		bp->port.need_hw_lock = 1;
 		break;
 
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
-		/* Fan failure is indicated by SPIO 5 */
-		bnx2x_set_spio(bp, MISC_REGISTERS_SPIO_5,
-			       MISC_REGISTERS_SPIO_INPUT_HI_Z);
-
-		/* set to active low mode */
-		val = REG_RD(bp, MISC_REG_SPIO_INT);
-		val |= ((1 << MISC_REGISTERS_SPIO_5) <<
-					MISC_REGISTERS_SPIO_INT_OLD_SET_POS);
-		REG_WR(bp, MISC_REG_SPIO_INT, val);
-
-		/* enable interrupt to signal the IGU */
-		val = REG_RD(bp, MISC_REG_SPIO_EVENT_EN);
-		val |= (1 << MISC_REGISTERS_SPIO_5);
-		REG_WR(bp, MISC_REG_SPIO_EVENT_EN, val);
-		break;
-
 	default:
 		break;
 	}
+
+	bnx2x_setup_fan_failure_detection(bp);
 
 	/* clear PXP2 attentions */
 	REG_RD(bp, PXP2_REG_PXP2_INT_STS_CLR_0);

@@ -91,6 +91,21 @@ struct shared_hw_cfg {					 /* NVRAM Offset */
 
 #define SHARED_HW_CFG_HIDE_PORT1		    0x00002000
 
+	/*  The fan failure mechanism is usually related to the PHY type
+	  since the power consumption of the board is determined by the PHY.
+	  Currently, fan is required for most designs with SFX7101, BCM8727
+	  and BCM8481. If a fan is not required for a board which uses one
+	  of those PHYs, this field should be set to "Disabled". If a fan is
+	  required for a different PHY type, this option should be set to
+	  "Enabled".
+	  The fan failure indication is expected on
+	  SPIO5 */
+#define SHARED_HW_CFG_FAN_FAILURE_MASK			      0x00180000
+#define SHARED_HW_CFG_FAN_FAILURE_SHIFT 		      19
+#define SHARED_HW_CFG_FAN_FAILURE_PHY_TYPE		      0x00000000
+#define SHARED_HW_CFG_FAN_FAILURE_DISABLED		      0x00080000
+#define SHARED_HW_CFG_FAN_FAILURE_ENABLED		      0x00100000
+
 	u32 power_dissipated;					/* 0x11c */
 #define SHARED_HW_CFG_POWER_DIS_CMN_MASK	    0xff000000
 #define SHARED_HW_CFG_POWER_DIS_CMN_SHIFT	    24
