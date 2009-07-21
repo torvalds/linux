@@ -182,7 +182,8 @@ static unsigned long compute_hozval(unsigned long xres, unsigned long lcdcon2)
 {
 	unsigned long value;
 
-	if (!(cpu_is_at91sam9261() || cpu_is_at32ap7000()))
+	if (!(cpu_is_at91sam9261() || cpu_is_at91sam9g10()
+		|| cpu_is_at32ap7000()))
 		return xres;
 
 	value = xres;
@@ -821,7 +822,8 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	info->fix = atmel_lcdfb_fix;
 
 	/* Enable LCDC Clocks */
-	if (cpu_is_at91sam9261() || cpu_is_at32ap7000()) {
+	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()
+	 || cpu_is_at32ap7000()) {
 		sinfo->bus_clk = clk_get(dev, "hck1");
 		if (IS_ERR(sinfo->bus_clk)) {
 			ret = PTR_ERR(sinfo->bus_clk);
