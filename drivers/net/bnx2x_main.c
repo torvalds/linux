@@ -652,6 +652,11 @@ static void bnx2x_int_enable(struct bnx2x *bp)
 	   val, port, addr, (msix ? "MSI-X" : (msi ? "MSI" : "INTx")));
 
 	REG_WR(bp, addr, val);
+	/*
+	 * Ensure that HC_CONFIG is written before leading/trailing edge config
+	 */
+	mmiowb();
+	barrier();
 
 	if (CHIP_IS_E1H(bp)) {
 		/* init leading/trailing edge */
@@ -666,6 +671,9 @@ static void bnx2x_int_enable(struct bnx2x *bp)
 		REG_WR(bp, HC_REG_TRAILING_EDGE_0 + port*8, val);
 		REG_WR(bp, HC_REG_LEADING_EDGE_0 + port*8, val);
 	}
+
+	/* Make sure that interrupts are indeed enabled from here on */
+	mmiowb();
 }
 
 static void bnx2x_int_disable(struct bnx2x *bp)
@@ -739,6 +747,10 @@ static inline void bnx2x_ack_sb(struct bnx2x *bp, u8 sb_id,
 	DP(BNX2X_MSG_OFF, "write 0x%08x to HC addr 0x%x\n",
 	   (*(u32 *)&igu_ack), hc_addr);
 	REG_WR(bp, hc_addr, (*(u32 *)&igu_ack));
+
+	/* Make sure that ACK is written */
+	mmiowb();
+	barrier();
 }
 
 static inline u16 bnx2x_update_fpsb_idx(struct bnx2x_fastpath *fp)
@@ -2429,8 +2441,13 @@ static int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 		bp->spq_prod_idx++;
 	}
 
+	/* Make sure that BD data is updated before writing the producer */
+	wmb();
+
 	REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_SPQ_PROD_OFFSET(func),
 	       bp->spq_prod_idx);
+
+	mmiowb();
 
 	spin_unlock_bh(&bp->spq_lock);
 	return 0;
