@@ -692,6 +692,8 @@ struct perf_sample_data {
 
 extern int perf_counter_overflow(struct perf_counter *counter, int nmi,
 				 struct perf_sample_data *data);
+extern void perf_counter_output(struct perf_counter *counter, int nmi,
+				struct perf_sample_data *data);
 
 /*
  * Return 1 for a software counter, 0 for a hardware counter

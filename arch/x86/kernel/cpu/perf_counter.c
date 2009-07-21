@@ -6,6 +6,7 @@
  *  Copyright (C) 2009 Jaswinder Singh Rajput
  *  Copyright (C) 2009 Advanced Micro Devices, Inc., Robert Richter
  *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2009 Intel Corporation, <markus.t.metzger@intel.com>
  *
  *  For licencing details see kernel-base/COPYING
  */
@@ -20,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <linux/highmem.h>
+#include <linux/cpu.h>
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
@@ -27,12 +29,52 @@
 
 static u64 perf_counter_mask __read_mostly;
 
+/* The maximal number of PEBS counters: */
+#define MAX_PEBS_COUNTERS	4
+
+/* The size of a BTS record in bytes: */
+#define BTS_RECORD_SIZE		24
+
+/* The size of a per-cpu BTS buffer in bytes: */
+#define BTS_BUFFER_SIZE		(BTS_RECORD_SIZE * 1024)
+
+/* The BTS overflow threshold in bytes from the end of the buffer: */
+#define BTS_OVFL_TH		(BTS_RECORD_SIZE * 64)
+
+
+/*
+ * Bits in the debugctlmsr controlling branch tracing.
+ */
+#define X86_DEBUGCTL_TR			(1 << 6)
+#define X86_DEBUGCTL_BTS		(1 << 7)
+#define X86_DEBUGCTL_BTINT		(1 << 8)
+#define X86_DEBUGCTL_BTS_OFF_OS		(1 << 9)
+#define X86_DEBUGCTL_BTS_OFF_USR	(1 << 10)
+
+/*
+ * A debug store configuration.
+ *
+ * We only support architectures that use 64bit fields.
+ */
+struct debug_store {
+	u64	bts_buffer_base;
+	u64	bts_index;
+	u64	bts_absolute_maximum;
+	u64	bts_interrupt_threshold;
+	u64	pebs_buffer_base;
+	u64	pebs_index;
+	u64	pebs_absolute_maximum;
+	u64	pebs_interrupt_threshold;
+	u64	pebs_counter_reset[MAX_PEBS_COUNTERS];
+};
+
 struct cpu_hw_counters {
 	struct perf_counter	*counters[X86_PMC_IDX_MAX];
 	unsigned long		used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long		active_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long		interrupts;
 	int			enabled;
+	struct debug_store	*ds;
 };
 
 /*
@@ -57,6 +99,8 @@ struct x86_pmu {
 	u64		counter_mask;
 	u64		max_period;
 	u64		intel_ctrl;
+	void		(*enable_bts)(u64 config);
+	void		(*disable_bts)(void);
 };
 
 static struct x86_pmu x86_pmu __read_mostly;
@@ -576,6 +620,9 @@ x86_perf_counter_update(struct perf_counter *counter,
 	u64 prev_raw_count, new_raw_count;
 	s64 delta;
 
+	if (idx == X86_PMC_IDX_FIXED_BTS)
+		return 0;
+
 	/*
 	 * Careful: an NMI might modify the previous counter value.
 	 *
@@ -659,10 +706,109 @@ static void release_pmc_hardware(void)
 		enable_lapic_nmi_watchdog();
 }
 
+static inline bool bts_available(void)
+{
+	return x86_pmu.enable_bts != NULL;
+}
+
+static inline void init_debug_store_on_cpu(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_counters, cpu).ds;
+
+	if (!ds)
+		return;
+
+	wrmsr_on_cpu(cpu, MSR_IA32_DS_AREA,
+		     (u32)((u64)(long)ds), (u32)((u64)(long)ds >> 32));
+}
+
+static inline void fini_debug_store_on_cpu(int cpu)
+{
+	if (!per_cpu(cpu_hw_counters, cpu).ds)
+		return;
+
+	wrmsr_on_cpu(cpu, MSR_IA32_DS_AREA, 0, 0);
+}
+
+static void release_bts_hardware(void)
+{
+	int cpu;
+
+	if (!bts_available())
+		return;
+
+	get_online_cpus();
+
+	for_each_online_cpu(cpu)
+		fini_debug_store_on_cpu(cpu);
+
+	for_each_possible_cpu(cpu) {
+		struct debug_store *ds = per_cpu(cpu_hw_counters, cpu).ds;
+
+		if (!ds)
+			continue;
+
+		per_cpu(cpu_hw_counters, cpu).ds = NULL;
+
+		kfree((void *)(long)ds->bts_buffer_base);
+		kfree(ds);
+	}
+
+	put_online_cpus();
+}
+
+static int reserve_bts_hardware(void)
+{
+	int cpu, err = 0;
+
+	if (!bts_available())
+		return -EOPNOTSUPP;
+
+	get_online_cpus();
+
+	for_each_possible_cpu(cpu) {
+		struct debug_store *ds;
+		void *buffer;
+
+		err = -ENOMEM;
+		buffer = kzalloc(BTS_BUFFER_SIZE, GFP_KERNEL);
+		if (unlikely(!buffer))
+			break;
+
+		ds = kzalloc(sizeof(*ds), GFP_KERNEL);
+		if (unlikely(!ds)) {
+			kfree(buffer);
+			break;
+		}
+
+		ds->bts_buffer_base = (u64)(long)buffer;
+		ds->bts_index = ds->bts_buffer_base;
+		ds->bts_absolute_maximum =
+			ds->bts_buffer_base + BTS_BUFFER_SIZE;
+		ds->bts_interrupt_threshold =
+			ds->bts_absolute_maximum - BTS_OVFL_TH;
+
+		per_cpu(cpu_hw_counters, cpu).ds = ds;
+		err = 0;
+	}
+
+	if (err)
+		release_bts_hardware();
+	else {
+		for_each_online_cpu(cpu)
+			init_debug_store_on_cpu(cpu);
+	}
+
+	put_online_cpus();
+
+	return err;
+}
+
 static void hw_perf_counter_destroy(struct perf_counter *counter)
 {
 	if (atomic_dec_and_mutex_lock(&active_counters, &pmc_reserve_mutex)) {
 		release_pmc_hardware();
+		release_bts_hardware();
 		mutex_unlock(&pmc_reserve_mutex);
 	}
 }
@@ -705,6 +851,42 @@ set_ext_hw_attr(struct hw_perf_counter *hwc, struct perf_counter_attr *attr)
 	return 0;
 }
 
+static void intel_pmu_enable_bts(u64 config)
+{
+	unsigned long debugctlmsr;
+
+	debugctlmsr = get_debugctlmsr();
+
+	debugctlmsr |= X86_DEBUGCTL_TR;
+	debugctlmsr |= X86_DEBUGCTL_BTS;
+	debugctlmsr |= X86_DEBUGCTL_BTINT;
+
+	if (!(config & ARCH_PERFMON_EVENTSEL_OS))
+		debugctlmsr |= X86_DEBUGCTL_BTS_OFF_OS;
+
+	if (!(config & ARCH_PERFMON_EVENTSEL_USR))
+		debugctlmsr |= X86_DEBUGCTL_BTS_OFF_USR;
+
+	update_debugctlmsr(debugctlmsr);
+}
+
+static void intel_pmu_disable_bts(void)
+{
+	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	unsigned long debugctlmsr;
+
+	if (!cpuc->ds)
+		return;
+
+	debugctlmsr = get_debugctlmsr();
+
+	debugctlmsr &=
+		~(X86_DEBUGCTL_TR | X86_DEBUGCTL_BTS | X86_DEBUGCTL_BTINT |
+		  X86_DEBUGCTL_BTS_OFF_OS | X86_DEBUGCTL_BTS_OFF_USR);
+
+	update_debugctlmsr(debugctlmsr);
+}
+
 /*
  * Setup the hardware configuration for a given attr_type
  */
@@ -721,9 +903,13 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	err = 0;
 	if (!atomic_inc_not_zero(&active_counters)) {
 		mutex_lock(&pmc_reserve_mutex);
-		if (atomic_read(&active_counters) == 0 && !reserve_pmc_hardware())
-			err = -EBUSY;
-		else
+		if (atomic_read(&active_counters) == 0) {
+			if (!reserve_pmc_hardware())
+				err = -EBUSY;
+			else
+				reserve_bts_hardware();
+		}
+		if (!err)
 			atomic_inc(&active_counters);
 		mutex_unlock(&pmc_reserve_mutex);
 	}
@@ -801,7 +987,18 @@ static void p6_pmu_disable_all(void)
 
 static void intel_pmu_disable_all(void)
 {
+	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+
+	if (!cpuc->enabled)
+		return;
+
+	cpuc->enabled = 0;
+	barrier();
+
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
+
+	if (test_bit(X86_PMC_IDX_FIXED_BTS, cpuc->active_mask))
+		intel_pmu_disable_bts();
 }
 
 static void amd_pmu_disable_all(void)
@@ -859,7 +1056,25 @@ static void p6_pmu_enable_all(void)
 
 static void intel_pmu_enable_all(void)
 {
+	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+
+	if (cpuc->enabled)
+		return;
+
+	cpuc->enabled = 1;
+	barrier();
+
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, x86_pmu.intel_ctrl);
+
+	if (test_bit(X86_PMC_IDX_FIXED_BTS, cpuc->active_mask)) {
+		struct perf_counter *counter =
+			cpuc->counters[X86_PMC_IDX_FIXED_BTS];
+
+		if (WARN_ON_ONCE(!counter))
+			return;
+
+		intel_pmu_enable_bts(counter->hw.config);
+	}
 }
 
 static void amd_pmu_enable_all(void)
@@ -946,6 +1161,11 @@ p6_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
 static inline void
 intel_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
 {
+	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS)) {
+		intel_pmu_disable_bts();
+		return;
+	}
+
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
 		intel_pmu_disable_fixed(hwc, idx);
 		return;
@@ -973,6 +1193,9 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 	s64 left = atomic64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
 	int err, ret = 0;
+
+	if (idx == X86_PMC_IDX_FIXED_BTS)
+		return 0;
 
 	/*
 	 * If we are way outside a reasoable range then just skip forward:
@@ -1056,6 +1279,14 @@ static void p6_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 
 static void intel_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 {
+	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS)) {
+		if (!__get_cpu_var(cpu_hw_counters).enabled)
+			return;
+
+		intel_pmu_enable_bts(hwc->config);
+		return;
+	}
+
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
 		intel_pmu_enable_fixed(hwc, idx);
 		return;
@@ -1077,10 +1308,15 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 {
 	unsigned int event;
 
+	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
+
+	if (unlikely((event ==
+		      x86_pmu.event_map(PERF_COUNT_HW_BRANCH_INSTRUCTIONS)) &&
+		     (hwc->sample_period == 1)))
+		return X86_PMC_IDX_FIXED_BTS;
+
 	if (!x86_pmu.num_counters_fixed)
 		return -1;
-
-	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
 
 	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_INSTRUCTIONS)))
 		return X86_PMC_IDX_FIXED_INSTRUCTIONS;
@@ -1102,7 +1338,25 @@ static int x86_pmu_enable(struct perf_counter *counter)
 	int idx;
 
 	idx = fixed_mode_idx(counter, hwc);
-	if (idx >= 0) {
+	if (idx == X86_PMC_IDX_FIXED_BTS) {
+		/*
+		 * Try to use BTS for branch tracing. If that is not
+		 * available, try to get a generic counter.
+		 */
+		if (unlikely(!cpuc->ds))
+			goto try_generic;
+
+		/*
+		 * Try to get the fixed counter, if that is already taken
+		 * then try to get a generic counter:
+		 */
+		if (test_and_set_bit(idx, cpuc->used_mask))
+			goto try_generic;
+
+		hwc->config_base	= 0;
+		hwc->counter_base	= 0;
+		hwc->idx		= idx;
+	} else if (idx >= 0) {
 		/*
 		 * Try to get the fixed counter, if that is already taken
 		 * then try to get a generic counter:
@@ -1213,6 +1467,45 @@ void perf_counter_print_debug(void)
 	local_irq_restore(flags);
 }
 
+static void intel_pmu_drain_bts_buffer(struct cpu_hw_counters *cpuc,
+				       struct perf_sample_data *data)
+{
+	struct debug_store *ds = cpuc->ds;
+	struct bts_record {
+		u64	from;
+		u64	to;
+		u64	flags;
+	};
+	struct perf_counter *counter = cpuc->counters[X86_PMC_IDX_FIXED_BTS];
+	unsigned long orig_ip = data->regs->ip;
+	u64 at;
+
+	if (!counter)
+		return;
+
+	if (!ds)
+		return;
+
+	for (at = ds->bts_buffer_base;
+	     at < ds->bts_index;
+	     at += sizeof(struct bts_record)) {
+		struct bts_record *rec = (struct bts_record *)(long)at;
+
+		data->regs->ip	= rec->from;
+		data->addr	= rec->to;
+
+		perf_counter_output(counter, 1, data);
+	}
+
+	ds->bts_index = ds->bts_buffer_base;
+
+	data->regs->ip	= orig_ip;
+	data->addr	= 0;
+
+	/* There's new data available. */
+	counter->pending_kill = POLL_IN;
+}
+
 static void x86_pmu_disable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
@@ -1237,6 +1530,15 @@ static void x86_pmu_disable(struct perf_counter *counter)
 	 * that we are disabling:
 	 */
 	x86_perf_counter_update(counter, hwc, idx);
+
+	/* Drain the remaining BTS records. */
+	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS)) {
+		struct perf_sample_data data;
+		struct pt_regs regs;
+
+		data.regs = &regs;
+		intel_pmu_drain_bts_buffer(cpuc, &data);
+	}
 	cpuc->counters[idx] = NULL;
 	clear_bit(idx, cpuc->used_mask);
 
@@ -1264,6 +1566,7 @@ static int intel_pmu_save_and_restart(struct perf_counter *counter)
 
 static void intel_pmu_reset(void)
 {
+	struct debug_store *ds = __get_cpu_var(cpu_hw_counters).ds;
 	unsigned long flags;
 	int idx;
 
@@ -1281,6 +1584,8 @@ static void intel_pmu_reset(void)
 	for (idx = 0; idx < x86_pmu.num_counters_fixed; idx++) {
 		checking_wrmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
 	}
+	if (ds)
+		ds->bts_index = ds->bts_buffer_base;
 
 	local_irq_restore(flags);
 }
@@ -1346,6 +1651,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	cpuc = &__get_cpu_var(cpu_hw_counters);
 
 	perf_disable();
+	intel_pmu_drain_bts_buffer(cpuc, &data);
 	status = intel_pmu_get_status();
 	if (!status) {
 		perf_enable();
@@ -1547,6 +1853,8 @@ static struct x86_pmu intel_pmu = {
 	 * the generic counter period:
 	 */
 	.max_period		= (1ULL << 31) - 1,
+	.enable_bts		= intel_pmu_enable_bts,
+	.disable_bts		= intel_pmu_disable_bts,
 };
 
 static struct x86_pmu amd_pmu = {
@@ -1935,4 +2243,9 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 	perf_do_callchain(regs, entry);
 
 	return entry;
+}
+
+void hw_perf_counter_setup_online(int cpu)
+{
+	init_debug_store_on_cpu(cpu);
 }
