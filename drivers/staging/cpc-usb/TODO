@@ -5,5 +5,6 @@ kernel:
 	- remove proc code
 	- tie into CAN socket interfaces if possible
 	- figure out sane userspace api
+	- use linux's error codes
 
 Send patches to Greg Kroah-Hartman <greg@kroah.com>
