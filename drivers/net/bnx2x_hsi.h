@@ -248,6 +248,8 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726	    0x00000600
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481	    0x00000700
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101	    0x00000800
+#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727	    0x00000900
+#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_NOC   0x00000a00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE	    0x0000fd00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN	    0x0000ff00
 
@@ -358,10 +360,16 @@ struct port_feat_cfg {			    /* port 0: 0x454  port 1: 0x4c8 */
 #define PORT_FEATURE_MBA_ENABLED		    0x02000000
 #define PORT_FEATURE_MFW_ENABLED		    0x04000000
 
-	/*  Check the optic vendor via i2c before allowing it to be used by
-	  SW */
-#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLED 	      0x00000000
-#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_ENABLED		      0x08000000
+	/* Reserved bits: 28-29 */
+	/*  Check the optic vendor via i2c against a list of approved modules
+	  in a separate nvram image */
+#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK		      0xE0000000
+#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_SHIFT		      29
+#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_NO_ENFORCEMENT	      0x00000000
+#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLE_TX_LASER       0x20000000
+#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_WARNING_MSG	      0x40000000
+#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_POWER_DOWN	      0x60000000
+
 
 	u32 wol_config;
 	/* Default is used when driver sets to "auto" mode */
@@ -657,6 +665,12 @@ struct drv_func_mb {
 #define DRV_MSG_CODE_GET_UPGRADE_KEY			0x81000000
 #define DRV_MSG_CODE_GET_MANUF_KEY			0x82000000
 #define DRV_MSG_CODE_LOAD_L2B_PRAM			0x90000000
+	/*
+	 * The optic module verification commands requris bootcode
+	 * v5.0.6 or later
+	 */
+#define DRV_MSG_CODE_VRFY_OPT_MDL			0xa0000000
+#define REQ_BC_VER_4_VRFY_OPT_MDL			0x00050006
 
 #define BIOS_MSG_CODE_LIC_CHALLENGE			0xff010000
 #define BIOS_MSG_CODE_LIC_RESPONSE			0xff020000
@@ -691,6 +705,9 @@ struct drv_func_mb {
 #define FW_MSG_CODE_L2B_PRAM_C_LOAD_FAILURE		0x90220000
 #define FW_MSG_CODE_L2B_PRAM_X_LOAD_FAILURE		0x90230000
 #define FW_MSG_CODE_L2B_PRAM_U_LOAD_FAILURE		0x90240000
+#define FW_MSG_CODE_VRFY_OPT_MDL_SUCCESS		0xa0100000
+#define FW_MSG_CODE_VRFY_OPT_MDL_INVLD_IMG		0xa0200000
+#define FW_MSG_CODE_VRFY_OPT_MDL_UNAPPROVED		0xa0300000
 
 #define FW_MSG_CODE_LIC_CHALLENGE			0xff010000
 #define FW_MSG_CODE_LIC_RESPONSE			0xff020000

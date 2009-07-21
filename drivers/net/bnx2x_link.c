@@ -139,21 +139,26 @@
 	#define SFP_EEPROM_CON_TYPE_VAL_LC 		0x7
 	#define SFP_EEPROM_CON_TYPE_VAL_COPPER	0x21
 
+
+#define SFP_EEPROM_COMP_CODE_ADDR		0x3
+	#define SFP_EEPROM_COMP_CODE_SR_MASK	(1<<4)
+	#define SFP_EEPROM_COMP_CODE_LR_MASK	(1<<5)
+	#define SFP_EEPROM_COMP_CODE_LRM_MASK	(1<<6)
+
 #define SFP_EEPROM_FC_TX_TECH_ADDR		0x8
 	#define SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE 0x4
 	#define SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_ACTIVE	 0x8
-#define SFP_EEPROM_VENDOR_NAME_ADDR		0x14
-#define SFP_EEPROM_VENDOR_NAME_SIZE 	16
+
 #define SFP_EEPROM_OPTIONS_ADDR 		0x40
 	#define SFP_EEPROM_OPTIONS_LINEAR_RX_OUT_MASK 0x1
 #define SFP_EEPROM_OPTIONS_SIZE 		2
 
-#define SFP_MODULE_TYPE_UNKNOWN 			0x0
-#define SFP_MODULE_TYPE_LC   			0x1
-#define SFP_MODULE_TYPE_ACTIVE_COPPER_CABLE		0x2
-#define SFP_MODULE_TYPE_PASSIVE_COPPER_CABLE	0x3
+#define EDC_MODE_LINEAR	 			0x0022
+#define EDC_MODE_LIMITING	 			0x0044
+#define EDC_MODE_PASSIVE_DAC 			0x0055
 
-#define SFP_LIMITING_MODE_VALUE 			0x0044
+
+
 /**********************************************************/
 /*                     INTERFACE                          */
 /**********************************************************/
@@ -793,6 +798,7 @@ static u32 bnx2x_get_emac_base(struct bnx2x *bp, u32 ext_phy_type, u8 port)
 	switch (ext_phy_type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
 		/* All MDC/MDIO is directed through single EMAC */
 		if (REG_RD(bp, NIG_REG_PORT_SWAP))
 			emac_base = GRCBASE_EMAC0;
@@ -1887,6 +1893,10 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 				       MDIO_PMA_DEVAD,
 				       MDIO_PMA_REG_CTRL, 0xa040);
 			break;
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
+			break;
+
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
 
 			/* Restore normal power mode*/
@@ -2171,13 +2181,15 @@ static u8 bnx2x_bcm8073_xaui_wa(struct link_params *params)
 
 }
 
-static void bnx2x_bcm8073_external_rom_boot(struct bnx2x *bp, u8 port,
-					  u8 ext_phy_addr, u32 shmem_base)
+static void bnx2x_bcm8073_bcm8727_external_rom_boot(struct bnx2x *bp, u8 port,
+						  u8 ext_phy_addr,
+						  u32 ext_phy_type,
+						  u32 shmem_base)
 {
 	/* Boot port from external ROM  */
 	/* EDC grst */
 	bnx2x_cl45_write(bp, port,
-		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
+		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_GEN_CTRL,
@@ -2185,21 +2197,21 @@ static void bnx2x_bcm8073_external_rom_boot(struct bnx2x *bp, u8 port,
 
 	/* ucode reboot and rst */
 	bnx2x_cl45_write(bp, port,
-		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
+		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_GEN_CTRL,
 		       0x008c);
 
 	bnx2x_cl45_write(bp, port,
-		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
+		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_MISC_CTRL1, 0x0001);
 
 	/* Reset internal microprocessor */
 	bnx2x_cl45_write(bp, port,
-		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
+		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_GEN_CTRL,
@@ -2207,7 +2219,7 @@ static void bnx2x_bcm8073_external_rom_boot(struct bnx2x *bp, u8 port,
 
 	/* Release srst bit */
 	bnx2x_cl45_write(bp, port,
-		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
+		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_GEN_CTRL,
@@ -2218,15 +2230,34 @@ static void bnx2x_bcm8073_external_rom_boot(struct bnx2x *bp, u8 port,
 
 	/* Clear ser_boot_ctl bit */
 	bnx2x_cl45_write(bp, port,
-		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
+		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_MISC_CTRL1, 0x0000);
 
 	bnx2x_save_bcm_spirom_ver(bp, port,
-				PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
+				ext_phy_type,
 				ext_phy_addr,
 				shmem_base);
+}
+
+static void bnx2x_bcm8073_external_rom_boot(struct bnx2x *bp, u8 port,
+					  u8 ext_phy_addr,
+					  u32 shmem_base)
+{
+	bnx2x_bcm8073_bcm8727_external_rom_boot(bp, port, ext_phy_addr,
+					 PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
+					 shmem_base);
+}
+
+static void bnx2x_bcm8727_external_rom_boot(struct bnx2x *bp, u8 port,
+					  u8 ext_phy_addr,
+					  u32 shmem_base)
+{
+	bnx2x_bcm8073_bcm8727_external_rom_boot(bp, port, ext_phy_addr,
+					 PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+					 shmem_base);
+
 }
 
 static void bnx2x_bcm8726_external_rom_boot(struct link_params *params)
@@ -2258,9 +2289,10 @@ static void bnx2x_bcm8726_external_rom_boot(struct link_params *params)
 		       MDIO_PMA_REG_GEN_CTRL,
 		       MDIO_PMA_REG_GEN_CTRL_ROM_MICRO_RESET);
 
+	/* Set PLL register value to be same like in P13 ver */
 	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
 		       MDIO_PMA_DEVAD,
-		       MDIO_PMA_REG_GEN_CTRL2,
+		       MDIO_PMA_REG_PLL_CTRL,
 		       0x73A0);
 
 	/* Clear soft reset.
@@ -2285,15 +2317,16 @@ static void bnx2x_bcm8726_external_rom_boot(struct link_params *params)
 				params->shmem_base);
 }
 
-static void bnx2x_bcm8726_set_transmitter(struct bnx2x *bp, u8 port,
-					u8 ext_phy_addr, u8 tx_en)
+static void bnx2x_sfp_set_transmitter(struct bnx2x *bp, u8 port,
+				    u32 ext_phy_type, u8 ext_phy_addr,
+				    u8 tx_en)
 {
 	u16 val;
 	DP(NETIF_MSG_LINK, "Setting transmitter tx_en=%x for port %x\n",
 		 tx_en, port);
 	/* Disable/Enable transmitter ( TX laser of the SFP+ module.)*/
 	bnx2x_cl45_read(bp, port,
-		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+		      ext_phy_type,
 		      ext_phy_addr,
 		      MDIO_PMA_DEVAD,
 		      MDIO_PMA_REG_PHY_IDENTIFIER,
@@ -2305,18 +2338,19 @@ static void bnx2x_bcm8726_set_transmitter(struct bnx2x *bp, u8 port,
 		val |= (1<<15);
 
 	bnx2x_cl45_write(bp, port,
-		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_PHY_IDENTIFIER,
 		       val);
 }
 
-
-static u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
-				     u8 byte_cnt, u8 *o_buf) {
+static u8 bnx2x_8726_read_sfp_module_eeprom(struct link_params *params,
+					  u16 addr, u8 byte_cnt, u8 *o_buf)
+{
 	struct bnx2x *bp = params->bp;
-	u16 val, i;
+	u16 val = 0;
+	u16 i;
 	u8 port = params->port;
 	u8 ext_phy_addr = ((params->ext_phy_config &
 			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
@@ -2332,7 +2366,7 @@ static u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
 		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
-		       MDIO_PMA_REG_8726_TWO_WIRE_BYTE_CNT,
+		       MDIO_PMA_REG_SFP_TWO_WIRE_BYTE_CNT,
 		       (byte_cnt | 0xa000));
 
 	/* Set the read command address */
@@ -2340,7 +2374,7 @@ static u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
 		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
-		       MDIO_PMA_REG_8726_TWO_WIRE_MEM_ADDR,
+		       MDIO_PMA_REG_SFP_TWO_WIRE_MEM_ADDR,
 		       addr);
 
 	/* Activate read command */
@@ -2348,7 +2382,7 @@ static u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
 		       ext_phy_type,
 		       ext_phy_addr,
 		       MDIO_PMA_DEVAD,
-		       MDIO_PMA_REG_8726_TWO_WIRE_CTRL,
+		       MDIO_PMA_REG_SFP_TWO_WIRE_CTRL,
 		       0x2c0f);
 
 	/* Wait up to 500us for command complete status */
@@ -2357,18 +2391,18 @@ static u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
 			      ext_phy_type,
 			      ext_phy_addr,
 			      MDIO_PMA_DEVAD,
-			      MDIO_PMA_REG_8726_TWO_WIRE_CTRL, &val);
-		if ((val & MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK) ==
-		    MDIO_PMA_REG_8726_TWO_WIRE_STATUS_COMPLETE)
+			      MDIO_PMA_REG_SFP_TWO_WIRE_CTRL, &val);
+		if ((val & MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK) ==
+		    MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_COMPLETE)
 			break;
 		udelay(5);
 	}
 
-	if ((val & MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK) !=
-		    MDIO_PMA_REG_8726_TWO_WIRE_STATUS_COMPLETE) {
+	if ((val & MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK) !=
+		    MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_COMPLETE) {
 		DP(NETIF_MSG_LINK,
 			 "Got bad status 0x%x when reading from SFP+ EEPROM\n",
-			 (val & MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK));
+			 (val & MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK));
 		return -EINVAL;
 	}
 
@@ -2387,29 +2421,147 @@ static u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
 			      ext_phy_type,
 			      ext_phy_addr,
 			      MDIO_PMA_DEVAD,
-			      MDIO_PMA_REG_8726_TWO_WIRE_CTRL, &val);
-		if ((val & MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK) ==
-		    MDIO_PMA_REG_8726_TWO_WIRE_STATUS_IDLE)
+			      MDIO_PMA_REG_SFP_TWO_WIRE_CTRL, &val);
+		if ((val & MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK) ==
+		    MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_IDLE)
 			return 0;;
 		msleep(1);
 	}
 	return -EINVAL;
 }
 
-
-static u8 bnx2x_get_sfp_module_type(struct link_params *params,
-				  u8 *module_type)
+static u8 bnx2x_8727_read_sfp_module_eeprom(struct link_params *params,
+					  u16 addr, u8 byte_cnt, u8 *o_buf)
 {
 	struct bnx2x *bp = params->bp;
-	u8 val;
-	*module_type = SFP_MODULE_TYPE_UNKNOWN;
+	u16 val, i;
+	u8 port = params->port;
+	u8 ext_phy_addr = ((params->ext_phy_config &
+			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+			   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
+
+	if (byte_cnt > 16) {
+		DP(NETIF_MSG_LINK, "Reading from eeprom is"
+			    " is limited to 0xf\n");
+		return -EINVAL;
+	}
+
+	/* Need to read from 1.8000 to clear it */
+	bnx2x_cl45_read(bp, port,
+		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+		      ext_phy_addr,
+		      MDIO_PMA_DEVAD,
+		      MDIO_PMA_REG_SFP_TWO_WIRE_CTRL,
+		      &val);
+
+	/* Set the read command byte count */
+	bnx2x_cl45_write(bp, port,
+		       ext_phy_type,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_SFP_TWO_WIRE_BYTE_CNT,
+		       ((byte_cnt < 2) ? 2 : byte_cnt));
+
+	/* Set the read command address */
+	bnx2x_cl45_write(bp, port,
+		       ext_phy_type,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_SFP_TWO_WIRE_MEM_ADDR,
+		       addr);
+	/* Set the destination address */
+	bnx2x_cl45_write(bp, port,
+		       ext_phy_type,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       0x8004,
+		       MDIO_PMA_REG_8727_TWO_WIRE_DATA_BUF);
+
+	/* Activate read command */
+	bnx2x_cl45_write(bp, port,
+		       ext_phy_type,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_SFP_TWO_WIRE_CTRL,
+		       0x8002);
+	/* Wait appropriate time for two-wire command to finish before
+	polling the status register */
+	msleep(1);
+
+	/* Wait up to 500us for command complete status */
+	for (i = 0; i < 100; i++) {
+		bnx2x_cl45_read(bp, port,
+			      ext_phy_type,
+			      ext_phy_addr,
+			      MDIO_PMA_DEVAD,
+			      MDIO_PMA_REG_SFP_TWO_WIRE_CTRL, &val);
+		if ((val & MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK) ==
+		    MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_COMPLETE)
+			break;
+		udelay(5);
+	}
+
+	if ((val & MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK) !=
+		    MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_COMPLETE) {
+		DP(NETIF_MSG_LINK,
+			 "Got bad status 0x%x when reading from SFP+ EEPROM\n",
+			 (val & MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK));
+		return -EINVAL;
+	}
+
+	/* Read the buffer */
+	for (i = 0; i < byte_cnt; i++) {
+		bnx2x_cl45_read(bp, port,
+			      ext_phy_type,
+			      ext_phy_addr,
+			      MDIO_PMA_DEVAD,
+			      MDIO_PMA_REG_8727_TWO_WIRE_DATA_BUF + i, &val);
+		o_buf[i] = (u8)(val & MDIO_PMA_REG_8727_TWO_WIRE_DATA_MASK);
+	}
+
+	for (i = 0; i < 100; i++) {
+		bnx2x_cl45_read(bp, port,
+			      ext_phy_type,
+			      ext_phy_addr,
+			      MDIO_PMA_DEVAD,
+			      MDIO_PMA_REG_SFP_TWO_WIRE_CTRL, &val);
+		if ((val & MDIO_PMA_REG_SFP_TWO_WIRE_CTRL_STATUS_MASK) ==
+		    MDIO_PMA_REG_SFP_TWO_WIRE_STATUS_IDLE)
+			return 0;;
+		msleep(1);
+	}
+
+	return -EINVAL;
+}
+
+u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
+				     u8 byte_cnt, u8 *o_buf)
+{
+	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
+
+	if (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726)
+		return bnx2x_8726_read_sfp_module_eeprom(params, addr,
+						       byte_cnt, o_buf);
+	else if (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727)
+		return bnx2x_8727_read_sfp_module_eeprom(params, addr,
+						       byte_cnt, o_buf);
+	return -EINVAL;
+}
+
+static u8 bnx2x_get_edc_mode(struct link_params *params,
+				  u16 *edc_mode)
+{
+	struct bnx2x *bp = params->bp;
+	u8 val, check_limiting_mode = 0;
+	*edc_mode = EDC_MODE_LIMITING;
 
 	/* First check for copper cable */
 	if (bnx2x_read_sfp_module_eeprom(params,
 				       SFP_EEPROM_CON_TYPE_ADDR,
 				       1,
 				       &val) != 0) {
-		DP(NETIF_MSG_LINK, "Failed to read from SFP+ module EEPROM");
+		DP(NETIF_MSG_LINK, "Failed to read from SFP+ module EEPROM\n");
 		return -EINVAL;
 	}
 
@@ -2433,13 +2585,13 @@ static u8 bnx2x_get_sfp_module_type(struct link_params *params,
 		if (copper_module_type &
 		    SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_ACTIVE) {
 			DP(NETIF_MSG_LINK, "Active Copper cable detected\n");
-			*module_type = SFP_MODULE_TYPE_ACTIVE_COPPER_CABLE;
+			check_limiting_mode = 1;
 		} else if (copper_module_type &
 			SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE) {
 				DP(NETIF_MSG_LINK, "Passive Copper"
 					    " cable detected\n");
-				*module_type =
-				      SFP_MODULE_TYPE_PASSIVE_COPPER_CABLE;
+				*edc_mode =
+				      EDC_MODE_PASSIVE_DAC;
 		} else {
 			DP(NETIF_MSG_LINK, "Unknown copper-cable-"
 				     "type 0x%x !!!\n", copper_module_type);
@@ -2449,7 +2601,7 @@ static u8 bnx2x_get_sfp_module_type(struct link_params *params,
 	}
 	case SFP_EEPROM_CON_TYPE_VAL_LC:
 		DP(NETIF_MSG_LINK, "Optic module detected\n");
-		*module_type = SFP_MODULE_TYPE_LC;
+		check_limiting_mode = 1;
 		break;
 
 	default:
@@ -2457,89 +2609,92 @@ static u8 bnx2x_get_sfp_module_type(struct link_params *params,
 			 val);
 		return -EINVAL;
 	}
+
+	if (check_limiting_mode) {
+		u8 options[SFP_EEPROM_OPTIONS_SIZE];
+		if (bnx2x_read_sfp_module_eeprom(params,
+					       SFP_EEPROM_OPTIONS_ADDR,
+					       SFP_EEPROM_OPTIONS_SIZE,
+					       options) != 0) {
+			DP(NETIF_MSG_LINK, "Failed to read Option"
+				" field from module EEPROM\n");
+			return -EINVAL;
+		}
+		if ((options[0] & SFP_EEPROM_OPTIONS_LINEAR_RX_OUT_MASK))
+			*edc_mode = EDC_MODE_LINEAR;
+		else
+			*edc_mode = EDC_MODE_LIMITING;
+	}
+	DP(NETIF_MSG_LINK, "EDC mode is set to 0x%x\n", *edc_mode);
 	return 0;
 }
 
-
 /* This function read the relevant field from the module ( SFP+ ),
 	and verify it is compliant with this board */
-static u8 bnx2x_verify_sfp_module(struct link_params *params,
-				u8 module_type)
+static u8 bnx2x_verify_sfp_module(struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
-	u8 *str_p, *tmp_buf;
-	u16 i;
+	u32 val;
+	u32 fw_resp;
+	char vendor_name[SFP_EEPROM_VENDOR_NAME_SIZE+1];
+	char vendor_pn[SFP_EEPROM_PART_NO_SIZE+1];
 
-#define COMPLIANCE_STR_CNT 6
-	u8 *compliance_str[] = {"Broadcom", "JDSU", "Molex Inc", "PICOLIGHT",
-		"FINISAR CORP.   ", "Amphenol"};
-	u8 buf[SFP_EEPROM_VENDOR_NAME_SIZE];
-	/* Passive Copper cables are allowed to participate,
-	since the module is hardwired to the copper cable */
-
-	if (!(params->feature_config_flags &
-	     FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED)) {
+	val = REG_RD(bp, params->shmem_base +
+			 offsetof(struct shmem_region, dev_info.
+				  port_feature_config[params->port].config));
+	if ((val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) ==
+	    PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_NO_ENFORCEMENT) {
 		DP(NETIF_MSG_LINK, "NOT enforcing module verification\n");
 		return 0;
 	}
 
-	if (module_type != SFP_MODULE_TYPE_LC) {
-		DP(NETIF_MSG_LINK, "No need to verify copper cable\n");
+	/* Ask the FW to validate the module */
+	if (!(params->feature_config_flags &
+	      FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY)) {
+		DP(NETIF_MSG_LINK, "FW does not support OPT MDL "
+			    "verification\n");
+		return -EINVAL;
+	}
+
+	fw_resp = bnx2x_fw_command(bp, DRV_MSG_CODE_VRFY_OPT_MDL);
+	if (fw_resp == FW_MSG_CODE_VRFY_OPT_MDL_SUCCESS) {
+		DP(NETIF_MSG_LINK, "Approved module\n");
 		return 0;
 	}
 
-	/* In case of non copper cable or Active copper cable,
-		verify that the SFP+ module is compliant with this board*/
+	/* format the warning message */
 	if (bnx2x_read_sfp_module_eeprom(params,
 				       SFP_EEPROM_VENDOR_NAME_ADDR,
 				       SFP_EEPROM_VENDOR_NAME_SIZE,
-				       buf) != 0) {
-		DP(NETIF_MSG_LINK, "Failed to read Vendor-Name from"
-			    " module EEPROM\n");
-		return -EINVAL;
-	}
-	for (i = 0; i < COMPLIANCE_STR_CNT; i++) {
-		str_p = compliance_str[i];
-		tmp_buf = buf;
-		while (*str_p) {
-			if ((u8)(*tmp_buf) != (u8)(*str_p))
-				break;
-			str_p++;
-			tmp_buf++;
-		}
+				       (u8 *)vendor_name))
+		vendor_name[0] = '\0';
+	else
+		vendor_name[SFP_EEPROM_VENDOR_NAME_SIZE] = '\0';
+	if (bnx2x_read_sfp_module_eeprom(params,
+				       SFP_EEPROM_PART_NO_ADDR,
+				       SFP_EEPROM_PART_NO_SIZE,
+				       (u8 *)vendor_pn))
+		vendor_pn[0] = '\0';
+	else
+		vendor_pn[SFP_EEPROM_PART_NO_SIZE] = '\0';
 
-		if (!(*str_p)) {
-			DP(NETIF_MSG_LINK, "SFP+ Module verified, "
-				     "index=%x\n", i);
-			return 0;
-		}
-	}
-	DP(NETIF_MSG_LINK, "Incompliant SFP+ module. Disable module !!!\n");
+	printk(KERN_INFO PFX  "Warning: "
+			 "Unqualified SFP+ module "
+			 "detected on %s, Port %d from %s part number %s\n"
+			, bp->dev->name, params->port,
+			vendor_name, vendor_pn);
 	return -EINVAL;
 }
 
-
 static u8 bnx2x_bcm8726_set_limiting_mode(struct link_params *params,
-					u8 module_type)
+					u16 edc_mode)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
-	u8 options[SFP_EEPROM_OPTIONS_SIZE];
-	u8 limiting_mode;
 	u8 ext_phy_addr = ((params->ext_phy_config &
 			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
 			   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
 	u16 cur_limiting_mode;
-	if (bnx2x_read_sfp_module_eeprom(params,
-				       SFP_EEPROM_OPTIONS_ADDR,
-				       SFP_EEPROM_OPTIONS_SIZE,
-				       options) != 0) {
-		DP(NETIF_MSG_LINK, "Failed to read Option field from"
-			    " module EEPROM\n");
-		return -EINVAL;
-	}
-	limiting_mode = !(options[0] &
-			  SFP_EEPROM_OPTIONS_LINEAR_RX_OUT_MASK);
 
 	bnx2x_cl45_read(bp, port,
 		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
@@ -2550,26 +2705,23 @@ static u8 bnx2x_bcm8726_set_limiting_mode(struct link_params *params,
 	DP(NETIF_MSG_LINK, "Current Limiting mode is 0x%x\n",
 		 cur_limiting_mode);
 
-	if (limiting_mode &&
-	    (module_type != SFP_MODULE_TYPE_PASSIVE_COPPER_CABLE)) {
+	if (edc_mode == EDC_MODE_LIMITING) {
 		DP(NETIF_MSG_LINK,
-			 "Module options = 0x%x.Setting LIMITING MODE\n",
-			 options[0]);
+			 "Setting LIMITING MODE\n");
 		bnx2x_cl45_write(bp, port,
 			       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
 			       ext_phy_addr,
 			       MDIO_PMA_DEVAD,
 			       MDIO_PMA_REG_ROM_VER2,
-			       SFP_LIMITING_MODE_VALUE);
+			       EDC_MODE_LIMITING);
 	} else { /* LRM mode ( default )*/
 
-		DP(NETIF_MSG_LINK, "Module options = 0x%x.Setting LRM MODE\n",
-			 options[0]);
+		DP(NETIF_MSG_LINK, "Setting LRM MODE\n");
 
 		/* Changing to LRM mode takes quite few seconds.
 		So do it only if current mode is limiting
 		( default is LRM )*/
-		if (cur_limiting_mode != SFP_LIMITING_MODE_VALUE)
+		if (cur_limiting_mode != EDC_MODE_LIMITING)
 			return 0;
 
 		bnx2x_cl45_write(bp, port,
@@ -2600,6 +2752,56 @@ static u8 bnx2x_bcm8726_set_limiting_mode(struct link_params *params,
 	return 0;
 }
 
+static u8 bnx2x_bcm8727_set_limiting_mode(struct link_params *params,
+					u16 edc_mode)
+{
+	struct bnx2x *bp = params->bp;
+	u8 port = params->port;
+	u16 phy_identifier;
+	u16 rom_ver2_val;
+	u8 ext_phy_addr = ((params->ext_phy_config &
+			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+			   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+
+	bnx2x_cl45_read(bp, port,
+		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_PHY_IDENTIFIER,
+		       &phy_identifier);
+
+	bnx2x_cl45_write(bp, port,
+		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_PHY_IDENTIFIER,
+		       (phy_identifier & ~(1<<9)));
+
+	bnx2x_cl45_read(bp, port,
+		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+		      ext_phy_addr,
+		      MDIO_PMA_DEVAD,
+		      MDIO_PMA_REG_ROM_VER2,
+		      &rom_ver2_val);
+	/* Keep the MSB 8-bits, and set the LSB 8-bits with the edc_mode */
+	bnx2x_cl45_write(bp, port,
+		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_ROM_VER2,
+		       (rom_ver2_val & 0xff00) | (edc_mode & 0x00ff));
+
+	bnx2x_cl45_write(bp, port,
+		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_PHY_IDENTIFIER,
+		       (phy_identifier | (1<<9)));
+
+	return 0;
+}
+
+
 static u8 bnx2x_wait_for_sfp_module_initialized(struct link_params *params)
 {
 	u8 val;
@@ -2619,61 +2821,114 @@ static u8 bnx2x_wait_for_sfp_module_initialized(struct link_params *params)
 	return -EINVAL;
 }
 
+static void bnx2x_8727_power_module(struct bnx2x *bp,
+				  struct link_params *params,
+				  u8 ext_phy_addr, u8 is_power_up) {
+	/* Make sure GPIOs are not using for LED mode */
+	u16 val;
+	u8 port = params->port;
+	/*
+	 * In the GPIO register, bit 4 is use to detemine if the GPIOs are
+	 * operating as INPUT or as OUTPUT. Bit 1 is for input, and 0 for
+	 * output
+	 * Bits 0-1 determine the gpios value for OUTPUT in case bit 4 val is 0
+	 * Bits 8-9 determine the gpios value for INPUT in case bit 4 val is 1
+	 * where the 1st bit is the over-current(only input), and 2nd bit is
+	 * for power( only output )
+	*/
+
+	/*
+	 * In case of NOC feature is disabled and power is up, set GPIO control
+	 *  as input to enable listening of over-current indication
+	 */
+
+	if (!(params->feature_config_flags &
+	      FEATURE_CONFIG_BCM8727_NOC) && is_power_up)
+		val = (1<<4);
+	else
+		/*
+		 * Set GPIO control to OUTPUT, and set the power bit
+		 * to according to the is_power_up
+		 */
+		val = ((!(is_power_up)) << 1);
+
+	bnx2x_cl45_write(bp, port,
+		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_8727_GPIO_CTRL,
+		       val);
+}
+
 static u8 bnx2x_sfp_module_detection(struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
-	u8 module_type;
+	u16 edc_mode;
+	u8 rc = 0;
 	u8 ext_phy_addr = ((params->ext_phy_config &
 				PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
 				PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
 	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
-
-	if (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726) {
-		DP(NETIF_MSG_LINK, "Module detection is not required "
-			    "for this phy\n");
-		return 0;
-	}
+	u32 val = REG_RD(bp, params->shmem_base +
+			     offsetof(struct shmem_region, dev_info.
+				     port_feature_config[params->port].config));
 
 	DP(NETIF_MSG_LINK, "SFP+ module plugged in/out detected on port %d\n",
 		 params->port);
 
-	if (bnx2x_get_sfp_module_type(params,
-				    &module_type) != 0) {
+	if (bnx2x_get_edc_mode(params, &edc_mode) != 0) {
 		DP(NETIF_MSG_LINK, "Failed to get valid module type\n");
-		if (!(params->feature_config_flags &
-		      FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED)) {
-			/* In case module detection is disabled, it trys to
-			link up. The issue that can happen here is LRM /
-			LIMITING mode which set according to the module-type*/
-			DP(NETIF_MSG_LINK, "Unable to read module-type."
-				    "Probably due to Bit Stretching."
-				    " Proceeding...\n");
-		} else {
-			return -EINVAL;
-		}
-	} else if (bnx2x_verify_sfp_module(params, module_type) !=
+		return -EINVAL;
+	} else if (bnx2x_verify_sfp_module(params) !=
 		   0) {
 		/* check SFP+ module compatibility */
 		DP(NETIF_MSG_LINK, "Module verification failed!!\n");
+		rc = -EINVAL;
 		/* Turn on fault module-detected led */
 		bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
 				  MISC_REGISTERS_GPIO_HIGH,
 				  params->port);
-		return -EINVAL;
+		if ((ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727) &&
+		    ((val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) ==
+		     PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_POWER_DOWN)) {
+			/* Shutdown SFP+ module */
+			DP(NETIF_MSG_LINK, "Shutdown SFP+ module!!\n");
+			bnx2x_8727_power_module(bp, params,
+					      ext_phy_addr, 0);
+			return rc;
+		}
+	} else {
+		/* Turn off fault module-detected led */
+		DP(NETIF_MSG_LINK, "Turn off fault module-detected led\n");
+		bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
+					  MISC_REGISTERS_GPIO_LOW,
+					  params->port);
 	}
 
-	/* Turn off fault module-detected led */
-	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
-			  MISC_REGISTERS_GPIO_LOW,
-			  params->port);
+	/* power up the SFP module */
+	if (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727)
+		bnx2x_8727_power_module(bp, params, ext_phy_addr, 1);
 
-	/* Check and set limiting mode / LRM mode */
-	bnx2x_bcm8726_set_limiting_mode(params, module_type);
+	/* Check and set limiting mode / LRM mode on 8726.
+	On 8727 it is done automatically */
+	if (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726)
+		bnx2x_bcm8726_set_limiting_mode(params, edc_mode);
+	else
+		bnx2x_bcm8727_set_limiting_mode(params, edc_mode);
+	/*
+	 * Enable transmit for this module if the module is approved, or
+	 * if unapproved modules should also enable the Tx laser
+	 */
+	if (rc == 0 ||
+	    (val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) !=
+	    PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLE_TX_LASER)
+		bnx2x_sfp_set_transmitter(bp, params->port,
+					ext_phy_type, ext_phy_addr, 1);
+	else
+		bnx2x_sfp_set_transmitter(bp, params->port,
+					ext_phy_type, ext_phy_addr, 0);
 
-	/* Enable transmit for this module */
-	bnx2x_bcm8726_set_transmitter(bp, params->port,
-				    ext_phy_addr, 1);
-	return 0;
+	return rc;
 }
 
 void bnx2x_handle_module_detect_int(struct link_params *params)
@@ -2696,8 +2951,8 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 				      MISC_REGISTERS_GPIO_INT_OUTPUT_CLR,
 				      port);
 
-		if (bnx2x_wait_for_sfp_module_initialized(params)
-		    == 0)
+		if (bnx2x_wait_for_sfp_module_initialized(params) ==
+		    0)
 			bnx2x_sfp_module_detection(params);
 		else
 			DP(NETIF_MSG_LINK, "SFP+ module is not initialized\n");
@@ -2705,13 +2960,22 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 		u8 ext_phy_addr = ((params->ext_phy_config &
 				    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
 				   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+		u32 ext_phy_type =
+			XGXS_EXT_PHY_TYPE(params->ext_phy_config);
+		u32 val = REG_RD(bp, params->shmem_base +
+				     offsetof(struct shmem_region, dev_info.
+					      port_feature_config[params->port].
+					      config));
+
 		bnx2x_set_gpio_int(bp, MISC_REGISTERS_GPIO_3,
 				      MISC_REGISTERS_GPIO_INT_OUTPUT_SET,
 				      port);
 		/* Module was plugged out. */
 		/* Disable transmit for this module */
-		bnx2x_bcm8726_set_transmitter(bp, params->port,
-					    ext_phy_addr, 0);
+		if ((val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) ==
+		    PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLE_TX_LASER)
+			bnx2x_sfp_set_transmitter(bp, params->port,
+						ext_phy_type, ext_phy_addr, 0);
 	}
 }
 
@@ -3160,6 +3424,9 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 			driver is loaded, it reset all registers, including the
 			transmitter */
 			bnx2x_sfp_module_detection(params);
+
+			/* Set Flow control */
+			bnx2x_ext_phy_set_pause(params, vars);
 			if (params->req_line_speed == SPEED_1000) {
 				DP(NETIF_MSG_LINK, "Setting 1G force\n");
 				bnx2x_cl45_write(bp, params->port, ext_phy_type,
@@ -3450,6 +3717,187 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 			   ((val & (1<<7)) > 0));
 			break;
 		}
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
+		{
+			u16 tmp1;
+			u16 rx_alarm_ctrl_val;
+			u16 lasi_ctrl_val;
+
+			/* Enable PMD link, MOD_ABS_FLT, and 1G link alarm */
+
+			u16 mod_abs;
+			rx_alarm_ctrl_val = (1<<2) | (1<<5) ;
+			lasi_ctrl_val = 0x0004;
+
+			DP(NETIF_MSG_LINK, "Initializing BCM8727\n");
+			/* enable LASI */
+			bnx2x_cl45_write(bp, params->port,
+				       ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_RX_ALARM_CTRL,
+				       rx_alarm_ctrl_val);
+
+			bnx2x_cl45_write(bp, params->port,
+				       ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_LASI_CTRL,
+				       lasi_ctrl_val);
+
+			/* Initially configure  MOD_ABS to interrupt when
+			module is presence( bit 8) */
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_PHY_IDENTIFIER, &mod_abs);
+			/* Set EDC off by setting OPTXLOS signal input to low
+			(bit 9).
+			When the EDC is off it locks onto a reference clock and
+			avoids becoming 'lost'.*/
+			mod_abs &= ~((1<<8) | (1<<9));
+			bnx2x_cl45_write(bp, params->port,
+				       ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_PHY_IDENTIFIER, mod_abs);
+
+			/* Make MOD_ABS give interrupt on change */
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_8727_PCS_OPT_CTRL,
+				      &val);
+			val |= (1<<12);
+			bnx2x_cl45_write(bp, params->port,
+				       ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_8727_PCS_OPT_CTRL,
+				       val);
+
+			/* Set 8727 GPIOs to input to allow reading from the
+			8727 GPIO0 status which reflect SFP+ module
+			over-current */
+
+			bnx2x_cl45_read(bp, params->port,
+				       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_8727_PCS_OPT_CTRL,
+				       &val);
+			val &= 0xff8f; /* Reset bits 4-6 */
+			bnx2x_cl45_write(bp, params->port,
+				       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_8727_PCS_OPT_CTRL,
+				       val);
+
+			bnx2x_8727_power_module(bp, params, ext_phy_addr, 1);
+			bnx2x_bcm8073_set_xaui_low_power_mode(params);
+
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_M8051_MSGOUT_REG,
+				      &tmp1);
+
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_RX_ALARM, &tmp1);
+
+			/* Set option 1G speed */
+			if (params->req_line_speed == SPEED_1000) {
+
+				DP(NETIF_MSG_LINK, "Setting 1G force\n");
+				bnx2x_cl45_write(bp, params->port,
+					       ext_phy_type,
+					       ext_phy_addr,
+					       MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_CTRL, 0x40);
+				bnx2x_cl45_write(bp, params->port,
+					       ext_phy_type,
+					       ext_phy_addr,
+					       MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_10G_CTRL2, 0xD);
+				bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_10G_CTRL2, &tmp1);
+				DP(NETIF_MSG_LINK, "1.7 = 0x%x \n", tmp1);
+
+			} else if ((params->req_line_speed ==
+				    SPEED_AUTO_NEG) &&
+				   ((params->speed_cap_mask &
+				     PORT_HW_CFG_SPEED_CAPABILITY_D0_1G))) {
+
+				DP(NETIF_MSG_LINK, "Setting 1G clause37 \n");
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_AN_DEVAD,
+					       MDIO_PMA_REG_8727_MISC_CTRL, 0);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_AN_DEVAD,
+					       MDIO_AN_REG_CL37_AN, 0x1300);
+			} else {
+				/* Since the 8727 has only single reset pin,
+				need to set the 10G registers although it is
+				default */
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_AN_DEVAD,
+					       MDIO_AN_REG_CTRL, 0x0020);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_AN_DEVAD,
+					       0x7, 0x0100);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_CTRL, 0x2040);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_10G_CTRL2, 0x0008);
+			}
+
+			/* Set 2-wire transfer rate to 400Khz since 100Khz
+			is not operational */
+			bnx2x_cl45_write(bp, params->port,
+				       ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_8727_TWO_WIRE_SLAVE_ADDR,
+				       0xa101);
+
+			/* Set TX PreEmphasis if needed */
+			if ((params->feature_config_flags &
+			     FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED)) {
+				DP(NETIF_MSG_LINK, "Setting TX_CTRL1 0x%x,"
+					 "TX_CTRL2 0x%x\n",
+					 params->xgxs_config_tx[0],
+					 params->xgxs_config_tx[1]);
+				bnx2x_cl45_write(bp, params->port,
+					       ext_phy_type,
+					       ext_phy_addr,
+					       MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_8727_TX_CTRL1,
+					       params->xgxs_config_tx[0]);
+
+				bnx2x_cl45_write(bp, params->port,
+					       ext_phy_type,
+					       ext_phy_addr,
+					       MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_8727_TX_CTRL2,
+					       params->xgxs_config_tx[1]);
+			}
+
+			break;
+		}
+
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		{
 			u16 fw_ver1, fw_ver2;
@@ -3561,6 +4009,99 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 	return rc;
 }
 
+static void bnx2x_8727_handle_mod_abs(struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+	u16 mod_abs, rx_alarm_status;
+	u8 ext_phy_addr = ((params->ext_phy_config &
+			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+			   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+	u32 val = REG_RD(bp, params->shmem_base +
+			     offsetof(struct shmem_region, dev_info.
+				      port_feature_config[params->port].
+				      config));
+	bnx2x_cl45_read(bp, params->port,
+		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+		      ext_phy_addr,
+		      MDIO_PMA_DEVAD,
+		      MDIO_PMA_REG_PHY_IDENTIFIER, &mod_abs);
+	if (mod_abs & (1<<8)) {
+
+		/* Module is absent */
+		DP(NETIF_MSG_LINK, "MOD_ABS indication "
+			    "show module is absent\n");
+
+		/* 1. Set mod_abs to detect next module
+		presence event
+		   2. Set EDC off by setting OPTXLOS signal input to low
+			(bit 9).
+			When the EDC is off it locks onto a reference clock and
+			avoids becoming 'lost'.*/
+		mod_abs &= ~((1<<8)|(1<<9));
+		bnx2x_cl45_write(bp, params->port,
+			       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+			       ext_phy_addr,
+			       MDIO_PMA_DEVAD,
+			       MDIO_PMA_REG_PHY_IDENTIFIER, mod_abs);
+
+		/* Clear RX alarm since it stays up as long as
+		the mod_abs wasn't changed */
+		bnx2x_cl45_read(bp, params->port,
+			      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+			      ext_phy_addr,
+			      MDIO_PMA_DEVAD,
+			      MDIO_PMA_REG_RX_ALARM, &rx_alarm_status);
+
+	} else {
+		/* Module is present */
+		DP(NETIF_MSG_LINK, "MOD_ABS indication "
+			    "show module is present\n");
+		/* First thing, disable transmitter,
+		and if the module is ok, the
+		module_detection will enable it*/
+
+		/* 1. Set mod_abs to detect next module
+		absent event ( bit 8)
+		   2. Restore the default polarity of the OPRXLOS signal and
+		this signal will then correctly indicate the presence or
+		absence of the Rx signal. (bit 9) */
+		mod_abs |= ((1<<8)|(1<<9));
+		bnx2x_cl45_write(bp, params->port,
+		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_PHY_IDENTIFIER, mod_abs);
+
+		/* Clear RX alarm since it stays up as long as
+		the mod_abs wasn't changed. This is need to be done
+		before calling the module detection, otherwise it will clear
+		the link update alarm */
+		bnx2x_cl45_read(bp, params->port,
+			      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+			      ext_phy_addr,
+			      MDIO_PMA_DEVAD,
+			      MDIO_PMA_REG_RX_ALARM, &rx_alarm_status);
+
+
+		if ((val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) ==
+		    PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLE_TX_LASER)
+			bnx2x_sfp_set_transmitter(bp, params->port,
+					PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+					ext_phy_addr, 0);
+
+		if (bnx2x_wait_for_sfp_module_initialized(params)
+		    == 0)
+			bnx2x_sfp_module_detection(params);
+		else
+			DP(NETIF_MSG_LINK, "SFP+ module is not initialized\n");
+	}
+
+	DP(NETIF_MSG_LINK, "8727 RX_ALARM_STATUS 0x%x\n",
+		 rx_alarm_status);
+	/* No need to check link status in case of
+	module plugged in/out */
+}
+
 
 static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 				 struct link_vars *vars)
@@ -3602,8 +4143,19 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 				      ext_phy_addr,
 				      MDIO_PMA_DEVAD,
 				      MDIO_PMA_REG_RX_SD, &rx_sd);
-			DP(NETIF_MSG_LINK, "8705 rx_sd 0x%x\n", rx_sd);
-			ext_phy_link_up = (rx_sd & 0x1);
+
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr,
+				      1,
+				      0xc809, &val1);
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr,
+				      1,
+				      0xc809, &val1);
+
+			DP(NETIF_MSG_LINK, "8705 1.c809 val=0x%x\n", val1);
+			ext_phy_link_up = ((rx_sd & 0x1) && (val1 & (1<<9))
+					   && ((val1 & (1<<8)) == 0));
 			if (ext_phy_link_up)
 				vars->line_speed = SPEED_10000;
 			break;
@@ -3678,8 +4230,160 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 				else
 					vars->line_speed = SPEED_10000;
 			}
-
 			break;
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
+		{
+			u16 link_status = 0;
+			u16 rx_alarm_status;
+			/* Check the LASI */
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_RX_ALARM, &rx_alarm_status);
+
+			DP(NETIF_MSG_LINK, "8727 RX_ALARM_STATUS 0x%x\n",
+				 rx_alarm_status);
+
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_LASI_STATUS, &val1);
+
+			DP(NETIF_MSG_LINK,
+				 "8727 LASI status 0x%x\n",
+				 val1);
+
+			/* Clear MSG-OUT */
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_M8051_MSGOUT_REG,
+				      &val1);
+
+			/*
+			 * If a module is present and there is need to check
+			 * for over current
+			 */
+			if (!(params->feature_config_flags &
+			      FEATURE_CONFIG_BCM8727_NOC) &&
+			    !(rx_alarm_status & (1<<5))) {
+				/* Check over-current using 8727 GPIO0 input*/
+				bnx2x_cl45_read(bp, params->port,
+					      ext_phy_type,
+					      ext_phy_addr,
+					      MDIO_PMA_DEVAD,
+					      MDIO_PMA_REG_8727_GPIO_CTRL,
+					      &val1);
+
+				if ((val1 & (1<<8)) == 0) {
+					DP(NETIF_MSG_LINK, "8727 Power fault"
+						 " has been detected on port"
+						 " %d\n", params->port);
+					printk(KERN_ERR PFX  "Error:  Power"
+						 " fault on %s Port %d has"
+						 " been detected and the"
+						 " power to that SFP+ module"
+						 " has been removed to prevent"
+						 " failure of the card. Please"
+						 " remove the SFP+ module and"
+						 " restart the system to clear"
+						 " this error.\n"
+			, bp->dev->name, params->port);
+					/*
+					 * Disable all RX_ALARMs except for
+					 * mod_abs
+					 */
+					bnx2x_cl45_write(bp, params->port,
+						     ext_phy_type,
+						     ext_phy_addr,
+						     MDIO_PMA_DEVAD,
+						     MDIO_PMA_REG_RX_ALARM_CTRL,
+						     (1<<5));
+
+					bnx2x_cl45_read(bp, params->port,
+						    ext_phy_type,
+						    ext_phy_addr,
+						    MDIO_PMA_DEVAD,
+						    MDIO_PMA_REG_PHY_IDENTIFIER,
+						    &val1);
+					/* Wait for module_absent_event */
+					val1 |= (1<<8);
+					bnx2x_cl45_write(bp, params->port,
+						    ext_phy_type,
+						    ext_phy_addr,
+						    MDIO_PMA_DEVAD,
+						    MDIO_PMA_REG_PHY_IDENTIFIER,
+						    val1);
+					/* Clear RX alarm */
+					bnx2x_cl45_read(bp, params->port,
+						      ext_phy_type,
+						      ext_phy_addr,
+						      MDIO_PMA_DEVAD,
+						      MDIO_PMA_REG_RX_ALARM,
+						      &rx_alarm_status);
+					break;
+				}
+			} /* Over current check */
+
+			/* When module absent bit is set, check module */
+			if (rx_alarm_status & (1<<5)) {
+				bnx2x_8727_handle_mod_abs(params);
+				/* Enable all mod_abs and link detection bits */
+				bnx2x_cl45_write(bp, params->port,
+					       ext_phy_type,
+					       ext_phy_addr,
+					       MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_RX_ALARM_CTRL,
+					       ((1<<5) | (1<<2)));
+			}
+
+			/* If transmitter is disabled,
+			ignore false link up indication */
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_PHY_IDENTIFIER,
+				      &val1);
+			if (val1 & (1<<15)) {
+				DP(NETIF_MSG_LINK, "Tx is disabled\n");
+				ext_phy_link_up = 0;
+				break;
+			}
+
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_8073_SPEED_LINK_STATUS,
+				      &link_status);
+
+			/* Bits 0..2 --> speed detected,
+			   bits 13..15--> link is down */
+			if ((link_status & (1<<2)) &&
+			    (!(link_status & (1<<15)))) {
+				ext_phy_link_up = 1;
+				vars->line_speed = SPEED_10000;
+			} else if ((link_status & (1<<0)) &&
+				   (!(link_status & (1<<13)))) {
+				ext_phy_link_up = 1;
+				vars->line_speed = SPEED_1000;
+				DP(NETIF_MSG_LINK,
+					 "port %x: External link"
+					 " up in 1G\n", params->port);
+			} else {
+				ext_phy_link_up = 0;
+				DP(NETIF_MSG_LINK,
+					 "port %x: External link"
+					 " is down\n", params->port);
+			}
+			break;
+		}
+
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
 		{
@@ -4241,6 +4945,7 @@ u8 bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
@@ -4842,10 +5547,6 @@ static void bnx2x_8726_reset_phy(struct bnx2x *bp, u8 port, u8 ext_phy_addr)
 		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726, ext_phy_addr,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_GEN_CTRL, 0x0001);
-
-	/* Disable Transmitter */
-	bnx2x_bcm8726_set_transmitter(bp, port, ext_phy_addr, 0);
-
 }
 
 u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
@@ -4858,6 +5559,11 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 	u32 chip_id = params->chip_id;
 	u8 port = params->port;
 	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(ext_phy_config);
+	u32 val = REG_RD(bp, params->shmem_base +
+			     offsetof(struct shmem_region, dev_info.
+				      port_feature_config[params->port].
+				      config));
+
 	/* disable attentions */
 
 	vars->link_status = 0;
@@ -4892,6 +5598,21 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT:
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 			break;
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
+		{
+
+			/* Disable Transmitter */
+			u8 ext_phy_addr = ((params->ext_phy_config &
+				    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+				   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+			if ((val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) ==
+			    PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLE_TX_LASER)
+				bnx2x_sfp_set_transmitter(bp, port,
+					PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+					ext_phy_addr, 0);
+			break;
+		}
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
 			DP(NETIF_MSG_LINK, "Setting 8073 port %d into "
 				 "low power mode\n",
@@ -5216,6 +5937,74 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 
 }
 
+static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp, u32 shmem_base)
+{
+	u8 ext_phy_addr[PORT_MAX];
+	s8 port;
+	u32 swap_val, swap_override;
+	DP(NETIF_MSG_LINK, "Executing BCM8727 common init\n");
+	swap_val = REG_RD(bp,  NIG_REG_PORT_SWAP);
+	swap_override = REG_RD(bp,  NIG_REG_STRAP_OVERRIDE);
+
+	bnx2x_hw_reset(bp, 1 ^ (swap_val && swap_override));
+	msleep(5);
+
+	/* PART1 - Reset both phys */
+	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
+		/* Extract the ext phy address for the port */
+		u32 ext_phy_config = REG_RD(bp, shmem_base +
+					offsetof(struct shmem_region,
+		   dev_info.port_hw_config[port].external_phy_config));
+
+		/* disable attentions */
+		bnx2x_bits_dis(bp, NIG_REG_MASK_INTERRUPT_PORT0 + port*4,
+			     (NIG_MASK_XGXS0_LINK_STATUS |
+			      NIG_MASK_XGXS0_LINK10G |
+			      NIG_MASK_SERDES0_LINK_STATUS |
+			      NIG_MASK_MI_INT));
+
+		ext_phy_addr[port] = ((ext_phy_config &
+					PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+					PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+
+		/* Reset the phy */
+		bnx2x_cl45_write(bp, port,
+			       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+			       ext_phy_addr[port],
+			       MDIO_PMA_DEVAD,
+			       MDIO_PMA_REG_CTRL,
+			       1<<15);
+	}
+
+	/* Add delay of 150ms after reset */
+	msleep(150);
+
+	/* PART2 - Download firmware to both phys */
+	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
+		u16 fw_ver1;
+
+		bnx2x_bcm8727_external_rom_boot(bp, port,
+					      ext_phy_addr[port], shmem_base);
+
+		bnx2x_cl45_read(bp, port, PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727,
+			      ext_phy_addr[port],
+			      MDIO_PMA_DEVAD,
+			      MDIO_PMA_REG_ROM_VER1, &fw_ver1);
+		if (fw_ver1 == 0 || fw_ver1 == 0x4321) {
+			DP(NETIF_MSG_LINK,
+				 "bnx2x_8073_common_init_phy port %x:"
+				 "Download failed. fw version = 0x%x\n",
+				 port, fw_ver1);
+			return -EINVAL;
+		}
+
+	}
+
+
+
+	return 0;
+}
+
 
 static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 {
@@ -5274,6 +6063,12 @@ u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 		rc = bnx2x_8073_common_init_phy(bp, shmem_base);
 		break;
 	}
+
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_NOC:
+		rc = bnx2x_8727_common_init_phy(bp, shmem_base);
+		break;
+
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
 		/* GPIO1 affects both ports, so there's need to pull
 		it for single port alone */

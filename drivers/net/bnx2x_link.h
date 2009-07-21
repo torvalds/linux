@@ -39,7 +39,13 @@
 #define SPEED_15000		15000
 #define SPEED_16000		16000
 
-
+#define SFP_EEPROM_VENDOR_NAME_ADDR		0x14
+#define SFP_EEPROM_VENDOR_NAME_SIZE		16
+#define SFP_EEPROM_VENDOR_OUI_ADDR		0x25
+#define SFP_EEPROM_VENDOR_OUI_SIZE		3
+#define SFP_EEPROM_PART_NO_ADDR 		0x28
+#define SFP_EEPROM_PART_NO_SIZE		16
+#define PWR_FLT_ERR_MSG_LEN			250
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
@@ -91,7 +97,8 @@ struct link_params {
 	u16 xgxs_config_tx[4]; /* preemphasis values for the tx side */
 	u32 feature_config_flags;
 #define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
-#define FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED	(2<<0)
+#define FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY	(1<<2)
+#define FEATURE_CONFIG_BCM8727_NOC			(1<<3)
 	/* Device pointer passed to all callback functions */
 	struct bnx2x *bp;
 };
@@ -180,5 +187,8 @@ u8 bnx2x_test_link(struct link_params *input, struct link_vars *vars);
 /* One-time initialization for external phy after power up */
 u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base);
 
+
+u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
+			      u8 byte_cnt, u8 *o_buf);
 
 #endif /* BNX2X_LINK_H */
