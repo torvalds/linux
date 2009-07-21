@@ -2665,6 +2665,7 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		header.size += sizeof(cpu_entry);
 
 		cpu_entry.cpu = raw_smp_processor_id();
+		cpu_entry.reserved = 0;
 	}
 
 	if (sample_type & PERF_SAMPLE_PERIOD)
