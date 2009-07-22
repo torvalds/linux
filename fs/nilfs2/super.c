@@ -385,13 +385,19 @@ static void nilfs_write_super(struct super_block *sb)
 
 static int nilfs_sync_fs(struct super_block *sb, int wait)
 {
+	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct the_nilfs *nilfs = sbi->s_nilfs;
 	int err = 0;
-
-	nilfs_write_super(sb);
 
 	/* This function is called when super block should be written back */
 	if (wait)
 		err = nilfs_construct_segment(sb);
+
+	down_write(&nilfs->ns_sem);
+	if (sb->s_dirt)
+		nilfs_commit_super(sbi, 1);
+	up_write(&nilfs->ns_sem);
+
 	return err;
 }
 
