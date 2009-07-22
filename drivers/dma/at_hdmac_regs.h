@@ -87,29 +87,14 @@
 /* Bitfields in CTRLA */
 #define	ATC_BTSIZE_MAX		0xFFFFUL	/* Maximum Buffer Transfer Size */
 #define	ATC_BTSIZE(x)		(ATC_BTSIZE_MAX & (x)) /* Buffer Transfer Size */
-#define	ATC_SCSIZE_MASK		(0x7 << 16)	/* Source Chunk Transfer Size */
-#define		ATC_SCSIZE_1		(0x0 << 16)
-#define		ATC_SCSIZE_4		(0x1 << 16)
-#define		ATC_SCSIZE_8		(0x2 << 16)
-#define		ATC_SCSIZE_16		(0x3 << 16)
-#define		ATC_SCSIZE_32		(0x4 << 16)
-#define		ATC_SCSIZE_64		(0x5 << 16)
-#define		ATC_SCSIZE_128		(0x6 << 16)
-#define		ATC_SCSIZE_256		(0x7 << 16)
-#define	ATC_DCSIZE_MASK		(0x7 << 20)	/* Destination Chunk Transfer Size */
-#define		ATC_DCSIZE_1		(0x0 << 20)
-#define		ATC_DCSIZE_4		(0x1 << 20)
-#define		ATC_DCSIZE_8		(0x2 << 20)
-#define		ATC_DCSIZE_16		(0x3 << 20)
-#define		ATC_DCSIZE_32		(0x4 << 20)
-#define		ATC_DCSIZE_64		(0x5 << 20)
-#define		ATC_DCSIZE_128		(0x6 << 20)
-#define		ATC_DCSIZE_256		(0x7 << 20)
+/* Chunck Tranfer size definitions are in at_hdmac.h */
 #define	ATC_SRC_WIDTH_MASK	(0x3 << 24)	/* Source Single Transfer Size */
+#define		ATC_SRC_WIDTH(x)	((x) << 24)
 #define		ATC_SRC_WIDTH_BYTE	(0x0 << 24)
 #define		ATC_SRC_WIDTH_HALFWORD	(0x1 << 24)
 #define		ATC_SRC_WIDTH_WORD	(0x2 << 24)
 #define	ATC_DST_WIDTH_MASK	(0x3 << 28)	/* Destination Single Transfer Size */
+#define		ATC_DST_WIDTH(x)	((x) << 28)
 #define		ATC_DST_WIDTH_BYTE	(0x0 << 28)
 #define		ATC_DST_WIDTH_HALFWORD	(0x1 << 28)
 #define		ATC_DST_WIDTH_WORD	(0x2 << 28)
@@ -129,7 +114,8 @@
 #define		ATC_FC_PER2PER		(0x3 << 21)	/* Periph-to-Periph (DMA) */
 #define		ATC_FC_PER2MEM_PER	(0x4 << 21)	/* Periph-to-Mem (Peripheral) */
 #define		ATC_FC_MEM2PER_PER	(0x5 << 21)	/* Mem-to-Periph (Peripheral) */
-#define		ATC_FC_PER2PER_PER	(0x6 << 21)	/* Periph-to-Periph (Src Peripheral) */
+#define		ATC_FC_PER2PER_SRCPER	(0x6 << 21)	/* Periph-to-Periph (Src Peripheral) */
+#define		ATC_FC_PER2PER_DSTPER	(0x7 << 21)	/* Periph-to-Periph (Dst Peripheral) */
 #define	ATC_SRC_ADDR_MODE_MASK	(0x3 << 24)
 #define		ATC_SRC_ADDR_MODE_INCR	(0x0 << 24)	/* Incrementing Mode */
 #define		ATC_SRC_ADDR_MODE_DECR	(0x1 << 24)	/* Decrementing Mode */
@@ -142,27 +128,7 @@
 #define	ATC_AUTO		(0x1 << 31)	/* Auto multiple buffer tx enable */
 
 /* Bitfields in CFG */
-#define	ATC_SRC_PER(h)		(0xFU & (h))	/* Channel src rq associated with periph handshaking ifc h */
-#define	ATC_DST_PER(h)		((0xFU & (h)) <<  4)	/* Channel dst rq associated with periph handshaking ifc h */
-#define	ATC_SRC_REP		(0x1 <<  8)	/* Source Replay Mod */
-#define	ATC_SRC_H2SEL		(0x1 <<  9)	/* Source Handshaking Mod */
-#define		ATC_SRC_H2SEL_SW	(0x0 <<  9)
-#define		ATC_SRC_H2SEL_HW	(0x1 <<  9)
-#define	ATC_DST_REP		(0x1 << 12)	/* Destination Replay Mod */
-#define	ATC_DST_H2SEL		(0x1 << 13)	/* Destination Handshaking Mod */
-#define		ATC_DST_H2SEL_SW	(0x0 << 13)
-#define		ATC_DST_H2SEL_HW	(0x1 << 13)
-#define	ATC_SOD			(0x1 << 16)	/* Stop On Done */
-#define	ATC_LOCK_IF		(0x1 << 20)	/* Interface Lock */
-#define	ATC_LOCK_B		(0x1 << 21)	/* AHB Bus Lock */
-#define	ATC_LOCK_IF_L		(0x1 << 22)	/* Master Interface Arbiter Lock */
-#define		ATC_LOCK_IF_L_CHUNK	(0x0 << 22)
-#define		ATC_LOCK_IF_L_BUFFER	(0x1 << 22)
-#define	ATC_AHB_PROT_MASK	(0x7 << 24)	/* AHB Protection */
-#define	ATC_FIFOCFG_MASK	(0x3 << 28)	/* FIFO Request Configuration */
-#define		ATC_FIFOCFG_LARGESTBURST	(0x0 << 28)
-#define		ATC_FIFOCFG_HALFFIFO		(0x1 << 28)
-#define		ATC_FIFOCFG_ENOUGHSPACE		(0x2 << 28)
+/* are in at_hdmac.h */
 
 /* Bitfields in SPIP */
 #define	ATC_SPIP_HOLE(x)	(0xFFFFU & (x))
@@ -316,11 +282,12 @@ static void vdbg_dump_regs(struct at_dma_chan *atchan)
 		dma_readl(atdma, CHSR));
 
 	dev_err(chan2dev(&atchan->chan_common),
-		"  channel: s0x%x d0x%x ctrl0x%x:0x%x l0x%x\n",
+		"  channel: s0x%x d0x%x ctrl0x%x:0x%x cfg0x%x l0x%x\n",
 		channel_readl(atchan, SADDR),
 		channel_readl(atchan, DADDR),
 		channel_readl(atchan, CTRLA),
 		channel_readl(atchan, CTRLB),
+		channel_readl(atchan, CFG),
 		channel_readl(atchan, DSCR));
 }
 #else

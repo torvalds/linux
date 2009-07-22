@@ -608,6 +608,187 @@ err_desc_get:
 	return NULL;
 }
 
+
+/**
+ * atc_prep_slave_sg - prepare descriptors for a DMA_SLAVE transaction
+ * @chan: DMA channel
+ * @sgl: scatterlist to transfer to/from
+ * @sg_len: number of entries in @scatterlist
+ * @direction: DMA direction
+ * @flags: tx descriptor status flags
+ */
+static struct dma_async_tx_descriptor *
+atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
+		unsigned int sg_len, enum dma_data_direction direction,
+		unsigned long flags)
+{
+	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+	struct at_dma_slave	*atslave = chan->private;
+	struct at_desc		*first = NULL;
+	struct at_desc		*prev = NULL;
+	u32			ctrla;
+	u32			ctrlb;
+	dma_addr_t		reg;
+	unsigned int		reg_width;
+	unsigned int		mem_width;
+	unsigned int		i;
+	struct scatterlist	*sg;
+	size_t			total_len = 0;
+
+	dev_vdbg(chan2dev(chan), "prep_slave_sg: %s f0x%lx\n",
+			direction == DMA_TO_DEVICE ? "TO DEVICE" : "FROM DEVICE",
+			flags);
+
+	if (unlikely(!atslave || !sg_len)) {
+		dev_dbg(chan2dev(chan), "prep_dma_memcpy: length is zero!\n");
+		return NULL;
+	}
+
+	reg_width = atslave->reg_width;
+
+	sg_len = dma_map_sg(chan2parent(chan), sgl, sg_len, direction);
+
+	ctrla = ATC_DEFAULT_CTRLA | atslave->ctrla;
+	ctrlb = ATC_DEFAULT_CTRLB | ATC_IEN;
+
+	switch (direction) {
+	case DMA_TO_DEVICE:
+		ctrla |=  ATC_DST_WIDTH(reg_width);
+		ctrlb |=  ATC_DST_ADDR_MODE_FIXED
+			| ATC_SRC_ADDR_MODE_INCR
+			| ATC_FC_MEM2PER;
+		reg = atslave->tx_reg;
+		for_each_sg(sgl, sg, sg_len, i) {
+			struct at_desc	*desc;
+			u32		len;
+			u32		mem;
+
+			desc = atc_desc_get(atchan);
+			if (!desc)
+				goto err_desc_get;
+
+			mem = sg_phys(sg);
+			len = sg_dma_len(sg);
+			mem_width = 2;
+			if (unlikely(mem & 3 || len & 3))
+				mem_width = 0;
+
+			desc->lli.saddr = mem;
+			desc->lli.daddr = reg;
+			desc->lli.ctrla = ctrla
+					| ATC_SRC_WIDTH(mem_width)
+					| len >> mem_width;
+			desc->lli.ctrlb = ctrlb;
+
+			if (!first) {
+				first = desc;
+			} else {
+				/* inform the HW lli about chaining */
+				prev->lli.dscr = desc->txd.phys;
+				/* insert the link descriptor to the LD ring */
+				list_add_tail(&desc->desc_node,
+						&first->txd.tx_list);
+			}
+			prev = desc;
+			total_len += len;
+		}
+		break;
+	case DMA_FROM_DEVICE:
+		ctrla |=  ATC_SRC_WIDTH(reg_width);
+		ctrlb |=  ATC_DST_ADDR_MODE_INCR
+			| ATC_SRC_ADDR_MODE_FIXED
+			| ATC_FC_PER2MEM;
+
+		reg = atslave->rx_reg;
+		for_each_sg(sgl, sg, sg_len, i) {
+			struct at_desc	*desc;
+			u32		len;
+			u32		mem;
+
+			desc = atc_desc_get(atchan);
+			if (!desc)
+				goto err_desc_get;
+
+			mem = sg_phys(sg);
+			len = sg_dma_len(sg);
+			mem_width = 2;
+			if (unlikely(mem & 3 || len & 3))
+				mem_width = 0;
+
+			desc->lli.saddr = reg;
+			desc->lli.daddr = mem;
+			desc->lli.ctrla = ctrla
+					| ATC_DST_WIDTH(mem_width)
+					| len >> mem_width;
+			desc->lli.ctrlb = ctrlb;
+
+			if (!first) {
+				first = desc;
+			} else {
+				/* inform the HW lli about chaining */
+				prev->lli.dscr = desc->txd.phys;
+				/* insert the link descriptor to the LD ring */
+				list_add_tail(&desc->desc_node,
+						&first->txd.tx_list);
+			}
+			prev = desc;
+			total_len += len;
+		}
+		break;
+	default:
+		return NULL;
+	}
+
+	/* set end-of-link to the last link descriptor of list*/
+	set_desc_eol(prev);
+
+	/* First descriptor of the chain embedds additional information */
+	first->txd.cookie = -EBUSY;
+	first->len = total_len;
+
+	/* last link descriptor of list is responsible of flags */
+	prev->txd.flags = flags; /* client is in control of this ack */
+
+	return &first->txd;
+
+err_desc_get:
+	dev_err(chan2dev(chan), "not enough descriptors available\n");
+	atc_desc_put(atchan, first);
+	return NULL;
+}
+
+static void atc_terminate_all(struct dma_chan *chan)
+{
+	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+	struct at_dma		*atdma = to_at_dma(chan->device);
+	struct at_desc		*desc, *_desc;
+	LIST_HEAD(list);
+
+	/*
+	 * This is only called when something went wrong elsewhere, so
+	 * we don't really care about the data. Just disable the
+	 * channel. We still have to poll the channel enable bit due
+	 * to AHB/HSB limitations.
+	 */
+	spin_lock_bh(&atchan->lock);
+
+	dma_writel(atdma, CHDR, atchan->mask);
+
+	/* confirm that this channel is disabled */
+	while (dma_readl(atdma, CHSR) & atchan->mask)
+		cpu_relax();
+
+	/* active_list entries will end up before queued entries */
+	list_splice_init(&atchan->queue, &list);
+	list_splice_init(&atchan->active_list, &list);
+
+	spin_unlock_bh(&atchan->lock);
+
+	/* Flush all pending and queued descriptors */
+	list_for_each_entry_safe(desc, _desc, &list, desc_node)
+		atc_chain_complete(atchan, desc);
+}
+
 /**
  * atc_is_tx_complete - poll for transaction completion
  * @chan: DMA channel
@@ -686,7 +867,9 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
 	struct at_desc		*desc;
+	struct at_dma_slave	*atslave;
 	int			i;
+	u32			cfg;
 	LIST_HEAD(tmp_list);
 
 	dev_vdbg(chan2dev(chan), "alloc_chan_resources\n");
@@ -697,7 +880,23 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 		return -EIO;
 	}
 
-	/* have we already been set up? */
+	cfg = ATC_DEFAULT_CFG;
+
+	atslave = chan->private;
+	if (atslave) {
+		/*
+		 * We need controller-specific data to set up slave
+		 * transfers.
+		 */
+		BUG_ON(!atslave->dma_dev || atslave->dma_dev != atdma->dma_common.dev);
+
+		/* if cfg configuration specified take it instad of default */
+		if (atslave->cfg)
+			cfg = atslave->cfg;
+	}
+
+	/* have we already been set up?
+	 * reconfigure channel but no need to reallocate descriptors */
 	if (!list_empty(&atchan->free_list))
 		return atchan->descs_allocated;
 
@@ -719,7 +918,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 	spin_unlock_bh(&atchan->lock);
 
 	/* channel parameters */
-	channel_writel(atchan, CFG, ATC_DEFAULT_CFG);
+	channel_writel(atchan, CFG, cfg);
 
 	dev_dbg(chan2dev(chan),
 		"alloc_chan_resources: allocated %d descriptors\n",
@@ -887,6 +1086,11 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	/* set prep routines based on capability */
 	if (dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask))
 		atdma->dma_common.device_prep_dma_memcpy = atc_prep_dma_memcpy;
+
+	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)) {
+		atdma->dma_common.device_prep_slave_sg = atc_prep_slave_sg;
+		atdma->dma_common.device_terminate_all = atc_terminate_all;
+	}
 
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
 
