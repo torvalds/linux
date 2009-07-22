@@ -67,7 +67,6 @@ MODULE_DESCRIPTION("A New Implementation of the Log-structured Filesystem "
 		   "(NILFS)");
 MODULE_LICENSE("GPL");
 
-static void nilfs_write_super(struct super_block *sb);
 static int nilfs_remount(struct super_block *sb, int *flags, char *data);
 
 /**
@@ -335,49 +334,6 @@ static void nilfs_put_super(struct super_block *sb)
 	unlock_kernel();
 }
 
-/**
- * nilfs_write_super - write super block(s) of NILFS
- * @sb: super_block
- *
- * nilfs_write_super() gets a fs-dependent lock, writes super block(s), and
- * clears s_dirt.  This function is called in the section protected by
- * lock_super().
- *
- * The s_dirt flag is managed by each filesystem and we protect it by ns_sem
- * of the struct the_nilfs.  Lock order must be as follows:
- *
- *   1. lock_super()
- *   2.    down_write(&nilfs->ns_sem)
- *
- * Inside NILFS, locking ns_sem is enough to protect s_dirt and the buffer
- * of the super block (nilfs->ns_sbp[]).
- *
- * In most cases, VFS functions call lock_super() before calling these
- * methods.  So we must be careful not to bring on deadlocks when using
- * lock_super();  see generic_shutdown_super(), write_super(), and so on.
- *
- * Note that order of lock_kernel() and lock_super() depends on contexts
- * of VFS.  We should also note that lock_kernel() can be used in its
- * protective section and only the outermost one has an effect.
- */
-static void nilfs_write_super(struct super_block *sb)
-{
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
-	struct the_nilfs *nilfs = sbi->s_nilfs;
-
-	down_write(&nilfs->ns_sem);
-	if (!(sb->s_flags & MS_RDONLY)) {
-		if (!nilfs_discontinued(nilfs) &&
-		    !nilfs_sb_need_update(nilfs)) {
-			up_write(&nilfs->ns_sem);
-			return;
-		}
-		nilfs_commit_super(sbi, nilfs_altsb_need_update(nilfs));
-	}
-	sb->s_dirt = 0;
-	up_write(&nilfs->ns_sem);
-}
-
 static int nilfs_sync_fs(struct super_block *sb, int wait)
 {
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
@@ -558,7 +514,7 @@ static struct super_operations nilfs_sops = {
 	/* .drop_inode	  = nilfs_drop_inode, */
 	.delete_inode   = nilfs_delete_inode,
 	.put_super      = nilfs_put_super,
-	.write_super    = nilfs_write_super,
+	/* .write_super    = nilfs_write_super, */
 	.sync_fs        = nilfs_sync_fs,
 	/* .write_super_lockfs */
 	/* .unlockfs */
