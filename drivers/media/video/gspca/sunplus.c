@@ -841,7 +841,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /*	case BRIDGE_SPCA504: */
 /*	case BRIDGE_SPCA536: */
 		cam->cam_mode = vga_mode;
-		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+		cam->nmodes =ARRAY_SIZE(vga_mode);
 		break;
 	case BRIDGE_SPCA533:
 		cam->cam_mode = custom_mode;
@@ -852,7 +852,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	case BRIDGE_SPCA504C:
 		cam->cam_mode = vga_mode2;
-		cam->nmodes = sizeof vga_mode2 / sizeof vga_mode2[0];
+		cam->nmodes = ARRAY_SIZE(vga_mode2);
 		break;
 	}
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;

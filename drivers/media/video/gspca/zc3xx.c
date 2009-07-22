@@ -7574,7 +7574,7 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
-	.nctrls = sizeof sd_ctrls / sizeof sd_ctrls[0],
+	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
 	.start = sd_start,
