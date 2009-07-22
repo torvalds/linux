@@ -66,6 +66,13 @@
 		} \
 	} while (0)
 
+/*#define FULL_DEBUG 1*/
+#ifdef FULL_DEBUG
+#define _DBG DBG
+#else
+#define _DBG(fmt, args...)
+#endif
+
 /* Init methods, need to find nicer names for these
  * the exact names of the chipsets would be the best if someone finds it */
 #define METHOD0 0
@@ -375,7 +382,7 @@ static int buffer_setup(struct videobuf_queue *vq, unsigned int *count,
 
 static void free_buffer(struct videobuf_queue *vq, struct zr364xx_buffer *buf)
 {
-	DBG("%s\n", __func__);
+	_DBG("%s\n", __func__);
 
 	if (in_interrupt())
 		BUG();
@@ -428,7 +435,7 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 						  vb);
 	struct zr364xx_camera *cam = vq->priv_data;
 
-	DBG("%s\n", __func__);
+	_DBG("%s\n", __func__);
 
 	buf->vb.state = VIDEOBUF_QUEUED;
 	list_add_tail(&buf->vb.queue, &cam->vidq.active);
@@ -440,7 +447,7 @@ static void buffer_release(struct videobuf_queue *vq,
 	struct zr364xx_buffer *buf = container_of(vb, struct zr364xx_buffer,
 						  vb);
 
-	DBG("%s\n", __func__);
+	_DBG("%s\n", __func__);
 	free_buffer(vq, buf);
 }
 
@@ -462,7 +469,7 @@ static ssize_t zr364xx_read(struct file *file, char __user *buf, size_t count,
 {
 	struct zr364xx_camera *cam = video_drvdata(file);
 
-	DBG("%s\n", __func__);
+	_DBG("%s\n", __func__);
 
 	if (!buf)
 		return -EINVAL;
@@ -582,7 +589,7 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 	int i = 0;
 	unsigned char *ptr = NULL;
 
-	/*DBG("buffer to user\n");*/
+	_DBG("buffer to user\n");
 	idx = cam->cur_frame;
 	frm = &cam->buffer.frame[idx];
 
@@ -600,12 +607,6 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 		return -EINVAL;
 	}
 
-	if (frm->lpvbits == NULL) {
-		DBG("%s: frame buffer == NULL.%p %p %d\n", __func__,
-			frm, cam, idx);
-		return -ENOMEM;
-	}
-
 	psrc = (u8 *)pipe_info->transfer_buffer;
 	ptr = pdest = frm->lpvbits;
 
@@ -613,7 +614,7 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 		frm->ulState = ZR364XX_READ_FRAME;
 		frm->cur_size = 0;
 
-		DBG("jpeg header, ");
+		_DBG("jpeg header, ");
 		memcpy(ptr, header1, sizeof(header1));
 		ptr += sizeof(header1);
 		header3 = 0;
@@ -631,21 +632,28 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 		memcpy(ptr, psrc + 128,
 		       purb->actual_length - 128);
 		ptr += purb->actual_length - 128;
-		DBG("header : %d %d %d %d %d %d %d %d %d\n",
+		_DBG("header : %d %d %d %d %d %d %d %d %d\n",
 		    psrc[0], psrc[1], psrc[2],
 		    psrc[3], psrc[4], psrc[5],
 		    psrc[6], psrc[7], psrc[8]);
 		frm->cur_size = ptr - pdest;
 	} else {
-		pdest += frm->cur_size;
-		memcpy(pdest, psrc, purb->actual_length);
-		frm->cur_size += purb->actual_length;
+		if (frm->cur_size + purb->actual_length > MAX_FRAME_SIZE) {
+			dev_info(&cam->udev->dev,
+				 "%s: buffer (%d bytes) too small to hold "
+				 "frame data. Discarding frame data.\n",
+				 __func__, MAX_FRAME_SIZE);
+		} else {
+			pdest += frm->cur_size;
+			memcpy(pdest, psrc, purb->actual_length);
+			frm->cur_size += purb->actual_length;
+		}
 	}
-	/*DBG("cur_size %lu urb size %d\n", frm->cur_size,
+	/*_DBG("cur_size %lu urb size %d\n", frm->cur_size,
 		purb->actual_length);*/
 
 	if (purb->actual_length < pipe_info->transfer_size) {
-		DBG("****************Buffer[%d]full*************\n", idx);
+		_DBG("****************Buffer[%d]full*************\n", idx);
 		cam->last_frame = cam->cur_frame;
 		cam->cur_frame++;
 		/* end of system frame ring buffer, start at zero */
@@ -680,7 +688,7 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 			if (cam->skip)
 				cam->skip--;
 			else {
-				DBG("jpeg(%lu): %d %d %d %d %d %d %d %d\n",
+				_DBG("jpeg(%lu): %d %d %d %d %d %d %d %d\n",
 				    frm->cur_size,
 				    pdest[0], pdest[1], pdest[2], pdest[3],
 				    pdest[4], pdest[5], pdest[6], pdest[7]);
@@ -707,7 +715,7 @@ static int res_get(struct zr364xx_camera *cam)
 	}
 	/* it's free, grab it */
 	cam->resources = 1;
-	DBG("res: get\n");
+	_DBG("res: get\n");
 	mutex_unlock(&cam->lock);
 	return 1;
 }
@@ -722,7 +730,7 @@ static void res_free(struct zr364xx_camera *cam)
 	mutex_lock(&cam->lock);
 	cam->resources = 0;
 	mutex_unlock(&cam->lock);
-	DBG("res: put\n");
+	_DBG("res: put\n");
 }
 
 static int zr364xx_vidioc_querycap(struct file *file, void *priv,
@@ -881,7 +889,6 @@ static int zr364xx_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	}
 
 	f->fmt.pix.field = V4L2_FIELD_NONE;
-	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace = 0;
@@ -1017,7 +1024,7 @@ static int zr364xx_vidioc_qbuf(struct file *file,
 {
 	int rc;
 	struct zr364xx_camera *cam = video_drvdata(file);
-	DBG("%s\n", __func__);
+	_DBG("%s\n", __func__);
 	rc = videobuf_qbuf(&cam->vb_vidq, p);
 	return rc;
 }
@@ -1028,7 +1035,7 @@ static int zr364xx_vidioc_dqbuf(struct file *file,
 {
 	int rc;
 	struct zr364xx_camera *cam = video_drvdata(file);
-	DBG("%s\n", __func__);
+	_DBG("%s\n", __func__);
 	rc = videobuf_dqbuf(&cam->vb_vidq, p, file->f_flags & O_NONBLOCK);
 	return rc;
 }
@@ -1040,7 +1047,7 @@ static void read_pipe_completion(struct urb *purb)
 	int pipe;
 
 	pipe_info = purb->context;
-	/*DBG("%s %p, status %d\n", __func__, purb, purb->status);*/
+	_DBG("%s %p, status %d\n", __func__, purb, purb->status);
 	if (pipe_info == NULL) {
 		printk(KERN_ERR KBUILD_MODNAME ": no context!\n");
 		return;
@@ -1151,7 +1158,6 @@ static void zr364xx_stop_readpipe(struct zr364xx_camera *cam)
 			pipe_info->stream_urb = NULL;
 		}
 	}
-	DBG("stop read pipe\n");
 	return;
 }
 
@@ -1214,7 +1220,6 @@ static int zr364xx_vidioc_streamon(struct file *file, void *priv,
 	} else {
 		res_free(cam);
 	}
-	DBG("%s: %d\n", __func__, res);
 	return res;
 }
 
@@ -1326,8 +1331,6 @@ static void zr364xx_destroy(struct zr364xx_camera *cam)
 	/* release transfer buffer */
 	kfree(cam->pipe->transfer_buffer);
 	cam->pipe->transfer_buffer = NULL;
-
-	DBG("%s\n", __func__);
 	mutex_unlock(&cam->open_lock);
 	kfree(cam);
 	cam = NULL;
@@ -1408,7 +1411,7 @@ static unsigned int zr364xx_poll(struct file *file,
 {
 	struct zr364xx_camera *cam = video_drvdata(file);
 	struct videobuf_queue *q = &cam->vb_vidq;
-	DBG("%s\n", __func__);
+	_DBG("%s\n", __func__);
 
 	if (cam->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return POLLERR;
