@@ -20,6 +20,7 @@
 #include "sysfile.h"
 #include "dlmglue.h"
 #include "quota.h"
+#include "uptodate.h"
 
 /* Number of local quota structures per block */
 static inline unsigned int ol_quota_entries_per_block(struct super_block *sb)
@@ -979,6 +980,8 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 		mlog_errno(status);
 		goto out;
 	}
+	ocfs2_set_new_buffer_uptodate(lqinode, bh);
+
 	dchunk = (struct ocfs2_local_disk_chunk *)bh->b_data;
 
 	handle = ocfs2_start_trans(OCFS2_SB(sb), 2);
@@ -999,7 +1002,6 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 	memset(dchunk->dqc_bitmap, 0,
 	       sb->s_blocksize - sizeof(struct ocfs2_local_disk_chunk) -
 	       OCFS2_QBLK_RESERVED_SPACE);
-	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 	status = ocfs2_journal_dirty(handle, bh);
 	if (status < 0) {
