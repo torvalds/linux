@@ -3133,7 +3133,7 @@ static int handle_apic_access(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		printk(KERN_ERR
 		       "Fail to handle apic access vmexit! Offset is 0x%lx\n",
 		       offset);
-		return -ENOTSUPP;
+		return -ENOEXEC;
 	}
 	return 1;
 }
@@ -3202,7 +3202,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	if (exit_qualification & (1 << 6)) {
 		printk(KERN_ERR "EPT: GPA exceeds GAW!\n");
-		return -ENOTSUPP;
+		return -EINVAL;
 	}
 
 	gla_validity = (exit_qualification >> 7) & 0x3;
