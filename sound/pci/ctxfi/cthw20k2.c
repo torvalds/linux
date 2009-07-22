@@ -166,7 +166,7 @@ static int src_get_rsc_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -492,7 +492,7 @@ static int src_mgr_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -513,7 +513,7 @@ static int srcimp_mgr_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -702,7 +702,7 @@ static int amixer_rsc_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -891,7 +891,7 @@ static int dai_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -941,7 +941,7 @@ static int dao_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -1092,7 +1092,7 @@ static int daio_mgr_get_ctrl_blk(struct hw *hw, void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	for (i = 0; i < 8; i++) {
@@ -1904,7 +1904,7 @@ static int hw_card_start(struct hw *hw)
 		hw->io_base = pci_resource_start(hw->pci, 2);
 		hw->mem_base = (unsigned long)ioremap(hw->io_base,
 					pci_resource_len(hw->pci, 2));
-		if (NULL == (void *)hw->mem_base) {
+		if (!hw->mem_base) {
 			err = -ENOENT;
 			goto error2;
 		}
@@ -1962,7 +1962,7 @@ static int hw_card_shutdown(struct hw *hw)
 
 	hw->irq	= -1;
 
-	if (NULL != ((void *)hw->mem_base))
+	if (hw->mem_base)
 		iounmap((void *)hw->mem_base);
 
 	hw->mem_base = (unsigned long)NULL;

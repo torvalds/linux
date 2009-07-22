@@ -168,7 +168,7 @@ static int src_get_rsc_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -494,7 +494,7 @@ static int src_mgr_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -515,7 +515,7 @@ static int srcimp_mgr_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -702,7 +702,7 @@ static int amixer_rsc_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -723,7 +723,7 @@ static int amixer_mgr_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	/*blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;*/
@@ -909,7 +909,7 @@ static int dai_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -958,7 +958,7 @@ static int dao_get_ctrl_blk(void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	*rblk = blk;
@@ -1152,7 +1152,7 @@ static int daio_mgr_get_ctrl_blk(struct hw *hw, void **rblk)
 
 	*rblk = NULL;
 	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
-	if (NULL == blk)
+	if (!blk)
 		return -ENOMEM;
 
 	blk->i2sctl = hw_read_20kx(hw, I2SCTL);
@@ -1808,7 +1808,7 @@ static int uaa_to_xfi(struct pci_dev *pci)
 	/* By default, Hendrix card UAA Bar0 should be using memory... */
 	io_base = pci_resource_start(pci, 0);
 	mem_base = ioremap(io_base, pci_resource_len(pci, 0));
-	if (NULL == mem_base)
+	if (!mem_base)
 		return -ENOENT;
 
 	/* Read current mode from Mode Change Register */
@@ -1977,7 +1977,7 @@ static int hw_card_shutdown(struct hw *hw)
 
 	hw->irq	= -1;
 
-	if (NULL != ((void *)hw->mem_base))
+	if (hw->mem_base)
 		iounmap((void *)hw->mem_base);
 
 	hw->mem_base = (unsigned long)NULL;
@@ -2274,7 +2274,7 @@ int __devinit create_20k1_hw_obj(struct hw **rhw)
 
 	*rhw = NULL;
 	hw20k1 = kzalloc(sizeof(*hw20k1), GFP_KERNEL);
-	if (NULL == hw20k1)
+	if (!hw20k1)
 		return -ENOMEM;
 
 	spin_lock_init(&hw20k1->reg_20k1_lock);
