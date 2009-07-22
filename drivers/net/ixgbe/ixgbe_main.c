@@ -5640,7 +5640,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		adapter->wol = 0;
 		break;
 	}
-	device_init_wakeup(&adapter->pdev->dev, true);
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
 	/* pick up the PCI bus settings for reporting later */
