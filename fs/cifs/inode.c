@@ -513,9 +513,12 @@ int cifs_get_inode_info(struct inode **pinode,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (rc1) {
-				/* BB EOPNOSUPP disable SERVER_INUM? */
 				cFYI(1, ("GetSrvInodeNum rc %d", rc1));
 				fattr.cf_uniqueid = iunique(sb, ROOT_I);
+				/* disable serverino if call not supported */
+				if (rc1 == -EINVAL)
+					cifs_sb->mnt_cifs_flags &=
+							~CIFS_MOUNT_SERVER_INUM;
 			}
 		} else {
 			fattr.cf_uniqueid = iunique(sb, ROOT_I);
