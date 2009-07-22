@@ -1407,24 +1407,25 @@ static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
  */
 void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
 {
+	int used_pages;
+
+	used_pages = kvm->arch.n_alloc_mmu_pages - kvm->arch.n_free_mmu_pages;
+	used_pages = max(0, used_pages);
+
 	/*
 	 * If we set the number of mmu pages to be smaller be than the
 	 * number of actived pages , we must to free some mmu pages before we
 	 * change the value
 	 */
 
-	if ((kvm->arch.n_alloc_mmu_pages - kvm->arch.n_free_mmu_pages) >
-	    kvm_nr_mmu_pages) {
-		int n_used_mmu_pages = kvm->arch.n_alloc_mmu_pages
-				       - kvm->arch.n_free_mmu_pages;
-
-		while (n_used_mmu_pages > kvm_nr_mmu_pages) {
+	if (used_pages > kvm_nr_mmu_pages) {
+		while (used_pages > kvm_nr_mmu_pages) {
 			struct kvm_mmu_page *page;
 
 			page = container_of(kvm->arch.active_mmu_pages.prev,
 					    struct kvm_mmu_page, link);
 			kvm_mmu_zap_page(kvm, page);
-			n_used_mmu_pages--;
+			used_pages--;
 		}
 		kvm->arch.n_free_mmu_pages = 0;
 	}
