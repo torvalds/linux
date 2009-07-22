@@ -58,6 +58,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 #include "i2400m-sdio.h"
@@ -501,15 +502,12 @@ void i2400ms_remove(struct sdio_func *func)
 	d_fnend(3, dev, "SDIO func %p\n", func);
 }
 
-enum {
-	I2400MS_INTEL_VID = 0x89,
-};
-
 static
 const struct sdio_device_id i2400ms_sdio_ids[] = {
-	/* Intel: i2400m WiMAX over SDIO */
-	{ SDIO_DEVICE(I2400MS_INTEL_VID, 0x1402) },
-	{ }, 			/* end: all zeroes */
+	/* Intel: i2400m WiMAX (iwmc3200) over SDIO */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_INTEL,
+		      SDIO_DEVICE_ID_INTEL_IWMC3200WIMAX) },
+	{ /* end: all zeroes */ },
 };
 MODULE_DEVICE_TABLE(sdio, i2400ms_sdio_ids);
 
