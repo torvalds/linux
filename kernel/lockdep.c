@@ -861,14 +861,15 @@ struct circular_queue {
 };
 
 static struct circular_queue lock_cq;
-static unsigned long bfs_accessed[BITS_TO_LONGS(MAX_LOCKDEP_ENTRIES)];
 
 unsigned int max_bfs_queue_depth;
+
+static unsigned int lockdep_dependency_gen_id;
 
 static inline void __cq_init(struct circular_queue *cq)
 {
 	cq->front = cq->rear = 0;
-	bitmap_zero(bfs_accessed, MAX_LOCKDEP_ENTRIES);
+	lockdep_dependency_gen_id++;
 }
 
 static inline int __cq_empty(struct circular_queue *cq)
@@ -914,7 +915,7 @@ static inline void mark_lock_accessed(struct lock_list *lock,
 	nr = lock - list_entries;
 	WARN_ON(nr >= nr_list_entries);
 	lock->parent = parent;
-	set_bit(nr, bfs_accessed);
+	lock->class->dep_gen_id = lockdep_dependency_gen_id;
 }
 
 static inline unsigned long lock_accessed(struct lock_list *lock)
@@ -923,7 +924,7 @@ static inline unsigned long lock_accessed(struct lock_list *lock)
 
 	nr = lock - list_entries;
 	WARN_ON(nr >= nr_list_entries);
-	return test_bit(nr, bfs_accessed);
+	return lock->class->dep_gen_id == lockdep_dependency_gen_id;
 }
 
 static inline struct lock_list *get_lock_parent(struct lock_list *child)
@@ -3604,7 +3605,7 @@ void __init lockdep_info(void)
 		sizeof(struct lock_chain) * MAX_LOCKDEP_CHAINS +
 		sizeof(struct list_head) * CHAINHASH_SIZE) / 1024
 #ifdef CONFIG_PROVE_LOCKING
-		+ sizeof(struct circular_queue) + sizeof(bfs_accessed)
+		+ sizeof(struct circular_queue)
 #endif
 		);
 
