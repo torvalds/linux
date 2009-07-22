@@ -34,16 +34,16 @@ static int max9877_get_reg(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	int reg = mc->reg;
-	int reg2 = mc->rreg;
-	int shift = mc->shift;
-	int mask = mc->max;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int mask = mc->max;
+	unsigned int invert = mc->invert;
 
 	ucontrol->value.integer.value[0] = (max9877_regs[reg] >> shift) & mask;
 
-	if (reg2)
-		ucontrol->value.integer.value[1] =
-			(max9877_regs[reg2] >> shift) & mask;
+	if (invert)
+		ucontrol->value.integer.value[0] =
+			mask - ucontrol->value.integer.value[0];
 
 	return 0;
 }
@@ -53,39 +53,69 @@ static int max9877_set_reg(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	int reg = mc->reg;
-	int reg2 = mc->rreg;
-	int shift = mc->shift;
-	int mask = mc->max;
-	int change = 1;
-	int change2 = 1;
-	int ret = 0;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int mask = mc->max;
+	unsigned int invert = mc->invert;
+	unsigned int val = (ucontrol->value.integer.value[0] & mask);
 
-	if (((max9877_regs[reg] >> shift) & mask) ==
-			ucontrol->value.integer.value[0])
+	if (invert)
+		val = mask - val;
+
+	if (((max9877_regs[reg] >> shift) & mask) == val)
+		return 0;
+
+	max9877_regs[reg] &= ~(mask << shift);
+	max9877_regs[reg] |= val << shift;
+	max9877_write_regs();
+
+	return 1;
+}
+
+static int max9877_get_2reg(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+	unsigned int reg2 = mc->rreg;
+	unsigned int shift = mc->shift;
+	unsigned int mask = mc->max;
+
+	ucontrol->value.integer.value[0] = (max9877_regs[reg] >> shift) & mask;
+	ucontrol->value.integer.value[1] = (max9877_regs[reg2] >> shift) & mask;
+
+	return 0;
+}
+
+static int max9877_set_2reg(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+	unsigned int reg2 = mc->rreg;
+	unsigned int shift = mc->shift;
+	unsigned int mask = mc->max;
+	unsigned int val = (ucontrol->value.integer.value[0] & mask);
+	unsigned int val2 = (ucontrol->value.integer.value[1] & mask);
+	unsigned int change = 1;
+
+	if (((max9877_regs[reg] >> shift) & mask) == val)
 		change = 0;
 
-	if (reg2)
-		if (((max9877_regs[reg2] >> shift) & mask) ==
-				ucontrol->value.integer.value[1])
-			change2 = 0;
+	if (((max9877_regs[reg2] >> shift) & mask) == val2)
+		change = 0;
 
 	if (change) {
 		max9877_regs[reg] &= ~(mask << shift);
-		max9877_regs[reg] |= ucontrol->value.integer.value[0] << shift;
-		ret = change;
-	}
-
-	if (reg2 && change2) {
+		max9877_regs[reg] |= val << shift;
 		max9877_regs[reg2] &= ~(mask << shift);
-		max9877_regs[reg2] |= ucontrol->value.integer.value[1] << shift;
-		ret = change2;
+		max9877_regs[reg2] |= val2 << shift;
+		max9877_write_regs();
 	}
 
-	if (ret)
-		max9877_write_regs();
-
-	return ret;
+	return change;
 }
 
 static int max9877_get_out_mode(struct snd_kcontrol *kcontrol,
@@ -190,7 +220,7 @@ static const struct snd_kcontrol_new max9877_controls[] = {
 			max9877_get_reg, max9877_set_reg, max9877_output_tlv),
 	SOC_DOUBLE_R_EXT_TLV("MAX9877 Amp HP Playback Volume",
 			MAX9877_HPL_VOLUME, MAX9877_HPR_VOLUME, 0, 31, 0,
-			max9877_get_reg, max9877_set_reg, max9877_output_tlv),
+			max9877_get_2reg, max9877_set_2reg, max9877_output_tlv),
 	SOC_SINGLE_EXT("MAX9877 INB Stereo Switch",
 			MAX9877_INPUT_MODE, 4, 1, 1,
 			max9877_get_reg, max9877_set_reg),
