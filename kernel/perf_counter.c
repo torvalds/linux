@@ -3217,7 +3217,7 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 		u64				stream_id;
 	} throttle_event = {
 		.header = {
-			.type = PERF_EVENT_THROTTLE + 1,
+			.type = PERF_EVENT_THROTTLE,
 			.misc = 0,
 			.size = sizeof(throttle_event),
 		},
@@ -3225,6 +3225,9 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 		.id		= primary_counter_id(counter),
 		.stream_id	= counter->id,
 	};
+
+	if (enable)
+		throttle_event.header.type = PERF_EVENT_UNTHROTTLE;
 
 	ret = perf_output_begin(&handle, counter, sizeof(throttle_event), 1, 0);
 	if (ret)
