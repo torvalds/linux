@@ -179,6 +179,7 @@ struct snd_soc_dai {
 	int ac97_control;
 
 	struct device *dev;
+	void *ac97_pdata;	/* platform_data for the ac97 codec */
 
 	/* DAI callbacks */
 	int (*probe)(struct platform_device *pdev,
