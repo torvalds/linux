@@ -47,18 +47,9 @@ struct crypto_xcbc_ctx {
 	u8 *prev;
 	u8 *key;
 	u8 *consts;
-	void (*xor)(u8 *a, const u8 *b, unsigned int bs);
 	unsigned int keylen;
 	unsigned int len;
 };
-
-static void xor_128(u8 *a, const u8 *b, unsigned int bs)
-{
-	((u32 *)a)[0] ^= ((u32 *)b)[0];
-	((u32 *)a)[1] ^= ((u32 *)b)[1];
-	((u32 *)a)[2] ^= ((u32 *)b)[2];
-	((u32 *)a)[3] ^= ((u32 *)b)[3];
-}
 
 static int _crypto_xcbc_digest_setkey(struct crypto_shash *parent,
 				      struct crypto_xcbc_ctx *ctx)
@@ -122,7 +113,7 @@ static int crypto_xcbc_digest_update(struct shash_desc *pdesc, const u8 *p,
 	len -= bs - ctx->len;
 	p += bs - ctx->len;
 
-	ctx->xor(ctx->prev, ctx->odds, bs);
+	crypto_xor(ctx->prev, ctx->odds, bs);
 	crypto_cipher_encrypt_one(tfm, ctx->prev, ctx->prev);
 
 	/* clearing the length */
@@ -130,7 +121,7 @@ static int crypto_xcbc_digest_update(struct shash_desc *pdesc, const u8 *p,
 
 	/* encrypting the rest of data */
 	while (len > bs) {
-		ctx->xor(ctx->prev, p, bs);
+		crypto_xor(ctx->prev, p, bs);
 		crypto_cipher_encrypt_one(tfm, ctx->prev, ctx->prev);
 		p += bs;
 		len -= bs;
@@ -162,8 +153,8 @@ static int crypto_xcbc_digest_final(struct shash_desc *pdesc, u8 *out)
 		crypto_cipher_encrypt_one(tfm, key2,
 					  (u8 *)(ctx->consts + bs));
 
-		ctx->xor(ctx->prev, ctx->odds, bs);
-		ctx->xor(ctx->prev, key2, bs);
+		crypto_xor(ctx->prev, ctx->odds, bs);
+		crypto_xor(ctx->prev, key2, bs);
 		_crypto_xcbc_digest_setkey(parent, ctx);
 
 		crypto_cipher_encrypt_one(tfm, out, ctx->prev);
@@ -184,8 +175,8 @@ static int crypto_xcbc_digest_final(struct shash_desc *pdesc, u8 *out)
 		crypto_cipher_encrypt_one(tfm, key3,
 					  (u8 *)(ctx->consts + bs * 2));
 
-		ctx->xor(ctx->prev, ctx->odds, bs);
-		ctx->xor(ctx->prev, key3, bs);
+		crypto_xor(ctx->prev, ctx->odds, bs);
+		crypto_xor(ctx->prev, key3, bs);
 
 		_crypto_xcbc_digest_setkey(parent, ctx);
 
@@ -209,7 +200,6 @@ static int xcbc_init_tfm(struct crypto_tfm *tfm)
 
 	switch(bs) {
 	case 16:
-		ctx->xor = xor_128;
 		break;
 	default:
 		return -EINVAL;
