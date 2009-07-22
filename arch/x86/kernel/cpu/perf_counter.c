@@ -1570,8 +1570,6 @@ static struct x86_pmu amd_pmu = {
 
 static int p6_pmu_init(void)
 {
-	int high, low;
-
 	switch (boot_cpu_data.x86_model) {
 	case 1:
 	case 3:  /* Pentium Pro */
