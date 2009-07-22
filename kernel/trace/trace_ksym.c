@@ -135,6 +135,9 @@ static int ksym_trace_get_access_type(char *str)
 	case 6:
 		access = HW_BREAKPOINT_RW;
 		break;
+	case 4:
+		access = -EINVAL;
+		break;
 	case 2:
 		access = HW_BREAKPOINT_WRITE;
 		break;
@@ -312,6 +315,7 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 		kfree(entry->ksym_hbp->info.name);
 		kfree(entry->ksym_hbp);
 		kfree(entry);
+		ret = 0;
 		goto out;
 	} else {
 		/* Check for malformed request: (4) */
