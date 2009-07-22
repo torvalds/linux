@@ -2932,14 +2932,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 			/* For a suspended device, treat this as a
 			 * remote wakeup event.
 			 */
-			if (udev->do_remote_wakeup)
-				status = remote_wakeup(udev);
-
-			/* Otherwise leave it be; devices can't tell the
-			 * difference between suspended and disabled.
-			 */
-			else
-				status = 0;
+			status = remote_wakeup(udev);
 #endif
 
 		} else {
