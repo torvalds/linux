@@ -2026,6 +2026,9 @@ static int intel_get_fifo_size(struct drm_device *dev, int plane)
 			size = ((dsparb >> DSPARB_BEND_SHIFT) & 0x1ff) -
 				(dsparb & 0x1ff);
 		size >>= 1; /* Convert to cachelines */
+	} else if (IS_845G(dev)) {
+		size = dsparb & 0x7f;
+		size >>= 2; /* Convert to cachelines */
 	} else {
 		size = dsparb & 0x7f;
 		size >>= 1; /* Convert to cachelines */
@@ -2125,14 +2128,16 @@ static void i830_update_wm(struct drm_device *dev, int planea_clock,
 			   int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t fwater_lo = I915_READ(FW_BLC) & MM_FIFO_WATERMARK;
+	uint32_t fwater_lo = I915_READ(FW_BLC) & ~0xfff;
 	int planea_wm;
 
 	i830_wm_info.fifo_size = intel_get_fifo_size(dev, 0);
 
 	planea_wm = intel_calculate_wm(planea_clock, &i830_wm_info,
 				       pixel_size, latency_ns);
-	fwater_lo = fwater_lo | planea_wm;
+	fwater_lo |= (3<<8) | planea_wm;
+
+	DRM_DEBUG("Setting FIFO watermarks - A: %d\n", planea_wm);
 
 	I915_WRITE(FW_BLC, fwater_lo);
 }
