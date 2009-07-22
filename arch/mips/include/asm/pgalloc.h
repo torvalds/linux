@@ -98,7 +98,7 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 	__free_pages(pte, PTE_ORDER);
 }
 
-#define __pte_free_tlb(tlb,pte)				\
+#define __pte_free_tlb(tlb,pte,address)			\
 do {							\
 	pgtable_page_dtor(pte);				\
 	tlb_remove_page((tlb), pte);			\
@@ -111,7 +111,7 @@ do {							\
  * inside the pgd, so has no extra memory associated with it.
  */
 #define pmd_free(mm, x)			do { } while (0)
-#define __pmd_free_tlb(tlb, x)		do { } while (0)
+#define __pmd_free_tlb(tlb, x, addr)	do { } while (0)
 
 #endif
 
@@ -132,7 +132,7 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 	free_pages((unsigned long)pmd, PMD_ORDER);
 }
 
-#define __pmd_free_tlb(tlb, x)	pmd_free((tlb)->mm, x)
+#define __pmd_free_tlb(tlb, x, addr)	pmd_free((tlb)->mm, x)
 
 #endif
 
