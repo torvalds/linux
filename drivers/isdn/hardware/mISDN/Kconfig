@@ -39,3 +39,17 @@ config MISDN_HFCUSB
 	  Enable support for USB ISDN TAs with Cologne Chip AG's
 	  HFC-S USB ISDN Controller
 
+config MISDN_INFINEON
+	tristate "Support for cards with Infineon chipset"
+	depends on MISDN
+	depends on PCI
+	select MISDN_IPAC
+	help
+	  Enable support for cards with ISAC + HSCX, IPAC or IPAC-SX
+	  chip from Infineon (former manufacturer Siemens).
+
+
+config MISDN_IPAC
+	tristate
+	depends on MISDN
+
