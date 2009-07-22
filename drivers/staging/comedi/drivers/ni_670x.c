@@ -111,7 +111,7 @@ struct ni_670x_private {
 };
 
 #define devpriv ((struct ni_670x_private *)dev->private)
-#define n_ni_670x_boards (sizeof(ni_670x_boards)/sizeof(ni_670x_boards[0]))
+#define n_ni_670x_boards ARRAY_SIZE(ni_670x_boards)
 
 static int ni_670x_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it);

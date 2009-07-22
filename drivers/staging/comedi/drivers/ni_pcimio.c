@@ -1208,7 +1208,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 },
 };
 
-#define n_pcimio_boards ((sizeof(ni_boards)/sizeof(ni_boards[0])))
+#define n_pcimio_boards ARRAY_SIZE(ni_boards)
 
 static int pcimio_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);

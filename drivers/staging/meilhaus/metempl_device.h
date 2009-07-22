@@ -50,7 +50,7 @@ static metempl_version_t metempl_versions[] = {
 	{0},
 };
 
-#define METEMPL_DEVICE_VERSIONS (sizeof(metempl_versions) / sizeof(metempl_version_t) - 1) /**< Returns the number of entries in #metempl_versions. */
+#define METEMPL_DEVICE_VERSIONS (ARRAY_SIZE(metempl_versions) - 1) /**< Returns the number of entries in #metempl_versions. */
 
 /**
  * @brief Returns the index of the device entry in #metempl_versions.

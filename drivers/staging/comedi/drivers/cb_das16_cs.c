@@ -78,7 +78,7 @@ static const struct das16cs_board das16cs_boards[] = {
 	 },
 };
 
-#define n_boards (sizeof(das16cs_boards)/sizeof(das16cs_boards[0]))
+#define n_boards ARRAY_SIZE(das16cs_boards)
 #define thisboard ((const struct das16cs_board *)dev->board_ptr)
 
 struct das16cs_private {

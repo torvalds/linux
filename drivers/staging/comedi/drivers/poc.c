@@ -102,7 +102,7 @@ static const struct boarddef_struct boards[] = {
 	 },
 };
 
-#define n_boards (sizeof(boards)/sizeof(boards[0]))
+#define n_boards ARRAY_SIZE(boards)
 #define this_board ((const struct boarddef_struct *)dev->board_ptr)
 
 static struct comedi_driver driver_poc = {

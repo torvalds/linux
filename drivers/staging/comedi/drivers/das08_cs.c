@@ -65,8 +65,7 @@ static struct comedi_driver driver_das08_cs = {
 	.attach = das08_cs_attach,
 	.detach = das08_common_detach,
 	.board_name = &das08_cs_boards[0].name,
-	.num_names = sizeof(das08_cs_boards) /
-	    sizeof(struct das08_board_struct),
+	.num_names = ARRAY_SIZE(das08_cs_boards),
 	.offset = sizeof(struct das08_board_struct),
 };
 

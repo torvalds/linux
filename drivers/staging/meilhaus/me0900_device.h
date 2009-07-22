@@ -53,7 +53,7 @@ static me0900_version_t me0900_versions[] = {
 	{0},
 };
 
-#define ME0900_DEVICE_VERSIONS (sizeof(me0900_versions) / sizeof(me0900_version_t) - 1)	/**< Returns the number of entries in #me0900_versions. */
+#define ME0900_DEVICE_VERSIONS (ARRAY_SIZE(me0900_versions) - 1)	/**< Returns the number of entries in #me0900_versions. */
 
 /**
  * @brief Returns the index of the device entry in #me0900_versions.

@@ -513,7 +513,7 @@ MODULE_DEVICE_TABLE(pci, pci230_pci_table);
 /*
  * Useful for shorthand access to the particular board structure
  */
-#define n_pci230_boards (sizeof(pci230_boards)/sizeof(pci230_boards[0]))
+#define n_pci230_boards ARRAY_SIZE(pci230_boards)
 #define thisboard ((const struct pci230_board *)dev->board_ptr)
 
 /* this structure is for data unique to this hardware driver.  If

@@ -27,7 +27,7 @@
 u32 rtl8180_rates[] = {1000000,2000000,5500000,11000000,
 	6000000,9000000,12000000,18000000,24000000,36000000,48000000,54000000};
 
-#define RATE_COUNT (sizeof(rtl8180_rates)/sizeof(rtl8180_rates[0]))
+#define RATE_COUNT ARRAY_SIZE(rtl8180_rates)
 
 static CHANNEL_LIST DefaultChannelPlan[] = {
 //	{{1,2,3,4,5,6,7,8,9,10,11,12,13,14},14},			//Default channel plan
@@ -1578,9 +1578,9 @@ static struct iw_statistics *r8180_get_wireless_stats(struct net_device *dev)
 
 struct iw_handler_def  r8180_wx_handlers_def={
 	.standard = r8180_wx_handlers,
-	.num_standard = sizeof(r8180_wx_handlers) / sizeof(iw_handler),
+	.num_standard = ARRAY_SIZE(r8180_wx_handlers),
 	.private = r8180_private_handler,
-	.num_private = sizeof(r8180_private_handler) / sizeof(iw_handler),
+	.num_private = ARRAY_SIZE(r8180_private_handler),
  	.num_private_args = sizeof(r8180_private_args) / sizeof(struct iw_priv_args),
 	.get_wireless_stats = r8180_get_wireless_stats,
 	.private_args = (struct iw_priv_args *)r8180_private_args,

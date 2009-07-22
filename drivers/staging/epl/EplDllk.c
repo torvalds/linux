@@ -328,7 +328,7 @@ tEplKernel EplDllkAddInstance(tEplDllkInitParam * pInitParam_p)
 	// initialize and link pointers in instance structure to frame tables
 	EplDllkInstance_g.m_pTxBuffer = aEplDllkTxBuffer_l;
 	EplDllkInstance_g.m_uiMaxTxFrames =
-	    sizeof(aEplDllkTxBuffer_l) / sizeof(tEdrvTxBuffer);
+	    ARRAY_SIZE(aEplDllkTxBuffer_l);
 
 	// initialize state
 	EplDllkInstance_g.m_DllState = kEplDllGsInit;

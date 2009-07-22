@@ -69,7 +69,7 @@ static const struct pcmad_board_struct pcmad_boards[] = {
 };
 
 #define this_board ((const struct pcmad_board_struct *)(dev->board_ptr))
-#define n_pcmad_boards (sizeof(pcmad_boards)/sizeof(pcmad_boards[0]))
+#define n_pcmad_boards ARRAY_SIZE(pcmad_boards)
 
 struct pcmad_priv_struct {
 	int differential;

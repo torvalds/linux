@@ -103,7 +103,7 @@ static me6000_version_t me6000_versions[] = {
 	{0},
 };
 
-#define ME6000_DEVICE_VERSIONS (sizeof(me6000_versions) / sizeof(me6000_version_t) - 1)	/**< Returns the number of entries in #me6000_versions. */
+#define ME6000_DEVICE_VERSIONS (ARRAY_SIZE(me6000_versions) - 1)	/**< Returns the number of entries in #me6000_versions. */
 
 /**
  * @brief Returns the index of the device entry in #me6000_versions.

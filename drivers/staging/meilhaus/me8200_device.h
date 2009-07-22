@@ -53,7 +53,7 @@ static me8200_version_t me8200_versions[] = {
 	{0},
 };
 
-#define ME8200_DEVICE_VERSIONS (sizeof(me8200_versions) / sizeof(me8200_version_t) - 1)	/**< Returns the number of entries in #me8200_versions. */
+#define ME8200_DEVICE_VERSIONS (ARRAY_SIZE(me8200_versions) - 1)	/**< Returns the number of entries in #me8200_versions. */
 
 /**
  * @brief Returns the index of the device entry in #me8200_versions.

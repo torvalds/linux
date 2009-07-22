@@ -196,7 +196,7 @@ void TgtDbgSignalTracePoint(u8 bTracePointNumber_p)
 {
 
 	if (bTracePointNumber_p >=
-	    (sizeof(aatmDbgTracePoint_l) / sizeof(aatmDbgTracePoint_l[0]))) {
+	    ARRAY_SIZE(aatmDbgTracePoint_l)) {
 		goto Exit;
 	}
 
@@ -330,7 +330,7 @@ static int EplLinProcRead(char *pcBuffer_p,
 		nSize += snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,
 				  "DbgTracePoints:\n");
 		for (nNum = 0;
-		     nNum < (sizeof(aatmDbgTracePoint_l) / sizeof(atomic_t));
+		     nNum < ARRAY_SIZE(aatmDbgTracePoint_l);
 		     nNum++) {
 			nSize +=
 			    snprintf(pcBuffer_p + nSize, nBufferSize_p - nSize,

@@ -454,7 +454,7 @@ static inline const struct ni_660x_board *board(struct comedi_device *dev)
 	return dev->board_ptr;
 }
 
-#define n_ni_660x_boards (sizeof(ni_660x_boards)/sizeof(ni_660x_boards[0]))
+#define n_ni_660x_boards ARRAY_SIZE(ni_660x_boards)
 
 static int ni_660x_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it);

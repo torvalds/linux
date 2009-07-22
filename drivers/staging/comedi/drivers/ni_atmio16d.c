@@ -121,7 +121,7 @@ static const struct atmio16_board_t atmio16_boards[] = {
 	 },
 };
 
-#define n_atmio16_boards sizeof(atmio16_boards)/sizeof(atmio16_boards[0])
+#define n_atmio16_boards ARRAY_SIZE(atmio16_boards)
 
 #define boardtype ((const struct atmio16_board_t *)dev->board_ptr)
 

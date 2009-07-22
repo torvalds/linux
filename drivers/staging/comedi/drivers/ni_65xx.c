@@ -246,7 +246,7 @@ static const struct ni_65xx_board ni_65xx_boards[] = {
 	 },
 };
 
-#define n_ni_65xx_boards (sizeof(ni_65xx_boards)/sizeof(ni_65xx_boards[0]))
+#define n_ni_65xx_boards ARRAY_SIZE(ni_65xx_boards)
 static inline const struct ni_65xx_board *board(struct comedi_device *dev)
 {
 	return dev->board_ptr;

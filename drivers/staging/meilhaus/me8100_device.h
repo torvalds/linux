@@ -53,7 +53,7 @@ static me8100_version_t me8100_versions[] = {
 	{0},
 };
 
-#define ME8100_DEVICE_VERSIONS (sizeof(me8100_versions) / sizeof(me8100_version_t) - 1)	/**< Returns the number of entries in #me8100_versions. */
+#define ME8100_DEVICE_VERSIONS (ARRAY_SIZE(me8100_versions) - 1)	/**< Returns the number of entries in #me8100_versions. */
 
 /**
  * @brief Returns the index of the device entry in #me8100_versions.
