@@ -244,18 +244,27 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 			delta = new_hw_ptr - hw_ptr_interrupt;
 	}
 	if (delta < 0) {
-		delta += runtime->buffer_size;
+		if (runtime->periods == 1)
+			delta += runtime->buffer_size;
 		if (delta < 0) {
 			hw_ptr_error(substream, 
 				     "Unexpected hw_pointer value "
 				     "(stream=%i, pos=%ld, intr_ptr=%ld)\n",
 				     substream->stream, (long)pos,
 				     (long)hw_ptr_interrupt);
+#if 1
+			/* simply skipping the hwptr update seems more
+			 * robust in some cases, e.g. on VMware with
+			 * inaccurate timer source
+			 */
+			return 0; /* skip this update */
+#else
 			/* rebase to interrupt position */
 			hw_base = new_hw_ptr = hw_ptr_interrupt;
 			/* align hw_base to buffer_size */
 			hw_base -= hw_base % runtime->buffer_size;
 			delta = 0;
+#endif
 		} else {
 			hw_base += runtime->buffer_size;
 			if (hw_base >= runtime->boundary)
