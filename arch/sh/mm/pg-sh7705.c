@@ -26,7 +26,7 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-static inline void __flush_purge_virtual_region(void *p1, void *virt, int size)
+static void __flush_purge_virtual_region(void *p1, void *virt, int size)
 {
 	unsigned long v;
 	unsigned long begin, end;
@@ -75,19 +75,13 @@ static inline void __flush_purge_virtual_region(void *p1, void *virt, int size)
  */
 void clear_user_page(void *to, unsigned long address, struct page *pg)
 {
-	struct page *page = virt_to_page(to);
-
-	__set_bit(PG_mapped, &page->flags);
-	if (((address ^ (unsigned long)to) & CACHE_ALIAS) == 0) {
-		clear_page(to);
-		__flush_wback_region(to, PAGE_SIZE);
-	} else {
+	if (pages_do_alias(address, (unsigned long)to))
 		__flush_purge_virtual_region(to,
 					     (void *)(address & 0xfffff000),
 					     PAGE_SIZE);
-		clear_page(to);
-		__flush_wback_region(to, PAGE_SIZE);
-	}
+
+	clear_page(to);
+	__flush_wback_region(to, PAGE_SIZE);
 }
 
 /*
@@ -98,41 +92,11 @@ void clear_user_page(void *to, unsigned long address, struct page *pg)
  */
 void copy_user_page(void *to, void *from, unsigned long address, struct page *pg)
 {
-	struct page *page = virt_to_page(to);
-
-
-	__set_bit(PG_mapped, &page->flags);
-	if (((address ^ (unsigned long)to) & CACHE_ALIAS) == 0) {
-		copy_page(to, from);
-		__flush_wback_region(to, PAGE_SIZE);
-	} else {
+	if (pages_do_alias(address, (unsigned long)to))
 		__flush_purge_virtual_region(to,
 					     (void *)(address & 0xfffff000),
 					     PAGE_SIZE);
-		copy_page(to, from);
-		__flush_wback_region(to, PAGE_SIZE);
-	}
+
+	copy_page(to, from);
+	__flush_wback_region(to, PAGE_SIZE);
 }
-
-/*
- * For SH7705, we have our own implementation for ptep_get_and_clear
- * Copied from pg-sh4.c
- */
-pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-{
-	pte_t pte = *ptep;
-
-	pte_clear(mm, addr, ptep);
-	if (!pte_not_present(pte)) {
-		unsigned long pfn = pte_pfn(pte);
-		if (pfn_valid(pfn)) {
-			struct page *page = pfn_to_page(pfn);
-			struct address_space *mapping = page_mapping(page);
-			if (!mapping || !mapping_writably_mapped(mapping))
-				__clear_bit(PG_mapped, &page->flags);
-		}
-	}
-
-	return pte;
-}
-

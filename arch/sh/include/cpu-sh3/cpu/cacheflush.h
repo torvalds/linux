@@ -15,10 +15,7 @@
  * SH4. Unlike the SH4 this is a unified cache so we need to do some work
  * in mmap when 'exec'ing a new binary
  */
- /* 32KB cache, 4kb PAGE sizes need to check bit 12 */
-#define CACHE_ALIAS 0x00001000
-
-#define PG_mapped	PG_arch_1
+#define PG_dcache_dirty	PG_arch_1
 
 void flush_cache_all(void);
 void flush_cache_mm(struct mm_struct *mm);

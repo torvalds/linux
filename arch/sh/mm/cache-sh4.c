@@ -14,6 +14,7 @@
 #include <linux/mm.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
+#include <linux/fs.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
@@ -246,7 +247,14 @@ static inline void flush_cache_4096(unsigned long start,
  */
 void flush_dcache_page(struct page *page)
 {
-	if (test_bit(PG_mapped, &page->flags)) {
+	struct address_space *mapping = page_mapping(page);
+
+#ifndef CONFIG_SMP
+	if (mapping && !mapping_mapped(mapping))
+		set_bit(PG_dcache_dirty, &page->flags);
+	else
+#endif
+	{
 		unsigned long phys = PHYSADDR(page_address(page));
 		unsigned long addr = CACHE_OC_ADDRESS_ARRAY;
 		int i, n;

@@ -133,13 +133,6 @@ typedef pte_t *pte_addr_t;
  */
 #define pgtable_cache_init()	do { } while (0)
 
-#if !defined(CONFIG_CACHE_OFF) && (defined(CONFIG_CPU_SH4) || \
-	defined(CONFIG_SH7705_CACHE_32KB))
-struct mm_struct;
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-#endif
-
 struct vm_area_struct;
 extern void update_mmu_cache(struct vm_area_struct * vma,
 			     unsigned long address, pte_t pte);

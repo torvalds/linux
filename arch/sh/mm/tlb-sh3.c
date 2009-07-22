@@ -33,25 +33,25 @@ void update_mmu_cache(struct vm_area_struct * vma,
 	unsigned long flags;
 	unsigned long pteval;
 	unsigned long vpn;
+	unsigned long pfn = pte_pfn(pte);
+	struct page *page;
 
 	/* Ptrace may call this routine. */
 	if (vma && current->active_mm != vma->vm_mm)
 		return;
 
+	page = pfn_to_page(pfn);
+	if (pfn_valid(pfn) && page_mapping(page)) {
 #if defined(CONFIG_SH7705_CACHE_32KB)
-	{
-		struct page *page = pte_page(pte);
-		unsigned long pfn = pte_pfn(pte);
+		int dirty = test_and_clear_bit(PG_dcache_dirty, &page->flags);
+		if (dirty) {
+			unsigned long addr = (unsigned long)page_address(page);
 
-		if (pfn_valid(pfn) && !test_bit(PG_mapped, &page->flags)) {
-			unsigned long phys = pte_val(pte) & PTE_PHYS_MASK;
-
-			__flush_wback_region((void *)P1SEGADDR(phys),
-					     PAGE_SIZE);
-			__set_bit(PG_mapped, &page->flags);
+			if (pages_do_alias(addr, address & PAGE_MASK))
+				__flush_wback_region((void *)addr, PAGE_SIZE);
 		}
-	}
 #endif
+	}
 
 	local_irq_save(flags);
 

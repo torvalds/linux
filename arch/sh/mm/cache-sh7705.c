@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/fs.h>
 #include <linux/threads.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>
@@ -128,7 +129,11 @@ static void __uses_jump_to_uncached __flush_dcache_page(unsigned long phys)
  */
 void flush_dcache_page(struct page *page)
 {
-	if (test_bit(PG_mapped, &page->flags))
+	struct address_space *mapping = page_mapping(page);
+
+	if (mapping && !mapping_mapped(mapping))
+		set_bit(PG_dcache_dirty, &page->flags);
+	else
 		__flush_dcache_page(PHYSADDR(page_address(page)));
 }
 
