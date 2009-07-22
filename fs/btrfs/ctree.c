@@ -4146,7 +4146,8 @@ again:
 	 * advance the path if there are now more items available.
 	 */
 	if (nritems > 0 && path->slots[0] < nritems - 1) {
-		path->slots[0]++;
+		if (ret == 0)
+			path->slots[0]++;
 		ret = 0;
 		goto done;
 	}
