@@ -3806,8 +3806,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->atr_sample_rate = 20;
 		adapter->fdir_pballoc = 0;
 #ifdef IXGBE_FCOE
-		adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
-		adapter->ring_feature[RING_F_FCOE].indices = IXGBE_FCRETA_SIZE;
+		adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;
+		adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
+		adapter->ring_feature[RING_F_FCOE].indices = 0;
 #endif /* IXGBE_FCOE */
 	}
 
@@ -5580,16 +5581,11 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 #endif
 
 #ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+	if (adapter->flags & IXGBE_FLAG_FCOE_CAPABLE) {
 		if (hw->mac.ops.get_device_caps) {
 			hw->mac.ops.get_device_caps(hw, &device_caps);
-			if (!(device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)) {
-				netdev->features |= NETIF_F_FCOE_CRC;
-				netdev->features |= NETIF_F_FSO;
-				netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
-			} else {
-				adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
-			}
+			if (device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)
+				adapter->flags &= ~IXGBE_FLAG_FCOE_CAPABLE;
 		}
 	}
 #endif /* IXGBE_FCOE */
