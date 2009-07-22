@@ -39,6 +39,14 @@ config MISDN_HFCUSB
 	  Enable support for USB ISDN TAs with Cologne Chip AG's
 	  HFC-S USB ISDN Controller
 
+config MISDN_AVMFRITZ
+	tristate "Support for AVM FRITZ!CARD PCI"
+	depends on MISDN
+	depends on PCI
+	select MISDN_IPAC
+	help
+	  Enable support for AVMs FRITZ!CARD PCI cards
+
 config MISDN_INFINEON
 	tristate "Support for cards with Infineon chipset"
 	depends on MISDN
