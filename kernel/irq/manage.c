@@ -451,6 +451,7 @@ static int irq_wait_for_interrupt(struct irqaction *action)
 	return -1;
 }
 
+#ifdef CONFIG_SMP
 /*
  * Check whether we need to change the affinity of the interrupt thread.
  */
@@ -478,6 +479,10 @@ irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action)
 	set_cpus_allowed_ptr(current, mask);
 	free_cpumask_var(mask);
 }
+#else
+static inline void
+irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action) { }
+#endif
 
 /*
  * Interrupt handler thread
