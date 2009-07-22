@@ -21,12 +21,6 @@
 #include <linux/percpu.h>
 #include <asm/byteorder.h>
 
-struct sha512_ctx {
-	u64 state[8];
-	u32 count[4];
-	u8 buf[128];
-};
-
 static DEFINE_PER_CPU(u64[80], msg_schedule);
 
 static inline u64 Ch(u64 x, u64 y, u64 z)
@@ -141,7 +135,7 @@ sha512_transform(u64 *state, const u8 *input)
 static int
 sha512_init(struct shash_desc *desc)
 {
-	struct sha512_ctx *sctx = shash_desc_ctx(desc);
+	struct sha512_state *sctx = shash_desc_ctx(desc);
 	sctx->state[0] = SHA512_H0;
 	sctx->state[1] = SHA512_H1;
 	sctx->state[2] = SHA512_H2;
@@ -158,7 +152,7 @@ sha512_init(struct shash_desc *desc)
 static int
 sha384_init(struct shash_desc *desc)
 {
-	struct sha512_ctx *sctx = shash_desc_ctx(desc);
+	struct sha512_state *sctx = shash_desc_ctx(desc);
 	sctx->state[0] = SHA384_H0;
 	sctx->state[1] = SHA384_H1;
 	sctx->state[2] = SHA384_H2;
@@ -175,7 +169,7 @@ sha384_init(struct shash_desc *desc)
 static int
 sha512_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 {
-	struct sha512_ctx *sctx = shash_desc_ctx(desc);
+	struct sha512_state *sctx = shash_desc_ctx(desc);
 
 	unsigned int i, index, part_len;
 
@@ -214,7 +208,7 @@ sha512_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 static int
 sha512_final(struct shash_desc *desc, u8 *hash)
 {
-	struct sha512_ctx *sctx = shash_desc_ctx(desc);
+	struct sha512_state *sctx = shash_desc_ctx(desc);
         static u8 padding[128] = { 0x80, };
 	__be64 *dst = (__be64 *)hash;
 	__be32 bits[4];
@@ -240,7 +234,7 @@ sha512_final(struct shash_desc *desc, u8 *hash)
 		dst[i] = cpu_to_be64(sctx->state[i]);
 
 	/* Zeroize sensitive information. */
-	memset(sctx, 0, sizeof(struct sha512_ctx));
+	memset(sctx, 0, sizeof(struct sha512_state));
 
 	return 0;
 }
@@ -262,7 +256,7 @@ static struct shash_alg sha512 = {
 	.init		=	sha512_init,
 	.update		=	sha512_update,
 	.final		=	sha512_final,
-	.descsize	=	sizeof(struct sha512_ctx),
+	.descsize	=	sizeof(struct sha512_state),
 	.base		=	{
 		.cra_name	=	"sha512",
 		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
@@ -276,7 +270,7 @@ static struct shash_alg sha384 = {
 	.init		=	sha384_init,
 	.update		=	sha512_update,
 	.final		=	sha384_final,
-	.descsize	=	sizeof(struct sha512_ctx),
+	.descsize	=	sizeof(struct sha512_state),
 	.base		=	{
 		.cra_name	=	"sha384",
 		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
