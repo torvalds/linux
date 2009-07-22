@@ -16,7 +16,7 @@ struct perf_header {
 	int frozen;
 	int attrs, size;
 	struct perf_header_attr **attr;
-	off_t attr_offset;
+	s64 attr_offset;
 	u64 data_offset;
 	u64 data_size;
 };
