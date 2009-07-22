@@ -200,6 +200,20 @@ THE_NILFS_FNS(DISCONTINUED, discontinued)
 #define NILFS_SB_FREQ		10
 #define NILFS_ALTSB_FREQ	60  /* spare superblock */
 
+static inline int nilfs_sb_need_update(struct the_nilfs *nilfs)
+{
+	u64 t = get_seconds();
+	return t < nilfs->ns_sbwtime[0] ||
+		 t > nilfs->ns_sbwtime[0] + NILFS_SB_FREQ;
+}
+
+static inline int nilfs_altsb_need_update(struct the_nilfs *nilfs)
+{
+	u64 t = get_seconds();
+	struct nilfs_super_block **sbp = nilfs->ns_sbp;
+	return sbp[1] && t > nilfs->ns_sbwtime[1] + NILFS_ALTSB_FREQ;
+}
+
 void nilfs_set_last_segment(struct the_nilfs *, sector_t, u64, __u64);
 struct the_nilfs *find_or_create_nilfs(struct block_device *);
 void put_nilfs(struct the_nilfs *);

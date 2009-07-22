@@ -367,17 +367,12 @@ static void nilfs_write_super(struct super_block *sb)
 
 	down_write(&nilfs->ns_sem);
 	if (!(sb->s_flags & MS_RDONLY)) {
-		struct nilfs_super_block **sbp = nilfs->ns_sbp;
-		u64 t = get_seconds();
-		int dupsb;
-
-		if (!nilfs_discontinued(nilfs) && t >= nilfs->ns_sbwtime[0] &&
-		    t < nilfs->ns_sbwtime[0] + NILFS_SB_FREQ) {
+		if (!nilfs_discontinued(nilfs) &&
+		    !nilfs_sb_need_update(nilfs)) {
 			up_write(&nilfs->ns_sem);
 			return;
 		}
-		dupsb = sbp[1] && t > nilfs->ns_sbwtime[1] + NILFS_ALTSB_FREQ;
-		nilfs_commit_super(sbi, dupsb);
+		nilfs_commit_super(sbi, nilfs_altsb_need_update(nilfs));
 	}
 	sb->s_dirt = 0;
 	up_write(&nilfs->ns_sem);
