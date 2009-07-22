@@ -233,7 +233,7 @@ static void *chain_alloc(struct chain_allocator *ca, unsigned int size)
 
 #define BM_END_OF_MAP	(~0UL)
 
-#define BM_BITS_PER_BLOCK	(PAGE_SIZE << 3)
+#define BM_BITS_PER_BLOCK	(PAGE_SIZE * BITS_PER_BYTE)
 
 struct bm_block {
 	struct list_head hook;	/* hook into a list of bitmap blocks */
@@ -275,7 +275,7 @@ static void memory_bm_free(struct memory_bitmap *bm, int clear_nosave_free);
 
 /**
  *	create_bm_block_list - create a list of block bitmap objects
- *	@nr_blocks - number of blocks to allocate
+ *	@pages - number of pages to track
  *	@list - list to put the allocated blocks into
  *	@ca - chain allocator to be used for allocating memory
  */
