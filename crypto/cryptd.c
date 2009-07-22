@@ -478,6 +478,29 @@ static int cryptd_hash_final_enqueue(struct ahash_request *req)
 	return cryptd_hash_enqueue(req, cryptd_hash_final);
 }
 
+static void cryptd_hash_finup(struct crypto_async_request *req_async, int err)
+{
+	struct ahash_request *req = ahash_request_cast(req_async);
+	struct cryptd_hash_request_ctx *rctx = ahash_request_ctx(req);
+
+	if (unlikely(err == -EINPROGRESS))
+		goto out;
+
+	err = shash_ahash_finup(req, &rctx->desc);
+
+	req->base.complete = rctx->complete;
+
+out:
+	local_bh_disable();
+	rctx->complete(&req->base, err);
+	local_bh_enable();
+}
+
+static int cryptd_hash_finup_enqueue(struct ahash_request *req)
+{
+	return cryptd_hash_enqueue(req, cryptd_hash_finup);
+}
+
 static void cryptd_hash_digest(struct crypto_async_request *req_async, int err)
 {
 	struct cryptd_hash_ctx *ctx = crypto_tfm_ctx(req_async->tfm);
@@ -505,6 +528,20 @@ out:
 static int cryptd_hash_digest_enqueue(struct ahash_request *req)
 {
 	return cryptd_hash_enqueue(req, cryptd_hash_digest);
+}
+
+static int cryptd_hash_export(struct ahash_request *req, void *out)
+{
+	struct cryptd_hash_request_ctx *rctx = ahash_request_ctx(req);
+
+	return crypto_shash_export(&rctx->desc, out);
+}
+
+static int cryptd_hash_import(struct ahash_request *req, const void *in)
+{
+	struct cryptd_hash_request_ctx *rctx = ahash_request_ctx(req);
+
+	return crypto_shash_import(&rctx->desc, in);
 }
 
 static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
@@ -546,6 +583,9 @@ static int cryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	inst->alg.init   = cryptd_hash_init_enqueue;
 	inst->alg.update = cryptd_hash_update_enqueue;
 	inst->alg.final  = cryptd_hash_final_enqueue;
+	inst->alg.finup  = cryptd_hash_finup_enqueue;
+	inst->alg.export = cryptd_hash_export;
+	inst->alg.import = cryptd_hash_import;
 	inst->alg.setkey = cryptd_hash_setkey;
 	inst->alg.digest = cryptd_hash_digest_enqueue;
 
