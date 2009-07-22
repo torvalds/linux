@@ -2897,8 +2897,11 @@ void perf_counter_fork(struct task_struct *task)
 		.event  = {
 			.header = {
 				.type = PERF_EVENT_FORK,
+				.misc = 0,
 				.size = sizeof(fork_event.event),
 			},
+			/* .pid  */
+			/* .ppid */
 		},
 	};
 
@@ -3008,8 +3011,16 @@ void perf_counter_comm(struct task_struct *task)
 
 	comm_event = (struct perf_comm_event){
 		.task	= task,
+		/* .comm      */
+		/* .comm_size */
 		.event  = {
-			.header = { .type = PERF_EVENT_COMM, },
+			.header = {
+				.type = PERF_EVENT_COMM,
+				.misc = 0,
+				/* .size */
+			},
+			/* .pid */
+			/* .tid */
 		},
 	};
 
@@ -3160,8 +3171,16 @@ void __perf_counter_mmap(struct vm_area_struct *vma)
 
 	mmap_event = (struct perf_mmap_event){
 		.vma	= vma,
+		/* .file_name */
+		/* .file_size */
 		.event  = {
-			.header = { .type = PERF_EVENT_MMAP, },
+			.header = {
+				.type = PERF_EVENT_MMAP,
+				.misc = 0,
+				/* .size */
+			},
+			/* .pid */
+			/* .tid */
 			.start  = vma->vm_start,
 			.len    = vma->vm_end - vma->vm_start,
 			.pgoff  = vma->vm_pgoff,
