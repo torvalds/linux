@@ -370,13 +370,12 @@ static int ksym_trace_init(struct trace_array *tr)
 
 static void ksym_trace_print_header(struct seq_file *m)
 {
-
 	seq_puts(m,
-		 "#       TASK-PID      CPU#      Symbol         Type    "
-		 "Function         \n");
+		 "#       TASK-PID   CPU#      Symbol                    "
+		 "Type    Function\n");
 	seq_puts(m,
-		 "#          |           |          |              |         "
-		 "|            \n");
+		 "#          |        |          |                       "
+		 " |         |\n");
 }
 
 static enum print_line_t ksym_trace_output(struct trace_iterator *iter)
@@ -392,7 +391,7 @@ static enum print_line_t ksym_trace_output(struct trace_iterator *iter)
 
 	trace_assign_type(field, entry);
 
-	ret = trace_seq_printf(s, "%-15s %-5d %-3d %-20s ", field->cmd,
+	ret = trace_seq_printf(s, "%11s-%-5d [%03d] %-30s ", field->cmd,
 				entry->pid, iter->cpu, field->ksym_name);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
@@ -412,7 +411,7 @@ static enum print_line_t ksym_trace_output(struct trace_iterator *iter)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	sprint_symbol(str, field->ip);
-	ret = trace_seq_printf(s, "%-20s\n", str);
+	ret = trace_seq_printf(s, "%s\n", str);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
