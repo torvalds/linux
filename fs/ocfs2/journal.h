@@ -330,20 +330,27 @@ int                  ocfs2_journal_dirty(handle_t *handle,
 /* extended attribute block update */
 #define OCFS2_XATTR_BLOCK_UPDATE_CREDITS 1
 
-/* global quotafile inode update, data block */
-#define OCFS2_QINFO_WRITE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 1)
+/* Update of a single quota block */
+#define OCFS2_QUOTA_BLOCK_UPDATE_CREDITS 1
 
+/* global quotafile inode update, data block */
+#define OCFS2_QINFO_WRITE_CREDITS (OCFS2_INODE_UPDATE_CREDITS + \
+				   OCFS2_QUOTA_BLOCK_UPDATE_CREDITS)
+
+#define OCFS2_LOCAL_QINFO_WRITE_CREDITS OCFS2_QUOTA_BLOCK_UPDATE_CREDITS
 /*
  * The two writes below can accidentally see global info dirty due
  * to set_info() quotactl so make them prepared for the writes.
  */
 /* quota data block, global info */
 /* Write to local quota file */
-#define OCFS2_QWRITE_CREDITS (OCFS2_QINFO_WRITE_CREDITS + 1)
+#define OCFS2_QWRITE_CREDITS (OCFS2_QINFO_WRITE_CREDITS + \
+			      OCFS2_QUOTA_BLOCK_UPDATE_CREDITS)
 
 /* global quota data block, local quota data block, global quota inode,
  * global quota info */
-#define OCFS2_QSYNC_CREDITS (OCFS2_INODE_UPDATE_CREDITS + 3)
+#define OCFS2_QSYNC_CREDITS (OCFS2_QINFO_WRITE_CREDITS + \
+			     2 * OCFS2_QUOTA_BLOCK_UPDATE_CREDITS)
 
 static inline int ocfs2_quota_trans_credits(struct super_block *sb)
 {

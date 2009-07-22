@@ -101,7 +101,8 @@ static int ocfs2_modify_bh(struct inode *inode, struct buffer_head *bh,
 	handle_t *handle;
 	int status;
 
-	handle = ocfs2_start_trans(OCFS2_SB(sb), 1);
+	handle = ocfs2_start_trans(OCFS2_SB(sb),
+				   OCFS2_QUOTA_BLOCK_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -611,7 +612,8 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 			goto out_bh;
 		/* Mark quota file as clean if we are recovering quota file of
 		 * some other node. */
-		handle = ocfs2_start_trans(osb, 1);
+		handle = ocfs2_start_trans(osb,
+					   OCFS2_LOCAL_QINFO_WRITE_CREDITS);
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
 			mlog_errno(status);
@@ -965,7 +967,10 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 		mlog_errno(status);
 		goto out;
 	}
-	handle = ocfs2_start_trans(OCFS2_SB(sb), 3);
+	/* Local quota info and two new blocks we initialize */
+	handle = ocfs2_start_trans(OCFS2_SB(sb),
+			OCFS2_LOCAL_QINFO_WRITE_CREDITS +
+			2 * OCFS2_QUOTA_BLOCK_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);
@@ -1128,7 +1133,10 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 	}
 	ocfs2_set_new_buffer_uptodate(lqinode, bh);
 
-	handle = ocfs2_start_trans(OCFS2_SB(sb), 3);
+	/* Local quota info, chunk header and the new block we initialize */
+	handle = ocfs2_start_trans(OCFS2_SB(sb),
+			OCFS2_LOCAL_QINFO_WRITE_CREDITS +
+			2 * OCFS2_QUOTA_BLOCK_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
 		mlog_errno(status);

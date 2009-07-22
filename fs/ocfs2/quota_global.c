@@ -648,10 +648,15 @@ int ocfs2_calc_qdel_credits(struct super_block *sb, int type)
 		return 0;
 
 	oinfo = sb_dqinfo(sb, type)->dqi_priv;
-	/* We modify tree, leaf block, global info, local chunk header,
-	 * global and local inode */
-	return oinfo->dqi_gi.dqi_qtree_depth + 2 + 1 +
-	       2 * OCFS2_INODE_UPDATE_CREDITS;
+	/*
+	 * We modify tree, leaf block, global info, local chunk header,
+	 * global and local inode; OCFS2_QINFO_WRITE_CREDITS already
+	 * accounts for inode update
+	 */
+	return oinfo->dqi_gi.dqi_qtree_depth +
+	       OCFS2_QINFO_WRITE_CREDITS +
+	       2 * OCFS2_QUOTA_BLOCK_UPDATE_CREDITS +
+	       OCFS2_INODE_UPDATE_CREDITS;
 }
 
 static int ocfs2_release_dquot(struct dquot *dquot)
@@ -701,7 +706,10 @@ int ocfs2_calc_qinit_credits(struct super_block *sb, int type)
 	 * global file we can modify info, tree and leaf block */
 	return ocfs2_calc_extend_credits(sb, &lfe->id2.i_list, 0) +
 	       ocfs2_calc_extend_credits(sb, &gfe->id2.i_list, 0) +
-	       3 + oinfo->dqi_gi.dqi_qtree_depth + 2;
+	       OCFS2_LOCAL_QINFO_WRITE_CREDITS +
+	       2 * OCFS2_QUOTA_BLOCK_UPDATE_CREDITS +
+	       oinfo->dqi_gi.dqi_qtree_depth +
+	       2 * OCFS2_QUOTA_BLOCK_UPDATE_CREDITS;
 }
 
 static int ocfs2_acquire_dquot(struct dquot *dquot)
