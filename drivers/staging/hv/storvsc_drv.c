@@ -473,7 +473,7 @@ static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl, unsigne
 
 	num_pages = ALIGN_UP(len, PAGE_SIZE) >> PAGE_SHIFT;
 
-	bounce_sgl = kzalloc(num_pages * sizeof(struct scatterlist), GFP_ATOMIC);
+	bounce_sgl = kcalloc(num_pages, sizeof(struct scatterlist), GFP_ATOMIC);
 	if (!bounce_sgl)
 	{
 		return NULL;
@@ -928,14 +928,14 @@ static void storvsc_host_rescan_callback(struct work_struct *work)
 	DPRINT_ENTER(STORVSC_DRV);
 
 	host_device_ctx = (struct host_device_context*)host->hostdata;
-	lun_list = kzalloc(sizeof(unsigned int)*STORVSC_MAX_LUNS_PER_TARGET, GFP_ATOMIC);
+	lun_list = kcalloc(STORVSC_MAX_LUNS_PER_TARGET, sizeof(unsigned int), GFP_ATOMIC);
 	if (!lun_list)
 	{
 		DPRINT_ERR(STORVSC_DRV, "unable to allocate lun list");
 		return;
 	}
 
-	sdevs_remove_list = kzalloc(sizeof(void*)*STORVSC_MAX_LUNS_PER_TARGET, GFP_ATOMIC);
+	sdevs_remove_list = kcalloc(STORVSC_MAX_LUNS_PER_TARGET, sizeof(void *), GFP_ATOMIC);
 	if (!sdevs_remove_list)
 	{
 		kfree(lun_list);
