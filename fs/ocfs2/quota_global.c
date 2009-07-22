@@ -69,6 +69,7 @@ static void ocfs2_global_mem2diskdqb(void *dp, struct dquot *dquot)
 	d->dqb_curspace = cpu_to_le64(m->dqb_curspace);
 	d->dqb_btime = cpu_to_le64(m->dqb_btime);
 	d->dqb_itime = cpu_to_le64(m->dqb_itime);
+	d->dqb_pad1 = d->dqb_pad2 = 0;
 }
 
 static int ocfs2_global_is_id(void *dp, struct dquot *dquot)
