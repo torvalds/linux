@@ -777,6 +777,7 @@ static int ocfs2_sb_probe(struct super_block *sb,
 		}
 		di = (struct ocfs2_dinode *) (*bh)->b_data;
 		memset(stats, 0, sizeof(struct ocfs2_blockcheck_stats));
+		spin_lock_init(&stats->b_lock);
 		status = ocfs2_verify_volume(di, *bh, blksize, stats);
 		if (status >= 0)
 			goto bail;
