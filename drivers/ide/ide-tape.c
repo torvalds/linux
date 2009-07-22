@@ -155,7 +155,8 @@ typedef struct ide_tape_obj {
 	 * other device. Note that at most we will have only one DSC (usually
 	 * data transfer) request in the device request queue.
 	 */
-	struct request *postponed_rq;
+	bool postponed_rq;
+
 	/* The time in which we started polling for DSC */
 	unsigned long dsc_polling_start;
 	/* Timer used to poll for dsc */
@@ -372,15 +373,14 @@ static int ide_tape_callback(ide_drive_t *drive, int dsc)
  * Postpone the current request so that ide.c will be able to service requests
  * from another device on the same port while we are polling for DSC.
  */
-static void idetape_postpone_request(ide_drive_t *drive)
+static void ide_tape_stall_queue(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
-	struct request *rq = drive->hwif->rq;
 
 	ide_debug_log(IDE_DBG_FUNC, "cmd: 0x%x, dsc_poll_freq: %lu",
-		      rq->cmd[0], tape->dsc_poll_freq);
+		      drive->hwif->rq->cmd[0], tape->dsc_poll_freq);
 
-	tape->postponed_rq = rq;
+	tape->postponed_rq = true;
 
 	ide_stall_queue(drive, tape->dsc_poll_freq);
 }
@@ -394,7 +394,7 @@ static void ide_tape_handle_dsc(ide_drive_t *drive)
 	tape->dsc_poll_freq = IDETAPE_DSC_MA_FAST;
 	tape->dsc_timeout = jiffies + IDETAPE_DSC_MA_TIMEOUT;
 	/* Allow ide.c to handle other requests */
-	idetape_postpone_request(drive);
+	ide_tape_stall_queue(drive);
 }
 
 /*
@@ -567,7 +567,6 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	ide_hwif_t *hwif = drive->hwif;
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc = NULL;
-	struct request *postponed_rq = tape->postponed_rq;
 	struct ide_cmd cmd;
 	u8 stat;
 
@@ -582,18 +581,6 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		pc = drive->failed_pc;
 		goto out;
 	}
-
-	if (postponed_rq != NULL)
-		if (rq != postponed_rq) {
-			printk(KERN_ERR "ide-tape: ide-tape.c bug - "
-					"Two DSC requests were queued\n");
-			drive->failed_pc = NULL;
-			rq->errors = 0;
-			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
-			return ide_stopped;
-		}
-
-	tape->postponed_rq = NULL;
 
 	/*
 	 * If the tape is still busy, postpone our request and service
@@ -612,7 +599,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 
 	if (!(drive->atapi_flags & IDE_AFLAG_IGNORE_DSC) &&
 	    !(stat & ATA_DSC)) {
-		if (postponed_rq == NULL) {
+		if (!tape->postponed_rq) {
 			tape->dsc_polling_start = jiffies;
 			tape->dsc_poll_freq = tape->best_dsc_rw_freq;
 			tape->dsc_timeout = jiffies + IDETAPE_DSC_RW_TIMEOUT;
@@ -629,10 +616,12 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 					tape->dsc_polling_start +
 					IDETAPE_DSC_MA_THRESHOLD))
 			tape->dsc_poll_freq = IDETAPE_DSC_MA_SLOW;
-		idetape_postpone_request(drive);
+		ide_tape_stall_queue(drive);
 		return ide_stopped;
-	} else
+	} else {
 		drive->atapi_flags &= ~IDE_AFLAG_IGNORE_DSC;
+		tape->postponed_rq = false;
+	}
 
 	if (rq->cmd[13] & REQ_IDETAPE_READ) {
 		pc = &tape->queued_pc;
