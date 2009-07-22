@@ -2795,26 +2795,6 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 		}
 	}
 
-	for (i = 0; i > nr; i++) {
-		struct btrfs_multi_bio *multi;
-		struct btrfs_bio_stripe *stripe;
-		int ret;
-
-		length = 1;
-		ret = btrfs_map_block(map_tree, WRITE, buf[i],
-				      &length, &multi, 0);
-		BUG_ON(ret);
-
-		stripe = multi->stripes;
-		for (j = 0; j < multi->num_stripes; j++) {
-			if (stripe->physical >= physical &&
-			    physical < stripe->physical + length)
-				break;
-		}
-		BUG_ON(j >= multi->num_stripes);
-		kfree(multi);
-	}
-
 	*logical = buf;
 	*naddrs = nr;
 	*stripe_len = map->stripe_len;
