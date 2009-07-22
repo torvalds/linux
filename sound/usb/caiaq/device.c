@@ -35,13 +35,14 @@
 #include "input.h"
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.3.18");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.3.19");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, RigKontrol3},"
 			 "{Native Instruments, Kore Controller},"
 			 "{Native Instruments, Kore Controller 2},"
 			 "{Native Instruments, Audio Kontrol 1},"
+			 "{Native Instruments, Audio 2 DJ},"
 			 "{Native Instruments, Audio 4 DJ},"
 			 "{Native Instruments, Audio 8 DJ},"
 			 "{Native Instruments, Session I/O},"
@@ -120,6 +121,11 @@ static struct usb_device_id snd_usb_id_table[] = {
 		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =     USB_VID_NATIVEINSTRUMENTS,
 		.idProduct =    USB_PID_AUDIO4DJ
+	},
+	{
+		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
+		.idVendor =     USB_VID_NATIVEINSTRUMENTS,
+		.idProduct =    USB_PID_AUDIO2DJ
 	},
 	{ /* terminator */ }
 };
