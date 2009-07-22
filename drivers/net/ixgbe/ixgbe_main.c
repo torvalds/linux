@@ -34,6 +34,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <linux/pkt_sched.h>
 #include <linux/ipv6.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
@@ -5126,9 +5127,6 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	int count = 0;
 	unsigned int f;
 
-	r_idx = skb->queue_mapping;
-	tx_ring = &adapter->tx_ring[r_idx];
-
 	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
 		tx_flags |= vlan_tx_tag_get(skb);
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
@@ -5138,10 +5136,18 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
 	} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-		tx_flags |= (skb->queue_mapping << 13);
-		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
-		tx_flags |= IXGBE_TX_FLAGS_VLAN;
+		if (skb->priority != TC_PRIO_CONTROL) {
+			tx_flags |= (skb->queue_mapping << 13);
+			tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
+			tx_flags |= IXGBE_TX_FLAGS_VLAN;
+		} else {
+			skb->queue_mapping =
+				adapter->ring_feature[RING_F_DCB].indices-1;
+		}
 	}
+
+	r_idx = skb->queue_mapping;
+	tx_ring = &adapter->tx_ring[r_idx];
 
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
 	    (skb->protocol == htons(ETH_P_FCOE)))
