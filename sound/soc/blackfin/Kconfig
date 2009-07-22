@@ -96,6 +96,14 @@ config SND_BF5XX_SOC_AD1980
 	help
 	  Say Y if you want to add support for SoC audio on BF5xx STAMP/EZKIT.
 
+config SND_BF5XX_SOC_AD1938
+        tristate "SoC AD1938 Audio support for Blackfin"
+        depends on SND_BF5XX_TDM
+        select SND_BF5XX_SOC_TDM
+        select SND_SOC_AD1938
+        help
+          Say Y if you want to add support for AD1938 codec on Blackfin.
+
 config SND_BF5XX_SPORT_NUM
 	int "Set a SPORT for Sound chip"
 	depends on (SND_BF5XX_I2S || SND_BF5XX_AC97 || SND_BF5XX_TDM)
