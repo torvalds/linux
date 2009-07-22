@@ -183,14 +183,16 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 }
 EXPORT_SYMBOL_GPL(crypto_shash_digest);
 
-static int shash_no_export(struct shash_desc *desc, void *out)
+static int shash_default_export(struct shash_desc *desc, void *out)
 {
-	return -ENOSYS;
+	memcpy(out, shash_desc_ctx(desc), crypto_shash_descsize(desc->tfm));
+	return 0;
 }
 
-static int shash_no_import(struct shash_desc *desc, const void *in)
+static int shash_default_import(struct shash_desc *desc, const void *in)
 {
-	return -ENOSYS;
+	memcpy(shash_desc_ctx(desc), in, crypto_shash_descsize(desc->tfm));
+	return 0;
 }
 
 static int shash_async_setkey(struct crypto_ahash *tfm, const u8 *key,
@@ -563,10 +565,11 @@ static int shash_prepare_alg(struct shash_alg *alg)
 		alg->finup = shash_finup_unaligned;
 	if (!alg->digest)
 		alg->digest = shash_digest_unaligned;
-	if (!alg->import)
-		alg->import = shash_no_import;
-	if (!alg->export)
-		alg->export = shash_no_export;
+	if (!alg->export) {
+		alg->export = shash_default_export;
+		alg->import = shash_default_import;
+		alg->statesize = alg->descsize;
+	}
 	if (!alg->setkey)
 		alg->setkey = shash_no_setkey;
 
