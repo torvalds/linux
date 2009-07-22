@@ -47,6 +47,15 @@ config MISDN_AVMFRITZ
 	help
 	  Enable support for AVMs FRITZ!CARD PCI cards
 
+config MISDN_SPEEDFAX
+	tristate "Support for Sedlbauer Speedfax+"
+	depends on MISDN
+	depends on PCI
+	select MISDN_IPAC
+	select MISDN_ISAR
+	help
+	  Enable support for Sedlbauer Speedfax+.
+
 config MISDN_INFINEON
 	tristate "Support for cards with Infineon chipset"
 	depends on MISDN
@@ -58,6 +67,10 @@ config MISDN_INFINEON
 
 
 config MISDN_IPAC
+	tristate
+	depends on MISDN
+
+config MISDN_ISAR
 	tristate
 	depends on MISDN
 
