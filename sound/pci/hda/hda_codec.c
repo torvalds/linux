@@ -2367,9 +2367,14 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	hda_nid_t nid;
 	int i;
 
-	snd_hda_codec_write(codec, fg, 0, AC_VERB_SET_POWER_STATE,
+	/* this delay seems necessary to avoid click noise at power-down */
+	if (power_state == AC_PWRST_D3)
+		msleep(100);
+	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
 			    power_state);
-	msleep(10); /* partial workaround for "azx_get_response timeout" */
+	/* partial workaround for "azx_get_response timeout" */
+	if (power_state == AC_PWRST_D0)
+		msleep(10);
 
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {

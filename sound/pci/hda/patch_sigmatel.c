@@ -4745,6 +4745,20 @@ static int stac92xx_hp_check_power_status(struct hda_codec *codec,
 static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	int i;
+	hda_nid_t nid;
+
+	/* reset each pin before powering down DAC/ADC to avoid click noise */
+	nid = codec->start_nid;
+	for (i = 0; i < codec->num_nodes; i++, nid++) {
+		unsigned int wcaps = get_wcaps(codec, nid);
+		unsigned int wid_type = (wcaps & AC_WCAP_TYPE) >>
+			AC_WCAP_TYPE_SHIFT;
+		if (wid_type == AC_WID_PIN)
+			snd_hda_codec_read(codec, nid, 0,
+				AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
+	}
+
 	if (spec->eapd_mask)
 		stac_gpio_set(codec, spec->gpio_mask,
 				spec->gpio_dir, spec->gpio_data &
