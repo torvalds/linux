@@ -2007,7 +2007,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 			goto done;
 		if (ret) {
 			ret = 0;
-			goto done;
+			break;
 		}
 
 		l = path->nodes[0];
@@ -2015,7 +2015,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 		btrfs_item_key_to_cpu(l, &key, path->slots[0]);
 
 		if (key.objectid != device->devid)
-			goto done;
+			break;
 
 		dev_extent = btrfs_item_ptr(l, slot, struct btrfs_dev_extent);
 		length = btrfs_dev_extent_length(l, dev_extent);
