@@ -664,7 +664,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
-	argc = parse_options(argc, argv, options, record_usage, 0);
+	argc = parse_options(argc, argv, options, record_usage,
+		PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target_pid == -1 && !system_wide)
 		usage_with_options(record_usage, options);
 
