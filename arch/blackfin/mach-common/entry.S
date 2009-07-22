@@ -326,8 +326,6 @@ ENTRY(_ex_trap_c)
 	[p4] = r7;
 	csync;
 
-#ifndef CONFIG_DEBUG_DOUBLEFAULT
-
 	/*
 	 * Save these registers, as they are only valid in exception context
 	 *  (where we are now - as soon as we defer to IRQ5, they can change)
@@ -347,7 +345,10 @@ ENTRY(_ex_trap_c)
 
 	r6 = retx;
 	[p5 + PDA_RETX] = r6;
-#endif
+
+	r6 = SEQSTAT;
+	[p5 + PDA_SEQSTAT] = r6;
+
 	/* Save the state of single stepping */
 	r6 = SYSCFG;
 	[p5 + PDA_SYSCFG] = r6;
@@ -444,6 +445,9 @@ ENTRY(_exception_to_level5)
 	r6 = [p5 + PDA_SYSCFG];
 	[sp + PT_SYSCFG] = r6;
 
+	r6 = [p5 + PDA_SEQSTAT]; /* Read back seqstat */
+	[sp + PT_SEQSTAT] = r6;
+
 	/* Restore the hardware error vector.  */
 	r7.h = _evt_ivhw;
 	r7.l = _evt_ivhw;
@@ -496,7 +500,7 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	 */
 	EX_SCRATCH_REG = sp;
 	GET_PDA_SAFE(sp);
-	sp = [sp + PDA_EXSTACK]
+	sp = [sp + PDA_EXSTACK];
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
 	[--sp] = (R7:6,P5:4);
@@ -532,18 +536,18 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	p4.l = lo(DCPLB_FAULT_ADDR);
 	p4.h = hi(DCPLB_FAULT_ADDR);
 	r7 = [p4];
-	[p5 + PDA_DCPLB] = r7;
+	[p5 + PDA_DF_DCPLB] = r7;
 
 	p4.l = lo(ICPLB_FAULT_ADDR);
 	p4.h = hi(ICPLB_FAULT_ADDR);
 	r7 = [p4];
-	[p5 + PDA_ICPLB] = r7;
+	[p5 + PDA_DF_ICPLB] = r7;
 
-	r6 = retx;
-	[p5 + PDA_RETX] = r6;
+	r7 = retx;
+	[p5 + PDA_DF_RETX] = r7;
 
 	r7 = SEQSTAT;		/* reason code is in bit 5:0 */
-	[p5 + PDA_SEQSTAT] = r7;
+	[p5 + PDA_DF_SEQSTAT] = r7;
 #else
 	r7 = SEQSTAT;           /* reason code is in bit 5:0 */
 #endif

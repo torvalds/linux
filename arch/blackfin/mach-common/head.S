@@ -124,22 +124,22 @@ ENTRY(__start)
 	 * below
 	 */
 	GET_PDA(p0, r0);
-	r6 = [p0 + PDA_RETX];
+	r6 = [p0 + PDA_DF_RETX];
 	p1.l = _init_saved_retx;
 	p1.h = _init_saved_retx;
 	[p1] = r6;
 
-	r6 = [p0 + PDA_DCPLB];
+	r6 = [p0 + PDA_DF_DCPLB];
 	p1.l = _init_saved_dcplb_fault_addr;
 	p1.h = _init_saved_dcplb_fault_addr;
 	[p1] = r6;
 
-	r6 = [p0 + PDA_ICPLB];
+	r6 = [p0 + PDA_DF_ICPLB];
 	p1.l = _init_saved_icplb_fault_addr;
 	p1.h = _init_saved_icplb_fault_addr;
 	[p1] = r6;
 
-	r6 = [p0 + PDA_SEQSTAT];
+	r6 = [p0 + PDA_DF_SEQSTAT];
 	p1.l = _init_saved_seqstat;
 	p1.h = _init_saved_seqstat;
 	[p1] = r6;

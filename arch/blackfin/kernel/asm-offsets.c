@@ -153,6 +153,12 @@ int main(void)
 	DEFINE(PDA_ICPLB, offsetof(struct blackfin_pda, icplb_fault_addr));
 	DEFINE(PDA_RETX, offsetof(struct blackfin_pda, retx));
 	DEFINE(PDA_SEQSTAT, offsetof(struct blackfin_pda, seqstat));
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+	DEFINE(PDA_DF_DCPLB, offsetof(struct blackfin_pda, dcplb_doublefault_addr));
+	DEFINE(PDA_DF_ICPLB, offsetof(struct blackfin_pda, icplb_doublefault_addr));
+	DEFINE(PDA_DF_SEQSTAT, offsetof(struct blackfin_pda, seqstat_doublefault));
+	DEFINE(PDA_DF_RETX, offsetof(struct blackfin_pda, retx_doublefault));
+#endif
 #ifdef CONFIG_SMP
 	/* Inter-core lock (in L2 SRAM) */
 	DEFINE(SIZEOF_CORELOCK, sizeof(struct corelock_slot));

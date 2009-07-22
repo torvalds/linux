@@ -126,22 +126,22 @@ ENTRY(_coreb_trampoline_start)
 	 * below
 	 */
 	GET_PDA(p0, r0);
-	r7 = [p0 + PDA_RETX];
+	r7 = [p0 + PDA_DF_RETX];
 	p1.l = _init_saved_retx_coreb;
 	p1.h = _init_saved_retx_coreb;
 	[p1] = r7;
 
-	r7 = [p0 + PDA_DCPLB];
+	r7 = [p0 + PDA_DF_DCPLB];
 	p1.l = _init_saved_dcplb_fault_addr_coreb;
 	p1.h = _init_saved_dcplb_fault_addr_coreb;
 	[p1] = r7;
 
-	r7 = [p0 + PDA_ICPLB];
+	r7 = [p0 + PDA_DF_ICPLB];
 	p1.l = _init_saved_icplb_fault_addr_coreb;
 	p1.h = _init_saved_icplb_fault_addr_coreb;
 	[p1] = r7;
 
-	r7 = [p0 + PDA_SEQSTAT];
+	r7 = [p0 + PDA_DF_SEQSTAT];
 	p1.l = _init_saved_seqstat_coreb;
 	p1.h = _init_saved_seqstat_coreb;
 	[p1] = r7;
