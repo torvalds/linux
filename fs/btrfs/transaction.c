@@ -444,9 +444,6 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 
 	btrfs_write_dirty_block_groups(trans, root);
 
-	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
-	BUG_ON(ret);
-
 	while (1) {
 		old_root_bytenr = btrfs_root_bytenr(&root->root_item);
 		if (old_root_bytenr == root->node->start)
@@ -457,9 +454,8 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 					&root->root_key,
 					&root->root_item);
 		BUG_ON(ret);
-		btrfs_write_dirty_block_groups(trans, root);
 
-		ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
+		ret = btrfs_write_dirty_block_groups(trans, root);
 		BUG_ON(ret);
 	}
 	free_extent_buffer(root->commit_root);
@@ -495,9 +491,6 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 		root = list_entry(next, struct btrfs_root, dirty_list);
 
 		update_cowonly_root(trans, root);
-
-		ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
-		BUG_ON(ret);
 	}
 	return 0;
 }

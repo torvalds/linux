@@ -2387,13 +2387,29 @@ fail:
 
 }
 
+static struct btrfs_block_group_cache *
+next_block_group(struct btrfs_root *root,
+		 struct btrfs_block_group_cache *cache)
+{
+	struct rb_node *node;
+	spin_lock(&root->fs_info->block_group_cache_lock);
+	node = rb_next(&cache->cache_node);
+	btrfs_put_block_group(cache);
+	if (node) {
+		cache = rb_entry(node, struct btrfs_block_group_cache,
+				 cache_node);
+		atomic_inc(&cache->count);
+	} else
+		cache = NULL;
+	spin_unlock(&root->fs_info->block_group_cache_lock);
+	return cache;
+}
+
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root)
 {
-	struct btrfs_block_group_cache *cache, *entry;
-	struct rb_node *n;
+	struct btrfs_block_group_cache *cache;
 	int err = 0;
-	int werr = 0;
 	struct btrfs_path *path;
 	u64 last = 0;
 
@@ -2402,39 +2418,35 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	while (1) {
-		cache = NULL;
-		spin_lock(&root->fs_info->block_group_cache_lock);
-		for (n = rb_first(&root->fs_info->block_group_cache_tree);
-		     n; n = rb_next(n)) {
-			entry = rb_entry(n, struct btrfs_block_group_cache,
-					 cache_node);
-			if (entry->dirty) {
-				cache = entry;
-				break;
-			}
+		if (last == 0) {
+			err = btrfs_run_delayed_refs(trans, root,
+						     (unsigned long)-1);
+			BUG_ON(err);
 		}
-		spin_unlock(&root->fs_info->block_group_cache_lock);
 
-		if (!cache)
-			break;
-
-		cache->dirty = 0;
-		last += cache->key.offset;
-
-		err = write_one_cache_group(trans, root,
-					    path, cache);
-		/*
-		 * if we fail to write the cache group, we want
-		 * to keep it marked dirty in hopes that a later
-		 * write will work
-		 */
-		if (err) {
-			werr = err;
+		cache = btrfs_lookup_first_block_group(root->fs_info, last);
+		while (cache) {
+			if (cache->dirty)
+				break;
+			cache = next_block_group(root, cache);
+		}
+		if (!cache) {
+			if (last == 0)
+				break;
+			last = 0;
 			continue;
 		}
+
+		cache->dirty = 0;
+		last = cache->key.objectid + cache->key.offset;
+
+		err = write_one_cache_group(trans, root, path, cache);
+		BUG_ON(err);
+		btrfs_put_block_group(cache);
 	}
+
 	btrfs_free_path(path);
-	return werr;
+	return 0;
 }
 
 int btrfs_extent_readonly(struct btrfs_root *root, u64 bytenr)
