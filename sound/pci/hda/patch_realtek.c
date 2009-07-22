@@ -4501,12 +4501,6 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 					      &dig_nid, 1);
 		if (err < 0)
 			continue;
-		if (dig_nid > 0x7f) {
-			printk(KERN_ERR "alc880_auto: invalid dig_nid "
-				"connection 0x%x for NID 0x%x\n", dig_nid,
-				spec->autocfg.dig_out_pins[i]);
-			continue;
-		}
 		if (!i)
 			spec->multiout.dig_out_nid = dig_nid;
 		else {

@@ -3389,7 +3389,7 @@ static int stac92xx_auto_create_mono_output_ctls(struct hda_codec *codec)
 				spec->mono_nid,
 				con_lst,
 				HDA_MAX_NUM_INPUTS);
-	if (!num_cons || num_cons > ARRAY_SIZE(stac92xx_mono_labels))
+	if (num_cons <= 0 || num_cons > ARRAY_SIZE(stac92xx_mono_labels))
 		return -EINVAL;
 
 	for (i = 0; i < num_cons; i++) {
@@ -3535,7 +3535,7 @@ static int stac92xx_auto_create_spdif_mux_ctls(struct hda_codec *codec)
 				spec->smux_nids[0],
 				con_lst,
 				HDA_MAX_NUM_INPUTS);
-	if (!num_cons)
+	if (num_cons <= 0)
 		return -EINVAL;
 
 	if (!labels)
@@ -3742,7 +3742,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		if (snd_hda_get_connections(codec,
 				spec->autocfg.mono_out_pin, conn_list, 1) &&
 				snd_hda_get_connections(codec, conn_list[0],
-				conn_list, 1)) {
+				conn_list, 1) > 0) {
 
 				int wcaps = get_wcaps(codec, conn_list[0]);
 				int wid_type = (wcaps & AC_WCAP_TYPE)
@@ -5169,6 +5169,8 @@ again:
 
 	num_dacs = snd_hda_get_connections(codec, nid,
 				conn, STAC92HD83_DAC_COUNT + 1) - 1;
+	if (num_dacs < 0)
+		num_dacs = STAC92HD83_DAC_COUNT;
 
 	/* set port X to select the last DAC
 	 */

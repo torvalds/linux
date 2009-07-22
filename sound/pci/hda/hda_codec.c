@@ -306,6 +306,12 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 	if (snd_BUG_ON(!conn_list || max_conns <= 0))
 		return -EINVAL;
 
+	if ((get_wcaps(codec, nid) & AC_WCAP_CONN_LIST) == 0) {
+		snd_printk(KERN_WARNING "hda_codec: "
+			   "connection list not available for 0x%x\n", nid);
+		return -EINVAL;
+	}
+
 	parm = snd_hda_param_read(codec, nid, AC_PAR_CONNLIST_LEN);
 	if (parm & AC_CLIST_LONG) {
 		/* long form */
