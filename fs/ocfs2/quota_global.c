@@ -211,14 +211,17 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 
 	mutex_lock_nested(&gqinode->i_mutex, I_MUTEX_QUOTA);
 	if (gqinode->i_size < off + len) {
+		loff_t rounded_end =
+				ocfs2_align_bytes_to_blocks(sb, off + len);
+
 		down_write(&OCFS2_I(gqinode)->ip_alloc_sem);
-		err = ocfs2_extend_no_holes(gqinode, off + len, off);
+		err = ocfs2_extend_no_holes(gqinode, rounded_end, off);
 		up_write(&OCFS2_I(gqinode)->ip_alloc_sem);
 		if (err < 0)
 			goto out;
 		err = ocfs2_simple_size_update(gqinode,
 					       oinfo->dqi_gqi_bh,
-					       off + len);
+					       rounded_end);
 		if (err < 0)
 			goto out;
 		new = 1;
