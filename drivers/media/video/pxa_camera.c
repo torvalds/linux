@@ -1579,6 +1579,7 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 		pcdev->mclk = 20000000;
 	}
 
+	pcdev->soc_host.dev = &pdev->dev;
 	pcdev->mclk_divisor = mclk_get_divisor(pcdev);
 
 	INIT_LIST_HEAD(&pcdev->capture);
@@ -1644,7 +1645,6 @@ static int __devinit pxa_camera_probe(struct platform_device *pdev)
 	pcdev->soc_host.drv_name	= PXA_CAM_DRV_NAME;
 	pcdev->soc_host.ops		= &pxa_soc_camera_host_ops;
 	pcdev->soc_host.priv		= pcdev;
-	pcdev->soc_host.dev		= &pdev->dev;
 	pcdev->soc_host.nr		= pdev->id;
 
 	err = soc_camera_host_register(&pcdev->soc_host);
