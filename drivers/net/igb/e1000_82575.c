@@ -53,7 +53,7 @@ static s32  igb_setup_fiber_serdes_link_82575(struct e1000_hw *);
 static s32  igb_write_phy_reg_sgmii_82575(struct e1000_hw *, u32, u16);
 static void igb_clear_hw_cntrs_82575(struct e1000_hw *);
 static s32  igb_acquire_swfw_sync_82575(struct e1000_hw *, u16);
-static s32  igb_configure_pcs_link_82575(struct e1000_hw *);
+static void igb_configure_pcs_link_82575(struct e1000_hw *);
 static s32  igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *, u16 *,
 						 u16 *);
 static s32  igb_get_phy_id_82575(struct e1000_hw *);
@@ -1050,9 +1050,7 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		}
 	}
 
-	ret_val = igb_configure_pcs_link_82575(hw);
-	if (ret_val)
-		goto out;
+	igb_configure_pcs_link_82575(hw);
 
 	/*
 	 * Check link status. Wait up to 100 microseconds for link to become
@@ -1161,14 +1159,14 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
  *  independent interface (sgmii) is being used.  Configures the link
  *  for auto-negotiation or forces speed/duplex.
  **/
-static s32 igb_configure_pcs_link_82575(struct e1000_hw *hw)
+static void igb_configure_pcs_link_82575(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 reg = 0;
 
 	if (hw->phy.media_type != e1000_media_type_copper ||
 	    !(igb_sgmii_active_82575(hw)))
-		goto out;
+		return;
 
 	/* For SGMII, we need to issue a PCS autoneg restart */
 	reg = rd32(E1000_PCS_LCTL);
@@ -1211,9 +1209,6 @@ static s32 igb_configure_pcs_link_82575(struct e1000_hw *hw)
 		       reg);
 	}
 	wr32(E1000_PCS_LCTL, reg);
-
-out:
-	return 0;
 }
 
 /**
