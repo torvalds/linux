@@ -62,6 +62,22 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(acpi_handle handle, struct pci_bus *bus);
 static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context);
 
+static struct pci_bus *pci_bus_from_handle(acpi_handle handle)
+{
+	struct pci_bus *pbus;
+	struct acpi_pci_root *root;
+
+	root = acpi_pci_find_root(handle);
+	if (root)
+		pbus = root->bus;
+	else {
+		struct pci_dev *pdev = acpi_get_pci_dev(handle);
+		pbus = pdev->subordinate;
+		pci_dev_put(pdev);
+	}
+	return pbus;
+}
+
 /* callback routine to check for the existence of a pci dock device */
 static acpi_status
 is_pci_dock_device(acpi_handle handle, u32 lvl, void *context, void **rv)
@@ -1387,16 +1403,7 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
 /* Program resources in newly inserted bridge */
 static int acpiphp_configure_bridge (acpi_handle handle)
 {
-	struct pci_dev *dev;
-	struct pci_bus *bus;
-
-	dev = acpi_get_pci_dev(handle);
-	if (!dev) {
-		err("cannot get PCI domain and bus number for bridge\n");
-		return -EINVAL;
-	}
-
-	bus = dev->bus;
+	struct pci_bus *bus = pci_bus_from_handle(handle);
 
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
@@ -1404,7 +1411,6 @@ static int acpiphp_configure_bridge (acpi_handle handle)
 	acpiphp_set_hpp_values(handle, bus);
 	pci_enable_bridges(bus);
 	acpiphp_configure_ioapics(handle);
-	pci_dev_put(dev);
 	return 0;
 }
 
