@@ -652,6 +652,16 @@
  *	- SPRG2 scratch for exception vectors
  *	- SPRG3 unused (user visible)
  *
+ * 64-bit embedded
+ *	- SPRG0 generic exception scratch
+ *	- SPRG2 TLB exception stack
+ *	- SPRG3 unused (user visible)
+ *	- SPRG4 unused (user visible)
+ *	- SPRG6 TLB miss scratch (user visible, sorry !)
+ *	- SPRG7 critical exception scratch
+ *	- SPRG8 machine check exception scratch
+ *	- SPRG9 debug exception scratch
+ *
  * All 32-bit:
  *	- SPRG3 current thread_info pointer
  *        (virtual on BookE, physical on others)
@@ -703,6 +713,15 @@
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG2
+#endif
+
+#ifdef CONFIG_PPC_BOOK3E_64
+#define SPRN_SPRG_MC_SCRATCH	SPRN_SPRG8
+#define SPRN_SPRG_CRIT_SCRATCH	SPRN_SPRG7
+#define SPRN_SPRG_DBG_SCRATCH	SPRN_SPRG9
+#define SPRN_SPRG_TLB_EXFRAME	SPRN_SPRG2
+#define SPRN_SPRG_TLB_SCRATCH	SPRN_SPRG6
+#define SPRN_SPRG_GEN_SCRATCH	SPRN_SPRG0
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_32
