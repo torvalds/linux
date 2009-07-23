@@ -685,6 +685,7 @@ static struct hda_codec_preset snd_hda_preset_intelhdmi[] = {
 	{ .id = 0x80862802, .name = "G45 DEVCTG", .patch = patch_intel_hdmi },
 	{ .id = 0x80862803, .name = "G45 DEVELK", .patch = patch_intel_hdmi },
 	{ .id = 0x80862804, .name = "G45 DEVIBX", .patch = patch_intel_hdmi },
+	{ .id = 0x80860054, .name = "G45 DEVIBX", .patch = patch_intel_hdmi },
 	{ .id = 0x10951392, .name = "SiI1392 HDMI",     .patch = patch_intel_hdmi },
 	{} /* terminator */
 };
@@ -694,6 +695,7 @@ MODULE_ALIAS("snd-hda-codec-id:80862801");
 MODULE_ALIAS("snd-hda-codec-id:80862802");
 MODULE_ALIAS("snd-hda-codec-id:80862803");
 MODULE_ALIAS("snd-hda-codec-id:80862804");
+MODULE_ALIAS("snd-hda-codec-id:80860054");
 MODULE_ALIAS("snd-hda-codec-id:10951392");
 
 MODULE_LICENSE("GPL");
