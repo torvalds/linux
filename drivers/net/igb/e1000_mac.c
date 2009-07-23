@@ -104,6 +104,31 @@ static void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 }
 
 /**
+ *  igb_init_rx_addrs - Initialize receive address's
+ *  @hw: pointer to the HW structure
+ *  @rar_count: receive address registers
+ *
+ *  Setups the receive address registers by setting the base receive address
+ *  register to the devices MAC address and clearing all the other receive
+ *  address registers to 0.
+ **/
+void igb_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
+{
+	u32 i;
+	u8 mac_addr[ETH_ALEN] = {0};
+
+	/* Setup the receive address */
+	hw_dbg("Programming MAC Address into RAR[0]\n");
+
+	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
+
+	/* Zero out the other (rar_entry_count - 1) receive addresses */
+	hw_dbg("Clearing RAR[1-%u]\n", rar_count-1);
+	for (i = 1; i < rar_count; i++)
+		hw->mac.ops.rar_set(hw, mac_addr, i);
+}
+
+/**
  *  igb_vfta_set - enable or disable vlan in VLAN filter table
  *  @hw: pointer to the HW structure
  *  @vid: VLAN id to add or remove
