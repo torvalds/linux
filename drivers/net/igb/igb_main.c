@@ -127,7 +127,7 @@ static void igb_restore_vlan(struct igb_adapter *);
 static void igb_ping_all_vfs(struct igb_adapter *);
 static void igb_msg_task(struct igb_adapter *);
 static int igb_rcv_msg_from_vf(struct igb_adapter *, u32);
-static void igb_set_mc_list_pools(struct igb_adapter *, int, u16);
+static inline void igb_set_rah_pool(struct e1000_hw *, int , int);
 static void igb_vmm_control(struct igb_adapter *);
 static int igb_set_vf_mac(struct igb_adapter *adapter, int, unsigned char *);
 static void igb_restore_vf_multicasts(struct igb_adapter *adapter);
@@ -2535,7 +2535,6 @@ static void igb_set_multi(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct e1000_mac_info *mac = &hw->mac;
 	struct dev_mc_list *mc_ptr;
 	u8  *mta_list = NULL;
 	u32 rctl;
@@ -2558,13 +2557,18 @@ static void igb_set_multi(struct net_device *netdev)
 	}
 	wr32(E1000_RCTL, rctl);
 
-	if (netdev->mc_count) {
-		mta_list = kzalloc(netdev->mc_count * 6, GFP_ATOMIC);
-		if (!mta_list) {
-			dev_err(&adapter->pdev->dev,
-			        "failed to allocate multicast filter list\n");
-			return;
-		}
+	if (!netdev->mc_count) {
+		/* nothing to program, so clear mc list */
+		igb_update_mc_addr_list(hw, NULL, 0);
+		igb_restore_vf_multicasts(adapter);
+		return;
+	}
+
+	mta_list = kzalloc(netdev->mc_count * 6, GFP_ATOMIC);
+	if (!mta_list) {
+		dev_err(&adapter->pdev->dev,
+		        "failed to allocate multicast filter list\n");
+		return;
 	}
 
 	/* The shared function expects a packed array of only addresses. */
@@ -2576,14 +2580,9 @@ static void igb_set_multi(struct net_device *netdev)
 		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
 		mc_ptr = mc_ptr->next;
 	}
-	igb_update_mc_addr_list(hw, mta_list, i,
-	                        adapter->vfs_allocated_count + 1,
-	                        mac->rar_entry_count);
-
-	igb_set_mc_list_pools(adapter, i, mac->rar_entry_count);
-	igb_restore_vf_multicasts(adapter);
-
+	igb_update_mc_addr_list(hw, mta_list, i);
 	kfree(mta_list);
+	igb_restore_vf_multicasts(adapter);
 }
 
 /* Need to wait a few seconds after link up to get diagnostic information from
@@ -5466,19 +5465,6 @@ static void igb_io_resume(struct pci_dev *pdev)
 	/* let the f/w know that the h/w is now under the control of the
 	 * driver. */
 	igb_get_hw_control(adapter);
-}
-
-static void igb_set_mc_list_pools(struct igb_adapter *adapter,
-				  int entry_count, u16 total_rar_filters)
-{
-	struct e1000_hw *hw = &adapter->hw;
-	int i = adapter->vfs_allocated_count + 1;
-
-	if ((i + entry_count) < total_rar_filters)
-		total_rar_filters = i + entry_count;
-
-	for (; i < total_rar_filters; i++)
-		igb_set_rah_pool(hw, adapter->vfs_allocated_count, i);
 }
 
 static int igb_set_vf_mac(struct igb_adapter *adapter,
