@@ -124,15 +124,11 @@ phys_addr_t __weak swiotlb_bus_to_phys(struct device *hwdev, dma_addr_t baddr)
 	return baddr;
 }
 
+/* Note that this doesn't work with highmem page */
 static dma_addr_t swiotlb_virt_to_bus(struct device *hwdev,
 				      volatile void *address)
 {
 	return swiotlb_phys_to_bus(hwdev, virt_to_phys(address));
-}
-
-void * __weak swiotlb_bus_to_virt(struct device *hwdev, dma_addr_t address)
-{
-	return phys_to_virt(swiotlb_bus_to_phys(hwdev, address));
 }
 
 int __weak swiotlb_arch_address_needs_mapping(struct device *hwdev,
@@ -307,9 +303,10 @@ address_needs_mapping(struct device *hwdev, dma_addr_t addr, size_t size)
 	return swiotlb_arch_address_needs_mapping(hwdev, addr, size);
 }
 
-static int is_swiotlb_buffer(char *addr)
+static int is_swiotlb_buffer(phys_addr_t paddr)
 {
-	return addr >= io_tlb_start && addr < io_tlb_end;
+	return paddr >= virt_to_phys(io_tlb_start) &&
+		paddr < virt_to_phys(io_tlb_end);
 }
 
 /*
@@ -582,11 +579,13 @@ EXPORT_SYMBOL(swiotlb_alloc_coherent);
 
 void
 swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
-		      dma_addr_t dma_handle)
+		      dma_addr_t dev_addr)
 {
+	phys_addr_t paddr = swiotlb_bus_to_phys(hwdev, dev_addr);
+
 	WARN_ON(irqs_disabled());
-	if (!is_swiotlb_buffer(vaddr))
-		free_pages((unsigned long) vaddr, get_order(size));
+	if (!is_swiotlb_buffer(paddr))
+		free_pages((unsigned long)vaddr, get_order(size));
 	else
 		/* DMA_TO_DEVICE to avoid memcpy in unmap_single */
 		do_unmap_single(hwdev, vaddr, size, DMA_TO_DEVICE);
@@ -671,19 +670,25 @@ EXPORT_SYMBOL_GPL(swiotlb_map_page);
 static void unmap_single(struct device *hwdev, dma_addr_t dev_addr,
 			 size_t size, int dir)
 {
-	char *dma_addr = swiotlb_bus_to_virt(hwdev, dev_addr);
+	phys_addr_t paddr = swiotlb_bus_to_phys(hwdev, dev_addr);
 
 	BUG_ON(dir == DMA_NONE);
 
-	if (is_swiotlb_buffer(dma_addr)) {
-		do_unmap_single(hwdev, dma_addr, size, dir);
+	if (is_swiotlb_buffer(paddr)) {
+		do_unmap_single(hwdev, phys_to_virt(paddr), size, dir);
 		return;
 	}
 
 	if (dir != DMA_FROM_DEVICE)
 		return;
 
-	dma_mark_clean(dma_addr, size);
+	/*
+	 * phys_to_virt doesn't work with hihgmem page but we could
+	 * call dma_mark_clean() with hihgmem page here. However, we
+	 * are fine since dma_mark_clean() is null on POWERPC. We can
+	 * make dma_mark_clean() take a physical address if necessary.
+	 */
+	dma_mark_clean(phys_to_virt(paddr), size);
 }
 
 void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
@@ -708,19 +713,19 @@ static void
 swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 		    size_t size, int dir, int target)
 {
-	char *dma_addr = swiotlb_bus_to_virt(hwdev, dev_addr);
+	phys_addr_t paddr = swiotlb_bus_to_phys(hwdev, dev_addr);
 
 	BUG_ON(dir == DMA_NONE);
 
-	if (is_swiotlb_buffer(dma_addr)) {
-		sync_single(hwdev, dma_addr, size, dir, target);
+	if (is_swiotlb_buffer(paddr)) {
+		sync_single(hwdev, phys_to_virt(paddr), size, dir, target);
 		return;
 	}
 
 	if (dir != DMA_FROM_DEVICE)
 		return;
 
-	dma_mark_clean(dma_addr, size);
+	dma_mark_clean(phys_to_virt(paddr), size);
 }
 
 void
