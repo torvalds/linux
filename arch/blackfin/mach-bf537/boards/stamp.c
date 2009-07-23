@@ -1728,11 +1728,6 @@ static int __init stamp_init(void)
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 
-#if (defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)) \
-	 && defined(PATA_INT)
-	irq_desc[PATA_INT].status |= IRQ_NOAUTOEN;
-#endif
-
 	return 0;
 }
 
