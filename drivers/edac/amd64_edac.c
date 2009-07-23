@@ -2209,28 +2209,6 @@ static int amd64_get_error_info(struct mem_ctl_info *mci,
 	return 1;
 }
 
-static inline void amd64_decode_gart_tlb_error(struct mem_ctl_info *mci,
-					 struct err_regs *info)
-{
-	u32 ec = ERROR_CODE(info->nbsl);
-
-	amd64_mc_printk(mci, KERN_ERR,
-		     "GART TLB event: transaction type(%s), "
-		     "cache level(%s)\n", TT_MSG(ec), LL_MSG(ec));
-}
-
-static inline void amd64_decode_mem_cache_error(struct mem_ctl_info *mci,
-				      struct err_regs *info)
-{
-	u32 ec = ERROR_CODE(info->nbsl);
-
-	amd64_mc_printk(mci, KERN_ERR,
-		     "cache hierarchy error: memory transaction type(%s), "
-		     "transaction type(%s), cache level(%s)\n",
-		     RRRR_MSG(ec), TT_MSG(ec), LL_MSG(ec));
-}
-
-
 /*
  * Handle any Correctable Errors (CEs) that have occurred. Check for valid ERROR
  * ADDRESS and process.
@@ -2411,19 +2389,19 @@ void amd64_decode_nb_mce(struct mem_ctl_info *mci, struct err_regs *regs,
 		if (!report_gart_errors)
 			return;
 
-		pr_emerg("GART TLB error\n");
-		amd64_decode_gart_tlb_error(mci, regs);
+		pr_emerg(" GART TLB error, Transaction: %s, Cache Level %s\n",
+			 TT_MSG(ec), LL_MSG(ec));
 	} else if (MEM_ERROR(ec)) {
-		pr_emerg("Memory/Cache error\n");
-		amd64_decode_mem_cache_error(mci, regs);
+		pr_emerg(" Memory/Cache error, Transaction: %s, Type: %s,"
+			 " Cache Level: %s",
+			 RRRR_MSG(ec), TT_MSG(ec), LL_MSG(ec));
 	} else if (BUS_ERROR(ec)) {
-		pr_emerg("Bus (Link/DRAM) error\n");
+		pr_emerg(" Bus (Link/DRAM) error\n");
 		amd64_decode_bus_error(mci, regs);
 	} else {
 		/* shouldn't reach here! */
 		amd64_mc_printk(mci, KERN_WARNING,
-			     "%s(): unknown MCE error 0x%x\n", __func__,
-			     ec);
+				"%s(): unknown MCE error 0x%x\n", __func__, ec);
 	}
 
 	pr_emerg("%s.\n", EXT_ERR_MSG(xec));
