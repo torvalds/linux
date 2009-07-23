@@ -99,6 +99,7 @@ struct comm_event {
 struct fork_event {
 	struct perf_event_header header;
 	u32 pid, ppid;
+	u32 tid, ptid;
 };
 
 struct lost_event {
@@ -1608,15 +1609,27 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-process_fork_event(event_t *event, unsigned long offset, unsigned long head)
+process_task_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	struct thread *thread = threads__findnew(event->fork.pid);
 	struct thread *parent = threads__findnew(event->fork.ppid);
 
-	dprintf("%p [%p]: PERF_EVENT_FORK: %d:%d\n",
+	dprintf("%p [%p]: PERF_EVENT_%s: (%d:%d):(%d:%d)\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
-		event->fork.pid, event->fork.ppid);
+		event->header.type == PERF_EVENT_FORK ? "FORK" : "EXIT",
+		event->fork.pid, event->fork.tid,
+		event->fork.ppid, event->fork.ptid);
+
+	/*
+	 * A thread clone will have the same PID for both
+	 * parent and child.
+	 */
+	if (thread == parent)
+		return 0;
+
+	if (event->header.type == PERF_EVENT_EXIT)
+		return 0;
 
 	if (!thread || !parent || thread__fork(thread, parent)) {
 		dprintf("problem processing PERF_EVENT_FORK, skipping event.\n");
@@ -1706,7 +1719,8 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 		return process_comm_event(event, offset, head);
 
 	case PERF_EVENT_FORK:
-		return process_fork_event(event, offset, head);
+	case PERF_EVENT_EXIT:
+		return process_task_event(event, offset, head);
 
 	case PERF_EVENT_LOST:
 		return process_lost_event(event, offset, head);
