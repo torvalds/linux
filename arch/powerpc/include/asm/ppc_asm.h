@@ -375,8 +375,15 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define PPC440EP_ERR42
 #endif
 
-
-#if defined(CONFIG_BOOKE)
+/*
+ * toreal/fromreal/tophys/tovirt macros. 32-bit BookE makes them
+ * keep the address intact to be compatible with code shared with
+ * 32-bit classic.
+ *
+ * On the other hand, I find it useful to have them behave as expected
+ * by their name (ie always do the addition) on 64-bit BookE
+ */
+#if defined(CONFIG_BOOKE) && !defined(CONFIG_PPC64)
 #define toreal(rd)
 #define fromreal(rd)
 
@@ -426,10 +433,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	.previous
 #endif
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 #define RFI		rfid
 #define MTMSRD(r)	mtmsrd	r
-
 #else
 #define FIX_SRR1(ra, rb)
 #ifndef CONFIG_40x
