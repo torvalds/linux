@@ -148,6 +148,15 @@ extern struct smp_ops_t *smp_ops;
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi(cpumask_t mask);
 
+/* Definitions relative to the secondary CPU spin loop
+ * and entry point. Not all of them exist on both 32 and
+ * 64-bit but defining them all here doesn't harm
+ */
+extern void generic_secondary_smp_init(void);
+extern unsigned long __secondary_hold_spinloop;
+extern unsigned long __secondary_hold_acknowledge;
+extern char __secondary_hold;
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

@@ -25,7 +25,6 @@
 
 #include <sysdev/fsl_soc.h>
 
-extern volatile unsigned long __secondary_hold_acknowledge;
 extern void __early_start(void);
 
 #define BOOT_ENTRY_ADDR_UPPER	0

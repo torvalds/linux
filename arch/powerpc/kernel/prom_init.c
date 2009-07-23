@@ -1259,10 +1259,6 @@ static void __init prom_initialize_tce_table(void)
  *
  * -- Cort
  */
-extern char __secondary_hold;
-extern unsigned long __secondary_hold_spinloop;
-extern unsigned long __secondary_hold_acknowledge;
-
 /*
  * We want to reference the copy of __secondary_hold_* in the
  * 0 - 0x100 address range
