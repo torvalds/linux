@@ -238,12 +238,12 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 		pcm_debug_name(substream, name, sizeof(name));
 		snd_printd("period_update: %s: pos=0x%x/0x%x/0x%x, "
 			   "hwptr=0x%lx, hw_base=0x%lx, hw_intr=0x%lx\n",
-			   name, pos,
-			   (int)runtime->period_size,
-			   (int)runtime->buffer_size,
-			   (long)old_hw_ptr,
-			   (long)runtime->hw_ptr_base,
-			   (long)runtime->hw_ptr_interrupt);
+			   name, (unsigned int)pos,
+			   (unsigned int)runtime->period_size,
+			   (unsigned int)runtime->buffer_size,
+			   (unsigned long)old_hw_ptr,
+			   (unsigned long)runtime->hw_ptr_base,
+			   (unsigned long)runtime->hw_ptr_interrupt);
 	}
 	hw_base = runtime->hw_ptr_base;
 	new_hw_ptr = hw_base + pos;
@@ -370,12 +370,12 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 		pcm_debug_name(substream, name, sizeof(name));
 		snd_printd("hw_update: %s: pos=0x%x/0x%x/0x%x, "
 			   "hwptr=0x%lx, hw_base=0x%lx, hw_intr=0x%lx\n",
-			   name, pos,
-			   (int)runtime->period_size,
-			   (int)runtime->buffer_size,
-			   (long)old_hw_ptr,
-			   (long)runtime->hw_ptr_base,
-			   (long)runtime->hw_ptr_interrupt);
+			   name, (unsigned int)pos,
+			   (unsigned int)runtime->period_size,
+			   (unsigned int)runtime->buffer_size,
+			   (unsigned long)old_hw_ptr,
+			   (unsigned long)runtime->hw_ptr_base,
+			   (unsigned long)runtime->hw_ptr_interrupt);
 	}
 
 	hw_base = runtime->hw_ptr_base;
