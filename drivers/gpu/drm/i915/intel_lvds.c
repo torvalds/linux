@@ -892,6 +892,10 @@ void intel_lvds_init(struct drm_device *dev)
 	if (IS_IGDNG(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
 			return;
+		if (dev_priv->edp_support) {
+			DRM_DEBUG("disable LVDS for eDP support\n");
+			return;
+		}
 		gpio = PCH_GPIOC;
 	}
 

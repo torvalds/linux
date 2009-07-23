@@ -40,6 +40,8 @@
 
 #define DP_LINK_CONFIGURATION_SIZE	9
 
+#define IS_eDP(i) ((i)->type == INTEL_OUTPUT_EDP)
+
 struct intel_dp_priv {
 	uint32_t output_reg;
 	uint32_t DP;
@@ -62,6 +64,19 @@ intel_dp_link_train(struct intel_output *intel_output, uint32_t DP,
 
 static void
 intel_dp_link_down(struct intel_output *intel_output, uint32_t DP);
+
+void
+intel_edp_link_config (struct intel_output *intel_output,
+		int *lane_num, int *link_bw)
+{
+	struct intel_dp_priv   *dp_priv = intel_output->dev_priv;
+
+	*lane_num = dp_priv->lane_count;
+	if (dp_priv->link_bw == DP_LINK_BW_1_62)
+		*link_bw = 162000;
+	else if (dp_priv->link_bw == DP_LINK_BW_2_7)
+		*link_bw = 270000;
+}
 
 static int
 intel_dp_max_lane_count(struct intel_output *intel_output)
@@ -206,9 +221,10 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	 * and would like to run at 2MHz. So, take the
 	 * hrawclk value and divide by 2 and use that
 	 */
-	/* IGDNG: input clock fixed at 125Mhz, so aux_bit_clk always 62 */
-	if (IS_IGDNG(dev))
-		aux_clock_divider = 62;
+	if (IS_eDP(intel_output))
+		aux_clock_divider = 225; /* eDP input clock at 450Mhz */
+	else if (IS_IGDNG(dev))
+		aux_clock_divider = 62; /* IGDNG: input clock fixed at 125Mhz */
 	else
 		aux_clock_divider = intel_hrawclk(dev) / 2;
 
@@ -579,8 +595,38 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	if (intel_crtc->pipe == 1)
 		dp_priv->DP |= DP_PIPEB_SELECT;
+
+	if (IS_eDP(intel_output)) {
+		/* don't miss out required setting for eDP */
+		dp_priv->DP |= DP_PLL_ENABLE;
+		if (adjusted_mode->clock < 200000)
+			dp_priv->DP |= DP_PLL_FREQ_160MHZ;
+		else
+			dp_priv->DP |= DP_PLL_FREQ_270MHZ;
+	}
 }
 
+static void igdng_edp_backlight_on (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp;
+
+	DRM_DEBUG("\n");
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp |= EDP_BLC_ENABLE;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+}
+
+static void igdng_edp_backlight_off (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pp;
+
+	DRM_DEBUG("\n");
+	pp = I915_READ(PCH_PP_CONTROL);
+	pp &= ~EDP_BLC_ENABLE;
+	I915_WRITE(PCH_PP_CONTROL, pp);
+}
 
 static void
 intel_dp_dpms(struct drm_encoder *encoder, int mode)
@@ -592,11 +638,17 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t dp_reg = I915_READ(dp_priv->output_reg);
 
 	if (mode != DRM_MODE_DPMS_ON) {
-		if (dp_reg & DP_PORT_EN)
+		if (dp_reg & DP_PORT_EN) {
 			intel_dp_link_down(intel_output, dp_priv->DP);
+			if (IS_eDP(intel_output))
+				igdng_edp_backlight_off(dev);
+		}
 	} else {
-		if (!(dp_reg & DP_PORT_EN))
+		if (!(dp_reg & DP_PORT_EN)) {
 			intel_dp_link_train(intel_output, dp_priv->DP, dp_priv->link_configuration);
+			if (IS_eDP(intel_output))
+				igdng_edp_backlight_on(dev);
+		}
 	}
 	dp_priv->dpms_mode = mode;
 }
@@ -958,12 +1010,23 @@ intel_dp_link_down(struct intel_output *intel_output, uint32_t DP)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_output->dev_priv;
 
+	DRM_DEBUG("\n");
+
+	if (IS_eDP(intel_output)) {
+		DP &= ~DP_PLL_ENABLE;
+		I915_WRITE(dp_priv->output_reg, DP);
+		POSTING_READ(dp_priv->output_reg);
+		udelay(100);
+	}
+
 	DP &= ~DP_LINK_TRAIN_MASK;
 	I915_WRITE(dp_priv->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE);
 	POSTING_READ(dp_priv->output_reg);
 
 	udelay(17000);
 
+	if (IS_eDP(intel_output))
+		DP |= DP_LINK_TRAIN_OFF;
 	I915_WRITE(dp_priv->output_reg, DP & ~DP_PORT_EN);
 	POSTING_READ(dp_priv->output_reg);
 }
@@ -1089,11 +1152,27 @@ intel_dp_detect(struct drm_connector *connector)
 static int intel_dp_get_modes(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
+	struct drm_device *dev = intel_output->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
 	/* We should parse the EDID data and find out if it has an audio sink
 	 */
 
-	return intel_ddc_get_modes(intel_output);
+	ret = intel_ddc_get_modes(intel_output);
+	if (ret)
+		return ret;
+
+	/* if eDP has no EDID, try to use fixed panel mode from VBT */
+	if (IS_eDP(intel_output)) {
+		if (dev_priv->panel_fixed_mode != NULL) {
+			struct drm_display_mode *mode;
+			mode = drm_mode_duplicate(dev, dev_priv->panel_fixed_mode);
+			drm_mode_probed_add(connector, mode);
+			return 1;
+		}
+	}
+	return 0;
 }
 
 static void
@@ -1170,7 +1249,10 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			   DRM_MODE_CONNECTOR_DisplayPort);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
-	intel_output->type = INTEL_OUTPUT_DISPLAYPORT;
+	if (output_reg == DP_A)
+		intel_output->type = INTEL_OUTPUT_EDP;
+	else
+		intel_output->type = INTEL_OUTPUT_DISPLAYPORT;
 
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
@@ -1191,6 +1273,9 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	/* Set up the DDC bus. */
 	switch (output_reg) {
+		case DP_A:
+			name = "DPDDC-A";
+			break;
 		case DP_B:
 		case PCH_DP_B:
 			name = "DPDDC-B";
@@ -1206,8 +1291,21 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	}
 
 	intel_dp_i2c_init(intel_output, name);
+
 	intel_output->ddc_bus = &dp_priv->adapter;
 	intel_output->hot_plug = intel_dp_hot_plug;
+
+	if (output_reg == DP_A) {
+		/* initialize panel mode from VBT if available for eDP */
+		if (dev_priv->lfp_lvds_vbt_mode) {
+			dev_priv->panel_fixed_mode =
+				drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
+			if (dev_priv->panel_fixed_mode) {
+				dev_priv->panel_fixed_mode->type |=
+					DRM_MODE_TYPE_PREFERRED;
+			}
+		}
+	}
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
 	 * 0xd.  Failure to do so will result in spurious interrupts being

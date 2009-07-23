@@ -296,6 +296,25 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 	}
 	return;
 }
+
+static void
+parse_driver_features(struct drm_i915_private *dev_priv,
+		       struct bdb_header *bdb)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct bdb_driver_features *driver;
+
+	/* set default for chips without eDP */
+	if (!SUPPORTS_EDP(dev)) {
+		dev_priv->edp_support = 0;
+		return;
+	}
+
+	driver = find_section(bdb, BDB_DRIVER_FEATURES);
+	if (driver && driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
+		dev_priv->edp_support = 1;
+}
+
 /**
  * intel_init_bios - initialize VBIOS settings & find VBT
  * @dev: DRM device
@@ -346,6 +365,8 @@ intel_init_bios(struct drm_device *dev)
 	parse_lfp_panel_data(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
 	parse_sdvo_device_mapping(dev_priv, bdb);
+	parse_driver_features(dev_priv, bdb);
+
 	pci_unmap_rom(pdev, bios);
 
 	return 0;

@@ -1395,6 +1395,7 @@
 #define TV_V_CHROMA_42		0x684a8
 
 /* Display Port */
+#define DP_A				0x64000 /* eDP */
 #define DP_B				0x64100
 #define DP_C				0x64200
 #define DP_D				0x64300
@@ -1437,8 +1438,16 @@
 /* Mystic DPCD version 1.1 special mode */
 #define   DP_ENHANCED_FRAMING		(1 << 18)
 
+/* eDP */
+#define   DP_PLL_FREQ_270MHZ		(0 << 16)
+#define   DP_PLL_FREQ_160MHZ		(1 << 16)
+#define   DP_PLL_FREQ_MASK		(3 << 16)
+
 /** locked once port is enabled */
 #define   DP_PORT_REVERSAL		(1 << 15)
+
+/* eDP */
+#define   DP_PLL_ENABLE			(1 << 14)
 
 /** sends the clock on lane 15 of the PEG for debug */
 #define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
@@ -1464,6 +1473,13 @@
  * is 20 bytes in each direction, hence the 5 fixed
  * data registers
  */
+#define DPA_AUX_CH_CTL			0x64010
+#define DPA_AUX_CH_DATA1		0x64014
+#define DPA_AUX_CH_DATA2		0x64018
+#define DPA_AUX_CH_DATA3		0x6401c
+#define DPA_AUX_CH_DATA4		0x64020
+#define DPA_AUX_CH_DATA5		0x64024
+
 #define DPB_AUX_CH_CTL			0x64110
 #define DPB_AUX_CH_DATA1		0x64114
 #define DPB_AUX_CH_DATA2		0x64118
