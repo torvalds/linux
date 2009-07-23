@@ -449,7 +449,7 @@ enum amd64_chipset_families {
  *
  * Depends on entry into the modules
  */
-struct amd64_error_info_regs {
+struct err_regs {
 	u32 nbcfg;
 	u32 nbsh;
 	u32 nbsl;
@@ -527,7 +527,7 @@ struct amd64_pvt {
 	u32 online_spare;               /* On-Line spare Reg */
 
 	/* temp storage for when input is received from sysfs */
-	struct amd64_error_info_regs ctl_error_info;
+	struct err_regs ctl_error_info;
 
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
@@ -586,11 +586,11 @@ struct low_ops {
 	int (*early_channel_count)(struct amd64_pvt *pvt);
 
 	u64 (*get_error_address)(struct mem_ctl_info *mci,
-			struct amd64_error_info_regs *info);
+			struct err_regs *info);
 	void (*read_dram_base_limit)(struct amd64_pvt *pvt, int dram);
 	void (*read_dram_ctl_register)(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)(struct mem_ctl_info *mci,
-					struct amd64_error_info_regs *info,
+					struct err_regs *info,
 					u64 SystemAddr);
 	int (*dbam_map_to_pages)(struct amd64_pvt *pvt, int dram_map);
 };
@@ -623,7 +623,7 @@ static inline struct low_ops *family_ops(int index)
 #define F11_MIN_SCRUB_RATE_BITS	0x6
 
 int amd64_process_error_info(struct mem_ctl_info *mci,
-			     struct amd64_error_info_regs *info,
+			     struct err_regs *info,
 			     int handle_errors);
 int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);

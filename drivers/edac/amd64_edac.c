@@ -750,7 +750,7 @@ static void find_csrow_limits(struct mem_ctl_info *mci, int csrow,
  * specific.
  */
 static u64 extract_error_address(struct mem_ctl_info *mci,
-				 struct amd64_error_info_regs *info)
+				 struct err_regs *info)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 
@@ -1106,7 +1106,7 @@ static int k8_early_channel_count(struct amd64_pvt *pvt)
 
 /* extract the ERROR ADDRESS for the K8 CPUs */
 static u64 k8_get_error_address(struct mem_ctl_info *mci,
-				struct amd64_error_info_regs *info)
+				struct err_regs *info)
 {
 	return (((u64) (info->nbeah & 0xff)) << 32) +
 			(info->nbeal & ~0x03);
@@ -1149,7 +1149,7 @@ static void k8_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 }
 
 static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
-					struct amd64_error_info_regs *info,
+					struct err_regs *info,
 					u64 SystemAddress)
 {
 	struct mem_ctl_info *src_mci;
@@ -1368,7 +1368,7 @@ static void amd64_teardown(struct amd64_pvt *pvt)
 }
 
 static u64 f10_get_error_address(struct mem_ctl_info *mci,
-			struct amd64_error_info_regs *info)
+			struct err_regs *info)
 {
 	return (((u64) (info->nbeah & 0xffff)) << 32) +
 			(info->nbeal & ~0x01);
@@ -1745,7 +1745,7 @@ static int f10_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
  * The @sys_addr is usually an error address received from the hardware.
  */
 static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
-				     struct amd64_error_info_regs *info,
+				     struct err_regs *info,
 				     u64 sys_addr)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
@@ -2102,7 +2102,7 @@ static int get_channel_from_ecc_syndrome(unsigned short syndrome)
  *	- 0: if no valid error is indicated
  */
 static int amd64_get_error_info_regs(struct mem_ctl_info *mci,
-				     struct amd64_error_info_regs *regs)
+				     struct err_regs *regs)
 {
 	struct amd64_pvt *pvt;
 	struct pci_dev *misc_f3_ctl;
@@ -2151,10 +2151,10 @@ err_reg:
  *	- 0: if no error is found
  */
 static int amd64_get_error_info(struct mem_ctl_info *mci,
-				struct amd64_error_info_regs *info)
+				struct err_regs *info)
 {
 	struct amd64_pvt *pvt;
-	struct amd64_error_info_regs regs;
+	struct err_regs regs;
 
 	pvt = mci->pvt_info;
 
@@ -2210,7 +2210,7 @@ static int amd64_get_error_info(struct mem_ctl_info *mci,
 }
 
 static inline void amd64_decode_gart_tlb_error(struct mem_ctl_info *mci,
-					 struct amd64_error_info_regs *info)
+					 struct err_regs *info)
 {
 	u32 ec = ERROR_CODE(info->nbsl);
 
@@ -2220,7 +2220,7 @@ static inline void amd64_decode_gart_tlb_error(struct mem_ctl_info *mci,
 }
 
 static inline void amd64_decode_mem_cache_error(struct mem_ctl_info *mci,
-				      struct amd64_error_info_regs *info)
+				      struct err_regs *info)
 {
 	u32 ec = ERROR_CODE(info->nbsl);
 
@@ -2236,7 +2236,7 @@ static inline void amd64_decode_mem_cache_error(struct mem_ctl_info *mci,
  * ADDRESS and process.
  */
 static void amd64_handle_ce(struct mem_ctl_info *mci,
-			    struct amd64_error_info_regs *info)
+			    struct err_regs *info)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u64 SystemAddress;
@@ -2259,7 +2259,7 @@ static void amd64_handle_ce(struct mem_ctl_info *mci,
 
 /* Handle any Un-correctable Errors (UEs) */
 static void amd64_handle_ue(struct mem_ctl_info *mci,
-			    struct amd64_error_info_regs *info)
+			    struct err_regs *info)
 {
 	int csrow;
 	u64 SystemAddress;
@@ -2305,7 +2305,7 @@ static void amd64_handle_ue(struct mem_ctl_info *mci,
 }
 
 static void amd64_decode_bus_error(struct mem_ctl_info *mci,
-				   struct amd64_error_info_regs *info)
+				   struct err_regs *info)
 {
 	u32 ec  = ERROR_CODE(info->nbsl);
 	u32 xec = EXT_ERROR_CODE(info->nbsl);
@@ -2356,21 +2356,17 @@ static void amd64_decode_bus_error(struct mem_ctl_info *mci,
 }
 
 int amd64_process_error_info(struct mem_ctl_info *mci,
-			     struct amd64_error_info_regs *info,
+			     struct err_regs *regs,
 			     int handle_errors)
 {
 	struct amd64_pvt *pvt;
-	struct amd64_error_info_regs *regs;
 	u32 err_code, ext_ec;
 	int gart_tlb_error = 0;
 
 	pvt = mci->pvt_info;
 
-	/* If caller doesn't want us to process the error, return */
 	if (!handle_errors)
 		return 1;
-
-	regs = info;
 
 	debugf1("NorthBridge ERROR: mci(0x%p)\n", mci);
 	debugf1("  MC node(%d) Error-Address(0x%.8x-%.8x)\n",
@@ -2437,13 +2433,13 @@ int amd64_process_error_info(struct mem_ctl_info *mci,
 		gart_tlb_error = 1;
 
 		debugf1("GART TLB error\n");
-		amd64_decode_gart_tlb_error(mci, info);
+		amd64_decode_gart_tlb_error(mci, regs);
 	} else if (MEM_ERROR(err_code)) {
 		debugf1("Memory/Cache error\n");
-		amd64_decode_mem_cache_error(mci, info);
+		amd64_decode_mem_cache_error(mci, regs);
 	} else if (BUS_ERROR(err_code)) {
 		debugf1("Bus (Link/DRAM) error\n");
-		amd64_decode_bus_error(mci, info);
+		amd64_decode_bus_error(mci, regs);
 	} else {
 		/* shouldn't reach here! */
 		amd64_mc_printk(mci, KERN_WARNING,
@@ -2480,10 +2476,10 @@ EXPORT_SYMBOL_GPL(amd64_process_error_info);
  */
 static void amd64_check(struct mem_ctl_info *mci)
 {
-	struct amd64_error_info_regs info;
+	struct err_regs regs;
 
-	if (amd64_get_error_info(mci, &info))
-		amd64_process_error_info(mci, &info, 1);
+	if (amd64_get_error_info(mci, &regs))
+		amd64_process_error_info(mci, &regs, 1);
 }
 
 /*
