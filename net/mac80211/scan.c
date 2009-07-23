@@ -587,15 +587,21 @@ void ieee80211_scan_work(struct work_struct *work)
 		return;
 	}
 
-	switch (local->scan_state) {
-	case SCAN_SET_CHANNEL:
-		if (ieee80211_scan_state_set_channel(local, &next_delay))
-			return;
-		break;
-	case SCAN_SEND_PROBE:
-		ieee80211_scan_state_send_probe(local, &next_delay);
-		break;
-	}
+	/*
+	 * as long as no delay is required advance immediately
+	 * without scheduling a new work
+	 */
+	do {
+		switch (local->scan_state) {
+		case SCAN_SET_CHANNEL:
+			if (ieee80211_scan_state_set_channel(local, &next_delay))
+				return;
+			break;
+		case SCAN_SEND_PROBE:
+			ieee80211_scan_state_send_probe(local, &next_delay);
+			break;
+		}
+	} while (next_delay == 0);
 
 	queue_delayed_work(local->hw.workqueue, &local->scan_work,
 			   next_delay);
