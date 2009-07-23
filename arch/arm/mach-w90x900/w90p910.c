@@ -93,7 +93,7 @@ static struct clk_lookup w90p910_clkregs[] = {
 	DEF_CLKLOOK(&clk_wdt, "w90p910-wdt", NULL),
 	DEF_CLKLOOK(&clk_gdma, "w90p910-gdma", NULL),
 	DEF_CLKLOOK(&clk_adc, "w90p910-adc", NULL),
-	DEF_CLKLOOK(&clk_usi, "w90p910-usi", NULL),
+	DEF_CLKLOOK(&clk_usi, "w90p910-spi", NULL),
 };
 
 /* Initial serial platform data */
