@@ -374,7 +374,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	}
 	mutex_unlock(&local->iflist_mtx);
 
-	local->scan_state = SCAN_DECISION;
+	local->next_scan_state = SCAN_DECISION;
 	local->scan_channel_idx = 0;
 
 	spin_lock_bh(&local->filter_lock);
@@ -505,15 +505,15 @@ static int ieee80211_scan_state_decision(struct ieee80211_local *local,
 		 * next channel
 		 */
 		if (associated)
-			local->scan_state = SCAN_ENTER_OPER_CHANNEL;
+			local->next_scan_state = SCAN_ENTER_OPER_CHANNEL;
 		else
-			local->scan_state = SCAN_SET_CHANNEL;
+			local->next_scan_state = SCAN_SET_CHANNEL;
 	} else {
 		/*
 		 * we're on the operating channel currently, let's
 		 * leave that channel now to scan another one
 		 */
-		local->scan_state = SCAN_LEAVE_OPER_CHANNEL;
+		local->next_scan_state = SCAN_LEAVE_OPER_CHANNEL;
 	}
 
 	*next_delay = 0;
@@ -545,7 +545,7 @@ static void ieee80211_scan_state_leave_oper_channel(struct ieee80211_local *loca
 
 	/* advance to the next channel to be scanned */
 	*next_delay = HZ / 10;
-	local->scan_state = SCAN_SET_CHANNEL;
+	local->next_scan_state = SCAN_SET_CHANNEL;
 }
 
 static void ieee80211_scan_state_enter_oper_channel(struct ieee80211_local *local,
@@ -577,7 +577,7 @@ static void ieee80211_scan_state_enter_oper_channel(struct ieee80211_local *loca
 	__clear_bit(SCAN_OFF_CHANNEL, &local->scanning);
 
 	*next_delay = HZ / 5;
-	local->scan_state = SCAN_DECISION;
+	local->next_scan_state = SCAN_DECISION;
 }
 
 static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
@@ -621,13 +621,13 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN ||
 	    !local->scan_req->n_ssids) {
 		*next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
-		local->scan_state = SCAN_DECISION;
+		local->next_scan_state = SCAN_DECISION;
 		return;
 	}
 
 	/* active scan, send probes */
 	*next_delay = IEEE80211_PROBE_DELAY;
-	local->scan_state = SCAN_SEND_PROBE;
+	local->next_scan_state = SCAN_SEND_PROBE;
 }
 
 static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
@@ -648,7 +648,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 	 * on the channel.
 	 */
 	*next_delay = IEEE80211_CHANNEL_TIME;
-	local->scan_state = SCAN_DECISION;
+	local->next_scan_state = SCAN_DECISION;
 }
 
 void ieee80211_scan_work(struct work_struct *work)
@@ -693,7 +693,7 @@ void ieee80211_scan_work(struct work_struct *work)
 	 * without scheduling a new work
 	 */
 	do {
-		switch (local->scan_state) {
+		switch (local->next_scan_state) {
 		case SCAN_DECISION:
 			if (ieee80211_scan_state_decision(local, &next_delay))
 				return;
