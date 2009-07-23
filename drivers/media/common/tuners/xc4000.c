@@ -130,7 +130,6 @@ struct xc4000_priv {
 #define XREG_SNR          0x06
 #define XREG_VERSION      0x07
 #define XREG_PRODUCT_ID   0x08
-//#define XREG_BUSY         0x09
 //#define XREG_BUILD        0x0D
 
 /*
@@ -310,7 +309,6 @@ static int xc4000_TunerReset(struct dvb_frontend *fe)
 static int xc_write_reg(struct xc4000_priv *priv, u16 regAddr, u16 i2cData)
 {
 	u8 buf[4];
-//	int WatchDogTimer = 100;
 	int result;
 
 	buf[0] = (regAddr >> 8) & 0xFF;
@@ -318,30 +316,6 @@ static int xc_write_reg(struct xc4000_priv *priv, u16 regAddr, u16 i2cData)
 	buf[2] = (i2cData >> 8) & 0xFF;
 	buf[3] = i2cData & 0xFF;
 	result = xc_send_i2c_data(priv, buf, 4);
-//WAS THERE
-//	if (result == XC_RESULT_SUCCESS) {
-//		/* wait for busy flag to clear */
-//		while ((WatchDogTimer > 0) && (result == XC_RESULT_SUCCESS)) {
-//			buf[0] = 0;
-//			buf[1] = XREG_BUSY;
-//
-//			result = xc_send_i2c_data(priv, buf, 2);
-//			if (result == XC_RESULT_SUCCESS) {
-//				result = xc_read_i2c_data(priv, buf, 2);
-//				if (result == XC_RESULT_SUCCESS) {
-//					if ((buf[0] == 0) && (buf[1] == 0)) {
-//						/* busy flag cleared */
-//					break;
-//					} else {
-//						xc_wait(5); /* wait 5 ms */
-//						WatchDogTimer--;
-//					}
-//				}
-//			}
-//		}
-//	}
-//	if (WatchDogTimer < 0)
-//		result = XC_RESULT_I2C_WRITE_FAILURE;
 
 	return result;
 }
