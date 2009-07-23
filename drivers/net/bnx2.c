@@ -8023,6 +8023,13 @@ static const struct net_device_ops bnx2_netdev_ops = {
 #endif
 };
 
+static void inline vlan_features_add(struct net_device *dev, unsigned long flags)
+{
+#ifdef BCM_VLAN
+	dev->vlan_features |= flags;
+#endif
+}
+
 static int __devinit
 bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -8064,16 +8071,20 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(dev->perm_addr, bp->mac_addr, 6);
 
 	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
-	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+	vlan_features_add(dev, NETIF_F_IP_CSUM | NETIF_F_SG);
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
 		dev->features |= NETIF_F_IPV6_CSUM;
-
+		vlan_features_add(dev, NETIF_F_IPV6_CSUM);
+	}
 #ifdef BCM_VLAN
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 #endif
 	dev->features |= NETIF_F_TSO | NETIF_F_TSO_ECN;
-	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+	vlan_features_add(dev, NETIF_F_TSO | NETIF_F_TSO_ECN);
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
 		dev->features |= NETIF_F_TSO6;
-
+		vlan_features_add(dev, NETIF_F_TSO6);
+	}
 	if ((rc = register_netdev(dev))) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
 		goto error;
