@@ -360,7 +360,7 @@ int __videobuf_mmap_setup(struct videobuf_queue *q,
 		q->bufs[i]->bsize  = bsize;
 		switch (memory) {
 		case V4L2_MEMORY_MMAP:
-			q->bufs[i]->boff  = bsize * i;
+			q->bufs[i]->boff = PAGE_ALIGN(bsize) * i;
 			break;
 		case V4L2_MEMORY_USERPTR:
 		case V4L2_MEMORY_OVERLAY:
@@ -430,9 +430,8 @@ int videobuf_reqbufs(struct videobuf_queue *q,
 		count = VIDEO_MAX_FRAME;
 	size = 0;
 	q->ops->buf_setup(q, &count, &size);
-	size = PAGE_ALIGN(size);
 	dprintk(1, "reqbufs: bufs=%d, size=0x%x [%d pages total]\n",
-		count, size, (count*size)>>PAGE_SHIFT);
+		count, size, (count*PAGE_ALIGN(size))>>PAGE_SHIFT);
 
 	retval = __videobuf_mmap_setup(q, count, size, req->memory);
 	if (retval < 0) {
@@ -1099,7 +1098,7 @@ int videobuf_cgmbuf(struct videobuf_queue *q,
 	mbuf->size   = 0;
 	for (i = 0; i < mbuf->frames; i++) {
 		mbuf->offsets[i]  = q->bufs[i]->boff;
-		mbuf->size       += q->bufs[i]->bsize;
+		mbuf->size       += PAGE_ALIGN(q->bufs[i]->bsize);
 	}
 
 	return 0;
