@@ -691,6 +691,7 @@ static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	struct gfs2_holder t_gh;
 	int error;
 
+	flush_workqueue(gfs2_delete_workqueue);
 	gfs2_quota_sync(sdp);
 	gfs2_statfs_sync(sdp);
 

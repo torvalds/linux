@@ -63,6 +63,7 @@ static void do_xmote(struct gfs2_glock *gl, struct gfs2_holder *gh, unsigned int
 static DECLARE_RWSEM(gfs2_umount_flush_sem);
 static struct dentry *gfs2_root;
 static struct workqueue_struct *glock_workqueue;
+struct workqueue_struct *gfs2_delete_workqueue;
 static LIST_HEAD(lru_list);
 static atomic_t lru_count = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(lru_lock);
@@ -167,7 +168,7 @@ static void glock_free(struct gfs2_glock *gl)
  *
  */
 
-static void gfs2_glock_hold(struct gfs2_glock *gl)
+void gfs2_glock_hold(struct gfs2_glock *gl)
 {
 	GLOCK_BUG_ON(gl, atomic_read(&gl->gl_ref) == 0);
 	atomic_inc(&gl->gl_ref);
@@ -222,7 +223,7 @@ static void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl)
  * to the glock, in addition to the one it is dropping.
  */
 
-static void gfs2_glock_put_nolock(struct gfs2_glock *gl)
+void gfs2_glock_put_nolock(struct gfs2_glock *gl)
 {
 	if (atomic_dec_and_test(&gl->gl_ref))
 		GLOCK_BUG_ON(gl, 1);
@@ -679,6 +680,29 @@ out_unlock:
 	goto out;
 }
 
+static void delete_work_func(struct work_struct *work)
+{
+	struct gfs2_glock *gl = container_of(work, struct gfs2_glock, gl_delete);
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_inode *ip = NULL;
+	struct inode *inode;
+	u64 no_addr = 0;
+
+	spin_lock(&gl->gl_spin);
+	ip = (struct gfs2_inode *)gl->gl_object;
+	if (ip)
+		no_addr = ip->i_no_addr;
+	spin_unlock(&gl->gl_spin);
+	if (ip) {
+		inode = gfs2_ilookup(sdp->sd_vfs, no_addr);
+		if (inode) {
+			d_prune_aliases(inode);
+			iput(inode);
+		}
+	}
+	gfs2_glock_put(gl);
+}
+
 static void glock_work_func(struct work_struct *work)
 {
 	unsigned long delay = 0;
@@ -757,6 +781,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl->gl_sbd = sdp;
 	gl->gl_aspace = NULL;
 	INIT_DELAYED_WORK(&gl->gl_work, glock_work_func);
+	INIT_WORK(&gl->gl_delete, delete_work_func);
 
 	/* If this glock protects actual on-disk data or metadata blocks,
 	   create a VFS inode to manage the pages/buffers holding them. */
@@ -898,6 +923,8 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 			gl->gl_demote_state != state) {
 		gl->gl_demote_state = LM_ST_UNLOCKED;
 	}
+	if (gl->gl_ops->go_callback)
+		gl->gl_ops->go_callback(gl);
 	trace_gfs2_demote_rq(gl);
 }
 
@@ -1344,14 +1371,14 @@ static int gfs2_shrink_glock_memory(int nr, gfp_t gfp_mask)
 			spin_unlock(&lru_lock);
 			spin_lock(&gl->gl_spin);
 			may_demote = demote_ok(gl);
-			spin_unlock(&gl->gl_spin);
-			clear_bit(GLF_LOCK, &gl->gl_flags);
 			if (may_demote) {
 				handle_callback(gl, LM_ST_UNLOCKED, 0);
 				nr--;
 			}
 			if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
-				gfs2_glock_put(gl);
+				gfs2_glock_put_nolock(gl);
+			spin_unlock(&gl->gl_spin);
+			clear_bit(GLF_LOCK, &gl->gl_flags);
 			spin_lock(&lru_lock);
 			continue;
 		}
@@ -1738,6 +1765,11 @@ int __init gfs2_glock_init(void)
 	glock_workqueue = create_workqueue("glock_workqueue");
 	if (IS_ERR(glock_workqueue))
 		return PTR_ERR(glock_workqueue);
+	gfs2_delete_workqueue = create_workqueue("delete_workqueue");
+	if (IS_ERR(gfs2_delete_workqueue)) {
+		destroy_workqueue(glock_workqueue);
+		return PTR_ERR(gfs2_delete_workqueue);
+	}
 
 	register_shrinker(&glock_shrinker);
 
@@ -1748,6 +1780,7 @@ void gfs2_glock_exit(void)
 {
 	unregister_shrinker(&glock_shrinker);
 	destroy_workqueue(glock_workqueue);
+	destroy_workqueue(gfs2_delete_workqueue);
 }
 
 static int gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
