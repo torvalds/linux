@@ -250,6 +250,38 @@ static struct platform_device w90p910_device_fmi = {
 	.resource	= w90p910_fmi_resource,
 };
 
+/* MAC device */
+
+static struct resource w90x900_emc_resource[] = {
+	[0] = {
+		.start = W90X900_PA_EMC,
+		.end   = W90X900_PA_EMC + W90X900_SZ_EMC - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_EMCTX,
+		.end   = IRQ_EMCTX,
+		.flags = IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start = IRQ_EMCRX,
+		.end   = IRQ_EMCRX,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static u64 w90x900_device_emc_dmamask = 0xffffffffUL;
+static struct platform_device w90p910_device_emc = {
+	.name		= "w90p910-emc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(w90x900_emc_resource),
+	.resource	= w90x900_emc_resource,
+	.dev              = {
+		.dma_mask = &w90x900_device_emc_dmamask,
+		.coherent_dma_mask = 0xffffffffUL
+	}
+};
+
 static struct map_desc w90p910_iodesc[] __initdata = {
 };
 
@@ -265,6 +297,7 @@ static struct platform_device *w90p910evb_dev[] __initdata = {
 	&w90x900_device_kpi,
 	&w90x900_device_usbgadget,
 	&w90p910_device_fmi,
+	&w90p910_device_emc,
 };
 
 static void __init w90p910evb_map_io(void)
