@@ -989,7 +989,7 @@ static const char *nfsd4_op_name(unsigned opnum);
  * encode the uncache rep error on the next operation.
  */
 static __be32
-nfsd4_enc_uncached_replay(struct nfsd4_compoundargs *args,
+nfsd4_enc_sequence_replay(struct nfsd4_compoundargs *args,
 			 struct nfsd4_compoundres *resp)
 {
 	struct nfsd4_op *op;
@@ -1124,7 +1124,7 @@ encode_op:
 		if (resp->cstate.status == nfserr_replay_cache) {
 			dprintk("%s NFS4.1 replay from cache\n", __func__);
 			if (nfsd4_not_cached(resp))
-				status = nfsd4_enc_uncached_replay(args, resp);
+				status = nfsd4_enc_sequence_replay(args, resp);
 			else
 				status = op->status;
 			goto out;
