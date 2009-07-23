@@ -268,6 +268,9 @@ intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 static bool
 intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
 		      int target, int refclk, intel_clock_t *best_clock);
+static bool
+intel_find_pll_igdng_dp(const intel_limit_t *, struct drm_crtc *crtc,
+		      int target, int refclk, intel_clock_t *best_clock);
 
 static const intel_limit_t intel_limits_i8xx_dvo = {
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
@@ -752,6 +755,30 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 }
 
 static bool
+intel_find_pll_igdng_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
+		      int target, int refclk, intel_clock_t *best_clock)
+{
+	struct drm_device *dev = crtc->dev;
+	intel_clock_t clock;
+	if (target < 200000) {
+		clock.n = 1;
+		clock.p1 = 2;
+		clock.p2 = 10;
+		clock.m1 = 12;
+		clock.m2 = 9;
+	} else {
+		clock.n = 2;
+		clock.p1 = 1;
+		clock.p2 = 10;
+		clock.m1 = 14;
+		clock.m2 = 8;
+	}
+	intel_clock(dev, refclk, &clock);
+	memcpy(best_clock, &clock, sizeof(intel_clock_t));
+	return true;
+}
+
+static bool
 intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock)
 {
@@ -762,6 +789,10 @@ intel_igdng_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	bool found;
 	int err_most = 47;
 	found = false;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
+		return intel_find_pll_igdng_dp(limit, crtc, target,
+					       refclk, best_clock);
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 		if ((I915_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
@@ -2136,6 +2167,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	int lvds_reg = LVDS;
 	u32 temp;
 	int sdvo_pixel_multiply;
+	int target_clock;
 
 	drm_vblank_pre_modeset(dev, pipe);
 
@@ -2218,11 +2250,18 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	/* FDI link */
-	if (IS_IGDNG(dev))
+	if (IS_IGDNG(dev)) {
+		/* DP over FDI requires target mode clock
+		   instead of link clock */
+		if (is_dp)
+			target_clock = mode->clock;
+		else
+			target_clock = adjusted_mode->clock;
 		igdng_compute_m_n(3, 4, /* lane num 4 */
-				adjusted_mode->clock,
+				target_clock,
 				270000, /* lane clock */
 				&m_n);
+	}
 
 	if (IS_IGD(dev))
 		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
@@ -3050,6 +3089,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 			found = 0;
 			if (!found)
 				intel_hdmi_init(dev, HDMIB);
+			if (!found && (I915_READ(PCH_DP_B) & DP_DETECTED))
+				intel_dp_init(dev, PCH_DP_B);
 		}
 
 		if (I915_READ(HDMIC) & PORT_DETECTED)
@@ -3057,6 +3098,12 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (I915_READ(HDMID) & PORT_DETECTED)
 			intel_hdmi_init(dev, HDMID);
+
+		if (I915_READ(PCH_DP_C) & DP_DETECTED)
+			intel_dp_init(dev, PCH_DP_C);
+
+		if (I915_READ(PCH_DP_D) & DP_DETECTED)
+			intel_dp_init(dev, PCH_DP_D);
 
 	} else if (IS_I9XX(dev)) {
 		int found;

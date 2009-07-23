@@ -206,7 +206,12 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	 * and would like to run at 2MHz. So, take the
 	 * hrawclk value and divide by 2 and use that
 	 */
-	aux_clock_divider = intel_hrawclk(dev) / 2;
+	/* IGDNG: input clock fixed at 125Mhz, so aux_bit_clk always 62 */
+	if (IS_IGDNG(dev))
+		aux_clock_divider = 62;
+	else
+		aux_clock_divider = intel_hrawclk(dev) / 2;
+
 	/* Must try at least 3 times according to DP spec */
 	for (try = 0; try < 5; try++) {
 		/* Load the send data into the aux channel data registers */
@@ -493,22 +498,40 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	intel_dp_compute_m_n(3, lane_count,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
-	if (intel_crtc->pipe == 0) {
-		I915_WRITE(PIPEA_GMCH_DATA_M,
-		       ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-		       m_n.gmch_m);
-		I915_WRITE(PIPEA_GMCH_DATA_N,
-		       m_n.gmch_n);
-		I915_WRITE(PIPEA_DP_LINK_M, m_n.link_m);
-		I915_WRITE(PIPEA_DP_LINK_N, m_n.link_n);
+	if (IS_IGDNG(dev)) {
+		if (intel_crtc->pipe == 0) {
+			I915_WRITE(TRANSA_DATA_M1,
+				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
+				   m_n.gmch_m);
+			I915_WRITE(TRANSA_DATA_N1, m_n.gmch_n);
+			I915_WRITE(TRANSA_DP_LINK_M1, m_n.link_m);
+			I915_WRITE(TRANSA_DP_LINK_N1, m_n.link_n);
+		} else {
+			I915_WRITE(TRANSB_DATA_M1,
+				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
+				   m_n.gmch_m);
+			I915_WRITE(TRANSB_DATA_N1, m_n.gmch_n);
+			I915_WRITE(TRANSB_DP_LINK_M1, m_n.link_m);
+			I915_WRITE(TRANSB_DP_LINK_N1, m_n.link_n);
+		}
 	} else {
-		I915_WRITE(PIPEB_GMCH_DATA_M,
-		       ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
-		       m_n.gmch_m);
-		I915_WRITE(PIPEB_GMCH_DATA_N,
-		       m_n.gmch_n);
-		I915_WRITE(PIPEB_DP_LINK_M, m_n.link_m);
-		I915_WRITE(PIPEB_DP_LINK_N, m_n.link_n);
+		if (intel_crtc->pipe == 0) {
+			I915_WRITE(PIPEA_GMCH_DATA_M,
+				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
+				   m_n.gmch_m);
+			I915_WRITE(PIPEA_GMCH_DATA_N,
+				   m_n.gmch_n);
+			I915_WRITE(PIPEA_DP_LINK_M, m_n.link_m);
+			I915_WRITE(PIPEA_DP_LINK_N, m_n.link_n);
+		} else {
+			I915_WRITE(PIPEB_GMCH_DATA_M,
+				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
+				   m_n.gmch_m);
+			I915_WRITE(PIPEB_GMCH_DATA_N,
+					m_n.gmch_n);
+			I915_WRITE(PIPEB_DP_LINK_M, m_n.link_m);
+			I915_WRITE(PIPEB_DP_LINK_N, m_n.link_n);
+		}
 	}
 }
 
@@ -935,6 +958,12 @@ intel_dp_link_down(struct intel_output *intel_output, uint32_t DP)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_output->dev_priv;
 
+	DP &= ~DP_LINK_TRAIN_MASK;
+	I915_WRITE(dp_priv->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE);
+	POSTING_READ(dp_priv->output_reg);
+
+	udelay(17000);
+
 	I915_WRITE(dp_priv->output_reg, DP & ~DP_PORT_EN);
 	POSTING_READ(dp_priv->output_reg);
 }
@@ -978,6 +1007,24 @@ intel_dp_check_link_status(struct intel_output *intel_output)
 		intel_dp_link_train(intel_output, dp_priv->DP, dp_priv->link_configuration);
 }
 
+static enum drm_connector_status
+igdng_dp_detect(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_dp_priv *dp_priv = intel_output->dev_priv;
+	enum drm_connector_status status;
+
+	status = connector_status_disconnected;
+	if (intel_dp_aux_native_read(intel_output,
+				     0x000, dp_priv->dpcd,
+				     sizeof (dp_priv->dpcd)) == sizeof (dp_priv->dpcd))
+	{
+		if (dp_priv->dpcd[0] != 0)
+			status = connector_status_connected;
+	}
+	return status;
+}
+
 /**
  * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect DP connection.
  *
@@ -995,6 +1042,9 @@ intel_dp_detect(struct drm_connector *connector)
 	enum drm_connector_status status;
 
 	dp_priv->has_audio = false;
+
+	if (IS_IGDNG(dev))
+		return igdng_dp_detect(connector);
 
 	temp = I915_READ(PORT_HOTPLUG_EN);
 
@@ -1106,6 +1156,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	struct drm_connector *connector;
 	struct intel_output *intel_output;
 	struct intel_dp_priv *dp_priv;
+	const char *name = NULL;
 
 	intel_output = kcalloc(sizeof(struct intel_output) + 
 			       sizeof(struct intel_dp_priv), 1, GFP_KERNEL);
@@ -1139,9 +1190,22 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	drm_sysfs_connector_add(connector);
 
 	/* Set up the DDC bus. */
-	intel_dp_i2c_init(intel_output,
-			  (output_reg == DP_B) ? "DPDDC-B" :
-			  (output_reg == DP_C) ? "DPDDC-C" : "DPDDC-D");
+	switch (output_reg) {
+		case DP_B:
+		case PCH_DP_B:
+			name = "DPDDC-B";
+			break;
+		case DP_C:
+		case PCH_DP_C:
+			name = "DPDDC-C";
+			break;
+		case DP_D:
+		case PCH_DP_D:
+			name = "DPDDC-D";
+			break;
+	}
+
+	intel_dp_i2c_init(intel_output, name);
 	intel_output->ddc_bus = &dp_priv->adapter;
 	intel_output->hot_plug = intel_dp_hot_plug;
 

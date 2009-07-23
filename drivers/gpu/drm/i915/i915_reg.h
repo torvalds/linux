@@ -1444,6 +1444,7 @@
 #define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
 
 #define   DP_SCRAMBLING_DISABLE		(1 << 12)
+#define   DP_SCRAMBLING_DISABLE_IGDNG	(1 << 7)
 
 /** limit RGB values to avoid confusing TVs */
 #define   DP_COLOR_RANGE_16_235		(1 << 8)
@@ -2209,5 +2210,29 @@
 #define  EDP_PANEL		(1 << 30)
 #define PCH_PP_OFF_DELAYS	0xc720c
 #define PCH_PP_DIVISOR		0xc7210
+
+#define PCH_DP_B		0xe4100
+#define PCH_DPB_AUX_CH_CTL	0xe4110
+#define PCH_DPB_AUX_CH_DATA1	0xe4114
+#define PCH_DPB_AUX_CH_DATA2	0xe4118
+#define PCH_DPB_AUX_CH_DATA3	0xe411c
+#define PCH_DPB_AUX_CH_DATA4	0xe4120
+#define PCH_DPB_AUX_CH_DATA5	0xe4124
+
+#define PCH_DP_C		0xe4200
+#define PCH_DPC_AUX_CH_CTL	0xe4210
+#define PCH_DPC_AUX_CH_DATA1	0xe4214
+#define PCH_DPC_AUX_CH_DATA2	0xe4218
+#define PCH_DPC_AUX_CH_DATA3	0xe421c
+#define PCH_DPC_AUX_CH_DATA4	0xe4220
+#define PCH_DPC_AUX_CH_DATA5	0xe4224
+
+#define PCH_DP_D		0xe4300
+#define PCH_DPD_AUX_CH_CTL	0xe4310
+#define PCH_DPD_AUX_CH_DATA1	0xe4314
+#define PCH_DPD_AUX_CH_DATA2	0xe4318
+#define PCH_DPD_AUX_CH_DATA3	0xe431c
+#define PCH_DPD_AUX_CH_DATA4	0xe4320
+#define PCH_DPD_AUX_CH_DATA5	0xe4324
 
 #endif /* _I915_REG_H_ */
