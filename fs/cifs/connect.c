@@ -2544,11 +2544,20 @@ remote_path_check:
 
 			if (mount_data != mount_data_global)
 				kfree(mount_data);
+
 			mount_data = cifs_compose_mount_options(
 					cifs_sb->mountdata, full_path + 1,
 					referrals, &fake_devname);
-			kfree(fake_devname);
+
 			free_dfs_info_array(referrals, num_referrals);
+			kfree(fake_devname);
+			kfree(full_path);
+
+			if (IS_ERR(mount_data)) {
+				rc = PTR_ERR(mount_data);
+				mount_data = NULL;
+				goto mount_fail_check;
+			}
 
 			if (tcon)
 				cifs_put_tcon(tcon);
@@ -2556,8 +2565,6 @@ remote_path_check:
 				cifs_put_smb_ses(pSesInfo);
 
 			cleanup_volume_info(&volume_info);
-			FreeXid(xid);
-			kfree(full_path);
 			referral_walks_count++;
 			goto try_mount_again;
 		}
