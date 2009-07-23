@@ -34,8 +34,8 @@
 #include <net/tcp_states.h>
 #include <net/route.h>
 
-#include <net/ieee802154/af_ieee802154.h>
-#include <net/ieee802154/netdevice.h>
+#include <net/af_ieee802154.h>
+#include <net/ieee802154_netdev.h>
 
 #include "af802154.h"
 

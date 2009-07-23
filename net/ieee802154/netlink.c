@@ -27,9 +27,9 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <linux/nl802154.h>
-#include <net/ieee802154/af_ieee802154.h>
-#include <net/ieee802154/nl802154.h>
-#include <net/ieee802154/netdevice.h>
+#include <net/af_ieee802154.h>
+#include <net/nl802154.h>
+#include <net/ieee802154_netdev.h>
 
 static unsigned int ieee802154_seq_num;
 
