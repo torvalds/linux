@@ -116,6 +116,34 @@ int power_supply_is_system_supplied(void)
 }
 EXPORT_SYMBOL_GPL(power_supply_is_system_supplied);
 
+int power_supply_set_battery_charged(struct power_supply *psy)
+{
+	if (psy->type == POWER_SUPPLY_TYPE_BATTERY && psy->set_charged) {
+		psy->set_charged(psy);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(power_supply_set_battery_charged);
+
+static int power_supply_match_device_by_name(struct device *dev, void *data)
+{
+	const char *name = data;
+	struct power_supply *psy = dev_get_drvdata(dev);
+
+	return strcmp(psy->name, name) == 0;
+}
+
+struct power_supply *power_supply_get_by_name(char *name)
+{
+	struct device *dev = class_find_device(power_supply_class, NULL, name,
+					power_supply_match_device_by_name);
+
+	return dev ? dev_get_drvdata(dev) : NULL;
+}
+EXPORT_SYMBOL_GPL(power_supply_get_by_name);
+
 int power_supply_register(struct device *parent, struct power_supply *psy)
 {
 	int rc = 0;
