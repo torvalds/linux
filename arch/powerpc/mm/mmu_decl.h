@@ -121,7 +121,12 @@ extern unsigned int rtas_data, rtas_size;
 struct hash_pte;
 extern struct hash_pte *Hash, *Hash_end;
 extern unsigned long Hash_size, Hash_mask;
-#endif
+
+#endif /* CONFIG_PPC32 */
+
+#ifdef CONFIG_PPC64
+extern int map_kernel_page(unsigned long ea, unsigned long pa, int flags);
+#endif /* CONFIG_PPC64 */
 
 extern unsigned long ioremap_bot;
 extern unsigned long __max_low_memory;

@@ -196,6 +196,7 @@ extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 #endif
 
 extern int mmu_linear_psize;
+extern int mmu_vmemmap_psize;
 
 #endif /* !__ASSEMBLY__ */
 
