@@ -638,6 +638,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		spin_lock_irq(&ms->lock);
 		bio_list_merge(&ms->writes, &requeue);
 		spin_unlock_irq(&ms->lock);
+		delayed_wake(ms);
 	}
 
 	/*
