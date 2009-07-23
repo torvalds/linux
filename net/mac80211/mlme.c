@@ -1166,6 +1166,9 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	if (!netif_running(sdata->dev))
 		return;
 
+	if (sdata->local->scanning)
+		return;
+
 	mutex_lock(&ifmgd->mtx);
 
 	if (!ifmgd->associated)
@@ -2212,9 +2215,6 @@ static void ieee80211_sta_monitor_work(struct work_struct *work)
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
 			     u.mgd.monitor_work);
-
-	if (sdata->local->scanning)
-		return;
 
 	ieee80211_mgd_probe_ap(sdata, false);
 }
