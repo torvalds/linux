@@ -568,7 +568,6 @@ static int xc4000_readreg(struct xc4000_priv *priv, u16 reg, u16 *val)
 	return XC_RESULT_SUCCESS;
 }
 
-
 static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 			 v4l2_std_id *id)
 {
@@ -686,7 +685,6 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	return rc;
 }
 
-//static int load_all_firmwares(struct dvb_frontend *fe)
 static int xc4000_fwupload(struct dvb_frontend *fe)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
