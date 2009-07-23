@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/irq.h>
 
 static DEFINE_MUTEX(bat_lock);
 static struct work_struct bat_work;
@@ -137,6 +138,12 @@ static void wm97xx_bat_work(struct work_struct *work)
 	wm97xx_bat_update(&bat_ps);
 }
 
+static irqreturn_t wm97xx_chrg_irq(int irq, void *data)
+{
+	schedule_work(&bat_work);
+	return IRQ_HANDLED;
+}
+
 #ifdef CONFIG_PM
 static int wm97xx_bat_suspend(struct platform_device *dev, pm_message_t state)
 {
@@ -179,11 +186,16 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 		return -EINVAL;
 	}
 
-	if (pdata->charge_gpio >= 0 && gpio_is_valid(pdata->charge_gpio)) {
+	if (gpio_is_valid(pdata->charge_gpio)) {
 		ret = gpio_request(pdata->charge_gpio, "BATT CHRG");
 		if (ret)
 			goto err;
 		ret = gpio_direction_input(pdata->charge_gpio);
+		if (ret)
+			goto err2;
+		ret = request_irq(gpio_to_irq(pdata->charge_gpio),
+				wm97xx_chrg_irq, IRQF_DISABLED,
+				"AC Detect", 0);
 		if (ret)
 			goto err2;
 		props++;	/* POWER_SUPPLY_PROP_STATUS */
@@ -202,7 +214,7 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 
 	prop = kzalloc(props * sizeof(*prop), GFP_KERNEL);
 	if (!prop)
-		goto err2;
+		goto err3;
 
 	prop[i++] = POWER_SUPPLY_PROP_PRESENT;
 	if (pdata->charge_gpio >= 0)
@@ -235,13 +247,17 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 	if (!ret)
 		schedule_work(&bat_work);
 	else
-		goto err3;
+		goto err4;
 
 	return 0;
-err3:
+err4:
 	kfree(prop);
+err3:
+	if (gpio_is_valid(pdata->charge_gpio))
+		free_irq(gpio_to_irq(pdata->charge_gpio), dev);
 err2:
-	gpio_free(pdata->charge_gpio);
+	if (gpio_is_valid(pdata->charge_gpio))
+		gpio_free(pdata->charge_gpio);
 err:
 	return ret;
 }
@@ -251,8 +267,10 @@ static int __devexit wm97xx_bat_remove(struct platform_device *dev)
 	struct wm97xx_pdata *wmdata = dev->dev.platform_data;
 	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
 
-	if (pdata && pdata->charge_gpio && pdata->charge_gpio >= 0)
+	if (pdata && gpio_is_valid(pdata->charge_gpio)) {
+		free_irq(gpio_to_irq(pdata->charge_gpio), dev);
 		gpio_free(pdata->charge_gpio);
+	}
 	flush_scheduled_work();
 	power_supply_unregister(&bat_ps);
 	kfree(prop);
