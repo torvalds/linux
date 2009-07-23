@@ -2031,7 +2031,7 @@ static int tracing_open(struct inode *inode, struct file *file)
 
 	/* If this file was open for write, then erase contents */
 	if ((file->f_mode & FMODE_WRITE) &&
-	    !(file->f_flags & O_APPEND)) {
+	    (file->f_flags & O_TRUNC)) {
 		long cpu = (long) inode->i_private;
 
 		if (cpu == TRACE_PIPE_ALL_CPU)
