@@ -25,7 +25,14 @@ static u8 max9877_regs[5] = { 0x40, 0x00, 0x00, 0x00, 0x49 };
 
 static void max9877_write_regs(void)
 {
-	if (i2c_master_send(i2c, max9877_regs, 5) != 5)
+	unsigned int i;
+	u8 data[6];
+
+	data[0] = MAX9877_INPUT_MODE;
+	for (i = 0; i < ARRAY_SIZE(max9877_regs); i++)
+		data[i + 1] = max9877_regs[i];
+
+	if (i2c_master_send(i2c, data, 6) != 6)
 		dev_err(&i2c->dev, "i2c write failed\n");
 }
 
@@ -135,12 +142,12 @@ static int max9877_set_out_mode(struct snd_kcontrol *kcontrol,
 {
 	u8 value = ucontrol->value.integer.value[0];
 
-	if (value)
-		value += 1;
+	value += 1;
 
 	if ((max9877_regs[MAX9877_OUTPUT_MODE] & MAX9877_OUTMODE_MASK) == value)
 		return 0;
 
+	max9877_regs[MAX9877_OUTPUT_MODE] &= ~MAX9877_OUTMODE_MASK;
 	max9877_regs[MAX9877_OUTPUT_MODE] |= value;
 	max9877_write_regs();
 	return 1;
@@ -166,6 +173,7 @@ static int max9877_set_osc_mode(struct snd_kcontrol *kcontrol,
 	if ((max9877_regs[MAX9877_OUTPUT_MODE] & MAX9877_OSC_MASK) == value)
 		return 0;
 
+	max9877_regs[MAX9877_OUTPUT_MODE] &= ~MAX9877_OSC_MASK;
 	max9877_regs[MAX9877_OUTPUT_MODE] |= value;
 	max9877_write_regs();
 	return 1;
