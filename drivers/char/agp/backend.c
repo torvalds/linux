@@ -152,6 +152,15 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 		bridge->scratch_page_real = phys_to_gart(page_to_phys(page));
 		bridge->scratch_page = bridge->driver->mask_memory(bridge,
 					   phys_to_gart(page_to_phys(page)), 0);
+
+		if (bridge->driver->agp_map_page &&
+		    bridge->driver->agp_map_page(phys_to_virt(page_to_phys(page)),
+						&bridge->scratch_page_dma)) {
+			dev_err(&bridge->dev->dev,
+				"unable to dma-map scratch page\n");
+			rc = -ENOMEM;
+			goto err_out_nounmap;
+		}
 	}
 
 	size_value = bridge->driver->fetch_size();
@@ -191,6 +200,13 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 	return 0;
 
 err_out:
+	if (bridge->driver->needs_scratch_page &&
+	    bridge->driver->agp_unmap_page) {
+		void *va = gart_to_virt(bridge->scratch_page_real);
+
+		bridge->driver->agp_unmap_page(va, bridge->scratch_page_dma);
+	}
+err_out_nounmap:
 	if (bridge->driver->needs_scratch_page) {
 		void *va = gart_to_virt(bridge->scratch_page_real);
 
@@ -220,6 +236,10 @@ static void agp_backend_cleanup(struct agp_bridge_data *bridge)
 	if (bridge->driver->agp_destroy_page &&
 	    bridge->driver->needs_scratch_page) {
 		void *va = gart_to_virt(bridge->scratch_page_real);
+
+		if (bridge->driver->agp_unmap_page)
+			bridge->driver->agp_unmap_page(va,
+					       bridge->scratch_page_dma);
 
 		bridge->driver->agp_destroy_page(va, AGP_PAGE_DESTROY_UNMAP);
 		bridge->driver->agp_destroy_page(va, AGP_PAGE_DESTROY_FREE);
