@@ -137,7 +137,7 @@ void ConfigMACRegs1(struct et131x_adapter *pAdapter)
 	/* Next lets configure the MAC Interface Control register */
 	writel(0, &pMac->if_ctrl.value);
 
-	/* Let's move on to setting up the mii managment configuration */
+	/* Let's move on to setting up the mii management configuration */
 	mii_mgmt_cfg.bits.reset_mii_mgmt = 0;
 	mii_mgmt_cfg.bits.scan_auto_incremt = 0;
 	mii_mgmt_cfg.bits.preamble_suppress = 0;

@@ -19,7 +19,7 @@
  * File: 80211mgr.h
  *
  * Purpose: Defines the macros, types, and functions for dealing
- *          with 802.11 managment frames.
+ *          with 802.11 management frames.
  *
  * Author: Lyndon Chen
  *
