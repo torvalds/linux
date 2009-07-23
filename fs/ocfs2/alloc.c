@@ -1914,7 +1914,8 @@ static void ocfs2_adjust_adjacent_records(struct ocfs2_extent_rec *left_rec,
 	 * immediately to their right.
 	 */
 	left_clusters = le32_to_cpu(right_child_el->l_recs[0].e_cpos);
-	if (ocfs2_is_empty_extent(&right_child_el->l_recs[0])) {
+	if (!ocfs2_rec_clusters(right_child_el, &right_child_el->l_recs[0])) {
+		BUG_ON(right_child_el->l_tree_depth);
 		BUG_ON(le16_to_cpu(right_child_el->l_next_free_rec) <= 1);
 		left_clusters = le32_to_cpu(right_child_el->l_recs[1].e_cpos);
 	}
