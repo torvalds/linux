@@ -32,9 +32,6 @@
 
 #include "edac_core.h"
 
-/* To use the new pci_[read/write]_config_qword instead of two dword */
-#define USE_QWORD 0
-
 /*
  * Alter this version for the module when modifications are made
  */
@@ -473,7 +470,7 @@ static int get_dimm_config(struct mem_ctl_info *mci, int *csrow, u8 socket)
 		"x%x x 0x%x\n",
 		numdimms(pvt->info.max_dod),
 		numrank(pvt->info.max_dod >> 2),
-		numbank(pvt->info.max_dod >> 4));
+		numbank(pvt->info.max_dod >> 4),
 		numrow(pvt->info.max_dod >> 6),
 		numcol(pvt->info.max_dod >> 9));
 
@@ -646,7 +643,7 @@ static ssize_t i7core_inject_socket_store(struct mem_ctl_info *mci,
 	int rc;
 
 	rc = strict_strtoul(data, 10, &value);
-	if ((rc < 0) || (value > pvt->sockets))
+	if ((rc < 0) || (value >= pvt->sockets))
 		return 0;
 
 	pvt->inject.section = (u32) value;
@@ -803,7 +800,7 @@ static ssize_t i7core_inject_addrmatch_store(struct mem_ctl_info *mci,
 			else
 				return cmd - data;
 		} else if (!strcasecmp(cmd, "dimm")) {
-			if (value < 4)
+			if (value < 3)
 				pvt->inject.dimm = value;
 			else
 				return cmd - data;
@@ -813,7 +810,7 @@ static ssize_t i7core_inject_addrmatch_store(struct mem_ctl_info *mci,
 			else
 				return cmd - data;
 		} else if (!strcasecmp(cmd, "bank")) {
-			if (value < 4)
+			if (value < 32)
 				pvt->inject.bank = value;
 			else
 				return cmd - data;
@@ -869,6 +866,28 @@ static ssize_t i7core_inject_addrmatch_show(struct mem_ctl_info *mci,
 			     "rank: %s\npage: %s\ncolumn: %s\n",
 		       channel, dimm, bank, rank, page, col);
 }
+
+static int write_and_test(struct pci_dev *dev, int where, u32 val)
+{
+	u32 read;
+	int count;
+
+	for (count = 0; count < 10; count++) {
+		if (count)
+			msleep (100);
+		pci_write_config_dword(dev, where, val);
+		pci_read_config_dword(dev, where, &read);
+
+		if (read == val)
+			return 0;
+	}
+
+	debugf0("Error Injection Register 0x%02x: Tried to write 0x%08x, "
+		"but read: 0x%08x\n", where, val, read);
+
+	return -EINVAL;
+}
+
 
 /*
  * This routine prepares the Memory Controller for error injection.
@@ -949,52 +968,6 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	else
 		mask |= (pvt->inject.col & 0x3fffL);
 
-	/* Unlock writes to registers */
-	pci_write_config_dword(pvt->pci_noncore[pvt->inject.socket],
-			       MC_CFG_CONTROL, 0x2);
-	msleep(100);
-
-	/* Zeroes error count registers */
-	pci_write_config_dword(pvt->pci_mcr[pvt->inject.socket][4],
-			       MC_TEST_ERR_RCV1, 0);
-	pci_write_config_dword(pvt->pci_mcr[pvt->inject.socket][4],
-			       MC_TEST_ERR_RCV0, 0);
-	pvt->ce_count_available[pvt->inject.socket] = 0;
-
-
-#if USE_QWORD
-	pci_write_config_qword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ADDR_MATCH, mask);
-#else
-	pci_write_config_dword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ADDR_MATCH, mask);
-	pci_write_config_dword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ADDR_MATCH + 4, mask >> 32L);
-#endif
-
-#if 1
-#if USE_QWORD
-	u64 rdmask;
-	pci_read_config_qword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ADDR_MATCH, &rdmask);
-	debugf0("Inject addr match write 0x%016llx, read: 0x%016llx\n",
-		mask, rdmask);
-#else
-	u32 rdmask1, rdmask2;
-
-	pci_read_config_dword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ADDR_MATCH, &rdmask1);
-	pci_read_config_dword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ADDR_MATCH + 4, &rdmask2);
-
-	debugf0("Inject addr match write 0x%016llx, read: 0x%08x 0x%08x\n",
-		mask, rdmask1, rdmask2);
-#endif
-#endif
-
-	pci_write_config_dword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ERROR_MASK, pvt->inject.eccmask);
-
 	/*
 	 * bit    0: REPEAT_EN
 	 * bits 1-2: MASK_HALF_CACHELINE
@@ -1006,13 +979,38 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 		     (pvt->inject.section & 0x3) << 1 |
 		     (pvt->inject.type & 0x6) << (3 - 1);
 
-	pci_write_config_dword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ERROR_MASK, injectmask);
+	/* Unlock writes to registers - this register is write only */
+	pci_write_config_dword(pvt->pci_noncore[pvt->inject.socket],
+			       MC_CFG_CONTROL, 0x2);
 
 #if 0
-	/* lock writes to registers */
-	pci_write_config_dword(pvt->pci_noncore, MC_CFG_CONTROL, 0);
+	/* Zeroes error count registers */
+	pci_write_config_dword(pvt->pci_mcr[pvt->inject.socket][4],
+			       MC_TEST_ERR_RCV1, 0);
+	pci_write_config_dword(pvt->pci_mcr[pvt->inject.socket][4],
+			       MC_TEST_ERR_RCV0, 0);
+	pvt->ce_count_available[pvt->inject.socket] = 0;
 #endif
+
+	write_and_test(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
+			       MC_CHANNEL_ADDR_MATCH, mask);
+	write_and_test(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
+			       MC_CHANNEL_ADDR_MATCH + 4, mask >> 32L);
+
+	write_and_test(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
+			       MC_CHANNEL_ERROR_MASK, pvt->inject.eccmask);
+
+	write_and_test(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
+			       MC_CHANNEL_ERROR_MASK, injectmask);
+
+	/*
+	 * This is something undocumented, based on my tests
+	 * Without writing 8 to this register, errors aren't injected. Not sure
+	 * why.
+	 */
+	pci_write_config_dword(pvt->pci_noncore[pvt->inject.socket],
+			       MC_CFG_CONTROL, 8);
+
 	debugf0("Error inject addr match 0x%016llx, ecc 0x%08x,"
 		" inject 0x%08x\n",
 		mask, pvt->inject.eccmask, injectmask);
