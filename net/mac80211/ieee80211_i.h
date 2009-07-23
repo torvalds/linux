@@ -570,9 +570,41 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_SKB_ADD,
 };
 
+/**
+ * mac80211 scan flags - currently active scan mode
+ *
+ * @SCAN_SW_SCANNING: We're currently in the process of scanning but may as
+ *	well be on the operating channel
+ * @SCAN_HW_SCANNING: The hardware is scanning for us, we have no way to
+ *	determine if we are on the operating channel or not
+ * @SCAN_OFF_CHANNEL: We're off our operating channel for scanning,
+ *	gets only set in conjunction with SCAN_SW_SCANNING
+ */
 enum {
 	SCAN_SW_SCANNING,
-	SCAN_HW_SCANNING
+	SCAN_HW_SCANNING,
+	SCAN_OFF_CHANNEL,
+};
+
+/**
+ * enum mac80211_scan_state - scan state machine states
+ *
+ * @SCAN_DECISION: Main entry point to the scan state machine, this state
+ *	determines if we should keep on scanning or switch back to the
+ *	operating channel
+ * @SCAN_SET_CHANNEL: Set the next channel to be scanned
+ * @SCAN_SEND_PROBE: Send probe requests and wait for probe responses
+ * @SCAN_LEAVE_OPER_CHANNEL: Leave the operating channel, notify the AP
+ *	about us leaving the channel and stop all associated STA interfaces
+ * @SCAN_ENTER_OPER_CHANNEL: Enter the operating channel again, notify the
+ *	AP about us being back and restart all associated STA interfaces
+ */
+enum mac80211_scan_state {
+	SCAN_DECISION,
+	SCAN_SET_CHANNEL,
+	SCAN_SEND_PROBE,
+	SCAN_LEAVE_OPER_CHANNEL,
+	SCAN_ENTER_OPER_CHANNEL,
 };
 
 struct ieee80211_local {
@@ -683,7 +715,7 @@ struct ieee80211_local {
 	int scan_channel_idx;
 	int scan_ies_len;
 
-	enum { SCAN_DECISION, SCAN_SET_CHANNEL, SCAN_SEND_PROBE } scan_state;
+	enum mac80211_scan_state scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data *scan_sdata;
 	enum nl80211_channel_type oper_channel_type;

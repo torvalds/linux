@@ -365,12 +365,11 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 			ieee80211_bss_info_change_notify(
 				sdata, BSS_CHANGED_BEACON_ENABLED);
 
-		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			if (sdata->u.mgd.associated) {
-				netif_tx_stop_all_queues(sdata->dev);
-				ieee80211_scan_ps_enable(sdata);
-			}
-		} else
+		/*
+		 * only handle non-STA interfaces here, STA interfaces
+		 * are handled in the scan state machine
+		 */
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
 			netif_tx_stop_all_queues(sdata->dev);
 	}
 	mutex_unlock(&local->iflist_mtx);
@@ -474,15 +473,111 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 static int ieee80211_scan_state_decision(struct ieee80211_local *local,
 					 unsigned long *next_delay)
 {
-	/* if no more bands/channels left, complete scan */
+	bool associated = false;
+	struct ieee80211_sub_if_data *sdata;
+
+	/* if no more bands/channels left, complete scan and advance to the idle state */
 	if (local->scan_channel_idx >= local->scan_req->n_channels) {
 		ieee80211_scan_completed(&local->hw, false);
 		return 1;
 	}
 
+	/* check if at least one STA interface is associated */
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
+
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+			if (sdata->u.mgd.associated) {
+				associated = true;
+				break;
+			}
+		}
+	}
+	mutex_unlock(&local->iflist_mtx);
+
+	if (local->scan_channel) {
+		/*
+		 * we're currently scanning a different channel, let's
+		 * switch back to the operating channel now if at least
+		 * one interface is associated. Otherwise just scan the
+		 * next channel
+		 */
+		if (associated)
+			local->scan_state = SCAN_ENTER_OPER_CHANNEL;
+		else
+			local->scan_state = SCAN_SET_CHANNEL;
+	} else {
+		/*
+		 * we're on the operating channel currently, let's
+		 * leave that channel now to scan another one
+		 */
+		local->scan_state = SCAN_LEAVE_OPER_CHANNEL;
+	}
+
 	*next_delay = 0;
-	local->scan_state = SCAN_SET_CHANNEL;
 	return 0;
+}
+
+static void ieee80211_scan_state_leave_oper_channel(struct ieee80211_local *local,
+						    unsigned long *next_delay)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	/*
+	 * notify the AP about us leaving the channel and stop all STA interfaces
+	 */
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
+
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+			netif_tx_stop_all_queues(sdata->dev);
+			if (sdata->u.mgd.associated)
+				ieee80211_scan_ps_enable(sdata);
+		}
+	}
+	mutex_unlock(&local->iflist_mtx);
+
+	__set_bit(SCAN_OFF_CHANNEL, &local->scanning);
+
+	/* advance to the next channel to be scanned */
+	*next_delay = HZ / 10;
+	local->scan_state = SCAN_SET_CHANNEL;
+}
+
+static void ieee80211_scan_state_enter_oper_channel(struct ieee80211_local *local,
+						    unsigned long *next_delay)
+{
+	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
+
+	/* switch back to the operating channel */
+	local->scan_channel = NULL;
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+
+	/*
+	 * notify the AP about us being back and restart all STA interfaces
+	 */
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
+
+		/* Tell AP we're back */
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+			if (sdata->u.mgd.associated)
+				ieee80211_scan_ps_disable(sdata);
+			netif_tx_wake_all_queues(sdata->dev);
+		}
+	}
+	mutex_unlock(&local->iflist_mtx);
+
+	__clear_bit(SCAN_OFF_CHANNEL, &local->scanning);
+
+	*next_delay = HZ / 5;
+	local->scan_state = SCAN_DECISION;
 }
 
 static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
@@ -608,6 +703,12 @@ void ieee80211_scan_work(struct work_struct *work)
 			break;
 		case SCAN_SEND_PROBE:
 			ieee80211_scan_state_send_probe(local, &next_delay);
+			break;
+		case SCAN_LEAVE_OPER_CHANNEL:
+			ieee80211_scan_state_leave_oper_channel(local, &next_delay);
+			break;
+		case SCAN_ENTER_OPER_CHANNEL:
+			ieee80211_scan_state_enter_oper_channel(local, &next_delay);
 			break;
 		}
 	} while (next_delay == 0);
