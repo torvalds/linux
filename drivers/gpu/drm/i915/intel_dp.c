@@ -236,7 +236,7 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 		}
 	
 		/* Clear done status and any errors */
-		I915_WRITE(ch_ctl, (ctl |
+		I915_WRITE(ch_ctl, (status |
 				DP_AUX_CH_CTL_DONE |
 				DP_AUX_CH_CTL_TIME_OUT_ERROR |
 				DP_AUX_CH_CTL_RECEIVE_ERROR));
@@ -295,7 +295,7 @@ intel_dp_aux_native_write(struct intel_output *intel_output,
 		return -1;
 	msg[0] = AUX_NATIVE_WRITE << 4;
 	msg[1] = address >> 8;
-	msg[2] = address;
+	msg[2] = address & 0xff;
 	msg[3] = send_bytes - 1;
 	memcpy(&msg[4], send, send_bytes);
 	msg_bytes = send_bytes + 4;
@@ -387,8 +387,8 @@ intel_dp_i2c_init(struct intel_output *intel_output, const char *name)
 	memset(&dp_priv->adapter, '\0', sizeof (dp_priv->adapter));
 	dp_priv->adapter.owner = THIS_MODULE;
 	dp_priv->adapter.class = I2C_CLASS_DDC;
-	strncpy (dp_priv->adapter.name, name, sizeof dp_priv->adapter.name - 1);
-	dp_priv->adapter.name[sizeof dp_priv->adapter.name - 1] = '\0';
+	strncpy (dp_priv->adapter.name, name, sizeof(dp_priv->adapter.name) - 1);
+	dp_priv->adapter.name[sizeof(dp_priv->adapter.name) - 1] = '\0';
 	dp_priv->adapter.algo_data = &dp_priv->algo;
 	dp_priv->adapter.dev.parent = &intel_output->base.kdev;
 	
