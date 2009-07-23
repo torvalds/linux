@@ -2377,6 +2377,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 
 	wk->state = IEEE80211_MGD_STATE_PROBE;
 	wk->auth_alg = auth_alg;
+	wk->timeout = jiffies; /* run right away */
 
 	/*
 	 * XXX: if still associated need to tell AP that we're going
@@ -2448,6 +2449,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	wk->state = IEEE80211_MGD_STATE_ASSOC;
 	wk->tries = 0;
+	wk->timeout = jiffies; /* run right away */
 
 	if (req->use_mfp) {
 		ifmgd->mfp = IEEE80211_MFP_REQUIRED;
