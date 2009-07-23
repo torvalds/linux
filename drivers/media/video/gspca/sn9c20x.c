@@ -1096,12 +1096,12 @@ int i2c_w(struct gspca_dev *gspca_dev, const u8 *buffer)
 		reg_r(gspca_dev, 0x10c0, 1);
 		if (gspca_dev->usb_buf[0] & 0x04) {
 			if (gspca_dev->usb_buf[0] & 0x08)
-				return -1;
+				return -EIO;
 			return 0;
 		}
 		msleep(1);
 	}
-	return -1;
+	return -EIO;
 }
 
 int i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
@@ -1152,7 +1152,7 @@ int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
 
-	row[0] = 0x81 | 0x10;
+	row[0] = 0x81 | (1 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = 0;
@@ -1160,14 +1160,15 @@ int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	row[5] = 0;
 	row[6] = 0;
 	row[7] = 0x10;
-	reg_w(gspca_dev, 0x10c0, row, 8);
-	msleep(1);
-	row[0] = 0x81 | (2 << 4) | 0x02;
+	if (i2c_w(gspca_dev, row) < 0)
+		return -EIO;
+	row[0] = 0x81 | (1 << 4) | 0x02;
 	row[2] = 0;
-	reg_w(gspca_dev, 0x10c0, row, 8);
-	msleep(1);
-	reg_r(gspca_dev, 0x10c2, 5);
-	*val = gspca_dev->usb_buf[3];
+	if (i2c_w(gspca_dev, row) < 0)
+		return -EIO;
+	if (reg_r(gspca_dev, 0x10c2, 5) < 0)
+		return -EIO;
+	*val = gspca_dev->usb_buf[4];
 	return 0;
 }
 
@@ -1176,7 +1177,7 @@ int i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
 
-	row[0] = 0x81 | 0x10;
+	row[0] = 0x81 | (1 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = 0;
@@ -1184,14 +1185,15 @@ int i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 	row[5] = 0;
 	row[6] = 0;
 	row[7] = 0x10;
-	reg_w(gspca_dev, 0x10c0, row, 8);
-	msleep(1);
-	row[0] = 0x81 | (3 << 4) | 0x02;
+	if (i2c_w(gspca_dev, row) < 0)
+		return -EIO;
+	row[0] = 0x81 | (2 << 4) | 0x02;
 	row[2] = 0;
-	reg_w(gspca_dev, 0x10c0, row, 8);
-	msleep(1);
-	reg_r(gspca_dev, 0x10c2, 5);
-	*val = (gspca_dev->usb_buf[2] << 8) | gspca_dev->usb_buf[3];
+	if (i2c_w(gspca_dev, row) < 0)
+		return -EIO;
+	if (reg_r(gspca_dev, 0x10c2, 5) < 0)
+		return -EIO;
+	*val = (gspca_dev->usb_buf[3] << 8) | gspca_dev->usb_buf[4];
 	return 0;
 }
 
