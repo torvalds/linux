@@ -127,6 +127,25 @@ struct nfsd4_channel_attrs {
 	u32		rdma_attrs;
 };
 
+struct nfsd4_create_session {
+	clientid_t			clientid;
+	struct nfs4_sessionid		sessionid;
+	u32				seqid;
+	u32				flags;
+	struct nfsd4_channel_attrs	fore_channel;
+	struct nfsd4_channel_attrs	back_channel;
+	u32				callback_prog;
+	u32				uid;
+	u32				gid;
+};
+
+/* The single slot clientid cache structure */
+struct nfsd4_clid_slot {
+	u32				sl_seqid;
+	__be32				sl_status;
+	struct nfsd4_create_session	sl_cr_ses;
+};
+
 struct nfsd4_session {
 	struct kref		se_ref;
 	struct list_head	se_hash;	/* hash by sessionid */
@@ -193,7 +212,7 @@ struct nfs4_client {
 
 	/* for nfs41 */
 	struct list_head	cl_sessions;
-	struct nfsd4_slot	cl_slot;	/* create_session slot */
+	struct nfsd4_clid_slot	cl_cs_slot;	/* create_session slot */
 	u32			cl_exchange_flags;
 	struct nfs4_sessionid	cl_sessionid;
 };
