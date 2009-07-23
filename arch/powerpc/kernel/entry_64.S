@@ -120,9 +120,15 @@ BEGIN_FW_FTR_SECTION
 2:
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif /* CONFIG_PPC_ISERIES */
+
+	/* Hard enable interrupts */
+#ifdef CONFIG_PPC_BOOK3E
+	wrteei	1
+#else
 	mfmsr	r11
 	ori	r11,r11,MSR_EE
 	mtmsrd	r11,1
+#endif /* CONFIG_PPC_BOOK3E */
 
 #ifdef SHOW_SYSCALLS
 	bl	.do_show_syscall
@@ -168,15 +174,25 @@ syscall_exit:
 #endif
 	clrrdi	r12,r1,THREAD_SHIFT
 
-	/* disable interrupts so current_thread_info()->flags can't change,
-	   and so that we don't get interrupted after loading SRR0/1. */
 	ld	r8,_MSR(r1)
+#ifdef CONFIG_PPC_BOOK3S
+	/* No MSR:RI on BookE */
 	andi.	r10,r8,MSR_RI
 	beq-	unrecov_restore
+#endif
+
+	/* Disable interrupts so current_thread_info()->flags can't change,
+	 * and so that we don't get interrupted after loading SRR0/1.
+	 */
+#ifdef CONFIG_PPC_BOOK3E
+	wrteei	0
+#else
 	mfmsr	r10
 	rldicl	r10,r10,48,1
 	rotldi	r10,r10,16
 	mtmsrd	r10,1
+#endif /* CONFIG_PPC_BOOK3E */
+
 	ld	r9,TI_FLAGS(r12)
 	li	r11,-_LAST_ERRNO
 	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
@@ -194,9 +210,13 @@ syscall_error_cont:
 	 * userspace and we take an exception after restoring r13,
 	 * we end up corrupting the userspace r13 value.
 	 */
+#ifdef CONFIG_PPC_BOOK3S
+	/* No MSR:RI on BookE */
 	li	r12,MSR_RI
 	andc	r11,r10,r12
 	mtmsrd	r11,1			/* clear MSR.RI */
+#endif /* CONFIG_PPC_BOOK3S */
+
 	beq-	1f
 	ACCOUNT_CPU_USER_EXIT(r11, r12)
 	ld	r13,GPR13(r1)	/* only restore r13 if returning to usermode */
@@ -206,7 +226,7 @@ syscall_error_cont:
 	mtcr	r5
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r8
-	rfid
+	RFI
 	b	.	/* prevent speculative execution */
 
 syscall_error:	
@@ -276,9 +296,13 @@ syscall_exit_work:
 	beq	.ret_from_except_lite
 
 	/* Re-enable interrupts */
+#ifdef CONFIG_PPC_BOOK3E
+	wrteei	1
+#else
 	mfmsr	r10
 	ori	r10,r10,MSR_EE
 	mtmsrd	r10,1
+#endif /* CONFIG_PPC_BOOK3E */
 
 	bl	.save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -380,7 +404,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	and.	r0,r0,r22
 	beq+	1f
 	andc	r22,r22,r0
-	mtmsrd	r22
+	MTMSRD(r22)
 	isync
 1:	std	r20,_NIP(r1)
 	mfcr	r23
@@ -399,6 +423,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	std	r6,PACACURRENT(r13)	/* Set new 'current' */
 
 	ld	r8,KSP(r4)	/* new stack pointer */
+#ifdef CONFIG_PPC_BOOK3S
 BEGIN_FTR_SECTION
   BEGIN_FTR_SECTION_NESTED(95)
 	clrrdi	r6,r8,28	/* get its ESID */
@@ -445,8 +470,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
 	slbie	r6		/* Workaround POWER5 < DD2.1 issue */
 	slbmte	r7,r0
 	isync
-
 2:
+#endif /* !CONFIG_PPC_BOOK3S */
+
 	clrrdi	r7,r8,THREAD_SHIFT	/* base of new stack */
 	/* Note: this uses SWITCH_FRAME_SIZE rather than INT_FRAME_SIZE
 	   because we don't need to leave the 288-byte ABI gap at the
@@ -490,10 +516,14 @@ _GLOBAL(ret_from_except_lite)
 	 * can't change between when we test it and when we return
 	 * from the interrupt.
 	 */
+#ifdef CONFIG_PPC_BOOK3E
+	wrteei	0
+#else
 	mfmsr	r10		/* Get current interrupt state */
 	rldicl	r9,r10,48,1	/* clear MSR_EE */
 	rotldi	r9,r9,16
 	mtmsrd	r9,1		/* Update machine state */
+#endif /* CONFIG_PPC_BOOK3E */
 
 #ifdef CONFIG_PREEMPT
 	clrrdi	r9,r1,THREAD_SHIFT	/* current_thread_info() */
@@ -540,6 +570,9 @@ ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
 	rldicl	r4,r3,49,63		/* r0 = (r3 >> 15) & 1 */
 	stb	r4,PACAHARDIRQEN(r13)
 
+#ifdef CONFIG_PPC_BOOK3E
+	b	.exception_return_book3e
+#else
 	ld	r4,_CTR(r1)
 	ld	r0,_LINK(r1)
 	mtctr	r4
@@ -587,6 +620,8 @@ ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
 
 	rfid
 	b	.	/* prevent speculative execution */
+
+#endif /* CONFIG_PPC_BOOK3E */
 
 iseries_check_pending_irqs:
 #ifdef CONFIG_PPC_ISERIES
@@ -638,6 +673,11 @@ do_work:
 	li	r0,1
 	stb	r0,PACASOFTIRQEN(r13)
 	stb	r0,PACAHARDIRQEN(r13)
+#ifdef CONFIG_PPC_BOOK3E
+	wrteei	1
+	bl	.preempt_schedule
+	wrteei	0
+#else
 	ori	r10,r10,MSR_EE
 	mtmsrd	r10,1		/* reenable interrupts */
 	bl	.preempt_schedule
@@ -646,6 +686,7 @@ do_work:
 	rldicl	r10,r10,48,1	/* disable interrupts again */
 	rotldi	r10,r10,16
 	mtmsrd	r10,1
+#endif /* CONFIG_PPC_BOOK3E */
 	ld	r4,TI_FLAGS(r9)
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	bne	1b
@@ -654,8 +695,12 @@ do_work:
 user_work:
 #endif
 	/* Enable interrupts */
+#ifdef CONFIG_PPC_BOOK3E
+	wrteei	1
+#else
 	ori	r10,r10,MSR_EE
 	mtmsrd	r10,1
+#endif /* CONFIG_PPC_BOOK3E */
 
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	1f
@@ -837,6 +882,10 @@ _GLOBAL(enter_prom)
 
 	/* Switch MSR to 32 bits mode
 	 */
+#ifdef CONFIG_PPC_BOOK3E
+	rlwinm	r11,r11,0,1,31
+	mtmsr	r11
+#else /* CONFIG_PPC_BOOK3E */
         mfmsr   r11
         li      r12,1
         rldicr  r12,r12,MSR_SF_LG,(63-MSR_SF_LG)
@@ -845,6 +894,7 @@ _GLOBAL(enter_prom)
         rldicr  r12,r12,MSR_ISF_LG,(63-MSR_ISF_LG)
         andc    r11,r11,r12
         mtmsrd  r11
+#endif /* CONFIG_PPC_BOOK3E */
         isync
 
 	/* Enter PROM here... */

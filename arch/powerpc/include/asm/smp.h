@@ -153,6 +153,7 @@ extern void arch_send_call_function_ipi(cpumask_t mask);
  * 64-bit but defining them all here doesn't harm
  */
 extern void generic_secondary_smp_init(void);
+extern void generic_secondary_thread_init(void);
 extern unsigned long __secondary_hold_spinloop;
 extern unsigned long __secondary_hold_acknowledge;
 extern char __secondary_hold;

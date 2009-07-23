@@ -454,6 +454,24 @@ static void __init irqstack_early_init(void)
 #define irqstack_early_init()
 #endif
 
+#ifdef CONFIG_PPC_BOOK3E
+static void __init exc_lvl_early_init(void)
+{
+	unsigned int i;
+
+	for_each_possible_cpu(i) {
+		critirq_ctx[i] = (struct thread_info *)
+			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+		dbgirq_ctx[i] = (struct thread_info *)
+			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+		mcheckirq_ctx[i] = (struct thread_info *)
+			__va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+	}
+}
+#else
+#define exc_lvl_early_init()
+#endif
+
 /*
  * Stack space used when we detect a bad kernel stack pointer, and
  * early in SMP boots before relocation is enabled.
@@ -513,6 +531,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.brk = klimit;
 	
 	irqstack_early_init();
+	exc_lvl_early_init();
 	emergency_stack_init();
 
 #ifdef CONFIG_PPC_STD_MMU_64

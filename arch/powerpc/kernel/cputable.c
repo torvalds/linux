@@ -93,7 +93,7 @@ extern void __restore_cpu_power7(void);
 				 PPC_FEATURE_BOOKE)
 
 static struct cpu_spec __initdata cpu_specs[] = {
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 	{	/* Power3 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00400000,
@@ -508,7 +508,30 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_generic,
 		.platform		= "power4",
 	}
-#endif	/* CONFIG_PPC64 */
+#endif	/* CONFIG_PPC_BOOK3S_64 */
+#ifdef CONFIG_PPC_BOOK3E_64
+	{	/* This is a default entry to get going, to be replaced by
+		 * a real one at some stage
+		 */
+#define CPU_FTRS_BASE_BOOK3E	(CPU_FTR_USE_TB | \
+	    CPU_FTR_PPCAS_ARCH_V2 | CPU_FTR_SMT | \
+	    CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
+		.pvr_mask		= 0x00000000,
+		.pvr_value		= 0x00000000,
+		.cpu_name		= "Book3E",
+		.cpu_features		= CPU_FTRS_BASE_BOOK3E,
+		.cpu_user_features	= COMMON_USER_PPC64,
+		.mmu_features		= MMU_FTR_TYPE_3E | MMU_FTR_USE_TLBILX |
+					  MMU_FTR_USE_TLBIVAX_BCAST |
+					  MMU_FTR_LOCK_BCAST_INVAL,
+		.icache_bsize		= 64,
+		.dcache_bsize		= 64,
+		.num_pmcs		= 0,
+		.machine_check		= machine_check_generic,
+		.platform		= "power6",
+	},
+#endif
+
 #ifdef CONFIG_PPC32
 #if CLASSIC_PPC
 	{	/* 601 */
