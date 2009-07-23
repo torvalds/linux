@@ -1339,7 +1339,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	tuner_dbg("Load init1 firmware, if exists\n");
 
 //	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &std0);
-	rc = load_firmware(fe, INIT1, &std0);
+	rc = load_firmware(fe, BASE | INIT1, &std0);
 	printk("init1 load result %x\n", rc);
 
 	if (xc4000_readreg(priv, XREG_PRODUCT_ID, &id) != XC_RESULT_SUCCESS)
