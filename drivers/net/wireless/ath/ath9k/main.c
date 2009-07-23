@@ -2669,19 +2669,11 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_RX_STOP:
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		ret = ath_tx_aggr_start(sc, sta, tid, ssn);
-		if (ret < 0)
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"Unable to start TX aggregation\n");
-		else
-			ieee80211_start_tx_ba_cb_irqsafe(hw, sta->addr, tid);
+		ath_tx_aggr_start(sc, sta, tid, ssn);
+		ieee80211_start_tx_ba_cb_irqsafe(hw, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
-		ret = ath_tx_aggr_stop(sc, sta, tid);
-		if (ret < 0)
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"Unable to stop TX aggregation\n");
-
+		ath_tx_aggr_stop(sc, sta, tid);
 		ieee80211_stop_tx_ba_cb_irqsafe(hw, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:

@@ -695,25 +695,20 @@ static void ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		 status != ATH_AGGR_BAW_CLOSED);
 }
 
-int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
-		      u16 tid, u16 *ssn)
+void ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
+		       u16 tid, u16 *ssn)
 {
 	struct ath_atx_tid *txtid;
 	struct ath_node *an;
 
 	an = (struct ath_node *)sta->drv_priv;
-
-	if (sc->sc_flags & SC_OP_TXAGGR) {
-		txtid = ATH_AN_2_TID(an, tid);
-		txtid->state |= AGGR_ADDBA_PROGRESS;
-		ath_tx_pause_tid(sc, txtid);
-		*ssn = txtid->seq_start;
-	}
-
-	return 0;
+	txtid = ATH_AN_2_TID(an, tid);
+	txtid->state |= AGGR_ADDBA_PROGRESS;
+	ath_tx_pause_tid(sc, txtid);
+	*ssn = txtid->seq_start;
 }
 
-int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
+void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 {
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 	struct ath_atx_tid *txtid = ATH_AN_2_TID(an, tid);
@@ -723,11 +718,11 @@ int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 	INIT_LIST_HEAD(&bf_head);
 
 	if (txtid->state & AGGR_CLEANUP)
-		return 0;
+		return;
 
 	if (!(txtid->state & AGGR_ADDBA_COMPLETE)) {
 		txtid->state &= ~AGGR_ADDBA_PROGRESS;
-		return 0;
+		return;
 	}
 
 	ath_tx_pause_tid(sc, txtid);
@@ -756,8 +751,6 @@ int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 		txtid->state &= ~AGGR_ADDBA_COMPLETE;
 		ath_tx_flush_tid(sc, txtid);
 	}
-
-	return 0;
 }
 
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
