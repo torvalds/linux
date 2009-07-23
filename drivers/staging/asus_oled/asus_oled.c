@@ -516,7 +516,7 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 	max_offs = odev->width * odev->height;
 
 	while (offs < count && odev->buf_offs < max_offs) {
-		int ret;
+		int ret = 0;
 
 		if (buf[offs] == '1' || buf[offs] == '#') {
 			ret = append_values(odev, 1, 1);

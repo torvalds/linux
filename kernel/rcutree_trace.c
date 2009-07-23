@@ -213,7 +213,63 @@ static struct file_operations rcugp_fops = {
 	.release = single_release,
 };
 
-static struct dentry *rcudir, *datadir, *datadir_csv, *hierdir, *gpdir;
+static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
+{
+	seq_printf(m, "%3d%cnp=%ld "
+		   "qsp=%ld cbr=%ld cng=%ld gpc=%ld gps=%ld nf=%ld nn=%ld\n",
+		   rdp->cpu,
+		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
+		   rdp->n_rcu_pending,
+		   rdp->n_rp_qs_pending,
+		   rdp->n_rp_cb_ready,
+		   rdp->n_rp_cpu_needs_gp,
+		   rdp->n_rp_gp_completed,
+		   rdp->n_rp_gp_started,
+		   rdp->n_rp_need_fqs,
+		   rdp->n_rp_need_nothing);
+}
+
+static void print_rcu_pendings(struct seq_file *m, struct rcu_state *rsp)
+{
+	int cpu;
+	struct rcu_data *rdp;
+
+	for_each_possible_cpu(cpu) {
+		rdp = rsp->rda[cpu];
+		if (rdp->beenonline)
+			print_one_rcu_pending(m, rdp);
+	}
+}
+
+static int show_rcu_pending(struct seq_file *m, void *unused)
+{
+	seq_puts(m, "rcu:\n");
+	print_rcu_pendings(m, &rcu_state);
+	seq_puts(m, "rcu_bh:\n");
+	print_rcu_pendings(m, &rcu_bh_state);
+	return 0;
+}
+
+static int rcu_pending_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, show_rcu_pending, NULL);
+}
+
+static struct file_operations rcu_pending_fops = {
+	.owner = THIS_MODULE,
+	.open = rcu_pending_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static struct dentry *rcudir;
+static struct dentry *datadir;
+static struct dentry *datadir_csv;
+static struct dentry *gpdir;
+static struct dentry *hierdir;
+static struct dentry *rcu_pendingdir;
+
 static int __init rcuclassic_trace_init(void)
 {
 	rcudir = debugfs_create_dir("rcu", NULL);
@@ -238,6 +294,11 @@ static int __init rcuclassic_trace_init(void)
 						NULL, &rcuhier_fops);
 	if (!hierdir)
 		goto free_out;
+
+	rcu_pendingdir = debugfs_create_file("rcu_pending", 0444, rcudir,
+						NULL, &rcu_pending_fops);
+	if (!rcu_pendingdir)
+		goto free_out;
 	return 0;
 free_out:
 	if (datadir)
@@ -257,6 +318,7 @@ static void __exit rcuclassic_trace_cleanup(void)
 	debugfs_remove(datadir_csv);
 	debugfs_remove(gpdir);
 	debugfs_remove(hierdir);
+	debugfs_remove(rcu_pendingdir);
 	debugfs_remove(rcudir);
 }
 

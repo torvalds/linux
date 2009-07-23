@@ -4,9 +4,7 @@
 #include <asm/processor.h>
 #include <asm/tsc.h>
 
-/* The PIT ticks at this frequency (in HZ): */
-#define PIT_TICK_RATE		1193182
-
+/* Assume we use the PIT time source for the clock tick */
 #define CLOCK_TICK_RATE		PIT_TICK_RATE
 
 #define ARCH_HAS_READ_CURRENT_TIMER

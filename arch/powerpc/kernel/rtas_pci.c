@@ -93,10 +93,7 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 {
 	struct device_node *busdn, *dn;
 
-	if (bus->self)
-		busdn = pci_device_to_OF_node(bus->self);
-	else
-		busdn = bus->sysdata;	/* must be a phb */
+	busdn = pci_bus_to_OF_node(bus);
 
 	/* Search only direct children of the bus */
 	for (dn = busdn->child; dn; dn = dn->sibling) {
@@ -140,10 +137,7 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 {
 	struct device_node *busdn, *dn;
 
-	if (bus->self)
-		busdn = pci_device_to_OF_node(bus->self);
-	else
-		busdn = bus->sysdata;	/* must be a phb */
+	busdn = pci_bus_to_OF_node(bus);
 
 	/* Search only direct children of the bus */
 	for (dn = busdn->child; dn; dn = dn->sibling) {

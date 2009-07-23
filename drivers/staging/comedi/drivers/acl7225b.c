@@ -26,8 +26,8 @@ static int acl7225b_attach(struct comedi_device *dev, struct comedi_devconfig * 
 static int acl7225b_detach(struct comedi_device *dev);
 
 struct boardtype {
-	const char *name;	// driver name
-	int io_range;		// len of I/O space
+	const char *name;	/*  driver name */
+	int io_range;		/*  len of I/O space */
 };
 
 static const struct boardtype boardtypes[] = {
@@ -39,19 +39,19 @@ static const struct boardtype boardtypes[] = {
 #define this_board ((const struct boardtype *)dev->board_ptr)
 
 static struct comedi_driver driver_acl7225b = {
-      driver_name:"acl7225b",
-      module:THIS_MODULE,
-      attach:acl7225b_attach,
-      detach:acl7225b_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(struct boardtype),
+	.driver_name = "acl7225b",
+	.module = THIS_MODULE,
+	.attach = acl7225b_attach,
+	.detach = acl7225b_detach,
+	.board_name = &boardtypes[0].name,
+	.num_names = n_boardtypes,
+	.offset = sizeof(struct boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_acl7225b);
 
 static int acl7225b_do_insn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;
@@ -72,7 +72,7 @@ static int acl7225b_do_insn(struct comedi_device *dev, struct comedi_subdevice *
 }
 
 static int acl7225b_di_insn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+	struct comedi_insn *insn, unsigned int *data)
 {
 	if (insn->n != 2)
 		return -EINVAL;

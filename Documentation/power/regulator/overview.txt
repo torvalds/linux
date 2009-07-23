@@ -119,7 +119,7 @@ Some terms used in this document:-
                    battery power, USB power)
 
                    Regulator Domains: is the new current limit within the
-                   regulator operating parameters for input/ouput voltage.
+                   regulator operating parameters for input/output voltage.
 
                    If the regulator request passes all the constraint tests
                    then the new regulator value is applied.

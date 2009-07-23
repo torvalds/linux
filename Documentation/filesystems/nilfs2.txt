@@ -39,9 +39,8 @@ Features which NILFS2 does not support yet:
 	- extended attributes
 	- POSIX ACLs
 	- quotas
-	- writable snapshots
-	- remote backup (CDP)
-	- data integrity
+	- fsck
+	- resize
 	- defragmentation
 
 Mount options

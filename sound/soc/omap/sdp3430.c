@@ -84,6 +84,49 @@ static struct snd_soc_ops sdp3430_ops = {
 	.hw_params = sdp3430_hw_params,
 };
 
+static int sdp3430_hw_voice_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	int ret;
+
+	/* Set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai,
+				SND_SOC_DAIFMT_DSP_A |
+				SND_SOC_DAIFMT_IB_NF |
+				SND_SOC_DAIFMT_CBS_CFM);
+	if (ret) {
+		printk(KERN_ERR "can't set codec DAI configuration\n");
+		return ret;
+	}
+
+	/* Set cpu DAI configuration */
+	ret = snd_soc_dai_set_fmt(cpu_dai,
+				SND_SOC_DAIFMT_DSP_A |
+				SND_SOC_DAIFMT_IB_NF |
+				SND_SOC_DAIFMT_CBM_CFM);
+	if (ret < 0) {
+		printk(KERN_ERR "can't set cpu DAI configuration\n");
+		return ret;
+	}
+
+	/* Set the codec system clock for DAC and ADC */
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 26000000,
+					    SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		printk(KERN_ERR "can't set codec system clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static struct snd_soc_ops sdp3430_voice_ops = {
+	.hw_params = sdp3430_hw_voice_params,
+};
+
 /* Headset jack */
 static struct snd_soc_jack hs_jack;
 
@@ -192,28 +235,58 @@ static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
 	return ret;
 }
 
+static int sdp3430_twl4030_voice_init(struct snd_soc_codec *codec)
+{
+	unsigned short reg;
+
+	/* Enable voice interface */
+	reg = codec->read(codec, TWL4030_REG_VOICE_IF);
+	reg |= TWL4030_VIF_DIN_EN | TWL4030_VIF_DOUT_EN | TWL4030_VIF_EN;
+	codec->write(codec, TWL4030_REG_VOICE_IF, reg);
+
+	return 0;
+}
+
+
 /* Digital audio interface glue - connects codec <--> CPU */
-static struct snd_soc_dai_link sdp3430_dai = {
-	.name = "TWL4030",
-	.stream_name = "TWL4030",
-	.cpu_dai = &omap_mcbsp_dai[0],
-	.codec_dai = &twl4030_dai,
-	.init = sdp3430_twl4030_init,
-	.ops = &sdp3430_ops,
+static struct snd_soc_dai_link sdp3430_dai[] = {
+	{
+		.name = "TWL4030 I2S",
+		.stream_name = "TWL4030 Audio",
+		.cpu_dai = &omap_mcbsp_dai[0],
+		.codec_dai = &twl4030_dai[TWL4030_DAI_HIFI],
+		.init = sdp3430_twl4030_init,
+		.ops = &sdp3430_ops,
+	},
+	{
+		.name = "TWL4030 PCM",
+		.stream_name = "TWL4030 Voice",
+		.cpu_dai = &omap_mcbsp_dai[1],
+		.codec_dai = &twl4030_dai[TWL4030_DAI_VOICE],
+		.init = sdp3430_twl4030_voice_init,
+		.ops = &sdp3430_voice_ops,
+	},
 };
 
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_sdp3430 = {
 	.name = "SDP3430",
 	.platform = &omap_soc_platform,
-	.dai_link = &sdp3430_dai,
-	.num_links = 1,
+	.dai_link = sdp3430_dai,
+	.num_links = ARRAY_SIZE(sdp3430_dai),
+};
+
+/* twl4030 setup */
+static struct twl4030_setup_data twl4030_setup = {
+	.ramp_delay_value = 3,
+	.sysclk = 26000,
 };
 
 /* Audio subsystem */
 static struct snd_soc_device sdp3430_snd_devdata = {
 	.card = &snd_soc_sdp3430,
 	.codec_dev = &soc_codec_dev_twl4030,
+	.codec_data = &twl4030_setup,
 };
 
 static struct platform_device *sdp3430_snd_device;
@@ -236,7 +309,8 @@ static int __init sdp3430_soc_init(void)
 
 	platform_set_drvdata(sdp3430_snd_device, &sdp3430_snd_devdata);
 	sdp3430_snd_devdata.dev = &sdp3430_snd_device->dev;
-	*(unsigned int *)sdp3430_dai.cpu_dai->private_data = 1; /* McBSP2 */
+	*(unsigned int *)sdp3430_dai[0].cpu_dai->private_data = 1; /* McBSP2 */
+	*(unsigned int *)sdp3430_dai[1].cpu_dai->private_data = 2; /* McBSP3 */
 
 	ret = platform_device_add(sdp3430_snd_device);
 	if (ret)

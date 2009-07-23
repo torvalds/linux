@@ -206,6 +206,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = 1;
 	/* We don't use the buffer gspca allocates so make it small. */
 	cam->bulk_size = 32;
+	cam->bulk = 1;
 	INIT_WORK(&dev->work_struct, sq905c_dostream);
 	return 0;
 }

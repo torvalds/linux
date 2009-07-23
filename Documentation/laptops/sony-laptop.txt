@@ -22,7 +22,7 @@ If your laptop model supports it, you will find sysfs files in the
 /sys/class/backlight/sony/
 directory. You will be able to query and set the current screen
 brightness:
-	brightness		get/set screen brightness (an iteger
+	brightness		get/set screen brightness (an integer
 				between 0 and 7)
 	actual_brightness	reading from this file will query the HW
 				to get real brightness value

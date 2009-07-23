@@ -122,3 +122,10 @@ Description:
 		This symbolic link appears when a device is a Virtual Function.
 		The symbolic link points to the PCI device sysfs entry of the
 		Physical Function this device associates with.
+
+What:		/sys/bus/pci/slots/.../module
+Date:		June 2009
+Contact:	linux-pci@vger.kernel.org
+Description:
+		This symbolic link points to the PCI hotplug controller driver
+		module that manages the hotplug slot.

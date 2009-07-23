@@ -44,7 +44,7 @@
 #define APCI1710_SYNCHRONOUS_MODE	1
 #define APCI1710_ASYNCHRONOUS_MODE	0
 
-//MODULE INFO STRUCTURE
+/* MODULE INFO STRUCTURE */
 
 static const struct comedi_lrange range_apci1710_ttl = { 4, {
 						      BIP_RANGE(10),

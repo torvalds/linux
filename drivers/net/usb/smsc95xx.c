@@ -1108,18 +1108,18 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (unlikely(header & RX_STS_ES_)) {
 			if (netif_msg_rx_err(dev))
 				devdbg(dev, "Error header=0x%08x", header);
-			dev->stats.rx_errors++;
-			dev->stats.rx_dropped++;
+			dev->net->stats.rx_errors++;
+			dev->net->stats.rx_dropped++;
 
 			if (header & RX_STS_CRC_) {
-				dev->stats.rx_crc_errors++;
+				dev->net->stats.rx_crc_errors++;
 			} else {
 				if (header & (RX_STS_TL_ | RX_STS_RF_))
-					dev->stats.rx_frame_errors++;
+					dev->net->stats.rx_frame_errors++;
 
 				if ((header & RX_STS_LE_) &&
 					(!(header & RX_STS_FT_)))
-					dev->stats.rx_length_errors++;
+					dev->net->stats.rx_length_errors++;
 			}
 		} else {
 			/* ETH_FRAME_LEN + 4(CRC) + 2(COE) + 4(Vlan) */
@@ -1134,7 +1134,7 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			if (skb->len == size) {
 				if (pdata->use_rx_csum)
 					smsc95xx_rx_csum_offload(skb);
-
+				skb_trim(skb, skb->len - 4); /* remove fcs */
 				skb->truesize = size + sizeof(struct sk_buff);
 
 				return 1;
@@ -1152,7 +1152,7 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 			if (pdata->use_rx_csum)
 				smsc95xx_rx_csum_offload(ax_skb);
-
+			skb_trim(ax_skb, ax_skb->len - 4); /* remove fcs */
 			ax_skb->truesize = size + sizeof(struct sk_buff);
 
 			usbnet_skb_return(dev, ax_skb);

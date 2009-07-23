@@ -18,6 +18,7 @@
 #ifndef	__XFS_INODE_H__
 #define	__XFS_INODE_H__
 
+struct posix_acl;
 struct xfs_dinode;
 struct xfs_inode;
 

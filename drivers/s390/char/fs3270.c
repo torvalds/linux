@@ -1,11 +1,10 @@
 /*
- *  drivers/s390/char/fs3270.c
- *    IBM/3270 Driver - fullscreen driver.
+ * IBM/3270 Driver - fullscreen driver.
  *
- *  Author(s):
- *    Original 3270 Code for 2.4 written by Richard Hitt (UTS Global)
- *    Rewritten for 2.5/2.6 by Martin Schwidefsky <schwidefsky@de.ibm.com>
- *	-- Copyright (C) 2003 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ * Author(s):
+ *   Original 3270 Code for 2.4 written by Richard Hitt (UTS Global)
+ *   Rewritten for 2.5/2.6 by Martin Schwidefsky <schwidefsky@de.ibm.com>
+ *     Copyright IBM Corp. 2003, 2009
  */
 
 #include <linux/bootmem.h>
@@ -399,6 +398,11 @@ fs3270_free_view(struct raw3270_view *view)
 static void
 fs3270_release(struct raw3270_view *view)
 {
+	struct fs3270 *fp;
+
+	fp = (struct fs3270 *) view;
+	if (fp->fs_pid)
+		kill_pid(fp->fs_pid, SIGHUP, 1);
 }
 
 /* View to a 3270 device. Can be console, tty or fullscreen. */

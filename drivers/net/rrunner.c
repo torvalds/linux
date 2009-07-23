@@ -1425,7 +1425,7 @@ static int rr_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (!(new_skb = dev_alloc_skb(len + 8))) {
 			dev_kfree_skb(skb);
 			netif_wake_queue(dev);
-			return -EBUSY;
+			return NETDEV_TX_OK;
 		}
 		skb_reserve(new_skb, 8);
 		skb_put(new_skb, len);

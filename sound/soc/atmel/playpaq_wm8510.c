@@ -117,7 +117,7 @@ static struct ssc_clock_data playpaq_wm8510_calc_ssc_clock(
 	 * Find actual rate, compare to requested rate
 	 */
 	actual_rate = (cd.ssc_rate / (cd.cmr_div * 2)) / (2 * (cd.period + 1));
-	pr_debug("playpaq_wm8510: Request rate = %d, actual rate = %d\n",
+	pr_debug("playpaq_wm8510: Request rate = %u, actual rate = %u\n",
 		 rate, actual_rate);
 
 

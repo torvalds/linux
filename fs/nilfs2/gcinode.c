@@ -52,8 +52,9 @@
 #include "dat.h"
 #include "ifile.h"
 
-static struct address_space_operations def_gcinode_aops = {};
-/* XXX need def_gcinode_iops/fops? */
+static struct address_space_operations def_gcinode_aops = {
+	.sync_page		= block_sync_page,
+};
 
 /*
  * nilfs_gccache_submit_read_data() - add data buffer and submit read request

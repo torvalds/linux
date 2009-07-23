@@ -1134,7 +1134,7 @@ static const struct file_operations ccio_proc_bitmap_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
-#endif
+#endif /* CONFIG_PROC_FS */
 
 /**
  * ccio_find_ioc - Find the ioc in the ioc_list
@@ -1568,14 +1568,15 @@ static int __init ccio_probe(struct parisc_device *dev)
 	/* if this fails, no I/O cards will work, so may as well bug */
 	BUG_ON(dev->dev.platform_data == NULL);
 	HBA_DATA(dev->dev.platform_data)->iommu = ioc;
-	
+
+#ifdef CONFIG_PROC_FS
 	if (ioc_count == 0) {
 		proc_create(MODULE_NAME, 0, proc_runway_root,
 			    &ccio_proc_info_fops);
 		proc_create(MODULE_NAME"-bitmap", 0, proc_runway_root,
 			    &ccio_proc_bitmap_fops);
 	}
-
+#endif
 	ioc_count++;
 
 	parisc_has_iommu();

@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 
 #include <linux/usb.h>
 #include <linux/mm.h>
@@ -1137,7 +1138,7 @@ static int stk_vidioc_querybuf(struct file *filp,
 	struct stk_camera *dev = priv;
 	struct stk_sio_buffer *sbuf;
 
-	if (buf->index < 0 || buf->index >= dev->n_sbufs)
+	if (buf->index >= dev->n_sbufs)
 		return -EINVAL;
 	sbuf = dev->sio_bufs + buf->index;
 	*buf = sbuf->v4lbuf;
@@ -1154,7 +1155,7 @@ static int stk_vidioc_qbuf(struct file *filp,
 	if (buf->memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
 
-	if (buf->index < 0 || buf->index >= dev->n_sbufs)
+	if (buf->index >= dev->n_sbufs)
 		return -EINVAL;
 	sbuf = dev->sio_bufs + buf->index;
 	if (sbuf->v4lbuf.flags & V4L2_BUF_FLAG_QUEUED)

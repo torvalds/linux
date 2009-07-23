@@ -19,11 +19,14 @@
 #include <linux/workqueue.h>
 #include <linux/netlink.h>
 #include <linux/net_dropmon.h>
-#include <trace/skb.h>
 
 #include <asm/unaligned.h>
 #include <asm/bitops.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/skb.h>
+#include <trace/events/napi.h>
 
-DEFINE_TRACE(kfree_skb);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kfree_skb);
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(napi_poll);

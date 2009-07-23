@@ -37,6 +37,7 @@
 
 #define SRP_VERSION "16.a"
 #define SRP_MAX_IU_LEN	256
+#define SRP_MAX_LOC_LEN 32
 
 union srp_iu {
 	struct srp_login_req login_req;
@@ -86,7 +87,37 @@ enum viosrp_mad_types {
 	VIOSRP_EMPTY_IU_TYPE = 0x01,
 	VIOSRP_ERROR_LOG_TYPE = 0x02,
 	VIOSRP_ADAPTER_INFO_TYPE = 0x03,
-	VIOSRP_HOST_CONFIG_TYPE = 0x04
+	VIOSRP_HOST_CONFIG_TYPE = 0x04,
+	VIOSRP_CAPABILITIES_TYPE = 0x05,
+	VIOSRP_ENABLE_FAST_FAIL = 0x08,
+};
+
+enum viosrp_mad_status {
+	VIOSRP_MAD_SUCCESS = 0x00,
+	VIOSRP_MAD_NOT_SUPPORTED = 0xF1,
+	VIOSRP_MAD_FAILED = 0xF7,
+};
+
+enum viosrp_capability_type {
+	MIGRATION_CAPABILITIES = 0x01,
+	RESERVATION_CAPABILITIES = 0x02,
+};
+
+enum viosrp_capability_support {
+	SERVER_DOES_NOT_SUPPORTS_CAP = 0x0,
+	SERVER_SUPPORTS_CAP = 0x01,
+	SERVER_CAP_DATA = 0x02,
+};
+
+enum viosrp_reserve_type {
+	CLIENT_RESERVE_SCSI_2 = 0x01,
+};
+
+enum viosrp_capability_flag {
+	CLIENT_MIGRATED = 0x01,
+	CLIENT_RECONNECT = 0x02,
+	CAP_LIST_SUPPORTED = 0x04,
+	CAP_LIST_DATA = 0x08,
 };
 
 /* 
@@ -127,11 +158,46 @@ struct viosrp_host_config {
 	u64 buffer;
 };
 
+struct viosrp_fast_fail {
+	struct mad_common common;
+};
+
+struct viosrp_capabilities {
+	struct mad_common common;
+	u64 buffer;
+};
+
+struct mad_capability_common {
+	u32 cap_type;
+	u16 length;
+	u16 server_support;
+};
+
+struct mad_reserve_cap {
+	struct mad_capability_common common;
+	u32 type;
+};
+
+struct mad_migration_cap {
+	struct mad_capability_common common;
+	u32 ecl;
+};
+
+struct capabilities{
+	u32 flags;
+	char name[SRP_MAX_LOC_LEN];
+	char loc[SRP_MAX_LOC_LEN];
+	struct mad_migration_cap migration;
+	struct mad_reserve_cap reserve;
+};
+
 union mad_iu {
 	struct viosrp_empty_iu empty_iu;
 	struct viosrp_error_log error_log;
 	struct viosrp_adapter_info adapter_info;
 	struct viosrp_host_config host_config;
+	struct viosrp_fast_fail fast_fail;
+	struct viosrp_capabilities capabilities;
 };
 
 union viosrp_iu {

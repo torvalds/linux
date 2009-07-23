@@ -24,6 +24,7 @@
 
 #include "irq.h"
 #include "i8254.h"
+#include "x86.h"
 
 /*
  * check if there are pending timer events
@@ -48,6 +49,9 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
 	struct kvm_pic *s;
 
+	if (!irqchip_in_kernel(v->kvm))
+		return v->arch.interrupt.pending;
+
 	if (kvm_apic_has_interrupt(v) == -1) {	/* LAPIC */
 		if (kvm_apic_accept_pic_intr(v)) {
 			s = pic_irqchip(v->kvm);	/* PIC */
@@ -66,6 +70,9 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 {
 	struct kvm_pic *s;
 	int vector;
+
+	if (!irqchip_in_kernel(v->kvm))
+		return v->arch.interrupt.nr;
 
 	vector = kvm_get_apic_interrupt(v);	/* APIC */
 	if (vector == -1) {

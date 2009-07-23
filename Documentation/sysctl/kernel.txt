@@ -32,6 +32,7 @@ show up in /proc/sys/kernel:
 - kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/debugging-modules.txt
+- modules_disabled
 - msgmax
 - msgmnb
 - msgmni
@@ -181,6 +182,16 @@ kstack_depth_to_print: (X86 only)
 
 Controls the number of words to print when dumping the raw
 kernel stack.
+
+==============================================================
+
+modules_disabled:
+
+A toggle value indicating if modules are allowed to be loaded
+in an otherwise modular kernel.  This toggle defaults to off
+(0), but can be set true (1).  Once true, modules can be
+neither loaded nor unloaded, and the toggle cannot be set back
+to false.
 
 ==============================================================
 

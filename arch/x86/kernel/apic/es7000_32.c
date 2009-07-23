@@ -145,7 +145,7 @@ es7000_rename_gsi(int ioapic, int gsi)
 	return gsi;
 }
 
-static int wakeup_secondary_cpu_via_mip(int cpu, unsigned long eip)
+static int __cpuinit wakeup_secondary_cpu_via_mip(int cpu, unsigned long eip)
 {
 	unsigned long vect = 0, psaival = 0;
 
@@ -652,7 +652,8 @@ static int es7000_mps_oem_check_cluster(struct mpc_table *mpc, char *oem,
 	return ret && es7000_apic_is_cluster();
 }
 
-struct apic apic_es7000_cluster = {
+/* We've been warned by a false positive warning.Use __refdata to keep calm. */
+struct apic __refdata apic_es7000_cluster = {
 
 	.name				= "es7000",
 	.probe				= probe_es7000,

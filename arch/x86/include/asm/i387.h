@@ -67,20 +67,12 @@ static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 		     ".previous\n"
 		     _ASM_EXTABLE(1b, 3b)
 		     : [err] "=r" (err)
-#if 0 /* See comment in __save_init_fpu() below. */
+#if 0 /* See comment in fxsave() below. */
 		     : [fx] "r" (fx), "m" (*fx), "0" (0));
 #else
 		     : [fx] "cdaSDb" (fx), "m" (*fx), "0" (0));
 #endif
 	return err;
-}
-
-static inline int restore_fpu_checking(struct task_struct *tsk)
-{
-	if (task_thread_info(tsk)->status & TS_XSAVE)
-		return xrstor_checking(&tsk->thread.xstate->xsave);
-	else
-		return fxrstor_checking(&tsk->thread.xstate->fxsave);
 }
 
 /* AMD CPUs don't save/restore FDP/FIP/FOP unless an exception
@@ -120,7 +112,7 @@ static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 		     ".previous\n"
 		     _ASM_EXTABLE(1b, 3b)
 		     : [err] "=r" (err), "=m" (*fx)
-#if 0 /* See comment in __fxsave_clear() below. */
+#if 0 /* See comment in fxsave() below. */
 		     : [fx] "r" (fx), "0" (0));
 #else
 		     : [fx] "cdaSDb" (fx), "0" (0));
@@ -185,12 +177,9 @@ static inline void tolerant_fwait(void)
 	asm volatile("fnclex ; fwait");
 }
 
-static inline void restore_fpu(struct task_struct *tsk)
+/* perform fxrstor iff the processor has extended states, otherwise frstor */
+static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 {
-	if (task_thread_info(tsk)->status & TS_XSAVE) {
-		xrstor_checking(&tsk->thread.xstate->xsave);
-		return;
-	}
 	/*
 	 * The "nop" is needed to make the instructions the same
 	 * length.
@@ -199,7 +188,9 @@ static inline void restore_fpu(struct task_struct *tsk)
 		"nop ; frstor %1",
 		"fxrstor %1",
 		X86_FEATURE_FXSR,
-		"m" (tsk->thread.xstate->fxsave));
+		"m" (*fx));
+
+	return 0;
 }
 
 /* We need a safe address that is cheap to find and that is already
@@ -262,6 +253,14 @@ end:
 
 #endif	/* CONFIG_X86_64 */
 
+static inline int restore_fpu_checking(struct task_struct *tsk)
+{
+	if (task_thread_info(tsk)->status & TS_XSAVE)
+		return xrstor_checking(&tsk->thread.xstate->xsave);
+	else
+		return fxrstor_checking(&tsk->thread.xstate->fxsave);
+}
+
 /*
  * Signal frame handlers...
  */
@@ -305,18 +304,18 @@ static inline void kernel_fpu_end(void)
 /*
  * Some instructions like VIA's padlock instructions generate a spurious
  * DNA fault but don't modify SSE registers. And these instructions
- * get used from interrupt context aswell. To prevent these kernel instructions
- * in interrupt context interact wrongly with other user/kernel fpu usage, we
+ * get used from interrupt context as well. To prevent these kernel instructions
+ * in interrupt context interacting wrongly with other user/kernel fpu usage, we
  * should use them only in the context of irq_ts_save/restore()
  */
 static inline int irq_ts_save(void)
 {
 	/*
-	 * If we are in process context, we are ok to take a spurious DNA fault.
-	 * Otherwise, doing clts() in process context require pre-emption to
-	 * be disabled or some heavy lifting like kernel_fpu_begin()
+	 * If in process context and not atomic, we can take a spurious DNA fault.
+	 * Otherwise, doing clts() in process context requires disabling preemption
+	 * or some heavy lifting like kernel_fpu_begin()
 	 */
-	if (!in_interrupt())
+	if (!in_atomic())
 		return 0;
 
 	if (read_cr0() & X86_CR0_TS) {

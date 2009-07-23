@@ -334,7 +334,8 @@ tEplKernel EplSdoUdpuConfig(unsigned long ulIpAddr_p, unsigned int uiPort_p)
 	}
 	// create Listen-Thread
 	SdoUdpInstance_g.m_ThreadHandle =
-	    kernel_thread(EplSdoUdpThread, &SdoUdpInstance_g, CLONE_KERNEL);
+		kernel_thread(EplSdoUdpThread, &SdoUdpInstance_g,
+				CLONE_FS | CLONE_FILES);
 	if (SdoUdpInstance_g.m_ThreadHandle == 0) {
 		Ret = kEplSdoUdpThreadError;
 		goto Exit;

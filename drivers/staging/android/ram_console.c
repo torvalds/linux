@@ -20,7 +20,7 @@
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_ERROR_CORRECTION
 #include <linux/rslib.h>
@@ -225,8 +225,9 @@ static int __init ram_console_init(struct ram_console_buffer *buffer,
 		buffer_size - sizeof(struct ram_console_buffer);
 
 	if (ram_console_buffer_size > buffer_size) {
-		pr_err("ram_console: buffer %p, invalid size %zu, datasize %zu\n",
-		       buffer, buffer_size, ram_console_buffer_size);
+		pr_err("ram_console: buffer %p, invalid size %zu, "
+		       "datasize %zu\n", buffer, buffer_size,
+		       ram_console_buffer_size);
 		return 0;
 	}
 
@@ -365,7 +366,7 @@ static ssize_t ram_console_read_old(struct file *file, char __user *buf,
 	return count;
 }
 
-static struct file_operations ram_console_file_ops = {
+static const struct file_operations ram_console_file_ops = {
 	.owner = THIS_MODULE,
 	.read = ram_console_read_old,
 };

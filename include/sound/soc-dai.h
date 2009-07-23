@@ -45,24 +45,6 @@ struct snd_pcm_substream;
 #define SND_SOC_DAIFMT_GATED		(1 << 4) /* clock is gated */
 
 /*
- * DAI Left/Right Clocks.
- *
- * Specifies whether the DAI can support different samples for similtanious
- * playback and capture. This usually requires a seperate physical frame
- * clock for playback and capture.
- */
-#define SND_SOC_DAIFMT_SYNC		(0 << 5) /* Tx FRM = Rx FRM */
-#define SND_SOC_DAIFMT_ASYNC		(1 << 5) /* Tx FRM ~ Rx FRM */
-
-/*
- * TDM
- *
- * Time Division Multiplexing. Allows PCM data to be multplexed with other
- * data on the DAI.
- */
-#define SND_SOC_DAIFMT_TDM		(1 << 6)
-
-/*
  * DAI hardware signal inversions.
  *
  * Specifies whether the DAI can also support inverted clocks for the specified
@@ -95,6 +77,10 @@ struct snd_pcm_substream;
  */
 #define SND_SOC_CLOCK_IN		0
 #define SND_SOC_CLOCK_OUT		1
+
+#define SND_SOC_STD_AC97_FMTS (SNDRV_PCM_FMTBIT_S16_LE |\
+                               SNDRV_PCM_FMTBIT_S32_LE |\
+                               SNDRV_PCM_FMTBIT_S32_BE)
 
 struct snd_soc_dai_ops;
 struct snd_soc_dai;
@@ -208,6 +194,7 @@ struct snd_soc_dai {
 	/* DAI capabilities */
 	struct snd_soc_pcm_stream capture;
 	struct snd_soc_pcm_stream playback;
+	unsigned int symmetric_rates:1;
 
 	/* DAI runtime info */
 	struct snd_pcm_runtime *runtime;
@@ -219,11 +206,8 @@ struct snd_soc_dai {
 	/* DAI private data */
 	void *private_data;
 
-	/* parent codec/platform */
-	union {
-		struct snd_soc_codec *codec;
-		struct snd_soc_platform *platform;
-	};
+	/* parent platform */
+	struct snd_soc_platform *platform;
 
 	struct list_head list;
 };

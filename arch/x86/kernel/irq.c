@@ -12,6 +12,8 @@
 #include <asm/io_apic.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
+#include <asm/mce.h>
+#include <asm/hw_irq.h>
 
 atomic_t irq_err_count;
 
@@ -24,9 +26,9 @@ void (*generic_interrupt_extension)(void) = NULL;
  */
 void ack_bad_irq(unsigned int irq)
 {
-	printk(KERN_ERR "unexpected IRQ trap at vector %02x\n", irq);
+	if (printk_ratelimit())
+		pr_err("unexpected IRQ trap at vector %02x\n", irq);
 
-#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * Currently unexpected vectors happen only on SMP and APIC.
 	 * We _must_ ack these because every local APIC has only N
@@ -36,9 +38,7 @@ void ack_bad_irq(unsigned int irq)
 	 * completely.
 	 * But only ack when the APIC is enabled -AK
 	 */
-	if (cpu_has_apic)
-		ack_APIC_irq();
-#endif
+	ack_APIC_irq();
 }
 
 #define irq_stats(x)		(&per_cpu(irq_stat, x))
@@ -63,6 +63,14 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_spurious_count);
 	seq_printf(p, "  Spurious interrupts\n");
+	seq_printf(p, "%*s: ", prec, "CNT");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->apic_perf_irqs);
+	seq_printf(p, "  Performance counter interrupts\n");
+	seq_printf(p, "%*s: ", prec, "PND");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->apic_pending_irqs);
+	seq_printf(p, "  Performance pending work\n");
 #endif
 	if (generic_interrupt_extension) {
 		seq_printf(p, "%*s: ", prec, "PLT");
@@ -89,12 +97,22 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_thermal_count);
 	seq_printf(p, "  Thermal event interrupts\n");
-# ifdef CONFIG_X86_64
+# ifdef CONFIG_X86_MCE_THRESHOLD
 	seq_printf(p, "%*s: ", prec, "THR");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_threshold_count);
 	seq_printf(p, "  Threshold APIC interrupts\n");
 # endif
+#endif
+#ifdef CONFIG_X86_NEW_MCE
+	seq_printf(p, "%*s: ", prec, "MCE");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(mce_exception_count, j));
+	seq_printf(p, "  Machine check exceptions\n");
+	seq_printf(p, "%*s: ", prec, "MCP");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(mce_poll_count, j));
+	seq_printf(p, "  Machine check polls\n");
 #endif
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)
@@ -166,6 +184,8 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 #ifdef CONFIG_X86_LOCAL_APIC
 	sum += irq_stats(cpu)->apic_timer_irqs;
 	sum += irq_stats(cpu)->irq_spurious_count;
+	sum += irq_stats(cpu)->apic_perf_irqs;
+	sum += irq_stats(cpu)->apic_pending_irqs;
 #endif
 	if (generic_interrupt_extension)
 		sum += irq_stats(cpu)->generic_irqs;
@@ -176,9 +196,13 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 #endif
 #ifdef CONFIG_X86_MCE
 	sum += irq_stats(cpu)->irq_thermal_count;
-# ifdef CONFIG_X86_64
+# ifdef CONFIG_X86_MCE_THRESHOLD
 	sum += irq_stats(cpu)->irq_threshold_count;
+# endif
 #endif
+#ifdef CONFIG_X86_NEW_MCE
+	sum += per_cpu(mce_exception_count, cpu);
+	sum += per_cpu(mce_poll_count, cpu);
 #endif
 	return sum;
 }
@@ -213,14 +237,11 @@ unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	irq = __get_cpu_var(vector_irq)[vector];
 
 	if (!handle_irq(irq, regs)) {
-#ifdef CONFIG_X86_64
-		if (!disable_apic)
-			ack_APIC_irq();
-#endif
+		ack_APIC_irq();
 
 		if (printk_ratelimit())
-			printk(KERN_EMERG "%s: %d.%d No irq handler for vector (irq %d)\n",
-			       __func__, smp_processor_id(), vector, irq);
+			pr_emerg("%s: %d.%d No irq handler for vector (irq %d)\n",
+				__func__, smp_processor_id(), vector, irq);
 	}
 
 	irq_exit();

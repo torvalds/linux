@@ -49,8 +49,8 @@
 #include <asm/processor.h>
 
 #define DRV_NAME	"r6040"
-#define DRV_VERSION	"0.22"
-#define DRV_RELDATE	"25Mar2009"
+#define DRV_VERSION	"0.24"
+#define DRV_RELDATE	"08Jul2009"
 
 /* PHY CHIP Address */
 #define PHY1_ADDR	1	/* For MAC1 */
@@ -401,6 +401,9 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	 * we may got called by r6040_tx_timeout which has left
 	 * some unsent tx buffers */
 	iowrite16(0x01, ioaddr + MTPR);
+
+	/* Check media */
+	mii_check_media(&lp->mii_if, 1, 1);
 }
 
 static void r6040_tx_timeout(struct net_device *dev)
@@ -527,6 +530,8 @@ static int r6040_phy_mode_chk(struct net_device *dev)
 		else
 			phy_dat = 0x0000;
 	}
+
+	mii_check_media(&lp->mii_if, 0, 1);
 
 	return phy_dat;
 };
@@ -699,8 +704,11 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 	/* Read MISR status and clear */
 	status = ioread16(ioaddr + MISR);
 
-	if (status == 0x0000 || status == 0xffff)
+	if (status == 0x0000 || status == 0xffff) {
+		/* Restore RDC MAC interrupt */
+		iowrite16(misr, ioaddr + MIER);
 		return IRQ_NONE;
+	}
 
 	/* RX interrupt request */
 	if (status & RX_INTS) {
@@ -742,6 +750,14 @@ static int r6040_up(struct net_device *dev)
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 	int ret;
+	u16 val;
+
+	/* Check presence of a second PHY */
+	val = r6040_phy_read(ioaddr, lp->phy_addr, 2);
+	if (val == 0xFFFF) {
+		printk(KERN_ERR DRV_NAME " no second PHY attached\n");
+		return -EIO;
+	}
 
 	/* Initialise and alloc RX/TX buffers */
 	r6040_init_txbufs(dev);
@@ -802,7 +818,6 @@ static void r6040_timer(unsigned long data)
 		lp->phy_mode = phy_mode;
 		lp->mcr0 = (lp->mcr0 & 0x7fff) | phy_mode;
 		iowrite16(lp->mcr0, ioaddr);
-		printk(KERN_INFO "Link Change %x \n", ioread16(ioaddr));
 	}
 
 	/* Timer active again */

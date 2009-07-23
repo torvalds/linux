@@ -13,6 +13,7 @@
 #include <linux/statfs.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 
@@ -99,11 +100,16 @@ int hpfs_stop_cycles(struct super_block *s, int key, int *c1, int *c2,
 static void hpfs_put_super(struct super_block *s)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
+
+	lock_kernel();
+
 	kfree(sbi->sb_cp_table);
 	kfree(sbi->sb_bmp_dir);
 	unmark_dirty(s);
 	s->s_fs_info = NULL;
 	kfree(sbi);
+
+	unlock_kernel();
 }
 
 unsigned hpfs_count_one_bitmap(struct super_block *s, secno secno)
@@ -393,6 +399,8 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	
 	*flags |= MS_NOATIME;
 	
+	lock_kernel();
+	lock_super(s);
 	uid = sbi->sb_uid; gid = sbi->sb_gid;
 	umask = 0777 & ~sbi->sb_mode;
 	lowercase = sbi->sb_lowercase; conv = sbi->sb_conv;
@@ -425,9 +433,13 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 	replace_mount_options(s, new_opts);
 
+	unlock_super(s);
+	unlock_kernel();
 	return 0;
 
 out_err:
+	unlock_super(s);
+	unlock_kernel();
 	kfree(new_opts);
 	return -EINVAL;
 }

@@ -46,13 +46,13 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 
 	printk(KERN_INFO "MPU: setting up cplb tables with memory protection\n");
 
-#ifdef CONFIG_BFIN_ICACHE
+#ifdef CONFIG_BFIN_EXTMEM_ICACHEABLE
 	i_cache = CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
 #endif
 
-#ifdef CONFIG_BFIN_DCACHE
+#ifdef CONFIG_BFIN_EXTMEM_DCACHEABLE
 	d_cache = CPLB_L1_CHBL;
-#ifdef CONFIG_BFIN_WT
+#ifdef CONFIG_BFIN_EXTMEM_WRITETROUGH
 	d_cache |= CPLB_L1_AOW | CPLB_WT;
 #endif
 #endif
@@ -64,7 +64,7 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 	dcplb_tbl[cpu][i_d++].data = SDRAM_OOPS | PAGE_SIZE_1KB;
 
 	icplb_tbl[cpu][i_i].addr = 0;
-	icplb_tbl[cpu][i_i++].data = i_cache | CPLB_USER_RD | PAGE_SIZE_1KB;
+	icplb_tbl[cpu][i_i++].data = CPLB_VALID | i_cache | CPLB_USER_RD | PAGE_SIZE_1KB;
 
 	/* Cover kernel memory with 4M pages.  */
 	addr = 0;
@@ -91,9 +91,9 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 	/* Cover L2 memory */
 #if L2_LENGTH > 0
 	dcplb_tbl[cpu][i_d].addr = L2_START;
-	dcplb_tbl[cpu][i_d++].data = L2_DMEMORY | PAGE_SIZE_1MB;
+	dcplb_tbl[cpu][i_d++].data = L2_DMEMORY;
 	icplb_tbl[cpu][i_i].addr = L2_START;
-	icplb_tbl[cpu][i_i++].data = L2_IMEMORY | PAGE_SIZE_1MB;
+	icplb_tbl[cpu][i_i++].data = L2_IMEMORY;
 #endif
 
 	first_mask_dcplb = i_d;

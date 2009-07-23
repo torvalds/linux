@@ -362,9 +362,6 @@ extern u8 acpi_gbl_method_executing;
 extern u8 acpi_gbl_abort_method;
 extern u8 acpi_gbl_db_terminate_threads;
 
-ACPI_EXTERN int optind;
-ACPI_EXTERN char *optarg;
-
 ACPI_EXTERN u8 acpi_gbl_db_opt_tables;
 ACPI_EXTERN u8 acpi_gbl_db_opt_stats;
 ACPI_EXTERN u8 acpi_gbl_db_opt_ini_methods;

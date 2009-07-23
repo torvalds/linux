@@ -64,6 +64,8 @@ struct xfs_swapext;
 struct xfs_mru_cache;
 struct xfs_nameops;
 struct xfs_ail;
+struct xfs_quotainfo;
+
 
 /*
  * Prototypes and functions for the Data Migration subsystem.
@@ -106,86 +108,6 @@ typedef struct xfs_dmops {
 #define XFS_SEND_UNMOUNT(mp, ip,right,mode,rval,fl) \
 	(*(mp)->m_dm_ops->xfs_send_unmount)(mp,ip,right,mode,rval,fl)
 
-
-/*
- * Prototypes and functions for the Quota Management subsystem.
- */
-
-struct xfs_dquot;
-struct xfs_dqtrxops;
-struct xfs_quotainfo;
-
-typedef int	(*xfs_qminit_t)(struct xfs_mount *, uint *, uint *);
-typedef int	(*xfs_qmmount_t)(struct xfs_mount *, uint, uint);
-typedef void	(*xfs_qmunmount_t)(struct xfs_mount *);
-typedef void	(*xfs_qmdone_t)(struct xfs_mount *);
-typedef void	(*xfs_dqrele_t)(struct xfs_dquot *);
-typedef int	(*xfs_dqattach_t)(struct xfs_inode *, uint);
-typedef void	(*xfs_dqdetach_t)(struct xfs_inode *);
-typedef int	(*xfs_dqpurgeall_t)(struct xfs_mount *, uint);
-typedef int	(*xfs_dqvopalloc_t)(struct xfs_mount *,
-			struct xfs_inode *, uid_t, gid_t, prid_t, uint,
-			struct xfs_dquot **, struct xfs_dquot **);
-typedef void	(*xfs_dqvopcreate_t)(struct xfs_trans *, struct xfs_inode *,
-			struct xfs_dquot *, struct xfs_dquot *);
-typedef int	(*xfs_dqvoprename_t)(struct xfs_inode **);
-typedef struct xfs_dquot * (*xfs_dqvopchown_t)(
-			struct xfs_trans *, struct xfs_inode *,
-			struct xfs_dquot **, struct xfs_dquot *);
-typedef int	(*xfs_dqvopchownresv_t)(struct xfs_trans *, struct xfs_inode *,
-			struct xfs_dquot *, struct xfs_dquot *, uint);
-typedef void	(*xfs_dqstatvfs_t)(struct xfs_inode *, struct kstatfs *);
-typedef int	(*xfs_dqsync_t)(struct xfs_mount *, int flags);
-
-typedef struct xfs_qmops {
-	xfs_qminit_t		xfs_qminit;
-	xfs_qmdone_t		xfs_qmdone;
-	xfs_qmmount_t		xfs_qmmount;
-	xfs_qmunmount_t		xfs_qmunmount;
-	xfs_dqrele_t		xfs_dqrele;
-	xfs_dqattach_t		xfs_dqattach;
-	xfs_dqdetach_t		xfs_dqdetach;
-	xfs_dqpurgeall_t	xfs_dqpurgeall;
-	xfs_dqvopalloc_t	xfs_dqvopalloc;
-	xfs_dqvopcreate_t	xfs_dqvopcreate;
-	xfs_dqvoprename_t	xfs_dqvoprename;
-	xfs_dqvopchown_t	xfs_dqvopchown;
-	xfs_dqvopchownresv_t	xfs_dqvopchownresv;
-	xfs_dqstatvfs_t		xfs_dqstatvfs;
-	xfs_dqsync_t		xfs_dqsync;
-	struct xfs_dqtrxops	*xfs_dqtrxops;
-} xfs_qmops_t;
-
-#define XFS_QM_INIT(mp, mnt, fl) \
-	(*(mp)->m_qm_ops->xfs_qminit)(mp, mnt, fl)
-#define XFS_QM_MOUNT(mp, mnt, fl) \
-	(*(mp)->m_qm_ops->xfs_qmmount)(mp, mnt, fl)
-#define XFS_QM_UNMOUNT(mp) \
-	(*(mp)->m_qm_ops->xfs_qmunmount)(mp)
-#define XFS_QM_DONE(mp) \
-	(*(mp)->m_qm_ops->xfs_qmdone)(mp)
-#define XFS_QM_DQRELE(mp, dq) \
-	(*(mp)->m_qm_ops->xfs_dqrele)(dq)
-#define XFS_QM_DQATTACH(mp, ip, fl) \
-	(*(mp)->m_qm_ops->xfs_dqattach)(ip, fl)
-#define XFS_QM_DQDETACH(mp, ip) \
-	(*(mp)->m_qm_ops->xfs_dqdetach)(ip)
-#define XFS_QM_DQPURGEALL(mp, fl) \
-	(*(mp)->m_qm_ops->xfs_dqpurgeall)(mp, fl)
-#define XFS_QM_DQVOPALLOC(mp, ip, uid, gid, prid, fl, dq1, dq2) \
-	(*(mp)->m_qm_ops->xfs_dqvopalloc)(mp, ip, uid, gid, prid, fl, dq1, dq2)
-#define XFS_QM_DQVOPCREATE(mp, tp, ip, dq1, dq2) \
-	(*(mp)->m_qm_ops->xfs_dqvopcreate)(tp, ip, dq1, dq2)
-#define XFS_QM_DQVOPRENAME(mp, ip) \
-	(*(mp)->m_qm_ops->xfs_dqvoprename)(ip)
-#define XFS_QM_DQVOPCHOWN(mp, tp, ip, dqp, dq) \
-	(*(mp)->m_qm_ops->xfs_dqvopchown)(tp, ip, dqp, dq)
-#define XFS_QM_DQVOPCHOWNRESV(mp, tp, ip, dq1, dq2, fl) \
-	(*(mp)->m_qm_ops->xfs_dqvopchownresv)(tp, ip, dq1, dq2, fl)
-#define XFS_QM_DQSTATVFS(ip, statp) \
-	(*(ip)->i_mount->m_qm_ops->xfs_dqstatvfs)(ip, statp)
-#define XFS_QM_DQSYNC(mp, flags) \
-	(*(mp)->m_qm_ops->xfs_dqsync)(mp, flags)
 
 #ifdef HAVE_PERCPU_SB
 
@@ -510,8 +432,6 @@ extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
 extern int	xfs_dmops_get(struct xfs_mount *);
 extern void	xfs_dmops_put(struct xfs_mount *);
-extern int	xfs_qmops_get(struct xfs_mount *);
-extern void	xfs_qmops_put(struct xfs_mount *);
 
 extern struct xfs_dmops xfs_dmcore_xfs;
 

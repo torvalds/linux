@@ -43,12 +43,16 @@
 #include <linux/usb/serial.h>
 
 /* Function prototypes */
+static int  option_probe(struct usb_serial *serial,
+			const struct usb_device_id *id);
 static int  option_open(struct tty_struct *tty, struct usb_serial_port *port,
 							struct file *filp);
-static void option_close(struct tty_struct *tty, struct usb_serial_port *port,
-							struct file *filp);
+static void option_close(struct usb_serial_port *port);
+static void option_dtr_rts(struct usb_serial_port *port, int on);
+
 static int  option_startup(struct usb_serial *serial);
-static void option_shutdown(struct usb_serial *serial);
+static void option_disconnect(struct usb_serial *serial);
+static void option_release(struct usb_serial *serial);
 static int  option_write_room(struct tty_struct *tty);
 
 static void option_instat_callback(struct urb *urb);
@@ -61,7 +65,7 @@ static void option_set_termios(struct tty_struct *tty,
 static int  option_tiocmget(struct tty_struct *tty, struct file *file);
 static int  option_tiocmset(struct tty_struct *tty, struct file *file,
 				unsigned int set, unsigned int clear);
-static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *port);
+static int  option_send_setup(struct usb_serial_port *port);
 static int  option_suspend(struct usb_serial *serial, pm_message_t message);
 static int  option_resume(struct usb_serial *serial);
 
@@ -201,9 +205,10 @@ static int  option_resume(struct usb_serial *serial);
 #define NOVATELWIRELESS_PRODUCT_MC727		0x4100
 #define NOVATELWIRELESS_PRODUCT_MC950D		0x4400
 #define NOVATELWIRELESS_PRODUCT_U727		0x5010
+#define NOVATELWIRELESS_PRODUCT_MC760		0x6000
+#define NOVATELWIRELESS_PRODUCT_OVMC760		0x6002
 
 /* FUTURE NOVATEL PRODUCTS */
-#define NOVATELWIRELESS_PRODUCT_EVDO_FULLSPEED	0X6000
 #define NOVATELWIRELESS_PRODUCT_EVDO_HIGHSPEED	0X6001
 #define NOVATELWIRELESS_PRODUCT_HSPA_FULLSPEED	0X7000
 #define NOVATELWIRELESS_PRODUCT_HSPA_HIGHSPEED	0X7001
@@ -303,6 +308,19 @@ static int  option_resume(struct usb_serial *serial);
 #define DLINK_VENDOR_ID				0x1186
 #define DLINK_PRODUCT_DWM_652			0x3e04
 
+#define QISDA_VENDOR_ID				0x1da5
+#define QISDA_PRODUCT_H21_4512			0x4512
+#define QISDA_PRODUCT_H21_4523			0x4523
+#define QISDA_PRODUCT_H20_4515			0x4515
+#define QISDA_PRODUCT_H20_4519			0x4519
+
+
+/* TOSHIBA PRODUCTS */
+#define TOSHIBA_VENDOR_ID			0x0930
+#define TOSHIBA_PRODUCT_HSDPA_MINICARD		0x1302
+
+#define ALINK_VENDOR_ID				0x1e0e
+#define ALINK_PRODUCT_3GU			0x9200
 
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
@@ -421,7 +439,8 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_MC950D) }, /* Novatel MC930D/MC950D */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_MC727) }, /* Novatel MC727/U727/USB727 */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_U727) }, /* Novatel MC727/U727/USB727 */
-	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_EVDO_FULLSPEED) }, /* Novatel EVDO product */
+	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_MC760) }, /* Novatel MC760/U760/USB760 */
+	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_OVMC760) }, /* Novatel Ovation MC760 */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_HSPA_FULLSPEED) }, /* Novatel HSPA product */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_EVDO_EMBEDDED_FULLSPEED) }, /* Novatel EVDO Embedded product */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_HSPA_EMBEDDED_FULLSPEED) }, /* Novatel HSPA Embedded product */
@@ -521,7 +540,13 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_CDMA_TECH) },
 	{ USB_DEVICE(BENQ_VENDOR_ID, BENQ_PRODUCT_H10) },
 	{ USB_DEVICE(DLINK_VENDOR_ID, DLINK_PRODUCT_DWM_652) },
-	{ USB_DEVICE(0x1da5, 0x4515) }, /* BenQ H20 */
+	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H21_4512) },
+	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H21_4523) },
+	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H20_4515) },
+	{ USB_DEVICE(QISDA_VENDOR_ID, QISDA_PRODUCT_H20_4519) },
+	{ USB_DEVICE(TOSHIBA_VENDOR_ID, TOSHIBA_PRODUCT_HSDPA_MINICARD ) }, /* Toshiba 3G HSDPA == Novatel Expedite EU870D MiniCard */
+	{ USB_DEVICE(ALINK_VENDOR_ID, 0x9000) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ALINK_VENDOR_ID, ALINK_PRODUCT_3GU, 0xff, 0xff, 0xff) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
@@ -549,8 +574,10 @@ static struct usb_serial_driver option_1port_device = {
 	.usb_driver        = &option_driver,
 	.id_table          = option_ids,
 	.num_ports         = 1,
+	.probe             = option_probe,
 	.open              = option_open,
 	.close             = option_close,
+	.dtr_rts	   = option_dtr_rts,
 	.write             = option_write,
 	.write_room        = option_write_room,
 	.chars_in_buffer   = option_chars_in_buffer,
@@ -558,7 +585,8 @@ static struct usb_serial_driver option_1port_device = {
 	.tiocmget          = option_tiocmget,
 	.tiocmset          = option_tiocmset,
 	.attach            = option_startup,
-	.shutdown          = option_shutdown,
+	.disconnect        = option_disconnect,
+	.release           = option_release,
 	.read_int_callback = option_instat_callback,
 	.suspend           = option_suspend,
 	.resume            = option_resume,
@@ -624,13 +652,25 @@ static void __exit option_exit(void)
 module_init(option_init);
 module_exit(option_exit);
 
+static int option_probe(struct usb_serial *serial,
+			const struct usb_device_id *id)
+{
+	/* D-Link DWM 652 still exposes CD-Rom emulation interface in modem mode */
+	if (serial->dev->descriptor.idVendor == DLINK_VENDOR_ID &&
+		serial->dev->descriptor.idProduct == DLINK_PRODUCT_DWM_652 &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass == 0x8)
+		return -ENODEV;
+
+	return 0;
+}
+
 static void option_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	dbg("%s", __func__);
 	/* Doesn't support option setting */
 	tty_termios_copy_hw(tty->termios, old_termios);
-	option_send_setup(tty, port);
+	option_send_setup(port);
 }
 
 static int option_tiocmget(struct tty_struct *tty, struct file *file)
@@ -669,7 +709,7 @@ static int option_tiocmset(struct tty_struct *tty, struct file *file,
 		portdata->rts_state = 0;
 	if (clear & TIOCM_DTR)
 		portdata->dtr_state = 0;
-	return option_send_setup(tty, port);
+	return option_send_setup(port);
 }
 
 /* Write */
@@ -708,7 +748,6 @@ static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 		memcpy(this_urb->transfer_buffer, buf, todo);
 		this_urb->transfer_buffer_length = todo;
 
-		this_urb->dev = port->serial->dev;
 		err = usb_submit_urb(this_urb, GFP_ATOMIC);
 		if (err) {
 			dbg("usb_submit_urb %p (write bulk) failed "
@@ -836,7 +875,6 @@ static void option_instat_callback(struct urb *urb)
 
 	/* Resubmit urb so we continue receiving IRQ data */
 	if (status != -ESHUTDOWN && status != -ENOENT) {
-		urb->dev = serial->dev;
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err)
 			dbg("%s: resubmit intr urb failed. (%d)",
@@ -897,27 +935,11 @@ static int option_open(struct tty_struct *tty,
 
 	dbg("%s", __func__);
 
-	/* Set some sane defaults */
-	portdata->rts_state = 1;
-	portdata->dtr_state = 1;
-
-	/* Reset low level data toggle and start reading from endpoints */
+	/* Start reading from the IN endpoint */
 	for (i = 0; i < N_IN_URB; i++) {
 		urb = portdata->in_urbs[i];
 		if (!urb)
 			continue;
-		if (urb->dev != serial->dev) {
-			dbg("%s: dev %p != %p", __func__,
-				urb->dev, serial->dev);
-			continue;
-		}
-
-		/*
-		 * make sure endpoint data toggle is synchronized with the
-		 * device
-		 */
-		usb_clear_halt(urb->dev, urb->pipe);
-
 		err = usb_submit_urb(urb, GFP_KERNEL);
 		if (err) {
 			dbg("%s: submit urb %d failed (%d) %d",
@@ -926,23 +948,28 @@ static int option_open(struct tty_struct *tty,
 		}
 	}
 
-	/* Reset low level data toggle on out endpoints */
-	for (i = 0; i < N_OUT_URB; i++) {
-		urb = portdata->out_urbs[i];
-		if (!urb)
-			continue;
-		urb->dev = serial->dev;
-		/* usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
-				usb_pipeout(urb->pipe), 0); */
-	}
-
-	option_send_setup(tty, port);
+	option_send_setup(port);
 
 	return 0;
 }
 
-static void option_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void option_dtr_rts(struct usb_serial_port *port, int on)
+{
+	struct usb_serial *serial = port->serial;
+	struct option_port_private *portdata;
+
+	dbg("%s", __func__);
+	portdata = usb_get_serial_port_data(port);
+	mutex_lock(&serial->disc_mutex);
+	portdata->rts_state = on;
+	portdata->dtr_state = on;
+	if (serial->dev)
+		option_send_setup(port);
+	mutex_unlock(&serial->disc_mutex);
+}
+
+
+static void option_close(struct usb_serial_port *port)
 {
 	int i;
 	struct usb_serial *serial = port->serial;
@@ -951,22 +978,13 @@ static void option_close(struct tty_struct *tty,
 	dbg("%s", __func__);
 	portdata = usb_get_serial_port_data(port);
 
-	portdata->rts_state = 0;
-	portdata->dtr_state = 0;
-
 	if (serial->dev) {
-		mutex_lock(&serial->disc_mutex);
-		if (!serial->disconnected)
-			option_send_setup(tty, port);
-		mutex_unlock(&serial->disc_mutex);
-
 		/* Stop reading/writing urbs */
 		for (i = 0; i < N_IN_URB; i++)
 			usb_kill_urb(portdata->in_urbs[i]);
 		for (i = 0; i < N_OUT_URB; i++)
 			usb_kill_urb(portdata->out_urbs[i]);
 	}
-	tty_port_tty_set(&port->port, NULL);
 }
 
 /* Helper functions used by option_setup_urbs */
@@ -1032,28 +1050,24 @@ static void option_setup_urbs(struct usb_serial *serial)
  * This is exactly the same as SET_CONTROL_LINE_STATE from the PSTN
  * CDC.
 */
-static int option_send_setup(struct tty_struct *tty,
-						struct usb_serial_port *port)
+static int option_send_setup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct option_port_private *portdata;
 	int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
+	int val = 0;
 	dbg("%s", __func__);
 
 	portdata = usb_get_serial_port_data(port);
 
-	if (tty) {
-		int val = 0;
-		if (portdata->dtr_state)
-			val |= 0x01;
-		if (portdata->rts_state)
-			val |= 0x02;
+	if (portdata->dtr_state)
+		val |= 0x01;
+	if (portdata->rts_state)
+		val |= 0x02;
 
-		return usb_control_msg(serial->dev,
-			usb_rcvctrlpipe(serial->dev, 0),
-			0x22, 0x21, val, ifNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
-	}
-	return 0;
+	return usb_control_msg(serial->dev,
+		usb_rcvctrlpipe(serial->dev, 0),
+		0x22, 0x21, val, ifNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
 
 static int option_startup(struct usb_serial *serial)
@@ -1129,15 +1143,20 @@ static void stop_read_write_urbs(struct usb_serial *serial)
 	}
 }
 
-static void option_shutdown(struct usb_serial *serial)
+static void option_disconnect(struct usb_serial *serial)
+{
+	dbg("%s", __func__);
+
+	stop_read_write_urbs(serial);
+}
+
+static void option_release(struct usb_serial *serial)
 {
 	int i, j;
 	struct usb_serial_port *port;
 	struct option_port_private *portdata;
 
 	dbg("%s", __func__);
-
-	stop_read_write_urbs(serial);
 
 	/* Now free them */
 	for (i = 0; i < serial->num_ports; ++i) {
@@ -1191,7 +1210,6 @@ static int option_resume(struct usb_serial *serial)
 			dbg("%s: No interrupt URB for port %d\n", __func__, i);
 			continue;
 		}
-		port->interrupt_in_urb->dev = serial->dev;
 		err = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);
 		dbg("Submitted interrupt URB for port %d (result %d)", i, err);
 		if (err < 0) {

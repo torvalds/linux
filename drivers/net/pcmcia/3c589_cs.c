@@ -156,6 +156,7 @@ static struct net_device_stats *el3_get_stats(struct net_device *dev);
 static int el3_rx(struct net_device *dev);
 static int el3_close(struct net_device *dev);
 static void el3_tx_timeout(struct net_device *dev);
+static void set_rx_mode(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static const struct ethtool_ops netdev_ethtool_ops;
 
@@ -488,8 +489,7 @@ static void tc589_reset(struct net_device *dev)
     /* Switch to register set 1 for normal use. */
     EL3WINDOW(1);
 
-    /* Accept b-cast and phys addr only. */
-    outw(SetRxFilter | RxStation | RxBroadcast, ioaddr + EL3_CMD);
+    set_rx_mode(dev);
     outw(StatsEnable, ioaddr + EL3_CMD); /* Turn on statistics. */
     outw(RxEnable, ioaddr + EL3_CMD); /* Enable the receiver. */
     outw(TxEnable, ioaddr + EL3_CMD); /* Enable transmitter. */
@@ -700,7 +700,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 		if (fifo_diag & 0x2000) {
 		    /* Rx underrun */
 		    tc589_wait_for_completion(dev, RxReset);
-		    set_multicast_list(dev);
+		    set_rx_mode(dev);
 		    outw(RxEnable, ioaddr + EL3_CMD);
 		}
 		outw(AckIntr | AdapterFailure, ioaddr + EL3_CMD);
@@ -905,19 +905,26 @@ static int el3_rx(struct net_device *dev)
     return 0;
 }
 
-static void set_multicast_list(struct net_device *dev)
+static void set_rx_mode(struct net_device *dev)
 {
-    struct el3_private *lp = netdev_priv(dev);
-    struct pcmcia_device *link = lp->p_dev;
     unsigned int ioaddr = dev->base_addr;
     u16 opts = SetRxFilter | RxStation | RxBroadcast;
 
-    if (!pcmcia_dev_present(link)) return;
     if (dev->flags & IFF_PROMISC)
 	opts |= RxMulticast | RxProm;
     else if (dev->mc_count || (dev->flags & IFF_ALLMULTI))
 	opts |= RxMulticast;
     outw(opts, ioaddr + EL3_CMD);
+}
+
+static void set_multicast_list(struct net_device *dev)
+{
+	struct el3_private *priv = netdev_priv(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	set_rx_mode(dev);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int el3_close(struct net_device *dev)
@@ -967,8 +974,8 @@ static struct pcmcia_device_id tc589_ids[] = {
 	PCMCIA_MFC_DEVICE_PROD_ID1(0, "Motorola MARQUIS", 0xf03e4e77),
 	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0589),
 	PCMCIA_DEVICE_PROD_ID12("Farallon", "ENet", 0x58d93fc4, 0x992c2202),
-	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0101, 0x0035, "3CXEM556.cis"),
-	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0101, 0x003d, "3CXEM556.cis"),
+	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0101, 0x0035, "cis/3CXEM556.cis"),
+	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0101, 0x003d, "cis/3CXEM556.cis"),
 	PCMCIA_DEVICE_NULL,
 };
 MODULE_DEVICE_TABLE(pcmcia, tc589_ids);

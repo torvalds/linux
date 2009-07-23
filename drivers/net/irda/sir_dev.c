@@ -607,7 +607,7 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 				 * stopped so the network layer will retry after the
 				 * fsm completes and wakes the queue.
 				 */
-				 return 1;
+				 return NETDEV_TX_BUSY;
 			}
 			else if (unlikely(err)) {
 				/* other fatal error - forget the speed change and

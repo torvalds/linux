@@ -25,6 +25,8 @@
 #include "em28xx.h"
 #include <media/v4l2-common.h>
 #include <media/videobuf-vmalloc.h>
+#include <media/tuner.h>
+#include "tuner-simple.h"
 
 #include "lgdt330x.h"
 #include "zl10353.h"
@@ -46,7 +48,6 @@ if (debug >= level) 						\
 } while (0)
 
 #define EM28XX_DVB_NUM_BUFS 5
-#define EM28XX_DVB_MAX_PACKETSIZE 564
 #define EM28XX_DVB_MAX_PACKETS 64
 
 struct em28xx_dvb {
@@ -142,14 +143,17 @@ static int start_streaming(struct em28xx_dvb *dvb)
 {
 	int rc;
 	struct em28xx *dev = dvb->adapter.priv;
+	int max_dvb_packet_size;
 
 	usb_set_interface(dev->udev, 0, 1);
 	rc = em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	if (rc < 0)
 		return rc;
 
+	max_dvb_packet_size = em28xx_isoc_dvb_max_packetsize(dev);
+
 	return em28xx_init_isoc(dev, EM28XX_DVB_MAX_PACKETS,
-				EM28XX_DVB_NUM_BUFS, EM28XX_DVB_MAX_PACKETSIZE,
+				EM28XX_DVB_NUM_BUFS, max_dvb_packet_size,
 				dvb_isoc_copy);
 }
 
@@ -237,6 +241,14 @@ static struct s5h1409_config em28xx_s5h1409_with_xc3028 = {
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK
+};
+
+static struct zl10353_config em28xx_terratec_xs_zl10353_xc3028 = {
+	.demod_address = (0x1e >> 1),
+	.no_tuner = 1,
+	.disable_i2c_gate_ctrl = 1,
+	.parallel_ts = 1,
+	.if2 = 45600,
 };
 
 #ifdef EM28XX_DRX397XD_SUPPORT
@@ -429,8 +441,8 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
-	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_KWORLD_DVB_310U:
+	case EM2880_BOARD_EMPIRE_DUAL_TV:
 		dvb->frontend = dvb_attach(zl10353_attach,
 					   &em28xx_zl10353_with_xc3028,
 					   &dev->i2c_adap);
@@ -439,13 +451,45 @@ static int dvb_init(struct em28xx *dev)
 			goto out_free;
 		}
 		break;
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+		dvb->frontend = dvb_attach(zl10353_attach,
+					   &em28xx_terratec_xs_zl10353_xc3028,
+					   &dev->i2c_adap);
+		if (dvb->frontend == NULL) {
+			/* This board could have either a zl10353 or a mt352.
+			   If the chip id isn't for zl10353, try mt352 */
+
+			/* FIXME: make support for mt352 work */
+			printk(KERN_ERR "version of this board with mt352 not "
+			       "currently supported\n");
+			result = -EINVAL;
+			goto out_free;
+		}
+		if (attach_xc3028(0x61, dev) < 0) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		break;
 	case EM2883_BOARD_KWORLD_HYBRID_330U:
+	case EM2882_BOARD_EVGA_INDTUBE:
 		dvb->frontend = dvb_attach(s5h1409_attach,
 					   &em28xx_s5h1409_with_xc3028,
 					   &dev->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
 			goto out_free;
+		}
+		break;
+	case EM2882_BOARD_KWORLD_ATSC_315U:
+		dvb->frontend = dvb_attach(lgdt330x_attach,
+					   &em2880_lgdt3303_dev,
+					   &dev->i2c_adap);
+		if (dvb->frontend != NULL) {
+			if (!dvb_attach(simple_tuner_attach, dvb->frontend,
+				&dev->i2c_adap, 0x61, TUNER_THOMSON_DTT761X)) {
+				result = -EINVAL;
+				goto out_free;
+			}
 		}
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:

@@ -24,6 +24,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <asm/mach-au1x00/au1000.h>
@@ -130,8 +131,11 @@ void __init board_setup(void)
 	pin_func |= SYS_PF_USB;
 
 	au_writel(pin_func, SYS_PINFUNC);
-	au_writel(0x2800, SYS_TRIOUTCLR);
-	au_writel(0x0030, SYS_OUTPUTCLR);
+
+	alchemy_gpio_direction_input(11);
+	alchemy_gpio_direction_input(13);
+	alchemy_gpio_direction_output(4, 0);
+	alchemy_gpio_direction_output(5, 0);
 #endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 
 	/* Make GPIO 15 an input (for interrupt line) */
@@ -140,7 +144,7 @@ void __init board_setup(void)
 	pin_func |= SYS_PF_I2S;
 	au_writel(pin_func, SYS_PINFUNC);
 
-	au_writel(0x8000, SYS_TRIOUTCLR);
+	alchemy_gpio_direction_input(15);
 
 	static_cfg0 = au_readl(MEM_STCFG0) & ~0xc00;
 	au_writel(static_cfg0, MEM_STCFG0);

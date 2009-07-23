@@ -28,6 +28,8 @@ int cdev_add(struct cdev *, dev_t, unsigned);
 
 void cdev_del(struct cdev *);
 
+int cdev_index(struct inode *inode);
+
 void cd_forget(struct inode *);
 
 extern struct backing_dev_info directly_mappable_cdev_bdi;

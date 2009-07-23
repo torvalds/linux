@@ -21,9 +21,9 @@
 
 #include <asm/exceptions.h>
 #include <asm/entry.h>		/* For KM CPU var */
-#include <asm/uaccess.h>
-#include <asm/errno.h>
-#include <asm/ptrace.h>
+#include <linux/uaccess.h>
+#include <linux/errno.h>
+#include <linux/ptrace.h>
 #include <asm/current.h>
 
 #define MICROBLAZE_ILL_OPCODE_EXCEPTION	0x02
@@ -31,7 +31,7 @@
 #define MICROBLAZE_DBUS_EXCEPTION	0x04
 #define MICROBLAZE_DIV_ZERO_EXCEPTION	0x05
 #define MICROBLAZE_FPU_EXCEPTION	0x06
-#define MICROBLAZE_PRIVILEG_EXCEPTION	0x07
+#define MICROBLAZE_PRIVILEGED_EXCEPTION	0x07
 
 static DEFINE_SPINLOCK(die_lock);
 
@@ -66,6 +66,11 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 							int fsr, int addr)
 {
+#ifdef CONFIG_MMU
+	int code;
+	addr = regs->pc;
+#endif
+
 #if 0
 	printk(KERN_WARNING "Exception %02x in %s mode, FSR=%08x PC=%08x ESR=%08x\n",
 			type, user_mode(regs) ? "user" : "kernel", fsr,
@@ -74,7 +79,13 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 
 	switch (type & 0x1F) {
 	case MICROBLAZE_ILL_OPCODE_EXCEPTION:
-		_exception(SIGILL, regs, ILL_ILLOPC, addr);
+		if (user_mode(regs)) {
+			printk(KERN_WARNING "Illegal opcode exception in user mode.\n");
+			_exception(SIGILL, regs, ILL_ILLOPC, addr);
+			return;
+		}
+		printk(KERN_WARNING "Illegal opcode exception in kernel mode.\n");
+		die("opcode exception", regs, SIGBUS);
 		break;
 	case MICROBLAZE_IBUS_EXCEPTION:
 		if (user_mode(regs)) {
@@ -95,11 +106,16 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		die("bus exception", regs, SIGBUS);
 		break;
 	case MICROBLAZE_DIV_ZERO_EXCEPTION:
-		printk(KERN_WARNING "Divide by zero exception\n");
-		_exception(SIGILL, regs, ILL_ILLOPC, addr);
+		if (user_mode(regs)) {
+			printk(KERN_WARNING "Divide by zero exception in user mode\n");
+			_exception(SIGILL, regs, ILL_ILLOPC, addr);
+			return;
+		}
+		printk(KERN_WARNING "Divide by zero exception in kernel mode.\n");
+		die("Divide by exception", regs, SIGBUS);
 		break;
-
 	case MICROBLAZE_FPU_EXCEPTION:
+		printk(KERN_WARNING "FPU exception\n");
 		/* IEEE FP exception */
 		/* I removed fsr variable and use code var for storing fsr */
 		if (fsr & FSR_IO)
@@ -115,7 +131,20 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		_exception(SIGFPE, regs, fsr, addr);
 		break;
 
+#ifdef CONFIG_MMU
+	case MICROBLAZE_PRIVILEGED_EXCEPTION:
+		printk(KERN_WARNING "Privileged exception\n");
+		/* "brk r0,r0" - used as debug breakpoint */
+		if (get_user(code, (unsigned long *)regs->pc) == 0
+			&& code == 0x980c0000) {
+			_exception(SIGTRAP, regs, TRAP_BRKPT, addr);
+		} else {
+			_exception(SIGILL, regs, ILL_PRVOPC, addr);
+		}
+		break;
+#endif
 	default:
+	/* FIXME what to do in unexpected exception */
 		printk(KERN_WARNING "Unexpected exception %02x "
 			"PC=%08x in %s mode\n", type, (unsigned int) addr,
 			kernel_mode(regs) ? "kernel" : "user");

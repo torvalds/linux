@@ -24,6 +24,7 @@
 #include <asm/txx9pio.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/ndfmc.h>
+#include <asm/txx9/dmac.h>
 #include <asm/txx9/tx4938.h>
 
 static void __init tx4938_wdr_init(void)
@@ -239,11 +240,6 @@ void __init tx4938_setup(void)
 	for (i = 0; i < TX4938_NR_TMR; i++)
 		txx9_tmr_init(TX4938_TMR_REG(i) & 0xfffffffffULL);
 
-	/* DMA */
-	for (i = 0; i < 2; i++)
-		____raw_writeq(TX4938_DMA_MCR_MSTEN,
-			       (void __iomem *)(TX4938_DMA_REG(i) + 0x50));
-
 	/* PIO */
 	txx9_gpio_init(TX4938_PIO_REG & 0xfffffffffULL, 0, TX4938_NUM_PIO);
 	__raw_writel(0, &tx4938_pioptr->maskcpu);
@@ -401,6 +397,38 @@ void __init tx4938_ndfmc_init(unsigned int hold, unsigned int spw)
 	     (TX4938_PCFG_ATA_SEL|TX4938_PCFG_ISA_SEL|TX4938_PCFG_NDF_SEL)) ==
 	    TX4938_PCFG_NDF_SEL)
 		txx9_ndfmc_init(baseaddr, &plat_data);
+}
+
+void __init tx4938_dmac_init(int memcpy_chan0, int memcpy_chan1)
+{
+	struct txx9dmac_platform_data plat_data = {
+		.have_64bit_regs = true,
+	};
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		plat_data.memcpy_chan = i ? memcpy_chan1 : memcpy_chan0;
+		txx9_dmac_init(i, TX4938_DMA_REG(i) & 0xfffffffffULL,
+			       TXX9_IRQ_BASE + TX4938_IR_DMA(i, 0),
+			       &plat_data);
+	}
+}
+
+void __init tx4938_aclc_init(void)
+{
+	u64 pcfg = __raw_readq(&tx4938_ccfgptr->pcfg);
+
+	if ((pcfg & TX4938_PCFG_SEL2) &&
+	    !(pcfg & TX4938_PCFG_ETH0_SEL))
+		txx9_aclc_init(TX4938_ACLC_REG & 0xfffffffffULL,
+			       TXX9_IRQ_BASE + TX4938_IR_ACLC,
+			       1, 0, 1);
+}
+
+void __init tx4938_sramc_init(void)
+{
+	if (tx4938_sram_resource.start)
+		txx9_sramc_init(&tx4938_sram_resource);
 }
 
 static void __init tx4938_stop_unused_modules(void)

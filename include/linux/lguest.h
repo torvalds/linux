@@ -11,7 +11,7 @@
 #define LG_CLOCK_MIN_DELTA	100UL
 #define LG_CLOCK_MAX_DELTA	ULONG_MAX
 
-/*G:032 The second method of communicating with the Host is to via "struct
+/*G:031 The second method of communicating with the Host is to via "struct
  * lguest_data".  Once the Guest's initialization hypercall tells the Host where
  * this is, the Guest and Host both publish information in it. :*/
 struct lguest_data
@@ -29,6 +29,10 @@ struct lguest_data
 
 	/* Wallclock time set by the Host. */
 	struct timespec time;
+
+	/* Interrupt pending set by the Host.  The Guest should do a hypercall
+	 * if it re-enables interrupts and sees this set (to X86_EFLAGS_IF). */
+	int irq_pending;
 
 	/* Async hypercall ring.  Instead of directly making hypercalls, we can
 	 * place them in here for processing the next time the Host wants.

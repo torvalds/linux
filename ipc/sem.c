@@ -1290,8 +1290,8 @@ void exit_sem(struct task_struct *tsk)
 		int i;
 
 		rcu_read_lock();
-		un = list_entry(rcu_dereference(ulp->list_proc.next),
-					struct sem_undo, list_proc);
+		un = list_entry_rcu(ulp->list_proc.next,
+				    struct sem_undo, list_proc);
 		if (&un->list_proc == &ulp->list_proc)
 			semid = -1;
 		 else

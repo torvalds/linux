@@ -36,7 +36,7 @@ MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
 #define i2cdprintk(fmt, arg...) \
 	if (ir_debug) { \
-		printk(KERN_DEBUG "%s/ir: " fmt, ir->c.name , ## arg); \
+		printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg); \
 	}
 
 #define dprintk(fmt, arg...) \

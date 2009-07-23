@@ -5,4 +5,27 @@
 #
 # Licensed under GPLv2
 
-# Currently nothing here, this will be added later
+# Configuration options for the S3C6410 CPU
+
+config CPU_S3C6400
+	bool
+	select CPU_S3C6400_INIT
+	select CPU_S3C6400_CLOCK
+	help
+	  Enable S3C6400 CPU support
+
+config S3C6400_SETUP_SDHCI
+	bool
+	help
+	  Internal configuration for default SDHCI
+	  setup for S3C6400.
+
+# S36400 Macchine support
+
+config MACH_SMDK6400
+       bool "SMDK6400"
+	select CPU_S3C6400
+	select S3C_DEV_HSMMC
+	select S3C6400_SETUP_SDHCI
+	help
+	  Machine support for the Samsung SMDK6400

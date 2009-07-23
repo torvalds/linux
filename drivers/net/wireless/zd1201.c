@@ -819,11 +819,11 @@ static int zd1201_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (err) {
 		dev->stats.tx_errors++;
 		netif_start_queue(dev);
-		return err;
+	} else {
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
+		dev->trans_start = jiffies;
 	}
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 	kfree_skb(skb);
 
 	return 0;

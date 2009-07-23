@@ -23,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
@@ -547,14 +548,18 @@ static int mxser_carrier_raised(struct tty_port *port)
 	return (inb(mp->ioaddr + UART_MSR) & UART_MSR_DCD)?1:0;
 }
 
-static void mxser_raise_dtr_rts(struct tty_port *port)
+static void mxser_dtr_rts(struct tty_port *port, int on)
 {
 	struct mxser_port *mp = container_of(port, struct mxser_port, port);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mp->slock, flags);
-	outb(inb(mp->ioaddr + UART_MCR) |
-		UART_MCR_DTR | UART_MCR_RTS, mp->ioaddr + UART_MCR);
+	if (on)
+		outb(inb(mp->ioaddr + UART_MCR) |
+			UART_MCR_DTR | UART_MCR_RTS, mp->ioaddr + UART_MCR);
+	else
+		outb(inb(mp->ioaddr + UART_MCR)&~(UART_MCR_DTR | UART_MCR_RTS),
+			mp->ioaddr + UART_MCR);
 	spin_unlock_irqrestore(&mp->slock, flags);
 }
 
@@ -1044,8 +1049,6 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	if (retval)
 		return retval;
 
-	/* unmark here for very high baud rate (ex. 921600 bps) used */
-	tty->low_latency = 1;
 	return 0;
 }
 
@@ -2356,7 +2359,7 @@ static const struct tty_operations mxser_ops = {
 
 struct tty_port_operations mxser_port_ops = {
 	.carrier_raised = mxser_carrier_raised,
-	.raise_dtr_rts = mxser_raise_dtr_rts,
+	.dtr_rts = mxser_dtr_rts,
 };
 
 /*

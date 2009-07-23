@@ -18,7 +18,9 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4535 if I2C
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_PCM3008
+	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if I2C
+	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
 	select SND_SOC_TLV320AIC3X if I2C
@@ -35,8 +37,12 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8753 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
 	select SND_SOC_WM8903 if I2C
+	select SND_SOC_WM8940 if I2C
+	select SND_SOC_WM8960 if I2C
 	select SND_SOC_WM8971 if I2C
+	select SND_SOC_WM8988 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8990 if I2C
+	select SND_SOC_WM9081 if I2C
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
@@ -86,7 +92,13 @@ config SND_SOC_L3
 config SND_SOC_PCM3008
        tristate
 
+config SND_SOC_SPDIF
+	tristate
+
 config SND_SOC_SSM2602
+	tristate
+
+config SND_SOC_STAC9766
 	tristate
 
 config SND_SOC_TLV320AIC23
@@ -138,10 +150,22 @@ config SND_SOC_WM8900
 config SND_SOC_WM8903
 	tristate
 
+config SND_SOC_WM8940
+        tristate
+
+config SND_SOC_WM8960
+	tristate
+
 config SND_SOC_WM8971
 	tristate
 
+config SND_SOC_WM8988
+	tristate
+
 config SND_SOC_WM8990
+	tristate
+
+config SND_SOC_WM9081
 	tristate
 
 config SND_SOC_WM9705

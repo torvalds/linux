@@ -410,6 +410,7 @@ static int context_struct_compute_av(struct context *scontext,
 	avd->auditallow = 0;
 	avd->auditdeny = 0xffffffff;
 	avd->seqno = latest_granting;
+	avd->flags = 0;
 
 	/*
 	 * Check for all the invalid cases.
@@ -526,31 +527,6 @@ inval_class:
 	 * Handle as a denial (allowed is 0).
 	 */
 	return 0;
-}
-
-/*
- * Given a sid find if the type has the permissive flag set
- */
-int security_permissive_sid(u32 sid)
-{
-	struct context *context;
-	u32 type;
-	int rc;
-
-	read_lock(&policy_rwlock);
-
-	context = sidtab_search(&sidtab, sid);
-	BUG_ON(!context);
-
-	type = context->type;
-	/*
-	 * we are intentionally using type here, not type-1, the 0th bit may
-	 * someday indicate that we are globally setting permissive in policy.
-	 */
-	rc = ebitmap_get_bit(&policydb.permissive_map, type);
-
-	read_unlock(&policy_rwlock);
-	return rc;
 }
 
 static int security_validtrans_handle_fail(struct context *ocontext,
@@ -767,6 +743,10 @@ int security_compute_av(u32 ssid,
 
 	rc = context_struct_compute_av(scontext, tcontext, tclass,
 				       requested, avd);
+
+	/* permissive domain? */
+	if (ebitmap_get_bit(&policydb.permissive_map, scontext->type))
+	    avd->flags |= AVD_FLAGS_PERMISSIVE;
 out:
 	read_unlock(&policy_rwlock);
 	return rc;

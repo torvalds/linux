@@ -125,6 +125,10 @@ module_param_named(fmr_reserved_mtts, hca_profile.fmr_reserved_mtts, int, 0444);
 MODULE_PARM_DESC(fmr_reserved_mtts,
 		 "number of memory translation table segments reserved for FMR");
 
+static int log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
+module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
+MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-5)");
+
 static char mthca_version[] __devinitdata =
 	DRV_NAME ": Mellanox InfiniBand HCA driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
@@ -162,6 +166,7 @@ static int mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim *dev_lim)
 	int err;
 	u8 status;
 
+	mdev->limits.mtt_seg_size = (1 << log_mtts_per_seg) * 8;
 	err = mthca_QUERY_DEV_LIM(mdev, dev_lim, &status);
 	if (err) {
 		mthca_err(mdev, "QUERY_DEV_LIM command failed, aborting.\n");
@@ -460,11 +465,11 @@ static int mthca_init_icm(struct mthca_dev *mdev,
 	}
 
 	/* CPU writes to non-reserved MTTs, while HCA might DMA to reserved mtts */
-	mdev->limits.reserved_mtts = ALIGN(mdev->limits.reserved_mtts * MTHCA_MTT_SEG_SIZE,
-					   dma_get_cache_alignment()) / MTHCA_MTT_SEG_SIZE;
+	mdev->limits.reserved_mtts = ALIGN(mdev->limits.reserved_mtts * mdev->limits.mtt_seg_size,
+					   dma_get_cache_alignment()) / mdev->limits.mtt_seg_size;
 
 	mdev->mr_table.mtt_table = mthca_alloc_icm_table(mdev, init_hca->mtt_base,
-							 MTHCA_MTT_SEG_SIZE,
+							 mdev->limits.mtt_seg_size,
 							 mdev->limits.num_mtt_segs,
 							 mdev->limits.reserved_mtts,
 							 1, 0);
@@ -1314,6 +1319,12 @@ static void __init mthca_validate_profile(void)
 		hca_profile.fmr_reserved_mtts = hca_profile.num_mtt / 2;
 		printk(KERN_WARNING PFX "Corrected fmr_reserved_mtts to %d.\n",
 		       hca_profile.fmr_reserved_mtts);
+	}
+
+	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 5)) {
+		printk(KERN_WARNING PFX "bad log_mtts_per_seg (%d). Using default - %d\n",
+		       log_mtts_per_seg, ilog2(MTHCA_MTT_SEG_SIZE / 8));
+		log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
 	}
 }
 

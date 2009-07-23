@@ -57,13 +57,20 @@ static struct tracer_flags tracer_flags = {
 
 /* Add a function return address to the trace stack on thread info.*/
 int
-ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
+ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
+			 unsigned long frame_pointer)
 {
 	unsigned long long calltime;
 	int index;
 
 	if (!current->ret_stack)
 		return -EBUSY;
+
+	/*
+	 * We must make sure the ret_stack is tested before we read
+	 * anything else.
+	 */
+	smp_rmb();
 
 	/* The return trace stack is full */
 	if (current->curr_ret_stack == FTRACE_RETFUNC_DEPTH - 1) {
@@ -78,14 +85,17 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
 	current->ret_stack[index].ret = ret;
 	current->ret_stack[index].func = func;
 	current->ret_stack[index].calltime = calltime;
+	current->ret_stack[index].subtime = 0;
+	current->ret_stack[index].fp = frame_pointer;
 	*depth = index;
 
 	return 0;
 }
 
 /* Retrieve a function return address to the trace stack on thread info.*/
-void
-ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
+static void
+ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
+			unsigned long frame_pointer)
 {
 	int index;
 
@@ -99,28 +109,52 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 		return;
 	}
 
+#ifdef CONFIG_HAVE_FUNCTION_GRAPH_FP_TEST
+	/*
+	 * The arch may choose to record the frame pointer used
+	 * and check it here to make sure that it is what we expect it
+	 * to be. If gcc does not set the place holder of the return
+	 * address in the frame pointer, and does a copy instead, then
+	 * the function graph trace will fail. This test detects this
+	 * case.
+	 *
+	 * Currently, x86_32 with optimize for size (-Os) makes the latest
+	 * gcc do the above.
+	 */
+	if (unlikely(current->ret_stack[index].fp != frame_pointer)) {
+		ftrace_graph_stop();
+		WARN(1, "Bad frame pointer: expected %lx, received %lx\n"
+		     "  from func %pF return to %lx\n",
+		     current->ret_stack[index].fp,
+		     frame_pointer,
+		     (void *)current->ret_stack[index].func,
+		     current->ret_stack[index].ret);
+		*ret = (unsigned long)panic;
+		return;
+	}
+#endif
+
 	*ret = current->ret_stack[index].ret;
 	trace->func = current->ret_stack[index].func;
 	trace->calltime = current->ret_stack[index].calltime;
 	trace->overrun = atomic_read(&current->trace_overrun);
 	trace->depth = index;
-	barrier();
-	current->curr_ret_stack--;
-
 }
 
 /*
  * Send the trace to the ring-buffer.
  * @return the original return address.
  */
-unsigned long ftrace_return_to_handler(void)
+unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 {
 	struct ftrace_graph_ret trace;
 	unsigned long ret;
 
-	ftrace_pop_return_trace(&trace, &ret);
+	ftrace_pop_return_trace(&trace, &ret, frame_pointer);
 	trace.rettime = trace_clock_local();
 	ftrace_graph_return(&trace);
+	barrier();
+	current->curr_ret_stack--;
 
 	if (unlikely(!ret)) {
 		ftrace_graph_stop();
@@ -426,8 +460,8 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 	return TRACE_TYPE_HANDLED;
 }
 
-static enum print_line_t
-print_graph_duration(unsigned long long duration, struct trace_seq *s)
+enum print_line_t
+trace_print_graph_duration(unsigned long long duration, struct trace_seq *s)
 {
 	unsigned long nsecs_rem = do_div(duration, 1000);
 	/* log10(ULONG_MAX) + '\0' */
@@ -464,12 +498,23 @@ print_graph_duration(unsigned long long duration, struct trace_seq *s)
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t
+print_graph_duration(unsigned long long duration, struct trace_seq *s)
+{
+	int ret;
+
+	ret = trace_print_graph_duration(duration, s);
+	if (ret != TRACE_TYPE_HANDLED)
+		return ret;
 
 	ret = trace_seq_printf(s, "|  ");
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
-	return TRACE_TYPE_HANDLED;
 
+	return TRACE_TYPE_HANDLED;
 }
 
 /* Case of a leaf function on its call entry */

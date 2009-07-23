@@ -10,7 +10,7 @@
  * The device is based on the FTDI FT8U100AX chip. It has a DB25 on one side,
  * USB on the other.
  *
- * Thanx to FTDI (http://www.ftdi.co.uk) for so kindly providing details
+ * Thanx to FTDI (http://www.ftdichip.com) for so kindly providing details
  * of the protocol required to talk to the device and ongoing assistence
  * during development.
  *
@@ -28,11 +28,15 @@
 #define FTDI_8U232AM_ALT_PID 0x6006 /* FTDI's alternate PID for above */
 #define FTDI_8U2232C_PID 0x6010 /* Dual channel device */
 #define FTDI_232RL_PID  0xFBFA  /* Product ID for FT232RL */
+#define FTDI_4232H_PID 0x6011 /* Quad channel hi-speed device */
 #define FTDI_RELAIS_PID	0xFA10  /* Relais device from Rudolf Gugler */
 #define FTDI_NF_RIC_VID	0x0DCD	/* Vendor Id */
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
 #define FTDI_USBX_707_PID 0xF857	/* ADSTech IR Blaster USBX-707 */
 
+/* Larsen and Brusgaard AltiTrack/USBtrack  */
+#define LARSENBRUSGAARD_VID		0x0FD8
+#define LB_ALTITRACK_PID		0x0001
 
 /* www.canusb.com Lawicel CANUSB device */
 #define FTDI_CANUSB_PID 0xFFA8 /* Product Id */
@@ -502,6 +506,7 @@
  *
  * Armin Laeuger originally sent the PID for the UM 100 module.
  */
+#define FTDI_R2000KU_TRUE_RNG	0xFB80  /* R2000KU TRUE RNG */
 #define FTDI_ELV_UR100_PID	0xFB58	/* USB-RS232-Umsetzer (UR 100) */
 #define FTDI_ELV_UM100_PID	0xFB5A	/* USB-Modul UM 100 */
 #define FTDI_ELV_UO100_PID	0xFB5B	/* USB-Modul UO 100 */
@@ -610,6 +615,9 @@
 #define FTDI_CCSICDU20_0_PID    0xF9D0
 #define FTDI_CCSICDU40_1_PID    0xF9D1
 #define FTDI_CCSMACHX_2_PID     0xF9D2
+#define FTDI_CCSLOAD_N_GO_3_PID 0xF9D3
+#define FTDI_CCSICDU64_4_PID    0xF9D4
+#define FTDI_CCSPRIME8_5_PID    0xF9D5
 
 /* Inside Accesso contactless reader (http://www.insidefr.com) */
 #define INSIDE_ACCESSO		0xFAD0
@@ -732,6 +740,15 @@
 #define FTDI_PYRAMID_PID	0xE6C8	/* Pyramid Appliance Display */
 
 /*
+ * NDI (www.ndigital.com) product ids
+ */
+#define FTDI_NDI_HUC_PID		0xDA70	/* NDI Host USB Converter */
+#define FTDI_NDI_SPECTRA_SCU_PID	0xDA71	/* NDI Spectra SCU */
+#define FTDI_NDI_FUTURE_2_PID		0xDA72	/* NDI future device #2 */
+#define FTDI_NDI_FUTURE_3_PID		0xDA73	/* NDI future device #3 */
+#define FTDI_NDI_AURORA_SCU_PID		0xDA74	/* NDI Aurora SCU */
+
+/*
  * Posiflex inc retail equipment (http://www.posiflex.com.tw)
  */
 #define POSIFLEX_VID		0x0d3a  /* Vendor ID */
@@ -844,9 +861,6 @@
 #define TML_VID			0x1B91	/* Vendor ID */
 #define TML_USB_SERIAL_PID	0x0064	/* USB - Serial Converter */
 
-/* NDI Polaris System */
-#define FTDI_NDI_HUC_PID        0xDA70
-
 /* Propox devices */
 #define FTDI_PROPOX_JTAGCABLEII_PID	0xD738
 
@@ -873,6 +887,11 @@
 #define FTDI_SIO_SET_LATENCY_TIMER	9 /* Set the latency timer */
 #define FTDI_SIO_GET_LATENCY_TIMER	10 /* Get the latency timer */
 
+/* Interface indicies for FT2232, FT2232H and FT4232H devices*/
+#define INTERFACE_A		1
+#define INTERFACE_B		2
+#define INTERFACE_C		3
+#define INTERFACE_D		4
 
 /*
  * FIC / OpenMoko, Inc. http://wiki.openmoko.org/wiki/Neo1973_Debug_Board_v3
@@ -924,6 +943,8 @@
  */
 #define MARVELL_VID		0x9e88
 #define MARVELL_SHEEVAPLUG_PID	0x9e8f
+
+#define FTDI_TURTELIZER_PID	0xBDC8 /* JTAG/RS-232 adapter by egnite GmBH */
 
 /*
  *   BmRequestType:  1100 0000b
@@ -1036,6 +1057,8 @@ typedef enum {
 	FT232BM = 3,
 	FT2232C = 4,
 	FT232RL = 5,
+	FT2232H = 6,
+	FT4232H = 7
 } ftdi_chip_type_t;
 
 typedef enum {

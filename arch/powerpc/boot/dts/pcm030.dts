@@ -258,33 +258,15 @@
 				compatible = "nxp,pcf8563";
 				reg = <0x51>;
 			};
-			/* FIXME: EEPROM */
+			eeprom@52 {
+				compatible = "catalyst,24c32";
+				reg = <0x52>;
+			};
 		};
 
 		sram@8000 {
 			compatible = "fsl,mpc5200b-sram","fsl,mpc5200-sram";
 			reg = <0x8000 0x4000>;
-		};
-
-		/* This is only an example device to show the usage of gpios. It maps all available
-		 * gpios to the "gpio-provider" device.
-		 */
-		gpio {
-			compatible = "gpio-provider";
-
-						    /* mpc52xx		exp.con		patchfield */
-			gpios = <&gpio_wkup	0 0 /* GPIO_WKUP_7	11d		jp13-3     */
-				 &gpio_wkup	1 0 /* GPIO_WKUP_6	14c			   */
-				 &gpio_wkup	6 0 /* PSC2_4		43c		x5-11	   */
-				 &gpio_simple	2 0 /* IRDA_1		24c		x7-6	set GPS_PORT_CONFIG[IRDA] = 0 */
-				 &gpio_simple	3 0 /* IRDA_0				x8-5	set GPS_PORT_CONFIG[IRDA] = 0 */
-				 &gpt2		0 0 /* timer2		12d		x4-4	   */
-				 &gpt3		0 0 /* timer3		13d		x6-4	   */
-				 &gpt4		0 0 /* timer4		61c		x2-16	   */
-				 &gpt5		0 0 /* timer5		44c		x7-11	   */
-				 &gpt6		0 0 /* timer6		60c		x8-15	   */
-				 &gpt7		0 0 /* timer7		36a		x17-9	   */
-				 >;
 		};
 	};
 

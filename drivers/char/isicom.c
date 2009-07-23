@@ -122,6 +122,7 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/serial.h>
+#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -329,7 +330,7 @@ static inline void drop_rts(struct isi_port *port)
 
 /* card->lock MUST NOT be held */
 
-static void isicom_raise_dtr_rts(struct tty_port *port)
+static void isicom_dtr_rts(struct tty_port *port, int on)
 {
 	struct isi_port *ip = container_of(port, struct isi_port, port);
 	struct isi_board *card = ip->card;
@@ -339,10 +340,17 @@ static void isicom_raise_dtr_rts(struct tty_port *port)
 	if (!lock_card(card))
 		return;
 
-	outw(0x8000 | (channel << card->shift_count) | 0x02, base);
-	outw(0x0f04, base);
-	InterruptTheCard(base);
-	ip->status |= (ISI_DTR | ISI_RTS);
+	if (on) {
+		outw(0x8000 | (channel << card->shift_count) | 0x02, base);
+		outw(0x0f04, base);
+		InterruptTheCard(base);
+		ip->status |= (ISI_DTR | ISI_RTS);
+	} else {
+		outw(0x8000 | (channel << card->shift_count) | 0x02, base);
+		outw(0x0C04, base);
+		InterruptTheCard(base);
+		ip->status &= ~(ISI_DTR | ISI_RTS);
+	}
 	unlock_card(card);
 }
 
@@ -1339,7 +1347,7 @@ static const struct tty_operations isicom_ops = {
 
 static const struct tty_port_operations isicom_port_ops = {
 	.carrier_raised		= isicom_carrier_raised,
-	.raise_dtr_rts		= isicom_raise_dtr_rts,
+	.dtr_rts		= isicom_dtr_rts,
 };
 
 static int __devinit reset_card(struct pci_dev *pdev,
@@ -1471,10 +1479,10 @@ static int __devinit load_firmware(struct pci_dev *pdev,
 		status = inw(base + 0x4);
 		if (status != 0) {
 			dev_warn(&pdev->dev, "Card%d rejected load header:\n"
-				KERN_WARNING "Address:0x%x\n"
-				KERN_WARNING "Count:0x%x\n"
-				KERN_WARNING "Status:0x%x\n",
-				index + 1, frame->addr, frame->count, status);
+				 "Address:0x%x\n"
+				 "Count:0x%x\n"
+				 "Status:0x%x\n",
+				 index + 1, frame->addr, frame->count, status);
 			goto errrelfw;
 		}
 		outsw(base, frame->data, word_count);
@@ -1519,10 +1527,10 @@ static int __devinit load_firmware(struct pci_dev *pdev,
 		status = inw(base + 0x4);
 		if (status != 0) {
 			dev_warn(&pdev->dev, "Card%d rejected verify header:\n"
-				KERN_WARNING "Address:0x%x\n"
-				KERN_WARNING "Count:0x%x\n"
-				KERN_WARNING "Status: 0x%x\n",
-				index + 1, frame->addr, frame->count, status);
+				 "Address:0x%x\n"
+				 "Count:0x%x\n"
+				 "Status: 0x%x\n",
+				 index + 1, frame->addr, frame->count, status);
 			goto errrelfw;
 		}
 
@@ -1586,7 +1594,7 @@ static unsigned int card_count;
 static int __devinit isicom_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
-	unsigned int signature, index;
+	unsigned int uninitialized_var(signature), index;
 	int retval = -EPERM;
 	struct isi_board *board = NULL;
 

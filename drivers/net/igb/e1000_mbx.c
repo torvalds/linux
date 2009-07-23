@@ -140,13 +140,13 @@ static s32 igb_poll_for_msg(struct e1000_hw *hw, u16 mbx_id)
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	int countdown = mbx->timeout;
 
-	if (!mbx->ops.check_for_msg)
+	if (!countdown || !mbx->ops.check_for_msg)
 		goto out;
 
 	while (mbx->ops.check_for_msg(hw, mbx_id)) {
+		countdown--;
 		if (!countdown)
 			break;
-		countdown--;
 		udelay(mbx->usec_delay);
 	}
 out:
@@ -165,13 +165,13 @@ static s32 igb_poll_for_ack(struct e1000_hw *hw, u16 mbx_id)
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	int countdown = mbx->timeout;
 
-	if (!mbx->ops.check_for_ack)
+	if (!countdown || !mbx->ops.check_for_ack)
 		goto out;
 
 	while (mbx->ops.check_for_ack(hw, mbx_id)) {
+		countdown--;
 		if (!countdown)
 			break;
-		countdown--;
 		udelay(mbx->usec_delay);
 	}
 out:

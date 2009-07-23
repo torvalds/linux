@@ -3345,22 +3345,8 @@ static struct genl_ops ip_vs_genl_ops[] __read_mostly = {
 
 static int __init ip_vs_genl_register(void)
 {
-	int ret, i;
-
-	ret = genl_register_family(&ip_vs_genl_family);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < ARRAY_SIZE(ip_vs_genl_ops); i++) {
-		ret = genl_register_ops(&ip_vs_genl_family, &ip_vs_genl_ops[i]);
-		if (ret)
-			goto err_out;
-	}
-	return 0;
-
-err_out:
-	genl_unregister_family(&ip_vs_genl_family);
-	return ret;
+	return genl_register_family_with_ops(&ip_vs_genl_family,
+		ip_vs_genl_ops, ARRAY_SIZE(ip_vs_genl_ops));
 }
 
 static void ip_vs_genl_unregister(void)

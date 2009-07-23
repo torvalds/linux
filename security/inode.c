@@ -287,7 +287,7 @@ void securityfs_remove(struct dentry *dentry)
 {
 	struct dentry *parent;
 
-	if (!dentry)
+	if (!dentry || IS_ERR(dentry))
 		return;
 
 	parent = dentry->d_parent;

@@ -64,7 +64,7 @@ static inline int nmi_watchdog_active(void)
 	 * but since they are power of two we could use a
 	 * cheaper way --cvg
 	 */
-	return nmi_watchdog & 0x3;
+	return nmi_watchdog & (NMI_LOCAL_APIC | NMI_IO_APIC);
 }
 #endif
 
@@ -72,7 +72,6 @@ void lapic_watchdog_stop(void);
 int lapic_watchdog_init(unsigned nmi_hz);
 int lapic_wd_event(unsigned nmi_hz);
 unsigned lapic_adjust_nmi_hz(unsigned hz);
-int lapic_watchdog_ok(void);
 void disable_lapic_nmi_watchdog(void);
 void enable_lapic_nmi_watchdog(void);
 void stop_nmi(void);

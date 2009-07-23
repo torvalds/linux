@@ -191,6 +191,9 @@ struct t3c_data {
 	struct t3c_tid_entry *tid_release_list;
 	spinlock_t tid_release_lock;
 	struct work_struct tid_release_task;
+
+	struct sk_buff *nofail_skb;
+	unsigned int release_list_incomplete;
 };
 
 /*

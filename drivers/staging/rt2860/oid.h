@@ -80,13 +80,8 @@
 #define MAX_LENGTH_OF_SUPPORT_RATES		12    // 1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54
 #define MAX_NUMBER_OF_DLS_ENTRY			4
 
-#ifndef UNDER_CE
-
 #define OID_GEN_MACHINE_NAME               0x0001021A
 
-#ifdef RALINK_ATE
-#define RT_QUERY_ATE_TXDONE_COUNT			0x0401
-#endif // RALINK_ATE //
 #define RT_QUERY_SIGNAL_CONTEXT				0x0402
 #define RT_SET_IAPP_PID                 	0x0404
 #define RT_SET_APD_PID						0x0405
@@ -163,7 +158,7 @@
 #define	RT_OID_802_11_QUERY_LAST_RX_RATE			0x0613
 #define	RT_OID_802_11_TX_POWER_LEVEL_1				0x0614
 #define	RT_OID_802_11_QUERY_PIDVID					0x0615
-//for WPA_SUPPLICANT_SUPPORT
+
 #define OID_SET_COUNTERMEASURES                     0x0616
 #define OID_802_11_SET_IEEE8021X                    0x0617
 #define OID_802_11_SET_IEEE8021X_REQUIRE_KEY        0x0618
@@ -388,9 +383,6 @@ typedef struct PACKED _RADIUS_CONF
 	RADIUS_KEY_INFO	RadiusInfo[8/*MAX_MBSSID_NUM*/];
 } RADIUS_CONF, *PRADIUS_CONF;
 
-
-
-#ifdef CONFIG_STA_SUPPORT
 // Key mapping keys require a BSSID
 typedef struct _NDIS_802_11_KEY
 {
@@ -401,7 +393,6 @@ typedef struct _NDIS_802_11_KEY
     NDIS_802_11_KEY_RSC KeyRSC;
     UCHAR           KeyMaterial[1];     // variable length depending on above field
 } NDIS_802_11_KEY, *PNDIS_802_11_KEY;
-#endif // CONFIG_STA_SUPPORT //
 
 typedef struct _NDIS_802_11_REMOVE_KEY
 {
@@ -544,8 +535,10 @@ typedef enum _NDIS_802_11_WEP_STATUS
     Ndis802_11Encryption3KeyAbsent,
     Ndis802_11Encryption4Enabled,	// TKIP or AES mix
     Ndis802_11Encryption4KeyAbsent,
+#ifndef RT30xx
     Ndis802_11GroupWEP40Enabled,
 	Ndis802_11GroupWEP104Enabled,
+#endif
 } NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
   NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
 
@@ -605,7 +598,6 @@ typedef enum _NDIS_802_11_MEDIA_STREAM_MODE
 // PMKID Structures
 typedef UCHAR   NDIS_802_11_PMKID_VALUE[16];
 
-#ifdef CONFIG_STA_SUPPORT
 typedef struct _BSSID_INFO
 {
     NDIS_802_11_MAC_ADDRESS BSSID;
@@ -618,8 +610,6 @@ typedef struct _NDIS_802_11_PMKID
     UINT    BSSIDInfoCount;
     BSSID_INFO BSSIDInfo[1];
 } NDIS_802_11_PMKID, *PNDIS_802_11_PMKID;
-#endif // CONFIG_STA_SUPPORT //
-
 
 typedef struct _NDIS_802_11_AUTHENTICATION_ENCRYPTION
 {
@@ -636,9 +626,6 @@ typedef struct _NDIS_802_11_CAPABILITY
      NDIS_802_11_AUTHENTICATION_ENCRYPTION AuthenticationEncryptionSupported[1];
 } NDIS_802_11_CAPABILITY, *PNDIS_802_11_CAPABILITY;
 
-//#endif //of WIN 2k
-#endif //UNDER_CE
-
 #if WIRELESS_EXT <= 11
 #ifndef SIOCDEVPRIVATE
 #define SIOCDEVPRIVATE                              0x8BE0
@@ -646,20 +633,19 @@ typedef struct _NDIS_802_11_CAPABILITY
 #define SIOCIWFIRSTPRIV								SIOCDEVPRIVATE
 #endif
 
-#ifdef CONFIG_STA_SUPPORT
+#ifdef RT30xx
+#define RT_PRIV_IOCTL_EXT							(SIOCIWFIRSTPRIV + 0x01) // Sync. with AP for wsc upnp daemon
+#endif
 #define RTPRIV_IOCTL_SET							(SIOCIWFIRSTPRIV + 0x02)
 
 #ifdef DBG
 #define RTPRIV_IOCTL_BBP                            (SIOCIWFIRSTPRIV + 0x03)
 #define RTPRIV_IOCTL_MAC                            (SIOCIWFIRSTPRIV + 0x05)
+#ifdef RT30xx
+#define RTPRIV_IOCTL_RF                             (SIOCIWFIRSTPRIV + 0x13)
+#endif
 #define RTPRIV_IOCTL_E2P                            (SIOCIWFIRSTPRIV + 0x07)
 #endif
-
-#ifdef RALINK_ATE
-#ifdef RALINK_28xx_QA
-#define RTPRIV_IOCTL_ATE							(SIOCIWFIRSTPRIV + 0x08)
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
 
 #define RTPRIV_IOCTL_STATISTICS                     (SIOCIWFIRSTPRIV + 0x09)
 #define RTPRIV_IOCTL_ADD_PMKID_CACHE                (SIOCIWFIRSTPRIV + 0x0A)
@@ -674,67 +660,61 @@ enum {
     SHOW_DRVIER_VERION = 5,
     SHOW_BA_INFO = 6,
 	SHOW_DESC_INFO = 7,
+#ifdef RT2870
+	SHOW_RXBULK_INFO = 8,
+	SHOW_TXBULK_INFO = 9,
+#endif // RT2870 //
     RAIO_OFF = 10,
     RAIO_ON = 11,
-#ifdef QOS_DLS_SUPPORT
-	SHOW_DLS_ENTRY_INFO = 19,
-#endif // QOS_DLS_SUPPORT //
 	SHOW_CFG_VALUE = 20,
+#if !defined(RT2860) && !defined(RT30xx)
+	SHOW_ADHOC_ENTRY_INFO = 21,
+#endif
 };
-
-#endif // CONFIG_STA_SUPPORT //
-
-#ifdef SNMP_SUPPORT
-//SNMP ieee 802dot11, kathy , 2008_0220
-// dot11res(3)
-#define RT_OID_802_11_MANUFACTUREROUI			0x0700
-#define RT_OID_802_11_MANUFACTURERNAME			0x0701
-#define RT_OID_802_11_RESOURCETYPEIDNAME		0x0702
-
-// dot11smt(1)
-#define RT_OID_802_11_PRIVACYOPTIONIMPLEMENTED	0x0703
-#define RT_OID_802_11_POWERMANAGEMENTMODE		0x0704
-#define OID_802_11_WEPDEFAULTKEYVALUE			0x0705 // read , write
-#define OID_802_11_WEPDEFAULTKEYID				0x0706
-#define RT_OID_802_11_WEPKEYMAPPINGLENGTH		0x0707
-#define OID_802_11_SHORTRETRYLIMIT				0x0708
-#define OID_802_11_LONGRETRYLIMIT				0x0709
-#define RT_OID_802_11_PRODUCTID					0x0710
-#define RT_OID_802_11_MANUFACTUREID				0x0711
-
-// //dot11Phy(4)
-#define OID_802_11_CURRENTCHANNEL				0x0712
-
-//dot11mac
-#define RT_OID_802_11_MAC_ADDRESS				0x0713
-#endif // SNMP_SUPPORT //
 
 #define OID_802_11_BUILD_CHANNEL_EX				0x0714
 #define OID_802_11_GET_CH_LIST					0x0715
 #define OID_802_11_GET_COUNTRY_CODE				0x0716
 #define OID_802_11_GET_CHANNEL_GEOGRAPHY		0x0717
 
+#ifdef RT30xx
+#define RT_OID_WSC_SET_PASSPHRASE                   0x0740 // passphrase for wpa(2)-psk
+#define RT_OID_WSC_DRIVER_AUTO_CONNECT              0x0741
+#define RT_OID_WSC_QUERY_DEFAULT_PROFILE            0x0742
+#define RT_OID_WSC_SET_CONN_BY_PROFILE_INDEX        0x0743
+#define RT_OID_WSC_SET_ACTION                       0x0744
+#define RT_OID_WSC_SET_SSID                         0x0745
+#define RT_OID_WSC_SET_PIN_CODE                     0x0746
+#define RT_OID_WSC_SET_MODE                         0x0747 // PIN or PBC
+#define RT_OID_WSC_SET_CONF_MODE                    0x0748 // Enrollee or Registrar
+#define RT_OID_WSC_SET_PROFILE                      0x0749
+
+#define RT_OID_802_11_WSC_QUERY_PROFILE				0x0750
+// for consistency with RT61
+#define RT_OID_WSC_QUERY_STATUS						0x0751
+#define RT_OID_WSC_PIN_CODE							0x0752
+#define RT_OID_WSC_UUID								0x0753
+#define RT_OID_WSC_SET_SELECTED_REGISTRAR			0x0754
+#define RT_OID_WSC_EAPMSG							0x0755
+#define RT_OID_WSC_MANUFACTURER						0x0756
+#define RT_OID_WSC_MODEL_NAME						0x0757
+#define RT_OID_WSC_MODEL_NO							0x0758
+#define RT_OID_WSC_SERIAL_NO						0x0759
+#define RT_OID_WSC_MAC_ADDRESS						0x0760
+#endif
+
 #ifdef LLTD_SUPPORT
 // for consistency with RT61
 #define RT_OID_GET_PHY_MODE                         0x761
 #endif // LLTD_SUPPORT //
 
+#if defined(RT2860) || defined(RT30xx)
 // New for MeetingHouse Api support
 #define OID_MH_802_1X_SUPPORTED               0xFFEDC100
+#endif
 
 // MIMO Tx parameter, ShortGI, MCS, STBC, etc.  these are fields in TXWI. Don't change this definition!!!
 typedef union  _HTTRANSMIT_SETTING {
-#ifdef RT_BIG_ENDIAN
-	struct	{
-	USHORT		MODE:2;	// Use definition MODE_xxx.
-	USHORT		TxBF:1;
-	USHORT		rsv:2;
-	USHORT		STBC:2;	//SPACE
-	USHORT		ShortGI:1;
-	USHORT		BW:1;	//channel bandwidth 20MHz or 40 MHz
-	USHORT   	MCS:7;                 // MCS
-	}	field;
-#else
 	struct	{
 	USHORT   	MCS:7;                 // MCS
 	USHORT		BW:1;	//channel bandwidth 20MHz or 40 MHz
@@ -744,7 +724,6 @@ typedef union  _HTTRANSMIT_SETTING {
 	USHORT		TxBF:1;
 	USHORT		MODE:2;	// Use definition MODE_xxx.
 	}	field;
-#endif
 	USHORT		word;
  } HTTRANSMIT_SETTING, *PHTTRANSMIT_SETTING;
 
@@ -755,14 +734,12 @@ typedef enum _RT_802_11_PREAMBLE {
 } RT_802_11_PREAMBLE, *PRT_802_11_PREAMBLE;
 
 // Only for STA, need to sync with AP
-// 2005-03-08 match current RaConfig.
 typedef enum _RT_802_11_PHY_MODE {
 	PHY_11BG_MIXED = 0,
 	PHY_11B,
 	PHY_11A,
 	PHY_11ABG_MIXED,
 	PHY_11G,
-#ifdef DOT11_N_SUPPORT
 	PHY_11ABGN_MIXED,	// both band   5
 	PHY_11N_2_4G,		// 11n-only with 2.4G band   	6
 	PHY_11GN_MIXED,	// 2.4G band      7
@@ -770,7 +747,6 @@ typedef enum _RT_802_11_PHY_MODE {
 	PHY_11BGN_MIXED,	// if check 802.11b.      9
 	PHY_11AGN_MIXED,	// if check 802.11b.      10
 	PHY_11N_5G,			// 11n-only with 5G band		11
-#endif // DOT11_N_SUPPORT //
 } RT_802_11_PHY_MODE;
 
 // put all proprietery for-query objects here to reduce # of Query_OID
@@ -937,54 +913,14 @@ typedef struct _RT_LLTD_ASSOICATION_TABLE {
 } RT_LLTD_ASSOICATION_TABLE, *PRT_LLTD_ASSOICATION_TABLE;
 #endif // LLTD_SUPPORT //
 
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-//rt2860, kathy 2007-0118
-// structure for DLS
-typedef struct _RT_802_11_DLS_UI {
-	USHORT						TimeOut;		// unit: second , set by UI
-	USHORT						CountDownTimer;	// unit: second , used by driver only
-	NDIS_802_11_MAC_ADDRESS		MacAddr;		// set by UI
-	UCHAR						Status;			// 0: none , 1: wait STAkey, 2: finish DLS setup , set by driver only
-	BOOLEAN						Valid;			// 1: valid , 0: invalid , set by UI, use to setup or tear down DLS link
-} RT_802_11_DLS_UI, *PRT_802_11_DLS_UI;
-
-typedef struct _RT_802_11_DLS_INFO {
-	RT_802_11_DLS_UI	Entry[MAX_NUMBER_OF_DLS_ENTRY];
-	UCHAR				num;
-} RT_802_11_DLS_INFO, *PRT_802_11_DLS_INFO;
-
-typedef enum _RT_802_11_DLS_MODE {
-    DLS_NONE,
-    DLS_WAIT_KEY,
-    DLS_FINISH
-} RT_802_11_DLS_MODE;
-#endif // QOS_DLS_SUPPORT //
-
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-#define	RT_ASSOC_EVENT_FLAG                         0x0101
-#define	RT_DISASSOC_EVENT_FLAG                      0x0102
-#define	RT_REQIE_EVENT_FLAG                         0x0103
-#define	RT_RESPIE_EVENT_FLAG                        0x0104
-#define	RT_ASSOCINFO_EVENT_FLAG                     0x0105
-#define RT_PMKIDCAND_FLAG                           0x0106
-#define RT_INTERFACE_DOWN                           0x0107
-#define RT_INTERFACE_UP                             0x0108
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
-
 #define MAX_CUSTOM_LEN 128
 
-#ifdef CONFIG_STA_SUPPORT
 typedef enum _RT_802_11_D_CLIENT_MODE
 {
    Rt802_11_D_None,
    Rt802_11_D_Flexible,
    Rt802_11_D_Strict,
 } RT_802_11_D_CLIENT_MODE, *PRT_802_11_D_CLIENT_MODE;
-#endif // CONFIG_STA_SUPPORT //
 
 typedef struct _RT_CHANNEL_LIST_INFO
 {
@@ -992,6 +928,27 @@ typedef struct _RT_CHANNEL_LIST_INFO
 	UCHAR ChannelListNum; // number of channel in ChannelList[]
 } RT_CHANNEL_LIST_INFO, *PRT_CHANNEL_LIST_INFO;
 
+#ifdef RT2870
+// WSC configured credential
+typedef	struct	_WSC_CREDENTIAL
+{
+	NDIS_802_11_SSID	SSID;				// mandatory
+	USHORT				AuthType;			// mandatory, 1: open, 2: wpa-psk, 4: shared, 8:wpa, 0x10: wpa2, 0x20: wpa2-psk
+	USHORT				EncrType;			// mandatory, 1: none, 2: wep, 4: tkip, 8: aes
+	UCHAR				Key[64];			// mandatory, Maximum 64 byte
+	USHORT				KeyLength;
+	UCHAR				MacAddr[6];			// mandatory, AP MAC address
+	UCHAR				KeyIndex;			// optional, default is 1
+	UCHAR				Rsvd[3];			// Make alignment
+}	WSC_CREDENTIAL, *PWSC_CREDENTIAL;
+
+// WSC configured profiles
+typedef	struct	_WSC_PROFILE
+{
+	UINT			ProfileCnt;
+	WSC_CREDENTIAL	Profile[8];				// Support up to 8 profiles
+}	WSC_PROFILE, *PWSC_PROFILE;
+#endif
 
 #endif // _OID_H_
 

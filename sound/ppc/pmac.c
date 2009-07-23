@@ -702,7 +702,7 @@ static struct snd_pcm_ops snd_pmac_capture_ops = {
 	.pointer =	snd_pmac_capture_pointer,
 };
 
-int __init snd_pmac_pcm_new(struct snd_pmac *chip)
+int __devinit snd_pmac_pcm_new(struct snd_pmac *chip)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -908,7 +908,7 @@ static int snd_pmac_dev_free(struct snd_device *device)
  * check the machine support byteswap (little-endian)
  */
 
-static void __init detect_byte_swap(struct snd_pmac *chip)
+static void __devinit detect_byte_swap(struct snd_pmac *chip)
 {
 	struct device_node *mio;
 
@@ -934,7 +934,7 @@ static void __init detect_byte_swap(struct snd_pmac *chip)
 /*
  * detect a sound chip
  */
-static int __init snd_pmac_detect(struct snd_pmac *chip)
+static int __devinit snd_pmac_detect(struct snd_pmac *chip)
 {
 	struct device_node *sound;
 	struct device_node *dn;
@@ -1143,7 +1143,7 @@ static int pmac_hp_detect_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new auto_mute_controls[] __initdata = {
+static struct snd_kcontrol_new auto_mute_controls[] __devinitdata = {
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	  .name = "Auto Mute Switch",
 	  .info = snd_pmac_boolean_mono_info,
@@ -1158,7 +1158,7 @@ static struct snd_kcontrol_new auto_mute_controls[] __initdata = {
 	},
 };
 
-int __init snd_pmac_add_automute(struct snd_pmac *chip)
+int __devinit snd_pmac_add_automute(struct snd_pmac *chip)
 {
 	int err;
 	chip->auto_mute = 1;
@@ -1175,7 +1175,7 @@ int __init snd_pmac_add_automute(struct snd_pmac *chip)
 /*
  * create and detect a pmac chip record
  */
-int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
+int __devinit snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 {
 	struct snd_pmac *chip;
 	struct device_node *np;

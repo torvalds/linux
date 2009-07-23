@@ -619,8 +619,7 @@ static int snd_sgio2audio_pcm_hw_params(struct snd_pcm_substream *substream,
 /* hw_free callback */
 static int snd_sgio2audio_pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	if (substream->runtime->dma_area)
-		vfree(substream->runtime->dma_area);
+	vfree(substream->runtime->dma_area);
 	substream->runtime->dma_area = NULL;
 	return 0;
 }

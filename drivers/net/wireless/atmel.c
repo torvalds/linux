@@ -818,7 +818,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irqrestore(&priv->irqlock, flags);
 		spin_unlock_bh(&priv->timerlock);
 		netif_stop_queue(dev);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	frame_ctl = IEEE80211_FTYPE_DATA;

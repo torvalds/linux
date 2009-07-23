@@ -130,9 +130,9 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 	if (jffs2_sum_active()) {
 		s = kzalloc(sizeof(struct jffs2_summary), GFP_KERNEL);
 		if (!s) {
-			kfree(flashbuf);
 			JFFS2_WARNING("Can't allocate memory for summary\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
 
@@ -196,7 +196,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 				if (c->nextblock) {
 					ret = file_dirty(c, c->nextblock);
 					if (ret)
-						return ret;
+						goto out;
 					/* deleting summary information of the old nextblock */
 					jffs2_sum_reset_collected(c->summary);
 				}
@@ -207,7 +207,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 			} else {
 				ret = file_dirty(c, jeb);
 				if (ret)
-					return ret;
+					goto out;
 			}
 			break;
 

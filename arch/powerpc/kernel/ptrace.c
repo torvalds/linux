@@ -704,10 +704,29 @@ void user_enable_single_step(struct task_struct *task)
 
 	if (regs != NULL) {
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+		task->thread.dbcr0 &= ~DBCR0_BT;
 		task->thread.dbcr0 |= DBCR0_IDM | DBCR0_IC;
 		regs->msr |= MSR_DE;
 #else
+		regs->msr &= ~MSR_BE;
 		regs->msr |= MSR_SE;
+#endif
+	}
+	set_tsk_thread_flag(task, TIF_SINGLESTEP);
+}
+
+void user_enable_block_step(struct task_struct *task)
+{
+	struct pt_regs *regs = task->thread.regs;
+
+	if (regs != NULL) {
+#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+		task->thread.dbcr0 &= ~DBCR0_IC;
+		task->thread.dbcr0 = DBCR0_IDM | DBCR0_BT;
+		regs->msr |= MSR_DE;
+#else
+		regs->msr &= ~MSR_SE;
+		regs->msr |= MSR_BE;
 #endif
 	}
 	set_tsk_thread_flag(task, TIF_SINGLESTEP);
@@ -717,19 +736,20 @@ void user_disable_single_step(struct task_struct *task)
 {
 	struct pt_regs *regs = task->thread.regs;
 
-
-#if defined(CONFIG_BOOKE)
-	/* If DAC then do not single step, skip */
-	if (task->thread.dabr)
-		return;
-#endif
-
 	if (regs != NULL) {
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
-		task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_IDM);
+#if defined(CONFIG_BOOKE)
+		/* If DAC don't clear DBCRO_IDM or MSR_DE */
+		if (task->thread.dabr)
+			task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_BT);
+		else {
+			task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_BT | DBCR0_IDM);
+			regs->msr &= ~MSR_DE;
+		}
+#elif defined(CONFIG_40x)
+		task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_BT | DBCR0_IDM);
 		regs->msr &= ~MSR_DE;
 #else
-		regs->msr &= ~MSR_SE;
+		regs->msr &= ~(MSR_SE | MSR_BE);
 #endif
 	}
 	clear_tsk_thread_flag(task, TIF_SINGLESTEP);

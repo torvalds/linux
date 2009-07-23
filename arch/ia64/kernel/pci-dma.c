@@ -32,6 +32,8 @@ int force_iommu __read_mostly = 1;
 int force_iommu __read_mostly;
 #endif
 
+int iommu_pass_through;
+
 /* Dummy device used for NULL arguments (normally ISA). Better would
    be probably a smaller DMA mask, but this is bug-to-bug compatible
    to i386. */
@@ -91,7 +93,7 @@ int iommu_dma_supported(struct device *dev, u64 mask)
 	   type. Normally this doesn't make any difference, but gives
 	   more gentle handling of IOMMU overflow. */
 	if (iommu_sac_force && (mask >= DMA_BIT_MASK(40))) {
-		dev_info(dev, "Force SAC with mask %lx\n", mask);
+		dev_info(dev, "Force SAC with mask %llx\n", mask);
 		return 0;
 	}
 

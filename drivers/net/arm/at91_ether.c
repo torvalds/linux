@@ -829,7 +829,7 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->trans_start = jiffies;
 	} else {
 		printk(KERN_ERR "at91_ether.c: at91ether_start_xmit() called, but device is busy!\n");
-		return 1;	/* if we return anything but zero, dev.c:1055 calls kfree_skb(skb)
+		return NETDEV_TX_BUSY;	/* if we return anything but zero, dev.c:1055 calls kfree_skb(skb)
 				on this skb, he also reports -ENETDOWN and printk's, so either
 				we free and return(0) or don't free and return 1 */
 	}

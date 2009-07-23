@@ -43,6 +43,8 @@
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <linux/debugobjects.h>
+#include <linux/sched.h>
+#include <linux/timer.h>
 
 #include <asm/uaccess.h>
 
@@ -189,21 +191,65 @@ struct hrtimer_clock_base *lock_hrtimer_base(const struct hrtimer *timer,
 	}
 }
 
+
+/*
+ * Get the preferred target CPU for NOHZ
+ */
+static int hrtimer_get_target(int this_cpu, int pinned)
+{
+#ifdef CONFIG_NO_HZ
+	if (!pinned && get_sysctl_timer_migration() && idle_cpu(this_cpu)) {
+		int preferred_cpu = get_nohz_load_balancer();
+
+		if (preferred_cpu >= 0)
+			return preferred_cpu;
+	}
+#endif
+	return this_cpu;
+}
+
+/*
+ * With HIGHRES=y we do not migrate the timer when it is expiring
+ * before the next event on the target cpu because we cannot reprogram
+ * the target cpu hardware and we would cause it to fire late.
+ *
+ * Called with cpu_base->lock of target cpu held.
+ */
+static int
+hrtimer_check_target(struct hrtimer *timer, struct hrtimer_clock_base *new_base)
+{
+#ifdef CONFIG_HIGH_RES_TIMERS
+	ktime_t expires;
+
+	if (!new_base->cpu_base->hres_active)
+		return 0;
+
+	expires = ktime_sub(hrtimer_get_expires(timer), new_base->offset);
+	return expires.tv64 <= new_base->cpu_base->expires_next.tv64;
+#else
+	return 0;
+#endif
+}
+
 /*
  * Switch the timer base to the current CPU when possible.
  */
 static inline struct hrtimer_clock_base *
-switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_clock_base *base)
+switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_clock_base *base,
+		    int pinned)
 {
 	struct hrtimer_clock_base *new_base;
 	struct hrtimer_cpu_base *new_cpu_base;
+	int this_cpu = smp_processor_id();
+	int cpu = hrtimer_get_target(this_cpu, pinned);
 
-	new_cpu_base = &__get_cpu_var(hrtimer_bases);
+again:
+	new_cpu_base = &per_cpu(hrtimer_bases, cpu);
 	new_base = &new_cpu_base->clock_base[base->index];
 
 	if (base != new_base) {
 		/*
-		 * We are trying to schedule the timer on the local CPU.
+		 * We are trying to move timer to new_base.
 		 * However we can't change timer's base while it is running,
 		 * so we keep it on the same CPU. No hassle vs. reprogramming
 		 * the event source in the high resolution case. The softirq
@@ -218,6 +264,14 @@ switch_hrtimer_base(struct hrtimer *timer, struct hrtimer_clock_base *base)
 		timer->base = NULL;
 		spin_unlock(&base->cpu_base->lock);
 		spin_lock(&new_base->cpu_base->lock);
+
+		if (cpu != this_cpu && hrtimer_check_target(timer, new_base)) {
+			cpu = this_cpu;
+			spin_unlock(&new_base->cpu_base->lock);
+			spin_lock(&base->cpu_base->lock);
+			timer->base = base;
+			goto again;
+		}
 		timer->base = new_base;
 	}
 	return new_base;
@@ -235,7 +289,7 @@ lock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
 	return base;
 }
 
-# define switch_hrtimer_base(t, b)	(b)
+# define switch_hrtimer_base(t, b, p)	(b)
 
 #endif	/* !CONFIG_SMP */
 
@@ -331,6 +385,8 @@ ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs)
 
 	return res;
 }
+
+EXPORT_SYMBOL_GPL(ktime_add_safe);
 
 #ifdef CONFIG_DEBUG_OBJECTS_TIMERS
 
@@ -907,9 +963,9 @@ int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	ret = remove_hrtimer(timer, base);
 
 	/* Switch the timer base, if necessary: */
-	new_base = switch_hrtimer_base(timer, base);
+	new_base = switch_hrtimer_base(timer, base, mode & HRTIMER_MODE_PINNED);
 
-	if (mode == HRTIMER_MODE_REL) {
+	if (mode & HRTIMER_MODE_REL) {
 		tim = ktime_add_safe(tim, new_base->get_time());
 		/*
 		 * CONFIG_TIME_LOW_RES is a temporary way for architectures
@@ -1226,13 +1282,21 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 
 	expires_next.tv64 = KTIME_MAX;
 
+	spin_lock(&cpu_base->lock);
+	/*
+	 * We set expires_next to KTIME_MAX here with cpu_base->lock
+	 * held to prevent that a timer is enqueued in our queue via
+	 * the migration code. This does not affect enqueueing of
+	 * timers which run their callback and need to be requeued on
+	 * this CPU.
+	 */
+	cpu_base->expires_next.tv64 = KTIME_MAX;
+
 	base = cpu_base->clock_base;
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
 		ktime_t basenow;
 		struct rb_node *node;
-
-		spin_lock(&cpu_base->lock);
 
 		basenow = ktime_add(now, base->offset);
 
@@ -1266,11 +1330,15 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 
 			__run_hrtimer(timer);
 		}
-		spin_unlock(&cpu_base->lock);
 		base++;
 	}
 
+	/*
+	 * Store the new expiry value so the migration code can verify
+	 * against it.
+	 */
 	cpu_base->expires_next = expires_next;
+	spin_unlock(&cpu_base->lock);
 
 	/* Reprogramming necessary ? */
 	if (expires_next.tv64 != KTIME_MAX) {

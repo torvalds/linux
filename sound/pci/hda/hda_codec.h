@@ -574,6 +574,8 @@ struct hda_bus_ops {
 	/* attach a PCM stream */
 	int (*attach_pcm)(struct hda_bus *bus, struct hda_codec *codec,
 			  struct hda_pcm *pcm);
+	/* reset bus for retry verb */
+	void (*bus_reset)(struct hda_bus *bus);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	/* notify power-up/down from codec to controller */
 	void (*pm_notify)(struct hda_bus *bus);
@@ -622,7 +624,13 @@ struct hda_bus {
 
 	/* misc op flags */
 	unsigned int needs_damn_long_delay :1;
+	unsigned int allow_bus_reset:1;	/* allow bus reset at fatal error */
+	unsigned int sync_write:1;	/* sync after verb write */
+	/* status for codec/controller */
 	unsigned int shutdown :1;	/* being unloaded */
+	unsigned int rirb_error:1;	/* error in codec communication */
+	unsigned int response_reset:1;	/* controller was reset */
+	unsigned int in_reset:1;	/* during reset operation */
 };
 
 /*
@@ -747,7 +755,8 @@ struct hda_codec {
 	/* detected preset */
 	const struct hda_codec_preset *preset;
 	struct module *owner;
-	const char *name;	/* codec name */
+	const char *vendor_name;	/* codec vendor name */
+	const char *chip_name;		/* codec chip name */
 	const char *modelname;	/* model name for preset */
 
 	/* set by patch */
@@ -905,7 +914,7 @@ void snd_hda_get_codec_name(struct hda_codec *codec, char *name, int namelen);
  * power management
  */
 #ifdef CONFIG_PM
-int snd_hda_suspend(struct hda_bus *bus, pm_message_t state);
+int snd_hda_suspend(struct hda_bus *bus);
 int snd_hda_resume(struct hda_bus *bus);
 #endif
 

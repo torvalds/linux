@@ -75,15 +75,15 @@ Page stealing from process memory and shm is done if stealing the page would
 alleviate memory pressure on any zone in the page's node that has fallen below
 its watermark.
 
-pages_min/pages_low/pages_high/low_on_memory/zone_wake_kswapd: These are 
-per-zone fields, used to determine when a zone needs to be balanced. When
-the number of pages falls below pages_min, the hysteric field low_on_memory
-gets set. This stays set till the number of free pages becomes pages_high.
-When low_on_memory is set, page allocation requests will try to free some
-pages in the zone (providing GFP_WAIT is set in the request). Orthogonal
-to this, is the decision to poke kswapd to free some zone pages. That
-decision is not hysteresis based, and is done when the number of free
-pages is below pages_low; in which case zone_wake_kswapd is also set.
+watemark[WMARK_MIN/WMARK_LOW/WMARK_HIGH]/low_on_memory/zone_wake_kswapd: These
+are per-zone fields, used to determine when a zone needs to be balanced. When
+the number of pages falls below watermark[WMARK_MIN], the hysteric field
+low_on_memory gets set. This stays set till the number of free pages becomes
+watermark[WMARK_HIGH]. When low_on_memory is set, page allocation requests will
+try to free some pages in the zone (providing GFP_WAIT is set in the request).
+Orthogonal to this, is the decision to poke kswapd to free some zone pages.
+That decision is not hysteresis based, and is done when the number of free
+pages is below watermark[WMARK_LOW]; in which case zone_wake_kswapd is also set.
 
 
 (Good) Ideas that I have heard:

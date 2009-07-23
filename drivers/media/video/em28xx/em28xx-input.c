@@ -40,7 +40,7 @@ MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
 #define i2cdprintk(fmt, arg...) \
 	if (ir_debug) { \
-		printk(KERN_DEBUG "%s/ir: " fmt, ir->c.name , ## arg); \
+		printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg); \
 	}
 
 #define dprintk(fmt, arg...) \
@@ -85,7 +85,7 @@ int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	unsigned char b;
 
 	/* poll IR chip */
-	if (1 != i2c_master_recv(&ir->c, &b, 1)) {
+	if (1 != i2c_master_recv(ir->c, &b, 1)) {
 		i2cdprintk("read error\n");
 		return -EIO;
 	}
@@ -114,7 +114,7 @@ int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	unsigned char code;
 
 	/* poll IR chip */
-	if (2 != i2c_master_recv(&ir->c, buf, 2))
+	if (2 != i2c_master_recv(ir->c, buf, 2))
 		return -EIO;
 
 	/* Does eliminate repeated parity code */
@@ -147,7 +147,7 @@ int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 
 	/* poll IR chip */
 
-	if (3 != i2c_master_recv(&ir->c, buf, 3)) {
+	if (3 != i2c_master_recv(ir->c, buf, 3)) {
 		i2cdprintk("read error\n");
 		return -EIO;
 	}

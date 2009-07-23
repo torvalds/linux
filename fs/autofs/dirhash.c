@@ -85,13 +85,12 @@ struct autofs_dir_ent *autofs_expire(struct super_block *sb,
 		}
 		path.mnt = mnt;
 		path_get(&path);
-		if (!follow_down(&path.mnt, &path.dentry)) {
+		if (!follow_down(&path)) {
 			path_put(&path);
 			DPRINTK(("autofs: not expirable (not a mounted directory): %s\n", ent->name));
 			continue;
 		}
-		while (d_mountpoint(path.dentry) &&
-		       follow_down(&path.mnt, &path.dentry))
+		while (d_mountpoint(path.dentry) && follow_down(&path));
 			;
 		umount_ok = may_umount(path.mnt);
 		path_put(&path);

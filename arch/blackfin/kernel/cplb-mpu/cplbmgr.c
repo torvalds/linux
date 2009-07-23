@@ -150,15 +150,19 @@ static noinline int dcplb_miss(unsigned int cpu)
 	nr_dcplb_miss[cpu]++;
 
 	d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
-#ifdef CONFIG_BFIN_DCACHE
-	if (bfin_addr_dcachable(addr)) {
+#ifdef CONFIG_BFIN_EXTMEM_DCACHEABLE
+	if (bfin_addr_dcacheable(addr)) {
 		d_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
-#ifdef CONFIG_BFIN_WT
+# ifdef CONFIG_BFIN_EXTMEM_WRITETHROUGH
 		d_data |= CPLB_L1_AOW | CPLB_WT;
-#endif
+# endif
 	}
 #endif
-	if (addr >= physical_mem_end) {
+
+	if (L2_LENGTH && addr >= L2_START && addr < L2_START + L2_LENGTH) {
+		addr = L2_START;
+		d_data = L2_DMEMORY;
+	} else if (addr >= physical_mem_end) {
 		if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE
 		    && (status & FAULT_USERSUPV)) {
 			addr &= ~0x3fffff;
@@ -235,7 +239,7 @@ static noinline int icplb_miss(unsigned int cpu)
 
 	i_data = CPLB_VALID | CPLB_PORTPRIO | PAGE_SIZE_4KB;
 
-#ifdef CONFIG_BFIN_ICACHE
+#ifdef CONFIG_BFIN_EXTMEM_ICACHEABLE
 	/*
 	 * Normal RAM, and possibly the reserved memory area, are
 	 * cacheable.
@@ -245,7 +249,10 @@ static noinline int icplb_miss(unsigned int cpu)
 		i_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
 #endif
 
-	if (addr >= physical_mem_end) {
+	if (L2_LENGTH && addr >= L2_START && addr < L2_START + L2_LENGTH) {
+		addr = L2_START;
+		i_data = L2_IMEMORY;
+	} else if (addr >= physical_mem_end) {
 		if (addr >= BOOT_ROM_START && addr < BOOT_ROM_START + BOOT_ROM_LENGTH
 		    && (status & FAULT_USERSUPV)) {
 			addr &= ~(1 * 1024 * 1024 - 1);
@@ -365,13 +372,18 @@ void set_mask_dcplbs(unsigned long *masks, unsigned int cpu)
 	local_irq_save_hw(flags);
 	current_rwx_mask[cpu] = masks;
 
-	d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
-#ifdef CONFIG_BFIN_DCACHE
-	d_data |= CPLB_L1_CHBL;
-#ifdef CONFIG_BFIN_WT
-	d_data |= CPLB_L1_AOW | CPLB_WT;
+	if (L2_LENGTH && addr >= L2_START && addr < L2_START + L2_LENGTH) {
+		addr = L2_START;
+		d_data = L2_DMEMORY;
+	} else {
+		d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
+#ifdef CONFIG_BFIN_EXTMEM_DCACHEABLE
+		d_data |= CPLB_L1_CHBL;
+# ifdef CONFIG_BFIN_EXTMEM_WRITETHROUGH
+		d_data |= CPLB_L1_AOW | CPLB_WT;
+# endif
 #endif
-#endif
+	}
 
 	disable_dcplb();
 	for (i = first_mask_dcplb; i < first_switched_dcplb; i++) {

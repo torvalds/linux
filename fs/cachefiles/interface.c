@@ -354,7 +354,9 @@ static void cachefiles_sync_cache(struct fscache_cache *_cache)
 	/* make sure all pages pinned by operations on behalf of the netfs are
 	 * written to disc */
 	cachefiles_begin_secure(cache, &saved_cred);
-	ret = fsync_super(cache->mnt->mnt_sb);
+	down_read(&cache->mnt->mnt_sb->s_umount);
+	ret = sync_filesystem(cache->mnt->mnt_sb);
+	up_read(&cache->mnt->mnt_sb->s_umount);
 	cachefiles_end_secure(cache, saved_cred);
 
 	if (ret == -EIO)

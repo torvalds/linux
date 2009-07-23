@@ -1154,7 +1154,7 @@ static struct net_device_stats *atl1e_get_stats(struct net_device *netdev)
 {
 	struct atl1e_adapter *adapter = netdev_priv(netdev);
 	struct atl1e_hw_stats  *hw_stats = &adapter->hw_stats;
-	struct net_device_stats *net_stats = &adapter->net_stats;
+	struct net_device_stats *net_stats = &netdev->stats;
 
 	net_stats->rx_packets = hw_stats->rx_ok;
 	net_stats->tx_packets = hw_stats->tx_ok;
@@ -1182,7 +1182,7 @@ static struct net_device_stats *atl1e_get_stats(struct net_device *netdev)
 	net_stats->tx_aborted_errors = hw_stats->tx_abort_col;
 	net_stats->tx_window_errors  = hw_stats->tx_late_col;
 
-	return &adapter->net_stats;
+	return net_stats;
 }
 
 static void atl1e_update_hw_stats(struct atl1e_adapter *adapter)
@@ -1310,7 +1310,7 @@ static irqreturn_t atl1e_intr(int irq, void *data)
 
 		/* link event */
 		if (status & (ISR_GPHY | ISR_MANUAL)) {
-			adapter->net_stats.tx_carrier_errors++;
+			netdev->stats.tx_carrier_errors++;
 			atl1e_link_chg_event(adapter);
 			break;
 		}
@@ -1602,7 +1602,7 @@ static u16 atl1e_cal_tdp_req(const struct sk_buff *skb)
 	}
 
 	if (skb_is_gso(skb)) {
-		if (skb->protocol == ntohs(ETH_P_IP) ||
+		if (skb->protocol == htons(ETH_P_IP) ||
 		   (skb_shinfo(skb)->gso_type == SKB_GSO_TCPV6)) {
 			proto_hdr_len = skb_transport_offset(skb) +
 					tcp_hdrlen(skb);
@@ -1795,8 +1795,7 @@ static void atl1e_tx_map(struct atl1e_adapter *adapter,
 			memcpy(use_tpd, tpd, sizeof(struct atl1e_tpd_desc));
 
 			tx_buffer = atl1e_get_tx_buffer(adapter, use_tpd);
-			if (tx_buffer->skb)
-				BUG();
+			BUG_ON(tx_buffer->skb);
 
 			tx_buffer->skb = NULL;
 			tx_buffer->length =
@@ -1879,7 +1878,7 @@ static int atl1e_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 				TPD_VLAN_SHIFT;
 	}
 
-	if (skb->protocol == ntohs(ETH_P_8021Q))
+	if (skb->protocol == htons(ETH_P_8021Q))
 		tpd->word3 |= 1 << TPD_VL_TAGGED_SHIFT;
 
 	if (skb_network_offset(skb) != ETH_HLEN)
@@ -1895,7 +1894,7 @@ static int atl1e_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	atl1e_tx_map(adapter, skb, tpd);
 	atl1e_tx_queue(adapter, tpd_req, tpd);
 
-	netdev->trans_start = jiffies;
+	netdev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
 	spin_unlock_irqrestore(&adapter->tx_lock, flags);
 	return NETDEV_TX_OK;
 }

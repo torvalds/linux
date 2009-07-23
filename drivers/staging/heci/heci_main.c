@@ -751,7 +751,9 @@ static int heci_open(struct inode *inode, struct file *file)
 		(1 << (file_ext->host_client_id % 8));
 	spin_unlock_bh(&dev->device_lock);
 	spin_lock(&file_ext->file_lock);
+	spin_lock_bh(&dev->device_lock);
 	file_ext->state = HECI_FILE_INITIALIZING;
+	spin_unlock_bh(&dev->device_lock);
 	file_ext->sm_state = 0;
 
 	file->private_data = file_ext;
@@ -785,8 +787,10 @@ static int heci_release(struct inode *inode, struct file *file)
 
 	if (file_ext != &dev->iamthif_file_ext) {
 		spin_lock(&file_ext->file_lock);
+		spin_lock_bh(&dev->device_lock);
 		if (file_ext->state == HECI_FILE_CONNECTED) {
 			file_ext->state = HECI_FILE_DISCONNECTING;
+			spin_unlock_bh(&dev->device_lock);
 			spin_unlock(&file_ext->file_lock);
 			DBG("disconnecting client host client = %d, "
 			    "ME client = %d\n",
@@ -794,8 +798,8 @@ static int heci_release(struct inode *inode, struct file *file)
 			    file_ext->me_client_id);
 			rets = heci_disconnect_host_client(dev, file_ext);
 			spin_lock(&file_ext->file_lock);
+			spin_lock_bh(&dev->device_lock);
 		}
-		spin_lock_bh(&dev->device_lock);
 		heci_flush_queues(dev, file_ext);
 		DBG("remove client host client = %d, ME client = %d\n",
 		    file_ext->host_client_id,
@@ -954,11 +958,11 @@ static ssize_t heci_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	spin_lock(&file_ext->read_io_lock);
 	err = heci_start_read(dev, if_num, file_ext);
+	spin_lock_bh(&file_ext->read_io_lock);
 	if (err != 0 && err != -EBUSY) {
 		DBG("heci start read failure with status = %d\n", err);
-		spin_unlock(&file_ext->read_io_lock);
+		spin_unlock_bh(&file_ext->read_io_lock);
 		rets = err;
 		goto out;
 	}
@@ -966,10 +970,10 @@ static ssize_t heci_read(struct file *file, char __user *ubuf,
 			&& !waitqueue_active(&file_ext->rx_wait)) {
 		if (file->f_flags & O_NONBLOCK) {
 			rets = -EAGAIN;
-			spin_unlock(&file_ext->read_io_lock);
+			spin_unlock_bh(&file_ext->read_io_lock);
 			goto out;
 		}
-		spin_unlock(&file_ext->read_io_lock);
+		spin_unlock_bh(&file_ext->read_io_lock);
 
 		if (wait_event_interruptible(file_ext->rx_wait,
 			(HECI_READ_COMPLETE == file_ext->reading_state
@@ -983,26 +987,29 @@ static ssize_t heci_read(struct file *file, char __user *ubuf,
 			return -ERESTARTSYS;
 		}
 
+		spin_lock_bh(&dev->device_lock);
 		if (HECI_FILE_INITIALIZING == file_ext->state ||
 		    HECI_FILE_DISCONNECTED == file_ext->state ||
 		    HECI_FILE_DISCONNECTING == file_ext->state) {
+			spin_unlock_bh(&dev->device_lock);
 			rets = -EBUSY;
 			goto out;
 		}
-		spin_lock(&file_ext->read_io_lock);
+		spin_unlock_bh(&dev->device_lock);
+		spin_lock_bh(&file_ext->read_io_lock);
 	}
 
 	priv_cb = file_ext->read_cb;
 
 	if (!priv_cb) {
-		spin_unlock(&file_ext->read_io_lock);
+		spin_unlock_bh(&file_ext->read_io_lock);
 		return -ENODEV;
 	}
 	if (file_ext->reading_state != HECI_READ_COMPLETE) {
-		spin_unlock(&file_ext->read_io_lock);
+		spin_unlock_bh(&file_ext->read_io_lock);
 		return 0;
 	}
-	spin_unlock(&file_ext->read_io_lock);
+	spin_unlock_bh(&file_ext->read_io_lock);
 	/* now copy the data to user space */
 copy_buffer:
 	DBG("priv_cb->response_buffer size - %d\n",
@@ -1040,11 +1047,11 @@ free:
 		list_del(&priv_cb_pos->cb_list);
 	spin_unlock_bh(&dev->device_lock);
 	heci_free_cb_private(priv_cb);
-	spin_lock(&file_ext->read_io_lock);
+	spin_lock_bh(&file_ext->read_io_lock);
 	file_ext->reading_state = HECI_IDLE;
 	file_ext->read_cb = NULL;
 	file_ext->read_pending = 0;
-	spin_unlock(&file_ext->read_io_lock);
+	spin_unlock_bh(&file_ext->read_io_lock);
 out:	DBG("end heci read rets= %d\n", rets);
 	return rets;
 }
@@ -1088,7 +1095,7 @@ static ssize_t heci_write(struct file *file, const char __user *ubuf,
 	if (file_ext == &dev->iamthif_file_ext) {
 		priv_write_cb = find_pthi_read_list_entry(dev, file);
 		if ((priv_write_cb != NULL) &&
-		     (((currtime - priv_write_cb->read_time) >
+		     (((currtime - priv_write_cb->read_time) >=
 			    IAMTHIF_READ_TIMER) ||
 		      (file_ext->reading_state == HECI_READ_COMPLETE))) {
 			(*offset) = 0;
@@ -1106,11 +1113,11 @@ static ssize_t heci_write(struct file *file, const char __user *ubuf,
 			list_del(&priv_write_cb->cb_list);
 			heci_free_cb_private(priv_write_cb);
 			priv_write_cb = NULL;
-			spin_lock(&file_ext->read_io_lock);
+			spin_lock_bh(&file_ext->read_io_lock);
 			file_ext->reading_state = HECI_IDLE;
 			file_ext->read_cb = NULL;
 			file_ext->read_pending = 0;
-			spin_unlock(&file_ext->read_io_lock);
+			spin_unlock_bh(&file_ext->read_io_lock);
 		}
 	} else if (file_ext->reading_state == HECI_IDLE &&
 			file_ext->read_pending == 0)
@@ -1140,9 +1147,12 @@ static ssize_t heci_write(struct file *file, const char __user *ubuf,
 	spin_lock(&file_ext->file_lock);
 	file_ext->sm_state = 0;
 	if ((length == 4) &&
-	    ((memcmp(heci_wd_state_independence_msg[0], ubuf, 4) == 0) ||
-	     (memcmp(heci_wd_state_independence_msg[1], ubuf, 4) == 0) ||
-	     (memcmp(heci_wd_state_independence_msg[2], ubuf, 4) == 0)))
+	    ((memcmp(heci_wd_state_independence_msg[0],
+				 priv_write_cb->request_buffer.data, 4) == 0) ||
+	     (memcmp(heci_wd_state_independence_msg[1],
+				 priv_write_cb->request_buffer.data, 4) == 0) ||
+	     (memcmp(heci_wd_state_independence_msg[2],
+				 priv_write_cb->request_buffer.data, 4) == 0)))
 		file_ext->sm_state |= HECI_WD_STATE_INDEPENDENCE_MSG_SENT;
 	spin_unlock(&file_ext->file_lock);
 
@@ -1222,6 +1232,7 @@ static ssize_t heci_write(struct file *file, const char __user *ubuf,
 	priv_write_cb->request_buffer.size = length;
 
 	spin_lock(&file_ext->write_io_lock);
+	spin_lock_bh(&dev->device_lock);
 	DBG("host client = %d, ME client = %d\n",
 	    file_ext->host_client_id, file_ext->me_client_id);
 	if (file_ext->state != HECI_FILE_CONNECTED) {
@@ -1229,7 +1240,7 @@ static ssize_t heci_write(struct file *file, const char __user *ubuf,
 		DBG("host client = %d,  is not connected to ME client = %d",
 		    file_ext->host_client_id,
 		    file_ext->me_client_id);
-
+		spin_unlock_bh(&dev->device_lock);
 		goto unlock;
 	}
 	for (i = 0; i < dev->num_heci_me_clients; i++) {
@@ -1240,15 +1251,16 @@ static ssize_t heci_write(struct file *file, const char __user *ubuf,
 	BUG_ON(dev->me_clients[i].client_id != file_ext->me_client_id);
 	if (i == dev->num_heci_me_clients) {
 		rets = -ENODEV;
+		spin_unlock_bh(&dev->device_lock);
 		goto unlock;
 	}
 	if (length > dev->me_clients[i].props.max_msg_length || length <= 0) {
 		rets = -EINVAL;
+		spin_unlock_bh(&dev->device_lock);
 		goto unlock;
 	}
 	priv_write_cb->file_private = file_ext;
 
-	spin_lock_bh(&dev->device_lock);
 	if (flow_ctrl_creds(dev, file_ext) &&
 		dev->host_buffer_is_empty) {
 		spin_unlock_bh(&dev->device_lock);

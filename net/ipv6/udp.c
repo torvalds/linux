@@ -177,10 +177,9 @@ static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
 
 	if (unlikely(sk = skb_steal_sock(skb)))
 		return sk;
-	else
-		return __udp6_lib_lookup(dev_net(skb->dst->dev), &iph->saddr, sport,
-					 &iph->daddr, dport, inet6_iif(skb),
-					 udptable);
+	return __udp6_lib_lookup(dev_net(skb_dst(skb)->dev), &iph->saddr, sport,
+				 &iph->daddr, dport, inet6_iif(skb),
+				 udptable);
 }
 
 /*
@@ -313,7 +312,7 @@ csum_copy_err:
 }
 
 void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-		    int type, int code, int offset, __be32 info,
+		    u8 type, u8 code, int offset, __be32 info,
 		    struct udp_table *udptable)
 {
 	struct ipv6_pinfo *np;
@@ -347,8 +346,8 @@ out:
 }
 
 static __inline__ void udpv6_err(struct sk_buff *skb,
-				 struct inet6_skb_parm *opt, int type,
-				 int code, int offset, __be32 info     )
+				 struct inet6_skb_parm *opt, u8 type,
+				 u8 code, int offset, __be32 info     )
 {
 	__udp6_lib_err(skb, opt, type, code, offset, info, &udp_table);
 }
@@ -1062,8 +1061,8 @@ static void udp6_sock_seq_show(struct seq_file *seq, struct sock *sp, int bucket
 		   dest->s6_addr32[0], dest->s6_addr32[1],
 		   dest->s6_addr32[2], dest->s6_addr32[3], destp,
 		   sp->sk_state,
-		   atomic_read(&sp->sk_wmem_alloc),
-		   atomic_read(&sp->sk_rmem_alloc),
+		   sk_wmem_alloc_get(sp),
+		   sk_rmem_alloc_get(sp),
 		   0, 0L, 0,
 		   sock_i_uid(sp), 0,
 		   sock_i_ino(sp),

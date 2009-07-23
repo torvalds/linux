@@ -543,6 +543,7 @@ restart:
 
 		if (kthread_should_stop() || dvb_frontend_is_exiting(fe)) {
 			/* got signal or quitting */
+			fepriv->exit = 1;
 			break;
 		}
 
@@ -656,6 +657,7 @@ restart:
 	}
 
 	fepriv->thread = NULL;
+	fepriv->exit = 0;
 	mb();
 
 	dvb_frontend_wakeup(fe);

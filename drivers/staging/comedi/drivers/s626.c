@@ -68,6 +68,7 @@ INSN_CONFIG instructions:
    comedi_do_insn(cf,&insn); //executing configuration
 */
 
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
@@ -95,14 +96,14 @@ struct s626_board {
 
 static const struct s626_board s626_boards[] = {
 	{
-	      name:	"s626",
-	      ai_chans : S626_ADC_CHANNELS,
-	      ai_bits:	14,
-	      ao_chans : S626_DAC_CHANNELS,
-	      ao_bits:	13,
-	      dio_chans : S626_DIO_CHANNELS,
-	      dio_banks : S626_DIO_BANKS,
-	      enc_chans : S626_ENCODER_CHANNELS,
+	.name = "s626",
+	.ai_chans = S626_ADC_CHANNELS,
+	.ai_bits = 14,
+	.ao_chans = S626_DAC_CHANNELS,
+	.ao_bits = 13,
+	.dio_chans = S626_DIO_CHANNELS,
+	.dio_banks = S626_DIO_BANKS,
+	.enc_chans = S626_ENCODER_CHANNELS,
 		}
 };
 
@@ -110,9 +111,13 @@ static const struct s626_board s626_boards[] = {
 #define PCI_VENDOR_ID_S626 0x1131
 #define PCI_DEVICE_ID_S626 0x7146
 
+/*
+ * For devices with vendor:device id == 0x1131:0x7146 you must specify
+ * also subvendor:subdevice ids, because otherwise it will conflict with
+ * Philips SAA7146 media/dvb based cards.
+ */
 static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
-	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		0},
+	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, 0x6000, 0x0272, 0, 0, 0},
 	{0}
 };
 
@@ -122,10 +127,10 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int s626_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_s626 = {
-      driver_name:"s626",
-      module : THIS_MODULE,
-      attach : s626_attach,
-      detach : s626_detach,
+	.driver_name = "s626",
+	.module = THIS_MODULE,
+	.attach = s626_attach,
+	.detach = s626_detach,
 };
 
 struct s626_private {
@@ -173,39 +178,39 @@ struct dio_private {
 };
 
 static struct dio_private dio_private_A = {
-      RDDIn:LP_RDDINA,
-      WRDOut : LP_WRDOUTA,
-      RDEdgSel : LP_RDEDGSELA,
-      WREdgSel : LP_WREDGSELA,
-      RDCapSel : LP_RDCAPSELA,
-      WRCapSel : LP_WRCAPSELA,
-      RDCapFlg : LP_RDCAPFLGA,
-      RDIntSel : LP_RDINTSELA,
-      WRIntSel : LP_WRINTSELA,
+	.RDDIn = LP_RDDINA,
+	.WRDOut = LP_WRDOUTA,
+	.RDEdgSel = LP_RDEDGSELA,
+	.WREdgSel = LP_WREDGSELA,
+	.RDCapSel = LP_RDCAPSELA,
+	.WRCapSel = LP_WRCAPSELA,
+	.RDCapFlg = LP_RDCAPFLGA,
+	.RDIntSel = LP_RDINTSELA,
+	.WRIntSel = LP_WRINTSELA,
 };
 
 static struct dio_private dio_private_B = {
-      RDDIn:LP_RDDINB,
-      WRDOut : LP_WRDOUTB,
-      RDEdgSel : LP_RDEDGSELB,
-      WREdgSel : LP_WREDGSELB,
-      RDCapSel : LP_RDCAPSELB,
-      WRCapSel : LP_WRCAPSELB,
-      RDCapFlg : LP_RDCAPFLGB,
-      RDIntSel : LP_RDINTSELB,
-      WRIntSel : LP_WRINTSELB,
+	.RDDIn = LP_RDDINB,
+	.WRDOut = LP_WRDOUTB,
+	.RDEdgSel = LP_RDEDGSELB,
+	.WREdgSel = LP_WREDGSELB,
+	.RDCapSel = LP_RDCAPSELB,
+	.WRCapSel = LP_WRCAPSELB,
+	.RDCapFlg = LP_RDCAPFLGB,
+	.RDIntSel = LP_RDINTSELB,
+	.WRIntSel = LP_WRINTSELB,
 };
 
 static struct dio_private dio_private_C = {
-      RDDIn:LP_RDDINC,
-      WRDOut : LP_WRDOUTC,
-      RDEdgSel : LP_RDEDGSELC,
-      WREdgSel : LP_WREDGSELC,
-      RDCapSel : LP_RDCAPSELC,
-      WRCapSel : LP_WRCAPSELC,
-      RDCapFlg : LP_RDCAPFLGC,
-      RDIntSel : LP_RDINTSELC,
-      WRIntSel : LP_WRINTSELC,
+	.RDDIn = LP_RDDINC,
+	.WRDOut = LP_WRDOUTC,
+	.RDEdgSel = LP_RDEDGSELC,
+	.WREdgSel = LP_WREDGSELC,
+	.RDCapSel = LP_RDCAPSELC,
+	.WRCapSel = LP_WRCAPSELC,
+	.RDCapFlg = LP_RDCAPFLGC,
+	.RDIntSel = LP_RDINTSELC,
+	.WRIntSel = LP_WRINTSELC,
 };
 
 /* to group dio devices (48 bits mask and data are not allowed ???)
@@ -253,7 +258,7 @@ static int s626_ns_to_timer(int *nanosec, int round_mode);
 static int s626_ai_load_polllist(uint8_t *ppl, struct comedi_cmd *cmd);
 static int s626_ai_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int trignum);
-static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG);
+static irqreturn_t s626_irq_handler(int irq, void *d);
 static unsigned int s626_ai_reg_to_uint(int data);
 /* static unsigned int s626_uint_to_reg(struct comedi_subdevice *s, int data); */
 
@@ -355,100 +360,100 @@ static void CountersInit(struct comedi_device *dev);
 /* struct enc_private; */
 static struct enc_private enc_private_data[] = {
 	{
-	      GetEnable:GetEnable_A,
-	      GetIntSrc : GetIntSrc_A,
-	      GetLoadTrig : GetLoadTrig_A,
-	      GetMode :	GetMode_A,
-	      PulseIndex : PulseIndex_A,
-	      SetEnable : SetEnable_A,
-	      SetIntSrc : SetIntSrc_A,
-	      SetLoadTrig : SetLoadTrig_A,
-	      SetMode :	SetMode_A,
-	      ResetCapFlags : ResetCapFlags_A,
-	      MyCRA :	LP_CR0A,
-	      MyCRB :	LP_CR0B,
-	      MyLatchLsw : LP_CNTR0ALSW,
-	      MyEventBits : EVBITS(0),
+	.GetEnable = GetEnable_A,
+	.GetIntSrc = GetIntSrc_A,
+	.GetLoadTrig = GetLoadTrig_A,
+	.GetMode = GetMode_A,
+	.PulseIndex = PulseIndex_A,
+	.SetEnable = SetEnable_A,
+	.SetIntSrc = SetIntSrc_A,
+	.SetLoadTrig = SetLoadTrig_A,
+	.SetMode = SetMode_A,
+	.ResetCapFlags = ResetCapFlags_A,
+	.MyCRA = LP_CR0A,
+	.MyCRB = LP_CR0B,
+	.MyLatchLsw = LP_CNTR0ALSW,
+	.MyEventBits = EVBITS(0),
 		},
 	{
-	      GetEnable:GetEnable_A,
-	      GetIntSrc : GetIntSrc_A,
-	      GetLoadTrig : GetLoadTrig_A,
-	      GetMode :	GetMode_A,
-	      PulseIndex : PulseIndex_A,
-	      SetEnable : SetEnable_A,
-	      SetIntSrc : SetIntSrc_A,
-	      SetLoadTrig : SetLoadTrig_A,
-	      SetMode :	SetMode_A,
-	      ResetCapFlags : ResetCapFlags_A,
-	      MyCRA :	LP_CR1A,
-	      MyCRB :	LP_CR1B,
-	      MyLatchLsw : LP_CNTR1ALSW,
-	      MyEventBits : EVBITS(1),
+	.GetEnable = GetEnable_A,
+	.GetIntSrc = GetIntSrc_A,
+	.GetLoadTrig = GetLoadTrig_A,
+	.GetMode = GetMode_A,
+	.PulseIndex = PulseIndex_A,
+	.SetEnable = SetEnable_A,
+	.SetIntSrc = SetIntSrc_A,
+	.SetLoadTrig = SetLoadTrig_A,
+	.SetMode = SetMode_A,
+	.ResetCapFlags = ResetCapFlags_A,
+	.MyCRA = LP_CR1A,
+	.MyCRB = LP_CR1B,
+	.MyLatchLsw = LP_CNTR1ALSW,
+	.MyEventBits = EVBITS(1),
 		},
 	{
-	      GetEnable:GetEnable_A,
-	      GetIntSrc : GetIntSrc_A,
-	      GetLoadTrig : GetLoadTrig_A,
-	      GetMode :	GetMode_A,
-	      PulseIndex : PulseIndex_A,
-	      SetEnable : SetEnable_A,
-	      SetIntSrc : SetIntSrc_A,
-	      SetLoadTrig : SetLoadTrig_A,
-	      SetMode :	SetMode_A,
-	      ResetCapFlags : ResetCapFlags_A,
-	      MyCRA :	LP_CR2A,
-	      MyCRB :	LP_CR2B,
-	      MyLatchLsw : LP_CNTR2ALSW,
-	      MyEventBits : EVBITS(2),
+	.GetEnable = GetEnable_A,
+	.GetIntSrc = GetIntSrc_A,
+	.GetLoadTrig = GetLoadTrig_A,
+	.GetMode = GetMode_A,
+	.PulseIndex = PulseIndex_A,
+	.SetEnable = SetEnable_A,
+	.SetIntSrc = SetIntSrc_A,
+	.SetLoadTrig = SetLoadTrig_A,
+	.SetMode = SetMode_A,
+	.ResetCapFlags = ResetCapFlags_A,
+	.MyCRA = LP_CR2A,
+	.MyCRB = LP_CR2B,
+	.MyLatchLsw = LP_CNTR2ALSW,
+	.MyEventBits = EVBITS(2),
 		},
 	{
-	      GetEnable:GetEnable_B,
-	      GetIntSrc : GetIntSrc_B,
-	      GetLoadTrig : GetLoadTrig_B,
-	      GetMode :	GetMode_B,
-	      PulseIndex : PulseIndex_B,
-	      SetEnable : SetEnable_B,
-	      SetIntSrc : SetIntSrc_B,
-	      SetLoadTrig : SetLoadTrig_B,
-	      SetMode :	SetMode_B,
-	      ResetCapFlags : ResetCapFlags_B,
-	      MyCRA :	LP_CR0A,
-	      MyCRB :	LP_CR0B,
-	      MyLatchLsw : LP_CNTR0BLSW,
-	      MyEventBits : EVBITS(3),
+	.GetEnable = GetEnable_B,
+	.GetIntSrc = GetIntSrc_B,
+	.GetLoadTrig = GetLoadTrig_B,
+	.GetMode = GetMode_B,
+	.PulseIndex = PulseIndex_B,
+	.SetEnable = SetEnable_B,
+	.SetIntSrc = SetIntSrc_B,
+	.SetLoadTrig = SetLoadTrig_B,
+	.SetMode = SetMode_B,
+	.ResetCapFlags = ResetCapFlags_B,
+	.MyCRA = LP_CR0A,
+	.MyCRB = LP_CR0B,
+	.MyLatchLsw = LP_CNTR0BLSW,
+	.MyEventBits = EVBITS(3),
 		},
 	{
-	      GetEnable:GetEnable_B,
-	      GetIntSrc : GetIntSrc_B,
-	      GetLoadTrig : GetLoadTrig_B,
-	      GetMode :	GetMode_B,
-	      PulseIndex : PulseIndex_B,
-	      SetEnable : SetEnable_B,
-	      SetIntSrc : SetIntSrc_B,
-	      SetLoadTrig : SetLoadTrig_B,
-	      SetMode :	SetMode_B,
-	      ResetCapFlags : ResetCapFlags_B,
-	      MyCRA :	LP_CR1A,
-	      MyCRB :	LP_CR1B,
-	      MyLatchLsw : LP_CNTR1BLSW,
-	      MyEventBits : EVBITS(4),
+	.GetEnable = GetEnable_B,
+	.GetIntSrc = GetIntSrc_B,
+	.GetLoadTrig = GetLoadTrig_B,
+	.GetMode = GetMode_B,
+	.PulseIndex = PulseIndex_B,
+	.SetEnable = SetEnable_B,
+	.SetIntSrc = SetIntSrc_B,
+	.SetLoadTrig = SetLoadTrig_B,
+	.SetMode = SetMode_B,
+	.ResetCapFlags = ResetCapFlags_B,
+	.MyCRA = LP_CR1A,
+	.MyCRB = LP_CR1B,
+	.MyLatchLsw = LP_CNTR1BLSW,
+	.MyEventBits = EVBITS(4),
 		},
 	{
-	      GetEnable:GetEnable_B,
-	      GetIntSrc : GetIntSrc_B,
-	      GetLoadTrig : GetLoadTrig_B,
-	      GetMode :	GetMode_B,
-	      PulseIndex : PulseIndex_B,
-	      SetEnable : SetEnable_B,
-	      SetIntSrc : SetIntSrc_B,
-	      SetLoadTrig : SetLoadTrig_B,
-	      SetMode :	SetMode_B,
-	      ResetCapFlags : ResetCapFlags_B,
-	      MyCRA :	LP_CR2A,
-	      MyCRB :	LP_CR2B,
-	      MyLatchLsw : LP_CNTR2BLSW,
-	      MyEventBits : EVBITS(5),
+	.GetEnable = GetEnable_B,
+	.GetIntSrc = GetIntSrc_B,
+	.GetLoadTrig = GetLoadTrig_B,
+	.GetMode = GetMode_B,
+	.PulseIndex = PulseIndex_B,
+	.SetEnable = SetEnable_B,
+	.SetIntSrc = SetIntSrc_B,
+	.SetLoadTrig = SetLoadTrig_B,
+	.SetMode = SetMode_B,
+	.ResetCapFlags = ResetCapFlags_B,
+	.MyCRA = LP_CR2A,
+	.MyCRB = LP_CR2B,
+	.MyLatchLsw = LP_CNTR2BLSW,
+	.MyEventBits = EVBITS(5),
 		},
 };
 
@@ -498,25 +503,26 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	resource_size_t resourceStart;
 	dma_addr_t appdma;
 	struct comedi_subdevice *s;
-	struct pci_dev *pdev;
+	const struct pci_device_id *ids;
+	struct pci_dev *pdev = NULL;
 
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	for (pdev = pci_get_device(PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
-			NULL); pdev != NULL;
-		pdev = pci_get_device(PCI_VENDOR_ID_S626,
-			PCI_DEVICE_ID_S626, pdev)) {
-		if (it->options[0] || it->options[1]) {
-			if (pdev->bus->number == it->options[0] &&
-				PCI_SLOT(pdev->devfn) == it->options[1]) {
+	for (i = 0; i < (ARRAY_SIZE(s626_pci_table) - 1) && !pdev; i++) {
+		ids = &s626_pci_table[i];
+		do {
+			pdev = pci_get_subsys(ids->vendor, ids->device, ids->subvendor,
+					      ids->subdevice, pdev);
+
+			if ((it->options[0] || it->options[1]) && pdev) {
 				/* matches requested bus/slot */
+				if (pdev->bus->number == it->options[0] &&
+				    PCI_SLOT(pdev->devfn) == it->options[1])
+					break;
+			} else
 				break;
-			}
-		} else {
-			/* no bus/slot specified */
-			break;
-		}
+		} while (1);
 	}
 	devpriv->pdev = pdev;
 
@@ -596,8 +602,8 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (dev->irq == 0) {
 		printk(" unknown irq (bad)\n");
 	} else {
-		ret = comedi_request_irq(dev->irq, s626_irq_handler,
-					 IRQF_SHARED, "s626", dev);
+		ret = request_irq(dev->irq, s626_irq_handler, IRQF_SHARED,
+				  "s626", dev);
 
 		if (ret < 0) {
 			printk(" irq not available\n");
@@ -968,7 +974,7 @@ static unsigned int s626_ai_reg_to_uint(int data)
 /*   return 0; */
 /* } */
 
-static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
+static irqreturn_t s626_irq_handler(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s;
@@ -987,7 +993,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 	if (dev->attached == 0)
 		return IRQ_NONE;
 	/*  lock to avoid race with comedi_poll */
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 
 	/* save interrupt enable register state */
 	irqstatus = readl(devpriv->base_addr + P_IER);
@@ -1264,7 +1270,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d PT_REGS_ARG)
 
 	DEBUG("s626_irq_handler: exit interrupt service routine.\n");
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -1291,7 +1297,7 @@ static int s626_detach(struct comedi_device *dev)
 		}
 
 		if (dev->irq)
-			comedi_free_irq(dev->irq, dev);
+			free_irq(dev->irq, dev);
 
 		if (devpriv->base_addr)
 			iounmap(devpriv->base_addr);
@@ -1574,7 +1580,7 @@ static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 	for (n = 0; n < insn->n; n++) {
 
 		/*  Delay 10 microseconds for analog input settling. */
-		comedi_udelay(10);
+		udelay(10);
 
 		/*  Start ADC by pulsing GPIO1 low. */
 		GpioImage = RR7146(P_GPIO);
@@ -1606,7 +1612,7 @@ static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 		 * data value is sometimes set to the previous
 		 * conversion's data value.
 		 */
-		comedi_udelay(4);
+		udelay(4);
 	}
 
 	/* Start a dummy conversion to cause the data from the
@@ -1886,28 +1892,13 @@ static int s626_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 		err++;
 	}
 
-	if (cmd->start_src == TRIG_EXT && cmd->start_arg < 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-
 	if (cmd->start_src == TRIG_EXT && cmd->start_arg > 39) {
 		cmd->start_arg = 39;
 		err++;
 	}
 
-	if (cmd->scan_begin_src == TRIG_EXT && cmd->scan_begin_arg < 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
-
 	if (cmd->scan_begin_src == TRIG_EXT && cmd->scan_begin_arg > 39) {
 		cmd->scan_begin_arg = 39;
-		err++;
-	}
-
-	if (cmd->convert_src == TRIG_EXT && cmd->convert_arg < 0) {
-		cmd->convert_arg = 0;
 		err++;
 	}
 
@@ -2373,7 +2364,7 @@ static void LoadTrimDACs(struct comedi_device *dev)
 	register uint8_t i;
 
 	/*  Copy TrimDac setpoint values from EEPROM to TrimDacs. */
-	for (i = 0; i < (sizeof(trimchan) / sizeof(trimchan[0])); i++)
+	for (i = 0; i < ARRAY_SIZE(trimchan); i++)
 		WriteTrimDAC(dev, i, I2Cread(dev, trimadrs[i]));
 }
 

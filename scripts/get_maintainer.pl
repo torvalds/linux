@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.15';
+my $V = '0.16';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -54,6 +54,10 @@ foreach my $chief (@penguin_chief) {
     }
 }
 my $penguin_chiefs = "\(" . join("|",@penguin_chief_names) . "\)";
+
+# rfc822 email address - preloaded methods go here.
+my $rfc822_lwsp = "(?:(?:\\r\\n)?[ \\t])";
+my $rfc822_char = '[\\000-\\377]';
 
 if (!GetOptions(
 		'email!' => \$email,
@@ -161,7 +165,7 @@ foreach my $file (@ARGV) {
 	}
 	close(PATCH);
 	if ($file_cnt == @files) {
-	    die "$P: file '${file}' doesn't appear to be a patch.  "
+	    warn "$P: file '${file}' doesn't appear to be a patch.  "
 		. "Add -f to options?\n";
 	}
 	@files = sort_and_uniq(@files);
@@ -169,6 +173,7 @@ foreach my $file (@ARGV) {
 }
 
 my @email_to = ();
+my @list_to = ();
 my @scm = ();
 my @web = ();
 my @subsystem = ();
@@ -182,7 +187,7 @@ foreach my $file (@files) {
 
     my $exclude = 0;
     foreach my $line (@typevalue) {
-	if ($line =~ m/^(\C):(.*)/) {
+	if ($line =~ m/^(\C):\s*(.*)/) {
 	    my $type = $1;
 	    my $value = $2;
 	    if ($type eq 'X') {
@@ -196,7 +201,7 @@ foreach my $file (@files) {
     if (!$exclude) {
 	my $tvi = 0;
 	foreach my $line (@typevalue) {
-	    if ($line =~ m/^(\C):(.*)/) {
+	    if ($line =~ m/^(\C):\s*(.*)/) {
 		my $type = $1;
 		my $value = $2;
 		if ($type eq 'F') {
@@ -215,29 +220,33 @@ foreach my $file (@files) {
 
 }
 
-if ($email_git_penguin_chiefs) {
+if ($email) {
     foreach my $chief (@penguin_chief) {
 	if ($chief =~ m/^(.*):(.*)/) {
-	    my $chief_name = $1;
-	    my $chief_addr = $2;
+	    my $email_address;
 	    if ($email_usename) {
-		push(@email_to, format_email($chief_name, $chief_addr));
+		$email_address = format_email($1, $2);
 	    } else {
-		push(@email_to, $chief_addr);
+		$email_address = $2;
+	    }
+	    if ($email_git_penguin_chiefs) {
+		push(@email_to, $email_address);
+	    } else {
+		@email_to = grep(!/${email_address}/, @email_to);
 	    }
 	}
     }
 }
 
-if ($email) {
-    my $address_cnt = @email_to;
-    if ($address_cnt == 0 && $email_list) {
-	push(@email_to, "linux-kernel\@vger.kernel.org");
+if ($email || $email_list) {
+    my @to = ();
+    if ($email) {
+	@to = (@to, @email_to);
     }
-
-#Don't sort email address list, but do remove duplicates
-    @email_to = uniq(@email_to);
-    output(@email_to);
+    if ($email_list) {
+	@to = (@to, @list_to);
+    }
+    output(uniq(@to));
 }
 
 if ($scm) {
@@ -307,10 +316,10 @@ Output type options:
   --multiline => print 1 entry per line
 
 Default options:
-  [--email --git --m --l --multiline]
+  [--email --git --m --n --l --multiline]
 
 Other options:
-  --version -> show version
+  --version => show version
   --help => show this help information
 
 EOT
@@ -347,6 +356,7 @@ sub format_email {
     my ($name, $email) = @_;
 
     $name =~ s/^\s+|\s+$//g;
+    $name =~ s/^\"|\"$//g;
     $email =~ s/^\s+|\s+$//g;
 
     my $formatted_email = "";
@@ -366,35 +376,40 @@ sub add_categories {
     $index = $index - 1;
     while ($index >= 0) {
 	my $tv = $typevalue[$index];
-	if ($tv =~ m/^(\C):(.*)/) {
+	if ($tv =~ m/^(\C):\s*(.*)/) {
 	    my $ptype = $1;
 	    my $pvalue = $2;
 	    if ($ptype eq "L") {
-		my $subscr = $pvalue;
-		if ($subscr =~ m/\s*\(subscribers-only\)/) {
+		my $list_address = $pvalue;
+		my $list_additional = "";
+		if ($list_address =~ m/([^\s]+)\s+(.*)$/) {
+		    $list_address = $1;
+		    $list_additional = $2;
+		}
+		if ($list_additional =~ m/subscribers-only/) {
 		    if ($email_subscriber_list) {
-			$subscr =~ s/\s*\(subscribers-only\)//g;
-			push(@email_to, $subscr);
+			push(@list_to, $list_address);
 		    }
 		} else {
 		    if ($email_list) {
-			push(@email_to, $pvalue);
+			push(@list_to, $list_address);
 		    }
 		}
 	    } elsif ($ptype eq "M") {
-		if ($email_maintainer) {
-		    if ($index >= 0) {
-			my $tv = $typevalue[$index - 1];
-			if ($tv =~ m/^(\C):(.*)/) {
-			    if ($1 eq "P" && $email_usename) {
-				push(@email_to, format_email($2, $pvalue));
-			    } else {
-				push(@email_to, $pvalue);
+		my $p_used = 0;
+		if ($index >= 0) {
+		    my $tv = $typevalue[$index - 1];
+		    if ($tv =~ m/^(\C):\s*(.*)/) {
+			if ($1 eq "P") {
+			    if ($email_usename) {
+				push_email_address(format_email($2, $pvalue));
+				$p_used = 1;
 			    }
 			}
-		    } else {
-			push(@email_to, $pvalue);
 		    }
+		}
+		if (!$p_used) {
+		    push_email_addresses($pvalue);
 		}
 	    } elsif ($ptype eq "T") {
 		push(@scm, $pvalue);
@@ -412,10 +427,45 @@ sub add_categories {
     }
 }
 
+sub push_email_address {
+    my ($email_address) = @_;
+
+    my $email_name = "";
+    if ($email_address =~ m/([^<]+)<(.*\@.*)>$/) {
+	$email_name = $1;
+	$email_address = $2;
+    }
+
+    if ($email_maintainer) {
+	if ($email_usename && $email_name) {
+	    push(@email_to, format_email($email_name, $email_address));
+	} else {
+	    push(@email_to, $email_address);
+	}
+    }
+}
+
+sub push_email_addresses {
+    my ($address) = @_;
+
+    my @address_list = ();
+
+    if (rfc822_valid($address)) {
+	push_email_address($address);
+    } elsif (@address_list = rfc822_validlist($address)) {
+	my $array_count = shift(@address_list);
+	while (my $entry = shift(@address_list)) {
+	    push_email_address($entry);
+	}
+    } else {
+	warn("Invalid MAINTAINERS address: '" . $address . "'\n");
+    }
+}
+
 sub which {
     my ($bin) = @_;
 
-    foreach my $path (split /:/, $ENV{PATH}) {
+    foreach my $path (split(/:/, $ENV{PATH})) {
 	if (-e "$path/$bin") {
 	    return "$path/$bin";
 	}
@@ -434,16 +484,21 @@ sub recent_git_signoffs {
     my @lines = ();
 
     if (which("git") eq "") {
-	die("$P: git not found.  Add --nogit to options?\n");
+	warn("$P: git not found.  Add --nogit to options?\n");
+	return;
+    }
+    if (!(-d ".git")) {
+	warn("$P: .git directory not found.  Use a git repository for better results.\n");
+	warn("$P: perhaps 'git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git'\n");
+	return;
     }
 
     $cmd = "git log --since=${email_git_since} -- ${file}";
-    $cmd .= " | grep -Pi \"^[-_ 	a-z]+by:.*\\\@\"";
+    $cmd .= " | grep -Ei \"^[-_ 	a-z]+by:.*\\\@.*\$\"";
     if (!$email_git_penguin_chiefs) {
-	$cmd .= " | grep -Pv \"${penguin_chiefs}\"";
+	$cmd .= " | grep -Ev \"${penguin_chiefs}\"";
     }
     $cmd .= " | cut -f2- -d\":\"";
-    $cmd .= " | sed -e \"s/^\\s+//g\"";
     $cmd .= " | sort | uniq -c | sort -rn";
 
     $output = `${cmd}`;
@@ -465,10 +520,6 @@ sub recent_git_signoffs {
 	if ($line =~ m/(.+)<(.+)>/) {
 	    my $git_name = $1;
 	    my $git_addr = $2;
-	    $git_name =~ tr/^\"//;
-	    $git_name =~ tr/^\\s*//;
-	    $git_name =~ tr/\"$//;
-	    $git_name =~ tr/\\s*$//;
 	    if ($email_usename) {
 		push(@email_to, format_email($git_name, $git_addr));
 	    } else {
@@ -481,7 +532,6 @@ sub recent_git_signoffs {
 	    push(@email_to, $line);
 	}
     }
-    return $output;
 }
 
 sub uniq {
@@ -511,5 +561,99 @@ sub output {
     } else {
 	print(join($output_separator, @parms));
 	print("\n");
+    }
+}
+
+my $rfc822re;
+
+sub make_rfc822re {
+#   Basic lexical tokens are specials, domain_literal, quoted_string, atom, and
+#   comment.  We must allow for rfc822_lwsp (or comments) after each of these.
+#   This regexp will only work on addresses which have had comments stripped
+#   and replaced with rfc822_lwsp.
+
+    my $specials = '()<>@,;:\\\\".\\[\\]';
+    my $controls = '\\000-\\037\\177';
+
+    my $dtext = "[^\\[\\]\\r\\\\]";
+    my $domain_literal = "\\[(?:$dtext|\\\\.)*\\]$rfc822_lwsp*";
+
+    my $quoted_string = "\"(?:[^\\\"\\r\\\\]|\\\\.|$rfc822_lwsp)*\"$rfc822_lwsp*";
+
+#   Use zero-width assertion to spot the limit of an atom.  A simple
+#   $rfc822_lwsp* causes the regexp engine to hang occasionally.
+    my $atom = "[^$specials $controls]+(?:$rfc822_lwsp+|\\Z|(?=[\\[\"$specials]))";
+    my $word = "(?:$atom|$quoted_string)";
+    my $localpart = "$word(?:\\.$rfc822_lwsp*$word)*";
+
+    my $sub_domain = "(?:$atom|$domain_literal)";
+    my $domain = "$sub_domain(?:\\.$rfc822_lwsp*$sub_domain)*";
+
+    my $addr_spec = "$localpart\@$rfc822_lwsp*$domain";
+
+    my $phrase = "$word*";
+    my $route = "(?:\@$domain(?:,\@$rfc822_lwsp*$domain)*:$rfc822_lwsp*)";
+    my $route_addr = "\\<$rfc822_lwsp*$route?$addr_spec\\>$rfc822_lwsp*";
+    my $mailbox = "(?:$addr_spec|$phrase$route_addr)";
+
+    my $group = "$phrase:$rfc822_lwsp*(?:$mailbox(?:,\\s*$mailbox)*)?;\\s*";
+    my $address = "(?:$mailbox|$group)";
+
+    return "$rfc822_lwsp*$address";
+}
+
+sub rfc822_strip_comments {
+    my $s = shift;
+#   Recursively remove comments, and replace with a single space.  The simpler
+#   regexps in the Email Addressing FAQ are imperfect - they will miss escaped
+#   chars in atoms, for example.
+
+    while ($s =~ s/^((?:[^"\\]|\\.)*
+                    (?:"(?:[^"\\]|\\.)*"(?:[^"\\]|\\.)*)*)
+                    \((?:[^()\\]|\\.)*\)/$1 /osx) {}
+    return $s;
+}
+
+#   valid: returns true if the parameter is an RFC822 valid address
+#
+sub rfc822_valid ($) {
+    my $s = rfc822_strip_comments(shift);
+
+    if (!$rfc822re) {
+        $rfc822re = make_rfc822re();
+    }
+
+    return $s =~ m/^$rfc822re$/so && $s =~ m/^$rfc822_char*$/;
+}
+
+#   validlist: In scalar context, returns true if the parameter is an RFC822
+#              valid list of addresses.
+#
+#              In list context, returns an empty list on failure (an invalid
+#              address was found); otherwise a list whose first element is the
+#              number of addresses found and whose remaining elements are the
+#              addresses.  This is needed to disambiguate failure (invalid)
+#              from success with no addresses found, because an empty string is
+#              a valid list.
+
+sub rfc822_validlist ($) {
+    my $s = rfc822_strip_comments(shift);
+
+    if (!$rfc822re) {
+        $rfc822re = make_rfc822re();
+    }
+    # * null list items are valid according to the RFC
+    # * the '1' business is to aid in distinguishing failure from no results
+
+    my @r;
+    if ($s =~ m/^(?:$rfc822re)?(?:,(?:$rfc822re)?)*$/so &&
+	$s =~ m/^$rfc822_char*$/) {
+        while ($s =~ m/(?:^|,$rfc822_lwsp*)($rfc822re)/gos) {
+            push @r, $1;
+        }
+        return wantarray ? (scalar(@r), @r) : 1;
+    }
+    else {
+        return wantarray ? () : 0;
     }
 }

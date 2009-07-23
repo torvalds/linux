@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/moduleparam.h>
+#include <linux/math64.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -402,9 +403,9 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_DMA_AREA_BYTES ((HDSP_MAX_CHANNELS+1) * HDSP_CHANNEL_BUFFER_BYTES)
 #define HDSP_DMA_AREA_KILOBYTES (HDSP_DMA_AREA_BYTES/1024)
 
-/* use hotplug firmeare loader? */
+/* use hotplug firmware loader? */
 #if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
-#if !defined(HDSP_USE_HWDEP_LOADER) && !defined(CONFIG_SND_HDSP)
+#if !defined(HDSP_USE_HWDEP_LOADER)
 #define HDSP_FW_LOADER
 #endif
 #endif
@@ -1047,7 +1048,6 @@ static int hdsp_set_interrupt_interval(struct hdsp *s, unsigned int frames)
 static void hdsp_set_dds_value(struct hdsp *hdsp, int rate)
 {
 	u64 n;
-	u32 r;
 
 	if (rate >= 112000)
 		rate /= 4;
@@ -1055,7 +1055,7 @@ static void hdsp_set_dds_value(struct hdsp *hdsp, int rate)
 		rate /= 2;
 
 	n = DDS_NUMERATOR;
-	div64_32(&n, rate, &r);
+	n = div_u64(n, rate);
 	/* n should be less than 2^32 for being written to FREQ register */
 	snd_BUG_ON(n >> 32);
 	/* HDSP_freqReg and HDSP_resetPointer are the same, so keep the DDS
@@ -3097,7 +3097,6 @@ static int snd_hdsp_get_adat_sync_check(struct snd_kcontrol *kcontrol, struct sn
 static int hdsp_dds_offset(struct hdsp *hdsp)
 {
 	u64 n;
-	u32 r;
 	unsigned int dds_value = hdsp->dds_value;
 	int system_sample_rate = hdsp->system_sample_rate;
 
@@ -3109,7 +3108,7 @@ static int hdsp_dds_offset(struct hdsp *hdsp)
 	 * dds_value = n / rate
 	 * rate = n / dds_value
 	 */
-	div64_32(&n, dds_value, &r);
+	n = div_u64(n, dds_value);
 	if (system_sample_rate >= 112000)
 		n *= 4;
 	else if (system_sample_rate >= 56000)

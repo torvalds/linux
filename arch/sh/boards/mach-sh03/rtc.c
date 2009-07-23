@@ -35,13 +35,13 @@
 #define RTC_BUSY	1
 #define RTC_STOP	2
 
-extern spinlock_t rtc_lock;
+static DEFINE_SPINLOCK(sh03_rtc_lock);
 
 unsigned long get_cmos_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
 
-	spin_lock(&rtc_lock);
+	spin_lock(&sh03_rtc_lock);
  again:
 	do {
 		sec  = (ctrl_inb(RTC_SEC1) & 0xf) + (ctrl_inb(RTC_SEC10) & 0x7) * 10;
@@ -73,7 +73,7 @@ unsigned long get_cmos_time(void)
 		goto again;
 	}
 
-	spin_unlock(&rtc_lock);
+	spin_unlock(&sh03_rtc_lock);
 	return mktime(year, mon, day, hour, min, sec);
 }
 
@@ -91,7 +91,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 	int i;
 
 	/* gets recalled with irq locally disabled */
-	spin_lock(&rtc_lock);
+	spin_lock(&sh03_rtc_lock);
 	for (i = 0 ; i < 1000000 ; i++)	/* may take up to 1 second... */
 		if (!(ctrl_inb(RTC_CTL) & RTC_BUSY))
 			break;
@@ -113,7 +113,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 		       cmos_minutes, real_minutes);
 		retval = -1;
 	}
-	spin_unlock(&rtc_lock);
+	spin_unlock(&sh03_rtc_lock);
 
 	return retval;
 }

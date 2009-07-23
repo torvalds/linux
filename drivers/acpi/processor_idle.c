@@ -139,7 +139,7 @@ static void acpi_safe_halt(void)
  * are affected too. We pick the most conservative approach: we assume
  * that the local APIC stops in both C2 and C3.
  */
-static void acpi_timer_check_state(int state, struct acpi_processor *pr,
+static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 				   struct acpi_processor_cx *cx)
 {
 	struct acpi_processor_power *pwr = &pr->power;
@@ -162,7 +162,7 @@ static void acpi_timer_check_state(int state, struct acpi_processor *pr,
 		pr->power.timer_broadcast_on_state = state;
 }
 
-static void acpi_propagate_timer_broadcast(struct acpi_processor *pr)
+static void lapic_timer_propagate_broadcast(struct acpi_processor *pr)
 {
 	unsigned long reason;
 
@@ -173,7 +173,7 @@ static void acpi_propagate_timer_broadcast(struct acpi_processor *pr)
 }
 
 /* Power(C) State timer broadcast control */
-static void acpi_state_timer_broadcast(struct acpi_processor *pr,
+static void lapic_timer_state_broadcast(struct acpi_processor *pr,
 				       struct acpi_processor_cx *cx,
 				       int broadcast)
 {
@@ -190,10 +190,10 @@ static void acpi_state_timer_broadcast(struct acpi_processor *pr,
 
 #else
 
-static void acpi_timer_check_state(int state, struct acpi_processor *pr,
+static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 				   struct acpi_processor_cx *cstate) { }
-static void acpi_propagate_timer_broadcast(struct acpi_processor *pr) { }
-static void acpi_state_timer_broadcast(struct acpi_processor *pr,
+static void lapic_timer_propagate_broadcast(struct acpi_processor *pr) { }
+static void lapic_timer_state_broadcast(struct acpi_processor *pr,
 				       struct acpi_processor_cx *cx,
 				       int broadcast)
 {
@@ -515,7 +515,8 @@ static void acpi_processor_power_verify_c2(struct acpi_processor_cx *cx)
 static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 					   struct acpi_processor_cx *cx)
 {
-	static int bm_check_flag;
+	static int bm_check_flag = -1;
+	static int bm_control_flag = -1;
 
 
 	if (!cx->address)
@@ -545,12 +546,14 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	}
 
 	/* All the logic here assumes flags.bm_check is same across all CPUs */
-	if (!bm_check_flag) {
+	if (bm_check_flag == -1) {
 		/* Determine whether bm_check is needed based on CPU  */
 		acpi_processor_power_init_bm_check(&(pr->flags), pr->id);
 		bm_check_flag = pr->flags.bm_check;
+		bm_control_flag = pr->flags.bm_control;
 	} else {
 		pr->flags.bm_check = bm_check_flag;
+		pr->flags.bm_control = bm_control_flag;
 	}
 
 	if (pr->flags.bm_check) {
@@ -614,29 +617,25 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 		switch (cx->type) {
 		case ACPI_STATE_C1:
 			cx->valid = 1;
-			acpi_timer_check_state(i, pr, cx);
 			break;
 
 		case ACPI_STATE_C2:
 			acpi_processor_power_verify_c2(cx);
-			if (cx->valid)
-				acpi_timer_check_state(i, pr, cx);
 			break;
 
 		case ACPI_STATE_C3:
 			acpi_processor_power_verify_c3(pr, cx);
-			if (cx->valid)
-				acpi_timer_check_state(i, pr, cx);
 			break;
 		}
-		if (cx->valid)
-			tsc_check_state(cx->type);
+		if (!cx->valid)
+			continue;
 
-		if (cx->valid)
-			working++;
+		lapic_timer_check_state(i, pr, cx);
+		tsc_check_state(cx->type);
+		working++;
 	}
 
-	acpi_propagate_timer_broadcast(pr);
+	lapic_timer_propagate_broadcast(pr);
 
 	return (working);
 }
@@ -839,7 +838,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 		return 0;
 	}
 
-	acpi_state_timer_broadcast(pr, cx, 1);
+	lapic_timer_state_broadcast(pr, cx, 1);
 	kt1 = ktime_get_real();
 	acpi_idle_do_entry(cx);
 	kt2 = ktime_get_real();
@@ -847,7 +846,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 
 	local_irq_enable();
 	cx->usage++;
-	acpi_state_timer_broadcast(pr, cx, 0);
+	lapic_timer_state_broadcast(pr, cx, 0);
 
 	return idle_time;
 }
@@ -892,7 +891,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	 * Must be done before busmaster disable as we might need to
 	 * access HPET !
 	 */
-	acpi_state_timer_broadcast(pr, cx, 1);
+	lapic_timer_state_broadcast(pr, cx, 1);
 
 	if (cx->type == ACPI_STATE_C3)
 		ACPI_FLUSH_CPU_CACHE();
@@ -914,7 +913,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 
 	cx->usage++;
 
-	acpi_state_timer_broadcast(pr, cx, 0);
+	lapic_timer_state_broadcast(pr, cx, 0);
 	cx->time += sleep_ticks;
 	return idle_time;
 }
@@ -981,7 +980,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	 * Must be done before busmaster disable as we might need to
 	 * access HPET !
 	 */
-	acpi_state_timer_broadcast(pr, cx, 1);
+	lapic_timer_state_broadcast(pr, cx, 1);
 
 	kt1 = ktime_get_real();
 	/*
@@ -1026,7 +1025,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 
 	cx->usage++;
 
-	acpi_state_timer_broadcast(pr, cx, 0);
+	lapic_timer_state_broadcast(pr, cx, 0);
 	cx->time += sleep_ticks;
 	return idle_time;
 }

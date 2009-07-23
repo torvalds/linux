@@ -8,3 +8,4 @@ obj-$(CONFIG_FSL_DMA) += fsldma.o
 obj-$(CONFIG_MV_XOR) += mv_xor.o
 obj-$(CONFIG_DW_DMAC) += dw_dmac.o
 obj-$(CONFIG_MX3_IPU) += ipu/
+obj-$(CONFIG_TXX9_DMAC) += txx9dmac.o

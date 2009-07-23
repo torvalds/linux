@@ -35,7 +35,7 @@ void set_mtrr_prepare_save(struct set_mtrr_context *ctxt)
 
 		if (use_intel())
 			/*  Save MTRR state */
-			rdmsr(MTRRdefType_MSR, ctxt->deftype_lo, ctxt->deftype_hi);
+			rdmsr(MSR_MTRRdefType, ctxt->deftype_lo, ctxt->deftype_hi);
 		else
 			/* Cyrix ARRs - everything else were excluded at the top */
 			ctxt->ccr3 = getCx86(CX86_CCR3);
@@ -46,7 +46,7 @@ void set_mtrr_cache_disable(struct set_mtrr_context *ctxt)
 {
 	if (use_intel())
 		/*  Disable MTRRs, and set the default type to uncached  */
-		mtrr_wrmsr(MTRRdefType_MSR, ctxt->deftype_lo & 0xf300UL,
+		mtrr_wrmsr(MSR_MTRRdefType, ctxt->deftype_lo & 0xf300UL,
 		      ctxt->deftype_hi);
 	else if (is_cpu(CYRIX))
 		/* Cyrix ARRs - everything else were excluded at the top */
@@ -64,7 +64,7 @@ void set_mtrr_done(struct set_mtrr_context *ctxt)
 		/*  Restore MTRRdefType  */
 		if (use_intel())
 			/* Intel (P6) standard MTRRs */
-			mtrr_wrmsr(MTRRdefType_MSR, ctxt->deftype_lo, ctxt->deftype_hi);
+			mtrr_wrmsr(MSR_MTRRdefType, ctxt->deftype_lo, ctxt->deftype_hi);
 		else
 			/* Cyrix ARRs - everything else was excluded at the top */
 			setCx86(CX86_CCR3, ctxt->ccr3);

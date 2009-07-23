@@ -1,21 +1,27 @@
 config OF_DEVICE
 	def_bool y
-	depends on OF && (SPARC || PPC_OF)
+	depends on OF && (SPARC || PPC_OF || MICROBLAZE)
 
 config OF_GPIO
 	def_bool y
-	depends on OF && PPC_OF && GPIOLIB
+	depends on OF && (PPC_OF || MICROBLAZE) && GPIOLIB
 	help
 	  OpenFirmware GPIO accessors
 
 config OF_I2C
 	def_tristate I2C
-	depends on PPC_OF && I2C
+	depends on (PPC_OF || MICROBLAZE) && I2C
 	help
 	  OpenFirmware I2C accessors
 
 config OF_SPI
 	def_tristate SPI
-	depends on OF && PPC_OF && SPI
+	depends on OF && (PPC_OF || MICROBLAZE) && SPI
 	help
 	  OpenFirmware SPI accessors
+
+config OF_MDIO
+	def_tristate PHYLIB
+	depends on OF && PHYLIB
+	help
+	  OpenFirmware MDIO bus (Ethernet PHY) accessors

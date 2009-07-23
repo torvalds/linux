@@ -1,0 +1,4 @@
+config USB_CPC
+	tristate "CPC CAN USB driver"
+	depends on USB && PROC_FS
+	default n

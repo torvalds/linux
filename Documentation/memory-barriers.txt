@@ -31,6 +31,7 @@ Contents:
 
      - Locking functions.
      - Interrupt disabling functions.
+     - Sleep and wake-up functions.
      - Miscellaneous functions.
 
  (*) Inter-CPU locking barrier effects.
@@ -1217,6 +1218,132 @@ barriers are required in such a situation, they must be provided from some
 other means.
 
 
+SLEEP AND WAKE-UP FUNCTIONS
+---------------------------
+
+Sleeping and waking on an event flagged in global data can be viewed as an
+interaction between two pieces of data: the task state of the task waiting for
+the event and the global data used to indicate the event.  To make sure that
+these appear to happen in the right order, the primitives to begin the process
+of going to sleep, and the primitives to initiate a wake up imply certain
+barriers.
+
+Firstly, the sleeper normally follows something like this sequence of events:
+
+	for (;;) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (event_indicated)
+			break;
+		schedule();
+	}
+
+A general memory barrier is interpolated automatically by set_current_state()
+after it has altered the task state:
+
+	CPU 1
+	===============================
+	set_current_state();
+	  set_mb();
+	    STORE current->state
+	    <general barrier>
+	LOAD event_indicated
+
+set_current_state() may be wrapped by:
+
+	prepare_to_wait();
+	prepare_to_wait_exclusive();
+
+which therefore also imply a general memory barrier after setting the state.
+The whole sequence above is available in various canned forms, all of which
+interpolate the memory barrier in the right place:
+
+	wait_event();
+	wait_event_interruptible();
+	wait_event_interruptible_exclusive();
+	wait_event_interruptible_timeout();
+	wait_event_killable();
+	wait_event_timeout();
+	wait_on_bit();
+	wait_on_bit_lock();
+
+
+Secondly, code that performs a wake up normally follows something like this:
+
+	event_indicated = 1;
+	wake_up(&event_wait_queue);
+
+or:
+
+	event_indicated = 1;
+	wake_up_process(event_daemon);
+
+A write memory barrier is implied by wake_up() and co. if and only if they wake
+something up.  The barrier occurs before the task state is cleared, and so sits
+between the STORE to indicate the event and the STORE to set TASK_RUNNING:
+
+	CPU 1				CPU 2
+	===============================	===============================
+	set_current_state();		STORE event_indicated
+	  set_mb();			wake_up();
+	    STORE current->state	  <write barrier>
+	    <general barrier>		  STORE current->state
+	LOAD event_indicated
+
+The available waker functions include:
+
+	complete();
+	wake_up();
+	wake_up_all();
+	wake_up_bit();
+	wake_up_interruptible();
+	wake_up_interruptible_all();
+	wake_up_interruptible_nr();
+	wake_up_interruptible_poll();
+	wake_up_interruptible_sync();
+	wake_up_interruptible_sync_poll();
+	wake_up_locked();
+	wake_up_locked_poll();
+	wake_up_nr();
+	wake_up_poll();
+	wake_up_process();
+
+
+[!] Note that the memory barriers implied by the sleeper and the waker do _not_
+order multiple stores before the wake-up with respect to loads of those stored
+values after the sleeper has called set_current_state().  For instance, if the
+sleeper does:
+
+	set_current_state(TASK_INTERRUPTIBLE);
+	if (event_indicated)
+		break;
+	__set_current_state(TASK_RUNNING);
+	do_something(my_data);
+
+and the waker does:
+
+	my_data = value;
+	event_indicated = 1;
+	wake_up(&event_wait_queue);
+
+there's no guarantee that the change to event_indicated will be perceived by
+the sleeper as coming after the change to my_data.  In such a circumstance, the
+code on both sides must interpolate its own memory barriers between the
+separate data accesses.  Thus the above sleeper ought to do:
+
+	set_current_state(TASK_INTERRUPTIBLE);
+	if (event_indicated) {
+		smp_rmb();
+		do_something(my_data);
+	}
+
+and the waker should do:
+
+	my_data = value;
+	smp_wmb();
+	event_indicated = 1;
+	wake_up(&event_wait_queue);
+
+
 MISCELLANEOUS FUNCTIONS
 -----------------------
 
@@ -1366,7 +1493,7 @@ WHERE ARE MEMORY BARRIERS NEEDED?
 
 Under normal operation, memory operation reordering is generally not going to
 be a problem as a single-threaded linear piece of code will still appear to
-work correctly, even if it's in an SMP kernel.  There are, however, three
+work correctly, even if it's in an SMP kernel.  There are, however, four
 circumstances in which reordering definitely _could_ be a problem:
 
  (*) Interprocessor interaction.

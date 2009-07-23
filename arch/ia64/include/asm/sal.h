@@ -106,10 +106,10 @@ struct ia64_sal_retval {
 	 * informational value should be printed (e.g., "reboot for
 	 * change to take effect").
 	 */
-	s64 status;
-	u64 v0;
-	u64 v1;
-	u64 v2;
+	long status;
+	unsigned long v0;
+	unsigned long v1;
+	unsigned long v2;
 };
 
 typedef struct ia64_sal_retval (*ia64_sal_handler) (u64, ...);

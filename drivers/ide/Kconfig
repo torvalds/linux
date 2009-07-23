@@ -46,7 +46,7 @@ menuconfig IDE
 	  SMART parameters from disk drives.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ide-core.ko.
+	  module will be called ide-core.
 
 	  For further information, please read <file:Documentation/ide/ide.txt>.
 

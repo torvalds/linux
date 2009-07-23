@@ -81,7 +81,6 @@ struct snd_usb_caiaqdev {
 
 	char vendor_name[CAIAQ_USB_STR_LEN];
 	char product_name[CAIAQ_USB_STR_LEN];
-	char serial[CAIAQ_USB_STR_LEN];
 
 	int n_streams, n_audio_in, n_audio_out;
 	int streaming, first_packet, output_running;

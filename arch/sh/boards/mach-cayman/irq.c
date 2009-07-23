@@ -142,26 +142,11 @@ int cayman_irq_demux(int evt)
 	return irq;
 }
 
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_SYSCTL)
-int cayman_irq_describe(char* p, int irq)
-{
-	if (irq < NR_INTC_IRQS) {
-		return intc_irq_describe(p, irq);
-	} else if (irq < NR_INTC_IRQS + 8) {
-		return sprintf(p, "(SMSC %d)", irq - NR_INTC_IRQS);
-	} else if ((irq >= NR_INTC_IRQS + 24) && (irq < NR_INTC_IRQS + 32)) {
-		return sprintf(p, "(PCI2 %d)", irq - (NR_INTC_IRQS + 24));
-	}
-
-	return 0;
-}
-#endif
-
 void init_cayman_irq(void)
 {
 	int i;
 
-	epld_virt = onchip_remap(EPLD_BASE, 1024, "EPLD");
+	epld_virt = (unsigned long)ioremap_nocache(EPLD_BASE, 1024);
 	if (!epld_virt) {
 		printk(KERN_ERR "Cayman IRQ: Unable to remap EPLD\n");
 		return;

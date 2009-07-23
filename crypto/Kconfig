@@ -241,6 +241,11 @@ config CRYPTO_XTS
 	  key size 256, 384 or 512 bits. This implementation currently
 	  can't handle a sectorsize which is not a multiple of 16 bytes.
 
+config CRYPTO_FPU
+	tristate
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+
 comment "Hash modes"
 
 config CRYPTO_HMAC
@@ -486,6 +491,7 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_AES_X86_64
 	select CRYPTO_CRYPTD
 	select CRYPTO_ALGAPI
+	select CRYPTO_FPU
 	help
 	  Use Intel AES-NI instructions for AES algorithm.
 
@@ -504,6 +510,10 @@ config CRYPTO_AES_NI_INTEL
 	  The AES specifies three key sizes: 128, 192 and 256 bits
 
 	  See <http://csrc.nist.gov/encryption/aes/> for more information.
+
+	  In addition to AES cipher algorithm support, the
+	  acceleration for some popular block cipher mode is supported
+	  too, including ECB, CBC, CTR, LRW, PCBC, XTS.
 
 config CRYPTO_ANUBIS
 	tristate "Anubis cipher algorithm"

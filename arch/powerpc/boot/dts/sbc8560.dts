@@ -57,8 +57,20 @@
 		#size-cells = <1>;
 		device_type = "soc";
 		ranges = <0x0 0xff700000 0x00100000>;
-		reg = <0xff700000 0x00100000>;
 		clock-frequency = <0>;
+
+		ecm-law@0 {
+			compatible = "fsl,ecm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <8>;
+		};
+
+		ecm@1000 {
+			compatible = "fsl,mpc8560-ecm", "fsl,ecm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
 
 		memory-controller@2000 {
 			compatible = "fsl,mpc8560-memory-controller";
@@ -296,7 +308,6 @@
 	};
 
 	pci0: pci@ff708000 {
-		cell-index = <0>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;

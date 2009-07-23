@@ -156,10 +156,10 @@ static int inet_csk_diag_fill(struct sock *sk,
 	r->idiag_inode = sock_i_ino(sk);
 
 	if (minfo) {
-		minfo->idiag_rmem = atomic_read(&sk->sk_rmem_alloc);
+		minfo->idiag_rmem = sk_rmem_alloc_get(sk);
 		minfo->idiag_wmem = sk->sk_wmem_queued;
 		minfo->idiag_fmem = sk->sk_forward_alloc;
-		minfo->idiag_tmem = atomic_read(&sk->sk_wmem_alloc);
+		minfo->idiag_tmem = sk_wmem_alloc_get(sk);
 	}
 
 	handler->idiag_get_info(sk, r, info);
@@ -198,8 +198,6 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 		tmo = 0;
 
 	r->idiag_family	      = tw->tw_family;
-	r->idiag_state	      = tw->tw_state;
-	r->idiag_timer	      = 0;
 	r->idiag_retrans      = 0;
 	r->id.idiag_if	      = tw->tw_bound_dev_if;
 	r->id.idiag_cookie[0] = (u32)(unsigned long)tw;

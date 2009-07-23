@@ -81,12 +81,6 @@ enum {
 	BT_CLOSED
 };
 
-/* Endianness conversions */
-#define htobs(a)	__cpu_to_le16(a)
-#define htobl(a)	__cpu_to_le32(a)
-#define btohs(a)	__le16_to_cpu(a)
-#define btohl(a)	__le32_to_cpu(a)
-
 /* BD Address */
 typedef struct {
 	__u8 b[6];
@@ -169,15 +163,6 @@ static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk, unsigned long l
 	}
 
 	return skb;
-}
-
-static inline int skb_frags_no(struct sk_buff *skb)
-{
-	register struct sk_buff *frag = skb_shinfo(skb)->frag_list;
-	register int n = 1;
-
-	for (; frag; frag=frag->next, n++);
-	return n;
 }
 
 int bt_err(__u16 code);

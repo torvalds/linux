@@ -30,7 +30,7 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/ssp.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -250,7 +250,7 @@ static DEFINE_PXA3_CKEN(pxa3xx_mmc2, MMC2, 19500000, 0);
 static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_pout, NULL, "CLK_POUT"),
 	/* Power I2C clock is always on */
-	INIT_CLKREG(&clk_dummy, "pxa2xx-i2c.1", NULL),
+	INIT_CLKREG(&clk_dummy, "pxa3xx-pwri2c.1", NULL),
 	INIT_CLKREG(&clk_pxa3xx_lcd, "pxa2xx-fb", NULL),
 	INIT_CLKREG(&clk_pxa3xx_camera, NULL, "CAMCLK"),
 	INIT_CLKREG(&clk_pxa3xx_ac97, NULL, "AC97CLK"),
@@ -552,7 +552,7 @@ void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 }
 
 static struct platform_device *devices[] __initdata = {
-/*	&pxa_device_udc,	The UDC driver is PXA25x only */
+	&pxa27x_device_udc,
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,

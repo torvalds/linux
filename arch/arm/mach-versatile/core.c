@@ -116,7 +116,7 @@ void __init versatile_init_irq(void)
 {
 	unsigned int i;
 
-	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0);
+	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0, 0);
 
 	set_irq_chained_handler(IRQ_VICSOURCE31, sic_handle_irq);
 
@@ -342,8 +342,7 @@ static struct platform_device versatile_i2c_device = {
 
 static struct i2c_board_info versatile_i2c_board_info[] = {
 	{
-		I2C_BOARD_INFO("rtc-ds1307", 0xd0 >> 1),
-		.type = "ds1338",
+		I2C_BOARD_INFO("ds1338", 0xd0 >> 1),
 	},
 };
 

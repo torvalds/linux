@@ -78,7 +78,7 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 		goto err;
 
 	if (!rtnl_trylock())
-		return -ERESTARTSYS;
+		return restart_syscall();
 
 	if (dev_isalive(net)) {
 		if ((ret = (*set)(net, new)) == 0)
@@ -225,7 +225,8 @@ static ssize_t store_ifalias(struct device *dev, struct device_attribute *attr,
 	if (len >  0 && buf[len - 1] == '\n')
 		--count;
 
-	rtnl_lock();
+	if (!rtnl_trylock())
+		return restart_syscall();
 	ret = dev_set_alias(netdev, buf, count);
 	rtnl_unlock();
 
@@ -238,7 +239,8 @@ static ssize_t show_ifalias(struct device *dev,
 	const struct net_device *netdev = to_net_dev(dev);
 	ssize_t ret = 0;
 
-	rtnl_lock();
+	if (!rtnl_trylock())
+		return restart_syscall();
 	if (netdev->ifalias)
 		ret = sprintf(buf, "%s\n", netdev->ifalias);
 	rtnl_unlock();
@@ -497,7 +499,6 @@ int netdev_register_kobject(struct net_device *net)
 	dev->platform_data = net;
 	dev->groups = groups;
 
-	BUILD_BUG_ON(BUS_ID_SIZE < IFNAMSIZ);
 	dev_set_name(dev, "%s", net->name);
 
 #ifdef CONFIG_SYSFS

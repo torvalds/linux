@@ -142,9 +142,9 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 		 */
 		match = 0;
 		if (dlen > 0 &&
-			(sbi->s_hide =='n' ||
+			(!sbi->s_hide ||
 				(!(de->flags[-sbi->s_high_sierra] & 1))) &&
-			(sbi->s_showassoc =='y' ||
+			(sbi->s_showassoc ||
 				(!(de->flags[-sbi->s_high_sierra] & 4)))) {
 			match = (isofs_cmp(dentry, dpnt, dlen) == 0);
 		}

@@ -58,6 +58,7 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/tty.h>
 #include <linux/errno.h>
 #include <linux/string.h>	/* used in new tty drivers */
@@ -1062,7 +1063,7 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 	struct r3964_client_info *pClient;
 	struct r3964_message *pMsg;
 	struct r3964_client_message theMsg;
-	int count;
+	int ret;
 
 	TRACE_L("read()");
 
@@ -1074,8 +1075,8 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 		if (pMsg == NULL) {
 			/* no messages available. */
 			if (file->f_flags & O_NONBLOCK) {
-				unlock_kernel();
-				return -EAGAIN;
+				ret = -EAGAIN;
+				goto unlock;
 			}
 			/* block until there is a message: */
 			wait_event_interruptible(pInfo->read_wait,
@@ -1085,29 +1086,31 @@ static ssize_t r3964_read(struct tty_struct *tty, struct file *file,
 		/* If we still haven't got a message, we must have been signalled */
 
 		if (!pMsg) {
-			unlock_kernel();
-			return -EINTR;
+			ret = -EINTR;
+			goto unlock;
 		}
 
 		/* deliver msg to client process: */
 		theMsg.msg_id = pMsg->msg_id;
 		theMsg.arg = pMsg->arg;
 		theMsg.error_code = pMsg->error_code;
-		count = sizeof(struct r3964_client_message);
+		ret = sizeof(struct r3964_client_message);
 
 		kfree(pMsg);
 		TRACE_M("r3964_read - msg kfree %p", pMsg);
 
-		if (copy_to_user(buf, &theMsg, count)) {
-			unlock_kernel();
-			return -EFAULT;
+		if (copy_to_user(buf, &theMsg, ret)) {
+			ret = -EFAULT;
+			goto unlock;
 		}
 
-		TRACE_PS("read - return %d", count);
-		return count;
+		TRACE_PS("read - return %d", ret);
+		goto unlock;
 	}
+	ret = -EPERM;
+unlock:
 	unlock_kernel();
-	return -EPERM;
+	return ret;
 }
 
 static ssize_t r3964_write(struct tty_struct *tty, struct file *file,

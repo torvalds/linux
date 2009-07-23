@@ -33,7 +33,6 @@
 #define _MACH_BLACKFIN_H_
 
 #include "bf548.h"
-#include "mem_map.h"
 #include "anomaly.h"
 
 #ifdef CONFIG_BF542

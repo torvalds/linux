@@ -1540,7 +1540,7 @@ static int strip_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!netif_running(dev)) {
 		printk(KERN_ERR "%s: xmit call when iface is down\n",
 		       dev->name);
-		return (1);
+		return NETDEV_TX_BUSY;
 	}
 
 	netif_stop_queue(dev);
@@ -2509,7 +2509,7 @@ static void strip_dev_setup(struct net_device *dev)
 	 *  netdev_priv(dev) Already holds a pointer to our struct strip
 	 */
 
-	*(MetricomAddress *) & dev->broadcast = broadcast_address;
+	*(MetricomAddress *)dev->broadcast = broadcast_address;
 	dev->dev_addr[0] = 0;
 	dev->addr_len = sizeof(MetricomAddress);
 

@@ -6,12 +6,17 @@
  * Licensed under the GPL-2 or later.
  */
 
-/* This file shoule be up to date with:
+/* This file should be up to date with:
  *  - Revision H, 01/16/2009; ADSP-BF542/BF544/BF547/BF548/BF549 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
 #define _MACH_ANOMALY_H_
+
+/* We do not support 0.0 or 0.1 silicon - sorry */
+#if __SILICON_REVISION__ < 2
+# error will not work on BF548 silicon version 0.0, or 0.1
+#endif
 
 /* Multi-Issue Instruction with dsp32shiftimm in slot1 and P-reg Store in slot2 Not Supported */
 #define ANOMALY_05000074 (1)
@@ -19,23 +24,23 @@
 #define ANOMALY_05000119 (1)
 /* Rx.H Cannot Be Used to Access 16-bit System MMR Registers */
 #define ANOMALY_05000122 (1)
-/* Spurious Hardware Error from an Access in the Shadow of a Conditional Branch */
+/* False Hardware Error from an Access in the Shadow of a Conditional Branch */
 #define ANOMALY_05000245 (1)
 /* Sensitivity To Noise with Slow Input Edge Rates on External SPORT TX and RX Clocks */
 #define ANOMALY_05000265 (1)
 /* Certain Data Cache Writethrough Modes Fail for Vddint <= 0.9V */
 #define ANOMALY_05000272 (1)
-/* False Hardware Error Exception when ISR context is not restored */
+/* False Hardware Error Exception when ISR Context Is Not Restored */
 #define ANOMALY_05000281 (__SILICON_REVISION__ < 1)
 /* SSYNCs After Writes To CAN/DMA MMR Registers Are Not Always Handled Correctly */
 #define ANOMALY_05000304 (__SILICON_REVISION__ < 1)
 /* False Hardware Errors Caused by Fetches at the Boundary of Reserved Memory */
 #define ANOMALY_05000310 (1)
-/* Errors When SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
+/* Errors when SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
 #define ANOMALY_05000312 (__SILICON_REVISION__ < 1)
 /* TWI Slave Boot Mode Is Not Functional */
 #define ANOMALY_05000324 (__SILICON_REVISION__ < 1)
-/* External FIFO Boot Mode Is Not Functional */
+/* FIFO Boot Mode Not Functional */
 #define ANOMALY_05000325 (__SILICON_REVISION__ < 2)
 /* Data Lost When Core and DMA Accesses Are Made to the USB FIFO Simultaneously */
 #define ANOMALY_05000327 (__SILICON_REVISION__ < 1)
@@ -59,7 +64,7 @@
 #define ANOMALY_05000340 (__SILICON_REVISION__ < 1)
 /* Boot Host Wait (HWAIT) and Boot Host Wait Alternate (HWAITA) Signals Are Swapped */
 #define ANOMALY_05000344 (__SILICON_REVISION__ < 1)
-/* USB Calibration Value Is Not Intialized */
+/* USB Calibration Value Is Not Initialized */
 #define ANOMALY_05000346 (__SILICON_REVISION__ < 1)
 /* USB Calibration Value to use */
 #define ANOMALY_05000346_value 0x5411
@@ -147,11 +152,11 @@
 #define ANOMALY_05000416 (1)
 /* Multichannel SPORT Channel Misalignment Under Specific Configuration */
 #define ANOMALY_05000425 (1)
-/* Speculative Fetches of Indirect-Pointer Instructions Can Cause Spurious Hardware Errors */
+/* Speculative Fetches of Indirect-Pointer Instructions Can Cause False Hardware Errors */
 #define ANOMALY_05000426 (1)
 /* CORE_EPPI_PRIO bit and SYS_EPPI_PRIO bit in the HMDMA1_CONTROL register are not functional */
 #define ANOMALY_05000427 (__SILICON_REVISION__ < 2)
-/* WB_EDGE Bit in NFC_IRQSTAT Incorrectly Behaves as a Buffer Status Bit Instead of an IRQ Status Bit */
+/* WB_EDGE Bit in NFC_IRQSTAT Incorrectly Reflects Buffer Status Instead of IRQ Status */
 #define ANOMALY_05000429 (__SILICON_REVISION__ < 2)
 /* Software System Reset Corrupts PLL_LOCKCNT Register */
 #define ANOMALY_05000430 (__SILICON_REVISION__ >= 2)
@@ -170,26 +175,61 @@
 /* Reduced Timing Margins on DDR Output Setup and Hold (tDS and tDH) */
 #define ANOMALY_05000449 (__SILICON_REVISION__ == 1)
 /* USB DMA Mode 1 Short Packet Data Corruption */
-#define ANOMALY_05000450 (1
+#define ANOMALY_05000450 (1)
+/* USB Receive Interrupt Is Not Generated in DMA Mode 1 */
+#define ANOMALY_05000456 (__SILICON_REVISION__ < 3)
+/* False Hardware Error when RETI Points to Invalid Memory */
+#define ANOMALY_05000461 (1)
+/* USB Rx DMA hang */
+#define ANOMALY_05000465 (1)
+/* Possible RX data corruption when control & data EP FIFOs are accessed via the core */
+#define ANOMALY_05000467 (1)
 
 /* Anomalies that don't exist on this proc */
+#define ANOMALY_05000099 (0)
+#define ANOMALY_05000120 (0)
 #define ANOMALY_05000125 (0)
+#define ANOMALY_05000149 (0)
 #define ANOMALY_05000158 (0)
+#define ANOMALY_05000171 (0)
+#define ANOMALY_05000179 (0)
+#define ANOMALY_05000182 (0)
 #define ANOMALY_05000183 (0)
+#define ANOMALY_05000189 (0)
 #define ANOMALY_05000198 (0)
+#define ANOMALY_05000202 (0)
+#define ANOMALY_05000215 (0)
+#define ANOMALY_05000220 (0)
+#define ANOMALY_05000227 (0)
 #define ANOMALY_05000230 (0)
+#define ANOMALY_05000231 (0)
+#define ANOMALY_05000233 (0)
+#define ANOMALY_05000234 (0)
+#define ANOMALY_05000242 (0)
 #define ANOMALY_05000244 (0)
+#define ANOMALY_05000248 (0)
+#define ANOMALY_05000250 (0)
+#define ANOMALY_05000254 (0)
+#define ANOMALY_05000257 (0)
 #define ANOMALY_05000261 (0)
 #define ANOMALY_05000263 (0)
 #define ANOMALY_05000266 (0)
 #define ANOMALY_05000273 (0)
+#define ANOMALY_05000274 (0)
 #define ANOMALY_05000278 (0)
+#define ANOMALY_05000283 (0)
+#define ANOMALY_05000287 (0)
+#define ANOMALY_05000301 (0)
 #define ANOMALY_05000305 (0)
 #define ANOMALY_05000307 (0)
 #define ANOMALY_05000311 (0)
+#define ANOMALY_05000315 (0)
 #define ANOMALY_05000323 (0)
+#define ANOMALY_05000362 (1)
 #define ANOMALY_05000363 (0)
+#define ANOMALY_05000364 (0)
 #define ANOMALY_05000380 (0)
+#define ANOMALY_05000400 (0)
 #define ANOMALY_05000412 (0)
 #define ANOMALY_05000432 (0)
 #define ANOMALY_05000435 (0)

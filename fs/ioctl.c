@@ -15,6 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>
+#include <linux/falloc.h>
 
 #include <asm/ioctls.h>
 
@@ -70,9 +71,7 @@ static int ioctl_fibmap(struct file *filp, int __user *p)
 	res = get_user(block, p);
 	if (res)
 		return res;
-	lock_kernel();
 	res = mapping->a_ops->bmap(mapping, block);
-	unlock_kernel();
 	return put_user(res, p);
 }
 
@@ -405,6 +404,37 @@ EXPORT_SYMBOL(generic_block_fiemap);
 
 #endif  /*  CONFIG_BLOCK  */
 
+/*
+ * This provides compatibility with legacy XFS pre-allocation ioctls
+ * which predate the fallocate syscall.
+ *
+ * Only the l_start, l_len and l_whence fields of the 'struct space_resv'
+ * are used here, rest are ignored.
+ */
+int ioctl_preallocate(struct file *filp, void __user *argp)
+{
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct space_resv sr;
+
+	if (copy_from_user(&sr, argp, sizeof(sr)))
+		return -EFAULT;
+
+	switch (sr.l_whence) {
+	case SEEK_SET:
+		break;
+	case SEEK_CUR:
+		sr.l_start += filp->f_pos;
+		break;
+	case SEEK_END:
+		sr.l_start += i_size_read(inode);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return do_fallocate(filp, FALLOC_FL_KEEP_SIZE, sr.l_start, sr.l_len);
+}
+
 static int file_ioctl(struct file *filp, unsigned int cmd,
 		unsigned long arg)
 {
@@ -414,12 +444,11 @@ static int file_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case FIBMAP:
 		return ioctl_fibmap(filp, p);
-	case FS_IOC_FIEMAP:
-		return ioctl_fiemap(filp, arg);
-	case FIGETBSZ:
-		return put_user(inode->i_sb->s_blocksize, p);
 	case FIONREAD:
 		return put_user(i_size_read(inode) - filp->f_pos, p);
+	case FS_IOC_RESVSP:
+	case FS_IOC_RESVSP64:
+		return ioctl_preallocate(filp, p);
 	}
 
 	return vfs_ioctl(filp, cmd, arg);
@@ -556,6 +585,16 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 	case FITHAW:
 		error = ioctl_fsthaw(filp);
 		break;
+
+	case FS_IOC_FIEMAP:
+		return ioctl_fiemap(filp, arg);
+
+	case FIGETBSZ:
+	{
+		struct inode *inode = filp->f_path.dentry->d_inode;
+		int __user *p = (int __user *)arg;
+		return put_user(inode->i_sb->s_blocksize, p);
+	}
 
 	default:
 		if (S_ISREG(filp->f_path.dentry->d_inode->i_mode))

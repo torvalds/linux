@@ -261,6 +261,8 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 					atomic_set(&tcon->num_reads, 0);
 					atomic_set(&tcon->num_oplock_brks, 0);
 					atomic_set(&tcon->num_opens, 0);
+					atomic_set(&tcon->num_posixopens, 0);
+					atomic_set(&tcon->num_posixmkdirs, 0);
 					atomic_set(&tcon->num_closes, 0);
 					atomic_set(&tcon->num_deletes, 0);
 					atomic_set(&tcon->num_mkdirs, 0);
@@ -347,11 +349,15 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 					atomic_read(&tcon->num_locks),
 					atomic_read(&tcon->num_hardlinks),
 					atomic_read(&tcon->num_symlinks));
-				seq_printf(m, "\nOpens: %d Closes: %d"
+				seq_printf(m, "\nOpens: %d Closes: %d "
 					      "Deletes: %d",
 					atomic_read(&tcon->num_opens),
 					atomic_read(&tcon->num_closes),
 					atomic_read(&tcon->num_deletes));
+				seq_printf(m, "\nPosix Opens: %d "
+					      "Posix Mkdirs: %d",
+					atomic_read(&tcon->num_posixopens),
+					atomic_read(&tcon->num_posixmkdirs));
 				seq_printf(m, "\nMkdirs: %d Rmdirs: %d",
 					atomic_read(&tcon->num_mkdirs),
 					atomic_read(&tcon->num_rmdirs));

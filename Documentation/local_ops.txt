@@ -34,7 +34,7 @@ out of order wrt other memory writes by the owner CPU.
 
 It can be done by slightly modifying the standard atomic operations : only
 their UP variant must be kept. It typically means removing LOCK prefix (on
-i386 and x86_64) and any SMP sychronization barrier. If the architecture does
+i386 and x86_64) and any SMP synchronization barrier. If the architecture does
 not have a different behavior between SMP and UP, including asm-generic/local.h
 in your architecture's local.h is sufficient.
 

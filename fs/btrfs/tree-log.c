@@ -430,18 +430,16 @@ no_copy:
 static noinline struct inode *read_one_inode(struct btrfs_root *root,
 					     u64 objectid)
 {
+	struct btrfs_key key;
 	struct inode *inode;
-	inode = btrfs_iget_locked(root->fs_info->sb, objectid, root);
-	if (inode->i_state & I_NEW) {
-		BTRFS_I(inode)->root = root;
-		BTRFS_I(inode)->location.objectid = objectid;
-		BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
-		BTRFS_I(inode)->location.offset = 0;
-		btrfs_read_locked_inode(inode);
-		unlock_new_inode(inode);
 
-	}
-	if (is_bad_inode(inode)) {
+	key.objectid = objectid;
+	key.type = BTRFS_INODE_ITEM_KEY;
+	key.offset = 0;
+	inode = btrfs_iget(root->fs_info->sb, &key, root);
+	if (IS_ERR(inode)) {
+		inode = NULL;
+	} else if (is_bad_inode(inode)) {
 		iput(inode);
 		inode = NULL;
 	}
@@ -541,6 +539,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
 	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
+		u64 offset;
 		unsigned long dest_offset;
 		struct btrfs_key ins;
 
@@ -555,6 +554,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		ins.objectid = btrfs_file_extent_disk_bytenr(eb, item);
 		ins.offset = btrfs_file_extent_disk_num_bytes(eb, item);
 		ins.type = BTRFS_EXTENT_ITEM_KEY;
+		offset = key->offset - btrfs_file_extent_offset(eb, item);
 
 		if (ins.objectid > 0) {
 			u64 csum_start;
@@ -569,19 +569,16 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			if (ret == 0) {
 				ret = btrfs_inc_extent_ref(trans, root,
 						ins.objectid, ins.offset,
-						path->nodes[0]->start,
-						root->root_key.objectid,
-						trans->transid, key->objectid);
+						0, root->root_key.objectid,
+						key->objectid, offset);
 			} else {
 				/*
 				 * insert the extent pointer in the extent
 				 * allocation tree
 				 */
-				ret = btrfs_alloc_logged_extent(trans, root,
-						path->nodes[0]->start,
-						root->root_key.objectid,
-						trans->transid, key->objectid,
-						&ins);
+				ret = btrfs_alloc_logged_file_extent(trans,
+						root, root->root_key.objectid,
+						key->objectid, offset, &ins);
 				BUG_ON(ret);
 			}
 			btrfs_release_path(root, path);
@@ -1706,9 +1703,6 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
 
-				ret = btrfs_drop_leaf_ref(trans, root, next);
-				BUG_ON(ret);
-
 				WARN_ON(root_owner !=
 					BTRFS_TREE_LOG_OBJECTID);
 				ret = btrfs_free_reserved_extent(root,
@@ -1753,10 +1747,6 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 		btrfs_wait_tree_block_writeback(next);
 		btrfs_tree_unlock(next);
 
-		if (*level == 0) {
-			ret = btrfs_drop_leaf_ref(trans, root, next);
-			BUG_ON(ret);
-		}
 		WARN_ON(root_owner != BTRFS_TREE_LOG_OBJECTID);
 		ret = btrfs_free_reserved_extent(root, bytenr, blocksize);
 		BUG_ON(ret);
@@ -1810,12 +1800,6 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 				btrfs_set_lock_blocking(next);
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
-
-				if (*level == 0) {
-					ret = btrfs_drop_leaf_ref(trans, root,
-								  next);
-					BUG_ON(ret);
-				}
 
 				WARN_ON(root_owner != BTRFS_TREE_LOG_OBJECTID);
 				ret = btrfs_free_reserved_extent(root,
@@ -1884,11 +1868,6 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 			btrfs_wait_tree_block_writeback(next);
 			btrfs_tree_unlock(next);
 
-			if (orig_level == 0) {
-				ret = btrfs_drop_leaf_ref(trans, log,
-							  next);
-				BUG_ON(ret);
-			}
 			WARN_ON(log->root_key.objectid !=
 				BTRFS_TREE_LOG_OBJECTID);
 			ret = btrfs_free_reserved_extent(log, next->start,
@@ -2027,9 +2006,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_and_wait_marked_extents(log, &log->dirty_log_pages);
 	BUG_ON(ret);
 
-	btrfs_set_root_bytenr(&log->root_item, log->node->start);
-	btrfs_set_root_generation(&log->root_item, trans->transid);
-	btrfs_set_root_level(&log->root_item, btrfs_header_level(log->node));
+	btrfs_set_root_node(&log->root_item, log->node);
 
 	root->log_batch = 0;
 	root->log_transid++;
@@ -2581,7 +2558,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 				       ins_keys, ins_sizes, nr);
 	BUG_ON(ret);
 
-	for (i = 0; i < nr; i++) {
+	for (i = 0; i < nr; i++, dst_path->slots[0]++) {
 		dst_offset = btrfs_item_ptr_offset(dst_path->nodes[0],
 						   dst_path->slots[0]);
 
@@ -2617,36 +2594,31 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 			found_type = btrfs_file_extent_type(src, extent);
 			if (found_type == BTRFS_FILE_EXTENT_REG ||
 			    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
-				u64 ds = btrfs_file_extent_disk_bytenr(src,
-								   extent);
-				u64 dl = btrfs_file_extent_disk_num_bytes(src,
-								      extent);
-				u64 cs = btrfs_file_extent_offset(src, extent);
-				u64 cl = btrfs_file_extent_num_bytes(src,
-								     extent);;
+				u64 ds, dl, cs, cl;
+				ds = btrfs_file_extent_disk_bytenr(src,
+								extent);
+				/* ds == 0 is a hole */
+				if (ds == 0)
+					continue;
+
+				dl = btrfs_file_extent_disk_num_bytes(src,
+								extent);
+				cs = btrfs_file_extent_offset(src, extent);
+				cl = btrfs_file_extent_num_bytes(src,
+								extent);;
 				if (btrfs_file_extent_compression(src,
 								  extent)) {
 					cs = 0;
 					cl = dl;
 				}
-				/* ds == 0 is a hole */
-				if (ds != 0) {
-					ret = btrfs_inc_extent_ref(trans, log,
-						   ds, dl,
-						   dst_path->nodes[0]->start,
-						   BTRFS_TREE_LOG_OBJECTID,
-						   trans->transid,
-						   ins_keys[i].objectid);
-					BUG_ON(ret);
-					ret = btrfs_lookup_csums_range(
-						   log->fs_info->csum_root,
-						   ds + cs, ds + cs + cl - 1,
-						   &ordered_sums);
-					BUG_ON(ret);
-				}
+
+				ret = btrfs_lookup_csums_range(
+						log->fs_info->csum_root,
+						ds + cs, ds + cs + cl - 1,
+						&ordered_sums);
+				BUG_ON(ret);
 			}
 		}
-		dst_path->slots[0]++;
 	}
 
 	btrfs_mark_buffer_dirty(dst_path->nodes[0]);
@@ -3029,9 +3001,7 @@ again:
 		BUG_ON(!wc.replay_dest);
 
 		wc.replay_dest->log_root = log;
-		mutex_lock(&fs_info->trans_mutex);
-		btrfs_record_root_in_trans(wc.replay_dest);
-		mutex_unlock(&fs_info->trans_mutex);
+		btrfs_record_root_in_trans(trans, wc.replay_dest);
 		ret = walk_log_tree(trans, log, &wc);
 		BUG_ON(ret);
 
@@ -3049,6 +3019,7 @@ again:
 		key.offset = found_key.offset - 1;
 		wc.replay_dest->log_root = NULL;
 		free_extent_buffer(log->node);
+		free_extent_buffer(log->commit_root);
 		kfree(log);
 
 		if (found_key.offset == 0)

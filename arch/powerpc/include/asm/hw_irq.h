@@ -68,37 +68,37 @@ static inline int irqs_disabled_flags(unsigned long flags)
 
 #if defined(CONFIG_BOOKE)
 #define SET_MSR_EE(x)	mtmsr(x)
-#define local_irq_restore(flags)	__asm__ __volatile__("wrtee %0" : : "r" (flags) : "memory")
+#define raw_local_irq_restore(flags)	__asm__ __volatile__("wrtee %0" : : "r" (flags) : "memory")
 #else
 #define SET_MSR_EE(x)	mtmsr(x)
-#define local_irq_restore(flags)	mtmsr(flags)
+#define raw_local_irq_restore(flags)	mtmsr(flags)
 #endif
 
-static inline void local_irq_disable(void)
+static inline void raw_local_irq_disable(void)
 {
 #ifdef CONFIG_BOOKE
 	__asm__ __volatile__("wrteei 0": : :"memory");
 #else
 	unsigned long msr;
-	__asm__ __volatile__("": : :"memory");
+
 	msr = mfmsr();
 	SET_MSR_EE(msr & ~MSR_EE);
 #endif
 }
 
-static inline void local_irq_enable(void)
+static inline void raw_local_irq_enable(void)
 {
 #ifdef CONFIG_BOOKE
 	__asm__ __volatile__("wrteei 1": : :"memory");
 #else
 	unsigned long msr;
-	__asm__ __volatile__("": : :"memory");
+
 	msr = mfmsr();
 	SET_MSR_EE(msr | MSR_EE);
 #endif
 }
 
-static inline void local_irq_save_ptr(unsigned long *flags)
+static inline void raw_local_irq_save_ptr(unsigned long *flags)
 {
 	unsigned long msr;
 	msr = mfmsr();
@@ -108,15 +108,14 @@ static inline void local_irq_save_ptr(unsigned long *flags)
 #else
 	SET_MSR_EE(msr & ~MSR_EE);
 #endif
-	__asm__ __volatile__("": : :"memory");
 }
 
-#define local_save_flags(flags)	((flags) = mfmsr())
-#define local_irq_save(flags)	local_irq_save_ptr(&flags)
-#define irqs_disabled()		((mfmsr() & MSR_EE) == 0)
+#define raw_local_save_flags(flags)	((flags) = mfmsr())
+#define raw_local_irq_save(flags)	raw_local_irq_save_ptr(&flags)
+#define raw_irqs_disabled()		((mfmsr() & MSR_EE) == 0)
+#define raw_irqs_disabled_flags(flags)	(((flags) & MSR_EE) == 0)
 
-#define hard_irq_enable()	local_irq_enable()
-#define hard_irq_disable()	local_irq_disable()
+#define hard_irq_disable()		raw_local_irq_disable()
 
 static inline int irqs_disabled_flags(unsigned long flags)
 {
@@ -130,6 +129,44 @@ static inline int irqs_disabled_flags(unsigned long flags)
  * or should we not care like we do now ? --BenH.
  */
 struct irq_chip;
+
+#ifdef CONFIG_PERF_COUNTERS
+
+#ifdef CONFIG_PPC64
+static inline unsigned long test_perf_counter_pending(void)
+{
+	unsigned long x;
+
+	asm volatile("lbz %0,%1(13)"
+		: "=r" (x)
+		: "i" (offsetof(struct paca_struct, perf_counter_pending)));
+	return x;
+}
+
+static inline void set_perf_counter_pending(void)
+{
+	asm volatile("stb %0,%1(13)" : :
+		"r" (1),
+		"i" (offsetof(struct paca_struct, perf_counter_pending)));
+}
+
+static inline void clear_perf_counter_pending(void)
+{
+	asm volatile("stb %0,%1(13)" : :
+		"r" (0),
+		"i" (offsetof(struct paca_struct, perf_counter_pending)));
+}
+#endif /* CONFIG_PPC64 */
+
+#else  /* CONFIG_PERF_COUNTERS */
+
+static inline unsigned long test_perf_counter_pending(void)
+{
+	return 0;
+}
+
+static inline void clear_perf_counter_pending(void) {}
+#endif /* CONFIG_PERF_COUNTERS */
 
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_POWERPC_HW_IRQ_H */

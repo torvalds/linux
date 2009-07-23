@@ -72,58 +72,58 @@ static struct clk clk_h;
 static struct clk clk_p;
 static struct clk clk_pll2;
 static struct clk clk_usb_host = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= EP93XX_SYSCON_CLOCK_USH_EN,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_USH_EN,
 };
 
 /* DMA Clocks */
 static struct clk clk_m2p0 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x00020000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P0,
 };
 static struct clk clk_m2p1 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x00010000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P1,
 };
 static struct clk clk_m2p2 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x00080000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P2,
 };
 static struct clk clk_m2p3 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x00040000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P3,
 };
 static struct clk clk_m2p4 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x00200000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P4,
 };
 static struct clk clk_m2p5 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x00100000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P5,
 };
 static struct clk clk_m2p6 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x00800000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P6,
 };
 static struct clk clk_m2p7 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x00400000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P7,
 };
 static struct clk clk_m2p8 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x02000000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P8,
 };
 static struct clk clk_m2p9 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x01000000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2P9,
 };
 static struct clk clk_m2m0 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x04000000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2M0,
 };
 static struct clk clk_m2m1 = {
-	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
-	.enable_mask	= 0x08000000,
+	.enable_reg	= EP93XX_SYSCON_PWRCNT,
+	.enable_mask	= EP93XX_SYSCON_PWRCNT_DMA_M2M1,
 };
 
 #define INIT_CK(dev,con,ck)					\
@@ -138,7 +138,7 @@ static struct clk_lookup clocks[] = {
 	INIT_CK(NULL, "hclk", &clk_h),
 	INIT_CK(NULL, "pclk", &clk_p),
 	INIT_CK(NULL, "pll2", &clk_pll2),
-	INIT_CK(NULL, "usb_host", &clk_usb_host),
+	INIT_CK("ep93xx-ohci", NULL, &clk_usb_host),
 	INIT_CK(NULL, "m2p0", &clk_m2p0),
 	INIT_CK(NULL, "m2p1", &clk_m2p1),
 	INIT_CK(NULL, "m2p2", &clk_m2p2),
@@ -186,8 +186,8 @@ static unsigned long get_uart_rate(struct clk *clk)
 {
 	u32 value;
 
-	value = __raw_readl(EP93XX_SYSCON_CLOCK_CONTROL);
-	if (value & EP93XX_SYSCON_CLOCK_UARTBAUD)
+	value = __raw_readl(EP93XX_SYSCON_PWRCNT);
+	if (value & EP93XX_SYSCON_PWRCNT_UARTBAUD)
 		return EP93XX_EXT_CLK_RATE;
 	else
 		return EP93XX_EXT_CLK_RATE / 2;

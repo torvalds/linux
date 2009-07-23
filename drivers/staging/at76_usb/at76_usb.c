@@ -3242,12 +3242,11 @@ static int at76_tx(struct sk_buff *skb, struct net_device *netdev)
 			       "%s: -EINVAL: tx urb %p hcpriv %p complete %p\n",
 			       priv->netdev->name, priv->tx_urb,
 			       priv->tx_urb->hcpriv, priv->tx_urb->complete);
-	} else {
+	} else
 		stats->tx_bytes += skb->len;
-		dev_kfree_skb(skb);
-	}
 
-	return ret;
+	dev_kfree_skb(skb);
+	return NETDEV_TX_OK;
 }
 
 static void at76_tx_timeout(struct net_device *netdev)

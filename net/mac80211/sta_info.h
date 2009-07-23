@@ -88,6 +88,7 @@ struct tid_ampdu_tx {
  * struct tid_ampdu_rx - TID aggregation information (Rx).
  *
  * @reorder_buf: buffer to reorder incoming aggregated MPDUs
+ * @reorder_time: jiffies when skb was added
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
  * @head_seq_num: head sequence number in reordering buffer.
  * @stored_mpdu_num: number of MPDUs in reordering buffer
@@ -99,6 +100,7 @@ struct tid_ampdu_tx {
  */
 struct tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
+	unsigned long *reorder_time;
 	struct timer_list session_timer;
 	u16 head_seq_num;
 	u16 stored_mpdu_num;
@@ -214,6 +216,7 @@ struct sta_ampdu_mlme {
  * @plink_state: peer link state
  * @plink_timeout: timeout of peer link
  * @plink_timer: peer link watch timer
+ * @plink_timer_was_running: used by suspend/resume to restore timers
  * @debugfs: debug filesystem info
  * @sta: station information we share with the driver
  */
@@ -291,6 +294,7 @@ struct sta_info {
 	__le16 reason;
 	u8 plink_retries;
 	bool ignore_plink_timer;
+	bool plink_timer_was_running;
 	enum plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
@@ -442,8 +446,7 @@ void sta_info_init(struct ieee80211_local *local);
 int sta_info_start(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);
 int sta_info_flush(struct ieee80211_local *local,
-		    struct ieee80211_sub_if_data *sdata);
-void sta_info_flush_delayed(struct ieee80211_sub_if_data *sdata);
+		   struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			  unsigned long exp_time);
 

@@ -189,10 +189,10 @@ void set_gptimer_status(int group, uint32_t value)
 }
 EXPORT_SYMBOL(set_gptimer_status);
 
-uint16_t get_gptimer_intr(int timer_id)
+int get_gptimer_intr(int timer_id)
 {
 	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
-	return (group_regs[BFIN_TIMER_OCTET(timer_id)]->status & timil_mask[timer_id]) ? 1 : 0;
+	return !!(group_regs[BFIN_TIMER_OCTET(timer_id)]->status & timil_mask[timer_id]);
 }
 EXPORT_SYMBOL(get_gptimer_intr);
 
@@ -203,10 +203,10 @@ void clear_gptimer_intr(int timer_id)
 }
 EXPORT_SYMBOL(clear_gptimer_intr);
 
-uint16_t get_gptimer_over(int timer_id)
+int get_gptimer_over(int timer_id)
 {
 	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
-	return (group_regs[BFIN_TIMER_OCTET(timer_id)]->status & tovf_mask[timer_id]) ? 1 : 0;
+	return !!(group_regs[BFIN_TIMER_OCTET(timer_id)]->status & tovf_mask[timer_id]);
 }
 EXPORT_SYMBOL(get_gptimer_over);
 
@@ -216,6 +216,13 @@ void clear_gptimer_over(int timer_id)
 	group_regs[BFIN_TIMER_OCTET(timer_id)]->status = tovf_mask[timer_id];
 }
 EXPORT_SYMBOL(clear_gptimer_over);
+
+int get_gptimer_run(int timer_id)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	return !!(group_regs[BFIN_TIMER_OCTET(timer_id)]->status & trun_mask[timer_id]);
+}
+EXPORT_SYMBOL(get_gptimer_run);
 
 void set_gptimer_config(int timer_id, uint16_t config)
 {
@@ -244,7 +251,7 @@ void enable_gptimers(uint16_t mask)
 }
 EXPORT_SYMBOL(enable_gptimers);
 
-void disable_gptimers(uint16_t mask)
+static void _disable_gptimers(uint16_t mask)
 {
 	int i;
 	uint16_t m = mask;
@@ -253,12 +260,25 @@ void disable_gptimers(uint16_t mask)
 		group_regs[i]->disable = m & 0xFF;
 		m >>= 8;
 	}
+}
+
+void disable_gptimers(uint16_t mask)
+{
+	int i;
+	_disable_gptimers(mask);
 	for (i = 0; i < MAX_BLACKFIN_GPTIMERS; ++i)
 		if (mask & (1 << i))
 			group_regs[BFIN_TIMER_OCTET(i)]->status |= trun_mask[i];
 	SSYNC();
 }
 EXPORT_SYMBOL(disable_gptimers);
+
+void disable_gptimers_sync(uint16_t mask)
+{
+	_disable_gptimers(mask);
+	SSYNC();
+}
+EXPORT_SYMBOL(disable_gptimers_sync);
 
 void set_gptimer_pulse_hi(int timer_id)
 {

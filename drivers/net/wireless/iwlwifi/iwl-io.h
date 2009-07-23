@@ -131,9 +131,23 @@ static inline void __iwl_set_bit(const char *f, u32 l,
 	IWL_DEBUG_IO(priv, "set_bit(0x%08X, 0x%08X) = 0x%08X\n", reg, mask, val);
 	_iwl_write32(priv, reg, val);
 }
-#define iwl_set_bit(p, r, m) __iwl_set_bit(__FILE__, __LINE__, p, r, m)
+static inline void iwl_set_bit(struct iwl_priv *p, u32 r, u32 m)
+{
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&p->reg_lock, reg_flags);
+	__iwl_set_bit(__FILE__, __LINE__, p, r, m);
+	spin_unlock_irqrestore(&p->reg_lock, reg_flags);
+}
 #else
-#define iwl_set_bit(p, r, m) _iwl_set_bit(p, r, m)
+static inline void iwl_set_bit(struct iwl_priv *p, u32 r, u32 m)
+{
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&p->reg_lock, reg_flags);
+	_iwl_set_bit(p, r, m);
+	spin_unlock_irqrestore(&p->reg_lock, reg_flags);
+}
 #endif
 
 static inline void _iwl_clear_bit(struct iwl_priv *priv, u32 reg, u32 mask)
@@ -148,19 +162,30 @@ static inline void __iwl_clear_bit(const char *f, u32 l,
 	IWL_DEBUG_IO(priv, "clear_bit(0x%08X, 0x%08X) = 0x%08X\n", reg, mask, val);
 	_iwl_write32(priv, reg, val);
 }
-#define iwl_clear_bit(p, r, m) __iwl_clear_bit(__FILE__, __LINE__, p, r, m)
+static inline void iwl_clear_bit(struct iwl_priv *p, u32 r, u32 m)
+{
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&p->reg_lock, reg_flags);
+	__iwl_clear_bit(__FILE__, __LINE__, p, r, m);
+	spin_unlock_irqrestore(&p->reg_lock, reg_flags);
+}
 #else
-#define iwl_clear_bit(p, r, m) _iwl_clear_bit(p, r, m)
+static inline void iwl_clear_bit(struct iwl_priv *p, u32 r, u32 m)
+{
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&p->reg_lock, reg_flags);
+	_iwl_clear_bit(p, r, m);
+	spin_unlock_irqrestore(&p->reg_lock, reg_flags);
+}
 #endif
 
 static inline int _iwl_grab_nic_access(struct iwl_priv *priv)
 {
 	int ret;
 	u32 val;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (atomic_read(&priv->restrict_refcnt))
-		return 0;
-#endif
+
 	/* this bit wakes up the NIC */
 	_iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	ret = _iwl_poll_bit(priv, CSR_GP_CNTRL,
@@ -170,12 +195,10 @@ static inline int _iwl_grab_nic_access(struct iwl_priv *priv)
 	if (ret < 0) {
 		val = _iwl_read32(priv, CSR_GP_CNTRL);
 		IWL_ERR(priv, "MAC is in deep sleep!.  CSR_GP_CNTRL = 0x%08X\n", val);
+		_iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_FORCE_NMI);
 		return -EIO;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-	atomic_inc(&priv->restrict_refcnt);
-#endif
 	return 0;
 }
 
@@ -183,9 +206,6 @@ static inline int _iwl_grab_nic_access(struct iwl_priv *priv)
 static inline int __iwl_grab_nic_access(const char *f, u32 l,
 					       struct iwl_priv *priv)
 {
-	if (atomic_read(&priv->restrict_refcnt))
-		IWL_ERR(priv, "Grabbing access while already held %s %d.\n", f, l);
-
 	IWL_DEBUG_IO(priv, "grabbing nic access - %s %d\n", f, l);
 	return _iwl_grab_nic_access(priv);
 }
@@ -198,18 +218,13 @@ static inline int __iwl_grab_nic_access(const char *f, u32 l,
 
 static inline void _iwl_release_nic_access(struct iwl_priv *priv)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (atomic_dec_and_test(&priv->restrict_refcnt))
-#endif
-		_iwl_clear_bit(priv, CSR_GP_CNTRL,
-			       CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	_iwl_clear_bit(priv, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 }
 #ifdef CONFIG_IWLWIFI_DEBUG
 static inline void __iwl_release_nic_access(const char *f, u32 l,
 					    struct iwl_priv *priv)
 {
-	if (atomic_read(&priv->restrict_refcnt) <= 0)
-		IWL_ERR(priv, "Release unheld nic access at line %s %d.\n", f, l);
 
 	IWL_DEBUG_IO(priv, "releasing nic access - %s %d\n", f, l);
 	_iwl_release_nic_access(priv);
@@ -230,16 +245,37 @@ static inline u32 __iwl_read_direct32(const char *f, u32 l,
 					struct iwl_priv *priv, u32 reg)
 {
 	u32 value = _iwl_read_direct32(priv, reg);
-	if (!atomic_read(&priv->restrict_refcnt))
-		IWL_ERR(priv, "Nic access not held from %s %d\n", f, l);
 	IWL_DEBUG_IO(priv, "read_direct32(0x%4X) = 0x%08x - %s %d \n", reg, value,
 		     f, l);
 	return value;
 }
-#define iwl_read_direct32(priv, reg) \
-	__iwl_read_direct32(__FILE__, __LINE__, priv, reg)
+static inline u32 iwl_read_direct32(struct iwl_priv *priv, u32 reg)
+{
+	u32 value;
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	iwl_grab_nic_access(priv);
+	value = __iwl_read_direct32(__FILE__, __LINE__, priv, reg);
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+	return value;
+}
+
 #else
-#define iwl_read_direct32 _iwl_read_direct32
+static inline u32 iwl_read_direct32(struct iwl_priv *priv, u32 reg)
+{
+	u32 value;
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	iwl_grab_nic_access(priv);
+	value = _iwl_read_direct32(priv, reg);
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+	return value;
+
+}
 #endif
 
 static inline void _iwl_write_direct32(struct iwl_priv *priv,
@@ -247,19 +283,17 @@ static inline void _iwl_write_direct32(struct iwl_priv *priv,
 {
 	_iwl_write32(priv, reg, value);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
-static void __iwl_write_direct32(const char *f , u32 line,
-				   struct iwl_priv *priv, u32 reg, u32 value)
+static inline void iwl_write_direct32(struct iwl_priv *priv, u32 reg, u32 value)
 {
-	if (!atomic_read(&priv->restrict_refcnt))
-		IWL_ERR(priv, "Nic access not held from %s line %d\n", f, line);
-	_iwl_write_direct32(priv, reg, value);
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	if (!iwl_grab_nic_access(priv)) {
+		_iwl_write_direct32(priv, reg, value);
+		iwl_release_nic_access(priv);
+	}
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
-#define iwl_write_direct32(priv, reg, value) \
-	__iwl_write_direct32(__func__, __LINE__, priv, reg, value)
-#else
-#define iwl_write_direct32 _iwl_write_direct32
-#endif
 
 static inline void iwl_write_reg_buf(struct iwl_priv *priv,
 					       u32 reg, u32 len, u32 *values)
@@ -268,14 +302,23 @@ static inline void iwl_write_reg_buf(struct iwl_priv *priv,
 
 	if ((priv != NULL) && (values != NULL)) {
 		for (; 0 < len; len -= count, reg += count, values++)
-			_iwl_write_direct32(priv, reg, *values);
+			iwl_write_direct32(priv, reg, *values);
 	}
 }
 
 static inline int _iwl_poll_direct_bit(struct iwl_priv *priv, u32 addr,
 				       u32 mask, int timeout)
 {
-	return _iwl_poll_bit(priv, addr, mask, mask, timeout);
+	int t = 0;
+
+	do {
+		if ((iwl_read_direct32(priv, addr) & mask) == mask)
+			return t;
+		udelay(IWL_POLL_INTERVAL);
+		t += IWL_POLL_INTERVAL;
+	} while (t < timeout);
+
+	return -ETIMEDOUT;
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -305,20 +348,18 @@ static inline u32 _iwl_read_prph(struct iwl_priv *priv, u32 reg)
 	rmb();
 	return _iwl_read_direct32(priv, HBUS_TARG_PRPH_RDAT);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
-static inline u32 __iwl_read_prph(const char *f, u32 line,
-				  struct iwl_priv *priv, u32 reg)
+static inline u32 iwl_read_prph(struct iwl_priv *priv, u32 reg)
 {
-	if (!atomic_read(&priv->restrict_refcnt))
-		IWL_ERR(priv, "Nic access not held from %s line %d\n", f, line);
-	return _iwl_read_prph(priv, reg);
-}
+	unsigned long reg_flags;
+	u32 val;
 
-#define iwl_read_prph(priv, reg) \
-	__iwl_read_prph(__func__, __LINE__, priv, reg)
-#else
-#define iwl_read_prph _iwl_read_prph
-#endif
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	iwl_grab_nic_access(priv);
+	val = _iwl_read_prph(priv, reg);
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+	return val;
+}
 
 static inline void _iwl_write_prph(struct iwl_priv *priv,
 					     u32 addr, u32 val)
@@ -328,83 +369,107 @@ static inline void _iwl_write_prph(struct iwl_priv *priv,
 	wmb();
 	_iwl_write_direct32(priv, HBUS_TARG_PRPH_WDAT, val);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
-static inline void __iwl_write_prph(const char *f, u32 line,
-				    struct iwl_priv *priv, u32 addr, u32 val)
-{
-	if (!atomic_read(&priv->restrict_refcnt))
-		IWL_ERR(priv, "Nic access not held from %s line %d\n", f, line);
-	_iwl_write_prph(priv, addr, val);
-}
 
-#define iwl_write_prph(priv, addr, val) \
-	__iwl_write_prph(__func__, __LINE__, priv, addr, val);
-#else
-#define iwl_write_prph _iwl_write_prph
-#endif
+static inline void iwl_write_prph(struct iwl_priv *priv, u32 addr, u32 val)
+{
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	if (!iwl_grab_nic_access(priv)) {
+		_iwl_write_prph(priv, addr, val);
+		iwl_release_nic_access(priv);
+	}
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+}
 
 #define _iwl_set_bits_prph(priv, reg, mask) \
 	_iwl_write_prph(priv, reg, (_iwl_read_prph(priv, reg) | mask))
-#ifdef CONFIG_IWLWIFI_DEBUG
-static inline void __iwl_set_bits_prph(const char *f, u32 line,
-				       struct iwl_priv *priv,
-				       u32 reg, u32 mask)
-{
-	if (!atomic_read(&priv->restrict_refcnt))
-		IWL_ERR(priv, "Nic access not held from %s line %d\n", f, line);
 
+static inline void iwl_set_bits_prph(struct iwl_priv *priv, u32 reg, u32 mask)
+{
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	iwl_grab_nic_access(priv);
 	_iwl_set_bits_prph(priv, reg, mask);
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
-#define iwl_set_bits_prph(priv, reg, mask) \
-	__iwl_set_bits_prph(__func__, __LINE__, priv, reg, mask)
-#else
-#define iwl_set_bits_prph _iwl_set_bits_prph
-#endif
 
 #define _iwl_set_bits_mask_prph(priv, reg, bits, mask) \
 	_iwl_write_prph(priv, reg, ((_iwl_read_prph(priv, reg) & mask) | bits))
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-static inline void __iwl_set_bits_mask_prph(const char *f, u32 line,
-		struct iwl_priv *priv, u32 reg, u32 bits, u32 mask)
+static inline void iwl_set_bits_mask_prph(struct iwl_priv *priv, u32 reg,
+				u32 bits, u32 mask)
 {
-	if (!atomic_read(&priv->restrict_refcnt))
-		IWL_ERR(priv, "Nic access not held from %s line %d\n", f, line);
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	iwl_grab_nic_access(priv);
 	_iwl_set_bits_mask_prph(priv, reg, bits, mask);
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
-#define iwl_set_bits_mask_prph(priv, reg, bits, mask) \
-	__iwl_set_bits_mask_prph(__func__, __LINE__, priv, reg, bits, mask)
-#else
-#define iwl_set_bits_mask_prph _iwl_set_bits_mask_prph
-#endif
 
 static inline void iwl_clear_bits_prph(struct iwl_priv
 						 *priv, u32 reg, u32 mask)
 {
-	u32 val = _iwl_read_prph(priv, reg);
+	unsigned long reg_flags;
+	u32 val;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	iwl_grab_nic_access(priv);
+	val = _iwl_read_prph(priv, reg);
 	_iwl_write_prph(priv, reg, (val & ~mask));
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
 
 static inline u32 iwl_read_targ_mem(struct iwl_priv *priv, u32 addr)
 {
-	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, addr);
+	unsigned long reg_flags;
+	u32 value;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	iwl_grab_nic_access(priv);
+
+	_iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, addr);
 	rmb();
-	return iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+	value = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
+	return value;
 }
 
 static inline void iwl_write_targ_mem(struct iwl_priv *priv, u32 addr, u32 val)
 {
-	iwl_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
-	wmb();
-	iwl_write_direct32(priv, HBUS_TARG_MEM_WDAT, val);
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	if (!iwl_grab_nic_access(priv)) {
+		_iwl_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
+		wmb();
+		_iwl_write_direct32(priv, HBUS_TARG_MEM_WDAT, val);
+		iwl_release_nic_access(priv);
+	}
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
 
 static inline void iwl_write_targ_mem_buf(struct iwl_priv *priv, u32 addr,
 					  u32 len, u32 *values)
 {
-	iwl_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
-	wmb();
-	for (; 0 < len; len -= sizeof(u32), values++)
-		iwl_write_direct32(priv, HBUS_TARG_MEM_WDAT, *values);
+	unsigned long reg_flags;
+
+	spin_lock_irqsave(&priv->reg_lock, reg_flags);
+	if (!iwl_grab_nic_access(priv)) {
+		_iwl_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
+		wmb();
+		for (; 0 < len; len -= sizeof(u32), values++)
+			_iwl_write_direct32(priv, HBUS_TARG_MEM_WDAT, *values);
+
+		iwl_release_nic_access(priv);
+	}
+	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
 #endif

@@ -30,6 +30,8 @@ extern unsigned int kmmio_count;
 
 extern int register_kmmio_probe(struct kmmio_probe *p);
 extern void unregister_kmmio_probe(struct kmmio_probe *p);
+extern int kmmio_init(void);
+extern void kmmio_cleanup(void);
 
 #ifdef CONFIG_MMIOTRACE
 /* kmmio is active by some kmmio_probes? */

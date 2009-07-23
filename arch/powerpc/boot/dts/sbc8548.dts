@@ -151,9 +151,21 @@
 		#size-cells = <1>;
 		device_type = "soc";
 		ranges = <0x00000000 0xe0000000 0x00100000>;
-		reg = <0xe0000000 0x00001000>;	// CCSRBAR
 		bus-frequency = <0>;
 		compatible = "simple-bus";
+
+		ecm-law@0 {
+			compatible = "fsl,ecm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <10>;
+		};
+
+		ecm@1000 {
+			compatible = "fsl,mpc8548-ecm", "fsl,ecm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
 
 		memory-controller@2000 {
 			compatible = "fsl,mpc8548-memory-controller";
@@ -350,7 +362,6 @@
 	};
 
 	pci0: pci@e0008000 {
-		cell-index = <0>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 			/* IDSEL 0x01 (PCI-X slot) @66MHz */
@@ -380,7 +391,6 @@
 	};
 
 	pci2: pcie@e000a000 {
-		cell-index = <2>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 

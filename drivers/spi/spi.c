@@ -265,7 +265,7 @@ int spi_add_device(struct spi_device *spi)
 	 * normally rely on the device being setup.  Devices
 	 * using SPI_CS_HIGH can't coexist well otherwise...
 	 */
-	status = spi->master->setup(spi);
+	status = spi_setup(spi);
 	if (status < 0) {
 		dev_err(dev, "can't %s %s, status %d\n",
 				"setup", dev_name(&spi->dev), status);
@@ -583,6 +583,70 @@ EXPORT_SYMBOL_GPL(spi_busnum_to_master);
 
 /*-------------------------------------------------------------------------*/
 
+/* Core methods for SPI master protocol drivers.  Some of the
+ * other core methods are currently defined as inline functions.
+ */
+
+/**
+ * spi_setup - setup SPI mode and clock rate
+ * @spi: the device whose settings are being modified
+ * Context: can sleep, and no requests are queued to the device
+ *
+ * SPI protocol drivers may need to update the transfer mode if the
+ * device doesn't work with its default.  They may likewise need
+ * to update clock rates or word sizes from initial values.  This function
+ * changes those settings, and must be called from a context that can sleep.
+ * Except for SPI_CS_HIGH, which takes effect immediately, the changes take
+ * effect the next time the device is selected and data is transferred to
+ * or from it.  When this function returns, the spi device is deselected.
+ *
+ * Note that this call will fail if the protocol driver specifies an option
+ * that the underlying controller or its driver does not support.  For
+ * example, not all hardware supports wire transfers using nine bit words,
+ * LSB-first wire encoding, or active-high chipselects.
+ */
+int spi_setup(struct spi_device *spi)
+{
+	unsigned	bad_bits;
+	int		status;
+
+	/* help drivers fail *cleanly* when they need options
+	 * that aren't supported with their current master
+	 */
+	bad_bits = spi->mode & ~spi->master->mode_bits;
+	if (bad_bits) {
+		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
+			bad_bits);
+		return -EINVAL;
+	}
+
+	if (!spi->bits_per_word)
+		spi->bits_per_word = 8;
+
+	status = spi->master->setup(spi);
+
+	dev_dbg(&spi->dev, "setup mode %d, %s%s%s%s"
+				"%u bits/w, %u Hz max --> %d\n",
+			(int) (spi->mode & (SPI_CPOL | SPI_CPHA)),
+			(spi->mode & SPI_CS_HIGH) ? "cs_high, " : "",
+			(spi->mode & SPI_LSB_FIRST) ? "lsb, " : "",
+			(spi->mode & SPI_3WIRE) ? "3wire, " : "",
+			(spi->mode & SPI_LOOP) ? "loopback, " : "",
+			spi->bits_per_word, spi->max_speed_hz,
+			status);
+
+	return status;
+}
+EXPORT_SYMBOL_GPL(spi_setup);
+
+
+/*-------------------------------------------------------------------------*/
+
+/* Utility methods for SPI master protocol drivers, layered on
+ * top of the core.  Some other utility methods are defined as
+ * inline functions.
+ */
+
 static void spi_complete(void *arg)
 {
 	complete(arg);
@@ -636,8 +700,8 @@ static u8	*buf;
  * @spi: device with which data will be exchanged
  * @txbuf: data to be written (need not be dma-safe)
  * @n_tx: size of txbuf, in bytes
- * @rxbuf: buffer into which data will be read
- * @n_rx: size of rxbuf, in bytes (need not be dma-safe)
+ * @rxbuf: buffer into which data will be read (need not be dma-safe)
+ * @n_rx: size of rxbuf, in bytes
  * Context: can sleep
  *
  * This performs a half duplex MicroWire style transaction with the

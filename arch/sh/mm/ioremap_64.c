@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/addrspace.h>
@@ -27,88 +28,17 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu.h>
 
-static void shmedia_mapioaddr(unsigned long, unsigned long);
-static unsigned long shmedia_ioremap(struct resource *, u32, int);
-
-/*
- * Generic mapping function (not visible outside):
- */
-
-/*
- * Remap an arbitrary physical address space into the kernel virtual
- * address space. Needed when the kernel wants to access high addresses
- * directly.
- *
- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
- * have to convert them into an offset in a page-aligned mapping, but the
- * caller shouldn't need to know that small detail.
- */
-void *__ioremap(unsigned long phys_addr, unsigned long size,
-		unsigned long flags)
-{
-	void * addr;
-	struct vm_struct * area;
-	unsigned long offset, last_addr;
-	pgprot_t pgprot;
-
-	/* Don't allow wraparound or zero size */
-	last_addr = phys_addr + size - 1;
-	if (!size || last_addr < phys_addr)
-		return NULL;
-
-	pgprot = __pgprot(_PAGE_PRESENT  | _PAGE_READ   |
-			  _PAGE_WRITE    | _PAGE_DIRTY  |
-			  _PAGE_ACCESSED | _PAGE_SHARED | flags);
-
-	/*
-	 * Mappings have to be page-aligned
-	 */
-	offset = phys_addr & ~PAGE_MASK;
-	phys_addr &= PAGE_MASK;
-	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
-
-	/*
-	 * Ok, go for it..
-	 */
-	area = get_vm_area(size, VM_IOREMAP);
-	if (!area)
-		return NULL;
-	pr_debug("Get vm_area returns %p addr %p\n", area, area->addr);
-	area->phys_addr = phys_addr;
-	addr = area->addr;
-	if (ioremap_page_range((unsigned long)addr, (unsigned long)addr + size,
-			       phys_addr, pgprot)) {
-		vunmap(addr);
-		return NULL;
-	}
-	return (void *) (offset + (char *)addr);
-}
-EXPORT_SYMBOL(__ioremap);
-
-void __iounmap(void *addr)
-{
-	struct vm_struct *area;
-
-	vfree((void *) (PAGE_MASK & (unsigned long) addr));
-	area = remove_vm_area((void *) (PAGE_MASK & (unsigned long) addr));
-	if (!area) {
-		printk(KERN_ERR "iounmap: bad address %p\n", addr);
-		return;
-	}
-
-	kfree(area);
-}
-EXPORT_SYMBOL(__iounmap);
-
 static struct resource shmedia_iomap = {
 	.name	= "shmedia_iomap",
 	.start	= IOBASE_VADDR + PAGE_SIZE,
 	.end	= IOBASE_END - 1,
 };
 
-static void shmedia_mapioaddr(unsigned long pa, unsigned long va);
+static void shmedia_mapioaddr(unsigned long pa, unsigned long va,
+			      unsigned long flags);
 static void shmedia_unmapioaddr(unsigned long vaddr);
-static unsigned long shmedia_ioremap(struct resource *res, u32 pa, int sz);
+static void __iomem *shmedia_ioremap(struct resource *res, u32 pa,
+				     int sz, unsigned long flags);
 
 /*
  * We have the same problem as the SPARC, so lets have the same comment:
@@ -130,18 +60,18 @@ static struct xresource xresv[XNRES];
 
 static struct xresource *xres_alloc(void)
 {
-        struct xresource *xrp;
-        int n;
+	struct xresource *xrp;
+	int n;
 
-        xrp = xresv;
-        for (n = 0; n < XNRES; n++) {
-                if (xrp->xflag == 0) {
-                        xrp->xflag = 1;
-                        return xrp;
-                }
-                xrp++;
-        }
-        return NULL;
+	xrp = xresv;
+	for (n = 0; n < XNRES; n++) {
+		if (xrp->xflag == 0) {
+			xrp->xflag = 1;
+			return xrp;
+		}
+		xrp++;
+	}
+	return NULL;
 }
 
 static void xres_free(struct xresource *xrp)
@@ -161,76 +91,71 @@ static struct resource *shmedia_find_resource(struct resource *root,
 	return NULL;
 }
 
-static unsigned long shmedia_alloc_io(unsigned long phys, unsigned long size,
-				      const char *name)
+static void __iomem *shmedia_alloc_io(unsigned long phys, unsigned long size,
+				      const char *name, unsigned long flags)
 {
-        static int printed_full = 0;
-        struct xresource *xres;
-        struct resource *res;
-        char *tack;
-        int tlen;
+	static int printed_full;
+	struct xresource *xres;
+	struct resource *res;
+	char *tack;
+	int tlen;
 
-        if (name == NULL) name = "???";
+	if (name == NULL)
+		name = "???";
 
-        if ((xres = xres_alloc()) != 0) {
-                tack = xres->xname;
-                res = &xres->xres;
-        } else {
-                if (!printed_full) {
-                        printk("%s: done with statics, switching to kmalloc\n",
-			       __func__);
-                        printed_full = 1;
-                }
-                tlen = strlen(name);
-                tack = kmalloc(sizeof (struct resource) + tlen + 1, GFP_KERNEL);
-                if (!tack)
-			return -ENOMEM;
-                memset(tack, 0, sizeof(struct resource));
-                res = (struct resource *) tack;
-                tack += sizeof (struct resource);
-        }
+	xres = xres_alloc();
+	if (xres != 0) {
+		tack = xres->xname;
+		res = &xres->xres;
+	} else {
+		if (!printed_full) {
+			printk(KERN_NOTICE "%s: done with statics, "
+			       "switching to kmalloc\n", __func__);
+			printed_full = 1;
+		}
+		tlen = strlen(name);
+		tack = kmalloc(sizeof(struct resource) + tlen + 1, GFP_KERNEL);
+		if (!tack)
+			return NULL;
+		memset(tack, 0, sizeof(struct resource));
+		res = (struct resource *) tack;
+		tack += sizeof(struct resource);
+	}
 
-        strncpy(tack, name, XNMLN);
-        tack[XNMLN] = 0;
-        res->name = tack;
+	strncpy(tack, name, XNMLN);
+	tack[XNMLN] = 0;
+	res->name = tack;
 
-        return shmedia_ioremap(res, phys, size);
+	return shmedia_ioremap(res, phys, size, flags);
 }
 
-static unsigned long shmedia_ioremap(struct resource *res, u32 pa, int sz)
+static void __iomem *shmedia_ioremap(struct resource *res, u32 pa, int sz,
+				     unsigned long flags)
 {
-        unsigned long offset = ((unsigned long) pa) & (~PAGE_MASK);
+	unsigned long offset = ((unsigned long) pa) & (~PAGE_MASK);
 	unsigned long round_sz = (offset + sz + PAGE_SIZE-1) & PAGE_MASK;
-        unsigned long va;
-        unsigned int psz;
+	unsigned long va;
+	unsigned int psz;
 
-        if (allocate_resource(&shmedia_iomap, res, round_sz,
+	if (allocate_resource(&shmedia_iomap, res, round_sz,
 			      shmedia_iomap.start, shmedia_iomap.end,
 			      PAGE_SIZE, NULL, NULL) != 0) {
-                panic("alloc_io_res(%s): cannot occupy\n",
-                    (res->name != NULL)? res->name: "???");
-        }
+		panic("alloc_io_res(%s): cannot occupy\n",
+		      (res->name != NULL) ? res->name : "???");
+	}
 
-        va = res->start;
-        pa &= PAGE_MASK;
+	va = res->start;
+	pa &= PAGE_MASK;
 
 	psz = (res->end - res->start + (PAGE_SIZE - 1)) / PAGE_SIZE;
 
-	/* log at boot time ... */
-	printk("mapioaddr: %6s  [%2d page%s]  va 0x%08lx   pa 0x%08x\n",
-	       ((res->name != NULL) ? res->name : "???"),
-	       psz, psz == 1 ? " " : "s", va, pa);
+	for (psz = res->end - res->start + 1; psz != 0; psz -= PAGE_SIZE) {
+		shmedia_mapioaddr(pa, va, flags);
+		va += PAGE_SIZE;
+		pa += PAGE_SIZE;
+	}
 
-        for (psz = res->end - res->start + 1; psz != 0; psz -= PAGE_SIZE) {
-                shmedia_mapioaddr(pa, va);
-                va += PAGE_SIZE;
-                pa += PAGE_SIZE;
-        }
-
-        res->start += offset;
-        res->end = res->start + sz - 1;         /* not strictly necessary.. */
-
-        return res->start;
+	return (void __iomem *)(unsigned long)(res->start + offset);
 }
 
 static void shmedia_free_io(struct resource *res)
@@ -249,14 +174,12 @@ static void shmedia_free_io(struct resource *res)
 
 static __init_refok void *sh64_get_page(void)
 {
-	extern int after_bootmem;
 	void *page;
 
-	if (after_bootmem) {
-		page = (void *)get_zeroed_page(GFP_ATOMIC);
-	} else {
+	if (slab_is_available())
+		page = (void *)get_zeroed_page(GFP_KERNEL);
+	else
 		page = alloc_bootmem_pages(PAGE_SIZE);
-	}
 
 	if (!page || ((unsigned long)page & ~PAGE_MASK))
 		panic("sh64_get_page: Out of memory already?\n");
@@ -264,16 +187,19 @@ static __init_refok void *sh64_get_page(void)
 	return page;
 }
 
-static void shmedia_mapioaddr(unsigned long pa, unsigned long va)
+static void shmedia_mapioaddr(unsigned long pa, unsigned long va,
+			      unsigned long flags)
 {
 	pgd_t *pgdp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep, pte;
 	pgprot_t prot;
-	unsigned long flags = 1; /* 1 = CB0-1 device */
 
 	pr_debug("shmedia_mapiopage pa %08lx va %08lx\n",  pa, va);
+
+	if (!flags)
+		flags = 1; /* 1 = CB0-1 device */
 
 	pgdp = pgd_offset_k(va);
 	if (pgd_none(*pgdp) || !pgd_present(*pgdp)) {
@@ -288,7 +214,7 @@ static void shmedia_mapioaddr(unsigned long pa, unsigned long va)
 	}
 
 	pmdp = pmd_offset(pudp, va);
-	if (pmd_none(*pmdp) || !pmd_present(*pmdp) ) {
+	if (pmd_none(*pmdp) || !pmd_present(*pmdp)) {
 		ptep = (pte_t *)sh64_get_page();
 		set_pmd(pmdp, __pmd((unsigned long)ptep + _PAGE_TABLE));
 	}
@@ -336,17 +262,19 @@ static void shmedia_unmapioaddr(unsigned long vaddr)
 	pte_clear(&init_mm, vaddr, ptep);
 }
 
-unsigned long onchip_remap(unsigned long phys, unsigned long size, const char *name)
+void __iomem *__ioremap(unsigned long offset, unsigned long size,
+			unsigned long flags)
 {
-	if (size < PAGE_SIZE)
-		size = PAGE_SIZE;
+	char name[14];
 
-	return shmedia_alloc_io(phys, size, name);
+	sprintf(name, "phys_%08x", (u32)offset);
+	return shmedia_alloc_io(offset, size, name, flags);
 }
-EXPORT_SYMBOL(onchip_remap);
+EXPORT_SYMBOL(__ioremap);
 
-void onchip_unmap(unsigned long vaddr)
+void __iounmap(void __iomem *virtual)
 {
+	unsigned long vaddr = (unsigned long)virtual & PAGE_MASK;
 	struct resource *res;
 	unsigned int psz;
 
@@ -357,10 +285,7 @@ void onchip_unmap(unsigned long vaddr)
 		return;
 	}
 
-        psz = (res->end - res->start + (PAGE_SIZE - 1)) / PAGE_SIZE;
-
-        printk(KERN_DEBUG "unmapioaddr: %6s  [%2d page%s] freed\n",
-	       res->name, psz, psz == 1 ? " " : "s");
+	psz = (res->end - res->start + (PAGE_SIZE - 1)) / PAGE_SIZE;
 
 	shmedia_free_io(res);
 
@@ -371,9 +296,8 @@ void onchip_unmap(unsigned long vaddr)
 		kfree(res);
 	}
 }
-EXPORT_SYMBOL(onchip_unmap);
+EXPORT_SYMBOL(__iounmap);
 
-#ifdef CONFIG_PROC_FS
 static int
 ioremap_proc_info(char *buf, char **start, off_t fpos, int length, int *eof,
 		  void *data)
@@ -385,7 +309,10 @@ ioremap_proc_info(char *buf, char **start, off_t fpos, int length, int *eof,
 	for (r = ((struct resource *)data)->child; r != NULL; r = r->sibling) {
 		if (p + 32 >= e)        /* Better than nothing */
 			break;
-		if ((nm = r->name) == 0) nm = "???";
+		nm = r->name;
+		if (nm == NULL)
+			nm = "???";
+
 		p += sprintf(p, "%08lx-%08lx: %s\n",
 			     (unsigned long)r->start,
 			     (unsigned long)r->end, nm);
@@ -393,14 +320,11 @@ ioremap_proc_info(char *buf, char **start, off_t fpos, int length, int *eof,
 
 	return p-buf;
 }
-#endif /* CONFIG_PROC_FS */
 
 static int __init register_proc_onchip(void)
 {
-#ifdef CONFIG_PROC_FS
-	create_proc_read_entry("io_map",0,0, ioremap_proc_info, &shmedia_iomap);
-#endif
+	create_proc_read_entry("io_map", 0, 0, ioremap_proc_info,
+			       &shmedia_iomap);
 	return 0;
 }
-
-__initcall(register_proc_onchip);
+late_initcall(register_proc_onchip);

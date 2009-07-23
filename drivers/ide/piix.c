@@ -98,7 +98,7 @@ static void piix_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		control |= 1;	/* Programmable timing on */
 	if (drive->media == ide_disk)
 		control |= 4;	/* Prefetch, post write */
-	if (pio > 2)
+	if (ide_pio_need_iordy(drive, pio))
 		control |= 2;	/* IORDY */
 	if (is_slave) {
 		master_data |=  0x4000;

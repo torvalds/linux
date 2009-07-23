@@ -39,10 +39,14 @@
 // WPA OUI
 UCHAR		OUI_WPA_NONE_AKM[4]		= {0x00, 0x50, 0xF2, 0x00};
 UCHAR       OUI_WPA_VERSION[4]      = {0x00, 0x50, 0xF2, 0x01};
+#ifndef RT30xx
 UCHAR       OUI_WPA_WEP40[4]      = {0x00, 0x50, 0xF2, 0x01};
+#endif
 UCHAR       OUI_WPA_TKIP[4]     = {0x00, 0x50, 0xF2, 0x02};
 UCHAR       OUI_WPA_CCMP[4]     = {0x00, 0x50, 0xF2, 0x04};
+#ifndef RT30xx
 UCHAR       OUI_WPA_WEP104[4]      = {0x00, 0x50, 0xF2, 0x05};
+#endif
 UCHAR       OUI_WPA_8021X_AKM[4]	= {0x00, 0x50, 0xF2, 0x01};
 UCHAR       OUI_WPA_PSK_AKM[4]      = {0x00, 0x50, 0xF2, 0x02};
 // WPA2 OUI
@@ -51,7 +55,9 @@ UCHAR       OUI_WPA2_TKIP[4]        = {0x00, 0x0F, 0xAC, 0x02};
 UCHAR       OUI_WPA2_CCMP[4]        = {0x00, 0x0F, 0xAC, 0x04};
 UCHAR       OUI_WPA2_8021X_AKM[4]   = {0x00, 0x0F, 0xAC, 0x01};
 UCHAR       OUI_WPA2_PSK_AKM[4]   	= {0x00, 0x0F, 0xAC, 0x02};
+#ifndef RT30xx
 UCHAR       OUI_WPA2_WEP104[4]   = {0x00, 0x0F, 0xAC, 0x05};
+#endif
 // MSA OUI
 UCHAR   	OUI_MSA_8021X_AKM[4]    = {0x00, 0x0F, 0xAC, 0x05};		// Not yet final - IEEE 802.11s-D1.06
 UCHAR   	OUI_MSA_PSK_AKM[4]   	= {0x00, 0x0F, 0xAC, 0x06};		// Not yet final - IEEE 802.11s-D1.06
@@ -370,7 +376,7 @@ static VOID RTMPInsertRsnIeCipher(
                 break;
         }
 
-#ifdef CONFIG_STA_SUPPORT
+#ifndef RT30xx
 		if ((pAd->OpMode == OPMODE_STA) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption2Enabled) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption3Enabled))
@@ -386,8 +392,7 @@ static VOID RTMPInsertRsnIeCipher(
 					break;
 			}
 		}
-#endif // CONFIG_STA_SUPPORT //
-
+#endif
 		// swap for big-endian platform
 		pRsnie_cipher->version = cpu2le16(pRsnie_cipher->version);
 	    pRsnie_cipher->ucount = cpu2le16(pRsnie_cipher->ucount);
@@ -448,7 +453,7 @@ static VOID RTMPInsertRsnIeCipher(
                 break;
         }
 
-#ifdef CONFIG_STA_SUPPORT
+#ifndef RT30xx
 		if ((pAd->OpMode == OPMODE_STA) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption2Enabled) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption3Enabled))
@@ -464,8 +469,7 @@ static VOID RTMPInsertRsnIeCipher(
 					break;
 			}
 		}
-#endif // CONFIG_STA_SUPPORT //
-
+#endif
 		// swap for big-endian platform
 		pRsnie_cipher->version = cpu2le16(pRsnie_cipher->version);
 	    pRsnie_cipher->ucount = cpu2le16(pRsnie_cipher->ucount);
@@ -621,23 +625,19 @@ VOID RTMPMakeRSNIE(
 	UCHAR		PrimaryRsnie;
 	BOOLEAN		bMixCipher = FALSE;	// indicate the pairwise and group cipher are different
 	UCHAR		p_offset;
-	WPA_MIX_PAIR_CIPHER		FlexibleCipher = MIX_CIPHER_NOTUSE;	// it provide the more flexible cipher combination in WPA-WPA2 and TKIPAES mode
+	WPA_MIX_PAIR_CIPHER		FlexibleCipher = WPA_TKIPAES_WPA2_TKIPAES;	// it provide the more flexible cipher combination in WPA-WPA2 and TKIPAES mode
 
 	rsnielen_cur_p = NULL;
 	rsnielen_ex_cur_p = NULL;
 
 	{
-#ifdef CONFIG_STA_SUPPORT
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
-#ifdef WPA_SUPPLICANT_SUPPORT
 			if (pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE)
 			{
 				if (AuthMode < Ndis802_11AuthModeWPA)
 					return;
 			}
 			else
-#endif // WPA_SUPPLICANT_SUPPORT //
 			{
 				// Support WPAPSK or WPA2PSK in STA-Infra mode
 				// Support WPANone in STA-Adhoc mode
@@ -660,7 +660,6 @@ VOID RTMPMakeRSNIE(
 
 			bMixCipher = pAd->StaCfg.bMixCipher;
 		}
-#endif // CONFIG_STA_SUPPORT //
 	}
 
 	// indicate primary RSNIE as WPA or WPA2
@@ -1130,11 +1129,6 @@ BOOLEAN RTMPParseEapolKeyData(
      	DBGPRINT(RT_DEBUG_ERROR, ("ERROR: GTK Key index(%d) is invalid in %s %s \n", DefaultIdx, ((bWPA2) ? "WPA2" : "WPA"), GetEapolMsgType(MsgType)));
         return FALSE;
     }
-
-
-#ifdef CONFIG_STA_SUPPORT
-	// Todo
-#endif // CONFIG_STA_SUPPORT //
 
 	return TRUE;
 

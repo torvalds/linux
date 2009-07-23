@@ -497,10 +497,10 @@ static int dm9601_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	int len;
 
 	/* format:
-	   b0: rx status
-	   b1: packet length (incl crc) low
-	   b2: packet length (incl crc) high
-	   b3..n-4: packet data
+	   b1: rx status
+	   b2: packet length (incl crc) low
+	   b3: packet length (incl crc) high
+	   b4..n-4: packet data
 	   bn-3..bn: ethernet crc
 	 */
 
@@ -513,11 +513,11 @@ static int dm9601_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	len = (skb->data[1] | (skb->data[2] << 8)) - 4;
 
 	if (unlikely(status & 0xbf)) {
-		if (status & 0x01) dev->stats.rx_fifo_errors++;
-		if (status & 0x02) dev->stats.rx_crc_errors++;
-		if (status & 0x04) dev->stats.rx_frame_errors++;
-		if (status & 0x20) dev->stats.rx_missed_errors++;
-		if (status & 0x90) dev->stats.rx_length_errors++;
+		if (status & 0x01) dev->net->stats.rx_fifo_errors++;
+		if (status & 0x02) dev->net->stats.rx_crc_errors++;
+		if (status & 0x04) dev->net->stats.rx_frame_errors++;
+		if (status & 0x20) dev->net->stats.rx_missed_errors++;
+		if (status & 0x90) dev->net->stats.rx_length_errors++;
 		return 0;
 	}
 
@@ -533,8 +533,8 @@ static struct sk_buff *dm9601_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	int len;
 
 	/* format:
-	   b0: packet length low
-	   b1: packet length high
+	   b1: packet length low
+	   b2: packet length high
 	   b3..n: packet data
 	*/
 

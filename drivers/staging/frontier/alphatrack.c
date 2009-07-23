@@ -39,7 +39,6 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/mutex.h>
-#include <linux/version.h>
 
 #include <linux/uaccess.h>
 #include <linux/input.h>

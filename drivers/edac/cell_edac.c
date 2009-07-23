@@ -227,7 +227,7 @@ static struct platform_driver cell_edac_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= cell_edac_probe,
-	.remove		= cell_edac_remove,
+	.remove		= __devexit_p(cell_edac_remove),
 };
 
 static int __init cell_edac_init(void)

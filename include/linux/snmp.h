@@ -18,7 +18,7 @@
 enum
 {
 	IPSTATS_MIB_NUM = 0,
-	IPSTATS_MIB_INRECEIVES,			/* InReceives */
+	IPSTATS_MIB_INPKTS,			/* InReceives */
 	IPSTATS_MIB_INHDRERRORS,		/* InHdrErrors */
 	IPSTATS_MIB_INTOOBIGERRORS,		/* InTooBigErrors */
 	IPSTATS_MIB_INNOROUTES,			/* InNoRoutes */
@@ -28,7 +28,7 @@ enum
 	IPSTATS_MIB_INDISCARDS,			/* InDiscards */
 	IPSTATS_MIB_INDELIVERS,			/* InDelivers */
 	IPSTATS_MIB_OUTFORWDATAGRAMS,		/* OutForwDatagrams */
-	IPSTATS_MIB_OUTREQUESTS,		/* OutRequests */
+	IPSTATS_MIB_OUTPKTS,			/* OutRequests */
 	IPSTATS_MIB_OUTDISCARDS,		/* OutDiscards */
 	IPSTATS_MIB_OUTNOROUTES,		/* OutNoRoutes */
 	IPSTATS_MIB_REASMTIMEOUT,		/* ReasmTimeout */
@@ -42,6 +42,12 @@ enum
 	IPSTATS_MIB_OUTMCASTPKTS,		/* OutMcastPkts */
 	IPSTATS_MIB_INBCASTPKTS,		/* InBcastPkts */
 	IPSTATS_MIB_OUTBCASTPKTS,		/* OutBcastPkts */
+	IPSTATS_MIB_INOCTETS,			/* InOctets */
+	IPSTATS_MIB_OUTOCTETS,			/* OutOctets */
+	IPSTATS_MIB_INMCASTOCTETS,		/* InMcastOctets */
+	IPSTATS_MIB_OUTMCASTOCTETS,		/* OutMcastOctets */
+	IPSTATS_MIB_INBCASTOCTETS,		/* InBcastOctets */
+	IPSTATS_MIB_OUTBCASTOCTETS,		/* OutBcastOctets */
 	__IPSTATS_MIB_MAX
 };
 

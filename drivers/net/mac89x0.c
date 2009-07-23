@@ -73,8 +73,6 @@ static char *version =
    or override something. */
 #include <linux/module.h>
 
-#define PRINTK(x) printk x
-
 /*
   Sources:
 
@@ -402,7 +400,7 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 		/* Gasp!  It hasn't.  But that shouldn't happen since
 		   we're waiting for TxOk, so return 1 and requeue this packet. */
 		local_irq_restore(flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	/* Write the contents of the packet */

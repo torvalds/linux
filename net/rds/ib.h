@@ -333,7 +333,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op);
 void rds_ib_send_add_credits(struct rds_connection *conn, unsigned int credits);
 void rds_ib_advertise_credits(struct rds_connection *conn, unsigned int posted);
 int rds_ib_send_grab_credits(struct rds_ib_connection *ic, u32 wanted,
-			     u32 *adv_credits, int need_posted);
+			     u32 *adv_credits, int need_posted, int max_posted);
 
 /* ib_stats.c */
 DECLARE_PER_CPU(struct rds_ib_statistics, rds_ib_stats);

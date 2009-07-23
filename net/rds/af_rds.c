@@ -35,7 +35,6 @@
 #include <linux/kernel.h>
 #include <linux/in.h>
 #include <linux/poll.h>
-#include <linux/version.h>
 #include <net/sock.h>
 
 #include "rds.h"

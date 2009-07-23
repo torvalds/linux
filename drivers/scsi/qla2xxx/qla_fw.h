@@ -878,7 +878,6 @@ struct device_reg_24xx {
 					/* HCCR statuses. */
 #define HCCRX_HOST_INT		BIT_6	/* Host to RISC interrupt bit. */
 #define HCCRX_RISC_RESET	BIT_5	/* RISC Reset mode bit. */
-#define HCCRX_RISC_PAUSE	BIT_4	/* RISC Pause mode bit. */
 					/* HCCR commands. */
 					/* NOOP. */
 #define HCCRX_NOOP		0x00000000
@@ -1241,6 +1240,7 @@ struct qla_flt_header {
 #define FLT_REG_HW_EVENT_1	0x1f
 #define FLT_REG_NPIV_CONF_0	0x29
 #define FLT_REG_NPIV_CONF_1	0x2a
+#define FLT_REG_GOLD_FW		0x2f
 
 struct qla_flt_region {
 	uint32_t code;
@@ -1405,6 +1405,8 @@ struct access_chip_rsp_84xx {
 #define MBC_IDC_ACK		0x101
 #define MBC_RESTART_MPI_FW	0x3d
 #define MBC_FLASH_ACCESS_CTRL	0x3e	/* Control flash access. */
+#define MBC_GET_XGMAC_STATS	0x7a
+#define MBC_GET_DCBX_PARAMS	0x51
 
 /* Flash access control option field bit definitions */
 #define FAC_OPT_FORCE_SEMAPHORE		BIT_15
@@ -1711,7 +1713,7 @@ struct ex_init_cb_81xx {
 #define FA_VPD0_ADDR_81		0xD0000
 #define FA_VPD1_ADDR_81		0xD0400
 #define FA_NVRAM0_ADDR_81	0xD0080
-#define FA_NVRAM1_ADDR_81	0xD0480
+#define FA_NVRAM1_ADDR_81	0xD0180
 #define FA_FEATURE_ADDR_81	0xD4000
 #define FA_FLASH_DESCR_ADDR_81	0xD8000
 #define FA_FLASH_LAYOUT_ADDR_81	0xD8400

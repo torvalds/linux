@@ -2,6 +2,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/init.h>
+#include <linux/smp.h>
 
 #include <asm/io.h>
 #include <asm/gic.h>
@@ -106,9 +107,7 @@ static unsigned int gic_irq_startup(unsigned int irq)
 {
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	irq -= _irqbase;
-	/* FIXME: this is wrong for !GICISWORDLITTLEENDIAN */
-	GICWRITE(GIC_REG_ADDR(SHARED, (GIC_SH_SMASK_31_0_OFS + (irq / 32))),
-		 1 << (irq % 32));
+	GIC_SET_INTR_MASK(irq, 1);
 	return 0;
 }
 
@@ -119,8 +118,7 @@ static void gic_irq_ack(unsigned int irq)
 #endif
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	irq -= _irqbase;
-	GICWRITE(GIC_REG_ADDR(SHARED, (GIC_SH_RMASK_31_0_OFS + (irq / 32))),
-		 1 << (irq % 32));
+	GIC_CLR_INTR_MASK(irq, 1);
 
 	if (_intrmap[irq].trigtype == GIC_TRIG_EDGE) {
 		if (!gic_wedgeb2bok)
@@ -137,25 +135,21 @@ static void gic_mask_irq(unsigned int irq)
 {
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	irq -= _irqbase;
-	/* FIXME: this is wrong for !GICISWORDLITTLEENDIAN */
-	GICWRITE(GIC_REG_ADDR(SHARED, (GIC_SH_RMASK_31_0_OFS + (irq / 32))),
-		 1 << (irq % 32));
+	GIC_CLR_INTR_MASK(irq, 1);
 }
 
 static void gic_unmask_irq(unsigned int irq)
 {
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	irq -= _irqbase;
-	/* FIXME: this is wrong for !GICISWORDLITTLEENDIAN */
-	GICWRITE(GIC_REG_ADDR(SHARED, (GIC_SH_SMASK_31_0_OFS + (irq / 32))),
-		 1 << (irq % 32));
+	GIC_SET_INTR_MASK(irq, 1);
 }
 
 #ifdef CONFIG_SMP
 
 static DEFINE_SPINLOCK(gic_lock);
 
-static void gic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
+static int gic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 {
 	cpumask_t	tmp = CPU_MASK_NONE;
 	unsigned long	flags;
@@ -166,7 +160,7 @@ static void gic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 
 	cpumask_and(&tmp, cpumask, cpu_online_mask);
 	if (cpus_empty(tmp))
-		return;
+		return -1;
 
 	/* Assumption : cpumask refers to a single CPU */
 	spin_lock_irqsave(&gic_lock, flags);
@@ -190,6 +184,7 @@ static void gic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 	cpumask_copy(irq_desc[irq].affinity, cpumask);
 	spin_unlock_irqrestore(&gic_lock, flags);
 
+	return 0;
 }
 #endif
 
@@ -250,6 +245,10 @@ static void __init gic_basic_init(void)
 	for (i = 0; i < _mapsize; i++) {
 		cpu = _intrmap[i].cpunum;
 		if (cpu == X)
+			continue;
+
+		if (cpu == 0 && i != 0 && _intrmap[i].intrnum == 0 &&
+					_intrmap[i].ipiflag == 0)
 			continue;
 
 		setup_intr(_intrmap[i].intrnum,

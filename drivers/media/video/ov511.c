@@ -112,6 +112,8 @@ static int framedrop		= -1;
 static int fastset;
 static int force_palette;
 static int backlight;
+/* Bitmask marking allocated devices from 0 to OV511_MAX_UNIT_VIDEO */
+static unsigned long ov511_devused;
 static int unit_video[OV511_MAX_UNIT_VIDEO];
 static int remove_zeros;
 static int mirror;
@@ -209,8 +211,6 @@ static const int i2c_detect_tries = 5;
 static struct usb_device_id device_table [] = {
 	{ USB_DEVICE(VEND_OMNIVISION, PROD_OV511) },
 	{ USB_DEVICE(VEND_OMNIVISION, PROD_OV511PLUS) },
-	{ USB_DEVICE(VEND_OMNIVISION, PROD_OV518) },
-	{ USB_DEVICE(VEND_OMNIVISION, PROD_OV518PLUS) },
 	{ USB_DEVICE(VEND_MATTEL, PROD_ME2CAM) },
 	{ }  /* Terminating entry */
 };
@@ -5720,7 +5720,7 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct usb_interface_descriptor *idesc;
 	struct usb_ov511 *ov;
-	int i;
+	int i, rc, nr;
 
 	PDEBUG(1, "probing for device...");
 
@@ -5845,23 +5845,27 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	ov->vdev->parent = &intf->dev;
 	video_set_drvdata(ov->vdev, ov);
 
-	for (i = 0; i < OV511_MAX_UNIT_VIDEO; i++) {
-		/* Minor 0 cannot be specified; assume user wants autodetect */
-		if (unit_video[i] == 0)
-			break;
+	mutex_lock(&ov->lock);
 
-		if (video_register_device(ov->vdev, VFL_TYPE_GRABBER,
-			unit_video[i]) >= 0) {
-			break;
-		}
-	}
+	/* Check to see next free device and mark as used */
+	nr = find_first_zero_bit(&ov511_devused, OV511_MAX_UNIT_VIDEO);
 
-	/* Use the next available one */
-	if ((ov->vdev->minor == -1) &&
-	    video_register_device(ov->vdev, VFL_TYPE_GRABBER, -1) < 0) {
+	/* Registers device */
+	if (unit_video[nr] != 0)
+		rc = video_register_device(ov->vdev, VFL_TYPE_GRABBER,
+					   unit_video[nr]);
+	else
+		rc = video_register_device(ov->vdev, VFL_TYPE_GRABBER, -1);
+
+	if (rc < 0) {
 		err("video_register_device failed");
+		mutex_unlock(&ov->lock);
 		goto error;
 	}
+
+	/* Mark device as used */
+	ov511_devused |= 1 << nr;
+	ov->nr = nr;
 
 	dev_info(&intf->dev, "Device at %s registered to minor %d\n",
 		 ov->usb_path, ov->vdev->minor);
@@ -5869,8 +5873,12 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	usb_set_intfdata(intf, ov);
 	if (ov_create_sysfs(ov->vdev)) {
 		err("ov_create_sysfs failed");
+		ov511_devused &= ~(1 << nr);
+		mutex_unlock(&ov->lock);
 		goto error;
 	}
+
+	mutex_lock(&ov->lock);
 
 	return 0;
 
@@ -5906,10 +5914,16 @@ ov51x_disconnect(struct usb_interface *intf)
 
 	PDEBUG(3, "");
 
+	mutex_lock(&ov->lock);
 	usb_set_intfdata (intf, NULL);
 
-	if (!ov)
+	if (!ov) {
+		mutex_unlock(&ov->lock);
 		return;
+	}
+
+	/* Free device number */
+	ov511_devused &= ~(1 << ov->nr);
 
 	if (ov->vdev)
 		video_unregister_device(ov->vdev);
@@ -5927,6 +5941,7 @@ ov51x_disconnect(struct usb_interface *intf)
 
 	ov->streaming = 0;
 	ov51x_unlink_isoc(ov);
+	mutex_unlock(&ov->lock);
 
 	ov->dev = NULL;
 

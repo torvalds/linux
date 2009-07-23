@@ -53,6 +53,13 @@ enum ps3_param_av_multi_out ps3_os_area_get_av_multi_out(void);
 extern u64 ps3_os_area_get_rtc_diff(void);
 extern void ps3_os_area_set_rtc_diff(u64 rtc_diff);
 
+struct ps3_os_area_flash_ops {
+	ssize_t (*read)(void *buf, size_t count, loff_t pos);
+	ssize_t (*write)(const void *buf, size_t count, loff_t pos);
+};
+
+extern void ps3_os_area_flash_register(const struct ps3_os_area_flash_ops *ops);
+
 /* dma routines */
 
 enum ps3_dma_page_size {
@@ -418,15 +425,15 @@ static inline struct ps3_system_bus_driver *
  * @data: Data to set
  */
 
-static inline void ps3_system_bus_set_driver_data(
+static inline void ps3_system_bus_set_drvdata(
 	struct ps3_system_bus_device *dev, void *data)
 {
-	dev->core.driver_data = data;
+	dev_set_drvdata(&dev->core, data);
 }
-static inline void *ps3_system_bus_get_driver_data(
+static inline void *ps3_system_bus_get_drvdata(
 	struct ps3_system_bus_device *dev)
 {
-	return dev->core.driver_data;
+	return dev_get_drvdata(&dev->core);
 }
 
 /* These two need global scope for get_dma_ops(). */
@@ -519,8 +526,5 @@ u32 ps3_get_and_clear_pm_interrupts(u32 cpu);
 void ps3_sync_irq(int node);
 u32 ps3_get_hw_thread_id(int cpu);
 u64 ps3_get_spe_id(void *arg);
-
-/* mutex synchronizing GPU accesses and video mode changes */
-extern struct mutex ps3_gpu_mutex;
 
 #endif

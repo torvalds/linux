@@ -138,7 +138,7 @@ psa_read(struct net_device *	dev,
 
 /*------------------------------------------------------------------*/
 /*
- * Write the Paramter Storage Area to the WaveLAN card's memory
+ * Write the Parameter Storage Area to the WaveLAN card's memory
  */
 static void
 psa_write(struct net_device *	dev,
@@ -3107,11 +3107,6 @@ wavelan_packet_xmit(struct sk_buff *	skb,
        * so the Tx buffer is now free */
     }
 
-#ifdef DEBUG_TX_ERROR
-	if (skb->next)
-		printk(KERN_INFO "skb has next\n");
-#endif
-
 	/* Check if we need some padding */
 	/* Note : on wireless the propagation time is in the order of 1us,
 	 * and we don't have the Ethernet specific requirement of beeing
@@ -3561,17 +3556,8 @@ wv_82593_config(struct net_device *	dev)
   cfblk.rcvstop = TRUE; 	/* Enable Receive Stop Register */
 
 #ifdef DEBUG_I82593_SHOW
-  {
-    u_char *c = (u_char *) &cfblk;
-    int i;
-    printk(KERN_DEBUG "wavelan_cs: config block:");
-    for(i = 0; i < sizeof(struct i82593_conf_block); i++,c++)
-      {
-	if((i % 16) == 0) printk("\n" KERN_DEBUG);
-	printk("%02x ", *c);
-      }
-    printk("\n");
-  }
+  print_hex_dump(KERN_DEBUG, "wavelan_cs: config block: ", DUMP_PREFIX_NONE,
+		 16, 1, &cfblk, sizeof(struct i82593_conf_block), false);
 #endif
 
   /* Copy the config block to the i82593 */

@@ -1,7 +1,7 @@
 #ifndef __SPARC_MMAN_H__
 #define __SPARC_MMAN_H__
 
-#include <asm-generic/mman.h>
+#include <asm-generic/mman-common.h>
 
 /* SunOS'ified... */
 

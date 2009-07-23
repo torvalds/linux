@@ -1935,7 +1935,7 @@ static int mpi_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 		netif_stop_queue (dev);
 		if (npacks > MAXTXQ) {
 			dev->stats.tx_fifo_errors++;
-			return 1;
+			return NETDEV_TX_BUSY;
 		}
 		skb_queue_tail (&ai->txq, skb);
 		return 0;
@@ -2139,7 +2139,7 @@ static int airo_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 
 		if (i == MAX_FIDS / 2) {
 			dev->stats.tx_fifo_errors++;
-			return 1;
+			return NETDEV_TX_BUSY;
 		}
 	}
 	/* check min length*/
@@ -2193,7 +2193,8 @@ static int airo_start_xmit11(struct sk_buff *skb, struct net_device *dev) {
 	if (test_bit(FLAG_MPI, &priv->flags)) {
 		/* Not implemented yet for MPI350 */
 		netif_stop_queue(dev);
-		return -ENETDOWN;
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
 	}
 
 	if ( skb == NULL ) {
@@ -2210,7 +2211,7 @@ static int airo_start_xmit11(struct sk_buff *skb, struct net_device *dev) {
 
 		if (i == MAX_FIDS) {
 			dev->stats.tx_fifo_errors++;
-			return 1;
+			return NETDEV_TX_BUSY;
 		}
 	}
 	/* check min length*/

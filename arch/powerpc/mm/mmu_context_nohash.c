@@ -46,7 +46,7 @@ static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
 static unsigned long *stale_map[NR_CPUS];
 static struct mm_struct **context_mm;
-static spinlock_t context_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(context_lock);
 
 #define CTX_MAP_SIZE	\
 	(sizeof(unsigned long) * (last_context / BITS_PER_LONG + 1))
@@ -73,7 +73,6 @@ static unsigned int steal_context_smp(unsigned int id)
 	struct mm_struct *mm;
 	unsigned int cpu, max;
 
- again:
 	max = last_context - first_context;
 
 	/* Attempt to free next_context first and then loop until we manage */
@@ -90,7 +89,7 @@ static unsigned int steal_context_smp(unsigned int id)
 				id = first_context;
 			continue;
 		}
-		pr_debug("[%d] steal context %d from mm @%p\n",
+		pr_devel("[%d] steal context %d from mm @%p\n",
 			 smp_processor_id(), id, mm);
 
 		/* Mark this mm has having no context anymore */
@@ -108,7 +107,9 @@ static unsigned int steal_context_smp(unsigned int id)
 	spin_unlock(&context_lock);
 	cpu_relax();
 	spin_lock(&context_lock);
-	goto again;
+
+	/* This will cause the caller to try again */
+	return MMU_NO_CONTEXT;
 }
 #endif  /* CONFIG_SMP */
 
@@ -125,7 +126,7 @@ static unsigned int steal_context_up(unsigned int id)
 	/* Pick up the victim mm */
 	mm = context_mm[id];
 
-	pr_debug("[%d] steal context %d from mm @%p\n", cpu, id, mm);
+	pr_devel("[%d] steal context %d from mm @%p\n", cpu, id, mm);
 
 	/* Flush the TLB for that context */
 	local_flush_tlb_mm(mm);
@@ -179,7 +180,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	spin_lock(&context_lock);
 
 #ifndef DEBUG_STEAL_ONLY
-	pr_debug("[%d] activating context for mm @%p, active=%d, id=%d\n",
+	pr_devel("[%d] activating context for mm @%p, active=%d, id=%d\n",
 		 cpu, next, next->context.active, next->context.id);
 #endif
 
@@ -188,12 +189,14 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	next->context.active++;
 	if (prev) {
 #ifndef DEBUG_STEAL_ONLY
-		pr_debug(" old context %p active was: %d\n",
+		pr_devel(" old context %p active was: %d\n",
 			 prev, prev->context.active);
 #endif
 		WARN_ON(prev->context.active < 1);
 		prev->context.active--;
 	}
+
+ again:
 #endif /* CONFIG_SMP */
 
 	/* If we already have a valid assigned context, skip all that */
@@ -212,7 +215,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 #ifdef CONFIG_SMP
 		if (num_online_cpus() > 1) {
 			id = steal_context_smp(id);
-			goto stolen;
+			if (id == MMU_NO_CONTEXT)
+				goto again;
 		}
 #endif /* CONFIG_SMP */
 		id = steal_context_up(id);
@@ -232,7 +236,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	next->context.id = id;
 
 #ifndef DEBUG_STEAL_ONLY
-	pr_debug("[%d] picked up new id %d, nrf is now %d\n",
+	pr_devel("[%d] picked up new id %d, nrf is now %d\n",
 		 cpu, id, nr_free_contexts);
 #endif
 
@@ -243,7 +247,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	 * local TLB for it and unmark it before we use it
 	 */
 	if (test_bit(id, stale_map[cpu])) {
-		pr_debug("[%d] flushing stale context %d for mm @%p !\n",
+		pr_devel("[%d] flushing stale context %d for mm @%p !\n",
 			 cpu, id, next);
 		local_flush_tlb_mm(next);
 
@@ -272,6 +276,7 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
  */
 void destroy_context(struct mm_struct *mm)
 {
+	unsigned long flags;
 	unsigned int id;
 
 	if (mm->context.id == MMU_NO_CONTEXT)
@@ -279,18 +284,18 @@ void destroy_context(struct mm_struct *mm)
 
 	WARN_ON(mm->context.active != 0);
 
-	spin_lock(&context_lock);
+	spin_lock_irqsave(&context_lock, flags);
 	id = mm->context.id;
 	if (id != MMU_NO_CONTEXT) {
 		__clear_bit(id, context_map);
 		mm->context.id = MMU_NO_CONTEXT;
 #ifdef DEBUG_MAP_CONSISTENCY
 		mm->context.active = 0;
-		context_mm[id] = NULL;
 #endif
+		context_mm[id] = NULL;
 		nr_free_contexts++;
 	}
-	spin_unlock(&context_lock);
+	spin_unlock_irqrestore(&context_lock, flags);
 }
 
 #ifdef CONFIG_SMP
@@ -309,13 +314,13 @@ static int __cpuinit mmu_context_cpu_notify(struct notifier_block *self,
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		pr_debug("MMU: Allocating stale context map for CPU %d\n", cpu);
+		pr_devel("MMU: Allocating stale context map for CPU %d\n", cpu);
 		stale_map[cpu] = kzalloc(CTX_MAP_SIZE, GFP_KERNEL);
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		pr_debug("MMU: Freeing stale context map for CPU %d\n", cpu);
+		pr_devel("MMU: Freeing stale context map for CPU %d\n", cpu);
 		kfree(stale_map[cpu]);
 		stale_map[cpu] = NULL;
 		break;

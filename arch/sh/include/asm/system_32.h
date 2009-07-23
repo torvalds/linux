@@ -198,7 +198,7 @@ do {							\
 })
 #endif
 
-int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs,
+int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 			    struct mem_access *ma);
 
 asmlinkage void do_address_error(struct pt_regs *regs,

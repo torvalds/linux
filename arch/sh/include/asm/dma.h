@@ -16,13 +16,7 @@
 #include <linux/sched.h>
 #include <linux/sysdev.h>
 #include <cpu/dma.h>
-
-/* The maximum address that we can perform a DMA transfer to on this platform */
-/* Don't define MAX_DMA_ADDRESS; it's useless on the SuperH and any
-   occurrence should be flagged as an error.  */
-/* But... */
-/* XXX: This is not applicable to SuperH, just needed for alloc_bootmem */
-#define MAX_DMA_ADDRESS		(PAGE_OFFSET+0x10000000)
+#include <asm-generic/dma.h>
 
 #ifdef CONFIG_NR_DMA_CHANNELS
 #  define MAX_DMA_CHANNELS   (CONFIG_NR_DMA_CHANNELS)
@@ -137,8 +131,6 @@ extern int dma_xfer(unsigned int chan, unsigned long from,
 
 extern int request_dma_bycap(const char **dmac, const char **caps,
 			     const char *dev_id);
-extern int request_dma(unsigned int chan, const char *dev_id);
-extern void free_dma(unsigned int chan);
 extern int get_dma_residue(unsigned int chan);
 extern struct dma_info *get_dma_info(unsigned int chan);
 extern struct dma_channel *get_dma_channel(unsigned int chan);

@@ -487,8 +487,8 @@ enum Gi_Counting_Mode_Reg_Bits {
 #define Gi_Source_Select_Shift 2
 #define Gi_Gate_Select_Shift 7
 enum Gi_Input_Select_Bits {
-	Gi_Read_Acknowledges_Irq = 0x1,	// not present on 660x
-	Gi_Write_Acknowledges_Irq = 0x2,	// not present on 660x
+	Gi_Read_Acknowledges_Irq = 0x1,	/*  not present on 660x */
+	Gi_Write_Acknowledges_Irq = 0x2,	/*  not present on 660x */
 	Gi_Source_Select_Mask = 0x7c,
 	Gi_Gate_Select_Mask = 0x1f << Gi_Gate_Select_Shift,
 	Gi_Gate_Select_Load_Source_Bit = 0x1000,
@@ -656,7 +656,7 @@ static inline unsigned Gi_TC_Error_Confirm_Bit(unsigned counter_index)
 	return G0_TC_Error_Confirm_Bit;
 }
 
-// bits that are the same in G0/G2 and G1/G3 interrupt acknowledge registers
+/* bits that are the same in G0/G2 and G1/G3 interrupt acknowledge registers */
 enum Gxx_Interrupt_Acknowledge_Bits {
 	Gi_TC_Interrupt_Ack_Bit = 0x4000,
 	Gi_Gate_Interrupt_Ack_Bit = 0x8000
@@ -728,14 +728,14 @@ static inline void ni_tio_set_bits_transient(struct ni_gpct *counter,
 	unsigned long flags;
 
 	BUG_ON(register_index >= NITIO_Num_Registers);
-	comedi_spin_lock_irqsave(&counter_dev->regs_lock, flags);
+	spin_lock_irqsave(&counter_dev->regs_lock, flags);
 	counter_dev->regs[register_index] &= ~bit_mask;
 	counter_dev->regs[register_index] |= (bit_values & bit_mask);
 	write_register(counter,
 		counter_dev->regs[register_index] | transient_bit_values,
 		register_index);
 	mmiowb();
-	comedi_spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
+	spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
 }
 
 /* ni_tio_set_bits( ) is for safely writing to registers whose bits may be
@@ -761,9 +761,9 @@ static inline unsigned ni_tio_get_soft_copy(const struct ni_gpct *counter,
 	unsigned value;
 
 	BUG_ON(register_index >= NITIO_Num_Registers);
-	comedi_spin_lock_irqsave(&counter_dev->regs_lock, flags);
+	spin_lock_irqsave(&counter_dev->regs_lock, flags);
 	value = counter_dev->regs[register_index];
-	comedi_spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
+	spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
 	return value;
 }
 

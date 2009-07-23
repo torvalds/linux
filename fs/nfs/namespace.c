@@ -65,6 +65,11 @@ char *nfs_path(const char *base,
 		dentry = dentry->d_parent;
 	}
 	spin_unlock(&dcache_lock);
+	if (*end != '/') {
+		if (--buflen < 0)
+			goto Elong;
+		*--end = '/';
+	}
 	namelen = strlen(base);
 	/* Strip off excess slashes in base string */
 	while (namelen > 0 && base[namelen - 1] == '/')
@@ -154,7 +159,7 @@ out_err:
 	goto out;
 out_follow:
 	while (d_mountpoint(nd->path.dentry) &&
-	       follow_down(&nd->path.mnt, &nd->path.dentry))
+	       follow_down(&nd->path))
 		;
 	err = 0;
 	goto out;

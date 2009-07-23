@@ -48,6 +48,7 @@
 #include "isl6405.h"
 #include "lnbp21.h"
 #include "tuner-simple.h"
+#include "tda10048.h"
 #include "tda18271.h"
 #include "lgdt3305.h"
 #include "tda8290.h"
@@ -978,6 +979,18 @@ static struct lgdt3305_config hcw_lgdt3305_config = {
 	.vsb_if_khz         = 3250,
 };
 
+static struct tda10048_config hcw_tda10048_config = {
+	.demod_address    = 0x10 >> 1,
+	.output_mode      = TDA10048_SERIAL_OUTPUT,
+	.fwbulkwritelen   = TDA10048_BULKWRITE_200,
+	.inversion        = TDA10048_INVERSION_ON,
+	.dtv6_if_freq_khz = TDA10048_IF_3300,
+	.dtv7_if_freq_khz = TDA10048_IF_3500,
+	.dtv8_if_freq_khz = TDA10048_IF_4000,
+	.clk_freq_khz     = TDA10048_CLK_16000,
+	.disable_gate_access = 1,
+};
+
 static struct tda18271_std_map hauppauge_tda18271_std_map = {
 	.atsc_6   = { .if_freq = 3250, .agc_mode = 3, .std = 4,
 		      .if_lvl = 1, .rfagc_top = 0x58, },
@@ -1105,6 +1118,19 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (configure_tda827x_fe(dev, &kworld_dvb_t_210_config,
 					 &tda827x_cfg_2) < 0)
 			goto dettach_frontend;
+		break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110R3:
+		fe0->dvb.frontend = dvb_attach(tda10048_attach,
+					       &hcw_tda10048_config,
+					       &dev->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda829x_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x4b,
+				   &tda829x_no_probe);
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_adap,
+				   &hcw_tda18271_config);
+		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
 		if (configure_tda827x_fe(dev, &philips_tiger_config,

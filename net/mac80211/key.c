@@ -16,6 +16,7 @@
 #include <linux/rtnetlink.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "debugfs_key.h"
 #include "aes_ccm.h"
 #include "aes_cmac.h"
@@ -136,8 +137,7 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 				     struct ieee80211_sub_if_data,
 				     u.ap);
 
-	ret = key->local->ops->set_key(local_to_hw(key->local), SET_KEY,
-				       &sdata->vif, sta, &key->conf);
+	ret = drv_set_key(key->local, SET_KEY, &sdata->vif, sta, &key->conf);
 
 	if (!ret) {
 		spin_lock(&todo_lock);
@@ -179,8 +179,8 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 				     struct ieee80211_sub_if_data,
 				     u.ap);
 
-	ret = key->local->ops->set_key(local_to_hw(key->local), DISABLE_KEY,
-				       &sdata->vif, sta, &key->conf);
+	ret = drv_set_key(key->local, DISABLE_KEY, &sdata->vif,
+			  sta, &key->conf);
 
 	if (ret)
 		printk(KERN_ERR "mac80211-%s: failed to remove key "
@@ -290,9 +290,11 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 					  int idx,
 					  size_t key_len,
-					  const u8 *key_data)
+					  const u8 *key_data,
+					  size_t seq_len, const u8 *seq)
 {
 	struct ieee80211_key *key;
+	int i, j;
 
 	BUG_ON(idx < 0 || idx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS);
 
@@ -318,14 +320,31 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 	case ALG_TKIP:
 		key->conf.iv_len = TKIP_IV_LEN;
 		key->conf.icv_len = TKIP_ICV_LEN;
+		if (seq) {
+			for (i = 0; i < NUM_RX_DATA_QUEUES; i++) {
+				key->u.tkip.rx[i].iv32 =
+					get_unaligned_le32(&seq[2]);
+				key->u.tkip.rx[i].iv16 =
+					get_unaligned_le16(seq);
+			}
+		}
 		break;
 	case ALG_CCMP:
 		key->conf.iv_len = CCMP_HDR_LEN;
 		key->conf.icv_len = CCMP_MIC_LEN;
+		if (seq) {
+			for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
+				for (j = 0; j < CCMP_PN_LEN; j++)
+					key->u.ccmp.rx_pn[i][j] =
+						seq[CCMP_PN_LEN - j - 1];
+		}
 		break;
 	case ALG_AES_CMAC:
 		key->conf.iv_len = 0;
 		key->conf.icv_len = sizeof(struct ieee80211_mmie);
+		if (seq)
+			for (j = 0; j < 6; j++)
+				key->u.aes_cmac.rx_pn[j] = seq[6 - j - 1];
 		break;
 	}
 	memcpy(key->conf.key, key_data, key_len);

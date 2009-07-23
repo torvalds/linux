@@ -32,9 +32,7 @@
 
 static DEFINE_PER_CPU(struct cpu_cpuX_base, cpu_arr[CPU_REG_ALL_BIT]);
 static DEFINE_PER_CPU(struct cpu_private *, priv_arr[MAX_CPU_FILES]);
-static DEFINE_PER_CPU(unsigned, cpu_modelflag);
 static DEFINE_PER_CPU(int, cpu_priv_count);
-static DEFINE_PER_CPU(unsigned, cpu_model);
 
 static DEFINE_MUTEX(cpu_debug_lock);
 
@@ -80,302 +78,102 @@ static struct cpu_file_base cpu_file[] = {
 	{ "value",	CPU_REG_ALL,	1	},
 };
 
-/* Intel Registers Range */
-static struct cpu_debug_range cpu_intel_range[] = {
-	{ 0x00000000, 0x00000001, CPU_MC,	CPU_INTEL_ALL		},
-	{ 0x00000006, 0x00000007, CPU_MONITOR,	CPU_CX_AT_XE		},
-	{ 0x00000010, 0x00000010, CPU_TIME,	CPU_INTEL_ALL		},
-	{ 0x00000011, 0x00000013, CPU_PMC,	CPU_INTEL_PENTIUM	},
-	{ 0x00000017, 0x00000017, CPU_PLATFORM,	CPU_PX_CX_AT_XE		},
-	{ 0x0000001B, 0x0000001B, CPU_APIC,	CPU_P6_CX_AT_XE		},
+/* CPU Registers Range */
+static struct cpu_debug_range cpu_reg_range[] = {
+	{ 0x00000000, 0x00000001, CPU_MC,	},
+	{ 0x00000006, 0x00000007, CPU_MONITOR,	},
+	{ 0x00000010, 0x00000010, CPU_TIME,	},
+	{ 0x00000011, 0x00000013, CPU_PMC,	},
+	{ 0x00000017, 0x00000017, CPU_PLATFORM,	},
+	{ 0x0000001B, 0x0000001B, CPU_APIC,	},
+	{ 0x0000002A, 0x0000002B, CPU_POWERON,	},
+	{ 0x0000002C, 0x0000002C, CPU_FREQ,	},
+	{ 0x0000003A, 0x0000003A, CPU_CONTROL,	},
+	{ 0x00000040, 0x00000047, CPU_LBRANCH,	},
+	{ 0x00000060, 0x00000067, CPU_LBRANCH,	},
+	{ 0x00000079, 0x00000079, CPU_BIOS,	},
+	{ 0x00000088, 0x0000008A, CPU_CACHE,	},
+	{ 0x0000008B, 0x0000008B, CPU_BIOS,	},
+	{ 0x0000009B, 0x0000009B, CPU_MONITOR,	},
+	{ 0x000000C1, 0x000000C4, CPU_PMC,	},
+	{ 0x000000CD, 0x000000CD, CPU_FREQ,	},
+	{ 0x000000E7, 0x000000E8, CPU_PERF,	},
+	{ 0x000000FE, 0x000000FE, CPU_MTRR,	},
 
-	{ 0x0000002A, 0x0000002A, CPU_POWERON,	CPU_PX_CX_AT_XE		},
-	{ 0x0000002B, 0x0000002B, CPU_POWERON,	CPU_INTEL_XEON		},
-	{ 0x0000002C, 0x0000002C, CPU_FREQ,	CPU_INTEL_XEON		},
-	{ 0x0000003A, 0x0000003A, CPU_CONTROL,	CPU_CX_AT_XE		},
+	{ 0x00000116, 0x0000011E, CPU_CACHE,	},
+	{ 0x00000174, 0x00000176, CPU_SYSENTER,	},
+	{ 0x00000179, 0x0000017B, CPU_MC,	},
+	{ 0x00000186, 0x00000189, CPU_PMC,	},
+	{ 0x00000198, 0x00000199, CPU_PERF,	},
+	{ 0x0000019A, 0x0000019A, CPU_TIME,	},
+	{ 0x0000019B, 0x0000019D, CPU_THERM,	},
+	{ 0x000001A0, 0x000001A0, CPU_MISC,	},
+	{ 0x000001C9, 0x000001C9, CPU_LBRANCH,	},
+	{ 0x000001D7, 0x000001D8, CPU_LBRANCH,	},
+	{ 0x000001D9, 0x000001D9, CPU_DEBUG,	},
+	{ 0x000001DA, 0x000001E0, CPU_LBRANCH,	},
 
-	{ 0x00000040, 0x00000043, CPU_LBRANCH,	CPU_PM_CX_AT_XE		},
-	{ 0x00000044, 0x00000047, CPU_LBRANCH,	CPU_PM_CO_AT		},
-	{ 0x00000060, 0x00000063, CPU_LBRANCH,	CPU_C2_AT		},
-	{ 0x00000064, 0x00000067, CPU_LBRANCH,	CPU_INTEL_ATOM		},
+	{ 0x00000200, 0x0000020F, CPU_MTRR,	},
+	{ 0x00000250, 0x00000250, CPU_MTRR,	},
+	{ 0x00000258, 0x00000259, CPU_MTRR,	},
+	{ 0x00000268, 0x0000026F, CPU_MTRR,	},
+	{ 0x00000277, 0x00000277, CPU_PAT,	},
+	{ 0x000002FF, 0x000002FF, CPU_MTRR,	},
 
-	{ 0x00000079, 0x00000079, CPU_BIOS,	CPU_P6_CX_AT_XE		},
-	{ 0x00000088, 0x0000008A, CPU_CACHE,	CPU_INTEL_P6		},
-	{ 0x0000008B, 0x0000008B, CPU_BIOS,	CPU_P6_CX_AT_XE		},
-	{ 0x0000009B, 0x0000009B, CPU_MONITOR,	CPU_INTEL_XEON		},
+	{ 0x00000300, 0x00000311, CPU_PMC,	},
+	{ 0x00000345, 0x00000345, CPU_PMC,	},
+	{ 0x00000360, 0x00000371, CPU_PMC,	},
+	{ 0x0000038D, 0x00000390, CPU_PMC,	},
+	{ 0x000003A0, 0x000003BE, CPU_PMC,	},
+	{ 0x000003C0, 0x000003CD, CPU_PMC,	},
+	{ 0x000003E0, 0x000003E1, CPU_PMC,	},
+	{ 0x000003F0, 0x000003F2, CPU_PMC,	},
 
-	{ 0x000000C1, 0x000000C2, CPU_PMC,	CPU_P6_CX_AT		},
-	{ 0x000000CD, 0x000000CD, CPU_FREQ,	CPU_CX_AT		},
-	{ 0x000000E7, 0x000000E8, CPU_PERF,	CPU_CX_AT		},
-	{ 0x000000FE, 0x000000FE, CPU_MTRR,	CPU_P6_CX_XE		},
+	{ 0x00000400, 0x00000417, CPU_MC,	},
+	{ 0x00000480, 0x0000048B, CPU_VMX,	},
 
-	{ 0x00000116, 0x00000116, CPU_CACHE,	CPU_INTEL_P6		},
-	{ 0x00000118, 0x00000118, CPU_CACHE,	CPU_INTEL_P6		},
-	{ 0x00000119, 0x00000119, CPU_CACHE,	CPU_INTEL_PX		},
-	{ 0x0000011A, 0x0000011B, CPU_CACHE,	CPU_INTEL_P6		},
-	{ 0x0000011E, 0x0000011E, CPU_CACHE,	CPU_PX_CX_AT		},
+	{ 0x00000600, 0x00000600, CPU_DEBUG,	},
+	{ 0x00000680, 0x0000068F, CPU_LBRANCH,	},
+	{ 0x000006C0, 0x000006CF, CPU_LBRANCH,	},
 
-	{ 0x00000174, 0x00000176, CPU_SYSENTER,	CPU_P6_CX_AT_XE		},
-	{ 0x00000179, 0x0000017A, CPU_MC,	CPU_PX_CX_AT_XE		},
-	{ 0x0000017B, 0x0000017B, CPU_MC,	CPU_P6_XE		},
-	{ 0x00000186, 0x00000187, CPU_PMC,	CPU_P6_CX_AT		},
-	{ 0x00000198, 0x00000199, CPU_PERF,	CPU_PM_CX_AT_XE		},
-	{ 0x0000019A, 0x0000019A, CPU_TIME,	CPU_PM_CX_AT_XE		},
-	{ 0x0000019B, 0x0000019D, CPU_THERM,	CPU_PM_CX_AT_XE		},
-	{ 0x000001A0, 0x000001A0, CPU_MISC,	CPU_PM_CX_AT_XE		},
+	{ 0x000107CC, 0x000107D3, CPU_PMC,	},
 
-	{ 0x000001C9, 0x000001C9, CPU_LBRANCH,	CPU_PM_CX_AT		},
-	{ 0x000001D7, 0x000001D8, CPU_LBRANCH,	CPU_INTEL_XEON		},
-	{ 0x000001D9, 0x000001D9, CPU_DEBUG,	CPU_CX_AT_XE		},
-	{ 0x000001DA, 0x000001DA, CPU_LBRANCH,	CPU_INTEL_XEON		},
-	{ 0x000001DB, 0x000001DB, CPU_LBRANCH,	CPU_P6_XE		},
-	{ 0x000001DC, 0x000001DC, CPU_LBRANCH,	CPU_INTEL_P6		},
-	{ 0x000001DD, 0x000001DE, CPU_LBRANCH,	CPU_PX_CX_AT_XE		},
-	{ 0x000001E0, 0x000001E0, CPU_LBRANCH,	CPU_INTEL_P6		},
+	{ 0xC0000080, 0xC0000080, CPU_FEATURES,	},
+	{ 0xC0000081, 0xC0000084, CPU_CALL,	},
+	{ 0xC0000100, 0xC0000102, CPU_BASE,	},
+	{ 0xC0000103, 0xC0000103, CPU_TIME,	},
 
-	{ 0x00000200, 0x0000020F, CPU_MTRR,	CPU_P6_CX_XE		},
-	{ 0x00000250, 0x00000250, CPU_MTRR,	CPU_P6_CX_XE		},
-	{ 0x00000258, 0x00000259, CPU_MTRR,	CPU_P6_CX_XE		},
-	{ 0x00000268, 0x0000026F, CPU_MTRR,	CPU_P6_CX_XE		},
-	{ 0x00000277, 0x00000277, CPU_PAT,	CPU_C2_AT_XE		},
-	{ 0x000002FF, 0x000002FF, CPU_MTRR,	CPU_P6_CX_XE		},
-
-	{ 0x00000300, 0x00000308, CPU_PMC,	CPU_INTEL_XEON		},
-	{ 0x00000309, 0x0000030B, CPU_PMC,	CPU_C2_AT_XE		},
-	{ 0x0000030C, 0x00000311, CPU_PMC,	CPU_INTEL_XEON		},
-	{ 0x00000345, 0x00000345, CPU_PMC,	CPU_C2_AT		},
-	{ 0x00000360, 0x00000371, CPU_PMC,	CPU_INTEL_XEON		},
-	{ 0x0000038D, 0x00000390, CPU_PMC,	CPU_C2_AT		},
-	{ 0x000003A0, 0x000003BE, CPU_PMC,	CPU_INTEL_XEON		},
-	{ 0x000003C0, 0x000003CD, CPU_PMC,	CPU_INTEL_XEON		},
-	{ 0x000003E0, 0x000003E1, CPU_PMC,	CPU_INTEL_XEON		},
-	{ 0x000003F0, 0x000003F0, CPU_PMC,	CPU_INTEL_XEON		},
-	{ 0x000003F1, 0x000003F1, CPU_PMC,	CPU_C2_AT_XE		},
-	{ 0x000003F2, 0x000003F2, CPU_PMC,	CPU_INTEL_XEON		},
-
-	{ 0x00000400, 0x00000402, CPU_MC,	CPU_PM_CX_AT_XE		},
-	{ 0x00000403, 0x00000403, CPU_MC,	CPU_INTEL_XEON		},
-	{ 0x00000404, 0x00000406, CPU_MC,	CPU_PM_CX_AT_XE		},
-	{ 0x00000407, 0x00000407, CPU_MC,	CPU_INTEL_XEON		},
-	{ 0x00000408, 0x0000040A, CPU_MC,	CPU_PM_CX_AT_XE		},
-	{ 0x0000040B, 0x0000040B, CPU_MC,	CPU_INTEL_XEON		},
-	{ 0x0000040C, 0x0000040E, CPU_MC,	CPU_PM_CX_XE		},
-	{ 0x0000040F, 0x0000040F, CPU_MC,	CPU_INTEL_XEON		},
-	{ 0x00000410, 0x00000412, CPU_MC,	CPU_PM_CX_AT_XE		},
-	{ 0x00000413, 0x00000417, CPU_MC,	CPU_CX_AT_XE		},
-	{ 0x00000480, 0x0000048B, CPU_VMX,	CPU_CX_AT_XE		},
-
-	{ 0x00000600, 0x00000600, CPU_DEBUG,	CPU_PM_CX_AT_XE		},
-	{ 0x00000680, 0x0000068F, CPU_LBRANCH,	CPU_INTEL_XEON		},
-	{ 0x000006C0, 0x000006CF, CPU_LBRANCH,	CPU_INTEL_XEON		},
-
-	{ 0x000107CC, 0x000107D3, CPU_PMC,	CPU_INTEL_XEON_MP	},
-
-	{ 0xC0000080, 0xC0000080, CPU_FEATURES,	CPU_INTEL_XEON		},
-	{ 0xC0000081, 0xC0000082, CPU_CALL,	CPU_INTEL_XEON		},
-	{ 0xC0000084, 0xC0000084, CPU_CALL,	CPU_INTEL_XEON		},
-	{ 0xC0000100, 0xC0000102, CPU_BASE,	CPU_INTEL_XEON		},
+	{ 0xC0010000, 0xC0010007, CPU_PMC,	},
+	{ 0xC0010010, 0xC0010010, CPU_CONF,	},
+	{ 0xC0010015, 0xC0010015, CPU_CONF,	},
+	{ 0xC0010016, 0xC001001A, CPU_MTRR,	},
+	{ 0xC001001D, 0xC001001D, CPU_MTRR,	},
+	{ 0xC001001F, 0xC001001F, CPU_CONF,	},
+	{ 0xC0010030, 0xC0010035, CPU_BIOS,	},
+	{ 0xC0010044, 0xC0010048, CPU_MC,	},
+	{ 0xC0010050, 0xC0010056, CPU_SMM,	},
+	{ 0xC0010058, 0xC0010058, CPU_CONF,	},
+	{ 0xC0010060, 0xC0010060, CPU_CACHE,	},
+	{ 0xC0010061, 0xC0010068, CPU_SMM,	},
+	{ 0xC0010069, 0xC001006B, CPU_SMM,	},
+	{ 0xC0010070, 0xC0010071, CPU_SMM,	},
+	{ 0xC0010111, 0xC0010113, CPU_SMM,	},
+	{ 0xC0010114, 0xC0010118, CPU_SVM,	},
+	{ 0xC0010140, 0xC0010141, CPU_OSVM,	},
+	{ 0xC0011022, 0xC0011023, CPU_CONF,	},
 };
-
-/* AMD Registers Range */
-static struct cpu_debug_range cpu_amd_range[] = {
-	{ 0x00000000, 0x00000001, CPU_MC,	CPU_K10_PLUS,		},
-	{ 0x00000010, 0x00000010, CPU_TIME,	CPU_K8_PLUS,		},
-	{ 0x0000001B, 0x0000001B, CPU_APIC,	CPU_K8_PLUS,		},
-	{ 0x0000002A, 0x0000002A, CPU_POWERON,	CPU_K7_PLUS		},
-	{ 0x0000008B, 0x0000008B, CPU_VER,	CPU_K8_PLUS		},
-	{ 0x000000FE, 0x000000FE, CPU_MTRR,	CPU_K8_PLUS,		},
-
-	{ 0x00000174, 0x00000176, CPU_SYSENTER,	CPU_K8_PLUS,		},
-	{ 0x00000179, 0x0000017B, CPU_MC,	CPU_K8_PLUS,		},
-	{ 0x000001D9, 0x000001D9, CPU_DEBUG,	CPU_K8_PLUS,		},
-	{ 0x000001DB, 0x000001DE, CPU_LBRANCH,	CPU_K8_PLUS,		},
-
-	{ 0x00000200, 0x0000020F, CPU_MTRR,	CPU_K8_PLUS,		},
-	{ 0x00000250, 0x00000250, CPU_MTRR,	CPU_K8_PLUS,		},
-	{ 0x00000258, 0x00000259, CPU_MTRR,	CPU_K8_PLUS,		},
-	{ 0x00000268, 0x0000026F, CPU_MTRR,	CPU_K8_PLUS,		},
-	{ 0x00000277, 0x00000277, CPU_PAT,	CPU_K8_PLUS,		},
-	{ 0x000002FF, 0x000002FF, CPU_MTRR,	CPU_K8_PLUS,		},
-
-	{ 0x00000400, 0x00000413, CPU_MC,	CPU_K8_PLUS,		},
-
-	{ 0xC0000080, 0xC0000080, CPU_FEATURES,	CPU_AMD_ALL,		},
-	{ 0xC0000081, 0xC0000084, CPU_CALL,	CPU_K8_PLUS,		},
-	{ 0xC0000100, 0xC0000102, CPU_BASE,	CPU_K8_PLUS,		},
-	{ 0xC0000103, 0xC0000103, CPU_TIME,	CPU_K10_PLUS,		},
-
-	{ 0xC0010000, 0xC0010007, CPU_PMC,	CPU_K8_PLUS,		},
-	{ 0xC0010010, 0xC0010010, CPU_CONF,	CPU_K7_PLUS,		},
-	{ 0xC0010015, 0xC0010015, CPU_CONF,	CPU_K7_PLUS,		},
-	{ 0xC0010016, 0xC001001A, CPU_MTRR,	CPU_K8_PLUS,		},
-	{ 0xC001001D, 0xC001001D, CPU_MTRR,	CPU_K8_PLUS,		},
-	{ 0xC001001F, 0xC001001F, CPU_CONF,	CPU_K8_PLUS,		},
-	{ 0xC0010030, 0xC0010035, CPU_BIOS,	CPU_K8_PLUS,		},
-	{ 0xC0010044, 0xC0010048, CPU_MC,	CPU_K8_PLUS,		},
-	{ 0xC0010050, 0xC0010056, CPU_SMM,	CPU_K0F_PLUS,		},
-	{ 0xC0010058, 0xC0010058, CPU_CONF,	CPU_K10_PLUS,		},
-	{ 0xC0010060, 0xC0010060, CPU_CACHE,	CPU_AMD_11,		},
-	{ 0xC0010061, 0xC0010068, CPU_SMM,	CPU_K10_PLUS,		},
-	{ 0xC0010069, 0xC001006B, CPU_SMM,	CPU_AMD_11,		},
-	{ 0xC0010070, 0xC0010071, CPU_SMM,	CPU_K10_PLUS,		},
-	{ 0xC0010111, 0xC0010113, CPU_SMM,	CPU_K8_PLUS,		},
-	{ 0xC0010114, 0xC0010118, CPU_SVM,	CPU_K10_PLUS,		},
-	{ 0xC0010140, 0xC0010141, CPU_OSVM,	CPU_K10_PLUS,		},
-	{ 0xC0011022, 0xC0011023, CPU_CONF,	CPU_K10_PLUS,		},
-};
-
-
-/* Intel */
-static int get_intel_modelflag(unsigned model)
-{
-	int flag;
-
-	switch (model) {
-	case 0x0501:
-	case 0x0502:
-	case 0x0504:
-		flag = CPU_INTEL_PENTIUM;
-		break;
-	case 0x0601:
-	case 0x0603:
-	case 0x0605:
-	case 0x0607:
-	case 0x0608:
-	case 0x060A:
-	case 0x060B:
-		flag = CPU_INTEL_P6;
-		break;
-	case 0x0609:
-	case 0x060D:
-		flag = CPU_INTEL_PENTIUM_M;
-		break;
-	case 0x060E:
-		flag = CPU_INTEL_CORE;
-		break;
-	case 0x060F:
-	case 0x0617:
-		flag = CPU_INTEL_CORE2;
-		break;
-	case 0x061C:
-		flag = CPU_INTEL_ATOM;
-		break;
-	case 0x0F00:
-	case 0x0F01:
-	case 0x0F02:
-	case 0x0F03:
-	case 0x0F04:
-		flag = CPU_INTEL_XEON_P4;
-		break;
-	case 0x0F06:
-		flag = CPU_INTEL_XEON_MP;
-		break;
-	default:
-		flag = CPU_NONE;
-		break;
-	}
-
-	return flag;
-}
-
-/* AMD */
-static int get_amd_modelflag(unsigned model)
-{
-	int flag;
-
-	switch (model >> 8) {
-	case 0x6:
-		flag = CPU_AMD_K6;
-		break;
-	case 0x7:
-		flag = CPU_AMD_K7;
-		break;
-	case 0x8:
-		flag = CPU_AMD_K8;
-		break;
-	case 0xf:
-		flag = CPU_AMD_0F;
-		break;
-	case 0x10:
-		flag = CPU_AMD_10;
-		break;
-	case 0x11:
-		flag = CPU_AMD_11;
-		break;
-	default:
-		flag = CPU_NONE;
-		break;
-	}
-
-	return flag;
-}
-
-static int get_cpu_modelflag(unsigned cpu)
-{
-	int flag;
-
-	flag = per_cpu(cpu_model, cpu);
-
-	switch (flag >> 16) {
-	case X86_VENDOR_INTEL:
-		flag = get_intel_modelflag(flag);
-		break;
-	case X86_VENDOR_AMD:
-		flag = get_amd_modelflag(flag & 0xffff);
-		break;
-	default:
-		flag = CPU_NONE;
-		break;
-	}
-
-	return flag;
-}
-
-static int get_cpu_range_count(unsigned cpu)
-{
-	int index;
-
-	switch (per_cpu(cpu_model, cpu) >> 16) {
-	case X86_VENDOR_INTEL:
-		index = ARRAY_SIZE(cpu_intel_range);
-		break;
-	case X86_VENDOR_AMD:
-		index = ARRAY_SIZE(cpu_amd_range);
-		break;
-	default:
-		index = 0;
-		break;
-	}
-
-	return index;
-}
 
 static int is_typeflag_valid(unsigned cpu, unsigned flag)
 {
-	unsigned vendor, modelflag;
-	int i, index;
+	int i;
 
 	/* Standard Registers should be always valid */
 	if (flag >= CPU_TSS)
 		return 1;
 
-	modelflag = per_cpu(cpu_modelflag, cpu);
-	vendor = per_cpu(cpu_model, cpu) >> 16;
-	index = get_cpu_range_count(cpu);
-
-	for (i = 0; i < index; i++) {
-		switch (vendor) {
-		case X86_VENDOR_INTEL:
-			if ((cpu_intel_range[i].model & modelflag) &&
-			    (cpu_intel_range[i].flag & flag))
-				return 1;
-			break;
-		case X86_VENDOR_AMD:
-			if ((cpu_amd_range[i].model & modelflag) &&
-			    (cpu_amd_range[i].flag & flag))
-				return 1;
-			break;
-		}
+	for (i = 0; i < ARRAY_SIZE(cpu_reg_range); i++) {
+		if (cpu_reg_range[i].flag == flag)
+			return 1;
 	}
 
 	/* Invalid */
@@ -385,26 +183,11 @@ static int is_typeflag_valid(unsigned cpu, unsigned flag)
 static unsigned get_cpu_range(unsigned cpu, unsigned *min, unsigned *max,
 			      int index, unsigned flag)
 {
-	unsigned modelflag;
-
-	modelflag = per_cpu(cpu_modelflag, cpu);
-	*max = 0;
-	switch (per_cpu(cpu_model, cpu) >> 16) {
-	case X86_VENDOR_INTEL:
-		if ((cpu_intel_range[index].model & modelflag) &&
-		    (cpu_intel_range[index].flag & flag)) {
-			*min = cpu_intel_range[index].min;
-			*max = cpu_intel_range[index].max;
-		}
-		break;
-	case X86_VENDOR_AMD:
-		if ((cpu_amd_range[index].model & modelflag) &&
-		    (cpu_amd_range[index].flag & flag)) {
-			*min = cpu_amd_range[index].min;
-			*max = cpu_amd_range[index].max;
-		}
-		break;
-	}
+	if (cpu_reg_range[index].flag == flag) {
+		*min = cpu_reg_range[index].min;
+		*max = cpu_reg_range[index].max;
+	} else
+		*max = 0;
 
 	return *max;
 }
@@ -434,7 +217,7 @@ static void print_msr(struct seq_file *seq, unsigned cpu, unsigned flag)
 	unsigned msr, msr_min, msr_max;
 	struct cpu_private *priv;
 	u32 low, high;
-	int i, range;
+	int i;
 
 	if (seq) {
 		priv = seq->private;
@@ -446,9 +229,7 @@ static void print_msr(struct seq_file *seq, unsigned cpu, unsigned flag)
 		}
 	}
 
-	range = get_cpu_range_count(cpu);
-
-	for (i = 0; i < range; i++) {
+	for (i = 0; i < ARRAY_SIZE(cpu_reg_range); i++) {
 		if (!get_cpu_range(cpu, &msr_min, &msr_max, i, flag))
 			continue;
 
@@ -588,8 +369,20 @@ static void print_apic(void *arg)
 	seq_printf(seq, " TMICT\t\t: %08x\n",  apic_read(APIC_TMICT));
 	seq_printf(seq, " TMCCT\t\t: %08x\n",  apic_read(APIC_TMCCT));
 	seq_printf(seq, " TDCR\t\t: %08x\n",  apic_read(APIC_TDCR));
-#endif /* CONFIG_X86_LOCAL_APIC */
+	if (boot_cpu_has(X86_FEATURE_EXTAPIC)) {
+		unsigned int i, v, maxeilvt;
 
+		v = apic_read(APIC_EFEAT);
+		maxeilvt = (v >> 16) & 0xff;
+		seq_printf(seq, " EFEAT\t\t: %08x\n", v);
+		seq_printf(seq, " ECTRL\t\t: %08x\n", apic_read(APIC_ECTRL));
+
+		for (i = 0; i < maxeilvt; i++) {
+			v = apic_read(APIC_EILVTn(i));
+			seq_printf(seq, " EILVT%d\t\t: %08x\n", i, v);
+		}
+	}
+#endif /* CONFIG_X86_LOCAL_APIC */
 	seq_printf(seq, "\n MSR\t:\n");
 }
 
@@ -788,13 +581,11 @@ static int cpu_init_msr(unsigned cpu, unsigned type, struct dentry *dentry)
 {
 	struct dentry *cpu_dentry = NULL;
 	unsigned reg, reg_min, reg_max;
-	int i, range, err = 0;
+	int i, err = 0;
 	char reg_dir[12];
 	u32 low, high;
 
-	range = get_cpu_range_count(cpu);
-
-	for (i = 0; i < range; i++) {
+	for (i = 0; i < ARRAY_SIZE(cpu_reg_range); i++) {
 		if (!get_cpu_range(cpu, &reg_min, &reg_max, i,
 				   cpu_base[type].flag))
 			continue;
@@ -850,10 +641,6 @@ static int cpu_init_cpu(void)
 		cpui = &cpu_data(cpu);
 		if (!cpu_has(cpui, X86_FEATURE_MSR))
 			continue;
-		per_cpu(cpu_model, cpu) = ((cpui->x86_vendor << 16) |
-					   (cpui->x86 << 8) |
-					   (cpui->x86_model));
-		per_cpu(cpu_modelflag, cpu) = get_cpu_modelflag(cpu);
 
 		sprintf(cpu_dir, "cpu%d", cpu);
 		cpu_dentry = debugfs_create_dir(cpu_dir, cpu_debugfs_dir);

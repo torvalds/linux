@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2007-2009 PetaLogix
  * Copyright (C) 2006 Atmark Techno, Inc.
  *
@@ -68,16 +69,26 @@ int main(int argc, char *argv[])
 
 	/* struct task_struct */
 	DEFINE(TS_THREAD_INFO, offsetof(struct task_struct, stack));
+#ifdef CONFIG_MMU
+	DEFINE(TASK_STATE, offsetof(struct task_struct, state));
+	DEFINE(TASK_FLAGS, offsetof(struct task_struct, flags));
+	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
+	DEFINE(TASK_BLOCKED, offsetof(struct task_struct, blocked));
+	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
+	DEFINE(TASK_ACTIVE_MM, offsetof(struct task_struct, active_mm));
+	DEFINE(TASK_PID, offsetof(struct task_struct, pid));
+	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
+	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
+	BLANK();
+
+	DEFINE(PGDIR, offsetof(struct thread_struct, pgdir));
+	BLANK();
+#endif
 
 	/* struct thread_info */
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));
-	DEFINE(TI_EXEC_DOMAIN, offsetof(struct thread_info, exec_domain));
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
-	DEFINE(TI_STATUS, offsetof(struct thread_info, status));
-	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
-	DEFINE(TI_PRE_COUNT, offsetof(struct thread_info, preempt_count));
 	DEFINE(TI_ADDR_LIMIT, offsetof(struct thread_info, addr_limit));
-	DEFINE(TI_RESTART_BLOCK, offsetof(struct thread_info, restart_block));
 	DEFINE(TI_CPU_CONTEXT, offsetof(struct thread_info, cpu_context));
 	BLANK();
 

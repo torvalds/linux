@@ -17,10 +17,6 @@
 
 #include <sysdev/fsl_soc.h>
 
-#define MPC8xx_CPM_OFFSET	(0x9c0)
-#define CPM_MAP_ADDR		(get_immrbase() + MPC8xx_CPM_OFFSET)
-#define CPM_IRQ_OFFSET		16     // for compability with cpm_uart driver
-
 /* Bits of interest in the BCSRs.
  */
 #define BCSR1_ETHEN		((uint)0x20000000)

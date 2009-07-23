@@ -666,14 +666,14 @@ static int __devinit wm8731_spi_probe(struct spi_device *spi)
 	codec->hw_write = (hw_write_t)wm8731_spi_write;
 	codec->dev = &spi->dev;
 
-	spi->dev.driver_data = wm8731;
+	dev_set_drvdata(&spi->dev, wm8731);
 
 	return wm8731_register(wm8731);
 }
 
 static int __devexit wm8731_spi_remove(struct spi_device *spi)
 {
-	struct wm8731_priv *wm8731 = spi->dev.driver_data;
+	struct wm8731_priv *wm8731 = dev_get_drvdata(&spi->dev);
 
 	wm8731_unregister(wm8731);
 

@@ -6,10 +6,11 @@ Virtual memory map with 4 level page tables:
 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
 hole caused by [48:63] sign extension
 ffff800000000000 - ffff80ffffffffff (=40 bits) guard hole
-ffff880000000000 - ffffc0ffffffffff (=57 TB) direct mapping of all phys. memory
-ffffc10000000000 - ffffc1ffffffffff (=40 bits) hole
-ffffc20000000000 - ffffe1ffffffffff (=45 bits) vmalloc/ioremap space
-ffffe20000000000 - ffffe2ffffffffff (=40 bits) virtual memory map (1TB)
+ffff880000000000 - ffffc7ffffffffff (=64 TB) direct mapping of all phys. memory
+ffffc80000000000 - ffffc8ffffffffff (=40 bits) hole
+ffffc90000000000 - ffffe8ffffffffff (=45 bits) vmalloc/ioremap space
+ffffe90000000000 - ffffe9ffffffffff (=40 bits) hole
+ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
 ... unused hole ...
 ffffffff80000000 - ffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
 ffffffffa0000000 - fffffffffff00000 (=1536 MB) module mapping space

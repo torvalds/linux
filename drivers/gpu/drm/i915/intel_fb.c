@@ -207,7 +207,7 @@ static int intelfb_set_par(struct fb_info *info)
 
 	if (var->pixclock != -1) {
 
-		DRM_ERROR("PIXEL CLCOK SET\n");
+		DRM_ERROR("PIXEL CLOCK SET\n");
 		return -EINVAL;
 	} else {
 		struct drm_crtc *crtc;
@@ -453,7 +453,7 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	size = ALIGN(size, PAGE_SIZE);
 	fbo = drm_gem_object_alloc(dev, size);
 	if (!fbo) {
-		printk(KERN_ERR "failed to allocate framebuffer\n");
+		DRM_ERROR("failed to allocate framebuffer\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -504,6 +504,14 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	info->fbops = &intelfb_ops;
 
 	info->fix.line_length = fb->pitch;
+
+	/* setup aperture base/size for vesafb takeover */
+	info->aperture_base = dev->mode_config.fb_base;
+	if (IS_I9XX(dev))
+		info->aperture_size = pci_resource_len(dev->pdev, 2);
+	else
+		info->aperture_size = pci_resource_len(dev->pdev, 0);
+
 	info->fix.smem_start = dev->mode_config.fb_base + obj_priv->gtt_offset;
 	info->fix.smem_len = size;
 
@@ -602,8 +610,8 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	par->dev = dev;
 
 	/* To allow resizeing without swapping buffers */
-	printk("allocated %dx%d fb: 0x%08x, bo %p\n", intel_fb->base.width,
-	       intel_fb->base.height, obj_priv->gtt_offset, fbo);
+	DRM_DEBUG("allocated %dx%d fb: 0x%08x, bo %p\n", intel_fb->base.width,
+		  intel_fb->base.height, obj_priv->gtt_offset, fbo);
 
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
@@ -674,8 +682,12 @@ static int intelfb_multi_fb_probe_crtc(struct drm_device *dev, struct drm_crtc *
 	par->crtc_ids[0] = crtc->base.id;
 
 	modeset->num_connectors = conn_count;
-	if (modeset->mode != modeset->crtc->desired_mode)
-		modeset->mode = modeset->crtc->desired_mode;
+	if (modeset->crtc->desired_mode) {
+		if (modeset->mode)
+			drm_mode_destroy(dev, modeset->mode);
+		modeset->mode = drm_mode_duplicate(dev,
+						   modeset->crtc->desired_mode);
+	}
 
 	par->crtc_count = 1;
 
@@ -686,13 +698,13 @@ static int intelfb_multi_fb_probe_crtc(struct drm_device *dev, struct drm_crtc *
 	} else
 		intelfb_set_par(info);
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
+	DRM_INFO("fb%d: %s frame buffer device\n", info->node,
 	       info->fix.id);
 
 	/* Switch back to kernel console on panic */
 	kernelfb_mode = *modeset;
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
-	printk(KERN_INFO "registered panic notifier\n");
+	DRM_DEBUG("registered panic notifier\n");
 
 	return 0;
 }
@@ -824,8 +836,12 @@ static int intelfb_single_fb_probe(struct drm_device *dev)
 		par->crtc_ids[crtc_count++] = crtc->base.id;
 
 		modeset->num_connectors = conn_count;
-		if (modeset->mode != modeset->crtc->desired_mode)
-			modeset->mode = modeset->crtc->desired_mode;
+		if (modeset->crtc->desired_mode) {
+			if (modeset->mode)
+				drm_mode_destroy(dev, modeset->mode);
+			modeset->mode = drm_mode_duplicate(dev,
+							   modeset->crtc->desired_mode);
+		}
 	}
 	par->crtc_count = crtc_count;
 
@@ -836,13 +852,13 @@ static int intelfb_single_fb_probe(struct drm_device *dev)
 	} else
 		intelfb_set_par(info);
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
+	DRM_INFO("fb%d: %s frame buffer device\n", info->node,
 	       info->fix.id);
 
 	/* Switch back to kernel console on panic */
 	kernelfb_mode = *modeset;
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
-	printk(KERN_INFO "registered panic notifier\n");
+	DRM_DEBUG("registered panic notifier\n");
 
 	return 0;
 }
@@ -854,12 +870,22 @@ static int intelfb_single_fb_probe(struct drm_device *dev)
  */
 void intelfb_restore(void)
 {
-	drm_crtc_helper_set_config(&kernelfb_mode);
+	int ret;
+	if ((ret = drm_crtc_helper_set_config(&kernelfb_mode)) != 0) {
+		DRM_ERROR("Failed to restore crtc configuration: %d\n",
+			  ret);
+	}
 }
+
+static void intelfb_restore_work_fn(struct work_struct *ignored)
+{
+	intelfb_restore();
+}
+static DECLARE_WORK(intelfb_restore_work, intelfb_restore_work_fn);
 
 static void intelfb_sysrq(int dummy1, struct tty_struct *dummy3)
 {
-        intelfb_restore();
+        schedule_work(&intelfb_restore_work);
 }
 
 static struct sysrq_key_op sysrq_intelfb_restore_op = {

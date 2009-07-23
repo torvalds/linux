@@ -82,8 +82,9 @@ release_io_hfcpci(struct IsdnCardState *cs)
 	Write_hfc(cs, HFCPCI_INT_M2, cs->hw.hfcpci.int_m2);
 	pci_write_config_word(cs->hw.hfcpci.dev, PCI_COMMAND, 0);	/* disable memory mapped ports + busmaster */
 	del_timer(&cs->hw.hfcpci.timer);
-	kfree(cs->hw.hfcpci.share_start);
-	cs->hw.hfcpci.share_start = NULL;
+	pci_free_consistent(cs->hw.hfcpci.dev, 0x8000,
+		cs->hw.hfcpci.fifos, cs->hw.hfcpci.dma);
+	cs->hw.hfcpci.fifos = NULL;
 	iounmap((void *)cs->hw.hfcpci.pci_io);
 }
 
@@ -1663,8 +1664,19 @@ setup_hfcpci(struct IsdnCard *card)
 					     dev_hfcpci);
 		i++;
 		if (tmp_hfcpci) {
+			dma_addr_t	dma_mask = DMA_BIT_MASK(32) & ~0x7fffUL;
 			if (pci_enable_device(tmp_hfcpci))
 				continue;
+			if (pci_set_dma_mask(tmp_hfcpci, dma_mask)) {
+				printk(KERN_WARNING
+					"HiSax hfc_pci: No suitable DMA available.\n");
+				continue;
+			}
+			if (pci_set_consistent_dma_mask(tmp_hfcpci, dma_mask)) {
+				printk(KERN_WARNING
+					"HiSax hfc_pci: No suitable consistent DMA available.\n");
+				continue;
+			}
 			pci_set_master(tmp_hfcpci);
 			if ((card->para[0]) && (card->para[0] != (tmp_hfcpci->resource[ 0].start & PCI_BASE_ADDRESS_IO_MASK)))
 				continue;
@@ -1693,22 +1705,29 @@ setup_hfcpci(struct IsdnCard *card)
 		printk(KERN_WARNING "HFC-PCI: No IO-Mem for PCI card found\n");
 		return (0);
 	}
+
 	/* Allocate memory for FIFOS */
-	/* Because the HFC-PCI needs a 32K physical alignment, we */
-	/* need to allocate the double mem and align the address */
-	if (!(cs->hw.hfcpci.share_start = kmalloc(65536, GFP_KERNEL))) {
-		printk(KERN_WARNING "HFC-PCI: Error allocating memory for FIFO!\n");
+	cs->hw.hfcpci.fifos = pci_alloc_consistent(cs->hw.hfcpci.dev,
+					0x8000, &cs->hw.hfcpci.dma);
+	if (!cs->hw.hfcpci.fifos) {
+		printk(KERN_WARNING "HFC-PCI: Error allocating FIFO memory!\n");
 		return 0;
 	}
-	cs->hw.hfcpci.fifos = (void *)
-	    (((ulong) cs->hw.hfcpci.share_start) & ~0x7FFF) + 0x8000;
-	pci_write_config_dword(cs->hw.hfcpci.dev, 0x80, (u_int) virt_to_bus(cs->hw.hfcpci.fifos));
+	if (cs->hw.hfcpci.dma & 0x7fff) {
+		printk(KERN_WARNING
+		    "HFC-PCI: Error DMA memory not on 32K boundary (%lx)\n",
+		    (u_long)cs->hw.hfcpci.dma);
+		pci_free_consistent(cs->hw.hfcpci.dev, 0x8000,
+			cs->hw.hfcpci.fifos, cs->hw.hfcpci.dma);
+		return 0;
+	}
+	pci_write_config_dword(cs->hw.hfcpci.dev, 0x80, (u32)cs->hw.hfcpci.dma);
 	cs->hw.hfcpci.pci_io = ioremap((ulong) cs->hw.hfcpci.pci_io, 256);
 	printk(KERN_INFO
-	       "HFC-PCI: defined at mem %p fifo %p(%#x) IRQ %d HZ %d\n",
+	       "HFC-PCI: defined at mem %p fifo %p(%lx) IRQ %d HZ %d\n",
 	       cs->hw.hfcpci.pci_io,
 	       cs->hw.hfcpci.fifos,
-	       (u_int) virt_to_bus(cs->hw.hfcpci.fifos),
+	       (u_long)cs->hw.hfcpci.dma,
 	       cs->irq, HZ);
 
 	spin_lock_irqsave(&cs->lock, flags);

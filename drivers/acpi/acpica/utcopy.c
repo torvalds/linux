@@ -676,6 +676,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 {
 	u16 reference_count;
 	union acpi_operand_object *next_object;
+	acpi_status status;
 
 	/* Save fields from destination that we don't want to overwrite */
 
@@ -765,6 +766,28 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		 */
 		if (dest_desc->region.handler) {
 			acpi_ut_add_reference(dest_desc->region.handler);
+		}
+		break;
+
+		/*
+		 * For Mutex and Event objects, we cannot simply copy the underlying
+		 * OS object. We must create a new one.
+		 */
+	case ACPI_TYPE_MUTEX:
+
+		status = acpi_os_create_mutex(&dest_desc->mutex.os_mutex);
+		if (ACPI_FAILURE(status)) {
+			return status;
+		}
+		break;
+
+	case ACPI_TYPE_EVENT:
+
+		status = acpi_os_create_semaphore(ACPI_NO_UNIT_LIMIT, 0,
+						  &dest_desc->event.
+						  os_semaphore);
+		if (ACPI_FAILURE(status)) {
+			return status;
 		}
 		break;
 

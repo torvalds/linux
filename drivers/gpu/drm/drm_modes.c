@@ -38,6 +38,7 @@
 #include "drm.h"
 #include "drm_crtc.h"
 
+#define DRM_MODESET_DEBUG	"drm_mode"
 /**
  * drm_mode_debug_printmodeline - debug print a mode
  * @dev: DRM device
@@ -50,12 +51,13 @@
  */
 void drm_mode_debug_printmodeline(struct drm_display_mode *mode)
 {
-	DRM_DEBUG("Modeline %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x\n",
-		  mode->base.id, mode->name, mode->vrefresh, mode->clock,
-		  mode->hdisplay, mode->hsync_start,
-		  mode->hsync_end, mode->htotal,
-		  mode->vdisplay, mode->vsync_start,
-		  mode->vsync_end, mode->vtotal, mode->type, mode->flags);
+	DRM_DEBUG_MODE(DRM_MODESET_DEBUG,
+		"Modeline %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x\n",
+		mode->base.id, mode->name, mode->vrefresh, mode->clock,
+		mode->hdisplay, mode->hsync_start,
+		mode->hsync_end, mode->htotal,
+		mode->vdisplay, mode->vsync_start,
+		mode->vsync_end, mode->vtotal, mode->type, mode->flags);
 }
 EXPORT_SYMBOL(drm_mode_debug_printmodeline);
 
@@ -401,7 +403,9 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 			list_del(&mode->head);
 			if (verbose) {
 				drm_mode_debug_printmodeline(mode);
-				DRM_DEBUG("Not using %s mode %d\n", mode->name, mode->status);
+				DRM_DEBUG_MODE(DRM_MODESET_DEBUG,
+					"Not using %s mode %d\n",
+					mode->name, mode->status);
 			}
 			drm_mode_destroy(dev, mode);
 		}

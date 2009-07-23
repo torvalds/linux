@@ -95,7 +95,7 @@ GLOBAL_ENTRY(kvm_vmm_panic)
 	;;
 	srlz.i    // guarantee that interruption collection is on
 	;;
-	//(p15) ssm psr.i               // restore psr.i
+	(p15) ssm psr.i               // restore psr.
 	addl r14=@gprel(ia64_leave_hypervisor),gp
 	;;
 	KVM_SAVE_REST
@@ -249,7 +249,7 @@ ENTRY(kvm_break_fault)
 	;;
 	srlz.i         // guarantee that interruption collection is on
 	;;
-	//(p15)ssm psr.i               // restore psr.i
+	(p15)ssm psr.i               // restore psr.i
 	addl r14=@gprel(ia64_leave_hypervisor),gp
 	;;
 	KVM_SAVE_REST
@@ -439,7 +439,7 @@ kvm_dispatch_vexirq:
 	;;
 	srlz.i // guarantee that interruption collection is on
 	;;
-	//(p15) ssm psr.i               // restore psr.i
+	(p15) ssm psr.i               // restore psr.i
 	adds r3=8,r2                // set up second base pointer
 	;;
 	KVM_SAVE_REST
@@ -819,7 +819,7 @@ ENTRY(kvm_dtlb_miss_dispatch)
 	;;
 	srlz.i     // guarantee that interruption collection is on
 	;;
-	//(p15) ssm psr.i               // restore psr.i
+	(p15) ssm psr.i               // restore psr.i
 	addl r14=@gprel(ia64_leave_hypervisor_prepare),gp
 	;;
 	KVM_SAVE_REST
@@ -842,7 +842,7 @@ ENTRY(kvm_itlb_miss_dispatch)
 	;;
 	srlz.i   // guarantee that interruption collection is on
 	;;
-	//(p15) ssm psr.i               // restore psr.i
+	(p15) ssm psr.i               // restore psr.i
 	addl r14=@gprel(ia64_leave_hypervisor),gp
 	;;
 	KVM_SAVE_REST
@@ -871,7 +871,7 @@ ENTRY(kvm_dispatch_reflection)
 	;;
 	srlz.i   // guarantee that interruption collection is on
 	;;
-	//(p15) ssm psr.i               // restore psr.i
+	(p15) ssm psr.i               // restore psr.i
 	addl r14=@gprel(ia64_leave_hypervisor),gp
 	;;
 	KVM_SAVE_REST
@@ -898,7 +898,7 @@ ENTRY(kvm_dispatch_virtualization_fault)
 	;;
 	srlz.i    // guarantee that interruption collection is on
 	;;
-	//(p15) ssm psr.i               // restore psr.i
+	(p15) ssm psr.i               // restore psr.i
 	addl r14=@gprel(ia64_leave_hypervisor_prepare),gp
 	;;
 	KVM_SAVE_REST
@@ -920,7 +920,7 @@ ENTRY(kvm_dispatch_interrupt)
 	;;
 	srlz.i
 	;;
-	//(p15) ssm psr.i
+	(p15) ssm psr.i
 	addl r14=@gprel(ia64_leave_hypervisor),gp
 	;;
 	KVM_SAVE_REST
@@ -1333,7 +1333,7 @@ hostret =   r24
 	;;
 (p7)    srlz.i
 	;;
-//(p6)    ssm psr.i
+(p6)    ssm psr.i
 	;;
 	mov rp=rpsave
 	mov ar.pfs=pfssave

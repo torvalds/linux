@@ -41,6 +41,7 @@
 #include <linux/netdevice.h>
 #include <linux/uio.h>
 #include <linux/skbuff.h>
+#include <linux/smp_lock.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/string.h>
@@ -1835,7 +1836,7 @@ static int ipx_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case TIOCOUTQ:
-		amount = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
+		amount = sk->sk_sndbuf - sk_wmem_alloc_get(sk);
 		if (amount < 0)
 			amount = 0;
 		rc = put_user(amount, (int __user *)argp);

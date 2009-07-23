@@ -36,10 +36,6 @@
 
 #define STV_ISOC_ENDPOINT_ADDR		0x81
 
-#ifndef V4L2_PIX_FMT_SGRBG8
-#define V4L2_PIX_FMT_SGRBG8 v4l2_fourcc('G', 'R', 'B', 'G')
-#endif
-
 #define STV_REG23 			0x0423
 
 /* Control registers of the STV0600 ASIC */
@@ -93,6 +89,17 @@ struct sd {
 
 	/* Sensor private data */
 	void *sensor_priv;
+
+	/* The first 4 lines produced by the stv6422 are no good, this keeps
+	   track of how many bytes we still need to skip during a frame */
+	int to_skip;
+
+	/* Bridge / Camera type */
+	u8 bridge;
+	#define BRIDGE_STV600 0
+	#define BRIDGE_STV602 1
+	#define BRIDGE_STV610 2
+	#define BRIDGE_ST6422 3 /* With integrated sensor */
 };
 
 int stv06xx_write_bridge(struct sd *sd, u16 address, u16 i2c_data);

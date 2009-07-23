@@ -3080,7 +3080,9 @@ static const struct net_device_ops ehea_netdev_ops = {
 	.ndo_poll_controller	= ehea_netpoll,
 #endif
 	.ndo_get_stats		= ehea_get_stats,
+	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= ehea_set_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list	= ehea_set_multicast_list,
 	.ndo_change_mtu		= ehea_change_mtu,
 	.ndo_vlan_rx_register	= ehea_vlan_rx_register,
@@ -3261,7 +3263,7 @@ static ssize_t ehea_probe_port(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	struct ehea_adapter *adapter = dev->driver_data;
+	struct ehea_adapter *adapter = dev_get_drvdata(dev);
 	struct ehea_port *port;
 	struct device_node *eth_dn = NULL;
 	int i;
@@ -3316,7 +3318,7 @@ static ssize_t ehea_remove_port(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct ehea_adapter *adapter = dev->driver_data;
+	struct ehea_adapter *adapter = dev_get_drvdata(dev);
 	struct ehea_port *port;
 	int i;
 	u32 logical_port_id;
@@ -3404,7 +3406,7 @@ static int __devinit ehea_probe_adapter(struct of_device *dev,
 
 	adapter->pd = EHEA_PD_ID;
 
-	dev->dev.driver_data = adapter;
+	dev_set_drvdata(&dev->dev, adapter);
 
 
 	/* initialize adapter and ports */
@@ -3468,7 +3470,7 @@ out:
 
 static int __devexit ehea_remove(struct of_device *dev)
 {
-	struct ehea_adapter *adapter = dev->dev.driver_data;
+	struct ehea_adapter *adapter = dev_get_drvdata(&dev->dev);
 	int i;
 
 	for (i = 0; i < EHEA_MAX_PORTS; i++)

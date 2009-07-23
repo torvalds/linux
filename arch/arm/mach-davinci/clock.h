@@ -67,6 +67,7 @@ struct clk {
 	u8			usecount;
 	u8			flags;
 	u8			lpsc;
+	u8			psc_ctlr;
 	struct clk              *parent;
 	struct pll_data         *pll_data;
 	u32                     div_reg;
@@ -93,4 +94,7 @@ struct davinci_clk {
 	}
 
 int davinci_clk_init(struct davinci_clk *clocks);
+
+extern struct platform_device davinci_wdt_device;
+
 #endif

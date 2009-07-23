@@ -61,9 +61,11 @@ extern void get_smp_config(void);
 #ifdef CONFIG_X86_MPPARSE
 extern void find_smp_config(void);
 extern void early_reserve_e820_mpc_new(void);
+extern int enable_update_mptable;
 #else
 static inline void find_smp_config(void) { }
 static inline void early_reserve_e820_mpc_new(void) { }
+#define enable_update_mptable 0
 #endif
 
 void __cpuinit generic_processor_info(int apicid, int version);
@@ -72,20 +74,13 @@ extern void mp_register_ioapic(int id, u32 address, u32 gsi_base);
 extern void mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 				   u32 gsi);
 extern void mp_config_acpi_legacy_irqs(void);
-extern int mp_register_gsi(u32 gsi, int edge_level, int active_high_low);
+struct device;
+extern int mp_register_gsi(struct device *dev, u32 gsi, int edge_level,
+				 int active_high_low);
 extern int acpi_probe_gsi(void);
 #ifdef CONFIG_X86_IO_APIC
-extern int mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
-				u32 gsi, int triggering, int polarity);
 extern int mp_find_ioapic(int gsi);
 extern int mp_find_ioapic_pin(int ioapic, int gsi);
-#else
-static inline int
-mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
-		   u32 gsi, int triggering, int polarity)
-{
-	return 0;
-}
 #endif
 #else /* !CONFIG_ACPI: */
 static inline int acpi_probe_gsi(void)

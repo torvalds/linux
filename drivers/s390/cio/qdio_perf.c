@@ -25,18 +25,6 @@ struct qdio_perf_stats perf_stats;
 static struct proc_dir_entry *qdio_perf_pde;
 #endif
 
-inline void qdio_perf_stat_inc(atomic_long_t *count)
-{
-	if (qdio_performance_stats)
-		atomic_long_inc(count);
-}
-
-inline void qdio_perf_stat_dec(atomic_long_t *count)
-{
-	if (qdio_performance_stats)
-		atomic_long_dec(count);
-}
-
 /*
  * procfs functions
  */

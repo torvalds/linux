@@ -97,7 +97,7 @@ static inline void dma_unmap_page(struct device *dev, dma_addr_t dma_address,
 	dma_unmap_single(dev, dma_address, size, dir);
 }
 
-static inline void dma_sync_single(struct device *dev, dma_addr_t dma_handle,
+static inline void __dma_sync_single(struct device *dev, dma_addr_t dma_handle,
 				   size_t size, enum dma_data_direction dir)
 {
 #if defined(CONFIG_PCI) && !defined(CONFIG_SH_PCIDMA_NONCOHERENT)
@@ -119,7 +119,7 @@ static inline void dma_sync_single_range(struct device *dev,
 	dma_cache_sync(dev, phys_to_virt(dma_handle) + offset, size, dir);
 }
 
-static inline void dma_sync_sg(struct device *dev, struct scatterlist *sg,
+static inline void __dma_sync_sg(struct device *dev, struct scatterlist *sg,
 			       int nelems, enum dma_data_direction dir)
 {
 	int i;
@@ -137,7 +137,7 @@ static inline void dma_sync_single_for_cpu(struct device *dev,
 					   dma_addr_t dma_handle, size_t size,
 					   enum dma_data_direction dir)
 {
-	dma_sync_single(dev, dma_handle, size, dir);
+	__dma_sync_single(dev, dma_handle, size, dir);
 	debug_dma_sync_single_for_cpu(dev, dma_handle, size, dir);
 }
 
@@ -146,7 +146,7 @@ static inline void dma_sync_single_for_device(struct device *dev,
 					      size_t size,
 					      enum dma_data_direction dir)
 {
-	dma_sync_single(dev, dma_handle, size, dir);
+	__dma_sync_single(dev, dma_handle, size, dir);
 	debug_dma_sync_single_for_device(dev, dma_handle, size, dir);
 }
 
@@ -177,7 +177,7 @@ static inline void dma_sync_sg_for_cpu(struct device *dev,
 				       struct scatterlist *sg, int nelems,
 				       enum dma_data_direction dir)
 {
-	dma_sync_sg(dev, sg, nelems, dir);
+	__dma_sync_sg(dev, sg, nelems, dir);
 	debug_dma_sync_sg_for_cpu(dev, sg, nelems, dir);
 }
 
@@ -185,7 +185,7 @@ static inline void dma_sync_sg_for_device(struct device *dev,
 					  struct scatterlist *sg, int nelems,
 					  enum dma_data_direction dir)
 {
-	dma_sync_sg(dev, sg, nelems, dir);
+	__dma_sync_sg(dev, sg, nelems, dir);
 	debug_dma_sync_sg_for_device(dev, sg, nelems, dir);
 }
 

@@ -267,7 +267,8 @@ static struct pending_event *new_pending_event(void)
 	return ev;
 }
 
-static int signal_vsp_instruction(struct vsp_cmd_data *vsp_cmd)
+static int __maybe_unused
+signal_vsp_instruction(struct vsp_cmd_data *vsp_cmd)
 {
 	struct pending_event *ev = new_pending_event();
 	int rc;

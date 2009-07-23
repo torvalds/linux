@@ -190,10 +190,10 @@ static void xics_unmask_irq(unsigned int virq)
 	int call_status;
 	int server;
 
-	pr_debug("xics: unmask virq %d\n", virq);
+	pr_devel("xics: unmask virq %d\n", virq);
 
 	irq = (unsigned int)irq_map[virq].hwirq;
-	pr_debug(" -> map to hwirq 0x%x\n", irq);
+	pr_devel(" -> map to hwirq 0x%x\n", irq);
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
 
@@ -252,7 +252,7 @@ static void xics_mask_irq(unsigned int virq)
 {
 	unsigned int irq;
 
-	pr_debug("xics: mask virq %d\n", virq);
+	pr_devel("xics: mask virq %d\n", virq);
 
 	irq = (unsigned int)irq_map[virq].hwirq;
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
@@ -333,7 +333,7 @@ static void xics_eoi_lpar(unsigned int virq)
 	lpar_xirr_info_set((0xff << 24) | irq);
 }
 
-static void xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
+static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 {
 	unsigned int irq;
 	int status;
@@ -342,14 +342,14 @@ static void xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 
 	irq = (unsigned int)irq_map[virq].hwirq;
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
-		return;
+		return -1;
 
 	status = rtas_call(ibm_get_xive, 1, 3, xics_status, irq);
 
 	if (status) {
 		printk(KERN_ERR "%s: ibm,get-xive irq=%u returns %d\n",
 			__func__, irq, status);
-		return;
+		return -1;
 	}
 
 	/*
@@ -363,7 +363,7 @@ static void xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 		printk(KERN_WARNING
 			"%s: No online cpus in the mask %s for irq %d\n",
 			__func__, cpulist, virq);
-		return;
+		return -1;
 	}
 
 	status = rtas_call(ibm_set_xive, 3, 1, NULL,
@@ -372,8 +372,10 @@ static void xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 	if (status) {
 		printk(KERN_ERR "%s: ibm,set-xive irq=%u returns %d\n",
 			__func__, irq, status);
-		return;
+		return -1;
 	}
+
+	return 0;
 }
 
 static struct irq_chip xics_pic_direct = {
@@ -412,7 +414,7 @@ static int xics_host_match(struct irq_host *h, struct device_node *node)
 static int xics_host_map(struct irq_host *h, unsigned int virq,
 			 irq_hw_number_t hw)
 {
-	pr_debug("xics: map virq %d, hwirq 0x%lx\n", virq, hw);
+	pr_devel("xics: map virq %d, hwirq 0x%lx\n", virq, hw);
 
 	/* Insert the interrupt mapping into the radix tree for fast lookup */
 	irq_radix_revmap_insert(xics_host, virq, hw);

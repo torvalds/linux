@@ -278,7 +278,7 @@ static int sxg_nic_get_eeprom(struct net_device *netdev,
                  * Get out of here
                  */
                 printk(KERN_ERR"%s : Could not allocate memory for reading \
-                                EEPROM\n", __FUNCTION__);
+                                EEPROM\n", __func__);
                 return -ENOMEM;
         }
 

@@ -32,7 +32,6 @@
 #include <linux/pci_hotplug.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <asm/atomic.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
@@ -72,7 +71,6 @@ static int get_adapter_status(struct hotplug_slot *slot, u8 * value);
 static int get_latch_status(struct hotplug_slot *slot, u8 * value);
 
 static struct hotplug_slot_ops cpci_hotplug_slot_ops = {
-	.owner = THIS_MODULE,
 	.enable_slot = enable_slot,
 	.disable_slot = disable_slot,
 	.set_attention_status = set_attention_status,

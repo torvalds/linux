@@ -453,7 +453,7 @@ static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *vc)
 static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 {
 	DEB_EE(("VIDIOC_ENUMINPUT %d.\n", i->index));
-	if (i->index < 0 || i->index >= MXB_INPUTS)
+	if (i->index >= MXB_INPUTS)
 		return -EINVAL;
 	memcpy(i, &mxb_inputs[i->index], sizeof(struct v4l2_input));
 	return 0;
@@ -616,7 +616,7 @@ static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
-	if (a->index < 0 || a->index > MXB_INPUTS) {
+	if (a->index > MXB_INPUTS) {
 		DEB_D(("VIDIOC_G_AUDIO %d out of range.\n", a->index));
 		return -EINVAL;
 	}

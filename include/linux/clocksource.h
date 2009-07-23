@@ -288,7 +288,15 @@ static inline cycle_t clocksource_read(struct clocksource *cs)
  */
 static inline int clocksource_enable(struct clocksource *cs)
 {
-	return cs->enable ? cs->enable(cs) : 0;
+	int ret = 0;
+
+	if (cs->enable)
+		ret = cs->enable(cs);
+
+	/* save mult_orig on enable */
+	cs->mult_orig = cs->mult;
+
+	return ret;
 }
 
 /**

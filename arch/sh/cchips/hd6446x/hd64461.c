@@ -80,7 +80,7 @@ int __init setup_hd64461(void)
 
 	printk(KERN_INFO
 	       "HD64461 configured at 0x%x on irq %d(mapped into %d to %d)\n",
-	       CONFIG_HD64461_IOBASE, CONFIG_HD64461_IRQ, HD64461_IRQBASE,
+	       HD64461_IOBASE, CONFIG_HD64461_IRQ, HD64461_IRQBASE,
 	       HD64461_IRQBASE + 15);
 
 /* Should be at processor specific part.. */

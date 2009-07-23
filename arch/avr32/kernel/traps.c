@@ -32,22 +32,25 @@ void NORET_TYPE die(const char *str, struct pt_regs *regs, long err)
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
 
-	printk(KERN_ALERT "Oops: %s, sig: %ld [#%d]\n" KERN_EMERG,
+	printk(KERN_ALERT "Oops: %s, sig: %ld [#%d]\n",
 	       str, err, ++die_counter);
+
+	printk(KERN_EMERG);
+
 #ifdef CONFIG_PREEMPT
-	printk("PREEMPT ");
+	printk(KERN_CONT "PREEMPT ");
 #endif
 #ifdef CONFIG_FRAME_POINTER
-	printk("FRAME_POINTER ");
+	printk(KERN_CONT "FRAME_POINTER ");
 #endif
 	if (current_cpu_data.features & AVR32_FEATURE_OCD) {
 		unsigned long did = ocd_read(DID);
-		printk("chip: 0x%03lx:0x%04lx rev %lu\n",
+		printk(KERN_CONT "chip: 0x%03lx:0x%04lx rev %lu\n",
 		       (did >> 1) & 0x7ff,
 		       (did >> 12) & 0x7fff,
 		       (did >> 28) & 0xf);
 	} else {
-		printk("cpu: arch %u r%u / core %u r%u\n",
+		printk(KERN_CONT "cpu: arch %u r%u / core %u r%u\n",
 		       current_cpu_data.arch_type,
 		       current_cpu_data.arch_revision,
 		       current_cpu_data.cpu_type,
@@ -75,8 +78,17 @@ void _exception(long signr, struct pt_regs *regs, int code,
 {
 	siginfo_t info;
 
-	if (!user_mode(regs))
+	if (!user_mode(regs)) {
+		const struct exception_table_entry *fixup;
+
+		/* Are we prepared to handle this kernel fault? */
+		fixup = search_exception_tables(regs->pc);
+		if (fixup) {
+			regs->pc = fixup->fixup;
+			return;
+		}
 		die("Unhandled exception in kernel mode", regs, signr);
+	}
 
 	memset(&info, 0, sizeof(info));
 	info.si_signo = signr;

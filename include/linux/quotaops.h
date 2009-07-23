@@ -7,7 +7,6 @@
 #ifndef _LINUX_QUOTAOPS_
 #define _LINUX_QUOTAOPS_
 
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 
 static inline struct quota_info *sb_dqopt(struct super_block *sb)
@@ -20,7 +19,12 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
 /*
  * declaration of quota_function calls in kernel.
  */
-void sync_dquots(struct super_block *sb, int type);
+void sync_quota_sb(struct super_block *sb, int type);
+static inline void writeout_quota_sb(struct super_block *sb, int type)
+{
+	if (sb->s_qcop->quota_sync)
+		sb->s_qcop->quota_sync(sb, type);
+}
 
 int dquot_initialize(struct inode *inode, int type);
 int dquot_drop(struct inode *inode);
@@ -253,12 +257,7 @@ static inline void vfs_dq_free_inode(struct inode *inode)
 		inode->i_sb->dq_op->free_inode(inode, 1);
 }
 
-/* The following two functions cannot be called inside a transaction */
-static inline void vfs_dq_sync(struct super_block *sb)
-{
-	sync_dquots(sb, -1);
-}
-
+/* Cannot be called inside a transaction */
 static inline int vfs_dq_off(struct super_block *sb, int remount)
 {
 	int ret = -ENOSYS;
@@ -334,7 +333,11 @@ static inline void vfs_dq_free_inode(struct inode *inode)
 {
 }
 
-static inline void vfs_dq_sync(struct super_block *sb)
+static inline void sync_quota_sb(struct super_block *sb, int type)
+{
+}
+
+static inline void writeout_quota_sb(struct super_block *sb, int type)
 {
 }
 

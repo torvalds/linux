@@ -180,8 +180,11 @@ static int qd_find_disk_type (ide_drive_t *drive,
 
 static void qd_set_timing (ide_drive_t *drive, u8 timing)
 {
-	drive->drive_data &= 0xff00;
-	drive->drive_data |= timing;
+	unsigned long data = (unsigned long)ide_get_drivedata(drive);
+
+	data &= 0xff00;
+	data |= timing;
+	ide_set_drivedata(drive, (void *)data);
 
 	printk(KERN_DEBUG "%s: %#x\n", drive->name, timing);
 }
@@ -292,7 +295,7 @@ static void __init qd6500_init_dev(ide_drive_t *drive)
 	u8 base = (hwif->config_data & 0xff00) >> 8;
 	u8 config = QD_CONFIG(hwif);
 
-	drive->drive_data = QD6500_DEF_DATA;
+	ide_set_drivedata(drive, (void *)QD6500_DEF_DATA);
 }
 
 static void __init qd6580_init_dev(ide_drive_t *drive)
@@ -308,7 +311,7 @@ static void __init qd6580_init_dev(ide_drive_t *drive)
 	} else
 		t2 = t1 = hwif->channel ? QD6580_DEF_DATA2 : QD6580_DEF_DATA;
 
-	drive->drive_data = (drive->dn & 1) ? t2 : t1;
+	ide_set_drivedata(drive, (void *)((drive->dn & 1) ? t2 : t1));
 }
 
 static const struct ide_tp_ops qd65xx_tp_ops = {

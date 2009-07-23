@@ -46,8 +46,8 @@ int file_write_dep(const char *name)
 		else
 			fprintf(out, "\t%s\n", file->name);
 	}
-	fprintf(out, "\ninclude/config/auto.conf: \\\n"
-		     "\t$(deps_config)\n\n");
+	fprintf(out, "\n%s: \\\n"
+		     "\t$(deps_config)\n\n", conf_get_autoconfig_name());
 
 	expr_list_for_each_sym(sym_env_list, e, sym) {
 		struct property *prop;
@@ -61,7 +61,7 @@ int file_write_dep(const char *name)
 		if (!value)
 			value = "";
 		fprintf(out, "ifneq \"$(%s)\" \"%s\"\n", env_sym->name, value);
-		fprintf(out, "include/config/auto.conf: FORCE\n");
+		fprintf(out, "%s: FORCE\n", conf_get_autoconfig_name());
 		fprintf(out, "endif\n");
 	}
 

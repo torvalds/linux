@@ -257,7 +257,7 @@ static inline int sht15_update_single_val(struct sht15_data *data,
 				 (data->flag == SHT15_READING_NOTHING),
 				 msecs_to_jiffies(timeout_msecs));
 	if (ret == 0) {/* timeout occurred */
-		disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));;
+		disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));
 		sht15_connection_reset(data);
 		return -ETIME;
 	}
@@ -627,35 +627,35 @@ static struct platform_driver sht_drivers[] = {
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	}, {
 		.driver = {
 			.name = "sht11",
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	}, {
 		.driver = {
 			.name = "sht15",
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	}, {
 		.driver = {
 			.name = "sht71",
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	}, {
 		.driver = {
 			.name = "sht75",
 			.owner = THIS_MODULE,
 		},
 		.probe = sht15_probe,
-		.remove = sht15_remove,
+		.remove = __devexit_p(sht15_remove),
 	},
 };
 

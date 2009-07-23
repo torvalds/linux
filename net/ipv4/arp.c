@@ -468,13 +468,13 @@ int arp_find(unsigned char *haddr, struct sk_buff *skb)
 	__be32 paddr;
 	struct neighbour *n;
 
-	if (!skb->dst) {
+	if (!skb_dst(skb)) {
 		printk(KERN_DEBUG "arp_find is called with dst==NULL\n");
 		kfree_skb(skb);
 		return 1;
 	}
 
-	paddr = skb->rtable->rt_gateway;
+	paddr = skb_rtable(skb)->rt_gateway;
 
 	if (arp_set_predefined(inet_addr_type(dev_net(dev), paddr), haddr, paddr, dev))
 		return 0;
@@ -801,11 +801,8 @@ static int arp_process(struct sk_buff *skb)
  *  cache.
  */
 
-	/*
-	 *  Special case: IPv4 duplicate address detection packet (RFC2131)
-	 *  and Gratuitous ARP/ARP Announce. (RFC3927, Section 2.4)
-	 */
-	if (sip == 0 || tip == sip) {
+	/* Special case: IPv4 duplicate address detection packet (RFC2131) */
+	if (sip == 0) {
 		if (arp->ar_op == htons(ARPOP_REQUEST) &&
 		    inet_addr_type(net, tip) == RTN_LOCAL &&
 		    !arp_ignore(in_dev, sip, tip))
@@ -817,7 +814,7 @@ static int arp_process(struct sk_buff *skb)
 	if (arp->ar_op == htons(ARPOP_REQUEST) &&
 	    ip_route_input(skb, tip, sip, 0, dev) == 0) {
 
-		rt = skb->rtable;
+		rt = skb_rtable(skb);
 		addr_type = rt->rt_type;
 
 		if (addr_type == RTN_LOCAL) {

@@ -204,7 +204,8 @@ static void __init dt_prop_u32(struct iseries_flat_dt *dt, const char *name,
 	dt_prop(dt, name, &data, sizeof(u32));
 }
 
-static void __init dt_prop_u64(struct iseries_flat_dt *dt, const char *name,
+static void __init __maybe_unused dt_prop_u64(struct iseries_flat_dt *dt,
+					      const char *name,
 		u64 data)
 {
 	dt_prop(dt, name, &data, sizeof(u64));

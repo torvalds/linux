@@ -6,6 +6,10 @@
  *  Copyright © 2005-2007 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
+ *  Vishak G <vishak.g at samsung.com>, Rohit Hagargundgi <h.rohit at samsung.com>
+ *  Flex-OneNAND simulator support
+ *  Copyright (C) Samsung Electronics, 2008
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -24,16 +28,38 @@
 #ifndef CONFIG_ONENAND_SIM_MANUFACTURER
 #define CONFIG_ONENAND_SIM_MANUFACTURER         0xec
 #endif
+
 #ifndef CONFIG_ONENAND_SIM_DEVICE_ID
 #define CONFIG_ONENAND_SIM_DEVICE_ID            0x04
 #endif
+
+#define CONFIG_FLEXONENAND ((CONFIG_ONENAND_SIM_DEVICE_ID >> 9) & 1)
+
 #ifndef CONFIG_ONENAND_SIM_VERSION_ID
 #define CONFIG_ONENAND_SIM_VERSION_ID           0x1e
+#endif
+
+#ifndef CONFIG_ONENAND_SIM_TECHNOLOGY_ID
+#define CONFIG_ONENAND_SIM_TECHNOLOGY_ID CONFIG_FLEXONENAND
+#endif
+
+/* Initial boundary values for Flex-OneNAND Simulator */
+#ifndef CONFIG_FLEXONENAND_SIM_DIE0_BOUNDARY
+#define CONFIG_FLEXONENAND_SIM_DIE0_BOUNDARY	0x01
+#endif
+
+#ifndef CONFIG_FLEXONENAND_SIM_DIE1_BOUNDARY
+#define CONFIG_FLEXONENAND_SIM_DIE1_BOUNDARY	0x01
 #endif
 
 static int manuf_id	= CONFIG_ONENAND_SIM_MANUFACTURER;
 static int device_id	= CONFIG_ONENAND_SIM_DEVICE_ID;
 static int version_id	= CONFIG_ONENAND_SIM_VERSION_ID;
+static int technology_id = CONFIG_ONENAND_SIM_TECHNOLOGY_ID;
+static int boundary[] = {
+	CONFIG_FLEXONENAND_SIM_DIE0_BOUNDARY,
+	CONFIG_FLEXONENAND_SIM_DIE1_BOUNDARY,
+};
 
 struct onenand_flash {
 	void __iomem *base;
@@ -57,12 +83,18 @@ struct onenand_flash {
 	(writew(v, this->base + ONENAND_REG_WP_STATUS))
 
 /* It has all 0xff chars */
-#define MAX_ONENAND_PAGESIZE		(2048 + 64)
+#define MAX_ONENAND_PAGESIZE		(4096 + 128)
 static unsigned char *ffchars;
+
+#if CONFIG_FLEXONENAND
+#define PARTITION_NAME "Flex-OneNAND simulator partition"
+#else
+#define PARTITION_NAME "OneNAND simulator partition"
+#endif
 
 static struct mtd_partition os_partitions[] = {
 	{
-		.name		= "OneNAND simulator partition",
+		.name		= PARTITION_NAME,
 		.offset		= 0,
 		.size		= MTDPART_SIZ_FULL,
 	},
@@ -104,6 +136,7 @@ static void onenand_lock_handle(struct onenand_chip *this, int cmd)
 
 	switch (cmd) {
 	case ONENAND_CMD_UNLOCK:
+	case ONENAND_CMD_UNLOCK_ALL:
 		if (block_lock_scheme)
 			ONENAND_SET_WP_STATUS(ONENAND_WP_US, this);
 		else
@@ -228,10 +261,12 @@ static void onenand_data_handle(struct onenand_chip *this, int cmd,
 {
 	struct mtd_info *mtd = &info->mtd;
 	struct onenand_flash *flash = this->priv;
-	int main_offset, spare_offset;
+	int main_offset, spare_offset, die = 0;
 	void __iomem *src;
 	void __iomem *dest;
 	unsigned int i;
+	static int pi_operation;
+	int erasesize, rgn;
 
 	if (dataram) {
 		main_offset = mtd->writesize;
@@ -241,10 +276,27 @@ static void onenand_data_handle(struct onenand_chip *this, int cmd,
 		spare_offset = 0;
 	}
 
+	if (pi_operation) {
+		die = readw(this->base + ONENAND_REG_START_ADDRESS2);
+		die >>= ONENAND_DDP_SHIFT;
+	}
+
 	switch (cmd) {
+	case FLEXONENAND_CMD_PI_ACCESS:
+		pi_operation = 1;
+		break;
+
+	case ONENAND_CMD_RESET:
+		pi_operation = 0;
+		break;
+
 	case ONENAND_CMD_READ:
 		src = ONENAND_CORE(flash) + offset;
 		dest = ONENAND_MAIN_AREA(this, main_offset);
+		if (pi_operation) {
+			writew(boundary[die], this->base + ONENAND_DATARAM);
+			break;
+		}
 		memcpy(dest, src, mtd->writesize);
 		/* Fall through */
 
@@ -257,6 +309,10 @@ static void onenand_data_handle(struct onenand_chip *this, int cmd,
 	case ONENAND_CMD_PROG:
 		src = ONENAND_MAIN_AREA(this, main_offset);
 		dest = ONENAND_CORE(flash) + offset;
+		if (pi_operation) {
+			boundary[die] = readw(this->base + ONENAND_DATARAM);
+			break;
+		}
 		/* To handle partial write */
 		for (i = 0; i < (1 << mtd->subpage_sft); i++) {
 			int off = i * this->subpagesize;
@@ -284,9 +340,18 @@ static void onenand_data_handle(struct onenand_chip *this, int cmd,
 		break;
 
 	case ONENAND_CMD_ERASE:
-		memset(ONENAND_CORE(flash) + offset, 0xff, mtd->erasesize);
+		if (pi_operation)
+			break;
+
+		if (FLEXONENAND(this)) {
+			rgn = flexonenand_region(mtd, offset);
+			erasesize = mtd->eraseregions[rgn].erasesize;
+		} else
+			erasesize = mtd->erasesize;
+
+		memset(ONENAND_CORE(flash) + offset, 0xff, erasesize);
 		memset(ONENAND_CORE_SPARE(flash, this, offset), 0xff,
-		       (mtd->erasesize >> 5));
+		       (erasesize >> 5));
 		break;
 
 	default:
@@ -339,7 +404,7 @@ static void onenand_command_handle(struct onenand_chip *this, int cmd)
 	}
 
 	if (block != -1)
-		offset += block << this->erase_shift;
+		offset = onenand_addr(this, block);
 
 	if (page != -1)
 		offset += page << this->page_shift;
@@ -390,6 +455,7 @@ static int __init flash_init(struct onenand_flash *flash)
 	}
 
 	density = device_id >> ONENAND_DEVICE_DENSITY_SHIFT;
+	density &= ONENAND_DEVICE_DENSITY_MASK;
 	size = ((16 << 20) << density);
 
 	ONENAND_CORE(flash) = vmalloc(size + (size >> 5));
@@ -405,8 +471,9 @@ static int __init flash_init(struct onenand_flash *flash)
 	writew(manuf_id, flash->base + ONENAND_REG_MANUFACTURER_ID);
 	writew(device_id, flash->base + ONENAND_REG_DEVICE_ID);
 	writew(version_id, flash->base + ONENAND_REG_VERSION_ID);
+	writew(technology_id, flash->base + ONENAND_REG_TECHNOLOGY);
 
-	if (density < 2)
+	if (density < 2 && (!CONFIG_FLEXONENAND))
 		buffer_size = 0x0400;	/* 1KiB page */
 	else
 		buffer_size = 0x0800;	/* 2KiB page */

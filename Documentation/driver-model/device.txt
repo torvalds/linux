@@ -162,3 +162,35 @@ device_remove_file(dev,&dev_attr_power);
 
 The file name will be 'power' with a mode of 0644 (-rw-r--r--).
 
+Word of warning:  While the kernel allows device_create_file() and
+device_remove_file() to be called on a device at any time, userspace has
+strict expectations on when attributes get created.  When a new device is
+registered in the kernel, a uevent is generated to notify userspace (like
+udev) that a new device is available.  If attributes are added after the
+device is registered, then userspace won't get notified and userspace will
+not know about the new attributes.
+
+This is important for device driver that need to publish additional
+attributes for a device at driver probe time.  If the device driver simply
+calls device_create_file() on the device structure passed to it, then
+userspace will never be notified of the new attributes.  Instead, it should
+probably use class_create() and class->dev_attrs to set up a list of
+desired attributes in the modules_init function, and then in the .probe()
+hook, and then use device_create() to create a new device as a child
+of the probed device.  The new device will generate a new uevent and
+properly advertise the new attributes to userspace.
+
+For example, if a driver wanted to add the following attributes:
+struct device_attribute mydriver_attribs[] = {
+	__ATTR(port_count, 0444, port_count_show),
+	__ATTR(serial_number, 0444, serial_number_show),
+	NULL
+};
+
+Then in the module init function is would do:
+	mydriver_class = class_create(THIS_MODULE, "my_attrs");
+	mydriver_class.dev_attr = mydriver_attribs;
+
+And assuming 'dev' is the struct device passed into the probe hook, the driver
+probe function would do something like:
+	create_device(&mydriver_class, dev, chrdev, &private_data, "my_name");

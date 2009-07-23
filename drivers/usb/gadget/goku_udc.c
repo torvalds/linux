@@ -110,10 +110,10 @@ goku_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		return -EINVAL;
 	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
-	if (ep->num != (desc->bEndpointAddress & 0x0f))
+	if (ep->num != usb_endpoint_num(desc))
 		return -EINVAL;
 
-	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_BULK:
 	case USB_ENDPOINT_XFER_INT:
 		break;
@@ -142,7 +142,7 @@ goku_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	/* ep1/ep2 dma direction is chosen early; it works in the other
 	 * direction, with pio.  be cautious with out-dma.
 	 */
-	ep->is_in = (USB_DIR_IN & desc->bEndpointAddress) != 0;
+	ep->is_in = usb_endpoint_dir_in(desc);
 	if (ep->is_in) {
 		mode |= 1;
 		ep->dma = (use_dma != 0) && (ep->num == UDC_MSTRD_ENDPOINT);

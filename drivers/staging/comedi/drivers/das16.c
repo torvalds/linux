@@ -79,6 +79,7 @@ Computer boards manuals also available from their website www.measurementcomputi
 */
 
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 #include <asm/dma.h>
 #include "../comedidev.h"
 
@@ -87,16 +88,16 @@ Computer boards manuals also available from their website www.measurementcomputi
 #include "comedi_fc.h"
 
 #undef DEBUG
-//#define DEBUG
+/* #define DEBUG */
 
 #ifdef DEBUG
-#define DEBUG_PRINT(format, args...) rt_printk("das16: " format, ## args)
+#define DEBUG_PRINT(format, args...) printk("das16: " format, ## args)
 #else
 #define DEBUG_PRINT(format, args...)
 #endif
 
-#define DAS16_SIZE 20		// number of ioports
-#define DAS16_DMA_SIZE 0xff00	// size in bytes of allocated dma buffer
+#define DAS16_SIZE 20		/*  number of ioports */
+#define DAS16_DMA_SIZE 0xff00	/*  size in bytes of allocated dma buffer */
 
 /*
     cio-das16.pdf
@@ -184,7 +185,7 @@ Computer boards manuals also available from their website www.measurementcomputi
 
 */
 
-static const int sample_size = 2;	// size in bytes of a sample from board
+static const int sample_size = 2;	/*  size in bytes of a sample from board */
 
 #define DAS16_TRIG		0
 #define DAS16_AI_LSB		0
@@ -265,7 +266,7 @@ static const struct comedi_lrange range_das1x02_unip = { 4, {
 	}
 };
 static const struct comedi_lrange range_das16jr = { 9, {
-			// also used by 16/330
+			/*  also used by 16/330 */
 			BIP_RANGE(10),
 			BIP_RANGE(5),
 			BIP_RANGE(2.5),
@@ -326,40 +327,40 @@ struct munge_info {
 	unsigned have_byte:1;
 };
 
-static int das16_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int das16_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
-static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s);
-static int das16_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static void das16_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
+static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s);
+static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static void das16_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	void *array, unsigned int num_bytes, unsigned int start_chan_index);
 
-static void das16_reset(struct comedi_device * dev);
-static irqreturn_t das16_dma_interrupt(int irq, void *d PT_REGS_ARG);
+static void das16_reset(struct comedi_device *dev);
+static irqreturn_t das16_dma_interrupt(int irq, void *d);
 static void das16_timer_interrupt(unsigned long arg);
-static void das16_interrupt(struct comedi_device * dev);
+static void das16_interrupt(struct comedi_device *dev);
 
-static unsigned int das16_set_pacer(struct comedi_device * dev, unsigned int ns,
+static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 	int flags);
-static int das1600_mode_detect(struct comedi_device * dev);
-static unsigned int das16_suggest_transfer_size(struct comedi_device * dev,
+static int das1600_mode_detect(struct comedi_device *dev);
+static unsigned int das16_suggest_transfer_size(struct comedi_device *dev,
 	struct comedi_cmd cmd);
 
-static void reg_dump(struct comedi_device * dev);
+static void reg_dump(struct comedi_device *dev);
 
 struct das16_board {
 	const char *name;
 	void *ai;
 	unsigned int ai_nbits;
-	unsigned int ai_speed;	// max conversion speed in nanosec
+	unsigned int ai_speed;	/*  max conversion speed in nanosec */
 	unsigned int ai_pg;
 	void *ao;
 	unsigned int ao_nbits;
@@ -375,339 +376,337 @@ struct das16_board {
 
 static const struct das16_board das16_boards[] = {
 	{
-	      name:	"das-16",
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:15000,
-	      ai_pg:	das16_pg_none,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x10,
-	      i8254_offset:0x0c,
-	      size:	0x14,
-	      id:	0x00,
+	.name = "das-16",
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 15000,
+	.ai_pg = das16_pg_none,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x10,
+	.i8254_offset = 0x0c,
+	.size = 0x14,
+	.id = 0x00,
 		},
 	{
-	      name:	"das-16g",
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:15000,
-	      ai_pg:	das16_pg_none,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x10,
-	      i8254_offset:0x0c,
-	      size:	0x14,
-	      id:	0x00,
+	.name = "das-16g",
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 15000,
+	.ai_pg = das16_pg_none,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x10,
+	.i8254_offset = 0x0c,
+	.size = 0x14,
+	.id = 0x00,
 		},
 	{
-	      name:	"das-16f",
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:8500,
-	      ai_pg:	das16_pg_none,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x10,
-	      i8254_offset:0x0c,
-	      size:	0x14,
-	      id:	0x00,
+	.name = "das-16f",
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 8500,
+	.ai_pg = das16_pg_none,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x10,
+	.i8254_offset = 0x0c,
+	.size = 0x14,
+	.id = 0x00,
 		},
 	{
-	      name:	"cio-das16",	// cio-das16.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:20000,
-	      ai_pg:	das16_pg_none,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x10,
-	      i8254_offset:0x0c,
-	      size:	0x14,
-	      id:	0x80,
+	.name = "cio-das16",	/*  cio-das16.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 20000,
+	.ai_pg = das16_pg_none,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x10,
+	.i8254_offset = 0x0c,
+	.size = 0x14,
+	.id = 0x80,
 		},
 	{
-	      name:	"cio-das16/f",	// das16.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_none,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x10,
-	      i8254_offset:0x0c,
-	      size:	0x14,
-	      id:	0x80,
+	.name = "cio-das16/f",	/*  das16.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_none,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x10,
+	.i8254_offset = 0x0c,
+	.size = 0x14,
+	.id = 0x80,
 		},
 	{
-	      name:	"cio-das16/jr",	// cio-das16jr.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:7692,
-	      ai_pg:	das16_pg_16jr,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0,
-	      i8254_offset:0x0c,
-	      size:	0x10,
-	      id:	0x00,
+	.name = "cio-das16/jr",	/*  cio-das16jr.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 7692,
+	.ai_pg = das16_pg_16jr,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0,
+	.i8254_offset = 0x0c,
+	.size = 0x10,
+	.id = 0x00,
 		},
 	{
-	      name:	"pc104-das16jr",	// pc104-das16jr_xx.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:3300,
-	      ai_pg:	das16_pg_16jr,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0,
-	      i8254_offset:0x0c,
-	      size:	0x10,
-	      id:	0x00,
+	.name = "pc104-das16jr",	/*  pc104-das16jr_xx.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 3300,
+	.ai_pg = das16_pg_16jr,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0,
+	.i8254_offset = 0x0c,
+	.size = 0x10,
+	.id = 0x00,
 		},
 	{
-	      name:	"cio-das16jr/16",	// cio-das16jr_16.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:16,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_16jr_16,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0,
-	      i8254_offset:0x0c,
-	      size:	0x10,
-	      id:	0x00,
+	.name = "cio-das16jr/16",	/*  cio-das16jr_16.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 16,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_16jr_16,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0,
+	.i8254_offset = 0x0c,
+	.size = 0x10,
+	.id = 0x00,
 		},
 	{
-	      name:	"pc104-das16jr/16",	// pc104-das16jr_xx.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:16,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_16jr_16,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0,
-	      i8254_offset:0x0c,
-	      size:	0x10,
-	      id:	0x00,
+	.name = "pc104-das16jr/16",	/*  pc104-das16jr_xx.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 16,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_16jr_16,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0,
+	.i8254_offset = 0x0c,
+	.size = 0x10,
+	.id = 0x00,
 		},
 	{
-	      name:	"das-1201",	// 4924.pdf (keithley user's manual)
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:20000,
-	      ai_pg:	das16_pg_none,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x400,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-	      id:	0x20,
+	.name = "das-1201",	/*  4924.pdf (keithley user's manual) */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 20000,
+	.ai_pg = das16_pg_none,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x400,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0x20,
 		},
 	{
-	      name:	"das-1202",	// 4924.pdf (keithley user's manual)
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_none,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x400,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-	      id:	0x20,
+	.name = "das-1202",	/*  4924.pdf (keithley user's manual) */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_none,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x400,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0x20,
 		},
 	{
-	      name:	"das-1401",	// 4919.pdf and 4922.pdf (keithley user's manual)
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_1601,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x0,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-	      id:	0xc0	// 4919.pdf says id bits are 0xe0, 4922.pdf says 0xc0
+	.name = "das-1401",	/*  4919.pdf and 4922.pdf (keithley user's manual) */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_1601,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x0,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0	/*  4919.pdf says id bits are 0xe0, 4922.pdf says 0xc0 */
 		},
 	{
-	      name:	"das-1402",	// 4919.pdf and 4922.pdf (keithley user's manual)
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_1602,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x0,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-	      id:	0xc0	// 4919.pdf says id bits are 0xe0, 4922.pdf says 0xc0
+	.name = "das-1402",	/*  4919.pdf and 4922.pdf (keithley user's manual) */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_1602,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x0,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0	/*  4919.pdf says id bits are 0xe0, 4922.pdf says 0xc0 */
 		},
 	{
-	      name:	"das-1601",	// 4919.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_1601,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x400,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-      id:	0xc0},
+	.name = "das-1601",	/*  4919.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_1601,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x400,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0},
 	{
-	      name:	"das-1602",	// 4919.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_1602,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x400,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-      id:	0xc0},
+	.name = "das-1602",	/*  4919.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_1602,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x400,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0},
 	{
-	      name:	"cio-das1401/12",	// cio-das1400_series.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:6250,
-	      ai_pg:	das16_pg_1601,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-      id:	0xc0},
+	.name = "cio-das1401/12",	/*  cio-das1400_series.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 6250,
+	.ai_pg = das16_pg_1601,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0},
 	{
-	      name:	"cio-das1402/12",	// cio-das1400_series.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:6250,
-	      ai_pg:	das16_pg_1602,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-      id:	0xc0},
+	.name = "cio-das1402/12",	/*  cio-das1400_series.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 6250,
+	.ai_pg = das16_pg_1602,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0},
 	{
-	      name:	"cio-das1402/16",	// cio-das1400_series.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:16,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_1602,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-      id:	0xc0},
+	.name = "cio-das1402/16",	/*  cio-das1400_series.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 16,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_1602,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0},
 	{
-	      name:	"cio-das1601/12",	// cio-das160x-1x.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:6250,
-	      ai_pg:	das16_pg_1601,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x400,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-      id:	0xc0},
+	.name = "cio-das1601/12",	/*  cio-das160x-1x.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 6250,
+	.ai_pg = das16_pg_1601,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x400,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0},
 	{
-	      name:	"cio-das1602/12",	// cio-das160x-1x.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_1602,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x400,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-      id:	0xc0},
+	.name = "cio-das1602/12",	/*  cio-das160x-1x.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_1602,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x400,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0},
 	{
-	      name:	"cio-das1602/16",	// cio-das160x-1x.pdf
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:16,
-	      ai_speed:10000,
-	      ai_pg:	das16_pg_1602,
-	      ao:	das16_ao_winsn,
-	      ao_nbits:12,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0x400,
-	      i8254_offset:0x0c,
-	      size:	0x408,
-      id:	0xc0},
+	.name = "cio-das1602/16",	/*  cio-das160x-1x.pdf */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 16,
+	.ai_speed = 10000,
+	.ai_pg = das16_pg_1602,
+	.ao = das16_ao_winsn,
+	.ao_nbits = 12,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0x400,
+	.i8254_offset = 0x0c,
+	.size = 0x408,
+	.id = 0xc0},
 	{
-	      name:	"cio-das16/330",	// ?
-	      ai:	das16_ai_rinsn,
-	      ai_nbits:12,
-	      ai_speed:3030,
-	      ai_pg:	das16_pg_16jr,
-	      ao:	NULL,
-	      di:	das16_di_rbits,
-	      do_:	das16_do_wbits,
-	      i8255_offset:0,
-	      i8254_offset:0x0c,
-	      size:	0x14,
-      id:	0xf0},
+	.name = "cio-das16/330",	/*  ? */
+	.ai = das16_ai_rinsn,
+	.ai_nbits = 12,
+	.ai_speed = 3030,
+	.ai_pg = das16_pg_16jr,
+	.ao = NULL,
+	.di = das16_di_rbits,
+	.do_ = das16_do_wbits,
+	.i8255_offset = 0,
+	.i8254_offset = 0x0c,
+	.size = 0x14,
+	.id = 0xf0},
 #if 0
 	{
-	      name:	"das16/330i",	// ?
+	.name = "das16/330i",	/*  ? */
 		},
 	{
-	      name:	"das16/jr/ctr5",	// ?
+	.name = "das16/jr/ctr5",	/*  ? */
 		},
 	{
-	      name:	"cio-das16/m1/16",	// cio-das16_m1_16.pdf, this board is a bit quirky, no dma
+	.name = "cio-das16/m1/16",	/*  cio-das16_m1_16.pdf, this board is a bit quirky, no dma */
 		},
 #endif
 };
 
-#define n_das16_boards ((sizeof(das16_boards))/(sizeof(struct das16_board)))
-
-static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int das16_detach(struct comedi_device * dev);
+static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int das16_detach(struct comedi_device *dev);
 static struct comedi_driver driver_das16 = {
-      driver_name:"das16",
-      module:THIS_MODULE,
-      attach:das16_attach,
-      detach:das16_detach,
-      board_name:&das16_boards[0].name,
-      num_names:n_das16_boards,
-      offset:sizeof(das16_boards[0]),
+	.driver_name = "das16",
+	.module = THIS_MODULE,
+	.attach = das16_attach,
+	.detach = das16_detach,
+	.board_name = &das16_boards[0].name,
+	.num_names = ARRAY_SIZE(das16_boards),
+	.offset = sizeof(das16_boards[0]),
 };
 
 #define DAS16_TIMEOUT 1000
@@ -719,31 +718,31 @@ static inline int timer_period(void)
 	return HZ / 20;
 }
 struct das16_private_struct {
-	unsigned int ai_unipolar;	// unipolar flag
-	unsigned int ai_singleended;	// single ended flag
-	unsigned int clockbase;	// master clock speed in ns
-	volatile unsigned int control_state;	// dma, interrupt and trigger control bits
-	volatile unsigned long adc_byte_count;	// number of bytes remaining
-	unsigned int divisor1;	// divisor dividing master clock to get conversion frequency
-	unsigned int divisor2;	// divisor dividing master clock to get conversion frequency
-	unsigned int dma_chan;	// dma channel
+	unsigned int ai_unipolar;	/*  unipolar flag */
+	unsigned int ai_singleended;	/*  single ended flag */
+	unsigned int clockbase;	/*  master clock speed in ns */
+	volatile unsigned int control_state;	/*  dma, interrupt and trigger control bits */
+	volatile unsigned long adc_byte_count;	/*  number of bytes remaining */
+	unsigned int divisor1;	/*  divisor dividing master clock to get conversion frequency */
+	unsigned int divisor2;	/*  divisor dividing master clock to get conversion frequency */
+	unsigned int dma_chan;	/*  dma channel */
 	uint16_t *dma_buffer[2];
 	dma_addr_t dma_buffer_addr[2];
 	unsigned int current_buffer;
-	volatile unsigned int dma_transfer_size;	// target number of bytes to transfer per dma shot
-	// user-defined analog input and output ranges defined from config options
+	volatile unsigned int dma_transfer_size;	/*  target number of bytes to transfer per dma shot */
+	/*  user-defined analog input and output ranges defined from config options */
 	struct comedi_lrange *user_ai_range_table;
 	struct comedi_lrange *user_ao_range_table;
 
-	struct timer_list timer;	// for timed interrupt
+	struct timer_list timer;	/*  for timed interrupt */
 	volatile short timer_running;
-	volatile short timer_mode;	// true if using timer mode
+	volatile short timer_mode;	/*  true if using timer mode */
 };
 #define devpriv ((struct das16_private_struct *)(dev->private))
 #define thisboard ((struct das16_board *)(dev->board_ptr))
 
-static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd)
+static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd)
 {
 	int err = 0, tmp;
 	int gain, start_chan, i;
@@ -757,7 +756,7 @@ static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * 
 
 	tmp = cmd->scan_begin_src;
 	mask = TRIG_FOLLOW;
-	// if board supports burst mode
+	/*  if board supports burst mode */
 	if (thisboard->size > 0x400)
 		mask |= TRIG_TIMER | TRIG_EXT;
 	cmd->scan_begin_src &= mask;
@@ -766,7 +765,7 @@ static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * 
 
 	tmp = cmd->convert_src;
 	mask = TRIG_TIMER | TRIG_EXT;
-	// if board supports burst mode
+	/*  if board supports burst mode */
 	if (thisboard->size > 0x400)
 		mask |= TRIG_NOW;
 	cmd->convert_src &= mask;
@@ -797,7 +796,7 @@ static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * 
 	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
 		err++;
 
-	// make sure scan_begin_src and convert_src dont conflict
+	/*  make sure scan_begin_src and convert_src dont conflict */
 	if (cmd->scan_begin_src == TRIG_FOLLOW && cmd->convert_src == TRIG_NOW)
 		err++;
 	if (cmd->scan_begin_src != TRIG_FOLLOW && cmd->convert_src != TRIG_NOW)
@@ -824,7 +823,7 @@ static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * 
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
 	}
-	// check against maximum frequency
+	/*  check against maximum frequency */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		if (cmd->scan_begin_arg <
 			thisboard->ai_speed * cmd->chanlist_len) {
@@ -849,10 +848,10 @@ static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * 
 	if (err)
 		return 3;
 
-	// step 4: fix up arguments
+	/*  step 4: fix up arguments */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		unsigned int tmp = cmd->scan_begin_arg;
-		// set divisors, correct timing arguments
+		/*  set divisors, correct timing arguments */
 		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
 			&(devpriv->divisor1), &(devpriv->divisor2),
 			&(cmd->scan_begin_arg), cmd->flags & TRIG_ROUND_MASK);
@@ -860,7 +859,7 @@ static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * 
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
 		unsigned int tmp = cmd->convert_arg;
-		// set divisors, correct timing arguments
+		/*  set divisors, correct timing arguments */
 		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
 			&(devpriv->divisor1), &(devpriv->divisor2),
 			&(cmd->convert_arg), cmd->flags & TRIG_ROUND_MASK);
@@ -869,7 +868,7 @@ static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * 
 	if (err)
 		return 4;
 
-	// check channel/gain list against card's limitations
+	/*  check channel/gain list against card's limitations */
 	if (cmd->chanlist) {
 		gain = CR_RANGE(cmd->chanlist[0]);
 		start_chan = CR_CHAN(cmd->chanlist[0]);
@@ -893,7 +892,7 @@ static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * 
 	return 0;
 }
 
-static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s)
+static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -916,11 +915,11 @@ static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * 
 	devpriv->adc_byte_count =
 		cmd->stop_arg * cmd->chanlist_len * sizeof(uint16_t);
 
-	// disable conversions for das1600 mode
+	/*  disable conversions for das1600 mode */
 	if (thisboard->size > 0x400) {
 		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV);
 	}
-	// set scan limits
+	/*  set scan limits */
 	byte = CR_CHAN(cmd->chanlist[0]);
 	byte |= CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]) << 4;
 	outb(byte, dev->iobase + DAS16_MUX);
@@ -945,7 +944,7 @@ static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * 
 	if (thisboard->size > 0x400) {
 		if (cmd->convert_src == TRIG_NOW) {
 			outb(DAS1600_BURST_VAL, dev->iobase + DAS1600_BURST);
-			// set burst length
+			/*  set burst length */
 			byte |= BURST_LEN_BITS(cmd->chanlist_len - 1);
 		} else {
 			outb(0, dev->iobase + DAS1600_BURST);
@@ -953,7 +952,7 @@ static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * 
 	}
 	outb(byte, dev->iobase + DAS16_PACER);
 
-	// set up dma transfer
+	/*  set up dma transfer */
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_chan);
 	/* clear flip-flop to make sure 2-byte registers for
@@ -962,13 +961,13 @@ static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * 
 	devpriv->current_buffer = 0;
 	set_dma_addr(devpriv->dma_chan,
 		devpriv->dma_buffer_addr[devpriv->current_buffer]);
-	// set appropriate size of transfer
+	/*  set appropriate size of transfer */
 	devpriv->dma_transfer_size = das16_suggest_transfer_size(dev, *cmd);
 	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
-	// set up interrupt
+	/*  set up interrupt */
 	if (devpriv->timer_mode) {
 		devpriv->timer_running = 1;
 		devpriv->timer.expires = jiffies + timer_period();
@@ -996,18 +995,18 @@ static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * 
 	return 0;
 }
 
-static int das16_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
+static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	/* disable interrupts, dma and pacer clocked conversions */
 	devpriv->control_state &= ~DAS16_INTE & ~PACING_MASK & ~DMA_ENABLE;
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 	if (devpriv->dma_chan)
 		disable_dma(devpriv->dma_chan);
 
-	// disable SW timer
+	/*  disable SW timer */
 	if (devpriv->timer_mode && devpriv->timer_running) {
 		devpriv->timer_running = 0;
 		del_timer(&devpriv->timer);
@@ -1018,12 +1017,12 @@ static int das16_cancel(struct comedi_device * dev, struct comedi_subdevice * s)
 		outb(0, dev->iobase + DAS1600_BURST);
 	}
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return 0;
 }
 
-static void das16_reset(struct comedi_device * dev)
+static void das16_reset(struct comedi_device *dev)
 {
 	outb(0, dev->iobase + DAS16_STATUS);
 	outb(0, dev->iobase + DAS16_CONTROL);
@@ -1031,15 +1030,15 @@ static void das16_reset(struct comedi_device * dev)
 	outb(0, dev->iobase + DAS16_CNTR_CONTROL);
 }
 
-static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i, n;
 	int range;
 	int chan;
 	int msb, lsb;
 
-	// disable interrupts and pacing
+	/*  disable interrupts and pacing */
 	devpriv->control_state &= ~DAS16_INTE & ~DMA_ENABLE & ~PACING_MASK;
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 
@@ -1064,7 +1063,7 @@ static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * 
 				break;
 		}
 		if (i == DAS16_TIMEOUT) {
-			rt_printk("das16: timeout\n");
+			printk("das16: timeout\n");
 			return -ETIME;
 		}
 		msb = inb(dev->iobase + DAS16_AI_MSB);
@@ -1079,8 +1078,8 @@ static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * 
 	return n;
 }
 
-static int das16_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int bits;
 
@@ -1091,17 +1090,17 @@ static int das16_di_rbits(struct comedi_device * dev, struct comedi_subdevice * 
 	return 2;
 }
 
-static int das16_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int wbits;
 
-	// only set bits that have been masked
+	/*  only set bits that have been masked */
 	data[0] &= 0xf;
 	wbits = s->state;
-	// zero bits that have been masked
+	/*  zero bits that have been masked */
 	wbits &= ~data[0];
-	// set masked bits
+	/*  set masked bits */
 	wbits |= data[0] & data[1];
 	s->state = wbits;
 	data[1] = wbits;
@@ -1111,8 +1110,8 @@ static int das16_do_wbits(struct comedi_device * dev, struct comedi_subdevice * 
 	return 2;
 }
 
-static int das16_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int das16_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int lsb, msb;
@@ -1135,7 +1134,7 @@ static int das16_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * 
 	return i;
 }
 
-static irqreturn_t das16_dma_interrupt(int irq, void *d PT_REGS_ARG)
+static irqreturn_t das16_dma_interrupt(int irq, void *d)
 {
 	int status;
 	struct comedi_device *dev = d;
@@ -1169,7 +1168,7 @@ static void das16_timer_interrupt(unsigned long arg)
 	an even transfer count after disabling dma
 	channel.
 */
-static int disable_dma_on_even(struct comedi_device * dev)
+static int disable_dma_on_even(struct comedi_device *dev)
 {
 	int residue;
 	int i;
@@ -1182,7 +1181,7 @@ static int disable_dma_on_even(struct comedi_device * dev)
 		enable_dma(devpriv->dma_chan);
 		for (j = 0; j < enable_timeout; ++j) {
 			int new_residue;
-			comedi_udelay(2);
+			udelay(2);
 			new_residue = get_dma_residue(devpriv->dma_chan);
 			if (new_residue != residue)
 				break;
@@ -1197,7 +1196,7 @@ static int disable_dma_on_even(struct comedi_device * dev)
 	return residue;
 }
 
-static void das16_interrupt(struct comedi_device * dev)
+static void das16_interrupt(struct comedi_device *dev)
 {
 	unsigned long dma_flags, spin_flags;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -1210,7 +1209,7 @@ static void das16_interrupt(struct comedi_device * dev)
 		comedi_error(dev, "premature interrupt");
 		return;
 	}
-	// initialize async here to make sure it is not NULL
+	/*  initialize async here to make sure it is not NULL */
 	async = s->async;
 	cmd = &async->cmd;
 
@@ -1219,9 +1218,9 @@ static void das16_interrupt(struct comedi_device * dev)
 		return;
 	}
 
-	comedi_spin_lock_irqsave(&dev->spinlock, spin_flags);
+	spin_lock_irqsave(&dev->spinlock, spin_flags);
 	if ((devpriv->control_state & DMA_ENABLE) == 0) {
-		comedi_spin_unlock_irqrestore(&dev->spinlock, spin_flags);
+		spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 		DEBUG_PRINT("interrupt while dma disabled?\n");
 		return;
 	}
@@ -1230,7 +1229,7 @@ static void das16_interrupt(struct comedi_device * dev)
 	clear_dma_ff(devpriv->dma_chan);
 	residue = disable_dma_on_even(dev);
 
-	// figure out how many points to read
+	/*  figure out how many points to read */
 	if (residue > devpriv->dma_transfer_size) {
 		comedi_error(dev, "residue > transfer size!\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
@@ -1247,12 +1246,12 @@ static void das16_interrupt(struct comedi_device * dev)
 	devpriv->current_buffer = (devpriv->current_buffer + 1) % 2;
 	devpriv->adc_byte_count -= num_bytes;
 
-	// figure out how many bytes for next transfer
+	/*  figure out how many bytes for next transfer */
 	if (cmd->stop_src == TRIG_COUNT && devpriv->timer_mode == 0 &&
 		devpriv->dma_transfer_size > devpriv->adc_byte_count)
 		devpriv->dma_transfer_size = devpriv->adc_byte_count;
 
-	// re-enable  dma
+	/*  re-enable  dma */
 	if ((async->events & COMEDI_CB_EOA) == 0) {
 		set_dma_addr(devpriv->dma_chan,
 			devpriv->dma_buffer_addr[devpriv->current_buffer]);
@@ -1265,7 +1264,7 @@ static void das16_interrupt(struct comedi_device * dev)
 	}
 	release_dma_lock(dma_flags);
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, spin_flags);
+	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 
 	cfc_write_array_to_buffer(s,
 		devpriv->dma_buffer[buffer_index], num_bytes);
@@ -1273,7 +1272,7 @@ static void das16_interrupt(struct comedi_device * dev)
 	cfc_handle_events(dev, s);
 }
 
-static unsigned int das16_set_pacer(struct comedi_device * dev, unsigned int ns,
+static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 	int rounding_flags)
 {
 	i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
@@ -1286,7 +1285,7 @@ static unsigned int das16_set_pacer(struct comedi_device * dev, unsigned int ns,
 	return ns;
 }
 
-static void reg_dump(struct comedi_device * dev)
+static void reg_dump(struct comedi_device *dev)
 {
 	DEBUG_PRINT("********DAS1600 REGISTER DUMP********\n");
 	DEBUG_PRINT("DAS16_MUX: %x\n", inb(dev->iobase + DAS16_MUX));
@@ -1304,7 +1303,7 @@ static void reg_dump(struct comedi_device * dev)
 		inb(dev->iobase + DAS1600_STATUS_B));
 }
 
-static int das16_probe(struct comedi_device * dev, struct comedi_devconfig * it)
+static int das16_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int status;
 	int diobits;
@@ -1338,7 +1337,7 @@ static int das16_probe(struct comedi_device * dev, struct comedi_devconfig * it)
 	return 0;
 }
 
-static int das1600_mode_detect(struct comedi_device * dev)
+static int das1600_mode_detect(struct comedi_device *dev)
 {
 	int status = 0;
 
@@ -1366,7 +1365,7 @@ static int das1600_mode_detect(struct comedi_device * dev)
  *   3  Clock speed (in MHz)
  */
 
-static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 	int ret;
@@ -1391,7 +1390,7 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 
 	printk("comedi%d: das16:", dev->minor);
 
-	// check that clock setting is valid
+	/*  check that clock setting is valid */
 	if (it->options[3]) {
 		if (it->options[3] != 0 &&
 			it->options[3] != 1 && it->options[3] != 10) {
@@ -1400,7 +1399,8 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 		}
 	}
 
-	if ((ret = alloc_private(dev, sizeof(struct das16_private_struct))) < 0)
+	ret = alloc_private(dev, sizeof(struct das16_private_struct));
+	if (ret < 0)
 		return ret;
 
 	if (thisboard->size < 0x400) {
@@ -1431,27 +1431,28 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 
 	dev->iobase = iobase;
 
-	// probe id bits to make sure they are consistent
+	/*  probe id bits to make sure they are consistent */
 	if (das16_probe(dev, it)) {
 		printk(" id bits do not match selected board, aborting\n");
 		return -EINVAL;
 	}
 	dev->board_name = thisboard->name;
 
-	// get master clock speed
+	/*  get master clock speed */
 	if (thisboard->size < 0x400) {
 		if (it->options[3])
 			devpriv->clockbase = 1000 / it->options[3];
 		else
-			devpriv->clockbase = 1000;	// 1 MHz default
+			devpriv->clockbase = 1000;	/*  1 MHz default */
 	} else {
 		das1600_mode_detect(dev);
 	}
 
 	/* now for the irq */
 	if (irq > 1 && irq < 8) {
-		if ((ret = comedi_request_irq(irq, das16_dma_interrupt, 0,
-					"das16", dev)) < 0)
+		ret = request_irq(irq, das16_dma_interrupt, 0, "das16", dev);
+
+		if (ret < 0)
 			return ret;
 		dev->irq = irq;
 		printk(" ( irq = %u )", irq);
@@ -1462,10 +1463,10 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 		return -EINVAL;
 	}
 
-	// initialize dma
+	/*  initialize dma */
 	dma_chan = it->options[2];
 	if (dma_chan == 1 || dma_chan == 3) {
-		// allocate dma buffers
+		/*  allocate dma buffers */
 		int i;
 		for (i = 0; i < 2; i++) {
 			devpriv->dma_buffer[i] = pci_alloc_consistent(NULL,
@@ -1491,27 +1492,27 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 		return -EINVAL;
 	}
 
-	// get any user-defined input range
+	/*  get any user-defined input range */
 	if (thisboard->ai_pg == das16_pg_none &&
 		(it->options[4] || it->options[5])) {
-		// allocate single-range range table
+		/*  allocate single-range range table */
 		devpriv->user_ai_range_table =
 			kmalloc(sizeof(struct comedi_lrange) + sizeof(struct comedi_krange),
 			GFP_KERNEL);
-		// initialize ai range
+		/*  initialize ai range */
 		devpriv->user_ai_range_table->length = 1;
 		user_ai_range = devpriv->user_ai_range_table->range;
 		user_ai_range->min = it->options[4];
 		user_ai_range->max = it->options[5];
 		user_ai_range->flags = UNIT_volt;
 	}
-	// get any user-defined output range
+	/*  get any user-defined output range */
 	if (it->options[6] || it->options[7]) {
-		// allocate single-range range table
+		/*  allocate single-range range table */
 		devpriv->user_ao_range_table =
 			kmalloc(sizeof(struct comedi_lrange) + sizeof(struct comedi_krange),
 			GFP_KERNEL);
-		// initialize ao range
+		/*  initialize ao range */
 		devpriv->user_ao_range_table->length = 1;
 		user_ao_range = devpriv->user_ao_range_table->range;
 		user_ao_range->min = it->options[6];
@@ -1526,7 +1527,8 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	}
 	devpriv->timer_mode = timer_mode ? 1 : 0;
 
-	if ((ret = alloc_subdevices(dev, 5)) < 0)
+	ret = alloc_subdevices(dev, 5);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;
@@ -1545,7 +1547,7 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 			s->subdev_flags |= SDF_DIFF;
 		}
 		s->maxdata = (1 << thisboard->ai_nbits) - 1;
-		if (devpriv->user_ai_range_table) {	// user defined ai range
+		if (devpriv->user_ai_range_table) {	/*  user defined ai range */
 			s->range_table = devpriv->user_ai_range_table;
 		} else if (devpriv->ai_unipolar) {
 			s->range_table = das16_ai_uni_lranges[thisboard->ai_pg];
@@ -1568,7 +1570,7 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
-		if (devpriv->user_ao_range_table) {	// user defined ao range
+		if (devpriv->user_ao_range_table) {	/*  user defined ao range */
 			s->range_table = devpriv->user_ao_range_table;
 		} else {
 			s->range_table = &range_unknown;
@@ -1600,7 +1602,7 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = thisboard->do_;
-		// initialize digital output lines
+		/*  initialize digital output lines */
 		outb(s->state, dev->iobase + DAS16_DIO);
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -1620,7 +1622,7 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	devpriv->control_state = DAS16_IRQ(dev->irq);
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 
-	// turn on das1600 mode if available
+	/*  turn on das1600 mode if available */
 	if (thisboard->size > 0x400) {
 		outb(DAS1600_ENABLE_VAL, dev->iobase + DAS1600_ENABLE);
 		outb(0, dev->iobase + DAS1600_CONV);
@@ -1630,7 +1632,7 @@ static int das16_attach(struct comedi_device * dev, struct comedi_devconfig * it
 	return 0;
 }
 
-static int das16_detach(struct comedi_device * dev)
+static int das16_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: das16: remove\n", dev->minor);
 
@@ -1656,7 +1658,7 @@ static int das16_detach(struct comedi_device * dev)
 	}
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	if (dev->iobase) {
 		if (thisboard->size < 0x400) {
@@ -1673,8 +1675,8 @@ static int das16_detach(struct comedi_device * dev)
 
 COMEDI_INITCLEANUP(driver_das16);
 
-// utility function that suggests a dma transfer size in bytes
-static unsigned int das16_suggest_transfer_size(struct comedi_device * dev,
+/* utility function that suggests a dma transfer size in bytes */
+static unsigned int das16_suggest_transfer_size(struct comedi_device *dev,
 	struct comedi_cmd cmd)
 {
 	unsigned int size;
@@ -1692,18 +1694,18 @@ static unsigned int das16_suggest_transfer_size(struct comedi_device * dev,
 		freq = 1000000000 / cmd.convert_arg;
 	else if (cmd.scan_begin_src == TRIG_TIMER)
 		freq = (1000000000 / cmd.scan_begin_arg) * cmd.chanlist_len;
-	// return some default value
+	/*  return some default value */
 	else
 		freq = 0xffffffff;
 
 	if (cmd.flags & TRIG_WAKE_EOS) {
 		size = sample_size * cmd.chanlist_len;
 	} else {
-		// make buffer fill in no more than 1/3 second
+		/*  make buffer fill in no more than 1/3 second */
 		size = (freq / 3) * sample_size;
 	}
 
-	// set a minimum and maximum size allowed
+	/*  set a minimum and maximum size allowed */
 	if (size > DAS16_DMA_SIZE)
 		size = DAS16_DMA_SIZE - DAS16_DMA_SIZE % sample_size;
 	else if (size < sample_size)
@@ -1715,7 +1717,7 @@ static unsigned int das16_suggest_transfer_size(struct comedi_device * dev,
 	return size;
 }
 
-static void das16_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
+static void das16_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	void *array, unsigned int num_bytes, unsigned int start_chan_index)
 {
 	unsigned int i, num_samples = num_bytes / sizeof(short);

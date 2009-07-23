@@ -878,7 +878,7 @@ static int tcm825x_probe(struct i2c_client *client,
 	return rval;
 }
 
-static int __exit tcm825x_remove(struct i2c_client *client)
+static int tcm825x_remove(struct i2c_client *client)
 {
 	struct tcm825x_sensor *sensor = i2c_get_clientdata(client);
 
@@ -902,7 +902,7 @@ static struct i2c_driver tcm825x_i2c_driver = {
 		.name = TCM825X_NAME,
 	},
 	.probe	= tcm825x_probe,
-	.remove	= __exit_p(tcm825x_remove),
+	.remove	= tcm825x_remove,
 	.id_table = tcm825x_id,
 };
 

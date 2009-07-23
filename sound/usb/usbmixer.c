@@ -423,7 +423,7 @@ static int set_ctl_value(struct usb_mixer_elem_info *cval, int request, int vali
 	value_set = convert_bytes_value(cval, value_set);
 	buf[0] = value_set & 0xff;
 	buf[1] = (value_set >> 8) & 0xff;
-	while (timeout -- > 0)
+	while (timeout-- > 0)
 		if (snd_usb_ctl_msg(cval->mixer->chip->dev,
 				    usb_sndctrlpipe(cval->mixer->chip->dev, 0),
 				    request,

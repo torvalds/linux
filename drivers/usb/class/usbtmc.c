@@ -751,7 +751,7 @@ static int get_capabilities(struct usbtmc_device_data *data)
 {
 	struct device *dev = &data->usb_dev->dev;
 	char *buffer;
-	int rv;
+	int rv = 0;
 
 	buffer = kmalloc(0x18, GFP_KERNEL);
 	if (!buffer)
@@ -763,7 +763,7 @@ static int get_capabilities(struct usbtmc_device_data *data)
 			     0, 0, buffer, 0x18, USBTMC_TIMEOUT);
 	if (rv < 0) {
 		dev_err(dev, "usb_control_msg returned %d\n", rv);
-		return rv;
+		goto err_out;
 	}
 
 	dev_dbg(dev, "GET_CAPABILITIES returned %x\n", buffer[0]);
@@ -773,7 +773,8 @@ static int get_capabilities(struct usbtmc_device_data *data)
 	dev_dbg(dev, "USB488 device capabilities are %x\n", buffer[15]);
 	if (buffer[0] != USBTMC_STATUS_SUCCESS) {
 		dev_err(dev, "GET_CAPABILITIES returned %x\n", buffer[0]);
-		return -EPERM;
+		rv = -EPERM;
+		goto err_out;
 	}
 
 	data->capabilities.interface_capabilities = buffer[4];
@@ -781,8 +782,9 @@ static int get_capabilities(struct usbtmc_device_data *data)
 	data->capabilities.usb488_interface_capabilities = buffer[14];
 	data->capabilities.usb488_device_capabilities = buffer[15];
 
+err_out:
 	kfree(buffer);
-	return 0;
+	return rv;
 }
 
 #define capability_attribute(name)					\
@@ -927,21 +929,27 @@ static long usbtmc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case USBTMC_IOCTL_CLEAR_OUT_HALT:
 		retval = usbtmc_ioctl_clear_out_halt(data);
+		break;
 
 	case USBTMC_IOCTL_CLEAR_IN_HALT:
 		retval = usbtmc_ioctl_clear_in_halt(data);
+		break;
 
 	case USBTMC_IOCTL_INDICATOR_PULSE:
 		retval = usbtmc_ioctl_indicator_pulse(data);
+		break;
 
 	case USBTMC_IOCTL_CLEAR:
 		retval = usbtmc_ioctl_clear(data);
+		break;
 
 	case USBTMC_IOCTL_ABORT_BULK_OUT:
 		retval = usbtmc_ioctl_abort_bulk_out(data);
+		break;
 
 	case USBTMC_IOCTL_ABORT_BULK_IN:
 		retval = usbtmc_ioctl_abort_bulk_in(data);
+		break;
 	}
 
 	mutex_unlock(&data->io_mutex);
