@@ -546,6 +546,13 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	schedstat_set(se->wait_sum, se->wait_sum +
 			rq_of(cfs_rq)->clock - se->wait_start);
 	schedstat_set(se->wait_start, 0);
+
+#ifdef CONFIG_SCHEDSTATS
+	if (entity_is_task(se)) {
+		trace_sched_stat_wait(task_of(se),
+			rq_of(cfs_rq)->clock - se->wait_start);
+	}
+#endif
 }
 
 static inline void
@@ -636,8 +643,10 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		se->sleep_start = 0;
 		se->sum_sleep_runtime += delta;
 
-		if (tsk)
+		if (tsk) {
 			account_scheduler_latency(tsk, delta >> 10, 1);
+			trace_sched_stat_sleep(tsk, delta);
+		}
 	}
 	if (se->block_start) {
 		u64 delta = rq_of(cfs_rq)->clock - se->block_start;
@@ -655,6 +664,7 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 			if (tsk->in_iowait) {
 				se->iowait_sum += delta;
 				se->iowait_count++;
+				trace_sched_stat_iowait(tsk, delta);
 			}
 
 			/*
