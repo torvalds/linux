@@ -867,8 +867,7 @@ void igb_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw)
 	u32 reg;
 
 	if (hw->mac.type != e1000_82576 ||
-	    (hw->phy.media_type != e1000_media_type_fiber &&
-	     hw->phy.media_type != e1000_media_type_internal_serdes))
+	    hw->phy.media_type != e1000_media_type_internal_serdes)
 		return;
 
 	/* if the management interface is not enabled, then power down */

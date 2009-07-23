@@ -2618,10 +2618,6 @@ static bool igb_has_link(struct igb_adapter *adapter)
 			link_active = true;
 		}
 		break;
-	case e1000_media_type_fiber:
-		ret_val = hw->mac.ops.check_for_link(hw);
-		link_active = !!(rd32(E1000_STATUS) & E1000_STATUS_LU);
-		break;
 	case e1000_media_type_internal_serdes:
 		ret_val = hw->mac.ops.check_for_link(hw);
 		link_active = hw->mac.serdes_has_link;
@@ -5135,14 +5131,6 @@ int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 
 	mac->autoneg = 0;
-
-	/* Fiber NICs only allow 1000 gbps Full duplex */
-	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) &&
-		spddplx != (SPEED_1000 + DUPLEX_FULL)) {
-		dev_err(&adapter->pdev->dev,
-			"Unsupported Speed/Duplex configuration\n");
-		return -EINVAL;
-	}
 
 	switch (spddplx) {
 	case SPEED_10 + DUPLEX_HALF:

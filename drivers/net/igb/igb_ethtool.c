@@ -168,8 +168,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->duplex = -1;
 	}
 
-	ecmd->autoneg = ((hw->phy.media_type == e1000_media_type_fiber) ||
-			 hw->mac.autoneg) ? AUTONEG_ENABLE : AUTONEG_DISABLE;
+	ecmd->autoneg = hw->mac.autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	return 0;
 }
 
@@ -191,23 +190,18 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		hw->mac.autoneg = 1;
-		if (hw->phy.media_type == e1000_media_type_fiber)
-			hw->phy.autoneg_advertised = ADVERTISED_1000baseT_Full |
-						     ADVERTISED_FIBRE |
-						     ADVERTISED_Autoneg;
-		else
-			hw->phy.autoneg_advertised = ecmd->advertising |
-						     ADVERTISED_TP |
-						     ADVERTISED_Autoneg;
+		hw->phy.autoneg_advertised = ecmd->advertising |
+					     ADVERTISED_TP |
+					     ADVERTISED_Autoneg;
 		ecmd->advertising = hw->phy.autoneg_advertised;
-	} else
+	} else {
 		if (igb_set_spd_dplx(adapter, ecmd->speed + ecmd->duplex)) {
 			clear_bit(__IGB_RESETTING, &adapter->state);
 			return -EINVAL;
 		}
+	}
 
 	/* reset the link */
-
 	if (netif_running(adapter->netdev)) {
 		igb_down(adapter);
 		igb_up(adapter);
@@ -267,8 +261,8 @@ static int igb_set_pauseparam(struct net_device *netdev,
 		} else
 			igb_reset(adapter);
 	} else
-		retval = ((hw->phy.media_type == e1000_media_type_fiber) ?
-			  igb_setup_link(hw) : igb_force_mac_fc(hw));
+		retval = ((hw->phy.media_type == e1000_media_type_copper) ?
+			  igb_force_mac_fc(hw) : igb_setup_link(hw));
 
 	clear_bit(__IGB_RESETTING, &adapter->state);
 	return retval;
@@ -1483,8 +1477,7 @@ static int igb_setup_loopback_test(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 reg;
 
-	if (hw->phy.media_type == e1000_media_type_fiber ||
-	    hw->phy.media_type == e1000_media_type_internal_serdes) {
+	if (hw->phy.media_type == e1000_media_type_internal_serdes) {
 		reg = rd32(E1000_RCTL);
 		reg |= E1000_RCTL_LBM_TCVR;
 		wr32(E1000_RCTL, reg);

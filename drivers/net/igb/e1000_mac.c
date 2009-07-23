@@ -713,8 +713,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 	 * configuration of the MAC to match the "fc" parameter.
 	 */
 	if (mac->autoneg_failed) {
-		if (hw->phy.media_type == e1000_media_type_fiber ||
-		    hw->phy.media_type == e1000_media_type_internal_serdes)
+		if (hw->phy.media_type == e1000_media_type_internal_serdes)
 			ret_val = igb_force_mac_fc(hw);
 	} else {
 		if (hw->phy.media_type == e1000_media_type_copper)
@@ -1161,22 +1160,16 @@ s32 igb_blink_led(struct e1000_hw *hw)
 	u32 ledctl_blink = 0;
 	u32 i;
 
-	if (hw->phy.media_type == e1000_media_type_fiber) {
-		/* always blink LED0 for PCI-E fiber */
-		ledctl_blink = E1000_LEDCTL_LED0_BLINK |
-		     (E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED0_MODE_SHIFT);
-	} else {
-		/*
-		 * set the blink bit for each LED that's "on" (0x0E)
-		 * in ledctl_mode2
-		 */
-		ledctl_blink = hw->mac.ledctl_mode2;
-		for (i = 0; i < 4; i++)
-			if (((hw->mac.ledctl_mode2 >> (i * 8)) & 0xFF) ==
-			    E1000_LEDCTL_MODE_LED_ON)
-				ledctl_blink |= (E1000_LEDCTL_LED0_BLINK <<
-						 (i * 8));
-	}
+	/*
+	 * set the blink bit for each LED that's "on" (0x0E)
+	 * in ledctl_mode2
+	 */
+	ledctl_blink = hw->mac.ledctl_mode2;
+	for (i = 0; i < 4; i++)
+		if (((hw->mac.ledctl_mode2 >> (i * 8)) & 0xFF) ==
+		    E1000_LEDCTL_MODE_LED_ON)
+			ledctl_blink |= (E1000_LEDCTL_LED0_BLINK <<
+					 (i * 8));
 
 	wr32(E1000_LEDCTL, ledctl_blink);
 
@@ -1191,15 +1184,7 @@ s32 igb_blink_led(struct e1000_hw *hw)
  **/
 s32 igb_led_off(struct e1000_hw *hw)
 {
-	u32 ctrl;
-
 	switch (hw->phy.media_type) {
-	case e1000_media_type_fiber:
-		ctrl = rd32(E1000_CTRL);
-		ctrl |= E1000_CTRL_SWDPIN0;
-		ctrl |= E1000_CTRL_SWDPIO0;
-		wr32(E1000_CTRL, ctrl);
-		break;
 	case e1000_media_type_copper:
 		wr32(E1000_LEDCTL, hw->mac.ledctl_mode1);
 		break;

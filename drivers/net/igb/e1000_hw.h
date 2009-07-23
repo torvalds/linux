@@ -61,8 +61,7 @@ enum e1000_mac_type {
 enum e1000_media_type {
 	e1000_media_type_unknown = 0,
 	e1000_media_type_copper = 1,
-	e1000_media_type_fiber = 2,
-	e1000_media_type_internal_serdes = 3,
+	e1000_media_type_internal_serdes = 2,
 	e1000_num_media_types
 };
 
