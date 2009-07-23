@@ -15,7 +15,7 @@
 #include "core.h"
 #include "nl80211.h"
 
-#define IEEE80211_SCAN_RESULT_EXPIRE	(10 * HZ)
+#define IEEE80211_SCAN_RESULT_EXPIRE	(15 * HZ)
 
 void __cfg80211_scan_done(struct work_struct *wk)
 {
