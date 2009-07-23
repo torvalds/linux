@@ -1064,9 +1064,17 @@ static s32 igb_valid_led_default(struct e1000_hw *hw, u16 *data)
 		goto out;
 	}
 
-	if (*data == ID_LED_RESERVED_0000 || *data == ID_LED_RESERVED_FFFF)
-		*data = ID_LED_DEFAULT;
-
+	if (*data == ID_LED_RESERVED_0000 || *data == ID_LED_RESERVED_FFFF) {
+		switch(hw->phy.media_type) {
+		case e1000_media_type_internal_serdes:
+			*data = ID_LED_DEFAULT_82575_SERDES;
+			break;
+		case e1000_media_type_copper:
+		default:
+			*data = ID_LED_DEFAULT;
+			break;
+		}
+	}
 out:
 	return ret_val;
 }

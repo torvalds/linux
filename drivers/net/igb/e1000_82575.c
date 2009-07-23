@@ -866,8 +866,7 @@ void igb_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 reg;
 
-	if (hw->mac.type != e1000_82576 ||
-	    hw->phy.media_type != e1000_media_type_internal_serdes)
+	if (hw->phy.media_type != e1000_media_type_internal_serdes)
 		return;
 
 	/* if the management interface is not enabled, then power down */
@@ -1228,10 +1227,6 @@ out:
 static bool igb_sgmii_active_82575(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
-
-	if (hw->mac.type != e1000_82575 && hw->mac.type != e1000_82576)
-		return false;
-
 	return dev_spec->sgmii_active;
 }
 
