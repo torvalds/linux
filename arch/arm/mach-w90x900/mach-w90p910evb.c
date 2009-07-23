@@ -20,7 +20,13 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+
 #include <linux/mtd/physmap.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -35,6 +41,8 @@
 
 #define W90P910_FLASH_BASE	0xA0000000
 #define W90P910_FLASH_SIZE	0x400000
+#define SPIOFFSET		0x200
+#define SPIOREG_SIZE		0x100
 
 static struct mtd_partition w90p910_flash_partitions[] = {
 	{
@@ -282,6 +290,56 @@ static struct platform_device w90p910_device_emc = {
 	}
 };
 
+/* SPI device */
+
+static struct resource w90p910_spi_resource[] = {
+	[0] = {
+		.start = W90X900_PA_I2C + SPIOFFSET,
+		.end   = W90X900_PA_I2C + SPIOFFSET + SPIOREG_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_SSP,
+		.end   = IRQ_SSP,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device w90p910_device_spi = {
+	.name		= "w90p910-spi",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(w90p910_spi_resource),
+	.resource	= w90p910_spi_resource,
+};
+
+/* spi device, spi flash info */
+
+static struct mtd_partition w90p910_spi_flash_partitions[] = {
+	{
+		.name = "bootloader(spi)",
+		.size = 0x0100000,
+		.offset = 0,
+	},
+};
+
+static struct flash_platform_data w90p910_spi_flash_data = {
+	.name = "m25p80",
+	.parts =  w90p910_spi_flash_partitions,
+	.nr_parts = ARRAY_SIZE(w90p910_spi_flash_partitions),
+	.type = "w25x16",
+};
+
+static struct spi_board_info w90p910_spi_board_info[] __initdata = {
+	{
+		.modalias = "m25p80",
+		.max_speed_hz = 20000000,
+		.bus_num = 0,
+		.chip_select = 1,
+		.platform_data = &w90p910_spi_flash_data,
+		.mode = SPI_MODE_0,
+	},
+};
+
 static struct map_desc w90p910_iodesc[] __initdata = {
 };
 
@@ -298,6 +356,7 @@ static struct platform_device *w90p910evb_dev[] __initdata = {
 	&w90x900_device_usbgadget,
 	&w90p910_device_fmi,
 	&w90p910_device_emc,
+	&w90p910_device_spi,
 };
 
 static void __init w90p910evb_map_io(void)
@@ -309,6 +368,8 @@ static void __init w90p910evb_map_io(void)
 static void __init w90p910evb_init(void)
 {
 	platform_add_devices(w90p910evb_dev, ARRAY_SIZE(w90p910evb_dev));
+	spi_register_board_info(w90p910_spi_board_info,
+					ARRAY_SIZE(w90p910_spi_board_info));
 }
 
 MACHINE_START(W90P910EVB, "W90P910EVB")
