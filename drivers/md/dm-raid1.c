@@ -1293,7 +1293,7 @@ static int mirror_iterate_devices(struct dm_target *ti,
 
 	for (i = 0; !ret && i < ms->nr_mirrors; i++)
 		ret = fn(ti, ms->mirror[i].dev,
-			 ms->mirror[i].offset, data);
+			 ms->mirror[i].offset, ti->len, data);
 
 	return ret;
 }
