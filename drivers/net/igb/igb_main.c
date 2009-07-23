@@ -4538,6 +4538,20 @@ static inline void igb_rx_checksum_adv(struct igb_adapter *adapter,
 	adapter->hw_csum_good++;
 }
 
+static inline u16 igb_get_hlen(struct igb_adapter *adapter,
+                               union e1000_adv_rx_desc *rx_desc)
+{
+	/* HW will not DMA in data larger than the given buffer, even if it
+	 * parses the (NFS, of course) header to be larger.  In that case, it
+	 * fills the header buffer and spills the rest into the page.
+	 */
+	u16 hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hdr_info) &
+	           E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
+	if (hlen > adapter->rx_ps_hdr_size)
+		hlen = adapter->rx_ps_hdr_size;
+	return hlen;
+}
+
 static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
 				 int *work_done, int budget)
 {
@@ -4552,7 +4566,8 @@ static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
 	int cleaned_count = 0;
 	unsigned int total_bytes = 0, total_packets = 0;
 	unsigned int i;
-	u32 length, hlen, staterr;
+	u32 staterr;
+	u16 length;
 
 	i = rx_ring->next_to_clean;
 	buffer_info = &rx_ring->buffer_info[i];
@@ -4589,17 +4604,8 @@ static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
 			goto send_up;
 		}
 
-		/* HW will not DMA in data larger than the given buffer, even
-		 * if it parses the (NFS, of course) header to be larger.  In
-		 * that case, it fills the header buffer and spills the rest
-		 * into the page.
-		 */
-		hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hdr_info) &
-		  E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
-		if (hlen > adapter->rx_ps_hdr_size)
-			hlen = adapter->rx_ps_hdr_size;
-
-		if (!skb_shinfo(skb)->nr_frags) {
+		if (buffer_info->dma) {
+			u16 hlen = igb_get_hlen(adapter, rx_desc);
 			pci_unmap_single(pdev, buffer_info->dma,
 					 adapter->rx_ps_hdr_size,
 					 PCI_DMA_FROMDEVICE);
