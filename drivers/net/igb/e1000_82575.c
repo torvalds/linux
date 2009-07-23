@@ -172,6 +172,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		size = 14;
 	nvm->word_size = 1 << size;
 
+	/* if 82576 then initialize mailbox parameters */
+	if (mac->type == e1000_82576)
+		igb_init_mbx_params_pf(hw);
+
 	/* setup PHY parameters */
 	if (phy->media_type != e1000_media_type_copper) {
 		phy->type = e1000_phy_none;
@@ -220,10 +224,6 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	default:
 		return -E1000_ERR_PHY;
 	}
-
-	/* if 82576 then initialize mailbox parameters */
-	if (mac->type == e1000_82576)
-		igb_init_mbx_params_pf(hw);
 
 	return 0;
 }
