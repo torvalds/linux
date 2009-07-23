@@ -1130,7 +1130,7 @@ void igb_reset(struct igb_adapter *adapter)
 	}
 	fc->pause_time = 0xFFFF;
 	fc->send_xon = 1;
-	fc->type = fc->original_type;
+	fc->current_mode = fc->requested_mode;
 
 	/* disable receive for all VFs and wait one second */
 	if (adapter->vfs_allocated_count) {
@@ -1427,8 +1427,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	hw->mac.autoneg = true;
 	hw->phy.autoneg_advertised = 0x2f;
 
-	hw->fc.original_type = e1000_fc_default;
-	hw->fc.type = e1000_fc_default;
+	hw->fc.requested_mode = e1000_fc_default;
+	hw->fc.current_mode = e1000_fc_default;
 
 	adapter->itr_setting = IGB_DEFAULT_ITR;
 	adapter->itr = IGB_START_ITR;
