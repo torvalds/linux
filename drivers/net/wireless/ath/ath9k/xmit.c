@@ -2037,7 +2037,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	}
 }
 
-void ath_tx_complete_poll_work(struct work_struct *work)
+static void ath_tx_complete_poll_work(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 			tx_complete_work.work);
