@@ -63,3 +63,11 @@ config IXP4XX_ETH
 	help
 	  Say Y here if you want to use built-in Ethernet ports
 	  on IXP4xx processor.
+
+config W90P910_ETH
+	tristate "Nuvoton w90p910 Ethernet support"
+	depends on ARM && ARCH_W90X900
+	select PHYLIB
+	help
+	  Say Y here if you want to use built-in Ethernet ports
+	  on w90p910 processor.

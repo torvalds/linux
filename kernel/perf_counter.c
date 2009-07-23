@@ -146,6 +146,28 @@ static void put_ctx(struct perf_counter_context *ctx)
 	}
 }
 
+static void unclone_ctx(struct perf_counter_context *ctx)
+{
+	if (ctx->parent_ctx) {
+		put_ctx(ctx->parent_ctx);
+		ctx->parent_ctx = NULL;
+	}
+}
+
+/*
+ * If we inherit counters we want to return the parent counter id
+ * to userspace.
+ */
+static u64 primary_counter_id(struct perf_counter *counter)
+{
+	u64 id = counter->id;
+
+	if (counter->parent)
+		id = counter->parent->id;
+
+	return id;
+}
+
 /*
  * Get the perf_counter_context for a task and lock it.
  * This has to cope with with the fact that until it is locked,
@@ -1288,7 +1310,6 @@ static void perf_counter_cpu_sched_in(struct perf_cpu_context *cpuctx, int cpu)
 #define MAX_INTERRUPTS (~0ULL)
 
 static void perf_log_throttle(struct perf_counter *counter, int enable);
-static void perf_log_period(struct perf_counter *counter, u64 period);
 
 static void perf_adjust_period(struct perf_counter *counter, u64 events)
 {
@@ -1306,8 +1327,6 @@ static void perf_adjust_period(struct perf_counter *counter, u64 events)
 
 	if (!sample_period)
 		sample_period = 1;
-
-	perf_log_period(counter, sample_period);
 
 	hwc->sample_period = sample_period;
 }
@@ -1463,10 +1482,8 @@ static void perf_counter_enable_on_exec(struct task_struct *task)
 	/*
 	 * Unclone this context if we enabled any counter.
 	 */
-	if (enabled && ctx->parent_ctx) {
-		put_ctx(ctx->parent_ctx);
-		ctx->parent_ctx = NULL;
-	}
+	if (enabled)
+		unclone_ctx(ctx);
 
 	spin_unlock(&ctx->lock);
 
@@ -1526,7 +1543,6 @@ __perf_counter_init_context(struct perf_counter_context *ctx,
 
 static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 {
-	struct perf_counter_context *parent_ctx;
 	struct perf_counter_context *ctx;
 	struct perf_cpu_context *cpuctx;
 	struct task_struct *task;
@@ -1586,11 +1602,7 @@ static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
  retry:
 	ctx = perf_lock_task_context(task, &flags);
 	if (ctx) {
-		parent_ctx = ctx->parent_ctx;
-		if (parent_ctx) {
-			put_ctx(parent_ctx);
-			ctx->parent_ctx = NULL;		/* no longer a clone */
-		}
+		unclone_ctx(ctx);
 		spin_unlock_irqrestore(&ctx->lock, flags);
 	}
 
@@ -1704,7 +1716,7 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 		values[n++] = counter->total_time_running +
 			atomic64_read(&counter->child_total_time_running);
 	if (counter->attr.read_format & PERF_FORMAT_ID)
-		values[n++] = counter->id;
+		values[n++] = primary_counter_id(counter);
 	mutex_unlock(&counter->child_mutex);
 
 	if (count < n * sizeof(u64))
@@ -1811,8 +1823,6 @@ static int perf_counter_period(struct perf_counter *counter, u64 __user *arg)
 
 		counter->attr.sample_freq = value;
 	} else {
-		perf_log_period(counter, value);
-
 		counter->attr.sample_period = value;
 		counter->hw.sample_period = value;
 	}
@@ -2661,10 +2671,14 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 	if (sample_type & PERF_SAMPLE_ID)
 		header.size += sizeof(u64);
 
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
+		header.size += sizeof(u64);
+
 	if (sample_type & PERF_SAMPLE_CPU) {
 		header.size += sizeof(cpu_entry);
 
 		cpu_entry.cpu = raw_smp_processor_id();
+		cpu_entry.reserved = 0;
 	}
 
 	if (sample_type & PERF_SAMPLE_PERIOD)
@@ -2703,7 +2717,13 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 	if (sample_type & PERF_SAMPLE_ADDR)
 		perf_output_put(&handle, data->addr);
 
-	if (sample_type & PERF_SAMPLE_ID)
+	if (sample_type & PERF_SAMPLE_ID) {
+		u64 id = primary_counter_id(counter);
+
+		perf_output_put(&handle, id);
+	}
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
 		perf_output_put(&handle, counter->id);
 
 	if (sample_type & PERF_SAMPLE_CPU)
@@ -2726,7 +2746,7 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 			if (sub != counter)
 				sub->pmu->read(sub);
 
-			group_entry.id = sub->id;
+			group_entry.id = primary_counter_id(sub);
 			group_entry.counter = atomic64_read(&sub->count);
 
 			perf_output_put(&handle, group_entry);
@@ -2786,15 +2806,8 @@ perf_counter_read_event(struct perf_counter *counter,
 	}
 
 	if (counter->attr.read_format & PERF_FORMAT_ID) {
-		u64 id;
-
 		event.header.size += sizeof(u64);
-		if (counter->parent)
-			id = counter->parent->id;
-		else
-			id = counter->id;
-
-		event.format[i++] = id;
+		event.format[i++] = primary_counter_id(counter);
 	}
 
 	ret = perf_output_begin(&handle, counter, event.header.size, 0, 0);
@@ -2895,8 +2908,11 @@ void perf_counter_fork(struct task_struct *task)
 		.event  = {
 			.header = {
 				.type = PERF_EVENT_FORK,
+				.misc = 0,
 				.size = sizeof(fork_event.event),
 			},
+			/* .pid  */
+			/* .ppid */
 		},
 	};
 
@@ -2968,8 +2984,10 @@ static void perf_counter_comm_event(struct perf_comm_event *comm_event)
 	struct perf_cpu_context *cpuctx;
 	struct perf_counter_context *ctx;
 	unsigned int size;
-	char *comm = comm_event->task->comm;
+	char comm[TASK_COMM_LEN];
 
+	memset(comm, 0, sizeof(comm));
+	strncpy(comm, comm_event->task->comm, sizeof(comm));
 	size = ALIGN(strlen(comm)+1, sizeof(u64));
 
 	comm_event->comm = comm;
@@ -3004,8 +3022,16 @@ void perf_counter_comm(struct task_struct *task)
 
 	comm_event = (struct perf_comm_event){
 		.task	= task,
+		/* .comm      */
+		/* .comm_size */
 		.event  = {
-			.header = { .type = PERF_EVENT_COMM, },
+			.header = {
+				.type = PERF_EVENT_COMM,
+				.misc = 0,
+				/* .size */
+			},
+			/* .pid */
+			/* .tid */
 		},
 	};
 
@@ -3088,8 +3114,15 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 	char *buf = NULL;
 	const char *name;
 
+	memset(tmp, 0, sizeof(tmp));
+
 	if (file) {
-		buf = kzalloc(PATH_MAX, GFP_KERNEL);
+		/*
+		 * d_path works from the end of the buffer backwards, so we
+		 * need to add enough zero bytes after the string to handle
+		 * the 64bit alignment we do later.
+		 */
+		buf = kzalloc(PATH_MAX + sizeof(u64), GFP_KERNEL);
 		if (!buf) {
 			name = strncpy(tmp, "//enomem", sizeof(tmp));
 			goto got_name;
@@ -3100,9 +3133,11 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 			goto got_name;
 		}
 	} else {
-		name = arch_vma_name(mmap_event->vma);
-		if (name)
+		if (arch_vma_name(mmap_event->vma)) {
+			name = strncpy(tmp, arch_vma_name(mmap_event->vma),
+				       sizeof(tmp));
 			goto got_name;
+		}
 
 		if (!vma->vm_mm) {
 			name = strncpy(tmp, "[vdso]", sizeof(tmp));
@@ -3147,8 +3182,16 @@ void __perf_counter_mmap(struct vm_area_struct *vma)
 
 	mmap_event = (struct perf_mmap_event){
 		.vma	= vma,
+		/* .file_name */
+		/* .file_size */
 		.event  = {
-			.header = { .type = PERF_EVENT_MMAP, },
+			.header = {
+				.type = PERF_EVENT_MMAP,
+				.misc = 0,
+				/* .size */
+			},
+			/* .pid */
+			/* .tid */
 			.start  = vma->vm_start,
 			.len    = vma->vm_end - vma->vm_start,
 			.pgoff  = vma->vm_pgoff,
@@ -3156,49 +3199,6 @@ void __perf_counter_mmap(struct vm_area_struct *vma)
 	};
 
 	perf_counter_mmap_event(&mmap_event);
-}
-
-/*
- * Log sample_period changes so that analyzing tools can re-normalize the
- * event flow.
- */
-
-struct freq_event {
-	struct perf_event_header	header;
-	u64				time;
-	u64				id;
-	u64				period;
-};
-
-static void perf_log_period(struct perf_counter *counter, u64 period)
-{
-	struct perf_output_handle handle;
-	struct freq_event event;
-	int ret;
-
-	if (counter->hw.sample_period == period)
-		return;
-
-	if (counter->attr.sample_type & PERF_SAMPLE_PERIOD)
-		return;
-
-	event = (struct freq_event) {
-		.header = {
-			.type = PERF_EVENT_PERIOD,
-			.misc = 0,
-			.size = sizeof(event),
-		},
-		.time = sched_clock(),
-		.id = counter->id,
-		.period = period,
-	};
-
-	ret = perf_output_begin(&handle, counter, sizeof(event), 1, 0);
-	if (ret)
-		return;
-
-	perf_output_put(&handle, event);
-	perf_output_end(&handle);
 }
 
 /*
@@ -3214,15 +3214,20 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 		struct perf_event_header	header;
 		u64				time;
 		u64				id;
+		u64				stream_id;
 	} throttle_event = {
 		.header = {
-			.type = PERF_EVENT_THROTTLE + 1,
+			.type = PERF_EVENT_THROTTLE,
 			.misc = 0,
 			.size = sizeof(throttle_event),
 		},
-		.time	= sched_clock(),
-		.id	= counter->id,
+		.time		= sched_clock(),
+		.id		= primary_counter_id(counter),
+		.stream_id	= counter->id,
 	};
+
+	if (enable)
+		throttle_event.header.type = PERF_EVENT_UNTHROTTLE;
 
 	ret = perf_output_begin(&handle, counter, sizeof(throttle_event), 1, 0);
 	if (ret)
@@ -3671,7 +3676,7 @@ static const struct pmu perf_ops_task_clock = {
 void perf_tpcounter_event(int event_id)
 {
 	struct perf_sample_data data = {
-		.regs = get_irq_regs();
+		.regs = get_irq_regs(),
 		.addr = 0,
 	};
 
@@ -3687,16 +3692,12 @@ extern void ftrace_profile_disable(int);
 
 static void tp_perf_counter_destroy(struct perf_counter *counter)
 {
-	ftrace_profile_disable(perf_event_id(&counter->attr));
+	ftrace_profile_disable(counter->attr.config);
 }
 
 static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 {
-	int event_id = perf_event_id(&counter->attr);
-	int ret;
-
-	ret = ftrace_profile_enable(event_id);
-	if (ret)
+	if (ftrace_profile_enable(counter->attr.config))
 		return NULL;
 
 	counter->destroy = tp_perf_counter_destroy;
@@ -4255,15 +4256,12 @@ void perf_counter_exit_task(struct task_struct *child)
 	 */
 	spin_lock(&child_ctx->lock);
 	child->perf_counter_ctxp = NULL;
-	if (child_ctx->parent_ctx) {
-		/*
-		 * This context is a clone; unclone it so it can't get
-		 * swapped to another process while we're removing all
-		 * the counters from it.
-		 */
-		put_ctx(child_ctx->parent_ctx);
-		child_ctx->parent_ctx = NULL;
-	}
+	/*
+	 * If this context is a clone; unclone it so it can't get
+	 * swapped to another process while we're removing all
+	 * the counters from it.
+	 */
+	unclone_ctx(child_ctx);
 	spin_unlock(&child_ctx->lock);
 	local_irq_restore(flags);
 
