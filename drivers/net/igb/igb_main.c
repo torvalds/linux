@@ -5029,6 +5029,34 @@ static int igb_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	}
 }
 
+s32 igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
+{
+	struct igb_adapter *adapter = hw->back;
+	u16 cap_offset;
+
+	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	if (!cap_offset)
+		return -E1000_ERR_CONFIG;
+
+	pci_read_config_word(adapter->pdev, cap_offset + reg, value);
+
+	return 0;
+}
+
+s32 igb_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
+{
+	struct igb_adapter *adapter = hw->back;
+	u16 cap_offset;
+
+	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	if (!cap_offset)
+		return -E1000_ERR_CONFIG;
+
+	pci_write_config_word(adapter->pdev, cap_offset + reg, *value);
+
+	return 0;
+}
+
 static void igb_vlan_rx_register(struct net_device *netdev,
 				 struct vlan_group *grp)
 {

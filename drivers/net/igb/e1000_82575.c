@@ -61,6 +61,7 @@ static void igb_release_swfw_sync_82575(struct e1000_hw *, u16);
 static bool igb_sgmii_active_82575(struct e1000_hw *);
 static s32  igb_reset_init_script_82575(struct e1000_hw *);
 static s32  igb_read_mac_addr_82575(struct e1000_hw *);
+static s32  igb_set_pcie_completion_timeout(struct e1000_hw *hw);
 
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
@@ -909,6 +910,12 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 	if (ret_val)
 		hw_dbg("PCI-E Master disable polling has failed.\n");
 
+	/* set the completion timeout for interface */
+	ret_val = igb_set_pcie_completion_timeout(hw);
+	if (ret_val) {
+		hw_dbg("PCI-E Set completion timeout has failed.\n");
+	}
+
 	hw_dbg("Masking off all interrupts\n");
 	wr32(E1000_IMC, 0xffffffff);
 
@@ -1405,6 +1412,57 @@ void igb_rx_fifo_flush_82575(struct e1000_hw *hw)
 	rd32(E1000_ROC);
 	rd32(E1000_RNBC);
 	rd32(E1000_MPC);
+}
+
+/**
+ *  igb_set_pcie_completion_timeout - set pci-e completion timeout
+ *  @hw: pointer to the HW structure
+ *
+ *  The defaults for 82575 and 82576 should be in the range of 50us to 50ms,
+ *  however the hardware default for these parts is 500us to 1ms which is less
+ *  than the 10ms recommended by the pci-e spec.  To address this we need to
+ *  increase the value to either 10ms to 200ms for capability version 1 config,
+ *  or 16ms to 55ms for version 2.
+ **/
+static s32 igb_set_pcie_completion_timeout(struct e1000_hw *hw)
+{
+	u32 gcr = rd32(E1000_GCR);
+	s32 ret_val = 0;
+	u16 pcie_devctl2;
+
+	/* only take action if timeout value is defaulted to 0 */
+	if (gcr & E1000_GCR_CMPL_TMOUT_MASK)
+		goto out;
+
+	/*
+	 * if capababilities version is type 1 we can write the
+	 * timeout of 10ms to 200ms through the GCR register
+	 */
+	if (!(gcr & E1000_GCR_CAP_VER2)) {
+		gcr |= E1000_GCR_CMPL_TMOUT_10ms;
+		goto out;
+	}
+
+	/*
+	 * for version 2 capabilities we need to write the config space
+	 * directly in order to set the completion timeout value for
+	 * 16ms to 55ms
+	 */
+	ret_val = igb_read_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+	                                &pcie_devctl2);
+	if (ret_val)
+		goto out;
+
+	pcie_devctl2 |= PCIE_DEVICE_CONTROL2_16ms;
+
+	ret_val = igb_write_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+	                                 &pcie_devctl2);
+out:
+	/* disable completion timeout resend */
+	gcr &= ~E1000_GCR_CMPL_TMOUT_RESEND;
+
+	wr32(E1000_GCR, gcr);
+	return ret_val;
 }
 
 /**

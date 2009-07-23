@@ -494,5 +494,7 @@ extern char *igb_get_hw_dev_name(struct e1000_hw *hw);
 #else
 #define hw_dbg(format, arg...)
 #endif
-
 #endif
+/* These functions must be implemented by drivers */
+s32  igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
+s32  igb_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
