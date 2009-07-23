@@ -87,6 +87,12 @@ EXPORT_SYMBOL(local_flush_tlb_page);
 
 static DEFINE_SPINLOCK(tlbivax_lock);
 
+static int mm_is_core_local(struct mm_struct *mm)
+{
+	return cpumask_subset(mm_cpumask(mm),
+			      topology_thread_cpumask(smp_processor_id()));
+}
+
 struct tlb_flush_param {
 	unsigned long addr;
 	unsigned int pid;
@@ -131,7 +137,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 	pid = mm->context.id;
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
-	if (!cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
+	if (!mm_is_core_local(mm)) {
 		struct tlb_flush_param p = { .pid = pid };
 		/* Ignores smp_processor_id() even if set. */
 		smp_call_function_many(mm_cpumask(mm),
@@ -153,7 +159,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto bail;
 	cpu_mask = mm_cpumask(vma->vm_mm);
-	if (!cpumask_equal(cpu_mask, cpumask_of(smp_processor_id()))) {
+	if (!mm_is_core_local(mm)) {
 		/* If broadcast tlbivax is supported, use it */
 		if (mmu_has_feature(MMU_FTR_USE_TLBIVAX_BCAST)) {
 			int lock = mmu_has_feature(MMU_FTR_LOCK_BCAST_INVAL);
