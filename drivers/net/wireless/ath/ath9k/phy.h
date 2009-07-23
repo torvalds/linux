@@ -375,6 +375,7 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define AR_PHY_CHAN_INFO_GAIN          0x9CFC
 
 #define AR_PHY_MODE         0xA200
+#define AR_PHY_MODE_ASYNCFIFO 0x80
 #define AR_PHY_MODE_AR2133  0x08
 #define AR_PHY_MODE_AR5111  0x00
 #define AR_PHY_MODE_AR5112  0x08
