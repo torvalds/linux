@@ -155,6 +155,8 @@ ALC882/883/885/888/889
   fujitsu-pi2515 Fujitsu AMILO Pi2515
   fujitsu-xa3530 Fujitsu AMILO XA3530
   3stack-6ch-intel Intel DG33* boards
+  intel-alc889a	Intel IbexPeak with ALC889A
+  intel-x58	Intel DX58 with ALC889
   asus-p5q	ASUS P5Q-EM boards
   mb31		MacBook 3,1
   sony-vaio-tt  Sony VAIO TT
