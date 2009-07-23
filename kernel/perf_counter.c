@@ -42,6 +42,7 @@ static int perf_overcommit __read_mostly = 1;
 static atomic_t nr_counters __read_mostly;
 static atomic_t nr_mmap_counters __read_mostly;
 static atomic_t nr_comm_counters __read_mostly;
+static atomic_t nr_task_counters __read_mostly;
 
 /*
  * perf counter paranoia level:
@@ -1654,6 +1655,8 @@ static void free_counter(struct perf_counter *counter)
 			atomic_dec(&nr_mmap_counters);
 		if (counter->attr.comm)
 			atomic_dec(&nr_comm_counters);
+		if (counter->attr.task)
+			atomic_dec(&nr_task_counters);
 	}
 
 	if (counter->destroy)
@@ -2831,10 +2834,12 @@ perf_counter_read_event(struct perf_counter *counter,
 }
 
 /*
- * fork tracking
+ * task tracking -- fork/exit
+ *
+ * enabled by: attr.comm | attr.mmap | attr.task
  */
 
-struct perf_fork_event {
+struct perf_task_event {
 	struct task_struct	*task;
 
 	struct {
@@ -2842,37 +2847,42 @@ struct perf_fork_event {
 
 		u32				pid;
 		u32				ppid;
+		u32				tid;
+		u32				ptid;
 	} event;
 };
 
-static void perf_counter_fork_output(struct perf_counter *counter,
-				     struct perf_fork_event *fork_event)
+static void perf_counter_task_output(struct perf_counter *counter,
+				     struct perf_task_event *task_event)
 {
 	struct perf_output_handle handle;
-	int size = fork_event->event.header.size;
-	struct task_struct *task = fork_event->task;
+	int size = task_event->event.header.size;
+	struct task_struct *task = task_event->task;
 	int ret = perf_output_begin(&handle, counter, size, 0, 0);
 
 	if (ret)
 		return;
 
-	fork_event->event.pid = perf_counter_pid(counter, task);
-	fork_event->event.ppid = perf_counter_pid(counter, task->real_parent);
+	task_event->event.pid = perf_counter_pid(counter, task);
+	task_event->event.ppid = perf_counter_pid(counter, task->real_parent);
 
-	perf_output_put(&handle, fork_event->event);
+	task_event->event.tid = perf_counter_tid(counter, task);
+	task_event->event.ptid = perf_counter_tid(counter, task->real_parent);
+
+	perf_output_put(&handle, task_event->event);
 	perf_output_end(&handle);
 }
 
-static int perf_counter_fork_match(struct perf_counter *counter)
+static int perf_counter_task_match(struct perf_counter *counter)
 {
-	if (counter->attr.comm || counter->attr.mmap)
+	if (counter->attr.comm || counter->attr.mmap || counter->attr.task)
 		return 1;
 
 	return 0;
 }
 
-static void perf_counter_fork_ctx(struct perf_counter_context *ctx,
-				  struct perf_fork_event *fork_event)
+static void perf_counter_task_ctx(struct perf_counter_context *ctx,
+				  struct perf_task_event *task_event)
 {
 	struct perf_counter *counter;
 
@@ -2881,19 +2891,19 @@ static void perf_counter_fork_ctx(struct perf_counter_context *ctx,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
-		if (perf_counter_fork_match(counter))
-			perf_counter_fork_output(counter, fork_event);
+		if (perf_counter_task_match(counter))
+			perf_counter_task_output(counter, task_event);
 	}
 	rcu_read_unlock();
 }
 
-static void perf_counter_fork_event(struct perf_fork_event *fork_event)
+static void perf_counter_task_event(struct perf_task_event *task_event)
 {
 	struct perf_cpu_context *cpuctx;
 	struct perf_counter_context *ctx;
 
 	cpuctx = &get_cpu_var(perf_cpu_context);
-	perf_counter_fork_ctx(&cpuctx->ctx, fork_event);
+	perf_counter_task_ctx(&cpuctx->ctx, task_event);
 	put_cpu_var(perf_cpu_context);
 
 	rcu_read_lock();
@@ -2903,32 +2913,40 @@ static void perf_counter_fork_event(struct perf_fork_event *fork_event)
 	 */
 	ctx = rcu_dereference(current->perf_counter_ctxp);
 	if (ctx)
-		perf_counter_fork_ctx(ctx, fork_event);
+		perf_counter_task_ctx(ctx, task_event);
 	rcu_read_unlock();
+}
+
+static void perf_counter_task(struct task_struct *task, int new)
+{
+	struct perf_task_event task_event;
+
+	if (!atomic_read(&nr_comm_counters) &&
+	    !atomic_read(&nr_mmap_counters) &&
+	    !atomic_read(&nr_task_counters))
+		return;
+
+	task_event = (struct perf_task_event){
+		.task	= task,
+		.event  = {
+			.header = {
+				.type = new ? PERF_EVENT_FORK : PERF_EVENT_EXIT,
+				.misc = 0,
+				.size = sizeof(task_event.event),
+			},
+			/* .pid  */
+			/* .ppid */
+			/* .tid  */
+			/* .ptid */
+		},
+	};
+
+	perf_counter_task_event(&task_event);
 }
 
 void perf_counter_fork(struct task_struct *task)
 {
-	struct perf_fork_event fork_event;
-
-	if (!atomic_read(&nr_comm_counters) &&
-	    !atomic_read(&nr_mmap_counters))
-		return;
-
-	fork_event = (struct perf_fork_event){
-		.task	= task,
-		.event  = {
-			.header = {
-				.type = PERF_EVENT_FORK,
-				.misc = 0,
-				.size = sizeof(fork_event.event),
-			},
-			/* .pid  */
-			/* .ppid */
-		},
-	};
-
-	perf_counter_fork_event(&fork_event);
+	perf_counter_task(task, 1);
 }
 
 /*
@@ -3887,6 +3905,8 @@ done:
 			atomic_inc(&nr_mmap_counters);
 		if (counter->attr.comm)
 			atomic_inc(&nr_comm_counters);
+		if (counter->attr.task)
+			atomic_inc(&nr_task_counters);
 	}
 
 	return counter;
@@ -4248,8 +4268,10 @@ void perf_counter_exit_task(struct task_struct *child)
 	struct perf_counter_context *child_ctx;
 	unsigned long flags;
 
-	if (likely(!child->perf_counter_ctxp))
+	if (likely(!child->perf_counter_ctxp)) {
+		perf_counter_task(child, 0);
 		return;
+	}
 
 	local_irq_save(flags);
 	/*
@@ -4267,15 +4289,22 @@ void perf_counter_exit_task(struct task_struct *child)
 	 * incremented the context's refcount before we do put_ctx below.
 	 */
 	spin_lock(&child_ctx->lock);
-	child->perf_counter_ctxp = NULL;
 	/*
 	 * If this context is a clone; unclone it so it can't get
 	 * swapped to another process while we're removing all
 	 * the counters from it.
 	 */
 	unclone_ctx(child_ctx);
-	spin_unlock(&child_ctx->lock);
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&child_ctx->lock, flags);
+
+	/*
+	 * Report the task dead after unscheduling the counters so that we
+	 * won't get any samples after PERF_EVENT_EXIT. We can however still
+	 * get a few PERF_EVENT_READ events.
+	 */
+	perf_counter_task(child, 0);
+
+	child->perf_counter_ctxp = NULL;
 
 	/*
 	 * We can recurse on the same lock type through:
