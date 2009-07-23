@@ -143,4 +143,7 @@ typedef struct {
 } mm_context_t;
 #endif /* !__ASSEMBLY__ */
 
+#define mmu_virtual_psize	MMU_PAGE_4K
+#define mmu_linear_psize	MMU_PAGE_8M
+
 #endif /* _ASM_POWERPC_MMU_8XX_H_ */

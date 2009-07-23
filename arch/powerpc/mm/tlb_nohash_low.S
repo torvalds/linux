@@ -191,6 +191,85 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
 	isync
 1:	wrtee	r10
 	blr
+#elif defined(CONFIG_PPC_BOOK3E)
+/*
+ * New Book3E (>= 2.06) implementation
+ *
+ * Note: We may be able to get away without the interrupt masking stuff
+ * if we save/restore MAS6 on exceptions that might modify it
+ */
+_GLOBAL(_tlbil_pid)
+	slwi	r4,r3,MAS6_SPID_SHIFT
+	mfmsr	r10
+	wrteei	0
+	mtspr	SPRN_MAS6,r4
+	PPC_TLBILX_PID(0,0)
+	wrtee	r10
+	msync
+	isync
+	blr
+
+_GLOBAL(_tlbil_pid_noind)
+	slwi	r4,r3,MAS6_SPID_SHIFT
+	mfmsr	r10
+	ori	r4,r4,MAS6_SIND
+	wrteei	0
+	mtspr	SPRN_MAS6,r4
+	PPC_TLBILX_PID(0,0)
+	wrtee	r10
+	msync
+	isync
+	blr
+
+_GLOBAL(_tlbil_all)
+	PPC_TLBILX_ALL(0,0)
+	msync
+	isync
+	blr
+
+_GLOBAL(_tlbil_va)
+	mfmsr	r10
+	wrteei	0
+	cmpwi	cr0,r6,0
+	slwi	r4,r4,MAS6_SPID_SHIFT
+	rlwimi	r4,r5,MAS6_ISIZE_SHIFT,MAS6_ISIZE_MASK
+	beq	1f
+	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
+1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+	PPC_TLBILX_VA(0,r3)
+	msync
+	isync
+	wrtee	r10
+	blr
+
+_GLOBAL(_tlbivax_bcast)
+	mfmsr	r10
+	wrteei	0
+	cmpwi	cr0,r6,0
+	slwi	r4,r4,MAS6_SPID_SHIFT
+	rlwimi	r4,r5,MAS6_ISIZE_SHIFT,MAS6_ISIZE_MASK
+	beq	1f
+	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
+1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+	PPC_TLBIVAX(0,r3)
+	eieio
+	tlbsync
+	sync
+	wrtee	r10
+	blr
+
+_GLOBAL(set_context)
+#ifdef CONFIG_BDI_SWITCH
+	/* Context switch the PTE pointer for the Abatron BDI2000.
+	 * The PGDIR is the second parameter.
+	 */
+	lis	r5, abatron_pteptrs@h
+	ori	r5, r5, abatron_pteptrs@l
+	stw	r4, 0x4(r5)
+#endif
+	mtspr	SPRN_PID,r3
+	isync			/* Force context change */
+	blr
 #else
 #error Unsupported processor type !
 #endif

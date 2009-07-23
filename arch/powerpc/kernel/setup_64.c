@@ -62,6 +62,7 @@
 #include <asm/udbg.h>
 #include <asm/kexec.h>
 #include <asm/swiotlb.h>
+#include <asm/mmu_context.h>
 
 #include "setup.h"
 
@@ -147,6 +148,9 @@ void __init setup_paca(int cpu)
 {
 	local_paca = &paca[cpu];
 	mtspr(SPRN_SPRG_PACA, local_paca);
+#ifdef CONFIG_PPC_BOOK3E
+	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
+#endif
 }
 
 /*

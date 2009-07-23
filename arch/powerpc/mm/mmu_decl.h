@@ -41,7 +41,11 @@ static inline void _tlbil_pid(unsigned int pid)
 #else /* CONFIG_40x || CONFIG_8xx */
 extern void _tlbil_all(void);
 extern void _tlbil_pid(unsigned int pid);
+#ifdef CONFIG_PPC_BOOK3E
+extern void _tlbil_pid_noind(unsigned int pid);
+#else
 #define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
+#endif
 #endif /* !(CONFIG_40x || CONFIG_8xx) */
 
 /*
@@ -53,7 +57,10 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
 {
 	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory");
 }
-#else /* CONFIG_8xx */
+#elif defined(CONFIG_PPC_BOOK3E)
+extern void _tlbil_va(unsigned long address, unsigned int pid,
+		      unsigned int tsize, unsigned int ind);
+#else
 extern void __tlbil_va(unsigned long address, unsigned int pid);
 static inline void _tlbil_va(unsigned long address, unsigned int pid,
 			     unsigned int tsize, unsigned int ind)
@@ -67,11 +74,16 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
  * implementation. When that becomes the case, this will be
  * an extern.
  */
+#ifdef CONFIG_PPC_BOOK3E
+extern void _tlbivax_bcast(unsigned long address, unsigned int pid,
+			   unsigned int tsize, unsigned int ind);
+#else
 static inline void _tlbivax_bcast(unsigned long address, unsigned int pid,
 				   unsigned int tsize, unsigned int ind)
 {
 	BUG();
 }
+#endif
 
 #else /* CONFIG_PPC_MMU_NOHASH */
 
