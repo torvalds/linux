@@ -130,6 +130,10 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			pr_debug("R_MICROBLAZE_32_PCREL_LO\n");
 			break;
 
+		case R_MICROBLAZE_64_NONE:
+			pr_debug("R_MICROBLAZE_NONE\n");
+			break;
+
 		case R_MICROBLAZE_NONE:
 			pr_debug("R_MICROBLAZE_NONE\n");
 			break;
