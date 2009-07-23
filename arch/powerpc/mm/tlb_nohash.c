@@ -67,18 +67,24 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 }
 EXPORT_SYMBOL(local_flush_tlb_mm);
 
-void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
+void __local_flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
+			    int tsize, int ind)
 {
 	unsigned int pid;
 
 	preempt_disable();
-	pid = vma ? vma->vm_mm->context.id : 0;
+	pid = mm ? mm->context.id : 0;
 	if (pid != MMU_NO_CONTEXT)
-		_tlbil_va(vmaddr, pid);
+		_tlbil_va(vmaddr, pid, tsize, ind);
 	preempt_enable();
 }
-EXPORT_SYMBOL(local_flush_tlb_page);
 
+void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
+{
+	__local_flush_tlb_page(vma ? vma->vm_mm : NULL, vmaddr,
+			       0 /* tsize unused for now */, 0);
+}
+EXPORT_SYMBOL(local_flush_tlb_page);
 
 /*
  * And here are the SMP non-local implementations
@@ -96,6 +102,8 @@ static int mm_is_core_local(struct mm_struct *mm)
 struct tlb_flush_param {
 	unsigned long addr;
 	unsigned int pid;
+	unsigned int tsize;
+	unsigned int ind;
 };
 
 static void do_flush_tlb_mm_ipi(void *param)
@@ -109,7 +117,7 @@ static void do_flush_tlb_page_ipi(void *param)
 {
 	struct tlb_flush_param *p = param;
 
-	_tlbil_va(p->addr, p->pid);
+	_tlbil_va(p->addr, p->pid, p->tsize, p->ind);
 }
 
 
@@ -149,36 +157,48 @@ void flush_tlb_mm(struct mm_struct *mm)
 }
 EXPORT_SYMBOL(flush_tlb_mm);
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
+void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
+		      int tsize, int ind)
 {
 	struct cpumask *cpu_mask;
 	unsigned int pid;
 
 	preempt_disable();
-	pid = vma ? vma->vm_mm->context.id : 0;
+	pid = mm ? mm->context.id : 0;
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto bail;
-	cpu_mask = mm_cpumask(vma->vm_mm);
+	cpu_mask = mm_cpumask(mm);
 	if (!mm_is_core_local(mm)) {
 		/* If broadcast tlbivax is supported, use it */
 		if (mmu_has_feature(MMU_FTR_USE_TLBIVAX_BCAST)) {
 			int lock = mmu_has_feature(MMU_FTR_LOCK_BCAST_INVAL);
 			if (lock)
 				spin_lock(&tlbivax_lock);
-			_tlbivax_bcast(vmaddr, pid);
+			_tlbivax_bcast(vmaddr, pid, tsize, ind);
 			if (lock)
 				spin_unlock(&tlbivax_lock);
 			goto bail;
 		} else {
-			struct tlb_flush_param p = { .pid = pid, .addr = vmaddr };
+			struct tlb_flush_param p = {
+				.pid = pid,
+				.addr = vmaddr,
+				.tsize = tsize,
+				.ind = ind,
+			};
 			/* Ignores smp_processor_id() even if set in cpu_mask */
 			smp_call_function_many(cpu_mask,
 					       do_flush_tlb_page_ipi, &p, 1);
 		}
 	}
-	_tlbil_va(vmaddr, pid);
+	_tlbil_va(vmaddr, pid, tsize, ind);
  bail:
 	preempt_enable();
+}
+
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
+{
+	__flush_tlb_page(vma ? vma->vm_mm : NULL, vmaddr,
+			 0 /* tsize unused for now */, 0);
 }
 EXPORT_SYMBOL(flush_tlb_page);
 

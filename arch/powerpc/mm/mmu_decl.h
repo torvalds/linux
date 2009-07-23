@@ -36,21 +36,30 @@ static inline void _tlbil_pid(unsigned int pid)
 {
 	asm volatile ("sync; tlbia; isync" : : : "memory");
 }
+#define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
+
 #else /* CONFIG_40x || CONFIG_8xx */
 extern void _tlbil_all(void);
 extern void _tlbil_pid(unsigned int pid);
+#define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
 #endif /* !(CONFIG_40x || CONFIG_8xx) */
 
 /*
  * On 8xx, we directly inline tlbie, on others, it's extern
  */
 #ifdef CONFIG_8xx
-static inline void _tlbil_va(unsigned long address, unsigned int pid)
+static inline void _tlbil_va(unsigned long address, unsigned int pid,
+			     unsigned int tsize, unsigned int ind)
 {
 	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory");
 }
 #else /* CONFIG_8xx */
-extern void _tlbil_va(unsigned long address, unsigned int pid);
+extern void __tlbil_va(unsigned long address, unsigned int pid);
+static inline void _tlbil_va(unsigned long address, unsigned int pid,
+			     unsigned int tsize, unsigned int ind)
+{
+	__tlbil_va(address, pid);
+}
 #endif /* CONIFG_8xx */
 
 /*
@@ -58,7 +67,8 @@ extern void _tlbil_va(unsigned long address, unsigned int pid);
  * implementation. When that becomes the case, this will be
  * an extern.
  */
-static inline void _tlbivax_bcast(unsigned long address, unsigned int pid)
+static inline void _tlbivax_bcast(unsigned long address, unsigned int pid,
+				   unsigned int tsize, unsigned int ind)
 {
 	BUG();
 }

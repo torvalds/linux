@@ -39,7 +39,7 @@
 /*
  * 40x implementation needs only tlbil_va
  */
-_GLOBAL(_tlbil_va)
+_GLOBAL(__tlbil_va)
 	/* We run the search with interrupts disabled because we have to change
 	 * the PID and I don't want to preempt when that happens.
 	 */
@@ -71,7 +71,7 @@ _GLOBAL(_tlbil_va)
  * 440 implementation uses tlbsx/we for tlbil_va and a full sweep
  * of the TLB for everything else.
  */
-_GLOBAL(_tlbil_va)
+_GLOBAL(__tlbil_va)
 	mfspr	r5,SPRN_MMUCR
 	rlwimi	r5,r4,0,24,31			/* Set TID */
 
@@ -170,7 +170,7 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBILX)
  * Flush MMU TLB for a particular address, but only on the local processor
  * (no broadcast)
  */
-_GLOBAL(_tlbil_va)
+_GLOBAL(__tlbil_va)
 	mfmsr	r10
 	wrteei	0
 	slwi	r4,r4,16
