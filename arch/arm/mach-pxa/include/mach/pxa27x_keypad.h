@@ -2,6 +2,7 @@
 #define __ASM_ARCH_PXA27x_KEYPAD_H
 
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 
 #define MAX_MATRIX_KEY_ROWS	(8)
 #define MAX_MATRIX_KEY_COLS	(8)
@@ -50,8 +51,6 @@ struct pxa27x_keypad_platform_data {
 	/* key debounce interval */
 	unsigned int	debounce_interval;
 };
-
-#define KEY(row, col, val)	(((row) << 28) | ((col) << 24) | (val))
 
 extern void pxa_set_keypad_info(struct pxa27x_keypad_platform_data *info);
 
