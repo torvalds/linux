@@ -256,7 +256,7 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 			delta = new_hw_ptr - hw_ptr_interrupt;
 	}
 	if (delta < 0) {
-		if (runtime->periods == 1)
+		if (runtime->periods == 1 || new_hw_ptr < old_hw_ptr)
 			delta += runtime->buffer_size;
 		if (delta < 0) {
 			hw_ptr_error(substream, 
