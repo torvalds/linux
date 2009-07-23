@@ -570,6 +570,11 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_SKB_ADD,
 };
 
+enum {
+	SCAN_SW_SCANNING,
+	SCAN_HW_SCANNING
+};
+
 struct ieee80211_local {
 	/* embed the driver visible part.
 	 * don't cast (use the static inlines below), but we keep
@@ -668,7 +673,7 @@ struct ieee80211_local {
 
 	/* Scanning and BSS list */
 	struct mutex scan_mtx;
-	bool sw_scanning, hw_scanning;
+	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
 	struct cfg80211_scan_request int_scan_req;
 	struct cfg80211_scan_request *scan_req;

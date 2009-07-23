@@ -581,7 +581,7 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (!ifmgd->associated)
 		return;
 
-	if (sdata->local->sw_scanning || sdata->local->hw_scanning)
+	if (sdata->local->scanning)
 		return;
 
 	/* Disregard subsequent beacons if we are already running a timer
@@ -639,7 +639,7 @@ static void ieee80211_enable_ps(struct ieee80211_local *local,
 	 * If we are scanning right now then the parameters will
 	 * take effect when scan finishes.
 	 */
-	if (local->hw_scanning || local->sw_scanning)
+	if (local->scanning)
 		return;
 
 	if (conf->dynamic_ps_timeout > 0 &&
@@ -2038,7 +2038,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 	if (!netif_running(sdata->dev))
 		return;
 
-	if (local->sw_scanning || local->hw_scanning)
+	if (local->scanning)
 		return;
 
 	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
@@ -2213,7 +2213,7 @@ static void ieee80211_sta_monitor_work(struct work_struct *work)
 		container_of(work, struct ieee80211_sub_if_data,
 			     u.mgd.monitor_work);
 
-	if (sdata->local->sw_scanning || sdata->local->hw_scanning)
+	if (sdata->local->scanning)
 		return;
 
 	ieee80211_mgd_probe_ap(sdata, false);
