@@ -998,6 +998,29 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
+/* Disable the VGA plane that we never use */
+static void i915_disable_vga (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u8 sr1;
+	u32 vga_reg;
+
+	if (IS_IGDNG(dev))
+		vga_reg = CPU_VGACNTRL;
+	else
+		vga_reg = VGACNTRL;
+
+	if (I915_READ(vga_reg) & VGA_DISP_DISABLE)
+		return;
+
+	I915_WRITE8(VGA_SR_INDEX, 1);
+	sr1 = I915_READ8(VGA_SR_DATA);
+	I915_WRITE8(VGA_SR_DATA, sr1 | (1 << 5));
+	udelay(100);
+
+	I915_WRITE(vga_reg, VGA_DISP_DISABLE);
+}
+
 static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1200,8 +1223,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_OFF:
 		DRM_DEBUG("crtc %d dpms off\n", pipe);
 
-		/* Disable the VGA plane that we never use */
-		I915_WRITE(CPU_VGACNTRL, VGA_DISP_DISABLE);
+		i915_disable_vga(dev);
 
 		/* Disable display plane */
 		temp = I915_READ(dspcntr_reg);
@@ -1342,7 +1364,7 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 		//intel_crtc_dpms_video(crtc, FALSE); TODO
 
 		/* Disable the VGA plane that we never use */
-		I915_WRITE(VGACNTRL, VGA_DISP_DISABLE);
+		i915_disable_vga(dev);
 
 		/* Disable display plane */
 		temp = I915_READ(dspcntr_reg);
