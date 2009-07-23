@@ -473,10 +473,6 @@ static int init_forechannel_attrs(struct svc_rqst *rqstp,
 		fchan->maxops = NFSD_MAX_OPS_PER_COMPOUND;
 	session_fchan->maxops = fchan->maxops;
 
-	/* try to use the client requested number of slots */
-	if (fchan->maxreqs > NFSD_MAX_SLOTS_PER_SESSION)
-		fchan->maxreqs = NFSD_MAX_SLOTS_PER_SESSION;
-
 	/* FIXME: Error means no more DRC pages so the server should
 	 * recover pages from existing sessions. For now fail session
 	 * creation.
