@@ -98,9 +98,14 @@ int cx25840_loadfw(struct i2c_client *client)
 	const u8 *ptr;
 	int size, retval;
 	int MAX_BUF_SIZE = FWSEND;
+	u32 gpio_oe = 0, gpio_da = 0;
 
-	if (state->is_cx23885)
+	if (state->is_cx23885) {
 		firmware = FWFILE_CX23885;
+		/* Preserve the GPIO OE and output bits */
+		gpio_oe = cx25840_read(client, 0x160);
+		gpio_da = cx25840_read(client, 0x164);
+	}
 	else if (state->is_cx231xx)
 		firmware = FWFILE_CX231XX;
 
@@ -141,6 +146,12 @@ int cx25840_loadfw(struct i2c_client *client)
 
 	size = fw->size;
 	release_firmware(fw);
+
+	if (state->is_cx23885) {
+		/* Restore GPIO configuration after f/w load */
+		cx25840_write(client, 0x160, gpio_oe);
+		cx25840_write(client, 0x164, gpio_da);
+	}
 
 	return check_fw_load(client, size);
 }
