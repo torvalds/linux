@@ -163,8 +163,6 @@ static int parse_ksym_trace_str(char *input_string, char **ksymname,
 {
 	int ret;
 
-	strstrip(input_string);
-
 	*ksymname = strsep(&input_string, ":");
 	*addr = kallsyms_lookup_name(*ksymname);
 
@@ -262,6 +260,25 @@ static ssize_t ksym_trace_filter_read(struct file *filp, char __user *ubuf,
 	return cnt;
 }
 
+static void __ksym_trace_reset(void)
+{
+	struct trace_ksym *entry;
+	struct hlist_node *node, *node1;
+
+	mutex_lock(&ksym_tracer_mutex);
+	hlist_for_each_entry_safe(entry, node, node1, &ksym_filter_head,
+								ksym_hlist) {
+		unregister_kernel_hw_breakpoint(entry->ksym_hbp);
+		ksym_filter_entry_count--;
+		hlist_del_rcu(&(entry->ksym_hlist));
+		synchronize_rcu();
+		kfree(entry->ksym_hbp->info.name);
+		kfree(entry->ksym_hbp);
+		kfree(entry);
+	}
+	mutex_unlock(&ksym_tracer_mutex);
+}
+
 static ssize_t ksym_trace_filter_write(struct file *file,
 					const char __user *buffer,
 						size_t count, loff_t *ppos)
@@ -281,6 +298,21 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 		return -EFAULT;
 	}
 	input_string[count] = '\0';
+
+	strstrip(input_string);
+
+	/*
+	 * Clear all breakpoints if:
+	 * 1: echo > ksym_trace_filter
+	 * 2: echo 0 > ksym_trace_filter
+	 * 3: echo "*:---" > ksym_trace_filter
+	 */
+	if (!input_string[0] || !strcmp(input_string, "0") ||
+	    !strcmp(input_string, "*:---")) {
+		__ksym_trace_reset();
+		kfree(input_string);
+		return count;
+	}
 
 	ret = op = parse_ksym_trace_str(input_string, &ksymname, &ksym_addr);
 	if (ret < 0) {
@@ -341,23 +373,8 @@ static const struct file_operations ksym_tracing_fops = {
 
 static void ksym_trace_reset(struct trace_array *tr)
 {
-	struct trace_ksym *entry;
-	struct hlist_node *node, *node1;
-
 	ksym_tracing_enabled = 0;
-
-	mutex_lock(&ksym_tracer_mutex);
-	hlist_for_each_entry_safe(entry, node, node1, &ksym_filter_head,
-								ksym_hlist) {
-		unregister_kernel_hw_breakpoint(entry->ksym_hbp);
-		ksym_filter_entry_count--;
-		hlist_del_rcu(&(entry->ksym_hlist));
-		synchronize_rcu();
-		kfree(entry->ksym_hbp->info.name);
-		kfree(entry->ksym_hbp);
-		kfree(entry);
-	}
-	mutex_unlock(&ksym_tracer_mutex);
+	__ksym_trace_reset();
 }
 
 static int ksym_trace_init(struct trace_array *tr)
