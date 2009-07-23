@@ -1848,6 +1848,8 @@
 #define PFA_CTL_1               0x68080
 #define PFB_CTL_1               0x68880
 #define  PF_ENABLE              (1<<31)
+#define PFA_WIN_SZ		0x68074
+#define PFB_WIN_SZ		0x68874
 
 /* legacy palette */
 #define LGC_PALETTE_A           0x4a000

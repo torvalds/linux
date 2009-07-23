@@ -1038,6 +1038,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
 	int transconf_reg = (pipe == 0) ? TRANSACONF : TRANSBCONF;
 	int pf_ctl_reg = (pipe == 0) ? PFA_CTL_1 : PFB_CTL_1;
+	int pf_win_size = (pipe == 0) ? PFA_WIN_SZ : PFB_WIN_SZ;
 	int cpu_htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
 	int cpu_hblank_reg = (pipe == 0) ? HBLANK_A : HBLANK_B;
 	int cpu_hsync_reg = (pipe == 0) ? HSYNC_A : HSYNC_B;
@@ -1051,7 +1052,7 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int trans_vblank_reg = (pipe == 0) ? TRANS_VBLANK_A : TRANS_VBLANK_B;
 	int trans_vsync_reg = (pipe == 0) ? TRANS_VSYNC_A : TRANS_VSYNC_B;
 	u32 temp;
-	int tries = 5, j;
+	int tries = 5, j, n;
 
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
 	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
@@ -1239,18 +1240,20 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 		if ((temp & PIPEACONF_ENABLE) != 0) {
 			I915_WRITE(pipeconf_reg, temp & ~PIPEACONF_ENABLE);
 			I915_READ(pipeconf_reg);
+			n = 0;
 			/* wait for cpu pipe off, pipe state */
-			while ((I915_READ(pipeconf_reg) & I965_PIPECONF_ACTIVE) != 0)
-				;
+			while ((I915_READ(pipeconf_reg) & I965_PIPECONF_ACTIVE) != 0) {
+				n++;
+				if (n < 60) {
+					udelay(500);
+					continue;
+				} else {
+					DRM_DEBUG("pipe %d off delay\n", pipe);
+					break;
+				}
+			}
 		} else
 			DRM_DEBUG("crtc %d is disabled\n", pipe);
-
-		/* IGDNG-A : disable cpu panel fitter ? */
-		temp = I915_READ(pf_ctl_reg);
-		if ((temp & PF_ENABLE) != 0) {
-			I915_WRITE(pf_ctl_reg, temp & ~PF_ENABLE);
-			I915_READ(pf_ctl_reg);
-		}
 
 		/* disable CPU FDI tx and PCH FDI rx */
 		temp = I915_READ(fdi_tx_reg);
@@ -1260,6 +1263,8 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 		temp = I915_READ(fdi_rx_reg);
 		I915_WRITE(fdi_rx_reg, temp & ~FDI_RX_ENABLE);
 		I915_READ(fdi_rx_reg);
+
+		udelay(100);
 
 		/* still set train pattern 1 */
 		temp = I915_READ(fdi_tx_reg);
@@ -1272,14 +1277,25 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 		temp |= FDI_LINK_TRAIN_PATTERN_1;
 		I915_WRITE(fdi_rx_reg, temp);
 
+		udelay(100);
+
 		/* disable PCH transcoder */
 		temp = I915_READ(transconf_reg);
 		if ((temp & TRANS_ENABLE) != 0) {
 			I915_WRITE(transconf_reg, temp & ~TRANS_ENABLE);
 			I915_READ(transconf_reg);
+			n = 0;
 			/* wait for PCH transcoder off, transcoder state */
-			while ((I915_READ(transconf_reg) & TRANS_STATE_ENABLE) != 0)
-				;
+			while ((I915_READ(transconf_reg) & TRANS_STATE_ENABLE) != 0) {
+				n++;
+				if (n < 60) {
+					udelay(500);
+					continue;
+				} else {
+					DRM_DEBUG("transcoder %d off delay\n", pipe);
+					break;
+				}
+			}
 		}
 
 		/* disable PCH DPLL */
@@ -1296,6 +1312,22 @@ static void igdng_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(fdi_rx_reg, temp);
 			I915_READ(fdi_rx_reg);
 		}
+
+		/* Disable CPU FDI TX PLL */
+		temp = I915_READ(fdi_tx_reg);
+		if ((temp & FDI_TX_PLL_ENABLE) != 0) {
+			I915_WRITE(fdi_tx_reg, temp & ~FDI_TX_PLL_ENABLE);
+			I915_READ(fdi_tx_reg);
+			udelay(100);
+		}
+
+		/* Disable PF */
+		temp = I915_READ(pf_ctl_reg);
+		if ((temp & PF_ENABLE) != 0) {
+			I915_WRITE(pf_ctl_reg, temp & ~PF_ENABLE);
+			I915_READ(pf_ctl_reg);
+		}
+		I915_WRITE(pf_win_size, 0);
 
 		/* Wait for the clocks to turn off. */
 		udelay(150);
