@@ -14,7 +14,6 @@
 /*
  * Most if the context management is out of line
  */
-extern void mmu_context_init(void);
 extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 extern void destroy_context(struct mm_struct *mm);
 
@@ -22,6 +21,12 @@ extern void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next);
 extern void switch_stab(struct task_struct *tsk, struct mm_struct *mm);
 extern void switch_slb(struct task_struct *tsk, struct mm_struct *mm);
 extern void set_context(unsigned long id, pgd_t *pgd);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+static inline void mmu_context_init(void) { }
+#else
+extern void mmu_context_init(void);
+#endif
 
 /*
  * switch_mm is the entry point called from the architecture independent
