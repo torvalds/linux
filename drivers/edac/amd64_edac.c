@@ -2283,42 +2283,26 @@ static void amd64_handle_ue(struct mem_ctl_info *mci,
 }
 
 static void amd64_decode_bus_error(struct mem_ctl_info *mci,
-				   struct err_regs *info)
+				   struct err_regs *info, int ecc_type)
 {
 	u32 ec  = ERROR_CODE(info->nbsl);
 	u32 xec = EXT_ERROR_CODE(info->nbsl);
 
-	amd64_mc_printk(mci, KERN_ERR,
-		"BUS ERROR:\n"
-		"  time-out(%s) mem or i/o(%s)\n"
-		"  participating processor(%s)\n"
-		"  memory transaction type(%s)\n"
-		"  cache level(%s) Error Found by: %s\n",
-		TO_MSG(ec), II_MSG(ec), PP_MSG(ec), RRRR_MSG(ec), LL_MSG(ec),
-		(info->nbsh & K8_NBSH_ERR_SCRUBER) ?
-			"Scrubber" : "Normal Operation");
+	pr_emerg(" Transaction type: %s(%s), %s, Cache Level: %s, %s\n",
+		 RRRR_MSG(ec), II_MSG(ec), TO_MSG(ec), LL_MSG(ec), PP_MSG(ec));
 
 
 	/* Bail early out if this was an 'observed' error */
 	if (PP(ec) == K8_NBSL_PP_OBS)
 		return;
 
-	/* Parse out the extended error code for ECC events */
-	switch (xec) {
-	/* F10 changed to one Extended ECC error code */
-	case F10_NBSL_EXT_ERR_RES:		/* Reserved field */
-	case F10_NBSL_EXT_ERR_ECC:		/* F10 ECC ext err code */
-		break;
-
-	default:
-		amd64_mc_printk(mci, KERN_ERR, "NOT ECC: no special error "
-					       "handling for this error\n");
+	/* Do only ECC errors */
+	if (xec && xec != F10_NBSL_EXT_ERR_ECC)
 		return;
-	}
 
-	if (info->nbsh & K8_NBSH_CECC)
+	if (ecc_type == 2)
 		amd64_handle_ce(mci, info);
-	else if (info->nbsh & K8_NBSH_UECC)
+	else if (ecc_type == 1)
 		amd64_handle_ue(mci, info);
 
 	/*
@@ -2329,8 +2313,7 @@ static void amd64_decode_bus_error(struct mem_ctl_info *mci,
 	 * catastrophic.
 	 */
 	if (info->nbsh & K8_NBSH_OVERFLOW)
-		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR
-					  "Error Overflow set");
+		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR "Error Overflow");
 }
 
 void amd64_decode_nb_mce(struct mem_ctl_info *mci, struct err_regs *regs,
@@ -2397,7 +2380,7 @@ void amd64_decode_nb_mce(struct mem_ctl_info *mci, struct err_regs *regs,
 			 RRRR_MSG(ec), TT_MSG(ec), LL_MSG(ec));
 	} else if (BUS_ERROR(ec)) {
 		pr_emerg(" Bus (Link/DRAM) error\n");
-		amd64_decode_bus_error(mci, regs);
+		amd64_decode_bus_error(mci, regs, ecc);
 	} else {
 		/* shouldn't reach here! */
 		amd64_mc_printk(mci, KERN_WARNING,
