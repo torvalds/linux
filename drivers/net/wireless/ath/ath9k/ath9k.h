@@ -194,8 +194,6 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 
 #define IEEE80211_SEQ_SEQ_SHIFT    4
 #define IEEE80211_SEQ_MAX          4096
-#define IEEE80211_MIN_AMPDU_BUF    0x8
-#define IEEE80211_HTCAP_MAXRXAMPDU_FACTOR 13
 #define IEEE80211_WEP_IVLEN        3
 #define IEEE80211_WEP_KIDLEN       1
 #define IEEE80211_WEP_CRCLEN       4

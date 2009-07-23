@@ -462,7 +462,7 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 
 	if (sc->sc_flags & SC_OP_TXAGGR) {
 		ath_tx_node_init(sc, an);
-		an->maxampdu = 1 << (IEEE80211_HTCAP_MAXRXAMPDU_FACTOR +
+		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 				     sta->ht_cap.ampdu_factor);
 		an->mpdudensity = parse_mpdudensity(sta->ht_cap.ampdu_density);
 		an->last_rssi = ATH_RSSI_DUMMY_MARKER;
@@ -888,8 +888,6 @@ static void ath_key_delete(struct ath_softc *sc, struct ieee80211_key_conf *key)
 static void setup_ht_cap(struct ath_softc *sc,
 			 struct ieee80211_sta_ht_cap *ht_info)
 {
-#define	ATH9K_HT_CAP_MAXRXAMPDU_65536 0x3	/* 2 ^ 16 */
-#define	ATH9K_HT_CAP_MPDUDENSITY_8 0x6		/* 8 usec */
 	u8 tx_streams, rx_streams;
 
 	ht_info->ht_supported = true;
@@ -898,8 +896,8 @@ static void setup_ht_cap(struct ath_softc *sc,
 		       IEEE80211_HT_CAP_SGI_40 |
 		       IEEE80211_HT_CAP_DSSSCCK40;
 
-	ht_info->ampdu_factor = ATH9K_HT_CAP_MAXRXAMPDU_65536;
-	ht_info->ampdu_density = ATH9K_HT_CAP_MPDUDENSITY_8;
+	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
+	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
 
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
