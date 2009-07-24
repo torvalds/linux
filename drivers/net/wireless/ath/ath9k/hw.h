@@ -421,7 +421,6 @@ struct ath_hw {
 
 	enum nl80211_iftype opmode;
 	enum ath9k_power_mode power_mode;
-	enum ath9k_power_mode restore_mode;
 
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
 	struct ar5416Stats stats;
