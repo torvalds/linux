@@ -211,9 +211,9 @@ static int ds2760_battery_read_status(struct ds2760_device_info *di)
 	if (di->rem_capacity > 100)
 		di->rem_capacity = 100;
 
-	if (di->current_uA)
-		di->life_sec = -((di->accum_current_uAh - di->empty_uAh) *
-				 3600L) / di->current_uA;
+	if (di->current_uA >= 100L)
+		di->life_sec = -((di->accum_current_uAh - di->empty_uAh) * 36L)
+					/ (di->current_uA / 100L);
 	else
 		di->life_sec = 0;
 
