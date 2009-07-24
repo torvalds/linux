@@ -63,6 +63,8 @@ extern struct iwl_cfg iwl6050_2agn_cfg;
 extern struct iwl_cfg iwl6050_3agn_cfg;
 extern struct iwl_cfg iwl1000_bgn_cfg;
 
+struct iwl_tx_queue;
+
 /* shared structures from iwl-5000.c */
 extern struct iwl_mod_params iwl50_mod_params;
 extern struct iwl_ops iwl5000_ops;
@@ -79,9 +81,37 @@ extern void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
 				    __le32 *tx_flags);
 extern int iwl5000_calc_rssi(struct iwl_priv *priv,
 			     struct iwl_rx_phy_res *rx_resp);
+extern int iwl5000_apm_init(struct iwl_priv *priv);
+extern void iwl5000_apm_stop(struct iwl_priv *priv);
+extern int iwl5000_apm_reset(struct iwl_priv *priv);
+extern void iwl5000_nic_config(struct iwl_priv *priv);
+extern u16 iwl5000_eeprom_calib_version(struct iwl_priv *priv);
+extern const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
+				    size_t offset);
+extern void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
+					    struct iwl_tx_queue *txq,
+					    u16 byte_cnt);
+extern void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
+				    struct iwl_tx_queue *txq);
+extern int iwl5000_load_ucode(struct iwl_priv *priv);
+extern void iwl5000_init_alive_start(struct iwl_priv *priv);
+extern int iwl5000_alive_notify(struct iwl_priv *priv);
+extern int iwl5000_hw_set_hw_params(struct iwl_priv *priv);
+extern int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
+			   int tx_fifo, int sta_id, int tid, u16 ssn_idx);
+extern int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
+			    u16 ssn_idx, u8 tx_fifo);
+extern void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask);
+extern void iwl5000_setup_deferred_work(struct iwl_priv *priv);
+extern void iwl5000_rx_handler_setup(struct iwl_priv *priv);
+extern int iwl5000_hw_valid_rtc_data_addr(u32 addr);
+extern int iwl5000_send_tx_power(struct iwl_priv *priv);
+extern void iwl5000_temperature(struct iwl_priv *priv);
 
 /* CT-KILL constants */
-#define CT_KILL_THRESHOLD	110 /* in Celsius */
+#define CT_KILL_THRESHOLD_LEGACY   110 /* in Celsius */
+#define CT_KILL_THRESHOLD	   114 /* in Celsius */
+#define CT_KILL_EXIT_THRESHOLD     95  /* in Celsius */
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
@@ -630,6 +660,8 @@ struct iwl_hw_params {
 	u32 max_data_size;
 	u32 max_bsm_size;
 	u32 ct_kill_threshold; /* value in hw-dependent units */
+	u32 ct_kill_exit_threshold; /* value in hw-dependent units */
+				    /* for 1000, 6000 series and up */
 	u32 calib_init_cfg;
 	const struct iwl_sensitivity_ranges *sens;
 };

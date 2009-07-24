@@ -776,7 +776,8 @@ static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
 static void iwl4965_set_ct_threshold(struct iwl_priv *priv)
 {
 	/* want Kelvin */
-	priv->hw_params.ct_kill_threshold = CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+	priv->hw_params.ct_kill_threshold =
+		CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD_LEGACY);
 }
 
 /**

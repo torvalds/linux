@@ -55,13 +55,87 @@
 #define _IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE #api ".ucode"
 #define IWL1000_MODULE_FIRMWARE(api) _IWL1000_MODULE_FIRMWARE(api)
 
+
+/*
+ * For 1000, use advance thermal throttling critical temperature threshold,
+ * but legacy thermal management implementation for now.
+ * This is for the reason of 1000 uCode using advance thermal throttling API
+ * but not implement ct_kill_exit based on ct_kill exit temperature
+ * so the thermal throttling will still based on legacy thermal throttling
+ * management.
+ * The code here need to be modified once 1000 uCode has the advanced thermal
+ * throttling algorithm in place
+ */
+static void iwl1000_set_ct_threshold(struct iwl_priv *priv)
+{
+	/* want Celsius */
+	priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
+	priv->hw_params.ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
+}
+
+static struct iwl_lib_ops iwl1000_lib = {
+	.set_hw_params = iwl5000_hw_set_hw_params,
+	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
+	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
+	.txq_set_sched = iwl5000_txq_set_sched,
+	.txq_agg_enable = iwl5000_txq_agg_enable,
+	.txq_agg_disable = iwl5000_txq_agg_disable,
+	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
+	.txq_free_tfd = iwl_hw_txq_free_tfd,
+	.txq_init = iwl_hw_tx_queue_init,
+	.rx_handler_setup = iwl5000_rx_handler_setup,
+	.setup_deferred_work = iwl5000_setup_deferred_work,
+	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
+	.load_ucode = iwl5000_load_ucode,
+	.init_alive_start = iwl5000_init_alive_start,
+	.alive_notify = iwl5000_alive_notify,
+	.send_tx_power = iwl5000_send_tx_power,
+	.update_chain_flags = iwl_update_chain_flags,
+	.apm_ops = {
+		.init =	iwl5000_apm_init,
+		.reset = iwl5000_apm_reset,
+		.stop = iwl5000_apm_stop,
+		.config = iwl5000_nic_config,
+		.set_pwr_src = iwl_set_pwr_src,
+	},
+	.eeprom_ops = {
+		.regulatory_bands = {
+			EEPROM_5000_REG_BAND_1_CHANNELS,
+			EEPROM_5000_REG_BAND_2_CHANNELS,
+			EEPROM_5000_REG_BAND_3_CHANNELS,
+			EEPROM_5000_REG_BAND_4_CHANNELS,
+			EEPROM_5000_REG_BAND_5_CHANNELS,
+			EEPROM_5000_REG_BAND_24_FAT_CHANNELS,
+			EEPROM_5000_REG_BAND_52_FAT_CHANNELS
+		},
+		.verify_signature  = iwlcore_eeprom_verify_signature,
+		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
+		.release_semaphore = iwlcore_eeprom_release_semaphore,
+		.calib_version	= iwl5000_eeprom_calib_version,
+		.query_addr = iwl5000_eeprom_query_addr,
+	},
+	.post_associate = iwl_post_associate,
+	.isr = iwl_isr_ict,
+	.config_ap = iwl_config_ap,
+	.temp_ops = {
+		.temperature = iwl5000_temperature,
+		.set_ct_kill = iwl1000_set_ct_threshold,
+	 },
+};
+
+static struct iwl_ops iwl1000_ops = {
+	.lib = &iwl1000_lib,
+	.hcmd = &iwl5000_hcmd,
+	.utils = &iwl5000_hcmd_utils,
+};
+
 struct iwl_cfg iwl1000_bgn_cfg = {
 	.name = "1000 Series BGN",
 	.fw_name_pre = IWL1000_FW_PRE,
 	.ucode_api_max = IWL1000_UCODE_API_MAX,
 	.ucode_api_min = IWL1000_UCODE_API_MIN,
 	.sku = IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
+	.ops = &iwl1000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
