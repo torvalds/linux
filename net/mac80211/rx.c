@@ -783,7 +783,7 @@ static void ap_sta_ps_start(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 
 	atomic_inc(&sdata->bss->num_sta_ps);
-	set_and_clear_sta_flags(sta, WLAN_STA_PS, WLAN_STA_PSPOLL);
+	set_sta_flags(sta, WLAN_STA_PS);
 	drv_sta_notify(local, &sdata->vif, STA_NOTIFY_SLEEP, &sta->sta);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %pM aid %d enters power save mode\n",
@@ -799,7 +799,7 @@ static int ap_sta_ps_end(struct sta_info *sta)
 
 	atomic_dec(&sdata->bss->num_sta_ps);
 
-	clear_sta_flags(sta, WLAN_STA_PS | WLAN_STA_PSPOLL);
+	clear_sta_flags(sta, WLAN_STA_PS);
 	drv_sta_notify(local, &sdata->vif, STA_NOTIFY_AWAKE, &sta->sta);
 
 	if (!skb_queue_empty(&sta->ps_tx_buf))
@@ -1117,14 +1117,15 @@ ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 		skb_queue_empty(&rx->sta->ps_tx_buf);
 
 	if (skb) {
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		struct ieee80211_hdr *hdr =
 			(struct ieee80211_hdr *) skb->data;
 
 		/*
-		 * Tell TX path to send one frame even though the STA may
+		 * Tell TX path to send this frame even though the STA may
 		 * still remain is PS mode after this frame exchange.
 		 */
-		set_sta_flags(rx->sta, WLAN_STA_PSPOLL);
+		info->flags |= IEEE80211_TX_CTL_PSPOLL_RESPONSE;
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "STA %pM aid %d: PS Poll (entries after %d)\n",
@@ -1139,7 +1140,7 @@ ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 		else
 			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 
-		dev_queue_xmit(skb);
+		ieee80211_add_pending_skb(rx->local, skb);
 
 		if (no_pending_pkts)
 			sta_info_clear_tim_bit(rx->sta);

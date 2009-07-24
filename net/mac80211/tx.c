@@ -373,7 +373,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	staflags = get_sta_flags(sta);
 
 	if (unlikely((staflags & WLAN_STA_PS) &&
-		     !(staflags & WLAN_STA_PSPOLL))) {
+		     !(info->flags & IEEE80211_TX_CTL_PSPOLL_RESPONSE))) {
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "STA %pM aid %d: PS buffer (entries "
 		       "before %d)\n",
@@ -412,24 +412,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		       sta->sta.addr);
 	}
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-	if (test_and_clear_sta_flags(sta, WLAN_STA_PSPOLL)) {
-		/*
-		 * The sleeping station with pending data is now snoozing.
-		 * It queried us for its buffered frames and will go back
-		 * to deep sleep once it got everything.
-		 *
-		 * inform the driver, in case the hardware does powersave
-		 * frame filtering and keeps a station  blacklist on its own
-		 * (e.g: p54), so that frames can be delivered unimpeded.
-		 *
-		 * Note: It should be safe to disable the filter now.
-		 * As, it is really unlikely that we still have any pending
-		 * frame for this station in the hw's buffers/fifos left,
-		 * that is not rejected with a unsuccessful tx_status yet.
-		 */
 
-		info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
-	}
 	return TX_CONTINUE;
 }
 

@@ -243,6 +243,9 @@ struct ieee80211_bss_conf {
  *	used to indicate that a frame was already retried due to PS
  * @IEEE80211_TX_INTFL_DONT_ENCRYPT: completely internal to mac80211,
  *	used to indicate frame should not be encrypted
+ * @IEEE80211_TX_CTL_PSPOLL_RESPONSE: (internal?)
+ *	This frame is a response to a PS-poll frame and should be sent
+ *	although the station is in powersave mode.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -262,6 +265,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
 	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
+	IEEE80211_TX_CTL_PSPOLL_RESPONSE	= BIT(17),
 };
 
 /**
