@@ -291,6 +291,7 @@ wont_overwrite:	mov	r0, r4
 		bl	decompress_kernel
 		b	call_kernel
 
+		.align	2
 		.type	LC0, #object
 LC0:		.word	LC0			@ r1
 		.word	__bss_start		@ r2
@@ -589,6 +590,7 @@ call_cache_fn:	adr	r12, proc_types
  * methods.  Writeback caches _must_ have the flush method
  * defined.
  */
+		.align	2
 		.type	proc_types,#object
 proc_types:
 		.word	0x41560600		@ ARM6/610
@@ -945,6 +947,7 @@ __armv3_mpu_cache_flush:
  * memory, which again must be relocatable.
  */
 #ifdef DEBUG
+		.align	2
 		.type	phexbuf,#object
 phexbuf:	.space	12
 		.size	phexbuf, . - phexbuf

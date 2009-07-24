@@ -14,6 +14,7 @@
 #define ATAG_CORE 0x54410001
 #define ATAG_CORE_SIZE ((2*4 + 3*4) >> 2)
 
+	.align	2
 	.type	__switch_data, %object
 __switch_data:
 	.long	__mmap_switched
@@ -185,6 +186,7 @@ ENDPROC(lookup_processor_type)
  * Look in <asm/procinfo.h> and arch/arm/kernel/arch.[ch] for
  * more information about the __proc_info and __arch_info structures.
  */
+	.align	2
 	.long	__proc_info_begin
 	.long	__proc_info_end
 3:	.long	.

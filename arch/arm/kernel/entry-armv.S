@@ -1065,6 +1065,10 @@ vector_\name:
 	ldr	lr, [pc, lr, lsl #2]
 	movs	pc, lr			@ branch to handler in SVC mode
 ENDPROC(vector_\name)
+
+	.align	2
+	@ handler addresses follow this label
+1:
 	.endm
 
 	.globl	__stubs_start
