@@ -318,7 +318,7 @@ ACPI_EXPORT_SYMBOL(acpi_initialize_objects)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Shutdown the ACPI subsystem.  Release all resources.
+ * DESCRIPTION: Shutdown the ACPICA subsystem and release all resources.
  *
  ******************************************************************************/
 acpi_status acpi_terminate(void)
@@ -326,6 +326,19 @@ acpi_status acpi_terminate(void)
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_terminate);
+
+	/* Just exit if subsystem is already shutdown */
+
+	if (acpi_gbl_shutdown) {
+		ACPI_ERROR((AE_INFO, "ACPI Subsystem is already terminated"));
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	/* Subsystem appears active, go ahead and shut it down */
+
+	acpi_gbl_shutdown = TRUE;
+	acpi_gbl_startup_flags = 0;
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
 	/* Terminate the AML Debugger if present */
 
@@ -353,6 +366,7 @@ acpi_status acpi_terminate(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_terminate)
+
 #ifndef ACPI_ASL_COMPILER
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
