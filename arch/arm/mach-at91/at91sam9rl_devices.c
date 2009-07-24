@@ -21,9 +21,55 @@
 #include <mach/at91sam9rl.h>
 #include <mach/at91sam9rl_matrix.h>
 #include <mach/at91sam9_smc.h>
+#include <mach/at_hdmac.h>
 
 #include "generic.h"
 
+
+/* --------------------------------------------------------------------
+ *  HDMAC - AHB DMA Controller
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_AT_HDMAC) || defined(CONFIG_AT_HDMAC_MODULE)
+static u64 hdmac_dmamask = DMA_BIT_MASK(32);
+
+static struct at_dma_platform_data atdma_pdata = {
+	.nr_channels	= 2,
+};
+
+static struct resource hdmac_resources[] = {
+	[0] = {
+		.start	= AT91_BASE_SYS + AT91_DMA,
+		.end	= AT91_BASE_SYS + AT91_DMA + SZ_512 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= AT91SAM9RL_ID_DMA,
+		.end	= AT91SAM9RL_ID_DMA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at_hdmac_device = {
+	.name		= "at_hdmac",
+	.id		= -1,
+	.dev		= {
+				.dma_mask		= &hdmac_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &atdma_pdata,
+	},
+	.resource	= hdmac_resources,
+	.num_resources	= ARRAY_SIZE(hdmac_resources),
+};
+
+void __init at91_add_device_hdmac(void)
+{
+	dma_cap_set(DMA_MEMCPY, atdma_pdata.cap_mask);
+	platform_device_register(&at_hdmac_device);
+}
+#else
+void __init at91_add_device_hdmac(void) {}
+#endif
 
 /* --------------------------------------------------------------------
  *  USB HS Device (Gadget)
@@ -1103,6 +1149,7 @@ void __init at91_add_device_serial(void) {}
  */
 static int __init at91_add_standard_devices(void)
 {
+	at91_add_device_hdmac();
 	at91_add_device_rtc();
 	at91_add_device_rtt();
 	at91_add_device_watchdog();
