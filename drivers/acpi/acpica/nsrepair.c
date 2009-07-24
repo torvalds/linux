@@ -149,3 +149,55 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 
 	return (AE_AML_OPERAND_TYPE);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_repair_package_list
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              obj_desc_ptr        - Pointer to the object to repair. The new
+ *                                    package object is returned here,
+ *                                    overwriting the old object.
+ *
+ * RETURN:      Status, new object in *obj_desc_ptr
+ *
+ * DESCRIPTION: Repair a common problem with objects that are defined to return
+ *              a variable-length Package of Packages. If the variable-length
+ *              is one, some BIOS code mistakenly simply declares a single
+ *              Package instead of a Package with one sub-Package. This
+ *              function attempts to repair this error by wrapping a Package
+ *              object around the original Package, creating the correct
+ *              Package with one sub-Package.
+ *
+ *              Names that can be repaired in this manner include:
+ *              _ALR, _CSD, _HPX, _MLS, _PRT, _PSS, _TRT, TSS
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_repair_package_list(struct acpi_predefined_data *data,
+			    union acpi_operand_object **obj_desc_ptr)
+{
+	union acpi_operand_object *pkg_obj_desc;
+
+	/*
+	 * Create the new outer package and populate it. The new package will
+	 * have a single element, the lone subpackage.
+	 */
+	pkg_obj_desc = acpi_ut_create_package_object(1);
+	if (!pkg_obj_desc) {
+		return (AE_NO_MEMORY);
+	}
+
+	pkg_obj_desc->package.elements[0] = *obj_desc_ptr;
+
+	/* Return the new object in the object pointer */
+
+	*obj_desc_ptr = pkg_obj_desc;
+	data->flags |= ACPI_OBJECT_REPAIRED;
+
+	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+			      "Incorrectly formed Package, attempting repair"));
+
+	return (AE_OK);
+}

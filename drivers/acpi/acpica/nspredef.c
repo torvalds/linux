@@ -566,9 +566,35 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 	case ACPI_PTYPE2_COUNT:
 
 		/*
-		 * These types all return a single package that consists of a
-		 * variable number of sub-packages.
+		 * These types all return a single Package that consists of a
+		 * variable number of sub-Packages.
+		 *
+		 * First, ensure that the first element is a sub-Package. If not,
+		 * the BIOS may have incorrectly returned the object as a single
+		 * package instead of a Package of Packages (a common error if
+		 * there is only one entry). We may be able to repair this by
+		 * wrapping the returned Package with a new outer Package.
 		 */
+		if ((*elements)->common.type != ACPI_TYPE_PACKAGE) {
+
+			/* Create the new outer package and populate it */
+
+			status =
+			    acpi_ns_repair_package_list(data,
+							return_object_ptr);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+
+			/* Update locals to point to the new package (of 1 element) */
+
+			return_object = *return_object_ptr;
+			elements = return_object->package.elements;
+			count = 1;
+		}
+
+		/* Validate each sub-Package in the parent Package */
+
 		for (i = 0; i < count; i++) {
 			sub_package = *elements;
 			sub_elements = sub_package->package.elements;

@@ -278,6 +278,10 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 		      u32 package_index,
 		      union acpi_operand_object **return_object_ptr);
 
+acpi_status
+acpi_ns_repair_package_list(struct acpi_predefined_data *data,
+			    union acpi_operand_object **obj_desc_ptr);
+
 /*
  * nssearch - Namespace searching and entry
  */
