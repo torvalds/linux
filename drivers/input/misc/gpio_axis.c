@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 
 struct gpio_axis_state {
-	struct input_dev *input_dev;
+	struct gpio_event_input_devs *input_devs;
 	struct gpio_event_axis_info *info;
 	uint32_t pos;
 };
@@ -88,14 +88,16 @@ static void gpio_event_update_axis(struct gpio_axis_state *as, int report)
 			if (ai->flags & GPIOEAF_PRINT_EVENT)
 				pr_info("axis %d-%d change %d\n",
 					ai->type, ai->code, change);
-			input_report_rel(as->input_dev, ai->code, change);
+			input_report_rel(as->input_devs->dev[ai->dev],
+						ai->code, change);
 		} else {
 			if (ai->flags & GPIOEAF_PRINT_EVENT)
 				pr_info("axis %d-%d now %d\n",
 					ai->type, ai->code, pos);
-			input_event(as->input_dev, ai->type, ai->code, pos);
+			input_event(as->input_devs->dev[ai->dev],
+					ai->type, ai->code, pos);
 		}
-		input_sync(as->input_dev);
+		input_sync(as->input_devs->dev[ai->dev]);
 	}
 	as->pos = pos;
 }
@@ -107,7 +109,7 @@ static irqreturn_t gpio_axis_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int gpio_event_axis_func(struct input_dev *input_dev,
+int gpio_event_axis_func(struct gpio_event_input_devs *input_devs,
 			 struct gpio_event_info *info, void **data, int func)
 {
 	int ret;
@@ -134,13 +136,21 @@ int gpio_event_axis_func(struct input_dev *input_dev,
 			ret = -ENOMEM;
 			goto err_alloc_axis_state_failed;
 		}
-		as->input_dev = input_dev;
+		as->input_devs = input_devs;
 		as->info = ai;
+		if (ai->dev >= input_devs->count) {
+			pr_err("gpio_event_axis: bad device index %d >= %d "
+				"for %d:%d\n", ai->dev, input_devs->count,
+				ai->type, ai->code);
+			ret = -EINVAL;
+			goto err_bad_device_index;
+		}
 
-		input_set_capability(input_dev, ai->type, ai->code);
+		input_set_capability(input_devs->dev[ai->dev],
+				     ai->type, ai->code);
 		if (ai->type == EV_ABS) {
-			input_set_abs_params(input_dev, ai->code, 0,
-					     ai->decoded_size - 1, 0, 0);
+			input_set_abs_params(input_devs->dev[ai->dev], ai->code,
+					     0, ai->decoded_size - 1, 0, 0);
 		}
 		for (i = 0; i < ai->count; i++) {
 			ret = gpio_request(ai->gpio[i], "gpio_event_axis");
@@ -174,6 +184,7 @@ err_gpio_direction_input_failed:
 err_request_gpio_failed:
 		;
 	}
+err_bad_device_index:
 	kfree(as);
 	*data = NULL;
 err_alloc_axis_state_failed:
