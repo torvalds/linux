@@ -103,6 +103,9 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
     PSDevice apdev_priv;
 	struct net_device *dev = pDevice->dev;
 	int ret;
+	const struct net_device_ops apdev_netdev_ops = {
+		.ndo_start_xmit         = pDevice->tx_80211,
+	};
 
     DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Enabling hostapd mode\n", dev->name);
 
@@ -115,9 +118,6 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
     *apdev_priv = *pDevice;
 	memcpy(pDevice->apdev->dev_addr, dev->dev_addr, ETH_ALEN);
 
-    const struct net_device_ops apdev_netdev_ops = {
-        .ndo_start_xmit         = pDevice->tx_80211,
-    };
     pDevice->apdev->netdev_ops = &apdev_netdev_ops;
 
 	pDevice->apdev->type = ARPHRD_IEEE80211;

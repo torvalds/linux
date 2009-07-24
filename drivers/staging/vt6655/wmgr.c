@@ -1125,7 +1125,7 @@ s_vMgrRxAssocResponse(
                        );
                 skb_put(pDevice->skb, sizeof(viawget_wpa_header) + wpahdr->resp_ie_len + wpahdr->req_ie_len);
                 pDevice->skb->dev = pDevice->wpadev;
-                pDevice->skb->mac_header = pDevice->skb->data;
+		skb_reset_mac_header(pDevice->skb);
                 pDevice->skb->pkt_type = PACKET_HOST;
                 pDevice->skb->protocol = htons(ETH_P_802_2);
                 memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
@@ -1761,7 +1761,7 @@ s_vMgrRxDisassociation(
              wpahdr->req_ie_len = 0;
              skb_put(pDevice->skb, sizeof(viawget_wpa_header));
              pDevice->skb->dev = pDevice->wpadev;
-	         pDevice->skb->mac_header = pDevice->skb->data;
+	     skb_reset_mac_header(pDevice->skb);
 
              pDevice->skb->pkt_type = PACKET_HOST;
              pDevice->skb->protocol = htons(ETH_P_802_2);
@@ -1849,7 +1849,7 @@ s_vMgrRxDeauthentication(
                  wpahdr->req_ie_len = 0;
                  skb_put(pDevice->skb, sizeof(viawget_wpa_header));
                  pDevice->skb->dev = pDevice->wpadev;
-                 pDevice->skb->mac_header = pDevice->skb->data;
+		 skb_reset_mac_header(pDevice->skb);
                  pDevice->skb->pkt_type = PACKET_HOST;
                  pDevice->skb->protocol = htons(ETH_P_802_2);
                  memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));

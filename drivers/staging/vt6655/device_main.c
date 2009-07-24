@@ -332,9 +332,9 @@ static CHIP_INFO chip_info_table[]= {
     {0,NULL}
 };
 
-static struct pci_device_id device_id_table[] __devinitdata = {
-{ 0x1106, 0x3253, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long)&chip_info_table[0]},
-{ 0, }
+DEFINE_PCI_DEVICE_TABLE(device_id_table) = {
+	{ PCI_VDEVICE(VIA, 0x3253), (kernel_ulong_t)chip_info_table},
+	{ 0, }
 };
 
 /*---------------------  Static Functions  --------------------------*/
@@ -405,7 +405,7 @@ static char* get_chip_name(int chip_id) {
     return chip_info_table[i].name;
 }
 
-static void __devexit device_remove1(struct pci_dev *pcid)
+static void device_remove1(struct pci_dev *pcid)
 {
     PSDevice pDevice=pci_get_drvdata(pcid);
 
@@ -928,7 +928,7 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
                  wpahdr->req_ie_len = 0;
                  skb_put(pDevice->skb, sizeof(viawget_wpa_header));
                  pDevice->skb->dev = pDevice->wpadev;
-                 pDevice->skb->mac_header = pDevice->skb->data;
+		 skb_reset_mac_header(pDevice->skb);
                  pDevice->skb->pkt_type = PACKET_HOST;
                  pDevice->skb->protocol = htons(ETH_P_802_2);
                  memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
@@ -1678,8 +1678,8 @@ static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
         return FALSE;
     ASSERT(pRDInfo->skb);
     pRDInfo->skb->dev = pDevice->dev;
-    pRDInfo->skb_dma = pci_map_single(pDevice->pcid, pRDInfo->skb->tail, pDevice->rx_buf_sz,
-                        PCI_DMA_FROMDEVICE);
+    pRDInfo->skb_dma = pci_map_single(pDevice->pcid, skb_tail_pointer(pRDInfo->skb),
+				      pDevice->rx_buf_sz, PCI_DMA_FROMDEVICE);
     *((PU32) &(pRD->m_rd0RD0)) = 0;
 
     pRD->m_rd0RD0.wResCount = cpu_to_le16(pDevice->rx_buf_sz);
@@ -1775,7 +1775,7 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
                     DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "tx call back netif.. \n");
                     skb = pTD->pTDInfo->skb;
 	                skb->dev = pDevice->apdev;
-			        skb->mac_header = skb->data;
+			skb_reset_mac_header(skb);
 	                skb->pkt_type = PACKET_OTHERHOST;
     	            //skb->protocol = htons(ETH_P_802_2);
 	                memset(skb->cb, 0, sizeof(skb->cb));
@@ -1940,6 +1940,10 @@ INT MlmeThread(
 static int  device_open(struct net_device *dev) {
     PSDevice    pDevice=(PSDevice) netdev_priv(dev);
     int i;
+#ifdef WPA_SM_Transtatus
+    extern SWPAResult wpa_Result;
+#endif
+
     pDevice->rx_buf_sz = PKT_BUF_SZ;
     if (!device_init_rings(pDevice)) {
         return -ENOMEM;
@@ -1950,7 +1954,6 @@ static int  device_open(struct net_device *dev) {
         return i;
 	//printk("DEBUG1\n");
 #ifdef WPA_SM_Transtatus
-     extern SWPAResult wpa_Result;
      memset(wpa_Result.ifname,0,sizeof(wpa_Result.ifname));
      wpa_Result.proto = 0;
      wpa_Result.key_mgmt = 0;

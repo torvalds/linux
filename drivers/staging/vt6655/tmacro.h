@@ -117,10 +117,6 @@
 
 /****** Misc macros ********************************************************/
 
-// get the field offset in the type(struct, class, ...)
-#define OFFSET(type, field) ((int)(&((type NEAR*)1)->field)-1)
-
-
 /* string equality shorthand */
 #define STR_EQ(x, y)        (strcmp(x, y) == 0)
 #define STR_NE(x, y)        (strcmp(x, y) != 0)
