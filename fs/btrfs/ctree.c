@@ -557,19 +557,7 @@ static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
 
 	btrfs_disk_key_to_cpu(&k1, disk);
 
-	if (k1.objectid > k2->objectid)
-		return 1;
-	if (k1.objectid < k2->objectid)
-		return -1;
-	if (k1.type > k2->type)
-		return 1;
-	if (k1.type < k2->type)
-		return -1;
-	if (k1.offset > k2->offset)
-		return 1;
-	if (k1.offset < k2->offset)
-		return -1;
-	return 0;
+	return btrfs_comp_cpu_keys(&k1, k2);
 }
 
 /*
