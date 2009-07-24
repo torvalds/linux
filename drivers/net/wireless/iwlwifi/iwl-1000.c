@@ -124,6 +124,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 };
 
 static struct iwl_ops iwl1000_ops = {
+	.ucode = &iwl5000_ucode,
 	.lib = &iwl1000_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
