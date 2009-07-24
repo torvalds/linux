@@ -44,6 +44,19 @@
 #ifndef __ACTBL_H__
 #define __ACTBL_H__
 
+/*******************************************************************************
+ *
+ * Fundamental ACPI tables
+ *
+ * This file contains definitions for the ACPI tables that are directly consumed
+ * by ACPICA. All other tables are consumed by the OS-dependent ACPI-related
+ * device drivers and other OS support code.
+ *
+ * The RSDP and FACS do not use the common ACPI table header. All other ACPI
+ * tables use the header.
+ *
+ ******************************************************************************/
+
 /*
  * Values for description table header signatures. Useful because they make
  * it more difficult to inadvertently type in the wrong signature.
@@ -65,11 +78,6 @@
 #pragma pack(1)
 
 /*
- * These are the ACPI tables that are directly consumed by the subsystem.
- *
- * The RSDP and FACS do not use the common ACPI table header. All other ACPI
- * tables use the header.
- *
  * Note about bitfields: The u8 type is used for bitfields in ACPI tables.
  * This is the only type that is even remotely portable. Anything else is not
  * portable, so do not use any other bitfield types.
@@ -77,9 +85,8 @@
 
 /*******************************************************************************
  *
- * ACPI Table Header. This common header is used by all tables except the
- * RSDP and FACS. The define is used for direct inclusion of header into
- * other ACPI tables
+ * Master ACPI Table Header. This common header is used by all ACPI tables
+ * except the RSDP and FACS.
  *
  ******************************************************************************/
 
@@ -95,13 +102,16 @@ struct acpi_table_header {
 	u32 asl_compiler_revision;	/* ASL compiler version */
 };
 
-/*
+/*******************************************************************************
+ *
  * GAS - Generic Address Structure (ACPI 2.0+)
  *
  * Note: Since this structure is used in the ACPI tables, it is byte aligned.
- * If misalignment is not supported, access to the Address field must be
- * performed with care.
- */
+ * If misaliged access is not supported by the hardware, accesses to the
+ * 64-bit Address field must be performed with care.
+ *
+ ******************************************************************************/
+
 struct acpi_generic_address {
 	u8 space_id;		/* Address space where struct or register exists */
 	u8 bit_width;		/* Size in bits of given register */
@@ -325,5 +335,6 @@ struct acpi_table_desc {
  */
 
 #include <acpi/actbl1.h>
+#include <acpi/actbl2.h>
 
 #endif				/* __ACTBL_H__ */
