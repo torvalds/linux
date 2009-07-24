@@ -942,9 +942,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 		mutex_unlock(&root->fs_info->trans_mutex);
 
-		if (flush_on_commit || snap_pending) {
-			if (flush_on_commit)
-				btrfs_start_delalloc_inodes(root);
+		if (flush_on_commit) {
+			btrfs_start_delalloc_inodes(root);
+			ret = btrfs_wait_ordered_extents(root, 0);
+			BUG_ON(ret);
+		} else if (snap_pending) {
 			ret = btrfs_wait_ordered_extents(root, 1);
 			BUG_ON(ret);
 		}
