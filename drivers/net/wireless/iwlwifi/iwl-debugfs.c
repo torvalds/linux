@@ -618,6 +618,41 @@ static ssize_t iwl_dbgfs_led_read(struct file *file, char __user *user_buf,
 }
 #endif
 
+static ssize_t iwl_dbgfs_thermal_throttling_read(struct file *file,
+				char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	struct iwl_tt_mgmt *tt = &priv->power_data.tt;
+	struct iwl_tt_restriction *restriction;
+	char buf[100];
+	int pos = 0;
+	const size_t bufsz = sizeof(buf);
+	ssize_t ret;
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"Thermal Throttling Mode: %s\n",
+			(priv->power_data.adv_tt)
+			? "Advance" : "Legacy");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"Thermal Throttling State: %d\n",
+			tt->state);
+	if (priv->power_data.adv_tt) {
+		restriction = tt->restriction + tt->state;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"Tx mode: %d\n",
+				restriction->tx_stream);
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"Rx mode: %d\n",
+				restriction->rx_stream);
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"HT mode: %d\n",
+				restriction->is_ht);
+	}
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	return ret;
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(nvm);
@@ -631,6 +666,7 @@ DEBUGFS_READ_FILE_OPS(qos);
 #ifdef CONFIG_IWLWIFI_LEDS
 DEBUGFS_READ_FILE_OPS(led);
 #endif
+DEBUGFS_READ_FILE_OPS(thermal_throttling);
 
 /*
  * Create the debugfs files and directories
@@ -671,6 +707,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 #ifdef CONFIG_IWLWIFI_LEDS
 	DEBUGFS_ADD_FILE(led, data);
 #endif
+	DEBUGFS_ADD_FILE(thermal_throttling, data);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
@@ -709,6 +746,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #ifdef CONFIG_IWLWIFI_LEDS
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_led);
 #endif
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_thermal_throttling);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);

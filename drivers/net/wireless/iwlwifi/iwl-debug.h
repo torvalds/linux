@@ -84,6 +84,7 @@ struct iwl_debugfs {
 		struct dentry *file_status;
 		struct dentry *file_interrupt;
 		struct dentry *file_qos;
+		struct dentry *file_thermal_throttling;
 #ifdef CONFIG_IWLWIFI_LEDS
 		struct dentry *file_led;
 #endif
