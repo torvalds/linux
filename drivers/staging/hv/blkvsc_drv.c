@@ -341,7 +341,7 @@ static int blkvsc_probe(struct device *device)
 	blkdev->target = device_info.TargetId; // this identified the device 0 or 1
 	blkdev->path = device_info.PathId; // this identified the ide ctrl 0 or 1
 
-	device->driver_data = blkdev;
+	dev_set_drvdata(device, blkdev);
 
 	// Calculate the major and device num
 	if (blkdev->path == 0)
@@ -457,7 +457,7 @@ Cleanup:
 
 static void blkvsc_shutdown(struct device *device)
 {
-	struct block_device_context *blkdev = (struct block_device_context*)device->driver_data;
+	struct block_device_context *blkdev = dev_get_drvdata(device);
 	unsigned long flags;
 
 	if (!blkdev)
@@ -786,7 +786,7 @@ static int blkvsc_remove(struct device *device)
 
 	struct device_context *device_ctx = device_to_device_context(device);
 	DEVICE_OBJECT* device_obj = &device_ctx->device_obj;
-	struct block_device_context *blkdev = (struct block_device_context*)device->driver_data;
+	struct block_device_context *blkdev = dev_get_drvdata(device);
 	unsigned long flags;
 
 	DPRINT_ENTER(BLKVSC_DRV);
