@@ -756,7 +756,12 @@ static struct kobj_type ktype_cpufreq = {
 	.release	= cpufreq_sysfs_release,
 };
 
-
+/*
+ * Returns:
+ *   Negative: Failure
+ *   0:        Success
+ *   Positive: When we have a managed CPU and the sysfs got symlinked
+ */
 int cpufreq_add_dev_policy(unsigned int cpu, struct cpufreq_policy *policy,
 		struct sys_device *sys_dev)
 {
@@ -817,7 +822,11 @@ int cpufreq_add_dev_policy(unsigned int cpu, struct cpufreq_policy *policy,
 			 */
 			if (cpufreq_driver->exit)
 				cpufreq_driver->exit(policy);
-			return ret;
+
+			if (!ret)
+				return 1;
+			else
+				return ret;
 		}
 	}
 #endif
@@ -1001,8 +1010,13 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 				     CPUFREQ_START, policy);
 
 	ret = cpufreq_add_dev_policy(cpu, policy, sys_dev);
-	if (ret)
+	if (ret) {
+		if (ret > 0)
+			/* This is a managed cpu, symlink created,
+			   exit with 0 */
+			ret = 0;
 		goto err_unlock_policy;
+	}
 
 	ret = cpufreq_add_dev_interface(cpu, policy, sys_dev);
 	if (ret)
