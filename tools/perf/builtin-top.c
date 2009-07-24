@@ -90,6 +90,7 @@ static char			*sym_filter			=  NULL;
 struct sym_entry		*sym_filter_entry		=  NULL;
 static int			sym_pcnt_filter			=  5;
 static int			sym_counter			=  0;
+static int			display_weighted		= -1;
 
 /*
  * Symbols
@@ -354,6 +355,9 @@ static double sym_weight(const struct sym_entry *sym)
 	double weight = sym->snap_count;
 	int counter;
 
+	if (!display_weighted)
+		return weight;
+
 	for (counter = 1; counter < nr_counters-1; counter++)
 		weight *= sym->count[counter];
 
@@ -401,7 +405,7 @@ static void rb_insert_active_sym(struct rb_root *tree, struct sym_entry *se)
 static void print_sym_table(void)
 {
 	int printed = 0, j;
-	int counter;
+	int counter, snap = !display_weighted ? sym_counter : 0;
 	float samples_per_sec = samples/delay_secs;
 	float ksamples_per_sec = (samples-userspace_samples)/delay_secs;
 	float sum_ksamples = 0.0;
@@ -417,7 +421,7 @@ static void print_sym_table(void)
 	pthread_mutex_unlock(&active_symbols_lock);
 
 	list_for_each_entry_safe_from(syme, n, &active_symbols, node) {
-		syme->snap_count = syme->count[0];
+		syme->snap_count = syme->count[snap];
 		if (syme->snap_count != 0) {
 			syme->weight = sym_weight(syme);
 			rb_insert_active_sym(&tmp, syme);
@@ -437,7 +441,7 @@ static void print_sym_table(void)
 		samples_per_sec,
 		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)));
 
-	if (nr_counters == 1) {
+	if (nr_counters == 1 || !display_weighted) {
 		printf("%Ld", (u64)attrs[0].sample_period);
 		if (freq)
 			printf("Hz ");
@@ -445,7 +449,9 @@ static void print_sym_table(void)
 			printf(" ");
 	}
 
-	for (counter = 0; counter < nr_counters; counter++) {
+	if (!display_weighted)
+		printf("%s", event_name(sym_counter));
+	else for (counter = 0; counter < nr_counters; counter++) {
 		if (counter)
 			printf("/");
 
@@ -495,7 +501,7 @@ static void print_sym_table(void)
 		pcnt = 100.0 - (100.0 * ((sum_ksamples - syme->snap_count) /
 					 sum_ksamples));
 
-		if (nr_counters == 1)
+		if (nr_counters == 1 || !display_weighted)
 			printf("%20.2f - ", syme->weight);
 		else
 			printf("%9.1f %10ld - ", syme->weight, syme->snap_count);
@@ -594,13 +600,14 @@ static void print_known_keys(void)
 	fprintf(stdout, "\nknown keys:\n");
 	fprintf(stdout, "\t[d]     select display delay.\n");
 	fprintf(stdout, "\t[e]     select display entries (lines).\n");
-	fprintf(stdout, "\t[E]     select annotation event counter.\n");
+	fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", event_name(sym_counter));
 	fprintf(stdout, "\t[f]     select normal display count filter.\n");
 	fprintf(stdout, "\t[F]     select annotation display count filter (percentage).\n");
 	fprintf(stdout, "\t[qQ]    quit.\n");
 	fprintf(stdout, "\t[s]     select annotation symbol and start annotation.\n");
 	fprintf(stdout, "\t[S]     stop annotation, revert to normal display.\n");
-	fprintf(stdout, "\t[z]     toggle event count zeroing.\n");
+	fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", display_weighted ? 1 : 0);
+	fprintf(stdout, "\t[z]     toggle sample zeroing.             \t(%d)\n", zero ? 1 : 0);
 }
 
 static void handle_keypress(int c)
@@ -655,6 +662,9 @@ repeat:
 				__zero_source_counters(syme);
 				pthread_mutex_unlock(&syme->source_lock);
 			}
+			break;
+		case 'w':
+			display_weighted = ~display_weighted;
 			break;
 		case 'z':
 			zero = ~zero;
