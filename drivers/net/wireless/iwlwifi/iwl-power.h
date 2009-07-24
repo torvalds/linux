@@ -33,6 +33,38 @@
 
 struct iwl_priv;
 
+#define IWL_TT_INCREASE_MARGIN	5
+
+/* Thermal Throttling State Machine states */
+enum  iwl_tt_state {
+	IWL_TI_0,	/* normal temperature, system power state */
+	IWL_TI_1,	/* high temperature detect, low power state */
+	IWL_TI_2,	/* higher temperature detected, lower power state */
+	IWL_TI_CT_KILL, /* critical temperature detected, lowest power state */
+	IWL_TI_STATE_MAX
+};
+
+/**
+ * struct iwl_tt_mgnt - Thermal Throttling Management structure
+ * @state:          current Thermal Throttling state
+ * @tt_power_mode:  Thermal Throttling power mode index
+ *		    being used to set power level when
+ * 		    when thermal throttling state != IWL_TI_0
+ *		    the tt_power_mode should set to different
+ *		    power mode based on the current tt state
+ * @sys_power_mode: previous system power mode
+ *                  before transition into TT state
+ * @tt_previous_temperature: last measured temperature
+ */
+struct iwl_tt_mgmt {
+	enum iwl_tt_state state;
+	u8 tt_power_mode;
+	u8 sys_power_mode;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	s32 tt_previous_temp;
+#endif
+};
+
 enum {
 	IWL_POWER_MODE_CAM, /* Continuously Aware Mode, always on */
 	IWL_POWER_INDEX_1,
@@ -59,10 +91,20 @@ struct iwl_power_mgr {
 	u8 power_mode;
 	u8 user_power_setting; /* set by user through sysfs */
 	u8 power_disabled; /* set by mac80211's CONF_PS */
+	struct iwl_tt_mgmt tt; /* Thermal Throttling Management */
+	bool ct_kill_toggle;   /* use to toggle the CSR bit when
+				* checking uCode temperature
+				*/
+	struct timer_list ct_kill_exit_tm;
 };
 
 int iwl_power_update_mode(struct iwl_priv *priv, bool force);
 int iwl_power_set_user_mode(struct iwl_priv *priv, u16 mode);
+void iwl_tt_enter_ct_kill(struct iwl_priv *priv);
+void iwl_tt_exit_ct_kill(struct iwl_priv *priv);
+void iwl_tt_handler(struct iwl_priv *priv);
+void iwl_tt_initialize(struct iwl_priv *priv);
+void iwl_tt_exit(struct iwl_priv *priv);
 void iwl_power_initialize(struct iwl_priv *priv);
 
 #endif  /* __iwl_power_setting_h__ */

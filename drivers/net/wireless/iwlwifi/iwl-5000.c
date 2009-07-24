@@ -1405,6 +1405,7 @@ void iwl5000_temperature(struct iwl_priv *priv)
 {
 	/* store temperature from statistics (in Celsius) */
 	priv->temperature = le32_to_cpu(priv->statistics.general.temperature);
+	iwl_tt_handler(priv);
 }
 
 static void iwl5150_temperature(struct iwl_priv *priv)
