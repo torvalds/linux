@@ -32,11 +32,6 @@ swsusp_arch_suspend:
 	/* Deactivate DAT */
 	stnsm	__SF_EMPTY(%r15),0xfb
 
-	/* Switch off lowcore protection */
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	ni	__SF_EMPTY+4(%r15),0xef
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
-
 	/* Store prefix register on stack */
 	stpx	__SF_EMPTY(%r15)
 
@@ -88,11 +83,6 @@ swsusp_arch_suspend:
 	/* Save image */
 	brasl	%r14,swsusp_save
 
-	/* Switch on lowcore protection */
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	oi	__SF_EMPTY+4(%r15),0x10
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
-
 	/* Restore prefix register and return */
 	lghi	%r1,0x1000
 	spx	0x318(%r1)
@@ -119,11 +109,6 @@ swsusp_arch_resume:
 #endif
 	/* Deactivate DAT */
 	stnsm	__SF_EMPTY(%r15),0xfb
-
-	/* Switch off lowcore protection */
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	ni	__SF_EMPTY+4(%r15),0xef
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
 
 	/* Set prefix page to zero */
 	xc	__SF_EMPTY(4,%r15),__SF_EMPTY(%r15)
@@ -178,7 +163,7 @@ swsusp_arch_resume:
 	/* Load old stack */
 	lg	%r15,0x2f8(%r13)
 
-	/* Pointer to save arae */
+	/* Pointer to save area */
 	lghi	%r13,0x1000
 
 #ifdef CONFIG_SMP
@@ -189,11 +174,6 @@ swsusp_arch_resume:
 #endif
 	/* Restore prefix register */
 	spx	0x318(%r13)
-
-	/* Switch on lowcore protection */
-	stctg	%c0,%c0,__SF_EMPTY(%r15)
-	oi	__SF_EMPTY+4(%r15),0x10
-	lctlg	%c0,%c0,__SF_EMPTY(%r15)
 
 	/* Activate DAT */
 	stosm	__SF_EMPTY(%r15),0x04
