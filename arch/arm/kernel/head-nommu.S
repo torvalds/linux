@@ -61,7 +61,10 @@ ENDPROC(stext)
  */
 __after_proc_init:
 #ifdef CONFIG_CPU_CP15
-	mrc	p15, 0, r0, c1, c0, 0		@ read control reg
+	/*
+	 * CP15 system control register value returned in r0 from
+	 * the CPU init function.
+	 */
 #ifdef CONFIG_ALIGNMENT_TRAP
 	orr	r0, r0, #CR_A
 #else
