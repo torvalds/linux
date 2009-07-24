@@ -73,6 +73,14 @@
 #define ACPI_NS_WALK_UNLOCK         0x01
 #define ACPI_NS_WALK_TEMP_NODES     0x02
 
+/* Object is not a package element */
+
+#define ACPI_NOT_PACKAGE_ELEMENT    ACPI_UINT32_MAX
+
+/* Always emit warning message, not dependent on node flags */
+
+#define ACPI_WARN_ALWAYS            0
+
 /*
  * nsinit - Namespace initialization
  */
@@ -260,6 +268,15 @@ acpi_ns_detach_data(struct acpi_namespace_node *node,
 acpi_status
 acpi_ns_get_attached_data(struct acpi_namespace_node *node,
 			  acpi_object_handler handler, void **data);
+
+/*
+ * nsrepair - return object repair for predefined methods/objects
+ */
+acpi_status
+acpi_ns_repair_object(struct acpi_predefined_data *data,
+		      u32 expected_btypes,
+		      u32 package_index,
+		      union acpi_operand_object **return_object_ptr);
 
 /*
  * nssearch - Namespace searching and entry

@@ -91,12 +91,6 @@ static acpi_status
 acpi_ns_check_reference(struct acpi_predefined_data *data,
 			union acpi_operand_object *return_object);
 
-static acpi_status
-acpi_ns_repair_object(struct acpi_predefined_data *data,
-		      u32 expected_btypes,
-		      u32 package_index,
-		      union acpi_operand_object **return_object_ptr);
-
 static void acpi_ns_get_expected_types(char *buffer, u32 expected_btypes);
 
 /*
@@ -110,14 +104,6 @@ static const char *acpi_rtype_names[] = {
 	"/Package",
 	"/Reference",
 };
-
-/* Object is not a package element */
-
-#define ACPI_NOT_PACKAGE_ELEMENT    ACPI_UINT32_MAX
-
-/* Always emit warning message, not dependent on node flags */
-
-#define ACPI_WARN_ALWAYS            0
 
 /*******************************************************************************
  *
@@ -580,8 +566,8 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 	case ACPI_PTYPE2_COUNT:
 
 		/*
-		 * These types all return a single package that consists of a variable
-		 * number of sub-packages
+		 * These types all return a single package that consists of a
+		 * variable number of sub-packages.
 		 */
 		for (i = 0; i < count; i++) {
 			sub_package = *elements;
@@ -973,108 +959,6 @@ acpi_ns_check_reference(struct acpi_predefined_data *data,
 			      "Return type mismatch - unexpected reference object type [%s] %2.2X",
 			      acpi_ut_get_reference_name(return_object),
 			      return_object->reference.class));
-
-	return (AE_AML_OPERAND_TYPE);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_repair_object
- *
- * PARAMETERS:  Data            - Pointer to validation data structure
- *              expected_btypes - Object types expected
- *              package_index   - Index of object within parent package (if
- *                                applicable - ACPI_NOT_PACKAGE_ELEMENT
- *                                otherwise)
- *              return_object_ptr - Pointer to the object returned from the
- *                                evaluation of a method or object
- *
- * RETURN:      Status. AE_OK if repair was successful.
- *
- * DESCRIPTION: Attempt to repair/convert a return object of a type that was
- *              not expected.
- *
- ******************************************************************************/
-
-static acpi_status
-acpi_ns_repair_object(struct acpi_predefined_data *data,
-		      u32 expected_btypes,
-		      u32 package_index,
-		      union acpi_operand_object **return_object_ptr)
-{
-	union acpi_operand_object *return_object = *return_object_ptr;
-	union acpi_operand_object *new_object;
-	acpi_size length;
-
-	switch (return_object->common.type) {
-	case ACPI_TYPE_BUFFER:
-
-		/* Does the method/object legally return a string? */
-
-		if (!(expected_btypes & ACPI_RTYPE_STRING)) {
-			return (AE_AML_OPERAND_TYPE);
-		}
-
-		/*
-		 * Have a Buffer, expected a String, convert. Use a to_string
-		 * conversion, no transform performed on the buffer data. The best
-		 * example of this is the _BIF method, where the string data from
-		 * the battery is often (incorrectly) returned as buffer object(s).
-		 */
-		length = 0;
-		while ((length < return_object->buffer.length) &&
-		       (return_object->buffer.pointer[length])) {
-			length++;
-		}
-
-		/* Allocate a new string object */
-
-		new_object = acpi_ut_create_string_object(length);
-		if (!new_object) {
-			return (AE_NO_MEMORY);
-		}
-
-		/*
-		 * Copy the raw buffer data with no transform. String is already NULL
-		 * terminated at Length+1.
-		 */
-		ACPI_MEMCPY(new_object->string.pointer,
-			    return_object->buffer.pointer, length);
-
-		/*
-		 * If the original object is a package element, we need to:
-		 * 1. Set the reference count of the new object to match the
-		 *    reference count of the old object.
-		 * 2. Decrement the reference count of the original object.
-		 */
-		if (package_index != ACPI_NOT_PACKAGE_ELEMENT) {
-			new_object->common.reference_count =
-			    return_object->common.reference_count;
-
-			if (return_object->common.reference_count > 1) {
-				return_object->common.reference_count--;
-			}
-
-			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
-					      data->node_flags,
-					      "Converted Buffer to expected String at index %u",
-					      package_index));
-		} else {
-			ACPI_WARN_PREDEFINED((AE_INFO, data->pathname,
-					      data->node_flags,
-					      "Converted Buffer to expected String"));
-		}
-
-		/* Delete old object, install the new return object */
-
-		acpi_ut_remove_reference(return_object);
-		*return_object_ptr = new_object;
-		data->flags |= ACPI_OBJECT_REPAIRED;
-		return (AE_OK);
-
-	default:
-		break;
-	}
 
 	return (AE_AML_OPERAND_TYPE);
 }
