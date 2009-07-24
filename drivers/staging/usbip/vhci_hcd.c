@@ -594,7 +594,7 @@ static int vhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 		if (type != PIPE_CONTROL || !ctrlreq) {
 			dev_err(dev, "invalid request to devnum 0\n");
-			ret = EINVAL;
+			ret = -EINVAL;
 			goto no_need_xmit;
 		}
 
@@ -653,7 +653,7 @@ no_need_unlink:
 
 	usb_hcd_giveback_urb(vhci_to_hcd(the_controller), urb, urb->status);
 
-	return 0;
+	return ret;
 }
 
 /*
