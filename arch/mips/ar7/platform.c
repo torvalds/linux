@@ -480,6 +480,7 @@ static void __init detect_leds(void)
 static int __init ar7_register_devices(void)
 {
 	int res;
+#ifdef CONFIG_SERIAL_8250
 	static struct uart_port uart_port[2];
 
 	memset(uart_port, 0, sizeof(struct uart_port) * 2);
@@ -511,7 +512,7 @@ static int __init ar7_register_devices(void)
 		if (res)
 			return res;
 	}
-
+#endif /* CONFIG_SERIAL_8250 */
 	res = platform_device_register(&physmap_flash);
 	if (res)
 		return res;
