@@ -48,8 +48,6 @@ void __cfg80211_scan_done(struct work_struct *wk)
 	else
 		nl80211_send_scan_done(wiphy_to_dev(request->wiphy), dev);
 
-	wiphy_to_dev(request->wiphy)->scan_req = NULL;
-
 #ifdef CONFIG_WIRELESS_EXT
 	if (!request->aborted) {
 		memset(&wrqu, 0, sizeof(wrqu));
@@ -62,6 +60,7 @@ void __cfg80211_scan_done(struct work_struct *wk)
 
  out:
 	cfg80211_unlock_rdev(rdev);
+	wiphy_to_dev(request->wiphy)->scan_req = NULL;
 	kfree(request);
 }
 

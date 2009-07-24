@@ -150,7 +150,7 @@ F:	drivers/scsi/53c700*
 
 6PACK NETWORK DRIVER FOR AX.25
 P:	Andreas Koensgen
-M:	ajk@iehk.rwth-aachen.de
+M:	ajk@comnets.uni-bremen.de
 L:	linux-hams@vger.kernel.org
 S:	Maintained
 F:	drivers/net/hamradio/6pack.c
@@ -1611,6 +1611,13 @@ M:	joel.becker@oracle.com
 S:	Supported
 F:	fs/configfs/
 F:	include/linux/configfs.h
+
+CONNECTOR
+P:	Evgeniy Polyakov
+M:	zbr@ioremap.net
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/connector/
 
 CONTROL GROUPS (CGROUPS)
 P:	Paul Menage
@@ -5584,7 +5591,6 @@ S:	Odd Fixes
 F:	drivers/net/starfire*
 
 STARMODE RADIO IP (STRIP) PROTOCOL DRIVER
-W:	http://mosquitonet.Stanford.EDU/strip.html
 S:	Orphan
 F:	drivers/net/wireless/strip.c
 F:	include/linux/if_strip.h
