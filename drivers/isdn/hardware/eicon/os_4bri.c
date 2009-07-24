@@ -149,8 +149,7 @@ int diva_4bri_init_card(diva_os_xdi_adapter_t * a)
 	diva_os_xdi_adapter_t *diva_current;
 	diva_os_xdi_adapter_t *adapter_list[4];
 	PISDN_ADAPTER Slave;
-	unsigned long bar_length[sizeof(_4bri_bar_length) /
-				 sizeof(_4bri_bar_length[0])];
+	unsigned long bar_length[ARRAY_SIZE(_4bri_bar_length)];
 	int v2 = _4bri_is_rev_2_card(a->CardOrdinal);
 	int tasks = _4bri_is_rev_2_bri_card(a->CardOrdinal) ? 1 : MQ_INSTANCE_COUNT;
 	int factor = (tasks == 1) ? 1 : 2;
