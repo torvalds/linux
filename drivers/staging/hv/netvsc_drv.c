@@ -209,14 +209,14 @@ static int netvsc_probe(struct device *device)
 
 	net_device_ctx = netdev_priv(net);
 	net_device_ctx->device_ctx = device_ctx;
-	device->driver_data = net;
+	dev_set_drvdata(device, net);
 
 	// Notify the netvsc driver of the new device
 	ret = net_drv_obj->Base.OnDeviceAdd(device_obj, (void*)&device_info);
 	if (ret != 0)
 	{
 		free_netdev(net);
-		device->driver_data = NULL;
+		dev_set_drvdata(device, NULL);
 
 		DPRINT_ERR(NETVSC_DRV, "unable to add netvsc device (ret %d)", ret);
 		return ret;
@@ -262,7 +262,7 @@ static int netvsc_remove(struct device *device)
 	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
-	struct net_device *net = (struct net_device *)device_ctx->device.driver_data;
+	struct net_device *net = dev_get_drvdata(&device_ctx->device);
 	DEVICE_OBJECT *device_obj = &device_ctx->device_obj;
 
 	DPRINT_ENTER(NETVSC_DRV);
@@ -536,7 +536,7 @@ Desc:	Link up/down notification
 static void netvsc_linkstatus_callback(DEVICE_OBJECT *device_obj, unsigned int status)
 {
 	struct device_context* device_ctx = to_device_context(device_obj);
-	struct net_device* net = (struct net_device *)device_ctx->device.driver_data;
+	struct net_device* net = dev_get_drvdata(&device_ctx->device);
 
 	DPRINT_ENTER(NETVSC_DRV);
 
@@ -571,7 +571,7 @@ static int netvsc_recv_callback(DEVICE_OBJECT *device_obj, NETVSC_PACKET* packet
 {
 	int ret=0;
 	struct device_context *device_ctx = to_device_context(device_obj);
-	struct net_device *net = (struct net_device *)device_ctx->device.driver_data;
+	struct net_device *net = dev_get_drvdata(&device_ctx->device);
 	struct net_device_context *net_device_ctx;
 
 	struct sk_buff *skb;
