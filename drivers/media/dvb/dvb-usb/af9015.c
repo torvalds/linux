@@ -1264,6 +1264,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_CONCEPTRONIC_CTVDIGRCU)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_MC810)},
 	{USB_DEVICE(USB_VID_KYE,       USB_PID_GENIUS_TVGO_DVB_T03)},
+/* 25 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_399U_2)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1344,7 +1345,8 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "KWorld PlusTV Dual DVB-T Stick " \
 					"(DVB-T 399U)",
-				.cold_ids = {&af9015_usb_table[4], NULL},
+				.cold_ids = {&af9015_usb_table[4],
+					     &af9015_usb_table[25], NULL},
 				.warm_ids = {NULL},
 			},
 			{
