@@ -86,11 +86,12 @@ static int __init mpc837x_rdb_probe(void)
 
 	return of_flat_dt_is_compatible(root, "fsl,mpc8377rdb") ||
 	       of_flat_dt_is_compatible(root, "fsl,mpc8378rdb") ||
-	       of_flat_dt_is_compatible(root, "fsl,mpc8379rdb");
+	       of_flat_dt_is_compatible(root, "fsl,mpc8379rdb") ||
+	       of_flat_dt_is_compatible(root, "fsl,mpc8377wlan");
 }
 
 define_machine(mpc837x_rdb) {
-	.name			= "MPC837x RDB",
+	.name			= "MPC837x RDB/WLAN",
 	.probe			= mpc837x_rdb_probe,
 	.setup_arch		= mpc837x_rdb_setup_arch,
 	.init_IRQ		= mpc837x_rdb_init_IRQ,
