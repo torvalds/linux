@@ -983,6 +983,18 @@ config HZ
 	default AT91_TIMER_HZ if ARCH_AT91
 	default 100
 
+config THUMB2_KERNEL
+	bool "Compile the kernel in Thumb-2 mode"
+	depends on CPU_V7 && EXPERIMENTAL
+	select AEABI
+	select ARM_ASM_UNIFIED
+	help
+	  By enabling this option, the kernel will be compiled in
+	  Thumb-2 mode. A compiler/assembler that understand the unified
+	  ARM-Thumb syntax is needed.
+
+	  If unsure, say N.
+
 config ARM_ASM_UNIFIED
 	bool
 
