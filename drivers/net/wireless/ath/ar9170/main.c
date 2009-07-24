@@ -1293,7 +1293,9 @@ static void ar9170_op_stop(struct ieee80211_hw *hw)
 	flush_workqueue(ar->hw->workqueue);
 
 	cancel_delayed_work_sync(&ar->tx_janitor);
+#ifdef CONFIG_AR9170_LEDS
 	cancel_delayed_work_sync(&ar->led_work);
+#endif
 	cancel_work_sync(&ar->filter_config_work);
 	cancel_work_sync(&ar->beacon_work);
 	mutex_lock(&ar->mutex);
