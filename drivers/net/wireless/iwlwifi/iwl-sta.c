@@ -97,9 +97,9 @@ static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
-static int iwl_add_sta_callback(struct iwl_priv *priv,
-				struct iwl_device_cmd *cmd,
-				struct sk_buff *skb)
+static void iwl_add_sta_callback(struct iwl_priv *priv,
+				 struct iwl_device_cmd *cmd,
+				 struct sk_buff *skb)
 {
 	struct iwl_rx_packet *res = NULL;
 	struct iwl_addsta_cmd *addsta =
@@ -108,14 +108,14 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 
 	if (!skb) {
 		IWL_ERR(priv, "Error: Response NULL in REPLY_ADD_STA.\n");
-		return 1;
+		return;
 	}
 
 	res = (struct iwl_rx_packet *)skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
 			  res->hdr.flags);
-		return 1;
+		return;
 	}
 
 	switch (res->u.add_sta.status) {
@@ -127,9 +127,6 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 			     res->u.add_sta.status);
 		break;
 	}
-
-	/* We didn't cache the SKB; let the caller free it */
-	return 1;
 }
 
 int iwl_send_add_sta(struct iwl_priv *priv,
@@ -325,9 +322,9 @@ static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, const char *addr)
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
-static int iwl_remove_sta_callback(struct iwl_priv *priv,
-				   struct iwl_device_cmd *cmd,
-				   struct sk_buff *skb)
+static void iwl_remove_sta_callback(struct iwl_priv *priv,
+				    struct iwl_device_cmd *cmd,
+				    struct sk_buff *skb)
 {
 	struct iwl_rx_packet *res = NULL;
 	struct iwl_rem_sta_cmd *rm_sta =
@@ -336,14 +333,14 @@ static int iwl_remove_sta_callback(struct iwl_priv *priv,
 
 	if (!skb) {
 		IWL_ERR(priv, "Error: Response NULL in REPLY_REMOVE_STA.\n");
-		return 1;
+		return;
 	}
 
 	res = (struct iwl_rx_packet *)skb->data;
 	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_REMOVE_STA (0x%08X)\n",
 		res->hdr.flags);
-		return 1;
+		return;
 	}
 
 	switch (res->u.rem_sta.status) {
@@ -354,9 +351,6 @@ static int iwl_remove_sta_callback(struct iwl_priv *priv,
 		IWL_ERR(priv, "REPLY_REMOVE_STA failed\n");
 		break;
 	}
-
-	/* We didn't cache the SKB; let the caller free it */
-	return 1;
 }
 
 static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,

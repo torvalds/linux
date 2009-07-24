@@ -79,11 +79,10 @@ static const struct {
 #define IWL_MAX_BLINK_TBL (ARRAY_SIZE(blink_tbl) - 1) /*Exclude Solid on*/
 #define IWL_SOLID_BLINK_IDX (ARRAY_SIZE(blink_tbl) - 1)
 
-static int iwl3945_led_cmd_callback(struct iwl_priv *priv,
-				    struct iwl_device_cmd *cmd,
-				    struct sk_buff *skb)
+static void iwl3945_led_cmd_callback(struct iwl_priv *priv,
+				     struct iwl_device_cmd *cmd,
+				     struct sk_buff *skb)
 {
-	return 1;
 }
 
 static inline int iwl3945_brightness_to_idx(enum led_brightness brightness)

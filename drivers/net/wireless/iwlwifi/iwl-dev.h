@@ -163,9 +163,9 @@ struct iwl_cmd_meta {
 	 * invoked for SYNC commands, if it were and its result passed
 	 * through it would be simpler...)
 	 */
-	int (*callback)(struct iwl_priv *priv,
-			struct iwl_device_cmd *cmd,
-			struct sk_buff *skb);
+	void (*callback)(struct iwl_priv *priv,
+			 struct iwl_device_cmd *cmd,
+			 struct sk_buff *skb);
 
 	/* The CMD_SIZE_HUGE flag bit indicates that the command
 	 * structure is stored at the end of the shared queue memory. */
@@ -383,9 +383,9 @@ struct iwl_device_cmd {
 struct iwl_host_cmd {
 	const void *data;
 	struct sk_buff *reply_skb;
-	int (*callback)(struct iwl_priv *priv,
-			struct iwl_device_cmd *cmd,
-			struct sk_buff *skb);
+	void (*callback)(struct iwl_priv *priv,
+			 struct iwl_device_cmd *cmd,
+			 struct sk_buff *skb);
 	u32 flags;
 	u16 len;
 	u8 id;

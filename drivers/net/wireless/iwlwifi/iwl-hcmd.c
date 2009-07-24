@@ -103,23 +103,23 @@ EXPORT_SYMBOL(get_cmd_string);
 
 #define HOST_COMPLETE_TIMEOUT (HZ / 2)
 
-static int iwl_generic_cmd_callback(struct iwl_priv *priv,
-				    struct iwl_device_cmd *cmd,
-				    struct sk_buff *skb)
+static void iwl_generic_cmd_callback(struct iwl_priv *priv,
+				     struct iwl_device_cmd *cmd,
+				     struct sk_buff *skb)
 {
 	struct iwl_rx_packet *pkt = NULL;
 
 	if (!skb) {
 		IWL_ERR(priv, "Error: Response NULL in %s.\n",
 				get_cmd_string(cmd->hdr.cmd));
-		return 1;
+		return;
 	}
 
 	pkt = (struct iwl_rx_packet *)skb->data;
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from %s (0x%08X)\n",
 			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-		return 1;
+		return;
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -128,15 +128,12 @@ static int iwl_generic_cmd_callback(struct iwl_priv *priv,
 	case SENSITIVITY_CMD:
 		IWL_DEBUG_HC_DUMP(priv, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-				break;
+		break;
 	default:
 		IWL_DEBUG_HC(priv, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 	}
 #endif
-
-	/* Let iwl_tx_complete free the response skb */
-	return 1;
 }
 
 static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
@@ -275,9 +272,9 @@ EXPORT_SYMBOL(iwl_send_cmd_pdu);
 
 int iwl_send_cmd_pdu_async(struct iwl_priv *priv,
 			   u8 id, u16 len, const void *data,
-			   int (*callback)(struct iwl_priv *priv,
-					   struct iwl_device_cmd *cmd,
-					   struct sk_buff *skb))
+			   void (*callback)(struct iwl_priv *priv,
+					    struct iwl_device_cmd *cmd,
+					    struct sk_buff *skb))
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,

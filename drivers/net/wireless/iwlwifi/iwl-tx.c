@@ -1144,8 +1144,8 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	if (meta->flags & CMD_WANT_SKB) {
 		meta->source->reply_skb = rxb->skb;
 		rxb->skb = NULL;
-	} else if (meta->callback && !meta->callback(priv, cmd, rxb->skb))
-		rxb->skb = NULL;
+	} else if (meta->callback)
+		meta->callback(priv, cmd, rxb->skb);
 
 	iwl_hcmd_queue_reclaim(priv, txq_id, index, cmd_index);
 
