@@ -447,7 +447,7 @@ int __must_check iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id,
 int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 			   const void *data,
 			   int (*callback)(struct iwl_priv *priv,
-					   struct iwl_cmd *cmd,
+					   struct iwl_device_cmd *cmd,
 					   struct sk_buff *skb));
 
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);

@@ -80,7 +80,7 @@ static const struct {
 #define IWL_SOLID_BLINK_IDX (ARRAY_SIZE(blink_tbl) - 1)
 
 static int iwl3945_led_cmd_callback(struct iwl_priv *priv,
-				    struct iwl_cmd *cmd,
+				    struct iwl_device_cmd *cmd,
 				    struct sk_buff *skb)
 {
 	return 1;
@@ -99,8 +99,8 @@ static int iwl_send_led_cmd(struct iwl_priv *priv,
 		.id = REPLY_LEDS_CMD,
 		.len = sizeof(struct iwl_led_cmd),
 		.data = led_cmd,
-		.meta.flags = CMD_ASYNC,
-		.meta.u.callback = iwl3945_led_cmd_callback,
+		.flags = CMD_ASYNC,
+		.callback = iwl3945_led_cmd_callback,
 	};
 
 	return iwl_send_cmd(priv, &cmd);

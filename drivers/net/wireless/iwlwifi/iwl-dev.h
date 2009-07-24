@@ -150,6 +150,31 @@ struct iwl_rx_mem_buffer {
 	struct list_head list;
 };
 
+/* defined below */
+struct iwl_device_cmd;
+
+struct iwl_cmd_meta {
+	/* only for SYNC commands, iff the reply skb is wanted */
+	struct iwl_host_cmd *source;
+	/*
+	 * only for ASYNC commands
+	 * (which is somewhat stupid -- look at iwl-sta.c for instance
+	 * which duplicates a bunch of code because the callback isn't
+	 * invoked for SYNC commands, if it were and its result passed
+	 * through it would be simpler...)
+	 */
+	int (*callback)(struct iwl_priv *priv,
+			struct iwl_device_cmd *cmd,
+			struct sk_buff *skb);
+
+	/* The CMD_SIZE_HUGE flag bit indicates that the command
+	 * structure is stored at the end of the shared queue memory. */
+	u32 flags;
+
+	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DECLARE_PCI_UNMAP_LEN(len)
+};
+
 /*
  * Generic queue structure
  *
@@ -177,7 +202,8 @@ struct iwl_tx_info {
  * struct iwl_tx_queue - Tx Queue for DMA
  * @q: generic Rx/Tx queue descriptor
  * @bd: base of circular buffer of TFDs
- * @cmd: array of command/Tx buffers
+ * @cmd: array of command/TX buffer pointers
+ * @meta: array of meta data for each command/tx buffer
  * @dma_addr_cmd: physical address of cmd/tx buffer array
  * @txb: array of per-TFD driver data
  * @need_update: indicates need to update read/write index
@@ -192,7 +218,8 @@ struct iwl_tx_info {
 struct iwl_tx_queue {
 	struct iwl_queue q;
 	void *tfds;
-	struct iwl_cmd *cmd[TFD_TX_CMD_SLOTS];
+	struct iwl_device_cmd **cmd;
+	struct iwl_cmd_meta *meta;
 	struct iwl_tx_info *txb;
 	u8 need_update;
 	u8 sched_retry;
@@ -329,35 +356,16 @@ enum {
 	CMD_WANT_SKB = (1 << 2),
 };
 
-struct iwl_cmd;
-struct iwl_priv;
-
-struct iwl_cmd_meta {
-	struct iwl_cmd_meta *source;
-	union {
-		struct sk_buff *skb;
-		int (*callback)(struct iwl_priv *priv,
-				struct iwl_cmd *cmd, struct sk_buff *skb);
-	} __attribute__ ((packed)) u;
-
-	/* The CMD_SIZE_HUGE flag bit indicates that the command
-	 * structure is stored at the end of the shared queue memory. */
-	u32 flags;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
-	DECLARE_PCI_UNMAP_LEN(len)
-} __attribute__ ((packed));
-
 #define IWL_CMD_MAX_PAYLOAD 320
 
 /**
- * struct iwl_cmd
+ * struct iwl_device_cmd
  *
  * For allocation of the command and tx queues, this establishes the overall
  * size of the largest command we send to uCode, except for a scan command
  * (which is relatively huge; space is allocated separately).
  */
-struct iwl_cmd {
-	struct iwl_cmd_meta meta;	/* driver data */
+struct iwl_device_cmd {
 	struct iwl_cmd_header hdr;	/* uCode API */
 	union {
 		u32 flags;
@@ -369,16 +377,19 @@ struct iwl_cmd {
 	} __attribute__ ((packed)) cmd;
 } __attribute__ ((packed));
 
+#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
+
 
 struct iwl_host_cmd {
-	u8 id;
-	u16 len;
-	struct iwl_cmd_meta meta;
 	const void *data;
+	struct sk_buff *reply_skb;
+	int (*callback)(struct iwl_priv *priv,
+			struct iwl_device_cmd *cmd,
+			struct sk_buff *skb);
+	u32 flags;
+	u16 len;
+	u8 id;
 };
-
-#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_cmd) - \
-			      sizeof(struct iwl_cmd_meta))
 
 /*
  * RX related structures and functions
