@@ -37,6 +37,15 @@ ENDPROC(__put_user_1)
 
 ENTRY(__put_user_2)
 	mov	ip, r2, lsr #8
+#ifdef CONFIG_THUMB2_KERNEL
+#ifndef __ARMEB__
+2:	strbt	r2, [r0]
+3:	strbt	ip, [r0, #1]
+#else
+2:	strbt	ip, [r0]
+3:	strbt	r2, [r0, #1]
+#endif
+#else	/* !CONFIG_THUMB2_KERNEL */
 #ifndef __ARMEB__
 2:	strbt	r2, [r0], #1
 3:	strbt	ip, [r0]
@@ -44,6 +53,7 @@ ENTRY(__put_user_2)
 2:	strbt	ip, [r0], #1
 3:	strbt	r2, [r0]
 #endif
+#endif	/* CONFIG_THUMB2_KERNEL */
 	mov	r0, #0
 	mov	pc, lr
 ENDPROC(__put_user_2)
@@ -55,8 +65,13 @@ ENTRY(__put_user_4)
 ENDPROC(__put_user_4)
 
 ENTRY(__put_user_8)
+#ifdef CONFIG_THUMB2_KERNEL
+5:	strt	r2, [r0]
+6:	strt	r3, [r0, #4]
+#else
 5:	strt	r2, [r0], #4
 6:	strt	r3, [r0]
+#endif
 	mov	r0, #0
 	mov	pc, lr
 ENDPROC(__put_user_8)

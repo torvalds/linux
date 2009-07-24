@@ -138,3 +138,76 @@
 	msr	cpsr_c, #\mode
 	.endm
 #endif
+
+/*
+ * STRT/LDRT access macros with ARM and Thumb-2 variants
+ */
+#ifdef CONFIG_THUMB2_KERNEL
+
+	.macro	usraccoff, instr, reg, ptr, inc, off, cond, abort
+9999:
+	.if	\inc == 1
+	\instr\cond\()bt \reg, [\ptr, #\off]
+	.elseif	\inc == 4
+	\instr\cond\()t \reg, [\ptr, #\off]
+	.else
+	.error	"Unsupported inc macro argument"
+	.endif
+
+	.section __ex_table,"a"
+	.align	3
+	.long	9999b, \abort
+	.previous
+	.endm
+
+	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort
+	@ explicit IT instruction needed because of the label
+	@ introduced by the USER macro
+	.ifnc	\cond,al
+	.if	\rept == 1
+	itt	\cond
+	.elseif	\rept == 2
+	ittt	\cond
+	.else
+	.error	"Unsupported rept macro argument"
+	.endif
+	.endif
+
+	@ Slightly optimised to avoid incrementing the pointer twice
+	usraccoff \instr, \reg, \ptr, \inc, 0, \cond, \abort
+	.if	\rept == 2
+	usraccoff \instr, \reg, \ptr, \inc, 4, \cond, \abort
+	.endif
+
+	add\cond \ptr, #\rept * \inc
+	.endm
+
+#else	/* !CONFIG_THUMB2_KERNEL */
+
+	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort
+	.rept	\rept
+9999:
+	.if	\inc == 1
+	\instr\cond\()bt \reg, [\ptr], #\inc
+	.elseif	\inc == 4
+	\instr\cond\()t \reg, [\ptr], #\inc
+	.else
+	.error	"Unsupported inc macro argument"
+	.endif
+
+	.section __ex_table,"a"
+	.align	3
+	.long	9999b, \abort
+	.previous
+	.endr
+	.endm
+
+#endif	/* CONFIG_THUMB2_KERNEL */
+
+	.macro	strusr, reg, ptr, inc, cond=al, rept=1, abort=9001f
+	usracc	str, \reg, \ptr, \inc, \cond, \rept, \abort
+	.endm
+
+	.macro	ldrusr, reg, ptr, inc, cond=al, rept=1, abort=9001f
+	usracc	ldr, \reg, \ptr, \inc, \cond, \rept, \abort
+	.endm
