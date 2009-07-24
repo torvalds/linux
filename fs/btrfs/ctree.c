@@ -1040,9 +1040,6 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	    BTRFS_NODEPTRS_PER_BLOCK(root) / 4)
 		return 0;
 
-	if (btrfs_header_nritems(mid) > 2)
-		return 0;
-
 	if (btrfs_header_nritems(mid) < 2)
 		err_on_enospc = 1;
 
@@ -3796,7 +3793,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		}
 
 		/* delete the leaf if it is mostly empty */
-		if (used < BTRFS_LEAF_DATA_SIZE(root) / 2) {
+		if (used < BTRFS_LEAF_DATA_SIZE(root) / 3) {
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
 			 * for possible call to del_ptr below
