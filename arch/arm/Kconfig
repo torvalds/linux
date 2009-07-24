@@ -46,10 +46,6 @@ config GENERIC_CLOCKEVENTS_BROADCAST
 	depends on GENERIC_CLOCKEVENTS
 	default y if SMP && !LOCAL_TIMERS
 
-config MMU
-	bool
-	default y
-
 config NO_IOPORT
 	bool
 
@@ -187,6 +183,13 @@ source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
 menu "System Type"
+
+config MMU
+	bool "MMU-based Paged Memory Management Support"
+	default y
+	help
+	  Select if you want MMU-based virtualised addressing space
+	  support by paged memory management. If unsure, say 'Y'.
 
 choice
 	prompt "ARM system type"
