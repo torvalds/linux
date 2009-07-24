@@ -36,7 +36,34 @@
 #define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - CONSISTENT_BASE) >> PGDIR_SHIFT)
 #define NUM_CONSISTENT_PTES (CONSISTENT_DMA_SIZE >> PGDIR_SHIFT)
 
+static u64 get_coherent_dma_mask(struct device *dev)
+{
+	u64 mask = ISA_DMA_THRESHOLD;
 
+	if (dev) {
+		mask = dev->coherent_dma_mask;
+
+		/*
+		 * Sanity check the DMA mask - it must be non-zero, and
+		 * must be able to be satisfied by a DMA allocation.
+		 */
+		if (mask == 0) {
+			dev_warn(dev, "coherent DMA mask is unset\n");
+			return 0;
+		}
+
+		if ((~mask) & ISA_DMA_THRESHOLD) {
+			dev_warn(dev, "coherent DMA mask %#llx is smaller "
+				 "than system GFP_DMA mask %#llx\n",
+				 mask, (unsigned long long)ISA_DMA_THRESHOLD);
+			return 0;
+		}
+	}
+
+	return mask;
+}
+
+#ifdef CONFIG_MMU
 /*
  * These are the page tables (2MB each) covering uncached, DMA consistent allocations
  */
@@ -152,7 +179,8 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	struct page *page;
 	struct arm_vm_region *c;
 	unsigned long order;
-	u64 mask = ISA_DMA_THRESHOLD, limit;
+	u64 mask = get_coherent_dma_mask(dev);
+	u64 limit;
 
 	if (!consistent_pte[0]) {
 		printk(KERN_ERR "%s: not initialised\n", __func__);
@@ -160,25 +188,8 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		return NULL;
 	}
 
-	if (dev) {
-		mask = dev->coherent_dma_mask;
-
-		/*
-		 * Sanity check the DMA mask - it must be non-zero, and
-		 * must be able to be satisfied by a DMA allocation.
-		 */
-		if (mask == 0) {
-			dev_warn(dev, "coherent DMA mask is unset\n");
-			goto no_page;
-		}
-
-		if ((~mask) & ISA_DMA_THRESHOLD) {
-			dev_warn(dev, "coherent DMA mask %#llx is smaller "
-				 "than system GFP_DMA mask %#llx\n",
-				 mask, (unsigned long long)ISA_DMA_THRESHOLD);
-			goto no_page;
-		}
-	}
+	if (!mask)
+		goto no_page;
 
 	/*
 	 * Sanity check the allocation size.
@@ -267,6 +278,31 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	*handle = ~0;
 	return NULL;
 }
+#else	/* !CONFIG_MMU */
+static void *
+__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
+	    pgprot_t prot)
+{
+	void *virt;
+	u64 mask = get_coherent_dma_mask(dev);
+
+	if (!mask)
+		goto error;
+
+	if (mask != 0xffffffff)
+		gfp |= GFP_DMA;
+	virt = kmalloc(size, gfp);
+	if (!virt)
+		goto error;
+
+	*handle =  virt_to_dma(dev, virt);
+	return virt;
+
+error:
+	*handle = ~0;
+	return NULL;
+}
+#endif	/* CONFIG_MMU */
 
 /*
  * Allocate DMA-coherent memory space and return both the kernel remapped
@@ -311,9 +347,10 @@ EXPORT_SYMBOL(dma_alloc_writecombine);
 static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		    void *cpu_addr, dma_addr_t dma_addr, size_t size)
 {
+	int ret = -ENXIO;
+#ifdef CONFIG_MMU
 	unsigned long flags, user_size, kern_size;
 	struct arm_vm_region *c;
-	int ret = -ENXIO;
 
 	user_size = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 
@@ -334,6 +371,7 @@ static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
 					      vma->vm_page_prot);
 		}
 	}
+#endif	/* CONFIG_MMU */
 
 	return ret;
 }
@@ -358,6 +396,7 @@ EXPORT_SYMBOL(dma_mmap_writecombine);
  * free a page as defined by the above mapping.
  * Must not be called with IRQs disabled.
  */
+#ifdef CONFIG_MMU
 void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
 {
 	struct arm_vm_region *c;
@@ -444,6 +483,14 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	       __func__, cpu_addr);
 	dump_stack();
 }
+#else	/* !CONFIG_MMU */
+void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
+{
+	if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
+		return;
+	kfree(cpu_addr);
+}
+#endif	/* CONFIG_MMU */
 EXPORT_SYMBOL(dma_free_coherent);
 
 /*
@@ -451,10 +498,12 @@ EXPORT_SYMBOL(dma_free_coherent);
  */
 static int __init consistent_init(void)
 {
+	int ret = 0;
+#ifdef CONFIG_MMU
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
-	int ret = 0, i = 0;
+	int i = 0;
 	u32 base = CONSISTENT_BASE;
 
 	do {
@@ -477,6 +526,7 @@ static int __init consistent_init(void)
 		consistent_pte[i++] = pte;
 		base += (1 << PGDIR_SHIFT);
 	} while (base < CONSISTENT_END);
+#endif	/* !CONFIG_MMU */
 
 	return ret;
 }
