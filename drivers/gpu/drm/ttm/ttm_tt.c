@@ -86,10 +86,16 @@ void ttm_tt_cache_flush(struct page *pages[], unsigned long num_pages)
 	unsigned long i;
 
 	for (i = 0; i < num_pages; ++i) {
-		if (pages[i]) {
-			unsigned long start = (unsigned long)page_address(pages[i]);
-			flush_dcache_range(start, start + PAGE_SIZE);
-		}
+		struct page *page = pages[i];
+		void *page_virtual;
+
+		if (unlikely(page == NULL))
+			continue;
+
+		page_virtual = kmap_atomic(page, KM_USER0);
+		flush_dcache_range((unsigned long) page_virtual,
+				   (unsigned long) page_virtual + PAGE_SIZE);
+		kunmap_atomic(page_virtual, KM_USER0);
 	}
 #else
 	if (on_each_cpu(ttm_tt_ipi_handler, NULL, 1) != 0)
