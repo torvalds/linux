@@ -758,9 +758,13 @@ static noinline int find_free_dev_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto error;
-	ret = btrfs_previous_item(root, path, 0, key.type);
-	if (ret < 0)
-		goto error;
+	if (ret > 0) {
+		ret = btrfs_previous_item(root, path, key.objectid, key.type);
+		if (ret < 0)
+			goto error;
+		if (ret > 0)
+			start_found = 1;
+	}
 	l = path->nodes[0];
 	btrfs_item_key_to_cpu(l, &key, path->slots[0]);
 	while (1) {
