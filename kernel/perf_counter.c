@@ -1688,6 +1688,18 @@ static int perf_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static u64 perf_counter_read_tree(struct perf_counter *counter)
+{
+	struct perf_counter *child;
+	u64 total = 0;
+
+	total += perf_counter_read(counter);
+	list_for_each_entry(child, &counter->child_list, child_list)
+		total += perf_counter_read(child);
+
+	return total;
+}
+
 /*
  * Read the performance counter - simple non blocking version for now
  */
@@ -1707,7 +1719,7 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 
 	WARN_ON_ONCE(counter->ctx->parent_ctx);
 	mutex_lock(&counter->child_mutex);
-	values[0] = perf_counter_read(counter);
+	values[0] = perf_counter_read_tree(counter);
 	n = 1;
 	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
 		values[n++] = counter->total_time_enabled +
