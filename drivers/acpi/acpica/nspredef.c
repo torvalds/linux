@@ -76,6 +76,11 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		      union acpi_operand_object **return_object_ptr);
 
 static acpi_status
+acpi_ns_check_package_list(struct acpi_predefined_data *data,
+			   const union acpi_predefined_info *package,
+			   union acpi_operand_object **elements, u32 count);
+
+static acpi_status
 acpi_ns_check_package_elements(struct acpi_predefined_data *data,
 			       union acpi_operand_object **elements,
 			       u8 type1,
@@ -393,14 +398,11 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
 	const union acpi_predefined_info *package;
-	union acpi_operand_object *sub_package;
 	union acpi_operand_object **elements;
-	union acpi_operand_object **sub_elements;
-	acpi_status status;
+	acpi_status status = AE_OK;
 	u32 expected_count;
 	u32 count;
 	u32 i;
-	u32 j;
 
 	ACPI_FUNCTION_NAME(ns_check_package);
 
@@ -465,9 +467,6 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 							object_type2,
 							package->ret_info.
 							count2, 0);
-		if (ACPI_FAILURE(status)) {
-			return (status);
-		}
 		break;
 
 	case ACPI_PTYPE1_VAR:
@@ -534,6 +533,25 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		}
 		break;
 
+	case ACPI_PTYPE2_REV_FIXED:
+
+		/* First element is the (Integer) revision */
+
+		status = acpi_ns_check_object_type(data, elements,
+						   ACPI_RTYPE_INTEGER, 0);
+		if (ACPI_FAILURE(status)) {
+			return (status);
+		}
+
+		elements++;
+		count--;
+
+		/* Examine the sub-packages */
+
+		status =
+		    acpi_ns_check_package_list(data, package, elements, count);
+		break;
+
 	case ACPI_PTYPE2_PKG_COUNT:
 
 		/* First element is the (Integer) count of sub-packages to follow */
@@ -556,9 +574,11 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		count = expected_count;
 		elements++;
 
-		/* Now we can walk the sub-packages */
+		/* Examine the sub-packages */
 
-		/*lint -fallthrough */
+		status =
+		    acpi_ns_check_package_list(data, package, elements, count);
+		break;
 
 	case ACPI_PTYPE2:
 	case ACPI_PTYPE2_FIXED:
@@ -593,153 +613,10 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 			count = 1;
 		}
 
-		/* Validate each sub-Package in the parent Package */
+		/* Examine the sub-packages */
 
-		for (i = 0; i < count; i++) {
-			sub_package = *elements;
-			sub_elements = sub_package->package.elements;
-
-			/* Each sub-object must be of type Package */
-
-			status = acpi_ns_check_object_type(data, &sub_package,
-							   ACPI_RTYPE_PACKAGE,
-							   i);
-			if (ACPI_FAILURE(status)) {
-				return (status);
-			}
-
-			/* Examine the different types of sub-packages */
-
-			switch (package->ret_info.type) {
-			case ACPI_PTYPE2:
-			case ACPI_PTYPE2_PKG_COUNT:
-
-				/* Each subpackage has a fixed number of elements */
-
-				expected_count =
-				    package->ret_info.count1 +
-				    package->ret_info.count2;
-				if (sub_package->package.count !=
-				    expected_count) {
-					count = sub_package->package.count;
-					goto package_too_small;
-				}
-
-				status =
-				    acpi_ns_check_package_elements(data,
-								   sub_elements,
-								   package->
-								   ret_info.
-								   object_type1,
-								   package->
-								   ret_info.
-								   count1,
-								   package->
-								   ret_info.
-								   object_type2,
-								   package->
-								   ret_info.
-								   count2, 0);
-				if (ACPI_FAILURE(status)) {
-					return (status);
-				}
-				break;
-
-			case ACPI_PTYPE2_FIXED:
-
-				/* Each sub-package has a fixed length */
-
-				expected_count = package->ret_info2.count;
-				if (sub_package->package.count < expected_count) {
-					count = sub_package->package.count;
-					goto package_too_small;
-				}
-
-				/* Check the type of each sub-package element */
-
-				for (j = 0; j < expected_count; j++) {
-					status =
-					    acpi_ns_check_object_type(data,
-						&sub_elements[j],
-						package->ret_info2.object_type[j], j);
-					if (ACPI_FAILURE(status)) {
-						return (status);
-					}
-				}
-				break;
-
-			case ACPI_PTYPE2_MIN:
-
-				/* Each sub-package has a variable but minimum length */
-
-				expected_count = package->ret_info.count1;
-				if (sub_package->package.count < expected_count) {
-					count = sub_package->package.count;
-					goto package_too_small;
-				}
-
-				/* Check the type of each sub-package element */
-
-				status =
-				    acpi_ns_check_package_elements(data,
-								   sub_elements,
-								   package->
-								   ret_info.
-								   object_type1,
-								   sub_package->
-								   package.
-								   count, 0, 0,
-								   0);
-				if (ACPI_FAILURE(status)) {
-					return (status);
-				}
-				break;
-
-			case ACPI_PTYPE2_COUNT:
-
-				/* First element is the (Integer) count of elements to follow */
-
-				status =
-				    acpi_ns_check_object_type(data,
-							      sub_elements,
-							      ACPI_RTYPE_INTEGER,
-							      0);
-				if (ACPI_FAILURE(status)) {
-					return (status);
-				}
-
-				/* Make sure package is large enough for the Count */
-
-				expected_count =
-				    (u32) (*sub_elements)->integer.value;
-				if (sub_package->package.count < expected_count) {
-					count = sub_package->package.count;
-					goto package_too_small;
-				}
-
-				/* Check the type of each sub-package element */
-
-				status =
-				    acpi_ns_check_package_elements(data,
-								   (sub_elements
-								    + 1),
-								   package->
-								   ret_info.
-								   object_type1,
-								   (expected_count
-								    - 1), 0, 0,
-								   1);
-				if (ACPI_FAILURE(status)) {
-					return (status);
-				}
-				break;
-
-			default:
-				break;
-			}
-
-			elements++;
-		}
+		status =
+		    acpi_ns_check_package_list(data, package, elements, count);
 		break;
 
 	default:
@@ -753,15 +630,196 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 		return (AE_AML_INTERNAL);
 	}
 
-	return (AE_OK);
+	return (status);
 
-      package_too_small:
+package_too_small:
 
 	/* Error exit for the case with an incorrect package count */
 
 	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-			      "Return Package is too small - found %u, expected %u",
+			      "Return Package is too small - found %u elements, expected %u",
 			      count, expected_count));
+
+	return (AE_AML_OPERAND_VALUE);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_check_package_list
+ *
+ * PARAMETERS:  Data            - Pointer to validation data structure
+ *              Package         - Pointer to package-specific info for method
+ *              Elements        - Element list of parent package. All elements
+ *                                of this list should be of type Package.
+ *              Count           - Count of subpackages
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Examine a list of subpackages
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ns_check_package_list(struct acpi_predefined_data *data,
+			   const union acpi_predefined_info *package,
+			   union acpi_operand_object **elements, u32 count)
+{
+	union acpi_operand_object *sub_package;
+	union acpi_operand_object **sub_elements;
+	acpi_status status;
+	u32 expected_count;
+	u32 i;
+	u32 j;
+
+	/* Validate each sub-Package in the parent Package */
+
+	for (i = 0; i < count; i++) {
+		sub_package = *elements;
+		sub_elements = sub_package->package.elements;
+
+		/* Each sub-object must be of type Package */
+
+		status = acpi_ns_check_object_type(data, &sub_package,
+						   ACPI_RTYPE_PACKAGE, i);
+		if (ACPI_FAILURE(status)) {
+			return (status);
+		}
+
+		/* Examine the different types of expected sub-packages */
+
+		switch (package->ret_info.type) {
+		case ACPI_PTYPE2:
+		case ACPI_PTYPE2_PKG_COUNT:
+		case ACPI_PTYPE2_REV_FIXED:
+
+			/* Each subpackage has a fixed number of elements */
+
+			expected_count =
+			    package->ret_info.count1 + package->ret_info.count2;
+			if (sub_package->package.count < expected_count) {
+				goto package_too_small;
+			}
+
+			status =
+			    acpi_ns_check_package_elements(data, sub_elements,
+							   package->ret_info.
+							   object_type1,
+							   package->ret_info.
+							   count1,
+							   package->ret_info.
+							   object_type2,
+							   package->ret_info.
+							   count2, 0);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+			break;
+
+		case ACPI_PTYPE2_FIXED:
+
+			/* Each sub-package has a fixed length */
+
+			expected_count = package->ret_info2.count;
+			if (sub_package->package.count < expected_count) {
+				goto package_too_small;
+			}
+
+			/* Check the type of each sub-package element */
+
+			for (j = 0; j < expected_count; j++) {
+				status =
+				    acpi_ns_check_object_type(data,
+							      &sub_elements[j],
+							      package->
+							      ret_info2.
+							      object_type[j],
+							      j);
+				if (ACPI_FAILURE(status)) {
+					return (status);
+				}
+			}
+			break;
+
+		case ACPI_PTYPE2_MIN:
+
+			/* Each sub-package has a variable but minimum length */
+
+			expected_count = package->ret_info.count1;
+			if (sub_package->package.count < expected_count) {
+				goto package_too_small;
+			}
+
+			/* Check the type of each sub-package element */
+
+			status =
+			    acpi_ns_check_package_elements(data, sub_elements,
+							   package->ret_info.
+							   object_type1,
+							   sub_package->package.
+							   count, 0, 0, 0);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+			break;
+
+		case ACPI_PTYPE2_COUNT:
+
+			/*
+			 * First element is the (Integer) count of elements, including
+			 * the count field.
+			 */
+			status = acpi_ns_check_object_type(data, sub_elements,
+							   ACPI_RTYPE_INTEGER,
+							   0);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+
+			/*
+			 * Make sure package is large enough for the Count and is
+			 * is as large as the minimum size
+			 */
+			expected_count = (u32)(*sub_elements)->integer.value;
+			if (sub_package->package.count < expected_count) {
+				goto package_too_small;
+			}
+			if (sub_package->package.count <
+			    package->ret_info.count1) {
+				expected_count = package->ret_info.count1;
+				goto package_too_small;
+			}
+
+			/* Check the type of each sub-package element */
+
+			status =
+			    acpi_ns_check_package_elements(data,
+							   (sub_elements + 1),
+							   package->ret_info.
+							   object_type1,
+							   (expected_count - 1),
+							   0, 0, 1);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+			break;
+
+		default:	/* Should not get here, type was validated by caller */
+
+			return (AE_AML_INTERNAL);
+		}
+
+		elements++;
+	}
+
+	return (AE_OK);
+
+package_too_small:
+
+	/* The sub-package count was smaller than required */
+
+	ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+			      "Return Sub-Package[%u] is too small - found %u elements, expected %u",
+			      i, sub_package->package.count, expected_count));
 
 	return (AE_AML_OPERAND_VALUE);
 }

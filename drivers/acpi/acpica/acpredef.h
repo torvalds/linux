@@ -91,6 +91,8 @@
  * ACPI_PTYPE2_MIN: Each subpackage has a variable but minimum length
  *      (Used for _HPX)
  *
+ * ACPI_PTYPE2_REV_FIXED: Revision at start, each subpackage is Fixed-length
+ *
  *****************************************************************************/
 
 enum acpi_return_package_types {
@@ -101,7 +103,8 @@ enum acpi_return_package_types {
 	ACPI_PTYPE2_COUNT = 5,
 	ACPI_PTYPE2_PKG_COUNT = 6,
 	ACPI_PTYPE2_FIXED = 7,
-	ACPI_PTYPE2_MIN = 8
+	ACPI_PTYPE2_MIN = 8,
+	ACPI_PTYPE2_REV_FIXED = 9
 };
 
 /*
