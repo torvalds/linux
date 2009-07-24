@@ -1132,7 +1132,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		  txq_id, sequence,
 		  priv->txq[IWL_CMD_QUEUE_NUM].q.read_ptr,
 		  priv->txq[IWL_CMD_QUEUE_NUM].q.write_ptr)) {
-		iwl_print_hex_error(priv, rxb, 32);
+		iwl_print_hex_error(priv, pkt, 32);
 		return;
 	}
 
