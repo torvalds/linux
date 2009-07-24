@@ -40,11 +40,11 @@ swsusp_arch_suspend:
 	/* Store prefix register on stack */
 	stpx	__SF_EMPTY(%r15)
 
-	/* Setup base register for lowcore (absolute 0) */
-	llgf	%r1,__SF_EMPTY(%r15)
+	/* Save prefix register contents for lowcore */
+	llgf	%r4,__SF_EMPTY(%r15)
 
 	/* Get pointer to save area */
-	aghi	%r1,0x1000
+	lghi	%r1,0x1000
 
 	/* Store registers */
 	mvc	0x318(4,%r1),__SF_EMPTY(%r15)	/* move prefix to lowcore */
@@ -79,8 +79,11 @@ swsusp_arch_suspend:
 	xc	__SF_EMPTY(4,%r15),__SF_EMPTY(%r15)
 	spx	__SF_EMPTY(%r15)
 
-	/* Setup lowcore */
-	brasl	%r14,setup_lowcore_early
+	lghi	%r2,0
+	lghi	%r3,2*PAGE_SIZE
+	lghi	%r5,2*PAGE_SIZE
+1:	mvcle	%r2,%r4,0
+	jo	1b
 
 	/* Save image */
 	brasl	%r14,swsusp_save
