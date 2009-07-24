@@ -62,7 +62,11 @@ struct unwind_ctrl_block {
 };
 
 enum regs {
+#ifdef CONFIG_THUMB2_KERNEL
+	FP = 7,
+#else
 	FP = 11,
+#endif
 	SP = 13,
 	LR = 14,
 	PC = 15

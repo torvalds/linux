@@ -99,6 +99,7 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
 	"1:	ldrt	%0, [%3]\n"
 	"	teq	%0, %1\n"
+	"	it	eq	@ explicit IT needed for the 2b label\n"
 	"2:	streqt	%2, [%3]\n"
 	"3:\n"
 	"	.section __ex_table,\"a\"\n"

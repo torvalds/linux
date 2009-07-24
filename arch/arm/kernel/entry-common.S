@@ -33,14 +33,7 @@ ret_fast_syscall:
 	/* perform architecture specific actions before user return */
 	arch_ret_to_user r1, lr
 
-	@ fast_restore_user_regs
-	ldr	r1, [sp, #S_OFF + S_PSR]	@ get calling cpsr
-	ldr	lr, [sp, #S_OFF + S_PC]!	@ get pc
-	msr	spsr_cxsf, r1			@ save in spsr_svc
-	ldmdb	sp, {r1 - lr}^			@ get calling r1 - lr
-	mov	r0, r0
-	add	sp, sp, #S_FRAME_SIZE - S_PC
-	movs	pc, lr				@ return & move spsr_svc into cpsr
+	restore_user_regs fast = 1, offset = S_OFF
  UNWIND(.fnend		)
 
 /*
@@ -73,14 +66,7 @@ no_work_pending:
 	/* perform architecture specific actions before user return */
 	arch_ret_to_user r1, lr
 
-	@ slow_restore_user_regs
-	ldr	r1, [sp, #S_PSR]		@ get calling cpsr
-	ldr	lr, [sp, #S_PC]!		@ get pc
-	msr	spsr_cxsf, r1			@ save in spsr_svc
-	ldmdb	sp, {r0 - lr}^			@ get calling r0 - lr
-	mov	r0, r0
-	add	sp, sp, #S_FRAME_SIZE - S_PC
-	movs	pc, lr				@ return & move spsr_svc into cpsr
+	restore_user_regs fast = 0, offset = 0
 ENDPROC(ret_to_user)
 
 /*
@@ -182,8 +168,10 @@ ftrace_stub:
 ENTRY(vector_swi)
 	sub	sp, sp, #S_FRAME_SIZE
 	stmia	sp, {r0 - r12}			@ Calling r0 - r12
-	add	r8, sp, #S_PC
-	stmdb	r8, {sp, lr}^			@ Calling sp, lr
+ ARM(	add	r8, sp, #S_PC		)
+ ARM(	stmdb	r8, {sp, lr}^		)	@ Calling sp, lr
+ THUMB(	mov	r8, sp			)
+ THUMB(	store_user_sp_lr r8, r10, S_SP	)	@ calling sp, lr
 	mrs	r8, spsr			@ called from non-FIQ mode, so ok.
 	str	lr, [sp, #S_PC]			@ Save calling PC
 	str	r8, [sp, #S_PSR]		@ Save CPSR
@@ -272,7 +260,7 @@ ENTRY(vector_swi)
 	bne	__sys_trace
 
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
-	adr	lr, ret_fast_syscall		@ return address
+	adr	lr, BSYM(ret_fast_syscall)	@ return address
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 
 	add	r1, sp, #S_OFF
@@ -293,7 +281,7 @@ __sys_trace:
 	mov	r0, #0				@ trace entry [IP = 0]
 	bl	syscall_trace
 
-	adr	lr, __sys_trace_return		@ return address
+	adr	lr, BSYM(__sys_trace_return)	@ return address
 	mov	scno, r0			@ syscall number (possibly new)
 	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
