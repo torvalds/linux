@@ -279,7 +279,7 @@ static int storvsc_probe(struct device *device)
 		return -ENOMEM;
 	}
 
-	device->driver_data = host;
+	dev_set_drvdata(device, host);
 
 	host_device_ctx = (struct host_device_context*)host->hostdata;
 	memset(host_device_ctx, 0, sizeof(struct host_device_context));
@@ -380,7 +380,7 @@ static int storvsc_remove(struct device *device)
 	struct device_context *device_ctx = device_to_device_context(device);
 	DEVICE_OBJECT* device_obj = &device_ctx->device_obj;
 
-	struct Scsi_Host *host = (struct Scsi_Host *)device->driver_data;
+	struct Scsi_Host *host = dev_get_drvdata(device);
 	struct host_device_context *host_device_ctx=(struct host_device_context*)host->hostdata;
 
 
@@ -1125,7 +1125,7 @@ static void storvsc_host_rescan_callback(void* context)
 	DEVICE_OBJECT* device_obj = (DEVICE_OBJECT*)context;
 #endif
 	struct device_context* device_ctx = to_device_context(device_obj);
-	struct Scsi_Host *host = (struct Scsi_Host *)device_ctx->device.driver_data;
+	struct Scsi_Host *host = dev_get_drvdata(&device_ctx->device);
 	struct scsi_device *sdev;
 	struct host_device_context *host_device_ctx;
 	struct scsi_device **sdevs_remove_list;
@@ -1293,7 +1293,7 @@ static int storvsc_report_luns(struct scsi_device *sdev, unsigned int luns[], un
 static void storvsc_host_rescan(DEVICE_OBJECT* device_obj)
 {
 	struct device_context* device_ctx = to_device_context(device_obj);
-	struct Scsi_Host *host = (struct Scsi_Host *)device_ctx->device.driver_data;
+	struct Scsi_Host *host = dev_get_drvdata(&device_ctx->device);
 	struct host_device_context *host_device_ctx;
 
 	DPRINT_ENTER(STORVSC_DRV);
