@@ -309,7 +309,7 @@ int radeon_object_wait(struct radeon_object *robj)
 	}
 	spin_lock(&robj->tobj.lock);
 	if (robj->tobj.sync_obj) {
-		r = ttm_bo_wait(&robj->tobj, true, false, false);
+		r = ttm_bo_wait(&robj->tobj, true, true, false);
 	}
 	spin_unlock(&robj->tobj.lock);
 	radeon_object_unreserve(robj);
