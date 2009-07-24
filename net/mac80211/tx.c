@@ -1170,13 +1170,15 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 		}
 
 		ret = drv_tx(local, skb);
-		info->control.vif = &sdata->vif;
 		if (WARN_ON(ret != NETDEV_TX_OK && skb->len != len)) {
 			dev_kfree_skb(skb);
 			ret = NETDEV_TX_OK;
 		}
-		if (ret != NETDEV_TX_OK)
+		if (ret != NETDEV_TX_OK) {
+			info->control.vif = &sdata->vif;
 			return IEEE80211_TX_AGAIN;
+		}
+
 		*skbp = skb = next;
 		ieee80211_led_tx(local, 1);
 		fragm = true;
