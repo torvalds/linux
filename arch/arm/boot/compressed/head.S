@@ -438,6 +438,7 @@ ENDPROC(__setup_mmu)
 
 __armv4_mmu_cache_on:
 		mov	r12, lr
+#ifdef CONFIG_MMU
 		bl	__setup_mmu
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
@@ -451,10 +452,12 @@ __armv4_mmu_cache_on:
 		bl	__common_mmu_cache_on
 		mov	r0, #0
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
+#endif
 		mov	pc, r12
 
 __armv7_mmu_cache_on:
 		mov	r12, lr
+#ifdef CONFIG_MMU
 		mrc	p15, 0, r11, c0, c1, 4	@ read ID_MMFR0
 		tst	r11, #0xf		@ VMSA
 		blne	__setup_mmu
@@ -462,9 +465,11 @@ __armv7_mmu_cache_on:
 		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
 		tst	r11, #0xf		@ VMSA
 		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
+#endif
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
 		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
 		orr	r0, r0, #0x003c		@ write buffer
+#ifdef CONFIG_MMU
 #ifdef CONFIG_CPU_ENDIAN_BE8
 		orr	r0, r0, #1 << 25	@ big-endian page tables
 #endif
@@ -472,6 +477,7 @@ __armv7_mmu_cache_on:
 		movne	r1, #-1
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
+#endif
 		mcr	p15, 0, r0, c1, c0, 0	@ load control register
 		mrc	p15, 0, r0, c1, c0, 0	@ and read it back
 		mov	r0, #0
@@ -785,22 +791,30 @@ __armv3_mpu_cache_off:
 		mov	pc, lr
 
 __armv4_mmu_cache_off:
+#ifdef CONFIG_MMU
 		mrc	p15, 0, r0, c1, c0
 		bic	r0, r0, #0x000d
 		mcr	p15, 0, r0, c1, c0	@ turn MMU and cache off
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c7	@ invalidate whole cache v4
 		mcr	p15, 0, r0, c8, c7	@ invalidate whole TLB v4
+#endif
 		mov	pc, lr
 
 __armv7_mmu_cache_off:
 		mrc	p15, 0, r0, c1, c0
+#ifdef CONFIG_MMU
 		bic	r0, r0, #0x000d
+#else
+		bic	r0, r0, #0x000c
+#endif
 		mcr	p15, 0, r0, c1, c0	@ turn MMU and cache off
 		mov	r12, lr
 		bl	__armv7_mmu_cache_flush
 		mov	r0, #0
+#ifdef CONFIG_MMU
 		mcr	p15, 0, r0, c8, c7, 0	@ invalidate whole TLB
+#endif
 		mcr	p15, 0, r0, c7, c5, 6	@ invalidate BTC
 		mcr	p15, 0, r0, c7, c10, 4	@ DSB
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
