@@ -7486,7 +7486,8 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	block_group->space_info->total_bytes -= block_group->key.offset;
 	block_group->space_info->bytes_readonly -= block_group->key.offset;
 	spin_unlock(&block_group->space_info->lock);
-	block_group->space_info->full = 0;
+
+	btrfs_clear_space_info_full(root->fs_info);
 
 	btrfs_put_block_group(block_group);
 	btrfs_put_block_group(block_group);
