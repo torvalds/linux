@@ -2282,8 +2282,8 @@ static void amd64_handle_ue(struct mem_ctl_info *mci,
 	}
 }
 
-static void amd64_decode_bus_error(struct mem_ctl_info *mci,
-				   struct err_regs *info, int ecc_type)
+static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
+					    struct err_regs *info, int ecc_type)
 {
 	u32 ec  = ERROR_CODE(info->nbsl);
 	u32 xec = EXT_ERROR_CODE(info->nbsl);
@@ -2316,86 +2316,23 @@ static void amd64_decode_bus_error(struct mem_ctl_info *mci,
 		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR "Error Overflow");
 }
 
-void amd64_decode_nb_mce(struct mem_ctl_info *mci, struct err_regs *regs,
-			 int handle_errors)
+void amd64_decode_bus_error(int node_id, struct err_regs *regs,
+				   int ecc_type)
 {
-	struct amd64_pvt *pvt = mci->pvt_info;
-	int ecc;
-	u32 ec  = ERROR_CODE(regs->nbsl);
-	u32 xec = EXT_ERROR_CODE(regs->nbsl);
+	struct mem_ctl_info *mci = mci_lookup[node_id];
 
-	if (!handle_errors)
-		return;
-
-	pr_emerg(" Northbridge ERROR, mc node %d", pvt->mc_node_id);
-
-	/*
-	 * F10h, revD can disable ErrCpu[3:0] so check that first and also the
-	 * value encoding has changed so interpret those differently
-	 */
-	if ((boot_cpu_data.x86 == 0x10) &&
-	    (boot_cpu_data.x86_model > 8)) {
-		if (regs->nbsh & K8_NBSH_ERR_CPU_VAL)
-			pr_cont(", core: %u\n", (u8)(regs->nbsh & 0xf));
-	} else {
-		pr_cont(", core: %d\n", ilog2((regs->nbsh & 0xf)));
-	}
-
-	pr_emerg(" Error: %sorrected",
-		 ((regs->nbsh & K8_NBSH_UC_ERR) ? "Unc" : "C"));
-	pr_cont(", Report Error: %s",
-		 ((regs->nbsh & K8_NBSH_ERR_EN) ? "yes" : "no"));
-	pr_cont(", MiscV: %svalid, CPU context corrupt: %s",
-		((regs->nbsh & K8_NBSH_MISCV) ? "" : "In"),
-		((regs->nbsh & K8_NBSH_PCC)   ? "yes" : "no"));
-
-	/* do the two bits[14:13] together */
-	ecc = regs->nbsh & (0x3 << 13);
-	if (ecc)
-		pr_cont(", %sECC Error", ((ecc == 2) ? "C" : "U"));
-
-	pr_cont("\n");
-
-	if (TLB_ERROR(ec)) {
-		/*
-		 * GART errors are intended to help graphics driver developers
-		 * to detect bad GART PTEs. It is recommended by AMD to disable
-		 * GART table walk error reporting by default[1] (currently
-		 * being disabled in mce_cpu_quirks()) and according to the
-		 * comment in mce_cpu_quirks(), such GART errors can be
-		 * incorrectly triggered. We may see these errors anyway and
-		 * unless requested by the user, they won't be reported.
-		 *
-		 * [1] section 13.10.1 on BIOS and Kernel Developers Guide for
-		 *     AMD NPT family 0Fh processors
-		 */
-		if (!report_gart_errors)
-			return;
-
-		pr_emerg(" GART TLB error, Transaction: %s, Cache Level %s\n",
-			 TT_MSG(ec), LL_MSG(ec));
-	} else if (MEM_ERROR(ec)) {
-		pr_emerg(" Memory/Cache error, Transaction: %s, Type: %s,"
-			 " Cache Level: %s",
-			 RRRR_MSG(ec), TT_MSG(ec), LL_MSG(ec));
-	} else if (BUS_ERROR(ec)) {
-		pr_emerg(" Bus (Link/DRAM) error\n");
-		amd64_decode_bus_error(mci, regs, ecc);
-	} else {
-		/* shouldn't reach here! */
-		amd64_mc_printk(mci, KERN_WARNING,
-				"%s(): unknown MCE error 0x%x\n", __func__, ec);
-	}
-
-	pr_emerg("%s.\n", EXT_ERR_MSG(xec));
+	__amd64_decode_bus_error(mci, regs, ecc_type);
 
 	/*
 	 * Check the UE bit of the NB status high register, if set generate some
 	 * logs. If NOT a GART error, then process the event as a NO-INFO event.
 	 * If it was a GART error, skip that process.
+	 *
+	 * FIXME: this should go somewhere else, if at all.
 	 */
 	if (regs->nbsh & K8_NBSH_UC_ERR && !report_gart_errors)
 		edac_mc_handle_ue_no_info(mci, "UE bit is set");
+
 }
 
 /*
@@ -2406,8 +2343,10 @@ static void amd64_check(struct mem_ctl_info *mci)
 {
 	struct err_regs regs;
 
-	if (amd64_get_error_info(mci, &regs))
-		amd64_decode_nb_mce(mci, &regs, 1);
+	if (amd64_get_error_info(mci, &regs)) {
+		struct amd64_pvt *pvt = mci->pvt_info;
+		amd_decode_nb_mce(pvt->mc_node_id, &regs, 1);
+	}
 }
 
 /*
@@ -3103,6 +3042,13 @@ static int amd64_init_2nd_stage(struct amd64_pvt *pvt)
 
 	mci_lookup[node_id] = mci;
 	pvt_lookup[node_id] = NULL;
+
+	/* register stuff with EDAC MCE */
+	if (report_gart_errors)
+		amd_report_gart_errors(true);
+
+	amd_register_ecc_decoder(amd64_decode_bus_error);
+
 	return 0;
 
 err_add_mc:
@@ -3168,6 +3114,10 @@ static void __devexit amd64_remove_one_instance(struct pci_dev *pdev)
 	mci->pvt_info = NULL;
 
 	mci_lookup[pvt->mc_node_id] = NULL;
+
+	/* unregister from EDAC MCE */
+	amd_report_gart_errors(false);
+	amd_unregister_ecc_decoder(amd64_decode_bus_error);
 
 	/* Free the EDAC CORE resources */
 	edac_mc_free(mci);

@@ -346,23 +346,7 @@ enum {
 #define K8_NBSL_PP_OBS			0x2
 #define K8_NBSL_PP_GENERIC		0x3
 
-
-#define K8_NBSH				0x4C
-
-#define K8_NBSH_VALID_BIT		BIT(31)
-#define K8_NBSH_OVERFLOW		BIT(30)
-#define K8_NBSH_UC_ERR			BIT(29)
-#define K8_NBSH_ERR_EN			BIT(28)
-#define K8_NBSH_MISCV			BIT(27)
-#define K8_NBSH_VALID_ERROR_ADDR	BIT(26)
-#define K8_NBSH_PCC			BIT(25)
-#define K8_NBSH_ERR_CPU_VAL		BIT(24)
-#define K8_NBSH_CECC			BIT(14)
-#define K8_NBSH_UECC			BIT(13)
-#define K8_NBSH_ERR_SCRUBER		BIT(8)
-
 #define EXTRACT_ERR_CPU_MAP(x)		((x) & 0xF)
-
 
 #define K8_NBEAL			0x50
 #define K8_NBEAH			0x54
@@ -426,23 +410,6 @@ enum amd64_chipset_families {
 	K8_CPUS = 0,
 	F10_CPUS,
 	F11_CPUS,
-};
-
-/*
- * Structure to hold:
- *
- * 1) dynamically read status and error address HW registers
- * 2) sysfs entered values
- * 3) MCE values
- *
- * Depends on entry into the modules
- */
-struct err_regs {
-	u32 nbcfg;
-	u32 nbsh;
-	u32 nbsl;
-	u32 nbeah;
-	u32 nbeal;
 };
 
 /* Error injection control structure */
@@ -609,9 +576,6 @@ static inline struct low_ops *family_ops(int index)
 #define K8_MIN_SCRUB_RATE_BITS	0x0
 #define F10_MIN_SCRUB_RATE_BITS	0x5
 #define F11_MIN_SCRUB_RATE_BITS	0x6
-
-void amd64_decode_nb_mce(struct mem_ctl_info *mci, struct err_regs *info,
-			int handle_errors);
 
 int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);
