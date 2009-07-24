@@ -5370,9 +5370,10 @@ hfcmulti_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    ent->device == PCI_DEVICE_ID_CCD_HFC8S ||
 	    ent->device == PCI_DEVICE_ID_CCD_HFCE1)) {
 		printk(KERN_ERR
-		    "Unknown HFC multiport controller (vendor:%x device:%x "
-		    "subvendor:%x subdevice:%x)\n", ent->vendor, ent->device,
-		    ent->subvendor, ent->subdevice);
+		    "Unknown HFC multiport controller (vendor:%04x device:%04x "
+		    "subvendor:%04x subdevice:%04x)\n", pdev->vendor,
+		    pdev->device, pdev->subsystem_vendor,
+		    pdev->subsystem_device);
 		printk(KERN_ERR
 		    "Please contact the driver maintainer for support.\n");
 		return -ENODEV;
