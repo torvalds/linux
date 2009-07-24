@@ -983,6 +983,9 @@ config HZ
 	default AT91_TIMER_HZ if ARCH_AT91
 	default 100
 
+config ARM_ASM_UNIFIED
+	bool
+
 config AEABI
 	bool "Use the ARM EABI to compile the kernel"
 	help
