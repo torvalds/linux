@@ -223,7 +223,7 @@ static int ahash_op_unaligned(struct ahash_request *req,
 
 	priv = kmalloc(sizeof(*priv) + ahash_align_buffer_size(ds, alignmask),
 		       (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
-		       GFP_ATOMIC : GFP_ATOMIC);
+		       GFP_KERNEL : GFP_ATOMIC);
 	if (!priv)
 		return -ENOMEM;
 
@@ -333,7 +333,7 @@ static int ahash_def_finup(struct ahash_request *req)
 
 	priv = kmalloc(sizeof(*priv) + ahash_align_buffer_size(ds, alignmask),
 		       (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
-		       GFP_ATOMIC : GFP_ATOMIC);
+		       GFP_KERNEL : GFP_ATOMIC);
 	if (!priv)
 		return -ENOMEM;
 
