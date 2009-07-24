@@ -478,6 +478,8 @@ static struct ath_hw *ath9k_hw_newstate(u16 devid, struct ath_softc *sc,
 
 	ah->gbeacon_rate = 0;
 
+	ah->power_mode = ATH9K_PM_UNDEFINED;
+
 	return ah;
 }
 
@@ -2819,6 +2821,9 @@ static bool ath9k_hw_setpower_nolock(struct ath_hw *ah,
 		"UNDEFINED"
 	};
 
+	if (ah->power_mode == mode)
+		return status;
+
 	DPRINTF(ah->ah_sc, ATH_DBG_RESET, "%s -> %s\n",
 		modes[ah->power_mode], modes[mode]);
 
@@ -2863,8 +2868,7 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 	if (++sc->ps_usecount != 1)
 		goto unlock;
 
-	if (sc->sc_ah->power_mode != ATH9K_PM_AWAKE)
-		ath9k_hw_setpower_nolock(sc->sc_ah, ATH9K_PM_AWAKE);
+	ath9k_hw_setpower_nolock(sc->sc_ah, ATH9K_PM_AWAKE);
 
  unlock:
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
