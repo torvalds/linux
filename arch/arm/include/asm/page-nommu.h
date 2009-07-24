@@ -43,7 +43,4 @@ typedef unsigned long pgprot_t;
 #define __pmd(x)        (x)
 #define __pgprot(x)     (x)
 
-extern unsigned long memory_start;
-extern unsigned long memory_end;
-
 #endif
