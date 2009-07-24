@@ -1291,7 +1291,6 @@ static void iwl_print_rx_config_cmd(struct iwl_priv *priv)
 	IWL_DEBUG_RADIO(priv, "u8[6] bssid_addr: %pM\n", rxon->bssid_addr);
 	IWL_DEBUG_RADIO(priv, "u16 assoc_id: 0x%x\n", le16_to_cpu(rxon->assoc_id));
 }
-#endif
 
 static const char *desc_lookup_text[] = {
 	"OK",
@@ -1496,6 +1495,7 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 	iwl_print_event_log(priv, 0, next_entry, mode);
 
 }
+#endif
 /**
  * iwl_irq_handle_error - called for HW or SW error interrupt from card
  */
