@@ -2003,6 +2003,25 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta)
 }
 
 /*
+ * setup rate table in uCode
+ * return rate_n_flags as used in the table
+ */
+static u32 rs_update_rate_tbl(struct iwl_priv *priv,
+				struct iwl_lq_sta *lq_sta,
+				struct iwl_scale_tbl_info *tbl,
+				int index, u8 is_green)
+{
+	u32 rate;
+
+	/* Update uCode's rate table. */
+	rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
+	rs_fill_link_cmd(priv, lq_sta, rate);
+	iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
+
+	return rate;
+}
+
+/*
  * Do rate scaling and search for new modulation mode.
  */
 static void rs_rate_scale_perform(struct iwl_priv *priv,
@@ -2098,6 +2117,16 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 	if (!((1 << index) & rate_scale_index_msk)) {
 		IWL_ERR(priv, "Current Rate is not valid\n");
+		if (lq_sta->search_better_tbl) {
+			/* revert to active table if search table is not valid*/
+			tbl->lq_type = LQ_NONE;
+			lq_sta->search_better_tbl = 0;
+			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
+			/* get "active" rate info */
+			index = iwl_hwrate_to_plcp_idx(tbl->current_rate);
+			rate = rs_update_rate_tbl(priv, lq_sta,
+						  tbl, index, is_green);
+		}
 		return;
 	}
 
@@ -2308,11 +2337,9 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
-	if (update_lq) {
-		rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
-		rs_fill_link_cmd(priv, lq_sta, rate);
-		iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
-	}
+	if (update_lq)
+		rate = rs_update_rate_tbl(priv, lq_sta,
+					  tbl, index, is_green);
 
 	/* Should we stay with this modulation mode, or search for a new one? */
 	rs_stay_in_table(lq_sta);
