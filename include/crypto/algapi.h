@@ -175,12 +175,8 @@ int blkcipher_walk_virt_block(struct blkcipher_desc *desc,
 
 static inline void *crypto_tfm_ctx_aligned(struct crypto_tfm *tfm)
 {
-	unsigned long addr = (unsigned long)crypto_tfm_ctx(tfm);
-	unsigned long align = crypto_tfm_alg_alignmask(tfm);
-
-	if (align <= crypto_tfm_ctx_alignment())
-		align = 1;
-	return (void *)ALIGN(addr, align);
+	return PTR_ALIGN(crypto_tfm_ctx(tfm),
+			 crypto_tfm_alg_alignmask(tfm) + 1);
 }
 
 static inline struct crypto_instance *crypto_tfm_alg_instance(
