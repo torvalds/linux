@@ -4296,10 +4296,10 @@ int btrfs_previous_item(struct btrfs_root *root,
 			path->slots[0]--;
 
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
-		if (found_key.type == type)
-			return 0;
 		if (found_key.objectid < min_objectid)
 			break;
+		if (found_key.type == type)
+			return 0;
 		if (found_key.objectid == min_objectid &&
 		    found_key.type < type)
 			break;
