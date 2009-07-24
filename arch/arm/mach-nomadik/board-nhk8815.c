@@ -24,6 +24,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
+#include <asm/mach/flash.h>
 #include <mach/setup.h>
 #include <mach/nand.h>
 #include <mach/fsmc.h>
@@ -112,6 +113,66 @@ static struct platform_device nhk8815_nand_device = {
 	.num_resources	= ARRAY_SIZE(nhk8815_nand_resources),
 };
 
+/* These are the partitions for the OneNand device, different from above */
+static struct mtd_partition nhk8815_onenand_partitions[] = {
+	{
+		.name	= "X-Loader(OneNAND)",
+		.offset = 0,
+		.size	= SZ_256K,
+	}, {
+		.name	= "MemInit(OneNAND)",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= SZ_256K,
+	}, {
+		.name	= "BootLoader(OneNAND)",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= SZ_2M-SZ_256K,
+	}, {
+		.name	= "SysImage(OneNAND)",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= 4 * SZ_1M,
+	}, {
+		.name	= "Root Filesystem(OneNAND)",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= 22 * SZ_1M,
+	}, {
+		.name	= "User Filesystem(OneNAND)",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= MTDPART_SIZ_FULL,
+	}
+};
+
+static struct flash_platform_data nhk8815_onenand_data = {
+	.parts		= nhk8815_onenand_partitions,
+	.nr_parts	= ARRAY_SIZE(nhk8815_onenand_partitions),
+};
+
+static struct resource nhk8815_onenand_resource[] = {
+	{
+		.start		= 0x30000000,
+		.end		= 0x30000000 + SZ_128K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device nhk8815_onenand_device = {
+	.name		= "onenand",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &nhk8815_onenand_data,
+	},
+	.resource	= nhk8815_onenand_resource,
+	.num_resources	= ARRAY_SIZE(nhk8815_onenand_resource),
+};
+
+static void __init nhk8815_onenand_init(void)
+{
+#ifdef CONFIG_ONENAND
+       /* Set up SMCS0 for OneNand */
+       writel(0x000030db, FSMC_BCR0);
+       writel(0x02100551, FSMC_BTR0);
+#endif
+}
 
 #define __MEM_4K_RESOURCE(x) \
 	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
@@ -173,6 +234,7 @@ device_initcall(nhk8815_eth_init);
 
 static struct platform_device *nhk8815_platform_devices[] __initdata = {
 	&nhk8815_nand_device,
+	&nhk8815_onenand_device,
 	&nhk8815_eth_device,
 	/* will add more devices */
 };
@@ -182,6 +244,7 @@ static void __init nhk8815_platform_init(void)
 	int i;
 
 	cpu8815_platform_init();
+	nhk8815_onenand_init();
 	platform_add_devices(nhk8815_platform_devices,
 			     ARRAY_SIZE(nhk8815_platform_devices));
 
