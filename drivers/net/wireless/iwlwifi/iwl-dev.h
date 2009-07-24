@@ -491,8 +491,16 @@ union iwl_ht_rate_supp {
 };
 
 #define CFG_HT_RX_AMPDU_FACTOR_DEF  (0x3)
-#define CFG_HT_MPDU_DENSITY_2USEC   (0x5)
-#define CFG_HT_MPDU_DENSITY_DEF CFG_HT_MPDU_DENSITY_2USEC
+
+/*
+ * Maximal MPDU density for TX aggregation
+ * 4 - 2us density
+ * 5 - 4us density
+ * 6 - 8us density
+ * 7 - 16us density
+ */
+#define CFG_HT_MPDU_DENSITY_4USEC   (0x5)
+#define CFG_HT_MPDU_DENSITY_DEF CFG_HT_MPDU_DENSITY_4USEC
 
 struct iwl_ht_info {
 	/* self configuration data */
