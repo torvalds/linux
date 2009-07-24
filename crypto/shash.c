@@ -350,7 +350,7 @@ int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 		crt->setkey = shash_async_setkey;
 	if (alg->export)
 		crt->export = shash_async_export;
-	if (alg->setkey)
+	if (alg->import)
 		crt->import = shash_async_import;
 
 	crt->reqsize = sizeof(struct shash_desc) + crypto_shash_descsize(shash);
