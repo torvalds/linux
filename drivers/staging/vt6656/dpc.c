@@ -674,7 +674,7 @@ RXbBulkInProcessData (
 	            skb->data += 8;
 	            skb->tail += 8;
                 skb_put(skb, FrameSize);
-	            skb->mac_header = skb->data;
+		skb_reset_mac_header(skb);
 	            skb->pkt_type = PACKET_OTHERHOST;
     	        skb->protocol = htons(ETH_P_802_2);
 	            memset(skb->cb, 0, sizeof(skb->cb));
@@ -831,7 +831,7 @@ RXbBulkInProcessData (
             skb->data +=  (cbIVOffset + 8);
             skb->tail +=  (cbIVOffset + 8);
             skb_put(skb, FrameSize);
-            skb->mac_header = skb->data;
+	    skb_reset_mac_header(skb);
             skb->pkt_type = PACKET_OTHERHOST;
             skb->protocol = htons(ETH_P_802_2);
             memset(skb->cb, 0, sizeof(skb->cb));
@@ -951,7 +951,7 @@ RXbBulkInProcessData (
                      wpahdr->req_ie_len = 0;
                      skb_put(pDevice->skb, sizeof(viawget_wpa_header));
                      pDevice->skb->dev = pDevice->wpadev;
-                   pDevice->skb->mac_header = pDevice->skb->data;
+		     skb_reset_mac_header(pDevice->skb);
                      pDevice->skb->pkt_type = PACKET_HOST;
                      pDevice->skb->protocol = htons(ETH_P_802_2);
                      memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));

@@ -812,7 +812,7 @@ FIRMWAREbDownload(
                                             &(pBuffer[ii])
                                             );
 
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Download firmware...%d %d\n", ii, sizeof(abyFirmware));
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Download firmware...%d %ld\n", ii, sizeof(abyFirmware));
             if (NdisStatus != STATUS_SUCCESS) {
                 if (pBuffer)
                     kfree(pBuffer);
