@@ -65,6 +65,12 @@ int omap2_clksel_set_rate(struct clk *clk, unsigned long rate);
 u32 omap2_get_dpll_rate(struct clk *clk);
 int omap2_wait_clock_ready(void __iomem *reg, u32 cval, const char *name);
 void omap2_clk_prepare_for_reboot(void);
+int omap2_dflt_clk_enable(struct clk *clk);
+void omap2_dflt_clk_disable(struct clk *clk);
+void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
+				   u8 *other_bit);
+void omap2_clk_dflt_find_idlest(struct clk *clk, void __iomem **idlest_reg,
+				u8 *idlest_bit);
 
 extern const struct clkops clkops_omap2_dflt_wait;
 extern const struct clkops clkops_omap2_dflt;
