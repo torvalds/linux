@@ -184,7 +184,7 @@ static int tsc2007_read_values(struct tsc2007 *tsc)
 	tsc->tc.z1 = tsc2007_xfer(tsc, READ_Z1);
 	tsc->tc.z2 = tsc2007_xfer(tsc, READ_Z2);
 
-	/* power down */
+	/* Prepare for next touch reading - power down ADC, enable PENIRQ */
 	tsc2007_xfer(tsc, PWRDOWN);
 
 	return 0;
@@ -311,7 +311,8 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, ts);
 
-	tsc2007_read_values(ts);
+	/* Prepare for touch readings - power down ADC and enable PENIRQ */
+	tsc2007_xfer(ts, PWRDOWN);
 
 	return 0;
 
