@@ -66,6 +66,23 @@ static struct vreg vregs[] = {
 	VREG("s3",	29, 0, 0),
 	VREG("rfubm",	30, 0, 0),
 	VREG("ncp",	31, 0, 0),
+	VREG("gp7",	32, 0, 0),
+	VREG("gp8",	33, 0, 0),
+	VREG("gp9",	34, 0, 0),
+	VREG("gp10",	35, 0, 0),
+	VREG("gp11",	36, 0, 0),
+	VREG("gp12",	37, 0, 0),
+	VREG("gp13",	38, 0, 0),
+	VREG("gp14",	39, 0, 0),
+	VREG("gp15",	40, 0, 0),
+	VREG("gp16",	41, 0, 0),
+	VREG("gp17",	42, 0, 0),
+	VREG("s4",	43, 0, 0),
+	VREG("usb2",	44, 0, 0),
+	VREG("wlan2",	45, 0, 0),
+	VREG("xo_out",	46, 0, 0),
+	VREG("lvsw0",	47, 0, 0),
+	VREG("lvsw1",	48, 0, 0),
 };
 
 struct vreg *vreg_get(struct device *dev, const char *id)
