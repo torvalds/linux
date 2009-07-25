@@ -143,7 +143,7 @@ return_to_sdram:
 unlock_dll:
 	ldr	r11, omap3_sdrc_dlla_ctrl
 	ldr	r12, [r11]
-	and	r12, r12, #FIXEDDELAY_MASK
+	bic	r12, r12, #FIXEDDELAY_MASK
 	orr	r12, r12, #FIXEDDELAY_DEFAULT
 	orr	r12, r12, #DLLIDLE_MASK
 	str	r12, [r11]		@ (no OCP barrier needed)
