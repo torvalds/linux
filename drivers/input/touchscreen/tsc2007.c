@@ -27,7 +27,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c/tsc2007.h>
 
-#define TS_POLL_PERIOD	msecs_to_jiffies(1) /* ms delay between samples */
+#define TS_POLL_DELAY			1 /* ms delay between samples */
+#define TS_POLL_PERIOD			1 /* ms delay between samples */
 
 #define TSC2007_MEASURE_TEMP0		(0x0 << 4)
 #define TSC2007_MEASURE_AUX		(0x2 << 4)
@@ -76,7 +77,7 @@ struct tsc2007 {
 	u16			model;
 	u16			x_plate_ohms;
 
-	unsigned		pendown;
+	bool			pendown;
 	int			irq;
 
 	int			(*get_pendown_state)(void);
@@ -131,18 +132,18 @@ static void tsc2007_send_event(void *tsc)
 	} else
 		rt = 0;
 
-	/* Sample found inconsistent by debouncing or pressure is beyond
+	/*
+	 * Sample found inconsistent by debouncing or pressure is beyond
 	 * the maximum. Don't report it to user space, repeat at least
 	 * once more the measurement
 	 */
 	if (rt > MAX_12BIT) {
 		dev_dbg(&ts->client->dev, "ignored pressure %d\n", rt);
-
-		schedule_delayed_work(&ts->work, TS_POLL_PERIOD);
 		return;
 	}
 
-	/* NOTE: We can't rely on the pressure to determine the pen down
+	/*
+	 * NOTE: We can't rely on the pressure to determine the pen down
 	 * state, even this controller has a pressure sensor.  The pressure
 	 * value can fluctuate for quite a while after lifting the pen and
 	 * in some cases may not even settle at the expected value.
@@ -157,7 +158,7 @@ static void tsc2007_send_event(void *tsc)
 			dev_dbg(&ts->client->dev, "DOWN\n");
 
 			input_report_key(input, BTN_TOUCH, 1);
-			ts->pendown = 1;
+			ts->pendown = true;
 		}
 
 		input_report_abs(input, ABS_X, x);
@@ -169,8 +170,6 @@ static void tsc2007_send_event(void *tsc)
 		dev_dbg(&ts->client->dev, "point(%4d,%4d), pressure (%4u)\n",
 			x, y, rt);
 	}
-
-	schedule_delayed_work(&ts->work, TS_POLL_PERIOD);
 }
 
 static int tsc2007_read_values(struct tsc2007 *tsc)
@@ -195,6 +194,7 @@ static void tsc2007_work(struct work_struct *work)
 {
 	struct tsc2007 *ts =
 		container_of(to_delayed_work(work), struct tsc2007, work);
+
 	if (unlikely(!ts->get_pendown_state() && ts->pendown)) {
 		struct input_dev *input = ts->input;
 
@@ -204,7 +204,7 @@ static void tsc2007_work(struct work_struct *work)
 		input_report_abs(input, ABS_PRESSURE, 0);
 		input_sync(input);
 
-		ts->pendown = 0;
+		ts->pendown = false;
 		enable_irq(ts->irq);
 	} else {
 		/* pen is still down, continue with the measurement */
@@ -212,6 +212,9 @@ static void tsc2007_work(struct work_struct *work)
 
 		tsc2007_read_values(ts);
 		tsc2007_send_event(ts);
+
+		schedule_delayed_work(&ts->work,
+				      msecs_to_jiffies(TS_POLL_PERIOD));
 	}
 }
 
@@ -221,7 +224,8 @@ static irqreturn_t tsc2007_irq(int irq, void *handle)
 
 	if (likely(ts->get_pendown_state())) {
 		disable_irq_nosync(ts->irq);
-		schedule_delayed_work(&ts->work, 0);
+		schedule_delayed_work(&ts->work,
+				      msecs_to_jiffies(TS_POLL_DELAY));
 	}
 
 	if (ts->clear_penirq)
@@ -230,8 +234,21 @@ static irqreturn_t tsc2007_irq(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-static int tsc2007_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static void tsc2007_free_irq(struct tsc2007 *ts)
+{
+	free_irq(ts->irq, ts);
+	if (cancel_delayed_work_sync(&ts->work)) {
+		/*
+		 * Work was pending, therefore we need to enable
+		 * IRQ here to balance the disable_irq() done in the
+		 * interrupt handler.
+		 */
+		enable_irq(ts->irq);
+	}
+}
+
+static int __devinit tsc2007_probe(struct i2c_client *client,
+				   const struct i2c_device_id *id)
 {
 	struct tsc2007 *ts;
 	struct tsc2007_platform_data *pdata = pdata = client->dev.platform_data;
@@ -255,16 +272,14 @@ static int tsc2007_probe(struct i2c_client *client,
 	}
 
 	ts->client = client;
-	i2c_set_clientdata(client, ts);
-
+	ts->irq = client->irq;
 	ts->input = input_dev;
+	INIT_DELAYED_WORK(&ts->work, tsc2007_work);
 
 	ts->model             = pdata->model;
 	ts->x_plate_ohms      = pdata->x_plate_ohms;
 	ts->get_pendown_state = pdata->get_pendown_state;
 	ts->clear_penirq      = pdata->clear_penirq;
-
-	pdata->init_platform_hw();
 
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input0", dev_name(&client->dev));
@@ -280,11 +295,7 @@ static int tsc2007_probe(struct i2c_client *client,
 	input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, MAX_12BIT, 0, 0);
 
-	tsc2007_read_values(ts);
-
-	ts->irq = client->irq;
-
-	INIT_DELAYED_WORK(&ts->work, tsc2007_work);
+	pdata->init_platform_hw();
 
 	err = request_irq(ts->irq, tsc2007_irq, 0,
 			client->dev.driver->name, ts);
@@ -297,29 +308,30 @@ static int tsc2007_probe(struct i2c_client *client,
 	if (err)
 		goto err_free_irq;
 
-	dev_info(&client->dev, "registered with irq (%d)\n", ts->irq);
+	i2c_set_clientdata(client, ts);
+
+	tsc2007_read_values(ts);
 
 	return 0;
 
  err_free_irq:
-	free_irq(ts->irq, ts);
+	tsc2007_free_irq(ts);
+	pdata->exit_platform_hw();
  err_free_mem:
 	input_free_device(input_dev);
 	kfree(ts);
 	return err;
 }
 
-static int tsc2007_remove(struct i2c_client *client)
+static int __devexit tsc2007_remove(struct i2c_client *client)
 {
 	struct tsc2007	*ts = i2c_get_clientdata(client);
-	struct tsc2007_platform_data *pdata;
+	struct tsc2007_platform_data *pdata = client->dev.platform_data;
 
-	cancel_delayed_work_sync(&ts->work);
+	tsc2007_free_irq(ts);
 
-	pdata = client->dev.platform_data;
 	pdata->exit_platform_hw();
 
-	free_irq(ts->irq, ts);
 	input_unregister_device(ts->input);
 	kfree(ts);
 
@@ -340,7 +352,7 @@ static struct i2c_driver tsc2007_driver = {
 	},
 	.id_table	= tsc2007_idtable,
 	.probe		= tsc2007_probe,
-	.remove		= tsc2007_remove,
+	.remove		= __devexit_p(tsc2007_remove),
 };
 
 static int __init tsc2007_init(void)
