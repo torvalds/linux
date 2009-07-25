@@ -19,6 +19,32 @@
 #include <sys/mman.h>
 #include <sched.h>
 
+char unload_heads_path[64];
+
+int set_unload_heads_path(char *device)
+{
+	char devname[64];
+
+	if (strlen(device) <= 5 || strncmp(device, "/dev/", 5) != 0)
+		return -EINVAL;
+	strncpy(devname, device + 5, sizeof(devname));
+
+	snprintf(unload_heads_path, sizeof(unload_heads_path),
+				"/sys/block/%s/device/unload_heads", devname);
+	return 0;
+}
+int valid_disk(void)
+{
+	int fd = open(unload_heads_path, O_RDONLY);
+	if (fd < 0) {
+		perror(unload_heads_path);
+		return 0;
+	}
+
+	close(fd);
+	return 1;
+}
+
 void write_int(char *path, int i)
 {
 	char buf[1024];
@@ -42,7 +68,7 @@ void set_led(int on)
 
 void protect(int seconds)
 {
-	write_int("/sys/block/sda/device/unload_heads", seconds*1000);
+	write_int(unload_heads_path, seconds*1000);
 }
 
 int on_ac(void)
@@ -61,14 +87,27 @@ void ignore_me(void)
 	set_led(0);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
 	int fd, ret;
 	struct sched_param param;
 
+	if (argc == 1)
+		ret = set_unload_heads_path("/dev/sda");
+	else if (argc == 2)
+		ret = set_unload_heads_path(argv[1]);
+	else
+		ret = -EINVAL;
+
+	if (ret || !valid_disk()) {
+		fprintf(stderr, "usage: %s <device> (default: /dev/sda)\n",
+				argv[0]);
+		exit(1);
+	}
+
 	fd = open("/dev/freefall", O_RDONLY);
 	if (fd < 0) {
-		perror("open");
+		perror("/dev/freefall");
 		return EXIT_FAILURE;
 	}
 
