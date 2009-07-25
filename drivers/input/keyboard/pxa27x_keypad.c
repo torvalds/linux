@@ -389,8 +389,9 @@ static void pxa27x_keypad_close(struct input_dev *dev)
 }
 
 #ifdef CONFIG_PM
-static int pxa27x_keypad_suspend(struct platform_device *pdev, pm_message_t state)
+static int pxa27x_keypad_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 
 	clk_disable(keypad->clk);
@@ -401,8 +402,9 @@ static int pxa27x_keypad_suspend(struct platform_device *pdev, pm_message_t stat
 	return 0;
 }
 
-static int pxa27x_keypad_resume(struct platform_device *pdev)
+static int pxa27x_keypad_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = keypad->input_dev;
 
@@ -421,9 +423,11 @@ static int pxa27x_keypad_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define pxa27x_keypad_suspend	NULL
-#define pxa27x_keypad_resume	NULL
+
+static const struct dev_pm_ops pxa27x_keypad_pm_ops = {
+	.suspend	= pxa27x_keypad_suspend,
+	.resume		= pxa27x_keypad_resume,
+};
 #endif
 
 static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
@@ -572,11 +576,12 @@ MODULE_ALIAS("platform:pxa27x-keypad");
 static struct platform_driver pxa27x_keypad_driver = {
 	.probe		= pxa27x_keypad_probe,
 	.remove		= __devexit_p(pxa27x_keypad_remove),
-	.suspend	= pxa27x_keypad_suspend,
-	.resume		= pxa27x_keypad_resume,
 	.driver		= {
 		.name	= "pxa27x-keypad",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &pxa27x_keypad_pm_ops,
+#endif
 	},
 };
 
