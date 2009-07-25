@@ -295,7 +295,8 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 	input_set_abs_params(input_dev, ABS_Y, 0, MAX_12BIT, 0, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, MAX_12BIT, 0, 0);
 
-	pdata->init_platform_hw();
+	if (pdata->init_platform_hw)
+		pdata->init_platform_hw();
 
 	err = request_irq(ts->irq, tsc2007_irq, 0,
 			client->dev.driver->name, ts);
@@ -316,7 +317,8 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 
  err_free_irq:
 	tsc2007_free_irq(ts);
-	pdata->exit_platform_hw();
+	if (pdata->exit_platform_hw)
+		pdata->exit_platform_hw();
  err_free_mem:
 	input_free_device(input_dev);
 	kfree(ts);
@@ -330,7 +332,8 @@ static int __devexit tsc2007_remove(struct i2c_client *client)
 
 	tsc2007_free_irq(ts);
 
-	pdata->exit_platform_hw();
+	if (pdata->exit_platform_hw)
+		pdata->exit_platform_hw();
 
 	input_unregister_device(ts->input);
 	kfree(ts);
