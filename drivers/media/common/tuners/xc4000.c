@@ -36,7 +36,7 @@
 #include "tuner-i2c.h"
 #include "tuner-xc2028-types.h"
 
-static int debug;
+static int debug=1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
@@ -52,8 +52,8 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 #define dprintk(level, fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc4000", ## arg)
 
-#define XC4000_DEFAULT_FIRMWARE "xc4000-01.fw"
-#define XC4000_DEFAULT_FIRMWARE_SIZE 8434
+#define XC4000_DEFAULT_FIRMWARE "xc4000-02.fw"
+#define XC4000_DEFAULT_FIRMWARE_SIZE 18643
 
 
 /* struct for storing firmware table */
@@ -85,6 +85,10 @@ struct xc4000_priv {
 	u32 bandwidth;
 	u8  video_standard;
 	u8  rf_mode;
+//	struct xc2028_ctrl	ctrl;
+	struct firmware_properties cur_fw;
+	__u16			hwmodel;
+	__u16			hwvers;
 };
 
 /* Misc Defines */
@@ -568,6 +572,73 @@ static int xc4000_readreg(struct xc4000_priv *priv, u16 reg, u16 *val)
 	return XC_RESULT_SUCCESS;
 }
 
+#define dump_firm_type(t) 	dump_firm_type_and_int_freq(t, 0)
+static void dump_firm_type_and_int_freq(unsigned int type, u16 int_freq)
+{
+	 if (type & BASE)
+		printk("BASE ");
+	 if (type & INIT1)
+		printk("INIT1 ");
+	 if (type & F8MHZ)
+		printk("F8MHZ ");
+	 if (type & MTS)
+		printk("MTS ");
+	 if (type & D2620)
+		printk("D2620 ");
+	 if (type & D2633)
+		printk("D2633 ");
+	 if (type & DTV6)
+		printk("DTV6 ");
+	 if (type & QAM)
+		printk("QAM ");
+	 if (type & DTV7)
+		printk("DTV7 ");
+	 if (type & DTV78)
+		printk("DTV78 ");
+	 if (type & DTV8)
+		printk("DTV8 ");
+	 if (type & FM)
+		printk("FM ");
+	 if (type & INPUT1)
+		printk("INPUT1 ");
+	 if (type & LCD)
+		printk("LCD ");
+	 if (type & NOGD)
+		printk("NOGD ");
+	 if (type & MONO)
+		printk("MONO ");
+	 if (type & ATSC)
+		printk("ATSC ");
+	 if (type & IF)
+		printk("IF ");
+	 if (type & LG60)
+		printk("LG60 ");
+	 if (type & ATI638)
+		printk("ATI638 ");
+	 if (type & OREN538)
+		printk("OREN538 ");
+	 if (type & OREN36)
+		printk("OREN36 ");
+	 if (type & TOYOTA388)
+		printk("TOYOTA388 ");
+	 if (type & TOYOTA794)
+		printk("TOYOTA794 ");
+	 if (type & DIBCOM52)
+		printk("DIBCOM52 ");
+	 if (type & ZARLINK456)
+		printk("ZARLINK456 ");
+	 if (type & CHINA)
+		printk("CHINA ");
+	 if (type & F6MHZ)
+		printk("F6MHZ ");
+	 if (type & INPUT2)
+		printk("INPUT2 ");
+	 if (type & SCODE)
+		printk("SCODE ");
+	 if (type & HAS_IF)
+		printk("HAS_IF_%d ", int_freq);
+}
+
 static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 			 v4l2_std_id *id)
 {
@@ -577,7 +648,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 
 	printk("%s called, want type=", __func__);
 	if (debug) {
-//		dump_firm_type(type);
+		dump_firm_type(type);
 		printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
 	}
 
@@ -653,8 +724,10 @@ found:
 ret:
 	printk("%s firmware for type=", (i < 0) ? "Can't find" : "Found");
 	if (debug) {
-//		dump_firm_type(type);
+		dump_firm_type(type);
 		printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
+		if (i < 0)
+			dump_stack();
 	}
 	return i;
 }
@@ -680,7 +753,6 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	p = priv->firm[pos].ptr;
 
 	rc = xc_load_i2c_sequence(fe, p);
-	printk("load i2c sequence result=%d\n", rc);
 
 	return rc;
 }
@@ -791,9 +863,10 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 			rc = -ENOMEM;
 			goto err;
 		}
-		printk("Reading firmware type ");
+
 		if (debug) {
-//			dump_firm_type_and_int_freq(type, int_freq);
+			printk("Reading firmware type ");
+			dump_firm_type_and_int_freq(type, int_freq);
 			printk("(%x), id %llx, size=%d.\n",
 			       type, (unsigned long long)id, size);
 		}
@@ -832,6 +905,253 @@ done:
 	return rc;
 }
 
+static int load_scode(struct dvb_frontend *fe, unsigned int type,
+			 v4l2_std_id *id, __u16 int_freq, int scode)
+{
+	struct xc4000_priv *priv = fe->tuner_priv;
+	int                pos, rc;
+	unsigned char	   *p;
+	u8 direct_mode[4];
+	u8 indirect_mode[5];
+
+	dprintk(1, "%s called\n", __func__);
+
+	if (!int_freq) {
+		pos = seek_firmware(fe, type, id);
+		if (pos < 0)
+			return pos;
+	} else {
+		for (pos = 0; pos < priv->firm_size; pos++) {
+			if ((priv->firm[pos].int_freq == int_freq) &&
+			    (priv->firm[pos].type & HAS_IF))
+				break;
+		}
+		if (pos == priv->firm_size)
+			return -ENOENT;
+	}
+
+	p = priv->firm[pos].ptr;
+
+	if (priv->firm[pos].type & HAS_IF) {
+		if (priv->firm[pos].size != 12 * 16 || scode >= 16)
+			return -EINVAL;
+		p += 12 * scode;
+	} else {
+		/* 16 SCODE entries per file; each SCODE entry is 12 bytes and
+		 * has a 2-byte size header in the firmware format. */
+		if (priv->firm[pos].size != 14 * 16 || scode >= 16 ||
+		    le16_to_cpu(*(__u16 *)(p + 14 * scode)) != 12)
+			return -EINVAL;
+		p += 14 * scode + 2;
+	}
+
+	tuner_info("Loading SCODE for type=");
+	dump_firm_type_and_int_freq(priv->firm[pos].type,
+				    priv->firm[pos].int_freq);
+	printk("(%x), id %016llx.\n", priv->firm[pos].type,
+	       (unsigned long long)*id);
+
+
+	/* Enter direct-mode */
+	memset(direct_mode, 0, sizeof(direct_mode));
+	direct_mode[1] = 0x05;
+	rc = xc_send_i2c_data(priv, direct_mode, sizeof(direct_mode));
+	if (rc < 0)
+		return -EIO;
+
+	rc = xc_send_i2c_data(priv, p, 12);
+	if (rc != XC_RESULT_SUCCESS)
+		return -EIO;
+
+	/* Switch back to indirect-mode */
+	memset(indirect_mode, 0, sizeof(indirect_mode));
+	indirect_mode[4] = 0x88;
+	rc = xc_send_i2c_data(priv, indirect_mode, sizeof(indirect_mode));
+	if (rc < 0)
+		return -EIO;
+
+	return 0;
+}
+
+static int check_firmware(struct dvb_frontend *fe, unsigned int type,
+			  v4l2_std_id std, __u16 int_freq)
+{
+	struct xc4000_priv         *priv = fe->tuner_priv;
+	struct firmware_properties new_fw;
+	int			   rc = 0, is_retry = 0;
+	u16			   version, hwmodel;
+	v4l2_std_id		   std0;
+	u8 		   	   hw_major, hw_minor, fw_major, fw_minor;
+
+	dprintk(1, "%s called\n", __func__);
+
+	if (!priv->firm) {
+		rc = xc4000_fwupload(fe);
+		if (rc < 0)
+			return rc;
+	}
+
+#ifdef DJH_DEBUG
+	if (priv->ctrl.mts && !(type & FM))
+		type |= MTS;
+#endif
+
+retry:
+	new_fw.type = type;
+	new_fw.id = std;
+	new_fw.std_req = std;
+//	new_fw.scode_table = SCODE | priv->ctrl.scode_table;
+	new_fw.scode_table = SCODE;
+	new_fw.scode_nr = 0;
+	new_fw.int_freq = int_freq;
+
+	dprintk(1, "checking firmware, user requested type=");
+	if (debug) {
+		dump_firm_type(new_fw.type);
+		printk("(%x), id %016llx, ", new_fw.type,
+		       (unsigned long long)new_fw.std_req);
+		if (!int_freq) {
+			printk("scode_tbl ");
+#ifdef DJH_DEBUG
+			dump_firm_type(priv->ctrl.scode_table);
+			printk("(%x), ", priv->ctrl.scode_table);
+#endif
+		} else
+			printk("int_freq %d, ", new_fw.int_freq);
+		printk("scode_nr %d\n", new_fw.scode_nr);
+	}
+
+	/* No need to reload base firmware if it matches */
+	if (((BASE | new_fw.type) & BASE_TYPES) ==
+	    (priv->cur_fw.type & BASE_TYPES)) {
+		dprintk(1, "BASE firmware not changed.\n");
+		goto skip_base;
+	}
+
+	/* Updating BASE - forget about all currently loaded firmware */
+	memset(&priv->cur_fw, 0, sizeof(priv->cur_fw));
+
+	/* Reset is needed before loading firmware */
+	rc = xc4000_TunerReset(fe);
+	if (rc < 0)
+		goto fail;
+
+	/* BASE firmwares are all std0 */
+	std0 = 0;
+	rc = load_firmware(fe, BASE | new_fw.type, &std0);
+	if (rc < 0) {
+		printk("Error %d while loading base firmware\n", rc);
+		goto fail;
+	}
+
+	/* Load INIT1, if needed */
+	dprintk(1, "Load init1 firmware, if exists\n");
+
+	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &std0);
+	if (rc == -ENOENT)
+		rc = load_firmware(fe, (BASE | INIT1 | new_fw.type) & ~F8MHZ,
+				   &std0);
+	if (rc < 0 && rc != -ENOENT) {
+		tuner_err("Error %d while loading init1 firmware\n",
+			  rc);
+		goto fail;
+	}
+
+skip_base:
+	/*
+	 * No need to reload standard specific firmware if base firmware
+	 * was not reloaded and requested video standards have not changed.
+	 */
+	if (priv->cur_fw.type == (BASE | new_fw.type) &&
+	    priv->cur_fw.std_req == std) {
+		dprintk(1, "Std-specific firmware already loaded.\n");
+		goto skip_std_specific;
+	}
+
+	/* Reloading std-specific firmware forces a SCODE update */
+	priv->cur_fw.scode_table = 0;
+
+	rc = load_firmware(fe, new_fw.type, &new_fw.id);
+	if (rc == -ENOENT)
+		rc = load_firmware(fe, new_fw.type & ~F8MHZ, &new_fw.id);
+
+	if (rc < 0)
+		goto fail;
+
+skip_std_specific:
+	if (priv->cur_fw.scode_table == new_fw.scode_table &&
+	    priv->cur_fw.scode_nr == new_fw.scode_nr) {
+		dprintk(1, "SCODE firmware already loaded.\n");
+		goto check_device;
+	}
+
+	if (new_fw.type & FM)
+		goto check_device;
+
+	/* Load SCODE firmware, if exists */
+	dprintk(1, "Trying to load scode %d\n", new_fw.scode_nr);
+
+	rc = load_scode(fe, new_fw.type | new_fw.scode_table, &new_fw.id,
+			new_fw.int_freq, new_fw.scode_nr);
+
+check_device:
+	rc = xc4000_readreg(priv, XREG_PRODUCT_ID, &hwmodel);
+
+	if (xc_get_version(priv, &hw_major, &hw_minor, &fw_major, 
+			   &fw_minor) != XC_RESULT_SUCCESS) {
+		printk("Unable to read tuner registers.\n");
+		goto fail;
+	}
+
+	dprintk(1, "Device is Xceive %d version %d.%d, "
+		"firmware version %d.%d\n",
+		hwmodel, hw_major, hw_minor, fw_major, fw_minor);
+
+	/* Check firmware version against what we downloaded. */
+#ifdef DJH_DEBUG
+	if (priv->firm_version != ((version & 0xf0) << 4 | (version & 0x0f))) {
+		printk("Incorrect readback of firmware version %x.\n",
+		       (version & 0xff));
+		goto fail;
+	}
+#endif
+
+	/* Check that the tuner hardware model remains consistent over time. */
+	if (priv->hwmodel == 0 && hwmodel == 4000) {
+		priv->hwmodel = hwmodel;
+		priv->hwvers  = version & 0xff00;
+	} else if (priv->hwmodel == 0 || priv->hwmodel != hwmodel ||
+		   priv->hwvers != (version & 0xff00)) {
+		printk("Read invalid device hardware information - tuner "
+			  "hung?\n");
+		goto fail;
+	}
+
+	memcpy(&priv->cur_fw, &new_fw, sizeof(priv->cur_fw));
+
+	/*
+	 * By setting BASE in cur_fw.type only after successfully loading all
+	 * firmwares, we can:
+	 * 1. Identify that BASE firmware with type=0 has been loaded;
+	 * 2. Tell whether BASE firmware was just changed the next time through.
+	 */
+	priv->cur_fw.type |= BASE;
+
+	return 0;
+
+fail:
+	memset(&priv->cur_fw, 0, sizeof(priv->cur_fw));
+	if (!is_retry) {
+		msleep(50);
+		is_retry = 1;
+		dprintk(1, "Retrying firmware load\n");
+		goto retry;
+	}
+
+	if (rc == -ENOENT)
+		rc = -EINVAL;
+	return rc;
+}
 
 static void xc_debug_dump(struct xc4000_priv *priv)
 {
@@ -1295,6 +1615,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 
 	/* FIXME: For now, load the firmware at startup.  We will remove this
 	   before the code goes to production... */
+#ifdef DJH_DEBUG
 	xc4000_fwupload(fe);
 	printk("xc4000_fwupload done\n");
 
@@ -1308,11 +1629,13 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	}
 
 	/* Load INIT1, if needed */
-	tuner_dbg("Load init1 firmware, if exists\n");
+	dprintk("Load init1 firmware, if exists\n");
 
 //	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &std0);
 	rc = load_firmware(fe, BASE | INIT1, &std0);
 	printk("init1 load result %x\n", rc);
+#endif
+	check_firmware(fe, DTV8, 0, 5400);
 
 	if (xc4000_readreg(priv, XREG_PRODUCT_ID, &id) != XC_RESULT_SUCCESS)
 			goto fail;
