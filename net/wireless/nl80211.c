@@ -4517,10 +4517,10 @@ void nl80211_send_reg_change_event(struct regulatory_request *request)
 		return;
 	}
 
-	rtnl_lock();
+	rcu_read_lock();
 	genlmsg_multicast_allns(msg, 0, nl80211_regulatory_mcgrp.id,
-				GFP_KERNEL);
-	rtnl_unlock();
+				GFP_ATOMIC);
+	rcu_read_unlock();
 
 	return;
 
