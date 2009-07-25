@@ -2003,6 +2003,9 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	case RX_MGMT_CFG80211_ASSOC:
 		cfg80211_send_rx_assoc(sdata->dev, (u8 *) mgmt, skb->len);
 		break;
+	case RX_MGMT_CFG80211_DEAUTH:
+		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len, NULL);
+		break;
 	default:
 		WARN(1, "unexpected: %d", rma);
 	}
@@ -2498,8 +2501,13 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	/* cfg80211 should catch this... */
-	if (WARN_ON(!bssid)) {
+	/*
+	 * cfg80211 should catch this ... but it's racy since
+	 * we can receive a deauth frame, process it, hand it
+	 * to cfg80211 while that's in a locked section already
+	 * trying to tell us that the user wants to disconnect.
+	 */
+	if (!bssid) {
 		mutex_unlock(&ifmgd->mtx);
 		return -ENOLINK;
 	}
@@ -2524,8 +2532,13 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	mutex_lock(&ifmgd->mtx);
 
-	/* cfg80211 should catch that */
-	if (WARN_ON(&ifmgd->associated->cbss != req->bss)) {
+	/*
+	 * cfg80211 should catch this ... but it's racy since
+	 * we can receive a disassoc frame, process it, hand it
+	 * to cfg80211 while that's in a locked section already
+	 * trying to tell us that the user wants to disconnect.
+	 */
+	if (&ifmgd->associated->cbss != req->bss) {
 		mutex_unlock(&ifmgd->mtx);
 		return -ENOLINK;
 	}
