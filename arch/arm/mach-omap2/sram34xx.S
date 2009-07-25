@@ -58,7 +58,6 @@
 
 /* SDRC_POWER bit settings */
 #define SRFRONIDLEREQ_MASK		0x40
-#define PWDENA_MASK			0x4
 
 /* CM_IDLEST1_CORE bit settings */
 #define ST_SDRC_MASK			0x2
@@ -160,7 +159,6 @@ sdram_in_selfrefresh:
 	ldr	r12, [r11]		@ read the contents of SDRC_POWER
 	mov	r9, r12			@ keep a copy of SDRC_POWER bits
 	orr 	r12, r12, #SRFRONIDLEREQ_MASK	@ enable self refresh on idle
-	bic 	r12, r12, #PWDENA_MASK	@ clear PWDENA
 	str 	r12, [r11]		@ write back to SDRC_POWER register
 	ldr	r12, [r11]		@ posted-write barrier for SDRC
 idle_sdrc:

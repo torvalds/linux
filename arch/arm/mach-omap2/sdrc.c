@@ -125,8 +125,11 @@ void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 	sdrc_init_params_cs1 = sdrc_cs1;
 
 	/* XXX Enable SRFRONIDLEREQ here also? */
+	/*
+	 * PWDENA should not be set due to 34xx erratum 1.150 - PWDENA
+	 * can cause random memory corruption
+	 */
 	l = (1 << SDRC_POWER_EXTCLKDIS_SHIFT) |
-		(1 << SDRC_POWER_PWDENA_SHIFT) |
 		(1 << SDRC_POWER_PAGEPOLICY_SHIFT);
 	sdrc_write_reg(l, SDRC_POWER);
 }
