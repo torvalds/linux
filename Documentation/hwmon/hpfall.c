@@ -16,6 +16,8 @@
 #include <stdint.h>
 #include <errno.h>
 #include <signal.h>
+#include <sys/mman.h>
+#include <sched.h>
 
 void write_int(char *path, int i)
 {
@@ -62,12 +64,18 @@ void ignore_me(void)
 int main(int argc, char *argv[])
 {
 	int fd, ret;
+	struct sched_param param;
 
 	fd = open("/dev/freefall", O_RDONLY);
 	if (fd < 0) {
 		perror("open");
 		return EXIT_FAILURE;
 	}
+
+	daemon(0, 0);
+	param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+	sched_setscheduler(0, SCHED_FIFO, &param);
+	mlockall(MCL_CURRENT|MCL_FUTURE);
 
 	signal(SIGALRM, ignore_me);
 
