@@ -75,6 +75,10 @@ static void __init rx51_init(void)
 	omap_serial_init();
 	usb_musb_init();
 	rx51_peripherals_init();
+
+	/* Ensure SDRC pins are mux'd for self-refresh */
+	omap_cfg_reg(H16_34XX_SDRC_CKE0);
+	omap_cfg_reg(H17_34XX_SDRC_CKE1);
 }
 
 static void __init rx51_map_io(void)
