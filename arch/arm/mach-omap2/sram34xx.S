@@ -127,6 +127,8 @@ skip_cs1_params:
 	blne	lock_dll
 	bl	sdram_in_selfrefresh	@ put SDRAM in self refresh, idle SDRC
 	bl 	configure_core_dpll	@ change the DPLL3 M2 divider
+	mov	r12, r2
+	bl	wait_clk_stable		@ wait for SDRC to stabilize
 	bl	enable_sdrc		@ take SDRC out of idle
 	cmp	r1, #SDRC_UNLOCK_DLL	@ wait for DLL status to change
 	bleq	wait_dll_unlock
@@ -134,8 +136,6 @@ skip_cs1_params:
 	cmp	r3, #1			@ if increasing SDRC clk rate,
 	beq	return_to_sdram		@ return to SDRAM code, otherwise,
 	bl	configure_sdrc		@ reprogram SDRC regs now
-	mov	r12, r2
-	bl	wait_clk_stable		@ wait for SDRC to stabilize
 return_to_sdram:
 	isb				@ prevent speculative exec past here
 	mov 	r0, #0 			@ return value
