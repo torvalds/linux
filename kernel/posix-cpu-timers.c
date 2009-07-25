@@ -274,7 +274,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 	struct task_cputime sum;
 	unsigned long flags;
 
-	spin_lock_irqsave(&cputimer->lock, flags);
+	raw_spin_lock_irqsave(&cputimer->lock, flags);
 	if (!cputimer->running) {
 		cputimer->running = 1;
 		/*
@@ -287,7 +287,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 		update_gt_cputime(&cputimer->cputime, &sum);
 	}
 	*times = cputimer->cputime;
-	spin_unlock_irqrestore(&cputimer->lock, flags);
+	raw_spin_unlock_irqrestore(&cputimer->lock, flags);
 }
 
 /*
@@ -997,9 +997,9 @@ static void stop_process_timers(struct signal_struct *sig)
 	struct thread_group_cputimer *cputimer = &sig->cputimer;
 	unsigned long flags;
 
-	spin_lock_irqsave(&cputimer->lock, flags);
+	raw_spin_lock_irqsave(&cputimer->lock, flags);
 	cputimer->running = 0;
-	spin_unlock_irqrestore(&cputimer->lock, flags);
+	raw_spin_unlock_irqrestore(&cputimer->lock, flags);
 }
 
 static u32 onecputick;
@@ -1289,9 +1289,9 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	if (sig->cputimer.running) {
 		struct task_cputime group_sample;
 
-		spin_lock(&sig->cputimer.lock);
+		raw_spin_lock(&sig->cputimer.lock);
 		group_sample = sig->cputimer.cputime;
-		spin_unlock(&sig->cputimer.lock);
+		raw_spin_unlock(&sig->cputimer.lock);
 
 		if (task_cputime_expired(&group_sample, &sig->cputime_expires))
 			return 1;
