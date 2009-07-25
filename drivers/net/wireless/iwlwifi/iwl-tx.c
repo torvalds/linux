@@ -1171,6 +1171,8 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 		IWL_ERR(priv, "Start AGG on invalid station\n");
 		return -ENXIO;
 	}
+	if (unlikely(tid >= MAX_TID_COUNT))
+		return -EINVAL;
 
 	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_OFF) {
 		IWL_ERR(priv, "Start AGG when state is not IWL_AGG_OFF !\n");
