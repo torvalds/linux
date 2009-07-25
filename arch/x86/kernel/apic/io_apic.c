@@ -1830,7 +1830,7 @@ __apicdebuginit(void) print_PIC(void)
 
 	printk(KERN_DEBUG "\nprinting PIC contents\n");
 
-	spin_lock_irqsave(&i8259A_lock, flags);
+	raw_spin_lock_irqsave(&i8259A_lock, flags);
 
 	v = inb(0xa1) << 8 | inb(0x21);
 	printk(KERN_DEBUG "... PIC  IMR: %04x\n", v);
@@ -1844,7 +1844,7 @@ __apicdebuginit(void) print_PIC(void)
 	outb(0x0a,0xa0);
 	outb(0x0a,0x20);
 
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 
 	printk(KERN_DEBUG "... PIC  ISR: %04x\n", v);
 
