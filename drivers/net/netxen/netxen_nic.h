@@ -304,6 +304,10 @@ struct netxen_ring_ctx {
 #define FLAGS_IPSEC_SA_ADD	0x04
 #define FLAGS_IPSEC_SA_DELETE	0x08
 #define FLAGS_VLAN_TAGGED	0x10
+#define FLAGS_VLAN_OOB		0x40
+
+#define netxen_set_tx_vlan_tci(cmd_desc, v)	\
+	(cmd_desc)->vlan_TCI = cpu_to_le16(v);
 
 #define netxen_set_cmd_desc_port(cmd_desc, var)	\
 	((cmd_desc)->port_ctxid |= ((var) & 0x0F))
@@ -342,7 +346,9 @@ struct cmd_desc_type0 {
 
 	__le64 addr_buffer4;
 
-	__le64 unused;
+	__le16 vlan_TCI;
+	__le16 reserved;
+	__le32 reserved2;
 
 } __attribute__ ((aligned(64)));
 
@@ -1111,6 +1117,9 @@ typedef struct {
 
 #define NX_FW_CAPABILITY_LINK_NOTIFICATION	(1 << 5)
 #define NX_FW_CAPABILITY_SWITCHING		(1 << 6)
+#define NX_FW_CAPABILITY_PEXQ			(1 << 7)
+#define NX_FW_CAPABILITY_BDG			(1 << 8)
+#define NX_FW_CAPABILITY_FVLANTX		(1 << 9)
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1

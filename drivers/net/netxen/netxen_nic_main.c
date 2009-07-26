@@ -1016,6 +1016,9 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
 
+	if (adapter->capabilities & NX_FW_CAPABILITY_FVLANTX)
+		netdev->features |= (NETIF_F_HW_VLAN_TX);
+
 	netdev->irq = adapter->msix_entries[0].vector;
 
 	err = netxen_napi_add(adapter, netdev);
@@ -1333,15 +1336,24 @@ netxen_tso_check(struct net_device *netdev,
 {
 	u8 opcode = TX_ETHER_PKT;
 	__be16 protocol = skb->protocol;
-	u16 flags = 0;
+	u16 flags = 0, vid = 0;
 	u32 producer;
-	int copied, offset, copy_len, hdr_len = 0, tso = 0;
+	int copied, offset, copy_len, hdr_len = 0, tso = 0, vlan_oob = 0;
 	struct cmd_desc_type0 *hwdesc;
+	struct vlan_ethhdr *vh;
 
 	if (protocol == cpu_to_be16(ETH_P_8021Q)) {
-		struct vlan_ethhdr *vh = (struct vlan_ethhdr *)skb->data;
+
+		vh = (struct vlan_ethhdr *)skb->data;
 		protocol = vh->h_vlan_encapsulated_proto;
 		flags = FLAGS_VLAN_TAGGED;
+
+	} else if (vlan_tx_tag_present(skb)) {
+
+		flags = FLAGS_VLAN_OOB;
+		vid = vlan_tx_tag_get(skb);
+		netxen_set_tx_vlan_tci(first_desc, vid);
+		vlan_oob = 1;
 	}
 
 	if ((netdev->features & (NETIF_F_TSO | NETIF_F_TSO6)) &&
@@ -1351,6 +1363,13 @@ netxen_tso_check(struct net_device *netdev,
 
 		first_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
 		first_desc->total_hdr_length = hdr_len;
+		if (vlan_oob) {
+			first_desc->total_hdr_length += VLAN_HLEN;
+			first_desc->tcp_hdr_offset = VLAN_HLEN;
+			first_desc->ip_hdr_offset = VLAN_HLEN;
+			/* Only in case of TSO on vlan device */
+			flags |= FLAGS_VLAN_TAGGED;
+		}
 
 		opcode = (protocol == cpu_to_be16(ETH_P_IPV6)) ?
 				TX_TCP_LSO6 : TX_TCP_LSO;
@@ -1375,8 +1394,9 @@ netxen_tso_check(struct net_device *netdev,
 				opcode = TX_UDPV6_PKT;
 		}
 	}
-	first_desc->tcp_hdr_offset = skb_transport_offset(skb);
-	first_desc->ip_hdr_offset = skb_network_offset(skb);
+
+	first_desc->tcp_hdr_offset += skb_transport_offset(skb);
+	first_desc->ip_hdr_offset += skb_network_offset(skb);
 	netxen_set_tx_flags_opcode(first_desc, flags, opcode);
 
 	if (!tso)
@@ -1388,6 +1408,28 @@ netxen_tso_check(struct net_device *netdev,
 	producer = tx_ring->producer;
 	copied = 0;
 	offset = 2;
+
+	if (vlan_oob) {
+		/* Create a TSO vlan header template for firmware */
+
+		hwdesc = &tx_ring->desc_head[producer];
+		tx_ring->cmd_buf_arr[producer].skb = NULL;
+
+		copy_len = min((int)sizeof(struct cmd_desc_type0) - offset,
+				hdr_len + VLAN_HLEN);
+
+		vh = (struct vlan_ethhdr *)((char *)hwdesc + 2);
+		skb_copy_from_linear_data(skb, vh, 12);
+		vh->h_vlan_proto = htons(ETH_P_8021Q);
+		vh->h_vlan_TCI = htons(vid);
+		skb_copy_from_linear_data_offset(skb, 12,
+				(char *)vh + 16, copy_len - 16);
+
+		copied = copy_len;
+		offset = 0;
+
+		producer = get_next_index(producer, tx_ring->num_desc);
+	}
 
 	while (copied < hdr_len) {
 
