@@ -57,7 +57,7 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (auth_alg == WLAN_AUTH_OPEN && auth_transaction == 1)
 		ieee80211_send_auth(sdata, 2, WLAN_AUTH_OPEN, NULL, 0,
-				    sdata->u.ibss.bssid, 0);
+				    sdata->u.ibss.bssid, NULL, 0, 0);
 }
 
 static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
@@ -494,7 +494,7 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 
 	capability = WLAN_CAPABILITY_IBSS;
 
-	if (sdata->default_key)
+	if (ifibss->privacy)
 		capability |= WLAN_CAPABILITY_PRIVACY;
 	else
 		sdata->drop_unencrypted = 0;
@@ -524,9 +524,8 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	capability = WLAN_CAPABILITY_IBSS;
-	if (sdata->default_key)
+	if (ifibss->privacy)
 		capability |= WLAN_CAPABILITY_PRIVACY;
-
 	if (ifibss->fixed_bssid)
 		bssid = ifibss->bssid;
 	if (ifibss->fixed_channel)
@@ -871,6 +870,8 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 		sdata->u.ibss.fixed_bssid = true;
 	} else
 		sdata->u.ibss.fixed_bssid = false;
+
+	sdata->u.ibss.privacy = params->privacy;
 
 	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
 

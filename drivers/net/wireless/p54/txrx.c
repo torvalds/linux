@@ -87,9 +87,6 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 	u32 target_addr = priv->rx_start;
 	u16 len = priv->headroom + skb->len + priv->tailroom + 3;
 
-	if (unlikely(WARN_ON(!skb || !priv)))
-		return -EINVAL;
-
 	info = IEEE80211_SKB_CB(skb);
 	range = (void *) info->rate_driver_data;
 	len = (range->extra_len + len) & ~0x3;
@@ -110,11 +107,6 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 		info = IEEE80211_SKB_CB(entry);
 		range = (void *) info->rate_driver_data;
 		hole_size = range->start_addr - last_addr;
-
-		if (!entry->next) {
-			spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
-			return -ENOSPC;
-		}
 
 		if (!target_skb && hole_size >= len) {
 			target_skb = entry->prev;
@@ -142,9 +134,13 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 	range = (void *) info->rate_driver_data;
 	range->start_addr = target_addr;
 	range->end_addr = target_addr + len;
+	data->req_id = cpu_to_le32(target_addr + priv->headroom);
+	if (IS_DATA_FRAME(skb) &&
+	    unlikely(GET_HW_QUEUE(skb) == P54_QUEUE_BEACON))
+		priv->beacon_req_id = data->req_id;
+
 	__skb_queue_after(&priv->tx_queue, target_skb, skb);
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
-	data->req_id = cpu_to_le32(target_addr + priv->headroom);
 	return 0;
 }
 
@@ -152,9 +148,6 @@ static void p54_tx_pending(struct p54_common *priv)
 {
 	struct sk_buff *skb;
 	int ret;
-
-	if (unlikely(WARN_ON(!priv)))
-		return ;
 
 	skb = skb_dequeue(&priv->tx_pending);
 	if (unlikely(!skb))
@@ -219,14 +212,20 @@ static int p54_tx_qos_accounting_alloc(struct p54_common *priv,
 static void p54_tx_qos_accounting_free(struct p54_common *priv,
 				       struct sk_buff *skb)
 {
-	if (skb && IS_DATA_FRAME(skb)) {
-		struct p54_hdr *hdr = (void *) skb->data;
-		struct p54_tx_data *data = (void *) hdr->data;
+	if (IS_DATA_FRAME(skb)) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&priv->tx_stats_lock, flags);
-		priv->tx_stats[data->hw_queue].len--;
+		priv->tx_stats[GET_HW_QUEUE(skb)].len--;
 		spin_unlock_irqrestore(&priv->tx_stats_lock, flags);
+
+		if (unlikely(GET_HW_QUEUE(skb) == P54_QUEUE_BEACON)) {
+			if (priv->beacon_req_id == GET_REQ_ID(skb)) {
+				/* this is the  active beacon set anymore */
+				priv->beacon_req_id = 0;
+			}
+			complete(&priv->beacon_comp);
+		}
 	}
 	p54_wake_queues(priv);
 }
@@ -266,9 +265,6 @@ static struct sk_buff *p54_find_and_unlink_skb(struct p54_common *priv,
 
 void p54_tx(struct p54_common *priv, struct sk_buff *skb)
 {
-	if (unlikely(WARN_ON(!priv)))
-		return ;
-
 	skb_queue_tail(&priv->tx_pending, skb);
 	p54_tx_pending(priv);
 }
@@ -286,6 +282,45 @@ static int p54_rssi_to_dbm(struct p54_common *priv, int rssi)
 		 */
 		return ((rssi * priv->rssical_db[band].mul) / 64 +
 			 priv->rssical_db[band].add) / 4;
+}
+
+/*
+ * Even if the firmware is capable of dealing with incoming traffic,
+ * while dozing, we have to prepared in case mac80211 uses PS-POLL
+ * to retrieve outstanding frames from our AP.
+ * (see comment in net/mac80211/mlme.c @ line 1993)
+ */
+static void p54_pspoll_workaround(struct p54_common *priv, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (void *) skb->data;
+	struct ieee80211_tim_ie *tim_ie;
+	u8 *tim;
+	u8 tim_len;
+	bool new_psm;
+
+	/* only beacons have a TIM IE */
+	if (!ieee80211_is_beacon(hdr->frame_control))
+		return;
+
+	if (!priv->aid)
+		return;
+
+	/* only consider beacons from the associated BSSID */
+	if (compare_ether_addr(hdr->addr3, priv->bssid))
+		return;
+
+	tim = p54_find_ie(skb, WLAN_EID_TIM);
+	if (!tim)
+		return;
+
+	tim_len = tim[1];
+	tim_ie = (struct ieee80211_tim_ie *) &tim[2];
+
+	new_psm = ieee80211_check_tim(tim_ie, tim_len, priv->aid);
+	if (new_psm != priv->powersave_override) {
+		priv->powersave_override = new_psm;
+		p54_set_ps(priv);
+	}
 }
 
 static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
@@ -340,6 +375,9 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 
 	skb_pull(skb, header_len);
 	skb_trim(skb, le16_to_cpu(hdr->len));
+	if (unlikely(priv->hw->conf.flags & IEEE80211_CONF_PS))
+		p54_pspoll_workaround(priv, skb);
+
 	ieee80211_rx_irqsafe(priv->hw, skb);
 
 	queue_delayed_work(priv->hw->workqueue, &priv->work,
@@ -375,10 +413,6 @@ static void p54_rx_frame_sent(struct p54_common *priv, struct sk_buff *skb)
 	 * and we don't want to confuse the mac80211 stack.
 	 */
 	if (unlikely(entry_data->hw_queue < P54_QUEUE_FWSCAN)) {
-		if (entry_data->hw_queue == P54_QUEUE_BEACON &&
-		    hdr->req_id == priv->beacon_req_id)
-			priv->beacon_req_id = cpu_to_le32(0);
-
 		dev_kfree_skb_any(entry);
 		return ;
 	}

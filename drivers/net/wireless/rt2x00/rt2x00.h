@@ -245,7 +245,7 @@ struct link_ant {
 	struct antenna_setup active;
 
 	/*
-	 * RSSI information for the different antenna's.
+	 * RSSI information for the different antennas.
 	 * These statistics are used to determine when
 	 * to switch antenna when using software diversity.
 	 *
@@ -594,7 +594,6 @@ enum rt2x00_flags {
 	DEVICE_STATE_INITIALIZED,
 	DEVICE_STATE_STARTED,
 	DEVICE_STATE_ENABLED_RADIO,
-	DEVICE_STATE_DISABLED_RADIO_HW,
 
 	/*
 	 * Driver requirements
@@ -634,7 +633,7 @@ struct rt2x00_dev {
 	 * The structure stored in here depends on the
 	 * system bus (PCI or USB).
 	 * When accessing this variable, the rt2x00dev_{pci,usb}
-	 * macro's should be used for correct typecasting.
+	 * macros should be used for correct typecasting.
 	 */
 	struct device *dev;
 
@@ -963,6 +962,8 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
 				unsigned int *total_flags,
 				int mc_count, struct dev_addr_list *mc_list);
+int rt2x00mac_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		      bool set);
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
 int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		      struct ieee80211_vif *vif, struct ieee80211_sta *sta,

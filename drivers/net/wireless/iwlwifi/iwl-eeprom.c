@@ -159,6 +159,9 @@ static int iwlcore_get_nvm_type(struct iwl_priv *priv)
 
 	/* OTP only valid for CP/PP and after */
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	case CSR_HW_REV_TYPE_NONE:
+		IWL_ERR(priv, "Unknown hardware type\n");
+		return -ENOENT;
 	case CSR_HW_REV_TYPE_3945:
 	case CSR_HW_REV_TYPE_4965:
 	case CSR_HW_REV_TYPE_5300:
@@ -266,7 +269,8 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 	u32 otpgp;
 
 	priv->nvm_device_type = iwlcore_get_nvm_type(priv);
-
+	if (priv->nvm_device_type == -ENOENT)
+		return -ENOENT;
 	/* allocate eeprom */
 	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
 		priv->cfg->eeprom_size =

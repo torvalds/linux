@@ -198,6 +198,7 @@ struct p54_common {
 	struct p54_cal_database *curve_data;
 	struct p54_cal_database *output_limit;
 	struct p54_rssi_linear_approximation rssical_db[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band *band_table[IEEE80211_NUM_BANDS];
 
 	/* BBP/MAC state */
 	u8 mac_addr[ETH_ALEN];
@@ -208,7 +209,9 @@ struct p54_common {
 	u32 tsf_low32, tsf_high32;
 	u32 basic_rate_mask;
 	u16 aid;
+	bool powersave_override;
 	__le32 beacon_req_id;
+	struct completion beacon_comp;
 
 	/* cryptographic engine information */
 	u8 privacy_caps;

@@ -242,7 +242,6 @@ static struct ath_buf* ath_clone_txbuf(struct ath_softc *sc, struct ath_buf *bf)
 		spin_unlock_bh(&sc->tx.txbuflock);
 		return NULL;
 	}
-	ASSERT(!list_empty((&sc->tx.txbuf)));
 	tbf = list_first_entry(&sc->tx.txbuf, struct ath_buf, list);
 	list_del(&tbf->list);
 	spin_unlock_bh(&sc->tx.txbuflock);
@@ -383,8 +382,24 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				struct ath_buf *tbf;
 
 				tbf = ath_clone_txbuf(sc, bf_last);
-				if (!tbf)
+				/*
+				 * Update tx baw and complete the frame with
+				 * failed status if we run out of tx buf
+				 */
+				if (!tbf) {
+					spin_lock_bh(&txq->axq_lock);
+					ath_tx_update_baw(sc, tid,
+							  bf->bf_seqno);
+					spin_unlock_bh(&txq->axq_lock);
+
+					bf->bf_state.bf_type |= BUF_XRETRY;
+					ath_tx_rc_status(bf, ds, nbad,
+							 0, false);
+					ath_tx_complete_buf(sc, bf, &bf_head,
+							    0, 0);
 					break;
+				}
+
 				ath9k_hw_cleartxdesc(sc->sc_ah, tbf->bf_desc);
 				list_add_tail(&tbf->list, &bf_head);
 			} else {
@@ -857,6 +872,7 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		txq->axq_aggr_depth = 0;
 		txq->axq_totalqueued = 0;
 		txq->axq_linkbuf = NULL;
+		txq->axq_tx_inprogress = false;
 		sc->tx.txqsetup |= 1<<qnum;
 	}
 	return &sc->tx.txq[qnum];
@@ -1023,6 +1039,10 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 			ath_tx_complete_buf(sc, bf, &bf_head, 0, 0);
 	}
 
+	spin_lock_bh(&txq->axq_lock);
+	txq->axq_tx_inprogress = false;
+	spin_unlock_bh(&txq->axq_lock);
+
 	/* flush any pending frames if aggregation is enabled */
 	if (sc->sc_flags & SC_OP_TXAGGR) {
 		if (!retry_tx) {
@@ -1103,8 +1123,7 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 		if (tid->paused)
 			continue;
 
-		if ((txq->axq_depth % 2) == 0)
-			ath_tx_sched_aggr(sc, txq, tid);
+		ath_tx_sched_aggr(sc, txq, tid);
 
 		/*
 		 * add tid to round-robin queue if more frames
@@ -1947,19 +1966,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		if (bf->bf_stale) {
 			bf_held = bf;
 			if (list_is_last(&bf_held->list, &txq->axq_q)) {
-				txq->axq_link = NULL;
-				txq->axq_linkbuf = NULL;
 				spin_unlock_bh(&txq->axq_lock);
-
-				/*
-				 * The holding descriptor is the last
-				 * descriptor in queue. It's safe to remove
-				 * the last holding descriptor in BH context.
-				 */
-				spin_lock_bh(&sc->tx.txbuflock);
-				list_move_tail(&bf_held->list, &sc->tx.txbuf);
-				spin_unlock_bh(&sc->tx.txbuflock);
-
 				break;
 			} else {
 				bf = list_entry(bf_held->list.next,
@@ -1996,6 +2003,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			txq->axq_aggr_depth--;
 
 		txok = (ds->ds_txstat.ts_status == 0);
+		txq->axq_tx_inprogress = false;
 		spin_unlock_bh(&txq->axq_lock);
 
 		if (bf_held) {
@@ -2028,6 +2036,40 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		spin_unlock_bh(&txq->axq_lock);
 	}
 }
+
+void ath_tx_complete_poll_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+			tx_complete_work.work);
+	struct ath_txq *txq;
+	int i;
+	bool needreset = false;
+
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
+		if (ATH_TXQ_SETUP(sc, i)) {
+			txq = &sc->tx.txq[i];
+			spin_lock_bh(&txq->axq_lock);
+			if (txq->axq_depth) {
+				if (txq->axq_tx_inprogress) {
+					needreset = true;
+					spin_unlock_bh(&txq->axq_lock);
+					break;
+				} else {
+					txq->axq_tx_inprogress = true;
+				}
+			}
+			spin_unlock_bh(&txq->axq_lock);
+		}
+
+	if (needreset) {
+		DPRINTF(sc, ATH_DBG_RESET, "tx hung, resetting the chip\n");
+		ath_reset(sc, false);
+	}
+
+	queue_delayed_work(sc->hw->workqueue, &sc->tx_complete_work,
+			msecs_to_jiffies(ATH_TX_COMPLETE_POLL_INT));
+}
+
 
 
 void ath_tx_tasklet(struct ath_softc *sc)
@@ -2068,6 +2110,8 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 			"Failed to allocate beacon descriptors: %d\n", error);
 		goto err;
 	}
+
+	INIT_DELAYED_WORK(&sc->tx_complete_work, ath_tx_complete_poll_work);
 
 err:
 	if (error != 0)

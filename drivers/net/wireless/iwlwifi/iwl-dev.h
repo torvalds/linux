@@ -66,6 +66,7 @@ extern struct iwl_cfg iwl1000_bgn_cfg;
 /* shared structures from iwl-5000.c */
 extern struct iwl_mod_params iwl50_mod_params;
 extern struct iwl_ops iwl5000_ops;
+extern struct iwl_ucode_ops iwl5000_ucode;
 extern struct iwl_lib_ops iwl5000_lib;
 extern struct iwl_hcmd_ops iwl5000_hcmd;
 extern struct iwl_hcmd_utils_ops iwl5000_hcmd_utils;
@@ -258,8 +259,10 @@ struct iwl_channel_info {
 #define IWL_TX_FIFO_HCCA_2	6
 #define IWL_TX_FIFO_NONE	7
 
-/* Minimum number of queues. MAX_NUM is defined in hw specific files */
-#define IWL_MIN_NUM_QUEUES	4
+/* Minimum number of queues. MAX_NUM is defined in hw specific files.
+ * Set the minimum to accommodate the 4 standard TX queues, 1 command
+ * queue, 2 (unused) HCCA queues, and 4 HT queues (one for each AC) */
+#define IWL_MIN_NUM_QUEUES	10
 
 /* Power management (not Tx power) structures */
 
@@ -523,15 +526,29 @@ struct fw_desc {
 };
 
 /* uCode file layout */
-struct iwl_ucode {
-	__le32 ver;		/* major/minor/API/serial */
-	__le32 inst_size;	/* bytes of runtime instructions */
-	__le32 data_size;	/* bytes of runtime data */
-	__le32 init_size;	/* bytes of initialization instructions */
-	__le32 init_data_size;	/* bytes of initialization data */
-	__le32 boot_size;	/* bytes of bootstrap instructions */
-	u8 data[0];		/* data in same order as "size" elements */
+struct iwl_ucode_header {
+	__le32 ver;	/* major/minor/API/serial */
+	union {
+		struct {
+			__le32 inst_size;	/* bytes of runtime code */
+			__le32 data_size;	/* bytes of runtime data */
+			__le32 init_size;	/* bytes of init code */
+			__le32 init_data_size;	/* bytes of init data */
+			__le32 boot_size;	/* bytes of bootstrap code */
+			u8 data[0];		/* in same order as sizes */
+		} v1;
+		struct {
+			__le32 build;		/* build number */
+			__le32 inst_size;	/* bytes of runtime code */
+			__le32 data_size;	/* bytes of runtime data */
+			__le32 init_size;	/* bytes of init code */
+			__le32 init_data_size;	/* bytes of init data */
+			__le32 boot_size;	/* bytes of bootstrap code */
+			u8 data[0];		/* in same order as sizes */
+		} v2;
+	} u;
 };
+#define UCODE_HEADER_SIZE(ver) ((ver) == 1 ? 24 : 28)
 
 struct iwl4965_ibss_seq {
 	u8 mac[ETH_ALEN];
@@ -754,6 +771,8 @@ struct iwl_calib_result {
 	void *buf;
 	size_t buf_len;
 };
+
+#define UCODE_ALIVE_TIMEOUT	(5 * HZ)
 
 enum ucode_type {
 	UCODE_NONE = 0,
@@ -1092,7 +1111,6 @@ struct iwl_priv {
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	/* debugging info */
-	u32 debug_level;
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;
 #ifdef CONFIG_IWLWIFI_DEBUGFS

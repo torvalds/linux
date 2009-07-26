@@ -2466,7 +2466,6 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_lq_sta *lq_sta = priv_sta;
 	int rate_idx;
-	u64 mask_bit = 0;
 
 	IWL_DEBUG_RATE_LIMIT(priv, "rate scale calculate new rate for skb\n");
 
@@ -2481,22 +2480,9 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 			lq_sta->max_rate_idx = -1;
 	}
 
-	if (sta)
-		mask_bit = sta->supp_rates[sband->band];
-
 	/* Send management frames and NO_ACK data using lowest rate. */
-	if (!ieee80211_is_data(hdr->frame_control) ||
-	    info->flags & IEEE80211_TX_CTL_NO_ACK || !sta || !lq_sta) {
-		if (!mask_bit)
-			info->control.rates[0].idx =
-					rate_lowest_index(sband, NULL);
-		else
-			info->control.rates[0].idx =
-					rate_lowest_index(sband, sta);
-		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-			info->control.rates[0].count = 1;
+	if (rate_control_send_low(sta, priv_sta, txrc))
 		return;
-	}
 
 	rate_idx  = lq_sta->last_txrate_idx;
 

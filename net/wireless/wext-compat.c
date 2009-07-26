@@ -453,15 +453,32 @@ int cfg80211_wext_giwretry(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwretry);
 
-static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev, const u8 *addr,
-				   bool remove, bool tx_key, int idx,
-				   struct key_params *params)
+static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
+				     struct net_device *dev, const u8 *addr,
+				     bool remove, bool tx_key, int idx,
+				     struct key_params *params)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
+	int err, i;
+
+	if (!wdev->wext.keys) {
+		wdev->wext.keys = kzalloc(sizeof(*wdev->wext.keys),
+					      GFP_KERNEL);
+		if (!wdev->wext.keys)
+			return -ENOMEM;
+		for (i = 0; i < 6; i++)
+			wdev->wext.keys->params[i].key =
+				wdev->wext.keys->data[i];
+	}
+
+	if (wdev->iftype != NL80211_IFTYPE_ADHOC &&
+	    wdev->iftype != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
 
 	if (params->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
+		if (!wdev->current_bss)
+			return -ENOLINK;
+
 		if (!rdev->ops->set_default_mgmt_key)
 			return -EOPNOTSUPP;
 
@@ -471,8 +488,14 @@ static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	if (remove) {
-		err = rdev->ops->del_key(&rdev->wiphy, dev, idx, addr);
+		err = 0;
+		if (wdev->current_bss)
+			err = rdev->ops->del_key(&rdev->wiphy, dev, idx, addr);
 		if (!err) {
+			if (!addr) {
+				wdev->wext.keys->params[idx].key_len = 0;
+				wdev->wext.keys->params[idx].cipher = 0;
+			}
 			if (idx == wdev->wext.default_key)
 				wdev->wext.default_key = -1;
 			else if (idx == wdev->wext.default_mgmt_key)
@@ -486,36 +509,65 @@ static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 			return 0;
 
 		return err;
-	} else {
-		if (addr)
-			tx_key = false;
+	}
 
-		if (cfg80211_validate_key_settings(params, idx, addr))
-			return -EINVAL;
+	if (addr)
+		tx_key = false;
 
+	if (cfg80211_validate_key_settings(rdev, params, idx, addr))
+		return -EINVAL;
+
+	err = 0;
+	if (wdev->current_bss)
 		err = rdev->ops->add_key(&rdev->wiphy, dev, idx, addr, params);
-		if (err)
-			return err;
+	if (err)
+		return err;
 
-		if (tx_key || (!addr && wdev->wext.default_key == -1)) {
+	if (!addr) {
+		wdev->wext.keys->params[idx] = *params;
+		memcpy(wdev->wext.keys->data[idx],
+			params->key, params->key_len);
+		wdev->wext.keys->params[idx].key =
+			wdev->wext.keys->data[idx];
+	}
+
+	if ((params->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	     params->cipher == WLAN_CIPHER_SUITE_WEP104) &&
+	    (tx_key || (!addr && wdev->wext.default_key == -1))) {
+		if (wdev->current_bss)
 			err = rdev->ops->set_default_key(&rdev->wiphy,
 							 dev, idx);
-			if (!err)
-				wdev->wext.default_key = idx;
-			return err;
-		}
+		if (!err)
+			wdev->wext.default_key = idx;
+		return err;
+	}
 
-		if (params->cipher == WLAN_CIPHER_SUITE_AES_CMAC &&
-		    (tx_key || (!addr && wdev->wext.default_mgmt_key == -1))) {
+	if (params->cipher == WLAN_CIPHER_SUITE_AES_CMAC &&
+	    (tx_key || (!addr && wdev->wext.default_mgmt_key == -1))) {
+		if (wdev->current_bss)
 			err = rdev->ops->set_default_mgmt_key(&rdev->wiphy,
 							      dev, idx);
-			if (!err)
-				wdev->wext.default_mgmt_key = idx;
-			return err;
-		}
-
-		return 0;
+		if (!err)
+			wdev->wext.default_mgmt_key = idx;
+		return err;
 	}
+
+	return 0;
+}
+
+static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
+				   struct net_device *dev, const u8 *addr,
+				   bool remove, bool tx_key, int idx,
+				   struct key_params *params)
+{
+	int err;
+
+	wdev_lock(dev->ieee80211_ptr);
+	err = __cfg80211_set_encryption(rdev, dev, addr, remove,
+					tx_key, idx, params);
+	wdev_unlock(dev->ieee80211_ptr);
+
+	return err;
 }
 
 int cfg80211_wext_siwencode(struct net_device *dev,
@@ -527,6 +579,10 @@ int cfg80211_wext_siwencode(struct net_device *dev,
 	int idx, err;
 	bool remove = false;
 	struct key_params params;
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION &&
+	    wdev->iftype != NL80211_IFTYPE_ADHOC)
+		return -EOPNOTSUPP;
 
 	/* no use -- only MFP (set_default_mgmt_key) is optional */
 	if (!rdev->ops->del_key ||
@@ -548,9 +604,14 @@ int cfg80211_wext_siwencode(struct net_device *dev,
 		remove = true;
 	else if (erq->length == 0) {
 		/* No key data - just set the default TX key index */
-		err = rdev->ops->set_default_key(&rdev->wiphy, dev, idx);
+		err = 0;
+		wdev_lock(wdev);
+		if (wdev->current_bss)
+			err = rdev->ops->set_default_key(&rdev->wiphy,
+							 dev, idx);
 		if (!err)
 			wdev->wext.default_key = idx;
+		wdev_unlock(wdev);
 		return err;
 	}
 
@@ -582,6 +643,10 @@ int cfg80211_wext_siwencodeext(struct net_device *dev,
 	bool remove = false;
 	struct key_params params;
 	u32 cipher;
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION &&
+	    wdev->iftype != NL80211_IFTYPE_ADHOC)
+		return -EOPNOTSUPP;
 
 	/* no use -- only MFP (set_default_mgmt_key) is optional */
 	if (!rdev->ops->del_key ||
@@ -656,37 +721,15 @@ int cfg80211_wext_siwencodeext(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwencodeext);
 
-struct giwencode_cookie {
-	size_t buflen;
-	char *keybuf;
-};
-
-static void giwencode_get_key_cb(void *cookie, struct key_params *params)
-{
-	struct giwencode_cookie *data = cookie;
-
-	if (!params->key) {
-		data->buflen = 0;
-		return;
-	}
-
-	data->buflen = min_t(size_t, data->buflen, params->key_len);
-	memcpy(data->keybuf, params->key, data->buflen);
-}
-
 int cfg80211_wext_giwencode(struct net_device *dev,
 			    struct iw_request_info *info,
 			    struct iw_point *erq, char *keybuf)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
-	int idx, err;
-	struct giwencode_cookie data = {
-		.keybuf = keybuf,
-		.buflen = erq->length,
-	};
+	int idx;
 
-	if (!rdev->ops->get_key)
+	if (wdev->iftype != NL80211_IFTYPE_STATION &&
+	    wdev->iftype != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
 	idx = erq->flags & IW_ENCODE_INDEX;
@@ -701,21 +744,18 @@ int cfg80211_wext_giwencode(struct net_device *dev,
 
 	erq->flags = idx + 1;
 
-	err = rdev->ops->get_key(&rdev->wiphy, dev, idx, NULL, &data,
-				 giwencode_get_key_cb);
-	if (!err) {
-		erq->length = data.buflen;
-		erq->flags |= IW_ENCODE_ENABLED;
-		return 0;
-	}
-
-	if (err == -ENOENT) {
+	if (!wdev->wext.keys || !wdev->wext.keys->params[idx].cipher) {
 		erq->flags |= IW_ENCODE_DISABLED;
 		erq->length = 0;
 		return 0;
 	}
 
-	return err;
+	erq->length = min_t(size_t, erq->length,
+			    wdev->wext.keys->params[idx].key_len);
+	memcpy(keybuf, wdev->wext.keys->params[idx].key, erq->length);
+	erq->flags |= IW_ENCODE_ENABLED;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwencode);
 
@@ -841,8 +881,18 @@ static int cfg80211_set_wpa_version(struct wireless_dev *wdev, u32 wpa_versions)
 	wdev->wext.connect.crypto.wpa_versions = 0;
 
 	if (wpa_versions & ~(IW_AUTH_WPA_VERSION_WPA |
-			     IW_AUTH_WPA_VERSION_WPA2))
+			     IW_AUTH_WPA_VERSION_WPA2|
+		             IW_AUTH_WPA_VERSION_DISABLED))
 		return -EINVAL;
+
+	if ((wpa_versions & IW_AUTH_WPA_VERSION_DISABLED) &&
+	    (wpa_versions & (IW_AUTH_WPA_VERSION_WPA|
+			     IW_AUTH_WPA_VERSION_WPA2)))
+		return -EINVAL;
+
+	if (wpa_versions & IW_AUTH_WPA_VERSION_DISABLED)
+		wdev->wext.connect.crypto.wpa_versions &=
+			~(NL80211_WPA_VERSION_1|NL80211_WPA_VERSION_2);
 
 	if (wpa_versions & IW_AUTH_WPA_VERSION_WPA)
 		wdev->wext.connect.crypto.wpa_versions |=
@@ -1127,7 +1177,7 @@ int cfg80211_wext_giwrate(struct net_device *dev,
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	/* we are under RTNL - globally locked - so can use a static struct */
 	static struct station_info sinfo;
-	u8 *addr;
+	u8 addr[ETH_ALEN];
 	int err;
 
 	if (wdev->iftype != NL80211_IFTYPE_STATION)
@@ -1136,12 +1186,15 @@ int cfg80211_wext_giwrate(struct net_device *dev,
 	if (!rdev->ops->get_station)
 		return -EOPNOTSUPP;
 
+	err = 0;
+	wdev_lock(wdev);
 	if (wdev->current_bss)
-		addr = wdev->current_bss->pub.bssid;
-	else if (wdev->wext.connect.bssid)
-		addr = wdev->wext.connect.bssid;
+		memcpy(addr, wdev->current_bss->pub.bssid, ETH_ALEN);
 	else
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+	wdev_unlock(wdev);
+	if (err)
+		return err;
 
 	err = rdev->ops->get_station(&rdev->wiphy, dev, addr, &sinfo);
 	if (err)
@@ -1167,7 +1220,7 @@ struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 	/* we are under RTNL - globally locked - so can use static structs */
 	static struct iw_statistics wstats;
 	static struct station_info sinfo;
-	u8 *addr;
+	u8 bssid[ETH_ALEN];
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION)
 		return NULL;
@@ -1175,11 +1228,16 @@ struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 	if (!rdev->ops->get_station)
 		return NULL;
 
-	addr = wdev->wext.connect.bssid;
-	if (!addr)
+	/* Grab BSSID of current BSS, if any */
+	wdev_lock(wdev);
+	if (!wdev->current_bss) {
+		wdev_unlock(wdev);
 		return NULL;
+	}
+	memcpy(bssid, wdev->current_bss->pub.bssid, ETH_ALEN);
+	wdev_unlock(wdev);
 
-	if (rdev->ops->get_station(&rdev->wiphy, dev, addr, &sinfo))
+	if (rdev->ops->get_station(&rdev->wiphy, dev, bssid, &sinfo))
 		return NULL;
 
 	memset(&wstats, 0, sizeof(wstats));

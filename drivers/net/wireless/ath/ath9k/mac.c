@@ -825,13 +825,29 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	ds->ds_rxstat.rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
 	ds->ds_rxstat.rs_tstamp = ads.AR_RcvTimestamp;
 
-	ds->ds_rxstat.rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
-	ds->ds_rxstat.rs_rssi_ctl0 = MS(ads.ds_rxstatus0, AR_RxRSSIAnt00);
-	ds->ds_rxstat.rs_rssi_ctl1 = MS(ads.ds_rxstatus0, AR_RxRSSIAnt01);
-	ds->ds_rxstat.rs_rssi_ctl2 = MS(ads.ds_rxstatus0, AR_RxRSSIAnt02);
-	ds->ds_rxstat.rs_rssi_ext0 = MS(ads.ds_rxstatus4, AR_RxRSSIAnt10);
-	ds->ds_rxstat.rs_rssi_ext1 = MS(ads.ds_rxstatus4, AR_RxRSSIAnt11);
-	ds->ds_rxstat.rs_rssi_ext2 = MS(ads.ds_rxstatus4, AR_RxRSSIAnt12);
+	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr) {
+		ds->ds_rxstat.rs_rssi = ATH9K_RSSI_BAD;
+		ds->ds_rxstat.rs_rssi_ctl0 = ATH9K_RSSI_BAD;
+		ds->ds_rxstat.rs_rssi_ctl1 = ATH9K_RSSI_BAD;
+		ds->ds_rxstat.rs_rssi_ctl2 = ATH9K_RSSI_BAD;
+		ds->ds_rxstat.rs_rssi_ext0 = ATH9K_RSSI_BAD;
+		ds->ds_rxstat.rs_rssi_ext1 = ATH9K_RSSI_BAD;
+		ds->ds_rxstat.rs_rssi_ext2 = ATH9K_RSSI_BAD;
+	} else {
+		ds->ds_rxstat.rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
+		ds->ds_rxstat.rs_rssi_ctl0 = MS(ads.ds_rxstatus0,
+						AR_RxRSSIAnt00);
+		ds->ds_rxstat.rs_rssi_ctl1 = MS(ads.ds_rxstatus0,
+						AR_RxRSSIAnt01);
+		ds->ds_rxstat.rs_rssi_ctl2 = MS(ads.ds_rxstatus0,
+						AR_RxRSSIAnt02);
+		ds->ds_rxstat.rs_rssi_ext0 = MS(ads.ds_rxstatus4,
+						AR_RxRSSIAnt10);
+		ds->ds_rxstat.rs_rssi_ext1 = MS(ads.ds_rxstatus4,
+						AR_RxRSSIAnt11);
+		ds->ds_rxstat.rs_rssi_ext2 = MS(ads.ds_rxstatus4,
+						AR_RxRSSIAnt12);
+	}
 	if (ads.ds_rxstatus8 & AR_RxKeyIdxValid)
 		ds->ds_rxstat.rs_keyix = MS(ads.ds_rxstatus8, AR_KeyIdx);
 	else

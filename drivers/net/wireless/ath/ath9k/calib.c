@@ -691,15 +691,22 @@ int16_t ath9k_hw_getnf(struct ath_hw *ah,
 void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah)
 {
 	int i, j;
+	s16 noise_floor;
+
+	if (AR_SREV_9280(ah))
+		noise_floor = AR_PHY_CCA_MAX_AR9280_GOOD_VALUE;
+	else if (AR_SREV_9285(ah))
+		noise_floor = AR_PHY_CCA_MAX_AR9285_GOOD_VALUE;
+	else
+		noise_floor = AR_PHY_CCA_MAX_AR5416_GOOD_VALUE;
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		ah->nfCalHist[i].currIndex = 0;
-		ah->nfCalHist[i].privNF = AR_PHY_CCA_MAX_GOOD_VALUE;
+		ah->nfCalHist[i].privNF = noise_floor;
 		ah->nfCalHist[i].invalidNFcount =
 			AR_PHY_CCA_FILTERWINDOW_LENGTH;
 		for (j = 0; j < ATH9K_NF_CAL_HIST_MAX; j++) {
-			ah->nfCalHist[i].nfCalBuffer[j] =
-				AR_PHY_CCA_MAX_GOOD_VALUE;
+			ah->nfCalHist[i].nfCalBuffer[j] = noise_floor;
 		}
 	}
 }

@@ -89,7 +89,7 @@ MODULE_LICENSE("GPL");
 
  /* module parameters */
 struct iwl_mod_params iwl3945_mod_params = {
-	.num_of_queues = IWL39_MAX_NUM_QUEUES,
+	.num_of_queues = IWL39_NUM_QUEUES, /* Not used */
 	.sw_crypto = 1,
 	.restart_fw = 1,
 	/* the rest are 0 by default */
@@ -612,8 +612,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	IWL_DEBUG_TX(priv, "sequence nr = 0X%x \n",
 		     le16_to_cpu(out_cmd->hdr.sequence));
 	IWL_DEBUG_TX(priv, "tx_flags = 0X%x \n", le32_to_cpu(tx->tx_flags));
-	iwl_print_hex_dump(priv, IWL_DL_TX, tx, sizeof(*tx));
-	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx->hdr,
+	iwl_print_hex_dump(IWL_DL_TX, tx, sizeof(*tx));
+	iwl_print_hex_dump(IWL_DL_TX, (u8 *)tx->hdr,
 			   ieee80211_hdrlen(fc));
 
 	/*
@@ -926,7 +926,7 @@ static void iwl3945_rx_card_state_notif(struct iwl_priv *priv,
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = priv->status;
 
-	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s\n",
+	IWL_WARN(priv, "Card state received: HW:%s SW:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On");
 
@@ -1644,7 +1644,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & IWL_DL_ISR) {
+	if (iwl_debug_level & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -1663,7 +1663,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IWL_ERR(priv, "Microcode HW error detected.  Restarting.\n");
+		IWL_ERR(priv, "Hardware error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
 		iwl_disable_interrupts(priv);
@@ -1679,7 +1679,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & (IWL_DL_ISR)) {
+	if (iwl_debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -1758,7 +1758,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 		iwl_enable_interrupts(priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & (IWL_DL_ISR)) {
+	if (iwl_debug_level & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
@@ -2041,7 +2041,7 @@ static void iwl3945_nic_start(struct iwl_priv *priv)
  */
 static int iwl3945_read_ucode(struct iwl_priv *priv)
 {
-	struct iwl_ucode *ucode;
+	const struct iwl_ucode_header *ucode;
 	int ret = -EINVAL, index;
 	const struct firmware *ucode_raw;
 	/* firmware file name contains uCode/driver compatibility version */
@@ -2082,22 +2082,24 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 		goto error;
 
 	/* Make sure that we got at least our header! */
-	if (ucode_raw->size < sizeof(*ucode)) {
+	if (ucode_raw->size <  priv->cfg->ops->ucode->get_header_size(1)) {
 		IWL_ERR(priv, "File size way too small!\n");
 		ret = -EINVAL;
 		goto err_release;
 	}
 
 	/* Data from ucode file:  header followed by uCode images */
-	ucode = (void *)ucode_raw->data;
+	ucode = (struct iwl_ucode_header *)ucode_raw->data;
 
 	priv->ucode_ver = le32_to_cpu(ucode->ver);
 	api_ver = IWL_UCODE_API(priv->ucode_ver);
-	inst_size = le32_to_cpu(ucode->inst_size);
-	data_size = le32_to_cpu(ucode->data_size);
-	init_size = le32_to_cpu(ucode->init_size);
-	init_data_size = le32_to_cpu(ucode->init_data_size);
-	boot_size = le32_to_cpu(ucode->boot_size);
+	inst_size = priv->cfg->ops->ucode->get_inst_size(ucode, api_ver);
+	data_size = priv->cfg->ops->ucode->get_data_size(ucode, api_ver);
+	init_size = priv->cfg->ops->ucode->get_init_size(ucode, api_ver);
+	init_data_size =
+		priv->cfg->ops->ucode->get_init_data_size(ucode, api_ver);
+	boot_size = priv->cfg->ops->ucode->get_boot_size(ucode, api_ver);
+	src = priv->cfg->ops->ucode->get_data(ucode, api_ver);
 
 	/* api_ver should match the api version forming part of the
 	 * firmware filename ... but we don't check for that and only rely
@@ -2138,12 +2140,13 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 
 
 	/* Verify size of file vs. image size info in file's header */
-	if (ucode_raw->size < sizeof(*ucode) +
+	if (ucode_raw->size != priv->cfg->ops->ucode->get_header_size(api_ver) +
 		inst_size + data_size + init_size +
 		init_data_size + boot_size) {
 
-		IWL_DEBUG_INFO(priv, "uCode file size %zd too small\n",
-			       ucode_raw->size);
+		IWL_DEBUG_INFO(priv,
+			"uCode file size %zd does not match expected size\n",
+			ucode_raw->size);
 		ret = -EINVAL;
 		goto err_release;
 	}
@@ -2226,44 +2229,44 @@ static int iwl3945_read_ucode(struct iwl_priv *priv)
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
-	src = &ucode->data[0];
-	len = priv->ucode_code.len;
+	len = inst_size;
 	IWL_DEBUG_INFO(priv,
 		"Copying (but not loading) uCode instr len %zd\n", len);
 	memcpy(priv->ucode_code.v_addr, src, len);
+	src += len;
+
 	IWL_DEBUG_INFO(priv, "uCode instr buf vaddr = 0x%p, paddr = 0x%08x\n",
 		priv->ucode_code.v_addr, (u32)priv->ucode_code.p_addr);
 
 	/* Runtime data (2nd block)
 	 * NOTE:  Copy into backup buffer will be done in iwl3945_up()  */
-	src = &ucode->data[inst_size];
-	len = priv->ucode_data.len;
+	len = data_size;
 	IWL_DEBUG_INFO(priv,
 		"Copying (but not loading) uCode data len %zd\n", len);
 	memcpy(priv->ucode_data.v_addr, src, len);
 	memcpy(priv->ucode_data_backup.v_addr, src, len);
+	src += len;
 
 	/* Initialization instructions (3rd block) */
 	if (init_size) {
-		src = &ucode->data[inst_size + data_size];
-		len = priv->ucode_init.len;
+		len = init_size;
 		IWL_DEBUG_INFO(priv,
 			"Copying (but not loading) init instr len %zd\n", len);
 		memcpy(priv->ucode_init.v_addr, src, len);
+		src += len;
 	}
 
 	/* Initialization data (4th block) */
 	if (init_data_size) {
-		src = &ucode->data[inst_size + data_size + init_size];
-		len = priv->ucode_init_data.len;
+		len = init_data_size;
 		IWL_DEBUG_INFO(priv,
 			"Copying (but not loading) init data len %zd\n", len);
 		memcpy(priv->ucode_init_data.v_addr, src, len);
+		src += len;
 	}
 
 	/* Bootstrap instructions (5th block) */
-	src = &ucode->data[inst_size + data_size + init_size + init_data_size];
-	len = priv->ucode_boot.len;
+	len = boot_size;
 	IWL_DEBUG_INFO(priv,
 		"Copying (but not loading) boot instr len %zd\n", len);
 	memcpy(priv->ucode_boot.v_addr, src, len);
@@ -3305,13 +3308,15 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  * used for controlling the debug level.
  *
  * See the level definitions in iwl for details.
+ *
+ * FIXME This file can be deprecated as the module parameter is
+ * writable and users can thus also change the debug level
+ * using the /sys/module/iwl3945/parameters/debug file.
  */
 static ssize_t show_debug_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	return sprintf(buf, "0x%08X\n", priv->debug_level);
+	return sprintf(buf, "0x%08X\n", iwl_debug_level);
 }
 static ssize_t store_debug_level(struct device *d,
 				struct device_attribute *attr,
@@ -3325,7 +3330,7 @@ static ssize_t store_debug_level(struct device *d,
 	if (ret)
 		IWL_INFO(priv, "%s is not in hex or decimal form.\n", buf);
 	else
-		priv->debug_level = val;
+		iwl_debug_level = val;
 
 	return strnlen(buf, count);
 }
@@ -3947,15 +3952,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv = hw->priv;
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
-	if ((iwl3945_mod_params.num_of_queues > IWL39_MAX_NUM_QUEUES) ||
-	     (iwl3945_mod_params.num_of_queues < IWL_MIN_NUM_QUEUES)) {
-		IWL_ERR(priv,
-			"invalid queues_num, should be between %d and %d\n",
-			IWL_MIN_NUM_QUEUES, IWL39_MAX_NUM_QUEUES);
-		err = -EINVAL;
-		goto out_ieee80211_free_hw;
-	}
-
 	/*
 	 * Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan.
@@ -3972,7 +3968,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->inta_mask = CSR_INI_SET_MASK;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	priv->debug_level = iwl3945_mod_params.debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
 
@@ -4268,14 +4263,12 @@ MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
 module_param_named(swcrypto, iwl3945_mod_params.sw_crypto, int, 0444);
 MODULE_PARM_DESC(swcrypto,
 		 "using software crypto (default 1 [software])\n");
-module_param_named(debug, iwl3945_mod_params.debug, uint, 0444);
+#ifdef CONFIG_IWLWIFI_DEBUG
+module_param_named(debug, iwl_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug, "debug output mask");
+#endif
 module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan, int, 0444);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
-
-module_param_named(queues_num, iwl3945_mod_params.num_of_queues, int, 0444);
-MODULE_PARM_DESC(queues_num, "number of hw queues.");
-
 module_param_named(fw_restart3945, iwl3945_mod_params.restart_fw, int, 0444);
 MODULE_PARM_DESC(fw_restart3945, "restart firmware in case of error");
 

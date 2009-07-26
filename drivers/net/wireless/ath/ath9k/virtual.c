@@ -660,3 +660,20 @@ void ath9k_wiphy_set_scheduler(struct ath_softc *sc, unsigned int msec_int)
 		queue_delayed_work(sc->hw->workqueue, &sc->wiphy_work,
 				   sc->wiphy_scheduler_int);
 }
+
+/* caller must hold wiphy_lock */
+bool ath9k_all_wiphys_idle(struct ath_softc *sc)
+{
+	unsigned int i;
+	if (sc->pri_wiphy->state != ATH_WIPHY_INACTIVE) {
+		return false;
+	}
+	for (i = 0; i < sc->num_sec_wiphy; i++) {
+		struct ath_wiphy *aphy = sc->sec_wiphy[i];
+		if (!aphy)
+			continue;
+		if (aphy->state != ATH_WIPHY_INACTIVE)
+			return false;
+	}
+	return true;
+}

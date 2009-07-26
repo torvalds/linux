@@ -76,6 +76,7 @@ static struct usb_device_id usb_ids[] = {
 	{ USB_DEVICE(0x07b8, 0x6001), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x07fa, 0x1196), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x083a, 0x4505), .driver_info = DEVICE_ZD1211B },
+	{ USB_DEVICE(0x083a, 0xe501), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x083a, 0xe503), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x083a, 0xe506), .driver_info = DEVICE_ZD1211B },
 	{ USB_DEVICE(0x0ace, 0x1215), .driver_info = DEVICE_ZD1211B },

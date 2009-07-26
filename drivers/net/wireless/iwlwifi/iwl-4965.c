@@ -146,7 +146,7 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 
 	IWL_DEBUG_INFO(priv, "Begin load bsm\n");
 
-	priv->ucode_type = UCODE_RT;
+	priv->ucode_type = UCODE_INIT;
 
 	/* make sure bootstrap program is no larger than BSM's SRAM size */
 	if (len > IWL49_MAX_BSM_SIZE)
@@ -256,6 +256,8 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 */
 static void iwl4965_init_alive_start(struct iwl_priv *priv)
 {
+	int ret;
+
 	/* Check alive response for "valid" sign from uCode */
 	if (priv->card_alive_init.is_valid != UCODE_VALID_OK) {
 		/* We had an error bringing up the hardware, so take it
@@ -286,6 +288,28 @@ static void iwl4965_init_alive_start(struct iwl_priv *priv)
 		 * take it all the way back down so we can try again */
 		IWL_DEBUG_INFO(priv, "Couldn't set up uCode pointers.\n");
 		goto restart;
+	}
+	priv->ucode_type = UCODE_RT;
+	if (test_bit(STATUS_RT_UCODE_ALIVE, &priv->status)) {
+		IWL_WARN(priv, "Runtime uCode already alive? "
+			"Waiting for alive anyway\n");
+		clear_bit(STATUS_RT_UCODE_ALIVE, &priv->status);
+	}
+	ret = wait_event_interruptible_timeout(
+			priv->wait_command_queue,
+			test_bit(STATUS_RT_UCODE_ALIVE, &priv->status),
+			UCODE_ALIVE_TIMEOUT);
+	if (!ret) {
+		/* FIXME: if STATUS_RT_UCODE_ALIVE timeout
+		 * go back to restart the download Init uCode again
+		 * this might cause to trap in the restart loop
+		 */
+		priv->ucode_type = UCODE_NONE;
+		if (!test_bit(STATUS_RT_UCODE_ALIVE, &priv->status)) {
+			IWL_ERR(priv, "Runtime timeout after %dms\n",
+				jiffies_to_msecs(UCODE_ALIVE_TIMEOUT));
+			goto restart;
+		}
 	}
 	return;
 
@@ -2221,12 +2245,50 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_work_sync(&priv->txpower_work);
 }
 
+#define IWL4965_UCODE_GET(item)						\
+static u32 iwl4965_ucode_get_##item(const struct iwl_ucode_header *ucode,\
+				    u32 api_ver)			\
+{									\
+	return le32_to_cpu(ucode->u.v1.item);				\
+}
+
+static u32 iwl4965_ucode_get_header_size(u32 api_ver)
+{
+	return UCODE_HEADER_SIZE(1);
+}
+static u32 iwl4965_ucode_get_build(const struct iwl_ucode_header *ucode,
+				   u32 api_ver)
+{
+	return 0;
+}
+static u8 *iwl4965_ucode_get_data(const struct iwl_ucode_header *ucode,
+				  u32 api_ver)
+{
+	return (u8 *) ucode->u.v1.data;
+}
+
+IWL4965_UCODE_GET(inst_size);
+IWL4965_UCODE_GET(data_size);
+IWL4965_UCODE_GET(init_size);
+IWL4965_UCODE_GET(init_data_size);
+IWL4965_UCODE_GET(boot_size);
+
 static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
 	.set_rxon_chain = iwl_set_rxon_chain,
 };
 
+static struct iwl_ucode_ops iwl4965_ucode = {
+	.get_header_size = iwl4965_ucode_get_header_size,
+	.get_build = iwl4965_ucode_get_build,
+	.get_inst_size = iwl4965_ucode_get_inst_size,
+	.get_data_size = iwl4965_ucode_get_data_size,
+	.get_init_size = iwl4965_ucode_get_init_size,
+	.get_init_data_size = iwl4965_ucode_get_init_data_size,
+	.get_boot_size = iwl4965_ucode_get_boot_size,
+	.get_data = iwl4965_ucode_get_data,
+};
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.get_hcmd_size = iwl4965_get_hcmd_size,
 	.build_addsta_hcmd = iwl4965_build_addsta_hcmd,
@@ -2287,6 +2349,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 };
 
 static struct iwl_ops iwl4965_ops = {
+	.ucode = &iwl4965_ucode,
 	.lib = &iwl4965_lib,
 	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,
@@ -2313,8 +2376,6 @@ module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
 module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, 0444);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
-module_param_named(debug, iwl4965_mod_params.debug, uint, 0444);
-MODULE_PARM_DESC(debug, "debug output mask");
 module_param_named(
 	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, 0444);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");

@@ -116,6 +116,17 @@ struct iwl_temp_ops {
 	void (*set_ct_kill)(struct iwl_priv *priv);
 };
 
+struct iwl_ucode_ops {
+	u32 (*get_header_size)(u32);
+	u32 (*get_build)(const struct iwl_ucode_header *, u32);
+	u32 (*get_inst_size)(const struct iwl_ucode_header *, u32);
+	u32 (*get_data_size)(const struct iwl_ucode_header *, u32);
+	u32 (*get_init_size)(const struct iwl_ucode_header *, u32);
+	u32 (*get_init_data_size)(const struct iwl_ucode_header *, u32);
+	u32 (*get_boot_size)(const struct iwl_ucode_header *, u32);
+	u8 * (*get_data)(const struct iwl_ucode_header *, u32);
+};
+
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -171,6 +182,7 @@ struct iwl_lib_ops {
 };
 
 struct iwl_ops {
+	const struct iwl_ucode_ops *ucode;
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
@@ -178,7 +190,6 @@ struct iwl_ops {
 
 struct iwl_mod_params {
 	int sw_crypto;		/* def: 0 = using hardware encryption */
-	u32 debug;		/* def: 0 = minimal debug log messages */
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
 	int num_of_ampdu_queues;/* def: HW dependent */
@@ -447,8 +458,6 @@ int iwl_send_card_state(struct iwl_priv *priv, u32 flags,
 /*****************************************************
  * PCI						     *
  *****************************************************/
-void iwl_disable_interrupts(struct iwl_priv *priv);
-void iwl_enable_interrupts(struct iwl_priv *priv);
 irqreturn_t iwl_isr_legacy(int irq, void *data);
 int iwl_reset_ict(struct iwl_priv *priv);
 void iwl_disable_ict(struct iwl_priv *priv);
@@ -472,7 +481,6 @@ int iwl_pci_resume(struct pci_dev *pdev);
 /*****************************************************
 *  Error Handling Debugging
 ******************************************************/
-void iwl_dump_nic_error_log(struct iwl_priv *priv);
 void iwl_dump_nic_event_log(struct iwl_priv *priv);
 void iwl_clear_isr_stats(struct iwl_priv *priv);
 
@@ -501,6 +509,8 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
 #define STATUS_MODE_PENDING	18
+#define STATUS_INIT_UCODE_ALIVE	19
+#define STATUS_RT_UCODE_ALIVE	20
 
 
 static inline int iwl_is_ready(struct iwl_priv *priv)

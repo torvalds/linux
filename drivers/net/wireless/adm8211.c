@@ -1964,14 +1964,6 @@ static void __devexit adm8211_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM
 static int adm8211_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
-	struct adm8211_priv *priv = dev->priv;
-
-	if (priv->mode != NL80211_IFTYPE_UNSPECIFIED) {
-		ieee80211_stop_queues(dev);
-		adm8211_stop(dev);
-	}
-
 	pci_save_state(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	return 0;
@@ -1979,17 +1971,8 @@ static int adm8211_suspend(struct pci_dev *pdev, pm_message_t state)
 
 static int adm8211_resume(struct pci_dev *pdev)
 {
-	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
-	struct adm8211_priv *priv = dev->priv;
-
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-
-	if (priv->mode != NL80211_IFTYPE_UNSPECIFIED) {
-		adm8211_start(dev);
-		ieee80211_wake_queues(dev);
-	}
-
 	return 0;
 }
 #endif /* CONFIG_PM */

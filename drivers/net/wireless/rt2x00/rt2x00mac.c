@@ -341,7 +341,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	int status;
 
 	/*
-	 * Mac80211 might be calling this function while we are trying
+	 * mac80211 might be calling this function while we are trying
 	 * to remove the device or perhaps suspending it.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
@@ -453,6 +453,16 @@ static void memcpy_tkip(struct rt2x00lib_crypto *crypto, u8 *key, u8 key_len)
 		       &key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
 		       sizeof(crypto->rx_mic));
 }
+
+int rt2x00mac_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		      bool set)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+
+	rt2x00lib_beacondone(rt2x00dev);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_set_tim);
 
 int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		      struct ieee80211_vif *vif, struct ieee80211_sta *sta,
@@ -577,7 +587,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	int update_bssid = 0;
 
 	/*
-	 * Mac80211 might be calling this function while we are trying
+	 * mac80211 might be calling this function while we are trying
 	 * to remove the device or perhaps suspending it.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))

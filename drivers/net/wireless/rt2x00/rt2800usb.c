@@ -1910,7 +1910,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * Before the radio can be enabled, the device first has
 		 * to be woken up. After that it needs a bit of time
-		 * to be fully awake and the radio can be enabled.
+		 * to be fully awake and then the radio can be enabled.
 		 */
 		rt2800usb_set_state(rt2x00dev, STATE_AWAKE);
 		msleep(1);
@@ -1918,7 +1918,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_OFF:
 		/*
-		 * After the radio has been disablee, the device should
+		 * After the radio has been disabled, the device should
 		 * be put to sleep for powersaving.
 		 */
 		rt2800usb_disable_radio(rt2x00dev);
@@ -2220,10 +2220,8 @@ static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	mac = rt2x00_eeprom_addr(rt2x00dev, EEPROM_MAC_ADDR_0);
 	if (!is_valid_ether_addr(mac)) {
-		DECLARE_MAC_BUF(macbuf);
-
 		random_ether_addr(mac);
-		EEPROM(rt2x00dev, "MAC: %s\n", print_mac(macbuf, mac));
+		EEPROM(rt2x00dev, "MAC: %pM\n", mac);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &word);
@@ -2786,6 +2784,7 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 	.remove_interface	= rt2x00mac_remove_interface,
 	.config			= rt2x00mac_config,
 	.configure_filter	= rt2x00mac_configure_filter,
+	.set_tim		= rt2x00mac_set_tim,
 	.set_key		= rt2x00mac_set_key,
 	.get_stats		= rt2x00mac_get_stats,
 	.get_tkip_seq		= rt2800usb_get_tkip_seq,

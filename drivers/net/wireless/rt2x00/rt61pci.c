@@ -2312,7 +2312,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
-	 * Determine number of antenna's.
+	 * Determine number of antennas.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_NUM) == 2)
 		__set_bit(CONFIG_DOUBLE_ANTENNA, &rt2x00dev->flags);
@@ -2716,6 +2716,7 @@ static const struct ieee80211_ops rt61pci_mac80211_ops = {
 	.remove_interface	= rt2x00mac_remove_interface,
 	.config			= rt2x00mac_config,
 	.configure_filter	= rt2x00mac_configure_filter,
+	.set_tim		= rt2x00mac_set_tim,
 	.set_key		= rt2x00mac_set_key,
 	.get_stats		= rt2x00mac_get_stats,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,

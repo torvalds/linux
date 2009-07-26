@@ -98,6 +98,10 @@ struct p54_hdr {
 	(!((((struct p54_hdr *) ((struct sk_buff *) skb)->data)->	\
 	flags) & cpu_to_le16(P54_HDR_FLAG_CONTROL)))
 
+#define GET_HW_QUEUE(skb)						\
+	(((struct p54_tx_data *)((struct p54_hdr *)			\
+	skb->data)->data)->hw_queue)
+
 /*
  * shared interface ID definitions
  * The interface ID is a unique identification of a specific interface.
@@ -547,5 +551,8 @@ int p54_upload_key(struct p54_common *priv, u8 algo, int slot,
 /* eeprom */
 int p54_download_eeprom(struct p54_common *priv, void *buf,
 			u16 offset, u16 len);
+
+/* utility */
+u8 *p54_find_ie(struct sk_buff *skb, u8 ie);
 
 #endif /* LMAC_H */

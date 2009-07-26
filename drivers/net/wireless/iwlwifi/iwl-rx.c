@@ -646,7 +646,7 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 	u32 tsf_low;
 	int rssi;
 
-	if (likely(!(priv->debug_level & IWL_DL_RX)))
+	if (likely(!(iwl_debug_level & IWL_DL_RX)))
 		return;
 
 	/* MAC header */
@@ -742,7 +742,7 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 		}
 	}
 	if (print_dump)
-		iwl_print_hex_dump(priv, IWL_DL_RX, header, length);
+		iwl_print_hex_dump(IWL_DL_RX, header, length);
 }
 #endif
 
@@ -1061,11 +1061,11 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 
 	/* Set "1" to report good data frames in groups of 100 */
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (unlikely(priv->debug_level & IWL_DL_RX))
+	if (unlikely(iwl_debug_level & IWL_DL_RX))
 		iwl_dbg_report_frame(priv, rx_start, len, header, 1);
 #endif
 	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, noise %d, qual %d, TSF %llu\n",
-		rx_status.signal, rx_status.noise, rx_status.signal,
+		rx_status.signal, rx_status.noise, rx_status.qual,
 		(unsigned long long)rx_status.mactime);
 
 	/*

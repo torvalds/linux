@@ -686,11 +686,11 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 	u8 ttl, dst_flags;
 	u32 lifetime;
 
-	spin_lock(&ifmsh->mesh_preq_queue_lock);
+	spin_lock_bh(&ifmsh->mesh_preq_queue_lock);
 	if (!ifmsh->preq_queue_len ||
 		time_before(jiffies, ifmsh->last_preq +
 				min_preq_int_jiff(sdata))) {
-		spin_unlock(&ifmsh->mesh_preq_queue_lock);
+		spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
 		return;
 	}
 
@@ -698,7 +698,7 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 			struct mesh_preq_queue, list);
 	list_del(&preq_node->list);
 	--ifmsh->preq_queue_len;
-	spin_unlock(&ifmsh->mesh_preq_queue_lock);
+	spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
 
 	rcu_read_lock();
 	mpath = mesh_path_lookup(preq_node->dst, sdata);
@@ -784,7 +784,6 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 		mesh_path_add(dst_addr, sdata);
 		mpath = mesh_path_lookup(dst_addr, sdata);
 		if (!mpath) {
-			dev_kfree_skb(skb);
 			sdata->u.mesh.mshstats.dropped_frames_no_route++;
 			err = -ENOSPC;
 			goto endlookup;
@@ -804,6 +803,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 		memcpy(hdr->addr1, mpath->next_hop->sta.addr,
 				ETH_ALEN);
 	} else {
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		if (!(mpath->flags & MESH_PATH_RESOLVING)) {
 			/* Start discovery only if it is not running yet */
 			mesh_queue_preq(mpath, PREQ_Q_F_START);
@@ -815,6 +815,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 			skb_unlink(skb_to_free, &mpath->frame_queue);
 		}
 
+		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 		skb_queue_tail(&mpath->frame_queue, skb);
 		if (skb_to_free)
 			mesh_path_discard_frame(skb_to_free, sdata);

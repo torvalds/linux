@@ -85,10 +85,8 @@ static u16 classify80211(struct ieee80211_local *local, struct sk_buff *skb)
 	return ieee802_1d_to_ac[skb->priority];
 }
 
-u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb)
+void ieee80211_select_queue(struct ieee80211_local *local, struct sk_buff *skb)
 {
-	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
-	struct ieee80211_local *local = mpriv->local;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u16 queue;
 	u8 tid;
@@ -113,5 +111,5 @@ u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb)
 		*p = 0;
 	}
 
-	return queue;
+	skb_set_queue_mapping(skb, queue);
 }

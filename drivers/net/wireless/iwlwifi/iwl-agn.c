@@ -533,12 +533,16 @@ static void iwl_rx_reply_alive(struct iwl_priv *priv,
 
 	if (palive->ver_subtype == INITIALIZE_SUBTYPE) {
 		IWL_DEBUG_INFO(priv, "Initialization Alive received.\n");
+		set_bit(STATUS_INIT_UCODE_ALIVE, &priv->status);
+		wake_up_interruptible(&priv->wait_command_queue);
 		memcpy(&priv->card_alive_init,
 		       &pkt->u.alive_frame,
 		       sizeof(struct iwl_init_alive_resp));
 		pwork = &priv->init_alive_start;
 	} else {
 		IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
+		set_bit(STATUS_RT_UCODE_ALIVE, &priv->status);
+		wake_up_interruptible(&priv->wait_command_queue);
 		memcpy(&priv->card_alive, &pkt->u.alive_frame,
 		       sizeof(struct iwl_alive_resp));
 		pwork = &priv->alive_start;
@@ -900,7 +904,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & IWL_DL_ISR) {
+	if (iwl_debug_level & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -919,7 +923,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IWL_ERR(priv, "Microcode HW error detected.  Restarting.\n");
+		IWL_ERR(priv, "Hardware error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
 		iwl_disable_interrupts(priv);
@@ -935,7 +939,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & (IWL_DL_ISR)) {
+	if (iwl_debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -960,7 +964,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
-		IWL_DEBUG_RF_KILL(priv, "RF_KILL bit toggled to %s.\n",
+		IWL_WARN(priv, "RF_KILL bit toggled to %s.\n",
 				hw_rf_kill ? "disable radio" : "enable radio");
 
 		priv->isr_stats.rfkill++;
@@ -1049,7 +1053,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 		iwl_enable_interrupts(priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & (IWL_DL_ISR)) {
+	if (iwl_debug_level & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
@@ -1080,7 +1084,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	inta = priv->inta;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & IWL_DL_ISR) {
+	if (iwl_debug_level & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x\n ",
@@ -1092,7 +1096,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
-		IWL_ERR(priv, "Microcode HW error detected.  Restarting.\n");
+		IWL_ERR(priv, "Hardware error detected.  Restarting.\n");
 
 		/* Tell the device to stop sending interrupts */
 		iwl_disable_interrupts(priv);
@@ -1108,7 +1112,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (priv->debug_level & (IWL_DL_ISR)) {
+	if (iwl_debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -1133,7 +1137,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
-		IWL_DEBUG_RF_KILL(priv, "RF_KILL bit toggled to %s.\n",
+		IWL_WARN(priv, "RF_KILL bit toggled to %s.\n",
 				hw_rf_kill ? "disable radio" : "enable radio");
 
 		priv->isr_stats.rfkill++;
@@ -1284,7 +1288,7 @@ static void iwl_nic_start(struct iwl_priv *priv)
  */
 static int iwl_read_ucode(struct iwl_priv *priv)
 {
-	struct iwl_ucode *ucode;
+	struct iwl_ucode_header *ucode;
 	int ret = -EINVAL, index;
 	const struct firmware *ucode_raw;
 	const char *name_pre = priv->cfg->fw_name_pre;
@@ -1293,7 +1297,8 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	char buf[25];
 	u8 *src;
 	size_t len;
-	u32 api_ver, inst_size, data_size, init_size, init_data_size, boot_size;
+	u32 api_ver, build;
+	u32 inst_size, data_size, init_size, init_data_size, boot_size;
 
 	/* Ask kernel firmware_class module to get the boot firmware off disk.
 	 * request_firmware() is synchronous, file is in memory on return. */
@@ -1323,23 +1328,26 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	if (ret < 0)
 		goto error;
 
-	/* Make sure that we got at least our header! */
-	if (ucode_raw->size < sizeof(*ucode)) {
+	/* Make sure that we got at least the v1 header! */
+	if (ucode_raw->size < priv->cfg->ops->ucode->get_header_size(1)) {
 		IWL_ERR(priv, "File size way too small!\n");
 		ret = -EINVAL;
 		goto err_release;
 	}
 
 	/* Data from ucode file:  header followed by uCode images */
-	ucode = (void *)ucode_raw->data;
+	ucode = (struct iwl_ucode_header *)ucode_raw->data;
 
 	priv->ucode_ver = le32_to_cpu(ucode->ver);
 	api_ver = IWL_UCODE_API(priv->ucode_ver);
-	inst_size = le32_to_cpu(ucode->inst_size);
-	data_size = le32_to_cpu(ucode->data_size);
-	init_size = le32_to_cpu(ucode->init_size);
-	init_data_size = le32_to_cpu(ucode->init_data_size);
-	boot_size = le32_to_cpu(ucode->boot_size);
+	build = priv->cfg->ops->ucode->get_build(ucode, api_ver);
+	inst_size = priv->cfg->ops->ucode->get_inst_size(ucode, api_ver);
+	data_size = priv->cfg->ops->ucode->get_data_size(ucode, api_ver);
+	init_size = priv->cfg->ops->ucode->get_init_size(ucode, api_ver);
+	init_data_size =
+		priv->cfg->ops->ucode->get_init_data_size(ucode, api_ver);
+	boot_size = priv->cfg->ops->ucode->get_boot_size(ucode, api_ver);
+	src = priv->cfg->ops->ucode->get_data(ucode, api_ver);
 
 	/* api_ver should match the api version forming part of the
 	 * firmware filename ... but we don't check for that and only rely
@@ -1365,6 +1373,9 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	       IWL_UCODE_API(priv->ucode_ver),
 	       IWL_UCODE_SERIAL(priv->ucode_ver));
 
+	if (build)
+		IWL_DEBUG_INFO(priv, "Build %u\n", build);
+
 	IWL_DEBUG_INFO(priv, "f/w package hdr ucode version raw = 0x%x\n",
 		       priv->ucode_ver);
 	IWL_DEBUG_INFO(priv, "f/w package hdr runtime inst size = %u\n",
@@ -1379,12 +1390,14 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 		       boot_size);
 
 	/* Verify size of file vs. image size info in file's header */
-	if (ucode_raw->size < sizeof(*ucode) +
+	if (ucode_raw->size !=
+		priv->cfg->ops->ucode->get_header_size(api_ver) +
 		inst_size + data_size + init_size +
 		init_data_size + boot_size) {
 
-		IWL_DEBUG_INFO(priv, "uCode file size %d too small\n",
-			       (int)ucode_raw->size);
+		IWL_DEBUG_INFO(priv,
+			"uCode file size %d does not match expected size\n",
+			(int)ucode_raw->size);
 		ret = -EINVAL;
 		goto err_release;
 	}
@@ -1464,42 +1477,42 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
-	src = &ucode->data[0];
-	len = priv->ucode_code.len;
+	len = inst_size;
 	IWL_DEBUG_INFO(priv, "Copying (but not loading) uCode instr len %Zd\n", len);
 	memcpy(priv->ucode_code.v_addr, src, len);
+	src += len;
+
 	IWL_DEBUG_INFO(priv, "uCode instr buf vaddr = 0x%p, paddr = 0x%08x\n",
 		priv->ucode_code.v_addr, (u32)priv->ucode_code.p_addr);
 
 	/* Runtime data (2nd block)
 	 * NOTE:  Copy into backup buffer will be done in iwl_up()  */
-	src = &ucode->data[inst_size];
-	len = priv->ucode_data.len;
+	len = data_size;
 	IWL_DEBUG_INFO(priv, "Copying (but not loading) uCode data len %Zd\n", len);
 	memcpy(priv->ucode_data.v_addr, src, len);
 	memcpy(priv->ucode_data_backup.v_addr, src, len);
+	src += len;
 
 	/* Initialization instructions (3rd block) */
 	if (init_size) {
-		src = &ucode->data[inst_size + data_size];
-		len = priv->ucode_init.len;
+		len = init_size;
 		IWL_DEBUG_INFO(priv, "Copying (but not loading) init instr len %Zd\n",
 				len);
 		memcpy(priv->ucode_init.v_addr, src, len);
+		src += len;
 	}
 
 	/* Initialization data (4th block) */
 	if (init_data_size) {
-		src = &ucode->data[inst_size + data_size + init_size];
-		len = priv->ucode_init_data.len;
+		len = init_data_size;
 		IWL_DEBUG_INFO(priv, "Copying (but not loading) init data len %Zd\n",
 			       len);
 		memcpy(priv->ucode_init_data.v_addr, src, len);
+		src += len;
 	}
 
 	/* Bootstrap instructions (5th block) */
-	src = &ucode->data[inst_size + data_size + init_size + init_data_size];
-	len = priv->ucode_boot.len;
+	len = boot_size;
 	IWL_DEBUG_INFO(priv, "Copying (but not loading) boot instr len %Zd\n", len);
 	memcpy(priv->ucode_boot.v_addr, src, len);
 
@@ -1773,6 +1786,7 @@ static int __iwl_up(struct iwl_priv *priv)
 {
 	int i;
 	int ret;
+	unsigned long status;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
@@ -1850,6 +1864,51 @@ static int __iwl_up(struct iwl_priv *priv)
 		/* start card; "initialize" will load runtime ucode */
 		iwl_nic_start(priv);
 
+		/* Just finish download Init or Runtime uCode image to device
+		 * now we wait here for uCode send REPLY_ALIVE notification
+		 * to indicate uCode is ready.
+		 * 1) For Init uCode image, all iwlagn devices should wait here
+		 * on STATUS_INIT_UCODE_ALIVE status bit; if timeout before
+		 * receive the REPLY_ALIVE notification, go back and try to
+		 * download the Init uCode image again.
+		 * 2) For Runtime uCode image, all iwlagn devices except 4965
+		 * wait here on STATUS_RT_UCODE_ALIVE status bit; if
+		 * timeout before receive the REPLY_ALIVE notification, go back
+		 * and download the Runtime uCode image again.
+		 * 3) For 4965 Runtime uCode, it will not go through this path,
+		 * need to wait for STATUS_RT_UCODE_ALIVE status bit in
+		 * iwl4965_init_alive_start() function; if timeout, need to
+		 * restart and download Init uCode image.
+		 */
+		if (priv->ucode_type == UCODE_INIT)
+			status = STATUS_INIT_UCODE_ALIVE;
+		else
+			status = STATUS_RT_UCODE_ALIVE;
+		if (test_bit(status, &priv->status)) {
+			IWL_WARN(priv,
+				"%s uCode already alive? "
+				"Waiting for alive anyway\n",
+				(status == STATUS_INIT_UCODE_ALIVE)
+				? "INIT" : "Runtime");
+			clear_bit(status, &priv->status);
+		}
+		ret = wait_event_interruptible_timeout(
+				priv->wait_command_queue,
+				test_bit(status, &priv->status),
+				UCODE_ALIVE_TIMEOUT);
+		if (!ret) {
+			if (!test_bit(status, &priv->status)) {
+				priv->ucode_type =
+					(status == STATUS_INIT_UCODE_ALIVE)
+					? UCODE_NONE : UCODE_INIT;
+				IWL_ERR(priv,
+					"%s timeout after %dms\n",
+					(status == STATUS_INIT_UCODE_ALIVE)
+					? "INIT" : "Runtime",
+					jiffies_to_msecs(UCODE_ALIVE_TIMEOUT));
+				continue;
+			}
+		}
 		IWL_DEBUG_INFO(priv, DRV_NAME " is coming up\n");
 
 		return 0;
@@ -2397,14 +2456,16 @@ static int iwl_mac_get_stats(struct ieee80211_hw *hw,
  * used for controlling the debug level.
  *
  * See the level definitions in iwl for details.
+ *
+ * FIXME This file can be deprecated as the module parameter is
+ * writable and users can thus also change the debug level
+ * using the /sys/module/iwl3945/parameters/debug file.
  */
 
 static ssize_t show_debug_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	return sprintf(buf, "0x%08X\n", priv->debug_level);
+	return sprintf(buf, "0x%08X\n", iwl_debug_level);
 }
 static ssize_t store_debug_level(struct device *d,
 				struct device_attribute *attr,
@@ -2418,7 +2479,7 @@ static ssize_t store_debug_level(struct device *d,
 	if (ret)
 		IWL_ERR(priv, "%s is not in hex or decimal form.\n", buf);
 	else
-		priv->debug_level = val;
+		iwl_debug_level = val;
 
 	return strnlen(buf, count);
 }
@@ -2627,26 +2688,6 @@ static ssize_t show_power_level(struct device *d,
 static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
 		   store_power_level);
 
-static ssize_t show_qos(struct device *d,
-				struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	char *p = buf;
-	int   q;
-
-	for (q = 0; q < AC_NUM; q++) {
-		p += sprintf(p, "\tcw_min\tcw_max\taifsn\ttxop\n");
-		p += sprintf(p, "AC[%d]\t%u\t%u\t%u\t%u\n", q,
-			     priv->qos_data.def_qos_parm.ac[q].cw_min,
-			     priv->qos_data.def_qos_parm.ac[q].cw_max,
-			     priv->qos_data.def_qos_parm.ac[q].aifsn,
-			     priv->qos_data.def_qos_parm.ac[q].edca_txop);
-	}
-
-	return p - buf + 1;
-}
-
-static DEVICE_ATTR(qos, S_IRUGO, show_qos, NULL);
 
 static ssize_t show_statistics(struct device *d,
 			       struct device_attribute *attr, char *buf)
@@ -2747,7 +2788,6 @@ static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_debug_level.attr,
 #endif
 	&dev_attr_version.attr,
-	&dev_attr_qos.attr,
 	NULL
 };
 
@@ -2791,7 +2831,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan. */
 	if (cfg->mod_params->disable_hw_scan) {
-		if (cfg->mod_params->debug & IWL_DL_INFO)
+		if (iwl_debug_level & IWL_DL_INFO)
 			dev_printk(KERN_DEBUG, &(pdev->dev),
 				   "Disabling hw_scan\n");
 		iwl_hw_ops.hw_scan = NULL;
@@ -2813,7 +2853,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->inta_mask = CSR_INI_SET_MASK;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	priv->debug_level = priv->cfg->mod_params->debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
 
@@ -3173,3 +3212,11 @@ static void __exit iwl_exit(void)
 
 module_exit(iwl_exit);
 module_init(iwl_init);
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+module_param_named(debug50, iwl_debug_level, uint, 0444);
+MODULE_PARM_DESC(debug50, "50XX debug output mask (deprecated)");
+module_param_named(debug, iwl_debug_level, uint, 0644);
+MODULE_PARM_DESC(debug, "debug output mask");
+#endif
+

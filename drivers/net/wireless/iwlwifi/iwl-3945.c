@@ -502,14 +502,14 @@ static void _iwl3945_dbg_report_frame(struct iwl_priv *priv,
 		}
 	}
 	if (print_dump)
-		iwl_print_hex_dump(priv, IWL_DL_RX, data, length);
+		iwl_print_hex_dump(IWL_DL_RX, data, length);
 }
 
 static void iwl3945_dbg_report_frame(struct iwl_priv *priv,
 		      struct iwl_rx_packet *pkt,
 		      struct ieee80211_hdr *header, int group100)
 {
-	if (priv->debug_level & IWL_DL_RX)
+	if (iwl_debug_level & IWL_DL_RX)
 		_iwl3945_dbg_report_frame(priv, pkt, header, group100);
 }
 
@@ -963,7 +963,7 @@ static int iwl3945_txq_ctx_reset(struct iwl_priv *priv)
 		goto error;
 
 	/* Tx queue(s) */
-	for (txq_id = 0; txq_id <= priv->hw_params.max_txq_num; txq_id++) {
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
 		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
 				TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		rc = iwl_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
@@ -1140,7 +1140,7 @@ void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv)
 	int txq_id;
 
 	/* Tx queues */
-	for (txq_id = 0; txq_id <= priv->hw_params.max_txq_num; txq_id++)
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
 		if (txq_id == IWL_CMD_QUEUE_NUM)
 			iwl_cmd_queue_free(priv);
 		else
@@ -1156,7 +1156,7 @@ void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 	iwl_write_prph(priv, ALM_SCD_MODE_REG, 0);
 
 	/* reset TFD queues */
-	for (txq_id = 0; txq_id <= priv->hw_params.max_txq_num; txq_id++) {
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
 		iwl_write_direct32(priv, FH39_TCSR_CONFIG(txq_id), 0x0);
 		iwl_poll_direct_bit(priv, FH39_TSSR_TX_STATUS,
 				FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
@@ -2552,7 +2552,7 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	/* Assign number of Usable TX queues */
-	priv->hw_params.max_txq_num = TFD_QUEUE_MAX;
+	priv->hw_params.max_txq_num = IWL39_NUM_QUEUES;
 
 	priv->hw_params.tfd_size = sizeof(struct iwl3945_tfd);
 	priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_3K;
@@ -2786,9 +2786,48 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	return 0;
 }
 
+#define IWL3945_UCODE_GET(item)						\
+static u32 iwl3945_ucode_get_##item(const struct iwl_ucode_header *ucode,\
+				    u32 api_ver)			\
+{									\
+	return le32_to_cpu(ucode->u.v1.item);				\
+}
+
+static u32 iwl3945_ucode_get_header_size(u32 api_ver)
+{
+	return UCODE_HEADER_SIZE(1);
+}
+static u32 iwl3945_ucode_get_build(const struct iwl_ucode_header *ucode,
+				   u32 api_ver)
+{
+	return 0;
+}
+static u8 *iwl3945_ucode_get_data(const struct iwl_ucode_header *ucode,
+				  u32 api_ver)
+{
+	return (u8 *) ucode->u.v1.data;
+}
+
+IWL3945_UCODE_GET(inst_size);
+IWL3945_UCODE_GET(data_size);
+IWL3945_UCODE_GET(init_size);
+IWL3945_UCODE_GET(init_data_size);
+IWL3945_UCODE_GET(boot_size);
+
 static struct iwl_hcmd_ops iwl3945_hcmd = {
 	.rxon_assoc = iwl3945_send_rxon_assoc,
 	.commit_rxon = iwl3945_commit_rxon,
+};
+
+static struct iwl_ucode_ops iwl3945_ucode = {
+	.get_header_size = iwl3945_ucode_get_header_size,
+	.get_build = iwl3945_ucode_get_build,
+	.get_inst_size = iwl3945_ucode_get_inst_size,
+	.get_data_size = iwl3945_ucode_get_data_size,
+	.get_init_size = iwl3945_ucode_get_init_size,
+	.get_init_data_size = iwl3945_ucode_get_init_data_size,
+	.get_boot_size = iwl3945_ucode_get_boot_size,
+	.get_data = iwl3945_ucode_get_data,
 };
 
 static struct iwl_lib_ops iwl3945_lib = {
@@ -2831,6 +2870,7 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 };
 
 static struct iwl_ops iwl3945_ops = {
+	.ucode = &iwl3945_ucode,
 	.lib = &iwl3945_lib,
 	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,

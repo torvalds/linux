@@ -938,7 +938,6 @@ static void b43_clear_keys(struct b43_wldev *dev)
 static void b43_dump_keymemory(struct b43_wldev *dev)
 {
 	unsigned int i, index, offset;
-	DECLARE_MAC_BUF(macbuf);
 	u8 mac[ETH_ALEN];
 	u16 algo;
 	u32 rcmta0;
@@ -973,8 +972,7 @@ static void b43_dump_keymemory(struct b43_wldev *dev)
 						((index - 4) * 2) + 1);
 			*((__le32 *)(&mac[0])) = cpu_to_le32(rcmta0);
 			*((__le16 *)(&mac[4])) = cpu_to_le16(rcmta1);
-			printk("   MAC: %s",
-			       print_mac(macbuf, mac));
+			printk("   MAC: %pM", mac);
 		} else
 			printk("   DEFAULT KEY");
 		printk("\n");

@@ -46,8 +46,8 @@
 #include "iwl-5000-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL6000_UCODE_API_MAX 2
-#define IWL6050_UCODE_API_MAX 2
+#define IWL6000_UCODE_API_MAX 3
+#define IWL6050_UCODE_API_MAX 3
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 1
@@ -69,6 +69,7 @@ static struct iwl_hcmd_utils_ops iwl6000_hcmd_utils = {
 };
 
 static struct iwl_ops iwl6000_ops = {
+	.ucode = &iwl5000_ucode,
 	.lib = &iwl5000_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl6000_hcmd_utils,

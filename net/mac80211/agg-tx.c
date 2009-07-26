@@ -383,9 +383,6 @@ static void ieee80211_agg_splice_packets(struct ieee80211_local *local,
 
 	if (!skb_queue_empty(&sta->ampdu_mlme.tid_tx[tid]->pending)) {
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-		/* mark queue as pending, it is stopped already */
-		__set_bit(IEEE80211_QUEUE_STOP_REASON_PENDING,
-			  &local->queue_stop_reasons[queue]);
 		/* copy over remaining packets */
 		skb_queue_splice_tail_init(
 			&sta->ampdu_mlme.tid_tx[tid]->pending,

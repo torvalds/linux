@@ -538,7 +538,7 @@ struct cfg80211_ssid {
  * @ssids: SSIDs to scan for (active scan only)
  * @n_ssids: number of SSIDs
  * @channels: channels to scan on.
- * @n_channels: number of channels for each band
+ * @n_channels: total number of channels to scan
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
  * @wiphy: the wiphy this was for
@@ -647,12 +647,17 @@ struct cfg80211_crypto_settings {
  * @auth_type: Authentication type (algorithm)
  * @ie: Extra IEs to add to Authentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
+ * @key_len: length of WEP key for shared key authentication
+ * @key_idx: index of WEP key for shared key authentication
+ * @key: WEP key for shared key authentication
  */
 struct cfg80211_auth_request {
 	struct cfg80211_bss *bss;
 	const u8 *ie;
 	size_t ie_len;
 	enum nl80211_auth_type auth_type;
+	const u8 *key;
+	u8 key_len, key_idx;
 };
 
 /**
@@ -727,6 +732,8 @@ struct cfg80211_disassoc_request {
  * @ie: information element(s) to include in the beacon
  * @ie_len: length of that
  * @beacon_interval: beacon interval to use
+ * @privacy: this is a protected network, keys will be configured
+ *	after joining
  */
 struct cfg80211_ibss_params {
 	u8 *ssid;
@@ -736,6 +743,7 @@ struct cfg80211_ibss_params {
 	u8 ssid_len, ie_len;
 	u16 beacon_interval;
 	bool channel_fixed;
+	bool privacy;
 };
 
 /**
@@ -755,6 +763,9 @@ struct cfg80211_ibss_params {
  * @assoc_ie_len: Length of assoc_ie in octets
  * @privacy: indicates whether privacy-enabled APs should be used
  * @crypto: crypto settings
+ * @key_len: length of WEP key for shared key authentication
+ * @key_idx: index of WEP key for shared key authentication
+ * @key: WEP key for shared key authentication
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
@@ -766,6 +777,8 @@ struct cfg80211_connect_params {
 	size_t ie_len;
 	bool privacy;
 	struct cfg80211_crypto_settings crypto;
+	const u8 *key;
+	u8 key_len, key_idx;
 };
 
 /**
@@ -1223,9 +1236,10 @@ extern void wiphy_unregister(struct wiphy *wiphy);
  */
 extern void wiphy_free(struct wiphy *wiphy);
 
-/* internal struct */
+/* internal structs */
 struct cfg80211_conn;
 struct cfg80211_internal_bss;
+struct cfg80211_cached_keys;
 
 #define MAX_AUTH_BSSES		4
 
@@ -1267,6 +1281,7 @@ struct wireless_dev {
 		CFG80211_SME_CONNECTED,
 	} sme_state;
 	struct cfg80211_conn *conn;
+	struct cfg80211_cached_keys *connect_keys;
 
 	struct list_head event_list;
 	spinlock_t event_lock;
@@ -1280,6 +1295,7 @@ struct wireless_dev {
 	struct {
 		struct cfg80211_ibss_params ibss;
 		struct cfg80211_connect_params connect;
+		struct cfg80211_cached_keys *keys;
 		u8 *ie;
 		size_t ie_len;
 		u8 bssid[ETH_ALEN];

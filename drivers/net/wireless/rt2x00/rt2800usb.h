@@ -1921,7 +1921,7 @@ struct mac_iveiv_entry {
 #define RXWI_W3_SNR1			FIELD32(0x0000ff00)
 
 /*
- * Macro's for converting txpower from EEPROM to mac80211 value
+ * Macros for converting txpower from EEPROM to mac80211 value
  * and from mac80211 value to register value.
  */
 #define MIN_G_TXPOWER	0

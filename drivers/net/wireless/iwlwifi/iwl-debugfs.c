@@ -49,7 +49,8 @@
 
 #define DEBUGFS_ADD_FILE(name, parent) do {                             \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
-	debugfs_create_file(#name, 0644, dbgfs->dir_##parent, priv,     \
+	debugfs_create_file(#name, S_IWUSR | S_IRUSR,                   \
+				dbgfs->dir_##parent, priv,              \
 				&iwl_dbgfs_##name##_ops);               \
 	if (!(dbgfs->dbgfs_##parent##_files.file_##name))               \
 		goto err;                                               \
@@ -57,7 +58,8 @@
 
 #define DEBUGFS_ADD_BOOL(name, parent, ptr) do {                        \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
-	debugfs_create_bool(#name, 0644, dbgfs->dir_##parent, ptr);     \
+	debugfs_create_bool(#name, S_IWUSR | S_IRUSR,                   \
+			    dbgfs->dir_##parent, ptr);                  \
 	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name)		\
 			|| !dbgfs->dbgfs_##parent##_files.file_##name)	\
 		goto err;                                               \
@@ -65,7 +67,7 @@
 
 #define DEBUGFS_ADD_X32(name, parent, ptr) do {                        \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
-	debugfs_create_x32(#name, 0444, dbgfs->dir_##parent, ptr);     \
+	debugfs_create_x32(#name, S_IRUSR, dbgfs->dir_##parent, ptr);   \
 	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name)		\
 			|| !dbgfs->dbgfs_##parent##_files.file_##name)	\
 		goto err;                                               \
@@ -566,6 +568,55 @@ static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_qos_read(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0, i;
+	char buf[256];
+	const size_t bufsz = sizeof(buf);
+	ssize_t ret;
+
+	for (i = 0; i < AC_NUM; i++) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+			"\tcw_min\tcw_max\taifsn\ttxop\n");
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"AC[%d]\t%u\t%u\t%u\t%u\n", i,
+				priv->qos_data.def_qos_parm.ac[i].cw_min,
+				priv->qos_data.def_qos_parm.ac[i].cw_max,
+				priv->qos_data.def_qos_parm.ac[i].aifsn,
+				priv->qos_data.def_qos_parm.ac[i].edca_txop);
+	}
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	return ret;
+}
+
+#ifdef CONFIG_IWLWIFI_LEDS
+static ssize_t iwl_dbgfs_led_read(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0;
+	char buf[256];
+	const size_t bufsz = sizeof(buf);
+	ssize_t ret;
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "allow blinking: %s\n",
+			 (priv->allow_blinking) ? "True" : "False");
+	if (priv->allow_blinking) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "Led blinking rate: %u\n",
+				 priv->last_blink_rate);
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "Last blink time: %lu\n",
+				 priv->last_blink_time);
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	return ret;
+}
+#endif
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
@@ -576,6 +627,10 @@ DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_FILE_OPS(channels);
 DEBUGFS_READ_FILE_OPS(status);
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
+DEBUGFS_READ_FILE_OPS(qos);
+#ifdef CONFIG_IWLWIFI_LEDS
+DEBUGFS_READ_FILE_OPS(led);
+#endif
 
 /*
  * Create the debugfs files and directories
@@ -612,6 +667,10 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(channels, data);
 	DEBUGFS_ADD_FILE(status, data);
 	DEBUGFS_ADD_FILE(interrupt, data);
+	DEBUGFS_ADD_FILE(qos, data);
+#ifdef CONFIG_IWLWIFI_LEDS
+	DEBUGFS_ADD_FILE(led, data);
+#endif
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
@@ -646,6 +705,10 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_channels);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_status);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_interrupt);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_qos);
+#ifdef CONFIG_IWLWIFI_LEDS
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_led);
+#endif
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);

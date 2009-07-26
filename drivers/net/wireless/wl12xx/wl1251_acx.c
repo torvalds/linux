@@ -84,7 +84,7 @@ int wl1251_acx_default_key(struct wl1251 *wl, u8 key_id)
 	ret = wl1251_cmd_configure(wl, DOT11_DEFAULT_KEY,
 				   default_key, sizeof(*default_key));
 	if (ret < 0) {
-		wl1251_error("Couldnt set default key");
+		wl1251_error("Couldn't set default key");
 		goto out;
 	}
 
@@ -231,7 +231,7 @@ int wl1251_acx_feature_cfg(struct wl1251 *wl)
 	ret = wl1251_cmd_configure(wl, ACX_FEATURE_CFG,
 				   feature, sizeof(*feature));
 	if (ret < 0) {
-		wl1251_error("Couldnt set HW encryption");
+		wl1251_error("Couldn't set HW encryption");
 		goto out;
 	}
 

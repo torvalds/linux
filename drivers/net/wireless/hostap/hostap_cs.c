@@ -666,7 +666,8 @@ static int prism2_config(struct pcmcia_device *link)
 	 * irq structure is initialized.
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+		link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING |
+				       IRQ_HANDLE_PRESENT;
 		link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 		link->irq.Handler = prism2_interrupt;
 		link->irq.Instance = dev;

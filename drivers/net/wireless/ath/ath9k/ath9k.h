@@ -164,7 +164,6 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 #define WME_NUM_TID             16
 #define ATH_TXBUF               512
 #define ATH_TXMAXTRY            13
-#define ATH_11N_TXMAXTRY        10
 #define ATH_MGT_TXMAXTRY        4
 #define WME_BA_BMP_SIZE         64
 #define WME_MAX_BA              WME_BA_BMP_SIZE
@@ -226,6 +225,8 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_DS_TX_BA(_ds)          ((_ds)->ds_us.tx.ts_flags & ATH9K_TX_BA)
 #define ATH_AN_2_TID(_an, _tidno)  (&(_an)->tid[(_tidno)])
 
+#define ATH_TX_COMPLETE_POLL_INT	1000
+
 enum ATH_AGGR_STATUS {
 	ATH_AGGR_DONE,
 	ATH_AGGR_BAW_CLOSED,
@@ -241,6 +242,7 @@ struct ath_txq {
 	u8 axq_aggr_depth;
 	u32 axq_totalqueued;
 	bool stopped;
+	bool axq_tx_inprogress;
 	struct ath_buf *axq_linkbuf;
 
 	/* first desc of the last descriptor that contains CTS */
@@ -291,12 +293,28 @@ struct ath_tx_control {
 #define ATH_TX_XRETRY       0x02
 #define ATH_TX_BAR          0x04
 
+#define ATH_RSSI_LPF_LEN 		10
+#define RSSI_LPF_THRESHOLD		-20
+#define ATH9K_RSSI_BAD			0x80
+#define ATH_RSSI_EP_MULTIPLIER     (1<<7)
+#define ATH_EP_MUL(x, mul)         ((x) * (mul))
+#define ATH_RSSI_IN(x)             (ATH_EP_MUL((x), ATH_RSSI_EP_MULTIPLIER))
+#define ATH_LPF_RSSI(x, y, len) \
+    ((x != ATH_RSSI_DUMMY_MARKER) ? (((x) * ((len) - 1) + (y)) / (len)) : (y))
+#define ATH_RSSI_LPF(x, y) do {                     			\
+    if ((y) >= RSSI_LPF_THRESHOLD)                         		\
+	x = ATH_LPF_RSSI((x), ATH_RSSI_IN((y)), ATH_RSSI_LPF_LEN);  	\
+} while (0)
+#define ATH_EP_RND(x, mul) 						\
+	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
+
 struct ath_node {
 	struct ath_softc *an_sc;
 	struct ath_atx_tid tid[WME_NUM_TID];
 	struct ath_atx_ac ac[WME_NUM_AC];
 	u16 maxampdu;
 	u8 mpdudensity;
+	int last_rssi;
 };
 
 struct ath_tx {
@@ -541,6 +559,7 @@ struct ath_softc {
 	spinlock_t sc_resetlock;
 	spinlock_t sc_serial_rw;
 	spinlock_t ani_lock;
+	spinlock_t sc_pm_lock;
 	struct mutex mutex;
 
 	u8 curbssid[ETH_ALEN];
@@ -557,7 +576,7 @@ struct ath_softc {
 	u32 keymax;
 	DECLARE_BITMAP(keymap, ATH_KEYMAX);
 	u8 splitmic;
-	atomic_t ps_usecount;
+	unsigned long ps_usecount;
 	enum ath9k_int imask;
 	enum ath9k_ht_extprotspacing ht_extprotspacing;
 	enum ath9k_ht_macmode tx_chan_width;
@@ -590,6 +609,7 @@ struct ath_softc {
 #endif
 	struct ath_bus_ops *bus_ops;
 	struct ath_beacon_config cur_beacon_conf;
+	struct delayed_work tx_complete_work;
 };
 
 struct ath_wiphy {
@@ -654,27 +674,8 @@ static inline int ath_ahb_init(void) { return 0; };
 static inline void ath_ahb_exit(void) {};
 #endif
 
-static inline void ath9k_ps_wakeup(struct ath_softc *sc)
-{
-	if (atomic_inc_return(&sc->ps_usecount) == 1)
-		if (sc->sc_ah->power_mode !=  ATH9K_PM_AWAKE) {
-			sc->sc_ah->restore_mode = sc->sc_ah->power_mode;
-			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
-		}
-}
-
-static inline void ath9k_ps_restore(struct ath_softc *sc)
-{
-	if (atomic_dec_and_test(&sc->ps_usecount))
-		if ((sc->hw->conf.flags & IEEE80211_CONF_PS) &&
-		    !(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
-				      SC_OP_WAIT_FOR_CAB |
-				      SC_OP_WAIT_FOR_PSPOLL_DATA |
-				      SC_OP_WAIT_FOR_TX_ACK)))
-			ath9k_hw_setpower(sc->sc_ah,
-					  sc->sc_ah->restore_mode);
-}
-
+void ath9k_ps_wakeup(struct ath_softc *sc);
+void ath9k_ps_restore(struct ath_softc *sc);
 
 void ath9k_set_bssid_mask(struct ieee80211_hw *hw);
 int ath9k_wiphy_add(struct ath_softc *sc);
@@ -690,6 +691,7 @@ void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
 				  struct ath_wiphy *selected);
 bool ath9k_wiphy_scanning(struct ath_softc *sc);
 void ath9k_wiphy_work(struct work_struct *work);
+bool ath9k_all_wiphys_idle(struct ath_softc *sc);
 
 void ath9k_iowrite32(struct ath_hw *ah, u32 reg_offset, u32 val);
 unsigned int ath9k_ioread32(struct ath_hw *ah, u32 reg_offset);

@@ -113,11 +113,7 @@ static const struct ieee80211_regdomain world_regdom = {
 static const struct ieee80211_regdomain *cfg80211_world_regdom =
 	&world_regdom;
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-static char *ieee80211_regdom = "US";
-#else
 static char *ieee80211_regdom = "00";
-#endif
 
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
@@ -2287,22 +2283,12 @@ int regulatory_init(void)
 
 	printk(KERN_INFO "cfg80211: Using static regulatory domain info\n");
 	print_regdomain_info(cfg80211_regdomain);
-	/*
-	 * The old code still requests for a new regdomain and if
-	 * you have CRDA you get it updated, otherwise you get
-	 * stuck with the static values. Since "EU" is not a valid
-	 * ISO / IEC 3166 alpha2 code we can't expect userpace to
-	 * give us a regulatory domain for it. We need last_request
-	 * iniitalized though so lets just send a request which we
-	 * know will be ignored... this crap will be removed once
-	 * OLD_REG dies.
-	 */
-	err = regulatory_hint_core(ieee80211_regdom);
 #else
 	cfg80211_regdomain = cfg80211_world_regdom;
 
-	err = regulatory_hint_core(ieee80211_regdom);
 #endif
+	/* We always try to get an update for the static regdomain */
+	err = regulatory_hint_core(cfg80211_regdomain->alpha2);
 	if (err) {
 		if (err == -ENOMEM)
 			return err;
@@ -2320,6 +2306,13 @@ int regulatory_init(void)
 		WARN_ON(err);
 #endif
 	}
+
+	/*
+	 * Finally, if the user set the module parameter treat it
+	 * as a user hint.
+	 */
+	if (!is_world_regdom(ieee80211_regdom))
+		regulatory_hint_user(ieee80211_regdom);
 
 	return 0;
 }

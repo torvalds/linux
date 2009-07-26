@@ -2728,7 +2728,8 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah, int setChip)
 	return true;
 }
 
-bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
+static bool ath9k_hw_setpower_nolock(struct ath_hw *ah,
+				     enum ath9k_power_mode mode)
 {
 	int status = true, setChip = true;
 	static const char *modes[] = {
@@ -2760,6 +2761,55 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 	ah->power_mode = mode;
 
 	return status;
+}
+
+bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
+{
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&ah->ah_sc->sc_pm_lock, flags);
+	ret = ath9k_hw_setpower_nolock(ah, mode);
+	spin_unlock_irqrestore(&ah->ah_sc->sc_pm_lock, flags);
+
+	return ret;
+}
+
+void ath9k_ps_wakeup(struct ath_softc *sc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (++sc->ps_usecount != 1)
+		goto unlock;
+
+	if (sc->sc_ah->power_mode != ATH9K_PM_AWAKE) {
+		sc->sc_ah->restore_mode = sc->sc_ah->power_mode;
+		ath9k_hw_setpower_nolock(sc->sc_ah, ATH9K_PM_AWAKE);
+	}
+
+ unlock:
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+}
+
+void ath9k_ps_restore(struct ath_softc *sc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (--sc->ps_usecount != 0)
+		goto unlock;
+
+	if ((sc->hw->conf.flags & IEEE80211_CONF_PS) &&
+		!(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
+				SC_OP_WAIT_FOR_CAB |
+				SC_OP_WAIT_FOR_PSPOLL_DATA |
+				SC_OP_WAIT_FOR_TX_ACK)))
+		ath9k_hw_setpower_nolock(sc->sc_ah,
+				      sc->sc_ah->restore_mode);
+
+ unlock:
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 }
 
 /*
@@ -3305,7 +3355,6 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	if (eeval & AR5416_OPFLAGS_11G) {
-		set_bit(ATH9K_MODE_11B, pCap->wireless_modes);
 		set_bit(ATH9K_MODE_11G, pCap->wireless_modes);
 		if (ah->config.ht_enable) {
 			if (!(eeval & AR5416_OPFLAGS_N_2G_HT20))
@@ -3791,19 +3840,14 @@ void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64)
 
 void ath9k_hw_reset_tsf(struct ath_hw *ah)
 {
-	int count;
+	ath9k_ps_wakeup(ah->ah_sc);
+	if (!ath9k_hw_wait(ah, AR_SLP32_MODE, AR_SLP32_TSF_WRITE_STATUS, 0,
+			   AH_TSF_WRITE_TIMEOUT))
+		DPRINTF(ah->ah_sc, ATH_DBG_RESET,
+			"AR_SLP32_TSF_WRITE_STATUS limit exceeded\n");
 
-	count = 0;
-	while (REG_READ(ah, AR_SLP32_MODE) & AR_SLP32_TSF_WRITE_STATUS) {
-		count++;
-		if (count > 10) {
-			DPRINTF(ah->ah_sc, ATH_DBG_RESET,
-				"AR_SLP32_TSF_WRITE_STATUS limit exceeded\n");
-			break;
-		}
-		udelay(10);
-	}
 	REG_WRITE(ah, AR_RESET_TSF, AR_RESET_TSF_ONCE);
+	ath9k_ps_restore(ah->ah_sc);
 }
 
 bool ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting)

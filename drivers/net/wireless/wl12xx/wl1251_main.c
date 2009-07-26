@@ -246,60 +246,6 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
-int wl1251_plt_start(struct wl1251 *wl)
-{
-	int ret;
-
-	mutex_lock(&wl->mutex);
-
-	wl1251_notice("power up");
-
-	if (wl->state != WL1251_STATE_OFF) {
-		wl1251_error("cannot go into PLT state because not "
-			     "in off state: %d", wl->state);
-		return -EBUSY;
-	}
-
-	wl->state = WL1251_STATE_PLT;
-
-	ret = wl1251_chip_wakeup(wl);
-	if (ret < 0)
-		return ret;
-
-	ret = wl->chip.op_boot(wl);
-	if (ret < 0)
-		return ret;
-
-	wl1251_notice("firmware booted in PLT mode (%s)", wl->chip.fw_ver);
-
-	ret = wl->chip.op_plt_init(wl);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-int wl1251_plt_stop(struct wl1251 *wl)
-{
-	mutex_lock(&wl->mutex);
-
-	wl1251_notice("power down");
-
-	if (wl->state != WL1251_STATE_PLT) {
-		wl1251_error("cannot power down because not in PLT "
-			     "state: %d", wl->state);
-		return -EBUSY;
-	}
-
-	wl1251_disable_interrupts(wl);
-	wl1251_power_off(wl);
-
-	wl->state = WL1251_STATE_OFF;
-
-	return 0;
-}
-
-
 static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1251 *wl = hw->priv;
@@ -349,7 +295,7 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 
 	ret = wl1251_chip_wakeup(wl);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = wl->chip.op_boot(wl);
 	if (ret < 0)
@@ -435,11 +381,10 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_if_init_conf *conf)
 {
 	struct wl1251 *wl = hw->priv;
-	DECLARE_MAC_BUF(mac);
 	int ret = 0;
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %s",
-		     conf->type, print_mac(mac, conf->mac_addr));
+	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
+		     conf->type, conf->mac_addr);
 
 	mutex_lock(&wl->mutex);
 

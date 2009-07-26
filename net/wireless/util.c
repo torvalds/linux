@@ -141,9 +141,12 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy)
 			set_mandatory_flags_band(wiphy->bands[band], band);
 }
 
-int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
+int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
+				   struct key_params *params, int key_idx,
 				   const u8 *mac_addr)
 {
+	int i;
+
 	if (key_idx > 5)
 		return -EINVAL;
 
@@ -196,6 +199,12 @@ int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
 			break;
 		}
 	}
+
+	for (i = 0; i < rdev->wiphy.n_cipher_suites; i++)
+		if (params->cipher == rdev->wiphy.cipher_suites[i])
+			break;
+	if (i == rdev->wiphy.n_cipher_suites)
+		return -EINVAL;
 
 	return 0;
 }
@@ -523,3 +532,37 @@ const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie)
 	return NULL;
 }
 EXPORT_SYMBOL(ieee80211_bss_get_ie);
+
+void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct net_device *dev = wdev->netdev;
+	int i;
+
+	if (!wdev->connect_keys)
+		return;
+
+	for (i = 0; i < 6; i++) {
+		if (!wdev->connect_keys->params[i].cipher)
+			continue;
+		if (rdev->ops->add_key(wdev->wiphy, dev, i, NULL,
+					&wdev->connect_keys->params[i])) {
+			printk(KERN_ERR "%s: failed to set key %d\n",
+				dev->name, i);
+			continue;
+		}
+		if (wdev->connect_keys->def == i)
+			if (rdev->ops->set_default_key(wdev->wiphy, dev, i)) {
+				printk(KERN_ERR "%s: failed to set defkey %d\n",
+					dev->name, i);
+				continue;
+			}
+		if (wdev->connect_keys->defmgmt == i)
+			if (rdev->ops->set_default_mgmt_key(wdev->wiphy, dev, i))
+				printk(KERN_ERR "%s: failed to set mgtdef %d\n",
+					dev->name, i);
+	}
+
+	kfree(wdev->connect_keys);
+	wdev->connect_keys = NULL;
+}

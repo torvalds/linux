@@ -615,6 +615,7 @@ struct iwm_umac_notif_alive {
 } __attribute__ ((packed));
 
 struct iwm_umac_notif_init_complete {
+	struct iwm_umac_wifi_in_hdr hdr;
 	__le16 status;
 	__le16 reserved;
 } __attribute__ ((packed));
@@ -643,6 +644,11 @@ struct iwm_fw_error_hdr {
 	__le32 umac_status;
 	__le32 lmac_status;
 	__le32 sdio_status;
+	__le32 dbm_sample_ctrl;
+	__le32 dbm_buf_base;
+	__le32 dbm_buf_end;
+	__le32 dbm_buf_write_ptr;
+	__le32 dbm_buf_cycle_cnt;
 } __attribute__ ((packed));
 
 struct iwm_umac_notif_error {

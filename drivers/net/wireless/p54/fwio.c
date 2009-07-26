@@ -585,7 +585,8 @@ int p54_set_ps(struct p54_common *priv)
 	unsigned int i;
 	u16 mode;
 
-	if (priv->hw->conf.flags & IEEE80211_CONF_PS)
+	if (priv->hw->conf.flags & IEEE80211_CONF_PS &&
+	    !priv->powersave_override)
 		mode = P54_PSM | P54_PSM_BEACON_TIMEOUT | P54_PSM_DTIM |
 		       P54_PSM_CHECKSUM | P54_PSM_MCBC;
 	else
@@ -607,8 +608,8 @@ int p54_set_ps(struct p54_common *priv)
 
 	psm->beacon_rssi_skip_max = 200;
 	psm->rssi_delta_threshold = 0;
-	psm->nr = 10;
-	psm->exclude[0] = 0;
+	psm->nr = 1;
+	psm->exclude[0] = WLAN_EID_TIM;
 
 	p54_tx(priv, skb);
 	return 0;
@@ -685,6 +686,8 @@ int p54_upload_key(struct p54_common *priv, u8 algo, int slot, u8 idx, u8 len,
 
 int p54_fetch_statistics(struct p54_common *priv)
 {
+	struct ieee80211_tx_info *txinfo;
+	struct p54_tx_info *p54info;
 	struct sk_buff *skb;
 
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL,
@@ -692,6 +695,20 @@ int p54_fetch_statistics(struct p54_common *priv)
 			    P54_CONTROL_TYPE_STAT_READBACK, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
+
+	/*
+	 * The statistic feedback causes some extra headaches here, if it
+	 * is not to crash/corrupt the firmware data structures.
+	 *
+	 * Unlike all other Control Get OIDs we can not use helpers like
+	 * skb_put to reserve the space for the data we're requesting.
+	 * Instead the extra frame length -which will hold the results later-
+	 * will only be told to the p54_assign_address, so that following
+	 * frames won't be placed into the  allegedly empty area.
+	 */
+	txinfo = IEEE80211_SKB_CB(skb);
+	p54info = (void *) txinfo->rate_driver_data;
+	p54info->extra_len = sizeof(struct p54_statistics);
 
 	p54_tx(priv, skb);
 	return 0;

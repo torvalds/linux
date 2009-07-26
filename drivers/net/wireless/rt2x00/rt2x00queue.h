@@ -29,7 +29,7 @@
 #include <linux/prefetch.h>
 
 /**
- * DOC: Entrie frame size
+ * DOC: Entry frame size
  *
  * Ralink PCI devices demand the Frame size to be a multiple of 128 bytes,
  * for USB devices this restriction does not apply, but the value of
@@ -45,13 +45,13 @@
 /**
  * DOC: Number of entries per queue
  *
- * Under normal load without fragmentation 12 entries are sufficient
+ * Under normal load without fragmentation, 12 entries are sufficient
  * without the queue being filled up to the maximum. When using fragmentation
- * and the queue threshold code we need to add some additional margins to
+ * and the queue threshold code, we need to add some additional margins to
  * make sure the queue will never (or only under extreme load) fill up
  * completely.
- * Since we don't use preallocated DMA having a large number of queue entries
- * will have only minimal impact on the memory requirements for the queue.
+ * Since we don't use preallocated DMA, having a large number of queue entries
+ * will have minimal impact on the memory requirements for the queue.
  */
 #define RX_ENTRIES	24
 #define TX_ENTRIES	24
