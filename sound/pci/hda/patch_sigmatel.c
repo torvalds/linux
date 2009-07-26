@@ -4066,7 +4066,7 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 	jack->nid = nid;
 	jack->type = type;
 
-	sprintf(name, "%s at %s %s Jack",
+	snprintf(name, sizeof(name), "%s at %s %s Jack",
 		snd_hda_get_jack_type(def_conf),
 		snd_hda_get_jack_connectivity(def_conf),
 		snd_hda_get_jack_location(def_conf));
