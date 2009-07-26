@@ -1258,7 +1258,6 @@ static void __init em_x270_init_i2c(void)
 
 static void __init em_x270_module_init(void)
 {
-	pr_info("%s\n", __func__);
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(em_x270_pin_config));
 
 	mmc_cd = GPIO13_MMC_CD;
@@ -1270,7 +1269,6 @@ static void __init em_x270_module_init(void)
 
 static void __init em_x270_exeda_init(void)
 {
-	pr_info("%s\n", __func__);
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(exeda_pin_config));
 
 	mmc_cd = GPIO114_MMC_CD;
