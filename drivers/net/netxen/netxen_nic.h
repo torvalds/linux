@@ -143,18 +143,13 @@
 #define NX_ETHERMTU                    1500
 #define NX_MAX_ETHERHDR                32 /* This contains some padding */
 
-#define NX_RX_NORMAL_BUF_MAX_LEN       (NX_MAX_ETHERHDR + NX_ETHERMTU)
+#define NX_P2_RX_BUF_MAX_LEN           1760
+#define NX_P3_RX_BUF_MAX_LEN           (NX_MAX_ETHERHDR + NX_ETHERMTU)
 #define NX_P2_RX_JUMBO_BUF_MAX_LEN     (NX_MAX_ETHERHDR + P2_MAX_MTU)
 #define NX_P3_RX_JUMBO_BUF_MAX_LEN     (NX_MAX_ETHERHDR + P3_MAX_MTU)
 #define NX_CT_DEFAULT_RX_BUF_LEN	2048
 
-#define MAX_RX_BUFFER_LENGTH		1760
-#define MAX_RX_JUMBO_BUFFER_LENGTH 	8062
-#define MAX_RX_LRO_BUFFER_LENGTH	(8062)
-#define RX_DMA_MAP_LEN			(MAX_RX_BUFFER_LENGTH - 2)
-#define RX_JUMBO_DMA_MAP_LEN	\
-	(MAX_RX_JUMBO_BUFFER_LENGTH - 2)
-#define RX_LRO_DMA_MAP_LEN		(MAX_RX_LRO_BUFFER_LENGTH - 2)
+#define NX_RX_LRO_BUFFER_LENGTH		(8060)
 
 /*
  * Maximum number of ring contexts

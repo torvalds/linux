@@ -247,9 +247,14 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 				rds_ring->skb_size =
 					NX_CT_DEFAULT_RX_BUF_LEN;
 			} else {
-				rds_ring->dma_size = RX_DMA_MAP_LEN;
+				if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+					rds_ring->dma_size =
+						NX_P3_RX_BUF_MAX_LEN;
+				else
+					rds_ring->dma_size =
+						NX_P2_RX_BUF_MAX_LEN;
 				rds_ring->skb_size =
-					MAX_RX_BUFFER_LENGTH;
+					rds_ring->dma_size + NET_IP_ALIGN;
 			}
 			break;
 
@@ -267,8 +272,8 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 
 		case RCV_RING_LRO:
 			rds_ring->num_desc = adapter->num_lro_rxd;
-			rds_ring->dma_size = RX_LRO_DMA_MAP_LEN;
-			rds_ring->skb_size = MAX_RX_LRO_BUFFER_LENGTH;
+			rds_ring->dma_size = NX_RX_LRO_BUFFER_LENGTH;
+			rds_ring->skb_size = rds_ring->dma_size + NET_IP_ALIGN;
 			break;
 
 		}
