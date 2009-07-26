@@ -819,6 +819,20 @@ netxen_nic_free_irq(struct netxen_adapter *adapter)
 	}
 }
 
+static void
+netxen_nic_init_coalesce_defaults(struct netxen_adapter *adapter)
+{
+	adapter->coal.flags = NETXEN_NIC_INTR_DEFAULT;
+	adapter->coal.normal.data.rx_time_us =
+		NETXEN_DEFAULT_INTR_COALESCE_RX_TIME_US;
+	adapter->coal.normal.data.rx_packets =
+		NETXEN_DEFAULT_INTR_COALESCE_RX_PACKETS;
+	adapter->coal.normal.data.tx_time_us =
+		NETXEN_DEFAULT_INTR_COALESCE_TX_TIME_US;
+	adapter->coal.normal.data.tx_packets =
+		NETXEN_DEFAULT_INTR_COALESCE_TX_PACKETS;
+}
+
 static int
 netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 {
@@ -840,6 +854,9 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 
 	if (adapter->max_sds_rings > 1)
 		netxen_config_rss(adapter, 1);
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		netxen_config_intr_coalesce(adapter);
 
 	netxen_napi_enable(adapter);
 
@@ -935,6 +952,9 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 				netdev->name);
 		goto err_out_free_rxbuf;
 	}
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		netxen_nic_init_coalesce_defaults(adapter);
 
 	adapter->is_up = NETXEN_ADAPTER_UP_MAGIC;
 	return 0;
