@@ -1116,6 +1116,7 @@ REGULATOR_CONSUMER(ldo5, NULL, "vcc cam");
 REGULATOR_CONSUMER(ldo10, &pxa_device_mci.dev, "vcc sdio");
 REGULATOR_CONSUMER(ldo12, NULL, "vcc usb");
 REGULATOR_CONSUMER(ldo19, &em_x270_gprs_userspace_consumer.dev, "vcc gprs");
+REGULATOR_CONSUMER(buck2, NULL, "vcc_core");
 
 #define REGULATOR_INIT(_ldo, _min_uV, _max_uV, _ops_mask)		\
 	static struct regulator_init_data _ldo##_data = {		\
@@ -1138,6 +1139,7 @@ REGULATOR_INIT(ldo10, 2000000, 3200000,
 	       REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE);
 REGULATOR_INIT(ldo12, 3000000, 3000000, REGULATOR_CHANGE_STATUS);
 REGULATOR_INIT(ldo19, 3200000, 3200000, REGULATOR_CHANGE_STATUS);
+REGULATOR_INIT(buck2, 1000000, 1650000, REGULATOR_CHANGE_VOLTAGE);
 
 struct led_info em_x270_led_info = {
 	.name = "em-x270:orange",
@@ -1206,6 +1208,8 @@ struct da903x_subdev_info em_x270_da9030_subdevs[] = {
 	DA9030_LDO(10),
 	DA9030_LDO(12),
 	DA9030_LDO(19),
+
+	DA9030_SUBDEV(regulator, BUCK2, &buck2_data),
 
 	DA9030_SUBDEV(led, LED_PC, &em_x270_led_info),
 	DA9030_SUBDEV(backlight, WLED, &em_x270_led_info),
