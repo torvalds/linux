@@ -880,22 +880,10 @@ netxen_validate_firmware(struct netxen_adapter *adapter, const char *fwname)
 	return 0;
 }
 
-void netxen_request_firmware(struct netxen_adapter *adapter)
+static int
+netxen_p3_has_mn(struct netxen_adapter *adapter)
 {
 	u32 capability, flashed_ver;
-	u8 fw_type;
-	struct pci_dev *pdev = adapter->pdev;
-	int rc = 0;
-
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-		fw_type = NX_P2_MN_ROMIMAGE;
-		goto request_fw;
-	} else {
-		fw_type = NX_P3_CT_ROMIMAGE;
-		goto request_fw;
-	}
-
-request_mn:
 	capability = 0;
 
 	netxen_rom_fast_read(adapter,
@@ -903,23 +891,35 @@ request_mn:
 	flashed_ver = NETXEN_DECODE_VERSION(flashed_ver);
 
 	if (flashed_ver >= NETXEN_VERSION_CODE(4, 0, 220)) {
+
 		capability = NXRD32(adapter, NX_PEG_TUNE_CAPABILITY);
-		if (capability & NX_PEG_TUNE_MN_PRESENT) {
-			fw_type = NX_P3_MN_ROMIMAGE;
-			goto request_fw;
-		}
+		if (capability & NX_PEG_TUNE_MN_PRESENT)
+			return 1;
+	}
+	return 0;
+}
+
+void netxen_request_firmware(struct netxen_adapter *adapter)
+{
+	u8 fw_type;
+	struct pci_dev *pdev = adapter->pdev;
+	int rc = 0;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		fw_type = NX_P2_MN_ROMIMAGE;
+		goto request_fw;
 	}
 
-	fw_type = NX_FLASH_ROMIMAGE;
-	adapter->fw = NULL;
-	goto done;
+	fw_type = netxen_p3_has_mn(adapter) ?
+		NX_P3_MN_ROMIMAGE : NX_P3_CT_ROMIMAGE;
 
 request_fw:
 	rc = request_firmware(&adapter->fw, fw_name[fw_type], &pdev->dev);
 	if (rc != 0) {
-		if (fw_type == NX_P3_CT_ROMIMAGE) {
+		if (fw_type == NX_P3_MN_ROMIMAGE) {
 			msleep(1);
-			goto request_mn;
+			fw_type = NX_P3_CT_ROMIMAGE;
+			goto request_fw;
 		}
 
 		fw_type = NX_FLASH_ROMIMAGE;
@@ -931,9 +931,10 @@ request_fw:
 	if (rc != 0) {
 		release_firmware(adapter->fw);
 
-		if (fw_type == NX_P3_CT_ROMIMAGE) {
+		if (fw_type == NX_P3_MN_ROMIMAGE) {
 			msleep(1);
-			goto request_mn;
+			fw_type = NX_P3_CT_ROMIMAGE;
+			goto request_fw;
 		}
 
 		fw_type = NX_FLASH_ROMIMAGE;
@@ -1292,6 +1293,7 @@ netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max)
 		switch (opcode) {
 		case NETXEN_NIC_RXPKT_DESC:
 		case NETXEN_OLD_RXPKT_DESC:
+		case NETXEN_NIC_SYN_OFFLOAD:
 			break;
 		case NETXEN_NIC_RESPONSE_DESC:
 			netxen_handle_fw_message(desc_cnt, consumer, sds_ring);

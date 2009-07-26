@@ -39,6 +39,7 @@
 #include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <linux/ipv6.h>
+#include <linux/inetdevice.h>
 
 MODULE_DESCRIPTION("NetXen Multi port (1/10) Gigabit Network Driver");
 MODULE_LICENSE("GPL");
@@ -1780,6 +1781,125 @@ static void netxen_nic_poll_controller(struct net_device *netdev)
 }
 #endif
 
+#define is_netxen_netdev(dev) (dev->netdev_ops == &netxen_netdev_ops)
+
+static int
+netxen_destip_supported(struct netxen_adapter *adapter)
+{
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return 0;
+
+	if (adapter->ahw.cut_through)
+		return 0;
+
+	return 1;
+}
+
+static int netxen_netdev_event(struct notifier_block *this,
+				 unsigned long event, void *ptr)
+{
+	struct netxen_adapter *adapter;
+	struct net_device *dev = (struct net_device *)ptr;
+	struct in_device *indev;
+
+recheck:
+	if (dev == NULL)
+		goto done;
+
+	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+		dev = vlan_dev_real_dev(dev);
+		goto recheck;
+	}
+
+	if (!is_netxen_netdev(dev))
+		goto done;
+
+	adapter = netdev_priv(dev);
+
+	if (!adapter || !netxen_destip_supported(adapter))
+		goto done;
+
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		goto done;
+
+	indev = in_dev_get(dev);
+	if (!indev)
+		goto done;
+
+	for_ifa(indev) {
+		switch (event) {
+		case NETDEV_UP:
+			netxen_config_ipaddr(adapter,
+					ifa->ifa_address, NX_IP_UP);
+			break;
+		case NETDEV_DOWN:
+			netxen_config_ipaddr(adapter,
+					ifa->ifa_address, NX_IP_DOWN);
+			break;
+		default:
+			break;
+		}
+	} endfor_ifa(indev);
+
+	in_dev_put(indev);
+done:
+	return NOTIFY_DONE;
+}
+
+static int
+netxen_inetaddr_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	struct netxen_adapter *adapter;
+	struct net_device *dev;
+
+	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
+
+	dev = ifa->ifa_dev ? ifa->ifa_dev->dev : NULL;
+
+recheck:
+	if (dev == NULL || !netif_running(dev))
+		goto done;
+
+	if (dev->priv_flags & IFF_802_1Q_VLAN) {
+		dev = vlan_dev_real_dev(dev);
+		goto recheck;
+	}
+
+	if (!is_netxen_netdev(dev))
+		goto done;
+
+	adapter = netdev_priv(dev);
+
+	if (!adapter || !netxen_destip_supported(adapter))
+		goto done;
+
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		goto done;
+
+	switch (event) {
+	case NETDEV_UP:
+		netxen_config_ipaddr(adapter, ifa->ifa_address, NX_IP_UP);
+		break;
+	case NETDEV_DOWN:
+		netxen_config_ipaddr(adapter, ifa->ifa_address, NX_IP_DOWN);
+		break;
+	default:
+		break;
+	}
+
+done:
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block	netxen_netdev_cb = {
+	.notifier_call = netxen_netdev_event,
+};
+
+static struct notifier_block netxen_inetaddr_cb = {
+	.notifier_call = netxen_inetaddr_event,
+};
+
 static struct pci_driver netxen_driver = {
 	.name = netxen_nic_driver_name,
 	.id_table = netxen_pci_tbl,
@@ -1800,6 +1920,9 @@ static int __init netxen_init_module(void)
 	if ((netxen_workq = create_singlethread_workqueue("netxen")) == NULL)
 		return -ENOMEM;
 
+	register_netdevice_notifier(&netxen_netdev_cb);
+	register_inetaddr_notifier(&netxen_inetaddr_cb);
+
 	return pci_register_driver(&netxen_driver);
 }
 
@@ -1808,6 +1931,9 @@ module_init(netxen_init_module);
 static void __exit netxen_exit_module(void)
 {
 	pci_unregister_driver(&netxen_driver);
+
+	unregister_inetaddr_notifier(&netxen_inetaddr_cb);
+	unregister_netdevice_notifier(&netxen_netdev_cb);
 	destroy_workqueue(netxen_workq);
 }
 

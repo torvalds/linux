@@ -380,6 +380,7 @@ struct rcv_desc {
 };
 
 /* opcode field in status_desc */
+#define NETXEN_NIC_SYN_OFFLOAD  0x03
 #define NETXEN_NIC_RXPKT_DESC  0x04
 #define NETXEN_OLD_RXPKT_DESC  0x3f
 #define NETXEN_NIC_RESPONSE_DESC 0x05
@@ -1078,6 +1079,9 @@ typedef struct {
 
 #define NX_MAC_EVENT		0x1
 
+#define NX_IP_UP		2
+#define NX_IP_DOWN		3
+
 /*
  * Driver --> Firmware
  */
@@ -1443,6 +1447,7 @@ void netxen_p3_free_mac_list(struct netxen_adapter *adapter);
 int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 int netxen_config_rss(struct netxen_adapter *adapter, int enable);
+int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd);
 int netxen_linkevent_request(struct netxen_adapter *adapter, int enable);
 void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup);
 
