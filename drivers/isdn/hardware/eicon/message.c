@@ -551,9 +551,7 @@ word api_put(APPL   * appl, CAPI_MSG   * msg)
   dbug(1,dprintf("com=%x",msg->header.command));
 
   for(j=0;j<MAX_MSG_PARMS+1;j++) msg_parms[j].length = 0;
-  for(i=0, ret = _BAD_MSG;
-      i<(sizeof(ftable)/sizeof(struct _ftable));
-      i++) {
+  for(i=0, ret = _BAD_MSG; i < ARRAY_SIZE(ftable); i++) {
 
     if(ftable[i].command==msg->header.command) {
       /* break loop if the message is correct, otherwise continue scan  */
