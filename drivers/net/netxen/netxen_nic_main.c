@@ -745,7 +745,7 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 
 	}
 
-	err = netxen_initialize_adapter_offload(adapter);
+	err = netxen_init_dummy_dma(adapter);
 	if (err)
 		return err;
 
@@ -761,7 +761,7 @@ wait_init:
 	/* Handshake with the card before we register the devices. */
 	err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	if (err) {
-		netxen_free_adapter_offload(adapter);
+		netxen_free_dummy_dma(adapter);
 		return err;
 	}
 
@@ -1154,7 +1154,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 err_out_disable_msi:
 	netxen_teardown_intr(adapter);
 
-	netxen_free_adapter_offload(adapter);
+	netxen_free_dummy_dma(adapter);
 
 err_out_iounmap:
 	netxen_cleanup_pci_map(adapter);
@@ -1189,7 +1189,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 	}
 
 	if (adapter->portnum == 0)
-		netxen_free_adapter_offload(adapter);
+		netxen_free_dummy_dma(adapter);
 
 	netxen_teardown_intr(adapter);
 	netxen_free_sds_rings(&adapter->recv_ctx);

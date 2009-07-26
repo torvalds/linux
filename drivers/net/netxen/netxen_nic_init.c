@@ -954,19 +954,20 @@ netxen_release_firmware(struct netxen_adapter *adapter)
 		release_firmware(adapter->fw);
 }
 
-int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
+int netxen_init_dummy_dma(struct netxen_adapter *adapter)
 {
-	uint64_t addr;
-	uint32_t hi;
-	uint32_t lo;
+	u64 addr;
+	u32 hi, lo;
 
-	adapter->dummy_dma.addr =
-	    pci_alloc_consistent(adapter->pdev,
+	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return 0;
+
+	adapter->dummy_dma.addr = pci_alloc_consistent(adapter->pdev,
 				 NETXEN_HOST_DUMMY_DMA_SIZE,
 				 &adapter->dummy_dma.phys_addr);
 	if (adapter->dummy_dma.addr == NULL) {
-		printk("%s: ERROR: Could not allocate dummy DMA memory\n",
-		       __func__);
+		dev_err(&adapter->pdev->dev,
+			"ERROR: Could not allocate dummy DMA memory\n");
 		return -ENOMEM;
 	}
 
@@ -977,29 +978,41 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 	NXWR32(adapter, CRB_HOST_DUMMY_BUF_ADDR_HI, hi);
 	NXWR32(adapter, CRB_HOST_DUMMY_BUF_ADDR_LO, lo);
 
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		uint32_t temp = 0;
-		NXWR32(adapter, CRB_HOST_DUMMY_BUF, temp);
-	}
-
 	return 0;
 }
 
-void netxen_free_adapter_offload(struct netxen_adapter *adapter)
+/*
+ * NetXen DMA watchdog control:
+ *
+ *	Bit 0		: enabled => R/O: 1 watchdog active, 0 inactive
+ *	Bit 1		: disable_request => 1 req disable dma watchdog
+ *	Bit 2		: enable_request =>  1 req enable dma watchdog
+ *	Bit 3-31	: unused
+ */
+void netxen_free_dummy_dma(struct netxen_adapter *adapter)
 {
 	int i = 100;
+	u32 ctrl;
+
+	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return;
 
 	if (!adapter->dummy_dma.addr)
 		return;
 
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-		do {
-			if (dma_watchdog_shutdown_request(adapter) == 1)
-				break;
+	ctrl = NXRD32(adapter, NETXEN_DMA_WATCHDOG_CTRL);
+	if ((ctrl & 0x1) != 0) {
+		NXWR32(adapter, NETXEN_DMA_WATCHDOG_CTRL, (ctrl | 0x2));
+
+		while ((ctrl & 0x1) != 0) {
+
 			msleep(50);
-			if (dma_watchdog_shutdown_poll_result(adapter) == 1)
+
+			ctrl = NXRD32(adapter, NETXEN_DMA_WATCHDOG_CTRL);
+
+			if (--i == 0)
 				break;
-		} while (--i);
+		};
 	}
 
 	if (i) {
@@ -1008,10 +1021,8 @@ void netxen_free_adapter_offload(struct netxen_adapter *adapter)
 			    adapter->dummy_dma.addr,
 			    adapter->dummy_dma.phys_addr);
 		adapter->dummy_dma.addr = NULL;
-	} else {
-		printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
-				adapter->netdev->name);
-	}
+	} else
+		dev_err(&adapter->pdev->dev, "dma_watchdog_shutdown failed\n");
 }
 
 int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
