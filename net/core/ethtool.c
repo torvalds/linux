@@ -34,11 +34,13 @@ u32 ethtool_op_get_rx_csum(struct net_device *dev)
 {
 	return (dev->features & NETIF_F_ALL_CSUM) != 0;
 }
+EXPORT_SYMBOL(ethtool_op_get_rx_csum);
 
 u32 ethtool_op_get_tx_csum(struct net_device *dev)
 {
 	return (dev->features & NETIF_F_ALL_CSUM) != 0;
 }
+EXPORT_SYMBOL(ethtool_op_get_tx_csum);
 
 int ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
 {
@@ -1125,7 +1127,6 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 EXPORT_SYMBOL(ethtool_op_get_link);
 EXPORT_SYMBOL(ethtool_op_get_sg);
 EXPORT_SYMBOL(ethtool_op_get_tso);
-EXPORT_SYMBOL(ethtool_op_get_tx_csum);
 EXPORT_SYMBOL(ethtool_op_set_sg);
 EXPORT_SYMBOL(ethtool_op_set_tso);
 EXPORT_SYMBOL(ethtool_op_set_tx_csum);
