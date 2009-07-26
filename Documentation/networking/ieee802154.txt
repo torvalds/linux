@@ -69,7 +69,7 @@ We provide an example of simple HardMAC driver at drivers/ieee802154/fakehard.c
 SoftMAC
 =======
 
-We are going to provide intermediate layer impelementing IEEE 802.15.4 MAC
+We are going to provide intermediate layer implementing IEEE 802.15.4 MAC
 in software. This is currently WIP.
 
 See header include/net/ieee802154/mac802154.h and several drivers in
