@@ -1083,10 +1083,6 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 	NXWR32(adapter, CRB_MPORT_MODE, MPORT_MULTI_FUNCTION_MODE);
 	NXWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
 
-	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222)) {
-		adapter->capabilities = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
-	}
-
 	return err;
 }
 

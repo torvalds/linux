@@ -2047,6 +2047,9 @@ void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
 		dev_info(&pdev->dev, "firmware running in %s mode\n",
 		adapter->ahw.cut_through ? "cut-through" : "legacy");
 	}
+
+	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222))
+		adapter->capabilities = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
 }
 
 int

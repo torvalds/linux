@@ -764,6 +764,10 @@ wait_init:
 		return err;
 	}
 
+	nx_update_dma_mask(adapter);
+
+	netxen_nic_get_firmware_info(adapter);
+
 	return 0;
 }
 
@@ -1071,11 +1075,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = netxen_start_firmware(adapter, 1);
 	if (err)
 		goto err_out_iounmap;
-
-	nx_update_dma_mask(adapter);
-
-	netxen_nic_get_firmware_info(adapter);
-
 	/*
 	 * See if the firmware gave us a virtual-physical port mapping.
 	 */
