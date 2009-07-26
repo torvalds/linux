@@ -27,6 +27,7 @@
 #include <linux/net.h>
 #include <linux/netdevice.h>
 #include <linux/phonet.h>
+#include <linux/proc_fs.h>
 #include <net/sock.h>
 #include <net/netns/generic.h>
 #include <net/phonet/pn_dev.h>
