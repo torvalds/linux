@@ -1477,7 +1477,7 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 		NXWR32(adapter, rds_ring->crb_rcv_producer,
 				(producer-1) & (rds_ring->num_desc-1));
 
-		if (adapter->fw_major < 4) {
+		if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 			/*
 			 * Write a doorbell msg to tell phanmon of change in
 			 * receive ring producer

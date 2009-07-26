@@ -932,7 +932,7 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 		goto err_out_free_sw;
 	}
 
-	if (adapter->fw_major < 4) {
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		tx_ring = adapter->tx_ring;
 		tx_ring->crb_cmd_producer = crb_cmd_producer[adapter->portnum];
 		tx_ring->crb_cmd_consumer = crb_cmd_consumer[adapter->portnum];
@@ -1103,7 +1103,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * See if the firmware gave us a virtual-physical port mapping.
 	 */
 	adapter->physical_port = adapter->portnum;
-	if (adapter->fw_major < 4) {
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		i = NXRD32(adapter, CRB_V2P(adapter->portnum));
 		if (i != 0x55555555)
 			adapter->physical_port = i;
@@ -1727,7 +1727,7 @@ static irqreturn_t netxen_intr(int irq, void *data)
 	}
 
 	/* clear interrupt */
-	if (adapter->fw_major < 4)
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
 		netxen_nic_disable_int(sds_ring);
 
 	adapter->pci_write_immediate(adapter,

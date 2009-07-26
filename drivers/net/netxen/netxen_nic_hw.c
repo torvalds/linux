@@ -2045,7 +2045,6 @@ void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
 	fw_minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
 	fw_build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
 
-	adapter->fw_major = fw_major;
 	adapter->fw_version = NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build);
 
 	if (adapter->portnum == 0) {

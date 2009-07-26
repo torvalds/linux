@@ -647,7 +647,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		}
 		rds_ring->desc_head = (struct rcv_desc *)addr;
 
-		if (adapter->fw_major < 4)
+		if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
 			rds_ring->crb_rcv_producer =
 				recv_crb_registers[port].crb_rcv_producer[ring];
 	}
@@ -675,7 +675,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	}
 
 
-	if (adapter->fw_major >= 4) {
+	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		err = nx_fw_cmd_create_rx_ctx(adapter);
 		if (err)
 			goto err_out_free;
@@ -705,7 +705,7 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 
 	int port = adapter->portnum;
 
-	if (adapter->fw_major >= 4) {
+	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		nx_fw_cmd_destroy_rx_ctx(adapter);
 		nx_fw_cmd_destroy_tx_ctx(adapter);
 	} else {

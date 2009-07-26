@@ -1299,7 +1299,7 @@ struct netxen_adapter {
 
 	nx_nic_intr_coalesce_t coal;
 
-	u32 fw_major;
+	u32 resv5;
 	u32 fw_version;
 	const struct firmware *fw;
 };
