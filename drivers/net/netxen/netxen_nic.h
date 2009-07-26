@@ -316,56 +316,29 @@ struct netxen_ring_ctx {
 	cpu_to_le16(((_flags) & 0x7f) | (((_opcode) & 0x3f) << 7))
 
 #define netxen_set_tx_frags_len(_desc, _frags, _len) \
-	(_desc)->num_of_buffers_total_length = \
+	(_desc)->nfrags__length = \
 	cpu_to_le32(((_frags) & 0xff) | (((_len) & 0xffffff) << 8))
 
 struct cmd_desc_type0 {
 	u8 tcp_hdr_offset;	/* For LSO only */
 	u8 ip_hdr_offset;	/* For LSO only */
-	/* Bit pattern: 0-6 flags, 7-12 opcode, 13-15 unused */
-	__le16 flags_opcode;
-	/* Bit pattern: 0-7 total number of segments,
-	   8-31 Total size of the packet */
-	__le32 num_of_buffers_total_length;
-	union {
-		struct {
-			__le32 addr_low_part2;
-			__le32 addr_high_part2;
-		};
-		__le64 addr_buffer2;
-	};
+	__le16 flags_opcode;	/* 15:13 unused, 12:7 opcode, 6:0 flags */
+	__le32 nfrags__length;	/* 31:8 total len, 7:0 frag count */
 
-	__le16 reference_handle;	/* changed to u16 to add mss */
-	__le16 mss;		/* passed by NDIS_PACKET for LSO */
-	/* Bit pattern 0-3 port, 0-3 ctx id */
-	u8 port_ctxid;
+	__le64 addr_buffer2;
+
+	__le16 reference_handle;
+	__le16 mss;
+	u8 port_ctxid;		/* 7:4 ctxid 3:0 port */
 	u8 total_hdr_length;	/* LSO only : MAC+IP+TCP Hdr size */
 	__le16 conn_id;		/* IPSec offoad only */
 
-	union {
-		struct {
-			__le32 addr_low_part3;
-			__le32 addr_high_part3;
-		};
-		__le64 addr_buffer3;
-	};
-	union {
-		struct {
-			__le32 addr_low_part1;
-			__le32 addr_high_part1;
-		};
-		__le64 addr_buffer1;
-	};
+	__le64 addr_buffer3;
+	__le64 addr_buffer1;
 
 	__le16 buffer_length[4];
 
-	union {
-		struct {
-			__le32 addr_low_part4;
-			__le32 addr_high_part4;
-		};
-		__le64 addr_buffer4;
-	};
+	__le64 addr_buffer4;
 
 	__le64 unused;
 
