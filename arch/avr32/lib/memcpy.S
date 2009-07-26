@@ -49,6 +49,7 @@ memcpy:
 
 	/* Handle unaligned "from" pointer */
 1:	sub	r10, 4
+	movlt	r9, r12
 	brlt	4b
 	add	r10, r9
 	lsl	r9, 2
