@@ -24,8 +24,8 @@ memcpy:
 	brne	1f
 
 	/* At this point, "from" is word-aligned */
-2:	sub	r10, 4
-	mov	r9, r12
+2:	mov	r9, r12
+5:	sub	r10, 4
 	brlt	4f
 
 3:	ld.w	r8, r11++
@@ -59,4 +59,13 @@ memcpy:
 	st.b	r12++, r8
 	ld.ub	r8, r11++
 	st.b	r12++, r8
-	rjmp	2b
+	mov	r8, r12
+	add	pc, pc, r9
+	sub	r8, 1
+	nop
+	sub	r8, 1
+	nop
+	sub	r8, 1
+	nop
+	mov	r9, r8
+	rjmp	5b
