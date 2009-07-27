@@ -302,7 +302,8 @@ static int ati_insert_memory(struct agp_memory * mem,
 		addr = (j * PAGE_SIZE) + agp_bridge->gart_bus_addr;
 		cur_gatt = GET_GATT(addr);
 		writel(agp_bridge->driver->mask_memory(agp_bridge,	
-						       mem->pages[i], mem->type),
+						       phys_to_gart(page_to_phys(mem->pages[i])),
+						       mem->type),
 		       cur_gatt+GET_GATT_OFF(addr));
 	}
 	readl(GET_GATT(agp_bridge->gart_bus_addr)); /* PCI posting */

@@ -107,7 +107,7 @@ struct agp_bridge_driver {
 	void (*agp_enable)(struct agp_bridge_data *, u32);
 	void (*cleanup)(void);
 	void (*tlb_flush)(struct agp_memory *);
-	unsigned long (*mask_memory)(struct agp_bridge_data *, struct page *, int);
+	unsigned long (*mask_memory)(struct agp_bridge_data *, dma_addr_t, int);
 	void (*cache_flush)(void);
 	int (*create_gatt_table)(struct agp_bridge_data *);
 	int (*free_gatt_table)(struct agp_bridge_data *);
@@ -291,7 +291,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge);
 void global_cache_flush(void);
 void get_agp_version(struct agp_bridge_data *bridge);
 unsigned long agp_generic_mask_memory(struct agp_bridge_data *bridge,
-				      struct page *page, int type);
+				      dma_addr_t phys, int type);
 int agp_generic_type_to_mask_type(struct agp_bridge_data *bridge,
 				  int type);
 struct agp_bridge_data *agp_generic_find_bridge(struct pci_dev *pdev);

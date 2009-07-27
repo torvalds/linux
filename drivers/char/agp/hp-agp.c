@@ -394,10 +394,8 @@ hp_zx1_remove_memory (struct agp_memory *mem, off_t pg_start, int type)
 }
 
 static unsigned long
-hp_zx1_mask_memory (struct agp_bridge_data *bridge,
-		    struct page *page, int type)
+hp_zx1_mask_memory (struct agp_bridge_data *bridge, dma_addr_t addr, int type)
 {
-	unsigned long addr = phys_to_gart(page_to_phys(page));
 	return HP_ZX1_PDIR_VALID_BIT | addr;
 }
 

@@ -343,7 +343,7 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 			global_cache_flush();
 		for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 			writel(agp_bridge->driver->mask_memory(agp_bridge,
-							       mem->pages[i],
+							       phys_to_gart(page_to_phys(mem->pages[i])),
 							       mask_type),
 			       intel_private.registers+I810_PTE_BASE+(j*4));
 		}
@@ -461,9 +461,8 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 }
 
 static unsigned long intel_i810_mask_memory(struct agp_bridge_data *bridge,
-					    struct page *page, int type)
+					    dma_addr_t addr, int type)
 {
-	unsigned long addr = phys_to_gart(page_to_phys(page));
 	/* Type checking must be done elsewhere */
 	return addr | bridge->driver->masks[type].mask;
 }
@@ -851,7 +850,7 @@ static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
-						       mem->pages[i], mask_type),
+			       phys_to_gart(page_to_phys(mem->pages[i])), mask_type),
 		       intel_private.registers+I810_PTE_BASE+(j*4));
 	}
 	readl(intel_private.registers+I810_PTE_BASE+((j-1)*4));
@@ -1081,7 +1080,9 @@ static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
-						       mem->pages[i], mask_type), intel_private.gtt+j);
+				       phys_to_gart(page_to_phys(mem->pages[i])),
+				       mask_type),
+		       intel_private.gtt+j);
 	}
 
 	readl(intel_private.gtt+j-1);
@@ -1196,9 +1197,8 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
  * this conditional.
  */
 static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
-					    struct page *page, int type)
+					    dma_addr_t addr, int type)
 {
-	dma_addr_t addr = phys_to_gart(page_to_phys(page));
 	/* Shift high bits down */
 	addr |= (addr >> 28) & 0xf0;
 

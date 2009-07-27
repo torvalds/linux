@@ -150,8 +150,8 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 		}
 
 		bridge->scratch_page_real = phys_to_gart(page_to_phys(page));
-		bridge->scratch_page =
-		    bridge->driver->mask_memory(bridge, page, 0);
+		bridge->scratch_page = bridge->driver->mask_memory(bridge,
+					   phys_to_gart(page_to_phys(page)), 0);
 	}
 
 	size_value = bridge->driver->fetch_size();

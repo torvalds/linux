@@ -61,7 +61,7 @@
 #define WR_FLUSH_GATT(index)	RD_GATT(index)
 
 static unsigned long i460_mask_memory (struct agp_bridge_data *bridge,
-				       unsigned long addr, int type);
+				       dma_addr_t addr, int type);
 
 static struct {
 	void *gatt;				/* ioremap'd GATT area */
@@ -546,18 +546,11 @@ static void i460_destroy_page (struct page *page, int flags)
 #endif /* I460_LARGE_IO_PAGES */
 
 static unsigned long i460_mask_memory (struct agp_bridge_data *bridge,
-				       unsigned long addr, int type)
+				       dma_addr_t addr, int type)
 {
 	/* Make sure the returned address is a valid GATT entry */
 	return bridge->driver->masks[0].mask
 		| (((addr & ~((1 << I460_IO_PAGE_SHIFT) - 1)) & 0xfffff000) >> 12);
-}
-
-static unsigned long i460_page_mask_memory(struct agp_bridge_data *bridge,
-					   struct page *page, int type)
-{
-	unsigned long addr = phys_to_gart(page_to_phys(page));
-	return i460_mask_memory(bridge, addr, type);
 }
 
 const struct agp_bridge_driver intel_i460_driver = {
@@ -569,7 +562,7 @@ const struct agp_bridge_driver intel_i460_driver = {
 	.fetch_size		= i460_fetch_size,
 	.cleanup		= i460_cleanup,
 	.tlb_flush		= i460_tlb_flush,
-	.mask_memory		= i460_page_mask_memory,
+	.mask_memory		= i460_mask_memory,
 	.masks			= i460_masks,
 	.agp_enable		= agp_generic_enable,
 	.cache_flush		= global_cache_flush,
