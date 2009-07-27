@@ -310,6 +310,31 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
+	/*
+	 * XXX: This is temporary!
+	 *
+	 *	The problem here is that when we get here, the driver will
+	 *	quite likely have pretty much overwritten info->control by
+	 *	using info->driver_data or info->rate_driver_data. Thus,
+	 *	when passing out the frame to the driver again, we would be
+	 *	passing completely bogus data since the driver would then
+	 *	expect a properly filled info->control. In mac80211 itself
+	 *	the same problem occurs, since we need info->control.vif
+	 *	internally.
+	 *
+	 *	To fix this, we should send the frame through TX processing
+	 *	again. However, it's not that simple, since the frame will
+	 *	have been software-encrypted (if applicable) already, and
+	 *	encrypting it again doesn't do much good. So to properly do
+	 *	that, we not only have to skip the actual 'raw' encryption
+	 *	(key selection etc. still has to be done!) but also the
+	 *	sequence number assignment since that impacts the crypto
+	 *	encapsulation, of course.
+	 *
+	 *	Hence, for now, fix the bug by just dropping the frame.
+	 */
+	goto drop;
+
 	sta->tx_filtered_count++;
 
 	/*
@@ -363,6 +388,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		return;
 	}
 
+ drop:
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	if (net_ratelimit())
 		printk(KERN_DEBUG "%s: dropped TX filtered frame, "
