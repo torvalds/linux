@@ -59,43 +59,6 @@ static int ieee80211_ioctl_giwessid(struct net_device *dev,
 }
 
 
-static int ieee80211_ioctl_siwap(struct net_device *dev,
-				 struct iw_request_info *info,
-				 struct sockaddr *ap_addr, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return cfg80211_ibss_wext_siwap(dev, info, ap_addr, extra);
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		return cfg80211_mgd_wext_siwap(dev, info, ap_addr, extra);
-
-	if (sdata->vif.type == NL80211_IFTYPE_WDS)
-		return cfg80211_wds_wext_siwap(dev, info, ap_addr, extra);
-	return -EOPNOTSUPP;
-}
-
-
-static int ieee80211_ioctl_giwap(struct net_device *dev,
-				 struct iw_request_info *info,
-				 struct sockaddr *ap_addr, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return cfg80211_ibss_wext_giwap(dev, info, ap_addr, extra);
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		return cfg80211_mgd_wext_giwap(dev, info, ap_addr, extra);
-
-	if (sdata->vif.type == NL80211_IFTYPE_WDS)
-		return cfg80211_wds_wext_giwap(dev, info, ap_addr, extra);
-
-	return -EOPNOTSUPP;
-}
-
-
 /* Structures to export the Wireless Handlers */
 
 static const iw_handler ieee80211_handler[] =
@@ -120,8 +83,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* SIOCGIWSPY */
 	(iw_handler) NULL,				/* SIOCSIWTHRSPY */
 	(iw_handler) NULL,				/* SIOCGIWTHRSPY */
-	(iw_handler) ieee80211_ioctl_siwap,		/* SIOCSIWAP */
-	(iw_handler) ieee80211_ioctl_giwap,		/* SIOCGIWAP */
+	(iw_handler) cfg80211_wext_siwap,		/* SIOCSIWAP */
+	(iw_handler) cfg80211_wext_giwap,		/* SIOCGIWAP */
 	(iw_handler) cfg80211_wext_siwmlme,		/* SIOCSIWMLME */
 	(iw_handler) NULL,				/* SIOCGIWAPLIST */
 	(iw_handler) cfg80211_wext_siwscan,		/* SIOCSIWSCAN */

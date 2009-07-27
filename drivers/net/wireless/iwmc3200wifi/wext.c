@@ -27,36 +27,6 @@
 #include "iwm.h"
 #include "commands.h"
 
-static int iwm_wext_siwap(struct net_device *dev, struct iw_request_info *info,
-			  struct sockaddr *ap_addr, char *extra)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-
-	switch (iwm->conf.mode) {
-	case UMAC_MODE_IBSS:
-		return cfg80211_ibss_wext_siwap(dev, info, ap_addr, extra);
-	case UMAC_MODE_BSS:
-		return cfg80211_mgd_wext_siwap(dev, info, ap_addr, extra);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static int iwm_wext_giwap(struct net_device *dev, struct iw_request_info *info,
-			  struct sockaddr *ap_addr, char *extra)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-
-	switch (iwm->conf.mode) {
-	case UMAC_MODE_IBSS:
-		return cfg80211_ibss_wext_giwap(dev, info, ap_addr, extra);
-	case UMAC_MODE_BSS:
-		return cfg80211_mgd_wext_giwap(dev, info, ap_addr, extra);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static int iwm_wext_siwessid(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *data, char *ssid)
@@ -111,8 +81,8 @@ static const iw_handler iwm_handlers[] =
 	(iw_handler) NULL,				/* SIOCGIWSPY */
 	(iw_handler) NULL,				/* SIOCSIWTHRSPY */
 	(iw_handler) NULL,				/* SIOCGIWTHRSPY */
-	(iw_handler) iwm_wext_siwap,	                /* SIOCSIWAP */
-	(iw_handler) iwm_wext_giwap,			/* SIOCGIWAP */
+	(iw_handler) cfg80211_wext_siwap,		/* SIOCSIWAP */
+	(iw_handler) cfg80211_wext_giwap,		/* SIOCGIWAP */
 	(iw_handler) NULL,			        /* SIOCSIWMLME */
 	(iw_handler) NULL,				/* SIOCGIWAPLIST */
 	(iw_handler) cfg80211_wext_siwscan,		/* SIOCSIWSCAN */

@@ -1601,12 +1601,6 @@ int cfg80211_ibss_wext_siwessid(struct net_device *dev,
 int cfg80211_ibss_wext_giwessid(struct net_device *dev,
 				struct iw_request_info *info,
 				struct iw_point *data, char *ssid);
-int cfg80211_ibss_wext_siwap(struct net_device *dev,
-			     struct iw_request_info *info,
-			     struct sockaddr *ap_addr, char *extra);
-int cfg80211_ibss_wext_giwap(struct net_device *dev,
-			     struct iw_request_info *info,
-			     struct sockaddr *ap_addr, char *extra);
 
 int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 			       struct iw_request_info *info,
@@ -1614,12 +1608,6 @@ int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 int cfg80211_mgd_wext_giwessid(struct net_device *dev,
 			       struct iw_request_info *info,
 			       struct iw_point *data, char *ssid);
-int cfg80211_mgd_wext_siwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *ap_addr, char *extra);
-int cfg80211_mgd_wext_giwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *ap_addr, char *extra);
 int cfg80211_wext_siwgenie(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_point *data, char *extra);
@@ -1686,12 +1674,12 @@ int cfg80211_wext_giwpower(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_param *wrq, char *extra);
 
-int cfg80211_wds_wext_siwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *addr, char *extra);
-int cfg80211_wds_wext_giwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *addr, char *extra);
+int cfg80211_wext_siwap(struct net_device *dev,
+			struct iw_request_info *info,
+			struct sockaddr *ap_addr, char *extra);
+int cfg80211_wext_giwap(struct net_device *dev,
+			struct iw_request_info *info,
+			struct sockaddr *ap_addr, char *extra);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification

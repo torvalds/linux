@@ -1149,9 +1149,9 @@ int cfg80211_wext_giwpower(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwpower);
 
-int cfg80211_wds_wext_siwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *addr, char *extra)
+static int cfg80211_wds_wext_siwap(struct net_device *dev,
+				   struct iw_request_info *info,
+				   struct sockaddr *addr, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
@@ -1177,11 +1177,10 @@ int cfg80211_wds_wext_siwap(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wds_wext_siwap);
 
-int cfg80211_wds_wext_giwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *addr, char *extra)
+static int cfg80211_wds_wext_giwap(struct net_device *dev,
+				   struct iw_request_info *info,
+				   struct sockaddr *addr, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
@@ -1193,7 +1192,6 @@ int cfg80211_wds_wext_giwap(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wds_wext_giwap);
 
 int cfg80211_wext_siwrate(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -1327,3 +1325,41 @@ struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 	return &wstats;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wireless_stats);
+
+int cfg80211_wext_siwap(struct net_device *dev,
+			struct iw_request_info *info,
+			struct sockaddr *ap_addr, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_ADHOC:
+		return cfg80211_ibss_wext_siwap(dev, info, ap_addr, extra);
+	case NL80211_IFTYPE_STATION:
+		return cfg80211_mgd_wext_siwap(dev, info, ap_addr, extra);
+	case NL80211_IFTYPE_WDS:
+		return cfg80211_wds_wext_siwap(dev, info, ap_addr, extra);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwap);
+
+int cfg80211_wext_giwap(struct net_device *dev,
+			struct iw_request_info *info,
+			struct sockaddr *ap_addr, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_ADHOC:
+		return cfg80211_ibss_wext_giwap(dev, info, ap_addr, extra);
+	case NL80211_IFTYPE_STATION:
+		return cfg80211_mgd_wext_giwap(dev, info, ap_addr, extra);
+	case NL80211_IFTYPE_WDS:
+		return cfg80211_wds_wext_giwap(dev, info, ap_addr, extra);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwap);

@@ -273,8 +273,6 @@ int cfg80211_mgd_wext_siwap(struct net_device *dev,
 	cfg80211_unlock_rdev(wiphy_to_dev(wdev->wiphy));
 	return err;
 }
-/* temporary symbol - mark GPL - in the future the handler won't be */
-EXPORT_SYMBOL_GPL(cfg80211_mgd_wext_siwap);
 
 int cfg80211_mgd_wext_giwap(struct net_device *dev,
 			    struct iw_request_info *info,
@@ -299,8 +297,6 @@ int cfg80211_mgd_wext_giwap(struct net_device *dev,
 
 	return 0;
 }
-/* temporary symbol - mark GPL - in the future the handler won't be */
-EXPORT_SYMBOL_GPL(cfg80211_mgd_wext_giwap);
 
 int cfg80211_wext_siwgenie(struct net_device *dev,
 			   struct iw_request_info *info,

@@ -466,8 +466,6 @@ int cfg80211_ibss_wext_siwap(struct net_device *dev,
 
 	return err;
 }
-/* temporary symbol - mark GPL - in the future the handler won't be */
-EXPORT_SYMBOL_GPL(cfg80211_ibss_wext_siwap);
 
 int cfg80211_ibss_wext_giwap(struct net_device *dev,
 			     struct iw_request_info *info,
@@ -493,6 +491,4 @@ int cfg80211_ibss_wext_giwap(struct net_device *dev,
 
 	return 0;
 }
-/* temporary symbol - mark GPL - in the future the handler won't be */
-EXPORT_SYMBOL_GPL(cfg80211_ibss_wext_giwap);
 #endif
