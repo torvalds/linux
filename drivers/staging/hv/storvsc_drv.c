@@ -943,7 +943,7 @@ static void storvsc_host_rescan_callback(struct work_struct *work)
 		return;
 	}
 
-	DPRINT_INFO(STORVSC_DRV, "rescanning host for new scsi devices...", device_obj, host_device_ctx->target, host_device_ctx->path);
+	DPRINT_INFO(STORVSC_DRV, "rescanning host for new scsi devices...");
 
 	/* Rescan for new device */
 	scsi_scan_target(&host->shost_gendev, host_device_ctx->path, host_device_ctx->target, SCAN_WILD_CARD, 1);
