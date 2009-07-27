@@ -585,6 +585,9 @@ free_session(struct kref *kref)
 		struct nfsd4_cache_entry *e = &ses->se_slots[i].sl_cache_entry;
 		nfsd4_release_respages(e->ce_respages, e->ce_resused);
 	}
+	spin_lock(&nfsd_drc_lock);
+	nfsd_drc_pages_used -= ses->se_fchannel.maxreqs * NFSD_PAGES_PER_SLOT;
+	spin_unlock(&nfsd_drc_lock);
 	kfree(ses);
 }
 
