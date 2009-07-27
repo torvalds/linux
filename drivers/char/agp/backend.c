@@ -150,17 +150,20 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 		}
 
 		bridge->scratch_page_real = phys_to_gart(page_to_phys(page));
-		bridge->scratch_page = bridge->driver->mask_memory(bridge,
-					   phys_to_gart(page_to_phys(page)), 0);
-
-		if (bridge->driver->agp_map_page &&
-		    bridge->driver->agp_map_page(phys_to_virt(page_to_phys(page)),
-						&bridge->scratch_page_dma)) {
-			dev_err(&bridge->dev->dev,
-				"unable to dma-map scratch page\n");
-			rc = -ENOMEM;
-			goto err_out_nounmap;
+		if (bridge->driver->agp_map_page) {
+			if (bridge->driver->agp_map_page(phys_to_virt(page_to_phys(page)),
+							 &bridge->scratch_page_dma)) {
+				dev_err(&bridge->dev->dev,
+					"unable to dma-map scratch page\n");
+				rc = -ENOMEM;
+				goto err_out_nounmap;
+			}
+		} else {
+			bridge->scratch_page_dma = phys_to_gart(page_to_phys(page));
 		}
+
+		bridge->scratch_page = bridge->driver->mask_memory(bridge,
+						   bridge->scratch_page_dma, 0);
 	}
 
 	size_value = bridge->driver->fetch_size();

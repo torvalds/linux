@@ -1138,13 +1138,9 @@ static int intel_i915_configure(void)
 	writel(agp_bridge->gatt_bus_addr|I810_PGETBL_ENABLED, intel_private.registers+I810_PGETBL_CTL);
 	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
 
-#ifndef USE_PCI_DMA_API
-	agp_bridge->scratch_page_dma = agp_bridge->scratch_page;
-#endif
-
 	if (agp_bridge->driver->needs_scratch_page) {
 		for (i = intel_private.gtt_entries; i < current_size->num_entries; i++) {
-			writel(agp_bridge->scratch_page_dma, intel_private.gtt+i);
+			writel(agp_bridge->scratch_page, intel_private.gtt+i);
 		}
 		readl(intel_private.gtt+i-1);	/* PCI Posting. */
 	}
@@ -1242,7 +1238,7 @@ static int intel_i915_remove_entries(struct agp_memory *mem, off_t pg_start,
 	}
 
 	for (i = pg_start; i < (mem->page_count + pg_start); i++)
-		writel(agp_bridge->scratch_page_dma, intel_private.gtt+i);
+		writel(agp_bridge->scratch_page, intel_private.gtt+i);
 
 	readl(intel_private.gtt+i-1);
 
