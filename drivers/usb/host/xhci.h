@@ -89,6 +89,7 @@ struct xhci_cap_regs {
 #define HCS_ERST_MAX(p)		(((p) >> 4) & 0xf)
 /* bit 26 Scratchpad restore - for save/restore HW state - not used yet */
 /* bits 27:31 number of Scratchpad buffers SW must allocate for the HW */
+#define HCS_MAX_SCRATCHPAD(p)   (((p) >> 27) & 0x1f)
 
 /* HCSPARAMS3 - hcs_params3 - bitmasks */
 /* bits 0:7, Max U1 to U0 latency for the roothub ports */
@@ -951,6 +952,13 @@ struct xhci_erst {
 	unsigned int		erst_size;
 };
 
+struct xhci_scratchpad {
+	u64 *sp_array;
+	dma_addr_t sp_dma;
+	void **sp_buffers;
+	dma_addr_t *sp_dma_buffers;
+};
+
 /*
  * Each segment table entry is 4*32bits long.  1K seems like an ok size:
  * (1K bytes * 8bytes/bit) / (4*32 bits) = 64 segment entries in the table,
@@ -1005,6 +1013,9 @@ struct xhci_hcd {
 	struct xhci_ring	*cmd_ring;
 	struct xhci_ring	*event_ring;
 	struct xhci_erst	erst;
+	/* Scratchpad */
+	struct xhci_scratchpad  *scratchpad;
+
 	/* slot enabling and address device helpers */
 	struct completion	addr_dev;
 	int slot_id;

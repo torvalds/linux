@@ -545,6 +545,103 @@ void xhci_endpoint_zero(struct xhci_hcd *xhci,
 	 */
 }
 
+/* Set up the scratchpad buffer array and scratchpad buffers, if needed. */
+static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
+{
+	int i;
+	struct device *dev = xhci_to_hcd(xhci)->self.controller;
+	int num_sp = HCS_MAX_SCRATCHPAD(xhci->hcs_params2);
+
+	xhci_dbg(xhci, "Allocating %d scratchpad buffers\n", num_sp);
+
+	if (!num_sp)
+		return 0;
+
+	xhci->scratchpad = kzalloc(sizeof(*xhci->scratchpad), flags);
+	if (!xhci->scratchpad)
+		goto fail_sp;
+
+	xhci->scratchpad->sp_array =
+		pci_alloc_consistent(to_pci_dev(dev),
+				     num_sp * sizeof(u64),
+				     &xhci->scratchpad->sp_dma);
+	if (!xhci->scratchpad->sp_array)
+		goto fail_sp2;
+
+	xhci->scratchpad->sp_buffers = kzalloc(sizeof(void *) * num_sp, flags);
+	if (!xhci->scratchpad->sp_buffers)
+		goto fail_sp3;
+
+	xhci->scratchpad->sp_dma_buffers =
+		kzalloc(sizeof(dma_addr_t) * num_sp, flags);
+
+	if (!xhci->scratchpad->sp_dma_buffers)
+		goto fail_sp4;
+
+	xhci->dcbaa->dev_context_ptrs[0] = xhci->scratchpad->sp_dma;
+	for (i = 0; i < num_sp; i++) {
+		dma_addr_t dma;
+		void *buf = pci_alloc_consistent(to_pci_dev(dev),
+						 xhci->page_size, &dma);
+		if (!buf)
+			goto fail_sp5;
+
+		xhci->scratchpad->sp_array[i] = dma;
+		xhci->scratchpad->sp_buffers[i] = buf;
+		xhci->scratchpad->sp_dma_buffers[i] = dma;
+	}
+
+	return 0;
+
+ fail_sp5:
+	for (i = i - 1; i >= 0; i--) {
+		pci_free_consistent(to_pci_dev(dev), xhci->page_size,
+				    xhci->scratchpad->sp_buffers[i],
+				    xhci->scratchpad->sp_dma_buffers[i]);
+	}
+	kfree(xhci->scratchpad->sp_dma_buffers);
+
+ fail_sp4:
+	kfree(xhci->scratchpad->sp_buffers);
+
+ fail_sp3:
+	pci_free_consistent(to_pci_dev(dev), num_sp * sizeof(u64),
+			    xhci->scratchpad->sp_array,
+			    xhci->scratchpad->sp_dma);
+
+ fail_sp2:
+	kfree(xhci->scratchpad);
+	xhci->scratchpad = NULL;
+
+ fail_sp:
+	return -ENOMEM;
+}
+
+static void scratchpad_free(struct xhci_hcd *xhci)
+{
+	int num_sp;
+	int i;
+	struct pci_dev	*pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+
+	if (!xhci->scratchpad)
+		return;
+
+	num_sp = HCS_MAX_SCRATCHPAD(xhci->hcs_params2);
+
+	for (i = 0; i < num_sp; i++) {
+		pci_free_consistent(pdev, xhci->page_size,
+				    xhci->scratchpad->sp_buffers[i],
+				    xhci->scratchpad->sp_dma_buffers[i]);
+	}
+	kfree(xhci->scratchpad->sp_dma_buffers);
+	kfree(xhci->scratchpad->sp_buffers);
+	pci_free_consistent(pdev, num_sp * sizeof(u64),
+			    xhci->scratchpad->sp_array,
+			    xhci->scratchpad->sp_dma);
+	kfree(xhci->scratchpad);
+	xhci->scratchpad = NULL;
+}
+
 void xhci_mem_cleanup(struct xhci_hcd *xhci)
 {
 	struct pci_dev	*pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
@@ -593,6 +690,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
+	scratchpad_free(xhci);
 }
 
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
@@ -755,7 +853,11 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	for (i = 0; i < MAX_HC_SLOTS; ++i)
 		xhci->devs[i] = 0;
 
+	if (scratchpad_alloc(xhci, flags))
+		goto fail;
+
 	return 0;
+
 fail:
 	xhci_warn(xhci, "Couldn't initialize memory\n");
 	xhci_mem_cleanup(xhci);
