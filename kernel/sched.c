@@ -1523,13 +1523,18 @@ static void
 update_group_shares_cpu(struct task_group *tg, int cpu,
 			unsigned long sd_shares, unsigned long sd_rq_weight)
 {
-	unsigned long shares;
 	unsigned long rq_weight;
+	unsigned long shares;
+	int boost = 0;
 
 	if (!tg->se[cpu])
 		return;
 
 	rq_weight = tg->cfs_rq[cpu]->rq_weight;
+	if (!rq_weight) {
+		boost = 1;
+		rq_weight = NICE_0_LOAD;
+	}
 
 	/*
 	 *           \Sum shares * rq_weight
@@ -1546,8 +1551,7 @@ update_group_shares_cpu(struct task_group *tg, int cpu,
 		unsigned long flags;
 
 		spin_lock_irqsave(&rq->lock, flags);
-		tg->cfs_rq[cpu]->shares = shares;
-
+		tg->cfs_rq[cpu]->shares = boost ? 0 : shares;
 		__set_se_shares(tg->se[cpu], shares);
 		spin_unlock_irqrestore(&rq->lock, flags);
 	}
@@ -1560,7 +1564,7 @@ update_group_shares_cpu(struct task_group *tg, int cpu,
  */
 static int tg_shares_up(struct task_group *tg, void *data)
 {
-	unsigned long weight, rq_weight = 0;
+	unsigned long weight, rq_weight = 0, eff_weight = 0;
 	unsigned long shares = 0;
 	struct sched_domain *sd = data;
 	int i;
@@ -1572,11 +1576,13 @@ static int tg_shares_up(struct task_group *tg, void *data)
 		 * run here it will not get delayed by group starvation.
 		 */
 		weight = tg->cfs_rq[i]->load.weight;
+		tg->cfs_rq[i]->rq_weight = weight;
+		rq_weight += weight;
+
 		if (!weight)
 			weight = NICE_0_LOAD;
 
-		tg->cfs_rq[i]->rq_weight = weight;
-		rq_weight += weight;
+		eff_weight += weight;
 		shares += tg->cfs_rq[i]->shares;
 	}
 
@@ -1586,8 +1592,14 @@ static int tg_shares_up(struct task_group *tg, void *data)
 	if (!sd->parent || !(sd->parent->flags & SD_LOAD_BALANCE))
 		shares = tg->shares;
 
-	for_each_cpu(i, sched_domain_span(sd))
-		update_group_shares_cpu(tg, i, shares, rq_weight);
+	for_each_cpu(i, sched_domain_span(sd)) {
+		unsigned long sd_rq_weight = rq_weight;
+
+		if (!tg->cfs_rq[i]->rq_weight)
+			sd_rq_weight = eff_weight;
+
+		update_group_shares_cpu(tg, i, shares, sd_rq_weight);
+	}
 
 	return 0;
 }
