@@ -591,6 +591,8 @@ void __init uv_system_init(void)
 	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
 	uv_blade_info = kmalloc(bytes, GFP_KERNEL);
 	BUG_ON(!uv_blade_info);
+	for (blade = 0; blade < uv_num_possible_blades(); blade++)
+		uv_blade_info[blade].memory_nid = -1;
 
 	get_lowmem_redirect(&lowmem_redir_base, &lowmem_redir_size);
 
@@ -628,6 +630,9 @@ void __init uv_system_init(void)
 		blade = boot_pnode_to_blade(pnode);
 		lcpu = uv_blade_info[blade].nr_possible_cpus;
 		uv_blade_info[blade].nr_possible_cpus++;
+
+		/* Any node on the blade, else will contain -1. */
+		uv_blade_info[blade].memory_nid = nid;
 
 		uv_cpu_hub_info(cpu)->lowmem_remap_base = lowmem_redir_base;
 		uv_cpu_hub_info(cpu)->lowmem_remap_top = lowmem_redir_size;
