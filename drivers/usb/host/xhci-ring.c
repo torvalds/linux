@@ -892,15 +892,23 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		if (event_trb != ep_ring->dequeue) {
 			/* The event was for the status stage */
 			if (event_trb == td->last_trb) {
-				td->urb->actual_length =
-					td->urb->transfer_buffer_length;
+				/* Did we already see a short data stage? */
+				if (td->urb->actual_length != 0)
+					status = -EREMOTEIO;
+				else
+					td->urb->actual_length =
+						td->urb->transfer_buffer_length;
 			} else {
 			/* Maybe the event was for the data stage? */
-				if (GET_COMP_CODE(event->transfer_len) != COMP_STOP_INVAL)
+				if (GET_COMP_CODE(event->transfer_len) != COMP_STOP_INVAL) {
 					/* We didn't stop on a link TRB in the middle */
 					td->urb->actual_length =
 						td->urb->transfer_buffer_length -
 						TRB_LEN(event->transfer_len);
+					xhci_dbg(xhci, "Waiting for status stage event\n");
+					urb = NULL;
+					goto cleanup;
+				}
 			}
 		}
 	} else {
