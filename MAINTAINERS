@@ -288,6 +288,14 @@ L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	drivers/pci/hotplug/acpi*
 
+ACPI PROCESSOR AGGREGATOR DRIVER
+P:	Shaohua Li
+M:	shaohua.li@intel.com
+L:	linux-acpi@vger.kernel.org
+W:	http://www.lesswatts.org/projects/acpi/
+S:	Supported
+F:	drivers/acpi/acpi_pad.c
+
 ACPI THERMAL DRIVER
 P:	Zhang Rui
 M:	rui.zhang@intel.com

@@ -196,6 +196,17 @@ config ACPI_HOTPLUG_CPU
 	select ACPI_CONTAINER
 	default y
 
+config ACPI_PROCESSOR_AGGREGATOR
+	tristate "Processor Aggregator"
+	depends on ACPI_PROCESSOR
+	depends on EXPERIMENTAL
+	help
+	  ACPI 4.0 defines processor Aggregator, which enables OS to perform
+	  specfic processor configuration and control that applies to all
+	  processors in the platform. Currently only logical processor idling
+	  is defined, which is to reduce power consumption. This driver
+	  support the new device.
+
 config ACPI_THERMAL
 	tristate "Thermal Zone"
 	depends on ACPI_PROCESSOR
