@@ -277,6 +277,9 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 	/* Check if the xHC generated the interrupt, or the irq is shared */
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	temp2 = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+	if (temp == 0xffffffff && temp2 == 0xffffffff)
+		goto hw_died;
+
 	if (!(temp & STS_EINT) && !ER_IRQ_PENDING(temp2)) {
 		spin_unlock(&xhci->lock);
 		return IRQ_NONE;
@@ -294,6 +297,7 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 	if (temp & STS_FATAL) {
 		xhci_warn(xhci, "WARNING: Host System Error\n");
 		xhci_halt(xhci);
+hw_died:
 		xhci_to_hcd(xhci)->state = HC_STATE_HALT;
 		spin_unlock(&xhci->lock);
 		return -ESHUTDOWN;
