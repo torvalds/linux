@@ -494,20 +494,21 @@ netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 
-	ring->rx_pending = 0;
-	ring->rx_jumbo_pending = 0;
-	ring->rx_pending += adapter->recv_ctx.
-		rds_rings[RCV_RING_NORMAL].num_desc;
-	ring->rx_jumbo_pending += adapter->recv_ctx.
-		rds_rings[RCV_RING_JUMBO].num_desc;
+	ring->rx_pending = adapter->num_rxd;
+	ring->rx_jumbo_pending = adapter->num_jumbo_rxd;
+	ring->rx_jumbo_pending += adapter->num_lro_rxd;
 	ring->tx_pending = adapter->num_txd;
 
-	if (adapter->ahw.port_type == NETXEN_NIC_GBE)
+	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		ring->rx_max_pending = MAX_RCV_DESCRIPTORS_1G;
-	else
+		ring->rx_jumbo_max_pending = MAX_JUMBO_RCV_DESCRIPTORS_1G;
+	} else {
 		ring->rx_max_pending = MAX_RCV_DESCRIPTORS_10G;
-	ring->tx_max_pending = MAX_CMD_DESCRIPTORS_HOST;
-	ring->rx_jumbo_max_pending = MAX_JUMBO_RCV_DESCRIPTORS;
+		ring->rx_jumbo_max_pending = MAX_JUMBO_RCV_DESCRIPTORS_10G;
+	}
+
+	ring->tx_max_pending = MAX_CMD_DESCRIPTORS;
+
 	ring->rx_mini_max_pending = 0;
 	ring->rx_mini_pending = 0;
 }

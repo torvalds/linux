@@ -283,12 +283,16 @@ nx_update_dma_mask(struct netxen_adapter *adapter)
 	return 0;
 }
 
-static void netxen_check_options(struct netxen_adapter *adapter)
+static void
+netxen_check_options(struct netxen_adapter *adapter)
 {
-	if (adapter->ahw.port_type == NETXEN_NIC_XGBE)
-		adapter->num_rxd = MAX_RCV_DESCRIPTORS_10G;
-	else if (adapter->ahw.port_type == NETXEN_NIC_GBE)
-		adapter->num_rxd = MAX_RCV_DESCRIPTORS_1G;
+	if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
+		adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_10G;
+		adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_10G;
+	} else if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
+		adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_1G;
+		adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_1G;
+	}
 
 	adapter->msix_supported = 0;
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
@@ -306,11 +310,15 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 		}
 	}
 
-	adapter->num_txd = MAX_CMD_DESCRIPTORS_HOST;
-	adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS;
-	adapter->num_lro_rxd = MAX_LRO_RCV_DESCRIPTORS;
+	adapter->num_txd = MAX_CMD_DESCRIPTORS;
 
-	return;
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+		adapter->num_lro_rxd = MAX_LRO_RCV_DESCRIPTORS;
+		adapter->max_rds_rings = 3;
+	} else {
+		adapter->num_lro_rxd = 0;
+		adapter->max_rds_rings = 2;
+	}
 }
 
 static int
@@ -907,11 +915,6 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 		printk(KERN_ERR "Failed to init firmware\n");
 		return -EIO;
 	}
-
-	if (adapter->fw_major < 4)
-		adapter->max_rds_rings = 3;
-	else
-		adapter->max_rds_rings = 2;
 
 	err = netxen_alloc_sw_resources(adapter);
 	if (err) {
@@ -1922,8 +1925,6 @@ static struct pci_driver netxen_driver = {
 	.resume = netxen_nic_resume
 #endif
 };
-
-/* Driver Registration on NetXen card    */
 
 static int __init netxen_init_module(void)
 {
