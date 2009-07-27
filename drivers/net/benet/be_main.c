@@ -66,15 +66,14 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 	u8 __iomem *addr = adapter->pcicfg + PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET;
 	u32 reg = ioread32(addr);
 	u32 enabled = reg & MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
-	if (!enabled && enable) {
+
+	if (!enabled && enable)
 		reg |= MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
-	} else if (enabled && !enable) {
+	else if (enabled && !enable)
 		reg &= ~MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
-	} else {
-		printk(KERN_WARNING DRV_NAME
-			": bad value in membar_int_ctrl reg=0x%x\n", reg);
+	else
 		return;
-	}
+
 	iowrite32(reg, addr);
 }
 
@@ -1979,12 +1978,6 @@ static int __init be_init_module(void)
 		printk(KERN_WARNING DRV_NAME
 			" : Module param rx_frag_size must be 2048/4096/8192."
 			" Using 2048\n");
-		rx_frag_size = 2048;
-	}
-	/* Ensure rx_frag_size is aligned to chache line */
-	if (SKB_DATA_ALIGN(rx_frag_size) != rx_frag_size) {
-		printk(KERN_WARNING DRV_NAME
-			" : Bad module param rx_frag_size. Using 2048\n");
 		rx_frag_size = 2048;
 	}
 
