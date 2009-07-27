@@ -16,6 +16,7 @@
  */
 
 #include "be.h"
+#include "be_cmds.h"
 #include <linux/ethtool.h>
 
 struct be_ethtool_stat {
@@ -148,7 +149,6 @@ static int
 be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_ctrl_info *ctrl = &adapter->ctrl;
 	struct be_eq_obj *rx_eq = &adapter->rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	u32 tx_max, tx_min, tx_cur;
@@ -176,7 +176,7 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 	if (tx_cur > BE_MAX_EQD)
 		tx_cur = BE_MAX_EQD;
 	if (tx_eq->cur_eqd != tx_cur) {
-		status = be_cmd_modify_eqd(ctrl, tx_eq->q.id, tx_cur);
+		status = be_cmd_modify_eqd(adapter, tx_eq->q.id, tx_cur);
 		if (!status)
 			tx_eq->cur_eqd = tx_cur;
 	}
@@ -196,7 +196,8 @@ be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
 		if (rx_cur > BE_MAX_EQD)
 			rx_cur = BE_MAX_EQD;
 		if (rx_eq->cur_eqd != rx_cur) {
-			status = be_cmd_modify_eqd(ctrl, rx_eq->q.id, rx_cur);
+			status = be_cmd_modify_eqd(adapter, rx_eq->q.id,
+					rx_cur);
 			if (!status)
 				rx_eq->cur_eqd = rx_cur;
 		}
@@ -310,8 +311,7 @@ be_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	be_cmd_get_flow_control(&adapter->ctrl, &ecmd->tx_pause,
-		&ecmd->rx_pause);
+	be_cmd_get_flow_control(adapter, &ecmd->tx_pause, &ecmd->rx_pause);
 	ecmd->autoneg = 0;
 }
 
@@ -324,7 +324,7 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	if (ecmd->autoneg != 0)
 		return -EINVAL;
 
-	status = be_cmd_set_flow_control(&adapter->ctrl, ecmd->tx_pause,
+	status = be_cmd_set_flow_control(adapter, ecmd->tx_pause,
 			ecmd->rx_pause);
 	if (!status)
 		dev_warn(&adapter->pdev->dev, "Pause param set failed.\n");

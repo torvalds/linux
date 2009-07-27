@@ -71,6 +71,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MAX_RX_POST 		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
 
+#define FW_VER_LEN		32
+
 struct be_dma_mem {
 	void *va;
 	dma_addr_t dma;
@@ -123,7 +125,6 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 	index_inc(&q->tail, q->len);
 }
 
-
 struct be_eq_obj {
 	struct be_queue_info q;
 	char desc[32];
@@ -141,31 +142,6 @@ struct be_mcc_obj {
 	struct be_queue_info q;
 	struct be_queue_info cq;
 };
-
-struct be_ctrl_info {
-	u8 __iomem *csr;
-	u8 __iomem *db;		/* Door Bell */
-	u8 __iomem *pcicfg;	/* PCI config space */
-	int pci_func;
-
-	/* Mbox used for cmd request/response */
-	spinlock_t mbox_lock;	/* For serializing mbox cmds to BE card */
-	struct be_dma_mem mbox_mem;
-	/* Mbox mem is adjusted to align to 16 bytes. The allocated addr
-	 * is stored for freeing purpose */
-	struct be_dma_mem mbox_mem_alloced;
-
-	/* MCC Rings */
-	struct be_mcc_obj mcc_obj;
-	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
-	spinlock_t mcc_cq_lock;
-
-	/* MCC Async callback */
-	void (*async_cb)(void *adapter, bool link_up);
-	void *adapter_ctxt;
-};
-
-#include "be_cmds.h"
 
 struct be_drvr_stats {
 	u32 be_tx_reqs;		/* number of TX requests initiated */
@@ -234,8 +210,20 @@ struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 
-	/* Mbox, pci config, csr address information */
-	struct be_ctrl_info ctrl;
+	u8 __iomem *csr;
+	u8 __iomem *db;		/* Door Bell */
+	u8 __iomem *pcicfg;	/* PCI config space */
+	int pci_func;
+
+	spinlock_t mbox_lock;	/* For serializing mbox cmds to BE card */
+	struct be_dma_mem mbox_mem;
+	/* Mbox mem is adjusted to align to 16 bytes. The allocated addr
+	 * is stored for freeing purpose */
+	struct be_dma_mem mbox_mem_alloced;
+
+	struct be_mcc_obj mcc_obj;
+	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
+	spinlock_t mcc_cq_lock;
 
 	struct msix_entry msix_entries[BE_NUM_MSIX_VECTORS];
 	bool msix_enabled;
@@ -366,6 +354,7 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 	return val;
 }
 
-extern void be_cq_notify(struct be_ctrl_info *ctrl, u16 qid, bool arm,
+extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
+extern void be_link_status_update(struct be_adapter *adapter, bool link_up);
 #endif				/* BE_H */
