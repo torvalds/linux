@@ -17,8 +17,6 @@
 #include <linux/nl80211.h>
 #include "ath9k.h"
 
-#define ATH_PCI_VERSION "0.1"
-
 static char *dev_info = "ath9k";
 
 MODULE_AUTHOR("Atheros Communications");
