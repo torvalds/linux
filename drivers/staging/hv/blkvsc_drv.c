@@ -129,8 +129,8 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode);
 static int blkvsc_media_changed(struct gendisk *gd);
 static int blkvsc_revalidate_disk(struct gendisk *gd);
 static int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg);
-static int blkvsc_ioctl(struct inode *inode, struct file *filep, unsigned cmd, unsigned long arg);
-
+static int blkvsc_ioctl(struct block_device *bd, fmode_t mode,
+			unsigned cmd, unsigned long argument);
 static void blkvsc_request(struct request_queue *queue);
 static void blkvsc_request_completion(STORVSC_REQUEST* request);
 static int blkvsc_do_request(struct block_device_context *blkdev, struct request *req);
@@ -1451,9 +1451,9 @@ int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg)
     return 0;
 }
 
-static int blkvsc_ioctl(struct inode *inode, struct file *filep, unsigned cmd, unsigned long arg)
+static int blkvsc_ioctl(struct block_device *bd, fmode_t mode,
+			unsigned cmd, unsigned long argument)
 {
-	struct block_device *bd = inode->i_bdev;
 	struct block_device_context *blkdev = bd->bd_disk->private_data;
 	int ret=0;
 
