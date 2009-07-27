@@ -910,6 +910,9 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	struct nx_host_rds_ring *rds_ring;
 	struct nx_host_tx_ring *tx_ring;
 
+	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC)
+		return 0;
+
 	err = netxen_init_firmware(adapter);
 	if (err != 0) {
 		printk(KERN_ERR "Failed to init firmware\n");
@@ -973,12 +976,39 @@ err_out_free_sw:
 static void
 netxen_nic_detach(struct netxen_adapter *adapter)
 {
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		return;
+
 	netxen_free_hw_resources(adapter);
 	netxen_release_rx_buffers(adapter);
 	netxen_nic_free_irq(adapter);
 	netxen_free_sw_resources(adapter);
 
 	adapter->is_up = 0;
+}
+
+int
+netxen_nic_reset_context(struct netxen_adapter *adapter)
+{
+	int err = 0;
+	struct net_device *netdev = adapter->netdev;
+
+	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
+
+		if (netif_running(netdev))
+			netxen_nic_down(adapter, netdev);
+
+		netxen_nic_detach(adapter);
+
+		err = netxen_nic_attach(adapter);
+		if (err)
+			goto done;
+
+		if (netif_running(netdev))
+			err = netxen_nic_up(adapter, netdev);
+	}
+done:
+	return err;
 }
 
 static int
@@ -1202,9 +1232,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
-	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
-		netxen_nic_detach(adapter);
-	}
+	netxen_nic_detach(adapter);
 
 	if (adapter->portnum == 0)
 		netxen_free_dummy_dma(adapter);
@@ -1236,8 +1264,7 @@ netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (netif_running(netdev))
 		netxen_nic_down(adapter, netdev);
 
-	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC)
-		netxen_nic_detach(adapter);
+	netxen_nic_detach(adapter);
 
 	pci_save_state(pdev);
 
@@ -1298,11 +1325,9 @@ static int netxen_nic_open(struct net_device *netdev)
 	if (adapter->driver_mismatch)
 		return -EIO;
 
-	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC) {
-		err = netxen_nic_attach(adapter);
-		if (err)
-			return err;
-	}
+	err = netxen_nic_attach(adapter);
+	if (err)
+		return err;
 
 	err = netxen_nic_up(adapter, netdev);
 	if (err)

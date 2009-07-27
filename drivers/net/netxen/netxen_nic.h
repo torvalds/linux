@@ -1427,6 +1427,9 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring);
 
+/* Functions from netxen_nic_main.c */
+int netxen_nic_reset_context(struct netxen_adapter *);
+
 /*
  * NetXen Board information
  */

@@ -490,7 +490,8 @@ netxen_nic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 }
 
 static void
-netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
+netxen_nic_get_ringparam(struct net_device *dev,
+		struct ethtool_ringparam *ring)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 
@@ -511,6 +512,62 @@ netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 
 	ring->rx_mini_max_pending = 0;
 	ring->rx_mini_pending = 0;
+}
+
+static u32
+netxen_validate_ringparam(u32 val, u32 min, u32 max, char *r_name)
+{
+	u32 num_desc;
+	num_desc = max(val, min);
+	num_desc = min(num_desc, max);
+	num_desc = roundup_pow_of_two(num_desc);
+
+	if (val != num_desc) {
+		printk(KERN_INFO "%s: setting %s ring size %d instead of %d\n",
+		       netxen_nic_driver_name, r_name, num_desc, val);
+	}
+
+	return num_desc;
+}
+
+static int
+netxen_nic_set_ringparam(struct net_device *dev,
+		struct ethtool_ringparam *ring)
+{
+	struct netxen_adapter *adapter = netdev_priv(dev);
+	u16 max_rcv_desc = MAX_RCV_DESCRIPTORS_10G;
+	u16 max_jumbo_desc = MAX_JUMBO_RCV_DESCRIPTORS_10G;
+	u16 num_rxd, num_jumbo_rxd, num_txd;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return -EOPNOTSUPP;
+
+	if (ring->rx_mini_pending)
+		return -EOPNOTSUPP;
+
+	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
+		max_rcv_desc = MAX_RCV_DESCRIPTORS_1G;
+		max_jumbo_desc = MAX_JUMBO_RCV_DESCRIPTORS_10G;
+	}
+
+	num_rxd = netxen_validate_ringparam(ring->rx_pending,
+			MIN_RCV_DESCRIPTORS, max_rcv_desc, "rx");
+
+	num_jumbo_rxd = netxen_validate_ringparam(ring->rx_jumbo_pending,
+			MIN_JUMBO_DESCRIPTORS, max_jumbo_desc, "rx jumbo");
+
+	num_txd = netxen_validate_ringparam(ring->tx_pending,
+			MIN_CMD_DESCRIPTORS, MAX_CMD_DESCRIPTORS, "tx");
+
+	if (num_rxd == adapter->num_rxd && num_txd == adapter->num_txd &&
+			num_jumbo_rxd == adapter->num_jumbo_rxd)
+		return 0;
+
+	adapter->num_rxd = num_rxd;
+	adapter->num_jumbo_rxd = num_jumbo_rxd;
+	adapter->num_txd = num_txd;
+
+	return netxen_nic_reset_context(adapter);
 }
 
 static void
@@ -894,6 +951,7 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_eeprom_len = netxen_nic_get_eeprom_len,
 	.get_eeprom = netxen_nic_get_eeprom,
 	.get_ringparam = netxen_nic_get_ringparam,
+	.set_ringparam = netxen_nic_set_ringparam,
 	.get_pauseparam = netxen_nic_get_pauseparam,
 	.set_pauseparam = netxen_nic_set_pauseparam,
 	.set_tx_csum = ethtool_op_set_tx_csum,
