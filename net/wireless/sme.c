@@ -8,6 +8,8 @@
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/workqueue.h>
+#include <linux/wireless.h>
+#include <net/iw_handler.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
 #include "nl80211.h"

@@ -306,8 +306,6 @@ static inline void *iwm_private(struct iwm_priv *iwm)
 #define skb_to_rx_info(s) ((struct iwm_rx_info *)(s->cb))
 #define skb_to_tx_info(s) ((struct iwm_tx_info *)s->cb)
 
-extern const struct iw_handler_def iwm_iw_handler_def;
-
 void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 		   struct iwm_if_ops *if_ops);
 void iwm_if_free(struct iwm_priv *iwm);

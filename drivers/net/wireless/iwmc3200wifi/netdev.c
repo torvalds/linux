@@ -123,7 +123,6 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 	}
 
 	ndev->netdev_ops = &iwm_netdev_ops;
-	ndev->wireless_handlers = &iwm_iw_handler_def;
 	ndev->ieee80211_ptr = wdev;
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;

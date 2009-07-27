@@ -14,6 +14,7 @@
 #include <net/iw_handler.h>
 #include "core.h"
 #include "nl80211.h"
+#include "wext-compat.h"
 
 #define IEEE80211_SCAN_RESULT_EXPIRE	(15 * HZ)
 

@@ -1,6 +1,9 @@
 #ifndef __WEXT_COMPAT
 #define __WEXT_COMPAT
 
+#include <net/iw_handler.h>
+#include <linux/wireless.h>
+
 int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 			       struct iw_request_info *info,
 			       struct iw_freq *freq, char *extra);
@@ -42,4 +45,6 @@ int cfg80211_mgd_wext_giwessid(struct net_device *dev,
 struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
 					     struct iw_freq *freq);
 
+
+extern const struct iw_handler_def cfg80211_wext_handler;
 #endif /* __WEXT_COMPAT */

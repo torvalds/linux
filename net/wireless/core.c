@@ -19,6 +19,7 @@
 #include "core.h"
 #include "sysfs.h"
 #include "debugfs.h"
+#include "wext-compat.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -665,6 +666,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		wdev->sme_state = CFG80211_SME_IDLE;
 		mutex_unlock(&rdev->devlist_mtx);
 #ifdef CONFIG_WIRELESS_EXT
+		if (!dev->wireless_handlers)
+			dev->wireless_handlers = &cfg80211_wext_handler;
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
