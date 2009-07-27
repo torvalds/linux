@@ -393,103 +393,138 @@ void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci)
 			upper_32_bits(val));
 }
 
-dma_addr_t xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_slot_ctx *slot, dma_addr_t dma)
+/* Print the last 32 bytes for 64-byte contexts */
+static void dbg_rsvd64(struct xhci_hcd *xhci, u64 *ctx, dma_addr_t dma)
+{
+	int i;
+	for (i = 0; i < 4; ++i) {
+		xhci_dbg(xhci, "@%p (virt) @%08llx "
+			 "(dma) %#08llx - rsvd64[%d]\n",
+			 &ctx[4 + i], (unsigned long long)dma,
+			 ctx[4 + i], i);
+		dma += 8;
+	}
+}
+
+void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
 {
 	/* Fields are 32 bits wide, DMA addresses are in bytes */
 	int field_size = 32 / 8;
 	int i;
 
+	struct xhci_slot_ctx *slot_ctx = xhci_get_slot_ctx(xhci, ctx);
+	dma_addr_t dma = ctx->dma + ((unsigned long)slot_ctx - (unsigned long)ctx);
+	int csz = HCC_64BYTE_CONTEXT(xhci->hcc_params);
+
 	xhci_dbg(xhci, "Slot Context:\n");
 	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - dev_info\n",
-			&slot->dev_info,
-			(unsigned long long)dma, slot->dev_info);
+			&slot_ctx->dev_info,
+			(unsigned long long)dma, slot_ctx->dev_info);
 	dma += field_size;
 	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - dev_info2\n",
-			&slot->dev_info2,
-			(unsigned long long)dma, slot->dev_info2);
+			&slot_ctx->dev_info2,
+			(unsigned long long)dma, slot_ctx->dev_info2);
 	dma += field_size;
 	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - tt_info\n",
-			&slot->tt_info,
-			(unsigned long long)dma, slot->tt_info);
+			&slot_ctx->tt_info,
+			(unsigned long long)dma, slot_ctx->tt_info);
 	dma += field_size;
 	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - dev_state\n",
-			&slot->dev_state,
-			(unsigned long long)dma, slot->dev_state);
+			&slot_ctx->dev_state,
+			(unsigned long long)dma, slot_ctx->dev_state);
 	dma += field_size;
 	for (i = 0; i < 4; ++i) {
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
-				&slot->reserved[i], (unsigned long long)dma,
-				slot->reserved[i], i);
+				&slot_ctx->reserved[i], (unsigned long long)dma,
+				slot_ctx->reserved[i], i);
 		dma += field_size;
 	}
 
-	return dma;
+	if (csz)
+		dbg_rsvd64(xhci, (u64 *)slot_ctx, dma);
 }
 
-dma_addr_t xhci_dbg_ep_ctx(struct xhci_hcd *xhci, struct xhci_ep_ctx *ep, dma_addr_t dma, unsigned int last_ep)
+void xhci_dbg_ep_ctx(struct xhci_hcd *xhci,
+		     struct xhci_container_ctx *ctx,
+		     unsigned int last_ep)
 {
 	int i, j;
 	int last_ep_ctx = 31;
 	/* Fields are 32 bits wide, DMA addresses are in bytes */
 	int field_size = 32 / 8;
+	int csz = HCC_64BYTE_CONTEXT(xhci->hcc_params);
 
 	if (last_ep < 31)
 		last_ep_ctx = last_ep + 1;
 	for (i = 0; i < last_ep_ctx; ++i) {
+		struct xhci_ep_ctx *ep_ctx = xhci_get_ep_ctx(xhci, ctx, i);
+		dma_addr_t dma = ctx->dma +
+			((unsigned long)ep_ctx - (unsigned long)ctx);
+
 		xhci_dbg(xhci, "Endpoint %02d Context:\n", i);
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - ep_info\n",
-				&ep[i].ep_info,
-				(unsigned long long)dma, ep[i].ep_info);
+				&ep_ctx->ep_info,
+				(unsigned long long)dma, ep_ctx->ep_info);
 		dma += field_size;
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - ep_info2\n",
-				&ep[i].ep_info2,
-				(unsigned long long)dma, ep[i].ep_info2);
+				&ep_ctx->ep_info2,
+				(unsigned long long)dma, ep_ctx->ep_info2);
 		dma += field_size;
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08llx - deq\n",
-				&ep[i].deq,
-				(unsigned long long)dma, ep[i].deq);
+				&ep_ctx->deq,
+				(unsigned long long)dma, ep_ctx->deq);
 		dma += 2*field_size;
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - tx_info\n",
-				&ep[i].tx_info,
-				(unsigned long long)dma, ep[i].tx_info);
+				&ep_ctx->tx_info,
+				(unsigned long long)dma, ep_ctx->tx_info);
 		dma += field_size;
 		for (j = 0; j < 3; ++j) {
 			xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
-					&ep[i].reserved[j],
+					&ep_ctx->reserved[j],
 					(unsigned long long)dma,
-					ep[i].reserved[j], j);
+					ep_ctx->reserved[j], j);
 			dma += field_size;
 		}
+
+		if (csz)
+			dbg_rsvd64(xhci, (u64 *)ep_ctx, dma);
 	}
-	return dma;
 }
 
-void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_addr_t dma, unsigned int last_ep)
+void xhci_dbg_ctx(struct xhci_hcd *xhci,
+		  struct xhci_container_ctx *ctx,
+		  unsigned int last_ep)
 {
 	int i;
 	/* Fields are 32 bits wide, DMA addresses are in bytes */
 	int field_size = 32 / 8;
+	struct xhci_slot_ctx *slot_ctx;
+	dma_addr_t dma = ctx->dma;
+	int csz = HCC_64BYTE_CONTEXT(xhci->hcc_params);
 
-	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - drop flags\n",
-			&ctx->drop_flags, (unsigned long long)dma,
-			ctx->drop_flags);
-	dma += field_size;
-	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - add flags\n",
-			&ctx->add_flags, (unsigned long long)dma,
-			ctx->add_flags);
-	dma += field_size;
-	for (i = 0; i < 6; ++i) {
-		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
-				&ctx->rsvd[i], (unsigned long long)dma,
-				ctx->rsvd[i], i);
+	if (ctx->type == XHCI_CTX_TYPE_INPUT) {
+		struct xhci_input_control_ctx *ctrl_ctx =
+			xhci_get_input_control_ctx(xhci, ctx);
+		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - drop flags\n",
+			 &ctrl_ctx->drop_flags, (unsigned long long)dma,
+			 ctrl_ctx->drop_flags);
 		dma += field_size;
-	}
-	dma = xhci_dbg_slot_ctx(xhci, &ctx->slot, dma);
-	dma = xhci_dbg_ep_ctx(xhci, ctx->ep, dma, last_ep);
-}
+		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - add flags\n",
+			 &ctrl_ctx->add_flags, (unsigned long long)dma,
+			 ctrl_ctx->add_flags);
+		dma += field_size;
+		for (i = 0; i < 6; ++i) {
+			xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd2[%d]\n",
+				 &ctrl_ctx->rsvd2[i], (unsigned long long)dma,
+				 ctrl_ctx->rsvd2[i], i);
+			dma += field_size;
+		}
 
-void xhci_dbg_device_ctx(struct xhci_hcd *xhci, struct xhci_device_ctx *ctx, dma_addr_t dma, unsigned int last_ep)
-{
-	dma = xhci_dbg_slot_ctx(xhci, &ctx->slot, dma);
-	dma = xhci_dbg_ep_ctx(xhci, ctx->ep, dma, last_ep);
+		if (csz)
+			dbg_rsvd64(xhci, (u64 *)ctrl_ctx, dma);
+	}
+
+	slot_ctx = xhci_get_slot_ctx(xhci, ctx);
+	xhci_dbg_slot_ctx(xhci, ctx);
+	xhci_dbg_ep_ctx(xhci, ctx, last_ep);
 }

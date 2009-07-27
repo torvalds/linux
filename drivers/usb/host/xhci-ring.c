@@ -362,6 +362,7 @@ static void find_new_dequeue_state(struct xhci_hcd *xhci,
 	struct xhci_virt_device *dev = xhci->devs[slot_id];
 	struct xhci_ring *ep_ring = dev->ep_rings[ep_index];
 	struct xhci_generic_trb *trb;
+	struct xhci_ep_ctx *ep_ctx;
 
 	state->new_cycle_state = 0;
 	state->new_deq_seg = find_trb_seg(cur_td->start_seg,
@@ -370,7 +371,8 @@ static void find_new_dequeue_state(struct xhci_hcd *xhci,
 	if (!state->new_deq_seg)
 		BUG();
 	/* Dig out the cycle state saved by the xHC during the stop ep cmd */
-	state->new_cycle_state = 0x1 & dev->out_ctx->ep[ep_index].deq;
+	ep_ctx = xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
+	state->new_cycle_state = 0x1 & ep_ctx->deq;
 
 	state->new_deq_ptr = cur_td->last_trb;
 	state->new_deq_seg = find_trb_seg(state->new_deq_seg,
@@ -570,11 +572,15 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 	unsigned int ep_index;
 	struct xhci_ring *ep_ring;
 	struct xhci_virt_device *dev;
+	struct xhci_ep_ctx *ep_ctx;
+	struct xhci_slot_ctx *slot_ctx;
 
 	slot_id = TRB_TO_SLOT_ID(trb->generic.field[3]);
 	ep_index = TRB_TO_EP_INDEX(trb->generic.field[3]);
 	dev = xhci->devs[slot_id];
 	ep_ring = dev->ep_rings[ep_index];
+	ep_ctx = xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
+	slot_ctx = xhci_get_slot_ctx(xhci, dev->out_ctx);
 
 	if (GET_COMP_CODE(event->status) != COMP_SUCCESS) {
 		unsigned int ep_state;
@@ -588,9 +594,9 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 		case COMP_CTX_STATE:
 			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd failed due "
 					"to incorrect slot or ep state.\n");
-			ep_state = dev->out_ctx->ep[ep_index].ep_info;
+			ep_state = ep_ctx->ep_info;
 			ep_state &= EP_STATE_MASK;
-			slot_state = dev->out_ctx->slot.dev_state;
+			slot_state = slot_ctx->dev_state;
 			slot_state = GET_SLOT_STATE(slot_state);
 			xhci_dbg(xhci, "Slot state = %u, EP state = %u\n",
 					slot_state, ep_state);
@@ -613,7 +619,7 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 		 */
 	} else {
 		xhci_dbg(xhci, "Successful Set TR Deq Ptr cmd, deq = @%08llx\n",
-				dev->out_ctx->ep[ep_index].deq);
+				ep_ctx->deq);
 	}
 
 	ep_ring->state &= ~SET_DEQ_PENDING;
@@ -795,6 +801,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	union xhci_trb *event_trb;
 	struct urb *urb = 0;
 	int status = -EINPROGRESS;
+	struct xhci_ep_ctx *ep_ctx;
 
 	xhci_dbg(xhci, "In %s\n", __func__);
 	xdev = xhci->devs[TRB_TO_SLOT_ID(event->flags)];
@@ -807,7 +814,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	ep_index = TRB_TO_EP_ID(event->flags) - 1;
 	xhci_dbg(xhci, "%s - ep index = %d\n", __func__, ep_index);
 	ep_ring = xdev->ep_rings[ep_index];
-	if (!ep_ring || (xdev->out_ctx->ep[ep_index].ep_info & EP_STATE_MASK) == EP_STATE_DISABLED) {
+	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
+	if (!ep_ring || (ep_ctx->ep_info & EP_STATE_MASK) == EP_STATE_DISABLED) {
 		xhci_err(xhci, "ERROR Transfer event pointed to disabled endpoint\n");
 		return -ENODEV;
 	}
@@ -1193,9 +1201,9 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 		gfp_t mem_flags)
 {
 	int ret;
-
+	struct xhci_ep_ctx *ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
 	ret = prepare_ring(xhci, xdev->ep_rings[ep_index],
-			xdev->out_ctx->ep[ep_index].ep_info & EP_STATE_MASK,
+			ep_ctx->ep_info & EP_STATE_MASK,
 			num_trbs, mem_flags);
 	if (ret)
 		return ret;

@@ -447,6 +447,27 @@ struct xhci_doorbell_array {
 
 
 /**
+ * struct xhci_container_ctx
+ * @type: Type of context.  Used to calculated offsets to contained contexts.
+ * @size: Size of the context data
+ * @bytes: The raw context data given to HW
+ * @dma: dma address of the bytes
+ *
+ * Represents either a Device or Input context.  Holds a pointer to the raw
+ * memory used for the context (bytes) and dma address of it (dma).
+ */
+struct xhci_container_ctx {
+	unsigned type;
+#define XHCI_CTX_TYPE_DEVICE  0x1
+#define XHCI_CTX_TYPE_INPUT   0x2
+
+	int size;
+
+	u8 *bytes;
+	dma_addr_t dma;
+};
+
+/**
  * struct xhci_slot_ctx
  * @dev_info:	Route string, device speed, hub info, and last valid endpoint
  * @dev_info2:	Max exit latency for device number, root hub port number
@@ -583,39 +604,22 @@ struct xhci_ep_ctx {
 
 
 /**
- * struct xhci_device_control
- * Input context; see section 6.2.5.
+ * struct xhci_input_control_context
+ * Input control context; see section 6.2.5.
  *
  * @drop_context:	set the bit of the endpoint context you want to disable
  * @add_context:	set the bit of the endpoint context you want to enable
  */
-struct xhci_device_control {
-	/* Input control context */
+struct xhci_input_control_ctx {
 	u32	drop_flags;
 	u32	add_flags;
-	u32	rsvd[6];
-	/* Copy of device context */
-	struct xhci_slot_ctx	slot;
-	struct xhci_ep_ctx	ep[31];
-};
-
-/**
- * struct xhci_device_ctx
- * Device context; see section 6.2.1.
- *
- * @slot:		slot context for the device.
- * @ep:			array of endpoint contexts for the device.
- */
-struct xhci_device_ctx {
-	struct xhci_slot_ctx	slot;
-	struct xhci_ep_ctx	ep[31];
+	u32	rsvd2[6];
 };
 
 /* drop context bitmasks */
 #define	DROP_EP(x)	(0x1 << x)
 /* add context bitmasks */
 #define	ADD_EP(x)	(0x1 << x)
-
 
 struct xhci_virt_device {
 	/*
@@ -626,11 +630,10 @@ struct xhci_virt_device {
 	 * track of input and output contexts separately because
 	 * these commands might fail and we don't trust the hardware.
 	 */
-	struct xhci_device_ctx		*out_ctx;
-	dma_addr_t			out_ctx_dma;
+	struct xhci_container_ctx       *out_ctx;
 	/* Used for addressing devices and configuration changes */
-	struct xhci_device_control	*in_ctx;
-	dma_addr_t			in_ctx_dma;
+	struct xhci_container_ctx       *in_ctx;
+
 	/* FIXME when stream support is added */
 	struct xhci_ring		*ep_rings[31];
 	/* Temporary storage in case the configure endpoint command fails and we
@@ -1139,8 +1142,7 @@ void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring);
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
 void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci);
 void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring);
-void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_addr_t dma, unsigned int last_ep);
-void xhci_dbg_device_ctx(struct xhci_hcd *xhci, struct xhci_device_ctx *ctx, dma_addr_t dma, unsigned int last_ep);
+void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int last_ep);
 
 /* xHCI memory managment */
 void xhci_mem_cleanup(struct xhci_hcd *xhci);
@@ -1206,5 +1208,10 @@ int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 		char *buf, u16 wLength);
 int xhci_hub_status_data(struct usb_hcd *hcd, char *buf);
+
+/* xHCI contexts */
+struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
+struct xhci_slot_ctx *xhci_get_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
+struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int ep_index);
 
 #endif /* __LINUX_XHCI_HCD_H */
