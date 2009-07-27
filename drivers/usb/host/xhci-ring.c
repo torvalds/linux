@@ -135,6 +135,7 @@ static void next_trb(struct xhci_hcd *xhci,
 static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer)
 {
 	union xhci_trb *next = ++(ring->dequeue);
+	unsigned long long addr;
 
 	ring->deq_updates++;
 	/* Update the dequeue pointer further if that was a link TRB or we're at
@@ -152,6 +153,13 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 		ring->dequeue = ring->deq_seg->trbs;
 		next = ring->dequeue;
 	}
+	addr = (unsigned long long) xhci_trb_virt_to_dma(ring->deq_seg, ring->dequeue);
+	if (ring == xhci->event_ring)
+		xhci_dbg(xhci, "Event ring deq = 0x%llx (DMA)\n", addr);
+	else if (ring == xhci->cmd_ring)
+		xhci_dbg(xhci, "Command ring deq = 0x%llx (DMA)\n", addr);
+	else
+		xhci_dbg(xhci, "Ring deq = 0x%llx (DMA)\n", addr);
 }
 
 /*
@@ -171,6 +179,7 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 {
 	u32 chain;
 	union xhci_trb *next;
+	unsigned long long addr;
 
 	chain = ring->enqueue->generic.field[3] & TRB_CHAIN;
 	next = ++(ring->enqueue);
@@ -204,6 +213,13 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 		ring->enqueue = ring->enq_seg->trbs;
 		next = ring->enqueue;
 	}
+	addr = (unsigned long long) xhci_trb_virt_to_dma(ring->enq_seg, ring->enqueue);
+	if (ring == xhci->event_ring)
+		xhci_dbg(xhci, "Event ring enq = 0x%llx (DMA)\n", addr);
+	else if (ring == xhci->cmd_ring)
+		xhci_dbg(xhci, "Command ring enq = 0x%llx (DMA)\n", addr);
+	else
+		xhci_dbg(xhci, "Ring enq = 0x%llx (DMA)\n", addr);
 }
 
 /*
@@ -252,8 +268,7 @@ void xhci_set_hc_event_deq(struct xhci_hcd *xhci)
 	 * there might be more events to service.
 	 */
 	temp &= ~ERST_EHB;
-	if (!in_interrupt())
-		xhci_dbg(xhci, "// Write event ring dequeue pointer, preserving EHB bit\n");
+	xhci_dbg(xhci, "// Write event ring dequeue pointer, preserving EHB bit\n");
 	xhci_write_64(xhci, ((u64) deq & (u64) ~ERST_PTR_MASK) | temp,
 			&xhci->ir_set->erst_dequeue);
 }
@@ -781,6 +796,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	struct urb *urb = 0;
 	int status = -EINPROGRESS;
 
+	xhci_dbg(xhci, "In %s\n", __func__);
 	xdev = xhci->devs[TRB_TO_SLOT_ID(event->flags)];
 	if (!xdev) {
 		xhci_err(xhci, "ERROR Transfer event pointed to bad slot\n");
@@ -789,6 +805,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 	/* Endpoint ID is 1 based, our index is zero based */
 	ep_index = TRB_TO_EP_ID(event->flags) - 1;
+	xhci_dbg(xhci, "%s - ep index = %d\n", __func__, ep_index);
 	ep_ring = xdev->ep_rings[ep_index];
 	if (!ep_ring || (xdev->out_ctx->ep[ep_index].ep_info & EP_STATE_MASK) == EP_STATE_DISABLED) {
 		xhci_err(xhci, "ERROR Transfer event pointed to disabled endpoint\n");
@@ -797,6 +814,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 	event_dma = event->buffer;
 	/* This TRB should be in the TD at the head of this ring's TD list */
+	xhci_dbg(xhci, "%s - checking for list empty\n", __func__);
 	if (list_empty(&ep_ring->td_list)) {
 		xhci_warn(xhci, "WARN Event TRB for slot %d ep %d with no TDs queued?\n",
 				TRB_TO_SLOT_ID(event->flags), ep_index);
@@ -806,11 +824,14 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		urb = NULL;
 		goto cleanup;
 	}
+	xhci_dbg(xhci, "%s - getting list entry\n", __func__);
 	td = list_entry(ep_ring->td_list.next, struct xhci_td, td_list);
 
 	/* Is this a TRB in the currently executing TD? */
+	xhci_dbg(xhci, "%s - looking for TD\n", __func__);
 	event_seg = trb_in_td(ep_ring->deq_seg, ep_ring->dequeue,
 			td->last_trb, event_dma);
+	xhci_dbg(xhci, "%s - found event_seg = %p\n", __func__, event_seg);
 	if (!event_seg) {
 		/* HC is busted, give up! */
 		xhci_err(xhci, "ERROR Transfer event TRB DMA ptr not part of current TD\n");
@@ -1027,6 +1048,8 @@ cleanup:
 	/* FIXME for multi-TD URBs (who have buffers bigger than 64MB) */
 	if (urb) {
 		usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), urb);
+		xhci_dbg(xhci, "Giveback URB %p, len = %d, status = %d\n",
+				urb, td->urb->actual_length, status);
 		spin_unlock(&xhci->lock);
 		usb_hcd_giveback_urb(xhci_to_hcd(xhci), urb, status);
 		spin_lock(&xhci->lock);
@@ -1044,6 +1067,7 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 	int update_ptrs = 1;
 	int ret;
 
+	xhci_dbg(xhci, "In %s\n", __func__);
 	if (!xhci->event_ring || !xhci->event_ring->dequeue) {
 		xhci->error_bitmask |= 1 << 1;
 		return;
@@ -1056,18 +1080,25 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 		xhci->error_bitmask |= 1 << 2;
 		return;
 	}
+	xhci_dbg(xhci, "%s - OS owns TRB\n", __func__);
 
 	/* FIXME: Handle more event types. */
 	switch ((event->event_cmd.flags & TRB_TYPE_BITMASK)) {
 	case TRB_TYPE(TRB_COMPLETION):
+		xhci_dbg(xhci, "%s - calling handle_cmd_completion\n", __func__);
 		handle_cmd_completion(xhci, &event->event_cmd);
+		xhci_dbg(xhci, "%s - returned from handle_cmd_completion\n", __func__);
 		break;
 	case TRB_TYPE(TRB_PORT_STATUS):
+		xhci_dbg(xhci, "%s - calling handle_port_status\n", __func__);
 		handle_port_status(xhci, event);
+		xhci_dbg(xhci, "%s - returned from handle_port_status\n", __func__);
 		update_ptrs = 0;
 		break;
 	case TRB_TYPE(TRB_TRANSFER):
+		xhci_dbg(xhci, "%s - calling handle_tx_event\n", __func__);
 		ret = handle_tx_event(xhci, &event->trans_event);
+		xhci_dbg(xhci, "%s - returned from handle_tx_event\n", __func__);
 		if (ret < 0)
 			xhci->error_bitmask |= 1 << 9;
 		else

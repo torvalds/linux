@@ -267,8 +267,10 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	u32 temp, temp2;
+	union xhci_trb *trb;
 
 	spin_lock(&xhci->lock);
+	trb = xhci->event_ring->dequeue;
 	/* Check if the xHC generated the interrupt, or the irq is shared */
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	temp2 = xhci_readl(xhci, &xhci->ir_set->irq_pending);
@@ -276,6 +278,15 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 		spin_unlock(&xhci->lock);
 		return IRQ_NONE;
 	}
+	xhci_dbg(xhci, "op reg status = %08x\n", temp);
+	xhci_dbg(xhci, "ir set irq_pending = %08x\n", temp2);
+	xhci_dbg(xhci, "Event ring dequeue ptr:\n");
+	xhci_dbg(xhci, "@%llx %08x %08x %08x %08x\n",
+			(unsigned long long)xhci_trb_virt_to_dma(xhci->event_ring->deq_seg, trb),
+			lower_32_bits(trb->link.segment_ptr),
+			upper_32_bits(trb->link.segment_ptr),
+			(unsigned int) trb->link.intr_target,
+			(unsigned int) trb->link.control);
 
 	if (temp & STS_FATAL) {
 		xhci_warn(xhci, "WARNING: Host System Error\n");
@@ -385,6 +396,20 @@ int xhci_run(struct usb_hcd *hcd)
 	add_timer(&xhci->event_ring_timer);
 #endif
 
+	xhci_dbg(xhci, "Command ring memory map follows:\n");
+	xhci_debug_ring(xhci, xhci->cmd_ring);
+	xhci_dbg_ring_ptrs(xhci, xhci->cmd_ring);
+	xhci_dbg_cmd_ptrs(xhci);
+
+	xhci_dbg(xhci, "ERST memory map follows:\n");
+	xhci_dbg_erst(xhci, &xhci->erst);
+	xhci_dbg(xhci, "Event ring:\n");
+	xhci_debug_ring(xhci, xhci->event_ring);
+	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
+	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	temp_64 &= ~ERST_PTR_MASK;
+	xhci_dbg(xhci, "ERST deq = 64'h%0lx\n", (long unsigned int) temp_64);
+
 	xhci_dbg(xhci, "// Set the interrupt modulation register\n");
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_control);
 	temp &= ~ER_IRQ_INTERVAL_MASK;
@@ -408,20 +433,6 @@ int xhci_run(struct usb_hcd *hcd)
 
 	if (NUM_TEST_NOOPS > 0)
 		doorbell = xhci_setup_one_noop(xhci);
-
-	xhci_dbg(xhci, "Command ring memory map follows:\n");
-	xhci_debug_ring(xhci, xhci->cmd_ring);
-	xhci_dbg_ring_ptrs(xhci, xhci->cmd_ring);
-	xhci_dbg_cmd_ptrs(xhci);
-
-	xhci_dbg(xhci, "ERST memory map follows:\n");
-	xhci_dbg_erst(xhci, &xhci->erst);
-	xhci_dbg(xhci, "Event ring:\n");
-	xhci_debug_ring(xhci, xhci->event_ring);
-	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
-	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
-	temp_64 &= ~ERST_PTR_MASK;
-	xhci_dbg(xhci, "ERST deq = 64'h%0lx\n", (long unsigned int) temp_64);
 
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	temp |= (CMD_RUN);
@@ -665,8 +676,12 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		goto done;
 
 	xhci_dbg(xhci, "Cancel URB %p\n", urb);
+	xhci_dbg(xhci, "Event ring:\n");
+	xhci_debug_ring(xhci, xhci->event_ring);
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
 	ep_ring = xhci->devs[urb->dev->slot_id]->ep_rings[ep_index];
+	xhci_dbg(xhci, "Endpoint ring:\n");
+	xhci_debug_ring(xhci, ep_ring);
 	td = (struct xhci_td *) urb->hcpriv;
 
 	ep_ring->cancels_pending++;
@@ -1178,6 +1193,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	if (!udev->config)
 		xhci_setup_addressable_virt_dev(xhci, udev);
 	/* Otherwise, assume the core has the device configured how it wants */
+	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
+	xhci_dbg_ctx(xhci, virt_dev->in_ctx, virt_dev->in_ctx_dma, 2);
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	ret = xhci_queue_address_device(xhci, virt_dev->in_ctx_dma,
@@ -1221,6 +1238,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	default:
 		xhci_err(xhci, "ERROR: unexpected command completion "
 				"code 0x%x.\n", virt_dev->cmd_status);
+		xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);
+		xhci_dbg_ctx(xhci, virt_dev->out_ctx, virt_dev->out_ctx_dma, 2);
 		ret = -EINVAL;
 		break;
 	}
