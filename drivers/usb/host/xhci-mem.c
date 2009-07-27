@@ -496,7 +496,12 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		max_packet = ep->desc.wMaxPacketSize;
 		ep_ctx->ep_info2 |= MAX_PACKET(max_packet);
 		/* dig out max burst from ep companion desc */
-		max_packet = ep->ss_ep_comp->desc.bMaxBurst;
+		if (!ep->ss_ep_comp) {
+			xhci_warn(xhci, "WARN no SS endpoint companion descriptor.\n");
+			max_packet = 0;
+		} else {
+			max_packet = ep->ss_ep_comp->desc.bMaxBurst;
+		}
 		ep_ctx->ep_info2 |= MAX_BURST(max_packet);
 		break;
 	case USB_SPEED_HIGH:
