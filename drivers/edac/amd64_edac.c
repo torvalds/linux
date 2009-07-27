@@ -2283,10 +2283,11 @@ static void amd64_handle_ue(struct mem_ctl_info *mci,
 }
 
 static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
-					    struct err_regs *info, int ecc_type)
+					    struct err_regs *info)
 {
 	u32 ec  = ERROR_CODE(info->nbsl);
 	u32 xec = EXT_ERROR_CODE(info->nbsl);
+	int ecc_type = info->nbsh & (0x3 << 13);
 
 	pr_emerg(" Transaction type: %s(%s), %s, Cache Level: %s, %s\n",
 		 RRRR_MSG(ec), II_MSG(ec), TO_MSG(ec), LL_MSG(ec), PP_MSG(ec));
@@ -2316,12 +2317,11 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR "Error Overflow");
 }
 
-void amd64_decode_bus_error(int node_id, struct err_regs *regs,
-				   int ecc_type)
+void amd64_decode_bus_error(int node_id, struct err_regs *regs)
 {
 	struct mem_ctl_info *mci = mci_lookup[node_id];
 
-	__amd64_decode_bus_error(mci, regs, ecc_type);
+	__amd64_decode_bus_error(mci, regs);
 
 	/*
 	 * Check the UE bit of the NB status high register, if set generate some

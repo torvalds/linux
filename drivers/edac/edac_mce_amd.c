@@ -2,7 +2,7 @@
 #include "edac_mce_amd.h"
 
 static bool report_gart_errors;
-static void (*nb_bus_decoder)(int node_id, struct err_regs *regs, int ecc_type);
+static void (*nb_bus_decoder)(int node_id, struct err_regs *regs);
 
 void amd_report_gart_errors(bool v)
 {
@@ -10,13 +10,13 @@ void amd_report_gart_errors(bool v)
 }
 EXPORT_SYMBOL_GPL(amd_report_gart_errors);
 
-void amd_register_ecc_decoder(void (*f)(int, struct err_regs *, int))
+void amd_register_ecc_decoder(void (*f)(int, struct err_regs *))
 {
 	nb_bus_decoder = f;
 }
 EXPORT_SYMBOL_GPL(amd_register_ecc_decoder);
 
-void amd_unregister_ecc_decoder(void (*f)(int, struct err_regs *, int))
+void amd_unregister_ecc_decoder(void (*f)(int, struct err_regs *))
 {
 	if (nb_bus_decoder) {
 		WARN_ON(nb_bus_decoder != f);
@@ -130,7 +130,6 @@ EXPORT_SYMBOL_GPL(ext_msgs);
 
 void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 {
-	int ecc;
 	u32 ec  = ERROR_CODE(regs->nbsl);
 	u32 xec = EXT_ERROR_CODE(regs->nbsl);
 
@@ -150,21 +149,6 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 	} else {
 		pr_cont(", core: %d\n", ilog2((regs->nbsh & 0xf)));
 	}
-
-	pr_emerg(" Error: %sorrected",
-		 ((regs->nbsh & K8_NBSH_UC_ERR) ? "Unc" : "C"));
-	pr_cont(", Report Error: %s",
-		 ((regs->nbsh & K8_NBSH_ERR_EN) ? "yes" : "no"));
-	pr_cont(", MiscV: %svalid, CPU context corrupt: %s",
-		((regs->nbsh & K8_NBSH_MISCV) ? "" : "In"),
-		((regs->nbsh & K8_NBSH_PCC)   ? "yes" : "no"));
-
-	/* do the two bits[14:13] together */
-	ecc = regs->nbsh & (0x3 << 13);
-	if (ecc)
-		pr_cont(", %sECC Error", ((ecc == 2) ? "C" : "U"));
-
-	pr_cont("\n");
 
 	if (TLB_ERROR(ec)) {
 		/*
@@ -191,7 +175,7 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 	} else if (BUS_ERROR(ec)) {
 		pr_emerg(" Bus (Link/DRAM) error\n");
 		if (nb_bus_decoder)
-			nb_bus_decoder(node_id, regs, ecc);
+			nb_bus_decoder(node_id, regs);
 	} else {
 		/* shouldn't reach here! */
 		pr_warning("%s: unknown MCE error 0x%x\n", __func__, ec);
@@ -204,16 +188,31 @@ EXPORT_SYMBOL_GPL(amd_decode_nb_mce);
 void decode_mce(struct mce *m)
 {
 	struct err_regs regs;
-	int node;
+	int node, ecc;
 
-	if (m->bank != 4)
-		return;
+	pr_emerg("MC%d_STATUS:\n", m->bank);
 
-	regs.nbsl  = (u32) m->status;
-	regs.nbsh  = (u32)(m->status >> 32);
-	regs.nbeal = (u32) m->addr;
-	regs.nbeah = (u32)(m->addr >> 32);
-	node       = topology_cpu_node_id(m->extcpu);
+	pr_emerg(" Error: %sorrected, Report: %s, MiscV: %svalid, "
+		 "CPU context corrupt: %s",
+		 ((m->status & MCI_STATUS_UC) ? "Unc"  : "C"),
+		 ((m->status & MCI_STATUS_EN) ? "yes"  : "no"),
+		 ((m->status & MCI_STATUS_MISCV) ? ""  : "in"),
+		 ((m->status & MCI_STATUS_PCC) ? "yes" : "no"));
 
-	amd_decode_nb_mce(node, &regs, 1);
+	/* do the two bits[14:13] together */
+	ecc = m->status & (3ULL << 45);
+	if (ecc)
+		pr_cont(", %sECC Error", ((ecc == 2) ? "C" : "U"));
+
+	pr_cont("\n");
+
+	if (m->bank == 4) {
+		regs.nbsl  = (u32) m->status;
+		regs.nbsh  = (u32)(m->status >> 32);
+		regs.nbeal = (u32) m->addr;
+		regs.nbeah = (u32)(m->addr >> 32);
+		node       = per_cpu(cpu_llc_id, m->extcpu);
+
+		amd_decode_nb_mce(node, &regs, 1);
+	}
 }
