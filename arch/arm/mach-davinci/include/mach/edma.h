@@ -210,6 +210,8 @@ enum fifo_width {
 enum dma_event_q {
 	EVENTQ_0 = 0,
 	EVENTQ_1 = 1,
+	EVENTQ_2 = 2,
+	EVENTQ_3 = 3,
 	EVENTQ_DEFAULT = -1
 };
 
