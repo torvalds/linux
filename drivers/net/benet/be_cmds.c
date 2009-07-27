@@ -227,54 +227,17 @@ static int be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
 		return 0;
 }
 
-static int be_POST_stage_poll(struct be_adapter *adapter, u16 poll_stage)
-{
-	u16 stage, cnt, error;
-	for (cnt = 0; cnt < 5000; cnt++) {
-		error = be_POST_stage_get(adapter, &stage);
-		if (error)
-			return -1;
-
-		if (stage == poll_stage)
-			break;
-		udelay(1000);
-	}
-	if (stage != poll_stage)
-		return -1;
-	return 0;
-}
-
-
 int be_cmd_POST(struct be_adapter *adapter)
 {
 	u16 stage, error;
 
 	error = be_POST_stage_get(adapter, &stage);
-	if (error)
-		goto err;
-
-	if (stage == POST_STAGE_ARMFW_RDY)
-		return 0;
-
-	if (stage != POST_STAGE_AWAITING_HOST_RDY)
-		goto err;
-
-	/* On awaiting host rdy, reset and again poll on awaiting host rdy */
-	iowrite32(POST_STAGE_BE_RESET, adapter->csr + MPU_EP_SEMAPHORE_OFFSET);
-	error = be_POST_stage_poll(adapter, POST_STAGE_AWAITING_HOST_RDY);
-	if (error)
-		goto err;
-
-	/* Now kickoff POST and poll on armfw ready */
-	iowrite32(POST_STAGE_HOST_RDY, adapter->csr + MPU_EP_SEMAPHORE_OFFSET);
-	error = be_POST_stage_poll(adapter, POST_STAGE_ARMFW_RDY);
-	if (error)
-		goto err;
+	if (error || stage != POST_STAGE_ARMFW_RDY) {
+		dev_err(&adapter->pdev->dev, "POST failed.\n");
+		return -1;
+	}
 
 	return 0;
-err:
-	printk(KERN_WARNING DRV_NAME ": ERROR, stage=%d\n", stage);
-	return -1;
 }
 
 static inline void *embedded_payload(struct be_mcc_wrb *wrb)
