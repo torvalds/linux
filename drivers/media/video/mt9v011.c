@@ -393,10 +393,13 @@ static int mt9v011_s_register(struct v4l2_subdev *sd,
 static int mt9v011_g_chip_ident(struct v4l2_subdev *sd,
 				struct v4l2_dbg_chip_ident *chip)
 {
+	u16 version;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
+	version = mt9v011_read(sd, R00_MT9V011_CHIP_VERSION);
+
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_MT9V011,
-					  MT9V011_VERSION);
+					  version);
 }
 
 static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
@@ -449,8 +452,9 @@ static int mt9v011_probe(struct i2c_client *c,
 
 	/* Check if the sensor is really a MT9V011 */
 	version = mt9v011_read(sd, R00_MT9V011_CHIP_VERSION);
-	if (version != MT9V011_VERSION) {
-		v4l2_info(sd, "*** unknown micron chip detected (0x%04x.\n",
+	if ((version != MT9V011_VERSION) &&
+	    (version != MT9V011_REV_B_VERSION)) {
+		v4l2_info(sd, "*** unknown micron chip detected (0x%04x).\n",
 			  version);
 		kfree(core);
 		return -EINVAL;
@@ -461,8 +465,8 @@ static int mt9v011_probe(struct i2c_client *c,
 	core->height = 480;
 	core->xtal = 27000000;	/* Hz */
 
-	v4l_info(c, "chip found @ 0x%02x (%s)\n",
-		 c->addr << 1, c->adapter->name);
+	v4l_info(c, "chip found @ 0x%02x (%s - chip version 0x%04x)\n",
+		 c->addr << 1, c->adapter->name, version);
 
 	return 0;
 }

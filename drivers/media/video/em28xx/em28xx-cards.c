@@ -1771,7 +1771,8 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	version = be16_to_cpu(version_be);
 
 	switch (version) {
-	case 0x8243:		/* mt9v011 640x480 1.3 Mpix sensor */
+	case 0x8232:		/* mt9v011 640x480 1.3 Mpix sensor */
+	case 0x8243:		/* mt9v011 rev B 640x480 1.3 Mpix sensor */
 		dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
 		sensor_name = "mt9v011";
 		dev->em28xx_sensor = EM28XX_MT9V011;
