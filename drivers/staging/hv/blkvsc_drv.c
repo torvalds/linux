@@ -124,7 +124,7 @@ static int blkvsc_probe(struct device *dev);
 static int blkvsc_remove(struct device *device);
 static void blkvsc_shutdown(struct device *device);
 
-static int blkvsc_open(struct inode *inode, struct file *filep);
+static int blkvsc_open(struct block_device *bdev,  fmode_t mode);
 static int blkvsc_release(struct inode *inode, struct file *filep);
 static int blkvsc_media_changed(struct gendisk *gd);
 static int blkvsc_revalidate_disk(struct gendisk *gd);
@@ -1320,9 +1320,9 @@ static void blkvsc_request(struct request_queue *queue)
 	}
 }
 
-static int blkvsc_open(struct inode *inode, struct file *filep)
+static int blkvsc_open(struct block_device *bdev,  fmode_t mode)
 {
-	struct block_device_context *blkdev = inode->i_bdev->bd_disk->private_data;
+	struct block_device_context *blkdev = bdev->bd_disk->private_data;
 
 	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users, blkdev->gd->disk_name);
 
@@ -1331,7 +1331,7 @@ static int blkvsc_open(struct inode *inode, struct file *filep)
 	if (!blkdev->users && blkdev->device_type == DVD_TYPE)
 	{
 		spin_unlock(&blkdev->lock);
-		check_disk_change(inode->i_bdev);
+		check_disk_change(bdev);
 		spin_lock(&blkdev->lock);
 	}
 
