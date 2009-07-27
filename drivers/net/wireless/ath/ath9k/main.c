@@ -1251,11 +1251,6 @@ void ath_detach(struct ath_softc *sc)
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Detach ATH hw\n");
 
-	cancel_delayed_work_sync(&sc->ath_led_blink_work);
-	cancel_delayed_work_sync(&sc->tx_complete_work);
-	cancel_delayed_work_sync(&sc->wiphy_work);
-	cancel_work_sync(&sc->chan_work);
-
 	ath_deinit_leds(sc);
 
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
@@ -2090,6 +2085,14 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	struct ath_softc *sc = aphy->sc;
 
 	aphy->state = ATH_WIPHY_INACTIVE;
+
+	cancel_delayed_work_sync(&sc->ath_led_blink_work);
+	cancel_delayed_work_sync(&sc->tx_complete_work);
+
+	if (!sc->num_sec_wiphy) {
+		cancel_delayed_work_sync(&sc->wiphy_work);
+		cancel_work_sync(&sc->chan_work);
+	}
 
 	if (sc->sc_flags & SC_OP_INVALID) {
 		DPRINTF(sc, ATH_DBG_ANY, "Device not present\n");
