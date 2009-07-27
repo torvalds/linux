@@ -601,10 +601,13 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		goto exit;
 	}
 	if (usb_endpoint_xfer_control(&urb->ep->desc))
-		ret = xhci_queue_ctrl_tx(xhci, mem_flags, urb,
+		/* We have a spinlock and interrupts disabled, so we must pass
+		 * atomic context to this function, which may allocate memory.
+		 */
+		ret = xhci_queue_ctrl_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
 	else if (usb_endpoint_xfer_bulk(&urb->ep->desc))
-		ret = xhci_queue_bulk_tx(xhci, mem_flags, urb,
+		ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
 	else
 		ret = -EINVAL;
