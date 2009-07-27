@@ -2,7 +2,6 @@ config AR9170_USB
 	tristate "Atheros AR9170 802.11n USB support"
 	depends on USB && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select FW_LOADER
-	select ATH_COMMON
 	help
 	  This is a driver for the Atheros "otus" 802.11n USB devices.
 
