@@ -27,7 +27,8 @@
 	#define guest_walker guest_walker64
 	#define FNAME(name) paging##64_##name
 	#define PT_BASE_ADDR_MASK PT64_BASE_ADDR_MASK
-	#define PT_DIR_BASE_ADDR_MASK PT64_DIR_BASE_ADDR_MASK
+	#define PT_LVL_ADDR_MASK(lvl) PT64_LVL_ADDR_MASK(lvl)
+	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_MASK(level) PT64_LEVEL_MASK(level)
 	#define PT_LEVEL_BITS PT64_LEVEL_BITS
@@ -43,7 +44,8 @@
 	#define guest_walker guest_walker32
 	#define FNAME(name) paging##32_##name
 	#define PT_BASE_ADDR_MASK PT32_BASE_ADDR_MASK
-	#define PT_DIR_BASE_ADDR_MASK PT32_DIR_BASE_ADDR_MASK
+	#define PT_LVL_ADDR_MASK(lvl) PT32_LVL_ADDR_MASK(lvl)
+	#define PT_LVL_OFFSET_MASK(lvl) PT32_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT32_INDEX(addr, level)
 	#define PT_LEVEL_MASK(level) PT32_LEVEL_MASK(level)
 	#define PT_LEVEL_BITS PT32_LEVEL_BITS
@@ -53,8 +55,8 @@
 	#error Invalid PTTYPE value
 #endif
 
-#define gpte_to_gfn FNAME(gpte_to_gfn)
-#define gpte_to_gfn_pde FNAME(gpte_to_gfn_pde)
+#define gpte_to_gfn_lvl FNAME(gpte_to_gfn_lvl)
+#define gpte_to_gfn(pte) gpte_to_gfn_lvl((pte), PT_PAGE_TABLE_LEVEL)
 
 /*
  * The guest_walker structure emulates the behavior of the hardware page
@@ -71,14 +73,9 @@ struct guest_walker {
 	u32 error_code;
 };
 
-static gfn_t gpte_to_gfn(pt_element_t gpte)
+static gfn_t gpte_to_gfn_lvl(pt_element_t gpte, int lvl)
 {
-	return (gpte & PT_BASE_ADDR_MASK) >> PAGE_SHIFT;
-}
-
-static gfn_t gpte_to_gfn_pde(pt_element_t gpte)
-{
-	return (gpte & PT_DIR_BASE_ADDR_MASK) >> PAGE_SHIFT;
+	return (gpte & PT_LVL_ADDR_MASK(lvl)) >> PAGE_SHIFT;
 }
 
 static bool FNAME(cmpxchg_gpte)(struct kvm *kvm,
@@ -189,18 +186,24 @@ walk:
 
 		walker->ptes[walker->level - 1] = pte;
 
-		if (walker->level == PT_PAGE_TABLE_LEVEL) {
-			walker->gfn = gpte_to_gfn(pte);
-			break;
-		}
+		if ((walker->level == PT_PAGE_TABLE_LEVEL) ||
+		    ((walker->level == PT_DIRECTORY_LEVEL) &&
+				(pte & PT_PAGE_SIZE_MASK)  &&
+				(PTTYPE == 64 || is_pse(vcpu))) ||
+		    ((walker->level == PT_PDPE_LEVEL) &&
+				(pte & PT_PAGE_SIZE_MASK)  &&
+				is_long_mode(vcpu))) {
+			int lvl = walker->level;
 
-		if (walker->level == PT_DIRECTORY_LEVEL
-		    && (pte & PT_PAGE_SIZE_MASK)
-		    && (PTTYPE == 64 || is_pse(vcpu))) {
-			walker->gfn = gpte_to_gfn_pde(pte);
-			walker->gfn += PT_INDEX(addr, PT_PAGE_TABLE_LEVEL);
-			if (PTTYPE == 32 && is_cpuid_PSE36())
+			walker->gfn = gpte_to_gfn_lvl(pte, lvl);
+			walker->gfn += (addr & PT_LVL_OFFSET_MASK(lvl))
+					>> PAGE_SHIFT;
+
+			if (PTTYPE == 32 &&
+			    walker->level == PT_DIRECTORY_LEVEL &&
+			    is_cpuid_PSE36())
 				walker->gfn += pse36_gfn_delta(pte);
+
 			break;
 		}
 
@@ -609,9 +612,10 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 #undef PT_BASE_ADDR_MASK
 #undef PT_INDEX
 #undef PT_LEVEL_MASK
-#undef PT_DIR_BASE_ADDR_MASK
+#undef PT_LVL_ADDR_MASK
+#undef PT_LVL_OFFSET_MASK
 #undef PT_LEVEL_BITS
 #undef PT_MAX_FULL_LEVELS
 #undef gpte_to_gfn
-#undef gpte_to_gfn_pde
+#undef gpte_to_gfn_lvl
 #undef CMPXCHG
