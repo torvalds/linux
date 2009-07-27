@@ -557,7 +557,7 @@ VmbusChannelEstablishGpadl(
 
 	DPRINT_DBG(VMBUS, "buffer %p, size %d msg cnt %d", Kbuffer, Size, msgCount);
 
-	DPRINT_DBG(VMBUS, "Sending GPADL Header - len %d", msgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
+	DPRINT_DBG(VMBUS, "Sending GPADL Header - len %ld", msgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
 
 	ret = VmbusPostMessage(gpadlMsg, msgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
 	if (ret != 0)
@@ -576,7 +576,7 @@ VmbusChannelEstablishGpadl(
 			gpadlBody->Header.MessageType = ChannelMessageGpadlBody;
 			gpadlBody->Gpadl = nextGpadlHandle;
 
-			DPRINT_DBG(VMBUS, "Sending GPADL Body - len %d", subMsgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
+			DPRINT_DBG(VMBUS, "Sending GPADL Body - len %ld", subMsgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
 
 			DumpGpadlBody(gpadlBody, subMsgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
 			ret = VmbusPostMessage(gpadlBody, subMsgInfo->MessageSize - sizeof(VMBUS_CHANNEL_MSGINFO));
