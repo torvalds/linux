@@ -23,6 +23,7 @@
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/auxadc.h>
+#include <linux/mfd/wm831x/otp.h>
 
 enum wm831x_parent {
 	WM8310 = 0,
@@ -1340,6 +1341,8 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 				ret);
 	}
 
+	wm831x_otp_init(wm831x);
+
 	if (pdata && pdata->post_init) {
 		ret = pdata->post_init(wm831x);
 		if (ret != 0) {
@@ -1360,6 +1363,7 @@ err:
 
 static void wm831x_device_exit(struct wm831x *wm831x)
 {
+	wm831x_otp_exit(wm831x);
 	mfd_remove_devices(wm831x->dev);
 	wm831x_irq_exit(wm831x);
 	kfree(wm831x);
