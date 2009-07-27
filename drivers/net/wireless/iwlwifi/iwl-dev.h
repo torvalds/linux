@@ -1164,6 +1164,7 @@ struct iwl_priv {
 	/* debugging info */
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;
+	bool disable_ht40;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* debugfs */
 	struct iwl_debugfs *dbgfs;

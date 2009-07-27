@@ -632,6 +632,10 @@ u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 		if (!sta_ht_inf->ht_supported)
 			return 0;
 	}
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (priv->disable_ht40)
+		return 0;
+#endif
 	return iwl_is_channel_extension(priv, priv->band,
 			le16_to_cpu(priv->staging_rxon.channel),
 			iwl_ht_conf->extension_chan_offset);
