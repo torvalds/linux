@@ -15,11 +15,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/bcd.h>
+#include <linux/delay.h>
 #include <linux/mfd/core.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/irq.h>
+#include <linux/mfd/wm831x/auxadc.h>
 
 enum wm831x_parent {
 	WM8310 = 0,
@@ -243,6 +246,103 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm831x_set_bits);
+
+/**
+ * wm831x_auxadc_read: Read a value from the WM831x AUXADC
+ *
+ * @wm831x: Device to read from.
+ * @input: AUXADC input to read.
+ */
+int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
+{
+	int tries = 10;
+	int ret, src;
+
+	mutex_lock(&wm831x->auxadc_lock);
+
+	ret = wm831x_set_bits(wm831x, WM831X_AUXADC_CONTROL,
+			      WM831X_AUX_ENA, WM831X_AUX_ENA);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to enable AUXADC: %d\n", ret);
+		goto out;
+	}
+
+	/* We force a single source at present */
+	src = input;
+	ret = wm831x_reg_write(wm831x, WM831X_AUXADC_SOURCE,
+			       1 << src);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to set AUXADC source: %d\n", ret);
+		goto out;
+	}
+
+	ret = wm831x_set_bits(wm831x, WM831X_AUXADC_CONTROL,
+			      WM831X_AUX_CVT_ENA, WM831X_AUX_CVT_ENA);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to start AUXADC: %d\n", ret);
+		goto disable;
+	}
+
+	do {
+		msleep(1);
+
+		ret = wm831x_reg_read(wm831x, WM831X_AUXADC_CONTROL);
+		if (ret < 0)
+			ret = WM831X_AUX_CVT_ENA;
+	} while ((ret & WM831X_AUX_CVT_ENA) && --tries);
+
+	if (ret & WM831X_AUX_CVT_ENA) {
+		dev_err(wm831x->dev, "Timed out reading AUXADC\n");
+		ret = -EBUSY;
+		goto disable;
+	}
+
+	ret = wm831x_reg_read(wm831x, WM831X_AUXADC_DATA);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to read AUXADC data: %d\n", ret);
+	} else {
+		src = ((ret & WM831X_AUX_DATA_SRC_MASK)
+		       >> WM831X_AUX_DATA_SRC_SHIFT) - 1;
+
+		if (src == 14)
+			src = WM831X_AUX_CAL;
+
+		if (src != input) {
+			dev_err(wm831x->dev, "Data from source %d not %d\n",
+				src, input);
+			ret = -EINVAL;
+		} else {
+			ret &= WM831X_AUX_DATA_MASK;
+		}
+	}
+
+disable:
+	wm831x_set_bits(wm831x, WM831X_AUXADC_CONTROL, WM831X_AUX_ENA, 0);
+out:
+	mutex_unlock(&wm831x->auxadc_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wm831x_auxadc_read);
+
+/**
+ * wm831x_auxadc_read_uv: Read a voltage from the WM831x AUXADC
+ *
+ * @wm831x: Device to read from.
+ * @input: AUXADC input to read.
+ */
+int wm831x_auxadc_read_uv(struct wm831x *wm831x, enum wm831x_auxadc input)
+{
+	int ret;
+
+	ret = wm831x_auxadc_read(wm831x, input);
+	if (ret < 0)
+		return ret;
+
+	ret *= 1465;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wm831x_auxadc_read_uv);
 
 static struct resource wm831x_dcdc1_resources[] = {
 	{
@@ -1084,6 +1184,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 
 	mutex_init(&wm831x->io_lock);
 	mutex_init(&wm831x->key_lock);
+	mutex_init(&wm831x->auxadc_lock);
 	dev_set_drvdata(wm831x->dev, wm831x);
 
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);

@@ -234,6 +234,8 @@ struct wm831x {
 	unsigned int irq_base;
 	int irq_masks[5];
 
+	struct mutex auxadc_lock;
+
 	/* The WM831x has a security key blocking access to certain
 	 * registers.  The mutex is taken by the accessors for locking
 	 * and unlocking the security key, locked is used to fail
