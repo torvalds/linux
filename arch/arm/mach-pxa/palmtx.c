@@ -30,6 +30,8 @@
 #include <linux/usb/gpio_vbus.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -141,6 +143,42 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	GPIO10_GPIO,	/* hotsync button */
 	GPIO12_GPIO,	/* power detect */
 	GPIO107_GPIO,	/* earphone detect */
+};
+
+/******************************************************************************
+ * NOR Flash
+ ******************************************************************************/
+static struct mtd_partition palmtx_partitions[] = {
+	{
+		.name		= "Flash",
+		.offset		= 0x00000000,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0
+	}
+};
+
+static struct physmap_flash_data palmtx_flash_data[] = {
+	{
+		.width		= 2,			/* bankwidth in bytes */
+		.parts		= palmtx_partitions,
+		.nr_parts	= ARRAY_SIZE(palmtx_partitions)
+	}
+};
+
+static struct resource palmtx_flash_resource = {
+	.start	= PXA_CS0_PHYS,
+	.end	= PXA_CS0_PHYS + SZ_8M - 1,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct platform_device palmtx_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.resource	= &palmtx_flash_resource,
+	.num_resources	= 1,
+	.dev 		= {
+		.platform_data = palmtx_flash_data,
+	},
 };
 
 /******************************************************************************
@@ -515,6 +553,7 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&palmtx_asoc,
 	&palmtx_gpio_vbus,
+	&palmtx_flash,
 	&palmtx_nand,
 };
 
