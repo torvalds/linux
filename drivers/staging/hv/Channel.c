@@ -831,7 +831,7 @@ VmbusChannelSendPacketPageBuffer(
 {
 	int ret=0;
 	int i=0;
-	VMBUS_CHANNEL_PACKET_PAGE_BUFFER desc;
+	struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER desc;
 	u32 descSize;
 	u32 packetLen;
 	u32 packetLenAligned;
@@ -845,7 +845,7 @@ VmbusChannelSendPacketPageBuffer(
 	DumpVmbusChannel(Channel);
 
 	/* Adjust the size down since VMBUS_CHANNEL_PACKET_PAGE_BUFFER is the largest size we support */
-	descSize = sizeof(VMBUS_CHANNEL_PACKET_PAGE_BUFFER) - ((MAX_PAGE_BUFFER_COUNT - PageCount)*sizeof(PAGE_BUFFER));
+	descSize = sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER) - ((MAX_PAGE_BUFFER_COUNT - PageCount)*sizeof(PAGE_BUFFER));
 	packetLen = descSize + BufferLen;
 	packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
 

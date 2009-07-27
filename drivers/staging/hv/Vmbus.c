@@ -126,7 +126,7 @@ VmbusInitialize(
 	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++", VMBUS_MESSAGE_SINT);
 
 	DPRINT_DBG(VMBUS, "sizeof(VMBUS_CHANNEL_PACKET_PAGE_BUFFER)=%ld, sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER)=%ld",
-		sizeof(VMBUS_CHANNEL_PACKET_PAGE_BUFFER), sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER));
+		sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER), sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER));
 
 	drv->name = gDriverName;
 	memcpy(&drv->deviceType, &gVmbusDeviceType, sizeof(GUID));

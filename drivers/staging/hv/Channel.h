@@ -32,7 +32,7 @@
 
 
 /* The format must be the same as VMDATA_GPA_DIRECT */
-typedef struct _VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
+struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
     u16				Type;
     u16				DataOffset8;
     u16				Length8;
@@ -41,7 +41,7 @@ typedef struct _VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
 	u32				Reserved;
 	u32				RangeCount;
     PAGE_BUFFER			Range[MAX_PAGE_BUFFER_COUNT];
-} VMBUS_CHANNEL_PACKET_PAGE_BUFFER;
+};
 
 
 /* The format must be the same as VMDATA_GPA_DIRECT */
