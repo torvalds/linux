@@ -101,34 +101,6 @@ static int vmbus_irq = VMBUS_IRQ;
 
 /* Setup /proc/sys/bus/vmbus/vmbus_loglevel */
 /* Allow usage of sysctl cmd to set the logging level */
-static struct ctl_table_header *vmbus_ctl_table_hdr;
-
-static ctl_table vmbus_dev_ctl_table[] = {
-	{ .ctl_name	= 8461,
-	  .procname	= "vmbus_loglevel",
-	  .data		= &vmbus_loglevel,
-	  .maxlen	= sizeof(vmbus_loglevel),
-	  .mode		= 0644,
-	  .proc_handler	= &proc_dointvec },
-	{ }
-};
-
-static ctl_table vmbus_ctl_table[] = {
-	{ .ctl_name	= CTL_DEV,
-	  .procname	= "vmbus",
-	  .mode		= 0555,
-	  .child	= vmbus_dev_ctl_table },
-	{ }
-};
-
-static ctl_table vmus_root_ctl_table[] = {
-	{ .ctl_name	= CTL_BUS,
-	  .procname	= "bus",
-	  .mode		= 0555,
-	  .child	= vmbus_ctl_table },
-	{ }
-};
-
 
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
 
