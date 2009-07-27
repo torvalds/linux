@@ -15,7 +15,7 @@ endif
 obj-y			+= $(cache-y)
 
 mmu-y			:= tlb-nommu.o pg-nommu.o
-mmu-$(CONFIG_MMU)	:= fault_32.o tlbflush_32.o ioremap_32.o
+mmu-$(CONFIG_MMU)	:= fault_32.o tlbflush_32.o ioremap_32.o pg-mmu.o
 
 obj-y			+= $(mmu-y)
 obj-$(CONFIG_DEBUG_FS)	+= asids-debugfs.o
@@ -29,10 +29,6 @@ tlb-$(CONFIG_CPU_SH3)		:= tlb-sh3.o
 tlb-$(CONFIG_CPU_SH4)		:= tlb-sh4.o
 tlb-$(CONFIG_CPU_HAS_PTEAEX)	:= tlb-pteaex.o
 obj-y				+= $(tlb-y)
-ifndef CONFIG_CACHE_OFF
-obj-$(CONFIG_CPU_SH4)		+= pg-sh4.o
-obj-$(CONFIG_SH7705_CACHE_32KB)	+= pg-sh4.o
-endif
 endif
 
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o

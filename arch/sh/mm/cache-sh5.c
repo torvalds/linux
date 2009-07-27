@@ -831,4 +831,21 @@ void clear_user_page(void *to, unsigned long address, struct page *page)
 	else
 		sh64_clear_user_page_coloured(to, address);
 }
+
+void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
+		       unsigned long vaddr, void *dst, const void *src,
+		       unsigned long len)
+{
+	flush_cache_page(vma, vaddr, page_to_pfn(page));
+	memcpy(dst, src, len);
+	flush_icache_user_range(vma, page, vaddr, len);
+}
+
+void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
+			 unsigned long vaddr, void *dst, const void *src,
+			 unsigned long len)
+{
+	flush_cache_page(vma, vaddr, page_to_pfn(page));
+	memcpy(dst, src, len);
+}
 #endif
