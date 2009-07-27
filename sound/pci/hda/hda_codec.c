@@ -301,12 +301,15 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int parm;
 	int i, conn_len, conns;
 	unsigned int shift, num_elems, mask;
+	unsigned int wcaps;
 	hda_nid_t prev_nid;
 
 	if (snd_BUG_ON(!conn_list || max_conns <= 0))
 		return -EINVAL;
 
-	if ((get_wcaps(codec, nid) & AC_WCAP_CONN_LIST) == 0) {
+	wcaps = get_wcaps(codec, nid);
+	if (!(wcaps & AC_WCAP_CONN_LIST) &&
+	    get_wcaps_type(wcaps) != AC_WID_VOL_KNB) {
 		snd_printk(KERN_WARNING "hda_codec: "
 			   "connection list not available for 0x%x\n", nid);
 		return -EINVAL;
