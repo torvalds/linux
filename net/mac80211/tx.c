@@ -1889,6 +1889,11 @@ void ieee80211_tx_pending(unsigned long data)
 			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 			struct ieee80211_sub_if_data *sdata;
 
+			if (WARN_ON(!info->control.vif)) {
+				kfree_skb(skb);
+				continue;
+			}
+
 			sdata = vif_to_sdata(info->control.vif);
 			dev_hold(sdata->dev);
 			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
