@@ -23,6 +23,7 @@
  */
 struct mfd_cell {
 	const char		*name;
+	int			id;
 
 	int			(*enable)(struct platform_device *dev);
 	int			(*disable)(struct platform_device *dev);
