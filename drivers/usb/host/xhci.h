@@ -25,6 +25,7 @@
 
 #include <linux/usb.h>
 #include <linux/timer.h>
+#include <linux/kernel.h>
 
 #include "../core/hcd.h"
 /* Code sharing between pci-quirks and xhci hcd */
@@ -42,14 +43,6 @@
  * xHCI register interface.
  * This corresponds to the eXtensible Host Controller Interface (xHCI)
  * Revision 0.95 specification
- *
- * Registers should always be accessed with double word or quad word accesses.
- *
- * Some xHCI implementations may support 64-bit address pointers.  Registers
- * with 64-bit address pointers should be written to with dword accesses by
- * writing the low dword first (ptr[0]), then the high dword (ptr[1]) second.
- * xHCI implementations that do not support 64-bit address pointers will ignore
- * the high dword, and write order is irrelevant.
  */
 
 /**
@@ -166,10 +159,10 @@ struct xhci_op_regs {
 	u32	reserved1;
 	u32	reserved2;
 	u32	dev_notification;
-	u32	cmd_ring[2];
+	u64	cmd_ring;
 	/* rsvd: offset 0x20-2F */
 	u32	reserved3[4];
-	u32	dcbaa_ptr[2];
+	u64	dcbaa_ptr;
 	u32	config_reg;
 	/* rsvd: offset 0x3C-3FF */
 	u32	reserved4[241];
@@ -254,7 +247,7 @@ struct xhci_op_regs {
 #define CMD_RING_RUNNING	(1 << 3)
 /* bits 4:5 reserved and should be preserved */
 /* Command Ring pointer - bit mask for the lower 32 bits. */
-#define CMD_RING_ADDR_MASK	(0xffffffc0)
+#define CMD_RING_RSVD_BITS	(0x3f)
 
 /* CONFIG - Configure Register - config_reg bitmasks */
 /* bits 0:7 - maximum number of device slots enabled (NumSlotsEn) */
@@ -382,8 +375,8 @@ struct xhci_intr_reg {
 	u32	irq_control;
 	u32	erst_size;
 	u32	rsvd;
-	u32	erst_base[2];
-	u32	erst_dequeue[2];
+	u64	erst_base;
+	u64	erst_dequeue;
 };
 
 /* irq_pending bitmasks */
@@ -538,7 +531,7 @@ struct xhci_slot_ctx {
 struct xhci_ep_ctx {
 	u32	ep_info;
 	u32	ep_info2;
-	u32	deq[2];
+	u64	deq;
 	u32	tx_info;
 	/* offset 0x14 - 0x1f reserved for HC internal use */
 	u32	reserved[3];
@@ -641,7 +634,7 @@ struct xhci_virt_device {
  */
 struct xhci_device_context_array {
 	/* 64-bit device addresses; we only write 32-bit addresses */
-	u32			dev_context_ptrs[2*MAX_HC_SLOTS];
+	u64			dev_context_ptrs[MAX_HC_SLOTS];
 	/* private xHCD pointers */
 	dma_addr_t	dma;
 };
@@ -654,7 +647,7 @@ struct xhci_device_context_array {
 
 struct xhci_stream_ctx {
 	/* 64-bit stream ring address, cycle state, and stream type */
-	u32	stream_ring[2];
+	u64	stream_ring;
 	/* offset 0x14 - 0x1f reserved for HC internal use */
 	u32	reserved[2];
 };
@@ -662,7 +655,7 @@ struct xhci_stream_ctx {
 
 struct xhci_transfer_event {
 	/* 64-bit buffer address, or immediate data */
-	u32	buffer[2];
+	u64	buffer;
 	u32	transfer_len;
 	/* This field is interpreted differently based on the type of TRB */
 	u32	flags;
@@ -744,7 +737,7 @@ struct xhci_transfer_event {
 
 struct xhci_link_trb {
 	/* 64-bit segment pointer*/
-	u32 segment_ptr[2];
+	u64 segment_ptr;
 	u32 intr_target;
 	u32 control;
 };
@@ -755,7 +748,7 @@ struct xhci_link_trb {
 /* Command completion event TRB */
 struct xhci_event_cmd {
 	/* Pointer to command TRB, or the value passed by the event data trb */
-	u32 cmd_trb[2];
+	u64 cmd_trb;
 	u32 status;
 	u32 flags;
 };
@@ -943,7 +936,7 @@ struct xhci_ring {
 
 struct xhci_erst_entry {
 	/* 64-bit event ring segment address */
-	u32	seg_addr[2];
+	u64	seg_addr;
 	u32	seg_size;
 	/* Set to zero */
 	u32	rsvd;
@@ -1077,6 +1070,38 @@ static inline void xhci_writel(struct xhci_hcd *xhci,
 			 "`MEM_WRITE_DWORD(3'b000, 32'h%p, 32'h%0x, 4'hf);\n",
 			 regs, val);
 	writel(val, regs);
+}
+
+/*
+ * Registers should always be accessed with double word or quad word accesses.
+ *
+ * Some xHCI implementations may support 64-bit address pointers.  Registers
+ * with 64-bit address pointers should be written to with dword accesses by
+ * writing the low dword first (ptr[0]), then the high dword (ptr[1]) second.
+ * xHCI implementations that do not support 64-bit address pointers will ignore
+ * the high dword, and write order is irrelevant.
+ */
+static inline u64 xhci_read_64(const struct xhci_hcd *xhci,
+		__u64 __iomem *regs)
+{
+	__u32 __iomem *ptr = (__u32 __iomem *) regs;
+	u64 val_lo = readl(ptr);
+	u64 val_hi = readl(ptr + 1);
+	return val_lo + (val_hi << 32);
+}
+static inline void xhci_write_64(struct xhci_hcd *xhci,
+		const u64 val, __u64 __iomem *regs)
+{
+	__u32 __iomem *ptr = (__u32 __iomem *) regs;
+	u32 val_lo = lower_32_bits(val);
+	u32 val_hi = upper_32_bits(val);
+
+	if (!in_interrupt())
+		xhci_dbg(xhci,
+			 "`MEM_WRITE_DWORD(3'b000, 64'h%p, 64'h%0lx, 4'hf);\n",
+			 regs, (long unsigned int) val);
+	writel(val_lo, ptr);
+	writel(val_hi, ptr + 1);
 }
 
 /* xHCI debugging */

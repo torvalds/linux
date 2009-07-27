@@ -226,6 +226,7 @@ int xhci_init(struct usb_hcd *hcd)
 static void xhci_work(struct xhci_hcd *xhci)
 {
 	u32 temp;
+	u64 temp_64;
 
 	/*
 	 * Clear the op reg interrupt status first,
@@ -249,8 +250,8 @@ static void xhci_work(struct xhci_hcd *xhci)
 	xhci_handle_event(xhci);
 
 	/* Clear the event handler busy flag; the event ring should be empty. */
-	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[0]);
-	xhci_writel(xhci, temp & ~ERST_EHB, &xhci->ir_set->erst_dequeue[0]);
+	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	xhci_write_64(xhci, temp_64 & ~ERST_EHB, &xhci->ir_set->erst_dequeue);
 	/* Flush posted writes -- FIXME is this necessary? */
 	xhci_readl(xhci, &xhci->ir_set->irq_pending);
 }
@@ -295,6 +296,7 @@ void xhci_event_ring_work(unsigned long arg)
 {
 	unsigned long flags;
 	int temp;
+	u64 temp_64;
 	struct xhci_hcd *xhci = (struct xhci_hcd *) arg;
 	int i, j;
 
@@ -311,9 +313,9 @@ void xhci_event_ring_work(unsigned long arg)
 	xhci_dbg(xhci, "Event ring:\n");
 	xhci_debug_segment(xhci, xhci->event_ring->deq_seg);
 	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
-	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[0]);
-	temp &= ERST_PTR_MASK;
-	xhci_dbg(xhci, "ERST deq = 0x%x\n", temp);
+	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	temp_64 &= ~ERST_PTR_MASK;
+	xhci_dbg(xhci, "ERST deq = 64'h%0lx\n", (long unsigned int) temp_64);
 	xhci_dbg(xhci, "Command ring:\n");
 	xhci_debug_segment(xhci, xhci->cmd_ring->deq_seg);
 	xhci_dbg_ring_ptrs(xhci, xhci->cmd_ring);
@@ -356,6 +358,7 @@ void xhci_event_ring_work(unsigned long arg)
 int xhci_run(struct usb_hcd *hcd)
 {
 	u32 temp;
+	u64 temp_64;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	void (*doorbell)(struct xhci_hcd *) = NULL;
 
@@ -416,11 +419,9 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "Event ring:\n");
 	xhci_debug_ring(xhci, xhci->event_ring);
 	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
-	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[0]);
-	temp &= ERST_PTR_MASK;
-	xhci_dbg(xhci, "ERST deq = 0x%x\n", temp);
-	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[1]);
-	xhci_dbg(xhci, "ERST deq upper = 0x%x\n", temp);
+	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	temp_64 &= ~ERST_PTR_MASK;
+	xhci_dbg(xhci, "ERST deq = 64'h%0lx\n", (long unsigned int) temp_64);
 
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	temp |= (CMD_RUN);
@@ -888,8 +889,7 @@ static void xhci_zero_in_ctx(struct xhci_virt_device *virt_dev)
 		ep_ctx = &virt_dev->in_ctx->ep[i];
 		ep_ctx->ep_info = 0;
 		ep_ctx->ep_info2 = 0;
-		ep_ctx->deq[0] = 0;
-		ep_ctx->deq[1] = 0;
+		ep_ctx->deq = 0;
 		ep_ctx->tx_info = 0;
 	}
 }
@@ -1165,7 +1165,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_virt_device *virt_dev;
 	int ret = 0;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	u32 temp;
+	u64 temp_64;
 
 	if (!udev->slot_id) {
 		xhci_dbg(xhci, "Bad Slot ID %d\n", udev->slot_id);
@@ -1227,18 +1227,13 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	if (ret) {
 		return ret;
 	}
-	temp = xhci_readl(xhci, &xhci->op_regs->dcbaa_ptr[0]);
-	xhci_dbg(xhci, "Op regs DCBAA ptr[0] = %#08x\n", temp);
-	temp = xhci_readl(xhci, &xhci->op_regs->dcbaa_ptr[1]);
-	xhci_dbg(xhci, "Op regs DCBAA ptr[1] = %#08x\n", temp);
-	xhci_dbg(xhci, "Slot ID %d dcbaa entry[0] @%p = %#08x\n",
+	temp_64 = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
+	xhci_dbg(xhci, "Op regs DCBAA ptr = %#016llx\n", temp_64);
+	xhci_dbg(xhci, "Slot ID %d dcbaa entry @%p = %#016llx\n",
 			udev->slot_id,
-			&xhci->dcbaa->dev_context_ptrs[2*udev->slot_id],
-			xhci->dcbaa->dev_context_ptrs[2*udev->slot_id]);
-	xhci_dbg(xhci, "Slot ID %d dcbaa entry[1] @%p = %#08x\n",
-			udev->slot_id,
-			&xhci->dcbaa->dev_context_ptrs[2*udev->slot_id+1],
-			xhci->dcbaa->dev_context_ptrs[2*udev->slot_id+1]);
+			&xhci->dcbaa->dev_context_ptrs[udev->slot_id],
+			(unsigned long long)
+				xhci->dcbaa->dev_context_ptrs[udev->slot_id]);
 	xhci_dbg(xhci, "Output Context DMA address = %#08llx\n",
 			(unsigned long long)virt_dev->out_ctx_dma);
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);

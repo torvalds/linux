@@ -237,7 +237,7 @@ static int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 
 void xhci_set_hc_event_deq(struct xhci_hcd *xhci)
 {
-	u32 temp;
+	u64 temp;
 	dma_addr_t deq;
 
 	deq = xhci_trb_virt_to_dma(xhci->event_ring->deq_seg,
@@ -246,13 +246,12 @@ void xhci_set_hc_event_deq(struct xhci_hcd *xhci)
 		xhci_warn(xhci, "WARN something wrong with SW event ring "
 				"dequeue ptr.\n");
 	/* Update HC event ring dequeue pointer */
-	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[0]);
+	temp = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 	temp &= ERST_PTR_MASK;
 	if (!in_interrupt())
 		xhci_dbg(xhci, "// Write event ring dequeue pointer\n");
-	xhci_writel(xhci, 0, &xhci->ir_set->erst_dequeue[1]);
-	xhci_writel(xhci, (deq & ~ERST_PTR_MASK) | temp,
-			&xhci->ir_set->erst_dequeue[0]);
+	xhci_write_64(xhci, ((u64) deq & (u64) ~ERST_PTR_MASK) | temp,
+			&xhci->ir_set->erst_dequeue);
 }
 
 /* Ring the host controller doorbell after placing a command on the ring */
@@ -352,7 +351,7 @@ static void find_new_dequeue_state(struct xhci_hcd *xhci,
 	if (!state->new_deq_seg)
 		BUG();
 	/* Dig out the cycle state saved by the xHC during the stop ep cmd */
-	state->new_cycle_state = 0x1 & dev->out_ctx->ep[ep_index].deq[0];
+	state->new_cycle_state = 0x1 & dev->out_ctx->ep[ep_index].deq;
 
 	state->new_deq_ptr = cur_td->last_trb;
 	state->new_deq_seg = find_trb_seg(state->new_deq_seg,
@@ -594,10 +593,8 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 		 * cancelling URBs, which might not be an error...
 		 */
 	} else {
-		xhci_dbg(xhci, "Successful Set TR Deq Ptr cmd, deq[0] = 0x%x, "
-				"deq[1] = 0x%x.\n",
-				dev->out_ctx->ep[ep_index].deq[0],
-				dev->out_ctx->ep[ep_index].deq[1]);
+		xhci_dbg(xhci, "Successful Set TR Deq Ptr cmd, deq = @%08llx\n",
+				dev->out_ctx->ep[ep_index].deq);
 	}
 
 	ep_ring->state &= ~SET_DEQ_PENDING;
@@ -631,7 +628,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	u64 cmd_dma;
 	dma_addr_t cmd_dequeue_dma;
 
-	cmd_dma = (((u64) event->cmd_trb[1]) << 32) + event->cmd_trb[0];
+	cmd_dma = event->cmd_trb;
 	cmd_dequeue_dma = xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
 			xhci->cmd_ring->dequeue);
 	/* Is the command ring deq ptr out of sync with the deq seg ptr? */
@@ -794,10 +791,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		return -ENODEV;
 	}
 
-	event_dma = event->buffer[0];
-	if (event->buffer[1] != 0)
-		xhci_warn(xhci, "WARN ignoring upper 32-bits of 64-bit TRB dma address\n");
-
+	event_dma = event->buffer;
 	/* This TRB should be in the TD at the head of this ring's TD list */
 	if (list_empty(&ep_ring->td_list)) {
 		xhci_warn(xhci, "WARN Event TRB for slot %d ep %d with no TDs queued?\n",
@@ -821,10 +815,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	event_trb = &event_seg->trbs[(event_dma - event_seg->dma) / sizeof(*event_trb)];
 	xhci_dbg(xhci, "Event TRB with TRB type ID %u\n",
 			(unsigned int) (event->flags & TRB_TYPE_BITMASK)>>10);
-	xhci_dbg(xhci, "Offset 0x00 (buffer[0]) = 0x%x\n",
-			(unsigned int) event->buffer[0]);
-	xhci_dbg(xhci, "Offset 0x04 (buffer[0]) = 0x%x\n",
-			(unsigned int) event->buffer[1]);
+	xhci_dbg(xhci, "Offset 0x00 (buffer lo) = 0x%x\n",
+			lower_32_bits(event->buffer));
+	xhci_dbg(xhci, "Offset 0x04 (buffer hi) = 0x%x\n",
+			upper_32_bits(event->buffer));
 	xhci_dbg(xhci, "Offset 0x08 (transfer length) = 0x%x\n",
 			(unsigned int) event->transfer_len);
 	xhci_dbg(xhci, "Offset 0x0C (flags) = 0x%x\n",
@@ -1343,8 +1337,8 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			TD_REMAINDER(urb->transfer_buffer_length - running_total) |
 			TRB_INTR_TARGET(0);
 		queue_trb(xhci, ep_ring, false,
-				(u32) addr,
-				(u32) ((u64) addr >> 32),
+				lower_32_bits(addr),
+				upper_32_bits(addr),
 				length_field,
 				/* We always want to know if the TRB was short,
 				 * or we won't get an event when it completes.
@@ -1475,8 +1469,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			TD_REMAINDER(urb->transfer_buffer_length - running_total) |
 			TRB_INTR_TARGET(0);
 		queue_trb(xhci, ep_ring, false,
-				(u32) addr,
-				(u32) ((u64) addr >> 32),
+				lower_32_bits(addr),
+				upper_32_bits(addr),
 				length_field,
 				/* We always want to know if the TRB was short,
 				 * or we won't get an event when it completes.
@@ -1637,7 +1631,8 @@ int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id)
 int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id)
 {
-	return queue_command(xhci, in_ctx_ptr, 0, 0,
+	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
+			upper_32_bits(in_ctx_ptr), 0,
 			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id));
 }
 
@@ -1645,7 +1640,8 @@ int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id)
 {
-	return queue_command(xhci, in_ctx_ptr, 0, 0,
+	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
+			upper_32_bits(in_ctx_ptr), 0,
 			TRB_TYPE(TRB_CONFIG_EP) | SLOT_ID_FOR_TRB(slot_id));
 }
 
@@ -1677,7 +1673,8 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 		xhci_warn(xhci, "WARN Cannot submit Set TR Deq Ptr\n");
 		xhci_warn(xhci, "WARN deq seg = %p, deq pt = %p\n",
 				deq_seg, deq_ptr);
-	return queue_command(xhci, (u32) addr | cycle_state, 0, 0,
+	return queue_command(xhci, lower_32_bits(addr) | cycle_state,
+			upper_32_bits(addr), 0,
 			trb_slot_id | trb_ep_index | type);
 }
 

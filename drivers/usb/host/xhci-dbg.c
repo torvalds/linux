@@ -173,6 +173,7 @@ void xhci_print_ir_set(struct xhci_hcd *xhci, struct xhci_intr_reg *ir_set, int 
 {
 	void *addr;
 	u32 temp;
+	u64 temp_64;
 
 	addr = &ir_set->irq_pending;
 	temp = xhci_readl(xhci, addr);
@@ -200,25 +201,15 @@ void xhci_print_ir_set(struct xhci_hcd *xhci, struct xhci_intr_reg *ir_set, int 
 		xhci_dbg(xhci, "  WARN: %p: ir_set.rsvd = 0x%x\n",
 				addr, (unsigned int)temp);
 
-	addr = &ir_set->erst_base[0];
-	temp = xhci_readl(xhci, addr);
-	xhci_dbg(xhci, "  %p: ir_set.erst_base[0] = 0x%x\n",
-			addr, (unsigned int) temp);
+	addr = &ir_set->erst_base;
+	temp_64 = xhci_read_64(xhci, addr);
+	xhci_dbg(xhci, "  %p: ir_set.erst_base = @%08llx\n",
+			addr, temp_64);
 
-	addr = &ir_set->erst_base[1];
-	temp = xhci_readl(xhci, addr);
-	xhci_dbg(xhci, "  %p: ir_set.erst_base[1] = 0x%x\n",
-			addr, (unsigned int) temp);
-
-	addr = &ir_set->erst_dequeue[0];
-	temp = xhci_readl(xhci, addr);
-	xhci_dbg(xhci, "  %p: ir_set.erst_dequeue[0] = 0x%x\n",
-			addr, (unsigned int) temp);
-
-	addr = &ir_set->erst_dequeue[1];
-	temp = xhci_readl(xhci, addr);
-	xhci_dbg(xhci, "  %p: ir_set.erst_dequeue[1] = 0x%x\n",
-			addr, (unsigned int) temp);
+	addr = &ir_set->erst_dequeue;
+	temp_64 = xhci_read_64(xhci, addr);
+	xhci_dbg(xhci, "  %p: ir_set.erst_dequeue = @%08llx\n",
+			addr, temp_64);
 }
 
 void xhci_print_run_regs(struct xhci_hcd *xhci)
@@ -268,8 +259,7 @@ void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb)
 		xhci_dbg(xhci, "Link TRB:\n");
 		xhci_print_trb_offsets(xhci, trb);
 
-		address = trb->link.segment_ptr[0] +
-			(((u64) trb->link.segment_ptr[1]) << 32);
+		address = trb->link.segment_ptr;
 		xhci_dbg(xhci, "Next ring segment DMA address = 0x%llx\n", address);
 
 		xhci_dbg(xhci, "Interrupter target = 0x%x\n",
@@ -282,8 +272,7 @@ void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb)
 				(unsigned int) (trb->link.control & TRB_NO_SNOOP));
 		break;
 	case TRB_TYPE(TRB_TRANSFER):
-		address = trb->trans_event.buffer[0] +
-			(((u64) trb->trans_event.buffer[1]) << 32);
+		address = trb->trans_event.buffer;
 		/*
 		 * FIXME: look at flags to figure out if it's an address or if
 		 * the data is directly in the buffer field.
@@ -291,8 +280,7 @@ void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb)
 		xhci_dbg(xhci, "DMA address or buffer contents= %llu\n", address);
 		break;
 	case TRB_TYPE(TRB_COMPLETION):
-		address = trb->event_cmd.cmd_trb[0] +
-			(((u64) trb->event_cmd.cmd_trb[1]) << 32);
+		address = trb->event_cmd.cmd_trb;
 		xhci_dbg(xhci, "Command TRB pointer = %llu\n", address);
 		xhci_dbg(xhci, "Completion status = %u\n",
 				(unsigned int) GET_COMP_CODE(trb->event_cmd.status));
@@ -328,8 +316,8 @@ void xhci_debug_segment(struct xhci_hcd *xhci, struct xhci_segment *seg)
 	for (i = 0; i < TRBS_PER_SEGMENT; ++i) {
 		trb = &seg->trbs[i];
 		xhci_dbg(xhci, "@%08x %08x %08x %08x %08x\n", addr,
-				(unsigned int) trb->link.segment_ptr[0],
-				(unsigned int) trb->link.segment_ptr[1],
+				lower_32_bits(trb->link.segment_ptr),
+				upper_32_bits(trb->link.segment_ptr),
 				(unsigned int) trb->link.intr_target,
 				(unsigned int) trb->link.control);
 		addr += sizeof(*trb);
@@ -386,8 +374,8 @@ void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
 		entry = &erst->entries[i];
 		xhci_dbg(xhci, "@%08x %08x %08x %08x %08x\n",
 				(unsigned int) addr,
-				(unsigned int) entry->seg_addr[0],
-				(unsigned int) entry->seg_addr[1],
+				lower_32_bits(entry->seg_addr),
+				upper_32_bits(entry->seg_addr),
 				(unsigned int) entry->seg_size,
 				(unsigned int) entry->rsvd);
 		addr += sizeof(*entry);
@@ -396,12 +384,13 @@ void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
 
 void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci)
 {
-	u32 val;
+	u64 val;
 
-	val = xhci_readl(xhci, &xhci->op_regs->cmd_ring[0]);
-	xhci_dbg(xhci, "// xHC command ring deq ptr low bits + flags = 0x%x\n", val);
-	val = xhci_readl(xhci, &xhci->op_regs->cmd_ring[1]);
-	xhci_dbg(xhci, "// xHC command ring deq ptr high bits = 0x%x\n", val);
+	val = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
+	xhci_dbg(xhci, "// xHC command ring deq ptr low bits + flags = @%08x\n",
+			lower_32_bits(val));
+	xhci_dbg(xhci, "// xHC command ring deq ptr high bits = @%08x\n",
+			upper_32_bits(val));
 }
 
 void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_addr_t dma, unsigned int last_ep)
@@ -462,14 +451,10 @@ void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_ad
 				&ctx->ep[i].ep_info2,
 				(unsigned long long)dma, ctx->ep[i].ep_info2);
 		dma += field_size;
-		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - deq[0]\n",
-				&ctx->ep[i].deq[0],
-				(unsigned long long)dma, ctx->ep[i].deq[0]);
-		dma += field_size;
-		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - deq[1]\n",
-				&ctx->ep[i].deq[1],
-				(unsigned long long)dma, ctx->ep[i].deq[1]);
-		dma += field_size;
+		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08llx - deq\n",
+				&ctx->ep[i].deq,
+				(unsigned long long)dma, ctx->ep[i].deq);
+		dma += 2*field_size;
 		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - tx_info\n",
 				&ctx->ep[i].tx_info,
 				(unsigned long long)dma, ctx->ep[i].tx_info);
