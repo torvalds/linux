@@ -27,36 +27,6 @@
 #include "iwm.h"
 #include "commands.h"
 
-static int iwm_wext_siwfreq(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct iw_freq *freq, char *extra)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-
-	switch (iwm->conf.mode) {
-	case UMAC_MODE_IBSS:
-		return cfg80211_ibss_wext_siwfreq(dev, info, freq, extra);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static int iwm_wext_giwfreq(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct iw_freq *freq, char *extra)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-
-	switch (iwm->conf.mode) {
-	case UMAC_MODE_IBSS:
-		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
-	case UMAC_MODE_BSS:
-		return cfg80211_mgd_wext_giwfreq(dev, info, freq, extra);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static int iwm_wext_siwap(struct net_device *dev, struct iw_request_info *info,
 			  struct sockaddr *ap_addr, char *extra)
 {
@@ -125,8 +95,8 @@ static const iw_handler iwm_handlers[] =
 	(iw_handler) cfg80211_wext_giwname,		/* SIOCGIWNAME */
 	(iw_handler) NULL,				/* SIOCSIWNWID */
 	(iw_handler) NULL,				/* SIOCGIWNWID */
-	(iw_handler) iwm_wext_siwfreq,			/* SIOCSIWFREQ */
-	(iw_handler) iwm_wext_giwfreq,			/* SIOCGIWFREQ */
+	(iw_handler) cfg80211_wext_siwfreq,		/* SIOCSIWFREQ */
+	(iw_handler) cfg80211_wext_giwfreq,		/* SIOCGIWFREQ */
 	(iw_handler) cfg80211_wext_siwmode,		/* SIOCSIWMODE */
 	(iw_handler) cfg80211_wext_giwmode,		/* SIOCGIWMODE */
 	(iw_handler) NULL,				/* SIOCSIWSENS */

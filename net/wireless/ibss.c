@@ -7,6 +7,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <net/cfg80211.h>
+#include "wext-compat.h"
 #include "nl80211.h"
 
 
@@ -312,8 +313,6 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 
 	return err;
 }
-/* temporary symbol - mark GPL - in the future the handler won't be */
-EXPORT_SYMBOL_GPL(cfg80211_ibss_wext_siwfreq);
 
 int cfg80211_ibss_wext_giwfreq(struct net_device *dev,
 			       struct iw_request_info *info,
@@ -342,8 +341,6 @@ int cfg80211_ibss_wext_giwfreq(struct net_device *dev,
 	/* no channel if not joining */
 	return -EINVAL;
 }
-/* temporary symbol - mark GPL - in the future the handler won't be */
-EXPORT_SYMBOL_GPL(cfg80211_ibss_wext_giwfreq);
 
 int cfg80211_ibss_wext_siwessid(struct net_device *dev,
 				struct iw_request_info *info,

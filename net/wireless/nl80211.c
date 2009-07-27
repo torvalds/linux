@@ -757,6 +757,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 						channel_type);
 		if (result)
 			goto bad_res;
+
+		rdev->channel = chan;
 	}
 
 	changed = 0;

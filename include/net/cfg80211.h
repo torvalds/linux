@@ -1595,12 +1595,6 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 int cfg80211_wext_giwrange(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_point *data, char *extra);
-int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
-			       struct iw_request_info *info,
-			       struct iw_freq *freq, char *extra);
-int cfg80211_ibss_wext_giwfreq(struct net_device *dev,
-			       struct iw_request_info *info,
-			       struct iw_freq *freq, char *extra);
 int cfg80211_ibss_wext_siwessid(struct net_device *dev,
 				struct iw_request_info *info,
 				struct iw_point *data, char *ssid);
@@ -1614,12 +1608,6 @@ int cfg80211_ibss_wext_giwap(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct sockaddr *ap_addr, char *extra);
 
-int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
-			      struct iw_request_info *info,
-			      struct iw_freq *freq, char *extra);
-int cfg80211_mgd_wext_giwfreq(struct net_device *dev,
-			      struct iw_request_info *info,
-			      struct iw_freq *freq, char *extra);
 int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 			       struct iw_request_info *info,
 			       struct iw_point *data, char *ssid);
@@ -1642,8 +1630,12 @@ int cfg80211_wext_giwauth(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_param *data, char *extra);
 
-struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
-					     struct iw_freq *freq);
+int cfg80211_wext_siwfreq(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_freq *freq, char *extra);
+int cfg80211_wext_giwfreq(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_freq *freq, char *extra);
 
 int cfg80211_wext_siwrate(struct net_device *dev,
 			  struct iw_request_info *info,

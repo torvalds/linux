@@ -27,75 +27,6 @@
 #include "aes_ccm.h"
 
 
-static int ieee80211_ioctl_siwfreq(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_freq *freq, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_channel *chan;
-
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return cfg80211_ibss_wext_siwfreq(dev, info, freq, extra);
-	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		return cfg80211_mgd_wext_siwfreq(dev, info, freq, extra);
-
-	/* freq->e == 0: freq->m = channel; otherwise freq = m * 10^e */
-	if (freq->e == 0) {
-		if (freq->m < 0)
-			return -EINVAL;
-		else
-			chan = ieee80211_get_channel(local->hw.wiphy,
-				ieee80211_channel_to_frequency(freq->m));
-	} else {
-		int i, div = 1000000;
-		for (i = 0; i < freq->e; i++)
-			div /= 10;
-		if (div <= 0)
-			return -EINVAL;
-		chan = ieee80211_get_channel(local->hw.wiphy, freq->m / div);
-	}
-
-	if (!chan)
-		return -EINVAL;
-
-	if (chan->flags & IEEE80211_CHAN_DISABLED)
-		return -EINVAL;
-
-	/*
-	 * no change except maybe auto -> fixed, ignore the HT
-	 * setting so you can fix a channel you're on already
-	 */
-	if (local->oper_channel == chan)
-		return 0;
-
-	local->oper_channel = chan;
-	local->oper_channel_type = NL80211_CHAN_NO_HT;
-	ieee80211_hw_config(local, 0);
-
-	return 0;
-}
-
-
-static int ieee80211_ioctl_giwfreq(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_freq *freq, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
-	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		return cfg80211_mgd_wext_giwfreq(dev, info, freq, extra);
-
-	freq->m = local->oper_channel->center_freq;
-	freq->e = 6;
-
-	return 0;
-}
-
-
 static int ieee80211_ioctl_siwessid(struct net_device *dev,
 				    struct iw_request_info *info,
 				    struct iw_point *data, char *ssid)
@@ -173,8 +104,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) cfg80211_wext_giwname,		/* SIOCGIWNAME */
 	(iw_handler) NULL,				/* SIOCSIWNWID */
 	(iw_handler) NULL,				/* SIOCGIWNWID */
-	(iw_handler) ieee80211_ioctl_siwfreq,		/* SIOCSIWFREQ */
-	(iw_handler) ieee80211_ioctl_giwfreq,		/* SIOCGIWFREQ */
+	(iw_handler) cfg80211_wext_siwfreq,		/* SIOCSIWFREQ */
+	(iw_handler) cfg80211_wext_giwfreq,		/* SIOCGIWFREQ */
 	(iw_handler) cfg80211_wext_siwmode,		/* SIOCSIWMODE */
 	(iw_handler) cfg80211_wext_giwmode,		/* SIOCGIWMODE */
 	(iw_handler) NULL,				/* SIOCSIWSENS */
