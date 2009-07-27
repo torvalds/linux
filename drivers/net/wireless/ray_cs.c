@@ -1511,9 +1511,6 @@ static iw_stats *ray_get_wireless_stats(struct net_device *dev)
 	struct pcmcia_device *link = local->finder;
 	struct status __iomem *p = local->sram + STATUS_BASE;
 
-	if (local == (ray_dev_t *) NULL)
-		return (iw_stats *) NULL;
-
 	local->wstats.status = local->card_status;
 #ifdef WIRELESS_SPY
 	if ((local->spy_data.spy_number > 0)
