@@ -210,7 +210,7 @@ static noinline __init void detect_machine_type(void)
 		machine_flags |= MACHINE_FLAG_VM;
 }
 
-static void early_pgm_check_handler(void)
+static __init void early_pgm_check_handler(void)
 {
 	unsigned long addr;
 	const struct exception_table_entry *fixup;
@@ -222,7 +222,7 @@ static void early_pgm_check_handler(void)
 	S390_lowcore.program_old_psw.addr = fixup->fixup | PSW_ADDR_AMODE;
 }
 
-void setup_lowcore_early(void)
+static noinline __init void setup_lowcore_early(void)
 {
 	psw_t psw;
 
