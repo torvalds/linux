@@ -584,15 +584,29 @@ struct xhci_ep_ctx {
 
 /**
  * struct xhci_device_control
- * Input/Output context; see section 6.2.5.
+ * Input context; see section 6.2.5.
  *
  * @drop_context:	set the bit of the endpoint context you want to disable
  * @add_context:	set the bit of the endpoint context you want to enable
  */
 struct xhci_device_control {
+	/* Input control context */
 	u32	drop_flags;
 	u32	add_flags;
 	u32	rsvd[6];
+	/* Copy of device context */
+	struct xhci_slot_ctx	slot;
+	struct xhci_ep_ctx	ep[31];
+};
+
+/**
+ * struct xhci_device_ctx
+ * Device context; see section 6.2.1.
+ *
+ * @slot:		slot context for the device.
+ * @ep:			array of endpoint contexts for the device.
+ */
+struct xhci_device_ctx {
 	struct xhci_slot_ctx	slot;
 	struct xhci_ep_ctx	ep[31];
 };
@@ -612,7 +626,7 @@ struct xhci_virt_device {
 	 * track of input and output contexts separately because
 	 * these commands might fail and we don't trust the hardware.
 	 */
-	struct xhci_device_control	*out_ctx;
+	struct xhci_device_ctx		*out_ctx;
 	dma_addr_t			out_ctx_dma;
 	/* Used for addressing devices and configuration changes */
 	struct xhci_device_control	*in_ctx;
@@ -1126,6 +1140,7 @@ void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
 void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci);
 void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring);
 void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_addr_t dma, unsigned int last_ep);
+void xhci_dbg_device_ctx(struct xhci_hcd *xhci, struct xhci_device_ctx *ctx, dma_addr_t dma, unsigned int last_ep);
 
 /* xHCI memory managment */
 void xhci_mem_cleanup(struct xhci_hcd *xhci);

@@ -235,7 +235,10 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 		return 0;
 	dev = xhci->devs[slot_id];
 
-	/* Allocate the (output) device context that will be used in the HC */
+	/* Allocate the (output) device context that will be used in the HC.
+	 * The structure is 32 bytes smaller than the input context, but that's
+	 * fine.
+	 */
 	dev->out_ctx = dma_pool_alloc(xhci->device_pool, flags, &dma);
 	if (!dev->out_ctx)
 		goto fail;
@@ -260,16 +263,12 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 
 	init_completion(&dev->cmd_completion);
 
-	/*
-	 * Point to output device context in dcbaa; skip the output control
-	 * context, which is eight 32 bit fields (or 32 bytes long)
-	 */
-	xhci->dcbaa->dev_context_ptrs[slot_id] =
-		(u32) dev->out_ctx_dma + (32);
+	/* Point to output device context in dcbaa. */
+	xhci->dcbaa->dev_context_ptrs[slot_id] = dev->out_ctx_dma;
 	xhci_dbg(xhci, "Set slot id %d dcbaa entry %p to 0x%llx\n",
 			slot_id,
 			&xhci->dcbaa->dev_context_ptrs[slot_id],
-			(unsigned long long)dev->out_ctx_dma);
+			(unsigned long long) xhci->dcbaa->dev_context_ptrs[slot_id]);
 
 	return 1;
 fail:

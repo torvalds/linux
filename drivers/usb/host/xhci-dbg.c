@@ -393,10 +393,80 @@ void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci)
 			upper_32_bits(val));
 }
 
-void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_addr_t dma, unsigned int last_ep)
+dma_addr_t xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_slot_ctx *slot, dma_addr_t dma)
+{
+	/* Fields are 32 bits wide, DMA addresses are in bytes */
+	int field_size = 32 / 8;
+	int i;
+
+	xhci_dbg(xhci, "Slot Context:\n");
+	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - dev_info\n",
+			&slot->dev_info,
+			(unsigned long long)dma, slot->dev_info);
+	dma += field_size;
+	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - dev_info2\n",
+			&slot->dev_info2,
+			(unsigned long long)dma, slot->dev_info2);
+	dma += field_size;
+	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - tt_info\n",
+			&slot->tt_info,
+			(unsigned long long)dma, slot->tt_info);
+	dma += field_size;
+	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - dev_state\n",
+			&slot->dev_state,
+			(unsigned long long)dma, slot->dev_state);
+	dma += field_size;
+	for (i = 0; i < 4; ++i) {
+		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
+				&slot->reserved[i], (unsigned long long)dma,
+				slot->reserved[i], i);
+		dma += field_size;
+	}
+
+	return dma;
+}
+
+dma_addr_t xhci_dbg_ep_ctx(struct xhci_hcd *xhci, struct xhci_ep_ctx *ep, dma_addr_t dma, unsigned int last_ep)
 {
 	int i, j;
 	int last_ep_ctx = 31;
+	/* Fields are 32 bits wide, DMA addresses are in bytes */
+	int field_size = 32 / 8;
+
+	if (last_ep < 31)
+		last_ep_ctx = last_ep + 1;
+	for (i = 0; i < last_ep_ctx; ++i) {
+		xhci_dbg(xhci, "Endpoint %02d Context:\n", i);
+		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - ep_info\n",
+				&ep[i].ep_info,
+				(unsigned long long)dma, ep[i].ep_info);
+		dma += field_size;
+		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - ep_info2\n",
+				&ep[i].ep_info2,
+				(unsigned long long)dma, ep[i].ep_info2);
+		dma += field_size;
+		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08llx - deq\n",
+				&ep[i].deq,
+				(unsigned long long)dma, ep[i].deq);
+		dma += 2*field_size;
+		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - tx_info\n",
+				&ep[i].tx_info,
+				(unsigned long long)dma, ep[i].tx_info);
+		dma += field_size;
+		for (j = 0; j < 3; ++j) {
+			xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
+					&ep[i].reserved[j],
+					(unsigned long long)dma,
+					ep[i].reserved[j], j);
+			dma += field_size;
+		}
+	}
+	return dma;
+}
+
+void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_addr_t dma, unsigned int last_ep)
+{
+	int i;
 	/* Fields are 32 bits wide, DMA addresses are in bytes */
 	int field_size = 32 / 8;
 
@@ -414,57 +484,12 @@ void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_ad
 				ctx->rsvd[i], i);
 		dma += field_size;
 	}
+	dma = xhci_dbg_slot_ctx(xhci, &ctx->slot, dma);
+	dma = xhci_dbg_ep_ctx(xhci, ctx->ep, dma, last_ep);
+}
 
-	xhci_dbg(xhci, "Slot Context:\n");
-	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - dev_info\n",
-			&ctx->slot.dev_info,
-			(unsigned long long)dma, ctx->slot.dev_info);
-	dma += field_size;
-	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - dev_info2\n",
-			&ctx->slot.dev_info2,
-			(unsigned long long)dma, ctx->slot.dev_info2);
-	dma += field_size;
-	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - tt_info\n",
-			&ctx->slot.tt_info,
-			(unsigned long long)dma, ctx->slot.tt_info);
-	dma += field_size;
-	xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - dev_state\n",
-			&ctx->slot.dev_state,
-			(unsigned long long)dma, ctx->slot.dev_state);
-	dma += field_size;
-	for (i = 0; i < 4; ++i) {
-		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
-				&ctx->slot.reserved[i], (unsigned long long)dma,
-				ctx->slot.reserved[i], i);
-		dma += field_size;
-	}
-
-	if (last_ep < 31)
-		last_ep_ctx = last_ep + 1;
-	for (i = 0; i < last_ep_ctx; ++i) {
-		xhci_dbg(xhci, "Endpoint %02d Context:\n", i);
-		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - ep_info\n",
-				&ctx->ep[i].ep_info,
-				(unsigned long long)dma, ctx->ep[i].ep_info);
-		dma += field_size;
-		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - ep_info2\n",
-				&ctx->ep[i].ep_info2,
-				(unsigned long long)dma, ctx->ep[i].ep_info2);
-		dma += field_size;
-		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08llx - deq\n",
-				&ctx->ep[i].deq,
-				(unsigned long long)dma, ctx->ep[i].deq);
-		dma += 2*field_size;
-		xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - tx_info\n",
-				&ctx->ep[i].tx_info,
-				(unsigned long long)dma, ctx->ep[i].tx_info);
-		dma += field_size;
-		for (j = 0; j < 3; ++j) {
-			xhci_dbg(xhci, "@%p (virt) @%08llx (dma) %#08x - rsvd[%d]\n",
-					&ctx->ep[i].reserved[j],
-					(unsigned long long)dma,
-					ctx->ep[i].reserved[j], j);
-			dma += field_size;
-		}
-	}
+void xhci_dbg_device_ctx(struct xhci_hcd *xhci, struct xhci_device_ctx *ctx, dma_addr_t dma, unsigned int last_ep)
+{
+	dma = xhci_dbg_slot_ctx(xhci, &ctx->slot, dma);
+	dma = xhci_dbg_ep_ctx(xhci, ctx->ep, dma, last_ep);
 }

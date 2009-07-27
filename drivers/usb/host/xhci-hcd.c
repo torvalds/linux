@@ -1013,7 +1013,7 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	}
 
 	xhci_dbg(xhci, "Output context after successful config ep cmd:\n");
-	xhci_dbg_ctx(xhci, virt_dev->out_ctx, virt_dev->out_ctx_dma,
+	xhci_dbg_device_ctx(xhci, virt_dev->out_ctx, virt_dev->out_ctx_dma,
 			LAST_CTX_TO_EP_NUM(virt_dev->in_ctx->slot.dev_info));
 
 	xhci_zero_in_ctx(virt_dev);
@@ -1265,7 +1265,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, virt_dev->in_ctx_dma, 2);
 	xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);
-	xhci_dbg_ctx(xhci, virt_dev->out_ctx, virt_dev->out_ctx_dma, 2);
+	xhci_dbg_device_ctx(xhci, virt_dev->out_ctx, virt_dev->out_ctx_dma, 2);
 	/*
 	 * USB core uses address 1 for the roothubs, so we add one to the
 	 * address given back to us by the HC.
@@ -1274,9 +1274,6 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	/* Zero the input context control for later use */
 	virt_dev->in_ctx->add_flags = 0;
 	virt_dev->in_ctx->drop_flags = 0;
-	/* Mirror flags in the output context for future ep enable/disable */
-	virt_dev->out_ctx->add_flags = SLOT_FLAG | EP0_FLAG;
-	virt_dev->out_ctx->drop_flags = 0;
 
 	xhci_dbg(xhci, "Device address = %d\n", udev->devnum);
 	/* XXX Meh, not sure if anyone else but choose_address uses this. */
