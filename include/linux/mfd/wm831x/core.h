@@ -15,6 +15,9 @@
 #ifndef __MFD_WM831X_CORE_H__
 #define __MFD_WM831X_CORE_H__
 
+#include <linux/interrupt.h>
+#include <linux/workqueue.h>
+
 /*
  * Register values.
  */
@@ -224,6 +227,13 @@ struct wm831x {
 
 	void *control_data;
 
+	int irq;  /* Our chip IRQ */
+	struct mutex irq_lock;
+	struct workqueue_struct *irq_wq;
+	struct work_struct irq_work;
+	unsigned int irq_base;
+	int irq_masks[5];
+
 	/* The WM831x has a security key blocking access to certain
 	 * registers.  The mutex is taken by the accessors for locking
 	 * and unlocking the security key, locked is used to fail
@@ -243,5 +253,16 @@ int wm831x_set_bits(struct wm831x *wm831x, unsigned short reg,
 		    unsigned short mask, unsigned short val);
 int wm831x_bulk_read(struct wm831x *wm831x, unsigned short reg,
 		     int count, u16 *buf);
+
+int wm831x_irq_init(struct wm831x *wm831x, int irq);
+void wm831x_irq_exit(struct wm831x *wm831x);
+
+int __must_check wm831x_request_irq(struct wm831x *wm831x,
+				    unsigned int irq, irq_handler_t handler,
+				    unsigned long flags, const char *name,
+				    void *dev);
+void wm831x_free_irq(struct wm831x *wm831x, unsigned int, void *);
+void wm831x_disable_irq(struct wm831x *wm831x, int irq);
+void wm831x_enable_irq(struct wm831x *wm831x, int irq);
 
 #endif

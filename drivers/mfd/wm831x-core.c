@@ -19,6 +19,7 @@
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
+#include <linux/mfd/wm831x/irq.h>
 
 enum wm831x_parent {
 	WM8310 = 0,
@@ -1189,6 +1190,10 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		}
 	}
 
+	ret = wm831x_irq_init(wm831x, irq);
+	if (ret != 0)
+		goto err;
+
 	/* The core device is up, instantiate the subdevices. */
 	switch (parent) {
 	case WM8310:
@@ -1216,19 +1221,21 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 
 	if (ret != 0) {
 		dev_err(wm831x->dev, "Failed to add children\n");
-		goto err;
+		goto err_irq;
 	}
 
 	if (pdata && pdata->post_init) {
 		ret = pdata->post_init(wm831x);
 		if (ret != 0) {
 			dev_err(wm831x->dev, "post_init() failed: %d\n", ret);
-			goto err;
+			goto err_irq;
 		}
 	}
 
 	return 0;
 
+err_irq:
+	wm831x_irq_exit(wm831x);
 err:
 	mfd_remove_devices(wm831x->dev);
 	kfree(wm831x);
@@ -1238,6 +1245,7 @@ err:
 static void wm831x_device_exit(struct wm831x *wm831x)
 {
 	mfd_remove_devices(wm831x->dev);
+	wm831x_irq_exit(wm831x);
 	kfree(wm831x);
 }
 
