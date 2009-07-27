@@ -912,7 +912,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 )
 {
 	int ret=0;
-	VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER desc;
+	struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER desc;
 	u32 descSize;
 	u32 packetLen;
 	u32 packetLenAligned;
@@ -930,7 +930,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 	ASSERT(PfnCount <= MAX_MULTIPAGE_BUFFER_COUNT);
 
 	/* Adjust the size down since VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER is the largest size we support */
-	descSize = sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER) - ((MAX_MULTIPAGE_BUFFER_COUNT - PfnCount)*sizeof(u64));
+	descSize = sizeof(struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER) - ((MAX_MULTIPAGE_BUFFER_COUNT - PfnCount)*sizeof(u64));
 	packetLen = descSize + BufferLen;
 	packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
 

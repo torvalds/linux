@@ -45,7 +45,7 @@ struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
 
 
 /* The format must be the same as VMDATA_GPA_DIRECT */
-typedef struct _VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
+struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
     u16				Type;
     u16				DataOffset8;
     u16				Length8;
@@ -54,7 +54,7 @@ typedef struct _VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
 	u32				Reserved;
 	u32				RangeCount;		/* Always 1 in this case */
 	MULTIPAGE_BUFFER	Range;
-} VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER;
+};
 
 #pragma pack(pop)
 
