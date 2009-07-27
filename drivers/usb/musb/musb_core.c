@@ -1990,7 +1990,7 @@ bad_config:
 	if (status < 0)
 		goto fail2;
 
-#ifdef CONFIG_USB_OTG
+#ifdef CONFIG_USB_MUSB_OTG
 	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
 #endif
 
