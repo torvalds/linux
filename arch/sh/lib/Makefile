@@ -23,7 +23,7 @@ obj-y				+= io.o
 memcpy-y			:= memcpy.o
 memcpy-$(CONFIG_CPU_SH4)	:= memcpy-sh4.o
 
-lib-$(CONFIG_MMU)		+= copy_page.o clear_page.o
+lib-$(CONFIG_MMU)		+= copy_page.o __clear_user.o
 lib-$(CONFIG_MCOUNT)		+= mcount.o
 lib-y				+= $(memcpy-y) $(udivsi3-y)
 
