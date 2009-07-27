@@ -423,12 +423,14 @@ gen_sessionid(struct nfsd4_session *ses)
  */
 static int set_forechannel_maxreqs(struct nfsd4_channel_attrs *fchan)
 {
-	int status = 0, np = fchan->maxreqs * NFSD_PAGES_PER_SLOT;
+	int np;
 
 	if (fchan->maxreqs < 1)
 		return nfserr_inval;
 	else if (fchan->maxreqs > NFSD_MAX_SLOTS_PER_SESSION)
 		fchan->maxreqs = NFSD_MAX_SLOTS_PER_SESSION;
+
+	np = fchan->maxreqs * NFSD_PAGES_PER_SLOT;
 
 	spin_lock(&nfsd_drc_lock);
 	if (np + nfsd_drc_pages_used > nfsd_drc_max_pages)
@@ -436,13 +438,10 @@ static int set_forechannel_maxreqs(struct nfsd4_channel_attrs *fchan)
 	nfsd_drc_pages_used += np;
 	spin_unlock(&nfsd_drc_lock);
 
-	if (np <= 0) {
-		status = nfserr_resource;
-		fchan->maxreqs = 0;
-	} else
-		fchan->maxreqs = np / NFSD_PAGES_PER_SLOT;
-
-	return status;
+	fchan->maxreqs = np / NFSD_PAGES_PER_SLOT;
+	if (fchan->maxreqs == 0)
+		return nfserr_resource;
+	return 0;
 }
 
 /*
