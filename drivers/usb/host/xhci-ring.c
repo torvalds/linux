@@ -248,8 +248,12 @@ void xhci_set_hc_event_deq(struct xhci_hcd *xhci)
 	/* Update HC event ring dequeue pointer */
 	temp = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 	temp &= ERST_PTR_MASK;
+	/* Don't clear the EHB bit (which is RW1C) because
+	 * there might be more events to service.
+	 */
+	temp &= ~ERST_EHB;
 	if (!in_interrupt())
-		xhci_dbg(xhci, "// Write event ring dequeue pointer\n");
+		xhci_dbg(xhci, "// Write event ring dequeue pointer, preserving EHB bit\n");
 	xhci_write_64(xhci, ((u64) deq & (u64) ~ERST_PTR_MASK) | temp,
 			&xhci->ir_set->erst_dequeue);
 }

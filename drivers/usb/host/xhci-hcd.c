@@ -249,9 +249,9 @@ static void xhci_work(struct xhci_hcd *xhci)
 	/* FIXME this should be a delayed service routine that clears the EHB */
 	xhci_handle_event(xhci);
 
-	/* Clear the event handler busy flag; the event ring should be empty. */
+	/* Clear the event handler busy flag (RW1C); the event ring should be empty. */
 	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
-	xhci_write_64(xhci, temp_64 & ~ERST_EHB, &xhci->ir_set->erst_dequeue);
+	xhci_write_64(xhci, temp_64 | ERST_EHB, &xhci->ir_set->erst_dequeue);
 	/* Flush posted writes -- FIXME is this necessary? */
 	xhci_readl(xhci, &xhci->ir_set->irq_pending);
 }
