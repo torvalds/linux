@@ -7,6 +7,15 @@ config SND_BF5XX_I2S
 	  mode (supports single stereo In/Out).
 	  You will also need to select the audio interfaces to support below.
 
+config SND_BF5XX_TDM
+	tristate "SoC I2S(TDM mode) Audio for the ADI BF5xx chip"
+	depends on (BLACKFIN && SND_SOC)
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Blackfin SPORT (synchronous serial ports) interface in TDM
+	  mode.
+	  You will also need to select the audio interfaces to support below.
+
 config SND_BF5XX_SOC_SSM2602
 	tristate "SoC SSM2602 Audio support for BF52x ezkit"
 	depends on SND_BF5XX_I2S
@@ -69,6 +78,10 @@ config SND_BF5XX_SOC_I2S
 	tristate
 	select SND_BF5XX_SOC_SPORT
 
+config SND_BF5XX_SOC_TDM
+	tristate
+	select SND_BF5XX_SOC_SPORT
+
 config SND_BF5XX_SOC_AC97
 	tristate
 	select AC97_BUS
@@ -85,7 +98,7 @@ config SND_BF5XX_SOC_AD1980
 
 config SND_BF5XX_SPORT_NUM
 	int "Set a SPORT for Sound chip"
-	depends on (SND_BF5XX_I2S || SND_BF5XX_AC97)
+	depends on (SND_BF5XX_I2S || SND_BF5XX_AC97 || SND_BF5XX_TDM)
 	range 0 3 if BF54x
 	range 0 1 if !BF54x
 	default 0
