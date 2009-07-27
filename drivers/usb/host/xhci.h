@@ -952,6 +952,12 @@ struct xhci_ring {
 	u32			cycle_state;
 };
 
+struct xhci_dequeue_state {
+	struct xhci_segment *new_deq_seg;
+	union xhci_trb *new_deq_ptr;
+	int new_cycle_state;
+};
+
 struct xhci_erst_entry {
 	/* 64-bit event ring segment address */
 	u64	seg_addr;
@@ -1203,6 +1209,12 @@ int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id);
 int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index);
+void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		struct xhci_td *cur_td, struct xhci_dequeue_state *state);
+void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
+		struct xhci_ring *ep_ring, unsigned int slot_id,
+		unsigned int ep_index, struct xhci_dequeue_state *deq_state);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,

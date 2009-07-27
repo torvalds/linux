@@ -335,12 +335,6 @@ static struct xhci_segment *find_trb_seg(
 	return cur_seg;
 }
 
-struct dequeue_state {
-	struct xhci_segment *new_deq_seg;
-	union xhci_trb *new_deq_ptr;
-	int new_cycle_state;
-};
-
 /*
  * Move the xHC's endpoint ring dequeue pointer past cur_td.
  * Record the new state of the xHC's endpoint ring dequeue segment,
@@ -355,26 +349,30 @@ struct dequeue_state {
  *  - Finally we move the dequeue state one TRB further, toggling the cycle bit
  *    if we've moved it past a link TRB with the toggle cycle bit set.
  */
-static void find_new_dequeue_state(struct xhci_hcd *xhci,
+void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
-		struct xhci_td *cur_td, struct dequeue_state *state)
+		struct xhci_td *cur_td, struct xhci_dequeue_state *state)
 {
 	struct xhci_virt_device *dev = xhci->devs[slot_id];
 	struct xhci_ring *ep_ring = dev->ep_rings[ep_index];
 	struct xhci_generic_trb *trb;
 	struct xhci_ep_ctx *ep_ctx;
+	dma_addr_t addr;
 
 	state->new_cycle_state = 0;
+	xhci_dbg(xhci, "Finding segment containing stopped TRB.\n");
 	state->new_deq_seg = find_trb_seg(cur_td->start_seg,
 			ep_ring->stopped_trb,
 			&state->new_cycle_state);
 	if (!state->new_deq_seg)
 		BUG();
 	/* Dig out the cycle state saved by the xHC during the stop ep cmd */
+	xhci_dbg(xhci, "Finding endpoint context\n");
 	ep_ctx = xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
 	state->new_cycle_state = 0x1 & ep_ctx->deq;
 
 	state->new_deq_ptr = cur_td->last_trb;
+	xhci_dbg(xhci, "Finding segment containing last TRB in TD.\n");
 	state->new_deq_seg = find_trb_seg(state->new_deq_seg,
 			state->new_deq_ptr,
 			&state->new_cycle_state);
@@ -388,6 +386,12 @@ static void find_new_dequeue_state(struct xhci_hcd *xhci,
 	next_trb(xhci, ep_ring, &state->new_deq_seg, &state->new_deq_ptr);
 
 	/* Don't update the ring cycle state for the producer (us). */
+	xhci_dbg(xhci, "New dequeue segment = %p (virtual)\n",
+			state->new_deq_seg);
+	addr = xhci_trb_virt_to_dma(state->new_deq_seg, state->new_deq_ptr);
+	xhci_dbg(xhci, "New dequeue pointer = 0x%llx (DMA)\n",
+			(unsigned long long) addr);
+	xhci_dbg(xhci, "Setting dequeue pointer in internal ring state.\n");
 	ep_ring->dequeue = state->new_deq_ptr;
 	ep_ring->deq_seg = state->new_deq_seg;
 }
@@ -437,6 +441,30 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index, struct xhci_segment *deq_seg,
 		union xhci_trb *deq_ptr, u32 cycle_state);
 
+void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
+		struct xhci_ring *ep_ring, unsigned int slot_id,
+		unsigned int ep_index, struct xhci_dequeue_state *deq_state)
+{
+	xhci_dbg(xhci, "Set TR Deq Ptr cmd, new deq seg = %p (0x%llx dma), "
+			"new deq ptr = %p (0x%llx dma), new cycle = %u\n",
+			deq_state->new_deq_seg,
+			(unsigned long long)deq_state->new_deq_seg->dma,
+			deq_state->new_deq_ptr,
+			(unsigned long long)xhci_trb_virt_to_dma(deq_state->new_deq_seg, deq_state->new_deq_ptr),
+			deq_state->new_cycle_state);
+	queue_set_tr_deq(xhci, slot_id, ep_index,
+			deq_state->new_deq_seg,
+			deq_state->new_deq_ptr,
+			(u32) deq_state->new_cycle_state);
+	/* Stop the TD queueing code from ringing the doorbell until
+	 * this command completes.  The HC won't set the dequeue pointer
+	 * if the ring is running, and ringing the doorbell starts the
+	 * ring running.
+	 */
+	ep_ring->state |= SET_DEQ_PENDING;
+	xhci_ring_cmd_db(xhci);
+}
+
 /*
  * When we get a command completion for a Stop Endpoint Command, we need to
  * unlink any cancelled TDs from the ring.  There are two ways to do that:
@@ -457,7 +485,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	struct xhci_td *cur_td = 0;
 	struct xhci_td *last_unlinked_td;
 
-	struct dequeue_state deq_state;
+	struct xhci_dequeue_state deq_state;
 #ifdef CONFIG_USB_HCD_STAT
 	ktime_t stop_time = ktime_get();
 #endif
@@ -485,7 +513,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		 * move the xHC endpoint ring dequeue pointer past this TD.
 		 */
 		if (cur_td == ep_ring->stopped_td)
-			find_new_dequeue_state(xhci, slot_id, ep_index, cur_td,
+			xhci_find_new_dequeue_state(xhci, slot_id, ep_index, cur_td,
 					&deq_state);
 		else
 			td_to_noop(xhci, ep_ring, cur_td);
@@ -501,24 +529,8 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 
 	/* If necessary, queue a Set Transfer Ring Dequeue Pointer command */
 	if (deq_state.new_deq_ptr && deq_state.new_deq_seg) {
-		xhci_dbg(xhci, "Set TR Deq Ptr cmd, new deq seg = %p (0x%llx dma), "
-				"new deq ptr = %p (0x%llx dma), new cycle = %u\n",
-				deq_state.new_deq_seg,
-				(unsigned long long)deq_state.new_deq_seg->dma,
-				deq_state.new_deq_ptr,
-				(unsigned long long)xhci_trb_virt_to_dma(deq_state.new_deq_seg, deq_state.new_deq_ptr),
-				deq_state.new_cycle_state);
-		queue_set_tr_deq(xhci, slot_id, ep_index,
-				deq_state.new_deq_seg,
-				deq_state.new_deq_ptr,
-				(u32) deq_state.new_cycle_state);
-		/* Stop the TD queueing code from ringing the doorbell until
-		 * this command completes.  The HC won't set the dequeue pointer
-		 * if the ring is running, and ringing the doorbell starts the
-		 * ring running.
-		 */
-		ep_ring->state |= SET_DEQ_PENDING;
-		xhci_ring_cmd_db(xhci);
+		xhci_queue_new_dequeue_state(xhci, ep_ring,
+				slot_id, ep_index, &deq_state);
 	} else {
 		/* Otherwise just ring the doorbell to restart the ring */
 		ring_ep_doorbell(xhci, slot_id, ep_index);
@@ -929,12 +941,15 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		if (event_trb != ep_ring->dequeue) {
 			/* The event was for the status stage */
 			if (event_trb == td->last_trb) {
-				/* Did we already see a short data stage? */
-				if (td->urb->actual_length != 0)
-					status = -EREMOTEIO;
-				else
+				if (td->urb->actual_length != 0) {
+					/* Don't overwrite a previously set error code */
+					if (status == -EINPROGRESS || status == 0)
+						/* Did we already see a short data stage? */
+						status = -EREMOTEIO;
+				} else {
 					td->urb->actual_length =
 						td->urb->transfer_buffer_length;
+				}
 			} else {
 			/* Maybe the event was for the data stage? */
 				if (GET_COMP_CODE(event->transfer_len) != COMP_STOP_INVAL) {
@@ -992,16 +1007,20 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 							TRB_LEN(event->transfer_len));
 					td->urb->actual_length = 0;
 				}
-				if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-					status = -EREMOTEIO;
-				else
-					status = 0;
+				/* Don't overwrite a previously set error code */
+				if (status == -EINPROGRESS) {
+					if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+						status = -EREMOTEIO;
+					else
+						status = 0;
+				}
 			} else {
 				td->urb->actual_length = td->urb->transfer_buffer_length;
 				/* Ignore a short packet completion if the
 				 * untransferred length was zero.
 				 */
-				status = 0;
+				if (status == -EREMOTEIO)
+					status = 0;
 			}
 		} else {
 			/* Slow path - walk the list, starting from the dequeue
@@ -1028,19 +1047,30 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 					TRB_LEN(event->transfer_len);
 		}
 	}
-	/* The Endpoint Stop Command completion will take care of
-	 * any stopped TDs.  A stopped TD may be restarted, so don't update the
-	 * ring dequeue pointer or take this TD off any lists yet.
-	 */
 	if (GET_COMP_CODE(event->transfer_len) == COMP_STOP_INVAL ||
 			GET_COMP_CODE(event->transfer_len) == COMP_STOP) {
+		/* The Endpoint Stop Command completion will take care of any
+		 * stopped TDs.  A stopped TD may be restarted, so don't update
+		 * the ring dequeue pointer or take this TD off any lists yet.
+		 */
 		ep_ring->stopped_td = td;
 		ep_ring->stopped_trb = event_trb;
 	} else {
-		/* Update ring dequeue pointer */
-		while (ep_ring->dequeue != td->last_trb)
+		if (GET_COMP_CODE(event->transfer_len) == COMP_STALL) {
+			/* The transfer is completed from the driver's
+			 * perspective, but we need to issue a set dequeue
+			 * command for this stalled endpoint to move the dequeue
+			 * pointer past the TD.  We can't do that here because
+			 * the halt condition must be cleared first.
+			 */
+			ep_ring->stopped_td = td;
+			ep_ring->stopped_trb = event_trb;
+		} else {
+			/* Update ring dequeue pointer */
+			while (ep_ring->dequeue != td->last_trb)
+				inc_deq(xhci, ep_ring, false);
 			inc_deq(xhci, ep_ring, false);
-		inc_deq(xhci, ep_ring, false);
+		}
 
 		/* Clean up the endpoint's TD list */
 		urb = td->urb;
@@ -1050,7 +1080,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			list_del(&td->cancelled_td_list);
 			ep_ring->cancels_pending--;
 		}
-		kfree(td);
+		/* Leave the TD around for the reset endpoint function to use */
+		if (GET_COMP_CODE(event->transfer_len) != COMP_STALL) {
+			kfree(td);
+		}
 		urb->hcpriv = NULL;
 	}
 cleanup:
@@ -1166,13 +1199,13 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		 */
 		xhci_warn(xhci, "WARN urb submitted to disabled ep\n");
 		return -ENOENT;
-	case EP_STATE_HALTED:
 	case EP_STATE_ERROR:
-		xhci_warn(xhci, "WARN waiting for halt or error on ep "
-				"to be cleared\n");
+		xhci_warn(xhci, "WARN waiting for error on ep to be cleared\n");
 		/* FIXME event handling code for error needs to clear it */
 		/* XXX not sure if this should be -ENOENT or not */
 		return -EINVAL;
+	case EP_STATE_HALTED:
+		xhci_dbg(xhci, "WARN halted endpoint, queueing URB anyway.\n");
 	case EP_STATE_STOPPED:
 	case EP_STATE_RUNNING:
 		break;
@@ -1724,10 +1757,12 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 	u32 type = TRB_TYPE(TRB_SET_DEQ);
 
 	addr = xhci_trb_virt_to_dma(deq_seg, deq_ptr);
-	if (addr == 0)
+	if (addr == 0) {
 		xhci_warn(xhci, "WARN Cannot submit Set TR Deq Ptr\n");
 		xhci_warn(xhci, "WARN deq seg = %p, deq pt = %p\n",
 				deq_seg, deq_ptr);
+		return 0;
+	}
 	return queue_command(xhci, lower_32_bits(addr) | cycle_state,
 			upper_32_bits(addr), 0,
 			trb_slot_id | trb_ep_index | type);
