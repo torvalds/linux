@@ -647,7 +647,7 @@ static int vmbus_child_device_register(DEVICE_OBJECT* root_device_obj, DEVICE_OB
 	ret = child_device_ctx->probe_error;
 
 	if (ret)
-		DPRINT_ERR(VMBUS_DRV, "unable to register child device (%p) (%d)", &child_device_ctx->device);
+		DPRINT_ERR(VMBUS_DRV, "unable to register child device (%p)", &child_device_ctx->device);
 	else
 		DPRINT_INFO(VMBUS_DRV, "child device (%p) registered", &child_device_ctx->device);
 
