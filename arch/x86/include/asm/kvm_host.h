@@ -315,7 +315,7 @@ struct kvm_vcpu_arch {
 	struct {
 		gfn_t gfn;	/* presumed gfn during guest pte update */
 		pfn_t pfn;	/* pfn corresponding to that gfn */
-		int largepage;
+		int level;
 		unsigned long mmu_seq;
 	} update_pte;
 
