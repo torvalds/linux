@@ -1234,7 +1234,7 @@ w6692_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	return err;
 }
 
-int
+static int
 setup_w6692(struct w6692_hw *card)
 {
 	u32	val;
