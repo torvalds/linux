@@ -46,7 +46,7 @@ typedef enum {
 } RNDIS_DEVICE_STATE;
 
 typedef struct _RNDIS_DEVICE {
-	NETVSC_DEVICE			*NetDevice;
+	struct NETVSC_DEVICE			*NetDevice;
 
 	RNDIS_DEVICE_STATE		State;
 	u32					LinkStatus;
@@ -494,7 +494,7 @@ RndisFilterOnReceive(
 	NETVSC_PACKET		*Packet
 	)
 {
-	NETVSC_DEVICE *netDevice = (NETVSC_DEVICE*)Device->Extension;
+	struct NETVSC_DEVICE *netDevice = (struct NETVSC_DEVICE*)Device->Extension;
 	RNDIS_DEVICE *rndisDevice;
 	RNDIS_MESSAGE rndisMessage;
 	RNDIS_MESSAGE *rndisHeader;
@@ -933,7 +933,7 @@ RndisFilterOnDeviceAdd(
 	)
 {
 	int ret;
-	NETVSC_DEVICE *netDevice;
+	struct NETVSC_DEVICE *netDevice;
 	RNDIS_DEVICE *rndisDevice;
 	NETVSC_DEVICE_INFO *deviceInfo = (NETVSC_DEVICE_INFO*)AdditionalInfo;
 
@@ -962,7 +962,7 @@ RndisFilterOnDeviceAdd(
 
 	/* Initialize the rndis device */
 
-	netDevice = (NETVSC_DEVICE*)Device->Extension;
+	netDevice = (struct NETVSC_DEVICE*)Device->Extension;
 	ASSERT(netDevice);
 	ASSERT(netDevice->Device);
 
@@ -1010,7 +1010,7 @@ RndisFilterOnDeviceRemove(
 	DEVICE_OBJECT *Device
 	)
 {
-	NETVSC_DEVICE *netDevice = (NETVSC_DEVICE*)Device->Extension;
+	struct NETVSC_DEVICE *netDevice = (struct NETVSC_DEVICE*)Device->Extension;
 	RNDIS_DEVICE *rndisDevice = (RNDIS_DEVICE*)netDevice->Extension;
 
 	DPRINT_ENTER(NETVSC);
@@ -1046,7 +1046,7 @@ RndisFilterOnOpen(
 	)
 {
 	int ret;
-	NETVSC_DEVICE *netDevice = (NETVSC_DEVICE*)Device->Extension;
+	struct NETVSC_DEVICE *netDevice = (struct NETVSC_DEVICE*)Device->Extension;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -1064,7 +1064,7 @@ RndisFilterOnClose(
 	)
 {
 	int ret;
-	NETVSC_DEVICE *netDevice = (NETVSC_DEVICE*)Device->Extension;
+	struct NETVSC_DEVICE *netDevice = (struct NETVSC_DEVICE*)Device->Extension;
 
 	DPRINT_ENTER(NETVSC);
 

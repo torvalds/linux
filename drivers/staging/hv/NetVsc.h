@@ -54,7 +54,7 @@
 
 
 /* Per netvsc channel-specific */
-typedef struct _NETVSC_DEVICE {
+struct NETVSC_DEVICE {
 	DEVICE_OBJECT					*Device;
 
 	int								RefCount;
@@ -86,6 +86,6 @@ typedef struct _NETVSC_DEVICE {
 
 	/* Holds rndis device info */
 	void							*Extension;
-} NETVSC_DEVICE;
+};
 
 #endif /* _NETVSC_H_ */
