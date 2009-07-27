@@ -1773,6 +1773,7 @@ static void at76_mac80211_stop(struct ieee80211_hw *hw)
 
 	at76_dbg(DBG_MAC80211, "%s()", __func__);
 
+	cancel_delayed_work(&priv->dwork_hw_scan);
 	cancel_work_sync(&priv->work_set_promisc);
 
 	mutex_lock(&priv->mtx);
@@ -2298,7 +2299,6 @@ static void at76_delete_device(struct at76_priv *priv)
 	tasklet_kill(&priv->rx_tasklet);
 
 	if (priv->mac80211_registered) {
-		cancel_delayed_work(&priv->dwork_hw_scan);
 		flush_workqueue(priv->hw->workqueue);
 		ieee80211_unregister_hw(priv->hw);
 	}
