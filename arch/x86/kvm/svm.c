@@ -2754,6 +2754,11 @@ static const struct trace_print_flags svm_exit_reasons_str[] = {
 	{ -1, NULL }
 };
 
+static bool svm_gb_page_enable(void)
+{
+	return true;
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -2817,6 +2822,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.get_mt_mask = svm_get_mt_mask,
 
 	.exit_reasons_str = svm_exit_reasons_str,
+	.gb_page_enable = svm_gb_page_enable,
 };
 
 static int __init svm_init(void)
