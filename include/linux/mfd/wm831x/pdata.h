@@ -18,6 +18,11 @@
 struct wm831x;
 struct regulator_init_data;
 
+struct wm831x_backlight_pdata {
+	int isink;     /** ISINK to use, 1 or 2 */
+	int max_uA;    /** Maximum current to allow */
+};
+
 struct wm831x_backup_pdata {
 	int charger_enable;
 	int no_constant_voltage;  /** Disable constant voltage charging */
@@ -87,6 +92,7 @@ struct wm831x_pdata {
 	int (*post_init)(struct wm831x *wm831x);
 
 	int gpio_base;
+	struct wm831x_backlight_pdata *backlight;
 	struct wm831x_backup_pdata *backup;
 	struct wm831x_battery_pdata *battery;
 	struct wm831x_touch_pdata *touch;

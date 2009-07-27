@@ -1172,6 +1172,12 @@ static struct mfd_cell wm8312_devs[] = {
 	},
 };
 
+static struct mfd_cell backlight_devs[] = {
+	{
+		.name = "wm831x-backlight",
+	},
+};
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
@@ -1323,6 +1329,15 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	if (ret != 0) {
 		dev_err(wm831x->dev, "Failed to add children\n");
 		goto err_irq;
+	}
+
+	if (pdata && pdata->backlight) {
+		/* Treat errors as non-critical */
+		ret = mfd_add_devices(wm831x->dev, -1, backlight_devs,
+				      ARRAY_SIZE(backlight_devs), NULL, 0);
+		if (ret < 0)
+			dev_err(wm831x->dev, "Failed to add backlight: %d\n",
+				ret);
 	}
 
 	if (pdata && pdata->post_init) {
