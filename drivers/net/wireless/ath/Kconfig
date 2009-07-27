@@ -1,4 +1,4 @@
-config ATH_COMMON
+menuconfig ATH_COMMON
 	tristate "Atheros Wireless Cards"
 	depends on WLAN_80211
 	depends on CFG80211
