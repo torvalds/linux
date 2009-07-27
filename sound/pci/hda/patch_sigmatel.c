@@ -3058,7 +3058,7 @@ static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid)
 					   HDA_MAX_CONNECTIONS);
 	for (j = 0; j < conn_len; j++) {
 		wcaps = get_wcaps(codec, conn[j]);
-		wtype = (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		wtype = get_wcaps_type(wcaps);
 		/* we check only analog outputs */
 		if (wtype != AC_WID_AUD_OUT || (wcaps & AC_WCAP_DIGITAL))
 			continue;
@@ -3746,8 +3746,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 				conn_list, 1) > 0) {
 
 				int wcaps = get_wcaps(codec, conn_list[0]);
-				int wid_type = (wcaps & AC_WCAP_TYPE)
-					>> AC_WCAP_TYPE_SHIFT;
+				int wid_type = get_wcaps_type(wcaps);
 				/* LR swap check, some stac925x have a mux that
  				 * changes the DACs output path instead of the
  				 * mono-mux path.
@@ -4753,8 +4752,7 @@ static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
 		unsigned int wcaps = get_wcaps(codec, nid);
-		unsigned int wid_type = (wcaps & AC_WCAP_TYPE) >>
-			AC_WCAP_TYPE_SHIFT;
+		unsigned int wid_type = get_wcaps_type(wcaps);
 		if (wid_type == AC_WID_PIN)
 			snd_hda_codec_read(codec, nid, 0,
 				AC_VERB_SET_PIN_WIDGET_CONTROL, 0);

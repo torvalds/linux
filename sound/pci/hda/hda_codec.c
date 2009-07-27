@@ -748,8 +748,7 @@ static int read_pin_defaults(struct hda_codec *codec)
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
 		struct hda_pincfg *pin;
 		unsigned int wcaps = get_wcaps(codec, nid);
-		unsigned int wid_type = (wcaps & AC_WCAP_TYPE) >>
-				AC_WCAP_TYPE_SHIFT;
+		unsigned int wid_type = get_wcaps_type(wcaps);
 		if (wid_type != AC_WID_PIN)
 			continue;
 		pin = snd_array_new(&codec->init_pins);
@@ -2386,8 +2385,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
 		unsigned int wcaps = get_wcaps(codec, nid);
 		if (wcaps & AC_WCAP_POWER) {
-			unsigned int wid_type = (wcaps & AC_WCAP_TYPE) >>
-				AC_WCAP_TYPE_SHIFT;
+			unsigned int wid_type = get_wcaps_type(wcaps);
 			if (power_state == AC_PWRST_D3 &&
 			    wid_type == AC_WID_PIN) {
 				unsigned int pincap;
@@ -3678,8 +3676,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	end_nid = codec->start_nid + codec->num_nodes;
 	for (nid = codec->start_nid; nid < end_nid; nid++) {
 		unsigned int wid_caps = get_wcaps(codec, nid);
-		unsigned int wid_type =
-			(wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		unsigned int wid_type = get_wcaps_type(wid_caps);
 		unsigned int def_conf;
 		short assoc, loc;
 

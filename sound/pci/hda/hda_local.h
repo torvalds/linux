@@ -407,6 +407,9 @@ static inline u32 get_wcaps(struct hda_codec *codec, hda_nid_t nid)
 	return codec->wcaps[nid - codec->start_nid];
 }
 
+/* get the widget type from widget capability bits */
+#define get_wcaps_type(wcaps) (((wcaps) & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT)
+
 u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);

@@ -415,7 +415,7 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 	mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
 	imux = &spec->input_mux[mux_idx];
 
-	type = (get_wcaps(codec, nid) & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+	type = get_wcaps_type(get_wcaps(codec, nid));
 	if (type == AC_WID_AUD_MIX) {
 		/* Matrix-mixer style (e.g. ALC882) */
 		unsigned int *cur_val = &spec->cur_mux[adc_idx];
@@ -4623,7 +4623,7 @@ static int patch_alc880(struct hda_codec *codec)
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, alc880_adc_nids[0]);
 		/* get type */
-		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		wcap = get_wcaps_type(wcap);
 		if (wcap != AC_WID_AUD_IN) {
 			spec->adc_nids = alc880_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc880_adc_nids_alt);
@@ -6266,7 +6266,7 @@ static int patch_alc260(struct hda_codec *codec)
 	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x04 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x04);
-		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		wcap = get_wcaps_type(wcap);
 		/* get type */
 		if (wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
 			spec->adc_nids = alc260_adc_nids_alt;
@@ -9460,7 +9460,7 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 	spec->init_verbs[0] = alc883_auto_init_verbs;
 	/* if ADC 0x07 is available, initialize it, too */
 	wcap = get_wcaps(codec, 0x07);
-	wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+	wcap = get_wcaps_type(wcap);
 	if (wcap == AC_WID_AUD_IN)
 		add_verb(spec, alc882_adc1_init_verbs);
 
@@ -9577,7 +9577,7 @@ static int patch_alc882(struct hda_codec *codec)
 			hda_nid_t nid = alc882_adc_nids[i];
 			unsigned int wcap = get_wcaps(codec, nid);
 			/* get type */
-			wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+			wcap = get_wcaps_type(wcap);
 			if (wcap != AC_WID_AUD_IN)
 				continue;
 			spec->private_adc_nids[spec->num_adc_nids] = nid;
@@ -11460,7 +11460,7 @@ static int patch_alc262(struct hda_codec *codec)
 			unsigned int wcap = get_wcaps(codec, 0x07);
 
 			/* get type */
-			wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+			wcap = get_wcaps_type(wcap);
 			if (wcap != AC_WID_AUD_IN) {
 				spec->adc_nids = alc262_adc_nids_alt;
 				spec->num_adc_nids =
@@ -12536,7 +12536,7 @@ static int patch_alc268(struct hda_codec *codec)
 		int i;
 
 		/* get type */
-		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		wcap = get_wcaps_type(wcap);
 		if (wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
 			spec->adc_nids = alc268_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt);
@@ -13991,8 +13991,7 @@ static hda_nid_t alc861_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 		return 0;
 	for (i = 0; i < num; i++) {
 		unsigned int type;
-		type = (get_wcaps(codec, srcs[i]) & AC_WCAP_TYPE)
-			>> AC_WCAP_TYPE_SHIFT;
+		type = get_wcaps_type(get_wcaps(codec, srcs[i]));
 		if (type != AC_WID_AUD_OUT)
 			continue;
 		for (j = 0; j < spec->multiout.num_dacs; j++)

@@ -508,8 +508,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 		unsigned int wid_caps =
 			snd_hda_param_read(codec, nid,
 					   AC_PAR_AUDIO_WIDGET_CAP);
-		unsigned int wid_type =
-			(wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		unsigned int wid_type = get_wcaps_type(wid_caps);
 		hda_nid_t conn[HDA_MAX_CONNECTIONS];
 		int conn_len = 0;
 
