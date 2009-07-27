@@ -435,7 +435,18 @@ int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	dev_ctx->device.release = vmbus_bus_release;
 
 	/* Setup the bus as root device */
-	device_register(&dev_ctx->device);
+	ret = device_register(&dev_ctx->device);
+	if (ret)
+	{
+		DPRINT_ERR(VMBUS_DRV, "ERROR - Unable to register vmbus root device");
+
+		free_irq(vmbus_irq, NULL);
+		bus_unregister(&vmbus_drv_ctx->bus);
+
+		ret = -1;
+		goto cleanup;
+	}
+
 
 	vmbus_drv_obj->GetChannelOffers();
 
@@ -491,9 +502,10 @@ Name:	vmbus_child_driver_register()
 Desc:	Register a vmbus's child driver
 
 --*/
-void vmbus_child_driver_register(struct driver_context* driver_ctx)
+int vmbus_child_driver_register(struct driver_context* driver_ctx)
 {
 	VMBUS_DRIVER_OBJECT *vmbus_drv_obj=&g_vmbus_drv.drv_obj;
+	int ret;
 
 	DPRINT_ENTER(VMBUS_DRV);
 
@@ -502,11 +514,13 @@ void vmbus_child_driver_register(struct driver_context* driver_ctx)
 	/* The child driver on this vmbus */
 	driver_ctx->driver.bus = &g_vmbus_drv.bus;
 
-	driver_register(&driver_ctx->driver);
+	ret = driver_register(&driver_ctx->driver);
 
 	vmbus_drv_obj->GetChannelOffers();
 
 	DPRINT_EXIT(VMBUS_DRV);
+
+	return ret;
 }
 
 EXPORT_SYMBOL(vmbus_child_driver_register);

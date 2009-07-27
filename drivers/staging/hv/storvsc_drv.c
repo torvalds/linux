@@ -162,7 +162,7 @@ int storvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	drv_ctx->remove = storvsc_remove;
 
 	/* The driver belongs to vmbus */
-	vmbus_child_driver_register(drv_ctx);
+	ret = vmbus_child_driver_register(drv_ctx);
 
 	DPRINT_EXIT(STORVSC_DRV);
 

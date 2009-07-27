@@ -82,8 +82,7 @@ static inline struct driver_context *driver_to_driver_context(struct device_driv
 
 /* Vmbus interface */
 
-void
-vmbus_child_driver_register(
+int vmbus_child_driver_register(
 	struct driver_context* driver_ctx
 	);
 

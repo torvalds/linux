@@ -192,7 +192,7 @@ int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	drv_ctx->shutdown = blkvsc_shutdown;
 
 	/* The driver belongs to vmbus */
-	vmbus_child_driver_register(drv_ctx);
+	ret = vmbus_child_driver_register(drv_ctx);
 
 	DPRINT_EXIT(BLKVSC_DRV);
 
