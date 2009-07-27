@@ -256,7 +256,6 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	pt_element_t gpte;
 	unsigned pte_access;
 	pfn_t pfn;
-	int level = vcpu->arch.update_pte.level;
 
 	gpte = *(const pt_element_t *)pte;
 	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK)) {
@@ -275,7 +274,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 		return;
 	kvm_get_pfn(pfn);
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
-		     gpte & PT_DIRTY_MASK, NULL, level,
+		     gpte & PT_DIRTY_MASK, NULL, PT_PAGE_TABLE_LEVEL,
 		     gpte_to_gfn(gpte), pfn, true);
 }
 
@@ -284,7 +283,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
  */
 static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			 struct guest_walker *gw,
-			 int user_fault, int write_fault, int largepage,
+			 int user_fault, int write_fault, int hlevel,
 			 int *ptwrite, pfn_t pfn)
 {
 	unsigned access = gw->pt_access;
@@ -303,8 +302,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	for_each_shadow_entry(vcpu, addr, iterator) {
 		level = iterator.level;
 		sptep = iterator.sptep;
-		if (level == PT_PAGE_TABLE_LEVEL
-		    || (largepage && level == PT_DIRECTORY_LEVEL)) {
+		if (iterator.level == hlevel) {
 			mmu_set_spte(vcpu, sptep, access,
 				     gw->pte_access & access,
 				     user_fault, write_fault,
@@ -323,12 +321,15 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		}
 
-		if (level == PT_DIRECTORY_LEVEL
-		    && gw->level == PT_DIRECTORY_LEVEL) {
+		if (level <= gw->level) {
+			int delta = level - gw->level + 1;
 			direct = 1;
-			if (!is_dirty_gpte(gw->ptes[level - 1]))
+			if (!is_dirty_gpte(gw->ptes[level - delta]))
 				access &= ~ACC_WRITE_MASK;
-			table_gfn = gpte_to_gfn(gw->ptes[level - 1]);
+			table_gfn = gpte_to_gfn(gw->ptes[level - delta]);
+			/* advance table_gfn when emulating 1gb pages with 4k */
+			if (delta == 0)
+				table_gfn += PT_INDEX(addr, level);
 		} else {
 			direct = 0;
 			table_gfn = gw->table_gfn[level - 2];
@@ -381,7 +382,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	int write_pt = 0;
 	int r;
 	pfn_t pfn;
-	int largepage = 0;
+	int level = PT_PAGE_TABLE_LEVEL;
 	unsigned long mmu_seq;
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
@@ -407,15 +408,11 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		return 0;
 	}
 
-	if (walker.level == PT_DIRECTORY_LEVEL) {
-		gfn_t large_gfn;
-		large_gfn = walker.gfn &
-			    ~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
-		if (mapping_level(vcpu, large_gfn) == PT_DIRECTORY_LEVEL) {
-			walker.gfn = large_gfn;
-			largepage = 1;
-		}
+	if (walker.level >= PT_DIRECTORY_LEVEL) {
+		level = min(walker.level, mapping_level(vcpu, walker.gfn));
+		walker.gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
 	}
+
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
 	pfn = gfn_to_pfn(vcpu->kvm, walker.gfn);
@@ -432,8 +429,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
 	sptep = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
-			     largepage, &write_pt, pfn);
-
+			     level, &write_pt, pfn);
 	pgprintk("%s: shadow pte %p %llx ptwrite %d\n", __func__,
 		 sptep, *sptep, write_pt);
 
@@ -468,8 +464,9 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 		sptep = iterator.sptep;
 
 		/* FIXME: properly handle invlpg on large guest pages */
-		if (level == PT_PAGE_TABLE_LEVEL ||
-		    ((level == PT_DIRECTORY_LEVEL) && is_large_pte(*sptep))) {
+		if (level == PT_PAGE_TABLE_LEVEL  ||
+		    ((level == PT_DIRECTORY_LEVEL && is_large_pte(*sptep))) ||
+		    ((level == PT_PDPE_LEVEL && is_large_pte(*sptep)))) {
 			struct kvm_mmu_page *sp = page_header(__pa(sptep));
 
 			pte_gpa = (sp->gfn << PAGE_SHIFT);
@@ -599,7 +596,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		nr_present++;
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
-			 is_dirty_gpte(gpte), 0, gfn,
+			 is_dirty_gpte(gpte), PT_PAGE_TABLE_LEVEL, gfn,
 			 spte_to_pfn(sp->spt[i]), true, false);
 	}
 

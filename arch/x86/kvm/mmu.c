@@ -2478,11 +2478,8 @@ static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 				  const void *new)
 {
 	if (sp->role.level != PT_PAGE_TABLE_LEVEL) {
-		if (vcpu->arch.update_pte.level == PT_PAGE_TABLE_LEVEL ||
-		    sp->role.glevels == PT32_ROOT_LEVEL) {
-			++vcpu->kvm->stat.mmu_pde_zapped;
-			return;
-		}
+		++vcpu->kvm->stat.mmu_pde_zapped;
+		return;
         }
 
 	++vcpu->kvm->stat.mmu_pte_updated;
@@ -2528,8 +2525,6 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	u64 gpte = 0;
 	pfn_t pfn;
 
-	vcpu->arch.update_pte.level = PT_PAGE_TABLE_LEVEL;
-
 	if (bytes != 4 && bytes != 8)
 		return;
 
@@ -2557,11 +2552,6 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		return;
 	gfn = (gpte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
 
-	if (is_large_pte(gpte) &&
-	    (mapping_level(vcpu, gfn) == PT_DIRECTORY_LEVEL)) {
-		gfn &= ~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
-		vcpu->arch.update_pte.level = PT_DIRECTORY_LEVEL;
-	}
 	vcpu->arch.update_pte.mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
 	pfn = gfn_to_pfn(vcpu->kvm, gfn);
