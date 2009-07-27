@@ -876,6 +876,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		xhci_warn(xhci, "WARN: transfer error on endpoint\n");
 		status = -EPROTO;
 		break;
+	case COMP_BABBLE:
+		xhci_warn(xhci, "WARN: babble error on endpoint\n");
+		status = -EOVERFLOW;
+		break;
 	case COMP_DB_ERR:
 		xhci_warn(xhci, "WARN: HC couldn't access mem fast enough\n");
 		status = -ENOSR;
