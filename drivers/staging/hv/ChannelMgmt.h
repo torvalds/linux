@@ -64,7 +64,7 @@ typedef struct _VMBUS_CHANNEL {
 	RING_BUFFER_INFO			Outbound;	/* send to parent */
 	RING_BUFFER_INFO			Inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
-	HANDLE						ControlWQ;
+	struct workqueue_struct *ControlWQ;
 
 	/* Channel callback are invoked in this workqueue context */
 	/* HANDLE						dataWorkQueue; */

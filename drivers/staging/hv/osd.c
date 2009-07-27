@@ -61,10 +61,6 @@ typedef struct _WAITEVENT {
 	wait_queue_head_t event;
 } WAITEVENT;
 
-typedef struct _WORKQUEUE {
-	struct workqueue_struct *queue;
-} WORKQUEUE;
-
 typedef struct _WORKITEM {
 	struct work_struct work;
 	PFN_WORKITEM_CALLBACK callback;
@@ -303,31 +299,25 @@ void WorkItemCallback(struct work_struct *work)
 	kfree(w);
 }
 
-HANDLE WorkQueueCreate(char* name)
+struct workqueue_struct *WorkQueueCreate(char *name)
 {
-	WORKQUEUE *wq = kmalloc(sizeof(WORKQUEUE), GFP_KERNEL);
-	if (!wq)
-	{
+	struct workqueue_struct *wq;
+	wq = create_workqueue(name);
+	if (unlikely(!wq))
 		return NULL;
-	}
-	wq->queue = create_workqueue(name);
-
 	return wq;
 }
 
-void WorkQueueClose(HANDLE hWorkQueue)
+void WorkQueueClose(struct workqueue_struct *hWorkQueue)
 {
-	WORKQUEUE *wq = (WORKQUEUE *)hWorkQueue;
-
-	destroy_workqueue(wq->queue);
-
+	destroy_workqueue(hWorkQueue);
 	return;
 }
 
-int WorkQueueQueueWorkItem(HANDLE hWorkQueue, PFN_WORKITEM_CALLBACK workItem, void* context)
+int WorkQueueQueueWorkItem(struct workqueue_struct *hWorkQueue,
+			   PFN_WORKITEM_CALLBACK workItem,
+			   void* context)
 {
-	WORKQUEUE *wq = (WORKQUEUE *)hWorkQueue;
-
 	WORKITEM* w = kmalloc(sizeof(WORKITEM), GFP_ATOMIC);
 	if (!w)
 	{
@@ -337,7 +327,7 @@ int WorkQueueQueueWorkItem(HANDLE hWorkQueue, PFN_WORKITEM_CALLBACK workItem, vo
 	w->callback = workItem,
 	w->context = context;
 	INIT_WORK(&w->work, WorkItemCallback);
-	return queue_work(wq->queue, &w->work);
+	return queue_work(hWorkQueue, &w->work);
 }
 
 void QueueWorkItem(PFN_WORKITEM_CALLBACK workItem, void* context)

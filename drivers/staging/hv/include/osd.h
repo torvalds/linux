@@ -143,9 +143,11 @@ void* PageMapVirtualAddress(unsigned long Pfn);
 void PageUnmapVirtualAddress(void* VirtAddr);
 
 
-extern HANDLE WorkQueueCreate(char* name);
-extern void WorkQueueClose(HANDLE hWorkQueue);
-extern int WorkQueueQueueWorkItem(HANDLE hWorkQueue, PFN_WORKITEM_CALLBACK workItem, void* context);
+extern struct workqueue_struct *WorkQueueCreate(char* name);
+extern void WorkQueueClose(struct workqueue_struct *hWorkQueue);
+extern int WorkQueueQueueWorkItem(struct workqueue_struct *hWorkQueue,
+				  PFN_WORKITEM_CALLBACK workItem,
+				  void *context);
 
 extern void QueueWorkItem(PFN_WORKITEM_CALLBACK workItem, void* context);
 

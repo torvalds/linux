@@ -93,7 +93,7 @@ struct VMBUS_CONNECTION {
 	LIST_ENTRY							ChannelList;
 	spinlock_t channel_lock;
 
-	HANDLE								WorkQueue;
+	struct workqueue_struct *WorkQueue;
 };
 
 
