@@ -168,15 +168,7 @@ void PageUnmapVirtualAddress(void* VirtAddr)
 
 void *MemMapIO(unsigned long phys, unsigned long size)
 {
-#if X2V_LINUX
-#ifdef __x86_64__
-	return (void*)(phys + 0xFFFF83000C000000);
-#else /* i386 */
-	return (void*)(phys + 0xfb000000);
-#endif
-#else
 	return (void*)GetVirtualAddress(phys); /* return ioremap_nocache(phys, size); */
-#endif
 }
 
 void MemUnmapIO(void *virt)
