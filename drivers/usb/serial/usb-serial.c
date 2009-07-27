@@ -32,6 +32,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/uaccess.h>
+#include <linux/serial.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include "pl2303.h"
@@ -184,6 +185,7 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 	struct usb_serial_port *port;
 	unsigned int portNumber;
 	int retval = 0;
+	int first = 0;
 
 	dbg("%s", __func__);
 
@@ -223,7 +225,7 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 
 	/* If the console is attached, the device is already open */
 	if (port->port.count == 1 && !port->console) {
-
+		first = 1;
 		/* lock this module before we call it
 		 * this may fail, which means we must bail out,
 		 * safe because we are called with BKL held */
@@ -246,13 +248,21 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 		if (retval)
 			goto bailout_interface_put;
 		mutex_unlock(&serial->disc_mutex);
+		set_bit(ASYNCB_INITIALIZED, &port->port.flags);
 	}
 	mutex_unlock(&port->mutex);
 	/* Now do the correct tty layer semantics */
 	retval = tty_port_block_til_ready(&port->port, tty, filp);
-	if (retval == 0)
+	if (retval == 0) {
+		if (!first)
+			usb_serial_put(serial);
 		return 0;
-
+	}
+	mutex_lock(&port->mutex);
+	if (first == 0)
+		goto bailout_mutex_unlock;
+	/* Undo the initial port actions */
+	mutex_lock(&serial->disc_mutex);
 bailout_interface_put:
 	usb_autopm_put_interface(serial->interface);
 bailout_module_put:
@@ -411,7 +421,6 @@ static int serial_chars_in_buffer(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s = port %d", __func__, port->number);
 
-	WARN_ON(!port->port.count);
 	/* if the device was unplugged then any remaining characters
 	   fell out of the connector ;) */
 	if (port->serial->disconnected)
