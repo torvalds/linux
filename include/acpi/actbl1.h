@@ -427,17 +427,17 @@ struct acpi_hest_aer_common {
 	u16 reserved1;
 	u8 flags;
 	u8 enabled;
-	u32 records_to_pre_allocate;
+	u32 records_to_preallocate;
 	u32 max_sections_per_record;
 	u32 bus;
 	u16 device;
 	u16 function;
 	u16 device_control;
 	u16 reserved2;
-	u32 uncorrectable_error_mask;
-	u32 uncorrectable_error_severity;
-	u32 correctable_error_mask;
-	u32 advanced_error_capabilities;
+	u32 uncorrectable_mask;
+	u32 uncorrectable_severity;
+	u32 correctable_mask;
+	u32 advanced_capabilities;
 };
 
 /* Masks for HEST Flags fields */
@@ -490,7 +490,7 @@ struct acpi_hest_ia_machine_check {
 	u16 reserved1;
 	u8 flags;
 	u8 enabled;
-	u32 records_to_pre_allocate;
+	u32 records_to_preallocate;
 	u32 max_sections_per_record;
 	u64 global_capability_data;
 	u64 global_control_data;
@@ -505,7 +505,7 @@ struct acpi_table_hest_ia_corrected {
 	u16 reserved1;
 	u8 flags;
 	u8 enabled;
-	u32 records_to_pre_allocate;
+	u32 records_to_preallocate;
 	u32 max_sections_per_record;
 	struct acpi_hest_notify notify;
 	u8 num_hardware_banks;
@@ -517,7 +517,7 @@ struct acpi_table_hest_ia_corrected {
 struct acpi_hest_ia_nmi {
 	struct acpi_hest_header header;
 	u32 reserved;
-	u32 records_to_pre_allocate;
+	u32 records_to_preallocate;
 	u32 max_sections_per_record;
 	u32 max_raw_data_length;
 };
@@ -544,9 +544,9 @@ struct acpi_hest_aer {
 struct acpi_hest_aer_bridge {
 	struct acpi_hest_header header;
 	struct acpi_hest_aer_common aer;
-	u32 second_uncorrectable_error_mask;
-	u32 second_uncorrectable_error_severity;
-	u32 second_advanced_capabilities;
+	u32 uncorrectable_mask2;
+	u32 uncorrectable_severity2;
+	u32 advanced_capabilities2;
 };
 
 /* 9: Generic Hardware Error Source */
@@ -556,7 +556,7 @@ struct acpi_hest_generic {
 	u16 related_source_id;
 	u8 reserved;
 	u8 enabled;
-	u32 records_to_pre_allocate;
+	u32 records_to_preallocate;
 	u32 max_sections_per_record;
 	u32 max_raw_data_length;
 	struct acpi_generic_address error_status_address;
