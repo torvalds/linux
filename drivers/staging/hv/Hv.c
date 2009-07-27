@@ -232,7 +232,6 @@ HvInit (
     int maxLeaf;
 	HV_X64_MSR_HYPERCALL_CONTENTS hypercallMsr;
 	void* virtAddr=0;
-	unsigned long physAddr=0;
 
 	DPRINT_ENTER(VMBUS);
 
