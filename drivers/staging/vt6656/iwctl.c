@@ -1409,8 +1409,7 @@ int iwctl_siwencode(struct net_device *dev,
 		// Do we want to just set the transmit key index ?
 		if ( index < 4 ) {
 		    pDevice->byKeyIndex = index;
-		}
-		else if(!wrq->flags & IW_ENCODE_MODE) {
+		} else if (!(wrq->flags & IW_ENCODE_MODE)) {
 				rc = -EINVAL;
 				return rc;
 	    }
