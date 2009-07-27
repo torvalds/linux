@@ -58,8 +58,9 @@
  ******************************************************************************/
 
 /*
- * Values for description table header signatures. Useful because they make
- * it more difficult to inadvertently type in the wrong signature.
+ * Values for description table header signatures for tables defined in this
+ * file. Useful because they make it more difficult to inadvertently type in
+ * the wrong signature.
  */
 #define ACPI_SIG_DSDT           "DSDT"	/* Differentiated System Description Table */
 #define ACPI_SIG_FADT           "FACP"	/* Fixed ACPI Description Table */
@@ -123,6 +124,7 @@ struct acpi_generic_address {
 /*******************************************************************************
  *
  * RSDP - Root System Description Pointer (Signature is "RSD PTR ")
+ *        Version 2
  *
  ******************************************************************************/
 
@@ -143,6 +145,7 @@ struct acpi_table_rsdp {
 /*******************************************************************************
  *
  * RSDT/XSDT - Root System Description Tables
+ *             Version 1 (both)
  *
  ******************************************************************************/
 
@@ -176,23 +179,24 @@ struct acpi_table_facs {
 	u8 reserved1[24];	/* Reserved, must be zero */
 };
 
-/* global_lock flags */
+/* Masks for global_lock flag field above */
 
 #define ACPI_GLOCK_PENDING          (1)	/* 00: Pending global lock ownership */
 #define ACPI_GLOCK_OWNED            (1<<1)	/* 01: Global lock is owned */
 
-/* Flags  */
+/* Masks for Flags field above  */
 
 #define ACPI_FACS_S4_BIOS_PRESENT   (1)	/* 00: S4BIOS support is present */
 #define ACPI_FACS_64BIT_WAKE        (1<<1)	/* 01: 64-bit wake vector supported (ACPI 4.0) */
 
-/* ospm_flags */
+/* Masks for ospm_flags field above */
 
 #define ACPI_FACS_64BIT_ENVIRONMENT (1)	/* 00: 64-bit wake environment is required (ACPI 4.0) */
 
 /*******************************************************************************
  *
  * FADT - Fixed ACPI Description Table (Signature "FACP")
+ *        Version 4
  *
  ******************************************************************************/
 
@@ -253,7 +257,7 @@ struct acpi_table_fadt {
 	struct acpi_generic_address xgpe1_block;	/* 64-bit Extended General Purpose Event 1 Reg Blk address */
 };
 
-/* FADT Boot Architecture Flags (boot_flags) */
+/* Masks for FADT Boot Architecture Flags (boot_flags) */
 
 #define ACPI_FADT_LEGACY_DEVICES    (1)  	/* 00: [V2] System has LPC or ISA bus devices */
 #define ACPI_FADT_8042              (1<<1)	/* 01: [V3] System has an 8042 controller on port 60/64 */
@@ -263,7 +267,7 @@ struct acpi_table_fadt {
 
 #define FADT2_REVISION_ID               3
 
-/* FADT flags */
+/* Masks for FADT flags */
 
 #define ACPI_FADT_WBINVD            (1)	/* 00: [V1] The wbinvd instruction works properly */
 #define ACPI_FADT_WBINVD_FLUSH      (1<<1)	/* 01: [V1] wbinvd flushes but does not invalidate caches */
@@ -286,7 +290,7 @@ struct acpi_table_fadt {
 #define ACPI_FADT_APIC_CLUSTER      (1<<18)	/* 18: [V4] All local APICs must use cluster model (ACPI 3.0) */
 #define ACPI_FADT_APIC_PHYSICAL     (1<<19)	/* 19: [V4] All local x_aPICs must use physical dest mode (ACPI 3.0) */
 
-/* FADT Prefered Power Management Profiles */
+/* Values for preferred_profile (Prefered Power Management Profiles) */
 
 enum acpi_prefered_pm_profiles {
 	PM_UNSPECIFIED = 0,
@@ -304,14 +308,16 @@ enum acpi_prefered_pm_profiles {
 
 #define ACPI_FADT_OFFSET(f)             (u8) ACPI_OFFSET (struct acpi_table_fadt, f)
 
+/*
+ * Internal table-related structures
+ */
 union acpi_name_union {
 	u32 integer;
 	char ascii[4];
 };
 
-/*
- * Internal ACPI Table Descriptor. One per ACPI table
- */
+/* Internal ACPI Table Descriptor. One per ACPI table. */
+
 struct acpi_table_desc {
 	acpi_physical_address address;
 	struct acpi_table_header *pointer;
@@ -321,7 +327,7 @@ struct acpi_table_desc {
 	u8 flags;
 };
 
-/* Flags for above */
+/* Masks for Flags field above */
 
 #define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
 #define ACPI_TABLE_ORIGIN_MAPPED        (1)

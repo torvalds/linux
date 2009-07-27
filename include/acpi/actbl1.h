@@ -56,8 +56,9 @@
  ******************************************************************************/
 
 /*
- * Values for description table header signatures. Useful because they make
- * it more difficult to inadvertently type in the wrong signature.
+ * Values for description table header signatures for tables defined in this
+ * file. Useful because they make it more difficult to inadvertently type in
+ * the wrong signature.
  */
 #define ACPI_SIG_BERT           "BERT"	/* Boot Error Record Table */
 #define ACPI_SIG_CPEP           "CPEP"	/* Corrected Platform Error Polling table */
@@ -66,6 +67,7 @@
 #define ACPI_SIG_ERST           "ERST"	/* Error Record Serialization Table */
 #define ACPI_SIG_HEST           "HEST"	/* Hardware Error Source Table */
 #define ACPI_SIG_MADT           "APIC"	/* Multiple APIC Description Table */
+#define ACPI_SIG_MSCT           "MSCT"	/* Maximum System Characteristics Table */
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
 #define ACPI_SIG_SLIT           "SLIT"	/* System Locality Distance Information Table */
 #define ACPI_SIG_SRAT           "SRAT"	/* System Resource Affinity Table */
@@ -82,14 +84,20 @@
  * portable, so do not use any other bitfield types.
  */
 
-/* Common Subtable header (used in MADT, SRAT, etc.) */
+/*******************************************************************************
+ *
+ * Common subtable headers
+ *
+ ******************************************************************************/
+
+/* Generic subtable header (used in MADT, SRAT, etc.) */
 
 struct acpi_subtable_header {
 	u8 type;
 	u8 length;
 };
 
-/* Common Subtable header for WHEA tables (EINJ, ERST, WDAT) */
+/* Subtable header for WHEA tables (EINJ, ERST, WDAT) */
 
 struct acpi_whea_header {
 	u8 action;
@@ -103,7 +111,8 @@ struct acpi_whea_header {
 
 /*******************************************************************************
  *
- * BERT - Boot Error Record Table
+ * BERT - Boot Error Record Table (ACPI 4.0)
+ *        Version 1
  *
  ******************************************************************************/
 
@@ -113,26 +122,43 @@ struct acpi_table_bert {
 	u64 address;		/* Physical addresss of the error region */
 };
 
-/* Boot Error Region */
+/* Boot Error Region (not a subtable, pointed to by Address field above) */
 
 struct acpi_bert_region {
-	u32 block_status;
-	u32 raw_data_offset;
-	u32 raw_data_length;
-	u32 data_length;
-	u32 error_severity;
+	u32 block_status;	/* Type of error information */
+	u32 raw_data_offset;	/* Offset to raw error data */
+	u32 raw_data_length;	/* Length of raw error data */
+	u32 data_length;	/* Length of generic error data */
+	u32 error_severity;	/* Severity code */
 };
 
-/* block_status Flags */
+/* Values for block_status flags above */
 
 #define ACPI_BERT_UNCORRECTABLE             (1)
-#define ACPI_BERT_CORRECTABLE               (2)
-#define ACPI_BERT_MULTIPLE_UNCORRECTABLE    (4)
-#define ACPI_BERT_MULTIPLE_CORRECTABLE      (8)
+#define ACPI_BERT_CORRECTABLE               (1<<1)
+#define ACPI_BERT_MULTIPLE_UNCORRECTABLE    (1<<2)
+#define ACPI_BERT_MULTIPLE_CORRECTABLE      (1<<3)
+#define ACPI_BERT_ERROR_ENTRY_COUNT         (0xFF<<4)	/* 8 bits, error count */
+
+/* Values for error_severity above */
+
+enum acpi_bert_error_severity {
+	ACPI_BERT_ERROR_CORRECTABLE = 0,
+	ACPI_BERT_ERROR_FATAL = 1,
+	ACPI_BERT_ERROR_CORRECTED = 2,
+	ACPI_BERT_ERROR_NONE = 3,
+	ACPI_BERT_ERROR_RESERVED = 4	/* 4 and greater are reserved */
+};
+
+/*
+ * Note: The generic error data that follows the error_severity field above
+ * uses the struct acpi_hest_generic_data defined under the HEST table below
+ */
 
 /*******************************************************************************
  *
- * CPEP - Corrected Platform Error Polling table
+ * CPEP - Corrected Platform Error Polling table (ACPI 4.0)
+ *        Version 1
  *
  ******************************************************************************/
 
@@ -144,8 +170,7 @@ struct acpi_table_cpep {
 /* Subtable */
 
 struct acpi_cpep_polling {
-	u8 type;
-	u8 length;
+	struct acpi_subtable_header header;
 	u8 id;			/* Processor ID */
 	u8 eid;			/* Processor EID */
 	u32 interval;		/* Polling interval (msec) */
@@ -154,6 +179,7 @@ struct acpi_cpep_polling {
 /*******************************************************************************
  *
  * ECDT - Embedded Controller Boot Resources Table
+ *        Version 1
  *
  ******************************************************************************/
 
@@ -168,14 +194,16 @@ struct acpi_table_ecdt {
 
 /*******************************************************************************
  *
- * EINJ - Error Injection Table
+ * EINJ - Error Injection Table (ACPI 4.0)
+ *        Version 1
  *
  ******************************************************************************/
 
 struct acpi_table_einj {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u32 header_length;
-	u32 reserved;
+	u8 flags;
+	u8 reserved[3];
 	u32 entries;
 };
 
@@ -184,6 +212,10 @@ struct acpi_table_einj {
 struct acpi_einj_entry {
 	struct acpi_whea_header whea_header;	/* Common header for WHEA tables */
 };
+
+/* Masks for Flags field above */
+
+#define ACPI_EINJ_PRESERVE          (1)
 
 /* Values for Action field above */
 
@@ -220,9 +252,34 @@ struct acpi_einj_trigger {
 	u32 entry_count;
 };
 
+/* Command status return values */
+
+enum acpi_einj_command_status {
+	ACPI_EINJ_SUCCESS = 0,
+	ACPI_EINJ_FAILURE = 1,
+	ACPI_EINJ_INVALID_ACCESS = 2,
+	ACPI_EINJ_STATUS_RESERVED = 3	/* 3 and greater are reserved */
+};
+
+/* Error types returned from ACPI_EINJ_GET_ERROR_TYPE (bitfield) */
+
+#define ACPI_EINJ_PROCESSOR_CORRECTABLE     (1)
+#define ACPI_EINJ_PROCESSOR_UNCORRECTABLE   (1<<1)
+#define ACPI_EINJ_PROCESSOR_FATAL           (1<<2)
+#define ACPI_EINJ_MEMORY_CORRECTABLE        (1<<3)
+#define ACPI_EINJ_MEMORY_UNCORRECTABLE      (1<<4)
+#define ACPI_EINJ_MEMORY_FATAL              (1<<5)
+#define ACPI_EINJ_PCIX_CORRECTABLE          (1<<6)
+#define ACPI_EINJ_PCIX_UNCORRECTABLE        (1<<7)
+#define ACPI_EINJ_PCIX_FATAL                (1<<8)
+#define ACPI_EINJ_PLATFORM_CORRECTABLE      (1<<9)
+#define ACPI_EINJ_PLATFORM_UNCORRECTABLE    (1<<10)
+#define ACPI_EINJ_PLATFORM_FATAL            (1<<11)
+
 /*******************************************************************************
  *
- * ERST - Error Record Serialization Table
+ * ERST - Error Record Serialization Table (ACPI 4.0)
+ *        Version 1
  *
  ******************************************************************************/
 
@@ -239,19 +296,23 @@ struct acpi_erst_entry {
 	struct acpi_whea_header whea_header;	/* Common header for WHEA tables */
 };
 
+/* Masks for Flags field above */
+
+#define ACPI_ERST_PRESERVE          (1)
+
 /* Values for Action field above */
 
 enum acpi_erst_actions {
-	ACPI_ERST_BEGIN_WRITE_OPERATION = 0,
-	ACPI_ERST_BEGIN_READ_OPERATION = 1,
-	ACPI_ERST_BETGIN_CLEAR_OPERATION = 2,
-	ACPI_ERST_END_OPERATION = 3,
+	ACPI_ERST_BEGIN_WRITE = 0,
+	ACPI_ERST_BEGIN_READ = 1,
+	ACPI_ERST_BEGIN_CLEAR = 2,
+	ACPI_ERST_END = 3,
 	ACPI_ERST_SET_RECORD_OFFSET = 4,
 	ACPI_ERST_EXECUTE_OPERATION = 5,
 	ACPI_ERST_CHECK_BUSY_STATUS = 6,
 	ACPI_ERST_GET_COMMAND_STATUS = 7,
-	ACPI_ERST_GET_RECORD_IDENTIFIER = 8,
-	ACPI_ERST_SET_RECORD_IDENTIFIER = 9,
+	ACPI_ERST_GET_RECORD_ID = 8,
+	ACPI_ERST_SET_RECORD_ID = 9,
 	ACPI_ERST_GET_RECORD_COUNT = 10,
 	ACPI_ERST_BEGIN_DUMMY_WRIITE = 11,
 	ACPI_ERST_NOT_USED = 12,
@@ -286,9 +347,29 @@ enum acpi_erst_instructions {
 	ACPI_ERST_INSTRUCTION_RESERVED = 19	/* 19 and greater are reserved */
 };
 
+/* Command status return values */
+
+enum acpi_erst_command_status {
+	ACPI_ERST_SUCESS = 0,
+	ACPI_ERST_NO_SPACE = 1,
+	ACPI_ERST_NOT_AVAILABLE = 2,
+	ACPI_ERST_FAILURE = 3,
+	ACPI_ERST_RECORD_EMPTY = 4,
+	ACPI_ERST_NOT_FOUND = 5,
+	ACPI_ERST_STATUS_RESERVED = 6	/* 6 and greater are reserved */
+};
+
+/* Error Record Serialization Information */
+
+struct acpi_erst_info {
+	u16 signature;		/* Should be "ER" */
+	u8 data[48];
+};
+
 /*******************************************************************************
  *
- * HEST - Hardware Error Source Table
+ * HEST - Hardware Error Source Table (ACPI 4.0)
+ *        Version 1
  *
  ******************************************************************************/
 
@@ -301,70 +382,49 @@ struct acpi_table_hest {
 
 struct acpi_hest_header {
 	u16 type;
+	u16 source_id;
 };
 
 /* Values for Type field above for subtables */
 
 enum acpi_hest_types {
-	ACPI_HEST_TYPE_XPF_MACHINE_CHECK = 0,
-	ACPI_HEST_TYPE_XPF_CORRECTED_MACHINE_CHECK = 1,
-	ACPI_HEST_TYPE_XPF_UNUSED = 2,
-	ACPI_HEST_TYPE_XPF_NON_MASKABLE_INTERRUPT = 3,
-	ACPI_HEST_TYPE_IPF_CORRECTED_MACHINE_CHECK = 4,
-	ACPI_HEST_TYPE_IPF_CORRECTED_PLATFORM_ERROR = 5,
+	ACPI_HEST_TYPE_IA32_CHECK = 0,
+	ACPI_HEST_TYPE_IA32_CORRECTED_CHECK = 1,
+	ACPI_HEST_TYPE_IA32_NMI = 2,
+	ACPI_HEST_TYPE_NOT_USED3 = 3,
+	ACPI_HEST_TYPE_NOT_USED4 = 4,
+	ACPI_HEST_TYPE_NOT_USED5 = 5,
 	ACPI_HEST_TYPE_AER_ROOT_PORT = 6,
 	ACPI_HEST_TYPE_AER_ENDPOINT = 7,
 	ACPI_HEST_TYPE_AER_BRIDGE = 8,
-	ACPI_HEST_TYPE_GENERIC_HARDWARE_ERROR_SOURCE = 9,
+	ACPI_HEST_TYPE_GENERIC_ERROR = 9,
 	ACPI_HEST_TYPE_RESERVED = 10	/* 10 and greater are reserved */
 };
 
 /*
- * HEST Sub-subtables
+ * HEST substructures contained in subtables
  */
 
-/* XPF Machine Check Error Bank */
-
-struct acpi_hest_xpf_error_bank {
+/*
+ * IA32 Error Bank(s) - Follows the struct acpi_hest_ia_machine_check and
+ * struct acpi_hest_ia_corrected structures.
+ */
+struct acpi_hest_ia_error_bank {
 	u8 bank_number;
 	u8 clear_status_on_init;
 	u8 status_format;
-	u8 config_write_enable;
+	u8 reserved;
 	u32 control_register;
-	u64 control_init_data;
+	u64 control_data;
 	u32 status_register;
 	u32 address_register;
 	u32 misc_register;
 };
 
-/* Generic Error Status */
-
-struct acpi_hest_generic_status {
-	u32 block_status;
-	u32 raw_data_offset;
-	u32 raw_data_length;
-	u32 data_length;
-	u32 error_severity;
-};
-
-/* Generic Error Data */
-
-struct acpi_hest_generic_data {
-	u8 section_type[16];
-	u32 error_severity;
-	u16 revision;
-	u8 validation_bits;
-	u8 flags;
-	u32 error_data_length;
-	u8 fru_id[16];
-	u8 fru_text[20];
-};
-
-/* Common HEST structure for PCI/AER types below (6,7,8) */
+/* Common HEST sub-structure for PCI/AER structures below (6,7,8) */
 
 struct acpi_hest_aer_common {
-	u16 source_id;
-	u16 config_write_enable;
+	u16 reserved1;
 	u8 flags;
 	u8 enabled;
 	u32 records_to_pre_allocate;
@@ -373,12 +433,17 @@ struct acpi_hest_aer_common {
 	u16 device;
 	u16 function;
 	u16 device_control;
-	u16 reserved;
+	u16 reserved2;
 	u32 uncorrectable_error_mask;
 	u32 uncorrectable_error_severity;
 	u32 correctable_error_mask;
 	u32 advanced_error_capabilities;
 };
+
+/* Masks for HEST Flags fields */
+
+#define ACPI_HEST_FIRMWARE_FIRST        (1)
+#define ACPI_HEST_GLOBAL                (1<<1)
 
 /* Hardware Error Notification */
 
@@ -405,71 +470,59 @@ enum acpi_hest_notify_types {
 	ACPI_HEST_NOTIFY_RESERVED = 5	/* 5 and greater are reserved */
 };
 
+/* Values for config_write_enable bitfield above */
+
+#define ACPI_HEST_TYPE                  (1)
+#define ACPI_HEST_POLL_INTERVAL         (1<<1)
+#define ACPI_HEST_POLL_THRESHOLD_VALUE  (1<<2)
+#define ACPI_HEST_POLL_THRESHOLD_WINDOW (1<<3)
+#define ACPI_HEST_ERR_THRESHOLD_VALUE   (1<<4)
+#define ACPI_HEST_ERR_THRESHOLD_WINDOW  (1<<5)
+
 /*
  * HEST subtables
- *
- * From WHEA Design Document, 16 May 2007.
- * Note: There is no subtable type 2 in this version of the document,
- * and there are two different subtable type 3s.
  */
 
- /* 0: XPF Machine Check Exception */
+/* 0: IA32 Machine Check Exception */
 
-struct acpi_hest_xpf_machine_check {
+struct acpi_hest_ia_machine_check {
 	struct acpi_hest_header header;
-	u16 source_id;
-	u16 config_write_enable;
+	u16 reserved1;
 	u8 flags;
-	u8 reserved1;
+	u8 enabled;
 	u32 records_to_pre_allocate;
 	u32 max_sections_per_record;
 	u64 global_capability_data;
 	u64 global_control_data;
 	u8 num_hardware_banks;
-	u8 reserved2[7];
+	u8 reserved3[7];
 };
 
-/* 1: XPF Corrected Machine Check */
+/* 1: IA32 Corrected Machine Check */
 
-struct acpi_table_hest_xpf_corrected {
+struct acpi_table_hest_ia_corrected {
 	struct acpi_hest_header header;
-	u16 source_id;
-	u16 config_write_enable;
+	u16 reserved1;
 	u8 flags;
 	u8 enabled;
 	u32 records_to_pre_allocate;
 	u32 max_sections_per_record;
 	struct acpi_hest_notify notify;
 	u8 num_hardware_banks;
-	u8 reserved[3];
+	u8 reserved2[3];
 };
 
-/* 3: XPF Non-Maskable Interrupt */
+/* 2: IA32 Non-Maskable Interrupt */
 
-struct acpi_hest_xpf_nmi {
+struct acpi_hest_ia_nmi {
 	struct acpi_hest_header header;
-	u16 source_id;
 	u32 reserved;
 	u32 records_to_pre_allocate;
 	u32 max_sections_per_record;
 	u32 max_raw_data_length;
 };
 
-/* 4: IPF Corrected Machine Check */
-
-struct acpi_hest_ipf_corrected {
-	struct acpi_hest_header header;
-	u8 enabled;
-	u8 reserved;
-};
-
-/* 5: IPF Corrected Platform Error */
-
-struct acpi_hest_ipf_corrected_platform {
-	struct acpi_hest_header header;
-	u8 enabled;
-	u8 reserved;
-};
+/* 3,4,5: Not used */
 
 /* 6: PCI Express Root Port AER */
 
@@ -491,30 +544,61 @@ struct acpi_hest_aer {
 struct acpi_hest_aer_bridge {
 	struct acpi_hest_header header;
 	struct acpi_hest_aer_common aer;
-	u32 secondary_uncorrectable_error_mask;
-	u32 secondary_uncorrectable_error_severity;
-	u32 secondary_advanced_capabilities;
+	u32 second_uncorrectable_error_mask;
+	u32 second_uncorrectable_error_severity;
+	u32 second_advanced_capabilities;
 };
 
 /* 9: Generic Hardware Error Source */
 
 struct acpi_hest_generic {
 	struct acpi_hest_header header;
-	u16 source_id;
 	u16 related_source_id;
-	u8 config_write_enable;
+	u8 reserved;
 	u8 enabled;
 	u32 records_to_pre_allocate;
 	u32 max_sections_per_record;
 	u32 max_raw_data_length;
 	struct acpi_generic_address error_status_address;
 	struct acpi_hest_notify notify;
-	u32 error_status_block_length;
+	u32 error_block_length;
+};
+
+/* Generic Error Status block */
+
+struct acpi_hest_generic_status {
+	u32 block_status;
+	u32 raw_data_offset;
+	u32 raw_data_length;
+	u32 data_length;
+	u32 error_severity;
+};
+
+/* Values for block_status flags above */
+
+#define ACPI_HEST_UNCORRECTABLE             (1)
+#define ACPI_HEST_CORRECTABLE               (1<<1)
+#define ACPI_HEST_MULTIPLE_UNCORRECTABLE    (1<<2)
+#define ACPI_HEST_MULTIPLE_CORRECTABLE      (1<<3)
+#define ACPI_HEST_ERROR_ENTRY_COUNT         (0xFF<<4)	/* 8 bits, error count */
+
+/* Generic Error Data entry */
+
+struct acpi_hest_generic_data {
+	u8 section_type[16];
+	u32 error_severity;
+	u16 revision;
+	u8 validation_bits;
+	u8 flags;
+	u32 error_data_length;
+	u8 fru_id[16];
+	u8 fru_text[20];
 };
 
 /*******************************************************************************
  *
  * MADT - Multiple APIC Description Table
+ *        Version 3
  *
  ******************************************************************************/
 
@@ -524,16 +608,16 @@ struct acpi_table_madt {
 	u32 flags;
 };
 
-/* Flags */
+/* Masks for Flags field above */
 
-#define ACPI_MADT_PCAT_COMPAT       (1)	/* 00:    System also has dual 8259s */
+#define ACPI_MADT_PCAT_COMPAT       (1)	/* 00: System also has dual 8259s */
 
 /* Values for PCATCompat flag */
 
 #define ACPI_MADT_DUAL_PIC          0
 #define ACPI_MADT_MULTIPLE_APIC     1
 
-/* Values for subtable type in struct acpi_subtable_header */
+/* Values for MADT subtable type in struct acpi_subtable_header */
 
 enum acpi_madt_type {
 	ACPI_MADT_TYPE_LOCAL_APIC = 0,
@@ -644,7 +728,7 @@ struct acpi_madt_interrupt_source {
 	u32 flags;		/* Interrupt Source Flags */
 };
 
-/* Flags field above */
+/* Masks for Flags field above */
 
 #define ACPI_MADT_CPEI_OVERRIDE     (1)
 
@@ -695,7 +779,34 @@ struct acpi_madt_local_x2apic_nmi {
 
 /*******************************************************************************
  *
+ * MSCT - Maximum System Characteristics Table (ACPI 4.0)
+ *        Version 1
+ *
+ ******************************************************************************/
+
+struct acpi_table_msct {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u32 proximity_offset;	/* Location of proximity info struct(s) */
+	u32 max_proximity_domains;	/* Max number of proximity domains */
+	u32 max_clock_domains;	/* Max number of clock domains */
+	u64 max_address;	/* Max physical address in system */
+};
+
+/* Subtable - Maximum Proximity Domain Information. Version 1 */
+
+struct acpi_msct_proximity {
+	u8 revision;
+	u8 length;
+	u32 range_start;	/* Start of domain range */
+	u32 range_end;		/* End of domain range */
+	u32 processor_capacity;
+	u64 memory_capacity;	/* In bytes */
+};
+
+/*******************************************************************************
+ *
  * SBST - Smart Battery Specification Table
+ *        Version 1
  *
  ******************************************************************************/
 
@@ -709,6 +820,7 @@ struct acpi_table_sbst {
 /*******************************************************************************
  *
  * SLIT - System Locality Distance Information Table
+ *        Version 1
  *
  ******************************************************************************/
 
@@ -721,6 +833,7 @@ struct acpi_table_slit {
 /*******************************************************************************
  *
  * SRAT - System Resource Affinity Table
+ *        Version 3
  *
  ******************************************************************************/
 
@@ -754,6 +867,10 @@ struct acpi_srat_cpu_affinity {
 	u8 proximity_domain_hi[3];
 	u32 reserved;		/* Reserved, must be zero */
 };
+
+/* Flags */
+
+#define ACPI_SRAT_CPU_USE_AFFINITY  (1)	/* 00: Use affinity structure */
 
 /* 1: Memory Affinity */
 
