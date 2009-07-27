@@ -57,7 +57,6 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 	Elf32_Rela *rela = (void *)sechdrs[relsec].sh_addr;
 	Elf32_Sym *sym;
 	unsigned long int *location;
-	unsigned long int locoffs;
 	unsigned long int value;
 #if __GNUC__ < 4
 	unsigned long int old_value;
@@ -113,16 +112,26 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			break;
 
 		case R_MICROBLAZE_64_PCREL:
-			locoffs = (location[0] & 0xFFFF) << 16 |
+#if __GNUC__ < 4
+			old_value = (location[0] & 0xFFFF) << 16 |
 				(location[1] & 0xFFFF);
-			value -= (unsigned long int)(location) + 4 +
-				locoffs;
+			value -= old_value;
+#endif
+			value -= (unsigned long int)(location) + 4;
 			location[0] = (location[0] & 0xFFFF0000) |
 					(value >> 16);
 			location[1] = (location[1] & 0xFFFF0000) |
 					(value & 0xFFFF);
 			pr_debug("R_MICROBLAZE_64_PCREL (%08lx)\n",
 				value);
+			break;
+
+		case R_MICROBLAZE_32_PCREL_LO:
+			pr_debug("R_MICROBLAZE_32_PCREL_LO\n");
+			break;
+
+		case R_MICROBLAZE_64_NONE:
+			pr_debug("R_MICROBLAZE_NONE\n");
 			break;
 
 		case R_MICROBLAZE_NONE:
@@ -133,7 +142,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			printk(KERN_ERR "module %s: "
 				"Unknown relocation: %u\n",
 				module->name,
-				ELF32_R_TYPE(rela->r_info));
+				ELF32_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;
 		}
 	}
