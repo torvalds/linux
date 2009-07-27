@@ -787,8 +787,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	int ret = 0;
 
 	ret = xhci_check_args(hcd, udev, ep, 1, __func__);
-	if (ret <= 0)
+	if (ret <= 0) {
+		/* So we won't queue a reset ep command for a root hub */
+		ep->hcpriv = NULL;
 		return ret;
+	}
 	xhci = hcd_to_xhci(hcd);
 
 	added_ctxs = xhci_get_endpoint_flag(&ep->desc);
@@ -850,6 +853,9 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		in_ctx->slot.dev_info |= LAST_CTX(last_ctx);
 	}
 	new_slot_info = in_ctx->slot.dev_info;
+
+	/* Store the usb_device pointer for later use */
+	ep->hcpriv = udev;
 
 	xhci_dbg(xhci, "add ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x, new slot info = %#x\n",
 			(unsigned int) ep->desc.bEndpointAddress,
@@ -1024,6 +1030,42 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		}
 	}
 	xhci_zero_in_ctx(virt_dev);
+}
+
+/* Deal with stalled endpoints.  The core should have sent the control message
+ * to clear the halt condition.  However, we need to make the xHCI hardware
+ * reset its sequence number, since a device will expect a sequence number of
+ * zero after the halt condition is cleared.
+ * Context: in_interrupt
+ */
+void xhci_endpoint_reset(struct usb_hcd *hcd,
+		struct usb_host_endpoint *ep)
+{
+	struct xhci_hcd *xhci;
+	struct usb_device *udev;
+	unsigned int ep_index;
+	unsigned long flags;
+	int ret;
+
+	xhci = hcd_to_xhci(hcd);
+	udev = (struct usb_device *) ep->hcpriv;
+	/* Called with a root hub endpoint (or an endpoint that wasn't added
+	 * with xhci_add_endpoint()
+	 */
+	if (!ep->hcpriv)
+		return;
+	ep_index = xhci_get_endpoint_index(&ep->desc);
+
+	xhci_dbg(xhci, "Queueing reset endpoint command\n");
+	spin_lock_irqsave(&xhci->lock, flags);
+	ret = xhci_queue_reset_ep(xhci, udev->slot_id, ep_index);
+	if (!ret) {
+		xhci_ring_cmd_db(xhci);
+	}
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	if (ret)
+		xhci_warn(xhci, "FIXME allocate a new ring segment\n");
 }
 
 /*

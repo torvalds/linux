@@ -279,7 +279,8 @@ static void ring_ep_doorbell(struct xhci_hcd *xhci,
 	/* Don't ring the doorbell for this endpoint if there are pending
 	 * cancellations because the we don't want to interrupt processing.
 	 */
-	if (!ep_ring->cancels_pending && !(ep_ring->state & SET_DEQ_PENDING)) {
+	if (!ep_ring->cancels_pending && !(ep_ring->state & SET_DEQ_PENDING)
+			&& !(ep_ring->state & EP_HALTED)) {
 		field = xhci_readl(xhci, db_addr) & DB_MASK;
 		xhci_writel(xhci, field | EPI_TO_DB(ep_index), db_addr);
 		/* Flush PCI posted writes - FIXME Matthew Wilcox says this
@@ -603,6 +604,25 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 	ring_ep_doorbell(xhci, slot_id, ep_index);
 }
 
+static void handle_reset_ep_completion(struct xhci_hcd *xhci,
+		struct xhci_event_cmd *event,
+		union xhci_trb *trb)
+{
+	int slot_id;
+	unsigned int ep_index;
+
+	slot_id = TRB_TO_SLOT_ID(trb->generic.field[3]);
+	ep_index = TRB_TO_EP_INDEX(trb->generic.field[3]);
+	/* This command will only fail if the endpoint wasn't halted,
+	 * but we don't care.
+	 */
+	xhci_dbg(xhci, "Ignoring reset ep completion code of %u\n",
+			(unsigned int) GET_COMP_CODE(event->status));
+
+	/* Clear our internal halted state and restart the ring */
+	xhci->devs[slot_id]->ep_rings[ep_index]->state &= ~EP_HALTED;
+	ring_ep_doorbell(xhci, slot_id, ep_index);
+}
 
 static void handle_cmd_completion(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
@@ -652,6 +672,9 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		break;
 	case TRB_TYPE(TRB_CMD_NOOP):
 		++xhci->noops_handled;
+		break;
+	case TRB_TYPE(TRB_RESET_EP):
+		handle_reset_ep_completion(xhci, event, xhci->cmd_ring->dequeue);
 		break;
 	default:
 		/* Skip over unknown commands on the event ring */
@@ -823,6 +846,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		break;
 	case COMP_STALL:
 		xhci_warn(xhci, "WARN: Stalled endpoint\n");
+		ep_ring->state |= EP_HALTED;
 		status = -EPIPE;
 		break;
 	case COMP_TRB_ERR:
@@ -1655,4 +1679,14 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 				deq_seg, deq_ptr);
 	return queue_command(xhci, (u32) addr | cycle_state, 0, 0,
 			trb_slot_id | trb_ep_index | type);
+}
+
+int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
+		unsigned int ep_index)
+{
+	u32 trb_slot_id = SLOT_ID_FOR_TRB(slot_id);
+	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
+	u32 type = TRB_TYPE(TRB_RESET_EP);
+
+	return queue_command(xhci, 0, 0, 0, trb_slot_id | trb_ep_index | type);
 }

@@ -848,8 +848,8 @@ union xhci_trb {
 #define TRB_CONFIG_EP		12
 /* Evaluate Context Command */
 #define TRB_EVAL_CONTEXT	13
-/* Reset Transfer Ring Command */
-#define TRB_RESET_RING		14
+/* Reset Endpoint Command */
+#define TRB_RESET_EP		14
 /* Stop Transfer Ring Command */
 #define TRB_STOP_RING		15
 /* Set Transfer Ring Dequeue Pointer Command */
@@ -929,6 +929,7 @@ struct xhci_ring {
 	unsigned int		cancels_pending;
 	unsigned int		state;
 #define SET_DEQ_PENDING		(1 << 0)
+#define EP_HALTED		(1 << 1)
 	/* The TRB that was last reported in a stopped endpoint ring */
 	union xhci_trb		*stopped_trb;
 	struct xhci_td		*stopped_td;
@@ -1128,6 +1129,7 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags);
 int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status);
 int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev, struct usb_host_endpoint *ep);
 int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev, struct usb_host_endpoint *ep);
+void xhci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep);
 int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 
@@ -1148,6 +1150,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
 int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id);
+int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
+		unsigned int ep_index);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
