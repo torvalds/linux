@@ -411,7 +411,7 @@ static int blkvsc_probe(struct device *device)
 	/* go! */
 	add_disk(blkdev->gd);
 
-	DPRINT_INFO(BLKVSC_DRV, "%s added!! capacity %llu sector_size %d", blkdev->gd->disk_name, blkdev->capacity, blkdev->sector_size);
+	DPRINT_INFO(BLKVSC_DRV, "%s added!! capacity %lu sector_size %d", blkdev->gd->disk_name, (unsigned long) blkdev->capacity, blkdev->sector_size);
 
 	return ret;
 
@@ -904,10 +904,10 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*reque
 
 	STORVSC_REQUEST *storvsc_req;
 
-	DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - req %p type %s start_sector %llu count %ld offset %d len %d\n",
+	DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - req %p type %s start_sector %lu count %ld offset %d len %d\n",
 		blkvsc_req,
 		(blkvsc_req->write)?"WRITE":"READ",
-		blkvsc_req->sector_start,
+		(unsigned long) blkvsc_req->sector_start,
 		blkvsc_req->sector_count,
 		blkvsc_req->request.DataBuffer.Offset,
 		blkvsc_req->request.DataBuffer.Length);
@@ -972,7 +972,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 	int pending=0;
 	struct blkvsc_request_group *group=NULL;
 
-	DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p sect %llu \n", blkdev, req, blk_rq_pos(req));
+	DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p sect %lu \n", blkdev, req, (unsigned long) blk_rq_pos(req));
 
 	/* Create a group to tie req to list of blkvsc_reqs */
 	group = (struct blkvsc_request_group*)kmem_cache_alloc(blkdev->request_pool, GFP_ATOMIC);
@@ -1075,8 +1075,8 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 	{
 		if (pending)
 		{
-			DPRINT_DBG(BLKVSC_DRV, "adding blkvsc_req to pending_list - blkvsc_req %p start_sect %llu sect_count %ld (%llu %ld)\n",
-				blkvsc_req, blkvsc_req->sector_start, blkvsc_req->sector_count, start_sector, num_sectors);
+			DPRINT_DBG(BLKVSC_DRV, "adding blkvsc_req to pending_list - blkvsc_req %p start_sect %lu sect_count %ld (%lu %ld)\n",
+				blkvsc_req, blkvsc_req->sector_start, blkvsc_req->sector_count, (unsigned long) start_sector, (unsigned long) num_sectors);
 
 			list_add_tail(&blkvsc_req->pend_entry, &blkdev->pending_list);
 		}
@@ -1089,8 +1089,8 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 				list_add_tail(&blkvsc_req->pend_entry, &blkdev->pending_list);
 			}
 
-			DPRINT_DBG(BLKVSC_DRV, "submitted blkvsc_req %p start_sect %llu sect_count %ld (%llu %ld) ret %d\n",
-				blkvsc_req, blkvsc_req->sector_start, blkvsc_req->sector_count, start_sector, num_sectors, ret);
+			DPRINT_DBG(BLKVSC_DRV, "submitted blkvsc_req %p start_sect %lu sect_count %ld (%lu %ld) ret %d\n",
+				blkvsc_req, (unsigned long) blkvsc_req->sector_start, blkvsc_req->sector_count, (unsigned long) start_sector, num_sectors, ret);
 		}
 	}
 
@@ -1129,12 +1129,12 @@ static void blkvsc_request_completion(STORVSC_REQUEST* request)
 
 	ASSERT(blkvsc_req->group);
 
-	DPRINT_DBG(BLKVSC_DRV, "blkdev %p blkvsc_req %p group %p type %s sect_start %llu sect_count %ld len %d group outstd %d total outstd %d\n",
+	DPRINT_DBG(BLKVSC_DRV, "blkdev %p blkvsc_req %p group %p type %s sect_start %lu sect_count %ld len %d group outstd %d total outstd %d\n",
 		blkdev,
 		blkvsc_req,
 		blkvsc_req->group,
 		(blkvsc_req->write)?"WRITE":"READ",
-		blkvsc_req->sector_start,
+		(unsigned long) blkvsc_req->sector_start,
 		blkvsc_req->sector_count,
 		blkvsc_req->request.DataBuffer.Length,
 		blkvsc_req->group->outstanding,
@@ -1154,9 +1154,9 @@ static void blkvsc_request_completion(STORVSC_REQUEST* request)
 	{
 		list_for_each_entry_safe(comp_req, tmp, &blkvsc_req->group->blkvsc_req_list, req_entry)
 		{
-			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p sect_start %llu sect_count %ld \n",
+			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p sect_start %lu sect_count %ld \n",
 				comp_req,
-				comp_req->sector_start,
+				(unsigned long) comp_req->sector_start,
 				comp_req->sector_count);
 
 			list_del(&comp_req->req_entry);
@@ -1204,9 +1204,9 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 		 */
 		list_for_each_entry_safe(comp_req, tmp2, &pend_req->group->blkvsc_req_list, req_entry)
 		{
-			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p sect_start %llu sect_count %ld \n",
+			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p sect_start %lu sect_count %ld \n",
 				comp_req,
-				comp_req->sector_start,
+				(unsigned long) comp_req->sector_start,
 				comp_req->sector_count);
 
 			if (comp_req == pend_req)
