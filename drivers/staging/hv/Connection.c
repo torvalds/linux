@@ -29,7 +29,7 @@
 /* Globals */
 
 
-VMBUS_CONNECTION gVmbusConnection = {
+struct VMBUS_CONNECTION gVmbusConnection = {
 	.ConnectState		= Disconnected,
 	.NextGpadlHandle	= 0xE1E10,
 };

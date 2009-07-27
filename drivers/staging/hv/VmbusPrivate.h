@@ -63,7 +63,7 @@ enum VMBUS_CONNECT_STATE {
 
 #define MAX_SIZE_CHANNEL_MESSAGE			HV_MESSAGE_PAYLOAD_BYTE_COUNT
 
-typedef struct _VMBUS_CONNECTION {
+struct VMBUS_CONNECTION {
 
 	enum VMBUS_CONNECT_STATE					ConnectState;
 
@@ -94,7 +94,7 @@ typedef struct _VMBUS_CONNECTION {
 	spinlock_t channel_lock;
 
 	HANDLE								WorkQueue;
-} VMBUS_CONNECTION;
+};
 
 
 typedef struct _VMBUS_MSGINFO {
@@ -112,7 +112,7 @@ typedef struct _VMBUS_MSGINFO {
 
 /* Externs */
 
-extern VMBUS_CONNECTION gVmbusConnection;
+extern struct VMBUS_CONNECTION gVmbusConnection;
 
 
 /* General vmbus interface */
