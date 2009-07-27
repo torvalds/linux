@@ -264,6 +264,20 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.fill_dst =		xfrm4_fill_dst,
 };
 
+static struct ctl_table xfrm4_policy_table[] = {
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname       = "xfrm4_gc_thresh",
+		.data           = &xfrm4_dst_ops.gc_thresh,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+	{ }
+};
+
+static struct ctl_table_header *sysctl_hdr;
+
 static void __init xfrm4_policy_init(void)
 {
 	xfrm_policy_register_afinfo(&xfrm4_policy_afinfo);
@@ -271,6 +285,8 @@ static void __init xfrm4_policy_init(void)
 
 static void __exit xfrm4_policy_fini(void)
 {
+	if (sysctl_hdr)
+		unregister_net_sysctl_table(sysctl_hdr);
 	xfrm_policy_unregister_afinfo(&xfrm4_policy_afinfo);
 }
 
@@ -278,5 +294,7 @@ void __init xfrm4_init(void)
 {
 	xfrm4_state_init();
 	xfrm4_policy_init();
+	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv4_ctl_path,
+						xfrm4_policy_table);
 }
 

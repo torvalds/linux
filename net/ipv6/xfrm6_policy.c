@@ -306,6 +306,20 @@ static void xfrm6_policy_fini(void)
 	xfrm_policy_unregister_afinfo(&xfrm6_policy_afinfo);
 }
 
+static struct ctl_table xfrm6_policy_table[] = {
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname       = "xfrm6_gc_thresh",
+		.data	   	= &xfrm6_dst_ops.gc_thresh,
+		.maxlen	 	= sizeof(int),
+		.mode	   	= 0644,
+		.proc_handler   = proc_dointvec,
+	},
+	{ }
+};
+
+static struct ctl_table_header *sysctl_hdr;
+
 int __init xfrm6_init(void)
 {
 	int ret;
@@ -317,6 +331,8 @@ int __init xfrm6_init(void)
 	ret = xfrm6_state_init();
 	if (ret)
 		goto out_policy;
+	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv6_ctl_path,
+						xfrm6_policy_table);
 out:
 	return ret;
 out_policy:
@@ -326,6 +342,8 @@ out_policy:
 
 void xfrm6_fini(void)
 {
+	if (sysctl_hdr)
+		unregister_net_sysctl_table(sysctl_hdr);
 	//xfrm6_input_fini();
 	xfrm6_policy_fini();
 	xfrm6_state_fini();
