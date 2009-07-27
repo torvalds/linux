@@ -103,6 +103,12 @@ static ssize_t path_show (struct hotplug_slot *bss_hotplug_slot,
 	return retval;
 }
 
+struct hotplug_slot_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct hotplug_slot *, char *);
+	ssize_t (*store)(struct hotplug_slot *, const char *, size_t);
+};
+
 static struct hotplug_slot_attribute sn_slot_path_attr = __ATTR_RO(path);
 
 static int sn_pci_slot_valid(struct pci_bus *pci_bus, int device)
