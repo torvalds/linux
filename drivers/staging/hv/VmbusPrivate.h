@@ -97,7 +97,7 @@ struct VMBUS_CONNECTION {
 };
 
 
-typedef struct _VMBUS_MSGINFO {
+struct VMBUS_MSGINFO {
 	/* Bookkeeping stuff */
 	LIST_ENTRY			MsgListEntry;
 
@@ -106,7 +106,7 @@ typedef struct _VMBUS_MSGINFO {
 
 	/* The message itself */
 	unsigned char		Msg[0];
-} VMBUS_MSGINFO;
+};
 
 
 
