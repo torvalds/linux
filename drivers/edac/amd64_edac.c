@@ -970,7 +970,7 @@ static void amd64_read_dct_base_mask(struct amd64_pvt *pvt)
 	}
 
 	for (cs = 0; cs < pvt->num_dcsm; cs++) {
-		reg = K8_DCSB0 + (cs * 4);
+		reg = K8_DCSM0 + (cs * 4);
 		err = pci_read_config_dword(pvt->dram_f2_ctl, reg,
 					&pvt->dcsm0[cs]);
 		if (unlikely(err))
