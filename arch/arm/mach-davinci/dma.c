@@ -225,6 +225,7 @@ struct edma {
 	unsigned	num_slots;
 	unsigned	num_tc;
 	unsigned	num_cc;
+	enum dma_event_q 	default_queue;
 
 	/* list of channels with no even trigger; terminated by "-1" */
 	const s8	*noevent;
@@ -267,7 +268,7 @@ static void map_dmach_queue(unsigned ctlr, unsigned ch_no,
 
 	/* default to low priority queue */
 	if (queue_no == EVENTQ_DEFAULT)
-		queue_no = EVENTQ_1;
+		queue_no = edma_info[ctlr]->default_queue;
 
 	queue_no &= 7;
 	edma_modify_array(ctlr, EDMA_DMAQNUM, (ch_no >> 3),
@@ -1248,6 +1249,10 @@ static int __init edma_probe(struct platform_device *pdev)
 							EDMA_MAX_PARAMENTRY);
 		edma_info[j]->num_cc = min_t(unsigned, info[j].n_cc,
 							EDMA_MAX_CC);
+
+		edma_info[j]->default_queue = info[j].default_queue;
+		if (!edma_info[j]->default_queue)
+			edma_info[j]->default_queue = EVENTQ_1;
 
 		dev_dbg(&pdev->dev, "DMA REG BASE ADDR=%p\n",
 			edmacc_regs_base[j]);

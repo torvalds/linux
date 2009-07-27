@@ -741,6 +741,7 @@ static struct edma_soc_info dm365_edma_info[] = {
 		.n_cc			= 1,
 		.queue_tc_mapping	= dm365_queue_tc_mapping,
 		.queue_priority_mapping	= dm365_queue_priority_mapping,
+		.default_queue		= EVENTQ_2,
 	},
 };
 
