@@ -60,6 +60,8 @@ framerelay.txt
 	- info on using Frame Relay/Data Link Connection Identifier (DLCI).
 generic_netlink.txt
 	- info on Generic Netlink
+ieee802154.txt
+	- Linux IEEE 802.15.4 implementation, API and drivers
 ip-sysctl.txt
 	- /proc/sys/net/ipv4/* variables
 ip_dynaddr.txt

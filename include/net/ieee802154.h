@@ -23,8 +23,8 @@
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  */
 
-#ifndef IEEE802154_MAC_DEF_H
-#define IEEE802154_MAC_DEF_H
+#ifndef NET_IEEE802154_H
+#define NET_IEEE802154_H
 
 #define IEEE802154_FC_TYPE_BEACON	0x0	/* Frame is beacon */
 #define	IEEE802154_FC_TYPE_DATA		0x1	/* Frame is data */
