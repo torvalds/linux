@@ -226,6 +226,9 @@ enum sync_dimension {
 
 #define EDMA_CHANNEL_ANY		-1	/* for edma_alloc_channel() */
 #define EDMA_SLOT_ANY			-1	/* for edma_alloc_slot() */
+#define EDMA_CONT_PARAMS_ANY		 1001
+#define EDMA_CONT_PARAMS_FIXED_EXACT	 1002
+#define EDMA_CONT_PARAMS_FIXED_NOT_EXACT 1003
 
 /* alloc/free DMA channels and their dedicated parameter RAM slots */
 int edma_alloc_channel(int channel,
@@ -236,6 +239,10 @@ void edma_free_channel(unsigned channel);
 /* alloc/free parameter RAM slots */
 int edma_alloc_slot(unsigned ctlr, int slot);
 void edma_free_slot(unsigned slot);
+
+/* alloc/free a set of contiguous parameter RAM slots */
+int edma_alloc_cont_slots(unsigned ctlr, unsigned int id, int slot, int count);
+int edma_free_cont_slots(unsigned slot, int count);
 
 /* calls that operate on part of a parameter RAM slot */
 void edma_set_src(unsigned slot, dma_addr_t src_port,
