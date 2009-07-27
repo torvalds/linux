@@ -380,7 +380,12 @@ int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	tasklet_init(&vmbus_drv_ctx->event_dpc, vmbus_event_dpc, (unsigned long)vmbus_drv_obj);
 
 	/* Now, register the bus driver with LDM */
-	bus_register(&vmbus_drv_ctx->bus);
+	ret = bus_register(&vmbus_drv_ctx->bus);
+	if (ret)
+	{
+		ret = -1;
+		goto cleanup;
+	}
 
 	/* Get the interrupt resource */
 	ret = request_irq(vmbus_irq,
