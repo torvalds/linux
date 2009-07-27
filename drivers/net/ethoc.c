@@ -894,7 +894,7 @@ static int ethoc_probe(struct platform_device *pdev)
 
 	mmio = devm_request_mem_region(&pdev->dev, res->start,
 			res->end - res->start + 1, res->name);
-	if (!res) {
+	if (!mmio) {
 		dev_err(&pdev->dev, "cannot request I/O memory space\n");
 		ret = -ENXIO;
 		goto free;
