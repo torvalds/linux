@@ -1056,7 +1056,6 @@ static void ath_unregister_led(struct ath_led *led)
 
 static void ath_deinit_leds(struct ath_softc *sc)
 {
-	cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	ath_unregister_led(&sc->assoc_led);
 	sc->sc_flags &= ~SC_OP_LED_ASSOCIATED;
 	ath_unregister_led(&sc->tx_led);
@@ -1113,6 +1112,7 @@ static void ath_init_leds(struct ath_softc *sc)
 	return;
 
 fail:
+	cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	ath_deinit_leds(sc);
 }
 
@@ -1251,10 +1251,12 @@ void ath_detach(struct ath_softc *sc)
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Detach ATH hw\n");
 
-	ath_deinit_leds(sc);
+	cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_delayed_work_sync(&sc->wiphy_work);
 	cancel_work_sync(&sc->chan_work);
+
+	ath_deinit_leds(sc);
 
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
