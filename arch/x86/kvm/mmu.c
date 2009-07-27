@@ -393,37 +393,52 @@ static void mmu_free_rmap_desc(struct kvm_rmap_desc *rd)
  * Return the pointer to the largepage write count for a given
  * gfn, handling slots that are not large page aligned.
  */
-static int *slot_largepage_idx(gfn_t gfn, struct kvm_memory_slot *slot)
+static int *slot_largepage_idx(gfn_t gfn,
+			       struct kvm_memory_slot *slot,
+			       int level)
 {
 	unsigned long idx;
 
-	idx = (gfn / KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL)) -
-	      (slot->base_gfn / KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL));
-	return &slot->lpage_info[0][idx].write_count;
+	idx = (gfn / KVM_PAGES_PER_HPAGE(level)) -
+	      (slot->base_gfn / KVM_PAGES_PER_HPAGE(level));
+	return &slot->lpage_info[level - 2][idx].write_count;
 }
 
 static void account_shadowed(struct kvm *kvm, gfn_t gfn)
 {
+	struct kvm_memory_slot *slot;
 	int *write_count;
+	int i;
 
 	gfn = unalias_gfn(kvm, gfn);
-	write_count = slot_largepage_idx(gfn,
-					 gfn_to_memslot_unaliased(kvm, gfn));
-	*write_count += 1;
+
+	slot = gfn_to_memslot_unaliased(kvm, gfn);
+	for (i = PT_DIRECTORY_LEVEL;
+	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
+		write_count   = slot_largepage_idx(gfn, slot, i);
+		*write_count += 1;
+	}
 }
 
 static void unaccount_shadowed(struct kvm *kvm, gfn_t gfn)
 {
+	struct kvm_memory_slot *slot;
 	int *write_count;
+	int i;
 
 	gfn = unalias_gfn(kvm, gfn);
-	write_count = slot_largepage_idx(gfn,
-					 gfn_to_memslot_unaliased(kvm, gfn));
-	*write_count -= 1;
-	WARN_ON(*write_count < 0);
+	for (i = PT_DIRECTORY_LEVEL;
+	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
+		slot          = gfn_to_memslot_unaliased(kvm, gfn);
+		write_count   = slot_largepage_idx(gfn, slot, i);
+		*write_count -= 1;
+		WARN_ON(*write_count < 0);
+	}
 }
 
-static int has_wrprotected_page(struct kvm *kvm, gfn_t gfn)
+static int has_wrprotected_page(struct kvm *kvm,
+				gfn_t gfn,
+				int level)
 {
 	struct kvm_memory_slot *slot;
 	int *largepage_idx;
@@ -431,47 +446,67 @@ static int has_wrprotected_page(struct kvm *kvm, gfn_t gfn)
 	gfn = unalias_gfn(kvm, gfn);
 	slot = gfn_to_memslot_unaliased(kvm, gfn);
 	if (slot) {
-		largepage_idx = slot_largepage_idx(gfn, slot);
+		largepage_idx = slot_largepage_idx(gfn, slot, level);
 		return *largepage_idx;
 	}
 
 	return 1;
 }
 
-static int host_largepage_backed(struct kvm *kvm, gfn_t gfn)
+static int host_mapping_level(struct kvm *kvm, gfn_t gfn)
 {
+	unsigned long page_size = PAGE_SIZE;
 	struct vm_area_struct *vma;
 	unsigned long addr;
-	int ret = 0;
+	int i, ret = 0;
 
 	addr = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(addr))
-		return ret;
+		return page_size;
 
 	down_read(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, addr);
-	if (vma && is_vm_hugetlb_page(vma))
-		ret = 1;
+	if (!vma)
+		goto out;
+
+	page_size = vma_kernel_pagesize(vma);
+
+out:
 	up_read(&current->mm->mmap_sem);
+
+	for (i = PT_PAGE_TABLE_LEVEL;
+	     i < (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES); ++i) {
+		if (page_size >= KVM_HPAGE_SIZE(i))
+			ret = i;
+		else
+			break;
+	}
 
 	return ret;
 }
 
-static int is_largepage_backed(struct kvm_vcpu *vcpu, gfn_t large_gfn)
+static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
 {
 	struct kvm_memory_slot *slot;
-
-	if (has_wrprotected_page(vcpu->kvm, large_gfn))
-		return 0;
-
-	if (!host_largepage_backed(vcpu->kvm, large_gfn))
-		return 0;
+	int host_level;
+	int level = PT_PAGE_TABLE_LEVEL;
 
 	slot = gfn_to_memslot(vcpu->kvm, large_gfn);
 	if (slot && slot->dirty_bitmap)
-		return 0;
+		return PT_PAGE_TABLE_LEVEL;
 
-	return 1;
+	host_level = host_mapping_level(vcpu->kvm, large_gfn);
+
+	if (host_level == PT_PAGE_TABLE_LEVEL)
+		return host_level;
+
+	for (level = PT_DIRECTORY_LEVEL; level <= host_level; ++level) {
+
+		if (has_wrprotected_page(vcpu->kvm, large_gfn, level))
+			break;
+	}
+
+	return level - 1;
 }
 
 /*
@@ -1733,7 +1768,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	if ((pte_access & ACC_WRITE_MASK)
 	    || (write_fault && !is_write_protection(vcpu) && !user_fault)) {
 
-		if (largepage && has_wrprotected_page(vcpu->kvm, gfn)) {
+		if (largepage && has_wrprotected_page(vcpu->kvm, gfn, 1)) {
 			ret = 1;
 			spte = shadow_trap_nonpresent_pte;
 			goto set_pte;
@@ -1884,8 +1919,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	pfn_t pfn;
 	unsigned long mmu_seq;
 
-	if (is_largepage_backed(vcpu, gfn &
-			~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1))) {
+	if (mapping_level(vcpu, gfn) == PT_DIRECTORY_LEVEL) {
 		gfn &= ~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
 		largepage = 1;
 	}
@@ -2091,8 +2125,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 	if (r)
 		return r;
 
-	if (is_largepage_backed(vcpu, gfn &
-			~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1))) {
+	if (mapping_level(vcpu, gfn) == PT_DIRECTORY_LEVEL) {
 		gfn &= ~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
 		largepage = 1;
 	}
@@ -2494,7 +2527,8 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		return;
 	gfn = (gpte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
 
-	if (is_large_pte(gpte) && is_largepage_backed(vcpu, gfn)) {
+	if (is_large_pte(gpte) &&
+	    (mapping_level(vcpu, gfn) == PT_DIRECTORY_LEVEL)) {
 		gfn &= ~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
 		vcpu->arch.update_pte.largepage = 1;
 	}

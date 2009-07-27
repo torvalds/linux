@@ -407,8 +407,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (walker.level == PT_DIRECTORY_LEVEL) {
 		gfn_t large_gfn;
 		large_gfn = walker.gfn &
-			~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
-		if (is_largepage_backed(vcpu, large_gfn)) {
+			    ~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
+		if (mapping_level(vcpu, large_gfn) == PT_DIRECTORY_LEVEL) {
 			walker.gfn = large_gfn;
 			largepage = 1;
 		}
