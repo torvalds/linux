@@ -8,52 +8,6 @@
 #include <linux/linkage.h>
 #include <asm/page.h>
 
-/*
- * clear_page
- * @to: P1 address
- *
- * void clear_page(void *to)
- */
-
-/*
- * r0 --- scratch
- * r4 --- to
- * r5 --- to + PAGE_SIZE
- */
-ENTRY(clear_page)
-	mov	r4,r5
-	mov.l	.Llimit,r0
-	add	r0,r5
-	mov	#0,r0
-	!
-1:
-#if defined(CONFIG_CPU_SH4)
-	movca.l	r0,@r4
-	mov	r4,r1
-#else
-	mov.l	r0,@r4
-#endif
-	add	#32,r4
-	mov.l	r0,@-r4
-	mov.l	r0,@-r4
-	mov.l	r0,@-r4
-	mov.l	r0,@-r4
-	mov.l	r0,@-r4
-	mov.l	r0,@-r4
-	mov.l	r0,@-r4
-#if defined(CONFIG_CPU_SH4)
-	ocbwb	@r1
-#endif
-	cmp/eq	r5,r4
-	bf/s	1b
-	 add	#28,r4
-	!
-	rts
-	 nop
-
-	.balign 4
-.Llimit:	.long	(PAGE_SIZE-28)
-
 ENTRY(__clear_user)
 	!
 	mov	#0, r0

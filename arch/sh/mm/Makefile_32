@@ -31,7 +31,7 @@ tlb-$(CONFIG_CPU_HAS_PTEAEX)	:= tlb-pteaex.o
 obj-y				+= $(tlb-y)
 ifndef CONFIG_CACHE_OFF
 obj-$(CONFIG_CPU_SH4)		+= pg-sh4.o
-obj-$(CONFIG_SH7705_CACHE_32KB)	+= pg-sh7705.o
+obj-$(CONFIG_SH7705_CACHE_32KB)	+= pg-sh4.o
 endif
 endif
 

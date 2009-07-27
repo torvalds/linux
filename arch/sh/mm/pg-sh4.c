@@ -2,7 +2,7 @@
  * arch/sh/mm/pg-sh4.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- * Copyright (C) 2002 - 2007  Paul Mundt
+ * Copyright (C) 2002 - 2009  Paul Mundt
  *
  * Released under the terms of the GNU GPL v2.0.
  */
@@ -56,20 +56,6 @@ static inline void kunmap_coherent(struct page *page)
 {
 	dec_preempt_count();
 	preempt_check_resched();
-}
-
-/*
- * clear_user_page
- * @to: P1 address
- * @address: U0 address to be mapped
- * @page: page (virt_to_page(to))
- */
-void clear_user_page(void *to, unsigned long address, struct page *page)
-{
-	clear_page(to);
-
-	if (pages_do_alias((unsigned long)to, address & PAGE_MASK))
-		__flush_wback_region(to, PAGE_SIZE);
 }
 
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
@@ -128,3 +114,16 @@ void copy_user_highpage(struct page *to, struct page *from,
 	smp_wmb();
 }
 EXPORT_SYMBOL(copy_user_highpage);
+
+void clear_user_highpage(struct page *page, unsigned long vaddr)
+{
+	void *kaddr = kmap_atomic(page, KM_USER0);
+
+	clear_page(kaddr);
+
+	if (pages_do_alias((unsigned long)kaddr, vaddr & PAGE_MASK))
+		__flush_wback_region(kaddr, PAGE_SIZE);
+
+	kunmap_atomic(kaddr, KM_USER0);
+}
+EXPORT_SYMBOL(clear_user_highpage);

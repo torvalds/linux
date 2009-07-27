@@ -1,7 +1,7 @@
 /*
  * arch/sh/mm/pg-nommu.c
  *
- * clear_page()/copy_page() implementation for MMUless SH.
+ * copy_page()/__copy_user()/__clear_user() implementations for MMUless SH.
  *
  * Copyright (C) 2003  Paul Mundt
  *
@@ -18,11 +18,6 @@
 void copy_page(void *to, void *from)
 {
 	memcpy(to, from, PAGE_SIZE);
-}
-
-void clear_page(void *to)
-{
-	memset(to, 0, PAGE_SIZE);
 }
 
 __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n)

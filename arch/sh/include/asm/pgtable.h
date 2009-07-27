@@ -141,7 +141,8 @@ extern void paging_init(void);
 extern void page_table_range_init(unsigned long start, unsigned long end,
 				  pgd_t *pgd);
 
-#if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_CPU_SH4) && defined(CONFIG_MMU)
+#if !defined(CONFIG_CACHE_OFF) && (defined(CONFIG_CPU_SH4) || \
+    defined(CONFIG_SH7705_CACHE_32KB)) && defined(CONFIG_MMU)
 extern void kmap_coherent_init(void);
 #else
 #define kmap_coherent_init()	do { } while (0)

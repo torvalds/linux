@@ -56,21 +56,25 @@ pages_do_alias(unsigned long addr1, unsigned long addr2)
 	return (addr1 ^ addr2) & shm_align_mask;
 }
 
-extern void clear_page(void *to);
+
+#define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
 extern void copy_page(void *to, void *from);
+
+struct page;
+struct vm_area_struct;
 
 #if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_MMU) && \
 	(defined(CONFIG_CPU_SH5) || defined(CONFIG_CPU_SH4) || \
 	 defined(CONFIG_SH7705_CACHE_32KB))
-struct page;
-struct vm_area_struct;
 extern void clear_user_page(void *to, unsigned long address, struct page *page);
 extern void copy_user_page(void *to, void *from, unsigned long address,
 			   struct page *page);
-#if defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
 extern void copy_user_highpage(struct page *to, struct page *from,
 			       unsigned long vaddr, struct vm_area_struct *vma);
 #define __HAVE_ARCH_COPY_USER_HIGHPAGE
+extern void clear_user_highpage(struct page *page, unsigned long vaddr);
+#define clear_user_highpage	clear_user_highpage
 #endif
 #else
 #define clear_user_page(page, vaddr, pg)	clear_page(page)

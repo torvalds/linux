@@ -49,7 +49,7 @@ static inline void flush_kernel_dcache_page(struct page *page)
 	flush_dcache_page(page);
 }
 
-#if defined(CONFIG_CPU_SH4) && !defined(CONFIG_CACHE_OFF)
+#if (defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)) && !defined(CONFIG_CACHE_OFF)
 extern void copy_to_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
 	unsigned long len);
