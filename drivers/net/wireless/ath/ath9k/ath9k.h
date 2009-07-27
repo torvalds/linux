@@ -237,7 +237,6 @@ struct ath_txq {
 	spinlock_t axq_lock;
 	u32 axq_depth;
 	u8 axq_aggr_depth;
-	u32 axq_totalqueued;
 	bool stopped;
 	bool axq_tx_inprogress;
 	struct ath_buf *axq_linkbuf;
