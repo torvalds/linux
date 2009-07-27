@@ -69,7 +69,7 @@ enum {
 #define CQE_STATUS_EXTD_MASK		0xFFFF
 #define CQE_STATUS_EXTD_SHIFT		0	/* bits 0 - 15 */
 
-struct be_mcc_cq_entry {
+struct be_mcc_compl {
 	u32 status;		/* dword 0 */
 	u32 tag0;		/* dword 1 */
 	u32 tag1;		/* dword 2 */
@@ -106,7 +106,7 @@ struct be_async_event_link_state {
 
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
-	struct be_mcc_cq_entry cqe;
+	struct be_mcc_compl compl;
 };
 
 #define CMD_SUBSYSTEM_COMMON	0x1

@@ -1058,7 +1058,7 @@ static int be_mcc_queues_create(struct be_adapter *adapter)
 	/* Alloc MCC compl queue */
 	cq = &adapter->mcc_obj.cq;
 	if (be_queue_alloc(adapter, cq, MCC_CQ_LEN,
-			sizeof(struct be_mcc_cq_entry)))
+			sizeof(struct be_mcc_compl)))
 		goto err;
 
 	/* Ask BE to create MCC compl queue; share TX's eq */
