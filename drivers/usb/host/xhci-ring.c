@@ -1285,6 +1285,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* Queue the first TRB, even if it's zero-length */
 	do {
 		u32 field = 0;
+		u32 length_field = 0;
 
 		/* Don't change the cycle bit of the first TRB until later */
 		if (first_trb)
@@ -1314,10 +1315,13 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 					(unsigned int) (addr + TRB_MAX_BUFF_SIZE) & ~(TRB_MAX_BUFF_SIZE - 1),
 					(unsigned int) addr + trb_buff_len);
 		}
+		length_field = TRB_LEN(trb_buff_len) |
+			TD_REMAINDER(urb->transfer_buffer_length - running_total) |
+			TRB_INTR_TARGET(0);
 		queue_trb(xhci, ep_ring, false,
 				(u32) addr,
 				(u32) ((u64) addr >> 32),
-				TRB_LEN(trb_buff_len) | TRB_INTR_TARGET(0),
+				length_field,
 				/* We always want to know if the TRB was short,
 				 * or we won't get an event when it completes.
 				 * (Unless we use event data TRBs, which are a
@@ -1365,7 +1369,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	struct xhci_generic_trb *start_trb;
 	bool first_trb;
 	int start_cycle;
-	u32 field;
+	u32 field, length_field;
 
 	int running_total, trb_buff_len, ret;
 	u64 addr;
@@ -1443,10 +1447,13 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			td->last_trb = ep_ring->enqueue;
 			field |= TRB_IOC;
 		}
+		length_field = TRB_LEN(trb_buff_len) |
+			TD_REMAINDER(urb->transfer_buffer_length - running_total) |
+			TRB_INTR_TARGET(0);
 		queue_trb(xhci, ep_ring, false,
 				(u32) addr,
 				(u32) ((u64) addr >> 32),
-				TRB_LEN(trb_buff_len) | TRB_INTR_TARGET(0),
+				length_field,
 				/* We always want to know if the TRB was short,
 				 * or we won't get an event when it completes.
 				 * (Unless we use event data TRBs, which are a
@@ -1478,7 +1485,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	struct usb_ctrlrequest *setup;
 	struct xhci_generic_trb *start_trb;
 	int start_cycle;
-	u32 field;
+	u32 field, length_field;
 	struct xhci_td *td;
 
 	ep_ring = xhci->devs[slot_id]->ep_rings[ep_index];
@@ -1528,13 +1535,16 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	/* If there's data, queue data TRBs */
 	field = 0;
+	length_field = TRB_LEN(urb->transfer_buffer_length) |
+		TD_REMAINDER(urb->transfer_buffer_length) |
+		TRB_INTR_TARGET(0);
 	if (urb->transfer_buffer_length > 0) {
 		if (setup->bRequestType & USB_DIR_IN)
 			field |= TRB_DIR_IN;
 		queue_trb(xhci, ep_ring, false,
 				lower_32_bits(urb->transfer_dma),
 				upper_32_bits(urb->transfer_dma),
-				TRB_LEN(urb->transfer_buffer_length) | TRB_INTR_TARGET(0),
+				length_field,
 				/* Event on short tx */
 				field | TRB_ISP | TRB_TYPE(TRB_DATA) | ep_ring->cycle_state);
 	}
