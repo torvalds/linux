@@ -125,7 +125,7 @@ static int blkvsc_remove(struct device *device);
 static void blkvsc_shutdown(struct device *device);
 
 static int blkvsc_open(struct block_device *bdev,  fmode_t mode);
-static int blkvsc_release(struct inode *inode, struct file *filep);
+static int blkvsc_release(struct gendisk *disk, fmode_t mode);
 static int blkvsc_media_changed(struct gendisk *gd);
 static int blkvsc_revalidate_disk(struct gendisk *gd);
 static int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg);
@@ -1341,9 +1341,9 @@ static int blkvsc_open(struct block_device *bdev,  fmode_t mode)
 	return 0;
 }
 
-static int blkvsc_release(struct inode *inode, struct file *filep)
+static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 {
-	struct block_device_context *blkdev = inode->i_bdev->bd_disk->private_data;
+	struct block_device_context *blkdev = disk->private_data;
 
 	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users, blkdev->gd->disk_name);
 
