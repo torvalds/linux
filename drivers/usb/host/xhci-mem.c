@@ -480,11 +480,13 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 
 	/* FIXME dig Mult and streams info out of ep companion desc */
 
-	/* Allow 3 retries for everything but isoc */
+	/* Allow 3 retries for everything but isoc;
+	 * error count = 0 means infinite retries.
+	 */
 	if (!usb_endpoint_xfer_isoc(&ep->desc))
 		ep_ctx->ep_info2 = ERROR_COUNT(3);
 	else
-		ep_ctx->ep_info2 = ERROR_COUNT(0);
+		ep_ctx->ep_info2 = ERROR_COUNT(1);
 
 	ep_ctx->ep_info2 |= xhci_get_endpoint_type(udev, ep);
 
