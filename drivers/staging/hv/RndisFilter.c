@@ -409,7 +409,7 @@ RndisFilterReceiveResponse(
 		}
 		else
 		{
-			DPRINT_ERR(NETVSC, "rndis response buffer overflow detected (size %u max %u)", Response->MessageLength, sizeof(RNDIS_FILTER_PACKET));
+			DPRINT_ERR(NETVSC, "rndis response buffer overflow detected (size %u max %lu)", Response->MessageLength, sizeof(RNDIS_FILTER_PACKET));
 
 			if (Response->NdisMessageType == REMOTE_NDIS_RESET_CMPLT) /* does not have a request id field */
 			{
@@ -539,7 +539,7 @@ RndisFilterOnReceive(
 
 	if ((rndisHeader->NdisMessageType != REMOTE_NDIS_PACKET_MSG) && (rndisHeader->MessageLength > sizeof(RNDIS_MESSAGE)))
 	{
-		DPRINT_ERR(NETVSC, "incoming rndis message buffer overflow detected (got %u, max %u)...marking it an error!",
+		DPRINT_ERR(NETVSC, "incoming rndis message buffer overflow detected (got %u, max %lu)...marking it an error!",
 			rndisHeader->MessageLength, sizeof(RNDIS_MESSAGE));
 	}
 
@@ -744,7 +744,7 @@ RndisFilterInit(
 {
 	DPRINT_ENTER(NETVSC);
 
-	DPRINT_DBG(NETVSC, "sizeof(RNDIS_FILTER_PACKET) == %d", sizeof(RNDIS_FILTER_PACKET));
+	DPRINT_DBG(NETVSC, "sizeof(RNDIS_FILTER_PACKET) == %ld", sizeof(RNDIS_FILTER_PACKET));
 
 	Driver->RequestExtSize = sizeof(RNDIS_FILTER_PACKET);
 	Driver->AdditionalRequestPageBufferCount = 1; /* For rndis header */
