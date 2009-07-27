@@ -16,6 +16,7 @@ extern void pci_cleanup_rom(struct pci_dev *dev);
 extern int pci_mmap_fits(struct pci_dev *pdev, int resno,
 			 struct vm_area_struct *vma);
 #endif
+int pci_probe_reset_function(struct pci_dev *dev);
 
 /**
  * struct pci_platform_pm_ops - Firmware PM callbacks
