@@ -1363,3 +1363,37 @@ int cfg80211_wext_giwap(struct net_device *dev,
 	}
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwap);
+
+int cfg80211_wext_siwessid(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *ssid)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_ADHOC:
+		return cfg80211_ibss_wext_siwessid(dev, info, data, ssid);
+	case NL80211_IFTYPE_STATION:
+		return cfg80211_mgd_wext_siwessid(dev, info, data, ssid);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwessid);
+
+int cfg80211_wext_giwessid(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *ssid)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_ADHOC:
+		return cfg80211_ibss_wext_giwessid(dev, info, data, ssid);
+	case NL80211_IFTYPE_STATION:
+		return cfg80211_mgd_wext_giwessid(dev, info, data, ssid);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwessid);

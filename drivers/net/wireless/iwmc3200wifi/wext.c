@@ -27,38 +27,6 @@
 #include "iwm.h"
 #include "commands.h"
 
-static int iwm_wext_siwessid(struct net_device *dev,
-			     struct iw_request_info *info,
-			     struct iw_point *data, char *ssid)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-
-	switch (iwm->conf.mode) {
-	case UMAC_MODE_IBSS:
-		return cfg80211_ibss_wext_siwessid(dev, info, data, ssid);
-	case UMAC_MODE_BSS:
-		return cfg80211_mgd_wext_siwessid(dev, info, data, ssid);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static int iwm_wext_giwessid(struct net_device *dev,
-			     struct iw_request_info *info,
-			     struct iw_point *data, char *ssid)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-
-	switch (iwm->conf.mode) {
-	case UMAC_MODE_IBSS:
-		return cfg80211_ibss_wext_giwessid(dev, info, data, ssid);
-	case UMAC_MODE_BSS:
-		return cfg80211_mgd_wext_giwessid(dev, info, data, ssid);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static const iw_handler iwm_handlers[] =
 {
 	(iw_handler) NULL,				/* SIOCSIWCOMMIT */
@@ -87,8 +55,8 @@ static const iw_handler iwm_handlers[] =
 	(iw_handler) NULL,				/* SIOCGIWAPLIST */
 	(iw_handler) cfg80211_wext_siwscan,		/* SIOCSIWSCAN */
 	(iw_handler) cfg80211_wext_giwscan,		/* SIOCGIWSCAN */
-	(iw_handler) iwm_wext_siwessid,			/* SIOCSIWESSID */
-	(iw_handler) iwm_wext_giwessid,			/* SIOCGIWESSID */
+	(iw_handler) cfg80211_wext_siwessid,		/* SIOCSIWESSID */
+	(iw_handler) cfg80211_wext_giwessid,		/* SIOCGIWESSID */
 	(iw_handler) NULL,				/* SIOCSIWNICKN */
 	(iw_handler) NULL,				/* SIOCGIWNICKN */
 	(iw_handler) NULL,				/* -- hole -- */

@@ -27,37 +27,6 @@
 #include "aes_ccm.h"
 
 
-static int ieee80211_ioctl_siwessid(struct net_device *dev,
-				    struct iw_request_info *info,
-				    struct iw_point *data, char *ssid)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return cfg80211_ibss_wext_siwessid(dev, info, data, ssid);
-	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		return cfg80211_mgd_wext_siwessid(dev, info, data, ssid);
-
-	return -EOPNOTSUPP;
-}
-
-
-static int ieee80211_ioctl_giwessid(struct net_device *dev,
-				    struct iw_request_info *info,
-				    struct iw_point *data, char *ssid)
-{
-	struct ieee80211_sub_if_data *sdata;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return cfg80211_ibss_wext_giwessid(dev, info, data, ssid);
-	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		return cfg80211_mgd_wext_giwessid(dev, info, data, ssid);
-
-	return -EOPNOTSUPP;
-}
-
 
 /* Structures to export the Wireless Handlers */
 
@@ -89,8 +58,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* SIOCGIWAPLIST */
 	(iw_handler) cfg80211_wext_siwscan,		/* SIOCSIWSCAN */
 	(iw_handler) cfg80211_wext_giwscan,		/* SIOCGIWSCAN */
-	(iw_handler) ieee80211_ioctl_siwessid,		/* SIOCSIWESSID */
-	(iw_handler) ieee80211_ioctl_giwessid,		/* SIOCGIWESSID */
+	(iw_handler) cfg80211_wext_siwessid,		/* SIOCSIWESSID */
+	(iw_handler) cfg80211_wext_giwessid,		/* SIOCGIWESSID */
 	(iw_handler) NULL,				/* SIOCSIWNICKN */
 	(iw_handler) NULL,				/* SIOCGIWNICKN */
 	(iw_handler) NULL,				/* -- hole -- */
