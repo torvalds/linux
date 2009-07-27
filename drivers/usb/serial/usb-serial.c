@@ -340,6 +340,22 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 
 	dbg("%s - port %d", __func__, port->number);
 
+	/* FIXME:
+	   This leaves a very narrow race. Really we should do the
+	   serial_do_free() on tty->shutdown(), but tty->shutdown can
+	   be called from IRQ context and serial_do_free can sleep.
+
+	   The right fix is probably to make the tty free (which is rare)
+	   and thus tty->shutdown() occur via a work queue and simplify all
+	   the drivers that use it.
+	*/
+	if (tty_hung_up_p(filp)) {
+		/* serial_hangup already called serial_down at this point.
+		   Another user may have already reopened the port but
+		   serial_do_free is refcounted */
+		serial_do_free(port);
+		return;
+	}
 
 	if (tty_port_close_start(&port->port, tty, filp) == 0)
 		return;
@@ -355,7 +371,8 @@ static void serial_hangup(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	serial_do_down(port);
 	tty_port_hangup(&port->port);
-	serial_do_free(port);
+	/* We must not free port yet - the USB serial layer depends on it's
+	   continued existence */
 }
 
 static int serial_write(struct tty_struct *tty, const unsigned char *buf,
