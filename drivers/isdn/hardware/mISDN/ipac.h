@@ -30,10 +30,10 @@ struct isac_hw {
 	u32			off;		/* offset to isac regs */
 	char			*name;
 	spinlock_t		*hwlock;	/* lock HW acccess */
-	read_reg_t		*read_reg;
-	write_reg_t		*write_reg;
-	fifo_func_t		*read_fifo;
-	fifo_func_t		*write_fifo;
+	read_reg_func		*read_reg;
+	write_reg_func		*write_reg;
+	fifo_func		*read_fifo;
+	fifo_func		*write_fifo;
 	int			(*monitor)(void *, u32, u8 *, int);
 	void			(*release)(struct isac_hw *);
 	int			(*init)(struct isac_hw *);
@@ -73,10 +73,10 @@ struct ipac_hw {
 	spinlock_t		*hwlock;	/* lock HW acccess */
 	struct module		*owner;
 	u32			type;
-	read_reg_t		*read_reg;
-	write_reg_t		*write_reg;
-	fifo_func_t		*read_fifo;
-	fifo_func_t		*write_fifo;
+	read_reg_func		*read_reg;
+	write_reg_func		*write_reg;
+	fifo_func		*read_fifo;
+	fifo_func		*write_fifo;
 	void			(*release)(struct ipac_hw *);
 	int			(*init)(struct ipac_hw *);
 	int			(*ctrl)(struct ipac_hw *, u32, u_long);

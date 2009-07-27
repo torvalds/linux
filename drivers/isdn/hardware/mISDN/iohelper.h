@@ -26,9 +26,9 @@
 #ifndef _IOHELPER_H
 #define _IOHELPER_H
 
-typedef	u8	(read_reg_t)(void *, u8);
-typedef	void	(write_reg_t)(void *, u8, u8);
-typedef	void	(fifo_func_t)(void *, u8, u8 *, int);
+typedef	u8	(read_reg_func)(void *hwp, u8 offset);
+typedef	void	(write_reg_func)(void *hwp, u8 offset, u8 value);
+typedef	void	(fifo_func)(void *hwp, u8 offset, u8 *datap, int size);
 
 struct _ioport {
 	u32	port;
@@ -90,7 +90,7 @@ struct _ioport {
 			*dp++ = readb(((typ *)hw->adr) + off);\
 	} \
 	static void WriteFiFo##name##_MIO(void *p, u8 off, u8 *dp, int size) {\
-		struct inf_hw *hw = p;\
+		struct hws *hw = p;\
 		while (size--)\
 			writeb(*dp++, ((typ *)hw->adr) + off);\
 	}
