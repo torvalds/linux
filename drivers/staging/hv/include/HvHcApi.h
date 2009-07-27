@@ -24,9 +24,9 @@
 
 #pragma once
 
-//
-// Declare the various hypercall operations.
-//
+
+/* Declare the various hypercall operations. */
+
 typedef enum _HV_CALL_CODE
 {
 
@@ -34,9 +34,9 @@ typedef enum _HV_CALL_CODE
     HvCallSignalEvent                   = 0x005d,
 
 } HV_CALL_CODE, *PHV_CALL_CODE;
-//
-// Definition of the HvPostMessage hypercall input structure.
-//
+
+/* Definition of the HvPostMessage hypercall input structure. */
+
 
 typedef struct _HV_INPUT_POST_MESSAGE
 {
@@ -48,9 +48,9 @@ typedef struct _HV_INPUT_POST_MESSAGE
 } HV_INPUT_POST_MESSAGE, *PHV_INPUT_POST_MESSAGE;
 
 
-//
-// Definition of the HvSignalEvent hypercall input structure.
-//
+
+/* Definition of the HvSignalEvent hypercall input structure. */
+
 
 typedef struct _HV_INPUT_SIGNAL_EVENT
 {

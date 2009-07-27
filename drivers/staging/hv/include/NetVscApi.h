@@ -27,22 +27,22 @@
 
 #include "VmbusApi.h"
 
-//
-// Defines
-//
+
+/* Defines */
+
 #define NETVSC_DEVICE_RING_BUFFER_SIZE			64*PAGE_SIZE
 
 #define HW_MACADDR_LEN		6
 
-//
-// Fwd declaration
-//
+
+/* Fwd declaration */
+
 typedef struct _NETVSC_PACKET	*PNETVSC_PACKET;
 
 
-//
-// Data types
-//
+
+/* Data types */
+
 
 typedef int (*PFN_ON_OPEN)(DEVICE_OBJECT *Device);
 typedef int (*PFN_ON_CLOSE)(DEVICE_OBJECT *Device);
@@ -54,27 +54,33 @@ typedef void (*PFN_ON_SENDRECVCOMPLETION)(void * Context);
 typedef int (*PFN_ON_RECVCALLBACK)(DEVICE_OBJECT *dev, PNETVSC_PACKET packet);
 typedef void (*PFN_ON_LINKSTATUS_CHANGED)(DEVICE_OBJECT *dev, u32 Status);
 
-// Represent the xfer page packet which contains 1 or more netvsc packet
+/* Represent the xfer page packet which contains 1 or more netvsc packet */
 typedef struct _XFERPAGE_PACKET {
 	DLIST_ENTRY			ListEntry;
 
-	// # of netvsc packets this xfer packet contains
+	/* # of netvsc packets this xfer packet contains */
 	u32				Count;
 } XFERPAGE_PACKET;
 
 
-// The number of pages which are enough to cover jumbo frame buffer.
+/* The number of pages which are enough to cover jumbo frame buffer. */
 #define NETVSC_PACKET_MAXPAGE  4
 
-// Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame within the RNDIS
+/*
+ * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
+ * within the RNDIS
+ */
 typedef struct _NETVSC_PACKET {
-	// Bookkeeping stuff
+	/* Bookkeeping stuff */
 	DLIST_ENTRY				ListEntry;
 
 	DEVICE_OBJECT			*Device;
 	bool					IsDataPacket;
 
-	// Valid only for receives when we break a xfer page packet into multiple netvsc packets
+	/*
+	 * Valid only for receives when we break a xfer page packet
+	 * into multiple netvsc packets
+	 */
 	XFERPAGE_PACKET		*XferPagePacket;
 
 	union {
@@ -90,40 +96,42 @@ typedef struct _NETVSC_PACKET {
 		} Send;
 	} Completion;
 
-	// This points to the memory after PageBuffers
+	/* This points to the memory after PageBuffers */
 	void *					Extension;
 
 	u32					TotalDataBufferLength;
-	// Points to the send/receive buffer where the ethernet frame is
+	/* Points to the send/receive buffer where the ethernet frame is */
 	u32					PageBufferCount;
 	PAGE_BUFFER				PageBuffers[NETVSC_PACKET_MAXPAGE];
 
 } NETVSC_PACKET;
 
 
-// Represents the net vsc driver
+/* Represents the net vsc driver */
 typedef struct _NETVSC_DRIVER_OBJECT {
-	DRIVER_OBJECT				Base; // Must be the first field
+	DRIVER_OBJECT				Base; /* Must be the first field */
 
 	u32						RingBufferSize;
 	u32						RequestExtSize;
 
-	// Additional num  of page buffers to allocate
+	/* Additional num  of page buffers to allocate */
 	u32						AdditionalRequestPageBufferCount;
 
-	// This is set by the caller to allow us to callback when we receive a packet
-	// from the "wire"
+	/*
+	 * This is set by the caller to allow us to callback when we
+	 * receive a packet from the "wire"
+	 */
 	PFN_ON_RECVCALLBACK			OnReceiveCallback;
 
 	PFN_ON_LINKSTATUS_CHANGED	OnLinkStatusChanged;
 
-	// Specific to this driver
+	/* Specific to this driver */
 	PFN_ON_OPEN					OnOpen;
 	PFN_ON_CLOSE				OnClose;
 	PFN_ON_SEND					OnSend;
-	//PFN_ON_RECVCOMPLETION	OnReceiveCompletion;
+	/* PFN_ON_RECVCOMPLETION	OnReceiveCompletion; */
 
-	//PFN_QUERY_LINKSTATUS		QueryLinkStatus;
+	/* PFN_QUERY_LINKSTATUS		QueryLinkStatus; */
 
 	void*						Context;
 } NETVSC_DRIVER_OBJECT;
@@ -131,15 +139,15 @@ typedef struct _NETVSC_DRIVER_OBJECT {
 
 typedef struct _NETVSC_DEVICE_INFO {
     unsigned char	MacAddr[6];
-    bool	LinkState;	// 0 - link up, 1 - link down
+    bool	LinkState;	/* 0 - link up, 1 - link down */
 } NETVSC_DEVICE_INFO;
 
-//
-// Interface
-//
+
+/* Interface */
+
 int
 NetVscInitialize(
 	DRIVER_OBJECT* drv
 	);
 
-#endif // _NETVSC_API_H_
+#endif /* _NETVSC_API_H_ */

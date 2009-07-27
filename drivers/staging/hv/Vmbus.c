@@ -27,29 +27,31 @@
 #include "VersionInfo.h"
 #include "VmbusPrivate.h"
 
-//
-// Globals
-//
+
+/* Globals */
+
 static const char* gDriverName="vmbus";
 
-// Windows vmbus does not defined this. We defined this to be consistent with other devices
-//{c5295816-f63a-4d5f-8d1a-4daf999ca185}
+/* Windows vmbus does not defined this.
+ * We defined this to be consistent with other devices
+ */
+/* {c5295816-f63a-4d5f-8d1a-4daf999ca185} */
 static const GUID gVmbusDeviceType={
 	.Data = {0x16, 0x58, 0x29, 0xc5, 0x3a, 0xf6, 0x5f, 0x4d, 0x8d, 0x1a, 0x4d, 0xaf, 0x99, 0x9c, 0xa1, 0x85}
 };
 
-//{ac3760fc-9adf-40aa-9427-a70ed6de95c5}
+/* {ac3760fc-9adf-40aa-9427-a70ed6de95c5} */
 static const GUID gVmbusDeviceId={
 	.Data = {0xfc, 0x60, 0x37, 0xac, 0xdf, 0x9a, 0xaa, 0x40, 0x94, 0x27, 0xa7, 0x0e, 0xd6, 0xde, 0x95, 0xc5}
 };
 
-static DRIVER_OBJECT* gDriver; // vmbus driver object
-static DEVICE_OBJECT* gDevice; // vmbus root device
+static DRIVER_OBJECT* gDriver; /* vmbus driver object */
+static DEVICE_OBJECT* gDevice; /* vmbus root device */
 
 
-//
-// Internal routines
-//
+
+/* Internal routines */
+
 
 static void
 VmbusGetChannelInterface(
@@ -129,7 +131,7 @@ VmbusInitialize(
 	drv->name = gDriverName;
 	memcpy(&drv->deviceType, &gVmbusDeviceType, sizeof(GUID));
 
-	// Setup dispatch table
+	/* Setup dispatch table */
 	driver->Base.OnDeviceAdd		= VmbusOnDeviceAdd;
 	driver->Base.OnDeviceRemove		= VmbusOnDeviceRemove;
 	driver->Base.OnCleanup			= VmbusOnCleanup;
@@ -140,7 +142,7 @@ VmbusInitialize(
 	driver->GetChannelInterface		= VmbusGetChannelInterface;
 	driver->GetChannelInfo			= VmbusGetChannelInfo;
 
-	// Hypervisor initialization...setup hypercall page..etc
+	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = HvInit();
 	if (ret != 0)
 	{
@@ -283,15 +285,18 @@ Description:
 	Release the child device from the vmbus
 
 --*/
-//void
-//VmbusChildDeviceDestroy(
-//	DEVICE_OBJECT* ChildDevice
-//	)
-//{
-//	VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
-//
-//	vmbusDriver->OnChildDeviceDestroy(ChildDevice);
-//}
+
+/* **************
+void
+VmbusChildDeviceDestroy(
+DEVICE_OBJECT* ChildDevice
+)
+{
+VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
+
+vmbusDriver->OnChildDeviceDestroy(ChildDevice);
+}
+************* */
 
 /*++
 
@@ -318,14 +323,14 @@ VmbusOnDeviceAdd(
 	memcpy(&gDevice->deviceType, &gVmbusDeviceType, sizeof(GUID));
 	memcpy(&gDevice->deviceInstance, &gVmbusDeviceId, sizeof(GUID));
 
-	//strcpy(dev->name, "vmbus");
-	// SynIC setup...
+	/* strcpy(dev->name, "vmbus"); */
+	/* SynIC setup... */
 	ret = HvSynicInit(*irqvector);
 
-	// Connect to VMBus in the root partition
+	/* Connect to VMBus in the root partition */
 	ret = VmbusConnect();
 
-	//VmbusSendEvent(device->localPortId+1);
+	/* VmbusSendEvent(device->localPortId+1); */
 	DPRINT_EXIT(VMBUS);
 
 	return ret;
@@ -375,7 +380,7 @@ VmbusOnCleanup(
 	DRIVER_OBJECT* drv
 	)
 {
-	//VMBUS_DRIVER_OBJECT* driver = (VMBUS_DRIVER_OBJECT*)drv;
+	/* VMBUS_DRIVER_OBJECT* driver = (VMBUS_DRIVER_OBJECT*)drv; */
 
 	DPRINT_ENTER(VMBUS);
 
@@ -405,7 +410,7 @@ VmbusOnMsgDPC(
 	HV_MESSAGE *copied;
 	while (1)
 	{
-		if (msg->Header.MessageType == HvMessageTypeNone) // no msg
+		if (msg->Header.MessageType == HvMessageTypeNone) /* no msg */
 		{
 			break;
 		}
@@ -423,14 +428,22 @@ VmbusOnMsgDPC(
 
 		msg->Header.MessageType = HvMessageTypeNone;
 
-		// Make sure the write to MessageType (ie set to HvMessageTypeNone) happens
-		// before we read the MessagePending and EOMing. Otherwise, the EOMing will not deliver
-		// any more messages since there is no empty slot
+		/*
+		 * Make sure the write to MessageType (ie set to
+		 * HvMessageTypeNone) happens before we read the
+		 * MessagePending and EOMing. Otherwise, the EOMing
+		 * will not deliver any more messages since there is
+		 * no empty slot
+		 */
 		mb();
 
 		if (msg->Header.MessageFlags.MessagePending)
 		{
-			// This will cause message queue rescan to possibly deliver another msg from the hypervisor
+			/*
+			 * This will cause message queue rescan to
+			 * possibly deliver another msg from the
+			 * hypervisor
+			 */
 			WriteMsr(HV_X64_MSR_EOM, 0);
 		}
 	}
@@ -450,7 +463,7 @@ VmbusOnEventDPC(
 	DRIVER_OBJECT* drv
 	)
 {
-	// TODO: Process any events
+	/* TODO: Process any events */
 	VmbusOnEvents();
 }
 
@@ -469,33 +482,33 @@ VmbusOnISR(
 	DRIVER_OBJECT* drv
 	)
 {
-	//VMBUS_DRIVER_OBJECT* driver = (VMBUS_DRIVER_OBJECT*)drv;
+	/* VMBUS_DRIVER_OBJECT* driver = (VMBUS_DRIVER_OBJECT*)drv; */
 
 	int ret=0;
-	//struct page* page;
+	/* struct page* page; */
 	void *page_addr;
 	HV_MESSAGE* msg;
 	HV_SYNIC_EVENT_FLAGS* event;
 
-	//page = SynICMessagePage[0];
-	//page_addr = page_address(page);
+	/* page = SynICMessagePage[0]; */
+	/* page_addr = page_address(page); */
 	page_addr = gHvContext.synICMessagePage[0];
 	msg = (HV_MESSAGE*)page_addr + VMBUS_MESSAGE_SINT;
 
 	DPRINT_ENTER(VMBUS);
 
-	// Check if there are actual msgs to be process
+	/* Check if there are actual msgs to be process */
 	if (msg->Header.MessageType != HvMessageTypeNone)
     {
 		DPRINT_DBG(VMBUS, "received msg type %d size %d", msg->Header.MessageType, msg->Header.PayloadSize);
 		ret |= 0x1;
     }
 
-	// TODO: Check if there are events to be process
+	/* TODO: Check if there are events to be process */
 	page_addr = gHvContext.synICEventPage[0];
 	event = (HV_SYNIC_EVENT_FLAGS*)page_addr + VMBUS_MESSAGE_SINT;
 
-	// Since we are a child, we only need to check bit 0
+	/* Since we are a child, we only need to check bit 0 */
 	if (BitTestAndClear(&event->Flags32[0], 0))
 	{
 		DPRINT_DBG(VMBUS, "received event %d", event->Flags32[0]);
@@ -506,4 +519,4 @@ VmbusOnISR(
 	return ret;
 }
 
-// eof
+/* eof */

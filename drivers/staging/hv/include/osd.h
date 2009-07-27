@@ -25,9 +25,9 @@
 #ifndef _OSD_H_
 #define _OSD_H_
 
-//
-// Defines
-//
+
+/* Defines */
+
 
 
 #define ALIGN_UP(value, align)			( ((value) & (align-1))? ( ((value) + (align-1)) & ~(align-1) ): (value) )
@@ -42,10 +42,10 @@ typedef struct _DLIST_ENTRY {
    struct _DLIST_ENTRY *Blink;
 } DLIST_ENTRY;
 
-//
-// Other types
-//
-//typedef unsigned char		GUID[16];
+
+/* Other types */
+
+/* typedef unsigned char		GUID[16]; */
 typedef void*				HANDLE;
 
 typedef struct {
@@ -95,9 +95,9 @@ static inline void do_cpuid(unsigned int op, unsigned int *eax, unsigned int *eb
 	__asm__ __volatile__("cpuid" : "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=d" (*edx) : "0" (op), "c" (ecx));
 }
 
-//
-// Osd routines
-//
+
+/* Osd routines */
+
 extern void BitSet(unsigned int* addr, int value);
 extern void BitClear(unsigned int* addr, int value);
 extern int BitTest(unsigned int* addr, int value);
@@ -127,7 +127,7 @@ extern void WaitEventClose(HANDLE hWait);
 extern void WaitEventSet(HANDLE hWait);
 extern int	WaitEventWait(HANDLE hWait);
 
-// If >0, hWait got signaled. If ==0, timeout. If < 0, error
+/* If >0, hWait got signaled. If ==0, timeout. If < 0, error */
 extern int	WaitEventWaitEx(HANDLE hWait, u32 TimeoutInMs);
 
 
@@ -149,4 +149,4 @@ extern int WorkQueueQueueWorkItem(HANDLE hWorkQueue, PFN_WORKITEM_CALLBACK workI
 
 extern void QueueWorkItem(PFN_WORKITEM_CALLBACK workItem, void* context);
 
-#endif // _OSD_H_
+#endif /* _OSD_H_ */

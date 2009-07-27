@@ -29,17 +29,17 @@
 
 #include "include/HvTypes.h"
 #include "include/HvStatus.h"
-//#include "HvVmApi.h"
-//#include "HvKeApi.h"
-//#include "HvMmApi.h"
-//#include "HvCpuApi.h"
+/* #include "HvVmApi.h" */
+/* #include "HvKeApi.h" */
+/* #include "HvMmApi.h" */
+/* #include "HvCpuApi.h" */
 #include "include/HvHalApi.h"
 #include "include/HvVpApi.h"
-//#include "HvTrApi.h"
+/* #include "HvTrApi.h" */
 #include "include/HvSynicApi.h"
-//#include "HvAmApi.h"
-//#include "HvHkApi.h"
-//#include "HvValApi.h"
+/* #include "HvAmApi.h" */
+/* #include "HvHkApi.h" */
+/* #include "HvValApi.h" */
 #include "include/HvHcApi.h"
 #include "include/HvPtApi.h"
 
@@ -53,9 +53,9 @@ enum
     VMBUS_MONITOR_PORT_ID       = 3,
     VMBUS_MESSAGE_SINT          = 2
 };
-//
-// #defines
-//
+
+/* #defines */
+
 #define HV_PRESENT_BIT				0x80000000
 
 #define HV_XENLINUX_GUEST_ID_LO     0x00000000
@@ -75,9 +75,9 @@ enum
 
 #define HV_HYPERCALL_PARAM_ALIGN	sizeof(u64)
 
-//
-// Service definitions
-//
+
+/* Service definitions */
+
 #define HV_SERVICE_PARENT_PORT (0)
 #define HV_SERVICE_PARENT_CONNECTION (0)
 
@@ -95,10 +95,10 @@ enum
 #define HV_SERVICE_PROTOCOL_VERSION (0x0010)
 #define HV_CONNECT_PAYLOAD_BYTE_COUNT 64
 
-//#define VMBUS_REVISION_NUMBER	6
-//#define VMBUS_PORT_ID			11		// Our local vmbus's port and connection id. Anything >0 is fine
+/* #define VMBUS_REVISION_NUMBER	6 */
+/* #define VMBUS_PORT_ID			11		// Our local vmbus's port and connection id. Anything >0 is fine */
 
-// 628180B8-308D-4c5e-B7DB-1BEB62E62EF4
+/* 628180B8-308D-4c5e-B7DB-1BEB62E62EF4 */
 static const GUID VMBUS_SERVICE_ID = {.Data = {0xb8, 0x80, 0x81, 0x62, 0x8d, 0x30, 0x5e, 0x4c, 0xb7, 0xdb, 0x1b, 0xeb, 0x62, 0xe6, 0x2e, 0xf4} };
 
 #define MAX_NUM_CPUS	1
@@ -110,14 +110,14 @@ typedef struct {
 } HV_INPUT_SIGNAL_EVENT_BUFFER;
 
 typedef struct {
-	u64	GuestId;			// XenLinux or native Linux. If XenLinux, the hypercall and synic pages has already been initialized
+	u64	GuestId;			/* XenLinux or native Linux. If XenLinux, the hypercall and synic pages has already been initialized */
 	void*	HypercallPage;
 
 	bool	SynICInitialized;
-	// This is used as an input param to HvCallSignalEvent hypercall. The input param is immutable
-	// in our usage and must be dynamic mem (vs stack or global).
+	/* This is used as an input param to HvCallSignalEvent hypercall. The input param is immutable */
+	/* in our usage and must be dynamic mem (vs stack or global). */
 	HV_INPUT_SIGNAL_EVENT_BUFFER *SignalEventBuffer;
-	HV_INPUT_SIGNAL_EVENT *SignalEventParam; // 8-bytes aligned of the buffer above
+	HV_INPUT_SIGNAL_EVENT *SignalEventParam; /* 8-bytes aligned of the buffer above */
 
 	HANDLE	synICMessagePage[MAX_NUM_CPUS];
 	HANDLE	synICEventPage[MAX_NUM_CPUS];
@@ -126,9 +126,9 @@ typedef struct {
 extern HV_CONTEXT gHvContext;
 
 
-//
-// Inline routines
-//
+
+/* Inline routines */
+
 static inline unsigned long long ReadMsr(int msr)
 {
 	unsigned long long val;
@@ -145,9 +145,9 @@ static inline void WriteMsr(int msr, u64 val)
 	return;
 }
 
-//
-// Hv Interface
-//
+
+/* Hv Interface */
+
 static int
 HvInit(
     void
@@ -181,4 +181,4 @@ HvSynicCleanup(
 	void
 	);
 
-#endif // __HV_H__
+#endif /* __HV_H__ */

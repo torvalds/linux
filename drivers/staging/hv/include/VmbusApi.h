@@ -27,57 +27,57 @@
 
 #include "osd.h"
 
-//
-// Defines
-//
+
+/* Defines */
+
 
 #define MAX_PAGE_BUFFER_COUNT				16
-#define MAX_MULTIPAGE_BUFFER_COUNT			32 // 128K
+#define MAX_MULTIPAGE_BUFFER_COUNT			32 /* 128K */
 
 
-//
-// Fwd declarations
-//
+
+/* Fwd declarations */
+
 typedef struct _DRIVER_OBJECT *PDRIVER_OBJECT;
 typedef struct _DEVICE_OBJECT *PDEVICE_OBJECT;
 
-//
-// Data types
-//
+
+/* Data types */
+
 
 #pragma pack(push,1)
 
-// Single-page buffer
+/* Single-page buffer */
 typedef struct _PAGE_BUFFER {
 	u32	Length;
 	u32	Offset;
 	u64	Pfn;
 } PAGE_BUFFER;
 
-// Multiple-page buffer
+/* Multiple-page buffer */
 typedef struct _MULTIPAGE_BUFFER {
-	// Length and Offset determines the # of pfns in the array
+	/* Length and Offset determines the # of pfns in the array */
 	u32	Length;
 	u32	Offset;
 	u64	PfnArray[MAX_MULTIPAGE_BUFFER_COUNT];
 }MULTIPAGE_BUFFER;
 
-//0x18 includes the proprietary packet header
+/* 0x18 includes the proprietary packet header */
 #define MAX_PAGE_BUFFER_PACKET			(0x18 + (sizeof(PAGE_BUFFER) * MAX_PAGE_BUFFER_COUNT))
 #define MAX_MULTIPAGE_BUFFER_PACKET		(0x18 + sizeof(MULTIPAGE_BUFFER))
 
 
 #pragma pack(pop)
 
-// All drivers
+/* All drivers */
 typedef int (*PFN_ON_DEVICEADD)(PDEVICE_OBJECT Device, void* AdditionalInfo);
 typedef int (*PFN_ON_DEVICEREMOVE)(PDEVICE_OBJECT Device);
 typedef char** (*PFN_ON_GETDEVICEIDS)(void);
 typedef void (*PFN_ON_CLEANUP)(PDRIVER_OBJECT Driver);
 
-// Vmbus extensions
-//typedef int (*PFN_ON_MATCH)(PDEVICE_OBJECT dev, PDRIVER_OBJECT drv);
-//typedef int (*PFN_ON_PROBE)(PDEVICE_OBJECT dev);
+/* Vmbus extensions */
+/* typedef int (*PFN_ON_MATCH)(PDEVICE_OBJECT dev, PDRIVER_OBJECT drv); */
+/* typedef int (*PFN_ON_PROBE)(PDEVICE_OBJECT dev); */
 typedef int	(*PFN_ON_ISR)(PDRIVER_OBJECT drv);
 typedef void (*PFN_ON_DPC)(PDRIVER_OBJECT drv);
 typedef void (*PFN_GET_CHANNEL_OFFERS)(void);
@@ -87,7 +87,7 @@ typedef void (*PFN_ON_CHILDDEVICE_DESTROY)(PDEVICE_OBJECT Device);
 typedef int (*PFN_ON_CHILDDEVICE_ADD)(PDEVICE_OBJECT RootDevice, PDEVICE_OBJECT ChildDevice);
 typedef void (*PFN_ON_CHILDDEVICE_REMOVE)(PDEVICE_OBJECT Device);
 
-// Vmbus channel interface
+/* Vmbus channel interface */
 typedef void (*VMBUS_CHANNEL_CALLBACK)(void * context);
 
 typedef int	(*VMBUS_CHANNEL_OPEN)(
@@ -148,8 +148,8 @@ typedef int	(*VMBUS_CHANNEL_RECV_PACKET_PAW)(
 
 typedef int	(*VMBUS_CHANNEL_ESTABLISH_GPADL)(
 	PDEVICE_OBJECT		Device,
-	void *				Buffer,	// from kmalloc()
-	u32				BufferLen,		// page-size multiple
+	void *				Buffer,	/* from kmalloc() */
+	u32				BufferLen,		/* page-size multiple */
 	u32*				GpadlHandle
 	);
 
@@ -203,44 +203,44 @@ typedef struct _VMBUS_CHANNEL_INTERFACE {
 
 typedef void (*VMBUS_GET_CHANNEL_INTERFACE)(VMBUS_CHANNEL_INTERFACE *Interface);
 
-// Base driver object
+/* Base driver object */
 typedef struct _DRIVER_OBJECT {
 	const char*				name;
-	GUID					deviceType; // the device type supported by this driver
+	GUID					deviceType; /* the device type supported by this driver */
 
 	PFN_ON_DEVICEADD		OnDeviceAdd;
 	PFN_ON_DEVICEREMOVE		OnDeviceRemove;
-	PFN_ON_GETDEVICEIDS		OnGetDeviceIds; // device ids supported by this driver
+	PFN_ON_GETDEVICEIDS		OnGetDeviceIds; /* device ids supported by this driver */
 	PFN_ON_CLEANUP			OnCleanup;
 
 	VMBUS_CHANNEL_INTERFACE VmbusChannelInterface;
 } DRIVER_OBJECT;
 
 
-// Base device object
+/* Base device object */
 typedef struct _DEVICE_OBJECT {
-	DRIVER_OBJECT*		Driver;		// the driver for this device
+	DRIVER_OBJECT*		Driver;		/* the driver for this device */
 	char				name[64];
-	GUID				deviceType; // the device type id of this device
-	GUID				deviceInstance; // the device instance id of this device
+	GUID				deviceType; /* the device type id of this device */
+	GUID				deviceInstance; /* the device instance id of this device */
 	void*				context;
-	void*				Extension;		// Device extension;
+	void*				Extension;		/* Device extension; */
 } DEVICE_OBJECT;
 
 
-// Vmbus driver object
+/* Vmbus driver object */
 typedef struct _VMBUS_DRIVER_OBJECT {
-	DRIVER_OBJECT		Base; // !! Must be the 1st field !!
+	DRIVER_OBJECT		Base; /* !! Must be the 1st field !! */
 
-	// Set by the caller
+	/* Set by the caller */
 	PFN_ON_CHILDDEVICE_CREATE	OnChildDeviceCreate;
 	PFN_ON_CHILDDEVICE_DESTROY	OnChildDeviceDestroy;
 	PFN_ON_CHILDDEVICE_ADD		OnChildDeviceAdd;
 	PFN_ON_CHILDDEVICE_REMOVE	OnChildDeviceRemove;
 
-	// Set by the callee
-	//PFN_ON_MATCH		OnMatch;
-	//PFN_ON_PROBE		OnProbe;
+	/* Set by the callee */
+	/* PFN_ON_MATCH		OnMatch; */
+	/* PFN_ON_PROBE		OnProbe; */
 	PFN_ON_ISR				OnIsr;
 	PFN_ON_DPC				OnMsgDpc;
 	PFN_ON_DPC				OnEventDpc;
@@ -251,12 +251,12 @@ typedef struct _VMBUS_DRIVER_OBJECT {
 } VMBUS_DRIVER_OBJECT;
 
 
-//
-// Interface
-//
+
+/* Interface */
+
 int
 VmbusInitialize(
 	DRIVER_OBJECT* drv
 	);
 
-#endif // _VMBUS_API_H_
+#endif /* _VMBUS_API_H_ */

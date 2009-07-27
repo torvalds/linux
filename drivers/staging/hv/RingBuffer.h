@@ -33,24 +33,24 @@ typedef struct _SG_BUFFER_LIST {
 } SG_BUFFER_LIST;
 
 typedef struct _RING_BUFFER {
-    volatile u32	WriteIndex;     // Offset in bytes from the start of ring data below
-    volatile u32	ReadIndex;      // Offset in bytes from the start of ring data below
+    volatile u32	WriteIndex;     /* Offset in bytes from the start of ring data below */
+    volatile u32	ReadIndex;      /* Offset in bytes from the start of ring data below */
 
 	volatile u32 InterruptMask;
-	u8	Reserved[4084];			// Pad it to PAGE_SIZE so that data starts on page boundary
-	// NOTE: The InterruptMask field is used only for channels but since our vmbus connection
-	// also uses this data structure and its data starts here, we commented out this field.
-	// volatile u32 InterruptMask;
-	// Ring data starts here + RingDataStartOffset !!! DO NOT place any fields below this !!!
+	u8	Reserved[4084];			/* Pad it to PAGE_SIZE so that data starts on page boundary */
+	/* NOTE: The InterruptMask field is used only for channels but since our vmbus connection */
+	/* also uses this data structure and its data starts here, we commented out this field. */
+	/* volatile u32 InterruptMask; */
+	/* Ring data starts here + RingDataStartOffset !!! DO NOT place any fields below this !!! */
     u8		Buffer[0];
 } __attribute__((packed)) RING_BUFFER;
 
 typedef struct _RING_BUFFER_INFO {
     RING_BUFFER*	RingBuffer;
-    u32			RingSize;			// Include the shared header
+    u32			RingSize;			/* Include the shared header */
 	spinlock_t ring_lock;
 
-    u32			RingDataSize;		// < ringSize
+    u32			RingDataSize;		/* < ringSize */
 	u32			RingDataStartOffset;
 
 } RING_BUFFER_INFO;
@@ -65,9 +65,9 @@ typedef struct _RING_BUFFER_DEBUG_INFO {
 }RING_BUFFER_DEBUG_INFO;
 
 
-//
-// Interface
-//
+
+/* Interface */
+
 
 static int
 RingBufferInit(
@@ -120,4 +120,4 @@ RingBufferGetDebugInfo(
 	RING_BUFFER_DEBUG_INFO	*DebugInfo
 	);
 
-#endif // _RING_BUFFER_H_
+#endif /* _RING_BUFFER_H_ */

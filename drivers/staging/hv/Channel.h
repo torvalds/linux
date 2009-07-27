@@ -31,7 +31,7 @@
 #pragma pack(push,1)
 
 
-// The format must be the same as VMDATA_GPA_DIRECT
+/* The format must be the same as VMDATA_GPA_DIRECT */
 typedef struct _VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
     u16				Type;
     u16				DataOffset8;
@@ -44,7 +44,7 @@ typedef struct _VMBUS_CHANNEL_PACKET_PAGE_BUFFER {
 } VMBUS_CHANNEL_PACKET_PAGE_BUFFER;
 
 
-// The format must be the same as VMDATA_GPA_DIRECT
+/* The format must be the same as VMDATA_GPA_DIRECT */
 typedef struct _VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
     u16				Type;
     u16				DataOffset8;
@@ -52,15 +52,15 @@ typedef struct _VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER {
     u16				Flags;
     u64				TransactionId;
 	u32				Reserved;
-	u32				RangeCount;		// Always 1 in this case
+	u32				RangeCount;		/* Always 1 in this case */
 	MULTIPAGE_BUFFER	Range;
 } VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER;
 
 #pragma pack(pop)
 
-//
-// Routines
-//
+
+/* Routines */
+
 
 static int
 VmbusChannelOpen(
@@ -110,8 +110,8 @@ VmbusChannelSendPacketMultiPageBuffer(
 static int
 VmbusChannelEstablishGpadl(
 	VMBUS_CHANNEL		*Channel,
-	void *				Kbuffer,	// from kmalloc()
-	u32				Size,		// page-size multiple
+	void *				Kbuffer,	/* from kmalloc() */
+	u32				Size,		/* page-size multiple */
 	u32				*GpadlHandle
 	);
 
@@ -154,4 +154,4 @@ static void
 VmbusChannelOnTimer(
 	void		*Context
 	);
-#endif //_CHANNEL_H_
+#endif /* _CHANNEL_H_ */

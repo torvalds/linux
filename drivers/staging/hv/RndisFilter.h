@@ -49,13 +49,13 @@
 
 
 
-//
-// Interface
-//
+
+/* Interface */
+
 int
 RndisFilterInit(
 	NETVSC_DRIVER_OBJECT *Driver
 	);
 
 
-#endif // _RNDISFILTER_H_
+#endif /* _RNDISFILTER_H_ */

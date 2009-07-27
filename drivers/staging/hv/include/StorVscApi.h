@@ -27,33 +27,35 @@
 
 #include "VmbusApi.h"
 
-//
-// Defines
-//
+
+/* Defines */
+
 
 #define STORVSC_RING_BUFFER_SIZE			10*PAGE_SIZE
 #define BLKVSC_RING_BUFFER_SIZE				20*PAGE_SIZE
 
 #define STORVSC_MAX_IO_REQUESTS				64
 
-// In Hyper-V, each port/path/target maps to 1 scsi host adapter.
-// In reality, the path/target is not used (ie always set to 0) so
-// our scsi host adapter essentially has 1 bus with 1 target that contains
-// up to 256 luns.
+/*
+ * In Hyper-V, each port/path/target maps to 1 scsi host adapter.  In
+ * reality, the path/target is not used (ie always set to 0) so our
+ * scsi host adapter essentially has 1 bus with 1 target that contains
+ * up to 256 luns.
+ */
 
 #define STORVSC_MAX_LUNS_PER_TARGET			64
 #define STORVSC_MAX_TARGETS					1
 #define STORVSC_MAX_CHANNELS				1
 
 
-// Fwd decl
-//
-//struct VMBUS_CHANNEL;
+/* Fwd decl */
+
+/* struct VMBUS_CHANNEL; */
 typedef struct _STORVSC_REQUEST* PSTORVSC_REQUEST;
 
-//
-// Data types
-//
+
+/* Data types */
+
 typedef int (*PFN_ON_IO_REQUEST)(PDEVICE_OBJECT Device, PSTORVSC_REQUEST Request);
 typedef void (*PFN_ON_IO_REQUEST_COMPLTN)(PSTORVSC_REQUEST Request);
 
@@ -61,7 +63,7 @@ typedef int (*PFN_ON_HOST_RESET)(PDEVICE_OBJECT Device);
 typedef void (*PFN_ON_HOST_RESCAN)(PDEVICE_OBJECT Device);
 
 
-// Matches Windows-end
+/* Matches Windows-end */
 typedef enum _STORVSC_REQUEST_TYPE{
 	WRITE_TYPE,
 	READ_TYPE,
@@ -87,30 +89,30 @@ typedef struct _STORVSC_REQUEST {
 
 	PFN_ON_IO_REQUEST_COMPLTN	OnIOCompletion;
 
-	// This points to the memory after DataBuffer
+	/* This points to the memory after DataBuffer */
 	void *					Extension;
 
 	MULTIPAGE_BUFFER		DataBuffer;
 } STORVSC_REQUEST;
 
 
-// Represents the block vsc driver
+/* Represents the block vsc driver */
 typedef struct _STORVSC_DRIVER_OBJECT {
-	DRIVER_OBJECT			Base; // Must be the first field
+	DRIVER_OBJECT			Base; /* Must be the first field */
 
-	// Set by caller (in bytes)
+	/* Set by caller (in bytes) */
 	u32					RingBufferSize;
 
-	// Allocate this much private extension for each I/O request
+	/* Allocate this much private extension for each I/O request */
 	u32					RequestExtSize;
 
-	// Maximum # of requests in flight per channel/device
+	/* Maximum # of requests in flight per channel/device */
 	u32					MaxOutstandingRequestsPerChannel;
 
-	// Set by the caller to allow us to re-enumerate the bus on the host
+	/* Set by the caller to allow us to re-enumerate the bus on the host */
 	PFN_ON_HOST_RESCAN		OnHostRescan;
 
-	// Specific to this driver
+	/* Specific to this driver */
 	PFN_ON_IO_REQUEST		OnIORequest;
 	PFN_ON_HOST_RESET		OnHostReset;
 
@@ -122,9 +124,9 @@ typedef struct _STORVSC_DEVICE_INFO {
     unsigned char	TargetId;
 } STORVSC_DEVICE_INFO;
 
-//
-// Interface
-//
+
+/* Interface */
+
 int
 StorVscInitialize(
 	DRIVER_OBJECT	*Driver
@@ -134,4 +136,4 @@ int
 BlkVscInitialize(
 	DRIVER_OBJECT	*Driver
 	);
-#endif // _STORVSC_API_H_
+#endif /* _STORVSC_API_H_ */

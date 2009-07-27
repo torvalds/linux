@@ -24,15 +24,15 @@
 
 #pragma once
 
-//
-// Versioning definitions used for guests reporting themselves to the
-// hypervisor, and visa versa.
-// ==================================================================
-//
 
-//
-// Version info reported by guest OS's
-//
+/* Versioning definitions used for guests reporting themselves to the */
+/* hypervisor, and visa versa. */
+/* ================================================================== */
+
+
+
+/* Version info reported by guest OS's */
+
 typedef enum _HV_GUEST_OS_VENDOR
 {
     HvGuestOsVendorMicrosoft        = 0x0001
@@ -50,9 +50,9 @@ typedef enum _HV_GUEST_OS_MICROSOFT_IDS
 
 } HV_GUEST_OS_MICROSOFT_IDS, *PHV_GUEST_OS_MICROSOFT_IDS;
 
-//
-// Declare the MSR used to identify the guest OS.
-//
+
+/* Declare the MSR used to identify the guest OS. */
+
 #define HV_X64_MSR_GUEST_OS_ID 0x40000000
 
 typedef union _HV_X64_MSR_GUEST_OS_ID_CONTENTS
@@ -61,17 +61,17 @@ typedef union _HV_X64_MSR_GUEST_OS_ID_CONTENTS
     struct
     {
         u64 BuildNumber    : 16;
-        u64 ServiceVersion : 8; // Service Pack, etc.
+        u64 ServiceVersion : 8; /* Service Pack, etc. */
         u64 MinorVersion   : 8;
         u64 MajorVersion   : 8;
-        u64 OsId           : 8; // HV_GUEST_OS_MICROSOFT_IDS (If Vendor=MS)
-        u64 VendorId       : 16; // HV_GUEST_OS_VENDOR
+        u64 OsId           : 8; /* HV_GUEST_OS_MICROSOFT_IDS (If Vendor=MS) */
+        u64 VendorId       : 16; /* HV_GUEST_OS_VENDOR */
     };
 } HV_X64_MSR_GUEST_OS_ID_CONTENTS, *PHV_X64_MSR_GUEST_OS_ID_CONTENTS;
 
-//
-// Declare the MSR used to setup pages used to communicate with the hypervisor.
-//
+
+/* Declare the MSR used to setup pages used to communicate with the hypervisor. */
+
 #define HV_X64_MSR_HYPERCALL 0x40000001
 
 typedef union _HV_X64_MSR_HYPERCALL_CONTENTS

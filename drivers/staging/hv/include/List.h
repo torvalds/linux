@@ -36,10 +36,10 @@
 typedef DLIST_ENTRY LIST_ENTRY;
 typedef DLIST_ENTRY *PLIST_ENTRY;
 
-//typedef struct LIST_ENTRY {
-//   struct LIST_ENTRY * volatile Flink;
-//   struct LIST_ENTRY * volatile Blink;
-//} LIST_ENTRY, *PLIST_ENTRY;
+/* typedef struct LIST_ENTRY { */
+/*   struct LIST_ENTRY * volatile Flink; */
+/*   struct LIST_ENTRY * volatile Blink; */
+/* } LIST_ENTRY, *PLIST_ENTRY; */
 
 
 

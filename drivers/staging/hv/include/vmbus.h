@@ -29,9 +29,9 @@
 
 #include "VmbusApi.h"
 
-//
-// Data types
-//
+
+/* Data types */
+
 
 typedef int (*PFN_DRIVERINITIALIZE)(DRIVER_OBJECT *drv);
 typedef int (*PFN_DRIVEREXIT)(DRIVER_OBJECT *drv);
@@ -41,7 +41,7 @@ struct driver_context {
 
 	struct device_driver	driver;
 
-	// Use these methods instead of the struct device_driver so 2.6 kernel stops complaining
+	/* Use these methods instead of the struct device_driver so 2.6 kernel stops complaining */
 	int (*probe)(struct device *);
 	int (*remove)(struct device *);
 	void (*shutdown)(struct device *);
@@ -57,13 +57,13 @@ struct device_context {
 };
 
 
-//
-// Global
-//
 
-//
-// Inlines
-//
+/* Global */
+
+
+
+/* Inlines */
+
 static inline struct device_context *to_device_context(DEVICE_OBJECT *device_obj)
 {
 	return container_of(device_obj, struct device_context, device_obj);
@@ -79,9 +79,9 @@ static inline struct driver_context *driver_to_driver_context(struct device_driv
 	return container_of(driver, struct driver_context, driver);
 }
 
-//
-// Vmbus interface
-//
+
+/* Vmbus interface */
+
 void
 vmbus_child_driver_register(
 	struct driver_context* driver_ctx
@@ -97,4 +97,4 @@ vmbus_get_interface(
 	VMBUS_CHANNEL_INTERFACE *interface
 	);
 
-#endif // _VMBUS_H_
+#endif /* _VMBUS_H_ */

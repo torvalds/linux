@@ -25,11 +25,9 @@
 #include "include/logging.h"
 #include "VmbusPrivate.h"
 
-//
-// Globals
-//
+/* Globals */
 
-// The one and only
+/* The one and only */
 HV_CONTEXT gHvContext={
 	.SynICInitialized = false,
 	.HypercallPage = NULL,
@@ -90,10 +88,11 @@ HvQueryHypervisorInfo (
     unsigned int maxLeaf;
     unsigned int op;
 
-    //
-    // Its assumed that this is called after confirming that Viridian is present.
-    // Query id and revision.
-    //
+    /*
+     * Its assumed that this is called after confirming that Viridian
+     * is present. Query id and revision.
+     */
+
 
     eax = 0;
     ebx = 0;
@@ -103,18 +102,18 @@ HvQueryHypervisorInfo (
     do_cpuid(op, &eax, &ebx, &ecx, &edx);
 
     DPRINT_INFO(VMBUS, "Vendor ID: %c%c%c%c%c%c%c%c%c%c%c%c",
-           (ebx & 0xFF),
-           ((ebx >> 8) & 0xFF),
-           ((ebx >> 16) & 0xFF),
-           ((ebx >> 24) & 0xFF),
-           (ecx & 0xFF),
-           ((ecx >> 8) & 0xFF),
-           ((ecx >> 16) & 0xFF),
-           ((ecx >> 24) & 0xFF),
-           (edx & 0xFF),
-           ((edx >> 8) & 0xFF),
-           ((edx >> 16) & 0xFF),
-           ((edx >> 24) & 0xFF));
+	   (ebx & 0xFF),
+	   ((ebx >> 8) & 0xFF),
+	   ((ebx >> 16) & 0xFF),
+	   ((ebx >> 24) & 0xFF),
+	   (ecx & 0xFF),
+	   ((ecx >> 8) & 0xFF),
+	   ((ecx >> 16) & 0xFF),
+	   ((ecx >> 24) & 0xFF),
+	   (edx & 0xFF),
+	   ((edx >> 8) & 0xFF),
+	   ((edx >> 16) & 0xFF),
+	   ((edx >> 24) & 0xFF));
 
     maxLeaf = eax;
     eax = 0;
@@ -125,25 +124,25 @@ HvQueryHypervisorInfo (
     do_cpuid(op, &eax, &ebx, &ecx, &edx);
 
     DPRINT_INFO(VMBUS, "Interface ID: %c%c%c%c",
-           (eax & 0xFF),
-           ((eax >> 8) & 0xFF),
-           ((eax >> 16) & 0xFF),
-           ((eax >> 24) & 0xFF));
+	   (eax & 0xFF),
+	   ((eax >> 8) & 0xFF),
+	   ((eax >> 16) & 0xFF),
+	   ((eax >> 24) & 0xFF));
 
 	 if (maxLeaf >= HvCpuIdFunctionMsHvVersion) {
-        eax = 0;
-        ebx = 0;
-        ecx = 0;
-        edx = 0;
-        op = HvCpuIdFunctionMsHvVersion;
-        do_cpuid(op, &eax, &ebx, &ecx, &edx);
-        DPRINT_INFO(VMBUS, "OS Build:%d-%d.%d-%d-%d.%d",
-               eax,
-               ebx >> 16,
-               ebx & 0xFFFF,
-               ecx,
-               edx >> 24,
-               edx & 0xFFFFFF);
+	eax = 0;
+	ebx = 0;
+	ecx = 0;
+	edx = 0;
+	op = HvCpuIdFunctionMsHvVersion;
+	do_cpuid(op, &eax, &ebx, &ecx, &edx);
+	DPRINT_INFO(VMBUS, "OS Build:%d-%d.%d-%d-%d.%d",
+	       eax,
+	       ebx >> 16,
+	       ebx & 0xFFFF,
+	       ecx,
+	       edx >> 24,
+	       edx & 0xFFFFFF);
     }
     return maxLeaf;
 }
@@ -211,7 +210,7 @@ HvDoHypercall (
     DPRINT_DBG(VMBUS, "Hypercall <return %llx>",  hvStatusLo | ((u64)hvStatusHi << 32));
 
     return (hvStatusLo | ((u64)hvStatusHi << 32));
-#endif // x86_64
+#endif /* x86_64 */
 }
 
 /*++
@@ -249,26 +248,26 @@ HvInit (
 	DPRINT_INFO(VMBUS, "Windows hypervisor detected! Retrieving more info...");
 
     maxLeaf = HvQueryHypervisorInfo();
-    //HvQueryHypervisorFeatures(maxLeaf);
+    /* HvQueryHypervisorFeatures(maxLeaf); */
 
-	// Determine if we are running on xenlinux (ie x2v shim) or native linux
+	/* Determine if we are running on xenlinux (ie x2v shim) or native linux */
 	gHvContext.GuestId = ReadMsr(HV_X64_MSR_GUEST_OS_ID);
 
 	if (gHvContext.GuestId == 0)
 	{
-		// Write our OS info
+		/* Write our OS info */
 		WriteMsr(HV_X64_MSR_GUEST_OS_ID, HV_LINUX_GUEST_ID);
 
 		gHvContext.GuestId = HV_LINUX_GUEST_ID;
 	}
 
-	// See if the hypercall page is already set
+	/* See if the hypercall page is already set */
 	hypercallMsr.AsUINT64 = ReadMsr(HV_X64_MSR_HYPERCALL);
 
 	if (gHvContext.GuestId == HV_LINUX_GUEST_ID)
 	{
-		// Allocate the hypercall page memory
-		//virtAddr = PageAlloc(1);
+		/* Allocate the hypercall page memory */
+		/* virtAddr = PageAlloc(1); */
 		virtAddr = VirtualAllocExec(PAGE_SIZE);
 
 		if (!virtAddr)
@@ -278,11 +277,11 @@ HvInit (
 		}
 
 		hypercallMsr.Enable = 1;
-		//hypercallMsr.GuestPhysicalAddress = Logical2PhysicalAddr(virtAddr) >> PAGE_SHIFT;
+		/* hypercallMsr.GuestPhysicalAddress = Logical2PhysicalAddr(virtAddr) >> PAGE_SHIFT; */
 		hypercallMsr.GuestPhysicalAddress = Virtual2Physical(virtAddr) >> PAGE_SHIFT;
 		WriteMsr(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
 
-        // Confirm that hypercall page did get setup.
+	/* Confirm that hypercall page did get setup. */
 		hypercallMsr.AsUINT64 = 0;
 		hypercallMsr.AsUINT64 = ReadMsr(HV_X64_MSR_HYPERCALL);
 
@@ -304,7 +303,7 @@ HvInit (
 		    gHvContext.HypercallPage,
 		    (u64)hypercallMsr.GuestPhysicalAddress << PAGE_SHIFT);
 
-	// Setup the global signal event param for the signal event hypercall
+	/* Setup the global signal event param for the signal event hypercall */
 	gHvContext.SignalEventBuffer = kmalloc(sizeof(HV_INPUT_SIGNAL_EVENT_BUFFER), GFP_KERNEL);
 	if (!gHvContext.SignalEventBuffer)
 	{
@@ -317,7 +316,7 @@ HvInit (
 	gHvContext.SignalEventParam->FlagNumber = 0;
 	gHvContext.SignalEventParam->RsvdZ = 0;
 
-    //DPRINT_DBG(VMBUS, "My id %llu", HvGetCurrentPartitionId());
+    /* DPRINT_DBG(VMBUS, "My id %llu", HvGetCurrentPartitionId()); */
 
 	DPRINT_EXIT(VMBUS);
 
@@ -490,12 +489,12 @@ HvSynicInit (
 		return ret;
 	}
 
-	// Check the version
+	/* Check the version */
 	version = ReadMsr(HV_X64_MSR_SVERSION);
 
 	DPRINT_INFO(VMBUS, "SynIC version: %llx", version);
 
-	// TODO: Handle SMP
+	/* TODO: Handle SMP */
 	if (gHvContext.GuestId == HV_XENLINUX_GUEST_ID)
 	{
 		DPRINT_INFO(VMBUS, "Skipping SIMP and SIEFP setup since it is already set.");
@@ -505,7 +504,7 @@ HvSynicInit (
 
 		DPRINT_DBG(VMBUS, "Simp: %llx, Sifep: %llx", simp.AsUINT64, siefp.AsUINT64);
 
-		// Determine if we are running on xenlinux (ie x2v shim) or native linux
+		/* Determine if we are running on xenlinux (ie x2v shim) or native linux */
 		guestID = ReadMsr(HV_X64_MSR_GUEST_OS_ID);
 
 		if (guestID == HV_LINUX_GUEST_ID)
@@ -536,9 +535,7 @@ HvSynicInit (
 			goto Cleanup;
 		}
 
-		//
-		// Setup the Synic's message page
-		//
+		/* Setup the Synic's message page */
 		simp.AsUINT64 = ReadMsr(HV_X64_MSR_SIMP);
 		simp.SimpEnabled = 1;
 		simp.BaseSimpGpa = GetPhysicalAddress(gHvContext.synICMessagePage[0]) >> PAGE_SHIFT;
@@ -547,9 +544,7 @@ HvSynicInit (
 
 		WriteMsr(HV_X64_MSR_SIMP, simp.AsUINT64);
 
-		//
-		// Setup the Synic's event page
-		//
+		/* Setup the Synic's event page */
 		siefp.AsUINT64 = ReadMsr(HV_X64_MSR_SIEFP);
 		siefp.SiefpEnabled = 1;
 		siefp.BaseSiefpGpa = GetPhysicalAddress(gHvContext.synICEventPage[0]) >> PAGE_SHIFT;
@@ -558,31 +553,27 @@ HvSynicInit (
 
 		WriteMsr(HV_X64_MSR_SIEFP, siefp.AsUINT64);
 	}
-	//
-    // Setup the interception SINT.
-    //
-	//WriteMsr((HV_X64_MSR_SINT0 + HV_SYNIC_INTERCEPTION_SINT_INDEX),
-    //             interceptionSint.AsUINT64);
+    /* Setup the interception SINT. */
+	/* WriteMsr((HV_X64_MSR_SINT0 + HV_SYNIC_INTERCEPTION_SINT_INDEX), */
+    /*             interceptionSint.AsUINT64); */
 
-    //
-    // Setup the shared SINT.
-    //
+    /* Setup the shared SINT. */
 	sharedSint.AsUINT64 = ReadMsr(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT);
 
 	sharedSint.AsUINT64 = 0;
-    sharedSint.Vector = irqVector; //HV_SHARED_SINT_IDT_VECTOR + 0x20;
-    sharedSint.Masked = false;
-    sharedSint.AutoEoi = true;
+	sharedSint.Vector = irqVector; /* HV_SHARED_SINT_IDT_VECTOR + 0x20; */
+	sharedSint.Masked = false;
+	sharedSint.AutoEoi = true;
 
 	DPRINT_DBG(VMBUS, "HV_X64_MSR_SINT1 msr set to: %llx", sharedSint.AsUINT64);
 
 	WriteMsr(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
 
-	// Enable the global synic bit
+	/* Enable the global synic bit */
 	sctrl.AsUINT64 = ReadMsr(HV_X64_MSR_SCONTROL);
 	sctrl.Enable = 1;
 
-    WriteMsr(HV_X64_MSR_SCONTROL, sctrl.AsUINT64);
+	WriteMsr(HV_X64_MSR_SCONTROL, sctrl.AsUINT64);
 
 	gHvContext.SynICInitialized = true;
 
@@ -642,11 +633,14 @@ HvSynicCleanup(
 
 	sharedSint.Masked = 1;
 
-	// Disable the interrupt
+	/* Disable the interrupt */
     WriteMsr(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
 
-	// Disable and free the resources only if we are running as native linux
-	// since in xenlinux, we are sharing the resources with the x2v shim
+	/*
+	 * Disable and free the resources only if we are running as
+	 * native linux since in xenlinux, we are sharing the
+	 * resources with the x2v shim
+	 */
 	if (gHvContext.GuestId == HV_LINUX_GUEST_ID)
 	{
 		simp.AsUINT64 = ReadMsr(HV_X64_MSR_SIMP);
@@ -669,4 +663,4 @@ HvSynicCleanup(
 }
 
 
-// eof
+/* eof */

@@ -25,8 +25,8 @@
 #ifndef _LOGGING_H_
 #define _LOGGING_H_
 
-//#include <linux/init.h>
-//#include <linux/module.h>
+/* #include <linux/init.h> */
+/* #include <linux/module.h> */
 
 #include "osd.h"
 
@@ -52,7 +52,7 @@
 							INPUTVSC_DRV|\
 							BLKVSC_DRV)
 
-// Logging Level
+/* Logging Level */
 #define ERROR_LVL				3
 #define WARNING_LVL				4
 #define INFO_LVL				6
@@ -117,4 +117,4 @@ extern unsigned int vmbus_loglevel;
 #define DPRINT_EXIT(mod)
 #endif
 
-#endif //_LOGGING_H_
+#endif /* _LOGGING_H_ */

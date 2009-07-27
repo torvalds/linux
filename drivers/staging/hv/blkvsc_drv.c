@@ -38,38 +38,41 @@
 
 #include "include/StorVscApi.h"
 
-//
-// #defines
-//
+
+/* #defines */
+
 #define BLKVSC_MINORS	64
 
-//
-// Data types
-//
+
+/* Data types */
+
 enum blkvsc_device_type {
 	UNKNOWN_DEV_TYPE,
 	HARDDISK_TYPE,
 	DVD_TYPE,
 };
 
-// This request ties the struct request and struct blkvsc_request/STORVSC_REQUEST together
-// A struct request may be represented by 1 or more struct blkvsc_request
+/*
+ * This request ties the struct request and struct
+ * blkvsc_request/STORVSC_REQUEST together A struct request may be
+ * represented by 1 or more struct blkvsc_request
+ */
 struct blkvsc_request_group {
 	int					outstanding;
 	int					status;
 
-	struct list_head	blkvsc_req_list;	// list of blkvsc_requests
+	struct list_head	blkvsc_req_list;	/* list of blkvsc_requests */
 };
 
 
 struct blkvsc_request {
-	struct list_head	req_entry;			// blkvsc_request_group.blkvsc_req_list
+	struct list_head	req_entry;			/* blkvsc_request_group.blkvsc_req_list */
 
-	struct list_head	pend_entry;			// block_device_context.pending_list
+	struct list_head	pend_entry;			/* block_device_context.pending_list */
 
-	struct request		*req;				// This may be null if we generate a request internally
+	struct request		*req;				/* This may be null if we generate a request internally */
 	struct block_device_context	*dev;
-	struct blkvsc_request_group	*group;		// The group this request is part of. Maybe null
+	struct blkvsc_request_group	*group;		/* The group this request is part of. Maybe null */
 
 	wait_queue_head_t	wevent;
 	int cond;
@@ -83,13 +86,13 @@ struct blkvsc_request {
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 
 	STORVSC_REQUEST		request;
-	// !!!DO NOT ADD ANYTHING BELOW HERE!!! Otherwise, memory can overlap, because -
-	// The extension buffer falls right here and is pointed to by request.Extension;
+	/* !!!DO NOT ADD ANYTHING BELOW HERE!!! Otherwise, memory can overlap, because - */
+	/* The extension buffer falls right here and is pointed to by request.Extension; */
 };
 
-// Per device structure
+/* Per device structure */
 struct block_device_context {
-	struct device_context	*device_ctx; // point back to our device context
+	struct device_context	*device_ctx; /* point back to our device context */
 	struct kmem_cache	*request_pool;
 	spinlock_t				lock;
 	struct gendisk			*gd;
@@ -109,14 +112,14 @@ struct block_device_context {
 	int						users;
 };
 
-// Per driver
+/* Per driver */
 struct blkvsc_driver_context {
-	// !! These must be the first 2 fields !!
+	/* !! These must be the first 2 fields !! */
 	struct driver_context	drv_ctx;
 	STORVSC_DRIVER_OBJECT	drv_obj;
 };
 
-// Static decl
+/* Static decl */
 static int blkvsc_probe(struct device *dev);
 static int blkvsc_remove(struct device *device);
 static void blkvsc_shutdown(struct device *device);
@@ -144,7 +147,7 @@ static int blkvsc_do_pending_reqs(struct block_device_context *blkdev);
 
 static int blkvsc_ringbuffer_size = BLKVSC_RING_BUFFER_SIZE;
 
-// The one and only one
+/* The one and only one */
 static struct blkvsc_driver_context g_blkvsc_drv;
 
 
@@ -178,7 +181,7 @@ int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 
 	storvsc_drv_obj->RingBufferSize = blkvsc_ringbuffer_size;
 
-	// Callback to client driver to complete the initialization
+	/* Callback to client driver to complete the initialization */
 	pfn_drv_init(&storvsc_drv_obj->Base);
 
 	drv_ctx->driver.name = storvsc_drv_obj->Base.name;
@@ -188,7 +191,7 @@ int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 	drv_ctx->remove = blkvsc_remove;
 	drv_ctx->shutdown = blkvsc_shutdown;
 
-	// The driver belongs to vmbus
+	/* The driver belongs to vmbus */
 	vmbus_child_driver_register(drv_ctx);
 
 	DPRINT_EXIT(BLKVSC_DRV);
@@ -201,7 +204,7 @@ static int blkvsc_drv_exit_cb(struct device *dev, void *data)
 {
 	struct device **curr = (struct device **)data;
 	*curr = dev;
-	return 1; // stop iterating
+	return 1; /* stop iterating */
 }
 
 /*++
@@ -224,13 +227,13 @@ void blkvsc_drv_exit(void)
 	{
 		current_dev = NULL;
 
-		// Get the device
+		/* Get the device */
 		driver_for_each_device(&drv_ctx->driver, NULL, (void*)&current_dev, blkvsc_drv_exit_cb);
 
 		if (current_dev == NULL)
 			break;
 
-		// Initiate removal from the top-down
+		/* Initiate removal from the top-down */
 		device_unregister(current_dev);
 	}
 
@@ -291,14 +294,14 @@ static int blkvsc_probe(struct device *device)
 
 	INIT_LIST_HEAD(&blkdev->pending_list);
 
-	// Initialize what we can here
+	/* Initialize what we can here */
 	spin_lock_init(&blkdev->lock);
 
 	ASSERT(sizeof(struct blkvsc_request_group) <= sizeof(struct blkvsc_request));
 
-        blkdev->request_pool = kmem_cache_create(dev_name(&device_ctx->device),
-                sizeof(struct blkvsc_request) + storvsc_drv_obj->RequestExtSize, 0,
-                SLAB_HWCACHE_ALIGN, NULL);
+	blkdev->request_pool = kmem_cache_create(dev_name(&device_ctx->device),
+		sizeof(struct blkvsc_request) + storvsc_drv_obj->RequestExtSize, 0,
+		SLAB_HWCACHE_ALIGN, NULL);
 	if (!blkdev->request_pool)
 	{
 		ret = -ENOMEM;
@@ -306,7 +309,7 @@ static int blkvsc_probe(struct device *device)
 	}
 
 
-	// Call to the vsc driver to add the device
+	/* Call to the vsc driver to add the device */
 	ret = storvsc_drv_obj->Base.OnDeviceAdd(device_obj, &device_info);
 	if (ret != 0)
 	{
@@ -315,16 +318,16 @@ static int blkvsc_probe(struct device *device)
 	}
 
 	blkdev->device_ctx = device_ctx;
-	blkdev->target = device_info.TargetId; // this identified the device 0 or 1
-	blkdev->path = device_info.PathId; // this identified the ide ctrl 0 or 1
+	blkdev->target = device_info.TargetId; /* this identified the device 0 or 1 */
+	blkdev->path = device_info.PathId; /* this identified the ide ctrl 0 or 1 */
 
 	dev_set_drvdata(device, blkdev);
 
-	// Calculate the major and device num
+	/* Calculate the major and device num */
 	if (blkdev->path == 0)
 	{
 		major = IDE0_MAJOR;
-		devnum = blkdev->path + blkdev->target;		// 0 or 1
+		devnum = blkdev->path + blkdev->target;		/* 0 or 1 */
 
 		if (!ide0_registered)
 		{
@@ -341,7 +344,7 @@ static int blkvsc_probe(struct device *device)
 	else if (blkdev->path == 1)
 	{
 		major = IDE1_MAJOR;
-		devnum = blkdev->path + blkdev->target + 1; // 2 or 3
+		devnum = blkdev->path + blkdev->target + 1; /* 2 or 3 */
 
 		if (!ide1_registered)
 		{
@@ -405,7 +408,7 @@ static int blkvsc_probe(struct device *device)
 
 	set_capacity(blkdev->gd, blkdev->capacity * (blkdev->sector_size/512));
 	blk_queue_logical_block_size(blkdev->gd->queue, blkdev->sector_size);
-	// go!
+	/* go! */
 	add_disk(blkdev->gd);
 
 	DPRINT_INFO(BLKVSC_DRV, "%s added!! capacity %llu sector_size %d", blkdev->gd->disk_name, blkdev->capacity, blkdev->sector_size);
@@ -494,7 +497,7 @@ static int blkvsc_do_flush(struct block_device_context *blkdev)
 	blkvsc_req->cmnd[0] = SYNCHRONIZE_CACHE;
 	blkvsc_req->cmd_len = 10;
 
-	// Set this here since the completion routine may be invoked and completed before we return
+	/* Set this here since the completion routine may be invoked and completed before we return */
 	blkvsc_req->cond =0;
 	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
 
@@ -505,7 +508,7 @@ static int blkvsc_do_flush(struct block_device_context *blkdev)
 	return 0;
 }
 
-// Do a scsi INQUIRY cmd here to get the device type (ie disk or dvd)
+/* Do a scsi INQUIRY cmd here to get the device type (ie disk or dvd) */
 static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 {
 	struct blkvsc_request *blkvsc_req=NULL;
@@ -539,12 +542,12 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 	blkvsc_req->request.DataBuffer.Length = 64;
 
 	blkvsc_req->cmnd[0] = INQUIRY;
-	blkvsc_req->cmnd[1] = 0x1;		// Get product data
-	blkvsc_req->cmnd[2] = 0x83;		// mode page 83
+	blkvsc_req->cmnd[1] = 0x1;		/* Get product data */
+	blkvsc_req->cmnd[2] = 0x83;		/* mode page 83 */
 	blkvsc_req->cmnd[4] = 64;
 	blkvsc_req->cmd_len = 6;
 
-	// Set this here since the completion routine may be invoked and completed before we return
+	/* Set this here since the completion routine may be invoked and completed before we return */
 	blkvsc_req->cond =0;
 
 	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
@@ -556,7 +559,7 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 	buf = kmap(page_buf);
 
 	/* print_hex_dump_bytes("", DUMP_PREFIX_NONE, buf, 64); */
-	// be to le
+	/* be to le */
 	device_type = buf[0] & 0x1F;
 
 	if (device_type == 0x0)
@@ -569,7 +572,7 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 	}
 	else
 	{
-		// TODO: this is currently unsupported device type
+		/* TODO: this is currently unsupported device type */
 		blkdev->device_type = UNKNOWN_DEV_TYPE;
 	}
 
@@ -581,7 +584,7 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 
 	memcpy(blkdev->device_id, &buf[8], blkdev->device_id_len);
 	/* printk_hex_dump_bytes("", DUMP_PREFIX_NONE, blkdev->device_id,
-	 * 			 blkdev->device_id_len); */
+	 * blkdev->device_id_len); */
 
 	kunmap(page_buf);
 
@@ -592,7 +595,7 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 	return 0;
 }
 
-// Do a scsi READ_CAPACITY cmd here to get the size of the disk
+/* Do a scsi READ_CAPACITY cmd here to get the size of the disk */
 static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 {
 	struct blkvsc_request *blkvsc_req=NULL;
@@ -604,7 +607,7 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 
 	blkdev->sector_size = 0;
 	blkdev->capacity = 0;
-	blkdev->media_not_present = 0; // assume a disk is present
+	blkdev->media_not_present = 0; /* assume a disk is present */
 
 	blkvsc_req = kmem_cache_alloc(blkdev->request_pool, GFP_KERNEL);
 	if (!blkvsc_req)
@@ -632,7 +635,10 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 	blkvsc_req->cmnd[0] = READ_CAPACITY;
 	blkvsc_req->cmd_len = 16;
 
-	// Set this here since the completion routine may be invoked and completed before we return
+	/*
+	 * Set this here since the completion routine may be invoked
+	 * and completed before we return
+	 */
 	blkvsc_req->cond =0;
 
 	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
@@ -641,12 +647,12 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 
 	wait_event_interruptible(blkvsc_req->wevent, blkvsc_req->cond);
 
-	// check error
+	/* check error */
 	if (blkvsc_req->request.Status)
 	{
 		scsi_normalize_sense(blkvsc_req->sense_buffer, SCSI_SENSE_BUFFERSIZE, &sense_hdr);
 
-		if (sense_hdr.asc == 0x3A) // Medium not present
+		if (sense_hdr.asc == 0x3A) /* Medium not present */
 		{
 			blkdev->media_not_present = 1;
 		}
@@ -655,7 +661,7 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 	}
 	buf = kmap(page_buf);
 
-	// be to le
+	/* be to le */
 	blkdev->capacity = ((buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]) + 1;
 	blkdev->sector_size = (buf[4] << 24) | (buf[5] << 16) | (buf[6] << 8) | buf[7];
 
@@ -680,7 +686,7 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 
 	blkdev->sector_size = 0;
 	blkdev->capacity = 0;
-	blkdev->media_not_present = 0; // assume a disk is present
+	blkdev->media_not_present = 0; /* assume a disk is present */
 
 	blkvsc_req = kmem_cache_alloc(blkdev->request_pool, GFP_KERNEL);
 	if (!blkvsc_req)
@@ -705,10 +711,13 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	blkvsc_req->request.DataBuffer.Offset = 0;
 	blkvsc_req->request.DataBuffer.Length = 12;
 
-	blkvsc_req->cmnd[0] = 0x9E; //READ_CAPACITY16;
+	blkvsc_req->cmnd[0] = 0x9E; /* READ_CAPACITY16; */
 	blkvsc_req->cmd_len = 16;
 
-	// Set this here since the completion routine may be invoked and completed before we return
+	/*
+	 * Set this here since the completion routine may be invoked
+	 * and completed before we return
+	 */
 	blkvsc_req->cond =0;
 
 	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
@@ -717,12 +726,12 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 
 	wait_event_interruptible(blkvsc_req->wevent, blkvsc_req->cond);
 
-	// check error
+	/* check error */
 	if (blkvsc_req->request.Status)
 	{
 		scsi_normalize_sense(blkvsc_req->sense_buffer, SCSI_SENSE_BUFFERSIZE, &sense_hdr);
 
-		if (sense_hdr.asc == 0x3A) // Medium not present
+		if (sense_hdr.asc == 0x3A) /* Medium not present */
 		{
 			blkdev->media_not_present = 1;
 		}
@@ -731,12 +740,12 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	}
 	buf = kmap(page_buf);
 
-	// be to le
+	/* be to le */
 	blkdev->capacity = be64_to_cpu(*(unsigned long long*) &buf[0]) + 1;
 	blkdev->sector_size = be32_to_cpu(*(unsigned int*)&buf[8]);
 
-	//blkdev->capacity = ((buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]) + 1;
-	//blkdev->sector_size = (buf[4] << 24) | (buf[5] << 16) | (buf[6] << 8) | buf[7];
+	/* blkdev->capacity = ((buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]) + 1; */
+	/* blkdev->sector_size = (buf[4] << 24) | (buf[5] << 16) | (buf[6] << 8) | buf[7]; */
 
 	kunmap(page_buf);
 
@@ -777,15 +786,15 @@ static int blkvsc_remove(struct device *device)
 		return -1;
 	}
 
-	// Call to the vsc driver to let it know that the device is being removed
+	/* Call to the vsc driver to let it know that the device is being removed */
 	ret = storvsc_drv_obj->Base.OnDeviceRemove(device_obj);
 	if (ret != 0)
 	{
-		// TODO:
+		/* TODO: */
 		DPRINT_ERR(BLKVSC_DRV, "unable to remove blkvsc device (ret %d)", ret);
 	}
 
-	// Get to a known state
+	/* Get to a known state */
 	spin_lock_irqsave(&blkdev->lock, flags);
 
 	blkdev->shutting_down = 1;
@@ -922,7 +931,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*reque
 	storvsc_req->Host = blkdev->port;
 	storvsc_req->Bus = blkdev->path;
 	storvsc_req->TargetId = blkdev->target;
-	storvsc_req->LunId = 0;	 // this is not really used at all
+	storvsc_req->LunId = 0;	 /* this is not really used at all */
 
 	storvsc_req->CdbLen = blkvsc_req->cmd_len;
 	storvsc_req->Cdb = blkvsc_req->cmnd;
@@ -939,11 +948,13 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*reque
 	return ret;
 }
 
-//
-// We break the request into 1 or more blkvsc_requests and submit them.
-// If we cant submit them all, we put them on the pending_list. The
-// blkvsc_request() will work on the pending_list.
-//
+
+/*
+ * We break the request into 1 or more blkvsc_requests and submit
+ * them.  If we cant submit them all, we put them on the
+ * pending_list. The blkvsc_request() will work on the pending_list.
+ */
+
 static int blkvsc_do_request(struct block_device_context *blkdev, struct request *req)
 {
 	struct bio *bio=NULL;
@@ -963,7 +974,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 
 	DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p sect %llu \n", blkdev, req, blk_rq_pos(req));
 
-	// Create a group to tie req to list of blkvsc_reqs
+	/* Create a group to tie req to list of blkvsc_reqs */
 	group = (struct blkvsc_request_group*)kmem_cache_alloc(blkdev->request_pool, GFP_ATOMIC);
 	if (!group)
 	{
@@ -975,23 +986,23 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 
 	start_sector = blk_rq_pos(req);
 
-	// foreach bio in the request
+	/* foreach bio in the request */
 	if (req->bio)
 	 for (bio = req->bio; bio; bio = bio->bi_next)
 	{
-		// Map this bio into an existing or new storvsc request
+		/* Map this bio into an existing or new storvsc request */
 		bio_for_each_segment (bvec, bio, seg_idx)
 		{
 			DPRINT_DBG(BLKVSC_DRV, "bio_for_each_segment() - req %p bio %p bvec %p seg_idx %d databuf_idx %d\n",
 							req, bio, bvec, seg_idx, databuf_idx);
 
-			// Get a new storvsc request
-			if ( (!blkvsc_req) ||									// 1st-time
+			/* Get a new storvsc request */
+			if ( (!blkvsc_req) ||									/* 1st-time */
 				 (databuf_idx >= MAX_MULTIPAGE_BUFFER_COUNT) ||
-				 (bvec->bv_offset != 0) ||							// hole at the begin of page
-				 (prev_bvec && (prev_bvec->bv_len != PAGE_SIZE)) )	// hold at the end of page
+				 (bvec->bv_offset != 0) ||							/* hole at the begin of page */
+				 (prev_bvec && (prev_bvec->bv_len != PAGE_SIZE)) )	/* hold at the end of page */
 			{
-				// submit the prev one
+				/* submit the prev one */
 				if (blkvsc_req)
 				{
 					blkvsc_req->sector_start = start_sector;
@@ -1002,11 +1013,11 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 					blkvsc_init_rw(blkvsc_req);
 				}
 
-				// Create new blkvsc_req to represent the current bvec
+				/* Create new blkvsc_req to represent the current bvec */
 				blkvsc_req = kmem_cache_alloc(blkdev->request_pool, GFP_ATOMIC);
 				if (!blkvsc_req)
 				{
-					// free up everything
+					/* free up everything */
 					list_for_each_entry_safe(blkvsc_req, tmp, &group->blkvsc_req_list, req_entry)
 					{
 						list_del(&blkvsc_req->req_entry);
@@ -1024,7 +1035,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 				blkvsc_req->request.DataBuffer.Offset = bvec->bv_offset;
 				blkvsc_req->request.DataBuffer.Length = 0;
 
-				// Add to the group
+				/* Add to the group */
 				blkvsc_req->group = group;
 				blkvsc_req->group->outstanding++;
 				list_add_tail(&blkvsc_req->req_entry, &blkvsc_req->group->blkvsc_req_list);
@@ -1034,7 +1045,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 				databuf_idx = 0;
 			}
 
-			// Add the curr bvec/segment to the curr blkvsc_req
+			/* Add the curr bvec/segment to the curr blkvsc_req */
 			blkvsc_req->request.DataBuffer.PfnArray[databuf_idx] = page_to_pfn(bvec->bv_page);
 			blkvsc_req->request.DataBuffer.Length += bvec->bv_len;
 
@@ -1043,11 +1054,11 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 			databuf_idx++;
 			num_sectors += bvec->bv_len >> 9;
 
-		} // bio_for_each_segment
+		} /* bio_for_each_segment */
 
-	} // rq_for_each_bio
+	} /* rq_for_each_bio */
 
-	// Handle the last one
+	/* Handle the last one */
 	if (blkvsc_req)
 	{
 		DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p group %p count %d\n", blkdev, req, blkvsc_req->group, blkvsc_req->group->outstanding);
@@ -1134,8 +1145,11 @@ static void blkvsc_request_completion(STORVSC_REQUEST* request)
 	blkdev->num_outstanding_reqs--;
 	blkvsc_req->group->outstanding--;
 
-	// Only start processing when all the blkvsc_reqs are completed. This guarantees no out-of-order
-	// blkvsc_req completion when calling end_that_request_first()
+	/*
+	 * Only start processing when all the blkvsc_reqs are
+	 * completed. This guarantees no out-of-order blkvsc_req
+	 * completion when calling end_that_request_first()
+	 */
 	if (blkvsc_req->group->outstanding == 0)
 	{
 		list_for_each_entry_safe(comp_req, tmp, &blkvsc_req->group->blkvsc_req_list, req_entry)
@@ -1152,7 +1166,7 @@ static void blkvsc_request_completion(STORVSC_REQUEST* request)
 				(!comp_req->request.Status ? 0: -EIO),
 				comp_req->sector_count * blkdev->sector_size))
 			{
-				//All the sectors have been xferred ie the request is done
+				/* All the sectors have been xferred ie the request is done */
 				DPRINT_DBG(BLKVSC_DRV, "req %p COMPLETED\n", comp_req->req);
 				kmem_cache_free(blkdev->request_pool, comp_req->group);
 			}
@@ -1180,11 +1194,14 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_cancel_pending_reqs()");
 
-	// Flush the pending list first
+	/* Flush the pending list first */
 	list_for_each_entry_safe(pend_req, tmp, &blkdev->pending_list, pend_entry)
 	{
-		// The pend_req could be part of a partially completed request. If so, complete those req first
-		// until we hit the pend_req
+		/*
+		 * The pend_req could be part of a partially completed
+		 * request. If so, complete those req first until we
+		 * hit the pend_req
+		 */
 		list_for_each_entry_safe(comp_req, tmp2, &pend_req->group->blkvsc_req_list, req_entry)
 		{
 			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p sect_start %llu sect_count %ld \n",
@@ -1222,7 +1239,7 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 			-EIO,
 			pend_req->sector_count * blkdev->sector_size))
 		{
-			//All the sectors have been xferred ie the request is done
+			/* All the sectors have been xferred ie the request is done */
 			DPRINT_DBG(BLKVSC_DRV, "blkvsc_cancel_pending_reqs() - req %p COMPLETED\n", pend_req->req);
 			kmem_cache_free(blkdev->request_pool, pend_req->group);
 		}
@@ -1239,7 +1256,7 @@ static int blkvsc_do_pending_reqs(struct block_device_context *blkdev)
 	struct blkvsc_request *pend_req, *tmp;
 	int ret=0;
 
-	// Flush the pending list first
+	/* Flush the pending list first */
 	list_for_each_entry_safe(pend_req, tmp, &blkdev->pending_list, pend_entry)
 	{
 		DPRINT_DBG(BLKVSC_DRV, "working off pending_list - %p\n", pend_req);
@@ -1378,51 +1395,51 @@ int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg)
 	int rem=0;
 
     if (total_sectors > (65535 * 16 * 255)) {
-        total_sectors = (65535 * 16 * 255);
+	total_sectors = (65535 * 16 * 255);
     }
 
     if (total_sectors >= (65535 * 16 * 63)) {
-        sectors_per_track = 255;
-        heads = 16;
+	sectors_per_track = 255;
+	heads = 16;
 
 		cylinder_times_heads = total_sectors;
-		rem = sector_div(cylinder_times_heads, sectors_per_track); // sector_div stores the quotient in cylinder_times_heads
+		rem = sector_div(cylinder_times_heads, sectors_per_track); /* sector_div stores the quotient in cylinder_times_heads */
     }
 	else
 	{
-        sectors_per_track = 17;
+	sectors_per_track = 17;
 
 		cylinder_times_heads = total_sectors;
-        rem = sector_div(cylinder_times_heads, sectors_per_track); 	// sector_div stores the quotient in cylinder_times_heads
+	rem = sector_div(cylinder_times_heads, sectors_per_track);	/* sector_div stores the quotient in cylinder_times_heads */
 
 		temp = cylinder_times_heads + 1023;
-		rem = sector_div(temp, 1024); 	// sector_div stores the quotient in temp
+		rem = sector_div(temp, 1024);	/* sector_div stores the quotient in temp */
 
 		heads = temp;
 
-        if (heads < 4) {
-            heads = 4;
-        }
+	if (heads < 4) {
+	    heads = 4;
+	}
 
-        if (cylinder_times_heads >= (heads * 1024) || (heads > 16)) {
-            sectors_per_track = 31;
-            heads = 16;
-
-			cylinder_times_heads = total_sectors;
-            rem = sector_div(cylinder_times_heads, sectors_per_track); // sector_div stores the quotient in cylinder_times_heads
-        }
-
-        if (cylinder_times_heads >= (heads * 1024)) {
-            sectors_per_track = 63;
-            heads = 16;
+	if (cylinder_times_heads >= (heads * 1024) || (heads > 16)) {
+	    sectors_per_track = 31;
+	    heads = 16;
 
 			cylinder_times_heads = total_sectors;
-            rem = sector_div(cylinder_times_heads, sectors_per_track); // sector_div stores the quotient in cylinder_times_heads
-        }
+	    rem = sector_div(cylinder_times_heads, sectors_per_track); /* sector_div stores the quotient in cylinder_times_heads */
+	}
+
+	if (cylinder_times_heads >= (heads * 1024)) {
+	    sectors_per_track = 63;
+	    heads = 16;
+
+			cylinder_times_heads = total_sectors;
+	    rem = sector_div(cylinder_times_heads, sectors_per_track); /* sector_div stores the quotient in cylinder_times_heads */
+	}
     }
 
 	temp = cylinder_times_heads;
-    rem = sector_div(temp, heads); // sector_div stores the quotient in temp
+    rem = sector_div(temp, heads); /* sector_div stores the quotient in temp */
 	cylinders = temp;
 
 	hg->heads = heads;
@@ -1442,8 +1459,8 @@ static int blkvsc_ioctl(struct inode *inode, struct file *filep, unsigned cmd, u
 
 	switch (cmd)
 	{
-	// TODO: I think there is certain format for HDIO_GET_IDENTITY rather than just
-	// a GUID. Commented it out for now.
+	/* TODO: I think there is certain format for HDIO_GET_IDENTITY rather than just */
+	/* a GUID. Commented it out for now. */
 	/*case HDIO_GET_IDENTITY:
 		DPRINT_INFO(BLKVSC_DRV, "HDIO_GET_IDENTITY\n");
 
@@ -1468,7 +1485,7 @@ static int __init blkvsc_init(void)
 {
 	int ret;
 
-	ASSERT(sizeof(sector_t) == 8); // Make sure CONFIG_LBD is set
+	ASSERT(sizeof(sector_t) == 8); /* Make sure CONFIG_LBD is set */
 
 	DPRINT_ENTER(BLKVSC_DRV);
 
@@ -1495,4 +1512,4 @@ module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
 module_init(blkvsc_init);
 module_exit(blkvsc_exit);
 
-// eof
+/* eof */

@@ -23,24 +23,24 @@
 
 #pragma once
 
-//
-// Define the virtual APIC registers
-//
+
+/* Define the virtual APIC registers */
+
 #define HV_X64_MSR_EOI                  (0x40000070)
 #define HV_X64_MSR_ICR                  (0x40000071)
 #define HV_X64_MSR_TPR                  (0x40000072)
 #define HV_X64_MSR_APIC_ASSIST_PAGE     (0x40000073)
 
-//
-// Define version of the synthetic interrupt controller.
-//
+
+/* Define version of the synthetic interrupt controller. */
+
 
 #define HV_SYNIC_VERSION        (1)
 
 
-//
-// Define synthetic interrupt controller model specific registers.
-//
+
+/* Define synthetic interrupt controller model specific registers. */
+
 
 #define HV_X64_MSR_SCONTROL   (0x40000080)
 #define HV_X64_MSR_SVERSION   (0x40000081)
@@ -64,61 +64,61 @@
 #define HV_X64_MSR_SINT14     (0x4000009E)
 #define HV_X64_MSR_SINT15     (0x4000009F)
 
-//
-// Define the expected SynIC version.
-//
+
+/* Define the expected SynIC version. */
+
 #define HV_SYNIC_VERSION_1 (0x1)
 
-//
-// Define synthetic interrupt controller message constants.
-//
+
+/* Define synthetic interrupt controller message constants. */
+
 
 #define HV_MESSAGE_SIZE                 (256)
 #define HV_MESSAGE_PAYLOAD_BYTE_COUNT   (240)
 #define HV_MESSAGE_PAYLOAD_QWORD_COUNT  (30)
 #define HV_ANY_VP                       (0xFFFFFFFF)
 
-//
-// Define synthetic interrupt controller flag constants.
-//
+
+/* Define synthetic interrupt controller flag constants. */
+
 
 #define HV_EVENT_FLAGS_COUNT        (256 * 8)
 #define HV_EVENT_FLAGS_BYTE_COUNT   (256)
 #define HV_EVENT_FLAGS_DWORD_COUNT  (256 / sizeof(u32))
 
-//
-// Define hypervisor message types.
-//
+
+/* Define hypervisor message types. */
+
 typedef enum _HV_MESSAGE_TYPE
 {
     HvMessageTypeNone = 0x00000000,
 
-    //
-    // Memory access messages.
-    //
+
+    /* Memory access messages. */
+
     HvMessageTypeUnmappedGpa = 0x80000000,
     HvMessageTypeGpaIntercept = 0x80000001,
 
-    //
-    // Timer notification messages.
-    //
+
+    /* Timer notification messages. */
+
     HvMessageTimerExpired = 0x80000010,
 
-    //
-    // Error messages.
-    //
+
+    /* Error messages. */
+
     HvMessageTypeInvalidVpRegisterValue = 0x80000020,
     HvMessageTypeUnrecoverableException = 0x80000021,
     HvMessageTypeUnsupportedFeature = 0x80000022,
 
-    //
-    // Trace buffer complete messages.
-    //
+
+    /* Trace buffer complete messages. */
+
     HvMessageTypeEventLogBufferComplete = 0x80000040,
 
-    //
-    // Platform-specific processor intercept messages.
-    //
+
+    /* Platform-specific processor intercept messages. */
+
     HvMessageTypeX64IoPortIntercept = 0x80010000,
     HvMessageTypeX64MsrIntercept = 0x80010001,
     HvMessageTypeX64CpuidIntercept = 0x80010002,
@@ -128,33 +128,33 @@ typedef enum _HV_MESSAGE_TYPE
 
 } HV_MESSAGE_TYPE, *PHV_MESSAGE_TYPE;
 
-//
-// Define the number of synthetic interrupt sources.
-//
+
+/* Define the number of synthetic interrupt sources. */
+
 
 #define HV_SYNIC_SINT_COUNT (16)
 #define HV_SYNIC_STIMER_COUNT (4)
 
-//
-// Define the synthetic interrupt source index type.
-//
+
+/* Define the synthetic interrupt source index type. */
+
 
 typedef u32 HV_SYNIC_SINT_INDEX, *PHV_SYNIC_SINT_INDEX;
 
-//
-// Define partition identifier type.
-//
+
+/* Define partition identifier type. */
+
 
 typedef u64 HV_PARTITION_ID, *PHV_PARTITION_ID;
 
-//
-// Define invalid partition identifier.
-//
+
+/* Define invalid partition identifier. */
+
 #define HV_PARTITION_ID_INVALID ((HV_PARTITION_ID) 0x0)
 
-//
-// Define connection identifier type.
-//
+
+/* Define connection identifier type. */
+
 
 typedef union _HV_CONNECTION_ID
 {
@@ -162,15 +162,15 @@ typedef union _HV_CONNECTION_ID
 
     struct
     {
-        u32 Id:24;
-        u32 Reserved:8;
+	u32 Id:24;
+	u32 Reserved:8;
     } u;
 
 } HV_CONNECTION_ID, *PHV_CONNECTION_ID;
 
-//
-// Define port identifier type.
-//
+
+/* Define port identifier type. */
+
 
 typedef union _HV_PORT_ID
 {
@@ -178,15 +178,15 @@ typedef union _HV_PORT_ID
 
     struct
     {
-        u32 Id:24;
-        u32 Reserved:8;
+	u32 Id:24;
+	u32 Reserved:8;
     } u ;
 
 } HV_PORT_ID, *PHV_PORT_ID;
 
-//
-// Define port type.
-//
+
+/* Define port type. */
+
 
 typedef enum _HV_PORT_TYPE
 {
@@ -195,9 +195,9 @@ typedef enum _HV_PORT_TYPE
     HvPortTypeMonitor   = 3
 } HV_PORT_TYPE, *PHV_PORT_TYPE;
 
-//
-// Define port information structure.
-//
+
+/* Define port information structure. */
+
 
 typedef struct _HV_PORT_INFO
 {
@@ -206,27 +206,27 @@ typedef struct _HV_PORT_INFO
 
     union
     {
-        struct
-        {
-            HV_SYNIC_SINT_INDEX TargetSint;
-            HV_VP_INDEX TargetVp;
-            u64 RsvdZ;
-        } MessagePortInfo;
+	struct
+	{
+	    HV_SYNIC_SINT_INDEX TargetSint;
+	    HV_VP_INDEX TargetVp;
+	    u64 RsvdZ;
+	} MessagePortInfo;
 
-        struct
-        {
-            HV_SYNIC_SINT_INDEX TargetSint;
-            HV_VP_INDEX TargetVp;
-            u16 BaseFlagNumber;
-            u16 FlagCount;
-            u32 RsvdZ;
-        } EventPortInfo;
+	struct
+	{
+	    HV_SYNIC_SINT_INDEX TargetSint;
+	    HV_VP_INDEX TargetVp;
+	    u16 BaseFlagNumber;
+	    u16 FlagCount;
+	    u32 RsvdZ;
+	} EventPortInfo;
 
-        struct
-        {
-            HV_GPA MonitorAddress;
-            u64 RsvdZ;
-        } MonitorPortInfo;
+	struct
+	{
+	    HV_GPA MonitorAddress;
+	    u64 RsvdZ;
+	} MonitorPortInfo;
     };
 } HV_PORT_INFO, *PHV_PORT_INFO;
 
@@ -239,43 +239,43 @@ typedef struct _HV_CONNECTION_INFO
 
     union
     {
-        struct
-        {
-            u64 RsvdZ;
-        } MessageConnectionInfo;
+	struct
+	{
+	    u64 RsvdZ;
+	} MessageConnectionInfo;
 
-        struct
-        {
-            u64 RsvdZ;
-        } EventConnectionInfo;
+	struct
+	{
+	    u64 RsvdZ;
+	} EventConnectionInfo;
 
-        struct
-        {
-            HV_GPA MonitorAddress;
-        } MonitorConnectionInfo;
+	struct
+	{
+	    HV_GPA MonitorAddress;
+	} MonitorConnectionInfo;
     };
 } HV_CONNECTION_INFO, *PHV_CONNECTION_INFO;
 
 typedef const HV_CONNECTION_INFO *PCHV_CONNECTION_INFO;
 
-//
-// Define synthetic interrupt controller message flags.
-//
+
+/* Define synthetic interrupt controller message flags. */
+
 
 typedef union _HV_MESSAGE_FLAGS
 {
     u8 Asu8;
     struct
     {
-        u8 MessagePending:1;
-        u8 Reserved:7;
+	u8 MessagePending:1;
+	u8 Reserved:7;
     };
 } HV_MESSAGE_FLAGS, *PHV_MESSAGE_FLAGS;
 
 
-//
-// Define synthetic interrupt controller message header.
-//
+
+/* Define synthetic interrupt controller message header. */
+
 
 typedef struct _HV_MESSAGE_HEADER
 {
@@ -285,45 +285,45 @@ typedef struct _HV_MESSAGE_HEADER
     u8               Reserved[2];
     union
     {
-        HV_PARTITION_ID Sender;
-        HV_PORT_ID      Port;
+	HV_PARTITION_ID Sender;
+	HV_PORT_ID      Port;
     };
 
 } HV_MESSAGE_HEADER, *PHV_MESSAGE_HEADER;
 
-//
-// Define timer message payload structure.
-//
+
+/* Define timer message payload structure. */
+
 typedef struct _HV_TIMER_MESSAGE_PAYLOAD
 {
     u32          TimerIndex;
     u32          Reserved;
-    HV_NANO100_TIME ExpirationTime;     // When the timer expired
-    HV_NANO100_TIME DeliveryTime;       // When the message was delivered
+    HV_NANO100_TIME ExpirationTime;     /* When the timer expired */
+    HV_NANO100_TIME DeliveryTime;       /* When the message was delivered */
 } HV_TIMER_MESSAGE_PAYLOAD, *PHV_TIMER_MESSAGE_PAYLOAD;
 
-//
-// Define synthetic interrupt controller message format.
-//
+
+/* Define synthetic interrupt controller message format. */
+
 
 typedef struct _HV_MESSAGE
 {
     HV_MESSAGE_HEADER Header;
     union
     {
-        u64 Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
+	u64 Payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
     } u ;
 } HV_MESSAGE, *PHV_MESSAGE;
 
-//
-// Define the number of message buffers associated with each port.
-//
+
+/* Define the number of message buffers associated with each port. */
+
 
 #define HV_PORT_MESSAGE_BUFFER_COUNT (16)
 
-//
-// Define the synthetic interrupt message page layout.
-//
+
+/* Define the synthetic interrupt message page layout. */
+
 
 typedef struct _HV_MESSAGE_PAGE
 {
@@ -331,9 +331,9 @@ typedef struct _HV_MESSAGE_PAGE
 } HV_MESSAGE_PAGE, *PHV_MESSAGE_PAGE;
 
 
-//
-// Define the synthetic interrupt controller event flags format.
-//
+
+/* Define the synthetic interrupt controller event flags format. */
+
 
 typedef union _HV_SYNIC_EVENT_FLAGS
 {
@@ -342,9 +342,9 @@ typedef union _HV_SYNIC_EVENT_FLAGS
 } HV_SYNIC_EVENT_FLAGS, *PHV_SYNIC_EVENT_FLAGS;
 
 
-//
-// Define the synthetic interrupt flags page layout.
-//
+
+/* Define the synthetic interrupt flags page layout. */
+
 
 typedef struct _HV_SYNIC_EVENT_FLAGS_PAGE
 {
@@ -352,69 +352,69 @@ typedef struct _HV_SYNIC_EVENT_FLAGS_PAGE
 } HV_SYNIC_EVENT_FLAGS_PAGE, *PHV_SYNIC_EVENT_FLAGS_PAGE;
 
 
-//
-// Define SynIC control register.
-//
+
+/* Define SynIC control register. */
+
 typedef union _HV_SYNIC_SCONTROL
 {
     u64 AsUINT64;
     struct
     {
-        u64 Enable:1;
-        u64 Reserved:63;
+	u64 Enable:1;
+	u64 Reserved:63;
     };
 } HV_SYNIC_SCONTROL, *PHV_SYNIC_SCONTROL;
 
-//
-// Define synthetic interrupt source.
-//
+
+/* Define synthetic interrupt source. */
+
 
 typedef union _HV_SYNIC_SINT
 {
     u64 AsUINT64;
     struct
     {
-        u64 Vector    :8;
-        u64 Reserved1 :8;
-        u64 Masked    :1;
-        u64 AutoEoi   :1;
-        u64 Reserved2 :46;
+	u64 Vector    :8;
+	u64 Reserved1 :8;
+	u64 Masked    :1;
+	u64 AutoEoi   :1;
+	u64 Reserved2 :46;
     };
 } HV_SYNIC_SINT, *PHV_SYNIC_SINT;
 
-//
-// Define the format of the SIMP register
-//
+
+/* Define the format of the SIMP register */
+
 
 typedef union _HV_SYNIC_SIMP
 {
     u64 AsUINT64;
     struct
     {
-        u64 SimpEnabled : 1;
-        u64 Preserved   : 11;
-        u64 BaseSimpGpa : 52;
+	u64 SimpEnabled : 1;
+	u64 Preserved   : 11;
+	u64 BaseSimpGpa : 52;
     };
 } HV_SYNIC_SIMP, *PHV_SYNIC_SIMP;
 
-//
-// Define the format of the SIEFP register
-//
+
+/* Define the format of the SIEFP register */
+
 
 typedef union _HV_SYNIC_SIEFP
 {
     u64 AsUINT64;
     struct
     {
-        u64 SiefpEnabled : 1;
-        u64 Preserved   : 11;
-        u64 BaseSiefpGpa : 52;
+	u64 SiefpEnabled : 1;
+	u64 Preserved   : 11;
+	u64 BaseSiefpGpa : 52;
     };
 } HV_SYNIC_SIEFP, *PHV_SYNIC_SIEFP;
 
-//
-// Definitions for the monitored notification facility
-//
+
+/* Definitions for the monitored notification facility */
+
 
 typedef union _HV_MONITOR_TRIGGER_GROUP
 {
@@ -422,8 +422,8 @@ typedef union _HV_MONITOR_TRIGGER_GROUP
 
     struct
     {
-        u32 Pending;
-        u32 Armed;
+	u32 Pending;
+	u32 Armed;
     };
 
 } HV_MONITOR_TRIGGER_GROUP, *PHV_MONITOR_TRIGGER_GROUP;
@@ -441,32 +441,32 @@ typedef union _HV_MONITOR_TRIGGER_STATE
 
     struct
     {
-        u32 GroupEnable : 4;
-        u32 RsvdZ       : 28;
+	u32 GroupEnable : 4;
+	u32 RsvdZ       : 28;
     };
 
 } HV_MONITOR_TRIGGER_STATE, *PHV_MONITOR_TRIGGER_STATE;
 
-//
-// HV_MONITOR_PAGE Layout
-// ------------------------------------------------------
-// | 0   | TriggerState (4 bytes) | Rsvd1 (4 bytes)     |
-// | 8   | TriggerGroup[0]                              |
-// | 10  | TriggerGroup[1]                              |
-// | 18  | TriggerGroup[2]                              |
-// | 20  | TriggerGroup[3]                              |
-// | 28  | Rsvd2[0]                                     |
-// | 30  | Rsvd2[1]                                     |
-// | 38  | Rsvd2[2]                                     |
-// | 40  | NextCheckTime[0][0]    | NextCheckTime[0][1] |
-// | ...                                                |
-// | 240 | Latency[0][0..3]                             |
-// | 340 | Rsvz3[0]                                     |
-// | 440 | Parameter[0][0]                              |
-// | 448 | Parameter[0][1]                              |
-// | ...                                                |
-// | 840 | Rsvd4[0]                                     |
-// ------------------------------------------------------
+
+/* HV_MONITOR_PAGE Layout */
+/* ------------------------------------------------------ */
+/* | 0   | TriggerState (4 bytes) | Rsvd1 (4 bytes)     | */
+/* | 8   | TriggerGroup[0]                              | */
+/* | 10  | TriggerGroup[1]                              | */
+/* | 18  | TriggerGroup[2]                              | */
+/* | 20  | TriggerGroup[3]                              | */
+/* | 28  | Rsvd2[0]                                     | */
+/* | 30  | Rsvd2[1]                                     | */
+/* | 38  | Rsvd2[2]                                     | */
+/* | 40  | NextCheckTime[0][0]    | NextCheckTime[0][1] | */
+/* | ...                                                | */
+/* | 240 | Latency[0][0..3]                             | */
+/* | 340 | Rsvz3[0]                                     | */
+/* | 440 | Parameter[0][0]                              | */
+/* | 448 | Parameter[0][1]                              | */
+/* | ...                                                | */
+/* | 840 | Rsvd4[0]                                     | */
+/* ------------------------------------------------------ */
 
 typedef struct _HV_MONITOR_PAGE
 {

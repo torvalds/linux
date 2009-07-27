@@ -46,9 +46,9 @@
 
 #include "include/osd.h"
 
-//
-// Data types
-//
+
+/* Data types */
+
 typedef struct _TIMER {
 	struct timer_list timer;
 	PFN_TIMER_CALLBACK callback;
@@ -113,7 +113,7 @@ int InterlockedDecrement(int *val)
 #endif
 int InterlockedCompareExchange(int *val, int new, int curr)
 {
-	//return ((int)cmpxchg(((atomic_t*)val), curr, new));
+	/* return ((int)cmpxchg(((atomic_t*)val), curr, new)); */
 	return atomic_cmpxchg((atomic_t*)val, curr, new);
 
 }
@@ -139,13 +139,13 @@ void* PageAlloc(unsigned int count)
 	if (p) memset(p, 0, count * PAGE_SIZE);
 	return p;
 
-	//struct page* page = alloc_page(GFP_KERNEL|__GFP_ZERO);
-	//void *p;
+	/* struct page* page = alloc_page(GFP_KERNEL|__GFP_ZERO); */
+	/* void *p; */
 
-	////BUGBUG: We need to use kmap in case we are in HIMEM region
-	//p = page_address(page);
-	//if (p) memset(p, 0, PAGE_SIZE);
-	//return p;
+	/* BUGBUG: We need to use kmap in case we are in HIMEM region */
+	/* p = page_address(page); */
+	/* if (p) memset(p, 0, PAGE_SIZE); */
+	/* return p; */
 }
 
 void PageFree(void* page, unsigned int count)
@@ -171,17 +171,17 @@ void *MemMapIO(unsigned long phys, unsigned long size)
 #if X2V_LINUX
 #ifdef __x86_64__
 	return (void*)(phys + 0xFFFF83000C000000);
-#else // i386
+#else /* i386 */
 	return (void*)(phys + 0xfb000000);
 #endif
 #else
-	return (void*)GetVirtualAddress(phys); //return ioremap_nocache(phys, size);
+	return (void*)GetVirtualAddress(phys); /* return ioremap_nocache(phys, size); */
 #endif
 }
 
 void MemUnmapIO(void *virt)
 {
-	//iounmap(virt);
+	/* iounmap(virt); */
 }
 
 void TimerCallback(unsigned long data)

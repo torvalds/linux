@@ -47,27 +47,27 @@ typedef struct _VMBUS_CHANNEL {
 
 	DEVICE_OBJECT*				DeviceObject;
 
-	HANDLE						PollTimer; // SA-111 workaround
+	HANDLE						PollTimer; /* SA-111 workaround */
 
 	VMBUS_CHANNEL_STATE			State;
 
 	VMBUS_CHANNEL_OFFER_CHANNEL OfferMsg;
-	// These are based on the OfferMsg.MonitorId. Save it here for easy access.
+	/* These are based on the OfferMsg.MonitorId. Save it here for easy access. */
 	u8						MonitorGroup;
 	u8						MonitorBit;
 
 	u32						RingBufferGpadlHandle;
 
-	// Allocated memory for ring buffer
+	/* Allocated memory for ring buffer */
 	void *						RingBufferPages;
 	u32						RingBufferPageCount;
-	RING_BUFFER_INFO			Outbound;	// send to parent
-	RING_BUFFER_INFO			Inbound;	// receive from parent
+	RING_BUFFER_INFO			Outbound;	/* send to parent */
+	RING_BUFFER_INFO			Inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
 	HANDLE						ControlWQ;
 
-	// Channel callback are invoked in this workqueue context
-	//HANDLE						dataWorkQueue;
+	/* Channel callback are invoked in this workqueue context */
+	/* HANDLE						dataWorkQueue; */
 
 	PFN_CHANNEL_CALLBACK		OnChannelCallback;
 	void *						ChannelCallbackContext;
@@ -102,31 +102,31 @@ typedef union {
 } VMBUS_CHANNEL_MESSAGE_RESPONSE;
 
 
-// Represents each channel msg on the vmbus connection
-// This is a variable-size data structure depending on
-// the msg type itself
+/*
+ * Represents each channel msg on the vmbus connection This is a
+ * variable-size data structure depending on the msg type itself
+ */
+
 typedef struct _VMBUS_CHANNEL_MSGINFO {
-	// Bookkeeping stuff
+	/* Bookkeeping stuff */
 	LIST_ENTRY		MsgListEntry;
 
-	// So far, this is only used to handle gpadl body message
+	/* So far, this is only used to handle gpadl body message */
 	LIST_ENTRY		SubMsgList;
 
-	// Synchronize the request/response if needed
+	/* Synchronize the request/response if needed */
 	HANDLE			WaitEvent;
 
 	VMBUS_CHANNEL_MESSAGE_RESPONSE Response;
 
 	u32			MessageSize;
-	// The channel message that goes out on the "wire".
-	// It will contain at minimum the VMBUS_CHANNEL_MESSAGE_HEADER header
+	/* The channel message that goes out on the "wire". */
+	/* It will contain at minimum the VMBUS_CHANNEL_MESSAGE_HEADER header */
 	unsigned char	Msg[0];
 } VMBUS_CHANNEL_MSGINFO;
 
 
-//
-// Routines
-//
+/* Routines */
 
 static VMBUS_CHANNEL*
 AllocVmbusChannel(
@@ -153,4 +153,4 @@ VmbusChannelReleaseUnattachedChannels(
 	void
 	);
 
-#endif //_CHANNEL_MGMT_H_
+#endif /* _CHANNEL_MGMT_H_ */

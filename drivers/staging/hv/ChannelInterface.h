@@ -38,4 +38,4 @@ GetChannelInfo(
 	DEVICE_INFO			*DeviceInfo
 	);
 
-#endif // _CHANNEL_INTERFACE_H_
+#endif /* _CHANNEL_INTERFACE_H_ */

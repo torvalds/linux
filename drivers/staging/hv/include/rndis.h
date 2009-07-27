@@ -25,9 +25,9 @@
 #ifndef _RNDIS_H_
 #define _RNDIS_H_
 
-//
-//  Basic types
-//
+
+/*  Basic types */
+
 typedef u32                                  RNDIS_REQUEST_ID;
 typedef u32                                  RNDIS_HANDLE;
 typedef u32                                  RNDIS_STATUS;
@@ -44,9 +44,9 @@ typedef u32                                  *PRNDIS_CLASS_ID;
 typedef u32                                  *PRNDIS_MEDIUM;
 typedef u32                                  RNDIS_AF;
 
-//
-//  Status codes
-//
+
+/*  Status codes */
+
 
 #ifndef STATUS_SUCCESS
 #define STATUS_SUCCESS                          (0x00000000L)
@@ -150,13 +150,13 @@ typedef u32                                  RNDIS_AF;
 #define RNDIS_STATUS_TOKEN_RING_OPEN_ERROR      ((RNDIS_STATUS)0xC0011000L)
 
 
-//
-// Object Identifiers used by NdisRequest Query/Set Information
-//
 
-//
-// General Objects
-//
+/* Object Identifiers used by NdisRequest Query/Set Information */
+
+
+
+/* General Objects */
+
 
 #define RNDIS_OID_GEN_SUPPORTED_LIST                    0x00010101
 #define RNDIS_OID_GEN_HARDWARE_STATUS                   0x00010102
@@ -210,10 +210,10 @@ typedef u32                                  RNDIS_AF;
 #define RNDIS_OID_GEN_GET_TIME_CAPS                     0x0002020F
 #define RNDIS_OID_GEN_GET_NETCARD_TIME                  0x00020210
 
-//
-// These are connection-oriented general OIDs.
-// These replace the above OIDs for connection-oriented media.
-//
+
+/* These are connection-oriented general OIDs. */
+/* These replace the above OIDs for connection-oriented media. */
+
 #define RNDIS_OID_GEN_CO_SUPPORTED_LIST                 0x00010101
 #define RNDIS_OID_GEN_CO_HARDWARE_STATUS                0x00010102
 #define RNDIS_OID_GEN_CO_MEDIA_SUPPORTED                0x00010103
@@ -231,9 +231,9 @@ typedef u32                                  RNDIS_AF;
 #define RNDIS_OID_GEN_CO_GET_TIME_CAPS                  0x00010201
 #define RNDIS_OID_GEN_CO_GET_NETCARD_TIME               0x00010202
 
-//
-// These are connection-oriented statistics OIDs.
-//
+
+/* These are connection-oriented statistics OIDs. */
+
 #define RNDIS_OID_GEN_CO_XMIT_PDUS_OK                   0x00020101
 #define RNDIS_OID_GEN_CO_RCV_PDUS_OK                    0x00020102
 #define RNDIS_OID_GEN_CO_XMIT_PDUS_ERROR                0x00020103
@@ -248,9 +248,9 @@ typedef u32                                  RNDIS_AF;
 #define RNDIS_OID_GEN_CO_BYTES_XMIT_OUTSTANDING         0x00020205
 #define RNDIS_OID_GEN_CO_NETCARD_LOAD                   0x00020206
 
-//
-// These are objects for Connection-oriented media call-managers.
-//
+
+/* These are objects for Connection-oriented media call-managers. */
+
 #define RNDIS_OID_CO_ADD_PVC                            0xFF000001
 #define RNDIS_OID_CO_DELETE_PVC                         0xFF000002
 #define RNDIS_OID_CO_GET_CALL_INFORMATION               0xFF000003
@@ -262,9 +262,9 @@ typedef u32                                  RNDIS_AF;
 #define RNDIS_OID_CO_SIGNALING_DISABLED                 0xFF000009
 
 
-//
-// 802.3 Objects (Ethernet)
-//
+
+/* 802.3 Objects (Ethernet) */
+
 
 #define RNDIS_OID_802_3_PERMANENT_ADDRESS               0x01010101
 #define RNDIS_OID_802_3_CURRENT_ADDRESS                 0x01010102
@@ -272,8 +272,8 @@ typedef u32                                  RNDIS_AF;
 #define RNDIS_OID_802_3_MAXIMUM_LIST_SIZE               0x01010104
 #define RNDIS_OID_802_3_MAC_OPTIONS                     0x01010105
 
-//
-//
+
+
 #define NDIS_802_3_MAC_OPTION_PRIORITY                  0x00000001
 
 #define RNDIS_OID_802_3_RCV_ERROR_ALIGNMENT             0x01020101
@@ -289,9 +289,9 @@ typedef u32                                  RNDIS_AF;
 #define RNDIS_OID_802_3_XMIT_LATE_COLLISIONS            0x01020207
 
 
-//
-// Remote NDIS message types
-//
+
+/* Remote NDIS message types */
+
 #define REMOTE_NDIS_PACKET_MSG                  0x00000001
 #define REMOTE_NDIS_INITIALIZE_MSG              0x00000002
 #define REMOTE_NDIS_HALT_MSG                    0x00000003
@@ -308,7 +308,7 @@ typedef u32                                  RNDIS_AF;
 #define REMOTE_CONDIS_INDICATE_STATUS_MSG       0x00008007
 
 
-// Remote NDIS message completion types
+/* Remote NDIS message completion types */
 #define REMOTE_NDIS_INITIALIZE_CMPLT            0x80000002
 #define REMOTE_NDIS_QUERY_CMPLT                 0x80000004
 #define REMOTE_NDIS_SET_CMPLT                   0x80000005
@@ -320,24 +320,24 @@ typedef u32                                  RNDIS_AF;
 #define REMOTE_CONDIS_MP_ACTIVATE_VC_CMPLT      0x80008005
 #define REMOTE_CONDIS_MP_DEACTIVATE_VC_CMPLT    0x80008006
 
-//
-// Reserved message type for private communication between lower-layer
-// host driver and remote device, if necessary.
-//
+
+/* Reserved message type for private communication between lower-layer */
+/* host driver and remote device, if necessary. */
+
 #define REMOTE_NDIS_BUS_MSG                     0xff000001
 
 
 
-//
-//  Defines for DeviceFlags in RNDIS_INITIALIZE_COMPLETE
-//
+
+/*  Defines for DeviceFlags in RNDIS_INITIALIZE_COMPLETE */
+
 #define RNDIS_DF_CONNECTIONLESS             0x00000001
 #define RNDIS_DF_CONNECTION_ORIENTED        0x00000002
 #define RNDIS_DF_RAW_DATA                   0x00000004
 
-//
-//  Remote NDIS medium types.
-//
+
+/*  Remote NDIS medium types. */
+
 #define RNdisMedium802_3                    0x00000000
 #define RNdisMedium802_5                    0x00000001
 #define RNdisMediumFddi                     0x00000002
@@ -349,23 +349,23 @@ typedef u32                                  RNDIS_AF;
 #define RNdisMediumWirelessWan              0x00000009
 #define RNdisMediumIrda                     0x0000000a
 #define RNdisMediumCoWan                    0x0000000b
-#define RNdisMediumMax                      0x0000000d     // Not a real medium, defined as an upper-bound
+#define RNdisMediumMax                      0x0000000d     /* Not a real medium, defined as an upper-bound */
 
-//
-// Remote NDIS medium connection states.
-//
+
+/* Remote NDIS medium connection states. */
+
 #define RNdisMediaStateConnected            0x00000000
 #define RNdisMediaStateDisconnected         0x00000001
 
-//
-//  Remote NDIS version numbers
-//
+
+/*  Remote NDIS version numbers */
+
 #define RNDIS_MAJOR_VERSION                 0x00000001
 #define RNDIS_MINOR_VERSION                 0x00000000
 
-//
-//  NdisInitialize message
-//
+
+/*  NdisInitialize message */
+
 typedef struct _RNDIS_INITIALIZE_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -375,9 +375,9 @@ typedef struct _RNDIS_INITIALIZE_REQUEST
 } RNDIS_INITIALIZE_REQUEST, *PRNDIS_INITIALIZE_REQUEST;
 
 
-//
-//  Response to NdisInitialize
-//
+
+/*  Response to NdisInitialize */
+
 typedef struct _RNDIS_INITIALIZE_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -394,10 +394,10 @@ typedef struct _RNDIS_INITIALIZE_COMPLETE
 } RNDIS_INITIALIZE_COMPLETE, *PRNDIS_INITIALIZE_COMPLETE;
 
 
-//
-//  Call manager devices only: Information about an address family
-//  supported by the device is appended to the response to NdisInitialize.
-//
+
+/*  Call manager devices only: Information about an address family */
+/*  supported by the device is appended to the response to NdisInitialize. */
+
 typedef struct _RNDIS_CO_ADDRESS_FAMILY
 {
     RNDIS_AF                                AddressFamily;
@@ -406,18 +406,18 @@ typedef struct _RNDIS_CO_ADDRESS_FAMILY
 } RNDIS_CO_ADDRESS_FAMILY, *PRNDIS_CO_ADDRESS_FAMILY;
 
 
-//
-//  NdisHalt message
-//
+
+/*  NdisHalt message */
+
 typedef struct _RNDIS_HALT_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
 } RNDIS_HALT_REQUEST, *PRNDIS_HALT_REQUEST;
 
 
-//
-// NdisQueryRequest message
-//
+
+/* NdisQueryRequest message */
+
 typedef struct _RNDIS_QUERY_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -428,9 +428,9 @@ typedef struct _RNDIS_QUERY_REQUEST
 } RNDIS_QUERY_REQUEST, *PRNDIS_QUERY_REQUEST;
 
 
-//
-//  Response to NdisQueryRequest
-//
+
+/*  Response to NdisQueryRequest */
+
 typedef struct _RNDIS_QUERY_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -440,9 +440,9 @@ typedef struct _RNDIS_QUERY_COMPLETE
 } RNDIS_QUERY_COMPLETE, *PRNDIS_QUERY_COMPLETE;
 
 
-//
-//  NdisSetRequest message
-//
+
+/*  NdisSetRequest message */
+
 typedef struct _RNDIS_SET_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -453,9 +453,9 @@ typedef struct _RNDIS_SET_REQUEST
 } RNDIS_SET_REQUEST, *PRNDIS_SET_REQUEST;
 
 
-//
-//  Response to NdisSetRequest
-//
+
+/*  Response to NdisSetRequest */
+
 typedef struct _RNDIS_SET_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -463,17 +463,17 @@ typedef struct _RNDIS_SET_COMPLETE
 } RNDIS_SET_COMPLETE, *PRNDIS_SET_COMPLETE;
 
 
-//
-//  NdisReset message
-//
+
+/*  NdisReset message */
+
 typedef struct _RNDIS_RESET_REQUEST
 {
     u32                                  Reserved;
 } RNDIS_RESET_REQUEST, *PRNDIS_RESET_REQUEST;
 
-//
-//  Response to NdisReset
-//
+
+/*  Response to NdisReset */
+
 typedef struct _RNDIS_RESET_COMPLETE
 {
     RNDIS_STATUS                            Status;
@@ -481,9 +481,9 @@ typedef struct _RNDIS_RESET_COMPLETE
 } RNDIS_RESET_COMPLETE, *PRNDIS_RESET_COMPLETE;
 
 
-//
-//  NdisMIndicateStatus message
-//
+
+/*  NdisMIndicateStatus message */
+
 typedef struct _RNDIS_INDICATE_STATUS
 {
     RNDIS_STATUS                            Status;
@@ -492,10 +492,10 @@ typedef struct _RNDIS_INDICATE_STATUS
 } RNDIS_INDICATE_STATUS, *PRNDIS_INDICATE_STATUS;
 
 
-//
-//  Diagnostic information passed as the status buffer in
-//  RNDIS_INDICATE_STATUS messages signifying error conditions.
-//
+
+/*  Diagnostic information passed as the status buffer in */
+/*  RNDIS_INDICATE_STATUS messages signifying error conditions. */
+
 typedef struct _RNDIS_DIAGNOSTIC_INFO
 {
     RNDIS_STATUS                            DiagStatus;
@@ -504,18 +504,18 @@ typedef struct _RNDIS_DIAGNOSTIC_INFO
 
 
 
-//
-//  NdisKeepAlive message
-//
+
+/*  NdisKeepAlive message */
+
 typedef struct _RNDIS_KEEPALIVE_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
 } RNDIS_KEEPALIVE_REQUEST, *PRNDIS_KEEPALIVE_REQUEST;
 
 
-//
-// Response to NdisKeepAlive
-//
+
+/* Response to NdisKeepAlive */
+
 typedef struct _RNDIS_KEEPALIVE_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -523,12 +523,12 @@ typedef struct _RNDIS_KEEPALIVE_COMPLETE
 } RNDIS_KEEPALIVE_COMPLETE, *PRNDIS_KEEPALIVE_COMPLETE;
 
 
-//
-//  Data message. All Offset fields contain byte offsets from the beginning
-//  of the RNDIS_PACKET structure. All Length fields are in bytes.
-//  VcHandle is set to 0 for connectionless data, otherwise it
-//  contains the VC handle.
-//
+
+/*  Data message. All Offset fields contain byte offsets from the beginning */
+/*  of the RNDIS_PACKET structure. All Length fields are in bytes. */
+/*  VcHandle is set to 0 for connectionless data, otherwise it */
+/*  contains the VC handle. */
+
 typedef struct _RNDIS_PACKET
 {
     u32                                  DataOffset;
@@ -542,9 +542,9 @@ typedef struct _RNDIS_PACKET
     u32                                  Reserved;
 } RNDIS_PACKET, *PRNDIS_PACKET;
 
-//
-//  Optional Out of Band data associated with a Data message.
-//
+
+/*  Optional Out of Band data associated with a Data message. */
+
 typedef struct _RNDIS_OOBD
 {
     u32                                  Size;
@@ -552,9 +552,9 @@ typedef struct _RNDIS_OOBD
     u32                                  ClassInformationOffset;
 } RNDIS_OOBD, *PRNDIS_OOBD;
 
-//
-//  Packet extension field contents associated with a Data message.
-//
+
+/*  Packet extension field contents associated with a Data message. */
+
 typedef struct _RNDIS_PER_PACKET_INFO
 {
     u32                                  Size;
@@ -563,10 +563,10 @@ typedef struct _RNDIS_PER_PACKET_INFO
 } RNDIS_PER_PACKET_INFO, *PRNDIS_PER_PACKET_INFO;
 
 
-//
-//  Format of Information buffer passed in a SetRequest for the OID
-//  OID_GEN_RNDIS_CONFIG_PARAMETER.
-//
+
+/*  Format of Information buffer passed in a SetRequest for the OID */
+/*  OID_GEN_RNDIS_CONFIG_PARAMETER. */
+
 typedef struct _RNDIS_CONFIG_PARAMETER_INFO
 {
     u32                                  ParameterNameOffset;
@@ -576,30 +576,30 @@ typedef struct _RNDIS_CONFIG_PARAMETER_INFO
     u32                                  ParameterValueLength;
 } RNDIS_CONFIG_PARAMETER_INFO, *PRNDIS_CONFIG_PARAMETER_INFO;
 
-//
-//  Values for ParameterType in RNDIS_CONFIG_PARAMETER_INFO
-//
+
+/*  Values for ParameterType in RNDIS_CONFIG_PARAMETER_INFO */
+
 #define RNDIS_CONFIG_PARAM_TYPE_INTEGER     0
 #define RNDIS_CONFIG_PARAM_TYPE_STRING      2
 
 
-//
-//  CONDIS Miniport messages for connection oriented devices
-//  that do not implement a call manager.
-//
 
-//
-//  CoNdisMiniportCreateVc message
-//
+/*  CONDIS Miniport messages for connection oriented devices */
+/*  that do not implement a call manager. */
+
+
+
+/*  CoNdisMiniportCreateVc message */
+
 typedef struct _RCONDIS_MP_CREATE_VC
 {
     RNDIS_REQUEST_ID                        RequestId;
     RNDIS_HANDLE                            NdisVcHandle;
 } RCONDIS_MP_CREATE_VC, *PRCONDIS_MP_CREATE_VC;
 
-//
-//  Response to CoNdisMiniportCreateVc
-//
+
+/*  Response to CoNdisMiniportCreateVc */
+
 typedef struct _RCONDIS_MP_CREATE_VC_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -608,18 +608,18 @@ typedef struct _RCONDIS_MP_CREATE_VC_COMPLETE
 } RCONDIS_MP_CREATE_VC_COMPLETE, *PRCONDIS_MP_CREATE_VC_COMPLETE;
 
 
-//
-//  CoNdisMiniportDeleteVc message
-//
+
+/*  CoNdisMiniportDeleteVc message */
+
 typedef struct _RCONDIS_MP_DELETE_VC
 {
     RNDIS_REQUEST_ID                        RequestId;
     RNDIS_HANDLE                            DeviceVcHandle;
 } RCONDIS_MP_DELETE_VC, *PRCONDIS_MP_DELETE_VC;
 
-//
-//  Response to CoNdisMiniportDeleteVc
-//
+
+/*  Response to CoNdisMiniportDeleteVc */
+
 typedef struct _RCONDIS_MP_DELETE_VC_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -627,9 +627,9 @@ typedef struct _RCONDIS_MP_DELETE_VC_COMPLETE
 } RCONDIS_MP_DELETE_VC_COMPLETE, *PRCONDIS_MP_DELETE_VC_COMPLETE;
 
 
-//
-//  CoNdisMiniportQueryRequest message
-//
+
+/*  CoNdisMiniportQueryRequest message */
+
 typedef struct _RCONDIS_MP_QUERY_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -641,9 +641,9 @@ typedef struct _RCONDIS_MP_QUERY_REQUEST
 } RCONDIS_MP_QUERY_REQUEST, *PRCONDIS_MP_QUERY_REQUEST;
 
 
-//
-//  CoNdisMiniportSetRequest message
-//
+
+/*  CoNdisMiniportSetRequest message */
+
 typedef struct _RCONDIS_MP_SET_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -655,9 +655,9 @@ typedef struct _RCONDIS_MP_SET_REQUEST
 } RCONDIS_MP_SET_REQUEST, *PRCONDIS_MP_SET_REQUEST;
 
 
-//
-//  CoNdisIndicateStatus message
-//
+
+/*  CoNdisIndicateStatus message */
+
 typedef struct _RCONDIS_INDICATE_STATUS
 {
     RNDIS_HANDLE                            NdisVcHandle;
@@ -667,9 +667,9 @@ typedef struct _RCONDIS_INDICATE_STATUS
 } RCONDIS_INDICATE_STATUS, *PRCONDIS_INDICATE_STATUS;
 
 
-//
-//  CONDIS Call/VC parameters
-//
+
+/*  CONDIS Call/VC parameters */
+
 
 typedef struct _RCONDIS_SPECIFIC_PARAMETERS
 {
@@ -706,9 +706,9 @@ typedef struct _RCONDIS_CALL_MANAGER_PARAMETERS
     RCONDIS_SPECIFIC_PARAMETERS             CallMgrSpecific;
 } RCONDIS_CALL_MANAGER_PARAMETERS, *PRCONDIS_CALL_MANAGER_PARAMETERS;
 
-//
-//  CoNdisMiniportActivateVc message
-//
+
+/*  CoNdisMiniportActivateVc message */
+
 typedef struct _RCONDIS_MP_ACTIVATE_VC_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -720,9 +720,9 @@ typedef struct _RCONDIS_MP_ACTIVATE_VC_REQUEST
     u32                                  CallMgrParamsLength;
 } RCONDIS_MP_ACTIVATE_VC_REQUEST, *PRCONDIS_MP_ACTIVATE_VC_REQUEST;
 
-//
-//  Response to CoNdisMiniportActivateVc
-//
+
+/*  Response to CoNdisMiniportActivateVc */
+
 typedef struct _RCONDIS_MP_ACTIVATE_VC_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -730,9 +730,9 @@ typedef struct _RCONDIS_MP_ACTIVATE_VC_COMPLETE
 } RCONDIS_MP_ACTIVATE_VC_COMPLETE, *PRCONDIS_MP_ACTIVATE_VC_COMPLETE;
 
 
-//
-//  CoNdisMiniportDeactivateVc message
-//
+
+/*  CoNdisMiniportDeactivateVc message */
+
 typedef struct _RCONDIS_MP_DEACTIVATE_VC_REQUEST
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -740,9 +740,9 @@ typedef struct _RCONDIS_MP_DEACTIVATE_VC_REQUEST
     RNDIS_HANDLE                            DeviceVcHandle;
 } RCONDIS_MP_DEACTIVATE_VC_REQUEST, *PRCONDIS_MP_DEACTIVATE_VC_REQUEST;
 
-//
-//  Response to CoNdisMiniportDeactivateVc
-//
+
+/*  Response to CoNdisMiniportDeactivateVc */
+
 typedef struct _RCONDIS_MP_DEACTIVATE_VC_COMPLETE
 {
     RNDIS_REQUEST_ID                        RequestId;
@@ -750,9 +750,9 @@ typedef struct _RCONDIS_MP_DEACTIVATE_VC_COMPLETE
 } RCONDIS_MP_DEACTIVATE_VC_COMPLETE, *PRCONDIS_MP_DEACTIVATE_VC_COMPLETE;
 
 
-//
-// union with all of the RNDIS messages
-//
+
+/* union with all of the RNDIS messages */
+
 typedef union _RNDIS_MESSAGE_CONTAINER
 {
     RNDIS_PACKET                        Packet;
@@ -781,56 +781,56 @@ typedef union _RNDIS_MESSAGE_CONTAINER
 
 } RNDIS_MESSAGE_CONTAINER, *PRNDIS_MESSAGE_CONTAINER;
 
-//
-// Remote NDIS message format
-//
+
+/* Remote NDIS message format */
+
 typedef __struct_bcount(MessageLength) struct _RNDIS_MESSAGE
 {
     u32                                  NdisMessageType;
 
-    //
-    // Total length of this message, from the beginning
-    // of the RNDIS_MESSAGE struct, in bytes.
-    //
+
+    /* Total length of this message, from the beginning */
+    /* of the RNDIS_MESSAGE struct, in bytes. */
+
     u32                                  MessageLength;
 
-    // Actual message
+    /* Actual message */
     RNDIS_MESSAGE_CONTAINER                 Message;
 
 } RNDIS_MESSAGE, *PRNDIS_MESSAGE;
 
 
 
-//
-// Handy macros
 
-// get the size of an RNDIS message. Pass in the message type,
-// RNDIS_SET_REQUEST, RNDIS_PACKET for example
+/* Handy macros */
+
+/* get the size of an RNDIS message. Pass in the message type, */
+/* RNDIS_SET_REQUEST, RNDIS_PACKET for example */
 #define RNDIS_MESSAGE_SIZE(Message)                             \
     (sizeof(Message) + (sizeof(RNDIS_MESSAGE) - sizeof(RNDIS_MESSAGE_CONTAINER)))
 
-// get pointer to info buffer with message pointer
+/* get pointer to info buffer with message pointer */
 #define MESSAGE_TO_INFO_BUFFER(Message)                         \
     (((unsigned char *)(Message)) + Message->InformationBufferOffset)
 
-// get pointer to status buffer with message pointer
+/* get pointer to status buffer with message pointer */
 #define MESSAGE_TO_STATUS_BUFFER(Message)                       \
     (((unsigned char *)(Message)) + Message->StatusBufferOffset)
 
-// get pointer to OOBD buffer with message pointer
+/* get pointer to OOBD buffer with message pointer */
 #define MESSAGE_TO_OOBD_BUFFER(Message)                         \
     (((unsigned char *)(Message)) + Message->OOBDataOffset)
 
-// get pointer to data buffer with message pointer
+/* get pointer to data buffer with message pointer */
 #define MESSAGE_TO_DATA_BUFFER(Message)                         \
     (((unsigned char *)(Message)) + Message->PerPacketInfoOffset)
 
-// get pointer to contained message from NDIS_MESSAGE pointer
+/* get pointer to contained message from NDIS_MESSAGE pointer */
 #define RNDIS_MESSAGE_PTR_TO_MESSAGE_PTR(RndisMessage)          \
     ((void *) &RndisMessage->Message)
 
-// get pointer to contained message from NDIS_MESSAGE pointer
+/* get pointer to contained message from NDIS_MESSAGE pointer */
 #define RNDIS_MESSAGE_RAW_PTR_TO_MESSAGE_PTR(RndisMessage)      \
     ((void *) RndisMessage)
 
-#endif // _RNDIS_H_
+#endif /* _RNDIS_H_ */

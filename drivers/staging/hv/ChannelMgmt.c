@@ -27,13 +27,7 @@
 
 #include "VmbusPrivate.h"
 
-//
-// Defines
-//
-
-//
-// Data types
-//
+/* Data types */
 
 typedef void (*PFN_CHANNEL_MESSAGE_HANDLER)(VMBUS_CHANNEL_MESSAGE_HEADER* msg);
 
@@ -42,9 +36,7 @@ typedef struct _VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY {
 	PFN_CHANNEL_MESSAGE_HANDLER messageHandler;
 } VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY;
 
-//
-// Internal routines
-//
+/* Internal routines */
 
 static void
 VmbusChannelOnOffer(
@@ -91,25 +83,23 @@ VmbusChannelProcessRescindOffer(
 	);
 
 
-//
-// Globals
-//
+/* Globals */
 
 #define MAX_NUM_DEVICE_CLASSES_SUPPORTED 4
 
 const GUID gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED]= {
-	//{ba6163d9-04a1-4d29-b605-72e2ffb1dc7f}
-	{.Data  = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d, 0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f}},// Storage - SCSI
-	//{F8615163-DF3E-46c5-913F-F2D2F965ED0E}
-	{.Data = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46, 0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E}},	// Network
-	//{CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A}
-	{.Data = {0x9E, 0xB6, 0xA8, 0xCF, 0x4A, 0x5B, 0xc0, 0x4c, 0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A}}, // Input
-	//{32412632-86cb-44a2-9b5c-50d1417354f5}
-	{.Data = {0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44, 0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5}}, // IDE
+	/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
+	{.Data  = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d, 0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f}},/* Storage - SCSI */
+	/* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
+	{.Data = {0x63, 0x51, 0x61, 0xF8, 0x3E, 0xDF, 0xc5, 0x46, 0x91, 0x3F, 0xF2, 0xD2, 0xF9, 0x65, 0xED, 0x0E}},	/* Network */
+	/* {CFA8B69E-5B4A-4cc0-B98B-8BA1A1F3F95A} */
+	{.Data = {0x9E, 0xB6, 0xA8, 0xCF, 0x4A, 0x5B, 0xc0, 0x4c, 0xB9, 0x8B, 0x8B, 0xA1, 0xA1, 0xF3, 0xF9, 0x5A}}, /* Input */
+	/* {32412632-86cb-44a2-9b5c-50d1417354f5} */
+	{.Data = {0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44, 0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5}}, /* IDE */
 
 };
 
-// Channel message dispatch table
+/* Channel message dispatch table */
 VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY gChannelMessageTable[ChannelMessageCount]= {
     {ChannelMessageInvalid,					NULL},
     {ChannelMessageOfferChannel,            VmbusChannelOnOffer},
@@ -158,7 +148,7 @@ VMBUS_CHANNEL* AllocVmbusChannel(void)
 		return NULL;
 	}
 
-	//channel->dataWorkQueue = WorkQueueCreate("data");
+	/* channel->dataWorkQueue = WorkQueueCreate("data"); */
 	channel->ControlWQ = WorkQueueCreate("control");
 	if (!channel->ControlWQ)
 	{
@@ -207,8 +197,8 @@ void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
 {
 	TimerClose(Channel->PollTimer);
 
-	// We have to release the channel's workqueue/thread in the vmbus's workqueue/thread context
-	// ie we can't destroy ourselves.
+	/* We have to release the channel's workqueue/thread in the vmbus's workqueue/thread context */
+	/* ie we can't destroy ourselves. */
 	WorkQueueQueueWorkItem(gVmbusConnection.WorkQueue, ReleaseVmbusChannel, (void*)Channel);
 }
 
@@ -237,7 +227,7 @@ VmbusChannelProcessOffer(
 
 	DPRINT_ENTER(VMBUS);
 
-	// Make sure this is a new offer
+	/* Make sure this is a new offer */
 	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelList)
@@ -266,8 +256,8 @@ VmbusChannelProcessOffer(
 		return;
 	}
 
-	// Start the process of binding this offer to the driver
-	// We need to set the DeviceObject field before calling VmbusChildDeviceAdd()
+	/* Start the process of binding this offer to the driver */
+	/* We need to set the DeviceObject field before calling VmbusChildDeviceAdd() */
 	newChannel->DeviceObject = VmbusChildDeviceCreate(
 		newChannel->OfferMsg.Offer.InterfaceType,
 		newChannel->OfferMsg.Offer.InterfaceInstance,
@@ -275,8 +265,12 @@ VmbusChannelProcessOffer(
 
 	DPRINT_DBG(VMBUS, "child device object allocated - %p", newChannel->DeviceObject);
 
-	// Add the new device to the bus. This will kick off device-driver binding
-	// which eventually invokes the device driver's AddDevice() method.
+	/*
+	 * Add the new device to the bus. This will kick off device-driver
+	 * binding which eventually invokes the device driver's AddDevice()
+	 * method.
+	 */
+
 	ret = VmbusChildDeviceAdd(newChannel->DeviceObject);
 	if (ret != 0)
 	{
@@ -291,8 +285,11 @@ VmbusChannelProcessOffer(
 	}
 	else
 	{
-		// This state is used to indicate a successful open so that when we do close the channel normally,
-		// we can cleanup properly
+		/*
+		 * This state is used to indicate a successful open
+		 * so that when we do close the channel normally, we
+		 * can cleanup properly
+		 */
 		newChannel->State = CHANNEL_OPEN_STATE;
 	}
 	DPRINT_EXIT(VMBUS);
@@ -377,7 +374,7 @@ VmbusChannelOnOffer(
 		guidType->Data[3], guidType->Data[2], guidType->Data[1], guidType->Data[0], guidType->Data[5], guidType->Data[4], guidType->Data[7], guidType->Data[6], guidType->Data[8], guidType->Data[9], guidType->Data[10], guidType->Data[11], guidType->Data[12], guidType->Data[13], guidType->Data[14], guidType->Data[15],
 		guidInstance->Data[3], guidInstance->Data[2], guidInstance->Data[1], guidInstance->Data[0], guidInstance->Data[5], guidInstance->Data[4], guidInstance->Data[7], guidInstance->Data[6], guidInstance->Data[8], guidInstance->Data[9], guidInstance->Data[10], guidInstance->Data[11], guidInstance->Data[12], guidInstance->Data[13], guidInstance->Data[14], guidInstance->Data[15]);
 
-	// Allocate the channel object and save this offer.
+	/* Allocate the channel object and save this offer. */
 	newChannel = AllocVmbusChannel();
 	if (!newChannel)
 	{
@@ -391,7 +388,7 @@ VmbusChannelOnOffer(
 	newChannel->MonitorGroup = (u8)offer->MonitorId / 32;
 	newChannel->MonitorBit = (u8)offer->MonitorId % 32;
 
-	// TODO: Make sure the offer comes from our parent partition
+	/* TODO: Make sure the offer comes from our parent partition */
 	WorkQueueQueueWorkItem(newChannel->ControlWQ, VmbusChannelProcessOffer, newChannel);
 
 	DPRINT_EXIT(VMBUS);
@@ -479,7 +476,7 @@ VmbusChannelOnOpenResult(
 
 	DPRINT_DBG(VMBUS, "vmbus open result - %d", result->Status);
 
-	// Find the open msg, copy the result and signal/unblock the wait event
+	/* Find the open msg, copy the result and signal/unblock the wait event */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
@@ -533,7 +530,7 @@ VmbusChannelOnGpadlCreated(
 
 	DPRINT_DBG(VMBUS, "vmbus gpadl created result - %d", gpadlCreated->CreationStatus);
 
-	// Find the establish msg, copy the result and signal/unblock the wait event
+	/* Find the establish msg, copy the result and signal/unblock the wait event */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
@@ -586,7 +583,7 @@ VmbusChannelOnGpadlTorndown(
 
 	DPRINT_ENTER(VMBUS);
 
-	// Find the open msg, copy the result and signal/unblock the wait event
+	/* Find the open msg, copy the result and signal/unblock the wait event */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
 
 	ITERATE_LIST_ENTRIES(anchor, curr, &gVmbusConnection.ChannelMsgList)
@@ -702,7 +699,7 @@ VmbusOnChannelMessage(
 		DPRINT_ERR(VMBUS, "Unhandled channel message type %d", hdr->MessageType);
 	}
 
-	// Free the msg that was allocated in VmbusOnMsgDPC()
+	/* Free the msg that was allocated in VmbusOnMsgDPC() */
 	kfree(msg);
 	DPRINT_EXIT(VMBUS);
 }
@@ -751,7 +748,7 @@ VmbusChannelRequestOffers(
 
 		goto Cleanup;
 	}
-	//WaitEventWait(msgInfo->waitEvent);
+	/* WaitEventWait(msgInfo->waitEvent); */
 
 	/*SpinlockAcquire(gVmbusConnection.channelMsgLock);
 	REMOVE_ENTRY_LIST(&msgInfo->msgListEntry);
@@ -819,5 +816,4 @@ VmbusChannelReleaseUnattachedChannels(
 	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 }
 
-// eof
-
+/* eof */

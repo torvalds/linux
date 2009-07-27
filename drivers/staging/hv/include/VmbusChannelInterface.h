@@ -23,42 +23,42 @@
 
 
 #pragma once
-// allow nameless unions
-//#pragma warning(disable : 4201)
+/* allow nameless unions */
+/* #pragma warning(disable : 4201) */
 
-//
-// A revision number of vmbus that is used for ensuring both ends on a
-// partition are using compatible versions.
-//
+
+/* A revision number of vmbus that is used for ensuring both ends on a */
+/* partition are using compatible versions. */
+
 #define VMBUS_REVISION_NUMBER       13
 
-//
-// Make maximum size of pipe payload of 16K
-//
-#define MAX_PIPE_DATA_PAYLOAD 		(sizeof(BYTE) * 16384)
 
-//
-// Define PipeMode values.
-//
+/* Make maximum size of pipe payload of 16K */
+
+#define MAX_PIPE_DATA_PAYLOAD		(sizeof(BYTE) * 16384)
+
+
+/* Define PipeMode values. */
+
 #define VMBUS_PIPE_TYPE_BYTE                    0x00000000
 #define VMBUS_PIPE_TYPE_MESSAGE                 0x00000004
 
-//
-// The size of the user defined data buffer for non-pipe offers.
-//
+
+/* The size of the user defined data buffer for non-pipe offers. */
+
 #define MAX_USER_DEFINED_BYTES                  120
 
-//
-// The size of the user defined data buffer for pipe offers.
-//
+
+/* The size of the user defined data buffer for pipe offers. */
+
 #define MAX_PIPE_USER_DEFINED_BYTES             116
 
 
-//
-// At the center of the Channel Management library is
-// the Channel Offer. This struct contains the
-// fundamental information about an offer.
-//
+
+/* At the center of the Channel Management library is */
+/* the Channel Offer. This struct contains the */
+/* fundamental information about an offer. */
+
 #pragma pack(push,1)
 
 typedef struct
@@ -68,30 +68,30 @@ typedef struct
     GUID    InterfaceInstance;
     u64  InterruptLatencyIn100nsUnits;
     u32  InterfaceRevision;
-    u32  ServerContextAreaSize;  // in bytes
+    u32  ServerContextAreaSize;  /* in bytes */
     u16  ChannelFlags;
-    u16  MmioMegabytes;          // in bytes * 1024 * 1024
+    u16  MmioMegabytes;          /* in bytes * 1024 * 1024 */
 
     union
     {
-        //
-        // Non-pipes: The user has MAX_USER_DEFINED_BYTES bytes.
-        //
-        struct
-        {
-            unsigned char   UserDefined[MAX_USER_DEFINED_BYTES];
-        } Standard;
 
-        //
-        // Pipes: The following sructure is an integrated pipe protocol, which
-        //        is implemented on top of standard user-defined data. Pipe clients
-        //        have MAX_PIPE_USER_DEFINED_BYTES left for their own use.
-        //
-        struct
-        {
-            u32  PipeMode;
-            unsigned char   UserDefined[MAX_PIPE_USER_DEFINED_BYTES];
-        } Pipe;
+	/* Non-pipes: The user has MAX_USER_DEFINED_BYTES bytes. */
+
+	struct
+	{
+	    unsigned char   UserDefined[MAX_USER_DEFINED_BYTES];
+	} Standard;
+
+
+	/* Pipes: The following sructure is an integrated pipe protocol, which */
+	/*        is implemented on top of standard user-defined data. Pipe clients */
+	/*        have MAX_PIPE_USER_DEFINED_BYTES left for their own use. */
+
+	struct
+	{
+	    u32  PipeMode;
+	    unsigned char   UserDefined[MAX_PIPE_USER_DEFINED_BYTES];
+	} Pipe;
     } u;
 	u32	Padding;
 } VMBUS_CHANNEL_OFFER, *PVMBUS_CHANNEL_OFFER;
@@ -100,9 +100,9 @@ typedef struct
 
 typedef u32 GPADL_HANDLE;
 
-//
-// Server Flags
-//
+
+/* Server Flags */
+
 
 #define VMBUS_CHANNEL_ENUMERATE_DEVICE_INTERFACE           1
 #define VMBUS_CHANNEL_SERVER_SUPPORTS_TRANSFER_PAGES       2
@@ -112,11 +112,10 @@ typedef u32 GPADL_HANDLE;
 #define VMBUS_CHANNEL_PARENT_OFFER                     0x200
 #define VMBUS_CHANNEL_REQUEST_MONITORED_NOTIFICATION   0x400
 
-//
-// TEMPTEMP -- move this next define to devioctl.h some day
-//
+
+/* TEMPTEMP -- move this next define to devioctl.h some day */
+
 
 #ifndef FILE_DEVICE_VMBUS
 #define FILE_DEVICE_VMBUS   0x0000003E
 #endif
-

@@ -30,62 +30,62 @@
 #include "include/List.h"
 
 #include "include/NetVscApi.h"
-//
-// #defines
-//
-//#define NVSC_MIN_PROTOCOL_VERSION                       1
-//#define NVSC_MAX_PROTOCOL_VERSION                       1
 
-#define NETVSC_SEND_BUFFER_SIZE				64*1024 // 64K
+/* #defines */
+
+/* #define NVSC_MIN_PROTOCOL_VERSION                       1 */
+/* #define NVSC_MAX_PROTOCOL_VERSION                       1 */
+
+#define NETVSC_SEND_BUFFER_SIZE				64*1024 /* 64K */
 #define NETVSC_SEND_BUFFER_ID				0xface
 
 
-#define NETVSC_RECEIVE_BUFFER_SIZE			1024*1024 // 1MB
+#define NETVSC_RECEIVE_BUFFER_SIZE			1024*1024 /* 1MB */
 
 #define NETVSC_RECEIVE_BUFFER_ID			0xcafe
 
 #define NETVSC_RECEIVE_SG_COUNT				1
 
-// Preallocated receive packets
+/* Preallocated receive packets */
 #define NETVSC_RECEIVE_PACKETLIST_COUNT		256
 
-//
-// Data types
-//
 
-// Per netvsc channel-specific
+/* Data types */
+
+
+/* Per netvsc channel-specific */
 typedef struct _NETVSC_DEVICE {
 	DEVICE_OBJECT					*Device;
 
 	int								RefCount;
 
 	int								NumOutstandingSends;
-	// List of free preallocated NETVSC_PACKET to represent receive packet
+	/* List of free preallocated NETVSC_PACKET to represent receive packet */
 	LIST_ENTRY						ReceivePacketList;
 	spinlock_t receive_packet_list_lock;
 
-	// Send buffer allocated by us but manages by NetVSP
+	/* Send buffer allocated by us but manages by NetVSP */
 	void *							SendBuffer;
 	u32							SendBufferSize;
 	u32							SendBufferGpadlHandle;
 	u32							SendSectionSize;
 
-	// Receive buffer allocated by us but manages by NetVSP
+	/* Receive buffer allocated by us but manages by NetVSP */
 	void *							ReceiveBuffer;
 	u32							ReceiveBufferSize;
 	u32							ReceiveBufferGpadlHandle;
 	u32							ReceiveSectionCount;
 	PNVSP_1_RECEIVE_BUFFER_SECTION	ReceiveSections;
 
-	// Used for NetVSP initialization protocol
+	/* Used for NetVSP initialization protocol */
 	HANDLE							ChannelInitEvent;
 	NVSP_MESSAGE					ChannelInitPacket;
 
 	NVSP_MESSAGE					RevokePacket;
-	//unsigned char							HwMacAddr[HW_MACADDR_LEN];
+	/* unsigned char							HwMacAddr[HW_MACADDR_LEN]; */
 
-	// Holds rndis device info
+	/* Holds rndis device info */
 	void							*Extension;
 } NETVSC_DEVICE;
 
-#endif // _NETVSC_H_
+#endif /* _NETVSC_H_ */

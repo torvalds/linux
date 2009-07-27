@@ -24,33 +24,33 @@
 
 #pragma once
 
-//#ifndef PAGE_SIZE
-//#if defined(_IA64_)
-//#error This does not work for IA64
-//#else
-//#define PAGE_SIZE 0x1000
-//#endif
-//#endif
+/* #ifndef PAGE_SIZE */
+/* #if defined(_IA64_) */
+/* #error This does not work for IA64 */
+/* #else */
+/* #define PAGE_SIZE 0x1000 */
+/* #endif */
+/* #endif */
 
-// allow nameless unions
-//#pragma warning(disable : 4201)
+/* allow nameless unions */
+/* #pragma warning(disable : 4201) */
 
 typedef struct
 {
     union
     {
-        struct
-        {
-            volatile u32  In;        // Offset in bytes from the ring base
-            volatile u32  Out;       // Offset in bytes from the ring base
-        };
-        volatile long long InOut;
+	struct
+	{
+	    volatile u32  In;        /* Offset in bytes from the ring base */
+	    volatile u32  Out;       /* Offset in bytes from the ring base */
+	};
+	volatile long long InOut;
     };
 
-    //
-    // If the receiving endpoint sets this to some non-zero value, the sending
-    // endpoint should not send any interrupts.
-    //
+
+    /* If the receiving endpoint sets this to some non-zero value, the sending */
+    /* endpoint should not send any interrupts. */
+
 
     volatile u32 InterruptMask;
 
@@ -60,18 +60,18 @@ typedef struct
 {
     union
     {
-        struct
-        {
-            VMRCB Control;
-        };
+	struct
+	{
+	    VMRCB Control;
+	};
 
-        u8 Reserved[PAGE_SIZE];
+	u8 Reserved[PAGE_SIZE];
     };
 
-    //
-    // Beginning of the ring data.  Note: It must be guaranteed that
-    // this data does not share a page with the control structure.
-    //
+
+    /* Beginning of the ring data.  Note: It must be guaranteed that */
+    /* this data does not share a page with the control structure. */
+
     u8 Data[1];
 } VMRING, *PVMRING;
 
@@ -159,10 +159,10 @@ typedef struct _VMADD_REMOVE_TRANSFER_PAGE_SET {
 
 #pragma pack(pop)
 
-//
-// This structure defines a range in guest physical space that can be made
-// to look virtually contiguous.
-//
+
+/* This structure defines a range in guest physical space that can be made */
+/* to look virtually contiguous. */
+
 
 typedef struct _GPA_RANGE {
 
@@ -176,13 +176,13 @@ typedef struct _GPA_RANGE {
 
 #pragma pack(push, 1)
 
-//
-// This is the format for an Establish Gpadl packet, which contains a handle
-// by which this GPADL will be known and a set of GPA ranges associated with
-// it.  This can be converted to a MDL by the guest OS.  If there are multiple
-// GPA ranges, then the resulting MDL will be "chained," representing multiple
-// VA ranges.
-//
+
+/* This is the format for an Establish Gpadl packet, which contains a handle */
+/* by which this GPADL will be known and a set of GPA ranges associated with */
+/* it.  This can be converted to a MDL by the guest OS.  If there are multiple */
+/* GPA ranges, then the resulting MDL will be "chained," representing multiple */
+/* VA ranges. */
+
 
 #ifdef __cplusplus
 
@@ -203,10 +203,10 @@ typedef struct _VMESTABLISH_GPADL {
 } VMESTABLISH_GPADL, *PVMESTABLISH_GPADL;
 
 
-//
-// This is the format for a Teardown Gpadl packet, which indicates that the
-// GPADL handle in the Establish Gpadl packet will never be referenced again.
-//
+
+/* This is the format for a Teardown Gpadl packet, which indicates that the */
+/* GPADL handle in the Establish Gpadl packet will never be referenced again. */
+
 
 #ifdef __cplusplus
 
@@ -221,14 +221,14 @@ typedef struct _VMTEARDOWN_GPADL {
 #endif
 
     u32  Gpadl;
-    u32  Reserved; // for alignment to a 8-byte boundary
+    u32  Reserved; /* for alignment to a 8-byte boundary */
 } VMTEARDOWN_GPADL, *PVMTEARDOWN_GPADL;
 
 
-//
-// This is the format for a GPA-Direct packet, which contains a set of GPA
-// ranges, in addition to commands and/or data.
-//
+
+/* This is the format for a GPA-Direct packet, which contains a set of GPA */
+/* ranges, in addition to commands and/or data. */
+
 
 #ifdef __cplusplus
 
@@ -250,9 +250,9 @@ typedef struct _VMDATA_GPA_DIRECT {
 
 
 
-//
-// This is the format for a Additional Data Packet.
-//
+
+/* This is the format for a Additional Data Packet. */
+
 
 #ifdef __cplusplus
 
@@ -318,5 +318,3 @@ typedef enum {
 } VMBUS_PACKET_TYPE, *PVMBUS_PACKET_TYPE;
 
 #define VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED    1
-
-

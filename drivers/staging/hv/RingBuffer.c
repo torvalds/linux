@@ -25,11 +25,11 @@
 #include "include/logging.h"
 #include "RingBuffer.h"
 
-//
-// #defines
-//
 
-// Amount of space to write to
+/* #defines */
+
+
+/* Amount of space to write to */
 #define BYTES_AVAIL_TO_WRITE(r, w, z) ((w) >= (r))?((z) - ((w) - (r))):((r) - (w))
 
 
@@ -48,7 +48,7 @@ GetRingBufferAvailBytes(RING_BUFFER_INFO *rbi, u32 *read, u32 *write)
 {
 	u32 read_loc,write_loc;
 
-	// Capture the read/write indices before they changed
+	/* Capture the read/write indices before they changed */
 	read_loc = rbi->RingBuffer->ReadIndex;
 	write_loc = rbi->RingBuffer->WriteIndex;
 
@@ -221,9 +221,9 @@ DumpRingInfo(RING_BUFFER_INFO* RingInfo, char *Prefix)
 		RingInfo->RingBuffer->WriteIndex);
 }
 
-//
-// Internal routines
-//
+
+/* Internal routines */
+
 static u32
 CopyToRingBuffer(
 	RING_BUFFER_INFO	*RingInfo,
@@ -376,10 +376,10 @@ RingBufferWrite(
 
 	DPRINT_DBG(VMBUS, "Writing %u bytes...", totalBytesToWrite);
 
-	//DumpRingInfo(OutRingInfo, "BEFORE ");
+	/* DumpRingInfo(OutRingInfo, "BEFORE "); */
 
-	// If there is only room for the packet, assume it is full. Otherwise, the next time around, we think the ring buffer
-	// is empty since the read index == write index
+	/* If there is only room for the packet, assume it is full. Otherwise, the next time around, we think the ring buffer */
+	/* is empty since the read index == write index */
 	if (byteAvailToWrite <= totalBytesToWrite)
 	{
 		DPRINT_DBG(VMBUS, "No more space left on outbound ring buffer (needed %u, avail %u)", totalBytesToWrite, byteAvailToWrite);
@@ -391,7 +391,7 @@ RingBufferWrite(
 		return -1;
 	}
 
-	// Write to the ring buffer
+	/* Write to the ring buffer */
 	nextWriteLocation = GetNextWriteLocation(OutRingInfo);
 
 	for (i=0; i < SgBufferCount; i++)
@@ -402,7 +402,7 @@ RingBufferWrite(
 												SgBuffers[i].Length);
 	}
 
-	// Set previous packet start
+	/* Set previous packet start */
 	prevIndices = GetRingBufferIndices(OutRingInfo);
 
 	nextWriteLocation = CopyToRingBuffer(OutRingInfo,
@@ -410,13 +410,13 @@ RingBufferWrite(
 												&prevIndices,
 												sizeof(u64));
 
-	// Make sure we flush all writes before updating the writeIndex
+	/* Make sure we flush all writes before updating the writeIndex */
 	mb();
 
-	// Now, update the write location
+	/* Now, update the write location */
 	SetNextWriteLocation(OutRingInfo, nextWriteLocation);
 
-	//DumpRingInfo(OutRingInfo, "AFTER ");
+	/* DumpRingInfo(OutRingInfo, "AFTER "); */
 
 	spin_unlock_irqrestore(&OutRingInfo->ring_lock, flags);
 
@@ -451,17 +451,17 @@ RingBufferPeek(
 
 	GetRingBufferAvailBytes(InRingInfo, &bytesAvailToRead, &bytesAvailToWrite);
 
-	// Make sure there is something to read
+	/* Make sure there is something to read */
 	if (bytesAvailToRead < BufferLen )
 	{
-		//DPRINT_DBG(VMBUS, "got callback but not enough to read <avail to read %d read size %d>!!", bytesAvailToRead, BufferLen);
+		/* DPRINT_DBG(VMBUS, "got callback but not enough to read <avail to read %d read size %d>!!", bytesAvailToRead, BufferLen); */
 
 		spin_unlock_irqrestore(&InRingInfo->ring_lock, flags);
 
 		return -1;
 	}
 
-	// Convert to byte offset
+	/* Convert to byte offset */
 	nextReadLocation = GetNextReadLocation(InRingInfo);
 
 	nextReadLocation = CopyFromRingBuffer(InRingInfo,
@@ -506,9 +506,9 @@ RingBufferRead(
 
 	DPRINT_DBG(VMBUS, "Reading %u bytes...", BufferLen);
 
-	//DumpRingInfo(InRingInfo, "BEFORE ");
+	/* DumpRingInfo(InRingInfo, "BEFORE "); */
 
-	// Make sure there is something to read
+	/* Make sure there is something to read */
 	if (bytesAvailToRead < BufferLen )
 	{
 		DPRINT_DBG(VMBUS, "got callback but not enough to read <avail to read %d read size %d>!!", bytesAvailToRead, BufferLen);
@@ -530,14 +530,14 @@ RingBufferRead(
 											sizeof(u64),
 											nextReadLocation);
 
-	// Make sure all reads are done before we update the read index since
-	// the writer may start writing to the read area once the read index is updated
+	/* Make sure all reads are done before we update the read index since */
+	/* the writer may start writing to the read area once the read index is updated */
 	mb();
 
-	// Update the read index
+	/* Update the read index */
 	SetNextReadLocation(InRingInfo, nextReadLocation);
 
-	//DumpRingInfo(InRingInfo, "AFTER ");
+	/* DumpRingInfo(InRingInfo, "AFTER "); */
 
 	spin_unlock_irqrestore(&InRingInfo->ring_lock, flags);
 
@@ -566,7 +566,7 @@ CopyToRingBuffer(
 	u32 ringBufferSize=GetRingBufferSize(RingInfo);
 	u32 fragLen;
 
-	if (SrcLen > ringBufferSize - StartWriteOffset) // wrap-around detected!
+	if (SrcLen > ringBufferSize - StartWriteOffset) /* wrap-around detected! */
 	{
 		DPRINT_DBG(VMBUS, "wrap-around detected!");
 
@@ -608,7 +608,7 @@ CopyFromRingBuffer(
 
 	u32 fragLen;
 
-	if (DestLen > ringBufferSize - StartReadOffset) // wrap-around detected at the src
+	if (DestLen > ringBufferSize - StartReadOffset) /* wrap-around detected at the src */
 	{
 		DPRINT_DBG(VMBUS, "src wrap-around detected!");
 
@@ -629,4 +629,4 @@ CopyFromRingBuffer(
 }
 
 
-// eof
+/* eof */

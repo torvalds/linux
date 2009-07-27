@@ -24,28 +24,28 @@
 
 #pragma once
 
-//#include <vmbuspacketformat.h>
-//#include <ntddscsi.h>
+/* #include <vmbuspacketformat.h> */
+/* #include <ntddscsi.h> */
 
 #define C_ASSERT(x)
-//
-//  public interface to the server
-//
 
-//
-//  Storvsp device interface guid
-//
+/*  public interface to the server */
 
 
-//
-//  Protocol versions.
-//
 
-//
-// vstorage.w revision number.  This is used in the case of a version match,
-// to alert the user that structure sizes may be mismatched even though the
-// protocol versions match.
-//
+/*  Storvsp device interface guid */
+
+
+
+
+/*  Protocol versions. */
+
+
+
+/* vstorage.w revision number.  This is used in the case of a version match, */
+/* to alert the user that structure sizes may be mismatched even though the */
+/* protocol versions match. */
+
 
 #define REVISION_STRING(REVISION_) #REVISION_
 #define FILL_VMSTOR_REVISION(RESULT_LVALUE_)                     \
@@ -54,53 +54,53 @@
     RESULT_LVALUE_ = 0;                                          \
     while (*revisionString >= '0' && *revisionString <= '9')     \
     {                                                            \
-        RESULT_LVALUE_ *= 10;                                    \
-        RESULT_LVALUE_ += *revisionString - '0';                 \
-        revisionString++;                                        \
+	RESULT_LVALUE_ *= 10;                                    \
+	RESULT_LVALUE_ += *revisionString - '0';                 \
+	revisionString++;                                        \
     }                                                            \
 }
 
-//
-// Major/minor macros.  Minor version is in LSB, meaning that earlier flat
-// version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1).
-//
+
+/* Major/minor macros.  Minor version is in LSB, meaning that earlier flat */
+/* version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1). */
+
 
 #define VMSTOR_PROTOCOL_MAJOR(VERSION_)         (((VERSION_) >> 8) & 0xff)
 #define VMSTOR_PROTOCOL_MINOR(VERSION_)         (((VERSION_)     ) & 0xff)
 #define VMSTOR_PROTOCOL_VERSION(MAJOR_, MINOR_) ((((MAJOR_) & 0xff) << 8) | \
-                                                 (((MINOR_) & 0xff)     ))
+						 (((MINOR_) & 0xff)     ))
 
-//
-// Invalid version.
-//
+
+/* Invalid version. */
+
 
 #define VMSTOR_INVALID_PROTOCOL_VERSION  -1
 
-//
-// Version history:
-// V1 Beta                    0.1
-// V1 RC < 2008/1/31          1.0
-// V1 RC > 2008/1/31          2.0
-//
+
+/* Version history: */
+/* V1 Beta                    0.1 */
+/* V1 RC < 2008/1/31          1.0 */
+/* V1 RC > 2008/1/31          2.0 */
+
 #define VMSTOR_PROTOCOL_VERSION_CURRENT VMSTOR_PROTOCOL_VERSION(2, 0)
 
 
-//
-//  This will get replaced with the max transfer length that is possible on
-//  the host adapter.
-//  The max transfer length will be published when we offer a vmbus channel.
-//
+
+/*  This will get replaced with the max transfer length that is possible on */
+/*  the host adapter. */
+/*  The max transfer length will be published when we offer a vmbus channel. */
+
 
 #define MAX_TRANSFER_LENGTH 0x40000
 #define DEFAULT_PACKET_SIZE (sizeof(VMDATA_GPA_DIRECT) +                            \
-                             sizeof(VSTOR_PACKET) +                                 \
-                             (sizeof(u64) * (MAX_TRANSFER_LENGTH / PAGE_SIZE)))
+			     sizeof(VSTOR_PACKET) +                                 \
+			     (sizeof(u64) * (MAX_TRANSFER_LENGTH / PAGE_SIZE)))
 
 
 
-//
-//  Packet structure describing virtual storage requests.
-//
+
+/*  Packet structure describing virtual storage requests. */
+
 
 typedef enum
 {
@@ -119,11 +119,11 @@ typedef enum
 } VSTOR_PACKET_OPERATION;
 
 
-//
-//  Platform neutral description of a scsi request -
-//  this remains the same across the write regardless of 32/64 bit
-//  note: it's patterned off the SCSI_PASS_THROUGH structure
-//
+
+/*  Platform neutral description of a scsi request - */
+/*  this remains the same across the write regardless of 32/64 bit */
+/*  note: it's patterned off the SCSI_PASS_THROUGH structure */
+
 
 
 #pragma pack(push,1)
@@ -159,11 +159,11 @@ typedef struct
 
     union
     {
-        unsigned char Cdb[CDB16GENERIC_LENGTH];
+	unsigned char Cdb[CDB16GENERIC_LENGTH];
 
-        unsigned char SenseData[SENSE_BUFFER_SIZE];
+	unsigned char SenseData[SENSE_BUFFER_SIZE];
 
-        unsigned char ReservedArray[MAX_DATA_BUFFER_LENGTH_WITH_PADDING];
+	unsigned char ReservedArray[MAX_DATA_BUFFER_LENGTH_WITH_PADDING];
     };
 
 } VMSCSI_REQUEST, *PVMSCSI_REQUEST;
@@ -171,10 +171,10 @@ typedef struct
 C_ASSERT((sizeof(VMSCSI_REQUEST) % 4) == 0);
 
 
-//
-//  This structure is sent during the intialization phase to get the different
-//  properties of the channel.
-//
+
+/*  This structure is sent during the intialization phase to get the different */
+/*  properties of the channel. */
+
 
 typedef struct
 {
@@ -182,19 +182,19 @@ typedef struct
     unsigned char  PathId;
     unsigned char  TargetId;
 
-    //
-    // Note: port number is only really known on the client side
-    //
+
+    /* Note: port number is only really known on the client side */
+
     unsigned int  PortNumber;
 
     unsigned int  Flags;
 
     unsigned int  MaxTransferBytes;
 
-    //
-    //  This id is unique for each channel and will correspond with
-    //  vendor specific data in the inquirydata
-    //
+
+    /*  This id is unique for each channel and will correspond with */
+    /*  vendor specific data in the inquirydata */
+
 
     unsigned long long UniqueId;
 
@@ -203,24 +203,24 @@ typedef struct
 C_ASSERT((sizeof(VMSTORAGE_CHANNEL_PROPERTIES) % 4) == 0);
 
 
-//
-//  This structure is sent during the storage protocol negotiations.
-//
+
+/*  This structure is sent during the storage protocol negotiations. */
+
 
 typedef struct
 {
-    //
-    // Major (MSW) and minor (LSW) version numbers.
-    //
+
+    /* Major (MSW) and minor (LSW) version numbers. */
+
 
     unsigned short MajorMinor;
 
 
-    //
-    // Revision number is auto-incremented whenever this file is changed
-    // (See FILL_VMSTOR_REVISION macro above).  Mismatch does not definitely
-    // indicate incompatibility--but it does indicate mismatched builds.
-    //
+
+    /* Revision number is auto-incremented whenever this file is changed */
+    /* (See FILL_VMSTOR_REVISION macro above).  Mismatch does not definitely */
+    /* indicate incompatibility--but it does indicate mismatched builds. */
+
 
     unsigned short Revision;
 
@@ -229,9 +229,9 @@ typedef struct
 C_ASSERT((sizeof(VMSTORAGE_PROTOCOL_VERSION) % 4) == 0);
 
 
-//
-// Channel Property Flags
-//
+
+/* Channel Property Flags */
+
 
 #define STORAGE_CHANNEL_REMOVABLE_FLAG                  0x1
 #define STORAGE_CHANNEL_EMULATED_IDE_FLAG               0x2
@@ -239,71 +239,69 @@ C_ASSERT((sizeof(VMSTORAGE_PROTOCOL_VERSION) % 4) == 0);
 
 typedef struct _VSTOR_PACKET
 {
-    //
-    // Requested operation type
-    //
+
+    /* Requested operation type */
+
 
     VSTOR_PACKET_OPERATION Operation;
 
-    //
-    //  Flags - see below for values
-    //
+
+    /*  Flags - see below for values */
+
 
     unsigned int     Flags;
 
-    //
-    // Status of the request returned from the server side.
-    //
+
+    /* Status of the request returned from the server side. */
+
 
     unsigned int     Status;
 
-    //
-    // Data payload area
-    //
+
+    /* Data payload area */
+
 
     union
     {
-        //
-        //  Structure used to forward SCSI commands from the client to the server.
-        //
 
-        VMSCSI_REQUEST VmSrb;
+	/*  Structure used to forward SCSI commands from the client to the server. */
 
-        //
-        // Structure used to query channel properties.
-        //
 
-        VMSTORAGE_CHANNEL_PROPERTIES StorageChannelProperties;
+	VMSCSI_REQUEST VmSrb;
 
-        //
-        // Used during version negotiations.
-        //
 
-        VMSTORAGE_PROTOCOL_VERSION Version;
+	/* Structure used to query channel properties. */
+
+
+	VMSTORAGE_CHANNEL_PROPERTIES StorageChannelProperties;
+
+
+	/* Used during version negotiations. */
+
+
+	VMSTORAGE_PROTOCOL_VERSION Version;
     };
 
 } VSTOR_PACKET, *PVSTOR_PACKET;
 
 C_ASSERT((sizeof(VSTOR_PACKET) % 4) == 0);
 
-//
-//  Packet flags
-//
 
-//
-//  This flag indicates that the server should send back a completion for this
-//  packet.
-//
+/*  Packet flags */
+
+
+
+/*  This flag indicates that the server should send back a completion for this */
+/*  packet. */
+
 
 #define REQUEST_COMPLETION_FLAG 0x1
 
-//
-//  This is the set of flags that the vsc can set in any packets it sends
-//
+
+/*  This is the set of flags that the vsc can set in any packets it sends */
+
 
 #define VSC_LEGAL_FLAGS (REQUEST_COMPLETION_FLAG)
 
 
 #pragma pack(pop)
-
-
