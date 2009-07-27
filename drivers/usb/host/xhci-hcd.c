@@ -103,7 +103,10 @@ int xhci_reset(struct xhci_hcd *xhci)
 	u32 state;
 
 	state = xhci_readl(xhci, &xhci->op_regs->status);
-	BUG_ON((state & STS_HALT) == 0);
+	if ((state & STS_HALT) == 0) {
+		xhci_warn(xhci, "Host controller not halted, aborting reset.\n");
+		return 0;
+	}
 
 	xhci_dbg(xhci, "// Reset the HC\n");
 	command = xhci_readl(xhci, &xhci->op_regs->command);
