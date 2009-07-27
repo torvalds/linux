@@ -388,7 +388,7 @@ int be_cmd_eq_create(struct be_adapter *adapter,
 	req->num_pages =  cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
 
 	AMAP_SET_BITS(struct amap_eq_context, func, req->context,
-			adapter->pci_func);
+			be_pci_func(adapter));
 	AMAP_SET_BITS(struct amap_eq_context, valid, req->context, 1);
 	/* 4byte eqe*/
 	AMAP_SET_BITS(struct amap_eq_context, size, req->context, 0);
@@ -522,7 +522,7 @@ int be_cmd_cq_create(struct be_adapter *adapter,
 	AMAP_SET_BITS(struct amap_cq_context, eventable, ctxt, 1);
 	AMAP_SET_BITS(struct amap_cq_context, eqid, ctxt, eq->id);
 	AMAP_SET_BITS(struct amap_cq_context, armed, ctxt, 1);
-	AMAP_SET_BITS(struct amap_cq_context, func, ctxt, adapter->pci_func);
+	AMAP_SET_BITS(struct amap_cq_context, func, ctxt, be_pci_func(adapter));
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
@@ -565,7 +565,7 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
 
-	AMAP_SET_BITS(struct amap_mcc_context, fid, ctxt, adapter->pci_func);
+	AMAP_SET_BITS(struct amap_mcc_context, fid, ctxt, be_pci_func(adapter));
 	AMAP_SET_BITS(struct amap_mcc_context, valid, ctxt, 1);
 	AMAP_SET_BITS(struct amap_mcc_context, ring_size, ctxt,
 		be_encoded_q_len(mccq->len));
@@ -614,7 +614,7 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 		len_encoded = 0;
 	AMAP_SET_BITS(struct amap_tx_context, tx_ring_size, ctxt, len_encoded);
 	AMAP_SET_BITS(struct amap_tx_context, pci_func_id, ctxt,
-			adapter->pci_func);
+			be_pci_func(adapter));
 	AMAP_SET_BITS(struct amap_tx_context, ctx_valid, ctxt, 1);
 	AMAP_SET_BITS(struct amap_tx_context, cq_id_send, ctxt, cq->id);
 

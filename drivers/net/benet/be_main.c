@@ -1279,7 +1279,7 @@ static irqreturn_t be_intx(int irq, void *dev)
 	int isr;
 
 	isr = ioread32(adapter->csr + CEV_ISR0_OFFSET +
-			adapter->pci_func * CEV_ISR_SIZE);
+			be_pci_func(adapter) * CEV_ISR_SIZE);
 	if (!isr)
 		return IRQ_NONE;
 
@@ -1446,7 +1446,7 @@ static void be_msix_enable(struct be_adapter *adapter)
 
 static inline int be_msix_vec_get(struct be_adapter *adapter, u32 eq_id)
 {
-	return adapter->msix_entries[eq_id - 8 * adapter->pci_func].vector;
+	return adapter->msix_entries[eq_id - 8 * be_pci_func(adapter)].vector;
 }
 
 static int be_msix_register(struct be_adapter *adapter)
@@ -1743,7 +1743,6 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	struct be_dma_mem *mbox_mem_alloc = &adapter->mbox_mem_alloced;
 	struct be_dma_mem *mbox_mem_align = &adapter->mbox_mem;
 	int status;
-	u32 val;
 
 	status = be_map_pci_bars(adapter);
 	if (status)
@@ -1764,9 +1763,6 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
-	val = ioread32(adapter->pcicfg + PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET);
-	adapter->pci_func = (val >> MEMBAR_CTRL_INT_CTRL_PFUNC_SHIFT) &
-					MEMBAR_CTRL_INT_CTRL_PFUNC_MASK;
 	return 0;
 }
 

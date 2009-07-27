@@ -51,9 +51,6 @@
  * with the OS.
  */
 #define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
-/* PCI physical function number */
-#define MEMBAR_CTRL_INT_CTRL_PFUNC_MASK  	0x7 	/* bits 26 - 28 */
-#define MEMBAR_CTRL_INT_CTRL_PFUNC_SHIFT	26
 
 /********* ISR0 Register offset **********/
 #define CEV_ISR0_OFFSET 			0xC18
