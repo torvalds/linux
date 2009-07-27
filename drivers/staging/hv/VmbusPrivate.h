@@ -54,18 +54,18 @@
 /* Data types */
 
 
-typedef enum {
+enum VMBUS_CONNECT_STATE {
 	Disconnected,
 	Connecting,
 	Connected,
 	Disconnecting
-} VMBUS_CONNECT_STATE;
+};
 
 #define MAX_SIZE_CHANNEL_MESSAGE			HV_MESSAGE_PAYLOAD_BYTE_COUNT
 
 typedef struct _VMBUS_CONNECTION {
 
-	VMBUS_CONNECT_STATE					ConnectState;
+	enum VMBUS_CONNECT_STATE					ConnectState;
 
 	u32								NextGpadlHandle;
 
