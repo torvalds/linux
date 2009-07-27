@@ -538,24 +538,22 @@ exit:
 /* dump eeprom */
 static int af9015_eeprom_dump(struct dvb_usb_device *d)
 {
-	char buf[4+3*16+1], buf2[4];
 	u8 reg, val;
 
 	for (reg = 0; ; reg++) {
 		if (reg % 16 == 0) {
 			if (reg)
-				deb_info("%s\n", buf);
-			sprintf(buf, "%02x: ", reg);
+				deb_info(KERN_CONT "\n");
+			deb_info(KERN_DEBUG "%02x:", reg);
 		}
 		if (af9015_read_reg_i2c(d, AF9015_I2C_EEPROM, reg, &val) == 0)
-			sprintf(buf2, "%02x ", val);
+			deb_info(KERN_CONT " %02x", val);
 		else
-			strcpy(buf2, "-- ");
-		strcat(buf, buf2);
+			deb_info(KERN_CONT " --");
 		if (reg == 0xff)
 			break;
 	}
-	deb_info("%s\n", buf);
+	deb_info(KERN_CONT "\n");
 	return 0;
 }
 
