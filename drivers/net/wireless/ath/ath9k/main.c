@@ -1252,9 +1252,9 @@ void ath_detach(struct ath_softc *sc)
 	DPRINTF(sc, ATH_DBG_CONFIG, "Detach ATH hw\n");
 
 	ath_deinit_leds(sc);
-	cancel_work_sync(&sc->chan_work);
-	cancel_delayed_work_sync(&sc->wiphy_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
+	cancel_delayed_work_sync(&sc->wiphy_work);
+	cancel_work_sync(&sc->chan_work);
 
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
