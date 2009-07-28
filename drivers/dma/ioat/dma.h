@@ -61,6 +61,8 @@
  * @version: version of ioatdma device
  * @msix_entries: irq handlers
  * @idx: per channel data
+ * @dca: direct cache access context
+ * @intr_quirk: interrupt setup quirk (for ioat_v1 devices)
  */
 
 struct ioatdma_device {
@@ -73,6 +75,8 @@ struct ioatdma_device {
 	struct delayed_work work;
 	struct msix_entry msix_entries[4];
 	struct ioat_dma_chan *idx[4];
+	struct dca_provider *dca;
+	void (*intr_quirk)(struct ioatdma_device *device);
 };
 
 /**
@@ -136,25 +140,16 @@ struct ioat_desc_sw {
 	struct dma_async_tx_descriptor txd;
 };
 
-static inline void ioat_set_tcp_copy_break(struct ioatdma_device *dev)
+static inline void ioat_set_tcp_copy_break(unsigned long copybreak)
 {
 	#ifdef CONFIG_NET_DMA
-	switch (dev->version) {
-	case IOAT_VER_1_2:
-		sysctl_tcp_dma_copybreak = 4096;
-		break;
-	case IOAT_VER_2_0:
-		sysctl_tcp_dma_copybreak = 2048;
-		break;
-	case IOAT_VER_3_0:
-		sysctl_tcp_dma_copybreak = 262144;
-		break;
-	}
+	sysctl_tcp_dma_copybreak = copybreak;
 	#endif
 }
 
-struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
-				      void __iomem *iobase);
+int ioat1_dma_probe(struct ioatdma_device *dev, int dca);
+int ioat2_dma_probe(struct ioatdma_device *dev, int dca);
+int ioat3_dma_probe(struct ioatdma_device *dev, int dca);
 void ioat_dma_remove(struct ioatdma_device *device);
 struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
