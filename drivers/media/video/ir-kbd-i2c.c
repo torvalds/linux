@@ -357,9 +357,11 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	case 0x47:
 	case 0x71:
 	case 0x2d:
-		if (adap->id == I2C_HW_B_CX2388x) {
+		if (adap->id == I2C_HW_B_CX2388x ||
+		    adap->id == I2C_HW_B_CX2341X) {
 			/* Handled by cx88-input */
-			name        = "CX2388x remote";
+			name = adap->id == I2C_HW_B_CX2341X ? "CX2341x remote"
+							    : "CX2388x remote";
 			ir_type     = IR_TYPE_RC5;
 			ir->get_key = get_key_haup_xvr;
 			if (hauppauge == 1) {
@@ -483,7 +485,8 @@ static int ir_remove(struct i2c_client *client)
 static const struct i2c_device_id ir_kbd_id[] = {
 	/* Generic entry for any IR receiver */
 	{ "ir_video", 0 },
-	/* IR device specific entries could be added here */
+	/* IR device specific entries should be added here */
+	{ "ir_rx_z8f0811_haup", 0 },
 	{ }
 };
 
