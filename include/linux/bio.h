@@ -177,7 +177,10 @@ enum bio_rw_flags {
 	BIO_RW_NOIDLE,
 };
 
-#define bio_rw_flagged(bio, flag)	((bio)->bi_rw & (1 << (flag)))
+static inline bool bio_rw_flagged(struct bio *bio, enum bio_rw_flags flag)
+{
+	return (bio->bi_rw & (1 << flag)) != 0;
+}
 
 /*
  * Old defines, these should eventually be replaced by direct usage of
