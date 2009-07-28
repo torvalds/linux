@@ -209,8 +209,6 @@ static int __init severities_debugfs_init(void)
 	return 0;
 
 err_out:
-	if (fseverities_coverage)
-		debugfs_remove(fseverities_coverage);
 	if (dmce)
 		debugfs_remove(dmce);
 	return -ENOMEM;
