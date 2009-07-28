@@ -344,7 +344,8 @@ static const char *ext4_decode_error(struct super_block *sb, int errno,
 		errstr = "Out of memory";
 		break;
 	case -EROFS:
-		if (!sb || EXT4_SB(sb)->s_journal->j_flags & JBD2_ABORT)
+		if (!sb || (EXT4_SB(sb)->s_journal &&
+			    EXT4_SB(sb)->s_journal->j_flags & JBD2_ABORT))
 			errstr = "Journal has aborted";
 		else
 			errstr = "Readonly filesystem";
