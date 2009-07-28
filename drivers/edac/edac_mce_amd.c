@@ -321,6 +321,15 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 }
 EXPORT_SYMBOL_GPL(amd_decode_nb_mce);
 
+static void amd_decode_fr_mce(u64 mc5_status)
+{
+	/* we have only one error signature so match all fields at once. */
+	if ((mc5_status & 0xffff) == 0x0f0f)
+		pr_emerg(" FR Error: CPU Watchdog timer expire.\n");
+	else
+		pr_warning("Corrupted FR MCE info?\n");
+}
+
 static inline void amd_decode_err_code(unsigned int ec)
 {
 	if (TLB_ERROR(ec)) {
@@ -399,6 +408,10 @@ void decode_mce(struct mce *m)
 		node       = per_cpu(cpu_llc_id, m->extcpu);
 
 		amd_decode_nb_mce(node, &regs, 1);
+		break;
+
+	case 5:
+		amd_decode_fr_mce(m->status);
 		break;
 
 	default:
