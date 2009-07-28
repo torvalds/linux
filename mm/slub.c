@@ -142,11 +142,11 @@
 				SLAB_POISON | SLAB_STORE_USER)
 
 /*
- * Debugging flags that require metadata to be stored in the slab, up to
- * DEBUG_SIZE in size.
+ * Debugging flags that require metadata to be stored in the slab.  These get
+ * disabled when slub_debug=O is used and a cache's min order increases with
+ * metadata.
  */
-#define DEBUG_SIZE_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
-#define DEBUG_SIZE (3 * sizeof(void *) + 2 * sizeof(struct track))
+#define DEBUG_METADATA_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
 
 /*
  * Set of flags that will prevent slab merging
@@ -1040,27 +1040,13 @@ static unsigned long kmem_cache_flags(unsigned long objsize,
 	unsigned long flags, const char *name,
 	void (*ctor)(void *))
 {
-	int debug_flags = slub_debug;
-
 	/*
 	 * Enable debugging if selected on the kernel commandline.
 	 */
-	if (debug_flags) {
-		if (slub_debug_slabs &&
-		    strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs)))
-			goto out;
+	if (slub_debug && (!slub_debug_slabs ||
+		!strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs))))
+		flags |= slub_debug;
 
-		/*
-		 * Disable debugging that increases slab size if the minimum
-		 * slab order would have increased as a result.
-		 */
-		if (disable_higher_order_debug &&
-		    get_order(objsize + DEBUG_SIZE) > get_order(objsize))
-			debug_flags &= ~DEBUG_SIZE_FLAGS;
-
-		flags |= debug_flags;
-	}
-out:
 	return flags;
 }
 #else
@@ -2488,6 +2474,18 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 
 	if (!calculate_sizes(s, -1))
 		goto error;
+	if (disable_higher_order_debug) {
+		/*
+		 * Disable debugging flags that store metadata if the min slab
+		 * order increased.
+		 */
+		if (get_order(s->size) > get_order(s->objsize)) {
+			s->flags &= ~DEBUG_METADATA_FLAGS;
+			s->offset = 0;
+			if (!calculate_sizes(s, -1))
+				goto error;
+		}
+	}
 
 	/*
 	 * The larger the object size is, the more pages we want on the partial
