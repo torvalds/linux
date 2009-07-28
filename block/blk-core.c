@@ -575,13 +575,6 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 		return NULL;
 	}
 
-	/*
-	 * if caller didn't supply a lock, they get per-queue locking with
-	 * our embedded lock
-	 */
-	if (!lock)
-		lock = &q->__queue_lock;
-
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
 	q->unplug_fn		= generic_unplug_device;
