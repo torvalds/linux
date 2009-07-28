@@ -1273,6 +1273,10 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 		if ((c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xe)) &&
 			monarch_timeout < 0)
 			monarch_timeout = USEC_PER_SEC;
+
+		/* There are also broken BIOSes on some Pentium M systems. */
+		if (c->x86 == 6 && c->x86_model == 13 && mce_bootlog < 0)
+			mce_bootlog = 0;
 	}
 	if (monarch_timeout < 0)
 		monarch_timeout = 0;
