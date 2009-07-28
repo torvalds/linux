@@ -292,7 +292,10 @@ void __init acpi_s4_no_nvs(void);
 extern acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags);
 extern void acpi_early_init(void);
 
-#else	/* CONFIG_ACPI */
+#else	/* !CONFIG_ACPI */
+
+#define acpi_disabled 1
+
 static inline void acpi_early_init(void) { }
 
 static inline int early_acpi_boot_init(void)
@@ -331,5 +334,11 @@ static inline int acpi_check_mem_region(resource_size_t start,
 	return 0;
 }
 
+struct acpi_table_header;
+static inline int acpi_table_parse(char *id,
+				int (*handler)(struct acpi_table_header *))
+{
+	return -1;
+}
 #endif	/* !CONFIG_ACPI */
 #endif	/*_LINUX_ACPI_H*/
