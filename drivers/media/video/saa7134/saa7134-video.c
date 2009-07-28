@@ -1444,7 +1444,6 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
 			fh->cap.read_off = 0;
 		}
-		mutex_unlock(&fh->cap.vb_lock);
 		buf = fh->cap.read_buf;
 	}
 
