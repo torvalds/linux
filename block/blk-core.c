@@ -2136,7 +2136,7 @@ bool blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
 	return blk_end_bidi_request(rq, error, nr_bytes, 0);
 }
-EXPORT_SYMBOL_GPL(blk_end_request);
+EXPORT_SYMBOL(blk_end_request);
 
 /**
  * blk_end_request_all - Helper function for drives to finish the request.
@@ -2157,7 +2157,7 @@ void blk_end_request_all(struct request *rq, int error)
 	pending = blk_end_bidi_request(rq, error, blk_rq_bytes(rq), bidi_bytes);
 	BUG_ON(pending);
 }
-EXPORT_SYMBOL_GPL(blk_end_request_all);
+EXPORT_SYMBOL(blk_end_request_all);
 
 /**
  * blk_end_request_cur - Helper function to finish the current request chunk.
@@ -2175,7 +2175,7 @@ bool blk_end_request_cur(struct request *rq, int error)
 {
 	return blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
-EXPORT_SYMBOL_GPL(blk_end_request_cur);
+EXPORT_SYMBOL(blk_end_request_cur);
 
 /**
  * __blk_end_request - Helper function for drivers to complete the request.
@@ -2194,7 +2194,7 @@ bool __blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
 	return __blk_end_bidi_request(rq, error, nr_bytes, 0);
 }
-EXPORT_SYMBOL_GPL(__blk_end_request);
+EXPORT_SYMBOL(__blk_end_request);
 
 /**
  * __blk_end_request_all - Helper function for drives to finish the request.
@@ -2215,7 +2215,7 @@ void __blk_end_request_all(struct request *rq, int error)
 	pending = __blk_end_bidi_request(rq, error, blk_rq_bytes(rq), bidi_bytes);
 	BUG_ON(pending);
 }
-EXPORT_SYMBOL_GPL(__blk_end_request_all);
+EXPORT_SYMBOL(__blk_end_request_all);
 
 /**
  * __blk_end_request_cur - Helper function to finish the current request chunk.
@@ -2234,7 +2234,7 @@ bool __blk_end_request_cur(struct request *rq, int error)
 {
 	return __blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
-EXPORT_SYMBOL_GPL(__blk_end_request_cur);
+EXPORT_SYMBOL(__blk_end_request_cur);
 
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
