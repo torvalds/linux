@@ -128,6 +128,49 @@ const char *ext_msgs[] = {
 };
 EXPORT_SYMBOL_GPL(ext_msgs);
 
+static void amd_decode_dc_mce(u64 mc0_status)
+{
+	u32 ec  = mc0_status & 0xffff;
+	u32 xec = (mc0_status >> 16) & 0xf;
+
+	pr_emerg(" Data Cache Error");
+
+	if (xec == 1 && TLB_ERROR(ec))
+		pr_cont(": %s TLB multimatch.\n", LL_MSG(ec));
+	else if (xec == 0) {
+		if (mc0_status & (1ULL << 40))
+			pr_cont(" during Data Scrub.\n");
+		else if (TLB_ERROR(ec))
+			pr_cont(": %s TLB parity error.\n", LL_MSG(ec));
+		else if (MEM_ERROR(ec)) {
+			u8 ll   = ec & 0x3;
+			u8 tt   = (ec >> 2) & 0x3;
+			u8 rrrr = (ec >> 4) & 0xf;
+
+			/* see F10h BKDG (31116), Table 92. */
+			if (ll == 0x1) {
+				if (tt != 0x1)
+					goto wrong_dc_mce;
+
+				pr_cont(": Data/Tag %s error.\n", RRRR_MSG(ec));
+
+			} else if (ll == 0x2 && rrrr == 0x3)
+				pr_cont(" during L1 linefill from L2.\n");
+			else
+				goto wrong_dc_mce;
+		} else if (BUS_ERROR(ec) && boot_cpu_data.x86 == 0xf)
+			pr_cont(" during system linefill.\n");
+		else
+			goto wrong_dc_mce;
+	} else
+		goto wrong_dc_mce;
+
+	return;
+
+wrong_dc_mce:
+	pr_warning("Corrupted DC MCE info?\n");
+}
+
 void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 {
 	u32 ec  = ERROR_CODE(regs->nbsl);
@@ -211,9 +254,12 @@ void decode_mce(struct mce *m)
 
 	pr_cont("\n");
 
-	amd_decode_err_code(m->status & 0xffff);
+	switch (m->bank) {
+	case 0:
+		amd_decode_dc_mce(m->status);
+		break;
 
-	if (m->bank == 4) {
+	case 4:
 		regs.nbsl  = (u32) m->status;
 		regs.nbsh  = (u32)(m->status >> 32);
 		regs.nbeal = (u32) m->addr;
@@ -221,5 +267,11 @@ void decode_mce(struct mce *m)
 		node       = per_cpu(cpu_llc_id, m->extcpu);
 
 		amd_decode_nb_mce(node, &regs, 1);
+		break;
+
+	default:
+		break;
 	}
+
+	amd_decode_err_code(m->status & 0xffff);
 }
