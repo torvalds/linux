@@ -108,23 +108,21 @@ struct xc4000_priv {
 
 /* Product id */
 #define XC_PRODUCT_ID_FW_NOT_LOADED	0x2000
-#define XC_PRODUCT_ID_FW_LOADED 	0x0FA0 /* WAS: 0x1388*/
+#define XC_PRODUCT_ID_FW_LOADED 	0x0FA0
 
-/* Registers */
+/* Registers (Write-only) */
 #define XREG_INIT         0x00
 #define XREG_VIDEO_MODE   0x01
 #define XREG_AUDIO_MODE   0x02
 #define XREG_RF_FREQ      0x03
 #define XREG_D_CODE       0x04
-#define XREG_IF_OUT       0x05 /* ?? */
-#define XREG_SEEK_MODE    0x07 /* WAS: 0x06 */
-#define XREG_POWER_DOWN   0x08 /* WAS: 0x0A Obsolete */
-#define XREG_SIGNALSOURCE 0x0A /* WAS: 0x0D 0=Air, 1=Cable */
-//#define XREG_SMOOTHEDCVBS 0x0E
-//#define XREG_XTALFREQ     0x0F
-//#define XREG_FINERFREQ    0x10
-//#define XREG_DDIMODE      0x11
+#define XREG_DIRECTSITTING_MODE 0x05
+#define XREG_SEEK_MODE    0x06
+#define XREG_POWER_DOWN   0x08
+#define XREG_SIGNALSOURCE 0x0A
+#define XREG_AMPLITUDE    0x10
 
+/* Registers (Read-only) */
 #define XREG_ADC_ENV      0x00
 #define XREG_QUALITY      0x01
 #define XREG_FRAME_LINES  0x02
@@ -134,7 +132,6 @@ struct xc4000_priv {
 #define XREG_SNR          0x06
 #define XREG_VERSION      0x07
 #define XREG_PRODUCT_ID   0x08
-//#define XREG_BUILD        0x0D
 
 /*
    Basic firmware description. This will remain with
@@ -249,7 +246,6 @@ static struct XC_TV_STANDARD XC4000_Standard[MAX_TV_STANDARD] = {
 	{"FM Radio-INPUT1",   0x0008, 0x9000}
 };
 
-static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
 static int xc4000_is_firmware_loaded(struct dvb_frontend *fe);
 static int xc4000_readreg(struct xc4000_priv *priv, u16 reg, u16 *val);
 static int xc4000_TunerReset(struct dvb_frontend *fe);
@@ -258,7 +254,6 @@ static int xc_send_i2c_data(struct xc4000_priv *priv, u8 *buf, int len)
 {
 	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
 			       .flags = 0, .buf = buf, .len = len };
-
 	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
 		printk(KERN_ERR "xc4000: I2C write failed (len=%i)\n", len);
 		return XC_RESULT_I2C_WRITE_FAILURE;
@@ -269,17 +264,6 @@ static int xc_send_i2c_data(struct xc4000_priv *priv, u8 *buf, int len)
 /* This routine is never used because the only time we read data from the
    i2c bus is when we read registers, and we want that to be an atomic i2c
    transaction in case we are on a multi-master bus */
-static int xc_read_i2c_data(struct xc4000_priv *priv, u8 *buf, int len)
-{
-	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
-		.flags = I2C_M_RD, .buf = buf, .len = len };
-
-	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
-		printk(KERN_ERR "xc4000 I2C read failed (len=%i)\n", len);
-		return -EREMOTEIO;
-	}
-	return 0;
-}
 
 static void xc_wait(int wait_ms)
 {
@@ -378,12 +362,6 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 	return XC_RESULT_SUCCESS;
 }
 
-static int xc_initialize(struct xc4000_priv *priv)
-{
-	dprintk(1, "%s()\n", __func__);
-	return xc_write_reg(priv, XREG_INIT, 0);
-}
-
 static int xc_SetTVStandard(struct xc4000_priv *priv,
 	u16 VideoMode, u16 AudioMode)
 {
@@ -432,16 +410,6 @@ static int xc_set_RF_frequency(struct xc4000_priv *priv, u32 freq_hz)
 	   FINERFREQ for all normal tuning (the doc indicates reg 0x03 should
 	   only be used for fast scanning for channel lock) */
 	return xc_write_reg(priv, XREG_RF_FREQ, freq_code); /* WAS: XREG_FINERFREQ */
-}
-
-
-static int xc_set_IF_frequency(struct xc4000_priv *priv, u32 freq_khz)
-{
-	u32 freq_code = (freq_khz * 1024)/1000;
-	dprintk(1, "%s(freq_khz = %d) freq_code = 0x%x\n",
-		__func__, freq_khz, freq_code);
-
-	return xc_write_reg(priv, XREG_IF_OUT, freq_code);
 }
 
 
@@ -751,6 +719,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	       (unsigned long long)*id);
 
 	p = priv->firm[pos].ptr;
+	printk("firmware length = %d\n", priv->firm[pos].size);
 
 	rc = xc_load_i2c_sequence(fe, p);
 
@@ -911,7 +880,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	struct xc4000_priv *priv = fe->tuner_priv;
 	int                pos, rc;
 	unsigned char	   *p;
-	u8 direct_mode[4];
+	u8 scode_buf[13];
 	u8 indirect_mode[5];
 
 	dprintk(1, "%s called\n", __func__);
@@ -951,24 +920,28 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	printk("(%x), id %016llx.\n", priv->firm[pos].type,
 	       (unsigned long long)*id);
 
+	scode_buf[0] = 0x00;
+	memcpy(&scode_buf[1], p, 12);
 
 	/* Enter direct-mode */
-	memset(direct_mode, 0, sizeof(direct_mode));
-	direct_mode[1] = 0x05;
-	rc = xc_send_i2c_data(priv, direct_mode, sizeof(direct_mode));
-	if (rc < 0)
+	rc = xc_write_reg(priv, XREG_DIRECTSITTING_MODE, 0);
+	if (rc < 0) {
+		printk("failed to put device into direct mode!\n");
 		return -EIO;
+	}
 
-	rc = xc_send_i2c_data(priv, p, 12);
-	if (rc != XC_RESULT_SUCCESS)
-		return -EIO;
+	rc = xc_send_i2c_data(priv, scode_buf, 13);
+	if (rc != XC_RESULT_SUCCESS) {
+		/* Even if the send failed, make sure we set back to indirect
+		   mode */
+		printk("Failed to set scode %d\n", rc);
+	}
 
 	/* Switch back to indirect-mode */
 	memset(indirect_mode, 0, sizeof(indirect_mode));
 	indirect_mode[4] = 0x88;
-	rc = xc_send_i2c_data(priv, indirect_mode, sizeof(indirect_mode));
-	if (rc < 0)
-		return -EIO;
+	xc_send_i2c_data(priv, indirect_mode, sizeof(indirect_mode));
+	msleep(10);
 
 	return 0;
 }
@@ -1057,6 +1030,8 @@ retry:
 		goto fail;
 	}
 
+	printk("Done with init1\n");
+
 skip_base:
 	/*
 	 * No need to reload standard specific firmware if base firmware
@@ -1071,9 +1046,8 @@ skip_base:
 	/* Reloading std-specific firmware forces a SCODE update */
 	priv->cur_fw.scode_table = 0;
 
+	/* Load the standard firmware */
 	rc = load_firmware(fe, new_fw.type, &new_fw.id);
-	if (rc == -ENOENT)
-		rc = load_firmware(fe, new_fw.type & ~F8MHZ, &new_fw.id);
 
 	if (rc < 0)
 		goto fail;
@@ -1089,10 +1063,10 @@ skip_std_specific:
 		goto check_device;
 
 	/* Load SCODE firmware, if exists */
-	dprintk(1, "Trying to load scode %d\n", new_fw.scode_nr);
-
 	rc = load_scode(fe, new_fw.type | new_fw.scode_table, &new_fw.id,
 			new_fw.int_freq, new_fw.scode_nr);
+	if (rc != XC_RESULT_SUCCESS)
+		dprintk(1, "load scode failed %d\n", rc);
 
 check_device:
 	rc = xc4000_readreg(priv, XREG_PRODUCT_ID, &hwmodel);
@@ -1209,10 +1183,12 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 	struct xc4000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	if (xc4000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
-		xc_load_fw_and_init_tuner(fe);
-
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
+
+	/* FIXME: setup proper parameters */
+	if (check_firmware(fe, DTV8, 0, 5400) != XC_RESULT_SUCCESS) {
+		return -EREMOTEIO;
+	}
 
 	if (fe->ops.info.type == FE_ATSC) {
 		dprintk(1, "%s() ATSC\n", __func__);
@@ -1281,14 +1257,14 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 		printk(KERN_ERR "xc4000: xc_SetTVStandard failed\n");
 		return -EREMOTEIO;
 	}
-
+#ifdef DJH_DEBUG
 	ret = xc_set_IF_frequency(priv, priv->if_khz);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc4000: xc_Set_IF_frequency(%d) failed\n",
 		       priv->if_khz);
 		return -EIO;
 	}
-
+#endif
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_DIGITAL);
 
 	if (debug)
@@ -1322,11 +1298,13 @@ static int xc4000_set_analog_params(struct dvb_frontend *fe,
 	struct xc4000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	if (xc4000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
-		xc_load_fw_and_init_tuner(fe);
-
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
 		__func__, params->frequency);
+
+	/* FIXME: setup proper parameters */
+	if (check_firmware(fe, DTV8, 0, 5400) != XC_RESULT_SUCCESS) {
+		return -EREMOTEIO;
+	}
 
 	/* Fix me: it could be air. */
 	priv->rf_mode = params->mode;
@@ -1435,54 +1413,10 @@ static int xc4000_get_status(struct dvb_frontend *fe, u32 *status)
 	return 0;
 }
 
-static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
-{
-	struct xc4000_priv *priv = fe->tuner_priv;
-	int ret = 0;
-
-	if (xc4000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
-		ret = xc4000_fwupload(fe);
-		if (ret != XC_RESULT_SUCCESS)
-			return ret;
-	}
-
-	/* Start the tuner self-calibration process */
-	ret |= xc_initialize(priv);
-
-	/* Wait for calibration to complete.
-	 * We could continue but XC4000 will clock stretch subsequent
-	 * I2C transactions until calibration is complete.  This way we
-	 * don't have to rely on clock stretching working.
-	 */
-	xc_wait(100);
-
-	/* Default to "CABLE" mode */
-	ret |= xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
-
-	return ret;
-}
-
 static int xc4000_sleep(struct dvb_frontend *fe)
 {
-	int ret;
-
-	dprintk(1, "%s()\n", __func__);
-
-	/* Avoid firmware reload on slow devices */
-	if (no_poweroff)
-		return 0;
-
-	/* According to Xceive technical support, the "powerdown" register
-	   was removed in newer versions of the firmware.  The "supported"
-	   way to sleep the tuner is to pull the reset pin low for 10ms */
-	ret = xc4000_TunerReset(fe);
-	if (ret != XC_RESULT_SUCCESS) {
-		printk(KERN_ERR
-			"xc4000: %s() unable to shutdown tuner\n",
-			__func__);
-		return -EREMOTEIO;
-	} else
-		return XC_RESULT_SUCCESS;
+	/* FIXME: djh disable this for now... */
+	return XC_RESULT_SUCCESS;
 }
 
 static int xc4000_init(struct dvb_frontend *fe)
@@ -1490,7 +1424,7 @@ static int xc4000_init(struct dvb_frontend *fe)
 	struct xc4000_priv *priv = fe->tuner_priv;
 	dprintk(1, "%s()\n", __func__);
 
-	if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
+	if (check_firmware(fe, DTV8, 0, 5400) != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc4000: Unable to initialise tuner\n");
 		return -EREMOTEIO;
 	}
@@ -1544,9 +1478,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 {
 	struct xc4000_priv *priv = NULL;
 	int instance;
-	v4l2_std_id std0;
 	u16 id = 0;
-	int rc;
 
 	dprintk(1, "%s(%d-%04x)\n", __func__,
 		i2c ? i2c_adapter_id(i2c) : -1,
@@ -1615,31 +1547,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 
 	/* FIXME: For now, load the firmware at startup.  We will remove this
 	   before the code goes to production... */
-#ifdef DJH_DEBUG
-	xc4000_fwupload(fe);
-	printk("xc4000_fwupload done\n");
-
-	std0 = 0;
-//	rc = load_firmware(fe, BASE | new_fw.type, &std0);
-	rc = load_firmware(fe, BASE, &std0);
-	if (rc != XC_RESULT_SUCCESS) {
-		tuner_err("Error %d while loading base firmware\n",
-			  rc);
-		goto fail;
-	}
-
-	/* Load INIT1, if needed */
-	dprintk("Load init1 firmware, if exists\n");
-
-//	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &std0);
-	rc = load_firmware(fe, BASE | INIT1, &std0);
-	printk("init1 load result %x\n", rc);
-#endif
 	check_firmware(fe, DTV8, 0, 5400);
-
-	if (xc4000_readreg(priv, XREG_PRODUCT_ID, &id) != XC_RESULT_SUCCESS)
-			goto fail;
-	printk("djh id is now %x\n", id);
 
 	return fe;
 fail:
