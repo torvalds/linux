@@ -713,7 +713,7 @@ void kvm_inject_pit_timer_irqs(struct kvm_vcpu *vcpu)
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_kpit_state *ps;
 
-	if (vcpu && pit) {
+	if (pit) {
 		int inject = 0;
 		ps = &pit->pit_state;
 
