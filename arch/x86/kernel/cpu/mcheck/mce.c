@@ -1158,7 +1158,7 @@ static int mce_banks_init(void)
 /*
  * Initialize Machine Checks for a CPU.
  */
-static int mce_cap_init(void)
+static int __cpuinit mce_cap_init(void)
 {
 	unsigned b;
 	u64 cap;
@@ -1222,7 +1222,7 @@ static void mce_init(void)
 }
 
 /* Add per CPU specific workarounds here */
-static void mce_cpu_quirks(struct cpuinfo_x86 *c)
+static void __cpuinit mce_cpu_quirks(struct cpuinfo_x86 *c)
 {
 	/* This should be disabled by the BIOS, but isn't always */
 	if (c->x86_vendor == X86_VENDOR_AMD) {
