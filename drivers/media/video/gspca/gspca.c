@@ -486,6 +486,7 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 	}
 	PDEBUG(D_STREAM, "use alt %d ep 0x%02x",
 			i, ep->desc.bEndpointAddress);
+	gspca_dev->alt = i;		/* memorize the current alt setting */
 	if (gspca_dev->nbalt > 1) {
 		ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
 		if (ret < 0) {
@@ -493,7 +494,6 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 			return NULL;
 		}
 	}
-	gspca_dev->alt = i;		/* memorize the current alt setting */
 	return ep;
 }
 
