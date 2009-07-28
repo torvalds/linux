@@ -613,6 +613,89 @@ static struct platform_driver wm831x_buckp_driver = {
 	},
 };
 
+/*
+ * External Power Enable
+ *
+ * These aren't actually DCDCs but look like them in hardware so share
+ * code.
+ */
+
+#define WM831X_EPE_BASE 6
+
+static struct regulator_ops wm831x_epe_ops = {
+	.is_enabled = wm831x_dcdc_is_enabled,
+	.enable = wm831x_dcdc_enable,
+	.disable = wm831x_dcdc_disable,
+	.get_status = wm831x_dcdc_get_status,
+};
+
+static __devinit int wm831x_epe_probe(struct platform_device *pdev)
+{
+	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
+	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	int id = pdev->id % ARRAY_SIZE(pdata->epe);
+	struct wm831x_dcdc *dcdc;
+	int ret;
+
+	dev_dbg(&pdev->dev, "Probing EPE%d\n", id + 1);
+
+	if (pdata == NULL || pdata->epe[id] == NULL)
+		return -ENODEV;
+
+	dcdc = kzalloc(sizeof(struct wm831x_dcdc), GFP_KERNEL);
+	if (dcdc == NULL) {
+		dev_err(&pdev->dev, "Unable to allocate private data\n");
+		return -ENOMEM;
+	}
+
+	dcdc->wm831x = wm831x;
+
+	/* For current parts this is correct; probably need to revisit
+	 * in future.
+	 */
+	snprintf(dcdc->name, sizeof(dcdc->name), "EPE%d", id + 1);
+	dcdc->desc.name = dcdc->name;
+	dcdc->desc.id = id + WM831X_EPE_BASE; /* Offset in DCDC registers */
+	dcdc->desc.ops = &wm831x_epe_ops;
+	dcdc->desc.type = REGULATOR_VOLTAGE;
+	dcdc->desc.owner = THIS_MODULE;
+
+	dcdc->regulator = regulator_register(&dcdc->desc, &pdev->dev,
+					     pdata->epe[id], dcdc);
+	if (IS_ERR(dcdc->regulator)) {
+		ret = PTR_ERR(dcdc->regulator);
+		dev_err(wm831x->dev, "Failed to register EPE%d: %d\n",
+			id + 1, ret);
+		goto err;
+	}
+
+	platform_set_drvdata(pdev, dcdc);
+
+	return 0;
+
+err:
+	kfree(dcdc);
+	return ret;
+}
+
+static __devexit int wm831x_epe_remove(struct platform_device *pdev)
+{
+	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
+
+	regulator_unregister(dcdc->regulator);
+	kfree(dcdc);
+
+	return 0;
+}
+
+static struct platform_driver wm831x_epe_driver = {
+	.probe = wm831x_epe_probe,
+	.remove = __devexit_p(wm831x_epe_remove),
+	.driver		= {
+		.name	= "wm831x-epe",
+	},
+};
+
 static int __init wm831x_dcdc_init(void)
 {
 	int ret;
@@ -624,12 +707,17 @@ static int __init wm831x_dcdc_init(void)
 	if (ret != 0)
 		pr_err("Failed to register WM831x BUCKP driver: %d\n", ret);
 
+	ret = platform_driver_register(&wm831x_epe_driver);
+	if (ret != 0)
+		pr_err("Failed to register WM831x EPE driver: %d\n", ret);
+
 	return 0;
 }
 subsys_initcall(wm831x_dcdc_init);
 
 static void __exit wm831x_dcdc_exit(void)
 {
+	platform_driver_unregister(&wm831x_epe_driver);
 	platform_driver_unregister(&wm831x_buckp_driver);
 	platform_driver_unregister(&wm831x_buckv_driver);
 }
