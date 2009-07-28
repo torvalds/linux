@@ -263,7 +263,7 @@ static int blkvsc_probe(struct device *device)
 	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &blkvsc_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
-	DEVICE_OBJECT* device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	struct block_device_context *blkdev=NULL;
 	STORVSC_DEVICE_INFO device_info;
@@ -772,7 +772,7 @@ static int blkvsc_remove(struct device *device)
 	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &blkvsc_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
-	DEVICE_OBJECT* device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = &device_ctx->device_obj;
 	struct block_device_context *blkdev = dev_get_drvdata(device);
 	unsigned long flags;
 

@@ -55,7 +55,7 @@
 
 /* Per netvsc channel-specific */
 struct NETVSC_DEVICE {
-	DEVICE_OBJECT					*Device;
+	struct hv_device *Device;
 
 	int								RefCount;
 

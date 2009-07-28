@@ -46,7 +46,7 @@ static const GUID gVmbusDeviceId={
 };
 
 static DRIVER_OBJECT* gDriver; /* vmbus driver object */
-static DEVICE_OBJECT* gDevice; /* vmbus root device */
+static struct hv_device* gDevice; /* vmbus root device */
 
 
 
@@ -60,7 +60,7 @@ VmbusGetChannelInterface(
 
 static void
 VmbusGetChannelInfo(
-	DEVICE_OBJECT	*DeviceObject,
+	struct hv_device *DeviceObject,
 	DEVICE_INFO		*DeviceInfo
 	);
 
@@ -71,13 +71,13 @@ VmbusGetChannelOffers(
 
 static int
 VmbusOnDeviceAdd(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	void			*AdditionalInfo
 	);
 
 static int
 VmbusOnDeviceRemove(
-	DEVICE_OBJECT* dev
+	struct hv_device *dev
 	);
 
 static void
@@ -205,7 +205,7 @@ Description:
 --*/
 static void
 VmbusGetChannelInfo(
-	DEVICE_OBJECT	*DeviceObject,
+	struct hv_device *DeviceObject,
 	DEVICE_INFO		*DeviceInfo
 	)
 {
@@ -224,7 +224,7 @@ Description:
 
 --*/
 
-DEVICE_OBJECT*
+struct hv_device*
 VmbusChildDeviceCreate(
 	GUID DeviceType,
 	GUID DeviceInstance,
@@ -250,7 +250,7 @@ Description:
 --*/
 int
 VmbusChildDeviceAdd(
-   DEVICE_OBJECT* ChildDevice)
+   struct hv_device *ChildDevice)
 {
 	VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
 
@@ -269,7 +269,7 @@ Description:
 --*/
 void
 VmbusChildDeviceRemove(
-   DEVICE_OBJECT* ChildDevice)
+   struct hv_device *ChildDevice)
 {
 	VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
 
@@ -289,7 +289,7 @@ Description:
 /* **************
 void
 VmbusChildDeviceDestroy(
-DEVICE_OBJECT* ChildDevice
+struct hv_device  *ChildDevice
 )
 {
 VMBUS_DRIVER_OBJECT* vmbusDriver = (VMBUS_DRIVER_OBJECT*)gDriver;
@@ -309,7 +309,7 @@ Description:
 --*/
 static int
 VmbusOnDeviceAdd(
-	DEVICE_OBJECT	*dev,
+	struct hv_device *dev,
 	void			*AdditionalInfo
 	)
 {
@@ -347,7 +347,7 @@ Description:
 
 --*/
 int VmbusOnDeviceRemove(
-	DEVICE_OBJECT* dev
+	struct hv_device *dev
 	)
 {
 	int ret=0;

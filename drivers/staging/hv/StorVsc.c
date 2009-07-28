@@ -44,7 +44,7 @@ typedef struct _STORVSC_REQUEST_EXTENSION {
 	/* LIST_ENTRY						ListEntry; */
 
 	STORVSC_REQUEST					*Request;
-	DEVICE_OBJECT					*Device;
+	struct hv_device *Device;
 
 	/* Synchronize the request/response if needed */
 	HANDLE							WaitEvent;
@@ -55,7 +55,7 @@ typedef struct _STORVSC_REQUEST_EXTENSION {
 
 /* A storvsc device is a device object that contains a vmbus channel */
 typedef struct _STORVSC_DEVICE{
-	DEVICE_OBJECT				*Device;
+	struct hv_device *Device;
 
 	int							RefCount; /* 0 indicates the device is being destroyed */
 
@@ -96,24 +96,24 @@ static const GUID gStorVscDeviceType={
 
 static int
 StorVscOnDeviceAdd(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	void			*AdditionalInfo
 	);
 
 static int
 StorVscOnDeviceRemove(
-	DEVICE_OBJECT	*Device
+	struct hv_device *Device
 	);
 
 static int
 StorVscOnIORequest(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	STORVSC_REQUEST	*Request
 	);
 
 static int
 StorVscOnHostReset(
-	DEVICE_OBJECT	*Device
+	struct hv_device *Device
 	);
 
 static void
@@ -128,24 +128,24 @@ StorVscOnChannelCallback(
 
 static void
 StorVscOnIOCompletion(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	VSTOR_PACKET	*VStorPacket,
 	STORVSC_REQUEST_EXTENSION *RequestExt
 	);
 
 static void
 StorVscOnReceive(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	VSTOR_PACKET	*VStorPacket,
 	STORVSC_REQUEST_EXTENSION *RequestExt
 	);
 
 static int
 StorVscConnectToVsp(
-	DEVICE_OBJECT	*Device
+	struct hv_device *Device
 	);
 
-static inline STORVSC_DEVICE* AllocStorDevice(DEVICE_OBJECT *Device)
+static inline STORVSC_DEVICE* AllocStorDevice(struct hv_device *Device)
 {
 	STORVSC_DEVICE *storDevice;
 
@@ -170,7 +170,7 @@ static inline void FreeStorDevice(STORVSC_DEVICE *Device)
 }
 
 /* Get the stordevice object iff exists and its refcount > 1 */
-static inline STORVSC_DEVICE* GetStorDevice(DEVICE_OBJECT *Device)
+static inline STORVSC_DEVICE* GetStorDevice(struct hv_device *Device)
 {
 	STORVSC_DEVICE *storDevice;
 
@@ -188,7 +188,7 @@ static inline STORVSC_DEVICE* GetStorDevice(DEVICE_OBJECT *Device)
 }
 
 /* Get the stordevice object iff exists and its refcount > 0 */
-static inline STORVSC_DEVICE* MustGetStorDevice(DEVICE_OBJECT *Device)
+static inline STORVSC_DEVICE* MustGetStorDevice(struct hv_device *Device)
 {
 	STORVSC_DEVICE *storDevice;
 
@@ -205,7 +205,7 @@ static inline STORVSC_DEVICE* MustGetStorDevice(DEVICE_OBJECT *Device)
 	return storDevice;
 }
 
-static inline void PutStorDevice(DEVICE_OBJECT *Device)
+static inline void PutStorDevice(struct hv_device *Device)
 {
 	STORVSC_DEVICE *storDevice;
 
@@ -217,7 +217,7 @@ static inline void PutStorDevice(DEVICE_OBJECT *Device)
 }
 
 /* Drop ref count to 1 to effectively disable GetStorDevice() */
-static inline STORVSC_DEVICE* ReleaseStorDevice(DEVICE_OBJECT *Device)
+static inline STORVSC_DEVICE* ReleaseStorDevice(struct hv_device *Device)
 {
 	STORVSC_DEVICE *storDevice;
 
@@ -234,7 +234,7 @@ static inline STORVSC_DEVICE* ReleaseStorDevice(DEVICE_OBJECT *Device)
 }
 
 /* Drop ref count to 0. No one can use StorDevice object. */
-static inline STORVSC_DEVICE* FinalReleaseStorDevice(DEVICE_OBJECT *Device)
+static inline STORVSC_DEVICE* FinalReleaseStorDevice(struct hv_device *Device)
 {
 	STORVSC_DEVICE *storDevice;
 
@@ -317,7 +317,7 @@ Description:
 --*/
 int
 StorVscOnDeviceAdd(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	void			*AdditionalInfo
 	)
 {
@@ -365,7 +365,7 @@ Cleanup:
 	return ret;
 }
 
-static int StorVscChannelInit(DEVICE_OBJECT *Device)
+static int StorVscChannelInit(struct hv_device *Device)
 {
 	int ret=0;
 	STORVSC_DEVICE *storDevice;
@@ -529,7 +529,7 @@ Cleanup:
 
 int
 StorVscConnectToVsp(
-	DEVICE_OBJECT	*Device
+	struct hv_device *Device
 	)
 {
 	int ret=0;
@@ -574,7 +574,7 @@ Description:
 --*/
 int
 StorVscOnDeviceRemove(
-	DEVICE_OBJECT *Device
+	struct hv_device *Device
 	)
 {
 	STORVSC_DEVICE *storDevice;
@@ -619,7 +619,7 @@ StorVscOnTargetRescan(
 void *Context
 )
 {
-DEVICE_OBJECT *device=(DEVICE_OBJECT*)Context;
+struct hv_device *device=(struct hv_device *)Context;
 STORVSC_DRIVER_OBJECT *storDriver;
 
 DPRINT_ENTER(STORVSC);
@@ -633,7 +633,7 @@ DPRINT_EXIT(STORVSC);
 
 int
 StorVscOnHostReset(
-	DEVICE_OBJECT *Device
+	struct hv_device *Device
 	)
 {
 	int ret=0;
@@ -703,7 +703,7 @@ Description:
 --*/
 int
 StorVscOnIORequest(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	STORVSC_REQUEST	*Request
 	)
 {
@@ -817,7 +817,7 @@ StorVscOnCleanup(
 
 static void
 StorVscOnIOCompletion(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	VSTOR_PACKET	*VStorPacket,
 	STORVSC_REQUEST_EXTENSION *RequestExt
 	)
@@ -887,7 +887,7 @@ StorVscOnIOCompletion(
 
 static void
 StorVscOnReceive(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	VSTOR_PACKET	*VStorPacket,
 	STORVSC_REQUEST_EXTENSION *RequestExt
 	)
@@ -925,7 +925,7 @@ StorVscOnChannelCallback(
 	)
 {
 	int ret=0;
-	DEVICE_OBJECT *device = (DEVICE_OBJECT*)Context;
+	struct hv_device *device = (struct hv_device*)Context;
 	STORVSC_DEVICE *storDevice;
 	u32 bytesRecvd;
 	u64 requestId;

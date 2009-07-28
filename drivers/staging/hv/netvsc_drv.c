@@ -51,10 +51,10 @@ static int netvsc_remove(struct device *device);
 static int netvsc_open(struct net_device *net);
 static void netvsc_xmit_completion(void *context);
 static int netvsc_start_xmit (struct sk_buff *skb, struct net_device *net);
-static int netvsc_recv_callback(DEVICE_OBJECT *device_obj, NETVSC_PACKET* Packet);
+static int netvsc_recv_callback(struct hv_device *device_obj, NETVSC_PACKET* Packet);
 static int netvsc_close(struct net_device *net);
 static struct net_device_stats *netvsc_get_stats(struct net_device *net);
-static void netvsc_linkstatus_callback(DEVICE_OBJECT *device_obj, unsigned int status);
+static void netvsc_linkstatus_callback(struct hv_device *device_obj, unsigned int status);
 
 
 /* Data types */
@@ -172,7 +172,7 @@ static int netvsc_probe(struct device *device)
 	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
-	DEVICE_OBJECT *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
@@ -249,7 +249,7 @@ static int netvsc_remove(struct device *device)
 
 	struct device_context *device_ctx = device_to_device_context(device);
 	struct net_device *net = dev_get_drvdata(&device_ctx->device);
-	DEVICE_OBJECT *device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	DPRINT_ENTER(NETVSC_DRV);
 
@@ -302,7 +302,7 @@ static int netvsc_open(struct net_device *net)
 	struct netvsc_driver_context *net_drv_ctx = (struct netvsc_driver_context*)driver_ctx;
 	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
 
-	DEVICE_OBJECT *device_obj = &net_device_ctx->device_ctx->device_obj;
+	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
 
 	DPRINT_ENTER(NETVSC_DRV);
 
@@ -344,7 +344,7 @@ static int netvsc_close(struct net_device *net)
 	struct netvsc_driver_context *net_drv_ctx = (struct netvsc_driver_context*)driver_ctx;
 	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
 
-	DEVICE_OBJECT *device_obj = &net_device_ctx->device_ctx->device_obj;
+	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
 
 	DPRINT_ENTER(NETVSC_DRV);
 
@@ -515,7 +515,7 @@ Name:	netvsc_linkstatus_callback()
 Desc:	Link up/down notification
 
 --*/
-static void netvsc_linkstatus_callback(DEVICE_OBJECT *device_obj, unsigned int status)
+static void netvsc_linkstatus_callback(struct hv_device *device_obj, unsigned int status)
 {
 	struct device_context* device_ctx = to_device_context(device_obj);
 	struct net_device* net = dev_get_drvdata(&device_ctx->device);
@@ -549,7 +549,7 @@ Name:	netvsc_recv_callback()
 Desc:	Callback when we receive a packet from the "wire" on the specify device
 
 --*/
-static int netvsc_recv_callback(DEVICE_OBJECT *device_obj, NETVSC_PACKET* packet)
+static int netvsc_recv_callback(struct hv_device *device_obj, NETVSC_PACKET* packet)
 {
 	int ret=0;
 	struct device_context *device_ctx = to_device_context(device_obj);

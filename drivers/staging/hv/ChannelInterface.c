@@ -25,7 +25,7 @@
 
 static int
 IVmbusChannelOpen(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	u32				SendBufferSize,
 	u32				RecvRingBufferSize,
 	void *				UserData,
@@ -46,7 +46,7 @@ IVmbusChannelOpen(
 
 static void
 IVmbusChannelClose(
-	PDEVICE_OBJECT		Device
+	struct hv_device *Device
 	)
 {
 	VmbusChannelClose((VMBUS_CHANNEL*)Device->context);
@@ -55,7 +55,7 @@ IVmbusChannelClose(
 
 static int
 IVmbusChannelSendPacket(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	const void *			Buffer,
 	u32				BufferLen,
 	u64				RequestId,
@@ -73,7 +73,7 @@ IVmbusChannelSendPacket(
 
 static int
 IVmbusChannelSendPacketPageBuffer(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	PAGE_BUFFER			PageBuffers[],
 	u32				PageCount,
 	void *				Buffer,
@@ -91,7 +91,7 @@ IVmbusChannelSendPacketPageBuffer(
 
 static int
 IVmbusChannelSendPacketMultiPageBuffer(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
 	u32				BufferLen,
@@ -107,7 +107,7 @@ IVmbusChannelSendPacketMultiPageBuffer(
 
 static int
 IVmbusChannelRecvPacket (
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
@@ -123,7 +123,7 @@ IVmbusChannelRecvPacket (
 
 static int
 IVmbusChannelRecvPacketRaw(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
@@ -139,7 +139,7 @@ IVmbusChannelRecvPacketRaw(
 
 static int
 IVmbusChannelEstablishGpadl(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				GpadlHandle
@@ -153,7 +153,7 @@ IVmbusChannelEstablishGpadl(
 
 static int
 IVmbusChannelTeardownGpadl(
-   PDEVICE_OBJECT		Device,
+   struct hv_device *Device,
    u32				GpadlHandle
 	)
 {
@@ -182,7 +182,7 @@ GetChannelInterface(
 
 static void
 GetChannelInfo(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	DEVICE_INFO			*DeviceInfo
 			   )
 {

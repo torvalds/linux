@@ -45,7 +45,7 @@ typedef enum {
 typedef struct _VMBUS_CHANNEL {
 	LIST_ENTRY					ListEntry;
 
-	DEVICE_OBJECT*				DeviceObject;
+	struct hv_device *DeviceObject;
 
 	HANDLE						PollTimer; /* SA-111 workaround */
 

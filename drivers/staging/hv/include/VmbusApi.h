@@ -39,7 +39,6 @@
 /* Fwd declarations */
 
 typedef struct _DRIVER_OBJECT *PDRIVER_OBJECT;
-typedef struct _DEVICE_OBJECT *PDEVICE_OBJECT;
 
 
 /* Data types */
@@ -69,29 +68,31 @@ typedef struct _MULTIPAGE_BUFFER {
 
 #pragma pack(pop)
 
+struct hv_device;
+
 /* All drivers */
-typedef int (*PFN_ON_DEVICEADD)(PDEVICE_OBJECT Device, void* AdditionalInfo);
-typedef int (*PFN_ON_DEVICEREMOVE)(PDEVICE_OBJECT Device);
+typedef int (*PFN_ON_DEVICEADD)(struct hv_device *Device, void* AdditionalInfo);
+typedef int (*PFN_ON_DEVICEREMOVE)(struct hv_device *Device);
 typedef char** (*PFN_ON_GETDEVICEIDS)(void);
 typedef void (*PFN_ON_CLEANUP)(PDRIVER_OBJECT Driver);
 
 /* Vmbus extensions */
-/* typedef int (*PFN_ON_MATCH)(PDEVICE_OBJECT dev, PDRIVER_OBJECT drv); */
-/* typedef int (*PFN_ON_PROBE)(PDEVICE_OBJECT dev); */
+/* typedef int (*PFN_ON_MATCH)(struct hv_device *dev, PDRIVER_OBJECT drv); */
+/* typedef int (*PFN_ON_PROBE)(struct hv_device *dev); */
 typedef int	(*PFN_ON_ISR)(PDRIVER_OBJECT drv);
 typedef void (*PFN_ON_DPC)(PDRIVER_OBJECT drv);
 typedef void (*PFN_GET_CHANNEL_OFFERS)(void);
 
-typedef PDEVICE_OBJECT (*PFN_ON_CHILDDEVICE_CREATE)(GUID DeviceType, GUID DeviceInstance, void *Context);
-typedef void (*PFN_ON_CHILDDEVICE_DESTROY)(PDEVICE_OBJECT Device);
-typedef int (*PFN_ON_CHILDDEVICE_ADD)(PDEVICE_OBJECT RootDevice, PDEVICE_OBJECT ChildDevice);
-typedef void (*PFN_ON_CHILDDEVICE_REMOVE)(PDEVICE_OBJECT Device);
+typedef struct hv_device *(*PFN_ON_CHILDDEVICE_CREATE)(GUID DeviceType, GUID DeviceInstance, void *Context);
+typedef void (*PFN_ON_CHILDDEVICE_DESTROY)(struct hv_device *Device);
+typedef int (*PFN_ON_CHILDDEVICE_ADD)(struct hv_device *RootDevice, struct hv_device *ChildDevice);
+typedef void (*PFN_ON_CHILDDEVICE_REMOVE)(struct hv_device *Device);
 
 /* Vmbus channel interface */
 typedef void (*VMBUS_CHANNEL_CALLBACK)(void * context);
 
 typedef int	(*VMBUS_CHANNEL_OPEN)(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	u32				SendBufferSize,
 	u32				RecvRingBufferSize,
 	void *				UserData,
@@ -101,11 +102,11 @@ typedef int	(*VMBUS_CHANNEL_OPEN)(
 	);
 
 typedef void (*VMBUS_CHANNEL_CLOSE)(
-	PDEVICE_OBJECT		Device
+	struct hv_device *Device
 	);
 
 typedef int	(*VMBUS_CHANNEL_SEND_PACKET)(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	const void *			Buffer,
 	u32				BufferLen,
 	u64				RequestId,
@@ -114,7 +115,7 @@ typedef int	(*VMBUS_CHANNEL_SEND_PACKET)(
 );
 
 typedef int	(*VMBUS_CHANNEL_SEND_PACKET_PAGEBUFFER)(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	PAGE_BUFFER			PageBuffers[],
 	u32				PageCount,
 	void *				Buffer,
@@ -123,7 +124,7 @@ typedef int	(*VMBUS_CHANNEL_SEND_PACKET_PAGEBUFFER)(
 	);
 
 typedef int	(*VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER)(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
 	void *				Buffer,
 	u32				BufferLen,
@@ -131,7 +132,7 @@ typedef int	(*VMBUS_CHANNEL_SEND_PACKET_MULTIPAGEBUFFER)(
 );
 
 typedef int	(*VMBUS_CHANNEL_RECV_PACKET)(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
@@ -139,7 +140,7 @@ typedef int	(*VMBUS_CHANNEL_RECV_PACKET)(
 	);
 
 typedef int	(*VMBUS_CHANNEL_RECV_PACKET_PAW)(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	void *				Buffer,
 	u32				BufferLen,
 	u32*				BufferActualLen,
@@ -147,14 +148,14 @@ typedef int	(*VMBUS_CHANNEL_RECV_PACKET_PAW)(
 	);
 
 typedef int	(*VMBUS_CHANNEL_ESTABLISH_GPADL)(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	void *				Buffer,	/* from kmalloc() */
 	u32				BufferLen,		/* page-size multiple */
 	u32*				GpadlHandle
 	);
 
 typedef int	(*VMBUS_CHANNEL_TEARDOWN_GPADL)(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	u32				GpadlHandle
 	);
 
@@ -186,7 +187,7 @@ typedef struct _DEVICE_INFO {
 	PORT_INFO	Outbound;
 } DEVICE_INFO;
 
-typedef void (*VMBUS_GET_CHANNEL_INFO)(PDEVICE_OBJECT Device, DEVICE_INFO* DeviceInfo);
+typedef void (*VMBUS_GET_CHANNEL_INFO)(struct hv_device *Device, DEVICE_INFO* DeviceInfo);
 
 typedef struct _VMBUS_CHANNEL_INTERFACE {
 	VMBUS_CHANNEL_OPEN							Open;
@@ -218,14 +219,14 @@ typedef struct _DRIVER_OBJECT {
 
 
 /* Base device object */
-typedef struct _DEVICE_OBJECT {
+struct hv_device {
 	DRIVER_OBJECT*		Driver;		/* the driver for this device */
 	char				name[64];
 	GUID				deviceType; /* the device type id of this device */
 	GUID				deviceInstance; /* the device instance id of this device */
 	void*				context;
 	void*				Extension;		/* Device extension; */
-} DEVICE_OBJECT;
+};
 
 
 /* Vmbus driver object */

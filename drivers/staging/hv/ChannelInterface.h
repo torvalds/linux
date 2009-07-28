@@ -34,7 +34,7 @@ GetChannelInterface(
 
 static void
 GetChannelInfo(
-	PDEVICE_OBJECT		Device,
+	struct hv_device *Device,
 	DEVICE_INFO			*DeviceInfo
 	);
 

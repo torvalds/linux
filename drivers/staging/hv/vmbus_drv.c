@@ -75,11 +75,11 @@ static irqreturn_t vmbus_isr(int irq, void* dev_id);
 static void vmbus_device_release(struct device *device);
 static void vmbus_bus_release(struct device *device);
 
-static DEVICE_OBJECT* vmbus_child_device_create(GUID type, GUID instance, void* context);
-static void vmbus_child_device_destroy(DEVICE_OBJECT* device_obj);
-static int vmbus_child_device_register(DEVICE_OBJECT* root_device_obj, DEVICE_OBJECT* child_device_obj);
-static void vmbus_child_device_unregister(DEVICE_OBJECT* child_device_obj);
-static void vmbus_child_device_get_info(DEVICE_OBJECT *device_obj, DEVICE_INFO *device_info);
+static struct hv_device *vmbus_child_device_create(GUID type, GUID instance, void* context);
+static void vmbus_child_device_destroy(struct hv_device *device_obj);
+static int vmbus_child_device_register(struct hv_device *root_device_obj, struct hv_device *child_device_obj);
+static void vmbus_child_device_unregister(struct hv_device *child_device_obj);
+static void vmbus_child_device_get_info(struct hv_device *device_obj, DEVICE_INFO *device_info);
 
 /* static ssize_t vmbus_show_class_id(struct device *dev, struct device_attribute *attr, char *buf); */
 /* static ssize_t vmbus_show_device_id(struct device *dev, struct device_attribute *attr, char *buf); */
@@ -542,7 +542,7 @@ Name:	vmbus_child_device_get_info()
 
 Desc:	Get the vmbus child device info. This is invoked to display various device attributes in sysfs.
 --*/
-static void vmbus_child_device_get_info(DEVICE_OBJECT *device_obj, DEVICE_INFO *device_info)
+static void vmbus_child_device_get_info(struct hv_device *device_obj, DEVICE_INFO *device_info)
 {
 	VMBUS_DRIVER_OBJECT *vmbus_drv_obj=&g_vmbus_drv.drv_obj;
 
@@ -557,10 +557,10 @@ Name:	vmbus_child_device_create()
 Desc:	Creates and registers a new child device on the vmbus.
 
 --*/
-static DEVICE_OBJECT* vmbus_child_device_create(GUID type, GUID instance, void* context)
+static struct hv_device *vmbus_child_device_create(GUID type, GUID instance, void* context)
 {
 	struct device_context *child_device_ctx;
-	DEVICE_OBJECT* child_device_obj;
+	struct hv_device *child_device_obj;
 
 	DPRINT_ENTER(VMBUS_DRV);
 
@@ -601,7 +601,7 @@ Name:	vmbus_child_device_register()
 Desc:	Register the child device on the specified bus
 
 --*/
-static int vmbus_child_device_register(DEVICE_OBJECT* root_device_obj, DEVICE_OBJECT* child_device_obj)
+static int vmbus_child_device_register(struct hv_device *root_device_obj, struct hv_device *child_device_obj)
 {
 	int ret=0;
 	struct device_context *root_device_ctx = to_device_context(root_device_obj);
@@ -655,7 +655,7 @@ Name:	vmbus_child_device_unregister()
 Desc:	Remove the specified child device from the vmbus.
 
 --*/
-static void vmbus_child_device_unregister(DEVICE_OBJECT* device_obj)
+static void vmbus_child_device_unregister(struct hv_device *device_obj)
 {
 	struct device_context *device_ctx = to_device_context(device_obj);
 
@@ -680,7 +680,7 @@ Name:	vmbus_child_device_destroy()
 Desc:	Destroy the specified child device on the vmbus.
 
 --*/
-static void vmbus_child_device_destroy(DEVICE_OBJECT* device_obj)
+static void vmbus_child_device_destroy(struct hv_device *device_obj)
 {
 	DPRINT_ENTER(VMBUS_DRV);
 

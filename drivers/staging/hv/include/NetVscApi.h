@@ -44,15 +44,15 @@ typedef struct _NETVSC_PACKET	*PNETVSC_PACKET;
 /* Data types */
 
 
-typedef int (*PFN_ON_OPEN)(DEVICE_OBJECT *Device);
-typedef int (*PFN_ON_CLOSE)(DEVICE_OBJECT *Device);
+typedef int (*PFN_ON_OPEN)(struct hv_device *Device);
+typedef int (*PFN_ON_CLOSE)(struct hv_device *Device);
 
-typedef void (*PFN_QUERY_LINKSTATUS)(DEVICE_OBJECT *Device);
-typedef int (*PFN_ON_SEND)(DEVICE_OBJECT *dev, PNETVSC_PACKET packet);
+typedef void (*PFN_QUERY_LINKSTATUS)(struct hv_device *Device);
+typedef int (*PFN_ON_SEND)(struct hv_device *dev, PNETVSC_PACKET packet);
 typedef void (*PFN_ON_SENDRECVCOMPLETION)(void * Context);
 
-typedef int (*PFN_ON_RECVCALLBACK)(DEVICE_OBJECT *dev, PNETVSC_PACKET packet);
-typedef void (*PFN_ON_LINKSTATUS_CHANGED)(DEVICE_OBJECT *dev, u32 Status);
+typedef int (*PFN_ON_RECVCALLBACK)(struct hv_device *dev, PNETVSC_PACKET packet);
+typedef void (*PFN_ON_LINKSTATUS_CHANGED)(struct hv_device *dev, u32 Status);
 
 /* Represent the xfer page packet which contains 1 or more netvsc packet */
 typedef struct _XFERPAGE_PACKET {
@@ -74,7 +74,7 @@ typedef struct _NETVSC_PACKET {
 	/* Bookkeeping stuff */
 	DLIST_ENTRY				ListEntry;
 
-	DEVICE_OBJECT			*Device;
+	struct hv_device *Device;
 	bool					IsDataPacket;
 
 	/*

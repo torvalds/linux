@@ -53,7 +53,7 @@ struct device_context {
 	GUID					device_id;
 	int						probe_error;
 	struct device			device;
-	DEVICE_OBJECT			device_obj;
+	struct hv_device device_obj;
 };
 
 
@@ -64,7 +64,7 @@ struct device_context {
 
 /* Inlines */
 
-static inline struct device_context *to_device_context(DEVICE_OBJECT *device_obj)
+static inline struct device_context *to_device_context(struct hv_device *device_obj)
 {
 	return container_of(device_obj, struct device_context, device_obj);
 }

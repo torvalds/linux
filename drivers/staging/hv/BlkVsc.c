@@ -34,7 +34,7 @@ static const GUID gBlkVscDeviceType={
 /* Static routines */
 static int
 BlkVscOnDeviceAdd(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	void			*AdditionalInfo
 	);
 
@@ -77,7 +77,7 @@ BlkVscInitialize(
 
 int
 BlkVscOnDeviceAdd(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	void			*AdditionalInfo
 	)
 {

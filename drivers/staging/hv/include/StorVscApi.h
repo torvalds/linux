@@ -56,11 +56,11 @@ typedef struct _STORVSC_REQUEST* PSTORVSC_REQUEST;
 
 /* Data types */
 
-typedef int (*PFN_ON_IO_REQUEST)(PDEVICE_OBJECT Device, PSTORVSC_REQUEST Request);
+typedef int (*PFN_ON_IO_REQUEST)(struct hv_device *Device, PSTORVSC_REQUEST Request);
 typedef void (*PFN_ON_IO_REQUEST_COMPLTN)(PSTORVSC_REQUEST Request);
 
-typedef int (*PFN_ON_HOST_RESET)(PDEVICE_OBJECT Device);
-typedef void (*PFN_ON_HOST_RESCAN)(PDEVICE_OBJECT Device);
+typedef int (*PFN_ON_HOST_RESET)(struct hv_device *Device);
+typedef void (*PFN_ON_HOST_RESCAN)(struct hv_device *Device);
 
 
 /* Matches Windows-end */

@@ -112,7 +112,7 @@ RndisFilterReceiveData(
 
 static int
 RndisFilterOnReceive(
-	DEVICE_OBJECT		*Device,
+	struct hv_device *Device,
 	NETVSC_PACKET		*Packet
 	);
 
@@ -157,13 +157,13 @@ RndisFilterCloseDevice(
 
 static int
 RndisFilterOnDeviceAdd(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	void			*AdditionalInfo
 	);
 
 static int
 RndisFilterOnDeviceRemove(
-	DEVICE_OBJECT *Device
+	struct hv_device *Device
 	);
 
 static void
@@ -173,17 +173,17 @@ RndisFilterOnCleanup(
 
 static int
 RndisFilterOnOpen(
-	DEVICE_OBJECT		*Device
+	struct hv_device *Device
 	);
 
 static int
 RndisFilterOnClose(
-	DEVICE_OBJECT		*Device
+	struct hv_device *Device
 	);
 
 static int
 RndisFilterOnSend(
-	DEVICE_OBJECT		*Device,
+	struct hv_device *Device,
 	NETVSC_PACKET		*Packet
 	);
 
@@ -490,7 +490,7 @@ RndisFilterReceiveData(
 
 static int
 RndisFilterOnReceive(
-	DEVICE_OBJECT		*Device,
+	struct hv_device *Device,
 	NETVSC_PACKET		*Packet
 	)
 {
@@ -928,7 +928,7 @@ RndisFilterCloseDevice(
 
 int
 RndisFilterOnDeviceAdd(
-	DEVICE_OBJECT	*Device,
+	struct hv_device *Device,
 	void			*AdditionalInfo
 	)
 {
@@ -1007,7 +1007,7 @@ RndisFilterOnDeviceAdd(
 
 static int
 RndisFilterOnDeviceRemove(
-	DEVICE_OBJECT *Device
+	struct hv_device *Device
 	)
 {
 	struct NETVSC_DEVICE *netDevice = (struct NETVSC_DEVICE*)Device->Extension;
@@ -1042,7 +1042,7 @@ RndisFilterOnCleanup(
 
 static int
 RndisFilterOnOpen(
-	DEVICE_OBJECT		*Device
+	struct hv_device *Device
 	)
 {
 	int ret;
@@ -1060,7 +1060,7 @@ RndisFilterOnOpen(
 
 static int
 RndisFilterOnClose(
-	DEVICE_OBJECT		*Device
+	struct hv_device *Device
 	)
 {
 	int ret;
@@ -1079,7 +1079,7 @@ RndisFilterOnClose(
 
 static int
 RndisFilterOnSend(
-	DEVICE_OBJECT		*Device,
+	struct hv_device *Device,
 	NETVSC_PACKET		*Packet
 	)
 {

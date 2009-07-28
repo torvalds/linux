@@ -82,7 +82,7 @@ static int storvsc_device_alloc(struct scsi_device *);
 static int storvsc_device_configure(struct scsi_device *);
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
 static void storvsc_host_rescan_callback(struct work_struct *work);
-static void storvsc_host_rescan(DEVICE_OBJECT* device_obj);
+static void storvsc_host_rescan(struct hv_device* device_obj);
 static int storvsc_remove(struct device *dev);
 
 static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count, unsigned int len);
@@ -233,7 +233,7 @@ static int storvsc_probe(struct device *device)
 	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
-	DEVICE_OBJECT* device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	struct Scsi_Host *host;
 	struct host_device_context *host_device_ctx;
@@ -336,7 +336,7 @@ static int storvsc_remove(struct device *device)
 	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
 
 	struct device_context *device_ctx = device_to_device_context(device);
-	DEVICE_OBJECT* device_obj = &device_ctx->device_obj;
+	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	struct Scsi_Host *host = dev_get_drvdata(device);
 	struct host_device_context *host_device_ctx=(struct host_device_context*)host->hostdata;
@@ -912,7 +912,7 @@ Desc:	Rescan the scsi HBA
 --*/
 static void storvsc_host_rescan_callback(struct work_struct *work)
 {
-	DEVICE_OBJECT* device_obj =
+	struct hv_device *device_obj =
 	    &((struct host_device_context*)work)->device_ctx->device_obj;
 	struct device_context* device_ctx = to_device_context(device_obj);
 	struct Scsi_Host *host = dev_get_drvdata(&device_ctx->device);
@@ -1076,7 +1076,7 @@ static int storvsc_report_luns(struct scsi_device *sdev, unsigned int luns[], un
 	return 0;
 }
 
-static void storvsc_host_rescan(DEVICE_OBJECT* device_obj)
+static void storvsc_host_rescan(struct hv_device *device_obj)
 {
 	struct device_context* device_ctx = to_device_context(device_obj);
 	struct Scsi_Host *host = dev_get_drvdata(&device_ctx->device);

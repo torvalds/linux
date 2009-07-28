@@ -117,7 +117,7 @@ extern struct VMBUS_CONNECTION gVmbusConnection;
 
 /* General vmbus interface */
 
-static DEVICE_OBJECT*
+static struct hv_device*
 VmbusChildDeviceCreate(
 	GUID deviceType,
 	GUID deviceInstance,
@@ -125,15 +125,15 @@ VmbusChildDeviceCreate(
 
 static int
 VmbusChildDeviceAdd(
-	DEVICE_OBJECT* Device);
+	struct hv_device *Device);
 
 static void
 VmbusChildDeviceRemove(
-   DEVICE_OBJECT* Device);
+   struct hv_device *Device);
 
 /* static void */
 /* VmbusChildDeviceDestroy( */
-/* DEVICE_OBJECT*); */
+/* struct hv_device *); */
 
 static VMBUS_CHANNEL*
 GetChannelFromRelId(
