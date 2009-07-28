@@ -1189,7 +1189,7 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 
 		x = ext4_count_free(bitmap_bh, EXT4_INODES_PER_GROUP(sb) / 8);
 		printk(KERN_DEBUG "group %lu: stored = %d, counted = %lu\n",
-			i, ext4_free_inodes_count(sb, gdp), x);
+			(unsigned long) i, ext4_free_inodes_count(sb, gdp), x);
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);
