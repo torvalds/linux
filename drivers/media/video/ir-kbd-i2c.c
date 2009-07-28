@@ -122,12 +122,12 @@ static int get_key_haup_common(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 	return 1;
 }
 
-static inline int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	return get_key_haup_common (ir, ir_key, ir_raw, 3, 0);
 }
 
-static inline int get_key_haup_xvr(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_haup_xvr(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	return get_key_haup_common (ir, ir_key, ir_raw, 6, 3);
 }
