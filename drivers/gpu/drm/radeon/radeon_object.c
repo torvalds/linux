@@ -433,7 +433,6 @@ int radeon_object_list_validate(struct list_head *head, void *fence)
 						       robj->tobj.proposed_placement,
 						       true, false);
 			if (unlikely(r)) {
-				radeon_object_list_unreserve(head);
 				DRM_ERROR("radeon: failed to validate.\n");
 				return r;
 			}
