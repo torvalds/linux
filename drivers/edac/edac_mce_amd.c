@@ -228,6 +228,48 @@ wrong_ic_mce:
 	pr_warning("Corrupted IC MCE info?\n");
 }
 
+static void amd_decode_bu_mce(u64 mc2_status)
+{
+	u32 ec = mc2_status & 0xffff;
+	u32 xec = (mc2_status >> 16) & 0xf;
+
+	pr_emerg(" Bus Unit Error");
+
+	if (xec == 0x1)
+		pr_cont(" in the write data buffers.\n");
+	else if (xec == 0x3)
+		pr_cont(" in the victim data buffers.\n");
+	else if (xec == 0x2 && MEM_ERROR(ec))
+		pr_cont(": %s error in the L2 cache tags.\n", RRRR_MSG(ec));
+	else if (xec == 0x0) {
+		if (TLB_ERROR(ec))
+			pr_cont(": %s error in a Page Descriptor Cache or "
+				"Guest TLB.\n", TT_MSG(ec));
+		else if (BUS_ERROR(ec))
+			pr_cont(": %s/ECC error in data read from NB: %s.\n",
+				RRRR_MSG(ec), PP_MSG(ec));
+		else if (MEM_ERROR(ec)) {
+			u8 rrrr = (ec >> 4) & 0xf;
+
+			if (rrrr >= 0x7)
+				pr_cont(": %s error during data copyback.\n",
+					RRRR_MSG(ec));
+			else if (rrrr <= 0x1)
+				pr_cont(": %s parity/ECC error during data "
+					"access from L2.\n", RRRR_MSG(ec));
+			else
+				goto wrong_bu_mce;
+		} else
+			goto wrong_bu_mce;
+	} else
+		goto wrong_bu_mce;
+
+	return;
+
+wrong_bu_mce:
+	pr_warning("Corrupted BU MCE info?\n");
+}
+
 void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 {
 	u32 ec  = ERROR_CODE(regs->nbsl);
@@ -318,6 +360,10 @@ void decode_mce(struct mce *m)
 
 	case 1:
 		amd_decode_ic_mce(m->status);
+		break;
+
+	case 2:
+		amd_decode_bu_mce(m->status);
 		break;
 
 	case 4:
