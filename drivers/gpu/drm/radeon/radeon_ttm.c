@@ -355,23 +355,26 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 	if (!rdev->cp.ready) {
 		/* use memcpy */
 		DRM_ERROR("CP is not ready use memcpy.\n");
-		return ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+		goto memcpy;
 	}
 
 	if (old_mem->mem_type == TTM_PL_VRAM &&
 	    new_mem->mem_type == TTM_PL_SYSTEM) {
-		return radeon_move_vram_ram(bo, evict, interruptible,
+		r = radeon_move_vram_ram(bo, evict, interruptible,
 					    no_wait, new_mem);
 	} else if (old_mem->mem_type == TTM_PL_SYSTEM &&
 		   new_mem->mem_type == TTM_PL_VRAM) {
-		return radeon_move_ram_vram(bo, evict, interruptible,
+		r = radeon_move_ram_vram(bo, evict, interruptible,
 					    no_wait, new_mem);
 	} else {
 		r = radeon_move_blit(bo, evict, no_wait, new_mem, old_mem);
-		if (unlikely(r)) {
-			return r;
-		}
 	}
+
+	if (r) {
+memcpy:
+		r = ttm_bo_move_memcpy(bo, evict, no_wait, new_mem);
+	}
+
 	return r;
 }
 
