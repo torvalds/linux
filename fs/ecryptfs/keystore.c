@@ -1449,6 +1449,12 @@ parse_tag_11_packet(unsigned char *data, unsigned char *contents,
 		rc = -EINVAL;
 		goto out;
 	}
+	if (unlikely((*tag_11_contents_size) > max_contents_bytes)) {
+		printk(KERN_ERR "Literal data section in tag 11 packet exceeds "
+		       "expected size\n");
+		rc = -EINVAL;
+		goto out;
+	}
 	if (data[(*packet_size)++] != 0x62) {
 		printk(KERN_WARNING "Unrecognizable packet\n");
 		rc = -EINVAL;
