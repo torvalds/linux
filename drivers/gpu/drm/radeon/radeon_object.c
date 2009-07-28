@@ -103,16 +103,16 @@ static inline uint32_t radeon_object_flags_from_domain(uint32_t domain)
 {
 	uint32_t flags = 0;
 	if (domain & RADEON_GEM_DOMAIN_VRAM) {
-		flags |= TTM_PL_FLAG_VRAM;
+		flags |= TTM_PL_FLAG_VRAM | TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
 	}
 	if (domain & RADEON_GEM_DOMAIN_GTT) {
-		flags |= TTM_PL_FLAG_TT;
+		flags |= TTM_PL_FLAG_TT | TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
 	}
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
-		flags |= TTM_PL_FLAG_SYSTEM;
+		flags |= TTM_PL_FLAG_SYSTEM | TTM_PL_MASK_CACHING;
 	}
 	if (!flags) {
-		flags |= TTM_PL_FLAG_SYSTEM;
+		flags |= TTM_PL_FLAG_SYSTEM | TTM_PL_MASK_CACHING;
 	}
 	return flags;
 }
@@ -408,7 +408,6 @@ int radeon_object_list_validate(struct list_head *head, void *fence)
 	struct radeon_object *robj;
 	struct radeon_fence *old_fence = NULL;
 	struct list_head *i;
-	uint32_t flags;
 	int r;
 
 	r = radeon_object_list_reserve(head);
@@ -419,16 +418,14 @@ int radeon_object_list_validate(struct list_head *head, void *fence)
 	list_for_each(i, head) {
 		lobj = list_entry(i, struct radeon_object_list, list);
 		robj = lobj->robj;
-		if (lobj->wdomain) {
-			flags = radeon_object_flags_from_domain(lobj->wdomain);
-			flags |= TTM_PL_FLAG_TT;
-		} else {
-			flags = radeon_object_flags_from_domain(lobj->rdomain);
-			flags |= TTM_PL_FLAG_TT;
-			flags |= TTM_PL_FLAG_VRAM;
-		}
 		if (!robj->pin_count) {
-			robj->tobj.proposed_placement = flags | TTM_PL_MASK_CACHING;
+			if (lobj->wdomain) {
+				robj->tobj.proposed_placement =
+					radeon_object_flags_from_domain(lobj->wdomain);
+			} else {
+				robj->tobj.proposed_placement =
+					radeon_object_flags_from_domain(lobj->rdomain);
+			}
 			r = ttm_buffer_object_validate(&robj->tobj,
 						       robj->tobj.proposed_placement,
 						       true, false);
