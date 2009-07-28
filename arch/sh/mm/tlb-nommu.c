@@ -46,10 +46,13 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	BUG();
 }
 
-void update_mmu_cache(struct vm_area_struct * vma,
-		      unsigned long address, pte_t pte)
+void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
-	BUG();
+}
+
+void __update_cache(struct vm_area_struct *vma,
+		    unsigned long address, pte_t pte)
+{
 }
 
 void __init page_table_range_init(unsigned long start, unsigned long end,

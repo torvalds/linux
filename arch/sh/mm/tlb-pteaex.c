@@ -16,15 +16,14 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-void update_mmu_cache(struct vm_area_struct * vma,
-		      unsigned long address, pte_t pte)
+void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
-	unsigned long flags;
-	unsigned long pteval;
-	unsigned long vpn;
+	unsigned long flags, pteval, vpn;
 
-	/* Ptrace may call this routine. */
-	if (vma && current->active_mm != vma->vm_mm)
+	/*
+	 * Handle debugger faulting in for debugee.
+	 */
+	if (current->active_mm != vma->vm_mm)
 		return;
 
 	local_irq_save(flags);

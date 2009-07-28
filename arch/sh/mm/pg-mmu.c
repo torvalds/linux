@@ -134,3 +134,24 @@ void clear_user_highpage(struct page *page, unsigned long vaddr)
 	kunmap_atomic(kaddr, KM_USER0);
 }
 EXPORT_SYMBOL(clear_user_highpage);
+
+void __update_cache(struct vm_area_struct *vma,
+		    unsigned long address, pte_t pte)
+{
+	struct page *page;
+	unsigned long pfn = pte_pfn(pte);
+
+	if (!boot_cpu_data.dcache.n_aliases)
+		return;
+
+	page = pfn_to_page(pfn);
+	if (pfn_valid(pfn) && page_mapping(page)) {
+		int dirty = test_and_clear_bit(PG_dcache_dirty, &page->flags);
+		if (dirty) {
+			unsigned long addr = (unsigned long)page_address(page);
+
+			if (pages_do_alias(addr, address & PAGE_MASK))
+				__flush_wback_region((void *)addr, PAGE_SIZE);
+		}
+	}
+}

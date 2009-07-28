@@ -27,31 +27,15 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
-void update_mmu_cache(struct vm_area_struct * vma,
-		      unsigned long address, pte_t pte)
+void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
-	unsigned long flags;
-	unsigned long pteval;
-	unsigned long vpn;
-	unsigned long pfn = pte_pfn(pte);
-	struct page *page;
+	unsigned long flags, pteval, vpn;
 
-	/* Ptrace may call this routine. */
-	if (vma && current->active_mm != vma->vm_mm)
+	/*
+	 * Handle debugger faulting in for debugee.
+	 */
+	if (current->active_mm != vma->vm_mm)
 		return;
-
-	page = pfn_to_page(pfn);
-	if (pfn_valid(pfn) && page_mapping(page)) {
-#if defined(CONFIG_SH7705_CACHE_32KB)
-		int dirty = test_and_clear_bit(PG_dcache_dirty, &page->flags);
-		if (dirty) {
-			unsigned long addr = (unsigned long)page_address(page);
-
-			if (pages_do_alias(addr, address & PAGE_MASK))
-				__flush_wback_region((void *)addr, PAGE_SIZE);
-		}
-#endif
-	}
 
 	local_irq_save(flags);
 
@@ -93,4 +77,3 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	for (i = 0; i < ways; i++)
 		ctrl_outl(data, addr + (i << 8));
 }
-

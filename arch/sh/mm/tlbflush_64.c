@@ -329,22 +329,6 @@ do_sigbus:
 		goto no_context;
 }
 
-void update_mmu_cache(struct vm_area_struct * vma,
-			unsigned long address, pte_t pte)
-{
-	/*
-	 * This appears to get called once for every pte entry that gets
-	 * established => I don't think it's efficient to try refilling the
-	 * TLBs with the pages - some may not get accessed even.  Also, for
-	 * executable pages, it is impossible to determine reliably here which
-	 * TLB they should be mapped into (or both even).
-	 *
-	 * So, just do nothing here and handle faults on demand.  In the
-	 * TLBMISS handling case, the refill is now done anyway after the pte
-	 * has been fixed up, so that deals with most useful cases.
-	 */
-}
-
 void local_flush_tlb_one(unsigned long asid, unsigned long page)
 {
 	unsigned long long match, pteh=0, lpage;
@@ -481,4 +465,13 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
         /* FIXME: Optimize this later.. */
         flush_tlb_all();
+}
+
+void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+{
+}
+
+void __update_cache(struct vm_area_struct *vma,
+		    unsigned long address, pte_t pte)
+{
 }
