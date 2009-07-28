@@ -1549,8 +1549,10 @@ static struct miscdevice mce_log_device = {
  */
 static int __init mcheck_enable(char *str)
 {
-	if (*str == 0)
+	if (*str == 0) {
 		enable_p5_mce();
+		return 1;
+	}
 	if (*str == '=')
 		str++;
 	if (!strcmp(str, "off"))
