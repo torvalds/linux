@@ -139,6 +139,10 @@ The driver checks PCI SSID and looks through the static configuration
 table until any matching entry is found.  If you have a new machine,
 you may see a message like below:
 ------------------------------------------------------------------------
+    hda_codec: ALC880: BIOS auto-probing.
+------------------------------------------------------------------------
+Meanwhile, in the earlier versions, you would see a message like:
+------------------------------------------------------------------------
     hda_codec: Unknown model for ALC880, trying auto-probe from BIOS...
 ------------------------------------------------------------------------
 Even if you see such a message, DON'T PANIC.  Take a deep breath and
