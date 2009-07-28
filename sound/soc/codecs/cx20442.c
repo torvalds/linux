@@ -132,7 +132,7 @@ enum v253_vls {
 
 static int cx20442_pm_to_v253_vls(u8 value)
 {
-	switch(value & ~(1 << CX20442_AGC)) {
+	switch (value & ~(1 << CX20442_AGC)) {
 	case 0:
 		return V253_VLS_T;
 	case (1 << CX20442_SPKOUT):
@@ -152,7 +152,7 @@ static int cx20442_pm_to_v253_vls(u8 value)
 }
 static int cx20442_pm_to_v253_vsp(u8 value)
 {
-	switch(value & ~(1 << CX20442_AGC)) {
+	switch (value & ~(1 << CX20442_AGC)) {
 	case (1 << CX20442_SPKOUT):
 	case (1 << CX20442_MIC):
 	case (1 << CX20442_SPKOUT) | (1 << CX20442_MIC):
@@ -171,6 +171,9 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg >= codec->reg_cache_size)
 		return -EINVAL;
 
+	/* hw_write and control_data pointers required for talking to the modem
+	 * are expected to be set by the machine driver's line discipline
+	 * initialization code */
 	if (!codec->hw_write || !codec->control_data)
 		return -EIO;
 
@@ -182,7 +185,7 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 		return vls;
 
 	vsp = cx20442_pm_to_v253_vsp(value);
-	if (vsp < 0 )
+	if (vsp < 0)
 		return vsp;
 
 	if ((vls == V253_VLS_T) ||
@@ -232,7 +235,7 @@ static int cx20442_codec_probe(struct platform_device *pdev)
 	struct snd_soc_codec *codec;
 	int ret;
 
-	if(!cx20442_codec) {
+	if (!cx20442_codec) {
 		dev_err(&pdev->dev, "cx20442 not yet discovered\n");
 		return -ENODEV;
 	}
@@ -310,13 +313,13 @@ static int cx20442_register(struct cx20442_priv *cx20442)
 
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
-		//dev_err(&dev->dev, "Failed to register codec: %d\n", ret);
+		dev_err(&codec->dev, "Failed to register codec: %d\n", ret);
 		goto err;
 	}
 
 	ret = snd_soc_register_dai(&cx20442_dai);
 	if (ret != 0) {
-		//dev_err(&dev->dev, "Failed to register DAI: %d\n", ret);
+		dev_err(&codec->dev, "Failed to register DAI: %d\n", ret);
 		goto err_codec;
 	}
 
@@ -392,4 +395,4 @@ module_exit(cx20442_exit);
 MODULE_DESCRIPTION("ASoC CX20442-11 voice modem codec driver");
 MODULE_AUTHOR("Janusz Krzysztofik");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:cx20442-codec");
+MODULE_ALIAS("platform:cx20442");
