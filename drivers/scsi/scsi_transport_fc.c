@@ -291,7 +291,7 @@ static void fc_scsi_scan_rport(struct work_struct *work);
 #define FC_STARGET_NUM_ATTRS 	3
 #define FC_RPORT_NUM_ATTRS	10
 #define FC_VPORT_NUM_ATTRS	9
-#define FC_HOST_NUM_ATTRS	21
+#define FC_HOST_NUM_ATTRS	22
 
 struct fc_internal {
 	struct scsi_transport_template t;
