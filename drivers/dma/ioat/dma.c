@@ -472,9 +472,9 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 		return -ENOMEM;
 	}
 
-	hw->ctl = IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
+	hw->ctl_f.compl_write = 1;
 	if (first->txd.callback) {
-		hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_INT_GN;
+		hw->ctl_f.int_en = 1;
 		if (first != new) {
 			/* move callback into to last desc */
 			new->txd.callback = first->txd.callback;
@@ -563,9 +563,9 @@ static dma_cookie_t ioat2_tx_submit(struct dma_async_tx_descriptor *tx)
 		return -ENOMEM;
 	}
 
-	hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
+	hw->ctl_f.compl_write = 1;
 	if (first->txd.callback) {
-		hw->ctl |= IOAT_DMA_DESCRIPTOR_CTL_INT_GN;
+		hw->ctl_f.int_en = 1;
 		if (first != new) {
 			/* move callback into to last desc */
 			new->txd.callback = first->txd.callback;
@@ -878,7 +878,8 @@ ioat2_dma_get_next_descriptor(struct ioat_dma_chan *ioat_chan)
 		noop_desc = to_ioat_desc(ioat_chan->used_desc.next);
 		/* set size to non-zero value (channel returns error when size is 0) */
 		noop_desc->hw->size = NULL_DESC_BUFFER_SIZE;
-		noop_desc->hw->ctl = IOAT_DMA_DESCRIPTOR_NUL;
+		noop_desc->hw->ctl = 0;
+		noop_desc->hw->ctl_f.null = 1;
 		noop_desc->hw->src_addr = 0;
 		noop_desc->hw->dst_addr = 0;
 
@@ -1230,6 +1231,7 @@ ioat_dma_is_complete(struct dma_chan *chan, dma_cookie_t cookie,
 static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan)
 {
 	struct ioat_desc_sw *desc;
+	struct ioat_dma_descriptor *hw;
 
 	spin_lock_bh(&ioat_chan->desc_lock);
 
@@ -1242,17 +1244,19 @@ static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan)
 		return;
 	}
 
-	desc->hw->ctl = IOAT_DMA_DESCRIPTOR_NUL
-				| IOAT_DMA_DESCRIPTOR_CTL_INT_GN
-				| IOAT_DMA_DESCRIPTOR_CTL_CP_STS;
+	hw = desc->hw;
+	hw->ctl = 0;
+	hw->ctl_f.null = 1;
+	hw->ctl_f.int_en = 1;
+	hw->ctl_f.compl_write = 1;
 	/* set size to non-zero value (channel returns error when size is 0) */
-	desc->hw->size = NULL_DESC_BUFFER_SIZE;
-	desc->hw->src_addr = 0;
-	desc->hw->dst_addr = 0;
+	hw->size = NULL_DESC_BUFFER_SIZE;
+	hw->src_addr = 0;
+	hw->dst_addr = 0;
 	async_tx_ack(&desc->txd);
 	switch (ioat_chan->device->version) {
 	case IOAT_VER_1_2:
-		desc->hw->next = 0;
+		hw->next = 0;
 		list_add_tail(&desc->node, &ioat_chan->used_desc);
 
 		writel(((u64) desc->txd.phys) & 0x00000000FFFFFFFF,

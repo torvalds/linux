@@ -40,7 +40,24 @@
 
 struct ioat_dma_descriptor {
 	uint32_t	size;
-	uint32_t	ctl;
+	union {
+		uint32_t ctl;
+		struct {
+			unsigned int int_en:1;
+			unsigned int src_snoop_dis:1;
+			unsigned int dest_snoop_dis:1;
+			unsigned int compl_write:1;
+			unsigned int fence:1;
+			unsigned int null:1;
+			unsigned int src_brk:1;
+			unsigned int dest_brk:1;
+			unsigned int bundle:1;
+			unsigned int dest_dca:1;
+			unsigned int hint:1;
+			unsigned int rsvd2:13;
+			unsigned int op:8;
+		} ctl_f;
+	};
 	uint64_t	src_addr;
 	uint64_t	dst_addr;
 	uint64_t	next;
@@ -49,23 +66,4 @@ struct ioat_dma_descriptor {
 	uint64_t	user1;
 	uint64_t	user2;
 };
-
-#define IOAT_DMA_DESCRIPTOR_CTL_INT_GN	0x00000001
-#define IOAT_DMA_DESCRIPTOR_CTL_SRC_SN	0x00000002
-#define IOAT_DMA_DESCRIPTOR_CTL_DST_SN	0x00000004
-#define IOAT_DMA_DESCRIPTOR_CTL_CP_STS	0x00000008
-#define IOAT_DMA_DESCRIPTOR_CTL_FRAME	0x00000010
-#define IOAT_DMA_DESCRIPTOR_NUL		0x00000020
-#define IOAT_DMA_DESCRIPTOR_CTL_SP_BRK	0x00000040
-#define IOAT_DMA_DESCRIPTOR_CTL_DP_BRK	0x00000080
-#define IOAT_DMA_DESCRIPTOR_CTL_BNDL	0x00000100
-#define IOAT_DMA_DESCRIPTOR_CTL_DCA	0x00000200
-#define IOAT_DMA_DESCRIPTOR_CTL_BUFHINT	0x00000400
-
-#define IOAT_DMA_DESCRIPTOR_CTL_OPCODE_CONTEXT	0xFF000000
-#define IOAT_DMA_DESCRIPTOR_CTL_OPCODE_DMA	0x00000000
-
-#define IOAT_DMA_DESCRIPTOR_CTL_CONTEXT_DCA	0x00000001
-#define IOAT_DMA_DESCRIPTOR_CTL_OPCODE_MASK	0xFF000000
-
 #endif
