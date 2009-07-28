@@ -343,6 +343,18 @@ off_t ppc32_lseek(unsigned int fd, u32 offset, unsigned int origin)
 	return sys_lseek(fd, (int)offset, origin);
 }
 
+long compat_sys_truncate(const char __user * path, u32 length)
+{
+	/* sign extend length */
+	return sys_truncate(path, (int)length);
+}
+
+long compat_sys_ftruncate(int fd, u32 length)
+{
+	/* sign extend length */
+	return sys_ftruncate(fd, (int)length);
+}
+
 /* Note: it is necessary to treat bufsiz as an unsigned int,
  * with the corresponding cast to a signed int to insure that the 
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)
