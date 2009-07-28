@@ -926,10 +926,8 @@ static void tcp_connect_to_sock(struct connection *con)
 		goto out_err;
 
 	memset(&saddr, 0, sizeof(saddr));
-	if (dlm_nodeid_to_addr(con->nodeid, &saddr)) {
-		sock_release(sock);
+	if (dlm_nodeid_to_addr(con->nodeid, &saddr))
 		goto out_err;
-	}
 
 	sock->sk->sk_user_data = con;
 	con->rx_action = receive_from_sock;
