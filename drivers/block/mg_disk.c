@@ -524,16 +524,16 @@ static void mg_write_one(struct mg_host *host, struct request *req)
 static void mg_write(struct request *req)
 {
 	struct mg_host *host = req->rq_disk->private_data;
-	bool rem;
+	unsigned int rem = blk_rq_sectors(req);
 
-	if (mg_out(host, blk_rq_pos(req), blk_rq_sectors(req),
+	if (mg_out(host, blk_rq_pos(req), rem,
 		   MG_CMD_WR, NULL) != MG_ERR_NONE) {
 		mg_bad_rw_intr(host);
 		return;
 	}
 
 	MG_DBG("requested %d sects (from %ld), buffer=0x%p\n",
-	       blk_rq_sectors(req), blk_rq_pos(req), req->buffer);
+	       rem, blk_rq_pos(req), req->buffer);
 
 	if (mg_wait(host, ATA_DRQ,
 		    MG_TMAX_WAIT_WR_DRQ) != MG_ERR_NONE) {
@@ -541,25 +541,23 @@ static void mg_write(struct request *req)
 		return;
 	}
 
-	mg_write_one(host, req);
-
-	outb(MG_CMD_WR_CONF, (unsigned long)host->dev_base + MG_REG_COMMAND);
-
 	do {
-		if (blk_rq_sectors(req) > 1 &&
-		     mg_wait(host, ATA_DRQ,
-			     MG_TMAX_WAIT_WR_DRQ) != MG_ERR_NONE) {
+		mg_write_one(host, req);
+
+		outb(MG_CMD_WR_CONF, (unsigned long)host->dev_base +
+				MG_REG_COMMAND);
+
+		rem--;
+		if (rem > 1 && mg_wait(host, ATA_DRQ,
+					MG_TMAX_WAIT_WR_DRQ) != MG_ERR_NONE) {
+			mg_bad_rw_intr(host);
+			return;
+		} else if (mg_wait(host, MG_STAT_READY,
+					MG_TMAX_WAIT_WR_DRQ) != MG_ERR_NONE) {
 			mg_bad_rw_intr(host);
 			return;
 		}
-
-		rem = mg_end_request(host, 0, MG_SECTOR_SIZE);
-		if (rem)
-			mg_write_one(host, req);
-
-		outb(MG_CMD_WR_CONF,
-		     (unsigned long)host->dev_base + MG_REG_COMMAND);
-	} while (rem);
+	} while (mg_end_request(host, 0, MG_SECTOR_SIZE));
 }
 
 static void mg_read_intr(struct mg_host *host)
