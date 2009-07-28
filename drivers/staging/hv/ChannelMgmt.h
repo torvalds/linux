@@ -47,7 +47,7 @@ typedef struct _VMBUS_CHANNEL {
 
 	struct hv_device *DeviceObject;
 
-	HANDLE						PollTimer; /* SA-111 workaround */
+	struct osd_timer *PollTimer; /* SA-111 workaround */
 
 	VMBUS_CHANNEL_STATE			State;
 

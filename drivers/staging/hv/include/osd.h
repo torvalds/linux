@@ -48,6 +48,10 @@ typedef struct _DLIST_ENTRY {
 /* typedef unsigned char		GUID[16]; */
 typedef void*				HANDLE;
 
+typedef void (*PFN_WORKITEM_CALLBACK)(void* context);
+typedef void (*PFN_TIMER_CALLBACK)(void* context);
+
+
 typedef struct {
 	unsigned char	Data[16];
 } GUID;
@@ -57,9 +61,12 @@ struct osd_waitevent {
 	wait_queue_head_t event;
 };
 
+struct osd_timer {
+	struct timer_list timer;
+	PFN_TIMER_CALLBACK callback;
+	void* context;
+};
 
-typedef void (*PFN_WORKITEM_CALLBACK)(void* context);
-typedef void (*PFN_TIMER_CALLBACK)(void* context);
 
 
 #ifdef __x86_64__
@@ -123,10 +130,10 @@ extern void PageFree(void* page, unsigned int count);
 extern void* MemMapIO(unsigned long phys, unsigned long size);
 extern void MemUnmapIO(void* virt);
 
-extern HANDLE TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
-extern void TimerClose(HANDLE hTimer);
-extern int TimerStop(HANDLE hTimer);
-extern void TimerStart(HANDLE hTimer, u32 expirationInUs);
+extern struct osd_timer *TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
+extern void TimerClose(struct osd_timer *t);
+extern int TimerStop(struct osd_timer *t);
+extern void TimerStart(struct osd_timer *t, u32 expirationInUs);
 
 extern struct osd_waitevent *WaitEventCreate(void);
 extern void WaitEventClose(struct osd_waitevent *waitEvent);

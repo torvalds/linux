@@ -49,11 +49,6 @@
 
 /* Data types */
 
-typedef struct _TIMER {
-	struct timer_list timer;
-	PFN_TIMER_CALLBACK callback;
-	void* context;
-}TIMER;
 
 typedef struct _WORKITEM {
 	struct work_struct work;
@@ -168,14 +163,14 @@ void MemUnmapIO(void *virt)
 
 void TimerCallback(unsigned long data)
 {
-	TIMER* t = (TIMER*)data;
+	struct osd_timer *t = (struct osd_timer *) data;
 
 	t->callback(t->context);
 }
 
-HANDLE TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context)
+struct osd_timer *TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context)
 {
-	TIMER* t = kmalloc(sizeof(TIMER), GFP_KERNEL);
+	struct osd_timer *t = kmalloc(sizeof(struct osd_timer), GFP_KERNEL);
 	if (!t)
 	{
 		return NULL;
@@ -191,25 +186,19 @@ HANDLE TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context)
 	return t;
 }
 
-void TimerStart(HANDLE hTimer, u32 expirationInUs)
+void TimerStart(struct osd_timer *t, u32 expirationInUs)
 {
-	TIMER* t  = (TIMER* )hTimer;
-
 	t->timer.expires = jiffies + usecs_to_jiffies(expirationInUs);
 	add_timer(&t->timer);
 }
 
-int TimerStop(HANDLE hTimer)
+int TimerStop(struct osd_timer *t)
 {
-	TIMER* t  = (TIMER* )hTimer;
-
 	return del_timer(&t->timer);
 }
 
-void TimerClose(HANDLE hTimer)
+void TimerClose(struct osd_timer *t)
 {
-	TIMER* t  = (TIMER* )hTimer;
-
 	del_timer(&t->timer);
 	kfree(t);
 }
