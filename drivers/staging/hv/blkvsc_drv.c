@@ -1461,7 +1461,7 @@ int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg)
 static int blkvsc_ioctl(struct block_device *bd, fmode_t mode,
 			unsigned cmd, unsigned long argument)
 {
-	struct block_device_context *blkdev = bd->bd_disk->private_data;
+/*	struct block_device_context *blkdev = bd->bd_disk->private_data; */
 	int ret=0;
 
 	switch (cmd)
