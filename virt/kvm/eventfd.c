@@ -230,7 +230,7 @@ fail:
 	if (eventfd && !IS_ERR(eventfd))
 		eventfd_ctx_put(eventfd);
 
-	if (file && !IS_ERR(file))
+	if (!IS_ERR(file))
 		fput(file);
 
 	kfree(irqfd);
