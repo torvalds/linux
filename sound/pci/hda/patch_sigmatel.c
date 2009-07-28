@@ -5355,7 +5355,6 @@ again:
 		/* no output amps */
 		spec->num_pwrs = 0;
 		spec->mixer = stac92hd71bxx_analog_mixer;
-		spec->dinput_mux = &spec->private_dimux;
 
 		/* disable VSW */
 		spec->init = &stac92hd71bxx_analog_core_init[HD_DISABLE_PORTF];
@@ -5366,8 +5365,11 @@ again:
 		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
 					STAC92HD71BXX_NUM_DMICS - 1);
-		spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
-		ndmic_nids = ARRAY_SIZE(stac92hd71bxx_dmic_nids) - 2;
+		if (spec->num_dmics) {
+			spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
+			spec->dinput_mux = &spec->private_dimux;
+			ndmic_nids = ARRAY_SIZE(stac92hd71bxx_dmic_nids) - 2;
+		}
 		break;
 	case 0x111d7603: /* 6 Port with Analog Mixer */
 		if ((codec->revision_id & 0xf) == 1)
@@ -5379,15 +5381,17 @@ again:
 	default:
 		memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_amixer,
 		       sizeof(stac92hd71bxx_dmux_amixer));
-		spec->dinput_mux = &spec->private_dimux;
 		spec->mixer = stac92hd71bxx_analog_mixer;
 		spec->init = stac92hd71bxx_analog_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
 					STAC92HD71BXX_NUM_DMICS);
-		spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
-		ndmic_nids = ARRAY_SIZE(stac92hd71bxx_dmic_nids) - 1;
+		if (spec->num_dmics) {
+			spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
+			spec->dinput_mux = &spec->private_dimux;
+			ndmic_nids = ARRAY_SIZE(stac92hd71bxx_dmic_nids) - 1;
+		}
 	}
 
 	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
