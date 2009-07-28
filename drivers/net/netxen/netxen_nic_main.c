@@ -1875,6 +1875,8 @@ static void netxen_nic_poll_controller(struct net_device *netdev)
 }
 #endif
 
+#ifdef CONFIG_INET
+
 #define is_netxen_netdev(dev) (dev->netdev_ops == &netxen_netdev_ops)
 
 static int
@@ -1993,6 +1995,7 @@ static struct notifier_block	netxen_netdev_cb = {
 static struct notifier_block netxen_inetaddr_cb = {
 	.notifier_call = netxen_inetaddr_event,
 };
+#endif
 
 static struct pci_driver netxen_driver = {
 	.name = netxen_nic_driver_name,
@@ -2012,8 +2015,10 @@ static int __init netxen_init_module(void)
 	if ((netxen_workq = create_singlethread_workqueue("netxen")) == NULL)
 		return -ENOMEM;
 
+#ifdef CONFIG_INET
 	register_netdevice_notifier(&netxen_netdev_cb);
 	register_inetaddr_notifier(&netxen_inetaddr_cb);
+#endif
 
 	return pci_register_driver(&netxen_driver);
 }
@@ -2024,8 +2029,10 @@ static void __exit netxen_exit_module(void)
 {
 	pci_unregister_driver(&netxen_driver);
 
+#ifdef CONFIG_INET
 	unregister_inetaddr_notifier(&netxen_inetaddr_cb);
 	unregister_netdevice_notifier(&netxen_netdev_cb);
+#endif
 	destroy_workqueue(netxen_workq);
 }
 
