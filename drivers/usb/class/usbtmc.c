@@ -463,7 +463,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 
 		/* Ensure the instrument doesn't lie about it */
 		if(n_characters > actual - 12) {
-			dev_err(dev, "Device lies about message size: %zu > %zu\n", n_characters, actual - 12);
+			dev_err(dev, "Device lies about message size: %u > %d\n", n_characters, actual - 12);
 			n_characters = actual - 12;
 		}
 
