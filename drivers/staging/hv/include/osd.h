@@ -46,7 +46,6 @@ typedef struct _DLIST_ENTRY {
 /* Other types */
 
 /* typedef unsigned char		GUID[16]; */
-typedef void*				HANDLE;
 
 typedef void (*PFN_WORKITEM_CALLBACK)(void* context);
 typedef void (*PFN_TIMER_CALLBACK)(void* context);

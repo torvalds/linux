@@ -119,8 +119,8 @@ typedef struct {
 	HV_INPUT_SIGNAL_EVENT_BUFFER *SignalEventBuffer;
 	HV_INPUT_SIGNAL_EVENT *SignalEventParam; /* 8-bytes aligned of the buffer above */
 
-	HANDLE	synICMessagePage[MAX_NUM_CPUS];
-	HANDLE	synICEventPage[MAX_NUM_CPUS];
+	void *synICMessagePage[MAX_NUM_CPUS];
+	void *synICEventPage[MAX_NUM_CPUS];
 } HV_CONTEXT;
 
 extern HV_CONTEXT gHvContext;

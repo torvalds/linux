@@ -235,8 +235,8 @@ HvInit (
 
 	DPRINT_ENTER(VMBUS);
 
-	memset(gHvContext.synICEventPage, 0, sizeof(HANDLE)*MAX_NUM_CPUS);
-	memset(gHvContext.synICMessagePage, 0, sizeof(HANDLE)*MAX_NUM_CPUS);
+	memset(gHvContext.synICEventPage, 0, sizeof(void *) * MAX_NUM_CPUS);
+	memset(gHvContext.synICMessagePage, 0, sizeof(void *) * MAX_NUM_CPUS);
 
 	if (!HvQueryHypervisorPresence())
 	{
