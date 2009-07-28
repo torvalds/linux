@@ -670,6 +670,15 @@ static void start_apic_timer(struct kvm_lapic *apic)
 
 	if (!apic->lapic_timer.period)
 		return;
+	/*
+	 * Do not allow the guest to program periodic timers with small
+	 * interval, since the hrtimers are not throttled by the host
+	 * scheduler.
+	 */
+	if (apic_lvtt_period(apic)) {
+		if (apic->lapic_timer.period < NSEC_PER_MSEC/2)
+			apic->lapic_timer.period = NSEC_PER_MSEC/2;
+	}
 
 	hrtimer_start(&apic->lapic_timer.timer,
 		      ktime_add_ns(now, apic->lapic_timer.period),
