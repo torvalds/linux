@@ -2289,10 +2289,6 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 	u32 xec = EXT_ERROR_CODE(info->nbsl);
 	int ecc_type = info->nbsh & (0x3 << 13);
 
-	pr_emerg(" Transaction type: %s(%s), %s, Cache Level: %s, %s\n",
-		 RRRR_MSG(ec), II_MSG(ec), TO_MSG(ec), LL_MSG(ec), PP_MSG(ec));
-
-
 	/* Bail early out if this was an 'observed' error */
 	if (PP(ec) == K8_NBSL_PP_OBS)
 		return;

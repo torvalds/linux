@@ -150,6 +150,16 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 		pr_cont(", core: %d\n", ilog2((regs->nbsh & 0xf)));
 	}
 
+
+	pr_emerg("%s.\n", EXT_ERR_MSG(xec));
+
+	if (BUS_ERROR(ec) && nb_bus_decoder)
+		nb_bus_decoder(node_id, regs);
+}
+EXPORT_SYMBOL_GPL(amd_decode_nb_mce);
+
+static inline void amd_decode_err_code(unsigned int ec)
+{
 	if (TLB_ERROR(ec)) {
 		/*
 		 * GART errors are intended to help graphics driver developers
@@ -166,33 +176,28 @@ void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 		if (!report_gart_errors)
 			return;
 
-		pr_emerg(" GART TLB error, Transaction: %s, Cache Level %s\n",
+		pr_emerg(" Transaction: %s, Cache Level %s\n",
 			 TT_MSG(ec), LL_MSG(ec));
 	} else if (MEM_ERROR(ec)) {
-		pr_emerg(" Memory/Cache error, Transaction: %s, Type: %s,"
-			 " Cache Level: %s",
+		pr_emerg(" Transaction: %s, Type: %s, Cache Level: %s",
 			 RRRR_MSG(ec), TT_MSG(ec), LL_MSG(ec));
 	} else if (BUS_ERROR(ec)) {
-		pr_emerg(" Bus (Link/DRAM) error\n");
-		if (nb_bus_decoder)
-			nb_bus_decoder(node_id, regs);
-	} else {
-		/* shouldn't reach here! */
-		pr_warning("%s: unknown MCE error 0x%x\n", __func__, ec);
-	}
-
-	pr_emerg("%s.\n", EXT_ERR_MSG(xec));
+		pr_emerg(" Transaction type: %s(%s), %s, Cache Level: %s, "
+			 "Participating Processor: %s\n",
+			  RRRR_MSG(ec), II_MSG(ec), TO_MSG(ec), LL_MSG(ec),
+			  PP_MSG(ec));
+	} else
+		pr_warning("Huh? Unknown MCE error 0x%x\n", ec);
 }
-EXPORT_SYMBOL_GPL(amd_decode_nb_mce);
 
 void decode_mce(struct mce *m)
 {
 	struct err_regs regs;
 	int node, ecc;
 
-	pr_emerg("MC%d_STATUS:\n", m->bank);
+	pr_emerg("MC%d_STATUS: ", m->bank);
 
-	pr_emerg(" Error: %sorrected, Report: %s, MiscV: %svalid, "
+	pr_cont("%sorrected error, report: %s, MiscV: %svalid, "
 		 "CPU context corrupt: %s",
 		 ((m->status & MCI_STATUS_UC) ? "Unc"  : "C"),
 		 ((m->status & MCI_STATUS_EN) ? "yes"  : "no"),
@@ -205,6 +210,8 @@ void decode_mce(struct mce *m)
 		pr_cont(", %sECC Error", ((ecc == 2) ? "C" : "U"));
 
 	pr_cont("\n");
+
+	amd_decode_err_code(m->status & 0xffff);
 
 	if (m->bank == 4) {
 		regs.nbsl  = (u32) m->status;
