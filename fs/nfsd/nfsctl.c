@@ -784,11 +784,7 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 		size -= len;
 		mesg += len;
 	}
-
-	kfree(nthreads);
-	mutex_unlock(&nfsd_mutex);
-	return (mesg-buf);
-
+	rv = mesg - buf;
 out_free:
 	kfree(nthreads);
 	mutex_unlock(&nfsd_mutex);
