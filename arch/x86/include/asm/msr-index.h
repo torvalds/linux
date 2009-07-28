@@ -222,6 +222,10 @@
 
 #define THERM_STATUS_PROCHOT		(1 << 0)
 
+#define MSR_THERM2_CTL			0x0000019d
+
+#define MSR_THERM2_CTL_TM_SELECT	(1ULL << 16)
+
 #define MSR_IA32_MISC_ENABLE		0x000001a0
 
 /* MISC_ENABLE bits: architectural */
