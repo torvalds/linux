@@ -288,8 +288,10 @@ again:
 
 	while (1) {
 		smp_mb();
-		if (block_group->fs_info->closing)
+		if (block_group->fs_info->closing > 1) {
+			last = (u64)-1;
 			break;
+		}
 
 		leaf = path->nodes[0];
 		slot = path->slots[0];
