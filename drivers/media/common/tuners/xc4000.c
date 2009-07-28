@@ -883,7 +883,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	u8 scode_buf[13];
 	u8 indirect_mode[5];
 
-	dprintk(1, "%s called\n", __func__);
+	dprintk(1, "%s called int_freq=%d\n", __func__, int_freq);
 
 	if (!int_freq) {
 		pos = seek_firmware(fe, type, id);
@@ -1186,7 +1186,7 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
 
 	/* FIXME: setup proper parameters */
-	if (check_firmware(fe, DTV8, 0, 5400) != XC_RESULT_SUCCESS) {
+	if (check_firmware(fe, DTV8, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
 		return -EREMOTEIO;
 	}
 
@@ -1302,7 +1302,7 @@ static int xc4000_set_analog_params(struct dvb_frontend *fe,
 		__func__, params->frequency);
 
 	/* FIXME: setup proper parameters */
-	if (check_firmware(fe, DTV8, 0, 5400) != XC_RESULT_SUCCESS) {
+	if (check_firmware(fe, DTV8, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
 		return -EREMOTEIO;
 	}
 
@@ -1424,7 +1424,7 @@ static int xc4000_init(struct dvb_frontend *fe)
 	struct xc4000_priv *priv = fe->tuner_priv;
 	dprintk(1, "%s()\n", __func__);
 
-	if (check_firmware(fe, DTV8, 0, 5400) != XC_RESULT_SUCCESS) {
+	if (check_firmware(fe, DTV8, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc4000: Unable to initialise tuner\n");
 		return -EREMOTEIO;
 	}
@@ -1547,7 +1547,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 
 	/* FIXME: For now, load the firmware at startup.  We will remove this
 	   before the code goes to production... */
-	check_firmware(fe, DTV8, 0, 5400);
+	check_firmware(fe, DTV8, 0, priv->if_khz);
 
 	return fe;
 fail:
