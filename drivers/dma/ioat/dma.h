@@ -22,7 +22,7 @@
 #define IOATDMA_H
 
 #include <linux/dmaengine.h>
-#include "ioatdma_hw.h"
+#include "hw.h"
 #include <linux/init.h>
 #include <linux/dmapool.h>
 #include <linux/cache.h>

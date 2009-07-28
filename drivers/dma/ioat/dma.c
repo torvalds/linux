@@ -34,9 +34,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
 #include <linux/i7300_idle.h>
-#include "ioatdma.h"
-#include "ioatdma_registers.h"
-#include "ioatdma_hw.h"
+#include "dma.h"
+#include "registers.h"
+#include "hw.h"
 
 #define to_ioat_chan(chan) container_of(chan, struct ioat_dma_chan, common)
 #define to_ioatdma_device(dev) container_of(dev, struct ioatdma_device, common)

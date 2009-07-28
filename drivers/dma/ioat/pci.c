@@ -30,9 +30,9 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/dca.h>
-#include "ioatdma.h"
-#include "ioatdma_registers.h"
-#include "ioatdma_hw.h"
+#include "dma.h"
+#include "registers.h"
+#include "hw.h"
 
 MODULE_VERSION(IOAT_DMA_VERSION);
 MODULE_LICENSE("GPL");

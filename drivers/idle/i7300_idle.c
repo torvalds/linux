@@ -29,8 +29,8 @@
 
 #include <asm/idle.h>
 
-#include "../dma/ioatdma_hw.h"
-#include "../dma/ioatdma_registers.h"
+#include "../dma/ioat/hw.h"
+#include "../dma/ioat/registers.h"
 
 #define I7300_IDLE_DRIVER_VERSION	"1.55"
 #define I7300_PRINT			"i7300_idle:"

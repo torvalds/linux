@@ -33,8 +33,8 @@
 #define cpu_physical_id(cpu) (cpuid_ebx(1) >> 24)
 #endif
 
-#include "ioatdma.h"
-#include "ioatdma_registers.h"
+#include "dma.h"
+#include "registers.h"
 
 /*
  * Bit 7 of a tag map entry is the "valid" bit, if it is set then bits 0:6
