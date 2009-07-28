@@ -239,7 +239,7 @@ NetVscInitialize(
 
 	DPRINT_ENTER(NETVSC);
 
-	DPRINT_DBG(NETVSC, "sizeof(NETVSC_PACKET)=%d, sizeof(NVSP_MESSAGE)=%d, sizeof(VMTRANSFER_PAGE_PACKET_HEADER)=%d",
+	DPRINT_DBG(NETVSC, "sizeof(NETVSC_PACKET)=%zd, sizeof(NVSP_MESSAGE)=%zd, sizeof(VMTRANSFER_PAGE_PACKET_HEADER)=%zd",
 		sizeof(NETVSC_PACKET), sizeof(NVSP_MESSAGE), sizeof(VMTRANSFER_PAGE_PACKET_HEADER));
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
