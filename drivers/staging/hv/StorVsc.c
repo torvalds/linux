@@ -271,7 +271,7 @@ StorVscInitialize(
 
 	DPRINT_ENTER(STORVSC);
 
-	DPRINT_DBG(STORVSC, "sizeof(STORVSC_REQUEST)=%ld sizeof(STORVSC_REQUEST_EXTENSION)=%ld sizeof(VSTOR_PACKET)=%ld, sizeof(VMSCSI_REQUEST)=%ld",
+	DPRINT_DBG(STORVSC, "sizeof(STORVSC_REQUEST)=%d sizeof(STORVSC_REQUEST_EXTENSION)=%d sizeof(VSTOR_PACKET)=%d, sizeof(VMSCSI_REQUEST)=%d",
 		sizeof(STORVSC_REQUEST), sizeof(STORVSC_REQUEST_EXTENSION), sizeof(VSTOR_PACKET), sizeof(VMSCSI_REQUEST));
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */

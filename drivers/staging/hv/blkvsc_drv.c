@@ -1083,7 +1083,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 		if (pending)
 		{
 			DPRINT_DBG(BLKVSC_DRV, "adding blkvsc_req to pending_list - blkvsc_req %p start_sect %lu sect_count %ld (%lu %ld)\n",
-				blkvsc_req, blkvsc_req->sector_start, blkvsc_req->sector_count, (unsigned long) start_sector, (unsigned long) num_sectors);
+				blkvsc_req, (unsigned long)blkvsc_req->sector_start, blkvsc_req->sector_count, (unsigned long) start_sector, (unsigned long) num_sectors);
 
 			list_add_tail(&blkvsc_req->pend_entry, &blkdev->pending_list);
 		}
