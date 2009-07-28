@@ -38,7 +38,8 @@
 #define to_ioat_chan(chan) container_of(chan, struct ioat_dma_chan, common)
 #define to_ioatdma_device(dev) container_of(dev, struct ioatdma_device, common)
 #define to_ioat_desc(lh) container_of(lh, struct ioat_desc_sw, node)
-#define tx_to_ioat_desc(tx) container_of(tx, struct ioat_desc_sw, async_tx)
+#define tx_to_ioat_desc(tx) container_of(tx, struct ioat_desc_sw, txd)
+#define to_dev(ioat_chan) (&(ioat_chan)->device->pdev->dev)
 
 #define chan_num(ch) ((int)((ch)->reg_base - (ch)->device->reg_base) / 0x80)
 
@@ -123,7 +124,7 @@ struct ioat_dma_chan {
  * @node: this descriptor will either be on the free list,
  *     or attached to a transaction list (async_tx.tx_list)
  * @tx_cnt: number of descriptors required to complete the transaction
- * @async_tx: the generic software descriptor for all engines
+ * @txd: the generic software descriptor for all engines
  */
 struct ioat_desc_sw {
 	struct ioat_dma_descriptor *hw;
@@ -132,7 +133,7 @@ struct ioat_desc_sw {
 	size_t len;
 	dma_addr_t src;
 	dma_addr_t dst;
-	struct dma_async_tx_descriptor async_tx;
+	struct dma_async_tx_descriptor txd;
 };
 
 static inline void ioat_set_tcp_copy_break(struct ioatdma_device *dev)
