@@ -614,6 +614,132 @@ static struct platform_driver wm831x_buckp_driver = {
 };
 
 /*
+ * DCDC boost convertors
+ */
+
+static int wm831x_boostp_get_status(struct regulator_dev *rdev)
+{
+	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
+	struct wm831x *wm831x = dcdc->wm831x;
+	int ret;
+
+	/* First, check for errors */
+	ret = wm831x_reg_read(wm831x, WM831X_DCDC_UV_STATUS);
+	if (ret < 0)
+		return ret;
+
+	if (ret & (1 << rdev_get_id(rdev))) {
+		dev_dbg(wm831x->dev, "DCDC%d under voltage\n",
+			rdev_get_id(rdev) + 1);
+		return REGULATOR_STATUS_ERROR;
+	}
+
+	/* Is the regulator on? */
+	ret = wm831x_reg_read(wm831x, WM831X_DCDC_STATUS);
+	if (ret < 0)
+		return ret;
+	if (ret & (1 << rdev_get_id(rdev)))
+		return REGULATOR_STATUS_ON;
+	else
+		return REGULATOR_STATUS_OFF;
+}
+
+static struct regulator_ops wm831x_boostp_ops = {
+	.get_status = wm831x_boostp_get_status,
+
+	.is_enabled = wm831x_dcdc_is_enabled,
+	.enable = wm831x_dcdc_enable,
+	.disable = wm831x_dcdc_disable,
+};
+
+static __devinit int wm831x_boostp_probe(struct platform_device *pdev)
+{
+	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
+	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	int id = pdev->id % ARRAY_SIZE(pdata->dcdc);
+	struct wm831x_dcdc *dcdc;
+	struct resource *res;
+	int ret, irq;
+
+	dev_dbg(&pdev->dev, "Probing DCDC%d\n", id + 1);
+
+	if (pdata == NULL || pdata->dcdc[id] == NULL)
+		return -ENODEV;
+
+	dcdc = kzalloc(sizeof(struct wm831x_dcdc), GFP_KERNEL);
+	if (dcdc == NULL) {
+		dev_err(&pdev->dev, "Unable to allocate private data\n");
+		return -ENOMEM;
+	}
+
+	dcdc->wm831x = wm831x;
+
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "No I/O resource\n");
+		ret = -EINVAL;
+		goto err;
+	}
+	dcdc->base = res->start;
+
+	snprintf(dcdc->name, sizeof(dcdc->name), "DCDC%d", id + 1);
+	dcdc->desc.name = dcdc->name;
+	dcdc->desc.id = id;
+	dcdc->desc.type = REGULATOR_VOLTAGE;
+	dcdc->desc.ops = &wm831x_boostp_ops;
+	dcdc->desc.owner = THIS_MODULE;
+
+	dcdc->regulator = regulator_register(&dcdc->desc, &pdev->dev,
+					     pdata->dcdc[id], dcdc);
+	if (IS_ERR(dcdc->regulator)) {
+		ret = PTR_ERR(dcdc->regulator);
+		dev_err(wm831x->dev, "Failed to register DCDC%d: %d\n",
+			id + 1, ret);
+		goto err;
+	}
+
+	irq = platform_get_irq_byname(pdev, "UV");
+	ret = wm831x_request_irq(wm831x, irq, wm831x_dcdc_uv_irq,
+				 IRQF_TRIGGER_RISING, dcdc->name,
+				 dcdc);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
+			irq, ret);
+		goto err_regulator;
+	}
+
+	platform_set_drvdata(pdev, dcdc);
+
+	return 0;
+
+err_regulator:
+	regulator_unregister(dcdc->regulator);
+err:
+	kfree(dcdc);
+	return ret;
+}
+
+static __devexit int wm831x_boostp_remove(struct platform_device *pdev)
+{
+	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
+	struct wm831x *wm831x = dcdc->wm831x;
+
+	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "UV"), dcdc);
+	regulator_unregister(dcdc->regulator);
+	kfree(dcdc);
+
+	return 0;
+}
+
+static struct platform_driver wm831x_boostp_driver = {
+	.probe = wm831x_boostp_probe,
+	.remove = __devexit_p(wm831x_boostp_remove),
+	.driver		= {
+		.name	= "wm831x-boostp",
+	},
+};
+
+/*
  * External Power Enable
  *
  * These aren't actually DCDCs but look like them in hardware so share
@@ -707,6 +833,10 @@ static int __init wm831x_dcdc_init(void)
 	if (ret != 0)
 		pr_err("Failed to register WM831x BUCKP driver: %d\n", ret);
 
+	ret = platform_driver_register(&wm831x_boostp_driver);
+	if (ret != 0)
+		pr_err("Failed to register WM831x BOOST driver: %d\n", ret);
+
 	ret = platform_driver_register(&wm831x_epe_driver);
 	if (ret != 0)
 		pr_err("Failed to register WM831x EPE driver: %d\n", ret);
@@ -718,6 +848,7 @@ subsys_initcall(wm831x_dcdc_init);
 static void __exit wm831x_dcdc_exit(void)
 {
 	platform_driver_unregister(&wm831x_epe_driver);
+	platform_driver_unregister(&wm831x_boostp_driver);
 	platform_driver_unregister(&wm831x_buckp_driver);
 	platform_driver_unregister(&wm831x_buckv_driver);
 }
