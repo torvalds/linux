@@ -392,7 +392,36 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		ir_codes = init_data->ir_codes;
 		name = init_data->name;
-		ir->get_key = init_data->get_key;
+		if (init_data->type)
+			ir_type = init_data->type;
+
+		switch (init_data->internal_get_key_func) {
+		case IR_KBD_GET_KEY_CUSTOM:
+			/* The bridge driver provided us its own function */
+			ir->get_key = init_data->get_key;
+			break;
+		case IR_KBD_GET_KEY_PIXELVIEW:
+			ir->get_key = get_key_pixelview;
+			break;
+		case IR_KBD_GET_KEY_PV951:
+			ir->get_key = get_key_pv951;
+			break;
+		case IR_KBD_GET_KEY_HAUP:
+			ir->get_key = get_key_haup;
+			break;
+		case IR_KBD_GET_KEY_KNC1:
+			ir->get_key = get_key_knc1;
+			break;
+		case IR_KBD_GET_KEY_FUSIONHDTV:
+			ir->get_key = get_key_fusionhdtv;
+			break;
+		case IR_KBD_GET_KEY_HAUP_XVR:
+			ir->get_key = get_key_haup_xvr;
+			break;
+		case IR_KBD_GET_KEY_AVERMEDIA_CARDBUS:
+			ir->get_key = get_key_avermedia_cardbus;
+			break;
+		}
 	}
 
 	/* Make sure we are all setup before going on */
