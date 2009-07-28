@@ -2674,12 +2674,73 @@ static int dib0700_xc4000_tuner_callback(void *priv, int component,
 	return 0;
 }
 
+/* validation:
+   band
+   setup 0x4b=0x64
+   inv_gain 0x4c=0x02c8
+   time_stabaliz 0x4d=0x0015
+   alpha_level 0 (0x64=0x0076)
+   thlock 0x76 (0x64=0x0076)
+   wbd_inv 0x01 (0x69=0x1b33)
+   wbd_ref 0x0b33 (0x69=1b33)
+   wbd_sel 0x00 (0x6a=0400)
+   wbd_alpha 0x02 (0x6a=0x400)
+   agc1_max 0x00 (0x6b=0x0000)
+   agc1_min 0x00 (0x6c=0x0000)
+   agc2_max 0x9b26 (0x6d=0x9b26)
+   agc2_min 0x26ca (0x6e=0x26ca)
+   agc1_pt1 0x00 (0x6f=0x0000)
+   agc1_pt2 0x00 (0x6f=0x0000)
+   agc1_pt3 0x00 (0x70=0x0000)
+   agc1_slope1 0x00 (0x71=0x0000)
+   agc1_slope2 0x00 (0x71=0x0000)
+   agc2_pt1 0x00 (0x72=0x0080)
+   agc2_pt2 0x80 (0x72=0x0080)
+   agc2_slope1 0x1d (0x73=0x1d1d)
+   agc2_slope2 0x1d (0x73=0x1d1d)
+   alpha_mant 0x11 (0x65=023b)
+   alpha_exp 0x1b (0x65=023b)
+   beta_mant 0x17 (0x66=05f3)
+   beta_exp 0x33 (0x66=05f3)
+   perform_agc_softsplit 0x00 (0x6a=0x400)
+
+ */
+static struct dibx000_agc_config stk7700p_7000p_xc4000_agc_config = {
+	.band_caps = BAND_UHF | BAND_VHF,
+	.setup = 0x64,
+	.inv_gain = 0x02c8,
+	.time_stabiliz = 0x15,
+	.alpha_level = 0x00,
+	.thlock = 0x76,
+	.wbd_inv = 0x01,
+	.wbd_ref = 0x0b33,
+	.wbd_sel = 0x00,
+	.wbd_alpha = 0x02,
+	.agc1_max = 0x00,
+	.agc1_min = 0x00,
+	.agc2_max = 0x9b26,
+	.agc2_min = 0x26ca,
+	.agc1_pt1 = 0x00,
+	.agc1_pt2 = 0x00,
+	.agc1_pt3 = 0x00,
+	.agc1_slope1 = 0x00,
+	.agc1_slope2 = 0x00,
+	.agc2_pt1 = 0x00,
+	.agc2_pt2 = 0x80,
+	.agc2_slope1 = 0x1d,
+	.agc2_slope2 = 0x1d,
+	.alpha_exp = 0x1b,
+	.beta_mant = 0x17,
+	.beta_exp = 0x33,
+	.perform_agc_softsplit = 0x00,
+};
+
 /* FIXME: none of these inputs are validated yet */
 static struct dib7000p_config pctv_340e_config = {
-	.output_mpeg2_in_188_bytes = 1,
+	.output_mpeg2_in_188_bytes = 1, // validated L3317: 0x00eb=0x0066
 
 	.agc_config_count = 1,
-	.agc = &stk7700p_7000p_mt2060_agc_config,
+	.agc = &stk7700p_7000p_xc4000_agc_config,
 	.bw  = &stk7700p_pll_config,
 
 	.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
@@ -2737,9 +2798,9 @@ static int pctv340e_frontend_attach(struct dvb_usb_adapter *adap)
 }
 
 
-static struct xc4000_config s5h1411_xc4000_tunerconfig = {
+static struct xc4000_config dib7000p_xc4000_tunerconfig = {
 	.i2c_address      = 0x61,
-	.if_khz           = 5380,
+	.if_khz           = 5400,
 };
 
 static int xc4000_tuner_attach(struct dvb_usb_adapter *adap)
@@ -2758,7 +2819,7 @@ static int xc4000_tuner_attach(struct dvb_usb_adapter *adap)
 	adap->fe->callback = dib0700_xc4000_tuner_callback;
 
 	return dvb_attach(xc4000_attach, adap->fe, tun_i2c,
-			  &s5h1411_xc4000_tunerconfig)
+			  &dib7000p_xc4000_tunerconfig)
 		== NULL ? -ENODEV : 0;
 }
 
