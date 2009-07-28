@@ -1215,6 +1215,16 @@ void put_disk(struct gendisk *disk)
 
 EXPORT_SYMBOL(put_disk);
 
+static void set_disk_ro_uevent(struct gendisk *gd, int ro)
+{
+	char event[] = "DISK_RO=1";
+	char *envp[] = { event, NULL };
+
+	if (!ro)
+		event[8] = '0';
+	kobject_uevent_env(&disk_to_dev(gd)->kobj, KOBJ_CHANGE, envp);
+}
+
 void set_device_ro(struct block_device *bdev, int flag)
 {
 	bdev->bd_part->policy = flag;
@@ -1227,8 +1237,12 @@ void set_disk_ro(struct gendisk *disk, int flag)
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 
-	disk_part_iter_init(&piter, disk,
-			    DISK_PITER_INCL_EMPTY | DISK_PITER_INCL_PART0);
+	if (disk->part0.policy != flag) {
+		set_disk_ro_uevent(disk, flag);
+		disk->part0.policy = flag;
+	}
+
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter)))
 		part->policy = flag;
 	disk_part_iter_exit(&piter);
