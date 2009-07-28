@@ -5376,7 +5376,8 @@ again:
 
 		/* no output amps */
 		spec->num_pwrs = 0;
-		spec->mixer = stac92hd71bxx_analog_mixer;
+		if (snd_hda_get_bool_hint(codec, "analog_mixer") == 1)
+			spec->mixer = stac92hd71bxx_analog_mixer;
 
 		/* disable VSW */
 		spec->init = &stac92hd71bxx_analog_core_init[HD_DISABLE_PORTF];
@@ -5403,7 +5404,8 @@ again:
 	default:
 		memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_amixer,
 		       sizeof(stac92hd71bxx_dmux_amixer));
-		spec->mixer = stac92hd71bxx_analog_mixer;
+		if (snd_hda_get_bool_hint(codec, "analog_mixer") == 1)
+			spec->mixer = stac92hd71bxx_analog_mixer;
 		spec->init = stac92hd71bxx_analog_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
