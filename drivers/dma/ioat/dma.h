@@ -35,7 +35,6 @@
 #define IOAT_DMA_DCA_ANY_CPU		~0
 #define IOAT_WATCHDOG_PERIOD		(2 * HZ)
 
-#define to_ioat_chan(chan) container_of(chan, struct ioat_dma_chan, common)
 #define to_ioatdma_device(dev) container_of(dev, struct ioatdma_device, common)
 #define to_ioat_desc(lh) container_of(lh, struct ioat_desc_sw, node)
 #define tx_to_ioat_desc(tx) container_of(tx, struct ioat_desc_sw, txd)
@@ -74,36 +73,23 @@ struct ioatdma_device {
 	u8 version;
 	struct delayed_work work;
 	struct msix_entry msix_entries[4];
-	struct ioat_dma_chan *idx[4];
+	struct ioat_chan_common *idx[4];
 	struct dca_provider *dca;
 	void (*intr_quirk)(struct ioatdma_device *device);
 };
 
-/**
- * struct ioat_dma_chan - internal representation of a DMA channel
- */
-struct ioat_dma_chan {
-
+struct ioat_chan_common {
 	void __iomem *reg_base;
 
-	dma_cookie_t completed_cookie;
 	unsigned long last_completion;
 	unsigned long last_completion_time;
 
-	size_t xfercap;	/* XFERCAP register value expanded out */
-
 	spinlock_t cleanup_lock;
-	spinlock_t desc_lock;
-	struct list_head free_desc;
-	struct list_head used_desc;
+	dma_cookie_t completed_cookie;
 	unsigned long watchdog_completion;
 	int watchdog_tcp_cookie;
 	u32 watchdog_last_tcp_cookie;
 	struct delayed_work work;
-
-	int pending;
-	u16 dmacount;
-	u16 desccount;
 
 	struct ioatdma_device *device;
 	struct dma_chan common;
@@ -119,6 +105,35 @@ struct ioat_dma_chan {
 	unsigned long last_compl_desc_addr_hw;
 	struct tasklet_struct cleanup_task;
 };
+
+/**
+ * struct ioat_dma_chan - internal representation of a DMA channel
+ */
+struct ioat_dma_chan {
+	struct ioat_chan_common base;
+
+	size_t xfercap;	/* XFERCAP register value expanded out */
+
+	spinlock_t desc_lock;
+	struct list_head free_desc;
+	struct list_head used_desc;
+
+	int pending;
+	u16 dmacount;
+	u16 desccount;
+};
+
+static inline struct ioat_chan_common *to_chan_common(struct dma_chan *c)
+{
+	return container_of(c, struct ioat_chan_common, common);
+}
+
+static inline struct ioat_dma_chan *to_ioat_chan(struct dma_chan *c)
+{
+	struct ioat_chan_common *chan = to_chan_common(c);
+
+	return container_of(chan, struct ioat_dma_chan, base);
+}
 
 /* wrapper around hardware descriptor format + additional software fields */
 
