@@ -18,6 +18,8 @@
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
 
+#define PREFIX "ACPI: "
+
 /* aperture is up to 256MB but BIOS may reserve less */
 #define MMCONFIG_APER_MIN	(2 * 1024*1024)
 #define MMCONFIG_APER_MAX	(256 * 1024*1024)

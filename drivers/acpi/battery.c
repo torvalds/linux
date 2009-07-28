@@ -45,6 +45,8 @@
 #include <linux/power_supply.h>
 #endif
 
+#define PREFIX "ACPI: "
+
 #define ACPI_BATTERY_VALUE_UNKNOWN 0xFFFFFFFF
 
 #define ACPI_BATTERY_CLASS		"battery"

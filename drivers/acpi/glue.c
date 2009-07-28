@@ -12,6 +12,8 @@
 #include <linux/rwsem.h>
 #include <linux/acpi.h>
 
+#include "internal.h"
+
 #define ACPI_GLUE_DEBUG	0
 #if ACPI_GLUE_DEBUG
 #define DBG(x...) printk(PREFIX x)

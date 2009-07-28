@@ -700,7 +700,7 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 		goto end;
 	}
 
-	printk(KERN_INFO PREFIX "%s [%s] (%s)\n",
+	printk(KERN_INFO "ACPI: %s [%s] (%s)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
 	       !device->power.state ? "on" : "off");
 
@@ -874,7 +874,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 		goto end;
 	}
 
-	printk(KERN_INFO PREFIX "%s [%s] (%s)\n",
+	printk(KERN_INFO "ACPI: %s [%s] (%s)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
 	       !device->power.state ? "on" : "off");
 
