@@ -222,7 +222,10 @@ static void print_mce_head(void)
 static void print_mce_tail(void)
 {
 	printk(KERN_EMERG "This is not a software problem!\n"
-	       "Run through mcelog --ascii to decode and contact your hardware vendor\n");
+#if (!defined(CONFIG_EDAC) || !defined(CONFIG_CPU_SUP_AMD))
+	       "Run through mcelog --ascii to decode and contact your hardware vendor\n"
+#endif
+	       );
 }
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */
