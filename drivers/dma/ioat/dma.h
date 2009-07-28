@@ -153,19 +153,10 @@ static inline void ioat_set_tcp_copy_break(struct ioatdma_device *dev)
 	#endif
 }
 
-#if defined(CONFIG_INTEL_IOATDMA) || defined(CONFIG_INTEL_IOATDMA_MODULE)
 struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 				      void __iomem *iobase);
 void ioat_dma_remove(struct ioatdma_device *device);
 struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
-#else
-#define ioat_dma_probe(pdev, iobase)    NULL
-#define ioat_dma_remove(device)         do { } while (0)
-#define ioat_dca_init(pdev, iobase)	NULL
-#define ioat2_dca_init(pdev, iobase)	NULL
-#define ioat3_dca_init(pdev, iobase)	NULL
-#endif
-
 #endif /* IOATDMA_H */
