@@ -120,6 +120,7 @@ enum {
 	DEVTYPE_GENERAL_TOUCH,
 	DEVTYPE_GOTOP,
 	DEVTYPE_JASTEC,
+	DEVTYPE_E2I,
 };
 
 #define USB_DEVICE_HID_CLASS(vend, prod) \
@@ -197,8 +198,44 @@ static struct usb_device_id usbtouch_devices[] = {
 	{USB_DEVICE(0x0f92, 0x0001), .driver_info = DEVTYPE_JASTEC},
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_USB_E2I
+	{USB_DEVICE(0x1ac7, 0x0001), .driver_info = DEVTYPE_E2I},
+#endif
 	{}
 };
+
+
+/*****************************************************************************
+ * e2i Part
+ */
+
+#ifdef CONFIG_TOUCHSCREEN_USB_E2I
+static int e2i_init(struct usbtouch_usb *usbtouch)
+{
+	int ret;
+
+	ret = usb_control_msg(usbtouch->udev, usb_rcvctrlpipe(usbtouch->udev, 0),
+	                      0x01, 0x02, 0x0000, 0x0081,
+	                      NULL, 0, USB_CTRL_SET_TIMEOUT);
+
+	dbg("%s - usb_control_msg - E2I_RESET - bytes|err: %d",
+	    __func__, ret);
+	return ret;
+}
+
+static int e2i_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+{
+	int tmp = (pkt[0] << 8) | pkt[1];
+	dev->x  = (pkt[2] << 8) | pkt[3];
+	dev->y  = (pkt[4] << 8) | pkt[5];
+
+	tmp = tmp - 0xA000;
+	dev->touch = (tmp > 0);
+	dev->press = (tmp > 0 ? tmp : 0);
+
+	return 1;
+}
+#endif
 
 
 /*****************************************************************************
@@ -732,6 +769,18 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.max_yc		= 0x0fff,
 		.rept_size	= 4,
 		.read_data	= jastec_read_data,
+	},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_E2I
+	[DEVTYPE_E2I] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x7fff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x7fff,
+		.rept_size	= 6,
+		.init		= e2i_init,
+		.read_data	= e2i_read_data,
 	},
 #endif
 };

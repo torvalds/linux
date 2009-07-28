@@ -474,6 +474,11 @@ config TOUCHSCREEN_USB_JASTEC
 	bool "JASTEC/DigiTech DTR-02U USB touch controller device support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
+config TOUCHSCREEN_USB_E2I
+	default y
+	bool "e2i Touchscreen controller (e.g. from Mimo 740)"
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
 config TOUCHSCREEN_TOUCHIT213
 	tristate "Sahara TouchIT-213 touchscreen"
 	select SERIO
