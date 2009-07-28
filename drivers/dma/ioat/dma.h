@@ -102,8 +102,8 @@ struct ioat_dma_chan {
 	struct delayed_work work;
 
 	int pending;
-	int dmacount;
-	int desccount;
+	u16 dmacount;
+	u16 desccount;
 
 	struct ioatdma_device *device;
 	struct dma_chan common;
