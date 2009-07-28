@@ -34,6 +34,9 @@
 #ifndef _PAGE_4K_PFN
 #define _PAGE_4K_PFN		0
 #endif
+#ifndef _PAGE_SAO
+#define _PAGE_SAO	0
+#endif
 #ifndef _PAGE_PSIZE
 #define _PAGE_PSIZE		0
 #endif

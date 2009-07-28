@@ -17,6 +17,7 @@
 #define MMU_FTR_TYPE_40x		ASM_CONST(0x00000004)
 #define MMU_FTR_TYPE_44x		ASM_CONST(0x00000008)
 #define MMU_FTR_TYPE_FSL_E		ASM_CONST(0x00000010)
+#define MMU_FTR_TYPE_3E			ASM_CONST(0x00000020)
 
 /*
  * This is individual features
@@ -73,6 +74,41 @@ extern void early_init_mmu_secondary(void);
 
 #endif /* !__ASSEMBLY__ */
 
+/* The kernel use the constants below to index in the page sizes array.
+ * The use of fixed constants for this purpose is better for performances
+ * of the low level hash refill handlers.
+ *
+ * A non supported page size has a "shift" field set to 0
+ *
+ * Any new page size being implemented can get a new entry in here. Whether
+ * the kernel will use it or not is a different matter though. The actual page
+ * size used by hugetlbfs is not defined here and may be made variable
+ *
+ * Note: This array ended up being a false good idea as it's growing to the
+ * point where I wonder if we should replace it with something different,
+ * to think about, feedback welcome. --BenH.
+ */
+
+/* There are #define as they have to be used in assembly
+ *
+ * WARNING: If you change this list, make sure to update the array of
+ * names currently in arch/powerpc/mm/hugetlbpage.c or bad things will
+ * happen
+ */
+#define MMU_PAGE_4K	0
+#define MMU_PAGE_16K	1
+#define MMU_PAGE_64K	2
+#define MMU_PAGE_64K_AP	3	/* "Admixed pages" (hash64 only) */
+#define MMU_PAGE_256K	4
+#define MMU_PAGE_1M	5
+#define MMU_PAGE_8M	6
+#define MMU_PAGE_16M	7
+#define MMU_PAGE_256M	8
+#define MMU_PAGE_1G	9
+#define MMU_PAGE_16G	10
+#define MMU_PAGE_64G	11
+#define MMU_PAGE_COUNT	12
+
 
 #if defined(CONFIG_PPC_STD_MMU_64)
 /* 64-bit classic hash table MMU */
@@ -93,6 +129,7 @@ extern void early_init_mmu_secondary(void);
 /* Motorola/Freescale 8xx software loaded TLB */
 #  include <asm/mmu-8xx.h>
 #endif
+
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_MMU_H_ */

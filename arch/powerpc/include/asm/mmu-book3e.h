@@ -170,6 +170,33 @@ typedef struct {
 	unsigned int	active;
 	unsigned long	vdso_base;
 } mm_context_t;
+
+/* Page size definitions, common between 32 and 64-bit
+ *
+ *    shift : is the "PAGE_SHIFT" value for that page size
+ *    penc  : is the pte encoding mask
+ *
+ */
+struct mmu_psize_def
+{
+	unsigned int	shift;	/* number of bits */
+	unsigned int	enc;	/* PTE encoding */
+};
+extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+
+/* The page sizes use the same names as 64-bit hash but are
+ * constants
+ */
+#if defined(CONFIG_PPC_4K_PAGES)
+#define mmu_virtual_psize	MMU_PAGE_4K
+#elif defined(CONFIG_PPC_64K_PAGES)
+#define mmu_virtual_psize	MMU_PAGE_64K
+#else
+#error Unsupported page size
+#endif
+
+extern int mmu_linear_psize;
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_MMU_BOOK3E_H_ */

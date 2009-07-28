@@ -139,26 +139,6 @@ struct mmu_psize_def
 #endif /* __ASSEMBLY__ */
 
 /*
- * The kernel use the constants below to index in the page sizes array.
- * The use of fixed constants for this purpose is better for performances
- * of the low level hash refill handlers.
- *
- * A non supported page size has a "shift" field set to 0
- *
- * Any new page size being implemented can get a new entry in here. Whether
- * the kernel will use it or not is a different matter though. The actual page
- * size used by hugetlbfs is not defined here and may be made variable
- */
-
-#define MMU_PAGE_4K		0	/* 4K */
-#define MMU_PAGE_64K		1	/* 64K */
-#define MMU_PAGE_64K_AP		2	/* 64K Admixed (in a 4K segment) */
-#define MMU_PAGE_1M		3	/* 1M */
-#define MMU_PAGE_16M		4	/* 16M */
-#define MMU_PAGE_16G		5	/* 16G */
-#define MMU_PAGE_COUNT		6
-
-/*
  * Segment sizes.
  * These are the values used by hardware in the B field of
  * SLB entries and the first dword of MMU hashtable entries.
