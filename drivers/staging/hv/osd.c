@@ -55,12 +55,6 @@ typedef struct _TIMER {
 	void* context;
 }TIMER;
 
-
-typedef struct _WAITEVENT {
-	int	condition;
-	wait_queue_head_t event;
-} WAITEVENT;
-
 typedef struct _WORKITEM {
 	struct work_struct work;
 	PFN_WORKITEM_CALLBACK callback;
@@ -220,9 +214,9 @@ void TimerClose(HANDLE hTimer)
 	kfree(t);
 }
 
-HANDLE WaitEventCreate(void)
+struct osd_waitevent *WaitEventCreate(void)
 {
-	WAITEVENT* wait = kmalloc(sizeof(WAITEVENT), GFP_KERNEL);
+	struct osd_waitevent *wait = kmalloc(sizeof(struct osd_waitevent), GFP_KERNEL);
 	if (!wait)
 	{
 		return NULL;
@@ -233,38 +227,34 @@ HANDLE WaitEventCreate(void)
 	return wait;
 }
 
-void WaitEventClose(HANDLE hWait)
+void WaitEventClose(struct osd_waitevent *waitEvent)
 {
-	WAITEVENT* waitEvent = (WAITEVENT* )hWait;
 	kfree(waitEvent);
 }
 
-void WaitEventSet(HANDLE hWait)
+void WaitEventSet(struct osd_waitevent *waitEvent)
 {
-	WAITEVENT* waitEvent = (WAITEVENT* )hWait;
 	waitEvent->condition = 1;
 	wake_up_interruptible(&waitEvent->event);
 }
 
-int WaitEventWait(HANDLE hWait)
+int WaitEventWait(struct osd_waitevent *waitEvent)
 {
 	int ret=0;
-	WAITEVENT* waitEvent = (WAITEVENT* )hWait;
 
-	ret= wait_event_interruptible(waitEvent->event,
-		waitEvent->condition);
+	ret = wait_event_interruptible(waitEvent->event,
+				       waitEvent->condition);
 	waitEvent->condition = 0;
 	return ret;
 }
 
-int WaitEventWaitEx(HANDLE hWait, u32 TimeoutInMs)
+int WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs)
 {
 	int ret=0;
-	WAITEVENT* waitEvent = (WAITEVENT* )hWait;
 
-	ret= wait_event_interruptible_timeout(waitEvent->event,
-											waitEvent->condition,
-											msecs_to_jiffies(TimeoutInMs));
+	ret = wait_event_interruptible_timeout(waitEvent->event,
+					       waitEvent->condition,
+					       msecs_to_jiffies(TimeoutInMs));
 	waitEvent->condition = 0;
 	return ret;
 }

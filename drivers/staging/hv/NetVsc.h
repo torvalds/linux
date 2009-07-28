@@ -78,7 +78,7 @@ struct NETVSC_DEVICE {
 	PNVSP_1_RECEIVE_BUFFER_SECTION	ReceiveSections;
 
 	/* Used for NetVSP initialization protocol */
-	HANDLE							ChannelInitEvent;
+	struct osd_waitevent *ChannelInitEvent;
 	NVSP_MESSAGE					ChannelInitPacket;
 
 	NVSP_MESSAGE					RevokePacket;

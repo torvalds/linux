@@ -52,6 +52,12 @@ typedef struct {
 	unsigned char	Data[16];
 } GUID;
 
+struct osd_waitevent {
+	int	condition;
+	wait_queue_head_t event;
+};
+
+
 typedef void (*PFN_WORKITEM_CALLBACK)(void* context);
 typedef void (*PFN_TIMER_CALLBACK)(void* context);
 
@@ -122,13 +128,13 @@ extern void TimerClose(HANDLE hTimer);
 extern int TimerStop(HANDLE hTimer);
 extern void TimerStart(HANDLE hTimer, u32 expirationInUs);
 
-extern HANDLE WaitEventCreate(void);
-extern void WaitEventClose(HANDLE hWait);
-extern void WaitEventSet(HANDLE hWait);
-extern int	WaitEventWait(HANDLE hWait);
+extern struct osd_waitevent *WaitEventCreate(void);
+extern void WaitEventClose(struct osd_waitevent *waitEvent);
+extern void WaitEventSet(struct osd_waitevent *waitEvent);
+extern int	WaitEventWait(struct osd_waitevent *waitEvent);
 
-/* If >0, hWait got signaled. If ==0, timeout. If < 0, error */
-extern int	WaitEventWaitEx(HANDLE hWait, u32 TimeoutInMs);
+/* If >0, waitEvent got signaled. If ==0, timeout. If < 0, error */
+extern int	WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs);
 
 
 #define GetVirtualAddress Physical2LogicalAddr

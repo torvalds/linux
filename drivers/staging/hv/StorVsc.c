@@ -47,7 +47,7 @@ typedef struct _STORVSC_REQUEST_EXTENSION {
 	struct hv_device *Device;
 
 	/* Synchronize the request/response if needed */
-	HANDLE							WaitEvent;
+	struct osd_waitevent *WaitEvent;
 
 	VSTOR_PACKET					VStorPacket;
 } STORVSC_REQUEST_EXTENSION;

@@ -102,7 +102,7 @@ struct VMBUS_MSGINFO {
 	LIST_ENTRY			MsgListEntry;
 
 	/* Synchronize the request/response if needed */
-	HANDLE				WaitEvent;
+	struct osd_waitevent *WaitEvent;
 
 	/* The message itself */
 	unsigned char		Msg[0];

@@ -61,7 +61,7 @@ typedef struct _RNDIS_DEVICE {
 
 typedef struct _RNDIS_REQUEST {
 	LIST_ENTRY					ListEntry;
-	HANDLE						WaitEvent;
+	struct osd_waitevent *WaitEvent;
 
 	/* FIXME: We assumed a fixed size response here. If we do ever need to handle a bigger response, */
 	/* we can either define a max response message or add a response buffer variable above this field */

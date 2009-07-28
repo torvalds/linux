@@ -115,7 +115,7 @@ typedef struct _VMBUS_CHANNEL_MSGINFO {
 	LIST_ENTRY		SubMsgList;
 
 	/* Synchronize the request/response if needed */
-	HANDLE			WaitEvent;
+	struct osd_waitevent *WaitEvent;
 
 	VMBUS_CHANNEL_MESSAGE_RESPONSE Response;
 
