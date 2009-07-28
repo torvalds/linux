@@ -270,6 +270,27 @@ wrong_bu_mce:
 	pr_warning("Corrupted BU MCE info?\n");
 }
 
+static void amd_decode_ls_mce(u64 mc3_status)
+{
+	u32 ec  = mc3_status & 0xffff;
+	u32 xec = (mc3_status >> 16) & 0xf;
+
+	pr_emerg(" Load Store Error");
+
+	if (xec == 0x0) {
+		u8 rrrr = (ec >> 4) & 0xf;
+
+		if (!BUS_ERROR(ec) || (rrrr != 0x3 && rrrr != 0x4))
+			goto wrong_ls_mce;
+
+		pr_cont(" during %s.\n", RRRR_MSG(ec));
+	}
+	return;
+
+wrong_ls_mce:
+	pr_warning("Corrupted LS MCE info?\n");
+}
+
 void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 {
 	u32 ec  = ERROR_CODE(regs->nbsl);
@@ -364,6 +385,10 @@ void decode_mce(struct mce *m)
 
 	case 2:
 		amd_decode_bu_mce(m->status);
+		break;
+
+	case 3:
+		amd_decode_ls_mce(m->status);
 		break;
 
 	case 4:
