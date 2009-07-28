@@ -188,8 +188,8 @@ void storvsc_drv_exit(void)
 {
 	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_storvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_storvsc_drv.drv_ctx;
-
 	struct device *current_dev=NULL;
+	int ret;
 
 	DPRINT_ENTER(STORVSC_DRV);
 
@@ -198,7 +198,13 @@ void storvsc_drv_exit(void)
 		current_dev = NULL;
 
 		/* Get the device */
-		driver_for_each_device(&drv_ctx->driver, NULL, (void*)&current_dev, storvsc_drv_exit_cb);
+		ret = driver_for_each_device(&drv_ctx->driver, NULL,
+					     (void *) &current_dev,
+					     storvsc_drv_exit_cb);
+
+		if (ret)
+			DPRINT_WARN(STORVSC_DRV,
+				    "driver_for_each_device returned %d", ret);
 
 		if (current_dev == NULL)
 			break;
