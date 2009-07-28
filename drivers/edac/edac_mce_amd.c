@@ -171,6 +171,63 @@ wrong_dc_mce:
 	pr_warning("Corrupted DC MCE info?\n");
 }
 
+static void amd_decode_ic_mce(u64 mc1_status)
+{
+	u32 ec  = mc1_status & 0xffff;
+	u32 xec = (mc1_status >> 16) & 0xf;
+
+	pr_emerg(" Instruction Cache Error");
+
+	if (xec == 1 && TLB_ERROR(ec))
+		pr_cont(": %s TLB multimatch.\n", LL_MSG(ec));
+	else if (xec == 0) {
+		if (TLB_ERROR(ec))
+			pr_cont(": %s TLB Parity error.\n", LL_MSG(ec));
+		else if (BUS_ERROR(ec)) {
+			if (boot_cpu_data.x86 == 0xf &&
+			    (mc1_status & (1ULL << 58)))
+				pr_cont(" during system linefill.\n");
+			else
+				pr_cont(" during attempted NB data read.\n");
+		} else if (MEM_ERROR(ec)) {
+			u8 ll   = ec & 0x3;
+			u8 rrrr = (ec >> 4) & 0xf;
+
+			if (ll == 0x2)
+				pr_cont(" during a linefill from L2.\n");
+			else if (ll == 0x1) {
+
+				switch (rrrr) {
+				case 0x5:
+					pr_cont(": Parity error during "
+					       "data load.\n");
+					break;
+
+				case 0x7:
+					pr_cont(": Copyback Parity/Victim"
+						" error.\n");
+					break;
+
+				case 0x8:
+					pr_cont(": Tag Snoop error.\n");
+					break;
+
+				default:
+					goto wrong_ic_mce;
+					break;
+				}
+			}
+		} else
+			goto wrong_ic_mce;
+	} else
+		goto wrong_ic_mce;
+
+	return;
+
+wrong_ic_mce:
+	pr_warning("Corrupted IC MCE info?\n");
+}
+
 void amd_decode_nb_mce(int node_id, struct err_regs *regs, int handle_errors)
 {
 	u32 ec  = ERROR_CODE(regs->nbsl);
@@ -257,6 +314,10 @@ void decode_mce(struct mce *m)
 	switch (m->bank) {
 	case 0:
 		amd_decode_dc_mce(m->status);
+		break;
+
+	case 1:
+		amd_decode_ic_mce(m->status);
 		break;
 
 	case 4:
