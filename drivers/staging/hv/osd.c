@@ -216,11 +216,6 @@ struct osd_waitevent *WaitEventCreate(void)
 	return wait;
 }
 
-void WaitEventClose(struct osd_waitevent *waitEvent)
-{
-	kfree(waitEvent);
-}
-
 void WaitEventSet(struct osd_waitevent *waitEvent)
 {
 	waitEvent->condition = 1;

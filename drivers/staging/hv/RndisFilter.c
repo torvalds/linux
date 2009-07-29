@@ -273,7 +273,7 @@ static inline void PutRndisRequest(RNDIS_DEVICE *Device, RNDIS_REQUEST *Request)
 	REMOVE_ENTRY_LIST(&Request->ListEntry);
 	spin_unlock_irqrestore(&Device->request_lock, flags);
 
-	WaitEventClose(Request->WaitEvent);
+	kfree(Request->WaitEvent);
 	kfree(Request);
 }
 

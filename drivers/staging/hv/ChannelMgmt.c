@@ -762,7 +762,7 @@ VmbusChannelRequestOffers(
 Cleanup:
 	if (msgInfo)
 	{
-		WaitEventClose(msgInfo->WaitEvent);
+		kfree(msgInfo->WaitEvent);
 		kfree(msgInfo);
 	}
 

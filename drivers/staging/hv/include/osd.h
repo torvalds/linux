@@ -134,7 +134,6 @@ extern int TimerStop(struct osd_timer *t);
 extern void TimerStart(struct osd_timer *t, u32 expirationInUs);
 
 extern struct osd_waitevent *WaitEventCreate(void);
-extern void WaitEventClose(struct osd_waitevent *waitEvent);
 extern void WaitEventSet(struct osd_waitevent *waitEvent);
 extern int	WaitEventWait(struct osd_waitevent *waitEvent);
 

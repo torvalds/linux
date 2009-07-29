@@ -309,7 +309,7 @@ Cleanup:
 	REMOVE_ENTRY_LIST(&openInfo->MsgListEntry);
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
-	WaitEventClose(openInfo->WaitEvent);
+	kfree(openInfo->WaitEvent);
 	kfree(openInfo);
 
 	DPRINT_EXIT(VMBUS);
@@ -596,7 +596,7 @@ Cleanup:
 	REMOVE_ENTRY_LIST(&msgInfo->MsgListEntry);
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
-	WaitEventClose(msgInfo->WaitEvent);
+	kfree(msgInfo->WaitEvent);
 	kfree(msgInfo);
 
 	DPRINT_EXIT(VMBUS);
@@ -658,7 +658,7 @@ VmbusChannelTeardownGpadl(
 	REMOVE_ENTRY_LIST(&info->MsgListEntry);
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
 
-	WaitEventClose(info->WaitEvent);
+	kfree(info->WaitEvent);
 	kfree(info);
 
 	DPRINT_EXIT(VMBUS);

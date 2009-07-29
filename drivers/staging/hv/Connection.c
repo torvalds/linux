@@ -155,7 +155,7 @@ VmbusConnect(void)
 	}
 
 
-	WaitEventClose(msgInfo->WaitEvent);
+	kfree(msgInfo->WaitEvent);
 	kfree(msgInfo);
 	DPRINT_EXIT(VMBUS);
 
@@ -183,7 +183,7 @@ Cleanup:
 	if (msgInfo)
 	{
 		if (msgInfo->WaitEvent)
-			WaitEventClose(msgInfo->WaitEvent);
+			kfree(msgInfo->WaitEvent);
 
 		kfree(msgInfo);
 	}

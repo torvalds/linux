@@ -880,7 +880,7 @@ Cleanup:
 
 	if (netDevice)
 	{
-		WaitEventClose(netDevice->ChannelInitEvent);
+		kfree(netDevice->ChannelInitEvent);
 
 		while (!IsListEmpty(&netDevice->ReceivePacketList))
 		{
@@ -963,7 +963,7 @@ NetVscOnDeviceRemove(
 		kfree(netvscPacket);
 	}
 
-	WaitEventClose(netDevice->ChannelInitEvent);
+	kfree(netDevice->ChannelInitEvent);
 	FreeNetDevice(netDevice);
 
 	DPRINT_EXIT(NETVSC);

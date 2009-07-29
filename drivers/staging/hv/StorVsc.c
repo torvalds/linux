@@ -516,7 +516,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 Cleanup:
 	if (request->WaitEvent)
 	{
-		WaitEventClose(request->WaitEvent);
+		kfree(request->WaitEvent);
 		request->WaitEvent = NULL;
 	}
 
@@ -678,7 +678,7 @@ StorVscOnHostReset(
 	/* FIXME: Add a timeout */
 	WaitEventWait(request->WaitEvent);
 
-	WaitEventClose(request->WaitEvent);
+	kfree(request->WaitEvent);
 	DPRINT_INFO(STORVSC, "host adapter reset completed");
 
 	/*
