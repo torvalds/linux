@@ -62,6 +62,7 @@
 #include <linux/fs_struct.h>
 #include <linux/magic.h>
 #include <linux/perf_counter.h>
+#include <linux/posix-timers.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -790,10 +791,10 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 	thread_group_cputime_init(sig);
 
 	/* Expiration times and increments. */
-	sig->it_virt_expires = cputime_zero;
-	sig->it_virt_incr = cputime_zero;
-	sig->it_prof_expires = cputime_zero;
-	sig->it_prof_incr = cputime_zero;
+	sig->it[CPUCLOCK_PROF].expires = cputime_zero;
+	sig->it[CPUCLOCK_PROF].incr = cputime_zero;
+	sig->it[CPUCLOCK_VIRT].expires = cputime_zero;
+	sig->it[CPUCLOCK_VIRT].incr = cputime_zero;
 
 	/* Cached expiration times. */
 	sig->cputime_expires.prof_exp = cputime_zero;
