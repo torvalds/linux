@@ -997,19 +997,6 @@ static struct hda_verb stac92hd71bxx_core_init[] = {
 	{}
 };
 
-#define HD_DISABLE_PORTF 1
-static struct hda_verb stac92hd71bxx_analog_core_init[] = {
-	/* start of config #1 */
-
-	/* connect port 0f to audio mixer */
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x2},
-	/* start of config #2 */
-
-	/* set master volume and direct control */
-	{ 0x28, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	{}
-};
-
 static struct hda_verb stac92hd71bxx_unmute_core_init[] = {
 	/* unmute right and left channels for nodes 0x0f, 0xa, 0x0d */
 	{ 0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -5519,7 +5506,7 @@ again:
 			spec->mixer = stac92hd71bxx_analog_mixer;
 
 		/* disable VSW */
-		spec->init = &stac92hd71bxx_analog_core_init[HD_DISABLE_PORTF];
+		spec->init = stac92hd71bxx_core_init;
 		unmute_init++;
 		snd_hda_codec_set_pincfg(codec, 0x0f, 0x40f000f0);
 		snd_hda_codec_set_pincfg(codec, 0x19, 0x40f000f3);
@@ -5545,7 +5532,7 @@ again:
 		       sizeof(stac92hd71bxx_dmux_amixer));
 		if (snd_hda_get_bool_hint(codec, "analog_mixer") == 1)
 			spec->mixer = stac92hd71bxx_analog_mixer;
-		spec->init = stac92hd71bxx_analog_core_init;
+		spec->init = stac92hd71bxx_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
