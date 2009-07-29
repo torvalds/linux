@@ -4831,7 +4831,14 @@ static void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 	int mode = bp->rx_mode;
 	int mask = (1 << BP_L_ID(bp));
 	int func = BP_FUNC(bp);
+	int port = BP_PORT(bp);
 	int i;
+	/* All but management unicast packets should pass to the host as well */
+	u32 llh_mask =
+		NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_BRCST |
+		NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_MLCST |
+		NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_VLAN |
+		NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_NO_VLAN;
 
 	DP(NETIF_MSG_IFUP, "rx mode %d  mask 0x%x\n", mode, mask);
 
@@ -4855,12 +4862,18 @@ static void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		tstorm_mac_filter.ucast_accept_all = mask;
 		tstorm_mac_filter.mcast_accept_all = mask;
 		tstorm_mac_filter.bcast_accept_all = mask;
+		/* pass management unicast packets as well */
+		llh_mask |= NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST;
 		break;
 
 	default:
 		BNX2X_ERR("BAD rx mode (%d)\n", mode);
 		break;
 	}
+
+	REG_WR(bp,
+	       (port ? NIG_REG_LLH1_BRB1_DRV_MASK : NIG_REG_LLH0_BRB1_DRV_MASK),
+	       llh_mask);
 
 	for (i = 0; i < sizeof(struct tstorm_eth_mac_filter_config)/4; i++) {
 		REG_WR(bp, BAR_TSTRORM_INTMEM +
