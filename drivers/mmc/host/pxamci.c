@@ -804,20 +804,20 @@ static int pxamci_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int pxamci_suspend(struct platform_device *dev, pm_message_t state)
+static int pxamci_suspend(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
+	struct mmc_host *mmc = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc, PMSG_SUSPEND);
 
 	return ret;
 }
 
-static int pxamci_resume(struct platform_device *dev)
+static int pxamci_resume(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
+	struct mmc_host *mmc = dev_get_drvdata(dev);
 	int ret = 0;
 
 	if (mmc)
@@ -825,19 +825,22 @@ static int pxamci_resume(struct platform_device *dev)
 
 	return ret;
 }
-#else
-#define pxamci_suspend	NULL
-#define pxamci_resume	NULL
+
+static struct dev_pm_ops pxamci_pm_ops = {
+	.suspend	= pxamci_suspend,
+	.resume		= pxamci_resume,
+};
 #endif
 
 static struct platform_driver pxamci_driver = {
 	.probe		= pxamci_probe,
 	.remove		= pxamci_remove,
-	.suspend	= pxamci_suspend,
-	.resume		= pxamci_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &pxamci_pm_ops,
+#endif
 	},
 };
 
