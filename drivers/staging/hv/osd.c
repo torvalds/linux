@@ -79,6 +79,7 @@ void *osd_PageAlloc(unsigned int count)
 	/* if (p) memset(p, 0, PAGE_SIZE); */
 	/* return p; */
 }
+EXPORT_SYMBOL_GPL(osd_PageAlloc);
 
 void osd_PageFree(void* page, unsigned int count)
 {
@@ -86,6 +87,7 @@ void osd_PageFree(void* page, unsigned int count)
 	/*struct page* p = virt_to_page(page);
 	__free_page(p);*/
 }
+EXPORT_SYMBOL_GPL(osd_PageFree);
 
 struct osd_waitevent *osd_WaitEventCreate(void)
 {
@@ -99,12 +101,14 @@ struct osd_waitevent *osd_WaitEventCreate(void)
 	init_waitqueue_head(&wait->event);
 	return wait;
 }
+EXPORT_SYMBOL_GPL(osd_WaitEventCreate);
 
 void osd_WaitEventSet(struct osd_waitevent *waitEvent)
 {
 	waitEvent->condition = 1;
 	wake_up_interruptible(&waitEvent->event);
 }
+EXPORT_SYMBOL_GPL(osd_WaitEventSet);
 
 int osd_WaitEventWait(struct osd_waitevent *waitEvent)
 {
@@ -115,6 +119,7 @@ int osd_WaitEventWait(struct osd_waitevent *waitEvent)
 	waitEvent->condition = 0;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(osd_WaitEventWait);
 
 int osd_WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs)
 {
@@ -126,6 +131,7 @@ int osd_WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs)
 	waitEvent->condition = 0;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(osd_WaitEventWaitEx);
 
 static void osd_callback_work(struct work_struct *work)
 {
