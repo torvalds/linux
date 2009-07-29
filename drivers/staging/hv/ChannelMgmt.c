@@ -141,7 +141,7 @@ static VMBUS_CHANNEL* AllocVmbusChannel(void)
 
 	spin_lock_init(&channel->inbound_lock);
 
-	channel->PollTimer = TimerCreate(VmbusChannelOnTimer, channel);
+	channel->PollTimer = osd_TimerCreate(VmbusChannelOnTimer, channel);
 	if (!channel->PollTimer)
 	{
 		kfree(channel);
@@ -152,7 +152,7 @@ static VMBUS_CHANNEL* AllocVmbusChannel(void)
 	channel->ControlWQ = create_workqueue("hv_vmbus_ctl");
 	if (!channel->ControlWQ)
 	{
-		TimerClose(channel->PollTimer);
+		osd_TimerClose(channel->PollTimer);
 		kfree(channel);
 		return NULL;
 	}
@@ -195,7 +195,7 @@ Description:
 --*/
 static void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
 {
-	TimerClose(Channel->PollTimer);
+	osd_TimerClose(Channel->PollTimer);
 
 	/* We have to release the channel's workqueue/thread in the vmbus's workqueue/thread context */
 	/* ie we can't destroy ourselves. */
@@ -495,7 +495,7 @@ VmbusChannelOnOpenResult(
 				openMsg->OpenId == result->OpenId)
 			{
 				memcpy(&msgInfo->Response.OpenResult, result, sizeof(VMBUS_CHANNEL_OPEN_RESULT));
-				WaitEventSet(msgInfo->WaitEvent);
+				osd_WaitEventSet(msgInfo->WaitEvent);
 				break;
 			}
 		}
@@ -550,7 +550,7 @@ VmbusChannelOnGpadlCreated(
 					(gpadlCreated->Gpadl == gpadlHeader->Gpadl))
 			{
 				memcpy(&msgInfo->Response.GpadlCreated, gpadlCreated, sizeof(VMBUS_CHANNEL_GPADL_CREATED));
-				WaitEventSet(msgInfo->WaitEvent);
+				osd_WaitEventSet(msgInfo->WaitEvent);
 				break;
 			}
 		}
@@ -602,7 +602,7 @@ VmbusChannelOnGpadlTorndown(
 			if (gpadlTorndown->Gpadl == gpadlTeardown->Gpadl)
 			{
 				memcpy(&msgInfo->Response.GpadlTorndown, gpadlTorndown, sizeof(VMBUS_CHANNEL_GPADL_TORNDOWN));
-				WaitEventSet(msgInfo->WaitEvent);
+				osd_WaitEventSet(msgInfo->WaitEvent);
 				break;
 			}
 		}
@@ -650,7 +650,7 @@ VmbusChannelOnVersionResponse(
 		{
 			initiate = (VMBUS_CHANNEL_INITIATE_CONTACT*)requestHeader;
 			memcpy(&msgInfo->Response.VersionResponse, versionResponse, sizeof(VMBUS_CHANNEL_VERSION_RESPONSE));
-			WaitEventSet(msgInfo->WaitEvent);
+			osd_WaitEventSet(msgInfo->WaitEvent);
 		}
 	}
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
@@ -732,7 +732,7 @@ VmbusChannelRequestOffers(
 	msgInfo = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_MESSAGE_HEADER), GFP_KERNEL);
 	ASSERT(msgInfo != NULL);
 
-	msgInfo->WaitEvent = WaitEventCreate();
+	msgInfo->WaitEvent = osd_WaitEventCreate();
 	msg = (VMBUS_CHANNEL_MESSAGE_HEADER*)msgInfo->Msg;
 
 	msg->MessageType = ChannelMessageRequestOffers;
@@ -752,7 +752,7 @@ VmbusChannelRequestOffers(
 
 		goto Cleanup;
 	}
-	/* WaitEventWait(msgInfo->waitEvent); */
+	/* osd_WaitEventWait(msgInfo->waitEvent); */
 
 	/*SpinlockAcquire(gVmbusConnection.channelMsgLock);
 	REMOVE_ENTRY_LIST(&msgInfo->msgListEntry);

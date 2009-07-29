@@ -230,7 +230,7 @@ VmbusChannelOpen(
 	NewChannel->ChannelCallbackContext = Context;
 
 	/* Allocate the ring buffer */
-	out = PageAlloc((SendRingBufferSize + RecvRingBufferSize) >> PAGE_SHIFT);
+	out = osd_PageAlloc((SendRingBufferSize + RecvRingBufferSize) >> PAGE_SHIFT);
 	/* out = kzalloc(sendRingBufferSize + recvRingBufferSize, GFP_KERNEL); */
 	ASSERT(out);
 	ASSERT(((unsigned long)out & (PAGE_SIZE-1)) == 0);
@@ -268,7 +268,7 @@ VmbusChannelOpen(
 	openInfo = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_OPEN_CHANNEL), GFP_KERNEL);
 	ASSERT(openInfo != NULL);
 
-	openInfo->WaitEvent = WaitEventCreate();
+	openInfo->WaitEvent = osd_WaitEventCreate();
 
 	openMsg = (VMBUS_CHANNEL_OPEN_CHANNEL*)openInfo->Msg;
 	openMsg->Header.MessageType				= ChannelMessageOpenChannel;
@@ -299,7 +299,7 @@ VmbusChannelOpen(
 	}
 
 	/* FIXME: Need to time-out here */
-	WaitEventWait(openInfo->WaitEvent);
+	osd_WaitEventWait(openInfo->WaitEvent);
 
 	if (openInfo->Response.OpenResult.Status == 0)
 	{
@@ -547,7 +547,7 @@ VmbusChannelEstablishGpadl(
 	ASSERT(msgInfo != NULL);
 	ASSERT(msgCount >0);
 
-	msgInfo->WaitEvent = WaitEventCreate();
+	msgInfo->WaitEvent = osd_WaitEventCreate();
 	gpadlMsg = (VMBUS_CHANNEL_GPADL_HEADER*)msgInfo->Msg;
 	gpadlMsg->Header.MessageType = ChannelMessageGpadlHeader;
 	gpadlMsg->ChildRelId = Channel->OfferMsg.ChildRelId;
@@ -587,7 +587,7 @@ VmbusChannelEstablishGpadl(
 			ASSERT(ret == 0);
 		}
 	}
-	WaitEventWait(msgInfo->WaitEvent);
+	osd_WaitEventWait(msgInfo->WaitEvent);
 
 	/* At this point, we received the gpadl created msg */
 	DPRINT_DBG(VMBUS, "Received GPADL created (relid %d, status %d handle %x)",
@@ -639,7 +639,7 @@ VmbusChannelTeardownGpadl(
 	info = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_GPADL_TEARDOWN), GFP_KERNEL);
 	ASSERT(info != NULL);
 
-	info->WaitEvent = WaitEventCreate();
+	info->WaitEvent = osd_WaitEventCreate();
 
 	msg = (VMBUS_CHANNEL_GPADL_TEARDOWN*)info->Msg;
 
@@ -657,7 +657,7 @@ VmbusChannelTeardownGpadl(
 		/* TODO: */
 	}
 
-	WaitEventWait(info->WaitEvent);
+	osd_WaitEventWait(info->WaitEvent);
 
 	/* Received a torndown response */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
@@ -696,13 +696,13 @@ VmbusChannelClose(
 
 	/* Stop callback and cancel the timer asap */
 	Channel->OnChannelCallback = NULL;
-	TimerStop(Channel->PollTimer);
+	osd_TimerStop(Channel->PollTimer);
 
 	/* Send a closing message */
 	info = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_CLOSE_CHANNEL), GFP_KERNEL);
 	ASSERT(info != NULL);
 
-	/* info->waitEvent = WaitEventCreate(); */
+	/* info->waitEvent = osd_WaitEventCreate(); */
 
 	msg = (VMBUS_CHANNEL_CLOSE_CHANNEL*)info->Msg;
 	msg->Header.MessageType				= ChannelMessageCloseChannel;
@@ -726,7 +726,7 @@ VmbusChannelClose(
 	RingBufferCleanup(&Channel->Outbound);
 	RingBufferCleanup(&Channel->Inbound);
 
-	PageFree(Channel->RingBufferPages, Channel->RingBufferPageCount);
+	osd_PageFree(Channel->RingBufferPages, Channel->RingBufferPageCount);
 
 	kfree(info);
 
@@ -1154,9 +1154,9 @@ VmbusChannelOnChannelEvent(
 	DumpVmbusChannel(Channel);
 	ASSERT(Channel->OnChannelCallback);
 #ifdef ENABLE_POLLING
-	TimerStop(Channel->PollTimer);
+	osd_TimerStop(Channel->PollTimer);
 	Channel->OnChannelCallback(Channel->ChannelCallbackContext);
-	TimerStart(Channel->PollTimer, 100 /* 100us */);
+	osd_TimerStart(Channel->PollTimer, 100 /* 100us */);
 #else
 	Channel->OnChannelCallback(Channel->ChannelCallbackContext);
 #endif
@@ -1182,7 +1182,7 @@ VmbusChannelOnTimer(
 	{
 		channel->OnChannelCallback(channel->ChannelCallbackContext);
 #ifdef ENABLE_POLLING
-		TimerStart(channel->PollTimer, 100 /* 100us */);
+		osd_TimerStart(channel->PollTimer, 100 /* 100us */);
 #endif
 	}
 }

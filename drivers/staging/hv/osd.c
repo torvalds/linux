@@ -56,7 +56,7 @@ struct osd_callback_struct {
 	void *data;
 };
 
-void* VirtualAllocExec(unsigned int size)
+void *osd_VirtualAllocExec(unsigned int size)
 {
 #ifdef __x86_64__
 	return __vmalloc(size, GFP_KERNEL, PAGE_KERNEL_EXEC);
@@ -65,7 +65,7 @@ void* VirtualAllocExec(unsigned int size)
 #endif
 }
 
-void* PageAlloc(unsigned int count)
+void *osd_PageAlloc(unsigned int count)
 {
 	void *p;
 	p = (void *)__get_free_pages(GFP_KERNEL, get_order(count * PAGE_SIZE));
@@ -81,21 +81,11 @@ void* PageAlloc(unsigned int count)
 	/* return p; */
 }
 
-void PageFree(void* page, unsigned int count)
+void osd_PageFree(void* page, unsigned int count)
 {
 	free_pages((unsigned long)page, get_order(count * PAGE_SIZE));
 	/*struct page* p = virt_to_page(page);
 	__free_page(p);*/
-}
-
-void *MemMapIO(unsigned long phys, unsigned long size)
-{
-	return (void*)phys_to_virt(phys); /* return ioremap_nocache(phys, size); */
-}
-
-void MemUnmapIO(void *virt)
-{
-	/* iounmap(virt); */
 }
 
 static void TimerCallback(unsigned long data)
@@ -105,7 +95,7 @@ static void TimerCallback(unsigned long data)
 	t->callback(t->context);
 }
 
-struct osd_timer *TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context)
+struct osd_timer *osd_TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context)
 {
 	struct osd_timer *t = kmalloc(sizeof(struct osd_timer), GFP_KERNEL);
 	if (!t)
@@ -123,24 +113,24 @@ struct osd_timer *TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context)
 	return t;
 }
 
-void TimerStart(struct osd_timer *t, u32 expirationInUs)
+void osd_TimerStart(struct osd_timer *t, u32 expirationInUs)
 {
 	t->timer.expires = jiffies + usecs_to_jiffies(expirationInUs);
 	add_timer(&t->timer);
 }
 
-int TimerStop(struct osd_timer *t)
+int osd_TimerStop(struct osd_timer *t)
 {
 	return del_timer(&t->timer);
 }
 
-void TimerClose(struct osd_timer *t)
+void osd_TimerClose(struct osd_timer *t)
 {
 	del_timer(&t->timer);
 	kfree(t);
 }
 
-struct osd_waitevent *WaitEventCreate(void)
+struct osd_waitevent *osd_WaitEventCreate(void)
 {
 	struct osd_waitevent *wait = kmalloc(sizeof(struct osd_waitevent), GFP_KERNEL);
 	if (!wait)
@@ -153,13 +143,13 @@ struct osd_waitevent *WaitEventCreate(void)
 	return wait;
 }
 
-void WaitEventSet(struct osd_waitevent *waitEvent)
+void osd_WaitEventSet(struct osd_waitevent *waitEvent)
 {
 	waitEvent->condition = 1;
 	wake_up_interruptible(&waitEvent->event);
 }
 
-int WaitEventWait(struct osd_waitevent *waitEvent)
+int osd_WaitEventWait(struct osd_waitevent *waitEvent)
 {
 	int ret=0;
 
@@ -169,7 +159,7 @@ int WaitEventWait(struct osd_waitevent *waitEvent)
 	return ret;
 }
 
-int WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs)
+int osd_WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs)
 {
 	int ret=0;
 

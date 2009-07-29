@@ -68,25 +68,22 @@ struct osd_timer {
 
 /* Osd routines */
 
-extern void* VirtualAllocExec(unsigned int size);
+extern void *osd_VirtualAllocExec(unsigned int size);
 
-extern void* PageAlloc(unsigned int count);
-extern void PageFree(void* page, unsigned int count);
+extern void *osd_PageAlloc(unsigned int count);
+extern void osd_PageFree(void* page, unsigned int count);
 
-extern void* MemMapIO(unsigned long phys, unsigned long size);
-extern void MemUnmapIO(void* virt);
+extern struct osd_timer *osd_TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
+extern void osd_TimerClose(struct osd_timer *t);
+extern int osd_TimerStop(struct osd_timer *t);
+extern void osd_TimerStart(struct osd_timer *t, u32 expirationInUs);
 
-extern struct osd_timer *TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
-extern void TimerClose(struct osd_timer *t);
-extern int TimerStop(struct osd_timer *t);
-extern void TimerStart(struct osd_timer *t, u32 expirationInUs);
-
-extern struct osd_waitevent *WaitEventCreate(void);
-extern void WaitEventSet(struct osd_waitevent *waitEvent);
-extern int	WaitEventWait(struct osd_waitevent *waitEvent);
+extern struct osd_waitevent *osd_WaitEventCreate(void);
+extern void osd_WaitEventSet(struct osd_waitevent *waitEvent);
+extern int osd_WaitEventWait(struct osd_waitevent *waitEvent);
 
 /* If >0, waitEvent got signaled. If ==0, timeout. If < 0, error */
-extern int	WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs);
+extern int osd_WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs);
 
 
 int osd_schedule_callback(struct workqueue_struct *wq,

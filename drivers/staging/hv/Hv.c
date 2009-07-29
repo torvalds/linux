@@ -267,8 +267,8 @@ HvInit (
 	if (gHvContext.GuestId == HV_LINUX_GUEST_ID)
 	{
 		/* Allocate the hypercall page memory */
-		/* virtAddr = PageAlloc(1); */
-		virtAddr = VirtualAllocExec(PAGE_SIZE);
+		/* virtAddr = osd_PageAlloc(1); */
+		virtAddr = osd_VirtualAllocExec(PAGE_SIZE);
 
 		if (!virtAddr)
 		{
@@ -520,14 +520,14 @@ HvSynicInit (
 	}
 	else
 	{
-		gHvContext.synICMessagePage[0] = PageAlloc(1);
+		gHvContext.synICMessagePage[0] = osd_PageAlloc(1);
 		if (gHvContext.synICMessagePage[0] == NULL)
 		{
 			DPRINT_ERR(VMBUS, "unable to allocate SYNIC message page!!");
 			goto Cleanup;
 		}
 
-		gHvContext.synICEventPage[0] = PageAlloc(1);
+		gHvContext.synICEventPage[0] = osd_PageAlloc(1);
 		if (gHvContext.synICEventPage[0] == NULL)
 		{
 			DPRINT_ERR(VMBUS, "unable to allocate SYNIC event page!!");
@@ -587,12 +587,12 @@ Cleanup:
 	{
 		if (gHvContext.synICEventPage[0])
 		{
-			PageFree(gHvContext.synICEventPage[0],1);
+			osd_PageFree(gHvContext.synICEventPage[0],1);
 		}
 
 		if (gHvContext.synICMessagePage[0])
 		{
-			PageFree(gHvContext.synICMessagePage[0], 1);
+			osd_PageFree(gHvContext.synICMessagePage[0], 1);
 		}
 	}
 
@@ -654,8 +654,8 @@ HvSynicCleanup(
 
 		WriteMsr(HV_X64_MSR_SIEFP, siefp.AsUINT64);
 
-		PageFree(gHvContext.synICMessagePage[0], 1);
-		PageFree(gHvContext.synICEventPage[0], 1);
+		osd_PageFree(gHvContext.synICMessagePage[0], 1);
+		osd_PageFree(gHvContext.synICEventPage[0], 1);
 	}
 
 	DPRINT_EXIT(VMBUS);

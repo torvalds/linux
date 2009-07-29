@@ -244,7 +244,7 @@ static inline RNDIS_REQUEST* GetRndisRequest(RNDIS_DEVICE *Device, u32 MessageTy
 		return NULL;
 	}
 
-	request->WaitEvent = WaitEventCreate();
+	request->WaitEvent = osd_WaitEventCreate();
 	if (!request->WaitEvent)
 	{
 		kfree(request);
@@ -424,7 +424,7 @@ RndisFilterReceiveResponse(
 			}
 		}
 
-		WaitEventSet(request->WaitEvent);
+		osd_WaitEventSet(request->WaitEvent);
 	}
 	else
 	{
@@ -621,7 +621,7 @@ RndisFilterQueryDevice(
 		goto Cleanup;
 	}
 
-	WaitEventWait(request->WaitEvent);
+	osd_WaitEventWait(request->WaitEvent);
 
 	/* Copy the response back */
 	queryComplete = &request->ResponseMessage.Message.QueryComplete;
@@ -711,7 +711,7 @@ RndisFilterSetPacketFilter(
 		goto Cleanup;
 	}
 
-	ret = WaitEventWaitEx(request->WaitEvent, 2000/*2sec*/);
+	ret = osd_WaitEventWaitEx(request->WaitEvent, 2000/*2sec*/);
 	if (!ret)
 	{
 		ret = -1;
@@ -822,7 +822,7 @@ RndisFilterInitDevice(
 		goto Cleanup;
 	}
 
-	WaitEventWait(request->WaitEvent);
+	osd_WaitEventWait(request->WaitEvent);
 
 	initComplete = &request->ResponseMessage.Message.InitializeComplete;
 	status = initComplete->Status;

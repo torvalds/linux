@@ -378,7 +378,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 	/* Now, initiate the vsc/vsp initialization protocol on the open channel */
 
 	memset(request, sizeof(STORVSC_REQUEST_EXTENSION), 0);
-	request->WaitEvent = WaitEventCreate();
+	request->WaitEvent = osd_WaitEventCreate();
 
 	vstorPacket->Operation = VStorOperationBeginInitialization;
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
@@ -401,7 +401,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	WaitEventWait(request->WaitEvent);
+	osd_WaitEventWait(request->WaitEvent);
 
 	if (vstorPacket->Operation != VStorOperationCompleteIo || vstorPacket->Status != 0)
 	{
@@ -431,7 +431,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	WaitEventWait(request->WaitEvent);
+	osd_WaitEventWait(request->WaitEvent);
 
 	/* TODO: Check returned version */
 	if (vstorPacket->Operation != VStorOperationCompleteIo || vstorPacket->Status != 0)
@@ -461,7 +461,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	WaitEventWait(request->WaitEvent);
+	osd_WaitEventWait(request->WaitEvent);
 
 	/* TODO: Check returned version */
 	if (vstorPacket->Operation != VStorOperationCompleteIo || vstorPacket->Status != 0)
@@ -495,7 +495,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	WaitEventWait(request->WaitEvent);
+	osd_WaitEventWait(request->WaitEvent);
 
 	if (vstorPacket->Operation != VStorOperationCompleteIo || vstorPacket->Status != 0)
 	{
@@ -649,7 +649,7 @@ StorVscOnHostReset(
 	request = &storDevice->ResetRequest;
 	vstorPacket = &request->VStorPacket;
 
-	request->WaitEvent = WaitEventCreate();
+	request->WaitEvent = osd_WaitEventCreate();
 
     vstorPacket->Operation = VStorOperationResetBus;
     vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
@@ -668,7 +668,7 @@ StorVscOnHostReset(
 	}
 
 	/* FIXME: Add a timeout */
-	WaitEventWait(request->WaitEvent);
+	osd_WaitEventWait(request->WaitEvent);
 
 	kfree(request->WaitEvent);
 	DPRINT_INFO(STORVSC, "host adapter reset completed");
@@ -959,7 +959,7 @@ StorVscOnChannelCallback(
 
 				memcpy(&request->VStorPacket, packet, sizeof(VSTOR_PACKET));
 
-				WaitEventSet(request->WaitEvent);
+				osd_WaitEventSet(request->WaitEvent);
 			}
 			else
 			{
