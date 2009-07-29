@@ -45,8 +45,7 @@ Description:
 
 --*/
 static int
-VmbusConnect(
-	)
+VmbusConnect(void)
 {
 	int ret=0;
 	VMBUS_CHANNEL_MSGINFO *msgInfo=NULL;

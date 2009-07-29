@@ -445,8 +445,7 @@ Description:
 
 --*/
 static HV_STATUS
-HvSignalEvent(
-	)
+HvSignalEvent(void)
 {
 	HV_STATUS status;
 
