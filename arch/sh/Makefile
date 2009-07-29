@@ -216,6 +216,7 @@ archclean:
 
 define archhelp
 	@echo '  zImage 	           - Compressed kernel image'
+	@echo '  romImage	           - Compressed ROM image, if supported'
 	@echo '  vmlinux.srec	           - Create an ELF S-record'
 	@echo '* uImage  	           - Alias to bootable U-Boot image'
 	@echo '  uImage.srec	           - Create an S-record for U-Boot'
