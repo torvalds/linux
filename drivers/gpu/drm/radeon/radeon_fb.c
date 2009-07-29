@@ -602,6 +602,11 @@ int radeonfb_create(struct radeon_device *rdev,
 	info->var.width = -1;
 	info->var.xres = fb_width;
 	info->var.yres = fb_height;
+
+	/* setup aperture base/size for vesafb takeover */
+	info->aperture_base = rdev->ddev->mode_config.fb_base;
+	info->aperture_size = rdev->mc.real_vram_size;
+
 	info->fix.mmio_start = 0;
 	info->fix.mmio_len = 0;
 	info->pixmap.size = 64*1024;
