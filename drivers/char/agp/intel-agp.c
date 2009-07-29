@@ -196,6 +196,18 @@ static void intel_agp_unmap_page(struct page *page, dma_addr_t dma)
 		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 }
 
+static void intel_agp_free_sglist(struct agp_memory *mem)
+{
+
+	if (mem->sg_vmalloc_flag)
+		vfree(mem->sg_list);
+	else
+		kfree(mem->sg_list);
+	mem->sg_vmalloc_flag = 0;
+	mem->sg_list = NULL;
+	mem->num_sg = 0;
+}
+
 static int intel_agp_map_memory(struct agp_memory *mem)
 {
 	struct scatterlist *sg;
@@ -224,13 +236,8 @@ static int intel_agp_map_memory(struct agp_memory *mem)
 
 	mem->num_sg = pci_map_sg(intel_private.pcidev, mem->sg_list,
 				 mem->page_count, PCI_DMA_BIDIRECTIONAL);
-	if (!mem->num_sg) {
-		if (mem->sg_vmalloc_flag)
-			vfree(mem->sg_list);
-		else
-			kfree(mem->sg_list);
-		mem->sg_list = NULL;
-		mem->sg_vmalloc_flag = 0;
+	if (unlikely(!mem->num_sg)) {
+		intel_agp_free_sglist(mem);
 		return -ENOMEM;
 	}
 	return 0;
@@ -242,13 +249,7 @@ static void intel_agp_unmap_memory(struct agp_memory *mem)
 
 	pci_unmap_sg(intel_private.pcidev, mem->sg_list,
 		     mem->page_count, PCI_DMA_BIDIRECTIONAL);
-	if (mem->sg_vmalloc_flag)
-		vfree(mem->sg_list);
-	else
-		kfree(mem->sg_list);
-	mem->sg_vmalloc_flag = 0;
-	mem->sg_list = NULL;
-	mem->num_sg = 0;
+	intel_agp_free_sglist(mem);
 }
 
 static void intel_agp_insert_sg_entries(struct agp_memory *mem,
