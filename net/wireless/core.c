@@ -314,7 +314,8 @@ static void cfg80211_process_events(struct wireless_dev *wdev)
 				ev->cr.req_ie, ev->cr.req_ie_len,
 				ev->cr.resp_ie, ev->cr.resp_ie_len,
 				ev->cr.status,
-				ev->cr.status == WLAN_STATUS_SUCCESS);
+				ev->cr.status == WLAN_STATUS_SUCCESS,
+				NULL);
 			break;
 		case EVENT_ROAMED:
 			__cfg80211_roamed(wdev, ev->rm.bssid,
