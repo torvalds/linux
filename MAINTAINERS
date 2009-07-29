@@ -6105,8 +6105,9 @@ S:	Maintained
 F:	drivers/usb/serial/cyberjack.c
 
 USB SERIAL DIGI ACCELEPORT DRIVER
-P:	Peter Berger and Al Borchers
+P:	Peter Berger
 M:	pberger@brimson.com
+P:	Al Borchers
 M:	alborchers@steinerpoint.com
 L:	linux-usb@vger.kernel.org
 S:	Maintained
