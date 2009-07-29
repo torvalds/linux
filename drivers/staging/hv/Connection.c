@@ -60,7 +60,12 @@ VmbusConnect(void)
 
 	/* Initialize the vmbus connection */
 	gVmbusConnection.ConnectState = Connecting;
-	gVmbusConnection.WorkQueue = WorkQueueCreate("vmbusQ");
+	gVmbusConnection.WorkQueue = create_workqueue("hv_vmbus_con");
+	if (!gVmbusConnection.WorkQueue)
+	{
+		ret = -1;
+		goto Cleanup;
+	}
 
 	INITIALIZE_LIST_HEAD(&gVmbusConnection.ChannelMsgList);
 	spin_lock_init(&gVmbusConnection.channelmsg_lock);
@@ -160,7 +165,8 @@ Cleanup:
 
 	gVmbusConnection.ConnectState = Disconnected;
 
-	WorkQueueClose(gVmbusConnection.WorkQueue);
+	if (gVmbusConnection.WorkQueue)
+		destroy_workqueue(gVmbusConnection.WorkQueue);
 
 	if (gVmbusConnection.InterruptPage)
 	{
@@ -226,7 +232,7 @@ VmbusDisconnect(
 
 	/* TODO: iterate thru the msg list and free up */
 
-	WorkQueueClose(gVmbusConnection.WorkQueue);
+	destroy_workqueue(gVmbusConnection.WorkQueue);
 
 	gVmbusConnection.ConnectState = Disconnected;
 

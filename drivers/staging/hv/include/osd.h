@@ -47,7 +47,6 @@ typedef struct _DLIST_ENTRY {
 
 /* typedef unsigned char		GUID[16]; */
 
-typedef void (*PFN_WORKITEM_CALLBACK)(void* context);
 typedef void (*PFN_TIMER_CALLBACK)(void* context);
 
 
@@ -155,12 +154,8 @@ void* PageMapVirtualAddress(unsigned long Pfn);
 void PageUnmapVirtualAddress(void* VirtAddr);
 
 
-extern struct workqueue_struct *WorkQueueCreate(char* name);
-extern void WorkQueueClose(struct workqueue_struct *hWorkQueue);
-extern int WorkQueueQueueWorkItem(struct workqueue_struct *hWorkQueue,
-				  PFN_WORKITEM_CALLBACK workItem,
-				  void *context);
-
-extern void QueueWorkItem(PFN_WORKITEM_CALLBACK workItem, void* context);
+int osd_schedule_callback(struct workqueue_struct *wq,
+			  void (*func)(void *),
+			  void *data);
 
 #endif /* _OSD_H_ */

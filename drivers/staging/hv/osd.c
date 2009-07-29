@@ -50,11 +50,11 @@
 /* Data types */
 
 
-typedef struct _WORKITEM {
+struct osd_callback_struct {
 	struct work_struct work;
-	PFN_WORKITEM_CALLBACK callback;
-	void* context;
-} WORKITEM;
+	void (*callback)(void *);
+	void *data;
+};
 
 
 void BitSet(unsigned int* addr, int bit)
@@ -269,56 +269,32 @@ unsigned long Virtual2Physical(void * VirtAddr)
 	return pfn << PAGE_SHIFT;
 }
 
-static void WorkItemCallback(struct work_struct *work)
+static void osd_callback_work(struct work_struct *work)
 {
-	WORKITEM* w = (WORKITEM*)work;
+	struct osd_callback_struct *cb = container_of(work,
+						      struct osd_callback_struct,
+						      work);
+	(cb->callback)(cb->data);
 
-	w->callback(w->context);
-
-	kfree(w);
+	kfree(cb);
 }
 
-struct workqueue_struct *WorkQueueCreate(char *name)
+int osd_schedule_callback(struct workqueue_struct *wq,
+			  void (*func)(void *),
+			  void *data)
 {
-	struct workqueue_struct *wq;
-	wq = create_workqueue(name);
-	if (unlikely(!wq))
-		return NULL;
-	return wq;
-}
+	struct osd_callback_struct *cb;
 
-void WorkQueueClose(struct workqueue_struct *hWorkQueue)
-{
-	destroy_workqueue(hWorkQueue);
-	return;
-}
-
-int WorkQueueQueueWorkItem(struct workqueue_struct *hWorkQueue,
-			   PFN_WORKITEM_CALLBACK workItem,
-			   void* context)
-{
-	WORKITEM* w = kmalloc(sizeof(WORKITEM), GFP_ATOMIC);
-	if (!w)
+	cb = kmalloc(sizeof(*cb), GFP_KERNEL);
+	if (!cb)
 	{
+		printk(KERN_ERR "unable to allocate memory in osd_schedule_callback");
 		return -1;
 	}
 
-	w->callback = workItem,
-	w->context = context;
-	INIT_WORK(&w->work, WorkItemCallback);
-	return queue_work(hWorkQueue, &w->work);
+	cb->callback = func;
+	cb->data = data;
+	INIT_WORK(&cb->work, osd_callback_work);
+	return queue_work(wq, &cb->work);
 }
 
-void QueueWorkItem(PFN_WORKITEM_CALLBACK workItem, void* context)
-{
-	WORKITEM* w = kmalloc(sizeof(WORKITEM), GFP_ATOMIC);
-	if (!w)
-	{
-		return;
-	}
-
-	w->callback = workItem,
-	w->context = context;
-	INIT_WORK(&w->work, WorkItemCallback);
-	schedule_work(&w->work);
-}

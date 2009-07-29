@@ -149,7 +149,7 @@ static VMBUS_CHANNEL* AllocVmbusChannel(void)
 	}
 
 	/* channel->dataWorkQueue = WorkQueueCreate("data"); */
-	channel->ControlWQ = WorkQueueCreate("control");
+	channel->ControlWQ = create_workqueue("hv_vmbus_ctl");
 	if (!channel->ControlWQ)
 	{
 		TimerClose(channel->PollTimer);
@@ -176,7 +176,7 @@ static inline void ReleaseVmbusChannel(void* Context)
 	DPRINT_ENTER(VMBUS);
 
 	DPRINT_DBG(VMBUS, "releasing channel (%p)", channel);
-	WorkQueueClose(channel->ControlWQ);
+	destroy_workqueue(channel->ControlWQ);
 	DPRINT_DBG(VMBUS, "channel released (%p)", channel);
 
 	kfree(channel);
@@ -199,7 +199,8 @@ static void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
 
 	/* We have to release the channel's workqueue/thread in the vmbus's workqueue/thread context */
 	/* ie we can't destroy ourselves. */
-	WorkQueueQueueWorkItem(gVmbusConnection.WorkQueue, ReleaseVmbusChannel, (void*)Channel);
+	osd_schedule_callback(gVmbusConnection.WorkQueue, ReleaseVmbusChannel,
+			      (void *)Channel);
 }
 
 
@@ -389,7 +390,8 @@ VmbusChannelOnOffer(
 	newChannel->MonitorBit = (u8)offer->MonitorId % 32;
 
 	/* TODO: Make sure the offer comes from our parent partition */
-	WorkQueueQueueWorkItem(newChannel->ControlWQ, VmbusChannelProcessOffer, newChannel);
+	osd_schedule_callback(newChannel->ControlWQ, VmbusChannelProcessOffer,
+			      newChannel);
 
 	DPRINT_EXIT(VMBUS);
 }
@@ -422,7 +424,9 @@ VmbusChannelOnOfferRescind(
 		return;
 	}
 
-	WorkQueueQueueWorkItem(channel->ControlWQ, VmbusChannelProcessRescindOffer, channel);
+	osd_schedule_callback(channel->ControlWQ,
+			      VmbusChannelProcessRescindOffer,
+			      channel);
 
 	DPRINT_EXIT(VMBUS);
 }

@@ -423,7 +423,9 @@ VmbusOnMsgDPC(
 			}
 
 			memcpy(copied, msg, sizeof(HV_MESSAGE));
-			WorkQueueQueueWorkItem(gVmbusConnection.WorkQueue, VmbusOnChannelMessage, (void*)copied);
+			osd_schedule_callback(gVmbusConnection.WorkQueue,
+					      VmbusOnChannelMessage,
+					      (void *)copied);
 		}
 
 		msg->Header.MessageType = HvMessageTypeNone;
