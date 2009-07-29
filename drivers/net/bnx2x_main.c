@@ -7354,17 +7354,17 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 		for (i = 0; i < MC_HASH_SIZE; i++)
 			REG_WR(bp, MC_HASH_OFFSET(bp, i), 0);
+
+		REG_WR(bp, MISC_REG_E1HMF_MODE, 0);
 	}
 
 	if (unload_mode == UNLOAD_NORMAL)
 		reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
 
-	else if (bp->flags & NO_WOL_FLAG) {
+	else if (bp->flags & NO_WOL_FLAG)
 		reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP;
-		if (CHIP_IS_E1H(bp))
-			REG_WR(bp, MISC_REG_E1HMF_MODE, 0);
 
-	} else if (bp->wol) {
+	else if (bp->wol) {
 		u32 emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 		u8 *mac_addr = bp->dev->dev_addr;
 		u32 val;
