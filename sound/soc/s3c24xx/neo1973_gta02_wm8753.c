@@ -1,5 +1,5 @@
 /*
- * neo1973_gta02_wm8753.c  --  SoC audio for Neo1973
+ * neo1973_gta02_wm8753.c  --  SoC audio for Openmoko Freerunner(GTA02)
  *
  * Copyright 2007 Openmoko Inc
  * Author: Graeme Gregory <graeme@openmoko.org>
@@ -18,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -28,10 +29,7 @@
 #include <plat/regs-iis.h>
 
 #include <mach/regs-clock.h>
-#include <mach/regs-gpio.h>
-#include <mach/hardware.h>
 #include <asm/io.h>
-#include <mach/regs-gpioj.h>
 #include <mach/gta02.h>
 #include "../codecs/wm8753.h"
 #include "s3c24xx-pcm.h"
@@ -243,10 +241,10 @@ static int lm4853_set_spk(struct snd_kcontrol *kcontrol,
 
 	if (val) {
 		lm4853_state |= LM4853_SPK;
-		s3c2410_gpio_setpin(GTA02_GPIO_HP_IN, 0);
+		gpio_set_value(GTA02_GPIO_HP_IN, 0);
 	} else {
 		lm4853_state &= ~LM4853_SPK;
-		s3c2410_gpio_setpin(GTA02_GPIO_HP_IN, 1);
+		gpio_set_value(GTA02_GPIO_HP_IN, 1);
 	}
 
 	return 0;
@@ -264,11 +262,7 @@ static int lm4853_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k,
 			int event)
 {
-	if (SND_SOC_DAPM_EVENT_ON(event))
-		s3c2410_gpio_setpin(GTA02_GPIO_AMP_SHUT, 0);
-
-	if (SND_SOC_DAPM_EVENT_OFF(event))
-		s3c2410_gpio_setpin(GTA02_GPIO_AMP_SHUT, 1);
+	gpio_set_value(GTA02_GPIO_AMP_SHUT, SND_SOC_DAPM_EVENT_OFF(value));
 
 	return 0;
 }
@@ -453,15 +447,38 @@ static int __init neo1973_gta02_init(void)
 	}
 
 	/* Initialise GPIOs used by amp */
-	s3c2410_gpio_cfgpin(GTA02_GPIO_HP_IN, S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_cfgpin(GTA02_GPIO_AMP_SHUT, S3C2410_GPIO_OUTPUT);
+	ret = gpio_request(GTA02_GPIO_HP_IN, "GTA02_HP_IN");
+	if (ret) {
+		pr_err("gta02_wm8753: Failed to register GPIO %d\n", GTA02_GPIO_HP_IN);
+		goto err_unregister_device;
+	}
 
-	/* Amp off by default */
-	s3c2410_gpio_setpin(GTA02_GPIO_AMP_SHUT, 1);
+	ret = gpio_direction_output(GTA02_GPIO_AMP_HP_IN, 1);
+	if (ret) {
+		pr_err("gta02_wm8753: Failed to configure GPIO %d\n", GTA02_GPIO_HP_IN);
+		goto err_free_gpio_hp_in;
+	}
 
-	/* Speaker off by default */
-	s3c2410_gpio_setpin(GTA02_GPIO_HP_IN, 1);
+	ret = gpio_request(GTA02_GPIO_AMP_SHUT, "GTA02_AMP_SHUT");
+	if (ret) {
+		pr_err("gta02_wm8753: Failed to register GPIO %d\n", GTA02_GPIO_AMP_SHUT);
+		goto err_free_gpio_hp_in;
+	}
 
+	ret = gpio_direction_output(GTA02_GPIO_AMP_SHUT, 1);
+	if (ret) {
+		pr_err("gta02_wm8753: Failed to configure GPIO %d\n", GTA02_GPIO_AMP_SHUT);
+		goto err_free_gpio_amp_shut;
+	}
+
+	return 0;
+
+err_free_gpio_amp_shut:
+	gpio_free(GTA02_GPIO_AMP_SHUT);
+err_free_gpio_hp_in:
+	gpio_free(GTA02_GPIO_HP_IN);
+err_unregister_device:
+	platform_device_unregister(neo1973_gta02_snd_device);
 	return ret;
 }
 module_init(neo1973_gta02_init);
@@ -470,6 +487,8 @@ static void __exit neo1973_gta02_exit(void)
 {
 	snd_soc_unregister_dai(&bt_dai);
 	platform_device_unregister(neo1973_gta02_snd_device);
+	gpio_free(GTA02_GPIO_HP_IN);
+	gpio_free(GTA02_GPIO_AMP_SHUT);
 }
 module_exit(neo1973_gta02_exit);
 
