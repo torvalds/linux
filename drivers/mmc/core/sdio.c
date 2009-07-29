@@ -803,6 +803,8 @@ int sdio_reset_comm(struct mmc_card *card)
 	int err;
 
 	printk("%s():\n", __func__);
+	mmc_claim_host(host);
+
 	mmc_go_idle(host);
 
 	mmc_set_clock(host, host->f_min);
@@ -843,13 +845,12 @@ int sdio_reset_comm(struct mmc_card *card)
 	err = sdio_enable_wide(card);
 	if (err)
 		goto err;
-
+	mmc_release_host(host);
 	return 0;
- err:
+err:
 	printk("%s: Error resetting SDIO communications (%d)\n",
 	       mmc_hostname(host), err);
+	mmc_release_host(host);
 	return err;
 }
 EXPORT_SYMBOL(sdio_reset_comm);
-
-
