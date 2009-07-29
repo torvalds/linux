@@ -541,6 +541,17 @@ static void clear_dead_task(struct k_itimer *timer, union cpu_time_count now)
 					     now);
 }
 
+static inline int expires_gt(cputime_t expires, cputime_t new_exp)
+{
+	return cputime_eq(expires, cputime_zero) ||
+	       cputime_gt(expires, new_exp);
+}
+
+static inline int expires_le(cputime_t expires, cputime_t new_exp)
+{
+	return !cputime_eq(expires, cputime_zero) &&
+	       cputime_le(expires, new_exp);
+}
 /*
  * Insert the timer on the appropriate list before any timers that
  * expire later.  This must be called with the tasklist_lock held
@@ -585,31 +596,26 @@ static void arm_timer(struct k_itimer *timer, union cpu_time_count now)
 		 */
 
 		if (CPUCLOCK_PERTHREAD(timer->it_clock)) {
+			union cpu_time_count *exp = &nt->expires;
+
 			switch (CPUCLOCK_WHICH(timer->it_clock)) {
 			default:
 				BUG();
 			case CPUCLOCK_PROF:
-				if (cputime_eq(p->cputime_expires.prof_exp,
-					       cputime_zero) ||
-				    cputime_gt(p->cputime_expires.prof_exp,
-					       nt->expires.cpu))
-					p->cputime_expires.prof_exp =
-						nt->expires.cpu;
+				if (expires_gt(p->cputime_expires.prof_exp,
+					       exp->cpu))
+					p->cputime_expires.prof_exp = exp->cpu;
 				break;
 			case CPUCLOCK_VIRT:
-				if (cputime_eq(p->cputime_expires.virt_exp,
-					       cputime_zero) ||
-				    cputime_gt(p->cputime_expires.virt_exp,
-					       nt->expires.cpu))
-					p->cputime_expires.virt_exp =
-						nt->expires.cpu;
+				if (expires_gt(p->cputime_expires.virt_exp,
+					       exp->cpu))
+					p->cputime_expires.virt_exp = exp->cpu;
 				break;
 			case CPUCLOCK_SCHED:
 				if (p->cputime_expires.sched_exp == 0 ||
-				    p->cputime_expires.sched_exp >
-							nt->expires.sched)
+				    p->cputime_expires.sched_exp > exp->sched)
 					p->cputime_expires.sched_exp =
-						nt->expires.sched;
+								exp->sched;
 				break;
 			}
 		} else {
@@ -623,17 +629,13 @@ static void arm_timer(struct k_itimer *timer, union cpu_time_count now)
 			default:
 				BUG();
 			case CPUCLOCK_VIRT:
-				if (!cputime_eq(sig->it[CPUCLOCK_VIRT].expires,
-						cputime_zero) &&
-				    cputime_lt(sig->it[CPUCLOCK_VIRT].expires,
+				if (expires_le(sig->it[CPUCLOCK_VIRT].expires,
 					       exp->cpu))
 					break;
 				sig->cputime_expires.virt_exp = exp->cpu;
 				break;
 			case CPUCLOCK_PROF:
-				if (!cputime_eq(sig->it[CPUCLOCK_PROF].expires,
-						cputime_zero) &&
-				    cputime_lt(sig->it[CPUCLOCK_PROF].expires,
+				if (expires_le(sig->it[CPUCLOCK_PROF].expires,
 					       exp->cpu))
 					break;
 				i = sig->rlim[RLIMIT_CPU].rlim_cur;
