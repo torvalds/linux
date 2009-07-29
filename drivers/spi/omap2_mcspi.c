@@ -272,7 +272,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 
 	if (rx != NULL) {
 		omap_set_dma_transfer_params(mcspi_dma->dma_rx_channel,
-				data_type, element_count, 1,
+				data_type, element_count - 1, 1,
 				OMAP_DMA_SYNC_ELEMENT,
 				mcspi_dma->dma_rx_sync_dev, 1);
 
@@ -303,6 +303,25 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 	if (rx != NULL) {
 		wait_for_completion(&mcspi_dma->dma_rx_completion);
 		dma_unmap_single(NULL, xfer->rx_dma, count, DMA_FROM_DEVICE);
+		omap2_mcspi_set_enable(spi, 0);
+		if (likely(mcspi_read_cs_reg(spi, OMAP2_MCSPI_CHSTAT0)
+				& OMAP2_MCSPI_CHSTAT_RXS)) {
+			u32 w;
+
+			w = mcspi_read_cs_reg(spi, OMAP2_MCSPI_RX0);
+			if (word_len <= 8)
+				((u8 *)xfer->rx_buf)[element_count - 1] = w;
+			else if (word_len <= 16)
+				((u16 *)xfer->rx_buf)[element_count - 1] = w;
+			else /* word_len <= 32 */
+				((u32 *)xfer->rx_buf)[element_count - 1] = w;
+		} else {
+			dev_err(&spi->dev, "DMA RX last word empty");
+			count -= (word_len <= 8)  ? 1 :
+				 (word_len <= 16) ? 2 :
+			       /* word_len <= 32 */ 4;
+		}
+		omap2_mcspi_set_enable(spi, 1);
 	}
 	return count;
 }
