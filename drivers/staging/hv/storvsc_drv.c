@@ -64,7 +64,7 @@ struct storvsc_cmd_request {
 	unsigned int bounce_sgl_count;
 	struct scatterlist	*bounce_sgl;
 
-	STORVSC_REQUEST		request;
+	struct hv_storvsc_request request;
 	/* !!!DO NOT ADD ANYTHING BELOW HERE!!! */
 	/* The extension buffer falls right here and is pointed to by request.Extension; */
 };
@@ -388,7 +388,7 @@ Name:	storvsc_commmand_completion()
 Desc:	Command completion processing
 
 --*/
-static void storvsc_commmand_completion(STORVSC_REQUEST* request)
+static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 {
 	struct storvsc_cmd_request *cmd_request = (struct storvsc_cmd_request*)request->Context;
 	struct scsi_cmnd *scmnd = cmd_request->cmd;
@@ -667,7 +667,7 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd, void (*done)(struct scs
 	struct storvsc_driver_context *storvsc_drv_ctx = (struct storvsc_driver_context*)driver_ctx;
 	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &storvsc_drv_ctx->drv_obj;
 
-	STORVSC_REQUEST *request;
+	struct hv_storvsc_request *request;
 	struct storvsc_cmd_request *cmd_request;
 	unsigned int request_size=0;
 	int i;

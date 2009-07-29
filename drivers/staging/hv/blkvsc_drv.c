@@ -54,7 +54,7 @@ enum blkvsc_device_type {
 
 /*
  * This request ties the struct request and struct
- * blkvsc_request/STORVSC_REQUEST together A struct request may be
+ * blkvsc_request/hv_storvsc_request together A struct request may be
  * represented by 1 or more struct blkvsc_request
  */
 struct blkvsc_request_group {
@@ -85,7 +85,7 @@ struct blkvsc_request {
 	unsigned char cmd_len;
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 
-	STORVSC_REQUEST		request;
+	struct hv_storvsc_request request;
 	/* !!!DO NOT ADD ANYTHING BELOW HERE!!! Otherwise, memory can overlap, because - */
 	/* The extension buffer falls right here and is pointed to by request.Extension; */
 };
@@ -132,11 +132,11 @@ static int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg);
 static int blkvsc_ioctl(struct block_device *bd, fmode_t mode,
 			unsigned cmd, unsigned long argument);
 static void blkvsc_request(struct request_queue *queue);
-static void blkvsc_request_completion(STORVSC_REQUEST* request);
+static void blkvsc_request_completion(struct hv_storvsc_request *request);
 static int blkvsc_do_request(struct block_device_context *blkdev, struct request *req);
-static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*request_completion)(STORVSC_REQUEST*) );
+static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*request_completion)(struct hv_storvsc_request*) );
 static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req);
-static void blkvsc_cmd_completion(STORVSC_REQUEST* request);
+static void blkvsc_cmd_completion(struct hv_storvsc_request *request);
 static int blkvsc_do_inquiry(struct block_device_context *blkdev);
 static int blkvsc_do_read_capacity(struct block_device_context *blkdev);
 static int blkvsc_do_read_capacity16(struct block_device_context *blkdev);
@@ -900,7 +900,7 @@ static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req)
 	}
 }
 
-static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*request_completion)(STORVSC_REQUEST*) )
+static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*request_completion)(struct hv_storvsc_request*) )
 {
 	struct block_device_context *blkdev = blkvsc_req->dev;
 	struct device_context *device_ctx=blkdev->device_ctx;
@@ -909,7 +909,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req, void (*reque
 	STORVSC_DRIVER_OBJECT* storvsc_drv_obj = &blkvsc_drv_ctx->drv_obj;
 	int ret =0;
 
-	STORVSC_REQUEST *storvsc_req;
+	struct hv_storvsc_request *storvsc_req;
 
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - req %p type %s start_sector %lu count %ld offset %d len %d\n",
 		blkvsc_req,
@@ -1104,7 +1104,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev, struct request
 	return pending;
 }
 
-static void blkvsc_cmd_completion(STORVSC_REQUEST* request)
+static void blkvsc_cmd_completion(struct hv_storvsc_request *request)
 {
 	struct blkvsc_request *blkvsc_req=(struct blkvsc_request*)request->Context;
 	struct block_device_context *blkdev = (struct block_device_context*)blkvsc_req->dev;
@@ -1127,7 +1127,7 @@ static void blkvsc_cmd_completion(STORVSC_REQUEST* request)
 	wake_up_interruptible(&blkvsc_req->wevent);
 }
 
-static void blkvsc_request_completion(STORVSC_REQUEST* request)
+static void blkvsc_request_completion(struct hv_storvsc_request *request)
 {
 	struct blkvsc_request *blkvsc_req=(struct blkvsc_request*)request->Context;
 	struct block_device_context *blkdev = (struct block_device_context*)blkvsc_req->dev;

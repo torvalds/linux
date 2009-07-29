@@ -51,13 +51,13 @@
 /* Fwd decl */
 
 /* struct VMBUS_CHANNEL; */
-typedef struct _STORVSC_REQUEST* PSTORVSC_REQUEST;
+struct hv_storvsc_request;
 
 
 /* Data types */
 
-typedef int (*PFN_ON_IO_REQUEST)(struct hv_device *Device, PSTORVSC_REQUEST Request);
-typedef void (*PFN_ON_IO_REQUEST_COMPLTN)(PSTORVSC_REQUEST Request);
+typedef int (*PFN_ON_IO_REQUEST)(struct hv_device *Device, struct hv_storvsc_request *Request);
+typedef void (*PFN_ON_IO_REQUEST_COMPLTN)(struct hv_storvsc_request *Request);
 
 typedef int (*PFN_ON_HOST_RESET)(struct hv_device *Device);
 typedef void (*PFN_ON_HOST_RESCAN)(struct hv_device *Device);
@@ -71,7 +71,7 @@ typedef enum _STORVSC_REQUEST_TYPE{
 } STORVSC_REQUEST_TYPE;
 
 
-typedef struct _STORVSC_REQUEST {
+struct hv_storvsc_request {
 	STORVSC_REQUEST_TYPE		Type;
 	u32					Host;
 	u32					Bus;
@@ -93,7 +93,7 @@ typedef struct _STORVSC_REQUEST {
 	void *					Extension;
 
 	MULTIPAGE_BUFFER		DataBuffer;
-} STORVSC_REQUEST;
+};
 
 
 /* Represents the block vsc driver */

@@ -43,7 +43,7 @@
 typedef struct _STORVSC_REQUEST_EXTENSION {
 	/* LIST_ENTRY						ListEntry; */
 
-	STORVSC_REQUEST					*Request;
+	struct hv_storvsc_request *Request;
 	struct hv_device *Device;
 
 	/* Synchronize the request/response if needed */
@@ -108,7 +108,7 @@ StorVscOnDeviceRemove(
 static int
 StorVscOnIORequest(
 	struct hv_device *Device,
-	STORVSC_REQUEST	*Request
+	struct hv_storvsc_request *Request
 	);
 
 static int
@@ -272,7 +272,7 @@ StorVscInitialize(
 	DPRINT_ENTER(STORVSC);
 
 	DPRINT_DBG(STORVSC, "sizeof(STORVSC_REQUEST)=%zd sizeof(STORVSC_REQUEST_EXTENSION)=%zd sizeof(VSTOR_PACKET)=%zd, sizeof(VMSCSI_REQUEST)=%zd",
-		sizeof(STORVSC_REQUEST), sizeof(STORVSC_REQUEST_EXTENSION), sizeof(VSTOR_PACKET), sizeof(VMSCSI_REQUEST));
+		sizeof(struct hv_storvsc_request), sizeof(STORVSC_REQUEST_EXTENSION), sizeof(VSTOR_PACKET), sizeof(VMSCSI_REQUEST));
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
 	ASSERT(storDriver->RingBufferSize >= (PAGE_SIZE << 1));
@@ -704,7 +704,7 @@ Description:
 int
 StorVscOnIORequest(
 	struct hv_device *Device,
-	STORVSC_REQUEST	*Request
+	struct hv_storvsc_request *Request
 	)
 {
 	STORVSC_DEVICE *storDevice;
@@ -822,7 +822,7 @@ StorVscOnIOCompletion(
 	STORVSC_REQUEST_EXTENSION *RequestExt
 	)
 {
-	STORVSC_REQUEST *request;
+	struct hv_storvsc_request *request;
 	STORVSC_DEVICE *storDevice;
 
 	DPRINT_ENTER(STORVSC);
