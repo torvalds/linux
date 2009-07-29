@@ -2204,7 +2204,6 @@ F:	drivers/scsi/lpfc/
 ENE CB710 FLASH CARD READER DRIVER
 P:	Michał Mirosław
 M:	mirq-linux@rere.qmqm.pl
-L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/misc/cb710/
 F:	drivers/mmc/host/cb710-mmc.*
@@ -3480,13 +3479,11 @@ P:	Vegard Nossum
 M:	vegardno@ifi.uio.no
 P	Pekka Enberg
 M:	penberg@cs.helsinki.fi
-L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 KMEMLEAK
 P:	Catalin Marinas
 M:	catalin.marinas@arm.com
-L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/kmemleak.txt
 F:	include/linux/kmemleak.h
@@ -4306,7 +4303,6 @@ F:	drivers/video/omap/
 OMAP MMC SUPPORT
 P:	Jarkko Lavinen
 M:	jarkko.lavinen@nokia.com
-L:	linux-kernel@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/mmc/host/*omap*
@@ -4588,7 +4584,6 @@ P:	Paul Mackerras
 M:	paulus@samba.org
 P:	Ingo Molnar
 M:	mingo@elte.hu
-L:	linux-kernel@vger.kernel.org
 S:	Supported
 
 PERSONALITY HANDLING
