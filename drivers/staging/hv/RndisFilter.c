@@ -68,7 +68,7 @@ typedef struct _RNDIS_REQUEST {
 	RNDIS_MESSAGE				ResponseMessage;
 
 	/* Simplify allocation by having a netvsc packet inline */
-	NETVSC_PACKET				Packet;
+	struct hv_netvsc_packet	Packet;
 	PAGE_BUFFER					Buffer;
 	/* FIXME: We assumed a fixed size request here. */
 	RNDIS_MESSAGE				RequestMessage;
@@ -107,13 +107,13 @@ static void
 RndisFilterReceiveData(
 	RNDIS_DEVICE	*Device,
 	RNDIS_MESSAGE	*Message,
-	NETVSC_PACKET	*Packet
+	struct hv_netvsc_packet	*Packet
 	);
 
 static int
 RndisFilterOnReceive(
 	struct hv_device *Device,
-	NETVSC_PACKET		*Packet
+	struct hv_netvsc_packet	*Packet
 	);
 
 static int
@@ -184,7 +184,7 @@ RndisFilterOnClose(
 static int
 RndisFilterOnSend(
 	struct hv_device *Device,
-	NETVSC_PACKET		*Packet
+	struct hv_netvsc_packet	*Packet
 	);
 
 static void
@@ -345,7 +345,7 @@ RndisFilterSendRequest(
 	)
 {
 	int ret=0;
-	NETVSC_PACKET *packet;
+	struct hv_netvsc_packet *packet;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -458,7 +458,7 @@ static void
 RndisFilterReceiveData(
 	RNDIS_DEVICE	*Device,
 	RNDIS_MESSAGE	*Message,
-	NETVSC_PACKET	*Packet
+	struct hv_netvsc_packet	*Packet
 	)
 {
 	RNDIS_PACKET *rndisPacket;
@@ -491,7 +491,7 @@ RndisFilterReceiveData(
 static int
 RndisFilterOnReceive(
 	struct hv_device *Device,
-	NETVSC_PACKET		*Packet
+	struct hv_netvsc_packet	*Packet
 	)
 {
 	struct NETVSC_DEVICE *netDevice = (struct NETVSC_DEVICE*)Device->Extension;
@@ -1080,7 +1080,7 @@ RndisFilterOnClose(
 static int
 RndisFilterOnSend(
 	struct hv_device *Device,
-	NETVSC_PACKET		*Packet
+	struct hv_netvsc_packet	*Packet
 	)
 {
 	int ret=0;

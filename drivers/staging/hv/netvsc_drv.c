@@ -51,7 +51,7 @@ static int netvsc_remove(struct device *device);
 static int netvsc_open(struct net_device *net);
 static void netvsc_xmit_completion(void *context);
 static int netvsc_start_xmit (struct sk_buff *skb, struct net_device *net);
-static int netvsc_recv_callback(struct hv_device *device_obj, NETVSC_PACKET* Packet);
+static int netvsc_recv_callback(struct hv_device *device_obj, struct hv_netvsc_packet *Packet);
 static int netvsc_close(struct net_device *net);
 static struct net_device_stats *netvsc_get_stats(struct net_device *net);
 static void netvsc_linkstatus_callback(struct hv_device *device_obj, unsigned int status);
@@ -371,7 +371,7 @@ Desc:	Send completion processing
 --*/
 static void netvsc_xmit_completion(void *context)
 {
-	NETVSC_PACKET *packet = (NETVSC_PACKET *)context;
+	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
 	struct sk_buff *skb = (struct sk_buff *)(unsigned long)packet->Completion.Send.SendCompletionTid;
 	struct net_device* net;
 
@@ -412,7 +412,7 @@ static int netvsc_start_xmit (struct sk_buff *skb, struct net_device *net)
 	NETVSC_DRIVER_OBJECT *net_drv_obj = &net_drv_ctx->drv_obj;
 
 	int i=0;
-	NETVSC_PACKET* packet;
+	struct hv_netvsc_packet *packet;
 	int num_frags;
 	int retries=0;
 
@@ -428,14 +428,14 @@ static int netvsc_start_xmit (struct sk_buff *skb, struct net_device *net)
 	num_frags = skb_shinfo(skb)->nr_frags + 1 + net_drv_obj->AdditionalRequestPageBufferCount;
 
 	/* Allocate a netvsc packet based on # of frags. */
-	packet = kzalloc(sizeof(NETVSC_PACKET) + (num_frags * sizeof(PAGE_BUFFER)) + net_drv_obj->RequestExtSize, GFP_ATOMIC);
+	packet = kzalloc(sizeof(struct hv_netvsc_packet) + (num_frags * sizeof(PAGE_BUFFER)) + net_drv_obj->RequestExtSize, GFP_ATOMIC);
 	if (!packet)
 	{
-		DPRINT_ERR(NETVSC_DRV, "unable to allocate NETVSC_PACKET");
+		DPRINT_ERR(NETVSC_DRV, "unable to allocate hv_netvsc_packet");
 		return -1;
 	}
 
-	packet->Extension = (void*)(unsigned long)packet + sizeof(NETVSC_PACKET) + (num_frags * sizeof(PAGE_BUFFER)) ;
+	packet->Extension = (void*)(unsigned long)packet + sizeof(struct hv_netvsc_packet) + (num_frags * sizeof(PAGE_BUFFER)) ;
 
 	/* Setup the rndis header */
 	packet->PageBufferCount = num_frags;
@@ -549,7 +549,7 @@ Name:	netvsc_recv_callback()
 Desc:	Callback when we receive a packet from the "wire" on the specify device
 
 --*/
-static int netvsc_recv_callback(struct hv_device *device_obj, NETVSC_PACKET* packet)
+static int netvsc_recv_callback(struct hv_device *device_obj, struct hv_netvsc_packet *packet)
 {
 	int ret=0;
 	struct device_context *device_ctx = to_device_context(device_obj);
@@ -581,7 +581,7 @@ static int netvsc_recv_callback(struct hv_device *device_obj, NETVSC_PACKET* pac
 	/* for kmap_atomic */
 	local_irq_save(flags);
 
-	/* Copy to skb. This copy is needed here since the memory pointed by NETVSC_PACKET */
+	/* Copy to skb. This copy is needed here since the memory pointed by hv_netvsc_packet */
 	/* cannot be deallocated */
 	for (i=0; i<packet->PageBufferCount; i++)
 	{

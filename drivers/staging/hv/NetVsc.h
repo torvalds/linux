@@ -60,7 +60,7 @@ struct NETVSC_DEVICE {
 	int								RefCount;
 
 	int								NumOutstandingSends;
-	/* List of free preallocated NETVSC_PACKET to represent receive packet */
+	/* List of free preallocated hv_netvsc_packet to represent receive packet */
 	LIST_ENTRY						ReceivePacketList;
 	spinlock_t receive_packet_list_lock;
 

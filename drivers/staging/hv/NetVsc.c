@@ -93,7 +93,7 @@ NetVscOnSendCompletion(
 static int
 NetVscOnSend(
 	struct hv_device *Device,
-	NETVSC_PACKET	*Packet
+	struct hv_netvsc_packet	*Packet
 	);
 
 static void
@@ -239,8 +239,8 @@ NetVscInitialize(
 
 	DPRINT_ENTER(NETVSC);
 
-	DPRINT_DBG(NETVSC, "sizeof(NETVSC_PACKET)=%zd, sizeof(NVSP_MESSAGE)=%zd, sizeof(VMTRANSFER_PAGE_PACKET_HEADER)=%zd",
-		sizeof(NETVSC_PACKET), sizeof(NVSP_MESSAGE), sizeof(VMTRANSFER_PAGE_PACKET_HEADER));
+	DPRINT_DBG(NETVSC, "sizeof(struct hv_netvsc_packet)=%zd, sizeof(NVSP_MESSAGE)=%zd, sizeof(VMTRANSFER_PAGE_PACKET_HEADER)=%zd",
+		sizeof(struct hv_netvsc_packet), sizeof(NVSP_MESSAGE), sizeof(VMTRANSFER_PAGE_PACKET_HEADER));
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
 	ASSERT(driver->RingBufferSize >= (PAGE_SIZE << 1));
@@ -802,7 +802,7 @@ NetVscOnDeviceAdd(
 	int i;
 
 	struct NETVSC_DEVICE *netDevice;
-	NETVSC_PACKET* packet;
+	struct hv_netvsc_packet *packet;
 	LIST_ENTRY *entry;
 
 	NETVSC_DRIVER_OBJECT *netDriver = (NETVSC_DRIVER_OBJECT*) Device->Driver;;
@@ -828,7 +828,7 @@ NetVscOnDeviceAdd(
 
 	for (i=0; i < NETVSC_RECEIVE_PACKETLIST_COUNT; i++)
 	{
-		packet = kzalloc(sizeof(NETVSC_PACKET) + (NETVSC_RECEIVE_SG_COUNT* sizeof(PAGE_BUFFER)), GFP_KERNEL);
+		packet = kzalloc(sizeof(struct hv_netvsc_packet) + (NETVSC_RECEIVE_SG_COUNT* sizeof(PAGE_BUFFER)), GFP_KERNEL);
 		if (!packet)
 		{
 			DPRINT_DBG(NETVSC, "unable to allocate netvsc pkts for receive pool (wanted %d got %d)", NETVSC_RECEIVE_PACKETLIST_COUNT, i);
@@ -885,7 +885,7 @@ Cleanup:
 		while (!IsListEmpty(&netDevice->ReceivePacketList))
 		{
 			entry = REMOVE_HEAD_LIST(&netDevice->ReceivePacketList);
-			packet = CONTAINING_RECORD(entry, NETVSC_PACKET, ListEntry);
+			packet = CONTAINING_RECORD(entry, struct hv_netvsc_packet, ListEntry);
 			kfree(packet);
 		}
 
@@ -915,7 +915,7 @@ NetVscOnDeviceRemove(
 	)
 {
 	struct NETVSC_DEVICE *netDevice;
-	NETVSC_PACKET *netvscPacket;
+	struct hv_netvsc_packet *netvscPacket;
 	int ret=0;
 	LIST_ENTRY *entry;
 
@@ -958,7 +958,7 @@ NetVscOnDeviceRemove(
 	while (!IsListEmpty(&netDevice->ReceivePacketList))
 	{
 		entry = REMOVE_HEAD_LIST(&netDevice->ReceivePacketList);
-		netvscPacket = CONTAINING_RECORD(entry, NETVSC_PACKET, ListEntry);
+		netvscPacket = CONTAINING_RECORD(entry, struct hv_netvsc_packet, ListEntry);
 
 		kfree(netvscPacket);
 	}
@@ -999,7 +999,7 @@ NetVscOnSendCompletion(
 {
 	struct NETVSC_DEVICE *netDevice;
 	NVSP_MESSAGE *nvspPacket;
-	NETVSC_PACKET *nvscPacket;
+	struct hv_netvsc_packet *nvscPacket;
 
 	DPRINT_ENTER(NETVSC);
 
@@ -1026,7 +1026,7 @@ NetVscOnSendCompletion(
 	else if (nvspPacket->Header.MessageType == NvspMessage1TypeSendRNDISPacketComplete)
 	{
 		/* Get the send context */
-		nvscPacket = (NETVSC_PACKET *)(unsigned long)Packet->TransactionId;
+		nvscPacket = (struct hv_netvsc_packet *)(unsigned long)Packet->TransactionId;
 		ASSERT(nvscPacket);
 
 		/* Notify the layer above us */
@@ -1048,7 +1048,7 @@ NetVscOnSendCompletion(
 static int
 NetVscOnSend(
 	struct hv_device *Device,
-	NETVSC_PACKET *Packet
+	struct hv_netvsc_packet *Packet
 	)
 {
 	struct NETVSC_DEVICE *netDevice;
@@ -1118,7 +1118,7 @@ NetVscOnReceive(
 	struct NETVSC_DEVICE *netDevice;
 	VMTRANSFER_PAGE_PACKET_HEADER *vmxferpagePacket;
 	NVSP_MESSAGE *nvspPacket;
-	NETVSC_PACKET *netvscPacket=NULL;
+	struct hv_netvsc_packet *netvscPacket=NULL;
 	LIST_ENTRY* entry;
 	unsigned long start;
 	unsigned long end, endVirtual;
@@ -1183,7 +1183,7 @@ NetVscOnReceive(
 	while (!IsListEmpty(&netDevice->ReceivePacketList))
 	{
 		entry = REMOVE_HEAD_LIST(&netDevice->ReceivePacketList);
-		netvscPacket = CONTAINING_RECORD(entry, NETVSC_PACKET, ListEntry);
+		netvscPacket = CONTAINING_RECORD(entry, struct hv_netvsc_packet, ListEntry);
 
 		INSERT_TAIL_LIST(&listHead, &netvscPacket->ListEntry);
 
@@ -1206,7 +1206,7 @@ NetVscOnReceive(
 		for (i=count; i != 0; i--)
 		{
 			entry = REMOVE_HEAD_LIST(&listHead);
-			netvscPacket = CONTAINING_RECORD(entry, NETVSC_PACKET, ListEntry);
+			netvscPacket = CONTAINING_RECORD(entry, struct hv_netvsc_packet, ListEntry);
 
 			INSERT_TAIL_LIST(&netDevice->ReceivePacketList, &netvscPacket->ListEntry);
 		}
@@ -1233,7 +1233,7 @@ NetVscOnReceive(
 	for (i=0; i < (count - 1); i++)
 	{
 		entry = REMOVE_HEAD_LIST(&listHead);
-		netvscPacket = CONTAINING_RECORD(entry, NETVSC_PACKET, ListEntry);
+		netvscPacket = CONTAINING_RECORD(entry, struct hv_netvsc_packet, ListEntry);
 
 		/* Initialize the netvsc packet */
 		netvscPacket->XferPagePacket = xferpagePacket;
@@ -1357,7 +1357,7 @@ static void
 NetVscOnReceiveCompletion(
 	void * Context)
 {
-	NETVSC_PACKET *packet = (NETVSC_PACKET*)Context;
+	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet*)Context;
 	struct hv_device *device = (struct hv_device*)packet->Device;
 	struct NETVSC_DEVICE *netDevice;
 	u64	transactionId=0;

@@ -37,7 +37,7 @@
 
 /* Fwd declaration */
 
-typedef struct _NETVSC_PACKET	*PNETVSC_PACKET;
+struct hv_netvsc_packet;
 
 
 
@@ -48,10 +48,10 @@ typedef int (*PFN_ON_OPEN)(struct hv_device *Device);
 typedef int (*PFN_ON_CLOSE)(struct hv_device *Device);
 
 typedef void (*PFN_QUERY_LINKSTATUS)(struct hv_device *Device);
-typedef int (*PFN_ON_SEND)(struct hv_device *dev, PNETVSC_PACKET packet);
+typedef int (*PFN_ON_SEND)(struct hv_device *dev, struct hv_netvsc_packet *packet);
 typedef void (*PFN_ON_SENDRECVCOMPLETION)(void * Context);
 
-typedef int (*PFN_ON_RECVCALLBACK)(struct hv_device *dev, PNETVSC_PACKET packet);
+typedef int (*PFN_ON_RECVCALLBACK)(struct hv_device *dev, struct hv_netvsc_packet *packet);
 typedef void (*PFN_ON_LINKSTATUS_CHANGED)(struct hv_device *dev, u32 Status);
 
 /* Represent the xfer page packet which contains 1 or more netvsc packet */
@@ -70,7 +70,7 @@ typedef struct _XFERPAGE_PACKET {
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
  * within the RNDIS
  */
-typedef struct _NETVSC_PACKET {
+struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
 	DLIST_ENTRY				ListEntry;
 
@@ -104,7 +104,7 @@ typedef struct _NETVSC_PACKET {
 	u32					PageBufferCount;
 	PAGE_BUFFER				PageBuffers[NETVSC_PACKET_MAXPAGE];
 
-} NETVSC_PACKET;
+};
 
 
 /* Represents the net vsc driver */
