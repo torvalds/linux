@@ -866,10 +866,6 @@ struct ring_buffer_event *trace_buffer_lock_reserve(struct trace_array *tr,
 
 	return event;
 }
-static void ftrace_trace_stack(struct trace_array *tr,
-			       unsigned long flags, int skip, int pc);
-static void ftrace_trace_userstack(struct trace_array *tr,
-				   unsigned long flags, int pc);
 
 static inline void __trace_buffer_unlock_commit(struct trace_array *tr,
 					struct ring_buffer_event *event,
@@ -1003,11 +999,11 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
 		trace_function(tr, ip, parent_ip, flags, pc);
 }
 
+#ifdef CONFIG_STACKTRACE
 static void __ftrace_trace_stack(struct trace_array *tr,
 				 unsigned long flags,
 				 int skip, int pc)
 {
-#ifdef CONFIG_STACKTRACE
 	struct ftrace_event_call *call = &event_kernel_stack;
 	struct ring_buffer_event *event;
 	struct stack_entry *entry;
@@ -1028,12 +1024,10 @@ static void __ftrace_trace_stack(struct trace_array *tr,
 	save_stack_trace(&trace);
 	if (!filter_check_discard(call, entry, tr->buffer, event))
 		ring_buffer_unlock_commit(tr->buffer, event);
-#endif
 }
 
-static void ftrace_trace_stack(struct trace_array *tr,
-			       unsigned long flags,
-			       int skip, int pc)
+void ftrace_trace_stack(struct trace_array *tr, unsigned long flags, int skip,
+			int pc)
 {
 	if (!(trace_flags & TRACE_ITER_STACKTRACE))
 		return;
@@ -1041,17 +1035,14 @@ static void ftrace_trace_stack(struct trace_array *tr,
 	__ftrace_trace_stack(tr, flags, skip, pc);
 }
 
-void __trace_stack(struct trace_array *tr,
-		   unsigned long flags,
-		   int skip, int pc)
+void __trace_stack(struct trace_array *tr, unsigned long flags, int skip,
+		   int pc)
 {
 	__ftrace_trace_stack(tr, flags, skip, pc);
 }
 
-static void ftrace_trace_userstack(struct trace_array *tr,
-				   unsigned long flags, int pc)
+void ftrace_trace_userstack(struct trace_array *tr, unsigned long flags, int pc)
 {
-#ifdef CONFIG_STACKTRACE
 	struct ftrace_event_call *call = &event_user_stack;
 	struct ring_buffer_event *event;
 	struct userstack_entry *entry;
@@ -1076,7 +1067,6 @@ static void ftrace_trace_userstack(struct trace_array *tr,
 	save_stack_trace_user(&trace);
 	if (!filter_check_discard(call, entry, tr->buffer, event))
 		ring_buffer_unlock_commit(tr->buffer, event);
-#endif
 }
 
 #ifdef UNUSED
@@ -1085,6 +1075,8 @@ static void __trace_userstack(struct trace_array *tr, unsigned long flags)
 	ftrace_trace_userstack(tr, flags, preempt_count());
 }
 #endif /* UNUSED */
+
+#endif /* CONFIG_STACKTRACE */
 
 static void
 ftrace_trace_special(void *__tr,
