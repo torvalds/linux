@@ -231,7 +231,7 @@ HvInit (
 	int ret=0;
     int maxLeaf;
 	HV_X64_MSR_HYPERCALL_CONTENTS hypercallMsr;
-	void* virtAddr=0;
+	void *virtAddr = NULL;
 
 	DPRINT_ENTER(VMBUS);
 
@@ -426,7 +426,7 @@ HvPostMessage(
 	alignedMsg->PayloadSize = payloadSize;
 	memcpy((void*)alignedMsg->Payload, payload, payloadSize);
 
-	status = HvDoHypercall(HvCallPostMessage, alignedMsg, 0) & 0xFFFF;
+	status = HvDoHypercall(HvCallPostMessage, alignedMsg, NULL) & 0xFFFF;
 
 	kfree((void*)addr);
 
@@ -449,7 +449,7 @@ HvSignalEvent(void)
 {
 	HV_STATUS status;
 
-	status = HvDoHypercall(HvCallSignalEvent, gHvContext.SignalEventParam, 0) & 0xFFFF;
+	status = HvDoHypercall(HvCallSignalEvent, gHvContext.SignalEventParam, NULL) & 0xFFFF;
 
 	return status;
 }
