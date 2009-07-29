@@ -169,12 +169,8 @@ static const __u8 pac207_sensor_init[][8] = {
 	{0x10, 0x12, 0x0d, 0x12, 0x0c, 0x01, 0x29, 0xf0},
 	{0x00, 0x64, 0x64, 0x64, 0x04, 0x10, 0xf0, 0x30},
 	{0x00, 0x00, 0x00, 0x70, 0xa0, 0xf8, 0x00, 0x00},
-	{0x00, 0x00, 0x32, 0x00, 0x96, 0x00, 0xa2, 0x02},
 	{0x32, 0x00, 0x96, 0x00, 0xA2, 0x02, 0xaf, 0x00},
 };
-
-			/* 48 reg_72 Rate Control end BalSize_4a =0x36 */
-static const __u8 PacReg72[] = { 0x00, 0x00, 0x36, 0x00 };
 
 static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 	const u8 *buffer, u16 length)
@@ -274,7 +270,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				 * Bit_1=LED,
 				 * Bit_2=Compression test mode enable */
 	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
-	pac207_write_reg(gspca_dev, 0x11, 0x30); /* Analog Bias */
 
 	return 0;
 }
@@ -289,9 +284,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	pac207_write_regs(gspca_dev, 0x0002, pac207_sensor_init[0], 8);
 	pac207_write_regs(gspca_dev, 0x000a, pac207_sensor_init[1], 8);
 	pac207_write_regs(gspca_dev, 0x0012, pac207_sensor_init[2], 8);
-	pac207_write_regs(gspca_dev, 0x0040, pac207_sensor_init[3], 8);
-	pac207_write_regs(gspca_dev, 0x0042, pac207_sensor_init[4], 8);
-	pac207_write_regs(gspca_dev, 0x0048, PacReg72, 4);
+	pac207_write_regs(gspca_dev, 0x0042, pac207_sensor_init[3], 8);
 
 	/* Compression Balance */
 	if (gspca_dev->width == 176)
