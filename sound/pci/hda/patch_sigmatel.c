@@ -4359,6 +4359,9 @@ static int stac92xx_init(struct hda_codec *codec)
 			stac_toggle_power_map(codec, cfg->hp_pins[i], 1);
 	}
 	if (spec->auto_mic) {
+		/* initialize connection to analog input */
+		snd_hda_codec_write_cache(codec, spec->dmux_nids[0], 0,
+					  AC_VERB_SET_CONNECT_SEL, 0);
 		if (enable_pin_detect(codec, spec->ext_mic.pin, STAC_MIC_EVENT))
 			stac_issue_unsol_event(codec, spec->ext_mic.pin);
 	}
