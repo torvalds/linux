@@ -622,22 +622,27 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2861_BOARD_PLEXTOR_PX_TV100U] = {
 		.name         = "Plextor ConvertX PX-TV100U",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_TNF_5335MF,
+		.xclk         = EM28XX_XCLK_I2S_MSB_TIMING |
+				EM28XX_XCLK_FREQUENCY_12MHZ,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_TVP5150,
+		.has_msp34xx  = 1,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = pinnacle_hybrid_pro_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = pinnacle_hybrid_pro_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = pinnacle_hybrid_pro_analog,
 		} },
 	},
 
@@ -1877,9 +1882,8 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	/* request some modules */
 	switch (dev->model) {
 	case EM2861_BOARD_PLEXTOR_PX_TV100U:
-		/* FIXME guess */
-		/* Turn on analog audio output */
-		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
+		/* Sets the msp34xx I2S speed */
+		dev->i2s_speed = 2048000;
 		break;
 	case EM2861_BOARD_KWORLD_PVRTV_300U:
 	case EM2880_BOARD_KWORLD_DVB_305U:
