@@ -22,7 +22,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	/*
 	 * Handle debugger faulting in for debugee.
 	 */
-	if (current->active_mm != vma->vm_mm)
+	if (vma && current->active_mm != vma->vm_mm)
 		return;
 
 	local_irq_save(flags);
