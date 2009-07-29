@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/highmem.h>
 #include <asm/kmap_types.h>
+#include <asm/io.h>
 
 #include "include/logging.h"
 
@@ -358,7 +359,7 @@ RndisFilterSendRequest(
 	packet->TotalDataBufferLength = Request->RequestMessage.MessageLength;
 	packet->PageBufferCount = 1;
 
-	packet->PageBuffers[0].Pfn = GetPhysicalAddress(&Request->RequestMessage) >> PAGE_SHIFT;
+	packet->PageBuffers[0].Pfn = virt_to_phys(&Request->RequestMessage) >> PAGE_SHIFT;
 	packet->PageBuffers[0].Length = Request->RequestMessage.MessageLength;
 	packet->PageBuffers[0].Offset = (unsigned long)&Request->RequestMessage & (PAGE_SIZE -1);
 
@@ -1110,7 +1111,7 @@ RndisFilterOnSend(
 	rndisPacket->DataLength = Packet->TotalDataBufferLength;
 
 	Packet->IsDataPacket = true;
-	Packet->PageBuffers[0].Pfn		= GetPhysicalAddress(rndisMessage) >> PAGE_SHIFT;
+	Packet->PageBuffers[0].Pfn	= virt_to_phys(rndisMessage) >> PAGE_SHIFT;
 	Packet->PageBuffers[0].Offset	= (unsigned long)rndisMessage & (PAGE_SIZE-1);
 	Packet->PageBuffers[0].Length	= rndisMessageSize;
 

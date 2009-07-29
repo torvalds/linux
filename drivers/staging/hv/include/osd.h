@@ -89,14 +89,6 @@ extern int	WaitEventWait(struct osd_waitevent *waitEvent);
 extern int	WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs);
 
 
-#define GetVirtualAddress Physical2LogicalAddr
-void* Physical2LogicalAddr(unsigned long PhysAddr);
-
-#define GetPhysicalAddress Logical2PhysicalAddr
-unsigned long Logical2PhysicalAddr(void * LogicalAddr);
-
-unsigned long Virtual2Physical(void * VirtAddr);
-
 int osd_schedule_callback(struct workqueue_struct *wq,
 			  void (*func)(void *),
 			  void *data);

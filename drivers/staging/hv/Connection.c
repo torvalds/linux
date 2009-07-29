@@ -110,9 +110,9 @@ VmbusConnect(void)
 
 	msg->Header.MessageType = ChannelMessageInitiateContact;
 	msg->VMBusVersionRequested = VMBUS_REVISION_NUMBER;
-	msg->InterruptPage = GetPhysicalAddress(gVmbusConnection.InterruptPage);
-	msg->MonitorPage1 = GetPhysicalAddress(gVmbusConnection.MonitorPages);
-	msg->MonitorPage2 = GetPhysicalAddress((void *)((unsigned long)gVmbusConnection.MonitorPages + PAGE_SIZE));
+	msg->InterruptPage = virt_to_phys(gVmbusConnection.InterruptPage);
+	msg->MonitorPage1 = virt_to_phys(gVmbusConnection.MonitorPages);
+	msg->MonitorPage2 = virt_to_phys((void *)((unsigned long)gVmbusConnection.MonitorPages + PAGE_SIZE));
 
 	/*
 	 * Add to list before we send the request since we may

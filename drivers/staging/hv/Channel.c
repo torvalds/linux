@@ -416,7 +416,7 @@ VmbusChannelCreateGpadlHeader(
 	ASSERT( (Size & (PAGE_SIZE-1)) == 0);
 
 	pageCount = Size >> PAGE_SHIFT;
-	pfn = GetPhysicalAddress(Kbuffer) >> PAGE_SHIFT;
+	pfn = virt_to_phys(Kbuffer) >> PAGE_SHIFT;
 
 	/* do we need a gpadl body msg */
 	pfnSize = MAX_SIZE_CHANNEL_MESSAGE - sizeof(VMBUS_CHANNEL_GPADL_HEADER) - sizeof(GPA_RANGE);

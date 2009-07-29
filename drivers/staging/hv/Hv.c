@@ -22,6 +22,7 @@
  */
 
 #include <linux/vmalloc.h>
+#include <asm/io.h>
 #include "include/logging.h"
 #include "VmbusPrivate.h"
 
@@ -166,8 +167,8 @@ HvDoHypercall (
 {
 #ifdef CONFIG_X86_64
     u64 hvStatus=0;
-    u64 inputAddress = (Input)? GetPhysicalAddress(Input) : 0;
-	u64 outputAddress = (Output)? GetPhysicalAddress(Output) : 0;
+	u64 inputAddress = (Input)? virt_to_phys(Input) : 0;
+	u64 outputAddress = (Output)? virt_to_phys(Output) : 0;
     volatile void* hypercallPage = gHvContext.HypercallPage;
 
     DPRINT_DBG(VMBUS, "Hypercall <control %llx input phys %llx virt %p output phys %llx virt %p hypercall %p>",
@@ -191,10 +192,10 @@ HvDoHypercall (
     u32 controlLo = Control & 0xFFFFFFFF;
     u32 hvStatusHi = 1;
     u32 hvStatusLo = 1;
-    u64 inputAddress = (Input) ? GetPhysicalAddress(Input) : 0;
+    u64 inputAddress = (Input) ? virt_to_phys(Input) : 0;
     u32 inputAddressHi = inputAddress >> 32;
     u32 inputAddressLo = inputAddress & 0xFFFFFFFF;
-	u64 outputAddress = (Output) ?GetPhysicalAddress(Output) : 0;
+	u64 outputAddress = (Output) ? virt_to_phys(Output) : 0;
     u32 outputAddressHi = outputAddress >> 32;
     u32 outputAddressLo = outputAddress & 0xFFFFFFFF;
     volatile void* hypercallPage = gHvContext.HypercallPage;
@@ -276,8 +277,8 @@ HvInit (
 		}
 
 		hypercallMsr.Enable = 1;
-		/* hypercallMsr.GuestPhysicalAddress = Logical2PhysicalAddr(virtAddr) >> PAGE_SHIFT; */
-		hypercallMsr.GuestPhysicalAddress = Virtual2Physical(virtAddr) >> PAGE_SHIFT;
+		/* hypercallMsr.GuestPhysicalAddress = virt_to_phys(virtAddr) >> PAGE_SHIFT; */
+		hypercallMsr.GuestPhysicalAddress = vmalloc_to_pfn(virtAddr);
 		WriteMsr(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
 
 	/* Confirm that hypercall page did get setup. */
@@ -507,8 +508,8 @@ HvSynicInit (
 
 		if (guestID == HV_LINUX_GUEST_ID)
 		{
-			gHvContext.synICMessagePage[0] = GetVirtualAddress(simp.BaseSimpGpa << PAGE_SHIFT);
-			gHvContext.synICEventPage[0] = GetVirtualAddress(siefp.BaseSiefpGpa << PAGE_SHIFT);
+			gHvContext.synICMessagePage[0] = phys_to_virt(simp.BaseSimpGpa << PAGE_SHIFT);
+			gHvContext.synICEventPage[0] = phys_to_virt(siefp.BaseSiefpGpa << PAGE_SHIFT);
 		}
 		else
 		{
@@ -536,7 +537,7 @@ HvSynicInit (
 		/* Setup the Synic's message page */
 		simp.AsUINT64 = ReadMsr(HV_X64_MSR_SIMP);
 		simp.SimpEnabled = 1;
-		simp.BaseSimpGpa = GetPhysicalAddress(gHvContext.synICMessagePage[0]) >> PAGE_SHIFT;
+		simp.BaseSimpGpa = virt_to_phys(gHvContext.synICMessagePage[0]) >> PAGE_SHIFT;
 
 		DPRINT_DBG(VMBUS, "HV_X64_MSR_SIMP msr set to: %llx", simp.AsUINT64);
 
@@ -545,7 +546,7 @@ HvSynicInit (
 		/* Setup the Synic's event page */
 		siefp.AsUINT64 = ReadMsr(HV_X64_MSR_SIEFP);
 		siefp.SiefpEnabled = 1;
-		siefp.BaseSiefpGpa = GetPhysicalAddress(gHvContext.synICEventPage[0]) >> PAGE_SHIFT;
+		siefp.BaseSiefpGpa = virt_to_phys(gHvContext.synICEventPage[0]) >> PAGE_SHIFT;
 
 		DPRINT_DBG(VMBUS, "HV_X64_MSR_SIEFP msr set to: %llx", siefp.AsUINT64);
 

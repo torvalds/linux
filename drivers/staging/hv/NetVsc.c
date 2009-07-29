@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
+#include <asm/io.h>
 #include "include/logging.h"
 #include "NetVsc.h"
 #include "RndisFilter.h"
@@ -1241,13 +1242,13 @@ NetVscOnReceive(
 
 		netvscPacket->PageBuffers[0].Length = vmxferpagePacket->Ranges[i].ByteCount;
 
-		start = GetPhysicalAddress((void*)((unsigned long)netDevice->ReceiveBuffer + vmxferpagePacket->Ranges[i].ByteOffset));
+		start = virt_to_phys((void*)((unsigned long)netDevice->ReceiveBuffer + vmxferpagePacket->Ranges[i].ByteOffset));
 
 		netvscPacket->PageBuffers[0].Pfn = start >> PAGE_SHIFT;
 		endVirtual = (unsigned long)netDevice->ReceiveBuffer
 		    + vmxferpagePacket->Ranges[i].ByteOffset
 		    + vmxferpagePacket->Ranges[i].ByteCount -1;
-		end = GetPhysicalAddress((void*)endVirtual);
+		end = virt_to_phys((void*)endVirtual);
 
 		/* Calculate the page relative offset */
 		netvscPacket->PageBuffers[0].Offset = vmxferpagePacket->Ranges[i].ByteOffset & (PAGE_SIZE -1);
@@ -1266,7 +1267,7 @@ NetVscOnReceive(
 			    bytesRemain -= PAGE_SIZE;
 			}
 			netvscPacket->PageBuffers[j].Pfn =
-			    GetPhysicalAddress((void*)(endVirtual - bytesRemain)) >> PAGE_SHIFT;
+			    virt_to_phys((void*)(endVirtual - bytesRemain)) >> PAGE_SHIFT;
 			netvscPacket->PageBufferCount++;
 			if (bytesRemain == 0)
 			    break;

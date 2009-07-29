@@ -90,7 +90,7 @@ void PageFree(void* page, unsigned int count)
 
 void *MemMapIO(unsigned long phys, unsigned long size)
 {
-	return (void*)GetVirtualAddress(phys); /* return ioremap_nocache(phys, size); */
+	return (void*)phys_to_virt(phys); /* return ioremap_nocache(phys, size); */
 }
 
 void MemUnmapIO(void *virt)
@@ -178,27 +178,6 @@ int WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs)
 					       msecs_to_jiffies(TimeoutInMs));
 	waitEvent->condition = 0;
 	return ret;
-}
-
-void* Physical2LogicalAddr(unsigned long PhysAddr)
-{
-	void* logicalAddr = phys_to_virt(PhysAddr);
-	BUG_ON(!virt_addr_valid(logicalAddr));
-	return logicalAddr;
-}
-
-unsigned long Logical2PhysicalAddr(void * LogicalAddr)
-{
-	BUG_ON(!virt_addr_valid(LogicalAddr));
-	return virt_to_phys(LogicalAddr);
-}
-
-
-unsigned long Virtual2Physical(void * VirtAddr)
-{
-	unsigned long pfn = vmalloc_to_pfn(VirtAddr);
-
-	return pfn << PAGE_SHIFT;
 }
 
 static void osd_callback_work(struct work_struct *work)
