@@ -3805,6 +3805,9 @@ S: van Bronckhorststraat 12
 S: 2612 XV Delft
 S: The Netherlands
 
+N: Thomas Woller
+D: CS461x Cirrus Logic sound driver
+
 N: David Woodhouse
 E: dwmw2@infradead.org
 D: JFFS2 file system, Memory Technology Device subsystem,
