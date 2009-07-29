@@ -13,6 +13,8 @@
  *  option) any later version.
  */
 
+#include <linux/tty.h>
+
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/soc-dapm.h>
@@ -172,8 +174,7 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 		return -EINVAL;
 
 	/* hw_write and control_data pointers required for talking to the modem
-	 * are expected to be set by the machine driver's line discipline
-	 * initialization code */
+	 * are expected to be set by the line discipline initialization code */
 	if (!codec->hw_write || !codec->control_data)
 		return -EIO;
 
@@ -208,6 +209,111 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 	return 0;
 }
 
+
+/* Moved up here as line discipline referres it during initialization */
+static struct snd_soc_codec *cx20442_codec;
+
+
+/*
+ * Line discpline related code
+ *
+ * Any of the callback functions below can be used in two ways:
+ * 1) registerd by a machine driver as one of line discipline operations,
+ * 2) called from a machine's provided line discipline callback function
+ *    in case when extra machine specific code must be run as well.
+ */
+
+/* Modem init: echo off, digital speaker off, quiet off, voice mode */
+static const char *v253_init = "ate0m0q0+fclass=8\r";
+
+/* Line discipline .open() */
+static int v253_open(struct tty_struct *tty)
+{
+	struct snd_soc_codec *codec = cx20442_codec;
+	int ret, len = strlen(v253_init);
+
+	/* Doesn't make sense without write callback */
+	if (!tty->ops->write)
+		return -EINVAL;
+
+	/* Pass the codec structure address for use by other ldisc callbacks */
+	tty->disc_data = codec;
+
+	if (tty->ops->write(tty, v253_init, len) != len) {
+		ret = -EIO;
+		goto err;
+	}
+	/* Actual setup will be performed after the modem responds. */
+	return 0;
+err:
+	tty->disc_data = NULL;
+	return ret;
+}
+
+/* Line discipline .close() */
+static void v253_close(struct tty_struct *tty)
+{
+	struct snd_soc_codec *codec = tty->disc_data;
+
+	tty->disc_data = NULL;
+
+	if (!codec)
+		return;
+
+	/* Prevent the codec driver from further accessing the modem */
+	codec->hw_write = NULL;
+	codec->control_data = NULL;
+	codec->pop_time = 0;
+}
+
+/* Line discipline .hangup() */
+static int v253_hangup(struct tty_struct *tty)
+{
+	v253_close(tty);
+	return 0;
+}
+
+/* Line discipline .receive_buf() */
+static void v253_receive(struct tty_struct *tty,
+				const unsigned char *cp, char *fp, int count)
+{
+	struct snd_soc_codec *codec = tty->disc_data;
+
+	if (!codec)
+		return;
+
+	if (!codec->control_data) {
+		/* First modem response, complete setup procedure */
+
+		/* Set up codec driver access to modem controls */
+		codec->control_data = tty;
+		codec->hw_write = (hw_write_t)tty->ops->write;
+		codec->pop_time = 1;
+	}
+}
+
+/* Line discipline .write_wakeup() */
+static void v253_wakeup(struct tty_struct *tty)
+{
+}
+
+struct tty_ldisc_ops v253_ops = {
+	.magic = TTY_LDISC_MAGIC,
+	.name = "cx20442",
+	.owner = THIS_MODULE,
+	.open = v253_open,
+	.close = v253_close,
+	.hangup = v253_hangup,
+	.receive_buf = v253_receive,
+	.write_wakeup = v253_wakeup,
+};
+EXPORT_SYMBOL_GPL(v253_ops);
+
+
+/*
+ * Codec DAI
+ */
+
 struct snd_soc_dai cx20442_dai = {
 	.name = "CX20442",
 	.playback = {
@@ -226,8 +332,6 @@ struct snd_soc_dai cx20442_dai = {
 	},
 };
 EXPORT_SYMBOL_GPL(cx20442_dai);
-
-static struct snd_soc_codec *cx20442_codec;
 
 static int cx20442_codec_probe(struct platform_device *pdev)
 {
@@ -313,13 +417,13 @@ static int cx20442_register(struct cx20442_priv *cx20442)
 
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
-		dev_err(&codec->dev, "Failed to register codec: %d\n", ret);
+		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
 		goto err;
 	}
 
 	ret = snd_soc_register_dai(&cx20442_dai);
 	if (ret != 0) {
-		dev_err(&codec->dev, "Failed to register DAI: %d\n", ret);
+		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
 		goto err_codec;
 	}
 
