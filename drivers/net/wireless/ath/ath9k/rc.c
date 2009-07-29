@@ -1041,9 +1041,6 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	/* Monotonicity is kept only for rates below the current rate. */
 	if (ath_rc_priv->per[tx_rate] < last_per) {
 		for (rate = tx_rate - 1; rate >= 0; rate--) {
-			if (rate_table->info[rate].phy !=
-			    rate_table->info[tx_rate].phy)
-				break;
 
 			if (ath_rc_priv->per[rate] >
 			    ath_rc_priv->per[rate+1]) {
