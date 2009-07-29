@@ -138,10 +138,6 @@ unsigned long Logical2PhysicalAddr(void * LogicalAddr);
 
 unsigned long Virtual2Physical(void * VirtAddr);
 
-void* PageMapVirtualAddress(unsigned long Pfn);
-void PageUnmapVirtualAddress(void* VirtAddr);
-
-
 int osd_schedule_callback(struct workqueue_struct *wq,
 			  void (*func)(void *),
 			  void *data);

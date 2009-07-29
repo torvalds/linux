@@ -22,7 +22,9 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/mm.h>
+#include <linux/highmem.h>
+#include <asm/kmap_types.h>
+
 #include "include/logging.h"
 
 #include "include/NetVscApi.h"
@@ -518,7 +520,7 @@ RndisFilterOnReceive(
 		return -1;
 	}
 
-	rndisHeader = (RNDIS_MESSAGE*)PageMapVirtualAddress(Packet->PageBuffers[0].Pfn);
+	rndisHeader = (RNDIS_MESSAGE *)kmap_atomic(pfn_to_page(Packet->PageBuffers[0].Pfn), KM_IRQ0);
 
 	rndisHeader = (void*)((unsigned long)rndisHeader + Packet->PageBuffers[0].Offset);
 
@@ -528,7 +530,7 @@ RndisFilterOnReceive(
 #if 0
 	if ( Packet->TotalDataBufferLength != rndisHeader->MessageLength )
 	{
-		PageUnmapVirtualAddress((void*)(unsigned long)rndisHeader - Packet->PageBuffers[0].Offset);
+		kunmap_atomic(rndisHeader - Packet->PageBuffers[0].Offset, KM_IRQ0);
 
 		DPRINT_ERR(NETVSC, "invalid rndis message? (expected %u bytes got %u)...dropping this message!",
 			rndisHeader->MessageLength, Packet->TotalDataBufferLength);
@@ -545,7 +547,7 @@ RndisFilterOnReceive(
 
 	memcpy(&rndisMessage, rndisHeader, (rndisHeader->MessageLength > sizeof(RNDIS_MESSAGE))?sizeof(RNDIS_MESSAGE):rndisHeader->MessageLength);
 
-	PageUnmapVirtualAddress((void*)(unsigned long)rndisHeader - Packet->PageBuffers[0].Offset);
+	kunmap_atomic(rndisHeader - Packet->PageBuffers[0].Offset, KM_IRQ0);
 
 	DumpRndisMessage(&rndisMessage);
 

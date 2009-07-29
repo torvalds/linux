@@ -88,17 +88,6 @@ void PageFree(void* page, unsigned int count)
 	__free_page(p);*/
 }
 
-
-void* PageMapVirtualAddress(unsigned long Pfn)
-{
-	return kmap_atomic(pfn_to_page(Pfn), KM_IRQ0);
-}
-
-void PageUnmapVirtualAddress(void* VirtAddr)
-{
-	kunmap_atomic(VirtAddr, KM_IRQ0);
-}
-
 void *MemMapIO(unsigned long phys, unsigned long size)
 {
 	return (void*)GetVirtualAddress(phys); /* return ioremap_nocache(phys, size); */
