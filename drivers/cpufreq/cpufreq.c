@@ -858,6 +858,8 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 
 		/* Check for existing affected CPUs.
 		 * They may not be aware of it due to CPU Hotplug.
+		 * cpufreq_cpu_put is called when the device is removed
+		 * in __cpufreq_remove_dev()
 		 */
 		managed_policy = cpufreq_cpu_get(j);
 		if (unlikely(managed_policy)) {
@@ -884,7 +886,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 			ret = sysfs_create_link(&sys_dev->kobj,
 						&managed_policy->kobj,
 						"cpufreq");
-			if (!ret)
+			if (ret)
 				cpufreq_cpu_put(managed_policy);
 			/*
 			 * Success. We only needed to be added to the mask.
