@@ -1546,26 +1546,23 @@ F:	fs/cifs/
 
 COMPACTPCI HOTPLUG CORE
 P:	Scott Murray
-M:	scottm@somanetworks.com
 M:	scott@spiteful.org
 L:	linux-pci@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/pci/hotplug/cpci_hotplug*
 
 COMPACTPCI HOTPLUG ZIATECH ZT5550 DRIVER
 P:	Scott Murray
-M:	scottm@somanetworks.com
 M:	scott@spiteful.org
 L:	linux-pci@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/pci/hotplug/cpcihp_zt5550.*
 
 COMPACTPCI HOTPLUG GENERIC DRIVER
 P:	Scott Murray
-M:	scottm@somanetworks.com
 M:	scott@spiteful.org
 L:	linux-pci@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/pci/hotplug/cpcihp_generic.c
 
 COMPAL LAPTOP SUPPORT
