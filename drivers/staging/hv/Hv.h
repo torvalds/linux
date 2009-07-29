@@ -133,14 +133,14 @@ static inline unsigned long long ReadMsr(int msr)
 {
 	unsigned long long val;
 
-	RDMSR(msr, val);
+	rdmsrl(msr, val);
 
 	return val;
 }
 
 static inline void WriteMsr(int msr, u64 val)
 {
-	WRMSR(msr, val);
+	wrmsrl(msr, val);
 
 	return;
 }

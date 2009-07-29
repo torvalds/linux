@@ -66,41 +66,6 @@ struct osd_timer {
 };
 
 
-
-#ifdef __x86_64__
-
-#define RDMSR(reg, v) {                                                        \
-    u32 h, l;                                                                 \
-     __asm__ __volatile__("rdmsr"                                                               \
-    : "=a" (l), "=d" (h)                                                       \
-    : "c" (reg));                                                              \
-    v = (((u64)h) << 32) | l;                                                         \
-}
-
-#define WRMSR(reg, v) {                                                        \
-    u32 h, l;                                                               \
-    l = (u32)(((u64)(v)) & 0xFFFFFFFF);                                  \
-    h = (u32)((((u64)(v)) >> 32) & 0xFFFFFFFF);                          \
-     __asm__ __volatile__("wrmsr"                                              \
-    : /* no outputs */                                                         \
-    : "c" (reg), "a" (l), "d" (h));                                            \
-}
-
-#else
-
-#define RDMSR(reg, v) 			                                               \
-     __asm__ __volatile__("rdmsr" 	                                           \
-    : "=A" (v) 			                                                       \
-    : "c" (reg))
-
-#define WRMSR(reg, v) 			                                               \
-     __asm__ __volatile__("wrmsr" 	                                           \
-    : /* no outputs */ 				                                           \
-    : "c" (reg), "A" ((u64)v))
-
-#endif
-
-
 /* Osd routines */
 
 extern void* VirtualAllocExec(unsigned int size);
