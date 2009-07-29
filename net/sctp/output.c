@@ -234,18 +234,19 @@ static sctp_xmit_t sctp_packet_bundle_sack(struct sctp_packet *pkt,
 	if (sctp_chunk_is_data(chunk) && !pkt->has_sack &&
 	    !pkt->has_cookie_echo) {
 		struct sctp_association *asoc;
+		struct timer_list *timer;
 		asoc = pkt->transport->asoc;
+		timer = &asoc->timers[SCTP_EVENT_TIMEOUT_SACK];
 
-		if (asoc->a_rwnd > asoc->rwnd) {
+		/* If the SACK timer is running, we have a pending SACK */
+		if (timer_pending(timer)) {
 			struct sctp_chunk *sack;
 			asoc->a_rwnd = asoc->rwnd;
 			sack = sctp_make_sack(asoc);
 			if (sack) {
-				struct timer_list *timer;
 				retval = sctp_packet_append_chunk(pkt, sack);
 				asoc->peer.sack_needed = 0;
-				timer = &asoc->timers[SCTP_EVENT_TIMEOUT_SACK];
-				if (timer_pending(timer) && del_timer(timer))
+				if (del_timer(timer))
 					sctp_association_put(asoc);
 			}
 		}
