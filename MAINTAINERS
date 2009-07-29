@@ -4797,6 +4797,7 @@ F:	drivers/scsi/qla2xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
 P:	Ron Mercer
+M:	ron.mercer@qlogic.com
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
