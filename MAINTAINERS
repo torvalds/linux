@@ -2858,8 +2858,8 @@ S:	Maintained
 
 IA64 (Itanium) PLATFORM
 P:	Tony Luck
-P:	Fenghua Yu
 M:	tony.luck@intel.com
+P:	Fenghua Yu
 M:	fenghua.yu@intel.com
 L:	linux-ia64@vger.kernel.org
 W:	http://www.ia64-linux.org/
