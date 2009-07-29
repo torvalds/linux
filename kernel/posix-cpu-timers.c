@@ -1086,7 +1086,7 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 			it->error += it->incr_error;
 			if (it->error >= onecputick) {
 				it->expires = cputime_sub(it->expires,
-							jiffies_to_cputime(1));
+							  cputime_one_jiffy);
 				it->error -= onecputick;
 			}
 		} else
@@ -1461,7 +1461,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 		if (!cputime_eq(*oldval, cputime_zero)) {
 			if (cputime_le(*oldval, now.cpu)) {
 				/* Just about to fire. */
-				*oldval = jiffies_to_cputime(1);
+				*oldval = cputime_one_jiffy;
 			} else {
 				*oldval = cputime_sub(*oldval, now.cpu);
 			}
@@ -1712,7 +1712,7 @@ static __init int init_posix_cpu_timers(void)
 	register_posix_clock(CLOCK_PROCESS_CPUTIME_ID, &process);
 	register_posix_clock(CLOCK_THREAD_CPUTIME_ID, &thread);
 
-	cputime_to_timespec(jiffies_to_cputime(1), &ts);
+	cputime_to_timespec(cputime_one_jiffy, &ts);
 	onecputick = ts.tv_nsec;
 	WARN_ON(ts.tv_sec != 0);
 

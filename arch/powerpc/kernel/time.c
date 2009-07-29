@@ -193,6 +193,8 @@ EXPORT_SYMBOL(__cputime_clockt_factor);
 DEFINE_PER_CPU(unsigned long, cputime_last_delta);
 DEFINE_PER_CPU(unsigned long, cputime_scaled_last_delta);
 
+cputime_t cputime_one_jiffy;
+
 static void calc_cputime_factors(void)
 {
 	struct div_result res;
@@ -500,6 +502,7 @@ static int __init iSeries_tb_recal(void)
 				tb_to_xs = divres.result_low;
 				vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
 				vdso_data->tb_to_xs = tb_to_xs;
+				setup_cputime_one_jiffy();
 			}
 			else {
 				printk( "Titan recalibrate: FAILED (difference > 4 percent)\n"
@@ -945,6 +948,7 @@ void __init time_init(void)
 	tb_ticks_per_usec = ppc_tb_freq / 1000000;
 	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
 	calc_cputime_factors();
+	setup_cputime_one_jiffy();
 
 	/*
 	 * Calculate the length of each tick in ns.  It will not be

@@ -64,7 +64,7 @@ static void get_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 
 		if (cputime_le(cval, t))
 			/* about to fire */
-			cval = jiffies_to_cputime(1);
+			cval = cputime_one_jiffy;
 		else
 			cval = cputime_sub(cval, t);
 	}
@@ -161,7 +161,7 @@ static void set_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 	if (!cputime_eq(cval, cputime_zero) ||
 	    !cputime_eq(nval, cputime_zero)) {
 		if (cputime_gt(nval, cputime_zero))
-			nval = cputime_add(nval, jiffies_to_cputime(1));
+			nval = cputime_add(nval, cputime_one_jiffy);
 		set_process_cpu_timer(tsk, clock_id, &nval, &cval);
 	}
 	it->expires = nval;
