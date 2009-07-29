@@ -122,8 +122,8 @@ struct agp_bridge_driver {
 	int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
 	void (*chipset_flush)(struct agp_bridge_data *);
 
-	int (*agp_map_page)(void *addr, dma_addr_t *ret);
-	void (*agp_unmap_page)(void *addr, dma_addr_t dma);
+	int (*agp_map_page)(struct page *page, dma_addr_t *ret);
+	void (*agp_unmap_page)(struct page *page, dma_addr_t dma);
 	int (*agp_map_memory)(struct agp_memory *mem);
 	void (*agp_unmap_memory)(struct agp_memory *mem);
 };
@@ -139,7 +139,7 @@ struct agp_bridge_data {
 	u32 __iomem *gatt_table;
 	u32 *gatt_table_real;
 	unsigned long scratch_page;
-	unsigned long scratch_page_real;
+	struct page *scratch_page_page;
 	dma_addr_t scratch_page_dma;
 	unsigned long gart_bus_addr;
 	unsigned long gatt_bus_addr;

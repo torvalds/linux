@@ -181,19 +181,19 @@ static struct _intel_private {
 } intel_private;
 
 #ifdef USE_PCI_DMA_API
-static int intel_agp_map_page(void *addr, dma_addr_t *ret)
+static int intel_agp_map_page(struct page *page, dma_addr_t *ret)
 {
-	*ret = pci_map_single(intel_private.pcidev, addr,
-			      PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	*ret = pci_map_page(intel_private.pcidev, page, 0,
+			    PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 	if (pci_dma_mapping_error(intel_private.pcidev, *ret))
 		return -EINVAL;
 	return 0;
 }
 
-static void intel_agp_unmap_page(void *addr, dma_addr_t dma)
+static void intel_agp_unmap_page(struct page *page, dma_addr_t dma)
 {
-	pci_unmap_single(intel_private.pcidev, dma,
-			 PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	pci_unmap_page(intel_private.pcidev, dma,
+		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 }
 
 static int intel_agp_map_memory(struct agp_memory *mem)
