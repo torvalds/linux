@@ -150,8 +150,5 @@ VmbusChannelGetDebugInfo(
 	VMBUS_CHANNEL_DEBUG_INFO	*DebugInfo
 	);
 
-static void
-VmbusChannelOnTimer(
-	void		*Context
-	);
+static void VmbusChannelOnTimer(unsigned long data);
 #endif /* _CHANNEL_H_ */

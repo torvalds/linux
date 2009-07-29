@@ -34,7 +34,6 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/time.h>
@@ -86,48 +85,6 @@ void osd_PageFree(void* page, unsigned int count)
 	free_pages((unsigned long)page, get_order(count * PAGE_SIZE));
 	/*struct page* p = virt_to_page(page);
 	__free_page(p);*/
-}
-
-static void TimerCallback(unsigned long data)
-{
-	struct osd_timer *t = (struct osd_timer *) data;
-
-	t->callback(t->context);
-}
-
-struct osd_timer *osd_TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context)
-{
-	struct osd_timer *t = kmalloc(sizeof(struct osd_timer), GFP_KERNEL);
-	if (!t)
-	{
-		return NULL;
-	}
-
-	t->callback = pfnTimerCB;
-	t->context = context;
-
-	init_timer(&t->timer);
-	t->timer.data = (unsigned long)t;
-	t->timer.function = TimerCallback;
-
-	return t;
-}
-
-void osd_TimerStart(struct osd_timer *t, u32 expirationInUs)
-{
-	t->timer.expires = jiffies + usecs_to_jiffies(expirationInUs);
-	add_timer(&t->timer);
-}
-
-int osd_TimerStop(struct osd_timer *t)
-{
-	return del_timer(&t->timer);
-}
-
-void osd_TimerClose(struct osd_timer *t)
-{
-	del_timer(&t->timer);
-	kfree(t);
 }
 
 struct osd_waitevent *osd_WaitEventCreate(void)

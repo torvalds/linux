@@ -141,18 +141,14 @@ static VMBUS_CHANNEL* AllocVmbusChannel(void)
 
 	spin_lock_init(&channel->inbound_lock);
 
-	channel->PollTimer = osd_TimerCreate(VmbusChannelOnTimer, channel);
-	if (!channel->PollTimer)
-	{
-		kfree(channel);
-		return NULL;
-	}
+	init_timer(&channel->poll_timer);
+	channel->poll_timer.data = (unsigned long)channel;
+	channel->poll_timer.function = VmbusChannelOnTimer;
 
 	/* channel->dataWorkQueue = WorkQueueCreate("data"); */
 	channel->ControlWQ = create_workqueue("hv_vmbus_ctl");
 	if (!channel->ControlWQ)
 	{
-		osd_TimerClose(channel->PollTimer);
 		kfree(channel);
 		return NULL;
 	}
@@ -195,7 +191,7 @@ Description:
 --*/
 static void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
 {
-	osd_TimerClose(Channel->PollTimer);
+	del_timer(&Channel->poll_timer);
 
 	/* We have to release the channel's workqueue/thread in the vmbus's workqueue/thread context */
 	/* ie we can't destroy ourselves. */

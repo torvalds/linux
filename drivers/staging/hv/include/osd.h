@@ -47,9 +47,6 @@ typedef struct _DLIST_ENTRY {
 
 /* typedef unsigned char		GUID[16]; */
 
-typedef void (*PFN_TIMER_CALLBACK)(void* context);
-
-
 typedef struct {
 	unsigned char	Data[16];
 } GUID;
@@ -59,24 +56,12 @@ struct osd_waitevent {
 	wait_queue_head_t event;
 };
 
-struct osd_timer {
-	struct timer_list timer;
-	PFN_TIMER_CALLBACK callback;
-	void* context;
-};
-
-
 /* Osd routines */
 
 extern void *osd_VirtualAllocExec(unsigned int size);
 
 extern void *osd_PageAlloc(unsigned int count);
 extern void osd_PageFree(void* page, unsigned int count);
-
-extern struct osd_timer *osd_TimerCreate(PFN_TIMER_CALLBACK pfnTimerCB, void* context);
-extern void osd_TimerClose(struct osd_timer *t);
-extern int osd_TimerStop(struct osd_timer *t);
-extern void osd_TimerStart(struct osd_timer *t, u32 expirationInUs);
 
 extern struct osd_waitevent *osd_WaitEventCreate(void);
 extern void osd_WaitEventSet(struct osd_waitevent *waitEvent);

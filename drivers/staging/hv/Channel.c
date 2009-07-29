@@ -696,7 +696,7 @@ VmbusChannelClose(
 
 	/* Stop callback and cancel the timer asap */
 	Channel->OnChannelCallback = NULL;
-	osd_TimerStop(Channel->PollTimer);
+	del_timer(&Channel->poll_timer);
 
 	/* Send a closing message */
 	info = kmalloc(sizeof(VMBUS_CHANNEL_MSGINFO) + sizeof(VMBUS_CHANNEL_CLOSE_CHANNEL), GFP_KERNEL);
@@ -1154,9 +1154,10 @@ VmbusChannelOnChannelEvent(
 	DumpVmbusChannel(Channel);
 	ASSERT(Channel->OnChannelCallback);
 #ifdef ENABLE_POLLING
-	osd_TimerStop(Channel->PollTimer);
+	del_timer(&Channel->poll_timer);
 	Channel->OnChannelCallback(Channel->ChannelCallbackContext);
-	osd_TimerStart(Channel->PollTimer, 100 /* 100us */);
+	channel->poll_timer.expires(jiffies + usecs_to_jiffies(100);
+	add_timer(&channel->poll_timer);
 #else
 	Channel->OnChannelCallback(Channel->ChannelCallbackContext);
 #endif
@@ -1171,18 +1172,16 @@ Description:
 	Timer event callback
 
 --*/
-static void
-VmbusChannelOnTimer(
-	void		*Context
-	)
+static void VmbusChannelOnTimer(unsigned long data)
 {
-	VMBUS_CHANNEL *channel = (VMBUS_CHANNEL*)Context;
+	VMBUS_CHANNEL *channel = (VMBUS_CHANNEL*)data;
 
 	if (channel->OnChannelCallback)
 	{
 		channel->OnChannelCallback(channel->ChannelCallbackContext);
 #ifdef ENABLE_POLLING
-		osd_TimerStart(channel->PollTimer, 100 /* 100us */);
+		channel->poll_timer.expires(jiffies + usecs_to_jiffies(100);
+		add_timer(&channel->poll_timer);
 #endif
 	}
 }
