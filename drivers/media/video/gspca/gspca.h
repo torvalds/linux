@@ -69,6 +69,10 @@ typedef void (*cam_v_op) (struct gspca_dev *);
 typedef int (*cam_cf_op) (struct gspca_dev *, const struct usb_device_id *);
 typedef int (*cam_jpg_op) (struct gspca_dev *,
 				struct v4l2_jpegcompression *);
+typedef int (*cam_reg_op) (struct gspca_dev *,
+				struct v4l2_dbg_register *);
+typedef int (*cam_ident_op) (struct gspca_dev *,
+				struct v4l2_dbg_chip_ident *);
 typedef int (*cam_streamparm_op) (struct gspca_dev *,
 				  struct v4l2_streamparm *);
 typedef int (*cam_qmnu_op) (struct gspca_dev *,
@@ -105,6 +109,11 @@ struct sd_desc {
 	cam_qmnu_op querymenu;
 	cam_streamparm_op get_streamparm;
 	cam_streamparm_op set_streamparm;
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	cam_reg_op set_register;
+	cam_reg_op get_register;
+#endif
+	cam_ident_op get_chip_ident;
 };
 
 /* packet types when moving from iso buf to frame buf */

@@ -332,6 +332,7 @@ static int gluebi_create(struct ubi_device_info *di,
 	}
 
 	gluebi->vol_id = vi->vol_id;
+	gluebi->ubi_num = vi->ubi_num;
 	mtd->type = MTD_UBIVOLUME;
 	if (!di->ro_mode)
 		mtd->flags = MTD_WRITEABLE;

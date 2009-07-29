@@ -86,6 +86,7 @@ superio_exit(void)
 #define SUPERIO_REG_ACT		0x30
 #define SUPERIO_REG_BASE	0x60
 #define SUPERIO_REG_DEVID	0x20
+#define SUPERIO_REG_DEVREV	0x21
 
 /* Logical device registers */
 
@@ -429,6 +430,9 @@ static int __init smsc47m1_find(unsigned short *addr,
 	 * The LPC47M292 (device id 0x6B) is somewhat compatible, but it
 	 * supports a 3rd fan, and the pin configuration registers are
 	 * unfortunately different.
+	 * The LPC47M233 has the same device id (0x6B) but is not compatible.
+	 * We check the high bit of the device revision register to
+	 * differentiate them.
 	 */
 	switch (val) {
 	case 0x51:
@@ -448,6 +452,13 @@ static int __init smsc47m1_find(unsigned short *addr,
 		sio_data->type = smsc47m1;
 		break;
 	case 0x6B:
+		if (superio_inb(SUPERIO_REG_DEVREV) & 0x80) {
+			pr_debug(DRVNAME ": "
+				 "Found SMSC LPC47M233, unsupported\n");
+			superio_exit();
+			return -ENODEV;
+		}
+
 		pr_info(DRVNAME ": Found SMSC LPC47M292\n");
 		sio_data->type = smsc47m2;
 		break;

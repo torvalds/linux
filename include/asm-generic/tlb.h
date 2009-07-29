@@ -123,24 +123,24 @@ static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 		__tlb_remove_tlb_entry(tlb, ptep, address);	\
 	} while (0)
 
-#define pte_free_tlb(tlb, ptep)					\
+#define pte_free_tlb(tlb, ptep, address)			\
 	do {							\
 		tlb->need_flush = 1;				\
-		__pte_free_tlb(tlb, ptep);			\
+		__pte_free_tlb(tlb, ptep, address);		\
 	} while (0)
 
 #ifndef __ARCH_HAS_4LEVEL_HACK
-#define pud_free_tlb(tlb, pudp)					\
+#define pud_free_tlb(tlb, pudp, address)			\
 	do {							\
 		tlb->need_flush = 1;				\
-		__pud_free_tlb(tlb, pudp);			\
+		__pud_free_tlb(tlb, pudp, address);		\
 	} while (0)
 #endif
 
-#define pmd_free_tlb(tlb, pmdp)					\
+#define pmd_free_tlb(tlb, pmdp, address)			\
 	do {							\
 		tlb->need_flush = 1;				\
-		__pmd_free_tlb(tlb, pmdp);			\
+		__pmd_free_tlb(tlb, pmdp, address);		\
 	} while (0)
 
 #define tlb_migrate_finish(mm) do {} while (0)
