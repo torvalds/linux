@@ -1146,11 +1146,25 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	else
 		rc = 1;
 
-	/* It were not an AC97 control. Sends it to the v4l2 dev interface */
+	/* It isn't an AC97 control. Sends it to the v4l2 dev interface */
 	if (rc == 1) {
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
-		/* FIXME: should be returning a meaninful value */
-		rc = 0;
+
+		/*
+		 * In the case of non-AC97 volume controls, we still need
+		 * to do some setups at em28xx, in order to mute/unmute
+		 * and to adjust audio volume. However, the value ranges
+		 * should be checked by the corresponding V4L subdriver.
+		 */
+		switch (ctrl->id) {
+		case V4L2_CID_AUDIO_MUTE:
+			dev->mute = ctrl->value;
+			rc = em28xx_audio_analog_set(dev);
+			break;
+		case V4L2_CID_AUDIO_VOLUME:
+			dev->volume = ctrl->value;
+			rc = em28xx_audio_analog_set(dev);
+		}
 	}
 
 	mutex_unlock(&dev->lock);
