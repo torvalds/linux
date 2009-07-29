@@ -942,54 +942,6 @@ trace_function(struct trace_array *tr,
 		ring_buffer_unlock_commit(tr->buffer, event);
 }
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static int __trace_graph_entry(struct trace_array *tr,
-				struct ftrace_graph_ent *trace,
-				unsigned long flags,
-				int pc)
-{
-	struct ftrace_event_call *call = &event_funcgraph_entry;
-	struct ring_buffer_event *event;
-	struct ftrace_graph_ent_entry *entry;
-
-	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
-		return 0;
-
-	event = trace_buffer_lock_reserve(&global_trace, TRACE_GRAPH_ENT,
-					  sizeof(*entry), flags, pc);
-	if (!event)
-		return 0;
-	entry	= ring_buffer_event_data(event);
-	entry->graph_ent			= *trace;
-	if (!filter_current_check_discard(call, entry, event))
-		ring_buffer_unlock_commit(global_trace.buffer, event);
-
-	return 1;
-}
-
-static void __trace_graph_return(struct trace_array *tr,
-				struct ftrace_graph_ret *trace,
-				unsigned long flags,
-				int pc)
-{
-	struct ftrace_event_call *call = &event_funcgraph_exit;
-	struct ring_buffer_event *event;
-	struct ftrace_graph_ret_entry *entry;
-
-	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
-		return;
-
-	event = trace_buffer_lock_reserve(&global_trace, TRACE_GRAPH_RET,
-					  sizeof(*entry), flags, pc);
-	if (!event)
-		return;
-	entry	= ring_buffer_event_data(event);
-	entry->ret				= *trace;
-	if (!filter_current_check_discard(call, entry, event))
-		ring_buffer_unlock_commit(global_trace.buffer, event);
-}
-#endif
-
 void
 ftrace(struct trace_array *tr, struct trace_array_cpu *data,
        unsigned long ip, unsigned long parent_ip, unsigned long flags,
@@ -1128,68 +1080,6 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
 }
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-int trace_graph_entry(struct ftrace_graph_ent *trace)
-{
-	struct trace_array *tr = &global_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	long disabled;
-	int ret;
-	int cpu;
-	int pc;
-
-	if (!ftrace_trace_task(current))
-		return 0;
-
-	if (!ftrace_graph_addr(trace->func))
-		return 0;
-
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-	if (likely(disabled == 1)) {
-		pc = preempt_count();
-		ret = __trace_graph_entry(tr, trace, flags, pc);
-	} else {
-		ret = 0;
-	}
-	/* Only do the atomic if it is not already set */
-	if (!test_tsk_trace_graph(current))
-		set_tsk_trace_graph(current);
-
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
-
-	return ret;
-}
-
-void trace_graph_return(struct ftrace_graph_ret *trace)
-{
-	struct trace_array *tr = &global_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	long disabled;
-	int cpu;
-	int pc;
-
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-	if (likely(disabled == 1)) {
-		pc = preempt_count();
-		__trace_graph_return(tr, trace, flags, pc);
-	}
-	if (!trace->depth)
-		clear_tsk_trace_graph(current);
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
-}
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-
 
 /**
  * trace_vbprintk - write binary msg to tracing buffer
