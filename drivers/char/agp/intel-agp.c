@@ -198,39 +198,30 @@ static void intel_agp_unmap_page(struct page *page, dma_addr_t dma)
 
 static void intel_agp_free_sglist(struct agp_memory *mem)
 {
+	struct sg_table st;
 
-	if (mem->sg_vmalloc_flag)
-		vfree(mem->sg_list);
-	else
-		kfree(mem->sg_list);
-	mem->sg_vmalloc_flag = 0;
+	st.sgl = mem->sg_list;
+	st.orig_nents = st.nents = mem->page_count;
+
+	sg_free_table(&st);
+
 	mem->sg_list = NULL;
 	mem->num_sg = 0;
 }
 
 static int intel_agp_map_memory(struct agp_memory *mem)
 {
+	struct sg_table st;
 	struct scatterlist *sg;
 	int i;
 
 	DBG("try mapping %lu pages\n", (unsigned long)mem->page_count);
 
-	if ((mem->page_count * sizeof(*mem->sg_list)) < 2*PAGE_SIZE)
-		mem->sg_list = kcalloc(mem->page_count, sizeof(*mem->sg_list),
-				       GFP_KERNEL);
-
-	if (mem->sg_list == NULL) {
-		mem->sg_list = vmalloc(mem->page_count * sizeof(*mem->sg_list));
-		mem->sg_vmalloc_flag = 1;
-	}
-
-	if (!mem->sg_list) {
-		mem->sg_vmalloc_flag = 0;
+	if (sg_alloc_table(&st, mem->page_count, GFP_KERNEL))
 		return -ENOMEM;
-	}
-	sg_init_table(mem->sg_list, mem->page_count);
 
-	sg = mem->sg_list;
+	mem->sg_list = sg = st.sgl;
+
 	for (i = 0 ; i < mem->page_count; i++, sg = sg_next(sg))
 		sg_set_page(sg, mem->pages[i], PAGE_SIZE, 0);
 
