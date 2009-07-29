@@ -99,8 +99,8 @@ static struct platform_device bfin_isp1760_device = {
 #include <mach/bf54x-lq043.h>
 
 static struct bfin_bf54xfb_mach_info bf54x_lq043_data = {
-	.width =	480,
-	.height =	272,
+	.width =	95,
+	.height =	54,
 	.xres =		{480, 480, 480},
 	.yres =		{272, 272, 272},
 	.bpp =		{24, 24, 24},
