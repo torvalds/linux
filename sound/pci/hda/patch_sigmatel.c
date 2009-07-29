@@ -5481,8 +5481,6 @@ again:
 		}
 		break;
 	case 0x111d7608: /* 5 Port with Analog Mixer */
-		memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_amixer,
-		       sizeof(stac92hd71bxx_dmux_amixer));
 		spec->private_dimux.num_items--;
 		switch (spec->board_config) {
 		case STAC_HP_M4:
@@ -5505,9 +5503,15 @@ again:
 
 		/* no output amps */
 		spec->num_pwrs = 0;
-		if (snd_hda_get_bool_hint(codec, "analog_mixer") == 1)
+		if (snd_hda_get_bool_hint(codec, "analog_mixer") == 1) {
 			spec->mixer = stac92hd71bxx_analog_mixer;
-
+			memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_amixer,
+			       sizeof(stac92hd71bxx_dmux_amixer));
+		} else {
+			memcpy(&spec->private_dimux,
+			       &stac92hd71bxx_dmux_nomixer,
+			       sizeof(stac92hd71bxx_dmux_nomixer));
+		}
 		/* disable VSW */
 		spec->init = stac92hd71bxx_core_init;
 		unmute_init++;
@@ -5531,10 +5535,15 @@ again:
 		spec->num_pwrs = 0;
 		/* fallthru */
 	default:
-		memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_amixer,
-		       sizeof(stac92hd71bxx_dmux_amixer));
-		if (snd_hda_get_bool_hint(codec, "analog_mixer") == 1)
+		if (snd_hda_get_bool_hint(codec, "analog_mixer") == 1) {
 			spec->mixer = stac92hd71bxx_analog_mixer;
+			memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_amixer,
+			       sizeof(stac92hd71bxx_dmux_amixer));
+		} else {
+			memcpy(&spec->private_dimux,
+			       &stac92hd71bxx_dmux_nomixer,
+			       sizeof(stac92hd71bxx_dmux_nomixer));
+		}
 		spec->init = stac92hd71bxx_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
