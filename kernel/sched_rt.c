@@ -1056,6 +1056,11 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 	return p;
 }
 
+static inline int has_pushable_tasks(struct rq *rq)
+{
+	return !plist_head_empty(&rq->rt.pushable_tasks);
+}
+
 static struct task_struct *pick_next_task_rt(struct rq *rq)
 {
 	struct task_struct *p = _pick_next_task_rt(rq);
@@ -1063,6 +1068,12 @@ static struct task_struct *pick_next_task_rt(struct rq *rq)
 	/* The running task is never eligible for pushing */
 	if (p)
 		dequeue_pushable_task(rq, p);
+
+	/*
+	 * We detect this state here so that we can avoid taking the RQ
+	 * lock again later if there is no need to push
+	 */
+	rq->post_schedule = has_pushable_tasks(rq);
 
 	return p;
 }
@@ -1260,11 +1271,6 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 	}
 
 	return lowest_rq;
-}
-
-static inline int has_pushable_tasks(struct rq *rq)
-{
-	return !plist_head_empty(&rq->rt.pushable_tasks);
 }
 
 static struct task_struct *pick_next_pushable_task(struct rq *rq)
@@ -1466,23 +1472,9 @@ static void pre_schedule_rt(struct rq *rq, struct task_struct *prev)
 		pull_rt_task(rq);
 }
 
-/*
- * assumes rq->lock is held
- */
-static int needs_post_schedule_rt(struct rq *rq)
-{
-	return has_pushable_tasks(rq);
-}
-
 static void post_schedule_rt(struct rq *rq)
 {
-	/*
-	 * This is only called if needs_post_schedule_rt() indicates that
-	 * we need to push tasks away
-	 */
-	spin_lock_irq(&rq->lock);
 	push_rt_tasks(rq);
-	spin_unlock_irq(&rq->lock);
 }
 
 /*
@@ -1758,7 +1750,6 @@ static const struct sched_class rt_sched_class = {
 	.rq_online              = rq_online_rt,
 	.rq_offline             = rq_offline_rt,
 	.pre_schedule		= pre_schedule_rt,
-	.needs_post_schedule	= needs_post_schedule_rt,
 	.post_schedule		= post_schedule_rt,
 	.task_wake_up		= task_wake_up_rt,
 	.switched_from		= switched_from_rt,

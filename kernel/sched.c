@@ -616,6 +616,7 @@ struct rq {
 
 	unsigned char idle_at_tick;
 	/* For active balancing */
+	int post_schedule;
 	int active_balance;
 	int push_cpu;
 	/* cpu of this runqueue: */
@@ -2839,17 +2840,11 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
  * with the lock held can cause deadlocks; see schedule() for
  * details.)
  */
-static int finish_task_switch(struct rq *rq, struct task_struct *prev)
+static void finish_task_switch(struct rq *rq, struct task_struct *prev)
 	__releases(rq->lock)
 {
 	struct mm_struct *mm = rq->prev_mm;
 	long prev_state;
-	int post_schedule = 0;
-
-#ifdef CONFIG_SMP
-	if (current->sched_class->needs_post_schedule)
-		post_schedule = current->sched_class->needs_post_schedule(rq);
-#endif
 
 	rq->prev_mm = NULL;
 
@@ -2880,9 +2875,43 @@ static int finish_task_switch(struct rq *rq, struct task_struct *prev)
 		kprobe_flush_task(prev);
 		put_task_struct(prev);
 	}
-
-	return post_schedule;
 }
+
+#ifdef CONFIG_SMP
+
+/* assumes rq->lock is held */
+static inline void pre_schedule(struct rq *rq, struct task_struct *prev)
+{
+	if (prev->sched_class->pre_schedule)
+		prev->sched_class->pre_schedule(rq, prev);
+}
+
+/* rq->lock is NOT held, but preemption is disabled */
+static inline void post_schedule(struct rq *rq)
+{
+	if (rq->post_schedule) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&rq->lock, flags);
+		if (rq->curr->sched_class->post_schedule)
+			rq->curr->sched_class->post_schedule(rq);
+		spin_unlock_irqrestore(&rq->lock, flags);
+
+		rq->post_schedule = 0;
+	}
+}
+
+#else
+
+static inline void pre_schedule(struct rq *rq, struct task_struct *p)
+{
+}
+
+static inline void post_schedule(struct rq *rq)
+{
+}
+
+#endif
 
 /**
  * schedule_tail - first thing a freshly forked thread must call.
@@ -2892,14 +2921,14 @@ asmlinkage void schedule_tail(struct task_struct *prev)
 	__releases(rq->lock)
 {
 	struct rq *rq = this_rq();
-	int post_schedule;
 
-	post_schedule = finish_task_switch(rq, prev);
+	finish_task_switch(rq, prev);
 
-#ifdef CONFIG_SMP
-	if (post_schedule)
-		current->sched_class->post_schedule(rq);
-#endif
+	/*
+	 * FIXME: do we need to worry about rq being invalidated by the
+	 * task_switch?
+	 */
+	post_schedule(rq);
 
 #ifdef __ARCH_WANT_UNLOCKED_CTXSW
 	/* In this case, finish_task_switch does not reenable preemption */
@@ -2913,7 +2942,7 @@ asmlinkage void schedule_tail(struct task_struct *prev)
  * context_switch - switch to the new MM and the new
  * thread's register state.
  */
-static inline int
+static inline void
 context_switch(struct rq *rq, struct task_struct *prev,
 	       struct task_struct *next)
 {
@@ -2960,7 +2989,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	 * CPUs since it called schedule(), thus the 'rq' on its stack
 	 * frame will be invalid.
 	 */
-	return finish_task_switch(this_rq(), prev);
+	finish_task_switch(this_rq(), prev);
 }
 
 /*
@@ -5371,7 +5400,6 @@ asmlinkage void __sched schedule(void)
 {
 	struct task_struct *prev, *next;
 	unsigned long *switch_count;
-	int post_schedule = 0;
 	struct rq *rq;
 	int cpu;
 
@@ -5403,10 +5431,7 @@ need_resched_nonpreemptible:
 		switch_count = &prev->nvcsw;
 	}
 
-#ifdef CONFIG_SMP
-	if (prev->sched_class->pre_schedule)
-		prev->sched_class->pre_schedule(rq, prev);
-#endif
+	pre_schedule(rq, prev);
 
 	if (unlikely(!rq->nr_running))
 		idle_balance(cpu, rq);
@@ -5422,25 +5447,17 @@ need_resched_nonpreemptible:
 		rq->curr = next;
 		++*switch_count;
 
-		post_schedule = context_switch(rq, prev, next); /* unlocks the rq */
+		context_switch(rq, prev, next); /* unlocks the rq */
 		/*
 		 * the context switch might have flipped the stack from under
 		 * us, hence refresh the local variables.
 		 */
 		cpu = smp_processor_id();
 		rq = cpu_rq(cpu);
-	} else {
-#ifdef CONFIG_SMP
-		if (current->sched_class->needs_post_schedule)
-			post_schedule = current->sched_class->needs_post_schedule(rq);
-#endif
+	} else
 		spin_unlock_irq(&rq->lock);
-	}
 
-#ifdef CONFIG_SMP
-	if (post_schedule)
-		current->sched_class->post_schedule(rq);
-#endif
+	post_schedule(rq);
 
 	if (unlikely(reacquire_kernel_lock(current) < 0))
 		goto need_resched_nonpreemptible;
@@ -9403,6 +9420,7 @@ void __init sched_init(void)
 #ifdef CONFIG_SMP
 		rq->sd = NULL;
 		rq->rd = NULL;
+		rq->post_schedule = 0;
 		rq->active_balance = 0;
 		rq->next_balance = jiffies;
 		rq->push_cpu = 0;
