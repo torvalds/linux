@@ -1953,7 +1953,8 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_addr     = ADDR_UNSET,
 		.input          = {{
 			.type   = CX88_VMUX_DVB,
-			.vmux   = 1,
+			.vmux   = 0,
+			.gpio0  = 0x8080,
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
@@ -3211,7 +3212,11 @@ static void cx88_card_setup(struct cx88_core *core)
 	case  CX88_BOARD_PROF_6200:
 	case  CX88_BOARD_PROF_7300:
 	case  CX88_BOARD_SATTRADE_ST4200:
+		cx_write(MO_GP0_IO, 0x8000);
+		msleep(100);
 		cx_write(MO_SRST_IO, 0);
+		msleep(10);
+		cx_write(MO_GP0_IO, 0x8080);
 		msleep(100);
 		cx_write(MO_SRST_IO, 1);
 		msleep(100);
