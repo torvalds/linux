@@ -73,8 +73,8 @@ Note: For the hard of thinking, this list is meant to remain in alphabetical
 order. If you could add yourselves to it in alphabetical order that would be
 so much easier [Ed]
 
-P: Person
-M: Mail patches to
+P: Person (obsolete)
+M: Mail patches to: FullName <address@domain>
 L: Mailing list that is relevant to this area
 W: Web-page with status/info
 T: SCM tree type and location.  Type is one of: git, hg, quilt, stgit.
