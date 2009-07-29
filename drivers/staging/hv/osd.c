@@ -56,26 +56,6 @@ struct osd_callback_struct {
 	void *data;
 };
 
-int InterlockedIncrement(int *val)
-{
-	return atomic_inc_return((atomic_t*)val);
-}
-
-int InterlockedDecrement(int *val)
-{
-	return atomic_dec_return((atomic_t*)val);
-}
-
-#ifndef atomic_cmpxchg
-#define atomic_cmpxchg(v, old, new) ((int)cmpxchg(&((v)->counter), old, new))
-#endif
-int InterlockedCompareExchange(int *val, int new, int curr)
-{
-	/* return ((int)cmpxchg(((atomic_t*)val), curr, new)); */
-	return atomic_cmpxchg((atomic_t*)val, curr, new);
-
-}
-
 void* VirtualAllocExec(unsigned int size)
 {
 #ifdef __x86_64__

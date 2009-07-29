@@ -122,7 +122,7 @@ static inline struct NETVSC_DEVICE *AllocNetDevice(struct hv_device *Device)
 		return NULL;
 
 	/* Set to 2 to allow both inbound and outbound traffic */
-	InterlockedCompareExchange(&netDevice->RefCount, 2, 0);
+	atomic_cmpxchg(&netDevice->RefCount, 0, 2);
 
 	netDevice->Device = Device;
 	Device->Extension = netDevice;
@@ -132,7 +132,7 @@ static inline struct NETVSC_DEVICE *AllocNetDevice(struct hv_device *Device)
 
 static inline void FreeNetDevice(struct NETVSC_DEVICE *Device)
 {
-	ASSERT(Device->RefCount == 0);
+	ASSERT(atomic_read(&Device->RefCount) == 0);
 	Device->Device->Extension = NULL;
 	kfree(Device);
 }
@@ -144,14 +144,10 @@ static inline struct NETVSC_DEVICE *GetOutboundNetDevice(struct hv_device *Devic
 	struct NETVSC_DEVICE *netDevice;
 
 	netDevice = (struct NETVSC_DEVICE*)Device->Extension;
-	if (netDevice && netDevice->RefCount > 1)
-	{
-		InterlockedIncrement(&netDevice->RefCount);
-	}
+	if (netDevice && atomic_read(&netDevice->RefCount) > 1)
+		atomic_inc(&netDevice->RefCount);
 	else
-	{
 		netDevice = NULL;
-	}
 
 	return netDevice;
 }
@@ -162,14 +158,10 @@ static inline struct NETVSC_DEVICE *GetInboundNetDevice(struct hv_device *Device
 	struct NETVSC_DEVICE *netDevice;
 
 	netDevice = (struct NETVSC_DEVICE*)Device->Extension;
-	if (netDevice && netDevice->RefCount)
-	{
-		InterlockedIncrement(&netDevice->RefCount);
-	}
+	if (netDevice && atomic_read(&netDevice->RefCount))
+		atomic_inc(&netDevice->RefCount);
 	else
-	{
 		netDevice = NULL;
-	}
 
 	return netDevice;
 }
@@ -181,7 +173,7 @@ static inline void PutNetDevice(struct hv_device *Device)
 	netDevice = (struct NETVSC_DEVICE*)Device->Extension;
 	ASSERT(netDevice);
 
-	InterlockedDecrement(&netDevice->RefCount);
+	atomic_dec(&netDevice->RefCount);
 }
 
 static inline struct NETVSC_DEVICE *ReleaseOutboundNetDevice(struct hv_device *Device)
@@ -193,7 +185,7 @@ static inline struct NETVSC_DEVICE *ReleaseOutboundNetDevice(struct hv_device *D
 		return NULL;
 
 	/* Busy wait until the ref drop to 2, then set it to 1 */
-	while (InterlockedCompareExchange(&netDevice->RefCount, 1, 2) != 2)
+	while (atomic_cmpxchg(&netDevice->RefCount, 2, 1) != 2)
 	{
 		udelay(100);
 	}
@@ -210,7 +202,7 @@ static inline struct NETVSC_DEVICE *ReleaseInboundNetDevice(struct hv_device *De
 		return NULL;
 
 	/* Busy wait until the ref drop to 1, then set it to 0 */
-	while (InterlockedCompareExchange(&netDevice->RefCount, 0, 1) != 1)
+	while (atomic_cmpxchg(&netDevice->RefCount, 1, 0) != 1)
 	{
 		udelay(100);
 	}
@@ -932,9 +924,9 @@ NetVscOnDeviceRemove(
 	}
 
 	/* Wait for all send completions */
-	while (netDevice->NumOutstandingSends)
+	while (atomic_read(&netDevice->NumOutstandingSends))
 	{
-		DPRINT_INFO(NETVSC, "waiting for %d requests to complete...", netDevice->NumOutstandingSends);
+		DPRINT_INFO(NETVSC, "waiting for %d requests to complete...", atomic_read(&netDevice->NumOutstandingSends));
 
 		udelay(100);
 	}
@@ -1032,7 +1024,7 @@ NetVscOnSendCompletion(
 		/* Notify the layer above us */
 		nvscPacket->Completion.Send.OnSendCompletion(nvscPacket->Completion.Send.SendCompletionContext);
 
-		InterlockedDecrement(&netDevice->NumOutstandingSends);
+		atomic_dec(&netDevice->NumOutstandingSends);
 	}
 	else
 	{
@@ -1101,7 +1093,7 @@ NetVscOnSend(
 		DPRINT_ERR(NETVSC, "Unable to send packet %p ret %d", Packet, ret);
 	}
 
-	InterlockedIncrement(&netDevice->NumOutstandingSends);
+	atomic_inc(&netDevice->NumOutstandingSends);
 	PutNetDevice(Device);
 
 	DPRINT_EXIT(NETVSC);

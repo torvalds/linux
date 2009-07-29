@@ -109,10 +109,6 @@ static inline void do_cpuid(unsigned int op, unsigned int *eax, unsigned int *eb
 
 /* Osd routines */
 
-extern int InterlockedIncrement(int *val);
-extern int InterlockedDecrement(int *val);
-extern int InterlockedCompareExchange(int *val, int new, int curr);
-
 extern void* VirtualAllocExec(unsigned int size);
 extern void VirtualFree(void* VirtAddr);
 

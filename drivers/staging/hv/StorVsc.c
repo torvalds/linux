@@ -57,9 +57,9 @@ typedef struct _STORVSC_REQUEST_EXTENSION {
 typedef struct _STORVSC_DEVICE{
 	struct hv_device *Device;
 
-	int							RefCount; /* 0 indicates the device is being destroyed */
+	atomic_t RefCount; /* 0 indicates the device is being destroyed */
 
-	int							NumOutstandingRequests;
+	atomic_t NumOutstandingRequests;
 
 	/*
 	 * Each unique Port/Path/Target represents 1 channel ie scsi
@@ -155,7 +155,7 @@ static inline STORVSC_DEVICE* AllocStorDevice(struct hv_device *Device)
 
 	/* Set to 2 to allow both inbound and outbound traffics */
 	/* (ie GetStorDevice() and MustGetStorDevice()) to proceed. */
-	InterlockedCompareExchange(&storDevice->RefCount, 2, 0);
+	atomic_cmpxchg(&storDevice->RefCount, 0, 2);
 
 	storDevice->Device = Device;
 	Device->Extension = storDevice;
@@ -165,7 +165,7 @@ static inline STORVSC_DEVICE* AllocStorDevice(struct hv_device *Device)
 
 static inline void FreeStorDevice(STORVSC_DEVICE *Device)
 {
-	ASSERT(Device->RefCount == 0);
+	ASSERT( atomic_read(&Device->RefCount) == 0);
 	kfree(Device);
 }
 
@@ -175,14 +175,10 @@ static inline STORVSC_DEVICE* GetStorDevice(struct hv_device *Device)
 	STORVSC_DEVICE *storDevice;
 
 	storDevice = (STORVSC_DEVICE*)Device->Extension;
-	if (storDevice && storDevice->RefCount > 1)
-	{
-		InterlockedIncrement(&storDevice->RefCount);
-	}
+	if (storDevice && atomic_read(&storDevice->RefCount) > 1)
+		atomic_inc(&storDevice->RefCount);
 	else
-	{
 		storDevice = NULL;
-	}
 
 	return storDevice;
 }
@@ -193,14 +189,10 @@ static inline STORVSC_DEVICE* MustGetStorDevice(struct hv_device *Device)
 	STORVSC_DEVICE *storDevice;
 
 	storDevice = (STORVSC_DEVICE*)Device->Extension;
-	if (storDevice && storDevice->RefCount)
-	{
-		InterlockedIncrement(&storDevice->RefCount);
-	}
+	if (storDevice && atomic_read(&storDevice->RefCount))
+		atomic_inc(&storDevice->RefCount);
 	else
-	{
 		storDevice = NULL;
-	}
 
 	return storDevice;
 }
@@ -212,8 +204,8 @@ static inline void PutStorDevice(struct hv_device *Device)
 	storDevice = (STORVSC_DEVICE*)Device->Extension;
 	ASSERT(storDevice);
 
-	InterlockedDecrement(&storDevice->RefCount);
-	ASSERT(storDevice->RefCount);
+	atomic_dec(&storDevice->RefCount);
+	ASSERT(atomic_read(&storDevice->RefCount));
 }
 
 /* Drop ref count to 1 to effectively disable GetStorDevice() */
@@ -225,7 +217,7 @@ static inline STORVSC_DEVICE* ReleaseStorDevice(struct hv_device *Device)
 	ASSERT(storDevice);
 
 	/* Busy wait until the ref drop to 2, then set it to 1 */
-	while (InterlockedCompareExchange(&storDevice->RefCount, 1, 2) != 2)
+	while (atomic_cmpxchg(&storDevice->RefCount, 2, 1) != 2)
 	{
 		udelay(100);
 	}
@@ -242,7 +234,7 @@ static inline STORVSC_DEVICE* FinalReleaseStorDevice(struct hv_device *Device)
 	ASSERT(storDevice);
 
 	/* Busy wait until the ref drop to 1, then set it to 0 */
-	while (InterlockedCompareExchange(&storDevice->RefCount, 0, 1) != 1)
+	while (atomic_cmpxchg(&storDevice->RefCount, 1, 0) != 1)
 	{
 		udelay(100);
 	}
@@ -591,9 +583,9 @@ StorVscOnDeviceRemove(
 	 * only allow inbound traffic (responses) to proceed so that
 	 * outstanding requests can be completed.
 	 */
-	while (storDevice->NumOutstandingRequests)
+	while (atomic_read(&storDevice->NumOutstandingRequests))
 	{
-		DPRINT_INFO(STORVSC, "waiting for %d requests to complete...", storDevice->NumOutstandingRequests);
+		DPRINT_INFO(STORVSC, "waiting for %d requests to complete...", atomic_read(&storDevice->NumOutstandingRequests));
 
 		udelay(100);
 	}
@@ -788,7 +780,7 @@ StorVscOnIORequest(
 		DPRINT_DBG(STORVSC, "Unable to send packet %p ret %d", vstorPacket, ret);
 	}
 
-	InterlockedIncrement(&storDevice->NumOutstandingRequests);
+	atomic_inc(&storDevice->NumOutstandingRequests);
 
 	PutStorDevice(Device);
 
@@ -877,7 +869,7 @@ StorVscOnIOCompletion(
 
 	request->OnIOCompletion(request);
 
-	InterlockedDecrement(&storDevice->NumOutstandingRequests);
+	atomic_dec(&storDevice->NumOutstandingRequests);
 
 	PutStorDevice(Device);
 

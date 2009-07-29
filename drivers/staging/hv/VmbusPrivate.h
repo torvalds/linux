@@ -67,7 +67,7 @@ struct VMBUS_CONNECTION {
 
 	enum VMBUS_CONNECT_STATE					ConnectState;
 
-	u32								NextGpadlHandle;
+	atomic_t NextGpadlHandle;
 
 	/*
 	 * Represents channel interrupts. Each bit position represents

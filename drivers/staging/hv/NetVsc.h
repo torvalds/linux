@@ -57,9 +57,8 @@
 struct NETVSC_DEVICE {
 	struct hv_device *Device;
 
-	int								RefCount;
-
-	int								NumOutstandingSends;
+	atomic_t RefCount;
+	atomic_t NumOutstandingSends;
 	/* List of free preallocated hv_netvsc_packet to represent receive packet */
 	LIST_ENTRY						ReceivePacketList;
 	spinlock_t receive_packet_list_lock;

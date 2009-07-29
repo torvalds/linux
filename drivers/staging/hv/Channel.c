@@ -540,8 +540,8 @@ VmbusChannelEstablishGpadl(
 
 	DPRINT_ENTER(VMBUS);
 
-	nextGpadlHandle = gVmbusConnection.NextGpadlHandle;
-	InterlockedIncrement((int*)&gVmbusConnection.NextGpadlHandle);
+	nextGpadlHandle = atomic_read(&gVmbusConnection.NextGpadlHandle);
+	atomic_inc(&gVmbusConnection.NextGpadlHandle);
 
 	VmbusChannelCreateGpadlHeader(Kbuffer, Size, &msgInfo, &msgCount);
 	ASSERT(msgInfo != NULL);

@@ -50,7 +50,7 @@ typedef struct _RNDIS_DEVICE {
 
 	RNDIS_DEVICE_STATE		State;
 	u32					LinkStatus;
-	u32					NewRequestId;
+	atomic_t NewRequestId;
 
 	spinlock_t request_lock;
 	LIST_ENTRY				RequestList;
@@ -255,7 +255,7 @@ static inline RNDIS_REQUEST* GetRndisRequest(RNDIS_DEVICE *Device, u32 MessageTy
 	/* Set the request id. This field is always after the rndis header for request/response packet types so */
 	/* we just used the SetRequest as a template */
 	set = &rndisMessage->Message.SetRequest;
-	set->RequestId = InterlockedIncrement((int*)&Device->NewRequestId);
+	set->RequestId = atomic_inc_return(&Device->NewRequestId);
 
 	/* Add to the request list */
 	spin_lock_irqsave(&Device->request_lock, flags);
@@ -863,7 +863,7 @@ RndisFilterHaltDevice(
 
 	/* Setup the rndis set */
 	halt = &request->RequestMessage.Message.HaltRequest;
-	halt->RequestId = InterlockedIncrement((int*)&Device->NewRequestId);
+	halt->RequestId = atomic_inc_return(&Device->NewRequestId);
 
 	/* Ignore return since this msg is optional. */
 	RndisFilterSendRequest(Device, request);

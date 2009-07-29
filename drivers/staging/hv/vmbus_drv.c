@@ -606,7 +606,7 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj, struct
 	int ret=0;
 	struct device_context *root_device_ctx = to_device_context(root_device_obj);
 	struct device_context *child_device_ctx = to_device_context(child_device_obj);
-	static int device_num=0;
+	static atomic_t device_num = ATOMIC_INIT(0);
 
 	DPRINT_ENTER(VMBUS_DRV);
 
@@ -623,7 +623,7 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj, struct
 	}
 
 	/* Set the device bus id. Otherwise, device_register()will fail. */
-	dev_set_name(&child_device_ctx->device, "vmbus_0_%d", InterlockedIncrement(&device_num));
+	dev_set_name(&child_device_ctx->device, "vmbus_0_%d", atomic_inc_return(&device_num));
 
 	/* The new device belongs to this bus */
 	child_device_ctx->device.bus = &g_vmbus_drv.bus; /* device->dev.bus; */

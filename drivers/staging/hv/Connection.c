@@ -31,7 +31,7 @@
 
 struct VMBUS_CONNECTION gVmbusConnection = {
 	.ConnectState		= Disconnected,
-	.NextGpadlHandle	= 0xE1E10,
+	.NextGpadlHandle	= ATOMIC_INIT(0xE1E10),
 };
 
 
