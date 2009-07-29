@@ -511,7 +511,7 @@ VmbusOnISR(
 	event = (HV_SYNIC_EVENT_FLAGS*)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Since we are a child, we only need to check bit 0 */
-	if (BitTestAndClear(&event->Flags32[0], 0))
+	if (test_and_clear_bit(0, (unsigned long *) &event->Flags32[0]))
 	{
 		DPRINT_DBG(VMBUS, "received event %d", event->Flags32[0]);
 		ret |= 0x2;

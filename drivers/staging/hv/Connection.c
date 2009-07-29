@@ -358,7 +358,7 @@ VmbusOnEvents(
 			{
 				for (bit = 0; bit < 32; bit++)
 				{
-					if (BitTestAndClear(&recvInterruptPage[dword], bit))
+					if (test_and_clear_bit(bit, (unsigned long *) &recvInterruptPage[dword]))
 					{
 						relid = (dword << 5) + bit;
 
@@ -432,7 +432,9 @@ VmbusSetEvent(u32 childRelId)
 	DPRINT_ENTER(VMBUS);
 
 	/* Each u32 represents 32 channels */
-	BitSet((u32*)gVmbusConnection.SendInterruptPage + (childRelId >> 5), childRelId & 31);
+	set_bit(childRelId & 31,
+		(unsigned long *) gVmbusConnection.SendInterruptPage + (childRelId >> 5));
+
 	ret = HvSignalEvent();
 
 	DPRINT_EXIT(VMBUS);

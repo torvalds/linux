@@ -109,12 +109,6 @@ static inline void do_cpuid(unsigned int op, unsigned int *eax, unsigned int *eb
 
 /* Osd routines */
 
-extern void BitSet(unsigned int* addr, int value);
-extern void BitClear(unsigned int* addr, int value);
-extern int BitTest(unsigned int* addr, int value);
-extern int BitTestAndClear(unsigned int* addr, int value);
-extern int BitTestAndSet(unsigned int* addr, int value);
-
 extern int InterlockedIncrement(int *val);
 extern int InterlockedDecrement(int *val);
 extern int InterlockedCompareExchange(int *val, int new, int curr);

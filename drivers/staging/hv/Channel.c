@@ -104,12 +104,16 @@ VmbusChannelSetEvent(
 	if (Channel->OfferMsg.MonitorAllocated)
 	{
 		/* Each u32 represents 32 channels */
-		BitSet((u32*)gVmbusConnection.SendInterruptPage + (Channel->OfferMsg.ChildRelId >> 5), Channel->OfferMsg.ChildRelId & 31);
+		set_bit(Channel->OfferMsg.ChildRelId & 31,
+			(unsigned long *) gVmbusConnection.SendInterruptPage +
+			(Channel->OfferMsg.ChildRelId >> 5) );
 
 		monitorPage = (HV_MONITOR_PAGE*)gVmbusConnection.MonitorPages;
 		monitorPage++; /* Get the child to parent monitor page */
 
-		BitSet((u32*) &monitorPage->TriggerGroup[Channel->MonitorGroup].Pending, Channel->MonitorBit);
+		set_bit(Channel->MonitorBit,
+			(unsigned long *) &monitorPage->TriggerGroup[Channel->MonitorGroup].Pending);
+
 	}
 	else
 	{
@@ -132,12 +136,14 @@ VmbusChannelClearEvent(
 	if (Channel->OfferMsg.MonitorAllocated)
 	{
 		/* Each u32 represents 32 channels */
-		BitClear((u32*)gVmbusConnection.SendInterruptPage + (Channel->OfferMsg.ChildRelId >> 5), Channel->OfferMsg.ChildRelId & 31);
+		clear_bit(Channel->OfferMsg.ChildRelId & 31,
+			  (unsigned long *) gVmbusConnection.SendInterruptPage + (Channel->OfferMsg.ChildRelId >> 5));
 
 		monitorPage = (HV_MONITOR_PAGE*)gVmbusConnection.MonitorPages;
 		monitorPage++; /* Get the child to parent monitor page */
 
-		BitClear((u32*) &monitorPage->TriggerGroup[Channel->MonitorGroup].Pending, Channel->MonitorBit);
+		clear_bit(Channel->MonitorBit,
+			  (unsigned long *) &monitorPage->TriggerGroup[Channel->MonitorGroup].Pending);
 	}
 
 	DPRINT_EXIT(VMBUS);

@@ -56,33 +56,6 @@ struct osd_callback_struct {
 	void *data;
 };
 
-
-void BitSet(unsigned int* addr, int bit)
-{
-	set_bit(bit, (unsigned long*)addr);
-}
-
-int BitTest(unsigned int* addr, int bit)
-{
-	return test_bit(bit, (unsigned long*)addr);
-}
-
-void BitClear(unsigned int* addr, int bit)
-{
-	clear_bit(bit, (unsigned long*)addr);
-}
-
-int BitTestAndClear(unsigned int* addr, int bit)
-{
-	return test_and_clear_bit(bit, (unsigned long*)addr);
-}
-
-int BitTestAndSet(unsigned int* addr, int bit)
-{
-	return test_and_set_bit(bit, (unsigned long*)addr);
-}
-
-
 int InterlockedIncrement(int *val)
 {
 	return atomic_inc_return((atomic_t*)val);
