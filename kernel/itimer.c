@@ -42,7 +42,7 @@ static struct timeval itimer_get_remtime(struct hrtimer *timer)
 }
 
 static void get_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
-			   struct itimerval *value)
+			   struct itimerval *const value)
 {
 	cputime_t cval, cinterval;
 	struct cpu_itimer *it = &tsk->signal->it[clock_id];
@@ -127,14 +127,32 @@ enum hrtimer_restart it_real_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void set_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
-			   struct itimerval *value, struct itimerval *ovalue)
+static inline u32 cputime_sub_ns(cputime_t ct, s64 real_ns)
 {
-	cputime_t cval, cinterval, nval, ninterval;
+	struct timespec ts;
+	s64 cpu_ns;
+
+	cputime_to_timespec(ct, &ts);
+	cpu_ns = timespec_to_ns(&ts);
+
+	return (cpu_ns <= real_ns) ? 0 : cpu_ns - real_ns;
+}
+
+static void set_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
+			   const struct itimerval *const value,
+			   struct itimerval *const ovalue)
+{
+	cputime_t cval, nval, cinterval, ninterval;
+	s64 ns_ninterval, ns_nval;
 	struct cpu_itimer *it = &tsk->signal->it[clock_id];
 
 	nval = timeval_to_cputime(&value->it_value);
+	ns_nval = timeval_to_ns(&value->it_value);
 	ninterval = timeval_to_cputime(&value->it_interval);
+	ns_ninterval = timeval_to_ns(&value->it_interval);
+
+	it->incr_error = cputime_sub_ns(ninterval, ns_ninterval);
+	it->error = cputime_sub_ns(nval, ns_nval);
 
 	spin_lock_irq(&tsk->sighand->siglock);
 
