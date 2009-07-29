@@ -4788,6 +4788,7 @@ S:	Maintained
 
 QLOGIC QLA2XXX FC-SCSI DRIVER
 P:	Andrew Vasquez
+M:	andrew.vasquez@qlogic.com
 M:	linux-driver@qlogic.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
