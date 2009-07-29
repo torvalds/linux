@@ -86,7 +86,7 @@ static char *pci_bus_speed_strings[] = {
 	"66 MHz PCIX 533",	/* 0x11 */
 	"100 MHz PCIX 533",	/* 0x12 */
 	"133 MHz PCIX 533",	/* 0x13 */
-	"25 GBps PCI-E",	/* 0x14 */
+	"2.5 GT/s PCI-E",	/* 0x14 */
 };
 
 #ifdef CONFIG_HOTPLUG_PCI_CPCI
