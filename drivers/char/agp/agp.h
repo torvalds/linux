@@ -318,9 +318,6 @@ void agp3_generic_cleanup(void);
 #define AGP_GENERIC_SIZES_ENTRIES 11
 extern const struct aper_size_info_16 agp3_generic_sizes[];
 
-#define virt_to_gart(x) (phys_to_gart(virt_to_phys(x)))
-#define gart_to_virt(x) (phys_to_virt(gart_to_phys(x)))
-
 extern int agp_off;
 extern int agp_try_unsupported_boot;
 

@@ -155,7 +155,7 @@ static int serverworks_create_gatt_table(struct agp_bridge_data *bridge)
 	/* Create a fake scratch directory */
 	for (i = 0; i < 1024; i++) {
 		writel(agp_bridge->scratch_page, serverworks_private.scratch_dir.remapped+i);
-		writel(virt_to_gart(serverworks_private.scratch_dir.real) | 1, page_dir.remapped+i);
+		writel(virt_to_phys(serverworks_private.scratch_dir.real) | 1, page_dir.remapped+i);
 	}
 
 	retval = serverworks_create_gatt_pages(value->num_entries / 1024);
@@ -167,7 +167,7 @@ static int serverworks_create_gatt_table(struct agp_bridge_data *bridge)
 
 	agp_bridge->gatt_table_real = (u32 *)page_dir.real;
 	agp_bridge->gatt_table = (u32 __iomem *)page_dir.remapped;
-	agp_bridge->gatt_bus_addr = virt_to_gart(page_dir.real);
+	agp_bridge->gatt_bus_addr = virt_to_phys(page_dir.real);
 
 	/* Get the address for the gart region.
 	 * This is a bus address even on the alpha, b/c its
@@ -179,7 +179,7 @@ static int serverworks_create_gatt_table(struct agp_bridge_data *bridge)
 
 	/* Calculate the agp offset */
 	for (i = 0; i < value->num_entries / 1024; i++)
-		writel(virt_to_gart(serverworks_private.gatt_pages[i]->real)|1, page_dir.remapped+i);
+		writel(virt_to_phys(serverworks_private.gatt_pages[i]->real)|1, page_dir.remapped+i);
 
 	return 0;
 }
@@ -350,7 +350,7 @@ static int serverworks_insert_memory(struct agp_memory *mem,
 		addr = (j * PAGE_SIZE) + agp_bridge->gart_bus_addr;
 		cur_gatt = SVRWRKS_GET_GATT(addr);
 		writel(agp_bridge->driver->mask_memory(agp_bridge, 
-				phys_to_gart(page_to_phys(mem->pages[i])), mem->type),
+				page_to_phys(mem->pages[i]), mem->type),
 		       cur_gatt+GET_GATT_OFF(addr));
 	}
 	serverworks_tlbflush(mem);

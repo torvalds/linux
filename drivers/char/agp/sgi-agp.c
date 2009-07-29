@@ -190,7 +190,7 @@ static int sgi_tioca_insert_memory(struct agp_memory *mem, off_t pg_start,
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		table[j] =
 		    bridge->driver->mask_memory(bridge,
-						phys_to_gart(page_to_phys(mem->pages[i])),
+						page_to_phys(mem->pages[i]),
 						mem->type);
 	}
 

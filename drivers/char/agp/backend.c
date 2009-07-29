@@ -159,7 +159,7 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 				goto err_out_nounmap;
 			}
 		} else {
-			bridge->scratch_page_dma = phys_to_gart(page_to_phys(page));
+			bridge->scratch_page_dma = page_to_phys(page);
 		}
 
 		bridge->scratch_page = bridge->driver->mask_memory(bridge,

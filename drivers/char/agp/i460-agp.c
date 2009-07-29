@@ -325,7 +325,7 @@ static int i460_insert_memory_small_io_page (struct agp_memory *mem,
 
 	io_page_size = 1UL << I460_IO_PAGE_SHIFT;
 	for (i = 0, j = io_pg_start; i < mem->page_count; i++) {
-		paddr = phys_to_gart(page_to_phys(mem->pages[i]));
+		paddr = page_to_phys(mem->pages[i]);
 		for (k = 0; k < I460_IOPAGES_PER_KPAGE; k++, j++, paddr += io_page_size)
 			WR_GATT(j, i460_mask_memory(agp_bridge, paddr, mem->type));
 	}
@@ -382,7 +382,7 @@ static int i460_alloc_large_page (struct lp_desc *lp)
 		return -ENOMEM;
 	}
 
-	lp->paddr = phys_to_gart(page_to_phys(lp->page));
+	lp->paddr = page_to_phys(lp->page);
 	lp->refcount = 0;
 	atomic_add(I460_KPAGES_PER_IOPAGE, &agp_bridge->current_memory_agp);
 	return 0;

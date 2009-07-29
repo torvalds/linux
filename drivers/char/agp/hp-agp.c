@@ -107,7 +107,7 @@ static int __init hp_zx1_ioc_shared(void)
 	hp->gart_size = HP_ZX1_GART_SIZE;
 	hp->gatt_entries = hp->gart_size / hp->io_page_size;
 
-	hp->io_pdir = gart_to_virt(readq(hp->ioc_regs+HP_ZX1_PDIR_BASE));
+	hp->io_pdir = phys_to_virt(readq(hp->ioc_regs+HP_ZX1_PDIR_BASE));
 	hp->gatt = &hp->io_pdir[HP_ZX1_IOVA_TO_PDIR(hp->gart_base)];
 
 	if (hp->gatt[0] != HP_ZX1_SBA_IOMMU_COOKIE) {
@@ -246,7 +246,7 @@ hp_zx1_configure (void)
 	agp_bridge->mode = readl(hp->lba_regs+hp->lba_cap_offset+PCI_AGP_STATUS);
 
 	if (hp->io_pdir_owner) {
-		writel(virt_to_gart(hp->io_pdir), hp->ioc_regs+HP_ZX1_PDIR_BASE);
+		writel(virt_to_phys(hp->io_pdir), hp->ioc_regs+HP_ZX1_PDIR_BASE);
 		readl(hp->ioc_regs+HP_ZX1_PDIR_BASE);
 		writel(hp->io_tlb_ps, hp->ioc_regs+HP_ZX1_TCNFG);
 		readl(hp->ioc_regs+HP_ZX1_TCNFG);

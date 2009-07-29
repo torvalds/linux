@@ -431,7 +431,7 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 
 	bridge->gatt_table_real = (u32 *) table;
 	bridge->gatt_table = (u32 *)table;
-	bridge->gatt_bus_addr = virt_to_gart(table);
+	bridge->gatt_bus_addr = virt_to_phys(table);
 
 	for (i = 0; i < num_entries; i++)
 		bridge->gatt_table[i] = 0;
