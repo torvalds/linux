@@ -31,6 +31,7 @@
 #include "drm.h"
 #include "drm_crtc.h"
 #include "intel_drv.h"
+#include "drm_edid.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
 #include "intel_sdvo_regs.h"
@@ -1477,20 +1478,35 @@ intel_sdvo_multifunc_encoder(struct intel_output *intel_output)
 	return (caps > 1);
 }
 
-static void
-intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
+enum drm_connector_status
+intel_sdvo_hdmi_sink_detect(struct drm_connector *connector, u16 response)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
+	enum drm_connector_status status = connector_status_connected;
 	struct edid *edid = NULL;
 
 	edid = drm_get_edid(&intel_output->base,
 			    intel_output->ddc_bus);
 	if (edid != NULL) {
-		sdvo_priv->is_hdmi = drm_detect_hdmi_monitor(edid);
+		/* Don't report the output as connected if it's a DVI-I
+		 * connector with a non-digital EDID coming out.
+		 */
+		if (response & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)) {
+			if (edid->input & DRM_EDID_INPUT_DIGITAL)
+				sdvo_priv->is_hdmi =
+					drm_detect_hdmi_monitor(edid);
+			else
+				status = connector_status_disconnected;
+		}
+
 		kfree(edid);
 		intel_output->base.display_info.raw_edid = NULL;
-	}
+
+	} else if (response & (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1))
+		status = connector_status_disconnected;
+
+	return status;
 }
 
 static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connector)
@@ -1518,8 +1534,7 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 			return connector_status_unknown;
 		sdvo_priv->attached_output = response;
 	}
-	intel_sdvo_hdmi_sink_detect(connector);
-	return connector_status_connected;
+	return intel_sdvo_hdmi_sink_detect(connector, response);
 }
 
 static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
