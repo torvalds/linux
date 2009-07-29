@@ -276,6 +276,8 @@ struct uac_iso_endpoint_descriptor {
 #define UAC_FU_BASS_BOOST	(1 << (UAC_BASS_BOOST_CONTROL - 1))
 #define UAC_FU_LOUDNESS		(1 << (UAC_LOUDNESS_CONTROL - 1))
 
+#ifdef __KERNEL__
+
 struct usb_audio_control {
 	struct list_head list;
 	const char *name;
@@ -293,5 +295,7 @@ struct usb_audio_control_selector {
 	u8 type;
 	struct usb_descriptor_header *desc;
 };
+
+#endif /* __KERNEL__ */
 
 #endif /* __LINUX_USB_AUDIO_H */
