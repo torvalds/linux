@@ -2620,8 +2620,7 @@ static int stac92xx_hp_switch_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid,
-				   unsigned char type);
+static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid);
 
 static int stac92xx_hp_switch_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -2635,7 +2634,7 @@ static int stac92xx_hp_switch_put(struct snd_kcontrol *kcontrol,
 	/* check to be sure that the ports are upto date with
 	 * switch changes
 	 */
-	stac_issue_unsol_event(codec, nid, STAC_HP_EVENT);
+	stac_issue_unsol_event(codec, nid);
 
 	return 1;
 }
@@ -2768,7 +2767,7 @@ static int stac92xx_io_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	 * appropriately according to the pin direction
 	 */
 	if (spec->hp_detect)
-		stac_issue_unsol_event(codec, nid, STAC_HP_EVENT);
+		stac_issue_unsol_event(codec, nid);
 
         return 1;
 }
@@ -4107,14 +4106,14 @@ static int stac_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
 }
 
 static struct sigmatel_event *stac_get_event(struct hda_codec *codec,
-					     hda_nid_t nid, unsigned char type)
+					     hda_nid_t nid)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	struct sigmatel_event *event = spec->events.list;
 	int i;
 
 	for (i = 0; i < spec->events.used; i++, event++) {
-		if (event->nid == nid && event->type == type)
+		if (event->nid == nid)
 			return event;
 	}
 	return NULL;
@@ -4134,24 +4133,32 @@ static struct sigmatel_event *stac_get_event_from_tag(struct hda_codec *codec,
 	return NULL;
 }
 
-static void enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
-			      unsigned int type)
+/* check if given nid is a valid pin and no other events are assigned
+ * to it.  If OK, assign the event, set the unsol flag, and returns 1.
+ * Otherwise, returns zero.
+ */
+static int enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
+			     unsigned int type)
 {
 	struct sigmatel_event *event;
 	int tag;
 
 	if (!(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP))
-		return;
-	event = stac_get_event(codec, nid, type);
-	if (event)
+		return 0;
+	event = stac_get_event(codec, nid);
+	if (event) {
+		if (event->type != type)
+			return 0;
 		tag = event->tag;
-	else
+	} else {
 		tag = stac_add_event(codec->spec, nid, type, 0);
-	if (tag < 0)
-		return;
+		if (tag < 0)
+			return 0;
+	}
 	snd_hda_codec_write_cache(codec, nid, 0,
 				  AC_VERB_SET_UNSOLICITED_ENABLE,
 				  AC_USRSP_EN | tag);
+	return 1;
 }
 
 static int is_nid_hp_pin(struct auto_pin_cfg *cfg, hda_nid_t nid)
@@ -4250,8 +4257,7 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac92xx_auto_set_pinctl(codec, spec->autocfg.line_out_pins[0],
 				AC_PINCTL_OUT_EN);
 		/* fake event to set up pins */
-		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0],
-				       STAC_HP_EVENT);
+		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0]);
 	} else {
 		stac92xx_auto_init_multi_out(codec);
 		stac92xx_auto_init_hp_out(codec);
@@ -4284,10 +4290,9 @@ static int stac92xx_init(struct hda_codec *codec)
 			}
 			conf = snd_hda_codec_get_pincfg(codec, nid);
 			if (get_defcfg_connect(conf) != AC_JACK_PORT_FIXED) {
-				enable_pin_detect(codec, nid,
-						  STAC_INSERT_EVENT);
-				stac_issue_unsol_event(codec, nid,
-						       STAC_INSERT_EVENT);
+				if (enable_pin_detect(codec, nid,
+						      STAC_INSERT_EVENT))
+					stac_issue_unsol_event(codec, nid);
 			}
 		}
 	}
@@ -4332,10 +4337,8 @@ static int stac92xx_init(struct hda_codec *codec)
 				stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
-		if (!stac_get_event(codec, nid, STAC_INSERT_EVENT)) {
-			enable_pin_detect(codec, nid, STAC_PWR_EVENT);
-			stac_issue_unsol_event(codec, nid, STAC_PWR_EVENT);
-		}
+		if (enable_pin_detect(codec, nid, STAC_PWR_EVENT))
+			stac_issue_unsol_event(codec, nid);
 	}
 	if (spec->dac_list)
 		stac92xx_power_down(codec);
@@ -4598,10 +4601,9 @@ static void stac92xx_report_jack(struct hda_codec *codec, hda_nid_t nid)
 	}
 }
 
-static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid,
-				   unsigned char type)
+static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid)
 {
-	struct sigmatel_event *event = stac_get_event(codec, nid, type);
+	struct sigmatel_event *event = stac_get_event(codec, nid);
 	if (!event)
 		return;
 	codec->patch_ops.unsol_event(codec, (unsigned)event->tag << 26);
@@ -4712,8 +4714,7 @@ static int stac92xx_resume(struct hda_codec *codec)
 	snd_hda_codec_resume_cache(codec);
 	/* fake event to set up pins again to override cached values */
 	if (spec->hp_detect)
-		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0],
-				       STAC_HP_EVENT);
+		stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0]);
 	return 0;
 }
 
