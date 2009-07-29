@@ -51,7 +51,7 @@ NetVscOnDeviceRemove(
 
 static void
 NetVscOnCleanup(
-	DRIVER_OBJECT *Driver
+	struct hv_driver *Driver
 	);
 
 static void
@@ -231,7 +231,7 @@ Description:
 --*/
 int
 NetVscInitialize(
-	DRIVER_OBJECT *drv
+	struct hv_driver *drv
 	)
 {
 	NETVSC_DRIVER_OBJECT* driver = (NETVSC_DRIVER_OBJECT*)drv;
@@ -983,7 +983,7 @@ Description:
 --*/
 void
 NetVscOnCleanup(
-	DRIVER_OBJECT *drv
+	struct hv_driver *drv
 	)
 {
 	DPRINT_ENTER(NETVSC);

@@ -765,7 +765,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 	if (memcmp(&device_ctx->class_id, &driver_ctx->class_id, sizeof(GUID)) == 0)
 	{
 		/* !! NOTE: The driver_ctx is not a vmbus_drv_ctx. We typecast it here to access the */
-		/* DRIVER_OBJECT field */
+		/* struct hv_driver field */
 		struct vmbus_driver_context *vmbus_drv_ctx = (struct vmbus_driver_context*)driver_ctx;
 		device_ctx->device_obj.Driver = &vmbus_drv_ctx->drv_obj.Base;
 		DPRINT_INFO(VMBUS_DRV, "device object (%p) set to driver object (%p)", &device_ctx->device_obj, device_ctx->device_obj.Driver);

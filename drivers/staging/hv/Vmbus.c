@@ -45,7 +45,7 @@ static const GUID gVmbusDeviceId={
 	.Data = {0xfc, 0x60, 0x37, 0xac, 0xdf, 0x9a, 0xaa, 0x40, 0x94, 0x27, 0xa7, 0x0e, 0xd6, 0xde, 0x95, 0xc5}
 };
 
-static DRIVER_OBJECT* gDriver; /* vmbus driver object */
+static struct hv_driver *gDriver; /* vmbus driver object */
 static struct hv_device* gDevice; /* vmbus root device */
 
 
@@ -82,22 +82,22 @@ VmbusOnDeviceRemove(
 
 static void
 VmbusOnCleanup(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	);
 
 static int
 VmbusOnISR(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	);
 
 static void
 VmbusOnMsgDPC(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	);
 
 static void
 VmbusOnEventDPC(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	);
 
 /*++;
@@ -111,7 +111,7 @@ Description:
 --*/
 int
 VmbusInitialize(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	)
 {
 	VMBUS_DRIVER_OBJECT* driver = (VMBUS_DRIVER_OBJECT*)drv;
@@ -377,7 +377,7 @@ Description:
 --*/
 void
 VmbusOnCleanup(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	)
 {
 	/* VMBUS_DRIVER_OBJECT* driver = (VMBUS_DRIVER_OBJECT*)drv; */
@@ -401,7 +401,7 @@ Description:
 --*/
 void
 VmbusOnMsgDPC(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	)
 {
 	void *page_addr = gHvContext.synICMessagePage[0];
@@ -460,7 +460,7 @@ Description:
 --*/
 void
 VmbusOnEventDPC(
-	DRIVER_OBJECT* drv
+	struct hv_driver* drv
 	)
 {
 	/* TODO: Process any events */
@@ -479,7 +479,7 @@ Description:
 --*/
 int
 VmbusOnISR(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	)
 {
 	/* VMBUS_DRIVER_OBJECT* driver = (VMBUS_DRIVER_OBJECT*)drv; */

@@ -109,7 +109,7 @@ typedef struct _NETVSC_PACKET {
 
 /* Represents the net vsc driver */
 typedef struct _NETVSC_DRIVER_OBJECT {
-	DRIVER_OBJECT				Base; /* Must be the first field */
+	struct hv_driver Base; /* Must be the first field */
 
 	u32						RingBufferSize;
 	u32						RequestExtSize;
@@ -147,7 +147,7 @@ typedef struct _NETVSC_DEVICE_INFO {
 
 int
 NetVscInitialize(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	);
 
 #endif /* _NETVSC_API_H_ */

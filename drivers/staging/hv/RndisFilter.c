@@ -168,7 +168,7 @@ RndisFilterOnDeviceRemove(
 
 static void
 RndisFilterOnCleanup(
-	DRIVER_OBJECT *Driver
+	struct hv_driver *Driver
 	);
 
 static int
@@ -1032,7 +1032,7 @@ RndisFilterOnDeviceRemove(
 
 static void
 RndisFilterOnCleanup(
-	DRIVER_OBJECT *Driver
+	struct hv_driver *Driver
 	)
 {
 	DPRINT_ENTER(NETVSC);

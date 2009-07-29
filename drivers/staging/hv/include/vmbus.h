@@ -33,8 +33,8 @@
 /* Data types */
 
 
-typedef int (*PFN_DRIVERINITIALIZE)(DRIVER_OBJECT *drv);
-typedef int (*PFN_DRIVEREXIT)(DRIVER_OBJECT *drv);
+typedef int (*PFN_DRIVERINITIALIZE)(struct hv_driver *drv);
+typedef int (*PFN_DRIVEREXIT)(struct hv_driver *drv);
 
 struct driver_context {
 	GUID					class_id;

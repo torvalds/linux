@@ -34,13 +34,6 @@
 #define MAX_PAGE_BUFFER_COUNT				16
 #define MAX_MULTIPAGE_BUFFER_COUNT			32 /* 128K */
 
-
-
-/* Fwd declarations */
-
-typedef struct _DRIVER_OBJECT *PDRIVER_OBJECT;
-
-
 /* Data types */
 
 
@@ -68,19 +61,20 @@ typedef struct _MULTIPAGE_BUFFER {
 
 #pragma pack(pop)
 
+struct hv_driver;
 struct hv_device;
 
 /* All drivers */
 typedef int (*PFN_ON_DEVICEADD)(struct hv_device *Device, void* AdditionalInfo);
 typedef int (*PFN_ON_DEVICEREMOVE)(struct hv_device *Device);
 typedef char** (*PFN_ON_GETDEVICEIDS)(void);
-typedef void (*PFN_ON_CLEANUP)(PDRIVER_OBJECT Driver);
+typedef void (*PFN_ON_CLEANUP)(struct hv_driver *Driver);
 
 /* Vmbus extensions */
-/* typedef int (*PFN_ON_MATCH)(struct hv_device *dev, PDRIVER_OBJECT drv); */
+/* typedef int (*PFN_ON_MATCH)(struct hv_device *dev, struct hv_driver *drv); */
 /* typedef int (*PFN_ON_PROBE)(struct hv_device *dev); */
-typedef int	(*PFN_ON_ISR)(PDRIVER_OBJECT drv);
-typedef void (*PFN_ON_DPC)(PDRIVER_OBJECT drv);
+typedef int	(*PFN_ON_ISR)(struct hv_driver *drv);
+typedef void (*PFN_ON_DPC)(struct hv_driver *drv);
 typedef void (*PFN_GET_CHANNEL_OFFERS)(void);
 
 typedef struct hv_device *(*PFN_ON_CHILDDEVICE_CREATE)(GUID DeviceType, GUID DeviceInstance, void *Context);
@@ -205,7 +199,7 @@ typedef struct _VMBUS_CHANNEL_INTERFACE {
 typedef void (*VMBUS_GET_CHANNEL_INTERFACE)(VMBUS_CHANNEL_INTERFACE *Interface);
 
 /* Base driver object */
-typedef struct _DRIVER_OBJECT {
+struct hv_driver {
 	const char*				name;
 	GUID					deviceType; /* the device type supported by this driver */
 
@@ -215,12 +209,12 @@ typedef struct _DRIVER_OBJECT {
 	PFN_ON_CLEANUP			OnCleanup;
 
 	VMBUS_CHANNEL_INTERFACE VmbusChannelInterface;
-} DRIVER_OBJECT;
+};
 
 
 /* Base device object */
 struct hv_device {
-	DRIVER_OBJECT*		Driver;		/* the driver for this device */
+	struct hv_driver *Driver;		/* the driver for this device */
 	char				name[64];
 	GUID				deviceType; /* the device type id of this device */
 	GUID				deviceInstance; /* the device instance id of this device */
@@ -231,7 +225,7 @@ struct hv_device {
 
 /* Vmbus driver object */
 typedef struct _VMBUS_DRIVER_OBJECT {
-	DRIVER_OBJECT		Base; /* !! Must be the 1st field !! */
+	struct hv_driver Base; /* !! Must be the 1st field !! */
 
 	/* Set by the caller */
 	PFN_ON_CHILDDEVICE_CREATE	OnChildDeviceCreate;
@@ -257,7 +251,7 @@ typedef struct _VMBUS_DRIVER_OBJECT {
 
 int
 VmbusInitialize(
-	DRIVER_OBJECT* drv
+	struct hv_driver *drv
 	);
 
 #endif /* _VMBUS_API_H_ */

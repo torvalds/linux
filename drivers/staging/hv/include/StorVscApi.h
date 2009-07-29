@@ -98,7 +98,7 @@ typedef struct _STORVSC_REQUEST {
 
 /* Represents the block vsc driver */
 typedef struct _STORVSC_DRIVER_OBJECT {
-	DRIVER_OBJECT			Base; /* Must be the first field */
+	struct hv_driver Base; /* Must be the first field */
 
 	/* Set by caller (in bytes) */
 	u32					RingBufferSize;
@@ -129,11 +129,11 @@ typedef struct _STORVSC_DEVICE_INFO {
 
 int
 StorVscInitialize(
-	DRIVER_OBJECT	*Driver
+	struct hv_driver *Driver
 	);
 
 int
 BlkVscInitialize(
-	DRIVER_OBJECT	*Driver
+	struct hv_driver *Driver
 	);
 #endif /* _STORVSC_API_H_ */

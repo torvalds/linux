@@ -118,7 +118,7 @@ StorVscOnHostReset(
 
 static void
 StorVscOnCleanup(
-	DRIVER_OBJECT	*Device
+	struct hv_driver *Device
 	);
 
 static void
@@ -263,7 +263,7 @@ Description:
 --*/
 int
 StorVscInitialize(
-	DRIVER_OBJECT *Driver
+	struct hv_driver *Driver
 	)
 {
 	STORVSC_DRIVER_OBJECT* storDriver = (STORVSC_DRIVER_OBJECT*)Driver;
@@ -807,7 +807,7 @@ Description:
 --*/
 void
 StorVscOnCleanup(
-	DRIVER_OBJECT *Driver
+	struct hv_driver *Driver
 	)
 {
 	DPRINT_ENTER(STORVSC);

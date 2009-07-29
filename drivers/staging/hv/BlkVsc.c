@@ -41,7 +41,7 @@ BlkVscOnDeviceAdd(
 
 int
 BlkVscInitialize(
-	DRIVER_OBJECT *Driver
+	struct hv_driver *Driver
 	)
 {
 	STORVSC_DRIVER_OBJECT* storDriver = (STORVSC_DRIVER_OBJECT*)Driver;
