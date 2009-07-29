@@ -21,7 +21,7 @@
  *
  */
 
-
+#include <linux/vmalloc.h>
 #include "include/logging.h"
 #include "VmbusPrivate.h"
 
@@ -330,7 +330,7 @@ Cleanup:
 			WriteMsr(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
 		}
 
-		VirtualFree(virtAddr);
+		vfree(virtAddr);
 	}
 	ret = -1;
 	DPRINT_EXIT(VMBUS);
@@ -370,7 +370,7 @@ HvCleanup (
 		{
 			hypercallMsr.AsUINT64 = 0;
 			WriteMsr(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
-			VirtualFree(gHvContext.HypercallPage);
+			vfree(gHvContext.HypercallPage);
 			gHvContext.HypercallPage = NULL;
 		}
 	}

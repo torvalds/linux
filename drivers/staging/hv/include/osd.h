@@ -110,7 +110,6 @@ static inline void do_cpuid(unsigned int op, unsigned int *eax, unsigned int *eb
 /* Osd routines */
 
 extern void* VirtualAllocExec(unsigned int size);
-extern void VirtualFree(void* VirtAddr);
 
 extern void* PageAlloc(unsigned int count);
 extern void PageFree(void* page, unsigned int count);

@@ -65,11 +65,6 @@ void* VirtualAllocExec(unsigned int size)
 #endif
 }
 
-void VirtualFree(void* VirtAddr)
-{
-	return vfree(VirtAddr);
-}
-
 void* PageAlloc(unsigned int count)
 {
 	void *p;
