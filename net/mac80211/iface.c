@@ -522,6 +522,16 @@ static int ieee80211_stop(struct net_device *dev)
 				ieee80211_scan_completed(&local->hw, true);
 		}
 
+		/*
+		 * Disable beaconing for AP and mesh, IBSS can't
+		 * still be joined to a network at this point.
+		 */
+		if (sdata->vif.type == NL80211_IFTYPE_AP ||
+		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT) {
+			ieee80211_bss_info_change_notify(sdata,
+				BSS_CHANGED_BEACON_ENABLED);
+		}
+
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
 		conf.mac_addr = dev->dev_addr;

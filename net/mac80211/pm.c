@@ -96,6 +96,10 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 		if (!netif_running(sdata->dev))
 			continue;
 
+		/* disable beaconing */
+		ieee80211_bss_info_change_notify(sdata,
+			BSS_CHANGED_BEACON_ENABLED);
+
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
 		conf.mac_addr = sdata->dev->dev_addr;

@@ -198,7 +198,8 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		if (test_bit(SCAN_SW_SCANNING, &local->scanning)) {
+		if (local->quiescing || !netif_running(sdata->dev) ||
+		    test_bit(SCAN_SW_SCANNING, &local->scanning)) {
 			sdata->vif.bss_conf.enable_beacon = false;
 		} else {
 			/*
