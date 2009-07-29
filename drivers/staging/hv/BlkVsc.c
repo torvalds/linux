@@ -75,7 +75,7 @@ BlkVscInitialize(
 	return ret;
 }
 
-int
+static int
 BlkVscOnDeviceAdd(
 	struct hv_device *Device,
 	void			*AdditionalInfo

@@ -24,6 +24,6 @@
 
 #pragma once
 
-const char VersionDate[]=__DATE__;
-const char VersionTime[]=__TIME__;
-const char VersionDesc[]= "Version 2.0";
+static const char VersionDate[]=__DATE__;
+static const char VersionTime[]=__TIME__;
+static const char VersionDesc[]= "Version 2.0";

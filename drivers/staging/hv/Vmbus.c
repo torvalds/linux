@@ -224,7 +224,7 @@ Description:
 
 --*/
 
-struct hv_device*
+static struct hv_device*
 VmbusChildDeviceCreate(
 	GUID DeviceType,
 	GUID DeviceInstance,
@@ -248,7 +248,7 @@ Description:
 	Registers the child device with the vmbus
 
 --*/
-int
+static int
 VmbusChildDeviceAdd(
    struct hv_device *ChildDevice)
 {
@@ -267,7 +267,7 @@ Description:
 	Unregisters the child device from the vmbus
 
 --*/
-void
+static void
 VmbusChildDeviceRemove(
    struct hv_device *ChildDevice)
 {
@@ -346,7 +346,7 @@ Description:
 	Callback when the root bus device is removed
 
 --*/
-int VmbusOnDeviceRemove(
+static int VmbusOnDeviceRemove(
 	struct hv_device *dev
 	)
 {
@@ -375,7 +375,7 @@ Description:
 	Perform any cleanup when the driver is removed
 
 --*/
-void
+static void
 VmbusOnCleanup(
 	struct hv_driver *drv
 	)
@@ -399,7 +399,7 @@ Description:
 	DPC routine to handle messages from the hypervisior
 
 --*/
-void
+static void
 VmbusOnMsgDPC(
 	struct hv_driver *drv
 	)
@@ -458,7 +458,7 @@ Description:
 	DPC routine to handle events from the hypervisior
 
 --*/
-void
+static void
 VmbusOnEventDPC(
 	struct hv_driver* drv
 	)
@@ -477,7 +477,7 @@ Description:
 	ISR routine
 
 --*/
-int
+static int
 VmbusOnISR(
 	struct hv_driver *drv
 	)

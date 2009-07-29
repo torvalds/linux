@@ -153,7 +153,7 @@ Description:
 	Retrieve various channel debug info
 
 --*/
-void
+static void
 VmbusChannelGetDebugInfo(
 	VMBUS_CHANNEL				*Channel,
 	VMBUS_CHANNEL_DEBUG_INFO	*DebugInfo
@@ -197,7 +197,7 @@ Description:
 	Open the specified channel.
 
 --*/
-int
+static int
 VmbusChannelOpen(
 	VMBUS_CHANNEL			*NewChannel,
 	u32					SendRingBufferSize,
@@ -510,7 +510,7 @@ Description:
 	Estabish a GPADL for the specified buffer
 
 --*/
-int
+static int
 VmbusChannelEstablishGpadl(
 	VMBUS_CHANNEL	*Channel,
 	void *			Kbuffer,	/* from kmalloc() */
@@ -615,7 +615,7 @@ Description:
 	Teardown the specified GPADL handle
 
 --*/
-int
+static int
 VmbusChannelTeardownGpadl(
 	VMBUS_CHANNEL	*Channel,
 	u32			GpadlHandle
@@ -676,7 +676,7 @@ Description:
 	Close the specified channel
 
 --*/
-void
+static void
 VmbusChannelClose(
 	VMBUS_CHANNEL	*Channel
 	)
@@ -753,7 +753,7 @@ Description:
 	Send the specified buffer on the given channel
 
 --*/
-int
+static int
 VmbusChannelSendPacket(
 	VMBUS_CHANNEL		*Channel,
 	const void *			Buffer,
@@ -819,7 +819,7 @@ Description:
 	Send a range of single-page buffer packets using a GPADL Direct packet type.
 
 --*/
-int
+static int
 VmbusChannelSendPacketPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	PAGE_BUFFER			PageBuffers[],
@@ -902,7 +902,7 @@ Description:
 	Send a multi-page buffer packet using a GPADL Direct packet type.
 
 --*/
-int
+static int
 VmbusChannelSendPacketMultiPageBuffer(
 	VMBUS_CHANNEL		*Channel,
 	MULTIPAGE_BUFFER	*MultiPageBuffer,
@@ -985,7 +985,7 @@ Description:
 
 --*/
 /* TODO: Do we ever receive a gpa direct packet other than the ones we send ? */
-int
+static int
 VmbusChannelRecvPacket(
 	VMBUS_CHANNEL		*Channel,
 	void *				Buffer,
@@ -1063,7 +1063,7 @@ Description:
 	Retrieve the raw packet on the specified channel
 
 --*/
-int
+static int
 VmbusChannelRecvPacketRaw(
 	VMBUS_CHANNEL		*Channel,
 	void *				Buffer,
@@ -1140,7 +1140,7 @@ Description:
 	Channel event callback
 
 --*/
-void
+static void
 VmbusChannelOnChannelEvent(
 	VMBUS_CHANNEL		*Channel
 	)
@@ -1165,7 +1165,7 @@ Description:
 	Timer event callback
 
 --*/
-void
+static void
 VmbusChannelOnTimer(
 	void		*Context
 	)

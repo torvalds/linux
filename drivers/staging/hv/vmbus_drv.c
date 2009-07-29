@@ -311,7 +311,7 @@ Desc:	Main vmbus driver initialization routine. Here, we
 		- setup the vmbus root device
 		- retrieve the channel offers
 --*/
-int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+static int vmbus_bus_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 {
 	int ret=0;
 	unsigned int vector=0;
@@ -436,7 +436,7 @@ Name:	vmbus_bus_exit()
 Desc:	Terminate the vmbus driver. This routine is opposite of vmbus_bus_init()
 
 --*/
-void vmbus_bus_exit(void)
+static void vmbus_bus_exit(void)
 {
 	VMBUS_DRIVER_OBJECT *vmbus_drv_obj=&g_vmbus_drv.drv_obj;
 	struct vmbus_driver_context *vmbus_drv_ctx=&g_vmbus_drv;

@@ -87,7 +87,7 @@ VmbusChannelProcessRescindOffer(
 
 #define MAX_NUM_DEVICE_CLASSES_SUPPORTED 4
 
-const GUID gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED]= {
+static const GUID gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED]= {
 	/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
 	{.Data  = {0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d, 0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f}},/* Storage - SCSI */
 	/* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
@@ -100,7 +100,7 @@ const GUID gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED]= {
 };
 
 /* Channel message dispatch table */
-VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY gChannelMessageTable[ChannelMessageCount]= {
+static VMBUS_CHANNEL_MESSAGE_TABLE_ENTRY gChannelMessageTable[ChannelMessageCount]= {
     {ChannelMessageInvalid,					NULL},
     {ChannelMessageOfferChannel,            VmbusChannelOnOffer},
     {ChannelMessageRescindChannelOffer,     VmbusChannelOnOfferRescind},
@@ -129,7 +129,7 @@ Description:
 	Allocate and initialize a vmbus channel object
 
 --*/
-VMBUS_CHANNEL* AllocVmbusChannel(void)
+static VMBUS_CHANNEL* AllocVmbusChannel(void)
 {
 	VMBUS_CHANNEL* channel;
 
@@ -193,7 +193,7 @@ Description:
 	Release the resources used by the vmbus channel object
 
 --*/
-void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
+static void FreeVmbusChannel(VMBUS_CHANNEL* Channel)
 {
 	TimerClose(Channel->PollTimer);
 
@@ -665,7 +665,7 @@ Description:
 	This is invoked in the vmbus worker thread context.
 
 --*/
-void
+static void
 VmbusOnChannelMessage(
 	void *Context
 	)
@@ -714,7 +714,7 @@ Description:
 	Send a request to get all our pending offers.
 
 --*/
-int
+static int
 VmbusChannelRequestOffers(
 	void
 	)
@@ -776,7 +776,7 @@ Description:
 	Release channels that are unattached/unconnected ie (no drivers associated)
 
 --*/
-void
+static void
 VmbusChannelReleaseUnattachedChannels(
 	void
 	)

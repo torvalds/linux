@@ -348,7 +348,7 @@ Description:
 	Cleanup routine. This routine is called normally during driver unloading or exiting.
 
 --*/
-void
+static void
 HvCleanup (
     void
     )
@@ -390,7 +390,7 @@ Description:
 	involves a hypercall.
 
 --*/
-HV_STATUS
+static HV_STATUS
 HvPostMessage(
 	HV_CONNECTION_ID connectionId,
 	HV_MESSAGE_TYPE  messageType,
@@ -444,7 +444,7 @@ Description:
 	involves a hypercall.
 
 --*/
-HV_STATUS
+static HV_STATUS
 HvSignalEvent(
 	)
 {
@@ -467,7 +467,7 @@ Description:
 	Otherwise, we create and initialize the message and event pages.
 
 --*/
-int
+static int
 HvSynicInit (
 	u32 irqVector
 	)
@@ -611,7 +611,7 @@ Description:
 	Cleanup routine for HvSynicInit().
 
 --*/
-void
+static void
 HvSynicCleanup(
 	void
 	)

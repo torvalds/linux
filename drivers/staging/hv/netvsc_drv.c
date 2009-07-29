@@ -90,7 +90,7 @@ Name:	netvsc_drv_init()
 Desc:	NetVsc driver initialization
 
 --*/
-int netvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+static int netvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 {
 	int ret=0;
 	NETVSC_DRIVER_OBJECT *net_drv_obj=&g_netvsc_drv.drv_obj;
@@ -634,7 +634,7 @@ Name:	netvsc_drv_exit()
 Desc:
 
 --*/
-void netvsc_drv_exit(void)
+static void netvsc_drv_exit(void)
 {
 	NETVSC_DRIVER_OBJECT *netvsc_drv_obj=&g_netvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_netvsc_drv.drv_ctx;

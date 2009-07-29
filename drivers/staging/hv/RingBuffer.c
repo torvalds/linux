@@ -203,7 +203,7 @@ Description:
 	Dump out to console the ring buffer info
 
 --*/
-void
+static void
 DumpRingInfo(RING_BUFFER_INFO* RingInfo, char *Prefix)
 {
 	u32 bytesAvailToWrite;
@@ -249,7 +249,7 @@ Description:
 	Get various debug metrics for the specified ring buffer
 
 --*/
-void
+static void
 RingBufferGetDebugInfo(
 	RING_BUFFER_INFO		*RingInfo,
 	RING_BUFFER_DEBUG_INFO	*DebugInfo
@@ -281,7 +281,7 @@ Description:
 	Get the interrupt mask for the specified ring buffer
 
 --*/
-u32
+static u32
 GetRingBufferInterruptMask(
 	RING_BUFFER_INFO *rbi
 	)
@@ -298,7 +298,7 @@ Description:
 	Initialize the ring buffer
 
 --*/
-int
+static int
 RingBufferInit(
 	RING_BUFFER_INFO	*RingInfo,
 	void				*Buffer,
@@ -329,7 +329,7 @@ Description:
 	Cleanup the ring buffer
 
 --*/
-void
+static void
 RingBufferCleanup(
 	RING_BUFFER_INFO* RingInfo
 	)
@@ -345,7 +345,7 @@ Description:
 	Write to the ring buffer
 
 --*/
-int
+static int
 RingBufferWrite(
 	RING_BUFFER_INFO*	OutRingInfo,
 	SG_BUFFER_LIST		SgBuffers[],
@@ -435,7 +435,7 @@ Description:
 	Read without advancing the read index
 
 --*/
-int
+static int
 RingBufferPeek(
 	RING_BUFFER_INFO*	InRingInfo,
 	void*				Buffer,
@@ -484,7 +484,7 @@ Description:
 	Read and advance the read index
 
 --*/
-int
+static int
 RingBufferRead(
 	RING_BUFFER_INFO*	InRingInfo,
 	void *				Buffer,
@@ -555,7 +555,7 @@ Description:
 	Assume there is enough room. Handles wrap-around in dest case only!!
 
 --*/
-u32
+static u32
 CopyToRingBuffer(
 	RING_BUFFER_INFO	*RingInfo,
 	u32				StartWriteOffset,
@@ -596,7 +596,7 @@ Description:
 	Assume there is enough room. Handles wrap-around in src case only!!
 
 --*/
-u32
+static u32
 CopyFromRingBuffer(
 	RING_BUFFER_INFO	*RingInfo,
 	void *				Dest,

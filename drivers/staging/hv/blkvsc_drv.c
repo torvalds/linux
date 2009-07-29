@@ -169,7 +169,7 @@ Name:	blkvsc_drv_init()
 Desc:	BlkVsc driver initialization.
 
 --*/
-int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+static int blkvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 {
 	int ret=0;
 	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_blkvsc_drv.drv_obj;
@@ -214,7 +214,7 @@ Name:	blkvsc_drv_exit()
 Desc:
 
 --*/
-void blkvsc_drv_exit(void)
+static void blkvsc_drv_exit(void)
 {
 	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_blkvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_blkvsc_drv.drv_ctx;
@@ -1390,7 +1390,7 @@ static int blkvsc_revalidate_disk(struct gendisk *gd)
 	return 0;
 }
 
-int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg)
+static int blkvsc_getgeo(struct block_device *bd, struct hd_geometry *hg)
 {
 	sector_t total_sectors = get_capacity(bd->bd_disk);
 	sector_t cylinder_times_heads=0;

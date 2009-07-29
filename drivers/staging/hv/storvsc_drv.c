@@ -130,7 +130,7 @@ Name:	storvsc_drv_init()
 Desc:	StorVsc driver initialization.
 
 --*/
-int storvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
+static int storvsc_drv_init(PFN_DRIVERINITIALIZE pfn_drv_init)
 {
 	int ret=0;
 	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_storvsc_drv.drv_obj;
@@ -184,7 +184,7 @@ Name:	storvsc_drv_exit()
 Desc:
 
 --*/
-void storvsc_drv_exit(void)
+static void storvsc_drv_exit(void)
 {
 	STORVSC_DRIVER_OBJECT *storvsc_drv_obj=&g_storvsc_drv.drv_obj;
 	struct driver_context *drv_ctx=&g_storvsc_drv.drv_ctx;

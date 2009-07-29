@@ -161,7 +161,7 @@ void MemUnmapIO(void *virt)
 	/* iounmap(virt); */
 }
 
-void TimerCallback(unsigned long data)
+static void TimerCallback(unsigned long data)
 {
 	struct osd_timer *t = (struct osd_timer *) data;
 
@@ -269,7 +269,7 @@ unsigned long Virtual2Physical(void * VirtAddr)
 	return pfn << PAGE_SHIFT;
 }
 
-void WorkItemCallback(struct work_struct *work)
+static void WorkItemCallback(struct work_struct *work)
 {
 	WORKITEM* w = (WORKITEM*)work;
 

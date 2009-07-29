@@ -202,7 +202,7 @@ RndisFilterOnSendRequestCompletion(
 
 
 /* The one and only */
-RNDIS_FILTER_DRIVER_OBJECT gRndisFilter;
+static RNDIS_FILTER_DRIVER_OBJECT gRndisFilter;
 
 static inline RNDIS_DEVICE* GetRndisDevice(void)
 {
@@ -926,7 +926,7 @@ RndisFilterCloseDevice(
 }
 
 
-int
+static int
 RndisFilterOnDeviceAdd(
 	struct hv_device *Device,
 	void			*AdditionalInfo

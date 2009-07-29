@@ -792,7 +792,7 @@ Description:
 	Callback when the device belonging to this driver is added
 
 --*/
-int
+static int
 NetVscOnDeviceAdd(
 	struct hv_device *Device,
 	void			*AdditionalInfo
@@ -909,7 +909,7 @@ Description:
 	Callback when the root bus device is removed
 
 --*/
-int
+static int
 NetVscOnDeviceRemove(
 	struct hv_device *Device
 	)
@@ -981,7 +981,7 @@ Description:
 	Perform any cleanup when the driver is removed
 
 --*/
-void
+static void
 NetVscOnCleanup(
 	struct hv_driver *drv
 	)
