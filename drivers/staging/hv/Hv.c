@@ -61,7 +61,7 @@ HvQueryHypervisorPresence (
     ecx = 0;
     edx = 0;
     op = HvCpuIdFunctionVersionAndFeatures;
-    do_cpuid(op, &eax, &ebx, &ecx, &edx);
+    cpuid(op, &eax, &ebx, &ecx, &edx);
 
 	return (ecx & HV_PRESENT_BIT);
 }
@@ -99,7 +99,7 @@ HvQueryHypervisorInfo (
     ecx = 0;
     edx = 0;
     op = HvCpuIdFunctionHvVendorAndMaxFunction;
-    do_cpuid(op, &eax, &ebx, &ecx, &edx);
+    cpuid(op, &eax, &ebx, &ecx, &edx);
 
     DPRINT_INFO(VMBUS, "Vendor ID: %c%c%c%c%c%c%c%c%c%c%c%c",
 	   (ebx & 0xFF),
@@ -121,7 +121,7 @@ HvQueryHypervisorInfo (
     ecx = 0;
     edx = 0;
     op = HvCpuIdFunctionHvInterface;
-    do_cpuid(op, &eax, &ebx, &ecx, &edx);
+    cpuid(op, &eax, &ebx, &ecx, &edx);
 
     DPRINT_INFO(VMBUS, "Interface ID: %c%c%c%c",
 	   (eax & 0xFF),
@@ -135,7 +135,7 @@ HvQueryHypervisorInfo (
 	ecx = 0;
 	edx = 0;
 	op = HvCpuIdFunctionMsHvVersion;
-	do_cpuid(op, &eax, &ebx, &ecx, &edx);
+	cpuid(op, &eax, &ebx, &ecx, &edx);
 	DPRINT_INFO(VMBUS, "OS Build:%d-%d.%d-%d-%d.%d",
 	       eax,
 	       ebx >> 16,
