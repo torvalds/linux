@@ -179,14 +179,11 @@ struct cgroup {
 	 */
 	struct list_head release_list;
 
-	/* pids_mutex protects the fields below */
+	/* pids_mutex protects pids_list and cached pid arrays. */
 	struct rw_semaphore pids_mutex;
-	/* Array of process ids in the cgroup */
-	pid_t *tasks_pids;
-	/* How many files are using the current tasks_pids array */
-	int pids_use_count;
-	/* Length of the current tasks_pids array */
-	int pids_length;
+
+	/* Linked list of struct cgroup_pids */
+	struct list_head pids_list;
 
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
