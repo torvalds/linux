@@ -597,6 +597,91 @@ static struct platform_device ep93xx_leds = {
 };
 
 
+/*************************************************************************
+ * EP93xx pwm peripheral handling
+ *************************************************************************/
+static struct resource ep93xx_pwm0_resource[] = {
+	{
+		.start	= EP93XX_PWM_PHYS_BASE,
+		.end	= EP93XX_PWM_PHYS_BASE + 0x10 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ep93xx_pwm0_device = {
+	.name		= "ep93xx-pwm",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(ep93xx_pwm0_resource),
+	.resource	= ep93xx_pwm0_resource,
+};
+
+static struct resource ep93xx_pwm1_resource[] = {
+	{
+		.start	= EP93XX_PWM_PHYS_BASE + 0x20,
+		.end	= EP93XX_PWM_PHYS_BASE + 0x30 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ep93xx_pwm1_device = {
+	.name		= "ep93xx-pwm",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(ep93xx_pwm1_resource),
+	.resource	= ep93xx_pwm1_resource,
+};
+
+void __init ep93xx_register_pwm(int pwm0, int pwm1)
+{
+	if (pwm0)
+		platform_device_register(&ep93xx_pwm0_device);
+
+	/* NOTE: EP9307 does not have PWMOUT1 (pin EGPIO14) */
+	if (pwm1)
+		platform_device_register(&ep93xx_pwm1_device);
+}
+
+int ep93xx_pwm_acquire_gpio(struct platform_device *pdev)
+{
+	int err;
+
+	if (pdev->id == 0) {
+		err = 0;
+	} else if (pdev->id == 1) {
+		err = gpio_request(EP93XX_GPIO_LINE_EGPIO14,
+				   dev_name(&pdev->dev));
+		if (err)
+			return err;
+		err = gpio_direction_output(EP93XX_GPIO_LINE_EGPIO14, 0);
+		if (err)
+			goto fail;
+
+		/* PWM 1 output on EGPIO[14] */
+		ep93xx_devcfg_set_bits(EP93XX_SYSCON_DEVCFG_PONG);
+	} else {
+		err = -ENODEV;
+	}
+
+	return err;
+
+fail:
+	gpio_free(EP93XX_GPIO_LINE_EGPIO14);
+	return err;
+}
+EXPORT_SYMBOL(ep93xx_pwm_acquire_gpio);
+
+void ep93xx_pwm_release_gpio(struct platform_device *pdev)
+{
+	if (pdev->id == 1) {
+		gpio_direction_input(EP93XX_GPIO_LINE_EGPIO14);
+		gpio_free(EP93XX_GPIO_LINE_EGPIO14);
+
+		/* EGPIO[14] used for GPIO */
+		ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_PONG);
+	}
+}
+EXPORT_SYMBOL(ep93xx_pwm_release_gpio);
+
+
 extern void ep93xx_gpio_init(void);
 
 void __init ep93xx_init_devices(void)

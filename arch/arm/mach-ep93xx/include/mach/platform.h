@@ -5,6 +5,7 @@
 #ifndef __ASSEMBLY__
 
 struct i2c_board_info;
+struct platform_device;
 
 struct ep93xx_eth_data
 {
@@ -32,6 +33,9 @@ static inline void ep93xx_devcfg_clear_bits(unsigned int bits)
 
 void ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr);
 void ep93xx_register_i2c(struct i2c_board_info *devices, int num);
+void ep93xx_register_pwm(int pwm0, int pwm1);
+int ep93xx_pwm_acquire_gpio(struct platform_device *pdev);
+void ep93xx_pwm_release_gpio(struct platform_device *pdev);
 
 void ep93xx_init_devices(void);
 extern struct sys_timer ep93xx_timer;
