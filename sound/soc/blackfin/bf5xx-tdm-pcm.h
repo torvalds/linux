@@ -1,5 +1,5 @@
 /*
- * linux/sound/arm/bf5xx-tdm-pcm.h -- ALSA PCM interface for the Blackfin
+ * sound/soc/blackfin/bf5xx-tdm-pcm.h -- ALSA PCM interface for the Blackfin
  *
  * Copyright 2009 Analog Device Inc.
  *
