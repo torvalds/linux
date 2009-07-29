@@ -2979,6 +2979,7 @@ F:	include/linux/inotify.h
 INPUT (KEYBOARD, MOUSE, JOYSTICK, TOUCHSCREEN) DRIVERS
 P:	Dmitry Torokhov
 M:	dmitry.torokhov@gmail.com
+P:	Dmitry Torokhov
 M:	dtor@mail.ru
 L:	linux-input@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dtor/input.git
