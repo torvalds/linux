@@ -62,7 +62,8 @@ enum pcie_link_width {
 };
 
 enum pcie_link_speed {
-	PCIE_2PT5GB		= 0x14,
+	PCIE_2_5GB		= 0x14,
+	PCIE_5_0GB		= 0x15,
 	PCIE_LNK_SPEED_UNKNOWN	= 0xFF,
 };
 
