@@ -338,7 +338,7 @@ static const struct snd_kcontrol_new wm8753_neo1973_gta02_controls[] = {
  */
 static int neo1973_gta02_wm8753_init(struct snd_soc_codec *codec)
 {
-	int i, err;
+	int err;
 
 	/* set up NC codec pins */
 	snd_soc_dapm_nc_pin(codec, "OUT3");
@@ -351,13 +351,11 @@ static int neo1973_gta02_wm8753_init(struct snd_soc_codec *codec)
 				  ARRAY_SIZE(wm8753_dapm_widgets));
 
 	/* add neo1973 gta02 specific controls */
-	for (i = 0; i < ARRAY_SIZE(wm8753_neo1973_gta02_controls); i++) {
-		err = snd_ctl_add(codec->card,
-			snd_soc_cnew(&wm8753_neo1973_gta02_controls[i],
-			codec, NULL));
-		if (err < 0)
-			return err;
-	}
+	err = snd_soc_add_controls(codec, wm8753_neo1973_gta02_controls,
+		ARRAY_SIZE(wm8753_neo1973_gta02_controls));
+
+	if (err < 0)
+		return err;
 
 	/* set up neo1973 gta02 specific audio path audio_map */
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
