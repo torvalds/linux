@@ -3152,11 +3152,6 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 	return true;
 }
 
-enum ath9k_int ath9k_hw_intrget(struct ath_hw *ah)
-{
-	return ah->mask_reg;
-}
-
 enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 {
 	u32 omask = ah->mask_reg;

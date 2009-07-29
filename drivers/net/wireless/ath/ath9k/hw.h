@@ -612,7 +612,6 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore);
 /* Interrupt Handling */
 bool ath9k_hw_intrpend(struct ath_hw *ah);
 bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked);
-enum ath9k_int ath9k_hw_intrget(struct ath_hw *ah);
 enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints);
 
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);
