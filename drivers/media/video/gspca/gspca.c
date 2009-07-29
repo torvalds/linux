@@ -1492,12 +1492,6 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 	return 0;
 }
 
-static int vidioc_s_std(struct file *filp, void *priv,
-			v4l2_std_id *parm)
-{
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 static int vidiocgmbuf(struct file *file, void *priv,
 			struct video_mbuf *mbuf)
@@ -1968,7 +1962,6 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_s_jpegcomp	= vidioc_s_jpegcomp,
 	.vidioc_g_parm		= vidioc_g_parm,
 	.vidioc_s_parm		= vidioc_s_parm,
-	.vidioc_s_std		= vidioc_s_std,
 	.vidioc_enum_framesizes = vidioc_enum_framesizes,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register	= vidioc_g_register,
