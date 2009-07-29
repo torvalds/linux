@@ -2006,6 +2006,9 @@ E: paul@laufernet.com
 D: Soundblaster driver fixes, ISAPnP quirk
 S: California, USA
 
+N: Jonathan Layes
+D: ARPD support
+
 N: Tom Lees
 E: tom@lpsg.demon.co.uk
 W: http://www.lpsg.demon.co.uk/

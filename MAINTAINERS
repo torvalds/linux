@@ -951,12 +951,6 @@ W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/vfp/
 
-ARPD SUPPORT
-P:	Jonathan Layes
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	net/ipv4/arp.c
-
 ASUS ACPI EXTRAS DRIVER
 P:	Corentin Chary
 M:	corentincj@iksaif.net
