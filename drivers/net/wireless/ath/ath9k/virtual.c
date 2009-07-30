@@ -351,7 +351,7 @@ void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			 * Drop from tasklet to work to allow mutex for channel
 			 * change.
 			 */
-			queue_work(aphy->sc->hw->workqueue,
+			ieee80211_queue_work(aphy->sc->hw,
 				   &aphy->sc->chan_work);
 		}
 	}
@@ -367,7 +367,7 @@ static void ath9k_mark_paused(struct ath_wiphy *aphy)
 	struct ath_softc *sc = aphy->sc;
 	aphy->state = ATH_WIPHY_PAUSED;
 	if (!__ath9k_wiphy_pausing(sc))
-		queue_work(sc->hw->workqueue, &sc->chan_work);
+		ieee80211_queue_work(sc->hw, &sc->chan_work);
 }
 
 static void ath9k_pause_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
@@ -521,7 +521,7 @@ int ath9k_wiphy_select(struct ath_wiphy *aphy)
 			spin_unlock_bh(&sc->wiphy_lock);
 			ath_radio_disable(sc);
 			ath_radio_enable(sc);
-			queue_work(aphy->sc->hw->workqueue,
+			ieee80211_queue_work(aphy->sc->hw,
 				   &aphy->sc->chan_work);
 			return -EBUSY; /* previous select still in progress */
 		}
@@ -541,7 +541,7 @@ int ath9k_wiphy_select(struct ath_wiphy *aphy)
 
 	if (now) {
 		/* Ready to request channel change immediately */
-		queue_work(aphy->sc->hw->workqueue, &aphy->sc->chan_work);
+		ieee80211_queue_work(aphy->sc->hw, &aphy->sc->chan_work);
 	}
 
 	/*
@@ -648,8 +648,9 @@ try_again:
 		       "change\n");
 	}
 
-	queue_delayed_work(sc->hw->workqueue, &sc->wiphy_work,
-			   sc->wiphy_scheduler_int);
+	ieee80211_queue_delayed_work(sc->hw,
+				     &sc->wiphy_work,
+				     sc->wiphy_scheduler_int);
 }
 
 void ath9k_wiphy_set_scheduler(struct ath_softc *sc, unsigned int msec_int)
@@ -657,8 +658,8 @@ void ath9k_wiphy_set_scheduler(struct ath_softc *sc, unsigned int msec_int)
 	cancel_delayed_work_sync(&sc->wiphy_work);
 	sc->wiphy_scheduler_int = msecs_to_jiffies(msec_int);
 	if (sc->wiphy_scheduler_int)
-		queue_delayed_work(sc->hw->workqueue, &sc->wiphy_work,
-				   sc->wiphy_scheduler_int);
+		ieee80211_queue_delayed_work(sc->hw, &sc->wiphy_work,
+					     sc->wiphy_scheduler_int);
 }
 
 /* caller must hold wiphy_lock */

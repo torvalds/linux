@@ -614,6 +614,12 @@ struct ieee80211_local {
 
 	const struct ieee80211_ops *ops;
 
+	/*
+	 * private workqueue to mac80211. mac80211 makes this accessible
+	 * via ieee80211_queue_work()
+	 */
+	struct workqueue_struct *workqueue;
+
 	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES];
 	/* also used to protect ampdu_ac_queue and amdpu_ac_stop_refcnt */
 	spinlock_t queue_stop_reason_lock;

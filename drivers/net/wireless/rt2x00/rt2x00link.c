@@ -351,8 +351,8 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00link_reset_tuner(rt2x00dev, false);
 
-	queue_delayed_work(rt2x00dev->hw->workqueue,
-			   &link->work, LINK_TUNE_INTERVAL);
+	ieee80211_queue_delayed_work(rt2x00dev->hw,
+				     &link->work, LINK_TUNE_INTERVAL);
 }
 
 void rt2x00link_stop_tuner(struct rt2x00_dev *rt2x00dev)
@@ -461,8 +461,8 @@ static void rt2x00link_tuner(struct work_struct *work)
 	 * Increase tuner counter, and reschedule the next link tuner run.
 	 */
 	link->count++;
-	queue_delayed_work(rt2x00dev->hw->workqueue,
-			   &link->work, LINK_TUNE_INTERVAL);
+	ieee80211_queue_delayed_work(rt2x00dev->hw,
+				     &link->work, LINK_TUNE_INTERVAL);
 }
 
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev)

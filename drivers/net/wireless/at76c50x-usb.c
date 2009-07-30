@@ -1875,8 +1875,8 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 	/* FIXME: add maximum time for scan to complete */
 
 	if (ret != CMD_STATUS_COMPLETE) {
-		queue_delayed_work(priv->hw->workqueue, &priv->dwork_hw_scan,
-				   SCAN_POLL_INTERVAL);
+		ieee80211_queue_delayed_work(priv->hw, &priv->dwork_hw_scan,
+					     SCAN_POLL_INTERVAL);
 		mutex_unlock(&priv->mtx);
 		return;
 	}
@@ -1937,8 +1937,8 @@ static int at76_hw_scan(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
-	queue_delayed_work(priv->hw->workqueue, &priv->dwork_hw_scan,
-			   SCAN_POLL_INTERVAL);
+	ieee80211_queue_delayed_work(priv->hw, &priv->dwork_hw_scan,
+				     SCAN_POLL_INTERVAL);
 
 exit:
 	mutex_unlock(&priv->mtx);
@@ -2027,7 +2027,7 @@ static void at76_configure_filter(struct ieee80211_hw *hw,
 	} else
 		return;
 
-	queue_work(hw->workqueue, &priv->work_set_promisc);
+	ieee80211_queue_work(hw, &priv->work_set_promisc);
 }
 
 static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,

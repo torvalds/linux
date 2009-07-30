@@ -73,6 +73,21 @@
  */
 
 /**
+ * DOC: mac80211 workqueue
+ *
+ * mac80211 provides its own workqueue for drivers and internal mac80211 use.
+ * The workqueue is a single threaded workqueue and can only be accessed by
+ * helpers for sanity checking. Drivers must ensure all work added onto the
+ * mac80211 workqueue should be cancelled on the driver stop() callback.
+ *
+ * mac80211 will flushed the workqueue upon interface removal and during
+ * suspend.
+ *
+ * All work performed on the mac80211 workqueue must not acquire the RTNL lock.
+ *
+ */
+
+/**
  * enum ieee80211_max_queues - maximum number of queues
  *
  * @IEEE80211_MAX_QUEUES: Maximum number of regular device queues.
@@ -913,12 +928,6 @@ enum ieee80211_hw_flags {
  *
  * @conf: &struct ieee80211_conf, device configuration, don't use.
  *
- * @workqueue: single threaded workqueue available for driver use,
- *	allocated by mac80211 on registration and flushed when an
- *	interface is removed.
- *	NOTICE: All work performed on this workqueue must not
- *	acquire the RTNL lock.
- *
  * @priv: pointer to private area that was allocated for driver use
  *	along with this structure.
  *
@@ -954,7 +963,6 @@ enum ieee80211_hw_flags {
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
 	struct wiphy *wiphy;
-	struct workqueue_struct *workqueue;
 	const char *rate_control_algorithm;
 	void *priv;
 	u32 flags;
@@ -1301,7 +1309,8 @@ enum ieee80211_ampdu_mlme_action {
  *	is disabled. This should turn off the hardware (at least
  *	it must turn off frame reception.)
  *	May be called right after add_interface if that rejects
- *	an interface.
+ *	an interface. If you added any work onto the mac80211 workqueue
+ *	you should ensure to cancel it on this callback.
  *	Must be implemented.
  *
  * @add_interface: Called when a netdevice attached to the hardware is
@@ -1926,6 +1935,31 @@ void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
 						    u8 *mac,
 						    struct ieee80211_vif *vif),
 						void *data);
+
+/**
+ * ieee80211_queue_work - add work onto the mac80211 workqueue
+ *
+ * Drivers and mac80211 use this to add work onto the mac80211 workqueue.
+ * This helper ensures drivers are not queueing work when they should not be.
+ *
+ * @hw: the hardware struct for the interface we are adding work for
+ * @work: the work we want to add onto the mac80211 workqueue
+ */
+void ieee80211_queue_work(struct ieee80211_hw *hw, struct work_struct *work);
+
+/**
+ * ieee80211_queue_delayed_work - add work onto the mac80211 workqueue
+ *
+ * Drivers and mac80211 use this to queue delayed work onto the mac80211
+ * workqueue.
+ *
+ * @hw: the hardware struct for the interface we are adding work for
+ * @dwork: delayable work to queue onto the mac80211 workqueue
+ * @delay: number of jiffies to wait before queueing
+ */
+void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
+				  struct delayed_work *dwork,
+				  unsigned long delay);
 
 /**
  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.

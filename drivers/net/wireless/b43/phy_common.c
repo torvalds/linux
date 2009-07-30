@@ -352,7 +352,7 @@ void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags)
 
 	/* We must adjust the transmission power in hardware.
 	 * Schedule b43_phy_txpower_adjust_work(). */
-	queue_work(dev->wl->hw->workqueue, &dev->wl->txpower_adjust_work);
+	ieee80211_queue_work(dev->wl->hw, &dev->wl->txpower_adjust_work);
 }
 
 int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset)

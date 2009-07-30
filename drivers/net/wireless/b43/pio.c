@@ -783,7 +783,7 @@ void b43_pio_rx(struct b43_pio_rxqueue *q)
 {
 	/* Due to latency issues we must run the RX path in
 	 * a workqueue to be able to schedule between packets. */
-	queue_work(q->dev->wl->hw->workqueue, &q->rx_work);
+	ieee80211_queue_work(q->dev->wl->hw, &q->rx_work);
 }
 
 static void b43_pio_tx_suspend_queue(struct b43_pio_txqueue *q)

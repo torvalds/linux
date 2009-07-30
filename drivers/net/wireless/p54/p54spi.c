@@ -391,7 +391,7 @@ static irqreturn_t p54spi_interrupt(int irq, void *config)
 	struct spi_device *spi = config;
 	struct p54s_priv *priv = dev_get_drvdata(&spi->dev);
 
-	queue_work(priv->hw->workqueue, &priv->work);
+	ieee80211_queue_work(priv->hw, &priv->work);
 
 	return IRQ_HANDLED;
 }
@@ -479,7 +479,7 @@ static void p54spi_op_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	list_add_tail(&di->tx_list, &priv->tx_pending);
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
-	queue_work(priv->hw->workqueue, &priv->work);
+	ieee80211_queue_work(priv->hw, &priv->work);
 }
 
 static void p54spi_work(struct work_struct *work)

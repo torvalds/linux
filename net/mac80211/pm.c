@@ -26,7 +26,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	/* make quiescing visible to timers everywhere */
 	mb();
 
-	flush_workqueue(local->hw.workqueue);
+	flush_workqueue(local->workqueue);
 
 	/* Don't try to run timers while suspended. */
 	del_timer_sync(&local->sta_cleanup);
@@ -117,7 +117,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	 * shouldn't be doing (or cancel everything in the
 	 * stop callback) that but better safe than sorry.
 	 */
-	flush_workqueue(local->hw.workqueue);
+	flush_workqueue(local->workqueue);
 
 	local->suspended = true;
 	/* need suspended to be visible before quiescing is false */

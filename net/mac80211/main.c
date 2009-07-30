@@ -821,9 +821,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (hw->queues > IEEE80211_MAX_QUEUES)
 		hw->queues = IEEE80211_MAX_QUEUES;
 
-	local->hw.workqueue =
+	local->workqueue =
 		create_singlethread_workqueue(wiphy_name(local->hw.wiphy));
-	if (!local->hw.workqueue) {
+	if (!local->workqueue) {
 		result = -ENOMEM;
 		goto fail_workqueue;
 	}
@@ -913,7 +913,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	sta_info_stop(local);
  fail_sta_info:
 	debugfs_hw_del(local);
-	destroy_workqueue(local->hw.workqueue);
+	destroy_workqueue(local->workqueue);
  fail_workqueue:
 	wiphy_unregister(local->hw.wiphy);
  fail_wiphy_register:
@@ -955,7 +955,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	skb_queue_purge(&local->skb_queue);
 	skb_queue_purge(&local->skb_queue_unreliable);
 
-	destroy_workqueue(local->hw.workqueue);
+	destroy_workqueue(local->workqueue);
 	wiphy_unregister(local->hw.wiphy);
 	ieee80211_wep_free(local);
 	ieee80211_led_exit(local);

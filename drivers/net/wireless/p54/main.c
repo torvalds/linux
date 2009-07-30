@@ -180,7 +180,7 @@ static int p54_start(struct ieee80211_hw *dev)
 		goto out;
 	}
 
-	queue_delayed_work(dev->workqueue, &priv->work, 0);
+	ieee80211_queue_delayed_work(dev, &priv->work, 0);
 
 	priv->softled_state = 0;
 	err = p54_set_leds(priv);

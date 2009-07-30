@@ -973,10 +973,11 @@ static void ath_led_blink_work(struct work_struct *work)
 		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
 				  (sc->sc_flags & SC_OP_LED_ON) ? 1 : 0);
 
-	queue_delayed_work(sc->hw->workqueue, &sc->ath_led_blink_work,
-			   (sc->sc_flags & SC_OP_LED_ON) ?
-			   msecs_to_jiffies(sc->led_off_duration) :
-			   msecs_to_jiffies(sc->led_on_duration));
+	ieee80211_queue_delayed_work(sc->hw,
+				     &sc->ath_led_blink_work,
+				     (sc->sc_flags & SC_OP_LED_ON) ?
+					msecs_to_jiffies(sc->led_off_duration) :
+					msecs_to_jiffies(sc->led_on_duration));
 
 	sc->led_on_duration = sc->led_on_cnt ?
 			max((ATH_LED_ON_DURATION_IDLE - sc->led_on_cnt), 25) :
@@ -1013,8 +1014,8 @@ static void ath_led_brightness(struct led_classdev *led_cdev,
 	case LED_FULL:
 		if (led->led_type == ATH_LED_ASSOC) {
 			sc->sc_flags |= SC_OP_LED_ASSOCIATED;
-			queue_delayed_work(sc->hw->workqueue,
-					   &sc->ath_led_blink_work, 0);
+			ieee80211_queue_delayed_work(sc->hw,
+						     &sc->ath_led_blink_work, 0);
 		} else if (led->led_type == ATH_LED_RADIO) {
 			ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 0);
 			sc->sc_flags |= SC_OP_LED_ON;
@@ -1972,7 +1973,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ieee80211_wake_queues(hw);
 
-	queue_delayed_work(sc->hw->workqueue, &sc->tx_complete_work, 0);
+	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
 mutex_unlock:
 	mutex_unlock(&sc->mutex);

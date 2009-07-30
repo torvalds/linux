@@ -220,7 +220,7 @@ static void rtl8187_tx_cb(struct urb *urb)
 		 * reading a register in the device. We are in interrupt mode
 		 * here, thus queue the skb and finish on a work queue. */
 		skb_queue_tail(&priv->b_tx_status.queue, skb);
-		queue_delayed_work(hw->workqueue, &priv->work, 0);
+		ieee80211_queue_delayed_work(hw, &priv->work, 0);
 	}
 }
 
