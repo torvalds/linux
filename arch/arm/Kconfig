@@ -126,6 +126,13 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 
+config ARCH_HAS_CPUFREQ
+	bool
+	help
+	  Internal node to signify that the ARCH has CPUFREQ support
+	  and that the relevant menu configurations are displayed for
+	  it.
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -203,6 +210,7 @@ config ARCH_AAEC2000
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
+	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ICST525
@@ -509,6 +517,7 @@ config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
 	depends on MMU
 	select ARCH_MTD_XIP
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select COMMON_CLKDEV
@@ -551,6 +560,7 @@ config ARCH_SA1100
 	select ISA
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_MTD_XIP
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -573,6 +583,7 @@ config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select ARCH_HAS_CPUFREQ
 	help
 	  Samsung S3C64XX series based systems
 
@@ -632,6 +643,7 @@ config ARCH_OMAP
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
@@ -1241,7 +1253,7 @@ endmenu
 
 menu "CPU Power Management"
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_PXA || ARCH_S3C64XX)
+if ARCH_HAS_CPUFREQ
 
 source "drivers/cpufreq/Kconfig"
 
