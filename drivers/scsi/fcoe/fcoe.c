@@ -419,6 +419,8 @@ static int fcoe_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
  * fcoe_em_config() - allocates em for this lport
  * @lp: the port that em is to allocated for
  *
+ * Called with write fcoe_hostlist_lock held.
+ *
  * Returns : 0 on success
  */
 static inline int fcoe_em_config(struct fc_lport *lp)
@@ -607,6 +609,13 @@ static int fcoe_if_create(struct net_device *netdev)
 		goto out_lp_destroy;
 	}
 
+	/*
+	 * fcoe_em_alloc() and fcoe_hostlist_add() both
+	 * need to be atomic under fcoe_hostlist_lock
+	 * since fcoe_em_alloc() looks for an existing EM
+	 * instance on host list updated by fcoe_hostlist_add().
+	 */
+	write_lock(&fcoe_hostlist_lock);
 	/* lport exch manager allocation */
 	rc = fcoe_em_config(lp);
 	if (rc) {
@@ -617,6 +626,7 @@ static int fcoe_if_create(struct net_device *netdev)
 
 	/* add to lports list */
 	fcoe_hostlist_add(lp);
+	write_unlock(&fcoe_hostlist_lock);
 
 	lp->boot_time = jiffies;
 
@@ -1720,6 +1730,8 @@ int fcoe_reset(struct Scsi_Host *shost)
  * fcoe_hostlist_lookup_softc() - find the corresponding lport by a given device
  * @dev: this is currently ptr to net_device
  *
+ * Called with fcoe_hostlist_lock held.
+ *
  * Returns: NULL or the located fcoe_softc
  */
 static struct fcoe_softc *
@@ -1727,14 +1739,10 @@ fcoe_hostlist_lookup_softc(const struct net_device *dev)
 {
 	struct fcoe_softc *fc;
 
-	read_lock(&fcoe_hostlist_lock);
 	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		if (fc->real_dev == dev) {
-			read_unlock(&fcoe_hostlist_lock);
+		if (fc->real_dev == dev)
 			return fc;
-		}
 	}
-	read_unlock(&fcoe_hostlist_lock);
 	return NULL;
 }
 
@@ -1748,7 +1756,9 @@ struct fc_lport *fcoe_hostlist_lookup(const struct net_device *netdev)
 {
 	struct fcoe_softc *fc;
 
+	read_lock(&fcoe_hostlist_lock);
 	fc = fcoe_hostlist_lookup_softc(netdev);
+	read_unlock(&fcoe_hostlist_lock);
 
 	return (fc) ? fc->ctlr.lp : NULL;
 }
@@ -1756,6 +1766,8 @@ struct fc_lport *fcoe_hostlist_lookup(const struct net_device *netdev)
 /**
  * fcoe_hostlist_add() - Add a lport to lports list
  * @lp: ptr to the fc_lport to be added
+ *
+ * Called with write fcoe_hostlist_lock held.
  *
  * Returns: 0 for success
  */
@@ -1766,9 +1778,7 @@ int fcoe_hostlist_add(const struct fc_lport *lp)
 	fc = fcoe_hostlist_lookup_softc(fcoe_netdev(lp));
 	if (!fc) {
 		fc = lport_priv(lp);
-		write_lock_bh(&fcoe_hostlist_lock);
 		list_add_tail(&fc->list, &fcoe_hostlist);
-		write_unlock_bh(&fcoe_hostlist_lock);
 	}
 	return 0;
 }
@@ -1783,9 +1793,9 @@ int fcoe_hostlist_remove(const struct fc_lport *lp)
 {
 	struct fcoe_softc *fc;
 
+	write_lock_bh(&fcoe_hostlist_lock);
 	fc = fcoe_hostlist_lookup_softc(fcoe_netdev(lp));
 	BUG_ON(!fc);
-	write_lock_bh(&fcoe_hostlist_lock);
 	list_del(&fc->list);
 	write_unlock_bh(&fcoe_hostlist_lock);
 
