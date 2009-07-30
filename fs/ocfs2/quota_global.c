@@ -238,7 +238,7 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 	}
 	if (err) {
 		mlog_errno(err);
-		return err;
+		goto out;
 	}
 	lock_buffer(bh);
 	if (new)
