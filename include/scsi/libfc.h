@@ -51,22 +51,22 @@ do {								\
 		do {						\
 			CMD;					\
 		} while (0);					\
-} while (0);
+} while (0)
 
 #define FC_LIBFC_DBG(fmt, args...)					\
 	FC_CHECK_LOGGING(FC_LIBFC_LOGGING,				\
-			 printk(KERN_INFO "libfc: " fmt, ##args);)
+			 printk(KERN_INFO "libfc: " fmt, ##args))
 
 #define FC_LPORT_DBG(lport, fmt, args...)				\
 	FC_CHECK_LOGGING(FC_LPORT_LOGGING,				\
 			 printk(KERN_INFO "lport: %6x: " fmt,		\
-				fc_host_port_id(lport->host), ##args);)
+				fc_host_port_id(lport->host), ##args))
 
 #define FC_DISC_DBG(disc, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_DISC_LOGGING,				\
 			 printk(KERN_INFO "disc: %6x: " fmt,		\
 				fc_host_port_id(disc->lport->host),	\
-				##args);)
+				##args))
 
 #define FC_RPORT_DBG(rport, fmt, args...)				\
 do {									\
@@ -75,31 +75,31 @@ do {									\
 	FC_CHECK_LOGGING(FC_RPORT_LOGGING,				\
 			 printk(KERN_INFO "rport: %6x: %6x: " fmt,	\
 				fc_host_port_id(lport->host),		\
-				rport->port_id, ##args);)		\
-} while (0);
+				rport->port_id, ##args));		\
+} while (0)
 
 #define FC_FCP_DBG(pkt, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_FCP_LOGGING,				\
 			 printk(KERN_INFO "fcp: %6x: %6x: " fmt,	\
 				fc_host_port_id(pkt->lp->host),		\
-				pkt->rport->port_id, ##args);)
+				pkt->rport->port_id, ##args))
 
 #define FC_EM_DBG(em, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_EM_LOGGING,					\
 			 printk(KERN_INFO "em: %6x: " fmt,		\
 				fc_host_port_id(em->lp->host),		\
-				##args);)
+				##args))
 
 #define FC_EXCH_DBG(exch, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_EXCH_LOGGING,				\
 			 printk(KERN_INFO "exch: %6x: %4x: " fmt,	\
 				fc_host_port_id(exch->lp->host),	\
-				exch->xid, ##args);)
+				exch->xid, ##args))
 
 #define FC_SCSI_DBG(lport, fmt, args...)				\
 	FC_CHECK_LOGGING(FC_SCSI_LOGGING,                               \
 			 printk(KERN_INFO "scsi: %6x: " fmt,		\
-				fc_host_port_id(lport->host), ##args);)
+				fc_host_port_id(lport->host), ##args))
 
 /*
  * libfc error codes
