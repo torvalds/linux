@@ -497,6 +497,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct pxa27x_ohci *ohci = to_pxa27x_ohci(hcd);
+	struct pxaohci_platform_data *inf = dev->platform_data;
 	int status;
 
 	if (time_before(jiffies, ohci->ohci.next_statechange))
@@ -505,6 +506,9 @@ static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 
 	if ((status = pxa27x_start_hc(ohci, dev)) < 0)
 		return status;
+
+	/* Select Power Management Mode */
+	pxa27x_ohci_select_pmm(ohci, inf->port_mode);
 
 	ohci_finish_controller_resume(hcd);
 	return 0;
