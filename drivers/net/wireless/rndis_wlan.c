@@ -2457,9 +2457,6 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	disassociate(usbdev, 1);
 	netif_carrier_off(usbdev->net);
 
-	queue_delayed_work(priv->workqueue, &priv->stats_work,
-		round_jiffies_relative(STATS_UPDATE_JIFFIES));
-
 	return 0;
 
 fail:
@@ -2499,15 +2496,33 @@ static void rndis_wlan_unbind(struct usbnet *usbdev, struct usb_interface *intf)
 
 static int rndis_wlan_reset(struct usbnet *usbdev)
 {
+	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+
 	devdbg(usbdev, "rndis_wlan_reset");
+
+	queue_delayed_work(priv->workqueue, &priv->stats_work,
+		round_jiffies_relative(STATS_UPDATE_JIFFIES));
+
 	return deauthenticate(usbdev);
 }
 
 
 static int rndis_wlan_stop(struct usbnet *usbdev)
 {
+	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+	int retval;
+
 	devdbg(usbdev, "rndis_wlan_stop");
-	return disassociate(usbdev, 0);
+
+	retval = disassociate(usbdev, 0);
+
+	priv->work_pending = 0;
+	cancel_delayed_work_sync(&priv->stats_work);
+	cancel_delayed_work_sync(&priv->scan_work);
+	cancel_work_sync(&priv->work);
+	flush_workqueue(priv->workqueue);
+
+	return retval;
 }
 
 
