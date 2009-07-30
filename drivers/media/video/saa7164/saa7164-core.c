@@ -49,6 +49,10 @@ unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
+unsigned int waitsecs = 1;
+module_param(waitsecs, int, 0644);
+MODULE_PARM_DESC(debug, "timeout on firmware messages");
+
 static unsigned int card[]  = {[0 ... (SAA7164_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
@@ -662,6 +666,7 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		printk(KERN_ERR "%s() Unsupported board detected, "
 			"registering without firmware\n", __func__);
 
+	printk(KERN_INFO "%s() waitsecs = %d\n", __func__, waitsecs);
 fail_fw:
 	return 0;
 

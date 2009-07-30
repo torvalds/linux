@@ -234,8 +234,8 @@ int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
 				__func__, seqno, dev->cmds[seqno].signalled);
 
 			/* Wait for signalled to be flagged or timeout */
-			wait_event_timeout(*q, dev->cmds[seqno].signalled, HZ);
-			r = time_before(jiffies, stamp + HZ);
+			wait_event_timeout(*q, dev->cmds[seqno].signalled, (HZ * waitsecs));
+			r = time_before(jiffies, stamp + (HZ * waitsecs));
 			if (r)
 				ret = SAA_OK;
 			else

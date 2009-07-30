@@ -294,6 +294,7 @@ struct saa7164_dev {
 };
 
 extern struct list_head saa7164_devlist;
+extern unsigned int waitsecs;
 
 /* ----------------------------------------------------------- */
 /* saa7164-core.c                                              */
