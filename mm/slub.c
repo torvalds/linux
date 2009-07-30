@@ -2422,6 +2422,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 	 * on bootup.
 	 */
 	align = calculate_alignment(flags, align, s->objsize);
+	s->align = align;
 
 	/*
 	 * SLUB stores one object immediately after another beginning from
