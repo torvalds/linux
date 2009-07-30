@@ -725,15 +725,22 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		break;
 	case NETDEV_UNREGISTER:
 		mutex_lock(&rdev->devlist_mtx);
+		/*
+		 * It is possible to get NETDEV_UNREGISTER
+		 * multiple times. To detect that, check
+		 * that the interface is still on the list
+		 * of registered interfaces, and only then
+		 * remove and clean it up.
+		 */
 		if (!list_empty(&wdev->list)) {
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
 			list_del_init(&wdev->list);
+			mutex_destroy(&wdev->mtx);
+#ifdef CONFIG_WIRELESS_EXT
+			kfree(wdev->wext.keys);
+#endif
 		}
 		mutex_unlock(&rdev->devlist_mtx);
-		mutex_destroy(&wdev->mtx);
-#ifdef CONFIG_WIRELESS_EXT
-		kfree(wdev->wext.keys);
-#endif
 		break;
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))
