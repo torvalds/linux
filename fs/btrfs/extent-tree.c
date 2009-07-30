@@ -302,10 +302,11 @@ again:
 			else if (ret)
 				break;
 
-			if (need_resched()) {
+			if (need_resched() ||
+			    btrfs_transaction_in_commit(fs_info)) {
 				btrfs_release_path(fs_info->extent_root, path);
 				up_read(&fs_info->extent_commit_sem);
-				cond_resched();
+				schedule_timeout(1);
 				goto again;
 			}
 

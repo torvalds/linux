@@ -857,6 +857,16 @@ static void update_super_roots(struct btrfs_root *root)
 	super->root_level = root_item->level;
 }
 
+int btrfs_transaction_in_commit(struct btrfs_fs_info *info)
+{
+	int ret = 0;
+	spin_lock(&info->new_trans_lock);
+	if (info->running_transaction)
+		ret = info->running_transaction->in_commit;
+	spin_unlock(&info->new_trans_lock);
+	return ret;
+}
+
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
