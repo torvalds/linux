@@ -1046,17 +1046,21 @@ static void yield_task_fair(struct rq *rq)
  * search starts with cpus closest then further out as needed,
  * so we always favor a closer, idle cpu.
  * Domains may include CPUs that are not usable for migration,
- * hence we need to mask them out (cpu_active_mask)
+ * hence we need to mask them out (rq->rd->online)
  *
  * Returns the CPU we should wake onto.
  */
 #if defined(ARCH_HAS_SCHED_WAKE_IDLE)
+
+#define cpu_rd_active(cpu, rq) cpumask_test_cpu(cpu, rq->rd->online)
+
 static int wake_idle(int cpu, struct task_struct *p)
 {
 	struct sched_domain *sd;
 	int i;
 	unsigned int chosen_wakeup_cpu;
 	int this_cpu;
+	struct rq *task_rq = task_rq(p);
 
 	/*
 	 * At POWERSAVINGS_BALANCE_WAKEUP level, if both this_cpu and prev_cpu
@@ -1089,10 +1093,10 @@ static int wake_idle(int cpu, struct task_struct *p)
 	for_each_domain(cpu, sd) {
 		if ((sd->flags & SD_WAKE_IDLE)
 		    || ((sd->flags & SD_WAKE_IDLE_FAR)
-			&& !task_hot(p, task_rq(p)->clock, sd))) {
+			&& !task_hot(p, task_rq->clock, sd))) {
 			for_each_cpu_and(i, sched_domain_span(sd),
 					 &p->cpus_allowed) {
-				if (cpu_active(i) && idle_cpu(i)) {
+				if (cpu_rd_active(i, task_rq) && idle_cpu(i)) {
 					if (i != task_cpu(p)) {
 						schedstat_inc(p,
 						       se.nr_wakeups_idle);
