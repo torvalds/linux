@@ -32,6 +32,12 @@ config S3C2412_PM
 	help
 	  Internal config node to apply S3C2412 power management
 
+config S3C2412_CPUFREQ
+	bool
+	depends on CPU_FREQ_S3C24XX && CPU_S3C2412
+	default y
+	help
+	  CPU Frequency scaling support for S3C2412 and S3C2413 SoC CPUs.
 
 menu "S3C2412 Machines"
 
