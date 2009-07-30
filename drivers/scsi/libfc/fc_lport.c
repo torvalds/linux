@@ -930,19 +930,14 @@ int fc_lport_reset(struct fc_lport *lport)
 EXPORT_SYMBOL(fc_lport_reset);
 
 /**
- * fc_rport_enter_reset() - Reset the local port
+ * fc_lport_reset_locked() - Reset the local port
  * @lport: Fibre Channel local port to be reset
  *
  * Locking Note: The lport lock is expected to be held before calling
  * this routine.
  */
-static void fc_lport_enter_reset(struct fc_lport *lport)
+static void fc_lport_reset_locked(struct fc_lport *lport)
 {
-	FC_LPORT_DBG(lport, "Entered RESET state from %s state\n",
-		     fc_lport_state(lport));
-
-	fc_lport_state_enter(lport, LPORT_ST_RESET);
-
 	if (lport->dns_rp)
 		lport->tt.rport_logoff(lport->dns_rp);
 
@@ -956,9 +951,40 @@ static void fc_lport_enter_reset(struct fc_lport *lport)
 	lport->tt.exch_mgr_reset(lport, 0, 0);
 	fc_host_fabric_name(lport->host) = 0;
 	fc_host_port_id(lport->host) = 0;
+}
 
+/**
+ * fc_lport_enter_reset() - Reset the local port
+ * @lport: Fibre Channel local port to be reset
+ *
+ * Locking Note: The lport lock is expected to be held before calling
+ * this routine.
+ */
+static void fc_lport_enter_reset(struct fc_lport *lport)
+{
+	FC_LPORT_DBG(lport, "Entered RESET state from %s state\n",
+		     fc_lport_state(lport));
+
+	fc_lport_state_enter(lport, LPORT_ST_RESET);
+	fc_lport_reset_locked(lport);
 	if (lport->link_up)
 		fc_lport_enter_flogi(lport);
+}
+
+/**
+ * fc_lport_enter_disabled() - disable the local port
+ * @lport: Fibre Channel local port to be reset
+ *
+ * Locking Note: The lport lock is expected to be held before calling
+ * this routine.
+ */
+static void fc_lport_enter_disabled(struct fc_lport *lport)
+{
+	FC_LPORT_DBG(lport, "Entered disabled state from %s state\n",
+		     fc_lport_state(lport));
+
+	fc_lport_state_enter(lport, LPORT_ST_DISABLED);
+	fc_lport_reset_locked(lport);
 }
 
 /**
@@ -1382,7 +1408,7 @@ static void fc_lport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	op = fc_frame_payload_op(fp);
 	if (op == ELS_LS_ACC)
-		fc_lport_enter_reset(lport);
+		fc_lport_enter_disabled(lport);
 	else
 		fc_lport_error(lport, fp);
 
