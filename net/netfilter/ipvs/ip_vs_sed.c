@@ -35,6 +35,9 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 

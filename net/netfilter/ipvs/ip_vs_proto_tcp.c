@@ -13,6 +13,9 @@
  *
  */
 
+#define KMSG_COMPONENT "IPVS"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>                  /* for tcphdr */
