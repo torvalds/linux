@@ -6681,18 +6681,27 @@ static struct hda_channel_mode alc883_3ST_6ch_intel_modes[3] = {
 };
 
 /*
+ * 2ch mode
+ */
+static struct hda_verb alc889_ch2_intel_init[] = {
+	{ 0x14, AC_VERB_SET_CONNECT_SEL, 0x00 },
+	{ 0x19, AC_VERB_SET_CONNECT_SEL, 0x00 },
+	{ 0x16, AC_VERB_SET_CONNECT_SEL, 0x00 },
+	{ 0x17, AC_VERB_SET_CONNECT_SEL, 0x00 },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ } /* end */
+};
+
+/*
  * 6ch mode
  */
 static struct hda_verb alc889_ch6_intel_init[] = {
-	{ 0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	{ 0x14, AC_VERB_SET_CONNECT_SEL, 0x00 },
+	{ 0x19, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ 0x16, AC_VERB_SET_CONNECT_SEL, 0x02 },
+	{ 0x17, AC_VERB_SET_CONNECT_SEL, 0x03 },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
 	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
 	{ } /* end */
 };
@@ -6701,21 +6710,18 @@ static struct hda_verb alc889_ch6_intel_init[] = {
  * 8ch mode
  */
 static struct hda_verb alc889_ch8_intel_init[] = {
-	{ 0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
-	{ 0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x14, AC_VERB_SET_CONNECT_SEL, 0x00 },
+	{ 0x19, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ 0x16, AC_VERB_SET_CONNECT_SEL, 0x02 },
+	{ 0x17, AC_VERB_SET_CONNECT_SEL, 0x03 },
+	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x03 },
 	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
-	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x03 },
 	{ } /* end */
 };
 
-static struct hda_channel_mode alc889_8ch_intel_modes[2] = {
+static struct hda_channel_mode alc889_8ch_intel_modes[3] = {
+	{ 2, alc889_ch2_intel_init },
 	{ 6, alc889_ch6_intel_init },
 	{ 8, alc889_ch8_intel_init },
 };
