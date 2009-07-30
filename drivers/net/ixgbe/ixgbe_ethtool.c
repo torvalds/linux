@@ -1975,7 +1975,10 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		 * any other value means disable eitr, which is best
 		 * served by setting the interrupt rate very high
 		 */
-		adapter->eitr_param = IXGBE_MAX_INT_RATE;
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
+			adapter->eitr_param = IXGBE_MAX_RSC_INT_RATE;
+		else
+			adapter->eitr_param = IXGBE_MAX_INT_RATE;
 		adapter->itr_setting = 0;
 	}
 
