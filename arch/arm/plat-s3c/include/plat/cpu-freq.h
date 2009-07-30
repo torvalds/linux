@@ -98,26 +98,6 @@ struct s3c_pllval {
 };
 
 /**
- * struct s3c_cpufreq_config - current cpu frequency configuration
- * @freq: The current settings for the core clocks.
- * @pll: The PLL table entry for the current PLL settings.
- * @divs: The divisor settings for the core clocks.
- * @info: The current core driver information.
- * @board: The information for the board we are running on.
- *
- * This is for the core drivers that need to know information about
- * the current settings and values. It should not be needed by any
- * device drivers.
-*/
-struct s3c_cpufreq_config {
-	struct s3c_freq		freq;
-	struct s3c_pllval	pll;
-	struct s3c_clkdivs	divs;
-	struct s3c_cpufreq_info *info;	/* for core, not drivers */
-	struct s3c_cpufreq_board *board;
-};
-
-/**
  * struct s3c_cpufreq_board - per-board cpu frequency informatin
  * @refresh: The SDRAM refresh period in nanoseconds.
  * @auto_io: Set if the IO timing settings should be generated from the

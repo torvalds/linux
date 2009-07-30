@@ -65,6 +65,31 @@ struct s3c_plltab {
 };
 
 /**
+ * struct s3c_cpufreq_config - current cpu frequency configuration
+ * @freq: The current settings for the core clocks.
+ * @max: Maxium settings, derived from core, board and user settings.
+ * @pll: The PLL table entry for the current PLL settings.
+ * @divs: The divisor settings for the core clocks.
+ * @info: The current core driver information.
+ * @board: The information for the board we are running on.
+ * @lock_pll: Set if the PLL settings cannot be changed.
+ *
+ * This is for the core drivers that need to know information about
+ * the current settings and values. It should not be needed by any
+ * device drivers.
+*/
+struct s3c_cpufreq_config {
+	struct s3c_freq		freq;
+	struct s3c_freq		max;
+	struct cpufreq_frequency_table pll;
+	struct s3c_clkdivs	divs;
+	struct s3c_cpufreq_info *info;	/* for core, not drivers */
+	struct s3c_cpufreq_board *board;
+
+	unsigned int	lock_pll:1;
+};
+
+/**
  * struct s3c_cpufreq_info - Information for the CPU frequency driver.
  * @name: The name of this implementation.
  * @max: The maximum frequencies for the system.
