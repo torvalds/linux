@@ -183,7 +183,7 @@ BYTE                 ZeroBSSID[WLAN_BSSID_LEN]={0x00,0x00,0x00,0x00,0x00,0x00};
     UINT            ii = 0;
 //    UINT            jj = 0;   //DavidWang
     if (pbyDesireBSSID != NULL) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSpSearchBSSList BSSID[%02X %02X %02X-%02X %02X %02X]\n",
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSpSearchBSSList BSSID[%02X %02X %02X-%02X %02X %02X]\n",
                             *pbyDesireBSSID,*(pbyDesireBSSID+1),*(pbyDesireBSSID+2),
                             *(pbyDesireBSSID+3),*(pbyDesireBSSID+4),*(pbyDesireBSSID+5));
         if ((!IS_BROADCAST_ADDRESS(pbyDesireBSSID)) &&
@@ -252,7 +252,7 @@ if(pDevice->bLinkPass==FALSE) pCurrBSS->bSelected = FALSE;
                     ((pMgmt->eConfigMode == WMAC_CONFIG_ESS_STA) && WLAN_GET_CAP_INFO_IBSS(pCurrBSS->wCapInfo))
                     ) {
                     // Type not match skip this BSS
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSS type mismatch.... Config[%d] BSS[0x%04x]\n", pMgmt->eConfigMode, pCurrBSS->wCapInfo);
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSS type mismatch.... Config[%d] BSS[0x%04x]\n", pMgmt->eConfigMode, pCurrBSS->wCapInfo);
                     continue;
                 }
 
@@ -260,7 +260,7 @@ if(pDevice->bLinkPass==FALSE) pCurrBSS->bSelected = FALSE;
                     if (((ePhyType == PHY_TYPE_11A) && (PHY_TYPE_11A != pCurrBSS->eNetworkTypeInUse)) ||
                         ((ePhyType != PHY_TYPE_11A) && (PHY_TYPE_11A == pCurrBSS->eNetworkTypeInUse))) {
                         // PhyType not match skip this BSS
-                        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Physical type mismatch.... ePhyType[%d] BSS[%d]\n", ePhyType, pCurrBSS->eNetworkTypeInUse);
+                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Physical type mismatch.... ePhyType[%d] BSS[%d]\n", ePhyType, pCurrBSS->eNetworkTypeInUse);
                         continue;
                     }
                 }
@@ -450,7 +450,7 @@ BSSbInsertToBSSList (
     }
 
     if (ii == MAX_BSS_NUM){
-        DEVICE_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Get free KnowBSS node failed.\n");
+        DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Get free KnowBSS node failed.\n");
         return FALSE;
     }
     // save the BSS info
@@ -476,7 +476,7 @@ BSSbInsertToBSSList (
         if (pExtSuppRates->len > WLAN_RATES_MAXLEN)
             pExtSuppRates->len = WLAN_RATES_MAXLEN;
         memcpy(pBSSList->abyExtSuppRates, pExtSuppRates, pExtSuppRates->len + WLAN_IEHDR_LEN);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSbInsertToBSSList: pExtSuppRates->len = %d\n", pExtSuppRates->len);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSbInsertToBSSList: pExtSuppRates->len = %d\n", pExtSuppRates->len);
 
     } else {
         memset(pBSSList->abyExtSuppRates, 0, WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1);
@@ -669,7 +669,7 @@ BSSbUpdateToBSSList (
     pBSSList->wCapInfo = cpu_to_le16(wCapInfo);
     pBSSList->uClearCount = 0;
     pBSSList->uChannel = byCurrChannel;
-//    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSbUpdateToBSSList: pBSSList->uChannel: %d\n", pBSSList->uChannel);
+//    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSbUpdateToBSSList: pBSSList->uChannel: %d\n", pBSSList->uChannel);
 
     if (pSSID->len > WLAN_SSID_MAXLEN)
         pSSID->len = WLAN_SSID_MAXLEN;
@@ -872,7 +872,7 @@ BSSvCreateOneNode(
     // if not found replace uInActiveCount is largest one.
     if ( ii == (MAX_NODE_NUM + 1)) {
         *puNodeIndex = SelectIndex;
-        DEVICE_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Replace inactive node = %d\n", SelectIndex);
+        DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Replace inactive node = %d\n", SelectIndex);
         // clear ps buffer
         if (pMgmt->sNodeDBTable[*puNodeIndex].sTxPSQueue.next != NULL) {
       	    while ((skb = skb_dequeue(&pMgmt->sNodeDBTable[*puNodeIndex].sTxPSQueue)) != NULL)
@@ -890,7 +890,7 @@ BSSvCreateOneNode(
     skb_queue_head_init(&pMgmt->sNodeDBTable[*puNodeIndex].sTxPSQueue);
     pMgmt->sNodeDBTable[*puNodeIndex].byAuthSequence = 0;
     pMgmt->sNodeDBTable[*puNodeIndex].wEnQueueCnt = 0;
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Create node index = %d\n", ii);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Create node index = %d\n", ii);
     return;
 };
 
@@ -982,7 +982,7 @@ BSSvUpdateAPNode(
 #endif
     // Auto rate fallback function initiation.
     // RATEbInit(pDevice);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pMgmt->sNodeDBTable[0].wTxDataRate = %d \n", pMgmt->sNodeDBTable[0].wTxDataRate);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"pMgmt->sNodeDBTable[0].wTxDataRate = %d \n", pMgmt->sNodeDBTable[0].wTxDataRate);
 
 };
 
@@ -1168,7 +1168,7 @@ start:
             if (ii > 0) {
                 if (pMgmt->sNodeDBTable[ii].uInActiveCount > MAX_INACTIVE_COUNT) {
                     BSSvRemoveOneNode(pDevice, ii);
-                    DEVICE_PRT(MSG_LEVEL_NOTICE, KERN_INFO
+                    DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO
                         "Inactive timeout [%d] sec, STA index = [%d] remove\n", MAX_INACTIVE_COUNT, ii);
                     continue;
                 }
@@ -1227,11 +1227,11 @@ start:
 
             // check if pending PS queue
             if (pMgmt->sNodeDBTable[ii].wEnQueueCnt != 0) {
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index= %d, Queue = %d pending \n",
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index= %d, Queue = %d pending \n",
                            ii, pMgmt->sNodeDBTable[ii].wEnQueueCnt);
                 if ((ii >0) && (pMgmt->sNodeDBTable[ii].wEnQueueCnt > 15)) {
                     BSSvRemoveOneNode(pDevice, ii);
-                    DEVICE_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Pending many queues PS STA Index = %d remove \n", ii);
+                    DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Pending many queues PS STA Index = %d remove \n", ii);
                     continue;
                 }
             }
@@ -1305,7 +1305,7 @@ start:
         (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)) {
 
         if (pMgmt->sNodeDBTable[0].bActive) { // Assoc with BSS
-           // DEVICE_PRT(MSG_LEVEL_INFO, KERN_INFO "Callback inactive Count = [%d]\n", pMgmt->sNodeDBTable[0].uInActiveCount);
+           // DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Callback inactive Count = [%d]\n", pMgmt->sNodeDBTable[0].uInActiveCount);
             //if (pDevice->bUpdateBBVGA) {
             //  s_vCheckSensitivity((HANDLE) pDevice);
             //}
@@ -1327,7 +1327,7 @@ start:
                 netif_stop_queue(pDevice->dev);
                 pDevice->bLinkPass = FALSE;
                 pDevice->bRoaming = TRUE;
-                DEVICE_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost AP beacon [%d] sec, disconnected !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
+                DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost AP beacon [%d] sec, disconnected !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
         if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
              wpahdr = (viawget_wpa_header *)pDevice->skb->data;
              wpahdr->type = VIAWGET_DISASSOC_MSG;
@@ -1368,7 +1368,7 @@ start:
 		    //mike use old encryption status for wpa reauthen
 	      if(pDevice->bWPADEVUp)
 	          pDevice->eEncryptionStatus = pDevice->eOldEncryptionStatus;
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Roaming ...\n");
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Roaming ...\n");
                 BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
 	pMgmt->eScanType = WMAC_SCAN_ACTIVE;
                 bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
@@ -1385,7 +1385,7 @@ start:
                 pDevice->uAutoReConnectTime++;
             }
             else {
-                DEVICE_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Adhoc re-scaning ...\n");
+                DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Adhoc re-scaning ...\n");
 	pMgmt->eScanType = WMAC_SCAN_ACTIVE;
                 bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
                 bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
@@ -1398,7 +1398,7 @@ start:
                s_vCheckPreEDThreshold((HANDLE)pDevice);
             }
         	if (pMgmt->sNodeDBTable[0].uInActiveCount >=ADHOC_LOST_BEACON_COUNT) {
-        	    DEVICE_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost other STA beacon [%d] sec, started !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
+        	    DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost other STA beacon [%d] sec, started !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
                 pMgmt->sNodeDBTable[0].uInActiveCount = 0;
                 pMgmt->eCurrState = WMAC_STATE_STARTED;
                 netif_stop_queue(pDevice->dev);
@@ -1474,7 +1474,7 @@ BSSvUpdateNodeTxCounter(
 ////#endif
     // Only Unicast using support rates
     if (pTxBufHead->wFIFOCtl & FIFOCTL_NEEDACK) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wRate %04X, byTsr0 %02X, byTsr1 %02X\n", wRate, byTsr0, byTsr1);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wRate %04X, byTsr0 %02X, byTsr1 %02X\n", wRate, byTsr0, byTsr1);
         if (pMgmt->eCurrMode == WMAC_MODE_ESS_STA) {
             pMgmt->sNodeDBTable[0].uTxAttempts += 1;
             if ((byTsr1 & TSR1_TERR) == 0) {
@@ -1641,7 +1641,7 @@ BSSvClearNodeDBTable(
             // check if sTxPSQueue has been initial
             if (pMgmt->sNodeDBTable[ii].sTxPSQueue.next != NULL) {
                 while ((skb = skb_dequeue(&pMgmt->sNodeDBTable[ii].sTxPSQueue)) != NULL){
-                        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS skb != NULL %d\n", ii);
+                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS skb != NULL %d\n", ii);
                         dev_kfree_skb(skb);
                 }
             }
@@ -1683,7 +1683,7 @@ VOID s_vCheckSensitivity(
             if (uNumofdBm > 0) {
                 LocalldBmAverage = LocalldBmAverage/uNumofdBm;
                 for (ii=0;ii<BB_VGA_LEVEL;ii++) {
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"LocalldBmAverage:%ld, %ld %02x\n", LocalldBmAverage, pDevice->ldBmThreshold[ii], pDevice->abyBBVGA[ii]);
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"LocalldBmAverage:%ld, %ld %02x\n", LocalldBmAverage, pDevice->ldBmThreshold[ii], pDevice->abyBBVGA[ii]);
                     if (LocalldBmAverage < pDevice->ldBmThreshold[ii]) {
                 	    pDevice->byBBVGANew = pDevice->abyBBVGA[ii];
                         break;

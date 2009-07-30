@@ -862,7 +862,7 @@ BOOL MACbSafeRxOff (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x10);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x10)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x10)\n");
         return(FALSE);
     }
     for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -872,7 +872,7 @@ BOOL MACbSafeRxOff (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x11);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x11)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x11)\n");
         return(FALSE);
     }
 
@@ -886,7 +886,7 @@ BOOL MACbSafeRxOff (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x12);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x12)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x12)\n");
         return(FALSE);
     }
     return TRUE;
@@ -925,7 +925,7 @@ BOOL MACbSafeTxOff (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x20);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x20)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x20)\n");
         return(FALSE);
     }
     for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -935,7 +935,7 @@ BOOL MACbSafeTxOff (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x21);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x21)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x21)\n");
         return(FALSE);
     }
 
@@ -950,7 +950,7 @@ BOOL MACbSafeTxOff (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x24);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x24)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x24)\n");
         return(FALSE);
     }
     return TRUE;
@@ -975,13 +975,13 @@ BOOL MACbSafeStop (DWORD_PTR dwIoBase)
 
     if (MACbSafeRxOff(dwIoBase) == FALSE) {
         DBG_PORT80(0xA1);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" MACbSafeRxOff == FALSE)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" MACbSafeRxOff == FALSE)\n");
         MACbSafeSoftwareReset(dwIoBase);
         return FALSE;
     }
     if (MACbSafeTxOff(dwIoBase) == FALSE) {
         DBG_PORT80(0xA2);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" MACbSafeTxOff == FALSE)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" MACbSafeTxOff == FALSE)\n");
         MACbSafeSoftwareReset(dwIoBase);
         return FALSE;
     }
@@ -1216,7 +1216,7 @@ BYTE    byOrgDMACtl;
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x26);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x26)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x26)\n");
     }
     VNSvOutPortD(dwIoBase + MAC_REG_AC0DMAPTR, dwCurrDescAddr);
     if (BITbIsAllBitsOn(byOrgDMACtl, DMACTL_RUN)) {
@@ -1346,7 +1346,7 @@ UINT ww = 0;
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x29);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x29)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x29)\n");
         return FALSE;
     }
     return TRUE;
@@ -1370,7 +1370,7 @@ void MACvClearBusSusInd (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x33);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x33)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x33)\n");
     }
 }
 
@@ -1392,7 +1392,7 @@ void MACvEnableBusSusEn (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x34);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x34)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x34)\n");
     }
 }
 
@@ -1415,7 +1415,7 @@ BOOL MACbFlushSYNCFifo (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x35);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x33)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x33)\n");
     }
     return TRUE;
 }
@@ -1439,7 +1439,7 @@ BOOL MACbPSWakeup (DWORD_PTR dwIoBase)
     }
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x36);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x33)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x33)\n");
         return FALSE;
     }
     return TRUE;
@@ -1470,7 +1470,7 @@ int     ii;
         return;
 
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvSetKeyEntry\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvSetKeyEntry\n");
     wOffset = MISCFIFO_KEYETRY0;
     wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
@@ -1478,7 +1478,7 @@ int     ii;
     dwData |= wKeyCtl;
     dwData <<= 16;
     dwData |= MAKEWORD(*(pbyAddr+4), *(pbyAddr+5));
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1. wOffset: %d, Data: %lX, KeyCtl:%X\n", wOffset, dwData, wKeyCtl);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1. wOffset: %d, Data: %lX, KeyCtl:%X\n", wOffset, dwData, wKeyCtl);
 
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
     VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
@@ -1493,7 +1493,7 @@ int     ii;
     dwData |= *(pbyAddr+1);
     dwData <<= 8;
     dwData |= *(pbyAddr+0);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2. wOffset: %d, Data: %lX\n", wOffset, dwData);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2. wOffset: %d, Data: %lX\n", wOffset, dwData);
 
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
     VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
@@ -1503,7 +1503,7 @@ int     ii;
     wOffset += (uKeyIdx * 4);
     for (ii=0;ii<4;ii++) {
         // alway push 128 bits
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"3.(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"3.(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
         VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
@@ -1563,7 +1563,7 @@ int     ii;
     if (byLocalID <= 1)
         return;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvSetDefaultKeyEntry\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvSetDefaultKeyEntry\n");
     wOffset = MISCFIFO_KEYETRY0;
     wOffset += (10 * MISCFIFO_KEYENTRYSIZE);
 
@@ -1572,7 +1572,7 @@ int     ii;
     wOffset += (uKeyIdx * 4);
     // alway push 128 bits
     for (ii=0; ii<3; ii++) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
         VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
@@ -1584,7 +1584,7 @@ int     ii;
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+3);
     VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"End. wOffset: %d, Data: %lX\n", wOffset+3, dwData);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"End. wOffset: %d, Data: %lX\n", wOffset+3, dwData);
 
 }
 
@@ -1620,7 +1620,7 @@ DWORD   dwData;
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
     VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvEnableDefaultKey: wOffset: %d, Data: %lX\n", wOffset, dwData);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvEnableDefaultKey: wOffset: %d, Data: %lX\n", wOffset, dwData);
 
 }
 */
@@ -1652,7 +1652,7 @@ DWORD   dwData;
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
     VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvDisableDefaultKey: wOffset: %d, Data: %lX\n", wOffset, dwData);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvDisableDefaultKey: wOffset: %d, Data: %lX\n", wOffset, dwData);
 }
 
 /*
@@ -1679,7 +1679,7 @@ int     ii;
         return;
 
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvSetDefaultTKIPKeyEntry\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvSetDefaultTKIPKeyEntry\n");
     wOffset = MISCFIFO_KEYETRY0;
     // Kyle test : change offset from 10 -> 0
     wOffset += (10 * MISCFIFO_KEYENTRYSIZE);
@@ -1697,10 +1697,10 @@ int     ii;
     wOffset++;
 
     wOffset += (uKeyIdx * 4);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1. wOffset: %d, Data: %lX, idx:%d\n", wOffset, *pdwKey, uKeyIdx);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1. wOffset: %d, Data: %lX, idx:%d\n", wOffset, *pdwKey, uKeyIdx);
     // alway push 128 bits
     for (ii=0; ii<4; ii++) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
         VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
         VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
@@ -1734,7 +1734,7 @@ DWORD   dwData;
         return;
 
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvSetKeyEntry\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"MACvSetKeyEntry\n");
     wOffset = MISCFIFO_KEYETRY0;
     wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
@@ -1742,7 +1742,7 @@ DWORD   dwData;
     dwData |= wKeyCtl;
     dwData <<= 16;
     dwData |= 0xffff;
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1. wOffset: %d, Data: %lX, KeyCtl:%X\n", wOffset, dwData, wKeyCtl);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1. wOffset: %d, Data: %lX, KeyCtl:%X\n", wOffset, dwData, wKeyCtl);
 
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
     VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);

@@ -127,7 +127,7 @@ WPA2vParseRSN (
     PBYTE               pbyOUI;
     BOOL                bUseGK = FALSE;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"WPA2_ParseRSN: [%d]\n", pRSN->len);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"WPA2_ParseRSN: [%d]\n", pRSN->len);
 
     WPA2_ClearRSN(pBSSNode);
 
@@ -147,7 +147,7 @@ WPA2vParseRSN (
     if ((pRSN->byElementID == WLAN_EID_RSN) &&
         (pRSN->wVersion == 1)) {
 
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Legal 802.11i RSN\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Legal 802.11i RSN\n");
 
         pbyOUI = &(pRSN->abyRSN[0]);
         if (MEMEqualMemory(pbyOUI, abyOUIWEP40, 4))
@@ -165,7 +165,7 @@ WPA2vParseRSN (
             // any vendor checks here
             pBSSNode->byCSSGK = WLAN_11i_CSS_UNKNOWN;
 
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"802.11i CSS: %X\n", pBSSNode->byCSSGK);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"802.11i CSS: %X\n", pBSSNode->byCSSGK);
 
         if (pRSN->len == 6) {
             pBSSNode->bWPA2Valid = TRUE;
@@ -199,7 +199,7 @@ WPA2vParseRSN (
                         pBSSNode->abyCSSPK[j++] = WLAN_11i_CSS_UNKNOWN;
                     }
                     pbyOUI += 4;
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"abyCSSPK[%d]: %X\n", j-1, pBSSNode->abyCSSPK[j-1]);
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"abyCSSPK[%d]: %X\n", j-1, pBSSNode->abyCSSPK[j-1]);
                 } else
                     break;
             } //for
@@ -219,7 +219,7 @@ WPA2vParseRSN (
                 return;
             }
             pBSSNode->wCSSPKCount = (WORD)j;
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wCSSPKCount: %d\n", pBSSNode->wCSSPKCount);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wCSSPKCount: %d\n", pBSSNode->wCSSPKCount);
         }
 
         m = *((PWORD) &(pRSN->abyRSN[4]));
@@ -237,12 +237,12 @@ WPA2vParseRSN (
                     else
                         // any vendor checks here
                         pBSSNode->abyAKMSSAuthType[j++] = WLAN_11i_AKMSS_UNKNOWN;
-                    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"abyAKMSSAuthType[%d]: %X\n", j-1, pBSSNode->abyAKMSSAuthType[j-1]);
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"abyAKMSSAuthType[%d]: %X\n", j-1, pBSSNode->abyAKMSSAuthType[j-1]);
                 } else
                     break;
             }
             pBSSNode->wAKMSSAuthCount = (WORD)j;
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAKMSSAuthCount: %d\n", pBSSNode->wAKMSSAuthCount);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAKMSSAuthCount: %d\n", pBSSNode->wAKMSSAuthCount);
 
             n = *((PWORD) &(pRSN->abyRSN[6+4*m]));;
             if (pRSN->len >= 12+4*m+4*n) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*m)+AKMSSCnt(2)+AKMSS(4*n)+Cap(2)

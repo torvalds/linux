@@ -139,14 +139,14 @@ WPA_ParseRSN (
 
     WPA_ClearRSN(pBSSList);
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"WPA_ParseRSN: [%d]\n", pRSN->len);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"WPA_ParseRSN: [%d]\n", pRSN->len);
 
     // information element header makes sense
     if ((pRSN->len >= 6) // oui1(4)+ver(2)
          && (pRSN->byElementID == WLAN_EID_RSN_WPA) && MEMEqualMemory(pRSN->abyOUI, abyOUI01, 4)
          && (pRSN->wVersion == 1)) {
 
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Legal RSN\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Legal RSN\n");
         // update each variable if pRSN is long enough to contain the variable
         if (pRSN->len >= 10) //oui1(4)+ver(2)+GKSuite(4)
         {
@@ -164,13 +164,13 @@ WPA_ParseRSN (
                 // any vendor checks here
                 pBSSList->byGKType = WPA_NONE;
 
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"byGKType: %x\n", pBSSList->byGKType);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"byGKType: %x\n", pBSSList->byGKType);
         }
 
         if (pRSN->len >= 12) //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)
         {
             j = 0;
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wPKCount: %d, sizeof(pBSSList->abyPKType): %ld\n", pRSN->wPKCount, sizeof(pBSSList->abyPKType));
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wPKCount: %d, sizeof(pBSSList->abyPKType): %ld\n", pRSN->wPKCount, sizeof(pBSSList->abyPKType));
             for(i = 0; (i < pRSN->wPKCount) && (j < sizeof(pBSSList->abyPKType)/sizeof(BYTE)); i++) {
                 if(pRSN->len >= 12+i*4+4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*i)
                     if (MEMEqualMemory(pRSN->PKSList[i].abyOUI, abyOUI00, 4))
@@ -190,18 +190,18 @@ WPA_ParseRSN (
                 //DBG_PRN_GRP14(("abyPKType[%d]: %X\n", j-1, pBSSList->abyPKType[j-1]));
             } //for
             pBSSList->wPKCount = (WORD)j;
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wPKCount: %d\n", pBSSList->wPKCount);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wPKCount: %d\n", pBSSList->wPKCount);
         }
 
         m = pRSN->wPKCount;
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"m: %d\n", m);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"14+m*4: %d\n", 14+m*4);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"m: %d\n", m);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"14+m*4: %d\n", 14+m*4);
 
         if (pRSN->len >= 14+m*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)
             // overlay IE_RSN_Auth structure into correct place
             pIE_RSN_Auth = (PWLAN_IE_RSN_AUTH) pRSN->PKSList[m].abyOUI;
             j = 0;
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAuthCount: %d, sizeof(pBSSList->abyAuthType): %ld\n",
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAuthCount: %d, sizeof(pBSSList->abyAuthType): %ld\n",
                           pIE_RSN_Auth->wAuthCount, sizeof(pBSSList->abyAuthType));
             for(i = 0; (i < pIE_RSN_Auth->wAuthCount) && (j < sizeof(pBSSList->abyAuthType)/sizeof(BYTE)); i++) {
                 if(pRSN->len >= 14+4+(m+i)*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)+AKS(4*i)
@@ -219,15 +219,15 @@ WPA_ParseRSN (
             }
             if(j > 0)
                 pBSSList->wAuthCount = (WORD)j;
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAuthCount: %d\n", pBSSList->wAuthCount);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAuthCount: %d\n", pBSSList->wAuthCount);
         }
 
         if (pIE_RSN_Auth != NULL) {
 
             n = pIE_RSN_Auth->wAuthCount;
 
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"n: %d\n", n);
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"14+4+(m+n)*4: %d\n", 14+4+(m+n)*4);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"n: %d\n", n);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"14+4+(m+n)*4: %d\n", 14+4+(m+n)*4);
 
             if(pRSN->len+2 >= 14+4+(m+n)*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)+AKS(4*n)+Cap(2)
                 pbyCaps = (PBYTE)pIE_RSN_Auth->AuthKSList[n].abyOUI;

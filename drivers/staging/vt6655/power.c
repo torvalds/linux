@@ -154,7 +154,7 @@ PSvEnablePowerSaving(
         PSbSendNullPacket(pDevice);
     }
     pDevice->bPWBitOn = TRUE;
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable... \n");
     return;
 }
 
@@ -261,7 +261,7 @@ PSbConsiderPowerDown(
 
     // no Tx, no Rx isr, now go to Doze
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_GO2DOZE);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Go to Doze ZZZZZZZZZZZZZZZ\n");
     return TRUE;
 }
 
@@ -305,10 +305,10 @@ PSvSendPSPOLL(
     pTxPacket->cbPayloadLen = 0;
     // send the frame
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet failed..\n");
     }
     else {
-//        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
+//        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send PS-Poll packet success..\n");
     };
 
     return;
@@ -389,12 +389,12 @@ PSbSendNullPacket(
     pTxPacket->cbPayloadLen = 0;
     // send the frame
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet failed !\n");
         return FALSE;
     }
     else {
 
-//            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n");
+//            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Send Null Packet success....\n");
     }
 
 

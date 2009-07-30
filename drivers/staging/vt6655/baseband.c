@@ -2050,7 +2050,7 @@ BOOL BBbReadEmbeded (DWORD_PTR dwIoBase, BYTE byBBAddr, PBYTE pbyData)
 
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x30);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x30)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x30)\n");
         return FALSE;
     }
     return TRUE;
@@ -2092,7 +2092,7 @@ BOOL BBbWriteEmbeded (DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byData)
 
     if (ww == W_MAX_TIMEOUT) {
         DBG_PORT80(0x31);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x31)\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" DBG_PORT80(0x31)\n");
         return FALSE;
     }
     return TRUE;
@@ -2807,24 +2807,24 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
         return;
     }
     pDevice->uDiversityCnt++;
-   // DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->uDiversityCnt = %d\n", (int)pDevice->uDiversityCnt);
+   // DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pDevice->uDiversityCnt = %d\n", (int)pDevice->uDiversityCnt);
 
     pDevice->uNumSQ3[byRxRate]++;
 
     if (pDevice->byAntennaState == 0) {
 
         if (pDevice->uDiversityCnt > pDevice->ulDiversityNValue) {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ulDiversityNValue=[%d],54M-[%d]\n",
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ulDiversityNValue=[%d],54M-[%d]\n",
                           (int)pDevice->ulDiversityNValue, (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate]);
 
             if (pDevice->uNumSQ3[pDevice->wAntDiversityMaxRate] < pDevice->uDiversityCnt/2) {
 
                 pDevice->ulRatio_State0 = s_ulGetRatio(pDevice);
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SQ3_State0, rate = [%08x]\n", (int)pDevice->ulRatio_State0);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SQ3_State0, rate = [%08x]\n", (int)pDevice->ulRatio_State0);
 
                 if ( pDevice->byTMax == 0 )
                     return;
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1.[%08x], uNumSQ3[%d]=%d, %d\n",
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1.[%08x], uNumSQ3[%d]=%d, %d\n",
                               (int)pDevice->ulRatio_State0, (int)pDevice->wAntDiversityMaxRate,
                               (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate], (int)pDevice->uDiversityCnt);
 #ifdef	PLICE_DEBUG
@@ -2852,11 +2852,11 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
             del_timer(&pDevice->TimerSQ3Tmax1);
 
             pDevice->ulRatio_State1 = s_ulGetRatio(pDevice);
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RX:SQ3_State1, rate0 = %08x,rate1 = %08x\n",
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RX:SQ3_State1, rate0 = %08x,rate1 = %08x\n",
                           (int)pDevice->ulRatio_State0,(int)pDevice->ulRatio_State1);
 
             if (pDevice->ulRatio_State1 < pDevice->ulRatio_State0) {
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
                               (int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1,
                               (int)pDevice->wAntDiversityMaxRate,
                               (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate], (int)pDevice->uDiversityCnt);
@@ -2896,12 +2896,12 @@ TimerSQ3CallBack (
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerSQ3CallBack...");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerSQ3CallBack...");
 
 
     spin_lock_irq(&pDevice->lock);
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"3.[%08x][%08x], %d\n",(int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1, (int)pDevice->uDiversityCnt);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"3.[%08x][%08x], %d\n",(int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1, (int)pDevice->uDiversityCnt);
 #ifdef	PLICE_DEBUG
 		//printk("TimerSQ3CallBack1:call s_vChangeAntenna\n");
 #endif
@@ -2946,7 +2946,7 @@ TimerState1CallBack (
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerState1CallBack...");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerState1CallBack...");
 
     spin_lock_irq(&pDevice->lock);
     if (pDevice->uDiversityCnt < pDevice->ulDiversityMValue/100) {
@@ -2961,11 +2961,11 @@ TimerState1CallBack (
         add_timer(&pDevice->TimerSQ3Tmax2);
     } else {
         pDevice->ulRatio_State1 = s_ulGetRatio(pDevice);
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SQ3_State1, rate0 = %08x,rate1 = %08x\n",
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SQ3_State1, rate0 = %08x,rate1 = %08x\n",
                       (int)pDevice->ulRatio_State0,(int)pDevice->ulRatio_State1);
 
         if ( pDevice->ulRatio_State1 < pDevice->ulRatio_State0 ) {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
                           (int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1,
                           (int)pDevice->wAntDiversityMaxRate,
                           (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate], (int)pDevice->uDiversityCnt);

@@ -271,11 +271,11 @@ IEEE11hbMgrRxAction (
                 }
                 break;
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown Action = %d\n", pAction->byAction);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown Action = %d\n", pAction->byAction);
                 break;
         }
     } else {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown Category = %d\n", pAction->byCategory);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown Category = %d\n", pAction->byCategory);
         pAction->byCategory |= 0x80;
 
        //return (CARDbSendPacket(pMgmt->pAdapter, pAction, PKT_TYPE_802_11_MNG, uLength));

@@ -239,7 +239,7 @@ UINT  uRateLen;
     *pwSuppRate = 0;
     uRateLen = pItemRates->len;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate Len: %d\n", uRateLen);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate Len: %d\n", uRateLen);
     if (pDevice->eCurrentPHYType != PHY_TYPE_11B) {
         if (uRateLen > WLAN_RATES_MAXLEN)
             uRateLen = WLAN_RATES_MAXLEN;
@@ -254,7 +254,7 @@ UINT  uRateLen;
             (bUpdateBasicRate == TRUE))  {
             // Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate
             CARDbAddBasicRate((PVOID)pDevice, wGetRateIdx(byRate));
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
         }
         byRate = (BYTE)(pItemRates->abyRates[ii]&0x7F);
         if (byHighSuppRate == 0)
@@ -277,7 +277,7 @@ UINT  uRateLen;
             if (WLAN_MGMT_IS_BASICRATE(pItemExtRates->abyRates[ii])) {
             	// Add to basic rate set, update pDevice->byTopCCKBasicRate and pDevice->byTopOFDMBasicRate
                 CARDbAddBasicRate((PVOID)pDevice, wGetRateIdx(byRate));
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ParseMaxRate AddBasicRate: %d\n", wGetRateIdx(byRate));
             }
             byRate = (BYTE)(pItemExtRates->abyRates[ii]&0x7F);
             if (byHighSuppRate == 0)
@@ -303,7 +303,7 @@ UINT  uRateLen;
     if (wOldBasicRate != pDevice->wBasicRate)
         CARDvSetRSPINF((PVOID)pDevice, pDevice->eCurrentPHYType);
 
-     DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Exit ParseMaxRate\n");
+     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Exit ParseMaxRate\n");
 }
 
 

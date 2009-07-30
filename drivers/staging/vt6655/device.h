@@ -200,9 +200,6 @@
 // BUILD OBJ mode
 
 
-#define DEVICE_PRT(l, p, args...) {if (l<=msglevel) printk( p ,##args);}
-
-
 #define	AVAIL_TD(p,q)	((p)->sOpts.nTxDescs[(q)]-((p)->iTDUsed[(q)]))
 
 //PLICE_DEBUG ->
@@ -211,8 +208,13 @@
 
 
 
+#define PRIVATE_Message                 0
+
 /*---------------------  Export Types  ------------------------------*/
 
+
+#define DBG_PRT(l, p, args...) {if (l<=msglevel) printk( p ,##args);}
+#define PRINT_K(p, args...) {if (PRIVATE_Message) printk( p ,##args);}
 
 //0:11A 1:11B 2:11G
 typedef enum _VIA_BB_TYPE

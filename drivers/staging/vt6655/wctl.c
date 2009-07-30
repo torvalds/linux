@@ -217,7 +217,7 @@ UINT            uHeaderSize;
         pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength = cbFrameLength;
         pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer += cbFrameLength;
         pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum++;
-        //DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "First pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
+        //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "First pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
         return(FALSE);
     }
     else {
@@ -231,7 +231,7 @@ UINT            uHeaderSize;
                 pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].cbFrameLength += (cbFrameLength - uHeaderSize);
                 pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].pbyRxBuffer += (cbFrameLength - uHeaderSize);
                 pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].wFragNum++;
-                //DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Second pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
+                //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Second pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
             }
             else {
                 // seq error or frag # error flush DFCB
@@ -247,7 +247,7 @@ UINT            uHeaderSize;
             //enq defragcontrolblock
             pDevice->cbFreeDFCB++;
             pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx].bInUse = FALSE;
-            //DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Last pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
+            //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Last pDevice->uCurrentDFCBIdx= %d\n", pDevice->uCurrentDFCBIdx);
             return(TRUE);
         }
         return(FALSE);

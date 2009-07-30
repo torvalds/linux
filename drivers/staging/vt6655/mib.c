@@ -231,87 +231,87 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr11MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"11M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr11M, (INT)pStatistic->CustomStat.ullRsr11MCRCOk, byRSR);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"11M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr11M, (INT)pStatistic->CustomStat.ullRsr11MCRCOk, byRSR);
     }
     else if(byRxRate==11) {
         pStatistic->CustomStat.ullRsr5M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr5MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 5M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr5M, (INT)pStatistic->CustomStat.ullRsr5MCRCOk, byRSR);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 5M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr5M, (INT)pStatistic->CustomStat.ullRsr5MCRCOk, byRSR);
     }
     else if(byRxRate==4) {
         pStatistic->CustomStat.ullRsr2M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr2MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 2M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr2M, (INT)pStatistic->CustomStat.ullRsr2MCRCOk, byRSR);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 2M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr2M, (INT)pStatistic->CustomStat.ullRsr2MCRCOk, byRSR);
     }
     else if(byRxRate==2){
         pStatistic->CustomStat.ullRsr1M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr1MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 1M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr1M, (INT)pStatistic->CustomStat.ullRsr1MCRCOk, byRSR);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 1M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr1M, (INT)pStatistic->CustomStat.ullRsr1MCRCOk, byRSR);
     }
     else if(byRxRate==12){
         pStatistic->CustomStat.ullRsr6M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr6MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 6M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr6M, (INT)pStatistic->CustomStat.ullRsr6MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 6M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr6M, (INT)pStatistic->CustomStat.ullRsr6MCRCOk);
     }
     else if(byRxRate==18){
         pStatistic->CustomStat.ullRsr9M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr9MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 9M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr9M, (INT)pStatistic->CustomStat.ullRsr9MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 9M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr9M, (INT)pStatistic->CustomStat.ullRsr9MCRCOk);
     }
     else if(byRxRate==24){
         pStatistic->CustomStat.ullRsr12M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr12MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"12M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr12M, (INT)pStatistic->CustomStat.ullRsr12MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"12M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr12M, (INT)pStatistic->CustomStat.ullRsr12MCRCOk);
     }
     else if(byRxRate==36){
         pStatistic->CustomStat.ullRsr18M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr18MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"18M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr18M, (INT)pStatistic->CustomStat.ullRsr18MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"18M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr18M, (INT)pStatistic->CustomStat.ullRsr18MCRCOk);
     }
     else if(byRxRate==48){
         pStatistic->CustomStat.ullRsr24M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr24MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"24M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr24M, (INT)pStatistic->CustomStat.ullRsr24MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"24M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr24M, (INT)pStatistic->CustomStat.ullRsr24MCRCOk);
     }
     else if(byRxRate==72){
         pStatistic->CustomStat.ullRsr36M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr36MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"36M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr36M, (INT)pStatistic->CustomStat.ullRsr36MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"36M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr36M, (INT)pStatistic->CustomStat.ullRsr36MCRCOk);
     }
     else if(byRxRate==96){
         pStatistic->CustomStat.ullRsr48M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr48MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"48M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr48M, (INT)pStatistic->CustomStat.ullRsr48MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"48M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr48M, (INT)pStatistic->CustomStat.ullRsr48MCRCOk);
     }
     else if(byRxRate==108){
         pStatistic->CustomStat.ullRsr54M++;
         if(BITbIsBitOn(byRSR, RSR_CRCOK)) {
             pStatistic->CustomStat.ullRsr54MCRCOk++;
         }
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"54M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr54M, (INT)pStatistic->CustomStat.ullRsr54MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"54M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr54M, (INT)pStatistic->CustomStat.ullRsr54MCRCOk);
     }
     else {
-    	DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown: Total[%d], CRCOK[%d]\n", (INT)pStatistic->dwRsrRxPacket+1, (INT)pStatistic->dwRsrCRCOk);
+    	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown: Total[%d], CRCOK[%d]\n", (INT)pStatistic->dwRsrRxPacket+1, (INT)pStatistic->dwRsrCRCOk);
     }
 
     if (BITbIsBitOn(byRSR, RSR_BSSIDOK))

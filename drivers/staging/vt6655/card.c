@@ -837,7 +837,7 @@ BOOL CARDbSetChannel (PVOID pDeviceHandler, UINT uConnectionChannel)
         RFvWriteWakeProgSyn(pDevice->PortOffset, pDevice->byRFType, uConnectionChannel);
 
 
-    //DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDbSetMediaChannel: %d\n", (BYTE)uConnectionChannel);
+    //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDbSetMediaChannel: %d\n", (BYTE)uConnectionChannel);
     BBvSoftwareReset(pDevice->PortOffset);
 
     if (pDevice->byLocalID > REV_ID_VT3253_B1) {
@@ -1347,14 +1347,14 @@ BOOL CARDbSetBSSID(PVOID pDeviceHandler, PBYTE pbyBSSID, CARD_OP_MODE eOPMode)
         MACvRegBitsOff(pDevice->PortOffset, MAC_REG_RCR, RCR_BSSID);
         pDevice->bBSSIDFilter = FALSE;
         pDevice->byRxMode &= ~RCR_BSSID;
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wcmd: rx_mode = %x\n", pDevice->byRxMode );
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wcmd: rx_mode = %x\n", pDevice->byRxMode );
     } else {
         if (IS_NULL_ADDRESS(pDevice->abyBSSID) == FALSE) {
             MACvRegBitsOn(pDevice->PortOffset, MAC_REG_RCR, RCR_BSSID);
             pDevice->bBSSIDFilter = TRUE;
             pDevice->byRxMode |= RCR_BSSID;
 	    }
-	    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wmgr: rx_mode = %x\n", pDevice->byRxMode );
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wmgr: rx_mode = %x\n", pDevice->byRxMode );
     }
     // Adopt BSS state in Adapter Device Object
     pDevice->eOPMode = eOPMode;
@@ -1444,7 +1444,7 @@ CARDbPowerDown(
     }
 
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_GO2DOZE);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Go to Doze ZZZZZZZZZZZZZZZ\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Go to Doze ZZZZZZZZZZZZZZZ\n");
     return TRUE;
 }
 
@@ -1590,17 +1590,17 @@ CARDbAdd_PMKID_Candidate (
     PPMKID_CANDIDATE    pCandidateList;
     UINT                ii = 0;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"bAdd_PMKID_Candidate START: (%d)\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"bAdd_PMKID_Candidate START: (%d)\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
 
     if (pDevice->gsPMKIDCandidate.NumCandidates >= MAX_PMKIDLIST) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vFlush_PMKID_Candidate: 3\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vFlush_PMKID_Candidate: 3\n");
         ZERO_MEMORY(&pDevice->gsPMKIDCandidate, sizeof(SPMKIDCandidateEvent));
     }
 
     for (ii = 0; ii < 6; ii++) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%02X ", *(pbyBSSID + ii));
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"%02X ", *(pbyBSSID + ii));
     }
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"\n");
 
 
     // Update Old Candidate
@@ -1625,7 +1625,7 @@ CARDbAdd_PMKID_Candidate (
     }
     MEMvCopy(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN);
     pDevice->gsPMKIDCandidate.NumCandidates++;
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"NumCandidates:%d\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"NumCandidates:%d\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
     return TRUE;
 }
 
@@ -1709,7 +1709,7 @@ VOID CARDvInitChannelTable (PVOID pDeviceHandler)
             }
         }
     }
- DEVICE_PRT(MSG_LEVEL_NOTICE, KERN_INFO"Zone=[%d][%c][%c]!!\n",pDevice->byZoneType,ChannelRuleTab[pDevice->byZoneType].chCountryCode[0],ChannelRuleTab[pDevice->byZoneType].chCountryCode[1]);
+ DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO"Zone=[%d][%c][%c]!!\n",pDevice->byZoneType,ChannelRuleTab[pDevice->byZoneType].chCountryCode[0],ChannelRuleTab[pDevice->byZoneType].chCountryCode[1]);
     for(ii=0;ii<CARD_MAX_CHANNEL_TBL;ii++) {
         if (pDevice->abyRegPwr[ii+1] == 0) {
             pDevice->abyRegPwr[ii+1] = pDevice->abyOFDMDefaultPwr[ii+1];
@@ -2599,22 +2599,22 @@ WORD CARDwGetOFDMControlRate (PVOID pDeviceHandler, WORD wRateIdx)
     PSDevice pDevice = (PSDevice) pDeviceHandler;
     UINT ui = (UINT)wRateIdx;
 
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BASIC RATE: %X\n", pDevice->wBasicRate);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BASIC RATE: %X\n", pDevice->wBasicRate);
 
     if (!CARDbIsOFDMinBasicRate((PVOID)pDevice)) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDwGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDwGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
         if (wRateIdx > RATE_24M)
             wRateIdx = RATE_24M;
         return wRateIdx;
     }
     while (ui > RATE_11M) {
         if (pDevice->wBasicRate & ((WORD)1 << ui)) {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDwGetOFDMControlRate : %d\n", ui);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDwGetOFDMControlRate : %d\n", ui);
             return (WORD)ui;
         }
         ui --;
     }
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDwGetOFDMControlRate: 6M\n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDwGetOFDMControlRate: 6M\n");
     return (WORD)RATE_24M;
 }
 
@@ -3085,7 +3085,7 @@ void CARDvSetFirstNextTBTT (DWORD_PTR dwIoBase, WORD wBeaconInterval)
     VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, LODWORD(qwNextTBTT));
     VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT + 4, HIDWORD(qwNextTBTT));
     MACvRegBitsOn(dwIoBase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
-    //DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Card:First Next TBTT[%8xh:%8xh] \n", HIDWORD(qwNextTBTT), LODWORD(qwNextTBTT));
+    //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Card:First Next TBTT[%8xh:%8xh] \n", HIDWORD(qwNextTBTT), LODWORD(qwNextTBTT));
     return;
 }
 
@@ -3113,7 +3113,7 @@ void CARDvUpdateNextTBTT (DWORD_PTR dwIoBase, QWORD qwTSF, WORD wBeaconInterval)
     VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT, LODWORD(qwTSF));
     VNSvOutPortD(dwIoBase + MAC_REG_NEXTTBTT + 4, HIDWORD(qwTSF));
     MACvRegBitsOn(dwIoBase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
-    DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Card:Update Next TBTT[%8xh:%8xh] \n",(UINT)HIDWORD(qwTSF), (UINT)LODWORD(qwTSF));
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Card:Update Next TBTT[%8xh:%8xh] \n",(UINT)HIDWORD(qwTSF), (UINT)LODWORD(qwTSF));
 
     return;
 }

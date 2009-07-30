@@ -83,7 +83,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
     PSTxDesc        pHeadTD, pLastTD;
     UINT            cbFrameBodySize;
     UINT            uMACfragNum;
-    BYTE            byPktTyp;
+    BYTE            byPktType;
     BOOL            bNeedEncryption = FALSE;
     SKeyItem        STempKey;
     PSKeyItem       pTransmitKey = NULL;
@@ -95,7 +95,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
 
 
     if (AVAIL_TD(pDevice, TYPE_AC0DMA)<=0) {
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Relay can't allocate TD1..\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Relay can't allocate TD1..\n");
         return FALSE;
     }
 
@@ -118,9 +118,9 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
         pbyBSSID = pDevice->abyBroadcastAddr;
         if(KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID, GROUP_KEY, &pTransmitKey) == FALSE) {
             pTransmitKey = NULL;
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"KEY is NULL. [%d]\n", pDevice->pMgmt->eCurrMode);
         } else {
-            DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"Get GTK.\n");
+            DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG"Get GTK.\n");
         }
     }
 
@@ -144,7 +144,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
     if (uMACfragNum > AVAIL_TD(pDevice,TYPE_AC0DMA)) {
         return FALSE;
     }
-    byPktTyp = (BYTE)pDevice->byPacketType;
+    byPktType = (BYTE)pDevice->byPacketType;
 
     if (pDevice->bFixRate) {
         if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {
@@ -170,9 +170,9 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
     }
 
     if (pDevice->wCurrentRate <= RATE_11M)
-        byPktTyp = PK_TYPE_11B;
+        byPktType = PK_TYPE_11B;
 
-    vGenerateFIFOHeader(pDevice, byPktTyp, pDevice->pbyTmpBuff, bNeedEncryption,
+    vGenerateFIFOHeader(pDevice, byPktType, pDevice->pbyTmpBuff, bNeedEncryption,
                         cbFrameBodySize, TYPE_AC0DMA, pHeadTD,
                         &pDevice->sTxEthHeader, pbySkbData, pTransmitKey, uNodeIndex,
                         &uMACfragNum,

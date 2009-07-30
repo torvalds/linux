@@ -236,7 +236,7 @@ vMgrDecodeBeacon(
                 break;
 
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in beacon decode.\n", pItem->byElementID);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in beacon decode.\n", pItem->byElementID);
                 break;
 
         }
@@ -431,7 +431,7 @@ vMgrDecodeAssocRequest(
                 break;
 
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in assocreq decode.\n",
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in assocreq decode.\n",
                         pItem->byElementID);
                 break;
         }
@@ -509,7 +509,7 @@ vMgrDecodeAssocResponse(
 
     if ((((PBYTE)pItem) < (pFrame->pBuf + pFrame->len)) && (pItem->byElementID == WLAN_EID_EXTSUPP_RATES)) {
         pFrame->pExtSuppRates = (PWLAN_IE_SUPP_RATES)pItem;
-        DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pFrame->pExtSuppRates=[%p].\n", pItem);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pFrame->pExtSuppRates=[%p].\n", pItem);
     }
     else {
         pFrame->pExtSuppRates = NULL;
@@ -610,7 +610,7 @@ vMgrDecodeReassocRequest(
                     pFrame->pExtSuppRates = (PWLAN_IE_SUPP_RATES)pItem;
                 break;
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in reassocreq decode.\n",
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unrecognized EID=%dd in reassocreq decode.\n",
                             pItem->byElementID);
                 break;
         }
@@ -685,7 +685,7 @@ vMgrDecodeProbeRequest(
                 break;
 
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Bad EID=%dd in probereq\n", pItem->byElementID);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Bad EID=%dd in probereq\n", pItem->byElementID);
                 break;
         }
 
@@ -841,7 +841,7 @@ vMgrDecodeProbeResponse(
                 break;
 
             default:
-                DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Bad EID=%dd in proberesp\n", pItem->byElementID);
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Bad EID=%dd in proberesp\n", pItem->byElementID);
                 break;
         }
 
