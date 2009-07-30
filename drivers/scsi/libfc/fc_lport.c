@@ -643,6 +643,7 @@ int fc_lport_destroy(struct fc_lport *lport)
 	mutex_unlock(&lport->lp_mutex);
 
 	lport->tt.fcp_abort_io(lport);
+	lport->tt.disc_stop_final(lport);
 	lport->tt.exch_mgr_reset(lport, 0, 0);
 	return 0;
 }
@@ -844,7 +845,10 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 	 * RSCN here.  These don't require a session.
 	 * Even if we had a session, it might not be ready.
 	 */
-	if (fh->fh_type == FC_TYPE_ELS && fh->fh_r_ctl == FC_RCTL_ELS_REQ) {
+	if (!lport->link_up)
+		fc_frame_free(fp);
+	else if (fh->fh_type == FC_TYPE_ELS &&
+		 fh->fh_r_ctl == FC_RCTL_ELS_REQ) {
 		/*
 		 * Check opcode.
 		 */
