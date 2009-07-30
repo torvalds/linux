@@ -136,6 +136,8 @@ static void balloon_append(struct page *page)
 		list_add(&page->lru, &ballooned_pages);
 		balloon_stats.balloon_low++;
 	}
+
+	totalram_pages--;
 }
 
 /* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
@@ -155,6 +157,8 @@ static struct page *balloon_retrieve(void)
 	}
 	else
 		balloon_stats.balloon_low--;
+
+	totalram_pages++;
 
 	return page;
 }
@@ -260,7 +264,6 @@ static int increase_reservation(unsigned long nr_pages)
 	}
 
 	balloon_stats.current_pages += nr_pages;
-	totalram_pages = balloon_stats.current_pages;
 
  out:
 	spin_unlock_irqrestore(&balloon_lock, flags);
@@ -323,7 +326,6 @@ static int decrease_reservation(unsigned long nr_pages)
 	BUG_ON(ret != nr_pages);
 
 	balloon_stats.current_pages -= nr_pages;
-	totalram_pages = balloon_stats.current_pages;
 
 	spin_unlock_irqrestore(&balloon_lock, flags);
 
@@ -422,7 +424,6 @@ static int __init balloon_init(void)
 	pr_info("xen_balloon: Initialising balloon driver.\n");
 
 	balloon_stats.current_pages = min(xen_start_info->nr_pages, max_pfn);
-	totalram_pages   = balloon_stats.current_pages;
 	balloon_stats.target_pages  = balloon_stats.current_pages;
 	balloon_stats.balloon_low   = 0;
 	balloon_stats.balloon_high  = 0;
