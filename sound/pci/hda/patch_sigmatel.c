@@ -3307,11 +3307,11 @@ static int stac92xx_add_capvol_ctls(struct hda_codec *codec, unsigned long vol,
 {
 	int err;
 	err = stac92xx_add_control_idx(codec->spec, STAC_CTL_WIDGET_VOL, idx,
-				       "Captuer Volume", vol);
+				       "Capture Volume", vol);
 	if (err < 0)
 		return err;
 	err = stac92xx_add_control_idx(codec->spec, STAC_CTL_WIDGET_MUTE, idx,
-				       "Captuer Switch", sw);
+				       "Capture Switch", sw);
 	if (err < 0)
 		return err;
 	return 0;
