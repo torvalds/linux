@@ -464,7 +464,6 @@ out:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL(iwl_remove_station);
 
 /**
  * iwl_clear_stations_table - Clear the driver's station table
