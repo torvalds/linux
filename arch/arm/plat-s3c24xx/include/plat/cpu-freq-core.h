@@ -42,8 +42,44 @@ struct s3c2410_iobank_timing {
 	unsigned char	nwait_en;	/* nWait enabled for bank. */
 };
 
+/**
+ * struct s3c2412_iobank_timing - io timings for PL092 (S3C2412) style IO
+ * @idcy: The idle cycle time between transactions.
+ * @wstrd: nCS release to end of read cycle.
+ * @wstwr: nCS release to end of write cycle.
+ * @wstoen: nCS assertion to nOE assertion time.
+ * @wstwen: nCS assertion to nWE assertion time.
+ * @wstbrd: Burst ready delay.
+ * @smbidcyr: Register cache for smbidcyr value.
+ * @smbwstrd: Register cache for smbwstrd value.
+ * @smbwstwr: Register cache for smbwstwr value.
+ * @smbwstoen: Register cache for smbwstoen value.
+ * @smbwstwen: Register cache for smbwstwen value.
+ * @smbwstbrd: Register cache for smbwstbrd value.
+ *
+ * Timing information for a IO bank on an S3C2412 or similar system which
+ * uses a PL093 block.
+ */
+struct s3c2412_iobank_timing {
+	unsigned int	idcy;
+	unsigned int	wstrd;
+	unsigned int	wstwr;
+	unsigned int	wstoen;
+	unsigned int	wstwen;
+	unsigned int	wstbrd;
+
+	/* register cache */
+	unsigned char	smbidcyr;
+	unsigned char	smbwstrd;
+	unsigned char	smbwstwr;
+	unsigned char	smbwstoen;
+	unsigned char	smbwstwen;
+	unsigned char	smbwstbrd;
+};
+
 union s3c_iobank {
-	  struct s3c2410_iobank_timing	*io_2410;
+	struct s3c2410_iobank_timing	*io_2410;
+	struct s3c2412_iobank_timing	*io_2412;
 };
 
 /**
@@ -173,6 +209,20 @@ extern void s3c2410_iotiming_set(struct s3c_cpufreq_config *cfg,
 				 struct s3c_iotimings *iot);
 
 extern void s3c2410_set_fvco(struct s3c_cpufreq_config *cfg);
+
+/* S3C2412 compatible routines */
+
+extern int s3c2412_iotiming_get(struct s3c_cpufreq_config *cfg,
+				struct s3c_iotimings *timings);
+
+extern int s3c2412_iotiming_get(struct s3c_cpufreq_config *cfg,
+				struct s3c_iotimings *timings);
+
+extern int s3c2412_iotiming_calc(struct s3c_cpufreq_config *cfg,
+				 struct s3c_iotimings *iot);
+
+extern void s3c2412_iotiming_set(struct s3c_cpufreq_config *cfg,
+				 struct s3c_iotimings *iot);
 
 #ifdef CONFIG_CPU_FREQ_S3C24XX_DEBUG
 #define s3c_freq_dbg(x...) printk(KERN_INFO x)

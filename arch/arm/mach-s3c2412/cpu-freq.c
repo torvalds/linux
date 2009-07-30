@@ -185,6 +185,10 @@ static struct s3c_cpufreq_info s3c2412_cpufreq_info = {
 	.set_divs	= s3c2412_cpufreq_setdivs,
 	.calc_divs	= s3c2412_cpufreq_calcdivs,
 
+	.calc_iotiming	= s3c2412_iotiming_calc,
+	.set_iotiming	= s3c2412_iotiming_set,
+	.get_iotiming	= s3c2412_iotiming_get,
+
 	.resume_clocks	= s3c2412_setup_clocks,
 };
 

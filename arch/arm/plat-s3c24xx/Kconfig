@@ -157,6 +157,15 @@ config S3C2410_CPUFREQ_UTILS
 	  Internal node to select timing code that is common to the s3c2410
 	  and s3c2440/s3c244 cpu frequency support.
 
+# cpu frequency support common to s3c2412, s3c2413 and s3c2442
+
+config S3C2412_IOTIMING
+	bool
+	depends on CPU_FREQ_S3C24XX && (CPU_S3C2412 || CPU_S3C2443)
+	help
+	  Intel node to select io timing code that is common to the s3c2412
+	  and the s3c2443.
+
 config MACH_SMDK
 	bool
 	help
