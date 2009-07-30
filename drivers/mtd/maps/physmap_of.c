@@ -205,7 +205,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 		dev_err(&dev->dev, "Malformed reg property on %s\n",
 				dev->node->full_name);
 		err = -EINVAL;
-		goto err_out;
+		goto err_flash_remove;
 	}
 	count /= reg_tuple_size;
 
@@ -213,13 +213,13 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	info = kzalloc(sizeof(struct of_flash) +
 		       sizeof(struct of_flash_list) * count, GFP_KERNEL);
 	if (!info)
-		goto err_out;
-
-	mtd_list = kzalloc(sizeof(struct mtd_info) * count, GFP_KERNEL);
-	if (!info)
-		goto err_out;
+		goto err_flash_remove;
 
 	dev_set_drvdata(&dev->dev, info);
+
+	mtd_list = kzalloc(sizeof(struct mtd_info) * count, GFP_KERNEL);
+	if (!mtd_list)
+		goto err_flash_remove;
 
 	for (i = 0; i < count; i++) {
 		err = -ENXIO;
@@ -339,6 +339,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 
 err_out:
 	kfree(mtd_list);
+err_flash_remove:
 	of_flash_remove(dev);
 
 	return err;
