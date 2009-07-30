@@ -18,7 +18,9 @@
 #include <linux/power_supply.h>
 #include "power_supply.h"
 
+/* exported for the APM Power driver, APM emulation */
 struct class *power_supply_class;
+EXPORT_SYMBOL_GPL(power_supply_class);
 
 static int __power_supply_changed_work(struct device *dev, void *data)
 {
@@ -55,6 +57,7 @@ void power_supply_changed(struct power_supply *psy)
 
 	schedule_work(&psy->changed_work);
 }
+EXPORT_SYMBOL_GPL(power_supply_changed);
 
 static int __power_supply_am_i_supplied(struct device *dev, void *data)
 {
@@ -86,6 +89,7 @@ int power_supply_am_i_supplied(struct power_supply *psy)
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(power_supply_am_i_supplied);
 
 static int __power_supply_is_system_supplied(struct device *dev, void *data)
 {
@@ -110,6 +114,7 @@ int power_supply_is_system_supplied(void)
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(power_supply_is_system_supplied);
 
 int power_supply_register(struct device *parent, struct power_supply *psy)
 {
@@ -144,6 +149,7 @@ dev_create_failed:
 success:
 	return rc;
 }
+EXPORT_SYMBOL_GPL(power_supply_register);
 
 void power_supply_unregister(struct power_supply *psy)
 {
@@ -152,6 +158,7 @@ void power_supply_unregister(struct power_supply *psy)
 	power_supply_remove_attrs(psy);
 	device_unregister(psy->dev);
 }
+EXPORT_SYMBOL_GPL(power_supply_unregister);
 
 static int __init power_supply_class_init(void)
 {
@@ -169,15 +176,6 @@ static void __exit power_supply_class_exit(void)
 {
 	class_destroy(power_supply_class);
 }
-
-EXPORT_SYMBOL_GPL(power_supply_changed);
-EXPORT_SYMBOL_GPL(power_supply_am_i_supplied);
-EXPORT_SYMBOL_GPL(power_supply_is_system_supplied);
-EXPORT_SYMBOL_GPL(power_supply_register);
-EXPORT_SYMBOL_GPL(power_supply_unregister);
-
-/* exported for the APM Power driver, APM emulation */
-EXPORT_SYMBOL_GPL(power_supply_class);
 
 subsys_initcall(power_supply_class_init);
 module_exit(power_supply_class_exit);
