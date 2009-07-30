@@ -916,12 +916,9 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
-	/* will be same as sdata */
-	if (local->ps_sdata) {
-		mutex_lock(&local->iflist_mtx);
-		ieee80211_recalc_ps(local, -1);
-		mutex_unlock(&local->iflist_mtx);
-	}
+	mutex_lock(&local->iflist_mtx);
+	ieee80211_recalc_ps(local, -1);
+	mutex_unlock(&local->iflist_mtx);
 
 	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
@@ -1569,6 +1566,9 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 					       wk->bss->cbss.bssid,
 					       ap_ht_cap_flags);
 
+        /* delete work item -- must be before set_associated for PS */
+	list_del(&wk->list);
+
 	/* set AID and assoc capability,
 	 * ieee80211_set_associated() will tell the driver */
 	bss_conf->aid = aid;
@@ -1582,7 +1582,6 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_rx_notify(sdata, (struct ieee80211_hdr *)mgmt);
 	mod_beacon_timer(sdata);
 
-	list_del(&wk->list);
 	kfree(wk);
 	return RX_MGMT_CFG80211_ASSOC;
 }
