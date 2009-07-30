@@ -174,6 +174,16 @@ static struct i2c_board_info __initdata afeb9260_i2c_devices[] = {
 	},
 };
 
+/*
+ * IDE (CF True IDE mode)
+ */
+static struct at91_cf_data afeb9260_cf_data = {
+	.chipselect = 4,
+	.irq_pin    = AT91_PIN_PA6,
+	.rst_pin    = AT91_PIN_PA7,
+	.flags      = AT91_CF_TRUE_IDE,
+};
+
 static void __init afeb9260_board_init(void)
 {
 	/* Serial */
@@ -202,6 +212,8 @@ static void __init afeb9260_board_init(void)
 			ARRAY_SIZE(afeb9260_i2c_devices));
 	/* Audio */
 	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
+	/* IDE */
+	at91_add_device_cf(&afeb9260_cf_data);
 }
 
 MACHINE_START(AFEB9260, "Custom afeb9260 board")
