@@ -46,6 +46,7 @@ config MACH_OSIRIS
 	select PM_SIMTEC if PM
 	select S3C24XX_GPIO_EXTRA128
 	select S3C2440_XTAL_12000000
+	select S3C2410_IOTIMING if S3C2440_CPUFREQ
 	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec IM2440D20 module, also
