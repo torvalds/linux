@@ -107,6 +107,15 @@ config S3C24XX_SPI_BUS1_GPG5_GPG6_GPG7
 
 # common code for s3c24xx based machines, such as the SMDKs.
 
+# cpu frequency items common between s3c2410 and s3c2440/s3c2442
+
+config S3C2410_IOTIMING
+	bool
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Internal node to select io timing code that is common to the s3c2410
+	  and s3c2440/s3c2442 cpu frequency support.
+
 config MACH_SMDK
 	bool
 	help

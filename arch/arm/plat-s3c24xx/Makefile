@@ -35,6 +35,7 @@ obj-$(CONFIG_S3C24XX_PWM)	+= pwm.o
 obj-$(CONFIG_S3C2410_CLOCK)	+= s3c2410-clock.o
 obj-$(CONFIG_S3C2410_DMA)	+= dma.o
 obj-$(CONFIG_S3C24XX_ADC)	+= adc.o
+obj-$(CONFIG_S3C2410_IOTIMING)	+= s3c2410-iotiming.o
 
 # device specific setup and/or initialisation
 obj-$(CONFIG_ARCH_S3C2410)	+= setup-i2c.o
