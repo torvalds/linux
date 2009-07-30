@@ -217,6 +217,13 @@ config MACH_QIL_A9260
 	  Select this if you are using a Calao Systems QIL-A9260 Board.
 	  <http://www.calao-systems.com>
 
+config MACH_CPU9260
+	bool "Eukrea CPU9260 board"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using a Eukrea Electromatique's
+	  CPU9260 Board <http://www.eukrea.com/>
+
 endif
 
 # ----------------------------------------------------------
@@ -302,6 +309,13 @@ config MACH_AT91SAM9G20EK
 	depends on ARCH_AT91SAM9G20
 	help
 	  Select this if you are using Atmel's AT91SAM9G20-EK Evaluation Kit.
+
+config MACH_CPU9G20
+	bool "Eukrea CPU9G20 board"
+	depends on ARCH_AT91SAM9G20
+	help
+	  Select this if you are using a Eukrea Electromatique's
+	  CPU9G20 Board <http://www.eukrea.com/>
 
 endif
 
