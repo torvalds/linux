@@ -1105,6 +1105,9 @@ static void set_config(struct device *dev, unsigned len, const void *conf)
 	/* Copy in the config information, and store the length. */
 	memcpy(device_config(dev), conf, len);
 	dev->desc->config_len = len;
+
+	/* Size must fit in config_len field (8 bits)! */
+	assert(dev->desc->config_len == len);
 }
 
 /* This routine does all the creation and setup of a new device, including
@@ -1515,7 +1518,8 @@ static void setup_block_file(const char *filename)
 	add_feature(dev, VIRTIO_BLK_F_SEG_MAX);
 	conf.seg_max = cpu_to_le32(VIRTQUEUE_NUM - 2);
 
-	set_config(dev, sizeof(conf), &conf);
+	/* Don't try to put whole struct: we have 8 bit limit. */
+	set_config(dev, offsetof(struct virtio_blk_config, geometry), &conf);
 
 	verbose("device %u: virtblock %llu sectors\n",
 		++devices.device_num, le64_to_cpu(conf.capacity));
