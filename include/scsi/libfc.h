@@ -518,25 +518,6 @@ struct libfc_function_template {
 	void (*exch_done)(struct fc_seq *sp);
 
 	/*
-	 * Assigns a EM and a free XID for an new exchange and then
-	 * allocates a new exchange and sequence pair.
-	 * The fp can be used to determine free XID.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	struct fc_exch *(*exch_get)(struct fc_lport *lp, struct fc_frame *fp);
-
-	/*
-	 * Release previously assigned XID by exch_get API.
-	 * The LLD may implement this if XID is assigned by LLD
-	 * in exch_get().
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	void (*exch_put)(struct fc_lport *lp, struct fc_exch_mgr *mp,
-			 u16 ex_id);
-
-	/*
 	 * Start a new sequence on the same exchange/sequence tuple.
 	 *
 	 * STATUS: OPTIONAL
@@ -703,7 +684,6 @@ struct fc_lport {
 
 	/* Associations */
 	struct Scsi_Host	*host;
-	struct fc_exch_mgr	*emp;
 	struct list_head	ema_list;
 	struct fc_rport		*dns_rp;
 	struct fc_rport		*ptp_rp;
@@ -996,27 +976,25 @@ void fc_exch_mgr_del(struct fc_exch_mgr_anchor *ema);
  * a new exchange.
  * The LLD may choose to have multiple EMs,
  * e.g. one EM instance per CPU receive thread in LLD.
- * The LLD can use exch_get() of struct libfc_function_template
- * to specify XID for a new exchange within
- * a specified EM instance.
  *
- * The em_idx to uniquely identify an EM instance.
+ * Specified match function is used in allocating exchanges
+ * from newly allocated EM.
  */
 struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 				      enum fc_class class,
 				      u16 min_xid,
-				      u16 max_xid);
+				      u16 max_xid,
+				      bool (*match)(struct fc_frame *));
 
 /*
- * Free an exchange manager.
+ * Free all exchange managers of a lport.
  */
-void fc_exch_mgr_free(struct fc_exch_mgr *mp);
+void fc_exch_mgr_free(struct fc_lport *lport);
 
 /*
  * Receive a frame on specified local port and exchange manager.
  */
-void fc_exch_recv(struct fc_lport *lp, struct fc_exch_mgr *mp,
-		  struct fc_frame *fp);
+void fc_exch_recv(struct fc_lport *lp, struct fc_frame *fp);
 
 /*
  * This function is for exch_seq_send function pointer in
@@ -1058,19 +1036,9 @@ int fc_seq_exch_abort(const struct fc_seq *req_sp, unsigned int timer_msec);
 void fc_exch_done(struct fc_seq *sp);
 
 /*
- * Assigns a EM and XID for a frame and then allocates
- * a new exchange and sequence pair.
- * The fp can be used to determine free XID.
- */
-struct fc_exch *fc_exch_get(struct fc_lport *lp, struct fc_frame *fp);
-
-/*
  * Allocate a new exchange and sequence pair.
- * if ex_id is zero then next free exchange id
- * from specified exchange manger mp will be assigned.
  */
-struct fc_exch *fc_exch_alloc(struct fc_exch_mgr *mp,
-			      struct fc_frame *fp, u16 ex_id);
+struct fc_exch *fc_exch_alloc(struct fc_lport *lport, struct fc_frame *fp);
 /*
  * Start a new sequence on the same exchange as the supplied sequence.
  */

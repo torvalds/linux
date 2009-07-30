@@ -885,7 +885,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	stats->RxFrames++;
 	stats->RxWords += skb->len / FIP_BPW;
 
-	fc_exch_recv(lp, lp->emp, fp);
+	fc_exch_recv(lp, fp);
 	return;
 
 len_err:

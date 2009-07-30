@@ -423,11 +423,8 @@ static int fcoe_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
  */
 static inline int fcoe_em_config(struct fc_lport *lp)
 {
-	BUG_ON(lp->emp);
-
-	lp->emp = fc_exch_mgr_alloc(lp, FC_CLASS_3,
-				    FCOE_MIN_XID, FCOE_MAX_XID);
-	if (!lp->emp)
+	if (!fc_exch_mgr_alloc(lp, FC_CLASS_3, FCOE_MIN_XID,
+			       FCOE_MAX_XID, NULL))
 		return -ENOMEM;
 
 	return 0;
@@ -478,8 +475,7 @@ static int fcoe_if_destroy(struct net_device *netdev)
 	scsi_remove_host(lp->host);
 
 	/* There are no more rports or I/O, free the EM */
-	if (lp->emp)
-		fc_exch_mgr_free(lp->emp);
+	fc_exch_mgr_free(lp);
 
 	/* Free existing skbs */
 	fcoe_clean_pending_queue(lp);
@@ -634,7 +630,7 @@ static int fcoe_if_create(struct net_device *netdev)
 	return rc;
 
 out_lp_destroy:
-	fc_exch_mgr_free(lp->emp); /* Free the EM */
+	fc_exch_mgr_free(lp);
 out_netdev_cleanup:
 	fcoe_netdev_cleanup(fc);
 out_host_put:
@@ -1277,7 +1273,7 @@ int fcoe_percpu_receive_thread(void *arg)
 		fh = fc_frame_header_get(fp);
 		if (fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA &&
 		    fh->fh_type == FC_TYPE_FCP) {
-			fc_exch_recv(lp, lp->emp, fp);
+			fc_exch_recv(lp, fp);
 			continue;
 		}
 		if (fr_flags(fp) & FCPHF_CRC_UNCHECKED) {
@@ -1298,7 +1294,7 @@ int fcoe_percpu_receive_thread(void *arg)
 			fc_frame_free(fp);
 			continue;
 		}
-		fc_exch_recv(lp, lp->emp, fp);
+		fc_exch_recv(lp, fp);
 	}
 	return 0;
 }
