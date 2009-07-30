@@ -1,8 +1,10 @@
-/*P:200 This contains all the /dev/lguest code, whereby the userspace launcher
+/*P:200
+ * This contains all the /dev/lguest code, whereby the userspace launcher
  * controls and communicates with the Guest.  For example, the first write will
  * tell us the Guest's memory layout, pagetable, entry point and kernel address
  * offset.  A read will run the Guest until something happens, such as a signal
- * or the Guest doing a NOTIFY out to the Launcher. :*/
+ * or the Guest doing a NOTIFY out to the Launcher.
+:*/
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
@@ -37,8 +39,10 @@ static int add_eventfd(struct lguest *lg, unsigned long addr, int fd)
 	if (!addr)
 		return -EINVAL;
 
-	/* Replace the old array with the new one, carefully: others can
-	 * be accessing it at the same time */
+	/*
+	 * Replace the old array with the new one, carefully: others can
+	 * be accessing it at the same time.
+	 */
 	new = kmalloc(sizeof(*new) + sizeof(new->map[0]) * (old->num + 1),
 		      GFP_KERNEL);
 	if (!new)
@@ -61,8 +65,10 @@ static int add_eventfd(struct lguest *lg, unsigned long addr, int fd)
 	/* Now put new one in place. */
 	rcu_assign_pointer(lg->eventfds, new);
 
-	/* We're not in a big hurry.  Wait until noone's looking at old
-	 * version, then delete it. */
+	/*
+	 * We're not in a big hurry.  Wait until noone's looking at old
+	 * version, then delete it.
+	 */
 	synchronize_rcu();
 	kfree(old);
 
@@ -87,8 +93,10 @@ static int attach_eventfd(struct lguest *lg, const unsigned long __user *input)
 	return err;
 }
 
-/*L:050 Sending an interrupt is done by writing LHREQ_IRQ and an interrupt
- * number to /dev/lguest. */
+/*L:050
+ * Sending an interrupt is done by writing LHREQ_IRQ and an interrupt
+ * number to /dev/lguest.
+ */
 static int user_send_irq(struct lg_cpu *cpu, const unsigned long __user *input)
 {
 	unsigned long irq;
@@ -102,8 +110,10 @@ static int user_send_irq(struct lg_cpu *cpu, const unsigned long __user *input)
 	return 0;
 }
 
-/*L:040 Once our Guest is initialized, the Launcher makes it run by reading
- * from /dev/lguest. */
+/*L:040
+ * Once our Guest is initialized, the Launcher makes it run by reading
+ * from /dev/lguest.
+ */
 static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 {
 	struct lguest *lg = file->private_data;
@@ -139,8 +149,10 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 		return len;
 	}
 
-	/* If we returned from read() last time because the Guest sent I/O,
-	 * clear the flag. */
+	/*
+	 * If we returned from read() last time because the Guest sent I/O,
+	 * clear the flag.
+	 */
 	if (cpu->pending_notify)
 		cpu->pending_notify = 0;
 
@@ -148,8 +160,10 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	return run_guest(cpu, (unsigned long __user *)user);
 }
 
-/*L:025 This actually initializes a CPU.  For the moment, a Guest is only
- * uniprocessor, so "id" is always 0. */
+/*L:025
+ * This actually initializes a CPU.  For the moment, a Guest is only
+ * uniprocessor, so "id" is always 0.
+ */
 static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 {
 	/* We have a limited number the number of CPUs in the lguest struct. */
@@ -164,8 +178,10 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	/* Each CPU has a timer it can set. */
 	init_clockdev(cpu);
 
-	/* We need a complete page for the Guest registers: they are accessible
-	 * to the Guest and we can only grant it access to whole pages. */
+	/*
+	 * We need a complete page for the Guest registers: they are accessible
+	 * to the Guest and we can only grant it access to whole pages.
+	 */
 	cpu->regs_page = get_zeroed_page(GFP_KERNEL);
 	if (!cpu->regs_page)
 		return -ENOMEM;
@@ -173,29 +189,38 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	/* We actually put the registers at the bottom of the page. */
 	cpu->regs = (void *)cpu->regs_page + PAGE_SIZE - sizeof(*cpu->regs);
 
-	/* Now we initialize the Guest's registers, handing it the start
-	 * address. */
+	/*
+	 * Now we initialize the Guest's registers, handing it the start
+	 * address.
+	 */
 	lguest_arch_setup_regs(cpu, start_ip);
 
-	/* We keep a pointer to the Launcher task (ie. current task) for when
-	 * other Guests want to wake this one (eg. console input). */
+	/*
+	 * We keep a pointer to the Launcher task (ie. current task) for when
+	 * other Guests want to wake this one (eg. console input).
+	 */
 	cpu->tsk = current;
 
-	/* We need to keep a pointer to the Launcher's memory map, because if
+	/*
+	 * We need to keep a pointer to the Launcher's memory map, because if
 	 * the Launcher dies we need to clean it up.  If we don't keep a
-	 * reference, it is destroyed before close() is called. */
+	 * reference, it is destroyed before close() is called.
+	 */
 	cpu->mm = get_task_mm(cpu->tsk);
 
-	/* We remember which CPU's pages this Guest used last, for optimization
-	 * when the same Guest runs on the same CPU twice. */
+	/*
+	 * We remember which CPU's pages this Guest used last, for optimization
+	 * when the same Guest runs on the same CPU twice.
+	 */
 	cpu->last_pages = NULL;
 
 	/* No error == success. */
 	return 0;
 }
 
-/*L:020 The initialization write supplies 3 pointer sized (32 or 64 bit)
- * values (in addition to the LHREQ_INITIALIZE value).  These are:
+/*L:020
+ * The initialization write supplies 3 pointer sized (32 or 64 bit) values (in
+ * addition to the LHREQ_INITIALIZE value).  These are:
  *
  * base: The start of the Guest-physical memory inside the Launcher memory.
  *
@@ -207,14 +232,15 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
  */
 static int initialize(struct file *file, const unsigned long __user *input)
 {
-	/* "struct lguest" contains everything we (the Host) know about a
-	 * Guest. */
+	/* "struct lguest" contains all we (the Host) know about a Guest. */
 	struct lguest *lg;
 	int err;
 	unsigned long args[3];
 
-	/* We grab the Big Lguest lock, which protects against multiple
-	 * simultaneous initializations. */
+	/*
+	 * We grab the Big Lguest lock, which protects against multiple
+	 * simultaneous initializations.
+	 */
 	mutex_lock(&lguest_lock);
 	/* You can't initialize twice!  Close the device and start again... */
 	if (file->private_data) {
@@ -249,8 +275,10 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	if (err)
 		goto free_eventfds;
 
-	/* Initialize the Guest's shadow page tables, using the toplevel
-	 * address the Launcher gave us.  This allocates memory, so can fail. */
+	/*
+	 * Initialize the Guest's shadow page tables, using the toplevel
+	 * address the Launcher gave us.  This allocates memory, so can fail.
+	 */
 	err = init_guest_pagetable(lg);
 	if (err)
 		goto free_regs;
@@ -275,7 +303,8 @@ unlock:
 	return err;
 }
 
-/*L:010 The first operation the Launcher does must be a write.  All writes
+/*L:010
+ * The first operation the Launcher does must be a write.  All writes
  * start with an unsigned long number: for the first write this must be
  * LHREQ_INITIALIZE to set up the Guest.  After that the Launcher can use
  * writes of other values to send interrupts.
@@ -283,12 +312,15 @@ unlock:
  * Note that we overload the "offset" in the /dev/lguest file to indicate what
  * CPU number we're dealing with.  Currently this is always 0, since we only
  * support uniprocessor Guests, but you can see the beginnings of SMP support
- * here. */
+ * here.
+ */
 static ssize_t write(struct file *file, const char __user *in,
 		     size_t size, loff_t *off)
 {
-	/* Once the Guest is initialized, we hold the "struct lguest" in the
-	 * file private data. */
+	/*
+	 * Once the Guest is initialized, we hold the "struct lguest" in the
+	 * file private data.
+	 */
 	struct lguest *lg = file->private_data;
 	const unsigned long __user *input = (const unsigned long __user *)in;
 	unsigned long req;
@@ -323,13 +355,15 @@ static ssize_t write(struct file *file, const char __user *in,
 	}
 }
 
-/*L:060 The final piece of interface code is the close() routine.  It reverses
+/*L:060
+ * The final piece of interface code is the close() routine.  It reverses
  * everything done in initialize().  This is usually called because the
  * Launcher exited.
  *
  * Note that the close routine returns 0 or a negative error number: it can't
  * really fail, but it can whine.  I blame Sun for this wart, and K&R C for
- * letting them do it. :*/
+ * letting them do it.
+:*/
 static int close(struct inode *inode, struct file *file)
 {
 	struct lguest *lg = file->private_data;
@@ -339,8 +373,10 @@ static int close(struct inode *inode, struct file *file)
 	if (!lg)
 		return 0;
 
-	/* We need the big lock, to protect from inter-guest I/O and other
-	 * Launchers initializing guests. */
+	/*
+	 * We need the big lock, to protect from inter-guest I/O and other
+	 * Launchers initializing guests.
+	 */
 	mutex_lock(&lguest_lock);
 
 	/* Free up the shadow page tables for the Guest. */
@@ -351,8 +387,10 @@ static int close(struct inode *inode, struct file *file)
 		hrtimer_cancel(&lg->cpus[i].hrt);
 		/* We can free up the register page we allocated. */
 		free_page(lg->cpus[i].regs_page);
-		/* Now all the memory cleanups are done, it's safe to release
-		 * the Launcher's memory management structure. */
+		/*
+		 * Now all the memory cleanups are done, it's safe to release
+		 * the Launcher's memory management structure.
+		 */
 		mmput(lg->cpus[i].mm);
 	}
 
@@ -361,8 +399,10 @@ static int close(struct inode *inode, struct file *file)
 		eventfd_ctx_put(lg->eventfds->map[i].event);
 	kfree(lg->eventfds);
 
-	/* If lg->dead doesn't contain an error code it will be NULL or a
-	 * kmalloc()ed string, either of which is ok to hand to kfree(). */
+	/*
+	 * If lg->dead doesn't contain an error code it will be NULL or a
+	 * kmalloc()ed string, either of which is ok to hand to kfree().
+	 */
 	if (!IS_ERR(lg->dead))
 		kfree(lg->dead);
 	/* Free the memory allocated to the lguest_struct */
@@ -386,7 +426,8 @@ static int close(struct inode *inode, struct file *file)
  *
  * We begin our understanding with the Host kernel interface which the Launcher
  * uses: reading and writing a character device called /dev/lguest.  All the
- * work happens in the read(), write() and close() routines: */
+ * work happens in the read(), write() and close() routines:
+ */
 static struct file_operations lguest_fops = {
 	.owner	 = THIS_MODULE,
 	.release = close,
@@ -394,8 +435,10 @@ static struct file_operations lguest_fops = {
 	.read	 = read,
 };
 
-/* This is a textbook example of a "misc" character device.  Populate a "struct
- * miscdevice" and register it with misc_register(). */
+/*
+ * This is a textbook example of a "misc" character device.  Populate a "struct
+ * miscdevice" and register it with misc_register().
+ */
 static struct miscdevice lguest_dev = {
 	.minor	= MISC_DYNAMIC_MINOR,
 	.name	= "lguest",
