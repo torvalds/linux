@@ -594,6 +594,28 @@ static int rndis_set_oid(struct usbnet *dev, __le32 oid, void *data, int len)
 }
 
 
+static int rndis_reset(struct usbnet *usbdev)
+{
+	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+	struct rndis_reset *reset;
+	int ret;
+
+	mutex_lock(&priv->command_lock);
+
+	reset = (void *)priv->command_buffer;
+	memset(reset, 0, sizeof(*reset));
+	reset->msg_type = RNDIS_MSG_RESET;
+	reset->msg_len = cpu_to_le32(sizeof(*reset));
+	ret = rndis_command(usbdev, (void *)reset, CONTROL_BUFFER_SIZE);
+
+	mutex_unlock(&priv->command_lock);
+
+	if (ret < 0)
+		return ret;
+	return 0;
+}
+
+
 /*
  * Specs say that we can only set config parameters only soon after device
  * initialization.
@@ -2500,8 +2522,16 @@ static void rndis_wlan_unbind(struct usbnet *usbdev, struct usb_interface *intf)
 static int rndis_wlan_reset(struct usbnet *usbdev)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+	int retval;
 
 	devdbg(usbdev, "rndis_wlan_reset");
+
+	retval = rndis_reset(usbdev);
+	if (retval)
+		devwarn(usbdev, "rndis_reset() failed: %d", retval);
+
+	/* rndis_reset cleared multicast list, so restore here. */
+	set_multicast_list(usbdev);
 
 	queue_delayed_work(priv->workqueue, &priv->stats_work,
 		round_jiffies_relative(STATS_UPDATE_JIFFIES));
