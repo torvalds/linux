@@ -105,11 +105,20 @@ void __init_or_cpufreq s3c2410_setup_clocks(void)
 	s3c24xx_setup_clocks(fclk, hclk, pclk);
 }
 
+/* fake ARMCLK for use with cpufreq, etc. */
+
+static struct clk s3c2410_armclk = {
+	.name	= "armclk",
+	.parent	= &clk_f,
+	.id	= -1,
+};
+
 void __init s3c2410_init_clocks(int xtal)
 {
 	s3c24xx_register_baseclocks(xtal);
 	s3c2410_setup_clocks();
 	s3c2410_baseclk_add();
+	s3c24xx_register_clock(&s3c2410_armclk);
 }
 
 struct sysdev_class s3c2410_sysclass = {
