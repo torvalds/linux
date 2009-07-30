@@ -743,7 +743,7 @@ BBuGetFrameTime (
         } else {
             uPreamble = 192;
         }
-        uFrameTime = (cbFrameLength * 80) / uRate;
+        uFrameTime = (cbFrameLength * 80) / uRate;  //?????
         uTmp = (uFrameTime * uRate) / 80;
         if (cbFrameLength != uTmp) {
             uFrameTime ++;
@@ -752,16 +752,16 @@ BBuGetFrameTime (
         return (uPreamble + uFrameTime);
     }
     else {
-        uFrameTime = (cbFrameLength * 8 + 22) / uRate;
+        uFrameTime = (cbFrameLength * 8 + 22) / uRate;   //????????
         uTmp = ((uFrameTime * uRate) - 22) / 8;
         if(cbFrameLength != uTmp) {
             uFrameTime ++;
         }
-        uFrameTime = uFrameTime * 4;
+        uFrameTime = uFrameTime * 4;    //???????
         if(byPktType != PK_TYPE_11A) {
             uFrameTime += 6;
         }
-        return (20 + uFrameTime);
+        return (20 + uFrameTime); //??????
     }
 }
 

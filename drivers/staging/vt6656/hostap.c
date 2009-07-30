@@ -113,7 +113,7 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Enabling hostapd mode\n", dev->name);
 
 	pDevice->apdev = (struct net_device *)kmalloc(sizeof(struct net_device), GFP_KERNEL);
-    if (pDevice->apdev == NULL)
+	if (pDevice->apdev == NULL)
 		return -ENOMEM;
 	memset(pDevice->apdev, 0, sizeof(struct net_device));
 

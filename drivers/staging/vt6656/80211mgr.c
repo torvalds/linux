@@ -18,7 +18,7 @@
  *
  * File: 80211mgr.c
  *
- * Purpose: Handles the managment frame parsing functions
+ * Purpose: Handles the 802.11 managment support functions
  *
  * Author: Lyndon Chen
  *
@@ -746,7 +746,6 @@ vMgrDecodeProbeResponse(
     )
 {
     PWLAN_IE    pItem;
-  //  BYTE        byCheckEID = 0;
 
 
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -764,13 +763,6 @@ vMgrDecodeProbeResponse(
                        + WLAN_PROBERESP_OFF_SSID);
 
     while( ((PBYTE)pItem) < (pFrame->pBuf + pFrame->len) ) {
-
-	  //20080701-01,<Remark> by Mike Liu
-      //  if (pItem->byElementID < byCheckEID)
-        //    break;
-        //else
-            //byCheckEID = pItem->byElementID;
-
         switch (pItem->byElementID) {
             case WLAN_EID_SSID:
                 if (pFrame->pSSID == NULL)
