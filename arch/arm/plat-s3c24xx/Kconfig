@@ -42,6 +42,20 @@ config S3C2440_CPUFREQ
 	help
 	  CPU Frequency scaling support for S3C2440 and S3C2442 SoC CPUs.
 
+config S3C2440_PLL_12000000
+	bool
+	depends on S3C2440_CPUFREQ
+	default y if CPU_FREQ_S3C24XX_PLL
+	help
+	  PLL tables for S3C2440 or S3C2442 CPUs with 12MHz crystals.
+
+config S3C2440_PLL_16934400
+	bool
+	depends on S3C2440_CPUFREQ
+	default y if CPU_FREQ_S3C24XX_PLL
+	help
+	  PLL tables for S3C2440 or S3C2442 CPUs with 16.934MHz crystals.
+
 config S3C24XX_PWM
 	bool "PWM device support"
 	select HAVE_PWM
