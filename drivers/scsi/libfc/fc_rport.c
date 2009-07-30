@@ -276,6 +276,7 @@ static void fc_rport_work(struct work_struct *work)
 		mutex_unlock(&rdata->rp_mutex);
 		if (rport_ops->event_callback)
 			rport_ops->event_callback(lport, rport, event);
+		cancel_delayed_work_sync(&rdata->retry_work);
 		if (trans_state == FC_PORTSTATE_ROGUE)
 			put_device(&rport->dev);
 		else {
@@ -433,7 +434,6 @@ static void fc_rport_timeout(struct work_struct *work)
 	}
 
 	mutex_unlock(&rdata->rp_mutex);
-	put_device(&rport->dev);
 }
 
 /**
@@ -494,7 +494,6 @@ static void fc_rport_error_retry(struct fc_rport *rport, struct fc_frame *fp)
 		/* no additional delay on exchange timeouts */
 		if (PTR_ERR(fp) == -FC_EX_TIMEOUT)
 			delay = 0;
-		get_device(&rport->dev);
 		schedule_delayed_work(&rdata->retry_work, delay);
 		return;
 	}
