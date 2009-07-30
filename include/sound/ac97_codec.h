@@ -32,6 +32,9 @@
 #include "control.h"
 #include "info.h"
 
+/* maximum number of devices on the AC97 bus */
+#define	AC97_BUS_MAX_DEVICES	4
+
 /*
  *  AC'97 codec registers
  */

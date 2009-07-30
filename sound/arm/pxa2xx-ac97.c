@@ -170,6 +170,13 @@ static int __devinit pxa2xx_ac97_probe(struct platform_device *dev)
 	struct snd_ac97_bus *ac97_bus;
 	struct snd_ac97_template ac97_template;
 	int ret;
+	pxa2xx_audio_ops_t *pdata = dev->dev.platform_data;
+
+	if (dev->id >= 0) {
+		dev_err(&dev->dev, "PXA2xx has only one AC97 port.\n");
+		ret = -ENXIO;
+		goto err_dev;
+	}
 
 	ret = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			      THIS_MODULE, 0, &card);
@@ -200,6 +207,8 @@ static int __devinit pxa2xx_ac97_probe(struct platform_device *dev)
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s (%s)", dev->dev.driver->name, card->mixername);
 
+	if (pdata && pdata->codec_data)
+		snd_ac97_dev_add_pdata(ac97_bus->codec[0], pdata->codec_pdata);
 	snd_card_set_dev(card, &dev->dev);
 	ret = snd_card_register(card);
 	if (ret == 0) {
@@ -212,6 +221,7 @@ err_remove:
 err:
 	if (card)
 		snd_card_free(card);
+err_dev:
 	return ret;
 }
 
