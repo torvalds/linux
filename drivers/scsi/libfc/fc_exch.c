@@ -822,7 +822,6 @@ struct fc_seq *fc_seq_start_next(struct fc_seq *sp)
 	struct fc_exch *ep = fc_seq_exch(sp);
 
 	spin_lock_bh(&ep->ex_lock);
-	WARN_ON((ep->esb_stat & ESB_ST_COMPLETE) != 0);
 	sp = fc_seq_start_next_locked(sp);
 	spin_unlock_bh(&ep->ex_lock);
 
