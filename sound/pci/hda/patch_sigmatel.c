@@ -40,6 +40,7 @@ enum {
 	STAC_INSERT_EVENT,
 	STAC_PWR_EVENT,
 	STAC_HP_EVENT,
+	STAC_LO_EVENT,
 	STAC_MIC_EVENT,
 };
 
@@ -4345,6 +4346,14 @@ static int stac92xx_init(struct hda_codec *codec)
 			hda_nid_t nid = cfg->hp_pins[i];
 			enable_pin_detect(codec, nid, STAC_HP_EVENT);
 		}
+		if (cfg->line_out_type == AUTO_PIN_LINE_OUT) {
+			/* enable pin-detect for line-outs as well */
+			for (i = 0; i < cfg->hp_outs; i++) {
+				hda_nid_t nid = cfg->hp_pins[i];
+				enable_pin_detect(codec, nid, STAC_LO_EVENT);
+			}
+		}
+
 		/* force to enable the first line-out; the others are set up
 		 * in unsol_event
 		 */
@@ -4543,6 +4552,48 @@ static int get_pin_presence(struct hda_codec *codec, hda_nid_t nid)
 	return 0;
 }
 
+static void stac92xx_line_out_detect(struct hda_codec *codec,
+				     int presence)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
+
+	for (i = 0; i < cfg->line_outs; i++) {
+		if (presence)
+			break;
+		presence = get_pin_presence(codec, cfg->line_out_pins[i]);
+		if (presence) {
+			unsigned int pinctl;
+			pinctl = snd_hda_codec_read(codec,
+						    cfg->line_out_pins[i], 0,
+					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+			if (pinctl & AC_PINCTL_IN_EN)
+				presence = 0; /* mic- or line-input */
+		}
+	}
+
+	if (presence) {
+		/* disable speakers */
+		for (i = 0; i < cfg->speaker_outs; i++)
+			stac92xx_reset_pinctl(codec, cfg->speaker_pins[i],
+						AC_PINCTL_OUT_EN);
+		if (spec->eapd_mask && spec->eapd_switch)
+			stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data &
+				~spec->eapd_mask);
+	} else {
+		/* enable speakers */
+		for (i = 0; i < cfg->speaker_outs; i++)
+			stac92xx_set_pinctl(codec, cfg->speaker_pins[i],
+						AC_PINCTL_OUT_EN);
+		if (spec->eapd_mask && spec->eapd_switch)
+			stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data |
+				spec->eapd_mask);
+	}
+} 
+
 /* return non-zero if the hp-pin of the given array index isn't
  * a jack-detection target
  */
@@ -4595,13 +4646,6 @@ static void stac92xx_hp_detect(struct hda_codec *codec)
 		for (i = 0; i < cfg->line_outs; i++)
 			stac92xx_reset_pinctl(codec, cfg->line_out_pins[i],
 						AC_PINCTL_OUT_EN);
-		for (i = 0; i < cfg->speaker_outs; i++)
-			stac92xx_reset_pinctl(codec, cfg->speaker_pins[i],
-						AC_PINCTL_OUT_EN);
-		if (spec->eapd_mask && spec->eapd_switch)
-			stac_gpio_set(codec, spec->gpio_mask,
-				spec->gpio_dir, spec->gpio_data &
-				~spec->eapd_mask);
 	} else {
 		/* enable lineouts */
 		if (spec->hp_switch)
@@ -4610,14 +4654,8 @@ static void stac92xx_hp_detect(struct hda_codec *codec)
 		for (i = 0; i < cfg->line_outs; i++)
 			stac92xx_set_pinctl(codec, cfg->line_out_pins[i],
 						AC_PINCTL_OUT_EN);
-		for (i = 0; i < cfg->speaker_outs; i++)
-			stac92xx_set_pinctl(codec, cfg->speaker_pins[i],
-						AC_PINCTL_OUT_EN);
-		if (spec->eapd_mask && spec->eapd_switch)
-			stac_gpio_set(codec, spec->gpio_mask,
-				spec->gpio_dir, spec->gpio_data |
-				spec->eapd_mask);
 	}
+	stac92xx_line_out_detect(codec, presence);
 	/* toggle hp outs */
 	for (i = 0; i < cfg->hp_outs; i++) {
 		unsigned int val = AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN;
@@ -4744,6 +4782,9 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 	case STAC_HP_EVENT:
 		stac92xx_hp_detect(codec);
 		break;
+	case STAC_LO_EVENT:
+		stac92xx_line_out_detect(codec, 0);
+		break;
 	case STAC_MIC_EVENT:
 		stac92xx_mic_detect(codec);
 		break;
@@ -4751,6 +4792,7 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 
 	switch (event->type) {
 	case STAC_HP_EVENT:
+	case STAC_LO_EVENT:
 	case STAC_MIC_EVENT:
 	case STAC_INSERT_EVENT:
 	case STAC_PWR_EVENT:
