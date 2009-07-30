@@ -5360,12 +5360,19 @@ static int ixgbe_del_sanmac_netdev(struct net_device *dev)
 static void ixgbe_netpoll(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	int i;
 
-	disable_irq(adapter->pdev->irq);
 	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
-	ixgbe_intr(adapter->pdev->irq, netdev);
+	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
+		int num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+		for (i = 0; i < num_q_vectors; i++) {
+			struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
+			ixgbe_msix_clean_many(0, q_vector);
+		}
+	} else {
+		ixgbe_intr(adapter->pdev->irq, netdev);
+	}
 	adapter->flags &= ~IXGBE_FLAG_IN_NETPOLL;
-	enable_irq(adapter->pdev->irq);
 }
 #endif
 
