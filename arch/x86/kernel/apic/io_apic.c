@@ -3185,8 +3185,7 @@ void destroy_irq(unsigned int irq)
 	cfg = desc->chip_data;
 	dynamic_irq_cleanup(irq);
 	/* connect back irq_cfg */
-	if (desc)
-		desc->chip_data = cfg;
+	desc->chip_data = cfg;
 
 	free_irte(irq);
 	spin_lock_irqsave(&vector_lock, flags);
