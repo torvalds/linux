@@ -27,6 +27,7 @@ obj-$(CONFIG_CPU_FREQ_S3C24XX)	+= cpu-freq.o
 obj-$(CONFIG_CPU_S3C244X)	+= s3c244x.o
 obj-$(CONFIG_CPU_S3C244X)	+= s3c244x-irq.o
 obj-$(CONFIG_CPU_S3C244X)	+= s3c244x-clock.o
+obj-$(CONFIG_S3C2440_CPUFREQ)	+= s3c2440-cpufreq.o
 obj-$(CONFIG_PM_SIMTEC)		+= pm-simtec.o
 obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_PM)		+= irq-pm.o
