@@ -1875,7 +1875,7 @@ void fc_exch_recv(struct fc_lport *lp, struct fc_exch_mgr *mp,
 	u32 f_ctl;
 
 	/* lport lock ? */
-	if (!lp || !mp || (lp->state == LPORT_ST_NONE)) {
+	if (!lp || !mp || lp->state == LPORT_ST_DISABLED) {
 		FC_LPORT_DBG(lp, "Receiving frames for an lport that "
 			     "has not been initialized correctly\n");
 		fc_frame_free(fp);

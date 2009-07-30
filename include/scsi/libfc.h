@@ -129,7 +129,7 @@ do {									\
  * FC HBA status
  */
 enum fc_lport_state {
-	LPORT_ST_NONE = 0,
+	LPORT_ST_DISABLED = 0,
 	LPORT_ST_FLOGI,
 	LPORT_ST_DNS,
 	LPORT_ST_RPN_ID,

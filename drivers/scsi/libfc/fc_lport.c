@@ -113,7 +113,7 @@ static void fc_lport_enter_ready(struct fc_lport *);
 static void fc_lport_enter_logo(struct fc_lport *);
 
 static const char *fc_lport_state_names[] = {
-	[LPORT_ST_NONE] =     "none",
+	[LPORT_ST_DISABLED] = "disabled",
 	[LPORT_ST_FLOGI] =    "FLOGI",
 	[LPORT_ST_DNS] =      "dNS",
 	[LPORT_ST_RPN_ID] =   "RPN_ID",
@@ -550,7 +550,7 @@ int fc_fabric_login(struct fc_lport *lport)
 	int rc = -1;
 
 	mutex_lock(&lport->lp_mutex);
-	if (lport->state == LPORT_ST_NONE) {
+	if (lport->state == LPORT_ST_DISABLED) {
 		fc_lport_enter_reset(lport);
 		rc = 0;
 	}
@@ -637,7 +637,7 @@ EXPORT_SYMBOL(fc_fabric_logoff);
 int fc_lport_destroy(struct fc_lport *lport)
 {
 	mutex_lock(&lport->lp_mutex);
-	lport->state = LPORT_ST_NONE;
+	lport->state = LPORT_ST_DISABLED;
 	lport->link_up = 0;
 	lport->tt.frame_send = fc_frame_drop;
 	mutex_unlock(&lport->lp_mutex);
@@ -992,7 +992,7 @@ static void fc_lport_error(struct fc_lport *lport, struct fc_frame *fp)
 			schedule_delayed_work(&lport->retry_work, delay);
 		} else {
 			switch (lport->state) {
-			case LPORT_ST_NONE:
+			case LPORT_ST_DISABLED:
 			case LPORT_ST_READY:
 			case LPORT_ST_RESET:
 			case LPORT_ST_RPN_ID:
@@ -1316,7 +1316,7 @@ static void fc_lport_timeout(struct work_struct *work)
 	mutex_lock(&lport->lp_mutex);
 
 	switch (lport->state) {
-	case LPORT_ST_NONE:
+	case LPORT_ST_DISABLED:
 	case LPORT_ST_READY:
 	case LPORT_ST_RESET:
 		WARN_ON(1);
@@ -1550,7 +1550,7 @@ int fc_lport_config(struct fc_lport *lport)
 	INIT_DELAYED_WORK(&lport->retry_work, fc_lport_timeout);
 	mutex_init(&lport->lp_mutex);
 
-	fc_lport_state_enter(lport, LPORT_ST_NONE);
+	fc_lport_state_enter(lport, LPORT_ST_DISABLED);
 
 	fc_lport_add_fc4_type(lport, FC_TYPE_FCP);
 	fc_lport_add_fc4_type(lport, FC_TYPE_CT);
