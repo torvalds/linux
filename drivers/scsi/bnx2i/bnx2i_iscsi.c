@@ -387,6 +387,7 @@ static struct iscsi_endpoint *bnx2i_alloc_ep(struct bnx2i_hba *hba)
 	bnx2i_ep = ep->dd_data;
 	INIT_LIST_HEAD(&bnx2i_ep->link);
 	bnx2i_ep->state = EP_STATE_IDLE;
+	bnx2i_ep->ep_iscsi_cid = (u16) -1;
 	bnx2i_ep->hba = hba;
 	bnx2i_ep->hba_age = hba->age;
 	hba->ofld_conns_active++;
@@ -1681,8 +1682,6 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 		goto net_if_down;
 	}
 
-	bnx2i_ep->state = EP_STATE_IDLE;
-	bnx2i_ep->ep_iscsi_cid = (u16) -1;
 	bnx2i_ep->num_active_cmds = 0;
 	iscsi_cid = bnx2i_alloc_iscsi_cid(hba);
 	if (iscsi_cid == -1) {
