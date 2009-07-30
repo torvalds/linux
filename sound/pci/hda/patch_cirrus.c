@@ -832,6 +832,11 @@ static void cs_automute(struct hda_codec *codec)
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    hp_present ? 0 : PIN_OUT);
 	}
+	if (spec->board_config == CS420X_MBP55) {
+		unsigned int gpio = hp_present ? 0x02 : 0x08;
+		snd_hda_codec_write(codec, 0x01, 0,
+				    AC_VERB_SET_GPIO_DATA, gpio);
+	}
 }
 
 static void cs_automic(struct hda_codec *codec)
@@ -1133,10 +1138,10 @@ static int patch_cs420x(struct hda_codec *codec)
 
 	switch (spec->board_config) {
 	case CS420X_MBP55:
-		/* GPIO3 = EAPD? */
-		spec->gpio_mask = 0x08;
-		spec->gpio_dir = 0x08;
-		spec->gpio_data = 0x08;
+		/* GPIO1 = headphones */
+		/* GPIO3 = speakers */
+		spec->gpio_mask = 0x0a;
+		spec->gpio_dir = 0x0a;
 		break;
 	}
 
