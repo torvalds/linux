@@ -225,12 +225,6 @@ int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
 		return -EOPNOTSUPP;
 	}
 
-	/* The real device must be up and operating in order to
-	 * assosciate a VLAN device with it.
-	 */
-	if (!(real_dev->flags & IFF_UP))
-		return -ENETDOWN;
-
 	if (__find_vlan_dev(real_dev, vlan_id) != NULL)
 		return -EEXIST;
 
