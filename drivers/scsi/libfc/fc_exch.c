@@ -1129,7 +1129,7 @@ static void fc_exch_recv_req(struct fc_lport *lp, struct fc_exch_mgr *mp,
 			lp->tt.lport_recv(lp, sp, fp);
 		fc_exch_release(ep);	/* release from lookup */
 	} else {
-		FC_EM_DBG(mp, "exch/seq lookup failed: reject %x\n", reject);
+		FC_LPORT_DBG(lp, "exch/seq lookup failed: reject %x\n", reject);
 		fc_frame_free(fp);
 	}
 }
@@ -1235,13 +1235,12 @@ static void fc_exch_recv_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 	struct fc_seq *sp;
 
 	sp = fc_seq_lookup_orig(mp, fp);	/* doesn't hold sequence */
-	if (!sp) {
+
+	if (!sp)
 		atomic_inc(&mp->stats.xid_not_found);
-		FC_EM_DBG(mp, "seq lookup failed\n");
-	} else {
+	else
 		atomic_inc(&mp->stats.non_bls_resp);
-		FC_EM_DBG(mp, "non-BLS response to sequence");
-	}
+
 	fc_frame_free(fp);
 }
 
@@ -1950,7 +1949,7 @@ void fc_exch_recv(struct fc_lport *lp, struct fc_exch_mgr *mp,
 			fc_exch_recv_req(lp, mp, fp);
 		break;
 	default:
-		FC_EM_DBG(mp, "dropping invalid frame (eof %x)", fr_eof(fp));
+		FC_LPORT_DBG(lp, "dropping invalid frame (eof %x)", fr_eof(fp));
 		fc_frame_free(fp);
 		break;
 	}

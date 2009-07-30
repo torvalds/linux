@@ -88,12 +88,6 @@ do {									\
 				(pkt)->lp->host->host_no,		\
 				pkt->rport->port_id, ##args))
 
-#define FC_EM_DBG(em, fmt, args...)					\
-	FC_CHECK_LOGGING(FC_EM_LOGGING,					\
-			 printk(KERN_INFO "host%u: em: " fmt,		\
-				(em)->lp->host->host_no,		\
-				##args))
-
 #define FC_EXCH_DBG(exch, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_EXCH_LOGGING,				\
 			 printk(KERN_INFO "host%u: xid %4x: " fmt,	\
