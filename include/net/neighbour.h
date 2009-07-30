@@ -24,6 +24,7 @@
 
 #include <linux/err.h>
 #include <linux/sysctl.h>
+#include <linux/workqueue.h>
 #include <net/rtnetlink.h>
 
 /*
@@ -167,7 +168,7 @@ struct neigh_table
 	int			gc_thresh2;
 	int			gc_thresh3;
 	unsigned long		last_flush;
-	struct timer_list 	gc_timer;
+	struct delayed_work	gc_work;
 	struct timer_list 	proxy_timer;
 	struct sk_buff_head	proxy_queue;
 	atomic_t		entries;
@@ -178,7 +179,6 @@ struct neigh_table
 	struct neighbour	**hash_buckets;
 	unsigned int		hash_mask;
 	__u32			hash_rnd;
-	unsigned int		hash_chain_gc;
 	struct pneigh_entry	**phash_buckets;
 };
 
