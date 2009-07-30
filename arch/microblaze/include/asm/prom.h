@@ -16,6 +16,18 @@
 #define _ASM_MICROBLAZE_PROM_H
 #ifdef __KERNEL__
 
+/* Definitions used by the flattened device tree */
+#define OF_DT_HEADER		0xd00dfeed /* marker */
+#define OF_DT_BEGIN_NODE	0x1 /* Start of node, full name */
+#define OF_DT_END_NODE		0x2 /* End node */
+#define OF_DT_PROP		0x3 /* Property: name off, size, content */
+#define OF_DT_NOP		0x4 /* nop */
+#define OF_DT_END		0x9
+
+#define OF_DT_VERSION		0x10
+
+#ifndef __ASSEMBLY__
+
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
@@ -28,16 +40,6 @@
 #define of_compat_cmp(s1, s2, l)	strncasecmp((s1), (s2), (l))
 #define of_prop_cmp(s1, s2)		strcmp((s1), (s2))
 #define of_node_cmp(s1, s2)		strcasecmp((s1), (s2))
-
-/* Definitions used by the flattened device tree */
-#define OF_DT_HEADER		0xd00dfeed /* marker */
-#define OF_DT_BEGIN_NODE	0x1 /* Start of node, full name */
-#define OF_DT_END_NODE		0x2 /* End node */
-#define OF_DT_PROP		0x3 /* Property: name off, size, content */
-#define OF_DT_NOP		0x4 /* nop */
-#define OF_DT_END		0x9
-
-#define OF_DT_VERSION		0x10
 
 /*
  * This is what gets passed to the kernel by prom_init or kexec
@@ -309,5 +311,6 @@ extern void __iomem *of_iomap(struct device_node *device, int index);
  */
 #include <linux/of.h>
 
+#endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_MICROBLAZE_PROM_H */

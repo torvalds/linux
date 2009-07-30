@@ -153,7 +153,7 @@ static unsigned long s3c64xx_clk_arm_round_rate(struct clk *clk,
 	u32 div;
 
 	if (parent < rate)
-		return rate;
+		return parent;
 
 	div = (parent / rate) - 1;
 	if (div > armclk_mask)
@@ -175,7 +175,7 @@ static int s3c64xx_clk_arm_set_rate(struct clk *clk, unsigned long rate)
 	div = clk_get_rate(clk->parent) / rate;
 
 	val = __raw_readl(S3C_CLK_DIV0);
-	val &= armclk_mask;
+	val &= ~armclk_mask;
 	val |= (div - 1);
 	__raw_writel(val, S3C_CLK_DIV0);
 

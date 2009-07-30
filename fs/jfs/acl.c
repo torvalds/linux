@@ -67,10 +67,8 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 		acl = posix_acl_from_xattr(value, size);
 	}
 	kfree(value);
-	if (!IS_ERR(acl)) {
+	if (!IS_ERR(acl))
 		set_cached_acl(inode, type, acl);
-		posix_acl_release(acl);
-	}
 	return acl;
 }
 

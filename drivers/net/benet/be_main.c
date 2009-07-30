@@ -667,7 +667,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 	struct be_queue_info *rxq = &adapter->rx_obj.q;
 	struct be_rx_page_info *page_info;
 	u16 rxq_idx, i, num_rcvd, j;
-	u32 pktsize, hdr_len, curr_frag_len;
+	u32 pktsize, hdr_len, curr_frag_len, size;
 	u8 *start;
 
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
@@ -708,12 +708,13 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 	}
 
 	/* More frags present for this completion */
-	pktsize -= curr_frag_len; /* account for above copied frag */
+	size = pktsize;
 	for (i = 1, j = 0; i < num_rcvd; i++) {
+		size -= curr_frag_len;
 		index_inc(&rxq_idx, rxq->len);
 		page_info = get_rx_page_info(adapter, rxq_idx);
 
-		curr_frag_len = min(pktsize, rx_frag_size);
+		curr_frag_len = min(size, rx_frag_size);
 
 		/* Coalesce all frags from the same physical page in one slot */
 		if (page_info->page_offset == 0) {
@@ -731,7 +732,6 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 		skb_shinfo(skb)->frags[j].size += curr_frag_len;
 		skb->len += curr_frag_len;
 		skb->data_len += curr_frag_len;
-		pktsize -= curr_frag_len;
 
 		memset(page_info, 0, sizeof(*page_info));
 	}
