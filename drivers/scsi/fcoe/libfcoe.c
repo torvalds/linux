@@ -413,10 +413,18 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	struct fip_mac_desc *mac;
 	struct fcoe_fcf *fcf;
 	size_t dlen;
+	u16 fip_flags;
 
 	fcf = fip->sel_fcf;
 	if (!fcf)
 		return -ENODEV;
+
+	/* set flags according to both FCF and lport's capability on SPMA */
+	fip_flags = fcf->flags;
+	fip_flags &= fip->spma ? FIP_FL_SPMA | FIP_FL_FPMA : FIP_FL_FPMA;
+	if (!fip_flags)
+		return -ENODEV;
+
 	dlen = sizeof(struct fip_encaps) + skb->len;	/* len before push */
 	cap = (struct fip_encaps_head *)skb_push(skb, sizeof(*cap));
 
@@ -429,9 +437,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	cap->fip.fip_op = htons(FIP_OP_LS);
 	cap->fip.fip_subcode = FIP_SC_REQ;
 	cap->fip.fip_dl_len = htons((dlen + sizeof(*mac)) / FIP_BPW);
-	cap->fip.fip_flags = htons(FIP_FL_FPMA);
-	if (fip->spma)
-		cap->fip.fip_flags |= htons(FIP_FL_SPMA);
+	cap->fip.fip_flags = htons(fip_flags);
 
 	cap->encaps.fd_desc.fip_dtype = dtype;
 	cap->encaps.fd_desc.fip_dlen = dlen / FIP_BPW;
