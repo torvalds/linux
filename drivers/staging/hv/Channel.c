@@ -773,7 +773,7 @@ VmbusChannelSendPacket(
 	VMPACKET_DESCRIPTOR desc;
 	u32 packetLen = sizeof(VMPACKET_DESCRIPTOR) + BufferLen;
 	u32 packetLenAligned = ALIGN_UP(packetLen, sizeof(u64));
-	SG_BUFFER_LIST bufferList[3];
+	struct scatterlist bufferList[3];
 	u64 alignedData=0;
 
 	DPRINT_ENTER(VMBUS);
@@ -790,14 +790,10 @@ VmbusChannelSendPacket(
 	desc.Length8 = (u16)(packetLenAligned >> 3);
 	desc.TransactionId = RequestId;
 
-	bufferList[0].Data = &desc;
-	bufferList[0].Length = sizeof(VMPACKET_DESCRIPTOR);
-
-	bufferList[1].Data = Buffer;
-	bufferList[1].Length = BufferLen;
-
-	bufferList[2].Data = &alignedData;
-	bufferList[2].Length = packetLenAligned - packetLen;
+	sg_init_table(bufferList,3);
+	sg_set_buf(&bufferList[0], &desc, sizeof(VMPACKET_DESCRIPTOR));
+	sg_set_buf(&bufferList[1], Buffer, BufferLen);
+	sg_set_buf(&bufferList[2], &alignedData, packetLenAligned - packetLen);
 
 	ret = RingBufferWrite(
 		&Channel->Outbound,
@@ -841,7 +837,7 @@ VmbusChannelSendPacketPageBuffer(
 	u32 descSize;
 	u32 packetLen;
 	u32 packetLenAligned;
-	SG_BUFFER_LIST bufferList[3];
+	struct scatterlist bufferList[3];
 	u64 alignedData=0;
 
 	DPRINT_ENTER(VMBUS);
@@ -872,14 +868,10 @@ VmbusChannelSendPacketPageBuffer(
 		desc.Range[i].Pfn	 = PageBuffers[i].Pfn;
 	}
 
-	bufferList[0].Data = &desc;
-	bufferList[0].Length = descSize;
-
-	bufferList[1].Data = Buffer;
-	bufferList[1].Length = BufferLen;
-
-	bufferList[2].Data = &alignedData;
-	bufferList[2].Length = packetLenAligned - packetLen;
+	sg_init_table(bufferList,3);
+	sg_set_buf(&bufferList[0], &desc, descSize);
+	sg_set_buf(&bufferList[1], Buffer, BufferLen);
+	sg_set_buf(&bufferList[2], &alignedData, packetLenAligned - packetLen);
 
 	ret = RingBufferWrite(
 		&Channel->Outbound,
@@ -922,7 +914,7 @@ VmbusChannelSendPacketMultiPageBuffer(
 	u32 descSize;
 	u32 packetLen;
 	u32 packetLenAligned;
-	SG_BUFFER_LIST bufferList[3];
+	struct scatterlist bufferList[3];
 	u64 alignedData=0;
 	u32 PfnCount = NUM_PAGES_SPANNED(MultiPageBuffer->Offset, MultiPageBuffer->Length);
 
@@ -955,14 +947,10 @@ VmbusChannelSendPacketMultiPageBuffer(
 
 	memcpy(desc.Range.PfnArray, MultiPageBuffer->PfnArray, PfnCount*sizeof(u64));
 
-	bufferList[0].Data = &desc;
-	bufferList[0].Length = descSize;
-
-	bufferList[1].Data = Buffer;
-	bufferList[1].Length = BufferLen;
-
-	bufferList[2].Data = &alignedData;
-	bufferList[2].Length = packetLenAligned - packetLen;
+	sg_init_table(bufferList,3);
+	sg_set_buf(&bufferList[0], &desc, descSize);
+	sg_set_buf(&bufferList[1], Buffer, BufferLen);
+	sg_set_buf(&bufferList[2], &alignedData, packetLenAligned - packetLen);
 
 	ret = RingBufferWrite(
 		&Channel->Outbound,

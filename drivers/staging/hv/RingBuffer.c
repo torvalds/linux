@@ -347,9 +347,9 @@ Description:
 --*/
 static int
 RingBufferWrite(
-	RING_BUFFER_INFO*	OutRingInfo,
-	SG_BUFFER_LIST		SgBuffers[],
-	u32				SgBufferCount
+	RING_BUFFER_INFO *OutRingInfo,
+	struct scatterlist *sglist,
+	u32 sgcount
 	)
 {
 	int i=0;
@@ -357,15 +357,16 @@ RingBufferWrite(
 	u32 byteAvailToRead;
 	u32 totalBytesToWrite=0;
 
+	struct scatterlist *sg;
 	volatile u32 nextWriteLocation;
 	u64 prevIndices=0;
 	unsigned long flags;
 
 	DPRINT_ENTER(VMBUS);
 
-	for (i=0; i < SgBufferCount; i++)
+	for_each_sg(sglist, sg, sgcount, i)
 	{
-		totalBytesToWrite += SgBuffers[i].Length;
+		totalBytesToWrite += sg->length;
 	}
 
 	totalBytesToWrite += sizeof(u64);
@@ -394,21 +395,21 @@ RingBufferWrite(
 	/* Write to the ring buffer */
 	nextWriteLocation = GetNextWriteLocation(OutRingInfo);
 
-	for (i=0; i < SgBufferCount; i++)
+	for_each_sg(sglist, sg, sgcount, i)
 	{
-		 nextWriteLocation = CopyToRingBuffer(OutRingInfo,
-												nextWriteLocation,
-												SgBuffers[i].Data,
-												SgBuffers[i].Length);
+		nextWriteLocation = CopyToRingBuffer(OutRingInfo,
+						     nextWriteLocation,
+						     sg_virt(sg),
+						     sg->length);
 	}
 
 	/* Set previous packet start */
 	prevIndices = GetRingBufferIndices(OutRingInfo);
 
 	nextWriteLocation = CopyToRingBuffer(OutRingInfo,
-												nextWriteLocation,
-												&prevIndices,
-												sizeof(u64));
+					     nextWriteLocation,
+					     &prevIndices,
+					     sizeof(u64));
 
 	/* Make sure we flush all writes before updating the writeIndex */
 	mb();

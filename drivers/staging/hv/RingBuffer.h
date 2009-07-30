@@ -25,12 +25,9 @@
 #ifndef _RING_BUFFER_H_
 #define _RING_BUFFER_H_
 
-#include "include/osd.h"
+#include <linux/scatterlist.h>
 
-typedef struct _SG_BUFFER_LIST {
-	void *	Data;
-	u32	Length;
-} SG_BUFFER_LIST;
+#include "include/osd.h"
 
 typedef struct _RING_BUFFER {
     volatile u32	WriteIndex;     /* Offset in bytes from the start of ring data below */
@@ -83,9 +80,9 @@ RingBufferCleanup(
 
 static int
 RingBufferWrite(
-	RING_BUFFER_INFO	*RingInfo,
-	SG_BUFFER_LIST		SgBuffers[],
-	u32				SgBufferCount
+	RING_BUFFER_INFO *RingInfo,
+	struct scatterlist *sglist,
+	u32 sgcount
 	);
 
 static int
