@@ -79,8 +79,7 @@ struct fcoe_percpu_s {
  */
 struct fcoe_softc {
 	struct list_head list;
-	struct net_device *real_dev;
-	struct net_device *phys_dev;		/* device with ethtool_ops */
+	struct net_device *netdev;
 	struct fc_exch_mgr *oem;		/* offload exchange manger */
 	struct packet_type  fcoe_packet_type;
 	struct packet_type  fip_packet_type;
@@ -95,7 +94,7 @@ struct fcoe_softc {
 static inline struct net_device *fcoe_netdev(
 	const struct fc_lport *lp)
 {
-	return ((struct fcoe_softc *)lport_priv(lp))->real_dev;
+	return ((struct fcoe_softc *)lport_priv(lp))->netdev;
 }
 
 #endif /* _FCOE_H_ */
