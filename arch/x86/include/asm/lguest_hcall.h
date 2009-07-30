@@ -35,10 +35,10 @@
  * operations?  There are two ways: the direct way is to make a "hypercall",
  * to make requests of the Host Itself.
  *
- * We use the KVM hypercall mechanism. Seventeen hypercalls are
- * available: the hypercall number is put in the %eax register, and the
- * arguments (when required) are placed in %ebx, %ecx, %edx and %esi.
- * If a return value makes sense, it's returned in %eax.
+ * We use the KVM hypercall mechanism, though completely different hypercall
+ * numbers. Seventeen hypercalls are available: the hypercall number is put in
+ * the %eax register, and the arguments (when required) are placed in %ebx,
+ * %ecx, %edx and %esi.  If a return value makes sense, it's returned in %eax.
  *
  * Grossly invalid calls result in Sudden Death at the hands of the vengeful
  * Host, rather than returning failure.  This reflects Winston Churchill's

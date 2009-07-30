@@ -217,10 +217,15 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 
 		/*
 		 * It's possible the Guest did a NOTIFY hypercall to the
-		 * Launcher, in which case we return from the read() now.
+		 * Launcher.
 		 */
 		if (cpu->pending_notify) {
+			/*
+			 * Does it just needs to write to a registered
+			 * eventfd (ie. the appropriate virtqueue thread)?
+			 */
 			if (!send_notify_to_eventfd(cpu)) {
+				/* OK, we tell the main Laucher. */
 				if (put_user(cpu->pending_notify, user))
 					return -EFAULT;
 				return sizeof(cpu->pending_notify);

@@ -154,6 +154,7 @@ static void lazy_hcall1(unsigned long call,
 		async_hcall(call, arg1, 0, 0, 0);
 }
 
+/* You can imagine what lazy_hcall2, 3 and 4 look like. :*/
 static void lazy_hcall2(unsigned long call,
 		       unsigned long arg1,
 		       unsigned long arg2)
@@ -189,8 +190,10 @@ static void lazy_hcall4(unsigned long call,
 }
 #endif
 
-/* When lazy mode is turned off reset the per-cpu lazy mode variable and then
- * issue the do-nothing hypercall to flush any stored calls. */
+/*G:036
+ * When lazy mode is turned off reset the per-cpu lazy mode variable and then
+ * issue the do-nothing hypercall to flush any stored calls.
+:*/
 static void lguest_leave_lazy_mmu_mode(void)
 {
 	kvm_hypercall0(LHCALL_FLUSH_ASYNC);
@@ -250,13 +253,11 @@ extern void lg_irq_enable(void);
 extern void lg_restore_fl(unsigned long flags);
 
 /*M:003
- * Note that we don't check for outstanding interrupts when we re-enable them
- * (or when we unmask an interrupt).  This seems to work for the moment, since
- * interrupts are rare and we'll just get the interrupt on the next timer tick,
- * but now we can run with CONFIG_NO_HZ, we should revisit this.  One way would
- * be to put the "irq_enabled" field in a page by itself, and have the Host
- * write-protect it when an interrupt comes in when irqs are disabled.  There
- * will then be a page fault as soon as interrupts are re-enabled.
+ * We could be more efficient in our checking of outstanding interrupts, rather
+ * than using a branch.  One way would be to put the "irq_enabled" field in a
+ * page by itself, and have the Host write-protect it when an interrupt comes
+ * in when irqs are disabled.  There will then be a page fault as soon as
+ * interrupts are re-enabled.
  *
  * A better method is to implement soft interrupt disable generally for x86:
  * instead of disabling interrupts, we set a flag.  If an interrupt does come
@@ -568,7 +569,7 @@ static void lguest_write_cr4(unsigned long val)
  * cr3 ---> +---------+
  *	    |  	   --------->+---------+
  *	    |	      |	     | PADDR1  |
- *	  Top-level   |	     | PADDR2  |
+ *	  Mid-level   |	     | PADDR2  |
  *	  (PMD) page  |	     | 	       |
  *	    |	      |	   Lower-level |
  *	    |	      |	   (PTE) page  |
@@ -588,23 +589,62 @@ static void lguest_write_cr4(unsigned long val)
  *    Index into top     Index into second      Offset within page
  *  page directory page    pagetable page
  *
- * The kernel spends a lot of time changing both the top-level page directory
- * and lower-level pagetable pages.  The Guest doesn't know physical addresses,
- * so while it maintains these page tables exactly like normal, it also needs
- * to keep the Host informed whenever it makes a change: the Host will create
- * the real page tables based on the Guests'.
+ * Now, unfortunately, this isn't the whole story: Intel added Physical Address
+ * Extension (PAE) to allow 32 bit systems to use 64GB of memory (ie. 36 bits).
+ * These are held in 64-bit page table entries, so we can now only fit 512
+ * entries in a page, and the neat three-level tree breaks down.
+ *
+ * The result is a four level page table:
+ *
+ * cr3 --> [ 4 Upper  ]
+ *	   [   Level  ]
+ *	   [  Entries ]
+ *	   [(PUD Page)]---> +---------+
+ *	 		    |  	   --------->+---------+
+ *	 		    |	      |	     | PADDR1  |
+ *	 		  Mid-level   |	     | PADDR2  |
+ *	 		  (PMD) page  |	     | 	       |
+ *	 		    |	      |	   Lower-level |
+ *	 		    |	      |	   (PTE) page  |
+ *	 		    |	      |	     |	       |
+ *	 		      ....    	     	 ....
+ *
+ *
+ * And the virtual address is decoded as:
+ *
+ *         1 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ *      |<-2->|<--- 9 bits ---->|<---- 9 bits --->|<------ 12 bits ------>|
+ * Index into    Index into mid    Index into lower    Offset within page
+ * top entries   directory page     pagetable page
+ *
+ * It's too hard to switch between these two formats at runtime, so Linux only
+ * supports one or the other depending on whether CONFIG_X86_PAE is set.  Many
+ * distributions turn it on, and not just for people with silly amounts of
+ * memory: the larger PTE entries allow room for the NX bit, which lets the
+ * kernel disable execution of pages and increase security.
+ *
+ * This was a problem for lguest, which couldn't run on these distributions;
+ * then Matias Zabaljauregui figured it all out and implemented it, and only a
+ * handful of puppies were crushed in the process!
+ *
+ * Back to our point: the kernel spends a lot of time changing both the
+ * top-level page directory and lower-level pagetable pages.  The Guest doesn't
+ * know physical addresses, so while it maintains these page tables exactly
+ * like normal, it also needs to keep the Host informed whenever it makes a
+ * change: the Host will create the real page tables based on the Guests'.
  */
 
 /*
- * The Guest calls this to set a second-level entry (pte), ie. to map a page
- * into a process' address space.  We set the entry then tell the Host the
- * toplevel and address this corresponds to.  The Guest uses one pagetable per
- * process, so we need to tell the Host which one we're changing (mm->pgd).
+ * The Guest calls this after it has set a second-level entry (pte), ie. to map
+ * a page into a process' address space.  Wetell the Host the toplevel and
+ * address this corresponds to.  The Guest uses one pagetable per process, so
+ * we need to tell the Host which one we're changing (mm->pgd).
  */
 static void lguest_pte_update(struct mm_struct *mm, unsigned long addr,
 			       pte_t *ptep)
 {
 #ifdef CONFIG_X86_PAE
+	/* PAE needs to hand a 64 bit page table entry, so it uses two args. */
 	lazy_hcall4(LHCALL_SET_PTE, __pa(mm->pgd), addr,
 		    ptep->pte_low, ptep->pte_high);
 #else
@@ -612,6 +652,7 @@ static void lguest_pte_update(struct mm_struct *mm, unsigned long addr,
 #endif
 }
 
+/* This is the "set and update" combo-meal-deal version. */
 static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pteval)
 {
@@ -672,6 +713,11 @@ static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 }
 
 #ifdef CONFIG_X86_PAE
+/*
+ * With 64-bit PTE values, we need to be careful setting them: if we set 32
+ * bits at a time, the hardware could see a weird half-set entry.  These
+ * versions ensure we update all 64 bits at once.
+ */
 static void lguest_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
 	native_set_pte_atomic(ptep, pte);
@@ -679,13 +725,14 @@ static void lguest_set_pte_atomic(pte_t *ptep, pte_t pte)
 		lazy_hcall1(LHCALL_FLUSH_TLB, 1);
 }
 
-void lguest_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+static void lguest_pte_clear(struct mm_struct *mm, unsigned long addr,
+			     pte_t *ptep)
 {
 	native_pte_clear(mm, addr, ptep);
 	lguest_pte_update(mm, addr, ptep);
 }
 
-void lguest_pmd_clear(pmd_t *pmdp)
+static void lguest_pmd_clear(pmd_t *pmdp)
 {
 	lguest_set_pmd(pmdp, __pmd(0));
 }
@@ -784,6 +831,14 @@ static void __init lguest_init_IRQ(void)
 	irq_ctx_init(smp_processor_id());
 }
 
+/*
+ * With CONFIG_SPARSE_IRQ, interrupt descriptors are allocated as-needed, so
+ * rather than set them in lguest_init_IRQ we are called here every time an
+ * lguest device needs an interrupt.
+ *
+ * FIXME: irq_to_desc_alloc_node() can fail due to lack of memory, we should
+ * pass that up!
+ */
 void lguest_setup_irq(unsigned int irq)
 {
 	irq_to_desc_alloc_node(irq, 0);
@@ -1298,7 +1353,7 @@ __init void lguest_init(void)
 	 */
 	switch_to_new_gdt(0);
 
-	/* As described in head_32.S, we map the first 128M of memory. */
+	/* We actually boot with all memory mapped, but let's say 128MB. */
 	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
 
 	/*

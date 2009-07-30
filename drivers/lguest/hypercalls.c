@@ -59,7 +59,7 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 	case LHCALL_SHUTDOWN: {
 		char msg[128];
 		/*
-		 * Shutdown is such a trivial hypercall that we do it in four
+		 * Shutdown is such a trivial hypercall that we do it in five
 		 * lines right here.
 		 *
 		 * If the lgread fails, it will call kill_guest() itself; the
@@ -245,6 +245,10 @@ static void initialize(struct lg_cpu *cpu)
  * device), the Guest will still see the old page.  In practice, this never
  * happens: why would the Guest read a page which it has never written to?  But
  * a similar scenario might one day bite us, so it's worth mentioning.
+ *
+ * Note that if we used a shared anonymous mapping in the Launcher instead of
+ * mapping /dev/zero private, we wouldn't worry about cop-on-write.  And we
+ * need that to switch the Launcher to processes (away from threads) anyway.
 :*/
 
 /*H:100

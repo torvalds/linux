@@ -102,6 +102,7 @@ send_interrupts:
 	 * create one manually here.
 	 */
 	.byte 0x0f,0x01,0xc1 /* KVM_HYPERCALL */
+	/* Put eax back the way we found it. */
 	popl %eax
 	ret
 
@@ -125,6 +126,7 @@ ENTRY(lg_restore_fl)
 	jnz send_interrupts
 	/* Again, the normal path has used no extra registers.  Clever, huh? */
 	ret
+/*:*/
 
 /* These demark the EIP range where host should never deliver interrupts. */
 .global lguest_noirq_start

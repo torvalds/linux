@@ -187,7 +187,7 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
  * also simplify copy_in_guest_info().  Note that we'd still need to restore
  * things when we exit to Launcher userspace, but that's fairly easy.
  *
- * We could also try using this hooks for PGE, but that might be too expensive.
+ * We could also try using these hooks for PGE, but that might be too expensive.
  *
  * The hooks were designed for KVM, but we can also put them to good use.
 :*/

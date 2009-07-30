@@ -1,7 +1,7 @@
 /*P:900
- * This is the Switcher: code which sits at 0xFFC00000 astride both the
- * Host and Guest to do the low-level Guest<->Host switch.  It is as simple as
- * it can be made, but it's naturally very specific to x86.
+ * This is the Switcher: code which sits at 0xFFC00000 (or 0xFFE00000) astride
+ * both the Host and Guest to do the low-level Guest<->Host switch.  It is as
+ * simple as it can be made, but it's naturally very specific to x86.
  *
  * You have now completed Preparation.  If this has whet your appetite; if you
  * are feeling invigorated and refreshed then the next, more challenging stage

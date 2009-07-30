@@ -236,7 +236,7 @@ static void lg_notify(struct virtqueue *vq)
 extern void lguest_setup_irq(unsigned int irq);
 
 /*
- * This routine finds the first virtqueue described in the configuration of
+ * This routine finds the Nth virtqueue described in the configuration of
  * this device and sets it up.
  *
  * This is kind of an ugly duckling.  It'd be nicer to have a standard
@@ -244,9 +244,6 @@ extern void lguest_setup_irq(unsigned int irq);
  * everyone wants to do it differently.  The KVM coders want the Guest to
  * allocate its own pages and tell the Host where they are, but for lguest it's
  * simpler for the Host to simply tell us where the pages are.
- *
- * So we provide drivers with a "find the Nth virtqueue and set it up"
- * function.
  */
 static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 				    unsigned index,
@@ -422,7 +419,11 @@ static void add_lguest_device(struct lguest_device_desc *d,
 
 	/* This devices' parent is the lguest/ dir. */
 	ldev->vdev.dev.parent = lguest_root;
-	/* We have a unique device index thanks to the dev_index counter. */
+	/*
+	 * The device type comes straight from the descriptor.  There's also a
+	 * device vendor field in the virtio_device struct, which we leave as
+	 * 0.
+	 */
 	ldev->vdev.id.device = d->type;
 	/*
 	 * We have a simple set of routines for querying the device's
