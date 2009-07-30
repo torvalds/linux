@@ -1999,13 +1999,13 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 
 	ethtool_op_set_flags(netdev, data);
 
-	if (!(adapter->flags & IXGBE_FLAG2_RSC_CAPABLE))
+	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
 		return 0;
 
 	/* if state changes we need to update adapter->flags and reset */
 	if ((!!(data & ETH_FLAG_LRO)) != 
-	    (!!(adapter->flags & IXGBE_FLAG2_RSC_ENABLED))) {
-		adapter->flags ^= IXGBE_FLAG2_RSC_ENABLED;
+	    (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) {
+		adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
 		if (netif_running(netdev))
 			ixgbe_reinit_locked(adapter);
 		else
