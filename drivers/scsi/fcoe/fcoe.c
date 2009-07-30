@@ -300,20 +300,16 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	if (fc->real_dev->features & NETIF_F_SG)
 		lp->sg_supp = 1;
 
-#ifdef NETIF_F_FCOE_CRC
 	if (netdev->features & NETIF_F_FCOE_CRC) {
 		lp->crc_offload = 1;
 		FCOE_NETDEV_DBG(netdev, "Supports FCCRC offload\n");
 	}
-#endif
-#ifdef NETIF_F_FSO
 	if (netdev->features & NETIF_F_FSO) {
 		lp->seq_offload = 1;
 		lp->lso_max = netdev->gso_max_size;
 		FCOE_NETDEV_DBG(netdev, "Supports LSO for max len 0x%x\n",
 				lp->lso_max);
 	}
-#endif
 	if (netdev->fcoe_ddp_xid) {
 		lp->lro_enabled = 1;
 		lp->lro_xid = netdev->fcoe_ddp_xid;
@@ -1205,7 +1201,6 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 		FC_FCOE_ENCAPS_VER(hp, FC_FCOE_VER);
 	hp->fcoe_sof = sof;
 
-#ifdef NETIF_F_FSO
 	/* fcoe lso, mss is in max_payload which is non-zero for FCP data */
 	if (lp->seq_offload && fr_max_payload(fp)) {
 		skb_shinfo(skb)->gso_type = SKB_GSO_FCOE;
@@ -1214,7 +1209,6 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 		skb_shinfo(skb)->gso_type = 0;
 		skb_shinfo(skb)->gso_size = 0;
 	}
-#endif
 	/* update tx stats: regardless if LLD fails */
 	stats = fc_lport_get_stats(lp);
 	stats->TxFrames++;
