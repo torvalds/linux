@@ -147,13 +147,13 @@ enum fc_disc_event {
 };
 
 enum fc_rport_state {
-	RPORT_ST_NONE = 0,
 	RPORT_ST_INIT,		/* initialized */
 	RPORT_ST_PLOGI,		/* waiting for PLOGI completion */
 	RPORT_ST_PRLI,		/* waiting for PRLI completion */
 	RPORT_ST_RTV,		/* waiting for RTV completion */
 	RPORT_ST_READY,		/* ready for use */
 	RPORT_ST_LOGO,		/* port logout sent */
+	RPORT_ST_DELETE,	/* port being deleted */
 };
 
 enum fc_rport_trans_state {

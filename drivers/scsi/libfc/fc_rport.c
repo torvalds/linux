@@ -77,13 +77,13 @@ static void fc_rport_error_retry(struct fc_rport *, struct fc_frame *);
 static void fc_rport_work(struct work_struct *);
 
 static const char *fc_rport_state_names[] = {
-	[RPORT_ST_NONE] = "None",
 	[RPORT_ST_INIT] = "Init",
 	[RPORT_ST_PLOGI] = "PLOGI",
 	[RPORT_ST_PRLI] = "PRLI",
 	[RPORT_ST_RTV] = "RTV",
 	[RPORT_ST_READY] = "Ready",
 	[RPORT_ST_LOGO] = "LOGO",
+	[RPORT_ST_DELETE] = "Delete",
 };
 
 static void fc_rport_rogue_destroy(struct device *dev)
@@ -326,8 +326,8 @@ int fc_rport_logoff(struct fc_rport *rport)
 
 	FC_RPORT_DBG(rport, "Remove port\n");
 
-	if (rdata->rp_state == RPORT_ST_NONE) {
-		FC_RPORT_DBG(rport, "Port in NONE state, not removing\n");
+	if (rdata->rp_state == RPORT_ST_DELETE) {
+		FC_RPORT_DBG(rport, "Port in Delete state, not removing\n");
 		mutex_unlock(&rdata->rp_mutex);
 		goto out;
 	}
@@ -335,10 +335,10 @@ int fc_rport_logoff(struct fc_rport *rport)
 	fc_rport_enter_logo(rport);
 
 	/*
-	 * Change the state to NONE so that we discard
+	 * Change the state to Delete so that we discard
 	 * the response.
 	 */
-	fc_rport_state_enter(rport, RPORT_ST_NONE);
+	fc_rport_state_enter(rport, RPORT_ST_DELETE);
 
 	mutex_unlock(&rdata->rp_mutex);
 
@@ -405,7 +405,7 @@ static void fc_rport_timeout(struct work_struct *work)
 		break;
 	case RPORT_ST_READY:
 	case RPORT_ST_INIT:
-	case RPORT_ST_NONE:
+	case RPORT_ST_DELETE:
 		break;
 	}
 
@@ -433,14 +433,14 @@ static void fc_rport_error(struct fc_rport *rport, struct fc_frame *fp)
 	case RPORT_ST_PRLI:
 	case RPORT_ST_LOGO:
 		rdata->event = RPORT_EV_FAILED;
-		fc_rport_state_enter(rport, RPORT_ST_NONE);
+		fc_rport_state_enter(rport, RPORT_ST_DELETE);
 		queue_work(rport_event_queue,
 			   &rdata->event_work);
 		break;
 	case RPORT_ST_RTV:
 		fc_rport_enter_ready(rport);
 		break;
-	case RPORT_ST_NONE:
+	case RPORT_ST_DELETE:
 	case RPORT_ST_READY:
 	case RPORT_ST_INIT:
 		break;
@@ -652,7 +652,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	} else {
 		FC_RPORT_DBG(rport, "Bad ELS response for PRLI command\n");
 		rdata->event = RPORT_EV_FAILED;
-		fc_rport_state_enter(rport, RPORT_ST_NONE);
+		fc_rport_state_enter(rport, RPORT_ST_DELETE);
 		queue_work(rport_event_queue, &rdata->event_work);
 	}
 
@@ -703,7 +703,7 @@ static void fc_rport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 	} else {
 		FC_RPORT_DBG(rport, "Bad ELS response for LOGO command\n");
 		rdata->event = RPORT_EV_LOGO;
-		fc_rport_state_enter(rport, RPORT_ST_NONE);
+		fc_rport_state_enter(rport, RPORT_ST_DELETE);
 		queue_work(rport_event_queue, &rdata->event_work);
 	}
 
@@ -1012,7 +1012,7 @@ static void fc_rport_recv_plogi_req(struct fc_rport *rport,
 			     "- ignored for now\n", rdata->rp_state);
 		/* XXX TBD - should reset */
 		break;
-	case RPORT_ST_NONE:
+	case RPORT_ST_DELETE:
 	default:
 		FC_RPORT_DBG(rport, "Received PLOGI in unexpected "
 			     "state %d\n", rdata->rp_state);
@@ -1238,7 +1238,7 @@ static void fc_rport_recv_prlo_req(struct fc_rport *rport, struct fc_seq *sp,
 	FC_RPORT_DBG(rport, "Received PRLO request while in state %s\n",
 		     fc_rport_state(rport));
 
-	if (rdata->rp_state == RPORT_ST_NONE) {
+	if (rdata->rp_state == RPORT_ST_DELETE) {
 		fc_frame_free(fp);
 		return;
 	}
@@ -1271,13 +1271,13 @@ static void fc_rport_recv_logo_req(struct fc_rport *rport, struct fc_seq *sp,
 	FC_RPORT_DBG(rport, "Received LOGO request while in state %s\n",
 		     fc_rport_state(rport));
 
-	if (rdata->rp_state == RPORT_ST_NONE) {
+	if (rdata->rp_state == RPORT_ST_DELETE) {
 		fc_frame_free(fp);
 		return;
 	}
 
 	rdata->event = RPORT_EV_LOGO;
-	fc_rport_state_enter(rport, RPORT_ST_NONE);
+	fc_rport_state_enter(rport, RPORT_ST_DELETE);
 	queue_work(rport_event_queue, &rdata->event_work);
 
 	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
