@@ -104,7 +104,7 @@ extern int system_bus_init(void);
 extern int cpu_dev_init(void);
 
 extern int bus_add_device(struct device *dev);
-extern void bus_attach_device(struct device *dev);
+extern void bus_probe_device(struct device *dev);
 extern void bus_remove_device(struct device *dev);
 
 extern int bus_add_driver(struct device_driver *drv);
