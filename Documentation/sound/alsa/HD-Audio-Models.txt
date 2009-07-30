@@ -383,3 +383,7 @@ STAC9872
 ========
   vaio		VAIO laptop without SPDIF
   auto		BIOS setup (default)
+
+Cirrus Logic CS4206/4207
+========================
+  mbp55		MacBook Pro 5,5
