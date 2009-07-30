@@ -2211,13 +2211,32 @@ static void rndis_wlan_set_multicast_list(struct net_device *dev)
 	queue_work(priv->workqueue, &priv->work);
 }
 
-static void rndis_wlan_link_change(struct usbnet *usbdev, int state)
+static void rndis_wlan_indication(struct usbnet *usbdev, void *ind, int buflen)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+	struct rndis_indicate *msg = ind;
 
 	/* queue work to avoid recursive calls into rndis_command */
-	set_bit(state ? WORK_LINK_UP : WORK_LINK_DOWN, &priv->work_pending);
-	queue_work(priv->workqueue, &priv->work);
+	switch (msg->status) {
+	case RNDIS_STATUS_MEDIA_CONNECT:
+		devinfo(usbdev, "media connect");
+
+		set_bit(WORK_LINK_UP, &priv->work_pending);
+		queue_work(priv->workqueue, &priv->work);
+		break;
+
+	case RNDIS_STATUS_MEDIA_DISCONNECT:
+		devinfo(usbdev, "media disconnect");
+
+		set_bit(WORK_LINK_DOWN, &priv->work_pending);
+		queue_work(priv->workqueue, &priv->work);
+		break;
+
+	default:
+		devinfo(usbdev, "indication: 0x%08x",
+				le32_to_cpu(msg->status));
+		break;
+	}
 }
 
 
@@ -2666,7 +2685,7 @@ static const struct driver_info	bcm4320b_info = {
 	.reset =	rndis_wlan_reset,
 	.stop =		rndis_wlan_stop,
 	.early_init =	bcm4320b_early_init,
-	.link_change =	rndis_wlan_link_change,
+	.indication =	rndis_wlan_indication,
 };
 
 static const struct driver_info	bcm4320a_info = {
@@ -2681,7 +2700,7 @@ static const struct driver_info	bcm4320a_info = {
 	.reset =	rndis_wlan_reset,
 	.stop =		rndis_wlan_stop,
 	.early_init =	bcm4320a_early_init,
-	.link_change =	rndis_wlan_link_change,
+	.indication =	rndis_wlan_indication,
 };
 
 static const struct driver_info rndis_wlan_info = {
@@ -2696,7 +2715,7 @@ static const struct driver_info rndis_wlan_info = {
 	.reset =	rndis_wlan_reset,
 	.stop =		rndis_wlan_stop,
 	.early_init =	bcm4320a_early_init,
-	.link_change =	rndis_wlan_link_change,
+	.indication =	rndis_wlan_indication,
 };
 
 /*-------------------------------------------------------------------------*/

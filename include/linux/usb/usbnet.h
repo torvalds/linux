@@ -122,9 +122,8 @@ struct driver_info {
 	 * right after minidriver have initialized hardware. */
 	int	(*early_init)(struct usbnet *dev);
 
-	/* called by minidriver when link state changes, state: 0=disconnect,
-	 * 1=connect */
-	void	(*link_change)(struct usbnet *dev, int state);
+	/* called by minidriver when receiving indication */
+	void	(*indication)(struct usbnet *dev, void *ind, int indlen);
 
 	/* for new devices, use the descriptor-reading code instead */
 	int		in;		/* rx endpoint */
