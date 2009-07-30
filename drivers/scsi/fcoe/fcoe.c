@@ -466,6 +466,9 @@ static int fcoe_if_destroy(struct net_device *netdev)
 	/* tear-down the FCoE controller */
 	fcoe_ctlr_destroy(&fc->ctlr);
 
+	/* Free queued packets for the per-CPU receive threads */
+	fcoe_percpu_clean(lp);
+
 	/* Cleanup the fc_lport */
 	fc_lport_destroy(lp);
 	fc_fcp_destroy(lp);
@@ -477,9 +480,6 @@ static int fcoe_if_destroy(struct net_device *netdev)
 	/* There are no more rports or I/O, free the EM */
 	if (lp->emp)
 		fc_exch_mgr_free(lp->emp);
-
-	/* Free the per-CPU receive threads */
-	fcoe_percpu_clean(lp);
 
 	/* Free existing skbs */
 	fcoe_clean_pending_queue(lp);
