@@ -59,47 +59,51 @@ do {								\
 
 #define FC_LPORT_DBG(lport, fmt, args...)				\
 	FC_CHECK_LOGGING(FC_LPORT_LOGGING,				\
-			 printk(KERN_INFO "lport: %6x: " fmt,		\
-				fc_host_port_id(lport->host), ##args))
+			 printk(KERN_INFO "host%u: lport %6x: " fmt,	\
+				(lport)->host->host_no,			\
+				fc_host_port_id((lport)->host), ##args))
 
 #define FC_DISC_DBG(disc, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_DISC_LOGGING,				\
-			 printk(KERN_INFO "disc: %6x: " fmt,		\
-				fc_host_port_id(disc->lport->host),	\
+			 printk(KERN_INFO "host%u: disc: " fmt,		\
+				(disc)->lport->host->host_no,		\
 				##args))
+
+#define FC_RPORT_ID_DBG(lport, port_id, fmt, args...)			\
+	FC_CHECK_LOGGING(FC_RPORT_LOGGING,				\
+			 printk(KERN_INFO "host%u: rport %6x: " fmt,	\
+				(lport)->host->host_no,			\
+				(port_id), ##args))
 
 #define FC_RPORT_DBG(rport, fmt, args...)				\
 do {									\
 	struct fc_rport_libfc_priv *rdata = rport->dd_data;		\
 	struct fc_lport *lport = rdata->local_port;			\
-	FC_CHECK_LOGGING(FC_RPORT_LOGGING,				\
-			 printk(KERN_INFO "rport: %6x: %6x: " fmt,	\
-				fc_host_port_id(lport->host),		\
-				rport->port_id, ##args));		\
+	FC_RPORT_ID_DBG(lport, rport->port_id, fmt, ##args);		\
 } while (0)
 
 #define FC_FCP_DBG(pkt, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_FCP_LOGGING,				\
-			 printk(KERN_INFO "fcp: %6x: %6x: " fmt,	\
-				fc_host_port_id(pkt->lp->host),		\
+			 printk(KERN_INFO "host%u: fcp: %6x: " fmt,	\
+				(pkt)->lp->host->host_no,		\
 				pkt->rport->port_id, ##args))
 
 #define FC_EM_DBG(em, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_EM_LOGGING,					\
-			 printk(KERN_INFO "em: %6x: " fmt,		\
-				fc_host_port_id(em->lp->host),		\
+			 printk(KERN_INFO "host%u: em: " fmt,		\
+				(em)->lp->host->host_no,		\
 				##args))
 
 #define FC_EXCH_DBG(exch, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_EXCH_LOGGING,				\
-			 printk(KERN_INFO "exch: %6x: %4x: " fmt,	\
-				fc_host_port_id(exch->lp->host),	\
+			 printk(KERN_INFO "host%u: xid %4x: " fmt,	\
+				(exch)->lp->host->host_no,		\
 				exch->xid, ##args))
 
 #define FC_SCSI_DBG(lport, fmt, args...)				\
 	FC_CHECK_LOGGING(FC_SCSI_LOGGING,                               \
-			 printk(KERN_INFO "scsi: %6x: " fmt,		\
-				fc_host_port_id(lport->host), ##args))
+			 printk(KERN_INFO "host%u: scsi: " fmt,		\
+				(lport)->host->host_no,	##args))
 
 /*
  * libfc error codes
