@@ -58,7 +58,7 @@ struct fc_exch_mgr {
 	struct kref	kref;		/* exchange mgr reference count */
 	spinlock_t	em_lock;	/* exchange manager lock,
 					   must be taken before ex_lock */
-	u16		last_xid;	/* last allocated exchange ID */
+	u16		next_xid;	/* next possible free exchange ID */
 	u16		min_xid;	/* min exchange ID */
 	u16		max_xid;	/* max exchange ID */
 	u16		max_read;	/* max exchange ID for read */
@@ -464,68 +464,21 @@ static struct fc_seq *fc_seq_alloc(struct fc_exch *ep, u8 seq_id)
 	return sp;
 }
 
-/*
- * fc_em_alloc_xid - returns an xid based on request type
- * @lp : ptr to associated lport
- * @fp : ptr to the assocated frame
- *
- * check the associated fc_fsp_pkt to get scsi command type and
- * command direction to decide from which range this exch id
- * will be allocated from.
- *
- * Returns : 0 or an valid xid
- */
-static u16 fc_em_alloc_xid(struct fc_exch_mgr *mp, const struct fc_frame *fp)
-{
-	u16 xid, min, max;
-	u16 *plast;
-	struct fc_exch *ep = NULL;
-
-	if (mp->max_read) {
-		if (fc_fcp_is_read(fr_fsp(fp))) {
-			min = mp->min_xid;
-			max = mp->max_read;
-			plast = &mp->last_read;
-		} else {
-			min = mp->max_read + 1;
-			max = mp->max_xid;
-			plast = &mp->last_xid;
-		}
-	} else {
-		min = mp->min_xid;
-		max = mp->max_xid;
-		plast = &mp->last_xid;
-	}
-	xid = *plast;
-	do {
-		xid = (xid == max) ? min : xid + 1;
-		ep = mp->exches[xid - mp->min_xid];
-	} while ((ep != NULL) && (xid != *plast));
-
-	if (unlikely(ep))
-		xid = 0;
-	else
-		*plast = xid;
-
-	return xid;
-}
-
 /**
  * fc_exch_em_alloc() - allocate an exchange from a specified EM.
  * @lport:	ptr to the local port
  * @mp:		ptr to the exchange manager
- * @fp:		ptr to the FC frame
- * @xid:	input xid
  *
- * if xid is supplied zero then assign next free exchange ID
- * from exchange manager, otherwise use supplied xid.
- * Returns with exch lock held.
+ * Returns pointer to allocated fc_exch with exch lock held.
  */
 static struct fc_exch *fc_exch_em_alloc(struct fc_lport *lport,
-					struct fc_exch_mgr *mp,
-					struct fc_frame *fp, u16 xid)
+					struct fc_exch_mgr *mp)
 {
 	struct fc_exch *ep;
+	u16 min, max, xid;
+
+	min = mp->min_xid;
+	max = mp->max_xid;
 
 	/* allocate memory for exchange */
 	ep = mempool_alloc(mp->ep_pool, GFP_ATOMIC);
@@ -536,15 +489,14 @@ static struct fc_exch *fc_exch_em_alloc(struct fc_lport *lport,
 	memset(ep, 0, sizeof(*ep));
 
 	spin_lock_bh(&mp->em_lock);
-	/* alloc xid if input xid 0 */
-	if (!xid) {
-		/* alloc a new xid */
-		xid = fc_em_alloc_xid(mp, fp);
-		if (!xid) {
-			printk(KERN_WARNING "libfc: Failed to allocate an exhange\n");
+	xid = mp->next_xid;
+	/* alloc a new xid */
+	while (mp->exches[xid - min]) {
+		xid = (xid == max) ? min : xid + 1;
+		if (xid == mp->next_xid)
 			goto err;
-		}
 	}
+	mp->next_xid = (xid == max) ? min : xid + 1;
 
 	fc_exch_hold(ep);	/* hold for exch in mp */
 	spin_lock_init(&ep->ex_lock);
@@ -597,7 +549,7 @@ struct fc_exch *fc_exch_alloc(struct fc_lport *lport, struct fc_frame *fp)
 
 	list_for_each_entry(ema, &lport->ema_list, ema_list) {
 		if (!ema->match || ema->match(fp)) {
-			ep = fc_exch_em_alloc(lport, ema->mp, fp, 0);
+			ep = fc_exch_em_alloc(lport, ema->mp);
 			if (ep)
 				return ep;
 		}
@@ -1817,7 +1769,7 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 	struct fc_exch_mgr *mp;
 	size_t len;
 
-	if (max_xid <= min_xid || min_xid == 0 || max_xid == FC_XID_UNKNOWN) {
+	if (max_xid <= min_xid || max_xid == FC_XID_UNKNOWN) {
 		FC_LPORT_DBG(lp, "Invalid min_xid 0x:%x and max_xid 0x:%x\n",
 			     min_xid, max_xid);
 		return NULL;
@@ -1826,7 +1778,6 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 	/*
 	 * Memory need for EM
 	 */
-#define xid_ok(i, m1, m2) (((i) >= (m1)) && ((i) <= (m2)))
 	len = (max_xid - min_xid + 1) * (sizeof(struct fc_exch *));
 	len += sizeof(struct fc_exch_mgr);
 
@@ -1840,17 +1791,7 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 	/* adjust em exch xid range for offload */
 	mp->min_xid = min_xid;
 	mp->max_xid = max_xid;
-	mp->last_xid = min_xid - 1;
-	mp->max_read = 0;
-	mp->last_read = 0;
-	if (lp->lro_enabled && xid_ok(lp->lro_xid, min_xid, max_xid)) {
-		mp->max_read = lp->lro_xid;
-		mp->last_read = min_xid - 1;
-		mp->last_xid = mp->max_read;
-	} else {
-		/* disable lro if no xid control over read */
-		lp->lro_enabled = 0;
-	}
+	mp->next_xid = min_xid;
 
 	INIT_LIST_HEAD(&mp->ex_list);
 	spin_lock_init(&mp->em_lock);
@@ -1922,7 +1863,8 @@ struct fc_seq *fc_exch_seq_send(struct fc_lport *lp,
 	fc_exch_setup_hdr(ep, fp, ep->f_ctl);
 	sp->cnt++;
 
-	fc_fcp_ddp_setup(fr_fsp(fp), ep->xid);
+	if (ep->xid <= lp->lro_xid)
+		fc_fcp_ddp_setup(fr_fsp(fp), ep->xid);
 
 	if (unlikely(lp->tt.frame_send(lp, fp)))
 		goto err;

@@ -37,7 +37,7 @@
 
 #define FCOE_MAX_OUTSTANDING_COMMANDS	1024
 
-#define FCOE_MIN_XID		0x0001	/* the min xid supported by fcoe_sw */
+#define FCOE_MIN_XID		0x0000	/* the min xid supported by fcoe_sw */
 #define FCOE_MAX_XID		0x07ef	/* the max xid supported by fcoe_sw */
 
 unsigned int fcoe_debug_logging;
@@ -81,6 +81,7 @@ struct fcoe_softc {
 	struct list_head list;
 	struct net_device *real_dev;
 	struct net_device *phys_dev;		/* device with ethtool_ops */
+	struct fc_exch_mgr *oem;		/* offload exchange manger */
 	struct packet_type  fcoe_packet_type;
 	struct packet_type  fip_packet_type;
 	struct sk_buff_head fcoe_pending_queue;

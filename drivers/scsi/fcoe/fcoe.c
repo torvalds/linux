@@ -415,6 +415,17 @@ static int fcoe_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
 	return 0;
 }
 
+/*
+ * fcoe_oem_match() - match for read types IO
+ * @fp: the fc_frame for new IO.
+ *
+ * Returns : true for read types IO, otherwise returns false.
+ */
+bool fcoe_oem_match(struct fc_frame *fp)
+{
+	return fc_fcp_is_read(fr_fsp(fp));
+}
+
 /**
  * fcoe_em_config() - allocates em for this lport
  * @lp: the port that em is to allocated for
@@ -425,9 +436,61 @@ static int fcoe_shost_config(struct fc_lport *lp, struct Scsi_Host *shost,
  */
 static inline int fcoe_em_config(struct fc_lport *lp)
 {
-	if (!fc_exch_mgr_alloc(lp, FC_CLASS_3, FCOE_MIN_XID,
-			       FCOE_MAX_XID, NULL))
+	struct fcoe_softc *fc = lport_priv(lp);
+	struct fcoe_softc *oldfc = NULL;
+	u16 min_xid = FCOE_MIN_XID;
+	u16 max_xid = FCOE_MAX_XID;
+
+	/*
+	 * Check if need to allocate an em instance for
+	 * offload exchange ids to be shared across all VN_PORTs/lport.
+	 */
+	if (!lp->lro_enabled || !lp->lro_xid || (lp->lro_xid >= max_xid)) {
+		lp->lro_xid = 0;
+		goto skip_oem;
+	}
+
+	/*
+	 * Reuse existing offload em instance in case
+	 * it is already allocated on phys_dev.
+	 */
+	list_for_each_entry(oldfc, &fcoe_hostlist, list) {
+		if (oldfc->phys_dev == fc->phys_dev) {
+			fc->oem = oldfc->oem;
+			break;
+		}
+	}
+
+	if (fc->oem) {
+		if (!fc_exch_mgr_add(lp, fc->oem, fcoe_oem_match)) {
+			printk(KERN_ERR "fcoe_em_config: failed to add "
+			       "offload em:%p on interface:%s\n",
+			       fc->oem, fc->real_dev->name);
+			return -ENOMEM;
+		}
+	} else {
+		fc->oem = fc_exch_mgr_alloc(lp, FC_CLASS_3,
+					    FCOE_MIN_XID, lp->lro_xid,
+					    fcoe_oem_match);
+		if (!fc->oem) {
+			printk(KERN_ERR "fcoe_em_config: failed to allocate "
+			       "em for offload exches on interface:%s\n",
+			       fc->real_dev->name);
+			return -ENOMEM;
+		}
+	}
+
+	/*
+	 * Exclude offload EM xid range from next EM xid range.
+	 */
+	min_xid += lp->lro_xid + 1;
+
+skip_oem:
+	if (!fc_exch_mgr_alloc(lp, FC_CLASS_3, min_xid, max_xid, NULL)) {
+		printk(KERN_ERR "fcoe_em_config: failed to "
+		       "allocate em on interface %s\n", fc->real_dev->name);
 		return -ENOMEM;
+	}
 
 	return 0;
 }
