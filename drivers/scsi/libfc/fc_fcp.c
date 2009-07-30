@@ -569,8 +569,6 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 		}
 		sg_bytes = min(tlen, sg->length - offset);
 		if (using_sg) {
-			WARN_ON(skb_shinfo(fp_skb(fp))->nr_frags >
-				FC_FRAME_SG_LEN);
 			get_page(sg_page(sg));
 			skb_fill_page_desc(fp_skb(fp),
 					   skb_shinfo(fp_skb(fp))->nr_frags,
