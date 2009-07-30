@@ -595,7 +595,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	if (!ps)
 		goto out;
 
-	ret = -ENOENT;
+	ret = -ENODEV;
 
 	/* usbdev device-node */
 	if (imajor(inode) == USB_DEVICE_MAJOR)
