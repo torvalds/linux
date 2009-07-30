@@ -1361,6 +1361,7 @@ SCTP_STATIC void sctp_close(struct sock *sk, long timeout)
 
 	sctp_lock_sock(sk);
 	sk->sk_shutdown = SHUTDOWN_MASK;
+	sk->sk_state = SCTP_SS_CLOSING;
 
 	ep = sctp_sk(sk)->ep;
 

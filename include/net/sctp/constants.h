@@ -231,7 +231,7 @@ typedef enum {
 	SCTP_SS_LISTENING      = TCP_LISTEN,
 	SCTP_SS_ESTABLISHING   = TCP_SYN_SENT,
 	SCTP_SS_ESTABLISHED    = TCP_ESTABLISHED,
-	SCTP_SS_DISCONNECTING  = TCP_CLOSING,
+	SCTP_SS_CLOSING        = TCP_CLOSING,
 } sctp_sock_state_t;
 
 /* These functions map various type to printable names.  */

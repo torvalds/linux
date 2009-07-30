@@ -334,6 +334,15 @@ sctp_disposition_t sctp_sf_do_5_1B_init(const struct sctp_endpoint *ep,
 	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_init_chunk_t)))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 
+	/* If the INIT is coming toward a closing socket, we'll send back
+	 * and ABORT.  Essentially, this catches the race of INIT being
+	 * backloged to the socket at the same time as the user isses close().
+	 * Since the socket and all its associations are going away, we
+	 * can treat this OOTB
+	 */
+	if (sctp_sstate(ep->base.sk, CLOSING))
+		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
+
 	/* Verify the INIT chunk before processing it. */
 	err_chunk = NULL;
 	if (!sctp_verify_init(asoc, chunk->chunk_hdr->type,
