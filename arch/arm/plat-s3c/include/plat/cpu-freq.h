@@ -17,6 +17,21 @@ struct s3c_cpufreq_info;
 struct s3c_cpufreq_board;
 struct s3c_iotimings;
 
+/**
+ * struct s3c_freq - frequency information (mainly for core drivers)
+ * @fclk: The FCLK frequency in Hz.
+ * @armclk: The ARMCLK frequency in Hz.
+ * @hclk_tns: HCLK cycle time in 10ths of nano-seconds.
+ * @hclk: The HCLK frequency in Hz.
+ * @pclk: The PCLK frequency in Hz.
+ *
+ * This contains the frequency information about the current configuration
+ * mainly for the core drivers to ensure we do not end up passing about
+ * a large number of parameters.
+ *
+ * The @hclk_tns field is a useful cache for the parts of the drivers that
+ * need to calculate IO timings and suchlike.
+ */
 struct s3c_freq {
 	unsigned long	fclk;
 	unsigned long	armclk;
@@ -25,33 +40,75 @@ struct s3c_freq {
 	unsigned long	pclk;
 };
 
-/* wrapper 'struct cpufreq_freqs' so that any drivers receiving the
+/**
+ * struct s3c_cpufreq_freqs - s3c cpufreq notification information.
+ * @freqs: The cpufreq setting information.
+ * @old: The old clock settings.
+ * @new: The new clock settings.
+ * @pll_changing: Set if the PLL is changing.
+ *
+ * Wrapper 'struct cpufreq_freqs' so that any drivers receiving the
  * notification can use this information that is not provided by just
  * having the core frequency alone.
+ *
+ * The pll_changing flag is used to indicate if the PLL itself is
+ * being set during this change. This is important as the clocks
+ * will temporarily be set to the XTAL clock during this time, so
+ * drivers may want to close down their output during this time.
+ *
+ * Note, this is not being used by any current drivers and therefore
+ * may be removed in the future.
  */
-
 struct s3c_cpufreq_freqs {
 	struct cpufreq_freqs	freqs;
 	struct s3c_freq		old;
 	struct s3c_freq		new;
+
+	unsigned int		pll_changing:1;
 };
 
 #define to_s3c_cpufreq(_cf) container_of(_cf, struct s3c_cpufreq_freqs, freqs)
 
+/**
+ * struct s3c_clkdivs - clock divisor information
+ * @p_divisor: Divisor from FCLK to PCLK.
+ * @h_divisor: Divisor from FCLK to HCLK.
+ * @arm_divisor: Divisor from FCLK to ARMCLK (not all CPUs).
+ * @dvs: Non-zero if using DVS mode for ARMCLK.
+ *
+ * Divisor settings for the core clocks.
+ */
 struct s3c_clkdivs {
-	int		p_divisor;	/* fclk / pclk */
-	int		h_divisor;	/* fclk / hclk */
-	int		arm_divisor;	/* not all cpus have this. */
-	unsigned char	dvs;		/* using dvs mode to arm. */
+	int		p_divisor;
+	int		h_divisor;
+	int		arm_divisor;
+	unsigned char	dvs;
 };
 
 #define PLLVAL(_m, _p, _s) (((_m) << 12) | ((_p) << 4) | (_s))
 
+/**
+ * struct s3c_pllval - PLL value entry.
+ * @freq: The frequency for this entry in Hz.
+ * @pll_reg: The PLL register setting for this PLL value.
+ */
 struct s3c_pllval {
 	unsigned long		freq;
 	unsigned long		pll_reg;
 };
 
+/**
+ * struct s3c_cpufreq_config - current cpu frequency configuration
+ * @freq: The current settings for the core clocks.
+ * @pll: The PLL table entry for the current PLL settings.
+ * @divs: The divisor settings for the core clocks.
+ * @info: The current core driver information.
+ * @board: The information for the board we are running on.
+ *
+ * This is for the core drivers that need to know information about
+ * the current settings and values. It should not be needed by any
+ * device drivers.
+*/
 struct s3c_cpufreq_config {
 	struct s3c_freq		freq;
 	struct s3c_pllval	pll;
@@ -60,13 +117,27 @@ struct s3c_cpufreq_config {
 	struct s3c_cpufreq_board *board;
 };
 
-/* s3c_cpufreq_board
+/**
+ * struct s3c_cpufreq_board - per-board cpu frequency informatin
+ * @refresh: The SDRAM refresh period in nanoseconds.
+ * @auto_io: Set if the IO timing settings should be generated from the
+ *	initialisation time hardware registers.
+ * @need_io: Set if the board has external IO on any of the chipselect
+ *	lines that will require the hardware timing registers to be
+ *	updated on a clock change.
+ * @max: The maxium frequency limits for the system. Any field that
+ *	is left at zero will use the CPU's settings.
  *
- * per-board configuraton information, such as memory refresh and
- * how to initialise IO timings.
+ * This contains the board specific settings that affect how the CPU
+ * drivers chose settings. These include the memory refresh and IO
+ * timing information.
+ *
+ * Registration depends on the driver being used, the ARMCLK only
+ * implementation does not currently need this but the older style
+ * driver requires this to be available.
  */
 struct s3c_cpufreq_board {
-	unsigned int	refresh;	/* refresh period in ns */
+	unsigned int	refresh;
 	unsigned int	auto_io:1;	/* automatically init io timings. */
 	unsigned int	need_io:1;	/* set if needs io timing support. */
 
