@@ -1329,6 +1329,12 @@ config CPU_FREQ_S3C24XX_IODEBUG
 	help
 	  Enable s3c_freq_iodbg for the Samsung S3C CPUfreq core
 
+config CPU_FREQ_S3C24XX_DEBUGFS
+	bool "Export debugfs for CPUFreq"
+	depends on CPU_FREQ_S3C24XX && DEBUG_FS
+	help
+	  Export status information via debugfs.
+
 endif
 
 source "drivers/cpuidle/Kconfig"

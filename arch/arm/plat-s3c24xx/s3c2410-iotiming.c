@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/cpufreq.h>
+#include <linux/seq_file.h>
 #include <linux/io.h>
 
 #include <mach/map.h>
@@ -301,6 +302,50 @@ void s3c2410_iotiming_getbank(struct s3c_cpufreq_config *cfg,
 	bt->tcos = get_0124(hclk, bankcon >> S3C2410_BANKCON_Tcos_SHIFT);
 	bt->tacs = get_0124(hclk, bankcon >> S3C2410_BANKCON_Tacs_SHIFT);
 	bt->tacc = get_tacc(hclk, bankcon >> S3C2410_BANKCON_Tacc_SHIFT);
+}
+
+/**
+ * s3c2410_iotiming_debugfs - debugfs show io bank timing information
+ * @seq: The seq_file to write output to using seq_printf().
+ * @cfg: The current configuration.
+ * @iob: The IO bank information to decode.
+ */
+void s3c2410_iotiming_debugfs(struct seq_file *seq,
+			      struct s3c_cpufreq_config *cfg,
+			      union s3c_iobank *iob)
+{
+	struct s3c2410_iobank_timing *bt = iob->io_2410;
+	unsigned long bankcon = bt->bankcon;
+	unsigned long hclk = cfg->freq.hclk_tns;
+	unsigned int tacs;
+	unsigned int tcos;
+	unsigned int tacc;
+	unsigned int tcoh;
+	unsigned int tcah;
+
+	seq_printf(seq, "BANKCON=0x%08lx\n", bankcon);
+
+	tcah = get_0124(hclk, bankcon >> S3C2410_BANKCON_Tcah_SHIFT);
+	tcoh = get_0124(hclk, bankcon >> S3C2410_BANKCON_Tcoh_SHIFT);
+	tcos = get_0124(hclk, bankcon >> S3C2410_BANKCON_Tcos_SHIFT);
+	tacs = get_0124(hclk, bankcon >> S3C2410_BANKCON_Tacs_SHIFT);
+	tacc = get_tacc(hclk, bankcon >> S3C2410_BANKCON_Tacc_SHIFT);
+
+	seq_printf(seq,
+		   "\tRead: Tacs=%d.%d, Tcos=%d.%d, Tacc=%d.%d, Tcoh=%d.%d, Tcah=%d.%d\n",
+		   print_ns(bt->tacs),
+		   print_ns(bt->tcos),
+		   print_ns(bt->tacc),
+		   print_ns(bt->tcoh),
+		   print_ns(bt->tcah));
+
+	seq_printf(seq,
+		   "\t Set: Tacs=%d.%d, Tcos=%d.%d, Tacc=%d.%d, Tcoh=%d.%d, Tcah=%d.%d\n",
+		   print_ns(tacs),
+		   print_ns(tcos),
+		   print_ns(tacc),
+		   print_ns(tcoh),
+		   print_ns(tcah));
 }
 
 /**

@@ -13,6 +13,8 @@
 
 #include <plat/cpu-freq.h>
 
+struct seq_file;
+
 #define MAX_BANKS (8)
 #define S3C2412_MAX_IO	(8)
 
@@ -181,6 +183,10 @@ struct s3c_cpufreq_info {
 					  struct cpufreq_frequency_table *t,
 					  size_t table_size);
 
+	void		(*debug_io_show)(struct seq_file *seq,
+					 struct s3c_cpufreq_config *cfg,
+					 union s3c_iobank *iob);
+
 	void		(*set_refresh)(struct s3c_cpufreq_config *cfg);
 	void		(*set_fvco)(struct s3c_cpufreq_config *cfg);
 	void		(*set_divs)(struct s3c_cpufreq_config *cfg);
@@ -190,6 +196,24 @@ struct s3c_cpufreq_info {
 extern int s3c_cpufreq_register(struct s3c_cpufreq_info *info);
 
 extern int s3c_plltab_register(struct cpufreq_frequency_table *plls, unsigned int plls_no);
+
+/* exports and utilities for debugfs */
+extern struct s3c_cpufreq_config *s3c_cpufreq_getconfig(void);
+extern struct s3c_iotimings *s3c_cpufreq_getiotimings(void);
+
+extern void s3c2410_iotiming_debugfs(struct seq_file *seq,
+				     struct s3c_cpufreq_config *cfg,
+				     union s3c_iobank *iob);
+
+extern void s3c2412_iotiming_debugfs(struct seq_file *seq,
+				     struct s3c_cpufreq_config *cfg,
+				     union s3c_iobank *iob);
+
+#ifdef CONFIG_CPU_FREQ_S3C24XX_DEBUGFS
+#define s3c_cpufreq_debugfs_call(x) x
+#else
+#define s3c_cpufreq_debugfs_call(x) NULL
+#endif
 
 /* Useful utility functions. */
 

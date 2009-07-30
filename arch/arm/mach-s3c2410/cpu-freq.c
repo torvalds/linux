@@ -111,6 +111,8 @@ static struct s3c_cpufreq_info s3c2410_cpufreq_info = {
 	.set_refresh	= s3c2410_cpufreq_setrefresh,
 	.set_divs	= s3c2410_cpufreq_setdivs,
 	.calc_divs	= s3c2410_cpufreq_calcdivs,
+
+	.debug_io_show	= s3c_cpufreq_debugfs_call(s3c2410_iotiming_debugfs),
 };
 
 static int s3c2410_cpufreq_add(struct sys_device *sysdev)

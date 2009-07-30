@@ -266,6 +266,8 @@ struct s3c_cpufreq_info s3c2440_cpufreq_info = {
 	.calc_freqtable	= s3c2440_cpufreq_calctable,
 
 	.resume_clocks	= s3c244x_setup_clocks,
+
+	.debug_io_show  = s3c_cpufreq_debugfs_call(s3c2410_iotiming_debugfs),
 };
 
 static int s3c2440_cpufreq_add(struct sys_device *sysdev)

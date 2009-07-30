@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
+#include <linux/seq_file.h>
 #include <linux/sysdev.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -106,6 +107,29 @@ static int s3c2412_calc_bank(struct s3c_cpufreq_config *cfg,
 	bt->smbwstbrd = calc_timing(bt->wstbrd, hclk, &err);
 
 	return err;
+}
+
+/**
+ * s3c2412_iotiming_debugfs - debugfs show io bank timing information
+ * @seq: The seq_file to write output to using seq_printf().
+ * @cfg: The current configuration.
+ * @iob: The IO bank information to decode.
+*/
+void s3c2412_iotiming_debugfs(struct seq_file *seq,
+			      struct s3c_cpufreq_config *cfg,
+			      union s3c_iobank *iob)
+{
+	struct s3c2412_iobank_timing *bt = iob->io_2412;
+
+	seq_printf(seq,
+		   "\tRead: idcy=%d.%d wstrd=%d.%d wstwr=%d,%d"
+		   "wstoen=%d.%d wstwen=%d.%d wstbrd=%d.%d\n",
+		   print_ns(bt->idcy),
+		   print_ns(bt->wstrd),
+		   print_ns(bt->wstwr),
+		   print_ns(bt->wstoen),
+		   print_ns(bt->wstwen),
+		   print_ns(bt->wstbrd));
 }
 
 /**

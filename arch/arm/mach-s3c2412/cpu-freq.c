@@ -190,6 +190,8 @@ static struct s3c_cpufreq_info s3c2412_cpufreq_info = {
 	.get_iotiming	= s3c2412_iotiming_get,
 
 	.resume_clocks	= s3c2412_setup_clocks,
+
+	.debug_io_show  = s3c_cpufreq_debugfs_call(s3c2412_iotiming_debugfs),
 };
 
 static int s3c2412_cpufreq_add(struct sys_device *sysdev)
