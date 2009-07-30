@@ -1484,6 +1484,9 @@ static void rndis_get_scan_results(struct work_struct *work)
 
 	devdbg(usbdev, "get_scan_results");
 
+	if (!priv->scan_request)
+		return;
+
 	ret = rndis_check_bssid_list(usbdev);
 
 	cfg80211_scan_done(priv->scan_request, ret < 0);
@@ -2521,6 +2524,11 @@ static int rndis_wlan_stop(struct usbnet *usbdev)
 	cancel_delayed_work_sync(&priv->scan_work);
 	cancel_work_sync(&priv->work);
 	flush_workqueue(priv->workqueue);
+
+	if (priv->scan_request) {
+		cfg80211_scan_done(priv->scan_request, true);
+		priv->scan_request = NULL;
+	}
 
 	return retval;
 }
