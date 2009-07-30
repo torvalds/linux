@@ -1436,6 +1436,25 @@ static void alc_automute_amp_unsol_event(struct hda_codec *codec,
 		alc_automute_amp(codec);
 }
 
+static void alc889_automute_init(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->autocfg.speaker_pins[1] = 0x16;
+	spec->autocfg.speaker_pins[2] = 0x17;
+	spec->autocfg.speaker_pins[3] = 0x19;
+	spec->autocfg.speaker_pins[4] = 0x1a;
+	alc_automute_amp(codec);
+}
+
+static void alc889_intel_init_hook(struct hda_codec *codec)
+{
+	alc889_coef_init(codec);
+	alc889_automute_init(codec);
+}
+
 static void alc888_fujitsu_xa3530_init_hook(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -6993,6 +7012,11 @@ static struct hda_verb alc889_eapd_verbs[] = {
 	{ }
 };
 
+static struct hda_verb alc_hp15_unsol_verbs[] = {
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{}
+};
 
 static struct hda_verb alc885_init_verbs[] = {
 	/* Front mixer: unmute input/output amp left and right (volume = 0) */
@@ -7018,7 +7042,7 @@ static struct hda_verb alc885_init_verbs[] = {
 	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
 
 	/* Front HP Pin: output 0 (0x0c) */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* Front Pin: output 0 (0x0c) */
@@ -8860,7 +8884,8 @@ static struct alc_config_preset alc882_presets[] = {
 	},
 	[ALC889A_INTEL] = {
 		.mixers = { alc885_8ch_intel_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc885_init_verbs, alc885_init_input_verbs },
+		.init_verbs = { alc885_init_verbs, alc885_init_input_verbs,
+				alc_hp15_unsol_verbs },
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc889_adc_nids),
@@ -8872,12 +8897,14 @@ static struct alc_config_preset alc882_presets[] = {
 		.channel_mode = alc889_8ch_intel_modes,
 		.capsrc_nids = alc889_capsrc_nids,
 		.input_mux = &alc889_capture_source,
+		.init_hook = alc889_automute_init,
+		.unsol_event = alc_automute_amp_unsol_event,
 		.need_dac_fix = 1,
 	},
 	[ALC889_INTEL] = {
 		.mixers = { alc885_8ch_intel_mixer, alc883_chmode_mixer },
 		.init_verbs = { alc885_init_verbs, alc889_init_input_verbs,
-				alc889_eapd_verbs },
+				alc889_eapd_verbs, alc_hp15_unsol_verbs},
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc889_adc_nids),
@@ -8889,7 +8916,8 @@ static struct alc_config_preset alc882_presets[] = {
 		.channel_mode = alc889_8ch_intel_modes,
 		.capsrc_nids = alc889_capsrc_nids,
 		.input_mux = &alc889_capture_source,
-		.init_hook = alc889_coef_init,
+		.init_hook = alc889_intel_init_hook,
+		.unsol_event = alc_automute_amp_unsol_event,
 		.need_dac_fix = 1,
 	},
 	[ALC883_6ST_DIG] = {
@@ -10121,12 +10149,6 @@ static struct hda_verb alc262_eapd_verbs[] = {
 	{ }
 };
 
-static struct hda_verb alc262_hippo_unsol_verbs[] = {
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{}
-};
-
 static struct hda_verb alc262_hippo1_unsol_verbs[] = {
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
 	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00},
@@ -11168,7 +11190,7 @@ static struct alc_config_preset alc262_presets[] = {
 	},
 	[ALC262_HIPPO] = {
 		.mixers = { alc262_hippo_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_hippo_unsol_verbs},
+		.init_verbs = { alc262_init_verbs, alc_hp15_unsol_verbs},
 		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
 		.dac_nids = alc262_dac_nids,
 		.hp_nid = 0x03,
@@ -11288,7 +11310,8 @@ static struct alc_config_preset alc262_presets[] = {
 	},
 	[ALC262_BENQ_T31] = {
 		.mixers = { alc262_benq_t31_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_benq_t31_EAPD_verbs, alc262_hippo_unsol_verbs },
+		.init_verbs = { alc262_init_verbs, alc262_benq_t31_EAPD_verbs,
+				alc_hp15_unsol_verbs },
 		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
 		.dac_nids = alc262_dac_nids,
 		.hp_nid = 0x03,
