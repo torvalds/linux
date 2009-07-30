@@ -59,6 +59,7 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/cpu-freq.h>
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"
@@ -570,6 +571,12 @@ static struct clk *bast_clocks[] __initdata = {
 	&s3c24xx_uclk,
 };
 
+static struct s3c_cpufreq_board __initdata bast_cpufreq = {
+	.refresh	= 7800, /* 7.8usec */
+	.auto_io	= 1,
+	.need_io	= 1,
+};
+
 static void __init bast_map_io(void)
 {
 	/* initialise the clocks */
@@ -608,6 +615,8 @@ static void __init bast_init(void)
 
 	usb_simtec_init();
 	nor_simtec_init();
+
+	s3c_cpufreq_setboard(&bast_cpufreq);
 }
 
 MACHINE_START(BAST, "Simtec-BAST")
