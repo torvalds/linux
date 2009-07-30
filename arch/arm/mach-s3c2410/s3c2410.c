@@ -116,6 +116,13 @@ struct sysdev_class s3c2410_sysclass = {
 	.name = "s3c2410-core",
 };
 
+/* Note, we would have liked to name this s3c2410-core, but we cannot
+ * register two sysdev_class with the same name.
+ */
+struct sysdev_class s3c2410a_sysclass = {
+	.name = "s3c2410a-core",
+};
+
 static struct sys_device s3c2410_sysdev = {
 	.cls		= &s3c2410_sysclass,
 };
@@ -133,9 +140,22 @@ static int __init s3c2410_core_init(void)
 
 core_initcall(s3c2410_core_init);
 
+static int __init s3c2410a_core_init(void)
+{
+	return sysdev_class_register(&s3c2410a_sysclass);
+}
+
+core_initcall(s3c2410a_core_init);
+
 int __init s3c2410_init(void)
 {
 	printk("S3C2410: Initialising architecture\n");
 
 	return sysdev_register(&s3c2410_sysdev);
+}
+
+int __init s3c2410a_init(void)
+{
+	s3c2410_sysdev.cls = &s3c2410a_sysclass;
+	return s3c2410_init();
 }
