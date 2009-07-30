@@ -507,33 +507,6 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 	f_ctl = FC_FC_REL_OFF;
 	WARN_ON(!seq);
 
-	/*
-	 * If a get_page()/put_page() will fail, don't use sg lists
-	 * in the fc_frame structure.
-	 *
-	 * The put_page() may be long after the I/O has completed
-	 * in the case of FCoE, since the network driver does it
-	 * via free_skb().  See the test in free_pages_check().
-	 *
-	 * Test this case with 'dd </dev/zero >/dev/st0 bs=64k'.
-	 */
-	if (using_sg) {
-		for (sg = scsi_sglist(sc); sg; sg = sg_next(sg)) {
-			if (page_count(sg_page(sg)) == 0 ||
-			    (sg_page(sg)->flags & (1 << PG_lru |
-						   1 << PG_private |
-						   1 << PG_locked |
-						   1 << PG_active |
-						   1 << PG_slab |
-						   1 << PG_swapcache |
-						   1 << PG_writeback |
-						   1 << PG_reserved |
-						   1 << PG_buddy))) {
-				using_sg = 0;
-				break;
-			}
-		}
-	}
 	sg = scsi_sglist(sc);
 
 	while (remaining > 0 && sg) {
