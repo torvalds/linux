@@ -993,7 +993,7 @@ static int bind_qsets(struct adapter *adap)
 #define TPSRAM_NAME "cxgb3/t3%c_psram-%d.%d.%d.bin"
 #define AEL2005_OPT_EDC_NAME "cxgb3/ael2005_opt_edc.bin"
 #define AEL2005_TWX_EDC_NAME "cxgb3/ael2005_twx_edc.bin"
-#define AEL2020_TWX_EDC_NAME "cxgb3/ael2005_twx_edc.bin"
+#define AEL2020_TWX_EDC_NAME "cxgb3/ael2020_twx_edc.bin"
 
 static inline const char *get_edc_fw_name(int edc_idx)
 {
