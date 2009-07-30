@@ -20,6 +20,8 @@ obj-y				+= gpiolib.o
 obj-y				+= clock.o
 obj-$(CONFIG_S3C24XX_DCLK)	+= clock-dclk.o
 
+obj-$(CONFIG_CPU_FREQ_S3C24XX)	+= cpu-freq.o
+
 # Architecture dependant builds
 
 obj-$(CONFIG_CPU_S3C244X)	+= s3c244x.o
