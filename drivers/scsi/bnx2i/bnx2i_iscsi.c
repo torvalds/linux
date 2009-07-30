@@ -1160,9 +1160,6 @@ static int bnx2i_task_xmit(struct iscsi_task *task)
 	struct bnx2i_cmd *cmd = task->dd_data;
 	struct iscsi_cmd *hdr = (struct iscsi_cmd *) task->hdr;
 
-	if (test_bit(ADAPTER_STATE_LINK_DOWN, &hba->adapter_state))
-		return -ENOTCONN;
-
 	if (!bnx2i_conn->is_bound)
 		return -ENOTCONN;
 
