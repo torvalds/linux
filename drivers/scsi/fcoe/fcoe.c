@@ -329,7 +329,7 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	rcu_read_lock();
 	for_each_dev_addr(netdev, ha) {
 		if ((ha->type == NETDEV_HW_ADDR_T_SAN) &&
-		    (is_valid_ether_addr(fc->ctlr.ctl_src_addr))) {
+		    (is_valid_ether_addr(ha->addr))) {
 			memcpy(fc->ctlr.ctl_src_addr, ha->addr, ETH_ALEN);
 			fc->ctlr.spma = 1;
 			break;
