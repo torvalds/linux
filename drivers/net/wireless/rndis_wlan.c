@@ -327,6 +327,7 @@ struct ndis_80211_remove_key {
 	__le32 size;
 	__le32 index;
 	u8 bssid[6];
+	u8 padding[2];
 } __attribute__((packed));
 
 struct ndis_config_param {
