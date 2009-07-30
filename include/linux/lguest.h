@@ -18,8 +18,7 @@
  * lguest_data".  Once the Guest's initialization hypercall tells the Host where
  * this is, the Guest and Host both publish information in it.
 :*/
-struct lguest_data
-{
+struct lguest_data {
 	/*
 	 * 512 == enabled (same as eflags in normal hardware).  The Guest
 	 * changes interrupts so often that a hypercall is too slow.

@@ -207,8 +207,7 @@ static void lg_reset(struct virtio_device *vdev)
  */
 
 /*D:140 This is the information we remember about each virtqueue. */
-struct lguest_vq_info
-{
+struct lguest_vq_info {
 	/* A copy of the information contained in the device config. */
 	struct lguest_vqconfig config;
 

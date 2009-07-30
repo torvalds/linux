@@ -16,15 +16,13 @@
 void free_pagetables(void);
 int init_pagetables(struct page **switcher_page, unsigned int pages);
 
-struct pgdir
-{
+struct pgdir {
 	unsigned long gpgdir;
 	pgd_t *pgdir;
 };
 
 /* We have two pages shared with guests, per cpu.  */
-struct lguest_pages
-{
+struct lguest_pages {
 	/* This is the stack page mapped rw in guest */
 	char spare[PAGE_SIZE - sizeof(struct lguest_regs)];
 	struct lguest_regs regs;
@@ -89,8 +87,7 @@ struct lg_eventfd_map {
 };
 
 /* The private info the thread maintains about the guest. */
-struct lguest
-{
+struct lguest {
 	struct lguest_data __user *lguest_data;
 	struct lg_cpu cpus[NR_CPUS];
 	unsigned int nr_cpus;

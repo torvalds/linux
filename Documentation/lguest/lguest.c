@@ -93,8 +93,7 @@ static int lguest_fd;
 static unsigned int __thread cpu_id;
 
 /* This is our list of devices. */
-struct device_list
-{
+struct device_list {
 	/* Counter to assign interrupt numbers. */
 	unsigned int next_irq;
 
@@ -114,8 +113,7 @@ struct device_list
 static struct device_list devices;
 
 /* The device structure describes a single device. */
-struct device
-{
+struct device {
 	/* The linked-list pointer. */
 	struct device *next;
 
@@ -140,8 +138,7 @@ struct device
 };
 
 /* The virtqueue structure describes a queue attached to a device. */
-struct virtqueue
-{
+struct virtqueue {
 	struct virtqueue *next;
 
 	/* Which device owns me. */
@@ -779,8 +776,7 @@ static void add_used_and_trigger(struct virtqueue *vq, unsigned head, int len)
  *
  * We associate some data with the console for our exit hack.
  */
-struct console_abort
-{
+struct console_abort {
 	/* How many times have they hit ^C? */
 	int count;
 	/* When did they start? */
@@ -1570,20 +1566,13 @@ static void setup_tun_net(char *arg)
 /*:*/
 
 /* This hangs off device->priv. */
-struct vblk_info
-{
+struct vblk_info {
 	/* The size of the file. */
 	off64_t len;
 
 	/* The file descriptor for the file. */
 	int fd;
 
-	/* IO thread listens on this file descriptor [0]. */
-	int workpipe[2];
-
-	/* IO thread writes to this file descriptor to mark it done, then
-	 * Launcher triggers interrupt to Guest. */
-	int done_fd;
 };
 
 /*L:210
