@@ -156,6 +156,13 @@ config MACH_YL9200
 	help
 	  Select this if you are using the ucDragon YL-9200 board.
 
+config MACH_CPUAT91
+	bool "Eukrea CPUAT91"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using the Eukrea Electromatique's
+	  CPUAT91 board <http://www.eukrea.com/>.
+
 endif
 
 # ----------------------------------------------------------
