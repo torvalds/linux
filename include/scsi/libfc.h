@@ -348,6 +348,7 @@ static inline bool fc_fcp_is_read(const struct fc_fcp_pkt *fsp)
  */
 
 struct fc_exch_mgr;
+struct fc_exch_mgr_anchor;
 
 /*
  * Sequence.
@@ -709,6 +710,7 @@ struct fc_lport {
 	/* Associations */
 	struct Scsi_Host	*host;
 	struct fc_exch_mgr	*emp;
+	struct list_head	ema_list;
 	struct fc_rport		*dns_rp;
 	struct fc_rport		*ptp_rp;
 	void			*scsi_priv;
@@ -962,6 +964,28 @@ int fc_elsct_init(struct fc_lport *lp);
  * function pointers in struct libfc_function_template.
  */
 int fc_exch_init(struct fc_lport *lp);
+
+/*
+ * Adds Exchange Manager (EM) mp to lport.
+ *
+ * Adds specified mp to lport using struct fc_exch_mgr_anchor,
+ * the struct fc_exch_mgr_anchor allows same EM sharing by
+ * more than one lport with their specified match function,
+ * the match function is used in allocating exchange from
+ * added mp.
+ */
+struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *lport,
+					   struct fc_exch_mgr *mp,
+					   bool (*match)(struct fc_frame *));
+
+/*
+ * Deletes Exchange Manager (EM) from lport by removing
+ * its anchor ema from lport.
+ *
+ * If removed anchor ema was the last user of its associated EM
+ * then also destroys associated EM.
+ */
+void fc_exch_mgr_del(struct fc_exch_mgr_anchor *ema);
 
 /*
  * Allocates an Exchange Manager (EM).

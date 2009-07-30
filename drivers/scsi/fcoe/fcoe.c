@@ -603,18 +603,18 @@ static int fcoe_if_create(struct net_device *netdev)
 		goto out_netdev_cleanup;
 	}
 
-	/* lport exch manager allocation */
-	rc = fcoe_em_config(lp);
-	if (rc) {
-		FCOE_NETDEV_DBG(netdev, "Could not configure the EM for the "
-				"interface\n");
-		goto out_netdev_cleanup;
-	}
-
 	/* Initialize the library */
 	rc = fcoe_libfc_config(lp, &fcoe_libfc_fcn_templ);
 	if (rc) {
 		FCOE_NETDEV_DBG(netdev, "Could not configure libfc for the "
+				"interface\n");
+		goto out_lp_destroy;
+	}
+
+	/* lport exch manager allocation */
+	rc = fcoe_em_config(lp);
+	if (rc) {
+		FCOE_NETDEV_DBG(netdev, "Could not configure the EM for the "
 				"interface\n");
 		goto out_lp_destroy;
 	}

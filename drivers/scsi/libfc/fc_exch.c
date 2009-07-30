@@ -55,6 +55,7 @@ static struct kmem_cache *fc_em_cachep;        /* cache for exchanges */
  */
 struct fc_exch_mgr {
 	enum fc_class	class;		/* default class for sequences */
+	struct kref	kref;		/* exchange mgr reference count */
 	spinlock_t	em_lock;	/* exchange manager lock,
 					   must be taken before ex_lock */
 	u16		last_xid;	/* last allocated exchange ID */
@@ -83,6 +84,12 @@ struct fc_exch_mgr {
 	struct fc_exch **exches;	/* for exch pointers indexed by xid */
 };
 #define	fc_seq_exch(sp) container_of(sp, struct fc_exch, seq)
+
+struct fc_exch_mgr_anchor {
+	struct list_head ema_list;
+	struct fc_exch_mgr *mp;
+	bool (*match)(struct fc_frame *);
+};
 
 static void fc_exch_rrq(struct fc_exch *);
 static void fc_seq_ls_acc(struct fc_seq *);
@@ -1728,6 +1735,47 @@ reject:
 	fc_seq_ls_rjt(sp, ELS_RJT_LOGIC, explan);
 	fc_frame_free(fp);
 }
+
+struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *lport,
+					   struct fc_exch_mgr *mp,
+					   bool (*match)(struct fc_frame *))
+{
+	struct fc_exch_mgr_anchor *ema;
+
+	ema = kmalloc(sizeof(*ema), GFP_ATOMIC);
+	if (!ema)
+		return ema;
+
+	ema->mp = mp;
+	ema->match = match;
+	/* add EM anchor to EM anchors list */
+	list_add_tail(&ema->ema_list, &lport->ema_list);
+	kref_get(&mp->kref);
+	return ema;
+}
+EXPORT_SYMBOL(fc_exch_mgr_add);
+
+static void fc_exch_mgr_destroy(struct kref *kref)
+{
+	struct fc_exch_mgr *mp = container_of(kref, struct fc_exch_mgr, kref);
+
+	/*
+	 * The total exch count must be zero
+	 * before freeing exchange manager.
+	 */
+	WARN_ON(mp->total_exches != 0);
+	mempool_destroy(mp->ep_pool);
+	kfree(mp);
+}
+
+void fc_exch_mgr_del(struct fc_exch_mgr_anchor *ema)
+{
+	/* remove EM anchor from EM anchors list */
+	list_del(&ema->ema_list);
+	kref_put(&ema->mp->kref, fc_exch_mgr_destroy);
+	kfree(ema);
+}
+EXPORT_SYMBOL(fc_exch_mgr_del);
 
 struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lp,
 				      enum fc_class class,
