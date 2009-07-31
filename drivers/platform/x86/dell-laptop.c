@@ -197,8 +197,8 @@ static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 	dell_send_request(&buffer, 17, 11);
 	status = buffer.output[1];
 
-	if (status & BIT(bit))
-		rfkill_set_hw_state(rfkill, !!(status & BIT(16)));
+	rfkill_set_sw_state(rfkill, !!(status & BIT(bit)));
+	rfkill_set_hw_state(rfkill, !(status & BIT(16)));
 }
 
 static const struct rfkill_ops dell_rfkill_ops = {
