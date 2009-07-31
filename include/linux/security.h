@@ -28,6 +28,7 @@
 #include <linux/resource.h>
 #include <linux/sem.h>
 #include <linux/shm.h>
+#include <linux/mm.h> /* PAGE_ALIGN */
 #include <linux/msg.h>
 #include <linux/sched.h>
 #include <linux/key.h>
@@ -95,6 +96,7 @@ extern int cap_netlink_send(struct sock *sk, struct sk_buff *skb);
 extern int cap_netlink_recv(struct sk_buff *skb, int cap);
 
 extern unsigned long mmap_min_addr;
+extern unsigned long dac_mmap_min_addr;
 /*
  * Values used in the task_security_ops calls
  */
@@ -147,6 +149,21 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
 	opts->num_mnt_opts = 0;
 }
 
+/*
+ * If a hint addr is less than mmap_min_addr change hint to be as
+ * low as possible but still greater than mmap_min_addr
+ */
+static inline unsigned long round_hint_to_min(unsigned long hint)
+{
+	hint &= PAGE_MASK;
+	if (((void *)hint != NULL) &&
+	    (hint < mmap_min_addr))
+		return PAGE_ALIGN(mmap_min_addr);
+	return hint;
+}
+
+extern int mmap_min_addr_handler(struct ctl_table *table, int write, struct file *filp,
+				 void __user *buffer, size_t *lenp, loff_t *ppos);
 /**
  * struct security_operations - main security structure
  *
