@@ -334,8 +334,6 @@ static void p9_virtio_remove(struct virtio_device *vdev)
 	}
 }
 
-#define VIRTIO_ID_9P 9
-
 static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_9P, VIRTIO_DEV_ANY_ID },
 	{ 0 },
