@@ -38,6 +38,13 @@
 #define MCM_ADDR_MEM	 3	/* memory address */
 #define MCM_ADDR_GENERIC 7	/* generic */
 
+#define MCJ_CTX_MASK		3
+#define MCJ_CTX(flags)		((flags) & MCJ_CTX_MASK)
+#define MCJ_CTX_RANDOM		0    /* inject context: random */
+#define MCJ_CTX_PROCESS		1    /* inject context: process */
+#define MCJ_CTX_IRQ		2    /* inject context: IRQ */
+#define MCJ_NMI_BROADCAST	4    /* do NMI broadcasting */
+
 /* Fields are zero when not available */
 struct mce {
 	__u64 status;
@@ -48,8 +55,8 @@ struct mce {
 	__u64 tsc;	/* cpu time stamp counter */
 	__u64 time;	/* wall time_t when error was detected */
 	__u8  cpuvendor;	/* cpu vendor as encoded in system.h */
-	__u8  pad1;
-	__u16 pad2;
+	__u8  inject_flags;	/* software inject flags */
+	__u16  pad;
 	__u32 cpuid;	/* CPUID 1 EAX */
 	__u8  cs;		/* code segment */
 	__u8  bank;	/* machine check bank */
