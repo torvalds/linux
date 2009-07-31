@@ -413,10 +413,13 @@ EXPORT_SYMBOL(blk_limits_io_min);
  * @min:  smallest I/O size in bytes
  *
  * Description:
- *   Some devices have an internal block size bigger than the reported
- *   hardware sector size.  This function can be used to signal the
- *   smallest I/O the device can perform without incurring a performance
- *   penalty.
+ *   Storage devices may report a granularity or preferred minimum I/O
+ *   size which is the smallest request the device can perform without
+ *   incurring a performance penalty.  For disk drives this is often the
+ *   physical block size.  For RAID arrays it is often the stripe chunk
+ *   size.  A properly aligned multiple of minimum_io_size is the
+ *   preferred request size for workloads where a high number of I/O
+ *   operations is desired.
  */
 void blk_queue_io_min(struct request_queue *q, unsigned int min)
 {
@@ -430,8 +433,12 @@ EXPORT_SYMBOL(blk_queue_io_min);
  * @opt:  optimal request size in bytes
  *
  * Description:
- *   Drivers can call this function to set the preferred I/O request
- *   size for devices that report such a value.
+ *   Storage devices may report an optimal I/O size, which is the
+ *   device's preferred unit for sustained I/O.  This is rarely reported
+ *   for disk drives.  For RAID arrays it is usually the stripe width or
+ *   the internal track size.  A properly aligned multiple of
+ *   optimal_io_size is the preferred request size for workloads where
+ *   sustained throughput is desired.
  */
 void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 {
