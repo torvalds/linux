@@ -227,7 +227,6 @@ void pcap_set_ts_bits(struct pcap_chip *, u32);
 #define PCAP_LED1		1
 #define PCAP_BL0		2
 #define PCAP_BL1		3
-#define PCAP_VIB		4
 #define PCAP_LED_3MA		0
 #define PCAP_LED_4MA		1
 #define PCAP_LED_5MA		2
@@ -246,9 +245,6 @@ void pcap_set_ts_bits(struct pcap_chip *, u32);
 #define PCAP_LED0_C_SHIFT	15
 #define PCAP_LED1_C_SHIFT	17
 #define PCAP_BL1_SHIFT		20
-#define PCAP_VIB_MASK		0x3
-#define PCAP_VIB_SHIFT		20
-#define PCAP_VIB_EN		(1 << 19)
 
 /* RTC */
 #define PCAP_RTC_DAY_MASK	0x3fff
