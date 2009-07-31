@@ -11690,6 +11690,11 @@ static pci_ers_result_t bnx2x_io_error_detected(struct pci_dev *pdev,
 
 	netif_device_detach(dev);
 
+	if (state == pci_channel_io_perm_failure) {
+		rtnl_unlock();
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
 	if (netif_running(dev))
 		bnx2x_eeh_nic_unload(bp);
 
