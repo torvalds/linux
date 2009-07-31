@@ -639,6 +639,7 @@ skip_rio:
 				atomic_set(&vha->vp_state, VP_FAILED);
 				fc_vport_set_state(vha->fc_vport,
 				    FC_VPORT_FAILED);
+				qla2x00_mark_all_devices_lost(vha, 1);
 			}
 
 			vha->flags.management_server_logged_in = 0;
