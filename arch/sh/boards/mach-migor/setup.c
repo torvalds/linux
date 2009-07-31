@@ -98,6 +98,9 @@ static struct platform_device sh_keysc_device = {
 	.dev	= {
 		.platform_data	= &sh_keysc_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_KEYSC,
+	},
 };
 
 static struct mtd_partition migor_nor_flash_partitions[] =
@@ -292,6 +295,9 @@ static struct platform_device migor_lcdc_device = {
 	.dev	= {
 		.platform_data	= &sh_mobile_lcdc_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_LCDC,
+	},
 };
 
 static struct clk *camera_clk;
@@ -378,6 +384,9 @@ static struct platform_device migor_ceu_device = {
 	.resource	= migor_ceu_resources,
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU,
 	},
 };
 
