@@ -1524,10 +1524,13 @@ static void b43_write_probe_resp_template(struct b43_wldev *dev,
 	/* Looks like PLCP headers plus packet timings are stored for
 	 * all possible basic rates
 	 */
+	/* FIXME this is the wrong offset : it goes in tkip rx phase1 shm */
+#if 0
 	b43_write_probe_resp_plcp(dev, 0x31A, size, &b43_b_ratetable[0]);
 	b43_write_probe_resp_plcp(dev, 0x32C, size, &b43_b_ratetable[1]);
 	b43_write_probe_resp_plcp(dev, 0x33E, size, &b43_b_ratetable[2]);
 	b43_write_probe_resp_plcp(dev, 0x350, size, &b43_b_ratetable[3]);
+#endif
 
 	size = min((size_t) size, 0x200 - sizeof(struct b43_plcp_hdr6));
 	b43_write_template_common(dev, probe_resp_data,
