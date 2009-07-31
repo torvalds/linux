@@ -7,6 +7,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/bootmem.h>	/* for max_pfn/max_low_pfn */
+#include <linux/gcd.h>
 
 #include "blk.h"
 
@@ -519,6 +520,16 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		t->misaligned = 1;
 		return -1;
 	}
+
+	/* Find lcm() of optimal I/O size */
+	if (t->io_opt && b->io_opt)
+		t->io_opt = (t->io_opt * b->io_opt) / gcd(t->io_opt, b->io_opt);
+	else if (b->io_opt)
+		t->io_opt = b->io_opt;
+
+	/* Verify that optimal I/O size is a multiple of io_min */
+	if (t->io_min && t->io_opt % t->io_min)
+		return -1;
 
 	return 0;
 }
