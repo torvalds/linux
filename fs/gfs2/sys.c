@@ -519,7 +519,14 @@ static struct attribute_group lock_module_group = {
 
 int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 {
+	struct super_block *sb = sdp->sd_vfs;
 	int error;
+	char ro[20];
+	char spectator[20];
+	char *envp[] = { ro, spectator, NULL };
+
+	sprintf(ro, "RDONLY=%d", (sb->s_flags & MS_RDONLY) ? 1 : 0);
+	sprintf(spectator, "SPECTATOR=%d", sdp->sd_args.ar_spectator ? 1 : 0);
 
 	sdp->sd_kobj.kset = gfs2_kset;
 	error = kobject_init_and_add(&sdp->sd_kobj, &gfs2_ktype, NULL,
@@ -535,7 +542,7 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	if (error)
 		goto fail_tune;
 
-	kobject_uevent(&sdp->sd_kobj, KOBJ_ADD);
+	kobject_uevent_env(&sdp->sd_kobj, KOBJ_ADD, envp);
 	return 0;
 
 fail_tune:
@@ -554,7 +561,6 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	kobject_put(&sdp->sd_kobj);
 }
 
-
 static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 		       struct kobj_uevent_env *env)
 {
@@ -563,6 +569,8 @@ static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 
 	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
 	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);
+	if (!sdp->sd_args.ar_spectator)
+		add_uevent_var(env, "JOURNALID=%u", sdp->sd_lockstruct.ls_jid);
 	if (gfs2_uuid_valid(uuid)) {
 		add_uevent_var(env, "UUID=%02X%02X%02X%02X-%02X%02X-%02X%02X-"
 			       "%02X%02X-%02X%02X%02X%02X%02X%02X",
@@ -577,7 +585,6 @@ static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 static struct kset_uevent_ops gfs2_uevent_ops = {
 	.uevent = gfs2_uevent,
 };
-
 
 int gfs2_sys_init(void)
 {
