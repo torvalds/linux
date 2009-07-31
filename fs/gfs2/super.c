@@ -1084,6 +1084,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 	gt->gt_log_flush_secs = args.ar_commit;
 	spin_unlock(&gt->gt_spin);
 
+	gfs2_online_uevent(sdp);
 	return 0;
 }
 
