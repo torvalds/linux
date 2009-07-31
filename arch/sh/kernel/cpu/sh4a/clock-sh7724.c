@@ -33,9 +33,6 @@
 #define FCLKBCR		0xa415000c
 #define IRDACLKCR	0xa4150018
 #define PLLCR		0xa4150024
-#define MSTPCR0		0xa4150030
-#define MSTPCR1		0xa4150034
-#define MSTPCR2		0xa4150038
 #define SPUCLKCR	0xa415003c
 #define FLLFRQ		0xa4150050
 #define LSTATS		0xa4150060
