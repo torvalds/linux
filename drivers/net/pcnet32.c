@@ -1611,8 +1611,11 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		if (pcnet32_dwio_read_csr(ioaddr, 0) == 4
 		    && pcnet32_dwio_check(ioaddr)) {
 			a = &pcnet32_dwio;
-		} else
+		} else {
+			if (pcnet32_debug & NETIF_MSG_PROBE)
+				printk(KERN_ERR PFX "No access methods\n");
 			goto err_release_region;
+		}
 	}
 
 	chip_version =
@@ -1852,12 +1855,6 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	    ((cards_found >= MAX_UNITS) || full_duplex[cards_found]))
 		lp->options |= PCNET32_PORT_FD;
 
-	if (!a) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
-			printk(KERN_ERR PFX "No access methods\n");
-		ret = -ENODEV;
-		goto err_free_consistent;
-	}
 	lp->a = *a;
 
 	/* prior to register_netdev, dev->name is not yet correct */
@@ -1973,14 +1970,13 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	return 0;
 
-      err_free_ring:
+err_free_ring:
 	pcnet32_free_ring(dev);
-      err_free_consistent:
 	pci_free_consistent(lp->pci_dev, sizeof(*lp->init_block),
 			    lp->init_block, lp->init_dma_addr);
-      err_free_netdev:
+err_free_netdev:
 	free_netdev(dev);
-      err_release_region:
+err_release_region:
 	release_region(ioaddr, PCNET32_TOTAL_SIZE);
 	return ret;
 }
