@@ -19,6 +19,7 @@
  */
 //#define DEBUG
 #include <linux/virtio.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_balloon.h>
 #include <linux/swap.h>
 #include <linux/kthread.h>

@@ -5,9 +5,6 @@
 #include <linux/types.h>
 #include <linux/virtio_config.h>
 
-/* The ID for virtio_block */
-#define VIRTIO_ID_BLOCK	2
-
 /* Feature bits */
 #define VIRTIO_BLK_F_BARRIER	0	/* Does host support barriers? */
 #define VIRTIO_BLK_F_SIZE_MAX	1	/* Indicates maximum segment size */

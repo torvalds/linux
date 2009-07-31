@@ -22,6 +22,7 @@
 #include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/virtio.h>
+#include <linux/virtio_ids.h>
 #include <linux/virtio_net.h>
 #include <linux/scatterlist.h>
 #include <linux/if_vlan.h>
