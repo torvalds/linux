@@ -219,7 +219,9 @@ SECTIONS
 	{ *(.data.init_task) }
 
   .data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET)
-        { *(__special_page_section)
+        {
+	PAGE_ALIGNED_DATA(PAGE_SIZE)
+	  . = ALIGN(PAGE_SIZE);
 	  __start_gate_section = .;
 	  *(.data.gate)
 	  __stop_gate_section = .;
