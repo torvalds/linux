@@ -56,7 +56,6 @@ extern struct iwl_cfg iwl5350_agn_cfg;
 extern struct iwl_cfg iwl5100_bg_cfg;
 extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
-extern struct iwl_cfg iwl6000_2ag_cfg;
 extern struct iwl_cfg iwl6000h_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2agn_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;

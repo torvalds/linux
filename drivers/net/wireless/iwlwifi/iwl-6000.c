@@ -150,22 +150,6 @@ static struct iwl_ops iwl6000_ops = {
 	.utils = &iwl6000_hcmd_utils,
 };
 
-struct iwl_cfg iwl6000_2ag_cfg = {
-	.name = "6000 Series 2x2 AG",
-	.fw_name_pre = IWL6000_FW_PRE,
-	.ucode_api_max = IWL6000_UCODE_API_MAX,
-	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl6000_ops,
-	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
-	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.mod_params = &iwl50_mod_params,
-	.valid_tx_ant = ANT_BC,
-	.valid_rx_ant = ANT_BC,
-	.need_pll_cfg = false,
-	.pa_type = IWL_PA_SYSTEM,
-};
 
 /*
  * "h": Hybrid configuration, use both internal and external Power Amplifier
