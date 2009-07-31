@@ -57,7 +57,8 @@ extern struct iwl_cfg iwl5100_bg_cfg;
 extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
 extern struct iwl_cfg iwl6000_2ag_cfg;
-extern struct iwl_cfg iwl6000_2agn_cfg;
+extern struct iwl_cfg iwl6000h_2agn_cfg;
+extern struct iwl_cfg iwl6000i_2agn_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;
 extern struct iwl_cfg iwl6050_2agn_cfg;
 extern struct iwl_cfg iwl6050_3agn_cfg;
@@ -886,6 +887,19 @@ enum {
 enum iwl_nvm_type {
 	NVM_DEVICE_TYPE_EEPROM = 0,
 	NVM_DEVICE_TYPE_OTP,
+};
+
+
+/**
+ * enum iwl_pa_type - Power Amplifier type
+ * @IWL_PA_SYSTEM:  based on uCode configuration
+ * @IWL_PA_HYBRID: use both Internal and external PA
+ * @IWL_PA_INTERNAL: use Internal only
+ */
+enum iwl_pa_type {
+	IWL_PA_SYSTEM = 0,
+	IWL_PA_HYBRID = 1,
+	IWL_PA_INTERNAL = 2,
 };
 
 /* interrupt statistics */

@@ -68,6 +68,24 @@ static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 	priv->hw_params.ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
 }
 
+/* NIC configuration for 6000 series */
+static void iwl6000_nic_config(struct iwl_priv *priv)
+{
+	iwl5000_nic_config(priv);
+
+	/* no locking required for register write */
+	if (priv->cfg->pa_type == IWL_PA_HYBRID) {
+		/* 2x2 hybrid phy type */
+		iwl_write32(priv, CSR_GP_DRIVER_REG,
+			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_HYB);
+	} else if (priv->cfg->pa_type == IWL_PA_INTERNAL) {
+		/* 2x2 IPA phy type */
+		iwl_write32(priv, CSR_GP_DRIVER_REG,
+			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
+	}
+	/* else do nothing, uCode configured */
+}
+
 static struct iwl_lib_ops iwl6000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
@@ -90,7 +108,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,
 		.stop = iwl5000_apm_stop,
-		.config = iwl5000_nic_config,
+		.config = iwl6000_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
@@ -146,9 +164,13 @@ struct iwl_cfg iwl6000_2ag_cfg = {
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
 	.need_pll_cfg = false,
+	.pa_type = IWL_PA_SYSTEM,
 };
 
-struct iwl_cfg iwl6000_2agn_cfg = {
+/*
+ * "h": Hybrid configuration, use both internal and external Power Amplifier
+ */
+struct iwl_cfg iwl6000h_2agn_cfg = {
 	.name = "6000 Series 2x2 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
@@ -162,6 +184,27 @@ struct iwl_cfg iwl6000_2agn_cfg = {
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = false,
+	.pa_type = IWL_PA_HYBRID,
+};
+
+/*
+ * "i": Internal configuration, use internal Power Amplifier
+ */
+struct iwl_cfg iwl6000i_2agn_cfg = {
+	.name = "6000 Series 2x2 AGN",
+	.fw_name_pre = IWL6000_FW_PRE,
+	.ucode_api_max = IWL6000_UCODE_API_MAX,
+	.ucode_api_min = IWL6000_UCODE_API_MIN,
+	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.ops = &iwl6000_ops,
+	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
+	.mod_params = &iwl50_mod_params,
+	.valid_tx_ant = ANT_BC,
+	.valid_rx_ant = ANT_BC,
+	.need_pll_cfg = false,
+	.pa_type = IWL_PA_INTERNAL,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
@@ -178,6 +221,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.need_pll_cfg = false,
+	.pa_type = IWL_PA_SYSTEM,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -194,6 +238,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
 	.need_pll_cfg = false,
+	.pa_type = IWL_PA_SYSTEM,
 };
 
 struct iwl_cfg iwl6050_3agn_cfg = {
@@ -210,6 +255,7 @@ struct iwl_cfg iwl6050_3agn_cfg = {
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
 	.need_pll_cfg = false,
+	.pa_type = IWL_PA_SYSTEM,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

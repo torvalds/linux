@@ -73,6 +73,18 @@ static void iwl1000_set_ct_threshold(struct iwl_priv *priv)
 	priv->hw_params.ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
 }
 
+/* NIC configuration for 1000 series */
+static void iwl1000_nic_config(struct iwl_priv *priv)
+{
+	iwl5000_nic_config(priv);
+
+	/* Setting digital SVR for 1000 card to 1.32V */
+	/* locking is acquired in iwl_set_bits_mask_prph() function */
+	iwl_set_bits_mask_prph(priv, APMG_DIGITAL_SVR_REG,
+				APMG_SVR_DIGITAL_VOLTAGE_1_32,
+				~APMG_SVR_VOLTAGE_CONFIG_BIT_MSK);
+}
+
 static struct iwl_lib_ops iwl1000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
@@ -95,7 +107,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,
 		.stop = iwl5000_apm_stop,
-		.config = iwl5000_nic_config,
+		.config = iwl1000_nic_config,
 		.set_pwr_src = iwl_set_pwr_src,
 	},
 	.eeprom_ops = {
