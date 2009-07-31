@@ -330,15 +330,6 @@ static int cap_file_ioctl(struct file *file, unsigned int command,
 	return 0;
 }
 
-static int cap_file_mmap(struct file *file, unsigned long reqprot,
-			 unsigned long prot, unsigned long flags,
-			 unsigned long addr, unsigned long addr_only)
-{
-	if ((addr < mmap_min_addr) && !capable(CAP_SYS_RAWIO))
-		return -EACCES;
-	return 0;
-}
-
 static int cap_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
 			     unsigned long prot)
 {
