@@ -548,9 +548,6 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
 		}
 
-		/* Save flags for reg domain usage */
-		geo_ch->orig_flags = geo_ch->flags;
-
 		IWL_DEBUG_INFO(priv, "Channel %d Freq=%d[%sGHz] %s flag=0x%X\n",
 				ch->channel, geo_ch->center_freq,
 				is_channel_a_band(ch) ?  "5.2" : "2.4",
