@@ -598,10 +598,26 @@ skip_rio:
 		break;
 
 	case MBA_PORT_UPDATE:		/* Port database update */
-		/* Only handle SCNs for our Vport index. */
-		if (mb[1] != 0xffff &&
-		    vha->vp_idx && vha->vp_idx != (mb[3] & 0xff))
-			break;
+		/*
+		 * Handle only global and vn-port update events
+		 *
+		 * Relevant inputs:
+		 * mb[1] = N_Port handle of changed port
+		 * OR 0xffff for global event
+		 * mb[2] = New login state
+		 * 7 = Port logged out
+		 * mb[3] = LSB is vp_idx, 0xff = all vps
+		 *
+		 * Skip processing if:
+		 *       Event is global, vp_idx is NOT all vps,
+		 *           vp_idx does not match
+		 *       Event is not global, vp_idx does not match
+		 */
+		if ((mb[1] == 0xffff && (mb[3] & 0xff) != 0xff)
+			|| (mb[1] != 0xffff)) {
+			if (vha->vp_idx != (mb[3] & 0xff))
+				break;
+		}
 
 		/* Global event -- port logout or port unavailable. */
 		if (mb[1] == 0xffff && mb[2] == 0x7) {
