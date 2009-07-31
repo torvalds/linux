@@ -1223,6 +1223,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 					cp->device->id, cp->device->lun, resid,
 					scsi_bufflen(cp)));
 
+				scsi_set_resid(cp, resid);
 				cp->result = DID_ERROR << 16;
 				break;
 			}
