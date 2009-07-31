@@ -340,6 +340,28 @@ static struct spi_board_info w90p910_spi_board_info[] __initdata = {
 	},
 };
 
+/* WDT Device */
+
+static struct resource w90p910_wdt_resource[] = {
+	[0] = {
+		.start = W90X900_PA_TIMER,
+		.end   = W90X900_PA_TIMER + W90X900_SZ_TIMER - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_WDT,
+		.end   = IRQ_WDT,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device w90p910_device_wdt = {
+	.name		= "w90p910-wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(w90p910_wdt_resource),
+	.resource	= w90p910_wdt_resource,
+};
+
 static struct map_desc w90p910_iodesc[] __initdata = {
 };
 
@@ -357,6 +379,7 @@ static struct platform_device *w90p910evb_dev[] __initdata = {
 	&w90p910_device_fmi,
 	&w90p910_device_emc,
 	&w90p910_device_spi,
+	&w90p910_device_wdt,
 };
 
 static void __init w90p910evb_map_io(void)
