@@ -14,6 +14,7 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
+#include <mach/iomux-mxc91231.h>
 #include <mach/mmc.h>
 #include <mach/imx-uart.h>
 
@@ -28,6 +29,9 @@ static struct imxmmc_platform_data sdhc_pdata = {
 static void __init zn5_init(void)
 {
 	pm_power_off = mxc91231_power_off;
+
+	mxc_iomux_alloc_pin(MXC91231_PIN_SP_USB_DAT_VP__RXD2, "uart2-rx");
+	mxc_iomux_alloc_pin(MXC91231_PIN_SP_USB_SE0_VM__TXD2, "uart2-tx");
 
 	mxc_register_device(&mxc_uart_device1, &uart_pdata);
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
