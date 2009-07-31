@@ -280,6 +280,7 @@ struct ieee80211_if_managed {
 	struct work_struct beacon_loss_work;
 
 	unsigned long probe_timeout;
+	int probe_send_count;
 
 	struct mutex mtx;
 	struct ieee80211_bss *associated;
