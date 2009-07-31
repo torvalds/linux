@@ -1762,6 +1762,10 @@ static bool reg_same_country_ie_hint(struct wiphy *wiphy,
 	return false;
 }
 
+/*
+ * We hold wdev_lock() here so we cannot hold cfg80211_mutex() and
+ * therefore cannot iterate over the rdev list here.
+ */
 void regulatory_hint_11d(struct wiphy *wiphy,
 			u8 *country_ie,
 			u8 country_ie_len)
@@ -1804,51 +1808,14 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	 * We will run this for *every* beacon processed for the BSSID, so
 	 * we optimize an early check to exit out early if we don't have to
 	 * do anything
+	 *
+	 * We leave conflict resolution to the workqueue, where can hold
+	 * cfg80211_mutex.
 	 */
 	if (likely(last_request->initiator ==
 	    NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-	    wiphy_idx_valid(last_request->wiphy_idx))) {
-		struct cfg80211_registered_device *rdev_last_ie;
-
-		rdev_last_ie =
-			cfg80211_rdev_by_wiphy_idx(last_request->wiphy_idx);
-
-		/*
-		 * Lets keep this simple -- we trust the first AP
-		 * after we intersect with CRDA
-		 */
-		if (likely(&rdev_last_ie->wiphy == wiphy)) {
-			/*
-			 * Ignore IEs coming in on this wiphy with
-			 * the same alpha2 and environment cap
-			 */
-			if (likely(alpha2_equal(rdev_last_ie->country_ie_alpha2,
-				  alpha2) &&
-				  env == rdev_last_ie->env)) {
-				goto out;
-			}
-			/*
-			 * the wiphy moved on to another BSSID or the AP
-			 * was reconfigured. XXX: We need to deal with the
-			 * case where the user suspends and goes to goes
-			 * to another country, and then gets IEs from an
-			 * AP with different settings
-			 */
-			goto out;
-		} else {
-			/*
-			 * Ignore IEs coming in on two separate wiphys with
-			 * the same alpha2 and environment cap
-			 */
-			if (likely(alpha2_equal(rdev_last_ie->country_ie_alpha2,
-				  alpha2) &&
-				  env == rdev_last_ie->env)) {
-				goto out;
-			}
-			/* We could potentially intersect though */
-			goto out;
-		}
-	}
+	    wiphy_idx_valid(last_request->wiphy_idx)))
+		goto out;
 
 	rd = country_ie_2_rd(country_ie, country_ie_len, &checksum);
 	if (!rd)
