@@ -174,6 +174,9 @@ static struct platform_device lcdc_device = {
 	.dev		= {
 		.platform_data	= &lcdc_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_LCDC,
+	},
 };
 
 /* CEU0 */
@@ -205,6 +208,9 @@ static struct platform_device ceu0_device = {
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu0_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU0,
+	},
 };
 
 /* CEU1 */
@@ -235,6 +241,9 @@ static struct platform_device ceu1_device = {
 	.resource	= ceu1_resources,
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu1_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU1,
 	},
 };
 
@@ -273,6 +282,9 @@ static struct platform_device keysc_device = {
 	.dev	= {
 		.platform_data	= &keysc_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_KEYSC,
+	},
 };
 
 /* SH Eth */
@@ -301,6 +313,9 @@ static struct platform_device sh_eth_device = {
 	},
 	.num_resources = ARRAY_SIZE(sh_eth_resources),
 	.resource = sh_eth_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_ETHER,
+	},
 };
 
 static struct r8a66597_platdata sh7724_usb0_host_data = {
@@ -330,6 +345,9 @@ static struct platform_device sh7724_usb0_host_device = {
 	},
 	.num_resources	= ARRAY_SIZE(sh7724_usb0_host_resources),
 	.resource	= sh7724_usb0_host_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_USB0,
+	},
 };
 
 static struct platform_device *ms7724se_devices[] __initdata = {
