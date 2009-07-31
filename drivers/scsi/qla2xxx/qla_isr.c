@@ -599,8 +599,36 @@ skip_rio:
 
 	case MBA_PORT_UPDATE:		/* Port database update */
 		/* Only handle SCNs for our Vport index. */
-		if (vha->vp_idx && vha->vp_idx != (mb[3] & 0xff))
+		if (mb[1] != 0xffff &&
+		    vha->vp_idx && vha->vp_idx != (mb[3] & 0xff))
 			break;
+
+		/* Global event -- port logout or port unavailable. */
+		if (mb[1] == 0xffff && mb[2] == 0x7) {
+			DEBUG2(printk("scsi(%ld): Asynchronous PORT UPDATE.\n",
+			    vha->host_no));
+			DEBUG(printk(KERN_INFO
+			    "scsi(%ld): Port unavailable %04x %04x %04x.\n",
+			    vha->host_no, mb[1], mb[2], mb[3]));
+
+			if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
+				atomic_set(&vha->loop_state, LOOP_DOWN);
+				atomic_set(&vha->loop_down_timer,
+				    LOOP_DOWN_TIME);
+				vha->device_flags |= DFLG_NO_CABLE;
+				qla2x00_mark_all_devices_lost(vha, 1);
+			}
+
+			if (vha->vp_idx) {
+				atomic_set(&vha->vp_state, VP_FAILED);
+				fc_vport_set_state(vha->fc_vport,
+				    FC_VPORT_FAILED);
+			}
+
+			vha->flags.management_server_logged_in = 0;
+			ha->link_data_rate = PORT_SPEED_UNKNOWN;
+			break;
+		}
 
 		/*
 		 * If PORT UPDATE is global (received LIP_OCCURRED/LIP_RESET
