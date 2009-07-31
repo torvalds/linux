@@ -3420,8 +3420,7 @@ S:	Supported
 F:	drivers/mfd/
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
-M:	Pierre Ossman <pierre@ossman.eu>
-S:	Maintained
+S:	Orphan
 F:	drivers/mmc/
 F:	include/linux/mmc/
 
