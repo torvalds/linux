@@ -250,6 +250,9 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
+	if (!(ha->current_topology & ISP_CFG_F))
+		return 0;
+
 	if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
 		/* VP acquired. complete port configuration */
 		if (atomic_read(&base_vha->loop_state) == LOOP_READY) {
