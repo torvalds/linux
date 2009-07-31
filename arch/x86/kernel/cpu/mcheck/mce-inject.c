@@ -44,7 +44,7 @@ static void inject_mce(struct mce *m)
 	i->finished = 1;
 }
 
-static void raise_corrected(struct mce *m)
+static void raise_poll(struct mce *m)
 {
 	unsigned long flags;
 	mce_banks_t b;
@@ -56,7 +56,7 @@ static void raise_corrected(struct mce *m)
 	m->finished = 0;
 }
 
-static void raise_uncorrected(struct mce *m, struct pt_regs *pregs)
+static void raise_exception(struct mce *m, struct pt_regs *pregs)
 {
 	struct pt_regs regs;
 	unsigned long flags;
@@ -85,10 +85,10 @@ static int mce_raise_notify(struct notifier_block *self,
 	if (val != DIE_NMI_IPI || !cpu_isset(cpu, mce_inject_cpumask))
 		return NOTIFY_DONE;
 	cpu_clear(cpu, mce_inject_cpumask);
-	if (m->status & MCI_STATUS_UC)
-		raise_uncorrected(m, args->regs);
+	if (m->inject_flags & MCJ_EXCEPTION)
+		raise_exception(m, args->regs);
 	else if (m->status)
-		raise_corrected(m);
+		raise_poll(m);
 	return NOTIFY_STOP;
 }
 
@@ -104,7 +104,7 @@ static int raise_local(struct mce *m)
 	int ret = 0;
 	int cpu = m->extcpu;
 
-	if (m->status & MCI_STATUS_UC) {
+	if (m->inject_flags & MCJ_EXCEPTION) {
 		printk(KERN_INFO "Triggering MCE exception on CPU %d\n", cpu);
 		switch (context) {
 		case MCJ_CTX_IRQ:
@@ -115,7 +115,7 @@ static int raise_local(struct mce *m)
 			 */
 			/*FALL THROUGH*/
 		case MCJ_CTX_PROCESS:
-			raise_uncorrected(m, NULL);
+			raise_exception(m, NULL);
 			break;
 		default:
 			printk(KERN_INFO "Invalid MCE context\n");
@@ -124,7 +124,7 @@ static int raise_local(struct mce *m)
 		printk(KERN_INFO "MCE exception done on CPU %d\n", cpu);
 	} else if (m->status) {
 		printk(KERN_INFO "Starting machine check poll CPU %d\n", cpu);
-		raise_corrected(m);
+		raise_poll(m);
 		mce_notify_irq();
 		printk(KERN_INFO "Machine check poll done on CPU %d\n", cpu);
 	} else

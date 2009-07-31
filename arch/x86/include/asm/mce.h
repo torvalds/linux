@@ -44,6 +44,7 @@
 #define MCJ_CTX_PROCESS		1    /* inject context: process */
 #define MCJ_CTX_IRQ		2    /* inject context: IRQ */
 #define MCJ_NMI_BROADCAST	4    /* do NMI broadcasting */
+#define MCJ_EXCEPTION		8    /* raise as exception */
 
 /* Fields are zero when not available */
 struct mce {
