@@ -1005,7 +1005,7 @@ int cap_file_mmap(struct file *file, unsigned long reqprot,
 {
 	int ret = 0;
 
-	if (addr < mmap_min_addr) {
+	if (addr < dac_mmap_min_addr) {
 		ret = cap_capable(current, current_cred(), CAP_SYS_RAWIO,
 				  SECURITY_CAP_AUDIT);
 		/* set PF_SUPERPRIV if it turns out we allow the low mmap */
