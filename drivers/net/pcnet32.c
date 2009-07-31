@@ -1722,7 +1722,9 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		ret = -ENOMEM;
 		goto err_release_region;
 	}
-	SET_NETDEV_DEV(dev, &pdev->dev);
+
+	if (pdev)
+		SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (pcnet32_debug & NETIF_MSG_PROBE)
 		printk(KERN_INFO PFX "%s at %#3lx,", chipname, ioaddr);
@@ -1821,7 +1823,6 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	spin_lock_init(&lp->lock);
 
-	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp->name = chipname;
 	lp->shared_irq = shared;
 	lp->tx_ring_size = TX_RING_SIZE;	/* default tx ring size */
@@ -2085,6 +2086,7 @@ static void pcnet32_free_ring(struct net_device *dev)
 static int pcnet32_open(struct net_device *dev)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
+	struct pci_dev *pdev = lp->pci_dev;
 	unsigned long ioaddr = dev->base_addr;
 	u16 val;
 	int i;
@@ -2145,9 +2147,9 @@ static int pcnet32_open(struct net_device *dev)
 	lp->a.write_csr(ioaddr, 124, val);
 
 	/* Allied Telesyn AT 2700/2701 FX are 100Mbit only and do not negotiate */
-	if (lp->pci_dev->subsystem_vendor == PCI_VENDOR_ID_AT &&
-	    (lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2700FX ||
-	     lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
+	if (pdev && pdev->subsystem_vendor == PCI_VENDOR_ID_AT &&
+	    (pdev->subsystem_device == PCI_SUBDEVICE_ID_AT_2700FX ||
+	     pdev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
 		if (lp->options & PCNET32_PORT_ASEL) {
 			lp->options = PCNET32_PORT_FD | PCNET32_PORT_100;
 			if (netif_msg_link(lp))
