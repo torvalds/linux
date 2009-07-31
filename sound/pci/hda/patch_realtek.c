@@ -275,13 +275,13 @@ struct alc_spec {
 						 */
 	unsigned int num_init_verbs;
 
-	char stream_name_analog[16];	/* analog PCM stream */
+	char stream_name_analog[32];	/* analog PCM stream */
 	struct hda_pcm_stream *stream_analog_playback;
 	struct hda_pcm_stream *stream_analog_capture;
 	struct hda_pcm_stream *stream_analog_alt_playback;
 	struct hda_pcm_stream *stream_analog_alt_capture;
 
-	char stream_name_digital[16];	/* digital PCM stream */
+	char stream_name_digital[32];	/* digital PCM stream */
 	struct hda_pcm_stream *stream_digital_playback;
 	struct hda_pcm_stream *stream_digital_capture;
 
