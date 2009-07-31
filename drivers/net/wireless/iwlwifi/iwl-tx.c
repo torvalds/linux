@@ -724,8 +724,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		goto drop_unlock;
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find (or create) index into station table for destination station */
@@ -733,7 +731,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 			       hdr->addr1);
-		goto drop;
+		goto drop_unlock;
 	}
 
 	IWL_DEBUG_TX(priv, "station Id %d\n", sta_id);
@@ -751,14 +749,17 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			txq_id = priv->stations[sta_id].tid[tid].agg.txq_id;
-		priv->stations[sta_id].tid[tid].tfds_in_queue++;
 	}
 
 	txq = &priv->txq[txq_id];
 	swq_id = txq->swq_id;
 	q = &txq->q;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	if (unlikely(iwl_queue_space(q) < q->high_mark))
+		goto drop_unlock;
+
+	if (ieee80211_is_data_qos(fc))
+		priv->stations[sta_id].tid[tid].tfds_in_queue++;
 
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl_tx_info));
@@ -903,7 +904,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 drop_unlock:
 	spin_unlock_irqrestore(&priv->lock, flags);
-drop:
 	return -1;
 }
 EXPORT_SYMBOL(iwl_tx_skb);
@@ -1172,6 +1172,8 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 		IWL_ERR(priv, "Start AGG on invalid station\n");
 		return -ENXIO;
 	}
+	if (unlikely(tid >= MAX_TID_COUNT))
+		return -EINVAL;
 
 	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_OFF) {
 		IWL_ERR(priv, "Start AGG when state is not IWL_AGG_OFF !\n");
