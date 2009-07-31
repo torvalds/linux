@@ -2497,6 +2497,9 @@ atl1e_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 
 	netif_device_detach(netdev);
 
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
 	if (netif_running(netdev))
 		atl1e_down(adapter);
 
