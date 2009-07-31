@@ -4076,6 +4076,11 @@ static pci_ers_result_t qlge_io_error_detected(struct pci_dev *pdev,
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
+	netif_device_detach(ndev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
 	if (netif_running(ndev))
 		ql_adapter_down(qdev);
 
