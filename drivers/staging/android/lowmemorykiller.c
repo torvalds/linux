@@ -57,13 +57,6 @@ static int lowmem_minfree_size = 4;
 			printk(x);			\
 	} while (0)
 
-module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
-module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
-			 S_IRUGO | S_IWUSR);
-module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
-			 S_IRUGO | S_IWUSR);
-module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
-
 static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 {
 	struct task_struct *p;
@@ -165,6 +158,13 @@ static void __exit lowmem_exit(void)
 {
 	unregister_shrinker(&lowmem_shrinker);
 }
+
+module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
+module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
+			 S_IRUGO | S_IWUSR);
+module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
+			 S_IRUGO | S_IWUSR);
+module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
 
 module_init(lowmem_init);
 module_exit(lowmem_exit);
