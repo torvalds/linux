@@ -5,10 +5,11 @@
  * relegated to obsolescence, but used by various less
  * important (or lazy) subsystems.
  */
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/semaphore.h>
+#define CREATE_TRACE_POINTS
+#include <linux/smp_lock.h>
 
 /*
  * The 'big kernel lock'
@@ -113,7 +114,7 @@ static inline void __unlock_kernel(void)
  * This cannot happen asynchronously, so we only need to
  * worry about other CPU's.
  */
-void __lockfunc lock_kernel(void)
+void __lockfunc _lock_kernel(void)
 {
 	int depth = current->lock_depth+1;
 	if (likely(!depth))
@@ -121,13 +122,13 @@ void __lockfunc lock_kernel(void)
 	current->lock_depth = depth;
 }
 
-void __lockfunc unlock_kernel(void)
+void __lockfunc _unlock_kernel(void)
 {
 	BUG_ON(current->lock_depth < 0);
 	if (likely(--current->lock_depth < 0))
 		__unlock_kernel();
 }
 
-EXPORT_SYMBOL(lock_kernel);
-EXPORT_SYMBOL(unlock_kernel);
+EXPORT_SYMBOL(_lock_kernel);
+EXPORT_SYMBOL(_unlock_kernel);
 

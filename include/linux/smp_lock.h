@@ -3,6 +3,7 @@
 
 #ifdef CONFIG_LOCK_KERNEL
 #include <linux/sched.h>
+#include <trace/events/bkl.h>
 
 #define kernel_locked()		(current->lock_depth >= 0)
 
@@ -24,8 +25,18 @@ static inline int reacquire_kernel_lock(struct task_struct *task)
 	return 0;
 }
 
-extern void __lockfunc lock_kernel(void)	__acquires(kernel_lock);
-extern void __lockfunc unlock_kernel(void)	__releases(kernel_lock);
+extern void __lockfunc _lock_kernel(void)	__acquires(kernel_lock);
+extern void __lockfunc _unlock_kernel(void)	__releases(kernel_lock);
+
+#define lock_kernel()	{					\
+	trace_lock_kernel(__func__, __FILE__, __LINE__);	\
+	_lock_kernel();						\
+}
+
+#define unlock_kernel()	{					\
+	trace_unlock_kernel(__func__, __FILE__, __LINE__);	\
+	_unlock_kernel();					\
+}
 
 /*
  * Various legacy drivers don't really need the BKL in a specific
@@ -41,8 +52,8 @@ static inline void cycle_kernel_lock(void)
 
 #else
 
-#define lock_kernel()				do { } while(0)
-#define unlock_kernel()				do { } while(0)
+#define lock_kernel()	   trace_lock_kernel(__func__, __FILE__, __LINE__);
+#define unlock_kernel()    trace_unlock_kernel(__func__, __FILE__, __LINE__);
 #define release_kernel_lock(task)		do { } while(0)
 #define cycle_kernel_lock()			do { } while(0)
 #define reacquire_kernel_lock(task)		0
