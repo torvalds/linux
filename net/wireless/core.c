@@ -671,7 +671,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
 		wdev->wext.ps = CONFIG_CFG80211_DEFAULT_PS_VALUE;
-		wdev->wext.ps_timeout = 500;
+		wdev->wext.ps_timeout = 100;
 		if (rdev->ops->set_power_mgmt)
 			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
 						      wdev->wext.ps,
