@@ -385,6 +385,7 @@ struct snd_soc_codec {
 	int (*display_register)(struct snd_soc_codec *, char *,
 				size_t, unsigned int);
 	int (*volatile_register)(unsigned int);
+	int (*readable_register)(unsigned int);
 	hw_write_t hw_write;
 	hw_read_t hw_read;
 	void *reg_cache;
