@@ -1459,6 +1459,16 @@ int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
 	return 0;
 }
 
+static void gfs2_rgrp_error(struct gfs2_rgrpd *rgd)
+{
+	struct gfs2_sbd *sdp = rgd->rd_sbd;
+	fs_warn(sdp, "rgrp %llu has an error, marking it readonly until umount\n",
+	        (unsigned long long)rgd->rd_addr);
+	fs_warn(sdp, "umount on all nodes and run fsck.gfs2 to fix the error\n");
+	gfs2_rgrp_dump(NULL, rgd->rd_gl);
+	rgd->rd_flags |= GFS2_RDF_ERROR;
+}
+
 /**
  * gfs2_alloc_block - Allocate one or more blocks
  * @ip: the inode to allocate the block for
@@ -1520,22 +1530,20 @@ int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 	return 0;
 
 rgrp_error:
-	fs_warn(sdp, "rgrp %llu has an error, marking it readonly until umount\n",
-	        (unsigned long long)rgd->rd_addr);
-	fs_warn(sdp, "umount on all nodes and run fsck.gfs2 to fix the error\n");
-	gfs2_rgrp_dump(NULL, rgd->rd_gl);
-	rgd->rd_flags |= GFS2_RDF_ERROR;
+	gfs2_rgrp_error(rgd);
 	return -EIO;
 }
 
 /**
  * gfs2_alloc_di - Allocate a dinode
  * @dip: the directory that the inode is going in
+ * @bn: the block number which is allocated
+ * @generation: the generation number of the inode
  *
- * Returns: the block allocated
+ * Returns: 0 on success or error
  */
 
-u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
+int gfs2_alloc_di(struct gfs2_inode *dip, u64 *bn, u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_alloc *al = dip->i_alloc;
@@ -1546,12 +1554,13 @@ u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
 
 	blk = rgblk_search(rgd, rgd->rd_last_alloc,
 			   GFS2_BLKST_FREE, GFS2_BLKST_DINODE, &n);
-	BUG_ON(blk == BFITNOENT);
+
+	/* Since all blocks are reserved in advance, this shouldn't happen */
+	if (blk == BFITNOENT)
+		goto rgrp_error;
 
 	rgd->rd_last_alloc = blk;
-
 	block = rgd->rd_data0 + blk;
-
 	gfs2_assert_withdraw(sdp, rgd->rd_free);
 	rgd->rd_free--;
 	rgd->rd_dinodes++;
@@ -1568,7 +1577,12 @@ u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
 	rgd->rd_free_clone--;
 	spin_unlock(&sdp->sd_rindex_spin);
 	trace_gfs2_block_alloc(dip, block, 1, GFS2_BLKST_DINODE);
-	return block;
+	*bn = block;
+	return 0;
+
+rgrp_error:
+	gfs2_rgrp_error(rgd);
+	return -EIO;
 }
 
 /**

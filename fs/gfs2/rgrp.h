@@ -47,7 +47,7 @@ extern void gfs2_inplace_release(struct gfs2_inode *ip);
 extern unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block);
 
 extern int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n);
-extern u64 gfs2_alloc_di(struct gfs2_inode *ip, u64 *generation);
+extern int gfs2_alloc_di(struct gfs2_inode *ip, u64 *bn, u64 *generation);
 
 extern void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen);
 extern void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen);

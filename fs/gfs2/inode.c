@@ -731,7 +731,7 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 	if (error)
 		goto out_ipreserv;
 
-	*no_addr = gfs2_alloc_di(dip, generation);
+	error = gfs2_alloc_di(dip, no_addr, generation);
 
 	gfs2_trans_end(sdp);
 
