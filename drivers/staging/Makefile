@@ -50,3 +50,4 @@ obj-$(CONFIG_USB_CPC)		+= cpc-usb/
 obj-$(CONFIG_RDC_17F3101X)	+= pata_rdc/
 obj-$(CONFIG_FB_UDL)		+= udlfb/
 obj-$(CONFIG_HYPERV)		+= hv/
+obj-$(CONFIG_VME)		+= vme/

@@ -137,5 +137,7 @@ source "drivers/staging/udlfb/Kconfig"
 
 source "drivers/staging/hv/Kconfig"
 
+source "drivers/staging/vme/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
