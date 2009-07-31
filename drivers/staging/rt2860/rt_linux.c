@@ -776,7 +776,7 @@ VOID RTMPSendWirelessEvent(
 		if (pAddr)
 			pBufPtr += sprintf(pBufPtr, "(RT2860) STA(%02x:%02x:%02x:%02x:%02x:%02x) ", PRINT_MAC(pAddr));
 		else if (BssIdx < MAX_MBSSID_NUM)
-			pBufPtr += sprintf(pBufPtr, "(RT2860) BSS(ra%d) ", BssIdx);
+			pBufPtr += sprintf(pBufPtr, "(RT2860) BSS(wlan%d) ", BssIdx);
 		else
 			pBufPtr += sprintf(pBufPtr, "(RT2860) ");
 

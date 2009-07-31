@@ -710,7 +710,7 @@ static int rtmp_parse_key_buffer_from_file(IN  PRTMP_ADAPTER pAd,IN  char *buffe
 				CipherAlg = CIPHER_WEP128;
 			pAd->SharedKey[i][idx].CipherAlg = CipherAlg;
 
-			DBGPRINT(RT_DEBUG_TRACE, ("I/F(ra%d) Key%dStr=%s and type=%s\n", i, idx+1, keybuff, (KeyType == 0) ? "Hex":"Ascii"));
+			DBGPRINT(RT_DEBUG_TRACE, ("I/F(wlan%d) Key%dStr=%s and type=%s\n", i, idx+1, keybuff, (KeyType == 0) ? "Hex":"Ascii"));
 			return 1;
 		}
 		else
@@ -731,12 +731,12 @@ static int rtmp_parse_key_buffer_from_file(IN  PRTMP_ADAPTER pAd,IN  char *buffe
 				CipherAlg = CIPHER_WEP128;
 			pAd->SharedKey[i][idx].CipherAlg = CipherAlg;
 
-			DBGPRINT(RT_DEBUG_TRACE, ("I/F(ra%d) Key%dStr=%s and type=%s\n", i, idx+1, keybuff, (KeyType == 0) ? "Hex":"Ascii"));
+			DBGPRINT(RT_DEBUG_TRACE, ("I/F(wlan%d) Key%dStr=%s and type=%s\n", i, idx+1, keybuff, (KeyType == 0) ? "Hex":"Ascii"));
 			return 1;
 		}
 		else
 		{//Invalid key length
-			DBGPRINT(RT_DEBUG_ERROR, ("I/F(ra%d) Key%dStr is Invalid key length! KeyLen = %ld!\n", i, idx+1, KeyLen));
+			DBGPRINT(RT_DEBUG_ERROR, ("I/F(wlan%d) Key%dStr is Invalid key length! KeyLen = %ld!\n", i, idx+1, KeyLen));
 			return 0;
 		}
 	}

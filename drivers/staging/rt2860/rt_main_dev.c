@@ -710,7 +710,7 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 	// find available device name
 	for (i = 0; i < 8; i++)
 	{
-		sprintf(slot_name, "ra%d", i);
+		sprintf(slot_name, "wlan%d", i);
 
 		device = dev_get_by_name(dev_net(dev), slot_name);
 		if (device != NULL)
@@ -727,7 +727,7 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 	}
 	else
 	{
-		sprintf(dev->name, "ra%d", i);
+		sprintf(dev->name, "wlan%d", i);
 		Status = NDIS_STATUS_SUCCESS;
 	}
 
