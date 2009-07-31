@@ -44,6 +44,14 @@
 #define UART_VADDR	AIPS1_IO_ADDRESS(UART1_BASE_ADDR)
 #endif
 
+#ifdef CONFIG_ARCH_MXC91231
+#ifdef UART_PADDR
+#error "CONFIG_DEBUG_LL is incompatible with multiple archs"
+#endif
+#include <mach/mxc91231.h>
+#define UART_PADDR	MXC91231_UART2_BASE_ADDR
+#define UART_VADDR	MXC91231_AIPS1_IO_ADDRESS(MXC91231_UART2_BASE_ADDR)
+#endif
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?

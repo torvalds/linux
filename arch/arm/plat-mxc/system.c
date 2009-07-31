@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 
 #include <mach/hardware.h>
+#include <mach/common.h>
 #include <asm/proc-fns.h>
 #include <asm/system.h>
 
@@ -39,6 +40,12 @@ void arch_reset(char mode, const char *cmd)
 {
 	unsigned int wcr_enable;
 
+#ifdef CONFIG_ARCH_MXC91231
+	if (cpu_is_mxc91231()) {
+		mxc91231_arch_reset(mode, cmd);
+		return;
+	}
+#endif
 	if (cpu_is_mx1()) {
 		wcr_enable = (1 << 0);
 	} else {

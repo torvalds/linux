@@ -66,6 +66,7 @@ static void putc(int ch)
 #define MX25_UART1_BASE_ADDR	0x43f90000
 #define MX2X_UART1_BASE_ADDR	0x1000a000
 #define MX3X_UART1_BASE_ADDR	0x43F90000
+#define MX3X_UART2_BASE_ADDR	0x43F94000
 
 static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 {
@@ -94,6 +95,9 @@ static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 	case MACH_TYPE_MX35_3DS:
 	case MACH_TYPE_PCM043:
 		uart_base = MX3X_UART1_BASE_ADDR;
+		break;
+	case MACH_TYPE_MAGX_ZN5:
+		uart_base = MX3X_UART2_BASE_ADDR;
 		break;
 	default:
 		break;

@@ -159,6 +159,7 @@ machine-$(CONFIG_ARCH_U300)		:= u300
 machine-$(CONFIG_ARCH_VERSATILE)	:= versatile
 machine-$(CONFIG_ARCH_W90X900)		:= w90x900
 machine-$(CONFIG_FOOTBRIDGE)		:= footbridge
+machine-$(CONFIG_ARCH_MXC91231)		:= mxc91231
 
 # Platform directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.

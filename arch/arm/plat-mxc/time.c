@@ -47,7 +47,7 @@
 #define MX2_TSTAT_CAPT		(1 << 1)
 #define MX2_TSTAT_COMP		(1 << 0)
 
-/* MX31, MX35, MX25 */
+/* MX31, MX35, MX25, MXC91231 */
 #define MX3_TCTL_WAITEN		(1 << 3)
 #define MX3_TCTL_CLK_IPG	(1 << 6)
 #define MX3_TCTL_FRR		(1 << 9)

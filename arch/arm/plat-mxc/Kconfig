@@ -34,12 +34,20 @@ config ARCH_MX3
 	help
 	  This enables support for systems based on the Freescale i.MX3 family
 
+config ARCH_MXC91231
+	bool "MXC91231-based"
+	select CPU_V6
+	select COMMON_CLKDEV
+	help
+	  This enables support for systems based on the Freescale MXC91231 family
+
 endchoice
 
 source "arch/arm/mach-mx1/Kconfig"
 source "arch/arm/mach-mx2/Kconfig"
 source "arch/arm/mach-mx3/Kconfig"
 source "arch/arm/mach-mx25/Kconfig"
+source "arch/arm/mach-mxc91231/Kconfig"
 
 endmenu
 

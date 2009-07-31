@@ -24,6 +24,8 @@
 #define PHYS_OFFSET		UL(0x80000000)
 #elif defined CONFIG_ARCH_MX25
 #define PHYS_OFFSET		UL(0x80000000)
+#elif defined CONFIG_ARCH_MXC91231
+#define PHYS_OFFSET		UL(0x90000000)
 #endif
 
 #if defined(CONFIG_MX1_VIDEO)
