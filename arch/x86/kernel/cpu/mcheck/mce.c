@@ -34,6 +34,7 @@
 #include <linux/smp.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/debugfs.h>
 
 #include <asm/processor.h>
 #include <asm/hw_irq.h>
@@ -2003,3 +2004,15 @@ static int __init mcheck_disable(char *str)
 	return 1;
 }
 __setup("nomce", mcheck_disable);
+
+#ifdef CONFIG_DEBUG_FS
+struct dentry *mce_get_debugfs_dir(void)
+{
+	static struct dentry *dmce;
+
+	if (!dmce)
+		dmce = debugfs_create_dir("mce", NULL);
+
+	return dmce;
+}
+#endif

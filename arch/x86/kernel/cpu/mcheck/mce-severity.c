@@ -197,7 +197,7 @@ static int __init severities_debugfs_init(void)
 {
 	struct dentry *dmce = NULL, *fseverities_coverage = NULL;
 
-	dmce = debugfs_create_dir("mce", NULL);
+	dmce = mce_get_debugfs_dir();
 	if (dmce == NULL)
 		goto err_out;
 	fseverities_coverage = debugfs_create_file("severities-coverage",
@@ -209,8 +209,6 @@ static int __init severities_debugfs_init(void)
 	return 0;
 
 err_out:
-	if (dmce)
-		debugfs_remove(dmce);
 	return -ENOMEM;
 }
 late_initcall(severities_debugfs_init);
