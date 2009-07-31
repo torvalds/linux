@@ -433,27 +433,7 @@ EXPORT_SYMBOL(blk_queue_io_opt);
  **/
 void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 {
-	/* zero is "infinity" */
-	t->limits.max_sectors = min_not_zero(queue_max_sectors(t),
-					     queue_max_sectors(b));
-
-	t->limits.max_hw_sectors = min_not_zero(queue_max_hw_sectors(t),
-						queue_max_hw_sectors(b));
-
-	t->limits.seg_boundary_mask = min_not_zero(queue_segment_boundary(t),
-						   queue_segment_boundary(b));
-
-	t->limits.max_phys_segments = min_not_zero(queue_max_phys_segments(t),
-						   queue_max_phys_segments(b));
-
-	t->limits.max_hw_segments = min_not_zero(queue_max_hw_segments(t),
-						 queue_max_hw_segments(b));
-
-	t->limits.max_segment_size = min_not_zero(queue_max_segment_size(t),
-						  queue_max_segment_size(b));
-
-	t->limits.logical_block_size = max(queue_logical_block_size(t),
-					   queue_logical_block_size(b));
+	blk_stack_limits(&t->limits, &b->limits, 0);
 
 	if (!t->queue_lock)
 		WARN_ON_ONCE(1);
