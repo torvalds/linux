@@ -1822,10 +1822,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 		env = ENVIRON_OUTDOOR;
 
 	/*
-	 * We will run this for *every* beacon processed for the BSSID, so
-	 * we optimize an early check to exit out early if we don't have to
-	 * do anything
-	 *
+	 * We will run this only upon a successful connection on cfg80211.
 	 * We leave conflict resolution to the workqueue, where can hold
 	 * cfg80211_mutex.
 	 */
@@ -1878,7 +1875,6 @@ free_rd_out:
 out:
 	mutex_unlock(&reg_mutex);
 }
-EXPORT_SYMBOL(regulatory_hint_11d);
 
 static bool freq_is_chan_12_13_14(u16 freq)
 {

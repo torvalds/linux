@@ -1845,12 +1845,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					       bssid, ap_ht_cap_flags);
 	}
 
+	/* Note: country IE parsing is done for us by cfg80211 */
 	if (elems.country_elem) {
-		/* Note we are only reviewing this on beacons
-		 * for the BSSID we are associated to */
-		regulatory_hint_11d(local->hw.wiphy,
-			elems.country_elem, elems.country_elem_len);
-
 		/* TODO: IBSS also needs this */
 		if (elems.pwr_constr_elem)
 			ieee80211_handle_pwr_constr(sdata,
