@@ -341,7 +341,7 @@ static int init_slram(void)
 #else
 	int count;
 
-	for (count = 0; (map[count]) && (count < SLRAM_MAX_DEVICES_PARAMS);
+	for (count = 0; count < SLRAM_MAX_DEVICES_PARAMS && map[count];
 			count++) {
 	}
 
