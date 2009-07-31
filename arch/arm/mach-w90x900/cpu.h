@@ -45,6 +45,7 @@ extern void w90p910_init_clocks(void);
 extern void w90p910_map_io(struct map_desc *mach_desc, int size);
 extern struct platform_device w90p910_serial_device;
 extern struct sys_timer w90x900_timer;
+extern void w90p910_clock_source(struct device *dev, unsigned char *src);
 
 #define W90X900_8250PORT(name)					\
 {								\

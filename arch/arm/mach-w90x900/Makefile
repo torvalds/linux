@@ -5,7 +5,7 @@
 # Object file lists.
 
 obj-y				:= irq.o time.o mfp-w90p910.o gpio.o clock.o
-
+obj-y				+= clksel.o
 # W90X900 CPU support files
 
 obj-$(CONFIG_CPU_W90P910)	+= w90p910.o

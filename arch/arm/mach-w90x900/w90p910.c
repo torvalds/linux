@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/serial_8250.h>
+#include <linux/delay.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -32,6 +33,8 @@
 
 #include <mach/hardware.h>
 #include <mach/regs-serial.h>
+#include <mach/regs-clock.h>
+#include <mach/regs-ebi.h>
 
 #include "cpu.h"
 #include "clock.h"
@@ -122,6 +125,83 @@ void __init w90p910_map_io(struct map_desc *mach_desc, int mach_size)
 	if (idcode != W90P910_CPUID)
 		printk(KERN_ERR "CPU type 0x%08lx is not W90P910\n", idcode);
 }
+
+/*Set W90P910 cpu frequence*/
+static int __init w90p910_set_clkval(unsigned int cpufreq)
+{
+	unsigned int pllclk, ahbclk, apbclk, val;
+
+	pllclk = 0;
+	ahbclk = 0;
+	apbclk = 0;
+
+	switch (cpufreq) {
+	case 66:
+		pllclk = PLL_66MHZ;
+		ahbclk = AHB_CPUCLK_1_1;
+		apbclk = APB_AHB_1_2;
+		break;
+
+	case 100:
+		pllclk = PLL_100MHZ;
+		ahbclk = AHB_CPUCLK_1_1;
+		apbclk = APB_AHB_1_2;
+		break;
+
+	case 120:
+		pllclk = PLL_120MHZ;
+		ahbclk = AHB_CPUCLK_1_2;
+		apbclk = APB_AHB_1_2;
+		break;
+
+	case 166:
+		pllclk = PLL_166MHZ;
+		ahbclk = AHB_CPUCLK_1_2;
+		apbclk = APB_AHB_1_2;
+		break;
+
+	case 200:
+		pllclk = PLL_200MHZ;
+		ahbclk = AHB_CPUCLK_1_2;
+		apbclk = APB_AHB_1_2;
+		break;
+	}
+
+	__raw_writel(pllclk, REG_PLLCON0);
+
+	val = __raw_readl(REG_CLKDIV);
+	val &= ~(0x03 << 24 | 0x03 << 26);
+	val |= (ahbclk << 24 | apbclk << 26);
+	__raw_writel(val, REG_CLKDIV);
+
+	return 	0;
+}
+static int __init w90p910_set_cpufreq(char *str)
+{
+	unsigned long cpufreq, val;
+
+	if (!*str)
+		return 0;
+
+	strict_strtoul(str, 0, &cpufreq);
+
+	w90p910_clock_source(NULL, "ext");
+
+	w90p910_set_clkval(cpufreq);
+
+	mdelay(1);
+
+	val = __raw_readl(REG_CKSKEW);
+	val &= ~0xff;
+	val |= DEFAULTSKEW;
+	__raw_writel(val, REG_CKSKEW);
+
+	w90p910_clock_source(NULL, "pll0");
+
+	return 1;
+}
+
+__setup("cpufreq=", w90p910_set_cpufreq);
 
 /*Init W90P910 clock*/
 
