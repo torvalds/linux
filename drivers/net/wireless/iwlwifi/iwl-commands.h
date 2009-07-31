@@ -2413,6 +2413,13 @@ struct iwl_ct_kill_config {
 	__le32   critical_temperature_R;
 }  __attribute__ ((packed));
 
+/* 1000, and 6x00 */
+struct iwl_ct_kill_throttling_config {
+	__le32   critical_temperature_exit;
+	__le32   reserved;
+	__le32   critical_temperature_enter;
+}  __attribute__ ((packed));
+
 /******************************************************************************
  * (8)
  * Scan Commands, Responses, Notifications:

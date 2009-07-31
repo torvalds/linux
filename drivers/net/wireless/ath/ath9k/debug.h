@@ -35,6 +35,15 @@ enum ATH_DEBUG {
 
 #define DBG_DEFAULT (ATH_DBG_FATAL)
 
+struct ath_txq;
+struct ath_buf;
+
+#ifdef CONFIG_ATH9K_DEBUG
+#define TX_STAT_INC(q, c) sc->debug.stats.txstats[q].c++
+#else
+#define TX_STAT_INC(q, c) do { } while (0)
+#endif
+
 #ifdef CONFIG_ATH9K_DEBUG
 
 /**
@@ -87,9 +96,45 @@ struct ath_rc_stats {
 	u8 per;
 };
 
+/**
+ * struct ath_tx_stats - Statistics about TX
+ * @queued: Total MPDUs (non-aggr) queued
+ * @completed: Total MPDUs (non-aggr) completed
+ * @a_aggr: Total no. of aggregates queued
+ * @a_queued: Total AMPDUs queued
+ * @a_completed: Total AMPDUs completed
+ * @a_retries: No. of AMPDUs retried (SW)
+ * @a_xretries: No. of AMPDUs dropped due to xretries
+ * @fifo_underrun: FIFO underrun occurrences
+	Valid only for:
+		- non-aggregate condition.
+		- first packet of aggregate.
+ * @xtxop: No. of frames filtered because of TXOP limit
+ * @timer_exp: Transmit timer expiry
+ * @desc_cfg_err: Descriptor configuration errors
+ * @data_urn: TX data underrun errors
+ * @delim_urn: TX delimiter underrun errors
+ */
+struct ath_tx_stats {
+	u32 queued;
+	u32 completed;
+	u32 a_aggr;
+	u32 a_queued;
+	u32 a_completed;
+	u32 a_retries;
+	u32 a_xretries;
+	u32 fifo_underrun;
+	u32 xtxop;
+	u32 timer_exp;
+	u32 desc_cfg_err;
+	u32 data_underrun;
+	u32 delim_underrun;
+};
+
 struct ath_stats {
 	struct ath_interrupt_stats istats;
 	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
+	struct ath_tx_stats txstats[ATH9K_NUM_TX_QUEUES];
 };
 
 struct ath9k_debug {
@@ -100,6 +145,7 @@ struct ath9k_debug {
 	struct dentry *debugfs_interrupt;
 	struct dentry *debugfs_rcstat;
 	struct dentry *debugfs_wiphy;
+	struct dentry *debugfs_xmit;
 	struct ath_stats stats;
 };
 
@@ -110,6 +156,8 @@ int ath9k_debug_create_root(void);
 void ath9k_debug_remove_root(void);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb);
+void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
+		       struct ath_buf *bf);
 void ath_debug_stat_retries(struct ath_softc *sc, int rix,
 			    int xretries, int retries, u8 per);
 
@@ -145,6 +193,12 @@ static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 
 static inline void ath_debug_stat_rc(struct ath_softc *sc,
 				     struct sk_buff *skb)
+{
+}
+
+static inline void ath_debug_stat_tx(struct ath_softc *sc,
+				     struct ath_txq *txq,
+				     struct ath_buf *bf)
 {
 }
 

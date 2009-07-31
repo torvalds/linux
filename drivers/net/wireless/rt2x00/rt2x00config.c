@@ -124,7 +124,7 @@ enum antenna rt2x00lib_config_antenna_check(enum antenna current_ant,
 }
 
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
-			      struct antenna_setup *ant)
+			      struct antenna_setup ant)
 {
 	struct antenna_setup *def = &rt2x00dev->default_ant;
 	struct antenna_setup *active = &rt2x00dev->link.ant.active;
@@ -138,10 +138,10 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * might have caused that we restore back to the already
 	 * active setting. If that has happened we can quit.
 	 */
-	ant->rx = rt2x00lib_config_antenna_check(ant->rx, def->rx);
-	ant->tx = rt2x00lib_config_antenna_check(ant->tx, def->tx);
+	ant.rx = rt2x00lib_config_antenna_check(ant.rx, def->rx);
+	ant.tx = rt2x00lib_config_antenna_check(ant.tx, def->tx);
 
-	if (ant->rx == active->rx && ant->tx == active->tx)
+	if (ant.rx == active->rx && ant.tx == active->tx)
 		return;
 
 	/*
@@ -156,11 +156,11 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * The latter is required since we need to recalibrate the
 	 * noise-sensitivity ratio for the new setup.
 	 */
-	rt2x00dev->ops->lib->config_ant(rt2x00dev, ant);
+	rt2x00dev->ops->lib->config_ant(rt2x00dev, &ant);
 
 	rt2x00link_reset_tuner(rt2x00dev, true);
 
-	memcpy(active, ant, sizeof(*ant));
+	memcpy(active, &ant, sizeof(ant));
 
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);

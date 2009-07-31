@@ -91,7 +91,7 @@ static int iwl5000_apm_stop_master(struct iwl_priv *priv)
 }
 
 
-static int iwl5000_apm_init(struct iwl_priv *priv)
+int iwl5000_apm_init(struct iwl_priv *priv)
 {
 	int ret = 0;
 
@@ -137,7 +137,7 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 }
 
 /* FIXME: this is identical to 4965 */
-static void iwl5000_apm_stop(struct iwl_priv *priv)
+void iwl5000_apm_stop(struct iwl_priv *priv)
 {
 	unsigned long flags;
 
@@ -156,7 +156,7 @@ static void iwl5000_apm_stop(struct iwl_priv *priv)
 }
 
 
-static int iwl5000_apm_reset(struct iwl_priv *priv)
+int iwl5000_apm_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
 
@@ -198,7 +198,7 @@ out:
 }
 
 
-static void iwl5000_nic_config(struct iwl_priv *priv)
+void iwl5000_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	u16 radio_cfg;
@@ -290,7 +290,7 @@ static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
 	return (address & ADDRESS_MSK) + (offset << 1);
 }
 
-static u16 iwl5000_eeprom_calib_version(struct iwl_priv *priv)
+u16 iwl5000_eeprom_calib_version(struct iwl_priv *priv)
 {
 	struct iwl_eeprom_calib_hdr {
 		u8 version;
@@ -436,7 +436,7 @@ static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 	.nrg_th_ofdm = 95,
 };
 
-static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
+const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 					   size_t offset)
 {
 	u32 address = eeprom_indirect_address(priv, offset);
@@ -447,7 +447,7 @@ static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 static void iwl5150_set_ct_threshold(struct iwl_priv *priv)
 {
 	const s32 volt2temp_coef = IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF;
-	s32 threshold = (s32)CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD) -
+	s32 threshold = (s32)CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD_LEGACY) -
 			iwl_temp_calib_to_offset(priv);
 
 	priv->hw_params.ct_kill_threshold = threshold * volt2temp_coef;
@@ -456,7 +456,7 @@ static void iwl5150_set_ct_threshold(struct iwl_priv *priv)
 static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
 {
 	/* want Celsius */
-	priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD;
+	priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
 }
 
 /*
@@ -631,7 +631,7 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 	return ret;
 }
 
-static int iwl5000_load_ucode(struct iwl_priv *priv)
+int iwl5000_load_ucode(struct iwl_priv *priv)
 {
 	int ret = 0;
 
@@ -658,7 +658,7 @@ static int iwl5000_load_ucode(struct iwl_priv *priv)
 	return ret;
 }
 
-static void iwl5000_init_alive_start(struct iwl_priv *priv)
+void iwl5000_init_alive_start(struct iwl_priv *priv)
 {
 	int ret = 0;
 
@@ -734,7 +734,7 @@ static int iwl5000_send_wimax_coex(struct iwl_priv *priv)
 				sizeof(coex_cmd), &coex_cmd);
 }
 
-static int iwl5000_alive_notify(struct iwl_priv *priv)
+int iwl5000_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
 	unsigned long flags;
@@ -821,7 +821,7 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 	return 0;
 }
 
-static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
+int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if ((priv->cfg->mod_params->num_of_queues > IWL50_NUM_QUEUES) ||
 	    (priv->cfg->mod_params->num_of_queues < IWL_MIN_NUM_QUEUES)) {
@@ -892,7 +892,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 /**
  * iwl5000_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */
-static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
+void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 					    struct iwl_tx_queue *txq,
 					    u16 byte_cnt)
 {
@@ -932,7 +932,7 @@ static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 			tfd_offset[TFD_QUEUE_SIZE_MAX + write_ptr] = bc_ent;
 }
 
-static void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
+void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 					   struct iwl_tx_queue *txq)
 {
 	struct iwl5000_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
@@ -987,7 +987,7 @@ static void iwl5000_tx_queue_stop_scheduler(struct iwl_priv *priv, u16 txq_id)
 		(1 << IWL50_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
-static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
+int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 				  int tx_fifo, int sta_id, int tid, u16 ssn_idx)
 {
 	unsigned long flags;
@@ -1048,7 +1048,7 @@ static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	return 0;
 }
 
-static int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
+int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 				   u16 ssn_idx, u8 tx_fifo)
 {
 	if ((IWL50_FIRST_AMPDU_QUEUE > txq_id) ||
@@ -1091,7 +1091,7 @@ u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
  * Activate/Deactivate Tx DMA/FIFO channels according tx fifos mask
  * must be called under priv->lock and mac access
  */
-static void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask)
+void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask)
 {
 	iwl_write_prph(priv, IWL50_SCD_TXFACT, mask);
 }
@@ -1312,13 +1312,13 @@ u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len)
 	return len;
 }
 
-static void iwl5000_setup_deferred_work(struct iwl_priv *priv)
+void iwl5000_setup_deferred_work(struct iwl_priv *priv)
 {
 	/* in 5000 the tx power calibration is done in uCode */
 	priv->disable_tx_power_cal = 1;
 }
 
-static void iwl5000_rx_handler_setup(struct iwl_priv *priv)
+void iwl5000_rx_handler_setup(struct iwl_priv *priv)
 {
 	/* init calibration handlers */
 	priv->rx_handlers[CALIBRATION_RES_NOTIFICATION] =
@@ -1329,7 +1329,7 @@ static void iwl5000_rx_handler_setup(struct iwl_priv *priv)
 }
 
 
-static int iwl5000_hw_valid_rtc_data_addr(u32 addr)
+int iwl5000_hw_valid_rtc_data_addr(u32 addr)
 {
 	return (addr >= IWL50_RTC_DATA_LOWER_BOUND) &&
 		(addr < IWL50_RTC_DATA_UPPER_BOUND);
@@ -1381,7 +1381,7 @@ static int iwl5000_send_rxon_assoc(struct iwl_priv *priv)
 
 	return ret;
 }
-static int  iwl5000_send_tx_power(struct iwl_priv *priv)
+int  iwl5000_send_tx_power(struct iwl_priv *priv)
 {
 	struct iwl5000_tx_power_dbm_cmd tx_power_cmd;
 	u8 tx_ant_cfg_cmd;
@@ -1401,10 +1401,11 @@ static int  iwl5000_send_tx_power(struct iwl_priv *priv)
 				       NULL);
 }
 
-static void iwl5000_temperature(struct iwl_priv *priv)
+void iwl5000_temperature(struct iwl_priv *priv)
 {
 	/* store temperature from statistics (in Celsius) */
 	priv->temperature = le32_to_cpu(priv->statistics.general.temperature);
+	iwl_tt_handler(priv);
 }
 
 static void iwl5150_temperature(struct iwl_priv *priv)

@@ -18,6 +18,6 @@ config ATH9K_DEBUG
 	  Say Y, if you need ath9k to display debug messages.
 	  Pass the debug mask as a module parameter:
 
-	  modprobe ath9k debug=0x00002000
+	  modprobe ath9k debug=0x00000200
 
-	  Look in ath9k/core.h for possible debug masks
+	  Look in ath9k/debug.h for possible debug masks

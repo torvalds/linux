@@ -776,7 +776,8 @@ static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
 static void iwl4965_set_ct_threshold(struct iwl_priv *priv)
 {
 	/* want Kelvin */
-	priv->hw_params.ct_kill_threshold = CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+	priv->hw_params.ct_kill_threshold =
+		CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD_LEGACY);
 }
 
 /**
@@ -1796,6 +1797,7 @@ static void iwl4965_temperature_calib(struct iwl_priv *priv)
 	}
 
 	priv->temperature = temp;
+	iwl_tt_handler(priv);
 	set_bit(STATUS_TEMPERATURE, &priv->status);
 
 	if (!priv->disable_tx_power_cal &&

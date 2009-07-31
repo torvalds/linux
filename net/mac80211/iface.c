@@ -335,7 +335,10 @@ static int ieee80211_stop(struct net_device *dev)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
+	unsigned long flags;
+	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
+	int i;
 
 	/*
 	 * Stop TX on this interface first.
@@ -515,7 +518,7 @@ static int ieee80211_stop(struct net_device *dev)
 			 * the scan_sdata is NULL already don't send out a
 			 * scan event to userspace -- the scan is incomplete.
 			 */
-			if (local->sw_scanning)
+			if (test_bit(SCAN_SW_SCANNING, &local->scanning))
 				ieee80211_scan_completed(&local->hw, true);
 		}
 
@@ -550,6 +553,18 @@ static int ieee80211_stop(struct net_device *dev)
 	/* do after stop to avoid reconfiguring when we stop anyway */
 	if (hw_reconf_flags)
 		ieee80211_hw_config(local, hw_reconf_flags);
+
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
+		skb_queue_walk_safe(&local->pending[i], skb, tmp) {
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+			if (info->control.vif == &sdata->vif) {
+				__skb_unlink(skb, &local->pending[i]);
+				dev_kfree_skb_irq(skb);
+			}
+		}
+	}
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
 	return 0;
 }
@@ -669,7 +684,6 @@ static void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	dev->netdev_ops = &ieee80211_dataif_ops;
-	dev->wireless_handlers = &ieee80211_iw_handler_def;
 	dev->destructor = free_netdev;
 }
 
@@ -772,6 +786,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 			    name, ieee80211_if_setup);
 	if (!ndev)
 		return -ENOMEM;
+	dev_net_set(ndev, wiphy_net(local->hw.wiphy));
 
 	ndev->needed_headroom = local->tx_headroom +
 				4*6 /* four MAC addresses */
@@ -788,7 +803,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	memcpy(ndev->dev_addr, local->hw.wiphy->perm_addr, ETH_ALEN);
 	SET_NETDEV_DEV(ndev, wiphy_dev(local->hw.wiphy));
-	ndev->features |= NETIF_F_NETNS_LOCAL;
 
 	/* don't use IEEE80211_DEV_TO_SUB_IF because it checks too much */
 	sdata = netdev_priv(ndev);
@@ -905,7 +919,7 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	int count = 0;
 
-	if (local->hw_scanning || local->sw_scanning)
+	if (local->scanning)
 		return ieee80211_idle_off(local, "scanning");
 
 	list_for_each_entry(sdata, &local->interfaces, list) {

@@ -100,6 +100,8 @@
 #define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
 #define OLC_FOR_AR9280_20_LATER (AR_SREV_9280_20_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
+#define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_10_OR_LATER(ah) && \
+				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 
 #define AR_EEPROM_RFSILENT_GPIO_SEL     0x001c
 #define AR_EEPROM_RFSILENT_GPIO_SEL_S   2
@@ -176,6 +178,57 @@
 
 #define AR9280_TX_GAIN_TABLE_SIZE 22
 
+#define AR9287_EEP_VER               0xE
+#define AR9287_EEP_VER_MINOR_MASK    0xFFF
+#define AR9287_EEP_MINOR_VER_1       0x1
+#define AR9287_EEP_MINOR_VER_2       0x2
+#define AR9287_EEP_MINOR_VER_3       0x3
+#define AR9287_EEP_MINOR_VER         AR9287_EEP_MINOR_VER_3
+#define AR9287_EEP_MINOR_VER_b       AR9287_EEP_MINOR_VER
+#define AR9287_EEP_NO_BACK_VER       AR9287_EEP_MINOR_VER_1
+
+#define AR9287_EEP_START_LOC            128
+#define AR9287_NUM_2G_CAL_PIERS         3
+#define AR9287_NUM_2G_CCK_TARGET_POWERS 3
+#define AR9287_NUM_2G_20_TARGET_POWERS  3
+#define AR9287_NUM_2G_40_TARGET_POWERS  3
+#define AR9287_NUM_CTLS              	12
+#define AR9287_NUM_BAND_EDGES        	4
+#define AR9287_NUM_PD_GAINS             4
+#define AR9287_PD_GAINS_IN_MASK         4
+#define AR9287_PD_GAIN_ICEPTS           1
+#define AR9287_EEPROM_MODAL_SPURS       5
+#define AR9287_MAX_RATE_POWER           63
+#define AR9287_NUM_PDADC_VALUES         128
+#define AR9287_NUM_RATES                16
+#define AR9287_BCHAN_UNUSED             0xFF
+#define AR9287_MAX_PWR_RANGE_IN_HALF_DB 64
+#define AR9287_OPFLAGS_11A              0x01
+#define AR9287_OPFLAGS_11G              0x02
+#define AR9287_OPFLAGS_2G_HT40          0x08
+#define AR9287_OPFLAGS_2G_HT20          0x20
+#define AR9287_OPFLAGS_5G_HT40          0x04
+#define AR9287_OPFLAGS_5G_HT20          0x10
+#define AR9287_EEPMISC_BIG_ENDIAN       0x01
+#define AR9287_EEPMISC_WOW              0x02
+#define AR9287_MAX_CHAINS               2
+#define AR9287_ANT_16S                  32
+#define AR9287_custdatasize             20
+
+#define AR9287_NUM_ANT_CHAIN_FIELDS     6
+#define AR9287_NUM_ANT_COMMON_FIELDS    4
+#define AR9287_SIZE_ANT_CHAIN_FIELD     2
+#define AR9287_SIZE_ANT_COMMON_FIELD    4
+#define AR9287_ANT_CHAIN_MASK           0x3
+#define AR9287_ANT_COMMON_MASK          0xf
+#define AR9287_CHAIN_0_IDX              0
+#define AR9287_CHAIN_1_IDX              1
+#define AR9287_DATA_SZ                  32
+
+#define AR9287_PWR_TABLE_OFFSET_DB  -5
+
+#define AR9287_CHECKSUM_LOCATION (AR9287_EEP_START_LOC + 1)
+
 enum eeprom_param {
 	EEP_NFTHRESH_5,
 	EEP_NFTHRESH_2,
@@ -199,7 +252,11 @@ enum eeprom_param {
 	EEP_OL_PWRCTRL,
 	EEP_RC_CHAIN_MASK,
 	EEP_DAC_HPWR_5G,
-	EEP_FRAC_N_5G
+	EEP_FRAC_N_5G,
+	EEP_DEV_TYPE,
+	EEP_TEMPSENSE_SLOPE,
+	EEP_TEMPSENSE_SLOPE_PAL_ON,
+	EEP_PWR_TABLE_OFFSET
 };
 
 enum ar5416_rates {
@@ -368,6 +425,65 @@ struct modal_eep_4k_header {
 	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
 } __packed;
 
+struct base_eep_ar9287_header {
+    u16  length;
+    u16  checksum;
+    u16  version;
+    u8 opCapFlags;
+    u8   eepMisc;
+    u16  regDmn[2];
+    u8   macAddr[6];
+    u8   rxMask;
+    u8   txMask;
+    u16  rfSilent;
+    u16  blueToothOptions;
+    u16  deviceCap;
+    u32  binBuildNumber;
+    u8   deviceType;
+    u8   openLoopPwrCntl;
+    int8_t    pwrTableOffset;
+    int8_t     tempSensSlope;
+    int8_t     tempSensSlopePalOn;
+    u8   futureBase[29];
+} __packed;
+
+struct modal_eep_ar9287_header {
+    u32  antCtrlChain[AR9287_MAX_CHAINS];
+    u32  antCtrlCommon;
+    int8_t    antennaGainCh[AR9287_MAX_CHAINS];
+    u8   switchSettling;
+    u8   txRxAttenCh[AR9287_MAX_CHAINS];
+    u8   rxTxMarginCh[AR9287_MAX_CHAINS];
+    int8_t    adcDesiredSize;
+    u8   txEndToXpaOff;
+    u8   txEndToRxOn;
+    u8   txFrameToXpaOn;
+    u8   thresh62;
+    int8_t    noiseFloorThreshCh[AR9287_MAX_CHAINS];
+    u8   xpdGain;
+    u8   xpd;
+    int8_t    iqCalICh[AR9287_MAX_CHAINS];
+    int8_t    iqCalQCh[AR9287_MAX_CHAINS];
+    u8   pdGainOverlap;
+    u8   xpaBiasLvl;
+    u8   txFrameToDataStart;
+    u8   txFrameToPaOn;
+    u8   ht40PowerIncForPdadc;
+    u8   bswAtten[AR9287_MAX_CHAINS];
+    u8   bswMargin[AR9287_MAX_CHAINS];
+    u8   swSettleHt40;
+	u8   version;
+    u8   db1;
+    u8   db2;
+    u8   ob_cck;
+    u8   ob_psk;
+    u8   ob_qam;
+    u8   ob_pal_off;
+    u8   futureModal[30];
+    struct spur_chan spurChans[AR9287_EEPROM_MODAL_SPURS];
+} __packed;
+
+
 
 struct cal_data_per_freq {
 	u8 pwrPdg[AR5416_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
@@ -401,6 +517,29 @@ struct cal_ctl_edges {
 	u8 tPower:6, flag:2;
 } __packed;
 #endif
+
+struct cal_data_op_loop_ar9287 {
+	u8 pwrPdg[2][5];
+	u8 vpdPdg[2][5];
+	u8 pcdac[2][5];
+	u8 empty[2][5];
+} __packed;
+
+
+struct cal_data_per_freq_ar9287 {
+	u8 pwrPdg[AR9287_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
+	u8 vpdPdg[AR9287_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
+} __packed;
+
+union cal_data_per_freq_ar9287_u {
+	struct cal_data_op_loop_ar9287 calDataOpen;
+	struct cal_data_per_freq_ar9287 calDataClose;
+} __packed;
+
+struct cal_ctl_data_ar9287 {
+	struct cal_ctl_edges
+	ctlEdges[AR9287_MAX_CHAINS][AR9287_NUM_BAND_EDGES];
+} __packed;
 
 struct cal_ctl_data {
 	struct cal_ctl_edges
@@ -461,6 +600,27 @@ struct ar5416_eeprom_4k {
 	u8 padding;
 } __packed;
 
+struct ar9287_eeprom_t {
+	struct base_eep_ar9287_header  baseEepHeader;
+	u8 custData[AR9287_DATA_SZ];
+	struct modal_eep_ar9287_header modalHeader;
+	u8 calFreqPier2G[AR9287_NUM_2G_CAL_PIERS];
+	union cal_data_per_freq_ar9287_u
+	 calPierData2G[AR9287_MAX_CHAINS][AR9287_NUM_2G_CAL_PIERS];
+	struct cal_target_power_leg
+	 calTargetPowerCck[AR9287_NUM_2G_CCK_TARGET_POWERS];
+	struct cal_target_power_leg
+	 calTargetPower2G[AR9287_NUM_2G_20_TARGET_POWERS];
+	struct cal_target_power_ht
+	 calTargetPower2GHT20[AR9287_NUM_2G_20_TARGET_POWERS];
+	struct cal_target_power_ht
+	 calTargetPower2GHT40[AR9287_NUM_2G_40_TARGET_POWERS];
+	u8 ctlIndex[AR9287_NUM_CTLS];
+	struct cal_ctl_data_ar9287 ctlData[AR9287_NUM_CTLS];
+	u8 padding;
+} __packed;
+
+
 enum reg_ext_bitmap {
 	REG_EXT_JAPAN_MIDBAND = 1,
 	REG_EXT_FCC_DFS_HT40 = 2,
@@ -480,6 +640,7 @@ struct ath9k_country_entry {
 enum ath9k_eep_map {
 	EEP_MAP_DEFAULT = 0x0,
 	EEP_MAP_4KBITS,
+	EEP_MAP_AR9287,
 	EEP_MAP_MAX
 };
 

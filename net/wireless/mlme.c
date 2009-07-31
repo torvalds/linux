@@ -8,7 +8,9 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/nl80211.h>
+#include <linux/wireless.h>
 #include <net/cfg80211.h>
+#include <net/iw_handler.h>
 #include "core.h"
 #include "nl80211.h"
 
@@ -544,6 +546,12 @@ static int __cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 	struct cfg80211_disassoc_request req;
 
 	ASSERT_WDEV_LOCK(wdev);
+
+	if (wdev->sme_state != CFG80211_SME_CONNECTED)
+		return -ENOTCONN;
+
+	if (WARN_ON(!wdev->current_bss))
+		return -ENOTCONN;
 
 	memset(&req, 0, sizeof(req));
 	req.reason_code = reason;

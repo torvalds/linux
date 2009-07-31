@@ -442,8 +442,8 @@ void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	/* Unmap tx_cmd */
 	if (num_tbs)
 		pci_unmap_single(dev,
-				pci_unmap_addr(&txq->cmd[index]->meta, mapping),
-				pci_unmap_len(&txq->cmd[index]->meta, len),
+				pci_unmap_addr(&txq->meta[index], mapping),
+				pci_unmap_len(&txq->meta[index], len),
 				PCI_DMA_BIDIRECTIONAL);
 
 	/* Unmap chunks, if any. */
@@ -637,7 +637,6 @@ static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = priv->status;
-	unsigned long reg_flags;
 
 	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
@@ -657,19 +656,12 @@ static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 			iwl_write_direct32(priv, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
-
 		}
-
-		if (flags & RF_CARD_DISABLED) {
-			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
-				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
-			iwl_read32(priv, CSR_UCODE_DRV_GP1);
-			spin_lock_irqsave(&priv->reg_lock, reg_flags);
-			if (!iwl_grab_nic_access(priv))
-				iwl_release_nic_access(priv);
-			spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
-		}
+		if (flags & RF_CARD_DISABLED)
+			iwl_tt_enter_ct_kill(priv);
 	}
+	if (!(flags & RF_CARD_DISABLED))
+		iwl_tt_exit_ct_kill(priv);
 
 	if (flags & HW_CARD_DISABLED)
 		set_bit(STATUS_RF_KILL_HW, &priv->status);
@@ -3015,6 +3007,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		test_bit(STATUS_RF_KILL_HW, &priv->status));
 
 	iwl_power_initialize(priv);
+	iwl_tt_initialize(priv);
 	return 0;
 
  out_remove_sysfs:
@@ -3066,6 +3059,8 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	} else {
 		iwl_down(priv);
 	}
+
+	iwl_tt_exit(priv);
 
 	/* make sure we flush any pending irq or
 	 * tasklet for the driver

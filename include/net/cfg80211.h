@@ -542,7 +542,7 @@ struct cfg80211_ssid {
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
  * @wiphy: the wiphy this was for
- * @ifidx: the interface index
+ * @dev: the interface
  */
 struct cfg80211_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -554,7 +554,7 @@ struct cfg80211_scan_request {
 
 	/* internal */
 	struct wiphy *wiphy;
-	int ifidx;
+	struct net_device *dev;
 	bool aborted;
 };
 
@@ -845,7 +845,8 @@ struct cfg80211_bitrate_mask {
  * @resume: wiphy device needs to be resumed
  *
  * @add_virtual_intf: create a new virtual interface with the given name,
- *	must set the struct wireless_dev's iftype.
+ *	must set the struct wireless_dev's iftype. Beware: You must create
+ *	the new netdev in the wiphy's network namespace!
  *
  * @del_virtual_intf: remove the virtual interface determined by ifindex.
  *
@@ -937,7 +938,7 @@ struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
 				    enum nl80211_iftype type, u32 *flags,
 				    struct vif_params *params);
-	int	(*del_virtual_intf)(struct wiphy *wiphy, int ifindex);
+	int	(*del_virtual_intf)(struct wiphy *wiphy, struct net_device *dev);
 	int	(*change_virtual_intf)(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       enum nl80211_iftype type, u32 *flags,
@@ -1088,6 +1089,9 @@ struct cfg80211_ops {
  * @frag_threshold: Fragmentation threshold (dot11FragmentationThreshold);
  *	-1 = fragmentation disabled, only odd values >= 256 used
  * @rts_threshold: RTS threshold (dot11RTSThreshold); -1 = RTS/CTS disabled
+ * @net: the network namespace this wiphy currently lives in
+ * @netnsok: if set to false, do not allow changing the netns of this
+ *	wiphy at all
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -1100,6 +1104,8 @@ struct wiphy {
 
 	bool custom_regulatory;
 	bool strict_regulatory;
+
+	bool netnsok;
 
 	enum cfg80211_signal_type signal_type;
 
@@ -1139,8 +1145,34 @@ struct wiphy {
 	/* dir in debugfs: ieee80211/<wiphyname> */
 	struct dentry *debugfsdir;
 
+#ifdef CONFIG_NET_NS
+	/* the network namespace this phy lives in currently */
+	struct net *_net;
+#endif
+
 	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
+
+#ifdef CONFIG_NET_NS
+static inline struct net *wiphy_net(struct wiphy *wiphy)
+{
+	return wiphy->_net;
+}
+
+static inline void wiphy_net_set(struct wiphy *wiphy, struct net *net)
+{
+	wiphy->_net = net;
+}
+#else
+static inline struct net *wiphy_net(struct wiphy *wiphy)
+{
+	return &init_net;
+}
+
+static inline void wiphy_net_set(struct wiphy *wiphy, struct net *net)
+{
+}
+#endif
 
 /**
  * wiphy_priv - return priv from wiphy
@@ -1563,43 +1595,6 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 int cfg80211_wext_giwrange(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_point *data, char *extra);
-int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
-			       struct iw_request_info *info,
-			       struct iw_freq *freq, char *extra);
-int cfg80211_ibss_wext_giwfreq(struct net_device *dev,
-			       struct iw_request_info *info,
-			       struct iw_freq *freq, char *extra);
-int cfg80211_ibss_wext_siwessid(struct net_device *dev,
-				struct iw_request_info *info,
-				struct iw_point *data, char *ssid);
-int cfg80211_ibss_wext_giwessid(struct net_device *dev,
-				struct iw_request_info *info,
-				struct iw_point *data, char *ssid);
-int cfg80211_ibss_wext_siwap(struct net_device *dev,
-			     struct iw_request_info *info,
-			     struct sockaddr *ap_addr, char *extra);
-int cfg80211_ibss_wext_giwap(struct net_device *dev,
-			     struct iw_request_info *info,
-			     struct sockaddr *ap_addr, char *extra);
-
-int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
-			      struct iw_request_info *info,
-			      struct iw_freq *freq, char *extra);
-int cfg80211_mgd_wext_giwfreq(struct net_device *dev,
-			      struct iw_request_info *info,
-			      struct iw_freq *freq, char *extra);
-int cfg80211_mgd_wext_siwessid(struct net_device *dev,
-			       struct iw_request_info *info,
-			       struct iw_point *data, char *ssid);
-int cfg80211_mgd_wext_giwessid(struct net_device *dev,
-			       struct iw_request_info *info,
-			       struct iw_point *data, char *ssid);
-int cfg80211_mgd_wext_siwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *ap_addr, char *extra);
-int cfg80211_mgd_wext_giwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *ap_addr, char *extra);
 int cfg80211_wext_siwgenie(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_point *data, char *extra);
@@ -1610,9 +1605,18 @@ int cfg80211_wext_giwauth(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_param *data, char *extra);
 
-struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
-					     struct iw_freq *freq);
-
+int cfg80211_wext_siwfreq(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_freq *freq, char *extra);
+int cfg80211_wext_giwfreq(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_freq *freq, char *extra);
+int cfg80211_wext_siwessid(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *ssid);
+int cfg80211_wext_giwessid(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *ssid);
 int cfg80211_wext_siwrate(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_param *rate, char *extra);
@@ -1662,12 +1666,12 @@ int cfg80211_wext_giwpower(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_param *wrq, char *extra);
 
-int cfg80211_wds_wext_siwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *addr, char *extra);
-int cfg80211_wds_wext_giwap(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct sockaddr *addr, char *extra);
+int cfg80211_wext_siwap(struct net_device *dev,
+			struct iw_request_info *info,
+			struct sockaddr *ap_addr, char *extra);
+int cfg80211_wext_giwap(struct net_device *dev,
+			struct iw_request_info *info,
+			struct sockaddr *ap_addr, char *extra);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification

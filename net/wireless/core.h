@@ -66,6 +66,9 @@ struct cfg80211_registered_device {
 	struct work_struct conn_work;
 	struct work_struct event_work;
 
+	/* current channel */
+	struct ieee80211_channel *channel;
+
 #ifdef CONFIG_CFG80211_DEBUGFS
 	/* Debugfs entries */
 	struct wiphy_debugfsdentries {
@@ -170,7 +173,10 @@ struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx);
 
 /* identical to cfg80211_get_dev_from_info but only operate on ifindex */
 extern struct cfg80211_registered_device *
-cfg80211_get_dev_from_ifindex(int ifindex);
+cfg80211_get_dev_from_ifindex(struct net *net, int ifindex);
+
+int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
+			  struct net *net);
 
 static inline void cfg80211_lock_rdev(struct cfg80211_registered_device *rdev)
 {

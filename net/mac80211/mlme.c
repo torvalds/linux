@@ -581,7 +581,7 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (!ifmgd->associated)
 		return;
 
-	if (sdata->local->sw_scanning || sdata->local->hw_scanning)
+	if (sdata->local->scanning)
 		return;
 
 	/* Disregard subsequent beacons if we are already running a timer
@@ -639,7 +639,7 @@ static void ieee80211_enable_ps(struct ieee80211_local *local,
 	 * If we are scanning right now then the parameters will
 	 * take effect when scan finishes.
 	 */
-	if (local->hw_scanning || local->sw_scanning)
+	if (local->scanning)
 		return;
 
 	if (conf->dynamic_ps_timeout > 0 &&
@@ -1164,6 +1164,9 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	bool already = false;
 
 	if (!netif_running(sdata->dev))
+		return;
+
+	if (sdata->local->scanning)
 		return;
 
 	mutex_lock(&ifmgd->mtx);
@@ -2000,6 +2003,9 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	case RX_MGMT_CFG80211_ASSOC:
 		cfg80211_send_rx_assoc(sdata->dev, (u8 *) mgmt, skb->len);
 		break;
+	case RX_MGMT_CFG80211_DEAUTH:
+		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len, NULL);
+		break;
 	default:
 		WARN(1, "unexpected: %d", rma);
 	}
@@ -2038,7 +2044,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 	if (!netif_running(sdata->dev))
 		return;
 
-	if (local->sw_scanning || local->hw_scanning)
+	if (local->scanning)
 		return;
 
 	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
@@ -2213,9 +2219,6 @@ static void ieee80211_sta_monitor_work(struct work_struct *work)
 		container_of(work, struct ieee80211_sub_if_data,
 			     u.mgd.monitor_work);
 
-	if (sdata->local->sw_scanning || sdata->local->hw_scanning)
-		return;
-
 	ieee80211_mgd_probe_ap(sdata, false);
 }
 
@@ -2377,6 +2380,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 
 	wk->state = IEEE80211_MGD_STATE_PROBE;
 	wk->auth_alg = auth_alg;
+	wk->timeout = jiffies; /* run right away */
 
 	/*
 	 * XXX: if still associated need to tell AP that we're going
@@ -2448,6 +2452,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	wk->state = IEEE80211_MGD_STATE_ASSOC;
 	wk->tries = 0;
+	wk->timeout = jiffies; /* run right away */
 
 	if (req->use_mfp) {
 		ifmgd->mfp = IEEE80211_MFP_REQUIRED;
@@ -2496,8 +2501,13 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	/* cfg80211 should catch this... */
-	if (WARN_ON(!bssid)) {
+	/*
+	 * cfg80211 should catch this ... but it's racy since
+	 * we can receive a deauth frame, process it, hand it
+	 * to cfg80211 while that's in a locked section already
+	 * trying to tell us that the user wants to disconnect.
+	 */
+	if (!bssid) {
 		mutex_unlock(&ifmgd->mtx);
 		return -ENOLINK;
 	}
@@ -2522,8 +2532,13 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	mutex_lock(&ifmgd->mtx);
 
-	/* cfg80211 should catch that */
-	if (WARN_ON(&ifmgd->associated->cbss != req->bss)) {
+	/*
+	 * cfg80211 should catch this ... but it's racy since
+	 * we can receive a disassoc frame, process it, hand it
+	 * to cfg80211 while that's in a locked section already
+	 * trying to tell us that the user wants to disconnect.
+	 */
+	if (&ifmgd->associated->cbss != req->bss) {
 		mutex_unlock(&ifmgd->mtx);
 		return -ENOLINK;
 	}

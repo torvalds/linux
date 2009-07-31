@@ -198,7 +198,7 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		if (local->sw_scanning) {
+		if (test_bit(SCAN_SW_SCANNING, &local->scanning)) {
 			sdata->vif.bss_conf.enable_beacon = false;
 		} else {
 			/*
@@ -620,6 +620,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	if (!wiphy)
 		return NULL;
 
+	wiphy->netnsok = true;
 	wiphy->privid = mac80211_wiphy_privid;
 
 	/* Yes, putting cfg80211_bss into ieee80211_bss is a hack */

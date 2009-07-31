@@ -177,7 +177,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 				   struct sk_buff *skb,
 				   struct ieee80211_sta *sta,
 				   struct iwl_lq_sta *lq_sta);
-static void rs_fill_link_cmd(const struct iwl_priv *priv,
+static void rs_fill_link_cmd(struct iwl_priv *priv,
 			     struct iwl_lq_sta *lq_sta, u32 rate_n_flags);
 
 
@@ -1398,6 +1398,12 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	int ret = 0;
 	u8 update_search_tbl_counter = 0;
 
+	if (!iwl_ht_enabled(priv))
+		/* stay in Legacy */
+		tbl->action = IWL_LEGACY_SWITCH_ANTENNA1;
+	else if (iwl_tx_ant_restriction(priv) == IWL_TX_SINGLE &&
+		   tbl->action > IWL_LEGACY_SWITCH_SISO)
+		tbl->action = IWL_LEGACY_SWITCH_SISO;
 	for (; ;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1529,6 +1535,11 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
+	if (iwl_tx_ant_restriction(priv) == IWL_TX_SINGLE &&
+	    tbl->action > IWL_SISO_SWITCH_ANTENNA2) {
+		/* stay in SISO */
+		tbl->action = IWL_SISO_SWITCH_ANTENNA1;
+	}
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1663,6 +1674,12 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
+	if ((iwl_tx_ant_restriction(priv) == IWL_TX_SINGLE) &&
+	    (tbl->action < IWL_MIMO2_SWITCH_SISO_A ||
+	     tbl->action > IWL_MIMO2_SWITCH_SISO_C)) {
+		/* switch in SISO */
+		tbl->action = IWL_MIMO2_SWITCH_SISO_A;
+	}
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -1799,6 +1816,12 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 	int ret;
 	u8 update_search_tbl_counter = 0;
 
+	if ((iwl_tx_ant_restriction(priv) == IWL_TX_SINGLE) &&
+	    (tbl->action < IWL_MIMO3_SWITCH_SISO_A ||
+	     tbl->action > IWL_MIMO3_SWITCH_SISO_C)) {
+		/* switch in SISO */
+		tbl->action = IWL_MIMO3_SWITCH_SISO_A;
+	}
 	for (;;) {
 		lq_sta->action_counter++;
 		switch (tbl->action) {
@@ -2003,6 +2026,25 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta)
 }
 
 /*
+ * setup rate table in uCode
+ * return rate_n_flags as used in the table
+ */
+static u32 rs_update_rate_tbl(struct iwl_priv *priv,
+				struct iwl_lq_sta *lq_sta,
+				struct iwl_scale_tbl_info *tbl,
+				int index, u8 is_green)
+{
+	u32 rate;
+
+	/* Update uCode's rate table. */
+	rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
+	rs_fill_link_cmd(priv, lq_sta, rate);
+	iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
+
+	return rate;
+}
+
+/*
  * Do rate scaling and search for new modulation mode.
  */
 static void rs_rate_scale_perform(struct iwl_priv *priv,
@@ -2098,6 +2140,16 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 	if (!((1 << index) & rate_scale_index_msk)) {
 		IWL_ERR(priv, "Current Rate is not valid\n");
+		if (lq_sta->search_better_tbl) {
+			/* revert to active table if search table is not valid*/
+			tbl->lq_type = LQ_NONE;
+			lq_sta->search_better_tbl = 0;
+			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
+			/* get "active" rate info */
+			index = iwl_hwrate_to_plcp_idx(tbl->current_rate);
+			rate = rs_update_rate_tbl(priv, lq_sta,
+						  tbl, index, is_green);
+		}
 		return;
 	}
 
@@ -2149,8 +2201,8 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			tbl->expected_tpt[index] + 64) / 128));
 
 	/* If we are searching for better modulation mode, check success. */
-	if (lq_sta->search_better_tbl) {
-
+	if (lq_sta->search_better_tbl &&
+	    (iwl_tx_ant_restriction(priv) == IWL_TX_MULTI)) {
 		/* If good success, continue using the "search" mode;
 		 * no need to send new link quality command, since we're
 		 * continuing to use the setup that we've been trying. */
@@ -2278,7 +2330,11 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		    ((sr > IWL_RATE_HIGH_TH) ||
 		     (current_tpt > (100 * tbl->expected_tpt[low]))))
 		scale_action = 0;
-
+	if (!iwl_ht_enabled(priv) && !is_legacy(tbl->lq_type))
+		scale_action = -1;
+	if (iwl_tx_ant_restriction(priv) != IWL_TX_MULTI &&
+		(is_mimo2(tbl->lq_type) || is_mimo3(tbl->lq_type)))
+		scale_action = -1;
 	switch (scale_action) {
 	case -1:
 		/* Decrease starting rate, update uCode's rate table */
@@ -2308,15 +2364,15 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
-	if (update_lq) {
-		rate = rate_n_flags_from_tbl(priv, tbl, index, is_green);
-		rs_fill_link_cmd(priv, lq_sta, rate);
-		iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
+	if (update_lq)
+		rate = rs_update_rate_tbl(priv, lq_sta,
+					  tbl, index, is_green);
+
+	if (iwl_tx_ant_restriction(priv) == IWL_TX_MULTI) {
+		/* Should we stay with this modulation mode,
+		 * or search for a new one? */
+		rs_stay_in_table(lq_sta);
 	}
-
-	/* Should we stay with this modulation mode, or search for a new one? */
-	rs_stay_in_table(lq_sta);
-
 	/*
 	 * Search for new modulation mode if we're:
 	 * 1)  Not changing rates right now
@@ -2373,7 +2429,8 @@ lq_update:
 		 * have been tried and compared, stay in this best modulation
 		 * mode for a while before next round of mode comparisons. */
 		if (lq_sta->enable_counter &&
-		    (lq_sta->action_counter >= tbl1->max_search)) {
+		    (lq_sta->action_counter >= tbl1->max_search) &&
+		    iwl_ht_enabled(priv)) {
 			if ((lq_sta->last_tpt > IWL_AGG_TPT_THREHOLD) &&
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
 			    (tid != MAX_TID_COUNT)) {
@@ -2659,7 +2716,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	rs_initialize_lq(priv, conf, sta, lq_sta);
 }
 
-static void rs_fill_link_cmd(const struct iwl_priv *priv,
+static void rs_fill_link_cmd(struct iwl_priv *priv,
 			     struct iwl_lq_sta *lq_sta, u32 new_rate)
 {
 	struct iwl_scale_tbl_info tbl_type;

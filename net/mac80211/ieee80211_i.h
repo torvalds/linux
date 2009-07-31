@@ -24,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <linux/etherdevice.h>
 #include <net/cfg80211.h>
-#include <net/iw_handler.h>
 #include <net/mac80211.h>
 #include "key.h"
 #include "sta_info.h"
@@ -570,6 +569,43 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_SKB_ADD,
 };
 
+/**
+ * mac80211 scan flags - currently active scan mode
+ *
+ * @SCAN_SW_SCANNING: We're currently in the process of scanning but may as
+ *	well be on the operating channel
+ * @SCAN_HW_SCANNING: The hardware is scanning for us, we have no way to
+ *	determine if we are on the operating channel or not
+ * @SCAN_OFF_CHANNEL: We're off our operating channel for scanning,
+ *	gets only set in conjunction with SCAN_SW_SCANNING
+ */
+enum {
+	SCAN_SW_SCANNING,
+	SCAN_HW_SCANNING,
+	SCAN_OFF_CHANNEL,
+};
+
+/**
+ * enum mac80211_scan_state - scan state machine states
+ *
+ * @SCAN_DECISION: Main entry point to the scan state machine, this state
+ *	determines if we should keep on scanning or switch back to the
+ *	operating channel
+ * @SCAN_SET_CHANNEL: Set the next channel to be scanned
+ * @SCAN_SEND_PROBE: Send probe requests and wait for probe responses
+ * @SCAN_LEAVE_OPER_CHANNEL: Leave the operating channel, notify the AP
+ *	about us leaving the channel and stop all associated STA interfaces
+ * @SCAN_ENTER_OPER_CHANNEL: Enter the operating channel again, notify the
+ *	AP about us being back and restart all associated STA interfaces
+ */
+enum mac80211_scan_state {
+	SCAN_DECISION,
+	SCAN_SET_CHANNEL,
+	SCAN_SEND_PROBE,
+	SCAN_LEAVE_OPER_CHANNEL,
+	SCAN_ENTER_OPER_CHANNEL,
+};
+
 struct ieee80211_local {
 	/* embed the driver visible part.
 	 * don't cast (use the static inlines below), but we keep
@@ -668,7 +704,7 @@ struct ieee80211_local {
 
 	/* Scanning and BSS list */
 	struct mutex scan_mtx;
-	bool sw_scanning, hw_scanning;
+	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
 	struct cfg80211_scan_request int_scan_req;
 	struct cfg80211_scan_request *scan_req;
@@ -678,7 +714,7 @@ struct ieee80211_local {
 	int scan_channel_idx;
 	int scan_ies_len;
 
-	enum { SCAN_SET_CHANNEL, SCAN_SEND_PROBE } scan_state;
+	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data *scan_sdata;
 	enum nl80211_channel_type oper_channel_type;
@@ -913,9 +949,6 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed);
 void ieee80211_configure_filter(struct ieee80211_local *local);
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
-
-/* wireless extensions */
-extern const struct iw_handler_def ieee80211_iw_handler_def;
 
 /* STA code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);

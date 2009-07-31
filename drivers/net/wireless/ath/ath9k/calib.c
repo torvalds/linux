@@ -116,7 +116,7 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 				"NF calibrated [ctl] [chain 1] is %d\n", nf);
 		nfarray[1] = nf;
 
-		if (!AR_SREV_9280(ah)) {
+		if (!AR_SREV_9280(ah) && !AR_SREV_9287(ah)) {
 			nf = MS(REG_READ(ah, AR_PHY_CH2_CCA),
 					AR_PHY_CH2_MINCCA_PWR);
 			if (nf & 0x100)
@@ -154,7 +154,7 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 				"NF calibrated [ext] [chain 1] is %d\n", nf);
 		nfarray[4] = nf;
 
-		if (!AR_SREV_9280(ah)) {
+		if (!AR_SREV_9280(ah) && !AR_SREV_9287(ah)) {
 			nf = MS(REG_READ(ah, AR_PHY_CH2_EXT_CCA),
 					AR_PHY_CH2_EXT_MINCCA_PWR);
 			if (nf & 0x100)
@@ -613,7 +613,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	if (AR_SREV_9285(ah))
 		chainmask = 0x9;
-	else if (AR_SREV_9280(ah))
+	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah))
 		chainmask = 0x1B;
 	else
 		chainmask = 0x3F;
@@ -873,7 +873,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 		if (AR_SREV_9285_11_OR_LATER(ah))
 			ath9k_hw_9285_pa_cal(ah);
 
-		if (OLC_FOR_AR9280_20_LATER)
+		if (OLC_FOR_AR9280_20_LATER || OLC_FOR_AR9287_10_LATER)
 			ath9k_olc_temp_compensation(ah);
 		ath9k_hw_getnf(ah, chan);
 		ath9k_hw_loadnf(ah, ah->curchan);
@@ -929,8 +929,11 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 			return false;
 	} else {
 		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
-			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+			if (!AR_SREV_9287_10_OR_LATER(ah))
+				REG_CLR_BIT(ah, AR_PHY_ADC_CTL,
+					    AR_PHY_ADC_CTL_OFF_PWDADC);
+			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
+				    AR_PHY_AGC_CONTROL_FLTR_CAL);
 		}
 
 		/* Calibrate the AGC */
@@ -948,8 +951,11 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 		}
 
 		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			REG_SET_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
-			REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
+			if (!AR_SREV_9287_10_OR_LATER(ah))
+				REG_SET_BIT(ah, AR_PHY_ADC_CTL,
+					    AR_PHY_ADC_CTL_OFF_PWDADC);
+			REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+				    AR_PHY_AGC_CONTROL_FLTR_CAL);
 		}
 	}
 

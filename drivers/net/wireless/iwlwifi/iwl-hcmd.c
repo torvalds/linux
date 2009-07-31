@@ -103,22 +103,23 @@ EXPORT_SYMBOL(get_cmd_string);
 
 #define HOST_COMPLETE_TIMEOUT (HZ / 2)
 
-static int iwl_generic_cmd_callback(struct iwl_priv *priv,
-				    struct iwl_cmd *cmd, struct sk_buff *skb)
+static void iwl_generic_cmd_callback(struct iwl_priv *priv,
+				     struct iwl_device_cmd *cmd,
+				     struct sk_buff *skb)
 {
 	struct iwl_rx_packet *pkt = NULL;
 
 	if (!skb) {
 		IWL_ERR(priv, "Error: Response NULL in %s.\n",
 				get_cmd_string(cmd->hdr.cmd));
-		return 1;
+		return;
 	}
 
 	pkt = (struct iwl_rx_packet *)skb->data;
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from %s (0x%08X)\n",
 			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-		return 1;
+		return;
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -127,29 +128,26 @@ static int iwl_generic_cmd_callback(struct iwl_priv *priv,
 	case SENSITIVITY_CMD:
 		IWL_DEBUG_HC_DUMP(priv, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
-				break;
+		break;
 	default:
 		IWL_DEBUG_HC(priv, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 	}
 #endif
-
-	/* Let iwl_tx_complete free the response skb */
-	return 1;
 }
 
 static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	int ret;
 
-	BUG_ON(!(cmd->meta.flags & CMD_ASYNC));
+	BUG_ON(!(cmd->flags & CMD_ASYNC));
 
 	/* An asynchronous command can not expect an SKB to be set. */
-	BUG_ON(cmd->meta.flags & CMD_WANT_SKB);
+	BUG_ON(cmd->flags & CMD_WANT_SKB);
 
 	/* Assign a generic callback if one is not provided */
-	if (!cmd->meta.u.callback)
-		cmd->meta.u.callback = iwl_generic_cmd_callback;
+	if (!cmd->callback)
+		cmd->callback = iwl_generic_cmd_callback;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EBUSY;
@@ -168,10 +166,10 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	int cmd_idx;
 	int ret;
 
-	BUG_ON(cmd->meta.flags & CMD_ASYNC);
+	BUG_ON(cmd->flags & CMD_ASYNC);
 
 	 /* A synchronous command can not have a callback set. */
-	BUG_ON(cmd->meta.u.callback != NULL);
+	BUG_ON(cmd->callback);
 
 	if (test_and_set_bit(STATUS_HCMD_SYNC_ACTIVE, &priv->status)) {
 		IWL_ERR(priv,
@@ -182,9 +180,6 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	}
 
 	set_bit(STATUS_HCMD_ACTIVE, &priv->status);
-
-	if (cmd->meta.flags & CMD_WANT_SKB)
-		cmd->meta.source = &cmd->meta;
 
 	cmd_idx = iwl_enqueue_hcmd(priv, cmd);
 	if (cmd_idx < 0) {
@@ -222,7 +217,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		ret = -EIO;
 		goto fail;
 	}
-	if ((cmd->meta.flags & CMD_WANT_SKB) && !cmd->meta.u.skb) {
+	if ((cmd->flags & CMD_WANT_SKB) && !cmd->reply_skb) {
 		IWL_ERR(priv, "Error: Response NULL in '%s'\n",
 			  get_cmd_string(cmd->id));
 		ret = -EIO;
@@ -233,20 +228,20 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	goto out;
 
 cancel:
-	if (cmd->meta.flags & CMD_WANT_SKB) {
-		struct iwl_cmd *qcmd;
-
-		/* Cancel the CMD_WANT_SKB flag for the cmd in the
+	if (cmd->flags & CMD_WANT_SKB) {
+		/*
+		 * Cancel the CMD_WANT_SKB flag for the cmd in the
 		 * TX cmd queue. Otherwise in case the cmd comes
 		 * in later, it will possibly set an invalid
-		 * address (cmd->meta.source). */
-		qcmd = priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_idx];
-		qcmd->meta.flags &= ~CMD_WANT_SKB;
+		 * address (cmd->meta.source).
+		 */
+		priv->txq[IWL_CMD_QUEUE_NUM].meta[cmd_idx].flags &=
+							~CMD_WANT_SKB;
 	}
 fail:
-	if (cmd->meta.u.skb) {
-		dev_kfree_skb_any(cmd->meta.u.skb);
-		cmd->meta.u.skb = NULL;
+	if (cmd->reply_skb) {
+		dev_kfree_skb_any(cmd->reply_skb);
+		cmd->reply_skb = NULL;
 	}
 out:
 	clear_bit(STATUS_HCMD_SYNC_ACTIVE, &priv->status);
@@ -256,7 +251,7 @@ EXPORT_SYMBOL(iwl_send_cmd_sync);
 
 int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
-	if (cmd->meta.flags & CMD_ASYNC)
+	if (cmd->flags & CMD_ASYNC)
 		return iwl_send_cmd_async(priv, cmd);
 
 	return iwl_send_cmd_sync(priv, cmd);
@@ -277,9 +272,9 @@ EXPORT_SYMBOL(iwl_send_cmd_pdu);
 
 int iwl_send_cmd_pdu_async(struct iwl_priv *priv,
 			   u8 id, u16 len, const void *data,
-			   int (*callback)(struct iwl_priv *priv,
-					   struct iwl_cmd *cmd,
-					   struct sk_buff *skb))
+			   void (*callback)(struct iwl_priv *priv,
+					    struct iwl_device_cmd *cmd,
+					    struct sk_buff *skb))
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
@@ -287,8 +282,8 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv,
 		.data = data,
 	};
 
-	cmd.meta.flags |= CMD_ASYNC;
-	cmd.meta.u.callback = callback;
+	cmd.flags |= CMD_ASYNC;
+	cmd.callback = callback;
 
 	return iwl_send_cmd_async(priv, &cmd);
 }

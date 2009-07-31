@@ -614,7 +614,7 @@ static void p54_tx_80211_header(struct p54_common *priv, struct sk_buff *skb,
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 		*flags |= P54_HDR_FLAG_DATA_OUT_SEQNR;
 
-	if (info->flags & IEEE80211_TX_CTL_CLEAR_PS_FILT)
+	if (info->flags & IEEE80211_TX_CTL_PSPOLL_RESPONSE)
 		*flags |= P54_HDR_FLAG_DATA_OUT_NOCANCEL;
 
 	*queue = skb_get_queue_mapping(skb) + P54_QUEUE_DATA;

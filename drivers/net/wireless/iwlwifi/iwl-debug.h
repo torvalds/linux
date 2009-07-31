@@ -84,9 +84,11 @@ struct iwl_debugfs {
 		struct dentry *file_status;
 		struct dentry *file_interrupt;
 		struct dentry *file_qos;
+		struct dentry *file_thermal_throttling;
 #ifdef CONFIG_IWLWIFI_LEDS
 		struct dentry *file_led;
 #endif
+		struct dentry *file_disable_ht40;
 	} dbgfs_data_files;
 	struct dir_rf_files {
 		struct dentry *file_disable_sensitivity;
