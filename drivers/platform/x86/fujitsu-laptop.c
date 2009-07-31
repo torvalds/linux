@@ -324,9 +324,6 @@ static int set_lcd_level(int level)
 	if (level < 0 || level >= fujitsu->max_brightness)
 		return -EINVAL;
 
-	if (!fujitsu)
-		return -EINVAL;
-
 	status = acpi_get_handle(fujitsu->acpi_handle, "SBLL", &handle);
 	if (ACPI_FAILURE(status)) {
 		vdbg_printk(FUJLAPTOP_DBG_ERROR, "SBLL not present\n");
@@ -353,9 +350,6 @@ static int set_lcd_level_alt(int level)
 		    level);
 
 	if (level < 0 || level >= fujitsu->max_brightness)
-		return -EINVAL;
-
-	if (!fujitsu)
 		return -EINVAL;
 
 	status = acpi_get_handle(fujitsu->acpi_handle, "SBL2", &handle);
