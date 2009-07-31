@@ -4,4 +4,4 @@
 obj-$(CONFIG_VME)		+= vme.o
 
 #obj-y				+= bridges/
-#obj-y				+= devices/
+obj-y				+= devices/

@@ -11,7 +11,7 @@ menuconfig VME
 if VME
 
 #source "drivers/staging/vme/bridges/Kconfig"
-#
-#source "drivers/staging/vme/devices/Kconfig"
+
+source "drivers/staging/vme/devices/Kconfig"
 
 endif # VME
