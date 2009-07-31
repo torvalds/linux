@@ -940,6 +940,7 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	head->qh_next.qh = qh;
 	head->hw_next = dma;
 
+	qh_get(qh);
 	qh->xacterrs = QH_XACTERR_MAX;
 	qh->qh_state = QH_STATE_LINKED;
 	/* qtd completions reported later by interrupt */
@@ -1080,7 +1081,7 @@ submit_async (
 	 * the HC and TT handle it when the TT has a buffer ready.
 	 */
 	if (likely (qh->qh_state == QH_STATE_IDLE))
-		qh_link_async (ehci, qh_get (qh));
+		qh_link_async(ehci, qh);
  done:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 	if (unlikely (qh == NULL))
@@ -1115,8 +1116,6 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 			&& HC_IS_RUNNING (ehci_to_hcd(ehci)->state))
 		qh_link_async (ehci, qh);
 	else {
-		qh_put (qh);		// refcount from async list
-
 		/* it's not free to turn the async schedule on/off; leave it
 		 * active but idle for a while once it empties.
 		 */
@@ -1124,6 +1123,7 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 				&& ehci->async->qh_next.qh == NULL)
 			timer_action (ehci, TIMER_ASYNC_OFF);
 	}
+	qh_put(qh);			/* refcount from async list */
 
 	if (next) {
 		ehci->reclaim = NULL;
