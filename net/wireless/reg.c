@@ -62,6 +62,16 @@ const struct ieee80211_regdomain *cfg80211_regdomain;
  */
 static const struct ieee80211_regdomain *country_ie_regdomain;
 
+/*
+ * Protects static reg.c components:
+ *     - cfg80211_world_regdom
+ *     - cfg80211_regdom
+ *     - country_ie_regdomain
+ *     - last_request
+ */
+DEFINE_MUTEX(reg_mutex);
+#define assert_reg_lock() WARN_ON(!mutex_is_locked(&reg_mutex))
+
 /* Used to queue up regulatory hints */
 static LIST_HEAD(reg_requests_list);
 static spinlock_t reg_requests_lock;
@@ -1293,7 +1303,7 @@ static void handle_channel_custom(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
 
-	assert_cfg80211_lock();
+	assert_reg_lock();
 
 	sband = wiphy->bands[band];
 	BUG_ON(chan_idx >= sband->n_channels);
@@ -1342,14 +1352,14 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 	enum ieee80211_band band;
 	unsigned int bands_set = 0;
 
-	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (!wiphy->bands[band])
 			continue;
 		handle_band_custom(wiphy, band, regd);
 		bands_set++;
 	}
-	mutex_unlock(&cfg80211_mutex);
+	mutex_unlock(&reg_mutex);
 
 	/*
 	 * no point in calling this if it won't have any effect
@@ -1495,7 +1505,7 @@ static int ignore_request(struct wiphy *wiphy,
  * Returns zero if all went fine, %-EALREADY if a regulatory domain had
  * already been set or other standard error codes.
  *
- * Caller must hold &cfg80211_mutex
+ * Caller must hold &cfg80211_mutex and &reg_mutex
  */
 static int __regulatory_hint(struct wiphy *wiphy,
 			     struct regulatory_request *pending_request)
@@ -1570,6 +1580,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	BUG_ON(!reg_request->alpha2);
 
 	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 
 	if (wiphy_idx_valid(reg_request->wiphy_idx))
 		wiphy = wiphy_idx_to_wiphy(reg_request->wiphy_idx);
@@ -1585,6 +1596,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	if (r == -EALREADY && wiphy && wiphy->strict_regulatory)
 		wiphy_update_regulatory(wiphy, reg_request->initiator);
 out:
+	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
 }
 
@@ -1613,6 +1625,10 @@ static void reg_process_pending_beacon_hints(void)
 	struct cfg80211_registered_device *rdev;
 	struct reg_beacon *pending_beacon, *tmp;
 
+	/*
+	 * No need to hold the reg_mutex here as we just touch wiphys
+	 * and do not read or access regulatory variables.
+	 */
 	mutex_lock(&cfg80211_mutex);
 
 	/* This goes through the _pending_ beacon list */
@@ -1734,12 +1750,13 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 }
 EXPORT_SYMBOL(regulatory_hint);
 
+/* Caller must hold reg_mutex */
 static bool reg_same_country_ie_hint(struct wiphy *wiphy,
 			u32 country_ie_checksum)
 {
 	struct wiphy *request_wiphy;
 
-	assert_cfg80211_lock();
+	assert_reg_lock();
 
 	if (unlikely(last_request->initiator !=
 	    NL80211_REGDOM_SET_BY_COUNTRY_IE))
@@ -1776,7 +1793,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	enum environment_cap env = ENVIRON_ANY;
 	struct regulatory_request *request;
 
-	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 
 	if (unlikely(!last_request))
 		goto out;
@@ -1850,7 +1867,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	request->country_ie_checksum = checksum;
 	request->country_ie_env = env;
 
-	mutex_unlock(&cfg80211_mutex);
+	mutex_unlock(&reg_mutex);
 
 	queue_regulatory_request(request);
 
@@ -1859,7 +1876,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 free_rd_out:
 	kfree(rd);
 out:
-	mutex_unlock(&cfg80211_mutex);
+	mutex_unlock(&reg_mutex);
 }
 EXPORT_SYMBOL(regulatory_hint_11d);
 
@@ -2192,10 +2209,13 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 
 	assert_cfg80211_lock();
 
+	mutex_lock(&reg_mutex);
+
 	/* Note that this doesn't update the wiphys, this is done below */
 	r = __set_regdom(rd);
 	if (r) {
 		kfree(rd);
+		mutex_unlock(&reg_mutex);
 		return r;
 	}
 
@@ -2210,6 +2230,8 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 
 	nl80211_send_reg_change_event(last_request);
 
+	mutex_unlock(&reg_mutex);
+
 	return r;
 }
 
@@ -2220,16 +2242,20 @@ void reg_device_remove(struct wiphy *wiphy)
 
 	assert_cfg80211_lock();
 
+	mutex_lock(&reg_mutex);
+
 	kfree(wiphy->regd);
 
 	if (last_request)
 		request_wiphy = wiphy_idx_to_wiphy(last_request->wiphy_idx);
 
 	if (!request_wiphy || request_wiphy != wiphy)
-		return;
+		goto out;
 
 	last_request->wiphy_idx = WIPHY_IDX_STALE;
 	last_request->country_ie_env = ENVIRON_ANY;
+out:
+	mutex_unlock(&reg_mutex);
 }
 
 int regulatory_init(void)
@@ -2290,6 +2316,7 @@ void regulatory_exit(void)
 	cancel_work_sync(&reg_work);
 
 	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 
 	reset_regdomains();
 
@@ -2328,5 +2355,6 @@ void regulatory_exit(void)
 	}
 	spin_unlock(&reg_requests_lock);
 
+	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
 }
