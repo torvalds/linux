@@ -8199,6 +8199,11 @@ static pci_ers_result_t bnx2_io_error_detected(struct pci_dev *pdev,
 	rtnl_lock();
 	netif_device_detach(dev);
 
+	if (state == pci_channel_io_perm_failure) {
+		rtnl_unlock();
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
 	if (netif_running(dev)) {
 		bnx2_netif_stop(bp);
 		del_timer_sync(&bp->timer);
