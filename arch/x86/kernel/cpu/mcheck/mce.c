@@ -204,6 +204,9 @@ static void print_mce_tail(void)
 
 static atomic_t mce_paniced;
 
+static int fake_panic;
+static atomic_t mce_fake_paniced;
+
 /* Panic in progress. Enable interrupts and wait for final IPI */
 static void wait_for_panic(void)
 {
@@ -221,15 +224,21 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 {
 	int i;
 
-	/*
-	 * Make sure only one CPU runs in machine check panic
-	 */
-	if (atomic_inc_return(&mce_paniced) > 1)
-		wait_for_panic();
-	barrier();
+	if (!fake_panic) {
+		/*
+		 * Make sure only one CPU runs in machine check panic
+		 */
+		if (atomic_inc_return(&mce_paniced) > 1)
+			wait_for_panic();
+		barrier();
 
-	bust_spinlocks(1);
-	console_verbose();
+		bust_spinlocks(1);
+		console_verbose();
+	} else {
+		/* Don't log too much for fake panic */
+		if (atomic_inc_return(&mce_fake_paniced) > 1)
+			return;
+	}
 	print_mce_head();
 	/* First print corrected ones that are still unlogged */
 	for (i = 0; i < MCE_LOG_LEN; i++) {
@@ -256,9 +265,12 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 	print_mce_tail();
 	if (exp)
 		printk(KERN_EMERG "Machine check: %s\n", exp);
-	if (panic_timeout == 0)
-		panic_timeout = mce_panic_timeout;
-	panic(msg);
+	if (!fake_panic) {
+		if (panic_timeout == 0)
+			panic_timeout = mce_panic_timeout;
+		panic(msg);
+	} else
+		printk(KERN_EMERG "Fake kernel panic: %s\n", msg);
 }
 
 /* Support code for software error injection */
@@ -2015,4 +2027,45 @@ struct dentry *mce_get_debugfs_dir(void)
 
 	return dmce;
 }
+
+static void mce_reset(void)
+{
+	cpu_missing = 0;
+	atomic_set(&mce_fake_paniced, 0);
+	atomic_set(&mce_executing, 0);
+	atomic_set(&mce_callin, 0);
+	atomic_set(&global_nwo, 0);
+}
+
+static int fake_panic_get(void *data, u64 *val)
+{
+	*val = fake_panic;
+	return 0;
+}
+
+static int fake_panic_set(void *data, u64 val)
+{
+	mce_reset();
+	fake_panic = val;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fake_panic_fops, fake_panic_get,
+			fake_panic_set, "%llu\n");
+
+static int __init mce_debugfs_init(void)
+{
+	struct dentry *dmce, *ffake_panic;
+
+	dmce = mce_get_debugfs_dir();
+	if (!dmce)
+		return -ENOMEM;
+	ffake_panic = debugfs_create_file("fake_panic", 0444, dmce, NULL,
+					  &fake_panic_fops);
+	if (!ffake_panic)
+		return -ENOMEM;
+
+	return 0;
+}
+late_initcall(mce_debugfs_init);
 #endif
