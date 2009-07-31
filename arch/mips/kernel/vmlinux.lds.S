@@ -1,4 +1,5 @@
 #include <asm/asm-offsets.h>
+#include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #undef mips
@@ -76,7 +77,7 @@ SECTIONS
 		 * of ‘init_thread_union’ is greater than maximum
 		 * object file alignment.  Using 32768
 		 */
-		. = ALIGN(_PAGE_SIZE);
+		. = ALIGN(PAGE_SIZE);
 		*(.data.init_task)
 
 		DATA_DATA
@@ -96,12 +97,12 @@ SECTIONS
 		*(.sdata)
 	}
 
-	. = ALIGN(_PAGE_SIZE);
+	. = ALIGN(PAGE_SIZE);
 	.data_nosave : {
 		__nosave_begin = .;
 		*(.data.nosave)
 	}
-	. = ALIGN(_PAGE_SIZE);
+	. = ALIGN(PAGE_SIZE);
 	__nosave_end = .;
 
 	. = ALIGN(1 << CONFIG_MIPS_L1_CACHE_SHIFT);
@@ -111,7 +112,7 @@ SECTIONS
 	_edata =  .;			/* End of data section */
 
 	/* will be freed after init */
-	. = ALIGN(_PAGE_SIZE);		/* Init code and data */
+	. = ALIGN(PAGE_SIZE);		/* Init code and data */
 	__init_begin = .;
 	.init.text : {
 		_sinittext = .;
@@ -151,15 +152,15 @@ SECTIONS
 		EXIT_DATA
 	}
 #if defined(CONFIG_BLK_DEV_INITRD)
-	. = ALIGN(_PAGE_SIZE);
+	. = ALIGN(PAGE_SIZE);
 	.init.ramfs : {
 		__initramfs_start = .;
 		*(.init.ramfs)
 		__initramfs_end = .;
 	}
 #endif
-	PERCPU(_PAGE_SIZE)
-	. = ALIGN(_PAGE_SIZE);
+	PERCPU(PAGE_SIZE)
+	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
 	/* freed after init ends here */
 
