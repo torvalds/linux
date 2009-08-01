@@ -89,14 +89,31 @@ struct avc_response_frame {
 	u8 operand[509];
 };
 
-#define AVC_DEBUG_FCP_SUBACTIONS	1
-#define AVC_DEBUG_FCP_PAYLOADS		2
+#define AVC_DEBUG_READ_DESCRIPTOR              0x0001
+#define AVC_DEBUG_DSIT                         0x0002
+#define AVC_DEBUG_DSD                          0x0004
+#define AVC_DEBUG_REGISTER_REMOTE_CONTROL      0x0008
+#define AVC_DEBUG_LNB_CONTROL                  0x0010
+#define AVC_DEBUG_TUNE_QPSK                    0x0020
+#define AVC_DEBUG_TUNE_QPSK2                   0x0040
+#define AVC_DEBUG_HOST2CA                      0x0080
+#define AVC_DEBUG_CA2HOST                      0x0100
+#define AVC_DEBUG_APPLICATION_PMT              0x4000
+#define AVC_DEBUG_FCP_PAYLOADS                 0x8000
 
 static int avc_debug;
 module_param_named(debug, avc_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Verbose logging (default = 0"
-	", FCP subactions = "	__stringify(AVC_DEBUG_FCP_SUBACTIONS)
-	", FCP payloads = "	__stringify(AVC_DEBUG_FCP_PAYLOADS)
+MODULE_PARM_DESC(debug, "Verbose logging bitmask (none (default) = 0"
+	", FCP subaction(READ DESCRIPTOR) = "		__stringify(AVC_DEBUG_READ_DESCRIPTOR)
+	", FCP subaction(DSIT) = "			__stringify(AVC_DEBUG_DSIT)
+	", FCP subaction(REGISTER_REMOTE_CONTROL) = "	__stringify(AVC_DEBUG_REGISTER_REMOTE_CONTROL)
+	", FCP subaction(LNB CONTROL) = "		__stringify(AVC_DEBUG_LNB_CONTROL)
+	", FCP subaction(TUNE QPSK) = "			__stringify(AVC_DEBUG_TUNE_QPSK)
+	", FCP subaction(TUNE QPSK2) = "		__stringify(AVC_DEBUG_TUNE_QPSK2)
+	", FCP subaction(HOST2CA) = "			__stringify(AVC_DEBUG_HOST2CA)
+	", FCP subaction(CA2HOST) = "			__stringify(AVC_DEBUG_CA2HOST)
+	", Application sent PMT = "			__stringify(AVC_DEBUG_APPLICATION_PMT)
+	", FCP payloads(for selected subactions) = "	__stringify(AVC_DEBUG_FCP_PAYLOADS)
 	", or all = -1)");
 
 static const char *debug_fcp_ctype(unsigned int ctype)
@@ -142,24 +159,58 @@ static const char *debug_fcp_opcode(unsigned int opcode,
 	return "Vendor";
 }
 
+static int debug_fcp_opcode_flag_set(unsigned int opcode,
+				     const u8 *data, int length)
+{
+	switch (opcode) {
+	case AVC_OPCODE_VENDOR:			break;
+	case AVC_OPCODE_READ_DESCRIPTOR:	return avc_debug & AVC_DEBUG_READ_DESCRIPTOR;
+	case AVC_OPCODE_DSIT:			return avc_debug & AVC_DEBUG_DSIT;
+	case AVC_OPCODE_DSD:			return avc_debug & AVC_DEBUG_DSD;
+	default:				return 1;
+	}
+
+	if (length < 7 ||
+	    data[3] != SFE_VENDOR_DE_COMPANYID_0 ||
+	    data[4] != SFE_VENDOR_DE_COMPANYID_1 ||
+	    data[5] != SFE_VENDOR_DE_COMPANYID_2)
+		return 1;
+
+	switch (data[6]) {
+	case SFE_VENDOR_OPCODE_REGISTER_REMOTE_CONTROL:	return avc_debug & AVC_DEBUG_REGISTER_REMOTE_CONTROL;
+	case SFE_VENDOR_OPCODE_LNB_CONTROL:		return avc_debug & AVC_DEBUG_LNB_CONTROL;
+	case SFE_VENDOR_OPCODE_TUNE_QPSK:		return avc_debug & AVC_DEBUG_TUNE_QPSK;
+	case SFE_VENDOR_OPCODE_TUNE_QPSK2:		return avc_debug & AVC_DEBUG_TUNE_QPSK2;
+	case SFE_VENDOR_OPCODE_HOST2CA:			return avc_debug & AVC_DEBUG_HOST2CA;
+	case SFE_VENDOR_OPCODE_CA2HOST:			return avc_debug & AVC_DEBUG_CA2HOST;
+	}
+	return 1;
+}
+
 static void debug_fcp(const u8 *data, int length)
 {
 	unsigned int subunit_type, subunit_id, op;
 	const char *prefix = data[0] > 7 ? "FCP <- " : "FCP -> ";
 
-	if (avc_debug & AVC_DEBUG_FCP_SUBACTIONS) {
-		subunit_type = data[1] >> 3;
-		subunit_id = data[1] & 7;
-		op = subunit_type == 0x1e || subunit_id == 5 ? ~0 : data[2];
+	subunit_type = data[1] >> 3;
+	subunit_id = data[1] & 7;
+	op = subunit_type == 0x1e || subunit_id == 5 ? ~0 : data[2];
+	if (debug_fcp_opcode_flag_set(op, data, length)) {
 		printk(KERN_INFO "%ssu=%x.%x l=%d: %-8s - %s\n",
 		       prefix, subunit_type, subunit_id, length,
 		       debug_fcp_ctype(data[0]),
 		       debug_fcp_opcode(op, data, length));
+		if (avc_debug & AVC_DEBUG_FCP_PAYLOADS)
+			print_hex_dump(KERN_INFO, prefix, DUMP_PREFIX_NONE,
+				       16, 1, data, length, false);
 	}
+}
 
-	if (avc_debug & AVC_DEBUG_FCP_PAYLOADS)
-		print_hex_dump(KERN_INFO, prefix, DUMP_PREFIX_NONE, 16, 1,
-			       data, length, false);
+static void debug_pmt(char *msg, int length)
+{
+	printk(KERN_INFO "APP PMT -> l=%d\n", length);
+	print_hex_dump(KERN_INFO, "APP PMT -> ", DUMP_PREFIX_NONE,
+		       16, 1, msg, length, false);
 }
 
 static int __avc_write(struct firedtv *fdtv,
@@ -982,6 +1033,9 @@ int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 	int write_pos;
 	int es_info_length;
 	int crc32_csum;
+
+	if (unlikely(avc_debug & AVC_DEBUG_APPLICATION_PMT))
+		debug_pmt(msg, length);
 
 	memset(c, 0, sizeof(*c));
 
