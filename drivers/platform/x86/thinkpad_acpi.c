@@ -766,6 +766,8 @@ static int dispatch_procfs_write(struct file *file,
 
 	if (!ibm || !ibm->write)
 		return -EINVAL;
+	if (count > PAGE_SIZE - 2)
+		return -EINVAL;
 
 	kernbuf = kmalloc(count + 2, GFP_KERNEL);
 	if (!kernbuf)
