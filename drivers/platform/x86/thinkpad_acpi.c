@@ -5642,13 +5642,47 @@ static struct backlight_ops ibm_backlight_data = {
 
 /* --------------------------------------------------------------------- */
 
+/*
+ * These are only useful for models that have only one possibility
+ * of GPU.  If the BIOS model handles both ATI and Intel, don't use
+ * these quirks.
+ */
+#define TPACPI_BRGHT_Q_NOEC	0x0001	/* Must NOT use EC HBRV */
+#define TPACPI_BRGHT_Q_EC	0x0002  /* Should or must use EC HBRV */
+#define TPACPI_BRGHT_Q_ASK	0x8000	/* Ask for user report */
+
+static const struct tpacpi_quirk brightness_quirk_table[] __initconst = {
+	/* Models with ATI GPUs known to require ECNVRAM mode */
+	TPACPI_Q_IBM('1', 'Y', TPACPI_BRGHT_Q_EC),	/* T43/p ATI */
+
+	/* Models with ATI GPUs (waiting confirmation) */
+	TPACPI_Q_IBM('1', 'R', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+	TPACPI_Q_IBM('1', 'Q', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+	TPACPI_Q_IBM('7', '6', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+	TPACPI_Q_IBM('7', '8', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+
+	/* Models with Intel Extreme Graphics 2 (waiting confirmation) */
+	TPACPI_Q_IBM('1', 'V', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_NOEC),
+	TPACPI_Q_IBM('1', 'W', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_NOEC),
+	TPACPI_Q_IBM('1', 'U', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_NOEC),
+
+	/* Models with Intel GMA900 */
+	TPACPI_Q_IBM('7', '0', TPACPI_BRGHT_Q_NOEC),	/* T43, R52 */
+	TPACPI_Q_IBM('7', '4', TPACPI_BRGHT_Q_NOEC),	/* X41 */
+	TPACPI_Q_IBM('7', '5', TPACPI_BRGHT_Q_NOEC),	/* X41 Tablet */
+};
+
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
 	int b;
+	unsigned long quirks;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing brightness subdriver\n");
 
 	mutex_init(&brightness_mutex);
+
+	quirks = tpacpi_check_quirks(brightness_quirk_table,
+				ARRAY_SIZE(brightness_quirk_table));
 
 	/*
 	 * We always attempt to detect acpi support, so as to switch
@@ -5706,23 +5740,13 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	/* TPACPI_BRGHT_MODE_AUTO not implemented yet, just use default */
 	if (brightness_mode == TPACPI_BRGHT_MODE_AUTO ||
 	    brightness_mode == TPACPI_BRGHT_MODE_MAX) {
-		if (thinkpad_id.vendor == PCI_VENDOR_ID_IBM) {
-			/*
-			 * IBM models that define HBRV probably have
-			 * EC-based backlight level control
-			 */
-			if (acpi_evalf(ec_handle, NULL, "HBRV", "qd"))
-				/* T40-T43, R50-R52, R50e, R51e, X31-X41 */
-				brightness_mode = TPACPI_BRGHT_MODE_ECNVRAM;
-			else
-				/* all other IBM ThinkPads */
-				brightness_mode = TPACPI_BRGHT_MODE_UCMS_STEP;
-		} else
-			/* All Lenovo ThinkPads */
+		if (quirks & TPACPI_BRGHT_Q_EC)
+			brightness_mode = TPACPI_BRGHT_MODE_ECNVRAM;
+		else
 			brightness_mode = TPACPI_BRGHT_MODE_UCMS_STEP;
 
 		dbg_printk(TPACPI_DBG_BRGHT,
-			   "selected brightness_mode=%d\n",
+			   "driver auto-selected brightness_mode=%d\n",
 			   brightness_mode);
 	}
 
@@ -5748,6 +5772,15 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	}
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
 			"brightness is supported\n");
+
+	if (quirks & TPACPI_BRGHT_Q_ASK) {
+		printk(TPACPI_NOTICE
+			"brightness: will use unverified default: "
+			"brightness_mode=%d\n", brightness_mode);
+		printk(TPACPI_NOTICE
+			"brightness: please report to %s whether it works well "
+			"or not on your ThinkPad\n", TPACPI_MAIL);
+	}
 
 	ibm_backlight_device->props.max_brightness =
 				(tp_features.bright_16levels)? 15 : 7;
