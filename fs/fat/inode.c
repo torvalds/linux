@@ -820,7 +820,7 @@ static int fat_show_options(struct seq_file *m, struct vfsmount *mnt)
 			seq_puts(m, ",shortname=mixed");
 			break;
 		case VFAT_SFN_DISPLAY_LOWER | VFAT_SFN_CREATE_WIN95:
-			/* seq_puts(m, ",shortname=lower"); */
+			seq_puts(m, ",shortname=lower");
 			break;
 		default:
 			seq_puts(m, ",shortname=unknown");
@@ -971,7 +971,7 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 	opts->codepage = fat_default_codepage;
 	opts->iocharset = fat_default_iocharset;
 	if (is_vfat) {
-		opts->shortname = VFAT_SFN_DISPLAY_LOWER|VFAT_SFN_CREATE_WIN95;
+		opts->shortname = VFAT_SFN_DISPLAY_WINNT|VFAT_SFN_CREATE_WIN95;
 		opts->rodir = 0;
 	} else {
 		opts->shortname = 0;
