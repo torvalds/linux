@@ -418,7 +418,7 @@ struct azx {
 	unsigned int probing :1; /* codec probing phase */
 
 	/* for debugging */
-	unsigned int last_cmd;	/* last issued command (to sync) */
+	unsigned int last_cmd[AZX_MAX_CODECS];
 
 	/* for pending irqs */
 	struct work_struct irq_pending_work;
@@ -668,7 +668,8 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 
 	if (chip->msi) {
 		snd_printk(KERN_WARNING SFX "No response from codec, "
-			   "disabling MSI: last cmd=0x%08x\n", chip->last_cmd);
+			   "disabling MSI: last cmd=0x%08x\n",
+			   chip->last_cmd[addr]);
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
 		pci_disable_msi(chip->pci);
@@ -683,7 +684,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 	if (!chip->polling_mode) {
 		snd_printk(KERN_WARNING SFX "azx_get_response timeout, "
 			   "switching to polling mode: last cmd=0x%08x\n",
-			   chip->last_cmd);
+			   chip->last_cmd[addr]);
 		chip->polling_mode = 1;
 		goto again;
 	}
@@ -707,7 +708,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 
 	snd_printk(KERN_ERR "hda_intel: azx_get_response timeout, "
 		   "switching to single_cmd mode: last cmd=0x%08x\n",
-		   chip->last_cmd);
+		   chip->last_cmd[addr]);
 	chip->single_cmd = 1;
 	bus->response_reset = 0;
 	/* re-initialize CORB/RIRB */
@@ -794,7 +795,7 @@ static int azx_send_cmd(struct hda_bus *bus, unsigned int val)
 {
 	struct azx *chip = bus->private_data;
 
-	chip->last_cmd = val;
+	chip->last_cmd[azx_command_addr(val)] = val;
 	if (chip->single_cmd)
 		return azx_single_send_cmd(bus, val);
 	else
