@@ -588,15 +588,17 @@ static int azx_corb_send_cmd(struct hda_bus *bus, u32 val)
 	unsigned int addr = azx_command_addr(val);
 	unsigned int wp;
 
+	spin_lock_irq(&chip->reg_lock);
+
 	/* add command to corb */
 	wp = azx_readb(chip, CORBWP);
 	wp++;
 	wp %= ICH6_MAX_CORB_ENTRIES;
 
-	spin_lock_irq(&chip->reg_lock);
 	chip->rirb.cmds[addr]++;
 	chip->corb.buf[wp] = cpu_to_le32(val);
 	azx_writel(chip, CORBWP, wp);
+
 	spin_unlock_irq(&chip->reg_lock);
 
 	return 0;
