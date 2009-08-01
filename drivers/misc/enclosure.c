@@ -315,6 +315,9 @@ int enclosure_add_device(struct enclosure_device *edev, int component,
 
 	cdev = &edev->component[component];
 
+	if (cdev->dev == dev)
+		return -EEXIST;
+
 	if (cdev->dev)
 		enclosure_remove_links(cdev);
 
