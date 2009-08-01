@@ -479,7 +479,8 @@ static int __init iSeries_tb_recal(void)
 		unsigned long tb_ticks = tb - iSeries_recal_tb;
 		unsigned long titan_usec = (titan - iSeries_recal_titan) >> 12;
 		unsigned long new_tb_ticks_per_sec   = (tb_ticks * USEC_PER_SEC)/titan_usec;
-		unsigned long new_tb_ticks_per_jiffy = (new_tb_ticks_per_sec+(HZ/2))/HZ;
+		unsigned long new_tb_ticks_per_jiffy =
+			DIV_ROUND_CLOSEST(new_tb_ticks_per_sec, HZ);
 		long tick_diff = new_tb_ticks_per_jiffy - tb_ticks_per_jiffy;
 		char sign = '+';		
 		/* make sure tb_ticks_per_sec and tb_ticks_per_jiffy are consistent */
