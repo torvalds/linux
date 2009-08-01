@@ -503,6 +503,10 @@ static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin
 	}
 
 	entry = get_one_free_irq_2_pin(node);
+	if (!entry) {
+		printk(KERN_ERR "can not alloc irq_pin_list\n");
+		BUG_ON(1);
+	}
 	entry->apic = apic;
 	entry->pin = pin;
 
