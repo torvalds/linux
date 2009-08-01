@@ -254,6 +254,26 @@ int avc_recv(struct firedtv *fdtv, void *data, size_t length)
 	return 0;
 }
 
+static int add_pid_filter(struct firedtv *fdtv, u8 *operand)
+{
+	int i, n, pos = 1;
+
+	for (i = 0, n = 0; i < 16; i++) {
+		if (test_bit(i, &fdtv->channel_active)) {
+			operand[pos++] = 0x13; /* flowfunction relay */
+			operand[pos++] = 0x80; /* dsd_sel_spec_valid_flags -> PID */
+			operand[pos++] = (fdtv->channel_pid[i] >> 8) & 0x1f;
+			operand[pos++] = fdtv->channel_pid[i] & 0xff;
+			operand[pos++] = 0x00; /* tableID */
+			operand[pos++] = 0x00; /* filter_length */
+			n++;
+		}
+	}
+	operand[0] = n;
+
+	return pos;
+}
+
 /*
  * tuning command for setting the relative LNB frequency
  * (not supported by the AVC standard)
@@ -316,7 +336,8 @@ static void avc_tuner_tuneqpsk(struct firedtv *fdtv,
 	}
 }
 
-static void avc_tuner_dsd_dvb_c(struct dvb_frontend_parameters *params,
+static void avc_tuner_dsd_dvb_c(struct firedtv *fdtv,
+				struct dvb_frontend_parameters *params,
 				struct avc_command_frame *c)
 {
 	c->opcode = AVC_OPCODE_DSD;
@@ -378,13 +399,13 @@ static void avc_tuner_dsd_dvb_c(struct dvb_frontend_parameters *params,
 
 	c->operand[20] = 0x00;
 	c->operand[21] = 0x00;
-	/* Nr_of_dsd_sel_specs = 0 -> no PIDs are transmitted */
-	c->operand[22] = 0x00;
 
-	c->length = 28;
+	/* Add PIDs to filter */
+	c->length = ALIGN(22 + add_pid_filter(fdtv, &c->operand[22]) + 3, 4);
 }
 
-static void avc_tuner_dsd_dvb_t(struct dvb_frontend_parameters *params,
+static void avc_tuner_dsd_dvb_t(struct firedtv *fdtv,
+				struct dvb_frontend_parameters *params,
 				struct avc_command_frame *c)
 {
 	struct dvb_ofdm_parameters *ofdm = &params->u.ofdm;
@@ -481,10 +502,9 @@ static void avc_tuner_dsd_dvb_t(struct dvb_frontend_parameters *params,
 
 	c->operand[15] = 0x00; /* network_ID[0] */
 	c->operand[16] = 0x00; /* network_ID[1] */
-	/* Nr_of_dsd_sel_specs = 0 -> no PIDs are transmitted */
-	c->operand[17] = 0x00;
 
-	c->length = 24;
+	/* Add PIDs to filter */
+	c->length = ALIGN(17 + add_pid_filter(fdtv, &c->operand[17]) + 3, 4);
 }
 
 int avc_tuner_dsd(struct firedtv *fdtv,
@@ -502,8 +522,8 @@ int avc_tuner_dsd(struct firedtv *fdtv,
 	switch (fdtv->type) {
 	case FIREDTV_DVB_S:
 	case FIREDTV_DVB_S2: avc_tuner_tuneqpsk(fdtv, params, c); break;
-	case FIREDTV_DVB_C: avc_tuner_dsd_dvb_c(params, c); break;
-	case FIREDTV_DVB_T: avc_tuner_dsd_dvb_t(params, c); break;
+	case FIREDTV_DVB_C: avc_tuner_dsd_dvb_c(fdtv, params, c); break;
+	case FIREDTV_DVB_T: avc_tuner_dsd_dvb_t(fdtv, params, c); break;
 	default:
 		BUG();
 	}
