@@ -4995,7 +4995,9 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/trivial.git
 S:	Maintained
 
 TTY LAYER
-S:	Orphan
+M:	Greg Kroah-Hartman <gregkh@suse.de>
+S:	Maintained
+T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 F:	drivers/char/tty_*
 F:	drivers/serial/serial_core.c
 F:	include/linux/serial_core.h
