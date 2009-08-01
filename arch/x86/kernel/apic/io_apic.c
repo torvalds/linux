@@ -66,6 +66,8 @@
 #include <asm/apic.h>
 
 #define __apicdebuginit(type) static type __init
+#define for_each_irq_pin(entry, head) \
+	for (entry = head; entry; entry = entry->next)
 
 /*
  *      Is the SiS APIC rmw bug present ?
@@ -410,7 +412,7 @@ static bool io_apic_level_ack_pending(struct irq_cfg *cfg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioapic_lock, flags);
-	for (entry = cfg->irq_2_pin; entry != NULL; entry = entry->next) {
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		unsigned int reg;
 		int pin;
 
@@ -490,22 +492,21 @@ static void ioapic_mask_entry(int apic, int pin)
  */
 static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
 {
-	struct irq_pin_list **entryp, *entry;
+	struct irq_pin_list **last, *entry;
 
-	for (entryp = &cfg->irq_2_pin;
-	     *entryp != NULL;
-	     entryp = &(*entryp)->next) {
-		entry = *entryp;
-		/* not again, please */
+	/* don't allow duplicates */
+	last = &cfg->irq_2_pin;
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		if (entry->apic == apic && entry->pin == pin)
 			return;
+		last = &entry->next;
 	}
 
 	entry = get_one_free_irq_2_pin(node);
 	entry->apic = apic;
 	entry->pin = pin;
 
-	*entryp = entry;
+	*last = entry;
 }
 
 /*
@@ -517,7 +518,7 @@ static void __init replace_pin_at_irq_node(struct irq_cfg *cfg, int node,
 {
 	struct irq_pin_list *entry;
 
-	for (entry = cfg->irq_2_pin; entry != NULL; entry = entry->next) {
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		if (entry->apic == oldapic && entry->pin == oldpin) {
 			entry->apic = newapic;
 			entry->pin = newpin;
@@ -537,7 +538,7 @@ static void io_apic_modify_irq(struct irq_cfg *cfg,
 	int pin;
 	struct irq_pin_list *entry;
 
-	for (entry = cfg->irq_2_pin; entry != NULL; entry = entry->next) {
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		unsigned int reg;
 		pin = entry->pin;
 		reg = io_apic_read(entry->apic, 0x10 + pin * 2);
@@ -1669,12 +1670,8 @@ __apicdebuginit(void) print_IO_APIC(void)
 		if (!entry)
 			continue;
 		printk(KERN_DEBUG "IRQ%d ", irq);
-		for (;;) {
+		for_each_irq_pin(entry, cfg->irq_2_pin)
 			printk("-> %d:%d", entry->apic, entry->pin);
-			if (!entry->next)
-				break;
-			entry = entry->next;
-		}
 		printk("\n");
 	}
 
@@ -2227,7 +2224,7 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 	struct irq_pin_list *entry;
 	u8 vector = cfg->vector;
 
-	for (entry = cfg->irq_2_pin; entry != NULL; entry = entry->next) {
+	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		unsigned int reg;
 
 		apic = entry->apic;
@@ -2556,20 +2553,10 @@ static void ack_apic_level(unsigned int irq)
 #ifdef CONFIG_INTR_REMAP
 static void __eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
 {
-	int apic, pin;
 	struct irq_pin_list *entry;
 
-	entry = cfg->irq_2_pin;
-	for (;;) {
-
-		if (!entry)
-			break;
-
-		apic = entry->apic;
-		pin = entry->pin;
-		io_apic_eoi(apic, pin);
-		entry = entry->next;
-	}
+	for_each_irq_pin(entry, cfg->irq_2_pin)
+		io_apic_eoi(entry->apic, entry->pin);
 }
 
 static void
