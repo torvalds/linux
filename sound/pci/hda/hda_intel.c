@@ -1275,10 +1275,12 @@ static int probe_codec(struct azx *chip, int addr)
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	unsigned int res;
 
+	mutex_lock(&chip->bus->cmd_mutex);
 	chip->probing = 1;
 	azx_send_cmd(chip->bus, cmd);
 	res = azx_get_response(chip->bus, addr);
 	chip->probing = 0;
+	mutex_unlock(&chip->bus->cmd_mutex);
 	if (res == -1)
 		return -EIO;
 	snd_printdd(SFX "codec #%d probed OK\n", addr);
