@@ -413,10 +413,11 @@ static int ses_intf_add(struct device *cdev,
 
 	if (!scsi_device_enclosure(sdev)) {
 		/* not an enclosure, but might be in one */
-		edev = enclosure_find(&sdev->host->shost_gendev);
-		if (edev) {
+		struct enclosure_device *prev = NULL;
+
+		while ((edev = enclosure_find(&sdev->host->shost_gendev, prev)) != NULL) {
 			ses_match_to_enclosure(edev, sdev);
-			put_device(&edev->edev);
+			prev = edev;
 		}
 		return -ENODEV;
 	}
@@ -625,7 +626,8 @@ static void ses_intf_remove(struct device *cdev,
 	if (!scsi_device_enclosure(sdev))
 		return;
 
-	edev = enclosure_find(cdev->parent);
+	/*  exact match to this enclosure */
+	edev = enclosure_find(cdev->parent, NULL);
 	if (!edev)
 		return;
 

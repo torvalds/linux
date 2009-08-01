@@ -123,7 +123,8 @@ enclosure_component_register(struct enclosure_device *, unsigned int,
 int enclosure_add_device(struct enclosure_device *enclosure, int component,
 			 struct device *dev);
 int enclosure_remove_device(struct enclosure_device *enclosure, int component);
-struct enclosure_device *enclosure_find(struct device *dev);
+struct enclosure_device *enclosure_find(struct device *dev,
+					struct enclosure_device *start);
 int enclosure_for_each_device(int (*fn)(struct enclosure_device *, void *),
 			      void *data);
 
