@@ -281,6 +281,7 @@ config THINKPAD_ACPI_DOCK
 	bool "Legacy Docking Station Support"
 	depends on THINKPAD_ACPI
 	depends on ACPI_DOCK=n
+	depends on BROKEN
 	default n
 	---help---
 	  Allows the thinkpad_acpi driver to handle docking station events.
@@ -294,7 +295,8 @@ config THINKPAD_ACPI_DOCK
 config THINKPAD_ACPI_BAY
 	bool "Legacy Removable Bay Support"
 	depends on THINKPAD_ACPI
-	default y
+	depends on BROKEN
+	default n
 	---help---
 	  Allows the thinkpad_acpi driver to handle removable bays.  It will
 	  electrically disable the device in the bay, and also generate
