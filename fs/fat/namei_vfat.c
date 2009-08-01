@@ -499,17 +499,10 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 	int charlen;
 
 	if (utf8) {
-		int name_len = strlen(name);
-
-		*outlen = utf8s_to_utf16s(name, PATH_MAX, (wchar_t *) outname);
-
-		/*
-		 * We stripped '.'s before and set len appropriately,
-		 * but utf8s_to_utf16s doesn't care about len
-		 */
-		*outlen -= (name_len - len);
-
-		if (*outlen > 255)
+		*outlen = utf8s_to_utf16s(name, len, (wchar_t *)outname);
+		if (*outlen < 0)
+			return *outlen;
+		else if (*outlen > 255)
 			return -ENAMETOOLONG;
 
 		op = &outname[*outlen * sizeof(wchar_t)];
