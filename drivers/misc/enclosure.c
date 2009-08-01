@@ -332,19 +332,25 @@ EXPORT_SYMBOL_GPL(enclosure_add_device);
  * Returns zero on success or an error.
  *
  */
-int enclosure_remove_device(struct enclosure_device *edev, int component)
+int enclosure_remove_device(struct enclosure_device *edev, struct device *dev)
 {
 	struct enclosure_component *cdev;
+	int i;
 
-	if (!edev || component >= edev->components)
+	if (!edev || !dev)
 		return -EINVAL;
 
-	cdev = &edev->component[component];
-
-	device_del(&cdev->cdev);
-	put_device(cdev->dev);
-	cdev->dev = NULL;
-	return device_add(&cdev->cdev);
+	for (i = 0; i < edev->components; i++) {
+		cdev = &edev->component[i];
+		if (cdev->dev == dev) {
+			enclosure_remove_links(cdev);
+			device_del(&cdev->cdev);
+			put_device(dev);
+			cdev->dev = NULL;
+			return device_add(&cdev->cdev);
+		}
+	}
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(enclosure_remove_device);
 

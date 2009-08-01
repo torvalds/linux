@@ -616,18 +616,26 @@ static int ses_remove(struct device *dev)
 	return 0;
 }
 
-static void ses_intf_remove(struct device *cdev,
-			    struct class_interface *intf)
+static void ses_intf_remove_component(struct scsi_device *sdev)
 {
-	struct scsi_device *sdev = to_scsi_device(cdev->parent);
+	struct enclosure_device *edev, *prev = NULL;
+
+	while ((edev = enclosure_find(&sdev->host->shost_gendev, prev)) != NULL) {
+		prev = edev;
+		if (!enclosure_remove_device(edev, &sdev->sdev_gendev))
+			break;
+	}
+	if (edev)
+		put_device(&edev->edev);
+}
+
+static void ses_intf_remove_enclosure(struct scsi_device *sdev)
+{
 	struct enclosure_device *edev;
 	struct ses_device *ses_dev;
 
-	if (!scsi_device_enclosure(sdev))
-		return;
-
 	/*  exact match to this enclosure */
-	edev = enclosure_find(cdev->parent, NULL);
+	edev = enclosure_find(&sdev->sdev_gendev, NULL);
 	if (!edev)
 		return;
 
@@ -643,6 +651,17 @@ static void ses_intf_remove(struct device *cdev,
 
 	put_device(&edev->edev);
 	enclosure_unregister(edev);
+}
+
+static void ses_intf_remove(struct device *cdev,
+			    struct class_interface *intf)
+{
+	struct scsi_device *sdev = to_scsi_device(cdev->parent);
+
+	if (!scsi_device_enclosure(sdev))
+		ses_intf_remove_component(sdev);
+	else
+		ses_intf_remove_enclosure(sdev);
 }
 
 static struct class_interface ses_interface = {
