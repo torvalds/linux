@@ -774,7 +774,7 @@ static int __init twl4030_usb_init(void)
 {
 	return platform_driver_register(&twl4030_usb_driver);
 }
-subsys_initcall(twl4030_usb_init);
+subsys_initcall_sync(twl4030_usb_init);
 
 static void __exit twl4030_usb_exit(void)
 {
