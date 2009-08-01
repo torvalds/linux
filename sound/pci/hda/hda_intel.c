@@ -513,6 +513,7 @@ static int azx_alloc_cmd_io(struct azx *chip)
 
 static void azx_init_cmd_io(struct azx *chip)
 {
+	spin_lock_irq(&chip->reg_lock);
 	/* CORB set up */
 	chip->corb.addr = chip->rb.addr;
 	chip->corb.buf = (u32 *)chip->rb.area;
@@ -544,13 +545,16 @@ static void azx_init_cmd_io(struct azx *chip)
 	azx_writew(chip, RINTCNT, 1);
 	/* enable rirb dma and response irq */
 	azx_writeb(chip, RIRBCTL, ICH6_RBCTL_DMA_EN | ICH6_RBCTL_IRQ_EN);
+	spin_unlock_irq(&chip->reg_lock);
 }
 
 static void azx_free_cmd_io(struct azx *chip)
 {
+	spin_lock_irq(&chip->reg_lock);
 	/* disable ringbuffer DMAs */
 	azx_writeb(chip, RIRBCTL, 0);
 	azx_writeb(chip, CORBCTL, 0);
+	spin_unlock_irq(&chip->reg_lock);
 }
 
 static unsigned int azx_command_addr(u32 cmd)
