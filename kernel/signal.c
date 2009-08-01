@@ -2464,10 +2464,12 @@ do_sigaltstack (const stack_t __user *uss, stack_t __user *uoss, unsigned long s
 		int ss_flags;
 
 		error = -EFAULT;
-		if (!access_ok(VERIFY_READ, uss, sizeof(*uss))
-		    || __get_user(ss_sp, &uss->ss_sp)
-		    || __get_user(ss_flags, &uss->ss_flags)
-		    || __get_user(ss_size, &uss->ss_size))
+		if (!access_ok(VERIFY_READ, uss, sizeof(*uss)))
+			goto out;
+		error = __get_user(ss_sp, &uss->ss_sp) |
+			__get_user(ss_flags, &uss->ss_flags) |
+			__get_user(ss_size, &uss->ss_size);
+		if (error)
 			goto out;
 
 		error = -EPERM;
