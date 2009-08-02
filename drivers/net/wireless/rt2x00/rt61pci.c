@@ -2601,6 +2601,11 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	int retval;
 
 	/*
+	 * Disable power saving.
+	 */
+	rt2x00pci_register_write(rt2x00dev, SOFT_RESET_CSR, 0x00000007);
+
+	/*
 	 * Allocate eeprom data.
 	 */
 	retval = rt61pci_validate_eeprom(rt2x00dev);
