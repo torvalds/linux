@@ -411,8 +411,10 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 			max_lockdep_depth);
 	seq_printf(m, " max recursion depth:           %11u\n",
 			max_recursion_depth);
+#ifdef CONFIG_PROVE_LOCKING
 	seq_printf(m, " max bfs queue depth:           %11u\n",
 			max_bfs_queue_depth);
+#endif
 	lockdep_stats_debug_show(m);
 	seq_printf(m, " debug_locks:                   %11u\n",
 			debug_locks);
