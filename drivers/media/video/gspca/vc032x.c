@@ -2672,10 +2672,10 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 
 	hflip = sd->hflip;
 	if (sd->flags & FL_HFLIP)
-		hflip != hflip;
+		hflip = !hflip;
 	vflip = sd->vflip;
 	if (sd->flags & FL_VFLIP)
-		vflip != vflip;
+		vflip = !vflip;
 	switch (sd->sensor) {
 	case SENSOR_MI1310_SOC:
 	case SENSOR_MI1320_SOC:
