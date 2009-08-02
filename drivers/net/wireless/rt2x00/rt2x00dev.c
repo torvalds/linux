@@ -893,6 +893,12 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_disable_radio(rt2x00dev);
 
 	/*
+	 * Stop all work.
+	 */
+	cancel_work_sync(&rt2x00dev->filter_work);
+	cancel_work_sync(&rt2x00dev->intf_work);
+
+	/*
 	 * Uninitialize device.
 	 */
 	rt2x00lib_uninitialize(rt2x00dev);
