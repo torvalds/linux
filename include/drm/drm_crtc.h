@@ -572,6 +572,9 @@ struct drm_mode_config {
 	struct drm_property *tv_right_margin_property;
 	struct drm_property *tv_top_margin_property;
 	struct drm_property *tv_bottom_margin_property;
+	struct drm_property *tv_brightness_property;
+	struct drm_property *tv_contrast_property;
+	struct drm_property *tv_flicker_reduction_property;
 
 	/* Optional properties */
 	struct drm_property *scaling_mode_property;

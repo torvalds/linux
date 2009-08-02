@@ -718,6 +718,24 @@ int drm_mode_create_tv_properties(struct drm_device *dev, int num_modes,
 		drm_property_add_enum(dev->mode_config.tv_mode_property, i,
 				      i, modes[i]);
 
+	dev->mode_config.tv_brightness_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "brightness", 2);
+	dev->mode_config.tv_brightness_property->values[0] = 0;
+	dev->mode_config.tv_brightness_property->values[1] = 100;
+
+	dev->mode_config.tv_contrast_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "contrast", 2);
+	dev->mode_config.tv_contrast_property->values[0] = 0;
+	dev->mode_config.tv_contrast_property->values[1] = 100;
+
+	dev->mode_config.tv_flicker_reduction_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "flicker reduction", 2);
+	dev->mode_config.tv_flicker_reduction_property->values[0] = 0;
+	dev->mode_config.tv_flicker_reduction_property->values[1] = 100;
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_tv_properties);
