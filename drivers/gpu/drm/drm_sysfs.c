@@ -247,6 +247,7 @@ static ssize_t subconnector_show(struct device *device,
 		case DRM_MODE_CONNECTOR_Composite:
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_TV:
 			prop = dev->mode_config.tv_subconnector_property;
 			is_tv = 1;
 			break;
@@ -287,6 +288,7 @@ static ssize_t select_subconnector_show(struct device *device,
 		case DRM_MODE_CONNECTOR_Composite:
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_TV:
 			prop = dev->mode_config.tv_select_subconnector_property;
 			is_tv = 1;
 			break;
@@ -385,6 +387,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 		case DRM_MODE_CONNECTOR_Composite:
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
+		case DRM_MODE_CONNECTOR_TV:
 			for (i = 0; i < ARRAY_SIZE(connector_attrs_opt1); i++) {
 				ret = device_create_file(&connector->kdev, &connector_attrs_opt1[i]);
 				if (ret)
