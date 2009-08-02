@@ -108,6 +108,7 @@ static struct drm_prop_enum_list drm_tv_select_enum_list[] =
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Component, "Component" }, /* TV-out */
+	{ DRM_MODE_SUBCONNECTOR_SCART,     "SCART"     }, /* TV-out */
 };
 
 DRM_ENUM_NAME_FN(drm_get_tv_select_name, drm_tv_select_enum_list)
@@ -118,6 +119,7 @@ static struct drm_prop_enum_list drm_tv_subconnector_enum_list[] =
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Component, "Component" }, /* TV-out */
+	{ DRM_MODE_SUBCONNECTOR_SCART,     "SCART"     }, /* TV-out */
 };
 
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
