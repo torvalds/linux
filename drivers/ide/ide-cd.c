@@ -1146,8 +1146,8 @@ void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 	ide_debug_log(IDE_DBG_PROBE, "curspeed: %u, maxspeed: %u",
 				     curspeed, maxspeed);
 
-	cd->current_speed = (curspeed + (176/2)) / 176;
-	cd->max_speed = (maxspeed + (176/2)) / 176;
+	cd->current_speed = DIV_ROUND_CLOSEST(curspeed, 176);
+	cd->max_speed = DIV_ROUND_CLOSEST(maxspeed, 176);
 }
 
 #define IDE_CD_CAPABILITIES \
