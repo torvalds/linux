@@ -116,8 +116,6 @@ static inline void sms_gpio_assign_11xx_default_led_config(
 
 int sms_board_event(struct smscore_device_t *coredev,
 		enum SMS_BOARD_EVENTS gevent) {
-	int board_id = smscore_get_board_id(coredev);
-	struct sms_board *board = sms_get_board(board_id);
 	struct smscore_gpio_config MyGpioConfig;
 
 	sms_gpio_assign_11xx_default_led_config(&MyGpioConfig);
