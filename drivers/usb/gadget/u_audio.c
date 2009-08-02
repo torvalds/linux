@@ -253,11 +253,13 @@ static int gaudio_open_snd_dev(struct gaudio *card)
 	snd->filp = filp_open(fn_cap, O_RDONLY, 0);
 	if (IS_ERR(snd->filp)) {
 		ERROR(card, "No such PCM capture device: %s\n", fn_cap);
-		snd->filp = NULL;
+		snd->substream = NULL;
+		snd->card = NULL;
+	} else {
+		pcm_file = snd->filp->private_data;
+		snd->substream = pcm_file->substream;
+		snd->card = card;
 	}
-	pcm_file = snd->filp->private_data;
-	snd->substream = pcm_file->substream;
-	snd->card = card;
 
 	return 0;
 }
