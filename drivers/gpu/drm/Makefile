@@ -11,7 +11,7 @@ drm-y       :=	drm_auth.o drm_bufs.o drm_cache.o \
 		drm_agpsupport.o drm_scatter.o ati_pcigart.o drm_pci.o \
 		drm_sysfs.o drm_hashtab.o drm_sman.o drm_mm.o \
 		drm_crtc.o drm_crtc_helper.o drm_modes.o drm_edid.o \
-		drm_info.o drm_debugfs.o
+		drm_info.o drm_debugfs.o drm_encoder_slave.o
 
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 
