@@ -153,8 +153,8 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 		atomic_inc(&cp->refcnt);
 		ret = 1;
 	} else {
-		IP_VS_ERR("ip_vs_conn_hash(): request for already hashed, "
-			  "called from %p\n", __builtin_return_address(0));
+		pr_err("%s(): request for already hashed, called from %pF\n",
+		       __func__, __builtin_return_address(0));
 		ret = 0;
 	}
 
@@ -692,7 +692,7 @@ ip_vs_conn_new(int af, int proto, const union nf_inet_addr *caddr, __be16 cport,
 
 	cp = kmem_cache_zalloc(ip_vs_conn_cachep, GFP_ATOMIC);
 	if (cp == NULL) {
-		IP_VS_ERR_RL("ip_vs_conn_new: no memory available.\n");
+		IP_VS_ERR_RL("%s(): no memory\n", __func__);
 		return NULL;
 	}
 
@@ -1076,10 +1076,10 @@ int __init ip_vs_conn_init(void)
 		return -ENOMEM;
 	}
 
-	IP_VS_INFO("Connection hash table configured "
-		   "(size=%d, memory=%ldKbytes)\n",
-		   IP_VS_CONN_TAB_SIZE,
-		   (long)(IP_VS_CONN_TAB_SIZE*sizeof(struct list_head))/1024);
+	pr_info("Connection hash table configured "
+		"(size=%d, memory=%ldKbytes)\n",
+		IP_VS_CONN_TAB_SIZE,
+		(long)(IP_VS_CONN_TAB_SIZE*sizeof(struct list_head))/1024);
 	IP_VS_DBG(0, "Each connection entry needs %Zd bytes at least\n",
 		  sizeof(struct ip_vs_conn));
 

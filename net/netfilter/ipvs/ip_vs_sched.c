@@ -47,11 +47,11 @@ int ip_vs_bind_scheduler(struct ip_vs_service *svc,
 	int ret;
 
 	if (svc == NULL) {
-		IP_VS_ERR("ip_vs_bind_scheduler(): svc arg NULL\n");
+		pr_err("%s(): svc arg NULL\n", __func__);
 		return -EINVAL;
 	}
 	if (scheduler == NULL) {
-		IP_VS_ERR("ip_vs_bind_scheduler(): scheduler arg NULL\n");
+		pr_err("%s(): scheduler arg NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -60,7 +60,7 @@ int ip_vs_bind_scheduler(struct ip_vs_service *svc,
 	if (scheduler->init_service) {
 		ret = scheduler->init_service(svc);
 		if (ret) {
-			IP_VS_ERR("ip_vs_bind_scheduler(): init error\n");
+			pr_err("%s(): init error\n", __func__);
 			return ret;
 		}
 	}
@@ -77,19 +77,19 @@ int ip_vs_unbind_scheduler(struct ip_vs_service *svc)
 	struct ip_vs_scheduler *sched;
 
 	if (svc == NULL) {
-		IP_VS_ERR("ip_vs_unbind_scheduler(): svc arg NULL\n");
+		pr_err("%s(): svc arg NULL\n", __func__);
 		return -EINVAL;
 	}
 
 	sched = svc->scheduler;
 	if (sched == NULL) {
-		IP_VS_ERR("ip_vs_unbind_scheduler(): svc isn't bound\n");
+		pr_err("%s(): svc isn't bound\n", __func__);
 		return -EINVAL;
 	}
 
 	if (sched->done_service) {
 		if (sched->done_service(svc) != 0) {
-			IP_VS_ERR("ip_vs_unbind_scheduler(): done error\n");
+			pr_err("%s(): done error\n", __func__);
 			return -EINVAL;
 		}
 	}
@@ -106,8 +106,7 @@ static struct ip_vs_scheduler *ip_vs_sched_getbyname(const char *sched_name)
 {
 	struct ip_vs_scheduler *sched;
 
-	IP_VS_DBG(2, "ip_vs_sched_getbyname(): sched_name \"%s\"\n",
-		  sched_name);
+	IP_VS_DBG(2, "%s(): sched_name \"%s\"\n", __func__, sched_name);
 
 	read_lock_bh(&__ip_vs_sched_lock);
 
@@ -173,12 +172,12 @@ int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 	struct ip_vs_scheduler *sched;
 
 	if (!scheduler) {
-		IP_VS_ERR("register_ip_vs_scheduler(): NULL arg\n");
+		pr_err("%s(): NULL arg\n", __func__);
 		return -EINVAL;
 	}
 
 	if (!scheduler->name) {
-		IP_VS_ERR("register_ip_vs_scheduler(): NULL scheduler_name\n");
+		pr_err("%s(): NULL scheduler_name\n", __func__);
 		return -EINVAL;
 	}
 
@@ -190,8 +189,8 @@ int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 	if (!list_empty(&scheduler->n_list)) {
 		write_unlock_bh(&__ip_vs_sched_lock);
 		ip_vs_use_count_dec();
-		IP_VS_ERR("register_ip_vs_scheduler(): [%s] scheduler "
-			  "already linked\n", scheduler->name);
+		pr_err("%s(): [%s] scheduler already linked\n",
+		       __func__, scheduler->name);
 		return -EINVAL;
 	}
 
@@ -203,9 +202,8 @@ int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 		if (strcmp(scheduler->name, sched->name) == 0) {
 			write_unlock_bh(&__ip_vs_sched_lock);
 			ip_vs_use_count_dec();
-			IP_VS_ERR("register_ip_vs_scheduler(): [%s] scheduler "
-					"already existed in the system\n",
-					scheduler->name);
+			pr_err("%s(): [%s] scheduler already existed "
+			       "in the system\n", __func__, scheduler->name);
 			return -EINVAL;
 		}
 	}
@@ -215,7 +213,7 @@ int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 	list_add(&scheduler->n_list, &ip_vs_schedulers);
 	write_unlock_bh(&__ip_vs_sched_lock);
 
-	IP_VS_INFO("[%s] scheduler registered.\n", scheduler->name);
+	pr_info("[%s] scheduler registered.\n", scheduler->name);
 
 	return 0;
 }
@@ -227,15 +225,15 @@ int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 int unregister_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 {
 	if (!scheduler) {
-		IP_VS_ERR( "unregister_ip_vs_scheduler(): NULL arg\n");
+		pr_err("%s(): NULL arg\n", __func__);
 		return -EINVAL;
 	}
 
 	write_lock_bh(&__ip_vs_sched_lock);
 	if (list_empty(&scheduler->n_list)) {
 		write_unlock_bh(&__ip_vs_sched_lock);
-		IP_VS_ERR("unregister_ip_vs_scheduler(): [%s] scheduler "
-			  "is not in the list. failed\n", scheduler->name);
+		pr_err("%s(): [%s] scheduler is not in the list. failed\n",
+		       __func__, scheduler->name);
 		return -EINVAL;
 	}
 
@@ -248,7 +246,7 @@ int unregister_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
 
-	IP_VS_INFO("[%s] scheduler unregistered.\n", scheduler->name);
+	pr_info("[%s] scheduler unregistered.\n", scheduler->name);
 
 	return 0;
 }

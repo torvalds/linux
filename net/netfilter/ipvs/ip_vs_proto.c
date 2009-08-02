@@ -262,7 +262,7 @@ int __init ip_vs_protocol_init(void)
 #ifdef CONFIG_IP_VS_PROTO_ESP
 	REGISTER_PROTOCOL(&ip_vs_protocol_esp);
 #endif
-	IP_VS_INFO("Registered protocols (%s)\n", &protocols[2]);
+	pr_info("Registered protocols (%s)\n", &protocols[2]);
 
 	return 0;
 }

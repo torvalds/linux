@@ -391,9 +391,9 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	 */
 	if (!svc->fwmark && pptr[1] != svc->port) {
 		if (!svc->port)
-			IP_VS_ERR("Schedule: port zero only supported "
-				  "in persistent services, "
-				  "check your ipvs configuration\n");
+			pr_err("Schedule: port zero only supported "
+			       "in persistent services, "
+			       "check your ipvs configuration\n");
 		return NULL;
 	}
 
@@ -465,7 +465,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		ip_vs_service_put(svc);
 
 		/* create a new connection entry */
-		IP_VS_DBG(6, "ip_vs_leave: create a cache_bypass entry\n");
+		IP_VS_DBG(6, "%s(): create a cache_bypass entry\n", __func__);
 		cp = ip_vs_conn_new(svc->af, iph.protocol,
 				    &iph.saddr, pptr[0],
 				    &iph.daddr, pptr[1],
@@ -667,8 +667,8 @@ static int handle_response_icmp(int af, struct sk_buff *skb,
 	unsigned int verdict = NF_DROP;
 
 	if (IP_VS_FWD_METHOD(cp) != 0) {
-		IP_VS_ERR("shouldn't reach here, because the box is on the "
-			  "half connection in the tun/dr module.\n");
+		pr_err("shouldn't reach here, because the box is on the "
+		       "half connection in the tun/dr module.\n");
 	}
 
 	/* Ensure the checksum is correct */
@@ -1490,7 +1490,7 @@ static int __init ip_vs_init(void)
 
 	ret = ip_vs_control_init();
 	if (ret < 0) {
-		IP_VS_ERR("can't setup control.\n");
+		pr_err("can't setup control.\n");
 		goto cleanup_estimator;
 	}
 
@@ -1498,23 +1498,23 @@ static int __init ip_vs_init(void)
 
 	ret = ip_vs_app_init();
 	if (ret < 0) {
-		IP_VS_ERR("can't setup application helper.\n");
+		pr_err("can't setup application helper.\n");
 		goto cleanup_protocol;
 	}
 
 	ret = ip_vs_conn_init();
 	if (ret < 0) {
-		IP_VS_ERR("can't setup connection table.\n");
+		pr_err("can't setup connection table.\n");
 		goto cleanup_app;
 	}
 
 	ret = nf_register_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	if (ret < 0) {
-		IP_VS_ERR("can't register hooks.\n");
+		pr_err("can't register hooks.\n");
 		goto cleanup_conn;
 	}
 
-	IP_VS_INFO("ipvs loaded.\n");
+	pr_info("ipvs loaded.\n");
 	return ret;
 
   cleanup_conn:
@@ -1537,7 +1537,7 @@ static void __exit ip_vs_cleanup(void)
 	ip_vs_protocol_cleanup();
 	ip_vs_control_cleanup();
 	ip_vs_estimator_cleanup();
-	IP_VS_INFO("ipvs unloaded.\n");
+	pr_info("ipvs unloaded.\n");
 }
 
 module_init(ip_vs_init);

@@ -97,7 +97,7 @@ static int ip_vs_wrr_init_svc(struct ip_vs_service *svc)
 	 */
 	mark = kmalloc(sizeof(struct ip_vs_wrr_mark), GFP_ATOMIC);
 	if (mark == NULL) {
-		IP_VS_ERR("ip_vs_wrr_init_svc(): no memory\n");
+		pr_err("%s(): no memory\n", __func__);
 		return -ENOMEM;
 	}
 	mark->cl = &svc->destinations;
@@ -144,7 +144,7 @@ ip_vs_wrr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	struct ip_vs_wrr_mark *mark = svc->sched_data;
 	struct list_head *p;
 
-	IP_VS_DBG(6, "ip_vs_wrr_schedule(): Scheduling...\n");
+	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
 	/*
 	 * This loop will always terminate, because mark->cw in (0, max_weight]

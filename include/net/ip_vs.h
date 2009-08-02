@@ -150,13 +150,10 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 #endif
 
 #define IP_VS_BUG() BUG()
-#define IP_VS_ERR(msg...) pr_err(msg)
-#define IP_VS_INFO(msg...) pr_info(msg)
-#define IP_VS_WARNING(msg...) pr_warning(msg)
-#define IP_VS_ERR_RL(msg...)						\
+#define IP_VS_ERR_RL(msg, ...)						\
 	do {								\
 		if (net_ratelimit())					\
-			pr_err(msg);					\
+			pr_err(msg, ##__VA_ARGS__);			\
 	} while (0)
 
 #ifdef CONFIG_IP_VS_DEBUG

@@ -147,7 +147,7 @@ static int ip_vs_sh_init_svc(struct ip_vs_service *svc)
 	tbl = kmalloc(sizeof(struct ip_vs_sh_bucket)*IP_VS_SH_TAB_SIZE,
 		      GFP_ATOMIC);
 	if (tbl == NULL) {
-		IP_VS_ERR("ip_vs_sh_init_svc(): no memory\n");
+		pr_err("%s(): no memory\n", __func__);
 		return -ENOMEM;
 	}
 	svc->sched_data = tbl;

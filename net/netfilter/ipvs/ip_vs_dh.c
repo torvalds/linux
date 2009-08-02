@@ -150,7 +150,7 @@ static int ip_vs_dh_init_svc(struct ip_vs_service *svc)
 	tbl = kmalloc(sizeof(struct ip_vs_dh_bucket)*IP_VS_DH_TAB_SIZE,
 		      GFP_ATOMIC);
 	if (tbl == NULL) {
-		IP_VS_ERR("ip_vs_dh_init_svc(): no memory\n");
+		pr_err("%s(): no memory\n", __func__);
 		return -ENOMEM;
 	}
 	svc->sched_data = tbl;
@@ -217,7 +217,7 @@ ip_vs_dh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 
 	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
 
-	IP_VS_DBG(6, "ip_vs_dh_schedule(): Scheduling...\n");
+	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
 	tbl = (struct ip_vs_dh_bucket *)svc->sched_data;
 	dest = ip_vs_dh_get(svc->af, tbl, &iph.daddr);
