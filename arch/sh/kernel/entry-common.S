@@ -285,6 +285,7 @@ ret_from_fork:
  * system calls and debug traps through their respective jump tables.
  */
 ENTRY(system_call)
+	setup_frame_reg
 #if !defined(CONFIG_CPU_SH2)
 	mov.l	1f, r9
 	mov.l	@r9, r8		! Read from TRA (Trap Address) Register

@@ -108,3 +108,15 @@
 #else
 # define PREF(x)	nop
 #endif
+
+	/*
+	 * Macro for use within assembly. Because the DWARF unwinder
+	 * needs to use the frame register to unwind the stack, we
+	 * need to setup r14 with the value of the stack pointer as
+	 * the return address is usually on the stack somewhere.
+	 */
+	.macro	setup_frame_reg
+#ifdef CONFIG_DWARF_UNWINDER
+	mov	r15, r14
+#endif
+	.endm
