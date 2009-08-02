@@ -50,8 +50,7 @@ enum {
  * @ns_sem: semaphore for shared states
  * @ns_super_sem: semaphore for global operations across super block instances
  * @ns_mount_mutex: mutex protecting mount process of nilfs
- * @ns_writer_mutex: mutex protecting ns_writer attach/detach
- * @ns_writer_refcount: number of referrers on ns_writer
+ * @ns_writer_sem: semaphore protecting ns_writer attach/detach
  * @ns_current: back pointer to current mount
  * @ns_sbh: buffer heads of on-disk super blocks
  * @ns_sbp: pointers to super block data
@@ -100,8 +99,7 @@ struct the_nilfs {
 	struct rw_semaphore	ns_sem;
 	struct rw_semaphore	ns_super_sem;
 	struct mutex		ns_mount_mutex;
-	struct mutex		ns_writer_mutex;
-	atomic_t		ns_writer_refcount;
+	struct rw_semaphore	ns_writer_sem;
 
 	/*
 	 * components protected by ns_super_sem
@@ -221,34 +219,21 @@ static inline void get_nilfs(struct the_nilfs *nilfs)
 	atomic_inc(&nilfs->ns_count);
 }
 
-static inline struct nilfs_sb_info *nilfs_get_writer(struct the_nilfs *nilfs)
-{
-	if (atomic_inc_and_test(&nilfs->ns_writer_refcount))
-		mutex_lock(&nilfs->ns_writer_mutex);
-	return nilfs->ns_writer;
-}
-
-static inline void nilfs_put_writer(struct the_nilfs *nilfs)
-{
-	if (atomic_add_negative(-1, &nilfs->ns_writer_refcount))
-		mutex_unlock(&nilfs->ns_writer_mutex);
-}
-
 static inline void
 nilfs_attach_writer(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 {
-	mutex_lock(&nilfs->ns_writer_mutex);
+	down_write(&nilfs->ns_writer_sem);
 	nilfs->ns_writer = sbi;
-	mutex_unlock(&nilfs->ns_writer_mutex);
+	up_write(&nilfs->ns_writer_sem);
 }
 
 static inline void
 nilfs_detach_writer(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 {
-	mutex_lock(&nilfs->ns_writer_mutex);
+	down_write(&nilfs->ns_writer_sem);
 	if (sbi == nilfs->ns_writer)
 		nilfs->ns_writer = NULL;
-	mutex_unlock(&nilfs->ns_writer_mutex);
+	up_write(&nilfs->ns_writer_sem);
 }
 
 static inline void nilfs_put_sbinfo(struct nilfs_sb_info *sbi)
