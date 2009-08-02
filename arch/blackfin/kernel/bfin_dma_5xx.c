@@ -147,8 +147,8 @@ EXPORT_SYMBOL(request_dma);
 
 int set_dma_callback(unsigned int channel, irq_handler_t callback, void *data)
 {
-	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
-	       && channel < MAX_DMA_CHANNELS));
+	BUG_ON(channel >= MAX_DMA_CHANNELS ||
+			dma_ch[channel].chan_status == DMA_CHANNEL_FREE);
 
 	if (callback != NULL) {
 		int ret;
@@ -182,8 +182,8 @@ static void clear_dma_buffer(unsigned int channel)
 void free_dma(unsigned int channel)
 {
 	pr_debug("freedma() : BEGIN \n");
-	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
-	       && channel < MAX_DMA_CHANNELS));
+	BUG_ON(channel >= MAX_DMA_CHANNELS ||
+			dma_ch[channel].chan_status == DMA_CHANNEL_FREE);
 
 	/* Halt the DMA */
 	disable_dma(channel);
