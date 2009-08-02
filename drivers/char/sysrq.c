@@ -24,6 +24,7 @@
 #include <linux/sysrq.h>
 #include <linux/kbd_kern.h>
 #include <linux/proc_fs.h>
+#include <linux/nmi.h>
 #include <linux/quotaops.h>
 #include <linux/perf_counter.h>
 #include <linux/kernel.h>
@@ -222,12 +223,7 @@ static DECLARE_WORK(sysrq_showallcpus, sysrq_showregs_othercpus);
 
 static void sysrq_handle_showallcpus(int key, struct tty_struct *tty)
 {
-	struct pt_regs *regs = get_irq_regs();
-	if (regs) {
-		printk(KERN_INFO "CPU%d:\n", smp_processor_id());
-		show_regs(regs);
-	}
-	schedule_work(&sysrq_showallcpus);
+	trigger_all_cpu_backtrace();
 }
 
 static struct sysrq_key_op sysrq_showallcpus_op = {
