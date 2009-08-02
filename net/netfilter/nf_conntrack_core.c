@@ -561,23 +561,38 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 		}
 	}
 
-	ct = kmem_cache_zalloc(nf_conntrack_cachep, gfp);
+	/*
+	 * Do not use kmem_cache_zalloc(), as this cache uses
+	 * SLAB_DESTROY_BY_RCU.
+	 */
+	ct = kmem_cache_alloc(nf_conntrack_cachep, gfp);
 	if (ct == NULL) {
 		pr_debug("nf_conntrack_alloc: Can't alloc conntrack.\n");
 		atomic_dec(&net->ct.count);
 		return ERR_PTR(-ENOMEM);
 	}
-
+	/*
+	 * Let ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.next
+	 * and ct->tuplehash[IP_CT_DIR_REPLY].hnnode.next unchanged.
+	 */
+	memset(&ct->tuplehash[IP_CT_DIR_MAX], 0,
+	       sizeof(*ct) - offsetof(struct nf_conn, tuplehash[IP_CT_DIR_MAX]));
 	spin_lock_init(&ct->lock);
-	atomic_set(&ct->ct_general.use, 1);
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
+	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.pprev = NULL;
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
+	ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev = NULL;
 	/* Don't set timer yet: wait for confirmation */
 	setup_timer(&ct->timeout, death_by_timeout, (unsigned long)ct);
 #ifdef CONFIG_NET_NS
 	ct->ct_net = net;
 #endif
 
+	/*
+	 * changes to lookup keys must be done before setting refcnt to 1
+	 */
+	smp_wmb();
+	atomic_set(&ct->ct_general.use, 1);
 	return ct;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alloc);

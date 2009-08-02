@@ -5,7 +5,8 @@
 #include <asm/thread_info.h>
 #include <asm/processor-flags.h>
 
-/*G:020 Our story starts with the kernel booting into startup_32 in
+/*G:020
+ * Our story starts with the kernel booting into startup_32 in
  * arch/x86/kernel/head_32.S.  It expects a boot header, which is created by
  * the bootloader (the Launcher in our case).
  *
@@ -21,11 +22,14 @@
  * data without remembering to subtract __PAGE_OFFSET!
  *
  * The .section line puts this code in .init.text so it will be discarded after
- * boot. */
+ * boot.
+ */
 .section .init.text, "ax", @progbits
 ENTRY(lguest_entry)
-	/* We make the "initialization" hypercall now to tell the Host about
-	 * us, and also find out where it put our page tables. */
+	/*
+	 * We make the "initialization" hypercall now to tell the Host about
+	 * us, and also find out where it put our page tables.
+	 */
 	movl $LHCALL_LGUEST_INIT, %eax
 	movl $lguest_data - __PAGE_OFFSET, %ebx
 	.byte 0x0f,0x01,0xc1 /* KVM_HYPERCALL */
@@ -33,13 +37,14 @@ ENTRY(lguest_entry)
 	/* Set up the initial stack so we can run C code. */
 	movl $(init_thread_union+THREAD_SIZE),%esp
 
-	/* Jumps are relative, and we're running __PAGE_OFFSET too low at the
-	 * moment. */
+	/* Jumps are relative: we're running __PAGE_OFFSET too low. */
 	jmp lguest_init+__PAGE_OFFSET
 
-/*G:055 We create a macro which puts the assembler code between lgstart_ and
- * lgend_ markers.  These templates are put in the .text section: they can't be
- * discarded after boot as we may need to patch modules, too. */
+/*G:055
+ * We create a macro which puts the assembler code between lgstart_ and lgend_
+ * markers.  These templates are put in the .text section: they can't be
+ * discarded after boot as we may need to patch modules, too.
+ */
 .text
 #define LGUEST_PATCH(name, insns...)			\
 	lgstart_##name:	insns; lgend_##name:;		\
@@ -48,83 +53,103 @@ ENTRY(lguest_entry)
 LGUEST_PATCH(cli, movl $0, lguest_data+LGUEST_DATA_irq_enabled)
 LGUEST_PATCH(pushf, movl lguest_data+LGUEST_DATA_irq_enabled, %eax)
 
-/*G:033 But using those wrappers is inefficient (we'll see why that doesn't
- * matter for save_fl and irq_disable later).  If we write our routines
- * carefully in assembler, we can avoid clobbering any registers and avoid
- * jumping through the wrapper functions.
+/*G:033
+ * But using those wrappers is inefficient (we'll see why that doesn't matter
+ * for save_fl and irq_disable later).  If we write our routines carefully in
+ * assembler, we can avoid clobbering any registers and avoid jumping through
+ * the wrapper functions.
  *
  * I skipped over our first piece of assembler, but this one is worth studying
- * in a bit more detail so I'll describe in easy stages.  First, the routine
- * to enable interrupts: */
+ * in a bit more detail so I'll describe in easy stages.  First, the routine to
+ * enable interrupts:
+ */
 ENTRY(lg_irq_enable)
-	/* The reverse of irq_disable, this sets lguest_data.irq_enabled to
-	 * X86_EFLAGS_IF (ie. "Interrupts enabled"). */
+	/*
+	 * The reverse of irq_disable, this sets lguest_data.irq_enabled to
+	 * X86_EFLAGS_IF (ie. "Interrupts enabled").
+	 */
 	movl $X86_EFLAGS_IF, lguest_data+LGUEST_DATA_irq_enabled
-	/* But now we need to check if the Host wants to know: there might have
+	/*
+	 * But now we need to check if the Host wants to know: there might have
 	 * been interrupts waiting to be delivered, in which case it will have
 	 * set lguest_data.irq_pending to X86_EFLAGS_IF.  If it's not zero, we
-	 * jump to send_interrupts, otherwise we're done. */
+	 * jump to send_interrupts, otherwise we're done.
+	 */
 	testl $0, lguest_data+LGUEST_DATA_irq_pending
 	jnz send_interrupts
-	/* One cool thing about x86 is that you can do many things without using
+	/*
+	 * One cool thing about x86 is that you can do many things without using
 	 * a register.  In this case, the normal path hasn't needed to save or
-	 * restore any registers at all! */
+	 * restore any registers at all!
+	 */
 	ret
 send_interrupts:
-	/* OK, now we need a register: eax is used for the hypercall number,
+	/*
+	 * OK, now we need a register: eax is used for the hypercall number,
 	 * which is LHCALL_SEND_INTERRUPTS.
 	 *
 	 * We used not to bother with this pending detection at all, which was
 	 * much simpler.  Sooner or later the Host would realize it had to
 	 * send us an interrupt.  But that turns out to make performance 7
 	 * times worse on a simple tcp benchmark.  So now we do this the hard
-	 * way. */
+	 * way.
+	 */
 	pushl %eax
 	movl $LHCALL_SEND_INTERRUPTS, %eax
-	/* This is a vmcall instruction (same thing that KVM uses).  Older
+	/*
+	 * This is a vmcall instruction (same thing that KVM uses).  Older
 	 * assembler versions might not know the "vmcall" instruction, so we
-	 * create one manually here. */
+	 * create one manually here.
+	 */
 	.byte 0x0f,0x01,0xc1 /* KVM_HYPERCALL */
+	/* Put eax back the way we found it. */
 	popl %eax
 	ret
 
-/* Finally, the "popf" or "restore flags" routine.  The %eax register holds the
+/*
+ * Finally, the "popf" or "restore flags" routine.  The %eax register holds the
  * flags (in practice, either X86_EFLAGS_IF or 0): if it's X86_EFLAGS_IF we're
- * enabling interrupts again, if it's 0 we're leaving them off. */
+ * enabling interrupts again, if it's 0 we're leaving them off.
+ */
 ENTRY(lg_restore_fl)
 	/* This is just "lguest_data.irq_enabled = flags;" */
 	movl %eax, lguest_data+LGUEST_DATA_irq_enabled
-	/* Now, if the %eax value has enabled interrupts and
+	/*
+	 * Now, if the %eax value has enabled interrupts and
 	 * lguest_data.irq_pending is set, we want to tell the Host so it can
 	 * deliver any outstanding interrupts.  Fortunately, both values will
 	 * be X86_EFLAGS_IF (ie. 512) in that case, and the "testl"
 	 * instruction will AND them together for us.  If both are set, we
-	 * jump to send_interrupts. */
+	 * jump to send_interrupts.
+	 */
 	testl lguest_data+LGUEST_DATA_irq_pending, %eax
 	jnz send_interrupts
 	/* Again, the normal path has used no extra registers.  Clever, huh? */
 	ret
+/*:*/
 
 /* These demark the EIP range where host should never deliver interrupts. */
 .global lguest_noirq_start
 .global lguest_noirq_end
 
-/*M:004 When the Host reflects a trap or injects an interrupt into the Guest,
- * it sets the eflags interrupt bit on the stack based on
- * lguest_data.irq_enabled, so the Guest iret logic does the right thing when
- * restoring it.  However, when the Host sets the Guest up for direct traps,
- * such as system calls, the processor is the one to push eflags onto the
- * stack, and the interrupt bit will be 1 (in reality, interrupts are always
- * enabled in the Guest).
+/*M:004
+ * When the Host reflects a trap or injects an interrupt into the Guest, it
+ * sets the eflags interrupt bit on the stack based on lguest_data.irq_enabled,
+ * so the Guest iret logic does the right thing when restoring it.  However,
+ * when the Host sets the Guest up for direct traps, such as system calls, the
+ * processor is the one to push eflags onto the stack, and the interrupt bit
+ * will be 1 (in reality, interrupts are always enabled in the Guest).
  *
  * This turns out to be harmless: the only trap which should happen under Linux
  * with interrupts disabled is Page Fault (due to our lazy mapping of vmalloc
  * regions), which has to be reflected through the Host anyway.  If another
  * trap *does* go off when interrupts are disabled, the Guest will panic, and
- * we'll never get to this iret! :*/
+ * we'll never get to this iret!
+:*/
 
-/*G:045 There is one final paravirt_op that the Guest implements, and glancing
- * at it you can see why I left it to last.  It's *cool*!  It's in *assembler*!
+/*G:045
+ * There is one final paravirt_op that the Guest implements, and glancing at it
+ * you can see why I left it to last.  It's *cool*!  It's in *assembler*!
  *
  * The "iret" instruction is used to return from an interrupt or trap.  The
  * stack looks like this:
@@ -148,15 +173,18 @@ ENTRY(lg_restore_fl)
  * return to userspace or wherever.  Our solution to this is to surround the
  * code with lguest_noirq_start: and lguest_noirq_end: labels.  We tell the
  * Host that it is *never* to interrupt us there, even if interrupts seem to be
- * enabled. */
+ * enabled.
+ */
 ENTRY(lguest_iret)
 	pushl	%eax
 	movl	12(%esp), %eax
 lguest_noirq_start:
-	/* Note the %ss: segment prefix here.  Normal data accesses use the
+	/*
+	 * Note the %ss: segment prefix here.  Normal data accesses use the
 	 * "ds" segment, but that will have already been restored for whatever
 	 * we're returning to (such as userspace): we can't trust it.  The %ss:
-	 * prefix makes sure we use the stack segment, which is still valid. */
+	 * prefix makes sure we use the stack segment, which is still valid.
+	 */
 	movl	%eax,%ss:lguest_data+LGUEST_DATA_irq_enabled
 	popl	%eax
 	iret

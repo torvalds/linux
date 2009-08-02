@@ -327,6 +327,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_IN_SFP_MOD_TASK              (u32)(1 << 25)
 #define IXGBE_FLAG_FDIR_HASH_CAPABLE            (u32)(1 << 26)
 #define IXGBE_FLAG_FDIR_PERFECT_CAPABLE         (u32)(1 << 27)
+#define IXGBE_FLAG_FCOE_CAPABLE                 (u32)(1 << 28)
 #define IXGBE_FLAG_FCOE_ENABLED                 (u32)(1 << 29)
 
 	u32 flags2;

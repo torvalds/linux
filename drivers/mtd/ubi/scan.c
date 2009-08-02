@@ -781,7 +781,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			return -EINVAL;
 		}
 
-		image_seq = be32_to_cpu(ech->ec);
+		image_seq = be32_to_cpu(ech->image_seq);
 		if (!si->image_seq_set) {
 			ubi->image_seq = image_seq;
 			si->image_seq_set = 1;

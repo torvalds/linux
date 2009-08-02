@@ -75,6 +75,7 @@ static __initdata const char banner[] = KERN_INFO
 MODULE_DESCRIPTION("PF_CAN broadcast manager protocol");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Oliver Hartkopp <oliver.hartkopp@volkswagen.de>");
+MODULE_ALIAS("can-proto-2");
 
 /* easy access to can_frame payload */
 static inline u64 GET_U64(const struct can_frame *cp)
@@ -1468,6 +1469,9 @@ static int bcm_release(struct socket *sock)
 		bo->bound   = 0;
 		bo->ifindex = 0;
 	}
+
+	sock_orphan(sk);
+	sock->sk = NULL;
 
 	release_sock(sk);
 	sock_put(sk);
