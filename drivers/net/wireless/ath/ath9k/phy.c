@@ -264,7 +264,7 @@ ath9k_hw_set_rf_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 }
 
 void
-ath9k_hw_rfdetach(struct ath_hw *ah)
+ath9k_hw_rf_free(struct ath_hw *ah)
 {
 #define ATH_FREE_BANK(bank) do { \
 		kfree(bank); \
