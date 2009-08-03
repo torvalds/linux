@@ -55,25 +55,32 @@ static inline struct tty_ldisc *get_ldisc(struct tty_ldisc *ld)
 	return ld;
 }
 
-static inline void put_ldisc(struct tty_ldisc *ld)
+static void put_ldisc(struct tty_ldisc *ld)
 {
+	unsigned long flags;
+
 	if (WARN_ON_ONCE(!ld))
 		return;
 
 	/*
 	 * If this is the last user, free the ldisc, and
 	 * release the ldisc ops.
+	 *
+	 * We really want an "atomic_dec_and_lock_irqsave()",
+	 * but we don't have it, so this does it by hand.
 	 */
-	if (atomic_dec_and_test(&ld->users)) {
-		unsigned long flags;
+	local_irq_save(flags);
+	if (atomic_dec_and_lock(&ld->users, &tty_ldisc_lock)) {
 		struct tty_ldisc_ops *ldo = ld->ops;
 
-		kfree(ld);
-		spin_lock_irqsave(&tty_ldisc_lock, flags);
 		ldo->refcount--;
 		module_put(ldo->owner);
 		spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+
+		kfree(ld);
+		return;
 	}
+	local_irq_restore(flags);
 }
 
 /**
