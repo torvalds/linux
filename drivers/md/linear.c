@@ -257,6 +257,7 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	rcu_assign_pointer(mddev->private, newconf);
 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
 	set_capacity(mddev->gendisk, mddev->array_sectors);
+	revalidate_disk(mddev->gendisk);
 	call_rcu(&oldconf->rcu, free_conf);
 	return 0;
 }

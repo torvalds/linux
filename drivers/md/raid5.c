@@ -4858,6 +4858,7 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 		return -EINVAL;
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
+	revalidate_disk(mddev->gendisk);
 	if (sectors > mddev->dev_sectors && mddev->recovery_cp == MaxSector) {
 		mddev->recovery_cp = mddev->dev_sectors;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
@@ -5058,7 +5059,6 @@ static void end_reshape(raid5_conf_t *conf)
  */
 static void raid5_finish_reshape(mddev_t *mddev)
 {
-	struct block_device *bdev;
 	raid5_conf_t *conf = mddev->private;
 
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
@@ -5067,15 +5067,7 @@ static void raid5_finish_reshape(mddev_t *mddev)
 			md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 			set_capacity(mddev->gendisk, mddev->array_sectors);
 			mddev->changed = 1;
-
-			bdev = bdget_disk(mddev->gendisk, 0);
-			if (bdev) {
-				mutex_lock(&bdev->bd_inode->i_mutex);
-				i_size_write(bdev->bd_inode,
-					     (loff_t)mddev->array_sectors << 9);
-				mutex_unlock(&bdev->bd_inode->i_mutex);
-				bdput(bdev);
-			}
+			revalidate_disk(mddev->gendisk);
 		} else {
 			int d;
 			mddev->degraded = conf->raid_disks;
