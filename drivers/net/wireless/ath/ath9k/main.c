@@ -1363,9 +1363,6 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc)
 	for (i = 0; i < sc->keymax; i++)
 		ath9k_hw_keyreset(ah, (u16) i);
 
-	if (r)
-		goto bad;
-
 	/* default to MONITOR mode */
 	sc->sc_ah->opmode = NL80211_IFTYPE_MONITOR;
 
