@@ -22,13 +22,13 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/omapfb.h>
 
 #include <asm/tlb.h>
 
 #include <asm/mach/map.h>
 
 #include <plat/mux.h>
-#include <plat/omapfb.h>
 #include <plat/sram.h>
 #include <plat/sdrc.h>
 #include <plat/gpmc.h>

@@ -23,8 +23,9 @@
 #include <linux/workqueue.h>
 #include <linux/spi/spi.h>
 
-#include <plat/omapfb.h>
 #include <plat/lcd_mipid.h>
+
+#include "omapfb.h"
 
 #define MIPID_MODULE_NAME		"lcd_mipid"
 

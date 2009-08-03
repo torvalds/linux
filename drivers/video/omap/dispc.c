@@ -26,9 +26,9 @@
 #include <linux/io.h>
 
 #include <plat/sram.h>
-#include <plat/omapfb.h>
 #include <plat/board.h>
 
+#include "omapfb.h"
 #include "dispc.h"
 
 #define MODULE_NAME			"dispc"
