@@ -185,18 +185,6 @@ static struct tc *get_tc(int index)
 	return NULL;
 }
 
-struct tc *get_tc_unused(void)
-{
-	struct tc *t;
-
-	list_for_each_entry(t, &vpecontrol.tc_list, list) {
-		if (t->state == TC_STATE_UNUSED)
-			return t;
-	}
-
-	return NULL;
-}
-
 /* allocate a vpe and associate it with this minor (or index) */
 static struct vpe *alloc_vpe(int minor)
 {
