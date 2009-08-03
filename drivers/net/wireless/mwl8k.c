@@ -1656,18 +1656,18 @@ static int mwl8k_cmd_get_hw_spec(struct ieee80211_hw *hw)
 	memset(cmd->perm_addr, 0xff, sizeof(cmd->perm_addr));
 	cmd->ps_cookie = cpu_to_le32(priv->cookie_dma);
 	cmd->rx_queue_ptr = cpu_to_le32(priv->rxq[0].rx_desc_dma);
-	cmd->num_tx_queues = MWL8K_TX_QUEUES;
+	cmd->num_tx_queues = cpu_to_le32(MWL8K_TX_QUEUES);
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
 		cmd->tx_queue_ptrs[i] = cpu_to_le32(priv->txq[i].tx_desc_dma);
-	cmd->num_tx_desc_per_queue = MWL8K_TX_DESCS;
-	cmd->total_rx_desc = MWL8K_RX_DESCS;
+	cmd->num_tx_desc_per_queue = cpu_to_le32(MWL8K_TX_DESCS);
+	cmd->total_rx_desc = cpu_to_le32(MWL8K_RX_DESCS);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 
 	if (!rc) {
 		SET_IEEE80211_PERM_ADDR(hw, cmd->perm_addr);
 		priv->num_mcaddrs = le16_to_cpu(cmd->num_mcaddrs);
-		priv->fw_rev = cmd->fw_rev;
+		priv->fw_rev = le32_to_cpu(cmd->fw_rev);
 		priv->hw_rev = cmd->hw_rev;
 		priv->region_code = le16_to_cpu(cmd->region_code);
 	}
