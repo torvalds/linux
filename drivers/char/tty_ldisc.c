@@ -175,34 +175,6 @@ static void put_ldops(struct tty_ldisc_ops *ldops)
 }
 
 /**
- *	tty_ldisc_try_get	-	try and reference an ldisc
- *	@disc: ldisc number
- *
- *	Attempt to open and lock a line discipline into place. Return
- *	the line discipline refcounted or an error.
- */
-
-static struct tty_ldisc *tty_ldisc_try_get(int disc)
-{
-	struct tty_ldisc *ld;
-	struct tty_ldisc_ops *ldops;
-
-	ld = kmalloc(sizeof(struct tty_ldisc), GFP_KERNEL);
-	if (ld == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	ldops = get_ldops(disc);
-	if (IS_ERR(ldops)) {
-		kfree(ld);
-		return ERR_CAST(ldops);
-	}
-
-	ld->ops = ldops;
-	atomic_set(&ld->users, 1);
-	return ld;
-}
-
-/**
  *	tty_ldisc_get		-	take a reference to an ldisc
  *	@disc: ldisc number
  *
@@ -218,14 +190,31 @@ static struct tty_ldisc *tty_ldisc_try_get(int disc)
 static struct tty_ldisc *tty_ldisc_get(int disc)
 {
 	struct tty_ldisc *ld;
+	struct tty_ldisc_ops *ldops;
 
 	if (disc < N_TTY || disc >= NR_LDISCS)
 		return ERR_PTR(-EINVAL);
-	ld = tty_ldisc_try_get(disc);
-	if (IS_ERR(ld)) {
+
+	/*
+	 * Get the ldisc ops - we may need to request them to be loaded
+	 * dynamically and try again.
+	 */
+	ldops = get_ldops(disc);
+	if (IS_ERR(ldops)) {
 		request_module("tty-ldisc-%d", disc);
-		ld = tty_ldisc_try_get(disc);
+		ldops = get_ldops(disc);
+		if (IS_ERR(ldops))
+			return ERR_CAST(ldops);
 	}
+
+	ld = kmalloc(sizeof(struct tty_ldisc), GFP_KERNEL);
+	if (ld == NULL) {
+		put_ldops(ldops);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	ld->ops = ldops;
+	atomic_set(&ld->users, 1);
 	return ld;
 }
 
