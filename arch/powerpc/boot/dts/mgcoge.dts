@@ -162,6 +162,59 @@
 				fixed-link = <0 0 10 0 0>;
 			};
 
+			i2c@11860 {
+				compatible = "fsl,mpc8272-i2c",
+					     "fsl,cpm2-i2c";
+				reg = <0x11860 0x20 0x8afc 0x2>;
+				interrupts = <1 8>;
+				interrupt-parent = <&PIC>;
+				fsl,cpm-command = <0x29600000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			mdio@10d40 {
+				compatible = "fsl,cpm2-mdio-bitbang";
+				reg = <0x10d00 0x14>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				fsl,mdio-pin = <12>;
+				fsl,mdc-pin = <13>;
+
+				phy0: ethernet-phy@0 {
+					reg = <0x0>;
+				};
+
+				phy1: ethernet-phy@1 {
+					reg = <0x1>;
+				};
+			};
+
+			/* FCC1 management to switch */
+			ethernet@11300 {
+				device_type = "network";
+				compatible = "fsl,cpm2-fcc-enet";
+				reg = <0x11300 0x20 0x8400 0x100 0x11390 0x1>;
+				local-mac-address = [ 00 01 02 03 04 07 ];
+				interrupts = <32 8>;
+				interrupt-parent = <&PIC>;
+				phy-handle = <&phy0>;
+				linux,network-index = <1>;
+				fsl,cpm-command = <0x12000300>;
+			};
+
+			/* FCC2 to redundant core unit over backplane */
+			ethernet@11320 {
+				device_type = "network";
+				compatible = "fsl,cpm2-fcc-enet";
+				reg = <0x11320 0x20 0x8500 0x100 0x113b0 0x1>;
+				local-mac-address = [ 00 01 02 03 04 08 ];
+				interrupts = <33 8>;
+				interrupt-parent = <&PIC>;
+				phy-handle = <&phy1>;
+				linux,network-index = <2>;
+				fsl,cpm-command = <0x16200300>;
+			};
 		};
 
 		PIC: interrupt-controller@10c00 {
