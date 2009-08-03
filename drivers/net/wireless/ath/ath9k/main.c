@@ -1324,8 +1324,6 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 
 	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
 	if (!ah) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Cannot allocate memory for state block\n");
 		r = -ENOMEM;
 		goto bad_no_ah;
 	}
