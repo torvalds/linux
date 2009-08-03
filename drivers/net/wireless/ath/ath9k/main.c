@@ -1295,7 +1295,7 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 static int ath_init(u16 devid, struct ath_softc *sc)
 {
 	struct ath_hw *ah = NULL;
-	int error = 0, i;
+	int r = 0, i;
 	int csz = 0;
 
 	/* XXX: hardware will not be ready until ath_open() being called */
@@ -1322,11 +1322,21 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	/* XXX assert csz is non-zero */
 	sc->cachelsz = csz << 2;	/* convert to bytes */
 
-	ah = ath9k_hw_attach(devid, sc, &error);
-	if (ah == NULL) {
+	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
+	if (!ah) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"Cannot allocate memory for state block\n");
+		r = -ENOMEM;
+		goto bad_no_ah;
+	}
+
+	ah->ah_sc = sc;
+
+	r = ath9k_hw_attach(ah, devid, sc);
+	if (r) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to attach hardware; "
-			"initialization status: %d\n", error);
+			"initialization status: %d\n", r);
 		goto bad;
 	}
 	sc->sc_ah = ah;
@@ -1347,7 +1357,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	for (i = 0; i < sc->keymax; i++)
 		ath9k_hw_keyreset(ah, (u16) i);
 
-	if (error)
+	if (r)
 		goto bad;
 
 	/* default to MONITOR mode */
@@ -1369,14 +1379,14 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	if (sc->beacon.beaconq == -1) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup a beacon xmit queue\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 	sc->beacon.cabq = ath_txq_setup(sc, ATH9K_TX_QUEUE_CAB, 0);
 	if (sc->beacon.cabq == NULL) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup CAB xmit queue\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 
@@ -1391,26 +1401,26 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_BK)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup xmit queue for BK traffic\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_BE)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup xmit queue for BE traffic\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_VI)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup xmit queue for VI traffic\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_VO)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup xmit queue for VO traffic\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 
@@ -1506,9 +1516,10 @@ bad2:
 bad:
 	if (ah)
 		ath9k_hw_detach(ah);
+bad_no_ah:
 	ath9k_exit_debug(sc);
 
-	return error;
+	return r;
 }
 
 void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
