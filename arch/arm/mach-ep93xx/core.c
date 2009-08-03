@@ -82,7 +82,7 @@ void __init ep93xx_map_io(void)
  */
 static unsigned int last_jiffy_time;
 
-#define TIMER4_TICKS_PER_JIFFY		((CLOCK_TICK_RATE + (HZ/2)) / HZ)
+#define TIMER4_TICKS_PER_JIFFY		DIV_ROUND_CLOSEST(CLOCK_TICK_RATE, HZ)
 
 static irqreturn_t ep93xx_timer_interrupt(int irq, void *dev_id)
 {
