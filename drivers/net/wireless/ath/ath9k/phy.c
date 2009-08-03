@@ -266,42 +266,32 @@ ath9k_hw_set_rf_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 void
 ath9k_hw_rfdetach(struct ath_hw *ah)
 {
-	if (ah->analogBank0Data != NULL) {
-		kfree(ah->analogBank0Data);
-		ah->analogBank0Data = NULL;
-	}
-	if (ah->analogBank1Data != NULL) {
-		kfree(ah->analogBank1Data);
-		ah->analogBank1Data = NULL;
-	}
-	if (ah->analogBank2Data != NULL) {
-		kfree(ah->analogBank2Data);
-		ah->analogBank2Data = NULL;
-	}
-	if (ah->analogBank3Data != NULL) {
-		kfree(ah->analogBank3Data);
-		ah->analogBank3Data = NULL;
-	}
-	if (ah->analogBank6Data != NULL) {
-		kfree(ah->analogBank6Data);
-		ah->analogBank6Data = NULL;
-	}
-	if (ah->analogBank6TPCData != NULL) {
-		kfree(ah->analogBank6TPCData);
-		ah->analogBank6TPCData = NULL;
-	}
-	if (ah->analogBank7Data != NULL) {
-		kfree(ah->analogBank7Data);
-		ah->analogBank7Data = NULL;
-	}
-	if (ah->addac5416_21 != NULL) {
-		kfree(ah->addac5416_21);
-		ah->addac5416_21 = NULL;
-	}
-	if (ah->bank6Temp != NULL) {
-		kfree(ah->bank6Temp);
-		ah->bank6Temp = NULL;
-	}
+	kfree(ah->analogBank0Data);
+	ah->analogBank0Data = NULL;
+
+	kfree(ah->analogBank1Data);
+	ah->analogBank1Data = NULL;
+
+	kfree(ah->analogBank2Data);
+	ah->analogBank2Data = NULL;
+
+	kfree(ah->analogBank3Data);
+	ah->analogBank3Data = NULL;
+
+	kfree(ah->analogBank6Data);
+	ah->analogBank6Data = NULL;
+
+	kfree(ah->analogBank6TPCData);
+	ah->analogBank6TPCData = NULL;
+
+	kfree(ah->analogBank7Data);
+	ah->analogBank7Data = NULL;
+
+	kfree(ah->addac5416_21);
+	ah->addac5416_21 = NULL;
+
+	kfree(ah->bank6Temp);
+	ah->bank6Temp = NULL;
 }
 
 bool ath9k_hw_init_rf(struct ath_hw *ah, int *status)
