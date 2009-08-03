@@ -73,7 +73,7 @@ static int major;
 static const int minor = 1;	/* fixed for now  */
 
 #ifdef CONFIG_MIPS_APSP_KSPD
- static struct kspd_notifications kspd_events;
+static struct kspd_notifications kspd_events;
 static int kspd_events_reqd = 0;
 #endif
 
