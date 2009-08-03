@@ -1182,13 +1182,14 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 
 int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 {
-	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
+	struct ttm_mem_type_manager *man;
 	int ret = -EINVAL;
 
 	if (mem_type >= TTM_NUM_MEM_TYPES) {
 		printk(KERN_ERR TTM_PFX "Illegal memory type %d\n", mem_type);
 		return ret;
 	}
+	man = &bdev->man[mem_type];
 
 	if (!man->has_type) {
 		printk(KERN_ERR TTM_PFX "Trying to take down uninitialized "
