@@ -232,7 +232,7 @@ static ssize_t regulator_name_show(struct device *dev,
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 	const char *name;
 
-	if (rdev->constraints->name)
+	if (rdev->constraints && rdev->constraints->name)
 		name = rdev->constraints->name;
 	else if (rdev->desc->name)
 		name = rdev->desc->name;
