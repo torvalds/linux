@@ -1332,6 +1332,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 
 	ah->ah_sc = sc;
 	ah->hw_version.devid = devid;
+	sc->sc_ah = ah;
 
 	r = ath9k_hw_attach(ah, sc);
 	if (r) {
@@ -1340,7 +1341,6 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 			"initialization status: %d\n", r);
 		goto bad;
 	}
-	sc->sc_ah = ah;
 
 	/* Get the hardware key cache size. */
 	sc->keymax = ah->caps.keycache_size;
