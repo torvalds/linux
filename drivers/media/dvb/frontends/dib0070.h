@@ -15,6 +15,11 @@ struct i2c_adapter;
 
 #define DEFAULT_DIB0070_I2C_ADDRESS 0x60
 
+struct dib0070_wbd_gain_cfg {
+    u16 freq;
+    u16 wbd_gain_val;
+};
+
 struct dib0070_config {
 	u8 i2c_address;
 
@@ -35,6 +40,12 @@ struct dib0070_config {
 	u8 force_crystal_mode; /* if == 0 -> decision is made in the driver default: <24 -> 2, >=24 -> 1 */
 
 	u8 flip_chip;
+    u8 enable_third_order_filter;
+    u8 charge_pump;
+
+	const struct dib0070_wbd_gain_cfg * wbd_gain;
+
+    u8 vga_filter;
 };
 
 #if defined(CONFIG_DVB_TUNER_DIB0070) || (defined(CONFIG_DVB_TUNER_DIB0070_MODULE) && defined(MODULE))

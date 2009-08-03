@@ -1098,11 +1098,13 @@ static struct dibx000_agc_config dib7070_agc_config = {
 
 static int dib7070_tuner_reset(struct dvb_frontend *fe, int onoff)
 {
+	deb_info("reset: %d", onoff);
 	return dib7000p_set_gpio(fe, 8, 0, !onoff);
 }
 
 static int dib7070_tuner_sleep(struct dvb_frontend *fe, int onoff)
 {
+	deb_info("sleep: %d", onoff);
 	return dib7000p_set_gpio(fe, 9, 0, onoff);
 }
 
@@ -1112,13 +1114,14 @@ static struct dib0070_config dib7070p_dib0070_config[2] = {
 		.reset = dib7070_tuner_reset,
 		.sleep = dib7070_tuner_sleep,
 		.clock_khz = 12000,
-		.clock_pad_drive = 4
+		.clock_pad_drive = 4,
+		.charge_pump = 2,
 	}, {
 		.i2c_address = DEFAULT_DIB0070_I2C_ADDRESS,
 		.reset = dib7070_tuner_reset,
 		.sleep = dib7070_tuner_sleep,
 		.clock_khz = 12000,
-
+		.charge_pump = 2,
 	}
 };
 
