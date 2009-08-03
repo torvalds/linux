@@ -2496,9 +2496,6 @@ bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry)
 
 	}
 
-	if (ah->curchan == NULL)
-		return true;
-
 	return true;
 }
 
