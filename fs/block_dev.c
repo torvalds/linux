@@ -216,8 +216,6 @@ EXPORT_SYMBOL(fsync_bdev);
  * freeze_bdev  --  lock a filesystem and force it into a consistent state
  * @bdev:	blockdevice to lock
  *
- * This takes the block device bd_mount_sem to make sure no new mounts
- * happen on bdev until thaw_bdev() is called.
  * If a superblock is found on this device, we take the s_umount semaphore
  * on it to make sure nobody unmounts until the snapshot creation is done.
  * The reference counter (bd_fsfreeze_count) guarantees that only the last
@@ -240,7 +238,6 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 	}
 	bdev->bd_fsfreeze_count++;
 
-	down(&bdev->bd_mount_sem);
 	sb = get_super(bdev);
 	if (sb && !(sb->s_flags & MS_RDONLY)) {
 		sb->s_frozen = SB_FREEZE_WRITE;
@@ -260,7 +257,6 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 					"VFS:Filesystem freeze failed\n");
 				sb->s_frozen = SB_UNFROZEN;
 				drop_super(sb);
-				up(&bdev->bd_mount_sem);
 				bdev->bd_fsfreeze_count--;
 				mutex_unlock(&bdev->bd_fsfreeze_mutex);
 				return ERR_PTR(error);
@@ -271,7 +267,7 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 	sync_blockdev(bdev);
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 
-	return sb;	/* thaw_bdev releases s->s_umount and bd_mount_sem */
+	return sb;	/* thaw_bdev releases s->s_umount */
 }
 EXPORT_SYMBOL(freeze_bdev);
 
@@ -321,7 +317,6 @@ int thaw_bdev(struct block_device *bdev, struct super_block *sb)
 		drop_super(sb);
 	}
 
-	up(&bdev->bd_mount_sem);
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return 0;
 }
@@ -430,7 +425,6 @@ static void init_once(void *foo)
 
 	memset(bdev, 0, sizeof(*bdev));
 	mutex_init(&bdev->bd_mutex);
-	sema_init(&bdev->bd_mount_sem, 1);
 	INIT_LIST_HEAD(&bdev->bd_inodes);
 	INIT_LIST_HEAD(&bdev->bd_list);
 #ifdef CONFIG_SYSFS
