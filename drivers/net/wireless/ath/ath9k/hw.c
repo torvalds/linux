@@ -437,7 +437,7 @@ static void ath9k_hw_set_defaults(struct ath_hw *ah)
 		ah->config.serialize_regmode = SER_REG_MODE_AUTO;
 }
 
-static void ath9k_hw_newstate(struct ath_hw *ah)
+static void ath9k_hw_init_defaults(struct ath_hw *ah)
 {
 	ah->hw_version.magic = AR5416_MAGIC;
 	ah->regulatory.country_code = CTRY_DEFAULT;
@@ -654,7 +654,7 @@ int ath9k_hw_attach(struct ath_hw *ah)
 		goto bad;
 	}
 
-	ath9k_hw_newstate(ah);
+	ath9k_hw_init_defaults(ah);
 	ath9k_hw_set_defaults(ah);
 
 	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
