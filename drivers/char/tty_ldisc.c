@@ -48,6 +48,34 @@ static DECLARE_WAIT_QUEUE_HEAD(tty_ldisc_wait);
 /* Line disc dispatch table */
 static struct tty_ldisc_ops *tty_ldiscs[NR_LDISCS];
 
+static inline struct tty_ldisc *get_ldisc(struct tty_ldisc *ld)
+{
+	if (ld)
+		atomic_inc(&ld->users);
+	return ld;
+}
+
+static inline void put_ldisc(struct tty_ldisc *ld)
+{
+	if (WARN_ON_ONCE(!ld))
+		return;
+
+	/*
+	 * If this is the last user, free the ldisc, and
+	 * release the ldisc ops.
+	 */
+	if (atomic_dec_and_test(&ld->users)) {
+		unsigned long flags;
+		struct tty_ldisc_ops *ldo = ld->ops;
+
+		kfree(ld);
+		spin_lock_irqsave(&tty_ldisc_lock, flags);
+		ldo->refcount--;
+		module_put(ldo->owner);
+		spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	}
+}
+
 /**
  *	tty_register_ldisc	-	install a line discipline
  *	@disc: ldisc number
@@ -142,7 +170,7 @@ static struct tty_ldisc *tty_ldisc_try_get(int disc)
 			/* lock it */
 			ldops->refcount++;
 			ld->ops = ldops;
-			atomic_set(&ld->users, 0);
+			atomic_set(&ld->users, 1);
 			err = 0;
 		}
 	}
@@ -181,35 +209,6 @@ static struct tty_ldisc *tty_ldisc_get(int disc)
 	return ld;
 }
 
-/**
- *	tty_ldisc_put		-	drop ldisc reference
- *	@ld: ldisc
- *
- *	Drop a reference to a line discipline. Manage refcounts and
- *	module usage counts. Free the ldisc once the recount hits zero.
- *
- *	Locking:
- *		takes tty_ldisc_lock to guard against ldisc races
- */
-
-static void tty_ldisc_put(struct tty_ldisc *ld)
-{
-	unsigned long flags;
-	int disc = ld->ops->num;
-	struct tty_ldisc_ops *ldo;
-
-	BUG_ON(disc < N_TTY || disc >= NR_LDISCS);
-
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	ldo = tty_ldiscs[disc];
-	BUG_ON(ldo->refcount == 0);
-	ldo->refcount--;
-	module_put(ldo->owner);
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-	WARN_ON(atomic_read(&ld->users));
-	kfree(ld);
-}
-
 static void *tty_ldiscs_seq_start(struct seq_file *m, loff_t *pos)
 {
 	return (*pos < NR_LDISCS) ? pos : NULL;
@@ -234,7 +233,7 @@ static int tty_ldiscs_seq_show(struct seq_file *m, void *v)
 	if (IS_ERR(ld))
 		return 0;
 	seq_printf(m, "%-10s %2d\n", ld->ops->name ? ld->ops->name : "???", i);
-	tty_ldisc_put(ld);
+	put_ldisc(ld);
 	return 0;
 }
 
@@ -288,20 +287,17 @@ static void tty_ldisc_assign(struct tty_struct *tty, struct tty_ldisc *ld)
  *	Locking: takes tty_ldisc_lock
  */
 
-static int tty_ldisc_try(struct tty_struct *tty)
+static struct tty_ldisc *tty_ldisc_try(struct tty_struct *tty)
 {
 	unsigned long flags;
 	struct tty_ldisc *ld;
-	int ret = 0;
 
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	ld = tty->ldisc;
-	if (test_bit(TTY_LDISC, &tty->flags)) {
-		atomic_inc(&ld->users);
-		ret = 1;
-	}
+	ld = NULL;
+	if (test_bit(TTY_LDISC, &tty->flags))
+		ld = get_ldisc(tty->ldisc);
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-	return ret;
+	return ld;
 }
 
 /**
@@ -322,10 +318,11 @@ static int tty_ldisc_try(struct tty_struct *tty)
 
 struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *tty)
 {
+	struct tty_ldisc *ld;
+
 	/* wait_event is a macro */
-	wait_event(tty_ldisc_wait, tty_ldisc_try(tty));
-	WARN_ON(atomic_read(&tty->ldisc->users) == 0);
-	return tty->ldisc;
+	wait_event(tty_ldisc_wait, (ld = tty_ldisc_try(tty)) != NULL);
+	return ld;
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_ref_wait);
 
@@ -342,9 +339,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_ref_wait);
 
 struct tty_ldisc *tty_ldisc_ref(struct tty_struct *tty)
 {
-	if (tty_ldisc_try(tty))
-		return tty->ldisc;
-	return NULL;
+	return tty_ldisc_try(tty);
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_ref);
 
@@ -360,18 +355,14 @@ EXPORT_SYMBOL_GPL(tty_ldisc_ref);
 
 void tty_ldisc_deref(struct tty_ldisc *ld)
 {
-	unsigned long flags;
-
-	BUG_ON(ld == NULL);
-
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	if (atomic_read(&ld->users) == 0)
-		printk(KERN_ERR "tty_ldisc_deref: no references.\n");
-	else if (atomic_dec_and_test(&ld->users))
-		wake_up(&tty_ldisc_wait);
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	put_ldisc(ld);
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_deref);
+
+static inline void tty_ldisc_put(struct tty_ldisc *ld)
+{
+	put_ldisc(ld);
+}
 
 /**
  *	tty_ldisc_enable	-	allow ldisc use
@@ -521,31 +512,6 @@ static int tty_ldisc_halt(struct tty_struct *tty)
 }
 
 /**
- *	tty_ldisc_wait_idle	-	wait for the ldisc to become idle
- *	@tty: tty to wait for
- *
- *	Wait for the line discipline to become idle. The discipline must
- *	have been halted for this to guarantee it remains idle.
- *
- *	tty_ldisc_lock protects the ref counts currently.
- */
-
-static int tty_ldisc_wait_idle(struct tty_struct *tty)
-{
-	unsigned long flags;
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	while (atomic_read(&tty->ldisc->users)) {
-		spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-		if (wait_event_timeout(tty_ldisc_wait,
-				atomic_read(&tty->ldisc->users) == 0, 5 * HZ) == 0)
-			return -EBUSY;
-		spin_lock_irqsave(&tty_ldisc_lock, flags);
-	}
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-	return 0;
-}
-
-/**
  *	tty_set_ldisc		-	set line discipline
  *	@tty: the terminal to set
  *	@ldisc: the line discipline
@@ -639,14 +605,6 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	mutex_unlock(&tty->ldisc_mutex);
 
 	flush_scheduled_work();
-
-	/* Let any existing reference holders finish */
-	retval = tty_ldisc_wait_idle(tty);
-	if (retval < 0) {
-		clear_bit(TTY_LDISC_CHANGING, &tty->flags);
-		tty_ldisc_put(new_ldisc);
-		return retval;
-	}
 
 	mutex_lock(&tty->ldisc_mutex);
 	if (test_bit(TTY_HUPPED, &tty->flags)) {
@@ -793,7 +751,6 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 		if (tty->ldisc) {	/* Not yet closed */
 			/* Switch back to N_TTY */
 			tty_ldisc_halt(tty);
-			tty_ldisc_wait_idle(tty);
 			tty_ldisc_reinit(tty);
 			/* At this point we have a closed ldisc and we want to
 			   reopen it. We could defer this to the next open but
@@ -857,14 +814,6 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 
 	tty_ldisc_halt(tty);
 	flush_scheduled_work();
-
-	/*
-	 * Wait for any short term users (we know they are just driver
-	 * side waiters as the file is closing so user count on the file
-	 * side is zero.
-	 */
-
-	tty_ldisc_wait_idle(tty);
 
 	mutex_lock(&tty->ldisc_mutex);
 	/*
