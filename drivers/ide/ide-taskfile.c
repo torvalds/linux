@@ -19,8 +19,8 @@
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/scatterlist.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/io.h>
 
 void ide_tf_readback(ide_drive_t *drive, struct ide_cmd *cmd)
@@ -53,7 +53,7 @@ void ide_tf_dump(const char *s, struct ide_cmd *cmd)
 #endif
 }
 
-int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
+int taskfile_lib_get_identify(ide_drive_t *drive, u8 *buf)
 {
 	struct ide_cmd cmd;
 
@@ -86,7 +86,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 	if (orig_cmd->protocol == ATA_PROT_PIO &&
 	    (orig_cmd->tf_flags & IDE_TFLAG_MULTI_PIO) &&
 	    drive->mult_count == 0) {
-		printk(KERN_ERR "%s: multimode not set!\n", drive->name);
+		pr_err("%s: multimode not set!\n", drive->name);
 		return ide_stopped;
 	}
 
@@ -214,7 +214,7 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 	}
 
 	if (stat & ATA_BUSY)
-		printk(KERN_ERR "%s: drive still BUSY!\n", drive->name);
+		pr_err("%s: drive still BUSY!\n", drive->name);
 
 	return stat;
 }
@@ -400,8 +400,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
 
 	if (ide_wait_stat(&startstop, drive, ATA_DRQ,
 			  drive->bad_wstat, WAIT_DRQ)) {
-		printk(KERN_ERR "%s: no DRQ after issuing %sWRITE%s\n",
-			drive->name,
+		pr_err("%s: no DRQ after issuing %sWRITE%s\n", drive->name,
 			(cmd->tf_flags & IDE_TFLAG_MULTI_PIO) ? "MULT" : "",
 			(drive->dev_flags & IDE_DFLAG_LBA48) ? "_EXT" : "");
 		return startstop;
@@ -451,7 +450,6 @@ put_req:
 	blk_put_request(rq);
 	return error;
 }
-
 EXPORT_SYMBOL(ide_raw_taskfile);
 
 int ide_no_data_taskfile(ide_drive_t *drive, struct ide_cmd *cmd)
@@ -477,10 +475,9 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 	u16 nsect		= 0;
 	char __user *buf = (char __user *)arg;
 
-//	printk("IDE Taskfile ...\n");
-
 	req_task = kzalloc(tasksize, GFP_KERNEL);
-	if (req_task == NULL) return -ENOMEM;
+	if (req_task == NULL)
+		return -ENOMEM;
 	if (copy_from_user(req_task, buf, tasksize)) {
 		kfree(req_task);
 		return -EFAULT;
@@ -488,7 +485,7 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 
 	taskout = req_task->out_size;
 	taskin  = req_task->in_size;
-	
+
 	if (taskin > 65536 || taskout > 65536) {
 		err = -EINVAL;
 		goto abort;
@@ -578,51 +575,49 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 	cmd.protocol = ATA_PROT_DMA;
 
 	switch (req_task->data_phase) {
-		case TASKFILE_MULTI_OUT:
-			if (!drive->mult_count) {
-				/* (hs): give up if multcount is not set */
-				printk(KERN_ERR "%s: %s Multimode Write " \
-					"multcount is not set\n",
-					drive->name, __func__);
-				err = -EPERM;
-				goto abort;
-			}
-			cmd.tf_flags |= IDE_TFLAG_MULTI_PIO;
-			/* fall through */
-		case TASKFILE_OUT:
-			cmd.protocol = ATA_PROT_PIO;
-			/* fall through */
-		case TASKFILE_OUT_DMAQ:
-		case TASKFILE_OUT_DMA:
-			cmd.tf_flags |= IDE_TFLAG_WRITE;
-			nsect = taskout / SECTOR_SIZE;
-			data_buf = outbuf;
-			break;
-		case TASKFILE_MULTI_IN:
-			if (!drive->mult_count) {
-				/* (hs): give up if multcount is not set */
-				printk(KERN_ERR "%s: %s Multimode Read failure " \
-					"multcount is not set\n",
-					drive->name, __func__);
-				err = -EPERM;
-				goto abort;
-			}
-			cmd.tf_flags |= IDE_TFLAG_MULTI_PIO;
-			/* fall through */
-		case TASKFILE_IN:
-			cmd.protocol = ATA_PROT_PIO;
-			/* fall through */
-		case TASKFILE_IN_DMAQ:
-		case TASKFILE_IN_DMA:
-			nsect = taskin / SECTOR_SIZE;
-			data_buf = inbuf;
-			break;
-		case TASKFILE_NO_DATA:
-			cmd.protocol = ATA_PROT_NODATA;
-			break;
-		default:
-			err = -EFAULT;
+	case TASKFILE_MULTI_OUT:
+		if (!drive->mult_count) {
+			/* (hs): give up if multcount is not set */
+			pr_err("%s: %s Multimode Write multcount is not set\n",
+				drive->name, __func__);
+			err = -EPERM;
 			goto abort;
+		}
+		cmd.tf_flags |= IDE_TFLAG_MULTI_PIO;
+		/* fall through */
+	case TASKFILE_OUT:
+		cmd.protocol = ATA_PROT_PIO;
+		/* fall through */
+	case TASKFILE_OUT_DMAQ:
+	case TASKFILE_OUT_DMA:
+		cmd.tf_flags |= IDE_TFLAG_WRITE;
+		nsect = taskout / SECTOR_SIZE;
+		data_buf = outbuf;
+		break;
+	case TASKFILE_MULTI_IN:
+		if (!drive->mult_count) {
+			/* (hs): give up if multcount is not set */
+			pr_err("%s: %s Multimode Read multcount is not set\n",
+				drive->name, __func__);
+			err = -EPERM;
+			goto abort;
+		}
+		cmd.tf_flags |= IDE_TFLAG_MULTI_PIO;
+		/* fall through */
+	case TASKFILE_IN:
+		cmd.protocol = ATA_PROT_PIO;
+		/* fall through */
+	case TASKFILE_IN_DMAQ:
+	case TASKFILE_IN_DMA:
+		nsect = taskin / SECTOR_SIZE;
+		data_buf = inbuf;
+		break;
+	case TASKFILE_NO_DATA:
+		cmd.protocol = ATA_PROT_NODATA;
+		break;
+	default:
+		err = -EFAULT;
+		goto abort;
 	}
 
 	if (req_task->req_cmd == IDE_DRIVE_TASK_NO_DATA)
@@ -631,7 +626,7 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 		nsect = (cmd.hob.nsect << 8) | cmd.tf.nsect;
 
 		if (!nsect) {
-			printk(KERN_ERR "%s: in/out command without data\n",
+			pr_err("%s: in/out command without data\n",
 					drive->name);
 			err = -EFAULT;
 			goto abort;
@@ -672,8 +667,6 @@ abort:
 	kfree(req_task);
 	kfree(outbuf);
 	kfree(inbuf);
-
-//	printk("IDE Taskfile ioctl ended. rc = %i\n", err);
 
 	return err;
 }
