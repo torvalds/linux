@@ -608,11 +608,34 @@ static int ath9k_hw_post_attach(struct ath_hw *ah)
 	return 0;
 }
 
-static int ath9k_hw_do_attach(struct ath_hw *ah,
-			      struct ath_softc *sc)
+static bool ath9k_hw_devid_supported(u16 devid)
+{
+	switch (devid) {
+	case AR5416_DEVID_PCI:
+	case AR5416_DEVID_PCIE:
+	case AR5416_AR9100_DEVID:
+	case AR9160_DEVID_PCI:
+	case AR9280_DEVID_PCI:
+	case AR9280_DEVID_PCIE:
+	case AR9285_DEVID_PCIE:
+	case AR5416_DEVID_AR9287_PCI:
+	case AR5416_DEVID_AR9287_PCIE:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
+int ath9k_hw_attach(struct ath_hw *ah, struct ath_softc *sc)
 {
 	int r;
 	u32 i, j;
+
+	if (!ath9k_hw_devid_supported(ah->hw_version.devid)) {
+		r = -EOPNOTSUPP;
+		goto bad;
+	}
 
 	ath9k_hw_newstate(ah);
 	ath9k_hw_set_defaults(ah);
@@ -1181,25 +1204,6 @@ void ath9k_hw_detach(struct ath_hw *ah)
 	ath9k_hw_rfdetach(ah);
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 	kfree(ah);
-}
-
-int ath9k_hw_attach(struct ath_hw *ah, struct ath_softc *sc)
-{
-	switch (ah->hw_version.devid) {
-	case AR5416_DEVID_PCI:
-	case AR5416_DEVID_PCIE:
-	case AR5416_AR9100_DEVID:
-	case AR9160_DEVID_PCI:
-	case AR9280_DEVID_PCI:
-	case AR9280_DEVID_PCIE:
-	case AR9285_DEVID_PCIE:
-	case AR5416_DEVID_AR9287_PCI:
-	case AR5416_DEVID_AR9287_PCIE:
-		return ath9k_hw_do_attach(ah, sc);
-	default:
-		break;
-	}
-	return -EOPNOTSUPP;
 }
 
 /*******/
@@ -2898,7 +2902,7 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 		/*
 		 * AR9280 2.0 or later chips use SerDes values from the
 		 * initvals.h initialized depending on chipset during
-		 * ath9k_hw_do_attach()
+		 * ath9k_hw_attach()
 		 */
 		for (i = 0; i < ah->iniPcieSerdes.ia_rows; i++) {
 			REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),
