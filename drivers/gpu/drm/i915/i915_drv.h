@@ -231,6 +231,7 @@ typedef struct drm_i915_private {
 	spinlock_t error_lock;
 	struct drm_i915_error_state *first_error;
 	struct work_struct error_work;
+	struct workqueue_struct *wq;
 
 	/* Register state */
 	u8 saveLBB;

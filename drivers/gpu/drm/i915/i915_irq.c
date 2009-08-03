@@ -482,7 +482,7 @@ static void i915_handle_error(struct drm_device *dev)
 		I915_WRITE(IIR, I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
 	}
 
-	schedule_work(&dev_priv->error_work);
+	queue_work(dev_priv->wq, &dev_priv->error_work);
 }
 
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
@@ -560,7 +560,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			DRM_DEBUG("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
 			if (hotplug_status & dev_priv->hotplug_supported_mask)
-				schedule_work(&dev_priv->hotplug_work);
+				queue_work(dev_priv->wq,
+					   &dev_priv->hotplug_work);
 
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
