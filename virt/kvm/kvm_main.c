@@ -2791,8 +2791,8 @@ out_free_0:
 	__free_page(bad_page);
 out:
 	kvm_arch_exit();
-	kvm_exit_debug();
 out_fail:
+	kvm_exit_debug();
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_init);
