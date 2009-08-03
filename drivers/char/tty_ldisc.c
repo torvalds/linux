@@ -145,6 +145,34 @@ int tty_unregister_ldisc(int disc)
 }
 EXPORT_SYMBOL(tty_unregister_ldisc);
 
+static struct tty_ldisc_ops *get_ldops(int disc)
+{
+	unsigned long flags;
+	struct tty_ldisc_ops *ldops, *ret;
+
+	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	ret = ERR_PTR(-EINVAL);
+	ldops = tty_ldiscs[disc];
+	if (ldops) {
+		ret = ERR_PTR(-EAGAIN);
+		if (try_module_get(ldops->owner)) {
+			ldops->refcount++;
+			ret = ldops;
+		}
+	}
+	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	return ret;
+}
+
+static void put_ldops(struct tty_ldisc_ops *ldops)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	ldops->refcount--;
+	module_put(ldops->owner);
+	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+}
 
 /**
  *	tty_ldisc_try_get	-	try and reference an ldisc
@@ -156,36 +184,21 @@ EXPORT_SYMBOL(tty_unregister_ldisc);
 
 static struct tty_ldisc *tty_ldisc_try_get(int disc)
 {
-	unsigned long flags;
 	struct tty_ldisc *ld;
 	struct tty_ldisc_ops *ldops;
-	int err = -EINVAL;
 
 	ld = kmalloc(sizeof(struct tty_ldisc), GFP_KERNEL);
 	if (ld == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	ld->ops = NULL;
-	ldops = tty_ldiscs[disc];
-	/* Check the entry is defined */
-	if (ldops) {
-		/* If the module is being unloaded we can't use it */
-		if (!try_module_get(ldops->owner))
-			err = -EAGAIN;
-		else {
-			/* lock it */
-			ldops->refcount++;
-			ld->ops = ldops;
-			atomic_set(&ld->users, 1);
-			err = 0;
-		}
-	}
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-	if (err) {
+	ldops = get_ldops(disc);
+	if (IS_ERR(ldops)) {
 		kfree(ld);
-		return ERR_PTR(err);
+		return ERR_CAST(ldops);
 	}
+
+	ld->ops = ldops;
+	atomic_set(&ld->users, 1);
 	return ld;
 }
 
@@ -234,13 +247,13 @@ static void tty_ldiscs_seq_stop(struct seq_file *m, void *v)
 static int tty_ldiscs_seq_show(struct seq_file *m, void *v)
 {
 	int i = *(loff_t *)v;
-	struct tty_ldisc *ld;
+	struct tty_ldisc_ops *ldops;
 
-	ld = tty_ldisc_try_get(i);
-	if (IS_ERR(ld))
+	ldops = get_ldops(i);
+	if (IS_ERR(ldops))
 		return 0;
-	seq_printf(m, "%-10s %2d\n", ld->ops->name ? ld->ops->name : "???", i);
-	put_ldisc(ld);
+	seq_printf(m, "%-10s %2d\n", ldops->name ? ldops->name : "???", i);
+	put_ldops(ldops);
 	return 0;
 }
 
