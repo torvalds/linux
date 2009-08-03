@@ -526,19 +526,6 @@ int iwm_read_mac(struct iwm_priv *iwm, u8 *mac)
 	return 0;
 }
 
-int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx)
-{
-	struct iwm_umac_tx_key_id tx_key_id;
-
-	tx_key_id.hdr.oid = UMAC_WIFI_IF_CMD_GLOBAL_TX_KEY_ID;
-	tx_key_id.hdr.buf_size = cpu_to_le16(sizeof(struct iwm_umac_tx_key_id) -
-					     sizeof(struct iwm_umac_wifi_if));
-
-	tx_key_id.key_idx = key_idx;
-
-	return iwm_send_wifi_if_cmd(iwm, &tx_key_id, sizeof(tx_key_id), 1);
-}
-
 static int iwm_check_profile(struct iwm_priv *iwm)
 {
 	if (!iwm->umac_profile_active)
@@ -570,6 +557,32 @@ static int iwm_check_profile(struct iwm_priv *iwm)
 	}
 
 	return 0;
+}
+
+int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx)
+{
+	struct iwm_umac_tx_key_id tx_key_id;
+	int ret;
+
+	ret = iwm_check_profile(iwm);
+	if (ret < 0)
+		return ret;
+
+	/* UMAC only allows to set default key for WEP and auth type is
+	 * NOT 802.1X or RSNA. */
+	if ((iwm->umac_profile->sec.ucast_cipher != UMAC_CIPHER_TYPE_WEP_40 &&
+	     iwm->umac_profile->sec.ucast_cipher != UMAC_CIPHER_TYPE_WEP_104) ||
+	    iwm->umac_profile->sec.auth_type == UMAC_AUTH_TYPE_8021X ||
+	    iwm->umac_profile->sec.auth_type == UMAC_AUTH_TYPE_RSNA_PSK)
+		return 0;
+
+	tx_key_id.hdr.oid = UMAC_WIFI_IF_CMD_GLOBAL_TX_KEY_ID;
+	tx_key_id.hdr.buf_size = cpu_to_le16(sizeof(struct iwm_umac_tx_key_id) -
+					     sizeof(struct iwm_umac_wifi_if));
+
+	tx_key_id.key_idx = key_idx;
+
+	return iwm_send_wifi_if_cmd(iwm, &tx_key_id, sizeof(tx_key_id), 1);
 }
 
 int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key)
