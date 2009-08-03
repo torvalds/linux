@@ -2695,6 +2695,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	ssize_t rv = len;
 	struct mdk_personality *pers;
 	void *priv;
+	mdk_rdev_t *rdev;
 
 	if (mddev->pers == NULL) {
 		if (len == 0)
@@ -2774,6 +2775,12 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	mddev_suspend(mddev);
 	mddev->pers->stop(mddev);
 	module_put(mddev->pers->owner);
+	/* Invalidate devices that are now superfluous */
+	list_for_each_entry(rdev, &mddev->disks, same_set)
+		if (rdev->raid_disk >= mddev->raid_disks) {
+			rdev->raid_disk = -1;
+			clear_bit(In_sync, &rdev->flags);
+		}
 	mddev->pers = pers;
 	mddev->private = priv;
 	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
