@@ -70,12 +70,14 @@ static int regulator_fixed_voltage_probe(struct platform_device *pdev)
 
 	drvdata = kzalloc(sizeof(struct fixed_voltage_data), GFP_KERNEL);
 	if (drvdata == NULL) {
+		dev_err(&pdev->dev, "Failed to allocate device data\n");
 		ret = -ENOMEM;
 		goto err;
 	}
 
 	drvdata->desc.name = kstrdup(config->supply_name, GFP_KERNEL);
 	if (drvdata->desc.name == NULL) {
+		dev_err(&pdev->dev, "Failed to allocate supply name\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -90,6 +92,7 @@ static int regulator_fixed_voltage_probe(struct platform_device *pdev)
 					  config->init_data, drvdata);
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
+		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);
 		goto err_name;
 	}
 
