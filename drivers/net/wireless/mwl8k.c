@@ -261,7 +261,7 @@ struct mwl8k_vif {
 	 */
 };
 
-#define MWL8K_VIF(_vif) (struct mwl8k_vif *)(&((_vif)->drv_priv))
+#define MWL8K_VIF(_vif) ((struct mwl8k_vif *)&((_vif)->drv_priv))
 
 static const struct ieee80211_channel mwl8k_channels[] = {
 	{ .center_freq = 2412, .hw_value = 1, },
@@ -3219,15 +3219,19 @@ static int mwl8k_configure_filter_wt(struct work_struct *wt)
 	struct dev_addr_list *mclist = worker->mclist;
 
 	struct mwl8k_priv *priv = hw->priv;
-	struct mwl8k_vif *mv_vif;
 	int rc = 0;
 
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
 			rc = mwl8k_cmd_set_pre_scan(hw);
 		else {
-			mv_vif = MWL8K_VIF(priv->vif);
-			rc = mwl8k_cmd_set_post_scan(hw, mv_vif->bssid);
+			u8 *bssid;
+
+			bssid = "\x00\x00\x00\x00\x00\x00";
+			if (priv->vif != NULL)
+				bssid = MWL8K_VIF(priv->vif)->bssid;
+
+			rc = mwl8k_cmd_set_post_scan(hw, bssid);
 		}
 	}
 
