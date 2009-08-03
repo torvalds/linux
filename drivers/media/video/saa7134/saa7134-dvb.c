@@ -1147,7 +1147,7 @@ static int dvb_init(struct saa7134_dev *dev)
 					 &tda827x_cfg_1) < 0)
 			goto dettach_frontend;
 		break;
-	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
 		fe0->dvb.frontend = dvb_attach(lgdt3305_attach,
 					       &hcw_lgdt3305_config,
 					       &dev->i2c_adap);
