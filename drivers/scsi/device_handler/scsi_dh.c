@@ -452,6 +452,39 @@ int scsi_dh_activate(struct request_queue *q)
 EXPORT_SYMBOL_GPL(scsi_dh_activate);
 
 /*
+ * scsi_dh_set_params - set the parameters for the device as per the
+ *      string specified in params.
+ * @q - Request queue that is associated with the scsi_device for
+ *      which the parameters to be set.
+ * @params - parameters in the following format
+ *      "no_of_params\0param1\0param2\0param3\0...\0"
+ *      for example, string for 2 parameters with value 10 and 21
+ *      is specified as "2\010\021\0".
+ */
+int scsi_dh_set_params(struct request_queue *q, const char *params)
+{
+	int err = -SCSI_DH_NOSYS;
+	unsigned long flags;
+	struct scsi_device *sdev;
+	struct scsi_device_handler *scsi_dh = NULL;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	sdev = q->queuedata;
+	if (sdev && sdev->scsi_dh_data)
+		scsi_dh = sdev->scsi_dh_data->scsi_dh;
+	if (scsi_dh && scsi_dh->set_params && get_device(&sdev->sdev_gendev))
+		err = 0;
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	if (err)
+		return err;
+	err = scsi_dh->set_params(sdev, params);
+	put_device(&sdev->sdev_gendev);
+	return err;
+}
+EXPORT_SYMBOL_GPL(scsi_dh_set_params);
+
+/*
  * scsi_dh_handler_exist - Return TRUE(1) if a device handler exists for
  *	the given name. FALSE(0) otherwise.
  * @name - name of the device handler.
