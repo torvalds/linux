@@ -1191,16 +1191,21 @@ void regulator_put(struct regulator *regulator)
 }
 EXPORT_SYMBOL_GPL(regulator_put);
 
+static int _regulator_can_change_status(struct regulator_dev *rdev)
+{
+	if (!rdev->constraints)
+		return 0;
+
+	if (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_STATUS)
+		return 1;
+	else
+		return 0;
+}
+
 /* locks held by regulator_enable() */
 static int _regulator_enable(struct regulator_dev *rdev)
 {
-	int ret = -EINVAL;
-
-	if (!rdev->constraints) {
-		printk(KERN_ERR "%s: %s has no constraints\n",
-		       __func__, rdev->desc->name);
-		return ret;
-	}
+	int ret;
 
 	/* do we need to enable the supply regulator first */
 	if (rdev->supply) {
@@ -1213,24 +1218,34 @@ static int _regulator_enable(struct regulator_dev *rdev)
 	}
 
 	/* check voltage and requested load before enabling */
-	if (rdev->desc->ops->enable) {
+	if (rdev->constraints &&
+	    (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_DRMS))
+		drms_uA_update(rdev);
 
-		if (rdev->constraints &&
-			(rdev->constraints->valid_ops_mask &
-			REGULATOR_CHANGE_DRMS))
-			drms_uA_update(rdev);
+	if (rdev->use_count == 0) {
+		/* The regulator may on if it's not switchable or left on */
+		ret = _regulator_is_enabled(rdev);
+		if (ret == -EINVAL || ret == 0) {
+			if (!_regulator_can_change_status(rdev))
+				return -EPERM;
 
-		ret = rdev->desc->ops->enable(rdev);
-		if (ret < 0) {
-			printk(KERN_ERR "%s: failed to enable %s: %d\n",
+			if (rdev->desc->ops->enable) {
+				ret = rdev->desc->ops->enable(rdev);
+				if (ret < 0)
+					return ret;
+			} else {
+				return -EINVAL;
+			}
+		} else {
+			printk(KERN_ERR "%s: is_enabled() failed for %s: %d\n",
 			       __func__, rdev->desc->name, ret);
 			return ret;
 		}
-		rdev->use_count++;
-		return ret;
 	}
 
-	return ret;
+	rdev->use_count++;
+
+	return 0;
 }
 
 /**
@@ -1270,7 +1285,8 @@ static int _regulator_disable(struct regulator_dev *rdev)
 	if (rdev->use_count == 1 && !rdev->constraints->always_on) {
 
 		/* we are last user */
-		if (rdev->desc->ops->disable) {
+		if (_regulator_can_change_status(rdev) &&
+		    rdev->desc->ops->disable) {
 			ret = rdev->desc->ops->disable(rdev);
 			if (ret < 0) {
 				printk(KERN_ERR "%s: failed to disable %s\n",
