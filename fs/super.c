@@ -465,6 +465,48 @@ rescan:
 }
 
 EXPORT_SYMBOL(get_super);
+
+/**
+ * get_active_super - get an active reference to the superblock of a device
+ * @bdev: device to get the superblock for
+ *
+ * Scans the superblock list and finds the superblock of the file system
+ * mounted on the device given.  Returns the superblock with an active
+ * reference and s_umount held exclusively or %NULL if none was found.
+ */
+struct super_block *get_active_super(struct block_device *bdev)
+{
+	struct super_block *sb;
+
+	if (!bdev)
+		return NULL;
+
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (sb->s_bdev != bdev)
+			continue;
+
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+		down_write(&sb->s_umount);
+		if (sb->s_root) {
+			spin_lock(&sb_lock);
+			if (sb->s_count > S_BIAS) {
+				atomic_inc(&sb->s_active);
+				sb->s_count--;
+				spin_unlock(&sb_lock);
+				return sb;
+			}
+			spin_unlock(&sb_lock);
+		}
+		up_write(&sb->s_umount);
+		put_super(sb);
+		yield();
+		spin_lock(&sb_lock);
+	}
+	spin_unlock(&sb_lock);
+	return NULL;
+}
  
 struct super_block * user_get_super(dev_t dev)
 {
@@ -527,11 +569,15 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
 	int remount_rw;
-	
+
+	if (sb->s_frozen != SB_UNFROZEN)
+		return -EBUSY;
+
 #ifdef CONFIG_BLOCK
 	if (!(flags & MS_RDONLY) && bdev_read_only(sb->s_bdev))
 		return -EACCES;
 #endif
+
 	if (flags & MS_RDONLY)
 		acct_auto_close(sb);
 	shrink_dcache_sb(sb);

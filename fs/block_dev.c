@@ -230,43 +230,54 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 	int error = 0;
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
-	if (bdev->bd_fsfreeze_count > 0) {
-		bdev->bd_fsfreeze_count++;
+	if (++bdev->bd_fsfreeze_count > 1) {
+		/*
+		 * We don't even need to grab a reference - the first call
+		 * to freeze_bdev grab an active reference and only the last
+		 * thaw_bdev drops it.
+		 */
 		sb = get_super(bdev);
+		drop_super(sb);
 		mutex_unlock(&bdev->bd_fsfreeze_mutex);
 		return sb;
 	}
-	bdev->bd_fsfreeze_count++;
 
-	sb = get_super(bdev);
-	if (sb && !(sb->s_flags & MS_RDONLY)) {
-		sb->s_frozen = SB_FREEZE_WRITE;
-		smp_wmb();
-
-		sync_filesystem(sb);
-
-		sb->s_frozen = SB_FREEZE_TRANS;
-		smp_wmb();
-
-		sync_blockdev(sb->s_bdev);
-
-		if (sb->s_op->freeze_fs) {
-			error = sb->s_op->freeze_fs(sb);
-			if (error) {
-				printk(KERN_ERR
-					"VFS:Filesystem freeze failed\n");
-				sb->s_frozen = SB_UNFROZEN;
-				drop_super(sb);
-				bdev->bd_fsfreeze_count--;
-				mutex_unlock(&bdev->bd_fsfreeze_mutex);
-				return ERR_PTR(error);
-			}
-		}
+	sb = get_active_super(bdev);
+	if (!sb)
+		goto out;
+	if (sb->s_flags & MS_RDONLY) {
+		deactivate_locked_super(sb);
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		return sb;
 	}
 
+	sb->s_frozen = SB_FREEZE_WRITE;
+	smp_wmb();
+
+	sync_filesystem(sb);
+
+	sb->s_frozen = SB_FREEZE_TRANS;
+	smp_wmb();
+
+	sync_blockdev(sb->s_bdev);
+
+	if (sb->s_op->freeze_fs) {
+		error = sb->s_op->freeze_fs(sb);
+		if (error) {
+			printk(KERN_ERR
+				"VFS:Filesystem freeze failed\n");
+			sb->s_frozen = SB_UNFROZEN;
+			deactivate_locked_super(sb);
+			bdev->bd_fsfreeze_count--;
+			mutex_unlock(&bdev->bd_fsfreeze_mutex);
+			return ERR_PTR(error);
+		}
+	}
+	up_write(&sb->s_umount);
+
+ out:
 	sync_blockdev(bdev);
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
-
 	return sb;	/* thaw_bdev releases s->s_umount */
 }
 EXPORT_SYMBOL(freeze_bdev);
@@ -280,43 +291,44 @@ EXPORT_SYMBOL(freeze_bdev);
  */
 int thaw_bdev(struct block_device *bdev, struct super_block *sb)
 {
-	int error = 0;
+	int error = -EINVAL;
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
-	if (!bdev->bd_fsfreeze_count) {
-		mutex_unlock(&bdev->bd_fsfreeze_mutex);
-		return -EINVAL;
-	}
+	if (!bdev->bd_fsfreeze_count)
+		goto out_unlock;
 
-	bdev->bd_fsfreeze_count--;
-	if (bdev->bd_fsfreeze_count > 0) {
-		if (sb)
-			drop_super(sb);
-		mutex_unlock(&bdev->bd_fsfreeze_mutex);
-		return 0;
-	}
+	error = 0;
+	if (--bdev->bd_fsfreeze_count > 0)
+		goto out_unlock;
 
-	if (sb) {
-		BUG_ON(sb->s_bdev != bdev);
-		if (!(sb->s_flags & MS_RDONLY)) {
-			if (sb->s_op->unfreeze_fs) {
-				error = sb->s_op->unfreeze_fs(sb);
-				if (error) {
-					printk(KERN_ERR
-						"VFS:Filesystem thaw failed\n");
-					sb->s_frozen = SB_FREEZE_TRANS;
-					bdev->bd_fsfreeze_count++;
-					mutex_unlock(&bdev->bd_fsfreeze_mutex);
-					return error;
-				}
-			}
-			sb->s_frozen = SB_UNFROZEN;
-			smp_wmb();
-			wake_up(&sb->s_wait_unfrozen);
+	if (!sb)
+		goto out_unlock;
+
+	BUG_ON(sb->s_bdev != bdev);
+	down_write(&sb->s_umount);
+	if (sb->s_flags & MS_RDONLY)
+		goto out_deactivate;
+
+	if (sb->s_op->unfreeze_fs) {
+		error = sb->s_op->unfreeze_fs(sb);
+		if (error) {
+			printk(KERN_ERR
+				"VFS:Filesystem thaw failed\n");
+			sb->s_frozen = SB_FREEZE_TRANS;
+			bdev->bd_fsfreeze_count++;
+			mutex_unlock(&bdev->bd_fsfreeze_mutex);
+			return error;
 		}
-		drop_super(sb);
 	}
 
+	sb->s_frozen = SB_UNFROZEN;
+	smp_wmb();
+	wake_up(&sb->s_wait_unfrozen);
+
+out_deactivate:
+	if (sb)
+		deactivate_locked_super(sb);
+out_unlock:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return 0;
 }
