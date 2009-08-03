@@ -388,7 +388,7 @@ static const char *ath9k_hw_devname(u16 devid)
 	return NULL;
 }
 
-static void ath9k_hw_set_defaults(struct ath_hw *ah)
+static void ath9k_hw_init_config(struct ath_hw *ah)
 {
 	int i;
 
@@ -655,7 +655,7 @@ int ath9k_hw_attach(struct ath_hw *ah)
 	}
 
 	ath9k_hw_init_defaults(ah);
-	ath9k_hw_set_defaults(ah);
+	ath9k_hw_init_config(ah);
 
 	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Couldn't reset chip\n");
