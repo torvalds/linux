@@ -5000,7 +5000,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 	mddev->raid_disks = conf->raid_disks;
-	mddev->reshape_position = 0;
+	mddev->reshape_position = conf->reshape_progress;
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
