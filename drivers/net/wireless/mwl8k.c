@@ -3733,6 +3733,8 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 
 	ieee80211_stop_queues(hw);
 
+	ieee80211_unregister_hw(hw);
+
 	/* Remove tx reclaim tasklet */
 	tasklet_kill(&priv->tx_reclaim_task);
 
@@ -3745,8 +3747,6 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 	/* Return all skbs to mac80211 */
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
 		mwl8k_txq_reclaim(hw, i, 1);
-
-	ieee80211_unregister_hw(hw);
 
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
 		mwl8k_txq_deinit(hw, i);
