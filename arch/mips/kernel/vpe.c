@@ -462,16 +462,15 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 {
 	unsigned long insnlo = *location;
 	Elf32_Addr val, vallo;
+	struct mips_hi16 *l, *next;
 
 	/* Sign extend the addend we extract from the lo insn.  */
 	vallo = ((insnlo & 0xffff) ^ 0x8000) - 0x8000;
 
 	if (mips_hi16_list != NULL) {
-		struct mips_hi16 *l;
 
 		l = mips_hi16_list;
 		while (l != NULL) {
-			struct mips_hi16 *next;
 			unsigned long insn;
 
 			/*
@@ -481,7 +480,7 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 				printk(KERN_DEBUG "VPE loader: "
 				       "apply_r_mips_lo16/hi16: \t"
 				       "inconsistent value information\n");
-				return -ENOEXEC;
+				goto out_free;
 			}
 
 			/*
@@ -519,6 +518,16 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 	*location = insnlo;
 
 	return 0;
+
+out_free:
+	while (l != NULL) {
+		next = l->next;
+		kfree(l);
+		l = next;
+	}
+	mips_hi16_list = NULL;
+
+	return -ENOEXEC;
 }
 
 static int (*reloc_handlers[]) (struct module *me, uint32_t *location,
