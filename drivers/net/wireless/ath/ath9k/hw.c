@@ -1232,6 +1232,7 @@ void ath9k_hw_detach(struct ath_hw *ah)
 	ath9k_hw_rf_free(ah);
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 	kfree(ah);
+	ah = NULL;
 }
 
 /*******/
