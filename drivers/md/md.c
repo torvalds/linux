@@ -1487,37 +1487,76 @@ static int match_mddev_units(mddev_t *mddev1, mddev_t *mddev2)
 
 static LIST_HEAD(pending_raid_disks);
 
-static void md_integrity_check(mdk_rdev_t *rdev, mddev_t *mddev)
+/*
+ * Try to register data integrity profile for an mddev
+ *
+ * This is called when an array is started and after a disk has been kicked
+ * from the array. It only succeeds if all working and active component devices
+ * are integrity capable with matching profiles.
+ */
+int md_integrity_register(mddev_t *mddev)
 {
-	struct mdk_personality *pers = mddev->pers;
-	struct gendisk *disk = mddev->gendisk;
-	struct blk_integrity *bi_rdev = bdev_get_integrity(rdev->bdev);
-	struct blk_integrity *bi_mddev = blk_get_integrity(disk);
+	mdk_rdev_t *rdev, *reference = NULL;
 
-	/* Data integrity passthrough not supported on RAID 4, 5 and 6 */
-	if (pers && pers->level >= 4 && pers->level <= 6)
-		return;
-
-	/* If rdev is integrity capable, register profile for mddev */
-	if (!bi_mddev && bi_rdev) {
-		if (blk_integrity_register(disk, bi_rdev))
-			printk(KERN_ERR "%s: %s Could not register integrity!\n",
-			       __func__, disk->disk_name);
-		else
-			printk(KERN_NOTICE "Enabling data integrity on %s\n",
-			       disk->disk_name);
-		return;
+	if (list_empty(&mddev->disks))
+		return 0; /* nothing to do */
+	if (blk_get_integrity(mddev->gendisk))
+		return 0; /* already registered */
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		/* skip spares and non-functional disks */
+		if (test_bit(Faulty, &rdev->flags))
+			continue;
+		if (rdev->raid_disk < 0)
+			continue;
+		/*
+		 * If at least one rdev is not integrity capable, we can not
+		 * enable data integrity for the md device.
+		 */
+		if (!bdev_get_integrity(rdev->bdev))
+			return -EINVAL;
+		if (!reference) {
+			/* Use the first rdev as the reference */
+			reference = rdev;
+			continue;
+		}
+		/* does this rdev's profile match the reference profile? */
+		if (blk_integrity_compare(reference->bdev->bd_disk,
+				rdev->bdev->bd_disk) < 0)
+			return -EINVAL;
 	}
-
-	/* Check that mddev and rdev have matching profiles */
-	if (blk_integrity_compare(disk, rdev->bdev->bd_disk) < 0) {
-		printk(KERN_ERR "%s: %s/%s integrity mismatch!\n", __func__,
-		       disk->disk_name, rdev->bdev->bd_disk->disk_name);
-		printk(KERN_NOTICE "Disabling data integrity on %s\n",
-		       disk->disk_name);
-		blk_integrity_unregister(disk);
+	/*
+	 * All component devices are integrity capable and have matching
+	 * profiles, register the common profile for the md device.
+	 */
+	if (blk_integrity_register(mddev->gendisk,
+			bdev_get_integrity(reference->bdev)) != 0) {
+		printk(KERN_ERR "md: failed to register integrity for %s\n",
+			mdname(mddev));
+		return -EINVAL;
 	}
+	printk(KERN_NOTICE "md: data integrity on %s enabled\n",
+		mdname(mddev));
+	return 0;
 }
+EXPORT_SYMBOL(md_integrity_register);
+
+/* Disable data integrity if non-capable/non-matching disk is being added */
+void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
+{
+	struct blk_integrity *bi_rdev = bdev_get_integrity(rdev->bdev);
+	struct blk_integrity *bi_mddev = blk_get_integrity(mddev->gendisk);
+
+	if (!bi_mddev) /* nothing to do */
+		return;
+	if (rdev->raid_disk < 0) /* skip spares */
+		return;
+	if (bi_rdev && blk_integrity_compare(mddev->gendisk,
+					     rdev->bdev->bd_disk) >= 0)
+		return;
+	printk(KERN_NOTICE "disabling data integrity on %s\n", mdname(mddev));
+	blk_integrity_unregister(mddev->gendisk);
+}
+EXPORT_SYMBOL(md_integrity_add_rdev);
 
 static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 {
@@ -1591,7 +1630,6 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	/* May as well allow recovery to be retried once */
 	mddev->recovery_disabled = 0;
 
-	md_integrity_check(rdev, mddev);
 	return 0;
 
  fail:
@@ -4047,10 +4085,6 @@ static int do_md_run(mddev_t * mddev)
 		mddev->new_level = pers->level;
 	}
 	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
-
-	if (pers->level >= 4 && pers->level <= 6)
-		/* Cannot support integrity (yet) */
-		blk_integrity_unregister(mddev->gendisk);
 
 	if (mddev->reshape_position != MaxSector &&
 	    pers->start_reshape == NULL) {

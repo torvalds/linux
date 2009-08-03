@@ -1170,6 +1170,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			break;
 		}
 
+	md_integrity_add_rdev(rdev, mddev);
 	print_conf(conf);
 	return err;
 }
@@ -1203,7 +1204,9 @@ static int raid10_remove_disk(mddev_t *mddev, int number)
 			/* lost the race, try later */
 			err = -EBUSY;
 			p->rdev = rdev;
+			goto abort;
 		}
+		md_integrity_register(mddev);
 	}
 abort:
 
@@ -2225,6 +2228,7 @@ static int run(mddev_t *mddev)
 
 	if (conf->near_copies < mddev->raid_disks)
 		blk_queue_merge_bvec(mddev->queue, raid10_mergeable_bvec);
+	md_integrity_register(mddev);
 	return 0;
 
 out_free_conf:

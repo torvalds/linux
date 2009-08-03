@@ -220,6 +220,7 @@ static int linear_run (mddev_t *mddev)
 	mddev->queue->unplug_fn = linear_unplug;
 	mddev->queue->backing_dev_info.congested_fn = linear_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
+	md_integrity_register(mddev);
 	return 0;
 }
 
