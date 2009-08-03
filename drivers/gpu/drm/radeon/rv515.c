@@ -370,6 +370,7 @@ void rv515_vram_info(struct radeon_device *rdev)
 
 	rv515_vram_get_type(rdev);
 
+	r100_vram_init_sizes(rdev);
 	/* FIXME: we should enforce default clock in case GPU is not in
 	 * default setup
 	 */
