@@ -1334,7 +1334,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	ah->hw_version.devid = devid;
 	sc->sc_ah = ah;
 
-	r = ath9k_hw_attach(ah, sc);
+	r = ath9k_hw_attach(ah);
 	if (r) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to attach hardware; "

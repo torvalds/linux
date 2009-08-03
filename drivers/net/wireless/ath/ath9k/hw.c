@@ -627,7 +627,7 @@ static bool ath9k_hw_devid_supported(u16 devid)
 	return false;
 }
 
-int ath9k_hw_attach(struct ath_hw *ah, struct ath_softc *sc)
+int ath9k_hw_attach(struct ath_hw *ah)
 {
 	int r;
 	u32 i, j;
@@ -641,13 +641,13 @@ int ath9k_hw_attach(struct ath_hw *ah, struct ath_softc *sc)
 	ath9k_hw_set_defaults(ah);
 
 	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
-		DPRINTF(sc, ATH_DBG_FATAL, "Couldn't reset chip\n");
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Couldn't reset chip\n");
 		r = -EIO;
 		goto bad;
 	}
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
-		DPRINTF(sc, ATH_DBG_FATAL, "Couldn't wakeup chip\n");
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Couldn't wakeup chip\n");
 		r = -EIO;
 		goto bad;
 	}
@@ -663,7 +663,7 @@ int ath9k_hw_attach(struct ath_hw *ah, struct ath_softc *sc)
 		}
 	}
 
-	DPRINTF(sc, ATH_DBG_RESET, "serialize_regmode is %d\n",
+	DPRINTF(ah->ah_sc, ATH_DBG_RESET, "serialize_regmode is %d\n",
 		ah->config.serialize_regmode);
 
 	switch (ah->hw_version.macVersion) {
@@ -676,7 +676,7 @@ int ath9k_hw_attach(struct ath_hw *ah, struct ath_softc *sc)
 	case AR_SREV_VERSION_9287:
 		break;
 	default:
-		DPRINTF(sc, ATH_DBG_FATAL,
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
 			"Mac Chip Rev 0x%02x.%x is not supported by "
 			"this driver\n", ah->hw_version.macVersion,
 			ah->hw_version.macRev);
@@ -945,7 +945,7 @@ int ath9k_hw_attach(struct ath_hw *ah, struct ath_softc *sc)
 
 	r = ath9k_hw_init_macaddr(ah);
 	if (r) {
-		DPRINTF(sc, ATH_DBG_FATAL,
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
 			"Failed to initialize MAC address\n");
 		goto bad;
 	}

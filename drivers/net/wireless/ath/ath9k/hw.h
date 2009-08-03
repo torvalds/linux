@@ -544,7 +544,7 @@ struct ath_hw {
 /* Attach, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_detach(struct ath_hw *ah);
-int ath9k_hw_attach(struct ath_hw *ah, struct ath_softc *sc);
+int ath9k_hw_attach(struct ath_hw *ah);
 void ath9k_hw_rfdetach(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
