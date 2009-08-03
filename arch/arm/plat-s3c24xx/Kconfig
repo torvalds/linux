@@ -105,6 +105,12 @@ config S3C24XX_SPI_BUS1_GPG5_GPG6_GPG7
 	  SPI GPIO configuration code for BUS 1 when connected to
 	  GPG5, GPG6 and GPG7.
 
+config S3C24XX_SPI_BUS1_GPD8_GPD9_GPD10
+	bool
+	help
+	  SPI GPIO configuration code for BUS 1 when connected to
+	  GPD8, GPD9 and GPD10.
+
 # common code for s3c24xx based machines, such as the SMDKs.
 
 config MACH_SMDK
