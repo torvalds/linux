@@ -142,7 +142,7 @@ static struct tty_ldisc *tty_ldisc_try_get(int disc)
 			/* lock it */
 			ldops->refcount++;
 			ld->ops = ldops;
-			ld->refcount = 0;
+			atomic_set(&ld->users, 0);
 			err = 0;
 		}
 	}
@@ -206,7 +206,7 @@ static void tty_ldisc_put(struct tty_ldisc *ld)
 	ldo->refcount--;
 	module_put(ldo->owner);
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-	WARN_ON(ld->refcount);
+	WARN_ON(atomic_read(&ld->users));
 	kfree(ld);
 }
 
@@ -297,7 +297,7 @@ static int tty_ldisc_try(struct tty_struct *tty)
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
 	ld = tty->ldisc;
 	if (test_bit(TTY_LDISC, &tty->flags)) {
-		ld->refcount++;
+		atomic_inc(&ld->users);
 		ret = 1;
 	}
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
@@ -324,7 +324,7 @@ struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *tty)
 {
 	/* wait_event is a macro */
 	wait_event(tty_ldisc_wait, tty_ldisc_try(tty));
-	WARN_ON(tty->ldisc->refcount == 0);
+	WARN_ON(atomic_read(&tty->ldisc->users) == 0);
 	return tty->ldisc;
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_ref_wait);
@@ -365,11 +365,9 @@ void tty_ldisc_deref(struct tty_ldisc *ld)
 	BUG_ON(ld == NULL);
 
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	if (ld->refcount == 0)
+	if (atomic_read(&ld->users) == 0)
 		printk(KERN_ERR "tty_ldisc_deref: no references.\n");
-	else
-		ld->refcount--;
-	if (ld->refcount == 0)
+	else if (atomic_dec_and_test(&ld->users))
 		wake_up(&tty_ldisc_wait);
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 }
@@ -536,10 +534,10 @@ static int tty_ldisc_wait_idle(struct tty_struct *tty)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	while (tty->ldisc->refcount) {
+	while (atomic_read(&tty->ldisc->users)) {
 		spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 		if (wait_event_timeout(tty_ldisc_wait,
-				tty->ldisc->refcount == 0, 5 * HZ) == 0)
+				atomic_read(&tty->ldisc->users) == 0, 5 * HZ) == 0)
 			return -EBUSY;
 		spin_lock_irqsave(&tty_ldisc_lock, flags);
 	}
