@@ -1008,8 +1008,7 @@ static const unsigned int exception_stack_sizes[N_EXCEPTION_STACKS] = {
 };
 
 static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
-	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ])
-	__aligned(PAGE_SIZE);
+	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]);
 
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
