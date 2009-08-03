@@ -596,6 +596,8 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key)
 	key_idx = key->hdr.key_idx;
 
 	if (!remove) {
+		u8 auth_type = iwm->umac_profile->sec.auth_type;
+
 		IWM_DBG_WEXT(iwm, DBG, "key_idx:%d\n", key_idx);
 		IWM_DBG_WEXT(iwm, DBG, "key_len:%d\n", key_len);
 		IWM_DBG_WEXT(iwm, DBG, "MAC:%pM, idx:%d, multicast:%d\n",
@@ -618,7 +620,9 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key)
 			memcpy(&wep40->key_hdr, key_hdr,
 			       sizeof(struct iwm_umac_key_hdr));
 			memcpy(wep40->key, key_data, key_len);
-			wep40->static_key = 1;
+			wep40->static_key =
+				!!((auth_type != UMAC_AUTH_TYPE_8021X) &&
+				   (auth_type != UMAC_AUTH_TYPE_RSNA_PSK));
 
 			cmd_size = sizeof(struct iwm_umac_key_wep40);
 			break;
@@ -632,7 +636,9 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key)
 			memcpy(&wep104->key_hdr, key_hdr,
 			       sizeof(struct iwm_umac_key_hdr));
 			memcpy(wep104->key, key_data, key_len);
-			wep104->static_key = 1;
+			wep104->static_key =
+				!!((auth_type != UMAC_AUTH_TYPE_8021X) &&
+				   (auth_type != UMAC_AUTH_TYPE_RSNA_PSK));
 
 			cmd_size = sizeof(struct iwm_umac_key_wep104);
 			break;
