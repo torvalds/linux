@@ -3999,6 +3999,9 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 		return 0;
 	}
 
+	/* Allow raid5_quiesce to complete */
+	wait_event(conf->wait_for_overlap, conf->quiesce != 2);
+
 	if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 		return reshape_request(mddev, sector_nr, skipped);
 
@@ -5104,12 +5107,18 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 
 	case 1: /* stop all writes */
 		spin_lock_irq(&conf->device_lock);
-		conf->quiesce = 1;
+		/* '2' tells resync/reshape to pause so that all
+		 * active stripes can drain
+		 */
+		conf->quiesce = 2;
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    atomic_read(&conf->active_stripes) == 0 &&
 				    atomic_read(&conf->active_aligned_reads) == 0,
 				    conf->device_lock, /* nothing */);
+		conf->quiesce = 1;
 		spin_unlock_irq(&conf->device_lock);
+		/* allow reshape to continue */
+		wake_up(&conf->wait_for_overlap);
 		break;
 
 	case 0: /* re-enable writes */
