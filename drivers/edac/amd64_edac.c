@@ -2977,6 +2977,9 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 			"ECC is enabled by BIOS, Proceeding "
 			"with EDAC module initialization\n");
 
+		/* Signal good ECC status */
+		ret = 0;
+
 		/* CLEAR the override, since BIOS controlled it */
 		ecc_enable_override = 0;
 	}
