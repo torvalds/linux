@@ -642,7 +642,7 @@ extern struct ieee80211_ops ath9k_ops;
 
 irqreturn_t ath_isr(int irq, void *dev);
 void ath_cleanup(struct ath_softc *sc);
-int ath_attach(u16 devid, struct ath_softc *sc);
+int ath_init_device(u16 devid, struct ath_softc *sc);
 void ath_detach(struct ath_softc *sc);
 const char *ath_mac_bb_name(u32 mac_bb_version);
 const char *ath_rf_name(u16 rf_version);
