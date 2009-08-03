@@ -1012,6 +1012,8 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 		rmb();
 
 		skb = rxq->rx_skb[rxq->rx_head];
+		if (skb == NULL)
+			break;
 		rxq->rx_skb[rxq->rx_head] = NULL;
 
 		rxq->rx_head = (rxq->rx_head + 1) % MWL8K_RX_DESCS;
