@@ -1278,6 +1278,7 @@ void ath_detach(struct ath_softc *sc)
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
 	ath9k_hw_detach(sc->sc_ah);
+	sc->sc_ah = NULL;
 	ath9k_exit_debug(sc);
 }
 
@@ -1521,6 +1522,7 @@ bad2:
 bad:
 	if (ah)
 		ath9k_hw_detach(ah);
+	sc->sc_ah = NULL;
 bad_no_ah:
 	ath9k_exit_debug(sc);
 
@@ -1631,6 +1633,7 @@ error_attach:
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
 	ath9k_hw_detach(sc->sc_ah);
+	sc->sc_ah = NULL;
 	ath9k_exit_debug(sc);
 
 	return error;
