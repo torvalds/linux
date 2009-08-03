@@ -16,6 +16,7 @@
 
 /* DMAOR contorl: The DMAOR access size is different by CPU.*/
 #if defined(CONFIG_CPU_SUBTYPE_SH7723)	|| \
+    defined(CONFIG_CPU_SUBTYPE_SH7724)	|| \
     defined(CONFIG_CPU_SUBTYPE_SH7780)	|| \
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define dmaor_read_reg(n) \
