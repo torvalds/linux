@@ -554,7 +554,7 @@ int do_nmi_callback(struct pt_regs *regs, int cpu)
 	return 0;
 }
 
-void __trigger_all_cpu_backtrace(void)
+void arch_trigger_all_cpu_backtrace(void)
 {
 	int i;
 
