@@ -600,7 +600,7 @@ struct ar5416_eeprom_4k {
 	u8 padding;
 } __packed;
 
-struct ar9287_eeprom_t {
+struct ar9287_eeprom {
 	struct base_eep_ar9287_header  baseEepHeader;
 	u8 custData[AR9287_DATA_SZ];
 	struct modal_eep_ar9287_header modalHeader;

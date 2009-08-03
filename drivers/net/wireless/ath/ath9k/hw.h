@@ -403,7 +403,7 @@ struct ath_hw {
 	union {
 		struct ar5416_eeprom_def def;
 		struct ar5416_eeprom_4k map4k;
-		struct ar9287_eeprom_t map9287;
+		struct ar9287_eeprom map9287;
 	} eeprom;
 	const struct eeprom_ops *eep_ops;
 	enum ath9k_eep_map eep_map;
