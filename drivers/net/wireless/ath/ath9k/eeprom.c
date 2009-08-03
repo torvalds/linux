@@ -2892,7 +2892,6 @@ static bool ath9k_hw_AR9287_fill_eeprom(struct ath_hw *ah)
 }
 static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 {
-#define SIZE_EEPROM_87 (sizeof(struct ar9287_eeprom) / sizeof(u16))
 	u32 sum = 0, el, integer;
 	u16 temp, word, magic, magic2, *eepdata;
 	int i, addr;
@@ -2918,7 +2917,9 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 				need_swap = true;
 				eepdata = (u16 *)(&ah->eeprom);
 
-				for (addr = 0; addr < SIZE_EEPROM_87; addr++) {
+				for (addr = 0;
+				     addr < sizeof(struct ar9287_eeprom) / sizeof(u16);
+				     addr++) {
 					temp = swab16(*eepdata);
 					*eepdata = temp;
 					eepdata++;
@@ -2938,8 +2939,13 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 	else
 		el = ah->eeprom.map9287.baseEepHeader.length;
 
+	if (el > sizeof(struct ar9287_eeprom))
+		el = sizeof(struct ar9287_eeprom) / sizeof(u16);
+	else
+		el = el / sizeof(u16);
+
 	eepdata = (u16 *)(&ah->eeprom);
-	for (i = 0; i < min(el, SIZE_EEPROM_87); i++)
+	for (i = 0; i < el; i++)
 		sum ^= *eepdata++;
 
 	if (need_swap) {
@@ -2990,7 +2996,6 @@ static int ath9k_hw_AR9287_check_eeprom(struct ath_hw *ah)
 	}
 
 	return 0;
-#undef SIZE_EEPROM_87
 }
 
 static u32 ath9k_hw_AR9287_get_eeprom(struct ath_hw *ah,
