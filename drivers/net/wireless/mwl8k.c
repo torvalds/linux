@@ -1593,6 +1593,9 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	timeout = wait_for_completion_timeout(&cmd_wait,
 				msecs_to_jiffies(MWL8K_CMD_TIMEOUT_MS));
 
+	pci_unmap_single(priv->pdev, dma_addr, dma_size,
+					PCI_DMA_BIDIRECTIONAL);
+
 	result = &cmd->result;
 	if (!timeout) {
 		spin_lock_irq(&priv->fw_lock);
@@ -1612,8 +1615,6 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 			       *result);
 	}
 
-	pci_unmap_single(priv->pdev, dma_addr, dma_size,
-					PCI_DMA_BIDIRECTIONAL);
 	return rc;
 }
 
