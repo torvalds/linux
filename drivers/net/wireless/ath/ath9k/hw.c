@@ -1227,7 +1227,7 @@ const char *ath9k_hw_probe(u16 vendorid, u16 devid)
 void ath9k_hw_detach(struct ath_hw *ah)
 {
 	if (!AR_SREV_9100(ah))
-		ath9k_hw_ani_detach(ah);
+		ath9k_hw_ani_disable(ah);
 
 	ath9k_hw_rf_free(ah);
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);

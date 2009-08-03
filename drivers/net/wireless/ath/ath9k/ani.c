@@ -822,9 +822,9 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 		ah->proc_phyerr |= HAL_PROCESS_ANI;
 }
 
-void ath9k_hw_ani_detach(struct ath_hw *ah)
+void ath9k_hw_ani_disable(struct ath_hw *ah)
 {
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "Detach ANI\n");
+	DPRINTF(ah->ah_sc, ATH_DBG_ANI, "Disabling ANI\n");
 
 	if (ah->has_hw_phycounters) {
 		ath9k_hw_disable_mib_counters(ah);
