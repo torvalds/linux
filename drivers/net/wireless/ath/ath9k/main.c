@@ -1295,7 +1295,6 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 static int ath_init(u16 devid, struct ath_softc *sc)
 {
 	struct ath_hw *ah = NULL;
-	int status;
 	int error = 0, i;
 	int csz = 0;
 
@@ -1323,11 +1322,11 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	/* XXX assert csz is non-zero */
 	sc->cachelsz = csz << 2;	/* convert to bytes */
 
-	ah = ath9k_hw_attach(devid, sc, &status);
+	ah = ath9k_hw_attach(devid, sc, &error);
 	if (ah == NULL) {
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to attach hardware; HAL status %d\n", status);
-		error = -ENXIO;
+			"Unable to attach hardware; "
+			"initialization status: %d\n", error);
 		goto bad;
 	}
 	sc->sc_ah = ah;

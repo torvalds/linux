@@ -1223,7 +1223,7 @@ struct ath_hw *ath9k_hw_attach(u16 devid, struct ath_softc *sc, int *error)
 		ah = ath9k_hw_do_attach(devid, sc, error);
 		break;
 	default:
-		*error = -ENXIO;
+		*error = -EOPNOTSUPP;
 		break;
 	}
 
