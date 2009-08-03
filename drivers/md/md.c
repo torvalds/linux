@@ -1399,8 +1399,14 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		if (rdev2->desc_nr+1 > max_dev)
 			max_dev = rdev2->desc_nr+1;
 
-	if (max_dev > le32_to_cpu(sb->max_dev))
+	if (max_dev > le32_to_cpu(sb->max_dev)) {
+		int bmask;
 		sb->max_dev = cpu_to_le32(max_dev);
+		rdev->sb_size = max_dev * 2 + 256;
+		bmask = queue_logical_block_size(rdev->bdev->bd_disk->queue)-1;
+		if (rdev->sb_size & bmask)
+			rdev->sb_size = (rdev->sb_size | bmask) + 1;
+	}
 	for (i=0; i<max_dev;i++)
 		sb->dev_roles[i] = cpu_to_le16(0xfffe);
 	
