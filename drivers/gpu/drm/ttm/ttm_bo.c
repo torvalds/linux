@@ -1575,6 +1575,10 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 			driver->sync_obj_unref(&sync_obj);
 			driver->sync_obj_unref(&tmp_obj);
 			spin_lock(&bo->lock);
+		} else {
+			spin_unlock(&bo->lock);
+			driver->sync_obj_unref(&sync_obj);
+			spin_lock(&bo->lock);
 		}
 	}
 	return 0;
