@@ -665,6 +665,6 @@ struct eeprom_ops {
 	(((_txchainmask >> 2) & 1) +                            \
 	 ((_txchainmask >> 1) & 1) + (_txchainmask & 1))
 
-int ath9k_hw_eeprom_attach(struct ath_hw *ah);
+int ath9k_hw_eeprom_init(struct ath_hw *ah);
 
 #endif /* EEPROM_H */

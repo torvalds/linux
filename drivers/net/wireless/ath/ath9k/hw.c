@@ -578,7 +578,7 @@ static void ath9k_hw_init_txgain_ini(struct ath_hw *ah)
 	}
 }
 
-static int ath9k_hw_post_attach(struct ath_hw *ah)
+static int ath9k_hw_post_init(struct ath_hw *ah)
 {
 	int ecode;
 
@@ -589,7 +589,7 @@ static int ath9k_hw_post_attach(struct ath_hw *ah)
 	if (ecode != 0)
 		return ecode;
 
-	ecode = ath9k_hw_eeprom_attach(ah);
+	ecode = ath9k_hw_eeprom_init(ah);
 	if (ecode != 0)
 		return ecode;
 
@@ -602,7 +602,7 @@ static int ath9k_hw_post_attach(struct ath_hw *ah)
 
 	if (!AR_SREV_9100(ah)) {
 		ath9k_hw_ani_setup(ah);
-		ath9k_hw_ani_attach(ah);
+		ath9k_hw_ani_init(ah);
 	}
 
 	return 0;
@@ -896,7 +896,7 @@ static void ath9k_hw_init_11a_eeprom_fix(struct ath_hw *ah)
 	}
 }
 
-int ath9k_hw_attach(struct ath_hw *ah)
+int ath9k_hw_init(struct ath_hw *ah)
 {
 	int r;
 
@@ -963,7 +963,7 @@ int ath9k_hw_attach(struct ath_hw *ah)
 	else
 		ath9k_hw_disablepcie(ah);
 
-	r = ath9k_hw_post_attach(ah);
+	r = ath9k_hw_post_init(ah);
 	if (r)
 		goto bad;
 
@@ -2930,7 +2930,7 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 		/*
 		 * AR9280 2.0 or later chips use SerDes values from the
 		 * initvals.h initialized depending on chipset during
-		 * ath9k_hw_attach()
+		 * ath9k_hw_init()
 		 */
 		for (i = 0; i < ah->iniPcieSerdes.ia_rows; i++) {
 			REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),

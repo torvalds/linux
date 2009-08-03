@@ -777,7 +777,7 @@ void ath9k_hw_ani_setup(struct ath_hw *ah)
 	}
 }
 
-void ath9k_hw_ani_attach(struct ath_hw *ah)
+void ath9k_hw_ani_init(struct ath_hw *ah)
 {
 	int i;
 

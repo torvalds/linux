@@ -3978,7 +3978,7 @@ static struct eeprom_ops eep_AR9287_ops = {
 };
 
 
-int ath9k_hw_eeprom_attach(struct ath_hw *ah)
+int ath9k_hw_eeprom_init(struct ath_hw *ah)
 {
 	int status;
 	if (AR_SREV_9287(ah)) {
