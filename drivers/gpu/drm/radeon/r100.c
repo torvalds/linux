@@ -722,13 +722,14 @@ int r100_cs_packet_parse(struct radeon_cs_parser *p,
 			 unsigned idx)
 {
 	struct radeon_cs_chunk *ib_chunk = &p->chunks[p->chunk_ib_idx];
-	uint32_t header = ib_chunk->kdata[idx];
+	uint32_t header;
 
 	if (idx >= ib_chunk->length_dw) {
 		DRM_ERROR("Can not parse packet at %d after CS end %d !\n",
 			  idx, ib_chunk->length_dw);
 		return -EINVAL;
 	}
+	header = ib_chunk->kdata[idx];
 	pkt->idx = idx;
 	pkt->type = CP_PACKET_GET_TYPE(header);
 	pkt->count = CP_PACKET_GET_COUNT(header);
