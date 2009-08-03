@@ -154,7 +154,7 @@
 153 -> Kworld Plus TV Analog Lite PCI           [17de:7128]
 154 -> Avermedia AVerTV GO 007 FM Plus          [1461:f31d]
 155 -> Hauppauge WinTV-HVR1150 ATSC/QAM-Hybrid  [0070:6706,0070:6708]
-156 -> Hauppauge WinTV-HVR1110r3 DVB-T/Hybrid   [0070:6707,0070:6709,0070:670a]
+156 -> Hauppauge WinTV-HVR1120 DVB-T/Hybrid     [0070:6707,0070:6709,0070:670a]
 157 -> Avermedia AVerTV Studio 507UA            [1461:a11b]
 158 -> AVerMedia Cardbus TV/Radio (E501R)       [1461:b7e9]
 159 -> Beholder BeholdTV 505 RDS                [0000:505B]

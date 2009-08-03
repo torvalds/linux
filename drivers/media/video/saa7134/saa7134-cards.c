@@ -3363,8 +3363,8 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0800100, /* GPIO 23 HI for FM */
 		},
 	},
-	[SAA7134_BOARD_HAUPPAUGE_HVR1110R3] = {
-		.name           = "Hauppauge WinTV-HVR1110r3 DVB-T/Hybrid",
+	[SAA7134_BOARD_HAUPPAUGE_HVR1120] = {
+		.name           = "Hauppauge WinTV-HVR1120 DVB-T/Hybrid",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -5868,7 +5868,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x0070,
 		.subdevice    = 0x6707,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110R3,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1120,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
@@ -5880,13 +5880,13 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x0070,
 		.subdevice    = 0x6709,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110R3,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1120,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x0070,
 		.subdevice    = 0x670a,
-		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110R3,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1120,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
@@ -6364,7 +6364,7 @@ static int saa7134_tda8290_18271_callback(struct saa7134_dev *dev,
 	case TDA18271_CALLBACK_CMD_AGC_ENABLE: /* 0 */
 		switch (dev->board) {
 		case SAA7134_BOARD_HAUPPAUGE_HVR1150:
-		case SAA7134_BOARD_HAUPPAUGE_HVR1110R3:
+		case SAA7134_BOARD_HAUPPAUGE_HVR1120:
 			ret = saa7134_tda18271_hvr11x0_toggle_agc(dev, arg);
 			break;
 		default:
@@ -6385,7 +6385,7 @@ static int saa7134_tda8290_callback(struct saa7134_dev *dev,
 
 	switch (dev->board) {
 	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
-	case SAA7134_BOARD_HAUPPAUGE_HVR1110R3:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
 		/* tda8290 + tda18271 */
 		ret = saa7134_tda8290_18271_callback(dev, command, arg);
 		break;
@@ -6626,7 +6626,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_writeb (SAA7134_PRODUCTION_TEST_MODE, 0x00);
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
-	case SAA7134_BOARD_HAUPPAUGE_HVR1110R3:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
 		/* GPIO 26 high for digital, low for analog */
 		saa7134_set_gpio(dev, 26, 0);
 		msleep(1);
@@ -6892,7 +6892,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	       }
 	       break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
-	case SAA7134_BOARD_HAUPPAUGE_HVR1110R3:
+	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
 		hauppauge_eeprom(dev, dev->eedata+0x80);
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
