@@ -280,8 +280,13 @@ static ssize_t regulator_state_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
+	ssize_t ret;
 
-	return regulator_print_state(buf, _regulator_is_enabled(rdev));
+	mutex_lock(&rdev->mutex);
+	ret = regulator_print_state(buf, _regulator_is_enabled(rdev));
+	mutex_unlock(&rdev->mutex);
+
+	return ret;
 }
 static DEVICE_ATTR(state, 0444, regulator_state_show, NULL);
 
@@ -1365,20 +1370,11 @@ EXPORT_SYMBOL_GPL(regulator_force_disable);
 
 static int _regulator_is_enabled(struct regulator_dev *rdev)
 {
-	int ret;
-
-	mutex_lock(&rdev->mutex);
-
 	/* sanity check */
-	if (!rdev->desc->ops->is_enabled) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!rdev->desc->ops->is_enabled)
+		return -EINVAL;
 
-	ret = rdev->desc->ops->is_enabled(rdev);
-out:
-	mutex_unlock(&rdev->mutex);
-	return ret;
+	return rdev->desc->ops->is_enabled(rdev);
 }
 
 /**
@@ -1395,7 +1391,13 @@ out:
  */
 int regulator_is_enabled(struct regulator *regulator)
 {
-	return _regulator_is_enabled(regulator->rdev);
+	int ret;
+
+	mutex_lock(&regulator->rdev->mutex);
+	ret = _regulator_is_enabled(regulator->rdev);
+	mutex_unlock(&regulator->rdev->mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_is_enabled);
 
