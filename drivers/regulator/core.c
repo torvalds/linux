@@ -2409,14 +2409,14 @@ static int __init regulator_init_complete(void)
 		ops = rdev->desc->ops;
 		c = rdev->constraints;
 
-		if (c->name)
+		if (c && c->name)
 			name = c->name;
 		else if (rdev->desc->name)
 			name = rdev->desc->name;
 		else
 			name = "regulator";
 
-		if (!ops->disable || c->always_on)
+		if (!ops->disable || (c && c->always_on))
 			continue;
 
 		mutex_lock(&rdev->mutex);
