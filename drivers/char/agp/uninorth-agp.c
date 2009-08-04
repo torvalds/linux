@@ -7,6 +7,7 @@
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 #include <asm/uninorth.h>
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
@@ -181,8 +182,6 @@ static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start,
 	}
 	(void)in_le32((volatile u32*)&agp_bridge->gatt_table[pg_start]);
 	mb();
-	flush_dcache_range((unsigned long)&agp_bridge->gatt_table[pg_start],
-		(unsigned long)&agp_bridge->gatt_table[pg_start + mem->page_count]);
 
 	uninorth_tlbflush(mem);
 	return 0;
@@ -226,7 +225,6 @@ static int u3_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 				   (unsigned long)__va(page_to_phys(mem->pages[i]))+0x1000);
 	}
 	mb();
-	flush_dcache_range((unsigned long)gp, (unsigned long) &gp[i]);
 	uninorth_tlbflush(mem);
 
 	return 0;
@@ -245,7 +243,6 @@ int u3_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 	for (i = 0; i < mem->page_count; ++i)
 		gp[i] = 0;
 	mb();
-	flush_dcache_range((unsigned long)gp, (unsigned long) &gp[i]);
 	uninorth_tlbflush(mem);
 
 	return 0;
@@ -398,6 +395,7 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 	int i;
 	void *temp;
 	struct page *page;
+	struct page **pages;
 
 	/* We can't handle 2 level gatt's */
 	if (bridge->driver->size_type == LVL2_APER_SIZE)
@@ -426,21 +424,39 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 	if (table == NULL)
 		return -ENOMEM;
 
+	pages = kmalloc((1 << page_order) * sizeof(struct page*), GFP_KERNEL);
+	if (pages == NULL)
+		goto enomem;
+
 	table_end = table + ((PAGE_SIZE * (1 << page_order)) - 1);
 
-	for (page = virt_to_page(table); page <= virt_to_page(table_end); page++)
+	for (page = virt_to_page(table), i = 0; page <= virt_to_page(table_end);
+	     page++, i++) {
 		SetPageReserved(page);
+		pages[i] = page;
+	}
 
 	bridge->gatt_table_real = (u32 *) table;
-	bridge->gatt_table = (u32 *)table;
+	/* Need to clear out any dirty data still sitting in caches */
+	flush_dcache_range((unsigned long)table,
+			   (unsigned long)(table_end + PAGE_SIZE));
+	bridge->gatt_table = vmap(pages, (1 << page_order), 0, PAGE_KERNEL_NCG);
+
+	if (bridge->gatt_table == NULL)
+		goto enomem;
+
 	bridge->gatt_bus_addr = virt_to_gart(table);
 
 	for (i = 0; i < num_entries; i++)
 		bridge->gatt_table[i] = 0;
 
-	flush_dcache_range((unsigned long)table, (unsigned long)table_end);
-
 	return 0;
+
+enomem:
+	kfree(pages);
+	if (table)
+		free_pages((unsigned long)table, page_order);
+	return -ENOMEM;
 }
 
 static int uninorth_free_gatt_table(struct agp_bridge_data *bridge)
@@ -458,6 +474,7 @@ static int uninorth_free_gatt_table(struct agp_bridge_data *bridge)
 	 * from the table.
 	 */
 
+	vunmap(bridge->gatt_table);
 	table = (char *) bridge->gatt_table_real;
 	table_end = table + ((PAGE_SIZE * (1 << page_order)) - 1);
 
