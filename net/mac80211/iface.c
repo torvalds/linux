@@ -220,8 +220,10 @@ static int ieee80211_open(struct net_device *dev)
 			local->fif_fcsfail++;
 		if (sdata->u.mntr_flags & MONITOR_FLAG_PLCPFAIL)
 			local->fif_plcpfail++;
-		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL)
+		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL) {
 			local->fif_control++;
+			local->fif_pspoll++;
+		}
 		if (sdata->u.mntr_flags & MONITOR_FLAG_OTHER_BSS)
 			local->fif_other_bss++;
 
@@ -244,7 +246,14 @@ static int ieee80211_open(struct net_device *dev)
 			spin_unlock_bh(&local->filter_lock);
 
 			ieee80211_start_mesh(sdata);
+		} else if (sdata->vif.type == NL80211_IFTYPE_AP) {
+			local->fif_pspoll++;
+
+			spin_lock_bh(&local->filter_lock);
+			ieee80211_configure_filter(local);
+			spin_unlock_bh(&local->filter_lock);
 		}
+
 		changed |= ieee80211_reset_erp_info(sdata);
 		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
@@ -388,6 +397,9 @@ static int ieee80211_stop(struct net_device *dev)
 	if (sdata->flags & IEEE80211_SDATA_PROMISC)
 		atomic_dec(&local->iff_promiscs);
 
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		local->fif_pspoll--;
+
 	netif_addr_lock_bh(dev);
 	spin_lock_bh(&local->filter_lock);
 	__dev_addr_unsync(&local->mc_list, &local->mc_count,
@@ -439,8 +451,10 @@ static int ieee80211_stop(struct net_device *dev)
 			local->fif_fcsfail--;
 		if (sdata->u.mntr_flags & MONITOR_FLAG_PLCPFAIL)
 			local->fif_plcpfail--;
-		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL)
+		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL) {
+			local->fif_pspoll--;
 			local->fif_control--;
+		}
 		if (sdata->u.mntr_flags & MONITOR_FLAG_OTHER_BSS)
 			local->fif_other_bss--;
 

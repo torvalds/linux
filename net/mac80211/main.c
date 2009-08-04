@@ -77,6 +77,9 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	if (local->fif_other_bss)
 		new_flags |= FIF_OTHER_BSS;
 
+	if (local->fif_pspoll)
+		new_flags |= FIF_PSPOLL;
+
 	changed_flags = local->filter_flags ^ new_flags;
 
 	/* be a bit nasty */
