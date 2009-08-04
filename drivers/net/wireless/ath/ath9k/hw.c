@@ -638,6 +638,8 @@ static bool ath9k_hw_macversion_supported(u32 macversion)
 	case AR_SREV_VERSION_9285:
 	case AR_SREV_VERSION_9287:
 		return true;
+	/* Not yet */
+	case AR_SREV_VERSION_9271:
 	default:
 		break;
 	}
@@ -670,6 +672,14 @@ static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
 
 static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
 {
+	if (AR_SREV_9271(ah)) {
+		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271_1_0,
+			       ARRAY_SIZE(ar9271Modes_9271_1_0), 6);
+		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271_1_0,
+			       ARRAY_SIZE(ar9271Common_9271_1_0), 2);
+		return;
+	}
+
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_1,
 				ARRAY_SIZE(ar9287Modes_9287_1_1), 6);
@@ -943,6 +953,10 @@ int ath9k_hw_init(struct ath_hw *ah)
 		ah->supp_cals = IQ_MISMATCH_CAL;
 		ah->is_pciexpress = false;
 	}
+
+	if (AR_SREV_9271(ah))
+		ah->is_pciexpress = false;
+
 	ah->hw_version.phyRev = REG_READ(ah, AR_PHY_CHIP_ID);
 
 	ath9k_hw_init_cal_settings(ah);
@@ -973,7 +987,7 @@ int ath9k_hw_init(struct ath_hw *ah)
 		return r;
 	}
 
-	if (AR_SREV_9285(ah))
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 		ah->tx_trig_level = (AR_FTRIG_256B >> AR_FTRIG_S);
 	else
 		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
@@ -1234,6 +1248,27 @@ void ath9k_hw_detach(struct ath_hw *ah)
 static void ath9k_hw_override_ini(struct ath_hw *ah,
 				  struct ath9k_channel *chan)
 {
+	u32 val;
+
+	if (AR_SREV_9271(ah)) {
+		/*
+		 * Enable spectral scan to solution for issues with stuck
+		 * beacons on AR9271 1.0. The beacon stuck issue is not seeon on
+		 * AR9271 1.1
+		 */
+		if (AR_SREV_9271_10(ah)) {
+			val = REG_READ(ah, AR_PHY_SPECTRAL_SCAN) | AR_PHY_SPECTRAL_SCAN_ENABLE;
+			REG_WRITE(ah, AR_PHY_SPECTRAL_SCAN, val);
+		}
+		else if (AR_SREV_9271_11(ah))
+			/*
+			 * change AR_PHY_RF_CTL3 setting to fix MAC issue
+			 * present on AR9271 1.1
+			 */
+			REG_WRITE(ah, AR_PHY_RF_CTL3, 0x3a020001);
+		return;
+	}
+
 	/*
 	 * Set the RX_ABORT and RX_DIS and clear if off only after
 	 * RXE is set for MAC. This prevents frames with corrupted
@@ -1245,7 +1280,10 @@ static void ath9k_hw_override_ini(struct ath_hw *ah,
 	if (!AR_SREV_5416_20_OR_LATER(ah) ||
 	    AR_SREV_9280_10_OR_LATER(ah))
 		return;
-
+	/*
+	 * Disable BB clock gating
+	 * Necessary to avoid issues on AR5416 2.0
+	 */
 	REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
 }
 
@@ -1477,23 +1515,48 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 {
 	u32 regval;
 
+	/*
+	 * set AHB_MODE not to do cacheline prefetches
+	*/
 	regval = REG_READ(ah, AR_AHB_MODE);
 	REG_WRITE(ah, AR_AHB_MODE, regval | AR_AHB_PREFETCH_RD_EN);
 
+	/*
+	 * let mac dma reads be in 128 byte chunks
+	 */
 	regval = REG_READ(ah, AR_TXCFG) & ~AR_TXCFG_DMASZ_MASK;
 	REG_WRITE(ah, AR_TXCFG, regval | AR_TXCFG_DMASZ_128B);
 
+	/*
+	 * Restore TX Trigger Level to its pre-reset value.
+	 * The initial value depends on whether aggregation is enabled, and is
+	 * adjusted whenever underruns are detected.
+	 */
 	REG_RMW_FIELD(ah, AR_TXCFG, AR_FTRIG, ah->tx_trig_level);
 
+	/*
+	 * let mac dma writes be in 128 byte chunks
+	 */
 	regval = REG_READ(ah, AR_RXCFG) & ~AR_RXCFG_DMASZ_MASK;
 	REG_WRITE(ah, AR_RXCFG, regval | AR_RXCFG_DMASZ_128B);
 
+	/*
+	 * Setup receive FIFO threshold to hold off TX activities
+	 */
 	REG_WRITE(ah, AR_RXFIFO_CFG, 0x200);
 
+	/*
+	 * reduce the number of usable entries in PCU TXBUF to avoid
+	 * wrap around issues.
+	 */
 	if (AR_SREV_9285(ah)) {
+		/* For AR9285 the number of Fifos are reduced to half.
+		 * So set the usable tx buf size also to half to
+		 * avoid data/delimiter underruns
+		 */
 		REG_WRITE(ah, AR_PCU_TXBUF_CTRL,
 			  AR_9285_PCU_TXBUF_CTRL_USABLE_SIZE);
-	} else {
+	} else if (!AR_SREV_9271(ah)) {
 		REG_WRITE(ah, AR_PCU_TXBUF_CTRL,
 			  AR_PCU_TXBUF_CTRL_USABLE_SIZE);
 	}
@@ -2299,9 +2362,24 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_mark_phy_inactive(ah);
 
+	if (AR_SREV_9271(ah) && ah->htc_reset_init) {
+		REG_WRITE(ah,
+			  AR9271_RESET_POWER_DOWN_CONTROL,
+			  AR9271_RADIO_RF_RST);
+		udelay(50);
+	}
+
 	if (!ath9k_hw_chip_reset(ah, chan)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Chip reset failed\n");
 		return -EINVAL;
+	}
+
+	if (AR_SREV_9271(ah) && ah->htc_reset_init) {
+		ah->htc_reset_init = false;
+		REG_WRITE(ah,
+			  AR9271_RESET_POWER_DOWN_CONTROL,
+			  AR9271_GATE_MAC_CTL);
+		udelay(50);
 	}
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
@@ -2439,6 +2517,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	REG_WRITE(ah, AR_CFG_LED, saveLedState | AR_CFG_SCLK_32KHZ);
 
+	/*
+	 * For big endian systems turn on swapping for descriptors
+	 */
 	if (AR_SREV_9100(ah)) {
 		u32 mask;
 		mask = REG_READ(ah, AR_CFG);
@@ -2453,8 +2534,12 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 				"Setting CFG 0x%x\n", REG_READ(ah, AR_CFG));
 		}
 	} else {
+		/* Configure AR9271 target WLAN */
+                if (AR_SREV_9271(ah))
+			REG_WRITE(ah, AR_CFG, AR_CFG_SWRB | AR_CFG_SWTB);
 #ifdef __BIG_ENDIAN
-		REG_WRITE(ah, AR_CFG, AR_CFG_SWTD | AR_CFG_SWRD);
+                else
+			REG_WRITE(ah, AR_CFG, AR_CFG_SWTD | AR_CFG_SWRD);
 #endif
 	}
 
@@ -2981,7 +3066,7 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 	if (ah->config.pcie_waen) {
 		REG_WRITE(ah, AR_WA, ah->config.pcie_waen);
 	} else {
-		if (AR_SREV_9285(ah))
+		if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 			REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
 		/*
 		 * On AR9280 chips bit 22 of 0x4004 needs to be set to
@@ -3445,10 +3530,17 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
+	/*
+	 * For AR9271 we will temporarilly uses the rx chainmax as read from
+	 * the EEPROM.
+	 */
 	if ((ah->hw_version.devid == AR5416_DEVID_PCI) &&
-	    !(eeval & AR5416_OPFLAGS_11A))
+	    !(eeval & AR5416_OPFLAGS_11A) &&
+	    !(AR_SREV_9271(ah)))
+		/* CB71: GPIO 0 is pulled down to indicate 3 rx chains */
 		pCap->rx_chainmask = ath9k_hw_gpio_get(ah, 0) ? 0x5 : 0x7;
 	else
+		/* Use rx_chainmask from EEPROM. */
 		pCap->rx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
 
 	if (!(AR_SREV_9280(ah) && (ah->hw_version.macRev == 0)))

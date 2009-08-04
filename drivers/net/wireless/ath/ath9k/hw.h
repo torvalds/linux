@@ -419,6 +419,8 @@ struct ath_hw {
 	u32 wlanactive_gpio;
 	u32 ah_flags;
 
+	bool htc_reset_init;
+
 	enum nl80211_iftype opmode;
 	enum ath9k_power_mode power_mode;
 

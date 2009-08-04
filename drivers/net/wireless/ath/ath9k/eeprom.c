@@ -1237,6 +1237,10 @@ static void ath9k_hw_4k_set_gain(struct ath_hw *ah,
 		REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
 }
 
+/*
+ * Read EEPROM header info and program the device for correct operation
+ * given the channel value.
+ */
 static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 					 struct ath9k_channel *chan)
 {
@@ -1313,38 +1317,110 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 		}
 	}
 
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G3,
-			AR9285_AN_RF2G3_OB_0, AR9285_AN_RF2G3_OB_0_S, ob[0]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G3,
-			AR9285_AN_RF2G3_OB_1, AR9285_AN_RF2G3_OB_1_S, ob[1]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G3,
-			AR9285_AN_RF2G3_OB_2, AR9285_AN_RF2G3_OB_2_S, ob[2]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G3,
-			AR9285_AN_RF2G3_OB_3, AR9285_AN_RF2G3_OB_3_S, ob[3]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G3,
-			AR9285_AN_RF2G3_OB_4, AR9285_AN_RF2G3_OB_4_S, ob[4]);
+	if (AR_SREV_9271(ah)) {
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9271_AN_RF2G3_OB_cck,
+					  AR9271_AN_RF2G3_OB_cck_S,
+					  ob[0]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9271_AN_RF2G3_OB_psk,
+					  AR9271_AN_RF2G3_OB_psk_S,
+					  ob[1]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9271_AN_RF2G3_OB_qam,
+					  AR9271_AN_RF2G3_OB_qam_S,
+					  ob[2]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9271_AN_RF2G3_DB_1,
+					  AR9271_AN_RF2G3_DB_1_S,
+					  db1[0]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G4,
+					  AR9271_AN_RF2G4_DB_2,
+					  AR9271_AN_RF2G4_DB_2_S,
+					  db2[0]);
+	} else {
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9285_AN_RF2G3_OB_0,
+					  AR9285_AN_RF2G3_OB_0_S,
+					  ob[0]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9285_AN_RF2G3_OB_1,
+					  AR9285_AN_RF2G3_OB_1_S,
+					  ob[1]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9285_AN_RF2G3_OB_2,
+					  AR9285_AN_RF2G3_OB_2_S,
+					  ob[2]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9285_AN_RF2G3_OB_3,
+					  AR9285_AN_RF2G3_OB_3_S,
+					  ob[3]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9285_AN_RF2G3_OB_4,
+					  AR9285_AN_RF2G3_OB_4_S,
+					  ob[4]);
 
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G3,
-			AR9285_AN_RF2G3_DB1_0, AR9285_AN_RF2G3_DB1_0_S, db1[0]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G3,
-			AR9285_AN_RF2G3_DB1_1, AR9285_AN_RF2G3_DB1_1_S, db1[1]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G3,
-			AR9285_AN_RF2G3_DB1_2, AR9285_AN_RF2G3_DB1_2_S, db1[2]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G4,
-			AR9285_AN_RF2G4_DB1_3, AR9285_AN_RF2G4_DB1_3_S, db1[3]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G4,
-			AR9285_AN_RF2G4_DB1_4, AR9285_AN_RF2G4_DB1_4_S, db1[4]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9285_AN_RF2G3_DB1_0,
+					  AR9285_AN_RF2G3_DB1_0_S,
+					  db1[0]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9285_AN_RF2G3_DB1_1,
+					  AR9285_AN_RF2G3_DB1_1_S,
+					  db1[1]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G3,
+					  AR9285_AN_RF2G3_DB1_2,
+					  AR9285_AN_RF2G3_DB1_2_S,
+					  db1[2]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G4,
+					  AR9285_AN_RF2G4_DB1_3,
+					  AR9285_AN_RF2G4_DB1_3_S,
+					  db1[3]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G4,
+					  AR9285_AN_RF2G4_DB1_4,
+					  AR9285_AN_RF2G4_DB1_4_S, db1[4]);
 
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G4,
-			AR9285_AN_RF2G4_DB2_0, AR9285_AN_RF2G4_DB2_0_S, db2[0]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G4,
-			AR9285_AN_RF2G4_DB2_1, AR9285_AN_RF2G4_DB2_1_S, db2[1]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G4,
-			AR9285_AN_RF2G4_DB2_2, AR9285_AN_RF2G4_DB2_2_S, db2[2]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G4,
-			AR9285_AN_RF2G4_DB2_3, AR9285_AN_RF2G4_DB2_3_S, db2[3]);
-	ath9k_hw_analog_shift_rmw(ah, AR9285_AN_RF2G4,
-			AR9285_AN_RF2G4_DB2_4, AR9285_AN_RF2G4_DB2_4_S, db2[4]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G4,
+					  AR9285_AN_RF2G4_DB2_0,
+					  AR9285_AN_RF2G4_DB2_0_S,
+					  db2[0]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G4,
+					  AR9285_AN_RF2G4_DB2_1,
+					  AR9285_AN_RF2G4_DB2_1_S,
+					  db2[1]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G4,
+					  AR9285_AN_RF2G4_DB2_2,
+					  AR9285_AN_RF2G4_DB2_2_S,
+					  db2[2]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G4,
+					  AR9285_AN_RF2G4_DB2_3,
+					  AR9285_AN_RF2G4_DB2_3_S,
+					  db2[3]);
+		ath9k_hw_analog_shift_rmw(ah,
+					  AR9285_AN_RF2G4,
+					  AR9285_AN_RF2G4_DB2_4,
+					  AR9285_AN_RF2G4_DB2_4_S,
+					  db2[4]);
+	}
 
 
 	if (AR_SREV_9285_11(ah))
@@ -3984,7 +4060,7 @@ int ath9k_hw_eeprom_init(struct ath_hw *ah)
 	if (AR_SREV_9287(ah)) {
 		ah->eep_map = EEP_MAP_AR9287;
 		ah->eep_ops = &eep_AR9287_ops;
-	} else if (AR_SREV_9285(ah)) {
+	} else if (AR_SREV_9285(ah) || AR_SREV_9271(ah)) {
 		ah->eep_map = EEP_MAP_4KBITS;
 		ah->eep_ops = &eep_4k_ops;
 	} else {
