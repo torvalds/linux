@@ -4861,7 +4861,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Igor Kuznetsov <igk@igk.ru> */
 		.name           = "Beholder BeholdTV H6",
 		.audio_clock    = 0x00187de7,
-		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.tuner_type     = TUNER_PHILIPS_FMD1216MEX_MK3,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,

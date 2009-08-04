@@ -1457,7 +1457,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (fe0->dvb.frontend) {
 			dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 				   &dev->i2c_adap, 0x61,
-				   TUNER_PHILIPS_FMD1216ME_MK3);
+				   TUNER_PHILIPS_FMD1216MEX_MK3);
 		}
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A700_PRO:
