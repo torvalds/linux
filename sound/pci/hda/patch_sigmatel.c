@@ -4782,10 +4782,8 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 
 	switch (event->type) {
 	case STAC_HP_EVENT:
-		stac92xx_hp_detect(codec);
-		break;
 	case STAC_LO_EVENT:
-		stac92xx_line_out_detect(codec, 0);
+		stac92xx_hp_detect(codec);
 		break;
 	case STAC_MIC_EVENT:
 		stac92xx_mic_detect(codec);
