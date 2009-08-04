@@ -47,7 +47,7 @@ static u8 lbs_region_2_code(u8 *region)
 {
 	u8 i;
 
-	for (i = 0; region[i] && i < COUNTRY_CODE_LEN; i++)
+	for (i = 0; i < COUNTRY_CODE_LEN && region[i]; i++)
 		region[i] = toupper(region[i]);
 
 	for (i = 0; i < ARRAY_SIZE(region_code_mapping); i++) {
