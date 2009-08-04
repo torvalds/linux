@@ -632,20 +632,31 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	iommu->cap = dmar_readq(iommu->reg + DMAR_CAP_REG);
 	iommu->ecap = dmar_readq(iommu->reg + DMAR_ECAP_REG);
 
+	if (iommu->cap == (uint64_t)-1 && iommu->ecap == (uint64_t)-1) {
+		/* Promote an attitude of violence to a BIOS engineer today */
+		WARN(1, "Your BIOS is broken; DMAR reported at address %llx returns all ones!\n"
+		     "BIOS vendor: %s; Ver: %s; Product Version: %s\n",
+		     drhd->reg_base_addr,
+		     dmi_get_system_info(DMI_BIOS_VENDOR),
+		     dmi_get_system_info(DMI_BIOS_VERSION),
+		     dmi_get_system_info(DMI_PRODUCT_VERSION));
+		goto err_unmap;
+	}
+
 #ifdef CONFIG_DMAR
 	agaw = iommu_calculate_agaw(iommu);
 	if (agaw < 0) {
 		printk(KERN_ERR
 		       "Cannot get a valid agaw for iommu (seq_id = %d)\n",
 		       iommu->seq_id);
-		goto error;
+		goto err_unmap;
 	}
 	msagaw = iommu_calculate_max_sagaw(iommu);
 	if (msagaw < 0) {
 		printk(KERN_ERR
 			"Cannot get a valid max agaw for iommu (seq_id = %d)\n",
 			iommu->seq_id);
-		goto error;
+		goto err_unmap;
 	}
 #endif
 	iommu->agaw = agaw;
@@ -665,7 +676,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	}
 
 	ver = readl(iommu->reg + DMAR_VER_REG);
-	pr_debug("IOMMU %llx: ver %d:%d cap %llx ecap %llx\n",
+	pr_info("IOMMU %llx: ver %d:%d cap %llx ecap %llx\n",
 		(unsigned long long)drhd->reg_base_addr,
 		DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver),
 		(unsigned long long)iommu->cap,
@@ -675,7 +686,10 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 	drhd->iommu = iommu;
 	return 0;
-error:
+
+ err_unmap:
+	iounmap(iommu->reg);
+ error:
 	kfree(iommu);
 	return -1;
 }
