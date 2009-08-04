@@ -1245,11 +1245,11 @@ int __devinit cpmac_init(void)
 
 	cpmac_mii->reset(cpmac_mii);
 
-	for (i = 0; i < 300000; i++)
+	for (i = 0; i < 300; i++)
 		if ((mask = cpmac_read(cpmac_mii->priv, CPMAC_MDIO_ALIVE)))
 			break;
 		else
-			cpu_relax();
+			msleep(10);
 
 	mask &= 0x7fffffff;
 	if (mask & (mask - 1)) {
