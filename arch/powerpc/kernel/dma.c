@@ -140,7 +140,7 @@ static inline void dma_direct_sync_single_range(struct device *dev,
 }
 #endif
 
-struct dma_mapping_ops dma_direct_ops = {
+struct dma_map_ops dma_direct_ops = {
 	.alloc_coherent	= dma_direct_alloc_coherent,
 	.free_coherent	= dma_direct_free_coherent,
 	.map_sg		= dma_direct_map_sg,

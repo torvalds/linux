@@ -31,7 +31,7 @@ unsigned int ppc_swiotlb_enable;
  * map_page, and unmap_page on highmem, use normal dma_ops
  * for everything else.
  */
-struct dma_mapping_ops swiotlb_dma_ops = {
+struct dma_map_ops swiotlb_dma_ops = {
 	.alloc_coherent = dma_direct_alloc_coherent,
 	.free_coherent = dma_direct_free_coherent,
 	.map_sg = swiotlb_map_sg_attrs,
