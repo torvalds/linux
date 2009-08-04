@@ -29,11 +29,6 @@ asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 	set_irq_regs(oldregs);
 }
 
-void ack_bad_irq(unsigned int irq)
-{
-	printk(KERN_ERR "IRQ: unexpected irq=%d\n", irq);
-}
-
 static struct irq_chip m_irq_chip = {
 	.name		= "M68K-INTC",
 	.enable		= enable_vector,
