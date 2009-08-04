@@ -1005,6 +1005,9 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	struct em28xx_fh   *fh    = priv;
 	struct em28xx      *dev   = fh->dev;
 
+	if (!dev->audio_mode.has_audio)
+		return -EINVAL;
+
 	switch (a->index) {
 	case EM28XX_AMUX_VIDEO:
 		strcpy(a->name, "Television");
@@ -1045,6 +1048,9 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 
+
+	if (!dev->audio_mode.has_audio)
+		return -EINVAL;
 
 	if (a->index >= MAX_EM28XX_INPUT)
 		return -EINVAL;
@@ -1464,8 +1470,10 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	cap->capabilities =
 			V4L2_CAP_SLICED_VBI_CAPTURE |
 			V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_AUDIO |
 			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+
+	if (dev->audio_mode.has_audio)
+		cap->capabilities |= V4L2_CAP_AUDIO;
 
 	if (dev->tuner_type != TUNER_ABSENT)
 		cap->capabilities |= V4L2_CAP_TUNER;
