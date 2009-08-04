@@ -260,7 +260,7 @@ nx_update_dma_mask(struct netxen_adapter *adapter)
 	change = 0;
 
 	shift = NXRD32(adapter, CRB_DMA_SHIFT);
-	if (shift >= 32)
+	if (shift > 32)
 		return 0;
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id) && (shift > 9))
@@ -272,7 +272,7 @@ nx_update_dma_mask(struct netxen_adapter *adapter)
 		old_mask = pdev->dma_mask;
 		old_cmask = pdev->dev.coherent_dma_mask;
 
-		mask = (1ULL<<(32+shift)) - 1;
+		mask = DMA_BIT_MASK(32+shift);
 
 		err = pci_set_dma_mask(pdev, mask);
 		if (err)
