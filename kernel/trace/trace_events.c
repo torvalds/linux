@@ -376,7 +376,7 @@ ftrace_event_seq_open(struct inode *inode, struct file *file)
 	const struct seq_operations *seq_ops;
 
 	if ((file->f_mode & FMODE_WRITE) &&
-	    !(file->f_flags & O_APPEND))
+	    (file->f_flags & O_TRUNC))
 		ftrace_clear_events();
 
 	seq_ops = inode->i_private;
