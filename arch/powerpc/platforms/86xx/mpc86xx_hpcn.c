@@ -106,6 +106,7 @@ mpc86xx_hpcn_setup_arch(void)
 	if (lmb_end_of_DRAM() > max) {
 		ppc_swiotlb_enable = 1;
 		set_pci_dma_ops(&swiotlb_pci_dma_ops);
+		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
 	}
 #endif
 }

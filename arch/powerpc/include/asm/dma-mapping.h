@@ -87,8 +87,6 @@ struct dma_mapping_ops {
 				dma_addr_t dma_address, size_t size,
 				enum dma_data_direction direction,
 				struct dma_attrs *attrs);
-	int		(*addr_needs_map)(struct device *dev, dma_addr_t addr,
-				size_t size);
 #ifdef CONFIG_PPC_NEED_DMA_SYNC_OPS
 	void            (*sync_single_range_for_cpu)(struct device *hwdev,
 				dma_addr_t dma_handle, unsigned long offset,
@@ -426,10 +424,12 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {
-	struct dma_mapping_ops *ops = get_dma_ops(dev);
+#ifdef CONFIG_SWIOTLB
+	struct dev_archdata *sd = &dev->archdata;
 
-	if (ops->addr_needs_map && ops->addr_needs_map(dev, addr, size))
+	if (sd->max_direct_dma_addr && addr + size > sd->max_direct_dma_addr)
 		return 0;
+#endif
 
 	if (!dev->dma_mask)
 		return 0;
