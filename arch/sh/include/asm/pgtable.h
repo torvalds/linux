@@ -36,6 +36,12 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define	NEFF_SIGN	(1LL << (NEFF - 1))
 #define	NEFF_MASK	(-1LL << NEFF)
 
+static inline unsigned long long neff_sign_extend(unsigned long val)
+{
+	unsigned long long extended = val;
+	return (extended & NEFF_SIGN) ? (extended | NEFF_MASK) : extended;
+}
+
 #ifdef CONFIG_29BIT
 #define NPHYS		29
 #else

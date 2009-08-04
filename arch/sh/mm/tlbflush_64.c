@@ -337,7 +337,7 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	/*
 	 * Sign-extend based on neff.
 	 */
-	lpage = (page & NEFF_SIGN) ? (page | NEFF_MASK) : page;
+	lpage = neff_sign_extend(page);
 	match = (asid << PTEH_ASID_SHIFT) | PTEH_VALID;
 	match |= lpage;
 
