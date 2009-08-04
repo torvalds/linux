@@ -13,6 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * http://www.synaptics.com/sites/default/files/511_000099_01F.pdf
  */
 
 #include <linux/module.h>
@@ -87,6 +88,22 @@ static int synaptics_init_panel(struct synaptics_ts_data *ts)
 
 static void decode_report(struct synaptics_ts_data *ts, u8 *buf)
 {
+/*
+ * This sensor sends two 6-byte absolute finger reports, an optional
+ * 2-byte relative report followed by a status byte. This function
+ * reads the two finger reports and transforms the coordinates
+ * according the platform data so they can be aligned with the lcd
+ * behind the touchscreen. Typically we flip the y-axis since the
+ * sensor uses the bottom left corner as the origin, but if the sensor
+ * is mounted upside down the platform data will request that the
+ * x-axis should be flipped instead. The snap to inactive edge border
+ * are used to allow tapping the edges of the screen on the G1. The
+ * active area of the touchscreen is smaller than the lcd. When the
+ * finger gets close the edge of the screen we snap it to the
+ * edge. This allows ui elements at the edge of the screen to be hit,
+ * and it prevents hitting ui elements that are not at the edge of the
+ * screen when the finger is touching the edge.
+ */
 	int pos[2][2];
 	int f, a;
 	int base = 2;
