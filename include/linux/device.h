@@ -225,6 +225,14 @@ extern void class_unregister(struct class *class);
 	__class_register(class, &__key);	\
 })
 
+struct class_compat;
+struct class_compat *class_compat_register(const char *name);
+void class_compat_unregister(struct class_compat *cls);
+int class_compat_create_link(struct class_compat *cls, struct device *dev,
+			     struct device *device_link);
+void class_compat_remove_link(struct class_compat *cls, struct device *dev,
+			      struct device *device_link);
+
 extern void class_dev_iter_init(struct class_dev_iter *iter,
 				struct class *class,
 				struct device *start,
