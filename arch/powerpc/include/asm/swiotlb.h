@@ -14,7 +14,6 @@
 #include <linux/swiotlb.h>
 
 extern struct dma_mapping_ops swiotlb_dma_ops;
-extern struct dma_mapping_ops swiotlb_pci_dma_ops;
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
 
