@@ -37,6 +37,8 @@ static inline void *kmap_coherent(struct page *page, unsigned long addr)
 	unsigned long vaddr, flags;
 	pte_t pte;
 
+	BUG_ON(test_bit(PG_dcache_dirty, &page->flags));
+
 	inc_preempt_count();
 
 	idx = (addr & current_cpu_data.dcache.alias_mask) >> PAGE_SHIFT;
