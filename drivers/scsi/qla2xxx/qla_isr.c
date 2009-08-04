@@ -1769,8 +1769,10 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 
 	vha = qla25xx_get_host(rsp);
 	qla24xx_process_response_queue(vha, rsp);
-	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-
+	if (!ha->mqenable) {
+		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+		RD_REG_DWORD_RELAXED(&reg->hccr);
+	}
 	spin_unlock_irq(&ha->hardware_lock);
 
 	return IRQ_HANDLED;
