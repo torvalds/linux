@@ -26,6 +26,7 @@ void b43_lptab_write_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, const void *data);
 
 void b2062_upload_init_table(struct b43_wldev *dev);
+void b2063_upload_init_table(struct b43_wldev *dev);
 
 
 #endif /* B43_TABLES_LPPHY_H_ */

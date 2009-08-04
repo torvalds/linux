@@ -333,7 +333,17 @@ static void lpphy_2062_init(struct b43_wldev *dev)
 /* Initialize the 2063 radio. */
 static void lpphy_2063_init(struct b43_wldev *dev)
 {
-	//TODO
+	b2063_upload_init_table(dev);
+	b43_radio_write(dev, B2063_LOGEN_SP5, 0);
+	b43_radio_set(dev, B2063_COMM8, 0x38);
+	b43_radio_write(dev, B2063_REG_SP1, 0x56);
+	b43_radio_mask(dev, B2063_RX_BB_CTL2, ~0x2);
+	b43_radio_write(dev, B2063_PA_SP7, 0);
+	b43_radio_write(dev, B2063_TX_RF_SP6, 0x20);
+	b43_radio_write(dev, B2063_TX_RF_SP9, 0x40);
+	b43_radio_write(dev, B2063_PA_SP3, 0xa0);
+	b43_radio_write(dev, B2063_PA_SP4, 0xa0);
+	b43_radio_write(dev, B2063_PA_SP2, 0x18);
 }
 
 static void lpphy_sync_stx(struct b43_wldev *dev)
@@ -533,6 +543,7 @@ static void lpphy_tx_pctl_init(struct b43_wldev *dev)
 static int b43_lpphy_op_init(struct b43_wldev *dev)
 {
 	/* TODO: band SPROM */
+	/* TODO: tables init */
 	lpphy_baseband_init(dev);
 	lpphy_radio_init(dev);
 	//TODO calibrate RC
