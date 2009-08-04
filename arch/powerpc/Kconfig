@@ -120,7 +120,7 @@ config PPC
 	select HAVE_KRETPROBES
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_LMB
-	select HAVE_DMA_ATTRS if PPC64
+	select HAVE_DMA_ATTRS
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
 	select HAVE_SYSCALL_WRAPPERS if PPC64
@@ -306,10 +306,6 @@ config SWIOTLB
 	  This allows us to DMA to the full physical address space on
 	  platforms where the size of a physical address is larger
 	  than the bus address.  Not all platforms support this.
-
-config PPC_NEED_DMA_SYNC_OPS
-	def_bool y
-	depends on (NOT_COHERENT_CACHE || SWIOTLB)
 
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
