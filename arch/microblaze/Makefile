@@ -6,14 +6,16 @@ endif
 
 # What CPU vesion are we building for, and crack it open
 # as major.minor.rev
-CPU_VER=$(subst ",,$(CONFIG_XILINX_MICROBLAZE0_HW_VER) )
-CPU_MAJOR=$(shell echo $(CPU_VER) | cut -d '.' -f 1)
-CPU_MINOR=$(shell echo $(CPU_VER) | cut -d '.' -f 2)
-CPU_REV=$(shell echo $(CPU_VER) | cut -d '.' -f 3)
+CPU_VER   := $(shell echo $(CONFIG_XILINX_MICROBLAZE0_HW_VER))
+CPU_MAJOR := $(shell echo $(CPU_VER) | cut -d '.' -f 1)
+CPU_MINOR := $(shell echo $(CPU_VER) | cut -d '.' -f 2)
+CPU_REV   := $(shell echo $(CPU_VER) | cut -d '.' -f 3)
 
 export CPU_VER CPU_MAJOR CPU_MINOR CPU_REV
 
 # Use cpu-related CONFIG_ vars to set compile options.
+# The various CONFIG_XILINX cpu features options are integers 0/1/2...
+# rather than bools y/n
 
 # Work out HW multipler support.  This is icky.
 # 1. Spartan2 has no HW multiplers.
@@ -34,30 +36,29 @@ CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_PCMP_INSTR) += -mxl-pattern-compare
 
 CPUFLAGS-1 += $(call cc-option,-mcpu=v$(CPU_VER))
 
-# The various CONFIG_XILINX cpu features options are integers 0/1/2...
-# rather than bools y/n
-
 # r31 holds current when in kernel mode
-CFLAGS_KERNEL += -ffixed-r31 $(CPUFLAGS-1) $(CPUFLAGS-2)
+KBUILD_KERNEL += -ffixed-r31 $(CPUFLAGS-1) $(CPUFLAGS-2)
 
 LDFLAGS		:=
 LDFLAGS_vmlinux	:=
-LDFLAGS_BLOB := --format binary --oformat elf32-microblaze
 
-LIBGCC := $(shell $(CC) $(CFLAGS_KERNEL) -print-libgcc-file-name)
+LIBGCC := $(shell $(CC) $(KBUILD_KERNEL) -print-libgcc-file-name)
 
-head-y		:= arch/microblaze/kernel/head.o
-libs-y		+= arch/microblaze/lib/ $(LIBGCC)
-core-y		+= arch/microblaze/kernel/ arch/microblaze/mm/ \
-		   arch/microblaze/platform/
+head-y := arch/microblaze/kernel/head.o
+libs-y += arch/microblaze/lib/
+libs-y += $(LIBGCC)
+core-y += arch/microblaze/kernel/
+core-y += arch/microblaze/mm/
+core-y += arch/microblaze/platform/
 
-boot := arch/$(ARCH)/boot
+boot := arch/microblaze/boot
 
 # defines filename extension depending memory management type
 ifeq ($(CONFIG_MMU),)
-MMUEXT		:= -nommu
+MMU := -nommu
 endif
-export	MMUEXT
+
+export MMU
 
 all: linux.bin
 

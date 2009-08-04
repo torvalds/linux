@@ -947,6 +947,13 @@
 #define FTDI_TURTELIZER_PID	0xBDC8 /* JTAG/RS-232 adapter by egnite GmBH */
 
 /*
+ * GN Otometrics (http://www.otometrics.com)
+ * Submitted by Ville Sundberg.
+ */
+#define GN_OTOMETRICS_VID	0x0c33	/* Vendor ID */
+#define AURICAL_USB_PID		0x0010	/* Aurical USB Audiometer */
+
+/*
  *   BmRequestType:  1100 0000b
  *   bRequest:       FTDI_E2_READ
  *   wValue:         0

@@ -909,6 +909,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	spin_lock_init(&root->inode_lock);
 	mutex_init(&root->objectid_mutex);
 	mutex_init(&root->log_mutex);
+	init_rwsem(&root->commit_root_sem);
 	init_waitqueue_head(&root->log_writer_wait);
 	init_waitqueue_head(&root->log_commit_wait[0]);
 	init_waitqueue_head(&root->log_commit_wait[1]);
@@ -1799,6 +1800,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 					   btrfs_super_chunk_root(disk_super),
 					   blocksize, generation);
 	BUG_ON(!chunk_root->node);
+	if (!test_bit(EXTENT_BUFFER_UPTODATE, &chunk_root->node->bflags)) {
+		printk(KERN_WARNING "btrfs: failed to read chunk root on %s\n",
+		       sb->s_id);
+		goto fail_chunk_root;
+	}
 	btrfs_set_root_node(&chunk_root->root_item, chunk_root->node);
 	chunk_root->commit_root = btrfs_root_node(chunk_root);
 
@@ -1826,6 +1832,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 					  blocksize, generation);
 	if (!tree_root->node)
 		goto fail_chunk_root;
+	if (!test_bit(EXTENT_BUFFER_UPTODATE, &tree_root->node->bflags)) {
+		printk(KERN_WARNING "btrfs: failed to read tree root on %s\n",
+		       sb->s_id);
+		goto fail_tree_root;
+	}
 	btrfs_set_root_node(&tree_root->root_item, tree_root->node);
 	tree_root->commit_root = btrfs_root_node(tree_root);
 
@@ -2322,6 +2333,9 @@ int close_ctree(struct btrfs_root *root)
 			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
 	}
 
+	fs_info->closing = 2;
+	smp_mb();
+
 	if (fs_info->delalloc_bytes) {
 		printk(KERN_INFO "btrfs: at unmount delalloc count %llu\n",
 		       (unsigned long long)fs_info->delalloc_bytes);
@@ -2343,6 +2357,7 @@ int close_ctree(struct btrfs_root *root)
 	free_extent_buffer(root->fs_info->csum_root->commit_root);
 
 	btrfs_free_block_groups(root->fs_info);
+	btrfs_free_pinned_extents(root->fs_info);
 
 	del_fs_roots(fs_info);
 

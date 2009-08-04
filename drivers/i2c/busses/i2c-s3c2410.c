@@ -763,11 +763,6 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 	dev_info(i2c->dev, "bus frequency set to %d KHz\n", freq);
 	dev_dbg(i2c->dev, "S3C2410_IICCON=0x%02lx\n", iicon);
 
-	/* check for s3c2440 i2c controller  */
-
-	if (s3c24xx_i2c_is2440(i2c))
-		writel(0x0, i2c->regs + S3C2440_IICLC);
-
 	return 0;
 }
 
@@ -951,17 +946,20 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2c_suspend_late(struct platform_device *dev,
-				    pm_message_t msg)
+static int s3c24xx_i2c_suspend_noirq(struct device *dev)
 {
-	struct s3c24xx_i2c *i2c = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
+
 	i2c->suspended = 1;
+
 	return 0;
 }
 
-static int s3c24xx_i2c_resume(struct platform_device *dev)
+static int s3c24xx_i2c_resume(struct device *dev)
 {
-	struct s3c24xx_i2c *i2c = platform_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
 	s3c24xx_i2c_init(i2c);
@@ -969,9 +967,14 @@ static int s3c24xx_i2c_resume(struct platform_device *dev)
 	return 0;
 }
 
+static struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
+	.suspend_noirq = s3c24xx_i2c_suspend_noirq,
+	.resume = s3c24xx_i2c_resume,
+};
+
+#define S3C24XX_DEV_PM_OPS (&s3c24xx_i2c_dev_pm_ops)
 #else
-#define s3c24xx_i2c_suspend_late NULL
-#define s3c24xx_i2c_resume NULL
+#define S3C24XX_DEV_PM_OPS NULL
 #endif
 
 /* device driver for platform bus bits */
@@ -990,12 +993,11 @@ MODULE_DEVICE_TABLE(platform, s3c24xx_driver_ids);
 static struct platform_driver s3c24xx_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
 	.remove		= s3c24xx_i2c_remove,
-	.suspend_late	= s3c24xx_i2c_suspend_late,
-	.resume		= s3c24xx_i2c_resume,
 	.id_table	= s3c24xx_driver_ids,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c-i2c",
+		.pm	= S3C24XX_DEV_PM_OPS,
 	},
 };
 

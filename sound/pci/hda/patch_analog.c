@@ -3754,7 +3754,7 @@ static int ad1884a_mobile_master_sw_put(struct snd_kcontrol *kcontrol,
 	int mute = (!ucontrol->value.integer.value[0] &&
 		    !ucontrol->value.integer.value[1]);
 	/* toggle GPIO1 according to the mute state */
-	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+	snd_hda_codec_write_cache(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
 			    mute ? 0x02 : 0x0);
 	return ret;
 }

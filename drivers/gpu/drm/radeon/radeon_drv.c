@@ -89,6 +89,7 @@ int radeon_agpmode = 0;
 int radeon_vram_limit = 0;
 int radeon_gart_size = 512; /* default gart size */
 int radeon_benchmarking = 0;
+int radeon_testing = 0;
 int radeon_connector_table = 0;
 #endif
 
@@ -116,6 +117,9 @@ module_param_named(gartsize, radeon_gart_size, int, 0600);
 
 MODULE_PARM_DESC(benchmark, "Run benchmark");
 module_param_named(benchmark, radeon_benchmarking, int, 0444);
+
+MODULE_PARM_DESC(test, "Run tests");
+module_param_named(test, radeon_testing, int, 0444);
 
 MODULE_PARM_DESC(connector_table, "Force connector table");
 module_param_named(connector_table, radeon_connector_table, int, 0444);

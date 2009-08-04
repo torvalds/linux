@@ -2327,7 +2327,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	struct ata_port *ap = link->ap;
 	struct ata_link *slave = ap->slave_link;
 	struct ata_eh_context *ehc = &link->eh_context;
-	struct ata_eh_context *sehc = &slave->eh_context;
+	struct ata_eh_context *sehc = slave ? &slave->eh_context : NULL;
 	unsigned int *classes = ehc->classes;
 	unsigned int lflags = link->flags;
 	int verbose = !(ehc->i.flags & ATA_EHI_QUIET);
