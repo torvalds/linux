@@ -27,6 +27,8 @@
 static int uninorth_rev;
 static int is_u3;
 
+#define DEFAULT_APERTURE_SIZE 256
+#define DEFAULT_APERTURE_STRING "256"
 static char *aperture = NULL;
 
 static int uninorth_fetch_size(void)
@@ -55,7 +57,7 @@ static int uninorth_fetch_size(void)
 
 	if (!size) {
 		for (i = 0; i < agp_bridge->driver->num_aperture_sizes; i++)
-			if (values[i].size == 32)
+			if (values[i].size == DEFAULT_APERTURE_SIZE)
 				break;
 	}
 
@@ -474,13 +476,11 @@ void null_cache_flush(void)
 
 /* Setup function */
 
-static const struct aper_size_info_32 uninorth_sizes[7] =
+static const struct aper_size_info_32 uninorth_sizes[] =
 {
-#if 0 /* Not sure uninorth supports that high aperture sizes */
 	{256, 65536, 6, 64},
 	{128, 32768, 5, 32},
 	{64, 16384, 4, 16},
-#endif
 	{32, 8192, 3, 8},
 	{16, 4096, 2, 4},
 	{8, 2048, 1, 2},
@@ -491,7 +491,7 @@ static const struct aper_size_info_32 uninorth_sizes[7] =
  * Not sure that u3 supports that high aperture sizes but it
  * would strange if it did not :)
  */
-static const struct aper_size_info_32 u3_sizes[8] =
+static const struct aper_size_info_32 u3_sizes[] =
 {
 	{512, 131072, 7, 128},
 	{256, 65536, 6, 64},
@@ -507,7 +507,7 @@ const struct agp_bridge_driver uninorth_agp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= (void *)uninorth_sizes,
 	.size_type		= U32_APER_SIZE,
-	.num_aperture_sizes	= 4,
+	.num_aperture_sizes	= ARRAY_SIZE(uninorth_sizes),
 	.configure		= uninorth_configure,
 	.fetch_size		= uninorth_fetch_size,
 	.cleanup		= uninorth_cleanup,
@@ -534,7 +534,7 @@ const struct agp_bridge_driver u3_agp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= (void *)u3_sizes,
 	.size_type		= U32_APER_SIZE,
-	.num_aperture_sizes	= 8,
+	.num_aperture_sizes	= ARRAY_SIZE(u3_sizes),
 	.configure		= uninorth_configure,
 	.fetch_size		= uninorth_fetch_size,
 	.cleanup		= uninorth_cleanup,
@@ -717,7 +717,7 @@ module_param(aperture, charp, 0);
 MODULE_PARM_DESC(aperture,
 		 "Aperture size, must be power of two between 4MB and an\n"
 		 "\t\tupper limit specific to the UniNorth revision.\n"
-		 "\t\tDefault: 32M");
+		 "\t\tDefault: " DEFAULT_APERTURE_STRING "M");
 
 MODULE_AUTHOR("Ben Herrenschmidt & Paul Mackerras");
 MODULE_LICENSE("GPL");
