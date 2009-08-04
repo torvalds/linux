@@ -428,7 +428,8 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 
 enum vxge_hw_status
 vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
-	enum vxge_hw_fifo_tcode t_code, void *userdata, void **skb_ptr);
+	enum vxge_hw_fifo_tcode t_code, void *userdata,
+	struct sk_buff ***skb_ptr, int nr_skbs, int *more);
 
 int vxge_close(struct net_device *dev);
 

@@ -87,22 +87,25 @@ static inline int is_vxge_card_up(struct vxgedev *vdev)
 static inline void VXGE_COMPLETE_VPATH_TX(struct vxge_fifo *fifo)
 {
 	unsigned long flags = 0;
-	struct sk_buff *skb_ptr = NULL;
-	struct sk_buff **temp, *head, *skb;
+	struct sk_buff **skb_ptr = NULL;
+	struct sk_buff **temp;
+#define NR_SKB_COMPLETED 128
+	struct sk_buff *completed[NR_SKB_COMPLETED];
+	int more;
 
-	if (spin_trylock_irqsave(&fifo->tx_lock, flags)) {
-		vxge_hw_vpath_poll_tx(fifo->handle, (void **)&skb_ptr);
-		spin_unlock_irqrestore(&fifo->tx_lock, flags);
-	}
-	/* free SKBs */
-	head = skb_ptr;
-	while (head) {
-		skb = head;
-		temp = (struct sk_buff **)&skb->cb;
-		head = *temp;
-		*temp = NULL;
-		dev_kfree_skb_irq(skb);
-	}
+	do {
+		more = 0;
+		skb_ptr = completed;
+
+		if (spin_trylock_irqsave(&fifo->tx_lock, flags)) {
+			vxge_hw_vpath_poll_tx(fifo->handle, &skb_ptr,
+						NR_SKB_COMPLETED, &more);
+			spin_unlock_irqrestore(&fifo->tx_lock, flags);
+		}
+		/* free SKBs */
+		for (temp = completed; temp != skb_ptr; temp++)
+			dev_kfree_skb_irq(*temp);
+	} while (more) ;
 }
 
 static inline void VXGE_COMPLETE_ALL_TX(struct vxgedev *vdev)
@@ -600,11 +603,10 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 enum vxge_hw_status
 vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
 		enum vxge_hw_fifo_tcode t_code, void *userdata,
-		void **skb_ptr)
+		struct sk_buff ***skb_ptr, int nr_skb, int *more)
 {
 	struct vxge_fifo *fifo = (struct vxge_fifo *)userdata;
-	struct sk_buff *skb, *head = NULL;
-	struct sk_buff **temp;
+	struct sk_buff *skb, **done_skb = *skb_ptr;
 	int pkt_cnt = 0;
 
 	vxge_debug_entryexit(VXGE_TRACE,
@@ -657,9 +659,12 @@ vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
 		fifo->stats.tx_frms++;
 		fifo->stats.tx_bytes += skb->len;
 
-		temp = (struct sk_buff **)&skb->cb;
-		*temp = head;
-		head = skb;
+		*done_skb++ = skb;
+
+		if (--nr_skb <= 0) {
+			*more = 1;
+			break;
+		}
 
 		pkt_cnt++;
 		if (pkt_cnt > fifo->indicate_max_pkts)
@@ -668,10 +673,8 @@ vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
 	} while (vxge_hw_fifo_txdl_next_completed(fifo_hw,
 				&dtr, &t_code) == VXGE_HW_OK);
 
+	*skb_ptr = done_skb;
 	vxge_wake_tx_queue(fifo, skb);
-
-	if (skb_ptr)
-		*skb_ptr = (void *) head;
 
 	vxge_debug_entryexit(VXGE_TRACE,
 				"%s: %s:%d  Exiting...",

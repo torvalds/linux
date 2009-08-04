@@ -2326,7 +2326,7 @@ enum vxge_hw_status vxge_hw_vpath_poll_rx(
 
 enum vxge_hw_status vxge_hw_vpath_poll_tx(
 	struct __vxge_hw_fifo *fifoh,
-	void **skb_ptr);
+	struct sk_buff ***skb_ptr, int nr_skb, int *more);
 
 enum vxge_hw_status vxge_hw_vpath_alarm_process(
 	struct __vxge_hw_vpath_handle *vpath_handle,

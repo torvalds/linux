@@ -978,7 +978,9 @@ struct __vxge_hw_fifo {
 			void *txdlh,
 			enum vxge_hw_fifo_tcode t_code,
 			void *userdata,
-			void **skb_ptr);
+			struct sk_buff ***skb_ptr,
+			int nr_skb,
+			int *more);
 
 	void (*txdl_term)(
 			void *txdlh,
@@ -1779,7 +1781,8 @@ struct vxge_hw_fifo_attr {
 			void *txdlh,
 			enum vxge_hw_fifo_tcode t_code,
 			void *userdata,
-			void **skb_ptr);
+			struct sk_buff ***skb_ptr,
+			int nr_skb, int *more);
 
 	void (*txdl_term)(
 			void *txdlh,
