@@ -7,6 +7,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/bootmem.h>	/* for max_pfn/max_low_pfn */
+#include <linux/gcd.h>
 
 #include "blk.h"
 
@@ -384,8 +385,8 @@ void blk_queue_alignment_offset(struct request_queue *q, unsigned int offset)
 EXPORT_SYMBOL(blk_queue_alignment_offset);
 
 /**
- * blk_queue_io_min - set minimum request size for the queue
- * @q:	the request queue for the device
+ * blk_limits_io_min - set minimum request size for a device
+ * @limits: the queue limits
  * @min:  smallest I/O size in bytes
  *
  * Description:
@@ -394,15 +395,35 @@ EXPORT_SYMBOL(blk_queue_alignment_offset);
  *   smallest I/O the device can perform without incurring a performance
  *   penalty.
  */
+void blk_limits_io_min(struct queue_limits *limits, unsigned int min)
+{
+	limits->io_min = min;
+
+	if (limits->io_min < limits->logical_block_size)
+		limits->io_min = limits->logical_block_size;
+
+	if (limits->io_min < limits->physical_block_size)
+		limits->io_min = limits->physical_block_size;
+}
+EXPORT_SYMBOL(blk_limits_io_min);
+
+/**
+ * blk_queue_io_min - set minimum request size for the queue
+ * @q:	the request queue for the device
+ * @min:  smallest I/O size in bytes
+ *
+ * Description:
+ *   Storage devices may report a granularity or preferred minimum I/O
+ *   size which is the smallest request the device can perform without
+ *   incurring a performance penalty.  For disk drives this is often the
+ *   physical block size.  For RAID arrays it is often the stripe chunk
+ *   size.  A properly aligned multiple of minimum_io_size is the
+ *   preferred request size for workloads where a high number of I/O
+ *   operations is desired.
+ */
 void blk_queue_io_min(struct request_queue *q, unsigned int min)
 {
-	q->limits.io_min = min;
-
-	if (q->limits.io_min < q->limits.logical_block_size)
-		q->limits.io_min = q->limits.logical_block_size;
-
-	if (q->limits.io_min < q->limits.physical_block_size)
-		q->limits.io_min = q->limits.physical_block_size;
+	blk_limits_io_min(&q->limits, min);
 }
 EXPORT_SYMBOL(blk_queue_io_min);
 
@@ -412,8 +433,12 @@ EXPORT_SYMBOL(blk_queue_io_min);
  * @opt:  optimal request size in bytes
  *
  * Description:
- *   Drivers can call this function to set the preferred I/O request
- *   size for devices that report such a value.
+ *   Storage devices may report an optimal I/O size, which is the
+ *   device's preferred unit for sustained I/O.  This is rarely reported
+ *   for disk drives.  For RAID arrays it is usually the stripe width or
+ *   the internal track size.  A properly aligned multiple of
+ *   optimal_io_size is the preferred request size for workloads where
+ *   sustained throughput is desired.
  */
 void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 {
@@ -433,27 +458,7 @@ EXPORT_SYMBOL(blk_queue_io_opt);
  **/
 void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 {
-	/* zero is "infinity" */
-	t->limits.max_sectors = min_not_zero(queue_max_sectors(t),
-					     queue_max_sectors(b));
-
-	t->limits.max_hw_sectors = min_not_zero(queue_max_hw_sectors(t),
-						queue_max_hw_sectors(b));
-
-	t->limits.seg_boundary_mask = min_not_zero(queue_segment_boundary(t),
-						   queue_segment_boundary(b));
-
-	t->limits.max_phys_segments = min_not_zero(queue_max_phys_segments(t),
-						   queue_max_phys_segments(b));
-
-	t->limits.max_hw_segments = min_not_zero(queue_max_hw_segments(t),
-						 queue_max_hw_segments(b));
-
-	t->limits.max_segment_size = min_not_zero(queue_max_segment_size(t),
-						  queue_max_segment_size(b));
-
-	t->limits.logical_block_size = max(queue_logical_block_size(t),
-					   queue_logical_block_size(b));
+	blk_stack_limits(&t->limits, &b->limits, 0);
 
 	if (!t->queue_lock)
 		WARN_ON_ONCE(1);
@@ -522,6 +527,16 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		t->misaligned = 1;
 		return -1;
 	}
+
+	/* Find lcm() of optimal I/O size */
+	if (t->io_opt && b->io_opt)
+		t->io_opt = (t->io_opt * b->io_opt) / gcd(t->io_opt, b->io_opt);
+	else if (b->io_opt)
+		t->io_opt = b->io_opt;
+
+	/* Verify that optimal I/O size is a multiple of io_min */
+	if (t->io_min && t->io_opt % t->io_min)
+		return -1;
 
 	return 0;
 }
