@@ -24,6 +24,7 @@
 #ifndef __LINUX_OMAPFB_H__
 #define __LINUX_OMAPFB_H__
 
+#include <linux/fb.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
@@ -50,6 +51,12 @@
 #define OMAPFB_UPDATE_WINDOW	OMAP_IOW(54, struct omapfb_update_window)
 #define OMAPFB_SETUP_MEM	OMAP_IOW(55, struct omapfb_mem_info)
 #define OMAPFB_QUERY_MEM	OMAP_IOW(56, struct omapfb_mem_info)
+#define OMAPFB_WAITFORVSYNC	OMAP_IO(57)
+#define OMAPFB_MEMORY_READ	OMAP_IOR(58, struct omapfb_memory_read)
+#define OMAPFB_GET_OVERLAY_COLORMODE OMAP_IOR(59, struct omapfb_ovl_colormode)
+#define OMAPFB_WAITFORGO	OMAP_IO(60)
+#define OMAPFB_GET_VRAM_INFO	OMAP_IOR(61, struct omapfb_vram_info)
+#define OMAPFB_SET_TEARSYNC	OMAP_IOW(62, struct omapfb_tearsync_info)
 
 #define OMAPFB_CAPS_GENERIC_MASK	0x00000fff
 #define OMAPFB_CAPS_LCDC_MASK		0x00fff000
@@ -87,6 +94,13 @@ enum omapfb_color_format {
 	OMAPFB_COLOR_CLUT_1BPP,
 	OMAPFB_COLOR_RGB444,
 	OMAPFB_COLOR_YUY422,
+
+	OMAPFB_COLOR_ARGB16,
+	OMAPFB_COLOR_RGB24U,	/* RGB24, 32-bit container */
+	OMAPFB_COLOR_RGB24P,	/* RGB24, 24-bit container */
+	OMAPFB_COLOR_ARGB32,
+	OMAPFB_COLOR_RGBA32,
+	OMAPFB_COLOR_RGBX32,
 };
 
 struct omapfb_update_window {
@@ -158,6 +172,40 @@ enum omapfb_update_mode {
 	OMAPFB_MANUAL_UPDATE
 };
 
+struct omapfb_memory_read {
+	__u16 x;
+	__u16 y;
+	__u16 w;
+	__u16 h;
+	size_t buffer_size;
+	void __user *buffer;
+};
+
+struct omapfb_ovl_colormode {
+	__u8 overlay_idx;
+	__u8 mode_idx;
+	__u32 bits_per_pixel;
+	__u32 nonstd;
+	struct fb_bitfield red;
+	struct fb_bitfield green;
+	struct fb_bitfield blue;
+	struct fb_bitfield transp;
+};
+
+struct omapfb_vram_info {
+	__u32 total;
+	__u32 free;
+	__u32 largest_free_block;
+	__u32 reserved[5];
+};
+
+struct omapfb_tearsync_info {
+	__u8 enabled;
+	__u8 reserved1[3];
+	__u16 line;
+	__u16 reserved2;
+};
+
 #ifdef __KERNEL__
 
 #include <plat/board.h>
@@ -173,6 +221,11 @@ struct omapfb_mem_region {
 	void __iomem	*vaddr;
 	unsigned long	size;
 	u8		type;		/* OMAPFB_PLANE_MEM_* */
+	enum omapfb_color_format format;/* OMAPFB_COLOR_* */
+	unsigned	format_used:1;	/* Must be set when format is set.
+					 * Needed b/c of the badly chosen 0
+					 * base for OMAPFB_COLOR_* values
+					 */
 	unsigned	alloc:1;	/* allocated by the driver */
 	unsigned	map:1;		/* kernel mapped by the driver */
 };
@@ -189,6 +242,7 @@ struct omapfb_platform_data {
 };
 
 /* in arch/arm/plat-omap/fb.c */
+extern void omapfb_set_platform_data(struct omapfb_platform_data *data);
 extern void omapfb_set_ctrl_platform_data(void *pdata);
 extern void omapfb_reserve_sdram(void);
 
