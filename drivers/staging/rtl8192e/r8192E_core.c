@@ -24,14 +24,6 @@
  * Jerry chuang <wlanfae@realtek.com>
  */
 
-#ifndef CONFIG_FORCE_HARD_FLOAT
-double __floatsidf (int i) { return i; }
-unsigned int __fixunsdfsi (double d) { return d; }
-double __adddf3(double a, double b) { return a+b; }
-double __addsf3(float a, float b) { return a+b; }
-double __subdf3(double a, double b) { return a-b; }
-double __extendsfdf2(float a) {return a;}
-#endif
 
 #undef LOOP_TEST
 #undef RX_DONT_PASS_UL
