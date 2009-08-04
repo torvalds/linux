@@ -3254,7 +3254,8 @@ void destroy_irq(unsigned int irq)
  * MSI message composition
  */
 #ifdef CONFIG_PCI_MSI
-static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
+static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
+			   struct msi_msg *msg, u8 hpet_id)
 {
 	struct irq_cfg *cfg;
 	int err;
@@ -3288,7 +3289,10 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 		irte.dest_id = IRTE_DEST(dest);
 
 		/* Set source-id of interrupt request */
-		set_msi_sid(&irte, pdev);
+		if (pdev)
+			set_msi_sid(&irte, pdev);
+		else
+			set_hpet_sid(&irte, hpet_id);
 
 		modify_irte(irq, &irte);
 
@@ -3453,7 +3457,7 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 	int ret;
 	struct msi_msg msg;
 
-	ret = msi_compose_msg(dev, irq, &msg);
+	ret = msi_compose_msg(dev, irq, &msg, -1);
 	if (ret < 0)
 		return ret;
 
@@ -3586,7 +3590,7 @@ int arch_setup_dmar_msi(unsigned int irq)
 	int ret;
 	struct msi_msg msg;
 
-	ret = msi_compose_msg(NULL, irq, &msg);
+	ret = msi_compose_msg(NULL, irq, &msg, -1);
 	if (ret < 0)
 		return ret;
 	dmar_msi_write(irq, &msg);
@@ -3626,6 +3630,19 @@ static int hpet_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 #endif /* CONFIG_SMP */
 
+static struct irq_chip ir_hpet_msi_type = {
+	.name = "IR-HPET_MSI",
+	.unmask = hpet_msi_unmask,
+	.mask = hpet_msi_mask,
+#ifdef CONFIG_INTR_REMAP
+	.ack = ir_ack_apic_edge,
+#ifdef CONFIG_SMP
+	.set_affinity = ir_set_msi_irq_affinity,
+#endif
+#endif
+	.retrigger = ioapic_retrigger_irq,
+};
+
 static struct irq_chip hpet_msi_type = {
 	.name = "HPET_MSI",
 	.unmask = hpet_msi_unmask,
@@ -3637,20 +3654,36 @@ static struct irq_chip hpet_msi_type = {
 	.retrigger = ioapic_retrigger_irq,
 };
 
-int arch_setup_hpet_msi(unsigned int irq)
+int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
 {
 	int ret;
 	struct msi_msg msg;
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	ret = msi_compose_msg(NULL, irq, &msg);
+	if (intr_remapping_enabled) {
+		struct intel_iommu *iommu = map_hpet_to_ir(id);
+		int index;
+
+		if (!iommu)
+			return -1;
+
+		index = alloc_irte(iommu, irq, 1);
+		if (index < 0)
+			return -1;
+	}
+
+	ret = msi_compose_msg(NULL, irq, &msg, id);
 	if (ret < 0)
 		return ret;
 
 	hpet_msi_write(irq, &msg);
 	desc->status |= IRQ_MOVE_PCNTXT;
-	set_irq_chip_and_handler_name(irq, &hpet_msi_type, handle_edge_irq,
-		"edge");
+	if (irq_remapped(irq))
+		set_irq_chip_and_handler_name(irq, &ir_hpet_msi_type,
+					      handle_edge_irq, "edge");
+	else
+		set_irq_chip_and_handler_name(irq, &hpet_msi_type,
+					      handle_edge_irq, "edge");
 
 	return 0;
 }

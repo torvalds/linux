@@ -624,6 +624,7 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 	}
 
 	hpet_address = hpet_tbl->address.address;
+	hpet_blockid = hpet_tbl->sequence;
 
 	/*
 	 * Some broken BIOSes advertise HPET at 0x0. We really do not
