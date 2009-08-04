@@ -27,11 +27,13 @@ static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 		return 0;
 }
 
-/* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */
-
+/*
+ * need to use more than cpu 0, because we need more vectors when
+ * MSI-X are used.
+ */
 static const struct cpumask *x2apic_target_cpus(void)
 {
-	return cpumask_of(0);
+	return cpu_online_mask;
 }
 
 static void x2apic_vector_allocation_domain(int cpu, struct cpumask *retmask)
