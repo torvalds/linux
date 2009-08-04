@@ -54,7 +54,7 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 		return;
 	}
 
-	ieee80211_queue_work(local->hw.workqueue, &ifmsh->work);
+	ieee80211_queue_work(&local->hw, &ifmsh->work);
 }
 
 /**
@@ -357,7 +357,7 @@ static void ieee80211_mesh_path_timer(unsigned long data)
 		return;
 	}
 
-	ieee80211_queue_work(local->hw.workqueue, &ifmsh->work);
+	ieee80211_queue_work(&local->hw, &ifmsh->work);
 }
 
 struct mesh_table *mesh_table_grow(struct mesh_table *tbl)
@@ -471,7 +471,7 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 
 	ifmsh->housekeeping = true;
-	ieee80211_queue_work(local->hw.workqueue, &ifmsh->work);
+	ieee80211_queue_work(&local->hw, &ifmsh->work);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
 						BSS_CHANGED_BEACON_ENABLED);
 }
@@ -619,7 +619,7 @@ void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list)
 		if (ieee80211_vif_is_mesh(&sdata->vif))
-			ieee80211_queue_work(local->hw.workqueue, &sdata->u.mesh.work);
+			ieee80211_queue_work(&local->hw, &sdata->u.mesh.work);
 	rcu_read_unlock();
 }
 
@@ -692,7 +692,7 @@ ieee80211_mesh_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	case IEEE80211_STYPE_PROBE_RESP:
 	case IEEE80211_STYPE_BEACON:
 		skb_queue_tail(&ifmsh->skb_queue, skb);
-		ieee80211_queue_work(local->hw.workqueue, &ifmsh->work);
+		ieee80211_queue_work(&local->hw, &ifmsh->work);
 		return RX_QUEUED;
 	}
 
