@@ -1109,7 +1109,7 @@ static int external_switch;
 static int __devinit cpmac_probe(struct platform_device *pdev)
 {
 	int rc, phy_id;
-	char *mdio_bus_id = "0";
+	char mdio_bus_id[BUS_ID_SIZE];
 	struct resource *mem;
 	struct cpmac_priv *priv;
 	struct net_device *dev;
@@ -1127,7 +1127,7 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 
 	if (phy_id == PHY_MAX_ADDR) {
 		if (external_switch || dumb_switch) {
-			mdio_bus_id = 0; /* fixed phys bus */
+			strncpy(mdio_bus_id, "0", BUS_ID_SIZE); /* fixed phys bus */
 			phy_id = pdev->id;
 		} else {
 			dev_err(&pdev->dev, "no PHY present\n");
@@ -1254,7 +1254,7 @@ int __devinit cpmac_init(void)
 	}
 
 	cpmac_mii->phy_mask = ~(mask | 0x80000000);
-	snprintf(cpmac_mii->id, MII_BUS_ID_SIZE, "0");
+	snprintf(cpmac_mii->id, MII_BUS_ID_SIZE, "1");
 
 	res = mdiobus_register(cpmac_mii);
 	if (res)
