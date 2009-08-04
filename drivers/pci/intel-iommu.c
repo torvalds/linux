@@ -2551,6 +2551,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	int prot = 0;
 	int ret;
 	struct intel_iommu *iommu;
+	unsigned long paddr_pfn = paddr >> PAGE_SHIFT;
 
 	BUG_ON(dir == DMA_NONE);
 
@@ -2585,7 +2586,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	 * is not a big problem
 	 */
 	ret = domain_pfn_mapping(domain, mm_to_dma_pfn(iova->pfn_lo),
-				 paddr >> VTD_PAGE_SHIFT, size, prot);
+				 mm_to_dma_pfn(paddr_pfn), size, prot);
 	if (ret)
 		goto error;
 
