@@ -254,7 +254,6 @@ void *flex_array_get(struct flex_array *fa, int element_nr)
 {
 	int part_nr = fa_element_to_part_nr(fa, element_nr);
 	struct flex_array_part *part;
-	int index;
 
 	if (element_nr >= fa->total_nr_elements)
 		return NULL;
@@ -264,6 +263,5 @@ void *flex_array_get(struct flex_array *fa, int element_nr)
 		part = (struct flex_array_part *)&fa->parts[0];
 	else
 		part = fa->parts[part_nr];
-	index = index_inside_part(fa, element_nr);
 	return &part->elements[index_inside_part(fa, element_nr)];
 }
