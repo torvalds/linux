@@ -482,6 +482,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 		sk->sk_reuse = valbool;
 		break;
 	case SO_TYPE:
+	case SO_PROTOCOL:
 	case SO_ERROR:
 		ret = -ENOPROTOOPT;
 		break;
@@ -762,6 +763,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_TYPE:
 		v.val = sk->sk_type;
+		break;
+
+	case SO_PROTOCOL:
+		v.val = sk->sk_protocol;
 		break;
 
 	case SO_ERROR:
