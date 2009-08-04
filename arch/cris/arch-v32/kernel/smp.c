@@ -52,8 +52,6 @@ static struct mm_struct* flush_mm;
 static struct vm_area_struct* flush_vma;
 static unsigned long flush_addr;
 
-extern int setup_irq(int, struct irqaction *);
-
 /* Mode registers */
 static unsigned long irq_regs[NR_CPUS] = {
   regi_irq,
