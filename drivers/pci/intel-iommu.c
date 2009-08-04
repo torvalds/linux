@@ -1648,6 +1648,14 @@ static int domain_context_mapped(struct pci_dev *pdev)
 					     tmp->devfn);
 }
 
+/* Returns a number of VTD pages, but aligned to MM page size */
+static inline unsigned long aligned_nrpages(unsigned long host_addr,
+					    size_t size)
+{
+	host_addr &= ~PAGE_MASK;
+	return PAGE_ALIGN(host_addr + size) >> VTD_PAGE_SHIFT;
+}
+
 static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			    struct scatterlist *sg, unsigned long phys_pfn,
 			    unsigned long nr_pages, int prot)
@@ -1675,7 +1683,7 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 		uint64_t tmp;
 
 		if (!sg_res) {
-			sg_res = (sg->offset + sg->length + VTD_PAGE_SIZE - 1) >> VTD_PAGE_SHIFT;
+			sg_res = aligned_nrpages(sg->offset, sg->length);
 			sg->dma_address = ((dma_addr_t)iov_pfn << VTD_PAGE_SHIFT) + sg->offset;
 			sg->dma_length = sg->length;
 			pteval = page_to_phys(sg_page(sg)) | prot;
@@ -2415,14 +2423,6 @@ error:
 	return ret;
 }
 
-/* Returns a number of VTD pages, but aligned to MM page size */
-static inline unsigned long aligned_nrpages(unsigned long host_addr,
-					    size_t size)
-{
-	host_addr &= ~PAGE_MASK;
-	return PAGE_ALIGN(host_addr + size) >> VTD_PAGE_SHIFT;
-}
-
 /* This takes a number of _MM_ pages, not VTD pages */
 static struct iova *intel_alloc_iova(struct device *dev,
 				     struct dmar_domain *domain,
@@ -2875,7 +2875,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 
 	start_vpfn = mm_to_dma_pfn(iova->pfn_lo);
 
-	ret = domain_sg_mapping(domain, start_vpfn, sglist, mm_to_dma_pfn(size), prot);
+	ret = domain_sg_mapping(domain, start_vpfn, sglist, size, prot);
 	if (unlikely(ret)) {
 		/*  clear the page */
 		dma_pte_clear_range(domain, start_vpfn,
