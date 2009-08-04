@@ -10,16 +10,37 @@
  */
 void __weak __flush_wback_region(void *start, int size)
 {
-	unsigned long v;
-	unsigned long begin, end;
+	unsigned long v, cnt, end;
 
-	begin = (unsigned long)start & ~(L1_CACHE_BYTES-1);
+	v = (unsigned long)start & ~(L1_CACHE_BYTES-1);
 	end = ((unsigned long)start + size + L1_CACHE_BYTES-1)
 		& ~(L1_CACHE_BYTES-1);
-	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
-		asm volatile("ocbwb	%0"
-			     : /* no output */
-			     : "m" (__m(v)));
+	cnt = (end - v) / L1_CACHE_BYTES;
+
+	while (cnt >= 8) {
+		asm volatile("ocbwb	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbwb	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbwb	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbwb	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbwb	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbwb	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbwb	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbwb	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		cnt -= 8;
+	}
+
+	while (cnt) {
+		asm volatile("ocbwb	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		cnt--;
 	}
 }
 
@@ -31,16 +52,36 @@ void __weak __flush_wback_region(void *start, int size)
  */
 void __weak __flush_purge_region(void *start, int size)
 {
-	unsigned long v;
-	unsigned long begin, end;
+	unsigned long v, cnt, end;
 
-	begin = (unsigned long)start & ~(L1_CACHE_BYTES-1);
+	v = (unsigned long)start & ~(L1_CACHE_BYTES-1);
 	end = ((unsigned long)start + size + L1_CACHE_BYTES-1)
 		& ~(L1_CACHE_BYTES-1);
-	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
-		asm volatile("ocbp	%0"
-			     : /* no output */
-			     : "m" (__m(v)));
+	cnt = (end - v) / L1_CACHE_BYTES;
+
+	while (cnt >= 8) {
+		asm volatile("ocbp	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbp	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbp	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbp	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbp	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbp	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbp	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbp	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		cnt -= 8;
+	}
+	while (cnt) {
+		asm volatile("ocbp	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		cnt--;
 	}
 }
 
@@ -49,15 +90,36 @@ void __weak __flush_purge_region(void *start, int size)
  */
 void __weak __flush_invalidate_region(void *start, int size)
 {
-	unsigned long v;
-	unsigned long begin, end;
+	unsigned long v, cnt, end;
 
-	begin = (unsigned long)start & ~(L1_CACHE_BYTES-1);
+	v = (unsigned long)start & ~(L1_CACHE_BYTES-1);
 	end = ((unsigned long)start + size + L1_CACHE_BYTES-1)
 		& ~(L1_CACHE_BYTES-1);
-	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
-		asm volatile("ocbi	%0"
-			     : /* no output */
-			     : "m" (__m(v)));
+	cnt = (end - v) / L1_CACHE_BYTES;
+
+	while (cnt >= 8) {
+		asm volatile("ocbi	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbi	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbi	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbi	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbi	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbi	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbi	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		asm volatile("ocbi	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		cnt -= 8;
+	}
+
+	while (cnt) {
+		asm volatile("ocbi	@%0" : : "r" (v));
+		v += L1_CACHE_BYTES;
+		cnt--;
 	}
 }
