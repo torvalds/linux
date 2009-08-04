@@ -56,7 +56,7 @@ static void *kmap_coherent(struct page *page, unsigned long addr)
 	return (void *)vaddr;
 }
 
-static inline void kunmap_coherent(struct page *page)
+static inline void kunmap_coherent(void)
 {
 	dec_preempt_count();
 	preempt_check_resched();
@@ -70,7 +70,7 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 	    !test_bit(PG_dcache_dirty, &page->flags)) {
 		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(vto, src, len);
-		kunmap_coherent(vto);
+		kunmap_coherent();
 	} else {
 		memcpy(dst, src, len);
 		if (boot_cpu_data.dcache.n_aliases)
@@ -89,7 +89,7 @@ void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 	    !test_bit(PG_dcache_dirty, &page->flags)) {
 		void *vfrom = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(dst, vfrom, len);
-		kunmap_coherent(vfrom);
+		kunmap_coherent();
 	} else {
 		memcpy(dst, src, len);
 		if (boot_cpu_data.dcache.n_aliases)
@@ -108,7 +108,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 	    !test_bit(PG_dcache_dirty, &from->flags)) {
 		vfrom = kmap_coherent(from, vaddr);
 		copy_page(vto, vfrom);
-		kunmap_coherent(vfrom);
+		kunmap_coherent();
 	} else {
 		vfrom = kmap_atomic(from, KM_USER0);
 		copy_page(vto, vfrom);
