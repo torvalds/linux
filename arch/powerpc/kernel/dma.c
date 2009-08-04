@@ -7,6 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-debug.h>
 #include <linux/lmb.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
@@ -156,3 +157,13 @@ struct dma_map_ops dma_direct_ops = {
 #endif
 };
 EXPORT_SYMBOL(dma_direct_ops);
+
+#define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
+
+static int __init dma_init(void)
+{
+       dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+
+       return 0;
+}
+fs_initcall(dma_init);
