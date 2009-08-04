@@ -1633,7 +1633,7 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 		.radio = {
 			.name = name_radio,
-			.amux = LINE1,
+			.amux = TV,
 			.gpio = 0x00300001,
 		},
 		.mute = {
