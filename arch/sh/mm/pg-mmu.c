@@ -157,3 +157,20 @@ void __update_cache(struct vm_area_struct *vma,
 		}
 	}
 }
+
+void __flush_anon_page(struct page *page, unsigned long vmaddr)
+{
+	unsigned long addr = (unsigned long) page_address(page);
+
+	if (pages_do_alias(addr, vmaddr)) {
+		if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
+		    !test_bit(PG_dcache_dirty, &page->flags)) {
+			void *kaddr;
+
+			kaddr = kmap_coherent(page, vmaddr);
+			__flush_wback_region((void *)kaddr, PAGE_SIZE);
+			kunmap_coherent();
+		} else
+			__flush_wback_region((void *)addr, PAGE_SIZE);
+	}
+}
