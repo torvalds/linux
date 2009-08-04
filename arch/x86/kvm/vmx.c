@@ -571,12 +571,15 @@ static void reload_tss(void)
 static void load_transition_efer(struct vcpu_vmx *vmx)
 {
 	int efer_offset = vmx->msr_offset_efer;
-	u64 host_efer = vmx->host_msrs[efer_offset].data;
-	u64 guest_efer = vmx->guest_msrs[efer_offset].data;
+	u64 host_efer;
+	u64 guest_efer;
 	u64 ignore_bits;
 
 	if (efer_offset < 0)
 		return;
+	host_efer = vmx->host_msrs[efer_offset].data;
+	guest_efer = vmx->guest_msrs[efer_offset].data;
+
 	/*
 	 * NX is emulated; LMA and LME handled by hardware; SCE meaninless
 	 * outside long mode
