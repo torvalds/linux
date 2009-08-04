@@ -30,6 +30,7 @@
 #define SO_ERROR	0x1007
 #define SO_TYPE		0x1008
 #define SO_PROTOCOL	0x1028
+#define SO_DOMAIN	0x1029
 
 
 /* Linux specific, keep the same. */

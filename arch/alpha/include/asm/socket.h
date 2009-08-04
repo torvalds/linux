@@ -33,6 +33,7 @@
 #define	SO_SNDTIMEO	0x1013
 #define SO_ACCEPTCONN	0x1014
 #define SO_PROTOCOL	0x1028
+#define SO_DOMAIN	0x1029
 
 /* linux-specific, might as well be the same as on i386 */
 #define SO_NO_CHECK	11
