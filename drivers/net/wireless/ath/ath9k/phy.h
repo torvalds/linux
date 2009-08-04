@@ -185,6 +185,9 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define AR_PHY_PLL_CTL_44_2133  0xeb
 #define AR_PHY_PLL_CTL_40_2133  0xea
 
+#define AR_PHY_SPECTRAL_SCAN		0x9912
+#define AR_PHY_SPECTRAL_SCAN_ENABLE	0x1
+
 #define AR_PHY_RX_DELAY           0x9914
 #define AR_PHY_SEARCH_START_DELAY 0x9918
 #define AR_PHY_RX_DELAY_DELAY     0x00003FFF
