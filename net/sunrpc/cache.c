@@ -101,7 +101,7 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 EXPORT_SYMBOL_GPL(sunrpc_cache_lookup);
 
 
-static void queue_loose(struct cache_detail *detail, struct cache_head *ch);
+static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch);
 
 static int cache_fresh_locked(struct cache_head *head, time_t expiry)
 {
@@ -117,7 +117,7 @@ static void cache_fresh_unlocked(struct cache_head *head,
 		cache_revisit_request(head);
 	if (test_and_clear_bit(CACHE_PENDING, &head->flags)) {
 		cache_revisit_request(head);
-		queue_loose(detail, head);
+		cache_dequeue(detail, head);
 	}
 }
 
@@ -457,7 +457,7 @@ static int cache_clean(void)
 				)
 				continue;
 			if (test_and_clear_bit(CACHE_PENDING, &ch->flags))
-				queue_loose(current_detail, ch);
+				cache_dequeue(current_detail, ch);
 
 			if (atomic_read(&ch->ref.refcount) == 1)
 				break;
@@ -920,7 +920,7 @@ static const struct file_operations cache_file_operations = {
 };
 
 
-static void queue_loose(struct cache_detail *detail, struct cache_head *ch)
+static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch)
 {
 	struct cache_queue *cq;
 	spin_lock(&queue_lock);
