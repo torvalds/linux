@@ -242,13 +242,12 @@ static int get_amixer_rsc(struct amixer_mgr *mgr,
 
 	/* Allocate mem for amixer resource */
 	amixer = kzalloc(sizeof(*amixer), GFP_KERNEL);
-	if (NULL == amixer) {
-		err = -ENOMEM;
-		return err;
-	}
+	if (!amixer)
+		return -ENOMEM;
 
 	/* Check whether there are sufficient
 	 * amixer resources to meet request. */
+	err = 0;
 	spin_lock_irqsave(&mgr->mgr_lock, flags);
 	for (i = 0; i < desc->msr; i++) {
 		err = mgr_get_resource(&mgr->mgr, 1, &idx);
@@ -397,12 +396,11 @@ static int get_sum_rsc(struct sum_mgr *mgr,
 
 	/* Allocate mem for sum resource */
 	sum = kzalloc(sizeof(*sum), GFP_KERNEL);
-	if (NULL == sum) {
-		err = -ENOMEM;
-		return err;
-	}
+	if (!sum)
+		return -ENOMEM;
 
 	/* Check whether there are sufficient sum resources to meet request. */
+	err = 0;
 	spin_lock_irqsave(&mgr->mgr_lock, flags);
 	for (i = 0; i < desc->msr; i++) {
 		err = mgr_get_resource(&mgr->mgr, 1, &idx);

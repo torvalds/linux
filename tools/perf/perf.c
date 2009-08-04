@@ -12,6 +12,8 @@
 #include "util/cache.h"
 #include "util/quote.h"
 #include "util/run-command.h"
+#include "util/parse-events.h"
+#include "util/string.h"
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] COMMAND [ARGS]";
@@ -24,6 +26,8 @@ struct pager_config {
 	const char *cmd;
 	int val;
 };
+
+static char debugfs_mntpt[MAXPATHLEN];
 
 static int pager_command_config(const char *var, const char *value, void *data)
 {
@@ -54,6 +58,15 @@ static void commit_pager_choice(void) {
 	default:
 		break;
 	}
+}
+
+static void set_debugfs_path(void)
+{
+	char *path;
+
+	path = getenv(PERF_DEBUGFS_ENVIRONMENT);
+	snprintf(debugfs_path, MAXPATHLEN, "%s/%s", path ?: debugfs_mntpt,
+		 "tracing/events");
 }
 
 static int handle_options(const char*** argv, int* argc, int* envchanged)
@@ -120,6 +133,22 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 			(*argc)--;
 		} else if (!prefixcmp(cmd, "--work-tree=")) {
 			setenv(PERF_WORK_TREE_ENVIRONMENT, cmd + 12, 1);
+			if (envchanged)
+				*envchanged = 1;
+		} else if (!strcmp(cmd, "--debugfs-dir")) {
+			if (*argc < 2) {
+				fprintf(stderr, "No directory given for --debugfs-dir.\n");
+				usage(perf_usage_string);
+			}
+			strncpy(debugfs_mntpt, (*argv)[1], MAXPATHLEN);
+			debugfs_mntpt[MAXPATHLEN - 1] = '\0';
+			if (envchanged)
+				*envchanged = 1;
+			(*argv)++;
+			(*argc)--;
+		} else if (!prefixcmp(cmd, "--debugfs-dir=")) {
+			strncpy(debugfs_mntpt, cmd + 14, MAXPATHLEN);
+			debugfs_mntpt[MAXPATHLEN - 1] = '\0';
 			if (envchanged)
 				*envchanged = 1;
 		} else {
@@ -228,6 +257,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	if (use_pager == -1 && p->option & USE_PAGER)
 		use_pager = 1;
 	commit_pager_choice();
+	set_debugfs_path();
 
 	status = p->fn(argc, argv, prefix);
 	if (status)
@@ -346,6 +376,49 @@ static int run_argv(int *argcp, const char ***argv)
 	return done_alias;
 }
 
+/* mini /proc/mounts parser: searching for "^blah /mount/point debugfs" */
+static void get_debugfs_mntpt(void)
+{
+	FILE *file;
+	char fs_type[100];
+	char debugfs[MAXPATHLEN];
+
+	/*
+	 * try the standard location
+	 */
+	if (valid_debugfs_mount("/sys/kernel/debug/") == 0) {
+		strcpy(debugfs_mntpt, "/sys/kernel/debug/");
+		return;
+	}
+
+	/*
+	 * try the sane location
+	 */
+	if (valid_debugfs_mount("/debug/") == 0) {
+		strcpy(debugfs_mntpt, "/debug/");
+		return;
+	}
+
+	/*
+	 * give up and parse /proc/mounts
+	 */
+	file = fopen("/proc/mounts", "r");
+	if (file == NULL)
+		return;
+
+	while (fscanf(file, "%*s %"
+		      STR(MAXPATHLEN)
+		      "s %99s %*s %*d %*d\n",
+		      debugfs, fs_type) == 2) {
+		if (strcmp(fs_type, "debugfs") == 0)
+			break;
+	}
+	fclose(file);
+	if (strcmp(fs_type, "debugfs") == 0) {
+		strncpy(debugfs_mntpt, debugfs, MAXPATHLEN);
+		debugfs_mntpt[MAXPATHLEN - 1] = '\0';
+	}
+}
 
 int main(int argc, const char **argv)
 {
@@ -354,7 +427,8 @@ int main(int argc, const char **argv)
 	cmd = perf_extract_argv0_path(argv[0]);
 	if (!cmd)
 		cmd = "perf-help";
-
+	/* get debugfs mount point from /proc/mounts */
+	get_debugfs_mntpt();
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
 	 *
@@ -377,6 +451,7 @@ int main(int argc, const char **argv)
 	argc--;
 	handle_options(&argv, &argc, NULL);
 	commit_pager_choice();
+	set_debugfs_path();
 	if (argc > 0) {
 		if (!prefixcmp(argv[0], "--"))
 			argv[0] += 2;

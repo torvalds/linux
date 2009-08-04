@@ -6,8 +6,14 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
+#include <bfd.h>
 
 const char *sym_hist_filter;
+
+#ifndef DMGL_PARAMS
+#define DMGL_PARAMS      (1 << 0)       /* Include function args */
+#define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
+#endif
 
 static struct symbol *symbol__new(u64 start, u64 len,
 				  const char *name, unsigned int priv_size,
@@ -65,6 +71,7 @@ struct dso *dso__new(const char *name, unsigned int sym_priv_size)
 		self->syms = RB_ROOT;
 		self->sym_priv_size = sym_priv_size;
 		self->find_symbol = dso__find_symbol;
+		self->slen_calculated = 0;
 	}
 
 	return self;
@@ -373,36 +380,61 @@ static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 	     idx < nr_entries; \
 	     ++idx, pos = gelf_getrela(reldata, idx, &pos_mem))
 
-static int dso__synthesize_plt_symbols(struct  dso *self, Elf *elf,
-				       GElf_Ehdr *ehdr, Elf_Scn *scn_dynsym,
-				       GElf_Shdr *shdr_dynsym,
-				       size_t dynsym_idx, int verbose)
+/*
+ * We need to check if we have a .dynsym, so that we can handle the
+ * .plt, synthesizing its symbols, that aren't on the symtabs (be it
+ * .dynsym or .symtab).
+ * And always look at the original dso, not at debuginfo packages, that
+ * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
+ */
+static int dso__synthesize_plt_symbols(struct  dso *self, int verbose)
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
 	u64 plt_offset;
 	GElf_Shdr shdr_plt;
 	struct symbol *f;
-	GElf_Shdr shdr_rel_plt;
+	GElf_Shdr shdr_rel_plt, shdr_dynsym;
 	Elf_Data *reldata, *syms, *symstrs;
-	Elf_Scn *scn_plt_rel, *scn_symstrs;
+	Elf_Scn *scn_plt_rel, *scn_symstrs, *scn_dynsym;
+	size_t dynsym_idx;
+	GElf_Ehdr ehdr;
 	char sympltname[1024];
-	int nr = 0, symidx;
+	Elf *elf;
+	int nr = 0, symidx, fd, err = 0;
 
-	scn_plt_rel = elf_section_by_name(elf, ehdr, &shdr_rel_plt,
+	fd = open(self->name, O_RDONLY);
+	if (fd < 0)
+		goto out;
+
+	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		goto out_close;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto out_elf_end;
+
+	scn_dynsym = elf_section_by_name(elf, &ehdr, &shdr_dynsym,
+					 ".dynsym", &dynsym_idx);
+	if (scn_dynsym == NULL)
+		goto out_elf_end;
+
+	scn_plt_rel = elf_section_by_name(elf, &ehdr, &shdr_rel_plt,
 					  ".rela.plt", NULL);
 	if (scn_plt_rel == NULL) {
-		scn_plt_rel = elf_section_by_name(elf, ehdr, &shdr_rel_plt,
+		scn_plt_rel = elf_section_by_name(elf, &ehdr, &shdr_rel_plt,
 						  ".rel.plt", NULL);
 		if (scn_plt_rel == NULL)
-			return 0;
+			goto out_elf_end;
 	}
 
-	if (shdr_rel_plt.sh_link != dynsym_idx)
-		return 0;
+	err = -1;
 
-	if (elf_section_by_name(elf, ehdr, &shdr_plt, ".plt", NULL) == NULL)
-		return 0;
+	if (shdr_rel_plt.sh_link != dynsym_idx)
+		goto out_elf_end;
+
+	if (elf_section_by_name(elf, &ehdr, &shdr_plt, ".plt", NULL) == NULL)
+		goto out_elf_end;
 
 	/*
 	 * Fetch the relocation section to find the indexes to the GOT
@@ -410,19 +442,19 @@ static int dso__synthesize_plt_symbols(struct  dso *self, Elf *elf,
 	 */
 	reldata = elf_getdata(scn_plt_rel, NULL);
 	if (reldata == NULL)
-		return -1;
+		goto out_elf_end;
 
 	syms = elf_getdata(scn_dynsym, NULL);
 	if (syms == NULL)
-		return -1;
+		goto out_elf_end;
 
-	scn_symstrs = elf_getscn(elf, shdr_dynsym->sh_link);
+	scn_symstrs = elf_getscn(elf, shdr_dynsym.sh_link);
 	if (scn_symstrs == NULL)
-		return -1;
+		goto out_elf_end;
 
 	symstrs = elf_getdata(scn_symstrs, NULL);
 	if (symstrs == NULL)
-		return -1;
+		goto out_elf_end;
 
 	nr_rel_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
 	plt_offset = shdr_plt.sh_offset;
@@ -441,7 +473,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, Elf *elf,
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
 					sympltname, self->sym_priv_size, 0, verbose);
 			if (!f)
-				return -1;
+				goto out_elf_end;
 
 			dso__insert_symbol(self, f);
 			++nr;
@@ -459,19 +491,25 @@ static int dso__synthesize_plt_symbols(struct  dso *self, Elf *elf,
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
 					sympltname, self->sym_priv_size, 0, verbose);
 			if (!f)
-				return -1;
+				goto out_elf_end;
 
 			dso__insert_symbol(self, f);
 			++nr;
 		}
-	} else {
-		/*
-		 * TODO: There are still one more shdr_rel_plt.sh_type
-		 * I have to investigate, but probably should be ignored.
-		 */
 	}
 
-	return nr;
+	err = 0;
+out_elf_end:
+	elf_end(elf);
+out_close:
+	close(fd);
+
+	if (err == 0)
+		return nr;
+out:
+	fprintf(stderr, "%s: problems reading %s PLT info.\n",
+		__func__, self->name);
+	return 0;
 }
 
 static int dso__load_sym(struct dso *self, int fd, const char *name,
@@ -485,10 +523,9 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 	GElf_Shdr shdr;
 	Elf_Data *syms;
 	GElf_Sym sym;
-	Elf_Scn *sec, *sec_dynsym, *sec_strndx;
+	Elf_Scn *sec, *sec_strndx;
 	Elf *elf;
-	size_t dynsym_idx;
-	int nr = 0;
+	int nr = 0, kernel = !strcmp("[kernel]", self->name);
 
 	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
@@ -504,32 +541,11 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 		goto out_elf_end;
 	}
 
-	/*
-	 * We need to check if we have a .dynsym, so that we can handle the
-	 * .plt, synthesizing its symbols, that aren't on the symtabs (be it
-	 * .dynsym or .symtab)
-	 */
-	sec_dynsym = elf_section_by_name(elf, &ehdr, &shdr,
-					 ".dynsym", &dynsym_idx);
-	if (sec_dynsym != NULL) {
-		nr = dso__synthesize_plt_symbols(self, elf, &ehdr,
-						 sec_dynsym, &shdr,
-						 dynsym_idx, verbose);
-		if (nr < 0)
-			goto out_elf_end;
-	}
-
-	/*
-	 * But if we have a full .symtab (that is a superset of .dynsym) we
-	 * should add the symbols not in the .dynsyn
-	 */
 	sec = elf_section_by_name(elf, &ehdr, &shdr, ".symtab", NULL);
 	if (sec == NULL) {
-		if (sec_dynsym == NULL)
+		sec = elf_section_by_name(elf, &ehdr, &shdr, ".dynsym", NULL);
+		if (sec == NULL)
 			goto out_elf_end;
-
-		sec = sec_dynsym;
-		gelf_getshdr(sec, &shdr);
 	}
 
 	syms = elf_getdata(sec, NULL);
@@ -555,12 +571,17 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
 
 	memset(&sym, 0, sizeof(sym));
-	self->adjust_symbols = (ehdr.e_type == ET_EXEC ||
+	if (!kernel) {
+		self->adjust_symbols = (ehdr.e_type == ET_EXEC ||
 				elf_section_by_name(elf, &ehdr, &shdr,
 						     ".gnu.prelink_undo",
 						     NULL) != NULL);
+	} else self->adjust_symbols = 0;
+
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
 		struct symbol *f;
+		const char *name;
+		char *demangled;
 		u64 obj_start;
 		struct section *section = NULL;
 		int is_label = elf_sym__is_label(&sym);
@@ -599,10 +620,19 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 				goto out_elf_end;
 			}
 		}
+		/*
+		 * We need to figure out if the object was created from C++ sources
+		 * DWARF DW_compile_unit has this, but we don't always have access
+		 * to it...
+		 */
+		name = elf_sym__name(&sym, symstrs);
+		demangled = bfd_demangle(NULL, name, DMGL_PARAMS | DMGL_ANSI);
+		if (demangled != NULL)
+			name = demangled;
 
-		f = symbol__new(sym.st_value, sym.st_size,
-				elf_sym__name(&sym, symstrs),
+		f = symbol__new(sym.st_value, sym.st_size, name,
 				self->sym_priv_size, obj_start, verbose);
+		free(demangled);
 		if (!f)
 			goto out_elf_end;
 
@@ -668,6 +698,11 @@ more:
 	if (!ret)
 		goto more;
 
+	if (ret > 0) {
+		int nr_plt = dso__synthesize_plt_symbols(self, verbose);
+		if (nr_plt > 0)
+			ret += nr_plt;
+	}
 out:
 	free(name);
 	return ret;
