@@ -1,0 +1,11 @@
+config SND_MX1_MX2_SOC
+	tristate "SoC Audio for Freecale i.MX1x i.MX2x CPUs"
+	depends on (ARCH_MX2 || ARCH_MX1) && SND
+	select SND_PCM
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the MX1 or MX2 SSI interface.
+
+
+
+
