@@ -31,7 +31,7 @@ void __init kmap_coherent_init(void)
 #endif
 }
 
-static inline void *kmap_coherent(struct page *page, unsigned long addr)
+static void *kmap_coherent(struct page *page, unsigned long addr)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr, flags;
