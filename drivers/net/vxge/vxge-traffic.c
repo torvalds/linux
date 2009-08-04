@@ -731,6 +731,7 @@ vxge_hw_channel_dtr_try_complete(struct __vxge_hw_channel *channel, void **dtrh)
 	vxge_assert(channel->compl_index < channel->length);
 
 	*dtrh =	channel->work_arr[channel->compl_index];
+	prefetch(*dtrh);
 }
 
 /*

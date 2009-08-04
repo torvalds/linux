@@ -445,6 +445,7 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 	vxge_hw_ring_replenish(ringh, 0);
 
 	do {
+		prefetch((char *)dtr + L1_CACHE_BYTES);
 		rx_priv = vxge_hw_ring_rxd_private_get(dtr);
 		skb = rx_priv->skb;
 		data_size = rx_priv->data_size;
