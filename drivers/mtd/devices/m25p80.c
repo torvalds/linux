@@ -501,7 +501,10 @@ static struct flash_info __devinitdata m25p_data [] = {
 	{ "at26df321",  0x1f4701, 0, 64 * 1024, 64, SECT_4K, },
 
 	/* Macronix */
+	{ "mx25l3205d", 0xc22016, 0, 64 * 1024, 64, },
+	{ "mx25l6405d", 0xc22017, 0, 64 * 1024, 128, },
 	{ "mx25l12805d", 0xc22018, 0, 64 * 1024, 256, },
+	{ "mx25l12855e", 0xc22618, 0, 64 * 1024, 256, },
 
 	/* Spansion -- single (large) sector size only, at least
 	 * for the chips listed here (without boot sectors).
