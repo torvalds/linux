@@ -595,25 +595,84 @@ out_free:
 	free(buf);
 }
 
-static void print_known_keys(void)
+static void print_mapped_keys(void)
 {
-	fprintf(stdout, "\nknown keys:\n");
-	fprintf(stdout, "\t[d]     select display delay.\n");
-	fprintf(stdout, "\t[e]     select display entries (lines).\n");
-	fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", event_name(sym_counter));
-	fprintf(stdout, "\t[f]     select normal display count filter.\n");
-	fprintf(stdout, "\t[F]     select annotation display count filter (percentage).\n");
-	fprintf(stdout, "\t[qQ]    quit.\n");
-	fprintf(stdout, "\t[s]     select annotation symbol and start annotation.\n");
-	fprintf(stdout, "\t[S]     stop annotation, revert to normal display.\n");
-	fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", display_weighted ? 1 : 0);
+	char *name = NULL;
+
+	if (sym_filter_entry) {
+		struct symbol *sym = (struct symbol *)(sym_filter_entry+1);
+		name = sym->name;
+	}
+
+	fprintf(stdout, "\nMapped keys:\n");
+	fprintf(stdout, "\t[d]     display refresh delay.             \t(%d)\n", delay_secs);
+	fprintf(stdout, "\t[e]     display entries (lines).           \t(%d)\n", print_entries);
+
+	if (nr_counters > 1)
+		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", event_name(sym_counter));
+
+	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", count_filter);
+
+	if (vmlinux) {
+		fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
+		fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
+		fprintf(stdout, "\t[S]     stop annotation.\n");
+	}
+
+	if (nr_counters > 1)
+		fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", display_weighted ? 1 : 0);
+
 	fprintf(stdout, "\t[z]     toggle sample zeroing.             \t(%d)\n", zero ? 1 : 0);
+	fprintf(stdout, "\t[qQ]    quit.\n");
+}
+
+static int key_mapped(int c)
+{
+	switch (c) {
+		case 'd':
+		case 'e':
+		case 'f':
+		case 'z':
+		case 'q':
+		case 'Q':
+			return 1;
+		case 'E':
+		case 'w':
+			return nr_counters > 1 ? 1 : 0;
+		case 'F':
+		case 's':
+		case 'S':
+			return vmlinux ? 1 : 0;
+	}
+
+	return 0;
 }
 
 static void handle_keypress(int c)
 {
-	int once = 0;
-repeat:
+	if (!key_mapped(c)) {
+		struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
+		struct termios tc, save;
+
+		print_mapped_keys();
+		fprintf(stdout, "\nEnter selection, or unmapped key to continue: ");
+		fflush(stdout);
+
+		tcgetattr(0, &save);
+		tc = save;
+		tc.c_lflag &= ~(ICANON | ECHO);
+		tc.c_cc[VMIN] = 0;
+		tc.c_cc[VTIME] = 0;
+		tcsetattr(0, TCSANOW, &tc);
+
+		poll(&stdin_poll, 1, -1);
+		c = getc(stdin);
+
+		tcsetattr(0, TCSAFLUSH, &save);
+		if (!key_mapped(c))
+			return;
+	}
+
 	switch (c) {
 		case 'd':
 			prompt_integer(&delay_secs, "Enter display delay");
@@ -669,28 +728,6 @@ repeat:
 		case 'z':
 			zero = ~zero;
 			break;
-		default: {
-			struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
-			struct termios tc, save;
-
-			if (!once) {
-				print_known_keys();
-				once++;
-			}
-
-			tcgetattr(0, &save);
-			tc = save;
-			tc.c_lflag &= ~(ICANON | ECHO);
-			tc.c_cc[VMIN] = 0;
-			tc.c_cc[VTIME] = 0;
-			tcsetattr(0, TCSANOW, &tc);
-
-			poll(&stdin_poll, 1, -1);
-			c = getc(stdin);
-
-			tcsetattr(0, TCSAFLUSH, &save);
-			goto repeat;
-		}
 	}
 }
 
@@ -705,6 +742,7 @@ static void *display_thread(void *arg __used)
 	tc.c_lflag &= ~(ICANON | ECHO);
 	tc.c_cc[VMIN] = 0;
 	tc.c_cc[VTIME] = 0;
+
 repeat:
 	delay_msecs = delay_secs * 1000;
 	tcsetattr(0, TCSANOW, &tc);
