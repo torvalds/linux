@@ -1273,7 +1273,7 @@ static int rtl8192_rx_initiate(struct net_device*dev)
                 }
 //		printk("nomal packet IN request!\n");
                 usb_fill_bulk_urb(entry, priv->udev,
-                                  usb_rcvbulkpipe(priv->udev, 3), skb->tail,
+                                  usb_rcvbulkpipe(priv->udev, 3), skb_tail_pointer(skb),
                                   RX_URB_SIZE, rtl8192_rx_isr, skb);
                 info = (struct rtl8192_rx_info *) skb->cb;
                 info->urb = entry;
@@ -1295,7 +1295,7 @@ static int rtl8192_rx_initiate(struct net_device*dev)
                         break;
                 }
                 usb_fill_bulk_urb(entry, priv->udev,
-                                  usb_rcvbulkpipe(priv->udev, 9), skb->tail,
+                                  usb_rcvbulkpipe(priv->udev, 9), skb_tail_pointer(skb),
                                   RX_URB_SIZE, rtl8192_rx_isr, skb);
                 info = (struct rtl8192_rx_info *) skb->cb;
                 info->urb = entry;
@@ -1487,7 +1487,8 @@ static void rtl8192_rx_isr(struct urb *urb)
         }
 
 	usb_fill_bulk_urb(urb, priv->udev,
-			usb_rcvbulkpipe(priv->udev, out_pipe), skb->tail,
+			usb_rcvbulkpipe(priv->udev, out_pipe),
+			skb_tail_pointer(skb),
 			RX_URB_SIZE, rtl8192_rx_isr, skb);
 
         info = (struct rtl8192_rx_info *) skb->cb;
@@ -1495,7 +1496,7 @@ static void rtl8192_rx_isr(struct urb *urb)
         info->dev = dev;
 	info->out_pipe = out_pipe;
 
-        urb->transfer_buffer = skb->tail;
+        urb->transfer_buffer = skb_tail_pointer(skb);
         urb->context = skb;
         skb_queue_tail(&priv->rx_queue, skb);
         err = usb_submit_urb(urb, GFP_ATOMIC);
