@@ -155,6 +155,7 @@ typedef struct drm_i915_private {
 
 	void __iomem *regs;
 
+	struct pci_dev *bridge_dev;
 	drm_i915_ring_buffer_t ring;
 
 	drm_dma_handle_t *status_page_dmah;
