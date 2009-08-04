@@ -43,11 +43,9 @@ static void pic_unlock(struct kvm_pic *s)
 {
 	struct kvm *kvm = s->kvm;
 	unsigned acks = s->pending_acks;
-	bool wakeup = s->wakeup_needed;
 	struct kvm_vcpu *vcpu;
 
 	s->pending_acks = 0;
-	s->wakeup_needed = false;
 
 	spin_unlock(&s->lock);
 
@@ -55,12 +53,6 @@ static void pic_unlock(struct kvm_pic *s)
 		kvm_notify_acked_irq(kvm, SELECT_PIC(__ffs(acks)),
 				     __ffs(acks));
 		acks &= acks - 1;
-	}
-
-	if (wakeup) {
-		vcpu = s->kvm->bsp_vcpu;
-		if (vcpu)
-			kvm_vcpu_kick(vcpu);
 	}
 }
 
@@ -527,7 +519,7 @@ static void pic_irq_request(void *opaque, int level)
 	s->output = level;
 	if (vcpu && level && (s->pics[0].isr_ack & (1 << irq))) {
 		s->pics[0].isr_ack &= ~(1 << irq);
-		s->wakeup_needed = true;
+		kvm_vcpu_kick(vcpu);
 	}
 }
 
