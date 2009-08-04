@@ -895,6 +895,12 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto _exit2;
 	}
 
+	/* Last TXD?  Stop tx queue to avoid dropping packets.  TX
+	 * completion will resume the queue.
+	 */
+	if (avail == 1)
+		vxge_stop_tx_queue(fifo);
+
 	status = vxge_hw_fifo_txdl_reserve(fifo_hw, &dtr, &dtr_priv);
 	if (unlikely(status != VXGE_HW_OK)) {
 		vxge_debug_tx(VXGE_ERR,
