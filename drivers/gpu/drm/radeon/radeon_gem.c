@@ -158,9 +158,13 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 	struct drm_radeon_gem_info *args = data;
 
 	args->vram_size = rdev->mc.real_vram_size;
-	/* FIXME: report somethings that makes sense */
-	args->vram_visible = rdev->mc.real_vram_size - (4 * 1024 * 1024);
-	args->gart_size = rdev->mc.gtt_size;
+	args->vram_visible = rdev->mc.real_vram_size;
+	if (rdev->stollen_vga_memory)
+		args->vram_visible -= radeon_object_size(rdev->stollen_vga_memory);
+	if (rdev->fbdev_robj)
+		args->vram_visible -= radeon_object_size(rdev->fbdev_robj);
+	args->gart_size = rdev->mc.gtt_size - rdev->cp.ring_size - 4096 -
+		RADEON_IB_POOL_SIZE*64*1024;
 	return 0;
 }
 
