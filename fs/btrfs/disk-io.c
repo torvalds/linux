@@ -1682,7 +1682,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		err = -EINVAL;
 		goto fail_iput;
 	}
-
+printk("thread pool is %d\n", fs_info->thread_pool_size);
 	/*
 	 * we need to start all the end_io workers up front because the
 	 * queue work function gets called at interrupt time, and so it
@@ -1727,20 +1727,22 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->endio_workers.idle_thresh = 4;
 	fs_info->endio_meta_workers.idle_thresh = 4;
 
-	fs_info->endio_write_workers.idle_thresh = 64;
-	fs_info->endio_meta_write_workers.idle_thresh = 64;
+	fs_info->endio_write_workers.idle_thresh = 2;
+	fs_info->endio_meta_write_workers.idle_thresh = 2;
+
+	fs_info->endio_workers.atomic_worker_start = 1;
+	fs_info->endio_meta_workers.atomic_worker_start = 1;
+	fs_info->endio_write_workers.atomic_worker_start = 1;
+	fs_info->endio_meta_write_workers.atomic_worker_start = 1;
 
 	btrfs_start_workers(&fs_info->workers, 1);
 	btrfs_start_workers(&fs_info->submit_workers, 1);
 	btrfs_start_workers(&fs_info->delalloc_workers, 1);
 	btrfs_start_workers(&fs_info->fixup_workers, 1);
-	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
-	btrfs_start_workers(&fs_info->endio_meta_workers,
-			    fs_info->thread_pool_size);
-	btrfs_start_workers(&fs_info->endio_meta_write_workers,
-			    fs_info->thread_pool_size);
-	btrfs_start_workers(&fs_info->endio_write_workers,
-			    fs_info->thread_pool_size);
+	btrfs_start_workers(&fs_info->endio_workers, 1);
+	btrfs_start_workers(&fs_info->endio_meta_workers, 1);
+	btrfs_start_workers(&fs_info->endio_meta_write_workers, 1);
+	btrfs_start_workers(&fs_info->endio_write_workers, 1);
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,

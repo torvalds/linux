@@ -73,6 +73,15 @@ struct btrfs_workers {
 	/* force completions in the order they were queued */
 	int ordered;
 
+	/* more workers required, but in an interrupt handler */
+	int atomic_start_pending;
+
+	/*
+	 * are we allowed to sleep while starting workers or are we required
+	 * to start them at a later time?
+	 */
+	int atomic_worker_start;
+
 	/* list with all the work threads.  The workers on the idle thread
 	 * may be actively servicing jobs, but they haven't yet hit the
 	 * idle thresh limit above.
