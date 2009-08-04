@@ -845,7 +845,7 @@ static inline struct b43_wldev *dev_to_b43_wldev(struct device *dev)
 	return ssb_get_drvdata(ssb_dev);
 }
 
-/* Is the device operating in a specified mode (IEEE80211_IF_TYPE_XXX). */
+/* Is the device operating in a specified mode (NL80211_IFTYPE_XXX). */
 static inline int b43_is_mode(struct b43_wl *wl, int type)
 {
 	return (wl->operating && wl->if_type == type);
