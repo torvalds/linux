@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/sysdev.h>
+#include <linux/amba/bus.h>
 
 #include <asm/mach/irq.h>
 #include <asm/hardware/vic.h>
@@ -272,11 +273,6 @@ static struct irq_chip vic_chip = {
 static void vik_init_st(void __iomem *base, unsigned int irq_start,
 			 u32 vic_sources);
 
-enum vic_vendor {
-	VENDOR_ARM = 0x41,
-	VENDOR_ST = 0x80,
-};
-
 /**
  * vic_init - initialise a vectored interrupt controller
  * @base: iomem base address
@@ -289,7 +285,7 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 {
 	unsigned int i;
 	u32 cellid = 0;
-	enum vic_vendor vendor;
+	enum amba_vendor vendor;
 
 	/* Identify which VIC cell this one is, by reading the ID */
 	for (i = 0; i < 4; i++) {
@@ -301,13 +297,13 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 	       base, cellid, vendor);
 
 	switch(vendor) {
-	case VENDOR_ST:
+	case AMBA_VENDOR_ST:
 		vik_init_st(base, irq_start, vic_sources);
 		return;
 	default:
 		printk(KERN_WARNING "VIC: unknown vendor, continuing anyways\n");
 		/* fall through */
-	case VENDOR_ARM:
+	case AMBA_VENDOR_ARM:
 		break;
 	}
 

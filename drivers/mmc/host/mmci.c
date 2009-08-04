@@ -430,7 +430,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				clk = 255;
 			host->cclk = host->mclk / (2 * (clk + 1));
 		}
-		if (host->hw_designer == 0x80)
+		if (host->hw_designer == AMBA_VENDOR_ST)
 			clk |= MCI_FCEN; /* Bug fix in ST IP block */
 		clk |= MCI_CLK_ENABLE;
 	}
@@ -443,7 +443,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		break;
 	case MMC_POWER_UP:
 		/* The ST version does not have this, fall through to POWER_ON */
-		if (host->hw_designer != 0x80) {
+		if (host->hw_designer != AMBA_VENDOR_ST) {
 			pwr |= MCI_PWR_UP;
 			break;
 		}
@@ -453,7 +453,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN) {
-		if (host->hw_designer != 0x80)
+		if (host->hw_designer != AMBA_VENDOR_ST)
 			pwr |= MCI_ROD;
 		else {
 			/*
