@@ -908,6 +908,12 @@ out:
 	return ret;
 }
 
+
+static void __oi_init(struct exofs_i_info *oi)
+{
+	init_waitqueue_head(&oi->i_wq);
+	oi->i_flags = 0;
+}
 /*
  * Fill in an inode read from the OSD and set it up for use
  */
@@ -925,13 +931,13 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 	if (!(inode->i_state & I_NEW))
 		return inode;
 	oi = exofs_i(inode);
+	__oi_init(oi);
 
 	/* read the inode from the osd */
 	ret = exofs_get_inode(sb, oi, &fcb, &sanity);
 	if (ret)
 		goto bad_inode;
 
-	init_waitqueue_head(&oi->i_wq);
 	set_obj_created(oi);
 
 	/* copy stuff from on-disk struct to in-memory struct */
@@ -1062,8 +1068,8 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 		return ERR_PTR(-ENOMEM);
 
 	oi = exofs_i(inode);
+	__oi_init(oi);
 
-	init_waitqueue_head(&oi->i_wq);
 	set_obj_2bcreated(oi);
 
 	sbi = sb->s_fs_info;
