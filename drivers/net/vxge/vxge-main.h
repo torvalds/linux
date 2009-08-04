@@ -378,6 +378,7 @@ struct vxgedev {
 
 struct vxge_rx_priv {
 	struct sk_buff		*skb;
+	unsigned char		*skb_data;
 	dma_addr_t		data_dma;
 	dma_addr_t		data_size;
 };

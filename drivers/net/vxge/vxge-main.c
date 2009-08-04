@@ -286,6 +286,7 @@ vxge_rx_alloc(void *dtrh, struct vxge_ring *ring, const int skb_size)
 	skb_reserve(skb, VXGE_HW_HEADER_ETHERNET_II_802_3_ALIGN);
 
 	rx_priv->skb = skb;
+	rx_priv->skb_data = NULL;
 	rx_priv->data_size = skb_size;
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s: %s:%d Exiting...", ring->ndev->name, __func__, __LINE__);
@@ -305,7 +306,8 @@ static int vxge_rx_map(void *dtrh, struct vxge_ring *ring)
 		ring->ndev->name, __func__, __LINE__);
 	rx_priv = vxge_hw_ring_rxd_private_get(dtrh);
 
-	dma_addr = pci_map_single(ring->pdev, rx_priv->skb->data,
+	rx_priv->skb_data = rx_priv->skb->data;
+	dma_addr = pci_map_single(ring->pdev, rx_priv->skb_data,
 				rx_priv->data_size, PCI_DMA_FROMDEVICE);
 
 	if (dma_addr == 0) {
@@ -450,6 +452,7 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 		skb = rx_priv->skb;
 		data_size = rx_priv->data_size;
 		data_dma = rx_priv->data_dma;
+		prefetch(rx_priv->skb_data);
 
 		vxge_debug_rx(VXGE_TRACE,
 			"%s: %s:%d  skb = 0x%p",
@@ -1056,6 +1059,7 @@ vxge_rx_term(void *dtrh, enum vxge_hw_rxd_state state, void *userdata)
 		rx_priv->data_size, PCI_DMA_FROMDEVICE);
 
 	dev_kfree_skb(rx_priv->skb);
+	rx_priv->skb_data = NULL;
 
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s: %s:%d  Exiting...",
