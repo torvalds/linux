@@ -1272,3 +1272,15 @@ int orinoco_hw_disassociate(struct orinoco_private *priv,
 				  &buf);
 	return err;
 }
+
+int orinoco_hw_get_current_bssid(struct orinoco_private *priv,
+				 u8 *addr)
+{
+	hermes_t *hw = &priv->hw;
+	int err;
+
+	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENTBSSID,
+			      ETH_ALEN, NULL, addr);
+
+	return err;
+}

@@ -53,5 +53,7 @@ int orinoco_hw_trigger_scan(struct orinoco_private *priv,
 			    const struct cfg80211_ssid *ssid);
 int orinoco_hw_disassociate(struct orinoco_private *priv,
 			    u8 *addr, u16 reason_code);
+int orinoco_hw_get_current_bssid(struct orinoco_private *priv,
+				 u8 *addr);
 
 #endif /* _ORINOCO_HW_H_ */

@@ -156,7 +156,6 @@ static int orinoco_ioctl_getwap(struct net_device *dev,
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 
-	hermes_t *hw = &priv->hw;
 	int err = 0;
 	unsigned long flags;
 
@@ -164,8 +163,7 @@ static int orinoco_ioctl_getwap(struct net_device *dev,
 		return -EBUSY;
 
 	ap_addr->sa_family = ARPHRD_ETHER;
-	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENTBSSID,
-			      ETH_ALEN, NULL, ap_addr->sa_data);
+	err = orinoco_hw_get_current_bssid(priv, ap_addr->sa_data);
 
 	orinoco_unlock(priv, &flags);
 
