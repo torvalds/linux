@@ -280,28 +280,28 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	init_MUTEX_LOCKED(&kbd->sem);
 
 	/* Get device info.  MLC driver supplies devid/status/etc. */
-	serio->write(serio, 0);
-	serio->write(serio, 0);
-	serio->write(serio, HIL_PKT_CMD >> 8);
-	serio->write(serio, HIL_CMD_IDD);
+	serio_write(serio, 0);
+	serio_write(serio, 0);
+	serio_write(serio, HIL_PKT_CMD >> 8);
+	serio_write(serio, HIL_CMD_IDD);
 	down(&kbd->sem);
 
-	serio->write(serio, 0);
-	serio->write(serio, 0);
-	serio->write(serio, HIL_PKT_CMD >> 8);
-	serio->write(serio, HIL_CMD_RSC);
+	serio_write(serio, 0);
+	serio_write(serio, 0);
+	serio_write(serio, HIL_PKT_CMD >> 8);
+	serio_write(serio, HIL_CMD_RSC);
 	down(&kbd->sem);
 
-	serio->write(serio, 0);
-	serio->write(serio, 0);
-	serio->write(serio, HIL_PKT_CMD >> 8);
-	serio->write(serio, HIL_CMD_RNM);
+	serio_write(serio, 0);
+	serio_write(serio, 0);
+	serio_write(serio, HIL_PKT_CMD >> 8);
+	serio_write(serio, HIL_CMD_RNM);
 	down(&kbd->sem);
 
-	serio->write(serio, 0);
-	serio->write(serio, 0);
-	serio->write(serio, HIL_PKT_CMD >> 8);
-	serio->write(serio, HIL_CMD_EXD);
+	serio_write(serio, 0);
+	serio_write(serio, 0);
+	serio_write(serio, HIL_PKT_CMD >> 8);
+	serio_write(serio, HIL_CMD_EXD);
 	down(&kbd->sem);
 
 	up(&kbd->sem);
@@ -350,10 +350,10 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	printk(KERN_INFO "input: %s, ID: %d\n",
 		kbd->dev->name, did);
 
-	serio->write(serio, 0);
-	serio->write(serio, 0);
-	serio->write(serio, HIL_PKT_CMD >> 8);
-	serio->write(serio, HIL_CMD_EK1); /* Enable Keyswitch Autorepeat 1 */
+	serio_write(serio, 0);
+	serio_write(serio, 0);
+	serio_write(serio, HIL_PKT_CMD >> 8);
+	serio_write(serio, HIL_CMD_EK1); /* Enable Keyswitch Autorepeat 1 */
 	down(&kbd->sem);
 	up(&kbd->sem);
 

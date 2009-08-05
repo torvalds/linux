@@ -273,28 +273,28 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	init_MUTEX_LOCKED(&ptr->sem);
 
 	/* Get device info.  MLC driver supplies devid/status/etc. */
-	serio->write(serio, 0);
-	serio->write(serio, 0);
-	serio->write(serio, HIL_PKT_CMD >> 8);
-	serio->write(serio, HIL_CMD_IDD);
+	serio_write(serio, 0);
+	serio_write(serio, 0);
+	serio_write(serio, HIL_PKT_CMD >> 8);
+	serio_write(serio, HIL_CMD_IDD);
 	down(&ptr->sem);
 
-	serio->write(serio, 0);
-	serio->write(serio, 0);
-	serio->write(serio, HIL_PKT_CMD >> 8);
-	serio->write(serio, HIL_CMD_RSC);
+	serio_write(serio, 0);
+	serio_write(serio, 0);
+	serio_write(serio, HIL_PKT_CMD >> 8);
+	serio_write(serio, HIL_CMD_RSC);
 	down(&ptr->sem);
 
-	serio->write(serio, 0);
-	serio->write(serio, 0);
-	serio->write(serio, HIL_PKT_CMD >> 8);
-	serio->write(serio, HIL_CMD_RNM);
+	serio_write(serio, 0);
+	serio_write(serio, 0);
+	serio_write(serio, HIL_PKT_CMD >> 8);
+	serio_write(serio, HIL_CMD_RNM);
 	down(&ptr->sem);
 
-	serio->write(serio, 0);
-	serio->write(serio, 0);
-	serio->write(serio, HIL_PKT_CMD >> 8);
-	serio->write(serio, HIL_CMD_EXD);
+	serio_write(serio, 0);
+	serio_write(serio, 0);
+	serio_write(serio, HIL_PKT_CMD >> 8);
+	serio_write(serio, HIL_CMD_EXD);
 	down(&ptr->sem);
 
 	up(&ptr->sem);

@@ -150,8 +150,8 @@ static int sunkbd_event(struct input_dev *dev, unsigned int type, unsigned int c
 
 		case EV_LED:
 
-			sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_SETLED);
-			sunkbd->serio->write(sunkbd->serio,
+			serio_write(sunkbd->serio, SUNKBD_CMD_SETLED);
+			serio_write(sunkbd->serio,
 				(!!test_bit(LED_CAPSL, dev->led) << 3) | (!!test_bit(LED_SCROLLL, dev->led) << 2) |
 				(!!test_bit(LED_COMPOSE, dev->led) << 1) | !!test_bit(LED_NUML, dev->led));
 			return 0;
@@ -161,11 +161,11 @@ static int sunkbd_event(struct input_dev *dev, unsigned int type, unsigned int c
 			switch (code) {
 
 				case SND_CLICK:
-					sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_NOCLICK - value);
+					serio_write(sunkbd->serio, SUNKBD_CMD_NOCLICK - value);
 					return 0;
 
 				case SND_BELL:
-					sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_BELLOFF - value);
+					serio_write(sunkbd->serio, SUNKBD_CMD_BELLOFF - value);
 					return 0;
 			}
 
@@ -183,7 +183,7 @@ static int sunkbd_event(struct input_dev *dev, unsigned int type, unsigned int c
 static int sunkbd_initialize(struct sunkbd *sunkbd)
 {
 	sunkbd->reset = -2;
-	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_RESET);
+	serio_write(sunkbd->serio, SUNKBD_CMD_RESET);
 	wait_event_interruptible_timeout(sunkbd->wait, sunkbd->reset >= 0, HZ);
 	if (sunkbd->reset < 0)
 		return -1;
@@ -192,7 +192,7 @@ static int sunkbd_initialize(struct sunkbd *sunkbd)
 
 	if (sunkbd->type == 4) {	/* Type 4 keyboard */
 		sunkbd->layout = -2;
-		sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_LAYOUT);
+		serio_write(sunkbd->serio, SUNKBD_CMD_LAYOUT);
 		wait_event_interruptible_timeout(sunkbd->wait, sunkbd->layout >= 0, HZ/4);
 		if (sunkbd->layout < 0) return -1;
 		if (sunkbd->layout & SUNKBD_LAYOUT_5_MASK) sunkbd->type = 5;
@@ -212,12 +212,14 @@ static void sunkbd_reinit(struct work_struct *work)
 
 	wait_event_interruptible_timeout(sunkbd->wait, sunkbd->reset >= 0, HZ);
 
-	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_SETLED);
-	sunkbd->serio->write(sunkbd->serio,
-		(!!test_bit(LED_CAPSL, sunkbd->dev->led) << 3) | (!!test_bit(LED_SCROLLL, sunkbd->dev->led) << 2) |
-		(!!test_bit(LED_COMPOSE, sunkbd->dev->led) << 1) | !!test_bit(LED_NUML, sunkbd->dev->led));
-	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_NOCLICK - !!test_bit(SND_CLICK, sunkbd->dev->snd));
-	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_BELLOFF - !!test_bit(SND_BELL, sunkbd->dev->snd));
+	serio_write(sunkbd->serio, SUNKBD_CMD_SETLED);
+	serio_write(sunkbd->serio,
+		(!!test_bit(LED_CAPSL,   sunkbd->dev->led) << 3) |
+		(!!test_bit(LED_SCROLLL, sunkbd->dev->led) << 2) |
+		(!!test_bit(LED_COMPOSE, sunkbd->dev->led) << 1) |
+		 !!test_bit(LED_NUML,    sunkbd->dev->led));
+	serio_write(sunkbd->serio, SUNKBD_CMD_NOCLICK - !!test_bit(SND_CLICK, sunkbd->dev->snd));
+	serio_write(sunkbd->serio, SUNKBD_CMD_BELLOFF - !!test_bit(SND_BELL, sunkbd->dev->snd));
 }
 
 static void sunkbd_enable(struct sunkbd *sunkbd, int enable)
