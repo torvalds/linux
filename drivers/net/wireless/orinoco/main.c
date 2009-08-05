@@ -380,7 +380,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_control = HERMES_TXCTRL_TX_OK | HERMES_TXCTRL_TX_EX;
 
-	if (priv->encode_alg == IW_ENCODE_ALG_TKIP)
+	if (priv->encode_alg == ORINOCO_ALG_TKIP)
 		tx_control |= (priv->tx_key << HERMES_MIC_KEY_ID_SHIFT) |
 			HERMES_TXCTRL_MIC;
 
@@ -462,7 +462,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Calculate Michael MIC */
-	if (priv->encode_alg == IW_ENCODE_ALG_TKIP) {
+	if (priv->encode_alg == ORINOCO_ALG_TKIP) {
 		u8 mic_buf[MICHAEL_MIC_LEN + 1];
 		u8 *mic;
 		size_t offset;
@@ -2040,7 +2040,7 @@ int orinoco_init(struct orinoco_private *priv)
 	priv->channel = 0; /* use firmware default */
 
 	priv->promiscuous = 0;
-	priv->encode_alg = IW_ENCODE_ALG_NONE;
+	priv->encode_alg = ORINOCO_ALG_NONE;
 	priv->tx_key = 0;
 	priv->wpa_enabled = 0;
 	priv->tkip_cm_active = 0;

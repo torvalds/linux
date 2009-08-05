@@ -642,7 +642,7 @@ int orinoco_hw_get_tkip_iv(struct orinoco_private *priv, int key, u8 *tsc)
 {
 	hermes_t *hw = &priv->hw;
 	int err = 0;
-	u8 tsc_arr[4][IW_ENCODE_SEQ_MAX_SIZE];
+	u8 tsc_arr[4][ORINOCO_SEQ_LEN];
 
 	if ((key < 0) || (key > 4))
 		return -EINVAL;
@@ -840,14 +840,14 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
 
 	if (priv->wpa_enabled)
 		enc_flag = 2;
-	else if (priv->encode_alg == IW_ENCODE_ALG_WEP)
+	else if (priv->encode_alg == ORINOCO_ALG_WEP)
 		enc_flag = 1;
 	else
 		enc_flag = 0;
 
 	switch (priv->firmware_type) {
 	case FIRMWARE_TYPE_AGERE: /* Agere style WEP */
-		if (priv->encode_alg == IW_ENCODE_ALG_WEP) {
+		if (priv->encode_alg == ORINOCO_ALG_WEP) {
 			/* Enable the shared-key authentication. */
 			err = hermes_write_wordrec(hw, USER_BAP,
 					HERMES_RID_CNFAUTHENTICATION_AGERE,
@@ -872,7 +872,7 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
 
 	case FIRMWARE_TYPE_INTERSIL: /* Intersil style WEP */
 	case FIRMWARE_TYPE_SYMBOL: /* Symbol style WEP */
-		if (priv->encode_alg == IW_ENCODE_ALG_WEP) {
+		if (priv->encode_alg == ORINOCO_ALG_WEP) {
 			if (priv->wep_restrict ||
 			    (priv->firmware_type == FIRMWARE_TYPE_SYMBOL))
 				master_wep_flag = HERMES_WEP_PRIVACY_INVOKED |
@@ -913,11 +913,11 @@ int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
 {
 	struct {
 		__le16 idx;
-		u8 rsc[IW_ENCODE_SEQ_MAX_SIZE];
+		u8 rsc[ORINOCO_SEQ_LEN];
 		u8 key[TKIP_KEYLEN];
 		u8 tx_mic[MIC_KEYLEN];
 		u8 rx_mic[MIC_KEYLEN];
-		u8 tsc[IW_ENCODE_SEQ_MAX_SIZE];
+		u8 tsc[ORINOCO_SEQ_LEN];
 	} __attribute__ ((packed)) buf;
 	hermes_t *hw = &priv->hw;
 	int ret;

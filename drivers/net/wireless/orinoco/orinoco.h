@@ -25,6 +25,7 @@
 
 #define MAX_SCAN_LEN		4096
 
+#define ORINOCO_SEQ_LEN		8
 #define ORINOCO_MAX_KEY_SIZE	14
 #define ORINOCO_MAX_KEYS	4
 
@@ -40,6 +41,12 @@ struct orinoco_tkip_key {
 	u8 tkip[TKIP_KEYLEN];
 	u8 tx_mic[MIC_KEYLEN];
 	u8 rx_mic[MIC_KEYLEN];
+};
+
+enum orinoco_alg {
+	ORINOCO_ALG_NONE,
+	ORINOCO_ALG_WEP,
+	ORINOCO_ALG_TKIP
 };
 
 typedef enum {
@@ -111,7 +118,8 @@ struct orinoco_private {
 
 	/* Configuration paramaters */
 	enum nl80211_iftype iw_mode;
-	u16 encode_alg, wep_restrict, tx_key;
+	enum orinoco_alg encode_alg;
+	u16 wep_restrict, tx_key;
 	struct orinoco_key keys[ORINOCO_MAX_KEYS];
 	int bitratemode;
 	char nick[IW_ESSID_MAX_SIZE+1];
