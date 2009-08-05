@@ -1450,7 +1450,7 @@ netxen_tso_check(struct net_device *netdev,
 		skb_copy_from_linear_data_offset(skb, 12,
 				(char *)vh + 16, copy_len - 16);
 
-		copied = copy_len;
+		copied = copy_len - VLAN_HLEN;
 		offset = 0;
 
 		producer = get_next_index(producer, tx_ring->num_desc);
