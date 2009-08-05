@@ -1140,6 +1140,12 @@ static int intel_i915_configure(void)
 
 	intel_i9xx_setup_flush();
 
+#ifdef USE_PCI_DMA_API 
+	if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
+		dev_err(&intel_private.pcidev->dev,
+			"set gfx device dma mask 36bit failed!\n");
+#endif
+
 	return 0;
 }
 
