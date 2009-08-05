@@ -905,11 +905,12 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
 }
 
 /* key must be 32 bytes, including the tx and rx MIC keys.
- * rsc must be 8 bytes
- * tsc must be 8 bytes or NULL
+ * rsc must be NULL or up to 8 bytes
+ * tsc must be NULL or up to 8 bytes
  */
 int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
-			      int set_tx, u8 *key, u8 *rsc, u8 *tsc)
+			      int set_tx, u8 *key, u8 *rsc, size_t rsc_len,
+			      u8 *tsc, size_t tsc_len)
 {
 	struct {
 		__le16 idx;
@@ -934,17 +935,22 @@ int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
 	memcpy(buf.key, key,
 	       sizeof(buf.key) + sizeof(buf.tx_mic) + sizeof(buf.rx_mic));
 
-	if (rsc == NULL)
-		memset(buf.rsc, 0, sizeof(buf.rsc));
-	else
-		memcpy(buf.rsc, rsc, sizeof(buf.rsc));
+	if (rsc_len > sizeof(buf.rsc))
+		rsc_len = sizeof(buf.rsc);
 
-	if (tsc == NULL) {
-		memset(buf.tsc, 0, sizeof(buf.tsc));
+	if (tsc_len > sizeof(buf.tsc))
+		tsc_len = sizeof(buf.tsc);
+
+	memset(buf.rsc, 0, sizeof(buf.rsc));
+	memset(buf.tsc, 0, sizeof(buf.tsc));
+
+	if (rsc != NULL)
+		memcpy(buf.rsc, rsc, rsc_len);
+
+	if (tsc != NULL)
+		memcpy(buf.tsc, tsc, tsc_len);
+	else
 		buf.tsc[4] = 0x10;
-	} else {
-		memcpy(buf.tsc, tsc, sizeof(buf.tsc));
-	}
 
 	/* Wait upto 100ms for tx queue to empty */
 	for (k = 100; k > 0; k--) {
