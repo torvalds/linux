@@ -190,7 +190,7 @@ static void context_check_map(void) { }
 
 void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 {
-	unsigned int id, cpu = smp_processor_id();
+	unsigned int i, id, cpu = smp_processor_id();
 	unsigned long *map;
 
 	/* No lockless fast path .. yet */
@@ -269,9 +269,10 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 		local_flush_tlb_mm(next);
 
 		/* XXX This clear should ultimately be part of local_flush_tlb_mm */
-		for (cpu = cpu_first_thread_in_core(cpu);
-		     cpu <= cpu_last_thread_in_core(cpu); cpu++)
-			__clear_bit(id, stale_map[cpu]);
+		for (i = cpu_first_thread_in_core(cpu);
+		     i <= cpu_last_thread_in_core(cpu); i++) {
+			__clear_bit(id, stale_map[i]);
+		}
 	}
 
 	/* Flick the MMU and release lock */
