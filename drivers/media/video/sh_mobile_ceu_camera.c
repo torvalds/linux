@@ -282,27 +282,24 @@ out:
 	return ret;
 }
 
+/* Called under spinlock_irqsave(&pcdev->lock, ...) */
 static void sh_mobile_ceu_videobuf_queue(struct videobuf_queue *vq,
 					 struct videobuf_buffer *vb)
 {
 	struct soc_camera_device *icd = vq->priv_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	unsigned long flags;
 
 	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	vb->state = VIDEOBUF_QUEUED;
-	spin_lock_irqsave(&pcdev->lock, flags);
 	list_add_tail(&vb->queue, &pcdev->capture);
 
 	if (!pcdev->active) {
 		pcdev->active = vb;
 		sh_mobile_ceu_capture(pcdev);
 	}
-
-	spin_unlock_irqrestore(&pcdev->lock, flags);
 }
 
 static void sh_mobile_ceu_videobuf_release(struct videobuf_queue *vq,

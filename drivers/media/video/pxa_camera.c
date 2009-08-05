@@ -612,6 +612,7 @@ static void pxa_camera_stop_capture(struct pxa_camera_dev *pcdev)
 	dev_dbg(pcdev->soc_host.dev, "%s\n", __func__);
 }
 
+/* Called under spinlock_irqsave(&pcdev->lock, ...) */
 static void pxa_videobuf_queue(struct videobuf_queue *vq,
 			       struct videobuf_buffer *vb)
 {
@@ -619,12 +620,9 @@ static void pxa_videobuf_queue(struct videobuf_queue *vq,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
 	struct pxa_buffer *buf = container_of(vb, struct pxa_buffer, vb);
-	unsigned long flags;
 
 	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d active=%p\n", __func__,
 		vb, vb->baddr, vb->bsize, pcdev->active);
-
-	spin_lock_irqsave(&pcdev->lock, flags);
 
 	list_add_tail(&vb->queue, &pcdev->capture);
 
@@ -633,8 +631,6 @@ static void pxa_videobuf_queue(struct videobuf_queue *vq,
 
 	if (!pcdev->active)
 		pxa_camera_start_capture(pcdev);
-
-	spin_unlock_irqrestore(&pcdev->lock, flags);
 }
 
 static void pxa_videobuf_release(struct videobuf_queue *vq,
