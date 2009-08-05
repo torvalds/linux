@@ -22,6 +22,67 @@
 
 #define MAX_RID_LEN 1024
 
+/* Helper routine to record keys
+ * Do not call from interrupt context */
+static int orinoco_set_key(struct orinoco_private *priv, int index,
+			   enum orinoco_alg alg, const u8 *key, int key_len,
+			   const u8 *seq, int seq_len)
+{
+	kzfree(priv->keys[index].key);
+	kzfree(priv->keys[index].seq);
+
+	if (key_len) {
+		priv->keys[index].key = kzalloc(key_len, GFP_KERNEL);
+		if (!priv->keys[index].key)
+			goto nomem;
+	} else
+		priv->keys[index].key = NULL;
+
+	if (seq_len) {
+		priv->keys[index].seq = kzalloc(seq_len, GFP_KERNEL);
+		if (!priv->keys[index].seq)
+			goto free_key;
+	} else
+		priv->keys[index].seq = NULL;
+
+	priv->keys[index].key_len = key_len;
+	priv->keys[index].seq_len = seq_len;
+
+	if (key_len)
+		memcpy(priv->keys[index].key, key, key_len);
+	if (seq_len)
+		memcpy(priv->keys[index].seq, seq, seq_len);
+
+	switch (alg) {
+	case ORINOCO_ALG_TKIP:
+		priv->keys[index].cipher = WLAN_CIPHER_SUITE_TKIP;
+		break;
+
+	case ORINOCO_ALG_WEP:
+		priv->keys[index].cipher = (key_len > SMALL_KEY_SIZE) ?
+			WLAN_CIPHER_SUITE_WEP104 : WLAN_CIPHER_SUITE_WEP40;
+		break;
+
+	case ORINOCO_ALG_NONE:
+	default:
+		priv->keys[index].cipher = 0;
+		break;
+	}
+
+	return 0;
+
+free_key:
+	kfree(priv->keys[index].key);
+	priv->keys[index].key = NULL;
+
+nomem:
+	priv->keys[index].key_len = 0;
+	priv->keys[index].seq_len = 0;
+	priv->keys[index].cipher = 0;
+
+	return -ENOMEM;
+}
+
 static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
@@ -180,7 +241,6 @@ static int orinoco_ioctl_setiwencode(struct net_device *dev,
 	int setindex = priv->tx_key;
 	enum orinoco_alg encode_alg = priv->encode_alg;
 	int restricted = priv->wep_restrict;
-	u16 xlen = 0;
 	int err = -EINPROGRESS;		/* Call commit handler */
 	unsigned long flags;
 
@@ -207,12 +267,6 @@ static int orinoco_ioctl_setiwencode(struct net_device *dev,
 		if ((index < 0) || (index >= ORINOCO_MAX_KEYS))
 			index = priv->tx_key;
 
-		/* Adjust key length to a supported value */
-		if (erq->length > SMALL_KEY_SIZE)
-			xlen = LARGE_KEY_SIZE;
-		else /* (erq->length > 0) */
-			xlen = SMALL_KEY_SIZE;
-
 		/* Switch on WEP if off */
 		if (encode_alg != ORINOCO_ALG_WEP) {
 			setindex = index;
@@ -229,7 +283,7 @@ static int orinoco_ioctl_setiwencode(struct net_device *dev,
 			}
 		} else {
 			/* Set the index : Check that the key is valid */
-			if (priv->keys[index].len == 0) {
+			if (priv->keys[index].key_len == 0) {
 				err = -EINVAL;
 				goto out;
 			}
@@ -245,10 +299,8 @@ static int orinoco_ioctl_setiwencode(struct net_device *dev,
 		restricted = 1;
 
 	if (erq->pointer && erq->length > 0) {
-		priv->keys[index].len = cpu_to_le16(xlen);
-		memset(priv->keys[index].data, 0,
-		       sizeof(priv->keys[index].data));
-		memcpy(priv->keys[index].data, keybuf, erq->length);
+		err = orinoco_set_key(priv, index, ORINOCO_ALG_WEP, keybuf,
+				      erq->length, NULL, 0);
 	}
 	priv->tx_key = setindex;
 
@@ -277,7 +329,6 @@ static int orinoco_ioctl_getiwencode(struct net_device *dev,
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	int index = (erq->flags & IW_ENCODE_INDEX) - 1;
-	u16 xlen = 0;
 	unsigned long flags;
 
 	if (!priv->has_wep)
@@ -299,11 +350,9 @@ static int orinoco_ioctl_getiwencode(struct net_device *dev,
 	else
 		erq->flags |= IW_ENCODE_OPEN;
 
-	xlen = le16_to_cpu(priv->keys[index].len);
+	erq->length = priv->keys[index].key_len;
 
-	erq->length = xlen;
-
-	memcpy(keybuf, priv->keys[index].data, ORINOCO_MAX_KEY_SIZE);
+	memcpy(keybuf, priv->keys[index].key, erq->length);
 
 	orinoco_unlock(priv, &flags);
 	return 0;
@@ -789,7 +838,6 @@ static int orinoco_ioctl_set_encodeext(struct net_device *dev,
 	int idx, alg = ext->alg, set_key = 1;
 	unsigned long flags;
 	int err = -EINVAL;
-	u16 key_len;
 
 	if (orinoco_lock(priv, &flags) != 0)
 		return -EBUSY;
@@ -822,24 +870,17 @@ static int orinoco_ioctl_set_encodeext(struct net_device *dev,
 		switch (alg) {
 		case IW_ENCODE_ALG_NONE:
 			priv->encode_alg = ORINOCO_ALG_NONE;
-			priv->keys[idx].len = 0;
+			err = orinoco_set_key(priv, idx, ORINOCO_ALG_NONE,
+					      NULL, 0, NULL, 0);
 			break;
 
 		case IW_ENCODE_ALG_WEP:
-			if (ext->key_len > SMALL_KEY_SIZE)
-				key_len = LARGE_KEY_SIZE;
-			else if (ext->key_len > 0)
-				key_len = SMALL_KEY_SIZE;
-			else
+			if (ext->key_len <= 0)
 				goto out;
 
 			priv->encode_alg = ORINOCO_ALG_WEP;
-			priv->keys[idx].len = cpu_to_le16(key_len);
-
-			key_len = min(ext->key_len, key_len);
-
-			memset(priv->keys[idx].data, 0, ORINOCO_MAX_KEY_SIZE);
-			memcpy(priv->keys[idx].data, ext->key, key_len);
+			err = orinoco_set_key(priv, idx, ORINOCO_ALG_WEP,
+					      ext->key, ext->key_len, NULL, 0);
 			break;
 
 		case IW_ENCODE_ALG_TKIP:
@@ -847,20 +888,21 @@ static int orinoco_ioctl_set_encodeext(struct net_device *dev,
 			u8 *tkip_iv = NULL;
 
 			if (!priv->has_wpa ||
-			    (ext->key_len > sizeof(priv->tkip_key[0])))
+			    (ext->key_len > sizeof(struct orinoco_tkip_key)))
 				goto out;
 
 			priv->encode_alg = ORINOCO_ALG_TKIP;
-			memset(&priv->tkip_key[idx], 0,
-			       sizeof(priv->tkip_key[idx]));
-			memcpy(&priv->tkip_key[idx], ext->key, ext->key_len);
 
 			if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID)
 				tkip_iv = &ext->rx_seq[0];
 
+			err = orinoco_set_key(priv, idx, ORINOCO_ALG_TKIP,
+					      ext->key, ext->key_len, tkip_iv,
+					      ORINOCO_SEQ_LEN);
+
 			err = __orinoco_hw_set_tkip_key(priv, idx,
 				 ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY,
-				 (u8 *) &priv->tkip_key[idx],
+				 priv->keys[idx].key,
 				 tkip_iv, ORINOCO_SEQ_LEN, NULL, 0);
 			if (err)
 				printk(KERN_ERR "%s: Error %d setting TKIP key"
@@ -918,16 +960,14 @@ static int orinoco_ioctl_get_encodeext(struct net_device *dev,
 		break;
 	case ORINOCO_ALG_WEP:
 		ext->alg = IW_ENCODE_ALG_WEP;
-		ext->key_len = min_t(u16, le16_to_cpu(priv->keys[idx].len),
-				     max_key_len);
-		memcpy(ext->key, priv->keys[idx].data, ext->key_len);
+		ext->key_len = min(priv->keys[idx].key_len, max_key_len);
+		memcpy(ext->key, priv->keys[idx].key, ext->key_len);
 		encoding->flags |= IW_ENCODE_ENABLED;
 		break;
 	case ORINOCO_ALG_TKIP:
 		ext->alg = IW_ENCODE_ALG_TKIP;
-		ext->key_len = min_t(u16, sizeof(struct orinoco_tkip_key),
-				     max_key_len);
-		memcpy(ext->key, &priv->tkip_key[idx], ext->key_len);
+		ext->key_len = min(priv->keys[idx].key_len, max_key_len);
+		memcpy(ext->key, priv->keys[idx].key, ext->key_len);
 		encoding->flags |= IW_ENCODE_ENABLED;
 		break;
 	}

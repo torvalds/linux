@@ -768,12 +768,29 @@ int __orinoco_hw_setup_wepkeys(struct orinoco_private *priv)
 {
 	hermes_t *hw = &priv->hw;
 	int err = 0;
+	int i;
 
 	switch (priv->firmware_type) {
 	case FIRMWARE_TYPE_AGERE:
+	{
+		struct orinoco_key keys[ORINOCO_MAX_KEYS];
+
+		memset(&keys, 0, sizeof(keys));
+		for (i = 0; i < ORINOCO_MAX_KEYS; i++) {
+			int len = min(priv->keys[i].key_len,
+				      ORINOCO_MAX_KEY_SIZE);
+			memcpy(&keys[i].data, priv->keys[i].key, len);
+			if (len > SMALL_KEY_SIZE)
+				keys[i].len = cpu_to_le16(LARGE_KEY_SIZE);
+			else if (len > 0)
+				keys[i].len = cpu_to_le16(SMALL_KEY_SIZE);
+			else
+				keys[i].len = cpu_to_le16(0);
+		}
+
 		err = HERMES_WRITE_RECORD(hw, USER_BAP,
 					  HERMES_RID_CNFWEPKEYS_AGERE,
-					  &priv->keys);
+					  &keys);
 		if (err)
 			return err;
 		err = hermes_write_wordrec(hw, USER_BAP,
@@ -782,28 +799,38 @@ int __orinoco_hw_setup_wepkeys(struct orinoco_private *priv)
 		if (err)
 			return err;
 		break;
+	}
 	case FIRMWARE_TYPE_INTERSIL:
 	case FIRMWARE_TYPE_SYMBOL:
 		{
 			int keylen;
-			int i;
 
 			/* Force uniform key length to work around
 			 * firmware bugs */
-			keylen = le16_to_cpu(priv->keys[priv->tx_key].len);
+			keylen = priv->keys[priv->tx_key].key_len;
 
 			if (keylen > LARGE_KEY_SIZE) {
 				printk(KERN_ERR "%s: BUG: Key %d has oversize length %d.\n",
 				       priv->ndev->name, priv->tx_key, keylen);
 				return -E2BIG;
-			}
+			} else if (keylen > SMALL_KEY_SIZE)
+				keylen = LARGE_KEY_SIZE;
+			else if (keylen > 0)
+				keylen = SMALL_KEY_SIZE;
+			else
+				keylen = 0;
 
 			/* Write all 4 keys */
 			for (i = 0; i < ORINOCO_MAX_KEYS; i++) {
+				u8 key[LARGE_KEY_SIZE] = { 0 };
+
+				memcpy(key, priv->keys[i].key,
+				       priv->keys[i].key_len);
+
 				err = hermes_write_ltv(hw, USER_BAP,
 						HERMES_RID_CNFDEFAULTKEY0 + i,
 						HERMES_BYTES_TO_RECLEN(keylen),
-						priv->keys[i].data);
+						key);
 				if (err)
 					return err;
 			}
@@ -829,8 +856,8 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
 	int auth_flag;
 	int enc_flag;
 
-	/* Setup WEP keys for WEP and WPA */
-	if (priv->encode_alg)
+	/* Setup WEP keys */
+	if (priv->encode_alg == ORINOCO_ALG_WEP)
 		__orinoco_hw_setup_wepkeys(priv);
 
 	if (priv->wep_restrict)
@@ -976,7 +1003,6 @@ int orinoco_clear_tkip_key(struct orinoco_private *priv, int key_idx)
 	hermes_t *hw = &priv->hw;
 	int err;
 
-	memset(&priv->tkip_key[key_idx], 0, sizeof(priv->tkip_key[key_idx]));
 	err = hermes_write_wordrec(hw, USER_BAP,
 				   HERMES_RID_CNFREMDEFAULTTKIPKEY_AGERE,
 				   key_idx);
