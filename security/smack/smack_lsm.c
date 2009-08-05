@@ -2464,7 +2464,7 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 	/*
 	 * Perfectly reasonable for this to be NULL
 	 */
-	if (sip == NULL || sip->sin_family != PF_INET)
+	if (sip == NULL || sip->sin_family != AF_INET)
 		return 0;
 
 	return smack_netlabel_send(sock->sk, sip);
