@@ -644,7 +644,7 @@ static ssize_t i7core_inject_socket_store(struct mem_ctl_info *mci,
 
 	rc = strict_strtoul(data, 10, &value);
 	if ((rc < 0) || (value >= pvt->sockets))
-		return 0;
+		return -EIO;
 
 	pvt->inject.section = (u32) value;
 	return count;
@@ -676,7 +676,7 @@ static ssize_t i7core_inject_section_store(struct mem_ctl_info *mci,
 
 	rc = strict_strtoul(data, 10, &value);
 	if ((rc < 0) || (value > 3))
-		return 0;
+		return -EIO;
 
 	pvt->inject.section = (u32) value;
 	return count;
@@ -709,7 +709,7 @@ static ssize_t i7core_inject_type_store(struct mem_ctl_info *mci,
 
 	rc = strict_strtoul(data, 10, &value);
 	if ((rc < 0) || (value > 7))
-		return 0;
+		return -EIO;
 
 	pvt->inject.type = (u32) value;
 	return count;
@@ -744,7 +744,7 @@ static ssize_t i7core_inject_eccmask_store(struct mem_ctl_info *mci,
 
 	rc = strict_strtoul(data, 10, &value);
 	if (rc < 0)
-		return 0;
+		return -EIO;
 
 	pvt->inject.eccmask = (u32) value;
 	return count;
