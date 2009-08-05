@@ -2486,7 +2486,7 @@ static inline int rb_ok_to_lock(void)
 	 * buffer too. A one time deal is all you get from reading
 	 * the ring buffer from an NMI.
 	 */
-	if (likely(!in_nmi() && !oops_in_progress))
+	if (likely(!in_nmi()))
 		return 1;
 
 	tracing_off_permanent();
