@@ -868,6 +868,8 @@ static void amd64_read_dbam_reg(struct amd64_pvt *pvt)
 			goto err_reg;
 	}
 
+	return;
+
 err_reg:
 	debugf0("Error reading F2x%03x.\n", reg);
 }
@@ -2634,6 +2636,8 @@ static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 
 	amd64_dump_misc_regs(pvt);
 
+	return;
+
 err_reg:
 	debugf0("Reading an MC register failed\n");
 
@@ -2976,6 +2980,9 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 		amd64_printk(KERN_INFO,
 			"ECC is enabled by BIOS, Proceeding "
 			"with EDAC module initialization\n");
+
+		/* Signal good ECC status */
+		ret = 0;
 
 		/* CLEAR the override, since BIOS controlled it */
 		ecc_enable_override = 0;

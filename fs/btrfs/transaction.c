@@ -42,10 +42,8 @@ static noinline void put_transaction(struct btrfs_transaction *transaction)
 
 static noinline void switch_commit_root(struct btrfs_root *root)
 {
-	down_write(&root->commit_root_sem);
 	free_extent_buffer(root->commit_root);
 	root->commit_root = btrfs_root_node(root);
-	up_write(&root->commit_root_sem);
 }
 
 /*
@@ -466,7 +464,10 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 		ret = btrfs_write_dirty_block_groups(trans, root);
 		BUG_ON(ret);
 	}
-	switch_commit_root(root);
+
+	if (root != root->fs_info->extent_root)
+		switch_commit_root(root);
+
 	return 0;
 }
 
@@ -499,6 +500,11 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 
 		update_cowonly_root(trans, root);
 	}
+
+	down_write(&fs_info->extent_commit_sem);
+	switch_commit_root(fs_info->extent_root);
+	up_write(&fs_info->extent_commit_sem);
+
 	return 0;
 }
 
@@ -849,6 +855,16 @@ static void update_super_roots(struct btrfs_root *root)
 	super->root = root_item->bytenr;
 	super->generation = root_item->generation;
 	super->root_level = root_item->level;
+}
+
+int btrfs_transaction_in_commit(struct btrfs_fs_info *info)
+{
+	int ret = 0;
+	spin_lock(&info->new_trans_lock);
+	if (info->running_transaction)
+		ret = info->running_transaction->in_commit;
+	spin_unlock(&info->new_trans_lock);
+	return ret;
 }
 
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,

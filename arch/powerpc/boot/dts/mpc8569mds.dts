@@ -501,6 +501,10 @@
 				reg = <0x6>;
 				device_type = "ethernet-phy";
 			};
+			tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 		mdio@3520 {
 			#address-cells = <1>;

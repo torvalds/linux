@@ -12,6 +12,11 @@
  *   also fit for MPC8560, MPC8555, MPC8548, MPC8641, and etc.
  *   The support for MPC8349 DMA contorller is also added.
  *
+ * This driver instructs the DMA controller to issue the PCI Read Multiple
+ * command for PCI read operations, instead of using the default PCI Read Line
+ * command. Please be aware that this setting may result in read pre-fetching
+ * on some platforms.
+ *
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -49,9 +54,10 @@ static void dma_init(struct fsl_dma_chan *fsl_chan)
 	case FSL_DMA_IP_83XX:
 		/* Set the channel to below modes:
 		 * EOTIE - End-of-transfer interrupt enable
+		 * PRC_RM - PCI read multiple
 		 */
-		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, FSL_DMA_MR_EOTIE,
-				32);
+		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, FSL_DMA_MR_EOTIE
+				| FSL_DMA_MR_PRC_RM, 32);
 		break;
 	}
 
@@ -136,15 +142,16 @@ static int dma_is_idle(struct fsl_dma_chan *fsl_chan)
 
 static void dma_start(struct fsl_dma_chan *fsl_chan)
 {
-	u32 mr_set = 0;;
+	u32 mr_set = 0;
 
 	if (fsl_chan->feature & FSL_DMA_CHAN_PAUSE_EXT) {
 		DMA_OUT(fsl_chan, &fsl_chan->reg_base->bcr, 0, 32);
 		mr_set |= FSL_DMA_MR_EMP_EN;
-	} else
+	} else if ((fsl_chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX) {
 		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
 			DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32)
 				& ~FSL_DMA_MR_EMP_EN, 32);
+	}
 
 	if (fsl_chan->feature & FSL_DMA_CHAN_START_EXT)
 		mr_set |= FSL_DMA_MR_EMS_EN;
@@ -871,9 +878,9 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 
 	switch (new_fsl_chan->feature & FSL_DMA_IP_MASK) {
 	case FSL_DMA_IP_85XX:
-		new_fsl_chan->toggle_ext_start = fsl_chan_toggle_ext_start;
 		new_fsl_chan->toggle_ext_pause = fsl_chan_toggle_ext_pause;
 	case FSL_DMA_IP_83XX:
+		new_fsl_chan->toggle_ext_start = fsl_chan_toggle_ext_start;
 		new_fsl_chan->set_src_loop_size = fsl_chan_set_src_loop_size;
 		new_fsl_chan->set_dest_loop_size = fsl_chan_set_dest_loop_size;
 	}

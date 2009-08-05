@@ -1269,6 +1269,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	write_unlock_irq(&tasklist_lock);
 	proc_fork_connector(p);
 	cgroup_post_fork(p);
+	perf_counter_fork(p);
 	return p;
 
 bad_fork_free_pid:
@@ -1409,9 +1410,6 @@ long do_fork(unsigned long clone_flags,
 			p->vfork_done = &vfork;
 			init_completion(&vfork);
 		}
-
-		if (!(clone_flags & CLONE_THREAD))
-			perf_counter_fork(p);
 
 		audit_finish_fork(p);
 		tracehook_report_clone(regs, clone_flags, nr, p);

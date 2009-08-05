@@ -267,7 +267,7 @@ static int caching_kthread(void *data)
 	last = max_t(u64, block_group->key.objectid, BTRFS_SUPER_INFO_OFFSET);
 again:
 	/* need to make sure the commit_root doesn't disappear */
-	down_read(&fs_info->extent_root->commit_root_sem);
+	down_read(&fs_info->extent_commit_sem);
 
 	/*
 	 * We don't want to deadlock with somebody trying to allocate a new
@@ -302,10 +302,11 @@ again:
 			else if (ret)
 				break;
 
-			if (need_resched()) {
+			if (need_resched() ||
+			    btrfs_transaction_in_commit(fs_info)) {
 				btrfs_release_path(fs_info->extent_root, path);
-				up_read(&fs_info->extent_root->commit_root_sem);
-				cond_resched();
+				up_read(&fs_info->extent_commit_sem);
+				schedule_timeout(1);
 				goto again;
 			}
 
@@ -345,7 +346,7 @@ next:
 
 err:
 	btrfs_free_path(path);
-	up_read(&fs_info->extent_root->commit_root_sem);
+	up_read(&fs_info->extent_commit_sem);
 	atomic_dec(&block_group->space_info->caching_threads);
 	wake_up(&block_group->caching_q);
 

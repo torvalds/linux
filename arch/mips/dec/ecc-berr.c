@@ -1,6 +1,4 @@
 /*
- *	linux/arch/mips/dec/ecc-berr.c
- *
  *	Bus error event handling code for systems equipped with ECC
  *	handling logic, i.e. DECstation/DECsystem 5000/200 (KN02),
  *	5000/240 (KN03), 5000/260 (KN05) and DECsystem 5900 (KN03),

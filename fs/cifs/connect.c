@@ -803,6 +803,10 @@ cifs_parse_mount_options(char *options, const char *devname,
 	char *data;
 	unsigned int  temp_len, i, j;
 	char separator[2];
+	short int override_uid = -1;
+	short int override_gid = -1;
+	bool uid_specified = false;
+	bool gid_specified = false;
 
 	separator[0] = ',';
 	separator[1] = 0;
@@ -1093,18 +1097,20 @@ cifs_parse_mount_options(char *options, const char *devname,
 						    "too long.\n");
 				return 1;
 			}
-		} else if (strnicmp(data, "uid", 3) == 0) {
-			if (value && *value)
-				vol->linux_uid =
-					simple_strtoul(value, &value, 0);
-		} else if (strnicmp(data, "forceuid", 8) == 0) {
-				vol->override_uid = 1;
-		} else if (strnicmp(data, "gid", 3) == 0) {
-			if (value && *value)
-				vol->linux_gid =
-					simple_strtoul(value, &value, 0);
-		} else if (strnicmp(data, "forcegid", 8) == 0) {
-				vol->override_gid = 1;
+		} else if (!strnicmp(data, "uid", 3) && value && *value) {
+			vol->linux_uid = simple_strtoul(value, &value, 0);
+			uid_specified = true;
+		} else if (!strnicmp(data, "forceuid", 8)) {
+			override_uid = 1;
+		} else if (!strnicmp(data, "noforceuid", 10)) {
+			override_uid = 0;
+		} else if (!strnicmp(data, "gid", 3) && value && *value) {
+			vol->linux_gid = simple_strtoul(value, &value, 0);
+			gid_specified = true;
+		} else if (!strnicmp(data, "forcegid", 8)) {
+			override_gid = 1;
+		} else if (!strnicmp(data, "noforcegid", 10)) {
+			override_gid = 0;
 		} else if (strnicmp(data, "file_mode", 4) == 0) {
 			if (value && *value) {
 				vol->file_mode =
@@ -1354,6 +1360,18 @@ cifs_parse_mount_options(char *options, const char *devname,
 	}
 	if (vol->UNCip == NULL)
 		vol->UNCip = &vol->UNC[2];
+
+	if (uid_specified)
+		vol->override_uid = override_uid;
+	else if (override_uid == 1)
+		printk(KERN_NOTICE "CIFS: ignoring forceuid mount option "
+				   "specified with no uid= option.\n");
+
+	if (gid_specified)
+		vol->override_gid = override_gid;
+	else if (override_gid == 1)
+		printk(KERN_NOTICE "CIFS: ignoring forcegid mount option "
+				   "specified with no gid= option.\n");
 
 	return 0;
 }
@@ -2544,11 +2562,20 @@ remote_path_check:
 
 			if (mount_data != mount_data_global)
 				kfree(mount_data);
+
 			mount_data = cifs_compose_mount_options(
 					cifs_sb->mountdata, full_path + 1,
 					referrals, &fake_devname);
-			kfree(fake_devname);
+
 			free_dfs_info_array(referrals, num_referrals);
+			kfree(fake_devname);
+			kfree(full_path);
+
+			if (IS_ERR(mount_data)) {
+				rc = PTR_ERR(mount_data);
+				mount_data = NULL;
+				goto mount_fail_check;
+			}
 
 			if (tcon)
 				cifs_put_tcon(tcon);
@@ -2556,8 +2583,6 @@ remote_path_check:
 				cifs_put_smb_ses(pSesInfo);
 
 			cleanup_volume_info(&volume_info);
-			FreeXid(xid);
-			kfree(full_path);
 			referral_walks_count++;
 			goto try_mount_again;
 		}

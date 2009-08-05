@@ -1,6 +1,4 @@
 /*
- * @file /arch/mips/pmc-sierra/msp71xx/gpio.c
- *
  * Generic PMC MSP71xx GPIO handling. These base gpio are controlled by two
  * types of registers. The data register sets the output level when in output
  * mode and when in input mode will contain the value at the input. The config
