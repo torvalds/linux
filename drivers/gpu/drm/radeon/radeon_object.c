@@ -44,6 +44,9 @@ struct radeon_object {
 	uint64_t			gpu_addr;
 	void				*kptr;
 	bool				is_iomem;
+	uint32_t			tiling_flags;
+	uint32_t			pitch;
+	int				surface_reg;
 };
 
 int radeon_ttm_init(struct radeon_device *rdev);
@@ -70,6 +73,7 @@ static void radeon_ttm_object_object_destroy(struct ttm_buffer_object *tobj)
 
 	robj = container_of(tobj, struct radeon_object, tobj);
 	list_del_init(&robj->list);
+	radeon_object_clear_surface_reg(robj);
 	kfree(robj);
 }
 
@@ -99,16 +103,16 @@ static inline uint32_t radeon_object_flags_from_domain(uint32_t domain)
 {
 	uint32_t flags = 0;
 	if (domain & RADEON_GEM_DOMAIN_VRAM) {
-		flags |= TTM_PL_FLAG_VRAM;
+		flags |= TTM_PL_FLAG_VRAM | TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
 	}
 	if (domain & RADEON_GEM_DOMAIN_GTT) {
-		flags |= TTM_PL_FLAG_TT;
+		flags |= TTM_PL_FLAG_TT | TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
 	}
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
-		flags |= TTM_PL_FLAG_SYSTEM;
+		flags |= TTM_PL_FLAG_SYSTEM | TTM_PL_MASK_CACHING;
 	}
 	if (!flags) {
-		flags |= TTM_PL_FLAG_SYSTEM;
+		flags |= TTM_PL_FLAG_SYSTEM | TTM_PL_MASK_CACHING;
 	}
 	return flags;
 }
@@ -141,6 +145,7 @@ int radeon_object_create(struct radeon_device *rdev,
 	}
 	robj->rdev = rdev;
 	robj->gobj = gobj;
+	robj->surface_reg = -1;
 	INIT_LIST_HEAD(&robj->list);
 
 	flags = radeon_object_flags_from_domain(domain);
@@ -304,7 +309,7 @@ int radeon_object_wait(struct radeon_object *robj)
 	}
 	spin_lock(&robj->tobj.lock);
 	if (robj->tobj.sync_obj) {
-		r = ttm_bo_wait(&robj->tobj, true, false, false);
+		r = ttm_bo_wait(&robj->tobj, true, true, false);
 	}
 	spin_unlock(&robj->tobj.lock);
 	radeon_object_unreserve(robj);
@@ -403,7 +408,6 @@ int radeon_object_list_validate(struct list_head *head, void *fence)
 	struct radeon_object *robj;
 	struct radeon_fence *old_fence = NULL;
 	struct list_head *i;
-	uint32_t flags;
 	int r;
 
 	r = radeon_object_list_reserve(head);
@@ -414,27 +418,25 @@ int radeon_object_list_validate(struct list_head *head, void *fence)
 	list_for_each(i, head) {
 		lobj = list_entry(i, struct radeon_object_list, list);
 		robj = lobj->robj;
-		if (lobj->wdomain) {
-			flags = radeon_object_flags_from_domain(lobj->wdomain);
-			flags |= TTM_PL_FLAG_TT;
-		} else {
-			flags = radeon_object_flags_from_domain(lobj->rdomain);
-			flags |= TTM_PL_FLAG_TT;
-			flags |= TTM_PL_FLAG_VRAM;
-		}
 		if (!robj->pin_count) {
-			robj->tobj.proposed_placement = flags | TTM_PL_MASK_CACHING;
+			if (lobj->wdomain) {
+				robj->tobj.proposed_placement =
+					radeon_object_flags_from_domain(lobj->wdomain);
+			} else {
+				robj->tobj.proposed_placement =
+					radeon_object_flags_from_domain(lobj->rdomain);
+			}
 			r = ttm_buffer_object_validate(&robj->tobj,
 						       robj->tobj.proposed_placement,
 						       true, false);
 			if (unlikely(r)) {
-				radeon_object_list_unreserve(head);
 				DRM_ERROR("radeon: failed to validate.\n");
 				return r;
 			}
 			radeon_object_gpu_addr(robj);
 		}
 		lobj->gpu_offset = robj->gpu_addr;
+		lobj->tiling_flags = robj->tiling_flags;
 		if (fence) {
 			old_fence = (struct radeon_fence *)robj->tobj.sync_obj;
 			robj->tobj.sync_obj = radeon_fence_ref(fence);
@@ -478,4 +480,128 @@ int radeon_object_fbdev_mmap(struct radeon_object *robj,
 unsigned long radeon_object_size(struct radeon_object *robj)
 {
 	return robj->tobj.num_pages << PAGE_SHIFT;
+}
+
+int radeon_object_get_surface_reg(struct radeon_object *robj)
+{
+	struct radeon_device *rdev = robj->rdev;
+	struct radeon_surface_reg *reg;
+	struct radeon_object *old_object;
+	int steal;
+	int i;
+
+	if (!robj->tiling_flags)
+		return 0;
+
+	if (robj->surface_reg >= 0) {
+		reg = &rdev->surface_regs[robj->surface_reg];
+		i = robj->surface_reg;
+		goto out;
+	}
+
+	steal = -1;
+	for (i = 0; i < RADEON_GEM_MAX_SURFACES; i++) {
+
+		reg = &rdev->surface_regs[i];
+		if (!reg->robj)
+			break;
+
+		old_object = reg->robj;
+		if (old_object->pin_count == 0)
+			steal = i;
+	}
+
+	/* if we are all out */
+	if (i == RADEON_GEM_MAX_SURFACES) {
+		if (steal == -1)
+			return -ENOMEM;
+		/* find someone with a surface reg and nuke their BO */
+		reg = &rdev->surface_regs[steal];
+		old_object = reg->robj;
+		/* blow away the mapping */
+		DRM_DEBUG("stealing surface reg %d from %p\n", steal, old_object);
+		ttm_bo_unmap_virtual(&old_object->tobj);
+		old_object->surface_reg = -1;
+		i = steal;
+	}
+
+	robj->surface_reg = i;
+	reg->robj = robj;
+
+out:
+	radeon_set_surface_reg(rdev, i, robj->tiling_flags, robj->pitch,
+			       robj->tobj.mem.mm_node->start << PAGE_SHIFT,
+			       robj->tobj.num_pages << PAGE_SHIFT);
+	return 0;
+}
+
+void radeon_object_clear_surface_reg(struct radeon_object *robj)
+{
+	struct radeon_device *rdev = robj->rdev;
+	struct radeon_surface_reg *reg;
+
+	if (robj->surface_reg == -1)
+		return;
+
+	reg = &rdev->surface_regs[robj->surface_reg];
+	radeon_clear_surface_reg(rdev, robj->surface_reg);
+
+	reg->robj = NULL;
+	robj->surface_reg = -1;
+}
+
+void radeon_object_set_tiling_flags(struct radeon_object *robj,
+				    uint32_t tiling_flags, uint32_t pitch)
+{
+	robj->tiling_flags = tiling_flags;
+	robj->pitch = pitch;
+}
+
+void radeon_object_get_tiling_flags(struct radeon_object *robj,
+				    uint32_t *tiling_flags,
+				    uint32_t *pitch)
+{
+	if (tiling_flags)
+		*tiling_flags = robj->tiling_flags;
+	if (pitch)
+		*pitch = robj->pitch;
+}
+
+int radeon_object_check_tiling(struct radeon_object *robj, bool has_moved,
+			       bool force_drop)
+{
+	if (!(robj->tiling_flags & RADEON_TILING_SURFACE))
+		return 0;
+
+	if (force_drop) {
+		radeon_object_clear_surface_reg(robj);
+		return 0;
+	}
+
+	if (robj->tobj.mem.mem_type != TTM_PL_VRAM) {
+		if (!has_moved)
+			return 0;
+
+		if (robj->surface_reg >= 0)
+			radeon_object_clear_surface_reg(robj);
+		return 0;
+	}
+
+	if ((robj->surface_reg >= 0) && !has_moved)
+		return 0;
+
+	return radeon_object_get_surface_reg(robj);
+}
+
+void radeon_bo_move_notify(struct ttm_buffer_object *bo,
+			  struct ttm_mem_reg *mem)
+{
+	struct radeon_object *robj = container_of(bo, struct radeon_object, tobj);
+	radeon_object_check_tiling(robj, 0, 1);
+}
+
+void radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
+{
+	struct radeon_object *robj = container_of(bo, struct radeon_object, tobj);
+	radeon_object_check_tiling(robj, 0, 0);
 }

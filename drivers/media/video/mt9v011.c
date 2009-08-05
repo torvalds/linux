@@ -8,6 +8,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <linux/delay.h>
+#include <asm/div64.h>
 #include <media/v4l2-device.h>
 #include "mt9v011.h"
 #include <media/v4l2-i2c-drv.h>
@@ -57,6 +58,7 @@ static struct v4l2_queryctrl mt9v011_qctrl[] = {
 struct mt9v011 {
 	struct v4l2_subdev sd;
 	unsigned width, height;
+	unsigned xtal;
 
 	u16 global_gain, red_bal, blue_bal;
 };
@@ -131,7 +133,7 @@ static const struct i2c_reg_value mt9v011_init_default[] = {
 		{ R1E_MT9V011_DIGITAL_ZOOM,  0x0000 },
 		{ R20_MT9V011_READ_MODE, 0x1000 },
 
-		{ R07_MT9V011_OUT_CTRL, 0x000a },	/* chip enable */
+		{ R07_MT9V011_OUT_CTRL, 0x0002 },	/* chip enable */
 };
 
 static void set_balance(struct v4l2_subdev *sd)
@@ -152,6 +154,31 @@ static void set_balance(struct v4l2_subdev *sd)
 	mt9v011_write(sd, R2E_MT9V011_GREEN_2_GAIN,  green1_gain);
 	mt9v011_write(sd, R2C_MT9V011_BLUE_GAIN, blue_gain);
 	mt9v011_write(sd, R2D_MT9V011_RED_GAIN, red_gain);
+}
+
+static void calc_fps(struct v4l2_subdev *sd)
+{
+	struct mt9v011 *core = to_mt9v011(sd);
+	unsigned height, width, hblank, vblank, speed;
+	unsigned row_time, t_time;
+	u64 frames_per_ms;
+	unsigned tmp;
+
+	height = mt9v011_read(sd, R03_MT9V011_HEIGHT);
+	width = mt9v011_read(sd, R04_MT9V011_WIDTH);
+	hblank = mt9v011_read(sd, R05_MT9V011_HBLANK);
+	vblank = mt9v011_read(sd, R06_MT9V011_VBLANK);
+	speed = mt9v011_read(sd, R0A_MT9V011_CLK_SPEED);
+
+	row_time = (width + 113 + hblank) * (speed + 2);
+	t_time = row_time * (height + vblank + 1);
+
+	frames_per_ms = core->xtal * 1000l;
+	do_div(frames_per_ms, t_time);
+	tmp = frames_per_ms;
+
+	v4l2_dbg(1, debug, sd, "Programmed to %u.%03u fps (%d pixel clcks)\n",
+		tmp / 1000, tmp % 1000, t_time);
 }
 
 static void set_res(struct v4l2_subdev *sd)
@@ -175,10 +202,12 @@ static void set_res(struct v4l2_subdev *sd)
 	mt9v011_write(sd, R04_MT9V011_WIDTH, core->width);
 	mt9v011_write(sd, R05_MT9V011_HBLANK, 771 - core->width);
 
-	vstart = 8 + (640 - core->height) / 2;
+	vstart = 8 + (480 - core->height) / 2;
 	mt9v011_write(sd, R01_MT9V011_ROWSTART, vstart);
 	mt9v011_write(sd, R03_MT9V011_HEIGHT, core->height);
 	mt9v011_write(sd, R06_MT9V011_VBLANK, 508 - core->height);
+
+	calc_fps(sd);
 };
 
 static int mt9v011_reset(struct v4l2_subdev *sd, u32 val)
@@ -214,6 +243,23 @@ static int mt9v011_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	}
 	return -EINVAL;
 }
+
+static int mt9v011_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
+{
+	int i;
+
+	v4l2_dbg(1, debug, sd, "queryctrl called\n");
+
+	for (i = 0; i < ARRAY_SIZE(mt9v011_qctrl); i++)
+		if (qc->id && qc->id == mt9v011_qctrl[i].id) {
+			memcpy(qc, &(mt9v011_qctrl[i]),
+			       sizeof(*qc));
+			return 0;
+		}
+
+	return -EINVAL;
+}
+
 
 static int mt9v011_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
@@ -294,6 +340,22 @@ static int mt9v011_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 	return 0;
 }
 
+static int mt9v011_s_config(struct v4l2_subdev *sd, int dumb, void *data)
+{
+	struct mt9v011 *core = to_mt9v011(sd);
+	unsigned *xtal = data;
+
+	v4l2_dbg(1, debug, sd, "s_config called\n");
+
+	if (xtal) {
+		core->xtal = *xtal;
+		v4l2_dbg(1, debug, sd, "xtal set to %d.%03d MHz\n",
+			 *xtal / 1000000, (*xtal / 1000) % 1000);
+	}
+
+	return 0;
+}
+
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int mt9v011_g_register(struct v4l2_subdev *sd,
@@ -338,9 +400,11 @@ static int mt9v011_g_chip_ident(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
+	.queryctrl = mt9v011_queryctrl,
 	.g_ctrl = mt9v011_g_ctrl,
 	.s_ctrl = mt9v011_s_ctrl,
 	.reset = mt9v011_reset,
+	.s_config = mt9v011_s_config,
 	.g_chip_ident = mt9v011_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = mt9v011_g_register,
@@ -395,6 +459,7 @@ static int mt9v011_probe(struct i2c_client *c,
 	core->global_gain = 0x0024;
 	core->width  = 640;
 	core->height = 480;
+	core->xtal = 27000000;	/* Hz */
 
 	v4l_info(c, "chip found @ 0x%02x (%s)\n",
 		 c->addr << 1, c->adapter->name);

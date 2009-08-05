@@ -49,7 +49,7 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 	__free_page(pte);
 }
 
-#define __pte_free_tlb(tlb,pte)				\
+#define __pte_free_tlb(tlb,pte,address)			\
 do {							\
 	pgtable_page_dtor(pte);				\
 	tlb_remove_page((tlb),(pte));			\
@@ -62,7 +62,7 @@ do {							\
  */
 #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *) 2); })
 #define pmd_free(mm, x)			do { } while (0)
-#define __pmd_free_tlb(tlb,x)		do { } while (0)
+#define __pmd_free_tlb(tlb,x,a)		do { } while (0)
 
 #endif /* CONFIG_MMU */
 

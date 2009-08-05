@@ -1292,6 +1292,7 @@ static void gpio_mask_irq(unsigned int irq)
 	struct gpio_bank *bank = get_irq_chip_data(irq);
 
 	_set_gpio_irqenable(bank, gpio, 0);
+	_set_gpio_triggering(bank, get_gpio_index(gpio), IRQ_TYPE_NONE);
 }
 
 static void gpio_unmask_irq(unsigned int irq)
@@ -1299,6 +1300,11 @@ static void gpio_unmask_irq(unsigned int irq)
 	unsigned int gpio = irq - IH_GPIO_BASE;
 	struct gpio_bank *bank = get_irq_chip_data(irq);
 	unsigned int irq_mask = 1 << get_gpio_index(gpio);
+	struct irq_desc *desc = irq_to_desc(irq);
+	u32 trigger = desc->status & IRQ_TYPE_SENSE_MASK;
+
+	if (trigger)
+		_set_gpio_triggering(bank, get_gpio_index(gpio), trigger);
 
 	/* For level-triggered GPIOs, the clearing must be done after
 	 * the HW source is cleared, thus after the handler has run */

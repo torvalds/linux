@@ -1809,6 +1809,8 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 				"Dell Studio 1537", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02a0,
 				"Dell Studio 17", STAC_DELL_M6_DMIC),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02be,
+				"Dell Studio 1555", STAC_DELL_M6_DMIC),
 	{} /* terminator */
 };
 
@@ -4066,7 +4068,7 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 	jack->nid = nid;
 	jack->type = type;
 
-	sprintf(name, "%s at %s %s Jack",
+	snprintf(name, sizeof(name), "%s at %s %s Jack",
 		snd_hda_get_jack_type(def_conf),
 		snd_hda_get_jack_connectivity(def_conf),
 		snd_hda_get_jack_location(def_conf));
