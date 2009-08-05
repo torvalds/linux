@@ -355,32 +355,30 @@ static const struct dentry_operations sockfs_dentry_operations = {
  *	but we take care of internal coherence yet.
  */
 
-static int sock_alloc_fd(struct file **filep, int flags)
+static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
 {
+	struct qstr name = { .name = "" };
+	struct dentry *dentry;
+	struct file *file;
 	int fd;
 
 	fd = get_unused_fd_flags(flags);
-	if (likely(fd >= 0)) {
-		struct file *file = get_empty_filp();
+	if (unlikely(fd < 0))
+		return fd;
 
-		*filep = file;
-		if (unlikely(!file)) {
-			put_unused_fd(fd);
-			return -ENFILE;
-		}
-	} else
-		*filep = NULL;
-	return fd;
-}
+	file = get_empty_filp();
 
-static int sock_attach_fd(struct socket *sock, struct file *file, int flags)
-{
-	struct dentry *dentry;
-	struct qstr name = { .name = "" };
+	if (unlikely(!file)) {
+		put_unused_fd(fd);
+		return -ENFILE;
+	}
 
 	dentry = d_alloc(sock_mnt->mnt_sb->s_root, &name);
-	if (unlikely(!dentry))
+	if (unlikely(!dentry)) {
+		put_filp(file);
+		put_unused_fd(fd);
 		return -ENOMEM;
+	}
 
 	dentry->d_op = &sockfs_dentry_operations;
 	/*
@@ -399,24 +397,18 @@ static int sock_attach_fd(struct socket *sock, struct file *file, int flags)
 	file->f_pos = 0;
 	file->private_data = sock;
 
-	return 0;
+	*f = file;
+	return fd;
 }
 
 int sock_map_fd(struct socket *sock, int flags)
 {
 	struct file *newfile;
-	int fd = sock_alloc_fd(&newfile, flags);
+	int fd = sock_alloc_file(sock, &newfile, flags);
 
-	if (likely(fd >= 0)) {
-		int err = sock_attach_fd(sock, newfile, flags);
-
-		if (unlikely(err < 0)) {
-			put_filp(newfile);
-			put_unused_fd(fd);
-			return err;
-		}
+	if (likely(fd >= 0))
 		fd_install(fd, newfile);
-	}
+
 	return fd;
 }
 
@@ -1390,32 +1382,15 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 	if (err < 0)
 		goto out_release_both;
 
-	fd1 = sock_alloc_fd(&newfile1, flags & O_CLOEXEC);
+	fd1 = sock_alloc_file(sock1, &newfile1, flags);
 	if (unlikely(fd1 < 0)) {
 		err = fd1;
 		goto out_release_both;
 	}
 
-	err = sock_attach_fd(sock1, newfile1, flags & O_NONBLOCK);
-	if (unlikely(err < 0)) {
-		put_filp(newfile1);
-		put_unused_fd(fd1);
-		goto out_release_both;
-	}
-
-	fd2 = sock_alloc_fd(&newfile2, flags & O_CLOEXEC);
+	fd2 = sock_alloc_file(sock2, &newfile2, flags);
 	if (unlikely(fd2 < 0)) {
 		err = fd2;
-		fput(newfile1);
-		put_unused_fd(fd1);
-		sock_release(sock2);
-		goto out;
-	}
-
-	err = sock_attach_fd(sock2, newfile2, flags & O_NONBLOCK);
-	if (unlikely(err < 0)) {
-		put_filp(newfile2);
-		put_unused_fd(fd2);
 		fput(newfile1);
 		put_unused_fd(fd1);
 		sock_release(sock2);
@@ -1548,16 +1523,12 @@ SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
 	 */
 	__module_get(newsock->ops->owner);
 
-	newfd = sock_alloc_fd(&newfile, flags & O_CLOEXEC);
+	newfd = sock_alloc_file(newsock, &newfile, flags);
 	if (unlikely(newfd < 0)) {
 		err = newfd;
 		sock_release(newsock);
 		goto out_put;
 	}
-
-	err = sock_attach_fd(newsock, newfile, flags & O_NONBLOCK);
-	if (err < 0)
-		goto out_fd_simple;
 
 	err = security_socket_accept(sock, newsock);
 	if (err)
@@ -1588,11 +1559,6 @@ out_put:
 	fput_light(sock->file, fput_needed);
 out:
 	return err;
-out_fd_simple:
-	sock_release(newsock);
-	put_filp(newfile);
-	put_unused_fd(newfd);
-	goto out_put;
 out_fd:
 	fput(newfile);
 	put_unused_fd(newfd);
