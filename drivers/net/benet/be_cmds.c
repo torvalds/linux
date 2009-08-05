@@ -1019,3 +1019,24 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num)
 	spin_unlock(&adapter->mbox_lock);
 	return status;
 }
+
+int be_cmd_reset_function(struct be_adapter *adapter)
+{
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&adapter->mbox_mem);
+	struct be_cmd_req_hdr *req = embedded_payload(wrb);
+	int status;
+
+	spin_lock(&adapter->mbox_lock);
+
+	memset(wrb, 0, sizeof(*wrb));
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+
+	be_cmd_hdr_prepare(req, CMD_SUBSYSTEM_COMMON,
+		OPCODE_COMMON_FUNCTION_RESET, sizeof(*req));
+
+	status = be_mbox_notify(adapter);
+
+	spin_unlock(&adapter->mbox_lock);
+	return status;
+}

@@ -135,6 +135,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
 #define OPCODE_COMMON_NTWK_PMAC_ADD			59
 #define OPCODE_COMMON_NTWK_PMAC_DEL			60
+#define OPCODE_COMMON_FUNCTION_RESET			61
 
 #define OPCODE_ETH_ACPI_CONFIG				2
 #define OPCODE_ETH_PROMISCUOUS				3
@@ -744,4 +745,5 @@ extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 			u32 *tx_fc, u32 *rx_fc);
 extern int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num);
+extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern void be_process_mcc(struct be_adapter *adapter);
