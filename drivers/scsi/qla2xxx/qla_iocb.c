@@ -852,7 +852,7 @@ static void qla25xx_set_que(srb_t *sp, struct rsp_que **rsp)
 	struct qla_hw_data *ha = sp->fcport->vha->hw;
 	int affinity = cmd->request->cpu;
 
-	if (ql2xmultique_tag && affinity >= 0 &&
+	if (ha->flags.cpu_affinity_enabled && affinity >= 0 &&
 		affinity < ha->max_rsp_queues - 1)
 		*rsp = ha->rsp_q_map[affinity + 1];
 	 else

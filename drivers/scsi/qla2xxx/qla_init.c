@@ -987,7 +987,6 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 				    ha->phy_version);
 				if (rval != QLA_SUCCESS)
 					goto failed;
-
 				ha->flags.npiv_supported = 0;
 				if (IS_QLA2XXX_MIDTYPE(ha) &&
 					 (ha->fw_attributes & BIT_2)) {
@@ -3244,7 +3243,7 @@ qla2x00_loop_resync(scsi_qla_host_t *vha)
 	struct req_que *req;
 	struct rsp_que *rsp;
 
-	if (ql2xmultique_tag)
+	if (vha->hw->flags.cpu_affinity_enabled)
 		req = vha->hw->req_q_map[0];
 	else
 		req = vha->req;
@@ -4264,7 +4263,7 @@ qla24xx_configure_vhba(scsi_qla_host_t *vha)
 		return -EINVAL;
 
 	rval = qla2x00_fw_ready(base_vha);
-	if (ql2xmultique_tag)
+	if (ha->flags.cpu_affinity_enabled)
 		req = ha->req_q_map[0];
 	else
 		req = vha->req;

@@ -1670,7 +1670,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	qla24xx_vport_disable(fc_vport, disable);
 
-	if (ql2xmultique_tag) {
+	if (ha->flags.cpu_affinity_enabled) {
 		req = ha->req_q_map[1];
 		goto vport_queue;
 	} else if (ql2xmaxqueues == 1 || !ha->npiv_info)
@@ -1743,7 +1743,7 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 		    vha->host_no, vha->vp_idx, vha));
         }
 
-	if (vha->req->id && !ql2xmultique_tag) {
+	if (vha->req->id && !ha->flags.cpu_affinity_enabled) {
 		if (qla25xx_delete_req_que(vha, vha->req) != QLA_SUCCESS)
 			qla_printk(KERN_WARNING, ha,
 				"Queue delete failed.\n");

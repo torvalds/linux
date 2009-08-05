@@ -287,9 +287,12 @@ static int qla25xx_setup_mode(struct scsi_qla_host *vha)
 	int ques, req, ret;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (!(ha->fw_attributes & BIT_6)) {
+		qla_printk(KERN_INFO, ha,
+			"Firmware is not multi-queue capable\n");
+		goto fail;
+	}
 	if (ql2xmultique_tag) {
-		/* CPU affinity mode */
-		ha->wq = create_workqueue("qla2xxx_wq");
 		/* create a request queue for IO */
 		options |= BIT_7;
 		req = qla25xx_create_req_que(ha, options, 0, 0, -1,
@@ -299,6 +302,7 @@ static int qla25xx_setup_mode(struct scsi_qla_host *vha)
 				"Can't create request queue\n");
 			goto fail;
 		}
+		ha->wq = create_workqueue("qla2xxx_wq");
 		vha->req = ha->req_q_map[req];
 		options |= BIT_1;
 		for (ques = 1; ques < ha->max_rsp_queues; ques++) {
@@ -309,6 +313,8 @@ static int qla25xx_setup_mode(struct scsi_qla_host *vha)
 				goto fail2;
 			}
 		}
+		ha->flags.cpu_affinity_enabled = 1;
+
 		DEBUG2(qla_printk(KERN_INFO, ha,
 			"CPU affinity mode enabled, no. of response"
 			" queues:%d, no. of request queues:%d\n",
@@ -317,8 +323,13 @@ static int qla25xx_setup_mode(struct scsi_qla_host *vha)
 	return 0;
 fail2:
 	qla25xx_delete_queues(vha);
+	destroy_workqueue(ha->wq);
+	ha->wq = NULL;
 fail:
 	ha->mqenable = 0;
+	kfree(ha->req_q_map);
+	kfree(ha->rsp_q_map);
+	ha->max_req_queues = ha->max_rsp_queues = 1;
 	return 1;
 }
 
@@ -1923,6 +1934,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto probe_init_failed;
 	/* Alloc arrays of request and response ring ptrs */
+que_init:
 	if (!qla2x00_alloc_queues(ha)) {
 		qla_printk(KERN_WARNING, ha,
 		"[ERROR] Failed to allocate memory for queue"
@@ -1959,11 +1971,14 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto probe_failed;
 	}
 
-	if (ha->mqenable)
-		if (qla25xx_setup_mode(base_vha))
+	if (ha->mqenable) {
+		if (qla25xx_setup_mode(base_vha)) {
 			qla_printk(KERN_WARNING, ha,
 				"Can't create queues, falling back to single"
 				" queue mode\n");
+			goto que_init;
+		}
+	}
 
 	if (ha->flags.running_gold_fw)
 		goto skip_dpc;
