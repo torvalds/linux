@@ -319,14 +319,16 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 		goto err_free_mem;
 	}
 
+	/* Prepare for touch readings - power down ADC and enable PENIRQ */
+	err = tsc2007_xfer(ts, PWRDOWN);
+	if (err < 0)
+		goto err_free_irq;
+
 	err = input_register_device(input_dev);
 	if (err)
 		goto err_free_irq;
 
 	i2c_set_clientdata(client, ts);
-
-	/* Prepare for touch readings - power down ADC and enable PENIRQ */
-	tsc2007_xfer(ts, PWRDOWN);
 
 	return 0;
 
