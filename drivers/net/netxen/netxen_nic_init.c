@@ -1242,19 +1242,30 @@ no_skb:
 
 static struct netxen_rx_buffer *
 netxen_process_rcv(struct netxen_adapter *adapter,
-		int ring, int index, int length, int cksum, int pkt_offset,
-		struct nx_host_sds_ring *sds_ring)
+		struct nx_host_sds_ring *sds_ring,
+		int ring, u64 sts_data0)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 	struct netxen_rx_buffer *buffer;
 	struct sk_buff *skb;
-	struct nx_host_rds_ring *rds_ring = &recv_ctx->rds_rings[ring];
+	struct nx_host_rds_ring *rds_ring;
+	int index, length, cksum, pkt_offset;
 
-	if (unlikely(index > rds_ring->num_desc))
+	if (unlikely(ring >= adapter->max_rds_rings))
+		return NULL;
+
+	rds_ring = &recv_ctx->rds_rings[ring];
+
+	index = netxen_get_sts_refhandle(sts_data0);
+	if (unlikely(index >= rds_ring->num_desc))
 		return NULL;
 
 	buffer = &rds_ring->rx_buf_arr[index];
+
+	length = netxen_get_sts_totallength(sts_data0);
+	cksum  = netxen_get_sts_status(sts_data0);
+	pkt_offset = netxen_get_sts_pkt_offset(sts_data0);
 
 	skb = netxen_process_rxbuf(adapter, rds_ring, index, cksum);
 	if (!skb)
@@ -1279,6 +1290,78 @@ netxen_process_rcv(struct netxen_adapter *adapter,
 	return buffer;
 }
 
+#define TCP_HDR_SIZE            20
+#define TCP_TS_OPTION_SIZE      12
+#define TCP_TS_HDR_SIZE         (TCP_HDR_SIZE + TCP_TS_OPTION_SIZE)
+
+static struct netxen_rx_buffer *
+netxen_process_lro(struct netxen_adapter *adapter,
+		struct nx_host_sds_ring *sds_ring,
+		int ring, u64 sts_data0, u64 sts_data1)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+	struct netxen_rx_buffer *buffer;
+	struct sk_buff *skb;
+	struct nx_host_rds_ring *rds_ring;
+	struct iphdr *iph;
+	struct tcphdr *th;
+	bool push, timestamp;
+	int l2_hdr_offset, l4_hdr_offset;
+	int index;
+	u16 lro_length, length, data_offset;
+	u32 seq_number;
+
+	if (unlikely(ring > adapter->max_rds_rings))
+		return NULL;
+
+	rds_ring = &recv_ctx->rds_rings[ring];
+
+	index = netxen_get_lro_sts_refhandle(sts_data0);
+	if (unlikely(index > rds_ring->num_desc))
+		return NULL;
+
+	buffer = &rds_ring->rx_buf_arr[index];
+
+	timestamp = netxen_get_lro_sts_timestamp(sts_data0);
+	lro_length = netxen_get_lro_sts_length(sts_data0);
+	l2_hdr_offset = netxen_get_lro_sts_l2_hdr_offset(sts_data0);
+	l4_hdr_offset = netxen_get_lro_sts_l4_hdr_offset(sts_data0);
+	push = netxen_get_lro_sts_push_flag(sts_data0);
+	seq_number = netxen_get_lro_sts_seq_number(sts_data1);
+
+	skb = netxen_process_rxbuf(adapter, rds_ring, index, STATUS_CKSUM_OK);
+	if (!skb)
+		return buffer;
+
+	if (timestamp)
+		data_offset = l4_hdr_offset + TCP_TS_HDR_SIZE;
+	else
+		data_offset = l4_hdr_offset + TCP_HDR_SIZE;
+
+	skb_put(skb, lro_length + data_offset);
+
+	skb->truesize = (skb->len + sizeof(struct sk_buff) +
+			((unsigned long)skb->data - (unsigned long)skb->head));
+
+	skb_pull(skb, l2_hdr_offset);
+	skb->protocol = eth_type_trans(skb, netdev);
+
+	iph = (struct iphdr *)skb->data;
+	th = (struct tcphdr *)(skb->data + (iph->ihl << 2));
+
+	length = (iph->ihl << 2) + (th->doff << 2) + lro_length;
+	iph->tot_len = htons(length);
+	iph->check = 0;
+	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+	th->psh = push;
+	th->seq = htonl(seq_number);
+
+	netif_receive_skb(skb);
+
+	return buffer;
+}
+
 #define netxen_merge_rx_buffers(list, head) \
 	do { list_splice_tail_init(list, head); } while (0);
 
@@ -1295,28 +1378,33 @@ netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max)
 	u32 consumer = sds_ring->consumer;
 
 	int count = 0;
-	u64 sts_data;
-	int opcode, ring, index, length, cksum, pkt_offset, desc_cnt;
+	u64 sts_data0, sts_data1;
+	int opcode, ring = 0, desc_cnt;
 
 	while (count < max) {
 		desc = &sds_ring->desc_head[consumer];
-		sts_data = le64_to_cpu(desc->status_desc_data[0]);
+		sts_data0 = le64_to_cpu(desc->status_desc_data[0]);
 
-		if (!(sts_data & STATUS_OWNER_HOST))
+		if (!(sts_data0 & STATUS_OWNER_HOST))
 			break;
 
-		desc_cnt = netxen_get_sts_desc_cnt(sts_data);
-		ring   = netxen_get_sts_type(sts_data);
+		desc_cnt = netxen_get_sts_desc_cnt(sts_data0);
 
-		if (ring > RCV_RING_JUMBO)
-			goto skip;
-
-		opcode = netxen_get_sts_opcode(sts_data);
+		opcode = netxen_get_sts_opcode(sts_data0);
 
 		switch (opcode) {
 		case NETXEN_NIC_RXPKT_DESC:
 		case NETXEN_OLD_RXPKT_DESC:
 		case NETXEN_NIC_SYN_OFFLOAD:
+			ring = netxen_get_sts_type(sts_data0);
+			rxbuf = netxen_process_rcv(adapter, sds_ring,
+					ring, sts_data0);
+			break;
+		case NETXEN_NIC_LRO_DESC:
+			ring = netxen_get_lro_sts_type(sts_data0);
+			sts_data1 = le64_to_cpu(desc->status_desc_data[1]);
+			rxbuf = netxen_process_lro(adapter, sds_ring,
+					ring, sts_data0, sts_data1);
 			break;
 		case NETXEN_NIC_RESPONSE_DESC:
 			netxen_handle_fw_message(desc_cnt, consumer, sds_ring);
@@ -1325,14 +1413,6 @@ netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max)
 		}
 
 		WARN_ON(desc_cnt > 1);
-
-		index  = netxen_get_sts_refhandle(sts_data);
-		length = netxen_get_sts_totallength(sts_data);
-		cksum  = netxen_get_sts_status(sts_data);
-		pkt_offset = netxen_get_sts_pkt_offset(sts_data);
-
-		rxbuf = netxen_process_rcv(adapter, ring, index,
-				length, cksum, pkt_offset, sds_ring);
 
 		if (rxbuf)
 			list_add_tail(&rxbuf->list, &sds_ring->free_list[ring]);

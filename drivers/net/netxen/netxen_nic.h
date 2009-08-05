@@ -365,6 +365,7 @@ struct rcv_desc {
 #define NETXEN_NIC_RXPKT_DESC  0x04
 #define NETXEN_OLD_RXPKT_DESC  0x3f
 #define NETXEN_NIC_RESPONSE_DESC 0x05
+#define NETXEN_NIC_LRO_DESC  	0x12
 
 /* for status field in status_desc */
 #define STATUS_NEED_CKSUM	(1)
@@ -397,6 +398,24 @@ struct rcv_desc {
 	(((sts_data) >> 53) & 0x7)
 #define netxen_get_sts_opcode(sts_data)	\
 	(((sts_data) >> 58) & 0x03F)
+
+#define netxen_get_lro_sts_refhandle(sts_data) 	\
+	((sts_data) & 0x0FFFF)
+#define netxen_get_lro_sts_length(sts_data)	\
+	(((sts_data) >> 16) & 0x0FFFF)
+#define netxen_get_lro_sts_l2_hdr_offset(sts_data)	\
+	(((sts_data) >> 32) & 0x0FF)
+#define netxen_get_lro_sts_l4_hdr_offset(sts_data)	\
+	(((sts_data) >> 40) & 0x0FF)
+#define netxen_get_lro_sts_timestamp(sts_data)	\
+	(((sts_data) >> 48) & 0x1)
+#define netxen_get_lro_sts_type(sts_data)	\
+	(((sts_data) >> 49) & 0x7)
+#define netxen_get_lro_sts_push_flag(sts_data)		\
+	(((sts_data) >> 52) & 0x1)
+#define netxen_get_lro_sts_seq_number(sts_data)		\
+	((sts_data) & 0x0FFFFFFFF)
+
 
 struct status_desc {
 	__le64 status_desc_data[2];
@@ -712,6 +731,7 @@ struct netxen_recv_context {
 #define NX_CAP0_LSO			NX_CAP_BIT(0, 6)
 #define NX_CAP0_JUMBO_CONTIGUOUS	NX_CAP_BIT(0, 7)
 #define NX_CAP0_LRO_CONTIGUOUS		NX_CAP_BIT(0, 8)
+#define NX_CAP0_HW_LRO			NX_CAP_BIT(0, 10)
 
 /*
  * Context state
@@ -969,6 +989,7 @@ typedef struct {
 #define NX_FW_CAPABILITY_PEXQ			(1 << 7)
 #define NX_FW_CAPABILITY_BDG			(1 << 8)
 #define NX_FW_CAPABILITY_FVLANTX		(1 << 9)
+#define NX_FW_CAPABILITY_HW_LRO			(1 << 10)
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
