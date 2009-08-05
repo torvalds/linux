@@ -816,18 +816,15 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
 	__le32 *pmac = (__le32 *) mac;
 	u32 offset;
 
-	offset = NETXEN_USER_START +
-		offsetof(struct netxen_new_user_info, mac_addr) +
-		adapter->portnum * sizeof(u64);
+	offset = NX_FW_MAC_ADDR_OFFSET + (adapter->portnum * sizeof(u64));
 
 	if (netxen_get_flash_block(adapter, offset, sizeof(u64), pmac) == -1)
 		return -1;
 
 	if (*mac == cpu_to_le64(~0ULL)) {
 
-		offset = NETXEN_USER_START_OLD +
-			offsetof(struct netxen_user_old_info, mac_addr) +
-			adapter->portnum * sizeof(u64);
+		offset = NX_OLD_MAC_ADDR_OFFSET +
+			(adapter->portnum * sizeof(u64));
 
 		if (netxen_get_flash_block(adapter,
 					offset, sizeof(u64), pmac) == -1)
@@ -1857,13 +1854,11 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 	int offset, board_type, magic, header_version;
 	struct pci_dev *pdev = adapter->pdev;
 
-	offset = NETXEN_BRDCFG_START +
-		offsetof(struct netxen_board_info, magic);
+	offset = NX_FW_MAGIC_OFFSET;
 	if (netxen_rom_fast_read(adapter, offset, &magic))
 		return -EIO;
 
-	offset = NETXEN_BRDCFG_START +
-		offsetof(struct netxen_board_info, header_version);
+	offset = NX_HDR_VERSION_OFFSET;
 	if (netxen_rom_fast_read(adapter, offset, &header_version))
 		return -EIO;
 
@@ -1875,8 +1870,7 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 		return -EIO;
 	}
 
-	offset = NETXEN_BRDCFG_START +
-		offsetof(struct netxen_board_info, board_type);
+	offset = NX_BRDTYPE_OFFSET;
 	if (netxen_rom_fast_read(adapter, offset, &board_type))
 		return -EIO;
 
@@ -2022,23 +2016,22 @@ void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
 	u32 fw_major, fw_minor, fw_build;
 	char brd_name[NETXEN_MAX_SHORT_NAME];
 	char serial_num[32];
-	int i, addr, val;
+	int i, offset, val;
 	int *ptr32;
 	struct pci_dev *pdev = adapter->pdev;
 
 	adapter->driver_mismatch = 0;
 
 	ptr32 = (int *)&serial_num;
-	addr = NETXEN_USER_START +
-	       offsetof(struct netxen_new_user_info, serial_num);
+	offset = NX_FW_SERIAL_NUM_OFFSET;
 	for (i = 0; i < 8; i++) {
-		if (netxen_rom_fast_read(adapter, addr, &val) == -1) {
+		if (netxen_rom_fast_read(adapter, offset, &val) == -1) {
 			dev_err(&pdev->dev, "error reading board info\n");
 			adapter->driver_mismatch = 1;
 			return;
 		}
 		ptr32[i] = cpu_to_le32(val);
-		addr += sizeof(u32);
+		offset += sizeof(u32);
 	}
 
 	fw_major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
