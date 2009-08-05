@@ -206,7 +206,15 @@ int cfg80211_mgd_wext_giwessid(struct net_device *dev,
 	data->flags = 0;
 
 	wdev_lock(wdev);
-	if (wdev->wext.connect.ssid && wdev->wext.connect.ssid_len) {
+	if (wdev->current_bss) {
+		const u8 *ie = ieee80211_bss_get_ie(&wdev->current_bss->pub,
+						    WLAN_EID_SSID);
+		if (ie) {
+			data->flags = 1;
+			data->length = ie[1];
+			memcpy(ssid, ie + 2, data->length);
+		}
+	} else if (wdev->wext.connect.ssid && wdev->wext.connect.ssid_len) {
 		data->flags = 1;
 		data->length = wdev->wext.connect.ssid_len;
 		memcpy(ssid, wdev->wext.connect.ssid, data->length);
