@@ -147,8 +147,6 @@ fail:
 	return NULL;
 }
 
-EXPORT_SYMBOL(get_empty_filp);
-
 /**
  * alloc_file - allocate and initialize a 'struct file'
  * @mnt: the vfsmount on which the file will reside
