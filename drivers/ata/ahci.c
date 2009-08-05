@@ -1773,7 +1773,8 @@ static int ahci_sb600_softreset(struct ata_link *link, unsigned int *class,
 		irq_sts = readl(port_mmio + PORT_IRQ_STAT);
 		if (irq_sts & PORT_IRQ_BAD_PMP) {
 			ata_link_printk(link, KERN_WARNING,
-					"failed due to HW bug, retry pmp=0\n");
+					"applying SB600 PMP SRST workaround "
+					"and retrying\n");
 			rc = ahci_do_softreset(link, class, 0, deadline,
 					       ahci_check_ready);
 		}
