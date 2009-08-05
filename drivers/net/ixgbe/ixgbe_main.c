@@ -5126,7 +5126,7 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 		return smp_processor_id();
 
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
-		return 0;  /* All traffic should default to class 0 */
+		return (skb->vlan_tci & IXGBE_TX_FLAGS_VLAN_PRIO_MASK) >> 13;
 
 	return skb_tx_hash(dev, skb);
 }
