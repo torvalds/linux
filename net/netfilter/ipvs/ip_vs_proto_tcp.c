@@ -377,7 +377,7 @@ static int tcp_timeouts[IP_VS_TCP_S_LAST+1] = {
 	[IP_VS_TCP_S_LAST]		=	2*HZ,
 };
 
-static char * tcp_state_name_table[IP_VS_TCP_S_LAST+1] = {
+static const char *const tcp_state_name_table[IP_VS_TCP_S_LAST+1] = {
 	[IP_VS_TCP_S_NONE]		=	"NONE",
 	[IP_VS_TCP_S_ESTABLISHED]	=	"ESTABLISHED",
 	[IP_VS_TCP_S_SYN_SENT]		=	"SYN_SENT",

@@ -472,7 +472,7 @@ static int udp_timeouts[IP_VS_UDP_S_LAST+1] = {
 	[IP_VS_UDP_S_LAST]		=	2*HZ,
 };
 
-static char * udp_state_name_table[IP_VS_UDP_S_LAST+1] = {
+static const char *const udp_state_name_table[IP_VS_UDP_S_LAST+1] = {
 	[IP_VS_UDP_S_NORMAL]		=	"UDP",
 	[IP_VS_UDP_S_LAST]		=	"BUG!",
 };

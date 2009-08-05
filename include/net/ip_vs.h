@@ -738,7 +738,8 @@ extern void ip_vs_protocol_cleanup(void);
 extern void ip_vs_protocol_timeout_change(int flags);
 extern int *ip_vs_create_timeout_table(int *table, int size);
 extern int
-ip_vs_set_state_timeout(int *table, int num, char **names, char *name, int to);
+ip_vs_set_state_timeout(int *table, int num, const char *const *names,
+			const char *name, int to);
 extern void
 ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
 			  int offset, const char *msg);

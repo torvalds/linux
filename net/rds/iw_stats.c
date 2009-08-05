@@ -39,7 +39,7 @@
 
 DEFINE_PER_CPU(struct rds_iw_statistics, rds_iw_stats) ____cacheline_aligned;
 
-static char *rds_iw_stat_names[] = {
+static const char *const rds_iw_stat_names[] = {
 	"iw_connect_raced",
 	"iw_listen_closed_stale",
 	"iw_tx_cq_call",

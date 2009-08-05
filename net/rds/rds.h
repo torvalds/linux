@@ -652,7 +652,8 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rds_statistics, rds_stats);
 int __init rds_stats_init(void);
 void rds_stats_exit(void);
 void rds_stats_info_copy(struct rds_info_iterator *iter,
-			 uint64_t *values, char **names, size_t nr);
+			 uint64_t *values, const char *const *names,
+			 size_t nr);
 
 /* sysctl.c */
 int __init rds_sysctl_init(void);

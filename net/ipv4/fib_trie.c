@@ -2421,7 +2421,7 @@ static inline const char *rtn_scope(char *buf, size_t len, enum rt_scope_t s)
 	}
 }
 
-static const char *rtn_type_names[__RTN_MAX] = {
+static const char *const rtn_type_names[__RTN_MAX] = {
 	[RTN_UNSPEC] = "UNSPEC",
 	[RTN_UNICAST] = "UNICAST",
 	[RTN_LOCAL] = "LOCAL",

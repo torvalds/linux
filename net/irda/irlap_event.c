@@ -78,7 +78,7 @@ static int irlap_state_reset_check(struct irlap_cb *, IRLAP_EVENT event,
 				   struct sk_buff *, struct irlap_info *);
 
 #ifdef CONFIG_IRDA_DEBUG
-static const char *irlap_event[] = {
+static const char *const irlap_event[] = {
 	"DISCOVERY_REQUEST",
 	"CONNECT_REQUEST",
 	"CONNECT_RESPONSE",
@@ -120,7 +120,7 @@ static const char *irlap_event[] = {
 };
 #endif	/* CONFIG_IRDA_DEBUG */
 
-const char *irlap_state[] = {
+const char *const irlap_state[] = {
 	"LAP_NDM",
 	"LAP_QUERY",
 	"LAP_REPLY",

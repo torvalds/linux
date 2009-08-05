@@ -120,7 +120,7 @@ typedef enum { /* FIXME check the two first reason codes */
 	LAP_PRIMARY_CONFLICT,
 } LAP_REASON;
 
-extern const char *irlap_state[];
+extern const char *const irlap_state[];
 
 void irlap_do_event(struct irlap_cb *self, IRLAP_EVENT event, 
 		    struct sk_buff *skb, struct irlap_info *info);

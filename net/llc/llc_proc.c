@@ -143,7 +143,7 @@ out:
 	return 0;
 }
 
-static char *llc_conn_state_names[] = {
+static const char *const llc_conn_state_names[] = {
 	[LLC_CONN_STATE_ADM] =        "adm",
 	[LLC_CONN_STATE_SETUP] =      "setup",
 	[LLC_CONN_STATE_NORMAL] =     "normal",

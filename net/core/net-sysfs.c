@@ -141,7 +141,7 @@ static ssize_t show_dormant(struct device *dev,
 	return -EINVAL;
 }
 
-static const char *operstates[] = {
+static const char *const operstates[] = {
 	"unknown",
 	"notpresent", /* currently unused */
 	"down",

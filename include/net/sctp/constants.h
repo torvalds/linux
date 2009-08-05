@@ -241,7 +241,9 @@ const char *sctp_tname(const sctp_subtype_t);	/* timeouts */
 const char *sctp_pname(const sctp_subtype_t);	/* primitives */
 
 /* This is a table of printable names of sctp_state_t's.  */
-extern const char *sctp_state_tbl[], *sctp_evttype_tbl[], *sctp_status_tbl[];
+extern const char *const sctp_state_tbl[];
+extern const char *const sctp_evttype_tbl[];
+extern const char *const sctp_status_tbl[];
 
 /* Maximum chunk length considering padding requirements. */
 enum { SCTP_MAX_CHUNK_LEN = ((1<<16) - sizeof(__u32)) };

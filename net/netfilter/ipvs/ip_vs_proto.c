@@ -127,7 +127,8 @@ ip_vs_create_timeout_table(int *table, int size)
  *	Set timeout value for state specified by name
  */
 int
-ip_vs_set_state_timeout(int *table, int num, char **names, char *name, int to)
+ip_vs_set_state_timeout(int *table, int num, const char *const *names,
+			const char *name, int to)
 {
 	int i;
 

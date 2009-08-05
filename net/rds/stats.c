@@ -40,7 +40,7 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct rds_statistics, rds_stats);
 
 /* :.,$s/unsigned long\>.*\<s_\(.*\);/"\1",/g */
 
-static char *rds_stat_names[] = {
+static const char *const rds_stat_names[] = {
 	"conn_reset",
 	"recv_drop_bad_checksum",
 	"recv_drop_old_seq",
@@ -77,7 +77,7 @@ static char *rds_stat_names[] = {
 };
 
 void rds_stats_info_copy(struct rds_info_iterator *iter,
-			 uint64_t *values, char **names, size_t nr)
+			 uint64_t *values, const char *const *names, size_t nr)
 {
 	struct rds_info_counter ctr;
 	size_t i;

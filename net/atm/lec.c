@@ -935,9 +935,9 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 }
 
 #ifdef CONFIG_PROC_FS
-static char *lec_arp_get_status_string(unsigned char status)
+static const char *lec_arp_get_status_string(unsigned char status)
 {
-	static char *lec_arp_status_string[] = {
+	static const char *const lec_arp_status_string[] = {
 		"ESI_UNKNOWN       ",
 		"ESI_ARP_PENDING   ",
 		"ESI_VC_PENDING    ",
@@ -1121,7 +1121,8 @@ static void *lec_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static int lec_seq_show(struct seq_file *seq, void *v)
 {
-	static char lec_banner[] = "Itf  MAC          ATM destination"
+	static const char lec_banner[] =
+	    "Itf  MAC          ATM destination"
 	    "                          Status            Flags "
 	    "VPI/VCI Recv VPI/VCI\n";
 
@@ -1505,7 +1506,7 @@ lec_arp_remove(struct lec_priv *priv, struct lec_arp_table *to_remove)
 }
 
 #if DEBUG_ARP_TABLE
-static char *get_status_string(unsigned char st)
+static const char *get_status_string(unsigned char st)
 {
 	switch (st) {
 	case ESI_UNKNOWN:
