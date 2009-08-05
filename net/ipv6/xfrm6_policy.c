@@ -306,6 +306,7 @@ static void xfrm6_policy_fini(void)
 	xfrm_policy_unregister_afinfo(&xfrm6_policy_afinfo);
 }
 
+#ifdef CONFIG_SYSCTL
 static struct ctl_table xfrm6_policy_table[] = {
 	{
 		.ctl_name       = CTL_UNNUMBERED,
@@ -319,6 +320,7 @@ static struct ctl_table xfrm6_policy_table[] = {
 };
 
 static struct ctl_table_header *sysctl_hdr;
+#endif
 
 int __init xfrm6_init(void)
 {
@@ -345,9 +347,10 @@ int __init xfrm6_init(void)
 	 */
 	gc_thresh = FIB6_TABLE_HASHSZ * 8;
 	xfrm6_dst_ops.gc_thresh = (gc_thresh < 1024) ? 1024 : gc_thresh;
-
+#ifdef CONFIG_SYSCTL
 	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv6_ctl_path,
 						xfrm6_policy_table);
+#endif
 out:
 	return ret;
 out_policy:
@@ -357,8 +360,10 @@ out_policy:
 
 void xfrm6_fini(void)
 {
+#ifdef CONFIG_SYSCTL
 	if (sysctl_hdr)
 		unregister_net_sysctl_table(sysctl_hdr);
+#endif
 	//xfrm6_input_fini();
 	xfrm6_policy_fini();
 	xfrm6_state_fini();
