@@ -694,8 +694,8 @@ again:
 		BUG_ON(err == -EEXIST);
 		goto out;
 	}
-
 	state = rb_entry(node, struct extent_state, rb_node);
+hit_next:
 	last_start = state->start;
 	last_end = state->end;
 
@@ -706,6 +706,7 @@ again:
 	 * Just lock what we found and keep going
 	 */
 	if (state->start == start && state->end <= end) {
+		struct rb_node *next_node;
 		set = state->state & bits;
 		if (set && exclusive) {
 			*failed_start = state->start;
@@ -716,7 +717,17 @@ again:
 		merge_state(tree, state);
 		if (last_end == (u64)-1)
 			goto out;
+
 		start = last_end + 1;
+		if (start < end && prealloc && !need_resched()) {
+			next_node = rb_next(node);
+			if (next_node) {
+				state = rb_entry(next_node, struct extent_state,
+						 rb_node);
+				if (state->start == start)
+					goto hit_next;
+			}
+		}
 		goto search_again;
 	}
 
@@ -852,7 +863,7 @@ int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask)
 {
 	return set_extent_bit(tree, start, end,
-			      EXTENT_DELALLOC | EXTENT_DIRTY,
+			      EXTENT_DELALLOC | EXTENT_DIRTY | EXTENT_UPTODATE,
 			      0, NULL, mask);
 }
 

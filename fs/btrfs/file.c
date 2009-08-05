@@ -136,8 +136,6 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	btrfs_set_trans_block_group(trans, inode);
 	hint_byte = 0;
 
-	set_extent_uptodate(io_tree, start_pos, end_of_last_block, GFP_NOFS);
-
 	/* check for reserved extents on each page, we don't want
 	 * to reset the delalloc bit on things that already have
 	 * extents reserved.
