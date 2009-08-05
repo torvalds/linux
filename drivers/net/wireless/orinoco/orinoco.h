@@ -107,10 +107,10 @@ struct orinoco_private {
 	unsigned int do_fw_download:1;
 	unsigned int broken_disableport:1;
 	unsigned int broken_monitor:1;
+	unsigned int prefer_port3:1;
 
 	/* Configuration paramaters */
 	enum nl80211_iftype iw_mode;
-	int prefer_port3;
 	u16 encode_alg, wep_restrict, tx_key;
 	struct orinoco_key keys[ORINOCO_MAX_KEYS];
 	int bitratemode;
