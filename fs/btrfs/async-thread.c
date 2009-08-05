@@ -124,14 +124,12 @@ out:
 static noinline int run_ordered_completions(struct btrfs_workers *workers,
 					    struct btrfs_work *work)
 {
-	unsigned long flags;
-
 	if (!workers->ordered)
 		return 0;
 
 	set_bit(WORK_DONE_BIT, &work->flags);
 
-	spin_lock_irqsave(&workers->lock, flags);
+	spin_lock(&workers->order_lock);
 
 	while (1) {
 		if (!list_empty(&workers->prio_order_list)) {
@@ -154,17 +152,17 @@ static noinline int run_ordered_completions(struct btrfs_workers *workers,
 		if (test_and_set_bit(WORK_ORDER_DONE_BIT, &work->flags))
 			break;
 
-		spin_unlock_irqrestore(&workers->lock, flags);
+		spin_unlock(&workers->order_lock);
 
 		work->ordered_func(work);
 
 		/* now take the lock again and call the freeing code */
-		spin_lock_irqsave(&workers->lock, flags);
+		spin_lock(&workers->order_lock);
 		list_del(&work->order_list);
 		work->ordered_free(work);
 	}
 
-	spin_unlock_irqrestore(&workers->lock, flags);
+	spin_unlock(&workers->order_lock);
 	return 0;
 }
 
@@ -345,6 +343,7 @@ void btrfs_init_workers(struct btrfs_workers *workers, char *name, int max)
 	INIT_LIST_HEAD(&workers->order_list);
 	INIT_LIST_HEAD(&workers->prio_order_list);
 	spin_lock_init(&workers->lock);
+	spin_lock_init(&workers->order_lock);
 	workers->max_workers = max;
 	workers->idle_thresh = 32;
 	workers->name = name;
@@ -374,6 +373,7 @@ int btrfs_start_workers(struct btrfs_workers *workers, int num_workers)
 		INIT_LIST_HEAD(&worker->prio_pending);
 		INIT_LIST_HEAD(&worker->worker_list);
 		spin_lock_init(&worker->lock);
+
 		atomic_set(&worker->num_pending, 0);
 		atomic_set(&worker->refs, 1);
 		worker->workers = workers;
@@ -453,10 +453,8 @@ static struct btrfs_worker_thread *find_worker(struct btrfs_workers *workers)
 again:
 	spin_lock_irqsave(&workers->lock, flags);
 	worker = next_worker(workers);
-	spin_unlock_irqrestore(&workers->lock, flags);
 
 	if (!worker) {
-		spin_lock_irqsave(&workers->lock, flags);
 		if (workers->num_workers >= workers->max_workers) {
 			goto fallback;
 		} else if (workers->atomic_worker_start) {
@@ -469,6 +467,7 @@ again:
 			goto again;
 		}
 	}
+	spin_unlock_irqrestore(&workers->lock, flags);
 	return worker;
 
 fallback:
@@ -552,14 +551,18 @@ int btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work)
 
 	worker = find_worker(workers);
 	if (workers->ordered) {
-		spin_lock_irqsave(&workers->lock, flags);
+		/*
+		 * you're not allowed to do ordered queues from an
+		 * interrupt handler
+		 */
+		spin_lock(&workers->order_lock);
 		if (test_bit(WORK_HIGH_PRIO_BIT, &work->flags)) {
 			list_add_tail(&work->order_list,
 				      &workers->prio_order_list);
 		} else {
 			list_add_tail(&work->order_list, &workers->order_list);
 		}
-		spin_unlock_irqrestore(&workers->lock, flags);
+		spin_unlock(&workers->order_lock);
 	} else {
 		INIT_LIST_HEAD(&work->order_list);
 	}

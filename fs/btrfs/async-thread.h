@@ -99,6 +99,9 @@ struct btrfs_workers {
 	/* lock for finding the next worker thread to queue on */
 	spinlock_t lock;
 
+	/* lock for the ordered lists */
+	spinlock_t order_lock;
+
 	/* extra name for this worker, used for current->name */
 	char *name;
 };
