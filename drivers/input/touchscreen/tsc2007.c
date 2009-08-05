@@ -70,7 +70,6 @@ struct tsc2007 {
 	struct input_dev	*input;
 	char			phys[32];
 	struct delayed_work	work;
-	struct ts_event		tc;
 
 	struct i2c_client	*client;
 
@@ -106,51 +105,96 @@ static inline int tsc2007_xfer(struct tsc2007 *tsc, u8 cmd)
 	return val;
 }
 
-static void tsc2007_send_event(void *tsc)
+static void tsc2007_read_values(struct tsc2007 *tsc, struct ts_event *tc)
 {
-	struct tsc2007	*ts = tsc;
-	u32		rt;
-	u16		x, y, z1, z2;
+	/* y- still on; turn on only y+ (and ADC) */
+	tc->y = tsc2007_xfer(tsc, READ_Y);
 
-	x = ts->tc.x;
-	y = ts->tc.y;
-	z1 = ts->tc.z1;
-	z2 = ts->tc.z2;
+	/* turn y- off, x+ on, then leave in lowpower */
+	tc->x = tsc2007_xfer(tsc, READ_X);
+
+	/* turn y+ off, x- on; we'll use formula #1 */
+	tc->z1 = tsc2007_xfer(tsc, READ_Z1);
+	tc->z2 = tsc2007_xfer(tsc, READ_Z2);
+
+	/* Prepare for next touch reading - power down ADC, enable PENIRQ */
+	tsc2007_xfer(tsc, PWRDOWN);
+}
+
+static u32 tsc2007_calculate_pressure(struct tsc2007 *tsc, struct ts_event *tc)
+{
+	u32 rt = 0;
 
 	/* range filtering */
-	if (x == MAX_12BIT)
-		x = 0;
+	if (tc->x == MAX_12BIT)
+		tc->x = 0;
 
-	if (likely(x && z1)) {
+	if (likely(tc->x && tc->z1)) {
 		/* compute touch pressure resistance using equation #1 */
-		rt = z2;
-		rt -= z1;
-		rt *= x;
-		rt *= ts->x_plate_ohms;
-		rt /= z1;
+		rt = tc->z2 - tc->z1;
+		rt *= tc->x;
+		rt *= tsc->x_plate_ohms;
+		rt /= tc->z1;
 		rt = (rt + 2047) >> 12;
-	} else
-		rt = 0;
-
-	/*
-	 * Sample found inconsistent by debouncing or pressure is beyond
-	 * the maximum. Don't report it to user space, repeat at least
-	 * once more the measurement
-	 */
-	if (rt > MAX_12BIT) {
-		dev_dbg(&ts->client->dev, "ignored pressure %d\n", rt);
-		return;
 	}
+
+	return rt;
+}
+
+static void tsc2007_send_up_event(struct tsc2007 *tsc)
+{
+	struct input_dev *input = tsc->input;
+
+	dev_dbg(&tsc->client->dev, "UP\n");
+
+	input_report_key(input, BTN_TOUCH, 0);
+	input_report_abs(input, ABS_PRESSURE, 0);
+	input_sync(input);
+}
+
+static void tsc2007_work(struct work_struct *work)
+{
+	struct tsc2007 *ts =
+		container_of(to_delayed_work(work), struct tsc2007, work);
+	struct ts_event tc;
+	u32 rt;
 
 	/*
 	 * NOTE: We can't rely on the pressure to determine the pen down
-	 * state, even this controller has a pressure sensor.  The pressure
-	 * value can fluctuate for quite a while after lifting the pen and
-	 * in some cases may not even settle at the expected value.
+	 * state, even though this controller has a pressure sensor.
+	 * The pressure value can fluctuate for quite a while after
+	 * lifting the pen and in some cases may not even settle at the
+	 * expected value.
 	 *
 	 * The only safe way to check for the pen up condition is in the
-	 * work function by reading the pen signal state (it's a GPIO and IRQ).
+	 * work function by reading the pen signal state (it's a GPIO
+	 * and IRQ). Unfortunately such callback is not always available,
+	 * in that case we have rely on the pressure anyway.
 	 */
+	if (ts->get_pendown_state) {
+		if (unlikely(!ts->get_pendown_state())) {
+			tsc2007_send_up_event(ts);
+			ts->pendown = false;
+			goto out;
+		}
+
+		dev_dbg(&ts->client->dev, "pen is still down\n");
+	}
+
+	tsc2007_read_values(ts, &tc);
+
+	rt = tsc2007_calculate_pressure(ts, &tc);
+	if (rt > MAX_12BIT) {
+		/*
+		 * Sample found inconsistent by debouncing or pressure is
+		 * beyond the maximum. Don't report it to user space,
+		 * repeat at least once more the measurement.
+		 */
+		dev_dbg(&ts->client->dev, "ignored pressure %d\n", rt);
+		goto out;
+
+	}
+
 	if (rt) {
 		struct input_dev *input = ts->input;
 
@@ -161,68 +205,38 @@ static void tsc2007_send_event(void *tsc)
 			ts->pendown = true;
 		}
 
-		input_report_abs(input, ABS_X, x);
-		input_report_abs(input, ABS_Y, y);
+		input_report_abs(input, ABS_X, tc.x);
+		input_report_abs(input, ABS_Y, tc.y);
 		input_report_abs(input, ABS_PRESSURE, rt);
 
 		input_sync(input);
 
 		dev_dbg(&ts->client->dev, "point(%4d,%4d), pressure (%4u)\n",
-			x, y, rt);
-	}
-}
+			tc.x, tc.y, rt);
 
-static int tsc2007_read_values(struct tsc2007 *tsc)
-{
-	/* y- still on; turn on only y+ (and ADC) */
-	tsc->tc.y = tsc2007_xfer(tsc, READ_Y);
-
-	/* turn y- off, x+ on, then leave in lowpower */
-	tsc->tc.x = tsc2007_xfer(tsc, READ_X);
-
-	/* turn y+ off, x- on; we'll use formula #1 */
-	tsc->tc.z1 = tsc2007_xfer(tsc, READ_Z1);
-	tsc->tc.z2 = tsc2007_xfer(tsc, READ_Z2);
-
-	/* Prepare for next touch reading - power down ADC, enable PENIRQ */
-	tsc2007_xfer(tsc, PWRDOWN);
-
-	return 0;
-}
-
-static void tsc2007_work(struct work_struct *work)
-{
-	struct tsc2007 *ts =
-		container_of(to_delayed_work(work), struct tsc2007, work);
-
-	if (unlikely(!ts->get_pendown_state() && ts->pendown)) {
-		struct input_dev *input = ts->input;
-
-		dev_dbg(&ts->client->dev, "UP\n");
-
-		input_report_key(input, BTN_TOUCH, 0);
-		input_report_abs(input, ABS_PRESSURE, 0);
-		input_sync(input);
-
+	} else if (!ts->get_pendown_state && ts->pendown) {
+		/*
+		 * We don't have callback to check pendown state, so we
+		 * have to assume that since pressure reported is 0 the
+		 * pen was lifted up.
+		 */
+		tsc2007_send_up_event(ts);
 		ts->pendown = false;
-		enable_irq(ts->irq);
-	} else {
-		/* pen is still down, continue with the measurement */
-		dev_dbg(&ts->client->dev, "pen is still down\n");
+	}
 
-		tsc2007_read_values(ts);
-		tsc2007_send_event(ts);
-
+ out:
+	if (ts->pendown)
 		schedule_delayed_work(&ts->work,
 				      msecs_to_jiffies(TS_POLL_PERIOD));
-	}
+	else
+		enable_irq(ts->irq);
 }
 
 static irqreturn_t tsc2007_irq(int irq, void *handle)
 {
 	struct tsc2007 *ts = handle;
 
-	if (likely(ts->get_pendown_state())) {
+	if (!ts->get_pendown_state || likely(ts->get_pendown_state())) {
 		disable_irq_nosync(ts->irq);
 		schedule_delayed_work(&ts->work,
 				      msecs_to_jiffies(TS_POLL_DELAY));
@@ -255,7 +269,7 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 	struct input_dev *input_dev;
 	int err;
 
-	if (!pdata || !pdata->get_pendown_state) {
+	if (!pdata) {
 		dev_err(&client->dev, "platform data is required!\n");
 		return -EINVAL;
 	}
