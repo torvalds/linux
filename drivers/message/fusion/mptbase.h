@@ -880,23 +880,9 @@ typedef enum {
 
 typedef struct _MPT_SCSI_HOST {
 	MPT_ADAPTER		 *ioc;
-	int			  port;
-	u32			  pad0;
-	MPT_LOCAL_REPLY		 *pLocal;		/* used for internal commands */
-	struct timer_list	  timer;
-		/* Pool of memory for holding SCpnts before doing
-		 * OS callbacks. freeQ is the free pool.
-		 */
-	u8			  negoNvram;		/* DV disabled, nego NVRAM */
-	u8			  pad1;
-	u8			  rsvd[2];
-	MPT_FRAME_HDR		 *cmdPtr;		/* Ptr to nonOS request */
-	struct scsi_cmnd	 *abortSCpnt;
-	MPT_LOCAL_REPLY		  localReply;		/* internal cmd reply struct */
 	ushort			  sel_timeout[MPT_MAX_FC_DEVICES];
 	char 			  *info_kbuf;
 	long			  last_queue_full;
-	u16			  tm_iocstatus;
 	u16			  spi_pending;
 	struct list_head	  target_reset_list;
 } MPT_SCSI_HOST;
