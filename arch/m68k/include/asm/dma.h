@@ -177,21 +177,21 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
   dmabp = (unsigned char *) dma_base_addr[dmanr];
   dmawp = (unsigned short *) dma_base_addr[dmanr];
 
-  // Clear config errors
+  /* Clear config errors */
   dmabp[MCFDMA_DSR] = MCFDMA_DSR_DONE;
 
-  // Set command register
+  /* Set command register */
   dmawp[MCFDMA_DCR] =
-    MCFDMA_DCR_INT |         // Enable completion irq
-    MCFDMA_DCR_CS |          // Force one xfer per request
-    MCFDMA_DCR_AA |          // Enable auto alignment
-    // single-address-mode
+    MCFDMA_DCR_INT |         /* Enable completion irq */
+    MCFDMA_DCR_CS |          /* Force one xfer per request */
+    MCFDMA_DCR_AA |          /* Enable auto alignment */
+    /* single-address-mode */
     ((mode & DMA_MODE_SINGLE_BIT) ? MCFDMA_DCR_SAA : 0) |
-    // sets s_rw (-> r/w) high if Memory to I/0
+    /* sets s_rw (-> r/w) high if Memory to I/0 */
     ((mode & DMA_MODE_WRITE_BIT) ? MCFDMA_DCR_S_RW : 0) |
-    // Memory to I/O or I/O to Memory
+    /* Memory to I/O or I/O to Memory */
     ((mode & DMA_MODE_WRITE_BIT) ? MCFDMA_DCR_SINC : MCFDMA_DCR_DINC) |
-    // 32 bit, 16 bit or 8 bit transfers
+    /* 32 bit, 16 bit or 8 bit transfers */
     ((mode & DMA_MODE_WORD_BIT)  ? MCFDMA_DCR_SSIZE_WORD :
      ((mode & DMA_MODE_LONG_BIT) ? MCFDMA_DCR_SSIZE_LONG :
                                    MCFDMA_DCR_SSIZE_BYTE)) |
@@ -219,16 +219,16 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
   dmawp = (unsigned short *) dma_base_addr[dmanr];
   dmalp = (unsigned int *) dma_base_addr[dmanr];
 
-  // Determine which address registers are used for memory/device accesses
+  /* Determine which address registers are used for memory/device accesses */
   if (dmawp[MCFDMA_DCR] & MCFDMA_DCR_SINC) {
-    // Source incrementing, must be memory
+    /* Source incrementing, must be memory */
     dmalp[MCFDMA_SAR] = a;
-    // Set dest address, must be device
+    /* Set dest address, must be device */
     dmalp[MCFDMA_DAR] = dma_device_address[dmanr];
   } else {
-    // Destination incrementing, must be memory
+    /* Destination incrementing, must be memory */
     dmalp[MCFDMA_DAR] = a;
-    // Set source address, must be device
+    /* Set source address, must be device */
     dmalp[MCFDMA_SAR] = dma_device_address[dmanr];
   }
 
@@ -367,19 +367,19 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
   dmalp = (unsigned int *) dma_base_addr[dmanr];
   dmawp = (unsigned short *) dma_base_addr[dmanr];
 
-  // Clear config errors
+  /* Clear config errors */
   dmalp[MCFDMA_DMR] |= MCFDMA_DMR_RESET;
 
-  // Set command register
+  /* Set command register */
   dmalp[MCFDMA_DMR] =
-    MCFDMA_DMR_RQM_DUAL |         // Mandatory Request Mode setting
-    MCFDMA_DMR_DSTT_SD  |         // Set up addressing types; set to supervisor-data.
-    MCFDMA_DMR_SRCT_SD  |         // Set up addressing types; set to supervisor-data.
-    // source static-address-mode
+    MCFDMA_DMR_RQM_DUAL |         /* Mandatory Request Mode setting */
+    MCFDMA_DMR_DSTT_SD  |         /* Set up addressing types; set to supervisor-data. */
+    MCFDMA_DMR_SRCT_SD  |         /* Set up addressing types; set to supervisor-data. */
+    /* source static-address-mode */
     ((mode & DMA_MODE_SRC_SA_BIT) ? MCFDMA_DMR_SRCM_SA : MCFDMA_DMR_SRCM_IA) |
-    // dest static-address-mode
+    /* dest static-address-mode */
     ((mode & DMA_MODE_DES_SA_BIT) ? MCFDMA_DMR_DSTM_SA : MCFDMA_DMR_DSTM_IA) |
-    // burst, 32 bit, 16 bit or 8 bit transfers are separately configurable on the MCF5272
+    /* burst, 32 bit, 16 bit or 8 bit transfers are separately configurable on the MCF5272 */
     (((mode & DMA_MODE_SSIZE_MASK) >> DMA_MODE_SSIZE_OFF) << MCFDMA_DMR_DSTS_OFF) |
     (((mode & DMA_MODE_SSIZE_MASK) >> DMA_MODE_SSIZE_OFF) << MCFDMA_DMR_SRCS_OFF);
 
@@ -403,16 +403,16 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
 
   dmalp = (unsigned int *) dma_base_addr[dmanr];
 
-  // Determine which address registers are used for memory/device accesses
+  /* Determine which address registers are used for memory/device accesses */
   if (dmalp[MCFDMA_DMR] & MCFDMA_DMR_SRCM) {
-    // Source incrementing, must be memory
+    /* Source incrementing, must be memory */
     dmalp[MCFDMA_DSAR] = a;
-    // Set dest address, must be device
+    /* Set dest address, must be device */
     dmalp[MCFDMA_DDAR] = dma_device_address[dmanr];
   } else {
-    // Destination incrementing, must be memory
+    /* Destination incrementing, must be memory */
     dmalp[MCFDMA_DDAR] = a;
-    // Set source address, must be device
+    /* Set source address, must be device */
     dmalp[MCFDMA_DSAR] = dma_device_address[dmanr];
   }
 
