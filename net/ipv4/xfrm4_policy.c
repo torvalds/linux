@@ -264,6 +264,7 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.fill_dst =		xfrm4_fill_dst,
 };
 
+#ifdef CONFIG_SYSCTL
 static struct ctl_table xfrm4_policy_table[] = {
 	{
 		.ctl_name       = CTL_UNNUMBERED,
@@ -277,6 +278,7 @@ static struct ctl_table xfrm4_policy_table[] = {
 };
 
 static struct ctl_table_header *sysctl_hdr;
+#endif
 
 static void __init xfrm4_policy_init(void)
 {
@@ -285,8 +287,10 @@ static void __init xfrm4_policy_init(void)
 
 static void __exit xfrm4_policy_fini(void)
 {
+#ifdef CONFIG_SYSCTL
 	if (sysctl_hdr)
 		unregister_net_sysctl_table(sysctl_hdr);
+#endif
 	xfrm_policy_unregister_afinfo(&xfrm4_policy_afinfo);
 }
 
@@ -305,7 +309,9 @@ void __init xfrm4_init(int rt_max_size)
 	 * and start cleaning when were 1/2 full
 	 */
 	xfrm4_dst_ops.gc_thresh = rt_max_size/2;
+#ifdef CONFIG_SYSCTL
 	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv4_ctl_path,
 						xfrm4_policy_table);
+#endif
 }
 
