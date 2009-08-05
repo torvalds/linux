@@ -1785,7 +1785,7 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	 */
 	RB_WARN_ON(buffer, !local_read(&cpu_buffer->committing));
 
-	if (!rb_try_to_discard(cpu_buffer, event))
+	if (rb_try_to_discard(cpu_buffer, event))
 		goto out;
 
 	/*
