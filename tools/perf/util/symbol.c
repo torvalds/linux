@@ -6,7 +6,16 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
+
+#ifndef NO_DEMANGLE
 #include <bfd.h>
+#else
+static inline
+char *bfd_demangle(void __used *v, const char __used *c, int __used i)
+{
+	return NULL;
+}
+#endif
 
 const char *sym_hist_filter;
 

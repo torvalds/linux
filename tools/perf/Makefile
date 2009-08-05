@@ -345,7 +345,6 @@ BUILTIN_OBJS += builtin-stat.o
 BUILTIN_OBJS += builtin-top.o
 
 PERFLIBS = $(LIB_FILE)
-EXTLIBS = -lbfd -liberty
 
 #
 # Platform specific tweaks
@@ -372,6 +371,23 @@ ifeq ($(uname_S),Darwin)
 		endif
 	endif
 	PTHREAD_LIBS =
+endif
+
+ifdef NO_DEMANGLE
+	BASIC_CFLAGS += -DNO_DEMANGLE
+else
+
+	has_bfd := $(shell sh -c "(echo '\#include <stdio.h>'; echo '\#include <bfd.h>'; echo '\#ifndef DMGL_PARAMS'; echo '\#define DMGL_PARAMS (1 << 0)'; echo '\#define DMGL_ANSI (1 << 1)'; echo '\#endif'; echo 'int main(int argc, char **argv) { bfd_demangle(NULL, argv[0], DMGL_PARAMS | DMGL_ANSI); return 0; }') | gcc -x c - -lbfd > /dev/null 2>&1 && echo y")
+
+	has_bfd_iberty := $(shell sh -c "(echo '\#include <stdio.h>'; echo '\#include <bfd.h>'; echo '\#ifndef DMGL_PARAMS'; echo '\#define DMGL_PARAMS (1 << 0)'; echo '\#define DMGL_ANSI (1 << 1)'; echo '\#endif'; echo 'int main(int argc, char **argv) { bfd_demangle(NULL, argv[0], DMGL_PARAMS | DMGL_ANSI); return 0; }') | gcc -x c - -lbfd -liberty > /dev/null 2>&1 && echo y")
+
+	ifeq ($(has_bfd),y)
+		EXTLIBS += -lbfd
+	else ifeq ($(has_bfd_iberty),y)
+		EXTLIBS += -lbfd -liberty
+	else
+		BASIC_CFLAGS += -DNO_DEMANGLE
+	endif
 endif
 
 ifndef CC_LD_DYNPATH
