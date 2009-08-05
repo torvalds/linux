@@ -625,7 +625,7 @@ static int disable_inject(struct mem_ctl_info *mci)
 		return -ENODEV;
 
 	pci_write_config_dword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-				MC_CHANNEL_ERROR_MASK, 0);
+				MC_CHANNEL_ERROR_INJECT, 0);
 
 	return 0;
 }
@@ -646,7 +646,7 @@ static ssize_t i7core_inject_socket_store(struct mem_ctl_info *mci,
 	if ((rc < 0) || (value >= pvt->sockets))
 		return -EIO;
 
-	pvt->inject.section = (u32) value;
+	pvt->inject.socket = (u32) value;
 	return count;
 }
 
@@ -872,6 +872,10 @@ static int write_and_test(struct pci_dev *dev, int where, u32 val)
 	u32 read;
 	int count;
 
+	debugf0("setting pci %02x:%02x.%x reg=%02x value=%08x\n",
+		dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn),
+		where, val);
+
 	for (count = 0; count < 10; count++) {
 		if (count)
 			msleep (100);
@@ -882,8 +886,10 @@ static int write_and_test(struct pci_dev *dev, int where, u32 val)
 			return 0;
 	}
 
-	debugf0("Error Injection Register 0x%02x: Tried to write 0x%08x, "
-		"but read: 0x%08x\n", where, val, read);
+	i7core_printk(KERN_ERR, "Error during set pci %02x:%02x.%x reg=%02x "
+		"write=%08x. Read=%08x\n",
+		dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn),
+		where, val, read);
 
 	return -EINVAL;
 }
@@ -983,15 +989,6 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	pci_write_config_dword(pvt->pci_noncore[pvt->inject.socket],
 			       MC_CFG_CONTROL, 0x2);
 
-#if 0
-	/* Zeroes error count registers */
-	pci_write_config_dword(pvt->pci_mcr[pvt->inject.socket][4],
-			       MC_TEST_ERR_RCV1, 0);
-	pci_write_config_dword(pvt->pci_mcr[pvt->inject.socket][4],
-			       MC_TEST_ERR_RCV0, 0);
-	pvt->ce_count_available[pvt->inject.socket] = 0;
-#endif
-
 	write_and_test(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
 			       MC_CHANNEL_ADDR_MATCH, mask);
 	write_and_test(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
@@ -1001,7 +998,7 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 			       MC_CHANNEL_ERROR_MASK, pvt->inject.eccmask);
 
 	write_and_test(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ERROR_MASK, injectmask);
+			       MC_CHANNEL_ERROR_INJECT, injectmask);
 
 	/*
 	 * This is something undocumented, based on my tests
@@ -1026,7 +1023,7 @@ static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
 	u32 injectmask;
 
 	pci_read_config_dword(pvt->pci_ch[pvt->inject.socket][pvt->inject.channel][0],
-			       MC_CHANNEL_ERROR_MASK, &injectmask);
+			       MC_CHANNEL_ERROR_INJECT, &injectmask);
 
 	debugf0("Inject error read: 0x%018x\n", injectmask);
 
