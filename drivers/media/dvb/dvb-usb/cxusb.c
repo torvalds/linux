@@ -38,7 +38,7 @@
 #include "mxl5005s.h"
 #include "dib7000p.h"
 #include "dib0070.h"
-#include "lgs8gl5.h"
+#include "lgs8gxx.h"
 
 /* debug */
 static int dvb_usb_cxusb_debug;
@@ -1094,8 +1094,18 @@ static int cxusb_nano2_frontend_attach(struct dvb_usb_adapter *adap)
 	return -EIO;
 }
 
-static struct lgs8gl5_config lgs8gl5_cfg = {
+static struct lgs8gxx_config d680_lgs8gl5_cfg = {
+	.prod = LGS8GXX_PROD_LGS8GL5,
 	.demod_address = 0x19,
+	.serial_ts = 0,
+	.ts_clk_pol = 0,
+	.ts_clk_gated = 1,
+	.if_clk_freq = 30400, /* 30.4 MHz */
+	.if_freq = 5725, /* 5.725 MHz */
+	.if_neg_center = 0,
+	.ext_adc = 0,
+	.adc_signed = 0,
+	.if_neg_edge = 0,
 };
 
 static int cxusb_d680_dmb_frontend_attach(struct dvb_usb_adapter *adap)
@@ -1135,7 +1145,7 @@ static int cxusb_d680_dmb_frontend_attach(struct dvb_usb_adapter *adap)
 	msleep(100);
 
 	/* Attach frontend */
-	adap->fe = dvb_attach(lgs8gl5_attach, &lgs8gl5_cfg, &d->i2c_adap);
+	adap->fe = dvb_attach(lgs8gxx_attach, &d680_lgs8gl5_cfg, &d->i2c_adap);
 	if (adap->fe == NULL)
 		return -EIO;
 
