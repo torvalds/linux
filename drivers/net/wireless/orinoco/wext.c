@@ -1136,7 +1136,6 @@ static int orinoco_ioctl_set_mlme(struct net_device *dev,
 				  union iwreq_data *wrqu, char *extra)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	hermes_t *hw = &priv->hw;
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 	unsigned long flags;
 	int ret = 0;
@@ -1150,19 +1149,11 @@ static int orinoco_ioctl_set_mlme(struct net_device *dev,
 		break;
 
 	case IW_MLME_DISASSOC:
-	{
-		struct {
-			u8 addr[ETH_ALEN];
-			__le16 reason_code;
-		} __attribute__ ((packed)) buf;
 
-		memcpy(buf.addr, mlme->addr.sa_data, ETH_ALEN);
-		buf.reason_code = cpu_to_le16(mlme->reason_code);
-		ret = HERMES_WRITE_RECORD(hw, USER_BAP,
-					  HERMES_RID_CNFDISASSOCIATE,
-					  &buf);
+		ret = orinoco_hw_disassociate(priv, mlme->addr.sa_data,
+					      mlme->reason_code);
 		break;
-	}
+
 	default:
 		ret = -EOPNOTSUPP;
 	}

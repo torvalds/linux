@@ -1248,3 +1248,27 @@ int orinoco_hw_trigger_scan(struct orinoco_private *priv,
 
 	return err;
 }
+
+/* Disassociate from node with BSSID addr */
+int orinoco_hw_disassociate(struct orinoco_private *priv,
+			    u8 *addr, u16 reason_code)
+{
+	hermes_t *hw = &priv->hw;
+	int err;
+
+	struct {
+		u8 addr[ETH_ALEN];
+		__le16 reason_code;
+	} __attribute__ ((packed)) buf;
+
+	/* Currently only supported by WPA enabled Agere fw */
+	if (!priv->has_wpa)
+		return -EOPNOTSUPP;
+
+	memcpy(buf.addr, addr, ETH_ALEN);
+	buf.reason_code = cpu_to_le16(reason_code);
+	err = HERMES_WRITE_RECORD(hw, USER_BAP,
+				  HERMES_RID_CNFDISASSOCIATE,
+				  &buf);
+	return err;
+}

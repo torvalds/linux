@@ -51,5 +51,7 @@ int orinoco_hw_get_bitratelist(struct orinoco_private *priv,
 			       int *numrates, s32 *rates, int max);
 int orinoco_hw_trigger_scan(struct orinoco_private *priv,
 			    const struct cfg80211_ssid *ssid);
+int orinoco_hw_disassociate(struct orinoco_private *priv,
+			    u8 *addr, u16 reason_code);
 
 #endif /* _ORINOCO_HW_H_ */
