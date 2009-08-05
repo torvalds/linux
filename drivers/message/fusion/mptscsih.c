@@ -2290,7 +2290,10 @@ mptscsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 		else
 			max_depth = MPT_SCSI_CMD_PER_DEV_LOW;
 	} else
-		max_depth = MPT_SCSI_CMD_PER_DEV_HIGH;
+		 max_depth = ioc->sh->can_queue;
+
+	if (!sdev->tagged_supported)
+		max_depth = 1;
 
 	if (qdepth > max_depth)
 		qdepth = max_depth;

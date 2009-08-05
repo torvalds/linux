@@ -4761,10 +4761,9 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* set 16 byte cdb's */
 	sh->max_cmd_len = 16;
-
-	sh->max_id = ioc->pfacts[0].PortSCSIID;
+	sh->can_queue = min_t(int, ioc->req_depth - 10, sh->can_queue);
+	sh->max_id = -1;
 	sh->max_lun = max_lun;
-
 	sh->transportt = mptsas_transport_template;
 
 	/* Required entry.
