@@ -1104,6 +1104,7 @@ static void rose_node_stop(struct seq_file *seq, void *v)
 
 static int rose_node_show(struct seq_file *seq, void *v)
 {
+	char rsbuf[11];
 	int i;
 
 	if (v == SEQ_START_TOKEN)
@@ -1112,13 +1113,13 @@ static int rose_node_show(struct seq_file *seq, void *v)
 		const struct rose_node *rose_node = v;
 		/* if (rose_node->loopback) {
 			seq_printf(seq, "%-10s %04d 1 loopback\n",
-				rose2asc(&rose_node->address),
-				rose_node->mask);
+				   rose2asc(rsbuf, &rose_node->address),
+				   rose_node->mask);
 		} else { */
 			seq_printf(seq, "%-10s %04d %d",
-				rose2asc(&rose_node->address),
-				rose_node->mask,
-				rose_node->count);
+				   rose2asc(rsbuf, &rose_node->address),
+				   rose_node->mask,
+				   rose_node->count);
 
 			for (i = 0; i < rose_node->count; i++)
 				seq_printf(seq, " %05d",
@@ -1267,7 +1268,7 @@ static void rose_route_stop(struct seq_file *seq, void *v)
 
 static int rose_route_show(struct seq_file *seq, void *v)
 {
-	char buf[11];
+	char buf[11], rsbuf[11];
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
@@ -1279,7 +1280,7 @@ static int rose_route_show(struct seq_file *seq, void *v)
 			seq_printf(seq,
 				   "%3.3X  %-10s  %-9s  %05d      ",
 				   rose_route->lci1,
-				   rose2asc(&rose_route->src_addr),
+				   rose2asc(rsbuf, &rose_route->src_addr),
 				   ax2asc(buf, &rose_route->src_call),
 				   rose_route->neigh1->number);
 		else
@@ -1289,10 +1290,10 @@ static int rose_route_show(struct seq_file *seq, void *v)
 		if (rose_route->neigh2)
 			seq_printf(seq,
 				   "%3.3X  %-10s  %-9s  %05d\n",
-				rose_route->lci2,
-				rose2asc(&rose_route->dest_addr),
-				ax2asc(buf, &rose_route->dest_call),
-				rose_route->neigh2->number);
+				   rose_route->lci2,
+				   rose2asc(rsbuf, &rose_route->dest_addr),
+				   ax2asc(buf, &rose_route->dest_call),
+				   rose_route->neigh2->number);
 		 else
 			 seq_puts(seq,
 				  "000  *           *          00000\n");

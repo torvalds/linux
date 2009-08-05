@@ -344,7 +344,7 @@ static CHIP_INFO chip_info_table[]= {
 };
 
 static struct pci_device_id device_id_table[] __devinitdata = {
-{ 0x1106, 0x3253, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (int)&chip_info_table[0]},
+{ 0x1106, 0x3253, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long)&chip_info_table[0]},
 { 0, }
 };
 #endif
@@ -369,7 +369,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
 #ifdef CONFIG_PM
 static int device_notify_reboot(struct notifier_block *, unsigned long event, void *ptr);
-static int viawget_suspend(struct pci_dev *pcid, u32 state);
+static int viawget_suspend(struct pci_dev *pcid, pm_message_t state);
 static int viawget_resume(struct pci_dev *pcid);
 struct notifier_block device_notifier = {
         notifier_call:  device_notify_reboot,
@@ -3941,7 +3941,7 @@ device_notify_reboot(struct notifier_block *nb, unsigned long event, void *p)
         while ((pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
             if(pci_dev_driver(pdev) == &device_driver) {
                 if (pci_get_drvdata(pdev))
-                    viawget_suspend(pdev, 3);
+                    viawget_suspend(pdev, PMSG_HIBERNATE);
             }
         }
     }
@@ -3949,7 +3949,7 @@ device_notify_reboot(struct notifier_block *nb, unsigned long event, void *p)
 }
 
 static int
-viawget_suspend(struct pci_dev *pcid, u32 state)
+viawget_suspend(struct pci_dev *pcid, pm_message_t state)
 {
     int power_status;   // to silence the compiler
 
@@ -3971,7 +3971,7 @@ viawget_suspend(struct pci_dev *pcid, u32 state)
     memset(pMgmt->abyCurrBSSID, 0, 6);
     pMgmt->eCurrState = WMAC_STATE_IDLE;
     pci_disable_device(pcid);
-    power_status = pci_set_power_state(pcid, state);
+    power_status = pci_set_power_state(pcid, pci_choose_state(pcid, state));
     spin_unlock_irq(&pDevice->lock);
     return 0;
 }

@@ -58,6 +58,7 @@ static u64			count_filter			=  5;
 static int			print_entries			= 15;
 
 static int			target_pid			= -1;
+static int			inherit				=  0;
 static int			profile_cpu			= -1;
 static int			nr_cpus				=  0;
 static unsigned int		realtime_prio			=  0;
@@ -284,6 +285,7 @@ static const char *skip_symbols[] = {
 	"enter_idle",
 	"exit_idle",
 	"mwait_idle",
+	"mwait_idle_with_hints",
 	"ppc64_runlatch_off",
 	"pseries_dedicated_idle_sleep",
 	NULL
@@ -549,7 +551,7 @@ int group_fd;
 static void start_counter(int i, int counter)
 {
 	struct perf_counter_attr *attr;
-	unsigned int cpu;
+	int cpu;
 
 	cpu = profile_cpu;
 	if (target_pid == -1 && profile_cpu == -1)
@@ -559,6 +561,7 @@ static void start_counter(int i, int counter)
 
 	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 	attr->freq		= freq;
+	attr->inherit		= (cpu < 0) && inherit;
 
 try_again:
 	fd[i][counter] = sys_perf_counter_open(attr, target_pid, cpu, group_fd, 0);
@@ -685,6 +688,8 @@ static const struct option options[] = {
 		    "only display functions with more events than this"),
 	OPT_BOOLEAN('g', "group", &group,
 			    "put the counters into a counter group"),
+	OPT_BOOLEAN('i', "inherit", &inherit,
+		    "child tasks inherit counters"),
 	OPT_STRING('s', "sym-filter", &sym_filter, "pattern",
 		    "only display symbols matchig this pattern"),
 	OPT_BOOLEAN('z', "zero", &zero,

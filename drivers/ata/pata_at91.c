@@ -26,9 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 
-#include <mach/at91sam9260_matrix.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at91sam9260.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 
@@ -44,64 +42,61 @@ struct at91_ide_info {
 	unsigned long mode;
 	unsigned int cs;
 
+	struct clk *mck;
+
 	void __iomem *ide_addr;
 	void __iomem *alt_addr;
 };
 
-const struct ata_timing initial_timing =
+static const struct ata_timing initial_timing =
 	{XFER_PIO_0, 70, 290, 240, 600, 165, 150, 600, 0};
 
-static unsigned int calc_mck_cycles(unsigned int ns, unsigned int mck_hz)
+static unsigned long calc_mck_cycles(unsigned long ns, unsigned long mck_hz)
 {
 	unsigned long mul;
 
-    /*
-     * cycles = x [nsec] * f [Hz] / 10^9 [ns in sec] =
-     *     x * (f / 1_000_000_000) =
-     *     x * ((f * 65536) / 1_000_000_000) / 65536 =
-     *     x * (((f / 10_000) * 65536) / 100_000) / 65536 =
-     */
+	/*
+	* cycles = x [nsec] * f [Hz] / 10^9 [ns in sec] =
+	*     x * (f / 1_000_000_000) =
+	*     x * ((f * 65536) / 1_000_000_000) / 65536 =
+	*     x * (((f / 10_000) * 65536) / 100_000) / 65536 =
+	*/
 
-    mul = (mck_hz / 10000) << 16;
-    mul /= 100000;
+	mul = (mck_hz / 10000) << 16;
+	mul /= 100000;
 
-    return (ns * mul + 65536) >> 16;    /* rounding */
+	return (ns * mul + 65536) >> 16;    /* rounding */
 }
 
 static void set_smc_mode(struct at91_ide_info *info)
 {
-    at91_sys_write(AT91_SMC_MODE(info->cs), info->mode);
-    return;
+	at91_sys_write(AT91_SMC_MODE(info->cs), info->mode);
+	return;
 }
 
 static void set_smc_timing(struct device *dev,
 		struct at91_ide_info *info, const struct ata_timing *ata)
 {
-	int read_cycle, write_cycle, active, recover;
-	int nrd_setup, nrd_pulse, nrd_recover;
-	int nwe_setup, nwe_pulse;
+	unsigned long read_cycle, write_cycle, active, recover;
+	unsigned long nrd_setup, nrd_pulse, nrd_recover;
+	unsigned long nwe_setup, nwe_pulse;
 
-	int ncs_write_setup, ncs_write_pulse;
-	int ncs_read_setup, ncs_read_pulse;
+	unsigned long ncs_write_setup, ncs_write_pulse;
+	unsigned long ncs_read_setup, ncs_read_pulse;
 
-	unsigned int mck_hz;
-	struct clk *mck;
+	unsigned long mck_hz;
 
 	read_cycle  = ata->cyc8b;
 	nrd_setup   = ata->setup;
 	nrd_pulse   = ata->act8b;
 	nrd_recover = ata->rec8b;
 
-	mck = clk_get(NULL, "mck");
-	BUG_ON(IS_ERR(mck));
-	mck_hz = clk_get_rate(mck);
+	mck_hz = clk_get_rate(info->mck);
 
 	read_cycle  = calc_mck_cycles(read_cycle, mck_hz);
 	nrd_setup   = calc_mck_cycles(nrd_setup, mck_hz);
 	nrd_pulse   = calc_mck_cycles(nrd_pulse, mck_hz);
 	nrd_recover = calc_mck_cycles(nrd_recover, mck_hz);
-
-	clk_put(mck);
 
 	active  = nrd_setup + nrd_pulse;
 	recover = read_cycle - active;
@@ -121,13 +116,13 @@ static void set_smc_timing(struct device *dev,
 	ncs_write_setup = ncs_read_setup;
 	ncs_write_pulse = ncs_read_pulse;
 
-	dev_dbg(dev, "ATA timings: nrd_setup = %d nrd_pulse = %d nrd_cycle = %d\n",
+	dev_dbg(dev, "ATA timings: nrd_setup = %lu nrd_pulse = %lu nrd_cycle = %lu\n",
 			nrd_setup, nrd_pulse, read_cycle);
-	dev_dbg(dev, "ATA timings: nwe_setup = %d nwe_pulse = %d nwe_cycle = %d\n",
+	dev_dbg(dev, "ATA timings: nwe_setup = %lu nwe_pulse = %lu nwe_cycle = %lu\n",
 			nwe_setup, nwe_pulse, write_cycle);
-	dev_dbg(dev, "ATA timings: ncs_read_setup = %d ncs_read_pulse = %d\n",
+	dev_dbg(dev, "ATA timings: ncs_read_setup = %lu ncs_read_pulse = %lu\n",
 			ncs_read_setup, ncs_read_pulse);
-	dev_dbg(dev, "ATA timings: ncs_write_setup = %d ncs_write_pulse = %d\n",
+	dev_dbg(dev, "ATA timings: ncs_write_setup = %lu ncs_write_pulse = %lu\n",
 			ncs_write_setup, ncs_write_pulse);
 
 	at91_sys_write(AT91_SMC_SETUP(info->cs),
@@ -217,6 +212,7 @@ static int __devinit pata_at91_probe(struct platform_device *pdev)
 	struct resource *mem_res;
 	struct ata_host *host;
 	struct ata_port *ap;
+
 	int irq_flags = 0;
 	int irq = 0;
 	int ret;
@@ -259,6 +255,13 @@ static int __devinit pata_at91_probe(struct platform_device *pdev)
 	if (!info) {
 		dev_err(dev, "failed to allocate memory for private data\n");
 		return -ENOMEM;
+	}
+
+	info->mck = clk_get(NULL, "mck");
+
+	if (IS_ERR(info->mck)) {
+		dev_err(dev, "failed to get access to mck clock\n");
+		return -ENODEV;
 	}
 
 	info->cs    = board->chipselect;
@@ -304,6 +307,7 @@ err_alt_ioremap:
 	devm_iounmap(dev, info->ide_addr);
 
 err_ide_ioremap:
+	clk_put(info->mck);
 	kfree(info);
 
 	return ret;
@@ -312,11 +316,12 @@ err_ide_ioremap:
 static int __devexit pata_at91_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
-	struct at91_ide_info *info = host->private_data;
+	struct at91_ide_info *info;
 	struct device *dev = &pdev->dev;
 
 	if (!host)
 		return 0;
+	info = host->private_data;
 
 	ata_host_detach(host);
 
@@ -325,6 +330,7 @@ static int __devexit pata_at91_remove(struct platform_device *pdev)
 
 	devm_iounmap(dev, info->ide_addr);
 	devm_iounmap(dev, info->alt_addr);
+	clk_put(info->mck);
 
 	kfree(info);
 	return 0;

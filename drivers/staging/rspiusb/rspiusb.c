@@ -444,8 +444,7 @@ static void piusb_write_bulk_callback(struct urb *urb)
 			__func__, status);
 
 	pdx->pendingWrite = 0;
-	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	kfree(urb->transfer_buffer);
 }
 
 int piusb_output(struct ioctl_struct *io, unsigned char *uBuf, int len,
@@ -457,9 +456,7 @@ int piusb_output(struct ioctl_struct *io, unsigned char *uBuf, int len,
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (urb != NULL) {
-		kbuf =
-		    usb_buffer_alloc(pdx->udev, len, GFP_KERNEL,
-				     &urb->transfer_dma);
+		kbuf = kmalloc(len, GFP_KERNEL);
 		if (!kbuf) {
 			dev_err(&pdx->udev->dev, "buffer_alloc failed\n");
 			return -ENOMEM;
@@ -470,7 +467,6 @@ int piusb_output(struct ioctl_struct *io, unsigned char *uBuf, int len,
 		}
 		usb_fill_bulk_urb(urb, pdx->udev, pdx->hEP[io->endpoint], kbuf,
 				  len, piusb_write_bulk_callback, pdx);
-		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		err = usb_submit_urb(urb, GFP_KERNEL);
 		if (err) {
 			dev_err(&pdx->udev->dev,
@@ -641,7 +637,7 @@ static int MapUserBuffer(struct ioctl_struct *io, struct device_extension *pdx)
 	numPagesRequired =
 	    ((uaddr & ~PAGE_MASK) + count + ~PAGE_MASK) >> PAGE_SHIFT;
 	dbg("Number of pages needed = %d", numPagesRequired);
-	maplist_p = vmalloc(numPagesRequired * sizeof(struct page));
+	maplist_p = vmalloc(numPagesRequired * sizeof(struct page *));
 	if (!maplist_p) {
 		dbg("Can't Allocate Memory for maplist_p");
 		return -ENOMEM;
@@ -712,9 +708,7 @@ static int MapUserBuffer(struct ioctl_struct *io, struct device_extension *pdx)
 		usb_fill_bulk_urb(pdx->PixelUrb[frameInfo][i],
 				  pdx->udev,
 				  epAddr,
-				  (dma_addr_t *) sg_dma_address(&pdx->
-								sgl[frameInfo]
-								[i]),
+				  NULL, // non-DMA HC? buy a better hardware
 				  sg_dma_len(&pdx->sgl[frameInfo][i]),
 				  piusb_readPIXEL_callback, (void *)pdx);
 		pdx->PixelUrb[frameInfo][i]->transfer_dma =

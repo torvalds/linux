@@ -122,3 +122,7 @@
 /* Hewlett-Packard LD220-HP POS Pole Display */
 #define HP_VENDOR_ID		0x03f0
 #define HP_LD220_PRODUCT_ID	0x3524
+
+/* Cressi Edy (diving computer) PC interface */
+#define CRESSI_VENDOR_ID	0x04b8
+#define CRESSI_EDY_PRODUCT_ID	0x0521

@@ -217,6 +217,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 			id = steal_context_smp(id);
 			if (id == MMU_NO_CONTEXT)
 				goto again;
+			goto stolen;
 		}
 #endif /* CONFIG_SMP */
 		id = steal_context_up(id);

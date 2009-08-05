@@ -455,8 +455,8 @@ void __init u300_init_irq(void)
 	for (i = 0; i < NR_IRQS; i++)
 		set_bit(i, (unsigned long *) &mask[0]);
 	u300_enable_intcon_clock();
-	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], 0);
-	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], 0);
+	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], mask[0]);
+	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], mask[1]);
 }
 
 

@@ -297,6 +297,7 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 	unsigned int new_offset;
 	struct buffer_head *bh_in = jh2bh(jh_in);
 	struct jbd2_buffer_trigger_type *triggers;
+	journal_t *journal = transaction->t_journal;
 
 	/*
 	 * The buffer really shouldn't be locked: only the current committing
@@ -310,6 +311,11 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 	J_ASSERT_BH(bh_in, buffer_jbddirty(bh_in));
 
 	new_bh = alloc_buffer_head(GFP_NOFS|__GFP_NOFAIL);
+	/* keep subsequent assertions sane */
+	new_bh->b_state = 0;
+	init_buffer(new_bh, NULL, NULL);
+	atomic_set(&new_bh->b_count, 1);
+	new_jh = jbd2_journal_add_journal_head(new_bh);	/* This sleeps */
 
 	/*
 	 * If a new transaction has already done a buffer copy-out, then
@@ -388,14 +394,6 @@ repeat:
 		kunmap_atomic(mapped_data, KM_USER0);
 	}
 
-	/* keep subsequent assertions sane */
-	new_bh->b_state = 0;
-	init_buffer(new_bh, NULL, NULL);
-	atomic_set(&new_bh->b_count, 1);
-	jbd_unlock_bh_state(bh_in);
-
-	new_jh = jbd2_journal_add_journal_head(new_bh);	/* This sleeps */
-
 	set_bh_page(new_bh, new_page, new_offset);
 	new_jh->b_transaction = NULL;
 	new_bh->b_size = jh2bh(jh_in)->b_size;
@@ -412,7 +410,11 @@ repeat:
 	 * copying is moved to the transaction's shadow queue.
 	 */
 	JBUFFER_TRACE(jh_in, "file as BJ_Shadow");
-	jbd2_journal_file_buffer(jh_in, transaction, BJ_Shadow);
+	spin_lock(&journal->j_list_lock);
+	__jbd2_journal_file_buffer(jh_in, transaction, BJ_Shadow);
+	spin_unlock(&journal->j_list_lock);
+	jbd_unlock_bh_state(bh_in);
+
 	JBUFFER_TRACE(new_jh, "file as BJ_IO");
 	jbd2_journal_file_buffer(new_jh, transaction, BJ_IO);
 
@@ -2410,6 +2412,7 @@ const char *jbd2_dev_to_name(dev_t device)
 	int	i = hash_32(device, CACHE_SIZE_BITS);
 	char	*ret;
 	struct block_device *bd;
+	static struct devname_cache *new_dev;
 
 	rcu_read_lock();
 	if (devcache[i] && devcache[i]->device == device) {
@@ -2419,20 +2422,20 @@ const char *jbd2_dev_to_name(dev_t device)
 	}
 	rcu_read_unlock();
 
+	new_dev = kmalloc(sizeof(struct devname_cache), GFP_KERNEL);
+	if (!new_dev)
+		return "NODEV-ALLOCFAILURE"; /* Something non-NULL */
 	spin_lock(&devname_cache_lock);
 	if (devcache[i]) {
 		if (devcache[i]->device == device) {
+			kfree(new_dev);
 			ret = devcache[i]->devname;
 			spin_unlock(&devname_cache_lock);
 			return ret;
 		}
 		call_rcu(&devcache[i]->rcu, free_devcache);
 	}
-	devcache[i] = kmalloc(sizeof(struct devname_cache), GFP_KERNEL);
-	if (!devcache[i]) {
-		spin_unlock(&devname_cache_lock);
-		return "NODEV-ALLOCFAILURE"; /* Something non-NULL */
-	}
+	devcache[i] = new_dev;
 	devcache[i]->device = device;
 	bd = bdget(device);
 	if (bd) {
