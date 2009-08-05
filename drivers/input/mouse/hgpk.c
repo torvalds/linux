@@ -369,12 +369,46 @@ static ssize_t hgpk_set_powered(struct psmouse *psmouse, void *data,
 __PSMOUSE_DEFINE_ATTR(powered, S_IWUSR | S_IRUGO, NULL,
 		      hgpk_show_powered, hgpk_set_powered, 0);
 
+static ssize_t hgpk_trigger_recal_show(struct psmouse *psmouse,
+		void *data, char *buf)
+{
+	return -EINVAL;
+}
+
+static ssize_t hgpk_trigger_recal(struct psmouse *psmouse, void *data,
+				const char *buf, size_t count)
+{
+	struct hgpk_data *priv = psmouse->private;
+	unsigned long value;
+	int err;
+
+	err = strict_strtoul(buf, 10, &value);
+	if (err || value != 1)
+		return -EINVAL;
+
+	/*
+	 * We queue work instead of doing recalibration right here
+	 * to avoid adding locking to to hgpk_force_recalibrate()
+	 * since workqueue provides serialization.
+	 */
+	psmouse_queue_work(psmouse, &priv->recalib_wq, 0);
+	return count;
+}
+
+__PSMOUSE_DEFINE_ATTR(recalibrate, S_IWUSR | S_IRUGO, NULL,
+		      hgpk_trigger_recal_show, hgpk_trigger_recal, 0);
+
 static void hgpk_disconnect(struct psmouse *psmouse)
 {
 	struct hgpk_data *priv = psmouse->private;
 
 	device_remove_file(&psmouse->ps2dev.serio->dev,
 			   &psmouse_attr_powered.dattr);
+
+	if (psmouse->model >= HGPK_MODEL_C)
+		device_remove_file(&psmouse->ps2dev.serio->dev,
+				   &psmouse_attr_recalibrate.dattr);
+
 	psmouse_reset(psmouse);
 	kfree(priv);
 }
@@ -423,10 +457,25 @@ static int hgpk_register(struct psmouse *psmouse)
 
 	err = device_create_file(&psmouse->ps2dev.serio->dev,
 				 &psmouse_attr_powered.dattr);
-	if (err)
-		hgpk_err(psmouse, "Failed to create sysfs attribute\n");
+	if (err) {
+		hgpk_err(psmouse, "Failed creating 'powered' sysfs node\n");
+		return err;
+	}
 
-	return err;
+	/* C-series touchpads added the recalibrate command */
+	if (psmouse->model >= HGPK_MODEL_C) {
+		err = device_create_file(&psmouse->ps2dev.serio->dev,
+					 &psmouse_attr_recalibrate.dattr);
+		if (err) {
+			hgpk_err(psmouse,
+				"Failed creating 'recalibrate' sysfs node\n");
+			device_remove_file(&psmouse->ps2dev.serio->dev,
+					&psmouse_attr_powered.dattr);
+			return err;
+		}
+	}
+
+	return 0;
 }
 
 int hgpk_init(struct psmouse *psmouse)
