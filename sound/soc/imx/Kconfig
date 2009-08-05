@@ -6,6 +6,8 @@ config SND_MX1_MX2_SOC
 	  Say Y or M if you want to add support for codecs attached to
 	  the MX1 or MX2 SSI interface.
 
+config SND_MXC_SOC_SSI
+	tristate
 
 
 
