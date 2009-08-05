@@ -490,7 +490,8 @@ static void ioapic_mask_entry(int apic, int pin)
  * shared ISA-space IRQs, so we have to support them. We are super
  * fast in the common case, and fast for shared ISA-space IRQs.
  */
-static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
+static int
+add_pin_to_irq_node_nopanic(struct irq_cfg *cfg, int node, int apic, int pin)
 {
 	struct irq_pin_list **last, *entry;
 
@@ -498,19 +499,27 @@ static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin
 	last = &cfg->irq_2_pin;
 	for_each_irq_pin(entry, cfg->irq_2_pin) {
 		if (entry->apic == apic && entry->pin == pin)
-			return;
+			return 0;
 		last = &entry->next;
 	}
 
 	entry = get_one_free_irq_2_pin(node);
 	if (!entry) {
-		printk(KERN_ERR "can not alloc irq_pin_list\n");
-		BUG_ON(1);
+		printk(KERN_ERR "can not alloc irq_pin_list (%d,%d,%d)\n",
+				node, apic, pin);
+		return -ENOMEM;
 	}
 	entry->apic = apic;
 	entry->pin = pin;
 
 	*last = entry;
+	return 0;
+}
+
+static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
+{
+	if (add_pin_to_irq_node_nopanic(cfg, node, apic, pin))
+		panic("IO-APIC: failed to add irq-pin. Can not proceed\n");
 }
 
 /*
@@ -3843,7 +3852,11 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 	 */
 	if (irq >= NR_IRQS_LEGACY) {
 		cfg = desc->chip_data;
-		add_pin_to_irq_node(cfg, node, ioapic, pin);
+		if (add_pin_to_irq_node_nopanic(cfg, node, ioapic, pin)) {
+			printk(KERN_INFO "can not add pin %d for irq %d\n",
+				pin, irq);
+			return 0;
+		}
 	}
 
 	setup_IO_APIC_irq(ioapic, pin, irq, desc, trigger, polarity);
