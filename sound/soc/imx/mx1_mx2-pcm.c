@@ -126,7 +126,7 @@ static int dma_new_period(struct snd_pcm_substream *substream)
 					dma_size, dev_addr,
 					prtd->dma_params->transfer_type);
 		if (ret < 0) {
-			printk(KERN_ERR "Error configuring DMA\n");
+			printk(KERN_ERR "Error %d configuring DMA\n", ret);
 			return ret;
 		}
 		imx_dma_enable(prtd->dma_ch);
@@ -216,7 +216,8 @@ static int mx1_mx2_pcm_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: failed to malloc pcm pages\n", __func__);
+		printk(KERN_ERR "%s: Error %d failed to malloc pcm pages \n",
+		__func__, ret);
 		return ret;
 	}
 
@@ -324,7 +325,7 @@ static int mx1_mx2_pcm_open(struct snd_pcm_substream *substream)
 	prtd->dma_ch = imx_dma_request_by_prio(prtd->dma_params->name,
 						DMA_PRIO_HIGH);
 	if (prtd->dma_ch < 0) {
-		printk(KERN_ERR "Error requesting dma channel\n");
+		printk(KERN_ERR "Error %d requesting dma channel\n", ret);
 		return ret;
 	}
 	imx_dma_config_burstlen(prtd->dma_ch,
@@ -336,8 +337,8 @@ static int mx1_mx2_pcm_open(struct snd_pcm_substream *substream)
 			prtd->dma_params->event_id, 0);
 
 	if (ret) {
-		pr_debug(KERN_ERR "Error configuring dma channel %d\n",
-			prtd->dma_ch);
+		pr_debug(KERN_ERR "Error %d configuring dma channel %d\n",
+			ret, prtd->dma_ch);
 		return ret;
 	}
 
@@ -346,7 +347,7 @@ static int mx1_mx2_pcm_open(struct snd_pcm_substream *substream)
 				audio_dma_irq, NULL,
 				(void *)substream);
 	if (ret < 0) {
-		printk(KERN_ERR "Error setting dma callback function\n");
+		printk(KERN_ERR "Error %d setting dma callback function\n", ret);
 		return ret;
 	}
 	return 0;

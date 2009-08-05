@@ -6,30 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _MXC_PCM_H
-#define _MXC_PCM_H
-
-/* AUDMUX register definitions */
-#define AUDMUX_IO_BASE_ADDR	IO_ADDRESS(AUDMUX_BASE_ADDR)
-
-#define DAM_HPCR1	(*((volatile u32 *)(AUDMUX_IO_BASE_ADDR + 0x00)))
-#define DAM_HPCR2	(*((volatile u32 *)(AUDMUX_IO_BASE_ADDR + 0x04)))
-#define DAM_HPCR3	(*((volatile u32 *)(AUDMUX_IO_BASE_ADDR + 0x08)))
-#define DAM_PPCR1	(*((volatile u32 *)(AUDMUX_IO_BASE_ADDR + 0x10)))
-#define DAM_PPCR2	(*((volatile u32 *)(AUDMUX_IO_BASE_ADDR + 0x14)))
-#define DAM_PPCR3	(*((volatile u32 *)(AUDMUX_IO_BASE_ADDR + 0x1C)))
-
-#define AUDMUX_HPCR_TFSDIR	(1 << 31)
-#define AUDMUX_HPCR_TCLKDIR	(1 << 30)
-#define AUDMUX_HPCR_TFCSEL(x)	(((x) & 0xff) << 26)
-#define AUDMUX_HPCR_RXDSEL(x)	(((x) & 0x7) << 13)
-#define AUDMUX_HPCR_SYN		(1 << 12)
-
-#define AUDMUX_PPCR_TFSDIR	(1 << 31)
-#define AUDMUX_PPCR_TCLKDIR	(1 << 30)
-#define AUDMUX_PPCR_TFCSEL(x)	(((x) & 0xff) << 26)
-#define AUDMUX_PPCR_RXDSEL(x)	(((x) & 0x7) << 13)
-#define AUDMUX_PPCR_SYN		(1 << 12)
+#ifndef _MX1_MX2_PCM_H
+#define _MX1_MX2_PCM_H
 
 /* DMA information for mx1_mx2 platforms */
 struct mx1_mx2_pcm_dma_params {
