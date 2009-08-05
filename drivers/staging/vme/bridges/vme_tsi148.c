@@ -484,20 +484,21 @@ void tsi148_free_irq(int level, int statid)
 	/* Get semaphore */
 	down(&(vme_irq));
 
-	tsi148_bridge->irq[level - 1].callback[statid].func = NULL;
-	tsi148_bridge->irq[level - 1].callback[statid].priv_data = NULL;
 	tsi148_bridge->irq[level - 1].count--;
 
-	/* Disable IRQ level */
+	/* Disable IRQ level if no more interrupts attached at this level*/
 	if (tsi148_bridge->irq[level - 1].count == 0) {
-		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEO);
-		tmp &= ~TSI148_LCSR_INTEO_IRQEO[level - 1];
-		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
-
 		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEN);
 		tmp &= ~TSI148_LCSR_INTEN_IRQEN[level - 1];
 		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEN);
+
+		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEO);
+		tmp &= ~TSI148_LCSR_INTEO_IRQEO[level - 1];
+		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
 	}
+
+	tsi148_bridge->irq[level - 1].callback[statid].func = NULL;
+	tsi148_bridge->irq[level - 1].callback[statid].priv_data = NULL;
 
 	/* Release semaphore */
 	up(&(vme_irq));
