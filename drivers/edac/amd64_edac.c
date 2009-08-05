@@ -2783,7 +2783,7 @@ static void check_mcg_ctl(void *ret)
 }
 
 /* check MCG_CTL on all the cpus on this node */
-static int amd64_mcg_ctl_enabled_on_cpus(const cpumask_t *mask)
+static int mcg_ctl_enabled_on_node(const struct cpumask *mask)
 {
 	int ret = 1;
 	preempt_disable();
@@ -2799,71 +2799,45 @@ static int amd64_mcg_ctl_enabled_on_cpus(const cpumask_t *mask)
  * the memory system completely. A command line option allows to force-enable
  * hardware ECC later in amd64_enable_ecc_error_reporting().
  */
+static const char *ecc_warning =
+	"WARNING: ECC is disabled by BIOS. Module will NOT be loaded.\n"
+	" Either Enable ECC in the BIOS, or set 'ecc_enable_override'.\n"
+	" Also, use of the override can cause unknown side effects.\n";
+
 static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 {
 	u32 value;
-	int err = 0, ret = 0;
-	u8 ecc_enabled = 0;
+	int err = 0;
+	u8 ecc_enabled = 0, mcg_ctl_en = 0;
 
 	err = pci_read_config_dword(pvt->misc_f3_ctl, K8_NBCFG, &value);
 	if (err)
 		debugf0("Reading K8_NBCTL failed\n");
 
 	ecc_enabled = !!(value & K8_NBCFG_ECC_ENABLE);
+	if (!ecc_enabled)
+		amd64_printk(KERN_WARNING, "This node reports that Memory ECC "
+			     "is currently disabled, set F3x%x[22] (%s).\n",
+			     K8_NBCFG, pci_name(pvt->misc_f3_ctl));
+	else
+		amd64_printk(KERN_INFO, "ECC is enabled by BIOS.\n");
 
-	ret = amd64_mcg_ctl_enabled_on_cpus(cpumask_of_node(pvt->mc_node_id));
+	mcg_ctl_en = mcg_ctl_enabled_on_node(cpumask_of_node(pvt->mc_node_id));
+	if (!mcg_ctl_en)
+		amd64_printk(KERN_WARNING, "NB MCE bank disabled, set MSR "
+			     "0x%08x[4] on node %d to enable.\n",
+			     MSR_IA32_MCG_CTL, pvt->mc_node_id);
 
-	debugf0("K8_NBCFG=0x%x,  DRAM ECC is %s\n", value,
-			(value & K8_NBCFG_ECC_ENABLE ? "enabled" : "disabled"));
-
-	if (!ecc_enabled || !ret) {
-		if (!ecc_enabled) {
-			amd64_printk(KERN_WARNING, "This node reports that "
-						   "Memory ECC is currently "
-						   "disabled.\n");
-
-			amd64_printk(KERN_WARNING, "bit 0x%lx in register "
-				"F3x%x of the MISC_CONTROL device (%s) "
-				"should be enabled\n", K8_NBCFG_ECC_ENABLE,
-				K8_NBCFG, pci_name(pvt->misc_f3_ctl));
-		}
-		if (!ret) {
-			amd64_printk(KERN_WARNING, "bit 0x%016lx in MSR 0x%08x "
-					"of node %d should be enabled\n",
-					K8_MSR_MCGCTL_NBE, MSR_IA32_MCG_CTL,
-					pvt->mc_node_id);
-		}
+	if (!ecc_enabled || !mcg_ctl_en) {
 		if (!ecc_enable_override) {
-			amd64_printk(KERN_WARNING, "WARNING: ECC is NOT "
-				"currently enabled by the BIOS. Module "
-				"will NOT be loaded.\n"
-				"    Either Enable ECC in the BIOS, "
-				"or use the 'ecc_enable_override' "
-				"parameter.\n"
-				"    Might be a BIOS bug, if BIOS says "
-				"ECC is enabled\n"
-				"    Use of the override can cause "
-				"unknown side effects.\n");
-			ret = -ENODEV;
-		} else
-			/*
-			 * enable further driver loading if ECC enable is
-			 * overridden.
-			 */
-			ret = 0;
-	} else {
-		amd64_printk(KERN_INFO,
-			"ECC is enabled by BIOS, Proceeding "
-			"with EDAC module initialization\n");
-
-		/* Signal good ECC status */
-		ret = 0;
-
+			amd64_printk(KERN_WARNING, "%s", ecc_warning);
+			return -ENODEV;
+		}
+	} else
 		/* CLEAR the override, since BIOS controlled it */
 		ecc_enable_override = 0;
-	}
 
-	return ret;
+	return 0;
 }
 
 struct mcidev_sysfs_attribute sysfs_attrs[ARRAY_SIZE(amd64_dbg_attrs) +
