@@ -199,50 +199,26 @@
 
 /* the token that defines the start of time address */
 #define SEP_TIME_VAL_TOKEN                                    0x12345678
+
 /* DEBUG LEVEL MASKS */
 #define SEP_DEBUG_LEVEL_BASIC       0x1
-
-#define SEP_DEBUG_LEVEL_REGISTERS   0x2
 
 #define SEP_DEBUG_LEVEL_EXTENDED    0x4
 
 
-/* FUNCTIONAL MACROS */
+/* Debug helpers */
 
-/* debug macro without paramaters */
-#define DEBUG_PRINT_0(DEBUG_LEVEL , info) \
-do { \
-	if (DEBUG_LEVEL & sepDebug) \
-		printk(KERN_WARNING info); \
-} while (0)
+#define dbg(fmt, args...) \
+do {\
+	if (sepDebug & SEP_DEBUG_LEVEL_BASIC) \
+		printk(KERN_DEBUG fmt, ##args); \
+} while(0);
 
-/* debug macro with 1 paramater */
-#define DEBUG_PRINT_1(DEBUG_LEVEL , info , param1) \
+#define edbg(fmt, args...) \
 do { \
-	if (DEBUG_LEVEL & sepDebug) \
-		printk(KERN_WARNING info, param1); \
-} while (0)
-
-/* debug macro with 2 paramaters */
-#define DEBUG_PRINT_2(DEBUG_LEVEL, info, param1, param2) \
-do { \
-	if (DEBUG_LEVEL & sepDebug) \
-		printk(KERN_WARNING info , param1, param2); \
-} while (0)
-
-/* debug macro with 3 paramaters */
-#define DEBUG_PRINT_3(DEBUG_LEVEL, info, param1, param2, param3) \
-do { \
-	if (DEBUG_LEVEL & sepDebug) \
-		printk(KERN_WARNING info , param1, param2 , param3); \
-} while (0)
-
-/* debug macro with 4 paramaters */
-#define DEBUG_PRINT_4(DEBUG_LEVEL, info, param1, param2, param3, param4) \
-do { \
-	if (DEBUG_LEVEL & sepDebug) \
-		printk(KERN_WARNING info, param1, param2, param3, param4); \
-} while (0)
+	if (sepDebug & SEP_DEBUG_LEVEL_EXTENDED) \
+		printk(KERN_DEBUG fmt, ##args); \
+} while(0);
 
 
 

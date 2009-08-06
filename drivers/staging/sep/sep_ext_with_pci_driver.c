@@ -167,10 +167,10 @@ int sep_copy_cache_resident_to_area(unsigned long   src_cache_addr,
 	-------------------------------------*/
 	error = 0;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:rar_virtual is %p\n",
 	  sep_dev->rar_virtual_address);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:rar_physical is %08lx\n",
 	  sep_dev->rar_physical_address);
 
@@ -182,15 +182,15 @@ int sep_copy_cache_resident_to_area(unsigned long   src_cache_addr,
 	/* load cache */
 	error = request_firmware(&fw, cache_name, &sep_dev->sep_pci_dev_ptr->dev);
 	if (error) {
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver:cant request cache fw\n");
 		goto end_function;
 	}
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:cache data loc is %p\n",
 	  (void *)fw->data);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:cache data size is %08Zx\n",
 	  fw->size);
 
@@ -210,15 +210,15 @@ int sep_copy_cache_resident_to_area(unsigned long   src_cache_addr,
 	/* load resident */
 	error = request_firmware(&fw, res_name, &sep_dev->sep_pci_dev_ptr->dev);
 	if (error) {
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver:cant request res fw\n");
 		goto end_function;
 	}
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:res data loc is %p\n",
 	  (void *)fw->data);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:res data size is %08Zx\n",
 	  fw->size);
 
@@ -230,23 +230,23 @@ int sep_copy_cache_resident_to_area(unsigned long   src_cache_addr,
 
 	resident_addr = (unsigned long)sep_dev->resident_virtual_address;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:resident_addr (physical )is %08lx\n",
 	  sep_dev->resident_physical_address);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:cache_addr (physical) is %08lx\n",
 	  sep_dev->cache_physical_address);
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:resident_addr (logical )is %08lx\n",
 	  resident_addr);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:cache_addr (logical) is %08lx\n",
 	  cache_addr);
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:resident_size is %08lx\n", sep_dev->resident_size);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:cache_size is %08lx\n", sep_dev->cache_size);
 
 
@@ -277,7 +277,7 @@ int sep_map_and_alloc_shared_area(unsigned long shared_area_size,
 	// shared_virtual_address = ioremap_nocache(0xda00000,shared_area_size);
 	sep_dev->shared_virtual_address = kmalloc(shared_area_size, GFP_KERNEL);
 	if (!sep_dev->shared_virtual_address) {
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "sep_driver:shared memory kmalloc failed\n");
 		return -1;
 	}
@@ -290,13 +290,13 @@ int sep_map_and_alloc_shared_area(unsigned long shared_area_size,
 	/* set the physical address of the shared area */
 	*phys_shared_area_addr_ptr = sep_dev->shared_physical_address;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:shared_virtual_address is %p\n",
 	sep_dev->shared_virtual_address);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:shared_region_size is %08lx\n",
 	shared_area_size);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:shared_physical_addr is %08lx\n",
 	*phys_shared_area_addr_ptr);
 
@@ -327,10 +327,10 @@ void sep_unmap_and_free_shared_area(unsigned long   shared_area_size,
 */
 unsigned long sep_shared_area_virt_to_phys(unsigned long virt_address)
 {
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:sh virt to phys v %08lx\n",
 	  virt_address);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:sh virt to phys p %08lx\n",
 	  sep_dev->shared_physical_address
 	  + (virt_address - (unsigned long)sep_dev->shared_virtual_address));
@@ -365,14 +365,14 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	CODE
 	---------------------------*/
 
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "Sep pci probe starting\n");
 	error = 0;
 
 	/* enable the device */
 	error = pci_enable_device(pdev);
 	if (error) {
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "error enabling pci device\n");
 		goto end_function;
 	}
@@ -383,7 +383,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	/* get the io memory start address */
 	sep_dev->io_memory_start_physical_address = pci_resource_start(pdev, 0);
 	if (!sep_dev->io_memory_start_physical_address) {
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver error pci resource start\n");
 		goto end_function;
 	}
@@ -391,7 +391,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	/* get the io memory end address */
 	sep_dev->io_memory_end_physical_address = pci_resource_end(pdev, 0);
 	if (!sep_dev->io_memory_end_physical_address) {
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver error pci resource end\n");
 		goto end_function;
 	}
@@ -399,15 +399,15 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	sep_dev->io_memory_size = sep_dev->io_memory_end_physical_address -
 				sep_dev->io_memory_start_physical_address + 1;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:io_memory_start_physical_address is %08lx\n",
 	sep_dev->io_memory_start_physical_address);
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:io_memory_end_phyaical_address is %08lx\n",
 	sep_dev->io_memory_end_physical_address);
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:io_memory_size is %08lx\n",
 	sep_dev->io_memory_size);
 
@@ -415,12 +415,12 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	  ioremap_nocache(sep_dev->io_memory_start_physical_address,
 	  sep_dev->io_memory_size);
 	if (!sep_dev->io_memory_start_virtual_address) {
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver error ioremap of io memory\n");
 		goto end_function;
 	}
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:io_memory_start_virtual_address is %p\n",
 	sep_dev->io_memory_start_virtual_address);
 
@@ -433,25 +433,25 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	  GFP_KERNEL);
 
 	if (!sep_dev->rar_virtual_address) {
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver:cant kmalloc rar\n");
 		goto end_function;
 		}
 	/* FIXME */
 	sep_dev->rar_physical_address = __pa(sep_dev->rar_virtual_address);
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:rar_physical is %08lx\n",
 	sep_dev->rar_physical_address);
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver:rar_virtual is %p\n",
 	sep_dev->rar_virtual_address);
 
 
 #if !SEP_DRIVER_POLLING_MODE
 
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver: about to write IMR and ICR REG_ADDR\n");
 
 	/* clear ICR register */
@@ -466,10 +466,10 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	/* FIXME: */
 	error = pci_read_config_byte(pdev, PCI_INTERRUPT_LINE, (u8 *)&sep_dev->sep_irq);
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver: my irq is %d\n", sep_irq);
 
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver: about to call request_irq\n");
 	/* get the interrupt line */
 	error = request_irq(sep_irq, sep_inthandler, IRQF_SHARED,
@@ -478,7 +478,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 		goto end_function;
 
 	goto end_function;
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver: about to write IMR REG_ADDR");
 
 	/* set the IMR register - open only GPR 2 */
@@ -515,15 +515,15 @@ void sep_load_rom_code(void)
 	/* Loading ROM from SEP_ROM_image.h file */
 	k = sizeof(CRYS_SEP_ROM);
 
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver: DX_CC_TST_SepRomLoader start\n");
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver: k is %lu\n", k);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver: sep_dev->reg_base_address is %p\n",
 	  sep_dev->reg_base_address);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver: CRYS_SEP_ROM_start_address_offset is %p\n",
 	  CRYS_SEP_ROM_start_address_offset);
 
@@ -553,45 +553,45 @@ void sep_load_rom_code(void)
 		retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
 	} while (!regVal);
 
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	  "SEP Driver: ROM polling ended\n");
 
 	switch (regVal) {
 	case 0x1:
 		/* fatal error - read erro status from GPRO */
 		Error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver: ROM polling case 1\n");
 		break;
 	case 0x2:
 		/* Boot First Phase ended  */
 		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver: ROM polling case 2\n");
 		break;
 	case 0x4:
 		/* Cold boot ended successfully  */
 		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver: ROM polling case 4\n");
 		Error = 0;
 		break;
 	case 0x8:
 		/* Warmboot ended successfully */
 		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver: ROM polling case 8\n");
 		Error = 0;
 		break;
 	case 0x10:
 		/* ColdWarm boot ended successfully */
 		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver: ROM polling case 16\n");
 		Error = 0;
 		break;
 	case 0x20:
-		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+		edbg(
 		  "SEP Driver: ROM polling case 32\n");
 		break;
 	}

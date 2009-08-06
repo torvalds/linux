@@ -398,7 +398,7 @@ static int sep_open(struct inode *inode_ptr, struct file *file_ptr)
 	CODE
   ---------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC, "SEP Driver:--------> open start\n");
+  dbg("SEP Driver:--------> open start\n");
 
   error = 0;
 
@@ -411,7 +411,7 @@ static int sep_open(struct inode *inode_ptr, struct file *file_ptr)
 
   /* check the error */
   if (error) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver: down_interruptible failed\n");
 
 	goto end_function;
@@ -422,7 +422,7 @@ static int sep_open(struct inode *inode_ptr, struct file *file_ptr)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC, "SEP Driver:<-------- open end\n");
+  dbg("SEP Driver:<-------- open end\n");
 
   return error;
 }
@@ -439,8 +439,7 @@ static int sep_release(struct inode *inode_ptr, struct file *file_ptr)
 	CODE
   ---------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"----------->SEP Driver: sep_release start\n");
+  dbg("----------->SEP Driver: sep_release start\n");
 
 #if 0/*!SEP_DRIVER_POLLING_MODE*/
   /* close IMR */
@@ -454,8 +453,7 @@ static int sep_release(struct inode *inode_ptr, struct file *file_ptr)
   /* unlock the sep mutex */
   mutex_unlock(&sep_mutex);
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_release end\n");
+  dbg("SEP Driver:<-------- sep_release end\n");
 
   return 0;
 }
@@ -475,12 +473,12 @@ static int sep_mmap(struct file  *filp, struct vm_area_struct  *vma)
 	CODE
   -------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC, "-------->SEP Driver: mmap start\n");
+  dbg("-------->SEP Driver: mmap start\n");
 
   /* check that the size of the mapped range is as the size of the message
   shared area */
   if ((vma->vm_end - vma->vm_start) > SEP_DRIVER_MMMAP_AREA_SIZE) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver mmap requested size is more than allowed\n");
 	printk(KERN_WARNING "SEP Driver mmap requested size is more \
 			than allowed\n");
@@ -491,14 +489,14 @@ static int sep_mmap(struct file  *filp, struct vm_area_struct  *vma)
 	return -EAGAIN;
   }
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
   "SEP Driver:g_message_shared_area_addr is %08lx\n",
   sep_dev->message_shared_area_addr);
 
   /* get physical address */
   phys_addr  = sep_dev->phys_shared_area_addr;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "SEP Driver: phys_addr is %08lx\n",
+  edbg( "SEP Driver: phys_addr is %08lx\n",
 phys_addr);
 
   if (remap_pfn_range(vma,
@@ -506,13 +504,13 @@ phys_addr);
 	 phys_addr >> PAGE_SHIFT,
 	 vma->vm_end - vma->vm_start,
 	 vma->vm_page_prot)) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver remap_page_range failed\n");
 	printk(KERN_WARNING  "SEP Driver remap_page_range failed\n");
 	return -EAGAIN;
   }
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC, "SEP Driver:<-------- mmap end\n");
+  dbg("SEP Driver:<-------- mmap end\n");
 
   return 0;
 }
@@ -534,7 +532,7 @@ static unsigned int sep_poll(struct file  *filp, poll_table  *wait)
 	CODE
   -------------------------------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC, "---------->SEP Driver poll: start\n");
+  dbg("---------->SEP Driver poll: start\n");
 
 
 #if SEP_DRIVER_POLLING_MODE
@@ -543,11 +541,9 @@ static unsigned int sep_poll(struct file  *filp, poll_table  *wait)
 	retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR2_REG_ADDR);
 
 	for (count = 0; count < 10 * 4; count += 4)
-	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-	"Poll Debug Word %lu of the message is %lu\n",
-	count,
-	*((unsigned long *)(sep_dev->shared_area_addr +
-	SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES + count)));
+	edbg("Poll Debug Word %lu of the message is %lu\n", count,
+		*((unsigned long *)(sep_dev->shared_area_addr +
+		SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES + count)));
   }
 
   sep_dev->sep_to_host_reply_counter++;
@@ -557,41 +553,38 @@ static unsigned int sep_poll(struct file  *filp, poll_table  *wait)
 
 #endif
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"sep_dev->host_to_sep_send_counter is %lu\n",
 		sep_dev->host_to_sep_send_counter);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"sep_dev->sep_to_host_reply_counter is %lu\n",
 	sep_dev->sep_to_host_reply_counter);
 
   /* check if the data is ready */
   if (sep_dev->host_to_sep_send_counter ==  sep_dev->sep_to_host_reply_counter) {
 	for (count = 0; count < 12 * 4; count += 4)
-	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-	"Sep Mesg Word %lu of the message is %lu\n",
-	count, *((unsigned long *)(sep_dev->shared_area_addr + count)));
+		edbg("Sep Mesg Word %lu of the message is %lu\n", count,
+			*((unsigned long *)(sep_dev->shared_area_addr + count)));
 
 	for (count = 0; count < 10 * 4; count += 4)
-	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-	"Debug Data Word %lu of the message is %lu\n",
-	count,
+		edbg("Debug Data Word %lu of the message is %lu\n", count,
 	*((unsigned long *)(sep_dev->shared_area_addr + 0x1800 + count)));
 
 	retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR2_REG_ADDR);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "retVal is %lu\n", retVal);
+	edbg( "retVal is %lu\n", retVal);
 	/* check if the this is sep reply or request */
 	if (retVal >> 31) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver: sep request in\n");
 	  /* request */
 	  mask |= POLLOUT | POLLWRNORM;
 	} else {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED, "SEP Driver: sep reply in\n");
+	edbg( "SEP Driver: sep reply in\n");
 	  mask |= POLLIN | POLLRDNORM;
 	}
   }
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC, "SEP Driver:<-------- poll exit\n");
+  dbg("SEP Driver:<-------- poll exit\n");
   return mask;
 }
 
@@ -610,10 +603,9 @@ static int sep_ioctl(struct inode		*inode,
   ------------------------*/
   error = 0;
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"------------>SEP Driver: ioctl start\n");
+  dbg("------------>SEP Driver: ioctl start\n");
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "SEP Driver: cmd is %x\n", cmd);
+  edbg("SEP Driver: cmd is %x\n", cmd);
 
   /* check that the command is for sep device */
   if (_IOC_TYPE(cmd) != SEP_IOC_MAGIC_NUMBER)
@@ -625,7 +617,7 @@ static int sep_ioctl(struct inode		*inode,
 	  /* send command to SEP */
 	sep_send_command_handler();
 
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver: after sep_send_command_handler\n");
 
 	  break;
@@ -754,8 +746,7 @@ static int sep_ioctl(struct inode		*inode,
 	  break;
   }
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- ioctl end\n");
+  dbg("SEP Driver:<-------- ioctl end\n");
 
   return error;
 }
@@ -775,7 +766,7 @@ static int  sep_register_driver_to_fs(void)
 
   ret_val = alloc_chrdev_region(&g_sep_device_number, 0, 1, "sep_sec_driver");
   if (ret_val) {
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"sep_driver:major number allocation failed, retval is %d\n", ret_val);
 	goto end_function;
   }
@@ -796,7 +787,7 @@ static int  sep_register_driver_to_fs(void)
   ret_val = cdev_add(&g_sep_cdev, g_sep_device_number, 1);
 
   if (ret_val) {
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"sep_driver:cdev_add failed, retval is %d\n",
 	ret_val);
 	goto end_function_unregister_devnum;
@@ -847,10 +838,8 @@ static int __init sep_init(void)
 	CODE
   ------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:-------->Init start\n");
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC,
-	"g_sep_shared_area_addr = %lx\n",
+  dbg("SEP Driver:-------->Init start\n");
+  edbg("sep->shared_area_addr = %lx\n",
 	(unsigned long)&sep_dev->shared_area_addr);
 
   ret_val = 0;
@@ -872,7 +861,7 @@ for the current transaction */
 
   ret_val = sep_register_driver_to_device();
   if (ret_val) {
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"sep_driver:sep_driver_to_device failed, ret_val is %d\n",
 	ret_val);
 	goto end_function_unregister_from_fs;
@@ -900,7 +889,7 @@ for the current transaction */
   /* now set the memory regions */
   sep_dev->message_shared_area_addr = sep_dev->shared_area_addr;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: g_message_shared_area_addr is %08lx\n",
 	sep_dev->message_shared_area_addr);
 
@@ -930,12 +919,12 @@ for the current transaction */
   sep_dev->flow_wq_ptr = create_singlethread_workqueue("sepflowwq");
   if (sep_dev->flow_wq_ptr == 0) {
 	ret_val = -ENOMEM;
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"sep_driver:flow queue creation failed\n");
 	goto end_function_deallocate_sep_shared_area;
   }
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 		"SEP Driver: create flow workqueue \n");
 
   /* register driver to fs */
@@ -969,7 +958,7 @@ end_function_unmap_io_memory:
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,  "SEP Driver:<-------- Init end\n");
+  dbg("SEP Driver:<-------- Init end\n");
 
   return ret_val;
 }
@@ -989,7 +978,7 @@ static void __exit sep_exit(void)
 	CODE
   --------------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC, "SEP Driver:--------> Exit start\n");
+  dbg("SEP Driver:--------> Exit start\n");
 
   /* unregister from fs */
   sep_unregister_driver_from_fs();
@@ -1008,19 +997,19 @@ static void __exit sep_exit(void)
 				sep_dev->shared_area_addr,
 				sep_dev->phys_shared_area_addr);
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 		"SEP Driver: free pages SEP SHARED AREA \n");
 
   iounmap((void *)sep_dev->reg_base_address);
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED, "SEP Driver: iounmap \n");
+  edbg( "SEP Driver: iounmap \n");
 
   /* release io memory region */
   release_mem_region(SEP_IO_MEM_REGION_START_ADDRESS, SEP_IO_MEM_REGION_SIZE);
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED, "SEP Driver: release_mem_region \n");
+  edbg( "SEP Driver: release_mem_region \n");
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,  "SEP Driver:<-------- Exit end\n");
+  dbg("SEP Driver:<-------- Exit end\n");
 }
 
 
@@ -1052,7 +1041,7 @@ irqreturn_t sep_inthandler(int irq, void *dev_id)
 
   /* read the IRR register to check if this is SEP interrupt */
   reg_val = sep_read_reg(sep_dev, HW_HOST_IRR_REG_ADDR);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "SEP Interrupt - reg is %08lx\n",
+  edbg( "SEP Interrupt - reg is %08lx\n",
 			reg_val);
 
   /* check if this is the flow interrupt */
@@ -1139,13 +1128,10 @@ int sep_prepare_input_dma_table(unsigned long	app_virt_addr,
 	CODE
   --------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_prepare_input_dma_table start\n");
+  dbg("SEP Driver:--------> sep_prepare_input_dma_table start\n");
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "SEP Driver:data_size is %lu\n",
-		data_size);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "SEP Driver:block_size is %lu\n",
-		block_size);
+  edbg( "SEP Driver:data_size is %lu\n", data_size);
+  edbg( "SEP Driver:block_size is %lu\n", block_size);
 
   /* initialize the pages pointers */
   sep_dev->in_page_array = 0;
@@ -1190,7 +1176,7 @@ int sep_prepare_input_dma_table(unsigned long	app_virt_addr,
   if (result)
 	return result;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
   "SEP Driver:output sep_dev->in_num_pages is %lu\n",
   sep_dev->in_num_pages);
 
@@ -1218,7 +1204,7 @@ int sep_prepare_input_dma_table(unsigned long	app_virt_addr,
 	/* now calculate the table size so that it will be module block size */
 	table_data_size = (table_data_size / block_size) * block_size;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:output table_data_size is %lu\n",
 	table_data_size);
 
@@ -1236,7 +1222,7 @@ int sep_prepare_input_dma_table(unsigned long	app_virt_addr,
 	  *num_entries_ptr = num_entries_in_table;
 	  *table_data_size_ptr = table_data_size;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:output lli_table_in_ptr is %08lx\n",
 	*lli_table_ptr);
 	} else {
@@ -1262,8 +1248,7 @@ int sep_prepare_input_dma_table(unsigned long	app_virt_addr,
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_prepare_input_dma_table end\n");
+  dbg("SEP Driver:<-------- sep_prepare_input_dma_table end\n");
 
   return 0;
 
@@ -1300,8 +1285,7 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
 	CODE
   --------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_prepare_input_output_dma_table start\n");
+  dbg("SEP Driver:--------> sep_prepare_input_output_dma_table start\n");
 
   result = 0;
 
@@ -1318,7 +1302,7 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
 				&lli_in_array,
 				&sep_dev->in_page_array);
 	if (result) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver: sep_lock_kernel_pages for input virtual buffer failed\n");
 	goto end_function;
 	}
@@ -1330,7 +1314,7 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
 					&lli_in_array,
 					&sep_dev->in_page_array);
 	if (result) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver: sep_lock_user_pages for input virtual buffer failed\n");
 	goto end_function;
 	}
@@ -1343,7 +1327,7 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
 				&lli_out_array,
 				&sep_dev->out_page_array);
 	if (result) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver: sep_lock_kernel_pages for output virtual buffer failed\n");
 	goto end_function_with_error1;
 	}
@@ -1354,18 +1338,18 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
 					&lli_out_array,
 					&sep_dev->out_page_array);
 	if (result) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver: sep_lock_user_pages for output virtual buffer failed\n");
 	goto end_function_with_error1;
 	}
   }
 
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"sep_dev->in_num_pages is %lu\n", sep_dev->in_num_pages);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"sep_dev->out_num_pages is %lu\n", sep_dev->out_num_pages);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP is %x\n",
 	SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP);
 
@@ -1382,18 +1366,18 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
 					out_num_entries_ptr,
 					table_data_size_ptr);
   if (result) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver: sep_construct_dma_tables_from_lli failed\n");
 	goto end_function_with_error2;
   }
 
   /* fall through - free the lli entry arrays */
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC, "in_num_entries_ptr is %08lx\n",
+  dbg("in_num_entries_ptr is %08lx\n",
 	*in_num_entries_ptr);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC, "out_num_entries_ptr is %08lx\n",
+  dbg("out_num_entries_ptr is %08lx\n",
 	*out_num_entries_ptr);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC, "table_data_size_ptr is %08lx\n",
+  dbg("table_data_size_ptr is %08lx\n",
 	*table_data_size_ptr);
 
 
@@ -1407,9 +1391,7 @@ end_function_with_error1:
 
 end_function:
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC,
-"SEP Driver:<-------- sep_prepare_input_output_dma_table end result = %d\n",
-(int)result);
+   dbg("SEP Driver:<-------- sep_prepare_input_output_dma_table end result = %d\n", (int)result);
 
   return result;
 
@@ -1474,8 +1456,7 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t	*lli_in_array,
 	CODE
   ------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_construct_dma_tables_from_lli start\n");
+  dbg("SEP Driver:--------> sep_construct_dma_tables_from_lli start\n");
 
   /* initiate to pint after the message area */
   lli_table_alloc_addr = sep_dev->shared_area_addr +
@@ -1513,9 +1494,9 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t	*lli_in_array,
 			&lli_out_array[current_out_entry],
 			(sep_out_lli_entries - current_out_entry));
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:in_table_data_size is %lu\n", in_table_data_size);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:out_table_data_size is %lu\n", out_table_data_size);
 
 	/* check where the data is smallest */
@@ -1526,9 +1507,7 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t	*lli_in_array,
 	/* now calculate the table size so that it will be module block size */
 	table_data_size = (table_data_size / block_size) * block_size;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:table_data_size is %lu\n",
-		table_data_size);
+	dbg("SEP Driver:table_data_size is %lu\n", table_data_size);
 
 	/* construct input lli table */
 	sep_build_lli_table(&lli_in_array[current_in_entry],
@@ -1555,9 +1534,9 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t	*lli_in_array,
 	  *out_num_entries_ptr = num_entries_out_table;
 	  *table_data_size_ptr = table_data_size;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:output lli_table_in_ptr is %08lx\n", *lli_table_in_ptr);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:output lli_table_out_ptr is %08lx\n", *lli_table_out_ptr);
 	} else {
 	  /* update the info entry of the previous in table */
@@ -1577,13 +1556,13 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t	*lli_in_array,
 	info_in_entry_ptr = in_lli_table_ptr + num_entries_in_table - 1;
 	info_out_entry_ptr = out_lli_table_ptr + num_entries_out_table - 1;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver:output num_entries_out_table is %lu\n",
 		(unsigned long)num_entries_out_table);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver:output info_in_entry_ptr is %lu\n",
 		(unsigned long)info_in_entry_ptr);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver:output info_out_entry_ptr is %lu\n",
 		(unsigned long)info_out_entry_ptr);
   }
@@ -1602,8 +1581,7 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t	*lli_in_array,
 	*out_num_entries_ptr,
 	*table_data_size_ptr);
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:<-------- sep_construct_dma_tables_from_lli end\n");
+  dbg("SEP Driver:<-------- sep_construct_dma_tables_from_lli end\n");
 
   return 0;
 }
@@ -1659,15 +1637,14 @@ static void sep_build_lli_table(struct sep_lli_entry_t	*lli_array_ptr,
 	CODE
   ---------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_build_lli_table start\n");
+  dbg("SEP Driver:--------> sep_build_lli_table start\n");
 
   /* init currrent table data size and lli array entry counter */
   curr_table_data_size = 0;
   array_counter = 0;
   *num_table_entries_ptr = 1;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
   "SEP Driver:table_data_size is %lu\n",
 	table_data_size);
 
@@ -1681,19 +1658,19 @@ static void sep_build_lli_table(struct sep_lli_entry_t	*lli_array_ptr,
 	lli_table_ptr->block_size = lli_array_ptr[array_counter].block_size;
 	curr_table_data_size += lli_table_ptr->block_size;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:lli_table_ptr is %08lx\n",
 	(unsigned long)lli_table_ptr);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:lli_table_ptr->physical_address is %08lx\n",
 	lli_table_ptr->physical_address);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:lli_table_ptr->block_size is %lu\n",
 	lli_table_ptr->block_size);
 
 	/* check for overflow of the table data */
 	if (curr_table_data_size > table_data_size) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver:curr_table_data_size > table_data_size\n");
 
 	  /* update the size of block in the table */
@@ -1710,10 +1687,10 @@ static void sep_build_lli_table(struct sep_lli_entry_t	*lli_array_ptr,
 	  /* advance to the next entry in the lli_array */
 	  array_counter++;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:lli_table_ptr->physical_address is %08lx\n",
 	lli_table_ptr->physical_address);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:lli_table_ptr->block_size is %lu\n",
 	lli_table_ptr->block_size);
 
@@ -1725,13 +1702,13 @@ static void sep_build_lli_table(struct sep_lli_entry_t	*lli_array_ptr,
   lli_table_ptr->physical_address = 0xffffffff;
   lli_table_ptr->block_size = 0;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver:lli_table_ptr is %08lx\n",
 	(unsigned long)lli_table_ptr);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver:lli_table_ptr->physical_address is %08lx\n",
 	lli_table_ptr->physical_address);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver:lli_table_ptr->block_size is %lu\n",
 	lli_table_ptr->block_size);
 
@@ -1739,13 +1716,12 @@ static void sep_build_lli_table(struct sep_lli_entry_t	*lli_array_ptr,
   /* set the output parameter */
   *num_processed_entries_ptr += array_counter;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver:*num_processed_entries_ptr is %lu\n",
 	*num_processed_entries_ptr);
 
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_build_lli_table end\n");
+  dbg("SEP Driver:<-------- sep_build_lli_table end\n");
 
   return;
 }
@@ -1765,37 +1741,31 @@ static void sep_debug_print_lli_tables(struct sep_lli_entry_t	*lli_table_ptr,
 	CODE
   -------------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_debug_print_lli_tables start\n");
+  dbg("SEP Driver:--------> sep_debug_print_lli_tables start\n");
 
   table_count = 1;
   while ((unsigned long)lli_table_ptr != 0xffffffff) {
-	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-	"SEP Driver: lli table %08lx, table_data_size is %lu\n",
-	table_count,
-	table_data_size);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
-	"SEP Driver: num_table_entries is %lu\n", num_table_entries);
+	edbg("SEP Driver: lli table %08lx, table_data_size is %lu\n",
+		table_count, table_data_size);
+	edbg("SEP Driver: num_table_entries is %lu\n", num_table_entries);
 
 	/* print entries of the table (without info entry) */
 	for (entries_count = 0;
 		entries_count < num_table_entries;
 		entries_count++, lli_table_ptr++) {
-		DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
-		"SEP Driver:lli_table_ptr address is %08lx\n",
-		(unsigned long)lli_table_ptr);
-		DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-		"SEP Driver:phys address is %08lx block size is %lu\n",
+		edbg("SEP Driver:lli_table_ptr address is %08lx\n",
+					(unsigned long)lli_table_ptr);
+		edbg("SEP Driver:phys address is %08lx block size is %lu\n",
 		lli_table_ptr->physical_address, lli_table_ptr->block_size);
 	}
 
 	/* point to the info entry */
 	lli_table_ptr--;
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:phys lli_table_ptr->block_size is %lu\n",
 	lli_table_ptr->block_size);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"SEP Driver:phys lli_table_ptr->physical_address is %08lx\n",
 	lli_table_ptr->physical_address);
 
@@ -1805,10 +1775,8 @@ static void sep_debug_print_lli_tables(struct sep_lli_entry_t	*lli_table_ptr,
 	lli_table_ptr = (struct sep_lli_entry_t *)
 				(lli_table_ptr->physical_address);
 
-	DEBUG_PRINT_3(SEP_DEBUG_LEVEL_EXTENDED,
-	"SEP Driver:phys table_data_size is %lu num_table_entries is \
-	%lu lli_table_ptr is%lu\n",
-	table_data_size, num_table_entries, (unsigned long)lli_table_ptr);
+	edbg("SEP Driver:phys table_data_size is %lu num_table_entries is %lu lli_table_ptr is%lu\n",
+		table_data_size, num_table_entries, (unsigned long)lli_table_ptr);
 
 	if ((unsigned long)lli_table_ptr != 0xffffffff)
 	lli_table_ptr = (struct sep_lli_entry_t *)sep_shared_area_phys_to_virt(
@@ -1817,8 +1785,7 @@ static void sep_debug_print_lli_tables(struct sep_lli_entry_t	*lli_table_ptr,
 	table_count++;
   }
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_debug_print_lli_tables end\n");
+  dbg("SEP Driver:<-------- sep_debug_print_lli_tables end\n");
 }
 
 
@@ -1862,8 +1829,7 @@ int sep_lock_user_pages(unsigned long		app_virt_addr,
 	CODE
   --------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_lock_user_pages start\n");
+  dbg("SEP Driver:--------> sep_lock_user_pages start\n");
 
   error = 0;
 
@@ -1872,26 +1838,26 @@ int sep_lock_user_pages(unsigned long		app_virt_addr,
   start_page = app_virt_addr >> PAGE_SHIFT;
   num_pages = end_page - start_page + 1;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: app_virt_addr is %08lx\n",
 	app_virt_addr);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: data_size is %lu\n",
 	data_size);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: start_page is %lu\n",
 	start_page);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: end_page is %lu\n",
 	end_page);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: num_pages is %lu\n",
 	num_pages);
 
   /* allocate array of pages structure pointers */
   page_array = kmalloc(sizeof(struct page *) * num_pages, GFP_ATOMIC);
   if (!page_array) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver: kmalloc for page_array failed\n");
 
 	error = -ENOMEM;
@@ -1900,7 +1866,7 @@ int sep_lock_user_pages(unsigned long		app_virt_addr,
 
   lli_array = kmalloc(sizeof(struct sep_lli_entry_t) * num_pages, GFP_ATOMIC);
   if (!lli_array) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver: kmalloc for lli_array failed\n");
 
 	error = -ENOMEM;
@@ -1916,8 +1882,7 @@ int sep_lock_user_pages(unsigned long		app_virt_addr,
 
   /* check the number of pages locked - if not all then exit with error */
   if (result != num_pages) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver: not all pages locked by get_user_pages\n");
+	dbg("SEP Driver: not all pages locked by get_user_pages\n");
 
 	error = -ENOMEM;
 	goto end_function_with_error2;
@@ -1940,8 +1905,7 @@ int sep_lock_user_pages(unsigned long		app_virt_addr,
 	lli_array[0].block_size = PAGE_SIZE - (app_virt_addr & (~PAGE_MASK));
 
   /* debug print */
-  DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-  "lli_array[0].physical_address is %08lx, lli_array[0].block_size is %lu\n",
+  dbg("lli_array[0].physical_address is %08lx, lli_array[0].block_size is %lu\n",
 	lli_array[0].physical_address,
 	lli_array[0].block_size);
 
@@ -1951,7 +1915,7 @@ int sep_lock_user_pages(unsigned long		app_virt_addr,
 		(unsigned long)page_to_phys(page_array[count]);
 	lli_array[count].block_size = PAGE_SIZE;
 
-	DEBUG_PRINT_4(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"lli_array[%lu].physical_address is %08lx, \
 	lli_array[%lu].block_size is %lu\n",
 	count, lli_array[count].physical_address,
@@ -1970,13 +1934,11 @@ int sep_lock_user_pages(unsigned long		app_virt_addr,
 					(~PAGE_MASK);
 
 	if (lli_array[count].block_size == 0) {
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC,
-	"app_virt_addr is %08lx\n",
-	app_virt_addr);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC, "data_size is %lu\n", data_size);
+	  dbg("app_virt_addr is %08lx\n", app_virt_addr);
+	  dbg("data_size is %lu\n", data_size);
 	  while (1);
 	}
-	DEBUG_PRINT_4(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"lli_array[%lu].physical_address is %08lx, \
 		lli_array[%lu].block_size is %lu\n",
 	count, lli_array[count].physical_address,
@@ -2007,8 +1969,7 @@ end_function_with_error1:
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_lock_user_pages end\n");
+  dbg("SEP Driver:<-------- sep_lock_user_pages end\n");
 
   return 0;
 }
@@ -2051,8 +2012,7 @@ int sep_lock_kernel_pages(unsigned long		kernel_virt_addr,
 	CODE
   --------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_lock_kernel_pages start\n");
+  dbg("SEP Driver:--------> sep_lock_kernel_pages start\n");
 
   error = 0;
 
@@ -2061,25 +2021,25 @@ int sep_lock_kernel_pages(unsigned long		kernel_virt_addr,
   start_page = kernel_virt_addr >> PAGE_SHIFT;
   num_pages = end_page - start_page + 1;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: kernel_virt_addr is %08lx\n",
 	kernel_virt_addr);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: data_size is %lu\n",
 	data_size);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: start_page is %lx\n",
 	start_page);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: end_page is %lx\n",
 	end_page);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver: num_pages is %lu\n",
 	num_pages);
 
   lli_array = kmalloc(sizeof(struct sep_lli_entry_t) * num_pages, GFP_ATOMIC);
   if (!lli_array) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver: kmalloc for lli_array failed\n");
 
 	error = -ENOMEM;
@@ -2099,8 +2059,7 @@ int sep_lock_kernel_pages(unsigned long		kernel_virt_addr,
 		PAGE_SIZE - (kernel_virt_addr & (~PAGE_MASK));
 
   /* debug print */
-  DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-  "lli_array[0].physical_address is %08lx, lli_array[0].block_size is %lu\n",
+  dbg("lli_array[0].physical_address is %08lx, lli_array[0].block_size is %lu\n",
 	lli_array[0].physical_address,
 	lli_array[0].block_size);
 
@@ -2113,7 +2072,7 @@ int sep_lock_kernel_pages(unsigned long		kernel_virt_addr,
 	(unsigned long)virt_to_phys((unsigned long *)next_kernel_address);
 	lli_array[count].block_size = PAGE_SIZE;
 
-	DEBUG_PRINT_4(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"lli_array[%lu].physical_address is %08lx, \
 	lli_array[%lu].block_size is %lu\n",
 	count, lli_array[count].physical_address, count,
@@ -2133,14 +2092,13 @@ int sep_lock_kernel_pages(unsigned long		kernel_virt_addr,
 		(kernel_virt_addr + data_size) & (~PAGE_MASK);
 
 	if (lli_array[count].block_size == 0) {
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC,
-	"app_virt_addr is %08lx\n",
+	dbg("app_virt_addr is %08lx\n",
 	kernel_virt_addr);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC, "data_size is %lu\n", data_size);
+	dbg("data_size is %lu\n", data_size);
 	  while (1);
 	}
 
-	DEBUG_PRINT_4(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 	"lli_array[%lu].physical_address is %08lx, \
 	lli_array[%lu].block_size is %lu\n",
 	count, lli_array[count].physical_address,
@@ -2156,8 +2114,7 @@ int sep_lock_kernel_pages(unsigned long		kernel_virt_addr,
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_lock_kernel_pages end\n");
+   dbg("SEP Driver:<-------- sep_lock_kernel_pages end\n");
 
   return 0;
 }
@@ -2207,8 +2164,7 @@ static void sep_send_command_handler()
 
   unsigned long count;
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_send_command_handler start\n");
+  dbg("SEP Driver:--------> sep_send_command_handler start\n");
 
   sep_set_time(0, 0);
 
@@ -2216,10 +2172,8 @@ static void sep_send_command_handler()
   flush_cache_all();
 
   for (count = 0; count < 12 * 4; count += 4)
-	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-	"Word %lu of the message is %lu\n",
-	count,
-	*((unsigned long *)(sep_dev->shared_area_addr + count)));
+	edbg("Word %lu of the message is %lu\n", count,
+		*((unsigned long *)(sep_dev->shared_area_addr + count)));
 
   /* update counter */
   sep_dev->host_to_sep_send_counter++;
@@ -2227,8 +2181,7 @@ static void sep_send_command_handler()
   /* send interrupt to SEP */
   sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2);
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_send_command_handler end\n");
+  dbg("SEP Driver:<-------- sep_send_command_handler end\n");
 
   return;
 }
@@ -2241,17 +2194,14 @@ static void sep_send_reply_command_handler()
 {
   unsigned long count;
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_send_reply_command_handler start\n");
+  dbg("SEP Driver:--------> sep_send_reply_command_handler start\n");
 
   /* flash cache */
   flush_cache_all();
 
   for (count = 0; count < 12 * 4; count += 4)
-	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-	"Word %lu of the message is %lu\n",
-	count,
-	*((unsigned long *)(sep_dev->shared_area_addr + count)));
+	edbg("Word %lu of the message is %lu\n", count,
+		*((unsigned long *)(sep_dev->shared_area_addr + count)));
 
 
   /* update counter */
@@ -2266,8 +2216,7 @@ static void sep_send_reply_command_handler()
 
   sep_dev->sep_to_host_reply_counter++;
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_send_reply_command_handler end\n");
+  dbg("SEP Driver:<-------- sep_send_reply_command_handler end\n");
 
   return;
 }
@@ -2293,8 +2242,7 @@ static int sep_allocate_data_pool_memory_handler(unsigned long arg)
 	CODE
   ----------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_allocate_data_pool_memory_handler start\n");
+  dbg("SEP Driver:--------> sep_allocate_data_pool_memory_handler start\n");
 
 
   error = copy_from_user(&command_args,
@@ -2330,8 +2278,7 @@ static int sep_allocate_data_pool_memory_handler(unsigned long arg)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:<-------- sep_allocate_data_pool_memory_handler end\n");
+  dbg("SEP Driver:<-------- sep_allocate_data_pool_memory_handler end\n");
 
   return error;
 }
@@ -2360,8 +2307,7 @@ static int sep_write_into_data_pool_handler(unsigned long arg)
 	CODE
   -----------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_write_into_data_pool_handler start\n");
+  dbg("SEP Driver:--------> sep_write_into_data_pool_handler start\n");
 
   /* get the application address */
   error = get_user(app_in_address,
@@ -2400,8 +2346,7 @@ static int sep_write_into_data_pool_handler(unsigned long arg)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_write_into_data_pool_handler end\n");
+  dbg("SEP Driver:<-------- sep_write_into_data_pool_handler end\n");
 
   return error;
 }
@@ -2430,8 +2375,7 @@ static int sep_read_from_data_pool_handler(unsigned long arg)
 	CODE
   -----------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_read_from_data_pool_handler start\n");
+  dbg("SEP Driver:--------> sep_read_from_data_pool_handler start\n");
 
   /* get the application address */
   error = get_user(app_out_address,
@@ -2468,8 +2412,7 @@ static int sep_read_from_data_pool_handler(unsigned long arg)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_read_from_data_pool_handler end\n");
+  dbg("SEP Driver:<-------- sep_read_from_data_pool_handler end\n");
 
   return error;
 }
@@ -2491,8 +2434,7 @@ static int sep_create_sync_dma_tables_handler(unsigned long arg)
 	CODE
   --------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_create_sync_dma_tables_handler start\n");
+  dbg("SEP Driver:--------> sep_create_sync_dma_tables_handler start\n");
 
   error = copy_from_user(&command_args,
 	(void *)arg,
@@ -2500,16 +2442,16 @@ static int sep_create_sync_dma_tables_handler(unsigned long arg)
   if (error)
 	goto end_function;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"app_in_address is %08lx\n",
 	command_args.app_in_address);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"app_out_address is %08lx\n",
 	command_args.app_out_address);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"data_size is %lu\n",
 	command_args.data_in_size);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"block_size is %lu\n",
 	command_args.block_size);
 
@@ -2547,8 +2489,7 @@ static int sep_create_sync_dma_tables_handler(unsigned long arg)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:<-------- sep_create_sync_dma_tables_handler end\n");
+  dbg("SEP Driver:<-------- sep_create_sync_dma_tables_handler end\n");
 
   return error;
 }
@@ -2562,8 +2503,7 @@ int sep_free_dma_table_data_handler()
 	CODE
   -----------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_free_dma_table_data_handler start\n");
+  dbg("SEP Driver:--------> sep_free_dma_table_data_handler start\n");
 
   /* free input pages array */
   sep_free_dma_pages(sep_dev->in_page_array,
@@ -2583,8 +2523,7 @@ int sep_free_dma_table_data_handler()
   sep_dev->out_num_pages = 0;
 
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_free_dma_table_data_handler end\n");
+  dbg("SEP Driver:<-------- sep_free_dma_table_data_handler end\n");
 
   return 0;
 }
@@ -2616,8 +2555,7 @@ static int sep_create_flow_dma_tables_handler(unsigned long arg)
 	CODE
   --------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_create_flow_dma_tables_handler start\n");
+  dbg("SEP Driver:--------> sep_create_flow_dma_tables_handler start\n");
 
   /* init variables */
   prev_info_entry_ptr = 0;
@@ -2682,8 +2620,7 @@ end_function_with_error:
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:<-------- sep_create_flow_dma_tables_handler end\n");
+  dbg("SEP Driver:<-------- sep_create_flow_dma_tables_handler end\n");
 
   return error;
 
@@ -2719,8 +2656,7 @@ static int sep_add_flow_tables_handler(unsigned long arg)
 	CODE
   ----------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_add_flow_tables_handler start\n");
+  dbg("SEP Driver:--------> sep_add_flow_tables_handler start\n");
 
   /* get input parameters */
   error = copy_from_user(&command_args,
@@ -2822,8 +2758,7 @@ end_function_with_error:
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_add_flow_tables_handler end\n");
+  dbg("SEP Driver:<-------- sep_add_flow_tables_handler end\n");
 
   return error;
 }
@@ -2846,8 +2781,7 @@ static int sep_add_flow_tables_message_handler(unsigned long arg)
 	CODE
   ------------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_add_flow_tables_message_handler start\n");
+  dbg("SEP Driver:--------> sep_add_flow_tables_message_handler start\n");
 
   error = copy_from_user(&command_args,
 	(void *)arg,
@@ -2877,8 +2811,7 @@ static int sep_add_flow_tables_message_handler(unsigned long arg)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:<-------- sep_add_flow_tables_message_handler end\n");
+  dbg("SEP Driver:<-------- sep_add_flow_tables_message_handler end\n");
 
   return error;
 }
@@ -2899,8 +2832,7 @@ static int sep_get_static_pool_addr_handler(unsigned long arg)
 	CODE
   ------------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_get_static_pool_addr_handler start\n");
+  dbg("SEP Driver:--------> sep_get_static_pool_addr_handler start\n");
 
   /*prepare the output parameters in the struct */
   command_args.physical_static_address = sep_dev->phys_shared_area_addr +
@@ -2908,8 +2840,7 @@ static int sep_get_static_pool_addr_handler(unsigned long arg)
   command_args.virtual_static_address = sep_dev->shared_area_addr +
 				SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES;
 
-  DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
- "SEP Driver:physical_static_address is %08lx, virtual_static_address %08lx\n",
+  edbg("SEP Driver:physical_static_address is %08lx, virtual_static_address %08lx\n",
 	command_args.physical_static_address,
 	command_args.virtual_static_address);
 
@@ -2922,8 +2853,7 @@ static int sep_get_static_pool_addr_handler(unsigned long arg)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_get_static_pool_addr_handler end\n");
+  dbg("SEP Driver:<-------- sep_get_static_pool_addr_handler end\n");
 
   return error;
 }
@@ -2944,8 +2874,7 @@ static int sep_get_physical_mapped_offset_handler(unsigned long arg)
 	CODE
   ------------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:--------> sep_get_physical_mapped_offset_handler start\n");
+  dbg("SEP Driver:--------> sep_get_physical_mapped_offset_handler start\n");
 
   error = copy_from_user(&command_args,
 	(void *)arg,
@@ -2962,8 +2891,7 @@ static int sep_get_physical_mapped_offset_handler(unsigned long arg)
   command_args.offset = command_args.physical_address -
 					sep_dev->phys_shared_area_addr;
 
-  DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
-  "SEP Driver:physical_address is %08lx, offset is %lu\n",
+  edbg("SEP Driver:physical_address is %08lx, offset is %lu\n",
 	command_args.physical_address,
 	command_args.offset);
 
@@ -2976,8 +2904,7 @@ static int sep_get_physical_mapped_offset_handler(unsigned long arg)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-	"SEP Driver:<-------- sep_get_physical_mapped_offset_handler end\n");
+  dbg("SEP Driver:<-------- sep_get_physical_mapped_offset_handler end\n");
 
   return error;
 }
@@ -2998,8 +2925,7 @@ static int sep_start_handler(void)
 	CODE
   ------------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_start_handler start\n");
+  dbg("SEP Driver:--------> sep_start_handler start\n");
 
   error = 0;
 
@@ -3017,8 +2943,7 @@ static int sep_start_handler(void)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_start_handler end\n");
+  dbg("SEP Driver:<-------- sep_start_handler end\n");
 
   return error;
 }
@@ -3050,16 +2975,14 @@ static int sep_init_handler(unsigned long arg)
 	CODE
   ---------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_init_handler start\n");
+  dbg("SEP Driver:--------> sep_init_handler start\n");
 
   error = 0;
 
   error = copy_from_user(&command_args, (void *)arg,
 			sizeof(struct sep_driver_init_t));
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_init_handler - finished copy_from_user \n");
+  dbg("SEP Driver:--------> sep_init_handler - finished copy_from_user \n");
 
   if (error)
 	goto end_function;
@@ -3067,8 +2990,7 @@ static int sep_init_handler(unsigned long arg)
   /* PATCH - configure the DMA to single -burst instead of multi-burst */
   /*sep_configure_dma_burst();*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_init_handler - finished sep_configure_dma_burst \n");
+  dbg("SEP Driver:--------> sep_init_handler - finished sep_configure_dma_burst \n");
 
   message_ptr = (unsigned long *)command_args.message_addr;
 
@@ -3084,7 +3006,7 @@ static int sep_init_handler(unsigned long arg)
 	sep_write_reg(sep_dev, HW_SRAM_DATA_REG_ADDR,
 						message_word);
 
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 					"SEP Driver:message_word is %lu\n",
 					message_word);
 
@@ -3092,8 +3014,7 @@ static int sep_init_handler(unsigned long arg)
 	sep_wait_sram_write(sep_dev);
   }
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_init_handler - finished getting messages from user space\n");
+  dbg("SEP Driver:--------> sep_init_handler - finished getting messages from user space\n");
 
   /* signal SEP */
   sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR,
@@ -3103,30 +3024,28 @@ static int sep_init_handler(unsigned long arg)
         reg_val = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
   } while (!(reg_val & 0xFFFFFFFD));
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_init_handler - finished waiting for reg_val & 0xFFFFFFFD \n");
+  dbg("SEP Driver:--------> sep_init_handler - finished waiting for reg_val & 0xFFFFFFFD \n");
 
   /* check the value */
   if (reg_val == 0x1) {
-	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 		"SEP Driver:init failed\n");
 
 	error = sep_read_reg(sep_dev, 0x8060);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 			"SEP Driver:sw monitor is %lu\n",
 			error);
 
 	/* fatal error - read erro status from GPRO */
 	error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+	edbg(
 			"SEP Driver:error is %lu\n", error);
 	goto end_function;
   }
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_init_handler end\n");
+  dbg("SEP Driver:<-------- sep_init_handler end\n");
 
   return error;
 
@@ -3190,16 +3109,16 @@ static int sep_realloc_cache_resident_handler(unsigned long arg)
   /* set the new shared area */
   command_args.new_shared_area_addr = sep_dev->phys_shared_area_addr;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver:command_args.new_shared_area_addr is %08lx\n",
 	command_args.new_shared_area_addr);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver:command_args.new_base_addr is %08lx\n",
 	command_args.new_base_addr);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver:command_args.new_resident_addr is %08lx\n",
 	command_args.new_resident_addr);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 	"SEP Driver:command_args.new_cache_addr is %08lx\n",
 	command_args.new_cache_addr);
 
@@ -3255,8 +3174,7 @@ static int sep_set_api_mode_handler(unsigned long arg)
 	CODE
   -----------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_set_api_mode_handler start\n");
+  dbg("SEP Driver:--------> sep_set_api_mode_handler start\n");
 
   error = get_user(
 	  mode_flag, &(((struct sep_driver_set_api_mode_t *)arg)->mode));
@@ -3269,8 +3187,7 @@ static int sep_set_api_mode_handler(unsigned long arg)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_set_api_mode_handler end\n");
+  dbg("SEP Driver:<-------- sep_set_api_mode_handler end\n");
 
   return error;
 }
@@ -3284,8 +3201,7 @@ static int sep_end_transaction_handler(unsigned long arg)
 	CODE
   -----------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_end_transaction_handler start\n");
+  dbg("SEP Driver:--------> sep_end_transaction_handler start\n");
 
 #if 0/*!SEP_DRIVER_POLLING_MODE*/
   /* close IMR */
@@ -3298,8 +3214,7 @@ static int sep_end_transaction_handler(unsigned long arg)
   mutex_unlock(&sep_mutex);
 #endif
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_end_transaction_handler end\n");
+  dbg("SEP Driver:<-------- sep_end_transaction_handler end\n");
 
   return 0;
 }
@@ -3723,8 +3638,7 @@ static int sep_set_flow_id_handler(unsigned long arg)
 	CODE
   -----------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"------------>SEP Driver: sep_set_flow_id_handler start\n");
+  dbg("------------>SEP Driver: sep_set_flow_id_handler start\n");
 
   error = get_user(flow_id,
 	&(((struct sep_driver_set_flow_id_t *)arg)->flow_id));
@@ -3742,8 +3656,7 @@ static int sep_set_flow_id_handler(unsigned long arg)
 
 end_function:
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_set_flow_id_handler end\n");
+  dbg("SEP Driver:<-------- sep_set_flow_id_handler end\n");
 
 
   return error;
@@ -3767,8 +3680,7 @@ static int sep_set_time(unsigned long		*address_ptr,
 	CODE
   --------------------------*/
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:--------> sep_set_time start\n");
+  dbg("SEP Driver:--------> sep_set_time start\n");
 
 
   do_gettimeofday(&time);
@@ -3780,13 +3692,13 @@ static int sep_set_time(unsigned long		*address_ptr,
   *(unsigned long *)time_addr = SEP_TIME_VAL_TOKEN;
   *(unsigned long *)(time_addr + 4) = time.tv_sec;
 
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 			"SEP Driver:time.tv_sec is %lu\n",
 			time.tv_sec);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 			"SEP Driver:time_addr is %lu\n",
 			time_addr);
-  DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
+  edbg(
 			"SEP Driver:g_message_shared_area_addr is %lu\n",
 			sep_dev->message_shared_area_addr);
 
@@ -3797,8 +3709,7 @@ static int sep_set_time(unsigned long		*address_ptr,
   if (time_in_sec_ptr)
 	*time_in_sec_ptr = time.tv_sec;
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_set_time end\n");
+  dbg("SEP Driver:<-------- sep_set_time end\n");
 
   return 0;
 }
@@ -3820,21 +3731,16 @@ static void sep_configure_dma_burst(void)
 
 #define 	 HW_AHB_RD_WR_BURSTS_REG_ADDR 		 0x0E10UL
 
-  unsigned long	regVal;
-
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_configure_dma_burst start \n");
+  dbg("SEP Driver:<-------- sep_configure_dma_burst start \n");
 
   /* request access to registers from SEP */
   sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2);
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (write reg)  \n");
+  dbg("SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (write reg)  \n");
 
   sep_wait_busy(sep_dev);
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (while(revVal) wait loop)  \n");
+  dbg("SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (while(revVal) wait loop)  \n");
 
   /* set the DMA burst register to single burst*/
   sep_write_reg(sep_dev, HW_AHB_RD_WR_BURSTS_REG_ADDR, 0x0UL);
@@ -3843,8 +3749,7 @@ static void sep_configure_dma_burst(void)
   sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x0UL);
   sep_wait_busy(sep_dev);
 
-  DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
-		"SEP Driver:<-------- sep_configure_dma_burst done  \n");
+  dbg("SEP Driver:<-------- sep_configure_dma_burst done  \n");
 
 }
 
