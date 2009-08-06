@@ -309,6 +309,10 @@ static void acpi_device_release(struct device *dev)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
 	kfree(acpi_dev->pnp.cid_list);
+	if (acpi_dev->flags.hardware_id)
+		kfree(acpi_dev->pnp.hardware_id);
+	if (acpi_dev->flags.unique_id)
+		kfree(acpi_dev->pnp.unique_id);
 	kfree(acpi_dev);
 }
 
@@ -1137,8 +1141,9 @@ static void acpi_device_set_id(struct acpi_device *device,
 			strcpy(device->pnp.hardware_id, hid);
 			device->flags.hardware_id = 1;
 		}
-	} else
-		device->pnp.hardware_id = NULL;
+	}
+	if (!device->flags.hardware_id)
+		device->pnp.hardware_id = "";
 
 	if (uid) {
 		device->pnp.unique_id = ACPI_ALLOCATE_ZEROED(strlen (uid) + 1);
@@ -1146,8 +1151,9 @@ static void acpi_device_set_id(struct acpi_device *device,
 			strcpy(device->pnp.unique_id, uid);
 			device->flags.unique_id = 1;
 		}
-	} else
-		device->pnp.unique_id = NULL;
+	}
+	if (!device->flags.unique_id)
+		device->pnp.unique_id = "";
 
 	if (cid_list || cid_add) {
 		struct acpica_device_id_list *list;
@@ -1362,10 +1368,8 @@ acpi_add_single_object(struct acpi_device **child,
 end:
 	if (!result)
 		*child = device;
-	else {
-		kfree(device->pnp.cid_list);
-		kfree(device);
-	}
+	else
+		acpi_device_release(&device->dev);
 
 	return result;
 }
