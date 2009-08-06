@@ -500,7 +500,7 @@ static int ams_delta_cx20442_init(struct snd_soc_codec *codec)
 	}
 
 	/* Register optional line discipline for over the modem control */
-	ret = tty_register_ldisc(N_AMSDELTA, &cx81801_ops);
+	ret = tty_register_ldisc(N_V253, &cx81801_ops);
 	if (ret) {
 		dev_warn(card->dev,
 				"Failed to register line discipline, "
@@ -625,9 +625,9 @@ static void __exit ams_delta_module_exit(void)
 		}
 	}
 
-	if (tty_unregister_ldisc(N_AMSDELTA) != 0)
+	if (tty_unregister_ldisc(N_V253) != 0)
 		dev_warn(&ams_delta_audio_platform_device->dev,
-			"failed to unregister AMSDELTA line discipline\n");
+			"failed to unregister V253 line discipline\n");
 
 	snd_soc_jack_free_gpios(&ams_delta_hook_switch,
 			ARRAY_SIZE(ams_delta_hook_switch_gpios),

@@ -47,7 +47,7 @@
 #define N_SLCAN		17	/* Serial / USB serial CAN Adaptors */
 #define N_PPS		18	/* Pulse per Second */
 
-#define N_AMSDELTA	19	/* codec control over modem, board specific */
+#define N_V253		19	/* Codec control over voice modem */
 
 /*
  * This character is the same as _POSIX_VDISABLE: it cannot be used as
