@@ -284,6 +284,7 @@ struct ieee80211_if_managed {
 
 	struct mutex mtx;
 	struct ieee80211_bss *associated;
+	struct ieee80211_mgd_work *old_associate_work;
 	struct list_head work_list;
 
 	u8 bssid[ETH_ALEN];

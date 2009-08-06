@@ -880,10 +880,11 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 }
 
 static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
-				     struct ieee80211_bss *bss,
+				     struct ieee80211_mgd_work *wk,
 				     u32 bss_info_changed)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_bss *bss = wk->bss;
 
 	bss_info_changed |= BSS_CHANGED_ASSOC;
 	/* set timing information */
@@ -896,6 +897,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		bss->cbss.capability, bss->has_erp_value, bss->erp_value);
 
 	sdata->u.mgd.associated = bss;
+	sdata->u.mgd.old_associate_work = wk;
 	memcpy(sdata->u.mgd.bssid, bss->cbss.bssid, ETH_ALEN);
 
 	/* just to be sure */
@@ -1010,7 +1012,8 @@ ieee80211_authenticate(struct ieee80211_sub_if_data *sdata,
 	return RX_MGMT_NONE;
 }
 
-static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
+static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
+				   bool deauth)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
@@ -1027,6 +1030,16 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
 
 	ifmgd->associated = NULL;
 	memset(ifmgd->bssid, 0, ETH_ALEN);
+
+	if (deauth) {
+		kfree(ifmgd->old_associate_work);
+		ifmgd->old_associate_work = NULL;
+	} else {
+		struct ieee80211_mgd_work *wk = ifmgd->old_associate_work;
+
+		wk->state = IEEE80211_MGD_STATE_IDLE;
+		list_add(&wk->list, &ifmgd->work_list);
+	}
 
 	/*
 	 * we need to commit the associated = NULL change because the
@@ -1345,7 +1358,7 @@ ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 			sdata->dev->name, bssid, reason_code);
 
 	if (!wk) {
-		ieee80211_set_disassoc(sdata);
+		ieee80211_set_disassoc(sdata, true);
 	} else {
 		list_del(&wk->list);
 		kfree(wk);
@@ -1378,7 +1391,7 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: disassociated (Reason: %u)\n",
 			sdata->dev->name, reason_code);
 
-	ieee80211_set_disassoc(sdata);
+	ieee80211_set_disassoc(sdata, false);
 	return RX_MGMT_CFG80211_DISASSOC;
 }
 
@@ -1581,7 +1594,8 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	 * ieee80211_set_associated() will tell the driver */
 	bss_conf->aid = aid;
 	bss_conf->assoc_capability = capab_info;
-	ieee80211_set_associated(sdata, wk->bss, changed);
+	/* this will take ownership of wk */
+	ieee80211_set_associated(sdata, wk, changed);
 
 	/*
 	 * Start timer to probe the connection to the AP now.
@@ -1590,7 +1604,6 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_rx_notify(sdata, (struct ieee80211_hdr *)mgmt);
 	mod_beacon_timer(sdata);
 
-	kfree(wk);
 	return RX_MGMT_CFG80211_ASSOC;
 }
 
@@ -2096,7 +2109,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 			printk(KERN_DEBUG "No probe response from AP %pM"
 				" after %dms, disconnecting.\n",
 				bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ);
-			ieee80211_set_disassoc(sdata);
+			ieee80211_set_disassoc(sdata, true);
 			mutex_unlock(&ifmgd->mtx);
 			/*
 			 * must be outside lock due to cfg80211,
@@ -2500,7 +2513,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 
 	if (ifmgd->associated && &ifmgd->associated->cbss == req->bss) {
 		bssid = req->bss->bssid;
-		ieee80211_set_disassoc(sdata);
+		ieee80211_set_disassoc(sdata, true);
 	} else list_for_each_entry(wk, &ifmgd->work_list, list) {
 		if (&wk->bss->cbss == req->bss) {
 			bssid = req->bss->bssid;
@@ -2552,7 +2565,7 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 		return -ENOLINK;
 	}
 
-	ieee80211_set_disassoc(sdata);
+	ieee80211_set_disassoc(sdata, false);
 
 	mutex_unlock(&ifmgd->mtx);
 
