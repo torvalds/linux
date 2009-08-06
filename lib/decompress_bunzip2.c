@@ -45,9 +45,11 @@
 */
 
 
-#ifndef STATIC
+#ifdef STATIC
+#define PREBOOT
+#else
 #include <linux/decompress/bunzip2.h>
-#endif /* !STATIC */
+#endif /* STATIC */
 
 #include <linux/decompress/mm.h>
 #include <linux/slab.h>
@@ -681,9 +683,7 @@ STATIC int INIT bunzip2(unsigned char *buf, int len,
 	set_error_fn(error_fn);
 	if (flush)
 		outbuf = malloc(BZIP2_IOBUF_SIZE);
-	else
-		len -= 4; /* Uncompressed size hack active in pre-boot
-			     environment */
+
 	if (!outbuf) {
 		error("Could not allocate output bufer");
 		return -1;
@@ -733,4 +733,14 @@ exit_0:
 	return i;
 }
 
-#define decompress bunzip2
+#ifdef PREBOOT
+STATIC int INIT decompress(unsigned char *buf, int len,
+			int(*fill)(void*, unsigned int),
+			int(*flush)(void*, unsigned int),
+			unsigned char *outbuf,
+			int *pos,
+			void(*error_fn)(char *x))
+{
+	return bunzip2(buf, len - 4, fill, flush, outbuf, pos, error_fn);
+}
+#endif
