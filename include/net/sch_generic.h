@@ -45,6 +45,7 @@ struct Qdisc
 #define TCQ_F_BUILTIN		1
 #define TCQ_F_THROTTLED		2
 #define TCQ_F_INGRESS		4
+#define TCQ_F_CAN_BYPASS	8
 #define TCQ_F_WARN_NONWC	(1 << 16)
 	int			padded;
 	struct Qdisc_ops	*ops;
@@ -181,6 +182,11 @@ struct qdisc_skb_cb {
 	unsigned int		pkt_len;
 	char			data[];
 };
+
+static inline int qdisc_qlen(struct Qdisc *q)
+{
+	return q->q.qlen;
+}
 
 static inline struct qdisc_skb_cb *qdisc_skb_cb(struct sk_buff *skb)
 {
@@ -387,13 +393,18 @@ static inline int qdisc_enqueue_root(struct sk_buff *skb, struct Qdisc *sch)
 	return qdisc_enqueue(skb, sch) & NET_XMIT_MASK;
 }
 
+static inline void __qdisc_update_bstats(struct Qdisc *sch, unsigned int len)
+{
+	sch->bstats.bytes += len;
+	sch->bstats.packets++;
+}
+
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,
 				       struct sk_buff_head *list)
 {
 	__skb_queue_tail(list, skb);
 	sch->qstats.backlog += qdisc_pkt_len(skb);
-	sch->bstats.bytes += qdisc_pkt_len(skb);
-	sch->bstats.packets++;
+	__qdisc_update_bstats(sch, qdisc_pkt_len(skb));
 
 	return NET_XMIT_SUCCESS;
 }
