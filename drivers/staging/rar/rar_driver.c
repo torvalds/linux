@@ -74,7 +74,7 @@ static void __exit rar_exit_handler(void);
 /*
   function that is activated on the succesfull probe of the RAR device
 */
-static int __devinit rar_probe(struct pci_dev *pdev, struct pci_device_id *ent);
+static int __devinit rar_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
 static struct pci_device_id rar_pci_id_tbl[] = {
 	{ PCI_DEVICE(VENDOR_ID, DEVICE_ID) },
@@ -311,7 +311,7 @@ static int memrar_init_rar_params(struct pci_dev *pdev)
 	if(1) {
 	       size_t z;
 	       for (z = 0; z != MRST_NUM_RAR; ++z) {
-			printk(KERN_WARNING "rar - BRAR[%u] physical address low\n"
+			printk(KERN_WARNING "rar - BRAR[%Zd] physical address low\n"
 			     "\tlow:  0x%08x\n"
 			     "\thigh: 0x%08x\n",
 			     z,
@@ -327,7 +327,7 @@ static int memrar_init_rar_params(struct pci_dev *pdev)
 /*
   function that is activaed on the succesfull probe of the RAR device
 */
-static int __devinit rar_probe(struct pci_dev *pdev, struct pci_device_id *ent)
+static int __devinit rar_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	/* error */
 	int error;

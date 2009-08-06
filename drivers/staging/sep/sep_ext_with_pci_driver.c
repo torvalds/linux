@@ -217,7 +217,7 @@ int sep_copy_cache_resident_to_area(unsigned long   src_cache_addr,
 	  "SEP Driver:cache data loc is %p\n",
 	  (void *)fw->data);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
-	  "SEP Driver:cache data size is %08x\n",
+	  "SEP Driver:cache data size is %08Zx\n",
 	  fw->size);
 
 	memcpy((void *)cache_virtual_address, (void *)fw->data, fw->size);
@@ -243,7 +243,7 @@ int sep_copy_cache_resident_to_area(unsigned long   src_cache_addr,
 	  "SEP Driver:res data loc is %p\n",
 	  (void *)fw->data);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
-	  "SEP Driver:res data size is %08x\n",
+	  "SEP Driver:res data size is %08Zx\n",
 	  fw->size);
 
 	memcpy((void *)resident_virtual_address, (void *)fw->data, fw->size);
