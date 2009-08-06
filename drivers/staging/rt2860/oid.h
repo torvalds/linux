@@ -626,13 +626,6 @@ typedef struct _NDIS_802_11_CAPABILITY
      NDIS_802_11_AUTHENTICATION_ENCRYPTION AuthenticationEncryptionSupported[1];
 } NDIS_802_11_CAPABILITY, *PNDIS_802_11_CAPABILITY;
 
-#if WIRELESS_EXT <= 11
-#ifndef SIOCDEVPRIVATE
-#define SIOCDEVPRIVATE                              0x8BE0
-#endif
-#define SIOCIWFIRSTPRIV								SIOCDEVPRIVATE
-#endif
-
 #ifdef RT30xx
 #define RT_PRIV_IOCTL_EXT							(SIOCIWFIRSTPRIV + 0x01) // Sync. with AP for wsc upnp daemon
 #endif

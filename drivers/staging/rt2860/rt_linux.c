@@ -728,7 +728,6 @@ VOID RTMPSendWirelessEvent(
 	IN	UCHAR			BssIdx,
 	IN	CHAR			Rssi)
 {
-#if WIRELESS_EXT >= 15
 
 	union 	iwreq_data      wrqu;
 	PUCHAR 	pBuf = NULL, pBufPtr = NULL;
@@ -805,9 +804,6 @@ VOID RTMPSendWirelessEvent(
 	}
 	else
 		DBGPRINT(RT_DEBUG_ERROR, ("%s : Can't allocate memory for wireless event.\n", __func__));
-#else
-	DBGPRINT(RT_DEBUG_ERROR, ("%s : The Wireless Extension MUST be v15 or newer.\n", __func__));
-#endif  /* WIRELESS_EXT >= 15 */
 }
 
 void send_monitor_packets(

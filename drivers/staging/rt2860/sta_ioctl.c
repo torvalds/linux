@@ -815,11 +815,9 @@ int rt_ioctl_giwrange(struct net_device *dev,
 	range->min_frag = 256;
 	range->max_frag = 2346;
 
-#if WIRELESS_EXT > 17
 	/* IW_ENC_CAPA_* bit field */
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 					IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
-#endif
 
 	return 0;
 }
@@ -1110,25 +1108,15 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		return 0;
 	}
 
-#if WIRELESS_EXT >= 17
     if (data->length > 0)
         end_buf = extra + data->length;
     else
         end_buf = extra + IW_SCAN_MAX_DATA;
-#else
-    end_buf = extra + IW_SCAN_MAX_DATA;
-#endif
 
 	for (i = 0; i < pAdapter->ScanTab.BssNr; i++)
 	{
 		if (current_ev >= end_buf)
-        {
-#if WIRELESS_EXT >= 17
-            return -E2BIG;
-#else
-			break;
-#endif
-        }
+			return -E2BIG;
 
 		//MAC address
 		//================================
@@ -1141,11 +1129,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		current_ev = iwe_stream_add_event(info, current_ev,end_buf, &iwe, IW_EV_ADDR_LEN);
 #ifdef RT30xx
         if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-            return -E2BIG;
-#else
-			break;
-#endif
+		return -E2BIG;
 
 		/*
 		Protocol:
@@ -1221,11 +1205,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		current_ev	 = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_ADDR_LEN);
 #endif /* RT30xx */
         if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-            return -E2BIG;
-#else
-			break;
-#endif
+		return -E2BIG;
 
 		//ESSID
 		//================================
@@ -1237,11 +1217,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
         previous_ev = current_ev;
 		current_ev = iwe_stream_add_point(info, current_ev,end_buf, &iwe, pAdapter->ScanTab.BssEntry[i].Ssid);
         if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-            return -E2BIG;
-#else
-			break;
-#endif
+		return -E2BIG;
 
 		//Network Type
 		//================================
@@ -1264,11 +1240,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
         previous_ev = current_ev;
 		current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,  IW_EV_UINT_LEN);
         if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-            return -E2BIG;
-#else
-			break;
-#endif
+		return -E2BIG;
 
 		//Channel and Frequency
 		//================================
@@ -1284,11 +1256,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		previous_ev = current_ev;
 		current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_FREQ_LEN);
         if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-            return -E2BIG;
-#else
-			break;
-#endif
+		return -E2BIG;
 
         //Add quality statistics
         //================================
@@ -1299,11 +1267,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
         set_quality(pAdapter, &iwe.u.qual, pAdapter->ScanTab.BssEntry[i].Rssi);
     	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
         if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-            return -E2BIG;
-#else
-			break;
-#endif
+		return -E2BIG;
 
 		//Encyption key
 		//================================
@@ -1317,11 +1281,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
         previous_ev = current_ev;
         current_ev = iwe_stream_add_point(info, current_ev, end_buf,&iwe, (char *)pAdapter->SharedKey[BSS0][(iwe.u.data.flags & IW_ENCODE_INDEX)-1].Key);
         if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-            return -E2BIG;
-#else
-			break;
-#endif
+		return -E2BIG;
 
 		//Bit Rate
 		//================================
@@ -1350,11 +1310,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
         	if((current_val-current_ev)>IW_EV_LCP_LEN)
             	current_ev = current_val;
         	else
-#if WIRELESS_EXT >= 17
-                return -E2BIG;
-#else
-			    break;
-#endif
+			return -E2BIG;
         }
 
 #ifdef IWEVGENIE
@@ -1369,11 +1325,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 			iwe.u.data.length = pAdapter->ScanTab.BssEntry[i].WpaIE.IELen;
 			current_ev = iwe_stream_add_point(info, current_ev, end_buf, &iwe, custom);
 			if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-                return -E2BIG;
-#else
-			    break;
-#endif
+				return -E2BIG;
 		}
 
 		//WPA2 IE
@@ -1387,11 +1339,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
 			iwe.u.data.length = pAdapter->ScanTab.BssEntry[i].RsnIE.IELen;
 			current_ev = iwe_stream_add_point(info, current_ev, end_buf, &iwe, custom);
 			if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-                return -E2BIG;
-#else
-			    break;
-#endif
+				return -E2BIG;
         }
 #else
         //WPA IE
@@ -1408,11 +1356,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
             previous_ev = current_ev;
     		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,  custom);
             if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-                return -E2BIG;
-#else
-			    break;
-#endif
+		return -E2BIG;
         }
 
         //WPA2 IE
@@ -1428,11 +1372,7 @@ int rt_ioctl_giwscan(struct net_device *dev,
             previous_ev = current_ev;
     		current_ev = iwe_stream_add_point(current_ev, end_buf, &iwe,  custom);
             if (current_ev == previous_ev)
-#if WIRELESS_EXT >= 17
-                return -E2BIG;
-#else
-			    break;
-#endif
+		return -E2BIG;
         }
 #endif // IWEVGENIE //
 	}
@@ -2332,7 +2272,6 @@ int rt_ioctl_siwmlme(struct net_device *dev,
 }
 #endif // SIOCSIWMLME //
 
-#if WIRELESS_EXT > 17
 int rt_ioctl_siwauth(struct net_device *dev,
 			  struct iw_request_info *info,
 			  union iwreq_data *wrqu, char *extra)
@@ -2911,7 +2850,6 @@ int rt_ioctl_siwpmksa(struct net_device *dev,
 
 	return 0;
 }
-#endif // #if WIRELESS_EXT > 17
 
 #ifdef DBG
 static int
@@ -3214,7 +3152,6 @@ static const iw_handler rt_handler[] =
 	(iw_handler) NULL,		                /* SIOCGIWPOWER  */
 	(iw_handler) NULL,						/* -- hole -- */
 	(iw_handler) NULL,						/* -- hole -- */
-#if WIRELESS_EXT > 17
     (iw_handler) rt_ioctl_siwgenie,         /* SIOCSIWGENIE  */
 	(iw_handler) rt_ioctl_giwgenie,         /* SIOCGIWGENIE  */
 	(iw_handler) rt_ioctl_siwauth,		    /* SIOCSIWAUTH   */
@@ -3222,7 +3159,6 @@ static const iw_handler rt_handler[] =
 	(iw_handler) rt_ioctl_siwencodeext,	    /* SIOCSIWENCODEEXT */
 	(iw_handler) rt_ioctl_giwencodeext,		/* SIOCGIWENCODEEXT */
 	(iw_handler) rt_ioctl_siwpmksa,         /* SIOCSIWPMKSA  */
-#endif
 };
 
 static const iw_handler rt_priv_handlers[] = {
@@ -4584,22 +4520,9 @@ INT RTMPQueryInformation(
                 }
                 pBss->Length = (ULONG)(sizeof(NDIS_WLAN_BSSID_EX) - 1 + sizeof(NDIS_802_11_FIXED_IEs) + pAdapter->ScanTab.BssEntry[i].VarIELen + Padding);
 
-#if WIRELESS_EXT < 17
-                if ((BssLen + pBss->Length) < wrq->u.data.length)
                 BssLen += pBss->Length;
-                else
-                {
-                    pBssidList->NumberOfItems = i;
-                    break;
-                }
-#else
-                BssLen += pBss->Length;
-#endif
             }
 
-#if WIRELESS_EXT < 17
-            wrq->u.data.length = BssLen;
-#else
             if (BssLen > wrq->u.data.length)
             {
                 kfree(pBssidList);
@@ -4607,7 +4530,6 @@ INT RTMPQueryInformation(
             }
             else
                 wrq->u.data.length = BssLen;
-#endif
             Status = copy_to_user(wrq->u.data.pointer, pBssidList, BssLen);
             kfree(pBssidList);
             break;

@@ -1503,7 +1503,6 @@ int wext_notify_event_assoc(
     union iwreq_data    wrqu;
     char custom[IW_CUSTOM_MAX] = {0};
 
-#if WIRELESS_EXT > 17
     if (pAd->StaCfg.ReqVarIELen <= IW_CUSTOM_MAX)
     {
         wrqu.data.length = pAd->StaCfg.ReqVarIELen;
@@ -1512,19 +1511,6 @@ int wext_notify_event_assoc(
     }
     else
         DBGPRINT(RT_DEBUG_TRACE, ("pAd->StaCfg.ReqVarIELen > MAX_CUSTOM_LEN\n"));
-#else
-    if (((pAd->StaCfg.ReqVarIELen*2) + 17) <= IW_CUSTOM_MAX)
-    {
-        UCHAR   idx;
-        wrqu.data.length = (pAd->StaCfg.ReqVarIELen*2) + 17;
-        sprintf(custom, "ASSOCINFO(ReqIEs=");
-        for (idx=0; idx<pAd->StaCfg.ReqVarIELen; idx++)
-                sprintf(custom + strlen(custom), "%02x", pAd->StaCfg.ReqVarIEs[idx]);
-        wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, custom);
-    }
-    else
-        DBGPRINT(RT_DEBUG_TRACE, ("(pAd->StaCfg.ReqVarIELen*2) + 17 > MAX_CUSTOM_LEN\n"));
-#endif
 
 	return 0;
 

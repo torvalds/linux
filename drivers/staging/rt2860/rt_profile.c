@@ -1230,14 +1230,10 @@ NDIS_STATUS	RTMPReadParametersHook(
 					//WirelessEvent
 					if(RTMPGetKeyParameter("WirelessEvent", tmpbuf, 10, buffer))
 					{
-#if WIRELESS_EXT >= 15
 					    if(simple_strtol(tmpbuf, 0, 10) != 0)
 							pAd->CommonCfg.bWirelessEvent = simple_strtol(tmpbuf, 0, 10);
 						else
 							pAd->CommonCfg.bWirelessEvent = 0;	// disable
-#else
-						pAd->CommonCfg.bWirelessEvent = 0;	// disable
-#endif
    						DBGPRINT(RT_DEBUG_TRACE, ("WirelessEvent=%d\n", pAd->CommonCfg.bWirelessEvent));
 					}
 					if(RTMPGetKeyParameter("WiFiTest", tmpbuf, 10, buffer))

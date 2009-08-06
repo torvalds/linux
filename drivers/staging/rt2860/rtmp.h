@@ -2972,9 +2972,7 @@ typedef struct _RTMP_ADAPTER
 
 	ULONG					OneSecondnonBEpackets;		// record non BE packets per second
 
-#if WIRELESS_EXT >= 12
     struct iw_statistics    iw_stats;
-#endif
 
 	struct net_device_stats	stats;
 
@@ -6323,11 +6321,9 @@ void send_monitor_packets(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	RX_BLK			*pRxBlk);
 
-#if WIRELESS_EXT >= 12
 // This function will be called when query /proc
 struct iw_statistics *rt28xx_get_wireless_stats(
     IN struct net_device *net_dev);
-#endif
 
 VOID    RTMPSetDesiredRates(
     IN  PRTMP_ADAPTER   pAdapter,
