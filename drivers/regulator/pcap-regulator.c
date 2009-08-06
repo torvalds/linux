@@ -310,7 +310,7 @@ static void __exit pcap_regulator_exit(void)
 	platform_driver_unregister(&pcap_regulator_driver);
 }
 
-module_init(pcap_regulator_init);
+subsys_initcall(pcap_regulator_init);
 module_exit(pcap_regulator_exit);
 
 MODULE_AUTHOR("Daniel Ribeiro <drwyrm@gmail.com>");
