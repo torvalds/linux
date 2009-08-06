@@ -363,11 +363,6 @@ static inline int ocfs2_quota_trans_credits(struct super_block *sb)
 	return credits;
 }
 
-/* Number of credits needed for removing quota structure from file */
-int ocfs2_calc_qdel_credits(struct super_block *sb, int type);
-/* Number of credits needed for initialization of new quota structure */
-int ocfs2_calc_qinit_credits(struct super_block *sb, int type);
-
 /* group extend. inode update and last group update. */
 #define OCFS2_GROUP_EXTEND_CREDITS	(OCFS2_INODE_UPDATE_CREDITS + 1)
 
