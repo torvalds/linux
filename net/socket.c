@@ -366,16 +366,8 @@ static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
 	if (unlikely(fd < 0))
 		return fd;
 
-	file = get_empty_filp();
-
-	if (unlikely(!file)) {
-		put_unused_fd(fd);
-		return -ENFILE;
-	}
-
 	dentry = d_alloc(sock_mnt->mnt_sb->s_root, &name);
 	if (unlikely(!dentry)) {
-		put_filp(file);
 		put_unused_fd(fd);
 		return -ENOMEM;
 	}
@@ -388,11 +380,19 @@ static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
 	 */
 	dentry->d_flags &= ~DCACHE_UNHASHED;
 	d_instantiate(dentry, SOCK_INODE(sock));
+	SOCK_INODE(sock)->i_fop = &socket_file_ops;
+
+	file = alloc_file(sock_mnt, dentry, FMODE_READ | FMODE_WRITE,
+		  &socket_file_ops);
+	if (unlikely(!file)) {
+		/* drop dentry, keep inode */
+		atomic_inc(&path.dentry->d_inode->i_count);
+		dput(dentry);
+		put_unused_fd(fd);
+		return -ENFILE;
+	}
 
 	sock->file = file;
-	init_file(file, sock_mnt, dentry, FMODE_READ | FMODE_WRITE,
-		  &socket_file_ops);
-	SOCK_INODE(sock)->i_fop = &socket_file_ops;
 	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
 	file->f_pos = 0;
 	file->private_data = sock;
