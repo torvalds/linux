@@ -202,7 +202,7 @@ static int __cpuinit blk_iopoll_cpu_notify(struct notifier_block *self,
 		local_irq_disable();
 		list_splice_init(&per_cpu(blk_cpu_iopoll, cpu),
 				 &__get_cpu_var(blk_cpu_iopoll));
-		raise_softirq_irqoff(BLOCK_IOPOLL_SOFTIRQ);
+		__raise_softirq_irqoff(BLOCK_IOPOLL_SOFTIRQ);
 		local_irq_enable();
 	}
 
