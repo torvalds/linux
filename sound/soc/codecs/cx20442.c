@@ -203,6 +203,7 @@ static int cx20442_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (unlikely(len > (ARRAY_SIZE(buf) - 1)))
 		return -ENOMEM;
 
+	dev_dbg(codec->dev, "%s: %s\n", __func__, buf);
 	if (codec->hw_write(codec->control_data, buf, len) != len)
 		return -EIO;
 
