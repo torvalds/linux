@@ -49,10 +49,10 @@
 #define PREBOOT
 #else
 #include <linux/decompress/bunzip2.h>
+#include <linux/slab.h>
 #endif /* STATIC */
 
 #include <linux/decompress/mm.h>
-#include <linux/slab.h>
 
 #ifndef INT_MAX
 #define INT_MAX 0x7fffffff
