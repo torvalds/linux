@@ -16,3 +16,15 @@ config WL1251
 
 	  If you choose to build a module, it'll be called wl1251. Say N if
 	  unsure.
+
+config WL1271
+	tristate "TI wl1271 support"
+	depends on WL12XX && SPI_MASTER && GENERIC_HARDIRQS
+	select FW_LOADER
+	select CRC7
+	---help---
+	  This module adds support for wireless adapters based on the
+	  TI wl1271 chipset.
+
+	  If you choose to build a module, it'll be called wl1271. Say N if
+	  unsure.
