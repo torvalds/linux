@@ -640,17 +640,10 @@ void pci_msi_shutdown(struct pci_dev *dev)
 
 void pci_disable_msi(struct pci_dev* dev)
 {
-	struct msi_desc *entry;
-
 	if (!pci_msi_enable || !dev || !dev->msi_enabled)
 		return;
 
 	pci_msi_shutdown(dev);
-
-	entry = list_entry(dev->msi_list.next, struct msi_desc, list);
-	if (entry->msi_attrib.is_msix)
-		return;
-
 	msi_free_irqs(dev);
 }
 EXPORT_SYMBOL(pci_disable_msi);
@@ -774,13 +767,13 @@ void pci_msix_shutdown(struct pci_dev* dev)
 	pci_intx_for_msi(dev, 1);
 	dev->msix_enabled = 0;
 }
+
 void pci_disable_msix(struct pci_dev* dev)
 {
 	if (!pci_msi_enable || !dev || !dev->msix_enabled)
 		return;
 
 	pci_msix_shutdown(dev);
-
 	msix_free_all_irqs(dev);
 }
 EXPORT_SYMBOL(pci_disable_msix);
