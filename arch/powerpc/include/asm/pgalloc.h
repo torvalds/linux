@@ -28,7 +28,12 @@ typedef struct pgtable_free {
 	unsigned long val;
 } pgtable_free_t;
 
-#define PGF_CACHENUM_MASK	0x7
+/* This needs to be big enough to allow for MMU_PAGE_COUNT + 2 to be stored
+ * and small enough to fit in the low bits of any naturally aligned page
+ * table cache entry. Arbitrarily set to 0x1f, that should give us some
+ * room to grow
+ */
+#define PGF_CACHENUM_MASK	0x1f
 
 static inline pgtable_free_t pgtable_free_cache(void *p, int cachenum,
 						unsigned long mask)
