@@ -393,7 +393,7 @@ while (<IN>) {
 	    $read_function = 0;
 	}
 	# print out any recorded offsets
-	update_funcs() if ($text_found);
+	update_funcs() if (defined($ref_func));
 
 	# reset all markers and arrays
 	$text_found = 0;
@@ -444,7 +444,7 @@ while (<IN>) {
 }
 
 # dump out anymore offsets that may have been found
-update_funcs() if ($text_found);
+update_funcs() if (defined($ref_func));
 
 # If we did not find any mcount callers, we are done (do nothing).
 if (!$opened) {
