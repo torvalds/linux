@@ -112,7 +112,9 @@ struct read_event {
 	struct perf_event_header header;
 	u32 pid,tid;
 	u64 value;
-	u64 format[3];
+	u64 time_enabled;
+	u64 time_running;
+	u64 id;
 };
 
 typedef union event_union {
@@ -1690,14 +1692,37 @@ static void trace_event(event_t *event)
 	dprintf(".\n");
 }
 
+static struct perf_header	*header;
+
+static struct perf_counter_attr *perf_header__find_attr(u64 id)
+{
+	int i;
+
+	for (i = 0; i < header->attrs; i++) {
+		struct perf_header_attr *attr = header->attr[i];
+		int j;
+
+		for (j = 0; j < attr->ids; j++) {
+			if (attr->id[j] == id)
+				return &attr->attr;
+		}
+	}
+
+	return NULL;
+}
+
 static int
 process_read_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	dprintf("%p [%p]: PERF_EVENT_READ: %d %d %Lu\n",
+	struct perf_counter_attr *attr = perf_header__find_attr(event->read.id);
+
+	dprintf("%p [%p]: PERF_EVENT_READ: %d %d %s %Lu\n",
 			(void *)(offset + head),
 			(void *)(long)(event->header.size),
 			event->read.pid,
 			event->read.tid,
+			attr ? __event_name(attr->type, attr->config)
+			     : "FAIL",
 			event->read.value);
 
 	return 0;
@@ -1742,8 +1767,6 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 	return 0;
 }
-
-static struct perf_header	*header;
 
 static u64 perf_header__sample_type(void)
 {

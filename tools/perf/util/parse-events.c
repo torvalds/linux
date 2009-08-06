@@ -223,9 +223,15 @@ char *event_name(int counter)
 {
 	u64 config = attrs[counter].config;
 	int type = attrs[counter].type;
+
+	return __event_name(type, config);
+}
+
+char *__event_name(int type, u64 config)
+{
 	static char buf[32];
 
-	if (attrs[counter].type == PERF_TYPE_RAW) {
+	if (type == PERF_TYPE_RAW) {
 		sprintf(buf, "raw 0x%llx", config);
 		return buf;
 	}
