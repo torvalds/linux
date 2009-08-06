@@ -2,6 +2,9 @@
  *	PCI Class, Vendor and Device IDs
  *
  *	Please keep sorted.
+ *
+ *	Do not add new entries to this file unless the definitions
+ *	are shared between multiple drivers.
  */
 
 /* Device classes and subclasses */
