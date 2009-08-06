@@ -1302,9 +1302,17 @@ static int vme_bus_match(struct device *dev, struct device_driver *drv)
 	while((driver->bind_table[i].bus != 0) ||
 		(driver->bind_table[i].slot != 0)) {
 
-		if ((bridge->num == driver->bind_table[i].bus) &&
-			(num == driver->bind_table[i].slot))
-			return 1;
+		if (bridge->num == driver->bind_table[i].bus) {
+			if (num == driver->bind_table[i].slot)
+				return 1;
+
+			if (driver->bind_table[i].slot == VME_SLOT_ALL)
+				return 1;
+
+			if ((driver->bind_table[i].slot == VME_SLOT_CURRENT) &&
+				(num == vme_slot_get(dev)))
+				return 1;
+		}
 		i++;
 	}
 

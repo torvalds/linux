@@ -79,6 +79,9 @@ struct vme_resource {
 
 extern struct bus_type vme_bus_type;
 
+#define VME_SLOT_CURRENT	-1
+#define VME_SLOT_ALL		-2
+
 struct vme_device_id {
 	int bus;
 	int slot;
