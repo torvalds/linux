@@ -1352,7 +1352,7 @@ static int __init disable_boot_consoles(void)
 		if (con->flags & CON_BOOT) {
 			printk(KERN_INFO "turn off boot console %s%d\n",
 				con->name, con->index);
-			return unregister_console(con);
+			unregister_console(con);
 		}
 	}
 	return 0;
