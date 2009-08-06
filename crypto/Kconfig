@@ -290,6 +290,13 @@ config CRYPTO_CRC32C_INTEL
 	  gain performance compared with software implementation.
 	  Module will be crc32c-intel.
 
+config CRYPTO_GHASH
+	tristate "GHASH digest algorithm"
+	select CRYPTO_SHASH
+	select CRYPTO_GF128MUL
+	help
+	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
+
 config CRYPTO_MD4
 	tristate "MD4 digest algorithm"
 	select CRYPTO_HASH
