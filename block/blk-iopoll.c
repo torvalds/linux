@@ -115,9 +115,12 @@ static void blk_iopoll_softirq(struct softirq_action *h)
 
 		local_irq_disable();
 
-		/* Drivers must not modify the NAPI state if they
-		 * consume the entire weight.  In such cases this code
-		 * still "owns" the NAPI instance and therefore can
+		/*
+		 * Drivers must not modify the iopoll state, if they
+		 * consume their assigned weight (or more, some drivers can't
+		 * easily just stop processing, they have to complete an
+		 * entire mask of commands).In such cases this code
+		 * still "owns" the iopoll instance and therefore can
 		 * move the instance around on the list at-will.
 		 */
 		if (work >= weight) {
