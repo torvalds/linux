@@ -432,6 +432,21 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	return 0;
 }
 
+static void __iomem *msix_map_region(struct pci_dev *dev, unsigned pos,
+							unsigned nr_entries)
+{
+	unsigned long phys_addr;
+	u32 table_offset;
+	u8 bir;
+
+	pci_read_config_dword(dev, msix_table_offset_reg(pos), &table_offset);
+	bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
+	table_offset &= ~PCI_MSIX_FLAGS_BIRMASK;
+	phys_addr = pci_resource_start(dev, bir) + table_offset;
+
+	return ioremap_nocache(phys_addr, nr_entries * PCI_MSIX_ENTRY_SIZE);
+}
+
 /**
  * msix_capability_init - configure device's MSI-X capability
  * @dev: pointer to the pci_dev data structure of MSI-X device function
@@ -446,11 +461,8 @@ static int msix_capability_init(struct pci_dev *dev,
 				struct msix_entry *entries, int nvec)
 {
 	struct msi_desc *entry;
-	int pos, i, j, nr_entries, ret;
-	unsigned long phys_addr;
-	u32 table_offset;
- 	u16 control;
-	u8 bir;
+	int pos, i, j, ret;
+	u16 control;
 	void __iomem *base;
 
    	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
@@ -461,14 +473,8 @@ static int msix_capability_init(struct pci_dev *dev,
 	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
 
 	/* Request & Map MSI-X table region */
-	nr_entries = multi_msix_capable(control);
-
- 	pci_read_config_dword(dev, msix_table_offset_reg(pos), &table_offset);
-	bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
-	table_offset &= ~PCI_MSIX_FLAGS_BIRMASK;
-	phys_addr = pci_resource_start (dev, bir) + table_offset;
-	base = ioremap_nocache(phys_addr, nr_entries * PCI_MSIX_ENTRY_SIZE);
-	if (base == NULL)
+	base = msix_map_region(dev, pos, multi_msix_capable(control));
+	if (!base)
 		return -ENOMEM;
 
 	for (i = 0; i < nvec; i++) {
