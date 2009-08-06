@@ -7,4 +7,4 @@
 .text
 	.global	romstart
 romstart:
-#include <romimage.h>
+#include <mach/romimage.h>
