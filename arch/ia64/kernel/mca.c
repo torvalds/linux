@@ -1682,14 +1682,25 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 
 	if (!sos->monarch) {
 		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_INIT;
+
+#ifdef CONFIG_KEXEC
+		while (monarch_cpu == -1 && !atomic_read(&kdump_in_progress))
+			udelay(1000);
+#else
 		while (monarch_cpu == -1)
-		       cpu_relax();	/* spin until monarch enters */
+			cpu_relax();	/* spin until monarch enters */
+#endif
 
 		NOTIFY_INIT(DIE_INIT_SLAVE_ENTER, regs, (long)&nd, 1);
 		NOTIFY_INIT(DIE_INIT_SLAVE_PROCESS, regs, (long)&nd, 1);
 
+#ifdef CONFIG_KEXEC
+		while (monarch_cpu != -1 && !atomic_read(&kdump_in_progress))
+			udelay(1000);
+#else
 		while (monarch_cpu != -1)
-		       cpu_relax();	/* spin until monarch leaves */
+			cpu_relax();	/* spin until monarch leaves */
+#endif
 
 		NOTIFY_INIT(DIE_INIT_SLAVE_LEAVE, regs, (long)&nd, 1);
 
