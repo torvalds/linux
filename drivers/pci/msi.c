@@ -494,24 +494,8 @@ static int msix_capability_init(struct pci_dev *dev,
 	}
 
 	ret = arch_setup_msi_irqs(dev, nvec, PCI_CAP_ID_MSIX);
-	if (ret < 0) {
-		/* If we had some success report the number of irqs
-		 * we succeeded in setting up. */
-		int avail = 0;
-		list_for_each_entry(entry, &dev->msi_list, list) {
-			if (entry->irq != 0) {
-				avail++;
-			}
-		}
-
-		if (avail != 0)
-			ret = avail;
-	}
-
-	if (ret) {
-		free_msi_irqs(dev);
-		return ret;
-	}
+	if (ret)
+		goto error;
 
 	/*
 	 * Some devices require MSI-X to be enabled before we can touch the
@@ -540,6 +524,26 @@ static int msix_capability_init(struct pci_dev *dev,
 	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
 
 	return 0;
+
+error:
+	if (ret < 0) {
+		/*
+		 * If we had some success, report the number of irqs
+		 * we succeeded in setting up.
+		 */
+		int avail = 0;
+
+		list_for_each_entry(entry, &dev->msi_list, list) {
+			if (entry->irq != 0)
+				avail++;
+		}
+		if (avail != 0)
+			ret = avail;
+	}
+
+	free_msi_irqs(dev);
+
+	return ret;
 }
 
 /**
