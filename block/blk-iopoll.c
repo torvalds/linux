@@ -17,6 +17,8 @@
 int blk_iopoll_enabled = 1;
 EXPORT_SYMBOL(blk_iopoll_enabled);
 
+static unsigned int blk_iopoll_budget __read_mostly = 256;
+
 static DEFINE_PER_CPU(struct list_head, blk_cpu_iopoll);
 
 /**
@@ -78,8 +80,8 @@ EXPORT_SYMBOL(blk_iopoll_complete);
 static void blk_iopoll_softirq(struct softirq_action *h)
 {
 	struct list_head *list = &__get_cpu_var(blk_cpu_iopoll);
+	int rearm = 0, budget = blk_iopoll_budget;
 	unsigned long start_time = jiffies;
-	int rearm = 0, budget = 64;
 
 	local_irq_disable();
 
