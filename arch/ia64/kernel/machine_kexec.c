@@ -104,6 +104,9 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 		ia64_sal_set_vectors(SAL_VECTOR_OS_INIT, 0, 0, 0, 0, 0, 0);
 	}
 
+	/* Unregister mca handler - No more recovery on current kernel */
+	ia64_sal_set_vectors(SAL_VECTOR_OS_MCA, 0, 0, 0, 0, 0, 0);
+
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();
 
