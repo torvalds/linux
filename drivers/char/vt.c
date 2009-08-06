@@ -2910,6 +2910,9 @@ static const struct tty_operations con_ops = {
 	.flush_chars = con_flush_chars,
 	.chars_in_buffer = con_chars_in_buffer,
 	.ioctl = vt_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = vt_compat_ioctl,
+#endif
 	.stop = con_stop,
 	.start = con_start,
 	.throttle = con_throttle,

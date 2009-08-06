@@ -16,6 +16,7 @@
 #include <linux/tty.h>
 #include <linux/timer.h>
 #include <linux/kernel.h>
+#include <linux/compat.h>
 #include <linux/module.h>
 #include <linux/kd.h>
 #include <linux/vt.h>
@@ -1375,6 +1376,208 @@ void vc_SAK(struct work_struct *work)
 	}
 	release_console_sem();
 }
+
+#ifdef CONFIG_COMPAT
+
+struct compat_consolefontdesc {
+	unsigned short charcount;       /* characters in font (256 or 512) */
+	unsigned short charheight;      /* scan lines per character (1-32) */
+	compat_caddr_t chardata;	/* font data in expanded form */
+};
+
+static inline int
+compat_fontx_ioctl(int cmd, struct compat_consolefontdesc __user *user_cfd,
+			 int perm, struct console_font_op *op)
+{
+	struct compat_consolefontdesc cfdarg;
+	int i;
+
+	if (copy_from_user(&cfdarg, user_cfd, sizeof(struct compat_consolefontdesc)))
+		return -EFAULT;
+
+	switch (cmd) {
+	case PIO_FONTX:
+		if (!perm)
+			return -EPERM;
+		op->op = KD_FONT_OP_SET;
+		op->flags = KD_FONT_FLAG_OLD;
+		op->width = 8;
+		op->height = cfdarg.charheight;
+		op->charcount = cfdarg.charcount;
+		op->data = compat_ptr(cfdarg.chardata);
+		return con_font_op(vc_cons[fg_console].d, op);
+	case GIO_FONTX:
+		op->op = KD_FONT_OP_GET;
+		op->flags = KD_FONT_FLAG_OLD;
+		op->width = 8;
+		op->height = cfdarg.charheight;
+		op->charcount = cfdarg.charcount;
+		op->data = compat_ptr(cfdarg.chardata);
+		i = con_font_op(vc_cons[fg_console].d, op);
+		if (i)
+			return i;
+		cfdarg.charheight = op->height;
+		cfdarg.charcount = op->charcount;
+		if (copy_to_user(user_cfd, &cfdarg, sizeof(struct compat_consolefontdesc)))
+			return -EFAULT;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+struct compat_console_font_op {
+	compat_uint_t op;        /* operation code KD_FONT_OP_* */
+	compat_uint_t flags;     /* KD_FONT_FLAG_* */
+	compat_uint_t width, height;     /* font size */
+	compat_uint_t charcount;
+	compat_caddr_t data;    /* font data with height fixed to 32 */
+};
+
+static inline int
+compat_kdfontop_ioctl(struct compat_console_font_op __user *fontop,
+			 int perm, struct console_font_op *op, struct vc_data *vc)
+{
+	int i;
+
+	if (copy_from_user(op, fontop, sizeof(struct compat_console_font_op)))
+		return -EFAULT;
+	if (!perm && op->op != KD_FONT_OP_GET)
+		return -EPERM;
+	op->data = compat_ptr(((struct compat_console_font_op *)op)->data);
+	op->flags |= KD_FONT_FLAG_OLD;
+	i = con_font_op(vc, op);
+	if (i)
+		return i;
+	((struct compat_console_font_op *)op)->data = (unsigned long)op->data;
+	if (copy_to_user(fontop, op, sizeof(struct compat_console_font_op)))
+		return -EFAULT;
+	return 0;
+}
+
+struct compat_unimapdesc {
+	unsigned short entry_ct;
+	compat_caddr_t entries;
+};
+
+static inline int
+compat_unimap_ioctl(unsigned int cmd, struct compat_unimapdesc __user *user_ud,
+			 int perm, struct vc_data *vc)
+{
+	struct compat_unimapdesc tmp;
+	struct unipair __user *tmp_entries;
+
+	if (copy_from_user(&tmp, user_ud, sizeof tmp))
+		return -EFAULT;
+	tmp_entries = compat_ptr(tmp.entries);
+	if (tmp_entries)
+		if (!access_ok(VERIFY_WRITE, tmp_entries,
+				tmp.entry_ct*sizeof(struct unipair)))
+			return -EFAULT;
+	switch (cmd) {
+	case PIO_UNIMAP:
+		if (!perm)
+			return -EPERM;
+		return con_set_unimap(vc, tmp.entry_ct, tmp_entries);
+	case GIO_UNIMAP:
+		if (!perm && fg_console != vc->vc_num)
+			return -EPERM;
+		return con_get_unimap(vc, tmp.entry_ct, &(user_ud->entry_ct), tmp_entries);
+	}
+	return 0;
+}
+
+long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
+	     unsigned int cmd, unsigned long arg)
+{
+	struct vc_data *vc = tty->driver_data;
+	struct console_font_op op;	/* used in multiple places here */
+	struct kbd_struct *kbd;
+	unsigned int console;
+	void __user *up = (void __user *)arg;
+	int perm;
+	int ret = 0;
+
+	console = vc->vc_num;
+
+	lock_kernel();
+
+	if (!vc_cons_allocated(console)) { 	/* impossible? */
+		ret = -ENOIOCTLCMD;
+		goto out;
+	}
+
+	/*
+	 * To have permissions to do most of the vt ioctls, we either have
+	 * to be the owner of the tty, or have CAP_SYS_TTY_CONFIG.
+	 */
+	perm = 0;
+	if (current->signal->tty == tty || capable(CAP_SYS_TTY_CONFIG))
+		perm = 1;
+
+	kbd = kbd_table + console;
+	switch (cmd) {
+	/*
+	 * these need special handlers for incompatible data structures
+	 */
+	case PIO_FONTX:
+	case GIO_FONTX:
+		ret = compat_fontx_ioctl(cmd, up, perm, &op);
+		break;
+
+	case KDFONTOP:
+		ret = compat_kdfontop_ioctl(up, perm, &op, vc);
+		break;
+
+	case PIO_UNIMAP:
+	case GIO_UNIMAP:
+		ret = do_unimap_ioctl(cmd, up, perm, vc);
+		break;
+
+	/*
+	 * all these treat 'arg' as an integer
+	 */
+	case KIOCSOUND:
+	case KDMKTONE:
+#ifdef CONFIG_X86
+	case KDADDIO:
+	case KDDELIO:
+#endif
+	case KDSETMODE:
+	case KDMAPDISP:
+	case KDUNMAPDISP:
+	case KDSKBMODE:
+	case KDSKBMETA:
+	case KDSKBLED:
+	case KDSETLED:
+	case KDSIGACCEPT:
+	case VT_ACTIVATE:
+	case VT_WAITACTIVE:
+	case VT_RELDISP:
+	case VT_DISALLOCATE:
+	case VT_RESIZE:
+	case VT_RESIZEX:
+		goto fallback;
+
+	/*
+	 * the rest has a compatible data structure behind arg,
+	 * but we have to convert it to a proper 64 bit pointer.
+	 */
+	default:
+		arg = (unsigned long)compat_ptr(arg);
+		goto fallback;
+	}
+out:
+	unlock_kernel();
+	return ret;
+
+fallback:
+	unlock_kernel();
+	return vt_ioctl(tty, file, cmd, arg);
+}
+
+
+#endif /* CONFIG_COMPAT */
+
 
 /*
  * Performs the back end of a vt switch. Called under the console
