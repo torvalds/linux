@@ -777,8 +777,9 @@ static int btmrvl_sdio_host_to_card(struct btmrvl_private *priv,
 	buf = payload;
 	if ((unsigned long) payload & (BTSDIO_DMA_ALIGN - 1)) {
 		tmpbufsz = ALIGN_SZ(nb, BTSDIO_DMA_ALIGN);
-		tmpbuf = kmalloc(tmpbufsz, GFP_KERNEL);
-		memset(tmpbuf, 0, tmpbufsz);
+		tmpbuf = kzalloc(tmpbufsz, GFP_KERNEL);
+		if (!tmpbuf)
+			return -ENOMEM;
 		buf = (u8 *) ALIGN_ADDR(tmpbuf, BTSDIO_DMA_ALIGN);
 		memcpy(buf, payload, nb);
 	}
