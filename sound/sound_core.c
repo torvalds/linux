@@ -541,6 +541,7 @@ static int soundcore_open(struct inode *inode, struct file *file)
 		new_fops = fops_get(s->unit_fops);
 	if (!new_fops) {
 		spin_unlock(&sound_loader_lock);
+
 		/*
 		 *  Please, don't change this order or code.
 		 *  For ALSA slot means soundcard and OSS emulation code
@@ -550,6 +551,17 @@ static int soundcore_open(struct inode *inode, struct file *file)
 		 */
 		request_module("sound-slot-%i", unit>>4);
 		request_module("sound-service-%i-%i", unit>>4, chain);
+
+		/*
+		 * sound-slot/service-* module aliases are scheduled
+		 * for removal in favor of the standard char-major-*
+		 * module aliases.  For the time being, generate both
+		 * the legacy and standard module aliases to ease
+		 * transition.
+		 */
+		if (request_module("char-major-%d-%d", SOUND_MAJOR, unit) > 0)
+			request_module("char-major-%d", SOUND_MAJOR);
+
 		spin_lock(&sound_loader_lock);
 		s = __look_for_unit(chain, unit);
 		if (s)
