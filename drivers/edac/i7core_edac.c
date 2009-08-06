@@ -38,10 +38,6 @@
 #define I7CORE_REVISION    " Ver: 1.0.0 " __DATE__
 #define EDAC_MOD_STR      "i7core_edac"
 
-/* HACK: temporary, just to enable all logs, for now */
-#undef debugf0
-#define debugf0(fmt, arg...)  edac_printk(KERN_INFO, "i7core", fmt, ##arg)
-
 /*
  * Debug macros
  */
@@ -105,6 +101,7 @@
   #define REPEAT_EN		0x01
 
 	/* OFFSETS for Devices 4,5 and 6 Function 1 */
+
 #define MC_DOD_CH_DIMM0		0x48
 #define MC_DOD_CH_DIMM1		0x4c
 #define MC_DOD_CH_DIMM2		0x50
@@ -227,7 +224,7 @@ struct pci_id_descr pci_devs[] = {
 		/* Memory controller */
 	{ PCI_DESCR(3, 0, PCI_DEVICE_ID_INTEL_I7_MCR)     },
 	{ PCI_DESCR(3, 1, PCI_DEVICE_ID_INTEL_I7_MC_TAD)  },
-	{ PCI_DESCR(3, 2, PCI_DEVICE_ID_INTEL_I7_MC_RAS)  }, /* if RDIMM is supported */
+	{ PCI_DESCR(3, 2, PCI_DEVICE_ID_INTEL_I7_MC_RAS)  }, /* if RDIMM */
 	{ PCI_DESCR(3, 4, PCI_DEVICE_ID_INTEL_I7_MC_TEST) },
 
 		/* Channel 0 */
@@ -878,7 +875,7 @@ static int write_and_test(struct pci_dev *dev, int where, u32 val)
 
 	for (count = 0; count < 10; count++) {
 		if (count)
-			msleep (100);
+			msleep(100);
 		pci_write_config_dword(dev, where, val);
 		pci_read_config_dword(dev, where, &read);
 
@@ -893,7 +890,6 @@ static int write_and_test(struct pci_dev *dev, int where, u32 val)
 
 	return -EINVAL;
 }
-
 
 /*
  * This routine prepares the Memory Controller for error injection.
@@ -1326,7 +1322,7 @@ static void check_mc_test_err(struct mem_ctl_info *mci, u8 socket)
 	int new0, new1, new2;
 
 	if (!pvt->pci_mcr[socket][4]) {
-		debugf0("%s MCR registers not found\n",__func__);
+		debugf0("%s MCR registers not found\n", __func__);
 		return;
 	}
 
@@ -1405,24 +1401,24 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 		type = "NON_FATAL";
 
 	switch (optypenum) {
-		case 0:
-			optype = "generic undef request";
-			break;
-		case 1:
-			optype = "read error";
-			break;
-		case 2:
-			optype = "write error";
-			break;
-		case 3:
-			optype = "addr/cmd error";
-			break;
-		case 4:
-			optype = "scrubbing error";
-			break;
-		default:
-			optype = "reserved";
-			break;
+	case 0:
+		optype = "generic undef request";
+		break;
+	case 1:
+		optype = "read error";
+		break;
+	case 2:
+		optype = "write error";
+		break;
+	case 3:
+		optype = "addr/cmd error";
+		break;
+	case 4:
+		optype = "scrubbing error";
+		break;
+	default:
+		optype = "reserved";
+		break;
 	}
 
 	switch (errnum) {
@@ -1672,7 +1668,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	spin_lock_init(&pvt->mce_lock);
 
 	rc = edac_mce_register(&pvt->edac_mce);
-	if (unlikely (rc < 0)) {
+	if (unlikely(rc < 0)) {
 		debugf0("MC: " __FILE__
 			": %s(): failed edac_mce_register()\n", __func__);
 		goto fail1;
