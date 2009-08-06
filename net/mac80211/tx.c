@@ -1400,7 +1400,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 		if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 			ieee80211_stop_queues_by_reason(&local->hw,
 					IEEE80211_QUEUE_STOP_REASON_PS);
-			queue_work(local->hw.workqueue,
+			ieee80211_queue_work(&local->hw,
 					&local->dynamic_ps_disable_work);
 		}
 

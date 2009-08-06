@@ -388,7 +388,7 @@ static const char *ath9k_hw_devname(u16 devid)
 	return NULL;
 }
 
-static void ath9k_hw_set_defaults(struct ath_hw *ah)
+static void ath9k_hw_init_config(struct ath_hw *ah)
 {
 	int i;
 
@@ -437,27 +437,14 @@ static void ath9k_hw_set_defaults(struct ath_hw *ah)
 		ah->config.serialize_regmode = SER_REG_MODE_AUTO;
 }
 
-static struct ath_hw *ath9k_hw_newstate(u16 devid, struct ath_softc *sc,
-					int *status)
+static void ath9k_hw_init_defaults(struct ath_hw *ah)
 {
-	struct ath_hw *ah;
-
-	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
-	if (ah == NULL) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Cannot allocate memory for state block\n");
-		*status = -ENOMEM;
-		return NULL;
-	}
-
-	ah->ah_sc = sc;
 	ah->hw_version.magic = AR5416_MAGIC;
 	ah->regulatory.country_code = CTRY_DEFAULT;
-	ah->hw_version.devid = devid;
 	ah->hw_version.subvendorid = 0;
 
 	ah->ah_flags = 0;
-	if ((devid == AR5416_AR9100_DEVID))
+	if (ah->hw_version.devid == AR5416_AR9100_DEVID)
 		ah->hw_version.macVersion = AR_SREV_VERSION_9100;
 	if (!AR_SREV_9100(ah))
 		ah->ah_flags = AH_USE_EEPROM;
@@ -479,8 +466,6 @@ static struct ath_hw *ath9k_hw_newstate(u16 devid, struct ath_softc *sc,
 	ah->gbeacon_rate = 0;
 
 	ah->power_mode = ATH9K_PM_UNDEFINED;
-
-	return ah;
 }
 
 static int ath9k_hw_rfattach(struct ath_hw *ah)
@@ -593,7 +578,7 @@ static void ath9k_hw_init_txgain_ini(struct ath_hw *ah)
 	}
 }
 
-static int ath9k_hw_post_attach(struct ath_hw *ah)
+static int ath9k_hw_post_init(struct ath_hw *ah)
 {
 	int ecode;
 
@@ -604,7 +589,7 @@ static int ath9k_hw_post_attach(struct ath_hw *ah)
 	if (ecode != 0)
 		return ecode;
 
-	ecode = ath9k_hw_eeprom_attach(ah);
+	ecode = ath9k_hw_eeprom_init(ah);
 	if (ecode != 0)
 		return ecode;
 
@@ -617,71 +602,52 @@ static int ath9k_hw_post_attach(struct ath_hw *ah)
 
 	if (!AR_SREV_9100(ah)) {
 		ath9k_hw_ani_setup(ah);
-		ath9k_hw_ani_attach(ah);
+		ath9k_hw_ani_init(ah);
 	}
 
 	return 0;
 }
 
-static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
-					 int *status)
+static bool ath9k_hw_devid_supported(u16 devid)
 {
-	struct ath_hw *ah;
-	int ecode;
-	u32 i, j;
-
-	ah = ath9k_hw_newstate(devid, sc, status);
-	if (ah == NULL)
-		return NULL;
-
-	ath9k_hw_set_defaults(ah);
-
-	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
-		DPRINTF(sc, ATH_DBG_FATAL, "Couldn't reset chip\n");
-		ecode = -EIO;
-		goto bad;
+	switch (devid) {
+	case AR5416_DEVID_PCI:
+	case AR5416_DEVID_PCIE:
+	case AR5416_AR9100_DEVID:
+	case AR9160_DEVID_PCI:
+	case AR9280_DEVID_PCI:
+	case AR9280_DEVID_PCIE:
+	case AR9285_DEVID_PCIE:
+	case AR5416_DEVID_AR9287_PCI:
+	case AR5416_DEVID_AR9287_PCIE:
+		return true;
+	default:
+		break;
 	}
+	return false;
+}
 
-	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
-		DPRINTF(sc, ATH_DBG_FATAL, "Couldn't wakeup chip\n");
-		ecode = -EIO;
-		goto bad;
+static bool ath9k_hw_macversion_supported(u32 macversion)
+{
+	switch (macversion) {
+	case AR_SREV_VERSION_5416_PCI:
+	case AR_SREV_VERSION_5416_PCIE:
+	case AR_SREV_VERSION_9160:
+	case AR_SREV_VERSION_9100:
+	case AR_SREV_VERSION_9280:
+	case AR_SREV_VERSION_9285:
+	case AR_SREV_VERSION_9287:
+		return true;
+	/* Not yet */
+	case AR_SREV_VERSION_9271:
+	default:
+		break;
 	}
+	return false;
+}
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_AUTO) {
-		if (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCI ||
-		    (AR_SREV_9280(ah) && !ah->is_pciexpress)) {
-			ah->config.serialize_regmode =
-				SER_REG_MODE_ON;
-		} else {
-			ah->config.serialize_regmode =
-				SER_REG_MODE_OFF;
-		}
-	}
-
-	DPRINTF(sc, ATH_DBG_RESET, "serialize_regmode is %d\n",
-		ah->config.serialize_regmode);
-
-	if ((ah->hw_version.macVersion != AR_SREV_VERSION_5416_PCI) &&
-	    (ah->hw_version.macVersion != AR_SREV_VERSION_5416_PCIE) &&
-	    (ah->hw_version.macVersion != AR_SREV_VERSION_9160) &&
-	    (!AR_SREV_9100(ah)) && (!AR_SREV_9280(ah)) &&
-	    (!AR_SREV_9285(ah)) && (!AR_SREV_9287(ah))) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Mac Chip Rev 0x%02x.%x is not supported by "
-			"this driver\n", ah->hw_version.macVersion,
-			ah->hw_version.macRev);
-		ecode = -EOPNOTSUPP;
-		goto bad;
-	}
-
-	if (AR_SREV_9100(ah)) {
-		ah->iq_caldata.calData = &iq_cal_multi_sample;
-		ah->supp_cals = IQ_MISMATCH_CAL;
-		ah->is_pciexpress = false;
-	}
-	ah->hw_version.phyRev = REG_READ(ah, AR_PHY_CHIP_ID);
-
+static void ath9k_hw_init_cal_settings(struct ath_hw *ah)
+{
 	if (AR_SREV_9160_10_OR_LATER(ah)) {
 		if (AR_SREV_9280_10_OR_LATER(ah)) {
 			ah->iq_caldata.calData = &iq_cal_single_sample;
@@ -702,10 +668,18 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 		}
 		ah->supp_cals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
 	}
+}
 
-	ah->ani_function = ATH9K_ANI_ALL;
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
+static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
+{
+	if (AR_SREV_9271(ah)) {
+		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271_1_0,
+			       ARRAY_SIZE(ar9271Modes_9271_1_0), 6);
+		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271_1_0,
+			       ARRAY_SIZE(ar9271Common_9271_1_0), 2);
+		return;
+	}
+
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_1,
 				ARRAY_SIZE(ar9287Modes_9287_1_1), 6);
@@ -867,16 +841,10 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac,
 			       ARRAY_SIZE(ar5416Addac), 2);
 	}
+}
 
-	if (ah->is_pciexpress)
-		ath9k_hw_configpcipowersave(ah, 0);
-	else
-		ath9k_hw_disablepcie(ah);
-
-	ecode = ath9k_hw_post_attach(ah);
-	if (ecode != 0)
-		goto bad;
-
+static void ath9k_hw_init_mode_gain_regs(struct ath_hw *ah)
+{
 	if (AR_SREV_9287_11(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 		ar9287Modes_rx_gain_9287_1_1,
@@ -913,8 +881,11 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 		}
 
 	}
+}
 
-	ath9k_hw_fill_cap_info(ah);
+static void ath9k_hw_init_11a_eeprom_fix(struct ath_hw *ah)
+{
+	u32 i, j;
 
 	if ((ah->hw_version.devid == AR9280_DEVID_PCI) &&
 	    test_bit(ATH9K_MODE_11A, ah->caps.wireless_modes)) {
@@ -933,29 +904,97 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 			}
 		}
 	}
+}
 
-	ecode = ath9k_hw_init_macaddr(ah);
-	if (ecode != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"Failed to initialize MAC address\n");
-		goto bad;
+int ath9k_hw_init(struct ath_hw *ah)
+{
+	int r = 0;
+
+	if (!ath9k_hw_devid_supported(ah->hw_version.devid))
+		return -EOPNOTSUPP;
+
+	ath9k_hw_init_defaults(ah);
+	ath9k_hw_init_config(ah);
+
+	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Couldn't reset chip\n");
+		return -EIO;
 	}
 
-	if (AR_SREV_9285(ah))
+	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Couldn't wakeup chip\n");
+		return -EIO;
+	}
+
+	if (ah->config.serialize_regmode == SER_REG_MODE_AUTO) {
+		if (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCI ||
+		    (AR_SREV_9280(ah) && !ah->is_pciexpress)) {
+			ah->config.serialize_regmode =
+				SER_REG_MODE_ON;
+		} else {
+			ah->config.serialize_regmode =
+				SER_REG_MODE_OFF;
+		}
+	}
+
+	DPRINTF(ah->ah_sc, ATH_DBG_RESET, "serialize_regmode is %d\n",
+		ah->config.serialize_regmode);
+
+	if (!ath9k_hw_macversion_supported(ah->hw_version.macVersion)) {
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
+			"Mac Chip Rev 0x%02x.%x is not supported by "
+			"this driver\n", ah->hw_version.macVersion,
+			ah->hw_version.macRev);
+		return -EOPNOTSUPP;
+	}
+
+	if (AR_SREV_9100(ah)) {
+		ah->iq_caldata.calData = &iq_cal_multi_sample;
+		ah->supp_cals = IQ_MISMATCH_CAL;
+		ah->is_pciexpress = false;
+	}
+
+	if (AR_SREV_9271(ah))
+		ah->is_pciexpress = false;
+
+	ah->hw_version.phyRev = REG_READ(ah, AR_PHY_CHIP_ID);
+
+	ath9k_hw_init_cal_settings(ah);
+
+	ah->ani_function = ATH9K_ANI_ALL;
+	if (AR_SREV_9280_10_OR_LATER(ah))
+		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
+
+	ath9k_hw_init_mode_regs(ah);
+
+	if (ah->is_pciexpress)
+		ath9k_hw_configpcipowersave(ah, 0);
+	else
+		ath9k_hw_disablepcie(ah);
+
+	r = ath9k_hw_post_init(ah);
+	if (r)
+		return r;
+
+	ath9k_hw_init_mode_gain_regs(ah);
+	ath9k_hw_fill_cap_info(ah);
+	ath9k_hw_init_11a_eeprom_fix(ah);
+
+	r = ath9k_hw_init_macaddr(ah);
+	if (r) {
+		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
+			"Failed to initialize MAC address\n");
+		return r;
+	}
+
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 		ah->tx_trig_level = (AR_FTRIG_256B >> AR_FTRIG_S);
 	else
 		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 
 	ath9k_init_nfcal_hist_buffer(ah);
 
-	return ah;
-bad:
-	if (ah)
-		ath9k_hw_detach(ah);
-	if (status)
-		*status = ecode;
-
-	return NULL;
+	return 0;
 }
 
 static void ath9k_hw_init_bb(struct ath_hw *ah,
@@ -1194,35 +1233,12 @@ const char *ath9k_hw_probe(u16 vendorid, u16 devid)
 void ath9k_hw_detach(struct ath_hw *ah)
 {
 	if (!AR_SREV_9100(ah))
-		ath9k_hw_ani_detach(ah);
+		ath9k_hw_ani_disable(ah);
 
-	ath9k_hw_rfdetach(ah);
+	ath9k_hw_rf_free(ah);
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
 	kfree(ah);
-}
-
-struct ath_hw *ath9k_hw_attach(u16 devid, struct ath_softc *sc, int *error)
-{
-	struct ath_hw *ah = NULL;
-
-	switch (devid) {
-	case AR5416_DEVID_PCI:
-	case AR5416_DEVID_PCIE:
-	case AR5416_AR9100_DEVID:
-	case AR9160_DEVID_PCI:
-	case AR9280_DEVID_PCI:
-	case AR9280_DEVID_PCIE:
-	case AR9285_DEVID_PCIE:
-	case AR5416_DEVID_AR9287_PCI:
-	case AR5416_DEVID_AR9287_PCIE:
-		ah = ath9k_hw_do_attach(devid, sc, error);
-		break;
-	default:
-		*error = -ENXIO;
-		break;
-	}
-
-	return ah;
+	ah = NULL;
 }
 
 /*******/
@@ -1232,6 +1248,27 @@ struct ath_hw *ath9k_hw_attach(u16 devid, struct ath_softc *sc, int *error)
 static void ath9k_hw_override_ini(struct ath_hw *ah,
 				  struct ath9k_channel *chan)
 {
+	u32 val;
+
+	if (AR_SREV_9271(ah)) {
+		/*
+		 * Enable spectral scan to solution for issues with stuck
+		 * beacons on AR9271 1.0. The beacon stuck issue is not seeon on
+		 * AR9271 1.1
+		 */
+		if (AR_SREV_9271_10(ah)) {
+			val = REG_READ(ah, AR_PHY_SPECTRAL_SCAN) | AR_PHY_SPECTRAL_SCAN_ENABLE;
+			REG_WRITE(ah, AR_PHY_SPECTRAL_SCAN, val);
+		}
+		else if (AR_SREV_9271_11(ah))
+			/*
+			 * change AR_PHY_RF_CTL3 setting to fix MAC issue
+			 * present on AR9271 1.1
+			 */
+			REG_WRITE(ah, AR_PHY_RF_CTL3, 0x3a020001);
+		return;
+	}
+
 	/*
 	 * Set the RX_ABORT and RX_DIS and clear if off only after
 	 * RXE is set for MAC. This prevents frames with corrupted
@@ -1243,7 +1280,10 @@ static void ath9k_hw_override_ini(struct ath_hw *ah,
 	if (!AR_SREV_5416_20_OR_LATER(ah) ||
 	    AR_SREV_9280_10_OR_LATER(ah))
 		return;
-
+	/*
+	 * Disable BB clock gating
+	 * Necessary to avoid issues on AR5416 2.0
+	 */
 	REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
 }
 
@@ -1475,23 +1515,48 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 {
 	u32 regval;
 
+	/*
+	 * set AHB_MODE not to do cacheline prefetches
+	*/
 	regval = REG_READ(ah, AR_AHB_MODE);
 	REG_WRITE(ah, AR_AHB_MODE, regval | AR_AHB_PREFETCH_RD_EN);
 
+	/*
+	 * let mac dma reads be in 128 byte chunks
+	 */
 	regval = REG_READ(ah, AR_TXCFG) & ~AR_TXCFG_DMASZ_MASK;
 	REG_WRITE(ah, AR_TXCFG, regval | AR_TXCFG_DMASZ_128B);
 
+	/*
+	 * Restore TX Trigger Level to its pre-reset value.
+	 * The initial value depends on whether aggregation is enabled, and is
+	 * adjusted whenever underruns are detected.
+	 */
 	REG_RMW_FIELD(ah, AR_TXCFG, AR_FTRIG, ah->tx_trig_level);
 
+	/*
+	 * let mac dma writes be in 128 byte chunks
+	 */
 	regval = REG_READ(ah, AR_RXCFG) & ~AR_RXCFG_DMASZ_MASK;
 	REG_WRITE(ah, AR_RXCFG, regval | AR_RXCFG_DMASZ_128B);
 
+	/*
+	 * Setup receive FIFO threshold to hold off TX activities
+	 */
 	REG_WRITE(ah, AR_RXFIFO_CFG, 0x200);
 
+	/*
+	 * reduce the number of usable entries in PCU TXBUF to avoid
+	 * wrap around issues.
+	 */
 	if (AR_SREV_9285(ah)) {
+		/* For AR9285 the number of Fifos are reduced to half.
+		 * So set the usable tx buf size also to half to
+		 * avoid data/delimiter underruns
+		 */
 		REG_WRITE(ah, AR_PCU_TXBUF_CTRL,
 			  AR_9285_PCU_TXBUF_CTRL_USABLE_SIZE);
-	} else {
+	} else if (!AR_SREV_9271(ah)) {
 		REG_WRITE(ah, AR_PCU_TXBUF_CTRL,
 			  AR_PCU_TXBUF_CTRL_USABLE_SIZE);
 	}
@@ -2297,9 +2362,24 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_mark_phy_inactive(ah);
 
+	if (AR_SREV_9271(ah) && ah->htc_reset_init) {
+		REG_WRITE(ah,
+			  AR9271_RESET_POWER_DOWN_CONTROL,
+			  AR9271_RADIO_RF_RST);
+		udelay(50);
+	}
+
 	if (!ath9k_hw_chip_reset(ah, chan)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Chip reset failed\n");
 		return -EINVAL;
+	}
+
+	if (AR_SREV_9271(ah) && ah->htc_reset_init) {
+		ah->htc_reset_init = false;
+		REG_WRITE(ah,
+			  AR9271_RESET_POWER_DOWN_CONTROL,
+			  AR9271_GATE_MAC_CTL);
+		udelay(50);
 	}
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
@@ -2437,6 +2517,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	REG_WRITE(ah, AR_CFG_LED, saveLedState | AR_CFG_SCLK_32KHZ);
 
+	/*
+	 * For big endian systems turn on swapping for descriptors
+	 */
 	if (AR_SREV_9100(ah)) {
 		u32 mask;
 		mask = REG_READ(ah, AR_CFG);
@@ -2451,8 +2534,12 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 				"Setting CFG 0x%x\n", REG_READ(ah, AR_CFG));
 		}
 	} else {
+		/* Configure AR9271 target WLAN */
+                if (AR_SREV_9271(ah))
+			REG_WRITE(ah, AR_CFG, AR_CFG_SWRB | AR_CFG_SWTB);
 #ifdef __BIG_ENDIAN
-		REG_WRITE(ah, AR_CFG, AR_CFG_SWTD | AR_CFG_SWRD);
+                else
+			REG_WRITE(ah, AR_CFG, AR_CFG_SWTD | AR_CFG_SWRD);
 #endif
 	}
 
@@ -2493,9 +2580,6 @@ bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry)
 		REG_WRITE(ah, AR_KEYTABLE_KEY3(micentry), 0);
 
 	}
-
-	if (ah->curchan == NULL)
-		return true;
 
 	return true;
 }
@@ -2921,7 +3005,7 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 		/*
 		 * AR9280 2.0 or later chips use SerDes values from the
 		 * initvals.h initialized depending on chipset during
-		 * ath9k_hw_do_attach()
+		 * ath9k_hw_init()
 		 */
 		for (i = 0; i < ah->iniPcieSerdes.ia_rows; i++) {
 			REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),
@@ -2982,7 +3066,7 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 	if (ah->config.pcie_waen) {
 		REG_WRITE(ah, AR_WA, ah->config.pcie_waen);
 	} else {
-		if (AR_SREV_9285(ah))
+		if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 			REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
 		/*
 		 * On AR9280 chips bit 22 of 0x4004 needs to be set to
@@ -3150,11 +3234,6 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 	}
 
 	return true;
-}
-
-enum ath9k_int ath9k_hw_intrget(struct ath_hw *ah)
-{
-	return ah->mask_reg;
 }
 
 enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
@@ -3451,10 +3530,17 @@ void ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
+	/*
+	 * For AR9271 we will temporarilly uses the rx chainmax as read from
+	 * the EEPROM.
+	 */
 	if ((ah->hw_version.devid == AR5416_DEVID_PCI) &&
-	    !(eeval & AR5416_OPFLAGS_11A))
+	    !(eeval & AR5416_OPFLAGS_11A) &&
+	    !(AR_SREV_9271(ah)))
+		/* CB71: GPIO 0 is pulled down to indicate 3 rx chains */
 		pCap->rx_chainmask = ath9k_hw_gpio_get(ah, 0) ? 0x5 : 0x7;
 	else
+		/* Use rx_chainmask from EEPROM. */
 		pCap->rx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
 
 	if (!(AR_SREV_9280(ah) && (ah->hw_version.macRev == 0)))

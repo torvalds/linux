@@ -178,7 +178,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->mem = mem;
 	sc->bus_ops = &ath_pci_bus_ops;
 
-	if (ath_attach(id->device, sc) != 0) {
+	if (ath_init_device(id->device, sc) != 0) {
 		ret = -ENODEV;
 		goto bad3;
 	}

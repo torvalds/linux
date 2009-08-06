@@ -220,8 +220,10 @@ static int ieee80211_open(struct net_device *dev)
 			local->fif_fcsfail++;
 		if (sdata->u.mntr_flags & MONITOR_FLAG_PLCPFAIL)
 			local->fif_plcpfail++;
-		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL)
+		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL) {
 			local->fif_control++;
+			local->fif_pspoll++;
+		}
 		if (sdata->u.mntr_flags & MONITOR_FLAG_OTHER_BSS)
 			local->fif_other_bss++;
 
@@ -244,7 +246,14 @@ static int ieee80211_open(struct net_device *dev)
 			spin_unlock_bh(&local->filter_lock);
 
 			ieee80211_start_mesh(sdata);
+		} else if (sdata->vif.type == NL80211_IFTYPE_AP) {
+			local->fif_pspoll++;
+
+			spin_lock_bh(&local->filter_lock);
+			ieee80211_configure_filter(local);
+			spin_unlock_bh(&local->filter_lock);
 		}
+
 		changed |= ieee80211_reset_erp_info(sdata);
 		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
@@ -312,7 +321,7 @@ static int ieee80211_open(struct net_device *dev)
 	 * to fix this.
 	 */
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		queue_work(local->hw.workqueue, &sdata->u.mgd.work);
+		ieee80211_queue_work(&local->hw, &sdata->u.mgd.work);
 
 	netif_tx_start_all_queues(dev);
 
@@ -388,6 +397,9 @@ static int ieee80211_stop(struct net_device *dev)
 	if (sdata->flags & IEEE80211_SDATA_PROMISC)
 		atomic_dec(&local->iff_promiscs);
 
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		local->fif_pspoll--;
+
 	netif_addr_lock_bh(dev);
 	spin_lock_bh(&local->filter_lock);
 	__dev_addr_unsync(&local->mc_list, &local->mc_count,
@@ -401,7 +413,7 @@ static int ieee80211_stop(struct net_device *dev)
 
 	/* APs need special treatment */
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		struct ieee80211_sub_if_data *vlan, *tmp;
+		struct ieee80211_sub_if_data *vlan, *tmpsdata;
 		struct beacon_data *old_beacon = sdata->u.ap.beacon;
 
 		/* remove beacon */
@@ -410,7 +422,7 @@ static int ieee80211_stop(struct net_device *dev)
 		kfree(old_beacon);
 
 		/* down all dependent devices, that is VLANs */
-		list_for_each_entry_safe(vlan, tmp, &sdata->u.ap.vlans,
+		list_for_each_entry_safe(vlan, tmpsdata, &sdata->u.ap.vlans,
 					 u.vlan.list)
 			dev_close(vlan->dev);
 		WARN_ON(!list_empty(&sdata->u.ap.vlans));
@@ -439,8 +451,10 @@ static int ieee80211_stop(struct net_device *dev)
 			local->fif_fcsfail--;
 		if (sdata->u.mntr_flags & MONITOR_FLAG_PLCPFAIL)
 			local->fif_plcpfail--;
-		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL)
+		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL) {
+			local->fif_pspoll--;
 			local->fif_control--;
+		}
 		if (sdata->u.mntr_flags & MONITOR_FLAG_OTHER_BSS)
 			local->fif_other_bss--;
 
@@ -522,6 +536,16 @@ static int ieee80211_stop(struct net_device *dev)
 				ieee80211_scan_completed(&local->hw, true);
 		}
 
+		/*
+		 * Disable beaconing for AP and mesh, IBSS can't
+		 * still be joined to a network at this point.
+		 */
+		if (sdata->vif.type == NL80211_IFTYPE_AP ||
+		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT) {
+			ieee80211_bss_info_change_notify(sdata,
+				BSS_CHANGED_BEACON_ENABLED);
+		}
+
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
 		conf.mac_addr = dev->dev_addr;
@@ -541,7 +565,7 @@ static int ieee80211_stop(struct net_device *dev)
 
 		ieee80211_led_radio(local, false);
 
-		flush_workqueue(local->hw.workqueue);
+		flush_workqueue(local->workqueue);
 
 		tasklet_disable(&local->tx_pending_tasklet);
 		tasklet_disable(&local->tasklet);

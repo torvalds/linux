@@ -61,7 +61,7 @@ static void p54_update_leds(struct work_struct *work)
 			wiphy_name(priv->hw->wiphy), err);
 
 	if (rerun)
-		queue_delayed_work(priv->hw->workqueue, &priv->led_work,
+		ieee80211_queue_delayed_work(priv->hw, &priv->led_work,
 			msecs_to_jiffies(blink_delay));
 }
 
@@ -78,8 +78,7 @@ static void p54_led_brightness_set(struct led_classdev *led_dev,
 
 	if ((brightness) && (led->registered)) {
 		led->toggled++;
-		queue_delayed_work(priv->hw->workqueue, &priv->led_work,
-				   HZ/10);
+		ieee80211_queue_delayed_work(priv->hw, &priv->led_work, HZ/10);
 	}
 }
 

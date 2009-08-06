@@ -206,6 +206,7 @@ struct iwl_mod_params {
  * 	filename is constructed as fw_name_pre<api>.ucode.
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
+ * @pa_type: used by 6000 series only to identify the type of Power Amplifier
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -226,6 +227,7 @@ struct iwl_mod_params {
  * iwl_hcmd_utils_ops etc. we accommodate different command structures
  * and flows between hardware versions (4965/5000) as well as their API
  * versions.
+ *
  */
 struct iwl_cfg {
 	const char *name;
@@ -242,6 +244,7 @@ struct iwl_cfg {
 	u8   valid_rx_ant;
 	bool need_pll_cfg;
 	bool use_isr_legacy;
+	enum iwl_pa_type pa_type;
 };
 
 /***************************

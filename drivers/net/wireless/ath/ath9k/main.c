@@ -973,10 +973,11 @@ static void ath_led_blink_work(struct work_struct *work)
 		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
 				  (sc->sc_flags & SC_OP_LED_ON) ? 1 : 0);
 
-	queue_delayed_work(sc->hw->workqueue, &sc->ath_led_blink_work,
-			   (sc->sc_flags & SC_OP_LED_ON) ?
-			   msecs_to_jiffies(sc->led_off_duration) :
-			   msecs_to_jiffies(sc->led_on_duration));
+	ieee80211_queue_delayed_work(sc->hw,
+				     &sc->ath_led_blink_work,
+				     (sc->sc_flags & SC_OP_LED_ON) ?
+					msecs_to_jiffies(sc->led_off_duration) :
+					msecs_to_jiffies(sc->led_on_duration));
 
 	sc->led_on_duration = sc->led_on_cnt ?
 			max((ATH_LED_ON_DURATION_IDLE - sc->led_on_cnt), 25) :
@@ -1013,8 +1014,8 @@ static void ath_led_brightness(struct led_classdev *led_cdev,
 	case LED_FULL:
 		if (led->led_type == ATH_LED_ASSOC) {
 			sc->sc_flags |= SC_OP_LED_ASSOCIATED;
-			queue_delayed_work(sc->hw->workqueue,
-					   &sc->ath_led_blink_work, 0);
+			ieee80211_queue_delayed_work(sc->hw,
+						     &sc->ath_led_blink_work, 0);
 		} else if (led->led_type == ATH_LED_RADIO) {
 			ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 0);
 			sc->sc_flags |= SC_OP_LED_ON;
@@ -1056,7 +1057,6 @@ static void ath_unregister_led(struct ath_led *led)
 
 static void ath_deinit_leds(struct ath_softc *sc)
 {
-	cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	ath_unregister_led(&sc->assoc_led);
 	sc->sc_flags &= ~SC_OP_LED_ASSOCIATED;
 	ath_unregister_led(&sc->tx_led);
@@ -1113,6 +1113,7 @@ static void ath_init_leds(struct ath_softc *sc)
 	return;
 
 fail:
+	cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	ath_deinit_leds(sc);
 }
 
@@ -1252,9 +1253,6 @@ void ath_detach(struct ath_softc *sc)
 	DPRINTF(sc, ATH_DBG_CONFIG, "Detach ATH hw\n");
 
 	ath_deinit_leds(sc);
-	cancel_work_sync(&sc->chan_work);
-	cancel_delayed_work_sync(&sc->wiphy_work);
-	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
@@ -1280,6 +1278,7 @@ void ath_detach(struct ath_softc *sc)
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
 	ath9k_hw_detach(sc->sc_ah);
+	sc->sc_ah = NULL;
 	ath9k_exit_debug(sc);
 }
 
@@ -1294,11 +1293,16 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 	return ath_reg_notifier_apply(wiphy, request, reg);
 }
 
-static int ath_init(u16 devid, struct ath_softc *sc)
+/*
+ * Initialize and fill ath_softc, ath_sofct is the
+ * "Software Carrier" struct. Historically it has existed
+ * to allow the separation between hardware specific
+ * variables (now in ath_hw) and driver specific variables.
+ */
+static int ath_init_softc(u16 devid, struct ath_softc *sc)
 {
 	struct ath_hw *ah = NULL;
-	int status;
-	int error = 0, i;
+	int r = 0, i;
 	int csz = 0;
 
 	/* XXX: hardware will not be ready until ath_open() being called */
@@ -1325,14 +1329,23 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	/* XXX assert csz is non-zero */
 	sc->cachelsz = csz << 2;	/* convert to bytes */
 
-	ah = ath9k_hw_attach(devid, sc, &status);
-	if (ah == NULL) {
+	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
+	if (!ah) {
+		r = -ENOMEM;
+		goto bad_no_ah;
+	}
+
+	ah->ah_sc = sc;
+	ah->hw_version.devid = devid;
+	sc->sc_ah = ah;
+
+	r = ath9k_hw_init(ah);
+	if (r) {
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to attach hardware; HAL status %d\n", status);
-		error = -ENXIO;
+			"Unable to initialize hardware; "
+			"initialization status: %d\n", r);
 		goto bad;
 	}
-	sc->sc_ah = ah;
 
 	/* Get the hardware key cache size. */
 	sc->keymax = ah->caps.keycache_size;
@@ -1349,9 +1362,6 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	 */
 	for (i = 0; i < sc->keymax; i++)
 		ath9k_hw_keyreset(ah, (u16) i);
-
-	if (error)
-		goto bad;
 
 	/* default to MONITOR mode */
 	sc->sc_ah->opmode = NL80211_IFTYPE_MONITOR;
@@ -1372,14 +1382,14 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	if (sc->beacon.beaconq == -1) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup a beacon xmit queue\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 	sc->beacon.cabq = ath_txq_setup(sc, ATH9K_TX_QUEUE_CAB, 0);
 	if (sc->beacon.cabq == NULL) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup CAB xmit queue\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 
@@ -1394,26 +1404,26 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_BK)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup xmit queue for BK traffic\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_BE)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup xmit queue for BE traffic\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_VI)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup xmit queue for VI traffic\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 	if (!ath_tx_setup(sc, ATH9K_WME_AC_VO)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to setup xmit queue for VO traffic\n");
-		error = -EIO;
+		r = -EIO;
 		goto bad2;
 	}
 
@@ -1507,11 +1517,12 @@ bad2:
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 bad:
-	if (ah)
-		ath9k_hw_detach(ah);
+	ath9k_hw_detach(ah);
+	sc->sc_ah = NULL;
+bad_no_ah:
 	ath9k_exit_debug(sc);
 
-	return error;
+	return r;
 }
 
 void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
@@ -1551,7 +1562,8 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			&sc->sbands[IEEE80211_BAND_5GHZ];
 }
 
-int ath_attach(u16 devid, struct ath_softc *sc)
+/* Device driver core initialization */
+int ath_init_device(u16 devid, struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	int error = 0, i;
@@ -1559,7 +1571,7 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Attach ATH hw\n");
 
-	error = ath_init(devid, sc);
+	error = ath_init_softc(devid, sc);
 	if (error != 0)
 		return error;
 
@@ -1617,6 +1629,7 @@ error_attach:
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
 	ath9k_hw_detach(sc->sc_ah);
+	sc->sc_ah = NULL;
 	ath9k_exit_debug(sc);
 
 	return error;
@@ -1975,7 +1988,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ieee80211_wake_queues(hw);
 
-	queue_delayed_work(sc->hw->workqueue, &sc->tx_complete_work, 0);
+	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 
 mutex_unlock:
 	mutex_unlock(&sc->mutex);
@@ -2089,12 +2102,22 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	aphy->state = ATH_WIPHY_INACTIVE;
 
+	cancel_delayed_work_sync(&sc->ath_led_blink_work);
+	cancel_delayed_work_sync(&sc->tx_complete_work);
+
+	if (!sc->num_sec_wiphy) {
+		cancel_delayed_work_sync(&sc->wiphy_work);
+		cancel_work_sync(&sc->chan_work);
+	}
+
 	if (sc->sc_flags & SC_OP_INVALID) {
 		DPRINTF(sc, ATH_DBG_ANY, "Device not present\n");
 		return;
 	}
 
 	mutex_lock(&sc->mutex);
+
+	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	if (ath9k_wiphy_started(sc)) {
 		mutex_unlock(&sc->mutex);

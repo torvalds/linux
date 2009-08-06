@@ -86,6 +86,7 @@ struct driver_info {
 
 #define FLAG_FRAMING_AX 0x0040		/* AX88772/178 packets */
 #define FLAG_WLAN	0x0080		/* use "wlan%d" names */
+#define FLAG_AVOID_UNLINK_URBS 0x0100	/* don't unlink urbs at usbnet_stop() */
 
 
 	/* init device ... can sleep, or cause probe() failure */
@@ -121,9 +122,8 @@ struct driver_info {
 	 * right after minidriver have initialized hardware. */
 	int	(*early_init)(struct usbnet *dev);
 
-	/* called by minidriver when link state changes, state: 0=disconnect,
-	 * 1=connect */
-	void	(*link_change)(struct usbnet *dev, int state);
+	/* called by minidriver when receiving indication */
+	void	(*indication)(struct usbnet *dev, void *ind, int indlen);
 
 	/* for new devices, use the descriptor-reading code instead */
 	int		in;		/* rx endpoint */

@@ -13,6 +13,7 @@
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
 #include "nl80211.h"
+#include "reg.h"
 
 struct cfg80211_conn {
 	struct cfg80211_connect_params params;
@@ -182,7 +183,7 @@ void cfg80211_conn_work(struct work_struct *work)
 					wdev->conn->params.bssid,
 					NULL, 0, NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
-					false);
+					false, NULL);
 		wdev_unlock(wdev);
 	}
 
@@ -247,7 +248,7 @@ static void __cfg80211_sme_scan_done(struct net_device *dev)
 					wdev->conn->params.bssid,
 					NULL, 0, NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
-					false);
+					false, NULL);
 	}
 }
 
@@ -305,7 +306,7 @@ void cfg80211_sme_rx_auth(struct net_device *dev,
 		schedule_work(&rdev->conn_work);
 	} else if (status_code != WLAN_STATUS_SUCCESS) {
 		__cfg80211_connect_result(dev, mgmt->bssid, NULL, 0, NULL, 0,
-					  status_code, false);
+					  status_code, false, NULL);
 	} else if (wdev->sme_state == CFG80211_SME_CONNECTING &&
 		 wdev->conn->state == CFG80211_CONN_AUTHENTICATING) {
 		wdev->conn->state = CFG80211_CONN_ASSOCIATE_NEXT;
@@ -316,10 +317,11 @@ void cfg80211_sme_rx_auth(struct net_device *dev,
 void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 			       const u8 *req_ie, size_t req_ie_len,
 			       const u8 *resp_ie, size_t resp_ie_len,
-			       u16 status, bool wextev)
+			       u16 status, bool wextev,
+			       struct cfg80211_bss *bss)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_bss *bss;
+	u8 *country_ie;
 #ifdef CONFIG_WIRELESS_EXT
 	union iwreq_data wrqu;
 #endif
@@ -361,18 +363,18 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	}
 #endif
 
+	if (wdev->current_bss) {
+		cfg80211_unhold_bss(wdev->current_bss);
+		cfg80211_put_bss(&wdev->current_bss->pub);
+		wdev->current_bss = NULL;
+	}
+
 	if (status == WLAN_STATUS_SUCCESS &&
 	    wdev->sme_state == CFG80211_SME_IDLE)
 		goto success;
 
 	if (wdev->sme_state != CFG80211_SME_CONNECTING)
 		return;
-
-	if (wdev->current_bss) {
-		cfg80211_unhold_bss(wdev->current_bss);
-		cfg80211_put_bss(&wdev->current_bss->pub);
-		wdev->current_bss = NULL;
-	}
 
 	if (wdev->conn)
 		wdev->conn->state = CFG80211_CONN_IDLE;
@@ -383,13 +385,16 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		wdev->conn = NULL;
 		kfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
+		wdev->ssid_len = 0;
 		return;
 	}
 
-	bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
-			       wdev->ssid, wdev->ssid_len,
-			       WLAN_CAPABILITY_ESS,
-			       WLAN_CAPABILITY_ESS);
+ success:
+	if (!bss)
+		bss = cfg80211_get_bss(wdev->wiphy, NULL, bssid,
+				       wdev->ssid, wdev->ssid_len,
+				       WLAN_CAPABILITY_ESS,
+				       WLAN_CAPABILITY_ESS);
 
 	if (WARN_ON(!bss))
 		return;
@@ -397,9 +402,22 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	cfg80211_hold_bss(bss_from_pub(bss));
 	wdev->current_bss = bss_from_pub(bss);
 
- success:
 	wdev->sme_state = CFG80211_SME_CONNECTED;
 	cfg80211_upload_connect_keys(wdev);
+
+	country_ie = (u8 *) ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
+
+	if (!country_ie)
+		return;
+
+	/*
+	 * ieee80211_bss_get_ie() ensures we can access:
+	 * - country_ie + 2, the start of the country ie data, and
+	 * - and country_ie[1] which is the IE length
+	 */
+	regulatory_hint_11d(wdev->wiphy,
+			    country_ie + 2,
+			    country_ie[1]);
 }
 
 void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
@@ -549,6 +567,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 
 	wdev->current_bss = NULL;
 	wdev->sme_state = CFG80211_SME_IDLE;
+	wdev->ssid_len = 0;
 
 	if (wdev->conn) {
 		kfree(wdev->conn->ie);
@@ -704,6 +723,7 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 			wdev->conn = NULL;
 			wdev->sme_state = CFG80211_SME_IDLE;
 			wdev->connect_keys = NULL;
+			wdev->ssid_len = 0;
 		}
 
 		return err;
@@ -768,6 +788,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			wdev->sme_state = CFG80211_SME_IDLE;
 			kfree(wdev->conn);
 			wdev->conn = NULL;
+			wdev->ssid_len = 0;
 			return 0;
 		}
 
@@ -788,7 +809,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 	else if (wdev->sme_state == CFG80211_SME_CONNECTING)
 		__cfg80211_connect_result(dev, NULL, NULL, 0, NULL, 0,
 					  WLAN_STATUS_UNSPECIFIED_FAILURE,
-					  wextev);
+					  wextev, NULL);
 
 	return 0;
 }

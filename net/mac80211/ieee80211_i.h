@@ -280,6 +280,7 @@ struct ieee80211_if_managed {
 	struct work_struct beacon_loss_work;
 
 	unsigned long probe_timeout;
+	int probe_send_count;
 
 	struct mutex mtx;
 	struct ieee80211_bss *associated;
@@ -614,6 +615,12 @@ struct ieee80211_local {
 
 	const struct ieee80211_ops *ops;
 
+	/*
+	 * private workqueue to mac80211. mac80211 makes this accessible
+	 * via ieee80211_queue_work()
+	 */
+	struct workqueue_struct *workqueue;
+
 	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES];
 	/* also used to protect ampdu_ac_queue and amdpu_ac_stop_refcnt */
 	spinlock_t queue_stop_reason_lock;
@@ -621,7 +628,7 @@ struct ieee80211_local {
 	int open_count;
 	int monitors, cooked_mntrs;
 	/* number of interfaces with corresponding FIF_ flags */
-	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss;
+	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss, fif_pspoll;
 	unsigned int filter_flags; /* FIF_* */
 	struct iw_statistics wstats;
 

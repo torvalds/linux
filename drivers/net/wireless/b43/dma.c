@@ -1334,13 +1334,22 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	spin_lock_irqsave(&ring->lock, flags);
 
 	B43_WARN_ON(!ring->tx);
-	/* Check if the queue was stopped in mac80211,
-	 * but we got called nevertheless.
-	 * That would be a mac80211 bug. */
-	B43_WARN_ON(ring->stopped);
 
-	if (unlikely(free_slots(ring) < TX_SLOTS_PER_FRAME)) {
-		b43warn(dev->wl, "DMA queue overflow\n");
+	if (unlikely(ring->stopped)) {
+		/* We get here only because of a bug in mac80211.
+		 * Because of a race, one packet may be queued after
+		 * the queue is stopped, thus we got called when we shouldn't.
+		 * For now, just refuse the transmit. */
+		if (b43_debug(dev, B43_DBG_DMAVERBOSE))
+			b43err(dev->wl, "Packet after queue stopped\n");
+		err = -ENOSPC;
+		goto out_unlock;
+	}
+
+	if (unlikely(WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME))) {
+		/* If we get here, we have a real error with the queue
+		 * full, but queues not stopped. */
+		b43err(dev->wl, "DMA queue overflow\n");
 		err = -ENOSPC;
 		goto out_unlock;
 	}

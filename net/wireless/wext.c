@@ -1291,7 +1291,6 @@ static struct pernet_operations wext_pernet_ops = {
 static int __init wireless_nlevent_init(void)
 {
 	return register_pernet_subsys(&wext_pernet_ops);
-	return 0;
 }
 
 subsys_initcall(wireless_nlevent_init);

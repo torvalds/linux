@@ -137,7 +137,8 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 
 	b43_radio_mask(dev, B2055_MASTER1, 0xFFF3);
 	msleep(1);
-	if ((sprom->revision != 4) || !(sprom->boardflags_hi & 0x0002)) {
+	if ((sprom->revision != 4) ||
+	   !(sprom->boardflags_hi & B43_BFH_RSSIINV)) {
 		if ((binfo->vendor != PCI_VENDOR_ID_BROADCOM) ||
 		    (binfo->type != 0x46D) ||
 		    (binfo->rev < 0x41)) {

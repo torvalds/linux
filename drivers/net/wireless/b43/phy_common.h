@@ -291,6 +291,11 @@ u16 b43_phy_read(struct b43_wldev *dev, u16 reg);
 void b43_phy_write(struct b43_wldev *dev, u16 reg, u16 value);
 
 /**
+ * b43_phy_copy - copy contents of 16bit PHY register to another
+ */
+void b43_phy_copy(struct b43_wldev *dev, u16 destreg, u16 srcreg);
+
+/**
  * b43_phy_mask - Mask a PHY register with a mask
  */
 void b43_phy_mask(struct b43_wldev *dev, u16 offset, u16 mask);

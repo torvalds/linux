@@ -781,7 +781,7 @@ static void ieee80211_ibss_timer(unsigned long data)
 	}
 
 	set_bit(IEEE80211_IBSS_REQ_RUN, &ifibss->request);
-	queue_work(local->hw.workqueue, &ifibss->work);
+	ieee80211_queue_work(&local->hw, &ifibss->work);
 }
 
 #ifdef CONFIG_PM
@@ -853,7 +853,7 @@ ieee80211_ibss_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	case IEEE80211_STYPE_PROBE_REQ:
 	case IEEE80211_STYPE_AUTH:
 		skb_queue_tail(&sdata->u.ibss.skb_queue, skb);
-		queue_work(local->hw.workqueue, &sdata->u.ibss.work);
+		ieee80211_queue_work(&local->hw, &sdata->u.ibss.work);
 		return RX_QUEUED;
 	}
 
@@ -912,7 +912,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_idle(sdata->local);
 
 	set_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
-	queue_work(sdata->local->hw.workqueue, &sdata->u.ibss.work);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->u.ibss.work);
 
 	return 0;
 }

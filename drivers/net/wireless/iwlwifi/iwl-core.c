@@ -548,9 +548,6 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
 		}
 
-		/* Save flags for reg domain usage */
-		geo_ch->orig_flags = geo_ch->flags;
-
 		IWL_DEBUG_INFO(priv, "Channel %d Freq=%d[%sGHz] %s flag=0x%X\n",
 				ch->channel, geo_ch->center_freq,
 				is_channel_a_band(ch) ?  "5.2" : "2.4",
@@ -1140,7 +1137,6 @@ void iwl_set_flags_for_band(struct iwl_priv *priv,
 		priv->staging_rxon.flags &= ~RXON_FLG_CCK_MSK;
 	}
 }
-EXPORT_SYMBOL(iwl_set_flags_for_band);
 
 /*
  * initialize rxon structure with default values from eeprom
@@ -2291,7 +2287,6 @@ int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
 
 	return iwl_send_cmd(priv, &cmd);
 }
-EXPORT_SYMBOL(iwl_send_card_state);
 
 void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 			   struct iwl_rx_mem_buffer *rxb)
@@ -2335,7 +2330,6 @@ void iwl_clear_isr_stats(struct iwl_priv *priv)
 {
 	memset(&priv->isr_stats, 0, sizeof(priv->isr_stats));
 }
-EXPORT_SYMBOL(iwl_clear_isr_stats);
 
 int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			   const struct ieee80211_tx_queue_params *params)

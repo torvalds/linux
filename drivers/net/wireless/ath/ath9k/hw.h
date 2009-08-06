@@ -403,7 +403,7 @@ struct ath_hw {
 	union {
 		struct ar5416_eeprom_def def;
 		struct ar5416_eeprom_4k map4k;
-		struct ar9287_eeprom_t map9287;
+		struct ar9287_eeprom map9287;
 	} eeprom;
 	const struct eeprom_ops *eep_ops;
 	enum ath9k_eep_map eep_map;
@@ -418,6 +418,8 @@ struct ath_hw {
 	u32 btactive_gpio;
 	u32 wlanactive_gpio;
 	u32 ah_flags;
+
+	bool htc_reset_init;
 
 	enum nl80211_iftype opmode;
 	enum ath9k_power_mode power_mode;
@@ -541,11 +543,11 @@ struct ath_hw {
 	struct ar5416IniArray iniModesTxGain;
 };
 
-/* Attach, Detach, Reset */
+/* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_detach(struct ath_hw *ah);
-struct ath_hw *ath9k_hw_attach(u16 devid, struct ath_softc *sc, int *error);
-void ath9k_hw_rfdetach(struct ath_hw *ah);
+int ath9k_hw_init(struct ath_hw *ah);
+void ath9k_hw_rf_free(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
 void ath9k_hw_fill_cap_info(struct ath_hw *ah);
@@ -612,7 +614,6 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore);
 /* Interrupt Handling */
 bool ath9k_hw_intrpend(struct ath_hw *ah);
 bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked);
-enum ath9k_int ath9k_hw_intrget(struct ath_hw *ah);
 enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints);
 
 void ath9k_hw_btcoex_enable(struct ath_hw *ah);

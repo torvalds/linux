@@ -34,9 +34,7 @@ MODULE_DESCRIPTION("wireless configuration support");
 LIST_HEAD(cfg80211_rdev_list);
 
 /*
- * This is used to protect the cfg80211_rdev_list, cfg80211_regdomain,
- * country_ie_regdomain, the reg_beacon_list and the the last regulatory
- * request receipt (last_request).
+ * This is used to protect the cfg80211_rdev_list
  */
 DEFINE_MUTEX(cfg80211_mutex);
 
@@ -314,7 +312,8 @@ static void cfg80211_process_events(struct wireless_dev *wdev)
 				ev->cr.req_ie, ev->cr.req_ie_len,
 				ev->cr.resp_ie, ev->cr.resp_ie_len,
 				ev->cr.status,
-				ev->cr.status == WLAN_STATUS_SUCCESS);
+				ev->cr.status == WLAN_STATUS_SUCCESS,
+				NULL);
 			break;
 		case EVENT_ROAMED:
 			__cfg80211_roamed(wdev, ev->rm.bssid,
@@ -672,7 +671,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
 		wdev->wext.ps = CONFIG_CFG80211_DEFAULT_PS_VALUE;
-		wdev->wext.ps_timeout = 500;
+		wdev->wext.ps_timeout = 100;
 		if (rdev->ops->set_power_mgmt)
 			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
 						      wdev->wext.ps,
@@ -724,15 +723,22 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		break;
 	case NETDEV_UNREGISTER:
 		mutex_lock(&rdev->devlist_mtx);
+		/*
+		 * It is possible to get NETDEV_UNREGISTER
+		 * multiple times. To detect that, check
+		 * that the interface is still on the list
+		 * of registered interfaces, and only then
+		 * remove and clean it up.
+		 */
 		if (!list_empty(&wdev->list)) {
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
 			list_del_init(&wdev->list);
+			mutex_destroy(&wdev->mtx);
+#ifdef CONFIG_WIRELESS_EXT
+			kfree(wdev->wext.keys);
+#endif
 		}
 		mutex_unlock(&rdev->devlist_mtx);
-		mutex_destroy(&wdev->mtx);
-#ifdef CONFIG_WIRELESS_EXT
-		kfree(wdev->wext.keys);
-#endif
 		break;
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))

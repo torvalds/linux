@@ -119,7 +119,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	sc->bus_ops = &ath_ahb_bus_ops;
 	sc->irq = irq;
 
-	ret = ath_attach(AR5416_AR9100_DEVID, sc);
+	ret = ath_init_device(AR5416_AR9100_DEVID, sc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to attach device, err=%d\n", ret);
 		ret = -ENODEV;

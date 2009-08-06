@@ -601,21 +601,25 @@ int usbnet_stop (struct net_device *net)
 				info->description);
 	}
 
-	// ensure there are no more active urbs
-	add_wait_queue (&unlink_wakeup, &wait);
-	dev->wait = &unlink_wakeup;
-	temp = unlink_urbs (dev, &dev->txq) + unlink_urbs (dev, &dev->rxq);
+	if (!(info->flags & FLAG_AVOID_UNLINK_URBS)) {
+		/* ensure there are no more active urbs */
+		add_wait_queue(&unlink_wakeup, &wait);
+		dev->wait = &unlink_wakeup;
+		temp = unlink_urbs(dev, &dev->txq) +
+			unlink_urbs(dev, &dev->rxq);
 
-	// maybe wait for deletions to finish.
-	while (!skb_queue_empty(&dev->rxq)
-			&& !skb_queue_empty(&dev->txq)
-			&& !skb_queue_empty(&dev->done)) {
-		msleep(UNLINK_TIMEOUT_MS);
-		if (netif_msg_ifdown (dev))
-			devdbg (dev, "waited for %d urb completions", temp);
+		/* maybe wait for deletions to finish. */
+		while (!skb_queue_empty(&dev->rxq)
+				&& !skb_queue_empty(&dev->txq)
+				&& !skb_queue_empty(&dev->done)) {
+			msleep(UNLINK_TIMEOUT_MS);
+			if (netif_msg_ifdown(dev))
+				devdbg(dev, "waited for %d urb completions",
+					temp);
+		}
+		dev->wait = NULL;
+		remove_wait_queue(&unlink_wakeup, &wait);
 	}
-	dev->wait = NULL;
-	remove_wait_queue (&unlink_wakeup, &wait);
 
 	usb_kill_urb(dev->interrupt);
 

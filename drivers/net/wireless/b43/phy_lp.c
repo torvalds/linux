@@ -66,7 +66,99 @@ static void lpphy_table_init(struct b43_wldev *dev)
 
 static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 {
-	B43_WARN_ON(1);//TODO rev < 2 not supported, yet.
+	struct ssb_bus *bus = dev->dev->bus;
+	u16 tmp, tmp2;
+
+	if (dev->phy.rev == 1 &&
+	   (bus->sprom.boardflags_hi & B43_BFH_FEM_BT)) {
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0x3F00, 0x0900);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xC0FF, 0x0B00);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_3, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_3, 0xC0FF, 0x0400);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xC0FF, 0x0B00);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_5, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_5, 0xC0FF, 0x0900);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_6, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_6, 0xC0FF, 0x0B00);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_7, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_7, 0xC0FF, 0x0900);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xC0FF, 0x0B00);
+	} else if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ ||
+		  (bus->boardinfo.type == 0x048A) || ((dev->phy.rev == 0) &&
+		  (bus->sprom.boardflags_lo & B43_BFL_FEM))) {
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x0001);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xC0FF, 0x0400);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x0001);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xC0FF, 0x0500);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_3, 0xFFC0, 0x0002);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_3, 0xC0FF, 0x0800);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xFFC0, 0x0002);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xC0FF, 0x0A00);
+	} else if (dev->phy.rev == 1 ||
+		  (bus->sprom.boardflags_lo & B43_BFL_FEM)) {
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x0004);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xC0FF, 0x0800);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x0004);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xC0FF, 0x0C00);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_3, 0xFFC0, 0x0002);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_3, 0xC0FF, 0x0100);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xFFC0, 0x0002);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xC0FF, 0x0300);
+	} else {
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xC0FF, 0x0900);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x000A);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xC0FF, 0x0B00);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_3, 0xFFC0, 0x0006);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_3, 0xC0FF, 0x0500);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xFFC0, 0x0006);
+		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_4, 0xC0FF, 0x0700);
+	}
+	if (dev->phy.rev == 1) {
+		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_5, B43_LPPHY_TR_LOOKUP_1);
+		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_6, B43_LPPHY_TR_LOOKUP_2);
+		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_7, B43_LPPHY_TR_LOOKUP_3);
+		b43_phy_copy(dev, B43_LPPHY_TR_LOOKUP_8, B43_LPPHY_TR_LOOKUP_4);
+	}
+	if ((bus->sprom.boardflags_hi & B43_BFH_FEM_BT) &&
+	    (bus->chip_id == 0x5354) &&
+	    (bus->chip_package == SSB_CHIPPACK_BCM4712S)) {
+		b43_phy_set(dev, B43_LPPHY_CRSGAIN_CTL, 0x0006);
+		b43_phy_write(dev, B43_LPPHY_GPIO_SELECT, 0x0005);
+		b43_phy_write(dev, B43_LPPHY_GPIO_OUTEN, 0xFFFF);
+		b43_hf_write(dev, b43_hf_read(dev) | 0x0800ULL << 32);
+	}
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		b43_phy_set(dev, B43_LPPHY_LP_PHY_CTL, 0x8000);
+		b43_phy_set(dev, B43_LPPHY_CRSGAIN_CTL, 0x0040);
+		b43_phy_maskset(dev, B43_LPPHY_MINPWR_LEVEL, 0x00FF, 0xA400);
+		b43_phy_maskset(dev, B43_LPPHY_CRSGAIN_CTL, 0xF0FF, 0x0B00);
+		b43_phy_maskset(dev, B43_LPPHY_SYNCPEAKCNT, 0xFFF8, 0x0007);
+		b43_phy_maskset(dev, B43_LPPHY_DSSS_CONFIRM_CNT, 0xFFF8, 0x0003);
+		b43_phy_maskset(dev, B43_LPPHY_DSSS_CONFIRM_CNT, 0xFFC7, 0x0020);
+		b43_phy_mask(dev, B43_LPPHY_IDLEAFTERPKTRXTO, 0x00FF);
+	} else { /* 5GHz */
+		b43_phy_mask(dev, B43_LPPHY_LP_PHY_CTL, 0x7FFF);
+		b43_phy_mask(dev, B43_LPPHY_CRSGAIN_CTL, 0xFFBF);
+	}
+	if (dev->phy.rev == 1) {
+		tmp = b43_phy_read(dev, B43_LPPHY_CLIPCTRTHRESH);
+		tmp2 = (tmp & 0x03E0) >> 5;
+		tmp2 |= tmp << 5;
+		b43_phy_write(dev, B43_LPPHY_4C3, tmp2);
+		tmp = b43_phy_read(dev, B43_LPPHY_OFDMSYNCTHRESH0);
+		tmp2 = (tmp & 0x1F00) >> 8;
+		tmp2 |= tmp << 5;
+		b43_phy_write(dev, B43_LPPHY_4C4, tmp2);
+		tmp = b43_phy_read(dev, B43_LPPHY_VERYLOWGAINDB);
+		tmp2 = tmp & 0x00FF;
+		tmp2 |= tmp << 8;
+		b43_phy_write(dev, B43_LPPHY_4C5, tmp2);
+	}
 }
 
 static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)

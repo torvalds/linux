@@ -44,7 +44,7 @@ static const struct ath_rate_table ar5416_11na_ratetable = {
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 54000, /* 54 Mb */
 			29300, 0x0c, 0x00, 108,
 			4,  7, 7, 7, 7, 0 },
-		{ VALID_20, VALID_20, WLAN_RC_PHY_HT_20_SS, 6500, /* 6.5 Mb */
+		{ VALID_2040, VALID_2040, WLAN_RC_PHY_HT_20_SS, 6500, /* 6.5 Mb */
 			6400, 0x80, 0x00, 0,
 			0, 8, 24, 8, 24, 3216 },
 		{ VALID_20, VALID_20, WLAN_RC_PHY_HT_20_SS, 13000, /* 13 Mb */
@@ -462,8 +462,6 @@ static int ath_rc_valid_phyrate(u32 phy, u32 capflag, int ignore_cw)
 		return 0;
 	if (!ignore_cw && WLAN_RC_PHY_HT(phy))
 		if (WLAN_RC_PHY_40(phy) && !(capflag & WLAN_RC_40_FLAG))
-			return 0;
-		if (!WLAN_RC_PHY_40(phy) && (capflag & WLAN_RC_40_FLAG))
 			return 0;
 	return 1;
 }
@@ -1043,9 +1041,6 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	/* Monotonicity is kept only for rates below the current rate. */
 	if (ath_rc_priv->per[tx_rate] < last_per) {
 		for (rate = tx_rate - 1; rate >= 0; rate--) {
-			if (rate_table->info[rate].phy !=
-			    rate_table->info[tx_rate].phy)
-				break;
 
 			if (ath_rc_priv->per[rate] >
 			    ath_rc_priv->per[rate+1]) {

@@ -1117,6 +1117,8 @@ ath5k_mode_setup(struct ath5k_softc *sc)
 	struct ath5k_hw *ah = sc->ah;
 	u32 rfilt;
 
+	ah->ah_op_mode = sc->opmode;
+
 	/* configure rx filter */
 	rfilt = sc->filter_flags;
 	ath5k_hw_set_rx_filter(ah, rfilt);
@@ -1998,9 +2000,12 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 static void
 ath5k_tasklet_tx(unsigned long data)
 {
+	int i;
 	struct ath5k_softc *sc = (void *)data;
 
-	ath5k_tx_processq(sc, sc->txq);
+	for (i=0; i < AR5K_NUM_TX_QUEUES; i++)
+		if (sc->txqs[i].setup && (sc->ah->ah_txq_isr & BIT(i)))
+			ath5k_tx_processq(sc, &sc->txqs[i]);
 }
 
 
@@ -2768,6 +2773,7 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 	}
 
 	ath5k_hw_set_lladdr(sc->ah, conf->mac_addr);
+	ath5k_mode_setup(sc);
 
 	ret = 0;
 end:

@@ -376,7 +376,7 @@ static int spu_set_bus_mode(struct if_spi_card *card, u16 mode)
 	err = spu_read_u16(card, IF_SPI_SPU_BUS_MODE_REG, &rval);
 	if (err)
 		return err;
-	if (rval != mode) {
+	if ((rval & 0xF) != mode) {
 		lbs_pr_err("Can't read bus mode register.\n");
 		return -EIO;
 	}

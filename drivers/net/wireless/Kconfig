@@ -5,7 +5,7 @@
 menu "Wireless LAN"
 	depends on !S390
 
-config WLAN_PRE80211
+menuconfig WLAN_PRE80211
 	bool "Wireless LAN (pre-802.11)"
 	depends on NETDEVICES
 	---help---
@@ -101,7 +101,7 @@ config PCMCIA_NETWAVE
 	  called netwave_cs.  If unsure, say N.
 
 
-config WLAN_80211
+menuconfig WLAN_80211
 	bool "Wireless LAN (IEEE 802.11)"
 	depends on NETDEVICES
 	---help---

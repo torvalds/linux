@@ -484,6 +484,8 @@ static int iwm_set_auth_type(struct iwm_priv *iwm,
 
 static int iwm_set_wpa_version(struct iwm_priv *iwm, u32 wpa_version)
 {
+	IWM_DBG_WEXT(iwm, DBG, "wpa_version: %d\n", wpa_version);
+
 	if (!wpa_version) {
 		iwm->umac_profile->sec.flags = UMAC_SEC_FLG_LEGACY_PROFILE;
 		return 0;
@@ -507,6 +509,9 @@ static int iwm_set_cipher(struct iwm_priv *iwm, u32 cipher, bool ucast)
 		*profile_cipher = UMAC_CIPHER_TYPE_NONE;
 		return 0;
 	}
+
+	IWM_DBG_WEXT(iwm, DBG, "%ccast cipher is 0x%x\n", ucast ? 'u' : 'm',
+		     cipher);
 
 	switch (cipher) {
 	case IW_AUTH_CIPHER_NONE:
@@ -584,11 +589,11 @@ static int iwm_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		iwm->umac_profile->bss_num = 0;
 	}
 
-	ret = iwm_set_auth_type(iwm, sme->auth_type);
+	ret = iwm_set_wpa_version(iwm, sme->crypto.wpa_versions);
 	if (ret < 0)
 		return ret;
 
-	ret = iwm_set_wpa_version(iwm, sme->crypto.wpa_versions);
+	ret = iwm_set_auth_type(iwm, sme->auth_type);
 	if (ret < 0)
 		return ret;
 

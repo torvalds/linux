@@ -744,6 +744,9 @@
 #define AR_SREV_VERSION_9287                  0x180
 #define AR_SREV_REVISION_9287_10              0
 #define AR_SREV_REVISION_9287_11              1
+#define AR_SREV_VERSION_9271			0x140
+#define AR_SREV_REVISION_9271_10		0
+#define AR_SREV_REVISION_9271_11		1
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -814,6 +817,15 @@
 	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9287) || \
 	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
 	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9287_11)))
+
+#define AR_SREV_9271(_ah) \
+    (((_ah))->hw_version.macVersion == AR_SREV_VERSION_9271)
+#define AR_SREV_9271_10(_ah) \
+    (AR_SREV_9271(_ah) && \
+     ((_ah)->hw_version.macRev == AR_SREV_REVISION_9271_10))
+#define AR_SREV_9271_11(_ah) \
+    (AR_SREV_9271(_ah) && \
+     ((_ah)->hw_version.macRev == AR_SREV_REVISION_9271_11))
 
 #define AR_RADIO_SREV_MAJOR                   0xf0
 #define AR_RAD5133_SREV_MAJOR                 0xc0
@@ -1142,11 +1154,31 @@ enum {
 #define AR9285_AN_RF2G4_DB2_4    0x00003800
 #define AR9285_AN_RF2G4_DB2_4_S    11
 
+/* AR9271 : 0x7828, 0x782c different setting from AR9285 */
+#define AR9271_AN_RF2G3_OB_cck		0x001C0000
+#define AR9271_AN_RF2G3_OB_cck_S	18
+#define AR9271_AN_RF2G3_OB_psk		0x00038000
+#define AR9271_AN_RF2G3_OB_psk_S	15
+#define AR9271_AN_RF2G3_OB_qam		0x00007000
+#define AR9271_AN_RF2G3_OB_qam_S	12
+
+#define AR9271_AN_RF2G3_DB_1		0x00E00000
+#define AR9271_AN_RF2G3_DB_1_S		21
+
+#define AR9271_AN_RF2G3_CCOMP		0xFFF
+#define AR9271_AN_RF2G3_CCOMP_S		0
+
+#define AR9271_AN_RF2G4_DB_2		0xE0000000
+#define AR9271_AN_RF2G4_DB_2_S		29
+
 #define AR9285_AN_RF2G6                 0x7834
 #define AR9285_AN_RF2G6_CCOMP           0x00007800
 #define AR9285_AN_RF2G6_CCOMP_S         11
 #define AR9285_AN_RF2G6_OFFS            0x03f00000
 #define AR9285_AN_RF2G6_OFFS_S          20
+
+#define AR9271_AN_RF2G6_OFFS            0x07f00000
+#define AR9271_AN_RF2G6_OFFS_S            20
 
 #define AR9285_AN_RF2G7                 0x7838
 #define AR9285_AN_RF2G7_PWDDB           0x00000002
@@ -1207,6 +1239,11 @@ enum {
 #define AR9287_AN_TOP2                  0x78b4
 #define AR9287_AN_TOP2_XPABIAS_LVL      0xC0000000
 #define AR9287_AN_TOP2_XPABIAS_LVL_S    30
+
+/* AR9271 specific stuff */
+#define AR9271_RESET_POWER_DOWN_CONTROL		0x50044
+#define AR9271_RADIO_RF_RST			0x20
+#define AR9271_GATE_MAC_CTL			0x4000
 
 #define AR_STA_ID0                 0x8000
 #define AR_STA_ID1                 0x8004

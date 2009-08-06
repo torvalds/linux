@@ -1773,6 +1773,9 @@ static void at76_mac80211_stop(struct ieee80211_hw *hw)
 
 	at76_dbg(DBG_MAC80211, "%s()", __func__);
 
+	cancel_delayed_work(&priv->dwork_hw_scan);
+	cancel_work_sync(&priv->work_set_promisc);
+
 	mutex_lock(&priv->mtx);
 
 	if (!priv->device_unplugged) {
@@ -1872,8 +1875,8 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 	/* FIXME: add maximum time for scan to complete */
 
 	if (ret != CMD_STATUS_COMPLETE) {
-		queue_delayed_work(priv->hw->workqueue, &priv->dwork_hw_scan,
-				   SCAN_POLL_INTERVAL);
+		ieee80211_queue_delayed_work(priv->hw, &priv->dwork_hw_scan,
+					     SCAN_POLL_INTERVAL);
 		mutex_unlock(&priv->mtx);
 		return;
 	}
@@ -1934,8 +1937,8 @@ static int at76_hw_scan(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
-	queue_delayed_work(priv->hw->workqueue, &priv->dwork_hw_scan,
-			   SCAN_POLL_INTERVAL);
+	ieee80211_queue_delayed_work(priv->hw, &priv->dwork_hw_scan,
+				     SCAN_POLL_INTERVAL);
 
 exit:
 	mutex_unlock(&priv->mtx);
@@ -2024,7 +2027,7 @@ static void at76_configure_filter(struct ieee80211_hw *hw,
 	} else
 		return;
 
-	queue_work(hw->workqueue, &priv->work_set_promisc);
+	ieee80211_queue_work(hw, &priv->work_set_promisc);
 }
 
 static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -2295,11 +2298,8 @@ static void at76_delete_device(struct at76_priv *priv)
 
 	tasklet_kill(&priv->rx_tasklet);
 
-	if (priv->mac80211_registered) {
-		cancel_delayed_work(&priv->dwork_hw_scan);
-		flush_workqueue(priv->hw->workqueue);
+	if (priv->mac80211_registered)
 		ieee80211_unregister_hw(priv->hw);
-	}
 
 	if (priv->tx_urb) {
 		usb_kill_urb(priv->tx_urb);

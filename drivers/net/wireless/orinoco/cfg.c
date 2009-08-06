@@ -156,7 +156,48 @@ static int orinoco_scan(struct wiphy *wiphy, struct net_device *dev,
 	return err;
 }
 
+static int orinoco_set_channel(struct wiphy *wiphy,
+			struct ieee80211_channel *chan,
+			enum nl80211_channel_type channel_type)
+{
+	struct orinoco_private *priv = wiphy_priv(wiphy);
+	int err = 0;
+	unsigned long flags;
+	int channel;
+
+	if (!chan)
+		return -EINVAL;
+
+	if (channel_type != NL80211_CHAN_NO_HT)
+		return -EINVAL;
+
+	if (chan->band != IEEE80211_BAND_2GHZ)
+		return -EINVAL;
+
+	channel = ieee80211_freq_to_dsss_chan(chan->center_freq);
+
+	if ((channel < 1) || (channel > NUM_CHANNELS) ||
+	     !(priv->channel_mask & (1 << (channel-1))))
+		return -EINVAL;
+
+	if (orinoco_lock(priv, &flags) != 0)
+		return -EBUSY;
+
+	priv->channel = channel;
+	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
+		/* Fast channel change - no commit if successful */
+		hermes_t *hw = &priv->hw;
+		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
+					    HERMES_TEST_SET_CHANNEL,
+					channel, NULL);
+	}
+	orinoco_unlock(priv, &flags);
+
+	return err;
+}
+
 const struct cfg80211_ops orinoco_cfg_ops = {
 	.change_virtual_intf = orinoco_change_vif,
+	.set_channel = orinoco_set_channel,
 	.scan = orinoco_scan,
 };

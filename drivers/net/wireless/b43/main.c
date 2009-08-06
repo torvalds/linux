@@ -395,9 +395,8 @@ u32 __b43_shm_read32(struct b43_wldev *dev, u16 routing, u16 offset)
 			/* Unaligned access */
 			b43_shm_control_word(dev, routing, offset >> 2);
 			ret = b43_read16(dev, B43_MMIO_SHM_DATA_UNALIGNED);
-			ret <<= 16;
 			b43_shm_control_word(dev, routing, (offset >> 2) + 1);
-			ret |= b43_read16(dev, B43_MMIO_SHM_DATA);
+			ret |= ((u32)b43_read16(dev, B43_MMIO_SHM_DATA)) << 16;
 
 			goto out;
 		}
@@ -464,9 +463,10 @@ void __b43_shm_write32(struct b43_wldev *dev, u16 routing, u16 offset, u32 value
 			/* Unaligned access */
 			b43_shm_control_word(dev, routing, offset >> 2);
 			b43_write16(dev, B43_MMIO_SHM_DATA_UNALIGNED,
-				    (value >> 16) & 0xffff);
+				    value & 0xFFFF);
 			b43_shm_control_word(dev, routing, (offset >> 2) + 1);
-			b43_write16(dev, B43_MMIO_SHM_DATA, value & 0xffff);
+			b43_write16(dev, B43_MMIO_SHM_DATA,
+				    (value >> 16) & 0xFFFF);
 			return;
 		}
 		offset >>= 2;
@@ -1524,10 +1524,13 @@ static void b43_write_probe_resp_template(struct b43_wldev *dev,
 	/* Looks like PLCP headers plus packet timings are stored for
 	 * all possible basic rates
 	 */
+	/* FIXME this is the wrong offset : it goes in tkip rx phase1 shm */
+#if 0
 	b43_write_probe_resp_plcp(dev, 0x31A, size, &b43_b_ratetable[0]);
 	b43_write_probe_resp_plcp(dev, 0x32C, size, &b43_b_ratetable[1]);
 	b43_write_probe_resp_plcp(dev, 0x33E, size, &b43_b_ratetable[2]);
 	b43_write_probe_resp_plcp(dev, 0x350, size, &b43_b_ratetable[3]);
+#endif
 
 	size = min((size_t) size, 0x200 - sizeof(struct b43_plcp_hdr6));
 	b43_write_template_common(dev, probe_resp_data,
@@ -1654,7 +1657,7 @@ static void b43_update_templates(struct b43_wl *wl)
 	wl->current_beacon = beacon;
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
-	queue_work(wl->hw->workqueue, &wl->beacon_update_trigger);
+	ieee80211_queue_work(wl->hw, &wl->beacon_update_trigger);
 }
 
 static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
@@ -2914,7 +2917,7 @@ out_requeue:
 		delay = msecs_to_jiffies(50);
 	else
 		delay = round_jiffies_relative(HZ * 15);
-	queue_delayed_work(wl->hw->workqueue, &dev->periodic_work, delay);
+	ieee80211_queue_delayed_work(wl->hw, &dev->periodic_work, delay);
 out:
 	mutex_unlock(&wl->mutex);
 }
@@ -2925,15 +2928,16 @@ static void b43_periodic_tasks_setup(struct b43_wldev *dev)
 
 	dev->periodic_state = 0;
 	INIT_DELAYED_WORK(work, b43_periodic_work_handler);
-	queue_delayed_work(dev->wl->hw->workqueue, work, 0);
+	ieee80211_queue_delayed_work(dev->wl->hw, work, 0);
 }
 
 /* Check if communication with the device works correctly. */
 static int b43_validate_chipaccess(struct b43_wldev *dev)
 {
-	u32 v, backup;
+	u32 v, backup0, backup4;
 
-	backup = b43_shm_read32(dev, B43_SHM_SHARED, 0);
+	backup0 = b43_shm_read32(dev, B43_SHM_SHARED, 0);
+	backup4 = b43_shm_read32(dev, B43_SHM_SHARED, 4);
 
 	/* Check for read/write and endianness problems. */
 	b43_shm_write32(dev, B43_SHM_SHARED, 0, 0x55AAAA55);
@@ -2943,7 +2947,23 @@ static int b43_validate_chipaccess(struct b43_wldev *dev)
 	if (b43_shm_read32(dev, B43_SHM_SHARED, 0) != 0xAA5555AA)
 		goto error;
 
-	b43_shm_write32(dev, B43_SHM_SHARED, 0, backup);
+	/* Check if unaligned 32bit SHM_SHARED access works properly.
+	 * However, don't bail out on failure, because it's noncritical. */
+	b43_shm_write16(dev, B43_SHM_SHARED, 0, 0x1122);
+	b43_shm_write16(dev, B43_SHM_SHARED, 2, 0x3344);
+	b43_shm_write16(dev, B43_SHM_SHARED, 4, 0x5566);
+	b43_shm_write16(dev, B43_SHM_SHARED, 6, 0x7788);
+	if (b43_shm_read32(dev, B43_SHM_SHARED, 2) != 0x55663344)
+		b43warn(dev->wl, "Unaligned 32bit SHM read access is broken\n");
+	b43_shm_write32(dev, B43_SHM_SHARED, 2, 0xAABBCCDD);
+	if (b43_shm_read16(dev, B43_SHM_SHARED, 0) != 0x1122 ||
+	    b43_shm_read16(dev, B43_SHM_SHARED, 2) != 0xCCDD ||
+	    b43_shm_read16(dev, B43_SHM_SHARED, 4) != 0xAABB ||
+	    b43_shm_read16(dev, B43_SHM_SHARED, 6) != 0x7788)
+		b43warn(dev->wl, "Unaligned 32bit SHM write access is broken\n");
+
+	b43_shm_write32(dev, B43_SHM_SHARED, 0, backup0);
+	b43_shm_write32(dev, B43_SHM_SHARED, 4, backup4);
 
 	if ((dev->dev->id.revision >= 3) && (dev->dev->id.revision <= 10)) {
 		/* The 32bit register shadows the two 16bit registers
@@ -4871,7 +4891,7 @@ void b43_controller_restart(struct b43_wldev *dev, const char *reason)
 	if (b43_status(dev) < B43_STAT_INITIALIZED)
 		return;
 	b43info(dev->wl, "Controller RESET (%s) ...\n", reason);
-	queue_work(dev->wl->hw->workqueue, &dev->restart_work);
+	ieee80211_queue_work(dev->wl->hw, &dev->restart_work);
 }
 
 #ifdef CONFIG_PM
