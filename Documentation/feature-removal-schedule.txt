@@ -468,3 +468,27 @@ Why:	cpu_policy_rwsem has a new cleaner definition making it local to
 	cpufreq core and contained inside cpufreq.c. Other dependent
 	drivers should not use it in order to safely avoid lockdep issues.
 Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
+
+----------------------------
+
+What:	sound-slot/service-* module aliases and related clutters in
+	sound/sound_core.c
+When:	August 2010
+Why:	OSS sound_core grabs all legacy minors (0-255) of SOUND_MAJOR
+	(14) and requests modules using custom sound-slot/service-*
+	module aliases.  The only benefit of doing this is allowing
+	use of custom module aliases which might as well be considered
+	a bug at this point.  This preemptive claiming prevents
+	alternative OSS implementations.
+
+	Till the feature is removed, the kernel will be requesting
+	both sound-slot/service-* and the standard char-major-* module
+	aliases and allow turning off the pre-claiming selectively via
+	CONFIG_SOUND_OSS_CORE_PRECLAIM and soundcore.preclaim_oss
+	kernel parameter.
+
+	After the transition phase is complete, both the custom module
+	aliases and switches to disable it will go away.  This removal
+	will also allow making ALSA OSS emulation independent of
+	sound_core.  The dependency will be broken then too.
+Who:	Tejun Heo <tj@kernel.org>
