@@ -2563,7 +2563,7 @@ static int isp1362_hc_start(struct usb_hcd *hcd)
 	hwcfg = HCHWCFG_INT_ENABLE | HCHWCFG_DBWIDTH(1);
 	if (board->sel15Kres)
 		hwcfg |= HCHWCFG_PULLDOWN_DS2 |
-			(MAX_ROOT_PORTS > 1) ? HCHWCFG_PULLDOWN_DS1 : 0;
+			((MAX_ROOT_PORTS > 1) ? HCHWCFG_PULLDOWN_DS1 : 0);
 	if (board->clknotstop)
 		hwcfg |= HCHWCFG_CLKNOTSTOP;
 	if (board->oc_enable)
