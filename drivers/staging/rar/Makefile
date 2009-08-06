@@ -1,0 +1,2 @@
+EXTRA_CFLAGS += -DLITTLE__ENDIAN
+obj-$(CONFIG_RAR_REGISTER) += rar_driver.o
