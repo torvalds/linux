@@ -2646,6 +2646,7 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		u64 counter;
 	} group_entry;
 	struct perf_callchain_entry *callchain = NULL;
+	struct perf_tracepoint_record *tp;
 	int callchain_size = 0;
 	u64 time;
 	struct {
@@ -2714,6 +2715,11 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 			header.size += sizeof(u64);
 	}
 
+	if (sample_type & PERF_SAMPLE_TP_RECORD) {
+		tp = data->private;
+		header.size += tp->size;
+	}
+
 	ret = perf_output_begin(&handle, counter, header.size, nmi, 1);
 	if (ret)
 		return;
@@ -2776,6 +2782,9 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 			perf_output_put(&handle, nr);
 		}
 	}
+
+	if (sample_type & PERF_SAMPLE_TP_RECORD)
+		perf_output_copy(&handle, tp->record, tp->size);
 
 	perf_output_end(&handle);
 }
@@ -3703,11 +3712,18 @@ static const struct pmu perf_ops_task_clock = {
 };
 
 #ifdef CONFIG_EVENT_PROFILE
-void perf_tpcounter_event(int event_id, u64 addr, u64 count)
+void perf_tpcounter_event(int event_id, u64 addr, u64 count, void *record,
+			  int entry_size)
 {
+	struct perf_tracepoint_record tp = {
+		.size = entry_size,
+		.record = record,
+	};
+
 	struct perf_sample_data data = {
 		.regs = get_irq_regs(),
 		.addr = addr,
+		.private = &tp,
 	};
 
 	if (!data.regs)
