@@ -1942,9 +1942,6 @@ static int sep_add_flow_tables_handler(unsigned long arg)
 
 	/* send the parameters to user application */
 	error = copy_to_user((void *) arg, &command_args, sizeof(struct sep_driver_add_flow_table_t));
-	if (error)
-		goto end_function_with_error;
-
 end_function_with_error:
 	/* free the allocated tables */
 	sep_deallocated_flow_tables(&first_table_data);
@@ -2006,9 +2003,6 @@ static int sep_get_static_pool_addr_handler(unsigned long arg)
 
 	/* send the parameters to user application */
 	error = copy_to_user((void *) arg, &command_args, sizeof(struct sep_driver_static_pool_addr_t));
-	if (error)
-		goto end_function;
-end_function:
 	dbg("SEP Driver:<-------- sep_get_static_pool_addr_handler end\n");
 	return error;
 }
@@ -2040,8 +2034,6 @@ static int sep_get_physical_mapped_offset_handler(unsigned long arg)
 
 	/* send the parameters to user application */
 	error = copy_to_user((void *) arg, &command_args, sizeof(struct sep_driver_get_mapped_offset_t));
-	if (error)
-		goto end_function;
 end_function:
 	dbg("SEP Driver:<-------- sep_get_physical_mapped_offset_handler end\n");
 	return error;
@@ -2064,11 +2056,9 @@ static int sep_start_handler(void)
 	while (!reg_val);
 
 	/* check the value */
-	if (reg_val == 0x1) {
+	if (reg_val == 0x1)
 		/* fatal error - read erro status from GPRO */
 		error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		goto end_function;
-	}
 end_function:
 	dbg("SEP Driver:<-------- sep_start_handler end\n");
 	return error;
@@ -2134,7 +2124,6 @@ static int sep_init_handler(unsigned long arg)
 		/* fatal error - read erro status from GPRO */
 		error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 		edbg("SEP Driver:error is %lu\n", error);
-		goto end_function;
 	}
 end_function:
 	dbg("SEP Driver:<-------- sep_init_handler end\n");
