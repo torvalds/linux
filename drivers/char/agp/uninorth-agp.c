@@ -135,7 +135,7 @@ static int uninorth_configure(void)
 	if (is_u3) {
 		pci_write_config_dword(agp_bridge->dev,
 				       UNI_N_CFG_GART_DUMMY_PAGE,
-				       agp_bridge->scratch_page_real >> 12);
+				       page_to_phys(agp_bridge->scratch_page_page) >> 12);
 	}
 
 	return 0;
