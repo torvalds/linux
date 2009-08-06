@@ -23,9 +23,9 @@
  */
 
 #ifdef TC35815_NAPI
-#define DRV_VERSION	"1.37-NAPI"
+#define DRV_VERSION	"1.38-NAPI"
 #else
-#define DRV_VERSION	"1.37"
+#define DRV_VERSION	"1.38"
 #endif
 static const char *version = "tc35815.c:v" DRV_VERSION "\n";
 #define MODNAME			"tc35815"
@@ -341,8 +341,9 @@ struct BDesc {
 	Tx_EnExColl | Tx_EnLCarr | Tx_EnExDefer | Tx_EnUnder | \
 	Tx_En)	/* maybe  0x7b01 */
 #endif
+/* Do not use Rx_StripCRC -- it causes trouble on BLEx/FDAEx condition */
 #define RX_CTL_CMD	(Rx_EnGood | Rx_EnRxPar | Rx_EnLongErr | Rx_EnOver \
-	| Rx_EnCRCErr | Rx_EnAlign | Rx_StripCRC | Rx_RxEn) /* maybe 0x6f11 */
+	| Rx_EnCRCErr | Rx_EnAlign | Rx_RxEn) /* maybe 0x6f01 */
 #define INT_EN_CMD  (Int_NRAbtEn | \
 	Int_DmParErrEn | Int_DParDEn | Int_DParErrEn | \
 	Int_SSysErrEn  | Int_RMasAbtEn | Int_RTargAbtEn | \
