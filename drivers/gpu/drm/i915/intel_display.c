@@ -2396,7 +2396,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		if (is_sdvo) {
 			dpll |= DPLL_DVO_HIGH_SPEED;
 			sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
-			if (IS_I945G(dev) || IS_I945GM(dev))
+			if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 				dpll |= (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
 			else if (IS_IGDNG(dev))
 				dpll |= (sdvo_pixel_multiply - 1) << PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
