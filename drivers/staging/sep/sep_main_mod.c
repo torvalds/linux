@@ -301,7 +301,6 @@ static int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_s
 int sep_lock()
 {
 	mutex_lock(&sep_mutex);
-
 	return 0;
 }
 
@@ -361,12 +360,7 @@ void sep_driver_poll()
 ------------------------------------------------------------------------*/
 static int sep_open(struct inode *inode_ptr, struct file *file_ptr)
 {
-	/* return value */
 	int error;
-
-  /*-----------------
-	CODE
-  ---------------------*/
 
 	dbg("SEP Driver:--------> open start\n");
 
@@ -389,10 +383,8 @@ static int sep_open(struct inode *inode_ptr, struct file *file_ptr)
 	/* release data pool allocations */
 	sep_dev->data_pool_bytes_allocated = 0;
 
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- open end\n");
-
 	return error;
 }
 
@@ -404,10 +396,6 @@ static int sep_open(struct inode *inode_ptr, struct file *file_ptr)
 -------------------------------------------------------------*/
 static int sep_release(struct inode *inode_ptr, struct file *file_ptr)
 {
-  /*-----------------
-	CODE
-  ---------------------*/
-
 	dbg("----------->SEP Driver: sep_release start\n");
 
 #if 0				/*!SEP_DRIVER_POLLING_MODE */
@@ -435,12 +423,7 @@ static int sep_release(struct inode *inode_ptr, struct file *file_ptr)
 -----------------------------------------------------------------*/
 static int sep_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	/* physical addr */
 	unsigned long phys_addr;
-
-  /*-----------------------
-	CODE
-  -------------------------*/
 
 	dbg("-------->SEP Driver: mmap start\n");
 
@@ -480,15 +463,8 @@ static int sep_mmap(struct file *filp, struct vm_area_struct *vma)
 static unsigned int sep_poll(struct file *filp, poll_table * wait)
 {
 	unsigned long count;
-
 	unsigned int mask = 0;
-
-	/* flow id */
-	unsigned long retVal = 0;
-
-  /*----------------------------------------------
-	CODE
-  -------------------------------------------------*/
+	unsigned long retVal = 0;	/* flow id */
 
 	dbg("---------->SEP Driver poll: start\n");
 
@@ -532,7 +508,6 @@ static unsigned int sep_poll(struct file *filp, poll_table * wait)
 			mask |= POLLIN | POLLRDNORM;
 		}
 	}
-
 	dbg("SEP Driver:<-------- poll exit\n");
 	return mask;
 }
@@ -540,14 +515,7 @@ static unsigned int sep_poll(struct file *filp, poll_table * wait)
 
 static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
 {
-
-	/* error */
-	int error;
-
-  /*------------------------
-	CODE
-  ------------------------*/
-	error = 0;
+	int error = 0;
 
 	dbg("------------>SEP Driver: ioctl start\n");
 
@@ -559,140 +527,83 @@ static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 
 	switch (cmd) {
 	case SEP_IOCSENDSEPCOMMAND:
-
 		/* send command to SEP */
 		sep_send_command_handler();
-
 		edbg("SEP Driver: after sep_send_command_handler\n");
-
 		break;
-
 	case SEP_IOCSENDSEPRPLYCOMMAND:
-
 		/* send reply command to SEP */
 		sep_send_reply_command_handler();
-
 		break;
-
 	case SEP_IOCALLOCDATAPOLL:
-
 		/* allocate data pool */
 		error = sep_allocate_data_pool_memory_handler(arg);
-
 		break;
-
 	case SEP_IOCWRITEDATAPOLL:
-
 		/* write data into memory pool */
 		error = sep_write_into_data_pool_handler(arg);
-
 		break;
-
 	case SEP_IOCREADDATAPOLL:
-
 		/* read data from data pool into application memory */
 		error = sep_read_from_data_pool_handler(arg);
-
 		break;
-
 	case SEP_IOCCREATESYMDMATABLE:
-
 		/* create dma table for synhronic operation */
 		error = sep_create_sync_dma_tables_handler(arg);
-
 		break;
-
 	case SEP_IOCCREATEFLOWDMATABLE:
-
 		/* create flow dma tables */
 		error = sep_create_flow_dma_tables_handler(arg);
-
 		break;
-
 	case SEP_IOCFREEDMATABLEDATA:
-
 		/* free the pages */
 		error = sep_free_dma_table_data_handler();
-
 		break;
-
 	case SEP_IOCSETFLOWID:
-
 		/* set flow id */
 		error = sep_set_flow_id_handler(arg);
-
 		break;
-
 	case SEP_IOCADDFLOWTABLE:
-
 		/* add tables to the dynamic flow */
 		error = sep_add_flow_tables_handler(arg);
-
 		break;
-
 	case SEP_IOCADDFLOWMESSAGE:
-
 		/* add message of add tables to flow */
 		error = sep_add_flow_tables_message_handler(arg);
-
 		break;
-
 	case SEP_IOCSEPSTART:
-
 		/* start command to sep */
 		error = sep_start_handler();
 		break;
-
 	case SEP_IOCSEPINIT:
-
 		/* init command to sep */
 		error = sep_init_handler(arg);
 		break;
-
 	case SEP_IOCSETAPIMODE:
-
 		/* set non- blocking mode */
 		error = sep_set_api_mode_handler(arg);
-
 		break;
-
 	case SEP_IOCGETSTATICPOOLADDR:
-
 		/* get the physical and virtual addresses of the static pool */
 		error = sep_get_static_pool_addr_handler(arg);
-
 		break;
-
 	case SEP_IOCENDTRANSACTION:
-
 		error = sep_end_transaction_handler(arg);
-
 		break;
-
 	case SEP_IOCREALLOCCACHERES:
-
 		error = sep_realloc_cache_resident_handler(arg);
-
 		break;
-
 	case SEP_IOCGETMAPPEDADDROFFSET:
-
 		error = sep_get_physical_mapped_offset_handler(arg);
-
 		break;
 	case SEP_IOCGETIME:
-
 		error = sep_get_time_handler(arg);
-
 		break;
-
 	default:
 		error = -ENOTTY;
 		break;
 	}
-
 	dbg("SEP Driver:<-------- ioctl end\n");
-
 	return error;
 }
 
@@ -702,14 +613,7 @@ static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 */
 static int sep_register_driver_to_fs(void)
 {
-	/* return value */
-	int ret_val;
-
-  /*---------------------
-	CODE
-  -----------------------*/
-
-	ret_val = alloc_chrdev_region(&g_sep_device_number, 0, 1, "sep_sec_driver");
+	int ret_val = alloc_chrdev_region(&g_sep_device_number, 0, 1, "sep_sec_driver");
 	if (ret_val) {
 		edbg("sep_driver:major number allocation failed, retval is %d\n", ret_val);
 		goto end_function;
@@ -737,14 +641,13 @@ static int sep_register_driver_to_fs(void)
 
 	goto end_function;
 
-      end_function_unregister_devnum:
+end_function_unregister_devnum:
 
 	/* unregister dev numbers */
 	unregister_chrdev_region(g_sep_device_number, 1);
 
-      end_function:
-
-	return ret_val;
+end_function:
+      return ret_val;
 }
 
 /*
@@ -752,12 +655,7 @@ static int sep_register_driver_to_fs(void)
 */
 static void sep_unregister_driver_from_fs(void)
 {
-  /*-------------------
-	CODE
-  ---------------------*/
-
 	cdev_del(&g_sep_cdev);
-
 	/* unregister dev numbers */
 	unregister_chrdev_region(g_sep_device_number, 1);
 }
@@ -767,50 +665,35 @@ static void sep_unregister_driver_from_fs(void)
 ----------------------------------------------------------------*/
 static int __init sep_init(void)
 {
-	/* return value */
-	int ret_val;
-
-	/* counter */
+	int ret_val = 0;
 	int counter;
-
-	/* size to of memory for allocation */
-	int size;
-
-  /*------------------------
-	CODE
-  ------------------------*/
+	int size;		/* size of memory for allocation */
 
 	dbg("SEP Driver:-------->Init start\n");
 	edbg("sep->shared_area_addr = %lx\n", (unsigned long) &sep_dev->shared_area_addr);
 
-	ret_val = 0;
-
-/* transaction counter that coordinates the transactions between SEP
+	/* transaction counter that coordinates the transactions between SEP
 	and HOST */
 	sep_dev->host_to_sep_send_counter = 0;
 
-/* counter for the messages from sep */
+	/* counter for the messages from sep */
 	sep_dev->sep_to_host_reply_counter = 0;
 
-/* counter for the number of bytes allocated in the pool
-for the current transaction */
+	/* counter for the number of bytes allocated in the pool
+	for the current transaction */
 	sep_dev->data_pool_bytes_allocated = 0;
 
 	/* set the starting mode to blocking */
 	sep_dev->block_mode_flag = 1;
-
 
 	ret_val = sep_register_driver_to_device();
 	if (ret_val) {
 		edbg("sep_driver:sep_driver_to_device failed, ret_val is %d\n", ret_val);
 		goto end_function_unregister_from_fs;
 	}
-
 	/* calculate the total size for allocation */
 	size = SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES +
 	    SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES + SEP_DRIVER_FLOW_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES + SEP_DRIVER_SYSTEM_DATA_MEMORY_SIZE_IN_BYTES;
-
-
 
 	/* allocate the shared area */
 	if (sep_map_and_alloc_shared_area(size, &sep_dev->shared_area_addr, &sep_dev->phys_shared_area_addr)) {
@@ -818,14 +701,12 @@ for the current transaction */
 		/* allocation failed */
 		goto end_function_unmap_io_memory;
 	}
-
 	/* now set the memory regions */
 	sep_dev->message_shared_area_addr = sep_dev->shared_area_addr;
 
 	edbg("SEP Driver: g_message_shared_area_addr is %08lx\n", sep_dev->message_shared_area_addr);
 
 #if (SEP_DRIVER_RECONFIG_MESSAGE_AREA == 1)
-
 	/* send the new SHARED MESSAGE AREA to the SEP */
 	sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR1_REG_ADDR, sep_dev->phys_shared_area_addr);
 
@@ -840,7 +721,6 @@ for the current transaction */
 		goto end_function_deallocate_message_area;
 	}
 #endif
-
 	/* init the flow contextes */
 	for (counter = 0; counter < SEP_DRIVER_NUM_FLOWS; counter++)
 		sep_dev->flows_data_array[counter].flow_id = SEP_FREE_FLOW_ID;
@@ -851,44 +731,29 @@ for the current transaction */
 		edbg("sep_driver:flow queue creation failed\n");
 		goto end_function_deallocate_sep_shared_area;
 	}
-
 	edbg("SEP Driver: create flow workqueue \n");
 
 	/* register driver to fs */
 	ret_val = sep_register_driver_to_fs();
 	if (ret_val)
 		goto end_function_deallocate_sep_shared_area;
-
 	/* load the rom code */
 	sep_load_rom_code();
-
 	goto end_function;
-
-      end_function_unregister_from_fs:
-
+end_function_unregister_from_fs:
 	/* unregister from fs */
 	sep_unregister_driver_from_fs();
-
-      end_function_deallocate_sep_shared_area:
-
+end_function_deallocate_sep_shared_area:
 	/* de-allocate shared area */
 	sep_unmap_and_free_shared_area(size, sep_dev->shared_area_addr, sep_dev->phys_shared_area_addr);
-
-      end_function_unmap_io_memory:
-
+end_function_unmap_io_memory:
 	iounmap((void *) sep_dev->reg_base_address);
-
 	/* release io memory region */
 	release_mem_region(SEP_IO_MEM_REGION_START_ADDRESS, SEP_IO_MEM_REGION_SIZE);
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- Init end\n");
-
 	return ret_val;
 }
-
-
 
 
 /*-------------------------------------------------------------
@@ -896,37 +761,23 @@ for the current transaction */
 --------------------------------------------------------------*/
 static void __exit sep_exit(void)
 {
-	/* size */
 	int size;
-
-  /*-----------------------------
-	CODE
-  --------------------------------*/
 
 	dbg("SEP Driver:--------> Exit start\n");
 
 	/* unregister from fs */
 	sep_unregister_driver_from_fs();
-
 	/* calculate the total size for de-allocation */
 	size = SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES +
 	    SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES + SEP_DRIVER_FLOW_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES + SEP_DRIVER_SYSTEM_DATA_MEMORY_SIZE_IN_BYTES;
-
-
 	/* free shared area  */
 	sep_unmap_and_free_shared_area(size, sep_dev->shared_area_addr, sep_dev->phys_shared_area_addr);
-
 	edbg("SEP Driver: free pages SEP SHARED AREA \n");
-
 	iounmap((void *) sep_dev->reg_base_address);
-
 	edbg("SEP Driver: iounmap \n");
-
 	/* release io memory region */
 	release_mem_region(SEP_IO_MEM_REGION_START_ADDRESS, SEP_IO_MEM_REGION_SIZE);
-
 	edbg("SEP Driver: release_mem_region \n");
-
 	dbg("SEP Driver:<-------- Exit end\n");
 }
 
@@ -936,24 +787,11 @@ static void __exit sep_exit(void)
 */
 irqreturn_t sep_inthandler(int irq, void *dev_id)
 {
-	/* int error */
 	irqreturn_t int_error;
-
-	/* error */
 	unsigned long error;
-
-	/* reg value */
 	unsigned long reg_val;
-
-	/* flow id */
 	unsigned long flow_id;
-
-	/* flow context */
 	struct sep_flow_context_t *flow_context_ptr;
-
-  /*-----------------------------
-	CODE
-  -----------------------------*/
 
 	int_error = IRQ_HANDLED;
 
@@ -989,14 +827,10 @@ irqreturn_t sep_inthandler(int irq, void *dev_id)
 			goto end_function;
 		}
 	}
-
-      end_function_with_error:
-
+end_function_with_error:
 	/* clear the interrupt */
 	sep_write_reg(sep_dev, HW_HOST_ICR_REG_ADDR, reg_val);
-
-      end_function:
-
+end_function:
 	return int_error;
 }
 
@@ -1009,34 +843,21 @@ int sep_prepare_input_dma_table(unsigned long app_virt_addr, unsigned long data_
 {
 	/* pointer to the info entry of the table - the last entry */
 	struct sep_lli_entry_t *info_entry_ptr;
-
 	/* array of pointers ot page */
 	struct sep_lli_entry_t *lli_array_ptr;
-
 	/* points to the first entry to be processed in the lli_in_array */
 	unsigned long current_entry;
-
 	/* num entries in the virtual buffer */
 	unsigned long sep_lli_entries;
-
 	/* lli table pointer */
 	struct sep_lli_entry_t *in_lli_table_ptr;
-
 	/* the total data in one table */
 	unsigned long table_data_size;
-
 	/* number of entries in lli table */
 	unsigned long num_entries_in_table;
-
 	/* next table address */
 	unsigned long lli_table_alloc_addr;
-
-	/* result */
 	unsigned long result;
-
-  /*------------------------
-	CODE
-  --------------------------*/
 
 	dbg("SEP Driver:--------> sep_prepare_input_dma_table start\n");
 
@@ -1125,11 +946,8 @@ int sep_prepare_input_dma_table(unsigned long app_virt_addr, unsigned long data_
 
 	/* the array of the pages */
 	kfree(lli_array_ptr);
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_prepare_input_dma_table end\n");
-
 	return 0;
 
 }
@@ -1147,21 +965,11 @@ int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
 {
 	/* array of pointers of page */
 	struct sep_lli_entry_t *lli_in_array;
-
 	/* array of pointers of page */
 	struct sep_lli_entry_t *lli_out_array;
-
-	/* result */
-	int result;
-
-
-  /*------------------------
-	CODE
-  --------------------------*/
+	int result = 0;
 
 	dbg("SEP Driver:--------> sep_prepare_input_output_dma_table start\n");
-
-	result = 0;
 
 	/* initialize the pages pointers */
 	sep_dev->in_page_array = 0;
@@ -1197,8 +1005,6 @@ int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
 			goto end_function_with_error1;
 		}
 	}
-
-
 	edbg("sep_dev->in_num_pages is %lu\n", sep_dev->in_num_pages);
 	edbg("sep_dev->out_num_pages is %lu\n", sep_dev->out_num_pages);
 	edbg("SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP is %x\n", SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP);
@@ -1212,24 +1018,15 @@ int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
 	}
 
 	/* fall through - free the lli entry arrays */
-
 	dbg("in_num_entries_ptr is %08lx\n", *in_num_entries_ptr);
 	dbg("out_num_entries_ptr is %08lx\n", *out_num_entries_ptr);
 	dbg("table_data_size_ptr is %08lx\n", *table_data_size_ptr);
-
-
-      end_function_with_error2:
-
+end_function_with_error2:
 	kfree(lli_out_array);
-
-      end_function_with_error1:
-
+end_function_with_error1:
 	kfree(lli_in_array);
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_prepare_input_output_dma_table end result = %d\n", (int) result);
-
 	return result;
 
 }
@@ -1247,46 +1044,30 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
 {
 	/* points to the area where next lli table can be allocated */
 	unsigned long lli_table_alloc_addr;
-
 	/* input lli table */
 	struct sep_lli_entry_t *in_lli_table_ptr;
-
 	/* output lli table */
 	struct sep_lli_entry_t *out_lli_table_ptr;
-
 	/* pointer to the info entry of the table - the last entry */
 	struct sep_lli_entry_t *info_in_entry_ptr;
-
 	/* pointer to the info entry of the table - the last entry */
 	struct sep_lli_entry_t *info_out_entry_ptr;
-
 	/* points to the first entry to be processed in the lli_in_array */
 	unsigned long current_in_entry;
-
 	/* points to the first entry to be processed in the lli_out_array */
 	unsigned long current_out_entry;
-
 	/* max size of the input table */
 	unsigned long in_table_data_size;
-
 	/* max size of the output table */
 	unsigned long out_table_data_size;
-
 	/* flag te signifies if this is the first tables build from the arrays */
 	unsigned long first_table_flag;
-
 	/* the data size that should be in table */
 	unsigned long table_data_size;
-
 	/* number of etnries in the input table */
 	unsigned long num_entries_in_table;
-
 	/* number of etnries in the output table */
 	unsigned long num_entries_out_table;
-
-  /*---------------------
-	CODE
-  ------------------------*/
 
 	dbg("SEP Driver:--------> sep_construct_dma_tables_from_lli start\n");
 
@@ -1369,13 +1150,10 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
 	/* print input tables */
 	sep_debug_print_lli_tables((struct sep_lli_entry_t *)
 				   sep_shared_area_phys_to_virt(*lli_table_in_ptr), *in_num_entries_ptr, *table_data_size_ptr);
-
 	/* print output tables */
 	sep_debug_print_lli_tables((struct sep_lli_entry_t *)
 				   sep_shared_area_phys_to_virt(*lli_table_out_ptr), *out_num_entries_ptr, *table_data_size_ptr);
-
 	dbg("SEP Driver:<-------- sep_construct_dma_tables_from_lli end\n");
-
 	return 0;
 }
 
@@ -1386,23 +1164,13 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
 */
 unsigned long sep_calculate_lli_table_max_size(struct sep_lli_entry_t *lli_in_array_ptr, unsigned long num_array_entries)
 {
-	/* table data size */
-	unsigned long table_data_size;
-
-	/* counter */
+	unsigned long table_data_size = 0;
 	unsigned long counter;
-
-  /*---------------------
-	CODE
-  ----------------------*/
-
-	table_data_size = 0;
 
 	/* calculate the data in the out lli table if till we fill the whole
 	   table or till the data has ended */
 	for (counter = 0; (counter < (SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP - 1)) && (counter < num_array_entries); counter++)
 		table_data_size += lli_in_array_ptr[counter].block_size;
-
 	return table_data_size;
 }
 
@@ -1412,15 +1180,9 @@ unsigned long sep_calculate_lli_table_max_size(struct sep_lli_entry_t *lli_in_ar
 */
 static void sep_build_lli_table(struct sep_lli_entry_t *lli_array_ptr, struct sep_lli_entry_t *lli_table_ptr, unsigned long *num_processed_entries_ptr, unsigned long *num_table_entries_ptr, unsigned long table_data_size)
 {
-	/* current table data size */
 	unsigned long curr_table_data_size;
-
 	/* counter of lli array entry */
 	unsigned long array_counter;
-
-  /*-----------------------
-	CODE
-  ---------------------------*/
 
 	dbg("SEP Driver:--------> sep_build_lli_table start\n");
 
@@ -1475,15 +1237,11 @@ static void sep_build_lli_table(struct sep_lli_entry_t *lli_array_ptr, struct se
 	edbg("SEP Driver:lli_table_ptr->physical_address is %08lx\n", lli_table_ptr->physical_address);
 	edbg("SEP Driver:lli_table_ptr->block_size is %lu\n", lli_table_ptr->block_size);
 
-
 	/* set the output parameter */
 	*num_processed_entries_ptr += array_counter;
 
 	edbg("SEP Driver:*num_processed_entries_ptr is %lu\n", *num_processed_entries_ptr);
-
-
 	dbg("SEP Driver:<-------- sep_build_lli_table end\n");
-
 	return;
 }
 
@@ -1494,11 +1252,7 @@ static void sep_build_lli_table(struct sep_lli_entry_t *lli_array_ptr, struct se
 static void sep_debug_print_lli_tables(struct sep_lli_entry_t *lli_table_ptr, unsigned long num_table_entries, unsigned long table_data_size)
 {
 	unsigned long table_count;
-
 	unsigned long entries_count;
-  /*-----------------------------
-	CODE
-  -------------------------------*/
 
 	dbg("SEP Driver:--------> sep_debug_print_lli_tables start\n");
 
@@ -1532,7 +1286,6 @@ static void sep_debug_print_lli_tables(struct sep_lli_entry_t *lli_table_ptr, un
 
 		table_count++;
 	}
-
 	dbg("SEP Driver:<-------- sep_debug_print_lli_tables end\n");
 }
 
@@ -1544,37 +1297,19 @@ static void sep_debug_print_lli_tables(struct sep_lli_entry_t *lli_table_ptr, un
 */
 int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_size, unsigned long *num_pages_ptr, struct sep_lli_entry_t **lli_array_ptr, struct page ***page_array_ptr)
 {
-	/* error */
-	int error;
-
+	int error = 0;
 	/* the the page of the end address of the user space buffer */
 	unsigned long end_page;
-
 	/* the page of the start address of the user space buffer */
 	unsigned long start_page;
-
 	/* the range in pages */
 	unsigned long num_pages;
-
-	/* array of pointers ot page */
 	struct page **page_array;
-
-	/* array of lli */
 	struct sep_lli_entry_t *lli_array;
-
-	/* count */
 	unsigned long count;
-
-	/* result */
 	int result;
 
-  /*------------------------
-	CODE
-  --------------------------*/
-
 	dbg("SEP Driver:--------> sep_lock_user_pages start\n");
-
-	error = 0;
 
 	/* set start and end pages  and num pages */
 	end_page = (app_virt_addr + data_size - 1) >> PAGE_SHIFT;
@@ -1639,8 +1374,7 @@ int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_size, un
 		lli_array[count].physical_address = (unsigned long) page_to_phys(page_array[count]);
 		lli_array[count].block_size = PAGE_SIZE;
 
-		edbg("lli_array[%lu].physical_address is %08lx, \
-	lli_array[%lu].block_size is %lu\n", count, lli_array[count].physical_address, count, lli_array[count].block_size);
+		edbg("lli_array[%lu].physical_address is %08lx, lli_array[%lu].block_size is %lu\n", count, lli_array[count].physical_address, count, lli_array[count].block_size);
 	}
 
 	/* if more then 1 pages locked - then update for the last page size needed */
@@ -1664,27 +1398,17 @@ int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_size, un
 	*lli_array_ptr = lli_array;
 	*num_pages_ptr = num_pages;
 	*page_array_ptr = page_array;
-
 	goto end_function;
 
-      end_function_with_error2:
-
+end_function_with_error2:
 	/* release the cache */
 	for (count = 0; count < num_pages; count++)
 		page_cache_release(page_array[count]);
-
-	/* free lli array */
 	kfree(lli_array);
-
-      end_function_with_error1:
-
-	/* free page array */
+end_function_with_error1:
 	kfree(page_array);
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_lock_user_pages end\n");
-
 	return 0;
 }
 
@@ -1695,35 +1419,19 @@ int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_size, un
 */
 int sep_lock_kernel_pages(unsigned long kernel_virt_addr, unsigned long data_size, unsigned long *num_pages_ptr, struct sep_lli_entry_t **lli_array_ptr, struct page ***page_array_ptr)
 {
-	/* error */
-	int error;
-
+	int error = 0;
 	/* the the page of the end address of the user space buffer */
 	unsigned long end_page;
-
 	/* the page of the start address of the user space buffer */
 	unsigned long start_page;
-
 	/* the range in pages */
 	unsigned long num_pages;
-
-	/* array of lli */
 	struct sep_lli_entry_t *lli_array;
-
 	/* next kernel address to map */
 	unsigned long next_kernel_address;
-
-	/* count */
 	unsigned long count;
 
-
-  /*------------------------
-	CODE
-  --------------------------*/
-
 	dbg("SEP Driver:--------> sep_lock_kernel_pages start\n");
-
-	error = 0;
 
 	/* set start and end pages  and num pages */
 	end_page = (kernel_virt_addr + data_size - 1) >> PAGE_SHIFT;
@@ -1739,7 +1447,6 @@ int sep_lock_kernel_pages(unsigned long kernel_virt_addr, unsigned long data_siz
 	lli_array = kmalloc(sizeof(struct sep_lli_entry_t) * num_pages, GFP_ATOMIC);
 	if (!lli_array) {
 		edbg("SEP Driver: kmalloc for lli_array failed\n");
-
 		error = -ENOMEM;
 		goto end_function;
 	}
@@ -1765,9 +1472,7 @@ int sep_lock_kernel_pages(unsigned long kernel_virt_addr, unsigned long data_siz
 		lli_array[count].physical_address = (unsigned long) virt_to_phys((unsigned long *) next_kernel_address);
 		lli_array[count].block_size = PAGE_SIZE;
 
-		edbg("lli_array[%lu].physical_address is %08lx, \
-	lli_array[%lu].block_size is %lu\n", count, lli_array[count].physical_address, count, lli_array[count].block_size);
-
+		edbg("lli_array[%lu].physical_address is %08lx, lli_array[%lu].block_size is %lu\n", count, lli_array[count].physical_address, count, lli_array[count].block_size);
 		next_kernel_address += PAGE_SIZE;
 	}
 
@@ -1785,20 +1490,14 @@ int sep_lock_kernel_pages(unsigned long kernel_virt_addr, unsigned long data_siz
 			while (1);
 		}
 
-		edbg("lli_array[%lu].physical_address is %08lx, \
-	lli_array[%lu].block_size is %lu\n", count, lli_array[count].physical_address, count, lli_array[count].block_size);
+		edbg("lli_array[%lu].physical_address is %08lx, lli_array[%lu].block_size is %lu\n", count, lli_array[count].physical_address, count, lli_array[count].block_size);
 	}
-
 	/* set output params */
 	*lli_array_ptr = lli_array;
 	*num_pages_ptr = num_pages;
 	*page_array_ptr = 0;
-
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_lock_kernel_pages end\n");
-
 	return 0;
 }
 
@@ -1808,12 +1507,7 @@ int sep_lock_kernel_pages(unsigned long kernel_virt_addr, unsigned long data_siz
 */
 int sep_free_dma_pages(struct page **page_array_ptr, unsigned long num_pages, unsigned long dirtyFlag)
 {
-	/* count */
 	unsigned long count;
-
-  /*-------------------
-	CODE
-  ---------------------*/
 
 	if (dirtyFlag) {
 		for (count = 0; count < num_pages; count++) {
@@ -1842,11 +1536,9 @@ int sep_free_dma_pages(struct page **page_array_ptr, unsigned long num_pages, un
 */
 static void sep_send_command_handler()
 {
-
 	unsigned long count;
 
 	dbg("SEP Driver:--------> sep_send_command_handler start\n");
-
 	sep_set_time(0, 0);
 
 	/* flash cache */
@@ -1857,12 +1549,9 @@ static void sep_send_command_handler()
 
 	/* update counter */
 	sep_dev->host_to_sep_send_counter++;
-
 	/* send interrupt to SEP */
 	sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2);
-
 	dbg("SEP Driver:<-------- sep_send_command_handler end\n");
-
 	return;
 }
 
@@ -1878,25 +1567,16 @@ static void sep_send_reply_command_handler()
 
 	/* flash cache */
 	flush_cache_all();
-
 	for (count = 0; count < 12 * 4; count += 4)
 		edbg("Word %lu of the message is %lu\n", count, *((unsigned long *) (sep_dev->shared_area_addr + count)));
-
-
 	/* update counter */
 	sep_dev->host_to_sep_send_counter++;
-
 	/* send the interrupt to SEP */
 	sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR2_REG_ADDR, sep_dev->host_to_sep_send_counter);
-
 	/* update both counters */
 	sep_dev->host_to_sep_send_counter++;
-
 	sep_dev->sep_to_host_reply_counter++;
-
 	dbg("SEP Driver:<-------- sep_send_reply_command_handler end\n");
-
-	return;
 }
 
 
@@ -1910,18 +1590,10 @@ static void sep_send_reply_command_handler()
 */
 static int sep_allocate_data_pool_memory_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* command paramaters */
 	struct sep_driver_alloc_t command_args;
 
-  /*-------------------------
-	CODE
-  ----------------------------*/
-
 	dbg("SEP Driver:--------> sep_allocate_data_pool_memory_handler start\n");
-
 
 	error = copy_from_user(&command_args, (void *) arg, sizeof(struct sep_driver_alloc_t));
 	if (error)
@@ -1945,10 +1617,8 @@ static int sep_allocate_data_pool_memory_handler(unsigned long arg)
 	/* set the allocation */
 	sep_dev->data_pool_bytes_allocated += command_args.num_bytes;
 
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_allocate_data_pool_memory_handler end\n");
-
 	return error;
 }
 
@@ -1957,24 +1627,11 @@ static int sep_allocate_data_pool_memory_handler(unsigned long arg)
 */
 static int sep_write_into_data_pool_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* virtual address */
 	unsigned long virt_address;
-
-	/* application in address */
 	unsigned long app_in_address;
-
-	/* number of bytes */
 	unsigned long num_bytes;
-
-	/* address of the data pool */
 	unsigned long data_pool_area_addr;
-
-  /*--------------------------
-	CODE
-  -----------------------------*/
 
 	dbg("SEP Driver:--------> sep_write_into_data_pool_handler start\n");
 
@@ -2002,14 +1659,10 @@ static int sep_write_into_data_pool_handler(unsigned long arg)
 		error = -ENOTTY;
 		goto end_function;
 	}
-
 	/* copy the application data */
 	error = copy_from_user((void *) virt_address, (void *) app_in_address, num_bytes);
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_write_into_data_pool_handler end\n");
-
 	return error;
 }
 
@@ -2018,24 +1671,13 @@ static int sep_write_into_data_pool_handler(unsigned long arg)
 */
 static int sep_read_from_data_pool_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
 	/* virtual address of dest application buffer */
 	unsigned long app_out_address;
-
 	/* virtual address of the data pool */
 	unsigned long virt_address;
-
-	/* number bytes */
 	unsigned long num_bytes;
-
-	/* address of the data pool */
 	unsigned long data_pool_area_addr;
-
-  /*------------------------
-	CODE
-  -----------------------------*/
 
 	dbg("SEP Driver:--------> sep_read_from_data_pool_handler start\n");
 
@@ -2065,11 +1707,8 @@ static int sep_read_from_data_pool_handler(unsigned long arg)
 
 	/* copy the application data */
 	error = copy_to_user((void *) app_out_address, (void *) virt_address, num_bytes);
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_read_from_data_pool_handler end\n");
-
 	return error;
 }
 
@@ -2080,15 +1719,9 @@ static int sep_read_from_data_pool_handler(unsigned long arg)
 */
 static int sep_create_sync_dma_tables_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
 	/* command arguments */
 	struct sep_driver_build_sync_table_t command_args;
-
-  /*------------------------
-	CODE
-  --------------------------*/
 
 	dbg("SEP Driver:--------> sep_create_sync_dma_tables_handler start\n");
 
@@ -2100,7 +1733,6 @@ static int sep_create_sync_dma_tables_handler(unsigned long arg)
 	edbg("app_out_address is %08lx\n", command_args.app_out_address);
 	edbg("data_size is %lu\n", command_args.data_in_size);
 	edbg("block_size is %lu\n", command_args.block_size);
-
 
 	/* check if we need to build only input table or input/output */
 	if (command_args.app_out_address)
@@ -2118,14 +1750,10 @@ static int sep_create_sync_dma_tables_handler(unsigned long arg)
 
 	if (error)
 		goto end_function;
-
 	/* copy to user */
 	error = copy_to_user((void *) arg, (void *) &command_args, sizeof(struct sep_driver_build_sync_table_t));
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_create_sync_dma_tables_handler end\n");
-
 	return error;
 }
 
@@ -2134,10 +1762,6 @@ static int sep_create_sync_dma_tables_handler(unsigned long arg)
 */
 int sep_free_dma_table_data_handler()
 {
-  /*-------------------------
-	CODE
-  -----------------------------*/
-
 	dbg("SEP Driver:--------> sep_free_dma_table_data_handler start\n");
 
 	/* free input pages array */
@@ -2152,10 +1776,7 @@ int sep_free_dma_table_data_handler()
 	sep_dev->out_page_array = 0;
 	sep_dev->in_num_pages = 0;
 	sep_dev->out_num_pages = 0;
-
-
 	dbg("SEP Driver:<-------- sep_free_dma_table_data_handler end\n");
-
 	return 0;
 }
 
@@ -2164,27 +1785,16 @@ int sep_free_dma_table_data_handler()
 */
 static int sep_create_flow_dma_tables_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* command arguments */
 	struct sep_driver_build_flow_table_t command_args;
-
 	/* first table - output */
 	struct sep_lli_entry_t first_table_data;
-
 	/* dma table data */
 	struct sep_lli_entry_t last_table_data;
-
 	/* pointer to the info entry of the previuos DMA table */
 	struct sep_lli_entry_t *prev_info_entry_ptr;
-
 	/* pointer to the flow data strucutre */
 	struct sep_flow_context_t *flow_context_ptr;
-
-  /*------------------------
-	CODE
-  --------------------------*/
 
 	dbg("SEP Driver:--------> sep_create_flow_dma_tables_handler start\n");
 
@@ -2232,17 +1842,12 @@ static int sep_create_flow_dma_tables_handler(unsigned long arg)
 
 	goto end_function;
 
-      end_function_with_error:
-
+end_function_with_error:
 	/* free the allocated tables */
 	sep_deallocated_flow_tables(&first_table_data);
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_create_flow_dma_tables_handler end\n");
-
 	return error;
-
 }
 
 /*
@@ -2250,30 +1855,16 @@ static int sep_create_flow_dma_tables_handler(unsigned long arg)
 */
 static int sep_add_flow_tables_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* number of entries */
 	unsigned long num_entries;
-
-	/* command arguments */
 	struct sep_driver_add_flow_table_t command_args;
-
-	/* pointer to the flow data strucutre */
 	struct sep_flow_context_t *flow_context_ptr;
-
 	/* first dma table data */
 	struct sep_lli_entry_t first_table_data;
-
 	/* last dma table data */
 	struct sep_lli_entry_t last_table_data;
-
 	/* pointer to the info entry of the current DMA table */
 	struct sep_lli_entry_t *info_entry_ptr;
-
-  /*--------------------------
-	CODE
-  ----------------------------*/
 
 	dbg("SEP Driver:--------> sep_add_flow_tables_handler start\n");
 
@@ -2354,15 +1945,11 @@ static int sep_add_flow_tables_handler(unsigned long arg)
 	if (error)
 		goto end_function_with_error;
 
-      end_function_with_error:
-
+end_function_with_error:
 	/* free the allocated tables */
 	sep_deallocated_flow_tables(&first_table_data);
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_add_flow_tables_handler end\n");
-
 	return error;
 }
 
@@ -2371,18 +1958,9 @@ static int sep_add_flow_tables_handler(unsigned long arg)
 */
 static int sep_add_flow_tables_message_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* arguments */
 	struct sep_driver_add_message_t command_args;
-
-	/* flow context */
 	struct sep_flow_context_t *flow_context_ptr;
-
-  /*----------------------------
-	CODE
-  ------------------------------*/
 
 	dbg("SEP Driver:--------> sep_add_flow_tables_message_handler start\n");
 
@@ -2403,14 +1981,9 @@ static int sep_add_flow_tables_message_handler(unsigned long arg)
 
 	/* copy the message into context */
 	flow_context_ptr->message_size_in_bytes = command_args.message_size_in_bytes;
-
 	error = copy_from_user(flow_context_ptr->message, (void *) command_args.message_address, command_args.message_size_in_bytes);
-
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_add_flow_tables_message_handler end\n");
-
 	return error;
 }
 
@@ -2420,15 +1993,8 @@ static int sep_add_flow_tables_message_handler(unsigned long arg)
 */
 static int sep_get_static_pool_addr_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* command arguments */
 	struct sep_driver_static_pool_addr_t command_args;
-
-  /*-----------------------------
-	CODE
-  ------------------------------*/
 
 	dbg("SEP Driver:--------> sep_get_static_pool_addr_handler start\n");
 
@@ -2442,11 +2008,8 @@ static int sep_get_static_pool_addr_handler(unsigned long arg)
 	error = copy_to_user((void *) arg, &command_args, sizeof(struct sep_driver_static_pool_addr_t));
 	if (error)
 		goto end_function;
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_get_static_pool_addr_handler end\n");
-
 	return error;
 }
 
@@ -2456,15 +2019,8 @@ static int sep_get_static_pool_addr_handler(unsigned long arg)
 */
 static int sep_get_physical_mapped_offset_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* command arguments */
 	struct sep_driver_get_mapped_offset_t command_args;
-
-  /*-----------------------------
-	CODE
-  ------------------------------*/
 
 	dbg("SEP Driver:--------> sep_get_physical_mapped_offset_handler start\n");
 
@@ -2486,11 +2042,8 @@ static int sep_get_physical_mapped_offset_handler(unsigned long arg)
 	error = copy_to_user((void *) arg, &command_args, sizeof(struct sep_driver_get_mapped_offset_t));
 	if (error)
 		goto end_function;
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_get_physical_mapped_offset_handler end\n");
-
 	return error;
 }
 
@@ -2500,24 +2053,15 @@ static int sep_get_physical_mapped_offset_handler(unsigned long arg)
 */
 static int sep_start_handler(void)
 {
-	/* reg val */
 	unsigned long reg_val;
-
-	/* error */
-	unsigned long error;
-
-  /*-----------------------------
-	CODE
-  ------------------------------*/
+	unsigned long error = 0;
 
 	dbg("SEP Driver:--------> sep_start_handler start\n");
 
-	error = 0;
-
 	/* wait in polling for message from SEP */
-	do {
+	do
 		reg_val = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
-	} while (!reg_val);
+	while (!reg_val);
 
 	/* check the value */
 	if (reg_val == 0x1) {
@@ -2525,11 +2069,8 @@ static int sep_start_handler(void)
 		error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 		goto end_function;
 	}
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_start_handler end\n");
-
 	return error;
 }
 
@@ -2538,30 +2079,14 @@ static int sep_start_handler(void)
 */
 static int sep_init_handler(unsigned long arg)
 {
-	/* word from message */
 	unsigned long message_word;
-
-	/* message ptr */
 	unsigned long *message_ptr;
-
-	/* command arguments */
 	struct sep_driver_init_t command_args;
-
-	/* counter */
 	unsigned long counter;
-
-	/* error */
 	unsigned long error;
-
-	/* reg val */
 	unsigned long reg_val;
 
-  /*-------------------
-	CODE
-  ---------------------*/
-
 	dbg("SEP Driver:--------> sep_init_handler start\n");
-
 	error = 0;
 
 	error = copy_from_user(&command_args, (void *) arg, sizeof(struct sep_driver_init_t));
@@ -2583,24 +2108,19 @@ static int sep_init_handler(unsigned long arg)
 
 	for (counter = 0; counter < command_args.message_size_in_words; counter++, message_ptr++) {
 		get_user(message_word, message_ptr);
-
 		/* write data to SRAM */
 		sep_write_reg(sep_dev, HW_SRAM_DATA_REG_ADDR, message_word);
-
 		edbg("SEP Driver:message_word is %lu\n", message_word);
-
 		/* wait for write complete */
 		sep_wait_sram_write(sep_dev);
 	}
-
 	dbg("SEP Driver:--------> sep_init_handler - finished getting messages from user space\n");
-
 	/* signal SEP */
 	sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x1);
 
-	do {
+	do
 		reg_val = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
-	} while (!(reg_val & 0xFFFFFFFD));
+	while (!(reg_val & 0xFFFFFFFD));
 
 	dbg("SEP Driver:--------> sep_init_handler - finished waiting for reg_val & 0xFFFFFFFD \n");
 
@@ -2616,11 +2136,8 @@ static int sep_init_handler(unsigned long arg)
 		edbg("SEP Driver:error is %lu\n", error);
 		goto end_function;
 	}
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_init_handler end\n");
-
 	return error;
 
 }
@@ -2630,21 +2147,10 @@ static int sep_init_handler(unsigned long arg)
 */
 static int sep_realloc_cache_resident_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* physical cache addr */
 	unsigned long phys_cache_address;
-
-	/* physical resident addr */
 	unsigned long phys_resident_address;
-
-	/* command arguments */
 	struct sep_driver_realloc_cache_resident_t command_args;
-
-  /*------------------
-	CODE
-  ---------------------*/
 
 	/* copy the data */
 	error = copy_from_user(&command_args, (void *) arg, sizeof(struct sep_driver_realloc_cache_resident_t));
@@ -2672,7 +2178,6 @@ static int sep_realloc_cache_resident_handler(unsigned long arg)
 	command_args.new_cache_addr = phys_cache_address;
 	command_args.new_resident_addr = phys_resident_address;
 
-
 	/* set the new shared area */
 	command_args.new_shared_area_addr = sep_dev->phys_shared_area_addr;
 
@@ -2683,9 +2188,7 @@ static int sep_realloc_cache_resident_handler(unsigned long arg)
 
 	/* return to user */
 	error = copy_to_user((void *) arg, (void *) &command_args, sizeof(struct sep_driver_realloc_cache_resident_t));
-
-      end_function:
-
+end_function:
 	return error;
 }
 
@@ -2694,21 +2197,11 @@ static int sep_realloc_cache_resident_handler(unsigned long arg)
 */
 static int sep_get_time_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* command arguments */
 	struct sep_driver_get_time_t command_args;
 
-  /*------------------------
-	CODE
-  --------------------------*/
-
 	error = sep_set_time(&command_args.time_physical_address, &command_args.time_value);
-
-	/* return to user */
 	error = copy_to_user((void *) arg, (void *) &command_args, sizeof(struct sep_driver_get_time_t));
-
 	return error;
 
 }
@@ -2718,15 +2211,8 @@ static int sep_get_time_handler(unsigned long arg)
 */
 static int sep_set_api_mode_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* flag */
 	unsigned long mode_flag;
-
-  /*----------------------------
-	CODE
-  -----------------------------*/
 
 	dbg("SEP Driver:--------> sep_set_api_mode_handler start\n");
 
@@ -2736,12 +2222,8 @@ static int sep_set_api_mode_handler(unsigned long arg)
 
 	/* set the global flag */
 	sep_dev->block_mode_flag = mode_flag;
-
-
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_set_api_mode_handler end\n");
-
 	return error;
 }
 
@@ -2750,10 +2232,6 @@ static int sep_set_api_mode_handler(unsigned long arg)
 */
 static int sep_end_transaction_handler(unsigned long arg)
 {
-  /*----------------------------
-	CODE
-  -----------------------------*/
-
 	dbg("SEP Driver:--------> sep_end_transaction_handler start\n");
 
 #if 0				/*!SEP_DRIVER_POLLING_MODE */
@@ -2775,11 +2253,7 @@ static int sep_end_transaction_handler(unsigned long arg)
 /* handler for flow done interrupt */
 static void sep_flow_done_handler(struct work_struct *work)
 {
-	/* flow context_ptr */
 	struct sep_flow_context_t *flow_data_ptr;
-  /*-------------------------
-	CODE
-  ---------------------------*/
 
 	/* obtain the mutex */
 	mutex_lock(&sep_mutex);
@@ -2813,30 +2287,13 @@ static void sep_flow_done_handler(struct work_struct *work)
 static int sep_prepare_flow_dma_tables(unsigned long num_virtual_buffers,
 				       unsigned long first_buff_addr, struct sep_flow_context_t *flow_data_ptr, struct sep_lli_entry_t *first_table_data_ptr, struct sep_lli_entry_t *last_table_data_ptr, bool isKernelVirtualAddress)
 {
-	/* error */
 	int error;
-
-	/* virtaul address of one buffer */
 	unsigned long virt_buff_addr;
-
-	/* virtual size of one buffer */
 	unsigned long virt_buff_size;
-
-	/* table data for each created table */
 	struct sep_lli_entry_t table_data;
-
-	/* info entry */
 	struct sep_lli_entry_t *info_entry_ptr;
-
-	/* prevouis info entry */
 	struct sep_lli_entry_t *prev_info_entry_ptr;
-
-	/* counter */
 	unsigned long i;
-
-  /*-------------------------------
-	CODE
-  ----------------------------------*/
 
 	/* init vars */
 	error = 0;
@@ -2886,9 +2343,7 @@ static int sep_prepare_flow_dma_tables(unsigned long num_virtual_buffers,
 
 	/* set the last table data */
 	*last_table_data_ptr = table_data;
-
-      end_function:
-
+end_function:
 	return error;
 }
 
@@ -2899,33 +2354,17 @@ static int sep_prepare_flow_dma_tables(unsigned long num_virtual_buffers,
 */
 static int sep_prepare_one_flow_dma_table(unsigned long virt_buff_addr, unsigned long virt_buff_size, struct sep_lli_entry_t *table_data, struct sep_lli_entry_t **info_entry_ptr, struct sep_flow_context_t *flow_data_ptr, bool isKernelVirtualAddress)
 {
-	/* error */
 	int error;
-
 	/* the range in pages */
 	unsigned long lli_array_size;
-
-	/* array of pointers ot page */
 	struct sep_lli_entry_t *lli_array;
-
-	/* pointer to the entry in the dma table */
 	struct sep_lli_entry_t *flow_dma_table_entry_ptr;
-
-	/* address of the dma table */
 	unsigned long *start_dma_table_ptr;
-
 	/* total table data counter */
 	unsigned long dma_table_data_count;
-
-	/* pointer that will keep the pointer t the pages of the virtual buffer */
+	/* pointer that will keep the pointer to the pages of the virtual buffer */
 	struct page **page_array_ptr;
-
-	/* counter */
 	unsigned long entry_count;
-
-  /*-------------------------------
-	CODE
-  ----------------------------------*/
 
 	/* find the space for the new table */
 	error = sep_find_free_flow_dma_table_space(&start_dma_table_ptr);
@@ -2983,30 +2422,19 @@ static int sep_prepare_one_flow_dma_table(unsigned long virt_buff_addr, unsigned
 
 	/* the array of the lli entries */
 	kfree(lli_array);
-
-      end_function:
-
+end_function:
 	return error;
 }
 
 
 /*
   This function returns pointer to the  flow data structure
-  that conatins the given id
+  that contains the given id
 */
 static int sep_find_flow_context(unsigned long flow_id, struct sep_flow_context_t **flow_data_ptr)
 {
-	/* count */
 	unsigned long count;
-
-	/* error */
-	int error;
-
-  /*-----------------------
-	CODE
-  ---------------------------*/
-
-	error = 0;
+	int error = 0;
 
 	/*
 	   always search for flow with id default first - in case we
@@ -3032,26 +2460,13 @@ static int sep_find_flow_context(unsigned long flow_id, struct sep_flow_context_
 */
 static int sep_find_free_flow_dma_table_space(unsigned long **table_address_ptr)
 {
-	/* error */
-	int error;
-
+	int error = 0;
 	/* pointer to the id field of the flow dma table */
 	unsigned long *start_table_ptr;
-
-	/* start address of the flow dma area */
 	unsigned long flow_dma_area_start_addr;
-
-	/* end address of the flow dma area */
 	unsigned long flow_dma_area_end_addr;
-
 	/* maximum table size in words */
 	unsigned long table_size_in_words;
-
-  /*---------------------
-	CODE
-  -----------------------*/
-
-	error = 0;
 
 	/* find the start address of the flow DMA table area */
 	flow_dma_area_start_addr = sep_dev->shared_area_addr + SEP_DRIVER_FLOW_DMA_TABLES_AREA_OFFSET_IN_BYTES;
@@ -3084,23 +2499,14 @@ static int sep_find_free_flow_dma_table_space(unsigned long **table_address_ptr)
 */
 static void sep_deallocated_flow_tables(struct sep_lli_entry_t *first_table_ptr)
 {
-	/* id poiner */
+	/* id pointer */
 	unsigned long *table_ptr;
-
 	/* end address of the flow dma area */
 	unsigned long num_entries;
-
 	unsigned long num_pages;
-
-	/* pages ptr */
 	struct page **pages_ptr;
-
 	/* maximum table size in words */
 	struct sep_lli_entry_t *info_entry_ptr;
-
-  /*-------------------------------
-	CODE
-  ---------------------------------*/
 
 	/* set the pointer to the first table */
 	table_ptr = (unsigned long *) first_table_ptr->physical_address;
@@ -3135,18 +2541,9 @@ static void sep_deallocated_flow_tables(struct sep_lli_entry_t *first_table_ptr)
 */
 static int sep_set_flow_id_handler(unsigned long arg)
 {
-	/* error */
 	int error;
-
-	/* flow _id */
 	unsigned long flow_id;
-
-	/* pointer to flow data structre */
 	struct sep_flow_context_t *flow_data_ptr;
-
-  /*----------------------
-	CODE
-  -----------------------*/
 
 	dbg("------------>SEP Driver: sep_set_flow_id_handler start\n");
 
@@ -3163,11 +2560,8 @@ static int sep_set_flow_id_handler(unsigned long arg)
 	/* set flow id */
 	flow_data_ptr->flow_id = flow_id;
 
-      end_function:
-
+end_function:
 	dbg("SEP Driver:<-------- sep_set_flow_id_handler end\n");
-
-
 	return error;
 }
 
@@ -3177,19 +2571,12 @@ static int sep_set_flow_id_handler(unsigned long arg)
 */
 static int sep_set_time(unsigned long *address_ptr, unsigned long *time_in_sec_ptr)
 {
-	/*  time struct */
 	struct timeval time;
-
 	/* address of time in the kernel */
 	unsigned long time_addr;
 
 
-  /*------------------------
-	CODE
-  --------------------------*/
-
 	dbg("SEP Driver:--------> sep_set_time start\n");
-
 
 	do_gettimeofday(&time);
 
@@ -3229,7 +2616,6 @@ static void sep_wait_busy(struct sep_device *dev)
 */
 static void sep_configure_dma_burst(void)
 {
-
 #define 	 HW_AHB_RD_WR_BURSTS_REG_ADDR 		 0x0E10UL
 
 	dbg("SEP Driver:<-------- sep_configure_dma_burst start \n");

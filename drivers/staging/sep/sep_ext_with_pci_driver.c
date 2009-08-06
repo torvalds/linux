@@ -116,15 +116,12 @@ static struct pci_device_id sep_pci_id_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, sep_pci_id_tbl);
 
-
-
 /* field for registering driver to PCI device */
 static struct pci_driver sep_pci_driver = {
 	.name = "sep_sec_driver",
 	.id_table = sep_pci_id_tbl,
 	.probe = sep_probe
 };
-
 
 /*
   This functions locks the area of the resisnd and cache sep code
@@ -134,7 +131,6 @@ void sep_lock_cache_resident_area(void)
 	return;
 }
 
-
 /*
   This functions copies the cache and resident from their source location into
   destination memory, which is external to Linux VM and is given as
@@ -142,12 +138,8 @@ void sep_lock_cache_resident_area(void)
 */
 int sep_copy_cache_resident_to_area(unsigned long src_cache_addr, unsigned long cache_size_in_bytes, unsigned long src_resident_addr, unsigned long resident_size_in_bytes, unsigned long *dst_new_cache_addr_ptr, unsigned long *dst_new_resident_addr_ptr)
 {
-	/* resident address in user space */
 	unsigned long resident_addr;
-
-	/* cahce address in user space */
 	unsigned long cache_addr;
-
 	const struct firmware *fw;
 
 	char *cache_name = "cache.image.bin";
@@ -222,9 +214,7 @@ int sep_copy_cache_resident_to_area(unsigned long src_cache_addr, unsigned long 
 	/* physical addresses */
 	*dst_new_cache_addr_ptr = sep_dev->cache_physical_address;
 	*dst_new_resident_addr_ptr = sep_dev->resident_physical_address;
-
-      end_function:
-
+end_function:
 	return error;
 }
 
@@ -246,15 +236,12 @@ int sep_map_and_alloc_shared_area(unsigned long shared_area_size, unsigned long 
 		edbg("sep_driver:shared memory kmalloc failed\n");
 		return -1;
 	}
-
 	/* FIXME */
 	sep_dev->shared_physical_address = __pa(sep_dev->shared_virtual_address);
-	// shared_physical_address = 0xda00000;
-
+	/* shared_physical_address = 0xda00000; */
 	*kernel_shared_area_addr_ptr = (unsigned long) sep_dev->shared_virtual_address;
 	/* set the physical address of the shared area */
 	*phys_shared_area_addr_ptr = sep_dev->shared_physical_address;
-
 	edbg("SEP Driver:shared_virtual_address is %p\n", sep_dev->shared_virtual_address);
 	edbg("SEP Driver:shared_region_size is %08lx\n", shared_area_size);
 	edbg("SEP Driver:shared_physical_addr is %08lx\n", *phys_shared_area_addr_ptr);
@@ -273,7 +260,6 @@ int sep_map_and_alloc_shared_area(unsigned long shared_area_size, unsigned long 
 void sep_unmap_and_free_shared_area(unsigned long shared_area_size, unsigned long kernel_shared_area_addr, unsigned long phys_shared_area_addr)
 {
 	kfree((void *) kernel_shared_area_addr);
-	return;
 }
 
 /*
@@ -307,15 +293,9 @@ unsigned long sep_shared_area_phys_to_virt(unsigned long phys_address)
 */
 static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	/* error */
-	int error;
-
-	/*------------------------
-	CODE
-	---------------------------*/
+	int error = 0;
 
 	edbg("Sep pci probe starting\n");
-	error = 0;
 
 	/* enable the device */
 	error = pci_enable_device(pdev);
@@ -372,9 +352,7 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	sep_dev->rar_physical_address = __pa(sep_dev->rar_virtual_address);
 
 	edbg("SEP Driver:rar_physical is %08lx\n", sep_dev->rar_physical_address);
-
 	edbg("SEP Driver:rar_virtual is %p\n", sep_dev->rar_virtual_address);
-
 
 #if !SEP_DRIVER_POLLING_MODE
 
@@ -405,9 +383,7 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	sep_write_reg(sep_dev, HW_HOST_IMR_REG_ADDR, (~(0x1 << 13)));
 
 #endif				/* SEP_DRIVER_POLLING_MODE */
-
-      end_function:
-
+end_function:
 	return error;
 }
 
