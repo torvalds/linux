@@ -826,6 +826,13 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		ret = 0;
 		goto out;
 
+	case V4L2_CTRL_TYPE_BUTTON:
+		v4l2_ctrl->minimum = 0;
+		v4l2_ctrl->maximum = 0;
+		v4l2_ctrl->step = 0;
+		ret = 0;
+		goto out;
+
 	default:
 		break;
 	}
