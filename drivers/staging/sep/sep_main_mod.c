@@ -48,6 +48,7 @@
 #include "sep_driver_config.h"
 #include "sep_driver_api.h"
 #include "sep_driver_ext_api.h"
+#include "sep_dev.h"
 
 /*----------------------------------------
 	DEFINES
@@ -70,15 +71,6 @@
 INT_MODULE_PARM(sepDebug, 0x0);
 MODULE_PARM_DESC(sepDebug, "Flag to enable SEP debug messages");
 
-/* address of the shared memory allocated during init for SEP driver */
-static unsigned long			g_sep_shared_area_addr;
-
-/* the physical address of the shared area */
-static unsigned long			g_sep_phys_shared_area_addr;
-
-/* Message Shared Area start address - will be allocated during init */
-static unsigned long			g_message_shared_area_addr;
-
 /* major and minor device numbers */
 static dev_t					g_sep_device_number;
 
@@ -95,44 +87,9 @@ static DEFINE_MUTEX(sep_mutex);
 
 
 /* wait queue head (event) of the driver */
-DECLARE_WAIT_QUEUE_HEAD(g_sep_event);
+static DECLARE_WAIT_QUEUE_HEAD(g_sep_event);
 
 
-/* start address of the access to the SEP registers from driver */
-unsigned long					g_sep_reg_base_address;
-
-/* transaction counter that coordinates the transactions between SEP and HOST */
-static unsigned long			sep_host_to_sep_send_counter;
-
-/* counter for the messages from sep */
-static unsigned long			sep_sep_to_host_reply_counter;
-
-/* counter for the number of bytes allocated in the pool for the current
-transaction */
-static unsigned long			sep_data_pool_bytes_allocated;
-
-/* array of pointers to the pages that represent input data for the synchronic
-DMA action */
-struct page		**sep_in_page_array;
-
-/* array of pointers to the pages that represent out data for the synchronic
-DMA action */
-struct page		**sep_out_page_array;
-
-/* number of pages in the sep_in_page_array */
-unsigned long					sep_in_num_pages;
-
-/* number of pages in the sep_out_page_array */
-unsigned long					sep_out_num_pages;
-
-/* global data for every flow */
-static struct sep_flow_context_t g_sep_flows_data_array[SEP_DRIVER_NUM_FLOWS];
-
-/* flag for API mode - 1 -is blocking, 0 is non-blocking */
-static unsigned long			g_sep_block_mode_flag;
-
-/* pointer to the workqueue that handles the flow done interrupts */
-static struct workqueue_struct		*g_sep_flow_wq_ptr;
 
 /*------------------------------------------------
   PROTOTYPES
@@ -391,7 +348,7 @@ void sep_unlock()
 */
 void sep_map_shared_area(unsigned long		*mappedAddr_ptr)
 {
-  *mappedAddr_ptr = g_sep_shared_area_addr;
+  *mappedAddr_ptr = sep_dev->shared_area_addr;
 }
 
 /*
@@ -416,16 +373,16 @@ void sep_driver_poll()
 
 #ifdef SEP_DRIVER_POLLING_MODE
 
-  while (sep_host_to_sep_send_counter != (retVal & 0x7FFFFFFF))
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+  while (sep_dev->host_to_sep_send_counter != (retVal & 0x7FFFFFFF))
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 			HW_HOST_SEP_HOST_GPR2_REG_ADDR,
 			retVal);
 
-  sep_sep_to_host_reply_counter++;
+  sep_dev->sep_to_host_reply_counter++;
 #else
   /* poll, until reply from sep */
   wait_event(g_sep_event,
-  (sep_host_to_sep_send_counter == sep_sep_to_host_reply_counter));
+  (sep_dev->host_to_sep_send_counter == sep_dev->sep_to_host_reply_counter));
 
 #endif
 }
@@ -448,7 +405,7 @@ static int sep_open(struct inode *inode_ptr, struct file *file_ptr)
   error = 0;
 
   /* check the blocking mode */
-  if (g_sep_block_mode_flag)
+  if (sep_dev->block_mode_flag)
 	/* lock mutex */
 	mutex_lock(&sep_mutex);
   else
@@ -463,7 +420,7 @@ static int sep_open(struct inode *inode_ptr, struct file *file_ptr)
   }
 
   /* release data pool allocations */
-  sep_data_pool_bytes_allocated = 0;
+  sep_dev->data_pool_bytes_allocated = 0;
 
 end_function:
 
@@ -489,10 +446,10 @@ static int sep_release(struct inode *inode_ptr, struct file *file_ptr)
 
 #if 0/*!SEP_DRIVER_POLLING_MODE*/
   /* close IMR */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address + HW_HOST_IMR_REG_ADDR, 0x7FFF);
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_IMR_REG_ADDR, 0x7FFF);
 
   /* release IRQ line */
-  free_irq(SEP_DIRVER_IRQ_NUM, &g_sep_reg_base_address);
+  free_irq(SEP_DIRVER_IRQ_NUM, &sep_dev->reg_base_address);
 
 #endif
 
@@ -538,10 +495,10 @@ static int sep_mmap(struct file  *filp, struct vm_area_struct  *vma)
 
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
   "SEP Driver:g_message_shared_area_addr is %08lx\n",
-  g_message_shared_area_addr);
+  sep_dev->message_shared_area_addr);
 
   /* get physical address */
-  phys_addr  = g_sep_phys_shared_area_addr;
+  phys_addr  = sep_dev->phys_shared_area_addr;
 
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "SEP Driver: phys_addr is %08lx\n",
 phys_addr);
@@ -584,8 +541,8 @@ static unsigned int sep_poll(struct file  *filp, poll_table  *wait)
 
 #if SEP_DRIVER_POLLING_MODE
 
-  while (sep_host_to_sep_send_counter != (retVal & 0x7FFFFFFF)) {
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+  while (sep_dev->host_to_sep_send_counter != (retVal & 0x7FFFFFFF)) {
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 	HW_HOST_SEP_HOST_GPR2_REG_ADDR,
 	retVal);
 
@@ -593,11 +550,11 @@ static unsigned int sep_poll(struct file  *filp, poll_table  *wait)
 	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
 	"Poll Debug Word %lu of the message is %lu\n",
 	count,
-	*((unsigned long *)(g_sep_shared_area_addr +
+	*((unsigned long *)(sep_dev->shared_area_addr +
 	SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES + count)));
   }
 
-  sep_sep_to_host_reply_counter++;
+  sep_dev->sep_to_host_reply_counter++;
 #else
   /* add the event to the polling wait table */
   poll_wait(filp, &g_sep_event, wait);
@@ -605,26 +562,26 @@ static unsigned int sep_poll(struct file  *filp, poll_table  *wait)
 #endif
 
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
-	"sep_host_to_sep_send_counter is %lu\n",
-		sep_host_to_sep_send_counter);
+	"sep_dev->host_to_sep_send_counter is %lu\n",
+		sep_dev->host_to_sep_send_counter);
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
-	"sep_sep_to_host_reply_counter is %lu\n",
-	sep_sep_to_host_reply_counter);
+	"sep_dev->sep_to_host_reply_counter is %lu\n",
+	sep_dev->sep_to_host_reply_counter);
 
   /* check if the data is ready */
-  if (sep_host_to_sep_send_counter ==  sep_sep_to_host_reply_counter) {
+  if (sep_dev->host_to_sep_send_counter ==  sep_dev->sep_to_host_reply_counter) {
 	for (count = 0; count < 12 * 4; count += 4)
 	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
 	"Sep Mesg Word %lu of the message is %lu\n",
-	count, *((unsigned long *)(g_sep_shared_area_addr + count)));
+	count, *((unsigned long *)(sep_dev->shared_area_addr + count)));
 
 	for (count = 0; count < 10 * 4; count += 4)
 	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
 	"Debug Data Word %lu of the message is %lu\n",
 	count,
-	*((unsigned long *)(g_sep_shared_area_addr + 0x1800 + count)));
+	*((unsigned long *)(sep_dev->shared_area_addr + 0x1800 + count)));
 
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 		HW_HOST_SEP_HOST_GPR2_REG_ADDR,
 		retVal);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "retVal is %lu\n", retVal);
@@ -900,23 +857,23 @@ static int __init sep_init(void)
 		"SEP Driver:-------->Init start\n");
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_BASIC,
 	"g_sep_shared_area_addr = %lx\n",
-	(unsigned long)&g_sep_shared_area_addr);
+	(unsigned long)&sep_dev->shared_area_addr);
 
   ret_val = 0;
 
 /* transaction counter that coordinates the transactions between SEP
 	and HOST */
-  sep_host_to_sep_send_counter = 0;
+  sep_dev->host_to_sep_send_counter = 0;
 
 /* counter for the messages from sep */
-  sep_sep_to_host_reply_counter = 0;
+  sep_dev->sep_to_host_reply_counter = 0;
 
 /* counter for the number of bytes allocated in the pool
 for the current transaction */
-  sep_data_pool_bytes_allocated = 0;
+  sep_dev->data_pool_bytes_allocated = 0;
 
   /* set the starting mode to blocking */
-  g_sep_block_mode_flag = 1;
+  sep_dev->block_mode_flag = 1;
 
 
   ret_val = sep_register_driver_to_device();
@@ -939,36 +896,36 @@ for the current transaction */
 
   /* allocate the shared area */
   if (sep_map_and_alloc_shared_area(size,
-				&g_sep_shared_area_addr,
-				&g_sep_phys_shared_area_addr)) {
+				&sep_dev->shared_area_addr,
+				&sep_dev->phys_shared_area_addr)) {
 	ret_val = -ENOMEM;
 	/* allocation failed */
 	goto end_function_unmap_io_memory;
   }
 
   /* now set the memory regions */
-  g_message_shared_area_addr = g_sep_shared_area_addr;
+  sep_dev->message_shared_area_addr = sep_dev->shared_area_addr;
 
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
 	"SEP Driver: g_message_shared_area_addr is %08lx\n",
-	g_message_shared_area_addr);
+	sep_dev->message_shared_area_addr);
 
 #if (SEP_DRIVER_RECONFIG_MESSAGE_AREA == 1)
 
   /* send the new SHARED MESSAGE AREA to the SEP */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address + HW_HOST_HOST_SEP_GPR1_REG_ADDR,
-			g_sep_phys_shared_area_addr);
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_HOST_SEP_GPR1_REG_ADDR,
+			sep_dev->phys_shared_area_addr);
 
   /* poll for SEP response */
-  SEP_READ_REGISTER(g_sep_reg_base_address + HW_HOST_SEP_HOST_GPR1_REG_ADDR,
+  SEP_READ_REGISTER(sep_dev->reg_base_address + HW_HOST_SEP_HOST_GPR1_REG_ADDR,
 			retVal);
-  while (retVal != 0xffffffff && retVal != g_sep_phys_shared_area_addr)
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+  while (retVal != 0xffffffff && retVal != sep_dev->phys_shared_area_addr)
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 			HW_HOST_SEP_HOST_GPR1_REG_ADDR,
 			retVal);
 
   /* check the return value (register) */
-  if (retVal != g_sep_phys_shared_area_addr) {
+  if (retVal != sep_dev->phys_shared_area_addr) {
 	ret_val = -ENOMEM;
 	goto end_function_deallocate_message_area;
   }
@@ -977,10 +934,10 @@ for the current transaction */
 
   /* init the flow contextes */
   for (counter = 0; counter < SEP_DRIVER_NUM_FLOWS; counter++)
-	g_sep_flows_data_array[counter].flow_id = SEP_FREE_FLOW_ID;
+	sep_dev->flows_data_array[counter].flow_id = SEP_FREE_FLOW_ID;
 
-  g_sep_flow_wq_ptr = create_singlethread_workqueue("sepflowwq");
-  if (g_sep_flow_wq_ptr == 0) {
+  sep_dev->flow_wq_ptr = create_singlethread_workqueue("sepflowwq");
+  if (sep_dev->flow_wq_ptr == 0) {
 	ret_val = -ENOMEM;
 	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 		"sep_driver:flow queue creation failed\n");
@@ -1009,12 +966,12 @@ end_function_deallocate_sep_shared_area:
 
   /* de-allocate shared area */
   sep_unmap_and_free_shared_area(size,
-				g_sep_shared_area_addr,
-				g_sep_phys_shared_area_addr);
+				sep_dev->shared_area_addr,
+				sep_dev->phys_shared_area_addr);
 
 end_function_unmap_io_memory:
 
-  iounmap((void *)g_sep_reg_base_address);
+  iounmap((void *)sep_dev->reg_base_address);
 
   /* release io memory region */
   release_mem_region(SEP_IO_MEM_REGION_START_ADDRESS, SEP_IO_MEM_REGION_SIZE);
@@ -1057,13 +1014,13 @@ static void __exit sep_exit(void)
 
   /* free shared area  */
   sep_unmap_and_free_shared_area(size,
-				g_sep_shared_area_addr,
-				g_sep_phys_shared_area_addr);
+				sep_dev->shared_area_addr,
+				sep_dev->phys_shared_area_addr);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 		"SEP Driver: free pages SEP SHARED AREA \n");
 
-  iounmap((void *)g_sep_reg_base_address);
+  iounmap((void *)sep_dev->reg_base_address);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED, "SEP Driver: iounmap \n");
 
@@ -1103,14 +1060,14 @@ irqreturn_t sep_inthandler(int irq, void *dev_id)
   int_error = IRQ_HANDLED;
 
   /* read the IRR register to check if this is SEP interrupt */
-  SEP_READ_REGISTER(g_sep_reg_base_address + HW_HOST_IRR_REG_ADDR, reg_val);
+  SEP_READ_REGISTER(sep_dev->reg_base_address + HW_HOST_IRR_REG_ADDR, reg_val);
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "SEP Interrupt - reg is %08lx\n",
 			reg_val);
 
   /* check if this is the flow interrupt */
   if (0/*reg_val & (0x1 << 11)*/) {
 	/* read GPRO to find out the which flow is done */
-	SEP_READ_REGISTER(g_sep_reg_base_address + HW_HOST_IRR_REG_ADDR,
+	SEP_READ_REGISTER(sep_dev->reg_base_address + HW_HOST_IRR_REG_ADDR,
 	flow_id);
 
 	/* find the contex of the flow */
@@ -1121,13 +1078,13 @@ irqreturn_t sep_inthandler(int irq, void *dev_id)
 	INIT_WORK(&flow_context_ptr->flow_wq, sep_flow_done_handler);
 
 	/* queue the work */
-	queue_work(g_sep_flow_wq_ptr, &flow_context_ptr->flow_wq);
+	queue_work(sep_dev->flow_wq_ptr, &flow_context_ptr->flow_wq);
 
   } else {
 	/* check if this is reply interrupt from SEP */
 	if (reg_val & (0x1 << 13)) {
 		/* update the counter of reply messages */
-		sep_sep_to_host_reply_counter++;
+		sep_dev->sep_to_host_reply_counter++;
 
 		/* wake up the waiting process */
 		wake_up(&g_sep_event);
@@ -1140,7 +1097,7 @@ irqreturn_t sep_inthandler(int irq, void *dev_id)
 end_function_with_error:
 
   /* clear the interrupt */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address + HW_HOST_ICR_REG_ADDR, reg_val);
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_ICR_REG_ADDR, reg_val);
 
 end_function:
 
@@ -1201,14 +1158,14 @@ int sep_prepare_input_dma_table(unsigned long	app_virt_addr,
 		block_size);
 
   /* initialize the pages pointers */
-  sep_in_page_array = 0;
-  sep_in_num_pages = 0;
+  sep_dev->in_page_array = 0;
+  sep_dev->in_num_pages = 0;
 
   if (data_size == 0) {
 	/* special case  - created 2 entries table with zero data */
-	in_lli_table_ptr = (struct sep_lli_entry_t *)(g_sep_shared_area_addr +
+	in_lli_table_ptr = (struct sep_lli_entry_t *)(sep_dev->shared_area_addr +
 			SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_OFFSET_IN_BYTES);
-	in_lli_table_ptr->physical_address = g_sep_shared_area_addr +
+	in_lli_table_ptr->physical_address = sep_dev->shared_area_addr +
 			SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_OFFSET_IN_BYTES;
 	in_lli_table_ptr->block_size = 0;
 
@@ -1216,7 +1173,7 @@ int sep_prepare_input_dma_table(unsigned long	app_virt_addr,
 	in_lli_table_ptr->physical_address = 0xFFFFFFFF;
 	in_lli_table_ptr->block_size = 0;
 
-	*lli_table_ptr = g_sep_phys_shared_area_addr +
+	*lli_table_ptr = sep_dev->phys_shared_area_addr +
 			SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_OFFSET_IN_BYTES;
 	*num_entries_ptr = 2;
 	*table_data_size_ptr = 0;
@@ -1229,30 +1186,30 @@ int sep_prepare_input_dma_table(unsigned long	app_virt_addr,
 	/* lock the pages of the kernel buffer and translate them to pages */
 	result = sep_lock_kernel_pages(app_virt_addr,
 					data_size,
-					&sep_in_num_pages,
+					&sep_dev->in_num_pages,
 					&lli_array_ptr,
-					&sep_in_page_array);
+					&sep_dev->in_page_array);
   else
 	/* lock the pages of the user buffer and translate them to pages */
 	result = sep_lock_user_pages(app_virt_addr,
 				data_size,
-				&sep_in_num_pages,
+				&sep_dev->in_num_pages,
 				&lli_array_ptr,
-				&sep_in_page_array);
+				&sep_dev->in_page_array);
 
   if (result)
 	return result;
 
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
-  "SEP Driver:output sep_in_num_pages is %lu\n",
-  sep_in_num_pages);
+  "SEP Driver:output sep_dev->in_num_pages is %lu\n",
+  sep_dev->in_num_pages);
 
   current_entry = 0;
   info_entry_ptr = 0;
-  sep_lli_entries = sep_in_num_pages;
+  sep_lli_entries = sep_dev->in_num_pages;
 
   /* initiate to point after the message area */
-  lli_table_alloc_addr = g_sep_shared_area_addr +
+  lli_table_alloc_addr = sep_dev->shared_area_addr +
 		SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_OFFSET_IN_BYTES;
 
   /* loop till all the entries in in array are not processed */
@@ -1359,17 +1316,17 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
   result = 0;
 
   /* initialize the pages pointers */
-  sep_in_page_array = 0;
-  sep_out_page_array = 0;
+  sep_dev->in_page_array = 0;
+  sep_dev->out_page_array = 0;
 
   /* check if the pages are in Kernel Virtual Address layout */
   if (isKernelVirtualAddress == true) {
 	/* lock the pages of the kernel buffer and translate them to pages */
 	result = sep_lock_kernel_pages(app_virt_in_addr,
 				data_size,
-				&sep_in_num_pages,
+				&sep_dev->in_num_pages,
 				&lli_in_array,
-				&sep_in_page_array);
+				&sep_dev->in_page_array);
 	if (result) {
 	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 	"SEP Driver: sep_lock_kernel_pages for input virtual buffer failed\n");
@@ -1379,9 +1336,9 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
 	/* lock the pages of the user buffer and translate them to pages */
 	result = sep_lock_user_pages(app_virt_in_addr,
 					data_size,
-					&sep_in_num_pages,
+					&sep_dev->in_num_pages,
 					&lli_in_array,
-					&sep_in_page_array);
+					&sep_dev->in_page_array);
 	if (result) {
 	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 	"SEP Driver: sep_lock_user_pages for input virtual buffer failed\n");
@@ -1392,9 +1349,9 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
   if (isKernelVirtualAddress == true) {
 	result = sep_lock_kernel_pages(app_virt_out_addr,
 				data_size,
-				&sep_out_num_pages,
+				&sep_dev->out_num_pages,
 				&lli_out_array,
-				&sep_out_page_array);
+				&sep_dev->out_page_array);
 	if (result) {
 	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 	"SEP Driver: sep_lock_kernel_pages for output virtual buffer failed\n");
@@ -1403,9 +1360,9 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
   } else {
 	result = sep_lock_user_pages(app_virt_out_addr,
 					data_size,
-					&sep_out_num_pages,
+					&sep_dev->out_num_pages,
 					&lli_out_array,
-					&sep_out_page_array);
+					&sep_dev->out_page_array);
 	if (result) {
 	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 	"SEP Driver: sep_lock_user_pages for output virtual buffer failed\n");
@@ -1415,9 +1372,9 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
 
 
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
-	"sep_in_num_pages is %lu\n", sep_in_num_pages);
+	"sep_dev->in_num_pages is %lu\n", sep_dev->in_num_pages);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
-	"sep_out_num_pages is %lu\n", sep_out_num_pages);
+	"sep_dev->out_num_pages is %lu\n", sep_dev->out_num_pages);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
 	"SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP is %x\n",
 	SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP);
@@ -1425,9 +1382,9 @@ int sep_prepare_input_output_dma_table(unsigned long	app_virt_in_addr,
 
   /* call the fucntion that creates table from the lli arrays */
   result = sep_construct_dma_tables_from_lli(lli_in_array,
-					sep_in_num_pages,
+					sep_dev->in_num_pages,
 					lli_out_array,
-					sep_out_num_pages,
+					sep_dev->out_num_pages,
 					 block_size,
 					lli_table_in_ptr,
 					lli_table_out_ptr,
@@ -1531,7 +1488,7 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t	*lli_in_array,
 	"SEP Driver:--------> sep_construct_dma_tables_from_lli start\n");
 
   /* initiate to pint after the message area */
-  lli_table_alloc_addr = g_sep_shared_area_addr +
+  lli_table_alloc_addr = sep_dev->shared_area_addr +
 	SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_OFFSET_IN_BYTES;
 
   current_in_entry = 0;
@@ -2272,13 +2229,13 @@ static void sep_send_command_handler()
 	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
 	"Word %lu of the message is %lu\n",
 	count,
-	*((unsigned long *)(g_sep_shared_area_addr + count)));
+	*((unsigned long *)(sep_dev->shared_area_addr + count)));
 
   /* update counter */
-  sep_host_to_sep_send_counter++;
+  sep_dev->host_to_sep_send_counter++;
 
   /* send interrupt to SEP */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address +
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
 			HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
@@ -2305,20 +2262,20 @@ static void sep_send_reply_command_handler()
 	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
 	"Word %lu of the message is %lu\n",
 	count,
-	*((unsigned long *)(g_sep_shared_area_addr + count)));
+	*((unsigned long *)(sep_dev->shared_area_addr + count)));
 
 
   /* update counter */
-  sep_host_to_sep_send_counter++;
+  sep_dev->host_to_sep_send_counter++;
 
   /* send the interrupt to SEP */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address + HW_HOST_HOST_SEP_GPR2_REG_ADDR,
-				sep_host_to_sep_send_counter);
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_HOST_SEP_GPR2_REG_ADDR,
+				sep_dev->host_to_sep_send_counter);
 
   /* update both counters */
-  sep_host_to_sep_send_counter++;
+  sep_dev->host_to_sep_send_counter++;
 
-  sep_sep_to_host_reply_counter++;
+  sep_dev->sep_to_host_reply_counter++;
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_send_reply_command_handler end\n");
@@ -2359,7 +2316,7 @@ static int sep_allocate_data_pool_memory_handler(unsigned long arg)
 
   /* allocate memory */
   if (
-	(sep_data_pool_bytes_allocated + command_args.num_bytes) >
+	(sep_dev->data_pool_bytes_allocated + command_args.num_bytes) >
 	SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES) {
 	error = -ENOTTY;
 	goto end_function;
@@ -2367,10 +2324,10 @@ static int sep_allocate_data_pool_memory_handler(unsigned long arg)
 
   /* set the virtual and physical address */
   command_args.offset = SEP_DRIVER_DATA_POOL_AREA_OFFSET_IN_BYTES +
-			sep_data_pool_bytes_allocated;
-  command_args.phys_address = g_sep_phys_shared_area_addr +
+			sep_dev->data_pool_bytes_allocated;
+  command_args.phys_address = sep_dev->phys_shared_area_addr +
 			SEP_DRIVER_DATA_POOL_AREA_OFFSET_IN_BYTES +
-			sep_data_pool_bytes_allocated;
+			sep_dev->data_pool_bytes_allocated;
 
   /* write the memory back to the user space */
   error = copy_to_user((void *)arg,
@@ -2380,7 +2337,7 @@ static int sep_allocate_data_pool_memory_handler(unsigned long arg)
 	goto end_function;
 
   /* set the allocation */
-  sep_data_pool_bytes_allocated += command_args.num_bytes;
+  sep_dev->data_pool_bytes_allocated += command_args.num_bytes;
 
 end_function:
 
@@ -2435,7 +2392,7 @@ static int sep_write_into_data_pool_handler(unsigned long arg)
 	goto end_function;
 
   /* calculate the start of the data pool */
-  data_pool_area_addr = g_sep_shared_area_addr +
+  data_pool_area_addr = sep_dev->shared_area_addr +
 			SEP_DRIVER_DATA_POOL_AREA_OFFSET_IN_BYTES;
 
 
@@ -2505,7 +2462,7 @@ static int sep_read_from_data_pool_handler(unsigned long arg)
 	goto end_function;
 
   /* calculate the start of the data pool */
-  data_pool_area_addr = g_sep_shared_area_addr +
+  data_pool_area_addr = sep_dev->shared_area_addr +
 			SEP_DRIVER_DATA_POOL_AREA_OFFSET_IN_BYTES;
 
   /* check that the range of the virtual kernel address is correct */
@@ -2620,21 +2577,21 @@ int sep_free_dma_table_data_handler()
 	"SEP Driver:--------> sep_free_dma_table_data_handler start\n");
 
   /* free input pages array */
-  sep_free_dma_pages(sep_in_page_array,
-					sep_in_num_pages,
+  sep_free_dma_pages(sep_dev->in_page_array,
+					sep_dev->in_num_pages,
 					 0);
 
   /* free output pages array if needed */
-  if (sep_out_page_array)
-	sep_free_dma_pages(sep_out_page_array,
-						sep_out_num_pages,
+  if (sep_dev->out_page_array)
+	sep_free_dma_pages(sep_dev->out_page_array,
+						sep_dev->out_num_pages,
 						1);
 
   /* reset all the values */
-  sep_in_page_array = 0;
-  sep_out_page_array = 0;
-  sep_in_num_pages = 0;
-  sep_out_num_pages = 0;
+  sep_dev->in_page_array = 0;
+  sep_dev->out_page_array = 0;
+  sep_dev->in_num_pages = 0;
+  sep_dev->out_num_pages = 0;
 
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
@@ -2957,9 +2914,9 @@ static int sep_get_static_pool_addr_handler(unsigned long arg)
 	"SEP Driver:--------> sep_get_static_pool_addr_handler start\n");
 
   /*prepare the output parameters in the struct */
-  command_args.physical_static_address = g_sep_phys_shared_area_addr +
+  command_args.physical_static_address = sep_dev->phys_shared_area_addr +
 				SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES;
-  command_args.virtual_static_address = g_sep_shared_area_addr +
+  command_args.virtual_static_address = sep_dev->shared_area_addr +
 				SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES;
 
   DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
@@ -3007,14 +2964,14 @@ static int sep_get_physical_mapped_offset_handler(unsigned long arg)
   if (error)
 	goto end_function;
 
-  if (command_args.physical_address < g_sep_phys_shared_area_addr) {
+  if (command_args.physical_address < sep_dev->phys_shared_area_addr) {
 	error = -ENOTTY;
 	goto end_function;
   }
 
   /*prepare the output parameters in the struct */
   command_args.offset = command_args.physical_address -
-					g_sep_phys_shared_area_addr;
+					sep_dev->phys_shared_area_addr;
 
   DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
   "SEP Driver:physical_address is %08lx, offset is %lu\n",
@@ -3059,14 +3016,14 @@ static int sep_start_handler(void)
 
   /* wait in polling for message from SEP */
   do {
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 			HW_HOST_SEP_HOST_GPR3_REG_ADDR, reg_val);
   } while (!reg_val);
 
   /* check the value */
   if (reg_val == 0x1) {
 	/* fatal error - read erro status from GPRO */
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 				HW_HOST_SEP_HOST_GPR0_REG_ADDR, error);
 	goto end_function;
   }
@@ -3129,7 +3086,7 @@ static int sep_init_handler(unsigned long arg)
   message_ptr = (unsigned long *)command_args.message_addr;
 
   /* set the base address of the SRAM  */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address +
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
 					HW_SRAM_ADDR_REG_ADDR,
 					HW_CC_SRAM_BASE_ADDRESS);
 
@@ -3139,7 +3096,7 @@ static int sep_init_handler(unsigned long arg)
 	get_user(message_word, message_ptr);
 
 	/* write data to SRAM */
-	SEP_WRITE_REGISTER(g_sep_reg_base_address + HW_SRAM_DATA_REG_ADDR,
+	SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_SRAM_DATA_REG_ADDR,
 						message_word);
 
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
@@ -3154,11 +3111,11 @@ static int sep_init_handler(unsigned long arg)
 		"SEP Driver:--------> sep_init_handler - finished getting messages from user space\n");
 
   /* signal SEP */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address + HW_HOST_HOST_SEP_GPR0_REG_ADDR,
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_HOST_SEP_GPR0_REG_ADDR,
 					0x1);
 
   do {
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 			HW_HOST_SEP_HOST_GPR3_REG_ADDR, reg_val);
   } while (!(reg_val & 0xFFFFFFFD));
 
@@ -3170,13 +3127,13 @@ static int sep_init_handler(unsigned long arg)
 	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 		"SEP Driver:init failed\n");
 
-	SEP_READ_REGISTER(g_sep_reg_base_address + 0x8060, error);
+	SEP_READ_REGISTER(sep_dev->reg_base_address + 0x8060, error);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
 			"SEP Driver:sw monitor is %lu\n",
 			error);
 
 	/* fatal error - read erro status from GPRO */
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 				HW_HOST_SEP_HOST_GPR0_REG_ADDR,
 				error);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
@@ -3234,7 +3191,7 @@ static int sep_realloc_cache_resident_handler(unsigned long arg)
   /* lock the area (if needed) */
   sep_lock_cache_resident_area();
 
-  command_args.new_base_addr = g_sep_phys_shared_area_addr;
+  command_args.new_base_addr = sep_dev->phys_shared_area_addr;
 
   /* find the new base address according to the lowest address between
 	cache, resident and shared area */
@@ -3249,7 +3206,7 @@ static int sep_realloc_cache_resident_handler(unsigned long arg)
 
 
   /* set the new shared area */
-  command_args.new_shared_area_addr = g_sep_phys_shared_area_addr;
+  command_args.new_shared_area_addr = sep_dev->phys_shared_area_addr;
 
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
 	"SEP Driver:command_args.new_shared_area_addr is %08lx\n",
@@ -3325,7 +3282,7 @@ static int sep_set_api_mode_handler(unsigned long arg)
 	goto end_function;
 
   /* set the global flag */
-  g_sep_block_mode_flag = mode_flag;
+  sep_dev->block_mode_flag = mode_flag;
 
 
 end_function:
@@ -3350,10 +3307,10 @@ static int sep_end_transaction_handler(unsigned long arg)
 
 #if 0/*!SEP_DRIVER_POLLING_MODE*/
   /* close IMR */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address + HW_HOST_IMR_REG_ADDR, 0x7FFF);
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_IMR_REG_ADDR, 0x7FFF);
 
   /* release IRQ line */
-  free_irq(SEP_DIRVER_IRQ_NUM, &g_sep_reg_base_address);
+  free_irq(SEP_DIRVER_IRQ_NUM, &sep_dev->reg_base_address);
 
   /* lock the sep mutex */
   mutex_unlock(&sep_mutex);
@@ -3392,10 +3349,10 @@ static void sep_flow_done_handler(struct work_struct		*work)
   if (flow_data_ptr->input_tables_flag) {
 	/* copy the message to the shared RAM and signal SEP */
 	memcpy((void *)flow_data_ptr->message,
-	(void *)g_sep_shared_area_addr,
+	(void *)sep_dev->shared_area_addr,
 	flow_data_ptr->message_size_in_bytes);
 
-	SEP_WRITE_REGISTER(g_sep_reg_base_address +
+	SEP_WRITE_REGISTER(sep_dev->reg_base_address +
 			HW_HOST_HOST_SEP_GPR2_REG_ADDR,
 			0x2);
   }
@@ -3644,8 +3601,8 @@ static int sep_find_flow_context(
 	 when 2 flows are with default flag
   */
   for (count = 0; count < SEP_DRIVER_NUM_FLOWS; count++) {
-	if (g_sep_flows_data_array[count].flow_id == flow_id) {
-	  *flow_data_ptr = &g_sep_flows_data_array[count];
+	if (sep_dev->flows_data_array[count].flow_id == flow_id) {
+	  *flow_data_ptr = &sep_dev->flows_data_array[count];
 	  break;
 	}
   }
@@ -3685,7 +3642,7 @@ static int sep_find_free_flow_dma_table_space(
   error = 0;
 
   /* find the start address of the flow DMA table area */
-  flow_dma_area_start_addr = g_sep_shared_area_addr +
+  flow_dma_area_start_addr = sep_dev->shared_area_addr +
 			SEP_DRIVER_FLOW_DMA_TABLES_AREA_OFFSET_IN_BYTES;
 
   /* set end address of the flow table area */
@@ -3837,7 +3794,7 @@ static int sep_set_time(unsigned long		*address_ptr,
   do_gettimeofday(&time);
 
   /* set value in the SYSTEM MEMORY offset */
-  time_addr = g_message_shared_area_addr +
+  time_addr = sep_dev->message_shared_area_addr +
 			SEP_DRIVER_SYSTEM_TIME_MEMORY_OFFSET_IN_BYTES;
 
   *(unsigned long *)time_addr = SEP_TIME_VAL_TOKEN;
@@ -3851,7 +3808,7 @@ static int sep_set_time(unsigned long		*address_ptr,
 			time_addr);
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
 			"SEP Driver:g_message_shared_area_addr is %lu\n",
-			g_message_shared_area_addr);
+			sep_dev->message_shared_area_addr);
 
   /* set the output parameters if needed */
   if (address_ptr)
@@ -3880,32 +3837,32 @@ static void sep_configure_dma_burst(void)
 		"SEP Driver:<-------- sep_configure_dma_burst start \n");
 
   /* request access to registers from SEP */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address +
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
 					HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2UL);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (write reg)  \n");
 
-  SEP_READ_REGISTER(g_sep_reg_base_address +
+  SEP_READ_REGISTER(sep_dev->reg_base_address +
 					HW_HOST_SEP_BUSY_REG_ADDR, regVal);
   while (regVal)
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 					HW_HOST_SEP_BUSY_REG_ADDR, regVal);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (while(revVal) wait loop)  \n");
 
   /* set the DMA burst register to single burst*/
-  SEP_WRITE_REGISTER(g_sep_reg_base_address +
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
 					HW_AHB_RD_WR_BURSTS_REG_ADDR, 0x0UL);
 
   /* release the sep busy */
-  SEP_WRITE_REGISTER(g_sep_reg_base_address +
+  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
 					HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x0UL);
-  SEP_READ_REGISTER(g_sep_reg_base_address +
+  SEP_READ_REGISTER(sep_dev->reg_base_address +
 					HW_HOST_SEP_BUSY_REG_ADDR, regVal);
   while (regVal != 0x0)
-	SEP_READ_REGISTER(g_sep_reg_base_address +
+	SEP_READ_REGISTER(sep_dev->reg_base_address +
 					HW_HOST_SEP_BUSY_REG_ADDR, regVal);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,

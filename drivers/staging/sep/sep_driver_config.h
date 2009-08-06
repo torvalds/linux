@@ -297,7 +297,7 @@ do { \
 do { \
 	unsigned long  reg_val; \
 	do { \
-		SEP_READ_REGISTER(g_sep_reg_base_address + \
+		SEP_READ_REGISTER(sep_dev->reg_base_address + \
 		HW_SRAM_DATA_READY_REG_ADDR, (reg_val)); \
 	} while (!(reg_val & 0x1)); \
 } while (0)

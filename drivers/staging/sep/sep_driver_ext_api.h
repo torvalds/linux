@@ -36,8 +36,6 @@
 /* shared variables */
 extern int sepDebug;
 
-extern unsigned long g_sep_reg_base_address;
-
 /*
 this function loads the ROM code in SEP (needed only in the debug mode on FPGA)
 */
