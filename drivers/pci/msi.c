@@ -272,7 +272,30 @@ void write_msi_msg(unsigned int irq, struct msi_msg *msg)
 	write_msi_msg_desc(desc, msg);
 }
 
-static int msi_free_irqs(struct pci_dev* dev);
+static void free_msi_irqs(struct pci_dev *dev)
+{
+	struct msi_desc *entry, *tmp;
+
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		int i, nvec;
+		if (!entry->irq)
+			continue;
+		nvec = 1 << entry->msi_attrib.multiple;
+		for (i = 0; i < nvec; i++)
+			BUG_ON(irq_has_action(entry->irq + i));
+	}
+
+	arch_teardown_msi_irqs(dev);
+
+	list_for_each_entry_safe(entry, tmp, &dev->msi_list, list) {
+		if (entry->msi_attrib.is_msix) {
+			if (list_is_last(&entry->list, &dev->msi_list))
+				iounmap(entry->mask_base);
+		}
+		list_del(&entry->list);
+		kfree(entry);
+	}
+}
 
 static struct msi_desc *alloc_msi_entry(struct pci_dev *dev)
 {
@@ -396,7 +419,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	ret = arch_setup_msi_irqs(dev, nvec, PCI_CAP_ID_MSI);
 	if (ret) {
 		msi_mask_irq(entry, mask, ~mask);
-		msi_free_irqs(dev);
+		free_msi_irqs(dev);
 		return ret;
 	}
 
@@ -454,7 +477,7 @@ static int msix_capability_init(struct pci_dev *dev,
 			if (!i)
 				iounmap(base);
 			else
-				msi_free_irqs(dev);
+				free_msi_irqs(dev);
 			/* No enough memory. Don't try again */
 			return -ENOMEM;
 		}
@@ -486,7 +509,7 @@ static int msix_capability_init(struct pci_dev *dev,
 	}
 
 	if (ret) {
-		msi_free_irqs(dev);
+		free_msi_irqs(dev);
 		return ret;
 	}
 
@@ -644,36 +667,9 @@ void pci_disable_msi(struct pci_dev* dev)
 		return;
 
 	pci_msi_shutdown(dev);
-	msi_free_irqs(dev);
+	free_msi_irqs(dev);
 }
 EXPORT_SYMBOL(pci_disable_msi);
-
-static int msi_free_irqs(struct pci_dev* dev)
-{
-	struct msi_desc *entry, *tmp;
-
-	list_for_each_entry(entry, &dev->msi_list, list) {
-		int i, nvec;
-		if (!entry->irq)
-			continue;
-		nvec = 1 << entry->msi_attrib.multiple;
-		for (i = 0; i < nvec; i++)
-			BUG_ON(irq_has_action(entry->irq + i));
-	}
-
-	arch_teardown_msi_irqs(dev);
-
-	list_for_each_entry_safe(entry, tmp, &dev->msi_list, list) {
-		if (entry->msi_attrib.is_msix) {
-			if (list_is_last(&entry->list, &dev->msi_list))
-				iounmap(entry->mask_base);
-		}
-		list_del(&entry->list);
-		kfree(entry);
-	}
-
-	return 0;
-}
 
 /**
  * pci_msix_table_size - return the number of device's MSI-X table entries
@@ -745,11 +741,6 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 }
 EXPORT_SYMBOL(pci_enable_msix);
 
-static void msix_free_all_irqs(struct pci_dev *dev)
-{
-	msi_free_irqs(dev);
-}
-
 void pci_msix_shutdown(struct pci_dev* dev)
 {
 	struct msi_desc *entry;
@@ -774,7 +765,7 @@ void pci_disable_msix(struct pci_dev* dev)
 		return;
 
 	pci_msix_shutdown(dev);
-	msix_free_all_irqs(dev);
+	free_msi_irqs(dev);
 }
 EXPORT_SYMBOL(pci_disable_msix);
 
@@ -792,11 +783,8 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 	if (!pci_msi_enable || !dev)
  		return;
 
-	if (dev->msi_enabled)
-		msi_free_irqs(dev);
-
-	if (dev->msix_enabled)
-		msix_free_all_irqs(dev);
+	if (dev->msi_enabled || dev->msix_enabled)
+		free_msi_irqs(dev);
 }
 
 void pci_no_msi(void)
