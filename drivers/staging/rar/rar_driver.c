@@ -17,12 +17,6 @@
 #include <linux/sched.h>
 #include "rar_driver.h"
 
-/* PCI vendor id for controler */
-#define VENDOR_ID 0x8086
-
-/* PCI device id for controler */
-#define DEVICE_ID 0x4110
-
 /* The following defines are for the IPC process to retrieve RAR in */
 
 /* === Lincroft Message Bus Interface === */
@@ -77,7 +71,7 @@ static void __exit rar_exit_handler(void);
 static int __devinit rar_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
 static struct pci_device_id rar_pci_id_tbl[] = {
-	{ PCI_DEVICE(VENDOR_ID, DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x4110) },
 	{ 0 }
 };
 

@@ -91,8 +91,6 @@ static unsigned long CRYS_SEP_ROM[] = {
 
 irqreturn_t sep_inthandler(int irq , void* dev_id);
 
-/* NOTE - must be defined specific to the board */
-#define VENDOR_ID                             0x8086
 
 /* io memory (register area) */
 static unsigned long io_memory_start_physical_address;
@@ -134,7 +132,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
   const struct pci_device_id *ent);
 
 static struct pci_device_id sep_pci_id_tbl[] = {
-	{ PCI_DEVICE(VENDOR_ID, 0x080c) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080c) },
 	{ 0 }
 };
 
