@@ -37,6 +37,7 @@
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
+#include <sound/atmel-ac97c.h>
 
  /* USB Device */
 struct at91_udc_data {
@@ -174,10 +175,7 @@ struct atmel_lcdfb_info;
 extern void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data);
 
  /* AC97 */
-struct atmel_ac97_data {
-	u8		reset_pin;	/* reset */
-};
-extern void __init at91_add_device_ac97(struct atmel_ac97_data *data);
+extern void __init at91_add_device_ac97(struct ac97c_platform_data *data);
 
  /* ISI */
 extern void __init at91_add_device_isi(void);

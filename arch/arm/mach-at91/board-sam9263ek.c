@@ -365,7 +365,7 @@ static void __init ek_add_device_buttons(void) {}
 /*
  * AC97
  */
-static struct atmel_ac97_data ek_ac97_data = {
+static struct ac97c_platform_data ek_ac97_data = {
 	.reset_pin	= AT91_PIN_PA13,
 };
 
