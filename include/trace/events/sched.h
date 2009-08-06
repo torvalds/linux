@@ -94,6 +94,7 @@ TRACE_EVENT(sched_wakeup,
 		__field(	pid_t,	pid			)
 		__field(	int,	prio			)
 		__field(	int,	success			)
+		__field(	int,	cpu			)
 	),
 
 	TP_fast_assign(
@@ -101,11 +102,12 @@ TRACE_EVENT(sched_wakeup,
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
 		__entry->success	= success;
+		__entry->cpu		= task_cpu(p);
 	),
 
-	TP_printk("task %s:%d [%d] success=%d",
+	TP_printk("task %s:%d [%d] success=%d [%03d]",
 		  __entry->comm, __entry->pid, __entry->prio,
-		  __entry->success)
+		  __entry->success, __entry->cpu)
 );
 
 /*
@@ -125,6 +127,7 @@ TRACE_EVENT(sched_wakeup_new,
 		__field(	pid_t,	pid			)
 		__field(	int,	prio			)
 		__field(	int,	success			)
+		__field(	int,	cpu			)
 	),
 
 	TP_fast_assign(
@@ -132,11 +135,12 @@ TRACE_EVENT(sched_wakeup_new,
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
 		__entry->success	= success;
+		__entry->cpu		= task_cpu(p);
 	),
 
-	TP_printk("task %s:%d [%d] success=%d",
+	TP_printk("task %s:%d [%d] success=%d [%03d]",
 		  __entry->comm, __entry->pid, __entry->prio,
-		  __entry->success)
+		  __entry->success, __entry->cpu)
 );
 
 /*
