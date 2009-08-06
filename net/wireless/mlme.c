@@ -198,7 +198,7 @@ static void __cfg80211_send_disassoc(struct net_device *dev,
 		return;
 
 	if (wdev->current_bss &&
-	    memcmp(wdev->current_bss, bssid, ETH_ALEN) == 0) {
+	    memcmp(wdev->current_bss->pub.bssid, bssid, ETH_ALEN) == 0) {
 		for (i = 0; i < MAX_AUTH_BSSES; i++) {
 			if (wdev->authtry_bsses[i] || wdev->auth_bsses[i])
 				continue;
