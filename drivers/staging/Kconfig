@@ -135,5 +135,7 @@ source "drivers/staging/hv/Kconfig"
 
 source "drivers/staging/vme/Kconfig"
 
+source "drivers/staging/sep/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

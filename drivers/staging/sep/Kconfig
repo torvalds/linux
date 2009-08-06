@@ -1,0 +1,9 @@
+config DX_SEP
+	tristate "Discretix SEP driver"
+	depends on MRST
+	default y
+	help
+	  Discretix SEP driver
+
+	  If unsure say M. The compiled module will be
+	  called sep_driver.ko
