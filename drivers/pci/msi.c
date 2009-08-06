@@ -447,6 +447,37 @@ static void __iomem *msix_map_region(struct pci_dev *dev, unsigned pos,
 	return ioremap_nocache(phys_addr, nr_entries * PCI_MSIX_ENTRY_SIZE);
 }
 
+static int msix_setup_entries(struct pci_dev *dev, unsigned pos,
+				void __iomem *base, struct msix_entry *entries,
+				int nvec)
+{
+	struct msi_desc *entry;
+	int i;
+
+	for (i = 0; i < nvec; i++) {
+		entry = alloc_msi_entry(dev);
+		if (!entry) {
+			if (!i)
+				iounmap(base);
+			else
+				free_msi_irqs(dev);
+			/* No enough memory. Don't try again */
+			return -ENOMEM;
+		}
+
+		entry->msi_attrib.is_msix	= 1;
+		entry->msi_attrib.is_64		= 1;
+		entry->msi_attrib.entry_nr	= entries[i].entry;
+		entry->msi_attrib.default_irq	= dev->irq;
+		entry->msi_attrib.pos		= pos;
+		entry->mask_base		= base;
+
+		list_add_tail(&entry->list, &dev->msi_list);
+	}
+
+	return 0;
+}
+
 static void msix_program_entries(struct pci_dev *dev,
 					struct msix_entry *entries)
 {
@@ -478,8 +509,7 @@ static void msix_program_entries(struct pci_dev *dev,
 static int msix_capability_init(struct pci_dev *dev,
 				struct msix_entry *entries, int nvec)
 {
-	struct msi_desc *entry;
-	int pos, i, j, ret;
+	int pos, ret;
 	u16 control;
 	void __iomem *base;
 
@@ -495,27 +525,9 @@ static int msix_capability_init(struct pci_dev *dev,
 	if (!base)
 		return -ENOMEM;
 
-	for (i = 0; i < nvec; i++) {
-		entry = alloc_msi_entry(dev);
-		if (!entry) {
-			if (!i)
-				iounmap(base);
-			else
-				free_msi_irqs(dev);
-			/* No enough memory. Don't try again */
-			return -ENOMEM;
-		}
-
- 		j = entries[i].entry;
-		entry->msi_attrib.is_msix = 1;
-		entry->msi_attrib.is_64 = 1;
-		entry->msi_attrib.entry_nr = j;
-		entry->msi_attrib.default_irq = dev->irq;
-		entry->msi_attrib.pos = pos;
-		entry->mask_base = base;
-
-		list_add_tail(&entry->list, &dev->msi_list);
-	}
+	ret = msix_setup_entries(dev, pos, base, entries, nvec);
+	if (ret)
+		return ret;
 
 	ret = arch_setup_msi_irqs(dev, nvec, PCI_CAP_ID_MSIX);
 	if (ret)
@@ -546,6 +558,7 @@ error:
 		 * If we had some success, report the number of irqs
 		 * we succeeded in setting up.
 		 */
+		struct msi_desc *entry;
 		int avail = 0;
 
 		list_for_each_entry(entry, &dev->msi_list, list) {
