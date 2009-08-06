@@ -3803,6 +3803,15 @@ static int sep_set_time(unsigned long		*address_ptr,
   return 0;
 }
 
+static void sep_wait_busy(struct sep_device *dev)
+{
+	u32 reg;
+
+	do {
+		reg = sep_read_reg(sep_dev, HW_HOST_SEP_BUSY_REG_ADDR);
+	} while (reg);
+}
+
 /*
   PATCH for configuring the DMA to single burst instead of multi-burst
 */
@@ -3822,9 +3831,7 @@ static void sep_configure_dma_burst(void)
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (write reg)  \n");
 
- regVal = sep_read_reg(sep_dev, HW_HOST_SEP_BUSY_REG_ADDR);
-  while (regVal)
-	regVal = sep_read_reg(sep_dev, HW_HOST_SEP_BUSY_REG_ADDR);
+  sep_wait_busy(sep_dev);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (while(revVal) wait loop)  \n");
@@ -3834,9 +3841,7 @@ static void sep_configure_dma_burst(void)
 
   /* release the sep busy */
   sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x0UL);
-  regVal = sep_read_reg(sep_dev, HW_HOST_SEP_BUSY_REG_ADDR);
-  while (regVal != 0x0)
-	  regVal = sep_read_reg(sep_dev, HW_HOST_SEP_BUSY_REG_ADDR);
+  sep_wait_busy(sep_dev);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_configure_dma_burst done  \n");
