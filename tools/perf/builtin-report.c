@@ -700,7 +700,8 @@ sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
 	size_t ret = 0;
 
 	if (verbose)
-		ret += repsep_fprintf(fp, "%#018llx  ", (u64)self->ip);
+		ret += repsep_fprintf(fp, "%#018llx %c ", (u64)self->ip,
+				      dso__symtab_origin(self->dso));
 
 	ret += repsep_fprintf(fp, "[%c] ", self->level);
 	if (self->sym) {
