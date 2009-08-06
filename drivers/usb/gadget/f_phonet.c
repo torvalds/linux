@@ -261,20 +261,10 @@ out:
 
 static int pn_net_mtu(struct net_device *dev, int new_mtu)
 {
-	struct phonet_port *port = netdev_priv(dev);
-	unsigned long flags;
-	int err = -EBUSY;
-
 	if ((new_mtu < PHONET_MIN_MTU) || (new_mtu > PHONET_MAX_MTU))
 		return -EINVAL;
-
-	spin_lock_irqsave(&port->lock, flags);
-	if (!netif_carrier_ok(dev)) {
-		dev->mtu = new_mtu;
-		err = 0;
-	}
-	spin_unlock_irqrestore(&port->lock, flags);
-	return err;
+	dev->mtu = new_mtu;
+	return 0;
 }
 
 static const struct net_device_ops pn_netdev_ops = {
