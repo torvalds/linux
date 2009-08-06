@@ -157,7 +157,7 @@ config CRYPTO_GCM
 	tristate "GCM/GMAC support"
 	select CRYPTO_CTR
 	select CRYPTO_AEAD
-	select CRYPTO_GF128MUL
+	select CRYPTO_GHASH
 	help
 	  Support for Galois/Counter Mode (GCM) and Galois Message
 	  Authentication Code (GMAC). Required for IPSec.
