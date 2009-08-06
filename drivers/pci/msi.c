@@ -447,6 +447,24 @@ static void __iomem *msix_map_region(struct pci_dev *dev, unsigned pos,
 	return ioremap_nocache(phys_addr, nr_entries * PCI_MSIX_ENTRY_SIZE);
 }
 
+static void msix_program_entries(struct pci_dev *dev,
+					struct msix_entry *entries)
+{
+	struct msi_desc *entry;
+	int i = 0;
+
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		int offset = entries[i].entry * PCI_MSIX_ENTRY_SIZE +
+						PCI_MSIX_ENTRY_VECTOR_CTRL;
+
+		entries[i].vector = entry->irq;
+		set_irq_msi(entry->irq, entry);
+		entry->masked = readl(entry->mask_base + offset);
+		msix_mask_irq(entry, 1);
+		i++;
+	}
+}
+
 /**
  * msix_capability_init - configure device's MSI-X capability
  * @dev: pointer to the pci_dev data structure of MSI-X device function
@@ -511,16 +529,7 @@ static int msix_capability_init(struct pci_dev *dev,
 	control |= PCI_MSIX_FLAGS_MASKALL | PCI_MSIX_FLAGS_ENABLE;
 	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
 
-	i = 0;
-	list_for_each_entry(entry, &dev->msi_list, list) {
-		entries[i].vector = entry->irq;
-		set_irq_msi(entry->irq, entry);
-		j = entries[i].entry;
-		entry->masked = readl(base + j * PCI_MSIX_ENTRY_SIZE +
-						PCI_MSIX_ENTRY_VECTOR_CTRL);
-		msix_mask_irq(entry, 1);
-		i++;
-	}
+	msix_program_entries(dev, entries);
 
 	/* Set MSI-X enabled bits and unmask the function */
 	pci_intx_for_msi(dev, 0);
