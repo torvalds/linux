@@ -904,7 +904,7 @@ F:	drivers/input/misc/ati_remote2.c
 
 ATLX ETHERNET DRIVERS
 M:	Jay Cliburn <jcliburn@gmail.com>
-M:	Chris Snook <csnook@redhat.com>
+M:	Chris Snook <chris.snook@gmail.com>
 M:	Jie Yang <jie.yang@atheros.com>
 L:	atl1-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/atl1
