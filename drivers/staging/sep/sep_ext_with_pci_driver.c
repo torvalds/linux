@@ -424,7 +424,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	  "SEP Driver:io_memory_start_virtual_address is %p\n",
 	sep_dev->io_memory_start_virtual_address);
 
-	sep_dev->reg_base_address = (unsigned long)sep_dev->io_memory_start_virtual_address;
+	sep_dev->reg_base_address = (void __iomem *)sep_dev->io_memory_start_virtual_address;
 
 
 	/* set up system base address and shared memory location */
@@ -455,11 +455,11 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	  "SEP Driver: about to write IMR and ICR REG_ADDR\n");
 
 	/* clear ICR register */
-	SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_ICR_REG_ADDR,
+	sep_write_reg(sep_dev, HW_HOST_ICR_REG_ADDR,
 	  0xFFFFFFFF);
 
 	/* set the IMR register - open only GPR 2 */
-	SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_IMR_REG_ADDR,
+	sep_write_reg(sep_dev, HW_HOST_IMR_REG_ADDR,
 	  (~(0x1 << 13)));
 
 	/* figure out our irq */
@@ -482,7 +482,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	  "SEP Driver: about to write IMR REG_ADDR");
 
 	/* set the IMR register - open only GPR 2 */
-	SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_IMR_REG_ADDR,
+	sep_write_reg(sep_dev, HW_HOST_IMR_REG_ADDR,
 	  (~(0x1 << 13)));
 
 #endif /* SEP_DRIVER_POLLING_MODE */
@@ -529,11 +529,10 @@ void sep_load_rom_code(void)
 
 	for (i = 0; i < 4; i++) {
 		/* write bank */
-		SEP_WRITE_REGISTER(sep_dev->reg_base_address
-		  + SEP_ROM_BANK_register_offset, i);
+		sep_write_reg(sep_dev, SEP_ROM_BANK_register_offset, i);
 
 		for (j = 0; j < CRYS_SEP_ROM_length / 4; j++) {
-			SEP_WRITE_REGISTER(sep_dev->reg_base_address +
+			sep_write_reg(sep_dev,
 			  CRYS_SEP_ROM_start_address_offset + 4*j,
 			  CRYS_SEP_ROM[i * 0x1000 + j]);
 
@@ -547,13 +546,11 @@ void sep_load_rom_code(void)
 	}
 
 	/* reset the SEP*/
-	SEP_WRITE_REGISTER(sep_dev->reg_base_address
-	  + HW_HOST_SEP_SW_RST_REG_ADDR, 0x1);
+	sep_write_reg(sep_dev, HW_HOST_SEP_SW_RST_REG_ADDR, 0x1);
 
 	/* poll for SEP ROM boot finish */
 	do {
-		SEP_READ_REGISTER(sep_dev->reg_base_address
-		  + HW_HOST_SEP_HOST_GPR3_REG_ADDR, regVal);
+		retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
 	} while (!regVal);
 
 	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
@@ -562,38 +559,33 @@ void sep_load_rom_code(void)
 	switch (regVal) {
 	case 0x1:
 		/* fatal error - read erro status from GPRO */
-		SEP_READ_REGISTER(sep_dev->reg_base_address
-		  + HW_HOST_SEP_HOST_GPR0_REG_ADDR, Error);
+		Error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 		  "SEP Driver: ROM polling case 1\n");
 		break;
 	case 0x2:
 		/* Boot First Phase ended  */
-		SEP_READ_REGISTER(sep_dev->reg_base_address
-		  + HW_HOST_SEP_HOST_GPR0_REG_ADDR, warning);
+		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 		  "SEP Driver: ROM polling case 2\n");
 		break;
 	case 0x4:
 		/* Cold boot ended successfully  */
-		SEP_READ_REGISTER(sep_dev->reg_base_address
-		  + HW_HOST_SEP_HOST_GPR0_REG_ADDR, warning);
+		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 		  "SEP Driver: ROM polling case 4\n");
 		Error = 0;
 		break;
 	case 0x8:
 		/* Warmboot ended successfully */
-		SEP_READ_REGISTER(sep_dev->reg_base_address
-		  + HW_HOST_SEP_HOST_GPR0_REG_ADDR, warning);
+		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 		  "SEP Driver: ROM polling case 8\n");
 		Error = 0;
 		break;
 	case 0x10:
 		/* ColdWarm boot ended successfully */
-		SEP_READ_REGISTER(sep_dev->reg_base_address
-		  + HW_HOST_SEP_HOST_GPR0_REG_ADDR, warning);
+		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 		DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 		  "SEP Driver: ROM polling case 16\n");
 		Error = 0;

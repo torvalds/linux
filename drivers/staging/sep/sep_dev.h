@@ -60,7 +60,7 @@ struct sep_device {
 	unsigned long rar_region_addr;
 
 	/* start address of the access to the SEP registers from driver */
-	unsigned long reg_base_address;
+	void __iomem *reg_base_address;
 	/* transaction counter that coordinates the transactions between SEP and HOST */
 	unsigned long host_to_sep_send_counter;
 	/* counter for the messages from sep */
@@ -103,17 +103,27 @@ struct sep_device {
 
 extern struct sep_device *sep_dev;
 
-extern inline void sep_write_reg(struct sep_device *dev, int reg, u32 value)
+static inline void sep_write_reg(struct sep_device *dev, int reg, u32 value)
 {
 	void __iomem *addr = dev->reg_base_address + reg;
-	writel(value, reg);
+	writel(value, addr);
 }
 
-extern inline u32 sep_read_reg(struct sep_device *dev, int reg)
+static inline u32 sep_read_reg(struct sep_device *dev, int reg)
 {
 	void __iomem *addr = dev->reg_base_address + reg;
-	return readl(reg);
+	return readl(addr);
 }
+
+/* wait for SRAM write complete(indirect write */
+static inline void sep_wait_sram_write(struct sep_device *dev)
+{
+	u32 reg_val;
+	do
+		reg_val = sep_read_reg(dev, HW_SRAM_DATA_READY_REG_ADDR);
+	while(!(reg_val & 1));
+}
+
 
 #endif
 

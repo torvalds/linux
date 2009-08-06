@@ -244,62 +244,6 @@ do { \
 		printk(KERN_WARNING info, param1, param2, param3, param4); \
 } while (0)
 
-#if 0
-/* write register macro with option for debug print */
-#define SEP_WRITE_REGISTER(address, value) \
-do { \
-	if (sepDebug & SEP_DEBUG_LEVEL_REGISTERS) \
-		printk(KERN_WARNING "Write Register: address %lu value %lu\n", \
-		(unsigned long)(address), (unsigned long)(value)); \
-	writel((value), (void *)(address)); \
-} while (0)
 
-/* read register macro with option for debug print */
-#define SEP_READ_REGISTER(address , value) \
-do { \
-	(value) = readl((void *)(address)); \
-	if (sepDebug & SEP_DEBUG_LEVEL_REGISTERS) \
-		printk(KERN_WARNING "Read Register: address %lu value %lu\n", \
-		(address), (value)); \
-} while (0)
-#else
-
-#if 1
-
-#define SEP_WRITE_REGISTER(address, value)  writel((value), (void *)(address))
-#define SEP_READ_REGISTER(address, value)  (value) = readl((void *)(address))
-#endif
-
-#endif
-
-#if 0
-#define SEP_WRITE_ROM(address, value)  writel((value), (void *)(address))
-
-#define SEP_WRITE_REGISTER(address, value) \
-do { \
-	unsigned long i; \
-	for (i = 0; i < 1000; i++); \
-		writel((value), (void *)(address)); \
-} while (0)
-
-
-#define SEP_READ_REGISTER(address , value) \
-do { \
-	unsigned long i; \
-	for (i = 0; i < 1000; i++); \
-		(value) = readl((void *) (address)); \
-} while (0)
-
-#endif
-
-/* wait for SRAM write complete(indirect write */
-#define SEP_WAIT_SRAM_WRITE_COMPLETE() \
-do { \
-	unsigned long  reg_val; \
-	do { \
-		SEP_READ_REGISTER(sep_dev->reg_base_address + \
-		HW_SRAM_DATA_READY_REG_ADDR, (reg_val)); \
-	} while (!(reg_val & 0x1)); \
-} while (0)
 
 #endif

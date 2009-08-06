@@ -374,9 +374,7 @@ void sep_driver_poll()
 #ifdef SEP_DRIVER_POLLING_MODE
 
   while (sep_dev->host_to_sep_send_counter != (retVal & 0x7FFFFFFF))
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-			HW_HOST_SEP_HOST_GPR2_REG_ADDR,
-			retVal);
+	retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR2_REG_ADDR);
 
   sep_dev->sep_to_host_reply_counter++;
 #else
@@ -446,7 +444,7 @@ static int sep_release(struct inode *inode_ptr, struct file *file_ptr)
 
 #if 0/*!SEP_DRIVER_POLLING_MODE*/
   /* close IMR */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_IMR_REG_ADDR, 0x7FFF);
+  sep_write_reg(sep_dev, HW_HOST_IMR_REG_ADDR, 0x7FFF);
 
   /* release IRQ line */
   free_irq(SEP_DIRVER_IRQ_NUM, &sep_dev->reg_base_address);
@@ -542,9 +540,7 @@ static unsigned int sep_poll(struct file  *filp, poll_table  *wait)
 #if SEP_DRIVER_POLLING_MODE
 
   while (sep_dev->host_to_sep_send_counter != (retVal & 0x7FFFFFFF)) {
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-	HW_HOST_SEP_HOST_GPR2_REG_ADDR,
-	retVal);
+	retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR2_REG_ADDR);
 
 	for (count = 0; count < 10 * 4; count += 4)
 	DEBUG_PRINT_2(SEP_DEBUG_LEVEL_EXTENDED,
@@ -581,9 +577,7 @@ static unsigned int sep_poll(struct file  *filp, poll_table  *wait)
 	count,
 	*((unsigned long *)(sep_dev->shared_area_addr + 0x1800 + count)));
 
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-		HW_HOST_SEP_HOST_GPR2_REG_ADDR,
-		retVal);
+	retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR2_REG_ADDR);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "retVal is %lu\n", retVal);
 	/* check if the this is sep reply or request */
 	if (retVal >> 31) {
@@ -913,16 +907,13 @@ for the current transaction */
 #if (SEP_DRIVER_RECONFIG_MESSAGE_AREA == 1)
 
   /* send the new SHARED MESSAGE AREA to the SEP */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_HOST_SEP_GPR1_REG_ADDR,
+  sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR1_REG_ADDR,
 			sep_dev->phys_shared_area_addr);
 
   /* poll for SEP response */
-  SEP_READ_REGISTER(sep_dev->reg_base_address + HW_HOST_SEP_HOST_GPR1_REG_ADDR,
-			retVal);
+  retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR1_REG_ADDR);
   while (retVal != 0xffffffff && retVal != sep_dev->phys_shared_area_addr)
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-			HW_HOST_SEP_HOST_GPR1_REG_ADDR,
-			retVal);
+	retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR1_REG_ADDR);
 
   /* check the return value (register) */
   if (retVal != sep_dev->phys_shared_area_addr) {
@@ -1060,15 +1051,14 @@ irqreturn_t sep_inthandler(int irq, void *dev_id)
   int_error = IRQ_HANDLED;
 
   /* read the IRR register to check if this is SEP interrupt */
-  SEP_READ_REGISTER(sep_dev->reg_base_address + HW_HOST_IRR_REG_ADDR, reg_val);
+  reg_val = sep_read_reg(sep_dev, HW_HOST_IRR_REG_ADDR);
   DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED, "SEP Interrupt - reg is %08lx\n",
 			reg_val);
 
   /* check if this is the flow interrupt */
   if (0/*reg_val & (0x1 << 11)*/) {
 	/* read GPRO to find out the which flow is done */
-	SEP_READ_REGISTER(sep_dev->reg_base_address + HW_HOST_IRR_REG_ADDR,
-	flow_id);
+	flow_id = sep_read_reg(sep_dev, HW_HOST_IRR_REG_ADDR);
 
 	/* find the contex of the flow */
 	error = sep_find_flow_context(flow_id >> 28, &flow_context_ptr);
@@ -1097,7 +1087,7 @@ irqreturn_t sep_inthandler(int irq, void *dev_id)
 end_function_with_error:
 
   /* clear the interrupt */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_ICR_REG_ADDR, reg_val);
+  sep_write_reg(sep_dev, HW_HOST_ICR_REG_ADDR, reg_val);
 
 end_function:
 
@@ -2235,8 +2225,7 @@ static void sep_send_command_handler()
   sep_dev->host_to_sep_send_counter++;
 
   /* send interrupt to SEP */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
-			HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2);
+  sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_send_command_handler end\n");
@@ -2269,7 +2258,7 @@ static void sep_send_reply_command_handler()
   sep_dev->host_to_sep_send_counter++;
 
   /* send the interrupt to SEP */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_HOST_SEP_GPR2_REG_ADDR,
+  sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR2_REG_ADDR,
 				sep_dev->host_to_sep_send_counter);
 
   /* update both counters */
@@ -3016,15 +3005,13 @@ static int sep_start_handler(void)
 
   /* wait in polling for message from SEP */
   do {
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-			HW_HOST_SEP_HOST_GPR3_REG_ADDR, reg_val);
+	reg_val = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
   } while (!reg_val);
 
   /* check the value */
   if (reg_val == 0x1) {
 	/* fatal error - read erro status from GPRO */
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-				HW_HOST_SEP_HOST_GPR0_REG_ADDR, error);
+	error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 	goto end_function;
   }
 
@@ -3086,9 +3073,7 @@ static int sep_init_handler(unsigned long arg)
   message_ptr = (unsigned long *)command_args.message_addr;
 
   /* set the base address of the SRAM  */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
-					HW_SRAM_ADDR_REG_ADDR,
-					HW_CC_SRAM_BASE_ADDRESS);
+  sep_write_reg(sep_dev, HW_SRAM_ADDR_REG_ADDR,	HW_CC_SRAM_BASE_ADDRESS);
 
   for (counter = 0 ;
 		counter < command_args.message_size_in_words;
@@ -3096,7 +3081,7 @@ static int sep_init_handler(unsigned long arg)
 	get_user(message_word, message_ptr);
 
 	/* write data to SRAM */
-	SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_SRAM_DATA_REG_ADDR,
+	sep_write_reg(sep_dev, HW_SRAM_DATA_REG_ADDR,
 						message_word);
 
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
@@ -3104,19 +3089,18 @@ static int sep_init_handler(unsigned long arg)
 					message_word);
 
 		/* wait for write complete */
-	SEP_WAIT_SRAM_WRITE_COMPLETE();
+	sep_wait_sram_write(sep_dev);
   }
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:--------> sep_init_handler - finished getting messages from user space\n");
 
   /* signal SEP */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_HOST_SEP_GPR0_REG_ADDR,
+  sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR,
 					0x1);
 
   do {
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-			HW_HOST_SEP_HOST_GPR3_REG_ADDR, reg_val);
+        reg_val = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
   } while (!(reg_val & 0xFFFFFFFD));
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
@@ -3127,15 +3111,13 @@ static int sep_init_handler(unsigned long arg)
 	DEBUG_PRINT_0(SEP_DEBUG_LEVEL_EXTENDED,
 		"SEP Driver:init failed\n");
 
-	SEP_READ_REGISTER(sep_dev->reg_base_address + 0x8060, error);
+	error = sep_read_reg(sep_dev, 0x8060);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
 			"SEP Driver:sw monitor is %lu\n",
 			error);
 
 	/* fatal error - read erro status from GPRO */
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-				HW_HOST_SEP_HOST_GPR0_REG_ADDR,
-				error);
+	error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 	DEBUG_PRINT_1(SEP_DEBUG_LEVEL_EXTENDED,
 			"SEP Driver:error is %lu\n", error);
 	goto end_function;
@@ -3307,7 +3289,7 @@ static int sep_end_transaction_handler(unsigned long arg)
 
 #if 0/*!SEP_DRIVER_POLLING_MODE*/
   /* close IMR */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address + HW_HOST_IMR_REG_ADDR, 0x7FFF);
+  sep_write_reg(sep_dev, HW_HOST_IMR_REG_ADDR, 0x7FFF);
 
   /* release IRQ line */
   free_irq(SEP_DIRVER_IRQ_NUM, &sep_dev->reg_base_address);
@@ -3352,9 +3334,7 @@ static void sep_flow_done_handler(struct work_struct		*work)
 	(void *)sep_dev->shared_area_addr,
 	flow_data_ptr->message_size_in_bytes);
 
-	SEP_WRITE_REGISTER(sep_dev->reg_base_address +
-			HW_HOST_HOST_SEP_GPR2_REG_ADDR,
-			0x2);
+	sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR2_REG_ADDR, 0x2);
   }
   mutex_unlock(&sep_mutex);
 }
@@ -3837,33 +3817,26 @@ static void sep_configure_dma_burst(void)
 		"SEP Driver:<-------- sep_configure_dma_burst start \n");
 
   /* request access to registers from SEP */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
-					HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2UL);
+  sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (write reg)  \n");
 
-  SEP_READ_REGISTER(sep_dev->reg_base_address +
-					HW_HOST_SEP_BUSY_REG_ADDR, regVal);
+ regVal = sep_read_reg(sep_dev, HW_HOST_SEP_BUSY_REG_ADDR);
   while (regVal)
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-					HW_HOST_SEP_BUSY_REG_ADDR, regVal);
+	regVal = sep_read_reg(sep_dev, HW_HOST_SEP_BUSY_REG_ADDR);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_configure_dma_burst finished request access to registers from SEP (while(revVal) wait loop)  \n");
 
   /* set the DMA burst register to single burst*/
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
-					HW_AHB_RD_WR_BURSTS_REG_ADDR, 0x0UL);
+  sep_write_reg(sep_dev, HW_AHB_RD_WR_BURSTS_REG_ADDR, 0x0UL);
 
   /* release the sep busy */
-  SEP_WRITE_REGISTER(sep_dev->reg_base_address +
-					HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x0UL);
-  SEP_READ_REGISTER(sep_dev->reg_base_address +
-					HW_HOST_SEP_BUSY_REG_ADDR, regVal);
+  sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x0UL);
+  regVal = sep_read_reg(sep_dev, HW_HOST_SEP_BUSY_REG_ADDR);
   while (regVal != 0x0)
-	SEP_READ_REGISTER(sep_dev->reg_base_address +
-					HW_HOST_SEP_BUSY_REG_ADDR, regVal);
+	  regVal = sep_read_reg(sep_dev, HW_HOST_SEP_BUSY_REG_ADDR);
 
   DEBUG_PRINT_0(SEP_DEBUG_LEVEL_BASIC,
 		"SEP Driver:<-------- sep_configure_dma_burst done  \n");
