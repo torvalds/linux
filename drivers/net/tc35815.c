@@ -594,9 +594,10 @@ static int tc_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	struct net_device *dev = bus->priv;
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
-	unsigned long timeout = jiffies + 10;
+	unsigned long timeout = jiffies + HZ;
 
 	tc_writel(MD_CA_Busy | (mii_id << 5) | (regnum & 0x1f), &tr->MD_CA);
+	udelay(12); /* it takes 32 x 400ns at least */
 	while (tc_readl(&tr->MD_CA) & MD_CA_Busy) {
 		if (time_after(jiffies, timeout))
 			return -EIO;
@@ -610,11 +611,12 @@ static int tc_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 val)
 	struct net_device *dev = bus->priv;
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
-	unsigned long timeout = jiffies + 10;
+	unsigned long timeout = jiffies + HZ;
 
 	tc_writel(val, &tr->MD_Data);
 	tc_writel(MD_CA_Busy | MD_CA_Wr | (mii_id << 5) | (regnum & 0x1f),
 		  &tr->MD_CA);
+	udelay(12); /* it takes 32 x 400ns at least */
 	while (tc_readl(&tr->MD_CA) & MD_CA_Busy) {
 		if (time_after(jiffies, timeout))
 			return -EIO;
