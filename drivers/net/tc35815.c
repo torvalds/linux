@@ -2394,8 +2394,6 @@ static void tc35815_chip_init(struct net_device *dev)
 		tc_writel(DMA_BURST_SIZE, &tr->DMA_Ctl);
 #ifdef TC35815_USE_PACKEDBUFFER
 	tc_writel(RxFrag_EnPack | ETH_ZLEN, &tr->RxFragSize);	/* Packing */
-#else
-	tc_writel(ETH_ZLEN, &tr->RxFragSize);
 #endif
 	tc_writel(0, &tr->TxPollCtr);	/* Batch mode */
 	tc_writel(TX_THRESHOLD, &tr->TxThrsh);
