@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/mtd/physmap.h>
+#include <linux/mtd/onenand.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
@@ -60,6 +61,21 @@ static struct platform_device kfr2r09_nor_flash_device = {
 	.dev		= {
 		.platform_data = &kfr2r09_nor_flash_data,
 	},
+};
+
+static struct resource kfr2r09_nand_flash_resources[] = {
+	[0] = {
+		.name		= "NAND Flash",
+		.start		= 0x10000000,
+		.end		= 0x1001ffff,
+		.flags		= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device kfr2r09_nand_flash_device = {
+	.name		= "onenand-flash",
+	.resource	= kfr2r09_nand_flash_resources,
+	.num_resources	= ARRAY_SIZE(kfr2r09_nand_flash_resources),
 };
 
 static struct sh_keysc_info kfr2r09_sh_keysc_info = {
@@ -161,12 +177,15 @@ static struct platform_device kfr2r09_sh_lcdc_device = {
 
 static struct platform_device *kfr2r09_devices[] __initdata = {
 	&kfr2r09_nor_flash_device,
+	&kfr2r09_nand_flash_device,
 	&kfr2r09_sh_keysc_device,
 	&kfr2r09_sh_lcdc_device,
 };
 
 #define BSC_CS0BCR 0xfec10004
 #define BSC_CS0WCR 0xfec10024
+#define BSC_CS4BCR 0xfec10010
+#define BSC_CS4WCR 0xfec10030
 
 static int __init kfr2r09_devices_setup(void)
 {
@@ -177,6 +196,10 @@ static int __init kfr2r09_devices_setup(void)
 	/* setup NOR flash at CS0 */
 	ctrl_outl(0x36db0400, BSC_CS0BCR);
 	ctrl_outl(0x00000500, BSC_CS0WCR);
+
+	/* setup NAND flash at CS4 */
+	ctrl_outl(0x36db0400, BSC_CS4BCR);
+	ctrl_outl(0x00000500, BSC_CS4WCR);
 
 	/* setup KEYSC pins */
 	gpio_request(GPIO_FN_KEYOUT0, NULL);
