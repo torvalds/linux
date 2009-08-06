@@ -145,6 +145,7 @@ extern void ia64_mca_ucmc_handler(struct pt_regs *, struct ia64_sal_os_state *);
 extern void ia64_init_handler(struct pt_regs *,
 			      struct switch_stack *,
 			      struct ia64_sal_os_state *);
+extern void ia64_os_init_on_kdump(void);
 extern void ia64_monarch_init_handler(void);
 extern void ia64_slave_init_handler(void);
 extern void ia64_mca_cmc_vector_setup(void);
