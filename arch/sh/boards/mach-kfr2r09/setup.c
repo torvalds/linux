@@ -15,11 +15,13 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <video/sh_mobile_lcdc.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
 #include <cpu/sh7724.h>
+#include <mach/kfr2r09.h>
 
 static struct mtd_partition kfr2r09_nor_flash_partitions[] =
 {
@@ -97,9 +99,70 @@ static struct platform_device kfr2r09_sh_keysc_device = {
 	},
 };
 
+static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
+	.clock_source = LCDC_CLK_BUS,
+	.ch[0] = {
+		.chan = LCDC_CHAN_MAINLCD,
+		.bpp = 16,
+		.interface_type = SYS18,
+		.clock_divider = 6,
+		.flags = LCDC_FLAGS_DWPOL,
+		.lcd_cfg = {
+			.name = "TX07D34VM0AAA",
+			.xres = 240,
+			.yres = 400,
+			.left_margin = 0,
+			.right_margin = 16,
+			.hsync_len = 8,
+			.upper_margin = 0,
+			.lower_margin = 1,
+			.vsync_len = 1,
+			.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		},
+		.lcd_size_cfg = {
+			.width = 35,
+			.height = 58,
+		},
+		.board_cfg = {
+			.setup_sys = kfr2r09_lcd_setup,
+			.display_on = kfr2r09_lcd_on,
+			.display_off = kfr2r09_lcd_off,
+		},
+		.sys_bus_cfg = {
+			.ldmt2r = 0x07010904,
+			.ldmt3r = 0x14012914,
+			/* set 1s delay to encourage fsync() */
+			.deferred_io_msec = 1000,
+		},
+	}
+};
+
+static struct resource kfr2r09_sh_lcdc_resources[] = {
+	[0] = {
+		.name	= "LCDC",
+		.start	= 0xfe940000, /* P4-only space */
+		.end	= 0xfe941fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 106,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device kfr2r09_sh_lcdc_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.num_resources	= ARRAY_SIZE(kfr2r09_sh_lcdc_resources),
+	.resource	= kfr2r09_sh_lcdc_resources,
+	.dev	= {
+		.platform_data	= &kfr2r09_sh_lcdc_info,
+	},
+};
+
 static struct platform_device *kfr2r09_devices[] __initdata = {
 	&kfr2r09_nor_flash_device,
 	&kfr2r09_sh_keysc_device,
+	&kfr2r09_sh_lcdc_device,
 };
 
 #define BSC_CS0BCR 0xfec10004
@@ -127,6 +190,37 @@ static int __init kfr2r09_devices_setup(void)
 	gpio_request(GPIO_FN_KEYIN3, NULL);
 	gpio_request(GPIO_FN_KEYIN4, NULL);
 	gpio_request(GPIO_FN_KEYOUT5_IN5, NULL);
+
+	/* setup LCDC pins for SYS panel */
+	gpio_request(GPIO_FN_LCDD17, NULL);
+	gpio_request(GPIO_FN_LCDD16, NULL);
+	gpio_request(GPIO_FN_LCDD15, NULL);
+	gpio_request(GPIO_FN_LCDD14, NULL);
+	gpio_request(GPIO_FN_LCDD13, NULL);
+	gpio_request(GPIO_FN_LCDD12, NULL);
+	gpio_request(GPIO_FN_LCDD11, NULL);
+	gpio_request(GPIO_FN_LCDD10, NULL);
+	gpio_request(GPIO_FN_LCDD9, NULL);
+	gpio_request(GPIO_FN_LCDD8, NULL);
+	gpio_request(GPIO_FN_LCDD7, NULL);
+	gpio_request(GPIO_FN_LCDD6, NULL);
+	gpio_request(GPIO_FN_LCDD5, NULL);
+	gpio_request(GPIO_FN_LCDD4, NULL);
+	gpio_request(GPIO_FN_LCDD3, NULL);
+	gpio_request(GPIO_FN_LCDD2, NULL);
+	gpio_request(GPIO_FN_LCDD1, NULL);
+	gpio_request(GPIO_FN_LCDD0, NULL);
+	gpio_request(GPIO_FN_LCDRS, NULL); /* LCD_RS */
+	gpio_request(GPIO_FN_LCDCS, NULL); /* LCD_CS/ */
+	gpio_request(GPIO_FN_LCDRD, NULL); /* LCD_RD/ */
+	gpio_request(GPIO_FN_LCDWR, NULL); /* LCD_WR/ */
+	gpio_request(GPIO_FN_LCDVSYN, NULL); /* LCD_VSYNC */
+	gpio_request(GPIO_PTE4, NULL); /* LCD_RST/ */
+	gpio_direction_output(GPIO_PTE4, 1);
+	gpio_request(GPIO_PTF4, NULL); /* PROTECT/ */
+	gpio_direction_output(GPIO_PTF4, 1);
+	gpio_request(GPIO_PTU0, NULL); /* LEDSTDBY/ */
+	gpio_direction_output(GPIO_PTU0, 1);
 
 	return platform_add_devices(kfr2r09_devices,
 				    ARRAY_SIZE(kfr2r09_devices));
