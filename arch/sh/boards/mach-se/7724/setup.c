@@ -429,6 +429,32 @@ static int __init devices_setup(void)
 	/* turn on USB clocks, use external clock */
 	ctrl_outw((ctrl_inw(PORT_MSELCRB) & ~0xc000) | 0x8000, PORT_MSELCRB);
 
+#ifdef CONFIG_PM
+	/* Let LED9 show STATUS2 */
+	gpio_request(GPIO_FN_STATUS2, NULL);
+
+	/* Lit LED10 show STATUS0 */
+	gpio_request(GPIO_FN_STATUS0, NULL);
+
+	/* Lit LED11 show PDSTATUS */
+	gpio_request(GPIO_FN_PDSTATUS, NULL);
+#else
+	/* Lit LED9 */
+	gpio_request(GPIO_PTJ6, NULL);
+	gpio_direction_output(GPIO_PTJ6, 1);
+	gpio_export(GPIO_PTJ6, 0);
+
+	/* Lit LED10 */
+	gpio_request(GPIO_PTJ5, NULL);
+	gpio_direction_output(GPIO_PTJ5, 1);
+	gpio_export(GPIO_PTJ5, 0);
+
+	/* Lit LED11 */
+	gpio_request(GPIO_PTJ7, NULL);
+	gpio_direction_output(GPIO_PTJ7, 1);
+	gpio_export(GPIO_PTJ7, 0);
+#endif
+
 	/* enable USB0 port */
 	ctrl_outw(0x0600, 0xa40501d4);
 
