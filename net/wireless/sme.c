@@ -570,10 +570,30 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	wdev->ssid_len = 0;
 
 	if (wdev->conn) {
+		const u8 *bssid;
+		int ret;
+
 		kfree(wdev->conn->ie);
 		wdev->conn->ie = NULL;
 		kfree(wdev->conn);
 		wdev->conn = NULL;
+
+		/*
+		 * If this disconnect was due to a disassoc, we
+		 * we might still have an auth BSS around. For
+		 * the userspace SME that's currently expected,
+		 * but for the kernel SME (nl80211 CONNECT or
+		 * wireless extensions) we want to clear up all
+		 * state.
+		 */
+		for (i = 0; i < MAX_AUTH_BSSES; i++) {
+			if (!wdev->auth_bsses[i])
+				continue;
+			bssid = wdev->auth_bsses[i]->pub.bssid;
+			ret = __cfg80211_mlme_deauth(rdev, dev, bssid, NULL, 0,
+						WLAN_REASON_DEAUTH_LEAVING);
+			WARN(ret, "deauth failed: %d\n", ret);
+		}
 	}
 
 	nl80211_send_disconnected(rdev, dev, reason, ie, ie_len, from_ap);
