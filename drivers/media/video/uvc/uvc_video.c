@@ -781,10 +781,15 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 
 		if (i == UVC_URBS) {
 			stream->urb_size = psize * npackets;
+			uvc_trace(UVC_TRACE_VIDEO, "Allocated %u URB buffers "
+				"of %ux%u bytes each.\n", UVC_URBS, npackets,
+				psize);
 			return npackets;
 		}
 	}
 
+	uvc_trace(UVC_TRACE_VIDEO, "Failed to allocate URB buffers (%u bytes "
+		"per packet).\n", psize);
 	return 0;
 }
 
@@ -935,10 +940,12 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 		bandwidth = stream->ctrl.dwMaxPayloadTransferSize;
 
 		if (bandwidth == 0) {
-			uvc_printk(KERN_WARNING, "device %s requested null "
-				"bandwidth, defaulting to lowest.\n",
-				stream->dev->name);
+			uvc_trace(UVC_TRACE_VIDEO, "Device requested null "
+				"bandwidth, defaulting to lowest.\n");
 			bandwidth = 1;
+		} else {
+			uvc_trace(UVC_TRACE_VIDEO, "Device requested %u "
+				"B/frame bandwidth.\n", bandwidth);
 		}
 
 		for (i = 0; i < intf->num_altsetting; ++i) {
@@ -955,8 +962,11 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 				break;
 		}
 
-		if (i >= intf->num_altsetting)
+		if (i >= intf->num_altsetting) {
+			uvc_trace(UVC_TRACE_VIDEO, "No fast enough alt setting "
+				"for requested bandwidth.\n");
 			return -EIO;
+		}
 
 		ret = usb_set_interface(stream->dev->udev, intfnum, i);
 		if (ret < 0)
