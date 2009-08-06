@@ -1,6 +1,7 @@
 config DX_SEP
 	tristate "Discretix SEP driver"
-	depends on MRST
+#	depends on MRST
+	depends on RAR_REGISTER
 	default y
 	help
 	  Discretix SEP driver
