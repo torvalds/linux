@@ -177,7 +177,7 @@ static unsigned long lcdc_sys_read_data(void *handle)
 	udelay(1);
 	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
 
-	return lcdc_read(ch->lcdc, _LDDRDR) & 0xffff;
+	return lcdc_read(ch->lcdc, _LDDRDR) & 0x3ffff;
 }
 
 struct sh_mobile_lcdc_sys_bus_ops sh_mobile_lcdc_sys_bus_ops = {
