@@ -1505,7 +1505,6 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 			}
 
 			set_bit(num, iommu->domain_ids);
-			set_bit(iommu->seq_id, &domain->iommu_bmp);
 			iommu->domains[num] = domain;
 			id = num;
 		}
@@ -3409,6 +3408,7 @@ static int md_domain_init(struct dmar_domain *domain, int guest_width)
 
 	domain->iommu_count = 0;
 	domain->iommu_coherency = 0;
+	domain->iommu_snooping = 0;
 	domain->max_addr = 0;
 
 	/* always allocate the top pgd */
