@@ -2139,7 +2139,7 @@ static struct net_device_stats *tc35815_get_stats(struct net_device *dev)
 		(struct tc35815_regs __iomem *)dev->base_addr;
 	if (netif_running(dev))
 		/* Update the statistics from the device registers. */
-		dev->stats.rx_missed_errors = tc_readl(&tr->Miss_Cnt);
+		dev->stats.rx_missed_errors += tc_readl(&tr->Miss_Cnt);
 
 	return &dev->stats;
 }
