@@ -149,7 +149,7 @@ static void __cfg80211_send_deauth(struct net_device *dev,
 
 		reason_code = le16_to_cpu(mgmt->u.deauth.reason_code);
 
-		from_ap = memcmp(mgmt->da, dev->dev_addr, ETH_ALEN) == 0;
+		from_ap = memcmp(mgmt->sa, dev->dev_addr, ETH_ALEN) != 0;
 		__cfg80211_disconnected(dev, NULL, 0, reason_code, from_ap);
 	} else if (wdev->sme_state == CFG80211_SME_CONNECTING) {
 		__cfg80211_connect_result(dev, mgmt->bssid, NULL, 0, NULL, 0,
@@ -215,7 +215,7 @@ static void __cfg80211_send_disassoc(struct net_device *dev,
 
 	reason_code = le16_to_cpu(mgmt->u.disassoc.reason_code);
 
-	from_ap = memcmp(mgmt->da, dev->dev_addr, ETH_ALEN) == 0;
+	from_ap = memcmp(mgmt->sa, dev->dev_addr, ETH_ALEN) != 0;
 	__cfg80211_disconnected(dev, NULL, 0, reason_code, from_ap);
 }
 
