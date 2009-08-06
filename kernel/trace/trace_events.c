@@ -908,32 +908,6 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 	return system->entry;
 }
 
-static void remove_subsystem_dir(const char *name)
-{
-	struct event_subsystem *system;
-
-	if (strcmp(name, TRACE_SYSTEM) == 0)
-		return;
-
-	list_for_each_entry(system, &event_subsystems, list) {
-		if (strcmp(system->name, name) == 0) {
-			if (!--system->nr_events) {
-				struct event_filter *filter = system->filter;
-
-				debugfs_remove_recursive(system->entry);
-				list_del(&system->list);
-				if (filter) {
-					kfree(filter->filter_string);
-					kfree(filter);
-				}
-				kfree(system->name);
-				kfree(system);
-			}
-			break;
-		}
-	}
-}
-
 static int
 event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		 const struct file_operations *id,
@@ -1017,6 +991,32 @@ struct ftrace_module_file_ops {
 	struct file_operations		format;
 	struct file_operations		filter;
 };
+
+static void remove_subsystem_dir(const char *name)
+{
+	struct event_subsystem *system;
+
+	if (strcmp(name, TRACE_SYSTEM) == 0)
+		return;
+
+	list_for_each_entry(system, &event_subsystems, list) {
+		if (strcmp(system->name, name) == 0) {
+			if (!--system->nr_events) {
+				struct event_filter *filter = system->filter;
+
+				debugfs_remove_recursive(system->entry);
+				list_del(&system->list);
+				if (filter) {
+					kfree(filter->filter_string);
+					kfree(filter);
+				}
+				kfree(system->name);
+				kfree(system);
+			}
+			break;
+		}
+	}
+}
 
 static struct ftrace_module_file_ops *
 trace_create_file_ops(struct module *mod)
