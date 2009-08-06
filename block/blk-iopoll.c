@@ -24,9 +24,9 @@ static DEFINE_PER_CPU(struct list_head, blk_cpu_iopoll);
  * @iop:      The parent iopoll structure
  *
  * Description:
- *     Add this blk_iopoll structure to the pending poll list and trigger the raise
- *     of the blk iopoll softirq. The driver must already have gotten a succesful
- *     return from blk_iopoll_sched_prep() before calling this.
+ *     Add this blk_iopoll structure to the pending poll list and trigger the
+ *     raise of the blk iopoll softirq. The driver must already have gotten a
+ *     succesful return from blk_iopoll_sched_prep() before calling this.
  **/
 void blk_iopoll_sched(struct blk_iopoll *iop)
 {
@@ -44,7 +44,8 @@ EXPORT_SYMBOL(blk_iopoll_sched);
  * @iop:      The parent iopoll structure
  *
  * Description:
- *     See blk_iopoll_complete(). This function must be called with interrupts disabled.
+ *     See blk_iopoll_complete(). This function must be called with interrupts
+ *     disabled.
  **/
 void __blk_iopoll_complete(struct blk_iopoll *iop)
 {
@@ -59,9 +60,10 @@ EXPORT_SYMBOL(__blk_iopoll_complete);
  * @iop:      The parent iopoll structure
  *
  * Description:
- *     If a driver consumes less than the assigned budget in its run of the iopoll
- *     handler, it'll end the polled mode by calling this function. The iopoll handler
- *     will not be invoked again before blk_iopoll_sched_prep() is called.
+ *     If a driver consumes less than the assigned budget in its run of the
+ *     iopoll handler, it'll end the polled mode by calling this function. The
+ *     iopoll handler will not be invoked again before blk_iopoll_sched_prep()
+ *     is called.
  **/
 void blk_iopoll_complete(struct blk_iopoll *iopoll)
 {
@@ -151,13 +153,13 @@ EXPORT_SYMBOL(blk_iopoll_disable);
  * @iop:      The parent iopoll structure
  *
  * Description:
- *     Enable iopoll on this @iop. Note that the handler run will not be scheduled, it
- *     will only mark it as active.
+ *     Enable iopoll on this @iop. Note that the handler run will not be
+ *     scheduled, it will only mark it as active.
  **/
 void blk_iopoll_enable(struct blk_iopoll *iop)
 {
 	BUG_ON(!test_bit(IOPOLL_F_SCHED, &iop->state));
-        smp_mb__before_clear_bit();
+	smp_mb__before_clear_bit();
 	clear_bit_unlock(IOPOLL_F_SCHED, &iop->state);
 }
 EXPORT_SYMBOL(blk_iopoll_enable);
@@ -169,8 +171,8 @@ EXPORT_SYMBOL(blk_iopoll_enable);
  * @poll_fn:  The handler to invoke
  *
  * Description:
- *     Initialize this blk_iopoll structure. Before being actively used, the driver
- *     must call blk_iopoll_enable().
+ *     Initialize this blk_iopoll structure. Before being actively used, the
+ *     driver must call blk_iopoll_enable().
  **/
 void blk_iopoll_init(struct blk_iopoll *iop, int weight, blk_iopoll_fn *poll_fn)
 {
