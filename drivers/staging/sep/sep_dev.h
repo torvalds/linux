@@ -66,15 +66,15 @@ struct sep_device {
 	/* counter for the messages from sep */
 	unsigned long sep_to_host_reply_counter;
 	/* counter for the number of bytes allocated in the pool for the current
-	transaction */
+	   transaction */
 	unsigned long data_pool_bytes_allocated;
 
 	/* array of pointers to the pages that represent input data for the synchronic
-	DMA action */
+	   DMA action */
 	struct page **in_page_array;
 
 	/* array of pointers to the pages that represent out data for the synchronic
-	DMA action */
+	   DMA action */
 	struct page **out_page_array;
 
 	/* number of pages in the sep_in_page_array */
@@ -121,9 +121,8 @@ static inline void sep_wait_sram_write(struct sep_device *dev)
 	u32 reg_val;
 	do
 		reg_val = sep_read_reg(dev, HW_SRAM_DATA_READY_REG_ADDR);
-	while(!(reg_val & 1));
+	while (!(reg_val & 1));
 }
 
 
 #endif
-

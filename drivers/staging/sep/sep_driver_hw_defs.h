@@ -229,4 +229,4 @@
 #define 	 HW_CLR_SRAM_BUSY_REG_REG_ADDR 	      0x0F0CUL
 #define    HW_CC_SRAM_BASE_ADDRESS              0x5800UL
 
-#endif /* ifndef HW_DEFS */
+#endif				/* ifndef HW_DEFS */

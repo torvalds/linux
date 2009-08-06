@@ -106,11 +106,11 @@
   init command struct
 */
 struct sep_driver_init_t {
-  /* start of the 1G of the host memory address that SEP can access */
-  unsigned long   message_addr;
+	/* start of the 1G of the host memory address that SEP can access */
+	unsigned long message_addr;
 
-  /* start address of resident */
-  unsigned long   message_size_in_words;
+	/* start address of resident */
+	unsigned long message_size_in_words;
 
 };
 
@@ -119,168 +119,168 @@ struct sep_driver_init_t {
   realloc cache resident command
 */
 struct sep_driver_realloc_cache_resident_t {
-  /* base address */
-  unsigned long   base_addr;
+	/* base address */
+	unsigned long base_addr;
 
-  /* current cache address */
-  unsigned long   cache_addr;
+	/* current cache address */
+	unsigned long cache_addr;
 
-  /* cache size in bytes*/
-  unsigned long   cache_size_in_bytes;
+	/* cache size in bytes */
+	unsigned long cache_size_in_bytes;
 
-  /* current resident address */
-  unsigned long   resident_addr;
+	/* current resident address */
+	unsigned long resident_addr;
 
-  /* resident size in bytes*/
-  unsigned long   resident_size_in_bytes;
+	/* resident size in bytes */
+	unsigned long resident_size_in_bytes;
 
-  /* new cache address */
-  unsigned long   new_cache_addr;
+	/* new cache address */
+	unsigned long new_cache_addr;
 
-  /* new resident address */
-  unsigned long   new_resident_addr;
+	/* new resident address */
+	unsigned long new_resident_addr;
 
-  /* new resident address */
-  unsigned long   new_shared_area_addr;
+	/* new resident address */
+	unsigned long new_shared_area_addr;
 
-  /* new base address */
-  unsigned long   new_base_addr;
+	/* new base address */
+	unsigned long new_base_addr;
 };
 
 /*
   set api mode command struct
 */
 struct sep_driver_set_api_mode_t {
-  /* mode to set - 1 - blocking, 0 - non-blocking */
-  unsigned long   mode;
+	/* mode to set - 1 - blocking, 0 - non-blocking */
+	unsigned long mode;
 };
 
 struct sep_driver_alloc_t {
-  /* virtual address of allocated space */
-  unsigned long offset;
+	/* virtual address of allocated space */
+	unsigned long offset;
 
-  /* physical address of allocated space */
-  unsigned long phys_address;
+	/* physical address of allocated space */
+	unsigned long phys_address;
 
-  /* number of bytes to allocate */
-  unsigned long num_bytes;
+	/* number of bytes to allocate */
+	unsigned long num_bytes;
 };
 
 /*
  */
 struct sep_driver_write_t {
-  /* application space address */
-  unsigned long app_address;
+	/* application space address */
+	unsigned long app_address;
 
-  /* address of the data pool */
-  unsigned long datapool_address;
+	/* address of the data pool */
+	unsigned long datapool_address;
 
-  /* number of bytes to write */
-  unsigned long num_bytes;
+	/* number of bytes to write */
+	unsigned long num_bytes;
 };
 
 /*
  */
 struct sep_driver_read_t {
-  /* application space address */
-  unsigned long app_address;
+	/* application space address */
+	unsigned long app_address;
 
-  /* address of the data pool */
-  unsigned long datapool_address;
+	/* address of the data pool */
+	unsigned long datapool_address;
 
-  /* number of bytes to read */
-  unsigned long num_bytes;
+	/* number of bytes to read */
+	unsigned long num_bytes;
 };
 
 /*
 */
 struct sep_driver_build_sync_table_t {
-  /* address value of the data in */
-  unsigned long  app_in_address;
+	/* address value of the data in */
+	unsigned long app_in_address;
 
-  /* size of data in */
-  unsigned long  data_in_size;
+	/* size of data in */
+	unsigned long data_in_size;
 
-  /* address of the data out */
-  unsigned long  app_out_address;
+	/* address of the data out */
+	unsigned long app_out_address;
 
-  /* the size of the block of the operation - if needed,
-  every table will be modulo this parameter */
-  unsigned long  block_size;
+	/* the size of the block of the operation - if needed,
+	   every table will be modulo this parameter */
+	unsigned long block_size;
 
-  /* the physical address of the first input DMA table */
-  unsigned long  in_table_address;
+	/* the physical address of the first input DMA table */
+	unsigned long in_table_address;
 
-  /* number of entries in the first input DMA table */
-  unsigned long  in_table_num_entries;
+	/* number of entries in the first input DMA table */
+	unsigned long in_table_num_entries;
 
-  /* the physical address of the first output DMA table */
-  unsigned long  out_table_address;
+	/* the physical address of the first output DMA table */
+	unsigned long out_table_address;
 
-  /* number of entries in the first output DMA table */
-  unsigned long  out_table_num_entries;
+	/* number of entries in the first output DMA table */
+	unsigned long out_table_num_entries;
 
-  /* data in the first input table */
-  unsigned long  table_data_size;
+	/* data in the first input table */
+	unsigned long table_data_size;
 
-  /* distinct user/kernel layout */
-  bool isKernelVirtualAddress;
+	/* distinct user/kernel layout */
+	bool isKernelVirtualAddress;
 
 };
 
 /*
 */
 struct sep_driver_build_flow_table_t {
-  /* flow type */
-  unsigned long  flow_type;
+	/* flow type */
+	unsigned long flow_type;
 
-  /* flag for input output */
-  unsigned long  input_output_flag;
+	/* flag for input output */
+	unsigned long input_output_flag;
 
-  /* address value of the data in */
-  unsigned long  virt_buff_data_addr;
+	/* address value of the data in */
+	unsigned long virt_buff_data_addr;
 
-  /* size of data in */
-  unsigned long  num_virtual_buffers;
+	/* size of data in */
+	unsigned long num_virtual_buffers;
 
-  /* the physical address of the first input DMA table */
-  unsigned long  first_table_addr;
+	/* the physical address of the first input DMA table */
+	unsigned long first_table_addr;
 
-  /* number of entries in the first input DMA table */
-  unsigned long  first_table_num_entries;
+	/* number of entries in the first input DMA table */
+	unsigned long first_table_num_entries;
 
-  /* data in the first input table */
-  unsigned long  first_table_data_size;
+	/* data in the first input table */
+	unsigned long first_table_data_size;
 
-  /* distinct user/kernel layout */
-  bool isKernelVirtualAddress;
+	/* distinct user/kernel layout */
+	bool isKernelVirtualAddress;
 };
 
 
 struct sep_driver_add_flow_table_t {
-  /* flow id  */
-  unsigned long  flow_id;
+	/* flow id  */
+	unsigned long flow_id;
 
-  /* flag for input output */
-  unsigned long  inputOutputFlag;
+	/* flag for input output */
+	unsigned long inputOutputFlag;
 
-  /* address value of the data in */
-  unsigned long  virt_buff_data_addr;
+	/* address value of the data in */
+	unsigned long virt_buff_data_addr;
 
-  /* size of data in */
-  unsigned long  num_virtual_buffers;
+	/* size of data in */
+	unsigned long num_virtual_buffers;
 
-  /* address of the first table */
-  unsigned long  first_table_addr;
+	/* address of the first table */
+	unsigned long first_table_addr;
 
-  /* number of entries in the first table */
-  unsigned long  first_table_num_entries;
+	/* number of entries in the first table */
+	unsigned long first_table_num_entries;
 
-  /* data size of the first table */
-  unsigned long  first_table_data_size;
+	/* data size of the first table */
+	unsigned long first_table_data_size;
 
-  /* distinct user/kernel layout */
-  bool isKernelVirtualAddress;
+	/* distinct user/kernel layout */
+	bool isKernelVirtualAddress;
 
 };
 
@@ -288,49 +288,49 @@ struct sep_driver_add_flow_table_t {
   command struct for set flow id
 */
 struct sep_driver_set_flow_id_t {
-  /* flow id to set */
-  unsigned long  flow_id;
+	/* flow id to set */
+	unsigned long flow_id;
 };
 
 
 /* command struct for add tables message */
 struct sep_driver_add_message_t {
-  /* flow id to set */
-  unsigned long   flow_id;
+	/* flow id to set */
+	unsigned long flow_id;
 
-  /* message size in bytes */
-  unsigned long   message_size_in_bytes;
+	/* message size in bytes */
+	unsigned long message_size_in_bytes;
 
-  /* address of the message */
-  unsigned long   message_address;
+	/* address of the message */
+	unsigned long message_address;
 };
 
 /* command struct for static pool addresses  */
 struct sep_driver_static_pool_addr_t {
-  /* physical address of the static pool */
-  unsigned long   physical_static_address;
+	/* physical address of the static pool */
+	unsigned long physical_static_address;
 
-  /* virtual address of the static pool */
-  unsigned long   virtual_static_address;
+	/* virtual address of the static pool */
+	unsigned long virtual_static_address;
 };
 
 /* command struct for getiing offset of the physical address from
 	the start of the mapped area  */
 struct sep_driver_get_mapped_offset_t {
-  /* physical address of the static pool */
-  unsigned long   physical_address;
+	/* physical address of the static pool */
+	unsigned long physical_address;
 
-  /* virtual address of the static pool */
-  unsigned long   offset;
+	/* virtual address of the static pool */
+	unsigned long offset;
 };
 
 /* command struct for getting time value and address */
 struct sep_driver_get_time_t {
-  /* physical address of stored time */
-  unsigned long   time_physical_address;
+	/* physical address of stored time */
+	unsigned long time_physical_address;
 
-  /* value of the stored time */
-  unsigned long   time_value;
+	/* value of the stored time */
+	unsigned long time_value;
 };
 
 
@@ -338,34 +338,34 @@ struct sep_driver_get_time_t {
   structure that represent one entry in the DMA LLI table
 */
 struct sep_lli_entry_t {
-  /* physical address */
-  unsigned long  physical_address;
+	/* physical address */
+	unsigned long physical_address;
 
-  /* block size */
-  unsigned long  block_size;
+	/* block size */
+	unsigned long block_size;
 };
 
 /*
   structure that reperesents data needed for lli table construction
 */
 struct sep_lli_prepare_table_data_t {
-  /* pointer to the memory where the first lli entry to be built */
-  struct sep_lli_entry_t  *lli_entry_ptr;
+	/* pointer to the memory where the first lli entry to be built */
+	struct sep_lli_entry_t *lli_entry_ptr;
 
-  /* pointer to the array of lli entries from which the table is to be built */
-  struct sep_lli_entry_t  *lli_array_ptr;
+	/* pointer to the array of lli entries from which the table is to be built */
+	struct sep_lli_entry_t *lli_array_ptr;
 
-  /* number of elements in lli array */
-  int               lli_array_size;
+	/* number of elements in lli array */
+	int lli_array_size;
 
-  /* number of entries in the created table */
-  int               num_table_entries;
+	/* number of entries in the created table */
+	int num_table_entries;
 
-  /* number of array entries processed during table creation */
-  int               num_array_entries_processed;
+	/* number of array entries processed during table creation */
+	int num_array_entries_processed;
 
-  /* the totatl data size in the created table */
-  int               lli_table_total_data_size;
+	/* the totatl data size in the created table */
+	int lli_table_total_data_size;
 };
 
 /*
@@ -373,19 +373,19 @@ struct sep_lli_prepare_table_data_t {
   to show what table looks like
 */
 struct sep_lli_table_t {
-  /* number of pages mapped in this tables. If 0 - means that the table
-  is not defined (used as a valid flag)*/
-  unsigned long num_pages;
-  /*
-    pointer to array of page pointers that represent the mapping of the
-    virtual buffer defined by the table to the physical memory. If this
-    pointer is NULL, it means that the table is not defined
-    (used as a valid flag)
-  */
-  struct page  **table_page_array_ptr;
+	/* number of pages mapped in this tables. If 0 - means that the table
+	   is not defined (used as a valid flag) */
+	unsigned long num_pages;
+	/*
+	   pointer to array of page pointers that represent the mapping of the
+	   virtual buffer defined by the table to the physical memory. If this
+	   pointer is NULL, it means that the table is not defined
+	   (used as a valid flag)
+	 */
+	struct page **table_page_array_ptr;
 
-  /* maximum flow entries in table */
-  struct sep_lli_entry_t lli_entries[SEP_DRIVER_MAX_FLOW_NUM_ENTRIES_IN_TABLE];
+	/* maximum flow entries in table */
+	struct sep_lli_entry_t lli_entries[SEP_DRIVER_MAX_FLOW_NUM_ENTRIES_IN_TABLE];
 };
 
 
@@ -393,61 +393,61 @@ struct sep_lli_table_t {
   structure for keeping the mapping of the virtual buffer into physical pages
 */
 struct sep_flow_buffer_data {
-  /* pointer to the array of page structs pointers to the pages of the
-	virtual buffer */
-  struct page   **page_array_ptr;
+	/* pointer to the array of page structs pointers to the pages of the
+	   virtual buffer */
+	struct page **page_array_ptr;
 
-  /* number of pages taken by the virtual buffer */
-  unsigned long   num_pages;
+	/* number of pages taken by the virtual buffer */
+	unsigned long num_pages;
 
-  /* this flag signals if this page_array is the last one among many that were
-	sent in one setting to SEP */
-  unsigned long   last_page_array_flag;
+	/* this flag signals if this page_array is the last one among many that were
+	   sent in one setting to SEP */
+	unsigned long last_page_array_flag;
 };
 
 /*
   struct that keeps all the data for one flow
 */
 struct sep_flow_context_t {
-  /*
-	work struct for handling the flow done interrupt in the workqueue
-	this structure must be in the first place, since it will be used
-	forcasting to the containing flow context
-  */
-  struct work_struct      flow_wq;
+	/*
+	   work struct for handling the flow done interrupt in the workqueue
+	   this structure must be in the first place, since it will be used
+	   forcasting to the containing flow context
+	 */
+	struct work_struct flow_wq;
 
-  /* flow id */
-  unsigned long           flow_id;
+	/* flow id */
+	unsigned long flow_id;
 
-  /* additional input tables exists */
-  unsigned long           input_tables_flag;
+	/* additional input tables exists */
+	unsigned long input_tables_flag;
 
-  /* additional output tables exists */
-  unsigned long           output_tables_flag;
+	/* additional output tables exists */
+	unsigned long output_tables_flag;
 
-  /*  data of the first input file */
-  struct sep_lli_entry_t         first_input_table;
+	/*  data of the first input file */
+	struct sep_lli_entry_t first_input_table;
 
-  /* data of the first output table */
-  struct sep_lli_entry_t         first_output_table;
+	/* data of the first output table */
+	struct sep_lli_entry_t first_output_table;
 
-  /* last input table data */
-  struct sep_lli_entry_t         last_input_table;
+	/* last input table data */
+	struct sep_lli_entry_t last_input_table;
 
-  /* last output table data */
-  struct sep_lli_entry_t         last_output_table;
+	/* last output table data */
+	struct sep_lli_entry_t last_output_table;
 
-  /* first list of table */
-  struct sep_lli_entry_t         input_tables_in_process;
+	/* first list of table */
+	struct sep_lli_entry_t input_tables_in_process;
 
-  /* output table in process (in sep) */
-  struct sep_lli_entry_t         output_tables_in_process;
+	/* output table in process (in sep) */
+	struct sep_lli_entry_t output_tables_in_process;
 
-  /* size of messages in bytes */
-  unsigned long           message_size_in_bytes;
+	/* size of messages in bytes */
+	unsigned long message_size_in_bytes;
 
-  /* message */
-  unsigned char           message[SEP_MAX_ADD_MESSAGE_LENGTH_IN_BYTES];
+	/* message */
+	unsigned char message[SEP_MAX_ADD_MESSAGE_LENGTH_IN_BYTES];
 };
 
 
@@ -478,54 +478,35 @@ void sep_send_msg_rdy_cmd(void);
 	This function releases all the application virtual
 	buffer physical pages, that were previously locked
 */
-int sep_free_dma_pages(struct page **page_array_ptr,
-			unsigned long num_pages,
-			unsigned long dirtyFlag);
+int sep_free_dma_pages(struct page **page_array_ptr, unsigned long num_pages, unsigned long dirtyFlag);
 
 /*
 	This function creates the input and output dma tables for
 	symmetric operations (AES/DES) according to the block size
 	from LLI arays
 */
-int sep_construct_dma_tables_from_lli(
-					struct sep_lli_entry_t *lli_in_array,
-					unsigned long     sep_in_lli_entries,
-					struct sep_lli_entry_t *lli_out_array,
-					unsigned long     sep_out_lli_entries,
-					unsigned long     block_size,
-					unsigned long    *lli_table_in_ptr,
-					unsigned long    *lli_table_out_ptr,
-					unsigned long    *in_num_entries_ptr,
-					unsigned long    *out_num_entries_ptr,
-					unsigned long    *table_data_size_ptr);
+int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
+				      unsigned long sep_in_lli_entries,
+				      struct sep_lli_entry_t *lli_out_array,
+				      unsigned long sep_out_lli_entries,
+				      unsigned long block_size, unsigned long *lli_table_in_ptr, unsigned long *lli_table_out_ptr, unsigned long *in_num_entries_ptr, unsigned long *out_num_entries_ptr, unsigned long *table_data_size_ptr);
 
 /*
 	This function builds input and output DMA tables for synhronic symmetric
 	operations (AES, DES) It also checks that each table is of the modular
 	block size
 */
-int sep_prepare_input_output_dma_table(unsigned long   app_virt_in_addr,
-				unsigned long   app_virt_out_addr,
-				unsigned long   data_size,
-				unsigned long   block_size,
-				unsigned long  *lli_table_in_ptr,
-				unsigned long  *lli_table_out_ptr,
-				unsigned long  *in_num_entries_ptr,
-				unsigned long  *out_num_entries_ptr,
-				unsigned long  *table_data_size_ptr,
-				bool            isKernelVirtualAddress);
+int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
+				       unsigned long app_virt_out_addr,
+				       unsigned long data_size,
+				       unsigned long block_size,
+				       unsigned long *lli_table_in_ptr, unsigned long *lli_table_out_ptr, unsigned long *in_num_entries_ptr, unsigned long *out_num_entries_ptr, unsigned long *table_data_size_ptr, bool isKernelVirtualAddress);
 
 /*
 	This function prepares only input DMA table for synhronic symmetric
 	operations (HASH)
 */
-int sep_prepare_input_dma_table(unsigned long   app_virt_addr,
-				unsigned long   data_size,
-				unsigned long   block_size,
-				unsigned long  *lli_table_ptr,
-				unsigned long  *num_entries_ptr,
-				unsigned long  *table_data_size_ptr,
-				bool            isKernelVirtualAddress);
+int sep_prepare_input_dma_table(unsigned long app_virt_addr, unsigned long data_size, unsigned long block_size, unsigned long *lli_table_ptr, unsigned long *num_entries_ptr, unsigned long *table_data_size_ptr, bool isKernelVirtualAddress);
 
 /* this functions frees all the resources that were allocated for the building
 	of the LLI DMA tables */

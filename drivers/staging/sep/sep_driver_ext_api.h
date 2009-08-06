@@ -51,12 +51,7 @@ This functions copies the cache and resident from their source location into
 destination memory, which is external to Linux VM and is given as physical
 address
 */
-int sep_copy_cache_resident_to_area(unsigned long   src_cache_addr,
-				unsigned long   cache_size_in_bytes,
-				unsigned long   src_resident_addr,
-				unsigned long   resident_size_in_bytes,
-				unsigned long  *dst_new_cache_addr_ptr,
-				unsigned long  *dst_new_resident_addr_ptr);
+int sep_copy_cache_resident_to_area(unsigned long src_cache_addr, unsigned long cache_size_in_bytes, unsigned long src_resident_addr, unsigned long resident_size_in_bytes, unsigned long *dst_new_cache_addr_ptr, unsigned long *dst_new_resident_addr_ptr);
 
 /*
 This functions maps and allocates the shared area on the external
@@ -65,9 +60,7 @@ to allocate. The outputs are kernel_shared_area_addr_ptr - the kerenl
 address of the mapped and allocated shared area, and
 phys_shared_area_addr_ptr - the physical address of the shared area
 */
-int sep_map_and_alloc_shared_area(unsigned long   shared_area_size,
-				unsigned long  *kernel_shared_area_addr_ptr,
-				unsigned long  *phys_shared_area_addr_ptr);
+int sep_map_and_alloc_shared_area(unsigned long shared_area_size, unsigned long *kernel_shared_area_addr_ptr, unsigned long *phys_shared_area_addr_ptr);
 
 /*
 This functions unmaps and deallocates the shared area on the  external
@@ -76,9 +69,7 @@ deallocate,kernel_shared_area_addr_ptr - the kernel address of the
 mapped and allocated shared area,phys_shared_area_addr_ptr - the physical
 address of the shared area
 */
-void sep_unmap_and_free_shared_area(unsigned long   shared_area_size,
-				unsigned long   kernel_shared_area_addr,
-				unsigned long   phys_shared_area_addr);
+void sep_unmap_and_free_shared_area(unsigned long shared_area_size, unsigned long kernel_shared_area_addr, unsigned long phys_shared_area_addr);
 
 
 /*
