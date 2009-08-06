@@ -31,6 +31,13 @@ config LCD_CORGI
 	  Say y here to support the LCD panels usually found on SHARP
 	  corgi (C7x0) and spitz (Cxx00) models.
 
+config LCD_LMS283GF05
+	tristate "Samsung LMS283GF05 LCD"
+	depends on LCD_CLASS_DEVICE && SPI_MASTER && GENERIC_GPIO
+	help
+	  SPI driver for Samsung LMS283GF05. This provides basic support
+	  for powering the LCD up/down through a sysfs interface.
+
 config LCD_LTV350QV
 	tristate "Samsung LTV350QV LCD Panel"
 	depends on LCD_CLASS_DEVICE && SPI_MASTER
