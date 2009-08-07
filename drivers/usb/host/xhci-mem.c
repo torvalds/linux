@@ -401,15 +401,28 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	/* Step 5 */
 	ep0_ctx->ep_info2 = EP_TYPE(CTRL_EP);
 	/*
-	 * See section 4.3 bullet 6:
-	 * The default Max Packet size for ep0 is "8 bytes for a USB2
-	 * LS/FS/HS device or 512 bytes for a USB3 SS device"
 	 * XXX: Not sure about wireless USB devices.
 	 */
-	if (udev->speed == USB_SPEED_SUPER)
+	switch (udev->speed) {
+	case USB_SPEED_SUPER:
 		ep0_ctx->ep_info2 |= MAX_PACKET(512);
-	else
+		break;
+	case USB_SPEED_HIGH:
+	/* USB core guesses at a 64-byte max packet first for FS devices */
+	case USB_SPEED_FULL:
+		ep0_ctx->ep_info2 |= MAX_PACKET(64);
+		break;
+	case USB_SPEED_LOW:
 		ep0_ctx->ep_info2 |= MAX_PACKET(8);
+		break;
+	case USB_SPEED_VARIABLE:
+		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
+		return -EINVAL;
+		break;
+	default:
+		/* New speed? */
+		BUG();
+	}
 	/* EP 0 can handle "burst" sizes of 1, so Max Burst Size field is 0 */
 	ep0_ctx->ep_info2 |= MAX_BURST(0);
 	ep0_ctx->ep_info2 |= ERROR_COUNT(3);
