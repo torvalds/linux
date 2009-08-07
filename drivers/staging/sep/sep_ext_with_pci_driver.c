@@ -171,25 +171,6 @@ unsigned long jiffies_future;
 --------------------------------*/
 
 /*
-  function that is activated on the succesfull probe of the SEP device
-*/
-static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
-
-static struct pci_device_id sep_pci_id_tbl[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080c)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, sep_pci_id_tbl);
-
-/* field for registering driver to PCI device */
-static struct pci_driver sep_pci_driver = {
-	.name = "sep_sec_driver",
-	.id_table = sep_pci_id_tbl,
-	.probe = sep_probe
-};
-
-/*
   This functions locks the area of the resisnd and cache sep code
 */
 void sep_lock_cache_resident_area(void)
@@ -453,6 +434,20 @@ end_function:
 	return error;
 }
 
+static struct pci_device_id sep_pci_id_tbl[] = {
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080c)},
+	{0}
+};
+
+MODULE_DEVICE_TABLE(pci, sep_pci_id_tbl);
+
+/* field for registering driver to PCI device */
+static struct pci_driver sep_pci_driver = {
+	.name = "sep_sec_driver",
+	.id_table = sep_pci_id_tbl,
+	.probe = sep_probe
+};
+
 /*
   this function registers th driver to
   the device subsystem( either PCI, USB, etc)
@@ -461,6 +456,5 @@ int sep_register_driver_to_device(void)
 {
 	return pci_register_driver(&sep_pci_driver);
 }
-
 
 

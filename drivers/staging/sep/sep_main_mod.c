@@ -608,179 +608,6 @@ static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 }
 
 
-/*
-  this function registers the driver to the file system
-*/
-static int sep_register_driver_to_fs(void)
-{
-	int ret_val = alloc_chrdev_region(&g_sep_device_number, 0, 1, "sep_sec_driver");
-	if (ret_val) {
-		edbg("sep_driver:major number allocation failed, retval is %d\n", ret_val);
-		goto end_function;
-	}
-
-	/* set the files operations structure */
-	g_sep_fops.owner = THIS_MODULE;
-	g_sep_fops.ioctl = sep_ioctl;
-	g_sep_fops.poll = sep_poll;
-	g_sep_fops.open = sep_open;
-	g_sep_fops.release = sep_release;
-	g_sep_fops.mmap = sep_mmap;
-
-	/* init cdev */
-	cdev_init(&g_sep_cdev, &g_sep_fops);
-	g_sep_cdev.owner = THIS_MODULE;
-
-	/* register the driver with the kernel */
-	ret_val = cdev_add(&g_sep_cdev, g_sep_device_number, 1);
-
-	if (ret_val) {
-		edbg("sep_driver:cdev_add failed, retval is %d\n", ret_val);
-		goto end_function_unregister_devnum;
-	}
-
-	goto end_function;
-
-end_function_unregister_devnum:
-
-	/* unregister dev numbers */
-	unregister_chrdev_region(g_sep_device_number, 1);
-
-end_function:
-      return ret_val;
-}
-
-/*
-  this function unregisters driver from fs
-*/
-static void sep_unregister_driver_from_fs(void)
-{
-	cdev_del(&g_sep_cdev);
-	/* unregister dev numbers */
-	unregister_chrdev_region(g_sep_device_number, 1);
-}
-
-/*--------------------------------------------------------------
-  init function
-----------------------------------------------------------------*/
-static int __init sep_init(void)
-{
-	int ret_val = 0;
-	int counter;
-	int size;		/* size of memory for allocation */
-
-	dbg("SEP Driver:-------->Init start\n");
-	edbg("sep->shared_area_addr = %lx\n", (unsigned long) &sep_dev->shared_area_addr);
-
-	/* transaction counter that coordinates the transactions between SEP
-	and HOST */
-	sep_dev->host_to_sep_send_counter = 0;
-
-	/* counter for the messages from sep */
-	sep_dev->sep_to_host_reply_counter = 0;
-
-	/* counter for the number of bytes allocated in the pool
-	for the current transaction */
-	sep_dev->data_pool_bytes_allocated = 0;
-
-	/* set the starting mode to blocking */
-	sep_dev->block_mode_flag = 1;
-
-	ret_val = sep_register_driver_to_device();
-	if (ret_val) {
-		edbg("sep_driver:sep_driver_to_device failed, ret_val is %d\n", ret_val);
-		goto end_function_unregister_from_fs;
-	}
-	/* calculate the total size for allocation */
-	size = SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES +
-	    SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES + SEP_DRIVER_FLOW_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES + SEP_DRIVER_SYSTEM_DATA_MEMORY_SIZE_IN_BYTES;
-
-	/* allocate the shared area */
-	if (sep_map_and_alloc_shared_area(size, &sep_dev->shared_area_addr, &sep_dev->phys_shared_area_addr)) {
-		ret_val = -ENOMEM;
-		/* allocation failed */
-		goto end_function_unmap_io_memory;
-	}
-	/* now set the memory regions */
-	sep_dev->message_shared_area_addr = sep_dev->shared_area_addr;
-
-	edbg("SEP Driver: g_message_shared_area_addr is %08lx\n", sep_dev->message_shared_area_addr);
-
-#if (SEP_DRIVER_RECONFIG_MESSAGE_AREA == 1)
-	/* send the new SHARED MESSAGE AREA to the SEP */
-	sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR1_REG_ADDR, sep_dev->phys_shared_area_addr);
-
-	/* poll for SEP response */
-	retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR1_REG_ADDR);
-	while (retVal != 0xffffffff && retVal != sep_dev->phys_shared_area_addr)
-		retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR1_REG_ADDR);
-
-	/* check the return value (register) */
-	if (retVal != sep_dev->phys_shared_area_addr) {
-		ret_val = -ENOMEM;
-		goto end_function_deallocate_message_area;
-	}
-#endif
-	/* init the flow contextes */
-	for (counter = 0; counter < SEP_DRIVER_NUM_FLOWS; counter++)
-		sep_dev->flows_data_array[counter].flow_id = SEP_FREE_FLOW_ID;
-
-	sep_dev->flow_wq_ptr = create_singlethread_workqueue("sepflowwq");
-	if (sep_dev->flow_wq_ptr == 0) {
-		ret_val = -ENOMEM;
-		edbg("sep_driver:flow queue creation failed\n");
-		goto end_function_deallocate_sep_shared_area;
-	}
-	edbg("SEP Driver: create flow workqueue \n");
-
-	/* register driver to fs */
-	ret_val = sep_register_driver_to_fs();
-	if (ret_val)
-		goto end_function_deallocate_sep_shared_area;
-	/* load the rom code */
-	sep_load_rom_code();
-	goto end_function;
-end_function_unregister_from_fs:
-	/* unregister from fs */
-	sep_unregister_driver_from_fs();
-end_function_deallocate_sep_shared_area:
-	/* de-allocate shared area */
-	sep_unmap_and_free_shared_area(size, sep_dev->shared_area_addr, sep_dev->phys_shared_area_addr);
-end_function_unmap_io_memory:
-	iounmap((void *) sep_dev->reg_base_address);
-	/* release io memory region */
-	release_mem_region(SEP_IO_MEM_REGION_START_ADDRESS, SEP_IO_MEM_REGION_SIZE);
-end_function:
-	dbg("SEP Driver:<-------- Init end\n");
-	return ret_val;
-}
-
-
-/*-------------------------------------------------------------
-  exit function
---------------------------------------------------------------*/
-static void __exit sep_exit(void)
-{
-	int size;
-
-	dbg("SEP Driver:--------> Exit start\n");
-
-	/* unregister from fs */
-	sep_unregister_driver_from_fs();
-	/* calculate the total size for de-allocation */
-	size = SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES +
-	    SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES + SEP_DRIVER_FLOW_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES + SEP_DRIVER_SYSTEM_DATA_MEMORY_SIZE_IN_BYTES;
-	/* free shared area  */
-	sep_unmap_and_free_shared_area(size, sep_dev->shared_area_addr, sep_dev->phys_shared_area_addr);
-	edbg("SEP Driver: free pages SEP SHARED AREA \n");
-	iounmap((void *) sep_dev->reg_base_address);
-	edbg("SEP Driver: iounmap \n");
-	/* release io memory region */
-	release_mem_region(SEP_IO_MEM_REGION_START_ADDRESS, SEP_IO_MEM_REGION_SIZE);
-	edbg("SEP Driver: release_mem_region \n");
-	dbg("SEP Driver:<-------- Exit end\n");
-}
-
 
 /*
   interrupt handler function
@@ -2628,6 +2455,181 @@ static void sep_configure_dma_burst(void)
 	dbg("SEP Driver:<-------- sep_configure_dma_burst done  \n");
 
 }
+
+/*
+  this function registers the driver to the file system
+*/
+static int sep_register_driver_to_fs(void)
+{
+	int ret_val = alloc_chrdev_region(&g_sep_device_number, 0, 1, "sep_sec_driver");
+	if (ret_val) {
+		edbg("sep_driver:major number allocation failed, retval is %d\n", ret_val);
+		goto end_function;
+	}
+
+	/* set the files operations structure */
+	g_sep_fops.owner = THIS_MODULE;
+	g_sep_fops.ioctl = sep_ioctl;
+	g_sep_fops.poll = sep_poll;
+	g_sep_fops.open = sep_open;
+	g_sep_fops.release = sep_release;
+	g_sep_fops.mmap = sep_mmap;
+
+	/* init cdev */
+	cdev_init(&g_sep_cdev, &g_sep_fops);
+	g_sep_cdev.owner = THIS_MODULE;
+
+	/* register the driver with the kernel */
+	ret_val = cdev_add(&g_sep_cdev, g_sep_device_number, 1);
+
+	if (ret_val) {
+		edbg("sep_driver:cdev_add failed, retval is %d\n", ret_val);
+		goto end_function_unregister_devnum;
+	}
+
+	goto end_function;
+
+end_function_unregister_devnum:
+
+	/* unregister dev numbers */
+	unregister_chrdev_region(g_sep_device_number, 1);
+
+end_function:
+      return ret_val;
+}
+
+/*
+  this function unregisters driver from fs
+*/
+static void sep_unregister_driver_from_fs(void)
+{
+	cdev_del(&g_sep_cdev);
+	/* unregister dev numbers */
+	unregister_chrdev_region(g_sep_device_number, 1);
+}
+
+
+/*--------------------------------------------------------------
+  init function
+----------------------------------------------------------------*/
+static int __init sep_init(void)
+{
+	int ret_val = 0;
+	int counter;
+	int size;		/* size of memory for allocation */
+
+	dbg("SEP Driver:-------->Init start\n");
+	edbg("sep->shared_area_addr = %lx\n", (unsigned long) &sep_dev->shared_area_addr);
+
+	/* transaction counter that coordinates the transactions between SEP
+	and HOST */
+	sep_dev->host_to_sep_send_counter = 0;
+
+	/* counter for the messages from sep */
+	sep_dev->sep_to_host_reply_counter = 0;
+
+	/* counter for the number of bytes allocated in the pool
+	for the current transaction */
+	sep_dev->data_pool_bytes_allocated = 0;
+
+	/* set the starting mode to blocking */
+	sep_dev->block_mode_flag = 1;
+
+	ret_val = sep_register_driver_to_device();
+	if (ret_val) {
+		edbg("sep_driver:sep_driver_to_device failed, ret_val is %d\n", ret_val);
+		goto end_function_unregister_from_fs;
+	}
+	/* calculate the total size for allocation */
+	size = SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES +
+	    SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES + SEP_DRIVER_FLOW_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES + SEP_DRIVER_SYSTEM_DATA_MEMORY_SIZE_IN_BYTES;
+
+	/* allocate the shared area */
+	if (sep_map_and_alloc_shared_area(size, &sep_dev->shared_area_addr, &sep_dev->phys_shared_area_addr)) {
+		ret_val = -ENOMEM;
+		/* allocation failed */
+		goto end_function_unmap_io_memory;
+	}
+	/* now set the memory regions */
+	sep_dev->message_shared_area_addr = sep_dev->shared_area_addr;
+
+	edbg("SEP Driver: g_message_shared_area_addr is %08lx\n", sep_dev->message_shared_area_addr);
+
+#if (SEP_DRIVER_RECONFIG_MESSAGE_AREA == 1)
+	/* send the new SHARED MESSAGE AREA to the SEP */
+	sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR1_REG_ADDR, sep_dev->phys_shared_area_addr);
+
+	/* poll for SEP response */
+	retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR1_REG_ADDR);
+	while (retVal != 0xffffffff && retVal != sep_dev->phys_shared_area_addr)
+		retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR1_REG_ADDR);
+
+	/* check the return value (register) */
+	if (retVal != sep_dev->phys_shared_area_addr) {
+		ret_val = -ENOMEM;
+		goto end_function_deallocate_message_area;
+	}
+#endif
+	/* init the flow contextes */
+	for (counter = 0; counter < SEP_DRIVER_NUM_FLOWS; counter++)
+		sep_dev->flows_data_array[counter].flow_id = SEP_FREE_FLOW_ID;
+
+	sep_dev->flow_wq_ptr = create_singlethread_workqueue("sepflowwq");
+	if (sep_dev->flow_wq_ptr == 0) {
+		ret_val = -ENOMEM;
+		edbg("sep_driver:flow queue creation failed\n");
+		goto end_function_deallocate_sep_shared_area;
+	}
+	edbg("SEP Driver: create flow workqueue \n");
+
+	/* register driver to fs */
+	ret_val = sep_register_driver_to_fs();
+	if (ret_val)
+		goto end_function_deallocate_sep_shared_area;
+	/* load the rom code */
+	sep_load_rom_code();
+	goto end_function;
+end_function_unregister_from_fs:
+	/* unregister from fs */
+	sep_unregister_driver_from_fs();
+end_function_deallocate_sep_shared_area:
+	/* de-allocate shared area */
+	sep_unmap_and_free_shared_area(size, sep_dev->shared_area_addr, sep_dev->phys_shared_area_addr);
+end_function_unmap_io_memory:
+	iounmap((void *) sep_dev->reg_base_address);
+	/* release io memory region */
+	release_mem_region(SEP_IO_MEM_REGION_START_ADDRESS, SEP_IO_MEM_REGION_SIZE);
+end_function:
+	dbg("SEP Driver:<-------- Init end\n");
+	return ret_val;
+}
+
+
+/*-------------------------------------------------------------
+  exit function
+--------------------------------------------------------------*/
+static void __exit sep_exit(void)
+{
+	int size;
+
+	dbg("SEP Driver:--------> Exit start\n");
+
+	/* unregister from fs */
+	sep_unregister_driver_from_fs();
+	/* calculate the total size for de-allocation */
+	size = SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES +
+	    SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES + SEP_DRIVER_FLOW_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES + SEP_DRIVER_SYSTEM_DATA_MEMORY_SIZE_IN_BYTES;
+	/* free shared area  */
+	sep_unmap_and_free_shared_area(size, sep_dev->shared_area_addr, sep_dev->phys_shared_area_addr);
+	edbg("SEP Driver: free pages SEP SHARED AREA \n");
+	iounmap((void *) sep_dev->reg_base_address);
+	edbg("SEP Driver: iounmap \n");
+	/* release io memory region */
+	release_mem_region(SEP_IO_MEM_REGION_START_ADDRESS, SEP_IO_MEM_REGION_SIZE);
+	edbg("SEP Driver: release_mem_region \n");
+	dbg("SEP Driver:<-------- Exit end\n");
+}
+
 
 module_init(sep_init);
 module_exit(sep_exit);
