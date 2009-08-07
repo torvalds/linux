@@ -414,6 +414,7 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 	unsigned long avg_pkt_size;
 	unsigned long rx_packets;
 	unsigned long rx_bytes;
+	unsigned long rx_byte_diff;
 	unsigned long tx_packets;
 	unsigned long tx_pkt_diff;
 	unsigned long rx_pkt_diff;
@@ -437,6 +438,8 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 	rx_pkt_diff = ((unsigned long) (rx_packets -
 					priv->last_moder_packets));
 	packets = max(tx_pkt_diff, rx_pkt_diff);
+	rx_byte_diff = rx_bytes - priv->last_moder_bytes;
+	rx_byte_diff = rx_byte_diff ? rx_byte_diff : 1;
 	rate = packets * HZ / period;
 	avg_pkt_size = packets ? ((unsigned long) (rx_bytes -
 				 priv->last_moder_bytes)) / packets : 0;
@@ -447,10 +450,13 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 		/* If tx and rx packet rates are not balanced, assume that
 		 * traffic is mainly BW bound and apply maximum moderation.
 		 * Otherwise, moderate according to packet rate */
-		if (2 * tx_pkt_diff > 3 * rx_pkt_diff ||
-		    2 * rx_pkt_diff > 3 * tx_pkt_diff) {
+		if (2 * tx_pkt_diff > 3 * rx_pkt_diff &&
+		    rx_pkt_diff / rx_byte_diff <
+		    MLX4_EN_SMALL_PKT_SIZE)
+			moder_time = priv->rx_usecs_low;
+		else if (2 * rx_pkt_diff > 3 * tx_pkt_diff)
 			moder_time = priv->rx_usecs_high;
-		} else {
+		else {
 			if (rate < priv->pkt_rate_low)
 				moder_time = priv->rx_usecs_low;
 			else if (rate > priv->pkt_rate_high)
