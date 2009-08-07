@@ -111,6 +111,8 @@ enum {
 	IEEE802154_RX_ENABLE_REQ, /* Not supported yet */
 	IEEE802154_RX_ENABLE_CONF, /* Not supported yet */
 
+	IEEE802154_LIST_IFACE,
+
 	__IEEE802154_CMD_MAX,
 };
 
