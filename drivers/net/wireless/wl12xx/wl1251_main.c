@@ -325,7 +325,7 @@ static void wl1251_filter_work(struct work_struct *work)
 		goto out;
 
 	ret = wl1251_cmd_join(wl, wl->bss_type, wl->beacon_int,
-				   wl->dtim_period, false);
+				   wl->dtim_period);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -565,7 +565,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (channel != wl->channel) {
 		ret = wl1251_cmd_join(wl, wl->bss_type, wl->beacon_int,
-					   wl->dtim_period, false);
+					   wl->dtim_period);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -1124,7 +1124,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (wl->bss_type != BSS_TYPE_IBSS) {
 			ret = wl1251_cmd_join(wl, wl->bss_type,
 					      wl->beacon_int,
-					      wl->dtim_period, true);
+					      wl->dtim_period);
 			if (ret < 0)
 				goto out_sleep;
 			wl1251_warning("Set ctsprotect failed %d", ret);
@@ -1151,7 +1151,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out;
 
 		ret = wl1251_cmd_join(wl, wl->bss_type, wl->beacon_int,
-				      wl->dtim_period, false);
+				      wl->dtim_period);
 
 		if (ret < 0)
 			goto out;
