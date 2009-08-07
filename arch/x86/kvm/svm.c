@@ -1483,18 +1483,21 @@ static int nested_svm_do(struct vcpu_svm *svm,
 	return retval;
 }
 
-static int nested_svm_exit_handled_msr(struct vcpu_svm *svm,
-				       void *arg1, void *arg2,
-				       void *opaque)
+static bool nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 {
-	struct vmcb *nested_vmcb = (struct vmcb *)arg1;
-	u8 *msrpm = (u8 *)arg2;
-	u32 t0, t1;
-	u32 msr = svm->vcpu.arch.regs[VCPU_REGS_RCX];
 	u32 param = svm->vmcb->control.exit_info_1 & 1;
+	u32 msr = svm->vcpu.arch.regs[VCPU_REGS_RCX];
+	bool ret = false;
+	u32 t0, t1;
+	u8 *msrpm;
 
-	if (!(nested_vmcb->control.intercept & (1ULL << INTERCEPT_MSR_PROT)))
-		return 0;
+	if (!(svm->nested.intercept & (1ULL << INTERCEPT_MSR_PROT)))
+		return false;
+
+	msrpm = nested_svm_map(svm, svm->nested.vmcb_msrpm, KM_USER0);
+
+	if (!msrpm)
+		goto out;
 
 	switch (msr) {
 	case 0 ... 0x1fff:
@@ -1512,13 +1515,16 @@ static int nested_svm_exit_handled_msr(struct vcpu_svm *svm,
 		t0 %= 8;
 		break;
 	default:
-		return 1;
-		break;
+		ret = true;
+		goto out;
 	}
-	if (msrpm[t1] & ((1 << param) << t0))
-		return 1;
 
-	return 0;
+	ret = msrpm[t1] & ((1 << param) << t0);
+
+out:
+	nested_svm_unmap(msrpm, KM_USER0);
+
+	return ret;
 }
 
 static int nested_svm_exit_handled(struct vcpu_svm *svm, bool kvm_override)
@@ -1548,9 +1554,7 @@ static int nested_svm_exit_handled(struct vcpu_svm *svm, bool kvm_override)
 
 	switch (exit_code) {
 	case SVM_EXIT_MSR:
-		if (nested_svm_do(svm, svm->nested.vmcb, svm->nested.vmcb_msrpm,
-				  NULL, nested_svm_exit_handled_msr))
-			vmexit = true;
+		vmexit = nested_svm_exit_handled_msr(svm);
 		break;
 	case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR8: {
 		u32 cr_bits = 1 << (exit_code - SVM_EXIT_READ_CR0);
