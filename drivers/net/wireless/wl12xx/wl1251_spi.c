@@ -21,9 +21,11 @@
  *
  */
 
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/wl12xx.h>
 
 #include "wl1251.h"
 #include "reg.h"
@@ -55,7 +57,7 @@ static void wl1251_spi_reset(struct wl1251 *wl)
 	wl1251_dump(DEBUG_SPI, "spi reset -> ", cmd, WSPI_INIT_CMD_LEN);
 }
 
-static void wl1251_spi_init(struct wl1251 *wl)
+static void wl1251_spi_wake(struct wl1251 *wl)
 {
 	u8 crc[WSPI_INIT_CMD_CRC_LEN], *cmd;
 	struct spi_transfer t;
@@ -112,7 +114,7 @@ static void wl1251_spi_init(struct wl1251 *wl)
 static void wl1251_spi_reset_wake(struct wl1251 *wl)
 {
 	wl1251_spi_reset(wl);
-	wl1251_spi_init(wl);
+	wl1251_spi_wake(wl);
 }
 
 static void wl1251_spi_read(struct wl1251 *wl, int addr, void *buf,
@@ -191,3 +193,122 @@ const struct wl1251_if_operations wl1251_spi_ops = {
 	.write = wl1251_spi_write,
 	.reset = wl1251_spi_reset_wake,
 };
+
+static int __devinit wl1251_spi_probe(struct spi_device *spi)
+{
+	struct wl12xx_platform_data *pdata;
+	struct ieee80211_hw *hw;
+	struct wl1251 *wl;
+	int ret;
+
+	pdata = spi->dev.platform_data;
+	if (!pdata) {
+		wl1251_error("no platform data");
+		return -ENODEV;
+	}
+
+	hw = wl1251_alloc_hw();
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+
+	wl = hw->priv;
+
+	SET_IEEE80211_DEV(hw, &spi->dev);
+	dev_set_drvdata(&spi->dev, wl);
+	wl->spi = spi;
+	wl->if_ops = &wl1251_spi_ops;
+
+	/* This is the only SPI value that we need to set here, the rest
+	 * comes from the board-peripherals file */
+	spi->bits_per_word = 32;
+
+	ret = spi_setup(spi);
+	if (ret < 0) {
+		wl1251_error("spi_setup failed");
+		goto out_free;
+	}
+
+	wl->set_power = pdata->set_power;
+	if (!wl->set_power) {
+		wl1251_error("set power function missing in platform data");
+		return -ENODEV;
+	}
+
+	wl->irq = spi->irq;
+	if (wl->irq < 0) {
+		wl1251_error("irq missing in platform data");
+		return -ENODEV;
+	}
+
+	ret = request_irq(wl->irq, wl1251_irq, 0, DRIVER_NAME, wl);
+	if (ret < 0) {
+		wl1251_error("request_irq() failed: %d", ret);
+		goto out_free;
+	}
+
+	set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
+
+	disable_irq(wl->irq);
+
+	ret = wl1251_init_ieee80211(wl);
+	if (ret)
+		goto out_irq;
+
+	return 0;
+
+ out_irq:
+	free_irq(wl->irq, wl);
+
+ out_free:
+	ieee80211_free_hw(hw);
+
+	return ret;
+}
+
+static int __devexit wl1251_spi_remove(struct spi_device *spi)
+{
+	struct wl1251 *wl = dev_get_drvdata(&spi->dev);
+
+	wl1251_free_hw(wl);
+
+	return 0;
+}
+
+static struct spi_driver wl1251_spi_driver = {
+	.driver = {
+		.name		= "wl12xx",
+		.bus		= &spi_bus_type,
+		.owner		= THIS_MODULE,
+	},
+
+	.probe		= wl1251_spi_probe,
+	.remove		= __devexit_p(wl1251_spi_remove),
+};
+
+static int __init wl1251_spi_init(void)
+{
+	int ret;
+
+	ret = spi_register_driver(&wl1251_spi_driver);
+	if (ret < 0) {
+		wl1251_error("failed to register spi driver: %d", ret);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+static void __exit wl1251_spi_exit(void)
+{
+	spi_unregister_driver(&wl1251_spi_driver);
+
+	wl1251_notice("unloaded");
+}
+
+module_init(wl1251_spi_init);
+module_exit(wl1251_spi_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Kalle Valo <Kalle.Valo@nokia.com>");
+MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");

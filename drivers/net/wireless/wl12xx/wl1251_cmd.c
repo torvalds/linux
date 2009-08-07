@@ -2,7 +2,6 @@
 
 #include <linux/module.h>
 #include <linux/crc7.h>
-#include <linux/spi/spi.h>
 
 #include "wl1251.h"
 #include "reg.h"

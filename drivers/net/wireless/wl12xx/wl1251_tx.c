@@ -27,7 +27,6 @@
 
 #include "wl1251.h"
 #include "reg.h"
-#include "wl1251_spi.h"
 #include "wl1251_tx.h"
 #include "wl1251_ps.h"
 #include "wl1251_io.h"

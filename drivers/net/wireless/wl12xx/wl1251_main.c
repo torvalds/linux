@@ -26,17 +26,15 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/spi/spi.h>
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
-#include <linux/spi/wl12xx.h>
 
 #include "wl1251.h"
 #include "wl12xx_80211.h"
 #include "reg.h"
 #include "wl1251_ops.h"
 #include "wl1251_io.h"
-#include "wl1251_spi.h"
+#include "wl1251_cmd.h"
 #include "wl1251_event.h"
 #include "wl1251_tx.h"
 #include "wl1251_rx.h"
@@ -59,7 +57,7 @@ static void wl1251_power_on(struct wl1251 *wl)
 	wl->set_power(true);
 }
 
-static irqreturn_t wl1251_irq(int irq, void *cookie)
+irqreturn_t wl1251_irq(int irq, void *cookie)
 {
 	struct wl1251 *wl;
 
@@ -1169,8 +1167,10 @@ static int wl1251_register_hw(struct wl1251 *wl)
 	return 0;
 }
 
-static int wl1251_init_ieee80211(struct wl1251 *wl)
+int wl1251_init_ieee80211(struct wl1251 *wl)
 {
+	int ret;
+
 	/* The tx descriptor buffer and the TKIP space */
 	wl->hw->extra_tx_headroom = sizeof(struct tx_double_buffer_desc)
 		+ WL1251_TKIP_IV_SPACE;
@@ -1186,41 +1186,37 @@ static int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->wiphy->max_scan_ssids = 1;
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1251_band_2ghz;
 
-	SET_IEEE80211_DEV(wl->hw, &wl->spi->dev);
+	ret = wl1251_register_hw(wl);
+	if (ret)
+		goto out;
 
-	return 0;
+	wl1251_debugfs_init(wl);
+	wl1251_notice("initialized");
+
+	ret = 0;
+
+out:
+	return ret;
 }
 
-extern struct wl1251_if_operations wl1251_spi_ops;
-
 #define WL1251_DEFAULT_CHANNEL 1
-static int __devinit wl1251_probe(struct spi_device *spi)
+struct ieee80211_hw *wl1251_alloc_hw(void)
 {
-	struct wl12xx_platform_data *pdata;
 	struct ieee80211_hw *hw;
 	struct wl1251 *wl;
-	int ret, i;
+	int i;
 	static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
-
-	pdata = spi->dev.platform_data;
-	if (!pdata) {
-		wl1251_error("no platform data");
-		return -ENODEV;
-	}
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1251_ops);
 	if (!hw) {
 		wl1251_error("could not alloc ieee80211_hw");
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	wl = hw->priv;
 	memset(wl, 0, sizeof(*wl));
 
 	wl->hw = hw;
-	dev_set_drvdata(&spi->dev, wl);
-	wl->spi = spi;
-	wl->if_ops = &wl1251_spi_ops;
 
 	wl->data_in_count = 0;
 
@@ -1268,74 +1264,15 @@ static int __devinit wl1251_probe(struct spi_device *spi)
 	wl->rx_descriptor = kmalloc(sizeof(*wl->rx_descriptor), GFP_KERNEL);
 	if (!wl->rx_descriptor) {
 		wl1251_error("could not allocate memory for rx descriptor");
-		ret = -ENOMEM;
-		goto out_free;
+		ieee80211_free_hw(hw);
+		return ERR_PTR(-ENOMEM);
 	}
 
-	/* This is the only SPI value that we need to set here, the rest
-	 * comes from the board-peripherals file */
-	spi->bits_per_word = 32;
-
-	ret = spi_setup(spi);
-	if (ret < 0) {
-		wl1251_error("spi_setup failed");
-		goto out_free;
-	}
-
-	wl->set_power = pdata->set_power;
-	if (!wl->set_power) {
-		wl1251_error("set power function missing in platform data");
-		ret = -ENODEV;
-		goto out_free;
-	}
-
-	wl->irq = spi->irq;
-	if (wl->irq < 0) {
-		wl1251_error("irq missing in platform data");
-		ret = -ENODEV;
-		goto out_free;
-	}
-
-	ret = request_irq(wl->irq, wl1251_irq, 0, DRIVER_NAME, wl);
-	if (ret < 0) {
-		wl1251_error("request_irq() failed: %d", ret);
-		goto out_free;
-	}
-
-	set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
-
-	disable_irq(wl->irq);
-
-	ret = wl1251_init_ieee80211(wl);
-	if (ret)
-		goto out_irq;
-
-	ret = wl1251_register_hw(wl);
-	if (ret)
-		goto out_irq;
-
-	wl1251_debugfs_init(wl);
-
-	wl1251_notice("initialized");
-
-	return 0;
-
- out_irq:
-	free_irq(wl->irq, wl);
-
- out_free:
-	kfree(wl->rx_descriptor);
-	wl->rx_descriptor = NULL;
-
-	ieee80211_free_hw(hw);
-
-	return ret;
+	return hw;
 }
 
-static int __devexit wl1251_remove(struct spi_device *spi)
+int wl1251_free_hw(struct wl1251 *wl)
 {
-	struct wl1251 *wl = dev_get_drvdata(&spi->dev);
-
 	ieee80211_unregister_hw(wl->hw);
 
 	wl1251_debugfs_exit(wl);
@@ -1355,44 +1292,3 @@ static int __devexit wl1251_remove(struct spi_device *spi)
 
 	return 0;
 }
-
-
-static struct spi_driver wl1251_spi_driver = {
-	.driver = {
-		/* FIXME: use wl12xx name to not break the user space */
-		.name		= "wl12xx",
-		.bus		= &spi_bus_type,
-		.owner		= THIS_MODULE,
-	},
-
-	.probe		= wl1251_probe,
-	.remove		= __devexit_p(wl1251_remove),
-};
-
-static int __init wl1251_init(void)
-{
-	int ret;
-
-	ret = spi_register_driver(&wl1251_spi_driver);
-	if (ret < 0) {
-		wl1251_error("failed to register spi driver: %d", ret);
-		goto out;
-	}
-
-out:
-	return ret;
-}
-
-static void __exit wl1251_exit(void)
-{
-	spi_unregister_driver(&wl1251_spi_driver);
-
-	wl1251_notice("unloaded");
-}
-
-module_init(wl1251_init);
-module_exit(wl1251_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kalle Valo <Kalle.Valo@nokia.com>, "
-		"Luciano Coelho <luciano.coelho@nokia.com>");
