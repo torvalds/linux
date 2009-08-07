@@ -69,9 +69,6 @@
 		((WL1251_BUSY_WORD_LEN - 4) / sizeof(u32))
 #define HW_ACCESS_WSPI_INIT_CMD_MASK  0
 
-/* INIT and RESET words */
-void wl1251_spi_reset(struct wl1251 *wl);
-void wl1251_spi_init(struct wl1251 *wl);
 int wl1251_set_partition(struct wl1251 *wl,
 			 u32 part_start, u32 part_size,
 			 u32 reg_start,  u32 reg_size);

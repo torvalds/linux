@@ -22,24 +22,19 @@
 #define __WL1251_IO_H__
 
 #include "wl1251.h"
-#include "wl1251_spi.h"
-
-/* Raw target IO, address is not translated */
-void wl1251_spi_read(struct wl1251 *wl, int addr, void *buf, size_t len);
-void wl1251_spi_write(struct wl1251 *wl, int addr, void *buf, size_t len);
 
 static inline u32 wl1251_read32(struct wl1251 *wl, int addr)
 {
 	u32 response;
 
-	wl1251_spi_read(wl, addr, &response, sizeof(u32));
+	wl->if_ops->read(wl, addr, &response, sizeof(u32));
 
 	return response;
 }
 
 static inline void wl1251_write32(struct wl1251 *wl, int addr, u32 val)
 {
-	wl1251_spi_write(wl, addr, &val, sizeof(u32));
+	wl->if_ops->write(wl, addr, &val, sizeof(u32));
 }
 
 /* Memory target IO, address is translated to partition 0 */

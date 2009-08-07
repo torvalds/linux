@@ -53,7 +53,7 @@ void wl1251_mem_read(struct wl1251 *wl, int addr, void *buf, size_t len)
 
 	physical = wl1251_translate_mem_addr(wl, addr);
 
-	wl1251_spi_read(wl, physical, buf, len);
+	wl->if_ops->read(wl, physical, buf, len);
 }
 
 void wl1251_mem_write(struct wl1251 *wl, int addr, void *buf, size_t len)
@@ -62,7 +62,7 @@ void wl1251_mem_write(struct wl1251 *wl, int addr, void *buf, size_t len)
 
 	physical = wl1251_translate_mem_addr(wl, addr);
 
-	wl1251_spi_write(wl, physical, buf, len);
+	wl->if_ops->write(wl, physical, buf, len);
 }
 
 u32 wl1251_mem_read32(struct wl1251 *wl, int addr)

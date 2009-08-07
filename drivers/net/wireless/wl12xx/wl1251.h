@@ -281,11 +281,18 @@ struct wl1251_debugfs {
 	struct dentry *excessive_retries;
 };
 
+struct wl1251_if_operations {
+	void (*read)(struct wl1251 *wl, int addr, void *buf, size_t len);
+	void (*write)(struct wl1251 *wl, int addr, void *buf, size_t len);
+	void (*reset)(struct wl1251 *wl);
+};
+
 struct wl1251 {
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
 
 	struct spi_device *spi;
+	struct wl1251_if_operations *if_ops;
 
 	void (*set_power)(bool enable);
 	int irq;

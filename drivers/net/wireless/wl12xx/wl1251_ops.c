@@ -27,6 +27,7 @@
 #include "wl1251_ops.h"
 #include "reg.h"
 #include "wl1251_io.h"
+#include "wl1251_spi.h"
 #include "wl1251_boot.h"
 #include "wl1251_event.h"
 #include "wl1251_acx.h"

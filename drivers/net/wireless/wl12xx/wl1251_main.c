@@ -168,8 +168,7 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 
 	wl1251_power_on(wl);
 	msleep(wl->chip.power_on_sleep);
-	wl1251_spi_reset(wl);
-	wl1251_spi_init(wl);
+	wl->if_ops->reset(wl);
 
 	/* We don't need a real memory partition here, because we only want
 	 * to use the registers at this point. */
@@ -1192,6 +1191,8 @@ static int wl1251_init_ieee80211(struct wl1251 *wl)
 	return 0;
 }
 
+extern struct wl1251_if_operations wl1251_spi_ops;
+
 #define WL1251_DEFAULT_CHANNEL 1
 static int __devinit wl1251_probe(struct spi_device *spi)
 {
@@ -1219,6 +1220,7 @@ static int __devinit wl1251_probe(struct spi_device *spi)
 	wl->hw = hw;
 	dev_set_drvdata(&spi->dev, wl);
 	wl->spi = spi;
+	wl->if_ops = &wl1251_spi_ops;
 
 	wl->data_in_count = 0;
 
