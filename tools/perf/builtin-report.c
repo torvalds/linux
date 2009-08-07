@@ -17,6 +17,7 @@
 #include "util/string.h"
 #include "util/callchain.h"
 #include "util/strlist.h"
+#include "util/values.h"
 
 #include "perf.h"
 #include "util/header.h"
@@ -52,6 +53,9 @@ static int		modules;
 
 static int		full_paths;
 static int		show_nr_samples;
+
+static int		show_threads;
+static struct perf_read_values	show_threads_values;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -1473,6 +1477,9 @@ print_entries:
 
 	free(rem_sq_bracket);
 
+	if (show_threads)
+		perf_read_values_display(fp, &show_threads_values);
+
 	return ret;
 }
 
@@ -1758,6 +1765,16 @@ process_read_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	struct perf_counter_attr *attr = perf_header__find_attr(event->read.id);
 
+	if (show_threads) {
+		char *name = attr ? __event_name(attr->type, attr->config)
+				   : "unknown";
+		perf_read_values_add_value(&show_threads_values,
+					   event->read.pid, event->read.tid,
+					   event->read.id,
+					   name,
+					   event->read.value);
+	}
+
 	dprintf("%p [%p]: PERF_EVENT_READ: %d %d %s %Lu\n",
 			(void *)(offset + head),
 			(void *)(long)(event->header.size),
@@ -1838,6 +1855,9 @@ static int __cmd_report(void)
 	char *buf;
 
 	register_idle_thread();
+
+	if (show_threads)
+		perf_read_values_init(&show_threads_values);
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
@@ -1993,6 +2013,9 @@ done:
 	output__resort(total);
 	output__fprintf(stdout, total);
 
+	if (show_threads)
+		perf_read_values_destroy(&show_threads_values);
+
 	return rc;
 }
 
@@ -2066,6 +2089,8 @@ static const struct option options[] = {
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_BOOLEAN('n', "show-nr-samples", &show_nr_samples,
 		    "Show a column with the number of samples"),
+	OPT_BOOLEAN('T', "threads", &show_threads,
+		    "Show per-thread event counters"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN('P', "full-paths", &full_paths,

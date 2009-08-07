@@ -310,6 +310,7 @@ LIB_H += util/sigchain.h
 LIB_H += util/symbol.h
 LIB_H += util/module.h
 LIB_H += util/color.h
+LIB_H += util/values.h
 
 LIB_OBJS += util/abspath.o
 LIB_OBJS += util/alias.o
@@ -337,6 +338,7 @@ LIB_OBJS += util/color.o
 LIB_OBJS += util/pager.o
 LIB_OBJS += util/header.o
 LIB_OBJS += util/callchain.o
+LIB_OBJS += util/values.o
 
 BUILTIN_OBJS += builtin-annotate.o
 BUILTIN_OBJS += builtin-help.o

@@ -27,6 +27,9 @@ OPTIONS
 -n
 --show-nr-samples
 	Show the number of samples for each symbol
+-T
+--threads
+	Show per-thread event counters
 -C::
 --comms=::
 	Only consider symbols in these comms. CSV that understands
