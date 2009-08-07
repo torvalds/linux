@@ -2135,6 +2135,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	delalloc_end = 0;
 	page_started = 0;
 	if (!epd->extent_locked) {
+		u64 delalloc_to_write;
 		/*
 		 * make sure the wbc mapping index is at least updated
 		 * to this page.
@@ -2154,6 +2155,14 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			tree->ops->fill_delalloc(inode, page, delalloc_start,
 						 delalloc_end, &page_started,
 						 &nr_written);
+			delalloc_to_write = (delalloc_end -
+					max_t(u64, page_offset(page),
+					      delalloc_start) + 1) >>
+				        PAGE_CACHE_SHIFT;
+			if (wbc->nr_to_write < delalloc_to_write) {
+				wbc->nr_to_write = min_t(long, 8192,
+						 delalloc_to_write);
+			}
 			delalloc_start = delalloc_end + 1;
 		}
 
@@ -2350,7 +2359,6 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 			     writepage_t writepage, void *data,
 			     void (*flush_fn)(void *))
 {
-	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	int ret = 0;
 	int done = 0;
 	struct pagevec pvec;
@@ -2425,10 +2433,6 @@ retry:
 			}
 			if (ret || wbc->nr_to_write <= 0)
 				done = 1;
-			if (wbc->nonblocking && bdi_write_congested(bdi)) {
-				wbc->encountered_congestion = 1;
-				done = 1;
-			}
 		}
 		pagevec_release(&pvec);
 		cond_resched();
