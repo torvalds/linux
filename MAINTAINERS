@@ -3555,6 +3555,9 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 F:	net/
 F:	include/net/
+F:	include/linux/in.h
+F:	include/linux/net.h
+F:	include/linux/netdevice.h
 
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
@@ -3590,6 +3593,8 @@ W:	http://www.linuxfoundation.org/en/Net
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Odd Fixes
 F:	drivers/net/
+F:	include/linux/if_*
+F:	include/linux/*device.h
 
 NETXEN (1/10) GbE SUPPORT
 M:	Dhananjay Phadke <dhananjay@netxen.com>
