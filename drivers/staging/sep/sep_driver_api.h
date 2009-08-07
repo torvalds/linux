@@ -451,46 +451,4 @@ struct sep_flow_context_t {
 };
 
 
-/*
-	This function releases all the application virtual
-	buffer physical pages, that were previously locked
-*/
-static int sep_free_dma_pages(struct page **page_array_ptr, unsigned long num_pages, unsigned long dirtyFlag);
-
-/*
-	This function creates the input and output dma tables for
-	symmetric operations (AES/DES) according to the block size
-	from LLI arays
-*/
-static int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
-				      unsigned long sep_in_lli_entries,
-				      struct sep_lli_entry_t *lli_out_array,
-				      unsigned long sep_out_lli_entries,
-				      unsigned long block_size, unsigned long *lli_table_in_ptr, unsigned long *lli_table_out_ptr, unsigned long *in_num_entries_ptr, unsigned long *out_num_entries_ptr, unsigned long *table_data_size_ptr);
-
-/*
-	This function builds input and output DMA tables for synhronic symmetric
-	operations (AES, DES) It also checks that each table is of the modular
-	block size
-*/
-static int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
-				       unsigned long app_virt_out_addr,
-				       unsigned long data_size,
-				       unsigned long block_size,
-				       unsigned long *lli_table_in_ptr, unsigned long *lli_table_out_ptr, unsigned long *in_num_entries_ptr, unsigned long *out_num_entries_ptr, unsigned long *table_data_size_ptr, bool isKernelVirtualAddress);
-
-/*
-	This function prepares only input DMA table for synhronic symmetric
-	operations (HASH)
-*/
-static int sep_prepare_input_dma_table(unsigned long app_virt_addr, unsigned long data_size, unsigned long block_size, unsigned long *lli_table_ptr, unsigned long *num_entries_ptr, unsigned long *table_data_size_ptr, bool isKernelVirtualAddress);
-
-
-/*
-	this function handles the request for freeing dma table for
-	synhronic actions
-*/
-static int sep_free_dma_table_data_handler(void);
-
-
 #endif
