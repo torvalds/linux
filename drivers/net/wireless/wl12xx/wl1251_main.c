@@ -593,12 +593,12 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out;
 
 	if (channel != wl->channel) {
+		wl->channel = channel;
+
 		ret = wl1251_join(wl, wl->bss_type, wl->channel,
 				  wl->beacon_int, wl->dtim_period);
 		if (ret < 0)
 			goto out_sleep;
-
-		wl->channel = channel;
 	}
 
 	ret = wl1251_build_null_data(wl);
