@@ -1343,17 +1343,10 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	u32 desc, time, count, base, data1;
 	u32 blink1, blink2, ilink1, ilink2;
 
-	switch (priv->ucode_type) {
-	case UCODE_RT:
-		base = le32_to_cpu(priv->card_alive.error_event_table_ptr);
-		break;
-	case UCODE_INIT:
+	if (priv->ucode_type == UCODE_INIT)
 		base = le32_to_cpu(priv->card_alive_init.error_event_table_ptr);
-		break;
-	default:
-		IWL_ERR(priv, "uCode image not available\n");
-		return;
-	}
+	else
+		base = le32_to_cpu(priv->card_alive.error_event_table_ptr);
 
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv, "Not valid error log pointer 0x%08X\n", base);
@@ -1405,17 +1398,10 @@ static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 
 	if (num_events == 0)
 		return;
-	switch (priv->ucode_type) {
-	case UCODE_RT:
-		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
-		break;
-	case UCODE_INIT:
+	if (priv->ucode_type == UCODE_INIT)
 		base = le32_to_cpu(priv->card_alive_init.log_event_table_ptr);
-		break;
-	default:
-		IWL_ERR(priv, "uCode image not available\n");
-		return;
-	}
+	else
+		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 
 	if (mode == 0)
 		event_size = 2 * sizeof(u32);
@@ -1452,17 +1438,10 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 	u32 next_entry; /* index of next entry to be written by uCode */
 	u32 size;       /* # entries that we'll print */
 
-	switch (priv->ucode_type) {
-	case UCODE_RT:
-		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
-		break;
-	case UCODE_INIT:
+	if (priv->ucode_type == UCODE_INIT)
 		base = le32_to_cpu(priv->card_alive_init.log_event_table_ptr);
-		break;
-	default:
-		IWL_ERR(priv, "uCode image not available\n");
-		return;
-	}
+	else
+		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);

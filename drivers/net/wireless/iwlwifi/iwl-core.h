@@ -547,8 +547,6 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
 #define STATUS_MODE_PENDING	18
-#define STATUS_INIT_UCODE_ALIVE	19
-#define STATUS_RT_UCODE_ALIVE	20
 
 
 static inline int iwl_is_ready(struct iwl_priv *priv)

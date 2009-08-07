@@ -533,16 +533,12 @@ static void iwl_rx_reply_alive(struct iwl_priv *priv,
 
 	if (palive->ver_subtype == INITIALIZE_SUBTYPE) {
 		IWL_DEBUG_INFO(priv, "Initialization Alive received.\n");
-		set_bit(STATUS_INIT_UCODE_ALIVE, &priv->status);
-		wake_up_interruptible(&priv->wait_command_queue);
 		memcpy(&priv->card_alive_init,
 		       &pkt->u.alive_frame,
 		       sizeof(struct iwl_init_alive_resp));
 		pwork = &priv->init_alive_start;
 	} else {
 		IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
-		set_bit(STATUS_RT_UCODE_ALIVE, &priv->status);
-		wake_up_interruptible(&priv->wait_command_queue);
 		memcpy(&priv->card_alive, &pkt->u.alive_frame,
 		       sizeof(struct iwl_alive_resp));
 		pwork = &priv->alive_start;
@@ -1784,7 +1780,6 @@ static int __iwl_up(struct iwl_priv *priv)
 {
 	int i;
 	int ret;
-	unsigned long status;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
@@ -1862,51 +1857,6 @@ static int __iwl_up(struct iwl_priv *priv)
 		/* start card; "initialize" will load runtime ucode */
 		iwl_nic_start(priv);
 
-		/* Just finish download Init or Runtime uCode image to device
-		 * now we wait here for uCode send REPLY_ALIVE notification
-		 * to indicate uCode is ready.
-		 * 1) For Init uCode image, all iwlagn devices should wait here
-		 * on STATUS_INIT_UCODE_ALIVE status bit; if timeout before
-		 * receive the REPLY_ALIVE notification, go back and try to
-		 * download the Init uCode image again.
-		 * 2) For Runtime uCode image, all iwlagn devices except 4965
-		 * wait here on STATUS_RT_UCODE_ALIVE status bit; if
-		 * timeout before receive the REPLY_ALIVE notification, go back
-		 * and download the Runtime uCode image again.
-		 * 3) For 4965 Runtime uCode, it will not go through this path,
-		 * need to wait for STATUS_RT_UCODE_ALIVE status bit in
-		 * iwl4965_init_alive_start() function; if timeout, need to
-		 * restart and download Init uCode image.
-		 */
-		if (priv->ucode_type == UCODE_INIT)
-			status = STATUS_INIT_UCODE_ALIVE;
-		else
-			status = STATUS_RT_UCODE_ALIVE;
-		if (test_bit(status, &priv->status)) {
-			IWL_WARN(priv,
-				"%s uCode already alive? "
-				"Waiting for alive anyway\n",
-				(status == STATUS_INIT_UCODE_ALIVE)
-				? "INIT" : "Runtime");
-			clear_bit(status, &priv->status);
-		}
-		ret = wait_event_interruptible_timeout(
-				priv->wait_command_queue,
-				test_bit(status, &priv->status),
-				UCODE_ALIVE_TIMEOUT);
-		if (!ret) {
-			if (!test_bit(status, &priv->status)) {
-				priv->ucode_type =
-					(status == STATUS_INIT_UCODE_ALIVE)
-					? UCODE_NONE : UCODE_INIT;
-				IWL_ERR(priv,
-					"%s timeout after %dms\n",
-					(status == STATUS_INIT_UCODE_ALIVE)
-					? "INIT" : "Runtime",
-					jiffies_to_msecs(UCODE_ALIVE_TIMEOUT));
-				continue;
-			}
-		}
 		IWL_DEBUG_INFO(priv, DRV_NAME " is coming up\n");
 
 		return 0;
