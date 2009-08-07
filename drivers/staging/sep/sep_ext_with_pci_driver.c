@@ -56,35 +56,101 @@
 #if SEP_DRIVER_ARM_DEBUG_MODE
 
 #define  CRYS_SEP_ROM_length                  0x4000
-
 #define  CRYS_SEP_ROM_start_address           0x8000C000UL
-
 #define  CRYS_SEP_ROM_start_address_offset    0xC000UL
-
 #define  SEP_ROM_BANK_register                0x80008420UL
-
 #define  SEP_ROM_BANK_register_offset         0x8420UL
-
 #define SEP_RAR_IO_MEM_REGION_START_ADDRESS   0x82000000
 
-/* 2M size */
-/* #define SEP_RAR_IO_MEM_REGION_SIZE            (1024*1024*2)
-
-static unsigned long CRYS_SEP_ROM[] = {
-	#include "SEP_ROM_image.h"
-};
-
-#else
-*/
-
-/*-------------
- THOSE 2 definitions are specific to the board - must be
- defined during integration
----------------*/
+/*
+ * THESE 2 definitions are specific to the board - must be
+ * defined during integration
+ */
 #define SEP_RAR_IO_MEM_REGION_START_ADDRESS   0xFF0D0000
 
 /* 2M size */
 
+void sep_load_rom_code(void)
+{
+	/* Index variables */
+	unsigned long i, k, j;
+	unsigned long regVal;
+	unsigned long Error;
+	unsigned long warning;
+
+	/* Loading ROM from SEP_ROM_image.h file */
+	k = sizeof(CRYS_SEP_ROM);
+
+	edbg("SEP Driver: DX_CC_TST_SepRomLoader start\n");
+
+	edbg("SEP Driver: k is %lu\n", k);
+	edbg("SEP Driver: sep_dev->reg_base_address is %p\n", sep_dev->reg_base_address);
+	edbg("SEP Driver: CRYS_SEP_ROM_start_address_offset is %p\n", CRYS_SEP_ROM_start_address_offset);
+
+	for (i = 0; i < 4; i++) {
+		/* write bank */
+		sep_write_reg(sep_dev, SEP_ROM_BANK_register_offset, i);
+
+		for (j = 0; j < CRYS_SEP_ROM_length / 4; j++) {
+			sep_write_reg(sep_dev, CRYS_SEP_ROM_start_address_offset + 4 * j, CRYS_SEP_ROM[i * 0x1000 + j]);
+
+			k = k - 4;
+
+			if (k == 0) {
+				j = CRYS_SEP_ROM_length;
+				i = 4;
+			}
+		}
+	}
+
+	/* reset the SEP */
+	sep_write_reg(sep_dev, HW_HOST_SEP_SW_RST_REG_ADDR, 0x1);
+
+	/* poll for SEP ROM boot finish */
+	do {
+		retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
+	} while (!regVal);
+
+	edbg("SEP Driver: ROM polling ended\n");
+
+	switch (regVal) {
+	case 0x1:
+		/* fatal error - read erro status from GPRO */
+		Error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
+		edbg("SEP Driver: ROM polling case 1\n");
+		break;
+	case 0x2:
+		/* Boot First Phase ended  */
+		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
+		edbg("SEP Driver: ROM polling case 2\n");
+		break;
+	case 0x4:
+		/* Cold boot ended successfully  */
+		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
+		edbg("SEP Driver: ROM polling case 4\n");
+		Error = 0;
+		break;
+	case 0x8:
+		/* Warmboot ended successfully */
+		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
+		edbg("SEP Driver: ROM polling case 8\n");
+		Error = 0;
+		break;
+	case 0x10:
+		/* ColdWarm boot ended successfully */
+		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
+		edbg("SEP Driver: ROM polling case 16\n");
+		Error = 0;
+		break;
+	case 0x20:
+		edbg("SEP Driver: ROM polling case 32\n");
+		break;
+	}
+
+}
+
+#else
+void sep_load_rom_code(void) { }
 #endif				/* SEP_DRIVER_ARM_DEBUG_MODE */
 
 #define BASE_ADDRESS_FOR_SYSTEM 0xfffc0000
@@ -398,83 +464,3 @@ int sep_register_driver_to_device(void)
 
 
 
-void sep_load_rom_code(void)
-{
-#if SEP_DRIVER_ARM_DEBUG_MODE
-	/* Index variables */
-	unsigned long i, k, j;
-	unsigned long regVal;
-	unsigned long Error;
-	unsigned long warning;
-
-	/* Loading ROM from SEP_ROM_image.h file */
-	k = sizeof(CRYS_SEP_ROM);
-
-	edbg("SEP Driver: DX_CC_TST_SepRomLoader start\n");
-
-	edbg("SEP Driver: k is %lu\n", k);
-	edbg("SEP Driver: sep_dev->reg_base_address is %p\n", sep_dev->reg_base_address);
-	edbg("SEP Driver: CRYS_SEP_ROM_start_address_offset is %p\n", CRYS_SEP_ROM_start_address_offset);
-
-	for (i = 0; i < 4; i++) {
-		/* write bank */
-		sep_write_reg(sep_dev, SEP_ROM_BANK_register_offset, i);
-
-		for (j = 0; j < CRYS_SEP_ROM_length / 4; j++) {
-			sep_write_reg(sep_dev, CRYS_SEP_ROM_start_address_offset + 4 * j, CRYS_SEP_ROM[i * 0x1000 + j]);
-
-			k = k - 4;
-
-			if (k == 0) {
-				j = CRYS_SEP_ROM_length;
-				i = 4;
-			}
-		}
-	}
-
-	/* reset the SEP */
-	sep_write_reg(sep_dev, HW_HOST_SEP_SW_RST_REG_ADDR, 0x1);
-
-	/* poll for SEP ROM boot finish */
-	do {
-		retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
-	} while (!regVal);
-
-	edbg("SEP Driver: ROM polling ended\n");
-
-	switch (regVal) {
-	case 0x1:
-		/* fatal error - read erro status from GPRO */
-		Error = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		edbg("SEP Driver: ROM polling case 1\n");
-		break;
-	case 0x2:
-		/* Boot First Phase ended  */
-		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		edbg("SEP Driver: ROM polling case 2\n");
-		break;
-	case 0x4:
-		/* Cold boot ended successfully  */
-		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		edbg("SEP Driver: ROM polling case 4\n");
-		Error = 0;
-		break;
-	case 0x8:
-		/* Warmboot ended successfully */
-		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		edbg("SEP Driver: ROM polling case 8\n");
-		Error = 0;
-		break;
-	case 0x10:
-		/* ColdWarm boot ended successfully */
-		warning = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		edbg("SEP Driver: ROM polling case 16\n");
-		Error = 0;
-		break;
-	case 0x20:
-		edbg("SEP Driver: ROM polling case 32\n");
-		break;
-	}
-
-#endif
-}
