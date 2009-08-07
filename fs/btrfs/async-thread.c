@@ -196,31 +196,73 @@ static int try_worker_shutdown(struct btrfs_worker_thread *worker)
 	return freeit;
 }
 
+static struct btrfs_work *get_next_work(struct btrfs_worker_thread *worker,
+					struct list_head *prio_head,
+					struct list_head *head)
+{
+	struct btrfs_work *work = NULL;
+	struct list_head *cur = NULL;
+
+	if(!list_empty(prio_head))
+		cur = prio_head->next;
+
+	smp_mb();
+	if (!list_empty(&worker->prio_pending))
+		goto refill;
+
+	if (!list_empty(head))
+		cur = head->next;
+
+	if (cur)
+		goto out;
+
+refill:
+	spin_lock_irq(&worker->lock);
+	list_splice_tail_init(&worker->prio_pending, prio_head);
+	list_splice_tail_init(&worker->pending, head);
+
+	if (!list_empty(prio_head))
+		cur = prio_head->next;
+	else if (!list_empty(head))
+		cur = head->next;
+	spin_unlock_irq(&worker->lock);
+
+	if (!cur)
+		goto out_fail;
+
+out:
+	work = list_entry(cur, struct btrfs_work, list);
+
+out_fail:
+	return work;
+}
+
 /*
  * main loop for servicing work items
  */
 static int worker_loop(void *arg)
 {
 	struct btrfs_worker_thread *worker = arg;
-	struct list_head *cur;
+	struct list_head head;
+	struct list_head prio_head;
 	struct btrfs_work *work;
+
+	INIT_LIST_HEAD(&head);
+	INIT_LIST_HEAD(&prio_head);
+
 	do {
-		spin_lock_irq(&worker->lock);
-again_locked:
+again:
 		while (1) {
-			if (!list_empty(&worker->prio_pending))
-				cur = worker->prio_pending.next;
-			else if (!list_empty(&worker->pending))
-				cur = worker->pending.next;
-			else
+
+
+			work = get_next_work(worker, &prio_head, &head);
+			if (!work)
 				break;
 
-			work = list_entry(cur, struct btrfs_work, list);
 			list_del(&work->list);
 			clear_bit(WORK_QUEUED_BIT, &work->flags);
 
 			work->worker = worker;
-			spin_unlock_irq(&worker->lock);
 
 			work->func(work);
 
@@ -233,9 +275,11 @@ again_locked:
 
 			check_pending_worker_creates(worker);
 
-			spin_lock_irq(&worker->lock);
-			check_idle_worker(worker);
 		}
+
+		spin_lock_irq(&worker->lock);
+		check_idle_worker(worker);
+
 		if (freezing(current)) {
 			worker->working = 0;
 			spin_unlock_irq(&worker->lock);
@@ -274,8 +318,10 @@ again_locked:
 				spin_lock_irq(&worker->lock);
 				set_current_state(TASK_INTERRUPTIBLE);
 				if (!list_empty(&worker->pending) ||
-				    !list_empty(&worker->prio_pending))
-					goto again_locked;
+				    !list_empty(&worker->prio_pending)) {
+					spin_unlock_irq(&worker->lock);
+					goto again;
+				}
 
 				/*
 				 * this makes sure we get a wakeup when someone
