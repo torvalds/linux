@@ -3583,9 +3583,12 @@ M:	"John W. Linville" <linville@tuxdriver.com>
 L:	linux-wireless@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
+F:	net/mac80211/
+F:	net/rfkill/
 F:	net/wireless/
 F:	include/net/ieee80211*
 F:	include/linux/wireless.h
+F:	drivers/net/wireless/
 
 NETWORKING DRIVERS
 L:	netdev@vger.kernel.org
