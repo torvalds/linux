@@ -901,7 +901,7 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 	int i;
 
 	if (callchain_param.mode == CHAIN_GRAPH_REL)
-		new_total = self->cumul_hit;
+		new_total = self->children_hit;
 	else
 		new_total = total_samples;
 
@@ -930,7 +930,7 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 			ret += ipchain__fprintf_graph(fp, chain, depth,
 						      new_depth_mask, i++,
 						      new_total,
-						      child->cumul_hit);
+						      cumul_hits(child));
 		}
 		ret += callchain__fprintf_graph(fp, child, new_total,
 						depth + 1,

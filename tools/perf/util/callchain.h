@@ -21,7 +21,7 @@ struct callchain_node {
 	struct rb_root		rb_root; /* sorted tree of children */
 	unsigned int		val_nr;
 	u64			hit;
-	u64			cumul_hit; /* hit + hits of children */
+	u64			children_hit;
 };
 
 struct callchain_param;
@@ -46,6 +46,11 @@ static inline void callchain_init(struct callchain_node *node)
 	INIT_LIST_HEAD(&node->brothers);
 	INIT_LIST_HEAD(&node->children);
 	INIT_LIST_HEAD(&node->val);
+}
+
+static inline u64 cumul_hits(struct callchain_node *node)
+{
+	return node->hit + node->children_hit;
 }
 
 int register_callchain_param(struct callchain_param *param);
