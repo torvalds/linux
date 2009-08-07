@@ -1088,7 +1088,7 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 		IWL_DEBUG_DROP(priv, "Station %pM not in station map. "
 			       "Defaulting to broadcast...\n",
 			       hdr->addr1);
-		iwl_print_hex_dump(IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
+		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
 		return priv->hw_params.bcast_sta_id;
 
 	default:

@@ -896,7 +896,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & IWL_DL_ISR) {
+	if (iwl_get_debug_level(priv) & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -931,7 +931,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -1045,7 +1045,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 		iwl_enable_interrupts(priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
@@ -1076,7 +1076,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	inta = priv->inta;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & IWL_DL_ISR) {
+	if (iwl_get_debug_level(priv) & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x\n ",
@@ -1104,7 +1104,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -2455,15 +2455,15 @@ static int iwl_mac_get_stats(struct ieee80211_hw *hw,
  *
  * See the level definitions in iwl for details.
  *
- * FIXME This file can be deprecated as the module parameter is
- * writable and users can thus also change the debug level
- * using the /sys/module/iwl3945/parameters/debug file.
+ * The debug_level being managed using sysfs below is a per device debug
+ * level that is used instead of the global debug level if it (the per
+ * device debug level) is set.
  */
-
 static ssize_t show_debug_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%08X\n", iwl_debug_level);
+	struct iwl_priv *priv = dev_get_drvdata(d);
+	return sprintf(buf, "0x%08X\n", iwl_get_debug_level(priv));
 }
 static ssize_t store_debug_level(struct device *d,
 				struct device_attribute *attr,
@@ -2477,7 +2477,7 @@ static ssize_t store_debug_level(struct device *d,
 	if (ret)
 		IWL_ERR(priv, "%s is not in hex or decimal form.\n", buf);
 	else
-		iwl_debug_level = val;
+		priv->debug_level = val;
 
 	return strnlen(buf, count);
 }

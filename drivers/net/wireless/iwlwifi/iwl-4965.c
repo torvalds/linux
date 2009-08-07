@@ -46,7 +46,7 @@
 #include "iwl-sta.h"
 
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
-static int iwl4965_hw_get_temperature(const struct iwl_priv *priv);
+static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
 
 /* Highest firmware API version supported */
 #define IWL4965_UCODE_API_MAX 2
@@ -1680,7 +1680,7 @@ static s32 sign_extend(u32 oper, int index)
  *
  * A return of <0 indicates bogus data in the statistics
  */
-static int iwl4965_hw_get_temperature(const struct iwl_priv *priv)
+static int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 {
 	s32 temperature;
 	s32 vt;

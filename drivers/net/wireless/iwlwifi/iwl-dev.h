@@ -1175,6 +1175,8 @@ struct iwl_priv {
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	/* debugging info */
+	u32 debug_level; /* per device debugging will override global
+			    iwl_debug_level if set */
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;
 	bool disable_ht40;
@@ -1211,8 +1213,27 @@ static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 const char *iwl_get_tx_fail_reason(u32 status);
+/*
+ * iwl_get_debug_level: Return active debug level for device
+ *
+ * Using sysfs it is possible to set per device debug level. This debug
+ * level will be used if set, otherwise the global debug level which can be
+ * set via module parameter is used.
+ */
+static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
+{
+	if (priv->debug_level)
+		return priv->debug_level;
+	else
+		return iwl_debug_level;
+}
 #else
 static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
+
+static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
+{
+	return iwl_debug_level;
+}
 #endif
 
 
