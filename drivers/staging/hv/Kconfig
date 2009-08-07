@@ -15,7 +15,7 @@ config HYPERV_STORAGE
 
 config HYPERV_BLOCK
 	tristate "Microsoft Hyper-V virtual block driver"
-	depends on BLOCK && m
+	depends on BLOCK && SCSI && m
 	default n
 	help
 	  Select this option to enable the Hyper-V virtual block driver.
