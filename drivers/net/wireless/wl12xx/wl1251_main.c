@@ -461,6 +461,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl->psm = 0;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
+	wl->channel = WL1251_DEFAULT_CHANNEL;
 
 	wl1251_debugfs_reset(wl);
 
@@ -1302,7 +1303,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(wl1251_init_ieee80211);
 
-#define WL1251_DEFAULT_CHANNEL 1
 struct ieee80211_hw *wl1251_alloc_hw(void)
 {
 	struct ieee80211_hw *hw;

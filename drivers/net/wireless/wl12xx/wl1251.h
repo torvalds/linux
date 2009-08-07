@@ -398,6 +398,8 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 #define WL1251_DEFAULT_BEACON_INT 100
 #define WL1251_DEFAULT_DTIM_PERIOD 1
 
+#define WL1251_DEFAULT_CHANNEL 0
+
 #define CHIP_ID_1251_PG10	           (0x7010101)
 #define CHIP_ID_1251_PG11	           (0x7020101)
 #define CHIP_ID_1251_PG12	           (0x7030101)
