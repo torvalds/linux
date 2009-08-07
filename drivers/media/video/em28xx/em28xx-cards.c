@@ -1549,6 +1549,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2750_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2800),
 			.driver_info = EM2800_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2710),
+			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2820),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2821),
