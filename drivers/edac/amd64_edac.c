@@ -1255,7 +1255,9 @@ static int k8_dbam_map_to_pages(struct amd64_pvt *pvt, int dram_map)
  */
 static int f10_early_channel_count(struct amd64_pvt *pvt)
 {
+	int dbams[] = { DBAM0, DBAM1 };
 	int err = 0, channels = 0;
+	int i, j;
 	u32 dbam;
 
 	err = pci_read_config_dword(pvt->dram_f2_ctl, F10_DCLR_0, &pvt->dclr0);
@@ -1288,45 +1290,18 @@ static int f10_early_channel_count(struct amd64_pvt *pvt)
 	 * is more than just one DIMM present in unganged mode. Need to check
 	 * both controllers since DIMMs can be placed in either one.
 	 */
-	channels = 0;
-	err = pci_read_config_dword(pvt->dram_f2_ctl, DBAM0, &dbam);
-	if (err)
-		goto err_reg;
-
-	if (DBAM_DIMM(0, dbam) > 0)
-		channels++;
-	if (DBAM_DIMM(1, dbam) > 0)
-		channels++;
-	if (DBAM_DIMM(2, dbam) > 0)
-		channels++;
-	if (DBAM_DIMM(3, dbam) > 0)
-		channels++;
-
-	/* If more than 2 DIMMs are present, then we have 2 channels */
-	if (channels > 2)
-		channels = 2;
-	else if (channels == 0) {
-		/* No DIMMs on DCT0, so look at DCT1 */
-		err = pci_read_config_dword(pvt->dram_f2_ctl, DBAM1, &dbam);
+	for (i = 0; i < ARRAY_SIZE(dbams); i++) {
+		err = pci_read_config_dword(pvt->dram_f2_ctl, dbams[i], &dbam);
 		if (err)
 			goto err_reg;
 
-		if (DBAM_DIMM(0, dbam) > 0)
-			channels++;
-		if (DBAM_DIMM(1, dbam) > 0)
-			channels++;
-		if (DBAM_DIMM(2, dbam) > 0)
-			channels++;
-		if (DBAM_DIMM(3, dbam) > 0)
-			channels++;
-
-		if (channels > 2)
-			channels = 2;
+		for (j = 0; j < 4; j++) {
+			if (DBAM_DIMM(j, dbam) > 0) {
+				channels++;
+				break;
+			}
+		}
 	}
-
-	/* If we found ALL 0 values, then assume just ONE DIMM-ONE Channel */
-	if (channels == 0)
-		channels = 1;
 
 	debugf0("MCT channel count: %d\n", channels);
 
