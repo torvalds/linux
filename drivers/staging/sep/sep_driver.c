@@ -287,9 +287,7 @@ end_function:
   - the physical address of the shared area
 */
 static int sep_map_and_alloc_shared_area(struct sep_device *sep,
-			unsigned long shared_area_size,
-			unsigned long *kernel_shared_area_addr_ptr,
-			unsigned long *phys_shared_area_addr_ptr)
+			unsigned long shared_area_size)
 {
 	/* shared_addr = ioremap_nocache(0xda00000,shared_area_size); */
 	sep->shared_addr = kmalloc(shared_area_size, GFP_KERNEL);
@@ -298,14 +296,14 @@ static int sep_map_and_alloc_shared_area(struct sep_device *sep,
 		return -1;
 	}
 	/* FIXME */
-	sep_dev->shared_bus = __pa(sep->shared_addr);
+	sep->shared_bus = __pa(sep->shared_addr);
 	/* shared_bus = 0xda00000; */
-	*kernel_shared_area_addr_ptr = (unsigned long) sep->shared_addr;
+	sep->shared_area = (unsigned long)sep->shared_addr;
 	/* set the physical address of the shared area */
-	*phys_shared_area_addr_ptr = sep->shared_bus;
+	sep->shared_area_bus = sep->shared_bus;
 	edbg("SEP Driver:shared_addr is %p\n", sep->shared_addr);
 	edbg("SEP Driver:shared_region_size is %08lx\n", shared_area_size);
-	edbg("SEP Driver:shared_physical_addr is %08lx\n", *phys_shared_area_addr_ptr);
+	edbg("SEP Driver:shared_physical_addr is %08lx\n", sep->shared_bus);
 
 	return 0;
 }
@@ -318,9 +316,9 @@ static int sep_map_and_alloc_shared_area(struct sep_device *sep,
   shared area,phys_shared_area_addr_ptr - the physical address of
   the shared area
 */
-static void sep_unmap_and_free_shared_area(unsigned long shared_area_size, unsigned long kernel_shared_area_addr, unsigned long phys_shared_area_addr)
+static void sep_unmap_and_free_shared_area(struct sep_device *sep, int size)
 {
-	kfree((void *) kernel_shared_area_addr);
+	kfree((void *)sep->shared_area);
 }
 
 /*
@@ -2440,7 +2438,7 @@ end_function:
 
 
 
-
+#if 0
 
 static void sep_wait_busy(struct sep_device *sep)
 {
@@ -2479,6 +2477,8 @@ static void sep_configure_dma_burst(struct sep_device *sep)
 	dbg("SEP Driver:<-------- sep_configure_dma_burst done  \n");
 
 }
+
+#endif
 
 /*
   Function that is activaed on the succesful probe of the SEP device
@@ -2522,7 +2522,7 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	    SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES + SEP_DRIVER_FLOW_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES + SEP_DRIVER_SYSTEM_DATA_MEMORY_SIZE_IN_BYTES;
 
 	/* allocate the shared area */
-	if (sep_map_and_alloc_shared_area(sep, size, &sep->shared_area, &sep->shared_area_bus)) {
+	if (sep_map_and_alloc_shared_area(sep, size)) {
 		error = -ENOMEM;
 		/* allocation failed */
 		goto end_function_error;
@@ -2638,7 +2638,7 @@ end_function_uniomap:
 	iounmap(sep->io_addr);
 end_function_deallocate_sep_shared_area:
 	/* de-allocate shared area */
-	sep_unmap_and_free_shared_area(size, sep->shared_area, sep->shared_area_bus);
+	sep_unmap_and_free_shared_area(sep, size);
 end_function_error:
 	sep_dev = NULL;
 end_function:
@@ -2762,7 +2762,7 @@ static void __exit sep_exit(void)
 	/* FIXME: We need to do this in the unload for the device */
 	/* free shared area  */
 	if (sep_dev) {
-		sep_unmap_and_free_shared_area(size, sep_dev->shared_area, sep_dev->shared_area_bus);
+		sep_unmap_and_free_shared_area(sep_dev, size);
 		edbg("SEP Driver: free pages SEP SHARED AREA \n");
 		iounmap((void *) sep_dev->reg_addr);
 		edbg("SEP Driver: iounmap \n");
