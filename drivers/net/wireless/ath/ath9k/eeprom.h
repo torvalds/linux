@@ -404,8 +404,13 @@ struct modal_eep_4k_header {
 	u8 iqCalICh[AR5416_EEP4K_MAX_CHAINS];
 	u8 iqCalQCh[AR5416_EEP4K_MAX_CHAINS];
 	u8 pdGainOverlap;
-	u8 ob_01;
-	u8 db1_01;
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 ob_1:4, ob_0:4;
+	u8 db1_1:4, db1_0:4;
+#else
+	u8 ob_0:4, ob_1:4;
+	u8 db1_0:4, db1_1:4;
+#endif
 	u8 xpaBiasLvl;
 	u8 txFrameToDataStart;
 	u8 txFrameToPaOn;
@@ -415,11 +420,27 @@ struct modal_eep_4k_header {
 	u8 swSettleHt40;
 	u8 xatten2Db[AR5416_EEP4K_MAX_CHAINS];
 	u8 xatten2Margin[AR5416_EEP4K_MAX_CHAINS];
-	u8 db2_01;
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 db2_1:4, db2_0:4;
+#else
+	u8 db2_0:4, db2_1:4;
+#endif
 	u8 version;
-	u16 ob_234;
-	u16 db1_234;
-	u16 db2_234;
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 ob_3:4, ob_2:4;
+	u8 antdiv_ctl1:4, ob_4:4;
+	u8 db1_3:4, db1_2:4;
+	u8 antdiv_ctl2:4, db1_4:4;
+	u8 db2_2:4, db2_3:4;
+	u8 reserved:4, db2_4:4;
+#else
+	u8 ob_2:4, ob_3:4;
+	u8 ob_4:4, antdiv_ctl1:4;
+	u8 db1_2:4, db1_3:4;
+	u8 db1_4:4, antdiv_ctl2:4;
+	u8 db2_2:4, db2_3:4;
+	u8 db2_4:4, reserved:4;
+#endif
 	u8 futureModal[4];
 	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
 } __packed;

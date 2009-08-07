@@ -197,9 +197,9 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 	case EEP_RF_SILENT:
 		return pBase->rfSilent;
 	case EEP_OB_2:
-		return pModal->ob_01;
+		return pModal->ob_0;
 	case EEP_DB_2:
-		return pModal->db1_01;
+		return pModal->db1_1;
 	case EEP_MINOR_REV:
 		return pBase->version & AR5416_EEP_VER_MINOR_MASK;
 	case EEP_TX_MASK:
@@ -923,58 +923,67 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 
 	/* Initialize Ant Diversity settings from EEPROM */
 	if (pModal->version >= 3) {
-		ant_div_control1 = ((pModal->ob_234 >> 12) & 0xf);
-		ant_div_control2 = ((pModal->db1_234 >> 12) & 0xf);
-		regVal = REG_READ(ah, 0x99ac);
-		regVal &= (~(0x7f000000));
-		regVal |= ((ant_div_control1 & 0x1) << 24);
-		regVal |= (((ant_div_control1 >> 1) & 0x1) << 29);
-		regVal |= (((ant_div_control1 >> 2) & 0x1) << 30);
-		regVal |= ((ant_div_control2 & 0x3) << 25);
-		regVal |= (((ant_div_control2 >> 2) & 0x3) << 27);
-		REG_WRITE(ah, 0x99ac, regVal);
-		regVal = REG_READ(ah, 0x99ac);
-		regVal = REG_READ(ah, 0xa208);
-		regVal &= (~(0x1 << 13));
-		regVal |= (((ant_div_control1 >> 3) & 0x1) << 13);
-		REG_WRITE(ah, 0xa208, regVal);
-		regVal = REG_READ(ah, 0xa208);
+		ant_div_control1 = pModal->antdiv_ctl1;
+		ant_div_control2 = pModal->antdiv_ctl2;
+
+		regVal = REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+		regVal &= (~(AR_PHY_9285_ANT_DIV_CTL_ALL));
+
+		regVal |= SM(ant_div_control1,
+			     AR_PHY_9285_ANT_DIV_CTL);
+		regVal |= SM(ant_div_control2,
+			     AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+		regVal |= SM((ant_div_control2 >> 2),
+			     AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+		regVal |= SM((ant_div_control1 >> 1),
+			     AR_PHY_9285_ANT_DIV_ALT_GAINTB);
+		regVal |= SM((ant_div_control1 >> 2),
+			     AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
+
+
+		REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
+		regVal = REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+		regVal = REG_READ(ah, AR_PHY_CCK_DETECT);
+		regVal &= (~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+		regVal |= SM((ant_div_control1 >> 3),
+			     AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+
+		REG_WRITE(ah, AR_PHY_CCK_DETECT, regVal);
+		regVal = REG_READ(ah, AR_PHY_CCK_DETECT);
 	}
 
 	if (pModal->version >= 2) {
-		ob[0] = (pModal->ob_01 & 0xf);
-		ob[1] = (pModal->ob_01 >> 4) & 0xf;
-		ob[2] = (pModal->ob_234 & 0xf);
-		ob[3] = ((pModal->ob_234 >> 4) & 0xf);
-		ob[4] = ((pModal->ob_234 >> 8) & 0xf);
+		ob[0] = pModal->ob_0;
+		ob[1] = pModal->ob_1;
+		ob[2] = pModal->ob_2;
+		ob[3] = pModal->ob_3;
+		ob[4] = pModal->ob_4;
 
-		db1[0] = (pModal->db1_01 & 0xf);
-		db1[1] = ((pModal->db1_01 >> 4) & 0xf);
-		db1[2] = (pModal->db1_234 & 0xf);
-		db1[3] = ((pModal->db1_234 >> 4) & 0xf);
-		db1[4] = ((pModal->db1_234 >> 8) & 0xf);
+		db1[0] = pModal->db1_0;
+		db1[1] = pModal->db1_1;
+		db1[2] = pModal->db1_2;
+		db1[3] = pModal->db1_3;
+		db1[4] = pModal->db1_4;
 
-		db2[0] = (pModal->db2_01 & 0xf);
-		db2[1] = ((pModal->db2_01 >> 4) & 0xf);
-		db2[2] = (pModal->db2_234 & 0xf);
-		db2[3] = ((pModal->db2_234 >> 4) & 0xf);
-		db2[4] = ((pModal->db2_234 >> 8) & 0xf);
-
+		db2[0] = pModal->db2_0;
+		db2[1] = pModal->db2_1;
+		db2[2] = pModal->db2_2;
+		db2[3] = pModal->db2_3;
+		db2[4] = pModal->db2_4;
 	} else if (pModal->version == 1) {
-		ob[0] = (pModal->ob_01 & 0xf);
-		ob[1] = ob[2] = ob[3] = ob[4] = (pModal->ob_01 >> 4) & 0xf;
-		db1[0] = (pModal->db1_01 & 0xf);
-		db1[1] = db1[2] = db1[3] =
-			db1[4] = ((pModal->db1_01 >> 4) & 0xf);
-		db2[0] = (pModal->db2_01 & 0xf);
-		db2[1] = db2[2] = db2[3] =
-			db2[4] = ((pModal->db2_01 >> 4) & 0xf);
+		ob[0] = pModal->ob_0;
+		ob[1] = ob[2] = ob[3] = ob[4] = pModal->ob_1;
+		db1[0] = pModal->db1_0;
+		db1[1] = db1[2] = db1[3] = db1[4] = pModal->db1_1;
+		db2[0] = pModal->db2_0;
+		db2[1] = db2[2] = db2[3] = db2[4] = pModal->db2_1;
 	} else {
 		int i;
+
 		for (i = 0; i < 5; i++) {
-			ob[i] = pModal->ob_01;
-			db1[i] = pModal->db1_01;
-			db2[i] = pModal->db1_01;
+			ob[i] = pModal->ob_0;
+			db1[i] = pModal->db1_0;
+			db2[i] = pModal->db1_0;
 		}
 	}
 

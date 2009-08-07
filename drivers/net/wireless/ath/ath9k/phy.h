@@ -419,6 +419,7 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define AR_PHY_CCK_DETECT_ANT_SWITCH_TIME           0x00001FC0
 #define AR_PHY_CCK_DETECT_ANT_SWITCH_TIME_S         6
 #define AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV    0x2000
+#define AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV_S  13
 
 #define AR_PHY_GAIN_2GHZ                0xA20C
 #define AR_PHY_GAIN_2GHZ_RXTX_MARGIN    0x00FC0000
