@@ -440,6 +440,10 @@ _base_sas_log_info(struct MPT2SAS_ADAPTER *ioc , u32 log_info)
 	if (sas_loginfo.dw.bus_type != 3 /*SAS*/)
 		return;
 
+	/* each nexus loss loginfo */
+	if (log_info == 0x31170000)
+		return;
+
 	/* eat the loginfos associated with task aborts */
 	if (ioc->ignore_loginfos && (log_info == 30050000 || log_info ==
 	    0x31140000 || log_info == 0x31130000))
