@@ -481,6 +481,7 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
 			tt->tt_power_mode = IWL_POWER_INDEX_5;
 			break;
 		}
+		mutex_lock(&priv->mutex);
 		if (iwl_power_update_mode(priv, true)) {
 			/* TT state not updated
 			 * try again during next temperature read
@@ -499,6 +500,7 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
 			IWL_DEBUG_POWER(priv, "Power Index change to %u\n",
 					tt->tt_power_mode);
 		}
+		mutex_unlock(&priv->mutex);
 	}
 }
 
@@ -609,6 +611,7 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
 			 * in case get disabled before */
 			iwl_set_rxon_ht(priv, &priv->current_ht_config);
 		}
+		mutex_lock(&priv->mutex);
 		if (iwl_power_update_mode(priv, true)) {
 			/* TT state not updated
 			 * try again during next temperature read
@@ -631,6 +634,7 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
 				iwl_perform_ct_kill_task(priv, false);
 			}
 		}
+		mutex_unlock(&priv->mutex);
 	}
 }
 
@@ -644,11 +648,15 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
  * for advance mode
  * pass CT_KILL_THRESHOLD+1 to make sure move into IWL_TI_CT_KILL state
  */
-void iwl_tt_enter_ct_kill(struct iwl_priv *priv)
+static void iwl_bg_ct_enter(struct work_struct *work)
 {
+	struct iwl_priv *priv = container_of(work, struct iwl_priv, ct_enter);
 	struct iwl_tt_mgmt *tt = &priv->power_data.tt;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	if (!iwl_is_ready(priv))
 		return;
 
 	if (tt->state != IWL_TI_CT_KILL) {
@@ -662,18 +670,21 @@ void iwl_tt_enter_ct_kill(struct iwl_priv *priv)
 					       CT_KILL_THRESHOLD + 1);
 	}
 }
-EXPORT_SYMBOL(iwl_tt_enter_ct_kill);
 
 /* Card State Notification indicated out of critical temperature
  * since Card State Notification will not provide any temperature reading
  * so pass the IWL_REDUCED_PERFORMANCE_THRESHOLD_2 temperature
  * to iwl_legacy_tt_handler() to get out of IWL_CT_KILL state
  */
-void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
+static void iwl_bg_ct_exit(struct work_struct *work)
 {
+	struct iwl_priv *priv = container_of(work, struct iwl_priv, ct_exit);
 	struct iwl_tt_mgmt *tt = &priv->power_data.tt;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	if (!iwl_is_ready(priv))
 		return;
 
 	/* stop ct_kill_exit_tm timer */
@@ -690,10 +701,30 @@ void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
 			iwl_advance_tt_handler(priv, CT_KILL_EXIT_THRESHOLD);
 	}
 }
+
+void iwl_tt_enter_ct_kill(struct iwl_priv *priv)
+{
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	IWL_DEBUG_POWER(priv, "Queueing critical temperature enter.\n");
+	queue_work(priv->workqueue, &priv->ct_enter);
+}
+EXPORT_SYMBOL(iwl_tt_enter_ct_kill);
+
+void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
+{
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	IWL_DEBUG_POWER(priv, "Queueing critical temperature exit.\n");
+	queue_work(priv->workqueue, &priv->ct_exit);
+}
 EXPORT_SYMBOL(iwl_tt_exit_ct_kill);
 
-void iwl_tt_handler(struct iwl_priv *priv)
+static void iwl_bg_tt_work(struct work_struct *work)
 {
+	struct iwl_priv *priv = container_of(work, struct iwl_priv, tt_work);
 	s32 temp = priv->temperature; /* degrees CELSIUS except 4965 */
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
@@ -706,6 +737,15 @@ void iwl_tt_handler(struct iwl_priv *priv)
 		iwl_legacy_tt_handler(priv, temp);
 	else
 		iwl_advance_tt_handler(priv, temp);
+}
+
+void iwl_tt_handler(struct iwl_priv *priv)
+{
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	IWL_DEBUG_POWER(priv, "Queueing thermal throttling work.\n");
+	queue_work(priv->workqueue, &priv->tt_work);
 }
 EXPORT_SYMBOL(iwl_tt_handler);
 
@@ -731,6 +771,12 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	init_timer(&priv->power_data.ct_kill_exit_tm);
 	priv->power_data.ct_kill_exit_tm.data = (unsigned long)priv;
 	priv->power_data.ct_kill_exit_tm.function = iwl_tt_check_exit_ct_kill;
+
+	/* setup deferred ct kill work */
+	INIT_WORK(&priv->tt_work, iwl_bg_tt_work);
+	INIT_WORK(&priv->ct_enter, iwl_bg_ct_enter);
+	INIT_WORK(&priv->ct_exit, iwl_bg_ct_exit);
+
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_6x00:
 	case CSR_HW_REV_TYPE_6x50:
@@ -782,6 +828,9 @@ void iwl_tt_exit(struct iwl_priv *priv)
 
 	/* stop ct_kill_exit_tm timer if activated */
 	del_timer_sync(&priv->power_data.ct_kill_exit_tm);
+	cancel_work_sync(&priv->tt_work);
+	cancel_work_sync(&priv->ct_enter);
+	cancel_work_sync(&priv->ct_exit);
 
 	if (priv->power_data.adv_tt) {
 		/* free advance thermal throttling memory */
