@@ -31,6 +31,7 @@
 #include <linux/nl802154.h>
 #include <net/af_ieee802154.h>
 #include <net/nl802154.h>
+#include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
 
 static unsigned int ieee802154_seq_num;
@@ -262,6 +263,31 @@ nla_put_failure:
 }
 EXPORT_SYMBOL(ieee802154_nl_scan_confirm);
 
+int ieee802154_nl_start_confirm(struct net_device *dev, u8 status)
+{
+	struct sk_buff *msg;
+
+	pr_debug("%s\n", __func__);
+
+	msg = ieee802154_nl_create(0, IEEE802154_START_CONF);
+	if (!msg)
+		return -ENOBUFS;
+
+	NLA_PUT_STRING(msg, IEEE802154_ATTR_DEV_NAME, dev->name);
+	NLA_PUT_U32(msg, IEEE802154_ATTR_DEV_INDEX, dev->ifindex);
+	NLA_PUT(msg, IEEE802154_ATTR_HW_ADDR, IEEE802154_ADDR_LEN,
+			dev->dev_addr);
+
+	NLA_PUT_U8(msg, IEEE802154_ATTR_STATUS, status);
+
+	return ieee802154_nl_finish(msg);
+
+nla_put_failure:
+	nlmsg_free(msg);
+	return -ENOBUFS;
+}
+EXPORT_SYMBOL(ieee802154_nl_start_confirm);
+
 static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 pid,
 	u32 seq, int flags, struct net_device *dev)
 {
@@ -461,6 +487,12 @@ static int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	pan_coord = nla_get_u8(info->attrs[IEEE802154_ATTR_PAN_COORD]);
 	blx = nla_get_u8(info->attrs[IEEE802154_ATTR_BAT_EXT]);
 	coord_realign = nla_get_u8(info->attrs[IEEE802154_ATTR_COORD_REALIGN]);
+
+	if (addr.short_addr == IEEE802154_ADDR_BROADCAST) {
+		ieee802154_nl_start_confirm(dev, IEEE802154_NO_SHORT_ADDRESS);
+		dev_put(dev);
+		return -EINVAL;
+	}
 
 	ret = ieee802154_mlme_ops(dev)->start_req(dev, &addr, channel,
 		bcn_ord, sf_ord, pan_coord, blx, coord_realign);

@@ -114,4 +114,13 @@ int ieee802154_nl_scan_confirm(struct net_device *dev,
 int ieee802154_nl_beacon_indic(struct net_device *dev, u16 panid,
 		u16 coord_addr);
 
+/**
+ * ieee802154_nl_start_confirm - Notify userland of completion of start.
+ * @dev: The device which was instructed to scan.
+ * @status: The status of the scan operation.
+ *
+ * Note: This is in section 7.1.14 of the IEEE 802.15.4 document.
+ */
+int ieee802154_nl_start_confirm(struct net_device *dev, u8 status);
+
 #endif
