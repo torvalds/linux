@@ -30,6 +30,7 @@
 #include "wl1251_spi.h"
 #include "wl1251_tx.h"
 #include "wl1251_ps.h"
+#include "wl1251_io.h"
 
 static bool wl1251_tx_double_buffer_busy(struct wl1251 *wl, u32 data_out_count)
 {
@@ -235,7 +236,7 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 	else
 		addr = wl->data_path->tx_packet_ring_addr;
 
-	wl1251_spi_mem_write(wl, addr, skb->data, len);
+	wl1251_mem_write(wl, addr, skb->data, len);
 
 	wl1251_debug(DEBUG_TX, "tx id %u skb 0x%p payload %u rate 0x%x",
 		     tx_hdr->id, skb, tx_hdr->length, tx_hdr->rate);
@@ -451,7 +452,7 @@ void wl1251_tx_complete(struct wl1251 *wl)
 		return;
 
 	/* First we read the result */
-	wl1251_spi_mem_read(wl, wl->data_path->tx_complete_addr,
+	wl1251_mem_read(wl, wl->data_path->tx_complete_addr,
 			    result, sizeof(result));
 
 	result_index = wl->next_tx_complete;
@@ -482,41 +483,41 @@ void wl1251_tx_complete(struct wl1251 *wl)
 		 */
 		if (result_index > wl->next_tx_complete) {
 			/* Only 1 write is needed */
-			wl1251_spi_mem_write(wl,
-					     wl->data_path->tx_complete_addr +
-					     (wl->next_tx_complete *
-					      sizeof(struct tx_result)),
-					     &result[wl->next_tx_complete],
-					     num_complete *
-					     sizeof(struct tx_result));
+			wl1251_mem_write(wl,
+					 wl->data_path->tx_complete_addr +
+					 (wl->next_tx_complete *
+					  sizeof(struct tx_result)),
+					 &result[wl->next_tx_complete],
+					 num_complete *
+					 sizeof(struct tx_result));
 
 
 		} else if (result_index < wl->next_tx_complete) {
 			/* 2 writes are needed */
-			wl1251_spi_mem_write(wl,
-					     wl->data_path->tx_complete_addr +
-					     (wl->next_tx_complete *
-					      sizeof(struct tx_result)),
-					     &result[wl->next_tx_complete],
-					     (FW_TX_CMPLT_BLOCK_SIZE -
-					      wl->next_tx_complete) *
-					     sizeof(struct tx_result));
+			wl1251_mem_write(wl,
+					 wl->data_path->tx_complete_addr +
+					 (wl->next_tx_complete *
+					  sizeof(struct tx_result)),
+					 &result[wl->next_tx_complete],
+					 (FW_TX_CMPLT_BLOCK_SIZE -
+					  wl->next_tx_complete) *
+					 sizeof(struct tx_result));
 
-			wl1251_spi_mem_write(wl,
-					     wl->data_path->tx_complete_addr,
-					     result,
-					     (num_complete -
-					      FW_TX_CMPLT_BLOCK_SIZE +
-					      wl->next_tx_complete) *
-					     sizeof(struct tx_result));
+			wl1251_mem_write(wl,
+					 wl->data_path->tx_complete_addr,
+					 result,
+					 (num_complete -
+					  FW_TX_CMPLT_BLOCK_SIZE +
+					  wl->next_tx_complete) *
+					 sizeof(struct tx_result));
 
 		} else {
 			/* We have to write the whole array */
-			wl1251_spi_mem_write(wl,
-					     wl->data_path->tx_complete_addr,
-					     result,
-					     FW_TX_CMPLT_BLOCK_SIZE *
-					     sizeof(struct tx_result));
+			wl1251_mem_write(wl,
+					 wl->data_path->tx_complete_addr,
+					 result,
+					 FW_TX_CMPLT_BLOCK_SIZE *
+					 sizeof(struct tx_result));
 		}
 
 	}

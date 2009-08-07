@@ -35,6 +35,7 @@
 #include "wl12xx_80211.h"
 #include "reg.h"
 #include "wl1251_ops.h"
+#include "wl1251_io.h"
 #include "wl1251_spi.h"
 #include "wl1251_event.h"
 #include "wl1251_tx.h"
@@ -877,7 +878,7 @@ static int wl1251_hw_scan(struct wl1251 *wl, u8 *ssid, size_t len,
 	if (ret < 0)
 		wl1251_error("SCAN failed");
 
-	wl1251_spi_mem_read(wl, wl->cmd_box_addr, params, sizeof(*params));
+	wl1251_mem_read(wl, wl->cmd_box_addr, params, sizeof(*params));
 
 	if (params->header.status != CMD_STATUS_SUCCESS) {
 		wl1251_error("TEST command answer error: %d",

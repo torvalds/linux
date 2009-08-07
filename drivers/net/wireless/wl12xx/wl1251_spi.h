@@ -69,41 +69,11 @@
 		((WL1251_BUSY_WORD_LEN - 4) / sizeof(u32))
 #define HW_ACCESS_WSPI_INIT_CMD_MASK  0
 
-
-/* Raw target IO, address is not translated */
-void wl1251_spi_write(struct wl1251 *wl, int addr, void *buf, size_t len);
-void wl1251_spi_read(struct wl1251 *wl, int addr, void *buf, size_t len);
-
-/* Memory target IO, address is tranlated to partition 0 */
-void wl1251_spi_mem_read(struct wl1251 *wl, int addr, void *buf, size_t len);
-void wl1251_spi_mem_write(struct wl1251 *wl, int addr, void *buf, size_t len);
-u32 wl1251_mem_read32(struct wl1251 *wl, int addr);
-void wl1251_mem_write32(struct wl1251 *wl, int addr, u32 val);
-
-/* Registers IO */
-void wl1251_spi_reg_read(struct wl1251 *wl, int addr, void *buf, size_t len);
-void wl1251_spi_reg_write(struct wl1251 *wl, int addr, void *buf, size_t len);
-u32 wl1251_reg_read32(struct wl1251 *wl, int addr);
-void wl1251_reg_write32(struct wl1251 *wl, int addr, u32 val);
-
 /* INIT and RESET words */
 void wl1251_spi_reset(struct wl1251 *wl);
 void wl1251_spi_init(struct wl1251 *wl);
 int wl1251_set_partition(struct wl1251 *wl,
 			 u32 part_start, u32 part_size,
 			 u32 reg_start,  u32 reg_size);
-
-static inline u32 wl1251_read32(struct wl1251 *wl, int addr)
-{
-	wl1251_spi_read(wl, addr, &wl->buffer_32, sizeof(wl->buffer_32));
-
-	return wl->buffer_32;
-}
-
-static inline void wl1251_write32(struct wl1251 *wl, int addr, u32 val)
-{
-	wl->buffer_32 = val;
-	wl1251_spi_write(wl, addr, &wl->buffer_32, sizeof(wl->buffer_32));
-}
 
 #endif /* __WL1251_SPI_H__ */

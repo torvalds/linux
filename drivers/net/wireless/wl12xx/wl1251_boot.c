@@ -25,7 +25,7 @@
 
 #include "reg.h"
 #include "wl1251_boot.h"
-#include "wl1251_spi.h"
+#include "wl1251_io.h"
 #include "wl1251_event.h"
 
 static void wl1251_boot_enable_interrupts(struct wl1251 *wl)

@@ -26,7 +26,7 @@
 
 #include "wl1251_ops.h"
 #include "reg.h"
-#include "wl1251_spi.h"
+#include "wl1251_io.h"
 #include "wl1251_boot.h"
 #include "wl1251_event.h"
 #include "wl1251_acx.h"
@@ -130,7 +130,7 @@ static int wl1251_upload_firmware(struct wl1251 *wl)
 		p = wl->fw + FW_HDR_SIZE + chunk_num * CHUNK_SIZE;
 		wl1251_debug(DEBUG_BOOT, "uploading fw chunk 0x%p to 0x%x",
 			     p, addr);
-		wl1251_spi_mem_write(wl, addr, p, CHUNK_SIZE);
+		wl1251_mem_write(wl, addr, p, CHUNK_SIZE);
 
 		chunk_num++;
 	}
@@ -140,7 +140,7 @@ static int wl1251_upload_firmware(struct wl1251 *wl)
 	p = wl->fw + FW_HDR_SIZE + chunk_num * CHUNK_SIZE;
 	wl1251_debug(DEBUG_BOOT, "uploading fw last chunk (%zu B) 0x%p to 0x%x",
 		     fw_data_len % CHUNK_SIZE, p, addr);
-	wl1251_spi_mem_write(wl, addr, p, fw_data_len % CHUNK_SIZE);
+	wl1251_mem_write(wl, addr, p, fw_data_len % CHUNK_SIZE);
 
 	return 0;
 }

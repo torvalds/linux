@@ -6,7 +6,7 @@
 
 #include "wl1251.h"
 #include "reg.h"
-#include "wl1251_spi.h"
+#include "wl1251_cmd.h"
 #include "wl1251_ps.h"
 
 int wl1251_acx_frame_rates(struct wl1251 *wl, u8 ctrl_rate, u8 ctrl_mod,

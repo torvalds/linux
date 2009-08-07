@@ -24,7 +24,7 @@
 
 #include "wl1251.h"
 #include "reg.h"
-#include "wl1251_spi.h"
+#include "wl1251_io.h"
 #include "wl1251_event.h"
 #include "wl1251_ps.h"
 
@@ -112,7 +112,7 @@ int wl1251_event_handle(struct wl1251 *wl, u8 mbox_num)
 		return -EINVAL;
 
 	/* first we read the mbox descriptor */
-	wl1251_spi_mem_read(wl, wl->mbox_ptr[mbox_num], &mbox,
+	wl1251_mem_read(wl, wl->mbox_ptr[mbox_num], &mbox,
 			    sizeof(struct event_mailbox));
 
 	/* process the descriptor */

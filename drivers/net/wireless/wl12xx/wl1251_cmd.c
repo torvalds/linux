@@ -6,7 +6,7 @@
 
 #include "wl1251.h"
 #include "reg.h"
-#include "wl1251_spi.h"
+#include "wl1251_io.h"
 #include "wl1251_ps.h"
 #include "wl1251_acx.h"
 
@@ -31,7 +31,7 @@ int wl1251_cmd_send(struct wl1251 *wl, u16 id, void *buf, size_t len)
 
 	WARN_ON(len % 4 != 0);
 
-	wl1251_spi_mem_write(wl, wl->cmd_box_addr, buf, len);
+	wl1251_mem_write(wl, wl->cmd_box_addr, buf, len);
 
 	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
 
@@ -86,7 +86,7 @@ int wl1251_cmd_test(struct wl1251 *wl, void *buf, size_t buf_len, u8 answer)
 		 * The answer would be a wl1251_command, where the
 		 * parameter array contains the actual answer.
 		 */
-		wl1251_spi_mem_read(wl, wl->cmd_box_addr, buf, buf_len);
+		wl1251_mem_read(wl, wl->cmd_box_addr, buf, buf_len);
 
 		cmd_answer = buf;
 
@@ -125,7 +125,7 @@ int wl1251_cmd_interrogate(struct wl1251 *wl, u16 id, void *buf, size_t len)
 	}
 
 	/* the interrogate command got in, we can read the answer */
-	wl1251_spi_mem_read(wl, wl->cmd_box_addr, buf, len);
+	wl1251_mem_read(wl, wl->cmd_box_addr, buf, len);
 
 	acx = buf;
 	if (acx->cmd.status != CMD_STATUS_SUCCESS)
@@ -379,7 +379,7 @@ int wl1251_cmd_read_memory(struct wl1251 *wl, u32 addr, void *answer,
 	}
 
 	/* the read command got in, we can now read the answer */
-	wl1251_spi_mem_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd));
+	wl1251_mem_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd));
 
 	if (cmd->header.status != CMD_STATUS_SUCCESS)
 		wl1251_error("error in read command result: %d",
