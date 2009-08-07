@@ -128,8 +128,6 @@ static void svm_complete_interrupts(struct vcpu_svm *svm);
 
 static int nested_svm_exit_handled(struct vcpu_svm *svm, bool kvm_override);
 static int nested_svm_vmexit(struct vcpu_svm *svm);
-static int nested_svm_vmsave(struct vcpu_svm *svm, void *nested_vmcb,
-			     void *arg2, void *opaque);
 static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 				      bool has_error_code, u32 error_code);
 
@@ -1865,7 +1863,7 @@ static int nested_svm_vmrun(struct vcpu_svm *svm, void *arg1,
 	return 0;
 }
 
-static int nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
+static void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
 {
 	to_vmcb->save.fs = from_vmcb->save.fs;
 	to_vmcb->save.gs = from_vmcb->save.gs;
@@ -1879,44 +1877,44 @@ static int nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
 	to_vmcb->save.sysenter_cs = from_vmcb->save.sysenter_cs;
 	to_vmcb->save.sysenter_esp = from_vmcb->save.sysenter_esp;
 	to_vmcb->save.sysenter_eip = from_vmcb->save.sysenter_eip;
-
-	return 1;
-}
-
-static int nested_svm_vmload(struct vcpu_svm *svm, void *nested_vmcb,
-			     void *arg2, void *opaque)
-{
-	return nested_svm_vmloadsave((struct vmcb *)nested_vmcb, svm->vmcb);
-}
-
-static int nested_svm_vmsave(struct vcpu_svm *svm, void *nested_vmcb,
-			     void *arg2, void *opaque)
-{
-	return nested_svm_vmloadsave(svm->vmcb, (struct vmcb *)nested_vmcb);
 }
 
 static int vmload_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
+	struct vmcb *nested_vmcb;
+
 	if (nested_svm_check_permissions(svm))
 		return 1;
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
 	skip_emulated_instruction(&svm->vcpu);
 
-	nested_svm_do(svm, svm->vmcb->save.rax, 0, NULL, nested_svm_vmload);
+	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, KM_USER0);
+	if (!nested_vmcb)
+		return 1;
+
+	nested_svm_vmloadsave(nested_vmcb, svm->vmcb);
+	nested_svm_unmap(nested_vmcb, KM_USER0);
 
 	return 1;
 }
 
 static int vmsave_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
+	struct vmcb *nested_vmcb;
+
 	if (nested_svm_check_permissions(svm))
 		return 1;
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
 	skip_emulated_instruction(&svm->vcpu);
 
-	nested_svm_do(svm, svm->vmcb->save.rax, 0, NULL, nested_svm_vmsave);
+	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, KM_USER0);
+	if (!nested_vmcb)
+		return 1;
+
+	nested_svm_vmloadsave(svm->vmcb, nested_vmcb);
+	nested_svm_unmap(nested_vmcb, KM_USER0);
 
 	return 1;
 }
