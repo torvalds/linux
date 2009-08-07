@@ -317,7 +317,7 @@ static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	int ret;
 
 	mutex_lock(&priv->conf_mutex);
-	if ((params) && !(queue > 4)) {
+	if (queue < dev->queues) {
 		P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
 			params->cw_min, params->cw_max, params->txop);
 		ret = p54_set_edcf(priv);
