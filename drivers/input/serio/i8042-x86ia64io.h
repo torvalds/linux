@@ -78,6 +78,14 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
+		.ident = "ASUS G1S",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_BOARD_NAME, "G1S"),
+			DMI_MATCH(DMI_BOARD_VERSION, "1.0"),
+		},
+	},
+	{
 		/* AUX LOOP command does not raise AUX IRQ */
 		.ident = "ASUS P65UP5",
 		.matches = {
