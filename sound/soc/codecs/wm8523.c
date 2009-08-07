@@ -62,7 +62,7 @@ static const u16 wm8523_reg[WM8523_REGISTER_COUNT] = {
 	0x0000,     /* R8 - ZERO_DETECT */
 };
 
-static int wm8523_volatile(unsigned int reg)
+static int wm8523_volatile_register(unsigned int reg)
 {
 	switch (reg) {
 	case WM8523_DEVICE_ID:
@@ -73,71 +73,9 @@ static int wm8523_volatile(unsigned int reg)
 	}
 }
 
-static int wm8523_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	struct wm8523_priv *wm8523 = codec->private_data;
-	u8 data[3];
-
-	BUG_ON(reg > WM8523_MAX_REGISTER);
-
-	data[0] = reg;
-	data[1] = (value >> 8) & 0x00ff;
-	data[2] = value & 0x00ff;
-
-	if (!wm8523_volatile(reg))
-		wm8523->reg_cache[reg] = value;
-	if (codec->hw_write(codec->control_data, data, 3) == 3)
-		return 0;
-	else
-		return -EIO;
-}
-
 static int wm8523_reset(struct snd_soc_codec *codec)
 {
-	return wm8523_write(codec, WM8523_DEVICE_ID, 0);
-}
-
-static unsigned int wm8523_read_hw(struct snd_soc_codec *codec, u8 reg)
-{
-	struct i2c_msg xfer[2];
-	u16 data;
-	int ret;
-	struct i2c_client *i2c = codec->control_data;
-
-	/* Write register */
-	xfer[0].addr = i2c->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 1;
-	xfer[0].buf = &reg;
-
-	/* Read data */
-	xfer[1].addr = i2c->addr;
-	xfer[1].flags = I2C_M_RD;
-	xfer[1].len = 2;
-	xfer[1].buf = (u8 *)&data;
-
-	ret = i2c_transfer(i2c->adapter, xfer, 2);
-	if (ret != 2) {
-		dev_err(codec->dev, "Failed to read 0x%x: %d\n", reg, ret);
-		return 0;
-	}
-
-	return (data >> 8) | ((data & 0xff) << 8);
-}
-
-
-static unsigned int wm8523_read(struct snd_soc_codec *codec,
-				unsigned int reg)
-{
-	u16 *reg_cache = codec->reg_cache;
-
-	BUG_ON(reg > WM8523_MAX_REGISTER);
-
-	if (wm8523_volatile(reg))
-		return wm8523_read_hw(codec, reg);
-	else
-		return reg_cache[reg];
+	return snd_soc_write(codec, WM8523_DEVICE_ID, 0);
 }
 
 static const DECLARE_TLV_DB_SCALE(dac_tlv, -10000, 25, 0);
@@ -228,8 +166,8 @@ static int wm8523_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8523_priv *wm8523 = codec->private_data;
 	int i;
-	u16 aifctrl1 = wm8523_read(codec, WM8523_AIF_CTRL1);
-	u16 aifctrl2 = wm8523_read(codec, WM8523_AIF_CTRL2);
+	u16 aifctrl1 = snd_soc_read(codec, WM8523_AIF_CTRL1);
+	u16 aifctrl2 = snd_soc_read(codec, WM8523_AIF_CTRL2);
 
 	/* Find a supported LRCLK ratio */
 	for (i = 0; i < ARRAY_SIZE(lrclk_ratios); i++) {
@@ -263,8 +201,8 @@ static int wm8523_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	wm8523_write(codec, WM8523_AIF_CTRL1, aifctrl1);
-	wm8523_write(codec, WM8523_AIF_CTRL2, aifctrl2);
+	snd_soc_write(codec, WM8523_AIF_CTRL1, aifctrl1);
+	snd_soc_write(codec, WM8523_AIF_CTRL2, aifctrl2);
 
 	return 0;
 }
@@ -322,7 +260,7 @@ static int wm8523_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u16 aifctrl1 = wm8523_read(codec, WM8523_AIF_CTRL1);
+	u16 aifctrl1 = snd_soc_read(codec, WM8523_AIF_CTRL1);
 
 	aifctrl1 &= ~(WM8523_BCLK_INV_MASK | WM8523_LRCLK_INV_MASK |
 		      WM8523_FMT_MASK | WM8523_AIF_MSTR_MASK);
@@ -372,7 +310,7 @@ static int wm8523_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	wm8523_write(codec, WM8523_AIF_CTRL1, aifctrl1);
+	snd_soc_write(codec, WM8523_AIF_CTRL1, aifctrl1);
 
 	return 0;
 }
@@ -411,7 +349,7 @@ static int wm8523_set_bias_level(struct snd_soc_codec *codec,
 			/* Sync back default/cached values */
 			for (i = WM8523_AIF_CTRL1;
 			     i < WM8523_MAX_REGISTER; i++)
-				wm8523_write(codec, i, wm8523->reg_cache[i]);
+				snd_soc_write(codec, i, wm8523->reg_cache[i]);
 
 
 			msleep(100);
@@ -543,7 +481,8 @@ struct snd_soc_codec_device soc_codec_dev_wm8523 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8523);
 
-static int wm8523_register(struct wm8523_priv *wm8523)
+static int wm8523_register(struct wm8523_priv *wm8523,
+			   enum snd_soc_control_type control)
 {
 	int ret;
 	struct snd_soc_codec *codec = &wm8523->codec;
@@ -561,20 +500,25 @@ static int wm8523_register(struct wm8523_priv *wm8523)
 	codec->private_data = wm8523;
 	codec->name = "WM8523";
 	codec->owner = THIS_MODULE;
-	codec->read = wm8523_read;
-	codec->write = wm8523_write;
 	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->set_bias_level = wm8523_set_bias_level;
 	codec->dai = &wm8523_dai;
 	codec->num_dai = 1;
 	codec->reg_cache_size = WM8523_REGISTER_COUNT;
 	codec->reg_cache = &wm8523->reg_cache;
+	codec->volatile_register = wm8523_volatile_register;
 
 	wm8523->rate_constraint.list = &wm8523->rate_constraint_list[0];
 	wm8523->rate_constraint.count =
 		ARRAY_SIZE(wm8523->rate_constraint_list);
 
 	memcpy(codec->reg_cache, wm8523_reg, sizeof(wm8523_reg));
+
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, control);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		goto err;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8523->supplies); i++)
 		wm8523->supplies[i].supply = wm8523_supply_names[i];
@@ -593,7 +537,7 @@ static int wm8523_register(struct wm8523_priv *wm8523)
 		goto err_get;
 	}
 
-	ret = wm8523_read(codec, WM8523_DEVICE_ID);
+	ret = snd_soc_read(codec, WM8523_DEVICE_ID);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to read ID register\n");
 		goto err_enable;
@@ -604,7 +548,7 @@ static int wm8523_register(struct wm8523_priv *wm8523)
 		goto err_enable;
 	}
 
-	ret = wm8523_read(codec, WM8523_REVISION);
+	ret = snd_soc_read(codec, WM8523_REVISION);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to read revision register\n");
 		goto err_enable;
@@ -684,7 +628,7 @@ static __devinit int wm8523_i2c_probe(struct i2c_client *i2c,
 
 	codec->dev = &i2c->dev;
 
-	return wm8523_register(wm8523);
+	return wm8523_register(wm8523, SND_SOC_I2C);
 }
 
 static __devexit int wm8523_i2c_remove(struct i2c_client *client)

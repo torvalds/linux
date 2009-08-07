@@ -209,11 +209,20 @@ typedef int (*hw_read_t)(void *,char* ,int);
 
 extern struct snd_ac97_bus_ops soc_ac97_ops;
 
+enum snd_soc_control_type {
+	SND_SOC_CUSTOM,
+	SND_SOC_I2C,
+	SND_SOC_SPI,
+};
+
 int snd_soc_register_platform(struct snd_soc_platform *platform);
 void snd_soc_unregister_platform(struct snd_soc_platform *platform);
 int snd_soc_register_codec(struct snd_soc_codec *codec);
 void snd_soc_unregister_codec(struct snd_soc_codec *codec);
 int snd_soc_codec_volatile_register(struct snd_soc_codec *codec, int reg);
+int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
+			       int addr_bits, int data_bits,
+			       enum snd_soc_control_type control);
 
 #ifdef CONFIG_PM
 int snd_soc_suspend_device(struct device *dev);
@@ -387,7 +396,7 @@ struct snd_soc_codec {
 	int (*volatile_register)(unsigned int);
 	int (*readable_register)(unsigned int);
 	hw_write_t hw_write;
-	hw_read_t hw_read;
+	unsigned int (*hw_read)(struct snd_soc_codec *, unsigned int);
 	void *reg_cache;
 	short reg_cache_size;
 	short reg_cache_step;

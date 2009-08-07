@@ -51,60 +51,12 @@ static int wm8731_spi_write(struct spi_device *spi, const char *data, int len);
  * There is no point in caching the reset register
  */
 static const u16 wm8731_reg[WM8731_CACHEREGNUM] = {
-    0x0097, 0x0097, 0x0079, 0x0079,
-    0x000a, 0x0008, 0x009f, 0x000a,
-    0x0000, 0x0000
+	0x0097, 0x0097, 0x0079, 0x0079,
+	0x000a, 0x0008, 0x009f, 0x000a,
+	0x0000, 0x0000
 };
 
-/*
- * read wm8731 register cache
- */
-static inline unsigned int wm8731_read_reg_cache(struct snd_soc_codec *codec,
-	unsigned int reg)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg == WM8731_RESET)
-		return 0;
-	if (reg >= WM8731_CACHEREGNUM)
-		return -1;
-	return cache[reg];
-}
-
-/*
- * write wm8731 register cache
- */
-static inline void wm8731_write_reg_cache(struct snd_soc_codec *codec,
-	u16 reg, unsigned int value)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg >= WM8731_CACHEREGNUM)
-		return;
-	cache[reg] = value;
-}
-
-/*
- * write to the WM8731 register space
- */
-static int wm8731_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	u8 data[2];
-
-	/* data is
-	 *   D15..D9 WM8731 register offset
-	 *   D8...D0 register data
-	 */
-	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
-	data[1] = value & 0x00ff;
-
-	wm8731_write_reg_cache(codec, reg, value);
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
-}
-
-#define wm8731_reset(c)	wm8731_write(c, WM8731_RESET, 0)
+#define wm8731_reset(c)	snd_soc_write(c, WM8731_RESET, 0)
 
 static const char *wm8731_input_select[] = {"Line In", "Mic"};
 static const char *wm8731_deemph[] = {"None", "32Khz", "44.1Khz", "48Khz"};
@@ -267,12 +219,12 @@ static int wm8731_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8731_priv *wm8731 = codec->private_data;
-	u16 iface = wm8731_read_reg_cache(codec, WM8731_IFACE) & 0xfff3;
+	u16 iface = snd_soc_read(codec, WM8731_IFACE) & 0xfff3;
 	int i = get_coeff(wm8731->sysclk, params_rate(params));
 	u16 srate = (coeff_div[i].sr << 2) |
 		(coeff_div[i].bosr << 1) | coeff_div[i].usb;
 
-	wm8731_write(codec, WM8731_SRATE, srate);
+	snd_soc_write(codec, WM8731_SRATE, srate);
 
 	/* bit size */
 	switch (params_format(params)) {
@@ -286,7 +238,7 @@ static int wm8731_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	wm8731_write(codec, WM8731_IFACE, iface);
+	snd_soc_write(codec, WM8731_IFACE, iface);
 	return 0;
 }
 
@@ -298,7 +250,7 @@ static int wm8731_pcm_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 
 	/* set active */
-	wm8731_write(codec, WM8731_ACTIVE, 0x0001);
+	snd_soc_write(codec, WM8731_ACTIVE, 0x0001);
 
 	return 0;
 }
@@ -313,19 +265,19 @@ static void wm8731_shutdown(struct snd_pcm_substream *substream,
 	/* deactivate */
 	if (!codec->active) {
 		udelay(50);
-		wm8731_write(codec, WM8731_ACTIVE, 0x0);
+		snd_soc_write(codec, WM8731_ACTIVE, 0x0);
 	}
 }
 
 static int wm8731_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = wm8731_read_reg_cache(codec, WM8731_APDIGI) & 0xfff7;
+	u16 mute_reg = snd_soc_read(codec, WM8731_APDIGI) & 0xfff7;
 
 	if (mute)
-		wm8731_write(codec, WM8731_APDIGI, mute_reg | 0x8);
+		snd_soc_write(codec, WM8731_APDIGI, mute_reg | 0x8);
 	else
-		wm8731_write(codec, WM8731_APDIGI, mute_reg);
+		snd_soc_write(codec, WM8731_APDIGI, mute_reg);
 	return 0;
 }
 
@@ -403,7 +355,7 @@ static int wm8731_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	}
 
 	/* set iface */
-	wm8731_write(codec, WM8731_IFACE, iface);
+	snd_soc_write(codec, WM8731_IFACE, iface);
 	return 0;
 }
 
@@ -419,12 +371,12 @@ static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* Clear PWROFF, gate CLKOUT, everything else as-is */
-		reg = wm8731_read_reg_cache(codec, WM8731_PWR) & 0xff7f;
-		wm8731_write(codec, WM8731_PWR, reg | 0x0040);
+		reg = snd_soc_read(codec, WM8731_PWR) & 0xff7f;
+		snd_soc_write(codec, WM8731_PWR, reg | 0x0040);
 		break;
 	case SND_SOC_BIAS_OFF:
-		wm8731_write(codec, WM8731_ACTIVE, 0x0);
-		wm8731_write(codec, WM8731_PWR, 0xffff);
+		snd_soc_write(codec, WM8731_ACTIVE, 0x0);
+		snd_soc_write(codec, WM8731_PWR, 0xffff);
 		break;
 	}
 	codec->bias_level = level;
@@ -474,7 +426,7 @@ static int wm8731_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 
-	wm8731_write(codec, WM8731_ACTIVE, 0x0);
+	snd_soc_write(codec, WM8731_ACTIVE, 0x0);
 	wm8731_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
@@ -560,11 +512,11 @@ struct snd_soc_codec_device soc_codec_dev_wm8731 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8731);
 
-static int wm8731_register(struct wm8731_priv *wm8731)
+static int wm8731_register(struct wm8731_priv *wm8731,
+			   enum snd_soc_control_type control)
 {
 	int ret;
 	struct snd_soc_codec *codec = &wm8731->codec;
-	u16 reg;
 
 	if (wm8731_codec) {
 		dev_err(codec->dev, "Another WM8731 is registered\n");
@@ -579,8 +531,6 @@ static int wm8731_register(struct wm8731_priv *wm8731)
 	codec->private_data = wm8731;
 	codec->name = "WM8731";
 	codec->owner = THIS_MODULE;
-	codec->read = wm8731_read_reg_cache;
-	codec->write = wm8731_write;
 	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->set_bias_level = wm8731_set_bias_level;
 	codec->dai = &wm8731_dai;
@@ -589,6 +539,12 @@ static int wm8731_register(struct wm8731_priv *wm8731)
 	codec->reg_cache = &wm8731->reg_cache;
 
 	memcpy(codec->reg_cache, wm8731_reg, sizeof(wm8731_reg));
+
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9, control);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		goto err;
+	}
 
 	ret = wm8731_reset(codec);
 	if (ret < 0) {
@@ -601,18 +557,13 @@ static int wm8731_register(struct wm8731_priv *wm8731)
 	wm8731_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch the update bits */
-	reg = wm8731_read_reg_cache(codec, WM8731_LOUT1V);
-	wm8731_write(codec, WM8731_LOUT1V, reg & ~0x0100);
-	reg = wm8731_read_reg_cache(codec, WM8731_ROUT1V);
-	wm8731_write(codec, WM8731_ROUT1V, reg & ~0x0100);
-	reg = wm8731_read_reg_cache(codec, WM8731_LINVOL);
-	wm8731_write(codec, WM8731_LINVOL, reg & ~0x0100);
-	reg = wm8731_read_reg_cache(codec, WM8731_RINVOL);
-	wm8731_write(codec, WM8731_RINVOL, reg & ~0x0100);
+	snd_soc_update_bits(codec, WM8731_LOUT1V, 0x100, 0);
+	snd_soc_update_bits(codec, WM8731_ROUT1V, 0x100, 0);
+	snd_soc_update_bits(codec, WM8731_LINVOL, 0x100, 0);
+	snd_soc_update_bits(codec, WM8731_RINVOL, 0x100, 0);
 
 	/* Disable bypass path by default */
-	reg = wm8731_read_reg_cache(codec, WM8731_APANA);
-	wm8731_write(codec, WM8731_APANA, reg & ~0x4);
+	snd_soc_update_bits(codec, WM8731_APANA, 0x4, 0);
 
 	wm8731_codec = codec;
 
@@ -648,30 +599,6 @@ static void wm8731_unregister(struct wm8731_priv *wm8731)
 }
 
 #if defined(CONFIG_SPI_MASTER)
-static int wm8731_spi_write(struct spi_device *spi, const char *data, int len)
-{
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-
-	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-
 static int __devinit wm8731_spi_probe(struct spi_device *spi)
 {
 	struct snd_soc_codec *codec;
@@ -683,12 +610,11 @@ static int __devinit wm8731_spi_probe(struct spi_device *spi)
 
 	codec = &wm8731->codec;
 	codec->control_data = spi;
-	codec->hw_write = (hw_write_t)wm8731_spi_write;
 	codec->dev = &spi->dev;
 
 	dev_set_drvdata(&spi->dev, wm8731);
 
-	return wm8731_register(wm8731);
+	return wm8731_register(wm8731, SND_SOC_SPI);
 }
 
 static int __devexit wm8731_spi_remove(struct spi_device *spi)
@@ -740,14 +666,13 @@ static __devinit int wm8731_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	codec = &wm8731->codec;
-	codec->hw_write = (hw_write_t)i2c_master_send;
 
 	i2c_set_clientdata(i2c, wm8731);
 	codec->control_data = i2c;
 
 	codec->dev = &i2c->dev;
 
-	return wm8731_register(wm8731);
+	return wm8731_register(wm8731, SND_SOC_I2C);
 }
 
 static __devexit int wm8731_i2c_remove(struct i2c_client *client)
