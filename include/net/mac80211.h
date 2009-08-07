@@ -239,7 +239,14 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_AMPDU: this frame should be sent as part of an A-MPDU
  * @IEEE80211_TX_CTL_INJECTED: Frame was injected, internal to mac80211.
  * @IEEE80211_TX_STAT_TX_FILTERED: The frame was not transmitted
- *	because the destination STA was in powersave mode.
+ *	because the destination STA was in powersave mode. Note that to
+ *	avoid race conditions, the filter must be set by the hardware or
+ *	firmware upon receiving a frame that indicates that the station
+ *	went to sleep (must be done on device to filter frames already on
+ *	the queue) and may only be unset after mac80211 gives the OK for
+ *	that by setting the IEEE80211_TX_CTL_CLEAR_PS_FILT (see above),
+ *	since only then is it guaranteed that no more frames are in the
+ *	hardware queue.
  * @IEEE80211_TX_STAT_ACK: Frame was acknowledged
  * @IEEE80211_TX_STAT_AMPDU: The frame was aggregated, so status
  * 	is for the whole aggregation.
