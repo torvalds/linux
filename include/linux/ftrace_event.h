@@ -144,6 +144,7 @@ enum {
 	FILTER_OTHER = 0,
 	FILTER_STATIC_STRING,
 	FILTER_DYN_STRING,
+	FILTER_PTR_STRING,
 };
 
 extern int trace_define_field(struct ftrace_event_call *call,
