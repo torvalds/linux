@@ -1171,7 +1171,6 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 		}
 	}
 
-	pci_set_drvdata(pdev, ioc->shost);
 	_base_mask_interrupts(ioc);
 	r = _base_enable_msix(ioc);
 	if (r)
@@ -1194,7 +1193,6 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	ioc->pci_irq = -1;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return r;
 }
 
@@ -3253,7 +3251,6 @@ mpt2sas_base_free_resources(struct MPT2SAS_ADAPTER *ioc)
 	ioc->chip_phys = 0;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	return;
 }
 
@@ -3275,6 +3272,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	if (r)
 		return r;
 
+	pci_set_drvdata(ioc->pdev, ioc->shost);
 	r = _base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
 	if (r)
 		goto out_free_resources;
@@ -3357,6 +3355,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	ioc->remove_host = 1;
 	mpt2sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
+	pci_set_drvdata(ioc->pdev, NULL);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
 	kfree(ioc->config_cmds.reply);
@@ -3389,6 +3388,7 @@ mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc)
 	mpt2sas_base_stop_watchdog(ioc);
 	mpt2sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
+	pci_set_drvdata(ioc->pdev, NULL);
 	kfree(ioc->pfacts);
 	kfree(ioc->ctl_cmds.reply);
 	kfree(ioc->base_cmds.reply);
