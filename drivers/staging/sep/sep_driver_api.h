@@ -451,19 +451,6 @@ struct sep_flow_context_t {
 };
 
 
-
-/*
-	this function returns the address of the message shared area
-*/
-static void sep_map_shared_area(unsigned long *mappedAddr_ptr);
-
-
-/*
-	this function returns the address of the message shared area
-*/
-static void sep_send_msg_rdy_cmd(void);
-
-
 /*
 	This function releases all the application virtual
 	buffer physical pages, that were previously locked
@@ -498,13 +485,6 @@ static int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
 */
 static int sep_prepare_input_dma_table(unsigned long app_virt_addr, unsigned long data_size, unsigned long block_size, unsigned long *lli_table_ptr, unsigned long *num_entries_ptr, unsigned long *table_data_size_ptr, bool isKernelVirtualAddress);
 
-/* this functions frees all the resources that were allocated for the building
-	of the LLI DMA tables */
-static void sep_free_dma_resources(void);
-
-
-/* poll(suspend) , until reply from sep */
-static void sep_driver_poll(void);
 
 /*
 	this function handles the request for freeing dma table for

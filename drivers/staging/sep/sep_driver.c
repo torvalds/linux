@@ -175,10 +175,6 @@ MODULE_PARM_DESC(sepDebug, "Flag to enable SEP debug messages");
 static struct sep_device sep_instance;
 static struct sep_device *sep_dev = &sep_instance;
 
-/* temporary */
-static unsigned long jiffies_future;
-
-
 /*
   mutex for the access to the internals of the sep driver
 */
@@ -193,11 +189,6 @@ static DECLARE_WAIT_QUEUE_HEAD(g_sep_event);
 /*------------------------------------------------
   PROTOTYPES
 ---------------------------------------------------*/
-
-/*
-  interrupt handler function
-*/
-static irqreturn_t sep_inthandler(int irq, void *dev_id);
 
 /*
   this function registers the driver to the file system
@@ -308,9 +299,6 @@ static int sep_realloc_cache_resident_handler(unsigned long arg);
   This api handles the setting of API mode to blocking or non-blocking
 */
 static int sep_set_api_mode_handler(unsigned long arg);
-
-/* handler for flow done interrupt */
-static void sep_flow_done_handler(struct work_struct *work);
 
 /*
   This function locks all the physical pages of the kernel virtual buffer
@@ -558,47 +546,6 @@ static unsigned long sep_shared_area_phys_to_virt(unsigned long phys_address)
 	return (unsigned long) sep_dev->shared_virtual_address + (phys_address - sep_dev->shared_physical_address);
 }
 
-
-/*
-  this function returns the address of the message shared area
-*/
-static void sep_map_shared_area(unsigned long *mappedAddr_ptr)
-{
-	*mappedAddr_ptr = sep_dev->shared_area_addr;
-}
-
-/*
-  this function returns the address of the message shared area
-*/
-static void sep_send_msg_rdy_cmd(void)
-{
-	sep_send_command_handler();
-}
-
-/* this functions frees all the resources that were allocated for the building
-of the LLI DMA tables */
-static void sep_free_dma_resources(void)
-{
-	sep_free_dma_table_data_handler();
-}
-
-/* poll(suspend), until reply from sep */
-static void sep_driver_poll(void)
-{
-	unsigned long retVal = 0;
-
-#ifdef SEP_DRIVER_POLLING_MODE
-
-	while (sep_dev->host_to_sep_send_counter != (retVal & 0x7FFFFFFF))
-		retVal = sep_read_reg(sep_dev, HW_HOST_SEP_HOST_GPR2_REG_ADDR);
-
-	sep_dev->sep_to_host_reply_counter++;
-#else
-	/* poll, until reply from sep */
-	wait_event(g_sep_event, (sep_dev->host_to_sep_send_counter == sep_dev->sep_to_host_reply_counter));
-
-#endif
-}
 
 /*----------------------------------------------------------------------
   open function of the character driver - must only lock the mutex
@@ -855,6 +802,37 @@ static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 
 
 
+#if !SEP_DRIVER_POLLING_MODE
+
+/* handler for flow done interrupt */
+
+static void sep_flow_done_handler(struct work_struct *work)
+{
+	struct sep_flow_context_t *flow_data_ptr;
+
+	/* obtain the mutex */
+	mutex_lock(&sep_mutex);
+
+	/* get the pointer to context */
+	flow_data_ptr = (struct sep_flow_context_t *) work;
+
+	/* free all the current input tables in sep */
+	sep_deallocated_flow_tables(&flow_data_ptr->input_tables_in_process);
+
+	/* free all the current tables output tables in SEP (if needed) */
+	if (flow_data_ptr->output_tables_in_process.physical_address != 0xffffffff)
+		sep_deallocated_flow_tables(&flow_data_ptr->output_tables_in_process);
+
+	/* check if we have additional tables to be sent to SEP only input
+	   flag may be checked */
+	if (flow_data_ptr->input_tables_flag) {
+		/* copy the message to the shared RAM and signal SEP */
+		memcpy((void *) flow_data_ptr->message, (void *) sep_dev->shared_area_addr, flow_data_ptr->message_size_in_bytes);
+
+		sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR2_REG_ADDR, 0x2);
+	}
+	mutex_unlock(&sep_mutex);
+}
 /*
   interrupt handler function
 */
@@ -907,6 +885,7 @@ end_function:
 	return int_error;
 }
 
+#endif
 
 /*
   This function prepares only input DMA table for synhronic symmetric
@@ -2311,34 +2290,6 @@ static int sep_end_transaction_handler(unsigned long arg)
 	return 0;
 }
 
-/* handler for flow done interrupt */
-static void sep_flow_done_handler(struct work_struct *work)
-{
-	struct sep_flow_context_t *flow_data_ptr;
-
-	/* obtain the mutex */
-	mutex_lock(&sep_mutex);
-
-	/* get the pointer to context */
-	flow_data_ptr = (struct sep_flow_context_t *) work;
-
-	/* free all the current input tables in sep */
-	sep_deallocated_flow_tables(&flow_data_ptr->input_tables_in_process);
-
-	/* free all the current tables output tables in SEP (if needed) */
-	if (flow_data_ptr->output_tables_in_process.physical_address != 0xffffffff)
-		sep_deallocated_flow_tables(&flow_data_ptr->output_tables_in_process);
-
-	/* check if we have additional tables to be sent to SEP only input
-	   flag may be checked */
-	if (flow_data_ptr->input_tables_flag) {
-		/* copy the message to the shared RAM and signal SEP */
-		memcpy((void *) flow_data_ptr->message, (void *) sep_dev->shared_area_addr, flow_data_ptr->message_size_in_bytes);
-
-		sep_write_reg(sep_dev, HW_HOST_HOST_SEP_GPR2_REG_ADDR, 0x2);
-	}
-	mutex_unlock(&sep_mutex);
-}
 
 
 /*
