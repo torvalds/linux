@@ -196,11 +196,6 @@ static DECLARE_WAIT_QUEUE_HEAD(g_sep_event);
 static int sep_register_driver_to_fs(void);
 
 /*
-  this function unregisters driver from fs
-*/
-static void sep_unregister_driver_from_fs(void);
-
-/*
   this function calculates the size of data that can be inserted into the lli
   table from this array the condition is that either the table is full
   (all etnries are entered), or there are no more entries in the lli array
@@ -381,14 +376,6 @@ static int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_s
 /*---------------------------------------------
 	FUNCTIONS
 -----------------------------------------------*/
-
-/*
-  This functions locks the area of the resisnd and cache sep code
-*/
-static void sep_lock_cache_resident_area(void)
-{
-	return;
-}
 
 /*
   This functions copies the cache and resident from their source location into
@@ -2202,9 +2189,6 @@ static int sep_realloc_cache_resident_handler(unsigned long arg)
 	if (error)
 		goto end_function;
 
-	/* lock the area (if needed) */
-	sep_lock_cache_resident_area();
-
 	command_args.new_base_addr = sep_dev->phys_shared_area_addr;
 
 	/* find the new base address according to the lowest address between
@@ -2765,17 +2749,6 @@ static struct pci_driver sep_pci_driver = {
 	.probe = sep_probe
 };
 
-/*
-  this function registers th driver to
-  the device subsystem( either PCI, USB, etc)
-*/
-static int sep_register_driver_to_device(void)
-{
-	return pci_register_driver(&sep_pci_driver);
-}
-
-
-
 /* major and minor device numbers */
 static dev_t sep_devno;
 
@@ -2827,16 +2800,6 @@ end_function:
       return ret_val;
 }
 
-/*
-  this function unregisters driver from fs
-*/
-static void sep_unregister_driver_from_fs(void)
-{
-	cdev_del(&sep_cdev);
-	/* unregister dev numbers */
-	unregister_chrdev_region(sep_devno, 1);
-}
-
 
 /*--------------------------------------------------------------
   init function
@@ -2864,7 +2827,8 @@ static int __init sep_init(void)
 	/* set the starting mode to blocking */
 	sep_dev->block_mode_flag = 1;
 
-	ret_val = sep_register_driver_to_device();
+	/* FIXME: Probe can occur before we are ready to survive a probe */
+	ret_val = pci_register_driver(&sep_pci_driver);
 	if (ret_val) {
 		edbg("sep_driver:sep_driver_to_device failed, ret_val is %d\n", ret_val);
 		goto end_function_unregister_from_fs;
@@ -2920,7 +2884,9 @@ static int __init sep_init(void)
 	goto end_function;
 end_function_unregister_from_fs:
 	/* unregister from fs */
-	sep_unregister_driver_from_fs();
+	cdev_del(&sep_cdev);
+	/* unregister dev numbers */
+	unregister_chrdev_region(sep_devno, 1);
 end_function_deallocate_sep_shared_area:
 	/* de-allocate shared area */
 	sep_unmap_and_free_shared_area(size, sep_dev->shared_area_addr, sep_dev->phys_shared_area_addr);
@@ -2944,7 +2910,9 @@ static void __exit sep_exit(void)
 	dbg("SEP Driver:--------> Exit start\n");
 
 	/* unregister from fs */
-	sep_unregister_driver_from_fs();
+	cdev_del(&sep_cdev);
+	/* unregister dev numbers */
+	unregister_chrdev_region(sep_devno, 1);
 	/* calculate the total size for de-allocation */
 	size = SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES +
 	    SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES + SEP_DRIVER_FLOW_DMA_TABLES_AREA_SIZE_IN_BYTES + SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES + SEP_DRIVER_SYSTEM_DATA_MEMORY_SIZE_IN_BYTES;

@@ -42,11 +42,6 @@ this function loads the ROM code in SEP (needed only in the debug mode on FPGA)
 static void sep_load_rom_code(void);
 
 /*
-This functions locks the area of the resident and cache sep code (if possible)
-*/
-static void sep_lock_cache_resident_area(void);
-
-/*
 This functions copies the cache and resident from their source location into
 destination memory, which is external to Linux VM and is given as physical
 address
@@ -85,11 +80,5 @@ to the physical address. It can be either on the externa RAM device
 (ioremapped), or on the system RAM This implementation is for the external RAM
 */
 static unsigned long sep_shared_area_phys_to_virt(unsigned long phys_address);
-
-/*
-This function registers th driver to the device
-subsystem (either PCI, USB, etc)
-*/
-static int sep_register_driver_to_device(void);
 
 #endif /*__SEP_DRIVER_EXT_API_H__*/
