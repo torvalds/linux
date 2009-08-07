@@ -2602,8 +2602,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	fs_selector = kvm_read_fs();
 	gs_selector = kvm_read_gs();
 	ldt_selector = kvm_read_ldt();
-	if (!is_nested(svm))
-		svm->vmcb->save.cr2 = vcpu->arch.cr2;
+	svm->vmcb->save.cr2 = vcpu->arch.cr2;
 	/* required for live migration with NPT */
 	if (npt_enabled)
 		svm->vmcb->save.cr3 = vcpu->arch.cr3;
