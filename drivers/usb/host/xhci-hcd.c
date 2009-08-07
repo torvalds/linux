@@ -601,6 +601,70 @@ int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 	return 1;
 }
 
+static int xhci_configure_endpoint(struct xhci_hcd *xhci,
+		struct usb_device *udev, struct xhci_virt_device *virt_dev,
+		bool ctx_change);
+
+/*
+ * Full speed devices may have a max packet size greater than 8 bytes, but the
+ * USB core doesn't know that until it reads the first 8 bytes of the
+ * descriptor.  If the usb_device's max packet size changes after that point,
+ * we need to issue an evaluate context command and wait on it.
+ */
+static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
+		unsigned int ep_index, struct urb *urb)
+{
+	struct xhci_container_ctx *in_ctx;
+	struct xhci_container_ctx *out_ctx;
+	struct xhci_input_control_ctx *ctrl_ctx;
+	struct xhci_ep_ctx *ep_ctx;
+	int max_packet_size;
+	int hw_max_packet_size;
+	int ret = 0;
+
+	out_ctx = xhci->devs[slot_id]->out_ctx;
+	ep_ctx = xhci_get_ep_ctx(xhci, out_ctx, ep_index);
+	hw_max_packet_size = MAX_PACKET_DECODED(ep_ctx->ep_info2);
+	max_packet_size = urb->dev->ep0.desc.wMaxPacketSize;
+	if (hw_max_packet_size != max_packet_size) {
+		xhci_dbg(xhci, "Max Packet Size for ep 0 changed.\n");
+		xhci_dbg(xhci, "Max packet size in usb_device = %d\n",
+				max_packet_size);
+		xhci_dbg(xhci, "Max packet size in xHCI HW = %d\n",
+				hw_max_packet_size);
+		xhci_dbg(xhci, "Issuing evaluate context command.\n");
+
+		/* Set up the modified control endpoint 0 */
+		xhci_endpoint_copy(xhci, xhci->devs[slot_id], ep_index);
+		in_ctx = xhci->devs[slot_id]->in_ctx;
+		ep_ctx = xhci_get_ep_ctx(xhci, in_ctx, ep_index);
+		ep_ctx->ep_info2 &= ~MAX_PACKET_MASK;
+		ep_ctx->ep_info2 |= MAX_PACKET(max_packet_size);
+
+		/* Set up the input context flags for the command */
+		/* FIXME: This won't work if a non-default control endpoint
+		 * changes max packet sizes.
+		 */
+		ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
+		ctrl_ctx->add_flags = EP0_FLAG;
+		ctrl_ctx->drop_flags = 0;
+
+		xhci_dbg(xhci, "Slot %d input context\n", slot_id);
+		xhci_dbg_ctx(xhci, in_ctx, ep_index);
+		xhci_dbg(xhci, "Slot %d output context\n", slot_id);
+		xhci_dbg_ctx(xhci, out_ctx, ep_index);
+
+		ret = xhci_configure_endpoint(xhci, urb->dev,
+				xhci->devs[slot_id], true);
+
+		/* Clean up the input context for later use by bandwidth
+		 * functions.
+		 */
+		ctrl_ctx->add_flags = SLOT_FLAG;
+	}
+	return ret;
+}
+
 /*
  * non-error returns are a promise to giveback() the urb later
  * we drop ownership so next owner (or urb unlink) can get it
@@ -612,13 +676,13 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	int ret = 0;
 	unsigned int slot_id, ep_index;
 
+
 	if (!urb || xhci_check_args(hcd, urb->dev, urb->ep, true, __func__) <= 0)
 		return -EINVAL;
 
 	slot_id = urb->dev->slot_id;
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
 
-	spin_lock_irqsave(&xhci->lock, flags);
 	if (!xhci->devs || !xhci->devs[slot_id]) {
 		if (!in_interrupt())
 			dev_warn(&urb->dev->dev, "WARN: urb submitted for dev with no Slot ID\n");
@@ -631,19 +695,33 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		ret = -ESHUTDOWN;
 		goto exit;
 	}
-	if (usb_endpoint_xfer_control(&urb->ep->desc))
+	if (usb_endpoint_xfer_control(&urb->ep->desc)) {
+		/* Check to see if the max packet size for the default control
+		 * endpoint changed during FS device enumeration
+		 */
+		if (urb->dev->speed == USB_SPEED_FULL) {
+			ret = xhci_check_maxpacket(xhci, slot_id,
+					ep_index, urb);
+			if (ret < 0)
+				return ret;
+		}
+
 		/* We have a spinlock and interrupts disabled, so we must pass
 		 * atomic context to this function, which may allocate memory.
 		 */
+		spin_lock_irqsave(&xhci->lock, flags);
 		ret = xhci_queue_ctrl_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
-	else if (usb_endpoint_xfer_bulk(&urb->ep->desc))
+		spin_unlock_irqrestore(&xhci->lock, flags);
+	} else if (usb_endpoint_xfer_bulk(&urb->ep->desc)) {
+		spin_lock_irqsave(&xhci->lock, flags);
 		ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
 				slot_id, ep_index);
-	else
+		spin_unlock_irqrestore(&xhci->lock, flags);
+	} else {
 		ret = -EINVAL;
+	}
 exit:
-	spin_unlock_irqrestore(&xhci->lock, flags);
 	return ret;
 }
 

@@ -701,6 +701,10 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(event->status);
 		complete(&xhci->devs[slot_id]->cmd_completion);
 		break;
+	case TRB_TYPE(TRB_EVAL_CONTEXT):
+		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(event->status);
+		complete(&xhci->devs[slot_id]->cmd_completion);
+		break;
 	case TRB_TYPE(TRB_ADDR_DEV):
 		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(event->status);
 		complete(&xhci->addr_dev);
