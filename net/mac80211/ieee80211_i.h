@@ -715,7 +715,7 @@ struct ieee80211_local {
 	struct mutex scan_mtx;
 	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
-	struct cfg80211_scan_request int_scan_req;
+	struct cfg80211_scan_request *int_scan_req;
 	struct cfg80211_scan_request *scan_req;
 	struct ieee80211_channel *scan_channel;
 	const u8 *orig_ies;

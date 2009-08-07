@@ -3002,10 +3002,9 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	request->channels = (void *)((char *)request + sizeof(*request));
 	request->n_channels = n_channels;
 	if (n_ssids)
-		request->ssids = (void *)(request->channels + n_channels);
+		request->ssids = (void *)&request->channels[n_channels];
 	request->n_ssids = n_ssids;
 	if (ie_len) {
 		if (request->ssids)

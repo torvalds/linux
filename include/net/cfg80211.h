@@ -559,7 +559,6 @@ struct cfg80211_ssid {
 struct cfg80211_scan_request {
 	struct cfg80211_ssid *ssids;
 	int n_ssids;
-	struct ieee80211_channel **channels;
 	u32 n_channels;
 	const u8 *ie;
 	size_t ie_len;
@@ -568,6 +567,9 @@ struct cfg80211_scan_request {
 	struct wiphy *wiphy;
 	struct net_device *dev;
 	bool aborted;
+
+	/* keep last */
+	struct ieee80211_channel *channels[0];
 };
 
 /**

@@ -277,7 +277,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	if (test_bit(SCAN_HW_SCANNING, &local->scanning))
 		ieee80211_restore_scan_ies(local);
 
-	if (local->scan_req != &local->int_scan_req)
+	if (local->scan_req != local->int_scan_req)
 		cfg80211_scan_done(local->scan_req, aborted);
 	local->scan_req = NULL;
 
@@ -423,7 +423,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	local->scan_req = req;
 	local->scan_sdata = sdata;
 
-	if (req != &local->int_scan_req &&
+	if (req != local->int_scan_req &&
 	    sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    !list_empty(&ifmgd->work_list)) {
 		/* actually wait for the work it's doing to finish/time out */
@@ -743,10 +743,10 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->scan_req)
 		goto unlock;
 
-	memcpy(local->int_scan_req.ssids[0].ssid, ssid, IEEE80211_MAX_SSID_LEN);
-	local->int_scan_req.ssids[0].ssid_len = ssid_len;
+	memcpy(local->int_scan_req->ssids[0].ssid, ssid, IEEE80211_MAX_SSID_LEN);
+	local->int_scan_req->ssids[0].ssid_len = ssid_len;
 
-	ret = __ieee80211_start_scan(sdata, &sdata->local->int_scan_req);
+	ret = __ieee80211_start_scan(sdata, sdata->local->int_scan_req);
  unlock:
 	mutex_unlock(&local->scan_mtx);
 	return ret;

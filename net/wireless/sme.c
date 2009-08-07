@@ -65,7 +65,6 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	if (!request)
 		return -ENOMEM;
 
-	request->channels = (void *)((char *)request + sizeof(*request));
 	if (wdev->conn->params.channel)
 		request->channels[0] = wdev->conn->params.channel;
 	else {
@@ -82,7 +81,7 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 		}
 	}
 	request->n_channels = n_channels;
-	request->ssids = (void *)(request->channels + n_channels);
+	request->ssids = (void *)&request->channels[n_channels];
 	request->n_ssids = 1;
 
 	memcpy(request->ssids[0].ssid, wdev->conn->params.ssid,

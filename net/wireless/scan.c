@@ -612,8 +612,8 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 
 	creq->wiphy = wiphy;
 	creq->dev = dev;
-	creq->ssids = (void *)(creq + 1);
-	creq->channels = (void *)(creq->ssids + 1);
+	/* SSIDs come after channels */
+	creq->ssids = (void *)&creq->channels[n_channels];
 	creq->n_channels = n_channels;
 	creq->n_ssids = 1;
 
