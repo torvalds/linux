@@ -2463,7 +2463,7 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 	return (vmcb->save.rflags & X86_EFLAGS_IF) &&
 		!(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
 		gif_set(svm) &&
-		!is_nested(svm);
+		!(is_nested(svm) && (svm->vcpu.arch.hflags & HF_VINTR_MASK));
 }
 
 static void enable_irq_window(struct kvm_vcpu *vcpu)
