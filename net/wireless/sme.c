@@ -256,9 +256,11 @@ void cfg80211_sme_scan_done(struct net_device *dev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
+	mutex_lock(&wiphy_to_dev(wdev->wiphy)->devlist_mtx);
 	wdev_lock(wdev);
 	__cfg80211_sme_scan_done(dev);
 	wdev_unlock(wdev);
+	mutex_unlock(&wiphy_to_dev(wdev->wiphy)->devlist_mtx);
 }
 
 void cfg80211_sme_rx_auth(struct net_device *dev,
@@ -644,12 +646,17 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		       struct cfg80211_cached_keys *connkeys)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct ieee80211_channel *chan;
 	int err;
 
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (wdev->sme_state != CFG80211_SME_IDLE)
 		return -EALREADY;
+
+	chan = rdev_fixed_channel(rdev, wdev);
+	if (chan && chan != connect->channel)
+		return -EBUSY;
 
 	if (WARN_ON(wdev->connect_keys)) {
 		kfree(wdev->connect_keys);
@@ -785,9 +792,11 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 {
 	int err;
 
+	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(dev->ieee80211_ptr);
 	err = __cfg80211_connect(rdev, dev, connect, connkeys);
 	wdev_unlock(dev->ieee80211_ptr);
+	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }

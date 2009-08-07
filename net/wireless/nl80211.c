@@ -701,14 +701,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
 		enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
-		struct ieee80211_channel *chan;
-		struct ieee80211_sta_ht_cap *ht_cap;
 		u32 freq;
-
-		if (!rdev->ops->set_channel) {
-			result = -EOPNOTSUPP;
-			goto bad_res;
-		}
 
 		result = -EINVAL;
 
@@ -723,42 +716,12 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
-		chan = ieee80211_get_channel(&rdev->wiphy, freq);
 
-		/* Primary channel not allowed */
-		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED)
-			goto bad_res;
-
-		if (channel_type == NL80211_CHAN_HT40MINUS &&
-		    (chan->flags & IEEE80211_CHAN_NO_HT40MINUS))
-			goto bad_res;
-		else if (channel_type == NL80211_CHAN_HT40PLUS &&
-			 (chan->flags & IEEE80211_CHAN_NO_HT40PLUS))
-			goto bad_res;
-
-		/*
-		 * At this point we know if that if HT40 was requested
-		 * we are allowed to use it and the extension channel
-		 * exists.
-		 */
-
-		ht_cap = &rdev->wiphy.bands[chan->band]->ht_cap;
-
-		/* no HT capabilities or intolerant */
-		if (channel_type != NL80211_CHAN_NO_HT) {
-			if (!ht_cap->ht_supported)
-				goto bad_res;
-			if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
-			    (ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT))
-				goto bad_res;
-		}
-
-		result = rdev->ops->set_channel(&rdev->wiphy, chan,
-						channel_type);
+		mutex_lock(&rdev->devlist_mtx);
+		result = rdev_set_freq(rdev, freq, channel_type);
+		mutex_unlock(&rdev->devlist_mtx);
 		if (result)
 			goto bad_res;
-
-		rdev->channel = chan;
 	}
 
 	changed = 0;
@@ -3453,7 +3416,7 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	struct cfg80211_crypto_settings crypto;
-	struct ieee80211_channel *chan;
+	struct ieee80211_channel *chan, *fixedchan;
 	const u8 *bssid, *ssid, *ie = NULL, *prev_bssid = NULL;
 	int err, ssid_len, ie_len = 0;
 	bool use_mfp = false;
@@ -3495,6 +3458,15 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		err = -EINVAL;
 		goto out;
 	}
+
+	mutex_lock(&rdev->devlist_mtx);
+	fixedchan = rdev_fixed_channel(rdev, NULL);
+	if (fixedchan && chan != fixedchan) {
+		err = -EBUSY;
+		mutex_unlock(&rdev->devlist_mtx);
+		goto out;
+	}
+	mutex_unlock(&rdev->devlist_mtx);
 
 	ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
 	ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);

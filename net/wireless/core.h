@@ -366,4 +366,10 @@ void cfg80211_sme_disassoc(struct net_device *dev, int idx);
 void __cfg80211_scan_done(struct work_struct *wk);
 void cfg80211_upload_connect_keys(struct wireless_dev *wdev);
 
+struct ieee80211_channel *
+rdev_fixed_channel(struct cfg80211_registered_device *rdev,
+		   struct wireless_dev *for_wdev);
+int rdev_set_freq(struct cfg80211_registered_device *rdev,
+		  int freq, enum nl80211_channel_type channel_type);
+
 #endif /* __NET_WIRELESS_CORE_H */
