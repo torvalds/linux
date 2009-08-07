@@ -844,13 +844,13 @@ static void ath9k_hw_4k_set_addac(struct ath_hw *ah,
 static void ath9k_hw_4k_set_gain(struct ath_hw *ah,
 				 struct modal_eep_4k_header *pModal,
 				 struct ar5416_eeprom_4k *eep,
-				 u8 txRxAttenLocal, int regChainOffset)
+				 u8 txRxAttenLocal)
 {
-	REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0 + regChainOffset,
+	REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0,
 		  pModal->antCtrlChain[0]);
 
-	REG_WRITE(ah, AR_PHY_TIMING_CTRL4(0) + regChainOffset,
-		  (REG_READ(ah, AR_PHY_TIMING_CTRL4(0) + regChainOffset) &
+	REG_WRITE(ah, AR_PHY_TIMING_CTRL4(0),
+		  (REG_READ(ah, AR_PHY_TIMING_CTRL4(0)) &
 		   ~(AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF |
 		     AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF)) |
 		  SM(pModal->iqCalICh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF) |
@@ -860,14 +860,14 @@ static void ath9k_hw_4k_set_gain(struct ath_hw *ah,
 	    AR5416_EEP_MINOR_VER_3) {
 		txRxAttenLocal = pModal->txRxAttenCh[0];
 
-		REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+		REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
 			      AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN, pModal->bswMargin[0]);
-		REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+		REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
 			      AR_PHY_GAIN_2GHZ_XATTEN1_DB, pModal->bswAtten[0]);
-		REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+		REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
 			      AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN,
 			      pModal->xatten2Margin[0]);
-		REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+		REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
 			      AR_PHY_GAIN_2GHZ_XATTEN2_DB, pModal->xatten2Db[0]);
 
 		/* Set the block 1 value to block 0 value */
@@ -884,9 +884,9 @@ static void ath9k_hw_4k_set_gain(struct ath_hw *ah,
 			      pModal->xatten2Db[0]);
 	}
 
-	REG_RMW_FIELD(ah, AR_PHY_RXGAIN + regChainOffset,
+	REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
 		      AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
-	REG_RMW_FIELD(ah, AR_PHY_RXGAIN + regChainOffset,
+	REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
 		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
 
 	REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
@@ -919,7 +919,7 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 		  ah->eep_ops->get_eeprom_antenna_cfg(ah, chan));
 
 	/* Single chain for 4K EEPROM*/
-	ath9k_hw_4k_set_gain(ah, pModal, eep, txRxAttenLocal, 0);
+	ath9k_hw_4k_set_gain(ah, pModal, eep, txRxAttenLocal);
 
 	/* Initialize Ant Diversity settings from EEPROM */
 	if (pModal->version >= 3) {
