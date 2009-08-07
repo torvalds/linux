@@ -2143,7 +2143,9 @@ static int sep_get_time_handler(unsigned long arg)
 	struct sep_driver_get_time_t command_args;
 
 	error = sep_set_time(&command_args.time_physical_address, &command_args.time_value);
-	error = copy_to_user((void *) arg, (void *) &command_args, sizeof(struct sep_driver_get_time_t));
+	if (error == 0)
+		error = copy_to_user((void __user *)arg,
+			&command_args, sizeof(struct sep_driver_get_time_t));
 	return error;
 
 }
