@@ -846,6 +846,41 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	return 0;
 }
 
+static int vidioc_g_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *p)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+	int rc = 0;
+
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (dev->board.is_webcam)
+		rc = v4l2_device_call_until_err(&dev->v4l2_dev, 0,
+						video, g_parm, p);
+	else
+		v4l2_video_std_frame_period(dev->norm,
+						 &p->parm.capture.timeperframe);
+
+	return rc;
+}
+
+static int vidioc_s_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *p)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+
+	if (!dev->board.is_webcam)
+		return -EINVAL;
+
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	return v4l2_device_call_until_err(&dev->v4l2_dev, 0, video, s_parm, p);
+}
+
 static const char *iname[] = {
 	[EM28XX_VMUX_COMPOSITE1] = "Composite1",
 	[EM28XX_VMUX_COMPOSITE2] = "Composite2",
@@ -1885,6 +1920,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_qbuf                = vidioc_qbuf,
 	.vidioc_dqbuf               = vidioc_dqbuf,
 	.vidioc_s_std               = vidioc_s_std,
+	.vidioc_g_parm		    = vidioc_g_parm,
+	.vidioc_s_parm		    = vidioc_s_parm,
 	.vidioc_enum_input          = vidioc_enum_input,
 	.vidioc_g_input             = vidioc_g_input,
 	.vidioc_s_input             = vidioc_s_input,
