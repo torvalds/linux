@@ -207,14 +207,25 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	whole = 0;
 	first_len = max;
 
+	/* Check to see if we have a pending SACK and try to let it be bundled
+	 * with this message.  Do this if we don't have any data queued already.
+	 * To check that, look at out_qlen and retransmit list.
+	 * NOTE: we will not reduce to account for SACK, if the message would
+	 * not have been fragmented.
+	 */
+	if (timer_pending(&asoc->timers[SCTP_EVENT_TIMEOUT_SACK]) &&
+	    asoc->outqueue.out_qlen == 0 &&
+	    list_empty(&asoc->outqueue.retransmit) &&
+	    msg_len > max)
+		max_data -= WORD_ROUND(sizeof(sctp_sack_chunk_t));
+
 	/* Encourage Cookie-ECHO bundling. */
-	if (asoc->state < SCTP_STATE_COOKIE_ECHOED) {
+	if (asoc->state < SCTP_STATE_COOKIE_ECHOED)
 		max_data -= SCTP_ARBITRARY_COOKIE_ECHO_LEN;
 
-		/* This is the biggesr first_len we can have */
-		if (first_len > max_data)
-			first_len = max_data;
-	}
+	/* Now that we adjusted completely, reset first_len */
+	if (first_len > max_data)
+		first_len = max_data;
 
 	/* Account for a different sized first fragment */
 	if (msg_len >= first_len) {
