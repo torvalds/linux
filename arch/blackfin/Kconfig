@@ -1152,11 +1152,12 @@ source "fs/Kconfig.binfmt"
 endmenu
 
 menu "Power management options"
+	depends on !SMP
+
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on !SMP
 
 choice
 	prompt "Standby Power Saving Mode"
@@ -1244,6 +1245,7 @@ config PM_BFIN_WAKE_GP
 endmenu
 
 menu "CPU Frequency scaling"
+	depends on !SMP
 
 source "drivers/cpufreq/Kconfig"
 
