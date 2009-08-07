@@ -276,7 +276,7 @@ loop_lock:
 		 * is now congested.  Back off and let other work structs
 		 * run instead
 		 */
-		if (pending && bdi_write_congested(bdi) && batch_run > 32 &&
+		if (pending && bdi_write_congested(bdi) && batch_run > 8 &&
 		    fs_info->fs_devices->open_devices > 1) {
 			struct io_context *ioc;
 
