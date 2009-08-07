@@ -28,7 +28,7 @@
 #include "wl12xx_80211.h"
 #include "wl1251_acx.h"
 #include "wl1251_cmd.h"
-#include "reg.h"
+#include "wl1251_reg.h"
 
 int wl1251_hw_init_hwenc_config(struct wl1251 *wl)
 {

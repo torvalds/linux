@@ -4,7 +4,7 @@
 #include <linux/crc7.h>
 
 #include "wl1251.h"
-#include "reg.h"
+#include "wl1251_reg.h"
 #include "wl1251_io.h"
 #include "wl1251_ps.h"
 #include "wl1251_acx.h"

@@ -21,7 +21,7 @@
  *
  */
 
-#include "reg.h"
+#include "wl1251_reg.h"
 #include "wl1251_ps.h"
 #include "wl1251_cmd.h"
 #include "wl1251_io.h"

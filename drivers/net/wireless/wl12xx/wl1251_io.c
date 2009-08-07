@@ -22,7 +22,7 @@
  */
 
 #include "wl1251.h"
-#include "reg.h"
+#include "wl1251_reg.h"
 #include "wl1251_io.h"
 
 /* FIXME: this is static data nowadays and the table can be removed */

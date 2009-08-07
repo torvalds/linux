@@ -23,7 +23,7 @@
 
 #include <linux/gpio.h>
 
-#include "reg.h"
+#include "wl1251_reg.h"
 #include "wl1251_boot.h"
 #include "wl1251_io.h"
 #include "wl1251_spi.h"

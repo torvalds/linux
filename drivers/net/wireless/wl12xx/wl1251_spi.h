@@ -27,7 +27,7 @@
 
 #include "wl1251_cmd.h"
 #include "wl1251_acx.h"
-#include "reg.h"
+#include "wl1251_reg.h"
 
 #define WSPI_CMD_READ                 0x40000000
 #define WSPI_CMD_WRITE                0x00000000

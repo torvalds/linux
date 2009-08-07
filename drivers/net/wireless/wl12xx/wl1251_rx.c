@@ -26,7 +26,7 @@
 #include <net/mac80211.h>
 
 #include "wl1251.h"
-#include "reg.h"
+#include "wl1251_reg.h"
 #include "wl1251_io.h"
 #include "wl1251_rx.h"
 #include "wl1251_cmd.h"
