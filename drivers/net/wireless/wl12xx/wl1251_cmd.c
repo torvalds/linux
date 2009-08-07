@@ -254,7 +254,6 @@ out:
 int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 		    u16 beacon_interval, u8 dtim_interval)
 {
-	unsigned long timeout;
 	struct cmd_join *join;
 	int ret, i;
 	u8 *bssid;
@@ -264,14 +263,6 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	/* FIXME: this should be in main.c */
-	ret = wl1251_acx_frame_rates(wl, DEFAULT_HW_GEN_TX_RATE,
-				     DEFAULT_HW_GEN_MODULATION_TYPE,
-				     wl->tx_mgmt_frm_rate,
-				     wl->tx_mgmt_frm_mod);
-	if (ret < 0)
-		goto out;
 
 	wl1251_debug(DEBUG_CMD, "cmd join%s ch %d %d/%d",
 		     bss_type == BSS_TYPE_IBSS ? " ibss" : "",
@@ -299,14 +290,6 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 		wl1251_error("failed to initiate cmd join");
 		goto out;
 	}
-
-	timeout = msecs_to_jiffies(JOIN_TIMEOUT);
-
-	/*
-	 * ugly hack: we should wait for JOIN_EVENT_COMPLETE_ID but to
-	 * simplify locking we just sleep instead, for now
-	 */
-	msleep(10);
 
 out:
 	kfree(join);
