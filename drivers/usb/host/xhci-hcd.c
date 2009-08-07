@@ -224,7 +224,7 @@ int xhci_init(struct usb_hcd *hcd)
 		xhci_dbg(xhci, "QUIRK: Not clearing Link TRB chain bits.\n");
 		xhci->quirks |= XHCI_LINK_TRB_QUIRK;
 	} else {
-		xhci_dbg(xhci, "xHCI has no QUIRKS\n");
+		xhci_dbg(xhci, "xHCI doesn't need link TRB QUIRK\n");
 	}
 	retval = xhci_mem_init(xhci, GFP_KERNEL);
 	xhci_dbg(xhci, "Finished xhci_init\n");
@@ -567,13 +567,22 @@ unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc)
 	return 1 << (xhci_get_endpoint_index(desc) + 1);
 }
 
+/* Find the flag for this endpoint (for use in the control context).  Use the
+ * endpoint index to create a bitmask.  The slot context is bit 0, endpoint 0 is
+ * bit 1, etc.
+ */
+unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index)
+{
+	return 1 << (ep_index + 1);
+}
+
 /* Compute the last valid endpoint context index.  Basically, this is the
  * endpoint index plus one.  For slot contexts with more than valid endpoint,
  * we find the most significant bit set in the added contexts flags.
  * e.g. ep 1 IN (with epnum 0x81) => added_ctxs = 0b1000
  * fls(0b1000) = 4, but the endpoint context index is 3, so subtract one.
  */
-static inline unsigned int xhci_last_valid_endpoint(u32 added_ctxs)
+unsigned int xhci_last_valid_endpoint(u32 added_ctxs)
 {
 	return fls(added_ctxs) - 1;
 }
@@ -1230,8 +1239,44 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_zero_in_ctx(xhci, virt_dev);
 }
 
+void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		struct xhci_dequeue_state *deq_state)
+{
+	struct xhci_container_ctx *in_ctx;
+	struct xhci_input_control_ctx *ctrl_ctx;
+	struct xhci_ep_ctx *ep_ctx;
+	u32 added_ctxs;
+	dma_addr_t addr;
+
+	xhci_endpoint_copy(xhci, xhci->devs[slot_id], ep_index);
+	in_ctx = xhci->devs[slot_id]->in_ctx;
+	ep_ctx = xhci_get_ep_ctx(xhci, in_ctx, ep_index);
+	addr = xhci_trb_virt_to_dma(deq_state->new_deq_seg,
+			deq_state->new_deq_ptr);
+	if (addr == 0) {
+		xhci_warn(xhci, "WARN Cannot submit config ep after "
+				"reset ep command\n");
+		xhci_warn(xhci, "WARN deq seg = %p, deq ptr = %p\n",
+				deq_state->new_deq_seg,
+				deq_state->new_deq_ptr);
+		return;
+	}
+	ep_ctx->deq = addr | deq_state->new_cycle_state;
+
+	xhci_slot_copy(xhci, xhci->devs[slot_id]);
+
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
+	added_ctxs = xhci_get_endpoint_flag_from_index(ep_index);
+	ctrl_ctx->add_flags = added_ctxs | SLOT_FLAG;
+	ctrl_ctx->drop_flags = added_ctxs;
+
+	xhci_dbg(xhci, "Slot ID %d Input Context:\n", slot_id);
+	xhci_dbg_ctx(xhci, in_ctx, ep_index);
+}
+
 void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
-		struct usb_device *udev, struct usb_host_endpoint *ep,
+		struct usb_device *udev,
 		unsigned int ep_index, struct xhci_ring *ep_ring)
 {
 	struct xhci_dequeue_state deq_state;
@@ -1241,12 +1286,26 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	 * or it will attempt to resend it on the next doorbell ring.
 	 */
 	xhci_find_new_dequeue_state(xhci, udev->slot_id,
-			ep_index, ep_ring->stopped_td, &deq_state);
+			ep_index, ep_ring->stopped_td,
+			&deq_state);
 
-	xhci_dbg(xhci, "Queueing new dequeue state\n");
-	xhci_queue_new_dequeue_state(xhci, ep_ring,
-			udev->slot_id,
-			ep_index, &deq_state);
+	/* HW with the reset endpoint quirk will use the saved dequeue state to
+	 * issue a configure endpoint command later.
+	 */
+	if (!(xhci->quirks & XHCI_RESET_EP_QUIRK)) {
+		xhci_dbg(xhci, "Queueing new dequeue state\n");
+		xhci_queue_new_dequeue_state(xhci, ep_ring,
+				udev->slot_id,
+				ep_index, &deq_state);
+	} else {
+		/* Better hope no one uses the input context between now and the
+		 * reset endpoint completion!
+		 */
+		xhci_dbg(xhci, "Setting up input context for "
+				"configure endpoint command\n");
+		xhci_setup_input_ctx_for_quirk(xhci, udev->slot_id,
+				ep_index, &deq_state);
+	}
 }
 
 /* Deal with stalled endpoints.  The core should have sent the control message
@@ -1293,7 +1352,7 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	 * command.  Better hope that last command worked!
 	 */
 	if (!ret) {
-		xhci_cleanup_stalled_ring(xhci, udev, ep, ep_index, ep_ring);
+		xhci_cleanup_stalled_ring(xhci, udev, ep_index, ep_ring);
 		kfree(ep_ring->stopped_td);
 		xhci_ring_cmd_db(xhci);
 	}

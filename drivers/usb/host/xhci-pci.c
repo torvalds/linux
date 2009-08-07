@@ -24,6 +24,10 @@
 
 #include "xhci.h"
 
+/* Device for a quirk */
+#define PCI_VENDOR_ID_FRESCO_LOGIC	0x1b73
+#define PCI_DEVICE_ID_FRESCO_LOGIC_PDK	0x1000
+
 static const char hcd_name[] = "xhci_hcd";
 
 /* called after powerup, by probe or system-pm "wakeup" */
@@ -61,6 +65,15 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	xhci->hcs_params3 = xhci_readl(xhci, &xhci->cap_regs->hcs_params3);
 	xhci->hcc_params = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
 	xhci_print_registers(xhci);
+
+	/* Look for vendor-specific quirks */
+	if (pdev->vendor == PCI_VENDOR_ID_FRESCO_LOGIC &&
+			pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK &&
+			pdev->revision == 0x0) {
+			xhci->quirks |= XHCI_RESET_EP_QUIRK;
+			xhci_dbg(xhci, "QUIRK: Fresco Logic xHC needs configure"
+					" endpoint cmd after reset endpoint\n");
+	}
 
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);

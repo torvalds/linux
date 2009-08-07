@@ -469,7 +469,6 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 	 * ring running.
 	 */
 	ep_ring->state |= SET_DEQ_PENDING;
-	xhci_ring_cmd_db(xhci);
 }
 
 /*
@@ -538,6 +537,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	if (deq_state.new_deq_ptr && deq_state.new_deq_seg) {
 		xhci_queue_new_dequeue_state(xhci, ep_ring,
 				slot_id, ep_index, &deq_state);
+		xhci_ring_cmd_db(xhci);
 	} else {
 		/* Otherwise just ring the doorbell to restart the ring */
 		ring_ep_doorbell(xhci, slot_id, ep_index);
@@ -651,18 +651,31 @@ static void handle_reset_ep_completion(struct xhci_hcd *xhci,
 {
 	int slot_id;
 	unsigned int ep_index;
+	struct xhci_ring *ep_ring;
 
 	slot_id = TRB_TO_SLOT_ID(trb->generic.field[3]);
 	ep_index = TRB_TO_EP_INDEX(trb->generic.field[3]);
+	ep_ring = xhci->devs[slot_id]->ep_rings[ep_index];
 	/* This command will only fail if the endpoint wasn't halted,
 	 * but we don't care.
 	 */
 	xhci_dbg(xhci, "Ignoring reset ep completion code of %u\n",
 			(unsigned int) GET_COMP_CODE(event->status));
 
-	/* Clear our internal halted state and restart the ring */
-	xhci->devs[slot_id]->ep_rings[ep_index]->state &= ~EP_HALTED;
-	ring_ep_doorbell(xhci, slot_id, ep_index);
+	/* HW with the reset endpoint quirk needs to have a configure endpoint
+	 * command complete before the endpoint can be used.  Queue that here
+	 * because the HW can't handle two commands being queued in a row.
+	 */
+	if (xhci->quirks & XHCI_RESET_EP_QUIRK) {
+		xhci_dbg(xhci, "Queueing configure endpoint command\n");
+		xhci_queue_configure_endpoint(xhci,
+				xhci->devs[slot_id]->in_ctx->dma, slot_id);
+		xhci_ring_cmd_db(xhci);
+	} else {
+		/* Clear our internal halted state and restart the ring */
+		ep_ring->state &= ~EP_HALTED;
+		ring_ep_doorbell(xhci, slot_id, ep_index);
+	}
 }
 
 static void handle_cmd_completion(struct xhci_hcd *xhci,
@@ -671,6 +684,10 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	int slot_id = TRB_TO_SLOT_ID(event->flags);
 	u64 cmd_dma;
 	dma_addr_t cmd_dequeue_dma;
+	struct xhci_input_control_ctx *ctrl_ctx;
+	unsigned int ep_index;
+	struct xhci_ring *ep_ring;
+	unsigned int ep_state;
 
 	cmd_dma = event->cmd_trb;
 	cmd_dequeue_dma = xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
@@ -698,8 +715,39 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 			xhci_free_virt_device(xhci, slot_id);
 		break;
 	case TRB_TYPE(TRB_CONFIG_EP):
-		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(event->status);
-		complete(&xhci->devs[slot_id]->cmd_completion);
+		/*
+		 * Configure endpoint commands can come from the USB core
+		 * configuration or alt setting changes, or because the HW
+		 * needed an extra configure endpoint command after a reset
+		 * endpoint command.  In the latter case, the xHCI driver is
+		 * not waiting on the configure endpoint command.
+		 */
+		ctrl_ctx = xhci_get_input_control_ctx(xhci,
+				xhci->devs[slot_id]->in_ctx);
+		/* Input ctx add_flags are the endpoint index plus one */
+		ep_index = xhci_last_valid_endpoint(ctrl_ctx->add_flags) - 1;
+		ep_ring = xhci->devs[slot_id]->ep_rings[ep_index];
+		if (!ep_ring) {
+			/* This must have been an initial configure endpoint */
+			xhci->devs[slot_id]->cmd_status =
+				GET_COMP_CODE(event->status);
+			complete(&xhci->devs[slot_id]->cmd_completion);
+			break;
+		}
+		ep_state = ep_ring->state;
+		xhci_dbg(xhci, "Completed config ep cmd - last ep index = %d, "
+				"state = %d\n", ep_index, ep_state);
+		if (xhci->quirks & XHCI_RESET_EP_QUIRK &&
+				ep_state & EP_HALTED) {
+			/* Clear our internal halted state and restart ring */
+			xhci->devs[slot_id]->ep_rings[ep_index]->state &=
+				~EP_HALTED;
+			ring_ep_doorbell(xhci, slot_id, ep_index);
+		} else {
+			xhci->devs[slot_id]->cmd_status =
+				GET_COMP_CODE(event->status);
+			complete(&xhci->devs[slot_id]->cmd_completion);
+		}
 		break;
 	case TRB_TYPE(TRB_EVAL_CONTEXT):
 		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(event->status);
@@ -958,7 +1006,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			xhci_queue_reset_ep(xhci, slot_id, ep_index);
 			xhci_cleanup_stalled_ring(xhci,
 					td->urb->dev,
-					td->urb->ep,
 					ep_index, ep_ring);
 			xhci_ring_cmd_db(xhci);
 			goto td_cleanup;

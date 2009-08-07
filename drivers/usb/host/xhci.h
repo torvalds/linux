@@ -929,6 +929,12 @@ struct xhci_td {
 	union xhci_trb		*last_trb;
 };
 
+struct xhci_dequeue_state {
+	struct xhci_segment *new_deq_seg;
+	union xhci_trb *new_deq_ptr;
+	int new_cycle_state;
+};
+
 struct xhci_ring {
 	struct xhci_segment	*first_seg;
 	union  xhci_trb		*enqueue;
@@ -953,12 +959,6 @@ struct xhci_ring {
 	 * if we own the TRB (if we are the consumer).  See section 4.9.1.
 	 */
 	u32			cycle_state;
-};
-
-struct xhci_dequeue_state {
-	struct xhci_segment *new_deq_seg;
-	union xhci_trb *new_deq_ptr;
-	int new_cycle_state;
 };
 
 struct xhci_erst_entry {
@@ -1063,6 +1063,7 @@ struct xhci_hcd {
 	int			error_bitmask;
 	unsigned int		quirks;
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
+#define XHCI_RESET_EP_QUIRK	(1 << 1)
 };
 
 /* For testing purposes */
@@ -1170,6 +1171,8 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id, struct usb_device
 int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *udev);
 unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc);
 unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc);
+unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index);
+unsigned int xhci_last_valid_endpoint(u32 added_ctxs);
 void xhci_endpoint_zero(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev, struct usb_host_endpoint *ep);
 void xhci_endpoint_copy(struct xhci_hcd *xhci,
 		struct xhci_virt_device *vdev, unsigned int ep_index);
@@ -1233,8 +1236,11 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 		struct xhci_ring *ep_ring, unsigned int slot_id,
 		unsigned int ep_index, struct xhci_dequeue_state *deq_state);
 void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
-		struct usb_device *udev, struct usb_host_endpoint *ep,
+		struct usb_device *udev,
 		unsigned int ep_index, struct xhci_ring *ep_ring);
+void xhci_queue_config_ep_quirk(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		struct xhci_dequeue_state *deq_state);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
