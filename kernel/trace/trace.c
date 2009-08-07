@@ -2118,23 +2118,23 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 /* Try to assign a tracer specific option */
 static int set_tracer_option(struct tracer *trace, char *cmp, int neg)
 {
-	struct tracer_flags *trace_flags = trace->flags;
+	struct tracer_flags *tracer_flags = trace->flags;
 	struct tracer_opt *opts = NULL;
 	int ret = 0, i = 0;
 	int len;
 
-	for (i = 0; trace_flags->opts[i].name; i++) {
-		opts = &trace_flags->opts[i];
+	for (i = 0; tracer_flags->opts[i].name; i++) {
+		opts = &tracer_flags->opts[i];
 		len = strlen(opts->name);
 
 		if (strncmp(cmp, opts->name, len) == 0) {
-			ret = trace->set_flag(trace_flags->val,
+			ret = trace->set_flag(tracer_flags->val,
 				opts->bit, !neg);
 			break;
 		}
 	}
 	/* Not found */
-	if (!trace_flags->opts[i].name)
+	if (!tracer_flags->opts[i].name)
 		return -EINVAL;
 
 	/* Refused to handle */
@@ -2142,9 +2142,9 @@ static int set_tracer_option(struct tracer *trace, char *cmp, int neg)
 		return ret;
 
 	if (neg)
-		trace_flags->val &= ~opts->bit;
+		tracer_flags->val &= ~opts->bit;
 	else
-		trace_flags->val |= opts->bit;
+		tracer_flags->val |= opts->bit;
 
 	return 0;
 }
