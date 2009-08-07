@@ -27,10 +27,10 @@ struct cfg80211_conn {
 		CFG80211_CONN_ASSOCIATE_NEXT,
 		CFG80211_CONN_ASSOCIATING,
 	} state;
-	u8 bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 	u8 *ie;
 	size_t ie_len;
-	bool auto_auth;
+	bool auto_auth, prev_bssid_valid;
 };
 
 
@@ -110,6 +110,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_connect_params *params;
+	const u8 *prev_bssid = NULL;
 	int err;
 
 	ASSERT_WDEV_LOCK(wdev);
@@ -135,15 +136,11 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 	case CFG80211_CONN_ASSOCIATE_NEXT:
 		BUG_ON(!rdev->ops->assoc);
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
-		/*
-		 * We could, later, implement roaming here and then actually
-		 * set prev_bssid to non-NULL. But then we need to be aware
-		 * that some APs don't like that -- so we'd need to retry
-		 * the association.
-		 */
+		if (wdev->conn->prev_bssid_valid)
+			prev_bssid = wdev->conn->prev_bssid;
 		err = __cfg80211_mlme_assoc(rdev, wdev->netdev,
 					    params->channel, params->bssid,
-					    NULL,
+					    prev_bssid,
 					    params->ssid, params->ssid_len,
 					    params->ie, params->ie_len,
 					    false, &params->crypto);
@@ -316,6 +313,28 @@ void cfg80211_sme_rx_auth(struct net_device *dev,
 	}
 }
 
+bool cfg80211_sme_failed_reassoc(struct wireless_dev *wdev)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	if (WARN_ON(!wdev->conn))
+		return false;
+
+	if (!wdev->conn->prev_bssid_valid)
+		return false;
+
+	/*
+	 * Some stupid APs don't accept reassoc, so we
+	 * need to fall back to trying regular assoc.
+	 */
+	wdev->conn->prev_bssid_valid = false;
+	wdev->conn->state = CFG80211_CONN_ASSOCIATE_NEXT;
+	schedule_work(&rdev->conn_work);
+
+	return true;
+}
+
 void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 			       const u8 *req_ie, size_t req_ie_len,
 			       const u8 *resp_ie, size_t resp_ie_len,
@@ -359,8 +378,11 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 
 		memset(&wrqu, 0, sizeof(wrqu));
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		if (bssid && status == WLAN_STATUS_SUCCESS)
+		if (bssid && status == WLAN_STATUS_SUCCESS) {
 			memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
+			memcpy(wdev->wext.prev_bssid, bssid, ETH_ALEN);
+			wdev->wext.prev_bssid_valid = true;
+		}
 		wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 	}
 #endif
@@ -511,6 +533,8 @@ void __cfg80211_roamed(struct wireless_dev *wdev, const u8 *bssid,
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
+	memcpy(wdev->wext.prev_bssid, bssid, ETH_ALEN);
+	wdev->wext.prev_bssid_valid = true;
 	wireless_send_event(wdev->netdev, SIOCGIWAP, &wrqu, NULL);
 #endif
 }
@@ -643,7 +667,8 @@ EXPORT_SYMBOL(cfg80211_disconnected);
 int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
 		       struct cfg80211_connect_params *connect,
-		       struct cfg80211_cached_keys *connkeys)
+		       struct cfg80211_cached_keys *connkeys,
+		       const u8 *prev_bssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct ieee80211_channel *chan;
@@ -742,6 +767,11 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		wdev->sme_state = CFG80211_SME_CONNECTING;
 		wdev->connect_keys = connkeys;
 
+		if (prev_bssid) {
+			memcpy(wdev->conn->prev_bssid, prev_bssid, ETH_ALEN);
+			wdev->conn->prev_bssid_valid = true;
+		}
+
 		/* we're good if we have both BSSID and channel */
 		if (wdev->conn->params.bssid && wdev->conn->params.channel) {
 			wdev->conn->state = CFG80211_CONN_AUTHENTICATE_NEXT;
@@ -794,7 +824,7 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 
 	mutex_lock(&rdev->devlist_mtx);
 	wdev_lock(dev->ieee80211_ptr);
-	err = __cfg80211_connect(rdev, dev, connect, connkeys);
+	err = __cfg80211_connect(rdev, dev, connect, connkeys, NULL);
 	wdev_unlock(dev->ieee80211_ptr);
 	mutex_unlock(&rdev->devlist_mtx);
 

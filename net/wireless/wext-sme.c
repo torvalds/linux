@@ -15,6 +15,7 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev)
 {
 	struct cfg80211_cached_keys *ck = NULL;
+	const u8 *prev_bssid = NULL;
 	int err, i;
 
 	ASSERT_RDEV_LOCK(rdev);
@@ -42,8 +43,12 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 		for (i = 0; i < 6; i++)
 			ck->params[i].key = ck->data[i];
 	}
+
+	if (wdev->wext.prev_bssid_valid)
+		prev_bssid = wdev->wext.prev_bssid;
+
 	err = __cfg80211_connect(rdev, wdev->netdev,
-				 &wdev->wext.connect, ck);
+				 &wdev->wext.connect, ck, prev_bssid);
 	if (err)
 		kfree(ck);
 
@@ -184,6 +189,7 @@ int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 			goto out;
 	}
 
+	wdev->wext.prev_bssid_valid = false;
 	wdev->wext.connect.ssid = wdev->wext.ssid;
 	memcpy(wdev->wext.ssid, ssid, len);
 	wdev->wext.connect.ssid_len = len;

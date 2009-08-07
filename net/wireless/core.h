@@ -335,7 +335,8 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
 		       struct cfg80211_connect_params *connect,
-		       struct cfg80211_cached_keys *connkeys);
+		       struct cfg80211_cached_keys *connkeys,
+		       const u8 *prev_bssid);
 int cfg80211_connect(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev,
 		     struct cfg80211_connect_params *connect,
@@ -353,6 +354,7 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev);
 
 void cfg80211_conn_work(struct work_struct *work);
+bool cfg80211_sme_failed_reassoc(struct wireless_dev *wdev);
 
 /* internal helpers */
 int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,

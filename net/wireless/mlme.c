@@ -67,6 +67,16 @@ void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len)
 
 	status_code = le16_to_cpu(mgmt->u.assoc_resp.status_code);
 
+	/*
+	 * This is a bit of a hack, we don't notify userspace of
+	 * a (re-)association reply if we tried to send a reassoc
+	 * and got a reject -- we only try again with an assoc
+	 * frame instead of reassoc.
+	 */
+	if (status_code != WLAN_STATUS_SUCCESS && wdev->conn &&
+	    cfg80211_sme_failed_reassoc(wdev))
+		goto out;
+
 	nl80211_send_rx_assoc(rdev, dev, buf, len, GFP_KERNEL);
 
 	if (status_code == WLAN_STATUS_SUCCESS) {
@@ -97,6 +107,7 @@ void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len)
 		cfg80211_put_bss(&bss->pub);
 	}
 
+ out:
 	wdev_unlock(wdev);
 }
 EXPORT_SYMBOL(cfg80211_send_rx_assoc);

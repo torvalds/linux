@@ -1335,10 +1335,10 @@ struct wireless_dev {
 		struct cfg80211_cached_keys *keys;
 		u8 *ie;
 		size_t ie_len;
-		u8 bssid[ETH_ALEN];
+		u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 		u8 ssid[IEEE80211_MAX_SSID_LEN];
 		s8 default_key, default_mgmt_key;
-		bool ps;
+		bool ps, prev_bssid_valid;
 		int ps_timeout;
 	} wext;
 #endif
