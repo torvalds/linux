@@ -5,6 +5,7 @@ wl1251-objs		= wl1251_main.o wl1251_event.o \
 
 obj-$(CONFIG_WL1251)	+= wl1251.o
 obj-$(CONFIG_WL1251_SPI)	+= wl1251_spi.o
+obj-$(CONFIG_WL1251_SDIO)	+= wl1251_sdio.o
 
 wl1271-objs		= wl1271_main.o  wl1271_spi.o wl1271_cmd.o  \
 			  wl1271_event.o wl1271_tx.o  wl1271_rx.o   \
