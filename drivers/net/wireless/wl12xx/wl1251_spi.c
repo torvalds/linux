@@ -31,6 +31,19 @@
 #include "reg.h"
 #include "wl1251_spi.h"
 
+static irqreturn_t wl1251_irq(int irq, void *cookie)
+{
+	struct wl1251 *wl;
+
+	wl1251_debug(DEBUG_IRQ, "IRQ");
+
+	wl = cookie;
+
+	schedule_work(&wl->irq_work);
+
+	return IRQ_HANDLED;
+}
+
 static struct spi_device *wl_to_spi(struct wl1251 *wl)
 {
 	return wl->if_priv;
@@ -193,10 +206,22 @@ static void wl1251_spi_write(struct wl1251 *wl, int addr, void *buf,
 	wl1251_dump(DEBUG_SPI, "spi_write buf -> ", buf, len);
 }
 
+static void wl1251_spi_enable_irq(struct wl1251 *wl)
+{
+	return enable_irq(wl->irq);
+}
+
+static void wl1251_spi_disable_irq(struct wl1251 *wl)
+{
+	return disable_irq(wl->irq);
+}
+
 static const struct wl1251_if_operations wl1251_spi_ops = {
 	.read = wl1251_spi_read,
 	.write = wl1251_spi_write,
 	.reset = wl1251_spi_reset_wake,
+	.enable_irq = wl1251_spi_enable_irq,
+	.disable_irq = wl1251_spi_disable_irq,
 };
 
 static int __devinit wl1251_spi_probe(struct spi_device *spi)
@@ -274,6 +299,7 @@ static int __devexit wl1251_spi_remove(struct spi_device *spi)
 {
 	struct wl1251 *wl = dev_get_drvdata(&spi->dev);
 
+	free_irq(wl->irq, wl);
 	wl1251_free_hw(wl);
 
 	return 0;

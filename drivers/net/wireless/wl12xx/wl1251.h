@@ -285,6 +285,8 @@ struct wl1251_if_operations {
 	void (*read)(struct wl1251 *wl, int addr, void *buf, size_t len);
 	void (*write)(struct wl1251 *wl, int addr, void *buf, size_t len);
 	void (*reset)(struct wl1251 *wl);
+	void (*enable_irq)(struct wl1251 *wl);
+	void (*disable_irq)(struct wl1251 *wl);
 };
 
 struct wl1251 {
@@ -404,10 +406,11 @@ struct wl1251 {
 int wl1251_plt_start(struct wl1251 *wl);
 int wl1251_plt_stop(struct wl1251 *wl);
 
-irqreturn_t wl1251_irq(int irq, void *cookie);
 struct ieee80211_hw *wl1251_alloc_hw(void);
 int wl1251_free_hw(struct wl1251 *wl);
 int wl1251_init_ieee80211(struct wl1251 *wl);
+void wl1251_enable_interrupts(struct wl1251 *wl);
+void wl1251_disable_interrupts(struct wl1251 *wl);
 
 #define DEFAULT_HW_GEN_MODULATION_TYPE    CCK_LONG /* Long Preamble */
 #define DEFAULT_HW_GEN_TX_RATE          RATE_2MBPS

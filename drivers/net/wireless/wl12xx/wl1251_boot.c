@@ -29,11 +29,6 @@
 #include "wl1251_spi.h"
 #include "wl1251_event.h"
 
-static void wl1251_boot_enable_interrupts(struct wl1251 *wl)
-{
-	enable_irq(wl->irq);
-}
-
 void wl1251_boot_target_enable_interrupts(struct wl1251 *wl)
 {
 	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
@@ -278,7 +273,7 @@ int wl1251_boot_run_firmware(struct wl1251 *wl)
 	 */
 
 	/* enable gpio interrupts */
-	wl1251_boot_enable_interrupts(wl);
+	wl1251_enable_interrupts(wl);
 
 	wl->chip.op_target_enable_interrupts(wl);
 

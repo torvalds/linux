@@ -50,7 +50,12 @@ static struct sdio_func *wl_to_func(struct wl1251 *wl)
 
 static void wl1251_sdio_interrupt(struct sdio_func *func)
 {
-	wl1251_irq(0, sdio_get_drvdata(func));
+	struct wl1251 *wl = sdio_get_drvdata(func);
+
+	wl1251_debug(DEBUG_IRQ, "IRQ");
+
+	/* FIXME should be synchronous for sdio */
+	schedule_work(&wl->irq_work);
 }
 
 static const struct sdio_device_id wl1251_devices[] = {
@@ -88,6 +93,24 @@ void wl1251_sdio_reset(struct wl1251 *wl)
 {
 }
 
+static void wl1251_sdio_enable_irq(struct wl1251 *wl)
+{
+	struct sdio_func *func = wl_to_func(wl);
+
+	sdio_claim_host(func);
+	sdio_claim_irq(func, wl1251_sdio_interrupt);
+	sdio_release_host(func);
+}
+
+static void wl1251_sdio_disable_irq(struct wl1251 *wl)
+{
+	struct sdio_func *func = wl_to_func(wl);
+
+	sdio_claim_host(func);
+	sdio_release_irq(func);
+	sdio_release_host(func);
+}
+
 void wl1251_sdio_set_power(bool enable)
 {
 }
@@ -96,6 +119,8 @@ struct wl1251_if_operations wl1251_sdio_ops = {
 	.read = wl1251_sdio_read,
 	.write = wl1251_sdio_write,
 	.reset = wl1251_sdio_reset,
+	.enable_irq = wl1251_sdio_enable_irq,
+	.disable_irq = wl1251_sdio_disable_irq,
 };
 
 int wl1251_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
@@ -124,21 +149,14 @@ int wl1251_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 
 	sdio_release_host(func);
 	ret = wl1251_init_ieee80211(wl);
-	sdio_claim_host(func);
 	if (ret)
 		goto disable;
 
-	ret = sdio_claim_irq(func, wl1251_sdio_interrupt);
-	if (ret)
-		goto no_irq;
-
-	sdio_release_host(func);
 	sdio_set_drvdata(func, wl);
 	return ret;
 
-no_irq:
-	wl1251_free_hw(wl);
 disable:
+	sdio_claim_host(func);
 	sdio_disable_func(func);
 release:
 	sdio_release_host(func);

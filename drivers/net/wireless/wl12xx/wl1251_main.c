@@ -42,9 +42,14 @@
 #include "wl1251_init.h"
 #include "wl1251_debugfs.h"
 
-static void wl1251_disable_interrupts(struct wl1251 *wl)
+void wl1251_enable_interrupts(struct wl1251 *wl)
 {
-	disable_irq(wl->irq);
+	wl->if_ops->enable_irq(wl);
+}
+
+void wl1251_disable_interrupts(struct wl1251 *wl)
+{
+	wl->if_ops->disable_irq(wl);
 }
 
 static void wl1251_power_off(struct wl1251 *wl)
@@ -56,20 +61,6 @@ static void wl1251_power_on(struct wl1251 *wl)
 {
 	wl->set_power(true);
 }
-
-irqreturn_t wl1251_irq(int irq, void *cookie)
-{
-	struct wl1251 *wl;
-
-	wl1251_debug(DEBUG_IRQ, "IRQ");
-
-	wl = cookie;
-
-	schedule_work(&wl->irq_work);
-
-	return IRQ_HANDLED;
-}
-EXPORT_SYMBOL_GPL(wl1251_irq);
 
 static int wl1251_fetch_firmware(struct wl1251 *wl)
 {
@@ -1280,7 +1271,6 @@ int wl1251_free_hw(struct wl1251 *wl)
 
 	wl1251_debugfs_exit(wl);
 
-	free_irq(wl->irq, wl);
 	kfree(wl->target_mem_map);
 	kfree(wl->data_path);
 	kfree(wl->fw);
