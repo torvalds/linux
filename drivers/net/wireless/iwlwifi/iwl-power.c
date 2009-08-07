@@ -42,20 +42,35 @@
 #include "iwl-power.h"
 
 /*
- * Setting power level allow the card to go to sleep when not busy.
+ * Setting power level allows the card to go to sleep when not busy.
  *
- * The power level is set to INDEX_1 (the least deep state) by
- * default, and will, in the future, be the deepest state unless
- * otherwise required by pm_qos network latency requirements.
- *
- * Using INDEX_1 without pm_qos is ok because mac80211 will disable
- * PS when even checking every beacon for the TIM bit would exceed
- * the required latency.
+ * We calculate a sleep command based on the required latency, which
+ * we get from mac80211. In order to handle thermal throttling, we can
+ * also use pre-defined power levels.
  */
 
-#define IWL_POWER_RANGE_0_MAX  (2)
-#define IWL_POWER_RANGE_1_MAX  (10)
+/*
+ * For now, keep using power level 1 instead of automatically
+ * adjusting ...
+ */
+bool no_sleep_autoadjust = true;
+module_param(no_sleep_autoadjust, bool, S_IRUGO);
+MODULE_PARM_DESC(no_sleep_autoadjust,
+		 "don't automatically adjust sleep level "
+		 "according to maximum network latency");
 
+/*
+ * This defines the old power levels. They are still used by default
+ * (level 1) and for thermal throttle (levels 3 through 5)
+ */
+
+struct iwl_power_vec_entry {
+	struct iwl_powertable_cmd cmd;
+	u8 no_dtim;
+};
+
+#define IWL_DTIM_RANGE_0_MAX	2
+#define IWL_DTIM_RANGE_1_MAX	10
 
 #define NOSLP cpu_to_le16(0), 0, 0
 #define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK, 0, 0
@@ -67,9 +82,8 @@
 				     cpu_to_le32(X3), \
 				     cpu_to_le32(X4)}
 /* default power management (not Tx power) table values */
-/* for DTIM period 0 through IWL_POWER_RANGE_0_MAX */
+/* for DTIM period 0 through IWL_DTIM_RANGE_0_MAX */
 static const struct iwl_power_vec_entry range_0[IWL_POWER_NUM] = {
-	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 2, 2, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(1, 2, 2, 2, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(50), SLP_TOUT(100), SLP_VEC(2, 2, 2, 2, 0xFF)}, 0},
@@ -78,9 +92,8 @@ static const struct iwl_power_vec_entry range_0[IWL_POWER_NUM] = {
 };
 
 
-/* for DTIM period IWL_POWER_RANGE_0_MAX + 1 through IWL_POWER_RANGE_1_MAX */
+/* for DTIM period IWL_DTIM_RANGE_0_MAX + 1 through IWL_DTIM_RANGE_1_MAX */
 static const struct iwl_power_vec_entry range_1[IWL_POWER_NUM] = {
-	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(1, 2, 3, 4, 7)}, 0},
 	{{SLP, SLP_TOUT(50), SLP_TOUT(100), SLP_VEC(2, 4, 6, 7, 9)}, 0},
@@ -88,15 +101,64 @@ static const struct iwl_power_vec_entry range_1[IWL_POWER_NUM] = {
 	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(2, 4, 7, 10, 10)}, 2}
 };
 
-/* for DTIM period > IWL_POWER_RANGE_1_MAX */
+/* for DTIM period > IWL_DTIM_RANGE_1_MAX */
 static const struct iwl_power_vec_entry range_2[IWL_POWER_NUM] = {
-	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(2, 4, 6, 7, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(50), SLP_TOUT(100), SLP_VEC(2, 7, 9, 9, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(50), SLP_TOUT(25), SLP_VEC(2, 7, 9, 9, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(4, 7, 10, 10, 0xFF)}, 0}
 };
+
+static void iwl_static_sleep_cmd(struct iwl_priv *priv,
+				 struct iwl_powertable_cmd *cmd,
+				 enum iwl_power_level lvl, int period)
+{
+	const struct iwl_power_vec_entry *table;
+	int max_sleep, i;
+	bool skip;
+
+	table = range_2;
+	if (period < IWL_DTIM_RANGE_1_MAX)
+		table = range_1;
+	if (period < IWL_DTIM_RANGE_0_MAX)
+		table = range_0;
+
+	BUG_ON(lvl < 0 || lvl >= IWL_POWER_NUM);
+
+	*cmd = table[lvl].cmd;
+
+	if (period == 0) {
+		skip = false;
+		period = 1;
+	} else {
+		skip = !!table[lvl].no_dtim;
+	}
+
+	if (skip) {
+		__le32 slp_itrvl = cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1];
+		max_sleep = le32_to_cpu(slp_itrvl);
+		if (max_sleep == 0xFF)
+			max_sleep = period * (skip + 1);
+		else if (max_sleep > period)
+			max_sleep = (le32_to_cpu(slp_itrvl) / period) * period;
+		cmd->flags |= IWL_POWER_SLEEP_OVER_DTIM_MSK;
+	} else {
+		max_sleep = period;
+		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
+	}
+
+	for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
+		if (le32_to_cpu(cmd->sleep_interval[i]) > max_sleep)
+			cmd->sleep_interval[i] = cpu_to_le32(max_sleep);
+
+	if (priv->power_data.pci_pm)
+		cmd->flags |= IWL_POWER_PCI_PM_MSK;
+	else
+		cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
+
+	IWL_DEBUG_POWER(priv, "Sleep command for index %d\n", lvl + 1);
+}
 
 /* default Thermal Throttling transaction table
  * Current state   |         Throttling Down               |  Throttling Up
@@ -138,98 +200,44 @@ static const struct iwl_tt_restriction restriction_range[IWL_TI_STATE_MAX] = {
 	{IWL_ANT_OK_NONE, IWL_ANT_OK_NONE, false }
 };
 
-/* set card power command */
-static int iwl_set_power(struct iwl_priv *priv, void *cmd)
+
+static void iwl_power_sleep_cam_cmd(struct iwl_priv *priv,
+				    struct iwl_powertable_cmd *cmd)
 {
-	return iwl_send_cmd_pdu(priv, POWER_TABLE_CMD,
-				sizeof(struct iwl_powertable_cmd), cmd);
+	memset(cmd, 0, sizeof(*cmd));
+
+	if (priv->power_data.pci_pm)
+		cmd->flags |= IWL_POWER_PCI_PM_MSK;
+
+	IWL_DEBUG_POWER(priv, "Sleep command for CAM\n");
 }
 
-/* initialize to default */
-static void iwl_power_init_handle(struct iwl_priv *priv)
+static void iwl_power_fill_sleep_cmd(struct iwl_priv *priv,
+				     struct iwl_powertable_cmd *cmd,
+				     int dynps_ms, int wakeup_period)
 {
-	struct iwl_power_mgr *pow_data;
-	int size = sizeof(struct iwl_power_vec_entry) * IWL_POWER_NUM;
-	struct iwl_powertable_cmd *cmd;
 	int i;
-	u16 lctl;
 
-	IWL_DEBUG_POWER(priv, "Initialize power \n");
+	memset(cmd, 0, sizeof(*cmd));
 
-	pow_data = &priv->power_data;
+	cmd->flags = IWL_POWER_DRIVER_ALLOW_SLEEP_MSK |
+		     IWL_POWER_FAST_PD; /* no use seeing frames for others */
 
-	memset(pow_data, 0, sizeof(*pow_data));
+	if (priv->power_data.pci_pm)
+		cmd->flags |= IWL_POWER_PCI_PM_MSK;
 
-	memcpy(&pow_data->pwr_range_0[0], &range_0[0], size);
-	memcpy(&pow_data->pwr_range_1[0], &range_1[0], size);
-	memcpy(&pow_data->pwr_range_2[0], &range_2[0], size);
-
-	lctl = iwl_pcie_link_ctl(priv);
-
-	IWL_DEBUG_POWER(priv, "adjust power command flags\n");
-
-	for (i = 0; i < IWL_POWER_NUM; i++) {
-		cmd = &pow_data->pwr_range_0[i].cmd;
-
-		if (lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN)
-			cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
-		else
-			cmd->flags |= IWL_POWER_PCI_PM_MSK;
-	}
-}
-
-/* adjust power command according to DTIM period and power level*/
-static int iwl_update_power_cmd(struct iwl_priv *priv,
-				struct iwl_powertable_cmd *cmd, u16 mode)
-{
-	struct iwl_power_vec_entry *range;
-	struct iwl_power_mgr *pow_data;
-	int i;
-	u32 max_sleep = 0;
-	u8 period;
-	bool skip;
-
-	if (mode > IWL_POWER_INDEX_5) {
-		IWL_DEBUG_POWER(priv, "Error invalid power mode \n");
-		return -EINVAL;
-	}
-
-	pow_data = &priv->power_data;
-
-	if (pow_data->dtim_period <= IWL_POWER_RANGE_0_MAX)
-		range = &pow_data->pwr_range_0[0];
-	else if (pow_data->dtim_period <= IWL_POWER_RANGE_1_MAX)
-		range = &pow_data->pwr_range_1[0];
-	else
-		range = &pow_data->pwr_range_2[0];
-
-	period = pow_data->dtim_period;
-	memcpy(cmd, &range[mode].cmd, sizeof(struct iwl_powertable_cmd));
-
-	if (period == 0) {
-		period = 1;
-		skip = false;
-	} else {
-		skip = !!range[mode].no_dtim;
-	}
-
-	if (skip) {
-		__le32 slp_itrvl = cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1];
-		max_sleep = le32_to_cpu(slp_itrvl);
-		if (max_sleep == 0xFF)
-			max_sleep = period * (skip + 1);
-		else if (max_sleep >  period)
-			max_sleep = (le32_to_cpu(slp_itrvl) / period) * period;
-		cmd->flags |= IWL_POWER_SLEEP_OVER_DTIM_MSK;
-	} else {
-		max_sleep = period;
-		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
-	}
+	cmd->rx_data_timeout = cpu_to_le32(1000 * dynps_ms);
+	cmd->tx_data_timeout = cpu_to_le32(1000 * dynps_ms);
 
 	for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
-		if (le32_to_cpu(cmd->sleep_interval[i]) > max_sleep)
-			cmd->sleep_interval[i] = cpu_to_le32(max_sleep);
+		cmd->sleep_interval[i] = cpu_to_le32(wakeup_period);
 
+	IWL_DEBUG_POWER(priv, "Automatic sleep command\n");
+}
+
+static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
+{
+	IWL_DEBUG_POWER(priv, "Sending power/sleep command\n");
 	IWL_DEBUG_POWER(priv, "Flags value = 0x%08X\n", cmd->flags);
 	IWL_DEBUG_POWER(priv, "Tx timeout = %u\n", le32_to_cpu(cmd->tx_data_timeout));
 	IWL_DEBUG_POWER(priv, "Rx timeout = %u\n", le32_to_cpu(cmd->rx_data_timeout));
@@ -240,50 +248,54 @@ static int iwl_update_power_cmd(struct iwl_priv *priv,
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return 0;
+	return iwl_send_cmd_pdu(priv, POWER_TABLE_CMD,
+				sizeof(struct iwl_powertable_cmd), cmd);
 }
 
 
-/*
- * compute the final power mode index
- */
 int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 {
-	struct iwl_power_mgr *setting = &(priv->power_data);
 	int ret = 0;
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
-	u16 uninitialized_var(final_mode);
+	bool enabled = (priv->iw_mode == NL80211_IFTYPE_STATION) &&
+			(priv->hw->conf.flags & IEEE80211_CONF_PS);
 	bool update_chains;
+	struct iwl_powertable_cmd cmd;
+	int dtimper;
 
 	/* Don't update the RX chain when chain noise calibration is running */
 	update_chains = priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE ||
 			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
 
-	final_mode = priv->power_data.user_power_setting;
+	if (priv->vif)
+		dtimper = priv->vif->bss_conf.dtim_period;
+	else
+		dtimper = 1;
 
-	if (setting->power_disabled)
-		final_mode = IWL_POWER_MODE_CAM;
+	/* TT power setting overwrites everything */
+	if (tt->state >= IWL_TI_1)
+		iwl_static_sleep_cmd(priv, &cmd, tt->tt_power_mode, dtimper);
+	else if (!enabled)
+		iwl_power_sleep_cam_cmd(priv, &cmd);
+	else if (priv->power_data.debug_sleep_level_override >= 0)
+		iwl_static_sleep_cmd(priv, &cmd,
+				     priv->power_data.debug_sleep_level_override,
+				     dtimper);
+	else if (no_sleep_autoadjust)
+		iwl_static_sleep_cmd(priv, &cmd, IWL_POWER_INDEX_1, dtimper);
+	else
+		iwl_power_fill_sleep_cmd(priv, &cmd,
+					 priv->hw->conf.dynamic_ps_timeout,
+					 priv->hw->conf.max_sleep_period);
 
-	if (tt->state >= IWL_TI_1) {
-		/* TT power setting overwrite user & system power setting */
-		final_mode = tt->tt_power_mode;
-	}
 	if (iwl_is_ready_rf(priv) &&
-	    ((setting->power_mode != final_mode) || force)) {
-		struct iwl_powertable_cmd cmd;
-
-		if (final_mode != IWL_POWER_MODE_CAM)
+	    (memcmp(&priv->power_data.sleep_cmd, &cmd, sizeof(cmd)) || force)) {
+		if (cmd.flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK)
 			set_bit(STATUS_POWER_PMI, &priv->status);
-
-		iwl_update_power_cmd(priv, &cmd, final_mode);
-		cmd.keep_alive_beacons = 0;
-
-		if (final_mode == IWL_POWER_INDEX_5)
-			cmd.flags |= IWL_POWER_FAST_PD;
 
 		ret = iwl_set_power(priv, &cmd);
 		if (!ret) {
-			if (final_mode == IWL_POWER_MODE_CAM)
+			if (!(cmd.flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK))
 				clear_bit(STATUS_POWER_PMI, &priv->status);
 
 			if (priv->cfg->ops->lib->update_chain_flags &&
@@ -294,7 +306,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 					"Cannot update the power, chain noise "
 					"calibration running: %d\n",
 					priv->chain_noise_data.state);
-			setting->power_mode = final_mode;
+			memcpy(&priv->power_data.sleep_cmd, &cmd, sizeof(cmd));
 		} else
 			IWL_ERR(priv, "set power fail, ret = %d", ret);
 	}
@@ -302,18 +314,6 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 	return ret;
 }
 EXPORT_SYMBOL(iwl_power_update_mode);
-
-/* set user_power_setting */
-int iwl_power_set_user_mode(struct iwl_priv *priv, u16 mode)
-{
-	if (mode >= IWL_POWER_NUM)
-		return -EINVAL;
-
-	priv->power_data.user_power_setting = mode;
-
-	return iwl_power_update_mode(priv, 0);
-}
-EXPORT_SYMBOL(iwl_power_set_user_mode);
 
 bool iwl_ht_enabled(struct iwl_priv *priv)
 {
@@ -349,7 +349,6 @@ enum iwl_antenna_ok iwl_rx_ant_restriction(struct iwl_priv *priv)
 	restriction = tt->restriction + tt->state;
 	return restriction->rx_stream;
 }
-EXPORT_SYMBOL(iwl_rx_ant_restriction);
 
 #define CT_KILL_EXIT_DURATION (5)	/* 5 seconds duration */
 
@@ -429,7 +428,6 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
 {
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 	enum iwl_tt_state old_state;
-	struct iwl_power_mgr *setting = &priv->power_data;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if ((tt->tt_previous_temp) &&
@@ -456,24 +454,13 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
 	tt->tt_previous_temp = temp;
 #endif
 	if (tt->state != old_state) {
-		if (old_state == IWL_TI_0) {
-			tt->sys_power_mode = setting->power_mode;
-			IWL_DEBUG_POWER(priv, "current power mode: %u\n",
-				setting->power_mode);
-		}
 		switch (tt->state) {
 		case IWL_TI_0:
-			/* when system ready to go back to IWL_TI_0 state
-			 * using system power mode instead of TT power mode
-			 * revert back to the orginal power mode which was saved
-			 * before enter Thermal Throttling state
-			 * update priv->power_data.user_power_setting to the
-			 * required power mode to make sure
-			 * iwl_power_update_mode() will update power correctly.
+			/*
+			 * When the system is ready to go back to IWL_TI_0
+			 * we only have to call iwl_power_update_mode() to
+			 * do so.
 			 */
-			priv->power_data.user_power_setting =
-				tt->sys_power_mode;
-			tt->tt_power_mode = tt->sys_power_mode;
 			break;
 		case IWL_TI_1:
 			tt->tt_power_mode = IWL_POWER_INDEX_3;
@@ -576,13 +563,8 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
 	}
 	if (changed) {
 		struct iwl_rxon_cmd *rxon = &priv->staging_rxon;
-		struct iwl_power_mgr *setting = &priv->power_data;
 
 		if (tt->state >= IWL_TI_1) {
-			/* if switching from IWL_TI_0 to other TT state
-			 * save previous power setting in tt->sys_power_mode */
-			if (old_state == IWL_TI_0)
-				tt->sys_power_mode = setting->power_mode;
 			/* force PI = IWL_POWER_INDEX_5 in the case of TI > 0 */
 			tt->tt_power_mode = IWL_POWER_INDEX_5;
 			if (!iwl_ht_enabled(priv))
@@ -599,17 +581,11 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
 			}
 
 		} else {
-			/* restore system power setting */
-			/* the previous power mode was saved in
-			 * tt->sys_power_mode when system move into
-			 * Thermal Throttling state
-			 * set power_data.user_power_setting to the previous
-			 * system power mode to make sure power will get
-			 * updated correctly
+			/*
+			 * restore system power setting -- it will be
+			 * recalculated automatically.
 			 */
-			priv->power_data.user_power_setting =
-				tt->sys_power_mode;
-			tt->tt_power_mode = tt->sys_power_mode;
+
 			/* check HT capability and set
 			 * according to the system HT capability
 			 * in case get disabled before */
@@ -761,7 +737,6 @@ EXPORT_SYMBOL(iwl_tt_handler);
 void iwl_tt_initialize(struct iwl_priv *priv)
 {
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
-	struct iwl_power_mgr *setting = &priv->power_data;
 	int size = sizeof(struct iwl_tt_trans) * (IWL_TI_STATE_MAX - 1);
 	struct iwl_tt_trans *transaction;
 
@@ -770,8 +745,6 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	memset(tt, 0, sizeof(struct iwl_tt_mgmt));
 
 	tt->state = IWL_TI_0;
-	tt->sys_power_mode = setting->power_mode;
-	tt->tt_power_mode = tt->sys_power_mode;
 	init_timer(&priv->thermal_throttle.ct_kill_exit_tm);
 	priv->thermal_throttle.ct_kill_exit_tm.data = (unsigned long)priv;
 	priv->thermal_throttle.ct_kill_exit_tm.function = iwl_tt_check_exit_ct_kill;
@@ -849,9 +822,13 @@ EXPORT_SYMBOL(iwl_tt_exit);
 /* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
 {
-	iwl_power_init_handle(priv);
-	priv->power_data.user_power_setting = IWL_POWER_INDEX_1;
-	/* default to disabled until mac80211 says otherwise */
-	priv->power_data.power_disabled = 1;
+	u16 lctl = iwl_pcie_link_ctl(priv);
+
+	priv->power_data.pci_pm = !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
+
+	priv->power_data.debug_sleep_level_override = -1;
+
+	memset(&priv->power_data.sleep_cmd, 0,
+		sizeof(priv->power_data.sleep_cmd));
 }
 EXPORT_SYMBOL(iwl_power_initialize);

@@ -1606,7 +1606,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
-	iwl_power_update_mode(priv, 1);
+	iwl_power_update_mode(priv, true);
 
 	/* reassociate for ADHOC mode */
 	if (priv->vif && (priv->iw_mode == NL80211_IFTYPE_ADHOC)) {
@@ -2075,7 +2075,7 @@ void iwl_post_associate(struct iwl_priv *priv)
 	 * If chain noise has already been run, then we need to enable
 	 * power management here */
 	if (priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE)
-		iwl_power_update_mode(priv, 0);
+		iwl_power_update_mode(priv, false);
 
 	/* Enable Rx differential gain and sensitivity calibrations */
 	iwl_chain_noise_reset(priv);
@@ -2565,47 +2565,6 @@ static ssize_t store_filter_flags(struct device *d,
 static DEVICE_ATTR(filter_flags, S_IWUSR | S_IRUGO, show_filter_flags,
 		   store_filter_flags);
 
-static ssize_t store_power_level(struct device *d,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int ret;
-	unsigned long mode;
-
-
-	mutex_lock(&priv->mutex);
-
-	ret = strict_strtoul(buf, 10, &mode);
-	if (ret)
-		goto out;
-
-	ret = iwl_power_set_user_mode(priv, mode);
-	if (ret) {
-		IWL_DEBUG_MAC80211(priv, "failed setting power mode.\n");
-		goto out;
-	}
-	ret = count;
-
- out:
-	mutex_unlock(&priv->mutex);
-	return ret;
-}
-
-static ssize_t show_power_level(struct device *d,
-				struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int level = priv->power_data.power_mode;
-	char *p = buf;
-
-	p += sprintf(p, "%d\n", level);
-	return p - buf + 1;
-}
-
-static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
-		   store_power_level);
-
 
 static ssize_t show_statistics(struct device *d,
 			       struct device_attribute *attr, char *buf)
@@ -2698,7 +2657,6 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
-	&dev_attr_power_level.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,

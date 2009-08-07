@@ -1119,7 +1119,6 @@ struct iwl_priv {
 	/* context information */
 	u16 rates_mask;
 
-	u32 power_mode;
 	u8 bssid[ETH_ALEN];
 	u16 rts_threshold;
 	u8 mac_addr[ETH_ALEN];

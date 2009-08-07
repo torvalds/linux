@@ -28,10 +28,7 @@
 #ifndef __iwl_power_setting_h__
 #define __iwl_power_setting_h__
 
-#include <net/mac80211.h>
 #include "iwl-commands.h"
-
-struct iwl_priv;
 
 #define IWL_ABSOLUTE_ZERO		0
 #define IWL_ABSOLUTE_MAX		0xFFFFFFFF
@@ -93,8 +90,6 @@ struct iwl_tt_trans {
  * 		    when thermal throttling state != IWL_TI_0
  *		    the tt_power_mode should set to different
  *		    power mode based on the current tt state
- * @sys_power_mode: previous system power mode
- *                  before transition into TT state
  * @tt_previous_temperature: last measured temperature
  * @iwl_tt_restriction: ptr to restriction tbl, used by advance
  *		    thermal throttling to determine how many tx/rx streams
@@ -108,7 +103,6 @@ struct iwl_tt_mgmt {
 	enum iwl_tt_state state;
 	bool advanced_tt;
 	u8 tt_power_mode;
-	u8 sys_power_mode;
 	bool ct_kill_toggle;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	s32 tt_previous_temp;
@@ -118,8 +112,7 @@ struct iwl_tt_mgmt {
 	struct timer_list ct_kill_exit_tm;
 };
 
-enum {
-	IWL_POWER_MODE_CAM, /* Continuously Aware Mode, always on */
+enum iwl_power_level {
 	IWL_POWER_INDEX_1,
 	IWL_POWER_INDEX_2,
 	IWL_POWER_INDEX_3,
@@ -128,26 +121,13 @@ enum {
 	IWL_POWER_NUM
 };
 
-/* Power management (not Tx power) structures */
-
-struct iwl_power_vec_entry {
-	struct iwl_powertable_cmd cmd;
-	u8 no_dtim;
-};
-
 struct iwl_power_mgr {
-	struct iwl_power_vec_entry pwr_range_0[IWL_POWER_NUM];
-	struct iwl_power_vec_entry pwr_range_1[IWL_POWER_NUM];
-	struct iwl_power_vec_entry pwr_range_2[IWL_POWER_NUM];
-	u32 dtim_period;
-	/* final power level that used to calculate final power command */
-	u8 power_mode;
-	u8 user_power_setting; /* set by user through sysfs */
-	u8 power_disabled; /* set by mac80211's CONF_PS */
+	struct iwl_powertable_cmd sleep_cmd;
+	int debug_sleep_level_override;
+	bool pci_pm;
 };
 
 int iwl_power_update_mode(struct iwl_priv *priv, bool force);
-int iwl_power_set_user_mode(struct iwl_priv *priv, u16 mode);
 bool iwl_ht_enabled(struct iwl_priv *priv);
 enum iwl_antenna_ok iwl_tx_ant_restriction(struct iwl_priv *priv);
 enum iwl_antenna_ok iwl_rx_ant_restriction(struct iwl_priv *priv);
@@ -157,5 +137,7 @@ void iwl_tt_handler(struct iwl_priv *priv);
 void iwl_tt_initialize(struct iwl_priv *priv);
 void iwl_tt_exit(struct iwl_priv *priv);
 void iwl_power_initialize(struct iwl_priv *priv);
+
+extern bool no_sleep_autoadjust;
 
 #endif  /* __iwl_power_setting_h__ */

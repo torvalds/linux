@@ -88,6 +88,8 @@ struct iwl_debugfs {
 		struct dentry *file_led;
 #endif
 		struct dentry *file_disable_ht40;
+		struct dentry *file_sleep_level_override;
+		struct dentry *file_current_sleep_command;
 	} dbgfs_data_files;
 	struct dir_rf_files {
 		struct dentry *file_disable_sensitivity;

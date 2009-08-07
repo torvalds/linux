@@ -3554,65 +3554,6 @@ static DEVICE_ATTR(retry_rate, S_IWUSR | S_IRUSR, show_retry_rate,
 		   store_retry_rate);
 
 
-static ssize_t store_power_level(struct device *d,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int ret;
-	unsigned long mode;
-
-
-	mutex_lock(&priv->mutex);
-
-	ret = strict_strtoul(buf, 10, &mode);
-	if (ret)
-		goto out;
-
-	ret = iwl_power_set_user_mode(priv, mode);
-	if (ret) {
-		IWL_DEBUG_MAC80211(priv, "failed setting power mode.\n");
-		goto out;
-	}
-	ret = count;
-
- out:
-	mutex_unlock(&priv->mutex);
-	return ret;
-}
-
-static ssize_t show_power_level(struct device *d,
-				struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int level = priv->power_data.power_mode;
-	char *p = buf;
-
-	p += sprintf(p, "%d\n", level);
-	return p - buf + 1;
-}
-
-static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR,
-		   show_power_level, store_power_level);
-
-#define MAX_WX_STRING 80
-
-/* Values are in microsecond */
-static const s32 timeout_duration[] = {
-	350000,
-	250000,
-	75000,
-	37000,
-	25000,
-};
-static const s32 period_duration[] = {
-	400000,
-	700000,
-	1000000,
-	1000000,
-	1000000
-};
-
 static ssize_t show_channels(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
@@ -3789,7 +3730,6 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	&dev_attr_measurement.attr,
 #endif
-	&dev_attr_power_level.attr,
 	&dev_attr_retry_rate.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_status.attr,
@@ -3854,8 +3794,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->qos_data.qos_cap.val = 0;
 
 	priv->rates_mask = IWL_RATES_MASK;
-	/* If power management is turned on, default to CAM mode */
-	priv->power_mode = IWL_POWER_MODE_CAM;
 	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
@@ -3902,7 +3840,9 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM |
-		    IEEE80211_HW_SPECTRUM_MGMT;
+		    IEEE80211_HW_SPECTRUM_MGMT |
+		    IEEE80211_HW_SUPPORTS_PS |
+		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |

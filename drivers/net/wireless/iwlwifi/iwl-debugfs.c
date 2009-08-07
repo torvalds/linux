@@ -776,6 +776,83 @@ static ssize_t iwl_dbgfs_disable_ht40_read(struct file *file,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
+						    const char __user *user_buf,
+						    size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int value;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	if (sscanf(buf, "%d", &value) != 1)
+		return -EINVAL;
+
+	/*
+	 * Our users expect 0 to be "CAM", but 0 isn't actually
+	 * valid here. However, let's not confuse them and present
+	 * IWL_POWER_INDEX_1 as "1", not "0".
+	 */
+	if (value > 0)
+		value -= 1;
+
+	if (value != -1 && (value < 0 || value >= IWL_POWER_NUM))
+		return -EINVAL;
+
+	priv->power_data.debug_sleep_level_override = value;
+
+	iwl_power_update_mode(priv, false);
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_sleep_level_override_read(struct file *file,
+						   char __user *user_buf,
+						   size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	char buf[10];
+	int pos, value;
+	const size_t bufsz = sizeof(buf);
+
+	/* see the write function */
+	value = priv->power_data.debug_sleep_level_override;
+	if (value >= 0)
+		value += 1;
+
+	pos = scnprintf(buf, bufsz, "%d\n", value);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_current_sleep_command_read(struct file *file,
+						    char __user *user_buf,
+						    size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	char buf[200];
+	int pos = 0, i;
+	const size_t bufsz = sizeof(buf);
+	struct iwl_powertable_cmd *cmd = &priv->power_data.sleep_cmd;
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "flags: %#.2x\n", le16_to_cpu(cmd->flags));
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "RX/TX timeout: %d/%d usec\n",
+			 le32_to_cpu(cmd->rx_data_timeout),
+			 le32_to_cpu(cmd->tx_data_timeout));
+	for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "sleep_interval[%d]: %d\n", i,
+				 le32_to_cpu(cmd->sleep_interval[i]));
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(nvm);
@@ -789,6 +866,8 @@ DEBUGFS_READ_FILE_OPS(led);
 #endif
 DEBUGFS_READ_FILE_OPS(thermal_throttling);
 DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
+DEBUGFS_READ_WRITE_FILE_OPS(sleep_level_override);
+DEBUGFS_READ_FILE_OPS(current_sleep_command);
 
 static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 					 char __user *user_buf,
@@ -1533,6 +1612,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 #ifdef CONFIG_IWLWIFI_LEDS
 	DEBUGFS_ADD_FILE(led, data);
 #endif
+	DEBUGFS_ADD_FILE(sleep_level_override, data);
+	DEBUGFS_ADD_FILE(current_sleep_command, data);
 	DEBUGFS_ADD_FILE(thermal_throttling, data);
 	DEBUGFS_ADD_FILE(disable_ht40, data);
 	DEBUGFS_ADD_FILE(rx_statistics, debug);
@@ -1572,6 +1653,8 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	if (!priv->dbgfs)
 		return;
 
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sleep_level_override);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_current_sleep_command);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_nvm);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sram);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_log_event);

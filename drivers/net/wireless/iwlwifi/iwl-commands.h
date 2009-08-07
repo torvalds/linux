@@ -2313,15 +2313,22 @@ struct iwl_spectrum_notification {
  * PM allow:
  *   bit 0 - '0' Driver not allow power management
  *           '1' Driver allow PM (use rest of parameters)
+ *
  * uCode send sleep notifications:
  *   bit 1 - '0' Don't send sleep notification
  *           '1' send sleep notification (SEND_PM_NOTIFICATION)
+ *
  * Sleep over DTIM
  *   bit 2 - '0' PM have to walk up every DTIM
  *           '1' PM could sleep over DTIM till listen Interval.
+ *
  * PCI power managed
  *   bit 3 - '0' (PCI_CFG_LINK_CTRL & 0x1)
  *           '1' !(PCI_CFG_LINK_CTRL & 0x1)
+ *
+ * Fast PD
+ *   bit 4 - '1' Put radio to sleep when receiving frame for others
+ *
  * Force sleep Modes
  *   bit 31/30- '00' use both mac/xtal sleeps
  *              '01' force Mac sleep
