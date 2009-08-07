@@ -594,8 +594,8 @@ static DEFINE_MUTEX(nvm_mutex);
  **/
 static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 {
-	u32 extcnf_ctrl;
-	u32 timeout = PHY_CFG_TIMEOUT;
+	u32 extcnf_ctrl, timeout = PHY_CFG_TIMEOUT;
+	s32 ret_val = 0;
 
 	might_sleep();
 
@@ -603,28 +603,46 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 
 	while (timeout) {
 		extcnf_ctrl = er32(EXTCNF_CTRL);
+		if (!(extcnf_ctrl & E1000_EXTCNF_CTRL_SWFLAG))
+			break;
 
-		if (!(extcnf_ctrl & E1000_EXTCNF_CTRL_SWFLAG)) {
-			extcnf_ctrl |= E1000_EXTCNF_CTRL_SWFLAG;
-			ew32(EXTCNF_CTRL, extcnf_ctrl);
-
-			extcnf_ctrl = er32(EXTCNF_CTRL);
-			if (extcnf_ctrl & E1000_EXTCNF_CTRL_SWFLAG)
-				break;
-		}
 		mdelay(1);
 		timeout--;
 	}
 
 	if (!timeout) {
-		hw_dbg(hw, "FW or HW has locked the resource for too long.\n");
-		extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
-		ew32(EXTCNF_CTRL, extcnf_ctrl);
-		mutex_unlock(&nvm_mutex);
-		return -E1000_ERR_CONFIG;
+		hw_dbg(hw, "SW/FW/HW has locked the resource for too long.\n");
+		ret_val = -E1000_ERR_CONFIG;
+		goto out;
 	}
 
-	return 0;
+	timeout = PHY_CFG_TIMEOUT * 2;
+
+	extcnf_ctrl |= E1000_EXTCNF_CTRL_SWFLAG;
+	ew32(EXTCNF_CTRL, extcnf_ctrl);
+
+	while (timeout) {
+		extcnf_ctrl = er32(EXTCNF_CTRL);
+		if (extcnf_ctrl & E1000_EXTCNF_CTRL_SWFLAG)
+			break;
+
+		mdelay(1);
+		timeout--;
+	}
+
+	if (!timeout) {
+		hw_dbg(hw, "Failed to acquire the semaphore.\n");
+		extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
+		ew32(EXTCNF_CTRL, extcnf_ctrl);
+		ret_val = -E1000_ERR_CONFIG;
+		goto out;
+	}
+
+out:
+	if (ret_val)
+		mutex_unlock(&nvm_mutex);
+
+	return ret_val;
 }
 
 /**
