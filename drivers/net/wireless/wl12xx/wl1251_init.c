@@ -28,6 +28,7 @@
 #include "wl12xx_80211.h"
 #include "wl1251_acx.h"
 #include "wl1251_cmd.h"
+#include "reg.h"
 
 int wl1251_hw_init_hwenc_config(struct wl1251 *wl)
 {
@@ -197,4 +198,216 @@ int wl1251_hw_init_beacon_broadcast(struct wl1251 *wl)
 int wl1251_hw_init_power_auth(struct wl1251 *wl)
 {
 	return wl1251_acx_sleep_auth(wl, WL1251_PSM_CAM);
+}
+
+int wl1251_hw_init_mem_config(struct wl1251 *wl)
+{
+	int ret;
+
+	ret = wl1251_acx_mem_cfg(wl);
+	if (ret < 0)
+		return ret;
+
+	wl->target_mem_map = kzalloc(sizeof(struct wl1251_acx_mem_map),
+					  GFP_KERNEL);
+	if (!wl->target_mem_map) {
+		wl1251_error("couldn't allocate target memory map");
+		return -ENOMEM;
+	}
+
+	/* we now ask for the firmware built memory map */
+	ret = wl1251_acx_mem_map(wl, wl->target_mem_map,
+				 sizeof(struct wl1251_acx_mem_map));
+	if (ret < 0) {
+		wl1251_error("couldn't retrieve firmware memory map");
+		kfree(wl->target_mem_map);
+		wl->target_mem_map = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int wl1251_hw_init_txq_fill(u8 qid,
+				   struct acx_tx_queue_qos_config *config,
+				   u32 num_blocks)
+{
+	config->qid = qid;
+
+	switch (qid) {
+	case QOS_AC_BE:
+		config->high_threshold =
+			(QOS_TX_HIGH_BE_DEF * num_blocks) / 100;
+		config->low_threshold =
+			(QOS_TX_LOW_BE_DEF * num_blocks) / 100;
+		break;
+	case QOS_AC_BK:
+		config->high_threshold =
+			(QOS_TX_HIGH_BK_DEF * num_blocks) / 100;
+		config->low_threshold =
+			(QOS_TX_LOW_BK_DEF * num_blocks) / 100;
+		break;
+	case QOS_AC_VI:
+		config->high_threshold =
+			(QOS_TX_HIGH_VI_DEF * num_blocks) / 100;
+		config->low_threshold =
+			(QOS_TX_LOW_VI_DEF * num_blocks) / 100;
+		break;
+	case QOS_AC_VO:
+		config->high_threshold =
+			(QOS_TX_HIGH_VO_DEF * num_blocks) / 100;
+		config->low_threshold =
+			(QOS_TX_LOW_VO_DEF * num_blocks) / 100;
+		break;
+	default:
+		wl1251_error("Invalid TX queue id: %d", qid);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int wl1251_hw_init_tx_queue_config(struct wl1251 *wl)
+{
+	struct acx_tx_queue_qos_config *config;
+	struct wl1251_acx_mem_map *wl_mem_map = wl->target_mem_map;
+	int ret, i;
+
+	wl1251_debug(DEBUG_ACX, "acx tx queue config");
+
+	config = kzalloc(sizeof(*config), GFP_KERNEL);
+	if (!config) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < MAX_NUM_OF_AC; i++) {
+		ret = wl1251_hw_init_txq_fill(i, config,
+					      wl_mem_map->num_tx_mem_blocks);
+		if (ret < 0)
+			goto out;
+
+		ret = wl1251_cmd_configure(wl, ACX_TX_QUEUE_CFG,
+					   config, sizeof(*config));
+		if (ret < 0)
+			goto out;
+	}
+
+out:
+	kfree(config);
+	return ret;
+}
+
+static int wl1251_hw_init_data_path_config(struct wl1251 *wl)
+{
+	int ret;
+
+	/* asking for the data path parameters */
+	wl->data_path = kzalloc(sizeof(struct acx_data_path_params_resp),
+				GFP_KERNEL);
+	if (!wl->data_path) {
+		wl1251_error("Couldnt allocate data path parameters");
+		return -ENOMEM;
+	}
+
+	ret = wl1251_acx_data_path_params(wl, wl->data_path);
+	if (ret < 0) {
+		kfree(wl->data_path);
+		wl->data_path = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+
+int wl1251_hw_init(struct wl1251 *wl)
+{
+	struct wl1251_acx_mem_map *wl_mem_map;
+	int ret;
+
+	ret = wl1251_hw_init_hwenc_config(wl);
+	if (ret < 0)
+		return ret;
+
+	/* Template settings */
+	ret = wl1251_hw_init_templates_config(wl);
+	if (ret < 0)
+		return ret;
+
+	/* Default memory configuration */
+	ret = wl1251_hw_init_mem_config(wl);
+	if (ret < 0)
+		return ret;
+
+	/* Default data path configuration  */
+	ret = wl1251_hw_init_data_path_config(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* RX config */
+	ret = wl1251_hw_init_rx_config(wl,
+				       RX_CFG_PROMISCUOUS | RX_CFG_TSF,
+				       RX_FILTER_OPTION_DEF);
+	/* RX_CONFIG_OPTION_ANY_DST_ANY_BSS,
+	   RX_FILTER_OPTION_FILTER_ALL); */
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* TX queues config */
+	ret = wl1251_hw_init_tx_queue_config(wl);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* PHY layer config */
+	ret = wl1251_hw_init_phy_config(wl);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* Beacon filtering */
+	ret = wl1251_hw_init_beacon_filter(wl);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* Bluetooth WLAN coexistence */
+	ret = wl1251_hw_init_pta(wl);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* Energy detection */
+	ret = wl1251_hw_init_energy_detection(wl);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* Beacons and boradcast settings */
+	ret = wl1251_hw_init_beacon_broadcast(wl);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* Enable data path */
+	ret = wl1251_cmd_data_path(wl, wl->channel, 1);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	/* Default power state */
+	ret = wl1251_hw_init_power_auth(wl);
+	if (ret < 0)
+		goto out_free_data_path;
+
+	wl_mem_map = wl->target_mem_map;
+	wl1251_info("%d tx blocks at 0x%x, %d rx blocks at 0x%x",
+		    wl_mem_map->num_tx_mem_blocks,
+		    wl->data_path->tx_control_addr,
+		    wl_mem_map->num_rx_mem_blocks,
+		    wl->data_path->rx_control_addr);
+
+	return 0;
+
+ out_free_data_path:
+	kfree(wl->data_path);
+
+ out_free_memmap:
+	kfree(wl->target_mem_map);
+
+	return ret;
 }

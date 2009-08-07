@@ -1031,6 +1031,150 @@ struct acx_statistics {
 	struct acx_rxpipe_statistics rxpipe;
 } __attribute__ ((packed));
 
+#define ACX_MAX_RATE_CLASSES       8
+#define ACX_RATE_MASK_UNSPECIFIED  0
+#define ACX_RATE_RETRY_LIMIT      10
+
+struct acx_rate_class {
+	u32 enabled_rates;
+	u8 short_retry_limit;
+	u8 long_retry_limit;
+	u8 aflags;
+	u8 reserved;
+};
+
+struct acx_rate_policy {
+	struct acx_header header;
+
+	u32 rate_class_cnt;
+	struct acx_rate_class rate_class[ACX_MAX_RATE_CLASSES];
+} __attribute__ ((packed));
+
+struct wl1251_acx_memory {
+	__le16 num_stations; /* number of STAs to be supported. */
+	u16 reserved_1;
+
+	/*
+	 * Nmber of memory buffers for the RX mem pool.
+	 * The actual number may be less if there are
+	 * not enough blocks left for the minimum num
+	 * of TX ones.
+	 */
+	u8 rx_mem_block_num;
+	u8 reserved_2;
+	u8 num_tx_queues; /* From 1 to 16 */
+	u8 host_if_options; /* HOST_IF* */
+	u8 tx_min_mem_block_num;
+	u8 num_ssid_profiles;
+	__le16 debug_buffer_size;
+} __attribute__ ((packed));
+
+
+#define ACX_RX_DESC_MIN                1
+#define ACX_RX_DESC_MAX                127
+#define ACX_RX_DESC_DEF                32
+struct wl1251_acx_rx_queue_config {
+	u8 num_descs;
+	u8 pad;
+	u8 type;
+	u8 priority;
+	__le32 dma_address;
+} __attribute__ ((packed));
+
+#define ACX_TX_DESC_MIN                1
+#define ACX_TX_DESC_MAX                127
+#define ACX_TX_DESC_DEF                16
+struct wl1251_acx_tx_queue_config {
+    u8 num_descs;
+    u8 pad[2];
+    u8 attributes;
+} __attribute__ ((packed));
+
+#define MAX_TX_QUEUE_CONFIGS 5
+#define MAX_TX_QUEUES 4
+struct wl1251_acx_config_memory {
+	struct acx_header header;
+
+	struct wl1251_acx_memory mem_config;
+	struct wl1251_acx_rx_queue_config rx_queue_config;
+	struct wl1251_acx_tx_queue_config tx_queue_config[MAX_TX_QUEUE_CONFIGS];
+} __attribute__ ((packed));
+
+struct wl1251_acx_mem_map {
+	struct acx_header header;
+
+	void *code_start;
+	void *code_end;
+
+	void *wep_defkey_start;
+	void *wep_defkey_end;
+
+	void *sta_table_start;
+	void *sta_table_end;
+
+	void *packet_template_start;
+	void *packet_template_end;
+
+	void *queue_memory_start;
+	void *queue_memory_end;
+
+	void *packet_memory_pool_start;
+	void *packet_memory_pool_end;
+
+	void *debug_buffer1_start;
+	void *debug_buffer1_end;
+
+	void *debug_buffer2_start;
+	void *debug_buffer2_end;
+
+	/* Number of blocks FW allocated for TX packets */
+	u32 num_tx_mem_blocks;
+
+	/* Number of blocks FW allocated for RX packets */
+	u32 num_rx_mem_blocks;
+} __attribute__ ((packed));
+
+/*************************************************************************
+
+    Host Interrupt Register (WiLink -> Host)
+
+**************************************************************************/
+
+/* RX packet is ready in Xfer buffer #0 */
+#define WL1251_ACX_INTR_RX0_DATA      BIT(0)
+
+/* TX result(s) are in the TX complete buffer */
+#define WL1251_ACX_INTR_TX_RESULT	BIT(1)
+
+/* OBSOLETE */
+#define WL1251_ACX_INTR_TX_XFR		BIT(2)
+
+/* RX packet is ready in Xfer buffer #1 */
+#define WL1251_ACX_INTR_RX1_DATA	BIT(3)
+
+/* Event was entered to Event MBOX #A */
+#define WL1251_ACX_INTR_EVENT_A		BIT(4)
+
+/* Event was entered to Event MBOX #B */
+#define WL1251_ACX_INTR_EVENT_B		BIT(5)
+
+/* OBSOLETE */
+#define WL1251_ACX_INTR_WAKE_ON_HOST	BIT(6)
+
+/* Trace meassge on MBOX #A */
+#define WL1251_ACX_INTR_TRACE_A		BIT(7)
+
+/* Trace meassge on MBOX #B */
+#define WL1251_ACX_INTR_TRACE_B		BIT(8)
+
+/* Command processing completion */
+#define WL1251_ACX_INTR_CMD_COMPLETE	BIT(9)
+
+/* Init sequence is done */
+#define WL1251_ACX_INTR_INIT_COMPLETE	BIT(14)
+
+#define WL1251_ACX_INTR_ALL           0xFFFFFFFF
+
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
@@ -1142,5 +1286,7 @@ int wl1251_acx_cts_protect(struct wl1251 *wl,
 			    enum acx_ctsprotect_type ctsprotect);
 int wl1251_acx_statistics(struct wl1251 *wl, struct acx_statistics *stats);
 int wl1251_acx_tsf_info(struct wl1251 *wl, u64 *mactime);
+int wl1251_acx_rate_policies(struct wl1251 *wl);
+int wl1251_acx_mem_cfg(struct wl1251 *wl);
 
 #endif /* __WL1251_ACX_H__ */

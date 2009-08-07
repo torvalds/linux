@@ -28,6 +28,7 @@
 #include "wl1251_io.h"
 #include "wl1251_spi.h"
 #include "wl1251_event.h"
+#include "wl1251_acx.h"
 
 void wl1251_boot_target_enable_interrupts(struct wl1251 *wl)
 {
@@ -208,18 +209,30 @@ int wl1251_boot_init_seq(struct wl1251 *wl)
 	return 0;
 }
 
+static void wl1251_boot_set_ecpu_ctrl(struct wl1251 *wl, u32 flag)
+{
+	u32 cpu_ctrl;
+
+	/* 10.5.0 run the firmware (I) */
+	cpu_ctrl = wl1251_reg_read32(wl, ACX_REG_ECPU_CONTROL);
+
+	/* 10.5.1 run the firmware (II) */
+	cpu_ctrl &= ~flag;
+	wl1251_reg_write32(wl, ACX_REG_ECPU_CONTROL, cpu_ctrl);
+}
+
 int wl1251_boot_run_firmware(struct wl1251 *wl)
 {
 	int loop, ret;
 	u32 chip_id, interrupt;
 
-	wl->chip.op_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
+	wl1251_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
 
 	chip_id = wl1251_reg_read32(wl, CHIP_ID_B);
 
 	wl1251_debug(DEBUG_BOOT, "chip id after firmware boot: 0x%x", chip_id);
 
-	if (chip_id != wl->chip.id) {
+	if (chip_id != wl->chip_id) {
 		wl1251_error("chip id doesn't match after firmware boot");
 		return -EIO;
 	}
@@ -236,9 +249,9 @@ int wl1251_boot_run_firmware(struct wl1251 *wl)
 			return -EIO;
 		}
 		/* check that ACX_INTR_INIT_COMPLETE is enabled */
-		else if (interrupt & wl->chip.intr_init_complete) {
+		else if (interrupt & WL1251_ACX_INTR_INIT_COMPLETE) {
 			wl1251_reg_write32(wl, ACX_REG_INTERRUPT_ACK,
-					   wl->chip.intr_init_complete);
+					   WL1251_ACX_INTR_INIT_COMPLETE);
 			break;
 		}
 	}
@@ -256,16 +269,15 @@ int wl1251_boot_run_firmware(struct wl1251 *wl)
 	wl->event_box_addr = wl1251_reg_read32(wl, REG_EVENT_MAILBOX_PTR);
 
 	/* set the working partition to its "running" mode offset */
-	wl1251_set_partition(wl,
-			     wl->chip.p_table[PART_WORK].mem.start,
-			     wl->chip.p_table[PART_WORK].mem.size,
-			     wl->chip.p_table[PART_WORK].reg.start,
-			     wl->chip.p_table[PART_WORK].reg.size);
+	wl1251_set_partition(wl, WL1251_PART_WORK_MEM_START,
+			     WL1251_PART_WORK_MEM_SIZE,
+			     WL1251_PART_WORK_REG_START,
+			     WL1251_PART_WORK_REG_SIZE);
 
 	wl1251_debug(DEBUG_MAILBOX, "cmd_box_addr 0x%x event_box_addr 0x%x",
 		     wl->cmd_box_addr, wl->event_box_addr);
 
-	wl->chip.op_fw_version(wl);
+	wl1251_acx_fw_version(wl, wl->fw_ver, sizeof(wl->fw_ver));
 
 	/*
 	 * in case of full asynchronous mode the firmware event must be
@@ -275,7 +287,14 @@ int wl1251_boot_run_firmware(struct wl1251 *wl)
 	/* enable gpio interrupts */
 	wl1251_enable_interrupts(wl);
 
-	wl->chip.op_target_enable_interrupts(wl);
+	/* Enable target's interrupts */
+	wl->intr_mask = WL1251_ACX_INTR_RX0_DATA |
+		WL1251_ACX_INTR_RX1_DATA |
+		WL1251_ACX_INTR_TX_RESULT |
+		WL1251_ACX_INTR_EVENT_A |
+		WL1251_ACX_INTR_EVENT_B |
+		WL1251_ACX_INTR_INIT_COMPLETE;
+	wl1251_boot_target_enable_interrupts(wl);
 
 	/* unmask all mbox events  */
 	wl->event_mask = 0xffffffff;
@@ -290,4 +309,219 @@ int wl1251_boot_run_firmware(struct wl1251 *wl)
 
 	/* firmware startup completed */
 	return 0;
+}
+
+static int wl1251_boot_upload_firmware(struct wl1251 *wl)
+{
+	int addr, chunk_num, partition_limit;
+	size_t fw_data_len;
+	u8 *p;
+
+	/* whal_FwCtrl_LoadFwImageSm() */
+
+	wl1251_debug(DEBUG_BOOT, "chip id before fw upload: 0x%x",
+		     wl1251_reg_read32(wl, CHIP_ID_B));
+
+	/* 10.0 check firmware length and set partition */
+	fw_data_len =  (wl->fw[4] << 24) | (wl->fw[5] << 16) |
+		(wl->fw[6] << 8) | (wl->fw[7]);
+
+	wl1251_debug(DEBUG_BOOT, "fw_data_len %zu chunk_size %d", fw_data_len,
+		CHUNK_SIZE);
+
+	if ((fw_data_len % 4) != 0) {
+		wl1251_error("firmware length not multiple of four");
+		return -EIO;
+	}
+
+	wl1251_set_partition(wl, WL1251_PART_DOWN_MEM_START,
+			     WL1251_PART_DOWN_MEM_SIZE,
+			     WL1251_PART_DOWN_REG_START,
+			     WL1251_PART_DOWN_REG_SIZE);
+
+	/* 10.1 set partition limit and chunk num */
+	chunk_num = 0;
+	partition_limit = WL1251_PART_DOWN_MEM_SIZE;
+
+	while (chunk_num < fw_data_len / CHUNK_SIZE) {
+		/* 10.2 update partition, if needed */
+		addr = WL1251_PART_DOWN_MEM_START +
+			(chunk_num + 2) * CHUNK_SIZE;
+		if (addr > partition_limit) {
+			addr = WL1251_PART_DOWN_MEM_START +
+				chunk_num * CHUNK_SIZE;
+			partition_limit = chunk_num * CHUNK_SIZE +
+				WL1251_PART_DOWN_MEM_SIZE;
+			wl1251_set_partition(wl,
+					     addr,
+					     WL1251_PART_DOWN_MEM_SIZE,
+					     WL1251_PART_DOWN_REG_START,
+					     WL1251_PART_DOWN_REG_SIZE);
+		}
+
+		/* 10.3 upload the chunk */
+		addr = WL1251_PART_DOWN_MEM_START + chunk_num * CHUNK_SIZE;
+		p = wl->fw + FW_HDR_SIZE + chunk_num * CHUNK_SIZE;
+		wl1251_debug(DEBUG_BOOT, "uploading fw chunk 0x%p to 0x%x",
+			     p, addr);
+		wl1251_mem_write(wl, addr, p, CHUNK_SIZE);
+
+		chunk_num++;
+	}
+
+	/* 10.4 upload the last chunk */
+	addr = WL1251_PART_DOWN_MEM_START + chunk_num * CHUNK_SIZE;
+	p = wl->fw + FW_HDR_SIZE + chunk_num * CHUNK_SIZE;
+	wl1251_debug(DEBUG_BOOT, "uploading fw last chunk (%zu B) 0x%p to 0x%x",
+		     fw_data_len % CHUNK_SIZE, p, addr);
+	wl1251_mem_write(wl, addr, p, fw_data_len % CHUNK_SIZE);
+
+	return 0;
+}
+
+static int wl1251_boot_upload_nvs(struct wl1251 *wl)
+{
+	size_t nvs_len, nvs_bytes_written, burst_len;
+	int nvs_start, i;
+	u32 dest_addr, val;
+	u8 *nvs_ptr, *nvs;
+
+	nvs = wl->nvs;
+	if (nvs == NULL)
+		return -ENODEV;
+
+	nvs_ptr = nvs;
+
+	nvs_len = wl->nvs_len;
+	nvs_start = wl->fw_len;
+
+	/*
+	 * Layout before the actual NVS tables:
+	 * 1 byte : burst length.
+	 * 2 bytes: destination address.
+	 * n bytes: data to burst copy.
+	 *
+	 * This is ended by a 0 length, then the NVS tables.
+	 */
+
+	while (nvs_ptr[0]) {
+		burst_len = nvs_ptr[0];
+		dest_addr = (nvs_ptr[1] & 0xfe) | ((u32)(nvs_ptr[2] << 8));
+
+		/* We move our pointer to the data */
+		nvs_ptr += 3;
+
+		for (i = 0; i < burst_len; i++) {
+			val = (nvs_ptr[0] | (nvs_ptr[1] << 8)
+			       | (nvs_ptr[2] << 16) | (nvs_ptr[3] << 24));
+
+			wl1251_debug(DEBUG_BOOT,
+				     "nvs burst write 0x%x: 0x%x",
+				     dest_addr, val);
+			wl1251_mem_write32(wl, dest_addr, val);
+
+			nvs_ptr += 4;
+			dest_addr += 4;
+		}
+	}
+
+	/*
+	 * We've reached the first zero length, the first NVS table
+	 * is 7 bytes further.
+	 */
+	nvs_ptr += 7;
+	nvs_len -= nvs_ptr - nvs;
+	nvs_len = ALIGN(nvs_len, 4);
+
+	/* Now we must set the partition correctly */
+	wl1251_set_partition(wl, nvs_start,
+			     WL1251_PART_DOWN_MEM_SIZE,
+			     WL1251_PART_DOWN_REG_START,
+			     WL1251_PART_DOWN_REG_SIZE);
+
+	/* And finally we upload the NVS tables */
+	nvs_bytes_written = 0;
+	while (nvs_bytes_written < nvs_len) {
+		val = (nvs_ptr[0] | (nvs_ptr[1] << 8)
+		       | (nvs_ptr[2] << 16) | (nvs_ptr[3] << 24));
+
+		val = cpu_to_le32(val);
+
+		wl1251_debug(DEBUG_BOOT,
+			     "nvs write table 0x%x: 0x%x",
+			     nvs_start, val);
+		wl1251_mem_write32(wl, nvs_start, val);
+
+		nvs_ptr += 4;
+		nvs_bytes_written += 4;
+		nvs_start += 4;
+	}
+
+	return 0;
+}
+
+int wl1251_boot(struct wl1251 *wl)
+{
+	int ret = 0, minor_minor_e2_ver;
+	u32 tmp, boot_data;
+
+	ret = wl1251_boot_soft_reset(wl);
+	if (ret < 0)
+		goto out;
+
+	/* 2. start processing NVS file */
+	ret = wl1251_boot_upload_nvs(wl);
+	if (ret < 0)
+		goto out;
+
+	/* write firmware's last address (ie. it's length) to
+	 * ACX_EEPROMLESS_IND_REG */
+	wl1251_reg_write32(wl, ACX_EEPROMLESS_IND_REG, wl->fw_len);
+
+	/* 6. read the EEPROM parameters */
+	tmp = wl1251_reg_read32(wl, SCR_PAD2);
+
+	/* 7. read bootdata */
+	wl->boot_attr.radio_type = (tmp & 0x0000FF00) >> 8;
+	wl->boot_attr.major = (tmp & 0x00FF0000) >> 16;
+	tmp = wl1251_reg_read32(wl, SCR_PAD3);
+
+	/* 8. check bootdata and call restart sequence */
+	wl->boot_attr.minor = (tmp & 0x00FF0000) >> 16;
+	minor_minor_e2_ver = (tmp & 0xFF000000) >> 24;
+
+	wl1251_debug(DEBUG_BOOT, "radioType 0x%x majorE2Ver 0x%x "
+		     "minorE2Ver 0x%x minor_minor_e2_ver 0x%x",
+		     wl->boot_attr.radio_type, wl->boot_attr.major,
+		     wl->boot_attr.minor, minor_minor_e2_ver);
+
+	ret = wl1251_boot_init_seq(wl);
+	if (ret < 0)
+		goto out;
+
+	/* 9. NVS processing done */
+	boot_data = wl1251_reg_read32(wl, ACX_REG_ECPU_CONTROL);
+
+	wl1251_debug(DEBUG_BOOT, "halt boot_data 0x%x", boot_data);
+
+	/* 10. check that ECPU_CONTROL_HALT bits are set in
+	 * pWhalBus->uBootData and start uploading firmware
+	 */
+	if ((boot_data & ECPU_CONTROL_HALT) == 0) {
+		wl1251_error("boot failed, ECPU_CONTROL_HALT not set");
+		ret = -EIO;
+		goto out;
+	}
+
+	ret = wl1251_boot_upload_firmware(wl);
+	if (ret < 0)
+		goto out;
+
+	/* 10.5 start firmware */
+	ret = wl1251_boot_run_firmware(wl);
+	if (ret < 0)
+		goto out;
+
+out:
+	return ret;
 }

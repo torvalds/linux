@@ -25,6 +25,21 @@
 #include "reg.h"
 #include "wl1251_io.h"
 
+/* FIXME: this is static data nowadays and the table can be removed */
+static enum wl12xx_acx_int_reg wl1251_io_reg_table[ACX_REG_TABLE_LEN] = {
+	[ACX_REG_INTERRUPT_TRIG]     = (REGISTERS_BASE + 0x0474),
+	[ACX_REG_INTERRUPT_TRIG_H]   = (REGISTERS_BASE + 0x0478),
+	[ACX_REG_INTERRUPT_MASK]     = (REGISTERS_BASE + 0x0494),
+	[ACX_REG_HINT_MASK_SET]      = (REGISTERS_BASE + 0x0498),
+	[ACX_REG_HINT_MASK_CLR]      = (REGISTERS_BASE + 0x049C),
+	[ACX_REG_INTERRUPT_NO_CLEAR] = (REGISTERS_BASE + 0x04B0),
+	[ACX_REG_INTERRUPT_CLEAR]    = (REGISTERS_BASE + 0x04A4),
+	[ACX_REG_INTERRUPT_ACK]      = (REGISTERS_BASE + 0x04A8),
+	[ACX_REG_SLV_SOFT_RESET]     = (REGISTERS_BASE + 0x0000),
+	[ACX_REG_EE_START]           = (REGISTERS_BASE + 0x080C),
+	[ACX_REG_ECPU_CONTROL]       = (REGISTERS_BASE + 0x0804)
+};
+
 static int wl1251_translate_reg_addr(struct wl1251 *wl, int addr)
 {
 	/* If the address is lower than REGISTERS_BASE, it means that this is
@@ -36,7 +51,7 @@ static int wl1251_translate_reg_addr(struct wl1251 *wl, int addr)
 			wl1251_error("address out of range (%d)", addr);
 			return -EINVAL;
 		}
-		addr = wl->chip.acx_reg_table[addr];
+		addr = wl1251_io_reg_table[addr];
 	}
 
 	return addr - wl->physical_reg_addr + wl->virtual_reg_addr;

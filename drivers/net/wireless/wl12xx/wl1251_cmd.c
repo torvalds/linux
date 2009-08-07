@@ -37,7 +37,7 @@ int wl1251_cmd_send(struct wl1251 *wl, u16 id, void *buf, size_t len)
 	timeout = jiffies + msecs_to_jiffies(WL1251_COMMAND_TIMEOUT);
 
 	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
-	while (!(intr & wl->chip.intr_cmd_complete)) {
+	while (!(intr & WL1251_ACX_INTR_CMD_COMPLETE)) {
 		if (time_after(jiffies, timeout)) {
 			wl1251_error("command complete timeout");
 			ret = -ETIMEDOUT;
@@ -50,7 +50,7 @@ int wl1251_cmd_send(struct wl1251 *wl, u16 id, void *buf, size_t len)
 	}
 
 	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_ACK,
-			   wl->chip.intr_cmd_complete);
+			   WL1251_ACX_INTR_CMD_COMPLETE);
 
 out:
 	return ret;

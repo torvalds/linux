@@ -32,7 +32,6 @@
 #include "wl1251.h"
 #include "wl12xx_80211.h"
 #include "reg.h"
-#include "wl1251_ops.h"
 #include "wl1251_io.h"
 #include "wl1251_cmd.h"
 #include "wl1251_event.h"
@@ -41,6 +40,7 @@
 #include "wl1251_ps.h"
 #include "wl1251_init.h"
 #include "wl1251_debugfs.h"
+#include "wl1251_boot.h"
 
 void wl1251_enable_interrupts(struct wl1251 *wl)
 {
@@ -68,7 +68,7 @@ static int wl1251_fetch_firmware(struct wl1251 *wl)
 	struct device *dev = wiphy_dev(wl->hw->wiphy);
 	int ret;
 
-	ret = request_firmware(&fw, wl->chip.fw_filename, dev);
+	ret = request_firmware(&fw, WL1251_FW_NAME, dev);
 
 	if (ret < 0) {
 		wl1251_error("could not get firmware: %d", ret);
@@ -107,7 +107,7 @@ static int wl1251_fetch_nvs(struct wl1251 *wl)
 	struct device *dev = wiphy_dev(wl->hw->wiphy);
 	int ret;
 
-	ret = request_firmware(&fw, wl->chip.nvs_filename, dev);
+	ret = request_firmware(&fw, WL1251_NVS_NAME, dev);
 
 	if (ret < 0) {
 		wl1251_error("could not get nvs file: %d", ret);
@@ -157,7 +157,7 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 	int ret = 0;
 
 	wl1251_power_on(wl);
-	msleep(wl->chip.power_on_sleep);
+	msleep(WL1251_POWER_ON_SLEEP);
 	wl->if_ops->reset(wl);
 
 	/* We don't need a real memory partition here, because we only want
@@ -174,22 +174,19 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 	/* whal_FwCtrl_BootSm() */
 
 	/* 0. read chip id from CHIP_ID */
-	wl->chip.id = wl1251_reg_read32(wl, CHIP_ID_B);
+	wl->chip_id = wl1251_reg_read32(wl, CHIP_ID_B);
 
 	/* 1. check if chip id is valid */
 
-	switch (wl->chip.id) {
+	switch (wl->chip_id) {
 	case CHIP_ID_1251_PG12:
 		wl1251_debug(DEBUG_BOOT, "chip id 0x%x (1251 PG12)",
-			     wl->chip.id);
-
-		wl1251_setup(wl);
-
+			     wl->chip_id);
 		break;
 	case CHIP_ID_1251_PG10:
 	case CHIP_ID_1251_PG11:
 	default:
-		wl1251_error("unsupported chip id: 0x%x", wl->chip.id);
+		wl1251_error("unsupported chip id: 0x%x", wl->chip_id);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -211,6 +208,107 @@ out:
 	return ret;
 }
 
+static void wl1251_irq_work(struct work_struct *work)
+{
+	u32 intr;
+	struct wl1251 *wl =
+		container_of(work, struct wl1251, irq_work);
+	int ret;
+
+	mutex_lock(&wl->mutex);
+
+	wl1251_debug(DEBUG_IRQ, "IRQ work");
+
+	if (wl->state == WL1251_STATE_OFF)
+		goto out;
+
+	ret = wl1251_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, WL1251_ACX_INTR_ALL);
+
+	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
+	wl1251_debug(DEBUG_IRQ, "intr: 0x%x", intr);
+
+	if (wl->data_path) {
+		wl->rx_counter =
+			wl1251_mem_read32(wl, wl->data_path->rx_control_addr);
+
+		/* We handle a frmware bug here */
+		switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
+		case 0:
+			wl1251_debug(DEBUG_IRQ, "RX: FW and host in sync");
+			intr &= ~WL1251_ACX_INTR_RX0_DATA;
+			intr &= ~WL1251_ACX_INTR_RX1_DATA;
+			break;
+		case 1:
+			wl1251_debug(DEBUG_IRQ, "RX: FW +1");
+			intr |= WL1251_ACX_INTR_RX0_DATA;
+			intr &= ~WL1251_ACX_INTR_RX1_DATA;
+			break;
+		case 2:
+			wl1251_debug(DEBUG_IRQ, "RX: FW +2");
+			intr |= WL1251_ACX_INTR_RX0_DATA;
+			intr |= WL1251_ACX_INTR_RX1_DATA;
+			break;
+		default:
+			wl1251_warning("RX: FW and host out of sync: %d",
+				       wl->rx_counter - wl->rx_handled);
+			break;
+		}
+
+		wl->rx_handled = wl->rx_counter;
+
+
+		wl1251_debug(DEBUG_IRQ, "RX counter: %d", wl->rx_counter);
+	}
+
+	intr &= wl->intr_mask;
+
+	if (intr == 0) {
+		wl1251_debug(DEBUG_IRQ, "INTR is 0");
+		wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK,
+				   ~(wl->intr_mask));
+
+		goto out_sleep;
+	}
+
+	if (intr & WL1251_ACX_INTR_RX0_DATA) {
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX0_DATA");
+		wl1251_rx(wl);
+	}
+
+	if (intr & WL1251_ACX_INTR_RX1_DATA) {
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX1_DATA");
+		wl1251_rx(wl);
+	}
+
+	if (intr & WL1251_ACX_INTR_TX_RESULT) {
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
+		wl1251_tx_complete(wl);
+	}
+
+	if (intr & (WL1251_ACX_INTR_EVENT_A | WL1251_ACX_INTR_EVENT_B)) {
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)", intr);
+		if (intr & WL1251_ACX_INTR_EVENT_A)
+			wl1251_event_handle(wl, 0);
+		else
+			wl1251_event_handle(wl, 1);
+	}
+
+	if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_INIT_COMPLETE");
+
+	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
+
+out_sleep:
+	wl1251_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+}
+
 static void wl1251_filter_work(struct work_struct *work)
 {
 	struct wl1251 *wl =
@@ -227,7 +325,7 @@ static void wl1251_filter_work(struct work_struct *work)
 		goto out;
 
 	/* FIXME: replace the magic numbers with proper definitions */
-	ret = wl->chip.op_cmd_join(wl, wl->bss_type, 1, 100, 0);
+	ret = wl1251_cmd_join(wl, wl->bss_type, 1, 100, 0);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -289,11 +387,11 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 	if (ret < 0)
 		goto out;
 
-	ret = wl->chip.op_boot(wl);
+	ret = wl1251_boot(wl);
 	if (ret < 0)
 		goto out;
 
-	ret = wl->chip.op_hw_init(wl);
+	ret = wl1251_hw_init(wl);
 	if (ret < 0)
 		goto out;
 
@@ -303,7 +401,7 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 
 	wl->state = WL1251_STATE_ON;
 
-	wl1251_info("firmware booted (%s)", wl->chip.fw_ver);
+	wl1251_info("firmware booted (%s)", wl->fw_ver);
 
 out:
 	if (ret < 0)
@@ -346,7 +444,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	mutex_lock(&wl->mutex);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
-	wl->chip.op_tx_flush(wl);
+	wl1251_tx_flush(wl);
 	wl1251_power_off(wl);
 
 	memset(wl->bssid, 0, ETH_ALEN);
@@ -467,7 +565,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (channel != wl->channel) {
 		/* FIXME: use beacon interval provided by mac80211 */
-		ret = wl->chip.op_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		ret = wl1251_cmd_join(wl, wl->bss_type, 1, 100, 0);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -1041,7 +1139,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto out;
 
-		ret = wl->chip.op_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		ret = wl1251_cmd_join(wl, wl->bss_type, 1, 100, 0);
 
 		if (ret < 0)
 			goto out;
@@ -1232,14 +1330,13 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
 
-	/* We use the default power on sleep time until we know which chip
-	 * we're using */
-	wl->chip.power_on_sleep = WL1251_DEFAULT_POWER_ON_SLEEP;
-
 	for (i = 0; i < FW_TX_CMPLT_BLOCK_SIZE; i++)
 		wl->tx_frames[i] = NULL;
 
 	wl->next_tx_complete = 0;
+
+	INIT_WORK(&wl->irq_work, wl1251_irq_work);
+	INIT_WORK(&wl->tx_work, wl1251_tx_work);
 
 	/*
 	 * In case our MAC address is not correctly set,
