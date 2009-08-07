@@ -264,76 +264,74 @@ end_function:
 	return error;
 }
 
-/*
-  This functions maps and allocates the
-  shared area on the  external RAM (device)
-  The input is shared_area_size - the size of the memory to
-  allocate. The outputs
-  are kernel_shared_area_addr_ptr - the kerenl
-  address of the mapped and allocated
-  shared area, and phys_shared_area_addr_ptr
-  - the physical address of the shared area
-*/
+/**
+ *	sep_map_and_alloc_shared_area	-	allocate shared block
+ *	@sep: security processor
+ *	@size: size of shared area
+ *
+ *	Allocate a shared buffer in host memory that can be used by both the
+ *	kernel and also the hardware interface via DMA.
+ */
+
 static int sep_map_and_alloc_shared_area(struct sep_device *sep,
-			unsigned long shared_area_size)
+							unsigned long size)
 {
 	/* shared_addr = ioremap_nocache(0xda00000,shared_area_size); */
-	sep->shared_addr = kmalloc(shared_area_size, GFP_KERNEL);
+	sep->shared_area = dma_alloc_coherent(&sep->pdev->dev, size,
+					&sep->shared_bus, GFP_KERNEL);
+
 	if (!sep->shared_addr) {
-		edbg("sep_driver:shared memory kmalloc failed\n");
-		return -1;
+		edbg("sep_driver :shared memory dma_alloc_coherent failed\n");
+		return -ENOMEM;
 	}
-	/* FIXME */
-	sep->shared_bus = __pa(sep->shared_addr);
-	/* shared_bus = 0xda00000; */
 	sep->shared_area = sep->shared_addr;
 	/* set the physical address of the shared area */
 	sep->shared_area_bus = sep->shared_bus;
-	edbg("SEP Driver:shared_addr is %p\n", sep->shared_addr);
-	edbg("SEP Driver:shared_region_size is %08lx\n", shared_area_size);
-	edbg("SEP Driver:shared_physical_addr is %08llx\n", (unsigned long long)sep->shared_bus);
-
+	edbg("sep: shared_area %d bytes @%p (bus %08llx)\n",
+		size, sep->shared_addr, (unsigned long long)sep->shared_bus);
 	return 0;
 }
 
-/*
-  This functions unmaps and deallocates the shared area
-  on the  external RAM (device)
-  The input is shared_area_size - the size of the memory to deallocate,kernel_
-  shared_area_addr_ptr - the kernel address of the mapped and allocated
-  shared area,phys_shared_area_addr_ptr - the physical address of
-  the shared area
-*/
+/**
+ *	sep_unmap_and_free_shared_area	-	free shared block
+ *	@sep: security processor
+ *
+ *	Free the shared area allocated to the security processor. The
+ *	processor must have finished with this and any final posted
+ *	writes cleared before we do so.
+ */
 static void sep_unmap_and_free_shared_area(struct sep_device *sep, int size)
 {
-	kfree(sep->shared_area);
+	dma_free_coherent(&sep->pdev->dev, size,
+				sep->shared_area, sep->shared_area_bus);
 }
 
-/*
-  This functions returns the physical address inside shared area according
-  to the virtual address. It can be either on the externa RAM device
-  (ioremapped), or on the system RAM
-  This implementation is for the external RAM
-*/
-static dma_addr_t sep_shared_area_virt_to_phys(struct sep_device *sep,
+/**
+ *	sep_shared_area_virt_to_bus	-	convert bus/virt addresses
+ *
+ *	Returns the physical address inside the shared area according
+ *	to the virtual address.
+ */
+
+static dma_addr_t sep_shared_area_virt_to_bus(struct sep_device *sep,
 						void *virt_address)
 {
-	edbg("SEP Driver:sh virt to phys v %p\n", virt_address);
-	edbg("SEP Driver:sh virt to phys p %08llx\n", (unsigned long long) sep->shared_bus + (virt_address - sep->shared_addr));
-
-	return sep->shared_bus + (virt_address - sep->shared_addr);
+	dma_addr_t pa = sep->shared_bus + (virt_address - sep->shared_addr);
+	edbg("sep: virt to phys p %08llx v %p\n", pa, virt_address);
+	return pa;
 }
 
-/*
-  This functions returns the virtual address inside shared area
-  according to the physical address. It can be either on the
-  externa RAM device (ioremapped), or on the system RAM This implementation
-  is for the external RAM
-*/
-static void *sep_shared_area_phys_to_virt(struct sep_device *sep,
-						dma_addr_t phys_address)
+/**
+ *	sep_shared_area_bus_to_virt	-	convert bus/virt addresses
+ *
+ *	Returns virtual address inside the shared area according
+ *	to the bus address.
+ */
+
+static void *sep_shared_area_bus_to_virt(struct sep_device *sep,
+						dma_addr_t bus_address)
 {
-	return sep->shared_addr + (phys_address - sep->shared_bus);
+	return sep->shared_addr + (bus_address - sep->shared_bus);
 }
 
 
@@ -522,7 +520,7 @@ static int sep_set_time(struct sep_device *sep, unsigned long *address_ptr, unsi
 
 	/* set the output parameters if needed */
 	if (address_ptr)
-		*address_ptr = sep_shared_area_virt_to_phys(sep, time_addr);
+		*address_ptr = sep_shared_area_virt_to_bus(sep, time_addr);
 
 	if (time_in_sec_ptr)
 		*time_in_sec_ptr = time.tv_sec;
@@ -1097,7 +1095,7 @@ static void sep_debug_print_lli_tables(struct sep_device *sep, struct sep_lli_en
 		edbg("SEP Driver:phys table_data_size is %lu num_table_entries is %lu lli_table_ptr is%lu\n", table_data_size, num_table_entries, (unsigned long) lli_table_ptr);
 
 		if ((unsigned long) lli_table_ptr != 0xffffffff)
-			lli_table_ptr = (struct sep_lli_entry_t *) sep_shared_area_phys_to_virt(sep, (unsigned long) lli_table_ptr);
+			lli_table_ptr = (struct sep_lli_entry_t *) sep_shared_area_bus_to_virt(sep, (unsigned long) lli_table_ptr);
 
 		table_count++;
 	}
@@ -1203,14 +1201,14 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 
 		if (info_entry_ptr == 0) {
 			/* set the output parameters to physical addresses */
-			*lli_table_ptr = sep_shared_area_virt_to_phys(sep, in_lli_table_ptr);
+			*lli_table_ptr = sep_shared_area_virt_to_bus(sep, in_lli_table_ptr);
 			*num_entries_ptr = num_entries_in_table;
 			*table_data_size_ptr = table_data_size;
 
 			edbg("SEP Driver:output lli_table_in_ptr is %08lx\n", *lli_table_ptr);
 		} else {
 			/* update the info entry of the previous in table */
-			info_entry_ptr->physical_address = sep_shared_area_virt_to_phys(sep, in_lli_table_ptr);
+			info_entry_ptr->physical_address = sep_shared_area_virt_to_bus(sep, in_lli_table_ptr);
 			info_entry_ptr->block_size = ((num_entries_in_table) << 24) | (table_data_size);
 		}
 
@@ -1220,7 +1218,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 
 	/* print input tables */
 	sep_debug_print_lli_tables(sep, (struct sep_lli_entry_t *)
-				   sep_shared_area_phys_to_virt(sep, *lli_table_ptr), *num_entries_ptr, *table_data_size_ptr);
+				   sep_shared_area_bus_to_virt(sep, *lli_table_ptr), *num_entries_ptr, *table_data_size_ptr);
 
 	/* the array of the pages */
 	kfree(lli_array_ptr);
@@ -1320,9 +1318,9 @@ static int sep_construct_dma_tables_from_lli(struct sep_device *sep,
 		/* if info entry is null - this is the first table built */
 		if (info_in_entry_ptr == 0) {
 			/* set the output parameters to physical addresses */
-			*lli_table_in_ptr = sep_shared_area_virt_to_phys(sep, in_lli_table_ptr);
+			*lli_table_in_ptr = sep_shared_area_virt_to_bus(sep, in_lli_table_ptr);
 			*in_num_entries_ptr = num_entries_in_table;
-			*lli_table_out_ptr = sep_shared_area_virt_to_phys(sep, out_lli_table_ptr);
+			*lli_table_out_ptr = sep_shared_area_virt_to_bus(sep, out_lli_table_ptr);
 			*out_num_entries_ptr = num_entries_out_table;
 			*table_data_size_ptr = table_data_size;
 
@@ -1330,11 +1328,11 @@ static int sep_construct_dma_tables_from_lli(struct sep_device *sep,
 			edbg("SEP Driver:output lli_table_out_ptr is %08lx\n", *lli_table_out_ptr);
 		} else {
 			/* update the info entry of the previous in table */
-			info_in_entry_ptr->physical_address = sep_shared_area_virt_to_phys(sep, in_lli_table_ptr);
+			info_in_entry_ptr->physical_address = sep_shared_area_virt_to_bus(sep, in_lli_table_ptr);
 			info_in_entry_ptr->block_size = ((num_entries_in_table) << 24) | (table_data_size);
 
 			/* update the info entry of the previous in table */
-			info_out_entry_ptr->physical_address = sep_shared_area_virt_to_phys(sep, out_lli_table_ptr);
+			info_out_entry_ptr->physical_address = sep_shared_area_virt_to_bus(sep, out_lli_table_ptr);
 			info_out_entry_ptr->block_size = ((num_entries_out_table) << 24) | (table_data_size);
 		}
 
@@ -1349,10 +1347,10 @@ static int sep_construct_dma_tables_from_lli(struct sep_device *sep,
 
 	/* print input tables */
 	sep_debug_print_lli_tables(sep, (struct sep_lli_entry_t *)
-				   sep_shared_area_phys_to_virt(sep, *lli_table_in_ptr), *in_num_entries_ptr, *table_data_size_ptr);
+				   sep_shared_area_bus_to_virt(sep, *lli_table_in_ptr), *in_num_entries_ptr, *table_data_size_ptr);
 	/* print output tables */
 	sep_debug_print_lli_tables(sep, (struct sep_lli_entry_t *)
-				   sep_shared_area_phys_to_virt(sep, *lli_table_out_ptr), *out_num_entries_ptr, *table_data_size_ptr);
+				   sep_shared_area_bus_to_virt(sep, *lli_table_out_ptr), *out_num_entries_ptr, *table_data_size_ptr);
 	dbg("SEP Driver:<-------- sep_construct_dma_tables_from_lli end\n");
 	return 0;
 }
