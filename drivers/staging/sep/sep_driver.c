@@ -2494,15 +2494,9 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	/* set the IMR register - open only GPR 2 */
 	sep_write_reg(sep_dev, HW_HOST_IMR_REG_ADDR, (~(0x1 << 13)));
 
-	/* figure out our irq */
-	/* FIXME: */
-	error = pci_read_config_byte(pdev, PCI_INTERRUPT_LINE, (u8 *) & sep_dev->irq);
-
-	edbg("SEP Driver: my irq is %d\n", sep_dev->irq);
-
 	edbg("SEP Driver: about to call request_irq\n");
 	/* get the interrupt line */
-	error = request_irq(sep_dev->irq, sep_inthandler, IRQF_SHARED, "sep_driver", &sep_dev->reg_addr);
+	error = request_irq(pdev->irq, sep_inthandler, IRQF_SHARED, "sep_driver", &sep_dev->reg_addr);
 	if (error)
 		goto end_function;
 

@@ -54,9 +54,6 @@ struct sep_device {
 	unsigned long resident_size;
 	void *resident_addr;
 
-	/* device interrupt (as retrieved from PCI) */
-	int sep_irq;
-
 	unsigned long rar_region_addr;
 
 	/* start address of the access to the SEP registers from driver */
