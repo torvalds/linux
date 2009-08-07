@@ -3172,22 +3172,6 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 	}
 }
 EXPORT_SYMBOL(iwl_update_stats);
-
-#else
-void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
-{
-	struct traffic_stats	*stats;
-
-	if (is_tx)
-		stats = &priv->tx_stats;
-	else
-		stats = &priv->rx_stats;
-
-	if (ieee80211_is_data(fc)) {
-		/* data */
-		stats->data_bytes += len;
-	}
-}
 #endif
 
 #ifdef CONFIG_PM

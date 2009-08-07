@@ -314,6 +314,8 @@ const char *get_mgmt_string(int cmd);
 const char *get_ctrl_string(int cmd);
 void iwl_clear_tx_stats(struct iwl_priv *priv);
 void iwl_clear_rx_stats(struct iwl_priv *priv);
+void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
+		      u16 len);
 #else
 static inline int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 {
@@ -333,9 +335,22 @@ static inline void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 		      u16 length, struct ieee80211_hdr *header)
 {
 }
+static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
+				    __le16 fc, u16 len)
+{
+	struct traffic_stats	*stats;
+
+	if (is_tx)
+		stats = &priv->tx_stats;
+	else
+		stats = &priv->rx_stats;
+
+	if (ieee80211_is_data(fc)) {
+		/* data */
+		stats->data_bytes += len;
+	}
+}
 #endif
-void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
-		      u16 len);
 /*****************************************************
  * RX handlers.
  * **************************************************/
