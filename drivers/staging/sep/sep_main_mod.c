@@ -288,24 +288,6 @@ static int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_s
 -----------------------------------------------*/
 
 /*
-  this function locks SEP by locking the semaphore
-*/
-int sep_lock()
-{
-	mutex_lock(&sep_mutex);
-	return 0;
-}
-
-/*
-  this function unlocks SEP
-*/
-void sep_unlock()
-{
-	/* release mutex */
-	mutex_unlock(&sep_mutex);
-}
-
-/*
   this function returns the address of the message shared area
 */
 void sep_map_shared_area(unsigned long *mappedAddr_ptr)
