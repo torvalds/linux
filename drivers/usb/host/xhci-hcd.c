@@ -942,6 +942,122 @@ static void xhci_zero_in_ctx(struct xhci_hcd *xhci, struct xhci_virt_device *vir
 	}
 }
 
+static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
+		struct usb_device *udev, struct xhci_virt_device *virt_dev)
+{
+	int ret;
+
+	switch (virt_dev->cmd_status) {
+	case COMP_ENOMEM:
+		dev_warn(&udev->dev, "Not enough host controller resources "
+				"for new device state.\n");
+		ret = -ENOMEM;
+		/* FIXME: can we allocate more resources for the HC? */
+		break;
+	case COMP_BW_ERR:
+		dev_warn(&udev->dev, "Not enough bandwidth "
+				"for new device state.\n");
+		ret = -ENOSPC;
+		/* FIXME: can we go back to the old state? */
+		break;
+	case COMP_TRB_ERR:
+		/* the HCD set up something wrong */
+		dev_warn(&udev->dev, "ERROR: Endpoint drop flag = 0, "
+				"add flag = 1, "
+				"and endpoint is not disabled.\n");
+		ret = -EINVAL;
+		break;
+	case COMP_SUCCESS:
+		dev_dbg(&udev->dev, "Successful Endpoint Configure command\n");
+		ret = 0;
+		break;
+	default:
+		xhci_err(xhci, "ERROR: unexpected command completion "
+				"code 0x%x.\n", virt_dev->cmd_status);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
+		struct usb_device *udev, struct xhci_virt_device *virt_dev)
+{
+	int ret;
+
+	switch (virt_dev->cmd_status) {
+	case COMP_EINVAL:
+		dev_warn(&udev->dev, "WARN: xHCI driver setup invalid evaluate "
+				"context command.\n");
+		ret = -EINVAL;
+		break;
+	case COMP_EBADSLT:
+		dev_warn(&udev->dev, "WARN: slot not enabled for"
+				"evaluate context command.\n");
+	case COMP_CTX_STATE:
+		dev_warn(&udev->dev, "WARN: invalid context state for "
+				"evaluate context command.\n");
+		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 1);
+		ret = -EINVAL;
+		break;
+	case COMP_SUCCESS:
+		dev_dbg(&udev->dev, "Successful evaluate context command\n");
+		ret = 0;
+		break;
+	default:
+		xhci_err(xhci, "ERROR: unexpected command completion "
+				"code 0x%x.\n", virt_dev->cmd_status);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+/* Issue a configure endpoint command or evaluate context command
+ * and wait for it to finish.
+ */
+static int xhci_configure_endpoint(struct xhci_hcd *xhci,
+		struct usb_device *udev, struct xhci_virt_device *virt_dev,
+		bool ctx_change)
+{
+	int ret;
+	int timeleft;
+	unsigned long flags;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (!ctx_change)
+		ret = xhci_queue_configure_endpoint(xhci, virt_dev->in_ctx->dma,
+				udev->slot_id);
+	else
+		ret = xhci_queue_evaluate_context(xhci, virt_dev->in_ctx->dma,
+				udev->slot_id);
+	if (ret < 0) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_dbg(xhci, "FIXME allocate a new ring segment\n");
+		return -ENOMEM;
+	}
+	xhci_ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* Wait for the configure endpoint command to complete */
+	timeleft = wait_for_completion_interruptible_timeout(
+			&virt_dev->cmd_completion,
+			USB_CTRL_SET_TIMEOUT);
+	if (timeleft <= 0) {
+		xhci_warn(xhci, "%s while waiting for %s command\n",
+				timeleft == 0 ? "Timeout" : "Signal",
+				ctx_change == 0 ?
+					"configure endpoint" :
+					"evaluate context");
+		/* FIXME cancel the configure endpoint command */
+		return -ETIME;
+	}
+
+	if (!ctx_change)
+		return xhci_configure_endpoint_result(xhci, udev, virt_dev);
+	return xhci_evaluate_context_result(xhci, udev, virt_dev);
+}
+
 /* Called after one or more calls to xhci_add_endpoint() or
  * xhci_drop_endpoint().  If this call fails, the USB core is expected
  * to call xhci_reset_bandwidth().
@@ -956,8 +1072,6 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	int i;
 	int ret = 0;
-	int timeleft;
-	unsigned long flags;
 	struct xhci_hcd *xhci;
 	struct xhci_virt_device	*virt_dev;
 	struct xhci_input_control_ctx *ctrl_ctx;
@@ -987,56 +1101,7 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx,
 			LAST_CTX_TO_EP_NUM(slot_ctx->dev_info));
 
-	spin_lock_irqsave(&xhci->lock, flags);
-	ret = xhci_queue_configure_endpoint(xhci, virt_dev->in_ctx->dma,
-			udev->slot_id);
-	if (ret < 0) {
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_dbg(xhci, "FIXME allocate a new ring segment\n");
-		return -ENOMEM;
-	}
-	xhci_ring_cmd_db(xhci);
-	spin_unlock_irqrestore(&xhci->lock, flags);
-
-	/* Wait for the configure endpoint command to complete */
-	timeleft = wait_for_completion_interruptible_timeout(
-			&virt_dev->cmd_completion,
-			USB_CTRL_SET_TIMEOUT);
-	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for configure endpoint command\n",
-				timeleft == 0 ? "Timeout" : "Signal");
-		/* FIXME cancel the configure endpoint command */
-		return -ETIME;
-	}
-
-	switch (virt_dev->cmd_status) {
-	case COMP_ENOMEM:
-		dev_warn(&udev->dev, "Not enough host controller resources "
-				"for new device state.\n");
-		ret = -ENOMEM;
-		/* FIXME: can we allocate more resources for the HC? */
-		break;
-	case COMP_BW_ERR:
-		dev_warn(&udev->dev, "Not enough bandwidth "
-				"for new device state.\n");
-		ret = -ENOSPC;
-		/* FIXME: can we go back to the old state? */
-		break;
-	case COMP_TRB_ERR:
-		/* the HCD set up something wrong */
-		dev_warn(&udev->dev, "ERROR: Endpoint drop flag = 0, add flag = 1, "
-				"and endpoint is not disabled.\n");
-		ret = -EINVAL;
-		break;
-	case COMP_SUCCESS:
-		dev_dbg(&udev->dev, "Successful Endpoint Configure command\n");
-		break;
-	default:
-		xhci_err(xhci, "ERROR: unexpected command completion "
-				"code 0x%x.\n", virt_dev->cmd_status);
-		ret = -EINVAL;
-		break;
-	}
+	ret = xhci_configure_endpoint(xhci, udev, virt_dev, false);
 	if (ret) {
 		/* Callee should call reset_bandwidth() */
 		return ret;

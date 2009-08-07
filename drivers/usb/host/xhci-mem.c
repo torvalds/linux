@@ -601,6 +601,44 @@ void xhci_endpoint_zero(struct xhci_hcd *xhci,
 	 */
 }
 
+/* Copy output xhci_ep_ctx to the input xhci_ep_ctx copy.
+ * Useful when you want to change one particular aspect of the endpoint and then
+ * issue a configure endpoint command.
+ */
+void xhci_endpoint_copy(struct xhci_hcd *xhci,
+		struct xhci_virt_device *vdev, unsigned int ep_index)
+{
+	struct xhci_ep_ctx *out_ep_ctx;
+	struct xhci_ep_ctx *in_ep_ctx;
+
+	out_ep_ctx = xhci_get_ep_ctx(xhci, vdev->out_ctx, ep_index);
+	in_ep_ctx = xhci_get_ep_ctx(xhci, vdev->in_ctx, ep_index);
+
+	in_ep_ctx->ep_info = out_ep_ctx->ep_info;
+	in_ep_ctx->ep_info2 = out_ep_ctx->ep_info2;
+	in_ep_ctx->deq = out_ep_ctx->deq;
+	in_ep_ctx->tx_info = out_ep_ctx->tx_info;
+}
+
+/* Copy output xhci_slot_ctx to the input xhci_slot_ctx.
+ * Useful when you want to change one particular aspect of the endpoint and then
+ * issue a configure endpoint command.  Only the context entries field matters,
+ * but we'll copy the whole thing anyway.
+ */
+void xhci_slot_copy(struct xhci_hcd *xhci, struct xhci_virt_device *vdev)
+{
+	struct xhci_slot_ctx *in_slot_ctx;
+	struct xhci_slot_ctx *out_slot_ctx;
+
+	in_slot_ctx = xhci_get_slot_ctx(xhci, vdev->in_ctx);
+	out_slot_ctx = xhci_get_slot_ctx(xhci, vdev->out_ctx);
+
+	in_slot_ctx->dev_info = out_slot_ctx->dev_info;
+	in_slot_ctx->dev_info2 = out_slot_ctx->dev_info2;
+	in_slot_ctx->tt_info = out_slot_ctx->tt_info;
+	in_slot_ctx->dev_state = out_slot_ctx->dev_state;
+}
+
 /* Set up the scratchpad buffer array and scratchpad buffers, if needed. */
 static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 {
