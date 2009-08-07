@@ -1681,6 +1681,7 @@ static int nested_svm_vmrun(struct vcpu_svm *svm, void *arg1,
 {
 	struct vmcb *nested_vmcb = (struct vmcb *)arg1;
 	struct vmcb *hsave = svm->hsave;
+	struct vmcb *vmcb = svm->vmcb;
 
 	/* nested_vmcb is our indicator if nested SVM is activated */
 	svm->nested_vmcb = svm->vmcb->save.rax;
@@ -1691,12 +1692,25 @@ static int nested_svm_vmrun(struct vcpu_svm *svm, void *arg1,
 
 	/* Save the old vmcb, so we don't need to pick what we save, but
 	   can restore everything when a VMEXIT occurs */
-	memcpy(hsave, svm->vmcb, sizeof(struct vmcb));
-	/* We need to remember the original CR3 in the SPT case */
-	if (!npt_enabled)
-		hsave->save.cr3 = svm->vcpu.arch.cr3;
-	hsave->save.cr4 = svm->vcpu.arch.cr4;
-	hsave->save.rip = svm->next_rip;
+	hsave->save.es     = vmcb->save.es;
+	hsave->save.cs     = vmcb->save.cs;
+	hsave->save.ss     = vmcb->save.ss;
+	hsave->save.ds     = vmcb->save.ds;
+	hsave->save.gdtr   = vmcb->save.gdtr;
+	hsave->save.idtr   = vmcb->save.idtr;
+	hsave->save.efer   = svm->vcpu.arch.shadow_efer;
+	hsave->save.cr0    = svm->vcpu.arch.cr0;
+	hsave->save.cr4    = svm->vcpu.arch.cr4;
+	hsave->save.rflags = vmcb->save.rflags;
+	hsave->save.rip    = svm->next_rip;
+	hsave->save.rsp    = vmcb->save.rsp;
+	hsave->save.rax    = vmcb->save.rax;
+	if (npt_enabled)
+		hsave->save.cr3    = vmcb->save.cr3;
+	else
+		hsave->save.cr3    = svm->vcpu.arch.cr3;
+
+	hsave->control = vmcb->control;
 
 	if (svm->vmcb->save.rflags & X86_EFLAGS_IF)
 		svm->vcpu.arch.hflags |= HF_HIF_MASK;
@@ -1721,7 +1735,7 @@ static int nested_svm_vmrun(struct vcpu_svm *svm, void *arg1,
 		kvm_set_cr3(&svm->vcpu, nested_vmcb->save.cr3);
 		kvm_mmu_reset_context(&svm->vcpu);
 	}
-	svm->vmcb->save.cr2 = nested_vmcb->save.cr2;
+	svm->vmcb->save.cr2 = svm->vcpu.arch.cr2 = nested_vmcb->save.cr2;
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RAX, nested_vmcb->save.rax);
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RSP, nested_vmcb->save.rsp);
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RIP, nested_vmcb->save.rip);
