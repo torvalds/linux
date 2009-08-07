@@ -80,7 +80,7 @@ static unsigned long open_lock;
 static DEFINE_SPINLOCK(wdtpci_lock);
 static char expect_close;
 
-static int io;
+static resource_size_t io;
 static int irq;
 
 /* Default timeout */
@@ -648,8 +648,8 @@ static int __devinit wdtpci_init_one(struct pci_dev *dev,
 	}
 
 	if (pci_request_region(dev, 2, "wdt_pci")) {
-		printk(KERN_ERR PFX "I/O address 0x%04x already in use\n",
-			pci_resource_start(dev, 2));
+		printk(KERN_ERR PFX "I/O address 0x%llx already in use\n",
+			(unsigned long long)pci_resource_start(dev, 2));
 		goto out_pci;
 	}
 
@@ -663,8 +663,8 @@ static int __devinit wdtpci_init_one(struct pci_dev *dev,
 	}
 
 	printk(KERN_INFO
-	 "PCI-WDT500/501 (PCI-WDG-CSM) driver 0.10 at 0x%04x (Interrupt %d)\n",
-								io, irq);
+	 "PCI-WDT500/501 (PCI-WDG-CSM) driver 0.10 at 0x%llx (Interrupt %d)\n",
+					(unsigned long long)io, irq);
 
 	/* Check that the heartbeat value is within its range;
 	   if not reset to the default */
