@@ -1104,7 +1104,7 @@ static void perf_counter_sync_stat(struct perf_counter_context *ctx,
 		__perf_counter_sync_stat(counter, next_counter);
 
 		counter = list_next_entry(counter, event_entry);
-		next_counter = list_next_entry(counter, event_entry);
+		next_counter = list_next_entry(next_counter, event_entry);
 	}
 }
 

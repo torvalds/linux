@@ -6,7 +6,16 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
+
+#ifndef NO_DEMANGLE
 #include <bfd.h>
+#else
+static inline
+char *bfd_demangle(void __used *v, const char __used *c, int __used i)
+{
+	return NULL;
+}
+#endif
 
 const char *sym_hist_filter;
 
@@ -652,10 +661,69 @@ out_close:
 	return err;
 }
 
+#define BUILD_ID_SIZE 128
+
+static char *dso__read_build_id(struct dso *self, int verbose)
+{
+	int i;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	Elf_Data *build_id_data;
+	Elf_Scn *sec;
+	char *build_id = NULL, *bid;
+	unsigned char *raw;
+	Elf *elf;
+	int fd = open(self->name, O_RDONLY);
+
+	if (fd < 0)
+		goto out;
+
+	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
+	if (elf == NULL) {
+		if (verbose)
+			fprintf(stderr, "%s: cannot read %s ELF file.\n",
+				__func__, self->name);
+		goto out_close;
+	}
+
+	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		if (verbose)
+			fprintf(stderr, "%s: cannot get elf header.\n", __func__);
+		goto out_elf_end;
+	}
+
+	sec = elf_section_by_name(elf, &ehdr, &shdr, ".note.gnu.build-id", NULL);
+	if (sec == NULL)
+		goto out_elf_end;
+
+	build_id_data = elf_getdata(sec, NULL);
+	if (build_id_data == NULL)
+		goto out_elf_end;
+	build_id = malloc(BUILD_ID_SIZE);
+	if (build_id == NULL)
+		goto out_elf_end;
+	raw = build_id_data->d_buf + 16;
+	bid = build_id;
+
+	for (i = 0; i < 20; ++i) {
+		sprintf(bid, "%02x", *raw);
+		++raw;
+		bid += 2;
+	}
+	if (verbose)
+		printf("%s(%s): %s\n", __func__, self->name, build_id);
+out_elf_end:
+	elf_end(elf);
+out_close:
+	close(fd);
+out:
+	return build_id;
+}
+
 int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 {
-	int size = strlen(self->name) + sizeof("/usr/lib/debug%s.debug");
-	char *name = malloc(size);
+	int size = PATH_MAX;
+	char *name = malloc(size), *build_id = NULL;
 	int variant = 0;
 	int ret = -1;
 	int fd;
@@ -677,7 +745,18 @@ more:
 		case 1: /* Ubuntu */
 			snprintf(name, size, "/usr/lib/debug%s", self->name);
 			break;
-		case 2: /* Sane people */
+		case 2:
+			build_id = dso__read_build_id(self, verbose);
+			if (build_id != NULL) {
+				snprintf(name, size,
+					 "/usr/lib/debug/.build-id/%.2s/%s.debug",
+					build_id, build_id + 2);
+				free(build_id);
+				break;
+			}
+			variant++;
+			/* Fall thru */
+		case 3: /* Sane people */
 			snprintf(name, size, "%s", self->name);
 			break;
 

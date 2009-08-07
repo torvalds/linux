@@ -31,7 +31,7 @@
 static char		const *input_name = "perf.data";
 static char		*vmlinux = NULL;
 
-static char		default_sort_order[] = "comm,dso";
+static char		default_sort_order[] = "comm,dso,symbol";
 static char		*sort_order = default_sort_order;
 static char		*dso_list_str, *comm_list_str, *sym_list_str,
 			*col_width_list_str;
@@ -1424,7 +1424,7 @@ print_entries:
 	if (sort_order == default_sort_order &&
 			parent_pattern == default_parent_pattern) {
 		fprintf(fp, "#\n");
-		fprintf(fp, "# (For more details, try: perf report --sort comm,dso,symbol)\n");
+		fprintf(fp, "# (For a higher level overview, try: perf report --sort comm,dso)\n");
 		fprintf(fp, "#\n");
 	}
 	fprintf(fp, "\n");
