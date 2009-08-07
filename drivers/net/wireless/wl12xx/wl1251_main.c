@@ -69,6 +69,7 @@ irqreturn_t wl1251_irq(int irq, void *cookie)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(wl1251_irq);
 
 static int wl1251_fetch_firmware(struct wl1251 *wl)
 {
@@ -1198,6 +1199,7 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1251_init_ieee80211);
 
 #define WL1251_DEFAULT_CHANNEL 1
 struct ieee80211_hw *wl1251_alloc_hw(void)
@@ -1270,6 +1272,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	return hw;
 }
+EXPORT_SYMBOL_GPL(wl1251_alloc_hw);
 
 int wl1251_free_hw(struct wl1251 *wl)
 {
@@ -1292,3 +1295,9 @@ int wl1251_free_hw(struct wl1251 *wl)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1251_free_hw);
+
+MODULE_DESCRIPTION("TI wl1251 Wireles LAN Driver Core");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Kalle Valo <Kalle.Valo@nokia.com>");
+MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");

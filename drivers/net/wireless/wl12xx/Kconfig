@@ -7,15 +7,26 @@ menuconfig WL12XX
 
 config WL1251
 	tristate "TI wl1251 support"
-	depends on WL12XX && SPI_MASTER && GENERIC_HARDIRQS
+	depends on WL12XX && GENERIC_HARDIRQS
 	select FW_LOADER
 	select CRC7
 	---help---
 	  This module adds support for wireless adapters based on
 	  TI wl1251 chipset.
 
-	  If you choose to build a module, it'll be called wl1251. Say N if
-	  unsure.
+	  If you choose to build a module, it'll be called wl1251. Say
+	  N if unsure.
+
+config WL1251_SPI
+	tristate "TI wl1251 SPI support"
+	depends on WL1251 && SPI_MASTER
+	---help---
+	  This module adds support for the SPI interface of adapters using
+	  TI wl1251 chipset.  Select this if your platform is using
+	  the SPI bus.
+
+	  If you choose to build a module, it'll be called wl1251_spi.
+	  Say N if unsure.
 
 config WL1271
 	tristate "TI wl1271 support"
