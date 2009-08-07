@@ -101,7 +101,7 @@ struct sep_device {
 	unsigned long message_shared_area_addr;
 };
 
-extern struct sep_device *sep_dev;
+static struct sep_device *sep_dev;
 
 static inline void sep_write_reg(struct sep_device *dev, int reg, u32 value)
 {

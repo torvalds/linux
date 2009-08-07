@@ -69,7 +69,7 @@
 
 /* 2M size */
 
-void sep_load_rom_code(void)
+static void sep_load_rom_code(void)
 {
 	/* Index variables */
 	unsigned long i, k, j;
@@ -149,7 +149,7 @@ void sep_load_rom_code(void)
 }
 
 #else
-void sep_load_rom_code(void) { }
+static void sep_load_rom_code(void) { }
 #endif				/* SEP_DRIVER_ARM_DEBUG_MODE */
 
 
@@ -158,7 +158,7 @@ void sep_load_rom_code(void) { }
 	DEFINES
 -----------------------------------------*/
 
-#define INT_MODULE_PARM(n, v) int n = v; module_param(n, int, 0)
+#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
 #define BASE_ADDRESS_FOR_SYSTEM 0xfffc0000
 #define SEP_RAR_IO_MEM_REGION_SIZE 0x40000
 
@@ -173,10 +173,10 @@ MODULE_PARM_DESC(sepDebug, "Flag to enable SEP debug messages");
 /* Keep this a single static object for now to keep the conversion easy */
 
 static struct sep_device sep_instance;
-struct sep_device *sep_dev = &sep_instance;
+static struct sep_device *sep_dev = &sep_instance;
 
 /* temporary */
-unsigned long jiffies_future;
+static unsigned long jiffies_future;
 
 
 /*
@@ -197,7 +197,7 @@ static DECLARE_WAIT_QUEUE_HEAD(g_sep_event);
 /*
   interrupt handler function
 */
-irqreturn_t sep_inthandler(int irq, void *dev_id);
+static irqreturn_t sep_inthandler(int irq, void *dev_id);
 
 /*
   this function registers the driver to the file system
@@ -397,7 +397,7 @@ static int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_s
 /*
   This functions locks the area of the resisnd and cache sep code
 */
-void sep_lock_cache_resident_area(void)
+static void sep_lock_cache_resident_area(void)
 {
 	return;
 }
@@ -407,7 +407,7 @@ void sep_lock_cache_resident_area(void)
   destination memory, which is external to Linux VM and is given as
    physical address
 */
-int sep_copy_cache_resident_to_area(unsigned long src_cache_addr, unsigned long cache_size_in_bytes, unsigned long src_resident_addr, unsigned long resident_size_in_bytes, unsigned long *dst_new_cache_addr_ptr, unsigned long *dst_new_resident_addr_ptr)
+static int sep_copy_cache_resident_to_area(unsigned long src_cache_addr, unsigned long cache_size_in_bytes, unsigned long src_resident_addr, unsigned long resident_size_in_bytes, unsigned long *dst_new_cache_addr_ptr, unsigned long *dst_new_resident_addr_ptr)
 {
 	unsigned long resident_addr;
 	unsigned long cache_addr;
@@ -499,7 +499,7 @@ end_function:
   shared area, and phys_shared_area_addr_ptr
   - the physical address of the shared area
 */
-int sep_map_and_alloc_shared_area(unsigned long shared_area_size, unsigned long *kernel_shared_area_addr_ptr, unsigned long *phys_shared_area_addr_ptr)
+static int sep_map_and_alloc_shared_area(unsigned long shared_area_size, unsigned long *kernel_shared_area_addr_ptr, unsigned long *phys_shared_area_addr_ptr)
 {
 	// shared_virtual_address = ioremap_nocache(0xda00000,shared_area_size);
 	sep_dev->shared_virtual_address = kmalloc(shared_area_size, GFP_KERNEL);
@@ -528,7 +528,7 @@ int sep_map_and_alloc_shared_area(unsigned long shared_area_size, unsigned long 
   shared area,phys_shared_area_addr_ptr - the physical address of
   the shared area
 */
-void sep_unmap_and_free_shared_area(unsigned long shared_area_size, unsigned long kernel_shared_area_addr, unsigned long phys_shared_area_addr)
+static void sep_unmap_and_free_shared_area(unsigned long shared_area_size, unsigned long kernel_shared_area_addr, unsigned long phys_shared_area_addr)
 {
 	kfree((void *) kernel_shared_area_addr);
 }
@@ -539,7 +539,7 @@ void sep_unmap_and_free_shared_area(unsigned long shared_area_size, unsigned lon
   (ioremapped), or on the system RAM
   This implementation is for the external RAM
 */
-unsigned long sep_shared_area_virt_to_phys(unsigned long virt_address)
+static unsigned long sep_shared_area_virt_to_phys(unsigned long virt_address)
 {
 	edbg("SEP Driver:sh virt to phys v %08lx\n", virt_address);
 	edbg("SEP Driver:sh virt to phys p %08lx\n", sep_dev->shared_physical_address + (virt_address - (unsigned long) sep_dev->shared_virtual_address));
@@ -553,7 +553,7 @@ unsigned long sep_shared_area_virt_to_phys(unsigned long virt_address)
   externa RAM device (ioremapped), or on the system RAM This implementation
   is for the external RAM
 */
-unsigned long sep_shared_area_phys_to_virt(unsigned long phys_address)
+static unsigned long sep_shared_area_phys_to_virt(unsigned long phys_address)
 {
 	return (unsigned long) sep_dev->shared_virtual_address + (phys_address - sep_dev->shared_physical_address);
 }
@@ -562,7 +562,7 @@ unsigned long sep_shared_area_phys_to_virt(unsigned long phys_address)
 /*
   this function returns the address of the message shared area
 */
-void sep_map_shared_area(unsigned long *mappedAddr_ptr)
+static void sep_map_shared_area(unsigned long *mappedAddr_ptr)
 {
 	*mappedAddr_ptr = sep_dev->shared_area_addr;
 }
@@ -570,20 +570,20 @@ void sep_map_shared_area(unsigned long *mappedAddr_ptr)
 /*
   this function returns the address of the message shared area
 */
-void sep_send_msg_rdy_cmd()
+static void sep_send_msg_rdy_cmd(void)
 {
 	sep_send_command_handler();
 }
 
 /* this functions frees all the resources that were allocated for the building
 of the LLI DMA tables */
-void sep_free_dma_resources()
+static void sep_free_dma_resources(void)
 {
 	sep_free_dma_table_data_handler();
 }
 
 /* poll(suspend), until reply from sep */
-void sep_driver_poll()
+static void sep_driver_poll(void)
 {
 	unsigned long retVal = 0;
 
@@ -858,7 +858,7 @@ static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 /*
   interrupt handler function
 */
-irqreturn_t sep_inthandler(int irq, void *dev_id)
+static irqreturn_t sep_inthandler(int irq, void *dev_id)
 {
 	irqreturn_t int_error;
 	unsigned long error;
@@ -912,7 +912,7 @@ end_function:
   This function prepares only input DMA table for synhronic symmetric
   operations (HASH)
 */
-int sep_prepare_input_dma_table(unsigned long app_virt_addr, unsigned long data_size, unsigned long block_size, unsigned long *lli_table_ptr, unsigned long *num_entries_ptr, unsigned long *table_data_size_ptr, bool isKernelVirtualAddress)
+static int sep_prepare_input_dma_table(unsigned long app_virt_addr, unsigned long data_size, unsigned long block_size, unsigned long *lli_table_ptr, unsigned long *num_entries_ptr, unsigned long *table_data_size_ptr, bool isKernelVirtualAddress)
 {
 	/* pointer to the info entry of the table - the last entry */
 	struct sep_lli_entry_t *info_entry_ptr;
@@ -1030,7 +1030,7 @@ end_function:
   symmetric operations (AES, DES). It also checks that each table
   is of the modular block size
 */
-int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
+static int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
 				       unsigned long app_virt_out_addr,
 				       unsigned long data_size,
 				       unsigned long block_size,
@@ -1109,7 +1109,7 @@ end_function:
  This function creates the input and output dma tables for
  symmetric operations (AES/DES) according to the block size from LLI arays
 */
-int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
+static int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
 				      unsigned long sep_in_lli_entries,
 				      struct sep_lli_entry_t *lli_out_array,
 				      unsigned long sep_out_lli_entries,
@@ -1235,7 +1235,7 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
   table from this array the condition is that either the table is full
   (all etnries are entered), or there are no more entries in the lli array
 */
-unsigned long sep_calculate_lli_table_max_size(struct sep_lli_entry_t *lli_in_array_ptr, unsigned long num_array_entries)
+static unsigned long sep_calculate_lli_table_max_size(struct sep_lli_entry_t *lli_in_array_ptr, unsigned long num_array_entries)
 {
 	unsigned long table_data_size = 0;
 	unsigned long counter;
@@ -1368,7 +1368,7 @@ static void sep_debug_print_lli_tables(struct sep_lli_entry_t *lli_table_ptr, un
   and construct a basic lli  array, where each entry holds the physical page
   address and the size that application data holds in this physical pages
 */
-int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_size, unsigned long *num_pages_ptr, struct sep_lli_entry_t **lli_array_ptr, struct page ***page_array_ptr)
+static int sep_lock_user_pages(unsigned long app_virt_addr, unsigned long data_size, unsigned long *num_pages_ptr, struct sep_lli_entry_t **lli_array_ptr, struct page ***page_array_ptr)
 {
 	int error = 0;
 	/* the the page of the end address of the user space buffer */
@@ -1490,7 +1490,7 @@ end_function:
   and construct a basic lli  array, where each entry holds the physical
   page address and the size that application data holds in this physical pages
 */
-int sep_lock_kernel_pages(unsigned long kernel_virt_addr, unsigned long data_size, unsigned long *num_pages_ptr, struct sep_lli_entry_t **lli_array_ptr, struct page ***page_array_ptr)
+static int sep_lock_kernel_pages(unsigned long kernel_virt_addr, unsigned long data_size, unsigned long *num_pages_ptr, struct sep_lli_entry_t **lli_array_ptr, struct page ***page_array_ptr)
 {
 	int error = 0;
 	/* the the page of the end address of the user space buffer */
@@ -1578,7 +1578,7 @@ end_function:
   This function releases all the application virtual buffer physical pages,
 	that were previously locked
 */
-int sep_free_dma_pages(struct page **page_array_ptr, unsigned long num_pages, unsigned long dirtyFlag)
+static int sep_free_dma_pages(struct page **page_array_ptr, unsigned long num_pages, unsigned long dirtyFlag)
 {
 	unsigned long count;
 
@@ -1607,7 +1607,7 @@ int sep_free_dma_pages(struct page **page_array_ptr, unsigned long num_pages, un
   This function raises interrupt to SEP that signals that is has a new
 	command from HOST
 */
-static void sep_send_command_handler()
+static void sep_send_command_handler(void)
 {
 	unsigned long count;
 
@@ -1632,7 +1632,7 @@ static void sep_send_command_handler()
   This function raises interrupt to SEPm that signals that is has a
   new command from HOST
 */
-static void sep_send_reply_command_handler()
+static void sep_send_reply_command_handler(void)
 {
 	unsigned long count;
 
@@ -1833,7 +1833,7 @@ end_function:
 /*
   this function handles the request for freeing dma table for synhronic actions
 */
-int sep_free_dma_table_data_handler()
+static int sep_free_dma_table_data_handler(void)
 {
 	dbg("SEP Driver:--------> sep_free_dma_table_data_handler start\n");
 
@@ -1924,7 +1924,7 @@ end_function:
 }
 
 /*
-  this functio n handles add tables to flow
+  this functio nhandles add tables to flow
 */
 static int sep_add_flow_tables_handler(unsigned long arg)
 {
@@ -2818,7 +2818,7 @@ static struct pci_driver sep_pci_driver = {
   this function registers th driver to
   the device subsystem( either PCI, USB, etc)
 */
-int sep_register_driver_to_device(void)
+static int sep_register_driver_to_device(void)
 {
 	return pci_register_driver(&sep_pci_driver);
 }

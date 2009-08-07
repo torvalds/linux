@@ -34,24 +34,24 @@
 
 
 /* shared variables */
-extern int sepDebug;
+static int sepDebug;
 
 /*
 this function loads the ROM code in SEP (needed only in the debug mode on FPGA)
 */
-void sep_load_rom_code(void);
+static void sep_load_rom_code(void);
 
 /*
 This functions locks the area of the resident and cache sep code (if possible)
 */
-void sep_lock_cache_resident_area(void);
+static void sep_lock_cache_resident_area(void);
 
 /*
 This functions copies the cache and resident from their source location into
 destination memory, which is external to Linux VM and is given as physical
 address
 */
-int sep_copy_cache_resident_to_area(unsigned long src_cache_addr, unsigned long cache_size_in_bytes, unsigned long src_resident_addr, unsigned long resident_size_in_bytes, unsigned long *dst_new_cache_addr_ptr, unsigned long *dst_new_resident_addr_ptr);
+static int sep_copy_cache_resident_to_area(unsigned long src_cache_addr, unsigned long cache_size_in_bytes, unsigned long src_resident_addr, unsigned long resident_size_in_bytes, unsigned long *dst_new_cache_addr_ptr, unsigned long *dst_new_resident_addr_ptr);
 
 /*
 This functions maps and allocates the shared area on the external
@@ -60,7 +60,7 @@ to allocate. The outputs are kernel_shared_area_addr_ptr - the kerenl
 address of the mapped and allocated shared area, and
 phys_shared_area_addr_ptr - the physical address of the shared area
 */
-int sep_map_and_alloc_shared_area(unsigned long shared_area_size, unsigned long *kernel_shared_area_addr_ptr, unsigned long *phys_shared_area_addr_ptr);
+static int sep_map_and_alloc_shared_area(unsigned long shared_area_size, unsigned long *kernel_shared_area_addr_ptr, unsigned long *phys_shared_area_addr_ptr);
 
 /*
 This functions unmaps and deallocates the shared area on the  external
@@ -69,7 +69,7 @@ deallocate,kernel_shared_area_addr_ptr - the kernel address of the
 mapped and allocated shared area,phys_shared_area_addr_ptr - the physical
 address of the shared area
 */
-void sep_unmap_and_free_shared_area(unsigned long shared_area_size, unsigned long kernel_shared_area_addr, unsigned long phys_shared_area_addr);
+static void sep_unmap_and_free_shared_area(unsigned long shared_area_size, unsigned long kernel_shared_area_addr, unsigned long phys_shared_area_addr);
 
 
 /*
@@ -77,19 +77,19 @@ This functions returns the physical address inside shared area according
 to the virtual address. It can be either on the externa RAM device
 (ioremapped), or on the system RAM
 */
-unsigned long sep_shared_area_virt_to_phys(unsigned long virt_address);
+static unsigned long sep_shared_area_virt_to_phys(unsigned long virt_address);
 
 /*
 This functions returns the vitrual address inside shared area according
 to the physical address. It can be either on the externa RAM device
 (ioremapped), or on the system RAM This implementation is for the external RAM
 */
-unsigned long sep_shared_area_phys_to_virt(unsigned long phys_address);
+static unsigned long sep_shared_area_phys_to_virt(unsigned long phys_address);
 
 /*
 This function registers th driver to the device
 subsystem (either PCI, USB, etc)
 */
-int sep_register_driver_to_device(void);
+static int sep_register_driver_to_device(void);
 
 #endif /*__SEP_DRIVER_EXT_API_H__*/

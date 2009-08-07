@@ -453,39 +453,29 @@ struct sep_flow_context_t {
 
 
 /*
-  this function locks SEP by locking the semaphore
-*/
-int sep_lock(void);
-
-/*
-  this function unlocks SEP
-*/
-void sep_unlock(void);
-
-/*
 	this function returns the address of the message shared area
 */
-void sep_map_shared_area(unsigned long *mappedAddr_ptr);
+static void sep_map_shared_area(unsigned long *mappedAddr_ptr);
 
 
 /*
 	this function returns the address of the message shared area
 */
-void sep_send_msg_rdy_cmd(void);
+static void sep_send_msg_rdy_cmd(void);
 
 
 /*
 	This function releases all the application virtual
 	buffer physical pages, that were previously locked
 */
-int sep_free_dma_pages(struct page **page_array_ptr, unsigned long num_pages, unsigned long dirtyFlag);
+static int sep_free_dma_pages(struct page **page_array_ptr, unsigned long num_pages, unsigned long dirtyFlag);
 
 /*
 	This function creates the input and output dma tables for
 	symmetric operations (AES/DES) according to the block size
 	from LLI arays
 */
-int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
+static int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
 				      unsigned long sep_in_lli_entries,
 				      struct sep_lli_entry_t *lli_out_array,
 				      unsigned long sep_out_lli_entries,
@@ -496,7 +486,7 @@ int sep_construct_dma_tables_from_lli(struct sep_lli_entry_t *lli_in_array,
 	operations (AES, DES) It also checks that each table is of the modular
 	block size
 */
-int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
+static int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
 				       unsigned long app_virt_out_addr,
 				       unsigned long data_size,
 				       unsigned long block_size,
@@ -506,21 +496,21 @@ int sep_prepare_input_output_dma_table(unsigned long app_virt_in_addr,
 	This function prepares only input DMA table for synhronic symmetric
 	operations (HASH)
 */
-int sep_prepare_input_dma_table(unsigned long app_virt_addr, unsigned long data_size, unsigned long block_size, unsigned long *lli_table_ptr, unsigned long *num_entries_ptr, unsigned long *table_data_size_ptr, bool isKernelVirtualAddress);
+static int sep_prepare_input_dma_table(unsigned long app_virt_addr, unsigned long data_size, unsigned long block_size, unsigned long *lli_table_ptr, unsigned long *num_entries_ptr, unsigned long *table_data_size_ptr, bool isKernelVirtualAddress);
 
 /* this functions frees all the resources that were allocated for the building
 	of the LLI DMA tables */
-void sep_free_dma_resources(void);
+static void sep_free_dma_resources(void);
 
 
 /* poll(suspend) , until reply from sep */
-void sep_driver_poll(void);
+static void sep_driver_poll(void);
 
 /*
 	this function handles the request for freeing dma table for
 	synhronic actions
 */
-int sep_free_dma_table_data_handler(void);
+static int sep_free_dma_table_data_handler(void);
 
 
 #endif
