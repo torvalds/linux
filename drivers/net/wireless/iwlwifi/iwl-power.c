@@ -425,7 +425,7 @@ static void iwl_perform_ct_kill_task(struct iwl_priv *priv,
 static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
 {
 	struct iwl_tt_mgmt *tt = &priv->power_data.tt;
-	enum iwl_tt_state new_state;
+	enum iwl_tt_state old_state;
 	struct iwl_power_mgr *setting = &priv->power_data;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -438,26 +438,27 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
 			(temp - tt->tt_previous_temp));
 	}
 #endif
+	old_state = tt->state;
 	/* in Celsius */
 	if (temp >= IWL_MINIMAL_POWER_THRESHOLD)
-		new_state = IWL_TI_CT_KILL;
+		tt->state = IWL_TI_CT_KILL;
 	else if (temp >= IWL_REDUCED_PERFORMANCE_THRESHOLD_2)
-		new_state = IWL_TI_2;
+		tt->state = IWL_TI_2;
 	else if (temp >= IWL_REDUCED_PERFORMANCE_THRESHOLD_1)
-		new_state = IWL_TI_1;
+		tt->state = IWL_TI_1;
 	else
-		new_state = IWL_TI_0;
+		tt->state = IWL_TI_0;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	tt->tt_previous_temp = temp;
 #endif
-	if (tt->state != new_state) {
-		if (tt->state == IWL_TI_0) {
+	if (tt->state != old_state) {
+		if (old_state == IWL_TI_0) {
 			tt->sys_power_mode = setting->power_mode;
 			IWL_DEBUG_POWER(priv, "current power mode: %u\n",
 				setting->power_mode);
 		}
-		switch (new_state) {
+		switch (tt->state) {
 		case IWL_TI_0:
 			/* when system ready to go back to IWL_TI_0 state
 			 * using system power mode instead of TT power mode
@@ -486,15 +487,15 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
 			/* TT state not updated
 			 * try again during next temperature read
 			 */
+			tt->state = old_state;
 			IWL_ERR(priv, "Cannot update power mode, "
 					"TT state not updated\n");
 		} else {
-			if (new_state == IWL_TI_CT_KILL)
+			if (tt->state == IWL_TI_CT_KILL)
 				iwl_perform_ct_kill_task(priv, true);
-			else if (tt->state == IWL_TI_CT_KILL &&
-				 new_state != IWL_TI_CT_KILL)
+			else if (old_state == IWL_TI_CT_KILL &&
+				 tt->state != IWL_TI_CT_KILL)
 				iwl_perform_ct_kill_task(priv, false);
-			tt->state = new_state;
 			IWL_DEBUG_POWER(priv, "Temperature state changed %u\n",
 					tt->state);
 			IWL_DEBUG_POWER(priv, "Power Index change to %u\n",
