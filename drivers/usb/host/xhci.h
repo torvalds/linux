@@ -589,6 +589,7 @@ struct xhci_ep_ctx {
  */
 #define	FORCE_EVENT	(0x1)
 #define ERROR_COUNT(p)	(((p) & 0x3) << 1)
+#define CTX_TO_EP_TYPE(p)	(((p) >> 3) & 0x7)
 #define EP_TYPE(p)	((p) << 3)
 #define ISOC_OUT_EP	1
 #define BULK_OUT_EP	2
@@ -1231,6 +1232,9 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 		struct xhci_ring *ep_ring, unsigned int slot_id,
 		unsigned int ep_index, struct xhci_dequeue_state *deq_state);
+void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
+		struct usb_device *udev, struct usb_host_endpoint *ep,
+		unsigned int ep_index, struct xhci_ring *ep_ring);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,

@@ -817,6 +817,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 {
 	struct xhci_virt_device *xdev;
 	struct xhci_ring *ep_ring;
+	unsigned int slot_id;
 	int ep_index;
 	struct xhci_td *td = 0;
 	dma_addr_t event_dma;
@@ -827,7 +828,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	struct xhci_ep_ctx *ep_ctx;
 
 	xhci_dbg(xhci, "In %s\n", __func__);
-	xdev = xhci->devs[TRB_TO_SLOT_ID(event->flags)];
+	slot_id = TRB_TO_SLOT_ID(event->flags);
+	xdev = xhci->devs[slot_id];
 	if (!xdev) {
 		xhci_err(xhci, "ERROR Transfer event pointed to bad slot\n");
 		return -ENODEV;
@@ -941,6 +943,25 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			xhci_warn(xhci, "WARN: short transfer on control ep\n");
 			status = -EREMOTEIO;
 			break;
+		case COMP_STALL:
+			/* Did we transfer part of the data (middle) phase? */
+			if (event_trb != ep_ring->dequeue &&
+					event_trb != td->last_trb)
+				td->urb->actual_length =
+					td->urb->transfer_buffer_length
+					- TRB_LEN(event->transfer_len);
+			else
+				td->urb->actual_length = 0;
+
+			ep_ring->stopped_td = td;
+			ep_ring->stopped_trb = event_trb;
+			xhci_queue_reset_ep(xhci, slot_id, ep_index);
+			xhci_cleanup_stalled_ring(xhci,
+					td->urb->dev,
+					td->urb->ep,
+					ep_index, ep_ring);
+			xhci_ring_cmd_db(xhci);
+			goto td_cleanup;
 		default:
 			/* Others already handled above */
 			break;
@@ -1083,6 +1104,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			inc_deq(xhci, ep_ring, false);
 		}
 
+td_cleanup:
 		/* Clean up the endpoint's TD list */
 		urb = td->urb;
 		list_del(&td->td_list);
@@ -1091,8 +1113,13 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			list_del(&td->cancelled_td_list);
 			ep_ring->cancels_pending--;
 		}
-		/* Leave the TD around for the reset endpoint function to use */
-		if (GET_COMP_CODE(event->transfer_len) != COMP_STALL) {
+		/* Leave the TD around for the reset endpoint function to use
+		 * (but only if it's not a control endpoint, since we already
+		 * queued the Set TR dequeue pointer command for stalled
+		 * control endpoints).
+		 */
+		if (usb_endpoint_xfer_control(&urb->ep->desc) ||
+			GET_COMP_CODE(event->transfer_len) != COMP_STALL) {
 			kfree(td);
 		}
 		urb->hcpriv = NULL;

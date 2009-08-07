@@ -1230,6 +1230,25 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_zero_in_ctx(xhci, virt_dev);
 }
 
+void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
+		struct usb_device *udev, struct usb_host_endpoint *ep,
+		unsigned int ep_index, struct xhci_ring *ep_ring)
+{
+	struct xhci_dequeue_state deq_state;
+
+	xhci_dbg(xhci, "Cleaning up stalled endpoint ring\n");
+	/* We need to move the HW's dequeue pointer past this TD,
+	 * or it will attempt to resend it on the next doorbell ring.
+	 */
+	xhci_find_new_dequeue_state(xhci, udev->slot_id,
+			ep_index, ep_ring->stopped_td, &deq_state);
+
+	xhci_dbg(xhci, "Queueing new dequeue state\n");
+	xhci_queue_new_dequeue_state(xhci, ep_ring,
+			udev->slot_id,
+			ep_index, &deq_state);
+}
+
 /* Deal with stalled endpoints.  The core should have sent the control message
  * to clear the halt condition.  However, we need to make the xHCI hardware
  * reset its sequence number, since a device will expect a sequence number of
@@ -1244,7 +1263,6 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	unsigned int ep_index;
 	unsigned long flags;
 	int ret;
-	struct xhci_dequeue_state deq_state;
 	struct xhci_ring *ep_ring;
 
 	xhci = hcd_to_xhci(hcd);
@@ -1261,6 +1279,10 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 				ep->desc.bEndpointAddress);
 		return;
 	}
+	if (usb_endpoint_xfer_control(&ep->desc)) {
+		xhci_dbg(xhci, "Control endpoint stall already handled.\n");
+		return;
+	}
 
 	xhci_dbg(xhci, "Queueing reset endpoint command\n");
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -1271,16 +1293,7 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	 * command.  Better hope that last command worked!
 	 */
 	if (!ret) {
-		xhci_dbg(xhci, "Cleaning up stalled endpoint ring\n");
-		/* We need to move the HW's dequeue pointer past this TD,
-		 * or it will attempt to resend it on the next doorbell ring.
-		 */
-		xhci_find_new_dequeue_state(xhci, udev->slot_id,
-				ep_index, ep_ring->stopped_td, &deq_state);
-		xhci_dbg(xhci, "Queueing new dequeue state\n");
-		xhci_queue_new_dequeue_state(xhci, ep_ring,
-				udev->slot_id,
-				ep_index, &deq_state);
+		xhci_cleanup_stalled_ring(xhci, udev, ep, ep_index, ep_ring);
 		kfree(ep_ring->stopped_td);
 		xhci_ring_cmd_db(xhci);
 	}
