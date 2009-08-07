@@ -325,7 +325,7 @@ static void wl1251_filter_work(struct work_struct *work)
 		goto out;
 
 	/* FIXME: replace the magic numbers with proper definitions */
-	ret = wl1251_cmd_join(wl, wl->bss_type, 1, 100, 0);
+	ret = wl1251_cmd_join(wl, wl->bss_type, 100, 1, false);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -565,7 +565,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (channel != wl->channel) {
 		/* FIXME: use beacon interval provided by mac80211 */
-		ret = wl1251_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		ret = wl1251_cmd_join(wl, wl->bss_type, 100, 1, false);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -1113,7 +1113,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out;
 
 		if (wl->bss_type != BSS_TYPE_IBSS) {
-			ret = wl1251_cmd_join(wl, wl->bss_type, 5, 100, 1);
+			ret = wl1251_cmd_join(wl, wl->bss_type, 100, 5, true);
 			if (ret < 0)
 				goto out_sleep;
 			wl1251_warning("Set ctsprotect failed %d", ret);
@@ -1139,7 +1139,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto out;
 
-		ret = wl1251_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		ret = wl1251_cmd_join(wl, wl->bss_type, 100, 1, false);
 
 		if (ret < 0)
 			goto out;

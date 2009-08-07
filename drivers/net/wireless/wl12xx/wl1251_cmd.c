@@ -251,8 +251,8 @@ out:
 	return ret;
 }
 
-int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 dtim_interval,
-		    u16 beacon_interval, u8 wait)
+int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u16 beacon_interval,
+		    u8 dtim_interval, bool wait)
 {
 	unsigned long timeout;
 	struct cmd_join *join;
