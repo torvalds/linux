@@ -1400,7 +1400,8 @@ static void device_init_rd0_ring(PSDevice pDevice) {
         pDesc->next_desc = cpu_to_le32(curr + sizeof(SRxDesc));
     }
 
-    pDevice->aRD0Ring[i-1].next_desc = cpu_to_le32(pDevice->rd0_pool_dma);
+    if (i > 0)
+        pDevice->aRD0Ring[i-1].next_desc = cpu_to_le32(pDevice->rd0_pool_dma);
     pDevice->pCurrRD[0] = &(pDevice->aRD0Ring[0]);
 }
 
@@ -1424,7 +1425,8 @@ static void device_init_rd1_ring(PSDevice pDevice) {
         pDesc->next_desc = cpu_to_le32(curr + sizeof(SRxDesc));
     }
 
-    pDevice->aRD1Ring[i-1].next_desc = cpu_to_le32(pDevice->rd1_pool_dma);
+    if (i > 0)
+        pDevice->aRD1Ring[i-1].next_desc = cpu_to_le32(pDevice->rd1_pool_dma);
     pDevice->pCurrRD[1] = &(pDevice->aRD1Ring[0]);
 }
 
@@ -1517,7 +1519,8 @@ static void device_init_td0_ring(PSDevice pDevice) {
         pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
     }
 
-    pDevice->apTD0Rings[i-1].next_desc = cpu_to_le32(pDevice->td0_pool_dma);
+    if (i > 0)
+        pDevice->apTD0Rings[i-1].next_desc = cpu_to_le32(pDevice->td0_pool_dma);
     pDevice->apTailTD[0] = pDevice->apCurrTD[0] =&(pDevice->apTD0Rings[0]);
 
 }
@@ -1542,7 +1545,8 @@ static void device_init_td1_ring(PSDevice pDevice) {
         pDesc->next_desc = cpu_to_le32(curr+sizeof(STxDesc));
     }
 
-    pDevice->apTD1Rings[i-1].next_desc = cpu_to_le32(pDevice->td1_pool_dma);
+    if (i > 0)
+        pDevice->apTD1Rings[i-1].next_desc = cpu_to_le32(pDevice->td1_pool_dma);
     pDevice->apTailTD[1] = pDevice->apCurrTD[1] = &(pDevice->apTD1Rings[0]);
 }
 
