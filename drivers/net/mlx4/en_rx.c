@@ -835,23 +835,6 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 
 /* RSS related functions */
 
-/* Calculate rss size and map each entry in rss table to rx ring */
-void mlx4_en_set_default_rss_map(struct mlx4_en_priv *priv,
-				 struct mlx4_en_rss_map *rss_map,
-				 int num_entries, int num_rings)
-{
-	int i;
-
-	rss_map->size = roundup_pow_of_two(num_entries);
-	en_dbg(DRV, priv, "Setting default RSS map of %d entires\n",
-	       rss_map->size);
-
-	for (i = 0; i < rss_map->size; i++) {
-		rss_map->map[i] = i % num_rings;
-		en_dbg(DRV, priv, "Entry %d ---> ring %d\n", i, rss_map->map[i]);
-	}
-}
-
 static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv,
 				 int qpn, int srqn, int cqn,
 				 enum mlx4_qp_state *state,
@@ -902,16 +885,17 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	int good_qps = 0;
 
 	en_dbg(DRV, priv, "Configuring rss steering\n");
-	err = mlx4_qp_reserve_range(mdev->dev, rss_map->size,
-				    rss_map->size, &rss_map->base_qpn);
+	err = mlx4_qp_reserve_range(mdev->dev, priv->rx_ring_num,
+				    priv->rx_ring_num,
+				    &rss_map->base_qpn);
 	if (err) {
-		en_err(priv, "Failed reserving %d qps\n", rss_map->size);
+		en_err(priv, "Failed reserving %d qps\n", priv->rx_ring_num);
 		return err;
 	}
 
-	for (i = 0; i < rss_map->size; i++) {
-		cqn = priv->rx_ring[rss_map->map[i]].cqn;
-		srqn = priv->rx_ring[rss_map->map[i]].srq.srqn;
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		cqn = priv->rx_ring[i].cqn;
+		srqn = priv->rx_ring[i].srq.srqn;
 		qpn = rss_map->base_qpn + i;
 		err = mlx4_en_config_rss_qp(priv, qpn, srqn, cqn,
 					    &rss_map->state[i],
@@ -940,7 +924,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 
 	ptr = ((void *) &context) + 0x3c;
 	rss_context = (struct mlx4_en_rss_context *) ptr;
-	rss_context->base_qpn = cpu_to_be32(ilog2(rss_map->size) << 24 |
+	rss_context->base_qpn = cpu_to_be32(ilog2(priv->rx_ring_num) << 24 |
 					    (rss_map->base_qpn));
 	rss_context->default_qpn = cpu_to_be32(rss_map->base_qpn);
 	rss_context->hash_fn = rss_xor & 0x3;
@@ -967,7 +951,7 @@ rss_err:
 		mlx4_qp_remove(mdev->dev, &rss_map->qps[i]);
 		mlx4_qp_free(mdev->dev, &rss_map->qps[i]);
 	}
-	mlx4_qp_release_range(mdev->dev, rss_map->base_qpn, rss_map->size);
+	mlx4_qp_release_range(mdev->dev, rss_map->base_qpn, priv->rx_ring_num);
 	return err;
 }
 
@@ -983,13 +967,13 @@ void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv)
 	mlx4_qp_free(mdev->dev, &rss_map->indir_qp);
 	mlx4_qp_release_range(mdev->dev, priv->base_qpn, 1);
 
-	for (i = 0; i < rss_map->size; i++) {
+	for (i = 0; i < priv->rx_ring_num; i++) {
 		mlx4_qp_modify(mdev->dev, NULL, rss_map->state[i],
 			       MLX4_QP_STATE_RST, NULL, 0, 0, &rss_map->qps[i]);
 		mlx4_qp_remove(mdev->dev, &rss_map->qps[i]);
 		mlx4_qp_free(mdev->dev, &rss_map->qps[i]);
 	}
-	mlx4_qp_release_range(mdev->dev, rss_map->base_qpn, rss_map->size);
+	mlx4_qp_release_range(mdev->dev, rss_map->base_qpn, priv->rx_ring_num);
 }
 
 

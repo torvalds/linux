@@ -1011,9 +1011,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	if (err)
 		goto out;
 
-	/* Populate Rx default RSS mappings */
-	mlx4_en_set_default_rss_map(priv, &priv->rss_map, priv->rx_ring_num *
-						RSS_FACTOR, priv->rx_ring_num);
 	/* Allocate page for receive rings */
 	err = mlx4_alloc_hwq_res(mdev->dev, &priv->res,
 				MLX4_EN_PAGE_SIZE, MLX4_EN_PAGE_SIZE);

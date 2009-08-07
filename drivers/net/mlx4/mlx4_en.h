@@ -95,8 +95,6 @@
 #define MLX4_EN_PAGE_SIZE	(1 << MLX4_EN_PAGE_SHIFT)
 #define MAX_TX_RINGS		16
 #define MAX_RX_RINGS		16
-#define MAX_RSS_MAP_SIZE	64
-#define RSS_FACTOR		2
 #define TXBB_SIZE		64
 #define HEADROOM		(2048 / TXBB_SIZE + 1)
 #define STAMP_STRIDE		64
@@ -377,11 +375,9 @@ struct mlx4_en_dev {
 
 
 struct mlx4_en_rss_map {
-	int size;
 	int base_qpn;
-	u16 map[MAX_RSS_MAP_SIZE];
-	struct mlx4_qp qps[MAX_RSS_MAP_SIZE];
-	enum mlx4_qp_state state[MAX_RSS_MAP_SIZE];
+	struct mlx4_qp qps[MAX_RX_RINGS];
+	enum mlx4_qp_state state[MAX_RX_RINGS];
 	struct mlx4_qp indir_qp;
 	enum mlx4_qp_state indir_state;
 };
@@ -555,9 +551,6 @@ int mlx4_en_map_buffer(struct mlx4_buf *buf);
 void mlx4_en_unmap_buffer(struct mlx4_buf *buf);
 
 void mlx4_en_calc_rx_buf(struct net_device *dev);
-void mlx4_en_set_default_rss_map(struct mlx4_en_priv *priv,
-				 struct mlx4_en_rss_map *rss_map,
-				 int num_entries, int num_rings);
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv);
 void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv);
 int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring);
