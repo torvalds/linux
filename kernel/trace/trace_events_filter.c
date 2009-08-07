@@ -476,11 +476,12 @@ static int filter_add_pred_fn(struct filter_parse_state *ps,
 }
 
 enum {
-	FILTER_STATIC_STRING = 1,
-	FILTER_DYN_STRING
+	FILTER_OTHER = 0,
+	FILTER_STATIC_STRING,
+	FILTER_DYN_STRING,
 };
 
-static int is_string_field(const char *type)
+int filter_assign_type(const char *type)
 {
 	if (strstr(type, "__data_loc") && strstr(type, "char"))
 		return FILTER_DYN_STRING;
@@ -488,12 +489,18 @@ static int is_string_field(const char *type)
 	if (strchr(type, '[') && strstr(type, "char"))
 		return FILTER_STATIC_STRING;
 
-	return 0;
+	return FILTER_OTHER;
+}
+
+static bool is_string_field(struct ftrace_event_field *field)
+{
+	return field->filter_type == FILTER_DYN_STRING ||
+	       field->filter_type == FILTER_STATIC_STRING;
 }
 
 static int is_legal_op(struct ftrace_event_field *field, int op)
 {
-	if (is_string_field(field->type) && (op != OP_EQ && op != OP_NE))
+	if (is_string_field(field) && (op != OP_EQ && op != OP_NE))
 		return 0;
 
 	return 1;
@@ -550,7 +557,6 @@ static int filter_add_pred(struct filter_parse_state *ps,
 	struct ftrace_event_field *field;
 	filter_pred_fn_t fn;
 	unsigned long long val;
-	int string_type;
 	int ret;
 
 	pred->fn = filter_pred_none;
@@ -578,9 +584,8 @@ static int filter_add_pred(struct filter_parse_state *ps,
 		return -EINVAL;
 	}
 
-	string_type = is_string_field(field->type);
-	if (string_type) {
-		if (string_type == FILTER_STATIC_STRING)
+	if (is_string_field(field)) {
+		if (field->filter_type == FILTER_STATIC_STRING)
 			fn = filter_pred_string;
 		else
 			fn = filter_pred_strloc;

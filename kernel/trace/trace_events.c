@@ -44,9 +44,11 @@ int trace_define_field(struct ftrace_event_call *call, const char *type,
 	if (!field->type)
 		goto err;
 
+	field->filter_type = filter_assign_type(type);
 	field->offset = offset;
 	field->size = size;
 	field->is_signed = is_signed;
+
 	list_add(&field->link, &call->fields);
 
 	return 0;
