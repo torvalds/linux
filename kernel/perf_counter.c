@@ -2850,7 +2850,8 @@ perf_counter_read_event(struct perf_counter *counter,
  */
 
 struct perf_task_event {
-	struct task_struct	*task;
+	struct task_struct		*task;
+	struct perf_counter_context	*task_ctx;
 
 	struct {
 		struct perf_event_header	header;
@@ -2910,24 +2911,23 @@ static void perf_counter_task_ctx(struct perf_counter_context *ctx,
 static void perf_counter_task_event(struct perf_task_event *task_event)
 {
 	struct perf_cpu_context *cpuctx;
-	struct perf_counter_context *ctx;
+	struct perf_counter_context *ctx = task_event->task_ctx;
 
 	cpuctx = &get_cpu_var(perf_cpu_context);
 	perf_counter_task_ctx(&cpuctx->ctx, task_event);
 	put_cpu_var(perf_cpu_context);
 
 	rcu_read_lock();
-	/*
-	 * doesn't really matter which of the child contexts the
-	 * events ends up in.
-	 */
-	ctx = rcu_dereference(current->perf_counter_ctxp);
+	if (!ctx)
+		ctx = rcu_dereference(task_event->task->perf_counter_ctxp);
 	if (ctx)
 		perf_counter_task_ctx(ctx, task_event);
 	rcu_read_unlock();
 }
 
-static void perf_counter_task(struct task_struct *task, int new)
+static void perf_counter_task(struct task_struct *task,
+			      struct perf_counter_context *task_ctx,
+			      int new)
 {
 	struct perf_task_event task_event;
 
@@ -2937,8 +2937,9 @@ static void perf_counter_task(struct task_struct *task, int new)
 		return;
 
 	task_event = (struct perf_task_event){
-		.task	= task,
-		.event  = {
+		.task	  = task,
+		.task_ctx = task_ctx,
+		.event    = {
 			.header = {
 				.type = new ? PERF_EVENT_FORK : PERF_EVENT_EXIT,
 				.misc = 0,
@@ -2956,7 +2957,7 @@ static void perf_counter_task(struct task_struct *task, int new)
 
 void perf_counter_fork(struct task_struct *task)
 {
-	perf_counter_task(task, 1);
+	perf_counter_task(task, NULL, 1);
 }
 
 /*
@@ -4310,7 +4311,7 @@ void perf_counter_exit_task(struct task_struct *child)
 	unsigned long flags;
 
 	if (likely(!child->perf_counter_ctxp)) {
-		perf_counter_task(child, 0);
+		perf_counter_task(child, NULL, 0);
 		return;
 	}
 
@@ -4330,6 +4331,7 @@ void perf_counter_exit_task(struct task_struct *child)
 	 * incremented the context's refcount before we do put_ctx below.
 	 */
 	spin_lock(&child_ctx->lock);
+	child->perf_counter_ctxp = NULL;
 	/*
 	 * If this context is a clone; unclone it so it can't get
 	 * swapped to another process while we're removing all
@@ -4343,9 +4345,7 @@ void perf_counter_exit_task(struct task_struct *child)
 	 * won't get any samples after PERF_EVENT_EXIT. We can however still
 	 * get a few PERF_EVENT_READ events.
 	 */
-	perf_counter_task(child, 0);
-
-	child->perf_counter_ctxp = NULL;
+	perf_counter_task(child, child_ctx, 0);
 
 	/*
 	 * We can recurse on the same lock type through:
