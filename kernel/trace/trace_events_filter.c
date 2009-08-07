@@ -475,12 +475,6 @@ static int filter_add_pred_fn(struct filter_parse_state *ps,
 	return 0;
 }
 
-enum {
-	FILTER_OTHER = 0,
-	FILTER_STATIC_STRING,
-	FILTER_DYN_STRING,
-};
-
 int filter_assign_type(const char *type)
 {
 	if (strstr(type, "__data_loc") && strstr(type, "char"))

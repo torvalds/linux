@@ -28,7 +28,8 @@ DEFINE_MUTEX(event_mutex);
 LIST_HEAD(ftrace_events);
 
 int trace_define_field(struct ftrace_event_call *call, const char *type,
-		       const char *name, int offset, int size, int is_signed)
+		       const char *name, int offset, int size, int is_signed,
+		       int filter_type)
 {
 	struct ftrace_event_field *field;
 
@@ -44,7 +45,11 @@ int trace_define_field(struct ftrace_event_call *call, const char *type,
 	if (!field->type)
 		goto err;
 
-	field->filter_type = filter_assign_type(type);
+	if (filter_type == FILTER_OTHER)
+		field->filter_type = filter_assign_type(type);
+	else
+		field->filter_type = filter_type;
+
 	field->offset = offset;
 	field->size = size;
 	field->is_signed = is_signed;
@@ -68,7 +73,7 @@ EXPORT_SYMBOL_GPL(trace_define_field);
 	ret = trace_define_field(call, #type, "common_" #item,		\
 				 offsetof(typeof(ent), item),		\
 				 sizeof(ent.item),			\
-				 is_signed_type(type));			\
+				 is_signed_type(type), FILTER_OTHER);	\
 	if (ret)							\
 		return ret;
 

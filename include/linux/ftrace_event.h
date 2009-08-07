@@ -140,9 +140,16 @@ extern int filter_current_check_discard(struct ftrace_event_call *call,
 					void *rec,
 					struct ring_buffer_event *event);
 
+enum {
+	FILTER_OTHER = 0,
+	FILTER_STATIC_STRING,
+	FILTER_DYN_STRING,
+};
+
 extern int trace_define_field(struct ftrace_event_call *call,
 			      const char *type, const char *name,
-			      int offset, int size, int is_signed);
+			      int offset, int size, int is_signed,
+			      int filter_type);
 extern int trace_define_common_fields(struct ftrace_event_call *call);
 
 #define is_signed_type(type)	(((type)(-1)) < 0)

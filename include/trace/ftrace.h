@@ -21,6 +21,9 @@
 #undef __field
 #define __field(type, item)		type	item;
 
+#undef __field_ext
+#define __field_ext(type, item, filter_type)	type	item;
+
 #undef __array
 #define __array(type, item, len)	type	item[len];
 
@@ -62,7 +65,10 @@
  */
 
 #undef __field
-#define __field(type, item);
+#define __field(type, item)
+
+#undef __field_ext
+#define __field_ext(type, item, filter_type)
 
 #undef __array
 #define __array(type, item, len)
@@ -109,6 +115,9 @@
 			       (unsigned int)sizeof(field.item));	\
 	if (!ret)							\
 		return 0;
+
+#undef __field_ext
+#define __field_ext(type, item, filter_type)	__field(type, item)
 
 #undef __array
 #define __array(type, item, len)						\
@@ -265,28 +274,33 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 	
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-#undef __field
-#define __field(type, item)						\
+#undef __field_ext
+#define __field_ext(type, item, filter_type)				\
 	ret = trace_define_field(event_call, #type, #item,		\
 				 offsetof(typeof(field), item),		\
-				 sizeof(field.item), is_signed_type(type));	\
+				 sizeof(field.item),			\
+				 is_signed_type(type), filter_type);	\
 	if (ret)							\
 		return ret;
+
+#undef __field
+#define __field(type, item)	__field_ext(type, item, FILTER_OTHER)
 
 #undef __array
 #define __array(type, item, len)					\
 	BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);				\
 	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
 				 offsetof(typeof(field), item),		\
-				 sizeof(field.item), 0);		\
+				 sizeof(field.item), 0, FILTER_OTHER);	\
 	if (ret)							\
 		return ret;
 
 #undef __dynamic_array
 #define __dynamic_array(type, item, len)				       \
 	ret = trace_define_field(event_call, "__data_loc " #type "[]", #item,  \
-				offsetof(typeof(field), __data_loc_##item),    \
-				 sizeof(field.__data_loc_##item), 0);
+				 offsetof(typeof(field), __data_loc_##item),   \
+				 sizeof(field.__data_loc_##item), 0,	       \
+				 FILTER_OTHER);
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, -1)
@@ -319,6 +333,9 @@ ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 
 #undef __field
 #define __field(type, item)
+
+#undef __field_ext
+#define __field_ext(type, item, filter_type)
 
 #undef __array
 #define __array(type, item, len)
