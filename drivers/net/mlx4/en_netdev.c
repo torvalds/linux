@@ -622,8 +622,7 @@ int mlx4_en_start_port(struct net_device *dev)
 
 		/* Configure ring */
 		tx_ring = &priv->tx_ring[i];
-		err = mlx4_en_activate_tx_ring(priv, tx_ring, cq->mcq.cqn,
-					       priv->rx_ring[0].srq.srqn);
+		err = mlx4_en_activate_tx_ring(priv, tx_ring, cq->mcq.cqn);
 		if (err) {
 			en_err(priv, "Failed allocating Tx ring\n");
 			mlx4_en_deactivate_cq(priv, cq);

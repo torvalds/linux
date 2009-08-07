@@ -40,16 +40,6 @@
 
 #include "mlx4_en.h"
 
-static void *get_wqe(struct mlx4_en_rx_ring *ring, int n)
-{
-	int offset = n << ring->srq.wqe_shift;
-	return ring->buf + offset;
-}
-
-static void mlx4_en_srq_event(struct mlx4_srq *srq, enum mlx4_event type)
-{
-	return;
-}
 
 static int mlx4_en_get_frag_header(struct skb_frag_struct *frags, void **mac_hdr,
 				   void **ip_hdr, void **tcpudp_hdr,
@@ -153,9 +143,6 @@ static void mlx4_en_init_rx_desc(struct mlx4_en_priv *priv,
 					    (index << priv->log_rx_info);
 	int possible_frags;
 	int i;
-
-	/* Pre-link descriptor */
-	rx_desc->next.next_wqe_index = cpu_to_be16((index + 1) & ring->size_mask);
 
 	/* Set size and memtype fields */
 	for (i = 0; i < priv->num_frags; i++) {
@@ -294,9 +281,6 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	int err;
 	int tmp;
 
-	/* Sanity check SRQ size before proceeding */
-	if (size >= mdev->dev->caps.max_srq_wqes)
-		return -EINVAL;
 
 	ring->prod = 0;
 	ring->cons = 0;
@@ -304,7 +288,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	ring->size_mask = size - 1;
 	ring->stride = stride;
 	ring->log_stride = ffs(ring->stride) - 1;
-	ring->buf_size = ring->size * ring->stride;
+	ring->buf_size = ring->size * ring->stride + TXBB_SIZE;
 
 	tmp = size * roundup_pow_of_two(MLX4_EN_MAX_RX_FRAGS *
 					sizeof(struct skb_frag_struct));
@@ -360,15 +344,12 @@ err_ring:
 
 int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 {
-	struct mlx4_en_dev *mdev = priv->mdev;
-	struct mlx4_wqe_srq_next_seg *next;
 	struct mlx4_en_rx_ring *ring;
 	int i;
 	int ring_ind;
 	int err;
 	int stride = roundup_pow_of_two(sizeof(struct mlx4_en_rx_desc) +
 					DS_SIZE * priv->num_frags);
-	int max_gs = (stride - sizeof(struct mlx4_wqe_srq_next_seg)) / DS_SIZE;
 
 	for (ring_ind = 0; ring_ind < priv->rx_ring_num; ring_ind++) {
 		ring = &priv->rx_ring[ring_ind];
@@ -379,6 +360,9 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		ring->cqn = priv->rx_cq[ring_ind].mcq.cqn;
 
 		ring->stride = stride;
+		if (ring->stride <= TXBB_SIZE)
+			ring->buf += TXBB_SIZE;
+
 		ring->log_stride = ffs(ring->stride) - 1;
 		ring->buf_size = ring->size * ring->stride;
 
@@ -405,36 +389,9 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		ring = &priv->rx_ring[ring_ind];
 
 		mlx4_en_update_rx_prod_db(ring);
-
-		/* Configure SRQ representing the ring */
-		ring->srq.max    = ring->actual_size;
-		ring->srq.max_gs = max_gs;
-		ring->srq.wqe_shift = ilog2(ring->stride);
-
-		for (i = 0; i < ring->srq.max; ++i) {
-			next = get_wqe(ring, i);
-			next->next_wqe_index =
-			cpu_to_be16((i + 1) & (ring->srq.max - 1));
-		}
-
-		err = mlx4_srq_alloc(mdev->dev, mdev->priv_pdn, &ring->wqres.mtt,
-				     ring->wqres.db.dma, &ring->srq);
-		if (err){
-			en_err(priv, "Failed to allocate srq\n");
-			ring_ind--;
-			goto err_srq;
-		}
-		ring->srq.event = mlx4_en_srq_event;
 	}
 
 	return 0;
-
-err_srq:
-	while (ring_ind >= 0) {
-		ring = &priv->rx_ring[ring_ind];
-		mlx4_srq_free(mdev->dev, &ring->srq);
-		ring_ind--;
-	}
 
 err_buffers:
 	for (ring_ind = 0; ring_ind < priv->rx_ring_num; ring_ind++)
@@ -456,7 +413,7 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 
 	kfree(ring->lro.lro_arr);
 	mlx4_en_unmap_buffer(&ring->wqres.buf);
-	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
+	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size + TXBB_SIZE);
 	vfree(ring->rx_info);
 	ring->rx_info = NULL;
 }
@@ -464,10 +421,9 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 				struct mlx4_en_rx_ring *ring)
 {
-	struct mlx4_en_dev *mdev = priv->mdev;
-
-	mlx4_srq_free(mdev->dev, &ring->srq);
 	mlx4_en_free_rx_buf(priv, ring);
+	if (ring->stride <= TXBB_SIZE)
+		ring->buf -= TXBB_SIZE;
 	mlx4_en_destroy_allocator(priv, ring);
 }
 
@@ -835,8 +791,8 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 
 /* RSS related functions */
 
-static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv,
-				 int qpn, int srqn, int cqn,
+static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
+				 struct mlx4_en_rx_ring *ring,
 				 enum mlx4_qp_state *state,
 				 struct mlx4_qp *qp)
 {
@@ -858,13 +814,16 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv,
 	qp->event = mlx4_en_sqp_event;
 
 	memset(context, 0, sizeof *context);
-	mlx4_en_fill_qp_context(priv, 0, 0, 0, 0, qpn, cqn, srqn, context);
+	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 0, 0,
+				qpn, ring->cqn, context);
+	context->db_rec_addr = cpu_to_be64(ring->wqres.db.dma);
 
-	err = mlx4_qp_to_ready(mdev->dev, &priv->res.mtt, context, qp, state);
+	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, context, qp, state);
 	if (err) {
 		mlx4_qp_remove(mdev->dev, qp);
 		mlx4_qp_free(mdev->dev, qp);
 	}
+	mlx4_en_update_rx_prod_db(ring);
 out:
 	kfree(context);
 	return err;
@@ -880,7 +839,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	void *ptr;
 	int rss_xor = mdev->profile.rss_xor;
 	u8 rss_mask = mdev->profile.rss_mask;
-	int i, srqn, qpn, cqn;
+	int i, qpn;
 	int err = 0;
 	int good_qps = 0;
 
@@ -894,10 +853,8 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	}
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		cqn = priv->rx_ring[i].cqn;
-		srqn = priv->rx_ring[i].srq.srqn;
 		qpn = rss_map->base_qpn + i;
-		err = mlx4_en_config_rss_qp(priv, qpn, srqn, cqn,
+		err = mlx4_en_config_rss_qp(priv, qpn, &priv->rx_ring[i],
 					    &rss_map->state[i],
 					    &rss_map->qps[i]);
 		if (err)
@@ -920,7 +877,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	}
 	rss_map->indir_qp.event = mlx4_en_sqp_event;
 	mlx4_en_fill_qp_context(priv, 0, 0, 0, 1, priv->base_qpn,
-				priv->rx_ring[0].cqn, 0, &context);
+				priv->rx_ring[0].cqn, &context);
 
 	ptr = ((void *) &context) + 0x3c;
 	rss_context = (struct mlx4_en_rss_context *) ptr;
