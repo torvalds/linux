@@ -9,7 +9,7 @@ ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_ftrace.o = -pg
 endif
 
-obj-y	:= debugtraps.o idle.o io.o io_generic.o irq.o			\
+obj-y	:= debugtraps.o dumpstack.o idle.o io.o io_generic.o irq.o	\
 	   machvec.o process_32.o ptrace_32.o setup.o signal_32.o	\
 	   sys_sh.o sys_sh32.o syscalls_32.o time.o topology.o	\
 	   traps.o traps_32.o
