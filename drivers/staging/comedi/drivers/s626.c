@@ -1707,7 +1707,8 @@ static int s626_ai_load_polllist(uint8_t * ppl, struct comedi_cmd *cmd)
 		else
 			ppl[n] = (CR_CHAN((cmd->chanlist)[n])) | (RANGE_10V);
 	}
-	ppl[n - 1] |= EOPL;
+	if (n != 0)
+		ppl[n - 1] |= EOPL;
 
 	return n;
 }
