@@ -177,18 +177,14 @@ static int fake_disassoc_req(struct net_device *dev,
  *
  * Note: This is in section 7.5.2.3 of the IEEE 802.15.4-2006
  * document, with 7.3.8 describing coordinator realignment.
- *
- * Note: There is currently no way to notify the coordinator userland
- * program of whether or not the PAN has started successfully. As
- * such, the coordinator program cannot know when the MAC has
- * completed starting the network and will simply have to assume
- * completeness based on some form of time delay.
  */
 static int fake_start_req(struct net_device *dev, struct ieee802154_addr *addr,
 				u8 channel,
 				u8 bcn_ord, u8 sf_ord, u8 pan_coord, u8 blx,
 				u8 coord_realign)
 {
+	/* We don't emulate beacons here at all, so START should fail */
+	ieee802154_nl_start_confirm(dev, IEEE802154_INVALID_PARAMETER);
 	return 0;
 }
 
