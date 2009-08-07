@@ -1401,7 +1401,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 	if (!iwl_ht_enabled(priv))
 		/* stay in Legacy */
 		tbl->action = IWL_LEGACY_SWITCH_ANTENNA1;
-	else if (iwl_tx_ant_restriction(priv) == IWL_TX_SINGLE &&
+	else if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE &&
 		   tbl->action > IWL_LEGACY_SWITCH_SISO)
 		tbl->action = IWL_LEGACY_SWITCH_SISO;
 	for (; ;) {
@@ -1535,7 +1535,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
-	if (iwl_tx_ant_restriction(priv) == IWL_TX_SINGLE &&
+	if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE &&
 	    tbl->action > IWL_SISO_SWITCH_ANTENNA2) {
 		/* stay in SISO */
 		tbl->action = IWL_SISO_SWITCH_ANTENNA1;
@@ -1674,7 +1674,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
-	if ((iwl_tx_ant_restriction(priv) == IWL_TX_SINGLE) &&
+	if ((iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE) &&
 	    (tbl->action < IWL_MIMO2_SWITCH_SISO_A ||
 	     tbl->action > IWL_MIMO2_SWITCH_SISO_C)) {
 		/* switch in SISO */
@@ -1816,7 +1816,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 	int ret;
 	u8 update_search_tbl_counter = 0;
 
-	if ((iwl_tx_ant_restriction(priv) == IWL_TX_SINGLE) &&
+	if ((iwl_tx_ant_restriction(priv) == IWL_ANT_OK_SINGLE) &&
 	    (tbl->action < IWL_MIMO3_SWITCH_SISO_A ||
 	     tbl->action > IWL_MIMO3_SWITCH_SISO_C)) {
 		/* switch in SISO */
@@ -2202,7 +2202,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 	/* If we are searching for better modulation mode, check success. */
 	if (lq_sta->search_better_tbl &&
-	    (iwl_tx_ant_restriction(priv) == IWL_TX_MULTI)) {
+	    (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_MULTI)) {
 		/* If good success, continue using the "search" mode;
 		 * no need to send new link quality command, since we're
 		 * continuing to use the setup that we've been trying. */
@@ -2332,7 +2332,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		scale_action = 0;
 	if (!iwl_ht_enabled(priv) && !is_legacy(tbl->lq_type))
 		scale_action = -1;
-	if (iwl_tx_ant_restriction(priv) != IWL_TX_MULTI &&
+	if (iwl_tx_ant_restriction(priv) != IWL_ANT_OK_MULTI &&
 		(is_mimo2(tbl->lq_type) || is_mimo3(tbl->lq_type)))
 		scale_action = -1;
 	switch (scale_action) {
@@ -2368,7 +2368,7 @@ lq_update:
 		rate = rs_update_rate_tbl(priv, lq_sta,
 					  tbl, index, is_green);
 
-	if (iwl_tx_ant_restriction(priv) == IWL_TX_MULTI) {
+	if (iwl_tx_ant_restriction(priv) == IWL_ANT_OK_MULTI) {
 		/* Should we stay with this modulation mode,
 		 * or search for a new one? */
 		rs_stay_in_table(lq_sta);

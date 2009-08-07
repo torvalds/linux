@@ -2214,7 +2214,7 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 	spin_unlock_irqrestore(&priv->lock, flags);
-	priv->power_data.ct_kill_toggle = false;
+	priv->thermal_throttle.ct_kill_toggle = false;
 
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_1000:

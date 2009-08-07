@@ -37,13 +37,11 @@ struct iwl_priv;
 #define IWL_ABSOLUTE_MAX		0xFFFFFFFF
 #define IWL_TT_INCREASE_MARGIN	5
 
-/* Tx/Rx restrictions */
-#define IWL_TX_MULTI		0x02
-#define IWL_TX_SINGLE		0x01
-#define IWL_TX_NONE		0x00
-#define IWL_RX_MULTI		0x02
-#define IWL_RX_SINGLE		0x01
-#define IWL_RX_NONE		0x00
+enum iwl_antenna_ok {
+	IWL_ANT_OK_NONE,
+	IWL_ANT_OK_SINGLE,
+	IWL_ANT_OK_MULTI,
+};
 
 /* Thermal Throttling State Machine states */
 enum  iwl_tt_state {
@@ -55,27 +53,30 @@ enum  iwl_tt_state {
 };
 
 /**
- * struct iwl_tt_restriction - Thermal Throttling restriction table used
- *		by advance thermal throttling management
- *		based on the current thermal throttling state, determine
- *		number of tx/rx streams; and the status of HT operation
+ * struct iwl_tt_restriction - Thermal Throttling restriction table
  * @tx_stream: number of tx stream allowed
  * @is_ht: ht enable/disable
  * @rx_stream: number of rx stream allowed
+ *
+ * This table is used by advance thermal throttling management
+ * based on the current thermal throttling state, and determines
+ * the number of tx/rx streams and the status of HT operation.
  */
 struct iwl_tt_restriction {
-	u8 tx_stream;
+	enum iwl_antenna_ok tx_stream;
+	enum iwl_antenna_ok rx_stream;
 	bool is_ht;
-	u8 rx_stream;
 };
 
 /**
- * struct iwl_tt_trans - Thermal Throttling transaction table; used by
- * 		advance thermal throttling algorithm to determine next
- *		thermal state to go based on the current temperature
+ * struct iwl_tt_trans - Thermal Throttling transaction table
  * @next_state:  next thermal throttling mode
  * @tt_low: low temperature threshold to change state
  * @tt_high: high temperature threshold to change state
+ *
+ * This is used by the advanced thermal throttling algorithm
+ * to determine the next thermal state to go based on the
+ * current temperature.
  */
 struct iwl_tt_trans {
 	enum iwl_tt_state next_state;
@@ -85,6 +86,7 @@ struct iwl_tt_trans {
 
 /**
  * struct iwl_tt_mgnt - Thermal Throttling Management structure
+ * @advanced_tt:    advanced thermal throttle required
  * @state:          current Thermal Throttling state
  * @tt_power_mode:  Thermal Throttling power mode index
  *		    being used to set power level when
@@ -99,16 +101,21 @@ struct iwl_tt_trans {
  *		    should be used in tt state; and can HT be enabled or not
  * @iwl_tt_trans: ptr to adv trans table, used by advance thermal throttling
  *		    state transaction
+ * @ct_kill_toggle: used to toggle the CSR bit when checking uCode temperature
+ * @ct_kill_exit_tm: timer to exit thermal kill
  */
 struct iwl_tt_mgmt {
 	enum iwl_tt_state state;
+	bool advanced_tt;
 	u8 tt_power_mode;
 	u8 sys_power_mode;
+	bool ct_kill_toggle;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	s32 tt_previous_temp;
 #endif
 	struct iwl_tt_restriction *restriction;
 	struct iwl_tt_trans *transaction;
+	struct timer_list ct_kill_exit_tm;
 };
 
 enum {
@@ -137,20 +144,13 @@ struct iwl_power_mgr {
 	u8 power_mode;
 	u8 user_power_setting; /* set by user through sysfs */
 	u8 power_disabled; /* set by mac80211's CONF_PS */
-	struct iwl_tt_mgmt tt; /* Thermal Throttling Management */
-	bool adv_tt;		/* false: legacy mode */
-				/* true: advance mode */
-	bool ct_kill_toggle;   /* use to toggle the CSR bit when
-				* checking uCode temperature
-				*/
-	struct timer_list ct_kill_exit_tm;
 };
 
 int iwl_power_update_mode(struct iwl_priv *priv, bool force);
 int iwl_power_set_user_mode(struct iwl_priv *priv, u16 mode);
 bool iwl_ht_enabled(struct iwl_priv *priv);
-u8 iwl_tx_ant_restriction(struct iwl_priv *priv);
-u8 iwl_rx_ant_restriction(struct iwl_priv *priv);
+enum iwl_antenna_ok iwl_tx_ant_restriction(struct iwl_priv *priv);
+enum iwl_antenna_ok iwl_rx_ant_restriction(struct iwl_priv *priv);
 void iwl_tt_enter_ct_kill(struct iwl_priv *priv);
 void iwl_tt_exit_ct_kill(struct iwl_priv *priv);
 void iwl_tt_handler(struct iwl_priv *priv);

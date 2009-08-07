@@ -1111,6 +1111,7 @@ struct iwl_priv {
 	struct isr_statistics isr_stats;
 
 	struct iwl_power_mgr power_data;
+	struct iwl_tt_mgmt thermal_throttle;
 
 	struct iwl_notif_statistics statistics;
 	unsigned long last_statistics_time;
