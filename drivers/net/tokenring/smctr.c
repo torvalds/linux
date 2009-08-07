@@ -3091,11 +3091,7 @@ static int smctr_lobe_media_test(struct net_device *dev)
         /* Setup the lobe media test. */
         smctr_lobe_media_test_cmd(dev);
         if(smctr_wait_cmd(dev))
-        {
-                smctr_reset_adapter(dev);
-                tp->status = CLOSED;
-                return (LOBE_MEDIA_TEST_FAILED);
-        }
+		goto err;
 
         /* Tx lobe media test frames. */
         for(i = 0; i < 1500; ++i)
@@ -3103,20 +3099,12 @@ static int smctr_lobe_media_test(struct net_device *dev)
                 if(smctr_send_lobe_media_test(dev))
                 {
                         if(perror)
-                        {
-                                smctr_reset_adapter(dev);
-                                tp->state = CLOSED;
-                                return (LOBE_MEDIA_TEST_FAILED);
-                        }
+				goto err;
                         else
                         {
                                 perror = 1;
                                 if(smctr_lobe_media_test_cmd(dev))
-                                {
-                                        smctr_reset_adapter(dev);
-                                        tp->state = CLOSED;
-                                        return (LOBE_MEDIA_TEST_FAILED);
-                                }
+					goto err;
                         }
                 }
         }
@@ -3124,28 +3112,24 @@ static int smctr_lobe_media_test(struct net_device *dev)
         if(smctr_send_dat(dev))
         {
                 if(smctr_send_dat(dev))
-                {
-                        smctr_reset_adapter(dev);
-                        tp->state = CLOSED;
-                        return (LOBE_MEDIA_TEST_FAILED);
-                }
+			goto err;
         }
 
         /* Check if any frames received during test. */
         if((tp->rx_fcb_curr[MAC_QUEUE]->frame_status)
                 || (tp->rx_fcb_curr[NON_MAC_QUEUE]->frame_status))
-        {
-                smctr_reset_adapter(dev);
-                tp->state = CLOSED;
-                return (LOBE_MEDIA_TEST_FAILED);
-        }
+			goto err;
 
         /* Set receive mask to "Promisc" mode. */
         tp->receive_mask = saved_rcv_mask;
 
         smctr_chg_rx_mask(dev);
 
-        return (0);
+	 return 0;
+err:
+	smctr_reset_adapter(dev);
+	tp->status = CLOSED;
+	return LOBE_MEDIA_TEST_FAILED;
 }
 
 static int smctr_lobe_media_test_cmd(struct net_device *dev)
