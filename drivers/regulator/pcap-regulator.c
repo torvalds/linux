@@ -271,7 +271,7 @@ static struct regulator_desc pcap_regulators[] = {
 static int __devinit pcap_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev;
-	void *pcap = platform_get_drvdata(pdev);
+	void *pcap = dev_get_drvdata(pdev->dev.parent);
 
 	rdev = regulator_register(&pcap_regulators[pdev->id], &pdev->dev,
 				pdev->dev.platform_data, pcap);
