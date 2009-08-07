@@ -2164,6 +2164,7 @@ config FB_BROADSHEET
 	  a bridge adapter.
 
 source "drivers/video/omap/Kconfig"
+source "drivers/video/omap2/Kconfig"
 
 source "drivers/video/backlight/Kconfig"
 source "drivers/video/display/Kconfig"

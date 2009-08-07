@@ -33,6 +33,7 @@
 #include <plat/sdrc.h>
 #include <plat/gpmc.h>
 #include <plat/serial.h>
+#include <plat/vram.h>
 
 #ifndef CONFIG_ARCH_OMAP4	/* FIXME: Remove this once clkdev is ready */
 #include "clock.h"
@@ -264,6 +265,7 @@ void __init omap2_map_common_io(void)
 	omap2_check_revision();
 	omap_sram_init();
 	omapfb_reserve_sdram();
+	omap_vram_reserve_sdram();
 }
 
 /*
