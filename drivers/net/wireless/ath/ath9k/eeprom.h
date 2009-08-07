@@ -385,105 +385,102 @@ struct calDataPerFreqOpLoop {
 } __packed;
 
 struct modal_eep_4k_header {
-	u32  antCtrlChain[AR5416_EEP4K_MAX_CHAINS];
-	u32  antCtrlCommon;
-	u8   antennaGainCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   switchSettling;
-	u8   txRxAttenCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   rxTxMarginCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   adcDesiredSize;
-	u8   pgaDesiredSize;
-	u8   xlnaGainCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   txEndToXpaOff;
-	u8   txEndToRxOn;
-	u8   txFrameToXpaOn;
-	u8   thresh62;
-	u8   noiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   xpdGain;
-	u8   xpd;
-	u8   iqCalICh[AR5416_EEP4K_MAX_CHAINS];
-	u8   iqCalQCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   pdGainOverlap;
-	u8   ob_01;
-	u8   db1_01;
-	u8   xpaBiasLvl;
-	u8   txFrameToDataStart;
-	u8   txFrameToPaOn;
-	u8   ht40PowerIncForPdadc;
-	u8   bswAtten[AR5416_EEP4K_MAX_CHAINS];
-	u8   bswMargin[AR5416_EEP4K_MAX_CHAINS];
-	u8   swSettleHt40;
-	u8   xatten2Db[AR5416_EEP4K_MAX_CHAINS];
-	u8   xatten2Margin[AR5416_EEP4K_MAX_CHAINS];
-	u8   db2_01;
-	u8   version;
-	u16  ob_234;
-	u16  db1_234;
-	u16  db2_234;
-	u8   futureModal[4];
-
+	u32 antCtrlChain[AR5416_EEP4K_MAX_CHAINS];
+	u32 antCtrlCommon;
+	u8 antennaGainCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 switchSettling;
+	u8 txRxAttenCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 rxTxMarginCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 adcDesiredSize;
+	u8 pgaDesiredSize;
+	u8 xlnaGainCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 txEndToXpaOff;
+	u8 txEndToRxOn;
+	u8 txFrameToXpaOn;
+	u8 thresh62;
+	u8 noiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 xpdGain;
+	u8 xpd;
+	u8 iqCalICh[AR5416_EEP4K_MAX_CHAINS];
+	u8 iqCalQCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 pdGainOverlap;
+	u8 ob_01;
+	u8 db1_01;
+	u8 xpaBiasLvl;
+	u8 txFrameToDataStart;
+	u8 txFrameToPaOn;
+	u8 ht40PowerIncForPdadc;
+	u8 bswAtten[AR5416_EEP4K_MAX_CHAINS];
+	u8 bswMargin[AR5416_EEP4K_MAX_CHAINS];
+	u8 swSettleHt40;
+	u8 xatten2Db[AR5416_EEP4K_MAX_CHAINS];
+	u8 xatten2Margin[AR5416_EEP4K_MAX_CHAINS];
+	u8 db2_01;
+	u8 version;
+	u16 ob_234;
+	u16 db1_234;
+	u16 db2_234;
+	u8 futureModal[4];
 	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
 } __packed;
 
 struct base_eep_ar9287_header {
-    u16  length;
-    u16  checksum;
-    u16  version;
-    u8 opCapFlags;
-    u8   eepMisc;
-    u16  regDmn[2];
-    u8   macAddr[6];
-    u8   rxMask;
-    u8   txMask;
-    u16  rfSilent;
-    u16  blueToothOptions;
-    u16  deviceCap;
-    u32  binBuildNumber;
-    u8   deviceType;
-    u8   openLoopPwrCntl;
-    int8_t    pwrTableOffset;
-    int8_t     tempSensSlope;
-    int8_t     tempSensSlopePalOn;
-    u8   futureBase[29];
+	u16 length;
+	u16 checksum;
+	u16 version;
+	u8 opCapFlags;
+	u8 eepMisc;
+	u16 regDmn[2];
+	u8 macAddr[6];
+	u8 rxMask;
+	u8 txMask;
+	u16 rfSilent;
+	u16 blueToothOptions;
+	u16 deviceCap;
+	u32 binBuildNumber;
+	u8 deviceType;
+	u8 openLoopPwrCntl;
+	int8_t pwrTableOffset;
+	int8_t tempSensSlope;
+	int8_t tempSensSlopePalOn;
+	u8 futureBase[29];
 } __packed;
 
 struct modal_eep_ar9287_header {
-    u32  antCtrlChain[AR9287_MAX_CHAINS];
-    u32  antCtrlCommon;
-    int8_t    antennaGainCh[AR9287_MAX_CHAINS];
-    u8   switchSettling;
-    u8   txRxAttenCh[AR9287_MAX_CHAINS];
-    u8   rxTxMarginCh[AR9287_MAX_CHAINS];
-    int8_t    adcDesiredSize;
-    u8   txEndToXpaOff;
-    u8   txEndToRxOn;
-    u8   txFrameToXpaOn;
-    u8   thresh62;
-    int8_t    noiseFloorThreshCh[AR9287_MAX_CHAINS];
-    u8   xpdGain;
-    u8   xpd;
-    int8_t    iqCalICh[AR9287_MAX_CHAINS];
-    int8_t    iqCalQCh[AR9287_MAX_CHAINS];
-    u8   pdGainOverlap;
-    u8   xpaBiasLvl;
-    u8   txFrameToDataStart;
-    u8   txFrameToPaOn;
-    u8   ht40PowerIncForPdadc;
-    u8   bswAtten[AR9287_MAX_CHAINS];
-    u8   bswMargin[AR9287_MAX_CHAINS];
-    u8   swSettleHt40;
-	u8   version;
-    u8   db1;
-    u8   db2;
-    u8   ob_cck;
-    u8   ob_psk;
-    u8   ob_qam;
-    u8   ob_pal_off;
-    u8   futureModal[30];
-    struct spur_chan spurChans[AR9287_EEPROM_MODAL_SPURS];
+	u32 antCtrlChain[AR9287_MAX_CHAINS];
+	u32 antCtrlCommon;
+	int8_t antennaGainCh[AR9287_MAX_CHAINS];
+	u8 switchSettling;
+	u8 txRxAttenCh[AR9287_MAX_CHAINS];
+	u8 rxTxMarginCh[AR9287_MAX_CHAINS];
+	int8_t adcDesiredSize;
+	u8 txEndToXpaOff;
+	u8 txEndToRxOn;
+	u8 txFrameToXpaOn;
+	u8 thresh62;
+	int8_t noiseFloorThreshCh[AR9287_MAX_CHAINS];
+	u8 xpdGain;
+	u8 xpd;
+	int8_t iqCalICh[AR9287_MAX_CHAINS];
+	int8_t iqCalQCh[AR9287_MAX_CHAINS];
+	u8 pdGainOverlap;
+	u8 xpaBiasLvl;
+	u8 txFrameToDataStart;
+	u8 txFrameToPaOn;
+	u8 ht40PowerIncForPdadc;
+	u8 bswAtten[AR9287_MAX_CHAINS];
+	u8 bswMargin[AR9287_MAX_CHAINS];
+	u8 swSettleHt40;
+	u8 version;
+	u8 db1;
+	u8 db2;
+	u8 ob_cck;
+	u8 ob_psk;
+	u8 ob_qam;
+	u8 ob_pal_off;
+	u8 futureModal[30];
+	struct spur_chan spurChans[AR9287_EEPROM_MODAL_SPURS];
 } __packed;
-
-
 
 struct cal_data_per_freq {
 	u8 pwrPdg[AR5416_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
@@ -524,7 +521,6 @@ struct cal_data_op_loop_ar9287 {
 	u8 pcdac[2][5];
 	u8 empty[2][5];
 } __packed;
-
 
 struct cal_data_per_freq_ar9287 {
 	u8 pwrPdg[AR9287_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
@@ -601,25 +597,24 @@ struct ar5416_eeprom_4k {
 } __packed;
 
 struct ar9287_eeprom {
-	struct base_eep_ar9287_header  baseEepHeader;
+	struct base_eep_ar9287_header baseEepHeader;
 	u8 custData[AR9287_DATA_SZ];
 	struct modal_eep_ar9287_header modalHeader;
 	u8 calFreqPier2G[AR9287_NUM_2G_CAL_PIERS];
 	union cal_data_per_freq_ar9287_u
-	 calPierData2G[AR9287_MAX_CHAINS][AR9287_NUM_2G_CAL_PIERS];
+	calPierData2G[AR9287_MAX_CHAINS][AR9287_NUM_2G_CAL_PIERS];
 	struct cal_target_power_leg
-	 calTargetPowerCck[AR9287_NUM_2G_CCK_TARGET_POWERS];
+	calTargetPowerCck[AR9287_NUM_2G_CCK_TARGET_POWERS];
 	struct cal_target_power_leg
-	 calTargetPower2G[AR9287_NUM_2G_20_TARGET_POWERS];
+	calTargetPower2G[AR9287_NUM_2G_20_TARGET_POWERS];
 	struct cal_target_power_ht
-	 calTargetPower2GHT20[AR9287_NUM_2G_20_TARGET_POWERS];
+	calTargetPower2GHT20[AR9287_NUM_2G_20_TARGET_POWERS];
 	struct cal_target_power_ht
-	 calTargetPower2GHT40[AR9287_NUM_2G_40_TARGET_POWERS];
+	calTargetPower2GHT40[AR9287_NUM_2G_40_TARGET_POWERS];
 	u8 ctlIndex[AR9287_NUM_CTLS];
 	struct cal_ctl_data_ar9287 ctlData[AR9287_NUM_CTLS];
 	u8 padding;
 } __packed;
-
 
 enum reg_ext_bitmap {
 	REG_EXT_JAPAN_MIDBAND = 1,
