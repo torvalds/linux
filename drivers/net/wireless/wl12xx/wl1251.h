@@ -360,6 +360,9 @@ struct wl1251 {
 	/* PSM mode requested */
 	bool psm_requested;
 
+	u16 beacon_int;
+	u8 dtim_period;
+
 	/* in dBm */
 	int power_level;
 
@@ -391,6 +394,9 @@ void wl1251_disable_interrupts(struct wl1251 *wl);
 #define WL1251_DEFAULT_POWER_LEVEL 20
 
 #define WL1251_TX_QUEUE_MAX_LENGTH 20
+
+#define WL1251_DEFAULT_BEACON_INT 100
+#define WL1251_DEFAULT_DTIM_PERIOD 1
 
 #define CHIP_ID_1251_PG10	           (0x7010101)
 #define CHIP_ID_1251_PG11	           (0x7020101)

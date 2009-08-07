@@ -324,8 +324,8 @@ static void wl1251_filter_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	/* FIXME: replace the magic numbers with proper definitions */
-	ret = wl1251_cmd_join(wl, wl->bss_type, 100, 1, false);
+	ret = wl1251_cmd_join(wl, wl->bss_type, wl->beacon_int,
+				   wl->dtim_period, false);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -564,8 +564,8 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out;
 
 	if (channel != wl->channel) {
-		/* FIXME: use beacon interval provided by mac80211 */
-		ret = wl1251_cmd_join(wl, wl->bss_type, 100, 1, false);
+		ret = wl1251_cmd_join(wl, wl->bss_type, wl->beacon_int,
+					   wl->dtim_period, false);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -1057,6 +1057,11 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
+			wl->beacon_int = bss_conf->beacon_int;
+			wl->dtim_period = bss_conf->dtim_period;
+
+			/* FIXME: call join */
+
 			wl->aid = bss_conf->aid;
 
 			ret = wl1251_build_ps_poll(wl, wl->aid);
@@ -1074,6 +1079,10 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 				if (ret < 0)
 					goto out_sleep;
 			}
+		} else {
+			/* use defaults when not associated */
+			wl->beacon_int = WL1251_DEFAULT_BEACON_INT;
+			wl->dtim_period = WL1251_DEFAULT_DTIM_PERIOD;
 		}
 	}
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -1113,7 +1122,9 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out;
 
 		if (wl->bss_type != BSS_TYPE_IBSS) {
-			ret = wl1251_cmd_join(wl, wl->bss_type, 100, 5, true);
+			ret = wl1251_cmd_join(wl, wl->bss_type,
+					      wl->beacon_int,
+					      wl->dtim_period, true);
 			if (ret < 0)
 				goto out_sleep;
 			wl1251_warning("Set ctsprotect failed %d", ret);
@@ -1139,7 +1150,8 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto out;
 
-		ret = wl1251_cmd_join(wl, wl->bss_type, 100, 1, false);
+		ret = wl1251_cmd_join(wl, wl->bss_type, wl->beacon_int,
+				      wl->dtim_period, false);
 
 		if (ret < 0)
 			goto out;
@@ -1329,6 +1341,8 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	wl->psm_requested = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
+	wl->beacon_int = WL1251_DEFAULT_BEACON_INT;
+	wl->dtim_period = WL1251_DEFAULT_DTIM_PERIOD;
 
 	for (i = 0; i < FW_TX_CMPLT_BLOCK_SIZE; i++)
 		wl->tx_frames[i] = NULL;
