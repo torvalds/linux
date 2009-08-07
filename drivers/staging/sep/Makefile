@@ -1,3 +1,3 @@
 EXTRA_CFLAGS += -DLITTLE__ENDIAN -DDX_CC5_SEP_PLAT -DCRYS_NO_EXT_IF_MODE_SUPPORT
 obj-$(CONFIG_DX_SEP) := sep_driver.o
-sep_driver-objs := sep_main_mod.o sep_ext_with_pci_driver.o
+
