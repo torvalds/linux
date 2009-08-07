@@ -283,7 +283,7 @@ struct iwl3945_power_per_rate {
  *        1)  Dual stream (MIMO)
  *        2)  Triple stream (MIMO)
  *
- *    5:  Value of 0x20 in bits 7:0 indicates 6 Mbps FAT duplicate data
+ *    5:  Value of 0x20 in bits 7:0 indicates 6 Mbps HT40 duplicate data
  *
  * Legacy OFDM rate format for bits 7:0 (bit 8 must be "0", bit 9 "0"):
  *  3-0:  0xD)   6 Mbps
@@ -320,11 +320,11 @@ struct iwl3945_power_per_rate {
 #define RATE_MCS_GF_POS 10
 #define RATE_MCS_GF_MSK 0x400
 
-/* Bit 11: (1) Use 40Mhz FAT chnl width, (0) use 20 MHz legacy chnl width */
-#define RATE_MCS_FAT_POS 11
-#define RATE_MCS_FAT_MSK 0x800
+/* Bit 11: (1) Use 40Mhz HT40 chnl width, (0) use 20 MHz legacy chnl width */
+#define RATE_MCS_HT40_POS 11
+#define RATE_MCS_HT40_MSK 0x800
 
-/* Bit 12: (1) Duplicate data on both 20MHz chnls.  FAT (bit 11) must be set. */
+/* Bit 12: (1) Duplicate data on both 20MHz chnls. HT40 (bit 11) must be set. */
 #define RATE_MCS_DUP_POS 12
 #define RATE_MCS_DUP_MSK 0x1000
 
@@ -459,7 +459,7 @@ struct iwl_init_alive_resp {
 
 	/* calibration values from "initialize" uCode */
 	__le32 voltage;		/* signed, higher value is lower voltage */
-	__le32 therm_r1[2];	/* signed, 1st for normal, 2nd for FAT channel*/
+	__le32 therm_r1[2];	/* signed, 1st for normal, 2nd for HT40 */
 	__le32 therm_r2[2];	/* signed */
 	__le32 therm_r3[2];	/* signed */
 	__le32 therm_r4[2];	/* signed */
@@ -610,7 +610,7 @@ enum {
 #define RXON_FLG_HT_OPERATING_MODE_POS		(23)
 
 #define RXON_FLG_HT_PROT_MSK			cpu_to_le32(0x1 << 23)
-#define RXON_FLG_FAT_PROT_MSK			cpu_to_le32(0x2 << 23)
+#define RXON_FLG_HT40_PROT_MSK			cpu_to_le32(0x2 << 23)
 
 #define RXON_FLG_CHANNEL_MODE_POS		(25)
 #define RXON_FLG_CHANNEL_MODE_MSK		cpu_to_le32(0x3 << 25)
@@ -891,7 +891,7 @@ struct iwl_qosparam_cmd {
 #define STA_FLG_AGG_MPDU_8US_MSK	cpu_to_le32(1 << 18)
 #define STA_FLG_MAX_AGG_SIZE_POS	(19)
 #define STA_FLG_MAX_AGG_SIZE_MSK	cpu_to_le32(3 << 19)
-#define STA_FLG_FAT_EN_MSK		cpu_to_le32(1 << 21)
+#define STA_FLG_HT40_EN_MSK		cpu_to_le32(1 << 21)
 #define STA_FLG_MIMO_DIS_MSK		cpu_to_le32(1 << 22)
 #define STA_FLG_AGG_MPDU_DENSITY_POS	(23)
 #define STA_FLG_AGG_MPDU_DENSITY_MSK	cpu_to_le32(7 << 23)
@@ -1984,10 +1984,10 @@ struct iwl_link_qual_agg_params {
  *     a) Use this same initial rate for first 3 entries.
  *     b) Find next lower available rate using same mode (SISO or MIMO),
  *        use for next 3 entries.  If no lower rate available, switch to
- *        legacy mode (no FAT channel, no MIMO, no short guard interval).
+ *        legacy mode (no HT40 channel, no MIMO, no short guard interval).
  *     c) If using MIMO, set command's mimo_delimiter to number of entries
  *        using MIMO (3 or 6).
- *     d) After trying 2 HT rates, switch to legacy mode (no FAT channel,
+ *     d) After trying 2 HT rates, switch to legacy mode (no HT40 channel,
  *        no MIMO, no short guard interval), at the next lower bit rate
  *        (e.g. if second HT bit rate was 54, try 48 legacy), and follow
  *        legacy procedure for remaining table entries.
@@ -3017,7 +3017,7 @@ struct iwl_statistics_cmd {
  * one channel that has just been scanned.
  */
 #define STATISTICS_REPLY_FLG_BAND_24G_MSK         cpu_to_le32(0x2)
-#define STATISTICS_REPLY_FLG_FAT_MODE_MSK         cpu_to_le32(0x8)
+#define STATISTICS_REPLY_FLG_HT40_MODE_MSK        cpu_to_le32(0x8)
 
 struct iwl3945_notif_statistics {
 	__le32 flag;

@@ -188,7 +188,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *
  * 1)  Regulatory information (max txpower and channel usage flags) is provided
  *     separately for each channel that can possibly supported by 4965.
- *     40 MHz wide (.11n fat) channels are listed separately from 20 MHz
+ *     40 MHz wide (.11n HT40) channels are listed separately from 20 MHz
  *     (legacy) channels.
  *
  *     See struct iwl4965_eeprom_channel for format, and struct iwl4965_eeprom
@@ -251,8 +251,8 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *     no reduction (such as with regulatory txpower limits) is required.
  *
  *     Saturation and Backoff values apply equally to 20 Mhz (legacy) channel
- *     widths and 40 Mhz (.11n fat) channel widths; there is no separate
- *     factory measurement for fat channels.
+ *     widths and 40 Mhz (.11n HT40) channel widths; there is no separate
+ *     factory measurement for ht40 channels.
  *
  *     The result of this step is the final target txpower.  The rest of
  *     the steps figure out the proper settings for the device to achieve

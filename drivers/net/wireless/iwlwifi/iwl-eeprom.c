@@ -127,11 +127,11 @@ static const u8 iwl_eeprom_band_5[] = {	/* 5725-5825MHz */
 	145, 149, 153, 157, 161, 165
 };
 
-static const u8 iwl_eeprom_band_6[] = {       /* 2.4 FAT channel */
+static const u8 iwl_eeprom_band_6[] = {       /* 2.4 ht40 channel */
 	1, 2, 3, 4, 5, 6, 7
 };
 
-static const u8 iwl_eeprom_band_7[] = {       /* 5.2 FAT channel */
+static const u8 iwl_eeprom_band_7[] = {       /* 5.2 ht40 channel */
 	36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157
 };
 
@@ -462,13 +462,13 @@ static void iwl_init_band_reference(const struct iwl_priv *priv,
 				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_5;
 		break;
-	case 6:		/* 2.4GHz FAT channels */
+	case 6:		/* 2.4GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_6);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_6;
 		break;
-	case 7:		/* 5 GHz FAT channels */
+	case 7:		/* 5 GHz ht40 channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_7);
 		*eeprom_ch_info = (struct iwl_eeprom_channel *)
 				iwl_eeprom_query_addr(priv, offset);
@@ -484,14 +484,14 @@ static void iwl_init_band_reference(const struct iwl_priv *priv,
 			    ? # x " " : "")
 
 /**
- * iwl_set_fat_chan_info - Copy fat channel info into driver's priv.
+ * iwl_set_ht40_chan_info - Copy ht40 channel info into driver's priv.
  *
  * Does not set up a command, or touch hardware.
  */
-static int iwl_set_fat_chan_info(struct iwl_priv *priv,
+static int iwl_set_ht40_chan_info(struct iwl_priv *priv,
 			      enum ieee80211_band band, u16 channel,
 			      const struct iwl_eeprom_channel *eeprom_ch,
-			      u8 fat_extension_channel)
+			      u8 ht40_extension_channel)
 {
 	struct iwl_channel_info *ch_info;
 
@@ -501,7 +501,7 @@ static int iwl_set_fat_chan_info(struct iwl_priv *priv,
 	if (!is_channel_valid(ch_info))
 		return -1;
 
-	IWL_DEBUG_INFO(priv, "FAT Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
+	IWL_DEBUG_INFO(priv, "HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm):"
 			" Ad-Hoc %ssupported\n",
 			ch_info->channel,
 			is_channel_a_band(ch_info) ?
@@ -517,13 +517,13 @@ static int iwl_set_fat_chan_info(struct iwl_priv *priv,
 			 && !(eeprom_ch->flags & EEPROM_CHANNEL_RADAR)) ?
 			"" : "not ");
 
-	ch_info->fat_eeprom = *eeprom_ch;
-	ch_info->fat_max_power_avg = eeprom_ch->max_power_avg;
-	ch_info->fat_curr_txpow = eeprom_ch->max_power_avg;
-	ch_info->fat_min_power = 0;
-	ch_info->fat_scan_power = eeprom_ch->max_power_avg;
-	ch_info->fat_flags = eeprom_ch->flags;
-	ch_info->fat_extension_channel = fat_extension_channel;
+	ch_info->ht40_eeprom = *eeprom_ch;
+	ch_info->ht40_max_power_avg = eeprom_ch->max_power_avg;
+	ch_info->ht40_curr_txpow = eeprom_ch->max_power_avg;
+	ch_info->ht40_min_power = 0;
+	ch_info->ht40_scan_power = eeprom_ch->max_power_avg;
+	ch_info->ht40_flags = eeprom_ch->flags;
+	ch_info->ht40_extension_channel = ht40_extension_channel;
 
 	return 0;
 }
@@ -589,9 +589,9 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			/* Copy the run-time flags so they are there even on
 			 * invalid channels */
 			ch_info->flags = eeprom_ch_info[ch].flags;
-			/* First write that fat is not enabled, and then enable
+			/* First write that ht40 is not enabled, and then enable
 			 * one by one */
-			ch_info->fat_extension_channel =
+			ch_info->ht40_extension_channel =
 				(IEEE80211_CHAN_NO_HT40PLUS |
 				 IEEE80211_CHAN_NO_HT40MINUS);
 
@@ -642,17 +642,17 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 		}
 	}
 
-	/* Check if we do have FAT channels */
+	/* Check if we do have HT40 channels */
 	if (priv->cfg->ops->lib->eeprom_ops.regulatory_bands[5] ==
-	    EEPROM_REGULATORY_BAND_NO_FAT &&
+	    EEPROM_REGULATORY_BAND_NO_HT40 &&
 	    priv->cfg->ops->lib->eeprom_ops.regulatory_bands[6] ==
-	    EEPROM_REGULATORY_BAND_NO_FAT)
+	    EEPROM_REGULATORY_BAND_NO_HT40)
 		return 0;
 
-	/* Two additional EEPROM bands for 2.4 and 5 GHz FAT channels */
+	/* Two additional EEPROM bands for 2.4 and 5 GHz HT40 channels */
 	for (band = 6; band <= 7; band++) {
 		enum ieee80211_band ieeeband;
-		u8 fat_extension_chan;
+		u8 ht40_extension_chan;
 
 		iwl_init_band_reference(priv, band, &eeprom_ch_count,
 					&eeprom_ch_info, &eeprom_ch_index);
@@ -669,19 +669,19 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 				 (eeprom_ch_index[ch] == 6) ||
 				 (eeprom_ch_index[ch] == 7)))
 				/* both are allowed: above and below */
-				fat_extension_chan = 0;
+				ht40_extension_chan = 0;
 			else
-				fat_extension_chan =
+				ht40_extension_chan =
 					IEEE80211_CHAN_NO_HT40MINUS;
 
 			/* Set up driver's info for lower half */
-			iwl_set_fat_chan_info(priv, ieeeband,
+			iwl_set_ht40_chan_info(priv, ieeeband,
 						eeprom_ch_index[ch],
 						&(eeprom_ch_info[ch]),
-						fat_extension_chan);
+						ht40_extension_chan);
 
 			/* Set up driver's info for upper half */
-			iwl_set_fat_chan_info(priv, ieeeband,
+			iwl_set_ht40_chan_info(priv, ieeeband,
 						(eeprom_ch_index[ch] + 4),
 						&(eeprom_ch_info[ch]),
 						IEEE80211_CHAN_NO_HT40PLUS);

@@ -214,10 +214,10 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 	sta_flags |= cpu_to_le32(
 	      (u32)sta_ht_inf->ampdu_density << STA_FLG_AGG_MPDU_DENSITY_POS);
 
-	if (iwl_is_fat_tx_allowed(priv, sta_ht_inf))
-		sta_flags |= STA_FLG_FAT_EN_MSK;
+	if (iwl_is_ht40_tx_allowed(priv, sta_ht_inf))
+		sta_flags |= STA_FLG_HT40_EN_MSK;
 	else
-		sta_flags &= ~STA_FLG_FAT_EN_MSK;
+		sta_flags &= ~STA_FLG_HT40_EN_MSK;
 
 	priv->stations[index].sta.station_flags = sta_flags;
  done:

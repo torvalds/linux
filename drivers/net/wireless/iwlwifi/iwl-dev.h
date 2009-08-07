@@ -277,8 +277,8 @@ struct iwl_channel_info {
 	struct iwl4965_channel_tgd_info tgd;
 	struct iwl4965_channel_tgh_info tgh;
 	struct iwl_eeprom_channel eeprom;	/* EEPROM regulatory limit */
-	struct iwl_eeprom_channel fat_eeprom;	/* EEPROM regulatory limit for
-						 * FAT channel */
+	struct iwl_eeprom_channel ht40_eeprom;	/* EEPROM regulatory limit for
+						 * HT40 channel */
 
 	u8 channel;	  /* channel number */
 	u8 flags;	  /* flags copied from EEPROM */
@@ -291,13 +291,13 @@ struct iwl_channel_info {
 	u8 band_index;	  /* 0-4, maps channel to band1/2/3/4/5 */
 	enum ieee80211_band band;
 
-	/* FAT channel info */
-	s8 fat_max_power_avg;	/* (dBm) regul. eeprom, normal Tx, any rate */
-	s8 fat_curr_txpow;	/* (dBm) regulatory/spectrum/user (not h/w) */
-	s8 fat_min_power;	/* always 0 */
-	s8 fat_scan_power;	/* (dBm) eeprom, direct scans, any rate */
-	u8 fat_flags;		/* flags copied from EEPROM */
-	u8 fat_extension_channel; /* HT_IE_EXT_CHANNEL_* */
+	/* HT40 channel info */
+	s8 ht40_max_power_avg;	/* (dBm) regul. eeprom, normal Tx, any rate */
+	s8 ht40_curr_txpow;	/* (dBm) regulatory/spectrum/user (not h/w) */
+	s8 ht40_min_power;	/* always 0 */
+	s8 ht40_scan_power;	/* (dBm) eeprom, direct scans, any rate */
+	u8 ht40_flags;		/* flags copied from EEPROM */
+	u8 ht40_extension_channel; /* HT_IE_EXT_CHANNEL_* */
 
 	/* Radio/DSP gain settings for each "normal" data Tx rate.
 	 * These include, in addition to RF and DSP gain, a few fields for
@@ -649,7 +649,7 @@ struct iwl_sensitivity_ranges {
  * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * @max_stations:
  * @bcast_sta_id:
- * @fat_channel: is 40MHz width possible in band 2.4
+ * @ht40_channel: is 40MHz width possible in band 2.4
  * BIT(IEEE80211_BAND_5GHZ) BIT(IEEE80211_BAND_5GHZ)
  * @sw_crypto: 0 for hw, 1 for sw
  * @max_xxx_size: for ucode uses
@@ -673,7 +673,7 @@ struct iwl_hw_params {
 	u32 max_pkt_size;
 	u8  max_stations;
 	u8  bcast_sta_id;
-	u8 fat_channel;
+	u8  ht40_channel;
 	u8  max_beacon_itrvl;	/* in 1024 ms */
 	u32 max_inst_size;
 	u32 max_data_size;

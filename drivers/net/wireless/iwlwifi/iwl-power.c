@@ -583,7 +583,7 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
 				/* disable HT */
 				rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
 					RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK |
-					RXON_FLG_FAT_PROT_MSK |
+					RXON_FLG_HT40_PROT_MSK |
 					RXON_FLG_HT_PROT_MSK);
 			else {
 				/* check HT capability and set

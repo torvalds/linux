@@ -105,7 +105,7 @@ void iwl_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 		r->flags |= IEEE80211_TX_RC_MCS;
 	if (rate_n_flags & RATE_MCS_GF_MSK)
 		r->flags |= IEEE80211_TX_RC_GREEN_FIELD;
-	if (rate_n_flags & RATE_MCS_FAT_MSK)
+	if (rate_n_flags & RATE_MCS_HT40_MSK)
 		r->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 	if (rate_n_flags & RATE_MCS_DUP_MSK)
 		r->flags |= IEEE80211_TX_RC_DUP_DATA;
@@ -400,7 +400,7 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 			     (WLAN_HT_CAP_SM_PS_DISABLED << 2));
 
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
-	if (priv->hw_params.fat_channel & BIT(band)) {
+	if (priv->hw_params.ht40_channel & BIT(band)) {
 		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		ht_info->cap |= IEEE80211_HT_CAP_SGI_40;
 		ht_info->mcs.rx_mask[4] = 0x01;
@@ -540,7 +540,7 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 			if (ch->flags & EEPROM_CHANNEL_RADAR)
 				geo_ch->flags |= IEEE80211_CHAN_RADAR;
 
-			geo_ch->flags |= ch->fat_extension_channel;
+			geo_ch->flags |= ch->ht40_extension_channel;
 
 			if (ch->max_power_avg > priv->tx_power_channel_lmt)
 				priv->tx_power_channel_lmt = ch->max_power_avg;
@@ -604,16 +604,16 @@ static u8 iwl_is_channel_extension(struct iwl_priv *priv,
 		return 0;
 
 	if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
-		return !(ch_info->fat_extension_channel &
+		return !(ch_info->ht40_extension_channel &
 					IEEE80211_CHAN_NO_HT40PLUS);
 	else if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW)
-		return !(ch_info->fat_extension_channel &
+		return !(ch_info->ht40_extension_channel &
 					IEEE80211_CHAN_NO_HT40MINUS);
 
 	return 0;
 }
 
-u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
+u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_sta_ht_cap *sta_ht_inf)
 {
 	struct iwl_ht_info *iwl_ht_conf = &priv->current_ht_config;
@@ -637,7 +637,7 @@ u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 			le16_to_cpu(priv->staging_rxon.channel),
 			iwl_ht_conf->extension_chan_offset);
 }
-EXPORT_SYMBOL(iwl_is_fat_tx_allowed);
+EXPORT_SYMBOL(iwl_is_ht40_tx_allowed);
 
 static u16 iwl_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 {
@@ -866,7 +866,7 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 	if (!ht_info->is_ht) {
 		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
 			RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK |
-			RXON_FLG_FAT_PROT_MSK |
+			RXON_FLG_HT40_PROT_MSK |
 			RXON_FLG_HT_PROT_MSK);
 		return;
 	}
@@ -877,12 +877,12 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 	rxon->flags |= cpu_to_le32(ht_info->ht_protection << RXON_FLG_HT_OPERATING_MODE_POS);
 
 	/* Set up channel bandwidth:
-	 * 20 MHz only, 20/40 mixed or pure 40 if fat ok */
+	 * 20 MHz only, 20/40 mixed or pure 40 if ht40 ok */
 	/* clear the HT channel mode before set the mode */
 	rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
 			 RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
-	if (iwl_is_fat_tx_allowed(priv, NULL)) {
-		/* pure 40 fat */
+	if (iwl_is_ht40_tx_allowed(priv, NULL)) {
+		/* pure ht40 */
 		if (ht_info->ht_protection == IEEE80211_HT_OP_MODE_PROTECTION_20MHZ) {
 			rxon->flags |= RXON_FLG_CHANNEL_MODE_PURE_40;
 			/* Note: control channel is opposite of extension channel */
@@ -2428,7 +2428,7 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 	else if (conf_is_ht40_plus(&priv->hw->conf))
 		iwl_conf->extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
 
-	/* If no above or below channel supplied disable FAT channel */
+	/* If no above or below channel supplied disable HT40 channel */
 	if (iwl_conf->extension_chan_offset != IEEE80211_HT_PARAM_CHA_SEC_ABOVE &&
 	    iwl_conf->extension_chan_offset != IEEE80211_HT_PARAM_CHA_SEC_BELOW)
 		iwl_conf->supported_chan_width = 0;

@@ -544,8 +544,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 	change = ((priv->statistics.general.temperature !=
 		   pkt->u.stats.general.temperature) ||
 		  ((priv->statistics.flag &
-		    STATISTICS_REPLY_FLG_FAT_MODE_MSK) !=
-		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_FAT_MODE_MSK)));
+		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
+		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
 
 	memcpy(&priv->statistics, &pkt->u.stats, sizeof(priv->statistics));
 
