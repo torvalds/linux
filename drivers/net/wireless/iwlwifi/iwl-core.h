@@ -300,7 +300,35 @@ void iwl_config_ap(struct iwl_priv *priv);
 int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
 			 struct ieee80211_tx_queue_stats *stats);
 void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+int iwl_alloc_traffic_mem(struct iwl_priv *priv);
+void iwl_free_traffic_mem(struct iwl_priv *priv);
+void iwl_reset_traffic_log(struct iwl_priv *priv);
+void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
+				u16 length, struct ieee80211_hdr *header);
+void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
+				u16 length, struct ieee80211_hdr *header);
 
+#else
+static inline int iwl_alloc_traffic_mem(struct iwl_priv *priv)
+{
+	return 0;
+}
+static inline void iwl_free_traffic_mem(struct iwl_priv *priv)
+{
+}
+static inline void iwl_reset_traffic_log(struct iwl_priv *priv)
+{
+}
+static inline void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
+		      u16 length, struct ieee80211_hdr *header)
+{
+}
+static inline void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
+		      u16 length, struct ieee80211_hdr *header)
+{
+}
+#endif
 /*****************************************************
  * RX handlers.
  * **************************************************/

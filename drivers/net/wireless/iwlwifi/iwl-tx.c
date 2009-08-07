@@ -808,6 +808,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* TODO need this for burst mode later on */
 	iwl_tx_cmd_build_basic(priv, tx_cmd, info, hdr, sta_id);
+	iwl_dbg_log_tx_data_frame(priv, len, hdr);
 
 	/* set is_hcca to 0; it probably will never be implemented */
 	iwl_tx_cmd_build_rate(priv, tx_cmd, info, fc, sta_id, 0);

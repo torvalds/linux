@@ -877,6 +877,8 @@ struct iwl_chain_noise_data {
 #define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
 #define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
 
+#define IWL_TRAFFIC_ENTRIES	(256)
+#define IWL_TRAFFIC_ENTRY_SIZE  (64)
 
 enum {
 	MEASUREMENT_READY = (1 << 0),
@@ -1182,6 +1184,10 @@ struct iwl_priv {
 	bool disable_ht40;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* debugfs */
+	u16 tx_traffic_idx;
+	u16 rx_traffic_idx;
+	u8 *tx_traffic;
+	u8 *rx_traffic;
 	struct iwl_debugfs *dbgfs;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 #endif /* CONFIG_IWLWIFI_DEBUG */

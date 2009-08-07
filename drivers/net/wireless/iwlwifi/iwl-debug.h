@@ -72,6 +72,7 @@ struct iwl_debugfs {
 	const char *name;
 	struct dentry *dir_drv;
 	struct dentry *dir_data;
+	struct dentry *dir_debug;
 	struct dentry *dir_rf;
 	struct dir_data_files {
 		struct dentry *file_sram;
@@ -95,6 +96,9 @@ struct iwl_debugfs {
 		struct dentry *file_disable_chain_noise;
 		struct dentry *file_disable_tx_power;
 	} dbgfs_rf_files;
+	struct dir_debug_files {
+		struct dentry *file_traffic_log;
+	} dbgfs_debug_files;
 	u32 sram_offset;
 	u32 sram_len;
 };

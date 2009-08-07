@@ -712,6 +712,104 @@ DEBUGFS_READ_FILE_OPS(led);
 DEBUGFS_READ_FILE_OPS(thermal_throttling);
 DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
 
+static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	int pos = 0, ofs = 0;
+	int cnt = 0, entry;
+	struct iwl_tx_queue *txq;
+	struct iwl_queue *q;
+	struct iwl_rx_queue *rxq = &priv->rxq;
+	char *buf;
+	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
+		(IWL_MAX_NUM_QUEUES * 32 * 8) + 400;
+	const u8 *ptr;
+	ssize_t ret;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf) {
+		IWL_ERR(priv, "Can not allocate buffer\n");
+		return -ENOMEM;
+	}
+	pos += scnprintf(buf + pos, bufsz - pos, "Tx Queue\n");
+	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
+		txq = &priv->txq[cnt];
+		q = &txq->q;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"q[%d]: read_ptr: %u, write_ptr: %u\n",
+				cnt, q->read_ptr, q->write_ptr);
+	}
+	if (priv->tx_traffic && (iwl_debug_level & IWL_DL_TX)) {
+		ptr = priv->tx_traffic;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"Tx Traffic idx: %u\n",	priv->tx_traffic_idx);
+		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
+			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
+			     entry++,  ofs += 16) {
+				pos += scnprintf(buf + pos, bufsz - pos,
+						"0x%.4x ", ofs);
+				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
+						   buf + pos, bufsz - pos, 0);
+				pos += strlen(buf);
+				if (bufsz - pos > 0)
+					buf[pos++] = '\n';
+			}
+		}
+	}
+
+	pos += scnprintf(buf + pos, bufsz - pos, "Rx Queue\n");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"read: %u, write: %u\n",
+			 rxq->read, rxq->write);
+
+	if (priv->rx_traffic && (iwl_debug_level & IWL_DL_RX)) {
+		ptr = priv->rx_traffic;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"Rx Traffic idx: %u\n",	priv->rx_traffic_idx);
+		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
+			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
+			     entry++,  ofs += 16) {
+				pos += scnprintf(buf + pos, bufsz - pos,
+						"0x%.4x ", ofs);
+				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
+						   buf + pos, bufsz - pos, 0);
+				pos += strlen(buf);
+				if (bufsz - pos > 0)
+					buf[pos++] = '\n';
+			}
+		}
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int traffic_log;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &traffic_log) != 1)
+		return -EFAULT;
+	if (traffic_log == 0)
+		iwl_reset_traffic_log(priv);
+
+	return count;
+}
+
+DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
+
 /*
  * Create the debugfs files and directories
  *
@@ -738,6 +836,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 
 	DEBUGFS_ADD_DIR(data, dbgfs->dir_drv);
 	DEBUGFS_ADD_DIR(rf, dbgfs->dir_drv);
+	DEBUGFS_ADD_DIR(debug, dbgfs->dir_drv);
 	DEBUGFS_ADD_FILE(nvm, data);
 	DEBUGFS_ADD_FILE(sram, data);
 	DEBUGFS_ADD_FILE(log_event, data);
@@ -753,6 +852,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 #endif
 	DEBUGFS_ADD_FILE(thermal_throttling, data);
 	DEBUGFS_ADD_FILE(disable_ht40, data);
+	DEBUGFS_ADD_FILE(traffic_log, debug);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
@@ -794,6 +894,8 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_thermal_throttling);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_disable_ht40);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_traffic_log);
+	DEBUGFS_REMOVE(priv->dbgfs->dir_debug);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);
 	if (((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965) ||
