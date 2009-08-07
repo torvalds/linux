@@ -184,8 +184,8 @@ static int sep_copy_cache_resident_to_area(struct sep_device *sep,
 				unsigned long *dst_new_cache_addr_ptr,
 				unsigned long *dst_new_resident_addr_ptr)
 {
-	unsigned long resident_addr;
-	unsigned long cache_addr;
+	void *resident_addr;
+	void *cache_addr;
 	const struct firmware *fw;
 
 	char *cache_name = "cache.image.bin";
@@ -200,7 +200,7 @@ static int sep_copy_cache_resident_to_area(struct sep_device *sep,
 	error = 0;
 
 	edbg("SEP Driver:rar_virtual is %p\n", sep->rar_addr);
-	edbg("SEP Driver:rar_physical is %08lx\n", sep->rar_bus);
+	edbg("SEP Driver:rar_physical is %08llx\n", (unsigned long long)sep->rar_bus);
 
 	sep->rar_region_addr = (unsigned long) sep->rar_addr;
 
@@ -217,11 +217,11 @@ static int sep_copy_cache_resident_to_area(struct sep_device *sep,
 	edbg("SEP Driver:cache data loc is %p\n", (void *) fw->data);
 	edbg("SEP Driver:cache data size is %08Zx\n", fw->size);
 
-	memcpy((void *) sep_dev->cache_addr, (void *) fw->data, fw->size);
+	memcpy(sep->cache_addr, (void *) fw->data, fw->size);
 
-	sep_dev->cache_size = fw->size;
+	sep->cache_size = fw->size;
 
-	cache_addr = (unsigned long) sep_dev->cache_addr;
+	cache_addr = sep->cache_addr;
 
 	release_firmware(fw);
 
@@ -244,16 +244,16 @@ static int sep_copy_cache_resident_to_area(struct sep_device *sep,
 
 	release_firmware(fw);
 
-	resident_addr = (unsigned long) sep->resident_addr;
+	resident_addr = sep->resident_addr;
 
-	edbg("SEP Driver:resident_addr (physical )is %08lx\n", sep->resident_bus);
-	edbg("SEP Driver:cache_addr (physical) is %08lx\n", sep->cache_bus);
+	edbg("SEP Driver:resident_addr (physical )is %08llx\n", (unsigned long long)sep->resident_bus);
+	edbg("SEP Driver:cache_addr (physical) is %08llx\n", (unsigned long long)sep->cache_bus);
 
-	edbg("SEP Driver:resident_addr (logical )is %08lx\n", resident_addr);
-	edbg("SEP Driver:cache_addr (logical) is %08lx\n", cache_addr);
+	edbg("SEP Driver:resident_addr (logical )is %p\n", resident_addr);
+	edbg("SEP Driver:cache_addr (logical) is %08llx\n", (unsigned long long)cache_addr);
 
 	edbg("SEP Driver:resident_size is %08lx\n", sep->resident_size);
-	edbg("SEP Driver:cache_size is %08lx\n", sep->cache_size);
+	edbg("SEP Driver:cache_size is %08llx\n", (unsigned long long)sep->cache_size);
 
 
 
@@ -286,12 +286,12 @@ static int sep_map_and_alloc_shared_area(struct sep_device *sep,
 	/* FIXME */
 	sep->shared_bus = __pa(sep->shared_addr);
 	/* shared_bus = 0xda00000; */
-	sep->shared_area = (unsigned long)sep->shared_addr;
+	sep->shared_area = sep->shared_addr;
 	/* set the physical address of the shared area */
 	sep->shared_area_bus = sep->shared_bus;
 	edbg("SEP Driver:shared_addr is %p\n", sep->shared_addr);
 	edbg("SEP Driver:shared_region_size is %08lx\n", shared_area_size);
-	edbg("SEP Driver:shared_physical_addr is %08lx\n", sep->shared_bus);
+	edbg("SEP Driver:shared_physical_addr is %08llx\n", (unsigned long long)sep->shared_bus);
 
 	return 0;
 }
@@ -306,7 +306,7 @@ static int sep_map_and_alloc_shared_area(struct sep_device *sep,
 */
 static void sep_unmap_and_free_shared_area(struct sep_device *sep, int size)
 {
-	kfree((void *)sep->shared_area);
+	kfree(sep->shared_area);
 }
 
 /*
@@ -315,13 +315,13 @@ static void sep_unmap_and_free_shared_area(struct sep_device *sep, int size)
   (ioremapped), or on the system RAM
   This implementation is for the external RAM
 */
-static unsigned long sep_shared_area_virt_to_phys(struct sep_device *sep,
-						unsigned long virt_address)
+static dma_addr_t sep_shared_area_virt_to_phys(struct sep_device *sep,
+						void *virt_address)
 {
-	edbg("SEP Driver:sh virt to phys v %08lx\n", virt_address);
-	edbg("SEP Driver:sh virt to phys p %08lx\n", sep->shared_bus + (virt_address - (unsigned long) sep->shared_addr));
+	edbg("SEP Driver:sh virt to phys v %p\n", virt_address);
+	edbg("SEP Driver:sh virt to phys p %08llx\n", (unsigned long long) sep->shared_bus + (virt_address - sep->shared_addr));
 
-	return (unsigned long) sep->shared_bus + (virt_address - (unsigned long) sep->shared_addr);
+	return sep->shared_bus + (virt_address - sep->shared_addr);
 }
 
 /*
@@ -330,10 +330,10 @@ static unsigned long sep_shared_area_virt_to_phys(struct sep_device *sep,
   externa RAM device (ioremapped), or on the system RAM This implementation
   is for the external RAM
 */
-static unsigned long sep_shared_area_phys_to_virt(struct sep_device *sep,
-						unsigned long phys_address)
+static void *sep_shared_area_phys_to_virt(struct sep_device *sep,
+						dma_addr_t phys_address)
 {
-	return (unsigned long) sep->shared_addr + (phys_address - sep->shared_bus);
+	return sep->shared_addr + (phys_address - sep->shared_bus);
 }
 
 
@@ -405,7 +405,7 @@ static int sep_release(struct inode *inode_ptr, struct file *filp)
 -----------------------------------------------------------------*/
 static int sep_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	unsigned long phys_addr;
+	dma_addr_t phys_addr;
 	struct sep_device *sep = filp->private_data;
 
 	dbg("-------->SEP Driver: mmap start\n");
@@ -421,12 +421,12 @@ static int sep_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EAGAIN;
 	}
 
-	edbg("SEP Driver:sep->message_shared_area_addr is %08lx\n", sep->message_shared_area_addr);
+	edbg("SEP Driver:sep->message_shared_area_addr is %p\n", sep->message_shared_area_addr);
 
 	/* get physical address */
 	phys_addr = sep->shared_area_bus;
 
-	edbg("SEP Driver: phys_addr is %08lx\n", phys_addr);
+	edbg("SEP Driver: phys_addr is %08llx\n", (unsigned long long)phys_addr);
 
 	if (remap_pfn_range(vma, vma->vm_start, phys_addr >> PAGE_SHIFT, vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
 		edbg("SEP Driver remap_page_range failed\n");
@@ -503,7 +503,7 @@ static int sep_set_time(struct sep_device *sep, unsigned long *address_ptr, unsi
 {
 	struct timeval time;
 	/* address of time in the kernel */
-	unsigned long time_addr;
+	u32 *time_addr;
 
 
 	dbg("SEP Driver:--------> sep_set_time start\n");
@@ -513,12 +513,12 @@ static int sep_set_time(struct sep_device *sep, unsigned long *address_ptr, unsi
 	/* set value in the SYSTEM MEMORY offset */
 	time_addr = sep->message_shared_area_addr + SEP_DRIVER_SYSTEM_TIME_MEMORY_OFFSET_IN_BYTES;
 
-	*(unsigned long *) time_addr = SEP_TIME_VAL_TOKEN;
-	*(unsigned long *) (time_addr + 4) = time.tv_sec;
+	time_addr[0] = SEP_TIME_VAL_TOKEN;
+	time_addr[1] = time.tv_sec;
 
 	edbg("SEP Driver:time.tv_sec is %lu\n", time.tv_sec);
-	edbg("SEP Driver:time_addr is %lu\n", time_addr);
-	edbg("SEP Driver:sep->message_shared_area_addr is %lu\n", sep->message_shared_area_addr);
+	edbg("SEP Driver:time_addr is %p\n", time_addr);
+	edbg("SEP Driver:sep->message_shared_area_addr is %p\n", sep->message_shared_area_addr);
 
 	/* set the output parameters if needed */
 	if (address_ptr)
@@ -630,10 +630,11 @@ end_function:
 static int sep_write_into_data_pool_handler(struct sep_device *sep, unsigned long arg)
 {
 	int error;
-	unsigned long virt_address;
+	void *virt_address;
+	unsigned long va;
 	unsigned long app_in_address;
 	unsigned long num_bytes;
-	unsigned long data_pool_area_addr;
+	void *data_pool_area_addr;
 
 	dbg("SEP Driver:--------> sep_write_into_data_pool_handler start\n");
 
@@ -643,9 +644,10 @@ static int sep_write_into_data_pool_handler(struct sep_device *sep, unsigned lon
 		goto end_function;
 
 	/* get the virtual kernel address address */
-	error = get_user(virt_address, &(((struct sep_driver_write_t *) arg)->datapool_address));
+	error = get_user(va, &(((struct sep_driver_write_t *) arg)->datapool_address));
 	if (error)
 		goto end_function;
+	virt_address = (void *)va;
 
 	/* get the number of bytes */
 	error = get_user(num_bytes, &(((struct sep_driver_write_t *) arg)->num_bytes));
@@ -663,7 +665,7 @@ static int sep_write_into_data_pool_handler(struct sep_device *sep, unsigned lon
 		goto end_function;
 	}
 	/* copy the application data */
-	error = copy_from_user((void *) virt_address, (void *) app_in_address, num_bytes);
+	error = copy_from_user(virt_address, (void *) app_in_address, num_bytes);
 end_function:
 	dbg("SEP Driver:<-------- sep_write_into_data_pool_handler end\n");
 	return error;
@@ -678,9 +680,10 @@ static int sep_read_from_data_pool_handler(struct sep_device *sep, unsigned long
 	/* virtual address of dest application buffer */
 	unsigned long app_out_address;
 	/* virtual address of the data pool */
-	unsigned long virt_address;
+	unsigned long va;
+	void *virt_address;
 	unsigned long num_bytes;
-	unsigned long data_pool_area_addr;
+	void *data_pool_area_addr;
 
 	dbg("SEP Driver:--------> sep_read_from_data_pool_handler start\n");
 
@@ -690,9 +693,10 @@ static int sep_read_from_data_pool_handler(struct sep_device *sep, unsigned long
 		goto end_function;
 
 	/* get the virtual kernel address address */
-	error = get_user(virt_address, &(((struct sep_driver_write_t *) arg)->datapool_address));
+	error = get_user(va, &(((struct sep_driver_write_t *) arg)->datapool_address));
 	if (error)
 		goto end_function;
+	virt_address = (void *)va;
 
 	/* get the number of bytes */
 	error = get_user(num_bytes, &(((struct sep_driver_write_t *) arg)->num_bytes));
@@ -711,7 +715,7 @@ static int sep_read_from_data_pool_handler(struct sep_device *sep, unsigned long
 	}
 
 	/* copy the application data */
-	error = copy_to_user((void *) app_out_address, (void *) virt_address, num_bytes);
+	error = copy_to_user((void *) app_out_address, virt_address, num_bytes);
 end_function:
 	dbg("SEP Driver:<-------- sep_read_from_data_pool_handler end\n");
 	return error;
@@ -1129,7 +1133,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 	/* number of entries in lli table */
 	unsigned long num_entries_in_table;
 	/* next table address */
-	unsigned long lli_table_alloc_addr;
+	void *lli_table_alloc_addr;
 	unsigned long result;
 
 	dbg("SEP Driver:--------> sep_prepare_input_dma_table start\n");
@@ -1144,7 +1148,8 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 	if (data_size == 0) {
 		/* special case  - created 2 entries table with zero data */
 		in_lli_table_ptr = (struct sep_lli_entry_t *) (sep->shared_area + SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_OFFSET_IN_BYTES);
-		in_lli_table_ptr->physical_address = sep->shared_area + SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_OFFSET_IN_BYTES;
+		/* FIXME: Should the entry below not be for _bus */
+		in_lli_table_ptr->physical_address = (unsigned long)sep->shared_area + SEP_DRIVER_SYNCHRONIC_DMA_TABLES_AREA_OFFSET_IN_BYTES;
 		in_lli_table_ptr->block_size = 0;
 
 		in_lli_table_ptr++;
@@ -1198,14 +1203,14 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 
 		if (info_entry_ptr == 0) {
 			/* set the output parameters to physical addresses */
-			*lli_table_ptr = sep_shared_area_virt_to_phys(sep, (unsigned long) in_lli_table_ptr);
+			*lli_table_ptr = sep_shared_area_virt_to_phys(sep, in_lli_table_ptr);
 			*num_entries_ptr = num_entries_in_table;
 			*table_data_size_ptr = table_data_size;
 
 			edbg("SEP Driver:output lli_table_in_ptr is %08lx\n", *lli_table_ptr);
 		} else {
 			/* update the info entry of the previous in table */
-			info_entry_ptr->physical_address = sep_shared_area_virt_to_phys(sep, (unsigned long) in_lli_table_ptr);
+			info_entry_ptr->physical_address = sep_shared_area_virt_to_phys(sep, in_lli_table_ptr);
 			info_entry_ptr->block_size = ((num_entries_in_table) << 24) | (table_data_size);
 		}
 
@@ -1236,8 +1241,9 @@ static int sep_construct_dma_tables_from_lli(struct sep_device *sep,
 				      unsigned long sep_out_lli_entries,
 				      unsigned long block_size, unsigned long *lli_table_in_ptr, unsigned long *lli_table_out_ptr, unsigned long *in_num_entries_ptr, unsigned long *out_num_entries_ptr, unsigned long *table_data_size_ptr)
 {
-	/* points to the area where next lli table can be allocated */
-	unsigned long lli_table_alloc_addr;
+	/* points to the area where next lli table can be allocated: keep void *
+	   as there is pointer scaling to fix otherwise */
+	void *lli_table_alloc_addr;
 	/* input lli table */
 	struct sep_lli_entry_t *in_lli_table_ptr;
 	/* output lli table */
@@ -1314,9 +1320,9 @@ static int sep_construct_dma_tables_from_lli(struct sep_device *sep,
 		/* if info entry is null - this is the first table built */
 		if (info_in_entry_ptr == 0) {
 			/* set the output parameters to physical addresses */
-			*lli_table_in_ptr = sep_shared_area_virt_to_phys(sep, (unsigned long) in_lli_table_ptr);
+			*lli_table_in_ptr = sep_shared_area_virt_to_phys(sep, in_lli_table_ptr);
 			*in_num_entries_ptr = num_entries_in_table;
-			*lli_table_out_ptr = sep_shared_area_virt_to_phys(sep, (unsigned long) out_lli_table_ptr);
+			*lli_table_out_ptr = sep_shared_area_virt_to_phys(sep, out_lli_table_ptr);
 			*out_num_entries_ptr = num_entries_out_table;
 			*table_data_size_ptr = table_data_size;
 
@@ -1324,11 +1330,11 @@ static int sep_construct_dma_tables_from_lli(struct sep_device *sep,
 			edbg("SEP Driver:output lli_table_out_ptr is %08lx\n", *lli_table_out_ptr);
 		} else {
 			/* update the info entry of the previous in table */
-			info_in_entry_ptr->physical_address = sep_shared_area_virt_to_phys(sep, (unsigned long) in_lli_table_ptr);
+			info_in_entry_ptr->physical_address = sep_shared_area_virt_to_phys(sep, in_lli_table_ptr);
 			info_in_entry_ptr->block_size = ((num_entries_in_table) << 24) | (table_data_size);
 
 			/* update the info entry of the previous in table */
-			info_out_entry_ptr->physical_address = sep_shared_area_virt_to_phys(sep, (unsigned long) out_lli_table_ptr);
+			info_out_entry_ptr->physical_address = sep_shared_area_virt_to_phys(sep, out_lli_table_ptr);
 			info_out_entry_ptr->block_size = ((num_entries_out_table) << 24) | (table_data_size);
 		}
 
@@ -1512,8 +1518,10 @@ static int sep_find_free_flow_dma_table_space(struct sep_device *sep,
 	int error = 0;
 	/* pointer to the id field of the flow dma table */
 	unsigned long *start_table_ptr;
-	unsigned long flow_dma_area_start_addr;
-	unsigned long flow_dma_area_end_addr;
+	/* Do not make start_addr unsigned long * unless fixing the offset
+	   computations ! */
+	void *flow_dma_area_start_addr;
+	unsigned long *flow_dma_area_end_addr;
 	/* maximum table size in words */
 	unsigned long table_size_in_words;
 
@@ -1527,14 +1535,14 @@ static int sep_find_free_flow_dma_table_space(struct sep_device *sep,
 	table_size_in_words = SEP_DRIVER_MAX_FLOW_NUM_ENTRIES_IN_TABLE * (sizeof(struct sep_lli_entry_t) / sizeof(long)) + 2;
 
 	/* set the pointer to the start address of DMA area */
-	start_table_ptr = (unsigned long *) flow_dma_area_start_addr;
+	start_table_ptr = flow_dma_area_start_addr;
 
 	/* find the space for the next table */
-	while (((*start_table_ptr & 0x7FFFFFFF) != 0) && ((unsigned long) start_table_ptr < flow_dma_area_end_addr))
+	while (((*start_table_ptr & 0x7FFFFFFF) != 0) && start_table_ptr < flow_dma_area_end_addr)
 		start_table_ptr += table_size_in_words;
 
 	/* check if we reached the end of floa tables area */
-	if ((unsigned long) start_table_ptr >= flow_dma_area_end_addr)
+	if (start_table_ptr >= flow_dma_area_end_addr)
 		error = -1;
 	else
 		*table_address_ptr = start_table_ptr;
@@ -1983,7 +1991,7 @@ static int sep_get_static_pool_addr_handler(struct sep_device *sep, unsigned lon
 
 	/*prepare the output parameters in the struct */
 	command_args.physical_static_address = sep->shared_area_bus + SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES;
-	command_args.virtual_static_address = sep->shared_area + SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES;
+	command_args.virtual_static_address = (unsigned long)sep->shared_area + SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES;
 
 	edbg("SEP Driver:physical_static_address is %08lx, virtual_static_address %08lx\n", command_args.physical_static_address, command_args.virtual_static_address);
 
@@ -2508,7 +2516,7 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	/* now set the memory regions */
 	sep->message_shared_area_addr = sep->shared_area;
 
-	edbg("SEP Driver: sep->message_shared_area_addr is %08lx\n", sep->message_shared_area_addr);
+	edbg("SEP Driver: sep->message_shared_area_addr is %p\n", sep->message_shared_area_addr);
 
 #if (SEP_DRIVER_RECONFIG_MESSAGE_AREA == 1)
 	/* send the new SHARED MESSAGE AREA to the SEP */
@@ -2584,7 +2592,7 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	/* FIXME */
 	sep->rar_bus = __pa(sep->rar_addr);
 
-	edbg("SEP Driver:rar_physical is %08lx\n", sep->rar_bus);
+	edbg("SEP Driver:rar_physical is %08llx\n", (unsigned long long)sep->rar_bus);
 	edbg("SEP Driver:rar_virtual is %p\n", sep->rar_addr);
 
 #if !SEP_DRIVER_POLLING_MODE

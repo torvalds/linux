@@ -38,19 +38,19 @@ struct sep_device {
 	void __iomem *io_addr;
 
 	/* restricted access region */
-	unsigned long rar_bus;
+	dma_addr_t rar_bus;
 	void *rar_addr;
 
 	/* shared memory region */
-	unsigned long shared_bus;
+	dma_addr_t shared_bus;
 	void *shared_addr;
 
 	/* firmware regions */
-	unsigned long cache_bus;
+	dma_addr_t cache_bus;
 	unsigned long cache_size;
 	void *cache_addr;
 
-	unsigned long resident_bus;
+	dma_addr_t resident_bus;
 	unsigned long resident_size;
 	void *resident_addr;
 
@@ -87,12 +87,12 @@ struct sep_device {
 	struct workqueue_struct *flow_wq;
 
 	/* address of the shared memory allocated during init for SEP driver */
-	unsigned long shared_area;
+	void *shared_area;
 	/* the physical address of the shared area */
-	unsigned long shared_area_bus;
+	dma_addr_t shared_area_bus;
 
 	/* Message Shared Area start address - will be allocated during init */
-	unsigned long message_shared_area_addr;
+	void *message_shared_area_addr;
 };
 
 static struct sep_device *sep_dev;
