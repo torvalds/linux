@@ -1390,6 +1390,39 @@ static inline int nested_svm_intr(struct vcpu_svm *svm)
 	return 0;
 }
 
+static void *nested_svm_map(struct vcpu_svm *svm, u64 gpa, enum km_type idx)
+{
+	struct page *page;
+
+	down_read(&current->mm->mmap_sem);
+	page = gfn_to_page(svm->vcpu.kvm, gpa >> PAGE_SHIFT);
+	up_read(&current->mm->mmap_sem);
+
+	if (is_error_page(page))
+		goto error;
+
+	return kmap_atomic(page, idx);
+
+error:
+	kvm_release_page_clean(page);
+	kvm_inject_gp(&svm->vcpu, 0);
+
+	return NULL;
+}
+
+static void nested_svm_unmap(void *addr, enum km_type idx)
+{
+	struct page *page;
+
+	if (!addr)
+		return;
+
+	page = kmap_atomic_to_page(addr);
+
+	kunmap_atomic(addr, idx);
+	kvm_release_page_dirty(page);
+}
+
 static struct page *nested_svm_get_page(struct vcpu_svm *svm, u64 gpa)
 {
 	struct page *page;
@@ -1597,12 +1630,15 @@ static inline void copy_vmcb_control_area(struct vmcb *dst_vmcb, struct vmcb *fr
 	dst->lbr_ctl              = from->lbr_ctl;
 }
 
-static int nested_svm_vmexit_real(struct vcpu_svm *svm, void *arg1,
-				  void *arg2, void *opaque)
+static int nested_svm_vmexit(struct vcpu_svm *svm)
 {
-	struct vmcb *nested_vmcb = (struct vmcb *)arg1;
+	struct vmcb *nested_vmcb;
 	struct vmcb *hsave = svm->nested.hsave;
 	struct vmcb *vmcb = svm->vmcb;
+
+	nested_vmcb = nested_svm_map(svm, svm->nested.vmcb, KM_USER0);
+	if (!nested_vmcb)
+		return 1;
 
 	/* Give the current vmcb to the guest */
 	disable_gif(svm);
@@ -1678,15 +1714,7 @@ static int nested_svm_vmexit_real(struct vcpu_svm *svm, void *arg1,
 	/* Exit nested SVM mode */
 	svm->nested.vmcb = 0;
 
-	return 0;
-}
-
-static int nested_svm_vmexit(struct vcpu_svm *svm)
-{
-	nsvm_printk("VMexit\n");
-	if (nested_svm_do(svm, svm->nested.vmcb, 0,
-			  NULL, nested_svm_vmexit_real))
-		return 1;
+	nested_svm_unmap(nested_vmcb, KM_USER0);
 
 	kvm_mmu_reset_context(&svm->vcpu);
 	kvm_mmu_load(&svm->vcpu);
