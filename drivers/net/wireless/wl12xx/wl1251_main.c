@@ -324,7 +324,7 @@ static void wl1251_filter_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	ret = wl1251_cmd_join(wl, wl->bss_type, wl->beacon_int,
+	ret = wl1251_cmd_join(wl, wl->bss_type, wl->channel, wl->beacon_int,
 				   wl->dtim_period);
 	if (ret < 0)
 		goto out_sleep;
@@ -565,8 +565,8 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out;
 
 	if (channel != wl->channel) {
-		ret = wl1251_cmd_join(wl, wl->bss_type, wl->beacon_int,
-					   wl->dtim_period);
+		ret = wl1251_cmd_join(wl, wl->bss_type, wl->channel,
+				      wl->beacon_int, wl->dtim_period);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -1123,7 +1123,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out;
 
 		if (wl->bss_type != BSS_TYPE_IBSS) {
-			ret = wl1251_cmd_join(wl, wl->bss_type,
+			ret = wl1251_cmd_join(wl, wl->bss_type, wl->channel,
 					      wl->beacon_int,
 					      wl->dtim_period);
 			if (ret < 0)
@@ -1152,7 +1152,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out;
 
 		ret = wl1251_cmd_join(wl, wl->bss_type, wl->beacon_int,
-				      wl->dtim_period);
+				      wl->channel, wl->dtim_period);
 
 		if (ret < 0)
 			goto out;

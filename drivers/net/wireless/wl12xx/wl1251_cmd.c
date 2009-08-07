@@ -251,8 +251,8 @@ out:
 	return ret;
 }
 
-int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u16 beacon_interval,
-		    u8 dtim_interval)
+int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 channel,
+		    u16 beacon_interval, u8 dtim_interval)
 {
 	unsigned long timeout;
 	struct cmd_join *join;
@@ -273,9 +273,9 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u16 beacon_interval,
 	if (ret < 0)
 		goto out;
 
-	wl1251_debug(DEBUG_CMD, "cmd join%s %d %d",
+	wl1251_debug(DEBUG_CMD, "cmd join%s ch %d %d/%d",
 		     bss_type == BSS_TYPE_IBSS ? " ibss" : "",
-		     beacon_interval, dtim_interval);
+		     channel, beacon_interval, dtim_interval);
 
 	/* Reverse order BSSID */
 	bssid = (u8 *) &join->bssid_lsb;
@@ -291,7 +291,7 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u16 beacon_interval,
 	join->beacon_interval = beacon_interval;
 	join->dtim_interval = dtim_interval;
 	join->bss_type = bss_type;
-	join->channel = wl->channel;
+	join->channel = channel;
 	join->ctrl = JOIN_CMD_CTRL_TX_FLUSH;
 
 	ret = wl1251_cmd_send(wl, CMD_START_JOIN, join, sizeof(*join));
