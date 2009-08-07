@@ -1154,6 +1154,9 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 		next = skb->next;
 		len = skb->len;
 
+		if (next)
+			info->flags |= IEEE80211_TX_CTL_MORE_FRAMES;
+
 		sdata = vif_to_sdata(info->control.vif);
 
 		switch (sdata->vif.type) {

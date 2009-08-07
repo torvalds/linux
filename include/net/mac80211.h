@@ -268,6 +268,10 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_PSPOLL_RESPONSE: (internal?)
  *	This frame is a response to a PS-poll frame and should be sent
  *	although the station is in powersave mode.
+ * @IEEE80211_TX_CTL_MORE_FRAMES: More frames will be passed to the
+ *	transmit function after the current frame, this can be used
+ *	by drivers to kick the DMA queue only if unset or when the
+ *	queue gets full.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -288,6 +292,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
 	IEEE80211_TX_CTL_PSPOLL_RESPONSE	= BIT(17),
+	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
 };
 
 /**
