@@ -185,6 +185,8 @@ static void do_read(int fd, void *buf, size_t size)
 
 		if (ret < 0)
 			die("failed to read");
+		if (ret == 0)
+			die("failed to read: missing data");
 
 		size -= ret;
 		buf += ret;
