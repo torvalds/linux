@@ -1874,6 +1874,7 @@ static int vmsave_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 static int vmrun_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	nsvm_printk("VMrun\n");
+
 	if (nested_svm_check_permissions(svm))
 		return 1;
 
@@ -1884,7 +1885,18 @@ static int vmrun_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 		return 1;
 
 	if (!nested_svm_vmrun_msrpm(svm))
-		return 1;
+		goto failed;
+
+	return 1;
+
+failed:
+
+	svm->vmcb->control.exit_code    = SVM_EXIT_ERR;
+	svm->vmcb->control.exit_code_hi = 0;
+	svm->vmcb->control.exit_info_1  = 0;
+	svm->vmcb->control.exit_info_2  = 0;
+
+	nested_svm_vmexit(svm);
 
 	return 1;
 }
