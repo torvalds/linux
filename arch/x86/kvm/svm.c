@@ -1359,18 +1359,15 @@ static int nested_svm_check_permissions(struct vcpu_svm *svm)
 static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 				      bool has_error_code, u32 error_code)
 {
-	if (is_nested(svm)) {
-		svm->vmcb->control.exit_code = SVM_EXIT_EXCP_BASE + nr;
-		svm->vmcb->control.exit_code_hi = 0;
-		svm->vmcb->control.exit_info_1 = error_code;
-		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
-		if (nested_svm_exit_handled(svm, false)) {
-			nsvm_printk("VMexit -> EXCP 0x%x\n", nr);
-			return 1;
-		}
-	}
+	if (!is_nested(svm))
+		return 0;
 
-	return 0;
+	svm->vmcb->control.exit_code = SVM_EXIT_EXCP_BASE + nr;
+	svm->vmcb->control.exit_code_hi = 0;
+	svm->vmcb->control.exit_info_1 = error_code;
+	svm->vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
+
+	return nested_svm_exit_handled(svm, false);
 }
 
 static inline int nested_svm_intr(struct vcpu_svm *svm)
