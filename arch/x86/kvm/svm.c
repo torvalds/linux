@@ -1567,6 +1567,38 @@ static int nested_svm_exit_handled(struct vcpu_svm *svm, bool kvm_override)
 			     nested_svm_exit_handled_real);
 }
 
+static inline void copy_vmcb_control_area(struct vmcb *dst_vmcb, struct vmcb *from_vmcb)
+{
+	struct vmcb_control_area *dst  = &dst_vmcb->control;
+	struct vmcb_control_area *from = &from_vmcb->control;
+
+	dst->intercept_cr_read    = from->intercept_cr_read;
+	dst->intercept_cr_write   = from->intercept_cr_write;
+	dst->intercept_dr_read    = from->intercept_dr_read;
+	dst->intercept_dr_write   = from->intercept_dr_write;
+	dst->intercept_exceptions = from->intercept_exceptions;
+	dst->intercept            = from->intercept;
+	dst->iopm_base_pa         = from->iopm_base_pa;
+	dst->msrpm_base_pa        = from->msrpm_base_pa;
+	dst->tsc_offset           = from->tsc_offset;
+	dst->asid                 = from->asid;
+	dst->tlb_ctl              = from->tlb_ctl;
+	dst->int_ctl              = from->int_ctl;
+	dst->int_vector           = from->int_vector;
+	dst->int_state            = from->int_state;
+	dst->exit_code            = from->exit_code;
+	dst->exit_code_hi         = from->exit_code_hi;
+	dst->exit_info_1          = from->exit_info_1;
+	dst->exit_info_2          = from->exit_info_2;
+	dst->exit_int_info        = from->exit_int_info;
+	dst->exit_int_info_err    = from->exit_int_info_err;
+	dst->nested_ctl           = from->nested_ctl;
+	dst->event_inj            = from->event_inj;
+	dst->event_inj_err        = from->event_inj_err;
+	dst->nested_cr3           = from->nested_cr3;
+	dst->lbr_ctl              = from->lbr_ctl;
+}
+
 static int nested_svm_vmexit_real(struct vcpu_svm *svm, void *arg1,
 				  void *arg2, void *opaque)
 {
@@ -1612,7 +1644,7 @@ static int nested_svm_vmexit_real(struct vcpu_svm *svm, void *arg1,
 		nested_vmcb->control.int_ctl &= ~V_INTR_MASKING_MASK;
 
 	/* Restore the original control entries */
-	svm->vmcb->control = hsave->control;
+	copy_vmcb_control_area(vmcb, hsave);
 
 	/* Kill any pending exceptions */
 	if (svm->vcpu.arch.exception.pending == true)
@@ -1710,7 +1742,7 @@ static int nested_svm_vmrun(struct vcpu_svm *svm, void *arg1,
 	else
 		hsave->save.cr3    = svm->vcpu.arch.cr3;
 
-	hsave->control = vmcb->control;
+	copy_vmcb_control_area(hsave, vmcb);
 
 	if (svm->vmcb->save.rflags & X86_EFLAGS_IF)
 		svm->vcpu.arch.hflags |= HF_HIF_MASK;
