@@ -265,6 +265,8 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 void mesh_path_quiesce(struct ieee80211_sub_if_data *sdata);
 void mesh_path_restart(struct ieee80211_sub_if_data *sdata);
 
+extern int mesh_paths_generation;
+
 #ifdef CONFIG_MAC80211_MESH
 extern int mesh_allocated;
 

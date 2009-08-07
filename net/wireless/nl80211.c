@@ -408,6 +408,9 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, dev->wiphy_idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, wiphy_name(&dev->wiphy));
 
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION,
+		    cfg80211_rdev_list_generation);
+
 	NLA_PUT_U8(msg, NL80211_ATTR_WIPHY_RETRY_SHORT,
 		   dev->wiphy.retry_short);
 	NLA_PUT_U8(msg, NL80211_ATTR_WIPHY_RETRY_LONG,
@@ -825,6 +828,11 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, dev->name);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, dev->ieee80211_ptr->iftype);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION,
+		    rdev->devlist_generation ^
+			(cfg80211_rdev_list_generation << 2));
+
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
@@ -838,12 +846,12 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 	int if_idx = 0;
 	int wp_start = cb->args[0];
 	int if_start = cb->args[1];
-	struct cfg80211_registered_device *dev;
+	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
 
 	mutex_lock(&cfg80211_mutex);
-	list_for_each_entry(dev, &cfg80211_rdev_list, list) {
-		if (!net_eq(wiphy_net(&dev->wiphy), sock_net(skb->sk)))
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		if (!net_eq(wiphy_net(&rdev->wiphy), sock_net(skb->sk)))
 			continue;
 		if (wp_idx < wp_start) {
 			wp_idx++;
@@ -851,21 +859,21 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 		}
 		if_idx = 0;
 
-		mutex_lock(&dev->devlist_mtx);
-		list_for_each_entry(wdev, &dev->netdev_list, list) {
+		mutex_lock(&rdev->devlist_mtx);
+		list_for_each_entry(wdev, &rdev->netdev_list, list) {
 			if (if_idx < if_start) {
 				if_idx++;
 				continue;
 			}
 			if (nl80211_send_iface(skb, NETLINK_CB(cb->skb).pid,
 					       cb->nlh->nlmsg_seq, NLM_F_MULTI,
-					       dev, wdev->netdev) < 0) {
-				mutex_unlock(&dev->devlist_mtx);
+					       rdev, wdev->netdev) < 0) {
+				mutex_unlock(&rdev->devlist_mtx);
 				goto out;
 			}
 			if_idx++;
 		}
-		mutex_unlock(&dev->devlist_mtx);
+		mutex_unlock(&rdev->devlist_mtx);
 
 		wp_idx++;
 	}
@@ -1616,6 +1624,8 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, mac_addr);
 
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION, sinfo->generation);
+
 	sinfoattr = nla_nest_start(msg, NL80211_ATTR_STA_INFO);
 	if (!sinfoattr)
 		goto nla_put_failure;
@@ -2100,6 +2110,8 @@ static int nl80211_send_mpath(struct sk_buff *msg, u32 pid, u32 seq,
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, dst);
 	NLA_PUT(msg, NL80211_ATTR_MPATH_NEXT_HOP, ETH_ALEN, next_hop);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION, pinfo->generation);
 
 	pinfoattr = nla_nest_start(msg, NL80211_ATTR_MPATH_INFO);
 	if (!pinfoattr)
@@ -3090,8 +3102,7 @@ static int nl80211_send_bss(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	if (!hdr)
 		return -1;
 
-	NLA_PUT_U32(msg, NL80211_ATTR_SCAN_GENERATION,
-		    rdev->bss_generation);
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION, rdev->bss_generation);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, wdev->netdev->ifindex);
 
 	bss = nla_nest_start(msg, NL80211_ATTR_BSS);

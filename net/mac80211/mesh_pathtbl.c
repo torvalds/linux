@@ -38,6 +38,8 @@ struct mpath_node {
 static struct mesh_table *mesh_paths;
 static struct mesh_table *mpp_paths; /* Store paths for MPP&MAP */
 
+int mesh_paths_generation;
+
 /* This lock will have the grow table function as writer and add / delete nodes
  * as readers. When reading the table (i.e. doing lookups) we are well protected
  * by RCU
@@ -242,6 +244,8 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	if (atomic_inc_return(&mesh_paths->entries) >=
 		mesh_paths->mean_chain_len * (mesh_paths->hash_mask + 1))
 		grow = 1;
+
+	mesh_paths_generation++;
 
 	spin_unlock(&mesh_paths->hashwlock[hash_idx]);
 	read_unlock(&pathtbl_resize_lock);
@@ -484,6 +488,7 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 
 	err = -ENXIO;
 enddel:
+	mesh_paths_generation++;
 	spin_unlock(&mesh_paths->hashwlock[hash_idx]);
 	read_unlock(&pathtbl_resize_lock);
 	return err;

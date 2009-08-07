@@ -49,6 +49,7 @@ struct cfg80211_registered_device {
 	/* associate netdev list */
 	struct mutex devlist_mtx;
 	struct list_head netdev_list;
+	int devlist_generation;
 
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
@@ -101,6 +102,7 @@ bool wiphy_idx_valid(int wiphy_idx)
 
 extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_rdev_list;
+extern int cfg80211_rdev_list_generation;
 
 #define assert_cfg80211_lock() WARN_ON(!mutex_is_locked(&cfg80211_mutex))
 

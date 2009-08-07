@@ -562,6 +562,7 @@ void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 	spin_lock_bh(&dev->bss_lock);
 
 	list_del(&bss->list);
+	dev->bss_generation++;
 	rb_erase(&bss->rbn, &dev->bss_tree);
 
 	spin_unlock_bh(&dev->bss_lock);
