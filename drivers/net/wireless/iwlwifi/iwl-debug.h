@@ -78,8 +78,6 @@ struct iwl_debugfs {
 		struct dentry *file_sram;
 		struct dentry *file_nvm;
 		struct dentry *file_stations;
-		struct dentry *file_rx_statistics;
-		struct dentry *file_tx_statistics;
 		struct dentry *file_log_event;
 		struct dentry *file_channels;
 		struct dentry *file_status;
@@ -97,6 +95,8 @@ struct iwl_debugfs {
 		struct dentry *file_disable_tx_power;
 	} dbgfs_rf_files;
 	struct dir_debug_files {
+		struct dentry *file_rx_statistics;
+		struct dentry *file_tx_statistics;
 		struct dentry *file_traffic_log;
 	} dbgfs_debug_files;
 	u32 sram_offset;

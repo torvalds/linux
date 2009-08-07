@@ -126,18 +126,58 @@ static ssize_t iwl_dbgfs_tx_statistics_read(struct file *file,
 						size_t count, loff_t *ppos) {
 
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
-	char buf[256];
+	char *buf;
 	int pos = 0;
-	const size_t bufsz = sizeof(buf);
 
-	pos += scnprintf(buf + pos, bufsz - pos, "mgmt: %u\n",
-						priv->tx_stats[0].cnt);
-	pos += scnprintf(buf + pos, bufsz - pos, "ctrl: %u\n",
-						priv->tx_stats[1].cnt);
-	pos += scnprintf(buf + pos, bufsz - pos, "data: %u\n",
-						priv->tx_stats[2].cnt);
+	int cnt;
+	ssize_t ret;
+	const size_t bufsz = 100 + sizeof(char) * 24 * (MANAGEMENT_MAX + CONTROL_MAX);
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
+	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "\t%s\t\t: %u\n",
+				 get_mgmt_string(cnt),
+				 priv->tx_stats.mgmt[cnt]);
+	}
+	pos += scnprintf(buf + pos, bufsz - pos, "Control\n");
+	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "\t%s\t\t: %u\n",
+				 get_ctrl_string(cnt),
+				 priv->tx_stats.ctrl[cnt]);
+	}
+	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
+	pos += scnprintf(buf + pos, bufsz - pos, "\tcnt: %u\n",
+			 priv->tx_stats.data_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos, "\tbytes: %llu\n",
+			 priv->tx_stats.data_bytes);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
 
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+static ssize_t iwl_dbgfs_tx_statistics_write(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	u32 clear_flag;
+	char buf[8];
+	int buf_size;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%x", &clear_flag) != 1)
+		return -EFAULT;
+	if (clear_flag == 1)
+		iwl_clear_tx_stats(priv);
+
+	return count;
 }
 
 static ssize_t iwl_dbgfs_rx_statistics_read(struct file *file,
@@ -145,18 +185,59 @@ static ssize_t iwl_dbgfs_rx_statistics_read(struct file *file,
 						size_t count, loff_t *ppos) {
 
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
-	char buf[256];
+	char *buf;
 	int pos = 0;
-	const size_t bufsz = sizeof(buf);
+	int cnt;
+	ssize_t ret;
+	const size_t bufsz = 100 +
+		sizeof(char) * 24 * (MANAGEMENT_MAX + CONTROL_MAX);
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
-	pos += scnprintf(buf + pos, bufsz - pos, "mgmt: %u\n",
-						priv->rx_stats[0].cnt);
-	pos += scnprintf(buf + pos, bufsz - pos, "ctrl: %u\n",
-						priv->rx_stats[1].cnt);
-	pos += scnprintf(buf + pos, bufsz - pos, "data: %u\n",
-						priv->rx_stats[2].cnt);
+	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
+	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "\t%s\t\t: %u\n",
+				 get_mgmt_string(cnt),
+				 priv->rx_stats.mgmt[cnt]);
+	}
+	pos += scnprintf(buf + pos, bufsz - pos, "Control:\n");
+	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "\t%s\t\t: %u\n",
+				 get_ctrl_string(cnt),
+				 priv->rx_stats.ctrl[cnt]);
+	}
+	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
+	pos += scnprintf(buf + pos, bufsz - pos, "\tcnt: %u\n",
+			 priv->rx_stats.data_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos, "\tbytes: %llu\n",
+			 priv->rx_stats.data_bytes);
 
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_rx_statistics_write(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	u32 clear_flag;
+	char buf[8];
+	int buf_size;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%x", &clear_flag) != 1)
+		return -EFAULT;
+	if (clear_flag == 1)
+		iwl_clear_rx_stats(priv);
+	return count;
 }
 
 #define BYTE1_MASK 0x000000ff;
@@ -700,8 +781,6 @@ DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(nvm);
 DEBUGFS_READ_FILE_OPS(stations);
-DEBUGFS_READ_FILE_OPS(rx_statistics);
-DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_FILE_OPS(channels);
 DEBUGFS_READ_FILE_OPS(status);
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
@@ -808,6 +887,8 @@ static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
 	return count;
 }
 
+DEBUGFS_READ_WRITE_FILE_OPS(rx_statistics);
+DEBUGFS_READ_WRITE_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
 
 /*
@@ -841,8 +922,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(sram, data);
 	DEBUGFS_ADD_FILE(log_event, data);
 	DEBUGFS_ADD_FILE(stations, data);
-	DEBUGFS_ADD_FILE(rx_statistics, data);
-	DEBUGFS_ADD_FILE(tx_statistics, data);
 	DEBUGFS_ADD_FILE(channels, data);
 	DEBUGFS_ADD_FILE(status, data);
 	DEBUGFS_ADD_FILE(interrupt, data);
@@ -852,6 +931,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 #endif
 	DEBUGFS_ADD_FILE(thermal_throttling, data);
 	DEBUGFS_ADD_FILE(disable_ht40, data);
+	DEBUGFS_ADD_FILE(rx_statistics, debug);
+	DEBUGFS_ADD_FILE(tx_statistics, debug);
 	DEBUGFS_ADD_FILE(traffic_log, debug);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
@@ -879,8 +960,6 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 		return;
 
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_nvm);
-	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_rx_statistics);
-	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_tx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sram);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_log_event);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_stations);
@@ -894,6 +973,8 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_thermal_throttling);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_disable_ht40);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_rx_statistics);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_tx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_traffic_log);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_debug);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);

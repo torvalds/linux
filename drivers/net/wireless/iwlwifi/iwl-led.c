@@ -272,7 +272,8 @@ static int iwl_get_blink_rate(struct iwl_priv *priv)
 	/* count both tx and rx traffic to be able to
 	 * handle traffic in either direction
 	 */
-	u64 current_tpt = priv->tx_stats[2].bytes + priv->rx_stats[2].bytes;
+	u64 current_tpt = priv->tx_stats.data_bytes +
+			  priv->rx_stats.data_bytes;
 	s64 tpt = current_tpt - priv->led_tpt;
 
 	if (tpt < 0) /* wraparound */

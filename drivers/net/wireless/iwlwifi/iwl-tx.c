@@ -668,14 +668,6 @@ static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 	}
 }
 
-static void iwl_update_tx_stats(struct iwl_priv *priv, u16 fc, u16 len)
-{
-	/* 0 - mgmt, 1 - cnt, 2 - data */
-	int idx = (fc & IEEE80211_FCTL_FTYPE) >> 2;
-	priv->tx_stats[idx].cnt++;
-	priv->tx_stats[idx].bytes += len;
-}
-
 /*
  * start REPLY_TX command process
  */
@@ -813,8 +805,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* set is_hcca to 0; it probably will never be implemented */
 	iwl_tx_cmd_build_rate(priv, tx_cmd, info, fc, sta_id, 0);
 
-	iwl_update_tx_stats(priv, le16_to_cpu(fc), len);
-
+	iwl_update_stats(priv, true, fc, len);
 	/*
 	 * Use the first empty entry in this queue's command buffer array
 	 * to contain the Tx command and MAC header concatenated together

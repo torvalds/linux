@@ -83,6 +83,8 @@ struct iwl_cmd;
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
 
+#define IWL_CMD(x) case x: return #x
+
 struct iwl_hcmd_ops {
 	int (*rxon_assoc)(struct iwl_priv *priv);
 	int (*commit_rxon)(struct iwl_priv *priv);
@@ -308,7 +310,10 @@ void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
 				u16 length, struct ieee80211_hdr *header);
 void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 				u16 length, struct ieee80211_hdr *header);
-
+const char *get_mgmt_string(int cmd);
+const char *get_ctrl_string(int cmd);
+void iwl_clear_tx_stats(struct iwl_priv *priv);
+void iwl_clear_rx_stats(struct iwl_priv *priv);
 #else
 static inline int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 {
@@ -329,6 +334,8 @@ static inline void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 {
 }
 #endif
+void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
+		      u16 len);
 /*****************************************************
  * RX handlers.
  * **************************************************/

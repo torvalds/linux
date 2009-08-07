@@ -745,14 +745,6 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 }
 #endif
 
-static void iwl_update_rx_stats(struct iwl_priv *priv, u16 fc, u16 len)
-{
-	/* 0 - mgmt, 1 - cnt, 2 - data */
-	int idx = (fc & IEEE80211_FCTL_FTYPE) >> 2;
-	priv->rx_stats[idx].cnt++;
-	priv->rx_stats[idx].bytes += len;
-}
-
 /*
  * returns non-zero if packet should be dropped
  */
@@ -930,7 +922,7 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	    iwl_set_decrypted_flag(priv, hdr, ampdu_status, stats))
 		return;
 
-	iwl_update_rx_stats(priv, le16_to_cpu(hdr->frame_control), len);
+	iwl_update_stats(priv, false, hdr->frame_control, len);
 	memcpy(IEEE80211_SKB_RXCB(rxb->skb), stats, sizeof(*stats));
 	ieee80211_rx_irqsafe(priv->hw, rxb->skb);
 	priv->alloc_rxb_skb--;

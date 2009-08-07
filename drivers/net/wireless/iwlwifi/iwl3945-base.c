@@ -599,6 +599,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	tx->len = cpu_to_le16(len);
 
 	iwl_dbg_log_tx_data_frame(priv, len, hdr);
+	iwl_update_stats(priv, true, fc, len);
 	tx->tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
 	tx->tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
 
