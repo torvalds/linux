@@ -1366,8 +1366,6 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
 		if (nested_svm_exit_handled(svm, false)) {
 			nsvm_printk("VMexit -> EXCP 0x%x\n", nr);
-
-			nested_svm_vmexit(svm);
 			return 1;
 		}
 	}
@@ -1388,7 +1386,6 @@ static inline int nested_svm_intr(struct vcpu_svm *svm)
 
 		if (nested_svm_exit_handled(svm, false)) {
 			nsvm_printk("VMexit -> INTR\n");
-			nested_svm_vmexit(svm);
 			return 1;
 		}
 	}
@@ -1497,15 +1494,7 @@ static int nested_svm_exit_handled_msr(struct vcpu_svm *svm,
 static int nested_svm_exit_handled(struct vcpu_svm *svm, bool kvm_override)
 {
 	u32 exit_code = svm->vmcb->control.exit_code;
-
-	switch (svm->vmcb->control.exit_code) {
-	case SVM_EXIT_MSR:
-		return nested_svm_do(svm, svm->nested.vmcb,
-				     svm->nested.vmcb_msrpm, NULL,
-				     nested_svm_exit_handled_msr);
-	default:
-		break;
-	}
+	bool vmexit = false;
 
 	if (kvm_override) {
 		switch (exit_code) {
@@ -1528,45 +1517,55 @@ static int nested_svm_exit_handled(struct vcpu_svm *svm, bool kvm_override)
 	}
 
 	switch (exit_code) {
+	case SVM_EXIT_MSR:
+		if (nested_svm_do(svm, svm->nested.vmcb, svm->nested.vmcb_msrpm,
+				  NULL, nested_svm_exit_handled_msr))
+			vmexit = true;
+		break;
 	case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR8: {
 		u32 cr_bits = 1 << (exit_code - SVM_EXIT_READ_CR0);
 		if (svm->nested.intercept_cr_read & cr_bits)
-			return 1;
+			vmexit = true;
 		break;
 	}
 	case SVM_EXIT_WRITE_CR0 ... SVM_EXIT_WRITE_CR8: {
 		u32 cr_bits = 1 << (exit_code - SVM_EXIT_WRITE_CR0);
 		if (svm->nested.intercept_cr_write & cr_bits)
-			return 1;
+			vmexit = true;
 		break;
 	}
 	case SVM_EXIT_READ_DR0 ... SVM_EXIT_READ_DR7: {
 		u32 dr_bits = 1 << (exit_code - SVM_EXIT_READ_DR0);
 		if (svm->nested.intercept_dr_read & dr_bits)
-			return 1;
+			vmexit = true;
 		break;
 	}
 	case SVM_EXIT_WRITE_DR0 ... SVM_EXIT_WRITE_DR7: {
 		u32 dr_bits = 1 << (exit_code - SVM_EXIT_WRITE_DR0);
 		if (svm->nested.intercept_dr_write & dr_bits)
-			return 1;
+			vmexit = true;
 		break;
 	}
 	case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 0x1f: {
 		u32 excp_bits = 1 << (exit_code - SVM_EXIT_EXCP_BASE);
 		if (svm->nested.intercept_exceptions & excp_bits)
-			return 1;
+			vmexit = true;
 		break;
 	}
 	default: {
 		u64 exit_bits = 1ULL << (exit_code - SVM_EXIT_INTR);
 		nsvm_printk("exit code: 0x%x\n", exit_code);
 		if (svm->nested.intercept & exit_bits)
-			return 1;
+			vmexit = true;
 	}
 	}
 
-	return 0;
+	if (vmexit) {
+		nsvm_printk("#VMEXIT reason=%04x\n", exit_code);
+		nested_svm_vmexit(svm);
+	}
+
+	return vmexit;
 }
 
 static inline void copy_vmcb_control_area(struct vmcb *dst_vmcb, struct vmcb *from_vmcb)
@@ -2327,11 +2326,8 @@ static int handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		nsvm_printk("nested handle_exit: 0x%x | 0x%lx | 0x%lx | 0x%lx\n",
 			    exit_code, svm->vmcb->control.exit_info_1,
 			    svm->vmcb->control.exit_info_2, svm->vmcb->save.rip);
-		if (nested_svm_exit_handled(svm, true)) {
-			nested_svm_vmexit(svm);
-			nsvm_printk("-> #VMEXIT\n");
+		if (nested_svm_exit_handled(svm, true))
 			return 1;
-		}
 	}
 
 	svm_complete_interrupts(svm);
