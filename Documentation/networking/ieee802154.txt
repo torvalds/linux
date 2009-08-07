@@ -22,7 +22,7 @@ int sd = socket(PF_IEEE802154, SOCK_DGRAM, 0);
 .....
 
 The address family, socket addresses etc. are defined in the
-include/net/ieee802154/af_ieee802154.h header or in the special header
+include/net/af_ieee802154.h header or in the special header
 in our userspace package (see either linux-zigbee sourceforge download page
 or git tree at git://linux-zigbee.git.sourceforge.net/gitroot/linux-zigbee).
 
@@ -33,7 +33,7 @@ MLME - MAC Level Management
 ============================
 
 Most of IEEE 802.15.4 MLME interfaces are directly mapped on netlink commands.
-See the include/net/ieee802154/nl802154.h header. Our userspace tools package
+See the include/net/nl802154.h header. Our userspace tools package
 (see above) provides CLI configuration utility for radio interfaces and simple
 coordinator for IEEE 802.15.4 networks as an example users of MLME protocol.
 
@@ -54,7 +54,7 @@ Those types of devices require different approach to be hooked into Linux kernel
 HardMAC
 =======
 
-See the header include/net/ieee802154/netdevice.h. You have to implement Linux
+See the header include/net/ieee802154_netdev.h. You have to implement Linux
 net_device, with .type = ARPHRD_IEEE802154. Data is exchanged with socket family
 code via plain sk_buffs. The control block of sk_buffs will contain additional
 info as described in the struct ieee802154_mac_cb.
@@ -72,5 +72,4 @@ SoftMAC
 We are going to provide intermediate layer implementing IEEE 802.15.4 MAC
 in software. This is currently WIP.
 
-See header include/net/ieee802154/mac802154.h and several drivers in
-drivers/ieee802154/
+See header include/net/mac802154.h and several drivers in drivers/ieee802154/.
