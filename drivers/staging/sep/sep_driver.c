@@ -153,7 +153,8 @@ static void sep_load_rom_code(struct sep_device *sep) { }
 --------------------------------------------*/
 
 /* debug messages level */
-INT_MODULE_PARM(sepDebug, 0x0);
+static int sepDebug;
+module_param(sepDebug, int , 0);
 MODULE_PARM_DESC(sepDebug, "Flag to enable SEP debug messages");
 
 /* Keep this a single static object for now to keep the conversion easy */
