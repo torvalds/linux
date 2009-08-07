@@ -2227,6 +2227,15 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 
 		ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
 				       sizeof(adv_cmd), &adv_cmd);
+		if (ret)
+			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
+		else
+			IWL_DEBUG_INFO(priv, "REPLY_CT_KILL_CONFIG_CMD "
+					"succeeded, "
+					"critical temperature enter is %d,"
+					"exit is %d\n",
+				       priv->hw_params.ct_kill_threshold,
+				       priv->hw_params.ct_kill_exit_threshold);
 		break;
 	default:
 		cmd.critical_temperature_R =
@@ -2234,16 +2243,15 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 
 		ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
 				       sizeof(cmd), &cmd);
+		if (ret)
+			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
+		else
+			IWL_DEBUG_INFO(priv, "REPLY_CT_KILL_CONFIG_CMD "
+					"succeeded, "
+					"critical temperature is %d\n",
+					priv->hw_params.ct_kill_threshold);
 		break;
 	}
-	ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
-			       sizeof(cmd), &cmd);
-	if (ret)
-		IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
-	else
-		IWL_DEBUG_INFO(priv, "REPLY_CT_KILL_CONFIG_CMD succeeded, "
-			"critical temperature is %d\n",
-			cmd.critical_temperature_R);
 }
 EXPORT_SYMBOL(iwl_rf_kill_ct_config);
 
