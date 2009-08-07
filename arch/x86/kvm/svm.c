@@ -124,7 +124,7 @@ static int npt = 1;
 
 module_param(npt, int, S_IRUGO);
 
-static int nested = 0;
+static int nested = 1;
 module_param(nested, int, S_IRUGO);
 
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
