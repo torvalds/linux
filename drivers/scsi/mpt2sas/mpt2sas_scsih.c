@@ -3426,7 +3426,7 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	__le64 sas_address;
 	int i;
 	unsigned long flags;
-	struct _sas_port *mpt2sas_port;
+	struct _sas_port *mpt2sas_port = NULL;
 	int rc = 0;
 
 	if (!handle)
@@ -3518,12 +3518,20 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		    &expander_pg1, i, handle))) {
 			printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 			    ioc->name, __FILE__, __LINE__, __func__);
-			continue;
+			rc = -1;
+			goto out_fail;
 		}
 		sas_expander->phy[i].handle = handle;
 		sas_expander->phy[i].phy_id = i;
-		mpt2sas_transport_add_expander_phy(ioc, &sas_expander->phy[i],
-		    expander_pg1, sas_expander->parent_dev);
+
+		if ((mpt2sas_transport_add_expander_phy(ioc,
+		    &sas_expander->phy[i], expander_pg1,
+		    sas_expander->parent_dev))) {
+			printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+			    ioc->name, __FILE__, __LINE__, __func__);
+			rc = -1;
+			goto out_fail;
+		}
 	}
 
 	if (sas_expander->enclosure_handle) {
@@ -3540,8 +3548,9 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 
  out_fail:
 
-	if (sas_expander)
-		kfree(sas_expander->phy);
+	if (mpt2sas_port)
+		mpt2sas_transport_port_remove(ioc, sas_expander->sas_address,
+		    sas_expander->parent_handle);
 	kfree(sas_expander);
 	return rc;
 }
