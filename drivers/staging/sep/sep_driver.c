@@ -105,9 +105,9 @@ static void sep_load_rom_code(struct sep_device *sep)
 	sep_write_reg(sep, HW_HOST_SEP_SW_RST_REG_ADDR, 0x1);
 
 	/* poll for SEP ROM boot finish */
-	do {
+	do
 		reg = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
-	} while (!reg);
+	while (!reg);
 
 	edbg("SEP Driver: ROM polling ended\n");
 
@@ -117,31 +117,18 @@ static void sep_load_rom_code(struct sep_device *sep)
 		error = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
 		edbg("SEP Driver: ROM polling case 1\n");
 		break;
+	case 0x4:
+		/* Cold boot ended successfully  */
+	case 0x8:
+		/* Warmboot ended successfully */
+	case 0x10:
+		/* ColdWarm boot ended successfully */
+		error = 0;
 	case 0x2:
 		/* Boot First Phase ended  */
 		warning = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		edbg("SEP Driver: ROM polling case 2\n");
-		break;
-	case 0x4:
-		/* Cold boot ended successfully  */
-		warning = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		edbg("SEP Driver: ROM polling case 4\n");
-		error = 0;
-		break;
-	case 0x8:
-		/* Warmboot ended successfully */
-		warning = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		edbg("SEP Driver: ROM polling case 8\n");
-		error = 0;
-		break;
-	case 0x10:
-		/* ColdWarm boot ended successfully */
-		warning = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR0_REG_ADDR);
-		edbg("SEP Driver: ROM polling case 16\n");
-		error = 0;
-		break;
 	case 0x20:
-		edbg("SEP Driver: ROM polling case 32\n");
+		edbg("SEP Driver: ROM polling case %d\n", reg);
 		break;
 	}
 
