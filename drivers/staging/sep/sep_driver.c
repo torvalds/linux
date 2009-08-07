@@ -1751,36 +1751,29 @@ static void sep_deallocated_flow_tables(struct sep_lli_entry_t *first_table_ptr)
 	return;
 }
 
-/*
-  This function returns pointer to the  flow data structure
-  that contains the given id
+/**
+ *	sep_find_flow_context	-	find a flow
+ *	@sep: the SEP we are working with
+ *	@flow_id: flow identifier
+ *
+ *	Returns a pointer the matching flow, or NULL if the flow does not
+ *	exist.
+ */
 
-  FIXME: Daft API
-*/
-static int sep_find_flow_context(struct sep_device *sep,
-				unsigned long flow_id,
-				struct sep_flow_context_t **flow_data_ptr)
+static struct sep_flow_context_t *sep_find_flow_context(struct sep_device *sep,
+				unsigned long flow_id)
 {
-	unsigned long count;
-	int error = 0;
-
+	int count;
 	/*
-	   always search for flow with id default first - in case we
-	   already started working on the flow there can be no situation
-	   when 2 flows are with default flag
+	 *  always search for flow with id default first - in case we
+	 *  already started working on the flow there can be no situation
+	 *  when 2 flows are with default flag
 	 */
 	for (count = 0; count < SEP_DRIVER_NUM_FLOWS; count++) {
-		if (sep->flows[count].flow_id == flow_id) {
-			*flow_data_ptr = &sep->flows[count];
-			break;
-		}
+		if (sep->flows[count].flow_id == flow_id)
+			return &sep->flows[count];
 	}
-
-	if (count == SEP_DRIVER_NUM_FLOWS)
-		/* no flow found  */
-		error = -ENOMEM;
-
-	return error;
+	return NULL;
 }
 
 
@@ -1808,8 +1801,8 @@ static int sep_create_flow_dma_tables_handler(struct sep_device *sep,
 	first_table_data.physical_address = 0xffffffff;
 
 	/* find the free structure for flow data */
-	error = sep_find_flow_context(sep, SEP_FREE_FLOW_ID, &flow_context_ptr);
-	if (error)
+	flow_context_ptr = sep_find_flow_context(sep, SEP_FREE_FLOW_ID);
+	if (flow_context_ptr == NULL)
 		goto end_function;
 
 	error = copy_from_user(&command_args, (void *) arg, sizeof(struct sep_driver_build_flow_table_t));
@@ -1879,8 +1872,8 @@ static int sep_add_flow_tables_handler(struct sep_device *sep, unsigned long arg
 		goto end_function;
 
 	/* find the flow structure for the flow id */
-	error = sep_find_flow_context(sep, command_args.flow_id, &flow_context_ptr);
-	if (error)
+	flow_context_ptr = sep_find_flow_context(sep, command_args.flow_id);
+	if (flow_context_ptr == NULL)
 		goto end_function;
 
 	/* prepare the flow dma tables */
@@ -1977,8 +1970,8 @@ static int sep_add_flow_tables_message_handler(struct sep_device *sep, unsigned 
 	}
 
 	/* find the flow context */
-	error = sep_find_flow_context(sep, command_args.flow_id, &flow_context_ptr);
-	if (error)
+	flow_context_ptr = sep_find_flow_context(sep, command_args.flow_id);
+	if (flow_context_ptr == NULL)
 		goto end_function;
 
 	/* copy the message into context */
@@ -2241,8 +2234,8 @@ static int sep_set_flow_id_handler(struct sep_device *sep, unsigned long arg)
 
 	/* find the flow data structure that was just used for creating new flow
 	   - its id should be default */
-	error = sep_find_flow_context(sep, SEP_TEMP_FLOW_ID, &flow_data_ptr);
-	if (error)
+	flow_data_ptr = sep_find_flow_context(sep, SEP_TEMP_FLOW_ID);
+	if (flow_data_ptr == NULL)
 		goto end_function;
 
 	/* set flow id */
@@ -2387,7 +2380,6 @@ static void sep_flow_done_handler(struct work_struct *work)
 static irqreturn_t sep_inthandler(int irq, void *dev_id)
 {
 	irqreturn_t int_error;
-	unsigned long error;
 	unsigned long reg_val;
 	unsigned long flow_id;
 	struct sep_flow_context_t *flow_context_ptr;
@@ -2405,13 +2397,12 @@ static irqreturn_t sep_inthandler(int irq, void *dev_id)
 		flow_id = sep_read_reg(sep, HW_HOST_IRR_REG_ADDR);
 
 		/* find the contex of the flow */
-		error = sep_find_flow_context(sep, flow_id >> 28, &flow_context_ptr);
-		if (error)
+		flow_context_ptr = sep_find_flow_context(sep, flow_id >> 28);
+		if (flow_context_ptr == NULL)
 			goto end_function_with_error;
 
-		INIT_WORK(&flow_context_ptr->flow_wq, sep_flow_done_handler);
-
 		/* queue the work */
+		INIT_WORK(&flow_context_ptr->flow_wq, sep_flow_done_handler);
 		queue_work(sep->flow_wq, &flow_context_ptr->flow_wq);
 
 	} else {
@@ -2419,7 +2410,6 @@ static irqreturn_t sep_inthandler(int irq, void *dev_id)
 		if (reg_val & (0x1 << 13)) {
 			/* update the counter of reply messages */
 			sep->reply_ct++;
-
 			/* wake up the waiting process */
 			wake_up(&sep_event);
 		} else {
