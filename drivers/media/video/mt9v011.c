@@ -52,13 +52,34 @@ static struct v4l2_queryctrl mt9v011_qctrl[] = {
 		.step = 1,
 		.default_value = 0,
 		.flags = 0,
-	},
+	}, {
+		.id      = V4L2_CID_HFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Mirror",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+		.default_value = 0,
+		.flags = 0,
+	}, {
+		.id      = V4L2_CID_VFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Vflip",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+		.default_value = 0,
+		.flags = 0,
+	}, {
+	}
 };
 
 struct mt9v011 {
 	struct v4l2_subdev sd;
 	unsigned width, height;
 	unsigned xtal;
+	unsigned hflip:1;
+	unsigned vflip:1;
 
 	u16 global_gain, red_bal, blue_bal;
 };
@@ -131,7 +152,6 @@ static const struct i2c_reg_value mt9v011_init_default[] = {
 
 		{ R0A_MT9V011_CLK_SPEED, 0x0000 },
 		{ R1E_MT9V011_DIGITAL_ZOOM,  0x0000 },
-		{ R20_MT9V011_READ_MODE, 0x1000 },
 
 		{ R07_MT9V011_OUT_CTRL, 0x0002 },	/* chip enable */
 };
@@ -255,6 +275,20 @@ static void set_res(struct v4l2_subdev *sd)
 	calc_fps(sd, NULL, NULL);
 };
 
+static void set_read_mode(struct v4l2_subdev *sd)
+{
+	struct mt9v011 *core = to_mt9v011(sd);
+	unsigned mode = 0x1000;
+
+	if (core->hflip)
+		mode |= 0x4000;
+
+	if (core->vflip)
+		mode |= 0x8000;
+
+	mt9v011_write(sd, R20_MT9V011_READ_MODE, mode);
+}
+
 static int mt9v011_reset(struct v4l2_subdev *sd, u32 val)
 {
 	int i;
@@ -265,6 +299,7 @@ static int mt9v011_reset(struct v4l2_subdev *sd, u32 val)
 
 	set_balance(sd);
 	set_res(sd);
+	set_read_mode(sd);
 
 	return 0;
 };
@@ -284,6 +319,12 @@ static int mt9v011_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		return 0;
 	case V4L2_CID_BLUE_BALANCE:
 		ctrl->value = core->blue_bal;
+		return 0;
+	case V4L2_CID_HFLIP:
+		ctrl->value = core->hflip ? 1 : 0;
+		return 0;
+	case V4L2_CID_VFLIP:
+		ctrl->value = core->vflip ? 1 : 0;
 		return 0;
 	}
 	return -EINVAL;
@@ -333,6 +374,14 @@ static int mt9v011_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_BLUE_BALANCE:
 		core->blue_bal = ctrl->value;
 		break;
+	case V4L2_CID_HFLIP:
+		core->hflip = ctrl->value;
+		set_read_mode(sd);
+		return 0;
+	case V4L2_CID_VFLIP:
+		core->vflip = ctrl->value;
+		set_read_mode(sd);
+		return 0;
 	default:
 		return -EINVAL;
 	}
