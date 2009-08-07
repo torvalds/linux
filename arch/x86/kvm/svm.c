@@ -1724,24 +1724,34 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	return 0;
 }
 
-static int nested_svm_vmrun_msrpm(struct vcpu_svm *svm, void *arg1,
-				  void *arg2, void *opaque)
+static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 {
+	u32 *nested_msrpm;
 	int i;
-	u32 *nested_msrpm = (u32*)arg1;
+
+	nested_msrpm = nested_svm_map(svm, svm->nested.vmcb_msrpm, KM_USER0);
+	if (!nested_msrpm)
+		return false;
+
 	for (i=0; i< PAGE_SIZE * (1 << MSRPM_ALLOC_ORDER) / 4; i++)
 		svm->nested.msrpm[i] = svm->msrpm[i] | nested_msrpm[i];
+
 	svm->vmcb->control.msrpm_base_pa = __pa(svm->nested.msrpm);
 
-	return 0;
+	nested_svm_unmap(nested_msrpm, KM_USER0);
+
+	return true;
 }
 
-static int nested_svm_vmrun(struct vcpu_svm *svm, void *arg1,
-			    void *arg2, void *opaque)
+static bool nested_svm_vmrun(struct vcpu_svm *svm)
 {
-	struct vmcb *nested_vmcb = (struct vmcb *)arg1;
+	struct vmcb *nested_vmcb;
 	struct vmcb *hsave = svm->nested.hsave;
 	struct vmcb *vmcb = svm->vmcb;
+
+	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, KM_USER0);
+	if (!nested_vmcb)
+		return false;
 
 	/* nested_vmcb is our indicator if nested SVM is activated */
 	svm->nested.vmcb = svm->vmcb->save.rax;
@@ -1858,9 +1868,11 @@ static int nested_svm_vmrun(struct vcpu_svm *svm, void *arg1,
 	svm->vmcb->control.event_inj = nested_vmcb->control.event_inj;
 	svm->vmcb->control.event_inj_err = nested_vmcb->control.event_inj_err;
 
+	nested_svm_unmap(nested_vmcb, KM_USER0);
+
 	enable_gif(svm);
 
-	return 0;
+	return true;
 }
 
 static void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
@@ -1928,12 +1940,10 @@ static int vmrun_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
 	skip_emulated_instruction(&svm->vcpu);
 
-	if (nested_svm_do(svm, svm->vmcb->save.rax, 0,
-			  NULL, nested_svm_vmrun))
+	if (!nested_svm_vmrun(svm))
 		return 1;
 
-	if (nested_svm_do(svm, svm->nested.vmcb_msrpm, 0,
-		      NULL, nested_svm_vmrun_msrpm))
+	if (!nested_svm_vmrun_msrpm(svm))
 		return 1;
 
 	return 1;
