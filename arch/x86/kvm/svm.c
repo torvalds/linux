@@ -1374,19 +1374,20 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 
 static inline int nested_svm_intr(struct vcpu_svm *svm)
 {
-	if (is_nested(svm)) {
-		if (!(svm->vcpu.arch.hflags & HF_VINTR_MASK))
-			return 0;
+	if (!is_nested(svm))
+		return 0;
 
-		if (!(svm->vcpu.arch.hflags & HF_HIF_MASK))
-			return 0;
+	if (!(svm->vcpu.arch.hflags & HF_VINTR_MASK))
+		return 0;
 
-		svm->vmcb->control.exit_code = SVM_EXIT_INTR;
+	if (!(svm->vcpu.arch.hflags & HF_HIF_MASK))
+		return 0;
 
-		if (nested_svm_exit_handled(svm)) {
-			nsvm_printk("VMexit -> INTR\n");
-			return 1;
-		}
+	svm->vmcb->control.exit_code = SVM_EXIT_INTR;
+
+	if (nested_svm_exit_handled(svm)) {
+		nsvm_printk("VMexit -> INTR\n");
+		return 1;
 	}
 
 	return 0;
