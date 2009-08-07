@@ -143,10 +143,10 @@ void ath9k_hw_get_legacy_target_powers(struct ath_hw *ah,
 						       IS_CHAN_2GHZ(chan))) {
 				matchIndex = i;
 				break;
-			} else if ((freq < ath9k_hw_fbin2freq(powInfo[i].bChannel,
-						      IS_CHAN_2GHZ(chan))) &&
-				   (freq > ath9k_hw_fbin2freq(powInfo[i - 1].bChannel,
-						      IS_CHAN_2GHZ(chan)))) {
+			} else if (freq < ath9k_hw_fbin2freq(powInfo[i].bChannel,
+						IS_CHAN_2GHZ(chan)) && i > 0 &&
+				   freq > ath9k_hw_fbin2freq(powInfo[i - 1].bChannel,
+						IS_CHAN_2GHZ(chan))) {
 				lowIndex = i - 1;
 				break;
 			}
@@ -198,10 +198,10 @@ void ath9k_hw_get_target_powers(struct ath_hw *ah,
 				matchIndex = i;
 				break;
 			} else
-				if ((freq < ath9k_hw_fbin2freq(powInfo[i].bChannel,
-						       IS_CHAN_2GHZ(chan))) &&
-				    (freq > ath9k_hw_fbin2freq(powInfo[i - 1].bChannel,
-						       IS_CHAN_2GHZ(chan)))) {
+				if (freq < ath9k_hw_fbin2freq(powInfo[i].bChannel,
+						IS_CHAN_2GHZ(chan)) && i > 0 &&
+				    freq > ath9k_hw_fbin2freq(powInfo[i - 1].bChannel,
+						IS_CHAN_2GHZ(chan))) {
 					lowIndex = i - 1;
 					break;
 				}
