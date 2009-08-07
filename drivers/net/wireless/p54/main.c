@@ -288,6 +288,11 @@ static int p54_config(struct ieee80211_hw *dev, u32 changed)
 		if (ret)
 			goto out;
 	}
+	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		ret = p54_setup_mac(priv);
+		if (ret)
+			goto out;
+	}
 
 out:
 	mutex_unlock(&priv->conf_mutex);

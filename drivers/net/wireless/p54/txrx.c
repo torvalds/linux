@@ -552,6 +552,12 @@ static void p54_rx_trap(struct p54_common *priv, struct sk_buff *skb)
 		break;
 	case P54_TRAP_TIMER:
 		break;
+	case P54_TRAP_FAA_RADIO_OFF:
+		wiphy_rfkill_set_hw_state(priv->hw->wiphy, true);
+		break;
+	case P54_TRAP_FAA_RADIO_ON:
+		wiphy_rfkill_set_hw_state(priv->hw->wiphy, false);
+		break;
 	default:
 		printk(KERN_INFO "%s: received event:%x freq:%d\n",
 		       wiphy_name(priv->hw->wiphy), event, freq);
