@@ -54,4 +54,9 @@ struct sockaddr_ieee802154 {
 	struct ieee802154_addr addr;
 };
 
+/* get/setsockopt */
+#define SOL_IEEE802154	0
+
+#define WPAN_WANTACK	0
+
 #endif
