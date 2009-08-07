@@ -94,6 +94,9 @@ static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 		val = prev->trbs[TRBS_PER_SEGMENT-1].link.control;
 		val &= ~TRB_TYPE_BITMASK;
 		val |= TRB_TYPE(TRB_LINK);
+		/* Always set the chain bit with 0.95 hardware */
+		if (xhci_link_trb_quirk(xhci))
+			val |= TRB_CHAIN;
 		prev->trbs[TRBS_PER_SEGMENT-1].link.control = val;
 	}
 	xhci_dbg(xhci, "Linking segment 0x%llx to segment 0x%llx (DMA)\n",

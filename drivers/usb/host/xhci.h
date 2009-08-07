@@ -1058,6 +1058,8 @@ struct xhci_hcd {
 	int			noops_submitted;
 	int			noops_handled;
 	int			error_bitmask;
+	unsigned int		quirks;
+#define	XHCI_LINK_TRB_QUIRK	(1 << 0)
 };
 
 /* For testing purposes */
@@ -1134,6 +1136,13 @@ static inline void xhci_write_64(struct xhci_hcd *xhci,
 			regs, (long unsigned int) val);
 	writel(val_lo, ptr);
 	writel(val_hi, ptr + 1);
+}
+
+static inline int xhci_link_trb_quirk(struct xhci_hcd *xhci)
+{
+	u32 temp = xhci_readl(xhci, &xhci->cap_regs->hc_capbase);
+	return ((HC_VERSION(temp) == 0x95) &&
+			(xhci->quirks & XHCI_LINK_TRB_QUIRK));
 }
 
 /* xHCI debugging */

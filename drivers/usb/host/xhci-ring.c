@@ -172,8 +172,9 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
  * have their chain bit cleared (so that each Link TRB is a separate TD).
  *
  * Section 6.4.4.1 of the 0.95 spec says link TRBs cannot have the chain bit
- * set, but other sections talk about dealing with the chain bit set.
- * Assume section 6.4.4.1 is wrong, and the chain bit can be set in a Link TRB.
+ * set, but other sections talk about dealing with the chain bit set.  This was
+ * fixed in the 0.96 specification errata, but we have to assume that all 0.95
+ * xHCI hardware can't handle the chain bit being cleared on a link TRB.
  */
 static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer)
 {
@@ -191,8 +192,14 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 	while (last_trb(xhci, ring, ring->enq_seg, next)) {
 		if (!consumer) {
 			if (ring != xhci->event_ring) {
-				next->link.control &= ~TRB_CHAIN;
-				next->link.control |= chain;
+				/* If we're not dealing with 0.95 hardware,
+				 * carry over the chain bit of the previous TRB
+				 * (which may mean the chain bit is cleared).
+				 */
+				if (!xhci_link_trb_quirk(xhci)) {
+					next->link.control &= ~TRB_CHAIN;
+					next->link.control |= chain;
+				}
 				/* Give this link TRB to the hardware */
 				wmb();
 				if (next->link.control & TRB_CYCLE)

@@ -22,11 +22,17 @@
 
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 
 #include "xhci.h"
 
 #define DRIVER_AUTHOR "Sarah Sharp"
 #define DRIVER_DESC "'eXtensible' Host Controller (xHC) Driver"
+
+/* Some 0.95 hardware can't handle the chain bit on a Link TRB being cleared */
+static int link_quirk;
+module_param(link_quirk, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(link_quirk, "Don't clear the chain bit on a link TRB");
 
 /* TODO: copied from ehci-hcd.c - can this be refactored? */
 /*
@@ -214,6 +220,12 @@ int xhci_init(struct usb_hcd *hcd)
 
 	xhci_dbg(xhci, "xhci_init\n");
 	spin_lock_init(&xhci->lock);
+	if (link_quirk) {
+		xhci_dbg(xhci, "QUIRK: Not clearing Link TRB chain bits.\n");
+		xhci->quirks |= XHCI_LINK_TRB_QUIRK;
+	} else {
+		xhci_dbg(xhci, "xHCI has no QUIRKS\n");
+	}
 	retval = xhci_mem_init(xhci, GFP_KERNEL);
 	xhci_dbg(xhci, "Finished xhci_init\n");
 
