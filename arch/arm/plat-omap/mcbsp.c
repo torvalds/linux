@@ -328,14 +328,15 @@ void omap_mcbsp_free(unsigned int id)
 EXPORT_SYMBOL(omap_mcbsp_free);
 
 /*
- * Here we start the McBSP, by enabling the sample
- * generator, both transmitter and receivers,
- * and the frame sync.
+ * Here we start the McBSP, by enabling transmitter, receiver or both.
+ * If no transmitter or receiver is active prior calling, then sample-rate
+ * generator and frame sync are started.
  */
-void omap_mcbsp_start(unsigned int id)
+void omap_mcbsp_start(unsigned int id, int tx, int rx)
 {
 	struct omap_mcbsp *mcbsp;
 	void __iomem *io_base;
+	int idle;
 	u16 w;
 
 	if (!omap_mcbsp_check_valid_id(id)) {
@@ -348,32 +349,40 @@ void omap_mcbsp_start(unsigned int id)
 	mcbsp->rx_word_length = (OMAP_MCBSP_READ(io_base, RCR1) >> 5) & 0x7;
 	mcbsp->tx_word_length = (OMAP_MCBSP_READ(io_base, XCR1) >> 5) & 0x7;
 
-	/* Start the sample generator */
-	w = OMAP_MCBSP_READ(io_base, SPCR2);
-	OMAP_MCBSP_WRITE(io_base, SPCR2, w | (1 << 6));
+	idle = !((OMAP_MCBSP_READ(io_base, SPCR2) |
+		  OMAP_MCBSP_READ(io_base, SPCR1)) & 1);
+
+	if (idle) {
+		/* Start the sample generator */
+		w = OMAP_MCBSP_READ(io_base, SPCR2);
+		OMAP_MCBSP_WRITE(io_base, SPCR2, w | (1 << 6));
+	}
 
 	/* Enable transmitter and receiver */
 	w = OMAP_MCBSP_READ(io_base, SPCR2);
-	OMAP_MCBSP_WRITE(io_base, SPCR2, w | 1);
+	OMAP_MCBSP_WRITE(io_base, SPCR2, w | (tx & 1));
 
 	w = OMAP_MCBSP_READ(io_base, SPCR1);
-	OMAP_MCBSP_WRITE(io_base, SPCR1, w | 1);
+	OMAP_MCBSP_WRITE(io_base, SPCR1, w | (rx & 1));
 
 	udelay(100);
 
-	/* Start frame sync */
-	w = OMAP_MCBSP_READ(io_base, SPCR2);
-	OMAP_MCBSP_WRITE(io_base, SPCR2, w | (1 << 7));
+	if (idle) {
+		/* Start frame sync */
+		w = OMAP_MCBSP_READ(io_base, SPCR2);
+		OMAP_MCBSP_WRITE(io_base, SPCR2, w | (1 << 7));
+	}
 
 	/* Dump McBSP Regs */
 	omap_mcbsp_dump_reg(id);
 }
 EXPORT_SYMBOL(omap_mcbsp_start);
 
-void omap_mcbsp_stop(unsigned int id)
+void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 {
 	struct omap_mcbsp *mcbsp;
 	void __iomem *io_base;
+	int idle;
 	u16 w;
 
 	if (!omap_mcbsp_check_valid_id(id)) {
@@ -386,15 +395,20 @@ void omap_mcbsp_stop(unsigned int id)
 
 	/* Reset transmitter */
 	w = OMAP_MCBSP_READ(io_base, SPCR2);
-	OMAP_MCBSP_WRITE(io_base, SPCR2, w & ~(1));
+	OMAP_MCBSP_WRITE(io_base, SPCR2, w & ~(tx & 1));
 
 	/* Reset receiver */
 	w = OMAP_MCBSP_READ(io_base, SPCR1);
-	OMAP_MCBSP_WRITE(io_base, SPCR1, w & ~(1));
+	OMAP_MCBSP_WRITE(io_base, SPCR1, w & ~(rx & 1));
 
-	/* Reset the sample rate generator */
-	w = OMAP_MCBSP_READ(io_base, SPCR2);
-	OMAP_MCBSP_WRITE(io_base, SPCR2, w & ~(1 << 6));
+	idle = !((OMAP_MCBSP_READ(io_base, SPCR2) |
+		  OMAP_MCBSP_READ(io_base, SPCR1)) & 1);
+
+	if (idle) {
+		/* Reset the sample rate generator */
+		w = OMAP_MCBSP_READ(io_base, SPCR2);
+		OMAP_MCBSP_WRITE(io_base, SPCR2, w & ~(1 << 6));
+	}
 }
 EXPORT_SYMBOL(omap_mcbsp_stop);
 
