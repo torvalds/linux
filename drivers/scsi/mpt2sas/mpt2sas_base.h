@@ -673,6 +673,8 @@ typedef void (*MPT_CALLBACK)(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID,
 
 /* base shared API */
 extern struct list_head mpt2sas_ioc_list;
+void mpt2sas_base_start_watchdog(struct MPT2SAS_ADAPTER *ioc);
+void mpt2sas_base_stop_watchdog(struct MPT2SAS_ADAPTER *ioc);
 
 int mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc);
 void mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc);

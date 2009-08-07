@@ -5824,6 +5824,7 @@ _scsih_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
 	u32 device_state;
 
+	mpt2sas_base_stop_watchdog(ioc);
 	flush_scheduled_work();
 	scsi_block_requests(shost);
 	device_state = pci_choose_state(pdev, state);
@@ -5866,6 +5867,7 @@ _scsih_resume(struct pci_dev *pdev)
 
 	mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP, SOFT_RESET);
 	scsi_unblock_requests(shost);
+	mpt2sas_base_start_watchdog(ioc);
 	return 0;
 }
 #endif /* CONFIG_PM */

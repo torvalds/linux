@@ -119,6 +119,64 @@ _base_fault_reset_work(struct work_struct *work)
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 }
 
+/**
+ * mpt2sas_base_start_watchdog - start the fault_reset_work_q
+ * @ioc: pointer to scsi command object
+ * Context: sleep.
+ *
+ * Return nothing.
+ */
+void
+mpt2sas_base_start_watchdog(struct MPT2SAS_ADAPTER *ioc)
+{
+	unsigned long	 flags;
+
+	if (ioc->fault_reset_work_q)
+		return;
+
+	/* initialize fault polling */
+	INIT_DELAYED_WORK(&ioc->fault_reset_work, _base_fault_reset_work);
+	snprintf(ioc->fault_reset_work_q_name,
+	    sizeof(ioc->fault_reset_work_q_name), "poll_%d_status", ioc->id);
+	ioc->fault_reset_work_q =
+		create_singlethread_workqueue(ioc->fault_reset_work_q_name);
+	if (!ioc->fault_reset_work_q) {
+		printk(MPT2SAS_ERR_FMT "%s: failed (line=%d)\n",
+		    ioc->name, __func__, __LINE__);
+			return;
+	}
+	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
+	if (ioc->fault_reset_work_q)
+		queue_delayed_work(ioc->fault_reset_work_q,
+		    &ioc->fault_reset_work,
+		    msecs_to_jiffies(FAULT_POLLING_INTERVAL));
+	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+}
+
+/**
+ * mpt2sas_base_stop_watchdog - stop the fault_reset_work_q
+ * @ioc: pointer to scsi command object
+ * Context: sleep.
+ *
+ * Return nothing.
+ */
+void
+mpt2sas_base_stop_watchdog(struct MPT2SAS_ADAPTER *ioc)
+{
+	unsigned long	 flags;
+	struct workqueue_struct *wq;
+
+	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
+	wq = ioc->fault_reset_work_q;
+	ioc->fault_reset_work_q = NULL;
+	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	if (wq) {
+		if (!cancel_delayed_work(&ioc->fault_reset_work))
+			flush_workqueue(wq);
+		destroy_workqueue(wq);
+	}
+}
+
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 /**
  * _base_sas_ioc_info - verbose translation of the ioc status
@@ -3209,7 +3267,6 @@ int
 mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 {
 	int r, i;
-	unsigned long	 flags;
 
 	dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
@@ -3292,23 +3349,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	if (r)
 		goto out_free_resources;
 
-	/* initialize fault polling */
-	INIT_DELAYED_WORK(&ioc->fault_reset_work, _base_fault_reset_work);
-	snprintf(ioc->fault_reset_work_q_name,
-	    sizeof(ioc->fault_reset_work_q_name), "poll_%d_status", ioc->id);
-	ioc->fault_reset_work_q =
-		create_singlethread_workqueue(ioc->fault_reset_work_q_name);
-	if (!ioc->fault_reset_work_q) {
-		printk(MPT2SAS_ERR_FMT "%s: failed (line=%d)\n",
-		    ioc->name, __func__, __LINE__);
-			goto out_free_resources;
-	}
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->fault_reset_work_q)
-		queue_delayed_work(ioc->fault_reset_work_q,
-		    &ioc->fault_reset_work,
-		    msecs_to_jiffies(FAULT_POLLING_INTERVAL));
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	mpt2sas_base_start_watchdog(ioc);
 	return 0;
 
  out_free_resources:
@@ -3341,20 +3382,11 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 void
 mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc)
 {
-	unsigned long	 flags;
-	struct workqueue_struct *wq;
 
 	dexitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
 
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	wq = ioc->fault_reset_work_q;
-	ioc->fault_reset_work_q = NULL;
-	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
-	if (!cancel_delayed_work(&ioc->fault_reset_work))
-		flush_workqueue(wq);
-	destroy_workqueue(wq);
-
+	mpt2sas_base_stop_watchdog(ioc);
 	mpt2sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
 	kfree(ioc->pfacts);
