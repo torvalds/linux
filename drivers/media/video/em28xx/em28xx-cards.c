@@ -2273,10 +2273,6 @@ void em28xx_card_setup(struct em28xx *dev)
 		em28xx_gpio_set(dev, dev->board.tuner_gpio);
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		break;
-	case EM2820_BOARD_SILVERCREST_WEBCAM:
-		/* FIXME: need to document the registers bellow */
-		em28xx_write_reg(dev, 0x0d, 0x42);
-		em28xx_write_reg(dev, 0x13, 0x08);
 	}
 
 	if (dev->board.has_snapshot_button)
