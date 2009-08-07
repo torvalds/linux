@@ -71,14 +71,6 @@
 INT_MODULE_PARM(sepDebug, 0x0);
 MODULE_PARM_DESC(sepDebug, "Flag to enable SEP debug messages");
 
-/* major and minor device numbers */
-static dev_t g_sep_device_number;
-
-/* the files operations structure of the driver */
-static struct file_operations g_sep_fops;
-
-/* cdev struct of the driver */
-static struct cdev g_sep_cdev;
 
 /*
   mutex for the access to the internals of the sep driver
@@ -2456,31 +2448,40 @@ static void sep_configure_dma_burst(void)
 
 }
 
+/* major and minor device numbers */
+static dev_t sep_devno;
+
+/* the files operations structure of the driver */
+static struct file_operations sep_file_operations = {
+	.owner = THIS_MODULE,
+	.ioctl = sep_ioctl,
+	.poll = sep_poll,
+	.open = sep_open,
+	.release = sep_release,
+	.mmap = sep_mmap,
+};
+
+
+/* cdev struct of the driver */
+static struct cdev sep_cdev;
+
 /*
   this function registers the driver to the file system
 */
 static int sep_register_driver_to_fs(void)
 {
-	int ret_val = alloc_chrdev_region(&g_sep_device_number, 0, 1, "sep_sec_driver");
+	int ret_val = alloc_chrdev_region(&sep_devno, 0, 1, "sep_sec_driver");
 	if (ret_val) {
 		edbg("sep_driver:major number allocation failed, retval is %d\n", ret_val);
 		goto end_function;
 	}
 
-	/* set the files operations structure */
-	g_sep_fops.owner = THIS_MODULE;
-	g_sep_fops.ioctl = sep_ioctl;
-	g_sep_fops.poll = sep_poll;
-	g_sep_fops.open = sep_open;
-	g_sep_fops.release = sep_release;
-	g_sep_fops.mmap = sep_mmap;
-
 	/* init cdev */
-	cdev_init(&g_sep_cdev, &g_sep_fops);
-	g_sep_cdev.owner = THIS_MODULE;
+	cdev_init(&sep_cdev, &sep_file_operations);
+	sep_cdev.owner = THIS_MODULE;
 
 	/* register the driver with the kernel */
-	ret_val = cdev_add(&g_sep_cdev, g_sep_device_number, 1);
+	ret_val = cdev_add(&sep_cdev, sep_devno, 1);
 
 	if (ret_val) {
 		edbg("sep_driver:cdev_add failed, retval is %d\n", ret_val);
@@ -2492,7 +2493,7 @@ static int sep_register_driver_to_fs(void)
 end_function_unregister_devnum:
 
 	/* unregister dev numbers */
-	unregister_chrdev_region(g_sep_device_number, 1);
+	unregister_chrdev_region(sep_devno, 1);
 
 end_function:
       return ret_val;
@@ -2503,9 +2504,9 @@ end_function:
 */
 static void sep_unregister_driver_from_fs(void)
 {
-	cdev_del(&g_sep_cdev);
+	cdev_del(&sep_cdev);
 	/* unregister dev numbers */
-	unregister_chrdev_region(g_sep_device_number, 1);
+	unregister_chrdev_region(sep_devno, 1);
 }
 
 
