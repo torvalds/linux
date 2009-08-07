@@ -282,18 +282,21 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 			cmd.flags |= IWL_POWER_FAST_PD;
 
 		ret = iwl_set_power(priv, &cmd);
+		if (!ret) {
+			if (final_mode == IWL_POWER_MODE_CAM)
+				clear_bit(STATUS_POWER_PMI, &priv->status);
 
-		if (final_mode == IWL_POWER_MODE_CAM)
-			clear_bit(STATUS_POWER_PMI, &priv->status);
-
-		if (priv->cfg->ops->lib->update_chain_flags && update_chains)
-			priv->cfg->ops->lib->update_chain_flags(priv);
-		else
-			IWL_DEBUG_POWER(priv, "Cannot update the power, chain noise "
+			if (priv->cfg->ops->lib->update_chain_flags &&
+			    update_chains)
+				priv->cfg->ops->lib->update_chain_flags(priv);
+			else
+				IWL_DEBUG_POWER(priv,
+					"Cannot update the power, chain noise "
 					"calibration running: %d\n",
 					priv->chain_noise_data.state);
-		if (!ret)
 			setting->power_mode = final_mode;
+		} else
+			IWL_ERR(priv, "set power fail, ret = %d", ret);
 	}
 
 	return ret;
