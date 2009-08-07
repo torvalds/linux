@@ -235,7 +235,10 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			res->start = l64;
 			res->end = l64 + sz64;
 			dev_printk(KERN_DEBUG, &dev->dev,
-				"reg %x 64bit mmio: %pR\n", pos, res);
+				"reg %x %s: %pR\n", pos,
+				 (res->flags & IORESOURCE_PREFETCH) ?
+					"64bit mmio pref" : "64bit mmio",
+				 res);
 		}
 
 		res->flags |= IORESOURCE_MEM_64;
@@ -249,7 +252,9 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		res->end = l + sz;
 
 		dev_printk(KERN_DEBUG, &dev->dev, "reg %x %s: %pR\n", pos,
-			(res->flags & IORESOURCE_IO) ? "io port" : "32bit mmio",
+			(res->flags & IORESOURCE_IO) ? "io port" :
+			 ((res->flags & IORESOURCE_PREFETCH) ?
+				 "32bit mmio pref" : "32bit mmio"),
 			res);
 	}
 
