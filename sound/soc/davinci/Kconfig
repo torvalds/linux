@@ -41,3 +41,14 @@ config SND_DAVINCI_SOC_SFFSDR
 	help
 	  Say Y if you want to add support for SoC audio on
 	  Lyrtech SFFSDR board.
+
+config  SND_DA830_SOC_EVM
+	tristate "SoC Audio support for DA830/OMAPL137 EVM"
+	depends on SND_DAVINCI_SOC && MACH_DAVINCI_DA830_EVM
+	select SND_DAVINCI_SOC_MCASP
+	select SND_SOC_TLV320AIC3X
+
+	help
+	  Say Y if you want to add support for SoC audio on TI
+	  DA830/OMAPL137 EVM
+
