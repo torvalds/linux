@@ -85,16 +85,10 @@ ENTRY(_coreb_trampoline_start)
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
 
-	/* Anomaly 05000125 */
-#ifdef ANOMALY_05000125
-	CLI R2;
-	SSYNC;
-#endif
+	/* Disabling of CPLBs should be proceeded by a CSYNC */
+	CSYNC;
 	[p0] = R0;
 	SSYNC;
-#ifdef ANOMALY_05000125
-	STI R2;
-#endif
 
 	/* Turn off the dcache */
 	p0.l = LO(DMEM_CONTROL);
@@ -103,16 +97,10 @@ ENTRY(_coreb_trampoline_start)
 	R0 = ~ENDCPLB;
 	R0 = R0 & R1;
 
-	/* Anomaly 05000125 */
-#ifdef ANOMALY_05000125
-	CLI R2;
-	SSYNC;
-#endif
+	/* Disabling of CPLBs should be proceeded by a CSYNC */
+	CSYNC;
 	[p0] = R0;
 	SSYNC;
-#ifdef ANOMALY_05000125
-	STI R2;
-#endif
 
 	/* in case of double faults, save a few things */
 	p0.l = _init_retx_coreb;

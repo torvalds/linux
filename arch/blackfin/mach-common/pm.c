@@ -38,6 +38,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
+#include <asm/cplb.h>
 #include <asm/gpio.h>
 #include <asm/dma.h>
 #include <asm/dpmc.h>
@@ -170,58 +171,6 @@ static void flushinv_all_dcache(void)
 }
 #endif
 
-static inline void dcache_disable(void)
-{
-#ifdef CONFIG_BFIN_DCACHE
-	unsigned long ctrl;
-
-#if defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK)
-	flushinv_all_dcache();
-#endif
-	SSYNC();
-	ctrl = bfin_read_DMEM_CONTROL();
-	ctrl &= ~ENDCPLB;
-	bfin_write_DMEM_CONTROL(ctrl);
-	SSYNC();
-#endif
-}
-
-static inline void dcache_enable(void)
-{
-#ifdef CONFIG_BFIN_DCACHE
-	unsigned long ctrl;
-	SSYNC();
-	ctrl = bfin_read_DMEM_CONTROL();
-	ctrl |= ENDCPLB;
-	bfin_write_DMEM_CONTROL(ctrl);
-	SSYNC();
-#endif
-}
-
-static inline void icache_disable(void)
-{
-#ifdef CONFIG_BFIN_ICACHE
-	unsigned long ctrl;
-	SSYNC();
-	ctrl = bfin_read_IMEM_CONTROL();
-	ctrl &= ~ENICPLB;
-	bfin_write_IMEM_CONTROL(ctrl);
-	SSYNC();
-#endif
-}
-
-static inline void icache_enable(void)
-{
-#ifdef CONFIG_BFIN_ICACHE
-	unsigned long ctrl;
-	SSYNC();
-	ctrl = bfin_read_IMEM_CONTROL();
-	ctrl |= ENICPLB;
-	bfin_write_IMEM_CONTROL(ctrl);
-	SSYNC();
-#endif
-}
-
 int bfin_pm_suspend_mem_enter(void)
 {
 	unsigned long flags;
@@ -258,16 +207,19 @@ int bfin_pm_suspend_mem_enter(void)
 
 	bfin_gpio_pm_hibernate_suspend();
 
-	dcache_disable();
-	icache_disable();
+#if defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK)
+	flushinv_all_dcache();
+#endif
+	_disable_dcplb();
+	_disable_icplb();
 	bf53x_suspend_l1_mem(memptr);
 
 	do_hibernate(wakeup | vr_wakeup);	/* Goodbye */
 
 	bf53x_resume_l1_mem(memptr);
 
-	icache_enable();
-	dcache_enable();
+	_enable_icplb();
+	_enable_dcplb();
 
 	bfin_gpio_pm_hibernate_restore();
 	blackfin_dma_resume();
