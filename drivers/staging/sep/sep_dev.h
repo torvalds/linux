@@ -86,9 +86,6 @@ struct sep_device {
 	/* global data for every flow */
 	struct sep_flow_context_t flows_data_array[SEP_DRIVER_NUM_FLOWS];
 
-	/* flag for API mode - 1 -is blocking, 0 is non-blocking */
-	unsigned long block_mode_flag;
-
 	/* pointer to the workqueue that handles the flow done interrupts */
 	struct workqueue_struct *flow_wq_ptr;
 

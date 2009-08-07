@@ -83,9 +83,6 @@
 /* init sep command */
 #define SEP_IOCSEPINIT                         _IO(SEP_IOC_MAGIC_NUMBER , 13)
 
-/* set non blocking mode */
-#define SEP_IOCSETAPIMODE                      _IO(SEP_IOC_MAGIC_NUMBER , 14)
-
 /* end transaction command */
 #define SEP_IOCENDTRANSACTION                  _IO(SEP_IOC_MAGIC_NUMBER , 15)
 
@@ -145,14 +142,6 @@ struct sep_driver_realloc_cache_resident_t {
 
 	/* new base address */
 	unsigned long new_base_addr;
-};
-
-/*
-  set api mode command struct
-*/
-struct sep_driver_set_api_mode_t {
-	/* mode to set - 1 - blocking, 0 - non-blocking */
-	unsigned long mode;
 };
 
 struct sep_driver_alloc_t {

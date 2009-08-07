@@ -49,7 +49,6 @@
 #include "sep_driver_hw_defs.h"
 #include "sep_driver_config.h"
 #include "sep_driver_api.h"
-#include "sep_driver_ext_api.h"
 #include "sep_dev.h"
 
 #if SEP_DRIVER_ARM_DEBUG_MODE
@@ -345,25 +344,22 @@ static unsigned long sep_shared_area_phys_to_virt(unsigned long phys_address)
   open function of the character driver - must only lock the mutex
 	must also release the memory data pool allocations
 ------------------------------------------------------------------------*/
-static int sep_open(struct inode *inode_ptr, struct file *file_ptr)
+static int sep_open(struct inode *inode, struct file *filp)
 {
-	int error;
+	int error = 0;
 
 	dbg("SEP Driver:--------> open start\n");
 
-	error = 0;
-
 	/* check the blocking mode */
-	if (sep_dev->block_mode_flag)
+	if (filp->f_flags & O_NDELAY)
+		error = mutex_trylock(&sep_mutex);
+	else
 		/* lock mutex */
 		mutex_lock(&sep_mutex);
-	else
-		error = mutex_trylock(&sep_mutex);
 
 	/* check the error */
 	if (error) {
 		edbg("SEP Driver: down_interruptible failed\n");
-
 		goto end_function;
 	}
 
@@ -388,17 +384,13 @@ static int sep_release(struct inode *inode_ptr, struct file *file_ptr)
 #if 0				/*!SEP_DRIVER_POLLING_MODE */
 	/* close IMR */
 	sep_write_reg(sep_dev, HW_HOST_IMR_REG_ADDR, 0x7FFF);
-
 	/* release IRQ line */
 	free_irq(SEP_DIRVER_IRQ_NUM, &sep_dev->reg_base_address);
 
 #endif
-
 	/* unlock the sep mutex */
 	mutex_unlock(&sep_mutex);
-
 	dbg("SEP Driver:<-------- sep_release end\n");
-
 	return 0;
 }
 
@@ -2151,27 +2143,6 @@ static int sep_get_time_handler(unsigned long arg)
 }
 
 /*
-  This api handles the setting of API mode to blocking or non-blocking
-*/
-static int sep_set_api_mode_handler(unsigned long arg)
-{
-	int error;
-	unsigned long mode_flag;
-
-	dbg("SEP Driver:--------> sep_set_api_mode_handler start\n");
-
-	error = get_user(mode_flag, &(((struct sep_driver_set_api_mode_t *) arg)->mode));
-	if (error)
-		goto end_function;
-
-	/* set the global flag */
-	sep_dev->block_mode_flag = mode_flag;
-end_function:
-	dbg("SEP Driver:<-------- sep_set_api_mode_handler end\n");
-	return error;
-}
-
-/*
   This API handles the end transaction request
 */
 static int sep_end_transaction_handler(unsigned long arg)
@@ -2293,10 +2264,6 @@ static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 	case SEP_IOCSEPINIT:
 		/* init command to sep */
 		error = sep_init_handler(arg);
-		break;
-	case SEP_IOCSETAPIMODE:
-		/* set non- blocking mode */
-		error = sep_set_api_mode_handler(arg);
 		break;
 	case SEP_IOCGETSTATICPOOLADDR:
 		/* get the physical and virtual addresses of the static pool */
@@ -2638,9 +2605,6 @@ static int __init sep_init(void)
 	/* counter for the number of bytes allocated in the pool
 	for the current transaction */
 	sep_dev->data_pool_bytes_allocated = 0;
-
-	/* set the starting mode to blocking */
-	sep_dev->block_mode_flag = 1;
 
 	/* FIXME: Probe can occur before we are ready to survive a probe */
 	ret_val = pci_register_driver(&sep_pci_driver);
