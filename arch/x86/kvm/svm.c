@@ -80,6 +80,15 @@ struct nested_state {
 
 	/* gpa pointers to the real vectors */
 	u64 vmcb_msrpm;
+
+	/* cache for intercepts of the guest */
+	u16 intercept_cr_read;
+	u16 intercept_cr_write;
+	u16 intercept_dr_read;
+	u16 intercept_dr_write;
+	u32 intercept_exceptions;
+	u64 intercept;
+
 };
 
 struct vcpu_svm {
@@ -1452,7 +1461,6 @@ static int nested_svm_exit_handled_real(struct vcpu_svm *svm,
 					void *arg2,
 					void *opaque)
 {
-	struct vmcb *nested_vmcb = (struct vmcb *)arg1;
 	bool kvm_overrides = *(bool *)opaque;
 	u32 exit_code = svm->vmcb->control.exit_code;
 
@@ -1479,38 +1487,38 @@ static int nested_svm_exit_handled_real(struct vcpu_svm *svm,
 	switch (exit_code) {
 	case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR8: {
 		u32 cr_bits = 1 << (exit_code - SVM_EXIT_READ_CR0);
-		if (nested_vmcb->control.intercept_cr_read & cr_bits)
+		if (svm->nested.intercept_cr_read & cr_bits)
 			return 1;
 		break;
 	}
 	case SVM_EXIT_WRITE_CR0 ... SVM_EXIT_WRITE_CR8: {
 		u32 cr_bits = 1 << (exit_code - SVM_EXIT_WRITE_CR0);
-		if (nested_vmcb->control.intercept_cr_write & cr_bits)
+		if (svm->nested.intercept_cr_write & cr_bits)
 			return 1;
 		break;
 	}
 	case SVM_EXIT_READ_DR0 ... SVM_EXIT_READ_DR7: {
 		u32 dr_bits = 1 << (exit_code - SVM_EXIT_READ_DR0);
-		if (nested_vmcb->control.intercept_dr_read & dr_bits)
+		if (svm->nested.intercept_dr_read & dr_bits)
 			return 1;
 		break;
 	}
 	case SVM_EXIT_WRITE_DR0 ... SVM_EXIT_WRITE_DR7: {
 		u32 dr_bits = 1 << (exit_code - SVM_EXIT_WRITE_DR0);
-		if (nested_vmcb->control.intercept_dr_write & dr_bits)
+		if (svm->nested.intercept_dr_write & dr_bits)
 			return 1;
 		break;
 	}
 	case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 0x1f: {
 		u32 excp_bits = 1 << (exit_code - SVM_EXIT_EXCP_BASE);
-		if (nested_vmcb->control.intercept_exceptions & excp_bits)
+		if (svm->nested.intercept_exceptions & excp_bits)
 			return 1;
 		break;
 	}
 	default: {
 		u64 exit_bits = 1ULL << (exit_code - SVM_EXIT_INTR);
 		nsvm_printk("exit code: 0x%x\n", exit_code);
-		if (nested_vmcb->control.intercept & exit_bits)
+		if (svm->nested.intercept & exit_bits)
 			return 1;
 	}
 	}
@@ -1800,6 +1808,14 @@ static int nested_svm_vmrun(struct vcpu_svm *svm, void *arg1,
 	svm->vmcb->control.intercept |= nested_vmcb->control.intercept;
 
 	svm->nested.vmcb_msrpm = nested_vmcb->control.msrpm_base_pa;
+
+	/* cache intercepts */
+	svm->nested.intercept_cr_read    = nested_vmcb->control.intercept_cr_read;
+	svm->nested.intercept_cr_write   = nested_vmcb->control.intercept_cr_write;
+	svm->nested.intercept_dr_read    = nested_vmcb->control.intercept_dr_read;
+	svm->nested.intercept_dr_write   = nested_vmcb->control.intercept_dr_write;
+	svm->nested.intercept_exceptions = nested_vmcb->control.intercept_exceptions;
+	svm->nested.intercept            = nested_vmcb->control.intercept;
 
 	force_new_asid(&svm->vcpu);
 	svm->vmcb->control.exit_int_info = nested_vmcb->control.exit_int_info;
