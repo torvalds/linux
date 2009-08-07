@@ -55,7 +55,7 @@ static void wl1251_sdio_interrupt(struct sdio_func *func)
 	wl1251_debug(DEBUG_IRQ, "IRQ");
 
 	/* FIXME should be synchronous for sdio */
-	schedule_work(&wl->irq_work);
+	ieee80211_queue_work(wl->hw, &wl->irq_work);
 }
 
 static const struct sdio_device_id wl1251_devices[] = {

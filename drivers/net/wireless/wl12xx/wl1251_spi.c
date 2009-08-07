@@ -39,7 +39,7 @@ static irqreturn_t wl1251_irq(int irq, void *cookie)
 
 	wl = cookie;
 
-	schedule_work(&wl->irq_work);
+	ieee80211_queue_work(wl->hw, &wl->irq_work);
 
 	return IRQ_HANDLED;
 }
