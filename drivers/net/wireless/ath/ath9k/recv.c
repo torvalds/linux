@@ -788,7 +788,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 				 DMA_FROM_DEVICE);
 
 		skb_put(skb, ds->ds_rxstat.rs_datalen);
-		skb->protocol = cpu_to_be16(ETH_P_CONTROL);
 
 		/* see if any padding is done by the hw and remove it */
 		hdr = (struct ieee80211_hdr *)skb->data;
