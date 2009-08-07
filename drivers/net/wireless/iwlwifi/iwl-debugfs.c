@@ -887,9 +887,74 @@ static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	struct iwl_tx_queue *txq;
+	struct iwl_queue *q;
+	char *buf;
+	int pos = 0;
+	int cnt;
+	int ret;
+	const size_t bufsz = sizeof(char) * 60 * IWL_MAX_NUM_QUEUES;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
+		txq = &priv->txq[cnt];
+		q = &txq->q;
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"hwq %.2d: read=%u write=%u stop=%d"
+				" swq_id=%#.2x (ac %d/hwq %d)\n",
+				cnt, q->read_ptr, q->write_ptr,
+				!!test_bit(cnt, priv->queue_stopped),
+				txq->swq_id,
+				txq->swq_id & 0x80 ? txq->swq_id & 3 :
+				txq->swq_id,
+				txq->swq_id & 0x80 ? (txq->swq_id >> 2) &
+				0x1f : txq->swq_id);
+		if (cnt >= 4)
+			continue;
+		/* for the ACs, display the stop count too */
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"        stop-count: %d\n",
+				atomic_read(&priv->queue_stop_count[cnt]));
+	}
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	struct iwl_rx_queue *rxq = &priv->rxq;
+	char buf[256];
+	int pos = 0;
+	const size_t bufsz = sizeof(buf);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "read: %u\n",
+						rxq->read);
+	pos += scnprintf(buf + pos, bufsz - pos, "write: %u\n",
+						rxq->write);
+	pos += scnprintf(buf + pos, bufsz - pos, "free_count: %u\n",
+						rxq->free_count);
+	pos += scnprintf(buf + pos, bufsz - pos, "closed_rb_num: %u\n",
+			 le16_to_cpu(rxq->rb_stts->closed_rb_num) &  0x0FFF);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(rx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
+DEBUGFS_READ_FILE_OPS(rx_queue);
+DEBUGFS_READ_FILE_OPS(tx_queue);
 
 /*
  * Create the debugfs files and directories
@@ -934,6 +999,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(rx_statistics, debug);
 	DEBUGFS_ADD_FILE(tx_statistics, debug);
 	DEBUGFS_ADD_FILE(traffic_log, debug);
+	DEBUGFS_ADD_FILE(rx_queue, debug);
+	DEBUGFS_ADD_FILE(tx_queue, debug);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
 			 &priv->disable_chain_noise_cal);
@@ -976,6 +1043,8 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_rx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_tx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_traffic_log);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_rx_queue);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_tx_queue);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_debug);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);
