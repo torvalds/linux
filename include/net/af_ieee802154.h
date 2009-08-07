@@ -54,7 +54,4 @@ struct sockaddr_ieee802154 {
 	struct ieee802154_addr addr;
 };
 
-/* master device */
-#define IEEE802154_SIOC_ADD_SLAVE		(SIOCDEVPRIVATE + 0)
-
 #endif
