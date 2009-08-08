@@ -338,7 +338,6 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
-	int status;
 
 	/*
 	 * mac80211 might be calling this function while we are trying
@@ -348,44 +347,29 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 		return 0;
 
 	/*
-	 * Only change device state when the radio is enabled. It does not
-	 * matter what parameters we have configured when the radio is disabled
-	 * because we won't be able to send or receive anyway. Also note that
-	 * some configuration parameters (e.g. channel and antenna values) can
-	 * only be set when the radio is enabled.
+	 * Some configuration parameters (e.g. channel and antenna values) can
+	 * only be set when the radio is enabled, but do require the RX to
+	 * be off.
 	 */
-	if (conf->radio_enabled) {
-		/* For programming the values, we have to turn RX off */
-		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
 
-		/* Enable the radio */
-		status = rt2x00lib_enable_radio(rt2x00dev);
-		if (unlikely(status))
-			return status;
+	/*
+	 * When we've just turned on the radio, we want to reprogram
+	 * everything to ensure a consistent state
+	 */
+	rt2x00lib_config(rt2x00dev, conf, changed);
 
-		/*
-		 * When we've just turned on the radio, we want to reprogram
-		 * everything to ensure a consistent state
-		 */
-		rt2x00lib_config(rt2x00dev, conf, changed);
+	/*
+	 * After the radio has been enabled we need to configure
+	 * the antenna to the default settings. rt2x00lib_config_antenna()
+	 * should determine if any action should be taken based on
+	 * checking if diversity has been enabled or no antenna changes
+	 * have been made since the last configuration change.
+	 */
+	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
 
-		/*
-		 * The radio was enabled, configure the antenna to the
-		 * default settings, the link tuner will later start
-		 * continue configuring the antenna based on the software
-		 * diversity. But for non-diversity configurations, we need
-		 * to have configured the correct state now.
-		 */
-		if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED)
-			rt2x00lib_config_antenna(rt2x00dev,
-						 rt2x00dev->default_ant);
-
-		/* Turn RX back on */
-		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
-	} else {
-		/* Disable the radio */
-		rt2x00lib_disable_radio(rt2x00dev);
-	}
+	/* Turn RX back on */
+	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
 
 	return 0;
 }
