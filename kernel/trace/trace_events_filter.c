@@ -1050,6 +1050,8 @@ static int replace_preds(struct event_subsystem *system,
 
 		pred = create_pred(elt->op, operand1, operand2);
 add_pred:
+		if (!pred)
+			return -ENOMEM;
 		if (call)
 			err = filter_add_pred(ps, call, pred, false);
 		else
