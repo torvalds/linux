@@ -392,6 +392,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	    FIF_FCSFAIL |
 	    FIF_PLCPFAIL |
 	    FIF_CONTROL |
+	    FIF_PSPOLL |
 	    FIF_OTHER_BSS |
 	    FIF_PROMISC_IN_BSS;
 
@@ -405,6 +406,22 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	if (*total_flags & FIF_OTHER_BSS ||
 	    *total_flags & FIF_PROMISC_IN_BSS)
 		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
+
+	/*
+	 * If the device has a single filter for all control frames,
+	 * FIF_CONTROL and FIF_PSPOLL flags imply each other.
+	 * And if the device has more than one filter for control frames
+	 * of different types, but has no a separate filter for PS Poll frames,
+	 * FIF_CONTROL flag implies FIF_PSPOLL.
+	 */
+	if (!test_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags)) {
+		if (*total_flags & FIF_CONTROL || *total_flags & FIF_PSPOLL)
+			*total_flags |= FIF_CONTROL | FIF_PSPOLL;
+	}
+	if (!test_bit(DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL, &rt2x00dev->flags)) {
+		if (*total_flags & FIF_CONTROL)
+			*total_flags |= FIF_PSPOLL;
+	}
 
 	/*
 	 * Check if there is any work left for us.
