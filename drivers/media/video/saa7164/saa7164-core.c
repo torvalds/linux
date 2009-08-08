@@ -666,7 +666,9 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		printk(KERN_ERR "%s() Unsupported board detected, "
 			"registering without firmware\n", __func__);
 
-	printk(KERN_INFO "%s() waitsecs = %d\n", __func__, waitsecs);
+	dprintk(1, "%s() parameter debug = %d\n", __func__, debug);
+	dprintk(1, "%s() parameter waitsecs = %d\n", __func__, waitsecs);
+
 fail_fw:
 	return 0;
 
