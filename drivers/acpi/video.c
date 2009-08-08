@@ -997,8 +997,18 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 
 		device->cdev = thermal_cooling_device_register("LCD",
 					device->dev, &video_cooling_ops);
-		if (IS_ERR(device->cdev))
+		if (IS_ERR(device->cdev)) {
+			/*
+			 * Set cdev to NULL so we don't crash trying to
+			 * free it.
+			 * Also, why the hell we are returning early and
+			 * not attempt to register video output if cooling
+			 * device registration failed?
+			 * -- dtor
+			 */
+			device->cdev = NULL;
 			return;
+		}
 
 		dev_info(&device->dev->dev, "registered as cooling_device%d\n",
 			 device->cdev->id);
