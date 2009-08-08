@@ -99,6 +99,8 @@ source "drivers/staging/epl/Kconfig"
 
 source "drivers/staging/android/Kconfig"
 
+source "drivers/staging/dream/Kconfig"
+
 source "drivers/staging/dst/Kconfig"
 
 source "drivers/staging/pohmelfs/Kconfig"
@@ -130,10 +132,6 @@ source "drivers/staging/vt6656/Kconfig"
 source "drivers/staging/cpc-usb/Kconfig"
 
 source "drivers/staging/pata_rdc/Kconfig"
-
-source "drivers/staging/dream/smd/Kconfig"
-
-source "drivers/staging/dream/camera/Kconfig"
 
 source "drivers/staging/udlfb/Kconfig"
 
