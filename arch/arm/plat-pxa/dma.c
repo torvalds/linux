@@ -94,20 +94,21 @@ EXPORT_SYMBOL(pxa_free_dma);
 static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 {
 	int i, dint = DINT;
+	struct dma_channel *channel;
 
-	for (i = 0; i < num_dma_channels; i++) {
-		if (dint & (1 << i)) {
-			struct dma_channel *channel = &dma_channels[i];
-			if (channel->name && channel->irq_handler) {
-				channel->irq_handler(i, channel->data);
-			} else {
-				/*
-				 * IRQ for an unregistered DMA channel:
-				 * let's clear the interrupts and disable it.
-				 */
-				printk (KERN_WARNING "spurious IRQ for DMA channel %d\n", i);
-				DCSR(i) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;
-			}
+	while (dint) {
+		i = __ffs(dint);
+		dint &= (dint - 1);
+		channel = &dma_channels[i];
+		if (channel->name && channel->irq_handler) {
+			channel->irq_handler(i, channel->data);
+		} else {
+			/*
+			 * IRQ for an unregistered DMA channel:
+			 * let's clear the interrupts and disable it.
+			 */
+			printk (KERN_WARNING "spurious IRQ for DMA channel %d\n", i);
+			DCSR(i) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;
 		}
 	}
 	return IRQ_HANDLED;
