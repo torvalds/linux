@@ -162,8 +162,8 @@ fail:
  * If all the callers of init_file() are eliminated, its
  * code should be moved into this function.
  */
-struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
-		fmode_t mode, const struct file_operations *fop)
+struct file *alloc_file(struct path *path, fmode_t mode,
+		const struct file_operations *fop)
 {
 	struct file *file;
 
@@ -171,9 +171,8 @@ struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
 	if (!file)
 		return NULL;
 
-	file->f_path.dentry = dentry;
-	file->f_path.mnt = mntget(mnt);
-	file->f_mapping = dentry->d_inode->i_mapping;
+	file->f_path = *path;
+	file->f_mapping = path->dentry->d_inode->i_mapping;
 	file->f_mode = mode;
 	file->f_op = fop;
 
@@ -183,10 +182,10 @@ struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
 	 * visible.  We do this for consistency, and so
 	 * that we can do debugging checks at __fput()
 	 */
-	if ((mode & FMODE_WRITE) && !special_file(dentry->d_inode->i_mode)) {
+	if ((mode & FMODE_WRITE) && !special_file(path->dentry->d_inode->i_mode)) {
 		int error = 0;
 		file_take_write(file);
-		error = mnt_clone_write(mnt);
+		error = mnt_clone_write(path->mnt);
 		WARN_ON(error);
 	}
 	return file;

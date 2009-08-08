@@ -2626,7 +2626,8 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 	int error;
 	struct file *file;
 	struct inode *inode;
-	struct dentry *dentry, *root;
+	struct path path;
+	struct dentry *root;
 	struct qstr this;
 
 	if (IS_ERR(shm_mnt))
@@ -2643,16 +2644,17 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 	this.len = strlen(name);
 	this.hash = 0; /* will go */
 	root = shm_mnt->mnt_root;
-	dentry = d_alloc(root, &this);
-	if (!dentry)
+	path.dentry = d_alloc(root, &this);
+	if (!path.dentry)
 		goto put_memory;
+	path.mnt = mntget(shm_mnt);
 
 	error = -ENOSPC;
 	inode = shmem_get_inode(root->d_sb, S_IFREG | S_IRWXUGO, 0, flags);
 	if (!inode)
 		goto put_dentry;
 
-	d_instantiate(dentry, inode);
+	d_instantiate(path.dentry, inode);
 	inode->i_size = size;
 	inode->i_nlink = 0;	/* It is unlinked */
 #ifndef CONFIG_MMU
@@ -2662,7 +2664,7 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 #endif
 
 	error = -ENFILE;
-	file = alloc_file(shm_mnt, dentry, FMODE_WRITE | FMODE_READ,
+	file = alloc_file(&path, FMODE_WRITE | FMODE_READ,
 		  &shmem_file_operations);
 	if (!file)
 		goto put_dentry;
@@ -2671,7 +2673,7 @@ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags
 	return file;
 
 put_dentry:
-	dput(dentry);
+	path_put(&path);
 put_memory:
 	shmem_unacct_size(flags, size);
 	return ERR_PTR(error);

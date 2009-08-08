@@ -974,7 +974,7 @@ struct file *create_write_pipe(int flags)
 	int err;
 	struct inode *inode;
 	struct file *f;
-	struct dentry *dentry;
+	struct path path;
 	struct qstr name = { .name = "" };
 
 	err = -ENFILE;
@@ -983,21 +983,22 @@ struct file *create_write_pipe(int flags)
 		goto err;
 
 	err = -ENOMEM;
-	dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &name);
-	if (!dentry)
+	path.dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &name);
+	if (!path.dentry)
 		goto err_inode;
+	path.mnt = mntget(pipe_mnt);
 
-	dentry->d_op = &pipefs_dentry_operations;
+	path.dentry->d_op = &pipefs_dentry_operations;
 	/*
 	 * We dont want to publish this dentry into global dentry hash table.
 	 * We pretend dentry is already hashed, by unsetting DCACHE_UNHASHED
 	 * This permits a working /proc/$pid/fd/XXX on pipes
 	 */
-	dentry->d_flags &= ~DCACHE_UNHASHED;
-	d_instantiate(dentry, inode);
+	path.dentry->d_flags &= ~DCACHE_UNHASHED;
+	d_instantiate(path.dentry, inode);
 
 	err = -ENFILE;
-	f = alloc_file(pipe_mnt, dentry, FMODE_WRITE, &write_pipefifo_fops);
+	f = alloc_file(&path, FMODE_WRITE, &write_pipefifo_fops);
 	if (!f)
 		goto err_dentry;
 	f->f_mapping = inode->i_mapping;
@@ -1009,7 +1010,7 @@ struct file *create_write_pipe(int flags)
 
  err_dentry:
 	free_pipe_info(inode);
-	dput(dentry);
+	path_put(&path);
 	return ERR_PTR(err);
 
  err_inode:

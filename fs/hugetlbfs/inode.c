@@ -922,7 +922,8 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 	int error = -ENOMEM;
 	struct file *file;
 	struct inode *inode;
-	struct dentry *dentry, *root;
+	struct path path;
+	struct dentry *root;
 	struct qstr quick_string;
 
 	*user = NULL;
@@ -944,10 +945,11 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 	quick_string.name = name;
 	quick_string.len = strlen(quick_string.name);
 	quick_string.hash = 0;
-	dentry = d_alloc(root, &quick_string);
-	if (!dentry)
+	path.dentry = d_alloc(root, &quick_string);
+	if (!path.dentry)
 		goto out_shm_unlock;
 
+	path.mnt = mntget(hugetlbfs_vfsmount);
 	error = -ENOSPC;
 	inode = hugetlbfs_get_inode(root->d_sb, current_fsuid(),
 				current_fsgid(), S_IFREG | S_IRWXUGO, 0);
@@ -960,13 +962,12 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 			acctflag))
 		goto out_inode;
 
-	d_instantiate(dentry, inode);
+	d_instantiate(path.dentry, inode);
 	inode->i_size = size;
 	inode->i_nlink = 0;
 
 	error = -ENFILE;
-	file = alloc_file(hugetlbfs_vfsmount, dentry,
-			FMODE_WRITE | FMODE_READ,
+	file = alloc_file(&path, FMODE_WRITE | FMODE_READ,
 			&hugetlbfs_file_operations);
 	if (!file)
 		goto out_dentry; /* inode is already attached */
@@ -977,7 +978,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 out_inode:
 	iput(inode);
 out_dentry:
-	dput(dentry);
+	path_put(&path);
 out_shm_unlock:
 	if (*user) {
 		user_shm_unlock(size, *user);
