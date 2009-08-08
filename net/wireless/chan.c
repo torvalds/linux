@@ -42,13 +42,14 @@ rdev_fixed_channel(struct cfg80211_registered_device *rdev,
 }
 
 int rdev_set_freq(struct cfg80211_registered_device *rdev,
+		  struct wireless_dev *for_wdev,
 		  int freq, enum nl80211_channel_type channel_type)
 {
 	struct ieee80211_channel *chan;
 	struct ieee80211_sta_ht_cap *ht_cap;
 	int result;
 
-	if (rdev_fixed_channel(rdev, NULL))
+	if (rdev_fixed_channel(rdev, for_wdev))
 		return -EBUSY;
 
 	if (!rdev->ops->set_channel)

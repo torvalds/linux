@@ -374,6 +374,7 @@ struct ieee80211_channel *
 rdev_fixed_channel(struct cfg80211_registered_device *rdev,
 		   struct wireless_dev *for_wdev);
 int rdev_set_freq(struct cfg80211_registered_device *rdev,
+		  struct wireless_dev *for_wdev,
 		  int freq, enum nl80211_channel_type channel_type);
 
 #endif /* __NET_WIRELESS_CORE_H */

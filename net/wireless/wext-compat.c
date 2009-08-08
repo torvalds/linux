@@ -766,7 +766,7 @@ int cfg80211_wext_siwfreq(struct net_device *dev,
 		if (freq == 0)
 			return -EINVAL;
 		mutex_lock(&rdev->devlist_mtx);
-		err = rdev_set_freq(rdev, freq, NL80211_CHAN_NO_HT);
+		err = rdev_set_freq(rdev, NULL, freq, NL80211_CHAN_NO_HT);
 		mutex_unlock(&rdev->devlist_mtx);
 		return err;
 	}

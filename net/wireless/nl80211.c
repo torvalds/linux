@@ -721,7 +721,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
 
 		mutex_lock(&rdev->devlist_mtx);
-		result = rdev_set_freq(rdev, freq, channel_type);
+		result = rdev_set_freq(rdev, NULL, freq, channel_type);
 		mutex_unlock(&rdev->devlist_mtx);
 		if (result)
 			goto bad_res;
