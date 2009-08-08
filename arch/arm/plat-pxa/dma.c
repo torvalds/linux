@@ -71,6 +71,7 @@ int pxa_request_dma (char *name, pxa_dma_prio prio,
 	local_irq_restore(flags);
 	return i;
 }
+EXPORT_SYMBOL(pxa_request_dma);
 
 void pxa_free_dma (int dma_ch)
 {
@@ -88,6 +89,7 @@ void pxa_free_dma (int dma_ch)
 	dma_channels[dma_ch].name = NULL;
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL(pxa_free_dma);
 
 static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 {
@@ -139,6 +141,3 @@ int __init pxa_init_dma(int irq, int num_ch)
 	num_dma_channels = num_ch;
 	return 0;
 }
-
-EXPORT_SYMBOL(pxa_request_dma);
-EXPORT_SYMBOL(pxa_free_dma);
