@@ -470,20 +470,20 @@ static void xpad_irq_out(struct urb *urb)
 	status = urb->status;
 
 	switch (status) {
-		case 0:
+	case 0:
 		/* success */
-		break;
-		case -ECONNRESET:
-		case -ENOENT:
-		case -ESHUTDOWN:
-			/* this urb is terminated, clean up */
-			dbg("%s - urb shutting down with status: %d",
-				__func__, status);
-			return;
-		default:
-			dbg("%s - nonzero urb status received: %d",
-				__func__, status);
-			goto exit;
+		return;
+
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		/* this urb is terminated, clean up */
+		dbg("%s - urb shutting down with status: %d", __func__, status);
+		return;
+
+	default:
+		dbg("%s - nonzero urb status received: %d", __func__, status);
+		goto exit;
 	}
 
 exit:

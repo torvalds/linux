@@ -1,7 +1,7 @@
 /*
  * 	cn_test.c
  * 
- * 2004-2005 Copyright (c) Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+ * 2004+ Copyright (c) Evgeniy Polyakov <zbr@ioremap.net>
  * All rights reserved.
  * 
  * This program is free software; you can redistribute it and/or modify
@@ -194,5 +194,5 @@ module_init(cn_test_init);
 module_exit(cn_test_fini);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
+MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
 MODULE_DESCRIPTION("Connector's test module");

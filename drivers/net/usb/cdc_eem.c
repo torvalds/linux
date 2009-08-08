@@ -311,7 +311,7 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			 *	bmCRC = 0	: CRC = 0xDEADBEEF
 			 */
 			if (header & BIT(14))
-				crc2 = ~crc32_le(~0, skb2->data, len);
+				crc2 = ~crc32_le(~0, skb2->data, skb2->len);
 			else
 				crc2 = 0xdeadbeef;
 

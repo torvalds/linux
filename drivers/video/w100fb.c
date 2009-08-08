@@ -748,8 +748,6 @@ int __init w100fb_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	w100fb_set_par(info);
-
 	if (register_framebuffer(info) < 0) {
 		err = -EINVAL;
 		goto out;

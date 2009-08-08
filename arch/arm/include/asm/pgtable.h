@@ -285,15 +285,6 @@ extern struct page *empty_zero_page;
 #define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
 #define pte_special(pte)	(0)
 
-/*
- * The following only works if pte_present() is not true.
- */
-#define pte_file(pte)		(pte_val(pte) & L_PTE_FILE)
-#define pte_to_pgoff(x)		(pte_val(x) >> 2)
-#define pgoff_to_pte(x)		__pte(((x) << 2) | L_PTE_FILE)
-
-#define PTE_FILE_MAX_BITS	30
-
 #define PTE_BIT_FUNC(fn,op) \
 static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
 
@@ -384,15 +375,49 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-/* Encode and decode a swap entry.
+/*
+ * Encode and decode a swap entry.  Swap entries are stored in the Linux
+ * page tables as follows:
  *
- * We support up to 32GB of swap on 4k machines
+ *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *   <--------------- offset --------------------> <--- type --> 0 0
+ *
+ * This gives us up to 127 swap files and 32GB per swap file.  Note that
+ * the offset field is always non-zero.
  */
-#define __swp_type(x)		(((x).val >> 2) & 0x7f)
-#define __swp_offset(x)		((x).val >> 9)
-#define __swp_entry(type,offset) ((swp_entry_t) { ((type) << 2) | ((offset) << 9) })
+#define __SWP_TYPE_SHIFT	2
+#define __SWP_TYPE_BITS		7
+#define __SWP_TYPE_MASK		((1 << __SWP_TYPE_BITS) - 1)
+#define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)
+
+#define __swp_type(x)		(((x).val >> __SWP_TYPE_SHIFT) & __SWP_TYPE_MASK)
+#define __swp_offset(x)		((x).val >> __SWP_OFFSET_SHIFT)
+#define __swp_entry(type,offset) ((swp_entry_t) { ((type) << __SWP_TYPE_SHIFT) | ((offset) << __SWP_OFFSET_SHIFT) })
+
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(swp)	((pte_t) { (swp).val })
+
+/*
+ * It is an error for the kernel to have more swap files than we can
+ * encode in the PTEs.  This ensures that we know when MAX_SWAPFILES
+ * is increased beyond what we presently support.
+ */
+#define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
+
+/*
+ * Encode and decode a file entry.  File entries are stored in the Linux
+ * page tables as follows:
+ *
+ *   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+ *   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ *   <------------------------ offset -------------------------> 1 0
+ */
+#define pte_file(pte)		(pte_val(pte) & L_PTE_FILE)
+#define pte_to_pgoff(x)		(pte_val(x) >> 2)
+#define pgoff_to_pte(x)		__pte(((x) << 2) | L_PTE_FILE)
+
+#define PTE_FILE_MAX_BITS	30
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 /* FIXME: this is not correct */

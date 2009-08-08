@@ -66,7 +66,7 @@ rix_to_ndx(struct minstrel_sta_info *mi, int rix)
 	for (i = rix; i >= 0; i--)
 		if (mi->r[i].rix == rix)
 			break;
-	WARN_ON(mi->r[i].rix != rix);
+	WARN_ON(i < 0);
 	return i;
 }
 
@@ -181,6 +181,9 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 			break;
 
 		ndx = rix_to_ndx(mi, ar[i].idx);
+		if (ndx < 0)
+			continue;
+
 		mi->r[ndx].attempts += ar[i].count;
 
 		if ((i != IEEE80211_TX_MAX_RATES - 1) && (ar[i + 1].idx < 0))

@@ -715,6 +715,7 @@ struct intel_sdvo_enhancements_arg {
   #define SDVO_HBUF_TX_ONCE	(2 << 6)
   #define SDVO_HBUF_TX_VSYNC	(3 << 6)
 #define SDVO_CMD_GET_AUDIO_TX_INFO	0x9c
+#define SDVO_NEED_TO_STALL  (1 << 7)
 
 struct intel_sdvo_encode{
     u8 dvi_rev;

@@ -235,7 +235,7 @@ xpnet_receive(short partid, int channel, struct xpnet_message *msg)
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	dev_dbg(xpnet, "passing skb to network layer\n"
-		KERN_DEBUG "\tskb->head=0x%p skb->data=0x%p skb->tail=0x%p "
+		"\tskb->head=0x%p skb->data=0x%p skb->tail=0x%p "
 		"skb->end=0x%p skb->len=%d\n",
 		(void *)skb->head, (void *)skb->data, skb_tail_pointer(skb),
 		skb_end_pointer(skb), skb->len);
@@ -399,7 +399,7 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
 	msg->buf_pa = xp_pa((void *)start_addr);
 
 	dev_dbg(xpnet, "sending XPC message to %d:%d\n"
-		KERN_DEBUG "msg->buf_pa=0x%lx, msg->size=%u, "
+		"msg->buf_pa=0x%lx, msg->size=%u, "
 		"msg->leadin_ignore=%u, msg->tailout_ignore=%u\n",
 		dest_partid, XPC_NET_CHANNEL, msg->buf_pa, msg->size,
 		msg->leadin_ignore, msg->tailout_ignore);

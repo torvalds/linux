@@ -90,10 +90,35 @@ MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
 /* supported video standards */
 static struct em28xx_fmt format[] = {
 	{
-		.name     = "16bpp YUY2, 4:2:2, packed",
+		.name     = "16 bpp YUY2, 4:2:2, packed",
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.depth    = 16,
 		.reg	  = EM28XX_OUTFMT_YUV422_Y0UY1V,
+	}, {
+		.name     = "16 bpp RGB 565, LE",
+		.fourcc   = V4L2_PIX_FMT_RGB565,
+		.depth    = 16,
+		.reg      = EM28XX_OUTFMT_RGB_16_656,
+	}, {
+		.name     = "8 bpp Bayer BGBG..GRGR",
+		.fourcc   = V4L2_PIX_FMT_SBGGR8,
+		.depth    = 8,
+		.reg      = EM28XX_OUTFMT_RGB_8_BGBG,
+	}, {
+		.name     = "8 bpp Bayer GRGR..BGBG",
+		.fourcc   = V4L2_PIX_FMT_SGRBG8,
+		.depth    = 8,
+		.reg      = EM28XX_OUTFMT_RGB_8_GRGR,
+	}, {
+		.name     = "8 bpp Bayer GBGB..RGRG",
+		.fourcc   = V4L2_PIX_FMT_SGBRG8,
+		.depth    = 8,
+		.reg      = EM28XX_OUTFMT_RGB_8_GBGB,
+	}, {
+		.name     = "12 bpp YUV411",
+		.fourcc   = V4L2_PIX_FMT_YUV411P,
+		.depth    = 12,
+		.reg      = EM28XX_OUTFMT_YUV411,
 	},
 };
 
@@ -632,8 +657,8 @@ static void get_scale(struct em28xx *dev,
 			unsigned int width, unsigned int height,
 			unsigned int *hscale, unsigned int *vscale)
 {
-	unsigned int          maxw   = norm_maxw(dev);
-	unsigned int          maxh   = norm_maxh(dev);
+	unsigned int          maxw = norm_maxw(dev);
+	unsigned int          maxh = norm_maxh(dev);
 
 	*hscale = (((unsigned long)maxw) << 12) / width - 4096L;
 	if (*hscale >= 0x4000)
@@ -733,13 +758,34 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
+				   unsigned width, unsigned height)
+{
+	struct em28xx_fmt     *fmt;
+
+	fmt = format_by_fourcc(fourcc);
+	if (!fmt)
+		return -EINVAL;
+
+	dev->format = fmt;
+	dev->width  = width;
+	dev->height = height;
+
+	/* set new image size */
+	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
+
+	em28xx_set_alternate(dev);
+	em28xx_resolution_set(dev);
+
+	return 0;
+}
+
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 	int                   rc;
-	struct em28xx_fmt     *fmt;
 
 	rc = check_dev(dev);
 	if (rc < 0)
@@ -748,12 +794,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	mutex_lock(&dev->lock);
 
 	vidioc_try_fmt_vid_cap(file, priv, f);
-
-	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
-	if (!fmt) {
-		rc = -EINVAL;
-		goto out;
-	}
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
 		em28xx_errdev("%s queue busy\n", __func__);
@@ -767,16 +807,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		goto out;
 	}
 
-	/* set new image size */
-	dev->width = f->fmt.pix.width;
-	dev->height = f->fmt.pix.height;
-	dev->format = fmt;
-	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
-
-	em28xx_set_alternate(dev);
-	em28xx_resolution_set(dev);
-
-	rc = 0;
+	rc = em28xx_set_video_format(dev, f->fmt.pix.pixelformat,
+				f->fmt.pix.width, f->fmt.pix.height);
 
 out:
 	mutex_unlock(&dev->lock);
@@ -1616,11 +1648,6 @@ static int em28xx_v4l2_open(struct file *filp)
 	filp->private_data = fh;
 
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
-		dev->width = norm_maxw(dev);
-		dev->height = norm_maxh(dev);
-		dev->hscale = 0;
-		dev->vscale = 0;
-
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		em28xx_set_alternate(dev);
 		em28xx_resolution_set(dev);
@@ -1962,15 +1989,14 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 
 	/* set default norm */
 	dev->norm = em28xx_video_template.current_norm;
-	dev->width = norm_maxw(dev);
-	dev->height = norm_maxh(dev);
 	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
-	dev->hscale = 0;
-	dev->vscale = 0;
 	dev->ctl_input = 0;
 
 	/* Analog specific initialization */
 	dev->format = &format[0];
+	em28xx_set_video_format(dev, format[0].fourcc,
+				norm_maxw(dev), norm_maxh(dev));
+
 	video_mux(dev, dev->ctl_input);
 
 	/* Audio defaults */

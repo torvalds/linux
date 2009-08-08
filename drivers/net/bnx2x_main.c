@@ -484,8 +484,9 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 
 	mark = REG_RD(bp, MCP_REG_MCPR_SCRATCH + 0xf104);
 	mark = ((mark + 0x3) & ~0x3);
-	printk(KERN_ERR PFX "begin fw dump (mark 0x%x)\n" KERN_ERR, mark);
+	printk(KERN_ERR PFX "begin fw dump (mark 0x%x)\n", mark);
 
+	printk(KERN_ERR PFX);
 	for (offset = mark - 0x08000000; offset <= 0xF900; offset += 0x8*4) {
 		for (word = 0; word < 8; word++)
 			data[word] = htonl(REG_RD(bp, MCP_REG_MCPR_SCRATCH +
@@ -500,7 +501,7 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 		data[8] = 0x0;
 		printk(KERN_CONT "%s", (char *)data);
 	}
-	printk("\n" KERN_ERR PFX "end of fw dump\n");
+	printk(KERN_ERR PFX "end of fw dump\n");
 }
 
 static void bnx2x_panic_dump(struct bnx2x *bp)
@@ -4434,7 +4435,7 @@ static void bnx2x_update_coalesce(struct bnx2x *bp)
 		REG_WR16(bp, BAR_USTRORM_INTMEM +
 			 USTORM_SB_HC_DISABLE_OFFSET(port, sb_id,
 						     U_SB_ETH_RX_CQ_INDEX),
-			 bp->rx_ticks ? 0 : 1);
+			 (bp->rx_ticks/12) ? 0 : 1);
 
 		/* HC_INDEX_C_ETH_TX_CQ_CONS */
 		REG_WR8(bp, BAR_CSTRORM_INTMEM +
@@ -4444,7 +4445,7 @@ static void bnx2x_update_coalesce(struct bnx2x *bp)
 		REG_WR16(bp, BAR_CSTRORM_INTMEM +
 			 CSTORM_SB_HC_DISABLE_OFFSET(port, sb_id,
 						     C_SB_ETH_TX_CQ_INDEX),
-			 bp->tx_ticks ? 0 : 1);
+			 (bp->tx_ticks/12) ? 0 : 1);
 	}
 }
 
@@ -7354,7 +7355,7 @@ static void bnx2x_reset_task(struct work_struct *work)
 #ifdef BNX2X_STOP_ON_ERROR
 	BNX2X_ERR("reset task called but STOP_ON_ERROR defined"
 		  " so reset not done to allow debug dump,\n"
-	 KERN_ERR " you will need to reboot when done\n");
+		  " you will need to reboot when done\n");
 	return;
 #endif
 
@@ -9069,12 +9070,12 @@ static int bnx2x_set_coalesce(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 
 	bp->rx_ticks = (u16) coal->rx_coalesce_usecs;
-	if (bp->rx_ticks > 3000)
-		bp->rx_ticks = 3000;
+	if (bp->rx_ticks > BNX2X_MAX_COALESCE_TOUT)
+		bp->rx_ticks = BNX2X_MAX_COALESCE_TOUT;
 
 	bp->tx_ticks = (u16) coal->tx_coalesce_usecs;
-	if (bp->tx_ticks > 0x3000)
-		bp->tx_ticks = 0x3000;
+	if (bp->tx_ticks > BNX2X_MAX_COALESCE_TOUT)
+		bp->tx_ticks = BNX2X_MAX_COALESCE_TOUT;
 
 	if (netif_running(dev))
 		bnx2x_update_coalesce(bp);

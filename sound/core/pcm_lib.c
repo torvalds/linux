@@ -233,6 +233,18 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 		xrun(substream);
 		return -EPIPE;
 	}
+	if (xrun_debug(substream, 8)) {
+		char name[16];
+		pcm_debug_name(substream, name, sizeof(name));
+		snd_printd("period_update: %s: pos=0x%x/0x%x/0x%x, "
+			   "hwptr=0x%lx, hw_base=0x%lx, hw_intr=0x%lx\n",
+			   name, (unsigned int)pos,
+			   (unsigned int)runtime->period_size,
+			   (unsigned int)runtime->buffer_size,
+			   (unsigned long)old_hw_ptr,
+			   (unsigned long)runtime->hw_ptr_base,
+			   (unsigned long)runtime->hw_ptr_interrupt);
+	}
 	hw_base = runtime->hw_ptr_base;
 	new_hw_ptr = hw_base + pos;
 	hw_ptr_interrupt = runtime->hw_ptr_interrupt + runtime->period_size;
@@ -244,18 +256,27 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 			delta = new_hw_ptr - hw_ptr_interrupt;
 	}
 	if (delta < 0) {
-		delta += runtime->buffer_size;
+		if (runtime->periods == 1 || new_hw_ptr < old_hw_ptr)
+			delta += runtime->buffer_size;
 		if (delta < 0) {
 			hw_ptr_error(substream, 
 				     "Unexpected hw_pointer value "
 				     "(stream=%i, pos=%ld, intr_ptr=%ld)\n",
 				     substream->stream, (long)pos,
 				     (long)hw_ptr_interrupt);
+#if 1
+			/* simply skipping the hwptr update seems more
+			 * robust in some cases, e.g. on VMware with
+			 * inaccurate timer source
+			 */
+			return 0; /* skip this update */
+#else
 			/* rebase to interrupt position */
 			hw_base = new_hw_ptr = hw_ptr_interrupt;
 			/* align hw_base to buffer_size */
 			hw_base -= hw_base % runtime->buffer_size;
 			delta = 0;
+#endif
 		} else {
 			hw_base += runtime->buffer_size;
 			if (hw_base >= runtime->boundary)
@@ -344,6 +365,19 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 		xrun(substream);
 		return -EPIPE;
 	}
+	if (xrun_debug(substream, 16)) {
+		char name[16];
+		pcm_debug_name(substream, name, sizeof(name));
+		snd_printd("hw_update: %s: pos=0x%x/0x%x/0x%x, "
+			   "hwptr=0x%lx, hw_base=0x%lx, hw_intr=0x%lx\n",
+			   name, (unsigned int)pos,
+			   (unsigned int)runtime->period_size,
+			   (unsigned int)runtime->buffer_size,
+			   (unsigned long)old_hw_ptr,
+			   (unsigned long)runtime->hw_ptr_base,
+			   (unsigned long)runtime->hw_ptr_interrupt);
+	}
+
 	hw_base = runtime->hw_ptr_base;
 	new_hw_ptr = hw_base + pos;
 

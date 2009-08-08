@@ -173,6 +173,7 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 		unsigned	segment;
 		unsigned	offset = (unsigned) off;
 		u8		*cp = bounce + 1;
+		int		sr;
 
 		*cp = AT25_WREN;
 		status = spi_write(at25->spi, cp, 1);
@@ -214,7 +215,6 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 		timeout = jiffies + msecs_to_jiffies(EE_TIMEOUT);
 		retries = 0;
 		do {
-			int	sr;
 
 			sr = spi_w8r8(at25->spi, AT25_RDSR);
 			if (sr < 0 || (sr & AT25_SR_nRDY)) {
@@ -228,7 +228,7 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 				break;
 		} while (retries++ < 3 || time_before_eq(jiffies, timeout));
 
-		if (time_after(jiffies, timeout)) {
+		if ((sr < 0) || (sr & AT25_SR_nRDY)) {
 			dev_err(&at25->spi->dev,
 				"write %d bytes offset %d, "
 				"timeout after %u msecs\n",

@@ -180,10 +180,12 @@ EXPORT_SYMBOL(kthread_bind);
  * @k: thread created by kthread_create().
  *
  * Sets kthread_should_stop() for @k to return true, wakes it, and
- * waits for it to exit.  Your threadfn() must not call do_exit()
- * itself if you use this function!  This can also be called after
- * kthread_create() instead of calling wake_up_process(): the thread
- * will exit without calling threadfn().
+ * waits for it to exit. This can also be called after kthread_create()
+ * instead of calling wake_up_process(): the thread will exit without
+ * calling threadfn().
+ *
+ * If threadfn() may call do_exit() itself, the caller must ensure
+ * task_struct can't go away.
  *
  * Returns the result of threadfn(), or %-EINTR if wake_up_process()
  * was never called.

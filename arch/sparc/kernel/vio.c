@@ -224,7 +224,12 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	if (!strcmp(type, "domain-services-port"))
 		bus_id_name = "ds";
 
-	if (strlen(bus_id_name) >= BUS_ID_SIZE - 4) {
+	/*
+	 * 20 char is the old driver-core name size limit, which is no more.
+	 * This check can probably be removed after review and possible
+	 * adaption of the vio users name length handling.
+	 */
+	if (strlen(bus_id_name) >= 20 - 4) {
 		printk(KERN_ERR "VIO: bus_id_name [%s] is too long.\n",
 		       bus_id_name);
 		return NULL;

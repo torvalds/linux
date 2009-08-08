@@ -206,6 +206,7 @@
 /*
  * Instruction and interrupt control regs
  */
+#define PGTBL_ER	0x02024
 #define PRB0_TAIL	0x02030
 #define PRB0_HEAD	0x02034
 #define PRB0_START	0x02038
@@ -226,11 +227,18 @@
 #define PRB1_HEAD	0x02044 /* 915+ only */
 #define PRB1_START	0x02048 /* 915+ only */
 #define PRB1_CTL	0x0204c /* 915+ only */
+#define IPEIR_I965	0x02064
+#define IPEHR_I965	0x02068
+#define INSTDONE_I965	0x0206c
+#define INSTPS		0x02070 /* 965+ only */
+#define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
 #define HWS_PGA		0x02080
 #define HWS_ADDRESS_MASK	0xfffff000
 #define HWS_START_ADDRESS_SHIFT	4
 #define IPEIR		0x02088
+#define IPEHR		0x0208c
+#define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
 #define SCPD0		0x0209c /* 915+ only */
@@ -258,10 +266,22 @@
 #define EIR		0x020b0
 #define EMR		0x020b4
 #define ESR		0x020b8
+#define   GM45_ERROR_PAGE_TABLE				(1<<5)
+#define   GM45_ERROR_MEM_PRIV				(1<<4)
+#define   I915_ERROR_PAGE_TABLE				(1<<4)
+#define   GM45_ERROR_CP_PRIV				(1<<3)
+#define   I915_ERROR_MEMORY_REFRESH			(1<<1)
+#define   I915_ERROR_INSTRUCTION			(1<<0)
 #define INSTPM	        0x020c0
 #define ACTHD	        0x020c8
 #define FW_BLC		0x020d8
+#define FW_BLC2	 	0x020dc
 #define FW_BLC_SELF	0x020e0 /* 915+ only */
+#define   FW_BLC_SELF_EN (1<<15)
+#define MM_BURST_LENGTH     0x00700000
+#define MM_FIFO_WATERMARK   0x0001F000
+#define LM_BURST_LENGTH     0x00000700
+#define LM_FIFO_WATERMARK   0x0000001F
 #define MI_ARB_STATE	0x020e4 /* 915+ only */
 #define CACHE_MODE_0	0x02120 /* 915+ only */
 #define   CM0_MASK_SHIFT          16
@@ -571,17 +591,21 @@
 
 /* Clocking configuration register */
 #define CLKCFG			0x10c00
-#define CLKCFG_FSB_400					(0 << 0)	/* hrawclk 100 */
+#define CLKCFG_FSB_400					(5 << 0)	/* hrawclk 100 */
 #define CLKCFG_FSB_533					(1 << 0)	/* hrawclk 133 */
 #define CLKCFG_FSB_667					(3 << 0)	/* hrawclk 166 */
 #define CLKCFG_FSB_800					(2 << 0)	/* hrawclk 200 */
 #define CLKCFG_FSB_1067					(6 << 0)	/* hrawclk 266 */
 #define CLKCFG_FSB_1333					(7 << 0)	/* hrawclk 333 */
-/* this is a guess, could be 5 as well */
+/* Note, below two are guess */
 #define CLKCFG_FSB_1600					(4 << 0)	/* hrawclk 400 */
-#define CLKCFG_FSB_1600_ALT				(5 << 0)	/* hrawclk 400 */
+#define CLKCFG_FSB_1600_ALT				(0 << 0)	/* hrawclk 400 */
 #define CLKCFG_FSB_MASK					(7 << 0)
- 
+#define CLKCFG_MEM_533					(1 << 4)
+#define CLKCFG_MEM_667					(2 << 4)
+#define CLKCFG_MEM_800					(3 << 4)
+#define CLKCFG_MEM_MASK					(7 << 4)
+
 /** GM965 GM45 render standby register */
 #define MCHBAR_RENDER_STANDBY	0x111B8
 
@@ -1581,6 +1605,34 @@
 #define   DSPARB_CSTART_SHIFT	7
 #define   DSPARB_BSTART_MASK	(0x7f)
 #define   DSPARB_BSTART_SHIFT	0
+#define   DSPARB_BEND_SHIFT	9 /* on 855 */
+#define   DSPARB_AEND_SHIFT	0
+
+#define DSPFW1			0x70034
+#define DSPFW2			0x70038
+#define DSPFW3			0x7003c
+#define   IGD_SELF_REFRESH_EN	(1<<30)
+
+/* FIFO watermark sizes etc */
+#define I915_FIFO_LINE_SIZE	64
+#define I830_FIFO_LINE_SIZE	32
+#define I945_FIFO_SIZE		127 /* 945 & 965 */
+#define I915_FIFO_SIZE		95
+#define I855GM_FIFO_SIZE	255
+#define I830_FIFO_SIZE		95
+#define I915_MAX_WM		0x3f
+
+#define IGD_DISPLAY_FIFO	512 /* in 64byte unit */
+#define IGD_FIFO_LINE_SIZE	64
+#define IGD_MAX_WM		0x1ff
+#define IGD_DFT_WM		0x3f
+#define IGD_DFT_HPLLOFF_WM	0
+#define IGD_GUARD_WM		10
+#define IGD_CURSOR_FIFO		64
+#define IGD_CURSOR_MAX_WM	0x3f
+#define IGD_CURSOR_DFT_WM	0
+#define IGD_CURSOR_GUARD_WM	5
+
 /*
  * The two pipe frame counter registers are not synchronized, so
  * reading a stable value is somewhat tricky. The following code

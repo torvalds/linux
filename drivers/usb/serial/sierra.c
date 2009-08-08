@@ -181,35 +181,50 @@ static const struct sierra_iface_info direct_ip_interface_blacklist = {
 };
 
 static struct usb_device_id id_table [] = {
+	{ USB_DEVICE(0x0F3D, 0x0112) }, /* Airprime/Sierra PC 5220 */
+	{ USB_DEVICE(0x03F0, 0x1B1D) },	/* HP ev2200 a.k.a MC5720 */
+	{ USB_DEVICE(0x03F0, 0x1E1D) },	/* HP hs2300 a.k.a MC8775 */
+
 	{ USB_DEVICE(0x1199, 0x0017) },	/* Sierra Wireless EM5625 */
 	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x1199, 0x0218) },	/* Sierra Wireless MC5720 */
-	{ USB_DEVICE(0x03f0, 0x1b1d) }, /* HP ev2200 a.k.a MC5720 */
 	{ USB_DEVICE(0x1199, 0x0020) },	/* Sierra Wireless MC5725 */
-	{ USB_DEVICE(0x1199, 0x0024) },	/* Sierra Wireless MC5727 */
 	{ USB_DEVICE(0x1199, 0x0220) },	/* Sierra Wireless MC5725 */
+	{ USB_DEVICE(0x1199, 0x0022) },	/* Sierra Wireless EM5725 */
+	{ USB_DEVICE(0x1199, 0x0024) },	/* Sierra Wireless MC5727 */
+	{ USB_DEVICE(0x1199, 0x0224) },	/* Sierra Wireless MC5727 */
 	{ USB_DEVICE(0x1199, 0x0019) },	/* Sierra Wireless AirCard 595 */
 	{ USB_DEVICE(0x1199, 0x0021) },	/* Sierra Wireless AirCard 597E */
+	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless AirCard 580 */
 	{ USB_DEVICE(0x1199, 0x0120) },	/* Sierra Wireless USB Dongle 595U */
-	 /* Sierra Wireless C597 */
+	/* Sierra Wireless C597 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0023, 0xFF, 0xFF, 0xFF) },
-	 /* Sierra Wireless Device */
+	/* Sierra Wireless T598 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0025, 0xFF, 0xFF, 0xFF) },
-	{ USB_DEVICE(0x1199, 0x0026) }, /* Sierra Wireless Device */
-	{ USB_DEVICE(0x1199, 0x0027) }, /* Sierra Wireless Device */
-	{ USB_DEVICE(0x1199, 0x0028) }, /* Sierra Wireless Device */
+	{ USB_DEVICE(0x1199, 0x0026) }, /* Sierra Wireless T11 */
+	{ USB_DEVICE(0x1199, 0x0027) }, /* Sierra Wireless AC402 */
+	{ USB_DEVICE(0x1199, 0x0028) }, /* Sierra Wireless MC5728 */
+	{ USB_DEVICE(0x1199, 0x0029) }, /* Sierra Wireless Device */
 
 	{ USB_DEVICE(0x1199, 0x6802) },	/* Sierra Wireless MC8755 */
-	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6803) },	/* Sierra Wireless MC8765 */
+	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 */
+	{ USB_DEVICE(0x1199, 0x6805) },	/* Sierra Wireless MC8765 */
+	{ USB_DEVICE(0x1199, 0x6808) },	/* Sierra Wireless MC8755 */
+	{ USB_DEVICE(0x1199, 0x6809) },	/* Sierra Wireless MC8765 */
 	{ USB_DEVICE(0x1199, 0x6812) },	/* Sierra Wireless MC8775 & AC 875U */
-	{ USB_DEVICE(0x1199, 0x6813) },	/* Sierra Wireless MC8775 (Lenovo) */
+	{ USB_DEVICE(0x1199, 0x6813) },	/* Sierra Wireless MC8775 */
 	{ USB_DEVICE(0x1199, 0x6815) },	/* Sierra Wireless MC8775 */
-	{ USB_DEVICE(0x03f0, 0x1e1d) },	/* HP hs2300 a.k.a MC8775 */
+	{ USB_DEVICE(0x1199, 0x6816) },	/* Sierra Wireless MC8775 */
 	{ USB_DEVICE(0x1199, 0x6820) },	/* Sierra Wireless AirCard 875 */
 	{ USB_DEVICE(0x1199, 0x6821) },	/* Sierra Wireless AirCard 875U */
+	{ USB_DEVICE(0x1199, 0x6822) },	/* Sierra Wireless AirCard 875E */
 	{ USB_DEVICE(0x1199, 0x6832) },	/* Sierra Wireless MC8780 */
 	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781 */
+	{ USB_DEVICE(0x1199, 0x6834) },	/* Sierra Wireless MC8780 */
+	{ USB_DEVICE(0x1199, 0x6835) },	/* Sierra Wireless MC8781 */
+	{ USB_DEVICE(0x1199, 0x6838) },	/* Sierra Wireless MC8780 */
+	{ USB_DEVICE(0x1199, 0x6839) },	/* Sierra Wireless MC8781 */
 	{ USB_DEVICE(0x1199, 0x683A) },	/* Sierra Wireless MC8785 */
 	{ USB_DEVICE(0x1199, 0x683B) },	/* Sierra Wireless MC8785 Composite */
 	/* Sierra Wireless MC8790, MC8791, MC8792 Composite */
@@ -227,16 +242,13 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x685A) },	/* Sierra Wireless AirCard 885 E */
 	/* Sierra Wireless C885 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6880, 0xFF, 0xFF, 0xFF)},
-	/* Sierra Wireless Device */
+	/* Sierra Wireless C888, Air Card 501, USB 303, USB 304 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6890, 0xFF, 0xFF, 0xFF)},
-	/* Sierra Wireless Device */
+	/* Sierra Wireless C22/C33 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6891, 0xFF, 0xFF, 0xFF)},
-	/* Sierra Wireless Device */
+	/* Sierra Wireless HSPA Non-Composite Device */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6892, 0xFF, 0xFF, 0xFF)},
-
-	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless AirCard 580 */
-	{ USB_DEVICE(0x0F3D, 0x0112) }, /* Airprime/Sierra PC 5220 */
-
+	{ USB_DEVICE(0x1199, 0x6893) },	/* Sierra Wireless Device */
 	{ USB_DEVICE(0x1199, 0x68A3), 	/* Sierra Wireless Direct IP modems */
 	  .driver_info = (kernel_ulong_t)&direct_ip_interface_blacklist
 	},
@@ -814,7 +826,7 @@ static int sierra_startup(struct usb_serial *serial)
 	return 0;
 }
 
-static void sierra_disconnect(struct usb_serial *serial)
+static void sierra_release(struct usb_serial *serial)
 {
 	int i;
 	struct usb_serial_port *port;
@@ -830,7 +842,6 @@ static void sierra_disconnect(struct usb_serial *serial)
 		if (!portdata)
 			continue;
 		kfree(portdata);
-		usb_set_serial_port_data(port, NULL);
 	}
 }
 
@@ -853,7 +864,7 @@ static struct usb_serial_driver sierra_device = {
 	.tiocmget          = sierra_tiocmget,
 	.tiocmset          = sierra_tiocmset,
 	.attach            = sierra_startup,
-	.disconnect        = sierra_disconnect,
+	.release           = sierra_release,
 	.read_int_callback = sierra_instat_callback,
 };
 

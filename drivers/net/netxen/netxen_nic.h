@@ -60,7 +60,18 @@
 #define _NETXEN_NIC_LINUX_SUBVERSION 30
 #define NETXEN_NIC_LINUX_VERSIONID  "4.0.30"
 
-#define NETXEN_VERSION_CODE(a, b, c)	(((a) << 16) + ((b) << 8) + (c))
+#define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
+#define _major(v)	(((v) >> 24) & 0xff)
+#define _minor(v)	(((v) >> 16) & 0xff)
+#define _build(v)	((v) & 0xffff)
+
+/* version in image has weird encoding:
+ *  7:0  - major
+ * 15:8  - minor
+ * 31:16 - build (little endian)
+ */
+#define NETXEN_DECODE_VERSION(v) \
+	NETXEN_VERSION_CODE(((v) & 0xff), (((v) >> 8) & 0xff), ((v) >> 16))
 
 #define NETXEN_NUM_FLASH_SECTORS (64)
 #define NETXEN_FLASH_SECTOR_SIZE (64 * 1024)
@@ -199,6 +210,7 @@
 #define NETXEN_CTX_SIGNATURE	0xdee0
 #define NETXEN_CTX_SIGNATURE_V2	0x0002dee0
 #define NETXEN_CTX_RESET	0xbad0
+#define NETXEN_CTX_D3_RESET	0xacc0
 #define NETXEN_RCV_PRODUCER(ringid)	(ringid)
 
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
@@ -614,6 +626,7 @@ struct netxen_new_user_info {
 #define NX_P2_MN_ROMIMAGE	0
 #define NX_P3_CT_ROMIMAGE	1
 #define NX_P3_MN_ROMIMAGE	2
+#define NX_FLASH_ROMIMAGE	3
 
 #define NETXEN_USER_START_OLD NETXEN_PXE_START	/* for backward compatibility */
 
@@ -760,6 +773,8 @@ struct nx_host_tx_ring {
 	u32 crb_cmd_producer;
 	u32 crb_cmd_consumer;
 	u32 num_desc;
+
+	struct netdev_queue *txq;
 
 	struct netxen_cmd_buffer *cmd_buf_arr;
 	struct cmd_desc_type0 *desc_head;
@@ -1243,7 +1258,7 @@ struct netxen_adapter {
 	u32 resv3;
 
 	u8 has_link_events;
-	u8 resv1;
+	u8 fw_type;
 	u16 tx_context_id;
 	u16 mtu;
 	u16 is_up;
@@ -1387,6 +1402,7 @@ void netxen_free_adapter_offload(struct netxen_adapter *adapter);
 int netxen_initialize_adapter_offload(struct netxen_adapter *adapter);
 int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
 int netxen_load_firmware(struct netxen_adapter *adapter);
+int netxen_need_fw_reset(struct netxen_adapter *adapter);
 void netxen_request_firmware(struct netxen_adapter *adapter);
 void netxen_release_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);

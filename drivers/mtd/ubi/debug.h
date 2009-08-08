@@ -93,6 +93,12 @@ void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 #define UBI_IO_DEBUG 0
 #endif
 
+#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
+int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);
+#else
+#define ubi_dbg_check_all_ff(ubi, pnum, offset, len) 0
+#endif
+
 #ifdef CONFIG_MTD_UBI_DEBUG_DISABLE_BGT
 #define DBG_DISABLE_BGT 1
 #else
@@ -167,6 +173,7 @@ static inline int ubi_dbg_is_erase_failure(void)
 #define ubi_dbg_is_bitflip()       0
 #define ubi_dbg_is_write_failure() 0
 #define ubi_dbg_is_erase_failure() 0
+#define ubi_dbg_check_all_ff(ubi, pnum, offset, len) 0
 
 #endif /* !CONFIG_MTD_UBI_DEBUG */
 #endif /* !__UBI_DEBUG_H__ */
