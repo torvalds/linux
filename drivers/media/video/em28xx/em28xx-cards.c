@@ -1785,7 +1785,7 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		dev->em28xx_sensor = EM28XX_MT9V011;
 		dev->sensor_xres = 640;
 		dev->sensor_yres = 480;
-		dev->sensor_xtal = 6300000;
+		dev->sensor_xtal = 12150000;
 
 		/* probably means GRGB 16 bit bayer */
 		dev->vinmode = 0x0d;
