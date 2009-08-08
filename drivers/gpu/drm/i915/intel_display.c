@@ -666,7 +666,7 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	intel_clock_t clock;
 	int err = target;
 
-	if (IS_I9XX(dev) && intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
 	    (I915_READ(LVDS)) != 0) {
 		/*
 		 * For LVDS, if the panel is on, just rely on its current
