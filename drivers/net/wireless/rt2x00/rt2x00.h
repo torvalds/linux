@@ -245,14 +245,11 @@ struct link_ant {
 	struct antenna_setup active;
 
 	/*
-	 * RSSI information for the different antennas.
-	 * These statistics are used to determine when
-	 * to switch antenna when using software diversity.
-	 *
-	 *        rssi[0] -> Antenna A RSSI
-	 *        rssi[1] -> Antenna B RSSI
+	 * RSSI history information for the antenna.
+	 * Used to determine when to switch antenna
+	 * when using software diversity.
 	 */
-	int rssi_history[2];
+	int rssi_history;
 
 	/*
 	 * Current RSSI average of the currently active antenna.
