@@ -644,8 +644,6 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 		if (dentry->d_inode->i_op->put_link)
 			dentry->d_inode->i_op->put_link(dentry, nd, cookie);
 	}
-	path_put(path);
-
 	return error;
 }
 
@@ -672,6 +670,7 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	current->total_link_count++;
 	nd->depth++;
 	err = __do_follow_link(path, nd);
+	path_put(path);
 	current->link_count--;
 	nd->depth--;
 	return err;
@@ -1864,6 +1863,7 @@ do_link:
 	if (error)
 		goto exit_dput;
 	error = __do_follow_link(&path, &nd);
+	path_put(&path);
 	if (error) {
 		/* Does someone understand code flow here? Or it is only
 		 * me so stupid? Anathema to whoever designed this non-sense
