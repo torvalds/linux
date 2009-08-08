@@ -52,51 +52,9 @@ static const u16 wm8776_reg[WM8776_CACHEREGNUM] = {
 	0xa6, 0x01, 0x01
 };
 
-/*
- * read wm8776 register cache
- */
-static inline unsigned int wm8776_read_reg_cache(struct snd_soc_codec *codec,
-	unsigned int reg)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg >= WM8776_CACHEREGNUM)
-		return -1;
-	return cache[reg];
-}
-
-/*
- * write wm8776 register cache
- */
-static inline void wm8776_write_reg_cache(struct snd_soc_codec *codec,
-					  u16 reg, unsigned int value)
-{
-	u16 *cache = codec->reg_cache;
-	if (reg >= WM8776_CACHEREGNUM)
-		return;
-	cache[reg] = value;
-}
-
-/*
- * write to the WM8776 register space
- */
-static int wm8776_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	u8 data[2];
-
-	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
-	data[1] = value & 0x00ff;
-
-	wm8776_write_reg_cache(codec, reg, value);
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
-}
-
 static int wm8776_reset(struct snd_soc_codec *codec)
 {
-	return wm8776_write(codec, WM8776_RESET, 0);
+	return snd_soc_write(codec, WM8776_RESET, 0);
 }
 
 static const DECLARE_TLV_DB_SCALE(hp_tlv, -12100, 100, 1);
@@ -523,7 +481,8 @@ struct snd_soc_codec_device soc_codec_dev_wm8776 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8776);
 
-static int wm8776_register(struct wm8776_priv *wm8776)
+static int wm8776_register(struct wm8776_priv *wm8776,
+			   enum snd_soc_control_type control)
 {
 	int ret, i;
 	struct snd_soc_codec *codec = &wm8776->codec;
@@ -541,8 +500,6 @@ static int wm8776_register(struct wm8776_priv *wm8776)
 	codec->private_data = wm8776;
 	codec->name = "WM8776";
 	codec->owner = THIS_MODULE;
-	codec->read = wm8776_read_reg_cache;
-	codec->write = wm8776_write;
 	codec->bias_level = SND_SOC_BIAS_OFF;
 	codec->set_bias_level = wm8776_set_bias_level;
 	codec->dai = wm8776_dai;
@@ -551,6 +508,12 @@ static int wm8776_register(struct wm8776_priv *wm8776)
 	codec->reg_cache = &wm8776->reg_cache;
 
 	memcpy(codec->reg_cache, wm8776_reg, sizeof(wm8776_reg));
+
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9, control);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		goto err;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8776_dai); i++)
 		wm8776_dai[i].dev = codec->dev;
@@ -641,7 +604,7 @@ static int __devinit wm8776_spi_probe(struct spi_device *spi)
 
 	dev_set_drvdata(&spi->dev, wm8776);
 
-	return wm8776_register(wm8776);
+	return wm8776_register(wm8776, SND_SOC_SPI);
 }
 
 static int __devexit wm8776_spi_remove(struct spi_device *spi)
@@ -700,7 +663,7 @@ static __devinit int wm8776_i2c_probe(struct i2c_client *i2c,
 
 	codec->dev = &i2c->dev;
 
-	return wm8776_register(wm8776);
+	return wm8776_register(wm8776, SND_SOC_I2C);
 }
 
 static __devexit int wm8776_i2c_remove(struct i2c_client *client)
