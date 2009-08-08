@@ -37,7 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/semaphore.h>
+#include <linux/completion.h>
 #include <linux/slab.h>
 #include <linux/pci_ids.h>
 
@@ -81,135 +81,128 @@ struct hil_kbd {
 	char	exd[HIL_KBD_MAX_LENGTH];	/* EXD record */
 	char	rnm[HIL_KBD_MAX_LENGTH + 1];	/* RNM record + NULL term. */
 
-	/* Something to sleep around with. */
-	struct semaphore sem;
+	struct completion cmd_done;
 };
 
-/* Process a complete packet after transfer from the HIL */
-static void hil_kbd_process_record(struct hil_kbd *kbd)
+static bool hil_kbd_is_command_response(hil_packet p)
 {
-	struct input_dev *dev = kbd->dev;
-	hil_packet *data = kbd->data;
+	if ((p & ~HIL_CMDCT_POL) == (HIL_ERR_INT | HIL_PKT_CMD | HIL_CMD_POL))
+		return false;
+
+	if ((p & ~HIL_CMDCT_RPL) == (HIL_ERR_INT | HIL_PKT_CMD | HIL_CMD_RPL))
+		return false;
+
+	return true;
+}
+
+static void hil_kbd_handle_command_response(struct hil_kbd *kbd)
+{
 	hil_packet p;
-	int idx, i, cnt;
+	char *buf;
+	int i, idx;
 
-	idx = kbd->idx4/4;
-	p = data[idx - 1];
+	idx = kbd->idx4 / 4;
+	p = kbd->data[idx - 1];
 
-	if ((p & ~HIL_CMDCT_POL) ==
-	    (HIL_ERR_INT | HIL_PKT_CMD | HIL_CMD_POL))
-		goto report;
-	if ((p & ~HIL_CMDCT_RPL) ==
-	    (HIL_ERR_INT | HIL_PKT_CMD | HIL_CMD_RPL))
-		goto report;
-
-	/* Not a poll response.  See if we are loading config records. */
 	switch (p & HIL_PKT_DATA_MASK) {
 	case HIL_CMD_IDD:
-		for (i = 0; i < idx; i++)
-			kbd->idd[i] = kbd->data[i] & HIL_PKT_DATA_MASK;
-		for (; i < HIL_KBD_MAX_LENGTH; i++)
-			kbd->idd[i] = 0;
+		buf = kbd->idd;
 		break;
 
 	case HIL_CMD_RSC:
-		for (i = 0; i < idx; i++)
-			kbd->rsc[i] = kbd->data[i] & HIL_PKT_DATA_MASK;
-		for (; i < HIL_KBD_MAX_LENGTH; i++)
-			kbd->rsc[i] = 0;
+		buf = kbd->rsc;
 		break;
 
 	case HIL_CMD_EXD:
-		for (i = 0; i < idx; i++)
-			kbd->exd[i] = kbd->data[i] & HIL_PKT_DATA_MASK;
-		for (; i < HIL_KBD_MAX_LENGTH; i++)
-			kbd->exd[i] = 0;
+		buf = kbd->exd;
 		break;
 
 	case HIL_CMD_RNM:
-		for (i = 0; i < idx; i++)
-			kbd->rnm[i] = kbd->data[i] & HIL_PKT_DATA_MASK;
-		for (; i < HIL_KBD_MAX_LENGTH + 1; i++)
-			kbd->rnm[i] = '\0';
+		kbd->rnm[HIL_KBD_MAX_LENGTH] = 0;
+		buf = kbd->rnm;
 		break;
 
 	default:
 		/* These occur when device isn't present */
-		if (p == (HIL_ERR_INT | HIL_PKT_CMD))
-			break;
-		/* Anything else we'd like to know about. */
-		printk(KERN_WARNING PREFIX "Device sent unknown record %x\n", p);
-		break;
+		if (p != (HIL_ERR_INT | HIL_PKT_CMD)) {
+			/* Anything else we'd like to know about. */
+			printk(KERN_WARNING PREFIX "Device sent unknown record %x\n", p);
+		}
+		goto out;
 	}
-	goto out;
 
- report:
-	cnt = 1;
+	for (i = 0; i < idx; i++)
+		buf[i] = kbd->data[i] & HIL_PKT_DATA_MASK;
+	for (; i < HIL_KBD_MAX_LENGTH; i++)
+		buf[i] = 0;
+ out:
+	complete(&kbd->cmd_done);
+}
+
+static void hil_kbd_handle_key_events(struct hil_kbd *kbd)
+{
+	struct input_dev *dev = kbd->dev;
+	int idx = kbd->idx4 / 4;
+	int i;
+
 	switch (kbd->data[0] & HIL_POL_CHARTYPE_MASK) {
 	case HIL_POL_CHARTYPE_NONE:
-		break;
+		return;
 
 	case HIL_POL_CHARTYPE_ASCII:
-		while (cnt < idx - 1)
-			input_report_key(dev, kbd->data[cnt++] & 0x7f, 1);
+		for (i = 1; i < idx - 1; i++)
+			input_report_key(dev, kbd->data[i] & 0x7f, 1);
 		break;
 
 	case HIL_POL_CHARTYPE_RSVD1:
 	case HIL_POL_CHARTYPE_RSVD2:
 	case HIL_POL_CHARTYPE_BINARY:
-		while (cnt < idx - 1)
-			input_report_key(dev, kbd->data[cnt++], 1);
+		for (i = 1; i < idx - 1; i++)
+			input_report_key(dev, kbd->data[i], 1);
 		break;
 
 	case HIL_POL_CHARTYPE_SET1:
-		while (cnt < idx - 1) {
-			unsigned int key;
-			int up;
-			key = kbd->data[cnt++];
-			up = key & HIL_KBD_SET1_UPBIT;
+		for (i = 1; i < idx - 1; i++) {
+			unsigned int key = kbd->data[i];
+			int up = key & HIL_KBD_SET1_UPBIT;
+
 			key &= (~HIL_KBD_SET1_UPBIT & 0xff);
 			key = hil_kbd_set1[key >> HIL_KBD_SET1_SHIFT];
-			if (key != KEY_RESERVED)
-				input_report_key(dev, key, !up);
+			input_report_key(dev, key, !up);
 		}
 		break;
 
 	case HIL_POL_CHARTYPE_SET2:
-		while (cnt < idx - 1) {
-			unsigned int key;
-			int up;
-			key = kbd->data[cnt++];
-			up = key & HIL_KBD_SET2_UPBIT;
+		for (i = 1; i < idx - 1; i++) {
+			unsigned int key = kbd->data[i];
+			int up = key & HIL_KBD_SET2_UPBIT;
+
 			key &= (~HIL_KBD_SET1_UPBIT & 0xff);
 			key = key >> HIL_KBD_SET2_SHIFT;
-			if (key != KEY_RESERVED)
-				input_report_key(dev, key, !up);
+			input_report_key(dev, key, !up);
 		}
 		break;
 
 	case HIL_POL_CHARTYPE_SET3:
-		while (cnt < idx - 1) {
-			unsigned int key;
-			int up;
-			key = kbd->data[cnt++];
-			up = key & HIL_KBD_SET3_UPBIT;
+		for (i = 1; i < idx - 1; i++) {
+			unsigned int key = kbd->data[i];
+			int up = key & HIL_KBD_SET3_UPBIT;
+
 			key &= (~HIL_KBD_SET1_UPBIT & 0xff);
 			key = hil_kbd_set3[key >> HIL_KBD_SET3_SHIFT];
-			if (key != KEY_RESERVED)
-				input_report_key(dev, key, !up);
+			input_report_key(dev, key, !up);
 		}
 		break;
 	}
- out:
-	kbd->idx4 = 0;
-	up(&kbd->sem);
+
+	input_sync(dev);
 }
 
 static void hil_kbd_process_err(struct hil_kbd *kbd)
 {
 	printk(KERN_WARNING PREFIX "errored HIL packet\n");
 	kbd->idx4 = 0;
-	up(&kbd->sem);
+	complete(&kbd->cmd_done); /* just in case somebody is waiting */
 }
 
 static irqreturn_t hil_kbd_interrupt(struct serio *serio,
@@ -222,11 +215,12 @@ static irqreturn_t hil_kbd_interrupt(struct serio *serio,
 	kbd = serio_get_drvdata(serio);
 	BUG_ON(kbd == NULL);
 
-	if (kbd->idx4 >= (HIL_KBD_MAX_LENGTH * sizeof(hil_packet))) {
+	if (kbd->idx4 >= HIL_KBD_MAX_LENGTH * sizeof(hil_packet)) {
 		hil_kbd_process_err(kbd);
-		return IRQ_HANDLED;
+		goto out;
 	}
-	idx = kbd->idx4/4;
+
+	idx = kbd->idx4 / 4;
 	if (!(kbd->idx4 % 4))
 		kbd->data[idx] = 0;
 	packet = kbd->data[idx];
@@ -234,22 +228,25 @@ static irqreturn_t hil_kbd_interrupt(struct serio *serio,
 	kbd->data[idx] = packet;
 
 	/* Records of N 4-byte hil_packets must terminate with a command. */
-	if ((++(kbd->idx4)) % 4)
-		return IRQ_HANDLED;
-	if ((packet & 0xffff0000) != HIL_ERR_INT) {
-		hil_kbd_process_err(kbd);
-		return IRQ_HANDLED;
+	if ((++kbd->idx4 % 4) == 0) {
+		if ((packet & 0xffff0000) != HIL_ERR_INT) {
+			hil_kbd_process_err(kbd);
+		} else if (packet & HIL_PKT_CMD) {
+			if (hil_kbd_is_command_response(packet))
+				hil_kbd_handle_command_response(kbd);
+			else
+				hil_kbd_handle_key_events(kbd);
+			kbd->idx4 = 0;
+		}
 	}
-	if (packet & HIL_PKT_CMD)
-		hil_kbd_process_record(kbd);
+ out:
 	return IRQ_HANDLED;
 }
 
 static void hil_kbd_disconnect(struct serio *serio)
 {
-	struct hil_kbd *kbd;
+	struct hil_kbd *kbd = serio_get_drvdata(serio);
 
-	kbd = serio_get_drvdata(serio);
 	BUG_ON(kbd == NULL);
 
 	serio_close(serio);
@@ -259,52 +256,64 @@ static void hil_kbd_disconnect(struct serio *serio)
 
 static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 {
-	struct hil_kbd	*kbd;
-	uint8_t		did, *idd;
-	int		i;
+	struct hil_kbd *kbd;
+	struct input_dev *input_dev;
+	uint8_t did, *idd;
+	int i;
+	int error;
 
 	kbd = kzalloc(sizeof(*kbd), GFP_KERNEL);
-	if (!kbd)
-		return -ENOMEM;
+	input_dev = input_allocate_device();
+	if (!kbd || !input_dev) {
+		error = -ENOMEM;
+		goto bail0;
+	}
 
-	kbd->dev = input_allocate_device();
-	if (!kbd->dev)
+	kbd->serio = serio;
+	kbd->dev = input_dev;
+
+	error = serio_open(serio, drv);
+	if (error)
 		goto bail0;
 
-	if (serio_open(serio, drv))
-		goto bail1;
-
 	serio_set_drvdata(serio, kbd);
-	kbd->serio = serio;
-
-	init_MUTEX_LOCKED(&kbd->sem);
 
 	/* Get device info.  MLC driver supplies devid/status/etc. */
+	init_completion(&kbd->cmd_done);
 	serio_write(serio, 0);
 	serio_write(serio, 0);
 	serio_write(serio, HIL_PKT_CMD >> 8);
 	serio_write(serio, HIL_CMD_IDD);
-	down(&kbd->sem);
+	error = wait_for_completion_killable(&kbd->cmd_done);
+	if (error)
+		goto bail1;
 
+	init_completion(&kbd->cmd_done);
 	serio_write(serio, 0);
 	serio_write(serio, 0);
 	serio_write(serio, HIL_PKT_CMD >> 8);
 	serio_write(serio, HIL_CMD_RSC);
-	down(&kbd->sem);
+	error = wait_for_completion_killable(&kbd->cmd_done);
+	if (error)
+		goto bail1;
 
+	init_completion(&kbd->cmd_done);
 	serio_write(serio, 0);
 	serio_write(serio, 0);
 	serio_write(serio, HIL_PKT_CMD >> 8);
 	serio_write(serio, HIL_CMD_RNM);
-	down(&kbd->sem);
+	error = wait_for_completion_killable(&kbd->cmd_done);
+	if (error)
+		goto bail1;
 
+	init_completion(&kbd->cmd_done);
 	serio_write(serio, 0);
 	serio_write(serio, 0);
 	serio_write(serio, HIL_PKT_CMD >> 8);
 	serio_write(serio, HIL_CMD_EXD);
-	down(&kbd->sem);
-
-	up(&kbd->sem);
+	error = wait_for_completion_killable(&kbd->cmd_done);
+	if (error)
+		goto bail1;
 
 	did = kbd->idd[0];
 	idd = kbd->idd + 1;
@@ -317,55 +326,54 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 			did, hil_language[did & HIL_IDD_DID_TYPE_KB_LANG_MASK]);
 		break;
 	default:
-		goto bail2;
+		goto bail1;
 	}
 
 	if (HIL_IDD_NUM_BUTTONS(idd) || HIL_IDD_NUM_AXES_PER_SET(*idd)) {
 		printk(KERN_INFO PREFIX "keyboards only, no combo devices supported.\n");
-		goto bail2;
+		goto bail1;
 	}
 
-	kbd->dev->evbit[0]	= BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
-	kbd->dev->ledbit[0]	= BIT_MASK(LED_NUML) | BIT_MASK(LED_CAPSL) |
-		BIT_MASK(LED_SCROLLL);
-	kbd->dev->keycodemax	= HIL_KEYCODES_SET1_TBLSIZE;
-	kbd->dev->keycodesize	= sizeof(hil_kbd_set1[0]);
-	kbd->dev->keycode	= hil_kbd_set1;
-	kbd->dev->name		= strlen(kbd->rnm) ? kbd->rnm : HIL_GENERIC_NAME;
-	kbd->dev->phys		= "hpkbd/input0";	/* XXX */
+	input_dev->evbit[0]	= BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
+	input_dev->ledbit[0]	= BIT_MASK(LED_NUML) | BIT_MASK(LED_CAPSL) |
+				  BIT_MASK(LED_SCROLLL);
+	input_dev->keycodemax	= HIL_KEYCODES_SET1_TBLSIZE;
+	input_dev->keycodesize	= sizeof(hil_kbd_set1[0]);
+	input_dev->keycode	= hil_kbd_set1;
+	input_dev->name		= strlen(kbd->rnm) ? kbd->rnm : HIL_GENERIC_NAME;
+	input_dev->phys		= "hpkbd/input0";	/* XXX */
 
-	kbd->dev->id.bustype	= BUS_HIL;
-	kbd->dev->id.vendor	= PCI_VENDOR_ID_HP;
-	kbd->dev->id.product	= 0x0001; /* TODO: get from kbd->rsc */
-	kbd->dev->id.version	= 0x0100; /* TODO: get from kbd->rsc */
-	kbd->dev->dev.parent	= &serio->dev;
+	input_dev->id.bustype	= BUS_HIL;
+	input_dev->id.vendor	= PCI_VENDOR_ID_HP;
+	input_dev->id.product	= 0x0001; /* TODO: get from kbd->rsc */
+	input_dev->id.version	= 0x0100; /* TODO: get from kbd->rsc */
+	input_dev->dev.parent	= &serio->dev;
 
 	for (i = 0; i < 128; i++) {
-		set_bit(hil_kbd_set1[i], kbd->dev->keybit);
-		set_bit(hil_kbd_set3[i], kbd->dev->keybit);
+		__set_bit(hil_kbd_set1[i], input_dev->keybit);
+		__set_bit(hil_kbd_set3[i], input_dev->keybit);
 	}
-	clear_bit(0, kbd->dev->keybit);
-
-	input_register_device(kbd->dev);
-	printk(KERN_INFO "input: %s, ID: %d\n",
-		kbd->dev->name, did);
+	__clear_bit(KEY_RESERVED, input_dev->keybit);
 
 	serio_write(serio, 0);
 	serio_write(serio, 0);
 	serio_write(serio, HIL_PKT_CMD >> 8);
 	serio_write(serio, HIL_CMD_EK1); /* Enable Keyswitch Autorepeat 1 */
-	down(&kbd->sem);
-	up(&kbd->sem);
+	/* No need to wait for completion */
+
+	error = input_register_device(kbd->dev);
+	if (error)
+		goto bail1;
 
 	return 0;
- bail2:
+
+ bail1:
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
- bail1:
-	input_free_device(kbd->dev);
  bail0:
+	input_free_device(input_dev);
 	kfree(kbd);
-	return -EIO;
+	return error;
 }
 
 static struct serio_device_id hil_kbd_ids[] = {
