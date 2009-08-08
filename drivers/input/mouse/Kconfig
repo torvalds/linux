@@ -262,14 +262,6 @@ config MOUSE_VSXXXAA
 	  described in the source file). This driver also works with the
 	  digitizer (VSXXX-AB) DEC produced.
 
-config MOUSE_HIL
-	tristate "HIL pointers (mice etc)."
-	depends on GSC || HP300
-	select HP_SDC
-	select HIL_MLC
-	help
-	  Say Y here to support HIL pointers.
-
 config MOUSE_GPIO
 	tristate "GPIO mouse"
 	depends on GENERIC_GPIO

@@ -187,7 +187,7 @@ config KEYBOARD_HIL_OLD
 	  submenu.
 
 config KEYBOARD_HIL
-	tristate "HP HIL keyboard support"
+	tristate "HP HIL keyboard/pointer support"
 	depends on GSC || HP300
 	default y
 	select HP_SDC
@@ -196,7 +196,8 @@ config KEYBOARD_HIL
 	help
 	  The "Human Interface Loop" is a older, 8-channel USB-like
 	  controller used in several Hewlett Packard models.
-	  This driver implements support for HIL-keyboards attached
+	  This driver implements support for HIL-keyboards and pointing
+	  devices (mice, tablets, touchscreens) attached
 	  to your machine, so normally you should say Y here.
 
 config KEYBOARD_HP6XX
