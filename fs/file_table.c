@@ -171,32 +171,6 @@ struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
 	if (!file)
 		return NULL;
 
-	init_file(file, mnt, dentry, mode, fop);
-	return file;
-}
-EXPORT_SYMBOL(alloc_file);
-
-/**
- * init_file - initialize a 'struct file'
- * @file: the already allocated 'struct file' to initialized
- * @mnt: the vfsmount on which the file resides
- * @dentry: the dentry representing this file
- * @mode: the mode the file is opened with
- * @fop: the 'struct file_operations' for this file
- *
- * Use this instead of setting the members directly.  Doing so
- * avoids making mistakes like forgetting the mntget() or
- * forgetting to take a write on the mnt.
- *
- * Note: This is a crappy interface.  It is here to make
- * merging with the existing users of get_empty_filp()
- * who have complex failure logic easier.  All users
- * of this should be moving to alloc_file().
- */
-int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
-	   fmode_t mode, const struct file_operations *fop)
-{
-	int error = 0;
 	file->f_path.dentry = dentry;
 	file->f_path.mnt = mntget(mnt);
 	file->f_mapping = dentry->d_inode->i_mapping;
@@ -210,13 +184,13 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
 	 * that we can do debugging checks at __fput()
 	 */
 	if ((mode & FMODE_WRITE) && !special_file(dentry->d_inode->i_mode)) {
+		int error = 0;
 		file_take_write(file);
 		error = mnt_clone_write(mnt);
 		WARN_ON(error);
 	}
-	return error;
+	return file;
 }
-EXPORT_SYMBOL(init_file);
 
 void fput(struct file *file)
 {

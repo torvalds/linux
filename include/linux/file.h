@@ -18,9 +18,6 @@ extern void drop_file_write_access(struct file *file);
 struct file_operations;
 struct vfsmount;
 struct dentry;
-extern int init_file(struct file *, struct vfsmount *mnt,
-		struct dentry *dentry, fmode_t mode,
-		const struct file_operations *fop);
 extern struct file *alloc_file(struct vfsmount *, struct dentry *dentry,
 		fmode_t mode, const struct file_operations *fop);
 
