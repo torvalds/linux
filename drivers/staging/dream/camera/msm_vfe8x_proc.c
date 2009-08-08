@@ -818,7 +818,7 @@ static void vfe_send_msg_no_payload(enum VFE_MESSAGE_ID id)
 {
 	struct vfe_message *msg;
 
-	msg = kzalloc(sizeof(msg), GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
 		return;
 
