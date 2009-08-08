@@ -108,8 +108,6 @@
  * any extra contention...
  */
 
-static int __link_path_walk(const char *name, struct nameidata *nd);
-
 /* In order to reduce some races, while at the same time doing additional
  * checking and hopefully speeding things up, we copy filenames to the
  * kernel data space before using them..
@@ -529,35 +527,6 @@ out_unlock:
 	return result;
 }
 
-/*
- * Wrapper to retry pathname resolution whenever the underlying
- * file system returns an ESTALE.
- *
- * Retry the whole path once, forcing real lookup requests
- * instead of relying on the dcache.
- */
-static __always_inline int link_path_walk(const char *name, struct nameidata *nd)
-{
-	struct path save = nd->path;
-	int result;
-
-	/* make sure the stuff we saved doesn't go away */
-	path_get(&save);
-
-	result = __link_path_walk(name, nd);
-	if (result == -ESTALE) {
-		/* nd->path had been dropped */
-		nd->path = save;
-		path_get(&nd->path);
-		nd->flags |= LOOKUP_REVAL;
-		result = __link_path_walk(name, nd);
-	}
-
-	path_put(&save);
-
-	return result;
-}
-
 static __always_inline void set_root(struct nameidata *nd)
 {
 	if (!nd->root.mnt) {
@@ -568,6 +537,8 @@ static __always_inline void set_root(struct nameidata *nd)
 		read_unlock(&fs->lock);
 	}
 }
+
+static int link_path_walk(const char *, struct nameidata *);
 
 static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link)
 {
@@ -834,7 +805,7 @@ fail:
  * Returns 0 and nd will have valid dentry and mnt on success.
  * Returns error and drops reference to input namei data on failure.
  */
-static int __link_path_walk(const char *name, struct nameidata *nd)
+static int link_path_walk(const char *name, struct nameidata *nd)
 {
 	struct path next;
 	struct inode *inode;
@@ -1016,8 +987,27 @@ return_err:
 
 static int path_walk(const char *name, struct nameidata *nd)
 {
+	struct path save = nd->path;
+	int result;
+
 	current->total_link_count = 0;
-	return link_path_walk(name, nd);
+
+	/* make sure the stuff we saved doesn't go away */
+	path_get(&save);
+
+	result = link_path_walk(name, nd);
+	if (result == -ESTALE) {
+		/* nd->path had been dropped */
+		current->total_link_count = 0;
+		nd->path = save;
+		path_get(&nd->path);
+		nd->flags |= LOOKUP_REVAL;
+		result = link_path_walk(name, nd);
+	}
+
+	path_put(&save);
+
+	return result;
 }
 
 static int path_init(int dfd, const char *name, unsigned int flags, struct nameidata *nd)
@@ -1649,7 +1639,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	struct file *filp;
 	struct nameidata nd;
 	int error;
-	struct path path;
+	struct path path, save;
 	struct dentry *dir;
 	int count = 0;
 	int will_write;
@@ -1862,7 +1852,17 @@ do_link:
 	error = security_inode_follow_link(path.dentry, &nd);
 	if (error)
 		goto exit_dput;
+	save = nd.path;
+	path_get(&save);
 	error = __do_follow_link(&path, &nd);
+	if (error == -ESTALE) {
+		/* nd.path had been dropped */
+		nd.path = save;
+		path_get(&nd.path);
+		nd.flags |= LOOKUP_REVAL;
+		error = __do_follow_link(&path, &nd);
+	}
+	path_put(&save);
 	path_put(&path);
 	if (error) {
 		/* Does someone understand code flow here? Or it is only
