@@ -624,9 +624,6 @@ static int filter_add_subsystem_pred(struct filter_parse_state *ps,
 		return -ENOSPC;
 	}
 
-	filter->preds[filter->n_preds] = pred;
-	filter->n_preds++;
-
 	list_for_each_entry(call, &ftrace_events, list) {
 
 		if (!call->define_fields)
@@ -643,6 +640,9 @@ static int filter_add_subsystem_pred(struct filter_parse_state *ps,
 		}
 		replace_filter_string(call->filter, filter_string);
 	}
+
+	filter->preds[filter->n_preds] = pred;
+	filter->n_preds++;
 out:
 	return err;
 }
@@ -1034,9 +1034,12 @@ static int replace_preds(struct event_subsystem *system,
 			if (call) {
 				err = filter_add_pred(ps, call, pred);
 				filter_free_pred(pred);
-			} else
+			} else {
 				err = filter_add_subsystem_pred(ps, system,
 							pred, filter_string);
+				if (err)
+					filter_free_pred(pred);
+			}
 			if (err)
 				return err;
 
@@ -1055,9 +1058,12 @@ static int replace_preds(struct event_subsystem *system,
 		if (call) {
 			err = filter_add_pred(ps, call, pred);
 			filter_free_pred(pred);
-		} else
+		} else {
 			err = filter_add_subsystem_pred(ps, system, pred,
 							filter_string);
+			if (err)
+				filter_free_pred(pred);
+		}
 		if (err)
 			return err;
 
