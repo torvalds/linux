@@ -49,7 +49,7 @@ unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
-unsigned int waitsecs = 1;
+unsigned int waitsecs = 10;
 module_param(waitsecs, int, 0644);
 MODULE_PARM_DESC(debug, "timeout on firmware messages");
 
