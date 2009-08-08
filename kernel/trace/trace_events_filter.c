@@ -1029,6 +1029,8 @@ static int replace_preds(struct event_subsystem *system,
 
 		if (elt->op == OP_AND || elt->op == OP_OR) {
 			pred = create_logical_pred(elt->op);
+			if (!pred)
+				return -ENOMEM;
 			if (call) {
 				err = filter_add_pred(ps, call, pred);
 				filter_free_pred(pred);
@@ -1048,6 +1050,8 @@ static int replace_preds(struct event_subsystem *system,
 		}
 
 		pred = create_pred(elt->op, operand1, operand2);
+		if (!pred)
+			return -ENOMEM;
 		if (call) {
 			err = filter_add_pred(ps, call, pred);
 			filter_free_pred(pred);
