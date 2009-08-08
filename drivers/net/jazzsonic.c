@@ -203,7 +203,7 @@ static int __devinit sonic_probe1(struct net_device *dev)
 
 	return 0;
 out:
-	release_region(dev->base_addr, SONIC_MEM_SIZE);
+	release_mem_region(dev->base_addr, SONIC_MEM_SIZE);
 	return err;
 }
 
@@ -247,7 +247,7 @@ static int __devinit jazz_sonic_probe(struct platform_device *pdev)
 	return 0;
 
 out1:
-	release_region(dev->base_addr, SONIC_MEM_SIZE);
+	release_mem_region(dev->base_addr, SONIC_MEM_SIZE);
 out:
 	free_netdev(dev);
 
@@ -269,7 +269,7 @@ static int __devexit jazz_sonic_device_remove (struct platform_device *pdev)
 	unregister_netdev(dev);
 	dma_free_coherent(lp->device, SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
 	                  lp->descriptors, lp->descriptors_laddr);
-	release_region (dev->base_addr, SONIC_MEM_SIZE);
+	release_mem_region(dev->base_addr, SONIC_MEM_SIZE);
 	free_netdev(dev);
 
 	return 0;
