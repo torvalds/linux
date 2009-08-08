@@ -891,6 +891,21 @@ ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain, int depth,
 	return ret;
 }
 
+static struct symbol *rem_sq_bracket;
+static struct callchain_list rem_hits;
+
+static void init_rem_hits(void)
+{
+	rem_sq_bracket = malloc(sizeof(*rem_sq_bracket) + 6);
+	if (!rem_sq_bracket) {
+		fprintf(stderr, "Not enough memory to display remaining hits\n");
+		return;
+	}
+
+	strcpy(rem_sq_bracket->name, "[...]");
+	rem_hits.sym = rem_sq_bracket;
+}
+
 static size_t
 callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 			u64 total_samples, int depth, int depth_mask)
@@ -900,6 +915,7 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 	struct callchain_list *chain;
 	int new_depth_mask = depth_mask;
 	u64 new_total;
+	u64 remaining;
 	size_t ret = 0;
 	int i;
 
@@ -908,17 +924,25 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 	else
 		new_total = total_samples;
 
+	remaining = new_total;
+
 	node = rb_first(&self->rb_root);
 	while (node) {
+		u64 cumul;
+
 		child = rb_entry(node, struct callchain_node, rb_node);
+		cumul = cumul_hits(child);
+		remaining -= cumul;
 
 		/*
 		 * The depth mask manages the output of pipes that show
 		 * the depth. We don't want to keep the pipes of the current
-		 * level for the last child of this depth
+		 * level for the last child of this depth.
+		 * Except if we have remaining filtered hits. They will
+		 * supersede the last child
 		 */
 		next = rb_next(node);
-		if (!next)
+		if (!next && (callchain_param.mode != CHAIN_GRAPH_REL || !remaining))
 			new_depth_mask &= ~(1 << (depth - 1));
 
 		/*
@@ -933,12 +957,25 @@ callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 			ret += ipchain__fprintf_graph(fp, chain, depth,
 						      new_depth_mask, i++,
 						      new_total,
-						      cumul_hits(child));
+						      cumul);
 		}
 		ret += callchain__fprintf_graph(fp, child, new_total,
 						depth + 1,
 						new_depth_mask | (1 << depth));
 		node = next;
+	}
+
+	if (callchain_param.mode == CHAIN_GRAPH_REL &&
+		remaining && remaining != new_total) {
+
+		if (!rem_sq_bracket)
+			return ret;
+
+		new_depth_mask &= ~(1 << (depth - 1));
+
+		ret += ipchain__fprintf_graph(fp, &rem_hits, depth,
+					      new_depth_mask, 0, new_total,
+					      remaining);
 	}
 
 	return ret;
@@ -1361,6 +1398,8 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	unsigned int width;
 	char *col_width = col_width_list_str;
 
+	init_rem_hits();
+
 	fprintf(fp, "# Samples: %Ld\n", (u64)total_samples);
 	fprintf(fp, "#\n");
 
@@ -1431,6 +1470,8 @@ print_entries:
 		fprintf(fp, "#\n");
 	}
 	fprintf(fp, "\n");
+
+	free(rem_sq_bracket);
 
 	return ret;
 }
