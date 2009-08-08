@@ -2646,7 +2646,7 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		u64 counter;
 	} group_entry;
 	struct perf_callchain_entry *callchain = NULL;
-	struct perf_tracepoint_record *tp;
+	struct perf_tracepoint_record *tp = NULL;
 	int callchain_size = 0;
 	u64 time;
 	struct {
@@ -2717,7 +2717,8 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 
 	if (sample_type & PERF_SAMPLE_TP_RECORD) {
 		tp = data->private;
-		header.size += tp->size;
+		if (tp)
+			header.size += tp->size;
 	}
 
 	ret = perf_output_begin(&handle, counter, header.size, nmi, 1);
@@ -2783,7 +2784,7 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		}
 	}
 
-	if (sample_type & PERF_SAMPLE_TP_RECORD)
+	if ((sample_type & PERF_SAMPLE_TP_RECORD) && tp)
 		perf_output_copy(&handle, tp->record, tp->size);
 
 	perf_output_end(&handle);
