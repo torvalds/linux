@@ -334,6 +334,11 @@ struct rt2x00_intf {
 	u8 bssid[ETH_ALEN];
 
 	/*
+	 * beacon->skb must be protected with the mutex.
+	 */
+	struct mutex beacon_skb_mutex;
+
+	/*
 	 * Entry in the beacon queue which belongs to
 	 * this interface. Each interface has its own
 	 * dedicated beacon entry.

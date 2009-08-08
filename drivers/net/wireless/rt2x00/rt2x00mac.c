@@ -274,6 +274,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 
 	spin_lock_init(&intf->lock);
 	spin_lock_init(&intf->seqlock);
+	mutex_init(&intf->beacon_skb_mutex);
 	intf->beacon = entry;
 
 	if (conf->type == NL80211_IFTYPE_AP)
