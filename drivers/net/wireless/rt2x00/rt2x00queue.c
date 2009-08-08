@@ -453,9 +453,21 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 			rt2x00crypto_tx_remove_iv(skb, &txdesc);
 	}
 
+	/*
+	 * When DMA allocation is required we should guarentee to the
+	 * driver that the DMA is aligned to a 4-byte boundary.
+	 * Aligning the header to this boundary can be done by calling
+	 * rt2x00queue_payload_align with the header length of 0.
+	 * However some drivers require L2 padding to pad the payload
+	 * rather then the header. This could be a requirement for
+	 * PCI and USB devices, while header alignment only is valid
+	 * for PCI devices.
+	 */
 	if (test_bit(DRIVER_REQUIRE_L2PAD, &queue->rt2x00dev->flags))
 		rt2x00queue_payload_align(entry->skb, true,
 					  txdesc.header_length);
+	else if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))
+		rt2x00queue_payload_align(entry->skb, false, 0);
 
 	/*
 	 * It could be possible that the queue was corrupted and this
