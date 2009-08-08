@@ -2502,6 +2502,10 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		if (em28xx_hint_sensor(dev) < 0)
 			dev->board.is_webcam = 0;
 
+	/* It makes no sense to use de-interlacing mode on webcams */
+	if (dev->board.is_webcam)
+		dev->progressive = 1;
+
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
 

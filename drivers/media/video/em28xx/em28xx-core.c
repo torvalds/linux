@@ -720,7 +720,10 @@ int em28xx_resolution_set(struct em28xx *dev)
 {
 	int width, height;
 	width = norm_maxw(dev);
-	height = norm_maxh(dev) >> 1;
+	height = norm_maxh(dev);
+
+	if (!dev->progressive)
+		height >>= norm_maxh(dev);
 
 	em28xx_set_outfmt(dev);
 

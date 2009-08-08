@@ -194,15 +194,24 @@ static void em28xx_copy_video(struct em28xx *dev,
 	startread = p;
 	remain = len;
 
-	/* Interlaces frame */
-	if (buf->top_field)
+	if (dev->progressive)
 		fieldstart = outp;
-	else
-		fieldstart = outp + bytesperline;
+	else {
+		/* Interlaces two half frames */
+		if (buf->top_field)
+			fieldstart = outp;
+		else
+			fieldstart = outp + bytesperline;
+	}
 
 	linesdone = dma_q->pos / bytesperline;
 	currlinedone = dma_q->pos % bytesperline;
-	offset = linesdone * bytesperline * 2 + currlinedone;
+
+	if (dev->progressive)
+		offset = linesdone * bytesperline + currlinedone;
+	else
+		offset = linesdone * bytesperline * 2 + currlinedone;
+
 	startwrite = fieldstart + offset;
 	lencopy = bytesperline - currlinedone;
 	lencopy = lencopy > remain ? remain : lencopy;
@@ -376,7 +385,7 @@ static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
 				       len, (p[2] & 1) ? "odd" : "even");
 
-			if (!(p[2] & 1)) {
+			if (dev->progressive || !(p[2] & 1)) {
 				if (buf != NULL)
 					buffer_filled(dev, dma_q, buf);
 				get_next_buf(dma_q, &buf);
@@ -689,7 +698,10 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
-	f->fmt.pix.field = dev->interlaced ?
+	if (dev->progressive)
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+	else
+		f->fmt.pix.field = dev->interlaced ?
 			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
 
 	mutex_unlock(&dev->lock);
@@ -753,7 +765,11 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.bytesperline = (dev->width * fmt->depth + 7) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	if (dev->progressive)
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+	else
+		f->fmt.pix.field = dev->interlaced ?
+			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
 
 	return 0;
 }
@@ -1659,6 +1675,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	struct em28xx *dev;
 	enum v4l2_buf_type fh_type;
 	struct em28xx_fh *fh;
+	enum v4l2_field field;
 
 	dev = em28xx_get_device(minor, &fh_type, &radio);
 
@@ -1700,8 +1717,13 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	dev->users++;
 
+	if (dev->progressive)
+		field = V4L2_FIELD_NONE;
+	else
+		field = V4L2_FIELD_INTERLACED;
+
 	videobuf_queue_vmalloc_init(&fh->vb_vidq, &em28xx_video_qops,
-			NULL, &dev->slock, fh->type, V4L2_FIELD_INTERLACED,
+			NULL, &dev->slock, fh->type, field,
 			sizeof(struct em28xx_buffer), fh);
 
 	mutex_unlock(&dev->lock);
