@@ -49,7 +49,7 @@ MODULE_DESCRIPTION(HIL_GENERIC_NAME " driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("serio:ty03pr25id00ex*");
 
-#define HIL_KBD_MAX_LENGTH 16
+#define HIL_PACKET_MAX_LENGTH 16
 
 #define HIL_KBD_SET1_UPBIT 0x01
 #define HIL_KBD_SET1_SHIFT 1
@@ -67,24 +67,24 @@ static unsigned int hil_kbd_set3[HIL_KEYCODES_SET3_TBLSIZE] __read_mostly =
 
 static const char hil_language[][16] = { HIL_LOCALE_MAP };
 
-struct hil_kbd {
+struct hil_dev {
 	struct input_dev *dev;
 	struct serio *serio;
 
 	/* Input buffer and index for packets from HIL bus. */
-	hil_packet data[HIL_KBD_MAX_LENGTH];
+	hil_packet data[HIL_PACKET_MAX_LENGTH];
 	int idx4; /* four counts per packet */
 
 	/* Raw device info records from HIL bus, see hil.h for fields. */
-	char	idd[HIL_KBD_MAX_LENGTH];	/* DID byte and IDD record */
-	char	rsc[HIL_KBD_MAX_LENGTH];	/* RSC record */
-	char	exd[HIL_KBD_MAX_LENGTH];	/* EXD record */
-	char	rnm[HIL_KBD_MAX_LENGTH + 1];	/* RNM record + NULL term. */
+	char	idd[HIL_PACKET_MAX_LENGTH];	/* DID byte and IDD record */
+	char	rsc[HIL_PACKET_MAX_LENGTH];	/* RSC record */
+	char	exd[HIL_PACKET_MAX_LENGTH];	/* EXD record */
+	char	rnm[HIL_PACKET_MAX_LENGTH + 1];	/* RNM record + NULL term. */
 
 	struct completion cmd_done;
 };
 
-static bool hil_kbd_is_command_response(hil_packet p)
+static bool hil_dev_is_command_response(hil_packet p)
 {
 	if ((p & ~HIL_CMDCT_POL) == (HIL_ERR_INT | HIL_PKT_CMD | HIL_CMD_POL))
 		return false;
@@ -95,31 +95,31 @@ static bool hil_kbd_is_command_response(hil_packet p)
 	return true;
 }
 
-static void hil_kbd_handle_command_response(struct hil_kbd *kbd)
+static void hil_dev_handle_command_response(struct hil_dev *dev)
 {
 	hil_packet p;
 	char *buf;
 	int i, idx;
 
-	idx = kbd->idx4 / 4;
-	p = kbd->data[idx - 1];
+	idx = dev->idx4 / 4;
+	p = dev->data[idx - 1];
 
 	switch (p & HIL_PKT_DATA_MASK) {
 	case HIL_CMD_IDD:
-		buf = kbd->idd;
+		buf = dev->idd;
 		break;
 
 	case HIL_CMD_RSC:
-		buf = kbd->rsc;
+		buf = dev->rsc;
 		break;
 
 	case HIL_CMD_EXD:
-		buf = kbd->exd;
+		buf = dev->exd;
 		break;
 
 	case HIL_CMD_RNM:
-		kbd->rnm[HIL_KBD_MAX_LENGTH] = 0;
-		buf = kbd->rnm;
+		dev->rnm[HIL_PACKET_MAX_LENGTH] = 0;
+		buf = dev->rnm;
 		break;
 
 	default:
@@ -132,14 +132,14 @@ static void hil_kbd_handle_command_response(struct hil_kbd *kbd)
 	}
 
 	for (i = 0; i < idx; i++)
-		buf[i] = kbd->data[i] & HIL_PKT_DATA_MASK;
-	for (; i < HIL_KBD_MAX_LENGTH; i++)
+		buf[i] = dev->data[i] & HIL_PKT_DATA_MASK;
+	for (; i < HIL_PACKET_MAX_LENGTH; i++)
 		buf[i] = 0;
  out:
-	complete(&kbd->cmd_done);
+	complete(&dev->cmd_done);
 }
 
-static void hil_kbd_handle_key_events(struct hil_kbd *kbd)
+static void hil_dev_handle_key_events(struct hil_dev *kbd)
 {
 	struct input_dev *dev = kbd->dev;
 	int idx = kbd->idx4 / 4;
@@ -198,125 +198,125 @@ static void hil_kbd_handle_key_events(struct hil_kbd *kbd)
 	input_sync(dev);
 }
 
-static void hil_kbd_process_err(struct hil_kbd *kbd)
+static void hil_dev_process_err(struct hil_dev *dev)
 {
 	printk(KERN_WARNING PREFIX "errored HIL packet\n");
-	kbd->idx4 = 0;
-	complete(&kbd->cmd_done); /* just in case somebody is waiting */
+	dev->idx4 = 0;
+	complete(&dev->cmd_done); /* just in case somebody is waiting */
 }
 
-static irqreturn_t hil_kbd_interrupt(struct serio *serio,
+static irqreturn_t hil_dev_interrupt(struct serio *serio,
 				unsigned char data, unsigned int flags)
 {
-	struct hil_kbd *kbd;
+	struct hil_dev *dev;
 	hil_packet packet;
 	int idx;
 
-	kbd = serio_get_drvdata(serio);
-	BUG_ON(kbd == NULL);
+	dev = serio_get_drvdata(serio);
+	BUG_ON(dev == NULL);
 
-	if (kbd->idx4 >= HIL_KBD_MAX_LENGTH * sizeof(hil_packet)) {
-		hil_kbd_process_err(kbd);
+	if (dev->idx4 >= HIL_PACKET_MAX_LENGTH * sizeof(hil_packet)) {
+		hil_dev_process_err(dev);
 		goto out;
 	}
 
-	idx = kbd->idx4 / 4;
-	if (!(kbd->idx4 % 4))
-		kbd->data[idx] = 0;
-	packet = kbd->data[idx];
-	packet |= ((hil_packet)data) << ((3 - (kbd->idx4 % 4)) * 8);
-	kbd->data[idx] = packet;
+	idx = dev->idx4 / 4;
+	if (!(dev->idx4 % 4))
+		dev->data[idx] = 0;
+	packet = dev->data[idx];
+	packet |= ((hil_packet)data) << ((3 - (dev->idx4 % 4)) * 8);
+	dev->data[idx] = packet;
 
 	/* Records of N 4-byte hil_packets must terminate with a command. */
-	if ((++kbd->idx4 % 4) == 0) {
+	if ((++dev->idx4 % 4) == 0) {
 		if ((packet & 0xffff0000) != HIL_ERR_INT) {
-			hil_kbd_process_err(kbd);
+			hil_dev_process_err(dev);
 		} else if (packet & HIL_PKT_CMD) {
-			if (hil_kbd_is_command_response(packet))
-				hil_kbd_handle_command_response(kbd);
+			if (hil_dev_is_command_response(packet))
+				hil_dev_handle_command_response(dev);
 			else
-				hil_kbd_handle_key_events(kbd);
-			kbd->idx4 = 0;
+				hil_dev_handle_key_events(dev);
+			dev->idx4 = 0;
 		}
 	}
  out:
 	return IRQ_HANDLED;
 }
 
-static void hil_kbd_disconnect(struct serio *serio)
+static void hil_dev_disconnect(struct serio *serio)
 {
-	struct hil_kbd *kbd = serio_get_drvdata(serio);
+	struct hil_dev *dev = serio_get_drvdata(serio);
 
-	BUG_ON(kbd == NULL);
+	BUG_ON(dev == NULL);
 
 	serio_close(serio);
-	input_unregister_device(kbd->dev);
-	kfree(kbd);
+	input_unregister_device(dev->dev);
+	kfree(dev);
 }
 
-static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
+static int hil_dev_connect(struct serio *serio, struct serio_driver *drv)
 {
-	struct hil_kbd *kbd;
+	struct hil_dev *dev;
 	struct input_dev *input_dev;
 	uint8_t did, *idd;
 	int i;
 	int error;
 
-	kbd = kzalloc(sizeof(*kbd), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!kbd || !input_dev) {
+	if (!dev || !input_dev) {
 		error = -ENOMEM;
 		goto bail0;
 	}
 
-	kbd->serio = serio;
-	kbd->dev = input_dev;
+	dev->serio = serio;
+	dev->dev = input_dev;
 
 	error = serio_open(serio, drv);
 	if (error)
 		goto bail0;
 
-	serio_set_drvdata(serio, kbd);
+	serio_set_drvdata(serio, dev);
 
 	/* Get device info.  MLC driver supplies devid/status/etc. */
-	init_completion(&kbd->cmd_done);
+	init_completion(&dev->cmd_done);
 	serio_write(serio, 0);
 	serio_write(serio, 0);
 	serio_write(serio, HIL_PKT_CMD >> 8);
 	serio_write(serio, HIL_CMD_IDD);
-	error = wait_for_completion_killable(&kbd->cmd_done);
+	error = wait_for_completion_killable(&dev->cmd_done);
 	if (error)
 		goto bail1;
 
-	init_completion(&kbd->cmd_done);
+	init_completion(&dev->cmd_done);
 	serio_write(serio, 0);
 	serio_write(serio, 0);
 	serio_write(serio, HIL_PKT_CMD >> 8);
 	serio_write(serio, HIL_CMD_RSC);
-	error = wait_for_completion_killable(&kbd->cmd_done);
+	error = wait_for_completion_killable(&dev->cmd_done);
 	if (error)
 		goto bail1;
 
-	init_completion(&kbd->cmd_done);
+	init_completion(&dev->cmd_done);
 	serio_write(serio, 0);
 	serio_write(serio, 0);
 	serio_write(serio, HIL_PKT_CMD >> 8);
 	serio_write(serio, HIL_CMD_RNM);
-	error = wait_for_completion_killable(&kbd->cmd_done);
+	error = wait_for_completion_killable(&dev->cmd_done);
 	if (error)
 		goto bail1;
 
-	init_completion(&kbd->cmd_done);
+	init_completion(&dev->cmd_done);
 	serio_write(serio, 0);
 	serio_write(serio, 0);
 	serio_write(serio, HIL_PKT_CMD >> 8);
 	serio_write(serio, HIL_CMD_EXD);
-	error = wait_for_completion_killable(&kbd->cmd_done);
+	error = wait_for_completion_killable(&dev->cmd_done);
 	if (error)
 		goto bail1;
 
-	did = kbd->idd[0];
-	idd = kbd->idd + 1;
+	did = dev->idd[0];
+	idd = dev->idd + 1;
 	switch (did & HIL_IDD_DID_TYPE_MASK) {
 	case HIL_IDD_DID_TYPE_KB_INTEGRAL:
 	case HIL_IDD_DID_TYPE_KB_ITF:
@@ -340,7 +340,7 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->keycodemax	= HIL_KEYCODES_SET1_TBLSIZE;
 	input_dev->keycodesize	= sizeof(hil_kbd_set1[0]);
 	input_dev->keycode	= hil_kbd_set1;
-	input_dev->name		= strlen(kbd->rnm) ? kbd->rnm : HIL_GENERIC_NAME;
+	input_dev->name		= strlen(dev->rnm) ? dev->rnm : HIL_GENERIC_NAME;
 	input_dev->phys		= "hpkbd/input0";	/* XXX */
 
 	input_dev->id.bustype	= BUS_HIL;
@@ -361,7 +361,7 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	serio_write(serio, HIL_CMD_EK1); /* Enable Keyswitch Autorepeat 1 */
 	/* No need to wait for completion */
 
-	error = input_register_device(kbd->dev);
+	error = input_register_device(input_dev);
 	if (error)
 		goto bail1;
 
@@ -372,11 +372,11 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	serio_set_drvdata(serio, NULL);
  bail0:
 	input_free_device(input_dev);
-	kfree(kbd);
+	kfree(dev);
 	return error;
 }
 
-static struct serio_device_id hil_kbd_ids[] = {
+static struct serio_device_id hil_dev_ids[] = {
 	{
 		.type = SERIO_HIL_MLC,
 		.proto = SERIO_HIL,
@@ -386,26 +386,26 @@ static struct serio_device_id hil_kbd_ids[] = {
 	{ 0 }
 };
 
-static struct serio_driver hil_kbd_serio_drv = {
+static struct serio_driver hil_serio_drv = {
 	.driver		= {
 		.name	= "hil_kbd",
 	},
 	.description	= "HP HIL keyboard driver",
-	.id_table	= hil_kbd_ids,
-	.connect	= hil_kbd_connect,
-	.disconnect	= hil_kbd_disconnect,
-	.interrupt	= hil_kbd_interrupt
+	.id_table	= hil_dev_ids,
+	.connect	= hil_dev_connect,
+	.disconnect	= hil_dev_disconnect,
+	.interrupt	= hil_dev_interrupt
 };
 
-static int __init hil_kbd_init(void)
+static int __init hil_dev_init(void)
 {
-	return serio_register_driver(&hil_kbd_serio_drv);
+	return serio_register_driver(&hil_serio_drv);
 }
 
-static void __exit hil_kbd_exit(void)
+static void __exit hil_dev_exit(void)
 {
-	serio_unregister_driver(&hil_kbd_serio_drv);
+	serio_unregister_driver(&hil_serio_drv);
 }
 
-module_init(hil_kbd_init);
-module_exit(hil_kbd_exit);
+module_init(hil_dev_init);
+module_exit(hil_dev_exit);
