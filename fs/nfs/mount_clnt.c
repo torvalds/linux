@@ -258,7 +258,7 @@ static int decode_status(struct xdr_stream *xdr, struct mountres *res)
 		return -EIO;
 	status = ntohl(*p);
 
-	for (i = 0; i <= ARRAY_SIZE(mnt_errtbl); i++) {
+	for (i = 0; i < ARRAY_SIZE(mnt_errtbl); i++) {
 		if (mnt_errtbl[i].status == status) {
 			res->errno = mnt_errtbl[i].errno;
 			return 0;
@@ -309,7 +309,7 @@ static int decode_fhs_status(struct xdr_stream *xdr, struct mountres *res)
 		return -EIO;
 	status = ntohl(*p);
 
-	for (i = 0; i <= ARRAY_SIZE(mnt3_errtbl); i++) {
+	for (i = 0; i < ARRAY_SIZE(mnt3_errtbl); i++) {
 		if (mnt3_errtbl[i].status == status) {
 			res->errno = mnt3_errtbl[i].errno;
 			return 0;
