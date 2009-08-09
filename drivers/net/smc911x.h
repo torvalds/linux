@@ -236,7 +236,6 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
  * Use a DMA for RX and TX packets.
  */
 #include <linux/dma-mapping.h>
-#include <mach/dma.h>
 
 static dma_addr_t rx_dmabuf, tx_dmabuf;
 static int rx_dmalen, tx_dmalen;
