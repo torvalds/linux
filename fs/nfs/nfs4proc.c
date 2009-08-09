@@ -61,6 +61,8 @@
 #define NFS4_POLL_RETRY_MIN	(HZ/10)
 #define NFS4_POLL_RETRY_MAX	(15*HZ)
 
+#define NFS4_MAX_LOOP_ON_RECOVER (10)
+
 struct nfs4_opendata;
 static int _nfs4_proc_open(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
@@ -426,17 +428,19 @@ out:
 static int nfs4_recover_session(struct nfs4_session *session)
 {
 	struct nfs_client *clp = session->clp;
+	unsigned int loop;
 	int ret;
 
-	for (;;) {
+	for (loop = NFS4_MAX_LOOP_ON_RECOVER; loop != 0; loop--) {
 		ret = nfs4_wait_clnt_recover(clp);
 		if (ret != 0)
-				return ret;
+			break;
 		if (!test_bit(NFS4CLNT_SESSION_SETUP, &clp->cl_state))
 			break;
 		nfs4_schedule_state_manager(clp);
+		ret = -EIO;
 	}
-	return 0;
+	return ret;
 }
 
 static int nfs41_setup_sequence(struct nfs4_session *session,
@@ -1444,18 +1448,20 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 static int nfs4_recover_expired_lease(struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
+	unsigned int loop;
 	int ret;
 
-	for (;;) {
+	for (loop = NFS4_MAX_LOOP_ON_RECOVER; loop != 0; loop--) {
 		ret = nfs4_wait_clnt_recover(clp);
 		if (ret != 0)
-			return ret;
+			break;
 		if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) &&
 		    !test_bit(NFS4CLNT_CHECK_LEASE,&clp->cl_state))
 			break;
 		nfs4_schedule_state_recovery(clp);
+		ret = -EIO;
 	}
-	return 0;
+	return ret;
 }
 
 /*
