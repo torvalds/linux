@@ -904,8 +904,6 @@ static void nfs_set_mount_transport_protocol(struct nfs_parsed_mount_data *mnt)
 
 /*
  * Parse the value of the 'sec=' option.
- *
- * The flavor_len setting is for v4 mounts.
  */
 static int nfs_parse_security_flavors(char *value,
 				      struct nfs_parsed_mount_data *mnt)
@@ -916,53 +914,43 @@ static int nfs_parse_security_flavors(char *value,
 
 	switch (match_token(value, nfs_secflavor_tokens, args)) {
 	case Opt_sec_none:
-		mnt->auth_flavor_len = 0;
 		mnt->auth_flavors[0] = RPC_AUTH_NULL;
 		break;
 	case Opt_sec_sys:
-		mnt->auth_flavor_len = 0;
 		mnt->auth_flavors[0] = RPC_AUTH_UNIX;
 		break;
 	case Opt_sec_krb5:
-		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5;
 		break;
 	case Opt_sec_krb5i:
-		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5I;
 		break;
 	case Opt_sec_krb5p:
-		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5P;
 		break;
 	case Opt_sec_lkey:
-		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEY;
 		break;
 	case Opt_sec_lkeyi:
-		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYI;
 		break;
 	case Opt_sec_lkeyp:
-		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYP;
 		break;
 	case Opt_sec_spkm:
-		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKM;
 		break;
 	case Opt_sec_spkmi:
-		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMI;
 		break;
 	case Opt_sec_spkmp:
-		mnt->auth_flavor_len = 1;
 		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMP;
 		break;
 	default:
 		return 0;
 	}
 
+	mnt->auth_flavor_len = 1;
 	return 1;
 }
 
@@ -1680,6 +1668,7 @@ static int nfs_validate_mount_data(void *options,
 	args->nfs_server.port	= 0;	/* autobind unless user sets port */
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 	args->auth_flavors[0]	= RPC_AUTH_UNIX;
+	args->auth_flavor_len	= 1;
 
 	switch (data->version) {
 	case 1:
@@ -2343,7 +2332,7 @@ static int nfs4_validate_mount_data(void *options,
 	args->acdirmax		= NFS_DEF_ACDIRMAX;
 	args->nfs_server.port	= NFS_PORT; /* 2049 unless user set port= */
 	args->auth_flavors[0]	= RPC_AUTH_UNIX;
-	args->auth_flavor_len	= 0;
+	args->auth_flavor_len	= 1;
 	args->minorversion	= 0;
 
 	switch (data->version) {
