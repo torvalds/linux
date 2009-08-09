@@ -417,7 +417,7 @@ enum {
 struct rpc_filelist {
 	char *name;
 	const struct file_operations *i_fop;
-	int mode;
+	umode_t mode;
 };
 
 static struct rpc_filelist files[] = {
@@ -516,7 +516,7 @@ rpc_release_path(struct nameidata *nd)
 }
 
 static struct inode *
-rpc_get_inode(struct super_block *sb, int mode)
+rpc_get_inode(struct super_block *sb, umode_t mode)
 {
 	struct inode *inode = new_inode(sb);
 	if (!inode)
@@ -589,7 +589,8 @@ rpc_populate(struct dentry *parent,
 	struct inode *inode, *dir = parent->d_inode;
 	void *private = RPC_I(dir)->private;
 	struct dentry *dentry;
-	int mode, i;
+	umode_t mode;
+	int i;
 
 	mutex_lock(&dir->i_mutex);
 	for (i = start; i < eof; i++) {
@@ -783,6 +784,12 @@ struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
 	struct dentry *dentry;
 	struct inode *dir, *inode;
 	struct rpc_inode *rpci;
+	umode_t umode = S_IFIFO | S_IRUSR | S_IWUSR;
+
+	if (ops->upcall == NULL)
+		umode &= ~S_IRUGO;
+	if (ops->downcall == NULL)
+		umode &= ~S_IWUGO;
 
 	dentry = rpc_lookup_create(parent, name, strlen(name), 0);
 	if (IS_ERR(dentry))
@@ -799,7 +806,7 @@ struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
 		rpci->nkern_readwriters++;
 		goto out;
 	}
-	inode = rpc_get_inode(dir->i_sb, S_IFIFO | S_IRUSR | S_IWUSR);
+	inode = rpc_get_inode(dir->i_sb, umode);
 	if (!inode)
 		goto err_dput;
 	inode->i_ino = iunique(dir->i_sb, 100);
