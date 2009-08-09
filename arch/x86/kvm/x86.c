@@ -77,6 +77,7 @@ static u64 __read_mostly efer_reserved_bits = 0xfffffffffffffffeULL;
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
+static void update_cr8_intercept(struct kvm_vcpu *vcpu);
 static int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 				    struct kvm_cpuid_entry2 __user *entries);
 
@@ -1629,6 +1630,7 @@ static int kvm_vcpu_ioctl_set_lapic(struct kvm_vcpu *vcpu,
 	vcpu_load(vcpu);
 	memcpy(vcpu->arch.apic->regs, s->regs, sizeof *s);
 	kvm_apic_post_state_restore(vcpu);
+	update_cr8_intercept(vcpu);
 	vcpu_put(vcpu);
 
 	return 0;
