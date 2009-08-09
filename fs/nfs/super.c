@@ -158,7 +158,7 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_mountvers, "mountvers=%s" },
 	{ Opt_nfsvers, "nfsvers=%s" },
 	{ Opt_nfsvers, "vers=%s" },
-	{ Opt_minorversion, "minorversion=%u" },
+	{ Opt_minorversion, "minorversion=%s" },
 
 	{ Opt_sec, "sec=%s" },
 	{ Opt_proto, "proto=%s" },
@@ -1001,7 +1001,6 @@ static int nfs_parse_mount_options(char *raw,
 	while ((p = strsep(&raw, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
 		unsigned long option;
-		int int_option;
 		int token;
 
 		if (!*p)
@@ -1273,11 +1272,16 @@ static int nfs_parse_mount_options(char *raw,
 			}
 			break;
 		case Opt_minorversion:
-			if (match_int(args, &int_option))
-				return 0;
-			if (int_option < 0 || int_option > NFS4_MAX_MINOR_VERSION)
-				return 0;
-			mnt->minorversion = int_option;
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
+				goto out_invalid_value;
+			if (option > NFS4_MAX_MINOR_VERSION)
+				goto out_invalid_value;
+			mnt->minorversion = option;
 			break;
 
 		/*
