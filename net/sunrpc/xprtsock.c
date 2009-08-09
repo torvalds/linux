@@ -307,12 +307,6 @@ static void xs_format_common_peer_addresses(struct rpc_xprt *xprt)
 	(void)snprintf(buf, sizeof(buf), "%u", rpc_get_port(sap));
 	xprt->address_strings[RPC_DISPLAY_PORT] = kstrdup(buf, GFP_KERNEL);
 
-	(void)snprintf(buf, sizeof(buf), "addr=%s port=%s proto=%s",
-			xprt->address_strings[RPC_DISPLAY_ADDR],
-			xprt->address_strings[RPC_DISPLAY_PORT],
-			xprt->address_strings[RPC_DISPLAY_PROTO]);
-	xprt->address_strings[RPC_DISPLAY_ALL] = kstrdup(buf, GFP_KERNEL);
-
 	(void)snprintf(buf, sizeof(buf), "%4hx", rpc_get_port(sap));
 	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = kstrdup(buf, GFP_KERNEL);
 }
@@ -1721,8 +1715,11 @@ static void xs_udp_connect_worker4(struct work_struct *work)
 		goto out;
 	}
 
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+	dprintk("RPC:       worker connecting xprt %p via %s to "
+				"%s (port %s)\n", xprt,
+			xprt->address_strings[RPC_DISPLAY_PROTO],
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT]);
 
 	xs_udp_finish_connecting(xprt, sock);
 	status = 0;
@@ -1763,8 +1760,11 @@ static void xs_udp_connect_worker6(struct work_struct *work)
 		goto out;
 	}
 
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+	dprintk("RPC:       worker connecting xprt %p via %s to "
+				"%s (port %s)\n", xprt,
+			xprt->address_strings[RPC_DISPLAY_PROTO],
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT]);
 
 	xs_udp_finish_connecting(xprt, sock);
 	status = 0;
@@ -1889,8 +1889,11 @@ static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
 			goto out_eagain;
 	}
 
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+	dprintk("RPC:       worker connecting xprt %p via %s to "
+				"%s (port %s)\n", xprt,
+			xprt->address_strings[RPC_DISPLAY_PROTO],
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT]);
 
 	status = xs_tcp_finish_connecting(xprt, sock);
 	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
@@ -2228,8 +2231,15 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 		return ERR_PTR(-EAFNOSUPPORT);
 	}
 
-	dprintk("RPC:       set up transport to address %s\n",
-			xprt->address_strings[RPC_DISPLAY_ALL]);
+	if (xprt_bound(xprt))
+		dprintk("RPC:       set up xprt to %s (port %s) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PORT],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
+	else
+		dprintk("RPC:       set up xprt to %s (autobind) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
 
 	if (try_module_get(THIS_MODULE))
 		return xprt;
@@ -2293,8 +2303,16 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 		return ERR_PTR(-EAFNOSUPPORT);
 	}
 
-	dprintk("RPC:       set up transport to address %s\n",
-			xprt->address_strings[RPC_DISPLAY_ALL]);
+	if (xprt_bound(xprt))
+		dprintk("RPC:       set up xprt to %s (port %s) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PORT],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
+	else
+		dprintk("RPC:       set up xprt to %s (autobind) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
+
 
 	if (try_module_get(THIS_MODULE))
 		return xprt;

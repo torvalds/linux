@@ -181,11 +181,6 @@ xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 
 	xprt->address_strings[RPC_DISPLAY_PROTO] = "rdma";
 
-	(void)snprintf(buf, sizeof(buf), "addr=%s port=%s proto=rdma",
-			xprt->address_strings[RPC_DISPLAY_ADDR],
-			xprt->address_strings[RPC_DISPLAY_PORT]);
-	xprt->address_strings[RPC_DISPLAY_ALL] = kstrdup(buf, GFP_KERNEL);
-
 	(void)snprintf(buf, sizeof(buf), "%02x%02x%02x%02x",
 				NIPQUAD(sin->sin_addr.s_addr));
 	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
