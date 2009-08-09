@@ -2094,14 +2094,22 @@ static int identity_mapping(struct pci_dev *pdev)
 }
 
 static int domain_add_dev_info(struct dmar_domain *domain,
-				  struct pci_dev *pdev)
+			       struct pci_dev *pdev,
+			       int translation)
 {
 	struct device_domain_info *info;
 	unsigned long flags;
+	int ret;
 
 	info = alloc_devinfo_mem();
 	if (!info)
 		return -ENOMEM;
+
+	ret = domain_context_mapping(domain, pdev, translation);
+	if (ret) {
+		free_devinfo_mem(info);
+		return ret;
+	}
 
 	info->segment = pci_domain_nr(pdev->bus);
 	info->bus = pdev->bus->number;
@@ -2173,13 +2181,9 @@ static int iommu_prepare_static_identity_mapping(int hw)
 			printk(KERN_INFO "IOMMU: %s identity mapping for device %s\n",
 			       hw ? "hardware" : "software", pci_name(pdev));
 
-			ret = domain_context_mapping(si_domain, pdev,
+			ret = domain_add_dev_info(si_domain, pdev,
 						     hw ? CONTEXT_TT_PASS_THROUGH :
 						     CONTEXT_TT_MULTI_LEVEL);
-			if (ret)
-				return ret;
-
-			ret = domain_add_dev_info(si_domain, pdev);
 			if (ret)
 				return ret;
 		}
@@ -2510,13 +2514,10 @@ static int iommu_no_mapping(struct device *dev)
 		 */
 		if (iommu_should_identity_map(pdev, 0)) {
 			int ret;
-			ret = domain_add_dev_info(si_domain, pdev);
-			if (ret)
-				return 0;
-			ret = domain_context_mapping(si_domain, pdev,
-						     hw_pass_through ?
-						     CONTEXT_TT_PASS_THROUGH :
-						     CONTEXT_TT_MULTI_LEVEL);
+			ret = domain_add_dev_info(si_domain, pdev,
+						  hw_pass_through ?
+						  CONTEXT_TT_PASS_THROUGH :
+						  CONTEXT_TT_MULTI_LEVEL);
 			if (!ret) {
 				printk(KERN_INFO "64bit %s uses identity mapping\n",
 				       pci_name(pdev));
@@ -3486,7 +3487,6 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 	struct intel_iommu *iommu;
 	int addr_width;
 	u64 end;
-	int ret;
 
 	/* normally pdev is not mapped */
 	if (unlikely(domain_context_mapped(pdev))) {
@@ -3518,12 +3518,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		return -EFAULT;
 	}
 
-	ret = domain_add_dev_info(dmar_domain, pdev);
-	if (ret)
-		return ret;
-
-	ret = domain_context_mapping(dmar_domain, pdev, CONTEXT_TT_MULTI_LEVEL);
-	return ret;
+	return domain_add_dev_info(dmar_domain, pdev, CONTEXT_TT_MULTI_LEVEL);
 }
 
 static void intel_iommu_detach_device(struct iommu_domain *domain,
