@@ -176,7 +176,13 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_update);
 
-static int cache_make_upcall(struct cache_detail *detail, struct cache_head *h);
+static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
+{
+	if (!cd->cache_upcall)
+		return -EINVAL;
+	return cd->cache_upcall(cd, h);
+}
+
 /*
  * This is the generic cache management routine for all
  * the authentication caches.
@@ -322,7 +328,7 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 	if (p == NULL)
 		goto out_nomem;
 
-	if (cd->cache_request || cd->cache_parse) {
+	if (cd->cache_upcall || cd->cache_parse) {
 		p = proc_create_data("channel", S_IFREG|S_IRUSR|S_IWUSR,
 				     cd->proc_ent, &cache_file_operations, cd);
 		cd->channel_ent = p;
@@ -1080,19 +1086,22 @@ static void warn_no_listener(struct cache_detail *detail)
 }
 
 /*
- * register an upcall request to user-space.
+ * register an upcall request to user-space and queue it up for read() by the
+ * upcall daemon.
+ *
  * Each request is at most one page long.
  */
-static int cache_make_upcall(struct cache_detail *detail, struct cache_head *h)
+int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h,
+		void (*cache_request)(struct cache_detail *,
+				      struct cache_head *,
+				      char **,
+				      int *))
 {
 
 	char *buf;
 	struct cache_request *crq;
 	char *bp;
 	int len;
-
-	if (detail->cache_request == NULL)
-		return -EINVAL;
 
 	if (atomic_read(&detail->readers) == 0 &&
 	    detail->last_close < get_seconds() - 30) {
@@ -1112,7 +1121,7 @@ static int cache_make_upcall(struct cache_detail *detail, struct cache_head *h)
 
 	bp = buf; len = PAGE_SIZE;
 
-	detail->cache_request(detail, h, &bp, &len);
+	cache_request(detail, h, &bp, &len);
 
 	if (len < 0) {
 		kfree(buf);
@@ -1130,6 +1139,7 @@ static int cache_make_upcall(struct cache_detail *detail, struct cache_head *h)
 	wake_up(&queue_wait);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sunrpc_cache_pipe_upcall);
 
 /*
  * parse a message from user-space and pass it

@@ -70,9 +70,9 @@ struct cache_detail {
 	char			*name;
 	void			(*cache_put)(struct kref *);
 
-	void			(*cache_request)(struct cache_detail *cd,
-						 struct cache_head *h,
-						 char **bpp, int *blen);
+	int			(*cache_upcall)(struct cache_detail *,
+						struct cache_head *);
+
 	int			(*cache_parse)(struct cache_detail *,
 					       char *buf, int len);
 
@@ -134,6 +134,13 @@ sunrpc_cache_lookup(struct cache_detail *detail,
 extern struct cache_head *
 sunrpc_cache_update(struct cache_detail *detail,
 		    struct cache_head *new, struct cache_head *old, int hash);
+
+extern int
+sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h,
+		void (*cache_request)(struct cache_detail *,
+				      struct cache_head *,
+				      char **,
+				      int *));
 
 
 extern void cache_clean_deferred(void *owner);
