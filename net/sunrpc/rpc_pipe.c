@@ -406,19 +406,6 @@ struct rpc_filelist {
 	umode_t mode;
 };
 
-enum {
-	RPCAUTH_info,
-	RPCAUTH_EOF
-};
-
-static const struct rpc_filelist authfiles[] = {
-	[RPCAUTH_info] = {
-		.name = "info",
-		.i_fop = &rpc_info_operations,
-		.mode = S_IFREG | S_IRUSR,
-	},
-};
-
 struct vfsmount *rpc_get_mount(void)
 {
 	int err;
@@ -698,8 +685,9 @@ out_bad:
 	return err;
 }
 
-struct dentry *rpc_mkdir_populate(struct dentry *parent,
-		struct qstr *name, umode_t mode, void *private)
+static struct dentry *rpc_mkdir_populate(struct dentry *parent,
+		struct qstr *name, umode_t mode, void *private,
+		int (*populate)(struct dentry *, void *), void *args_populate)
 {
 	struct dentry *dentry;
 	struct inode *dir = parent->d_inode;
@@ -712,10 +700,11 @@ struct dentry *rpc_mkdir_populate(struct dentry *parent,
 	error = __rpc_mkdir(dir, dentry, mode, NULL, private);
 	if (error != 0)
 		goto out_err;
-	error = rpc_populate(dentry, authfiles,
-			RPCAUTH_info, RPCAUTH_EOF, private);
-	if (error)
-		goto err_rmdir;
+	if (populate != NULL) {
+		error = populate(dentry, args_populate);
+		if (error)
+			goto err_rmdir;
+	}
 out:
 	mutex_unlock(&dir->i_mutex);
 	return dentry;
@@ -726,11 +715,8 @@ out_err:
 	goto out;
 }
 
-/**
- * rpc_remove_client_dir - Remove a directory created with rpc_create_client_dir()
- * @dentry: directory to remove
- */
-int rpc_remove_client_dir(struct dentry *dentry)
+static int rpc_rmdir_depopulate(struct dentry *dentry,
+		void (*depopulate)(struct dentry *))
 {
 	struct dentry *parent;
 	struct inode *dir;
@@ -739,7 +725,8 @@ int rpc_remove_client_dir(struct dentry *dentry)
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	rpc_depopulate(dentry, authfiles, RPCAUTH_info, RPCAUTH_EOF);
+	if (depopulate != NULL)
+		depopulate(dentry);
 	error = __rpc_rmdir(dir, dentry);
 	mutex_unlock(&dir->i_mutex);
 	dput(parent);
@@ -843,6 +830,31 @@ rpc_unlink(struct dentry *dentry)
 }
 EXPORT_SYMBOL_GPL(rpc_unlink);
 
+enum {
+	RPCAUTH_info,
+	RPCAUTH_EOF
+};
+
+static const struct rpc_filelist authfiles[] = {
+	[RPCAUTH_info] = {
+		.name = "info",
+		.i_fop = &rpc_info_operations,
+		.mode = S_IFREG | S_IRUSR,
+	},
+};
+
+static int rpc_clntdir_populate(struct dentry *dentry, void *private)
+{
+	return rpc_populate(dentry,
+			    authfiles, RPCAUTH_info, RPCAUTH_EOF,
+			    private);
+}
+
+static void rpc_clntdir_depopulate(struct dentry *dentry)
+{
+	rpc_depopulate(dentry, authfiles, RPCAUTH_info, RPCAUTH_EOF);
+}
+
 /**
  * rpc_create_client_dir - Create a new rpc_client directory in rpc_pipefs
  * @path: path from the rpc_pipefs root to the new directory
@@ -854,10 +866,20 @@ EXPORT_SYMBOL_GPL(rpc_unlink);
  * later be created using rpc_mkpipe().
  */
 struct dentry *rpc_create_client_dir(struct dentry *dentry,
-				     struct qstr *name,
-				     struct rpc_clnt *rpc_client)
+				   struct qstr *name,
+				   struct rpc_clnt *rpc_client)
 {
-	return rpc_mkdir_populate(dentry, name, S_IRUGO | S_IXUGO, rpc_client);
+	return rpc_mkdir_populate(dentry, name, S_IRUGO | S_IXUGO, NULL,
+			rpc_clntdir_populate, rpc_client);
+}
+
+/**
+ * rpc_remove_client_dir - Remove a directory created with rpc_create_client_dir()
+ * @dentry: directory to remove
+ */
+int rpc_remove_client_dir(struct dentry *dentry)
+{
+	return rpc_rmdir_depopulate(dentry, rpc_clntdir_depopulate);
 }
 
 /*
