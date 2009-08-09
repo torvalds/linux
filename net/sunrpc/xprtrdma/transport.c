@@ -202,14 +202,6 @@ xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 		snprintf(buf, 8, "%4hx", ntohs(addr->sin_port));
 	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
 
-	buf = kzalloc(30, GFP_KERNEL);
-	if (buf)
-		snprintf(buf, 30, "%pI4.%u.%u",
-			&addr->sin_addr.s_addr,
-			ntohs(addr->sin_port) >> 8,
-			ntohs(addr->sin_port) & 0xff);
-	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
-
 	/* netid */
 	xprt->address_strings[RPC_DISPLAY_NETID] = "rdma";
 }

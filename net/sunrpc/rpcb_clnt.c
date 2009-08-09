@@ -153,6 +153,7 @@ static void rpcb_map_release(void *data)
 
 	rpcb_wake_rpcbind_waiters(map->r_xprt, map->r_status);
 	xprt_put(map->r_xprt);
+	kfree(map->r_addr);
 	kfree(map);
 }
 
@@ -299,12 +300,9 @@ static int rpcb_register_inet4(const struct sockaddr *sap,
 	const struct sockaddr_in *sin = (const struct sockaddr_in *)sap;
 	struct rpcbind_args *map = msg->rpc_argp;
 	unsigned short port = ntohs(sin->sin_port);
-	char buf[32];
+	int result;
 
-	/* Construct AF_INET universal address */
-	snprintf(buf, sizeof(buf), "%pI4.%u.%u",
-		 &sin->sin_addr.s_addr, port >> 8, port & 0xff);
-	map->r_addr = buf;
+	map->r_addr = rpc_sockaddr2uaddr(sap);
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
 		"local rpcbind\n", (port ? "" : "un"),
@@ -315,7 +313,9 @@ static int rpcb_register_inet4(const struct sockaddr *sap,
 	if (port)
 		msg->rpc_proc = &rpcb_procedures4[RPCBPROC_SET];
 
-	return rpcb_register_call(RPCBVERS_4, msg);
+	result = rpcb_register_call(RPCBVERS_4, msg);
+	kfree(map->r_addr);
+	return result;
 }
 
 /*
@@ -327,16 +327,9 @@ static int rpcb_register_inet6(const struct sockaddr *sap,
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)sap;
 	struct rpcbind_args *map = msg->rpc_argp;
 	unsigned short port = ntohs(sin6->sin6_port);
-	char buf[64];
+	int result;
 
-	/* Construct AF_INET6 universal address */
-	if (ipv6_addr_any(&sin6->sin6_addr))
-		snprintf(buf, sizeof(buf), "::.%u.%u",
-				port >> 8, port & 0xff);
-	else
-		snprintf(buf, sizeof(buf), "%pI6.%u.%u",
-			 &sin6->sin6_addr, port >> 8, port & 0xff);
-	map->r_addr = buf;
+	map->r_addr = rpc_sockaddr2uaddr(sap);
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
 		"local rpcbind\n", (port ? "" : "un"),
@@ -347,7 +340,9 @@ static int rpcb_register_inet6(const struct sockaddr *sap,
 	if (port)
 		msg->rpc_proc = &rpcb_procedures4[RPCBPROC_SET];
 
-	return rpcb_register_call(RPCBVERS_4, msg);
+	result = rpcb_register_call(RPCBVERS_4, msg);
+	kfree(map->r_addr);
+	return result;
 }
 
 static int rpcb_unregister_all_protofamilies(struct rpc_message *msg)
@@ -570,6 +565,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		goto bailout_nofree;
 	}
 
+	/* Parent transport's destination address */
 	salen = rpc_peeraddr(clnt, sap, sizeof(addr));
 
 	/* Don't ever use rpcbind v2 for AF_INET6 requests */
@@ -620,10 +616,21 @@ void rpcb_getport_async(struct rpc_task *task)
 	map->r_prot = xprt->prot;
 	map->r_port = 0;
 	map->r_xprt = xprt_get(xprt);
-	map->r_netid = rpc_peeraddr2str(clnt, RPC_DISPLAY_NETID);
-	map->r_addr = rpc_peeraddr2str(rpcb_clnt, RPC_DISPLAY_UNIVERSAL_ADDR);
-	map->r_owner = "";
 	map->r_status = -EIO;
+
+	switch (bind_version) {
+	case RPCBVERS_4:
+	case RPCBVERS_3:
+		map->r_netid = rpc_peeraddr2str(clnt, RPC_DISPLAY_NETID);
+		map->r_addr = rpc_sockaddr2uaddr(sap);
+		map->r_owner = "";
+		break;
+	case RPCBVERS_2:
+		map->r_addr = NULL;
+		break;
+	default:
+		BUG();
+	}
 
 	child = rpcb_call_async(rpcb_clnt, map, proc);
 	rpc_release_client(rpcb_clnt);
@@ -722,6 +729,9 @@ static int rpcb_decode_set(struct rpc_rqst *req, __be32 *p,
 static int rpcb_encode_getaddr(struct rpc_rqst *req, __be32 *p,
 			       struct rpcbind_args *rpcb)
 {
+	if (rpcb->r_addr == NULL)
+		return -EIO;
+
 	dprintk("RPC:       encoding rpcb request (%u, %u, %s)\n",
 			rpcb->r_prog, rpcb->r_vers, rpcb->r_addr);
 	*p++ = htonl(rpcb->r_prog);

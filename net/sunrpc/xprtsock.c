@@ -341,15 +341,6 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
 	}
 	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
 
-	buf = kzalloc(30, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 30, "%pI4.%u.%u",
-				&addr->sin_addr.s_addr,
-				ntohs(addr->sin_port) >> 8,
-				ntohs(addr->sin_port) & 0xff);
-	}
-	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
-
 	xprt->address_strings[RPC_DISPLAY_NETID] = netid;
 }
 
@@ -396,15 +387,6 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 				ntohs(addr->sin6_port));
 	}
 	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
-
-	buf = kzalloc(50, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 50, "%pI6.%u.%u",
-			 &addr->sin6_addr,
-			 ntohs(addr->sin6_port) >> 8,
-			 ntohs(addr->sin6_port) & 0xff);
-	}
-	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
 
 	xprt->address_strings[RPC_DISPLAY_NETID] = netid;
 }
