@@ -1314,8 +1314,9 @@ static int vidioc_g_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_ADDR:
-		/* Not supported yet */
-		return -EINVAL;
+		/* TODO: is this correct? */
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
+		return 0;
 	default:
 		if (!v4l2_chip_match_host(&reg->match))
 			return -EINVAL;
@@ -1366,8 +1367,9 @@ static int vidioc_s_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_ADDR:
-		/* Not supported yet */
-		return -EINVAL;
+		/* TODO: is this correct? */
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
+		return 0;
 	default:
 		if (!v4l2_chip_match_host(&reg->match))
 			return -EINVAL;
