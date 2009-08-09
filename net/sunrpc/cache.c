@@ -32,6 +32,7 @@
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/stats.h>
+#include <linux/sunrpc/rpc_pipe_fs.h>
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
@@ -1438,3 +1439,128 @@ void cache_unregister(struct cache_detail *cd)
 	sunrpc_destroy_cache_detail(cd);
 }
 EXPORT_SYMBOL_GPL(cache_unregister);
+
+static ssize_t cache_read_pipefs(struct file *filp, char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	struct cache_detail *cd = RPC_I(filp->f_path.dentry->d_inode)->private;
+
+	return cache_read(filp, buf, count, ppos, cd);
+}
+
+static ssize_t cache_write_pipefs(struct file *filp, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct cache_detail *cd = RPC_I(filp->f_path.dentry->d_inode)->private;
+
+	return cache_write(filp, buf, count, ppos, cd);
+}
+
+static unsigned int cache_poll_pipefs(struct file *filp, poll_table *wait)
+{
+	struct cache_detail *cd = RPC_I(filp->f_path.dentry->d_inode)->private;
+
+	return cache_poll(filp, wait, cd);
+}
+
+static int cache_ioctl_pipefs(struct inode *inode, struct file *filp,
+			      unsigned int cmd, unsigned long arg)
+{
+	struct cache_detail *cd = RPC_I(inode)->private;
+
+	return cache_ioctl(inode, filp, cmd, arg, cd);
+}
+
+static int cache_open_pipefs(struct inode *inode, struct file *filp)
+{
+	struct cache_detail *cd = RPC_I(inode)->private;
+
+	return cache_open(inode, filp, cd);
+}
+
+static int cache_release_pipefs(struct inode *inode, struct file *filp)
+{
+	struct cache_detail *cd = RPC_I(inode)->private;
+
+	return cache_release(inode, filp, cd);
+}
+
+const struct file_operations cache_file_operations_pipefs = {
+	.owner		= THIS_MODULE,
+	.llseek		= no_llseek,
+	.read		= cache_read_pipefs,
+	.write		= cache_write_pipefs,
+	.poll		= cache_poll_pipefs,
+	.ioctl		= cache_ioctl_pipefs, /* for FIONREAD */
+	.open		= cache_open_pipefs,
+	.release	= cache_release_pipefs,
+};
+
+static int content_open_pipefs(struct inode *inode, struct file *filp)
+{
+	struct cache_detail *cd = RPC_I(inode)->private;
+
+	return content_open(inode, filp, cd);
+}
+
+const struct file_operations content_file_operations_pipefs = {
+	.open		= content_open_pipefs,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release_private,
+};
+
+static ssize_t read_flush_pipefs(struct file *filp, char __user *buf,
+			    size_t count, loff_t *ppos)
+{
+	struct cache_detail *cd = RPC_I(filp->f_path.dentry->d_inode)->private;
+
+	return read_flush(filp, buf, count, ppos, cd);
+}
+
+static ssize_t write_flush_pipefs(struct file *filp,
+				  const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct cache_detail *cd = RPC_I(filp->f_path.dentry->d_inode)->private;
+
+	return write_flush(filp, buf, count, ppos, cd);
+}
+
+const struct file_operations cache_flush_operations_pipefs = {
+	.open		= nonseekable_open,
+	.read		= read_flush_pipefs,
+	.write		= write_flush_pipefs,
+};
+
+int sunrpc_cache_register_pipefs(struct dentry *parent,
+				 const char *name, mode_t umode,
+				 struct cache_detail *cd)
+{
+	struct qstr q;
+	struct dentry *dir;
+	int ret = 0;
+
+	sunrpc_init_cache_detail(cd);
+	q.name = name;
+	q.len = strlen(name);
+	q.hash = full_name_hash(q.name, q.len);
+	dir = rpc_create_cache_dir(parent, &q, umode, cd);
+	if (!IS_ERR(dir))
+		cd->u.pipefs.dir = dir;
+	else {
+		sunrpc_destroy_cache_detail(cd);
+		ret = PTR_ERR(dir);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(sunrpc_cache_register_pipefs);
+
+void sunrpc_cache_unregister_pipefs(struct cache_detail *cd)
+{
+	rpc_remove_cache_dir(cd->u.pipefs.dir);
+	cd->u.pipefs.dir = NULL;
+	sunrpc_destroy_cache_detail(cd);
+}
+EXPORT_SYMBOL_GPL(sunrpc_cache_unregister_pipefs);
+

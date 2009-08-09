@@ -64,6 +64,10 @@ struct cache_detail_procfs {
 	struct proc_dir_entry   *flush_ent, *channel_ent, *content_ent;
 };
 
+struct cache_detail_pipefs {
+	struct dentry *dir;
+};
+
 struct cache_detail {
 	struct module *		owner;
 	int			hash_size;
@@ -110,6 +114,7 @@ struct cache_detail {
 
 	union {
 		struct cache_detail_procfs procfs;
+		struct cache_detail_pipefs pipefs;
 	} u;
 };
 
@@ -134,6 +139,10 @@ struct cache_deferred_req {
 					   int too_many);
 };
 
+
+extern const struct file_operations cache_file_operations_pipefs;
+extern const struct file_operations content_file_operations_pipefs;
+extern const struct file_operations cache_flush_operations_pipefs;
 
 extern struct cache_head *
 sunrpc_cache_lookup(struct cache_detail *detail,
@@ -185,6 +194,10 @@ extern void cache_purge(struct cache_detail *detail);
 #define NEVER (0x7FFFFFFF)
 extern int cache_register(struct cache_detail *cd);
 extern void cache_unregister(struct cache_detail *cd);
+
+extern int sunrpc_cache_register_pipefs(struct dentry *parent, const char *,
+					mode_t, struct cache_detail *);
+extern void sunrpc_cache_unregister_pipefs(struct cache_detail *);
 
 extern void qword_add(char **bpp, int *lp, char *str);
 extern void qword_addhex(char **bpp, int *lp, char *buf, int blen);

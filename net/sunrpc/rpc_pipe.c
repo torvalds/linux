@@ -26,6 +26,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <linux/sunrpc/cache.h>
 
 static struct vfsmount *rpc_mount __read_mostly;
 static int rpc_mount_count;
@@ -880,6 +881,48 @@ struct dentry *rpc_create_client_dir(struct dentry *dentry,
 int rpc_remove_client_dir(struct dentry *dentry)
 {
 	return rpc_rmdir_depopulate(dentry, rpc_clntdir_depopulate);
+}
+
+static const struct rpc_filelist cache_pipefs_files[3] = {
+	[0] = {
+		.name = "channel",
+		.i_fop = &cache_file_operations_pipefs,
+		.mode = S_IFIFO|S_IRUSR|S_IWUSR,
+	},
+	[1] = {
+		.name = "content",
+		.i_fop = &content_file_operations_pipefs,
+		.mode = S_IFREG|S_IRUSR,
+	},
+	[2] = {
+		.name = "flush",
+		.i_fop = &cache_flush_operations_pipefs,
+		.mode = S_IFREG|S_IRUSR|S_IWUSR,
+	},
+};
+
+static int rpc_cachedir_populate(struct dentry *dentry, void *private)
+{
+	return rpc_populate(dentry,
+			    cache_pipefs_files, 0, 3,
+			    private);
+}
+
+static void rpc_cachedir_depopulate(struct dentry *dentry)
+{
+	rpc_depopulate(dentry, cache_pipefs_files, 0, 3);
+}
+
+struct dentry *rpc_create_cache_dir(struct dentry *parent, struct qstr *name,
+				    mode_t umode, struct cache_detail *cd)
+{
+	return rpc_mkdir_populate(parent, name, umode, NULL,
+			rpc_cachedir_populate, cd);
+}
+
+void rpc_remove_cache_dir(struct dentry *dentry)
+{
+	rpc_rmdir_depopulate(dentry, rpc_cachedir_depopulate);
 }
 
 /*
