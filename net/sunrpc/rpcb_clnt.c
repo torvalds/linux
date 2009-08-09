@@ -736,6 +736,28 @@ static int rpcb_decode_set(struct rpc_rqst *req, __be32 *p,
 	return 0;
 }
 
+static int rpcb_dec_set(struct rpc_rqst *req, __be32 *p,
+			unsigned int *boolp)
+{
+	struct rpc_task *task = req->rq_task;
+	struct xdr_stream xdr;
+
+	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
+
+	p = xdr_inline_decode(&xdr, sizeof(__be32));
+	if (unlikely(p == NULL))
+		return -EIO;
+
+	*boolp = 0;
+	if (*p)
+		*boolp = 1;
+
+	dprintk("RPC: %5u RPCB_%s call %s\n",
+			task->tk_pid, task->tk_msg.rpc_proc->p_name,
+			(*boolp ? "succeeded" : "failed"));
+	return 0;
+}
+
 static int encode_rpcb_string(struct xdr_stream *xdr, const char *string,
 				const u32 maxstrlen)
 {
