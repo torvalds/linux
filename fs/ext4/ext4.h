@@ -67,27 +67,27 @@ typedef unsigned int ext4_group_t;
 
 
 /* prefer goal again. length */
-#define EXT4_MB_HINT_MERGE		1
+#define EXT4_MB_HINT_MERGE		0x0001
 /* blocks already reserved */
-#define EXT4_MB_HINT_RESERVED		2
+#define EXT4_MB_HINT_RESERVED		0x0002
 /* metadata is being allocated */
-#define EXT4_MB_HINT_METADATA		4
+#define EXT4_MB_HINT_METADATA		0x0004
 /* first blocks in the file */
-#define EXT4_MB_HINT_FIRST		8
+#define EXT4_MB_HINT_FIRST		0x0008
 /* search for the best chunk */
-#define EXT4_MB_HINT_BEST		16
+#define EXT4_MB_HINT_BEST		0x0010
 /* data is being allocated */
-#define EXT4_MB_HINT_DATA		32
+#define EXT4_MB_HINT_DATA		0x0020
 /* don't preallocate (for tails) */
-#define EXT4_MB_HINT_NOPREALLOC		64
+#define EXT4_MB_HINT_NOPREALLOC		0x0040
 /* allocate for locality group */
-#define EXT4_MB_HINT_GROUP_ALLOC	128
+#define EXT4_MB_HINT_GROUP_ALLOC	0x0080
 /* allocate goal blocks or none */
-#define EXT4_MB_HINT_GOAL_ONLY		256
+#define EXT4_MB_HINT_GOAL_ONLY		0x0100
 /* goal is meaningful */
-#define EXT4_MB_HINT_TRY_GOAL		512
+#define EXT4_MB_HINT_TRY_GOAL		0x0200
 /* blocks already pre-reserved by delayed allocation */
-#define EXT4_MB_DELALLOC_RESERVED      1024
+#define EXT4_MB_DELALLOC_RESERVED	0x0400
 
 
 struct ext4_allocation_request {

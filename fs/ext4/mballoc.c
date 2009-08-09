@@ -2157,7 +2157,7 @@ static int ext4_mb_seq_history_show(struct seq_file *seq, void *v)
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, "%-5s %-8s %-23s %-23s %-23s %-5s "
-				"%-5s %-2s %-5s %-5s %-5s %-6s\n",
+				"%-5s %-2s %-6s %-5s %-5s %-6s\n",
 			  "pid", "inode", "original", "goal", "result", "found",
 			   "grps", "cr", "flags", "merge", "tail", "broken");
 		return 0;
@@ -2165,7 +2165,7 @@ static int ext4_mb_seq_history_show(struct seq_file *seq, void *v)
 
 	if (hs->op == EXT4_MB_HISTORY_ALLOC) {
 		fmt = "%-5u %-8u %-23s %-23s %-23s %-5u %-5u %-2u "
-			"%-5u %-5s %-5u %-6u\n";
+			"0x%04x %-5s %-5u %-6u\n";
 		sprintf(buf2, "%u/%d/%u@%u", hs->result.fe_group,
 			hs->result.fe_start, hs->result.fe_len,
 			hs->result.fe_logical);
