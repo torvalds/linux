@@ -181,8 +181,9 @@ struct perf_counter_attr {
 				freq           :  1, /* use freq, not period  */
 				inherit_stat   :  1, /* per task counts       */
 				enable_on_exec :  1, /* next exec enables     */
+				task           :  1, /* trace fork/exit       */
 
-				__reserved_1   : 51;
+				__reserved_1   : 50;
 
 	__u32			wakeup_events;	/* wakeup every n events */
 	__u32			__reserved_2;
@@ -311,6 +312,15 @@ enum perf_event_type {
 	/*
 	 * struct {
 	 *	struct perf_event_header	header;
+	 *	u32				pid, ppid;
+	 *	u32				tid, ptid;
+	 * };
+	 */
+	PERF_EVENT_EXIT			= 4,
+
+	/*
+	 * struct {
+	 *	struct perf_event_header	header;
 	 *	u64				time;
 	 *	u64				id;
 	 *	u64				stream_id;
@@ -323,6 +333,7 @@ enum perf_event_type {
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *	u32				pid, ppid;
+	 *	u32				tid, ptid;
 	 * };
 	 */
 	PERF_EVENT_FORK			= 7,

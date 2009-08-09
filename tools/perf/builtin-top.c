@@ -285,6 +285,7 @@ static const char *skip_symbols[] = {
 	"enter_idle",
 	"exit_idle",
 	"mwait_idle",
+	"mwait_idle_with_hints",
 	"ppc64_runlatch_off",
 	"pseries_dedicated_idle_sleep",
 	NULL

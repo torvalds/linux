@@ -246,6 +246,10 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 
 	tcmp = duty_ns / tin_ns;
 	tcmp = tcnt - tcmp;
+	/* the pwm hw only checks the compare register after a decrement,
+	   so the pin never toggles if tcmp = tcnt */
+	if (tcmp == tcnt)
+		tcmp--;
 
 	pwm_dbg(pwm, "tin_ns=%lu, tcmp=%ld/%lu\n", tin_ns, tcmp, tcnt);
 

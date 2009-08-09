@@ -112,13 +112,16 @@ static void __init ts72xx_map_io(void)
 	}
 }
 
+/*************************************************************************
+ * NOR flash (TS-7200 only)
+ *************************************************************************/
 static struct physmap_flash_data ts72xx_flash_data = {
-	.width		= 1,
+	.width		= 2,
 };
 
 static struct resource ts72xx_flash_resource = {
-	.start		= TS72XX_NOR_PHYS_BASE,
-	.end		= TS72XX_NOR_PHYS_BASE + SZ_16M - 1,
+	.start		= EP93XX_CS6_PHYS_BASE,
+	.end		= EP93XX_CS6_PHYS_BASE + SZ_16M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -131,6 +134,12 @@ static struct platform_device ts72xx_flash = {
 	.num_resources	= 1,
 	.resource	= &ts72xx_flash_resource,
 };
+
+static void __init ts72xx_register_flash(void)
+{
+	if (board_is_ts7200())
+		platform_device_register(&ts72xx_flash);
+}
 
 static unsigned char ts72xx_rtc_readbyte(unsigned long addr)
 {
@@ -165,8 +174,7 @@ static struct ep93xx_eth_data ts72xx_eth_data = {
 static void __init ts72xx_init_machine(void)
 {
 	ep93xx_init_devices();
-	if (board_is_ts7200())
-		platform_device_register(&ts72xx_flash);
+	ts72xx_register_flash();
 	platform_device_register(&ts72xx_rtc_device);
 
 	ep93xx_register_eth(&ts72xx_eth_data, 1);
