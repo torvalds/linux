@@ -398,52 +398,12 @@ static const struct file_operations rpc_info_operations = {
 
 
 /*
- * We have a single directory with 1 node in it.
- */
-enum {
-	RPCAUTH_lockd,
-	RPCAUTH_mount,
-	RPCAUTH_nfs,
-	RPCAUTH_portmap,
-	RPCAUTH_statd,
-	RPCAUTH_nfsd4_cb,
-	RPCAUTH_RootEOF
-};
-
-/*
  * Description of fs contents.
  */
 struct rpc_filelist {
 	const char *name;
 	const struct file_operations *i_fop;
 	umode_t mode;
-};
-
-static const struct rpc_filelist files[] = {
-	[RPCAUTH_lockd] = {
-		.name = "lockd",
-		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
-	},
-	[RPCAUTH_mount] = {
-		.name = "mount",
-		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
-	},
-	[RPCAUTH_nfs] = {
-		.name = "nfs",
-		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
-	},
-	[RPCAUTH_portmap] = {
-		.name = "portmap",
-		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
-	},
-	[RPCAUTH_statd] = {
-		.name = "statd",
-		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
-	},
-	[RPCAUTH_nfsd4_cb] = {
-		.name = "nfsd4_cb",
-		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
-	},
 };
 
 enum {
@@ -964,6 +924,46 @@ static struct super_operations s_ops = {
 };
 
 #define RPCAUTH_GSSMAGIC 0x67596969
+
+/*
+ * We have a single directory with 1 node in it.
+ */
+enum {
+	RPCAUTH_lockd,
+	RPCAUTH_mount,
+	RPCAUTH_nfs,
+	RPCAUTH_portmap,
+	RPCAUTH_statd,
+	RPCAUTH_nfsd4_cb,
+	RPCAUTH_RootEOF
+};
+
+static const struct rpc_filelist files[] = {
+	[RPCAUTH_lockd] = {
+		.name = "lockd",
+		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
+	},
+	[RPCAUTH_mount] = {
+		.name = "mount",
+		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
+	},
+	[RPCAUTH_nfs] = {
+		.name = "nfs",
+		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
+	},
+	[RPCAUTH_portmap] = {
+		.name = "portmap",
+		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
+	},
+	[RPCAUTH_statd] = {
+		.name = "statd",
+		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
+	},
+	[RPCAUTH_nfsd4_cb] = {
+		.name = "nfsd4_cb",
+		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
+	},
+};
 
 static int
 rpc_fill_super(struct super_block *sb, void *data, int silent)
