@@ -694,20 +694,6 @@ static void rpcb_getport_done(struct rpc_task *child, void *data)
  * XDR functions for rpcbind
  */
 
-static int rpcb_encode_mapping(struct rpc_rqst *req, __be32 *p,
-			       struct rpcbind_args *rpcb)
-{
-	dprintk("RPC:       encoding rpcb request (%u, %u, %d, %u)\n",
-			rpcb->r_prog, rpcb->r_vers, rpcb->r_prot, rpcb->r_port);
-	*p++ = htonl(rpcb->r_prog);
-	*p++ = htonl(rpcb->r_vers);
-	*p++ = htonl(rpcb->r_prot);
-	*p++ = htonl(rpcb->r_port);
-
-	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
-	return 0;
-}
-
 static int rpcb_enc_mapping(struct rpc_rqst *req, __be32 *p,
 			    const struct rpcbind_args *rpcb)
 {
@@ -747,26 +733,6 @@ static int rpcb_decode_set(struct rpc_rqst *req, __be32 *p,
 	*boolp = (unsigned int) ntohl(*p++);
 	dprintk("RPC:       rpcb set/unset call %s\n",
 			(*boolp ? "succeeded" : "failed"));
-	return 0;
-}
-
-static int rpcb_encode_getaddr(struct rpc_rqst *req, __be32 *p,
-			       struct rpcbind_args *rpcb)
-{
-	if (rpcb->r_addr == NULL)
-		return -EIO;
-
-	dprintk("RPC:       encoding rpcb request (%u, %u, %s)\n",
-			rpcb->r_prog, rpcb->r_vers, rpcb->r_addr);
-	*p++ = htonl(rpcb->r_prog);
-	*p++ = htonl(rpcb->r_vers);
-
-	p = xdr_encode_string(p, rpcb->r_netid);
-	p = xdr_encode_string(p, rpcb->r_addr);
-	p = xdr_encode_string(p, rpcb->r_owner);
-
-	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
-
 	return 0;
 }
 
