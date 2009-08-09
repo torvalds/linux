@@ -864,39 +864,108 @@ out_fail:
 	return -EIO;
 }
 
-#define PROC(proc, argtype, restype)					\
-	[RPCBPROC_##proc] = {						\
-		.p_proc		= RPCBPROC_##proc,			\
-		.p_encode	= (kxdrproc_t) rpcb_enc_##argtype,	\
-		.p_decode	= (kxdrproc_t) rpcb_dec_##restype,	\
-		.p_arglen	= RPCB_##argtype##args_sz,		\
-		.p_replen	= RPCB_##restype##res_sz,		\
-		.p_statidx	= RPCBPROC_##proc,			\
-		.p_timer	= 0,					\
-		.p_name		= #proc,				\
-	}
-
 /*
  * Not all rpcbind procedures described in RFC 1833 are implemented
  * since the Linux kernel RPC code requires only these.
  */
+
 static struct rpc_procinfo rpcb_procedures2[] = {
-	PROC(SET,		mapping,	set),
-	PROC(UNSET,		mapping,	set),
-	PROC(GETPORT,		mapping,	getport),
+	[RPCBPROC_SET] = {
+		.p_proc		= RPCBPROC_SET,
+		.p_encode	= (kxdrproc_t)rpcb_enc_mapping,
+		.p_decode	= (kxdrproc_t)rpcb_dec_set,
+		.p_arglen	= RPCB_mappingargs_sz,
+		.p_replen	= RPCB_setres_sz,
+		.p_statidx	= RPCBPROC_SET,
+		.p_timer	= 0,
+		.p_name		= "SET",
+	},
+	[RPCBPROC_UNSET] = {
+		.p_proc		= RPCBPROC_UNSET,
+		.p_encode	= (kxdrproc_t)rpcb_enc_mapping,
+		.p_decode	= (kxdrproc_t)rpcb_dec_set,
+		.p_arglen	= RPCB_mappingargs_sz,
+		.p_replen	= RPCB_setres_sz,
+		.p_statidx	= RPCBPROC_UNSET,
+		.p_timer	= 0,
+		.p_name		= "UNSET",
+	},
+	[RPCBPROC_GETPORT] = {
+		.p_proc		= RPCBPROC_GETPORT,
+		.p_encode	= (kxdrproc_t)rpcb_enc_mapping,
+		.p_decode	= (kxdrproc_t)rpcb_dec_getport,
+		.p_arglen	= RPCB_mappingargs_sz,
+		.p_replen	= RPCB_getportres_sz,
+		.p_statidx	= RPCBPROC_GETPORT,
+		.p_timer	= 0,
+		.p_name		= "GETPORT",
+	},
 };
 
 static struct rpc_procinfo rpcb_procedures3[] = {
-	PROC(SET,		getaddr,	set),
-	PROC(UNSET,		getaddr,	set),
-	PROC(GETADDR,		getaddr,	getaddr),
+	[RPCBPROC_SET] = {
+		.p_proc		= RPCBPROC_SET,
+		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_decode	= (kxdrproc_t)rpcb_dec_set,
+		.p_arglen	= RPCB_getaddrargs_sz,
+		.p_replen	= RPCB_setres_sz,
+		.p_statidx	= RPCBPROC_SET,
+		.p_timer	= 0,
+		.p_name		= "SET",
+	},
+	[RPCBPROC_UNSET] = {
+		.p_proc		= RPCBPROC_UNSET,
+		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_decode	= (kxdrproc_t)rpcb_dec_set,
+		.p_arglen	= RPCB_getaddrargs_sz,
+		.p_replen	= RPCB_setres_sz,
+		.p_statidx	= RPCBPROC_UNSET,
+		.p_timer	= 0,
+		.p_name		= "UNSET",
+	},
+	[RPCBPROC_GETADDR] = {
+		.p_proc		= RPCBPROC_GETADDR,
+		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_decode	= (kxdrproc_t)rpcb_dec_getaddr,
+		.p_arglen	= RPCB_getaddrargs_sz,
+		.p_replen	= RPCB_getaddrres_sz,
+		.p_statidx	= RPCBPROC_GETADDR,
+		.p_timer	= 0,
+		.p_name		= "GETADDR",
+	},
 };
 
 static struct rpc_procinfo rpcb_procedures4[] = {
-	PROC(SET,		getaddr,	set),
-	PROC(UNSET,		getaddr,	set),
-	PROC(GETADDR,		getaddr,	getaddr),
-	PROC(GETVERSADDR,	getaddr,	getaddr),
+	[RPCBPROC_SET] = {
+		.p_proc		= RPCBPROC_SET,
+		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_decode	= (kxdrproc_t)rpcb_dec_set,
+		.p_arglen	= RPCB_getaddrargs_sz,
+		.p_replen	= RPCB_setres_sz,
+		.p_statidx	= RPCBPROC_SET,
+		.p_timer	= 0,
+		.p_name		= "SET",
+	},
+	[RPCBPROC_UNSET] = {
+		.p_proc		= RPCBPROC_UNSET,
+		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_decode	= (kxdrproc_t)rpcb_dec_set,
+		.p_arglen	= RPCB_getaddrargs_sz,
+		.p_replen	= RPCB_setres_sz,
+		.p_statidx	= RPCBPROC_UNSET,
+		.p_timer	= 0,
+		.p_name		= "UNSET",
+	},
+	[RPCBPROC_GETADDR] = {
+		.p_proc		= RPCBPROC_GETADDR,
+		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_decode	= (kxdrproc_t)rpcb_dec_getaddr,
+		.p_arglen	= RPCB_getaddrargs_sz,
+		.p_replen	= RPCB_getaddrres_sz,
+		.p_statidx	= RPCBPROC_GETADDR,
+		.p_timer	= 0,
+		.p_name		= "GETADDR",
+	},
 };
 
 static struct rpcb_info rpcb_next_version[] = {
