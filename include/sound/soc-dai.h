@@ -78,7 +78,13 @@ struct snd_pcm_substream;
 #define SND_SOC_CLOCK_IN		0
 #define SND_SOC_CLOCK_OUT		1
 
-#define SND_SOC_STD_AC97_FMTS (SNDRV_PCM_FMTBIT_S16_LE |\
+#define SND_SOC_STD_AC97_FMTS (SNDRV_PCM_FMTBIT_S8 |\
+			       SNDRV_PCM_FMTBIT_S16_LE |\
+			       SNDRV_PCM_FMTBIT_S16_BE |\
+			       SNDRV_PCM_FMTBIT_S20_3LE |\
+			       SNDRV_PCM_FMTBIT_S20_3BE |\
+			       SNDRV_PCM_FMTBIT_S24_3LE |\
+			       SNDRV_PCM_FMTBIT_S24_3BE |\
                                SNDRV_PCM_FMTBIT_S32_LE |\
                                SNDRV_PCM_FMTBIT_S32_BE)
 
