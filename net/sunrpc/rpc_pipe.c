@@ -639,26 +639,6 @@ static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
 	return ERR_PTR(-EEXIST);
 }
 
-static struct dentry *rpc_lookup_negative(const char *path,
-					  struct nameidata *nd)
-{
-	struct inode *dir;
-	struct dentry *dentry;
-	int error;
-
-	error = rpc_lookup_parent(path, nd);
-	if (error != 0)
-		return ERR_PTR(error);
-	dir = nd->path.dentry->d_inode;
-	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	dentry = __rpc_lookup_create_exclusive(nd->path.dentry, &nd->last);
-	if (IS_ERR(dentry)) {
-		mutex_unlock(&dir->i_mutex);
-		rpc_release_path(nd);
-	}
-	return dentry;
-}
-
 /*
  * FIXME: This probably has races.
  */
@@ -754,44 +734,30 @@ out_bad:
 	return err;
 }
 
-/**
- * rpc_create_client_dir - Create a new rpc_client directory in rpc_pipefs
- * @path: path from the rpc_pipefs root to the new directory
- * @rpc_client: rpc client to associate with this directory
- *
- * This creates a directory at the given @path associated with
- * @rpc_clnt, which will contain a file named "info" with some basic
- * information about the client, together with any "pipes" that may
- * later be created using rpc_mkpipe().
- */
-struct dentry *rpc_create_client_dir(const char *path,
-				     struct rpc_clnt *rpc_client)
+struct dentry *rpc_mkdir_populate(struct dentry *parent,
+		struct qstr *name, umode_t mode, void *private)
 {
-	struct nameidata nd;
 	struct dentry *dentry;
-	struct inode *dir;
+	struct inode *dir = parent->d_inode;
 	int error;
 
-	dentry = rpc_lookup_negative(path, &nd);
+	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
+	dentry = __rpc_lookup_create_exclusive(parent, name);
 	if (IS_ERR(dentry))
-		return dentry;
-	dir = nd.path.dentry->d_inode;
-	error = __rpc_mkdir(dir, dentry, S_IRUGO | S_IXUGO, NULL, rpc_client);
+		goto out;
+	error = __rpc_mkdir(dir, dentry, mode, NULL, private);
 	if (error != 0)
 		goto out_err;
 	error = rpc_populate(dentry, authfiles,
-			RPCAUTH_info, RPCAUTH_EOF, rpc_client);
+			RPCAUTH_info, RPCAUTH_EOF, private);
 	if (error)
 		goto err_rmdir;
 out:
 	mutex_unlock(&dir->i_mutex);
-	rpc_release_path(&nd);
 	return dentry;
 err_rmdir:
 	__rpc_rmdir(dir, dentry);
 out_err:
-	printk(KERN_WARNING "%s: %s() failed to create directory %s (errno = %d)\n",
-			__FILE__, __func__, path, error);
 	dentry = ERR_PTR(error);
 	goto out;
 }
@@ -912,6 +878,39 @@ rpc_unlink(struct dentry *dentry)
 	return error;
 }
 EXPORT_SYMBOL_GPL(rpc_unlink);
+
+/**
+ * rpc_create_client_dir - Create a new rpc_client directory in rpc_pipefs
+ * @path: path from the rpc_pipefs root to the new directory
+ * @rpc_client: rpc client to associate with this directory
+ *
+ * This creates a directory at the given @path associated with
+ * @rpc_clnt, which will contain a file named "info" with some basic
+ * information about the client, together with any "pipes" that may
+ * later be created using rpc_mkpipe().
+ */
+struct dentry *rpc_create_client_dir(const char *path,
+				     struct rpc_clnt *rpc_client)
+{
+	struct nameidata nd;
+	struct dentry *ret;
+	struct inode *dir;
+
+	ret = ERR_PTR(rpc_lookup_parent(path, &nd));
+	if (IS_ERR(ret))
+		goto out_err;
+	dir = nd.path.dentry->d_inode;
+
+	ret = rpc_mkdir_populate(nd.path.dentry, &nd.last,
+			S_IRUGO | S_IXUGO, rpc_client);
+	rpc_release_path(&nd);
+	if (!IS_ERR(ret))
+		return ret;
+out_err:
+	printk(KERN_WARNING "%s: %s() failed to create directory %s (errno = %ld)\n",
+			__FILE__, __func__, path, PTR_ERR(ret));
+	return ret;
+}
 
 /*
  * populate the filesystem
