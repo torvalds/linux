@@ -2391,6 +2391,18 @@ and is between 256 and 4096 characters. It is defined in the file
 	stifb=		[HW]
 			Format: bpp:<bpp1>[:<bpp2>[:<bpp3>...]]
 
+	sunrpc.min_resvport=
+	sunrpc.max_resvport=
+			[NFS,SUNRPC]
+			SunRPC servers often require that client requests
+			originate from a privileged port (i.e. a port in the
+			range 0 < portnr < 1024).
+			An administrator who wishes to reserve some of these
+			ports for other uses may adjust the range that the
+			kernel's sunrpc client considers to be privileged
+			using these two parameters to set the minimum and
+			maximum port values.
+
 	sunrpc.pool_mode=
 			[NFS]
 			Control how the NFS server code allocates CPUs to
@@ -2406,6 +2418,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			percpu	    one pool for each CPU
 			pernode	    one pool for each NUMA node (equivalent
 				    to global on non-NUMA machines)
+
+	sunrpc.tcp_slot_table_entries=
+	sunrpc.udp_slot_table_entries=
+			[NFS,SUNRPC]
+			Sets the upper limit on the number of simultaneous
+			RPC calls that can be sent from the client to a
+			server. Increasing these values may allow you to
+			improve throughput, but will also increase the
+			amount of memory reserved for use by the client.
 
 	swiotlb=	[IA-64] Number of I/O TLB slabs
 
