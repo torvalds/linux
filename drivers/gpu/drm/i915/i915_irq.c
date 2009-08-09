@@ -190,7 +190,7 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	low_frame = pipe ? PIPEBFRAMEPIXEL : PIPEAFRAMEPIXEL;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_ERROR("trying to get vblank count for disabled pipe %d\n", pipe);
+		DRM_DEBUG("trying to get vblank count for disabled pipe %d\n", pipe);
 		return 0;
 	}
 
@@ -219,7 +219,7 @@ u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 	int reg = pipe ? PIPEB_FRMCOUNT_GM45 : PIPEA_FRMCOUNT_GM45;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_ERROR("trying to get vblank count for disabled pipe %d\n", pipe);
+		DRM_DEBUG("trying to get vblank count for disabled pipe %d\n", pipe);
 		return 0;
 	}
 
