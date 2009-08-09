@@ -710,6 +710,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 	case NETDEV_UP:
 #ifdef CONFIG_WIRELESS_EXT
 		cfg80211_lock_rdev(rdev);
+		mutex_lock(&rdev->devlist_mtx);
 		wdev_lock(wdev);
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
@@ -722,6 +723,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		}
 		wdev_unlock(wdev);
+		mutex_unlock(&rdev->devlist_mtx);
 		cfg80211_unlock_rdev(rdev);
 #endif
 		break;
