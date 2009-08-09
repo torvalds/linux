@@ -296,99 +296,58 @@ static inline struct sockaddr_in6 *xs_addr_in6(struct rpc_xprt *xprt)
 	return (struct sockaddr_in6 *) &xprt->addr;
 }
 
+static void xs_format_common_peer_addresses(struct rpc_xprt *xprt)
+{
+	struct sockaddr *sap = xs_addr(xprt);
+	char buf[128];
+
+	(void)rpc_ntop(sap, buf, sizeof(buf));
+	xprt->address_strings[RPC_DISPLAY_ADDR] = kstrdup(buf, GFP_KERNEL);
+
+	(void)snprintf(buf, sizeof(buf), "%u", rpc_get_port(sap));
+	xprt->address_strings[RPC_DISPLAY_PORT] = kstrdup(buf, GFP_KERNEL);
+
+	(void)snprintf(buf, sizeof(buf), "addr=%s port=%s proto=%s",
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT],
+			xprt->address_strings[RPC_DISPLAY_PROTO]);
+	xprt->address_strings[RPC_DISPLAY_ALL] = kstrdup(buf, GFP_KERNEL);
+
+	(void)snprintf(buf, sizeof(buf), "%4hx", rpc_get_port(sap));
+	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = kstrdup(buf, GFP_KERNEL);
+}
+
 static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
 					  const char *protocol,
 					  const char *netid)
 {
-	struct sockaddr_in *addr = xs_addr_in(xprt);
-	char *buf;
-
-	buf = kzalloc(20, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 20, "%pI4", &addr->sin_addr.s_addr);
-	}
-	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
-
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 8, "%u",
-				ntohs(addr->sin_port));
-	}
-	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
+	struct sockaddr_in *sin = xs_addr_in(xprt);
+	char buf[16];
 
 	xprt->address_strings[RPC_DISPLAY_PROTO] = protocol;
-
-	buf = kzalloc(48, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 48, "addr=%pI4 port=%u proto=%s",
-			&addr->sin_addr.s_addr,
-			ntohs(addr->sin_port),
-			protocol);
-	}
-	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
-
-	buf = kzalloc(10, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 10, "%02x%02x%02x%02x",
-				NIPQUAD(addr->sin_addr.s_addr));
-	}
-	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
-
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 8, "%4hx",
-				ntohs(addr->sin_port));
-	}
-	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
-
 	xprt->address_strings[RPC_DISPLAY_NETID] = netid;
+
+	(void)snprintf(buf, sizeof(buf), "%02x%02x%02x%02x",
+				NIPQUAD(sin->sin_addr.s_addr));
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
+
+	xs_format_common_peer_addresses(xprt);
 }
 
 static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 					  const char *protocol,
 					  const char *netid)
 {
-	struct sockaddr_in6 *addr = xs_addr_in6(xprt);
-	char *buf;
-
-	buf = kzalloc(40, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 40, "%pI6",&addr->sin6_addr);
-	}
-	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
-
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 8, "%u",
-				ntohs(addr->sin6_port));
-	}
-	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
+	struct sockaddr_in6 *sin6 = xs_addr_in6(xprt);
+	char buf[48];
 
 	xprt->address_strings[RPC_DISPLAY_PROTO] = protocol;
-
-	buf = kzalloc(64, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 64, "addr=%pI6 port=%u proto=%s",
-				&addr->sin6_addr,
-				ntohs(addr->sin6_port),
-				protocol);
-	}
-	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
-
-	buf = kzalloc(36, GFP_KERNEL);
-	if (buf)
-		snprintf(buf, 36, "%pi6", &addr->sin6_addr);
-
-	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
-
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 8, "%4hx",
-				ntohs(addr->sin6_port));
-	}
-	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
-
 	xprt->address_strings[RPC_DISPLAY_NETID] = netid;
+
+	(void)snprintf(buf, sizeof(buf), "%pi6", &sin6->sin6_addr);
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
+
+	xs_format_common_peer_addresses(xprt);
 }
 
 static void xs_free_peer_addresses(struct rpc_xprt *xprt)

@@ -168,39 +168,30 @@ static struct rpc_xprt_ops xprt_rdma_procs;	/* forward reference */
 static void
 xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 {
-	struct sockaddr_in *addr = (struct sockaddr_in *)
+	struct sockaddr *sap = (struct sockaddr *)
 					&rpcx_to_rdmad(xprt).addr;
-	char *buf;
+	struct sockaddr_in *sin = (struct sockaddr_in *)sap;
+	char buf[64];
 
-	buf = kzalloc(20, GFP_KERNEL);
-	if (buf)
-		snprintf(buf, 20, "%pI4", &addr->sin_addr.s_addr);
-	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
+	(void)rpc_ntop(sap, buf, sizeof(buf));
+	xprt->address_strings[RPC_DISPLAY_ADDR] = kstrdup(buf, GFP_KERNEL);
 
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf)
-		snprintf(buf, 8, "%u", ntohs(addr->sin_port));
-	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
+	(void)snprintf(buf, sizeof(buf), "%u", rpc_get_port(sap));
+	xprt->address_strings[RPC_DISPLAY_PORT] = kstrdup(buf, GFP_KERNEL);
 
 	xprt->address_strings[RPC_DISPLAY_PROTO] = "rdma";
 
-	buf = kzalloc(48, GFP_KERNEL);
-	if (buf)
-		snprintf(buf, 48, "addr=%pI4 port=%u proto=%s",
-			&addr->sin_addr.s_addr,
-			ntohs(addr->sin_port), "rdma");
-	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
+	(void)snprintf(buf, sizeof(buf), "addr=%s port=%s proto=rdma",
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT]);
+	xprt->address_strings[RPC_DISPLAY_ALL] = kstrdup(buf, GFP_KERNEL);
 
-	buf = kzalloc(10, GFP_KERNEL);
-	if (buf)
-		snprintf(buf, 10, "%02x%02x%02x%02x",
-			NIPQUAD(addr->sin_addr.s_addr));
-	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
+	(void)snprintf(buf, sizeof(buf), "%02x%02x%02x%02x",
+				NIPQUAD(sin->sin_addr.s_addr));
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
 
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf)
-		snprintf(buf, 8, "%4hx", ntohs(addr->sin_port));
-	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
+	(void)snprintf(buf, sizeof(buf), "%4hx", rpc_get_port(sap));
+	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = kstrdup(buf, GFP_KERNEL);
 
 	/* netid */
 	xprt->address_strings[RPC_DISPLAY_NETID] = "rdma";
