@@ -51,7 +51,6 @@ struct rpc_clnt {
 
 	int			cl_nodelen;	/* nodename length */
 	char 			cl_nodename[UNX_MAXNODENAME];
-	char			cl_pathname[30];/* Path in rpc_pipe_fs */
 	struct path		cl_path;
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;

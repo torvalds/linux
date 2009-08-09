@@ -443,42 +443,6 @@ static const struct dentry_operations rpc_dentry_operations = {
 	.d_delete = rpc_delete_dentry,
 };
 
-static int __rpc_lookup_path(const char *pathname, unsigned flags,
-			     struct nameidata *nd)
-{
-	struct vfsmount *mnt;
-
-	if (pathname[0] == '\0')
-		return -ENOENT;
-
-	mnt = rpc_get_mount();
-	if (IS_ERR(mnt)) {
-		printk(KERN_WARNING "%s: %s failed to mount "
-			       "pseudofilesystem \n", __FILE__, __func__);
-		return PTR_ERR(mnt);
-	}
-
-	if (vfs_path_lookup(mnt->mnt_root, mnt, pathname, flags, nd)) {
-		printk(KERN_WARNING "%s: %s failed to find path %s\n",
-				__FILE__, __func__, pathname);
-		rpc_put_mount();
-		return -ENOENT;
-	}
-	return 0;
-}
-
-static int rpc_lookup_parent(const char *pathname, struct nameidata *nd)
-{
-	return __rpc_lookup_path(pathname, LOOKUP_PARENT, nd);
-}
-
-static void
-rpc_release_path(struct nameidata *nd)
-{
-	path_put(&nd->path);
-	rpc_put_mount();
-}
-
 static struct inode *
 rpc_get_inode(struct super_block *sb, umode_t mode)
 {
@@ -889,27 +853,11 @@ EXPORT_SYMBOL_GPL(rpc_unlink);
  * information about the client, together with any "pipes" that may
  * later be created using rpc_mkpipe().
  */
-struct dentry *rpc_create_client_dir(const char *path,
+struct dentry *rpc_create_client_dir(struct dentry *dentry,
+				     struct qstr *name,
 				     struct rpc_clnt *rpc_client)
 {
-	struct nameidata nd;
-	struct dentry *ret;
-	struct inode *dir;
-
-	ret = ERR_PTR(rpc_lookup_parent(path, &nd));
-	if (IS_ERR(ret))
-		goto out_err;
-	dir = nd.path.dentry->d_inode;
-
-	ret = rpc_mkdir_populate(nd.path.dentry, &nd.last,
-			S_IRUGO | S_IXUGO, rpc_client);
-	rpc_release_path(&nd);
-	if (!IS_ERR(ret))
-		return ret;
-out_err:
-	printk(KERN_WARNING "%s: %s() failed to create directory %s (errno = %ld)\n",
-			__FILE__, __func__, path, PTR_ERR(ret));
-	return ret;
+	return rpc_mkdir_populate(dentry, name, S_IRUGO | S_IXUGO, rpc_client);
 }
 
 /*
