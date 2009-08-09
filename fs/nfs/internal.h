@@ -214,7 +214,6 @@ void nfs_zap_acl_cache(struct inode *inode);
 extern int nfs_wait_bit_killable(void *word);
 
 /* super.c */
-void nfs_parse_ip_address(char *, size_t, struct sockaddr *, size_t *);
 extern struct file_system_type nfs_xdev_fs_type;
 #ifdef CONFIG_NFS_V4
 extern struct file_system_type nfs4_xdev_fs_type;
