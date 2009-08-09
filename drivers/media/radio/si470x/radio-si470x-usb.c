@@ -371,6 +371,23 @@ static int si470x_get_scratch_page_versions(struct si470x_device *radio)
 
 
 /**************************************************************************
+ * General Driver Functions - DISCONNECT_CHECK
+ **************************************************************************/
+
+/*
+ * si470x_disconnect_check - check whether radio disconnects
+ */
+int si470x_disconnect_check(struct si470x_device *radio)
+{
+	if (radio->disconnected)
+		return -EIO;
+	else
+		return 0;
+}
+
+
+
+/**************************************************************************
  * RDS Driver Functions
  **************************************************************************/
 

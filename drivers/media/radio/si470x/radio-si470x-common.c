@@ -475,10 +475,9 @@ static int si470x_vidioc_g_ctrl(struct file *file, void *priv,
 	int retval = 0;
 
 	/* safety checks */
-	if (radio->disconnected) {
-		retval = -EIO;
+	retval = si470x_disconnect_check(radio);
+	if (retval)
 		goto done;
-	}
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_VOLUME:
@@ -511,10 +510,9 @@ static int si470x_vidioc_s_ctrl(struct file *file, void *priv,
 	int retval = 0;
 
 	/* safety checks */
-	if (radio->disconnected) {
-		retval = -EIO;
+	retval = si470x_disconnect_check(radio);
+	if (retval)
 		goto done;
-	}
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_VOLUME:
@@ -567,10 +565,10 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	int retval = 0;
 
 	/* safety checks */
-	if (radio->disconnected) {
-		retval = -EIO;
+	retval = si470x_disconnect_check(radio);
+	if (retval)
 		goto done;
-	}
+
 	if (tuner->index != 0) {
 		retval = -EINVAL;
 		goto done;
@@ -649,10 +647,10 @@ static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 	int retval = -EINVAL;
 
 	/* safety checks */
-	if (radio->disconnected) {
-		retval = -EIO;
+	retval = si470x_disconnect_check(radio);
+	if (retval)
 		goto done;
-	}
+
 	if (tuner->index != 0)
 		goto done;
 
@@ -688,10 +686,10 @@ static int si470x_vidioc_g_frequency(struct file *file, void *priv,
 	int retval = 0;
 
 	/* safety checks */
-	if (radio->disconnected) {
-		retval = -EIO;
+	retval = si470x_disconnect_check(radio);
+	if (retval)
 		goto done;
-	}
+
 	if (freq->tuner != 0) {
 		retval = -EINVAL;
 		goto done;
@@ -718,10 +716,10 @@ static int si470x_vidioc_s_frequency(struct file *file, void *priv,
 	int retval = 0;
 
 	/* safety checks */
-	if (radio->disconnected) {
-		retval = -EIO;
+	retval = si470x_disconnect_check(radio);
+	if (retval)
 		goto done;
-	}
+
 	if (freq->tuner != 0) {
 		retval = -EINVAL;
 		goto done;
@@ -747,10 +745,10 @@ static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 	int retval = 0;
 
 	/* safety checks */
-	if (radio->disconnected) {
-		retval = -EIO;
+	retval = si470x_disconnect_check(radio);
+	if (retval)
 		goto done;
-	}
+
 	if (seek->tuner != 0) {
 		retval = -EINVAL;
 		goto done;
