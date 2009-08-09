@@ -718,15 +718,6 @@ static int rpcb_enc_mapping(struct rpc_rqst *req, __be32 *p,
 	return 0;
 }
 
-static int rpcb_decode_getport(struct rpc_rqst *req, __be32 *p,
-			       unsigned short *portp)
-{
-	*portp = (unsigned short) ntohl(*p++);
-	dprintk("RPC:       rpcb getport result: %u\n",
-			*portp);
-	return 0;
-}
-
 static int rpcb_dec_getport(struct rpc_rqst *req, __be32 *p,
 			    struct rpcbind_args *rpcb)
 {
@@ -749,15 +740,6 @@ static int rpcb_dec_getport(struct rpc_rqst *req, __be32 *p,
 		return -EIO;
 
 	rpcb->r_port = port;
-	return 0;
-}
-
-static int rpcb_decode_set(struct rpc_rqst *req, __be32 *p,
-			   unsigned int *boolp)
-{
-	*boolp = (unsigned int) ntohl(*p++);
-	dprintk("RPC:       rpcb set/unset call %s\n",
-			(*boolp ? "succeeded" : "failed"));
 	return 0;
 }
 
@@ -831,69 +813,6 @@ static int rpcb_enc_getaddr(struct rpc_rqst *req, __be32 *p,
 		return -EIO;
 
 	return 0;
-}
-
-static int rpcb_decode_getaddr(struct rpc_rqst *req, __be32 *p,
-			       unsigned short *portp)
-{
-	char *addr;
-	u32 addr_len;
-	int c, i, f, first, val;
-
-	*portp = 0;
-	addr_len = ntohl(*p++);
-
-	if (addr_len == 0) {
-		dprintk("RPC:       rpcb_decode_getaddr: "
-					"service is not registered\n");
-		return 0;
-	}
-
-	/*
-	 * Simple sanity check.
-	 */
-	if (addr_len > RPCBIND_MAXUADDRLEN)
-		goto out_err;
-
-	/*
-	 * Start at the end and walk backwards until the first dot
-	 * is encountered.  When the second dot is found, we have
-	 * both parts of the port number.
-	 */
-	addr = (char *)p;
-	val = 0;
-	first = 1;
-	f = 1;
-	for (i = addr_len - 1; i > 0; i--) {
-		c = addr[i];
-		if (c >= '0' && c <= '9') {
-			val += (c - '0') * f;
-			f *= 10;
-		} else if (c == '.') {
-			if (first) {
-				*portp = val;
-				val = first = 0;
-				f = 1;
-			} else {
-				*portp |= (val << 8);
-				break;
-			}
-		}
-	}
-
-	/*
-	 * Simple sanity check.  If we never saw a dot in the reply,
-	 * then this was probably just garbage.
-	 */
-	if (first)
-		goto out_err;
-
-	dprintk("RPC:       rpcb_decode_getaddr port=%u\n", *portp);
-	return 0;
-
-out_err:
-	dprintk("RPC:       rpcbind server returned malformed reply\n");
-	return -EIO;
 }
 
 static int rpcb_dec_getaddr(struct rpc_rqst *req, __be32 *p,
