@@ -347,13 +347,8 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 }
 #endif
 
-int cache_register(struct cache_detail *cd)
+static void sunrpc_init_cache_detail(struct cache_detail *cd)
 {
-	int ret;
-
-	ret = create_cache_proc_entries(cd);
-	if (ret)
-		return ret;
 	rwlock_init(&cd->hash_lock);
 	INIT_LIST_HEAD(&cd->queue);
 	spin_lock(&cache_list_lock);
@@ -367,11 +362,9 @@ int cache_register(struct cache_detail *cd)
 
 	/* start the cleaning process */
 	schedule_delayed_work(&cache_cleaner, 0);
-	return 0;
 }
-EXPORT_SYMBOL_GPL(cache_register);
 
-void cache_unregister(struct cache_detail *cd)
+static void sunrpc_destroy_cache_detail(struct cache_detail *cd)
 {
 	cache_purge(cd);
 	spin_lock(&cache_list_lock);
@@ -386,7 +379,6 @@ void cache_unregister(struct cache_detail *cd)
 	list_del_init(&cd->others);
 	write_unlock(&cd->hash_lock);
 	spin_unlock(&cache_list_lock);
-	remove_cache_proc_entries(cd);
 	if (list_empty(&cache_list)) {
 		/* module must be being unloaded so its safe to kill the worker */
 		cancel_delayed_work_sync(&cache_cleaner);
@@ -394,6 +386,24 @@ void cache_unregister(struct cache_detail *cd)
 	return;
 out:
 	printk(KERN_ERR "nfsd: failed to unregister %s cache\n", cd->name);
+}
+
+int cache_register(struct cache_detail *cd)
+{
+	int ret;
+
+	sunrpc_init_cache_detail(cd);
+	ret = create_cache_proc_entries(cd);
+	if (ret)
+		sunrpc_destroy_cache_detail(cd);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cache_register);
+
+void cache_unregister(struct cache_detail *cd)
+{
+	remove_cache_proc_entries(cd);
+	sunrpc_destroy_cache_detail(cd);
 }
 EXPORT_SYMBOL_GPL(cache_unregister);
 
