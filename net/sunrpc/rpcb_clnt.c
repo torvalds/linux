@@ -708,6 +708,30 @@ static int rpcb_encode_mapping(struct rpc_rqst *req, __be32 *p,
 	return 0;
 }
 
+static int rpcb_enc_mapping(struct rpc_rqst *req, __be32 *p,
+			    const struct rpcbind_args *rpcb)
+{
+	struct rpc_task *task = req->rq_task;
+	struct xdr_stream xdr;
+
+	dprintk("RPC: %5u encoding PMAP_%s call (%u, %u, %d, %u)\n",
+			task->tk_pid, task->tk_msg.rpc_proc->p_name,
+			rpcb->r_prog, rpcb->r_vers, rpcb->r_prot, rpcb->r_port);
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+
+	p = xdr_reserve_space(&xdr, sizeof(__be32) * RPCB_mappingargs_sz);
+	if (unlikely(p == NULL))
+		return -EIO;
+
+	*p++ = htonl(rpcb->r_prog);
+	*p++ = htonl(rpcb->r_vers);
+	*p++ = htonl(rpcb->r_prot);
+	*p   = htonl(rpcb->r_port);
+
+	return 0;
+}
+
 static int rpcb_decode_getport(struct rpc_rqst *req, __be32 *p,
 			       unsigned short *portp)
 {
@@ -742,6 +766,56 @@ static int rpcb_encode_getaddr(struct rpc_rqst *req, __be32 *p,
 	p = xdr_encode_string(p, rpcb->r_owner);
 
 	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
+
+	return 0;
+}
+
+static int encode_rpcb_string(struct xdr_stream *xdr, const char *string,
+				const u32 maxstrlen)
+{
+	u32 len;
+	__be32 *p;
+
+	if (unlikely(string == NULL))
+		return -EIO;
+	len = strlen(string);
+	if (unlikely(len > maxstrlen))
+		return -EIO;
+
+	p = xdr_reserve_space(xdr, sizeof(__be32) + len);
+	if (unlikely(p == NULL))
+		return -EIO;
+	xdr_encode_opaque(p, string, len);
+
+	return 0;
+}
+
+static int rpcb_enc_getaddr(struct rpc_rqst *req, __be32 *p,
+			    const struct rpcbind_args *rpcb)
+{
+	struct rpc_task *task = req->rq_task;
+	struct xdr_stream xdr;
+
+	dprintk("RPC: %5u encoding RPCB_%s call (%u, %u, '%s', '%s')\n",
+			task->tk_pid, task->tk_msg.rpc_proc->p_name,
+			rpcb->r_prog, rpcb->r_vers,
+			rpcb->r_netid, rpcb->r_addr);
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+
+	p = xdr_reserve_space(&xdr,
+			sizeof(__be32) * (RPCB_program_sz + RPCB_version_sz));
+	if (unlikely(p == NULL))
+		return -EIO;
+	*p++ = htonl(rpcb->r_prog);
+	*p = htonl(rpcb->r_vers);
+
+	if (encode_rpcb_string(&xdr, rpcb->r_netid, RPCBIND_MAXNETIDLEN))
+		return -EIO;
+	if (encode_rpcb_string(&xdr, rpcb->r_addr, RPCBIND_MAXUADDRLEN))
+		return -EIO;
+	if (encode_rpcb_string(&xdr, rpcb->r_owner, RPCB_MAXOWNERLEN))
+		return -EIO;
 
 	return 0;
 }
@@ -812,7 +886,7 @@ out_err:
 #define PROC(proc, argtype, restype)					\
 	[RPCBPROC_##proc] = {						\
 		.p_proc		= RPCBPROC_##proc,			\
-		.p_encode	= (kxdrproc_t) rpcb_encode_##argtype,	\
+		.p_encode	= (kxdrproc_t) rpcb_enc_##argtype,	\
 		.p_decode	= (kxdrproc_t) rpcb_decode_##restype,	\
 		.p_arglen	= RPCB_##argtype##args_sz,		\
 		.p_replen	= RPCB_##restype##res_sz,		\
