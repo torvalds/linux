@@ -115,6 +115,13 @@ ifneq ($(CONFIG_XMON)$(CONFIG_KEXEC),)
 obj-y				+= ppc_save_regs.o
 endif
 
+# Disable GCOV in odd or sensitive code
+GCOV_PROFILE_prom_init.o := n
+GCOV_PROFILE_ftrace.o := n
+GCOV_PROFILE_machine_kexec_64.o := n
+GCOV_PROFILE_machine_kexec_32.o := n
+GCOV_PROFILE_kprobes.o := n
+
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-$(CONFIG_ALTIVEC)		+= vector.o
 extra-$(CONFIG_PPC64)		+= entry_64.o
