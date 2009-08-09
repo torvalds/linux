@@ -1103,10 +1103,6 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	 */
 	sd.sbi = nilfs_find_sbinfo(nilfs, !(flags & MS_RDONLY), sd.cno);
 
-	if (!sd.cno)
-		/* trying to get the latest checkpoint.  */
-		sd.cno = nilfs_last_cno(nilfs);
-
 	/*
 	 * Get super block instance holding the nilfs_sb_info struct.
 	 * A new instance is allocated if no existing mount is present or
