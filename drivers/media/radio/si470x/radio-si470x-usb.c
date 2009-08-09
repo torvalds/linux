@@ -223,8 +223,8 @@ static int si470x_get_report(struct si470x_device *radio, void *buf, int size)
 		buf, size, usb_timeout);
 
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": si470x_get_report: usb_control_msg returned %d\n",
+		dev_warn(&radio->intf->dev,
+			"si470x_get_report: usb_control_msg returned %d\n",
 			retval);
 	return retval;
 }
@@ -246,8 +246,8 @@ static int si470x_set_report(struct si470x_device *radio, void *buf, int size)
 		buf, size, usb_timeout);
 
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": si470x_set_report: usb_control_msg returned %d\n",
+		dev_warn(&radio->intf->dev,
+			"si470x_set_report: usb_control_msg returned %d\n",
 			retval);
 	return retval;
 }
@@ -358,7 +358,7 @@ static int si470x_get_scratch_page_versions(struct si470x_device *radio)
 	retval = si470x_get_report(radio, (void *) &buf, sizeof(buf));
 
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME ": si470x_get_scratch: "
+		dev_warn(&radio->intf->dev, "si470x_get_scratch: "
 			"si470x_get_report returned %d\n", retval);
 	else {
 		radio->software_version = buf[1];
@@ -396,8 +396,8 @@ static void si470x_int_in_callback(struct urb *urb)
 				urb->status == -ESHUTDOWN) {
 			return;
 		} else {
-			printk(KERN_WARNING DRIVER_NAME
-			 ": non-zero urb status (%d)\n", urb->status);
+			dev_warn(&radio->intf->dev,
+			 "non-zero urb status (%d)\n", urb->status);
 			goto resubmit; /* Maybe we can recover. */
 		}
 	}
@@ -482,8 +482,8 @@ resubmit:
 	if (radio->int_in_running && radio->usbdev) {
 		retval = usb_submit_urb(radio->int_in_urb, GFP_ATOMIC);
 		if (retval) {
-			printk(KERN_WARNING DRIVER_NAME
-			       ": resubmitting urb failed (%d)", retval);
+			dev_warn(&radio->intf->dev,
+			       "resubmitting urb failed (%d)", retval);
 			radio->int_in_running = 0;
 		}
 	}
@@ -616,8 +616,8 @@ static int si470x_fops_open(struct file *file)
 
 		retval = usb_submit_urb(radio->int_in_urb, GFP_KERNEL);
 		if (retval) {
-			printk(KERN_INFO DRIVER_NAME
-				 ": submitting int urb failed (%d)\n", retval);
+			dev_info(&radio->intf->dev,
+				 "submitting int urb failed (%d)\n", retval);
 			radio->int_in_running = 0;
 			usb_autopm_put_interface(radio->intf);
 		}
@@ -753,8 +753,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			radio->int_in_endpoint = endpoint;
 	}
 	if (!radio->int_in_endpoint) {
-		printk(KERN_INFO DRIVER_NAME
-			": could not find interrupt in endpoint\n");
+		dev_info(&intf->dev, "could not find interrupt in endpoint\n");
 		retval = -EIO;
 		goto err_radio;
 	}
@@ -763,15 +762,14 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 
 	radio->int_in_buffer = kmalloc(int_end_size, GFP_KERNEL);
 	if (!radio->int_in_buffer) {
-		printk(KERN_INFO DRIVER_NAME
-			"could not allocate int_in_buffer");
+		dev_info(&intf->dev, "could not allocate int_in_buffer");
 		retval = -ENOMEM;
 		goto err_radio;
 	}
 
 	radio->int_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!radio->int_in_urb) {
-		printk(KERN_INFO DRIVER_NAME "could not allocate int_in_urb");
+		dev_info(&intf->dev, "could not allocate int_in_urb");
 		retval = -ENOMEM;
 		goto err_intbuffer;
 	}
@@ -791,7 +789,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 		retval = -EIO;
 		goto err_video;
 	}
-	printk(KERN_INFO DRIVER_NAME ": DeviceID=0x%4.4hx ChipID=0x%4.4hx\n",
+	dev_info(&intf->dev, "DeviceID=0x%4.4hx ChipID=0x%4.4hx\n",
 			radio->registers[DEVICEID], radio->registers[CHIPID]);
 
 	/* get software and hardware versions */
@@ -799,23 +797,22 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 		retval = -EIO;
 		goto err_video;
 	}
-	printk(KERN_INFO DRIVER_NAME
-			": software version %d, hardware version %d\n",
+	dev_info(&intf->dev, "software version %d, hardware version %d\n",
 			radio->software_version, radio->hardware_version);
 
 	/* check if device and firmware is current */
 	if ((radio->registers[CHIPID] & CHIPID_FIRMWARE)
 			< RADIO_SW_VERSION_CURRENT) {
-		printk(KERN_WARNING DRIVER_NAME
-			": This driver is known to work with "
+		dev_warn(&intf->dev,
+			"This driver is known to work with "
 			"firmware version %hu,\n", RADIO_SW_VERSION_CURRENT);
-		printk(KERN_WARNING DRIVER_NAME
-			": but the device has firmware version %hu.\n",
+		dev_warn(&intf->dev,
+			"but the device has firmware version %hu.\n",
 			radio->registers[CHIPID] & CHIPID_FIRMWARE);
-		printk(KERN_WARNING DRIVER_NAME
-			": If you have some trouble using this driver,\n");
-		printk(KERN_WARNING DRIVER_NAME
-			": please report to V4L ML at "
+		dev_warn(&intf->dev,
+			"If you have some trouble using this driver,\n");
+		dev_warn(&intf->dev,
+			"please report to V4L ML at "
 			"linux-media@vger.kernel.org\n");
 	}
 
@@ -842,8 +839,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	retval = video_register_device(radio->videodev, VFL_TYPE_RADIO,
 			radio_nr);
 	if (retval) {
-		printk(KERN_WARNING DRIVER_NAME
-				": Could not register video device\n");
+		dev_warn(&intf->dev, "Could not register video device\n");
 		goto err_all;
 	}
 	usb_set_intfdata(intf, radio);
@@ -868,7 +864,7 @@ err_initial:
 static int si470x_usb_driver_suspend(struct usb_interface *intf,
 		pm_message_t message)
 {
-	printk(KERN_INFO DRIVER_NAME ": suspending now...\n");
+	dev_info(&intf->dev, "suspending now...\n");
 
 	return 0;
 }
@@ -879,7 +875,7 @@ static int si470x_usb_driver_suspend(struct usb_interface *intf,
  */
 static int si470x_usb_driver_resume(struct usb_interface *intf)
 {
-	printk(KERN_INFO DRIVER_NAME ": resuming now...\n");
+	dev_info(&intf->dev, "resuming now...\n");
 
 	return 0;
 }

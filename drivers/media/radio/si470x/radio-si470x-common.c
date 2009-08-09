@@ -184,10 +184,10 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 	} while (((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0) &&
 		(!timed_out));
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0)
-		printk(KERN_WARNING DRIVER_NAME ": tune does not complete\n");
+		dev_warn(&radio->videodev->dev, "tune does not complete\n");
 	if (timed_out)
-		printk(KERN_WARNING DRIVER_NAME
-			": tune timed out after %u ms\n", tune_timeout);
+		dev_warn(&radio->videodev->dev,
+			"tune timed out after %u ms\n", tune_timeout);
 
 stop:
 	/* stop tuning */
@@ -320,13 +320,13 @@ static int si470x_set_seek(struct si470x_device *radio,
 	} while (((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0) &&
 		(!timed_out));
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0)
-		printk(KERN_WARNING DRIVER_NAME ": seek does not complete\n");
+		dev_warn(&radio->videodev->dev, "seek does not complete\n");
 	if (radio->registers[STATUSRSSI] & STATUSRSSI_SF)
-		printk(KERN_WARNING DRIVER_NAME
-			": seek failed / band limit reached\n");
+		dev_warn(&radio->videodev->dev,
+			"seek failed / band limit reached\n");
 	if (timed_out)
-		printk(KERN_WARNING DRIVER_NAME
-			": seek timed out after %u ms\n", seek_timeout);
+		dev_warn(&radio->videodev->dev,
+			"seek timed out after %u ms\n", seek_timeout);
 
 stop:
 	/* stop seeking */
@@ -435,6 +435,7 @@ int si470x_rds_on(struct si470x_device *radio)
 static int si470x_vidioc_queryctrl(struct file *file, void *priv,
 		struct v4l2_queryctrl *qc)
 {
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = -EINVAL;
 
 	/* abort if qc->id is below V4L2_CID_BASE */
@@ -458,8 +459,8 @@ static int si470x_vidioc_queryctrl(struct file *file, void *priv,
 
 done:
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": query controls failed with %d\n", retval);
+		dev_warn(&radio->videodev->dev,
+			"query controls failed with %d\n", retval);
 	return retval;
 }
 
@@ -494,8 +495,8 @@ static int si470x_vidioc_g_ctrl(struct file *file, void *priv,
 
 done:
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": get control failed with %d\n", retval);
+		dev_warn(&radio->videodev->dev,
+			"get control failed with %d\n", retval);
 	return retval;
 }
 
@@ -534,8 +535,8 @@ static int si470x_vidioc_s_ctrl(struct file *file, void *priv,
 
 done:
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": set control failed with %d\n", retval);
+		dev_warn(&radio->videodev->dev,
+			"set control failed with %d\n", retval);
 	return retval;
 }
 
@@ -632,8 +633,8 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 
 done:
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": get tuner failed with %d\n", retval);
+		dev_warn(&radio->videodev->dev,
+			"get tuner failed with %d\n", retval);
 	return retval;
 }
 
@@ -671,8 +672,8 @@ static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 
 done:
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": set tuner failed with %d\n", retval);
+		dev_warn(&radio->videodev->dev,
+			"set tuner failed with %d\n", retval);
 	return retval;
 }
 
@@ -701,8 +702,8 @@ static int si470x_vidioc_g_frequency(struct file *file, void *priv,
 
 done:
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": get frequency failed with %d\n", retval);
+		dev_warn(&radio->videodev->dev,
+			"get frequency failed with %d\n", retval);
 	return retval;
 }
 
@@ -730,8 +731,8 @@ static int si470x_vidioc_s_frequency(struct file *file, void *priv,
 
 done:
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": set frequency failed with %d\n", retval);
+		dev_warn(&radio->videodev->dev,
+			"set frequency failed with %d\n", retval);
 	return retval;
 }
 
@@ -759,9 +760,8 @@ static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 
 done:
 	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME
-			": set hardware frequency seek failed with %d\n",
-			retval);
+		dev_warn(&radio->videodev->dev,
+			"set hardware frequency seek failed with %d\n", retval);
 	return retval;
 }
 
