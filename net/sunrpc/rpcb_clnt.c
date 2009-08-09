@@ -75,6 +75,37 @@ enum {
 #define RPCB_OWNER_STRING	"0"
 #define RPCB_MAXOWNERLEN	sizeof(RPCB_OWNER_STRING)
 
+/*
+ * XDR data type sizes
+ */
+#define RPCB_program_sz		(1)
+#define RPCB_version_sz		(1)
+#define RPCB_protocol_sz	(1)
+#define RPCB_port_sz		(1)
+#define RPCB_boolean_sz		(1)
+
+#define RPCB_netid_sz		(1 + XDR_QUADLEN(RPCBIND_MAXNETIDLEN))
+#define RPCB_addr_sz		(1 + XDR_QUADLEN(RPCBIND_MAXUADDRLEN))
+#define RPCB_ownerstring_sz	(1 + XDR_QUADLEN(RPCB_MAXOWNERLEN))
+
+/*
+ * XDR argument and result sizes
+ */
+#define RPCB_mappingargs_sz	(RPCB_program_sz + RPCB_version_sz + \
+				RPCB_protocol_sz + RPCB_port_sz)
+#define RPCB_getaddrargs_sz	(RPCB_program_sz + RPCB_version_sz + \
+				RPCB_netid_sz + RPCB_addr_sz + \
+				RPCB_ownerstring_sz)
+
+#define RPCB_getportres_sz	RPCB_port_sz
+#define RPCB_setres_sz		RPCB_boolean_sz
+
+/*
+ * Note that RFC 1833 does not put any size restrictions on the
+ * address string returned by the remote rpcbind database.
+ */
+#define RPCB_getaddrres_sz	RPCB_addr_sz
+
 static void			rpcb_getport_done(struct rpc_task *, void *);
 static void			rpcb_map_release(void *data);
 static struct rpc_program	rpcb_program;
@@ -767,31 +798,6 @@ out_err:
 	dprintk("RPC:       rpcbind server returned malformed reply\n");
 	return -EIO;
 }
-
-#define RPCB_program_sz		(1u)
-#define RPCB_version_sz		(1u)
-#define RPCB_protocol_sz	(1u)
-#define RPCB_port_sz		(1u)
-#define RPCB_boolean_sz		(1u)
-
-#define RPCB_netid_sz		(1+XDR_QUADLEN(RPCBIND_MAXNETIDLEN))
-#define RPCB_addr_sz		(1+XDR_QUADLEN(RPCBIND_MAXUADDRLEN))
-#define RPCB_ownerstring_sz	(1+XDR_QUADLEN(RPCB_MAXOWNERLEN))
-
-#define RPCB_mappingargs_sz	RPCB_program_sz+RPCB_version_sz+	\
-				RPCB_protocol_sz+RPCB_port_sz
-#define RPCB_getaddrargs_sz	RPCB_program_sz+RPCB_version_sz+	\
-				RPCB_netid_sz+RPCB_addr_sz+		\
-				RPCB_ownerstring_sz
-
-#define RPCB_setres_sz		RPCB_boolean_sz
-#define RPCB_getportres_sz	RPCB_port_sz
-
-/*
- * Note that RFC 1833 does not put any size restrictions on the
- * address string returned by the remote rpcbind database.
- */
-#define RPCB_getaddrres_sz	RPCB_addr_sz
 
 #define PROC(proc, argtype, restype)					\
 	[RPCBPROC_##proc] = {						\
