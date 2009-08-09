@@ -2261,12 +2261,7 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 				     unsigned int bytes,
 				     struct kvm_vcpu *vcpu)
 {
-	static int reported;
-
-	if (!reported) {
-		reported = 1;
-		printk(KERN_WARNING "kvm: emulating exchange as write\n");
-	}
+	printk_once(KERN_WARNING "kvm: emulating exchange as write\n");
 #ifndef CONFIG_X86_64
 	/* guests cmpxchg8b have to be emulated atomically */
 	if (bytes == 8) {
