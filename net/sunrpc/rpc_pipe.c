@@ -624,6 +624,57 @@ static int __rpc_rmpipe(struct inode *dir, struct dentry *dentry)
 	return __rpc_unlink(dir, dentry);
 }
 
+static struct dentry *__rpc_lookup_create(struct dentry *parent,
+					  struct qstr *name)
+{
+	struct dentry *dentry;
+
+	dentry = d_lookup(parent, name);
+	if (!dentry) {
+		dentry = d_alloc(parent, name);
+		if (!dentry) {
+			dentry = ERR_PTR(-ENOMEM);
+			goto out_err;
+		}
+	}
+	if (!dentry->d_inode)
+		dentry->d_op = &rpc_dentry_operations;
+out_err:
+	return dentry;
+}
+
+static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
+					  struct qstr *name)
+{
+	struct dentry *dentry;
+
+	dentry = __rpc_lookup_create(parent, name);
+	if (dentry->d_inode == NULL)
+		return dentry;
+	dput(dentry);
+	return ERR_PTR(-EEXIST);
+}
+
+static struct dentry *rpc_lookup_negative(const char *path,
+					  struct nameidata *nd)
+{
+	struct inode *dir;
+	struct dentry *dentry;
+	int error;
+
+	error = rpc_lookup_parent(path, nd);
+	if (error != 0)
+		return ERR_PTR(error);
+	dir = nd->path.dentry->d_inode;
+	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
+	dentry = __rpc_lookup_create_exclusive(nd->path.dentry, &nd->last);
+	if (IS_ERR(dentry)) {
+		mutex_unlock(&dir->i_mutex);
+		rpc_release_path(nd);
+	}
+	return dentry;
+}
+
 /*
  * FIXME: This probably has races.
  */
@@ -723,44 +774,6 @@ __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	return error;
 }
 
-static struct dentry *
-rpc_lookup_create(struct dentry *parent, const char *name, int len, int exclusive)
-{
-	struct inode *dir = parent->d_inode;
-	struct dentry *dentry;
-
-	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_one_len(name, parent, len);
-	if (IS_ERR(dentry))
-		goto out_err;
-	if (!dentry->d_inode)
-		dentry->d_op = &rpc_dentry_operations;
-	else if (exclusive) {
-		dput(dentry);
-		dentry = ERR_PTR(-EEXIST);
-		goto out_err;
-	}
-	return dentry;
-out_err:
-	mutex_unlock(&dir->i_mutex);
-	return dentry;
-}
-
-static struct dentry *
-rpc_lookup_negative(char *path, struct nameidata *nd)
-{
-	struct dentry *dentry;
-	int error;
-
-	if ((error = rpc_lookup_parent(path, nd)) != 0)
-		return ERR_PTR(error);
-	dentry = rpc_lookup_create(nd->path.dentry, nd->last.name, nd->last.len,
-				   1);
-	if (IS_ERR(dentry))
-		rpc_release_path(nd);
-	return dentry;
-}
-
 /**
  * rpc_mkdir - Create a new directory in rpc_pipefs
  * @path: path from the rpc_pipefs root to the new directory
@@ -854,6 +867,7 @@ struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
 	struct dentry *dentry;
 	struct inode *dir = parent->d_inode;
 	umode_t umode = S_IFIFO | S_IRUSR | S_IWUSR;
+	struct qstr q;
 	int err;
 
 	if (ops->upcall == NULL)
@@ -861,10 +875,14 @@ struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
 	if (ops->downcall == NULL)
 		umode &= ~S_IWUGO;
 
-	dentry = rpc_lookup_create(parent, name, strlen(name), 0);
+	q.name = name;
+	q.len = strlen(name);
+	q.hash = full_name_hash(q.name, q.len),
+
+	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
+	dentry = __rpc_lookup_create(parent, &q);
 	if (IS_ERR(dentry))
-		return dentry;
-	dir = parent->d_inode;
+		goto out;
 	if (dentry->d_inode) {
 		struct rpc_inode *rpci = RPC_I(dentry->d_inode);
 		if (rpci->private != private ||
