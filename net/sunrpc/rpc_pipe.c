@@ -601,6 +601,29 @@ static int __rpc_mkpipe(struct inode *dir, struct dentry *dentry,
 	return 0;
 }
 
+static int __rpc_unlink(struct inode *dir, struct dentry *dentry)
+{
+	int ret;
+
+	dget(dentry);
+	ret = simple_unlink(dir, dentry);
+	d_delete(dentry);
+	dput(dentry);
+	return ret;
+}
+
+static int __rpc_rmpipe(struct inode *dir, struct dentry *dentry)
+{
+	struct inode *inode = dentry->d_inode;
+	struct rpc_inode *rpci = RPC_I(inode);
+
+	rpci->nkern_readwriters--;
+	if (rpci->nkern_readwriters != 0)
+		return 0;
+	rpc_close_pipes(inode);
+	return __rpc_unlink(dir, dentry);
+}
+
 /*
  * FIXME: This probably has races.
  */
@@ -848,14 +871,15 @@ struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
 				rpci->ops != ops ||
 				rpci->flags != flags) {
 			dput (dentry);
-			dentry = ERR_PTR(-EBUSY);
+			err = -EBUSY;
+			goto out_err;
 		}
 		rpci->nkern_readwriters++;
 		goto out;
 	}
 
 	err = __rpc_mkpipe(dir, dentry, umode, &rpc_pipe_fops,
-			private, ops, flags);
+			   private, ops, flags);
 	if (err)
 		goto out_err;
 	dget(dentry);
@@ -889,12 +913,7 @@ rpc_unlink(struct dentry *dentry)
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	if (--RPC_I(dentry->d_inode)->nkern_readwriters == 0) {
-		rpc_close_pipes(dentry->d_inode);
-		error = simple_unlink(dir, dentry);
-		if (!error)
-			d_delete(dentry);
-	}
+	error = __rpc_rmpipe(dir, dentry);
 	dput(dentry);
 	mutex_unlock(&dir->i_mutex);
 	dput(parent);
