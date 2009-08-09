@@ -9,6 +9,10 @@
 #ifndef _LINUX_SUNRPC_CLNT_H
 #define _LINUX_SUNRPC_CLNT_H
 
+#include <linux/socket.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xprt.h>
@@ -150,6 +154,40 @@ size_t		rpc_max_payload(struct rpc_clnt *);
 void		rpc_force_rebind(struct rpc_clnt *);
 size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
 const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
+
+size_t		rpc_ntop(const struct sockaddr *, char *, const size_t);
+size_t		rpc_pton(const char *, const size_t,
+			 struct sockaddr *, const size_t);
+char *		rpc_sockaddr2uaddr(const struct sockaddr *);
+size_t		rpc_uaddr2sockaddr(const char *, const size_t,
+				   struct sockaddr *, const size_t);
+
+static inline unsigned short rpc_get_port(const struct sockaddr *sap)
+{
+	switch (sap->sa_family) {
+	case AF_INET:
+		return ntohs(((struct sockaddr_in *)sap)->sin_port);
+	case AF_INET6:
+		return ntohs(((struct sockaddr_in6 *)sap)->sin6_port);
+	}
+	return 0;
+}
+
+static inline void rpc_set_port(struct sockaddr *sap,
+				const unsigned short port)
+{
+	switch (sap->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)sap)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)sap)->sin6_port = htons(port);
+		break;
+	}
+}
+
+#define IPV6_SCOPE_DELIMITER		'%'
+#define IPV6_SCOPE_ID_LEN		sizeof("%nnnnnnnnnn")
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */

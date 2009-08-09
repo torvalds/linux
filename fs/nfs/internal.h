@@ -370,8 +370,6 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
 		PAGE_SIZE - 1) >> PAGE_SHIFT;
 }
 
-#define IPV6_SCOPE_DELIMITER	'%'
-
 /*
  * Set the port number in an address.  Be agnostic about the address
  * family.
