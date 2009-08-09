@@ -44,8 +44,9 @@ RPC_I(struct inode *inode)
 
 extern int rpc_queue_upcall(struct inode *, struct rpc_pipe_msg *);
 
-extern struct dentry *rpc_mkdir(char *, struct rpc_clnt *);
-extern int rpc_rmdir(struct dentry *);
+struct rpc_clnt;
+extern struct dentry *rpc_create_client_dir(const char *, struct rpc_clnt *);
+extern int rpc_remove_client_dir(struct dentry *);
 extern struct dentry *rpc_mkpipe(struct dentry *, const char *, void *,
 				 const struct rpc_pipe_ops *, int flags);
 extern int rpc_unlink(struct dentry *);

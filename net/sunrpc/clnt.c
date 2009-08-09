@@ -113,7 +113,7 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 				"%s/clnt%x", dir_name,
 				(unsigned int)clntid++);
 		clnt->cl_pathname[sizeof(clnt->cl_pathname) - 1] = '\0';
-		clnt->cl_dentry = rpc_mkdir(clnt->cl_pathname, clnt);
+		clnt->cl_dentry = rpc_create_client_dir(clnt->cl_pathname, clnt);
 		if (!IS_ERR(clnt->cl_dentry))
 			return 0;
 		error = PTR_ERR(clnt->cl_dentry);
@@ -232,7 +232,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 
 out_no_auth:
 	if (!IS_ERR(clnt->cl_dentry)) {
-		rpc_rmdir(clnt->cl_dentry);
+		rpc_remove_client_dir(clnt->cl_dentry);
 		rpc_put_mount();
 	}
 out_no_path:
@@ -424,7 +424,7 @@ rpc_free_client(struct kref *kref)
 	dprintk("RPC:       destroying %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
 	if (!IS_ERR(clnt->cl_dentry)) {
-		rpc_rmdir(clnt->cl_dentry);
+		rpc_remove_client_dir(clnt->cl_dentry);
 		rpc_put_mount();
 	}
 	if (clnt->cl_parent != clnt) {

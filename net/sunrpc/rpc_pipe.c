@@ -755,7 +755,7 @@ out_bad:
 }
 
 /**
- * rpc_mkdir - Create a new directory in rpc_pipefs
+ * rpc_create_client_dir - Create a new rpc_client directory in rpc_pipefs
  * @path: path from the rpc_pipefs root to the new directory
  * @rpc_client: rpc client to associate with this directory
  *
@@ -764,8 +764,8 @@ out_bad:
  * information about the client, together with any "pipes" that may
  * later be created using rpc_mkpipe().
  */
-struct dentry *
-rpc_mkdir(char *path, struct rpc_clnt *rpc_client)
+struct dentry *rpc_create_client_dir(const char *path,
+				     struct rpc_clnt *rpc_client)
 {
 	struct nameidata nd;
 	struct dentry *dentry;
@@ -797,11 +797,10 @@ out_err:
 }
 
 /**
- * rpc_rmdir - Remove a directory created with rpc_mkdir()
+ * rpc_remove_client_dir - Remove a directory created with rpc_create_client_dir()
  * @dentry: directory to remove
  */
-int
-rpc_rmdir(struct dentry *dentry)
+int rpc_remove_client_dir(struct dentry *dentry)
 {
 	struct dentry *parent;
 	struct inode *dir;
