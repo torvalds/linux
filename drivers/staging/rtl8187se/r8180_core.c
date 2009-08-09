@@ -2246,7 +2246,7 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 		// Use short preamble or not
 		if (priv->ieee80211->current_network.capability&WLAN_CAPABILITY_SHORT_PREAMBLE)
 			if (priv->plcp_preamble_mode==1 && rate!=0)	//  short mode now, not long!
-			//	*tail |= (1<<16);				// enable short preamble mode.
+			;//	*tail |= (1<<16);				// enable short preamble mode.
 
 		if(bCTSEnable) {
 			*tail |= (1<<18);
