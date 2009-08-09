@@ -403,7 +403,15 @@ static DECLARE_WAIT_QUEUE_HEAD(apm_waitqueue);
 static DECLARE_WAIT_QUEUE_HEAD(apm_suspend_waitqueue);
 static struct apm_user *user_list;
 static DEFINE_SPINLOCK(user_list_lock);
-static struct desc_struct bad_bios_desc = GDT_ENTRY_INIT(0x4092, 0, 0);
+
+/*
+ * Set up a segment that references the real mode segment 0x40
+ * that extends up to the end of page zero (that we have reserved).
+ * This is for buggy BIOS's that refer to (real mode) segment 0x40
+ * even though they are called in protected mode.
+ */
+static struct desc_struct bad_bios_desc = GDT_ENTRY_INIT(0x4092,
+			(unsigned long)__va(0x400UL), PAGE_SIZE - 0x400 - 1);
 
 static const char driver_version[] = "1.16ac";	/* no spaces */
 
@@ -2330,15 +2338,6 @@ static int __init apm_init(void)
 		return -ENODEV;
 	}
 	pm_flags |= PM_APM;
-
-	/*
-	 * Set up a segment that references the real mode segment 0x40
-	 * that extends up to the end of page zero (that we have reserved).
-	 * This is for buggy BIOS's that refer to (real mode) segment 0x40
-	 * even though they are called in protected mode.
-	 */
-	set_desc_base(&bad_bios_desc, (unsigned long)__va(0x40UL << 4));
-	set_desc_limit(&bad_bios_desc, 4095 - (0x40 << 4));
 
 	/*
 	 * Set up the long jump entry point to the APM BIOS, which is called
