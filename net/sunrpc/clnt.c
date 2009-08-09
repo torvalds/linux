@@ -99,24 +99,24 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 	static uint32_t clntid;
 	int error;
 
-	clnt->cl_vfsmnt = ERR_PTR(-ENOENT);
-	clnt->cl_dentry = ERR_PTR(-ENOENT);
+	clnt->cl_path.mnt = ERR_PTR(-ENOENT);
+	clnt->cl_path.dentry = ERR_PTR(-ENOENT);
 	if (dir_name == NULL)
 		return 0;
 
-	clnt->cl_vfsmnt = rpc_get_mount();
-	if (IS_ERR(clnt->cl_vfsmnt))
-		return PTR_ERR(clnt->cl_vfsmnt);
+	clnt->cl_path.mnt = rpc_get_mount();
+	if (IS_ERR(clnt->cl_path.mnt))
+		return PTR_ERR(clnt->cl_path.mnt);
 
 	for (;;) {
 		snprintf(clnt->cl_pathname, sizeof(clnt->cl_pathname),
 				"%s/clnt%x", dir_name,
 				(unsigned int)clntid++);
 		clnt->cl_pathname[sizeof(clnt->cl_pathname) - 1] = '\0';
-		clnt->cl_dentry = rpc_create_client_dir(clnt->cl_pathname, clnt);
-		if (!IS_ERR(clnt->cl_dentry))
+		clnt->cl_path.dentry = rpc_create_client_dir(clnt->cl_pathname, clnt);
+		if (!IS_ERR(clnt->cl_path.dentry))
 			return 0;
-		error = PTR_ERR(clnt->cl_dentry);
+		error = PTR_ERR(clnt->cl_path.dentry);
 		if (error != -EEXIST) {
 			printk(KERN_INFO "RPC: Couldn't create pipefs entry %s, error %d\n",
 					clnt->cl_pathname, error);
@@ -231,8 +231,8 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	return clnt;
 
 out_no_auth:
-	if (!IS_ERR(clnt->cl_dentry)) {
-		rpc_remove_client_dir(clnt->cl_dentry);
+	if (!IS_ERR(clnt->cl_path.dentry)) {
+		rpc_remove_client_dir(clnt->cl_path.dentry);
 		rpc_put_mount();
 	}
 out_no_path:
@@ -423,8 +423,8 @@ rpc_free_client(struct kref *kref)
 
 	dprintk("RPC:       destroying %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
-	if (!IS_ERR(clnt->cl_dentry)) {
-		rpc_remove_client_dir(clnt->cl_dentry);
+	if (!IS_ERR(clnt->cl_path.dentry)) {
+		rpc_remove_client_dir(clnt->cl_path.dentry);
 		rpc_put_mount();
 	}
 	if (clnt->cl_parent != clnt) {

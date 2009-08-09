@@ -119,8 +119,8 @@ nfs_idmap_new(struct nfs_client *clp)
 	if (idmap == NULL)
 		return -ENOMEM;
 
-	idmap->idmap_dentry = rpc_mkpipe(clp->cl_rpcclient->cl_dentry, "idmap",
-					 idmap, &idmap_upcall_ops, 0);
+	idmap->idmap_dentry = rpc_mkpipe(clp->cl_rpcclient->cl_path.dentry,
+			"idmap", idmap, &idmap_upcall_ops, 0);
 	if (IS_ERR(idmap->idmap_dentry)) {
 		error = PTR_ERR(idmap->idmap_dentry);
 		kfree(idmap);

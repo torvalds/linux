@@ -777,7 +777,7 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	 * that we supported only the old pipe.  So we instead create
 	 * the new pipe first.
 	 */
-	gss_auth->dentry[1] = rpc_mkpipe(clnt->cl_dentry,
+	gss_auth->dentry[1] = rpc_mkpipe(clnt->cl_path.dentry,
 					 "gssd",
 					 clnt, &gss_upcall_ops_v1,
 					 RPC_PIPE_WAIT_FOR_OPEN);
@@ -786,7 +786,7 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 		goto err_put_mech;
 	}
 
-	gss_auth->dentry[0] = rpc_mkpipe(clnt->cl_dentry,
+	gss_auth->dentry[0] = rpc_mkpipe(clnt->cl_path.dentry,
 					 gss_auth->mech->gm_name,
 					 clnt, &gss_upcall_ops_v0,
 					 RPC_PIPE_WAIT_FOR_OPEN);
