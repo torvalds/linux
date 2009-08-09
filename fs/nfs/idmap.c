@@ -101,7 +101,7 @@ static void idmap_pipe_destroy_msg(struct rpc_pipe_msg *);
 
 static unsigned int fnvhash32(const void *, size_t);
 
-static struct rpc_pipe_ops idmap_upcall_ops = {
+static const struct rpc_pipe_ops idmap_upcall_ops = {
 	.upcall		= idmap_pipe_upcall,
 	.downcall	= idmap_pipe_downcall,
 	.destroy_msg	= idmap_pipe_destroy_msg,

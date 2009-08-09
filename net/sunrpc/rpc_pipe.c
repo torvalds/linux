@@ -125,7 +125,7 @@ static void
 rpc_close_pipes(struct inode *inode)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
-	struct rpc_pipe_ops *ops;
+	const struct rpc_pipe_ops *ops;
 	int need_release;
 
 	mutex_lock(&inode->i_mutex);
@@ -776,8 +776,9 @@ rpc_rmdir(struct dentry *dentry)
  * The @private argument passed here will be available to all these methods
  * from the file pointer, via RPC_I(file->f_dentry->d_inode)->private.
  */
-struct dentry *
-rpc_mkpipe(struct dentry *parent, const char *name, void *private, struct rpc_pipe_ops *ops, int flags)
+struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
+			  void *private, const struct rpc_pipe_ops *ops,
+			  int flags)
 {
 	struct dentry *dentry;
 	struct inode *dir, *inode;
