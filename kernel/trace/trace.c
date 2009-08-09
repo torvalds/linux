@@ -848,6 +848,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 		((pc & SOFTIRQ_MASK) ? TRACE_FLAG_SOFTIRQ : 0) |
 		(need_resched() ? TRACE_FLAG_NEED_RESCHED : 0);
 }
+EXPORT_SYMBOL_GPL(tracing_generic_entry_update);
 
 struct ring_buffer_event *trace_buffer_lock_reserve(struct trace_array *tr,
 						    int type,

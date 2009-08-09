@@ -89,7 +89,9 @@ enum print_line_t {
 	TRACE_TYPE_NO_CONSUME	= 3	/* Handled but ask to not consume */
 };
 
-
+void tracing_generic_entry_update(struct trace_entry *entry,
+				  unsigned long flags,
+				  int pc);
 struct ring_buffer_event *
 trace_current_buffer_lock_reserve(int type, unsigned long len,
 				  unsigned long flags, int pc);
