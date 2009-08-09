@@ -59,6 +59,11 @@ struct cache_head {
 
 #define	CACHE_NEW_EXPIRY 120	/* keep new things pending confirmation for 120 seconds */
 
+struct cache_detail_procfs {
+	struct proc_dir_entry	*proc_ent;
+	struct proc_dir_entry   *flush_ent, *channel_ent, *content_ent;
+};
+
 struct cache_detail {
 	struct module *		owner;
 	int			hash_size;
@@ -98,12 +103,14 @@ struct cache_detail {
 
 	/* fields for communication over channel */
 	struct list_head	queue;
-	struct proc_dir_entry	*proc_ent;
-	struct proc_dir_entry   *flush_ent, *channel_ent, *content_ent;
 
 	atomic_t		readers;		/* how many time is /chennel open */
 	time_t			last_close;		/* if no readers, when did last close */
 	time_t			last_warn;		/* when we last warned about no readers */
+
+	union {
+		struct cache_detail_procfs procfs;
+	} u;
 };
 
 
