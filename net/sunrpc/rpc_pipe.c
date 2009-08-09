@@ -484,12 +484,12 @@ static const struct dentry_operations rpc_dentry_operations = {
 	.d_delete = rpc_delete_dentry,
 };
 
-static int
-rpc_lookup_parent(char *path, struct nameidata *nd)
+static int __rpc_lookup_path(const char *pathname, unsigned flags,
+			     struct nameidata *nd)
 {
 	struct vfsmount *mnt;
 
-	if (path[0] == '\0')
+	if (pathname[0] == '\0')
 		return -ENOENT;
 
 	mnt = rpc_get_mount();
@@ -499,13 +499,18 @@ rpc_lookup_parent(char *path, struct nameidata *nd)
 		return PTR_ERR(mnt);
 	}
 
-	if (vfs_path_lookup(mnt->mnt_root, mnt, path, LOOKUP_PARENT, nd)) {
+	if (vfs_path_lookup(mnt->mnt_root, mnt, pathname, flags, nd)) {
 		printk(KERN_WARNING "%s: %s failed to find path %s\n",
-				__FILE__, __func__, path);
+				__FILE__, __func__, pathname);
 		rpc_put_mount();
 		return -ENOENT;
 	}
 	return 0;
+}
+
+static int rpc_lookup_parent(const char *pathname, struct nameidata *nd)
+{
+	return __rpc_lookup_path(pathname, LOOKUP_PARENT, nd);
 }
 
 static void
