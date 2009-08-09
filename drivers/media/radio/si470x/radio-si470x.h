@@ -143,6 +143,11 @@
 struct si470x_device {
 	struct video_device *videodev;
 
+#if defined(CONFIG_I2C_SI470X) || defined(CONFIG_I2C_SI470X_MODULE)
+	struct i2c_client *client;
+#endif
+
+#if defined(CONFIG_USB_SI470X) || defined(CONFIG_USB_SI470X_MODULE)
 	/* reference to USB and video device */
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
@@ -160,6 +165,7 @@ struct si470x_device {
 	/* driver management */
 	unsigned char disconnected;
 	struct mutex disconnect_lock;
+#endif
 	unsigned int users;
 
 	/* Silabs internal registers (0..15) */
