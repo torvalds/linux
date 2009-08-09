@@ -2380,6 +2380,7 @@ skip_chan_change:
 	(FIF_PROMISC_IN_BSS |			\
 	FIF_ALLMULTI |				\
 	FIF_CONTROL |				\
+	FIF_PSPOLL |				\
 	FIF_OTHER_BSS |				\
 	FIF_BCN_PRBRESP_PROMISC |		\
 	FIF_FCSFAIL)
