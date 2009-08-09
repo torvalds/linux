@@ -1409,7 +1409,7 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 	/*
 	 * autobind will be used if mount_server.port == 0
 	 */
-	nfs_set_port(request.sap, args->mount_server.port);
+	rpc_set_port(request.sap, args->mount_server.port);
 
 	/*
 	 * Now ask the mount server to map our export path
@@ -1703,7 +1703,7 @@ static int nfs_validate_mount_data(void *options,
 						&args->nfs_server.address))
 			goto out_no_address;
 
-		nfs_set_port((struct sockaddr *)&args->nfs_server.address,
+		rpc_set_port((struct sockaddr *)&args->nfs_server.address,
 				args->nfs_server.port);
 
 		nfs_set_mount_transport_protocol(args);
@@ -2336,7 +2336,7 @@ static int nfs4_validate_mount_data(void *options,
 						&args->nfs_server.address))
 			return -EINVAL;
 
-		nfs_set_port((struct sockaddr *)&args->nfs_server.address,
+		rpc_set_port((struct sockaddr *)&args->nfs_server.address,
 				args->nfs_server.port);
 
 		nfs_validate_transport_protocol(args);
