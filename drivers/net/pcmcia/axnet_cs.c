@@ -893,8 +893,6 @@ static const char version_8390[] = KERN_INFO \
 #include <linux/in.h>
 #include <linux/interrupt.h>
 
-#include <linux/etherdevice.h>
-
 #define BUG_83C690
 
 /* These are the operational function interfaces to board-specific
