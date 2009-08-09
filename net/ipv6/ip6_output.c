@@ -194,7 +194,8 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	struct ipv6hdr *hdr;
 	u8  proto = fl->proto;
 	int seg_len = skb->len;
-	int hlimit, tclass;
+	int hlimit = -1;
+	int tclass = 0;
 	u32 mtu;
 
 	if (opt) {
@@ -237,18 +238,12 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	/*
 	 *	Fill in the IPv6 header
 	 */
-
-	hlimit = -1;
-	if (np)
+	if (np) {
+		tclass = np->tclass;
 		hlimit = np->hop_limit;
+	}
 	if (hlimit < 0)
 		hlimit = ip6_dst_hoplimit(dst);
-
-	tclass = -1;
-	if (np)
-		tclass = np->tclass;
-	if (tclass < 0)
-		tclass = 0;
 
 	*(__be32 *)hdr = htonl(0x60000000 | (tclass << 20)) | fl->fl6_flowlabel;
 
