@@ -79,6 +79,8 @@ struct cache_detail {
 	int			(*cache_show)(struct seq_file *m,
 					      struct cache_detail *cd,
 					      struct cache_head *h);
+	void			(*warn_no_listener)(struct cache_detail *cd,
+					      int has_died);
 
 	struct cache_head *	(*alloc)(void);
 	int			(*match)(struct cache_head *orig, struct cache_head *new);
@@ -102,7 +104,6 @@ struct cache_detail {
 	atomic_t		readers;		/* how many time is /chennel open */
 	time_t			last_close;		/* if no readers, when did last close */
 	time_t			last_warn;		/* when we last warned about no readers */
-	void			(*warn_no_listener)(struct cache_detail *cd);
 };
 
 

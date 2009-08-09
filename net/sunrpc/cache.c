@@ -1020,7 +1020,7 @@ static void warn_no_listener(struct cache_detail *detail)
 	if (detail->last_warn != detail->last_close) {
 		detail->last_warn = detail->last_close;
 		if (detail->warn_no_listener)
-			detail->warn_no_listener(detail);
+			detail->warn_no_listener(detail, detail->last_close != 0);
 	}
 }
 
