@@ -245,10 +245,6 @@ SECTIONS
 	}
 #endif
 
-	. = ALIGN(PAGE_SIZE);
-	_edata  =  .;
-	PROVIDE32 (edata = .);
-
 	/* The initial task and kernel stack */
 #ifdef CONFIG_PPC32
 	. = ALIGN(8192);
@@ -281,6 +277,10 @@ SECTIONS
 		. = ALIGN(PAGE_SIZE);
 		__nosave_end = .;
 	}
+
+	. = ALIGN(PAGE_SIZE);
+	_edata  =  .;
+	PROVIDE32 (edata = .);
 
 /*
  * And finally the bss
