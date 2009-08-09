@@ -1238,8 +1238,6 @@ static void rt2500usb_write_beacon(struct queue_entry *entry)
 	 * otherwise we might be sending out invalid data.
 	 */
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 0);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 0);
 	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 
@@ -1287,7 +1285,7 @@ static int rt2500usb_get_tx_data_len(struct queue_entry *entry)
 static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 				    const enum data_queue_qid queue)
 {
-	u16 reg;
+	u16 reg, reg0;
 
 	if (queue != QID_BEACON) {
 		rt2x00usb_kick_tx_queue(rt2x00dev, queue);
@@ -1298,16 +1296,19 @@ static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 	if (!rt2x00_get_field16(reg, TXRX_CSR19_BEACON_GEN)) {
 		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
 		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 1);
+		reg0 = reg;
 		rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 1);
 		/*
 		 * Beacon generation will fail initially.
-		 * To prevent this we need to register the TXRX_CSR19
-		 * register several times.
+		 * To prevent this we need to change the TXRX_CSR19
+		 * register several times (reg0 is the same as reg
+		 * except for TXRX_CSR19_BEACON_GEN, which is 0 in reg0
+		 * and 1 in reg).
 		 */
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, 0);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg0);
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, 0);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg0);
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 	}
 }
