@@ -155,12 +155,16 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		   struct sk_buff *skb)
 {
 	struct minstrel_sta_info *mi = priv_sta;
+	struct minstrel_priv *mp = (struct minstrel_priv *)priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *ar = info->status.rates;
+	struct ieee80211_local *local = hw_to_local(mp->hw);
+	struct sta_info *si;
 	int i, ndx;
 	int success;
 
 	success = !!(info->flags & IEEE80211_TX_STAT_ACK);
+	si = sta_info_get(local, sta->addr);
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		if (ar[i].idx < 0)
@@ -172,8 +176,12 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 		mi->r[ndx].attempts += ar[i].count;
 
-		if ((i != IEEE80211_TX_MAX_RATES - 1) && (ar[i + 1].idx < 0))
+		if ((i != IEEE80211_TX_MAX_RATES - 1) && (ar[i + 1].idx < 0)) {
 			mi->r[ndx].success += success;
+			if (si)
+				si->fail_avg = (18050 - mi->r[ndx].probability)
+					/ 180;
+		}
 	}
 
 	if ((info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) && (i >= 0))
