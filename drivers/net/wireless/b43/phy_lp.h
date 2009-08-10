@@ -865,6 +865,9 @@ struct b43_phy_lp {
 	/* Transmit iqlocal best coeffs */
 	bool tx_iqloc_best_coeffs_valid;
 	u8 tx_iqloc_best_coeffs[11];
+
+	/* Used for "Save/Restore Dig Filt State" */
+	u16 dig_flt_state[9];
 };
 
 

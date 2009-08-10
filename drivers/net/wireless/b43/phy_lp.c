@@ -195,6 +195,56 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 	}
 }
 
+static void lpphy_save_dig_flt_state(struct b43_wldev *dev)
+{
+	static const u16 addr[] = {
+		B43_PHY_OFDM(0xC1),
+		B43_PHY_OFDM(0xC2),
+		B43_PHY_OFDM(0xC3),
+		B43_PHY_OFDM(0xC4),
+		B43_PHY_OFDM(0xC5),
+		B43_PHY_OFDM(0xC6),
+		B43_PHY_OFDM(0xC7),
+		B43_PHY_OFDM(0xC8),
+		B43_PHY_OFDM(0xCF),
+	};
+
+	static const u16 coefs[] = {
+		0xDE5E, 0xE832, 0xE331, 0x4D26,
+		0x0026, 0x1420, 0x0020, 0xFE08,
+		0x0008,
+	};
+
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(addr); i++) {
+		lpphy->dig_flt_state[i] = b43_phy_read(dev, addr[i]);
+		b43_phy_write(dev, addr[i], coefs[i]);
+	}
+}
+
+static void lpphy_restore_dig_flt_state(struct b43_wldev *dev)
+{
+	static const u16 addr[] = {
+		B43_PHY_OFDM(0xC1),
+		B43_PHY_OFDM(0xC2),
+		B43_PHY_OFDM(0xC3),
+		B43_PHY_OFDM(0xC4),
+		B43_PHY_OFDM(0xC5),
+		B43_PHY_OFDM(0xC6),
+		B43_PHY_OFDM(0xC7),
+		B43_PHY_OFDM(0xC8),
+		B43_PHY_OFDM(0xCF),
+	};
+
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(addr); i++)
+		b43_phy_write(dev, addr[i], lpphy->dig_flt_state[i]);
+}
+
 static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 {
 	struct ssb_bus *bus = dev->dev->bus;
@@ -209,7 +259,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_OFDM(0xF9), 0);
 	b43_phy_write(dev, B43_LPPHY_TR_LOOKUP_1, 0);
 	b43_phy_set(dev, B43_LPPHY_ADC_COMPENSATION_CTL, 0x10);
-	b43_phy_maskset(dev, B43_LPPHY_OFDMSYNCTHRESH0, 0xFF00, 0x78);
+	b43_phy_maskset(dev, B43_LPPHY_OFDMSYNCTHRESH0, 0xFF00, 0xB4);
 	b43_phy_maskset(dev, B43_LPPHY_DCOFFSETTRANSIENT, 0xF8FF, 0x200);
 	b43_phy_maskset(dev, B43_LPPHY_DCOFFSETTRANSIENT, 0xFF00, 0x7F);
 	b43_phy_maskset(dev, B43_LPPHY_GAINDIRECTMISMATCH, 0xFF0F, 0x40);
@@ -217,7 +267,12 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_mask(dev, B43_LPPHY_CRSGAIN_CTL, ~0x4000);
 	b43_phy_mask(dev, B43_LPPHY_CRSGAIN_CTL, ~0x2000);
 	b43_phy_set(dev, B43_PHY_OFDM(0x10A), 0x1);
-	b43_phy_maskset(dev, B43_PHY_OFDM(0x10A), 0xFF01, 0x10);
+	if (bus->boardinfo.rev >= 0x18) {
+		b43_lptab_write(dev, B43_LPTAB32(17, 65), 0xEC);
+		b43_phy_maskset(dev, B43_PHY_OFDM(0x10A), 0xFF01, 0x14);
+	} else {
+		b43_phy_maskset(dev, B43_PHY_OFDM(0x10A), 0xFF01, 0x10);
+	}
 	b43_phy_maskset(dev, B43_PHY_OFDM(0xDF), 0xFF00, 0xF4);
 	b43_phy_maskset(dev, B43_PHY_OFDM(0xDF), 0x00FF, 0xF100);
 	b43_phy_write(dev, B43_LPPHY_CLIPTHRESH, 0x48);
@@ -247,8 +302,10 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_LPPHY_CLIPCTRTHRESH, 0xFFE0, 0x12);
 	b43_phy_maskset(dev, B43_LPPHY_GAINMISMATCH, 0x0FFF, 0x9000);
 
-	b43_lptab_write(dev, B43_LPTAB16(0x08, 0x14), 0);
-	b43_lptab_write(dev, B43_LPTAB16(0x08, 0x12), 0x40);
+	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 1)) {
+		b43_lptab_write(dev, B43_LPTAB16(0x08, 0x14), 0);
+		b43_lptab_write(dev, B43_LPTAB16(0x08, 0x12), 0x40);
+	}
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
 		b43_phy_set(dev, B43_LPPHY_CRSGAIN_CTL, 0x40);
@@ -268,6 +325,14 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_LPPHY_AFE_RSSI_CTL_1,
 		      0x2000 | ((u16)lpphy->rssi_gs << 10) |
 		      ((u16)lpphy->rssi_vc << 4) | lpphy->rssi_vf);
+
+	if ((bus->chip_id == 0x4325) && (bus->chip_rev == 0)) {
+		b43_phy_set(dev, B43_LPPHY_AFE_ADC_CTL_0, 0x1C);
+		b43_phy_maskset(dev, B43_LPPHY_AFE_CTL, 0x00FF, 0x8800);
+		b43_phy_maskset(dev, B43_LPPHY_AFE_ADC_CTL_1, 0xFC3C, 0x0400);
+	}
+
+	lpphy_save_dig_flt_state(dev);
 }
 
 static void lpphy_baseband_init(struct b43_wldev *dev)
