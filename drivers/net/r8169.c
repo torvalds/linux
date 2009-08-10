@@ -2757,7 +2757,7 @@ static void rtl_hw_start_8168(struct net_device *dev)
 	EnableBist | \
 	Mac_dbgo_oe | \
 	Force_half_dup | \
-	Force_half_dup | \
+	Force_rxflow_en | \
 	Force_txflow_en | \
 	Cxpl_dbg_sel | \
 	ASF | \
