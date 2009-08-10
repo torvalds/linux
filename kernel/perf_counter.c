@@ -3787,6 +3787,14 @@ static void tp_perf_counter_destroy(struct perf_counter *counter)
 
 static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 {
+	/*
+	 * Raw tracepoint data is a severe data leak, only allow root to
+	 * have these.
+	 */
+	if ((counter->attr.sample_type & PERF_SAMPLE_RAW) &&
+			!capable(CAP_SYS_ADMIN))
+		return ERR_PTR(-EPERM);
+
 	if (ftrace_profile_enable(counter->attr.config))
 		return NULL;
 
