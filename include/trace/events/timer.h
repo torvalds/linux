@@ -270,6 +270,72 @@ TRACE_EVENT(hrtimer_cancel,
 	TP_printk("hrtimer %p", __entry->timer)
 );
 
+/**
+ * itimer_state - called when itimer is started or canceled
+ * @which:	name of the interval timer
+ * @value:	the itimers value, itimer is canceled if value->it_value is
+ *		zero, otherwise it is started
+ * @expires:	the itimers expiry time
+ */
+TRACE_EVENT(itimer_state,
+
+	TP_PROTO(int which, const struct itimerval *const value,
+		 cputime_t expires),
+
+	TP_ARGS(which, value, expires),
+
+	TP_STRUCT__entry(
+		__field(	int,		which		)
+		__field(	cputime_t,	expires		)
+		__field(	long,		value_sec	)
+		__field(	long,		value_usec	)
+		__field(	long,		interval_sec	)
+		__field(	long,		interval_usec	)
+	),
+
+	TP_fast_assign(
+		__entry->which		= which;
+		__entry->expires	= expires;
+		__entry->value_sec	= value->it_value.tv_sec;
+		__entry->value_usec	= value->it_value.tv_usec;
+		__entry->interval_sec	= value->it_interval.tv_sec;
+		__entry->interval_usec	= value->it_interval.tv_usec;
+	),
+
+	TP_printk("which %d, expires %lu, it_value %lu.%lu, it_interval %lu.%lu",
+		  __entry->which, __entry->expires,
+		  __entry->value_sec, __entry->value_usec,
+		  __entry->interval_sec, __entry->interval_usec)
+);
+
+/**
+ * itimer_expire - called when itimer expires
+ * @which:	type of the interval timer
+ * @pid:	pid of the process which owns the timer
+ * @now:	current time, used to calculate the latency of itimer
+ */
+TRACE_EVENT(itimer_expire,
+
+	TP_PROTO(int which, struct pid *pid, cputime_t now),
+
+	TP_ARGS(which, pid, now),
+
+	TP_STRUCT__entry(
+		__field( int ,		which	)
+		__field( pid_t,		pid	)
+		__field( cputime_t,	now	)
+	),
+
+	TP_fast_assign(
+		__entry->which	= which;
+		__entry->now	= now;
+		__entry->pid	= pid_nr(pid);
+	),
+
+	    TP_printk("which %d, pid %d, now %lu", __entry->which,
+		      (int) __entry->pid, __entry->now)
+);
+
 #endif /*  _TRACE_TIMER_H */
 
 /* This part must be outside protection */

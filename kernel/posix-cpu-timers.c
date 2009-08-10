@@ -8,6 +8,7 @@
 #include <linux/math64.h>
 #include <asm/uaccess.h>
 #include <linux/kernel_stat.h>
+#include <trace/events/timer.h>
 
 /*
  * Called after updating RLIMIT_CPU to set timer expiration if necessary.
@@ -1090,9 +1091,13 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 							  cputime_one_jiffy);
 				it->error -= onecputick;
 			}
-		} else
+		} else {
 			it->expires = cputime_zero;
+		}
 
+		trace_itimer_expire(signo == SIGPROF ?
+				    ITIMER_PROF : ITIMER_VIRTUAL,
+				    tsk->signal->leader_pid, cur_time);
 		__group_send_sig_info(signo, SEND_SIG_PRIV, tsk);
 	}
 
