@@ -41,58 +41,34 @@
 #define KGET_RAW(n)		(((n) & KEY0R) >> 3)
 #define KGET_COLUMN(n)		((n) & KEY0C)
 
-#define MAX_MATRIX_KEY_NUM	(8 * 8)
+#define W90P910_MAX_KEY_NUM	(8 * 8)
+#define W90P910_ROW_SHIFT	3
 
 struct w90p910_keypad {
-	struct w90p910_keypad_platform_data *pdata;
+	const struct w90p910_keypad_platform_data *pdata;
 	struct clk *clk;
 	struct input_dev *input_dev;
 	void __iomem *mmio_base;
 	int irq;
-	unsigned int matrix_keycodes[MAX_MATRIX_KEY_NUM];
+	unsigned short keymap[W90P910_MAX_KEY_NUM];
 };
-
-static void w90p910_keypad_build_keycode(struct w90p910_keypad *keypad)
-{
-	struct w90p910_keypad_platform_data *pdata = keypad->pdata;
-	struct input_dev *input_dev = keypad->input_dev;
-	unsigned int *key;
-	int i;
-
-	key = &pdata->matrix_key_map[0];
-	for (i = 0; i < pdata->matrix_key_map_size; i++, key++) {
-		int row = KEY_ROW(*key);
-		int col = KEY_COL(*key);
-		int code = KEY_VAL(*key);
-
-		keypad->matrix_keycodes[(row << 3) + col] = code;
-		__set_bit(code, input_dev->keybit);
-	}
-}
-
-static inline unsigned int lookup_matrix_keycode(
-		struct w90p910_keypad *keypad, int row, int col)
-{
-	return keypad->matrix_keycodes[(row << 3) + col];
-}
 
 static void w90p910_keypad_scan_matrix(struct w90p910_keypad *keypad,
 							unsigned int status)
 {
-	unsigned int row, col, val;
+	struct input_dev *input_dev = keypad->input_dev;
+	unsigned int row = KGET_RAW(status);
+	unsigned int col = KGET_COLUMN(status);
+	unsigned int code = MATRIX_SCAN_CODE(row, col, W90P910_ROW_SHIFT);
+	unsigned int key = keypad->keymap[code];
 
-	row = KGET_RAW(status);
-	col = KGET_COLUMN(status);
+	input_event(input_dev, EV_MSC, MSC_SCAN, code);
+	input_report_key(input_dev, key, 1);
+	input_sync(input_dev);
 
-	val = lookup_matrix_keycode(keypad, row, col);
-
-	input_report_key(keypad->input_dev, val, 1);
-
-	input_sync(keypad->input_dev);
-
-	input_report_key(keypad->input_dev, val, 0);
-
-	input_sync(keypad->input_dev);
+	input_event(input_dev, EV_MSC, MSC_SCAN, code);
+	input_report_key(input_dev, key, 0);
+	input_sync(input_dev);
 }
 
 static irqreturn_t w90p910_keypad_irq_handler(int irq, void *dev_id)
@@ -113,7 +89,7 @@ static irqreturn_t w90p910_keypad_irq_handler(int irq, void *dev_id)
 static int w90p910_keypad_open(struct input_dev *dev)
 {
 	struct w90p910_keypad *keypad = input_get_drvdata(dev);
-	struct w90p910_keypad_platform_data *pdata = keypad->pdata;
+	const struct w90p910_keypad_platform_data *pdata = keypad->pdata;
 	unsigned int val, config;
 
 	/* Enable unit clock */
@@ -142,30 +118,38 @@ static void w90p910_keypad_close(struct input_dev *dev)
 
 static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
 {
+	const struct w90p910_keypad_platform_data *pdata =
+						pdev->dev.platform_data;
+	const struct matrix_keymap_data *keymap_data = pdata->keymap_data;
 	struct w90p910_keypad *keypad;
 	struct input_dev *input_dev;
 	struct resource *res;
-	int irq, error;
+	int irq;
+	int error;
+	int i;
 
-	keypad = kzalloc(sizeof(struct w90p910_keypad), GFP_KERNEL);
-	if (keypad == NULL) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
-		return -ENOMEM;
-	}
-
-	keypad->pdata = pdev->dev.platform_data;
-	if (keypad->pdata == NULL) {
+	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data defined\n");
-		error = -EINVAL;
-		goto failed_free;
+		return -EINVAL;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "failed to get keypad irq\n");
-		error = -ENXIO;
+		return -ENXIO;
+	}
+
+	keypad = kzalloc(sizeof(struct w90p910_keypad), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!keypad || !input_dev) {
+		dev_err(&pdev->dev, "failed to allocate driver data\n");
+		error = -ENOMEM;
 		goto failed_free;
 	}
+
+	keypad->pdata = pdata;
+	keypad->input_dev = input_dev;
+	keypad->irq = irq;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
@@ -185,7 +169,7 @@ static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
 	if (keypad->mmio_base == NULL) {
 		dev_err(&pdev->dev, "failed to remap I/O memory\n");
 		error = -ENXIO;
-		goto failed_free_mem;
+		goto failed_free_res;
 	}
 
 	keypad->clk = clk_get(&pdev->dev, NULL);
@@ -193,14 +177,6 @@ static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get keypad clock\n");
 		error = PTR_ERR(keypad->clk);
 		goto failed_free_io;
-	}
-
-	/* Create and register the input driver. */
-	input_dev = input_allocate_device();
-	if (!input_dev) {
-		dev_err(&pdev->dev, "failed to allocate input device\n");
-		error = -ENOMEM;
-		goto failed_put_clk;
 	}
 
 	/* set multi-function pin for w90p910 kpi. */
@@ -211,25 +187,36 @@ static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
 	input_dev->open = w90p910_keypad_open;
 	input_dev->close = w90p910_keypad_close;
 	input_dev->dev.parent = &pdev->dev;
-	input_dev->keycode = keypad->matrix_keycodes;
-	input_dev->keycodesize = sizeof(keypad->matrix_keycodes[0]);
-	input_dev->keycodemax = ARRAY_SIZE(keypad->matrix_keycodes);
 
-	keypad->input_dev = input_dev;
+	input_dev->keycode = keypad->keymap;
+	input_dev->keycodesize = sizeof(keypad->keymap[0]);
+	input_dev->keycodemax = ARRAY_SIZE(keypad->keymap);
+
 	input_set_drvdata(input_dev, keypad);
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
-	w90p910_keypad_build_keycode(keypad);
-	platform_set_drvdata(pdev, keypad);
+	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
-	error = request_irq(irq, w90p910_keypad_irq_handler, IRQF_DISABLED,
-			    pdev->name, keypad);
+	for (i = 0; i < keymap_data->keymap_size; i++) {
+		unsigned int key = keymap_data->keymap[i];
+		unsigned int row = KEY_ROW(key);
+		unsigned int col = KEY_COL(key);
+		unsigned short keycode = KEY_VAL(key);
+		unsigned int scancode = MATRIX_SCAN_CODE(row, col,
+							 W90P910_ROW_SHIFT);
+
+		keypad->keymap[scancode] = keycode;
+		__set_bit(keycode, input_dev->keybit);
+	}
+	__clear_bit(KEY_RESERVED, input_dev->keybit);
+
+
+	error = request_irq(keypad->irq, w90p910_keypad_irq_handler,
+			    IRQF_DISABLED, pdev->name, keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
-		goto failed_free_dev;
+		goto failed_put_clk;
 	}
-
-	keypad->irq = irq;
 
 	/* Register the input device */
 	error = input_register_device(input_dev);
@@ -238,20 +225,19 @@ static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
 		goto failed_free_irq;
 	}
 
+	platform_set_drvdata(pdev, keypad);
 	return 0;
 
 failed_free_irq:
 	free_irq(irq, pdev);
-	platform_set_drvdata(pdev, NULL);
-failed_free_dev:
-	input_free_device(input_dev);
 failed_put_clk:
 	clk_put(keypad->clk);
 failed_free_io:
 	iounmap(keypad->mmio_base);
-failed_free_mem:
+failed_free_res:
 	release_mem_region(res->start, resource_size(res));
 failed_free:
+	input_free_device(input_dev);
 	kfree(keypad);
 	return error;
 }
@@ -268,12 +254,12 @@ static int __devexit w90p910_keypad_remove(struct platform_device *pdev)
 	input_unregister_device(keypad->input_dev);
 
 	iounmap(keypad->mmio_base);
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 
 	platform_set_drvdata(pdev, NULL);
 	kfree(keypad);
+
 	return 0;
 }
 
