@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/capability.h>
 #include <linux/in.h>
 #include <linux/skbuff.h>
@@ -222,16 +222,11 @@ get_entry(void *base, unsigned int offset)
 
 /* All zeroes == unconditional rule. */
 /* Mildly perf critical (only if packet tracing is on) */
-static inline int
-unconditional(const struct ip6t_ip6 *ipv6)
+static inline bool unconditional(const struct ip6t_ip6 *ipv6)
 {
-	unsigned int i;
+	static const struct ip6t_ip6 uncond;
 
-	for (i = 0; i < sizeof(*ipv6); i++)
-		if (((char *)ipv6)[i])
-			break;
-
-	return (i == sizeof(*ipv6));
+	return memcmp(ipv6, &uncond, sizeof(uncond)) == 0;
 }
 
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
@@ -745,6 +740,21 @@ find_check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 	return ret;
 }
 
+static bool check_underflow(struct ip6t_entry *e)
+{
+	const struct ip6t_entry_target *t;
+	unsigned int verdict;
+
+	if (!unconditional(&e->ipv6))
+		return false;
+	t = ip6t_get_target(e);
+	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) != 0)
+		return false;
+	verdict = ((struct ip6t_standard_target *)t)->verdict;
+	verdict = -verdict - 1;
+	return verdict == NF_DROP || verdict == NF_ACCEPT;
+}
+
 static int
 check_entry_size_and_hooks(struct ip6t_entry *e,
 			   struct xt_table_info *newinfo,
@@ -752,6 +762,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 			   unsigned char *limit,
 			   const unsigned int *hook_entries,
 			   const unsigned int *underflows,
+			   unsigned int valid_hooks,
 			   unsigned int *i)
 {
 	unsigned int h;
@@ -771,14 +782,20 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 
 	/* Check hooks & underflows */
 	for (h = 0; h < NF_INET_NUMHOOKS; h++) {
+		if (!(valid_hooks & (1 << h)))
+			continue;
 		if ((unsigned char *)e - base == hook_entries[h])
 			newinfo->hook_entry[h] = hook_entries[h];
-		if ((unsigned char *)e - base == underflows[h])
+		if ((unsigned char *)e - base == underflows[h]) {
+			if (!check_underflow(e)) {
+				pr_err("Underflows must be unconditional and "
+				       "use the STANDARD target with "
+				       "ACCEPT/DROP\n");
+				return -EINVAL;
+			}
 			newinfo->underflow[h] = underflows[h];
+		}
 	}
-
-	/* FIXME: underflows must be unconditional, standard verdicts
-	   < 0 (not IP6T_RETURN). --RR */
 
 	/* Clear counters and comefrom */
 	e->counters = ((struct xt_counters) { 0, 0 });
@@ -842,7 +859,7 @@ translate_table(const char *name,
 				newinfo,
 				entry0,
 				entry0 + size,
-				hook_entries, underflows, &i);
+				hook_entries, underflows, valid_hooks, &i);
 	if (ret != 0)
 		return ret;
 

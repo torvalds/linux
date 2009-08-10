@@ -62,7 +62,7 @@ static struct xt_table nat_table = {
 	.name		= "nat",
 	.valid_hooks	= NAT_VALID_HOOKS,
 	.me		= THIS_MODULE,
-	.af		= AF_INET,
+	.af		= NFPROTO_IPV4,
 };
 
 /* Source NAT */
