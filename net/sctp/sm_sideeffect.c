@@ -931,6 +931,27 @@ static void sctp_cmd_t1_timer_update(struct sctp_association *asoc,
 
 }
 
+/* Send the whole message, chunk by chunk, to the outqueue.
+ * This way the whole message is queued up and bundling if
+ * encouraged for small fragments.
+ */
+static int sctp_cmd_send_msg(struct sctp_association *asoc,
+				struct sctp_datamsg *msg)
+{
+	struct sctp_chunk *chunk;
+	int error = 0;
+
+	list_for_each_entry(chunk, &msg->chunks, frag_list) {
+		error = sctp_outq_tail(&asoc->outqueue, chunk);
+		if (error)
+			break;
+	}
+
+	return error;
+}
+
+
+
 /* These three macros allow us to pull the debugging code out of the
  * main flow of sctp_do_sm() to keep attention focused on the real
  * functionality there.
@@ -1575,7 +1596,13 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_UPDATE_INITTAG:
 			asoc->peer.i.init_tag = cmd->obj.u32;
 			break;
-
+		case SCTP_CMD_SEND_MSG:
+			if (!asoc->outqueue.cork) {
+				sctp_outq_cork(&asoc->outqueue);
+				local_cork = 1;
+			}
+			error = sctp_cmd_send_msg(asoc, cmd->obj.msg);
+			break;
 		default:
 			printk(KERN_WARNING "Impossible command: %u, %p\n",
 			       cmd->verb, cmd->obj.ptr);

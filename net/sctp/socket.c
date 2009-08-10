@@ -1814,20 +1814,22 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		sctp_set_owner_w(chunk);
 
 		chunk->transport = chunk_tp;
-
-		/* Send it to the lower layers.  Note:  all chunks
-		 * must either fail or succeed.   The lower layer
-		 * works that way today.  Keep it that way or this
-		 * breaks.
-		 */
-		err = sctp_primitive_SEND(asoc, chunk);
-		/* Did the lower layer accept the chunk? */
-		if (err)
-			sctp_chunk_free(chunk);
-		SCTP_DEBUG_PRINTK("We sent primitively.\n");
 	}
 
-	sctp_datamsg_put(datamsg);
+	/* Send it to the lower layers.  Note:  all chunks
+	 * must either fail or succeed.   The lower layer
+	 * works that way today.  Keep it that way or this
+	 * breaks.
+	 */
+	err = sctp_primitive_SEND(asoc, datamsg);
+	/* Did the lower layer accept the chunk? */
+	if (err)
+		sctp_datamsg_free(datamsg);
+	else
+		sctp_datamsg_put(datamsg);
+
+	SCTP_DEBUG_PRINTK("We sent primitively.\n");
+
 	if (err)
 		goto out_free;
 	else
