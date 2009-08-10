@@ -497,7 +497,7 @@ static void lpphy_sync_stx(struct b43_wldev *dev)
 		tmp >>= e->rf_shift;
 		tmp <<= e->phy_shift;
 		b43_phy_maskset(dev, B43_PHY_OFDM(0xF2 + e->phy_offset),
-				e->mask << e->phy_shift, tmp);
+				~(e->mask << e->phy_shift), tmp);
 	}
 }
 
