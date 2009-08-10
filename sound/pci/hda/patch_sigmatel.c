@@ -3671,7 +3671,7 @@ static int set_mic_route(struct hda_codec *codec,
 		if (i < 0)
 			return -1;
 		mic->mux_idx = i;
-	}  else {
+	}  else if (spec->dmux_nids) {
 		/* digital pin */
 		mic->mux_idx = 0;
 		i = get_connection_index(codec, spec->dmux_nids[0], pin);
@@ -4373,7 +4373,8 @@ static int stac92xx_init(struct hda_codec *codec)
 	}
 	if (spec->auto_mic) {
 		/* initialize connection to analog input */
-		snd_hda_codec_write_cache(codec, spec->dmux_nids[0], 0,
+		if (spec->dmux_nids)
+			snd_hda_codec_write_cache(codec, spec->dmux_nids[0], 0,
 					  AC_VERB_SET_CONNECT_SEL, 0);
 		if (enable_pin_detect(codec, spec->ext_mic.pin, STAC_MIC_EVENT))
 			stac_issue_unsol_event(codec, spec->ext_mic.pin);
