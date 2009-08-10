@@ -648,6 +648,9 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  *		char raw_data[__entry_size]; <- allocate our sample in the stack
  *		struct trace_entry *ent;
  *
+ *		zero dead bytes from alignment to avoid stack leak to userspace:
+ *
+ *		*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;
  *		entry = (struct ftrace_raw_<call> *)raw_data;
  *		ent = &entry->ent;
  *		tracing_generic_entry_update(ent, irq_flags, pc);
@@ -698,6 +701,7 @@ static void ftrace_profile_##call(proto)				\
 		char raw_data[__entry_size];				\
 		struct trace_entry *ent;				\
 									\
+		*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;	\
 		entry = (struct ftrace_raw_##call *)raw_data;		\
 		ent = &entry->ent;					\
 		tracing_generic_entry_update(ent, irq_flags, pc);	\
