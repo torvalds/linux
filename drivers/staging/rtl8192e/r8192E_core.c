@@ -856,25 +856,6 @@ static void rtl8192_proc_init_one(struct net_device *dev)
    -----------------------------MISC STUFF-------------------------
 *****************************************************************************/
 
-/* this is only for debugging */
-static void print_buffer(u32 *buffer, int len)
-{
-	int i;
-	u8 *buf =(u8*)buffer;
-
-	printk("ASCII BUFFER DUMP (len: %x):\n",len);
-
-	for(i=0;i<len;i++)
-		printk("%c",buf[i]);
-
-	printk("\nBINARY BUFFER DUMP (len: %x):\n",len);
-
-	for(i=0;i<len;i++)
-		printk("%x",buf[i]);
-
-	printk("\n");
-}
-
 short check_nic_enough_desc(struct net_device *dev, int prio)
 {
     struct r8192_priv *priv = ieee80211_priv(dev);
@@ -903,32 +884,6 @@ static void tx_timeout(struct net_device *dev)
 	printk("TXTIMEOUT");
 }
 
-
-/* this is only for debug */
-static void dump_eprom(struct net_device *dev)
-{
-	int i;
-	for(i=0; i<0xff; i++)
-		RT_TRACE(COMP_INIT, "EEPROM addr %x : %x", i, eprom_read(dev,i));
-}
-
-/* this is only for debug */
-static void rtl8192_dump_reg(struct net_device *dev)
-{
-	int i;
-	int n;
-	int max=0x5ff;
-
-	RT_TRACE(COMP_INIT, "Dumping NIC register map");
-
-	for(n=0;n<=max;)
-	{
-		printk( "\nD: %2x> ", n);
-		for(i=0;i<16 && n<=max;i++,n++)
-			printk("%2x ",read_nic_byte(dev,n));
-	}
-	printk("\n");
-}
 
 /****************************************************************************
       ------------------------------HW STUFF---------------------------
@@ -1163,27 +1118,6 @@ inline u16 rtl8192_rate2rate(short rate)
 }
 
 
-
-static u32 rtl819xusb_rx_command_packet(struct net_device *dev, struct ieee80211_rx_stats *pstats)
-{
-	u32	status;
-
-	//RT_TRACE(COMP_RECV, DBG_TRACE, ("---> RxCommandPacketHandle819xUsb()\n"));
-
-	RT_TRACE(COMP_EVENTS, "---->rtl819xusb_rx_command_packet()\n");
-	status = cmpk_message_handle_rx(dev, pstats);
-	if (status)
-	{
-		DMESG("rxcommandpackethandle819xusb: It is a command packet\n");
-	}
-	else
-	{
-		//RT_TRACE(COMP_RECV, DBG_TRACE, ("RxCommandPacketHandle819xUsb: It is not a command packet\n"));
-	}
-
-	//RT_TRACE(COMP_RECV, DBG_TRACE, ("<--- RxCommandPacketHandle819xUsb()\n"));
-	return status;
-}
 
 #if 0
 void rtl8192_tx_queues_stop(struct net_device *dev)
@@ -1481,141 +1415,6 @@ static void rtl8192_net_update(struct net_device *dev)
 	}
 
 
-}
-
-inline u8 rtl8192_IsWirelessBMode(u16 rate)
-{
-	if( ((rate <= 110) && (rate != 60) && (rate != 90)) || (rate == 220) )
-		return 1;
-	else return 0;
-}
-
-u16 N_DBPSOfRate(u16 DataRate);
-
-static u16 ComputeTxTime(
-	u16		FrameLength,
-	u16		DataRate,
-	u8		bManagementFrame,
-	u8		bShortPreamble
-)
-{
-	u16	FrameTime;
-	u16	N_DBPS;
-	u16	Ceiling;
-
-	if( rtl8192_IsWirelessBMode(DataRate) )
-	{
-		if( bManagementFrame || !bShortPreamble || DataRate == 10 )
-		{	// long preamble
-			FrameTime = (u16)(144+48+(FrameLength*8/(DataRate/10)));
-		}
-		else
-		{	// Short preamble
-			FrameTime = (u16)(72+24+(FrameLength*8/(DataRate/10)));
-		}
-		if( ( FrameLength*8 % (DataRate/10) ) != 0 ) //Get the Ceilling
-				FrameTime ++;
-	} else {	//802.11g DSSS-OFDM PLCP length field calculation.
-		N_DBPS = N_DBPSOfRate(DataRate);
-		Ceiling = (16 + 8*FrameLength + 6) / N_DBPS
-				+ (((16 + 8*FrameLength + 6) % N_DBPS) ? 1 : 0);
-		FrameTime = (u16)(16 + 4 + 4*Ceiling + 6);
-	}
-	return FrameTime;
-}
-
-u16 N_DBPSOfRate(u16 DataRate)
-{
-	 u16 N_DBPS = 24;
-
-	 switch(DataRate)
-	 {
-	 case 60:
-	  N_DBPS = 24;
-	  break;
-
-	 case 90:
-	  N_DBPS = 36;
-	  break;
-
-	 case 120:
-	  N_DBPS = 48;
-	  break;
-
-	 case 180:
-	  N_DBPS = 72;
-	  break;
-
-	 case 240:
-	  N_DBPS = 96;
-	  break;
-
-	 case 360:
-	  N_DBPS = 144;
-	  break;
-
-	 case 480:
-	  N_DBPS = 192;
-	  break;
-
-	 case 540:
-	  N_DBPS = 216;
-	  break;
-
-	 default:
-	  break;
-	 }
-
-	 return N_DBPS;
-}
-
-static unsigned int txqueue2outpipe(unsigned int tx_queue)
-{
-	unsigned int outpipe = 0x04;
-
-	switch (tx_queue) {
-		case VO_QUEUE://EP4
-		   outpipe = 0x04;
-		break;
-
-		case VI_QUEUE://EP5
-		   outpipe = 0x05;
-		break;
-
-		case BE_QUEUE://EP6
-		   outpipe = 0x06;
-		break;
-
-		case BK_QUEUE://EP7
-		   outpipe = 0x07;
-		break;
-
-		case HCCA_QUEUE://EP8
-		   outpipe = 0x08;
-		break;
-
-		case BEACON_QUEUE://EPA
-		   outpipe = 0x0A;
-		break;
-
-		case HIGH_QUEUE://EPB
-		   outpipe = 0x0B;
-		break;
-
-		case MGNT_QUEUE://EPC
-		   outpipe = 0x0C;
-		break;
-
-		case TXCMD_QUEUE://EPD
-		   outpipe = 0x0D;
-		break;
-
-		default:
-		  printk("Unknow queue index!\n");
-		break;
-	}
-
-	return outpipe;
 }
 
 void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb)
@@ -3528,10 +3327,6 @@ static short rtl8192_init(struct net_device *dev)
 
 	//rtl8192_rx_enable(dev);
 	//rtl8192_adapter_start(dev);
-//#ifdef DEBUG_EPROM
-//	dump_eprom(dev);
-//#endif
-	//rtl8192_dump_reg(dev);
 	return 0;
 }
 
@@ -3707,7 +3502,6 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	//3//
 	//3// Initialize BB before MAC
 	//3//
-	//rtl8192_dump_reg(dev);
 	RT_TRACE(COMP_INIT, "BB Config Start!\n");
 	rtStatus = rtl8192_BBConfig(dev);
 	if(rtStatus != RT_STATUS_SUCCESS)
@@ -3717,8 +3511,6 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 	}
 	RT_TRACE(COMP_INIT,"BB Config Finished!\n");
 
-	//rtl8192_dump_reg(dev);
-	//
 	//3//Set Loopback mode or Normal mode
 	//3//
 	//2006.12.13 by emily. Note!We should not merge these two CPU_GEN register writings
@@ -4790,46 +4582,6 @@ IPSLeave(struct net_device *dev)
 	}
 }
 #endif
-static void CAM_read_entry(
-	struct net_device *dev,
-	u32	 		iIndex
-)
-{
- 	u32 target_command=0;
-	 u32 target_content=0;
-	 u8 entry_i=0;
-	 u32 ulStatus;
-	s32 i=100;
-//	printk("=======>start read CAM\n");
- 	for(entry_i=0;entry_i<CAM_CONTENT_COUNT;entry_i++)
- 	{
-   	// polling bit, and No Write enable, and address
-		target_command= entry_i+CAM_CONTENT_COUNT*iIndex;
-		target_command= target_command | BIT31;
-
-	//Check polling bit is clear
-//	mdelay(1);
-#if 1
-		while((i--)>=0)
-		{
-			ulStatus = read_nic_dword(dev, RWCAM);
-			if(ulStatus & BIT31){
-				continue;
-			}
-			else{
-				break;
-			}
-		}
-#endif
-  		write_nic_dword(dev, RWCAM, target_command);
-   	 	RT_TRACE(COMP_SEC,"CAM_read_entry(): WRITE A0: %x \n",target_command);
-   	 //	printk("CAM_read_entry(): WRITE A0: %lx \n",target_command);
-  	 	target_content = read_nic_dword(dev, RCAMO);
-  	 	RT_TRACE(COMP_SEC, "CAM_read_entry(): WRITE A8: %x \n",target_content);
-  	 //	printk("CAM_read_entry(): WRITE A8: %lx \n",target_content);
- 	}
-	printk("\n");
-}
 
 static void rtl819x_update_rxcounts(
 	struct r8192_priv *priv,
@@ -4932,7 +4684,6 @@ extern	void	rtl819x_watchdog_wqcallback(struct net_device *dev)
               ieee->LinkDetectInfo.NumRecvDataInPeriod=0;
 
 	}
-//	CAM_read_entry(dev,0);
 	//check if reset the driver
 	spin_lock_irqsave(&priv->tx_lock,flags);
 	if(check_reset_cnt++ >= 3 && !ieee->is_roaming && (last_time != 1))
@@ -7155,7 +6906,6 @@ void setKey(	struct net_device *dev,
 	}
 	}
 	RT_TRACE(COMP_SEC,"=========>after set key, usconfig:%x\n", usConfig);
-//	CAM_read_entry(dev, 0);
 }
 // This function seems not ready! WB
 void CamPrintDbgReg(struct net_device* dev)
