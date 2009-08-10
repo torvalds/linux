@@ -2446,27 +2446,29 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	ret = ath5k_stop_locked(sc);
 	if (ret == 0 && !test_bit(ATH_STAT_INVALID, sc->status)) {
 		/*
-		 * Set the chip in full sleep mode.  Note that we are
-		 * careful to do this only when bringing the interface
-		 * completely to a stop.  When the chip is in this state
-		 * it must be carefully woken up or references to
-		 * registers in the PCI clock domain may freeze the bus
-		 * (and system).  This varies by chip and is mostly an
-		 * issue with newer parts that go to sleep more quickly.
-		 */
-		if (sc->ah->ah_mac_srev >= 0x78) {
-			/*
-			 * XXX
-			 * don't put newer MAC revisions > 7.8 to sleep because
-			 * of the above mentioned problems
-			 */
-			ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "mac version > 7.8, "
-				"not putting device to sleep\n");
-		} else {
-			ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
-				"putting device to full sleep\n");
-			ath5k_hw_set_power(sc->ah, AR5K_PM_FULL_SLEEP, true, 0);
-		}
+		 * Don't set the card in full sleep mode!
+		 *
+		 * a) When the device is in this state it must be carefully
+		 * woken up or references to registers in the PCI clock
+		 * domain may freeze the bus (and system).  This varies
+		 * by chip and is mostly an issue with newer parts
+		 * (madwifi sources mentioned srev >= 0x78) that go to
+		 * sleep more quickly.
+		 *
+		 * b) On older chips full sleep results a weird behaviour
+		 * during wakeup. I tested various cards with srev < 0x78
+		 * and they don't wake up after module reload, a second
+		 * module reload is needed to bring the card up again.
+		 *
+		 * Until we figure out what's going on don't enable
+		 * full chip reset on any chip (this is what Legacy HAL
+		 * and Sam's HAL do anyway). Instead Perform a full reset
+		 * on the device (same as initial state after attach) and
+		 * leave it idle (keep MAC/BB on warm reset) */
+		ret = ath5k_hw_on_hold(sc->ah);
+
+		ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+				"putting device to sleep\n");
 	}
 	ath5k_txbuf_free(sc, sc->bbuf);
 

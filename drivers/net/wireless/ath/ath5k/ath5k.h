@@ -1157,6 +1157,7 @@ extern void ath5k_unregister_leds(struct ath5k_softc *sc);
 
 /* Reset Functions */
 extern int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
+extern int ath5k_hw_on_hold(struct ath5k_hw *ah);
 extern int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode, struct ieee80211_channel *channel, bool change_channel);
 /* Power management functions */
 extern int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode, bool set_chip, u16 sleep_duration);

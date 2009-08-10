@@ -145,7 +145,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		goto err_free;
 
 	/* Bring device out of sleep and reset it's units */
-	ret = ath5k_hw_nic_wakeup(ah, CHANNEL_B, true);
+	ret = ath5k_hw_nic_wakeup(ah, 0, true);
 	if (ret)
 		goto err_free;
 
