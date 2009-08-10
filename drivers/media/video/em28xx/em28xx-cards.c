@@ -218,7 +218,7 @@ static struct em28xx_reg_seq silvercrest_reg_seq[] = {
 struct em28xx_board em28xx_boards[] = {
 	[EM2750_BOARD_UNKNOWN] = {
 		.name          = "EM2710/EM2750/EM2751 webcam grabber",
-		.xclk          = EM28XX_XCLK_FREQUENCY_48MHZ,
+		.xclk          = EM28XX_XCLK_FREQUENCY_20MHZ,
 		.tuner_type    = TUNER_ABSENT,
 		.is_webcam     = 1,
 		.input         = { {
@@ -1768,6 +1768,7 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 	__be16 version_be;
 	u16 version;
 
+	/* Micron sensor detection */
 	dev->i2c_client.addr = 0xba >> 1;
 	cmd = 0;
 	i2c_master_send(&dev->i2c_client, &cmd, 1);
@@ -1776,16 +1777,27 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		return -EINVAL;
 
 	version = be16_to_cpu(version_be);
-
 	switch (version) {
 	case 0x8232:		/* mt9v011 640x480 1.3 Mpix sensor */
 	case 0x8243:		/* mt9v011 rev B 640x480 1.3 Mpix sensor */
 		dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
+		em28xx_set_model(dev);
+
 		sensor_name = "mt9v011";
 		dev->em28xx_sensor = EM28XX_MT9V011;
 		dev->sensor_xres = 640;
 		dev->sensor_yres = 480;
-		dev->sensor_xtal = 12150000;
+		/*
+		 * FIXME: mt9v011 uses I2S speed as xtal clk - at least with
+		 * the Silvercrest cam I have here for testing - for higher
+		 * resolutions, a high clock cause horizontal artifacts, so we
+		 * need to use a lower xclk frequency.
+		 * Yet, it would be possible to adjust xclk depending on the
+		 * desired resolution, since this affects directly the
+		 * frame rate.
+		 */
+		dev->board.xclk = EM28XX_XCLK_FREQUENCY_4_3MHZ;
+		dev->sensor_xtal = 4300000;
 
 		/* probably means GRGB 16 bit bayer */
 		dev->vinmode = 0x0d;
@@ -1794,6 +1806,8 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		break;
 	case 0x8431:
 		dev->model = EM2750_BOARD_UNKNOWN;
+		em28xx_set_model(dev);
+
 		sensor_name = "mt9m001";
 		dev->em28xx_sensor = EM28XX_MT9M001;
 		em28xx_initialize_mt9m001(dev);
@@ -1809,6 +1823,9 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 		printk("Unknown Micron Sensor 0x%04x\n", be16_to_cpu(version));
 		return -EINVAL;
 	}
+
+	/* Setup webcam defaults */
+	em28xx_pre_card_setup(dev);
 
 	em28xx_errdev("Sensor is %s, using model %s entry.\n",
 		      sensor_name, em28xx_boards[dev->model].name);
@@ -2169,7 +2186,20 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 
 void em28xx_card_setup(struct em28xx *dev)
 {
-	em28xx_set_model(dev);
+	/*
+	 * If the device can be a webcam, seek for a sensor.
+	 * If sensor is not found, then it isn't a webcam.
+	 */
+	if (dev->board.is_webcam) {
+		if (em28xx_hint_sensor(dev) < 0)
+			dev->board.is_webcam = 0;
+		else
+			dev->progressive = 1;
+	} else
+		em28xx_set_model(dev);
+
+	em28xx_info("Identified as %s (card=%d)\n",
+		    dev->board.name, dev->model);
 
 	dev->tuner_type = em28xx_boards[dev->model].tuner_type;
 	if (em28xx_boards[dev->model].tuner_addr)
@@ -2488,18 +2518,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	 */
 	dev->vinmode = 0x10;
 	dev->vinctl  = 0x11;
-
-	/*
-	 * If the device can be a webcam, seek for a sensor.
-	 * If sensor is not found, then it isn't a webcam.
-	 */
-	if (dev->board.is_webcam)
-		if (em28xx_hint_sensor(dev) < 0)
-			dev->board.is_webcam = 0;
-
-	/* It makes no sense to use de-interlacing mode on webcams */
-	if (dev->board.is_webcam)
-		dev->progressive = 1;
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
