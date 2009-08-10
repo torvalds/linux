@@ -40,9 +40,6 @@ struct wm8731_priv {
 	unsigned int sysclk;
 };
 
-#ifdef CONFIG_SPI_MASTER
-static int wm8731_spi_write(struct spi_device *spi, const char *data, int len);
-#endif
 
 /*
  * wm8731 register cache
