@@ -61,7 +61,7 @@ enum mesh_path_flags {
  * 	retry
  * @discovery_retries: number of discovery retries
  * @flags: mesh path flags, as specified on &enum mesh_path_flags
- * @state_lock: mesh pat state lock
+ * @state_lock: mesh path state lock
  *
  *
  * The combination of dst and sdata is unique in the mesh path table. Since the

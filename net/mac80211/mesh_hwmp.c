@@ -810,10 +810,8 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 		}
 
 		if (skb_queue_len(&mpath->frame_queue) >=
-				MESH_FRAME_QUEUE_LEN) {
-			skb_to_free = mpath->frame_queue.next;
-			skb_unlink(skb_to_free, &mpath->frame_queue);
-		}
+				MESH_FRAME_QUEUE_LEN)
+			skb_to_free = skb_dequeue(&mpath->frame_queue);
 
 		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 		skb_queue_tail(&mpath->frame_queue, skb);
