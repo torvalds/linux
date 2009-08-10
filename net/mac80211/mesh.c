@@ -525,9 +525,11 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 
 	ifmsh->housekeeping = true;
-	ieee80211_queue_work(&local->hw, &ifmsh->work);
+	queue_work(local->hw, &ifmsh->work);
+	sdata->vif.bss_conf.beacon_int = MESH_DEFAULT_BEACON_INTERVAL;
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
-						BSS_CHANGED_BEACON_ENABLED);
+						BSS_CHANGED_BEACON_ENABLED |
+						BSS_CHANGED_BEACON_INT);
 }
 
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
