@@ -338,7 +338,7 @@ int vme_slave_get (struct vme_resource *resource, int *enabled,
 
 	image = list_entry(resource->entry, struct vme_slave_resource, list);
 
-	if (bridge->slave_set == NULL) {
+	if (bridge->slave_get == NULL) {
 		printk("vme_slave_get not supported\n");
 		return -EINVAL;
 	}
@@ -499,7 +499,7 @@ int vme_master_get (struct vme_resource *resource, int *enabled,
 
 	image = list_entry(resource->entry, struct vme_master_resource, list);
 
-	if (bridge->master_set == NULL) {
+	if (bridge->master_get == NULL) {
 		printk("vme_master_set not supported\n");
 		return -EINVAL;
 	}
