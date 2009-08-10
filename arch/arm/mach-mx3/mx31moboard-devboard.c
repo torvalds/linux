@@ -16,7 +16,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/fsl_devices.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -40,18 +39,6 @@ static unsigned int devboard_pins[] = {
 	MX31_PIN_PC_READY__SD2_DATA1, MX31_PIN_PC_WAIT_B__SD2_DATA0,
 	MX31_PIN_PC_CD2_B__SD2_CLK, MX31_PIN_PC_CD1_B__SD2_CMD,
 	MX31_PIN_ATA_DIOR__GPIO3_28, MX31_PIN_ATA_DIOW__GPIO3_29,
-	/* USB OTG */
-	MX31_PIN_USBOTG_DATA0__USBOTG_DATA0,
-	MX31_PIN_USBOTG_DATA1__USBOTG_DATA1,
-	MX31_PIN_USBOTG_DATA2__USBOTG_DATA2,
-	MX31_PIN_USBOTG_DATA3__USBOTG_DATA3,
-	MX31_PIN_USBOTG_DATA4__USBOTG_DATA4,
-	MX31_PIN_USBOTG_DATA5__USBOTG_DATA5,
-	MX31_PIN_USBOTG_DATA6__USBOTG_DATA6,
-	MX31_PIN_USBOTG_DATA7__USBOTG_DATA7,
-	MX31_PIN_USBOTG_CLK__USBOTG_CLK, MX31_PIN_USBOTG_DIR__USBOTG_DIR,
-	MX31_PIN_USBOTG_NXT__USBOTG_NXT, MX31_PIN_USBOTG_STP__USBOTG_STP,
-	MX31_PIN_USB_OC__GPIO1_30,
 };
 
 static struct imxuart_platform_data uart_pdata = {
@@ -111,35 +98,6 @@ static struct imxmmc_platform_data sdhc2_pdata = {
 	.exit	= devboard_sdhc2_exit,
 };
 
-static struct fsl_usb2_platform_data usb_pdata = {
-	.operating_mode	= FSL_USB2_DR_DEVICE,
-	.phy_mode	= FSL_USB2_PHY_ULPI,
-};
-
-#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
-			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
-
-#define OTG_EN_B 	IOMUX_TO_GPIO(MX31_PIN_USB_OC)
-
-static void devboard_usbotg_init(void)
-{
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, USB_PAD_CFG);
-
-	gpio_request(OTG_EN_B, "usb-udc-en");
-	gpio_direction_output(OTG_EN_B, 0);
-}
-
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
  */
@@ -153,7 +111,4 @@ void __init mx31moboard_devboard_init(void)
 	mxc_register_device(&mxc_uart_device1, &uart_pdata);
 
 	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
-
-	devboard_usbotg_init();
-	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
 }

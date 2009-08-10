@@ -17,6 +17,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/fsl_devices.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -59,6 +60,18 @@ static unsigned int moboard_pins[] = {
 	MX31_PIN_ATA_CS0__GPIO3_26, MX31_PIN_ATA_CS1__GPIO3_27,
 	/* USB reset */
 	MX31_PIN_GPIO1_0__GPIO1_0,
+	/* USB OTG */
+	MX31_PIN_USBOTG_DATA0__USBOTG_DATA0,
+	MX31_PIN_USBOTG_DATA1__USBOTG_DATA1,
+	MX31_PIN_USBOTG_DATA2__USBOTG_DATA2,
+	MX31_PIN_USBOTG_DATA3__USBOTG_DATA3,
+	MX31_PIN_USBOTG_DATA4__USBOTG_DATA4,
+	MX31_PIN_USBOTG_DATA5__USBOTG_DATA5,
+	MX31_PIN_USBOTG_DATA6__USBOTG_DATA6,
+	MX31_PIN_USBOTG_DATA7__USBOTG_DATA7,
+	MX31_PIN_USBOTG_CLK__USBOTG_CLK, MX31_PIN_USBOTG_DIR__USBOTG_DIR,
+	MX31_PIN_USBOTG_NXT__USBOTG_NXT, MX31_PIN_USBOTG_STP__USBOTG_STP,
+	MX31_PIN_USB_OC__GPIO1_30,
 };
 
 static struct physmap_flash_data mx31moboard_flash_data = {
@@ -159,6 +172,35 @@ static void usb_xcvr_reset(void)
 	gpio_set_value(USB_RESET_B, 1);
 }
 
+#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
+			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
+
+#define OTG_EN_B IOMUX_TO_GPIO(MX31_PIN_USB_OC)
+
+static void moboard_usbotg_init(void)
+{
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, USB_PAD_CFG);
+
+	gpio_request(OTG_EN_B, "usb-udc-en");
+	gpio_direction_output(OTG_EN_B, 0);
+}
+
+static struct fsl_usb2_platform_data usb_pdata = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
@@ -185,6 +227,9 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxcsdhc_device0, &sdhc1_pdata);
 
 	usb_xcvr_reset();
+
+	moboard_usbotg_init();
+	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
 
 	switch (mx31moboard_baseboard) {
 	case MX31NOBOARD:
