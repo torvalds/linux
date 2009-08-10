@@ -40,6 +40,7 @@
 #include <mach/mcspi.h>
 #include <mach/usb.h>
 #include <mach/keypad.h>
+#include <mach/mux.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
@@ -310,7 +311,8 @@ static int __init omap3pandora_i2c_init(void)
 
 static void __init omap3pandora_init_irq(void)
 {
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params);
+	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+			     mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
 	omap_gpio_init();
 }
@@ -397,6 +399,10 @@ static void __init omap3pandora_init(void)
 	omap3pandora_ads7846_init();
 	pandora_keys_gpio_init();
 	usb_musb_init();
+
+	/* Ensure SDRC pins are mux'd for self-refresh */
+	omap_cfg_reg(H16_34XX_SDRC_CKE0);
+	omap_cfg_reg(H17_34XX_SDRC_CKE1);
 }
 
 static void __init omap3pandora_map_io(void)
