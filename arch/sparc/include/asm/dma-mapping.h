@@ -3,6 +3,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/mm.h>
+#include <linux/dma-debug.h>
 
 #define DMA_ERROR_CODE	(~(dma_addr_t)0x0)
 
@@ -13,112 +14,30 @@ extern int dma_set_mask(struct device *dev, u64 dma_mask);
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 #define dma_is_consistent(d, h)	(1)
 
-extern const struct dma_map_ops *dma_ops;
+extern struct dma_map_ops *dma_ops;
+
+static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+{
+	return dma_ops;
+}
+
+#include <asm-generic/dma-mapping-common.h>
 
 static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *dma_handle, gfp_t flag)
 {
-	return dma_ops->alloc_coherent(dev, size, dma_handle, flag);
+	struct dma_map_ops *ops = get_dma_ops(dev);
+
+	return ops->alloc_coherent(dev, size, dma_handle, flag);
 }
 
 static inline void dma_free_coherent(struct device *dev, size_t size,
 				     void *cpu_addr, dma_addr_t dma_handle)
 {
-	dma_ops->free_coherent(dev, size, cpu_addr, dma_handle);
-}
+	struct dma_map_ops *ops = get_dma_ops(dev);
 
-static inline dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
-					size_t size,
-					enum dma_data_direction direction)
-{
-	return dma_ops->map_page(dev, virt_to_page(cpu_addr),
-				 (unsigned long)cpu_addr & ~PAGE_MASK, size,
-				 direction, NULL);
+	ops->free_coherent(dev, size, cpu_addr, dma_handle);
 }
-
-static inline void dma_unmap_single(struct device *dev, dma_addr_t dma_addr,
-				    size_t size,
-				    enum dma_data_direction direction)
-{
-	dma_ops->unmap_page(dev, dma_addr, size, direction, NULL);
-}
-
-static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
-				      unsigned long offset, size_t size,
-				      enum dma_data_direction direction)
-{
-	return dma_ops->map_page(dev, page, offset, size, direction, NULL);
-}
-
-static inline void dma_unmap_page(struct device *dev, dma_addr_t dma_address,
-				  size_t size,
-				  enum dma_data_direction direction)
-{
-	dma_ops->unmap_page(dev, dma_address, size, direction, NULL);
-}
-
-static inline int dma_map_sg(struct device *dev, struct scatterlist *sg,
-			     int nents, enum dma_data_direction direction)
-{
-	return dma_ops->map_sg(dev, sg, nents, direction, NULL);
-}
-
-static inline void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
-				int nents, enum dma_data_direction direction)
-{
-	dma_ops->unmap_sg(dev, sg, nents, direction, NULL);
-}
-
-static inline void dma_sync_single_for_cpu(struct device *dev,
-					   dma_addr_t dma_handle, size_t size,
-					   enum dma_data_direction direction)
-{
-	dma_ops->sync_single_for_cpu(dev, dma_handle, size, direction);
-}
-
-static inline void dma_sync_single_for_device(struct device *dev,
-					      dma_addr_t dma_handle,
-					      size_t size,
-					      enum dma_data_direction direction)
-{
-	if (dma_ops->sync_single_for_device)
-		dma_ops->sync_single_for_device(dev, dma_handle, size,
-						direction);
-}
-
-static inline void dma_sync_sg_for_cpu(struct device *dev,
-				       struct scatterlist *sg, int nelems,
-				       enum dma_data_direction direction)
-{
-	dma_ops->sync_sg_for_cpu(dev, sg, nelems, direction);
-}
-
-static inline void dma_sync_sg_for_device(struct device *dev,
-					  struct scatterlist *sg, int nelems,
-					  enum dma_data_direction direction)
-{
-	if (dma_ops->sync_sg_for_device)
-		dma_ops->sync_sg_for_device(dev, sg, nelems, direction);
-}
-
-static inline void dma_sync_single_range_for_cpu(struct device *dev,
-						 dma_addr_t dma_handle,
-						 unsigned long offset,
-						 size_t size,
-						 enum dma_data_direction dir)
-{
-	dma_sync_single_for_cpu(dev, dma_handle+offset, size, dir);
-}
-
-static inline void dma_sync_single_range_for_device(struct device *dev,
-						    dma_addr_t dma_handle,
-						    unsigned long offset,
-						    size_t size,
-						    enum dma_data_direction dir)
-{
-	dma_sync_single_for_device(dev, dma_handle+offset, size, dir);
-}
-
 
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {

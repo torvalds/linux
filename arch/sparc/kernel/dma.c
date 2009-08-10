@@ -165,7 +165,7 @@ static void dma32_sync_sg_for_device(struct device *dev,
 	BUG();
 }
 
-static const struct dma_map_ops dma32_dma_ops = {
+static struct dma_map_ops dma32_dma_ops = {
 	.alloc_coherent		= dma32_alloc_coherent,
 	.free_coherent		= dma32_free_coherent,
 	.map_page		= dma32_map_page,
@@ -178,5 +178,5 @@ static const struct dma_map_ops dma32_dma_ops = {
 	.sync_sg_for_device	= dma32_sync_sg_for_device,
 };
 
-const struct dma_map_ops *dma_ops = &dma32_dma_ops;
+struct dma_map_ops *dma_ops = &dma32_dma_ops;
 EXPORT_SYMBOL(dma_ops);
