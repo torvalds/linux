@@ -1187,17 +1187,8 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	error_code = svm->vmcb->control.exit_info_1;
 
 	trace_kvm_page_fault(fault_address, error_code);
-	/*
-	 * FIXME: Tis shouldn't be necessary here, but there is a flush
-	 * missing in the MMU code. Until we find this bug, flush the
-	 * complete TLB here on an NPF
-	 */
-	if (npt_enabled)
-		svm_flush_tlb(&svm->vcpu);
-	else {
-		if (kvm_event_needs_reinjection(&svm->vcpu))
-			kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
-	}
+	if (!npt_enabled && kvm_event_needs_reinjection(&svm->vcpu))
+		kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
 	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
 }
 
