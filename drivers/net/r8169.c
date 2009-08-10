@@ -2180,7 +2180,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 
 	if (netif_msg_probe(tp)) {
-		u32 xid = RTL_R32(TxConfig) & 0x7cf0f8ff;
+		u32 xid = RTL_R32(TxConfig) & 0x9cf0f8ff;
 
 		printk(KERN_INFO "%s: %s at 0x%lx, "
 		       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x, "
