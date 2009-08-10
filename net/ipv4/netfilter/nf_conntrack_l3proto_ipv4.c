@@ -256,11 +256,11 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	tuple.dst.u3.ip = inet->daddr;
 	tuple.dst.u.tcp.port = inet->dport;
 	tuple.src.l3num = PF_INET;
-	tuple.dst.protonum = IPPROTO_TCP;
+	tuple.dst.protonum = sk->sk_protocol;
 
-	/* We only do TCP at the moment: is there a better way? */
-	if (strcmp(sk->sk_prot->name, "TCP")) {
-		pr_debug("SO_ORIGINAL_DST: Not a TCP socket\n");
+	/* We only do TCP and SCTP at the moment: is there a better way? */
+	if (sk->sk_protocol != IPPROTO_TCP && sk->sk_protocol != IPPROTO_SCTP) {
+		pr_debug("SO_ORIGINAL_DST: Not a TCP/SCTP socket\n");
 		return -ENOPROTOOPT;
 	}
 
