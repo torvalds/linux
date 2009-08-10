@@ -740,13 +740,22 @@ int ath5k_hw_rfregs_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 						AR5K_RF_XPD_GAIN, true);
 
 		} else {
-			/* TODO: Set high and low gain bits */
-			ath5k_hw_rfb_op(ah, rf_regs,
-						ee->ee_x_gain[ee_mode],
+			u8 *pdg_curve_to_idx = ee->ee_pdc_to_idx[ee_mode];
+			if (ee->ee_pd_gains[ee_mode] > 1) {
+				ath5k_hw_rfb_op(ah, rf_regs,
+						pdg_curve_to_idx[0],
 						AR5K_RF_PD_GAIN_LO, true);
-			ath5k_hw_rfb_op(ah, rf_regs,
-						ee->ee_x_gain[ee_mode],
+				ath5k_hw_rfb_op(ah, rf_regs,
+						pdg_curve_to_idx[1],
 						AR5K_RF_PD_GAIN_HI, true);
+			} else {
+				ath5k_hw_rfb_op(ah, rf_regs,
+						pdg_curve_to_idx[0],
+						AR5K_RF_PD_GAIN_LO, true);
+				ath5k_hw_rfb_op(ah, rf_regs,
+						pdg_curve_to_idx[0],
+						AR5K_RF_PD_GAIN_HI, true);
+			}
 
 			/* Lower synth voltage on Rev 2 */
 			ath5k_hw_rfb_op(ah, rf_regs, 2,
@@ -1896,8 +1905,9 @@ ath5k_get_linear_pcdac_min(const u8 *stepL, const u8 *stepR,
 	s16 min_pwrL, min_pwrR;
 	s16 pwr_i;
 
-	if (WARN_ON(stepL[0] == stepL[1] || stepR[0] == stepR[1]))
-		return 0;
+	/* Some vendors write the same pcdac value twice !!! */
+	if (stepL[0] == stepL[1] || stepR[0] == stepR[1])
+		return max(pwrL[0], pwrR[0]);
 
 	if (pwrL[0] == pwrL[1])
 		min_pwrL = pwrL[0];
