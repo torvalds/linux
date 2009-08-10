@@ -59,16 +59,18 @@ static void omap_pcm_dma_irq(int ch, u16 stat, void *data)
 	struct omap_runtime_data *prtd = runtime->private_data;
 	unsigned long flags;
 
-	if (cpu_is_omap1510()) {
+	if ((cpu_is_omap1510()) &&
+			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)) {
 		/*
-		 * OMAP1510 doesn't support DMA chaining so have to restart
-		 * the transfer after all periods are transferred
+		 * OMAP1510 doesn't fully support DMA progress counter
+		 * and there is no software emulation implemented yet,
+		 * so have to maintain our own playback progress counter
+		 * that can be used by omap_pcm_pointer() instead.
 		 */
 		spin_lock_irqsave(&prtd->lock, flags);
 		if (prtd->period_index >= 0) {
 			if (++prtd->period_index == runtime->periods) {
 				prtd->period_index = 0;
-				omap_start_dma(prtd->dma_ch);
 			}
 		}
 		spin_unlock_irqrestore(&prtd->lock, flags);
@@ -100,7 +102,7 @@ static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
 	prtd->dma_data = dma_data;
 	err = omap_request_dma(dma_data->dma_req, dma_data->name,
 			       omap_pcm_dma_irq, substream, &prtd->dma_ch);
-	if (!err && !cpu_is_omap1510()) {
+	if (!err) {
 		/*
 		 * Link channel with itself so DMA doesn't need any
 		 * reprogramming while looping the buffer
@@ -119,8 +121,7 @@ static int omap_pcm_hw_free(struct snd_pcm_substream *substream)
 	if (prtd->dma_data == NULL)
 		return 0;
 
-	if (!cpu_is_omap1510())
-		omap_dma_unlink_lch(prtd->dma_ch, prtd->dma_ch);
+	omap_dma_unlink_lch(prtd->dma_ch, prtd->dma_ch);
 	omap_free_dma(prtd->dma_ch);
 	prtd->dma_data = NULL;
 
