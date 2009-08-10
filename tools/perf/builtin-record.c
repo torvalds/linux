@@ -525,10 +525,14 @@ static int __cmd_record(int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 
-	if (!stat(output_name, &st) && !force && !append_file) {
-		fprintf(stderr, "Error, output file %s exists, use -A to append or -f to overwrite.\n",
-				output_name);
-		exit(-1);
+	if (!stat(output_name, &st) && st.st_size) {
+		if (!force && !append_file) {
+			fprintf(stderr, "Error, output file %s exists, use -A to append or -f to overwrite.\n",
+					output_name);
+			exit(-1);
+		}
+	} else {
+		append_file = 0;
 	}
 
 	flags = O_CREAT|O_RDWR;

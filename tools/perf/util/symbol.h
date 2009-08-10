@@ -26,6 +26,7 @@ struct dso {
 	unsigned int	 sym_priv_size;
 	unsigned char	 adjust_symbols;
 	unsigned char	 slen_calculated;
+	unsigned char	 origin;
 	char		 name[0];
 };
 
@@ -49,6 +50,7 @@ int dso__load_modules(struct dso *self, symbol_filter_t filter, int verbose);
 int dso__load(struct dso *self, symbol_filter_t filter, int verbose);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);
+char dso__symtab_origin(const struct dso *self);
 
 void symbol__init(void);
 #endif /* _PERF_SYMBOL_ */
