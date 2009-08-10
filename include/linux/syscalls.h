@@ -64,6 +64,7 @@ struct perf_counter_attr;
 #include <linux/sem.h>
 #include <asm/siginfo.h>
 #include <asm/signal.h>
+#include <linux/unistd.h>
 #include <linux/quota.h>
 #include <linux/key.h>
 #include <trace/syscall.h>
@@ -112,6 +113,59 @@ struct perf_counter_attr;
 #define __SC_STR_TDECL5(t, a, ...)	#t, __SC_STR_TDECL4(__VA_ARGS__)
 #define __SC_STR_TDECL6(t, a, ...)	#t, __SC_STR_TDECL5(__VA_ARGS__)
 
+
+#define SYSCALL_TRACE_ENTER_EVENT(sname)				\
+	static struct ftrace_event_call event_enter_##sname;		\
+	static int init_enter_##sname(void)				\
+	{								\
+		int num;						\
+		num = syscall_name_to_nr("sys"#sname);			\
+		if (num < 0)						\
+			return -ENOSYS;					\
+		register_ftrace_event(&event_syscall_enter);		\
+		INIT_LIST_HEAD(&event_enter_##sname.fields);		\
+		init_preds(&event_enter_##sname);			\
+		return 0;						\
+	}								\
+	static struct ftrace_event_call __used				\
+	  __attribute__((__aligned__(4)))				\
+	  __attribute__((section("_ftrace_events")))			\
+	  event_enter_##sname = {					\
+		.name                   = "sys_enter"#sname,		\
+		.system                 = "syscalls",			\
+		.event                  = &event_syscall_enter,		\
+		.raw_init		= init_enter_##sname,		\
+		.regfunc		= reg_event_syscall_enter,	\
+		.unregfunc		= unreg_event_syscall_enter,	\
+		.data			= "sys"#sname,			\
+	}
+
+#define SYSCALL_TRACE_EXIT_EVENT(sname)					\
+	static struct ftrace_event_call event_exit_##sname;		\
+	static int init_exit_##sname(void)				\
+	{								\
+		int num;						\
+		num = syscall_name_to_nr("sys"#sname);			\
+		if (num < 0)						\
+			return -ENOSYS;					\
+		register_ftrace_event(&event_syscall_exit);		\
+		INIT_LIST_HEAD(&event_exit_##sname.fields);		\
+		init_preds(&event_exit_##sname);			\
+		return 0;						\
+	}								\
+	static struct ftrace_event_call __used				\
+	  __attribute__((__aligned__(4)))				\
+	  __attribute__((section("_ftrace_events")))			\
+	  event_exit_##sname = {					\
+		.name                   = "sys_exit"#sname,		\
+		.system                 = "syscalls",			\
+		.event                  = &event_syscall_exit,		\
+		.raw_init		= init_exit_##sname,		\
+		.regfunc		= reg_event_syscall_exit,	\
+		.unregfunc		= unreg_event_syscall_exit,	\
+		.data			= "sys"#sname,			\
+	}
+
 #define SYSCALL_METADATA(sname, nb)				\
 	static const struct syscall_metadata __used		\
 	  __attribute__((__aligned__(4)))			\
@@ -121,7 +175,9 @@ struct perf_counter_attr;
 		.nb_args 	= nb,				\
 		.types		= types_##sname,		\
 		.args		= args_##sname,			\
-	}
+	};							\
+	SYSCALL_TRACE_ENTER_EVENT(sname);			\
+	SYSCALL_TRACE_EXIT_EVENT(sname);
 
 #define SYSCALL_DEFINE0(sname)					\
 	static const struct syscall_metadata __used		\
@@ -131,8 +187,9 @@ struct perf_counter_attr;
 		.name 		= "sys_"#sname,			\
 		.nb_args 	= 0,				\
 	};							\
+	SYSCALL_TRACE_ENTER_EVENT(_##sname);			\
+	SYSCALL_TRACE_EXIT_EVENT(_##sname);			\
 	asmlinkage long sys_##sname(void)
-
 #else
 #define SYSCALL_DEFINE0(name)	   asmlinkage long sys_##name(void)
 #endif

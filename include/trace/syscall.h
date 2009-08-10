@@ -2,6 +2,8 @@
 #define _TRACE_SYSCALL_H
 
 #include <linux/tracepoint.h>
+#include <linux/unistd.h>
+#include <linux/ftrace_event.h>
 
 #include <asm/ptrace.h>
 
@@ -40,15 +42,13 @@ struct syscall_metadata {
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 extern struct syscall_metadata *syscall_nr_to_meta(int nr);
-extern void start_ftrace_syscalls(void);
-extern void stop_ftrace_syscalls(void);
-extern void ftrace_syscall_enter(struct pt_regs *regs);
-extern void ftrace_syscall_exit(struct pt_regs *regs);
-#else
-static inline void start_ftrace_syscalls(void)			{ }
-static inline void stop_ftrace_syscalls(void)			{ }
-static inline void ftrace_syscall_enter(struct pt_regs *regs)	{ }
-static inline void ftrace_syscall_exit(struct pt_regs *regs)	{ }
+extern int syscall_name_to_nr(char *name);
+extern struct trace_event event_syscall_enter;
+extern struct trace_event event_syscall_exit;
+extern int reg_event_syscall_enter(void *ptr);
+extern void unreg_event_syscall_enter(void *ptr);
+extern int reg_event_syscall_exit(void *ptr);
+extern void unreg_event_syscall_exit(void *ptr);
 #endif
 
 #endif /* _TRACE_SYSCALL_H */
