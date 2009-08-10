@@ -32,8 +32,8 @@ struct rpc_inode {
 	wait_queue_head_t waitq;
 #define RPC_PIPE_WAIT_FOR_OPEN	1
 	int flags;
-	struct rpc_pipe_ops *ops;
 	struct delayed_work queue_timeout;
+	const struct rpc_pipe_ops *ops;
 };
 
 static inline struct rpc_inode *
@@ -44,9 +44,19 @@ RPC_I(struct inode *inode)
 
 extern int rpc_queue_upcall(struct inode *, struct rpc_pipe_msg *);
 
-extern struct dentry *rpc_mkdir(char *, struct rpc_clnt *);
-extern int rpc_rmdir(struct dentry *);
-extern struct dentry *rpc_mkpipe(struct dentry *, const char *, void *, struct rpc_pipe_ops *, int flags);
+struct rpc_clnt;
+extern struct dentry *rpc_create_client_dir(struct dentry *, struct qstr *, struct rpc_clnt *);
+extern int rpc_remove_client_dir(struct dentry *);
+
+struct cache_detail;
+extern struct dentry *rpc_create_cache_dir(struct dentry *,
+					   struct qstr *,
+					   mode_t umode,
+					   struct cache_detail *);
+extern void rpc_remove_cache_dir(struct dentry *);
+
+extern struct dentry *rpc_mkpipe(struct dentry *, const char *, void *,
+				 const struct rpc_pipe_ops *, int flags);
 extern int rpc_unlink(struct dentry *);
 extern struct vfsmount *rpc_get_mount(void);
 extern void rpc_put_mount(void);
