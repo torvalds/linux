@@ -844,6 +844,23 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 }
 
 static ieee80211_tx_result debug_noinline
+ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
+{
+	struct sk_buff *skb = tx->skb;
+
+	if (!tx->sta)
+		return TX_CONTINUE;
+
+	tx->sta->tx_packets++;
+	do {
+		tx->sta->tx_fragments++;
+		tx->sta->tx_bytes += skb->len;
+	} while ((skb = skb->next));
+
+	return TX_CONTINUE;
+}
+
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 {
 	if (!tx->key)
@@ -882,23 +899,6 @@ ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 
 		hdr->duration_id =
 			ieee80211_duration(tx, group_addr, next_len);
-	} while ((skb = skb->next));
-
-	return TX_CONTINUE;
-}
-
-static ieee80211_tx_result debug_noinline
-ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
-{
-	struct sk_buff *skb = tx->skb;
-
-	if (!tx->sta)
-		return TX_CONTINUE;
-
-	tx->sta->tx_packets++;
-	do {
-		tx->sta->tx_fragments++;
-		tx->sta->tx_bytes += skb->len;
 	} while ((skb = skb->next));
 
 	return TX_CONTINUE;
@@ -1213,9 +1213,9 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	CALL_TXH(ieee80211_tx_h_sequence)
 	CALL_TXH(ieee80211_tx_h_fragment)
 	/* handlers after fragment must be aware of tx info fragmentation! */
+	CALL_TXH(ieee80211_tx_h_stats)
 	CALL_TXH(ieee80211_tx_h_encrypt)
 	CALL_TXH(ieee80211_tx_h_calculate_duration)
-	CALL_TXH(ieee80211_tx_h_stats)
 #undef CALL_TXH
 
  txh_done:
