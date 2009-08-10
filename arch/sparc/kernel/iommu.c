@@ -840,6 +840,8 @@ static struct dma_map_ops sun4u_dma_ops = {
 struct dma_map_ops *dma_ops = &sun4u_dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
+extern int pci64_dma_supported(struct pci_dev *pdev, u64 device_mask);
+
 int dma_supported(struct device *dev, u64 device_mask)
 {
 	struct iommu *iommu = dev->archdata.iommu;
@@ -853,7 +855,7 @@ int dma_supported(struct device *dev, u64 device_mask)
 
 #ifdef CONFIG_PCI
 	if (dev->bus == &pci_bus_type)
-		return pci_dma_supported(to_pci_dev(dev), device_mask);
+		return pci64_dma_supported(to_pci_dev(dev), device_mask);
 #endif
 
 	return 0;
