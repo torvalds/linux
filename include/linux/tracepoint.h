@@ -60,8 +60,10 @@ struct tracepoint {
  * Make sure the alignment of the structure in the __tracepoints section will
  * not add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
+ * An optional set of (un)registration functions can be passed to perform any
+ * additional (un)registration work.
  */
-#define DECLARE_TRACE(name, proto, args)				\
+#define DECLARE_TRACE_WITH_CALLBACK(name, proto, args, reg, unreg)	\
 	extern struct tracepoint __tracepoint_##name;			\
 	static inline void trace_##name(proto)				\
 	{								\
@@ -71,12 +73,29 @@ struct tracepoint {
 	}								\
 	static inline int register_trace_##name(void (*probe)(proto))	\
 	{								\
-		return tracepoint_probe_register(#name, (void *)probe);	\
+		int ret;						\
+		void (*func)(void) = reg;				\
+									\
+		ret = tracepoint_probe_register(#name, (void *)probe);	\
+		if (func && !ret)					\
+			func();						\
+		return ret;						\
 	}								\
 	static inline int unregister_trace_##name(void (*probe)(proto))	\
 	{								\
-		return tracepoint_probe_unregister(#name, (void *)probe);\
+		int ret;						\
+		void (*func)(void) = unreg;				\
+									\
+		ret = tracepoint_probe_unregister(#name, (void *)probe);\
+		if (func && !ret)					\
+			func();						\
+		return ret;						\
 	}
+
+
+#define DECLARE_TRACE(name, proto, args)				 \
+	DECLARE_TRACE_WITH_CALLBACK(name, TP_PROTO(proto), TP_ARGS(args),\
+					NULL, NULL);
 
 #define DEFINE_TRACE(name)						\
 	static const char __tpstrtab_##name[]				\
@@ -94,7 +113,7 @@ extern void tracepoint_update_probe_range(struct tracepoint *begin,
 	struct tracepoint *end);
 
 #else /* !CONFIG_TRACEPOINTS */
-#define DECLARE_TRACE(name, proto, args)				\
+#define DECLARE_TRACE_WITH_CALLBACK(name, proto, args, reg, unreg)	\
 	static inline void _do_trace_##name(struct tracepoint *tp, proto) \
 	{ }								\
 	static inline void trace_##name(proto)				\
@@ -107,6 +126,10 @@ extern void tracepoint_update_probe_range(struct tracepoint *begin,
 	{								\
 		return -ENOSYS;						\
 	}
+
+#define DECLARE_TRACE(name, proto, args)				 \
+	DECLARE_TRACE_WITH_CALLBACK(name, TP_PROTO(proto), TP_ARGS(args),\
+					NULL, NULL);
 
 #define DEFINE_TRACE(name)
 #define EXPORT_TRACEPOINT_SYMBOL_GPL(name)
