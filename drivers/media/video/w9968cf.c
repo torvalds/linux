@@ -3515,9 +3515,9 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	w9968cf_turn_on_led(cam);
 
 	w9968cf_i2c_init(cam);
-	cam->sensor_sd = v4l2_i2c_new_probed_subdev(&cam->v4l2_dev,
+	cam->sensor_sd = v4l2_i2c_new_subdev(&cam->v4l2_dev,
 			&cam->i2c_adapter,
-			"ovcamchip", "ovcamchip", addrs);
+			"ovcamchip", "ovcamchip", 0, addrs);
 
 	usb_set_intfdata(intf, cam);
 	mutex_unlock(&cam->dev_mutex);

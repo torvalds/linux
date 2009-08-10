@@ -370,19 +370,20 @@ from the remove() callback ensures that this is always done correctly.
 The bridge driver also has some helper functions it can use:
 
 struct v4l2_subdev *sd = v4l2_i2c_new_subdev(v4l2_dev, adapter,
-	       "module_foo", "chipid", 0x36);
+	       "module_foo", "chipid", 0x36, NULL);
 
 This loads the given module (can be NULL if no module needs to be loaded) and
 calls i2c_new_device() with the given i2c_adapter and chip/address arguments.
 If all goes well, then it registers the subdev with the v4l2_device.
 
-You can also use v4l2_i2c_new_probed_subdev() which is very similar to
-v4l2_i2c_new_subdev(), except that it has an array of possible I2C addresses
-that it should probe. Internally it calls i2c_new_probed_device().
+You can also use the last argument of v4l2_i2c_new_subdev() to pass an array
+of possible I2C addresses that it should probe. These probe addresses are
+only used if the previous argument is 0. A non-zero argument means that you
+know the exact i2c address so in that case no probing will take place.
 
 Both functions return NULL if something went wrong.
 
-Note that the chipid you pass to v4l2_i2c_new_(probed_)subdev() is usually
+Note that the chipid you pass to v4l2_i2c_new_subdev() is usually
 the same as the module name. It allows you to specify a chip variant, e.g.
 "saa7114" or "saa7115". In general though the i2c driver autodetects this.
 The use of chipid is something that needs to be looked at more closely at a
@@ -409,11 +410,6 @@ If the subdev supports the s_config core ops, then that op is called with
 the irq and platform_data arguments after the subdev was setup. The older
 v4l2_i2c_new_(probed_)subdev functions will call s_config as well, but with
 irq set to 0 and platform_data set to NULL.
-
-Note that in the next kernel release the functions v4l2_i2c_new_subdev,
-v4l2_i2c_new_probed_subdev and v4l2_i2c_new_probed_subdev_addr will all be
-replaced by a single v4l2_i2c_new_subdev that is identical to
-v4l2_i2c_new_subdev_cfg but without the irq and platform_data arguments.
 
 struct video_device
 -------------------

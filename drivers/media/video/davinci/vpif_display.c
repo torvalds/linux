@@ -1566,10 +1566,10 @@ static __init int vpif_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < subdev_count; i++) {
-		vpif_obj.sd[i] = v4l2_i2c_new_probed_subdev(&vpif_obj.v4l2_dev,
+		vpif_obj.sd[i] = v4l2_i2c_new_subdev(&vpif_obj.v4l2_dev,
 						i2c_adap, subdevdata[i].name,
 						subdevdata[i].name,
-						&subdevdata[i].addr);
+						0, I2C_ADDRS(subdevdata[i].addr));
 		if (!vpif_obj.sd[i]) {
 			vpif_err("Error registering v4l2 subdevice\n");
 			goto probe_subdev_out;

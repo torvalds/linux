@@ -7208,22 +7208,22 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		if (dev->radio_type != UNSET)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_adap, "tuner", "tuner",
-				dev->radio_addr);
+				dev->radio_addr, NULL);
 		if (has_demod)
-			v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+			v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_adap, "tuner", "tuner",
-				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == ADDR_UNSET) {
 			enum v4l2_i2c_tuner_type type =
 				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 
-			v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+			v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_adap, "tuner", "tuner",
-				v4l2_i2c_tuner_addrs(type));
+				0, v4l2_i2c_tuner_addrs(type));
 		} else {
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_adap, "tuner", "tuner",
-				dev->tuner_addr);
+				dev->tuner_addr, NULL);
 		}
 	}
 
