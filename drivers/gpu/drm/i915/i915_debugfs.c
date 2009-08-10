@@ -158,16 +158,37 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	seq_printf(m, "Interrupt enable:    %08x\n",
-		   I915_READ(IER));
-	seq_printf(m, "Interrupt identity:  %08x\n",
-		   I915_READ(IIR));
-	seq_printf(m, "Interrupt mask:      %08x\n",
-		   I915_READ(IMR));
-	seq_printf(m, "Pipe A stat:         %08x\n",
-		   I915_READ(PIPEASTAT));
-	seq_printf(m, "Pipe B stat:         %08x\n",
-		   I915_READ(PIPEBSTAT));
+	if (!IS_IGDNG(dev)) {
+		seq_printf(m, "Interrupt enable:    %08x\n",
+			   I915_READ(IER));
+		seq_printf(m, "Interrupt identity:  %08x\n",
+			   I915_READ(IIR));
+		seq_printf(m, "Interrupt mask:      %08x\n",
+			   I915_READ(IMR));
+		seq_printf(m, "Pipe A stat:         %08x\n",
+			   I915_READ(PIPEASTAT));
+		seq_printf(m, "Pipe B stat:         %08x\n",
+			   I915_READ(PIPEBSTAT));
+	} else {
+		seq_printf(m, "North Display Interrupt enable:		%08x\n",
+			   I915_READ(DEIER));
+		seq_printf(m, "North Display Interrupt identity:	%08x\n",
+			   I915_READ(DEIIR));
+		seq_printf(m, "North Display Interrupt mask:		%08x\n",
+			   I915_READ(DEIMR));
+		seq_printf(m, "South Display Interrupt enable:		%08x\n",
+			   I915_READ(SDEIER));
+		seq_printf(m, "South Display Interrupt identity:	%08x\n",
+			   I915_READ(SDEIIR));
+		seq_printf(m, "South Display Interrupt mask:		%08x\n",
+			   I915_READ(SDEIMR));
+		seq_printf(m, "Graphics Interrupt enable:		%08x\n",
+			   I915_READ(GTIER));
+		seq_printf(m, "Graphics Interrupt identity:		%08x\n",
+			   I915_READ(GTIIR));
+		seq_printf(m, "Graphics Interrupt mask:		%08x\n",
+			   I915_READ(GTIMR));
+	}
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
 	if (dev_priv->hw_status_page != NULL) {
