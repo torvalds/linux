@@ -1010,7 +1010,7 @@ static void be_rx_q_clean(struct be_adapter *adapter)
 
 	/* Then free posted rx buffer that were not used */
 	tail = (rxq->head + rxq->len - atomic_read(&rxq->used)) % rxq->len;
-	for (; tail != rxq->head; index_inc(&tail, rxq->len)) {
+	for (; atomic_read(&rxq->used) > 0; index_inc(&tail, rxq->len)) {
 		page_info = get_rx_page_info(adapter, tail);
 		put_page(page_info->page);
 		memset(page_info, 0, sizeof(*page_info));
