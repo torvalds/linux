@@ -22,6 +22,7 @@
 
 #include <asm/mach/mmc.h>
 #include "mmc.h"
+#include "padmux.h"
 
 struct mmci_card_event {
 	struct input_dev *mmc_input;
@@ -146,6 +147,7 @@ int __devinit mmc_init(struct amba_device *adev)
 {
 	struct mmci_card_event *mmci_card;
 	struct device *mmcsd_device = &adev->dev;
+	struct pmx *pmx;
 	int ret = 0;
 
 	mmci_card = kzalloc(sizeof(struct mmci_card_event), GFP_KERNEL);
@@ -204,6 +206,20 @@ int __devinit mmc_init(struct amba_device *adev)
 	}
 
 	input_set_drvdata(mmci_card->mmc_input, mmci_card);
+
+	/*
+	 * Setup padmuxing for MMC. Since this must always be
+	 * compiled into the kernel, pmx is never released.
+	 */
+	pmx = pmx_get(mmcsd_device, U300_APP_PMX_MMC_SETTING);
+
+	if (IS_ERR(pmx))
+		pr_warning("Could not get padmux handle\n");
+	else {
+		ret = pmx_activate(mmcsd_device, pmx);
+		if (IS_ERR_VALUE(ret))
+			pr_warning("Could not activate padmuxing\n");
+	}
 
 	ret = gpio_register_callback(U300_GPIO_PIN_MMC_CD, mmci_callback,
 				     mmci_card);
