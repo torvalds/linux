@@ -317,30 +317,30 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	if (!atomic_read(&tx->sdata->bss->num_sta_ps))
 		return TX_CONTINUE;
 
-	/* buffered in mac80211 */
-	if (tx->local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING) {
-		if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
-			purge_old_ps_buffers(tx->local);
-		if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >=
-		    AP_MAX_BC_BUFFER) {
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-			if (net_ratelimit()) {
-				printk(KERN_DEBUG "%s: BC TX buffer full - "
-				       "dropping the oldest frame\n",
-				       tx->dev->name);
-			}
-#endif
-			dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
-		} else
-			tx->local->total_ps_buffered++;
-		skb_queue_tail(&tx->sdata->bss->ps_bc_buf, tx->skb);
-		return TX_QUEUED;
+	/* buffered in hardware */
+	if (!(tx->local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING)) {
+		info->flags |= IEEE80211_TX_CTL_SEND_AFTER_DTIM;
+
+		return TX_CONTINUE;
 	}
 
-	/* buffered in hardware */
-	info->flags |= IEEE80211_TX_CTL_SEND_AFTER_DTIM;
+	/* buffered in mac80211 */
+	if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
+		purge_old_ps_buffers(tx->local);
 
-	return TX_CONTINUE;
+	if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >= AP_MAX_BC_BUFFER) {
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: BC TX buffer full - dropping the oldest frame\n",
+			       tx->dev->name);
+#endif
+		dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
+	} else
+		tx->local->total_ps_buffered++;
+
+	skb_queue_tail(&tx->sdata->bss->ps_bc_buf, tx->skb);
+
+	return TX_QUEUED;
 }
 
 static int ieee80211_use_mfp(__le16 fc, struct sta_info *sta,
