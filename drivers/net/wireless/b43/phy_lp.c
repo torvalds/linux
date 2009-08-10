@@ -59,9 +59,43 @@ static void b43_lpphy_op_free(struct b43_wldev *dev)
 	dev->phy.lp = NULL;
 }
 
+static void lpphy_adjust_gain_table(struct b43_wldev *dev)
+{
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+	u32 freq = dev->wl->hw->conf.channel->center_freq;
+	u16 temp[3];
+	u16 isolation;
+
+	B43_WARN_ON(dev->phy.rev >= 2);
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		isolation = lpphy->tx_isolation_med_band;
+	else if (freq <= 5320)
+		isolation = lpphy->tx_isolation_low_band;
+	else if (freq <= 5700)
+		isolation = lpphy->tx_isolation_med_band;
+	else
+		isolation = lpphy->tx_isolation_hi_band;
+
+	temp[0] = ((isolation - 26) / 12) << 12;
+	temp[1] = temp[0] + 0x1000;
+	temp[2] = temp[0] + 0x2000;
+
+	b43_lptab_write_bulk(dev, B43_LPTAB16(12, 0), 3, temp);
+	b43_lptab_write_bulk(dev, B43_LPTAB16(13, 0), 3, temp);
+}
+
 static void lpphy_table_init(struct b43_wldev *dev)
 {
-	//TODO
+	if (dev->phy.rev < 2)
+		lpphy_rev0_1_table_init(dev);
+	else
+		lpphy_rev2plus_table_init(dev);
+
+	lpphy_init_tx_gain_table(dev);
+
+	if (dev->phy.rev < 2)
+		lpphy_adjust_gain_table(dev);
 }
 
 static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
@@ -596,13 +630,13 @@ static void lpphy_tx_pctl_init(struct b43_wldev *dev)
 static int b43_lpphy_op_init(struct b43_wldev *dev)
 {
 	/* TODO: band SPROM */
-	/* TODO: tables init */
 	lpphy_baseband_init(dev);
 	lpphy_radio_init(dev);
 	//TODO calibrate RC
 	//TODO set channel
 	lpphy_tx_pctl_init(dev);
-	//TODO full calib
+	lpphy_calibration(dev);
+	//TODO ACI init
 
 	return 0;
 }
@@ -679,7 +713,6 @@ static enum b43_txpwr_result b43_lpphy_op_recalc_txpower(struct b43_wldev *dev,
 	//TODO
 	return B43_TXPWR_RES_DONE;
 }
-
 
 const struct b43_phy_operations b43_phyops_lp = {
 	.allocate		= b43_lpphy_op_allocate,

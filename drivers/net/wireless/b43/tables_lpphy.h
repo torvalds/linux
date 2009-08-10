@@ -28,5 +28,8 @@ void b43_lptab_write_bulk(struct b43_wldev *dev, u32 offset,
 void b2062_upload_init_table(struct b43_wldev *dev);
 void b2063_upload_init_table(struct b43_wldev *dev);
 
+void lpphy_rev0_1_table_init(struct b43_wldev *dev);
+void lpphy_rev2plus_table_init(struct b43_wldev *dev);
+void lpphy_init_tx_gain_table(struct b43_wldev *dev);
 
 #endif /* B43_TABLES_LPPHY_H_ */
