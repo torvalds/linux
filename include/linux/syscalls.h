@@ -116,13 +116,20 @@ struct perf_counter_attr;
 
 #define SYSCALL_TRACE_ENTER_EVENT(sname)				\
 	static struct ftrace_event_call event_enter_##sname;		\
+	struct trace_event enter_syscall_print_##sname = {		\
+		.trace                  = print_syscall_enter,		\
+	};								\
 	static int init_enter_##sname(void)				\
 	{								\
-		int num;						\
+		int num, id;						\
 		num = syscall_name_to_nr("sys"#sname);			\
 		if (num < 0)						\
 			return -ENOSYS;					\
-		register_ftrace_event(&event_syscall_enter);		\
+		id = register_ftrace_event(&enter_syscall_print_##sname);\
+		if (!id)						\
+			return -ENODEV;					\
+		event_enter_##sname.id = id;				\
+		set_syscall_enter_id(num, id);				\
 		INIT_LIST_HEAD(&event_enter_##sname.fields);		\
 		init_preds(&event_enter_##sname);			\
 		return 0;						\
@@ -142,13 +149,20 @@ struct perf_counter_attr;
 
 #define SYSCALL_TRACE_EXIT_EVENT(sname)					\
 	static struct ftrace_event_call event_exit_##sname;		\
+	struct trace_event exit_syscall_print_##sname = {		\
+		.trace                  = print_syscall_exit,		\
+	};								\
 	static int init_exit_##sname(void)				\
 	{								\
-		int num;						\
+		int num, id;						\
 		num = syscall_name_to_nr("sys"#sname);			\
 		if (num < 0)						\
 			return -ENOSYS;					\
-		register_ftrace_event(&event_syscall_exit);		\
+		id = register_ftrace_event(&exit_syscall_print_##sname);\
+		if (!id)						\
+			return -ENODEV;					\
+		event_exit_##sname.id = id;				\
+		set_syscall_exit_id(num, id);				\
 		INIT_LIST_HEAD(&event_exit_##sname.fields);		\
 		init_preds(&event_exit_##sname);			\
 		return 0;						\

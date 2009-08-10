@@ -516,6 +516,16 @@ int syscall_name_to_nr(char *name)
 	return -1;
 }
 
+void set_syscall_enter_id(int num, int id)
+{
+	syscalls_metadata[num]->enter_id = id;
+}
+
+void set_syscall_exit_id(int num, int id)
+{
+	syscalls_metadata[num]->exit_id = id;
+}
+
 static int __init arch_init_ftrace_syscalls(void)
 {
 	int i;

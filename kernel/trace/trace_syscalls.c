@@ -36,13 +36,17 @@ print_syscall_enter(struct trace_iterator *iter, int flags)
 	struct syscall_metadata *entry;
 	int i, ret, syscall;
 
-	trace_assign_type(trace, ent);
-
+	trace = (typeof(trace))ent;
 	syscall = trace->nr;
-
 	entry = syscall_nr_to_meta(syscall);
+
 	if (!entry)
 		goto end;
+
+	if (entry->enter_id != ent->type) {
+		WARN_ON_ONCE(1);
+		goto end;
+	}
 
 	ret = trace_seq_printf(s, "%s(", entry->name);
 	if (!ret)
@@ -78,14 +82,18 @@ print_syscall_exit(struct trace_iterator *iter, int flags)
 	struct syscall_metadata *entry;
 	int ret;
 
-	trace_assign_type(trace, ent);
-
+	trace = (typeof(trace))ent;
 	syscall = trace->nr;
-
 	entry = syscall_nr_to_meta(syscall);
+
 	if (!entry) {
 		trace_seq_printf(s, "\n");
 		return TRACE_TYPE_HANDLED;
+	}
+
+	if (entry->exit_id != ent->type) {
+		WARN_ON_ONCE(1);
+		return TRACE_TYPE_UNHANDLED;
 	}
 
 	ret = trace_seq_printf(s, "%s -> 0x%lx\n", entry->name,
@@ -114,7 +122,7 @@ void ftrace_syscall_enter(struct pt_regs *regs, long id)
 
 	size = sizeof(*entry) + sizeof(unsigned long) * sys_data->nb_args;
 
-	event = trace_current_buffer_lock_reserve(TRACE_SYSCALL_ENTER, size,
+	event = trace_current_buffer_lock_reserve(sys_data->enter_id, size,
 							0, 0);
 	if (!event)
 		return;
@@ -142,7 +150,7 @@ void ftrace_syscall_exit(struct pt_regs *regs, long ret)
 	if (!sys_data)
 		return;
 
-	event = trace_current_buffer_lock_reserve(TRACE_SYSCALL_EXIT,
+	event = trace_current_buffer_lock_reserve(sys_data->exit_id,
 				sizeof(*entry), 0, 0);
 	if (!event)
 		return;
@@ -239,10 +247,8 @@ void unreg_event_syscall_exit(void *ptr)
 
 struct trace_event event_syscall_enter = {
 	.trace			= print_syscall_enter,
-	.type			= TRACE_SYSCALL_ENTER
 };
 
 struct trace_event event_syscall_exit = {
 	.trace			= print_syscall_exit,
-	.type			= TRACE_SYSCALL_EXIT
 };
