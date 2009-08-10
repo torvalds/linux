@@ -90,11 +90,10 @@ static struct hotplug_slot_ops sn_hotplug_slot_ops = {
 
 static DEFINE_MUTEX(sn_hotplug_mutex);
 
-static ssize_t path_show (struct hotplug_slot *bss_hotplug_slot,
-	       		  char *buf)
+static ssize_t path_show(struct pci_slot *pci_slot, char *buf)
 {
 	int retval = -ENOENT;
-	struct slot *slot = bss_hotplug_slot->private;
+	struct slot *slot = pci_slot->hotplug->private;
 
 	if (!slot)
 		return retval;
@@ -103,7 +102,7 @@ static ssize_t path_show (struct hotplug_slot *bss_hotplug_slot,
 	return retval;
 }
 
-static struct hotplug_slot_attribute sn_slot_path_attr = __ATTR_RO(path);
+static struct pci_slot_attribute sn_slot_path_attr = __ATTR_RO(path);
 
 static int sn_pci_slot_valid(struct pci_bus *pci_bus, int device)
 {

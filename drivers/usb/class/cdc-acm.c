@@ -387,7 +387,6 @@ static void acm_rx_tasklet(unsigned long _acm)
 	struct acm_ru *rcv;
 	unsigned long flags;
 	unsigned char throttled;
-	struct usb_host_endpoint *ep;
 
 	dbg("Entering acm_rx_tasklet");
 
@@ -463,14 +462,12 @@ urbs:
 
 		rcv->buffer = buf;
 
-		ep = (usb_pipein(acm->rx_endpoint) ? acm->dev->ep_in : acm->dev->ep_out)
-				[usb_pipeendpoint(acm->rx_endpoint)];
-		if (usb_endpoint_xfer_int(&ep->desc))
+		if (acm->is_int_ep)
 			usb_fill_int_urb(rcv->urb, acm->dev,
 					 acm->rx_endpoint,
 					 buf->base,
 					 acm->readsize,
-					 acm_read_bulk, rcv, ep->desc.bInterval);
+					 acm_read_bulk, rcv, acm->bInterval);
 		else
 			usb_fill_bulk_urb(rcv->urb, acm->dev,
 					  acm->rx_endpoint,
@@ -1183,6 +1180,9 @@ made_compressed_probe:
 	spin_lock_init(&acm->read_lock);
 	mutex_init(&acm->mutex);
 	acm->rx_endpoint = usb_rcvbulkpipe(usb_dev, epread->bEndpointAddress);
+	acm->is_int_ep = usb_endpoint_xfer_int(epread);
+	if (acm->is_int_ep)
+		acm->bInterval = epread->bInterval;
 	tty_port_init(&acm->port);
 	acm->port.ops = &acm_port_ops;
 

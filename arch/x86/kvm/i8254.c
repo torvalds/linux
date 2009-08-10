@@ -104,6 +104,9 @@ static s64 __kpit_elapsed(struct kvm *kvm)
 	ktime_t remaining;
 	struct kvm_kpit_state *ps = &kvm->arch.vpit->pit_state;
 
+	if (!ps->pit_timer.period)
+		return 0;
+
 	/*
 	 * The Counter does not stop when it reaches zero. In
 	 * Modes 0, 1, 4, and 5 the Counter ``wraps around'' to

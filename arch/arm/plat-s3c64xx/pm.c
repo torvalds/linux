@@ -117,8 +117,6 @@ void s3c_pm_save_core(void)
  * this.
  */
 
-#include <plat/regs-gpio.h>
-
 static void s3c64xx_cpu_suspend(void)
 {
 	unsigned long tmp;

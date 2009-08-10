@@ -405,7 +405,7 @@ EXPORT_SYMBOL(machine_real_restart);
 #endif /* CONFIG_X86_32 */
 
 /*
- * Apple MacBook5,2 (2009 MacBook) needs reboot=p
+ * Some Apple MacBook and MacBookPro's needs reboot=p to be able to reboot
  */
 static int __init set_pci_reboot(const struct dmi_system_id *d)
 {
@@ -424,6 +424,14 @@ static struct dmi_system_id __initdata pci_reboot_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook5,2"),
+		},
+	},
+	{	/* Handle problems with rebooting on Apple MacBookPro5,1 */
+		.callback = set_pci_reboot,
+		.ident = "Apple MacBookPro5,1",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5,1"),
 		},
 	},
 	{ }
