@@ -112,8 +112,8 @@ struct ftrace_event_call {
 	struct dentry		*dir;
 	struct trace_event	*event;
 	int			enabled;
-	int			(*regfunc)(void);
-	void			(*unregfunc)(void);
+	int			(*regfunc)(void *);
+	void			(*unregfunc)(void *);
 	int			id;
 	int			(*raw_init)(void);
 	int			(*show_format)(struct trace_seq *s);
@@ -122,6 +122,7 @@ struct ftrace_event_call {
 	int			filter_active;
 	struct event_filter	*filter;
 	void			*mod;
+	void			*data;
 
 	atomic_t		profile_count;
 	int			(*profile_enable)(struct ftrace_event_call *);

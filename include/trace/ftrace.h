@@ -568,7 +568,7 @@ static void ftrace_raw_event_##call(proto)				\
 		trace_nowake_buffer_unlock_commit(event, irq_flags, pc); \
 }									\
 									\
-static int ftrace_raw_reg_event_##call(void)				\
+static int ftrace_raw_reg_event_##call(void *ptr)			\
 {									\
 	int ret;							\
 									\
@@ -579,7 +579,7 @@ static int ftrace_raw_reg_event_##call(void)				\
 	return ret;							\
 }									\
 									\
-static void ftrace_raw_unreg_event_##call(void)				\
+static void ftrace_raw_unreg_event_##call(void *ptr)			\
 {									\
 	unregister_trace_##call(ftrace_raw_event_##call);		\
 }									\
