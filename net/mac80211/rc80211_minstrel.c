@@ -51,6 +51,7 @@
 #include <linux/random.h>
 #include <linux/ieee80211.h>
 #include <net/mac80211.h>
+#include "mesh.h"
 #include "rate.h"
 #include "rc80211_minstrel.h"
 
@@ -178,9 +179,14 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 		if ((i != IEEE80211_TX_MAX_RATES - 1) && (ar[i + 1].idx < 0)) {
 			mi->r[ndx].success += success;
-			if (si)
+			if (si) {
 				si->fail_avg = (18050 - mi->r[ndx].probability)
 					/ 180;
+				WARN_ON(si->fail_avg > 100);
+				if (si->fail_avg == 100 &&
+					ieee80211_vif_is_mesh(&si->sdata->vif))
+					mesh_plink_broken(si);
+			}
 		}
 	}
 
