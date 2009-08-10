@@ -1821,63 +1821,6 @@ static int em28xx_hint_sensor(struct em28xx *dev)
  */
 void em28xx_pre_card_setup(struct em28xx *dev)
 {
-	int rc;
-
-	em28xx_set_model(dev);
-
-	em28xx_info("Identified as %s (card=%d)\n",
-		    dev->board.name, dev->model);
-
-	/* Set the default GPO/GPIO for legacy devices */
-	dev->reg_gpo_num = EM2880_R04_GPO;
-	dev->reg_gpio_num = EM28XX_R08_GPIO;
-
-	dev->wait_after_write = 5;
-
-	/* Based on the Chip ID, set the device configuration */
-	rc = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
-	if (rc > 0) {
-		dev->chip_id = rc;
-
-		switch (dev->chip_id) {
-		case CHIP_ID_EM2710:
-			em28xx_info("chip ID is em2710\n");
-			break;
-		case CHIP_ID_EM2750:
-			em28xx_info("chip ID is em2750\n");
-			break;
-		case CHIP_ID_EM2820:
-			em28xx_info("chip ID is em2820 (or em2710)\n");
-			break;
-		case CHIP_ID_EM2840:
-			em28xx_info("chip ID is em2840\n");
-			break;
-		case CHIP_ID_EM2860:
-			em28xx_info("chip ID is em2860\n");
-			break;
-		case CHIP_ID_EM2870:
-			em28xx_info("chip ID is em2870\n");
-			dev->wait_after_write = 0;
-			break;
-		case CHIP_ID_EM2874:
-			em28xx_info("chip ID is em2874\n");
-			dev->reg_gpio_num = EM2874_R80_GPIO;
-			dev->wait_after_write = 0;
-			break;
-		case CHIP_ID_EM2883:
-			em28xx_info("chip ID is em2882/em2883\n");
-			dev->wait_after_write = 0;
-			break;
-		default:
-			em28xx_info("em28xx chip ID = %d\n", dev->chip_id);
-		}
-	}
-
-	/* Prepopulate cached GPO register content */
-	rc = em28xx_read_reg(dev, dev->reg_gpo_num);
-	if (rc >= 0)
-		dev->reg_gpo = rc;
-
 	/* Set the initial XCLK and I2C clock values based on the board
 	   definition */
 	em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk & 0x7f);
@@ -2443,7 +2386,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			   int minor)
 {
 	struct em28xx *dev = *devhandle;
-	int retval = -ENOMEM;
+	int retval;
 	int errCode;
 
 	dev->udev = udev;
@@ -2459,6 +2402,58 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->em28xx_write_regs_req = em28xx_write_regs_req;
 	dev->em28xx_read_reg_req = em28xx_read_reg_req;
 	dev->board.is_em2800 = em28xx_boards[dev->model].is_em2800;
+
+	em28xx_set_model(dev);
+
+	/* Set the default GPO/GPIO for legacy devices */
+	dev->reg_gpo_num = EM2880_R04_GPO;
+	dev->reg_gpio_num = EM28XX_R08_GPIO;
+
+	dev->wait_after_write = 5;
+
+	/* Based on the Chip ID, set the device configuration */
+	retval = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
+	if (retval > 0) {
+		dev->chip_id = retval;
+
+		switch (dev->chip_id) {
+		case CHIP_ID_EM2710:
+			em28xx_info("chip ID is em2710\n");
+			break;
+		case CHIP_ID_EM2750:
+			em28xx_info("chip ID is em2750\n");
+			break;
+		case CHIP_ID_EM2820:
+			em28xx_info("chip ID is em2820 (or em2710)\n");
+			break;
+		case CHIP_ID_EM2840:
+			em28xx_info("chip ID is em2840\n");
+			break;
+		case CHIP_ID_EM2860:
+			em28xx_info("chip ID is em2860\n");
+			break;
+		case CHIP_ID_EM2870:
+			em28xx_info("chip ID is em2870\n");
+			dev->wait_after_write = 0;
+			break;
+		case CHIP_ID_EM2874:
+			em28xx_info("chip ID is em2874\n");
+			dev->reg_gpio_num = EM2874_R80_GPIO;
+			dev->wait_after_write = 0;
+			break;
+		case CHIP_ID_EM2883:
+			em28xx_info("chip ID is em2882/em2883\n");
+			dev->wait_after_write = 0;
+			break;
+		default:
+			em28xx_info("em28xx chip ID = %d\n", dev->chip_id);
+		}
+	}
+
+	/* Prepopulate cached GPO register content */
+	retval = em28xx_read_reg(dev, dev->reg_gpo_num);
+	if (retval >= 0)
+		dev->reg_gpo = retval;
 
 	em28xx_pre_card_setup(dev);
 
