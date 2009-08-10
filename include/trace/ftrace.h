@@ -637,7 +637,12 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  *	pc = preempt_count();
  *
  *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
- *	__entry_size = __data_size + sizeof(*entry);
+ *
+ *	// Below we want to get the aligned size by taking into account
+ *	// the u32 field that will later store the buffer size
+ *	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),
+ *			     sizeof(u64));
+ *	__entry_size -= sizeof(u32);
  *
  *	do {
  *		char raw_data[__entry_size]; <- allocate our sample in the stack
@@ -687,6 +692,7 @@ static void ftrace_profile_##call(proto)				\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),\
 			     sizeof(u64));				\
+	__entry_size -= sizeof(u32);					\
 									\
 	do {								\
 		char raw_data[__entry_size];				\
