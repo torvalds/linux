@@ -41,6 +41,7 @@
 #include <asm/unaligned.h>
 
 
+
 /**************************************************************************
  * Register Definitions
  **************************************************************************/
@@ -133,6 +134,7 @@
 #define RDSD_RDSD		0xffff	/* bits 15..00: RDS Block D Data (Si4701 only) */
 
 
+
 /**************************************************************************
  * General Driver Definitions
  **************************************************************************/
@@ -143,9 +145,19 @@
 struct si470x_device {
 	struct video_device *videodev;
 
-#if defined(CONFIG_I2C_SI470X) || defined(CONFIG_I2C_SI470X_MODULE)
-	struct i2c_client *client;
-#endif
+	/* driver management */
+	unsigned int users;
+
+	/* Silabs internal registers (0..15) */
+	unsigned short registers[RADIO_REGISTER_NUM];
+
+	/* RDS receive buffer */
+	wait_queue_head_t read_queue;
+	struct mutex lock;		/* buffer locking */
+	unsigned char *buffer;		/* size is always multiple of three */
+	unsigned int buf_size;
+	unsigned int rd_index;
+	unsigned int wr_index;
 
 #if defined(CONFIG_USB_SI470X) || defined(CONFIG_USB_SI470X_MODULE)
 	/* reference to USB and video device */
@@ -166,20 +178,25 @@ struct si470x_device {
 	unsigned char disconnected;
 	struct mutex disconnect_lock;
 #endif
-	unsigned int users;
 
-	/* Silabs internal registers (0..15) */
-	unsigned short registers[RADIO_REGISTER_NUM];
-
-	/* RDS receive buffer */
-	wait_queue_head_t read_queue;
-	struct mutex lock;		/* buffer locking */
-	unsigned char *buffer;		/* size is always multiple of three */
-	unsigned int buf_size;
-	unsigned int rd_index;
-	unsigned int wr_index;
+#if defined(CONFIG_I2C_SI470X) || defined(CONFIG_I2C_SI470X_MODULE)
+	struct i2c_client *client;
+#endif
 };
 
+
+
+/**************************************************************************
+ * Firmware Versions
+ **************************************************************************/
+
+#define RADIO_FW_VERSION	15
+
+
+
+/**************************************************************************
+ * Frequency Multiplicator
+ **************************************************************************/
 
 /*
  * The frequency is set in units of 62.5 Hz when using V4L2_TUNER_CAP_LOW,

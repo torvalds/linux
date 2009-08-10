@@ -138,15 +138,11 @@ MODULE_PARM_DESC(max_rds_errors, "RDS maximum block errors: *1*");
 
 
 /**************************************************************************
- * Software/Hardware Versions
+ * Software/Hardware Versions from Scratch Page
  **************************************************************************/
 #define RADIO_SW_VERSION_NOT_BOOTLOADABLE	6
 #define RADIO_SW_VERSION			7
-#define RADIO_SW_VERSION_CURRENT		15
 #define RADIO_HW_VERSION			1
-
-#define SCRATCH_PAGE_SW_VERSION	1
-#define SCRATCH_PAGE_HW_VERSION	2
 
 
 
@@ -745,6 +741,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int i, int_end_size, retval = 0;
+	unsigned char version_warning = 0;
 
 	/* private data allocation and initialization */
 	radio = kzalloc(sizeof(struct si470x_device), GFP_KERNEL);
@@ -801,13 +798,22 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			sizeof(si470x_viddev_template));
 	video_set_drvdata(radio->videodev, radio);
 
-	/* show some infos about the specific si470x device */
+	/* get device and chip versions */
 	if (si470x_get_all_registers(radio) < 0) {
 		retval = -EIO;
 		goto err_video;
 	}
 	dev_info(&intf->dev, "DeviceID=0x%4.4hx ChipID=0x%4.4hx\n",
 			radio->registers[DEVICEID], radio->registers[CHIPID]);
+	if ((radio->registers[CHIPID] & CHIPID_FIRMWARE) < RADIO_FW_VERSION) {
+		dev_warn(&intf->dev,
+			"This driver is known to work with "
+			"firmware version %hu,\n", RADIO_FW_VERSION);
+		dev_warn(&intf->dev,
+			"but the device has firmware version %hu.\n",
+			radio->registers[CHIPID] & CHIPID_FIRMWARE);
+		version_warning = 1;
+	}
 
 	/* get software and hardware versions */
 	if (si470x_get_scratch_page_versions(radio) < 0) {
@@ -816,16 +822,27 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	}
 	dev_info(&intf->dev, "software version %d, hardware version %d\n",
 			radio->software_version, radio->hardware_version);
-
-	/* check if device and firmware is current */
-	if ((radio->registers[CHIPID] & CHIPID_FIRMWARE)
-			< RADIO_SW_VERSION_CURRENT) {
+	if (radio->software_version < RADIO_SW_VERSION) {
 		dev_warn(&intf->dev,
 			"This driver is known to work with "
-			"firmware version %hu,\n", RADIO_SW_VERSION_CURRENT);
+			"software version %hu,\n", RADIO_SW_VERSION);
 		dev_warn(&intf->dev,
-			"but the device has firmware version %hu.\n",
-			radio->registers[CHIPID] & CHIPID_FIRMWARE);
+			"but the device has software version %hu.\n",
+			radio->software_version);
+		version_warning = 1;
+	}
+	if (radio->hardware_version < RADIO_HW_VERSION) {
+		dev_warn(&intf->dev,
+			"This driver is known to work with "
+			"hardware version %hu,\n", RADIO_HW_VERSION);
+		dev_warn(&intf->dev,
+			"but the device has hardware version %hu.\n",
+			radio->hardware_version);
+		version_warning = 1;
+	}
+
+	/* give out version warning */
+	if (version_warning == 1) {
 		dev_warn(&intf->dev,
 			"If you have some trouble using this driver,\n");
 		dev_warn(&intf->dev,
