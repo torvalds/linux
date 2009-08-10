@@ -337,8 +337,11 @@ void sbus_free_consistent(struct device *dev, long n, void *p, u32 ba)
  * CPU view of this memory may be inconsistent with
  * a device view and explicit flushing is necessary.
  */
-dma_addr_t sbus_map_single(struct device *dev, void *va, size_t len, int direction)
+dma_addr_t sbus_map_page(struct device *dev, struct page *page,
+			 unsigned long offset, size_t len, int direction)
 {
+	void *va = page_address(page) + offset;
+
 	/* XXX why are some lengths signed, others unsigned? */
 	if (len <= 0) {
 		return 0;
@@ -350,7 +353,7 @@ dma_addr_t sbus_map_single(struct device *dev, void *va, size_t len, int directi
 	return mmu_get_scsi_one(dev, va, len);
 }
 
-void sbus_unmap_single(struct device *dev, dma_addr_t ba, size_t n, int direction)
+void sbus_unmap_page(struct device *dev, dma_addr_t ba, size_t n, int direction)
 {
 	mmu_release_scsi_one(dev, ba, n);
 }

@@ -68,8 +68,7 @@ static dma_addr_t dma32_map_page(struct device *dev, struct page *page,
 		return pci_map_page(to_pci_dev(dev), page, offset,
 				    size, (int)direction);
 #endif
-	return sbus_map_single(dev, page_address(page) + offset,
-			       size, (int)direction);
+	return sbus_map_page(dev, page, offset, size, (int)direction);
 }
 
 static void dma32_unmap_page(struct device *dev, dma_addr_t dma_address,
@@ -83,7 +82,7 @@ static void dma32_unmap_page(struct device *dev, dma_addr_t dma_address,
 		return;
 	}
 #endif
-	sbus_unmap_single(dev, dma_address, size, (int)direction);
+	sbus_unmap_page(dev, dma_address, size, (int)direction);
 }
 
 static int dma32_map_sg(struct device *dev, struct scatterlist *sg,
