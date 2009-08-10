@@ -16,9 +16,8 @@
 #include <linux/proc_fs.h>
 #include <linux/msi.h>
 #include <linux/smp.h>
-
-#include <asm/errno.h>
-#include <asm/io.h>
+#include <linux/errno.h>
+#include <linux/io.h>
 
 #include "pci.h"
 #include "msi.h"
@@ -390,7 +389,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	u16 control;
 	unsigned mask;
 
-   	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
+	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	msi_set_enable(dev, pos, 0);	/* Disable MSI during set up */
 
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
@@ -399,12 +398,12 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	if (!entry)
 		return -ENOMEM;
 
-	entry->msi_attrib.is_msix = 0;
-	entry->msi_attrib.is_64 = is_64bit_address(control);
-	entry->msi_attrib.entry_nr = 0;
-	entry->msi_attrib.maskbit = is_mask_bit_support(control);
-	entry->msi_attrib.default_irq = dev->irq;	/* Save IOAPIC IRQ */
-	entry->msi_attrib.pos = pos;
+	entry->msi_attrib.is_msix	= 0;
+	entry->msi_attrib.is_64		= is_64bit_address(control);
+	entry->msi_attrib.entry_nr	= 0;
+	entry->msi_attrib.maskbit	= is_mask_bit_support(control);
+	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
+	entry->msi_attrib.pos		= pos;
 
 	entry->mask_pos = msi_mask_reg(pos, entry->msi_attrib.is_64);
 	/* All MSIs are unmasked by default, Mask them all */
@@ -513,7 +512,7 @@ static int msix_capability_init(struct pci_dev *dev,
 	u16 control;
 	void __iomem *base;
 
-   	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
+	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
 	pci_read_config_word(dev, pos + PCI_MSIX_FLAGS, &control);
 
 	/* Ensure MSI-X is disabled while it is set up */
@@ -584,7 +583,7 @@ error:
  * to determine if MSI/-X are supported for the device. If MSI/-X is
  * supported return 0, else return an error code.
  **/
-static int pci_msi_check_device(struct pci_dev* dev, int nvec, int type)
+static int pci_msi_check_device(struct pci_dev *dev, int nvec, int type)
 {
 	struct pci_bus *bus;
 	int ret;
@@ -601,8 +600,9 @@ static int pci_msi_check_device(struct pci_dev* dev, int nvec, int type)
 	if (nvec < 1)
 		return -ERANGE;
 
-	/* Any bridge which does NOT route MSI transactions from it's
-	 * secondary bus to it's primary bus must set NO_MSI flag on
+	/*
+	 * Any bridge which does NOT route MSI transactions from its
+	 * secondary bus to its primary bus must set NO_MSI flag on
 	 * the secondary pci_bus.
 	 * We expect only arch-specific PCI host bus controller driver
 	 * or quirks for specific PCI bridges to be setting NO_MSI.
@@ -693,7 +693,7 @@ void pci_msi_shutdown(struct pci_dev *dev)
 	dev->irq = desc->msi_attrib.default_irq;
 }
 
-void pci_disable_msi(struct pci_dev* dev)
+void pci_disable_msi(struct pci_dev *dev)
 {
 	if (!pci_msi_enable || !dev || !dev->msi_enabled)
 		return;
@@ -735,13 +735,13 @@ int pci_msix_table_size(struct pci_dev *dev)
  * of irqs or MSI-X vectors available. Driver should use the returned value to
  * re-send its request.
  **/
-int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
+int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
 {
 	int status, nr_entries;
 	int i, j;
 
 	if (!entries)
- 		return -EINVAL;
+		return -EINVAL;
 
 	status = pci_msi_check_device(dev, nvec, PCI_CAP_ID_MSIX);
 	if (status)
@@ -763,7 +763,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 	WARN_ON(!!dev->msix_enabled);
 
 	/* Check whether driver already requested for MSI irq */
-   	if (dev->msi_enabled) {
+	if (dev->msi_enabled) {
 		dev_info(&dev->dev, "can't enable MSI-X "
 		       "(MSI IRQ already assigned)\n");
 		return -EINVAL;
@@ -773,7 +773,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 }
 EXPORT_SYMBOL(pci_enable_msix);
 
-void pci_msix_shutdown(struct pci_dev* dev)
+void pci_msix_shutdown(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 
@@ -791,7 +791,7 @@ void pci_msix_shutdown(struct pci_dev* dev)
 	dev->msix_enabled = 0;
 }
 
-void pci_disable_msix(struct pci_dev* dev)
+void pci_disable_msix(struct pci_dev *dev)
 {
 	if (!pci_msi_enable || !dev || !dev->msix_enabled)
 		return;
@@ -810,10 +810,10 @@ EXPORT_SYMBOL(pci_disable_msix);
  * allocated for this device function, are reclaimed to unused state,
  * which may be used later on.
  **/
-void msi_remove_pci_irq_vectors(struct pci_dev* dev)
+void msi_remove_pci_irq_vectors(struct pci_dev *dev)
 {
 	if (!pci_msi_enable || !dev)
- 		return;
+		return;
 
 	if (dev->msi_enabled || dev->msix_enabled)
 		free_msi_irqs(dev);
