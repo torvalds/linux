@@ -1222,17 +1222,6 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
 };
 
-static void rtl8169_write_gmii_reg_bit(void __iomem *ioaddr, int reg,
-				       int bitnum, int bitval)
-{
-	int val;
-
-	val = mdio_read(ioaddr, reg);
-	val = (bitval == 1) ?
-		val | (bitval << bitnum) :  val & ~(0x0001 << bitnum);
-	mdio_write(ioaddr, reg, val & 0xffff);
-}
-
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 				    void __iomem *ioaddr)
 {
@@ -1328,54 +1317,69 @@ static void rtl_phy_write(void __iomem *ioaddr, struct phy_reg *regs, int len)
 
 static void rtl8169s_hw_phy_config(void __iomem *ioaddr)
 {
-	struct {
-		u16 regs[5]; /* Beware of bit-sign propagation */
-	} phy_magic[5] = { {
-		{ 0x0000,	//w 4 15 12 0
-		  0x00a1,	//w 3 15 0 00a1
-		  0x0008,	//w 2 15 0 0008
-		  0x1020,	//w 1 15 0 1020
-		  0x1000 } },{	//w 0 15 0 1000
-		{ 0x7000,	//w 4 15 12 7
-		  0xff41,	//w 3 15 0 ff41
-		  0xde60,	//w 2 15 0 de60
-		  0x0140,	//w 1 15 0 0140
-		  0x0077 } },{	//w 0 15 0 0077
-		{ 0xa000,	//w 4 15 12 a
-		  0xdf01,	//w 3 15 0 df01
-		  0xdf20,	//w 2 15 0 df20
-		  0xff95,	//w 1 15 0 ff95
-		  0xfa00 } },{	//w 0 15 0 fa00
-		{ 0xb000,	//w 4 15 12 b
-		  0xff41,	//w 3 15 0 ff41
-		  0xde20,	//w 2 15 0 de20
-		  0x0140,	//w 1 15 0 0140
-		  0x00bb } },{	//w 0 15 0 00bb
-		{ 0xf000,	//w 4 15 12 f
-		  0xdf01,	//w 3 15 0 df01
-		  0xdf20,	//w 2 15 0 df20
-		  0xff95,	//w 1 15 0 ff95
-		  0xbf00 }	//w 0 15 0 bf00
-		}
-	}, *p = phy_magic;
-	unsigned int i;
+	struct phy_reg phy_reg_init[] = {
+		{ 0x1f, 0x0001 },
+		{ 0x06, 0x006e },
+		{ 0x08, 0x0708 },
+		{ 0x15, 0x4000 },
+		{ 0x18, 0x65c7 },
 
-	mdio_write(ioaddr, 0x1f, 0x0001);		//w 31 2 0 1
-	mdio_write(ioaddr, 0x15, 0x1000);		//w 21 15 0 1000
-	mdio_write(ioaddr, 0x18, 0x65c7);		//w 24 15 0 65c7
-	rtl8169_write_gmii_reg_bit(ioaddr, 4, 11, 0);	//w 4 11 11 0
+		{ 0x1f, 0x0001 },
+		{ 0x03, 0x00a1 },
+		{ 0x02, 0x0008 },
+		{ 0x01, 0x0120 },
+		{ 0x00, 0x1000 },
+		{ 0x04, 0x0800 },
+		{ 0x04, 0x0000 },
 
-	for (i = 0; i < ARRAY_SIZE(phy_magic); i++, p++) {
-		int val, pos = 4;
+		{ 0x03, 0xff41 },
+		{ 0x02, 0xdf60 },
+		{ 0x01, 0x0140 },
+		{ 0x00, 0x0077 },
+		{ 0x04, 0x7800 },
+		{ 0x04, 0x7000 },
 
-		val = (mdio_read(ioaddr, pos) & 0x0fff) | (p->regs[0] & 0xffff);
-		mdio_write(ioaddr, pos, val);
-		while (--pos >= 0)
-			mdio_write(ioaddr, pos, p->regs[4 - pos] & 0xffff);
-		rtl8169_write_gmii_reg_bit(ioaddr, 4, 11, 1); //w 4 11 11 1
-		rtl8169_write_gmii_reg_bit(ioaddr, 4, 11, 0); //w 4 11 11 0
-	}
-	mdio_write(ioaddr, 0x1f, 0x0000); //w 31 2 0 0
+		{ 0x03, 0x802f },
+		{ 0x02, 0x4f02 },
+		{ 0x01, 0x0409 },
+		{ 0x00, 0xf0f9 },
+		{ 0x04, 0x9800 },
+		{ 0x04, 0x9000 },
+
+		{ 0x03, 0xdf01 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0xff95 },
+		{ 0x00, 0xba00 },
+		{ 0x04, 0xa800 },
+		{ 0x04, 0xa000 },
+
+		{ 0x03, 0xff41 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0x0140 },
+		{ 0x00, 0x00bb },
+		{ 0x04, 0xb800 },
+		{ 0x04, 0xb000 },
+
+		{ 0x03, 0xdf41 },
+		{ 0x02, 0xdc60 },
+		{ 0x01, 0x6340 },
+		{ 0x00, 0x007d },
+		{ 0x04, 0xd800 },
+		{ 0x04, 0xd000 },
+
+		{ 0x03, 0xdf01 },
+		{ 0x02, 0xdf20 },
+		{ 0x01, 0x100a },
+		{ 0x00, 0xa0ff },
+		{ 0x04, 0xf800 },
+		{ 0x04, 0xf000 },
+
+		{ 0x1f, 0x0000 },
+		{ 0x0b, 0x0000 },
+		{ 0x00, 0x9200 }
+	};
+
+	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
 static void rtl8169sb_hw_phy_config(void __iomem *ioaddr)
