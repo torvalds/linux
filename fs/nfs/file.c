@@ -479,6 +479,7 @@ const struct address_space_operations nfs_file_aops = {
 	.invalidatepage = nfs_invalidate_page,
 	.releasepage = nfs_release_page,
 	.direct_IO = nfs_direct_IO,
+	.migratepage = nfs_migrate_page,
 	.launder_page = nfs_launder_page,
 };
 
