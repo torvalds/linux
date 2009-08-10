@@ -1414,9 +1414,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) &&
 	    ieee80211_is_data(hdr->frame_control)) {
-		if (is_multicast_ether_addr(hdr->addr3))
-			memcpy(hdr->addr1, hdr->addr3, ETH_ALEN);
-		else
+		if (!is_multicast_ether_addr(hdr->addr1))
 			if (mesh_nexthop_lookup(skb, sdata)) {
 				dev_put(sdata->dev);
 				return;
@@ -1619,52 +1617,58 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
-		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 		if (!sdata->u.mesh.mshcfg.dot11MeshTTL) {
 			/* Do not send frames with mesh_ttl == 0 */
 			sdata->u.mesh.mshstats.dropped_frames_ttl++;
 			ret = NETDEV_TX_OK;
 			goto fail;
 		}
-		memset(&mesh_hdr, 0, sizeof(mesh_hdr));
 
 		if (compare_ether_addr(dev->dev_addr,
 					  skb->data + ETH_ALEN) == 0) {
-			/* RA TA DA SA */
-			memset(hdr.addr1, 0, ETH_ALEN);
-			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
-			memcpy(hdr.addr3, skb->data, ETH_ALEN);
-			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
-			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr, sdata);
+			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
+					skb->data, skb->data + ETH_ALEN);
+			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
+					sdata, NULL, NULL, NULL);
 		} else {
 			/* packet from other interface */
 			struct mesh_path *mppath;
+			int is_mesh_mcast = 1;
+			char *mesh_da;
 
-			memset(hdr.addr1, 0, ETH_ALEN);
-			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
-			memcpy(hdr.addr4, dev->dev_addr, ETH_ALEN);
-
+			rcu_read_lock();
 			if (is_multicast_ether_addr(skb->data))
-				memcpy(hdr.addr3, skb->data, ETH_ALEN);
+				/* DA TA mSA AE:SA */
+				mesh_da = skb->data;
 			else {
-				rcu_read_lock();
 				mppath = mpp_path_lookup(skb->data, sdata);
-				if (mppath)
-					memcpy(hdr.addr3, mppath->mpp, ETH_ALEN);
-				else
-					memset(hdr.addr3, 0xff, ETH_ALEN);
-				rcu_read_unlock();
+				if (mppath) {
+					/* RA TA mDA mSA AE:DA SA */
+					mesh_da = mppath->mpp;
+					is_mesh_mcast = 0;
+				} else
+					/* DA TA mSA AE:SA */
+					mesh_da = dev->broadcast;
 			}
+			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
+					mesh_da, dev->dev_addr);
+			rcu_read_unlock();
+			if (is_mesh_mcast)
+				meshhdrlen =
+					ieee80211_new_mesh_header(&mesh_hdr,
+							sdata,
+							skb->data + ETH_ALEN,
+							NULL,
+							NULL);
+			else
+				meshhdrlen =
+					ieee80211_new_mesh_header(&mesh_hdr,
+							sdata,
+							NULL,
+							skb->data,
+							skb->data + ETH_ALEN);
 
-			mesh_hdr.flags |= MESH_FLAGS_AE_A5_A6;
-			mesh_hdr.ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
-			put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &mesh_hdr.seqnum);
-			memcpy(mesh_hdr.eaddr1, skb->data, ETH_ALEN);
-			memcpy(mesh_hdr.eaddr2, skb->data + ETH_ALEN, ETH_ALEN);
-			sdata->u.mesh.mesh_seqnum++;
-			meshhdrlen = 18;
 		}
-		hdrlen = 30;
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:

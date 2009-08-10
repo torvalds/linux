@@ -399,21 +399,75 @@ endgrow:
 }
 
 /**
+ * ieee80211_fill_mesh_addresses - fill addresses of a locally originated mesh frame
+ * @hdr:    	802.11 frame header
+ * @fc:		frame control field
+ * @meshda:	destination address in the mesh
+ * @meshsa:	source address address in the mesh.  Same as TA, as frame is
+ *              locally originated.
+ *
+ * Return the length of the 802.11 (does not include a mesh control header)
+ */
+int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc, char
+		*meshda, char *meshsa) {
+	if (is_multicast_ether_addr(meshda)) {
+		*fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
+		/* DA TA SA */
+		memcpy(hdr->addr1, meshda, ETH_ALEN);
+		memcpy(hdr->addr2, meshsa, ETH_ALEN);
+		memcpy(hdr->addr3, meshsa, ETH_ALEN);
+		return 24;
+	} else {
+		*fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
+				IEEE80211_FCTL_TODS);
+		/* RA TA DA SA */
+		memset(hdr->addr1, 0, ETH_ALEN);   /* RA is resolved later */
+		memcpy(hdr->addr2, meshsa, ETH_ALEN);
+		memcpy(hdr->addr3, meshda, ETH_ALEN);
+		memcpy(hdr->addr4, meshsa, ETH_ALEN);
+		return 30;
+	}
+}
+
+/**
  * ieee80211_new_mesh_header - create a new mesh header
  * @meshhdr:    uninitialized mesh header
  * @sdata:	mesh interface to be used
+ * @addr4:	addr4 of the mesh frame (1st in ae header)
+ *              may be NULL
+ * @addr5:	addr5 of the mesh frame (1st or 2nd in ae header)
+ *              may be NULL unless addr6 is present
+ * @addr6:	addr6 of the mesh frame (2nd or 3rd in ae header)
+ * 		may be NULL unless addr5 is present
  *
  * Return the header length.
  */
 int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
-		struct ieee80211_sub_if_data *sdata)
+		struct ieee80211_sub_if_data *sdata, char *addr4,
+		char *addr5, char *addr6)
 {
-	meshhdr->flags = 0;
+	int aelen = 0;
+	memset(meshhdr, 0, sizeof(meshhdr));
 	meshhdr->ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
 	put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &meshhdr->seqnum);
 	sdata->u.mesh.mesh_seqnum++;
-
-	return 6;
+	if (addr4) {
+		meshhdr->flags |= MESH_FLAGS_AE_A4;
+		aelen += ETH_ALEN;
+		memcpy(meshhdr->eaddr1, addr4, ETH_ALEN);
+	}
+	if (addr5 && addr6) {
+		meshhdr->flags |= MESH_FLAGS_AE_A5_A6;
+		aelen += 2 * ETH_ALEN;
+		if (!addr4) {
+			memcpy(meshhdr->eaddr1, addr5, ETH_ALEN);
+			memcpy(meshhdr->eaddr2, addr6, ETH_ALEN);
+		} else {
+			memcpy(meshhdr->eaddr2, addr5, ETH_ALEN);
+			memcpy(meshhdr->eaddr3, addr6, ETH_ALEN);
+		}
+	}
+	return 6 + aelen;
 }
 
 static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
