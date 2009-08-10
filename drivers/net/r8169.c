@@ -1729,6 +1729,7 @@ static void rtl8102e_hw_phy_config(void __iomem *ioaddr)
 	mdio_write(ioaddr, 0x1f, 0x0000);
 	mdio_patch(ioaddr, 0x11, 1 << 12);
 	mdio_patch(ioaddr, 0x19, 1 << 13);
+	mdio_patch(ioaddr, 0x10, 1 << 15);
 
 	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
