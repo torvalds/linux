@@ -253,28 +253,6 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	}
 
 	/*
-	 * Write PCI-E power save settings
-	 */
-	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
-		ath5k_hw_reg_write(ah, 0x9248fc00, AR5K_PCIE_SERDES);
-		ath5k_hw_reg_write(ah, 0x24924924, AR5K_PCIE_SERDES);
-		/* Shut off RX when elecidle is asserted */
-		ath5k_hw_reg_write(ah, 0x28000039, AR5K_PCIE_SERDES);
-		ath5k_hw_reg_write(ah, 0x53160824, AR5K_PCIE_SERDES);
-		/* TODO: EEPROM work */
-		ath5k_hw_reg_write(ah, 0xe5980579, AR5K_PCIE_SERDES);
-		/* Shut off PLL and CLKREQ active in L1 */
-		ath5k_hw_reg_write(ah, 0x001defff, AR5K_PCIE_SERDES);
-		/* Preserce other settings */
-		ath5k_hw_reg_write(ah, 0x1aaabe40, AR5K_PCIE_SERDES);
-		ath5k_hw_reg_write(ah, 0xbe105554, AR5K_PCIE_SERDES);
-		ath5k_hw_reg_write(ah, 0x000e3007, AR5K_PCIE_SERDES);
-		/* Reset SERDES to load new settings */
-		ath5k_hw_reg_write(ah, 0x00000000, AR5K_PCIE_SERDES_RESET);
-		mdelay(1);
-	}
-
-	/*
 	 * POST
 	 */
 	ret = ath5k_hw_post(ah);
@@ -293,6 +271,40 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	if (ret) {
 		ATH5K_ERR(sc, "unable to init EEPROM\n");
 		goto err_free;
+	}
+
+	/*
+	 * Write PCI-E power save settings
+	 */
+	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
+		struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
+
+		ath5k_hw_reg_write(ah, 0x9248fc00, AR5K_PCIE_SERDES);
+		ath5k_hw_reg_write(ah, 0x24924924, AR5K_PCIE_SERDES);
+
+		/* Shut off RX when elecidle is asserted */
+		ath5k_hw_reg_write(ah, 0x28000039, AR5K_PCIE_SERDES);
+		ath5k_hw_reg_write(ah, 0x53160824, AR5K_PCIE_SERDES);
+
+		/* If serdes programing is enabled, increase PCI-E
+		 * tx power for systems with long trace from host
+		 * to minicard connector. */
+		if (ee->ee_serdes)
+			ath5k_hw_reg_write(ah, 0xe5980579, AR5K_PCIE_SERDES);
+		else
+			ath5k_hw_reg_write(ah, 0xf6800579, AR5K_PCIE_SERDES);
+
+		/* Shut off PLL and CLKREQ active in L1 */
+		ath5k_hw_reg_write(ah, 0x001defff, AR5K_PCIE_SERDES);
+
+		/* Preserve other settings */
+		ath5k_hw_reg_write(ah, 0x1aaabe40, AR5K_PCIE_SERDES);
+		ath5k_hw_reg_write(ah, 0xbe105554, AR5K_PCIE_SERDES);
+		ath5k_hw_reg_write(ah, 0x000e3007, AR5K_PCIE_SERDES);
+
+		/* Reset SERDES to load new settings */
+		ath5k_hw_reg_write(ah, 0x00000000, AR5K_PCIE_SERDES_RESET);
+		mdelay(1);
 	}
 
 	/* Get misc capabilities */
