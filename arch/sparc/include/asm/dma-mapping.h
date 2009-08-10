@@ -32,8 +32,11 @@ static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *dma_handle, gfp_t flag)
 {
 	struct dma_map_ops *ops = get_dma_ops(dev);
+	void *cpu_addr;
 
-	return ops->alloc_coherent(dev, size, dma_handle, flag);
+	cpu_addr = ops->alloc_coherent(dev, size, dma_handle, flag);
+	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
+	return cpu_addr;
 }
 
 static inline void dma_free_coherent(struct device *dev, size_t size,
@@ -41,6 +44,7 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 {
 	struct dma_map_ops *ops = get_dma_ops(dev);
 
+	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
 	ops->free_coherent(dev, size, cpu_addr, dma_handle);
 }
 
