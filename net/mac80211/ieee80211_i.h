@@ -355,7 +355,7 @@ struct ieee80211_if_mesh {
 
 	unsigned long timers_running;
 
-	bool housekeeping;
+	unsigned long wrkq_flags;
 
 	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
 	size_t mesh_id_len;

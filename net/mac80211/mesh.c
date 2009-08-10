@@ -47,7 +47,7 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
-	ifmsh->housekeeping = true;
+	ifmsh->wrkq_flags |= MESH_WORK_HOUSEKEEPING;
 
 	if (local->quiescing) {
 		set_bit(TMR_RUNNING_HK, &ifmsh->timers_running);
@@ -320,30 +320,6 @@ struct mesh_table *mesh_table_alloc(int size_order)
 	return newtbl;
 }
 
-static void __mesh_table_free(struct mesh_table *tbl)
-{
-	kfree(tbl->hash_buckets);
-	kfree(tbl->hashwlock);
-	kfree(tbl);
-}
-
-void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
-{
-	struct hlist_head *mesh_hash;
-	struct hlist_node *p, *q;
-	int i;
-
-	mesh_hash = tbl->hash_buckets;
-	for (i = 0; i <= tbl->hash_mask; i++) {
-		spin_lock(&tbl->hashwlock[i]);
-		hlist_for_each_safe(p, q, &mesh_hash[i]) {
-			tbl->free_node(p, free_leafs);
-			atomic_dec(&tbl->entries);
-		}
-		spin_unlock(&tbl->hashwlock[i]);
-	}
-	__mesh_table_free(tbl);
-}
 
 static void ieee80211_mesh_path_timer(unsigned long data)
 {
@@ -358,44 +334,6 @@ static void ieee80211_mesh_path_timer(unsigned long data)
 	}
 
 	ieee80211_queue_work(&local->hw, &ifmsh->work);
-}
-
-struct mesh_table *mesh_table_grow(struct mesh_table *tbl)
-{
-	struct mesh_table *newtbl;
-	struct hlist_head *oldhash;
-	struct hlist_node *p, *q;
-	int i;
-
-	if (atomic_read(&tbl->entries)
-			< tbl->mean_chain_len * (tbl->hash_mask + 1))
-		goto endgrow;
-
-	newtbl = mesh_table_alloc(tbl->size_order + 1);
-	if (!newtbl)
-		goto endgrow;
-
-	newtbl->free_node = tbl->free_node;
-	newtbl->mean_chain_len = tbl->mean_chain_len;
-	newtbl->copy_node = tbl->copy_node;
-	atomic_set(&newtbl->entries, atomic_read(&tbl->entries));
-
-	oldhash = tbl->hash_buckets;
-	for (i = 0; i <= tbl->hash_mask; i++)
-		hlist_for_each(p, &oldhash[i])
-			if (tbl->copy_node(p, newtbl) < 0)
-				goto errcopy;
-
-	return newtbl;
-
-errcopy:
-	for (i = 0; i <= newtbl->hash_mask; i++) {
-		hlist_for_each_safe(p, q, &newtbl->hash_buckets[i])
-			tbl->free_node(p, 0);
-	}
-	__mesh_table_free(newtbl);
-endgrow:
-	return NULL;
 }
 
 /**
@@ -487,7 +425,6 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
 	if (free_plinks != sdata->u.mesh.accepting_plinks)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 
-	ifmsh->housekeeping = false;
 	mod_timer(&ifmsh->housekeeping_timer,
 		  round_jiffies(jiffies + IEEE80211_MESH_HOUSEKEEPING_INTERVAL));
 }
@@ -524,8 +461,8 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
 
-	ifmsh->housekeeping = true;
-	queue_work(local->hw, &ifmsh->work);
+	ifmsh->wrkq_flags |= MESH_WORK_HOUSEKEEPING;
+	ieee80211_queue_work(&local->hw, &ifmsh->work);
 	sdata->vif.bss_conf.beacon_int = MESH_DEFAULT_BEACON_INTERVAL;
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
 						BSS_CHANGED_BEACON_ENABLED |
@@ -664,7 +601,13 @@ static void ieee80211_mesh_work(struct work_struct *work)
 		       ifmsh->last_preq + msecs_to_jiffies(ifmsh->mshcfg.dot11MeshHWMPpreqMinInterval)))
 		mesh_path_start_discovery(sdata);
 
-	if (ifmsh->housekeeping)
+	if (test_and_clear_bit(MESH_WORK_GROW_MPATH_TABLE, &ifmsh->wrkq_flags))
+		mesh_mpath_table_grow();
+
+	if (test_and_clear_bit(MESH_WORK_GROW_MPATH_TABLE, &ifmsh->wrkq_flags))
+		mesh_mpp_table_grow();
+
+	if (test_and_clear_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags))
 		ieee80211_mesh_housekeeping(sdata, ifmsh);
 }
 

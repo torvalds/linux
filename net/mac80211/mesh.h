@@ -44,6 +44,23 @@ enum mesh_path_flags {
 };
 
 /**
+ * enum mesh_deferred_task_flags - mac80211 mesh deferred tasks
+ *
+ *
+ *
+ * @MESH_WORK_HOUSEKEEPING: run the periodic mesh housekeeping tasks
+ * @MESH_WORK_GROW_MPATH_TABLE: the mesh path table is full and needs
+ * to grow.
+ * @MESH_WORK_GROW_MPP_TABLE: the mesh portals table is full and needs to
+ * grow
+ */
+enum mesh_deferred_task_flags {
+	MESH_WORK_HOUSEKEEPING,
+	MESH_WORK_GROW_MPATH_TABLE,
+	MESH_WORK_GROW_MPP_TABLE,
+};
+
+/**
  * struct mesh_path - mac80211 mesh path structure
  *
  * @dst: mesh path destination mac address
@@ -250,7 +267,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 /* Mesh tables */
 struct mesh_table *mesh_table_alloc(int size_order);
 void mesh_table_free(struct mesh_table *tbl, bool free_leafs);
-struct mesh_table *mesh_table_grow(struct mesh_table *tbl);
+void mesh_mpath_table_grow(void);
+void mesh_mpp_table_grow(void);
 u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
 		struct mesh_table *tbl);
 /* Mesh paths */
