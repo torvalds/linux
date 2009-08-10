@@ -38,6 +38,9 @@
 
 #define _COMPONENT		ACPI_MEMORY_DEVICE_COMPONENT
 
+#undef PREFIX
+#define 	PREFIX		"ACPI:memory_hp:"
+
 ACPI_MODULE_NAME("acpi_memhotplug");
 MODULE_AUTHOR("Naveen B S <naveen.b.s@intel.com>");
 MODULE_DESCRIPTION("Hotplug Mem Driver");
@@ -153,6 +156,7 @@ acpi_memory_get_device(acpi_handle handle,
 	acpi_handle phandle;
 	struct acpi_device *device = NULL;
 	struct acpi_device *pdevice = NULL;
+	int result;
 
 
 	if (!acpi_bus_get_device(handle, &device) && device)
@@ -165,9 +169,9 @@ acpi_memory_get_device(acpi_handle handle,
 	}
 
 	/* Get the parent device */
-	status = acpi_bus_get_device(phandle, &pdevice);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Cannot get acpi bus device"));
+	result = acpi_bus_get_device(phandle, &pdevice);
+	if (result) {
+		printk(KERN_WARNING PREFIX "Cannot get acpi bus device");
 		return -EINVAL;
 	}
 
@@ -175,9 +179,9 @@ acpi_memory_get_device(acpi_handle handle,
 	 * Now add the notified device.  This creates the acpi_device
 	 * and invokes .add function
 	 */
-	status = acpi_bus_add(&device, pdevice, handle, ACPI_BUS_TYPE_DEVICE);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Cannot add acpi bus"));
+	result = acpi_bus_add(&device, pdevice, handle, ACPI_BUS_TYPE_DEVICE);
+	if (result) {
+		printk(KERN_WARNING PREFIX "Cannot add acpi bus");
 		return -EINVAL;
 	}
 
@@ -238,7 +242,12 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 			num_enabled++;
 			continue;
 		}
-
+		/*
+		 * If the memory block size is zero, please ignore it.
+		 * Don't try to do the following memory hotplug flowchart.
+		 */
+		if (!info->length)
+			continue;
 		if (node < 0)
 			node = memory_add_physaddr_to_nid(info->start_addr);
 
@@ -253,8 +262,15 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		mem_device->state = MEMORY_INVALID_STATE;
 		return -EINVAL;
 	}
-
-	return result;
+	/*
+	 * Sometimes the memory device will contain several memory blocks.
+	 * When one memory block is hot-added to the system memory, it will
+	 * be regarded as a success.
+	 * Otherwise if the last memory block can't be hot-added to the system
+	 * memory, it will be failure and the memory device can't be bound with
+	 * driver.
+	 */
+	return 0;
 }
 
 static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)

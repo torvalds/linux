@@ -26,7 +26,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include <linux/aio.h>
 
 #include <asm/uaccess.h>

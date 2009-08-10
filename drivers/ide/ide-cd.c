@@ -592,9 +592,19 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			}
 		} else if (!blk_pc_request(rq)) {
 			ide_cd_request_sense_fixup(drive, cmd);
-			/* complain if we still have data left to transfer */
+
 			uptodate = cmd->nleft ? 0 : 1;
-			if (uptodate == 0)
+
+			/*
+			 * suck out the remaining bytes from the drive in an
+			 * attempt to complete the data xfer. (see BZ#13399)
+			 */
+			if (!(stat & ATA_ERR) && !uptodate && thislen) {
+				ide_pio_bytes(drive, cmd, write, thislen);
+				uptodate = cmd->nleft ? 0 : 1;
+			}
+
+			if (!uptodate)
 				rq->cmd_flags |= REQ_FAILED;
 		}
 		goto out_end;
@@ -876,9 +886,12 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 		return stat;
 
 	/*
-	 * Sanity check the given block size
+	 * Sanity check the given block size, in so far as making
+	 * sure the sectors_per_frame we give to the caller won't
+	 * end up being bogus.
 	 */
 	blocklen = be32_to_cpu(capbuf.blocklen);
+	blocklen = (blocklen >> SECTOR_BITS) << SECTOR_BITS;
 	switch (blocklen) {
 	case 512:
 	case 1024:
@@ -886,10 +899,9 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	case 4096:
 		break;
 	default:
-		printk(KERN_ERR PFX "%s: weird block size %u\n",
+		printk_once(KERN_ERR PFX "%s: weird block size %u; "
+				"setting default block size to 2048\n",
 				drive->name, blocklen);
-		printk(KERN_ERR PFX "%s: default to 2kb block size\n",
-				drive->name);
 		blocklen = 2048;
 		break;
 	}

@@ -1,1 +1,0 @@
-obj-$(CONFIG_USB_SERIAL_ATEN2011)	+= aten2011.o

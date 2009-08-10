@@ -188,13 +188,18 @@ Solution: Exclude affected source files from profiling by specifying
           GCOV_PROFILE := n or GCOV_PROFILE_basename.o := n in the
           corresponding Makefile.
 
+Problem:  Files copied from sysfs appear empty or incomplete.
+Cause:    Due to the way seq_file works, some tools such as cp or tar
+          may not correctly copy files from sysfs.
+Solution: Use 'cat' to read .gcda files and 'cp -d' to copy links.
+          Alternatively use the mechanism shown in Appendix B.
+
 
 Appendix A: gather_on_build.sh
 ==============================
 
 Sample script to gather coverage meta files on the build machine
 (see 6a):
-
 #!/bin/bash
 
 KSRC=$1
@@ -226,7 +231,7 @@ Appendix B: gather_on_test.sh
 Sample script to gather coverage data files on the test machine
 (see 6b):
 
-#!/bin/bash
+#!/bin/bash -e
 
 DEST=$1
 GCDA=/sys/kernel/debug/gcov
@@ -236,11 +241,13 @@ if [ -z "$DEST" ] ; then
   exit 1
 fi
 
-find $GCDA -name '*.gcno' -o -name '*.gcda' | tar cfz $DEST -T -
+TEMPDIR=$(mktemp -d)
+echo Collecting data..
+find $GCDA -type d -exec mkdir -p $TEMPDIR/\{\} \;
+find $GCDA -name '*.gcda' -exec sh -c 'cat < $0 > '$TEMPDIR'/$0' {} \;
+find $GCDA -name '*.gcno' -exec sh -c 'cp -d $0 '$TEMPDIR'/$0' {} \;
+tar czf $DEST -C $TEMPDIR sys
+rm -rf $TEMPDIR
 
-if [ $? -eq 0 ] ; then
-  echo "$DEST successfully created, copy to build system and unpack with:"
-  echo "  tar xfz $DEST"
-else
-  echo "Could not create file $DEST"
-fi
+echo "$DEST successfully created, copy to build system and unpack with:"
+echo "  tar xfz $DEST"

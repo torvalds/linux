@@ -288,6 +288,10 @@ struct cx23885_tsport {
 	/* Allow a single tsport to have multiple frontends */
 	u32                        num_frontends;
 	void                       *port_priv;
+
+	/* FIXME: temporary hack */
+	int (*set_frontend_save) (struct dvb_frontend *,
+				  struct dvb_frontend_parameters *);
 };
 
 struct cx23885_dev {

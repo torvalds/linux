@@ -38,7 +38,6 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
 #include <linux/clk.h>

@@ -105,7 +105,7 @@ IVc. Errata
 
 static char version[] __devinitdata =
 KERN_INFO NETDRV_DRIVER_LOAD_MSG "\n"
-KERN_INFO "  Support available from http://foo.com/bar/baz.html\n";
+"  Support available from http://foo.com/bar/baz.html\n";
 
 /* define to 1 to enable PIO instead of MMIO */
 #undef USE_IO_OPS

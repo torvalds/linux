@@ -97,6 +97,10 @@ struct bd2802_led {
 	enum led_ids			led_id;
 	enum led_colors			color;
 	enum led_bits			state;
+
+	/* General attributes of RGB LEDs */
+	int				wave_pattern;
+	int				rgb_current;
 };
 
 
@@ -254,7 +258,7 @@ static void bd2802_set_on(struct bd2802_led *led, enum led_ids id,
 		bd2802_reset_cancel(led);
 
 	reg = bd2802_get_reg_addr(id, color, BD2802_REG_CURRENT1SETUP);
-	bd2802_write_byte(led->client, reg, BD2802_CURRENT_032);
+	bd2802_write_byte(led->client, reg, led->rgb_current);
 	reg = bd2802_get_reg_addr(id, color, BD2802_REG_CURRENT2SETUP);
 	bd2802_write_byte(led->client, reg, BD2802_CURRENT_000);
 	reg = bd2802_get_reg_addr(id, color, BD2802_REG_WAVEPATTERN);
@@ -275,9 +279,9 @@ static void bd2802_set_blink(struct bd2802_led *led, enum led_ids id,
 	reg = bd2802_get_reg_addr(id, color, BD2802_REG_CURRENT1SETUP);
 	bd2802_write_byte(led->client, reg, BD2802_CURRENT_000);
 	reg = bd2802_get_reg_addr(id, color, BD2802_REG_CURRENT2SETUP);
-	bd2802_write_byte(led->client, reg, BD2802_CURRENT_032);
+	bd2802_write_byte(led->client, reg, led->rgb_current);
 	reg = bd2802_get_reg_addr(id, color, BD2802_REG_WAVEPATTERN);
-	bd2802_write_byte(led->client, reg, BD2802_PATTERN_HALF);
+	bd2802_write_byte(led->client, reg, led->wave_pattern);
 
 	bd2802_enable(led, id);
 	bd2802_update_state(led, id, color, BD2802_BLINK);
@@ -406,7 +410,7 @@ static void bd2802_enable_adv_conf(struct bd2802_led *led)
 		ret = device_create_file(&led->client->dev,
 						bd2802_addr_attributes[i]);
 		if (ret) {
-			dev_err(&led->client->dev, "failed to sysfs file %s\n",
+			dev_err(&led->client->dev, "failed: sysfs file %s\n",
 					bd2802_addr_attributes[i]->attr.name);
 			goto failed_remove_files;
 		}
@@ -483,6 +487,52 @@ static struct device_attribute bd2802_adv_conf_attr = {
 	.store = bd2802_store_adv_conf,
 };
 
+#define BD2802_CONTROL_ATTR(attr_name, name_str)			\
+static ssize_t bd2802_show_##attr_name(struct device *dev,		\
+	struct device_attribute *attr, char *buf)			\
+{									\
+	struct bd2802_led *led = i2c_get_clientdata(to_i2c_client(dev));\
+	ssize_t ret;							\
+	down_read(&led->rwsem);						\
+	ret = sprintf(buf, "0x%02x\n", led->attr_name);			\
+	up_read(&led->rwsem);						\
+	return ret;							\
+}									\
+static ssize_t bd2802_store_##attr_name(struct device *dev,		\
+	struct device_attribute *attr, const char *buf, size_t count)	\
+{									\
+	struct bd2802_led *led = i2c_get_clientdata(to_i2c_client(dev));\
+	unsigned long val;						\
+	int ret;							\
+	if (!count)							\
+		return -EINVAL;						\
+	ret = strict_strtoul(buf, 16, &val);				\
+	if (ret)							\
+		return ret;						\
+	down_write(&led->rwsem);					\
+	led->attr_name = val;						\
+	up_write(&led->rwsem);						\
+	return count;							\
+}									\
+static struct device_attribute bd2802_##attr_name##_attr = {		\
+	.attr = {							\
+		.name = name_str,					\
+		.mode = 0644,						\
+		.owner = THIS_MODULE					\
+	},								\
+	.show = bd2802_show_##attr_name,				\
+	.store = bd2802_store_##attr_name,				\
+};
+
+BD2802_CONTROL_ATTR(wave_pattern, "wave_pattern");
+BD2802_CONTROL_ATTR(rgb_current, "rgb_current");
+
+static struct device_attribute *bd2802_attributes[] = {
+	&bd2802_adv_conf_attr,
+	&bd2802_wave_pattern_attr,
+	&bd2802_rgb_current_attr,
+};
+
 static void bd2802_led_work(struct work_struct *work)
 {
 	struct bd2802_led *led = container_of(work, struct bd2802_led, work);
@@ -538,7 +588,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led1r.brightness = LED_OFF;
 	led->cdev_led1r.brightness_set = bd2802_set_led1r_brightness;
 	led->cdev_led1r.blink_set = bd2802_set_led1r_blink;
-	led->cdev_led1r.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led1r);
 	if (ret < 0) {
@@ -551,7 +600,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led1g.brightness = LED_OFF;
 	led->cdev_led1g.brightness_set = bd2802_set_led1g_brightness;
 	led->cdev_led1g.blink_set = bd2802_set_led1g_blink;
-	led->cdev_led1g.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led1g);
 	if (ret < 0) {
@@ -564,7 +612,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led1b.brightness = LED_OFF;
 	led->cdev_led1b.brightness_set = bd2802_set_led1b_brightness;
 	led->cdev_led1b.blink_set = bd2802_set_led1b_blink;
-	led->cdev_led1b.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led1b);
 	if (ret < 0) {
@@ -577,7 +624,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led2r.brightness = LED_OFF;
 	led->cdev_led2r.brightness_set = bd2802_set_led2r_brightness;
 	led->cdev_led2r.blink_set = bd2802_set_led2r_blink;
-	led->cdev_led2r.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led2r);
 	if (ret < 0) {
@@ -590,7 +636,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led2g.brightness = LED_OFF;
 	led->cdev_led2g.brightness_set = bd2802_set_led2g_brightness;
 	led->cdev_led2g.blink_set = bd2802_set_led2g_blink;
-	led->cdev_led2g.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led2g);
 	if (ret < 0) {
@@ -640,7 +685,7 @@ static int __devinit bd2802_probe(struct i2c_client *client,
 {
 	struct bd2802_led *led;
 	struct bd2802_led_platform_data *pdata;
-	int ret;
+	int ret, i;
 
 	led = kzalloc(sizeof(struct bd2802_led), GFP_KERNEL);
 	if (!led) {
@@ -670,13 +715,20 @@ static int __devinit bd2802_probe(struct i2c_client *client,
 	/* To save the power, reset BD2802 after detecting */
 	gpio_set_value(led->pdata->reset_gpio, 0);
 
+	/* Default attributes */
+	led->wave_pattern = BD2802_PATTERN_HALF;
+	led->rgb_current = BD2802_CURRENT_032;
+
 	init_rwsem(&led->rwsem);
 
-	ret = device_create_file(&client->dev, &bd2802_adv_conf_attr);
-	if (ret) {
-		dev_err(&client->dev, "failed to create sysfs file %s\n",
-					bd2802_adv_conf_attr.attr.name);
-		goto failed_free;
+	for (i = 0; i < ARRAY_SIZE(bd2802_attributes); i++) {
+		ret = device_create_file(&led->client->dev,
+						bd2802_attributes[i]);
+		if (ret) {
+			dev_err(&led->client->dev, "failed: sysfs file %s\n",
+					bd2802_attributes[i]->attr.name);
+			goto failed_unregister_dev_file;
+		}
 	}
 
 	ret = bd2802_register_led_classdev(led);
@@ -686,7 +738,8 @@ static int __devinit bd2802_probe(struct i2c_client *client,
 	return 0;
 
 failed_unregister_dev_file:
-	device_remove_file(&client->dev, &bd2802_adv_conf_attr);
+	for (i--; i >= 0; i--)
+		device_remove_file(&led->client->dev, bd2802_attributes[i]);
 failed_free:
 	i2c_set_clientdata(client, NULL);
 	kfree(led);
@@ -697,12 +750,14 @@ failed_free:
 static int __exit bd2802_remove(struct i2c_client *client)
 {
 	struct bd2802_led *led = i2c_get_clientdata(client);
+	int i;
 
-	bd2802_unregister_led_classdev(led);
 	gpio_set_value(led->pdata->reset_gpio, 0);
+	bd2802_unregister_led_classdev(led);
 	if (led->adf_on)
 		bd2802_disable_adv_conf(led);
-	device_remove_file(&client->dev, &bd2802_adv_conf_attr);
+	for (i = 0; i < ARRAY_SIZE(bd2802_attributes); i++)
+		device_remove_file(&led->client->dev, bd2802_attributes[i]);
 	i2c_set_clientdata(client, NULL);
 	kfree(led);
 
@@ -723,8 +778,7 @@ static int bd2802_resume(struct i2c_client *client)
 	struct bd2802_led *led = i2c_get_clientdata(client);
 
 	if (!bd2802_is_all_off(led) || led->adf_on) {
-		gpio_set_value(led->pdata->reset_gpio, 1);
-		udelay(100);
+		bd2802_reset_cancel(led);
 		bd2802_restore_state(led);
 	}
 
@@ -762,4 +816,4 @@ module_exit(bd2802_exit);
 
 MODULE_AUTHOR("Kim Kyuwon <q1.kim@samsung.com>");
 MODULE_DESCRIPTION("BD2802 LED driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

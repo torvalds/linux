@@ -284,7 +284,6 @@ static int ps3_sb_free_mmio_region(struct ps3_mmio_region *r)
 	int result;
 
 	dump_mmio_region(r);
-;
 	result = lv1_unmap_device_mmio_region(r->dev->bus_id, r->dev->dev_id,
 		r->lpar_addr);
 

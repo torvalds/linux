@@ -521,7 +521,7 @@ static int mos7720_chars_in_buffer(struct tty_struct *tty)
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL) {
 		dbg("%s:leaving ...........", __func__);
-		return -ENODEV;
+		return 0;
 	}
 
 	for (i = 0; i < NUM_URBS; ++i) {

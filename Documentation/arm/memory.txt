@@ -21,6 +21,8 @@ ffff8000	ffffffff	copy_user_page / clear_user_page use.
 				For SA11xx and Xscale, this is used to
 				setup a minicache mapping.
 
+ffff4000	ffffffff	cache aliasing on ARMv6 and later CPUs.
+
 ffff1000	ffff7fff	Reserved.
 				Platforms must not use this address range.
 

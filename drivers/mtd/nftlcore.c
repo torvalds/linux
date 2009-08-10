@@ -208,7 +208,7 @@ static u16 NFTL_findfreeblock(struct NFTLrecord *nftl, int desperate )
 	/* Normally, we force a fold to happen before we run out of free blocks completely */
 	if (!desperate && nftl->numfreeEUNs < 2) {
 		DEBUG(MTD_DEBUG_LEVEL1, "NFTL_findfreeblock: there are too few free EUNs\n");
-		return 0xffff;
+		return BLOCK_NIL;
 	}
 
 	/* Scan for a free block */
@@ -230,11 +230,11 @@ static u16 NFTL_findfreeblock(struct NFTLrecord *nftl, int desperate )
 			printk("Argh! No free blocks found! LastFreeEUN = %d, "
 			       "FirstEUN = %d\n", nftl->LastFreeEUN,
 			       le16_to_cpu(nftl->MediaHdr.FirstPhysicalEUN));
-			return 0xffff;
+			return BLOCK_NIL;
 		}
 	} while (pot != nftl->LastFreeEUN);
 
-	return 0xffff;
+	return BLOCK_NIL;
 }
 
 static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned pendingblock )
@@ -431,7 +431,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 
 	/* add the header so that it is now a valid chain */
 	oob.u.a.VirtUnitNum = oob.u.a.SpareVirtUnitNum = cpu_to_le16(thisVUC);
-	oob.u.a.ReplUnitNum = oob.u.a.SpareReplUnitNum = 0xffff;
+	oob.u.a.ReplUnitNum = oob.u.a.SpareReplUnitNum = BLOCK_NIL;
 
 	nftl_write_oob(mtd, (nftl->EraseSize * targetEUN) + 8,
 		       8, &retlen, (char *)&oob.u);
@@ -515,7 +515,7 @@ static u16 NFTL_makefreeblock( struct NFTLrecord *nftl , unsigned pendingblock)
 	if (ChainLength < 2) {
 		printk(KERN_WARNING "No Virtual Unit Chains available for folding. "
 		       "Failing request\n");
-		return 0xffff;
+		return BLOCK_NIL;
 	}
 
 	return NFTL_foldchain (nftl, LongestChain, pendingblock);
@@ -578,7 +578,7 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 				printk(KERN_WARNING
 				       "Infinite loop in Virtual Unit Chain 0x%x\n",
 				       thisVUC);
-				return 0xffff;
+				return BLOCK_NIL;
 			}
 
 			/* Skip to next block in chain */
@@ -601,7 +601,7 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 			//u16 startEUN = nftl->EUNtable[thisVUC];
 
 			//printk("Write to VirtualUnitChain %d, calling makefreeblock()\n", thisVUC);
-			writeEUN = NFTL_makefreeblock(nftl, 0xffff);
+			writeEUN = NFTL_makefreeblock(nftl, BLOCK_NIL);
 
 			if (writeEUN == BLOCK_NIL) {
 				/* OK, we accept that the above comment is
@@ -673,7 +673,7 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 
 	printk(KERN_WARNING "Error folding to make room for Virtual Unit Chain 0x%x\n",
 	       thisVUC);
-	return 0xffff;
+	return BLOCK_NIL;
 }
 
 static int nftl_writeblock(struct mtd_blktrans_dev *mbd, unsigned long block,

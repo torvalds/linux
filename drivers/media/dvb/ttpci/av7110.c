@@ -36,7 +36,6 @@
 #include <linux/fs.h>
 #include <linux/timer.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 
 #include <linux/kernel.h>
 #include <linux/sched.h>

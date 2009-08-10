@@ -704,11 +704,48 @@ static bool msr_mtrr_valid(unsigned msr)
 	return false;
 }
 
+static bool valid_pat_type(unsigned t)
+{
+	return t < 8 && (1 << t) & 0xf3; /* 0, 1, 4, 5, 6, 7 */
+}
+
+static bool valid_mtrr_type(unsigned t)
+{
+	return t < 8 && (1 << t) & 0x73; /* 0, 1, 4, 5, 6 */
+}
+
+static bool mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+{
+	int i;
+
+	if (!msr_mtrr_valid(msr))
+		return false;
+
+	if (msr == MSR_IA32_CR_PAT) {
+		for (i = 0; i < 8; i++)
+			if (!valid_pat_type((data >> (i * 8)) & 0xff))
+				return false;
+		return true;
+	} else if (msr == MSR_MTRRdefType) {
+		if (data & ~0xcff)
+			return false;
+		return valid_mtrr_type(data & 0xff);
+	} else if (msr >= MSR_MTRRfix64K_00000 && msr <= MSR_MTRRfix4K_F8000) {
+		for (i = 0; i < 8 ; i++)
+			if (!valid_mtrr_type((data >> (i * 8)) & 0xff))
+				return false;
+		return true;
+	}
+
+	/* variable MTRRs */
+	return valid_mtrr_type(data & 0xff);
+}
+
 static int set_msr_mtrr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	u64 *p = (u64 *)&vcpu->arch.mtrr_state.fixed_ranges;
 
-	if (!msr_mtrr_valid(msr))
+	if (!mtrr_valid(vcpu, msr, data))
 		return 1;
 
 	if (msr == MSR_MTRRdefType) {
@@ -898,6 +935,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_VM_HSAVE_PA:
 	case MSR_P6_EVNTSEL0:
 	case MSR_P6_EVNTSEL1:
+	case MSR_K7_EVNTSEL0:
 		data = 0;
 		break;
 	case MSR_MTRRcap:
@@ -1078,14 +1116,13 @@ long kvm_arch_dev_ioctl(struct file *filp,
 		if (copy_to_user(user_msr_list, &msr_list, sizeof msr_list))
 			goto out;
 		r = -E2BIG;
-		if (n < num_msrs_to_save)
+		if (n < msr_list.nmsrs)
 			goto out;
 		r = -EFAULT;
 		if (copy_to_user(user_msr_list->indices, &msrs_to_save,
 				 num_msrs_to_save * sizeof(u32)))
 			goto out;
-		if (copy_to_user(user_msr_list->indices
-				 + num_msrs_to_save * sizeof(u32),
+		if (copy_to_user(user_msr_list->indices + num_msrs_to_save,
 				 &emulated_msrs,
 				 ARRAY_SIZE(emulated_msrs) * sizeof(u32)))
 			goto out;

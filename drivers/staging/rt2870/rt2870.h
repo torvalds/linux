@@ -79,6 +79,7 @@
 {	\
 	{USB_DEVICE(0x148F,0x2770)}, /* Ralink */		\
 	{USB_DEVICE(0x1737,0x0071)}, /* Linksys WUSB600N */	\
+	{USB_DEVICE(0x1737,0x0070)}, /* Linksys */	\
 	{USB_DEVICE(0x148F,0x2870)}, /* Ralink */		\
 	{USB_DEVICE(0x148F,0x3070)}, /* Ralink */		\
 	{USB_DEVICE(0x0B05,0x1731)}, /* Asus */			\
@@ -89,15 +90,18 @@
 	{USB_DEVICE(0x0DF6,0x002C)}, /* Sitecom */		\
 	{USB_DEVICE(0x0DF6,0x002D)}, /* Sitecom */		\
 	{USB_DEVICE(0x0DF6,0x0039)}, /* Sitecom */		\
+	{USB_DEVICE(0x0DF6,0x003F)}, /* Sitecom WL-608 */	\
 	{USB_DEVICE(0x14B2,0x3C06)}, /* Conceptronic */		\
 	{USB_DEVICE(0x14B2,0x3C28)}, /* Conceptronic */		\
 	{USB_DEVICE(0x2019,0xED06)}, /* Planex Communications, Inc. */		\
+	{USB_DEVICE(0x2019,0xED14)}, /* Planex Communications, Inc. */		\
 	{USB_DEVICE(0x2019,0xAB25)}, /* Planex Communications, Inc. RT3070 */		\
 	{USB_DEVICE(0x07D1,0x3C09)}, /* D-Link */		\
 	{USB_DEVICE(0x07D1,0x3C11)}, /* D-Link */		\
 	{USB_DEVICE(0x14B2,0x3C07)}, /* AL */			\
 	{USB_DEVICE(0x14B2,0x3C12)}, /* AL */           \
 	{USB_DEVICE(0x050D,0x8053)}, /* Belkin */		\
+	{USB_DEVICE(0x050D,0x815C)}, /* Belkin */		\
 	{USB_DEVICE(0x14B2,0x3C23)}, /* Airlink */		\
 	{USB_DEVICE(0x14B2,0x3C27)}, /* Airlink */		\
 	{USB_DEVICE(0x07AA,0x002F)}, /* Corega */		\
@@ -586,16 +590,14 @@ VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 #define RTUSBMlmeUp(pAd)	        \
 {								    \
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
-	BUG_ON(pObj->MLMEThr_task == NULL);		    \
-	CHECK_PID_LEGALITY(task_pid(pObj->MLMEThr_task))		    \
+	CHECK_PID_LEGALITY(pObj->MLMEThr_pid)		    \
         up(&(pAd->mlme_semaphore)); \
 }
 
 #define RTUSBCMDUp(pAd)	                \
 {									    \
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
-	BUG_ON(pObj->RTUSBCmdThr_task == NULL);	    \
-	CHECK_PID_LEGALITY(task_pid(pObj->RTUSBCmdThr_task))	    \
+	CHECK_PID_LEGALITY(pObj->RTUSBCmdThr_pid)	    \
 	    up(&(pAd->RTUSBCmd_semaphore)); \
 }
 #endif

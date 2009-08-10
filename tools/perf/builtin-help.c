@@ -3,6 +3,7 @@
  *
  * Builtin help command
  */
+#include "perf.h"
 #include "util/cache.h"
 #include "builtin.h"
 #include "util/exec_cmd.h"
@@ -277,7 +278,7 @@ static struct cmdnames main_cmds, other_cmds;
 
 void list_common_cmds_help(void)
 {
-	int i, longest = 0;
+	unsigned int i, longest = 0;
 
 	for (i = 0; i < ARRAY_SIZE(common_cmds); i++) {
 		if (longest < strlen(common_cmds[i].name))
@@ -415,9 +416,10 @@ static void show_html_page(const char *perf_cmd)
 	open_html(page_path.buf);
 }
 
-int cmd_help(int argc, const char **argv, const char *prefix)
+int cmd_help(int argc, const char **argv, const char *prefix __used)
 {
 	const char *alias;
+
 	load_command_list("perf-", &main_cmds, &other_cmds);
 
 	perf_config(perf_help_config, NULL);

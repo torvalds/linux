@@ -25,6 +25,7 @@
 #include <asm/lowcore.h>
 #include <asm/pgtable.h>
 #include <asm/nmi.h>
+#include <asm/system.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -69,6 +70,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
+static unsigned long long *facilities;
 
 /* Section: not file related */
 void kvm_arch_hardware_enable(void *garbage)
@@ -288,6 +290,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->gmsor = vcpu->kvm->arch.guest_origin;
 	vcpu->arch.sie_block->ecb   = 2;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
+	vcpu->arch.sie_block->fac   = (int) (long) facilities;
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 	tasklet_init(&vcpu->arch.tasklet, kvm_s390_tasklet,
 		     (unsigned long) vcpu);
@@ -739,11 +742,29 @@ gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 
 static int __init kvm_s390_init(void)
 {
-	return kvm_init(NULL, sizeof(struct kvm_vcpu), THIS_MODULE);
+	int ret;
+	ret = kvm_init(NULL, sizeof(struct kvm_vcpu), THIS_MODULE);
+	if (ret)
+		return ret;
+
+	/*
+	 * guests can ask for up to 255+1 double words, we need a full page
+	 * to hold the maximum amount of facilites. On the other hand, we
+	 * only set facilities that are known to work in KVM.
+	 */
+	facilities = (unsigned long long *) get_zeroed_page(GFP_DMA);
+	if (!facilities) {
+		kvm_exit();
+		return -ENOMEM;
+	}
+	stfle(facilities, 1);
+	facilities[0] &= 0xff00fff3f0700000ULL;
+	return 0;
 }
 
 static void __exit kvm_s390_exit(void)
 {
+	free_page((unsigned long) facilities);
 	kvm_exit();
 }
 

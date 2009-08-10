@@ -1720,8 +1720,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	oprofile.cpu_type=	Force an oprofile cpu type
 			This might be useful if you have an older oprofile
 			userland or if you want common events.
-			Format: { archperfmon }
-			archperfmon: [X86] Force use of architectural
+			Format: { arch_perfmon }
+			arch_perfmon: [X86] Force use of architectural
 				perfmon on Intel CPUs instead of the
 				CPU specific event set.
 
@@ -1914,6 +1914,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			boot time.
 			Format: { 0 | 1 }
 			See arch/parisc/kernel/pdc_chassis.c
+
+	percpu_alloc=	[X86] Select which percpu first chunk allocator to use.
+			Allowed values are one of "lpage", "embed" and "4k".
+			See comments in arch/x86/kernel/setup_percpu.c for
+			details on each allocator.  This parameter is primarily
+			for debugging and performance comparison.
 
 	pf.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
@@ -2467,7 +2473,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	tp720=		[HW,PS2]
 
-	trace_buf_size=nn[KMG] [ftrace] will set tracing buffer size.
+	trace_buf_size=nn[KMG]
+			[FTRACE] will set tracing buffer size.
 
 	trix=		[HW,OSS] MediaTrix AudioTrix Pro
 			Format:

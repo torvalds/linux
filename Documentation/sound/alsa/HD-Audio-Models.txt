@@ -240,6 +240,7 @@ AD1986A
   laptop-automute 2-channel with EAPD and HP-automute (Lenovo N100)
   ultra		2-channel with EAPD (Samsung Ultra tablet PC)
   samsung	2-channel with EAPD (Samsung R65)
+  samsung-p50	2-channel with HP-automute (Samsung P50)
 
 AD1988/AD1988B/AD1989A/AD1989B
 ==============================

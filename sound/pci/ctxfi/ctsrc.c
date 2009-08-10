@@ -724,12 +724,11 @@ static int get_srcimp_rsc(struct srcimp_mgr *mgr,
 
 	/* Allocate mem for SRCIMP resource */
 	srcimp = kzalloc(sizeof(*srcimp), GFP_KERNEL);
-	if (NULL == srcimp) {
-		err = -ENOMEM;
-		return err;
-	}
+	if (!srcimp)
+		return -ENOMEM;
 
 	/* Check whether there are sufficient SRCIMP resources. */
+	err = 0;
 	spin_lock_irqsave(&mgr->mgr_lock, flags);
 	for (i = 0; i < desc->msr; i++) {
 		err = mgr_get_resource(&mgr->mgr, 1, &idx);

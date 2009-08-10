@@ -3699,13 +3699,21 @@ static int make_request(struct request_queue *q, struct bio * bi)
 					goto retry;
 				}
 			}
-			/* FIXME what if we get a false positive because these
-			 * are being updated.
-			 */
-			if (logical_sector >= mddev->suspend_lo &&
+
+			if (bio_data_dir(bi) == WRITE &&
+			    logical_sector >= mddev->suspend_lo &&
 			    logical_sector < mddev->suspend_hi) {
 				release_stripe(sh);
-				schedule();
+				/* As the suspend_* range is controlled by
+				 * userspace, we want an interruptible
+				 * wait.
+				 */
+				flush_signals(current);
+				prepare_to_wait(&conf->wait_for_overlap,
+						&w, TASK_INTERRUPTIBLE);
+				if (logical_sector >= mddev->suspend_lo &&
+				    logical_sector < mddev->suspend_hi)
+					schedule();
 				goto retry;
 			}
 
@@ -3990,6 +3998,9 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 
 		return 0;
 	}
+
+	/* Allow raid5_quiesce to complete */
+	wait_event(conf->wait_for_overlap, conf->quiesce != 2);
 
 	if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 		return reshape_request(mddev, sector_nr, skipped);
@@ -4308,6 +4319,15 @@ raid5_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 	return sectors * (raid_disks - conf->max_degraded);
 }
 
+static void free_conf(raid5_conf_t *conf)
+{
+	shrink_stripes(conf);
+	safe_put_page(conf->spare_page);
+	kfree(conf->disks);
+	kfree(conf->stripe_hashtbl);
+	kfree(conf);
+}
+
 static raid5_conf_t *setup_conf(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
@@ -4439,11 +4459,7 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 
  abort:
 	if (conf) {
-		shrink_stripes(conf);
-		safe_put_page(conf->spare_page);
-		kfree(conf->disks);
-		kfree(conf->stripe_hashtbl);
-		kfree(conf);
+		free_conf(conf);
 		return ERR_PTR(-EIO);
 	} else
 		return ERR_PTR(-ENOMEM);
@@ -4452,7 +4468,7 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 static int run(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
-	int working_disks = 0;
+	int working_disks = 0, chunk_size;
 	mdk_rdev_t *rdev;
 
 	if (mddev->recovery_cp != MaxSector)
@@ -4607,18 +4623,22 @@ static int run(mddev_t *mddev)
 	md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 
 	blk_queue_merge_bvec(mddev->queue, raid5_mergeable_bvec);
+	chunk_size = mddev->chunk_sectors << 9;
+	blk_queue_io_min(mddev->queue, chunk_size);
+	blk_queue_io_opt(mddev->queue, chunk_size *
+			 (conf->raid_disks - conf->max_degraded));
+
+	list_for_each_entry(rdev, &mddev->disks, same_set)
+		disk_stack_limits(mddev->gendisk, rdev->bdev,
+				  rdev->data_offset << 9);
 
 	return 0;
 abort:
 	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;
 	if (conf) {
-		shrink_stripes(conf);
 		print_raid5_conf(conf);
-		safe_put_page(conf->spare_page);
-		kfree(conf->disks);
-		kfree(conf->stripe_hashtbl);
-		kfree(conf);
+		free_conf(conf);
 	}
 	mddev->private = NULL;
 	printk(KERN_ALERT "raid5: failed to run raid set %s\n", mdname(mddev));
@@ -4633,13 +4653,10 @@ static int stop(mddev_t *mddev)
 
 	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;
-	shrink_stripes(conf);
-	kfree(conf->stripe_hashtbl);
 	mddev->queue->backing_dev_info.congested_fn = NULL;
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	sysfs_remove_group(&mddev->kobj, &raid5_attrs_group);
-	kfree(conf->disks);
-	kfree(conf);
+	free_conf(conf);
 	mddev->private = NULL;
 	return 0;
 }
@@ -4841,6 +4858,7 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 		return -EINVAL;
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	mddev->changed = 1;
+	revalidate_disk(mddev->gendisk);
 	if (sectors > mddev->dev_sectors && mddev->recovery_cp == MaxSector) {
 		mddev->recovery_cp = mddev->dev_sectors;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
@@ -4986,7 +5004,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 	mddev->raid_disks = conf->raid_disks;
-	mddev->reshape_position = 0;
+	mddev->reshape_position = conf->reshape_progress;
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
@@ -5041,7 +5059,6 @@ static void end_reshape(raid5_conf_t *conf)
  */
 static void raid5_finish_reshape(mddev_t *mddev)
 {
-	struct block_device *bdev;
 	raid5_conf_t *conf = mddev->private;
 
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
@@ -5050,15 +5067,7 @@ static void raid5_finish_reshape(mddev_t *mddev)
 			md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 			set_capacity(mddev->gendisk, mddev->array_sectors);
 			mddev->changed = 1;
-
-			bdev = bdget_disk(mddev->gendisk, 0);
-			if (bdev) {
-				mutex_lock(&bdev->bd_inode->i_mutex);
-				i_size_write(bdev->bd_inode,
-					     (loff_t)mddev->array_sectors << 9);
-				mutex_unlock(&bdev->bd_inode->i_mutex);
-				bdput(bdev);
-			}
+			revalidate_disk(mddev->gendisk);
 		} else {
 			int d;
 			mddev->degraded = conf->raid_disks;
@@ -5090,12 +5099,18 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 
 	case 1: /* stop all writes */
 		spin_lock_irq(&conf->device_lock);
-		conf->quiesce = 1;
+		/* '2' tells resync/reshape to pause so that all
+		 * active stripes can drain
+		 */
+		conf->quiesce = 2;
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    atomic_read(&conf->active_stripes) == 0 &&
 				    atomic_read(&conf->active_aligned_reads) == 0,
 				    conf->device_lock, /* nothing */);
+		conf->quiesce = 1;
 		spin_unlock_irq(&conf->device_lock);
+		/* allow reshape to continue */
+		wake_up(&conf->wait_for_overlap);
 		break;
 
 	case 0: /* re-enable writes */

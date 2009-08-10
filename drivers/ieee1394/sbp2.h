@@ -25,6 +25,12 @@
 #define SBP2_DEVICE_NAME		"sbp2"
 
 /*
+ * There is no transport protocol limit to the CDB length,  but we implement
+ * a fixed length only.  16 bytes is enough for disks larger than 2 TB.
+ */
+#define SBP2_MAX_CDB_SIZE		16
+
+/*
  * SBP-2 specific definitions
  */
 
@@ -51,7 +57,7 @@ struct sbp2_command_orb {
 	u32 data_descriptor_hi;
 	u32 data_descriptor_lo;
 	u32 misc;
-	u8 cdb[12];
+	u8 cdb[SBP2_MAX_CDB_SIZE];
 } __attribute__((packed));
 
 #define SBP2_LOGIN_REQUEST		0x0

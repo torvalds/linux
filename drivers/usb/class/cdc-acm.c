@@ -462,11 +462,18 @@ urbs:
 
 		rcv->buffer = buf;
 
-		usb_fill_bulk_urb(rcv->urb, acm->dev,
-				  acm->rx_endpoint,
-				  buf->base,
-				  acm->readsize,
-				  acm_read_bulk, rcv);
+		if (acm->is_int_ep)
+			usb_fill_int_urb(rcv->urb, acm->dev,
+					 acm->rx_endpoint,
+					 buf->base,
+					 acm->readsize,
+					 acm_read_bulk, rcv, acm->bInterval);
+		else
+			usb_fill_bulk_urb(rcv->urb, acm->dev,
+					  acm->rx_endpoint,
+					  buf->base,
+					  acm->readsize,
+					  acm_read_bulk, rcv);
 		rcv->urb->transfer_dma = buf->dma;
 		rcv->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
@@ -550,7 +557,7 @@ static void acm_waker(struct work_struct *waker)
 static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	struct acm *acm;
-	int rv = -EINVAL;
+	int rv = -ENODEV;
 	int i;
 	dbg("Entering acm_tty_open.");
 
@@ -677,7 +684,7 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 
 	/* Perform the closing process and see if we need to do the hardware
 	   shutdown */
-	if (tty_port_close_start(&acm->port, tty, filp) == 0)
+	if (!acm || tty_port_close_start(&acm->port, tty, filp) == 0)
 		return;
 	acm_port_down(acm, 0);
 	tty_port_close_end(&acm->port, tty);
@@ -740,7 +747,7 @@ static int acm_tty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 	if (!ACM_READY(acm))
-		return -EINVAL;
+		return 0;
 	/*
 	 * This is inaccurate (overcounts), but it works.
 	 */
@@ -1173,6 +1180,9 @@ made_compressed_probe:
 	spin_lock_init(&acm->read_lock);
 	mutex_init(&acm->mutex);
 	acm->rx_endpoint = usb_rcvbulkpipe(usb_dev, epread->bEndpointAddress);
+	acm->is_int_ep = usb_endpoint_xfer_int(epread);
+	if (acm->is_int_ep)
+		acm->bInterval = epread->bInterval;
 	tty_port_init(&acm->port);
 	acm->port.ops = &acm_port_ops;
 
@@ -1227,9 +1237,14 @@ made_compressed_probe:
 			goto alloc_fail7;
 		}
 
-		usb_fill_bulk_urb(snd->urb, usb_dev,
-			usb_sndbulkpipe(usb_dev, epwrite->bEndpointAddress),
-			NULL, acm->writesize, acm_write_bulk, snd);
+		if (usb_endpoint_xfer_int(epwrite))
+			usb_fill_int_urb(snd->urb, usb_dev,
+				usb_sndbulkpipe(usb_dev, epwrite->bEndpointAddress),
+				NULL, acm->writesize, acm_write_bulk, snd, epwrite->bInterval);
+		else
+			usb_fill_bulk_urb(snd->urb, usb_dev,
+				usb_sndbulkpipe(usb_dev, epwrite->bEndpointAddress),
+				NULL, acm->writesize, acm_write_bulk, snd);
 		snd->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		snd->instance = acm;
 	}

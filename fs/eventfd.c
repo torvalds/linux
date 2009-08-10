@@ -14,35 +14,44 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/anon_inodes.h>
-#include <linux/eventfd.h>
 #include <linux/syscalls.h>
 #include <linux/module.h>
+#include <linux/kref.h>
+#include <linux/eventfd.h>
 
 struct eventfd_ctx {
+	struct kref kref;
 	wait_queue_head_t wqh;
 	/*
 	 * Every time that a write(2) is performed on an eventfd, the
 	 * value of the __u64 being written is added to "count" and a
 	 * wakeup is performed on "wqh". A read(2) will return the "count"
 	 * value to userspace, and will reset "count" to zero. The kernel
-	 * size eventfd_signal() also, adds to the "count" counter and
+	 * side eventfd_signal() also, adds to the "count" counter and
 	 * issue a wakeup.
 	 */
 	__u64 count;
 	unsigned int flags;
 };
 
-/*
- * Adds "n" to the eventfd counter "count". Returns "n" in case of
- * success, or a value lower then "n" in case of coutner overflow.
- * This function is supposed to be called by the kernel in paths
- * that do not allow sleeping. In this function we allow the counter
- * to reach the ULLONG_MAX value, and we signal this as overflow
- * condition by returining a POLLERR to poll(2).
+/**
+ * eventfd_signal - Adds @n to the eventfd counter.
+ * @ctx: [in] Pointer to the eventfd context.
+ * @n: [in] Value of the counter to be added to the eventfd internal counter.
+ *          The value cannot be negative.
+ *
+ * This function is supposed to be called by the kernel in paths that do not
+ * allow sleeping. In this function we allow the counter to reach the ULLONG_MAX
+ * value, and we signal this as overflow condition by returining a POLLERR
+ * to poll(2).
+ *
+ * Returns @n in case of success, a non-negative number lower than @n in case
+ * of overflow, or the following error codes:
+ *
+ * -EINVAL    : The value of @n is negative.
  */
-int eventfd_signal(struct file *file, int n)
+int eventfd_signal(struct eventfd_ctx *ctx, int n)
 {
-	struct eventfd_ctx *ctx = file->private_data;
 	unsigned long flags;
 
 	if (n < 0)
@@ -59,9 +68,45 @@ int eventfd_signal(struct file *file, int n)
 }
 EXPORT_SYMBOL_GPL(eventfd_signal);
 
+static void eventfd_free(struct kref *kref)
+{
+	struct eventfd_ctx *ctx = container_of(kref, struct eventfd_ctx, kref);
+
+	kfree(ctx);
+}
+
+/**
+ * eventfd_ctx_get - Acquires a reference to the internal eventfd context.
+ * @ctx: [in] Pointer to the eventfd context.
+ *
+ * Returns: In case of success, returns a pointer to the eventfd context.
+ */
+struct eventfd_ctx *eventfd_ctx_get(struct eventfd_ctx *ctx)
+{
+	kref_get(&ctx->kref);
+	return ctx;
+}
+EXPORT_SYMBOL_GPL(eventfd_ctx_get);
+
+/**
+ * eventfd_ctx_put - Releases a reference to the internal eventfd context.
+ * @ctx: [in] Pointer to eventfd context.
+ *
+ * The eventfd context reference must have been previously acquired either
+ * with eventfd_ctx_get() or eventfd_ctx_fdget()).
+ */
+void eventfd_ctx_put(struct eventfd_ctx *ctx)
+{
+	kref_put(&ctx->kref, eventfd_free);
+}
+EXPORT_SYMBOL_GPL(eventfd_ctx_put);
+
 static int eventfd_release(struct inode *inode, struct file *file)
 {
-	kfree(file->private_data);
+	struct eventfd_ctx *ctx = file->private_data;
+
+	wake_up_poll(&ctx->wqh, POLLHUP);
+	eventfd_ctx_put(ctx);
 	return 0;
 }
 
@@ -185,6 +230,16 @@ static const struct file_operations eventfd_fops = {
 	.write		= eventfd_write,
 };
 
+/**
+ * eventfd_fget - Acquire a reference of an eventfd file descriptor.
+ * @fd: [in] Eventfd file descriptor.
+ *
+ * Returns a pointer to the eventfd file structure in case of success, or the
+ * following error pointer:
+ *
+ * -EBADF    : Invalid @fd file descriptor.
+ * -EINVAL   : The @fd file descriptor is not an eventfd file.
+ */
 struct file *eventfd_fget(int fd)
 {
 	struct file *file;
@@ -200,6 +255,48 @@ struct file *eventfd_fget(int fd)
 	return file;
 }
 EXPORT_SYMBOL_GPL(eventfd_fget);
+
+/**
+ * eventfd_ctx_fdget - Acquires a reference to the internal eventfd context.
+ * @fd: [in] Eventfd file descriptor.
+ *
+ * Returns a pointer to the internal eventfd context, otherwise the error
+ * pointers returned by the following functions:
+ *
+ * eventfd_fget
+ */
+struct eventfd_ctx *eventfd_ctx_fdget(int fd)
+{
+	struct file *file;
+	struct eventfd_ctx *ctx;
+
+	file = eventfd_fget(fd);
+	if (IS_ERR(file))
+		return (struct eventfd_ctx *) file;
+	ctx = eventfd_ctx_get(file->private_data);
+	fput(file);
+
+	return ctx;
+}
+EXPORT_SYMBOL_GPL(eventfd_ctx_fdget);
+
+/**
+ * eventfd_ctx_fileget - Acquires a reference to the internal eventfd context.
+ * @file: [in] Eventfd file pointer.
+ *
+ * Returns a pointer to the internal eventfd context, otherwise the error
+ * pointer:
+ *
+ * -EINVAL   : The @fd file descriptor is not an eventfd file.
+ */
+struct eventfd_ctx *eventfd_ctx_fileget(struct file *file)
+{
+	if (file->f_op != &eventfd_fops)
+		return ERR_PTR(-EINVAL);
+
+	return eventfd_ctx_get(file->private_data);
+}
+EXPORT_SYMBOL_GPL(eventfd_ctx_fileget);
 
 SYSCALL_DEFINE2(eventfd2, unsigned int, count, int, flags)
 {
@@ -217,6 +314,7 @@ SYSCALL_DEFINE2(eventfd2, unsigned int, count, int, flags)
 	if (!ctx)
 		return -ENOMEM;
 
+	kref_init(&ctx->kref);
 	init_waitqueue_head(&ctx->wqh);
 	ctx->count = count;
 	ctx->flags = flags;

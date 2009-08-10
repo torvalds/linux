@@ -158,6 +158,13 @@ static unsigned int esdhc_get_max_clock(struct sdhci_host *host)
 	return of_host->clock;
 }
 
+static unsigned int esdhc_get_min_clock(struct sdhci_host *host)
+{
+	struct sdhci_of_host *of_host = sdhci_priv(host);
+
+	return of_host->clock / 256 / 16;
+}
+
 static unsigned int esdhc_get_timeout_clock(struct sdhci_host *host)
 {
 	struct sdhci_of_host *of_host = sdhci_priv(host);
@@ -184,6 +191,7 @@ static struct sdhci_of_data sdhci_esdhc = {
 		.set_clock = esdhc_set_clock,
 		.enable_dma = esdhc_enable_dma,
 		.get_max_clock = esdhc_get_max_clock,
+		.get_min_clock = esdhc_get_min_clock,
 		.get_timeout_clock = esdhc_get_timeout_clock,
 	},
 };
@@ -226,7 +234,7 @@ static int __devinit sdhci_of_probe(struct of_device *ofdev,
 		return -ENODEV;
 
 	host = sdhci_alloc_host(&ofdev->dev, sizeof(*of_host));
-	if (!host)
+	if (IS_ERR(host))
 		return -ENOMEM;
 
 	of_host = sdhci_priv(host);

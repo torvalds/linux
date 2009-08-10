@@ -1761,6 +1761,10 @@ do_last:
 			goto exit;
 		}
 		filp = nameidata_to_filp(&nd, open_flag);
+		if (IS_ERR(filp))
+			ima_counts_put(&nd.path,
+				       acc_mode & (MAY_READ | MAY_WRITE |
+						   MAY_EXEC));
 		mnt_drop_write(nd.path.mnt);
 		if (nd.root.mnt)
 			path_put(&nd.root);
@@ -1817,6 +1821,9 @@ ok:
 		goto exit;
 	}
 	filp = nameidata_to_filp(&nd, open_flag);
+	if (IS_ERR(filp))
+		ima_counts_put(&nd.path,
+			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC));
 	/*
 	 * It is now safe to drop the mnt write
 	 * because the filp has had a write taken

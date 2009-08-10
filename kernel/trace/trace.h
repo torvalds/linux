@@ -438,10 +438,6 @@ struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 					  int *ent_cpu, u64 *ent_ts);
 
-void tracing_generic_entry_update(struct trace_entry *entry,
-				  unsigned long flags,
-				  int pc);
-
 void default_wait_pipe(struct trace_iterator *iter);
 void poll_wait_pipe(struct trace_iterator *iter);
 
@@ -597,6 +593,7 @@ print_graph_function(struct trace_iterator *iter)
 
 extern struct pid *ftrace_pid_trace;
 
+#ifdef CONFIG_FUNCTION_TRACER
 static inline int ftrace_trace_task(struct task_struct *task)
 {
 	if (!ftrace_pid_trace)
@@ -604,6 +601,12 @@ static inline int ftrace_trace_task(struct task_struct *task)
 
 	return test_tsk_trace_trace(task);
 }
+#else
+static inline int ftrace_trace_task(struct task_struct *task)
+{
+	return 1;
+}
+#endif
 
 /*
  * trace_iterator_flags is an enumeration that defines bit
