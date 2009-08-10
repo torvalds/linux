@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/partitions.h>
+#include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -40,6 +41,10 @@ static struct mv643xx_eth_platform_data openrd_base_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
+static struct mv_sata_platform_data openrd_base_sata_data = {
+	.n_ports	= 2,
+};
+
 static struct mvsdio_platform_data openrd_base_mvsdio_data = {
 	.gpio_card_detect = 29,	/* MPP29 used as SD card detect */
 };
@@ -63,6 +68,7 @@ static void __init openrd_base_init(void)
 	kirkwood_ehci_init();
 
 	kirkwood_ge00_init(&openrd_base_ge00_data);
+	kirkwood_sata_init(&openrd_base_sata_data);
 	kirkwood_sdio_init(&openrd_base_mvsdio_data);
 }
 
