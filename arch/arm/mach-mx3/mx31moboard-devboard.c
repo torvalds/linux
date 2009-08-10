@@ -116,23 +116,25 @@ static struct fsl_usb2_platform_data usb_pdata = {
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
 
-#define OTG_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST)
-#define OTG_EN_B IOMUX_TO_GPIO(MX31_PIN_USB_OC)
+#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
+			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
+
+#define OTG_EN_B 	IOMUX_TO_GPIO(MX31_PIN_USB_OC)
 
 static void devboard_usbotg_init(void)
 {
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, OTG_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, OTG_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, USB_PAD_CFG);
 
 	gpio_request(OTG_EN_B, "usb-udc-en");
 	gpio_direction_output(OTG_EN_B, 0);

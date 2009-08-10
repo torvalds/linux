@@ -16,6 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -56,6 +57,8 @@ static unsigned int moboard_pins[] = {
 	MX31_PIN_SD1_DATA1__SD1_DATA1, MX31_PIN_SD1_DATA0__SD1_DATA0,
 	MX31_PIN_SD1_CLK__SD1_CLK, MX31_PIN_SD1_CMD__SD1_CMD,
 	MX31_PIN_ATA_CS0__GPIO3_26, MX31_PIN_ATA_CS1__GPIO3_27,
+	/* USB reset */
+	MX31_PIN_GPIO1_0__GPIO1_0,
 };
 
 static struct physmap_flash_data mx31moboard_flash_data = {
@@ -143,6 +146,19 @@ static struct imxmmc_platform_data sdhc1_pdata = {
 	.exit	= moboard_sdhc1_exit,
 };
 
+/*
+ * this pin is dedicated for all mx31moboard systems, so we do it here
+ */
+#define USB_RESET_B	IOMUX_TO_GPIO(MX31_PIN_GPIO1_0)
+
+static void usb_xcvr_reset(void)
+{
+	gpio_request(USB_RESET_B, "usb-reset");
+	gpio_direction_output(USB_RESET_B, 0);
+	mdelay(1);
+	gpio_set_value(USB_RESET_B, 1);
+}
+
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
@@ -167,6 +183,8 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_i2c_device1, &moboard_i2c1_pdata);
 
 	mxc_register_device(&mxcsdhc_device0, &sdhc1_pdata);
+
+	usb_xcvr_reset();
 
 	switch (mx31moboard_baseboard) {
 	case MX31NOBOARD:
