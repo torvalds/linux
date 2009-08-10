@@ -19,7 +19,6 @@ struct syscall_metadata {
 };
 
 #ifdef CONFIG_FTRACE_SYSCALLS
-extern void arch_init_ftrace_syscalls(void);
 extern struct syscall_metadata *syscall_nr_to_meta(int nr);
 extern void start_ftrace_syscalls(void);
 extern void stop_ftrace_syscalls(void);

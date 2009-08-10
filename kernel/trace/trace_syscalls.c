@@ -106,7 +106,6 @@ void start_ftrace_syscalls(void)
 	if (++refcount != 1)
 		goto unlock;
 
-	arch_init_ftrace_syscalls();
 	read_lock_irqsave(&tasklist_lock, flags);
 
 	do_each_thread(g, t) {

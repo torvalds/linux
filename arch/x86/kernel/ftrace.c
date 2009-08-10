@@ -516,31 +516,24 @@ int syscall_name_to_nr(char *name)
 	return -1;
 }
 
-void arch_init_ftrace_syscalls(void)
+static int __init arch_init_ftrace_syscalls(void)
 {
 	int i;
 	struct syscall_metadata *meta;
 	unsigned long **psys_syscall_table = &sys_call_table;
-	static atomic_t refs;
-
-	if (atomic_inc_return(&refs) != 1)
-		goto end;
 
 	syscalls_metadata = kzalloc(sizeof(*syscalls_metadata) *
 					FTRACE_SYSCALL_MAX, GFP_KERNEL);
 	if (!syscalls_metadata) {
 		WARN_ON(1);
-		return;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < FTRACE_SYSCALL_MAX; i++) {
 		meta = find_syscall_meta(psys_syscall_table[i]);
 		syscalls_metadata[i] = meta;
 	}
-	return;
-
-	/* Paranoid: avoid overflow */
-end:
-	atomic_dec(&refs);
+	return 0;
 }
+arch_initcall(arch_init_ftrace_syscalls);
 #endif
