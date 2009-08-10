@@ -98,6 +98,53 @@ struct perf_counter_attr;
 #define __SC_TEST5(t5, a5, ...)	__SC_TEST(t5); __SC_TEST4(__VA_ARGS__)
 #define __SC_TEST6(t6, a6, ...)	__SC_TEST(t6); __SC_TEST5(__VA_ARGS__)
 
+#ifdef CONFIG_EVENT_PROFILE
+#define TRACE_SYS_ENTER_PROFILE(sname)					       \
+static int prof_sysenter_enable_##sname(struct ftrace_event_call *event_call)  \
+{									       \
+	int ret = 0;							       \
+	if (!atomic_inc_return(&event_enter_##sname.profile_count))	       \
+		ret = reg_prof_syscall_enter("sys"#sname);		       \
+	return ret;							       \
+}									       \
+									       \
+static void prof_sysenter_disable_##sname(struct ftrace_event_call *event_call)\
+{									       \
+	if (atomic_add_negative(-1, &event_enter_##sname.profile_count))       \
+		unreg_prof_syscall_enter("sys"#sname);			       \
+}
+
+#define TRACE_SYS_EXIT_PROFILE(sname)					       \
+static int prof_sysexit_enable_##sname(struct ftrace_event_call *event_call)   \
+{									       \
+	int ret = 0;							       \
+	if (!atomic_inc_return(&event_exit_##sname.profile_count))	       \
+		ret = reg_prof_syscall_exit("sys"#sname);		       \
+	return ret;							       \
+}									       \
+									       \
+static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
+{                                                                              \
+	if (atomic_add_negative(-1, &event_exit_##sname.profile_count))	       \
+		unreg_prof_syscall_exit("sys"#sname);			       \
+}
+
+#define TRACE_SYS_ENTER_PROFILE_INIT(sname)				       \
+	.profile_count = ATOMIC_INIT(-1),				       \
+	.profile_enable = prof_sysenter_enable_##sname,			       \
+	.profile_disable = prof_sysenter_disable_##sname,
+
+#define TRACE_SYS_EXIT_PROFILE_INIT(sname)				       \
+	.profile_count = ATOMIC_INIT(-1),				       \
+	.profile_enable = prof_sysexit_enable_##sname,			       \
+	.profile_disable = prof_sysexit_disable_##sname,
+#else
+#define TRACE_SYS_ENTER_PROFILE(sname)
+#define TRACE_SYS_ENTER_PROFILE_INIT(sname)
+#define TRACE_SYS_EXIT_PROFILE(sname)
+#define TRACE_SYS_EXIT_PROFILE_INIT(sname)
+#endif
+
 #ifdef CONFIG_FTRACE_SYSCALLS
 #define __SC_STR_ADECL1(t, a)		#a
 #define __SC_STR_ADECL2(t, a, ...)	#a, __SC_STR_ADECL1(__VA_ARGS__)
@@ -112,7 +159,6 @@ struct perf_counter_attr;
 #define __SC_STR_TDECL4(t, a, ...)	#t, __SC_STR_TDECL3(__VA_ARGS__)
 #define __SC_STR_TDECL5(t, a, ...)	#t, __SC_STR_TDECL4(__VA_ARGS__)
 #define __SC_STR_TDECL6(t, a, ...)	#t, __SC_STR_TDECL5(__VA_ARGS__)
-
 
 #define SYSCALL_TRACE_ENTER_EVENT(sname)				\
 	static struct ftrace_event_call event_enter_##sname;		\
@@ -134,6 +180,7 @@ struct perf_counter_attr;
 		init_preds(&event_enter_##sname);			\
 		return 0;						\
 	}								\
+	TRACE_SYS_ENTER_PROFILE(sname);					\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\
 	  __attribute__((section("_ftrace_events")))			\
@@ -145,6 +192,7 @@ struct perf_counter_attr;
 		.regfunc		= reg_event_syscall_enter,	\
 		.unregfunc		= unreg_event_syscall_enter,	\
 		.data			= "sys"#sname,			\
+		TRACE_SYS_ENTER_PROFILE_INIT(sname)			\
 	}
 
 #define SYSCALL_TRACE_EXIT_EVENT(sname)					\
@@ -167,6 +215,7 @@ struct perf_counter_attr;
 		init_preds(&event_exit_##sname);			\
 		return 0;						\
 	}								\
+	TRACE_SYS_EXIT_PROFILE(sname);					\
 	static struct ftrace_event_call __used				\
 	  __attribute__((__aligned__(4)))				\
 	  __attribute__((section("_ftrace_events")))			\
@@ -178,6 +227,7 @@ struct perf_counter_attr;
 		.regfunc		= reg_event_syscall_exit,	\
 		.unregfunc		= unreg_event_syscall_exit,	\
 		.data			= "sys"#sname,			\
+		TRACE_SYS_EXIT_PROFILE_INIT(sname)			\
 	}
 
 #define SYSCALL_METADATA(sname, nb)				\

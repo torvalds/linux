@@ -58,5 +58,12 @@ extern void unreg_event_syscall_exit(void *ptr);
 enum print_line_t print_syscall_enter(struct trace_iterator *iter, int flags);
 enum print_line_t print_syscall_exit(struct trace_iterator *iter, int flags);
 #endif
+#ifdef CONFIG_EVENT_PROFILE
+int reg_prof_syscall_enter(char *name);
+void unreg_prof_syscall_enter(char *name);
+int reg_prof_syscall_exit(char *name);
+void unreg_prof_syscall_exit(char *name);
+
+#endif
 
 #endif /* _TRACE_SYSCALL_H */

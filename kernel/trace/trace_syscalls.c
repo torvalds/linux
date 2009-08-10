@@ -1,6 +1,7 @@
 #include <trace/syscall.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
+#include <linux/perf_counter.h>
 #include <asm/syscall.h>
 
 #include "trace_output.h"
@@ -252,3 +253,123 @@ struct trace_event event_syscall_enter = {
 struct trace_event event_syscall_exit = {
 	.trace			= print_syscall_exit,
 };
+
+#ifdef CONFIG_EVENT_PROFILE
+static DECLARE_BITMAP(enabled_prof_enter_syscalls, FTRACE_SYSCALL_MAX);
+static DECLARE_BITMAP(enabled_prof_exit_syscalls, FTRACE_SYSCALL_MAX);
+static int sys_prof_refcount_enter;
+static int sys_prof_refcount_exit;
+
+static void prof_syscall_enter(struct pt_regs *regs, long id)
+{
+	struct syscall_metadata *sys_data;
+	int syscall_nr;
+
+	syscall_nr = syscall_get_nr(current, regs);
+	if (!test_bit(syscall_nr, enabled_prof_enter_syscalls))
+		return;
+
+	sys_data = syscall_nr_to_meta(syscall_nr);
+	if (!sys_data)
+		return;
+
+	perf_tpcounter_event(sys_data->enter_id, 0, 1, NULL, 0);
+}
+
+int reg_prof_syscall_enter(char *name)
+{
+	int ret = 0;
+	int num;
+
+	num = syscall_name_to_nr(name);
+	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+		return -ENOSYS;
+
+	mutex_lock(&syscall_trace_lock);
+	if (!sys_prof_refcount_enter)
+		ret = register_trace_syscall_enter(prof_syscall_enter);
+	if (ret) {
+		pr_info("event trace: Could not activate"
+				"syscall entry trace point");
+	} else {
+		set_bit(num, enabled_prof_enter_syscalls);
+		sys_prof_refcount_enter++;
+	}
+	mutex_unlock(&syscall_trace_lock);
+	return ret;
+}
+
+void unreg_prof_syscall_enter(char *name)
+{
+	int num;
+
+	num = syscall_name_to_nr(name);
+	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+		return;
+
+	mutex_lock(&syscall_trace_lock);
+	sys_prof_refcount_enter--;
+	clear_bit(num, enabled_prof_enter_syscalls);
+	if (!sys_prof_refcount_enter)
+		unregister_trace_syscall_enter(prof_syscall_enter);
+	mutex_unlock(&syscall_trace_lock);
+}
+
+static void prof_syscall_exit(struct pt_regs *regs, long ret)
+{
+	struct syscall_metadata *sys_data;
+	int syscall_nr;
+
+	syscall_nr = syscall_get_nr(current, regs);
+	if (!test_bit(syscall_nr, enabled_prof_exit_syscalls))
+		return;
+
+	sys_data = syscall_nr_to_meta(syscall_nr);
+	if (!sys_data)
+		return;
+
+	perf_tpcounter_event(sys_data->exit_id, 0, 1, NULL, 0);
+}
+
+int reg_prof_syscall_exit(char *name)
+{
+	int ret = 0;
+	int num;
+
+	num = syscall_name_to_nr(name);
+	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+		return -ENOSYS;
+
+	mutex_lock(&syscall_trace_lock);
+	if (!sys_prof_refcount_exit)
+		ret = register_trace_syscall_exit(prof_syscall_exit);
+	if (ret) {
+		pr_info("event trace: Could not activate"
+				"syscall entry trace point");
+	} else {
+		set_bit(num, enabled_prof_exit_syscalls);
+		sys_prof_refcount_exit++;
+	}
+	mutex_unlock(&syscall_trace_lock);
+	return ret;
+}
+
+void unreg_prof_syscall_exit(char *name)
+{
+	int num;
+
+	num = syscall_name_to_nr(name);
+	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
+		return;
+
+	mutex_lock(&syscall_trace_lock);
+	sys_prof_refcount_exit--;
+	clear_bit(num, enabled_prof_exit_syscalls);
+	if (!sys_prof_refcount_exit)
+		unregister_trace_syscall_exit(prof_syscall_exit);
+	mutex_unlock(&syscall_trace_lock);
+}
+
+#endif
+
+
