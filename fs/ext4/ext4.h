@@ -88,6 +88,8 @@ typedef unsigned int ext4_group_t;
 #define EXT4_MB_HINT_TRY_GOAL		0x0200
 /* blocks already pre-reserved by delayed allocation */
 #define EXT4_MB_DELALLOC_RESERVED	0x0400
+/* We are doing stream allocation */
+#define EXT4_MB_STREAM_ALLOC		0x0800
 
 
 struct ext4_allocation_request {
