@@ -359,6 +359,7 @@ static mddev_t * mddev_find(dev_t unit)
 	else
 		new->md_minor = MINOR(unit) >> MdpMinorShift;
 
+	mutex_init(&new->open_mutex);
 	mutex_init(&new->reconfig_mutex);
 	INIT_LIST_HEAD(&new->disks);
 	INIT_LIST_HEAD(&new->all_mddevs);
@@ -4304,12 +4305,11 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 	struct gendisk *disk = mddev->gendisk;
 	mdk_rdev_t *rdev;
 
+	mutex_lock(&mddev->open_mutex);
 	if (atomic_read(&mddev->openers) > is_open) {
 		printk("md: %s still in use.\n",mdname(mddev));
-		return -EBUSY;
-	}
-
-	if (mddev->pers) {
+		err = -EBUSY;
+	} else if (mddev->pers) {
 
 		if (mddev->sync_thread) {
 			set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
@@ -4367,7 +4367,10 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			set_disk_ro(disk, 1);
 		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 	}
-
+out:
+	mutex_unlock(&mddev->open_mutex);
+	if (err)
+		return err;
 	/*
 	 * Free resources if final stop
 	 */
@@ -4433,7 +4436,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 	blk_integrity_unregister(disk);
 	md_new_event(mddev);
 	sysfs_notify_dirent(mddev->sysfs_state);
-out:
 	return err;
 }
 
@@ -5518,12 +5520,12 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	}
 	BUG_ON(mddev != bdev->bd_disk->private_data);
 
-	if ((err = mutex_lock_interruptible_nested(&mddev->reconfig_mutex, 1)))
+	if ((err = mutex_lock_interruptible(&mddev->open_mutex)))
 		goto out;
 
 	err = 0;
 	atomic_inc(&mddev->openers);
-	mddev_unlock(mddev);
+	mutex_unlock(&mddev->open_mutex);
 
 	check_disk_change(bdev);
  out:
