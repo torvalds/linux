@@ -57,6 +57,9 @@ static int		show_nr_samples;
 static int		show_threads;
 static struct perf_read_values	show_threads_values;
 
+static char		default_pretty_printing_style[] = "normal";
+static char		*pretty_printing_style = default_pretty_printing_style;
+
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
 
@@ -1401,6 +1404,9 @@ static size_t output__fprintf(FILE *fp, u64 total_samples)
 	size_t ret = 0;
 	unsigned int width;
 	char *col_width = col_width_list_str;
+	int raw_printing_style;
+
+	raw_printing_style = !strcmp(pretty_printing_style, "raw");
 
 	init_rem_hits();
 
@@ -1478,7 +1484,8 @@ print_entries:
 	free(rem_sq_bracket);
 
 	if (show_threads)
-		perf_read_values_display(fp, &show_threads_values);
+		perf_read_values_display(fp, &show_threads_values,
+					 raw_printing_style);
 
 	return ret;
 }
@@ -2091,6 +2098,8 @@ static const struct option options[] = {
 		    "Show a column with the number of samples"),
 	OPT_BOOLEAN('T', "threads", &show_threads,
 		    "Show per-thread event counters"),
+	OPT_STRING(0, "pretty", &pretty_printing_style, "key",
+		   "pretty printing style key: normal raw"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN('P', "full-paths", &full_paths,

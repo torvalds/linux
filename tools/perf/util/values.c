@@ -126,7 +126,8 @@ void perf_read_values_add_value(struct perf_read_values *values,
 	values->value[tindex][cindex] = value;
 }
 
-void perf_read_values_display(FILE *fp, struct perf_read_values *values)
+static void perf_read_values__display_pretty(FILE *fp,
+					     struct perf_read_values *values)
 {
 	int i, j;
 	int pidwidth, tidwidth;
@@ -168,4 +169,63 @@ void perf_read_values_display(FILE *fp, struct perf_read_values *values)
 				counterwidth[j], values->value[i][j]);
 		fprintf(fp, "\n");
 	}
+}
+
+static void perf_read_values__display_raw(FILE *fp,
+					  struct perf_read_values *values)
+{
+	int width, pidwidth, tidwidth, namewidth, rawwidth, countwidth;
+	int i, j;
+
+	tidwidth = 3; /* TID */
+	pidwidth = 3; /* PID */
+	namewidth = 4; /* "Name" */
+	rawwidth = 3; /* "Raw" */
+	countwidth = 5; /* "Count" */
+
+	for (i = 0; i < values->threads; i++) {
+		width = snprintf(NULL, 0, "%d", values->pid[i]);
+		if (width > pidwidth)
+			pidwidth = width;
+		width = snprintf(NULL, 0, "%d", values->tid[i]);
+		if (width > tidwidth)
+			tidwidth = width;
+	}
+	for (j = 0; j < values->counters; j++) {
+		width = strlen(values->countername[j]);
+		if (width > namewidth)
+			namewidth = width;
+		width = snprintf(NULL, 0, "%llx", values->counterrawid[j]);
+		if (width > rawwidth)
+			rawwidth = width;
+	}
+	for (i = 0; i < values->threads; i++) {
+		for (j = 0; j < values->counters; j++) {
+			width = snprintf(NULL, 0, "%Lu", values->value[i][j]);
+			if (width > countwidth)
+				countwidth = width;
+		}
+	}
+
+	fprintf(fp, "# %*s  %*s  %*s  %*s  %*s\n",
+		pidwidth, "PID", tidwidth, "TID",
+		namewidth, "Name", rawwidth, "Raw",
+		countwidth, "Count");
+	for (i = 0; i < values->threads; i++)
+		for (j = 0; j < values->counters; j++)
+			fprintf(fp, "  %*d  %*d  %*s  %*llx  %*Lu\n",
+				pidwidth, values->pid[i],
+				tidwidth, values->tid[i],
+				namewidth, values->countername[j],
+				rawwidth, values->counterrawid[j],
+				countwidth, values->value[i][j]);
+}
+
+void perf_read_values_display(FILE *fp, struct perf_read_values *values,
+			      int raw)
+{
+	if (raw)
+		perf_read_values__display_raw(fp, values);
+	else
+		perf_read_values__display_pretty(fp, values);
 }
