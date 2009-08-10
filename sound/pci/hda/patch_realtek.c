@@ -4683,8 +4683,10 @@ static void set_capture_mixer(struct alc_spec *spec)
 	};
 	if (spec->num_adc_nids > 0 && spec->num_adc_nids <= 3) {
 		int mux;
-		if (spec->input_mux && spec->input_mux->num_items > 1 &&
-		    !spec->auto_mic)
+		if (spec->auto_mic) {
+			mux = 0;
+			spec->num_adc_nids = 1; /* support only one ADC */
+		} else if (spec->input_mux && spec->input_mux->num_items > 1)
 			mux = 1;
 		else
 			mux = 0;
