@@ -108,7 +108,7 @@ static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
 		return cache[reg];
 }
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
 static unsigned int snd_soc_8_16_read_i2c(struct snd_soc_codec *codec,
 					  unsigned int r)
 {
@@ -200,7 +200,7 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_I2C:
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
 		codec->hw_write = (hw_write_t)i2c_master_send;
 #endif
 		if (io_types[i].i2c_read)
