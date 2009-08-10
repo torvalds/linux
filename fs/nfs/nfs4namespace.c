@@ -121,11 +121,11 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 
 		if (memchr(buf->data, IPV6_SCOPE_DELIMITER, buf->len))
 			continue;
-		nfs_parse_ip_address(buf->data, buf->len,
-				mountdata->addr, &mountdata->addrlen);
-		if (mountdata->addr->sa_family == AF_UNSPEC)
+		mountdata->addrlen = rpc_pton(buf->data, buf->len,
+				mountdata->addr, mountdata->addrlen);
+		if (mountdata->addrlen == 0)
 			continue;
-		nfs_set_port(mountdata->addr, NFS_PORT);
+		rpc_set_port(mountdata->addr, NFS_PORT);
 
 		memcpy(page2, buf->data, buf->len);
 		page2[buf->len] = '\0';

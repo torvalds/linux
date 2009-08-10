@@ -248,8 +248,8 @@ struct sock_xprt {
 	 * Connection of transports
 	 */
 	struct delayed_work	connect_worker;
-	struct sockaddr_storage	addr;
-	unsigned short		port;
+	struct sockaddr_storage	srcaddr;
+	unsigned short		srcport;
 
 	/*
 	 * UDP socket buffer size parameters
@@ -296,117 +296,60 @@ static inline struct sockaddr_in6 *xs_addr_in6(struct rpc_xprt *xprt)
 	return (struct sockaddr_in6 *) &xprt->addr;
 }
 
-static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
-					  const char *protocol,
-					  const char *netid)
+static void xs_format_common_peer_addresses(struct rpc_xprt *xprt)
 {
-	struct sockaddr_in *addr = xs_addr_in(xprt);
-	char *buf;
+	struct sockaddr *sap = xs_addr(xprt);
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *sin;
+	char buf[128];
 
-	buf = kzalloc(20, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 20, "%pI4", &addr->sin_addr.s_addr);
+	(void)rpc_ntop(sap, buf, sizeof(buf));
+	xprt->address_strings[RPC_DISPLAY_ADDR] = kstrdup(buf, GFP_KERNEL);
+
+	switch (sap->sa_family) {
+	case AF_INET:
+		sin = xs_addr_in(xprt);
+		(void)snprintf(buf, sizeof(buf), "%02x%02x%02x%02x",
+					NIPQUAD(sin->sin_addr.s_addr));
+		break;
+	case AF_INET6:
+		sin6 = xs_addr_in6(xprt);
+		(void)snprintf(buf, sizeof(buf), "%pi6", &sin6->sin6_addr);
+		break;
+	default:
+		BUG();
 	}
-	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
-
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 8, "%u",
-				ntohs(addr->sin_port));
-	}
-	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
-
-	xprt->address_strings[RPC_DISPLAY_PROTO] = protocol;
-
-	buf = kzalloc(48, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 48, "addr=%pI4 port=%u proto=%s",
-			&addr->sin_addr.s_addr,
-			ntohs(addr->sin_port),
-			protocol);
-	}
-	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
-
-	buf = kzalloc(10, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 10, "%02x%02x%02x%02x",
-				NIPQUAD(addr->sin_addr.s_addr));
-	}
-	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
-
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 8, "%4hx",
-				ntohs(addr->sin_port));
-	}
-	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
-
-	buf = kzalloc(30, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 30, "%pI4.%u.%u",
-				&addr->sin_addr.s_addr,
-				ntohs(addr->sin_port) >> 8,
-				ntohs(addr->sin_port) & 0xff);
-	}
-	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
-
-	xprt->address_strings[RPC_DISPLAY_NETID] = netid;
+	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
 }
 
-static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
-					  const char *protocol,
-					  const char *netid)
+static void xs_format_common_peer_ports(struct rpc_xprt *xprt)
 {
-	struct sockaddr_in6 *addr = xs_addr_in6(xprt);
-	char *buf;
+	struct sockaddr *sap = xs_addr(xprt);
+	char buf[128];
 
-	buf = kzalloc(40, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 40, "%pI6",&addr->sin6_addr);
-	}
-	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
+	(void)snprintf(buf, sizeof(buf), "%u", rpc_get_port(sap));
+	xprt->address_strings[RPC_DISPLAY_PORT] = kstrdup(buf, GFP_KERNEL);
 
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 8, "%u",
-				ntohs(addr->sin6_port));
-	}
-	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
+	(void)snprintf(buf, sizeof(buf), "%4hx", rpc_get_port(sap));
+	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = kstrdup(buf, GFP_KERNEL);
+}
 
+static void xs_format_peer_addresses(struct rpc_xprt *xprt,
+				     const char *protocol,
+				     const char *netid)
+{
 	xprt->address_strings[RPC_DISPLAY_PROTO] = protocol;
-
-	buf = kzalloc(64, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 64, "addr=%pI6 port=%u proto=%s",
-				&addr->sin6_addr,
-				ntohs(addr->sin6_port),
-				protocol);
-	}
-	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
-
-	buf = kzalloc(36, GFP_KERNEL);
-	if (buf)
-		snprintf(buf, 36, "%pi6", &addr->sin6_addr);
-
-	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
-
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 8, "%4hx",
-				ntohs(addr->sin6_port));
-	}
-	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = buf;
-
-	buf = kzalloc(50, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 50, "%pI6.%u.%u",
-			 &addr->sin6_addr,
-			 ntohs(addr->sin6_port) >> 8,
-			 ntohs(addr->sin6_port) & 0xff);
-	}
-	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
-
 	xprt->address_strings[RPC_DISPLAY_NETID] = netid;
+	xs_format_common_peer_addresses(xprt);
+	xs_format_common_peer_ports(xprt);
+}
+
+static void xs_update_peer_port(struct rpc_xprt *xprt)
+{
+	kfree(xprt->address_strings[RPC_DISPLAY_HEX_PORT]);
+	kfree(xprt->address_strings[RPC_DISPLAY_PORT]);
+
+	xs_format_common_peer_ports(xprt);
 }
 
 static void xs_free_peer_addresses(struct rpc_xprt *xprt)
@@ -1587,25 +1530,15 @@ static unsigned short xs_get_random_port(void)
  */
 static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 {
-	struct sockaddr *addr = xs_addr(xprt);
-
 	dprintk("RPC:       setting port for xprt %p to %u\n", xprt, port);
 
-	switch (addr->sa_family) {
-	case AF_INET:
-		((struct sockaddr_in *)addr)->sin_port = htons(port);
-		break;
-	case AF_INET6:
-		((struct sockaddr_in6 *)addr)->sin6_port = htons(port);
-		break;
-	default:
-		BUG();
-	}
+	rpc_set_port(xs_addr(xprt), port);
+	xs_update_peer_port(xprt);
 }
 
 static unsigned short xs_get_srcport(struct sock_xprt *transport, struct socket *sock)
 {
-	unsigned short port = transport->port;
+	unsigned short port = transport->srcport;
 
 	if (port == 0 && transport->xprt.resvport)
 		port = xs_get_random_port();
@@ -1614,8 +1547,8 @@ static unsigned short xs_get_srcport(struct sock_xprt *transport, struct socket 
 
 static unsigned short xs_next_srcport(struct sock_xprt *transport, struct socket *sock, unsigned short port)
 {
-	if (transport->port != 0)
-		transport->port = 0;
+	if (transport->srcport != 0)
+		transport->srcport = 0;
 	if (!transport->xprt.resvport)
 		return 0;
 	if (port <= xprt_min_resvport || port > xprt_max_resvport)
@@ -1633,7 +1566,7 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 	unsigned short port = xs_get_srcport(transport, sock);
 	unsigned short last;
 
-	sa = (struct sockaddr_in *)&transport->addr;
+	sa = (struct sockaddr_in *)&transport->srcaddr;
 	myaddr.sin_addr = sa->sin_addr;
 	do {
 		myaddr.sin_port = htons(port);
@@ -1642,7 +1575,7 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 		if (port == 0)
 			break;
 		if (err == 0) {
-			transport->port = port;
+			transport->srcport = port;
 			break;
 		}
 		last = port;
@@ -1666,7 +1599,7 @@ static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
 	unsigned short port = xs_get_srcport(transport, sock);
 	unsigned short last;
 
-	sa = (struct sockaddr_in6 *)&transport->addr;
+	sa = (struct sockaddr_in6 *)&transport->srcaddr;
 	myaddr.sin6_addr = sa->sin6_addr;
 	do {
 		myaddr.sin6_port = htons(port);
@@ -1675,7 +1608,7 @@ static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
 		if (port == 0)
 			break;
 		if (err == 0) {
-			transport->port = port;
+			transport->srcport = port;
 			break;
 		}
 		last = port;
@@ -1780,8 +1713,11 @@ static void xs_udp_connect_worker4(struct work_struct *work)
 		goto out;
 	}
 
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+	dprintk("RPC:       worker connecting xprt %p via %s to "
+				"%s (port %s)\n", xprt,
+			xprt->address_strings[RPC_DISPLAY_PROTO],
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT]);
 
 	xs_udp_finish_connecting(xprt, sock);
 	status = 0;
@@ -1822,8 +1758,11 @@ static void xs_udp_connect_worker6(struct work_struct *work)
 		goto out;
 	}
 
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+	dprintk("RPC:       worker connecting xprt %p via %s to "
+				"%s (port %s)\n", xprt,
+			xprt->address_strings[RPC_DISPLAY_PROTO],
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT]);
 
 	xs_udp_finish_connecting(xprt, sock);
 	status = 0;
@@ -1948,8 +1887,11 @@ static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
 			goto out_eagain;
 	}
 
-	dprintk("RPC:       worker connecting xprt %p to address: %s\n",
-			xprt, xprt->address_strings[RPC_DISPLAY_ALL]);
+	dprintk("RPC:       worker connecting xprt %p via %s to "
+				"%s (port %s)\n", xprt,
+			xprt->address_strings[RPC_DISPLAY_PROTO],
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT]);
 
 	status = xs_tcp_finish_connecting(xprt, sock);
 	dprintk("RPC:       %p connect status %d connected %d sock state %d\n",
@@ -2120,7 +2062,7 @@ static void xs_udp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 
 	seq_printf(seq, "\txprt:\tudp %u %lu %lu %lu %lu %Lu %Lu\n",
-			transport->port,
+			transport->srcport,
 			xprt->stat.bind_count,
 			xprt->stat.sends,
 			xprt->stat.recvs,
@@ -2144,7 +2086,7 @@ static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		idle_time = (long)(jiffies - xprt->last_used) / HZ;
 
 	seq_printf(seq, "\txprt:\ttcp %u %lu %lu %lu %ld %lu %lu %lu %Lu %Lu\n",
-			transport->port,
+			transport->srcport,
 			xprt->stat.bind_count,
 			xprt->stat.connect_count,
 			xprt->stat.connect_time,
@@ -2223,7 +2165,7 @@ static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 	memcpy(&xprt->addr, args->dstaddr, args->addrlen);
 	xprt->addrlen = args->addrlen;
 	if (args->srcaddr)
-		memcpy(&new->addr, args->srcaddr, args->addrlen);
+		memcpy(&new->srcaddr, args->srcaddr, args->addrlen);
 
 	return xprt;
 }
@@ -2272,7 +2214,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
 					xs_udp_connect_worker4);
-		xs_format_ipv4_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP);
+		xs_format_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP);
 		break;
 	case AF_INET6:
 		if (((struct sockaddr_in6 *)addr)->sin6_port != htons(0))
@@ -2280,15 +2222,22 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
 					xs_udp_connect_worker6);
-		xs_format_ipv6_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP6);
+		xs_format_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP6);
 		break;
 	default:
 		kfree(xprt);
 		return ERR_PTR(-EAFNOSUPPORT);
 	}
 
-	dprintk("RPC:       set up transport to address %s\n",
-			xprt->address_strings[RPC_DISPLAY_ALL]);
+	if (xprt_bound(xprt))
+		dprintk("RPC:       set up xprt to %s (port %s) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PORT],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
+	else
+		dprintk("RPC:       set up xprt to %s (autobind) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
 
 	if (try_module_get(THIS_MODULE))
 		return xprt;
@@ -2337,23 +2286,33 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 		if (((struct sockaddr_in *)addr)->sin_port != htons(0))
 			xprt_set_bound(xprt);
 
-		INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker4);
-		xs_format_ipv4_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP);
+		INIT_DELAYED_WORK(&transport->connect_worker,
+					xs_tcp_connect_worker4);
+		xs_format_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP);
 		break;
 	case AF_INET6:
 		if (((struct sockaddr_in6 *)addr)->sin6_port != htons(0))
 			xprt_set_bound(xprt);
 
-		INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker6);
-		xs_format_ipv6_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP6);
+		INIT_DELAYED_WORK(&transport->connect_worker,
+					xs_tcp_connect_worker6);
+		xs_format_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP6);
 		break;
 	default:
 		kfree(xprt);
 		return ERR_PTR(-EAFNOSUPPORT);
 	}
 
-	dprintk("RPC:       set up transport to address %s\n",
-			xprt->address_strings[RPC_DISPLAY_ALL]);
+	if (xprt_bound(xprt))
+		dprintk("RPC:       set up xprt to %s (port %s) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PORT],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
+	else
+		dprintk("RPC:       set up xprt to %s (autobind) via %s\n",
+				xprt->address_strings[RPC_DISPLAY_ADDR],
+				xprt->address_strings[RPC_DISPLAY_PROTO]);
+
 
 	if (try_module_get(THIS_MODULE))
 		return xprt;

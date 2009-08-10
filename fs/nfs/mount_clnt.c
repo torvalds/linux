@@ -209,6 +209,71 @@ out_mnt_err:
 	goto out;
 }
 
+/**
+ * nfs_umount - Notify a server that we have unmounted this export
+ * @info: pointer to umount request arguments
+ *
+ * MOUNTPROC_UMNT is advisory, so we set a short timeout, and always
+ * use UDP.
+ */
+void nfs_umount(const struct nfs_mount_request *info)
+{
+	static const struct rpc_timeout nfs_umnt_timeout = {
+		.to_initval = 1 * HZ,
+		.to_maxval = 3 * HZ,
+		.to_retries = 2,
+	};
+	struct rpc_create_args args = {
+		.protocol	= IPPROTO_UDP,
+		.address	= info->sap,
+		.addrsize	= info->salen,
+		.timeout	= &nfs_umnt_timeout,
+		.servername	= info->hostname,
+		.program	= &mnt_program,
+		.version	= info->version,
+		.authflavor	= RPC_AUTH_UNIX,
+		.flags		= RPC_CLNT_CREATE_NOPING,
+	};
+	struct mountres	result;
+	struct rpc_message msg	= {
+		.rpc_argp	= info->dirpath,
+		.rpc_resp	= &result,
+	};
+	struct rpc_clnt *clnt;
+	int status;
+
+	if (info->noresvport)
+		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
+
+	clnt = rpc_create(&args);
+	if (unlikely(IS_ERR(clnt)))
+		goto out_clnt_err;
+
+	dprintk("NFS: sending UMNT request for %s:%s\n",
+		(info->hostname ? info->hostname : "server"), info->dirpath);
+
+	if (info->version == NFS_MNT3_VERSION)
+		msg.rpc_proc = &clnt->cl_procinfo[MOUNTPROC3_UMNT];
+	else
+		msg.rpc_proc = &clnt->cl_procinfo[MOUNTPROC_UMNT];
+
+	status = rpc_call_sync(clnt, &msg, 0);
+	rpc_shutdown_client(clnt);
+
+	if (unlikely(status < 0))
+		goto out_call_err;
+
+	return;
+
+out_clnt_err:
+	dprintk("NFS: failed to create UMNT RPC client, status=%ld\n",
+			PTR_ERR(clnt));
+	return;
+
+out_call_err:
+	dprintk("NFS: UMNT request failed, status=%d\n", status);
+}
+
 /*
  * XDR encode/decode functions for MOUNT
  */
@@ -407,6 +472,13 @@ static struct rpc_procinfo mnt_procedures[] = {
 		.p_statidx	= MOUNTPROC_MNT,
 		.p_name		= "MOUNT",
 	},
+	[MOUNTPROC_UMNT] = {
+		.p_proc		= MOUNTPROC_UMNT,
+		.p_encode	= (kxdrproc_t)mnt_enc_dirpath,
+		.p_arglen	= MNT_enc_dirpath_sz,
+		.p_statidx	= MOUNTPROC_UMNT,
+		.p_name		= "UMOUNT",
+	},
 };
 
 static struct rpc_procinfo mnt3_procedures[] = {
@@ -418,6 +490,13 @@ static struct rpc_procinfo mnt3_procedures[] = {
 		.p_replen	= MNT_dec_mountres3_sz,
 		.p_statidx	= MOUNTPROC3_MNT,
 		.p_name		= "MOUNT",
+	},
+	[MOUNTPROC3_UMNT] = {
+		.p_proc		= MOUNTPROC3_UMNT,
+		.p_encode	= (kxdrproc_t)mnt_enc_dirpath,
+		.p_arglen	= MNT_enc_dirpath_sz,
+		.p_statidx	= MOUNTPROC3_UMNT,
+		.p_name		= "UMOUNT",
 	},
 };
 
