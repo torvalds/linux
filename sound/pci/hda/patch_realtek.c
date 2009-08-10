@@ -13563,6 +13563,8 @@ static int patch_alc269(struct hda_codec *codec)
 		set_capture_mixer(spec);
 	set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
 
+	spec->vmaster_nid = 0x02;
+
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC269_AUTO)
 		spec->init_hook = alc269_auto_init;
