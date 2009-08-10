@@ -903,7 +903,8 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			/* already started */
 			break;
 		case QH_STATE_IDLE:
-			WARN_ON(1);
+			/* QH might be waiting for a Clear-TT-Buffer */
+			qh_completions(ehci, qh);
 			break;
 		}
 		break;

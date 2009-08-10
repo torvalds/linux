@@ -106,7 +106,7 @@ static inline uint32_t radeon_object_flags_from_domain(uint32_t domain)
 		flags |= TTM_PL_FLAG_VRAM | TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
 	}
 	if (domain & RADEON_GEM_DOMAIN_GTT) {
-		flags |= TTM_PL_FLAG_TT | TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED;
+		flags |= TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
 	}
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
 		flags |= TTM_PL_FLAG_SYSTEM | TTM_PL_MASK_CACHING;

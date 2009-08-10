@@ -152,7 +152,9 @@ int radeon_mc_setup(struct radeon_device *rdev)
 		}
 	} else {
 		rdev->mc.vram_location = 0;
-		rdev->mc.gtt_location = rdev->mc.mc_vram_size;
+		tmp = rdev->mc.mc_vram_size;
+		tmp = (tmp + rdev->mc.gtt_size - 1) & ~(rdev->mc.gtt_size - 1);
+		rdev->mc.gtt_location = tmp;
 	}
 	DRM_INFO("radeon: VRAM %uM\n", rdev->mc.real_vram_size >> 20);
 	DRM_INFO("radeon: VRAM from 0x%08X to 0x%08X\n",

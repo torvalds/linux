@@ -81,7 +81,6 @@ struct viafb_modeinfo {
 	u32 xres;
 	u32 yres;
 	int mode_index;
-	char *mode_res;
 };
 extern unsigned int viafb_second_virtual_yres;
 extern unsigned int viafb_second_virtual_xres;
@@ -102,7 +101,7 @@ extern int strict_strtoul(const char *cp, unsigned int base,
 void viafb_memory_pitch_patch(struct fb_info *info);
 void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
 			  int mode_index);
-int viafb_get_mode_index(int hres, int vres, int flag);
+int viafb_get_mode_index(int hres, int vres);
 u8 viafb_gpio_i2c_read_lvds(struct lvds_setting_information
 	*plvds_setting_info, struct lvds_chip_information
 	*plvds_chip_info, u8 index);
