@@ -919,6 +919,12 @@ enum ath5k_int {
 	AR5K_INT_NOCARD	= 0xffffffff
 };
 
+/* Software interrupts used for calibration */
+enum ath5k_software_interrupt {
+	AR5K_SWI_FULL_CALIBRATION = 0x01,
+	AR5K_SWI_SHORT_CALIBRATION = 0x02,
+};
+
 /*
  * Power management
  */
@@ -1123,6 +1129,15 @@ struct ath5k_hw {
 	/* noise floor from last periodic calibration */
 	s32			ah_noise_floor;
 
+	/* Calibration timestamp */
+	unsigned long		ah_cal_tstamp;
+
+	/* Calibration interval (secs) */
+	u8			ah_cal_intval;
+
+	/* Software interrupt mask */
+	u8			ah_swi_mask;
+
 	/*
 	 * Function pointers
 	 */
@@ -1276,6 +1291,7 @@ extern int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *chann
 /* PHY calibration */
 extern int ath5k_hw_phy_calibrate(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 extern int ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq);
+extern void ath5k_hw_calibration_poll(struct ath5k_hw *ah);
 /* Spur mitigation */
 bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
 				struct ieee80211_channel *channel);

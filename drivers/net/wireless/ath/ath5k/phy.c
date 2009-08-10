@@ -1104,6 +1104,29 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
   PHY calibration
 \*****************/
 
+void
+ath5k_hw_calibration_poll(struct ath5k_hw *ah)
+{
+	/* Calibration interval in jiffies */
+	unsigned long cal_intval;
+
+	cal_intval = msecs_to_jiffies(ah->ah_cal_intval * 1000);
+
+	/* Initialize timestamp if needed */
+	if (!ah->ah_cal_tstamp)
+		ah->ah_cal_tstamp = jiffies;
+
+	/* For now we always do full calibration
+	 * Mark software interrupt mask and fire software
+	 * interrupt (bit gets auto-cleared) */
+	if (time_is_before_eq_jiffies(ah->ah_cal_tstamp + cal_intval)) {
+		ah->ah_cal_tstamp = jiffies;
+		ah->ah_swi_mask = AR5K_SWI_FULL_CALIBRATION;
+		AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI);
+	}
+
+}
+
 /**
  * ath5k_hw_noise_floor_calibration - perform PHY noise floor calibration
  *
