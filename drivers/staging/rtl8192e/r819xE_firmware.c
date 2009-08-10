@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #endif
 
-extern void firmware_init_param(struct net_device *dev)
+void firmware_init_param(struct net_device *dev)
 {
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
 	rt_firmware		*pfirmware = priv->pFirmware;
@@ -36,7 +36,7 @@ extern void firmware_init_param(struct net_device *dev)
  * segment the img and use the ptr and length to remember info on each segment
  *
  */
-bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buffer_len)
+static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buffer_len)
 {
 	struct r8192_priv   *priv = ieee80211_priv(dev);
 	bool 		    rt_status = true;
@@ -107,7 +107,7 @@ cmdsend_downloadcode_fail:
 #endif
 }
 
-bool
+static bool
 fwSendNullPacket(
 	struct net_device *dev,
 	u32			Length
@@ -159,7 +159,7 @@ fwSendNullPacket(
 //        NDIS_STATUS_FAILURE - the following initialization process should be terminated
 //        NDIS_STATUS_SUCCESS - if firmware initialization process success
 //-----------------------------------------------------------------------------
-bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
+static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 {
 	bool		rt_status = true;
 	int		check_putcodeOK_time = 200000, check_bootOk_time = 200000;
@@ -208,7 +208,7 @@ CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 	return rt_status;
 }
 
-bool CPUcheck_firmware_ready(struct net_device *dev)
+static bool CPUcheck_firmware_ready(struct net_device *dev)
 {
 
 	bool		rt_status = true;

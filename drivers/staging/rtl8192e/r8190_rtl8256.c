@@ -418,7 +418,7 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 }
 
 #define MAX_DOZE_WAITING_TIMES_9x 64
-bool
+static bool
 SetRFPowerState8190(
 	struct net_device* dev,
 	RT_RF_POWER_STATE	eRFPowerState
@@ -717,7 +717,7 @@ SetRFPowerState8190(
 //
 //	050823, by rcnjko.
 //
-bool
+static bool
 SetRFPowerState(
 	struct net_device* dev,
 	RT_RF_POWER_STATE	eRFPowerState
@@ -745,7 +745,7 @@ SetRFPowerState(
 	return bResult;
 }
 
-void
+static void
 MgntDisconnectIBSS(
 	struct net_device* dev
 )
@@ -823,7 +823,7 @@ MgntDisconnectIBSS(
 
 }
 
-void
+static void
 MlmeDisassociateRequest(
 	struct net_device* dev,
 	u8* 		asSta,
@@ -837,7 +837,7 @@ MlmeDisassociateRequest(
 
 	SendDisassociation( priv->ieee80211, asSta, asRsn );
 
-	if(memcpy(priv->ieee80211->current_network.bssid,asSta,6) == 0)
+	if(memcpy(priv->ieee80211->current_network.bssid,asSta,6) == NULL)
 	{
 		//ShuChen TODO: change media status.
 		//ShuChen TODO: What to do when disassociate.
@@ -891,7 +891,7 @@ MlmeDisassociateRequest(
 }
 
 
-void
+static void
 MgntDisconnectAP(
 	struct net_device* dev,
 	u8 asRsn
@@ -945,7 +945,7 @@ MgntDisconnectAP(
 }
 
 
-bool
+static bool
 MgntDisconnect(
 	struct net_device* dev,
 	u8 asRsn

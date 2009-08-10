@@ -20,12 +20,13 @@
 #include <linux/string.h>
 #include "r8192E.h"
 #include "r8192E_hw.h"
+#include "r8192E_wx.h"
 #ifdef ENABLE_DOT11D
 #include "dot11d.h"
 #endif
 
 #define RATE_COUNT 12
-u32 rtl8180_rates[] = {1000000,2000000,5500000,11000000,
+static u32 rtl8180_rates[] = {1000000,2000000,5500000,11000000,
 	6000000,9000000,12000000,18000000,24000000,36000000,48000000,54000000};
 
 

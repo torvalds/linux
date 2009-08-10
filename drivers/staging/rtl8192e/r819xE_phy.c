@@ -857,7 +857,7 @@ u32 Rtl8190PciRadioD_Array[RadioD_ArrayLength] = {
 };
 #endif
 #ifdef RTL8192E
-u32 Rtl8192PciEMACPHY_Array[] = {
+static u32 Rtl8192PciEMACPHY_Array[] = {
 0x03c,0xffff0000,0x00000f0f,
 0x340,0xffffffff,0x161a1a1a,
 0x344,0xffffffff,0x12121416,
@@ -865,7 +865,7 @@ u32 Rtl8192PciEMACPHY_Array[] = {
 0x12c,0xffffffff,0x04000802,
 0x318,0x00000fff,0x00000100,
 };
-u32 Rtl8192PciEMACPHY_Array_PG[] = {
+static u32 Rtl8192PciEMACPHY_Array_PG[] = {
 0x03c,0xffff0000,0x00000f0f,
 0xe00,0xffffffff,0x06090909,
 0xe04,0xffffffff,0x00030306,
@@ -877,7 +877,7 @@ u32 Rtl8192PciEMACPHY_Array_PG[] = {
 0x12c,0xffffffff,0x04000802,
 0x318,0x00000fff,0x00000800,
 };
-u32 Rtl8192PciEAGCTAB_Array[AGCTAB_ArrayLength] = {
+static u32 Rtl8192PciEAGCTAB_Array[AGCTAB_ArrayLength] = {
 0xc78,0x7d000001,
 0xc78,0x7d010001,
 0xc78,0x7d020001,
@@ -1071,9 +1071,9 @@ u32 Rtl8192PciEAGCTAB_Array[AGCTAB_ArrayLength] = {
 0xc78,0x693e001e,
 0xc78,0x6a3f001e,
 };
-u32 Rtl8192PciEPHY_REGArray[PHY_REGArrayLength] = {
+static u32 Rtl8192PciEPHY_REGArray[PHY_REGArrayLength] = {
 0x0, };
-u32 Rtl8192PciEPHY_REG_1T2RArray[PHY_REG_1T2RArrayLength] = {
+static u32 Rtl8192PciEPHY_REG_1T2RArray[PHY_REG_1T2RArrayLength] = {
 0x800,0x00000000,
 0x804,0x00000001,
 0x808,0x0000fc00,
@@ -1223,7 +1223,7 @@ u32 Rtl8192PciEPHY_REG_1T2RArray[PHY_REG_1T2RArrayLength] = {
 0xe18,0x161a1a1a,
 0xe1c,0x12121416,
 };
-u32 Rtl8192PciERadioA_Array[RadioA_ArrayLength] = {
+static u32 Rtl8192PciERadioA_Array[RadioA_ArrayLength] = {
 0x019,0x00000003,
 0x000,0x000000bf,
 0x001,0x00000ee0,
@@ -1348,7 +1348,7 @@ u32 Rtl8192PciERadioA_Array[RadioA_ArrayLength] = {
 0x004,0x00000975,
 0x007,0x00000700,
 };
-u32 Rtl8192PciERadioB_Array[RadioB_ArrayLength] = {
+static u32 Rtl8192PciERadioB_Array[RadioB_ArrayLength] = {
 0x019,0x00000003,
 0x000,0x000000bf,
 0x001,0x000006e0,
@@ -1389,9 +1389,9 @@ u32 Rtl8192PciERadioB_Array[RadioB_ArrayLength] = {
 0x004,0x00000975,
 0x007,0x00000700,
 };
-u32 Rtl8192PciERadioC_Array[RadioC_ArrayLength] = {
+static u32 Rtl8192PciERadioC_Array[RadioC_ArrayLength] = {
 0x0,  };
-u32 Rtl8192PciERadioD_Array[RadioD_ArrayLength] = {
+static u32 Rtl8192PciERadioD_Array[RadioD_ArrayLength] = {
 0x0, };
 #endif
 
@@ -1407,7 +1407,7 @@ static void phy_FwRFSerialWrite(struct net_device* dev,RF90_RADIO_PATH_E eRFPath
  *  output:  none
  *  return:  u32	return the shift bit bit position of the mask
  * ****************************************************************************/
-u32 rtl8192_CalculateBitShift(u32 dwBitMask)
+static u32 rtl8192_CalculateBitShift(u32 dwBitMask)
 {
 	u32 i;
 	for (i=0; i<=31; i++)
@@ -1507,7 +1507,7 @@ u32 rtl8192_QueryBBReg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask)
  *  return:  u32 	readback value
  *  notice:  There are three types of serial operations:(1) Software serial write.(2)Hardware LSSI-Low Speed Serial Interface.(3)Hardware HSSI-High speed serial write. Driver here need to implement (1) and (2)---need more spec for this information.
  * ****************************************************************************/
-u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 Offset)
+static u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 Offset)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32 ret = 0;
@@ -1623,7 +1623,7 @@ u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, 
  * Reg_Mode2	1		1			Reg 31 ~ 45(0x1 ~ 0xf)
  *------------------------------------------------------------------
  * ****************************************************************************/
-void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 Offset, u32 Data)
+static void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 Offset, u32 Data)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32 DataAndAddr = 0, NewOffset = 0;
@@ -2051,7 +2051,7 @@ void rtl8192_phyConfigBB(struct net_device* dev, u8 ConfigType)
  *  return:  none
  *  notice:  Initialization value here is constant and it should never be changed
  * ***************************************************************************/
-void rtl8192_InitBBRFRegDef(struct net_device* dev)
+static void rtl8192_InitBBRFRegDef(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 // RF Interface Sowrtware Control
@@ -2236,7 +2236,7 @@ RT_STATUS rtl8192_phy_checkBBAndRF(struct net_device* dev, HW90_BLOCK_E CheckBlo
  *  notice:  Initialization value may change all the time, so please make
  *           sure it has been synced with the newest.
  * ***************************************************************************/
-RT_STATUS rtl8192_BB_Config_ParaFile(struct net_device* dev)
+static RT_STATUS rtl8192_BB_Config_ParaFile(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	RT_STATUS rtStatus = RT_STATUS_SUCCESS;
@@ -2627,7 +2627,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
  *  return:  none
  *    Note:
  * ***************************************************************************/
-void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
+static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8	powerlevel = priv->TxPowerLevelCCK[channel-1];
@@ -2668,7 +2668,7 @@ void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
  *  return:  true if finished, false otherwise
  *    Note:
  * ************************************************************************************/
-u8 rtl8192_phy_SetSwChnlCmdArray(
+static u8 rtl8192_phy_SetSwChnlCmdArray(
 	SwChnlCmd*		CmdTable,
 	u32			CmdTableIdx,
 	u32			CmdTableSz,
@@ -2711,7 +2711,7 @@ u8 rtl8192_phy_SetSwChnlCmdArray(
  *  return:  true if finished, false otherwise
  *    Note:  Wait for simpler function to replace it //wb
  * ***************************************************************************/
-u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* stage, u8* step, u32* delay)
+static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* stage, u8* step, u32* delay)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 //	PCHANNEL_ACCESS_SETTING	pChnlAccessSetting;
@@ -2863,7 +2863,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* stage, u
  *  return:  noin
  *    Note:  We should not call this function directly
  * ***************************************************************************/
-void rtl8192_phy_FinishSwChnlNow(struct net_device *dev, u8 channel)
+static void rtl8192_phy_FinishSwChnlNow(struct net_device *dev, u8 channel)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32	delay = 0;
@@ -3279,7 +3279,7 @@ void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EX
 }
 
 
-extern void InitialGain819xPci(struct net_device *dev, u8 Operation)
+void InitialGain819xPci(struct net_device *dev, u8 Operation)
 {
 #define SCAN_RX_INITIAL_GAIN	0x17
 #define POWER_DETECTION_TH	0x08

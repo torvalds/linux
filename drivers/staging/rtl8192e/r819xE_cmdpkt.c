@@ -59,7 +59,7 @@
  *	05/06/2008	amy		porting from windows code.
  *
  *---------------------------------------------------------------------------*/
- extern	RT_STATUS cmpk_message_handle_tx(
+RT_STATUS cmpk_message_handle_tx(
 	struct net_device *dev,
 	u8*	code_virtual_address,
 	u32	packettype,
@@ -352,10 +352,7 @@ cmpk_handle_tx_feedback(
 
 }	/* cmpk_Handle_Tx_Feedback */
 
-void
-cmdpkt_beacontimerinterrupt_819xusb(
-	struct net_device *dev
-)
+static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16 tx_rate;
@@ -713,10 +710,7 @@ cmpk_handle_tx_rate_history(
  *  05/06/2008	amy		Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-extern	u32
-cmpk_message_handle_rx(
-	struct net_device *dev,
-	struct ieee80211_rx_stats *pstats)
+u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *pstats)
 {
 //	u32			debug_level = DBG_LOUD;
 	struct r8192_priv *priv = ieee80211_priv(dev);
