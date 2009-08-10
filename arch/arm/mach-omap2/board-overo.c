@@ -146,7 +146,7 @@ static struct platform_device overo_smsc911x_device = {
 	.name		= "smsc911x",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(overo_smsc911x_resources),
-	.resource	= &overo_smsc911x_resources,
+	.resource	= overo_smsc911x_resources,
 	.dev		= {
 		.platform_data = &overo_smsc911x_config,
 	},
