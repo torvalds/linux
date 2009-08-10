@@ -60,7 +60,8 @@ static void dma32_free_coherent(struct device *dev, size_t size,
 
 static dma_addr_t dma32_map_page(struct device *dev, struct page *page,
 				 unsigned long offset, size_t size,
-				 enum dma_data_direction direction)
+				 enum dma_data_direction direction,
+				 struct dma_attrs *attrs)
 {
 #ifdef CONFIG_PCI
 	if (dev->bus == &pci_bus_type)
@@ -72,7 +73,8 @@ static dma_addr_t dma32_map_page(struct device *dev, struct page *page,
 }
 
 static void dma32_unmap_page(struct device *dev, dma_addr_t dma_address,
-			     size_t size, enum dma_data_direction direction)
+			     size_t size, enum dma_data_direction direction,
+			     struct dma_attrs *attrs)
 {
 #ifdef CONFIG_PCI
 	if (dev->bus == &pci_bus_type) {
@@ -85,7 +87,8 @@ static void dma32_unmap_page(struct device *dev, dma_addr_t dma_address,
 }
 
 static int dma32_map_sg(struct device *dev, struct scatterlist *sg,
-			int nents, enum dma_data_direction direction)
+			int nents, enum dma_data_direction direction,
+			struct dma_attrs *attrs)
 {
 #ifdef CONFIG_PCI
 	if (dev->bus == &pci_bus_type)
@@ -95,7 +98,8 @@ static int dma32_map_sg(struct device *dev, struct scatterlist *sg,
 }
 
 void dma32_unmap_sg(struct device *dev, struct scatterlist *sg,
-		    int nents, enum dma_data_direction direction)
+		    int nents, enum dma_data_direction direction,
+		    struct dma_attrs *attrs)
 {
 #ifdef CONFIG_PCI
 	if (dev->bus == &pci_bus_type) {
@@ -161,7 +165,7 @@ static void dma32_sync_sg_for_device(struct device *dev,
 	BUG();
 }
 
-static const struct dma_ops dma32_dma_ops = {
+static const struct dma_map_ops dma32_dma_ops = {
 	.alloc_coherent		= dma32_alloc_coherent,
 	.free_coherent		= dma32_free_coherent,
 	.map_page		= dma32_map_page,
@@ -174,5 +178,5 @@ static const struct dma_ops dma32_dma_ops = {
 	.sync_sg_for_device	= dma32_sync_sg_for_device,
 };
 
-const struct dma_ops *dma_ops = &dma32_dma_ops;
+const struct dma_map_ops *dma_ops = &dma32_dma_ops;
 EXPORT_SYMBOL(dma_ops);
