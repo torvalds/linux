@@ -369,6 +369,8 @@ enum perf_event_type {
 	 *
 	 *	{ u64			nr,
 	 *	  u64			ips[nr];  } && PERF_SAMPLE_CALLCHAIN
+	 *	{ u32			size;
+	 *	  char                  data[size];}&& PERF_SAMPLE_RAW
 	 * };
 	 */
 	PERF_EVENT_SAMPLE		= 9,

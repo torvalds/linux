@@ -2646,7 +2646,6 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		u64 counter;
 	} group_entry;
 	struct perf_callchain_entry *callchain = NULL;
-	struct perf_raw_record *raw = NULL;
 	int callchain_size = 0;
 	u64 time;
 	struct {
@@ -2716,9 +2715,15 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 	}
 
 	if (sample_type & PERF_SAMPLE_RAW) {
-		raw = data->raw;
-		if (raw)
-			header.size += raw->size;
+		int size = sizeof(u32);
+
+		if (data->raw)
+			size += data->raw->size;
+		else
+			size += sizeof(u32);
+
+		WARN_ON_ONCE(size & (sizeof(u64)-1));
+		header.size += size;
 	}
 
 	ret = perf_output_begin(&handle, counter, header.size, nmi, 1);
@@ -2784,8 +2789,21 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		}
 	}
 
-	if ((sample_type & PERF_SAMPLE_RAW) && raw)
-		perf_output_copy(&handle, raw->data, raw->size);
+	if (sample_type & PERF_SAMPLE_RAW) {
+		if (data->raw) {
+			perf_output_put(&handle, data->raw->size);
+			perf_output_copy(&handle, data->raw->data, data->raw->size);
+		} else {
+			struct {
+				u32	size;
+				u32	data;
+			} raw = {
+				.size = sizeof(u32),
+				.data = 0,
+			};
+			perf_output_put(&handle, raw);
+		}
+	}
 
 	perf_output_end(&handle);
 }

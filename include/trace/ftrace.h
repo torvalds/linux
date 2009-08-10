@@ -685,7 +685,8 @@ static void ftrace_profile_##call(proto)				\
 	pc = preempt_count();						\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
-	__entry_size = ALIGN(__data_size + sizeof(*entry), sizeof(u64));\
+	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),\
+			     sizeof(u64));				\
 									\
 	do {								\
 		char raw_data[__entry_size];				\
