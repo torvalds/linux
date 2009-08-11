@@ -480,6 +480,7 @@ int tsi148_request_irq(int level, int statid,
 void tsi148_free_irq(int level, int statid)
 {
 	u32 tmp;
+	struct pci_dev *pdev;
 
 	/* Get semaphore */
 	down(&(vme_irq));
@@ -495,6 +496,10 @@ void tsi148_free_irq(int level, int statid)
 		tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEO);
 		tmp &= ~TSI148_LCSR_INTEO_IRQEO[level - 1];
 		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEO);
+
+		pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
+
+		synchronize_irq(pdev->irq);
 	}
 
 	tsi148_bridge->irq[level - 1].callback[statid].func = NULL;
