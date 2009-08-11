@@ -353,11 +353,11 @@ static int ocfs2_search_for_hole_index(struct ocfs2_extent_list *el,
  * eb_bh is NULL. Otherwise, eb_bh should point to the extent block
  * containing el.
  */
-static int ocfs2_figure_hole_clusters(struct inode *inode,
-				      struct ocfs2_extent_list *el,
-				      struct buffer_head *eb_bh,
-				      u32 v_cluster,
-				      u32 *num_clusters)
+int ocfs2_figure_hole_clusters(struct ocfs2_caching_info *ci,
+			       struct ocfs2_extent_list *el,
+			       struct buffer_head *eb_bh,
+			       u32 v_cluster,
+			       u32 *num_clusters)
 {
 	int ret, i;
 	struct buffer_head *next_eb_bh = NULL;
@@ -375,7 +375,7 @@ static int ocfs2_figure_hole_clusters(struct inode *inode,
 		if (le64_to_cpu(eb->h_next_leaf_blk) == 0ULL)
 			goto no_more_extents;
 
-		ret = ocfs2_read_extent_block(INODE_CACHE(inode),
+		ret = ocfs2_read_extent_block(ci,
 					      le64_to_cpu(eb->h_next_leaf_blk),
 					      &next_eb_bh);
 		if (ret) {
@@ -456,7 +456,8 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 		 * field.
 		 */
 		if (hole_len) {
-			ret = ocfs2_figure_hole_clusters(inode, el, eb_bh,
+			ret = ocfs2_figure_hole_clusters(INODE_CACHE(inode),
+							 el, eb_bh,
 							 v_cluster, &len);
 			if (ret) {
 				mlog_errno(ret);

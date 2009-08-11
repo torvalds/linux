@@ -916,6 +916,7 @@ struct ocfs2_refcount_rec {
 	__le32 r_refcount;	/* Reference count of this extent */
 /*10*/
 };
+#define OCFS2_32BIT_POS_MASK		(0xffffffffULL)
 
 #define OCFS2_REFCOUNT_LEAF_FL          (0x00000001)
 #define OCFS2_REFCOUNT_TREE_FL          (0x00000002)
@@ -1393,6 +1394,12 @@ static inline u16 ocfs2_refcount_recs_per_rb(struct super_block *sb)
 		offsetof(struct ocfs2_refcount_block, rf_records.rl_recs);
 
 	return size / sizeof(struct ocfs2_refcount_rec);
+}
+
+static inline u32
+ocfs2_get_ref_rec_low_cpos(const struct ocfs2_refcount_rec *rec)
+{
+	return le64_to_cpu(rec->r_cpos) & OCFS2_32BIT_POS_MASK;
 }
 #else
 static inline int ocfs2_fast_symlink_chars(int blocksize)
