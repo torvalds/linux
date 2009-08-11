@@ -105,6 +105,52 @@ print_syscall_exit(struct trace_iterator *iter, int flags)
 	return TRACE_TYPE_HANDLED;
 }
 
+int ftrace_format_syscall(struct ftrace_event_call *call, struct trace_seq *s)
+{
+	int i;
+	int nr;
+	int ret = 0;
+	struct syscall_metadata *entry;
+	int offset = sizeof(struct trace_entry);
+
+	nr = syscall_name_to_nr((char *)call->data);
+	entry = syscall_nr_to_meta(nr);
+
+	if (!entry)
+		return ret;
+
+	for (i = 0; i < entry->nb_args; i++) {
+		ret = trace_seq_printf(s, "\tfield:%s %s;", entry->types[i],
+				        entry->args[i]);
+		if (!ret)
+			return 0;
+		ret = trace_seq_printf(s, "\toffset:%d;\tsize:%lu;\n", offset,
+				       sizeof(unsigned long));
+		if (!ret)
+			return 0;
+		offset += sizeof(unsigned long);
+	}
+
+	trace_seq_printf(s, "\nprint fmt: \"");
+	for (i = 0; i < entry->nb_args; i++) {
+		ret = trace_seq_printf(s, "%s: 0x%%0%lulx%s", entry->args[i],
+				        sizeof(unsigned long),
+					i == entry->nb_args - 1 ? "\", " : ", ");
+		if (!ret)
+			return 0;
+	}
+
+	for (i = 0; i < entry->nb_args; i++) {
+		ret = trace_seq_printf(s, "((unsigned long)(REC->%s))%s",
+				        entry->args[i],
+					i == entry->nb_args - 1 ? "\n" : ", ");
+		if (!ret)
+			return 0;
+	}
+
+	return ret;
+}
+
 void ftrace_syscall_enter(struct pt_regs *regs, long id)
 {
 	struct syscall_trace_enter *entry;
