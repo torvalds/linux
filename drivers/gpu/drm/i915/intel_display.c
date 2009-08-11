@@ -1640,6 +1640,8 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	else
 		i9xx_crtc_dpms(crtc, mode);
 
+	intel_crtc->dpms_mode = mode;
+
 	if (!dev->primary->master)
 		return;
 
@@ -1662,8 +1664,6 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		DRM_ERROR("Can't update pipe %d in SAREA\n", pipe);
 		break;
 	}
-
-	intel_crtc->dpms_mode = mode;
 }
 
 static void intel_crtc_prepare (struct drm_crtc *crtc)
