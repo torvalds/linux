@@ -1149,8 +1149,9 @@ static int wm9081_set_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
+/* FIXME: Needs to handle slot_width */
 static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
-			       unsigned int mask, int slots)
+	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	unsigned int aif1 = snd_soc_read(codec, WM9081_AUDIO_INTERFACE_1);
@@ -1162,7 +1163,7 @@ static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
 
 	aif1 |= (slots - 1) << WM9081_AIFDAC_TDM_MODE_SHIFT;
 
-	switch (mask) {
+	switch (rx_mask) {
 	case 1:
 		break;
 	case 2:
