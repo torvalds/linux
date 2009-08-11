@@ -233,6 +233,11 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 {
 	int	status;
 
+	if (test_bit(EVENT_RX_PAUSED, &dev->flags)) {
+		skb_queue_tail(&dev->rxq_pause, skb);
+		return;
+	}
+
 	skb->protocol = eth_type_trans (skb, dev->net);
 	dev->net->stats.rx_packets++;
 	dev->net->stats.rx_bytes += skb->len;
@@ -526,6 +531,41 @@ static void intr_complete (struct urb *urb)
 }
 
 /*-------------------------------------------------------------------------*/
+void usbnet_pause_rx(struct usbnet *dev)
+{
+	set_bit(EVENT_RX_PAUSED, &dev->flags);
+
+	if (netif_msg_rx_status(dev))
+		devdbg(dev, "paused rx queue enabled");
+}
+EXPORT_SYMBOL_GPL(usbnet_pause_rx);
+
+void usbnet_resume_rx(struct usbnet *dev)
+{
+	struct sk_buff *skb;
+	int num = 0;
+
+	clear_bit(EVENT_RX_PAUSED, &dev->flags);
+
+	while ((skb = skb_dequeue(&dev->rxq_pause)) != NULL) {
+		usbnet_skb_return(dev, skb);
+		num++;
+	}
+
+	tasklet_schedule(&dev->bh);
+
+	if (netif_msg_rx_status(dev))
+		devdbg(dev, "paused rx queue disabled, %d skbs requeued", num);
+}
+EXPORT_SYMBOL_GPL(usbnet_resume_rx);
+
+void usbnet_purge_paused_rxq(struct usbnet *dev)
+{
+	skb_queue_purge(&dev->rxq_pause);
+}
+EXPORT_SYMBOL_GPL(usbnet_purge_paused_rxq);
+
+/*-------------------------------------------------------------------------*/
 
 // unlink pending rx/tx; completion handlers do all other cleanup
 
@@ -622,6 +662,8 @@ int usbnet_stop (struct net_device *net)
 	}
 
 	usb_kill_urb(dev->interrupt);
+
+	usbnet_purge_paused_rxq(dev);
 
 	/* deferred work (task, timer, softirq) must also stop.
 	 * can't flush_scheduled_work() until we drop rtnl (later),
@@ -1113,7 +1155,6 @@ static void usbnet_bh (unsigned long param)
 }
 
 
-
 /*-------------------------------------------------------------------------
  *
  * USB Device Driver support
@@ -1210,6 +1251,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	skb_queue_head_init (&dev->rxq);
 	skb_queue_head_init (&dev->txq);
 	skb_queue_head_init (&dev->done);
+	skb_queue_head_init(&dev->rxq_pause);
 	dev->bh.func = usbnet_bh;
 	dev->bh.data = (unsigned long) dev;
 	INIT_WORK (&dev->kevent, kevent);
