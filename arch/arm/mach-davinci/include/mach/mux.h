@@ -748,6 +748,8 @@ enum davinci_da850_index {
 	DA850_MII_RXD_2,
 	DA850_MII_RXD_1,
 	DA850_MII_RXD_0,
+	DA850_MDIO_CLK,
+	DA850_MDIO_D,
 };
 
 #ifdef CONFIG_DAVINCI_MUX

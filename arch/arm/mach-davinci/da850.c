@@ -287,6 +287,7 @@ static struct clk emac_clk = {
 	.name		= "emac",
 	.parent		= &pll0_sysclk4,
 	.lpsc		= DA8XX_LPSC1_CPGMAC,
+	.psc_ctlr	= 1,
 };
 
 static struct davinci_clk da850_clks[] = {
@@ -370,6 +371,8 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, MII_RXD_2,	3,	20,	15,	8,	false)
 	MUX_CFG(DA850, MII_RXD_1,	3,	24,	15,	8,	false)
 	MUX_CFG(DA850, MII_RXD_0,	3,	28,	15,	8,	false)
+	MUX_CFG(DA850, MDIO_CLK,	4,	0,	15,	8,	false)
+	MUX_CFG(DA850, MDIO_D,		4,	4,	15,	8,	false)
 #endif
 };
 
@@ -402,7 +405,8 @@ const short da850_cpgmac_pins[] __initdata = {
 	DA850_MII_TXEN, DA850_MII_TXCLK, DA850_MII_COL, DA850_MII_TXD_3,
 	DA850_MII_TXD_2, DA850_MII_TXD_1, DA850_MII_TXD_0, DA850_MII_RXER,
 	DA850_MII_CRS, DA850_MII_RXCLK, DA850_MII_RXDV, DA850_MII_RXD_3,
-	DA850_MII_RXD_2, DA850_MII_RXD_1, DA850_MII_RXD_0,
+	DA850_MII_RXD_2, DA850_MII_RXD_1, DA850_MII_RXD_0, DA850_MDIO_CLK,
+	DA850_MDIO_D,
 	-1
 };
 
