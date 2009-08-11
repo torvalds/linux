@@ -605,6 +605,90 @@ static void lpphy_radio_init(struct b43_wldev *dev)
 	}
 }
 
+static void lpphy_set_rc_cap(struct b43_wldev *dev)
+{
+	u8 rc_cap = dev->phy.lp->rc_cap;
+
+	b43_radio_write(dev, B2062_N_RXBB_CALIB2, max_t(u8, rc_cap-4, 0x80));
+	b43_radio_write(dev, B2062_N_TX_CTL_A, ((rc_cap & 0x1F) >> 1) | 0x80);
+	b43_radio_write(dev, B2062_S_RXG_CNT16, ((rc_cap & 0x1F) >> 2) | 0x80);
+}
+
+static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
+{
+	//TODO and SPEC FIXME
+}
+
+static void lpphy_rev2plus_rc_calib(struct b43_wldev *dev)
+{
+	struct ssb_bus *bus = dev->dev->bus;
+	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;
+	u8 tmp = b43_radio_read(dev, B2063_RX_BB_SP8) & 0xFF;
+	int i;
+
+	b43_radio_write(dev, B2063_RX_BB_SP8, 0x0);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL1, 0x7E);
+	b43_radio_mask(dev, B2063_PLL_SP1, 0xF7);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL1, 0x7C);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL2, 0x15);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL3, 0x70);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL4, 0x52);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL5, 0x1);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL1, 0x7D);
+
+	for (i = 0; i < 10000; i++) {
+		if (b43_radio_read(dev, B2063_RC_CALIB_CTL6) & 0x2)
+			break;
+		msleep(1);
+	}
+
+	if (!(b43_radio_read(dev, B2063_RC_CALIB_CTL6) & 0x2))
+		b43_radio_write(dev, B2063_RX_BB_SP8, tmp);
+
+	tmp = b43_radio_read(dev, B2063_TX_BB_SP3) & 0xFF;
+
+	b43_radio_write(dev, B2063_TX_BB_SP3, 0x0);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL1, 0x7E);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL1, 0x7C);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL2, 0x55);
+	b43_radio_write(dev, B2063_RC_CALIB_CTL3, 0x76);
+
+	if (crystal_freq == 24000000) {
+		b43_radio_write(dev, B2063_RC_CALIB_CTL4, 0xFC);
+		b43_radio_write(dev, B2063_RC_CALIB_CTL5, 0x0);
+	} else {
+		b43_radio_write(dev, B2063_RC_CALIB_CTL4, 0x13);
+		b43_radio_write(dev, B2063_RC_CALIB_CTL5, 0x1);
+	}
+
+	b43_radio_write(dev, B2063_PA_SP7, 0x7D);
+
+	for (i = 0; i < 10000; i++) {
+		if (b43_radio_read(dev, B2063_RC_CALIB_CTL6) & 0x2)
+			break;
+		msleep(1);
+	}
+
+	if (!(b43_radio_read(dev, B2063_RC_CALIB_CTL6) & 0x2))
+		b43_radio_write(dev, B2063_TX_BB_SP3, tmp);
+
+	b43_radio_write(dev, B2063_RC_CALIB_CTL1, 0x7E);
+}
+
+static void lpphy_calibrate_rc(struct b43_wldev *dev)
+{
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+
+	if (dev->phy.rev >= 2) {
+		lpphy_rev2plus_rc_calib(dev);
+	} else if (!lpphy->rc_cap) {
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+			lpphy_rev0_1_rc_calib(dev);
+	} else {
+		lpphy_set_rc_cap(dev);
+	}
+}
+
 /* Read the TX power control mode from hardware. */
 static void lpphy_read_tx_pctl_mode_from_hardware(struct b43_wldev *dev)
 {
@@ -780,7 +864,7 @@ static int b43_lpphy_op_init(struct b43_wldev *dev)
 	lpphy_read_band_sprom(dev); //FIXME should this be in prepare_structs?
 	lpphy_baseband_init(dev);
 	lpphy_radio_init(dev);
-	//TODO calibrate RC
+	lpphy_calibrate_rc(dev);
 	//TODO set channel
 	lpphy_tx_pctl_init(dev);
 	lpphy_calibration(dev);
