@@ -18,10 +18,17 @@ enum {
 	IOPOLL_F_DISABLE	= 1,
 };
 
+/*
+ * Returns 0 if we successfully set the IOPOLL_F_SCHED bit, indicating
+ * that we were the first to acquire this iop for scheduling. If this iop
+ * is currently disabled, return "failure".
+ */
 static inline int blk_iopoll_sched_prep(struct blk_iopoll *iop)
 {
-	return !test_bit(IOPOLL_F_DISABLE, &iop->state) &&
-		!test_and_set_bit(IOPOLL_F_SCHED, &iop->state);
+	if (!test_bit(IOPOLL_F_DISABLE, &iop->state))
+		return test_and_set_bit(IOPOLL_F_SCHED, &iop->state);
+
+	return 1;
 }
 
 static inline int blk_iopoll_disable_pending(struct blk_iopoll *iop)
