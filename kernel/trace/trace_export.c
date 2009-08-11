@@ -60,7 +60,8 @@ extern void __bad_type_size(void);
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
 static int								\
-ftrace_format_##call(struct trace_seq *s)				\
+ftrace_format_##call(struct ftrace_event_call *unused,			\
+		      struct trace_seq *s)				\
 {									\
 	struct args field;						\
 	int ret;							\
@@ -76,7 +77,8 @@ ftrace_format_##call(struct trace_seq *s)				\
 #define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct,	\
 				    tpfmt)				\
 static int								\
-ftrace_format_##call(struct trace_seq *s)				\
+ftrace_format_##call(struct ftrace_event_call *unused,			\
+		      struct trace_seq *s)				\
 {									\
 	struct args field;						\
 	int ret;							\

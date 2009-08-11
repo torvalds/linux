@@ -151,7 +151,8 @@
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
 static int								\
-ftrace_format_##call(struct trace_seq *s)				\
+ftrace_format_##call(struct ftrace_event_call *unused,			\
+		      struct trace_seq *s)				\
 {									\
 	struct ftrace_raw_##call field __attribute__((unused));		\
 	int ret = 0;							\
