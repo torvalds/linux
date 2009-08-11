@@ -379,6 +379,7 @@ struct alc_config_preset {
 	unsigned int num_mux_defs;
 	const struct hda_input_mux *input_mux;
 	void (*unsol_event)(struct hda_codec *, unsigned int);
+	void (*setup)(struct hda_codec *);
 	void (*init_hook)(struct hda_codec *);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_amp_list *loopbacks;
@@ -851,9 +852,10 @@ static void print_realtek_coef(struct snd_info_buffer *buffer,
 /*
  * set up from the preset table
  */
-static void setup_preset(struct alc_spec *spec,
+static void setup_preset(struct hda_codec *codec,
 			 const struct alc_config_preset *preset)
 {
+	struct alc_spec *spec = codec->spec;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(preset->mixers) && preset->mixers[i]; i++)
@@ -895,6 +897,9 @@ static void setup_preset(struct alc_spec *spec,
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = preset->loopbacks;
 #endif
+
+	if (preset->setup)
+		preset->setup(codec);
 }
 
 /* Enable GPIO mask and set output */
@@ -4762,7 +4767,7 @@ static int patch_alc880(struct hda_codec *codec)
 	}
 
 	if (board_config != ALC880_AUTO)
-		setup_preset(spec, &alc880_presets[board_config]);
+		setup_preset(codec, &alc880_presets[board_config]);
 
 	spec->stream_analog_playback = &alc880_pcm_analog_playback;
 	spec->stream_analog_capture = &alc880_pcm_analog_capture;
@@ -6406,7 +6411,7 @@ static int patch_alc260(struct hda_codec *codec)
 	}
 
 	if (board_config != ALC260_AUTO)
-		setup_preset(spec, &alc260_presets[board_config]);
+		setup_preset(codec, &alc260_presets[board_config]);
 
 	spec->stream_analog_playback = &alc260_pcm_analog_playback;
 	spec->stream_analog_capture = &alc260_pcm_analog_capture;
@@ -9720,7 +9725,7 @@ static int patch_alc882(struct hda_codec *codec)
 	}
 
 	if (board_config != ALC882_AUTO)
-		setup_preset(spec, &alc882_presets[board_config]);
+		setup_preset(codec, &alc882_presets[board_config]);
 
 	spec->stream_analog_playback = &alc882_pcm_analog_playback;
 	spec->stream_analog_capture = &alc882_pcm_analog_capture;
@@ -11594,7 +11599,7 @@ static int patch_alc262(struct hda_codec *codec)
 	}
 
 	if (board_config != ALC262_AUTO)
-		setup_preset(spec, &alc262_presets[board_config]);
+		setup_preset(codec, &alc262_presets[board_config]);
 
 	spec->stream_analog_playback = &alc262_pcm_analog_playback;
 	spec->stream_analog_capture = &alc262_pcm_analog_capture;
@@ -12659,7 +12664,7 @@ static int patch_alc268(struct hda_codec *codec)
 	}
 
 	if (board_config != ALC268_AUTO)
-		setup_preset(spec, &alc268_presets[board_config]);
+		setup_preset(codec, &alc268_presets[board_config]);
 
 	spec->stream_analog_playback = &alc268_pcm_analog_playback;
 	spec->stream_analog_capture = &alc268_pcm_analog_capture;
@@ -13483,7 +13488,7 @@ static int patch_alc269(struct hda_codec *codec)
 	}
 
 	if (board_config != ALC269_AUTO)
-		setup_preset(spec, &alc269_presets[board_config]);
+		setup_preset(codec, &alc269_presets[board_config]);
 
 	if (codec->subsystem_id == 0x17aa3bf8) {
 		/* Due to a hardware problem on Lenovo Ideadpad, we need to
@@ -14636,7 +14641,7 @@ static int patch_alc861(struct hda_codec *codec)
 	}
 
 	if (board_config != ALC861_AUTO)
-		setup_preset(spec, &alc861_presets[board_config]);
+		setup_preset(codec, &alc861_presets[board_config]);
 
 	spec->stream_analog_playback = &alc861_pcm_analog_playback;
 	spec->stream_analog_capture = &alc861_pcm_analog_capture;
@@ -15560,7 +15565,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 	}
 
 	if (board_config != ALC861VD_AUTO)
-		setup_preset(spec, &alc861vd_presets[board_config]);
+		setup_preset(codec, &alc861vd_presets[board_config]);
 
 	if (codec->vendor_id == 0x10ec0660) {
 		/* always turn on EAPD */
@@ -17468,7 +17473,7 @@ static int patch_alc662(struct hda_codec *codec)
 	}
 
 	if (board_config != ALC662_AUTO)
-		setup_preset(spec, &alc662_presets[board_config]);
+		setup_preset(codec, &alc662_presets[board_config]);
 
 	spec->stream_analog_playback = &alc662_pcm_analog_playback;
 	spec->stream_analog_capture = &alc662_pcm_analog_capture;
