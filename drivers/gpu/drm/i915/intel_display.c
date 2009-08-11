@@ -3557,30 +3557,26 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_get_pipe_from_crtc_id *pipe_from_crtc_id = data;
-	struct drm_crtc *crtc = NULL;
-	int pipe = -1;
+	struct drm_mode_object *drmmode_obj;
+	struct intel_crtc *crtc;
 
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		if (crtc->base.id == pipe_from_crtc_id->crtc_id) {
-			pipe = intel_crtc->pipe;
-			break;
-		}
-	}
+	drmmode_obj = drm_mode_object_find(dev, pipe_from_crtc_id->crtc_id,
+			DRM_MODE_OBJECT_CRTC);
 
-	if (pipe == -1) {
+	if (!drmmode_obj) {
 		DRM_ERROR("no such CRTC id\n");
 		return -EINVAL;
 	}
 
-	pipe_from_crtc_id->pipe = pipe;
+	crtc = to_intel_crtc(obj_to_crtc(drmmode_obj));
+	pipe_from_crtc_id->pipe = crtc->pipe;
 
-       return 0;
+	return 0;
 }
 
 struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
