@@ -59,6 +59,89 @@ static void b43_lpphy_op_free(struct b43_wldev *dev)
 	dev->phy.lp = NULL;
 }
 
+static void lpphy_read_band_sprom(struct b43_wldev *dev)
+{
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+	struct ssb_bus *bus = dev->dev->bus;
+	u16 cckpo, maxpwr;
+	u32 ofdmpo;
+	int i;
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		lpphy->tx_isolation_med_band = bus->sprom.tri2g;
+		lpphy->bx_arch = bus->sprom.bxa2g;
+		lpphy->rx_pwr_offset = bus->sprom.rxpo2g;
+		lpphy->rssi_vf = bus->sprom.rssismf2g;
+		lpphy->rssi_vc = bus->sprom.rssismc2g;
+		lpphy->rssi_gs = bus->sprom.rssisav2g;
+		lpphy->txpa[0] = bus->sprom.pa0b0;
+		lpphy->txpa[1] = bus->sprom.pa0b1;
+		lpphy->txpa[2] = bus->sprom.pa0b2;
+		maxpwr = bus->sprom.maxpwr_bg;
+		lpphy->max_tx_pwr_med_band = maxpwr;
+		cckpo = bus->sprom.cck2gpo;
+		ofdmpo = bus->sprom.ofdm2gpo;
+		if (cckpo) {
+			for (i = 0; i < 4; i++) {
+				lpphy->tx_max_rate[i] =
+					maxpwr - (ofdmpo & 0xF) * 2;
+				ofdmpo >>= 4;
+			}
+			ofdmpo = bus->sprom.ofdm2gpo;
+			for (i = 4; i < 15; i++) {
+				lpphy->tx_max_rate[i] =
+					maxpwr - (ofdmpo & 0xF) * 2;
+				ofdmpo >>= 4;
+			}
+		} else {
+			ofdmpo &= 0xFF;
+			for (i = 0; i < 4; i++)
+				lpphy->tx_max_rate[i] = maxpwr;
+			for (i = 4; i < 15; i++)
+				lpphy->tx_max_rate[i] = maxpwr - ofdmpo;
+		}
+	} else { /* 5GHz */
+		lpphy->tx_isolation_low_band = bus->sprom.tri5gl;
+		lpphy->tx_isolation_med_band = bus->sprom.tri5g;
+		lpphy->tx_isolation_hi_band = bus->sprom.tri5gh;
+		lpphy->bx_arch = bus->sprom.bxa5g;
+		lpphy->rx_pwr_offset = bus->sprom.rxpo5g;
+		lpphy->rssi_vf = bus->sprom.rssismf5g;
+		lpphy->rssi_vc = bus->sprom.rssismc5g;
+		lpphy->rssi_gs = bus->sprom.rssisav5g;
+		lpphy->txpa[0] = bus->sprom.pa1b0;
+		lpphy->txpa[1] = bus->sprom.pa1b1;
+		lpphy->txpa[2] = bus->sprom.pa1b2;
+		lpphy->txpal[0] = bus->sprom.pa1lob0;
+		lpphy->txpal[1] = bus->sprom.pa1lob1;
+		lpphy->txpal[2] = bus->sprom.pa1lob2;
+		lpphy->txpah[0] = bus->sprom.pa1hib0;
+		lpphy->txpah[1] = bus->sprom.pa1hib1;
+		lpphy->txpah[2] = bus->sprom.pa1hib2;
+		maxpwr = bus->sprom.maxpwr_al;
+		ofdmpo = bus->sprom.ofdm5glpo;
+		lpphy->max_tx_pwr_low_band = maxpwr;
+		for (i = 4; i < 12; i++) {
+			lpphy->tx_max_ratel[i] = maxpwr - (ofdmpo & 0xF) * 2;
+			ofdmpo >>= 4;
+		}
+		maxpwr = bus->sprom.maxpwr_a;
+		ofdmpo = bus->sprom.ofdm5gpo;
+		lpphy->max_tx_pwr_med_band = maxpwr;
+		for (i = 4; i < 12; i++) {
+			lpphy->tx_max_rate[i] = maxpwr - (ofdmpo & 0xF) * 2;
+			ofdmpo >>= 4;
+		}
+		maxpwr = bus->sprom.maxpwr_ah;
+		ofdmpo = bus->sprom.ofdm5ghpo;
+		lpphy->max_tx_pwr_hi_band = maxpwr;
+		for (i = 4; i < 12; i++) {
+			lpphy->tx_max_rateh[i] = maxpwr - (ofdmpo & 0xF) * 2;
+			ofdmpo >>= 4;
+		}
+	}
+}
+
 static void lpphy_adjust_gain_table(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
@@ -694,7 +777,7 @@ static void lpphy_tx_pctl_init(struct b43_wldev *dev)
 
 static int b43_lpphy_op_init(struct b43_wldev *dev)
 {
-	/* TODO: band SPROM */
+	lpphy_read_band_sprom(dev); //FIXME should this be in prepare_structs?
 	lpphy_baseband_init(dev);
 	lpphy_radio_init(dev);
 	//TODO calibrate RC
