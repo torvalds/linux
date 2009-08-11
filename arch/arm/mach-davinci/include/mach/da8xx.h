@@ -15,6 +15,7 @@
 #include <mach/edma.h>
 #include <mach/i2c.h>
 #include <mach/emac.h>
+#include <mach/asp.h>
 
 /*
  * The cp_intc interrupt controller for the da8xx isn't in the same
@@ -65,6 +66,7 @@ int da8xx_register_edma(void);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
 int da8xx_register_watchdog(void);
 int da8xx_register_emac(void);
+void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata);
 
 extern struct platform_device da8xx_serial_device;
 extern struct emac_platform_data da8xx_emac_pdata;
@@ -100,6 +102,7 @@ extern const short da850_uart2_pins[];
 extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];
 extern const short da850_cpgmac_pins[];
+extern const short da850_mcasp_pins[];
 
 int da8xx_pinmux_setup(const short pins[]);
 

@@ -281,7 +281,43 @@ static struct platform_device da8xx_emac_device = {
 	.resource	= da8xx_emac_resources,
 };
 
+static struct resource da830_mcasp1_resources[] = {
+	{
+		.name	= "mcasp1",
+		.start	= DAVINCI_DA830_MCASP1_REG_BASE,
+		.end	= DAVINCI_DA830_MCASP1_REG_BASE + (SZ_1K * 12) - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	/* TX event */
+	{
+		.start	= DAVINCI_DA830_DMA_MCASP1_AXEVT,
+		.end	= DAVINCI_DA830_DMA_MCASP1_AXEVT,
+		.flags	= IORESOURCE_DMA,
+	},
+	/* RX event */
+	{
+		.start	= DAVINCI_DA830_DMA_MCASP1_AREVT,
+		.end	= DAVINCI_DA830_DMA_MCASP1_AREVT,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device da830_mcasp1_device = {
+	.name		= "davinci-mcasp",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(da830_mcasp1_resources),
+	.resource	= da830_mcasp1_resources,
+};
+
 int __init da8xx_register_emac(void)
 {
 	return platform_device_register(&da8xx_emac_device);
+}
+
+void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata)
+{
+	if (id == 1) { /* DA830/OMAP-L137 has 3 instances of McASP */
+		da830_mcasp1_device.dev.platform_data = pdata;
+		platform_device_register(&da830_mcasp1_device);
+	}
 }

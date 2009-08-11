@@ -23,6 +23,7 @@
 #include <mach/irqs.h>
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
+#include <mach/asp.h>
 
 #define DA830_EVM_PHY_MASK		0x0
 #define DA830_EVM_MDIO_FREQUENCY	2200000	/* PHY bus frequency */
@@ -49,6 +50,25 @@ static struct davinci_i2c_platform_data da830_evm_i2c_0_pdata = {
 
 static struct davinci_uart_config da830_evm_uart_config __initdata = {
 	.enabled_uarts = 0x7,
+};
+
+static u8 da830_iis_serializer_direction[] = {
+	RX_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	TX_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+};
+
+static struct snd_platform_data da830_evm_snd_data = {
+	.tx_dma_offset  = 0x2000,
+	.rx_dma_offset  = 0x2000,
+	.op_mode        = DAVINCI_MCASP_IIS_MODE,
+	.num_serializer = ARRAY_SIZE(da830_iis_serializer_direction),
+	.tdm_slots      = 2,
+	.serial_dir     = da830_iis_serializer_direction,
+	.eventq_no      = EVENTQ_0,
+	.version	= MCASP_VERSION_2,
+	.txnumevt	= 1,
+	.rxnumevt	= 1,
 };
 
 static __init void da830_evm_init(void)
@@ -93,6 +113,13 @@ static __init void da830_evm_init(void)
 	davinci_serial_init(&da830_evm_uart_config);
 	i2c_register_board_info(1, da830_evm_i2c_devices,
 			ARRAY_SIZE(da830_evm_i2c_devices));
+
+	ret = da8xx_pinmux_setup(da830_mcasp1_pins);
+	if (ret)
+		pr_warning("da830_evm_init: mcasp1 mux setup failed: %d\n",
+				ret);
+
+	da8xx_init_mcasp(1, &da830_evm_snd_data);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE

@@ -23,6 +23,7 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
+#include <mach/asp.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -411,9 +412,9 @@ static struct davinci_clk da830_clks[] = {
 	CLK("eqep.0",		NULL,		&eqep0_clk),
 	CLK("eqep.1",		NULL,		&eqep1_clk),
 	CLK("da830_lcdc",	NULL,		&lcdc_clk),
-	CLK("soc-audio.0",	NULL,		&mcasp0_clk),
-	CLK("soc-audio.1",	NULL,		&mcasp1_clk),
-	CLK("soc-audio.2",	NULL,		&mcasp2_clk),
+	CLK("davinci-mcasp.0",	NULL,		&mcasp0_clk),
+	CLK("davinci-mcasp.1",	NULL,		&mcasp1_clk),
+	CLK("davinci-mcasp.2",	NULL,		&mcasp2_clk),
 	CLK("musb_hdrc",	NULL,		&usb20_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
 	CLK(NULL,		"aintc",	&aintc_clk),

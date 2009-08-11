@@ -15,6 +15,9 @@
 #define	DAVINCI_DM646X_MCASP0_REG_BASE		0x01D01000
 #define DAVINCI_DM646X_MCASP1_REG_BASE		0x01D01800
 
+/* Bases of da830 McASP1 register banks */
+#define DAVINCI_DA830_MCASP1_REG_BASE	0x01D04000
+
 /* EDMA channels of dm644x and dm355 */
 #define DAVINCI_DMA_ASP0_TX	2
 #define DAVINCI_DMA_ASP0_RX	3
@@ -25,6 +28,10 @@
 #define	DAVINCI_DM646X_DMA_MCASP0_AXEVT0	6
 #define	DAVINCI_DM646X_DMA_MCASP0_AREVT0	9
 #define	DAVINCI_DM646X_DMA_MCASP1_AXEVT1	12
+
+/* EDMA channels of da830 McASP1 */
+#define	DAVINCI_DA830_DMA_MCASP1_AREVT	2
+#define	DAVINCI_DA830_DMA_MCASP1_AXEVT	3
 
 /* Interrupts */
 #define DAVINCI_ASP0_RX_INT	IRQ_MBRINT
@@ -43,6 +50,14 @@ struct snd_platform_data {
 	u8 op_mode;
 	u8 num_serializer;
 	u8 *serial_dir;
+	u8 version;
+	u8 txnumevt;
+	u8 rxnumevt;
+};
+
+enum {
+	MCASP_VERSION_1 = 0,	/* DM646x */
+	MCASP_VERSION_2,	/* DA8xx/OMAPL1x */
 };
 
 #define INACTIVE_MODE	0
