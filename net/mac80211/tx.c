@@ -1412,14 +1412,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 
 	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
 
-	if (ieee80211_vif_is_mesh(&sdata->vif) &&
-	    ieee80211_is_data(hdr->frame_control)) {
-		if (!is_multicast_ether_addr(hdr->addr1))
-			if (mesh_nexthop_lookup(skb, sdata)) {
-				dev_put(sdata->dev);
-				return;
-			}
-	} else if (unlikely(sdata->vif.type == NL80211_IFTYPE_MONITOR)) {
+	if (unlikely(sdata->vif.type == NL80211_IFTYPE_MONITOR)) {
 		int hdrlen;
 		u16 len_rthdr;
 
@@ -1475,6 +1468,15 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 	}
 
 	info->control.vif = &sdata->vif;
+
+	if (ieee80211_vif_is_mesh(&sdata->vif) &&
+	    ieee80211_is_data(hdr->frame_control) &&
+		!is_multicast_ether_addr(hdr->addr1))
+			if (mesh_nexthop_lookup(skb, sdata)) {
+				/* skb queued: don't free */
+				dev_put(sdata->dev);
+				return;
+			}
 
 	ieee80211_select_queue(local, skb);
 	ieee80211_tx(sdata, skb, false);
