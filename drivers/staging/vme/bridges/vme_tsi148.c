@@ -76,13 +76,13 @@ void (*lm_callback[4])(int);	/* Called in interrupt handler, be careful! */
 void *crcsr_kernel;
 dma_addr_t crcsr_bus;
 struct vme_master_resource *flush_image;
-struct semaphore vme_rmw;	/* Only one RMW cycle at a time */
-struct semaphore vme_int;	/*
+struct mutex vme_rmw;	/* Only one RMW cycle at a time */
+struct mutex vme_int;	/*
 				 * Only one VME interrupt can be
 				 * generated at a time, provide locking
 				 */
-struct semaphore vme_irq;	/* Locking for VME irq callback configuration */
-struct semaphore vme_lm;	/* Locking for location monitor operations */
+struct mutex vme_irq;	/* Locking for VME irq callback configuration */
+struct mutex vme_lm;	/* Locking for location monitor operations */
 
 
 static char driver_name[] = "vme_tsi148";
@@ -445,11 +445,10 @@ int tsi148_request_irq(int level, int statid,
 {
 	u32 tmp;
 
-	/* Get semaphore */
-	down(&(vme_irq));
+	mutex_lock(&(vme_irq));
 
 	if(tsi148_bridge->irq[level - 1].callback[statid].func) {
-		up(&(vme_irq));
+		mutex_unlock(&(vme_irq));
 		printk("VME Interrupt already taken\n");
 		return -EBUSY;
 	}
@@ -468,8 +467,7 @@ int tsi148_request_irq(int level, int statid,
 	tmp |= TSI148_LCSR_INTEN_IRQEN[level - 1];
 	iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_INTEN);
 
-	/* Release semaphore */
-	up(&(vme_irq));
+	mutex_unlock(&(vme_irq));
 
 	return 0;
 }
@@ -482,8 +480,7 @@ void tsi148_free_irq(int level, int statid)
 	u32 tmp;
 	struct pci_dev *pdev;
 
-	/* Get semaphore */
-	down(&(vme_irq));
+	mutex_lock(&(vme_irq));
 
 	tsi148_bridge->irq[level - 1].count--;
 
@@ -505,22 +502,18 @@ void tsi148_free_irq(int level, int statid)
 	tsi148_bridge->irq[level - 1].callback[statid].func = NULL;
 	tsi148_bridge->irq[level - 1].callback[statid].priv_data = NULL;
 
-	/* Release semaphore */
-	up(&(vme_irq));
+	mutex_unlock(&(vme_irq));
 }
 
 /*
  * Generate a VME bus interrupt at the requested level & vector. Wait for
  * interrupt to be acked.
- *
- * Only one interrupt can be generated at a time - so add a semaphore.
  */
 int tsi148_generate_irq(int level, int statid)
 {
 	u32 tmp;
 
-	/* Get semaphore */
-	down(&(vme_int));
+	mutex_lock(&(vme_int));
 
 	/* Read VICR register */
 	tmp = ioread32be(tsi148_bridge->base + TSI148_LCSR_VICR);
@@ -537,8 +530,7 @@ int tsi148_generate_irq(int level, int statid)
 	/* XXX Consider implementing a timeout? */
 	wait_event_interruptible(iack_queue, tsi148_iack_received());
 
-	/* Release semaphore */
-	up(&(vme_int));
+	mutex_unlock(&(vme_int));
 
 	return 0;
 }
@@ -1379,7 +1371,7 @@ skip_chk:
 }
 
 
-/* XXX We need to change vme_master_resource->sem to a spinlock so that read
+/* XXX We need to change vme_master_resource->mtx to a spinlock so that read
  *     and write functions can be used in an interrupt context
  */
 ssize_t tsi148_master_write(struct vme_master_resource *image, void *buf,
@@ -1455,7 +1447,7 @@ unsigned int tsi148_master_rmw(struct vme_master_resource *image,
 	i = image->number;
 
 	/* Locking as we can only do one of these at a time */
-	down(&(vme_rmw));
+	mutex_lock(&(vme_rmw));
 
 	/* Lock image */
 	spin_lock(&(image->lock));
@@ -1490,7 +1482,7 @@ unsigned int tsi148_master_rmw(struct vme_master_resource *image,
 
 	spin_unlock(&(image->lock));
 
-	up(&(vme_rmw));
+	mutex_unlock(&(vme_rmw));
 
 	return result;
 }
@@ -1867,7 +1859,7 @@ int tsi148_dma_list_exec(struct vme_dma_list *list)
 
 	ctrlr = list->parent;
 
-	down(&(ctrlr->sem));
+	mutex_lock(&(ctrlr->mtx));
 
 	channel = ctrlr->number;
 
@@ -1878,7 +1870,7 @@ int tsi148_dma_list_exec(struct vme_dma_list *list)
 		 *     Return busy.
 		 */
 		/* Need to add to pending here */
-		up(&(ctrlr->sem));
+		mutex_unlock(&(ctrlr->mtx));
 		return -EBUSY;
 	} else {
 		list_add(&(list->list), &(ctrlr->running));
@@ -1932,7 +1924,7 @@ int tsi148_dma_list_exec(struct vme_dma_list *list)
 
 	bus_addr = virt_to_bus(&(entry->descriptor));
 
-	up(&(ctrlr->sem));
+	mutex_unlock(&(ctrlr->mtx));
 
 	reg_split(bus_addr, &bus_addr_high, &bus_addr_low);
 
@@ -1959,9 +1951,9 @@ int tsi148_dma_list_exec(struct vme_dma_list *list)
 	}
 
 	/* Remove list from running list */
-	down(&(ctrlr->sem));
+	mutex_lock(&(ctrlr->mtx));
 	list_del(&(list->list));
-	up(&(ctrlr->sem));
+	mutex_unlock(&(ctrlr->mtx));
 
 	return retval;
 }
@@ -1999,13 +1991,12 @@ int tsi148_lm_set(unsigned long long lm_base, vme_address_t aspace,
 	u32 lm_base_high, lm_base_low, lm_ctl = 0;
 	int i;
 
-	/* Get semaphore */
-	down(&(vme_lm));
+	mutex_lock(&(vme_lm));
 
 	/* If we already have a callback attached, we can't move it! */
 	for (i = 0; i < 4; i++) {
 		if(lm_callback[i] != NULL) {
-			up(&(vme_lm));
+			mutex_unlock(&(vme_lm));
 			printk("Location monitor callback attached, can't "
 				"reset\n");
 			return -EBUSY;
@@ -2026,7 +2017,7 @@ int tsi148_lm_set(unsigned long long lm_base, vme_address_t aspace,
 		lm_ctl |= TSI148_LCSR_LMAT_AS_A64;
 		break;
 	default:
-		up(&(vme_lm));
+		mutex_unlock(&(vme_lm));
 		printk("Invalid address space\n");
 		return -EINVAL;
 		break;
@@ -2047,7 +2038,7 @@ int tsi148_lm_set(unsigned long long lm_base, vme_address_t aspace,
 	iowrite32be(lm_base_low, tsi148_bridge->base + TSI148_LCSR_LMBAL);
 	iowrite32be(lm_ctl, tsi148_bridge->base + TSI148_LCSR_LMAT);
 
-	up(&(vme_lm));
+	mutex_unlock(&(vme_lm));
 
 	return 0;
 }
@@ -2060,8 +2051,7 @@ int tsi148_lm_get(unsigned long long *lm_base, vme_address_t *aspace,
 {
 	u32 lm_base_high, lm_base_low, lm_ctl, enabled = 0;
 
-	/* Get semaphore */
-	down(&(vme_lm));
+	mutex_lock(&(vme_lm));
 
 	lm_base_high = ioread32be(tsi148_bridge->base + TSI148_LCSR_LMBAU);
 	lm_base_low = ioread32be(tsi148_bridge->base + TSI148_LCSR_LMBAL);
@@ -2094,7 +2084,7 @@ int tsi148_lm_get(unsigned long long *lm_base, vme_address_t *aspace,
 	if (lm_ctl & TSI148_LCSR_LMAT_DATA)
 		*cycle |= VME_DATA;
 
-	up(&(vme_lm));
+	mutex_unlock(&(vme_lm));
 
 	return enabled;
 }
@@ -2108,20 +2098,19 @@ int tsi148_lm_attach(int monitor, void (*callback)(int))
 {
 	u32 lm_ctl, tmp;
 
-	/* Get semaphore */
-	down(&(vme_lm));
+	mutex_lock(&(vme_lm));
 
 	/* Ensure that the location monitor is configured - need PGM or DATA */
 	lm_ctl = ioread32be(tsi148_bridge->base + TSI148_LCSR_LMAT);
 	if ((lm_ctl & (TSI148_LCSR_LMAT_PGM | TSI148_LCSR_LMAT_DATA)) == 0) {
-		up(&(vme_lm));
+		mutex_unlock(&(vme_lm));
 		printk("Location monitor not properly configured\n");
 		return -EINVAL;
 	}
 
 	/* Check that a callback isn't already attached */
 	if (lm_callback[monitor] != NULL) {
-		up(&(vme_lm));
+		mutex_unlock(&(vme_lm));
 		printk("Existing callback attached\n");
 		return -EBUSY;
 	}
@@ -2144,7 +2133,7 @@ int tsi148_lm_attach(int monitor, void (*callback)(int))
 		iowrite32be(lm_ctl, tsi148_bridge->base + TSI148_LCSR_LMAT);
 	}
 
-	up(&(vme_lm));
+	mutex_unlock(&(vme_lm));
 
 	return 0;
 }
@@ -2156,8 +2145,7 @@ int tsi148_lm_detach(int monitor)
 {
 	u32 lm_en, tmp;
 
-	/* Get semaphore */
-	down(&(vme_lm));
+	mutex_lock(&(vme_lm));
 
 	/* Disable Location Monitor and ensure previous interrupts are clear */
 	lm_en = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEN);
@@ -2182,7 +2170,7 @@ int tsi148_lm_detach(int monitor)
 		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_LMAT);
 	}
 
-	up(&(vme_lm));
+	mutex_unlock(&(vme_lm));
 
 	return 0;
 }
@@ -2347,10 +2335,10 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_waitqueue_head(&dma_queue[0]);
 	init_waitqueue_head(&dma_queue[1]);
 	init_waitqueue_head(&iack_queue);
-	init_MUTEX(&(vme_int));
-	init_MUTEX(&(vme_irq));
-	init_MUTEX(&(vme_rmw));
-	init_MUTEX(&(vme_lm));
+	mutex_init(&(vme_int));
+	mutex_init(&(vme_irq));
+	mutex_init(&(vme_rmw));
+	mutex_init(&(vme_lm));
 
 	tsi148_bridge->parent = &(pdev->dev);
 	strcpy(tsi148_bridge->name, driver_name);
@@ -2436,7 +2424,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto err_slave;
 		}
 		slave_image->parent = tsi148_bridge;
-		init_MUTEX(&(slave_image->sem));
+		mutex_init(&(slave_image->mtx));
 		slave_image->locked = 0;
 		slave_image->number = i;
 		slave_image->address_attr = VME_A16 | VME_A24 | VME_A32 |
@@ -2462,7 +2450,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto err_dma;
 		}
 		dma_ctrlr->parent = tsi148_bridge;
-		init_MUTEX(&(dma_ctrlr->sem));
+		mutex_init(&(dma_ctrlr->mtx));
 		dma_ctrlr->locked = 0;
 		dma_ctrlr->number = i;
 		INIT_LIST_HEAD(&(dma_ctrlr->pending));

@@ -11,7 +11,7 @@ struct vme_master_resource {
 	struct vme_bridge *parent;
 	/*
 	 * We are likely to need to access the VME bus in interrupt context, so
-	 * protect master routines with a spinlock rather than a semaphore.
+	 * protect master routines with a spinlock rather than a mutex.
 	 */
 	spinlock_t lock;
 	int locked;
@@ -26,7 +26,7 @@ struct vme_master_resource {
 struct vme_slave_resource {
 	struct list_head list;
 	struct vme_bridge *parent;
-	struct semaphore sem;
+	struct mutex mtx;
 	int locked;
 	int number;
 	vme_address_t address_attr;
@@ -53,13 +53,13 @@ struct vme_dma_list {
 	struct list_head list;
 	struct vme_dma_resource *parent;
 	struct list_head entries;
-	struct semaphore sem;
+	struct mutex mtx;
 };
 
 struct vme_dma_resource {
 	struct list_head list;
 	struct vme_bridge *parent;
-	struct semaphore sem;
+	struct mutex mtx;
 	int locked;
 	int number;
 	struct list_head pending;
