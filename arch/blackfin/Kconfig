@@ -574,8 +574,8 @@ config MAX_VCO_HZ
 	default 400000000 if BF514
 	default 400000000 if BF516
 	default 400000000 if BF518
-	default 600000000 if BF522
-	default 400000000 if BF523
+	default 400000000 if BF522
+	default 600000000 if BF523
 	default 400000000 if BF524
 	default 600000000 if BF525
 	default 400000000 if BF526
