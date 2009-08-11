@@ -167,6 +167,7 @@ enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_BUTTON	     = 4,
 	V4L2_CTRL_TYPE_INTEGER64     = 5,
 	V4L2_CTRL_TYPE_CTRL_CLASS    = 6,
+	V4L2_CTRL_TYPE_STRING        = 7,
 };
 
 enum v4l2_tuner_type {
@@ -795,11 +796,12 @@ struct v4l2_control {
 
 struct v4l2_ext_control {
 	__u32 id;
-	__u32 reserved2[2];
+	__u32 size;
+	__u32 reserved2[1];
 	union {
 		__s32 value;
 		__s64 value64;
-		void *reserved;
+		char *string;
 	};
 } __attribute__ ((packed));
 

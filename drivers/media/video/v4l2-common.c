@@ -156,6 +156,8 @@ int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
 		return -EINVAL;
 	if (qctrl->flags & V4L2_CTRL_FLAG_GRABBED)
 		return -EBUSY;
+	if (qctrl->type == V4L2_CTRL_TYPE_STRING)
+		return 0;
 	if (qctrl->type == V4L2_CTRL_TYPE_BUTTON ||
 	    qctrl->type == V4L2_CTRL_TYPE_INTEGER64 ||
 	    qctrl->type == V4L2_CTRL_TYPE_CTRL_CLASS)

@@ -513,11 +513,12 @@ static inline void v4l_print_ext_ctrls(unsigned int cmd,
 	dbgarg(cmd, "");
 	printk(KERN_CONT "class=0x%x", c->ctrl_class);
 	for (i = 0; i < c->count; i++) {
-		if (show_vals)
+		if (show_vals && !c->controls[i].size)
 			printk(KERN_CONT " id/val=0x%x/0x%x",
 				c->controls[i].id, c->controls[i].value);
 		else
-			printk(KERN_CONT " id=0x%x", c->controls[i].id);
+			printk(KERN_CONT " id=0x%x,size=%u",
+				c->controls[i].id, c->controls[i].size);
 	}
 	printk(KERN_CONT "\n");
 };
@@ -528,10 +529,9 @@ static inline int check_ext_ctrls(struct v4l2_ext_controls *c, int allow_priv)
 
 	/* zero the reserved fields */
 	c->reserved[0] = c->reserved[1] = 0;
-	for (i = 0; i < c->count; i++) {
+	for (i = 0; i < c->count; i++)
 		c->controls[i].reserved2[0] = 0;
-		c->controls[i].reserved2[1] = 0;
-	}
+
 	/* V4L2_CID_PRIVATE_BASE cannot be used as control class
 	   when using extended controls.
 	   Only when passed in through VIDIOC_G_CTRL and VIDIOC_S_CTRL
