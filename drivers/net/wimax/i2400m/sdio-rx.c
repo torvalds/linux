@@ -138,6 +138,11 @@ void i2400ms_rx(struct i2400ms *i2400ms)
 		ret = rx_size;
 		goto error_get_size;
 	}
+	/*
+	 * Hardware quirk: make sure to clear the INTR status register
+	 * AFTER getting the data transfer size.
+	 */
+	sdio_writeb(func, 1, I2400MS_INTR_CLEAR_ADDR, &ret);
 
 	ret = -ENOMEM;
 	skb = alloc_skb(rx_size, GFP_ATOMIC);
@@ -209,7 +214,6 @@ void i2400ms_irq(struct sdio_func *func)
 		dev_err(dev, "RX: BUG? got IRQ but no interrupt ready?\n");
 		goto error_no_irq;
 	}
-	sdio_writeb(func, 1, I2400MS_INTR_CLEAR_ADDR, &ret);
 	i2400ms_rx(i2400ms);
 error_no_irq:
 	d_fnend(6, dev, "(i2400ms %p) = void\n", i2400ms);
