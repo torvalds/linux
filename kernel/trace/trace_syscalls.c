@@ -301,6 +301,17 @@ struct trace_event event_syscall_exit = {
 };
 
 #ifdef CONFIG_EVENT_PROFILE
+
+struct syscall_enter_record {
+	struct trace_entry	entry;
+	unsigned long		args[0];
+};
+
+struct syscall_exit_record {
+	struct trace_entry	entry;
+	unsigned long		ret;
+};
+
 static DECLARE_BITMAP(enabled_prof_enter_syscalls, FTRACE_SYSCALL_MAX);
 static DECLARE_BITMAP(enabled_prof_exit_syscalls, FTRACE_SYSCALL_MAX);
 static int sys_prof_refcount_enter;
@@ -308,8 +319,10 @@ static int sys_prof_refcount_exit;
 
 static void prof_syscall_enter(struct pt_regs *regs, long id)
 {
+	struct syscall_enter_record *rec;
 	struct syscall_metadata *sys_data;
 	int syscall_nr;
+	int size;
 
 	syscall_nr = syscall_get_nr(current, regs);
 	if (!test_bit(syscall_nr, enabled_prof_enter_syscalls))
@@ -319,7 +332,24 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	if (!sys_data)
 		return;
 
-	perf_tpcounter_event(sys_data->enter_id, 0, 1, NULL, 0);
+	/* get the size after alignment with the u32 buffer size field */
+	size = sizeof(unsigned long) * sys_data->nb_args + sizeof(*rec);
+	size = ALIGN(size + sizeof(u32), sizeof(u64));
+	size -= sizeof(u32);
+
+	do {
+		char raw_data[size];
+
+		/* zero the dead bytes from align to not leak stack to user */
+		*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
+
+		rec = (struct syscall_enter_record *) raw_data;
+		tracing_generic_entry_update(&rec->entry, 0, 0);
+		rec->entry.type = sys_data->enter_id;
+		syscall_get_arguments(current, regs, 0, sys_data->nb_args,
+				       (unsigned long *)&rec->args);
+		perf_tpcounter_event(sys_data->enter_id, 0, 1, rec, size);
+	} while(0);
 }
 
 int reg_prof_syscall_enter(char *name)
@@ -364,6 +394,7 @@ void unreg_prof_syscall_enter(char *name)
 static void prof_syscall_exit(struct pt_regs *regs, long ret)
 {
 	struct syscall_metadata *sys_data;
+	struct syscall_exit_record rec;
 	int syscall_nr;
 
 	syscall_nr = syscall_get_nr(current, regs);
@@ -374,7 +405,11 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	if (!sys_data)
 		return;
 
-	perf_tpcounter_event(sys_data->exit_id, 0, 1, NULL, 0);
+	tracing_generic_entry_update(&rec.entry, 0, 0);
+	rec.entry.type = sys_data->exit_id;
+	rec.ret = syscall_get_return_value(current, regs);
+
+	perf_tpcounter_event(sys_data->exit_id, 0, 1, &rec, sizeof(rec));
 }
 
 int reg_prof_syscall_exit(char *name)
