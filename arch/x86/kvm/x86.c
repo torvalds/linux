@@ -4101,12 +4101,19 @@ static int kvm_load_realmode_segment(struct kvm_vcpu *vcpu, u16 selector, int se
 	return 0;
 }
 
+static int is_vm86_segment(struct kvm_vcpu *vcpu, int seg)
+{
+	return (seg != VCPU_SREG_LDTR) &&
+		(seg != VCPU_SREG_TR) &&
+		(kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_VM);
+}
+
 int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 				int type_bits, int seg)
 {
 	struct kvm_segment kvm_seg;
 
-	if (!(vcpu->arch.cr0 & X86_CR0_PE))
+	if (is_vm86_segment(vcpu, seg) || !(vcpu->arch.cr0 & X86_CR0_PE))
 		return kvm_load_realmode_segment(vcpu, selector, seg);
 	if (load_segment_descriptor_to_kvm_desct(vcpu, selector, &kvm_seg))
 		return 1;
