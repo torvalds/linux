@@ -13,6 +13,7 @@
 #include <linux/stacktrace.h>
 #include <linux/thread_info.h>
 #include <linux/module.h>
+#include <asm/unwinder.h>
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 
@@ -57,7 +58,7 @@ void save_stack_trace(struct stack_trace *trace)
 {
 	unsigned long *sp = (unsigned long *)current_stack_pointer;
 
-	dump_trace(current, NULL, sp,  &save_stack_ops, trace);
+	unwind_stack(current, NULL, sp,  &save_stack_ops, trace);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
@@ -89,6 +90,6 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
 	unsigned long *sp = (unsigned long *)tsk->thread.sp;
 
-	dump_trace(current, NULL, sp,  &save_stack_ops_nosched, trace);
+	unwind_stack(current, NULL, sp,  &save_stack_ops_nosched, trace);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);

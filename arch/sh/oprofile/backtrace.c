@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/kallsyms.h>
 #include <linux/mm.h>
+#include <asm/unwinder.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
 #include <asm/sections.h>
@@ -120,8 +121,8 @@ void sh_backtrace(struct pt_regs * const regs, unsigned int depth)
 	stackaddr = (unsigned long *)regs->regs[15];
 	if (!user_mode(regs)) {
 		if (depth)
-			dump_trace(NULL, regs, stackaddr,
-				   &backtrace_ops, &depth);
+			unwind_stack(NULL, regs, stackaddr,
+				     &backtrace_ops, &depth);
 		return;
 	}
 

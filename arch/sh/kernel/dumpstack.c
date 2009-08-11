@@ -6,7 +6,7 @@
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
-
+#include <asm/unwinder.h>
 #include <asm/stacktrace.h>
 
 void printk_address(unsigned long address, int reliable)
@@ -46,13 +46,10 @@ print_ftrace_graph_addr(unsigned long addr, void *data,
 { }
 #endif
 
-/*
- * Unwind the call stack and pass information to the stacktrace_ops
- * functions.
- */
-void dump_trace(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *sp, const struct stacktrace_ops *ops,
-		void *data)
+void
+stack_reader_dump(struct task_struct *task, struct pt_regs *regs,
+		  unsigned long *sp, const struct stacktrace_ops *ops,
+		  void *data)
 {
 	struct thread_info *context;
 	int graph = 0;
@@ -71,8 +68,6 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		}
 	}
 }
-EXPORT_SYMBOL(dump_trace);
-
 
 static void
 print_trace_warning_symbol(void *data, char *msg, unsigned long symbol)
@@ -117,7 +112,7 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
 
 	printk("\nCall trace:\n");
 
-	dump_trace(tsk, regs, sp, &print_trace_ops, "");
+	unwind_stack(tsk, regs, sp, &print_trace_ops, "");
 
 	printk("\n");
 
