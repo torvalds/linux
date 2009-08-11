@@ -397,8 +397,8 @@
 
 #define DA850_N_CP_INTC_IRQ		101
 
-/* da830/da850 currently has the most gpio pins (128) */
-#define DAVINCI_N_GPIO			128
+/* da850 currently has the most gpio pins (144) */
+#define DAVINCI_N_GPIO			144
 /* da850 currently has the most irqs so use DA850_N_CP_INTC_IRQ */
 #define NR_IRQS				(DA850_N_CP_INTC_IRQ + DAVINCI_N_GPIO)
 

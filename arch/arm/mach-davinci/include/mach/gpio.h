@@ -78,6 +78,8 @@ __gpio_to_controller(unsigned gpio)
 		ptr = base + 0x60;
 	else if (gpio < 32 * 4)
 		ptr = base + 0x88;
+	else if (gpio < 32 * 5)
+		ptr = base + 0xb0;
 	else
 		ptr = NULL;
 	return ptr;
