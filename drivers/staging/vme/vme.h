@@ -5,7 +5,8 @@
 enum vme_resource_type {
 	VME_MASTER,
 	VME_SLAVE,
-	VME_DMA
+	VME_DMA,
+	VME_LM
 };
 
 /* VME Address Spaces */
@@ -140,11 +141,15 @@ int vme_request_irq(struct device *, int, int,
 void vme_free_irq(struct device *, int, int);
 int vme_generate_irq(struct device *, int, int);
 
-int vme_lm_set(struct device *, unsigned long long, vme_address_t, vme_cycle_t);
-int vme_lm_get(struct device *, unsigned long long *, vme_address_t *,
+struct vme_resource * vme_lm_request(struct device *);
+int vme_lm_count(struct vme_resource *);
+int vme_lm_set(struct vme_resource *, unsigned long long, vme_address_t,
+	vme_cycle_t);
+int vme_lm_get(struct vme_resource *, unsigned long long *, vme_address_t *,
 	vme_cycle_t *);
-int vme_lm_attach(struct device *, int, void (*callback)(int));
-int vme_lm_detach(struct device *, int);
+int vme_lm_attach(struct vme_resource *, int, void (*callback)(int));
+int vme_lm_detach(struct vme_resource *, int);
+void vme_lm_free(struct vme_resource *);
 
 int vme_slot_get(struct device *);
 

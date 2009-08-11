@@ -59,10 +59,6 @@ int tsi148_dma_list_add (struct vme_dma_list *, struct vme_dma_attr *,
 int tsi148_dma_list_exec(struct vme_dma_list *);
 int tsi148_dma_list_empty(struct vme_dma_list *);
 int tsi148_generate_irq(int, int);
-int tsi148_lm_set(unsigned long long, vme_address_t, vme_cycle_t);
-int tsi148_lm_get(unsigned long long *, vme_address_t *, vme_cycle_t *);
-int tsi148_lm_attach(int, void (*callback)(int));
-int tsi148_lm_detach(int);
 int tsi148_slot_get(void);
 
 /* Modue parameter */
@@ -82,7 +78,6 @@ struct mutex vme_int;	/*
 				 * generated at a time, provide locking
 				 */
 struct mutex vme_irq;	/* Locking for VME irq callback configuration */
-struct mutex vme_lm;	/* Locking for location monitor operations */
 
 
 static char driver_name[] = "vme_tsi148";
@@ -1985,18 +1980,18 @@ int tsi148_dma_list_empty(struct vme_dma_list *list)
  * This does not enable the LM monitor - that should be done when the first
  * callback is attached and disabled when the last callback is removed.
  */
-int tsi148_lm_set(unsigned long long lm_base, vme_address_t aspace,
-	vme_cycle_t cycle)
+int tsi148_lm_set(struct vme_lm_resource *lm, unsigned long long lm_base,
+	vme_address_t aspace, vme_cycle_t cycle)
 {
 	u32 lm_base_high, lm_base_low, lm_ctl = 0;
 	int i;
 
-	mutex_lock(&(vme_lm));
+	mutex_lock(&(lm->mtx));
 
 	/* If we already have a callback attached, we can't move it! */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < lm->monitors; i++) {
 		if(lm_callback[i] != NULL) {
-			mutex_unlock(&(vme_lm));
+			mutex_unlock(&(lm->mtx));
 			printk("Location monitor callback attached, can't "
 				"reset\n");
 			return -EBUSY;
@@ -2017,7 +2012,7 @@ int tsi148_lm_set(unsigned long long lm_base, vme_address_t aspace,
 		lm_ctl |= TSI148_LCSR_LMAT_AS_A64;
 		break;
 	default:
-		mutex_unlock(&(vme_lm));
+		mutex_unlock(&(lm->mtx));
 		printk("Invalid address space\n");
 		return -EINVAL;
 		break;
@@ -2038,7 +2033,7 @@ int tsi148_lm_set(unsigned long long lm_base, vme_address_t aspace,
 	iowrite32be(lm_base_low, tsi148_bridge->base + TSI148_LCSR_LMBAL);
 	iowrite32be(lm_ctl, tsi148_bridge->base + TSI148_LCSR_LMAT);
 
-	mutex_unlock(&(vme_lm));
+	mutex_unlock(&(lm->mtx));
 
 	return 0;
 }
@@ -2046,12 +2041,12 @@ int tsi148_lm_set(unsigned long long lm_base, vme_address_t aspace,
 /* Get configuration of the callback monitor and return whether it is enabled
  * or disabled.
  */
-int tsi148_lm_get(unsigned long long *lm_base, vme_address_t *aspace,
-	vme_cycle_t *cycle)
+int tsi148_lm_get(struct vme_lm_resource *lm, unsigned long long *lm_base,
+	vme_address_t *aspace, vme_cycle_t *cycle)
 {
 	u32 lm_base_high, lm_base_low, lm_ctl, enabled = 0;
 
-	mutex_lock(&(vme_lm));
+	mutex_lock(&(lm->mtx));
 
 	lm_base_high = ioread32be(tsi148_bridge->base + TSI148_LCSR_LMBAU);
 	lm_base_low = ioread32be(tsi148_bridge->base + TSI148_LCSR_LMBAL);
@@ -2084,7 +2079,7 @@ int tsi148_lm_get(unsigned long long *lm_base, vme_address_t *aspace,
 	if (lm_ctl & TSI148_LCSR_LMAT_DATA)
 		*cycle |= VME_DATA;
 
-	mutex_unlock(&(vme_lm));
+	mutex_unlock(&(lm->mtx));
 
 	return enabled;
 }
@@ -2094,23 +2089,24 @@ int tsi148_lm_get(unsigned long long *lm_base, vme_address_t *aspace,
  *
  * Callback will be passed the monitor triggered.
  */
-int tsi148_lm_attach(int monitor, void (*callback)(int))
+int tsi148_lm_attach(struct vme_lm_resource *lm, int monitor,
+	void (*callback)(int))
 {
 	u32 lm_ctl, tmp;
 
-	mutex_lock(&(vme_lm));
+	mutex_lock(&(lm->mtx));
 
 	/* Ensure that the location monitor is configured - need PGM or DATA */
 	lm_ctl = ioread32be(tsi148_bridge->base + TSI148_LCSR_LMAT);
 	if ((lm_ctl & (TSI148_LCSR_LMAT_PGM | TSI148_LCSR_LMAT_DATA)) == 0) {
-		mutex_unlock(&(vme_lm));
+		mutex_unlock(&(lm->mtx));
 		printk("Location monitor not properly configured\n");
 		return -EINVAL;
 	}
 
 	/* Check that a callback isn't already attached */
 	if (lm_callback[monitor] != NULL) {
-		mutex_unlock(&(vme_lm));
+		mutex_unlock(&(lm->mtx));
 		printk("Existing callback attached\n");
 		return -EBUSY;
 	}
@@ -2133,7 +2129,7 @@ int tsi148_lm_attach(int monitor, void (*callback)(int))
 		iowrite32be(lm_ctl, tsi148_bridge->base + TSI148_LCSR_LMAT);
 	}
 
-	mutex_unlock(&(vme_lm));
+	mutex_unlock(&(lm->mtx));
 
 	return 0;
 }
@@ -2141,11 +2137,11 @@ int tsi148_lm_attach(int monitor, void (*callback)(int))
 /*
  * Detach a callback function forn a specific location monitor.
  */
-int tsi148_lm_detach(int monitor)
+int tsi148_lm_detach(struct vme_lm_resource *lm, int monitor)
 {
 	u32 lm_en, tmp;
 
-	mutex_lock(&(vme_lm));
+	mutex_lock(&(lm->mtx));
 
 	/* Disable Location Monitor and ensure previous interrupts are clear */
 	lm_en = ioread32be(tsi148_bridge->base + TSI148_LCSR_INTEN);
@@ -2170,7 +2166,7 @@ int tsi148_lm_detach(int monitor)
 		iowrite32be(tmp, tsi148_bridge->base + TSI148_LCSR_LMAT);
 	}
 
-	mutex_unlock(&(vme_lm));
+	mutex_unlock(&(lm->mtx));
 
 	return 0;
 }
@@ -2285,6 +2281,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct vme_master_resource *master_image;
 	struct vme_slave_resource *slave_image;
 	struct vme_dma_resource *dma_ctrlr;
+	struct vme_lm_resource *lm;
 
 	/* If we want to support more than one of each bridge, we need to
 	 * dynamically generate this so we get one per device
@@ -2338,7 +2335,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mutex_init(&(vme_int));
 	mutex_init(&(vme_irq));
 	mutex_init(&(vme_rmw));
-	mutex_init(&(vme_lm));
 
 	tsi148_bridge->parent = &(pdev->dev);
 	strcpy(tsi148_bridge->name, driver_name);
@@ -2459,6 +2455,22 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			&(tsi148_bridge->dma_resources));
 	}
 
+	/* Add location monitor to list */
+	INIT_LIST_HEAD(&(tsi148_bridge->lm_resources));
+	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
+	if (lm == NULL) {
+		dev_err(&pdev->dev, "Failed to allocate memory for "
+		"location monitor resource structure\n");
+		retval = -ENOMEM;
+		goto err_lm;
+	}
+	lm->parent = tsi148_bridge;
+	mutex_init(&(lm->mtx));
+	lm->locked = 0;
+	lm->number = 1;
+	lm->monitors = 4;
+	list_add_tail(&(lm->list), &(tsi148_bridge->lm_resources));
+
 	tsi148_bridge->slave_get = tsi148_slave_get;
 	tsi148_bridge->slave_set = tsi148_slave_set;
 	tsi148_bridge->master_get = tsi148_master_get;
@@ -2513,6 +2525,13 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err_reg:
 	tsi148_crcsr_exit(pdev);
 err_crcsr:
+err_lm:
+	/* resources are stored in link list */
+	list_for_each(pos, &(tsi148_bridge->lm_resources)) {
+		lm = list_entry(pos, struct vme_lm_resource, list);
+		list_del(pos);
+		kfree(lm);
+	}
 err_dma:
 	/* resources are stored in link list */
 	list_for_each(pos, &(tsi148_bridge->dma_resources)) {

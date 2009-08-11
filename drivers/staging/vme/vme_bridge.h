@@ -66,6 +66,15 @@ struct vme_dma_resource {
 	struct list_head running;
 };
 
+struct vme_lm_resource {
+	struct list_head list;
+	struct vme_bridge *parent;
+	struct mutex mtx;
+	int locked;
+	int number;
+	int monitors;
+};
+
 struct vme_bus_error {
 	struct list_head list;
 	unsigned long long address;
@@ -97,6 +106,7 @@ struct vme_bridge {
 	struct list_head master_resources;
 	struct list_head slave_resources;
 	struct list_head dma_resources;
+	struct list_head lm_resources;
 
 	struct list_head vme_errors;	/* List for errors generated on VME */
 
@@ -144,10 +154,12 @@ struct vme_bridge {
 	int (*generate_irq) (int, int);
 
 	/* Location monitor functions */
-	int (*lm_set) (unsigned long long, vme_address_t, vme_cycle_t);
-	int (*lm_get) (unsigned long long *, vme_address_t *, vme_cycle_t *);
-	int (*lm_attach) (int, void (*callback)(int));
-	int (*lm_detach) (int);
+	int (*lm_set) (struct vme_lm_resource *, unsigned long long,
+		vme_address_t, vme_cycle_t);
+	int (*lm_get) (struct vme_lm_resource *, unsigned long long *,
+		vme_address_t *, vme_cycle_t *);
+	int (*lm_attach) (struct vme_lm_resource *, int, void (*callback)(int));
+	int (*lm_detach) (struct vme_lm_resource *, int);
 
 	/* CR/CSR space functions */
 	int (*slot_get) (void);

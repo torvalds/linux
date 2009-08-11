@@ -69,6 +69,10 @@ static struct vme_bridge *find_bridge(struct vme_resource *resource)
 		return list_entry(resource->entry, struct vme_dma_resource,
 			list)->parent;
 		break;
+	case VME_LM:
+		return list_entry(resource->entry, struct vme_lm_resource,
+			list)->parent;
+		break;
 	default:
 		printk(KERN_ERR "Unknown resource type\n");
 		return NULL;
@@ -1045,83 +1049,197 @@ int vme_generate_irq(struct device *dev, int level, int statid)
 }
 EXPORT_SYMBOL(vme_generate_irq);
 
-int vme_lm_set(struct device *dev, unsigned long long lm_base, vme_address_t aspace,
-	vme_cycle_t cycle)
+/*
+ * Request the location monitor, return resource or NULL
+ */
+struct vme_resource *vme_lm_request(struct device *dev)
 {
 	struct vme_bridge *bridge;
+	struct list_head *lm_pos = NULL;
+	struct vme_lm_resource *allocated_lm = NULL;
+	struct vme_lm_resource *lm = NULL;
+	struct vme_resource *resource = NULL;
 
 	bridge = dev_to_bridge(dev);
 	if (bridge == NULL) {
 		printk(KERN_ERR "Can't find VME bus\n");
+		goto err_bus;
+	}
+
+	/* Loop through DMA resources */
+	list_for_each(lm_pos, &(bridge->lm_resources)) {
+		lm = list_entry(lm_pos,
+			struct vme_lm_resource, list);
+
+		if (lm == NULL) {
+			printk(KERN_ERR "Registered NULL Location Monitor "
+				"resource\n");
+			continue;
+		}
+
+		/* Find an unlocked controller */
+		mutex_lock(&(lm->mtx));
+		if (lm->locked == 0) {
+			lm->locked = 1;
+			mutex_unlock(&(lm->mtx));
+			allocated_lm = lm;
+			break;
+		}
+		mutex_unlock(&(lm->mtx));
+	}
+
+	/* Check to see if we found a resource */
+	if (allocated_lm == NULL)
+		goto err_lm;
+
+	resource = kmalloc(sizeof(struct vme_resource), GFP_KERNEL);
+	if (resource == NULL) {
+		printk(KERN_ERR "Unable to allocate resource structure\n");
+		goto err_alloc;
+	}
+	resource->type = VME_LM;
+	resource->entry = &(allocated_lm->list);
+
+	return resource;
+
+err_alloc:
+	/* Unlock image */
+	mutex_lock(&(lm->mtx));
+	lm->locked = 0;
+	mutex_unlock(&(lm->mtx));
+err_lm:
+err_bus:
+	return NULL;
+}
+EXPORT_SYMBOL(vme_lm_request);
+
+int vme_lm_count(struct vme_resource *resource)
+{
+	struct vme_lm_resource *lm;
+
+	if (resource->type != VME_LM) {
+		printk(KERN_ERR "Not a Location Monitor resource\n");
 		return -EINVAL;
 	}
+
+	lm = list_entry(resource->entry, struct vme_lm_resource, list);
+
+	return lm->monitors;
+}
+EXPORT_SYMBOL(vme_lm_count);
+
+int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
+	vme_address_t aspace, vme_cycle_t cycle)
+{
+	struct vme_bridge *bridge = find_bridge(resource);
+	struct vme_lm_resource *lm;
+
+	if (resource->type != VME_LM) {
+		printk(KERN_ERR "Not a Location Monitor resource\n");
+		return -EINVAL;
+	}
+
+	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (bridge->lm_set == NULL) {
-		printk("vme_lm_set not supported\n");
+		printk(KERN_ERR "vme_lm_set not supported\n");
 		return -EINVAL;
 	}
 
-	return bridge->lm_set(lm_base, aspace, cycle);
+	/* XXX Check parameters */
+
+	return lm->parent->lm_set(lm, lm_base, aspace, cycle);
 }
 EXPORT_SYMBOL(vme_lm_set);
 
-int vme_lm_get(struct device *dev, unsigned long long *lm_base, vme_address_t *aspace,
-	vme_cycle_t *cycle)
+int vme_lm_get(struct vme_resource *resource, unsigned long long *lm_base,
+	vme_address_t *aspace, vme_cycle_t *cycle)
 {
-	struct vme_bridge *bridge;
+	struct vme_bridge *bridge = find_bridge(resource);
+	struct vme_lm_resource *lm;
 
-	bridge = dev_to_bridge(dev);
-	if (bridge == NULL) {
-		printk(KERN_ERR "Can't find VME bus\n");
+	if (resource->type != VME_LM) {
+		printk(KERN_ERR "Not a Location Monitor resource\n");
 		return -EINVAL;
 	}
+
+	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (bridge->lm_get == NULL) {
-		printk("vme_lm_get not supported\n");
+		printk(KERN_ERR "vme_lm_get not supported\n");
 		return -EINVAL;
 	}
 
-	return bridge->lm_get(lm_base, aspace, cycle);
+	return bridge->lm_get(lm, lm_base, aspace, cycle);
 }
 EXPORT_SYMBOL(vme_lm_get);
 
-int vme_lm_attach(struct device *dev, int monitor, void (*callback)(int))
+int vme_lm_attach(struct vme_resource *resource, int monitor,
+	void (*callback)(int))
 {
-	struct vme_bridge *bridge;
+	struct vme_bridge *bridge = find_bridge(resource);
+	struct vme_lm_resource *lm;
 
-	bridge = dev_to_bridge(dev);
-	if (bridge == NULL) {
-		printk(KERN_ERR "Can't find VME bus\n");
+	if (resource->type != VME_LM) {
+		printk(KERN_ERR "Not a Location Monitor resource\n");
 		return -EINVAL;
 	}
+
+	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (bridge->lm_attach == NULL) {
-		printk("vme_lm_attach not supported\n");
+		printk(KERN_ERR "vme_lm_attach not supported\n");
 		return -EINVAL;
 	}
 
-	return bridge->lm_attach(monitor, callback);
+	return bridge->lm_attach(lm, monitor, callback);
 }
 EXPORT_SYMBOL(vme_lm_attach);
 
-int vme_lm_detach(struct device *dev, int monitor)
+int vme_lm_detach(struct vme_resource *resource, int monitor)
 {
-	struct vme_bridge *bridge;
+	struct vme_bridge *bridge = find_bridge(resource);
+	struct vme_lm_resource *lm;
 
-	bridge = dev_to_bridge(dev);
-	if (bridge == NULL) {
-		printk(KERN_ERR "Can't find VME bus\n");
+	if (resource->type != VME_LM) {
+		printk(KERN_ERR "Not a Location Monitor resource\n");
 		return -EINVAL;
 	}
+
+	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (bridge->lm_detach == NULL) {
-		printk("vme_lm_detach not supported\n");
+		printk(KERN_ERR "vme_lm_detach not supported\n");
 		return -EINVAL;
 	}
 
-	return bridge->lm_detach(monitor);
+	return bridge->lm_detach(lm, monitor);
 }
 EXPORT_SYMBOL(vme_lm_detach);
+
+void vme_lm_free(struct vme_resource *resource)
+{
+	struct vme_lm_resource *lm;
+
+	if (resource->type != VME_LM) {
+		printk(KERN_ERR "Not a Location Monitor resource\n");
+		return;
+	}
+
+	lm = list_entry(resource->entry, struct vme_lm_resource, list);
+
+	if (mutex_trylock(&(lm->mtx))) {
+		printk(KERN_ERR "Resource busy, can't free\n");
+		return;
+	}
+
+	/* XXX Check to see that there aren't any callbacks still attached */
+
+	lm->locked = 0;
+
+	mutex_unlock(&(lm->mtx));
+}
+EXPORT_SYMBOL(vme_lm_free);
 
 int vme_slot_get(struct device *bus)
 {
