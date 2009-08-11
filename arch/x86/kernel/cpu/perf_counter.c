@@ -1590,7 +1590,7 @@ static int p6_pmu_init(void)
 	}
 
 	if (!cpu_has_apic) {
-		pr_info("no Local APIC, try rebooting with lapic");
+		pr_info("no APIC, boot with the \"lapic\" boot parameter to force-enable it.\n");
 		return -ENODEV;
 	}
 
