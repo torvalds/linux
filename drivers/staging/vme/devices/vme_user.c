@@ -39,6 +39,11 @@
 #include "../vme.h"
 #include "vme_user.h"
 
+static char driver_name[] = "vme_user";
+
+static int bus[USER_BUS_MAX];
+static int bus_num;
+
 /* Currently Documentation/devices.txt defines the following for VME:
  *
  * 221 char	VME bus
@@ -65,6 +70,10 @@
  * defined above and try to support at least some of the interface from
  * http://www.vmelinux.org/ as an alternative drive can be written providing a
  * saner interface later.
+ *
+ * The vmelinux.org driver never supported slave images, the devices reserved
+ * for slaves were repurposed to support all 8 master images on the UniverseII!
+ * We shall support 4 masters and 4 slaves with this driver.
  */
 #define VME_MAJOR	221	/* VME Major Device Number */
 #define VME_DEVS	9	/* Number of dev entries */
@@ -107,7 +116,6 @@ struct cdev *vme_user_cdev;		/* Character device */
 struct class *vme_user_sysfs_class;	/* Sysfs class */
 struct device *vme_user_bridge;		/* Pointer to the bridge device */
 
-static char driver_name[] = "vme_user";
 
 static const int type[VME_DEVS] = {	MASTER_MINOR,	MASTER_MINOR,
 					MASTER_MINOR,	MASTER_MINOR,
@@ -125,7 +133,8 @@ static loff_t vme_user_llseek(struct file *, loff_t, int);
 static int vme_user_ioctl(struct inode *, struct file *, unsigned int,
 	unsigned long);
 
-static int __init vme_user_probe(struct device *dev);
+static int __init vme_user_probe(struct device *, int, int);
+static int __exit vme_user_remove(struct device *, int, int);
 
 static struct file_operations vme_user_fops = {
         .open = vme_user_open,
@@ -149,61 +158,6 @@ static void reset_counters(void)
         statistics.berrs = 0;
         statistics.dmaErrors = 0;
         statistics.timeouts = 0;
-}
-
-void lmcall(int monitor)
-{
-	printk("Caught Location Monitor %d access\n", monitor);
-}
-
-static void tests(void)
-{
-	struct vme_resource *dma_res;
-	struct vme_dma_list *dma_list;
-	struct vme_dma_attr *pattern_attr, *vme_attr;
-
-	int retval;
-	unsigned int data;
-
-	printk("Running VME DMA test\n");
-	dma_res = vme_request_dma(vme_user_bridge);
-	dma_list = vme_new_dma_list(dma_res);
-	pattern_attr = vme_dma_pattern_attribute(0x0,
-		VME_DMA_PATTERN_WORD |
-			VME_DMA_PATTERN_INCREMENT);
-	vme_attr = vme_dma_vme_attribute(0x10000, VME_A32,
-		VME_SCT, VME_D32);
-	retval = vme_dma_list_add(dma_list, pattern_attr,
-		vme_attr, 0x10000);
-#if 0
-	vme_dma_free_attribute(vme_attr);
-	vme_attr = vme_dma_vme_attribute(0x20000, VME_A32,
-		VME_SCT, VME_D32);
-	retval = vme_dma_list_add(dma_list, pattern_attr,
-		vme_attr, 0x10000);
-#endif
-	retval = vme_dma_list_exec(dma_list);
-	vme_dma_free_attribute(pattern_attr);
-	vme_dma_free_attribute(vme_attr);
-	vme_dma_list_free(dma_list);
-#if 0
-	printk("Generating a VME interrupt\n");
-	vme_generate_irq(dma_res, 0x3, 0xaa);
-	printk("Interrupt returned\n");
-#endif
-	vme_dma_free(dma_res);
-
-	/* Attempt RMW */
-	data = vme_master_rmw(image[0].resource, 0x80000000, 0x00000000,
-		0x80000000, 0);
-	printk("RMW returned 0x%8.8x\n", data);
-
-
-	/* Location Monitor */
-	printk("vme_lm_set:%d\n", vme_lm_set(vme_user_bridge, 0x60000, VME_A32, VME_SCT | VME_USER | VME_DATA));
-	printk("vme_lm_attach:%d\n", vme_lm_attach(vme_user_bridge, 0, lmcall));
-
-	printk("Board in VME slot:%d\n", vme_slot_get(vme_user_bridge));
 }
 
 static int vme_user_open(struct inode *inode, struct file *file)
@@ -451,57 +405,118 @@ static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 	return -EINVAL;
 }
 
+/*
+ * The ioctls provided by the old VME access method (the one at vmelinux.org)
+ * are most certainly wrong as the effectively push the registers layout
+ * through to user space. Given that the VME core can handle multiple bridges,
+ * with different register layouts this is most certainly not the way to go.
+ *
+ * We aren't using the structures defined in the Motorola driver either - these
+ * are also quite low level, however we should use the definitions that have
+ * already been defined.
+ */
 static int vme_user_ioctl(struct inode *inode, struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
+	struct vme_master master;
+	struct vme_slave slave;
+	unsigned long copied;
 	unsigned int minor = MINOR(inode->i_rdev);
-#if 0
-	int ret_val;
-#endif
-	unsigned long copyRet;
-	vme_slave_t slave;
+	int retval;
+	dma_addr_t pci_addr;
 
 	statistics.ioctls++;
+
 	switch (type[minor]) {
 	case CONTROL_MINOR:
 		break;
 	case MASTER_MINOR:
-		break;
-	case SLAVE_MINOR:
 		switch (cmd) {
-		case VME_SET_SLAVE:
+		case VME_GET_MASTER:
+			memset(&master, 0, sizeof(struct vme_master));
 
-			copyRet = copy_from_user(&slave, (char *)arg,
-				sizeof(slave));
-			if (copyRet != 0) {
+			/* XXX	We do not want to push aspace, cycle and width
+			 *	to userspace as they are
+			 */
+			retval = vme_master_get(image[minor].resource,
+				&(master.enable), &(master.vme_addr),
+				&(master.size), &(master.aspace),
+				&(master.cycle), &(master.dwidth));
+
+			copied = copy_to_user((char *)arg, &master,
+				sizeof(struct vme_master));
+			if (copied != 0) {
+				printk(KERN_WARNING "Partial copy to "
+					"userspace\n");
+				return -EFAULT;
+			}
+
+			return retval;
+			break;
+
+		case VME_SET_MASTER:
+
+			copied = copy_from_user(&master, (char *)arg,
+				sizeof(master));
+			if (copied != 0) {
 				printk(KERN_WARNING "Partial copy from "
 					"userspace\n");
 				return -EFAULT;
 			}
 
+			/* XXX	We do not want to push aspace, cycle and width
+			 *	to userspace as they are
+			 */
+			return vme_master_set(image[minor].resource,
+				master.enable, master.vme_addr, master.size,
+				master.aspace, master.cycle, master.dwidth);
+
+			break;
+		}
+		break;
+	case SLAVE_MINOR:
+		switch (cmd) {
+		case VME_GET_SLAVE:
+			memset(&slave, 0, sizeof(struct vme_slave));
+
+			/* XXX	We do not want to push aspace, cycle and width
+			 *	to userspace as they are
+			 */
+			retval = vme_slave_get(image[minor].resource,
+				&(slave.enable), &(slave.vme_addr),
+				&(slave.size), &pci_addr, &(slave.aspace),
+				&(slave.cycle));
+
+			copied = copy_to_user((char *)arg, &slave,
+				sizeof(struct vme_slave));
+			if (copied != 0) {
+				printk(KERN_WARNING "Partial copy to "
+					"userspace\n");
+				return -EFAULT;
+			}
+
+			return retval;
+			break;
+
+		case VME_SET_SLAVE:
+
+			copied = copy_from_user(&slave, (char *)arg,
+				sizeof(slave));
+			if (copied != 0) {
+				printk(KERN_WARNING "Partial copy from "
+					"userspace\n");
+				return -EFAULT;
+			}
+
+			/* XXX	We do not want to push aspace, cycle and width
+			 *	to userspace as they are
+			 */
 			return vme_slave_set(image[minor].resource,
 				slave.enable, slave.vme_addr, slave.size,
 				image[minor].pci_buf, slave.aspace,
 				slave.cycle);
 
 			break;
-#if 0
-		case VME_GET_SLAVE:
-			vme_slave_t slave;
-
-			ret_val = vme_slave_get(minor, &iRegs);
-
-			copyRet = copy_to_user((char *)arg, &slave,
-				sizeof(slave));
-			if (copyRet != 0) {
-				printk(KERN_WARNING "Partial copy to "
-					"userspace\n");
-				return -EFAULT;
-			}
-
-			return ret_val;
-			break;
-#endif
 		}
 		break;
 	}
@@ -538,36 +553,87 @@ static void buf_unalloc (int num)
 static struct vme_driver vme_user_driver = {
         .name = driver_name,
         .probe = vme_user_probe,
+	.remove = vme_user_remove,
 };
 
+
+static int __init vme_user_init(void)
+{
+	int retval = 0;
+	int i;
+	struct vme_device_id *ids;
+
+	printk(KERN_INFO "VME User Space Access Driver\n");
+
+	if (bus_num == 0) {
+		printk(KERN_ERR "%s: No cards, skipping registration\n",
+			driver_name);
+		goto err_nocard;
+	}
+
+	/* Let's start by supporting one bus, we can support more than one
+	 * in future revisions if that ever becomes necessary.
+	 */
+	if (bus_num > USER_BUS_MAX) {
+		printk(KERN_ERR "%s: Driver only able to handle %d PIO2 "
+			"Cards\n", driver_name, USER_BUS_MAX);
+		bus_num = USER_BUS_MAX;
+	}
+
+
+	/* Dynamically create the bind table based on module parameters */
+	ids = kmalloc(sizeof(struct vme_device_id) * (bus_num + 1), GFP_KERNEL);
+	if (ids == NULL) {
+		printk(KERN_ERR "%s: Unable to allocate ID table\n",
+			driver_name);
+		goto err_id;
+	}
+
+	memset(ids, 0, (sizeof(struct vme_device_id) * (bus_num + 1)));
+
+	for (i = 0; i < bus_num; i++) {
+		ids[i].bus = bus[i];
+		/*
+		 * We register the driver against the slot occupied by *this*
+		 * card, since it's really a low level way of controlling
+		 * the VME bridge
+		 */
+		ids[i].slot = VME_SLOT_CURRENT;
+	}
+
+	vme_user_driver.bind_table = ids;
+
+	retval = vme_register_driver(&vme_user_driver);
+	if (retval != 0)
+		goto err_reg;
+
+	return retval;
+
+	vme_unregister_driver(&vme_user_driver);
+err_reg:
+	kfree(ids);
+err_id:
+err_nocard:
+	return retval;
+}
 
 /*
  * In this simple access driver, the old behaviour is being preserved as much
  * as practical. We will therefore reserve the buffers and request the images
  * here so that we don't have to do it later.
  */
-static int __init vme_bridge_init(void)
-{
-	int retval;
-	printk(KERN_INFO "VME User Space Access Driver\n");
-	printk("vme_user_driver:%p\n", &vme_user_driver);
-	retval = vme_register_driver(&vme_user_driver);
-	printk("vme_register_driver returned %d\n", retval);
-	return retval;
-}
-
-/*
- * This structure gets passed a device, this should be the device created at
- * registration.
- */
-static int __init vme_user_probe(struct device *dev)
+static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
 {
 	int i, err;
 	char name[8];
 
-	printk("Running vme_user_probe()\n");
-
-	/* Pointer to the bridge device */
+	/* Save pointer to the bridge device */
+	if (vme_user_bridge != NULL) {
+		printk(KERN_ERR "%s: Driver can only be loaded for 1 device\n",
+			driver_name);
+		err = -EINVAL;
+		goto err_dev;
+	}
 	vme_user_bridge = dev;
 
 	/* Initialise descriptors */
@@ -610,7 +676,7 @@ static int __init vme_user_probe(struct device *dev)
 		if (image[i].resource == NULL) {
 			printk(KERN_WARNING "Unable to allocate slave "
 				"resource\n");
-			goto err_buf;
+			goto err_slave;
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
 		image[i].kern_buf = vme_alloc_consistent(image[i].resource,
@@ -621,7 +687,7 @@ static int __init vme_user_probe(struct device *dev)
 			image[i].pci_buf = 0;
 			vme_slave_free(image[i].resource);
 			err = -ENOMEM;
-			goto err_buf;
+			goto err_slave;
 		}
 	}
 
@@ -636,38 +702,7 @@ static int __init vme_user_probe(struct device *dev)
 		if (image[i].resource == NULL) {
 			printk(KERN_WARNING "Unable to allocate master "
 				"resource\n");
-			goto err_buf;
-		}
-		image[i].size_buf = PAGE_SIZE;
-		image[i].kern_buf = vme_alloc_consistent(image[i].resource,
-			image[i].size_buf, &(image[i].pci_buf));
-		if (image[i].kern_buf == NULL) {
-			printk(KERN_WARNING "Unable to allocate memory for "
-				"buffer\n");
-			image[i].pci_buf = 0;
-			vme_master_free(image[i].resource);
-			err = -ENOMEM;
-			goto err_buf;
-		}
-	}
-
-	/* Setup some debug windows */
-	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
-		err = vme_slave_set(image[i].resource, 1, 0x4000*(i-4),
-			0x4000, image[i].pci_buf, VME_A16,
-			VME_SCT | VME_SUPER | VME_USER | VME_PROG | VME_DATA);
-		if (err != 0) {
-			printk(KERN_WARNING "Failed to configure window\n");
-			goto err_buf;
-		}
-	}
-	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++) {
-		err = vme_master_set(image[i].resource, 1,
-			(0x10000 + (0x10000*i)), 0x10000,
-			VME_A32, VME_SCT | VME_USER | VME_DATA, VME_D32);
-		if (err != 0) {
-			printk(KERN_WARNING "Failed to configure window\n");
-			goto err_buf;
+			goto err_master;
 		}
 	}
 
@@ -709,11 +744,6 @@ static int __init vme_user_probe(struct device *dev)
 		}
 	}
 
-	/* XXX Run tests */
-	/*
-	tests();
-	*/
-
 	return 0;
 
 	/* Ensure counter set correcty to destroy all sysfs devices */
@@ -725,12 +755,21 @@ err_sysfs:
 	}
 	class_destroy(vme_user_sysfs_class);
 
-	/* Ensure counter set correcty to unalloc all slave buffers */
-	i = SLAVE_MAX + 1;
-err_buf:
-	while (i > SLAVE_MINOR){
+	/* Ensure counter set correcty to unalloc all master windows */
+	i = MASTER_MAX + 1;
+err_master:
+	while (i > MASTER_MINOR) {
 		i--;
-		vme_slave_set(image[i].resource, 0, 0, 0, 0, VME_A32, 0);
+		vme_master_free(image[i].resource);
+	}
+
+	/*
+	 * Ensure counter set correcty to unalloc all slave windows and buffers
+	 */
+	i = SLAVE_MAX + 1;
+err_slave:
+	while (i > SLAVE_MINOR) {
+		i--;
 		vme_slave_free(image[i].resource);
 		buf_unalloc(i);
 	}
@@ -739,10 +778,11 @@ err_class:
 err_char:
 	unregister_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS);
 err_region:
+err_dev:
 	return err;
 }
 
-static void __exit vme_bridge_exit(void)
+static int __exit vme_user_remove(struct device *dev, int cur_bus, int cur_slot)
 {
 	int i;
 
@@ -753,6 +793,8 @@ static void __exit vme_bridge_exit(void)
 	class_destroy(vme_user_sysfs_class);
 
 	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
+		vme_slave_set(image[i].resource, 0, 0, 0, 0, VME_A32, 0);
+		vme_slave_free(image[i].resource);
 		buf_unalloc(i);
 	}
 
@@ -761,11 +803,24 @@ static void __exit vme_bridge_exit(void)
 
 	/* Unregiser the major and minor device numbers */
 	unregister_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS);
+
+	return 0;
 }
+
+static void __exit vme_user_exit(void)
+{
+	vme_unregister_driver(&vme_user_driver);
+
+	kfree(vme_user_driver.bind_table);
+}
+
+
+MODULE_PARM_DESC(bus, "Enumeration of VMEbus to which the driver is connected");
+module_param_array(bus, int, &bus_num, 0);
 
 MODULE_DESCRIPTION("VME User Space Access Driver");
 MODULE_AUTHOR("Martyn Welch <martyn.welch@gefanuc.com");
 MODULE_LICENSE("GPL");
 
-module_init(vme_bridge_init);
-module_exit(vme_bridge_exit);
+module_init(vme_user_init);
+module_exit(vme_user_exit);
