@@ -498,7 +498,8 @@ static const struct seq_operations pn_sock_seq_ops = {
 
 static int pn_sock_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &pn_sock_seq_ops);
+	return seq_open_net(inode, file, &pn_sock_seq_ops,
+				sizeof(struct seq_net_private));
 }
 
 const struct file_operations pn_sock_seq_fops = {
@@ -506,5 +507,5 @@ const struct file_operations pn_sock_seq_fops = {
 	.open = pn_sock_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
