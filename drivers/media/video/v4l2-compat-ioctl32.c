@@ -616,14 +616,16 @@ struct v4l2_ext_control32 {
    for now this will do. */
 
 /* Return non-zero if this control is a pointer type. Currently only
- * type STRING is a pointer type.
- *
- * Note that there are currently no controls of this type, but at least the
- * compat32 code is in place to properly handle such controls. Please
- * remove this note once the first pointer controls are added. */
+   type STRING is a pointer type. */
 static inline int ctrl_is_pointer(u32 id)
 {
-	return 0;
+	switch (id) {
+	case V4L2_CID_RDS_TX_PS_NAME:
+	case V4L2_CID_RDS_TX_RADIO_TEXT:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 static int get_v4l2_ext_controls32(struct v4l2_ext_controls *kp, struct v4l2_ext_controls32 __user *up)
