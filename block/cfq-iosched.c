@@ -186,7 +186,6 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_on_rr = 0,	/* on round-robin busy list */
 	CFQ_CFQQ_FLAG_wait_request,	/* waiting for a request */
 	CFQ_CFQQ_FLAG_must_dispatch,	/* must be allowed a dispatch */
-	CFQ_CFQQ_FLAG_must_alloc,	/* must be allowed rq alloc */
 	CFQ_CFQQ_FLAG_must_alloc_slice,	/* per-slice must_alloc flag */
 	CFQ_CFQQ_FLAG_fifo_expire,	/* FIFO checked in this slice */
 	CFQ_CFQQ_FLAG_idle_window,	/* slice idling enabled */
@@ -213,7 +212,6 @@ static inline int cfq_cfqq_##name(const struct cfq_queue *cfqq)		\
 CFQ_CFQQ_FNS(on_rr);
 CFQ_CFQQ_FNS(wait_request);
 CFQ_CFQQ_FNS(must_dispatch);
-CFQ_CFQQ_FNS(must_alloc);
 CFQ_CFQQ_FNS(must_alloc_slice);
 CFQ_CFQQ_FNS(fifo_expire);
 CFQ_CFQQ_FNS(idle_window);
@@ -2218,8 +2216,7 @@ static void cfq_prio_boost(struct cfq_queue *cfqq)
 
 static inline int __cfq_may_queue(struct cfq_queue *cfqq)
 {
-	if ((cfq_cfqq_wait_request(cfqq) || cfq_cfqq_must_alloc(cfqq)) &&
-	    !cfq_cfqq_must_alloc_slice(cfqq)) {
+	if (cfq_cfqq_wait_request(cfqq) && !cfq_cfqq_must_alloc_slice(cfqq)) {
 		cfq_mark_cfqq_must_alloc_slice(cfqq);
 		return ELV_MQUEUE_MUST;
 	}
@@ -2306,7 +2303,6 @@ cfq_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 	}
 
 	cfqq->allocated[rw]++;
-	cfq_clear_cfqq_must_alloc(cfqq);
 	atomic_inc(&cfqq->ref);
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
