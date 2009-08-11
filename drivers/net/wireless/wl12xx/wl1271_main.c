@@ -181,7 +181,8 @@ static void wl1271_irq_work(struct work_struct *work)
 	} while (intr && --ctr);
 
 out_sleep:
-	wl1271_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(WL1271_INTR_MASK));
+	wl1271_reg_write32(wl, ACX_REG_INTERRUPT_MASK,
+			   WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
 	wl1271_ps_elp_sleep(wl);
 
 out:

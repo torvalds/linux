@@ -100,8 +100,8 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 
 	wl1271_debug(DEBUG_BOOT, "starting firmware upload");
 
-	wl1271_debug(DEBUG_BOOT, "fw_data_len %d chunk_size %d", fw_data_len,
-		CHUNK_SIZE);
+	wl1271_debug(DEBUG_BOOT, "fw_data_len %zd chunk_size %d",
+		     fw_data_len, CHUNK_SIZE);
 
 
 	if ((fw_data_len % 4) != 0) {
@@ -147,7 +147,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 	/* 10.4 upload the last chunk */
 	addr = dest + chunk_num * CHUNK_SIZE;
 	p = buf + chunk_num * CHUNK_SIZE;
-	wl1271_debug(DEBUG_BOOT, "uploading fw last chunk (%d B) 0x%p to 0x%x",
+	wl1271_debug(DEBUG_BOOT, "uploading fw last chunk (%zd B) 0x%p to 0x%x",
 		     fw_data_len % CHUNK_SIZE, p, addr);
 	wl1271_spi_mem_write(wl, addr, p, fw_data_len % CHUNK_SIZE);
 
@@ -275,7 +275,8 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 static void wl1271_boot_enable_interrupts(struct wl1271 *wl)
 {
 	enable_irq(wl->irq);
-	wl1271_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(WL1271_INTR_MASK));
+	wl1271_reg_write32(wl, ACX_REG_INTERRUPT_MASK,
+			   WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
 	wl1271_reg_write32(wl, HI_CFG, HI_CFG_DEF_VAL);
 }
 
