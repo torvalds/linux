@@ -325,8 +325,9 @@ typedef unsigned long mfp_cfg_t;
 #define MFP_PULL_LOW		(0x1 << 21)
 #define MFP_PULL_HIGH		(0x2 << 21)
 #define MFP_PULL_BOTH		(0x3 << 21)
-#define MFP_PULL_MASK		(0x3 << 21)
-#define MFP_PULL(x)		(((x) >> 21) & 0x3)
+#define MFP_PULL_FLOAT		(0x4 << 21)
+#define MFP_PULL_MASK		(0x7 << 21)
+#define MFP_PULL(x)		(((x) >> 21) & 0x7)
 
 #define MFP_CFG_DEFAULT		(MFP_AF0 | MFP_DS03X | MFP_LPM_DEFAULT |\
 				 MFP_LPM_EDGE_NONE | MFP_PULL_NONE)
