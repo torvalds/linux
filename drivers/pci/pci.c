@@ -2520,6 +2520,50 @@ int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 	return 0;
 }
 
+/**
+ * pci_set_vga_state - set VGA decode state on device and parents if requested
+ * @dev the PCI device
+ * @decode - true = enable decoding, false = disable decoding
+ * @command_bits PCI_COMMAND_IO and/or PCI_COMMAND_MEMORY
+ * @change_bridge - traverse ancestors and change bridges
+ */
+int pci_set_vga_state(struct pci_dev *dev, bool decode,
+		      unsigned int command_bits, bool change_bridge)
+{
+	struct pci_bus *bus;
+	struct pci_dev *bridge;
+	u16 cmd;
+
+	WARN_ON(command_bits & ~(PCI_COMMAND_IO|PCI_COMMAND_MEMORY));
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	if (decode == true)
+		cmd |= command_bits;
+	else
+		cmd &= ~command_bits;
+	pci_write_config_word(dev, PCI_COMMAND, cmd);
+
+	if (change_bridge == false)
+		return 0;
+
+	bus = dev->bus;
+	while (bus) {
+		bridge = bus->self;
+		if (bridge) {
+			pci_read_config_word(bridge, PCI_BRIDGE_CONTROL,
+					     &cmd);
+			if (decode == true)
+				cmd |= PCI_BRIDGE_CTL_VGA;
+			else
+				cmd &= ~PCI_BRIDGE_CTL_VGA;
+			pci_write_config_word(bridge, PCI_BRIDGE_CONTROL,
+					      cmd);
+		}
+		bus = bus->parent;
+	}
+	return 0;
+}
+
 #define RESOURCE_ALIGNMENT_PARAM_SIZE COMMAND_LINE_SIZE
 static char resource_alignment_param[RESOURCE_ALIGNMENT_PARAM_SIZE] = {0};
 spinlock_t resource_alignment_lock = SPIN_LOCK_UNLOCKED;

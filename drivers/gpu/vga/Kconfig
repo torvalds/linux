@@ -1,0 +1,10 @@
+config VGA_ARB
+	bool "VGA Arbitration" if EMBEDDED
+	default y
+	depends on PCI
+	help
+	  Some "legacy" VGA devices implemented on PCI typically have the same
+	  hard-decoded addresses as they did on ISA. When multiple PCI devices
+	  are accessed at same time they need some kind of coordination. Please
+	  see Documentation/vgaarbiter.txt for more details. Select this to
+	  enable VGA arbiter.
