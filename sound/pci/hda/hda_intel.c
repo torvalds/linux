@@ -2299,6 +2299,30 @@ static void __devinit check_probe_mask(struct azx *chip, int dev)
 	}
 }
 
+/*
+ * white-list for enable_msi
+ */
+static struct snd_pci_quirk msi_white_list[] __devinitdata = {
+	SND_PCI_QUIRK(0x103c, 0x3607, "HP Compa CQ40", 1),
+	{}
+};
+
+static void __devinit check_msi(struct azx *chip)
+{
+	const struct snd_pci_quirk *q;
+
+	chip->msi = enable_msi;
+	if (chip->msi)
+		return;
+	q = snd_pci_quirk_lookup(chip->pci, msi_white_list);
+	if (q) {
+		printk(KERN_INFO
+		       "hda_intel: msi for device %04x:%04x set to %d\n",
+		       q->subvendor, q->subdevice, q->value);
+		chip->msi = q->value;
+	}
+}
+
 
 /*
  * constructor
@@ -2333,7 +2357,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->pci = pci;
 	chip->irq = -1;
 	chip->driver_type = driver_type;
-	chip->msi = enable_msi;
+	check_msi(chip);
 	chip->dev_index = dev;
 	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
 
