@@ -55,6 +55,7 @@ struct x86_pmu {
 	int		num_counters_fixed;
 	int		counter_bits;
 	u64		counter_mask;
+	int		apic;
 	u64		max_period;
 	u64		intel_ctrl;
 };
@@ -613,6 +614,7 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
 
 static bool reserve_pmc_hardware(void)
 {
+#ifdef CONFIG_X86_LOCAL_APIC
 	int i;
 
 	if (nmi_watchdog == NMI_LOCAL_APIC)
@@ -627,9 +629,11 @@ static bool reserve_pmc_hardware(void)
 		if (!reserve_evntsel_nmi(x86_pmu.eventsel + i))
 			goto eventsel_fail;
 	}
+#endif
 
 	return true;
 
+#ifdef CONFIG_X86_LOCAL_APIC
 eventsel_fail:
 	for (i--; i >= 0; i--)
 		release_evntsel_nmi(x86_pmu.eventsel + i);
@@ -644,10 +648,12 @@ perfctr_fail:
 		enable_lapic_nmi_watchdog();
 
 	return false;
+#endif
 }
 
 static void release_pmc_hardware(void)
 {
+#ifdef CONFIG_X86_LOCAL_APIC
 	int i;
 
 	for (i = 0; i < x86_pmu.num_counters; i++) {
@@ -657,6 +663,7 @@ static void release_pmc_hardware(void)
 
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		enable_lapic_nmi_watchdog();
+#endif
 }
 
 static void hw_perf_counter_destroy(struct perf_counter *counter)
@@ -748,6 +755,15 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		hwc->sample_period = x86_pmu.max_period;
 		hwc->last_period = hwc->sample_period;
 		atomic64_set(&hwc->period_left, hwc->sample_period);
+	} else {
+		/*
+		 * If we have a PMU initialized but no APIC
+		 * interrupts, we cannot sample hardware
+		 * counters (user-space has to fall back and
+		 * sample via a hrtimer based software counter):
+		 */
+		if (!x86_pmu.apic)
+			return -EOPNOTSUPP;
 	}
 
 	counter->destroy = hw_perf_counter_destroy;
@@ -1449,18 +1465,22 @@ void smp_perf_pending_interrupt(struct pt_regs *regs)
 
 void set_perf_counter_pending(void)
 {
+#ifdef CONFIG_X86_LOCAL_APIC
 	apic->send_IPI_self(LOCAL_PENDING_VECTOR);
+#endif
 }
 
 void perf_counters_lapic_init(void)
 {
-	if (!x86_pmu_initialized())
+#ifdef CONFIG_X86_LOCAL_APIC
+	if (!x86_pmu.apic || !x86_pmu_initialized())
 		return;
 
 	/*
 	 * Always use NMI for PMU
 	 */
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
+#endif
 }
 
 static int __kprobes
@@ -1484,7 +1504,9 @@ perf_counter_nmi_handler(struct notifier_block *self,
 
 	regs = args->regs;
 
+#ifdef CONFIG_X86_LOCAL_APIC
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
+#endif
 	/*
 	 * Can't rely on the handled return value to say it was our NMI, two
 	 * counters could trigger 'simultaneously' raising two back-to-back NMIs.
@@ -1515,6 +1537,7 @@ static struct x86_pmu p6_pmu = {
 	.event_map		= p6_pmu_event_map,
 	.raw_event		= p6_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(p6_perfmon_event_map),
+	.apic			= 1,
 	.max_period		= (1ULL << 31) - 1,
 	.version		= 0,
 	.num_counters		= 2,
@@ -1541,6 +1564,7 @@ static struct x86_pmu intel_pmu = {
 	.event_map		= intel_pmu_event_map,
 	.raw_event		= intel_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(intel_perfmon_event_map),
+	.apic			= 1,
 	/*
 	 * Intel PMCs cannot be accessed sanely above 32 bit width,
 	 * so we install an artificial 1<<31 period regardless of
@@ -1564,6 +1588,7 @@ static struct x86_pmu amd_pmu = {
 	.num_counters		= 4,
 	.counter_bits		= 48,
 	.counter_mask		= (1ULL << 48) - 1,
+	.apic			= 1,
 	/* use highest bit to detect overflow */
 	.max_period		= (1ULL << 47) - 1,
 };
@@ -1589,12 +1614,13 @@ static int p6_pmu_init(void)
 		return -ENODEV;
 	}
 
+	x86_pmu = p6_pmu;
+
 	if (!cpu_has_apic) {
 		pr_info("no APIC, boot with the \"lapic\" boot parameter to force-enable it.\n");
-		return -ENODEV;
+		pr_info("no hardware sampling interrupt available.\n");
+		x86_pmu.apic = 0;
 	}
-
-	x86_pmu				= p6_pmu;
 
 	return 0;
 }
