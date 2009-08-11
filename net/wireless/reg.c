@@ -1424,7 +1424,7 @@ static int ignore_request(struct wiphy *wiphy,
 			if (last_wiphy != wiphy) {
 				/*
 				 * Two cards with two APs claiming different
-				 * different Country IE alpha2s. We could
+				 * Country IE alpha2s. We could
 				 * intersect them, but that seems unlikely
 				 * to be correct. Reject second one for now.
 				 */
