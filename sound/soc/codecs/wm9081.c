@@ -165,6 +165,7 @@ struct wm9081_priv {
 	int master;
 	int fll_fref;
 	int fll_fout;
+	int tdm_width;
 	struct wm9081_retune_mobile_config *retune;
 };
 
@@ -981,33 +982,37 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 	aif4 = snd_soc_read(codec, WM9081_AUDIO_INTERFACE_4);
 	aif4 &= ~WM9081_LRCLK_RATE_MASK;
 
-	/* What BCLK do we need? */
 	wm9081->fs = params_rate(params);
-	wm9081->bclk = 2 * wm9081->fs;
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
-		wm9081->bclk *= 16;
-		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-		wm9081->bclk *= 20;
-		aif2 |= 0x4;
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		wm9081->bclk *= 24;
-		aif2 |= 0x8;
-		break;
-	case SNDRV_PCM_FORMAT_S32_LE:
-		wm9081->bclk *= 32;
-		aif2 |= 0xc;
-		break;
-	default:
-		return -EINVAL;
-	}
 
-	if (aif1 & WM9081_AIFDAC_TDM_MODE_MASK) {
+	if (wm9081->tdm_width) {
+		/* If TDM is set up then that fixes our BCLK. */
 		int slots = ((aif1 & WM9081_AIFDAC_TDM_MODE_MASK) >>
 			     WM9081_AIFDAC_TDM_MODE_SHIFT) + 1;
-		wm9081->bclk *= slots;
+
+		wm9081->bclk = wm9081->fs * wm9081->tdm_width * slots;
+	} else {
+		/* Otherwise work out a BCLK from the sample size */
+		wm9081->bclk = 2 * wm9081->fs;
+
+		switch (params_format(params)) {
+		case SNDRV_PCM_FORMAT_S16_LE:
+			wm9081->bclk *= 16;
+			break;
+		case SNDRV_PCM_FORMAT_S20_3LE:
+			wm9081->bclk *= 20;
+			aif2 |= 0x4;
+			break;
+		case SNDRV_PCM_FORMAT_S24_LE:
+			wm9081->bclk *= 24;
+			aif2 |= 0x8;
+			break;
+		case SNDRV_PCM_FORMAT_S32_LE:
+			wm9081->bclk *= 32;
+			aif2 |= 0xc;
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	dev_dbg(codec->dev, "Target BCLK is %dHz\n", wm9081->bclk);
@@ -1149,17 +1154,22 @@ static int wm9081_set_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-/* FIXME: Needs to handle slot_width */
 static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct wm9081_priv *wm9081 = codec->private_data;
 	unsigned int aif1 = snd_soc_read(codec, WM9081_AUDIO_INTERFACE_1);
 
 	aif1 &= ~(WM9081_AIFDAC_TDM_SLOT_MASK | WM9081_AIFDAC_TDM_MODE_MASK);
 
-	if (slots < 1 || slots > 4)
+	if (slots < 0 || slots > 4)
 		return -EINVAL;
+
+	wm9081->tdm_width = slot_width;
+
+	if (slots == 0)
+		slots = 1;
 
 	aif1 |= (slots - 1) << WM9081_AIFDAC_TDM_MODE_SHIFT;
 
