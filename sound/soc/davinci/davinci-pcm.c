@@ -67,6 +67,7 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 	dma_addr_t src, dst;
 	unsigned short src_bidx, dst_bidx;
 	unsigned int data_type;
+	unsigned short acnt;
 	unsigned int count;
 
 	period_size = snd_pcm_lib_period_bytes(substream);
@@ -91,11 +92,12 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		dst_bidx = data_type;
 	}
 
+	acnt = prtd->params->acnt;
 	edma_set_src(lch, src, INCR, W8BIT);
 	edma_set_dest(lch, dst, INCR, W8BIT);
 	edma_set_src_index(lch, src_bidx, 0);
 	edma_set_dest_index(lch, dst_bidx, 0);
-	edma_set_transfer_params(lch, data_type, count, 1, 0, ASYNC);
+	edma_set_transfer_params(lch, acnt, count, 1, 0, ASYNC);
 
 	prtd->period++;
 	if (unlikely(prtd->period >= runtime->periods))

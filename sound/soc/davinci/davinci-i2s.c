@@ -406,6 +406,7 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	dma_params->acnt  = dma_params->data_type;
 	rcr |= DAVINCI_MCBSP_RCR_RFRLEN1(1);
 	xcr |= DAVINCI_MCBSP_XCR_XFRLEN1(1);
 

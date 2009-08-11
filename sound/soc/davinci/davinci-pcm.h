@@ -19,6 +19,7 @@
 struct davinci_pcm_dma_params {
 	char *name;			/* stream identifier */
 	int channel;			/* sync dma channel ID */
+	unsigned short acnt;
 	dma_addr_t dma_addr;		/* device physical address for DMA */
 	enum dma_event_q eventq_no;	/* event queue number */
 	unsigned char data_type;	/* xfer data type */

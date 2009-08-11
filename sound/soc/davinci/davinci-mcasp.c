@@ -102,6 +102,11 @@
 /* Receive Buffer for Serializer n */
 #define DAVINCI_MCASP_RXBUF_REG		0x280
 
+/* McASP FIFO Registers */
+#define DAVINCI_MCASP_WFIFOCTL		(0x1010)
+#define DAVINCI_MCASP_WFIFOSTS		(0x1014)
+#define DAVINCI_MCASP_RFIFOCTL		(0x1018)
+#define DAVINCI_MCASP_RFIFOSTS		(0x101C)
 
 /*
  * DAVINCI_MCASP_PWREMUMGT_REG - Power Down and Emulation Management
@@ -276,6 +281,13 @@
  */
 #define TXDATADMADIS	BIT(0)
 
+/*
+ * DAVINCI_MCASP_W[R]FIFOCTL - Write/Read FIFO Control Register bits
+ */
+#define FIFO_ENABLE	BIT(16)
+#define NUMEVT_MASK	(0xFF << 8)
+#define NUMDMA_MASK	(0xFF)
+
 #define DAVINCI_MCASP_NUM_SERIALIZER	16
 
 static inline void mcasp_set_bits(void __iomem *reg, u32 val)
@@ -345,6 +357,9 @@ static void mcasp_start_rx(struct davinci_audio_dev *dev)
 
 static void mcasp_start_tx(struct davinci_audio_dev *dev)
 {
+	u8 offset = 0, i;
+	u32 cnt;
+
 	mcasp_set_ctl_reg(dev->base + DAVINCI_MCASP_GBLCTLX_REG, TXHCLKRST);
 	mcasp_set_ctl_reg(dev->base + DAVINCI_MCASP_GBLCTLX_REG, TXCLKRST);
 	mcasp_set_ctl_reg(dev->base + DAVINCI_MCASP_GBLCTLX_REG, TXSERCLR);
@@ -353,6 +368,19 @@ static void mcasp_start_tx(struct davinci_audio_dev *dev)
 	mcasp_set_ctl_reg(dev->base + DAVINCI_MCASP_GBLCTLX_REG, TXSMRST);
 	mcasp_set_ctl_reg(dev->base + DAVINCI_MCASP_GBLCTLX_REG, TXFSRST);
 	mcasp_set_reg(dev->base + DAVINCI_MCASP_TXBUF_REG, 0);
+	for (i = 0; i < dev->num_serializer; i++) {
+		if (dev->serial_dir[i] == TX_MODE) {
+			offset = i;
+			break;
+		}
+	}
+
+	/* wait for TX ready */
+	cnt = 0;
+	while (!(mcasp_get_reg(dev->base + DAVINCI_MCASP_XRSRCTL_REG(offset)) &
+		 TXSTATE) && (cnt < 100000))
+		cnt++;
+
 	mcasp_set_reg(dev->base + DAVINCI_MCASP_TXBUF_REG, 0);
 }
 
@@ -362,6 +390,13 @@ static void davinci_mcasp_start(struct davinci_audio_dev *dev, int stream)
 		mcasp_start_tx(dev);
 	else
 		mcasp_start_rx(dev);
+
+	/* enable FIFO */
+	if (dev->txnumevt)
+		mcasp_set_bits(dev->base + DAVINCI_MCASP_WFIFOCTL, FIFO_ENABLE);
+
+	if (dev->rxnumevt)
+		mcasp_set_bits(dev->base + DAVINCI_MCASP_RFIFOCTL, FIFO_ENABLE);
 }
 
 static void mcasp_stop_rx(struct davinci_audio_dev *dev)
@@ -382,6 +417,13 @@ static void davinci_mcasp_stop(struct davinci_audio_dev *dev, int stream)
 		mcasp_stop_tx(dev);
 	else
 		mcasp_stop_rx(dev);
+
+	/* disable FIFO */
+	if (dev->txnumevt)
+		mcasp_clr_bits(dev->base + DAVINCI_MCASP_WFIFOCTL, FIFO_ENABLE);
+
+	if (dev->rxnumevt)
+		mcasp_clr_bits(dev->base + DAVINCI_MCASP_RFIFOCTL, FIFO_ENABLE);
 }
 
 static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
@@ -401,7 +443,6 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 
 		mcasp_set_bits(base + DAVINCI_MCASP_PDIR_REG, (0x7 << 26));
 		break;
-
 	case SND_SOC_DAIFMT_CBM_CFM:
 		/* codec is clock and frame master */
 		mcasp_clr_bits(base + DAVINCI_MCASP_ACLKXCTL_REG, ACLKXE);
@@ -505,6 +546,8 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
 {
 	int i;
+	u8 tx_ser = 0;
+	u8 rx_ser = 0;
 
 	/* Default configuration */
 	mcasp_set_bits(dev->base + DAVINCI_MCASP_PWREMUMGT_REG, MCASP_SOFT);
@@ -525,12 +568,37 @@ static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
 	for (i = 0; i < dev->num_serializer; i++) {
 		mcasp_set_bits(dev->base + DAVINCI_MCASP_XRSRCTL_REG(i),
 					dev->serial_dir[i]);
-		if (dev->serial_dir[i] == TX_MODE)
+		if (dev->serial_dir[i] == TX_MODE) {
 			mcasp_set_bits(dev->base + DAVINCI_MCASP_PDIR_REG,
 					AXR(i));
-		else if (dev->serial_dir[i] == RX_MODE)
+			tx_ser++;
+		} else if (dev->serial_dir[i] == RX_MODE) {
 			mcasp_clr_bits(dev->base + DAVINCI_MCASP_PDIR_REG,
 					AXR(i));
+			rx_ser++;
+		}
+	}
+
+	if (dev->txnumevt && stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (dev->txnumevt * tx_ser > 64)
+			dev->txnumevt = 1;
+
+		mcasp_mod_bits(dev->base + DAVINCI_MCASP_WFIFOCTL, tx_ser,
+								NUMDMA_MASK);
+		mcasp_mod_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+				((dev->txnumevt * tx_ser) << 8), NUMEVT_MASK);
+		mcasp_set_bits(dev->base + DAVINCI_MCASP_WFIFOCTL, FIFO_ENABLE);
+	}
+
+	if (dev->rxnumevt && stream == SNDRV_PCM_STREAM_CAPTURE) {
+		if (dev->rxnumevt * rx_ser > 64)
+			dev->rxnumevt = 1;
+
+		mcasp_mod_bits(dev->base + DAVINCI_MCASP_RFIFOCTL, rx_ser,
+								NUMDMA_MASK);
+		mcasp_mod_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+				((dev->rxnumevt * rx_ser) << 8), NUMEVT_MASK);
+		mcasp_set_bits(dev->base + DAVINCI_MCASP_RFIFOCTL, FIFO_ENABLE);
 	}
 }
 
@@ -542,6 +610,8 @@ static void davinci_hw_param(struct davinci_audio_dev *dev, int stream)
 	active_slots = (dev->tdm_slots > 31) ? 32 : dev->tdm_slots;
 	for (i = 0; i < active_slots; i++)
 		mask |= (1 << i);
+
+	mcasp_clr_bits(dev->base + DAVINCI_MCASP_ACLKXCTL_REG, TX_ASYNC);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* bit stream is MSB first  with no delay */
@@ -622,8 +692,16 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	struct davinci_pcm_dma_params *dma_params =
 					dev->dma_params[substream->stream];
 	int word_length;
+	u8 numevt;
 
 	davinci_hw_common_param(dev, substream->stream);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		numevt = dev->txnumevt;
+	else
+		numevt = dev->rxnumevt;
+
+	if (!numevt)
+		numevt = 1;
 
 	if (dev->op_mode == DAVINCI_MCASP_DIT_MODE)
 		davinci_hw_dit_param(dev);
@@ -650,6 +728,13 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		printk(KERN_WARNING "davinci-mcasp: unsupported PCM format");
 		return -EINVAL;
 	}
+
+	if (dev->version == MCASP_VERSION_2) {
+		dma_params->data_type *= numevt;
+		dma_params->acnt = 4 * numevt;
+	} else
+		dma_params->acnt = dma_params->data_type;
+
 	davinci_config_channel_size(dev, word_length);
 
 	return 0;
@@ -778,6 +863,9 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dev->num_serializer = pdata->num_serializer;
 	dev->serial_dir = pdata->serial_dir;
 	dev->codec_fmt = pdata->codec_fmt;
+	dev->version = pdata->version;
+	dev->txnumevt = pdata->txnumevt;
+	dev->rxnumevt = pdata->rxnumevt;
 
 	dma_data[count].name = "I2S PCM Stereo out";
 	dma_data[count].eventq_no = pdata->eventq_no;
@@ -807,9 +895,9 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	}
 
 	dma_data[count].channel = res->start;
-	davinci_mcasp_dai[pdev->id].private_data = dev;
-	davinci_mcasp_dai[pdev->id].dev = &pdev->dev;
-	ret = snd_soc_register_dai(&davinci_mcasp_dai[pdev->id]);
+	davinci_mcasp_dai[pdata->op_mode].private_data = dev;
+	davinci_mcasp_dai[pdata->op_mode].dev = &pdev->dev;
+	ret = snd_soc_register_dai(&davinci_mcasp_dai[pdata->op_mode]);
 
 	if (ret != 0)
 		goto err_release_region;
@@ -827,12 +915,13 @@ err_release_dev:
 
 static int davinci_mcasp_remove(struct platform_device *pdev)
 {
+	struct snd_platform_data *pdata = pdev->dev.platform_data;
 	struct davinci_pcm_dma_params *dma_data;
 	struct davinci_audio_dev *dev;
 	struct resource *mem;
 
-	snd_soc_unregister_dai(&davinci_mcasp_dai[pdev->id]);
-	dev = davinci_mcasp_dai[pdev->id].private_data;
+	snd_soc_unregister_dai(&davinci_mcasp_dai[pdata->op_mode]);
+	dev = davinci_mcasp_dai[pdata->op_mode].private_data;
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;

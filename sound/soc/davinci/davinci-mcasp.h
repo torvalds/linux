@@ -50,6 +50,11 @@ struct davinci_audio_dev {
 	u8	op_mode;
 	u8	num_serializer;
 	u8	*serial_dir;
+	u8	version;
+
+	/* McASP FIFO related */
+	u8	txnumevt;
+	u8	rxnumevt;
 };
 
 #endif	/* DAVINCI_MCASP_H */
