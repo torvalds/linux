@@ -987,16 +987,6 @@ static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
 	return -1;
 }
 
-static int set_mic_mux_idx(struct hda_codec *codec, hda_nid_t cap,
-			   struct alc_mic_route *mic)
-{
-	int idx = get_connection_index(codec, cap, mic->pin);
-	if (idx < 0)
-		return 1; /* invalid */
-	mic->mux_idx = idx;
-	return 0;
-}
-
 static void alc_mic_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -1004,6 +994,8 @@ static void alc_mic_automute(struct hda_codec *codec)
 	unsigned int present, type;
 	hda_nid_t cap_nid;
 
+	if (!spec->auto_mic)
+		return;
 	if (!spec->int_mic.pin || !spec->ext_mic.pin)
 		return;
 	if (snd_BUG_ON(!spec->adc_nids))
@@ -1021,13 +1013,6 @@ static void alc_mic_automute(struct hda_codec *codec)
 		alive = &spec->int_mic;
 		dead = &spec->ext_mic;
 	}
-
-	if (alive->mux_idx == MUX_IDX_UNDEF &&
-	    set_mic_mux_idx(codec, cap_nid, alive))
-		return;
-	if (dead->mux_idx == MUX_IDX_UNDEF &&
-	    set_mic_mux_idx(codec, cap_nid, dead))
-		return;
 
 	type = get_wcaps_type(get_wcaps(codec, cap_nid));
 	if (type == AC_WID_AUD_MIX) {
@@ -4671,8 +4656,42 @@ static void alc880_auto_init(struct hda_codec *codec)
 		alc_inithook(codec);
 }
 
-static void set_capture_mixer(struct alc_spec *spec)
+/* check the ADC/MUX contains all input pins; some ADC/MUX contains only
+ * one of two digital mic pins, e.g. on ALC272
+ */
+static void fixup_automic_adc(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->num_adc_nids; i++) {
+		hda_nid_t cap = spec->capsrc_nids ?
+			spec->capsrc_nids[i] : spec->adc_nids[i];
+		int iidx, eidx;
+
+		iidx = get_connection_index(codec, cap, spec->int_mic.pin);
+		if (iidx < 0)
+			continue;
+		eidx = get_connection_index(codec, cap, spec->ext_mic.pin);
+		if (eidx < 0)
+			continue;
+		spec->int_mic.mux_idx = iidx;
+		spec->ext_mic.mux_idx = eidx;
+		if (spec->capsrc_nids)
+			spec->capsrc_nids += i;
+		spec->adc_nids += i;
+		spec->num_adc_nids = 1;
+		return;
+	}
+	snd_printd(KERN_INFO "hda_codec: %s: "
+		   "No ADC/MUX containing both 0x%x and 0x%x pins\n",
+		   codec->chip_name, spec->int_mic.pin, spec->ext_mic.pin);
+	spec->auto_mic = 0; /* disable auto-mic to be sure */
+}
+
+static void set_capture_mixer(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
 	static struct snd_kcontrol_new *caps[2][3] = {
 		{ alc_capture_mixer_nosrc1,
 		  alc_capture_mixer_nosrc2,
@@ -4685,7 +4704,7 @@ static void set_capture_mixer(struct alc_spec *spec)
 		int mux;
 		if (spec->auto_mic) {
 			mux = 0;
-			spec->num_adc_nids = 1; /* support only one ADC */
+			fixup_automic_adc(codec);
 		} else if (spec->input_mux && spec->input_mux->num_items > 1)
 			mux = 1;
 		else
@@ -4765,7 +4784,7 @@ static int patch_alc880(struct hda_codec *codec)
 			spec->num_adc_nids = ARRAY_SIZE(alc880_adc_nids);
 		}
 	}
-	set_capture_mixer(spec);
+	set_capture_mixer(codec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 
 	spec->vmaster_nid = 0x0c;
@@ -6408,7 +6427,7 @@ static int patch_alc260(struct hda_codec *codec)
 			spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids);
 		}
 	}
-	set_capture_mixer(spec);
+	set_capture_mixer(codec);
 	set_beep_amp(spec, 0x07, 0x05, HDA_INPUT);
 
 	spec->vmaster_nid = 0x08;
@@ -9737,7 +9756,7 @@ static int patch_alc882(struct hda_codec *codec)
 		spec->capsrc_nids = spec->private_capsrc_nids;
 	}
 
-	set_capture_mixer(spec);
+	set_capture_mixer(codec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 
 	spec->vmaster_nid = 0x0c;
@@ -11616,7 +11635,7 @@ static int patch_alc262(struct hda_codec *codec)
 		}
 	}
 	if (!spec->cap_mixer && !spec->no_analog)
-		set_capture_mixer(spec);
+		set_capture_mixer(codec);
 	if (!spec->no_analog)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 
@@ -13285,7 +13304,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 		return err;
 
 	if (!spec->cap_mixer && !spec->no_analog)
-		set_capture_mixer(spec);
+		set_capture_mixer(codec);
 
 	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
 
@@ -13483,7 +13502,7 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
 	spec->capsrc_nids = alc269_capsrc_nids;
 	if (!spec->cap_mixer)
-		set_capture_mixer(spec);
+		set_capture_mixer(codec);
 	set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
 
 	spec->vmaster_nid = 0x02;
@@ -14398,7 +14417,7 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 
 	spec->adc_nids = alc861_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc861_adc_nids);
-	set_capture_mixer(spec);
+	set_capture_mixer(codec);
 
 	alc_ssid_check(codec, 0x0e, 0x0f, 0x0b);
 
@@ -15561,7 +15580,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 	if (!spec->capsrc_nids)
 		spec->capsrc_nids = alc861vd_capsrc_nids;
 
-	set_capture_mixer(spec);
+	set_capture_mixer(codec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 
 	spec->vmaster_nid = 0x02;
@@ -15602,9 +15621,9 @@ static hda_nid_t alc272_dac_nids[2] = {
 	0x02, 0x03
 };
 
-static hda_nid_t alc662_adc_nids[1] = {
+static hda_nid_t alc662_adc_nids[2] = {
 	/* ADC1-2 */
-	0x09,
+	0x09, 0x08
 };
 
 static hda_nid_t alc272_adc_nids[1] = {
@@ -15612,7 +15631,7 @@ static hda_nid_t alc272_adc_nids[1] = {
 	0x08,
 };
 
-static hda_nid_t alc662_capsrc_nids[1] = { 0x22 };
+static hda_nid_t alc662_capsrc_nids[2] = { 0x22, 0x23 };
 static hda_nid_t alc272_capsrc_nids[1] = { 0x23 };
 
 
@@ -17099,7 +17118,7 @@ static struct alc_config_preset alc662_presets[] = {
 		.dac_nids = alc662_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
 		.adc_nids = alc662_adc_nids,
-		.num_adc_nids = ARRAY_SIZE(alc662_adc_nids),
+		.num_adc_nids = 1,
 		.capsrc_nids = alc662_capsrc_nids,
 		.channel_mode = alc662_3ST_2ch_modes,
 		.input_mux = &alc663_m51va_capture_source,
@@ -17465,7 +17484,7 @@ static int patch_alc662(struct hda_codec *codec)
 		spec->capsrc_nids = alc662_capsrc_nids;
 
 	if (!spec->cap_mixer)
-		set_capture_mixer(spec);
+		set_capture_mixer(codec);
 	if (codec->vendor_id == 0x10ec0662)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 	else
