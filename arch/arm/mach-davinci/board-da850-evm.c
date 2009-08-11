@@ -38,6 +38,28 @@ static struct davinci_uart_config da850_evm_uart_config __initdata = {
 	.enabled_uarts = 0x7,
 };
 
+/* davinci da850 evm audio machine driver */
+static u8 da850_iis_serializer_direction[] = {
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	TX_MODE,
+	RX_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+};
+
+static struct snd_platform_data da850_evm_snd_data = {
+	.tx_dma_offset	= 0x2000,
+	.rx_dma_offset	= 0x2000,
+	.op_mode	= DAVINCI_MCASP_IIS_MODE,
+	.num_serializer	= ARRAY_SIZE(da850_iis_serializer_direction),
+	.tdm_slots	= 2,
+	.serial_dir	= da850_iis_serializer_direction,
+	.eventq_no	= EVENTQ_1,
+	.version	= MCASP_VERSION_2,
+	.txnumevt	= 1,
+	.rxnumevt	= 1,
+};
+
+
 static __init void da850_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
@@ -86,6 +108,13 @@ static __init void da850_evm_init(void)
 	 */
 	__raw_writel(0, IO_ADDRESS(DA8XX_UART1_BASE) + 0x30);
 	__raw_writel(0, IO_ADDRESS(DA8XX_UART0_BASE) + 0x30);
+
+	ret = da8xx_pinmux_setup(da850_mcasp_pins);
+	if (ret)
+		pr_warning("da850_evm_init: mcasp mux setup failed: %d\n",
+				ret);
+
+	da8xx_init_mcasp(0, &da850_evm_snd_data);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE

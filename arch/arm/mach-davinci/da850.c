@@ -290,6 +290,13 @@ static struct clk emac_clk = {
 	.psc_ctlr	= 1,
 };
 
+static struct clk mcasp_clk = {
+	.name		= "mcasp",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA8XX_LPSC1_McASP0,
+	.psc_ctlr	= 1,
+};
+
 static struct davinci_clk da850_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
@@ -327,6 +334,7 @@ static struct davinci_clk da850_clks[] = {
 	CLK(NULL,		"arm",		&arm_clk),
 	CLK(NULL,		"rmii",		&rmii_clk),
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
+	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
@@ -373,6 +381,30 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, MII_RXD_0,	3,	28,	15,	8,	false)
 	MUX_CFG(DA850, MDIO_CLK,	4,	0,	15,	8,	false)
 	MUX_CFG(DA850, MDIO_D,		4,	4,	15,	8,	false)
+	/* McASP function */
+	MUX_CFG(DA850,	ACLKR,		0,	0,	15,	1,	false)
+	MUX_CFG(DA850,	ACLKX,		0,	4,	15,	1,	false)
+	MUX_CFG(DA850,	AFSR,		0,	8,	15,	1,	false)
+	MUX_CFG(DA850,	AFSX,		0,	12,	15,	1,	false)
+	MUX_CFG(DA850,	AHCLKR,		0,	16,	15,	1,	false)
+	MUX_CFG(DA850,	AHCLKX,		0,	20,	15,	1,	false)
+	MUX_CFG(DA850,	AMUTE,		0,	24,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_15,		1,	0,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_14,		1,	4,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_13,		1,	8,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_12,		1,	12,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_11,		1,	16,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_10,		1,	20,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_9,		1,	24,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_8,		1,	28,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_7,		2,	0,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_6,		2,	4,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_5,		2,	8,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_4,		2,	12,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_3,		2,	16,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_2,		2,	20,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_1,		2,	24,	15,	1,	false)
+	MUX_CFG(DA850,	AXR_0,		2,	28,	15,	1,	false)
 #endif
 };
 
@@ -407,6 +439,13 @@ const short da850_cpgmac_pins[] __initdata = {
 	DA850_MII_CRS, DA850_MII_RXCLK, DA850_MII_RXDV, DA850_MII_RXD_3,
 	DA850_MII_RXD_2, DA850_MII_RXD_1, DA850_MII_RXD_0, DA850_MDIO_CLK,
 	DA850_MDIO_D,
+	-1
+};
+
+const short da850_mcasp_pins[] __initdata = {
+	DA850_AHCLKX, DA850_ACLKX, DA850_AFSX,
+	DA850_AHCLKR, DA850_ACLKR, DA850_AFSR, DA850_AMUTE,
+	DA850_AXR_11, DA850_AXR_12,
 	-1
 };
 
