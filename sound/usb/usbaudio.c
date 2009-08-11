@@ -1084,7 +1084,7 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		urb_packs = 1;
 	urb_packs *= packs_per_ms;
 	if (subs->syncpipe)
-		urb_packs = min(urb_packs, 1 << subs->syncinterval);
+		urb_packs = min(urb_packs, 1U << subs->syncinterval);
 
 	/* decide how many packets to be used */
 	if (is_playback) {
