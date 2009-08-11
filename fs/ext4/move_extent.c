@@ -871,6 +871,7 @@ out:
 		if (PageLocked(page))
 			unlock_page(page);
 		page_cache_release(page);
+		ext4_journal_stop(handle);
 	}
 out2:
 	ext4_journal_stop(handle);
