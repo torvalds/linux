@@ -686,14 +686,12 @@ void bfin_gpio_pm_hibernate_restore(void)
 		*port_fer[bank] = gpio_bank_saved[bank].fer;
 #endif
 		gpio_array[bank]->inen  = gpio_bank_saved[bank].inen;
+		gpio_array[bank]->data_set = gpio_bank_saved[bank].data
+						& gpio_bank_saved[bank].dir;
 		gpio_array[bank]->dir   = gpio_bank_saved[bank].dir;
 		gpio_array[bank]->polar = gpio_bank_saved[bank].polar;
 		gpio_array[bank]->edge  = gpio_bank_saved[bank].edge;
 		gpio_array[bank]->both  = gpio_bank_saved[bank].both;
-
-		gpio_array[bank]->data_set = gpio_bank_saved[bank].data
-						| gpio_bank_saved[bank].dir;
-
 		gpio_array[bank]->maska = gpio_bank_saved[bank].maska;
 	}
 	AWA_DUMMY_READ(maska);

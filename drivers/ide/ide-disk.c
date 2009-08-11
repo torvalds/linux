@@ -455,6 +455,7 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq->special = cmd;
+	cmd->rq = rq;
 }
 
 ide_devset_get(multcount, mult_count);

@@ -441,7 +441,7 @@ vmi_startup_ipi_hook(int phys_apicid, unsigned long start_eip,
 	ap.ds = __USER_DS;
 	ap.es = __USER_DS;
 	ap.fs = __KERNEL_PERCPU;
-	ap.gs = 0;
+	ap.gs = __KERNEL_STACK_CANARY;
 
 	ap.eflags = 0;
 

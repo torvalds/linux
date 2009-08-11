@@ -427,7 +427,12 @@ static unsigned int features[] = {
 	VIRTIO_BLK_F_SCSI, VIRTIO_BLK_F_IDENTIFY
 };
 
-static struct virtio_driver virtio_blk = {
+/*
+ * virtio_blk causes spurious section mismatch warning by
+ * simultaneously referring to a __devinit and a __devexit function.
+ * Use __refdata to avoid this warning.
+ */
+static struct virtio_driver __refdata virtio_blk = {
 	.feature_table = features,
 	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,

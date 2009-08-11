@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <math.h>
 
 #include "callchain.h"
 
@@ -26,10 +27,14 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct callchain_node *rnode;
+	u64 chain_cumul = cumul_hits(chain);
 
 	while (*p) {
+		u64 rnode_cumul;
+
 		parent = *p;
 		rnode = rb_entry(parent, struct callchain_node, rb_node);
+		rnode_cumul = cumul_hits(rnode);
 
 		switch (mode) {
 		case CHAIN_FLAT:
@@ -40,7 +45,7 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
 			break;
 		case CHAIN_GRAPH_ABS: /* Falldown */
 		case CHAIN_GRAPH_REL:
-			if (rnode->cumul_hit < chain->cumul_hit)
+			if (rnode_cumul < chain_cumul)
 				p = &(*p)->rb_left;
 			else
 				p = &(*p)->rb_right;
@@ -87,7 +92,7 @@ static void __sort_chain_graph_abs(struct callchain_node *node,
 
 	chain_for_each_child(child, node) {
 		__sort_chain_graph_abs(child, min_hit);
-		if (child->cumul_hit >= min_hit)
+		if (cumul_hits(child) >= min_hit)
 			rb_insert_callchain(&node->rb_root, child,
 					    CHAIN_GRAPH_ABS);
 	}
@@ -108,11 +113,11 @@ static void __sort_chain_graph_rel(struct callchain_node *node,
 	u64 min_hit;
 
 	node->rb_root = RB_ROOT;
-	min_hit = node->cumul_hit * min_percent / 100.0;
+	min_hit = ceil(node->children_hit * min_percent);
 
 	chain_for_each_child(child, node) {
 		__sort_chain_graph_rel(child, min_percent);
-		if (child->cumul_hit >= min_hit)
+		if (cumul_hits(child) >= min_hit)
 			rb_insert_callchain(&node->rb_root, child,
 					    CHAIN_GRAPH_REL);
 	}
@@ -122,7 +127,7 @@ static void
 sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_node *chain_root,
 		     u64 min_hit __used, struct callchain_param *param)
 {
-	__sort_chain_graph_rel(chain_root, param->min_percent);
+	__sort_chain_graph_rel(chain_root, param->min_percent / 100.0);
 	rb_root->rb_node = chain_root->rb_root.rb_node;
 }
 
@@ -211,7 +216,8 @@ add_child(struct callchain_node *parent, struct ip_callchain *chain,
 	new = create_child(parent, false);
 	fill_node(new, chain, start, syms);
 
-	new->cumul_hit = new->hit = 1;
+	new->children_hit = 0;
+	new->hit = 1;
 }
 
 /*
@@ -241,7 +247,8 @@ split_add_child(struct callchain_node *parent, struct ip_callchain *chain,
 
 	/* split the hits */
 	new->hit = parent->hit;
-	new->cumul_hit = parent->cumul_hit;
+	new->children_hit = parent->children_hit;
+	parent->children_hit = cumul_hits(new);
 	new->val_nr = parent->val_nr - idx_local;
 	parent->val_nr = idx_local;
 
@@ -249,6 +256,7 @@ split_add_child(struct callchain_node *parent, struct ip_callchain *chain,
 	if (idx_total < chain->nr) {
 		parent->hit = 0;
 		add_child(parent, chain, idx_total, syms);
+		parent->children_hit++;
 	} else {
 		parent->hit = 1;
 	}
@@ -269,13 +277,13 @@ __append_chain_children(struct callchain_node *root, struct ip_callchain *chain,
 		unsigned int ret = __append_chain(rnode, chain, start, syms);
 
 		if (!ret)
-			goto cumul;
+			goto inc_children_hit;
 	}
 	/* nothing in children, add to the current node */
 	add_child(root, chain, start, syms);
 
-cumul:
-	root->cumul_hit++;
+inc_children_hit:
+	root->children_hit++;
 }
 
 static int
@@ -317,8 +325,6 @@ __append_chain(struct callchain_node *root, struct ip_callchain *chain,
 	/* we match 100% of the path, increment the hit */
 	if (i - start == root->val_nr && i == chain->nr) {
 		root->hit++;
-		root->cumul_hit++;
-
 		return 0;
 	}
 
@@ -331,5 +337,7 @@ __append_chain(struct callchain_node *root, struct ip_callchain *chain,
 void append_chain(struct callchain_node *root, struct ip_callchain *chain,
 		  struct symbol **syms)
 {
+	if (!chain->nr)
+		return;
 	__append_chain_children(root, chain, syms, 0);
 }

@@ -3324,8 +3324,6 @@ void __devinit bttv_init_card1(struct bttv *btv)
 /* initialization part two -- after registering i2c bus */
 void __devinit bttv_init_card2(struct bttv *btv)
 {
-	int addr=ADDR_UNSET;
-
 	btv->tuner_type = UNSET;
 
 	if (BTTV_BOARD_UNKNOWN == btv->c.type) {
@@ -3470,9 +3468,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	btv->pll.pll_current = -1;
 
 	/* tuner configuration (from card list / autodetect / insmod option) */
-	if (ADDR_UNSET != bttv_tvcards[btv->c.type].tuner_addr)
-		addr = bttv_tvcards[btv->c.type].tuner_addr;
-
 	if (UNSET != bttv_tvcards[btv->c.type].tuner_type)
 		if (UNSET == btv->tuner_type)
 			btv->tuner_type = bttv_tvcards[btv->c.type].tuner_type;
@@ -3496,40 +3491,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (UNSET == btv->tuner_type)
 		btv->tuner_type = TUNER_ABSENT;
 
-	if (btv->tuner_type != TUNER_ABSENT) {
-		struct tuner_setup tun_setup;
-
-		/* Load tuner module before issuing tuner config call! */
-		if (bttv_tvcards[btv->c.type].has_radio)
-			v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tuner", "tuner",
-				v4l2_i2c_tuner_addrs(ADDRS_RADIO));
-		v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tuner", "tuner",
-				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
-		v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tuner", "tuner",
-				v4l2_i2c_tuner_addrs(ADDRS_TV_WITH_DEMOD));
-
-		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
-		tun_setup.type = btv->tuner_type;
-		tun_setup.addr = addr;
-
-		if (bttv_tvcards[btv->c.type].has_radio)
-			tun_setup.mode_mask |= T_RADIO;
-
-		bttv_call_all(btv, tuner, s_type_addr, &tun_setup);
-	}
-
-	if (btv->tda9887_conf) {
-		struct v4l2_priv_tun_config tda9887_cfg;
-
-		tda9887_cfg.tuner = TUNER_TDA9887;
-		tda9887_cfg.priv = &btv->tda9887_conf;
-
-		bttv_call_all(btv, tuner, s_config, &tda9887_cfg);
-	}
-
 	btv->dig = bttv_tvcards[btv->c.type].has_dig_in ?
 		   bttv_tvcards[btv->c.type].video_inputs - 1 : UNSET;
 	btv->svhs = bttv_tvcards[btv->c.type].svhs == NO_SVHS ?
@@ -3540,15 +3501,15 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		btv->has_remote = remote[btv->c.nr];
 
 	if (bttv_tvcards[btv->c.type].has_radio)
-		btv->has_radio=1;
+		btv->has_radio = 1;
 	if (bttv_tvcards[btv->c.type].has_remote)
-		btv->has_remote=1;
+		btv->has_remote = 1;
 	if (!bttv_tvcards[btv->c.type].no_gpioirq)
-		btv->gpioirq=1;
+		btv->gpioirq = 1;
 	if (bttv_tvcards[btv->c.type].volume_gpio)
-		btv->volume_gpio=bttv_tvcards[btv->c.type].volume_gpio;
+		btv->volume_gpio = bttv_tvcards[btv->c.type].volume_gpio;
 	if (bttv_tvcards[btv->c.type].audio_mode_gpio)
-		btv->audio_mode_gpio=bttv_tvcards[btv->c.type].audio_mode_gpio;
+		btv->audio_mode_gpio = bttv_tvcards[btv->c.type].audio_mode_gpio;
 
 	if (btv->tuner_type == TUNER_ABSENT)
 		return;  /* no tuner or related drivers to load */
@@ -3665,6 +3626,49 @@ no_audio:
 			btv->c.nr);
 }
 
+
+/* initialize the tuner */
+void __devinit bttv_init_tuner(struct bttv *btv)
+{
+	int addr = ADDR_UNSET;
+
+	if (ADDR_UNSET != bttv_tvcards[btv->c.type].tuner_addr)
+		addr = bttv_tvcards[btv->c.type].tuner_addr;
+
+	if (btv->tuner_type != TUNER_ABSENT) {
+		struct tuner_setup tun_setup;
+
+		/* Load tuner module before issuing tuner config call! */
+		if (bttv_tvcards[btv->c.type].has_radio)
+			v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
+				&btv->c.i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_RADIO));
+		v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
+				&btv->c.i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+		v4l2_i2c_new_probed_subdev(&btv->c.v4l2_dev,
+				&btv->c.i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_TV_WITH_DEMOD));
+
+		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
+		tun_setup.type = btv->tuner_type;
+		tun_setup.addr = addr;
+
+		if (bttv_tvcards[btv->c.type].has_radio)
+			tun_setup.mode_mask |= T_RADIO;
+
+		bttv_call_all(btv, tuner, s_type_addr, &tun_setup);
+	}
+
+	if (btv->tda9887_conf) {
+		struct v4l2_priv_tun_config tda9887_cfg;
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv = &btv->tda9887_conf;
+
+		bttv_call_all(btv, tuner, s_config, &tda9887_cfg);
+	}
+}
 
 /* ----------------------------------------------------------------------- */
 

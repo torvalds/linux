@@ -657,8 +657,8 @@ static void get_scale(struct em28xx *dev,
 			unsigned int width, unsigned int height,
 			unsigned int *hscale, unsigned int *vscale)
 {
-	unsigned int          maxw   = norm_maxw(dev);
-	unsigned int          maxh   = norm_maxh(dev);
+	unsigned int          maxw = norm_maxw(dev);
+	unsigned int          maxh = norm_maxh(dev);
 
 	*hscale = (((unsigned long)maxw) << 12) / width - 4096L;
 	if (*hscale >= 0x4000)
@@ -726,11 +726,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	if (dev->board.is_27xx) {
-		/* FIXME: This is the only supported fmt */
-		width  = 640;
-		height = 480;
-	} else if (dev->board.is_em2800) {
+	if (dev->board.is_em2800) {
 		/* the em2800 can only scale down to 50% */
 		height = height > (3 * maxh / 4) ? maxh : maxh / 2;
 		width = width > (3 * maxw / 4) ? maxw : maxw / 2;
@@ -766,12 +762,6 @@ static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
 				   unsigned width, unsigned height)
 {
 	struct em28xx_fmt     *fmt;
-
-	/* FIXME: This is the only supported fmt */
-	if (dev->board.is_27xx) {
-		width  = 640;
-		height = 480;
-	}
 
 	fmt = format_by_fourcc(fourcc);
 	if (!fmt)

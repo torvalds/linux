@@ -89,7 +89,9 @@ enum print_line_t {
 	TRACE_TYPE_NO_CONSUME	= 3	/* Handled but ask to not consume */
 };
 
-
+void tracing_generic_entry_update(struct trace_entry *entry,
+				  unsigned long flags,
+				  int pc);
 struct ring_buffer_event *
 trace_current_buffer_lock_reserve(int type, unsigned long len,
 				  unsigned long flags, int pc);
@@ -121,11 +123,9 @@ struct ftrace_event_call {
 	struct event_filter	*filter;
 	void			*mod;
 
-#ifdef CONFIG_EVENT_PROFILE
-	atomic_t	profile_count;
-	int		(*profile_enable)(struct ftrace_event_call *);
-	void		(*profile_disable)(struct ftrace_event_call *);
-#endif
+	atomic_t		profile_count;
+	int			(*profile_enable)(struct ftrace_event_call *);
+	void			(*profile_disable)(struct ftrace_event_call *);
 };
 
 #define MAX_FILTER_PRED		32

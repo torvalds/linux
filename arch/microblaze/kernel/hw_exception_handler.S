@@ -74,6 +74,7 @@
 
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
+#include <asm/signal.h>
 #include <asm/asm-offsets.h>
 
 /* Helpful Macros */
@@ -428,19 +429,9 @@ handle_unaligned_ex:
 	mfs	r17, rbtr;	/* ESR[DS] set - return address in BTR */
 	nop
 _no_delayslot:
-#endif
-
-#ifdef CONFIG_MMU
-	/* Check if unaligned address is last on a 4k page */
-		andi	r5, r4, 0xffc
-		xori	r5, r5, 0xffc
-		bnei	r5, _unaligned_ex2
-	_unaligned_ex1:
-		RESTORE_STATE;
-/* Another page must be accessed or physical address not in page table */
-		bri	unaligned_data_trap
-
-	_unaligned_ex2:
+	/* jump to high level unaligned handler */
+	RESTORE_STATE;
+	bri	unaligned_data_trap
 #endif
 	andi	r6, r3, 0x3E0; /* Mask and extract the register operand */
 	srl	r6, r6; /* r6 >> 5 */
@@ -450,45 +441,6 @@ _no_delayslot:
 	srl	r6, r6;
 	/* Store the register operand in a temporary location */
 	sbi	r6, r0, TOPHYS(ex_reg_op);
-#ifdef CONFIG_MMU
-	/* Get physical address */
-	/* If we are faulting a kernel address, we have to use the
-	 * kernel page tables.
-	 */
-	ori	r5, r0, CONFIG_KERNEL_START
-	cmpu	r5, r4, r5
-	bgti	r5, _unaligned_ex3
-	ori	r5, r0, swapper_pg_dir
-	bri	_unaligned_ex4
-
-	/* Get the PGD for the current thread. */
-_unaligned_ex3: /* user thread */
-	addi	r5 ,CURRENT_TASK, TOPHYS(0); /* get current task address */
-	lwi	r5, r5, TASK_THREAD + PGDIR
-_unaligned_ex4:
-	tophys(r5,r5)
-	BSRLI(r6,r4,20)			/* Create L1 (pgdir/pmd) address */
-	andi	r6, r6, 0xffc
-/* Assume pgdir aligned on 4K boundary, no need for "andi r5,r5,0xfffff003" */
-	or	r5, r5, r6
-	lwi	r6, r5, 0		/* Get L1 entry */
-	andi	r5, r6, 0xfffff000	/* Extract L2 (pte) base address. */
-	beqi	r5, _unaligned_ex1	/* Bail if no table */
-
-	tophys(r5,r5)
-	BSRLI(r6,r4,10)			/* Compute PTE address */
-	andi	r6, r6, 0xffc
-	andi	r5, r5, 0xfffff003
-	or	r5, r5, r6
-	lwi	r5, r5, 0		/* Get Linux PTE */
-
-	andi	r6, r5, _PAGE_PRESENT
-	beqi	r6, _unaligned_ex1	/* Bail if no page */
-
-	andi	r5, r5, 0xfffff000	/* Extract RPN */
-	andi	r4, r4, 0x00000fff	/* Extract offset */
-	or	r4, r4, r5		/* Create physical address */
-#endif /* CONFIG_MMU */
 
 	andi	r6, r3, 0x400; /* Extract ESR[S] */
 	bnei	r6, ex_sw;
@@ -959,15 +911,15 @@ _unaligned_data_exception:
 	andi	r6, r3, 0x800;	/* Extract ESR[W] - delay slot */
 ex_lw_vm:
 	beqid	r6, ex_lhw_vm;
-	lbui	r5, r4, 0;	/* Exception address in r4 - delay slot */
+load1:	lbui	r5, r4, 0;	/* Exception address in r4 - delay slot */
 /* Load a word, byte-by-byte from destination address and save it in tmp space*/
 	la	r6, r0, ex_tmp_data_loc_0;
 	sbi	r5, r6, 0;
-	lbui	r5, r4, 1;
+load2:	lbui	r5, r4, 1;
 	sbi	r5, r6, 1;
-	lbui	r5, r4, 2;
+load3:	lbui	r5, r4, 2;
 	sbi	r5, r6, 2;
-	lbui	r5, r4, 3;
+load4:	lbui	r5, r4, 3;
 	sbi	r5, r6, 3;
 	brid	ex_lw_tail_vm;
 /* Get the destination register value into r3 - delay slot */
@@ -977,7 +929,7 @@ ex_lhw_vm:
 	 * save it in tmp space */
 	la	r6, r0, ex_tmp_data_loc_0;
 	sbi	r5, r6, 0;
-	lbui	r5, r4, 1;
+load5:	lbui	r5, r4, 1;
 	sbi	r5, r6, 1;
 	lhui	r3, r6, 0;	/* Get the destination register value into r3 */
 ex_lw_tail_vm:
@@ -996,22 +948,53 @@ ex_sw_tail_vm:
 	swi	r3, r5, 0;	/* Get the word - delay slot */
 	/* Store the word, byte-by-byte into destination address */
 	lbui	r3, r5, 0;
-	sbi	r3, r4, 0;
+store1:	sbi	r3, r4, 0;
 	lbui	r3, r5, 1;
-	sbi	r3, r4, 1;
+store2:	sbi	r3, r4, 1;
 	lbui	r3, r5, 2;
-	sbi	r3, r4, 2;
+store3:	sbi	r3, r4, 2;
 	lbui	r3, r5, 3;
 	brid	ret_from_exc;
-	sbi	r3, r4, 3;	/* Delay slot */
+store4:	sbi	r3, r4, 3;	/* Delay slot */
 ex_shw_vm:
 	/* Store the lower half-word, byte-by-byte into destination address */
 	lbui	r3, r5, 2;
-	sbi	r3, r4, 0;
+store5:	sbi	r3, r4, 0;
 	lbui	r3, r5, 3;
 	brid	ret_from_exc;
-	sbi	r3, r4, 1;	/* Delay slot */
+store6:	sbi	r3, r4, 1;	/* Delay slot */
 ex_sw_end_vm:			/* Exception handling of store word, ends. */
+
+/* We have to prevent cases that get/put_user macros get unaligned pointer
+ * to bad page area. We have to find out which origin instruction caused it
+ * and called fixup for that origin instruction not instruction in unaligned
+ * handler */
+ex_unaligned_fixup:
+	ori	r5, r7, 0 /* setup pointer to pt_regs */
+	lwi	r6, r7, PT_PC; /* faulting address is one instruction above */
+	addik	r6, r6, -4 /* for finding proper fixup */
+	swi	r6, r7, PT_PC; /* a save back it to PT_PC */
+	addik	r7, r0, SIGSEGV
+	/* call bad_page_fault for finding aligned fixup, fixup address is saved
+	 * in PT_PC which is used as return address from exception */
+	la	r15, r0, ret_from_exc-8 /* setup return address */
+	brid	bad_page_fault
+	nop
+
+/* We prevent all load/store because it could failed any attempt to access */
+.section __ex_table,"a";
+	.word	load1,ex_unaligned_fixup;
+	.word	load2,ex_unaligned_fixup;
+	.word	load3,ex_unaligned_fixup;
+	.word	load4,ex_unaligned_fixup;
+	.word	load5,ex_unaligned_fixup;
+	.word	store1,ex_unaligned_fixup;
+	.word	store2,ex_unaligned_fixup;
+	.word	store3,ex_unaligned_fixup;
+	.word	store4,ex_unaligned_fixup;
+	.word	store5,ex_unaligned_fixup;
+	.word	store6,ex_unaligned_fixup;
+.previous;
 .end _unaligned_data_exception
 #endif /* CONFIG_MMU */
 

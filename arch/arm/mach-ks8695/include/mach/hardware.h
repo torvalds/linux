@@ -17,6 +17,11 @@
 #include <asm/sizes.h>
 
 /*
+ * Clocks are derived from MCLK, which is 25Mhz
+ */
+#define KS8695_CLOCK_RATE	25000000
+
+/*
  * Physical RAM address.
  */
 #define KS8695_SDRAM_PA		0x00000000

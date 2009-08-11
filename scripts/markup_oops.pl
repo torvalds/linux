@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
 use File::Basename;
+use Math::BigInt;
 
 # Copyright 2008, Intel Corporation
 #
@@ -172,8 +173,8 @@ while (<STDIN>) {
 	parse_x86_regs($line);
 }
 
-my $decodestart = hex($target) - hex($func_offset);
-my $decodestop = hex($target) + 8192;
+my $decodestart = Math::BigInt->from_hex("0x$target") - Math::BigInt->from_hex("0x$func_offset");
+my $decodestop = Math::BigInt->from_hex("0x$target") + 8192;
 if ($target eq "0") {
 	print "No oops found!\n";
 	print "Usage: \n";

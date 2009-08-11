@@ -126,32 +126,19 @@ static void radeon_ib_align(struct radeon_device *rdev, struct radeon_ib *ib)
 	}
 }
 
-static void radeon_ib_cpu_flush(struct radeon_device *rdev,
-				struct radeon_ib *ib)
-{
-	unsigned long tmp;
-	unsigned i;
-
-	/* To force CPU cache flush ugly but seems reliable */
-	for (i = 0; i < ib->length_dw; i += (rdev->cp.align_mask + 1)) {
-		tmp = readl(&ib->ptr[i]);
-	}
-}
-
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	int r = 0;
 
 	mutex_lock(&rdev->ib_pool.mutex);
 	radeon_ib_align(rdev, ib);
-	radeon_ib_cpu_flush(rdev, ib);
 	if (!ib->length_dw || !rdev->cp.ready) {
 		/* TODO: Nothings in the ib we should report. */
 		mutex_unlock(&rdev->ib_pool.mutex);
 		DRM_ERROR("radeon: couldn't schedule IB(%lu).\n", ib->idx);
 		return -EINVAL;
 	}
-	/* 64 dwords should be enought for fence too */
+	/* 64 dwords should be enough for fence too */
 	r = radeon_ring_lock(rdev, 64);
 	if (r) {
 		DRM_ERROR("radeon: scheduling IB failled (%d).\n", r);
