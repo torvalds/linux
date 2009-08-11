@@ -801,6 +801,8 @@ more:
 	}
 out:
 	free(name);
+	if (ret < 0 && strstr(self->name, " (deleted)") != NULL)
+		return 0;
 	return ret;
 }
 
