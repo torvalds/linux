@@ -68,8 +68,21 @@ static void omap_pcm_dma_irq(int ch, u16 stat, void *data)
 		 * that can be used by omap_pcm_pointer() instead.
 		 */
 		spin_lock_irqsave(&prtd->lock, flags);
+		if ((stat == OMAP_DMA_LAST_IRQ) &&
+				(prtd->period_index == runtime->periods - 1)) {
+			/* we are in sync, do nothing */
+			spin_unlock_irqrestore(&prtd->lock, flags);
+			return;
+		}
 		if (prtd->period_index >= 0) {
-			if (++prtd->period_index == runtime->periods) {
+			if (stat & OMAP_DMA_BLOCK_IRQ) {
+				/* end of buffer reached, loop back */
+				prtd->period_index = 0;
+			} else if (stat & OMAP_DMA_LAST_IRQ) {
+				/* update the counter for the last period */
+				prtd->period_index = runtime->periods - 1;
+			} else if (++prtd->period_index >= runtime->periods) {
+				/* end of buffer missed? loop back */
 				prtd->period_index = 0;
 			}
 		}
@@ -175,7 +188,12 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 	dma_params.frame_count	= runtime->periods;
 	omap_set_dma_params(prtd->dma_ch, &dma_params);
 
-	omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ);
+	if ((cpu_is_omap1510()) &&
+			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK))
+		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ |
+			      OMAP_DMA_LAST_IRQ | OMAP_DMA_BLOCK_IRQ);
+	else
+		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ);
 
 	return 0;
 }
