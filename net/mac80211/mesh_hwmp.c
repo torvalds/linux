@@ -397,7 +397,8 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 
 static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
-				    u8 *preq_elem, u32 metric) {
+				    u8 *preq_elem, u32 metric)
+{
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_path *mpath;
 	u8 *dst_addr, *orig_addr;
@@ -430,7 +431,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 			if ((!(mpath->flags & MESH_PATH_DSN_VALID)) ||
 					DSN_LT(mpath->dsn, dst_dsn)) {
 				mpath->dsn = dst_dsn;
-				mpath->flags &= MESH_PATH_DSN_VALID;
+				mpath->flags |= MESH_PATH_DSN_VALID;
 			} else if ((!(dst_flags & MP_F_DO)) &&
 					(mpath->flags & MESH_PATH_ACTIVE)) {
 				reply = true;
