@@ -16,6 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: baseband.c
  *
  * Purpose: Implement functions to access baseband
@@ -44,7 +45,10 @@
  *                                Add the comments.
  *      09-01-2003 Bryan YC Fan:  RF & BB tables updated.
  *                                Modified BBvLoopbackOn & BBvLoopbackOff().
+ *
+ *
  */
+
 
 #if !defined(__TMACRO_H__)
 #include "tmacro.h"
@@ -80,6 +84,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
+
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -1806,6 +1811,7 @@ BBuGetFrameTime (
 
 
     if (uRateIdx > RATE_54M) {
+	    ASSERT(0);
         return 0;
     }
 
@@ -2897,8 +2903,6 @@ TimerSQ3CallBack (
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerSQ3CallBack...");
-
-
     spin_lock_irq(&pDevice->lock);
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"3.[%08x][%08x], %d\n",(int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1, (int)pDevice->uDiversityCnt);
@@ -2915,8 +2919,8 @@ TimerSQ3CallBack (
     add_timer(&pDevice->TimerSQ3Tmax3);
     add_timer(&pDevice->TimerSQ3Tmax2);
 
-    spin_unlock_irq(&pDevice->lock);
 
+    spin_unlock_irq(&pDevice->lock);
     return;
 }
 

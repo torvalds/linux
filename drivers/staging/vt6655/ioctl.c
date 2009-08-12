@@ -65,12 +65,11 @@
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
 
-/*---------------------  Static Functions  --------------------------*/
-
 #ifdef WPA_SM_Transtatus
     SWPAResult wpa_Result;
 #endif
 
+/*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
 
@@ -100,7 +99,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     DWORD               dwKeyIndex= 0;
     BYTE                abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     LONG                ldBm;
-
 
     pReq->wResult = 0;
 
@@ -250,7 +248,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         break;
 
     case WLAN_CMD_SET_WEP:
-
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_SET_WEP Key. \n");
         memset(&sWEPCmd, 0 ,sizeof(SCmdSetWEP));
         if (copy_from_user(&sWEPCmd, pReq->data, sizeof(SCmdSetWEP))) {
@@ -695,13 +692,13 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 	    wpa_Result.key_mgmt = 0;
 	    wpa_Result.eap_type = 0;
 	    wpa_Result.authenticated = FALSE;
-		  pDevice->fWPA_Authened = FALSE;
+	      pDevice->fWPA_Authened = FALSE;
         if (copy_from_user(&wpa_Result, pReq->data, sizeof(wpa_Result))) {
             result = -EFAULT;
 			break;
 		}
 
-	if(wpa_Result.authenticated==TRUE) {
+if(wpa_Result.authenticated==TRUE) {
    #ifdef SndEvt_ToAPI
    {
      union iwreq_data      wrqu;
@@ -727,7 +724,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 	pReq->wResult = 0;
         break;
 #endif
-
 
     default:
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Private command not support..\n");

@@ -33,7 +33,9 @@
 //#if !defined(__DEVICE_H__)
 //#include "device.h"
 //#endif
+
 #include <linux/skbuff.h>
+
 #if !defined(__80211HDR_H__)
 #include "80211hdr.h"
 #endif
@@ -103,13 +105,13 @@ typedef enum _NDIS_802_11_NETWORK_TYPE
 typedef struct tagSERPObject {
     BOOL    bERPExist;
     BYTE    byERP;
-} ERPObject, DEF* PERPObject;
+}ERPObject, DEF* PERPObject;
 
 
 typedef struct tagSRSNCapObject {
     BOOL    bRSNCapExist;
     WORD    wRSNCap;
-} SRSNCapObject, DEF* PSRSNCapObject;
+}SRSNCapObject, DEF* PSRSNCapObject;
 
 // BSS info(AP)
 #pragma pack(1)
@@ -126,11 +128,12 @@ typedef struct tagKnownBSS {
     WORD            wCapInfo;
     BYTE            abySSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     BYTE            byRxRate;
+
 //    WORD            wATIMWindow;
     BYTE            byRSSIStatCnt;
     LONG            ldBmMAX;
     LONG            ldBmAverage[RSSI_STAT_COUNT];
-     LONG            ldBmAverRange;
+    LONG            ldBmAverRange;
     //For any BSSID selection improvment
     BOOL            bSelected;
 
@@ -344,6 +347,7 @@ VOID
 BSSvSecondCallBack(
     IN HANDLE hDeviceContext
     );
+
 
 VOID
 BSSvUpdateNodeTxCounter(

@@ -33,6 +33,7 @@
 #if !defined(__DEVICE_H__)
 #include "device.h"
 #endif
+
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #if !defined(__IOWPA_H__)
 #include "iowpa.h"

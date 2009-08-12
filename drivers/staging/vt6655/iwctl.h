@@ -227,6 +227,7 @@ int iwctl_siwmlme(struct net_device *dev,
 			struct iw_point *wrq,
 			char *extra);
 #endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
+//End Add -- //2008-0409-07, <Add> by Einsn Liu
 
 
 extern const struct iw_handler_def	iwctl_handler_def;

@@ -24,17 +24,15 @@
  * Author: Tevin Chen
  *
  * Date: May 21, 1996
+ *
  * Revision History:
  *      07-01-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
  *      08-25-2003 Kyle Hsu:      Porting MAC functions from sim53.
  *      09-03-2003 Bryan YC Fan:  Add MACvDisableProtectMD & MACvEnableProtectMD
- *
  */
 
 #ifndef __MAC_H__
 #define __MAC_H__
-
-
 
 #if !defined(__TTYPE_H__)
 #include "ttype.h"
@@ -130,7 +128,7 @@
 #define MAC_REG_IFREGCTL    0x70        //
 #define MAC_REG_IFDATA      0x71        //
 #define MAC_REG_ITRTMSET    0x74        //
-#define MAC_REG_PAPEDELAY   0x77        //
+#define MAC_REG_PAPEDELAY   0x77
 #define MAC_REG_SOFTPWRCTL  0x78        //
 #define MAC_REG_GPIOCTL0    0x7A        //
 #define MAC_REG_GPIOCTL1    0x7B        //

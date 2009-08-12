@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1996, 2003 VIA Networking, Inc. All rights reserved.
+ * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,12 +74,12 @@ typedef enum tagWMAC_CMD {
     WLAN_CMD_SET_HOST_WEP,
     WLAN_CMD_SET_WPA,
     WLAN_CMD_GET_NODE_CNT,
-     WLAN_CMD_ZONETYPE_SET,
+    WLAN_CMD_ZONETYPE_SET,
     WLAN_CMD_GET_NODE_LIST
 
 } WMAC_CMD, DEF* PWMAC_CMD;
 
-	typedef enum tagWZONETYPE {
+typedef enum tagWZONETYPE {
   ZoneType_USA=0,
   ZoneType_Japan=1,
   ZoneType_Europe=2
@@ -106,7 +107,6 @@ typedef enum tagWMAC_CMD {
 #define WEP_104BIT_LEN         13
 #define WEP_232BIT_LEN         16
 
-
 // Ioctl interface structure
 // Command structure
 //
@@ -117,7 +117,6 @@ typedef struct tagSCmdRequest {
 	U16	    wResult;
 	U16     wCmdCode;
 } SCmdRequest, *PSCmdRequest;
-
 
 //
 // Scan
@@ -145,6 +144,10 @@ typedef struct tagSCmdBSSJoin {
 
 } SCmdBSSJoin, *PSCmdBSSJoin;
 
+//
+// Zonetype Setting
+//
+
 typedef struct tagSCmdZoneTypeSet {
 
  BOOL       bWrite;
@@ -161,7 +164,6 @@ typedef struct tagSWPAResult {
          BOOL authenticated;
 } SWPAResult, *PSWPAResult;
 #endif
-
 
 typedef struct tagSCmdStartAP {
 

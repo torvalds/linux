@@ -44,13 +44,12 @@
 #if !defined(__BSSDB_H__)
 #include "bssdb.h"
 #endif
-#if !defined(__VNTWIFI_H__)
-#include "vntwifi.h"
-#endif
+
 
 
 
 /*---------------------  Export Definitions -------------------------*/
+#define MAX_PMKID_CACHE         16
 
 typedef struct tagsPMKIDInfo {
     BYTE    abyBSSID[6];

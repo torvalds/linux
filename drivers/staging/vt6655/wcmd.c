@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: wcmd.c
  *
@@ -122,6 +121,7 @@ s_MgrMakeProbeRequest(
     IN PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     );
 
+
 static
 BOOL
 s_bCommandComplete (
@@ -132,6 +132,7 @@ s_bCommandComplete (
 
 
 /*---------------------  Export Functions  --------------------------*/
+
 
 
 /*
@@ -186,7 +187,8 @@ vAdHocBeaconStop(PSDevice  pDevice)
         MACvRegBitsOff(pDevice->PortOffset, MAC_REG_TCR, TCR_AUTOBCNTX);
     }
 
-}
+} /* vAdHocBeaconStop */
+
 
 /*
  * Description:
@@ -220,6 +222,8 @@ vAdHocBeaconRestart(PSDevice pDevice)
     }
 
 }
+
+
 
 
 
@@ -350,6 +354,7 @@ s_MgrMakeProbeRequest(
 
 
 
+
 VOID
 vCommandTimerWait(
     IN HANDLE    hDeviceContext,
@@ -366,6 +371,7 @@ vCommandTimerWait(
     add_timer(&pDevice->sTimerCommand);
     return;
 }
+
 
 
 

@@ -39,6 +39,7 @@
 #if !defined(__CARD_H__)
 #include "card.h"
 #endif
+#include "wpa2.h"
 
 /*---------------------  Export Definitions -------------------------*/
 #define RATE_1M         0
@@ -66,8 +67,6 @@
 #define CHANNEL_MAX_24G         14
 
 #define MAX_BSS_NUM             42
-
-#define MAX_PMKID_CACHE         16
 
 // Pre-configured Authenticaiton Mode (from XP)
 typedef enum tagWMAC_AUTHENTICATION_MODE {

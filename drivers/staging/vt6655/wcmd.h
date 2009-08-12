@@ -46,6 +46,7 @@
 #define AUTHENTICATE_TIMEOUT   1000 //ms
 #define ASSOCIATE_TIMEOUT      1000 //ms
 
+
 // Command code
 typedef enum tagCMD_CODE {
     WLAN_CMD_BSSID_SCAN,
@@ -67,11 +68,9 @@ typedef enum tagCMD_CODE {
 
 #define CMD_Q_SIZE              32
 
-
-// Command code
 typedef enum tagCMD_STATUS {
 
-    CMD_STATUS_SUCCESS,
+    CMD_STATUS_SUCCESS = 0,
     CMD_STATUS_FAILURE,
     CMD_STATUS_RESOURCES,
     CMD_STATUS_TIMEOUT,
@@ -106,6 +105,7 @@ typedef enum tagCMD_STATE {
 } CMD_STATE, DEF* PCMD_STATE;
 
 
+
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
@@ -115,7 +115,6 @@ typedef enum tagCMD_STATE {
 
 
 /*---------------------  Export Functions  --------------------------*/
-
 VOID
 vResetCommandTimer(
     IN HANDLE      hDeviceContext
@@ -148,4 +147,5 @@ BSSvSecondTxData(
     IN  HANDLE      hDeviceContext
     );
 #endif
+
 #endif //__WCMD_H__

@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
- * All rights reserved.
+ * Copyright (c) 1996, 2003 VIA Networking, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,6 +65,7 @@
 #ifndef IRQ_RETVAL
 typedef void irqreturn_t;
 
+
 #define IRQ_RETVAL(x)
 
 #endif
@@ -74,7 +74,6 @@ typedef void irqreturn_t;
 #ifndef MODULE_LICESEN
 #define MODULE_LICESEN(x)
 #endif
-
 
 #endif
 

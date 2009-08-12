@@ -16,6 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: wmgr.c
  *
  * Purpose: Handles the 802.11 management functions
@@ -137,6 +138,7 @@ static BOOL ChannelExceedZoneType(
     IN PSDevice pDevice,
     IN BYTE byCurrChannel
     );
+
 // Association/diassociation functions
 static
 PSTxMgmtPacket
@@ -363,33 +365,10 @@ s_bCipherMatch (
     OUT PBYTE                           pbyCCSGK
     );
 
-
  static VOID  Encyption_Rebuild(
     IN PSDevice pDevice,
     IN PKnownBSS pCurr
  );
-/*
-static
-VOID
-s_vProbeChannel(
-    IN PSDevice pDevice
-    );
-
-static
-VOID
-s_vListenChannel(
-    IN PSDevice pDevice
-    );
-
-static
-PSTxMgmtPacket
-s_MgrMakeProbeRequest(
-    IN PSMgmtObject pMgmt,
-    IN PBYTE pScanBSSID,
-    IN PWLAN_IE_SSID pSSID,
-    IN PWLAN_IE_SUPP_RATES pCurrRates
-    );
-*/
 
 
 
@@ -1780,7 +1759,6 @@ s_vMgrRxDisassociation(
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
      }
   #endif
-
     }
     /* else, ignore it */
 
@@ -1857,13 +1835,13 @@ s_vMgrRxDeauthentication(
                  pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
            };
 
-	   #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
+   #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
   // if(pDevice->bWPASuppWextEnabled == TRUE)
       {
 	union iwreq_data  wrqu;
 	memset(&wrqu, 0, sizeof (wrqu));
         wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	printk("wireless_send_event--->SIOCGIWAP(disauthen)\n");
+	PRINT_K("wireless_send_event--->SIOCGIWAP(disauthen)\n");
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
      }
   #endif
@@ -3172,22 +3150,22 @@ s_vMgrSynchBSS (
                           pMgmt->eAuthenMode = WMAC_AUTH_WPAPSK;
 		    if(pCurr->abyPKType[0] == WPA_TKIP) {
      		        pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;    //TKIP
-     		        printk("Encyption_Rebuild--->ssid reset config to [WPAPSK-TKIP]\n");
+     		        PRINT_K("Encyption_Rebuild--->ssid reset config to [WPAPSK-TKIP]\n");
 		      }
      		   else if(pCurr->abyPKType[0] == WPA_AESCCMP) {
 		        pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;    //AES
-                          printk("Encyption_Rebuild--->ssid reset config to [WPAPSK-AES]\n");
+                          PRINT_K("Encyption_Rebuild--->ssid reset config to [WPAPSK-AES]\n");
      		     }
                	}
                else if(pCurr->bWPA2Valid == TRUE) {  //WPA2-PSK
                          pMgmt->eAuthenMode = WMAC_AUTH_WPA2PSK;
 		       if(pCurr->abyCSSPK[0] == WLAN_11i_CSS_TKIP) {
       		           pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;     //TKIP
-                             printk("Encyption_Rebuild--->ssid reset config to [WPA2PSK-TKIP]\n");
+                             PRINT_K("Encyption_Rebuild--->ssid reset config to [WPA2PSK-TKIP]\n");
 		       	}
       		       else if(pCurr->abyCSSPK[0] == WLAN_11i_CSS_CCMP) {
 		           pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;    //AES
-                            printk("Encyption_Rebuild--->ssid reset config to [WPA2PSK-AES]\n");
+                            PRINT_K("Encyption_Rebuild--->ssid reset config to [WPA2PSK-AES]\n");
       		       	}
                	}
               }
@@ -3832,6 +3810,7 @@ s_MgrMakeAssocRequest(
         *pbyRSN++=0x01;
         *pbyRSN++=0x00;
         *pbyRSN++=0x00;
+
         *pbyRSN++=0x50;
         *pbyRSN++=0xf2;
         if (pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK) {
@@ -3843,12 +3822,15 @@ s_MgrMakeAssocRequest(
         else {
             *pbyRSN++=WPA_NONE;
         }
+
         sFrame.pRSNWPA->len +=6;
 
         // RSN Capabilites
+
         *pbyRSN++=0x00;
         *pbyRSN++=0x00;
         sFrame.pRSNWPA->len +=2;
+
         sFrame.len += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
         // copy to AssocInfo. for OID_802_11_ASSOCIATION_INFORMATION
         pMgmt->sAssocInfo.AssocInfo.RequestIELength += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
@@ -4087,6 +4069,7 @@ s_MgrMakeReAssocRequest(
         *pbyRSN++=0x01;
         *pbyRSN++=0x00;
         *pbyRSN++=0x00;
+
         *pbyRSN++=0x50;
         *pbyRSN++=0xf2;
         if (pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK) {
@@ -4096,12 +4079,14 @@ s_MgrMakeReAssocRequest(
         } else {
             *pbyRSN++=WPA_NONE;
         }
+
         sFrame.pRSNWPA->len +=6;
 
         // RSN Capabilites
         *pbyRSN++=0x00;
         *pbyRSN++=0x00;
         sFrame.pRSNWPA->len +=2;
+
         sFrame.len += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
         // copy to AssocInfo. for OID_802_11_ASSOCIATION_INFORMATION
         pMgmt->sAssocInfo.AssocInfo.RequestIELength += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
@@ -4677,7 +4662,7 @@ vMgrRxManagePacket(
 
         case WLAN_FSTYPE_BEACON:
             // Frame Clase = 0
-            // DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx beacon\n");
+            //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "rx beacon\n");
             if (pMgmt->eScanState != WMAC_NO_SCANNING) {
                 bInScan = TRUE;
             };
@@ -4953,7 +4938,6 @@ s_bCipherMatch (
         return FALSE;
 
     // check cap. of BSS
-
     if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
          (EncStatus == Ndis802_11Encryption1Enabled)) {
         // default is WEP only
@@ -4962,8 +4946,8 @@ s_bCipherMatch (
 
     if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
         (pBSSNode->bWPA2Valid == TRUE) &&
+          //20080123-01,<Add> by Einsn Liu
         ((EncStatus == Ndis802_11Encryption3Enabled)||(EncStatus == Ndis802_11Encryption2Enabled))) {
-
         //WPA2
         // check Group Key Cipher
         if ((pBSSNode->byCSSGK == WLAN_11i_CSS_WEP40) ||
@@ -4993,10 +4977,10 @@ s_bCipherMatch (
                 i = pBSSNode->wCSSPKCount;
             }
         }
+
     } else if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
                 (pBSSNode->bWPAValid == TRUE) &&
-                ((EncStatus == Ndis802_11Encryption3Enabled)||(EncStatus == Ndis802_11Encryption2Enabled))) {
-
+                ((EncStatus == Ndis802_11Encryption3Enabled) || (EncStatus == Ndis802_11Encryption2Enabled))) {
         //WPA
         // check Group Key Cipher
         if ((pBSSNode->byGKType == WPA_WEP40) ||
@@ -5029,6 +5013,7 @@ s_bCipherMatch (
 
     // mask our cap. with BSS
     if (EncStatus == Ndis802_11Encryption1Enabled) {
+
         // For supporting Cisco migration mode, don't care pairwise key cipher
         if ((byMulticastCipher == KEY_CTL_WEP) &&
             (byCipherMask == 0)) {

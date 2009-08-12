@@ -109,7 +109,7 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Enabling hostapd mode\n", dev->name);
 
-    pDevice->apdev = (struct net_device *)kmalloc(sizeof(struct net_device), GFP_KERNEL);
+	pDevice->apdev = (struct net_device *)kmalloc(sizeof(struct net_device), GFP_KERNEL);
 	if (pDevice->apdev == NULL)
 		return -ENOMEM;
 	memset(pDevice->apdev, 0, sizeof(struct net_device));
@@ -118,7 +118,7 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
     *apdev_priv = *pDevice;
 	memcpy(pDevice->apdev->dev_addr, dev->dev_addr, ETH_ALEN);
 
-    pDevice->apdev->netdev_ops = &apdev_netdev_ops;
+	pDevice->apdev->netdev_ops = &apdev_netdev_ops;
 
 	pDevice->apdev->type = ARPHRD_IEEE80211;
 
@@ -288,7 +288,9 @@ static int hostap_add_sta(PSDevice pDevice,
             WLAN_GET_CAP_INFO_SHORTPREAMBLE(pMgmt->sNodeDBTable[uNodeIndex].wCapInfo);
 
     pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)param->u.add_sta.aid;
+
     pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer = jiffies;
+
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Add STA AID= %d \n", pMgmt->sNodeDBTable[uNodeIndex].wAID);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X \n",
                param->sta_addr[0],
@@ -327,6 +329,7 @@ static int hostap_get_info_sta(PSDevice pDevice,
     if (BSSDBbIsSTAInNodeDB(pMgmt, param->sta_addr, &uNodeIndex)) {
 	    param->u.get_info_sta.inactive_sec =
 	        (jiffies - pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer) / HZ;
+
 	    //param->u.get_info_sta.txexc = pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts;
 	}
 	else {

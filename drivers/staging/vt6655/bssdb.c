@@ -170,7 +170,7 @@ BSSpSearchBSSList(
     IN HANDLE hDeviceContext,
     IN PBYTE pbyDesireBSSID,
     IN PBYTE pbyDesireSSID,
-    IN CARD_PHY_TYPE ePhyType
+    IN CARD_PHY_TYPE  ePhyType
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -187,7 +187,7 @@ BYTE                 ZeroBSSID[WLAN_BSSID_LEN]={0x00,0x00,0x00,0x00,0x00,0x00};
                             *pbyDesireBSSID,*(pbyDesireBSSID+1),*(pbyDesireBSSID+2),
                             *(pbyDesireBSSID+3),*(pbyDesireBSSID+4),*(pbyDesireBSSID+5));
         if ((!IS_BROADCAST_ADDRESS(pbyDesireBSSID)) &&
-	     (memcmp(pbyDesireBSSID, ZeroBSSID, 6)!= 0)) {
+	     (memcmp(pbyDesireBSSID, ZeroBSSID, 6)!= 0)){
             pbyBSSID = pbyDesireBSSID;
         }
     }
@@ -246,11 +246,11 @@ if(pDevice->bLinkPass==FALSE) pCurrBSS->bSelected = FALSE;
                         (pSSID->len != ((PWLAN_IE_SSID)pCurrBSS->abySSID)->len)) {
                         // SSID not match skip this BSS
                         continue;
-                    }
+                      }
                 }
                 if (((pMgmt->eConfigMode == WMAC_CONFIG_IBSS_STA) && WLAN_GET_CAP_INFO_ESS(pCurrBSS->wCapInfo)) ||
                     ((pMgmt->eConfigMode == WMAC_CONFIG_ESS_STA) && WLAN_GET_CAP_INFO_IBSS(pCurrBSS->wCapInfo))
-                    ) {
+                    ){
                     // Type not match skip this BSS
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSS type mismatch.... Config[%d] BSS[0x%04x]\n", pMgmt->eConfigMode, pCurrBSS->wCapInfo);
                     continue;
@@ -399,6 +399,7 @@ BSSpAddrIsInBSSList(
 
 
 
+
 /*+
  *
  * Routine Description:
@@ -450,7 +451,7 @@ BSSbInsertToBSSList (
     }
 
     if (ii == MAX_BSS_NUM){
-        DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Get free KnowBSS node failed.\n");
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Get free KnowBSS node failed.\n");
         return FALSE;
     }
     // save the BSS info
@@ -575,8 +576,6 @@ BSSbInsertToBSSList (
                             pIE_Country);
     }
 
-
-
     if ((bParsingQuiet == TRUE) && (pIE_Quiet != NULL)) {
         if ((((PWLAN_IE_QUIET)pIE_Quiet)->len == 8) &&
             (((PWLAN_IE_QUIET)pIE_Quiet)->byQuietCount != 0)) {
@@ -663,6 +662,7 @@ BSSbUpdateToBSSList (
     if (pBSSList == NULL)
         return FALSE;
 
+
     HIDWORD(pBSSList->qwBSSTimestamp) = cpu_to_le32(HIDWORD(qwTimestamp));
     LODWORD(pBSSList->qwBSSTimestamp) = cpu_to_le32(LODWORD(qwTimestamp));
     pBSSList->wBeaconInterval = cpu_to_le16(wBeaconInterval);
@@ -711,7 +711,7 @@ BSSbUpdateToBSSList (
         }
     }
 
-    WPA_ClearRSN(pBSSList);         //mike update
+   WPA_ClearRSN(pBSSList);         //mike update
 
     if (pRSNWPA != NULL) {
         UINT uLen = pRSNWPA->len + 2;
@@ -722,7 +722,7 @@ BSSbUpdateToBSSList (
         }
     }
 
-  WPA2_ClearRSN(pBSSList);  //mike update
+   WPA2_ClearRSN(pBSSList);  //mike update
 
     if (pRSN != NULL) {
         UINT uLen = pRSN->len + 2;
@@ -1067,7 +1067,7 @@ BSSvSecondCallBack(
     UINT            uSleepySTACnt = 0;
     UINT            uNonShortSlotSTACnt = 0;
     UINT            uLongPreambleSTACnt = 0;
-viawget_wpa_header* wpahdr;
+    viawget_wpa_header* wpahdr;  //DavidWang
 
     spin_lock_irq(&pDevice->lock);
 
@@ -1145,7 +1145,7 @@ start:
                   	union iwreq_data  wrqu;
                   	memset(&wrqu, 0, sizeof (wrqu));
                           wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-                  	printk("wireless_send_event--->SIOCGIWAP(disassociated)\n");
+                  	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
                   	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
                        }
                     #endif
@@ -1161,14 +1161,13 @@ start:
     for (ii = 0; ii < (MAX_NODE_NUM + 1); ii++) {
 
         if (pMgmt->sNodeDBTable[ii].bActive) {
-
             // Increase in-activity counter
             pMgmt->sNodeDBTable[ii].uInActiveCount++;
 
             if (ii > 0) {
                 if (pMgmt->sNodeDBTable[ii].uInActiveCount > MAX_INACTIVE_COUNT) {
                     BSSvRemoveOneNode(pDevice, ii);
-                    DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
                         "Inactive timeout [%d] sec, STA index = [%d] remove\n", MAX_INACTIVE_COUNT, ii);
                     continue;
                 }
@@ -1200,7 +1199,6 @@ start:
             }
 
             // Rate fallback check
-
             if (!pDevice->bFixRate) {
 /*
                 if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) && (ii == 0))
@@ -1300,7 +1298,7 @@ start:
 
     pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
     pCurrSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
-//printk("pCurrSSID=%s\n",pCurrSSID->abySSID);
+
     if ((pMgmt->eCurrMode == WMAC_MODE_STANDBY) ||
         (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)) {
 
@@ -1309,16 +1307,17 @@ start:
             //if (pDevice->bUpdateBBVGA) {
             //  s_vCheckSensitivity((HANDLE) pDevice);
             //}
+
             if (pDevice->bUpdateBBVGA) {
                // s_vCheckSensitivity((HANDLE) pDevice);
                s_vCheckPreEDThreshold((HANDLE)pDevice);
             }
+
     	    if ((pMgmt->sNodeDBTable[0].uInActiveCount >= (LOST_BEACON_COUNT/2)) &&
     	        (pDevice->byBBVGACurrent != pDevice->abyBBVGA[0]) ) {
     	        pDevice->byBBVGANew = pDevice->abyBBVGA[0];
                 bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_BBSENSITIVITY, NULL);
     	    }
-
 
         	if (pMgmt->sNodeDBTable[0].uInActiveCount >= LOST_BEACON_COUNT) {
                 pMgmt->sNodeDBTable[0].bActive = FALSE;
@@ -1348,29 +1347,29 @@ start:
 	union iwreq_data  wrqu;
 	memset(&wrqu, 0, sizeof (wrqu));
         wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	printk("wireless_send_event--->SIOCGIWAP(disassociated)\n");
+	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
      }
   #endif
-			}
+	    }
         }
         else if (pItemSSID->len != 0) {
             if (pDevice->uAutoReConnectTime < 10) {
                 pDevice->uAutoReConnectTime++;
-	#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
+	       #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
                 //network manager support need not do Roaming scan???
                 if(pDevice->bWPASuppWextEnabled ==TRUE)
 		 pDevice->uAutoReConnectTime = 0;
 	     #endif
-
             }
             else {
-		    //mike use old encryption status for wpa reauthen
+	   //mike use old encryption status for wpa reauthen
 	      if(pDevice->bWPADEVUp)
 	          pDevice->eEncryptionStatus = pDevice->eOldEncryptionStatus;
+
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Roaming ...\n");
                 BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
-	pMgmt->eScanType = WMAC_SCAN_ACTIVE;
+ 	      pMgmt->eScanType = WMAC_SCAN_ACTIVE;
                 bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
                 bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, pMgmt->abyDesireSSID);
                 pDevice->uAutoReConnectTime = 0;
@@ -1386,13 +1385,14 @@ start:
             }
             else {
                 DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Adhoc re-scaning ...\n");
-	pMgmt->eScanType = WMAC_SCAN_ACTIVE;
+	      pMgmt->eScanType = WMAC_SCAN_ACTIVE;
                 bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
                 bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
                 pDevice->uAutoReConnectTime = 0;
             };
         }
         if (pMgmt->eCurrState == WMAC_STATE_JOINTED) {
+
             if (pDevice->bUpdateBBVGA) {
                //s_vCheckSensitivity((HANDLE) pDevice);
                s_vCheckPreEDThreshold((HANDLE)pDevice);
@@ -1600,6 +1600,7 @@ BSSvUpdateNodeTxCounter(
 
     return;
 
+
 }
 
 
@@ -1784,3 +1785,4 @@ VOID s_vCheckPreEDThreshold(
     }
     return;
 }
+

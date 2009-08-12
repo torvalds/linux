@@ -16,6 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: wpactl.c
  *
  * Purpose: handle wpa supplicant ioctl input/out functions
@@ -79,8 +80,6 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 
 /*---------------------  Export Variables  --------------------------*/
-
-
 static void wpadev_setup(struct net_device *dev)
 {
 	dev->type               = ARPHRD_IEEE80211;
@@ -93,8 +92,6 @@ static void wpadev_setup(struct net_device *dev)
 
 	dev->flags              = IFF_BROADCAST|IFF_MULTICAST;
 }
-
-
 
 /*
  * Description:
@@ -122,7 +119,6 @@ static int wpa_init_wpadev(PSDevice pDevice)
 
     wpadev_priv = netdev_priv(pDevice->wpadev);
     *wpadev_priv = *pDevice;
-
 	memcpy(pDevice->wpadev->dev_addr, dev->dev_addr, U_ETHER_ADDR_LEN);
          pDevice->wpadev->base_addr = dev->base_addr;
 	pDevice->wpadev->irq = dev->irq;
@@ -164,7 +160,6 @@ static int wpa_init_wpadev(PSDevice pDevice)
 
 static int wpa_release_wpadev(PSDevice pDevice)
 {
-
     if (pDevice->skb) {
         dev_kfree_skb(pDevice->skb);
         pDevice->skb = NULL;
@@ -201,8 +196,6 @@ static int wpa_release_wpadev(PSDevice pDevice)
 
 int wpa_set_wpadev(PSDevice pDevice, int val)
 {
-
-
 	if (val)
 		return wpa_init_wpadev(pDevice);
 	else
@@ -224,9 +217,9 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
  *
  */
 
-int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel)
+ int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel)
 {
- struct viawget_wpa_param *param=ctx;
+    struct viawget_wpa_param *param=ctx;
     PSMgmtObject pMgmt = pDevice->pMgmt;
     DWORD   dwKeyIndex = 0;
     BYTE    abyKey[MAX_KEY_LEN];
@@ -261,8 +254,8 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel)
     else {
 	spin_unlock_irq(&pDevice->lock);
 	if (param->u.wpa_key.key &&
-	    copy_from_user(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len)){
-	        spin_lock_irq(&pDevice->lock);
+	    copy_from_user(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len)) {
+	    spin_lock_irq(&pDevice->lock);
 	    return -EINVAL;
     	}
 spin_lock_irq(&pDevice->lock);
@@ -302,9 +295,8 @@ spin_lock_irq(&pDevice->lock);
        else {
 	   	spin_unlock_irq(&pDevice->lock);
 	if (param->u.wpa_key.seq &&
-	    copy_from_user(&abySeq[0], param->u.wpa_key.seq, param->u.wpa_key.seq_len)){
-
-	 spin_lock_irq(&pDevice->lock);
+	    copy_from_user(&abySeq[0], param->u.wpa_key.seq, param->u.wpa_key.seq_len)) {
+	    spin_lock_irq(&pDevice->lock);
 	    return -EINVAL;
        	}
 spin_lock_irq(&pDevice->lock);
@@ -337,6 +329,7 @@ spin_lock_irq(&pDevice->lock);
 	if (param->u.wpa_key.set_tx)
 		dwKeyIndex |= (1 << 31);
 
+
     if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled)
         byKeyDecMode = KEY_CTL_CCMP;
     else if (pDevice->eEncryptionStatus == Ndis802_11Encryption2Enabled)
@@ -358,7 +351,6 @@ spin_lock_irq(&pDevice->lock);
         else if (param->u.wpa_key.key_len == WLAN_WEP104_KEYLEN)
             byKeyDecMode = KEY_CTL_WEP;
     }
-
 
     // Check TKIP key length
     if ((byKeyDecMode == KEY_CTL_TKIP) &&

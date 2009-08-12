@@ -16,7 +16,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- *
  * File: 80211mgr.c
  *
  * Purpose: Handles the 802.11 management support functions
@@ -747,7 +746,6 @@ vMgrDecodeProbeResponse(
     )
 {
     PWLAN_IE    pItem;
-//    BYTE        byCheckEID = 0;
 
 
     pFrame->pHdr = (PUWLAN_80211HDR)pFrame->pBuf;
@@ -765,12 +763,6 @@ vMgrDecodeProbeResponse(
                        + WLAN_PROBERESP_OFF_SSID);
 
     while( ((PBYTE)pItem) < (pFrame->pBuf + pFrame->len) ) {
-		/*
-        if (pItem->byElementID < byCheckEID)
-            break;
-        else
-            byCheckEID = pItem->byElementID;
-*/
         switch (pItem->byElementID) {
             case WLAN_EID_SSID:
                 if (pFrame->pSSID == NULL)

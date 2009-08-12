@@ -144,6 +144,7 @@ static BOOL s_bAPModeRxCtl(
     );
 
 
+
 static BOOL s_bAPModeRxData (
     IN PSDevice pDevice,
     IN struct sk_buff* skb,
@@ -532,6 +533,8 @@ device_receive_frame (
             return FALSE;
         }
     }
+
+
     if (IS_FC_WEP(pbyFrame)) {
         BOOL     bRxDecryOK = FALSE;
 
@@ -718,7 +721,6 @@ device_receive_frame (
                 }
                 return FALSE;
             }
-
    //mike add:station mode check eapol-key challenge--->
    	  {
    	    BYTE  Protocol_Version;    //802.1x Authentication
@@ -742,7 +744,9 @@ device_receive_frame (
         }
     }
 
+
 // Data frame Handle
+
 
     if (pDevice->bEnablePSMode) {
         if (IS_FC_MOREDATA((skb->data+4))) {
@@ -890,12 +894,11 @@ device_receive_frame (
                             pDevice->dev->name);
                     }
                 }
-
-//2008-0409-07, <Add> by Einsn Liu
+               //2008-0409-07, <Add> by Einsn Liu
        #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				//send event to wpa_supplicant
 				//if(pDevice->bWPADevEnable == TRUE)
-					{
+				{
 					union iwreq_data wrqu;
 					struct iw_michaelmicfailure ev;
 					int keyidx = pbyFrame[cbHeaderSize+3] >> 6; //top two-bits
@@ -917,6 +920,8 @@ device_receive_frame (
 
 				}
          #endif
+
+
                 if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
                      wpahdr = (viawget_wpa_header *)pDevice->skb->data;
                      if ((pDevice->pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
@@ -1067,6 +1072,7 @@ device_receive_frame (
         }
         return FALSE;
     }
+
     return TRUE;
 }
 
@@ -1429,6 +1435,7 @@ static BOOL s_bHostWepRxEncryption (
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TSC0_15: %x\n", *pwRxTSC15_0);
 
         if (byDecMode == KEY_CTL_TKIP) {
+
             if ((pDevice->byLocalID <= REV_ID_VT3253_A1) || (bOnFly == FALSE)) {
                 // Software TKIP
                 // 1. 3253 A
@@ -1471,8 +1478,6 @@ static BOOL s_bHostWepRxEncryption (
 
 
 
-
-
 static BOOL s_bAPModeRxData (
     IN PSDevice pDevice,
     IN struct sk_buff* skb,
@@ -1487,9 +1492,9 @@ static BOOL s_bAPModeRxData (
     BOOL                bRelayOnly = FALSE;
     BYTE                byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     WORD                wAID;
+
+
     struct sk_buff* skbcpy = NULL;
-
-
 
     if (FrameSize > CB_MAX_BUF_SIZE)
         return FALSE;
@@ -1498,6 +1503,7 @@ static BOOL s_bAPModeRxData (
        if (pMgmt->sNodeDBTable[0].bPSEnable) {
 
            skbcpy = dev_alloc_skb((int)pDevice->rx_buf_sz);
+
         // if any node in PS mode, buffer packet until DTIM.
            if (skbcpy == NULL) {
                DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "relay multicast no skb available \n");
@@ -1507,6 +1513,7 @@ static BOOL s_bAPModeRxData (
                skbcpy->len = FrameSize;
                memcpy(skbcpy->data, skb->data+cbHeaderOffset, FrameSize);
                skb_queue_tail(&(pMgmt->sNodeDBTable[0].sTxPSQueue), skbcpy);
+
                pMgmt->sNodeDBTable[0].wEnQueueCnt++;
                // set tx map
                pMgmt->abyPSTxMap[0] |= byMask[0];

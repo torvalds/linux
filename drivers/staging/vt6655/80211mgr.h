@@ -16,10 +16,11 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: 80211mgr.h
  *
- * Purpose: Defines the macros, types, and functions for dealing
- *          with 802.11 management frames.
+ * Purpose: 802.11 managment frames pre-defines.
+ *
  *
  * Author: Lyndon Chen
  *
@@ -272,7 +273,6 @@ typedef struct _WLAN_IE_FH_PARMS {
     BYTE    byHopPattern;
     BYTE    byHopIndex;
 } WLAN_IE_FH_PARMS,  *PWLAN_IE_FH_PARMS;
-
 
 // DS Parameter Set
 #pragma pack(1)

@@ -36,8 +36,9 @@
 #endif
 
 
-/*---------------------  Export Definitions -------------------------*/
 
+
+/*---------------------  Export Definitions -------------------------*/
 
 #define EEP_MAX_CONTEXT_SIZE    256
 
@@ -48,7 +49,6 @@
 //
 // Contents in the EEPROM
 //
-
 #define EEP_OFS_PAR         0x00        // physical address
 #define EEP_OFS_ANTENNA     0x16
 #define EEP_OFS_RADIOCTL    0x17
@@ -96,8 +96,6 @@
 //
 #define EEP_RADIOCTL_ENABLE 0x80
 #define EEP_RADIOCTL_INV    0x01
-
-
 
 /*---------------------  Export Types  ------------------------------*/
 
@@ -175,5 +173,3 @@ BOOL SROMbAutoLoad (DWORD_PTR dwIoBase);
 
 
 #endif // __EEPROM_H__
-
-

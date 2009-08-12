@@ -16,10 +16,11 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: 80211hdr.h
  *
- * Purpose: Defines the macros, types, and functions for dealing
- *          with 802.11 MAC headers.
+ * Purpose: 802.11 MAC headers related pre-defines and macros.
+ *
  *
  * Author: Lyndon Chen
  *

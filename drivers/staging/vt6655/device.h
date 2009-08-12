@@ -81,9 +81,10 @@
 //
 
 
-
-//  device specific
 //
+// device specific
+//
+
 #if !defined(_KCOMPAT_H)
 #include "kcompat.h"
 #endif
@@ -122,11 +123,9 @@
 #if !defined(__DESC_H__)
 #include "desc.h"
 #endif
-
 #if !defined(__KEY_H__)
 #include "key.h"
 #endif
-
 #if !defined(__MAC_H__)
 #include "mac.h"
 #endif
@@ -187,6 +186,7 @@
 
 #define BB_VGA_LEVEL            4
 #define BB_VGA_CHANGE_THRESHOLD 16
+
 
 
 #ifndef RUN_AT
@@ -312,7 +312,6 @@ typedef struct tagSPMKIDCandidateEvent {
     PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
 } SPMKIDCandidateEvent, DEF* PSPMKIDCandidateEvent;
 
-
 //--
 
 //++ 802.11h related
@@ -347,7 +346,6 @@ typedef struct tagSCacheEntry{
     BYTE        abyAddr2[U_ETHER_ADDR_LEN];
 } SCacheEntry, *PSCacheEntry;
 
-
 typedef struct tagSCache{
 /* The receive cache is updated circularly.  The next entry to be written is
  * indexed by the "InPtr".
@@ -369,7 +367,6 @@ typedef struct tagSDeFragControlBlock
     UINT            cbFrameLength;
     BOOL            bInUse;
 } SDeFragControlBlock, DEF* PSDeFragControlBlock;
-
 
 
 
@@ -417,11 +414,11 @@ typedef	struct _RxManagementQueue
 
 
 typedef struct __device_opt {
-    int         nRxDescs0;      //Number of RX descriptors0
-    int         nRxDescs1;      //Number of RX descriptors1
-    int         nTxDescs[2];    //Number of TX descriptors 0, 1
-    int         int_works;      //interrupt limits
-    int         rts_thresh;     //rts threshold
+    int         nRxDescs0;    //Number of RX descriptors0
+    int         nRxDescs1;    //Number of RX descriptors1
+    int         nTxDescs[2];  //Number of TX descriptors 0, 1
+    int         int_works;    //interrupt limits
+    int         rts_thresh;   //rts threshold
     int         frag_thresh;
     int         data_rate;
     int         channel_num;
@@ -609,8 +606,8 @@ typedef struct __device_info {
     BYTE                        byERPFlag;
     WORD                        wUseProtectCntDown;
 
-    BOOL                    bRadioControlOff;
-    BOOL                    bRadioOff;
+    BOOL                        bRadioControlOff;
+    BOOL                        bRadioOff;
     BOOL                    bEnablePSMode;
     WORD                    wListenInterval;
     BOOL                    bPWBitOn;
@@ -666,6 +663,7 @@ typedef struct __device_info {
 //2007-0925-01<Add>by MikeLiu
 //mike add :save old Encryption
     NDIS_802_11_WEP_STATUS  eOldEncryptionStatus;
+
     SKeyManagement          sKey;
     DWORD                   dwIVCounter;
 
@@ -674,7 +672,6 @@ typedef struct __device_info {
 
     RC4Ext                  SBox;
     BYTE                    abyPRNG[WLAN_WEPMAX_KEYLEN+3];
-
     BYTE                    byKeyIndex;
     UINT                    uKeyLength;
     BYTE                    abyKey[WLAN_WEP232_KEYLEN];
@@ -712,6 +709,7 @@ typedef struct __device_info {
 
     BYTE                    byBBPreEDRSSI;
     BYTE                    byBBPreEDIndex;
+
 
     BOOL                    bRadioCmd;
     DWORD                   dwDiagRefCount;

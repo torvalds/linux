@@ -85,6 +85,7 @@ s_vCheckKeyTableValid (PSKeyManagement pTable, DWORD_PTR dwIoBase)
             (pTable->KeyTable[i].GroupKey[2].bKeyValid == FALSE) &&
             (pTable->KeyTable[i].GroupKey[3].bKeyValid == FALSE)
             ) {
+
             pTable->KeyTable[i].bInUse = FALSE;
             pTable->KeyTable[i].wKeyCtl = 0;
             pTable->KeyTable[i].bSoftWEP = FALSE;

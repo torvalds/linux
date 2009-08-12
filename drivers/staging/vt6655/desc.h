@@ -43,6 +43,9 @@
 #endif
 
 
+
+
+
 /*---------------------  Export Definitions -------------------------*/
 
 #define B_OWNED_BY_CHIP     1           //
@@ -127,6 +130,7 @@
 #define CB_MAX_MAP_REG_NUM  CB_MAX_TX_DESC
 
 #define CB_PROTOCOL_RESERVED_SECTION    16
+
 
 
 // if retrys excess 15 times , tx will abort, and

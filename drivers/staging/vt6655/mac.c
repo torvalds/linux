@@ -16,6 +16,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
+ *
  * File: mac.c
  *
  * Purpose:  MAC routines
@@ -67,6 +68,8 @@
  *
  */
 
+
+
 #if !defined(__TMACRO_H__)
 #include "tmacro.h"
 #endif
@@ -94,6 +97,10 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
+
+
+
+
 
 /*
  * Description:
