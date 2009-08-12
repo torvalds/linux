@@ -83,7 +83,6 @@
 #include <inttypes.h>
 #include "../../../include/linux/magic.h"
 
-#include "event.h"
 
 #ifndef NO_ICONV
 #include <iconv.h>

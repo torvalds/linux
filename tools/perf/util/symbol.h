@@ -6,6 +6,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include "module.h"
+#include "event.h"
 
 struct symbol {
 	struct rb_node	rb_node;

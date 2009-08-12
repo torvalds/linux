@@ -15,6 +15,7 @@
 #include "util/string.h"
 
 #include "util/header.h"
+#include "util/event.h"
 
 #include <unistd.h>
 #include <sched.h>

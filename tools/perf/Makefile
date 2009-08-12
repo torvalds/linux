@@ -340,6 +340,7 @@ LIB_OBJS += util/header.o
 LIB_OBJS += util/callchain.o
 LIB_OBJS += util/values.o
 LIB_OBJS += util/debug.o
+LIB_OBJS += util/map.o
 
 BUILTIN_OBJS += builtin-annotate.o
 BUILTIN_OBJS += builtin-help.o
