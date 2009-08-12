@@ -11885,13 +11885,13 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	bp = netdev_priv(dev);
 	bp->msglevel = debug;
 
+	pci_set_drvdata(pdev, dev);
+
 	rc = bnx2x_init_dev(pdev, dev);
 	if (rc < 0) {
 		free_netdev(dev);
 		return rc;
 	}
-
-	pci_set_drvdata(pdev, dev);
 
 	rc = bnx2x_init_bp(bp);
 	if (rc)
