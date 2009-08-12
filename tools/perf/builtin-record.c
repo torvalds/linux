@@ -59,24 +59,6 @@ static int			file_new = 1;
 
 struct perf_header		*header;
 
-struct mmap_event {
-	struct perf_event_header	header;
-	u32				pid;
-	u32				tid;
-	u64				start;
-	u64				len;
-	u64				pgoff;
-	char				filename[PATH_MAX];
-};
-
-struct comm_event {
-	struct perf_event_header	header;
-	u32				pid;
-	u32				tid;
-	char				comm[16];
-};
-
-
 struct mmap_data {
 	int			counter;
 	void			*base;
