@@ -12232,32 +12232,40 @@ static int alc268_auto_create_analog_input_ctls(struct alc_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, idx1;
+	int i, idx1, dmic_nid;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		switch(cfg->input_pins[i]) {
-		case 0x18:
-			idx1 = 0;	/* Mic 1 */
-			break;
-		case 0x19:
-			idx1 = 1;	/* Mic 2 */
-			break;
-		case 0x1a:
-			idx1 = 2;	/* Line In */
-			break;
-		case 0x1c:
-			idx1 = 3;	/* CD */
-			break;
-		case 0x12:
-		case 0x13:
-			idx1 = 6;	/* digital mics */
-			break;
-		default:
-			continue;
+	dmic_nid = 0x12;
+	while (dmic_nid <= 0x13) {
+		for (i = 0; i < AUTO_PIN_LAST; i++) {
+			switch (cfg->input_pins[i]) {
+			case 0x18:
+				idx1 = 0;	/* Mic 1 */
+				break;
+			case 0x19:
+				idx1 = 1;	/* Mic 2 */
+				break;
+			case 0x1a:
+				idx1 = 2;	/* Line In */
+				break;
+			case 0x1c:
+				idx1 = 3;	/* CD */
+				break;
+			case 0x12:
+			case 0x13:
+				if (cfg->input_pins[i] != dmic_nid)
+					continue;
+				idx1 = 6;	/* digital mics */
+				break;
+			default:
+				continue;
+			}
+			imux->items[imux->num_items].label =
+				auto_pin_cfg_labels[i];
+			imux->items[imux->num_items].index = idx1;
+			imux->num_items++;
 		}
-		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
-		imux->items[imux->num_items].index = idx1;
-		imux->num_items++;
+		imux++;
+		dmic_nid++;
 	}
 	return 0;
 }
@@ -12355,7 +12363,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 		add_mixer(spec, alc268_beep_mixer);
 
 	add_verb(spec, alc268_volume_init_verbs);
-	spec->num_mux_defs = 1;
+	spec->num_mux_defs = 2;
 	spec->input_mux = &spec->private_imux[0];
 
 	err = alc_auto_add_mic_boost(codec);
@@ -12665,6 +12673,8 @@ static int patch_alc268(struct hda_codec *codec)
 		for (i = 0; i < spec->num_adc_nids; i++)
 			snd_hda_codec_write_cache(codec, alc268_capsrc_nids[i],
 				0, AC_VERB_SET_CONNECT_SEL,
+				i < spec->num_mux_defs ?
+				spec->input_mux[i].items[0].index :
 				spec->input_mux->items[0].index);
 	}
 
