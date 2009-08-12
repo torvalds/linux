@@ -601,8 +601,8 @@ void wiphy_unregister(struct wiphy *wiphy)
 
 	mutex_unlock(&cfg80211_mutex);
 
+	flush_work(&rdev->scan_done_wk);
 	cancel_work_sync(&rdev->conn_work);
-	cancel_work_sync(&rdev->scan_done_wk);
 	kfree(rdev->scan_req);
 	flush_work(&rdev->event_work);
 }
@@ -728,6 +728,13 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #endif
 		break;
 	case NETDEV_UNREGISTER:
+		cfg80211_lock_rdev(rdev);
+
+		if (WARN_ON(rdev->scan_req && rdev->scan_req->dev == dev)) {
+			rdev->scan_req->aborted = true;
+			___cfg80211_scan_done(rdev);
+		}
+
 		mutex_lock(&rdev->devlist_mtx);
 		/*
 		 * It is possible to get NETDEV_UNREGISTER
@@ -746,6 +753,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #endif
 		}
 		mutex_unlock(&rdev->devlist_mtx);
+		cfg80211_unlock_rdev(rdev);
 		break;
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))
