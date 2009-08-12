@@ -607,8 +607,8 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
         CARDbSetMediaChannel(pDevice, pMgmt->uCurrChannel);
 
         // get Permanent network address
-        MEMvCopy(pDevice->abyPermanentNetAddr,&(sInitRsp.byNetAddr[0]),6)
-        MEMvCopy(pDevice->abyCurrentNetAddr, pDevice->abyPermanentNetAddr, U_ETHER_ADDR_LEN);
+        memcpy(pDevice->abyPermanentNetAddr,&(sInitRsp.byNetAddr[0]),6);
+        memcpy(pDevice->abyCurrentNetAddr, pDevice->abyPermanentNetAddr, U_ETHER_ADDR_LEN);
 
         // if exist SW network address, use SW network address.
 

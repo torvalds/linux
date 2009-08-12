@@ -35,7 +35,6 @@
 #include "tmacro.h"
 #include "tbit.h"
 #include "tkip.h"
-#include "umem.h"
 
 /*---------------------  Static Definitions -------------------------*/
 

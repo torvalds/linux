@@ -45,7 +45,6 @@
 #include "power.h"
 #include "wcmd.h"
 #include "tbit.h"
-#include "umem.h"
 #include "rxtx.h"
 #include "card.h"
 #include "control.h"

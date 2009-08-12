@@ -31,7 +31,6 @@
  *
  */
 
-#include "umem.h"
 #include "firmware.h"
 #include "control.h"
 #include "rndis.h"

@@ -38,7 +38,6 @@
  *
  */
 
-#include "umem.h"
 #include "int.h"
 #include "rxtx.h"
 #include "dpc.h"

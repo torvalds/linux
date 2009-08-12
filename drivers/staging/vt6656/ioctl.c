@@ -35,7 +35,6 @@
 #include "mac.h"
 #include "card.h"
 #include "hostap.h"
-#include "umem.h"
 #include "wpactl.h"
 #include "control.h"
 #include "rndis.h"

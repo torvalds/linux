@@ -43,7 +43,6 @@
 #include "tether.h"
 #include "mib.h"
 #include "wctl.h"
-#include "umem.h"
 #include "baseband.h"
 
 /*---------------------  Static Definitions -------------------------*/
@@ -75,7 +74,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 void STAvClearAllCounter (PSStatCounter pStatistic)
 {
     // set memory to zero
-    ZERO_MEMORY(pStatistic, sizeof(SStatCounter));
+	memset(pStatistic, 0, sizeof(SStatCounter));
 }
 
 
@@ -388,7 +387,7 @@ STAvUpdateRDStatCounterEx (
     // rx length
     pStatistic->dwCntRxFrmLength = cbFrameLength;
     // rx pattern, we just see 10 bytes for sample
-    MEMvCopy(pStatistic->abyCntRxPattern, (PBYTE)pbyBuffer, 10);
+    memcpy(pStatistic->abyCntRxPattern, (PBYTE)pbyBuffer, 10);
 }
 
 
@@ -543,7 +542,7 @@ void
 STAvClear802_11Counter(PSDot11Counters p802_11Counter)
 {
     // set memory to zero
-    ZERO_MEMORY(p802_11Counter, sizeof(SDot11Counters));
+	memset(p802_11Counter, 0, sizeof(SDot11Counters));
 }
 
 /*

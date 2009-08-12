@@ -51,7 +51,6 @@
 #include "card.h"
 #include "baseband.h"
 #include "control.h"
-#include "umem.h"
 #include "rxtx.h"
 #include "rf.h"
 #include "rndis.h"
@@ -1117,14 +1116,14 @@ s_bCommandComplete (
                 pDevice->eCommandState = WLAN_CMD_SCAN_START;
                 pMgmt->uScanChannel = 0;
                 if (pSSID->len != 0) {
-                    MEMvCopy(pMgmt->abyScanSSID, pSSID, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
+                    memcpy(pMgmt->abyScanSSID, pSSID, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
                 } else {
                     memset(pMgmt->abyScanSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
                 }
 /*
                 if ((bForceSCAN == FALSE) && (pDevice->bLinkPass == TRUE)) {
                     if ((pSSID->len == ((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->len) &&
-                        (MEMEqualMemory(pSSID->abySSID, ((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->abySSID, pSSID->len))) {
+                        ( !memcmp(pSSID->abySSID, ((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->abySSID, pSSID->len))) {
                         pDevice->eCommandState = WLAN_CMD_IDLE;
                     }
                 }
@@ -1135,7 +1134,7 @@ s_bCommandComplete (
                 if (pSSID->len > WLAN_SSID_MAXLEN)
                     pSSID->len = WLAN_SSID_MAXLEN;
                 if (pSSID->len != 0)
-                    MEMvCopy(pMgmt->abyDesireSSID, pSSID, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
+                    memcpy(pMgmt->abyDesireSSID, pSSID, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState= WLAN_CMD_SSID_START\n");
                 break;
             case WLAN_CMD_DISASSOCIATE:
@@ -1213,12 +1212,12 @@ BOOL bScheduleCommand (
         switch (eCommand) {
             case WLAN_CMD_BSSID_SCAN:
                 pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bForceSCAN = FALSE;
-                MEMvCopy(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID,
+                memcpy(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID,
                          pbyItem0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
                 break;
 
             case WLAN_CMD_SSID:
-                MEMvCopy(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID,
+                memcpy(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID,
                          pbyItem0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
                 break;
 

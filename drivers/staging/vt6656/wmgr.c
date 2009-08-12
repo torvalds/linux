@@ -78,7 +78,6 @@
 #include "rxtx.h"
 #include "wpa.h"
 #include "rf.h"
-#include "umem.h"
 #include "iowpa.h"
 #include "control.h"
 #include "rndis.h"
@@ -3022,7 +3021,7 @@ s_vMgrSynchBSS (
     // set BSSID
     MACvWriteBSSIDAddress(pDevice, pCurr->abyBSSID);
 
-    MEMvCopy(pMgmt->abyCurrBSSID, pCurr->abyBSSID, 6);
+    memcpy(pMgmt->abyCurrBSSID, pCurr->abyBSSID, 6);
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Sync:set CurrBSSID address = %02x-%02x-%02x=%02x-%02x-%02x\n",
         pMgmt->abyCurrBSSID[0],
@@ -3105,14 +3104,14 @@ s_vMgrSynchBSS (
     };
 
     if (pDevice->byBBType == BB_TYPE_11A) {
-        MEMvCopy(pMgmt->abyCurrSuppRates, &abyCurrSuppRatesA[0], sizeof(abyCurrSuppRatesA));
+        memcpy(pMgmt->abyCurrSuppRates, &abyCurrSuppRatesA[0], sizeof(abyCurrSuppRatesA));
         pMgmt->abyCurrExtSuppRates[1] = 0;
     } else if (pDevice->byBBType == BB_TYPE_11B) {
-        MEMvCopy(pMgmt->abyCurrSuppRates, &abyCurrSuppRatesB[0], sizeof(abyCurrSuppRatesB));
+        memcpy(pMgmt->abyCurrSuppRates, &abyCurrSuppRatesB[0], sizeof(abyCurrSuppRatesB));
         pMgmt->abyCurrExtSuppRates[1] = 0;
     } else {
-        MEMvCopy(pMgmt->abyCurrSuppRates, &abyCurrSuppRatesG[0], sizeof(abyCurrSuppRatesG));
-        MEMvCopy(pMgmt->abyCurrExtSuppRates, &abyCurrExtSuppRatesG[0], sizeof(abyCurrExtSuppRatesG));
+        memcpy(pMgmt->abyCurrSuppRates, &abyCurrSuppRatesG[0], sizeof(abyCurrSuppRatesG));
+        memcpy(pMgmt->abyCurrExtSuppRates, &abyCurrExtSuppRatesG[0], sizeof(abyCurrExtSuppRatesG));
     }
     pMgmt->byERPContext = pCurr->sERP.byERP;
 
@@ -3389,7 +3388,7 @@ s_MgrMakeBeacon(
     if (((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len != 0) {
         sFrame.pExtSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
         sFrame.len += ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN;
-        MEMvCopy(sFrame.pExtSuppRates,
+        memcpy(sFrame.pExtSuppRates,
              pCurrExtSuppRates,
              ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN
              );
@@ -3524,7 +3523,7 @@ s_MgrMakeProbeResponse(
     if (((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len != 0) {
         sFrame.pExtSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
         sFrame.len += ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN;
-        MEMvCopy(sFrame.pExtSuppRates,
+        memcpy(sFrame.pExtSuppRates,
              pCurrExtSuppRates,
              ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN
              );
@@ -3610,7 +3609,7 @@ s_MgrMakeAssocRequest(
     pMgmt->sAssocInfo.AssocInfo.RequestIELength = pCurrSSID->len + WLAN_IEHDR_LEN;
     pMgmt->sAssocInfo.AssocInfo.OffsetRequestIEs = sizeof(NDIS_802_11_ASSOCIATION_INFORMATION);
     pbyIEs = pMgmt->sAssocInfo.abyIEs;
-    MEMvCopy(pbyIEs, pCurrSSID, pCurrSSID->len + WLAN_IEHDR_LEN);
+    memcpy(pbyIEs, pCurrSSID, pCurrSSID->len + WLAN_IEHDR_LEN);
     pbyIEs += pCurrSSID->len + WLAN_IEHDR_LEN;
 
     // Copy the rate set
@@ -3629,7 +3628,7 @@ s_MgrMakeAssocRequest(
     }
 
     pMgmt->sAssocInfo.AssocInfo.RequestIELength += pCurrRates->len + WLAN_IEHDR_LEN;
-    MEMvCopy(pbyIEs, pCurrRates, pCurrRates->len + WLAN_IEHDR_LEN);
+    memcpy(pbyIEs, pCurrRates, pCurrRates->len + WLAN_IEHDR_LEN);
     pbyIEs += pCurrRates->len + WLAN_IEHDR_LEN;
 
 
@@ -3700,7 +3699,7 @@ s_MgrMakeAssocRequest(
         sFrame.len += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
         // copy to AssocInfo. for OID_802_11_ASSOCIATION_INFORMATION
         pMgmt->sAssocInfo.AssocInfo.RequestIELength += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
-        MEMvCopy(pbyIEs, sFrame.pRSNWPA, sFrame.pRSNWPA->len + WLAN_IEHDR_LEN);
+        memcpy(pbyIEs, sFrame.pRSNWPA, sFrame.pRSNWPA->len + WLAN_IEHDR_LEN);
         pbyIEs += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
 
     } else if (((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) ||
@@ -3762,7 +3761,7 @@ s_MgrMakeAssocRequest(
 
         // RSN Capabilites
         if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == TRUE) {
-            MEMvCopy(&sFrame.pRSN->abyRSN[16], &pMgmt->pCurrBSS->sRSNCapObj.wRSNCap, 2);
+            memcpy(&sFrame.pRSN->abyRSN[16], &pMgmt->pCurrBSS->sRSNCapObj.wRSNCap, 2);
         } else {
             sFrame.pRSN->abyRSN[16] = 0;
             sFrame.pRSN->abyRSN[17] = 0;
@@ -3776,9 +3775,9 @@ s_MgrMakeAssocRequest(
             *pwPMKID = 0;            // Initialize PMKID count
             pbyRSN += 2;             // Point to PMKID list
             for (ii = 0; ii < pDevice->gsPMKID.BSSIDInfoCount; ii++) {
-                if (MEMEqualMemory(&pDevice->gsPMKID.BSSIDInfo[ii].BSSID[0], pMgmt->abyCurrBSSID, U_ETHER_ADDR_LEN)) {
+                if ( !memcmp(&pDevice->gsPMKID.BSSIDInfo[ii].BSSID[0], pMgmt->abyCurrBSSID, U_ETHER_ADDR_LEN)) {
                     (*pwPMKID) ++;
-                    MEMvCopy(pbyRSN, pDevice->gsPMKID.BSSIDInfo[ii].PMKID, 16);
+                    memcpy(pbyRSN, pDevice->gsPMKID.BSSIDInfo[ii].PMKID, 16);
                     pbyRSN += 16;
                 }
             }
@@ -3790,7 +3789,7 @@ s_MgrMakeAssocRequest(
         sFrame.len += sFrame.pRSN->len + WLAN_IEHDR_LEN;
         // copy to AssocInfo. for OID_802_11_ASSOCIATION_INFORMATION
         pMgmt->sAssocInfo.AssocInfo.RequestIELength += sFrame.pRSN->len + WLAN_IEHDR_LEN;
-        MEMvCopy(pbyIEs, sFrame.pRSN, sFrame.pRSN->len + WLAN_IEHDR_LEN);
+        memcpy(pbyIEs, sFrame.pRSN, sFrame.pRSN->len + WLAN_IEHDR_LEN);
         pbyIEs += sFrame.pRSN->len + WLAN_IEHDR_LEN;
     }
 
@@ -3872,7 +3871,7 @@ s_MgrMakeReAssocRequest(
     pMgmt->sAssocInfo.AssocInfo.RequestIELength = pCurrSSID->len + WLAN_IEHDR_LEN;
     pMgmt->sAssocInfo.AssocInfo.OffsetRequestIEs = sizeof(NDIS_802_11_ASSOCIATION_INFORMATION);
     pbyIEs = pMgmt->sAssocInfo.abyIEs;
-    MEMvCopy(pbyIEs, pCurrSSID, pCurrSSID->len + WLAN_IEHDR_LEN);
+    memcpy(pbyIEs, pCurrSSID, pCurrSSID->len + WLAN_IEHDR_LEN);
     pbyIEs += pCurrSSID->len + WLAN_IEHDR_LEN;
 
     /* Copy the rate set */
@@ -3889,7 +3888,7 @@ s_MgrMakeReAssocRequest(
     }
 
     pMgmt->sAssocInfo.AssocInfo.RequestIELength += pCurrRates->len + WLAN_IEHDR_LEN;
-    MEMvCopy(pbyIEs, pCurrRates, pCurrRates->len + WLAN_IEHDR_LEN);
+    memcpy(pbyIEs, pCurrRates, pCurrRates->len + WLAN_IEHDR_LEN);
     pbyIEs += pCurrRates->len + WLAN_IEHDR_LEN;
 
     if (((pMgmt->eAuthenMode == WMAC_AUTH_WPA) ||
@@ -3956,7 +3955,7 @@ s_MgrMakeReAssocRequest(
         sFrame.len += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
         // copy to AssocInfo. for OID_802_11_ASSOCIATION_INFORMATION
         pMgmt->sAssocInfo.AssocInfo.RequestIELength += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
-        MEMvCopy(pbyIEs, sFrame.pRSNWPA, sFrame.pRSNWPA->len + WLAN_IEHDR_LEN);
+        memcpy(pbyIEs, sFrame.pRSNWPA, sFrame.pRSNWPA->len + WLAN_IEHDR_LEN);
         pbyIEs += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
 
     } else if (((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) ||
@@ -4018,7 +4017,7 @@ s_MgrMakeReAssocRequest(
 
         // RSN Capabilites
         if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == TRUE) {
-            MEMvCopy(&sFrame.pRSN->abyRSN[16], &pMgmt->pCurrBSS->sRSNCapObj.wRSNCap, 2);
+            memcpy(&sFrame.pRSN->abyRSN[16], &pMgmt->pCurrBSS->sRSNCapObj.wRSNCap, 2);
         } else {
             sFrame.pRSN->abyRSN[16] = 0;
             sFrame.pRSN->abyRSN[17] = 0;
@@ -4032,9 +4031,9 @@ s_MgrMakeReAssocRequest(
             *pwPMKID = 0;            // Initialize PMKID count
             pbyRSN += 2;             // Point to PMKID list
             for (ii = 0; ii < pDevice->gsPMKID.BSSIDInfoCount; ii++) {
-                if (MEMEqualMemory(&pDevice->gsPMKID.BSSIDInfo[ii].BSSID[0], pMgmt->abyCurrBSSID, U_ETHER_ADDR_LEN)) {
+                if ( !memcmp(&pDevice->gsPMKID.BSSIDInfo[ii].BSSID[0], pMgmt->abyCurrBSSID, U_ETHER_ADDR_LEN)) {
                     (*pwPMKID) ++;
-                    MEMvCopy(pbyRSN, pDevice->gsPMKID.BSSIDInfo[ii].PMKID, 16);
+                    memcpy(pbyRSN, pDevice->gsPMKID.BSSIDInfo[ii].PMKID, 16);
                     pbyRSN += 16;
                 }
             }
@@ -4046,7 +4045,7 @@ s_MgrMakeReAssocRequest(
         sFrame.len += sFrame.pRSN->len + WLAN_IEHDR_LEN;
         // copy to AssocInfo. for OID_802_11_ASSOCIATION_INFORMATION
         pMgmt->sAssocInfo.AssocInfo.RequestIELength += sFrame.pRSN->len + WLAN_IEHDR_LEN;
-        MEMvCopy(pbyIEs, sFrame.pRSN, sFrame.pRSN->len + WLAN_IEHDR_LEN);
+        memcpy(pbyIEs, sFrame.pRSN, sFrame.pRSN->len + WLAN_IEHDR_LEN);
         pbyIEs += sFrame.pRSN->len + WLAN_IEHDR_LEN;
     }
 
@@ -4121,7 +4120,7 @@ s_MgrMakeAssocResponse(
     if (((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len != 0) {
         sFrame.pExtSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
         sFrame.len += ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN;
-        MEMvCopy(sFrame.pExtSuppRates,
+        memcpy(sFrame.pExtSuppRates,
              pCurrExtSuppRates,
              ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN
              );
@@ -4195,7 +4194,7 @@ s_MgrMakeReAssocResponse(
     if (((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len != 0) {
         sFrame.pExtSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
         sFrame.len += ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN;
-        MEMvCopy(sFrame.pExtSuppRates,
+        memcpy(sFrame.pExtSuppRates,
              pCurrExtSuppRates,
              ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN
              );
@@ -4748,7 +4747,7 @@ bAdd_PMKID_Candidate (
     // Update Old Candidate
     for (ii = 0; ii < pDevice->gsPMKIDCandidate.NumCandidates; ii++) {
         pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[ii];
-        if (MEMEqualMemory(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN)) {
+        if ( !memcmp(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN)) {
             if ((psRSNCapObj->bRSNCapExist == TRUE) && (psRSNCapObj->wRSNCap & BIT0)) {
                 pCandidateList->Flags |= NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
             } else {
@@ -4765,7 +4764,7 @@ bAdd_PMKID_Candidate (
     } else {
         pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
     }
-    MEMvCopy(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN);
+    memcpy(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN);
     pDevice->gsPMKIDCandidate.NumCandidates++;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"NumCandidates:%d\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
     return TRUE;
@@ -4795,7 +4794,7 @@ vFlush_PMKID_Candidate (
     if (pDevice == NULL)
         return;
 
-    ZERO_MEMORY(&pDevice->gsPMKIDCandidate, sizeof(SPMKIDCandidateEvent));
+    memset(&pDevice->gsPMKIDCandidate, 0, sizeof(SPMKIDCandidateEvent));
 }
 
 static BOOL

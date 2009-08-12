@@ -36,7 +36,6 @@
 #include "mac.h"
 #include "card.h"
 #include "hostap.h"
-#include "umem.h"
 #include "power.h"
 #include "rf.h"
 

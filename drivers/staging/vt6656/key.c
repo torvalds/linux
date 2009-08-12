@@ -39,7 +39,6 @@
 #include "tmacro.h"
 #include "tbit.h"
 #include "key.h"
-#include "umem.h"
 #include "mac.h"
 #include "rndis.h"
 #include "control.h"
@@ -278,7 +277,7 @@ BOOL KeybSetKey (
             pKey->uKeyLength = uKeyLength;
             pKey->dwKeyIndex = dwKeyIndex;
             pKey->byCipherSuite = byKeyDecMode;
-            MEMvCopy(pKey->abyKey, pbyKey, uKeyLength);
+            memcpy(pKey->abyKey, pbyKey, uKeyLength);
             if (byKeyDecMode == KEY_CTL_WEP) {
                 if (uKeyLength == WLAN_WEP40_KEYLEN)
                     pKey->abyKey[15] &= 0x7F;
@@ -289,10 +288,10 @@ BOOL KeybSetKey (
 
             if ((dwKeyIndex & USE_KEYRSC) == 0) {
                 // RSC set by NIC
-                ZERO_MEMORY(&(pKey->KeyRSC), sizeof(QWORD));
+		    memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
             }
             else {
-                MEMvCopy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+                memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
             }
             pKey->dwTSC47_16 = 0;
             pKey->wTSC15_0 = 0;
@@ -314,7 +313,7 @@ BOOL KeybSetKey (
         }
     }
     if (j < (MAX_KEY_TABLE-1)) {
-        MEMvCopy(pTable->KeyTable[j].abyBSSID,pbyBSSID,U_ETHER_ADDR_LEN);
+        memcpy(pTable->KeyTable[j].abyBSSID,pbyBSSID,U_ETHER_ADDR_LEN);
         pTable->KeyTable[j].bInUse = TRUE;
         if ((dwKeyIndex & PAIRWISE_KEY) != 0)  {
             // Pairwise key
@@ -343,7 +342,7 @@ BOOL KeybSetKey (
         pKey->uKeyLength = uKeyLength;
         pKey->dwKeyIndex = dwKeyIndex;
         pKey->byCipherSuite = byKeyDecMode;
-        MEMvCopy(pKey->abyKey, pbyKey, uKeyLength);
+        memcpy(pKey->abyKey, pbyKey, uKeyLength);
         if (byKeyDecMode == KEY_CTL_WEP) {
             if (uKeyLength == WLAN_WEP40_KEYLEN)
                 pKey->abyKey[15] &= 0x7F;
@@ -354,10 +353,10 @@ BOOL KeybSetKey (
 
         if ((dwKeyIndex & USE_KEYRSC) == 0) {
             // RSC set by NIC
-            ZERO_MEMORY(&(pKey->KeyRSC), sizeof(QWORD));
+		memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
         }
         else {
-            MEMvCopy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+            memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
         }
         pKey->dwTSC47_16 = 0;
         pKey->wTSC15_0 = 0;
@@ -732,7 +731,7 @@ BOOL KeybSetDefaultKey (
     pKey->uKeyLength = uKeyLength;
     pKey->dwKeyIndex = dwKeyIndex;
     pKey->byCipherSuite = byKeyDecMode;
-    MEMvCopy(pKey->abyKey, pbyKey, uKeyLength);
+    memcpy(pKey->abyKey, pbyKey, uKeyLength);
     if (byKeyDecMode == KEY_CTL_WEP) {
         if (uKeyLength == WLAN_WEP40_KEYLEN)
             pKey->abyKey[15] &= 0x7F;
@@ -744,9 +743,9 @@ BOOL KeybSetDefaultKey (
 
     if ((dwKeyIndex & USE_KEYRSC) == 0) {
         // RSC set by NIC
-        ZERO_MEMORY(&(pKey->KeyRSC), sizeof(QWORD));
+	    memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
     } else {
-        MEMvCopy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+        memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
     }
     pKey->dwTSC47_16 = 0;
     pKey->wTSC15_0 = 0;
@@ -832,7 +831,7 @@ BOOL KeybSetAllGroupKey (
             pKey->uKeyLength = uKeyLength;
             pKey->dwKeyIndex = dwKeyIndex;
             pKey->byCipherSuite = byKeyDecMode;
-            MEMvCopy(pKey->abyKey, pbyKey, uKeyLength);
+            memcpy(pKey->abyKey, pbyKey, uKeyLength);
             if (byKeyDecMode == KEY_CTL_WEP) {
                 if (uKeyLength == WLAN_WEP40_KEYLEN)
                     pKey->abyKey[15] &= 0x7F;
@@ -844,10 +843,10 @@ BOOL KeybSetAllGroupKey (
 
             if ((dwKeyIndex & USE_KEYRSC) == 0) {
                 // RSC set by NIC
-                ZERO_MEMORY(&(pKey->KeyRSC), sizeof(QWORD));
+		    memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
             }
             else {
-                MEMvCopy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
+                memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
             }
             pKey->dwTSC47_16 = 0;
             pKey->wTSC15_0 = 0;

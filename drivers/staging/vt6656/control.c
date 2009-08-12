@@ -39,7 +39,6 @@
  */
 
 #include "control.h"
-#include "umem.h"
 #include "rndis.h"
 
 /*---------------------  Static Definitions -------------------------*/

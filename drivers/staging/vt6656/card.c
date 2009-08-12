@@ -56,7 +56,6 @@
 #include "key.h"
 #include "rc4.h"
 #include "country.h"
-#include "umem.h"
 #include "datarate.h"
 #include "rndis.h"
 #include "control.h"

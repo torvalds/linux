@@ -39,7 +39,6 @@
 #include "mac.h"
 #include "power.h"
 #include "bssdb.h"
-#include "umem.h"
 #include "usbpipe.h"
 
 /*---------------------  Static Definitions -------------------------*/

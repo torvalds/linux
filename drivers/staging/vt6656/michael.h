@@ -31,8 +31,6 @@
 #ifndef __MICHAEL_H__
 #define __MICHAEL_H__
 
-#include "umem.h"
-
 /*---------------------  Export Definitions -------------------------*/
 
 /*---------------------  Export Types  ------------------------------*/

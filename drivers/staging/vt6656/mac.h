@@ -37,7 +37,6 @@
 #include "ttype.h"
 #include "device.h"
 #include "tmacro.h"
-#include "umem.h"
 
 /*---------------------  Export Definitions -------------------------*/
 

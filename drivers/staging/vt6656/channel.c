@@ -37,7 +37,6 @@
 #include "country.h"
 #include "channel.h"
 #include "rf.h"
-#include "umem.h"
 
 /*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
@@ -433,7 +432,7 @@ CHvChannelGetList (
     if (uCountryCodeIdx >= CCODE_MAX) {
         return (FALSE);
     }
-    MEMvCopy(pbyChannelTable, ChannelRuleTab[uCountryCodeIdx].bChannelIdxList, CB_MAX_CHANNEL);
+    memcpy(pbyChannelTable, ChannelRuleTab[uCountryCodeIdx].bChannelIdxList, CB_MAX_CHANNEL);
     return (TRUE);
 }
 

@@ -45,7 +45,6 @@
 #include "bssdb.h"
 #include "mac.h"
 #include "baseband.h"
-#include "umem.h"
 #include "michael.h"
 #include "tkip.h"
 #include "tcrc.h"
@@ -941,7 +940,7 @@ RXbBulkInProcessData (
             RSC = dwRxTSC47_16;
             RSC <<= 16;
             RSC += wRxTSC15_0;
-            MEMvCopy(&(pKey->KeyRSC), &RSC,  sizeof(QWORD));
+            memcpy(&(pKey->KeyRSC), &RSC,  sizeof(QWORD));
 
             if ( (pDevice->sMgmtObj.eCurrMode == WMAC_MODE_ESS_STA) &&
                  (pDevice->sMgmtObj.eCurrState == WMAC_STATE_ASSOC)) {
@@ -1239,8 +1238,8 @@ static BOOL s_bHandleRxEncryption (
             // 2. WEP 256
 
             PayloadLen -= (WLAN_HDR_ADDR3_LEN + 4 + 4); // 24 is 802.11 header,4 is IV, 4 is crc
-            MEMvCopy(pDevice->abyPRNG, pbyIV, 3);
-            MEMvCopy(pDevice->abyPRNG + 3, pKey->abyKey, pKey->uKeyLength);
+            memcpy(pDevice->abyPRNG, pbyIV, 3);
+            memcpy(pDevice->abyPRNG + 3, pKey->abyKey, pKey->uKeyLength);
             rc4_init(&pDevice->SBox, pDevice->abyPRNG, pKey->uKeyLength + 3);
             rc4_encrypt(&pDevice->SBox, pbyIV+4, pbyIV+4, PayloadLen);
 
@@ -1350,8 +1349,8 @@ static BOOL s_bHostWepRxEncryption (
             // 3. NotOnFly
 
             PayloadLen -= (WLAN_HDR_ADDR3_LEN + 4 + 4); // 24 is 802.11 header,4 is IV, 4 is crc
-            MEMvCopy(pDevice->abyPRNG, pbyIV, 3);
-            MEMvCopy(pDevice->abyPRNG + 3, pKey->abyKey, pKey->uKeyLength);
+            memcpy(pDevice->abyPRNG, pbyIV, 3);
+            memcpy(pDevice->abyPRNG + 3, pKey->abyKey, pKey->uKeyLength);
             rc4_init(&pDevice->SBox, pDevice->abyPRNG, pKey->uKeyLength + 3);
             rc4_encrypt(&pDevice->SBox, pbyIV+4, pbyIV+4, PayloadLen);
 
