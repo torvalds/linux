@@ -6512,7 +6512,9 @@ static int bnx2x_init_hw(struct bnx2x *bp, u32 load_code)
 
 	bp->dmae_ready = 0;
 	mutex_init(&bp->dmae_mutex);
-	bnx2x_gunzip_init(bp);
+	rc = bnx2x_gunzip_init(bp);
+	if (rc)
+		return rc;
 
 	switch (load_code) {
 	case FW_MSG_CODE_DRV_LOAD_COMMON:
