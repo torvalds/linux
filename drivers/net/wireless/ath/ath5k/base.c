@@ -471,7 +471,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 		 * DMA to work so force a reasonable value here if it
 		 * comes up zero.
 		 */
-		csz = L1_CACHE_BYTES / sizeof(u32);
+		csz = L1_CACHE_BYTES >> 2;
 		pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, csz);
 	}
 	/*
@@ -544,7 +544,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	__set_bit(ATH_STAT_INVALID, sc->status);
 
 	sc->iobase = mem; /* So we can unmap it on detach */
-	sc->common.cachelsz = csz * sizeof(u32); /* convert to bytes */
+	sc->common.cachelsz = csz << 2; /* convert to bytes */
 	sc->opmode = NL80211_IFTYPE_STATION;
 	sc->bintval = 1000;
 	mutex_init(&sc->lock);
