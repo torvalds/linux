@@ -47,6 +47,8 @@ static unsigned int marxbot_pins[] = {
 	MX31_PIN_CSI_PIXCLK__CSI_PIXCLK, MX31_PIN_CSI_VSYNC__CSI_VSYNC,
 	MX31_PIN_GPIO3_0__GPIO3_0, MX31_PIN_GPIO3_1__GPIO3_1,
 	MX31_PIN_TXD2__GPIO1_28,
+	/* dsPIC resets */
+	MX31_PIN_STXD5__GPIO1_21, MX31_PIN_SRXD5__GPIO1_22,
 };
 
 #define SDHC2_CD IOMUX_TO_GPIO(MX31_PIN_ATA_DIOR)
@@ -102,6 +104,22 @@ static struct imxmmc_platform_data sdhc2_pdata = {
 	.exit	= marxbot_sdhc2_exit,
 };
 
+#define TRSLAT_RST_B	IOMUX_TO_GPIO(MX31_PIN_STXD5)
+#define DSPICS_RST_B	IOMUX_TO_GPIO(MX31_PIN_SRXD5)
+
+static void dspics_resets_init(void)
+{
+	if (!gpio_request(TRSLAT_RST_B, "translator-rst")) {
+		gpio_direction_output(TRSLAT_RST_B, 1);
+		gpio_export(TRSLAT_RST_B, false);
+	}
+
+	if (!gpio_request(DSPICS_RST_B, "dspics-rst")) {
+		gpio_direction_output(DSPICS_RST_B, 1);
+		gpio_export(DSPICS_RST_B, false);
+	}
+}
+
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
  */
@@ -111,6 +129,8 @@ void __init mx31moboard_marxbot_init(void)
 
 	mxc_iomux_setup_multiple_pins(marxbot_pins, ARRAY_SIZE(marxbot_pins),
 		"marxbot");
+
+	dspics_resets_init();
 
 	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
 }
