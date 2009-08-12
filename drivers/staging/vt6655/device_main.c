@@ -62,7 +62,6 @@
 
 #include "device.h"
 #include "card.h"
-#include "tbit.h"
 #include "baseband.h"
 #include "mac.h"
 #include "tether.h"
@@ -789,8 +788,8 @@ else
             MACvGPIOIn(pDevice->PortOffset, &pDevice->byGPIO);
 //2008-4-14 <add> by chester for led issue
  #ifdef FOR_LED_ON_NOTEBOOK
-if (BITbIsBitOn(pDevice->byGPIO,GPIO0_DATA)){pDevice->bHWRadioOff = TRUE;}
-if (BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA)){pDevice->bHWRadioOff = FALSE;}
+if (pDevice->byGPIO & GPIO0_DATA){pDevice->bHWRadioOff = TRUE;}
+if ( !(pDevice->byGPIO & GPIO0_DATA)){pDevice->bHWRadioOff = FALSE;}
 
             }
         if ( (pDevice->bRadioControlOff == TRUE)) {
@@ -798,8 +797,8 @@ if (BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA)){pDevice->bHWRadioOff = FALSE;}
         }
 else  CARDbRadioPowerOn(pDevice);
 #else
-            if ((BITbIsBitOn(pDevice->byGPIO,GPIO0_DATA) && BITbIsBitOff(pDevice->byRadioCtl, EEP_RADIOCTL_INV)) ||
-                (BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA) && BITbIsBitOn(pDevice->byRadioCtl, EEP_RADIOCTL_INV))) {
+            if (((pDevice->byGPIO & GPIO0_DATA) && !(pDevice->byRadioCtl & EEP_RADIOCTL_INV)) ||
+                ( !(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV))) {
                 pDevice->bHWRadioOff = TRUE;
             }
         }
@@ -1703,7 +1702,7 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
                          uFIFOHeaderSize
                          );
 
-                if (BITbIsBitOff(byTsr1, TSR1_TERR)) {
+                if ( !(byTsr1 & TSR1_TERR)) {
                     if (byTsr0 != 0) {
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Tx[%d] OK but has error. tsr1[%02X] tsr0[%02X].\n",
                            (INT)uIdx, byTsr1, byTsr0);
@@ -1735,7 +1734,7 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
 	            }
             }
 
-            if (BITbIsBitOn(byTsr1, TSR1_TERR)) {
+            if (byTsr1 & TSR1_TERR) {
             if ((pTD->pTDInfo->byFlags & TD_FLAGS_PRIV_SKB) != 0) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Tx[%d] fail has error. tsr1[%02X] tsr0[%02X].\n",
                           (INT)uIdx, byTsr1, byTsr0);
@@ -2691,7 +2690,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
     /*
       // 2008-05-21 <mark> by Richardtai, we can't read RSSI here, because no packet bound with RSSI
 
-    	if ((BITbIsBitOn(pDevice->dwIsr, ISR_RXDMA0)) &&
+    	if ((pDevice->dwIsr & ISR_RXDMA0) &&
         (pDevice->byLocalID != REV_ID_VT3253_B0) &&
         (pDevice->bBSSIDFilter == TRUE)) {
         // update RSSI
@@ -2732,7 +2731,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 
         if (pDevice->byLocalID > REV_ID_VT3253_B1) {
 
-            if (BITbIsBitOn(pDevice->dwIsr, ISR_MEASURESTART)) {
+            if (pDevice->dwIsr & ISR_MEASURESTART) {
                 // 802.11h measure start
                 pDevice->byOrgChannel = pDevice->byCurrentCh;
                 VNSvInPortB(pDevice->PortOffset + MAC_REG_RCR, &(pDevice->byOrgRCR));
@@ -2764,7 +2763,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                     MACvSelectPage0(pDevice->PortOffset);
                 }
             }
-            if (BITbIsBitOn(pDevice->dwIsr, ISR_MEASUREEND)) {
+            if (pDevice->dwIsr & ISR_MEASUREEND) {
                 // 802.11h measure end
                 pDevice->bMeasureInProgress = FALSE;
                 VNSvOutPortB(pDevice->PortOffset + MAC_REG_RCR, pDevice->byOrgRCR);
@@ -2783,7 +2782,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                 MACvSelectPage1(pDevice->PortOffset);
                 MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL+1, MSRCTL1_TXPAUSE);
                 MACvSelectPage0(pDevice->PortOffset);
-                if (BITbIsBitOn(byData, MSRCTL_FINISH)) {
+                if (byData & MSRCTL_FINISH) {
                     // measure success
                     s_vCompleteCurrentMeasure(pDevice, 0);
                 } else {
@@ -2791,7 +2790,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                     s_vCompleteCurrentMeasure(pDevice, MEASURE_MODE_LATE);
                 }
             }
-            if (BITbIsBitOn(pDevice->dwIsr, ISR_QUIETSTART)) {
+            if (pDevice->dwIsr & ISR_QUIETSTART) {
                 do {
                     ;
                 } while (CARDbStartQuiet(pDevice) == FALSE);

@@ -39,7 +39,6 @@
  *
  */
 
-#include "tbit.h"
 #include "ttype.h"
 #include "tmacro.h"
 #include "tether.h"
@@ -1035,14 +1034,14 @@ BSSvSecondCallBack(
  //2008-4-14 <add> by chester for led issue
 #ifdef FOR_LED_ON_NOTEBOOK
 MACvGPIOIn(pDevice->PortOffset, &pDevice->byGPIO);
-if (((BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA)&&(pDevice->bHWRadioOff == FALSE))||(BITbIsBitOn(pDevice->byGPIO,GPIO0_DATA)&&(pDevice->bHWRadioOff == TRUE)))&&(cc==FALSE)){
+if ((( !(pDevice->byGPIO & GPIO0_DATA)&&(pDevice->bHWRadioOff == FALSE))||((pDevice->byGPIO & GPIO0_DATA)&&(pDevice->bHWRadioOff == TRUE)))&&(cc==FALSE)){
 cc=TRUE;
 }
 else if(cc==TRUE){
 
 if(pDevice->bHWRadioOff == TRUE){
-            if (BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA))
-//||(BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA) && BITbIsBitOn(pDevice->byRadioCtl, EEP_RADIOCTL_INV)))
+            if ( !(pDevice->byGPIO & GPIO0_DATA))
+//||( !(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV)))
 {if(status==1) goto start;
 status=1;
 CARDbRadioPowerOff(pDevice);
@@ -1053,15 +1052,15 @@ CARDbRadioPowerOff(pDevice);
                 pDevice->bLinkPass = FALSE;
 
 }
-  if (BITbIsBitOn(pDevice->byGPIO,GPIO0_DATA))
-//||(BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA) && BITbIsBitOn(pDevice->byRadioCtl, EEP_RADIOCTL_INV)))
+  if (pDevice->byGPIO &GPIO0_DATA)
+//||( !(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV)))
 {if(status==2) goto start;
 status=2;
 CARDbRadioPowerOn(pDevice);
 } }
 else{
-            if (BITbIsBitOn(pDevice->byGPIO,GPIO0_DATA))
-//||(BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA) && BITbIsBitOn(pDevice->byRadioCtl, EEP_RADIOCTL_INV)))
+            if (pDevice->byGPIO & GPIO0_DATA)
+//||( !(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV)))
 {if(status==3) goto start;
 status=3;
 CARDbRadioPowerOff(pDevice);
@@ -1072,8 +1071,8 @@ CARDbRadioPowerOff(pDevice);
                 pDevice->bLinkPass = FALSE;
 
 }
-  if (BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA))
-//||(BITbIsBitOff(pDevice->byGPIO,GPIO0_DATA) && BITbIsBitOn(pDevice->byRadioCtl, EEP_RADIOCTL_INV)))
+  if ( !(pDevice->byGPIO & GPIO0_DATA))
+//||( !(pDevice->byGPIO & GPIO0_DATA) && (pDevice->byRadioCtl & EEP_RADIOCTL_INV)))
 {if(status==4) goto start;
 status=4;
 CARDbRadioPowerOn(pDevice);

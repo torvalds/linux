@@ -38,13 +38,11 @@
  */
 
 #include "ttype.h"
-#include "tbit.h"
 #include "mac.h"
 #include "device.h"
 #include "wmgr.h"
 #include "power.h"
 #include "wcmd.h"
-#include "tbit.h"
 #include "rxtx.h"
 #include "card.h"
 

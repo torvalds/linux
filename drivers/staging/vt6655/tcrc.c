@@ -33,7 +33,6 @@
  *
  */
 
-#include "tbit.h"
 #include "tcrc.h"
 
 /*---------------------  Static Definitions -------------------------*/

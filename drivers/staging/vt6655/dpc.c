@@ -50,7 +50,6 @@
 #include "tcrc.h"
 #include "wctl.h"
 #include "wroute.h"
-#include "tbit.h"
 #include "hostap.h"
 #include "rf.h"
 #include "iowpa.h"
@@ -441,7 +440,7 @@ device_receive_frame (
         dwDuration = (FrameSize << 4);
         dwDuration /= acbyRxRate[*pbyRxRate%MAX_RATE];
         if (*pbyRxRate <= RATE_11M) {
-            if (BITbIsBitOn(*pbyRxSts, 0x01)) {
+            if (*pbyRxSts & 0x01) {
                 // long preamble
                 dwDuration += 192;
             } else {
@@ -572,7 +571,7 @@ device_receive_frame (
     //remove the CRC length
     FrameSize -= U_CRC_LEN;
 
-    if ((BITbIsAllBitsOff(*pbyRsr, (RSR_ADDRBROAD | RSR_ADDRMULTI))) && // unicast address
+    if (( !(*pbyRsr & (RSR_ADDRBROAD | RSR_ADDRMULTI))) && // unicast address
         (IS_FRAGMENT_PKT((skb->data+4)))
         ) {
         // defragment
@@ -661,7 +660,7 @@ device_receive_frame (
     else {
         if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
             //In AP mode, hw only check addr1(BSSID or RA) if equal to local MAC.
-            if (BITbIsBitOff(*pbyRsr, RSR_BSSIDOK)) {
+            if ( !(*pbyRsr & RSR_BSSIDOK)) {
                 if (bDeFragRx) {
                     if (!device_alloc_frag_buf(pDevice, &pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx])) {
                         DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s: can not alloc more frag bufs\n",
@@ -674,7 +673,7 @@ device_receive_frame (
         else {
             // discard DATA packet while not associate || BSSID error
             if ((pDevice->bLinkPass == FALSE) ||
-                BITbIsBitOff(*pbyRsr, RSR_BSSIDOK)) {
+                !(*pbyRsr & RSR_BSSIDOK)) {
                 if (bDeFragRx) {
                     if (!device_alloc_frag_buf(pDevice, &pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx])) {
                         DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s: can not alloc more frag bufs\n",
@@ -712,7 +711,7 @@ device_receive_frame (
 
     if (pDevice->bEnablePSMode) {
         if (IS_FC_MOREDATA((skb->data+4))) {
-            if (BITbIsBitOn(*pbyRsr, RSR_ADDROK)) {
+            if (*pbyRsr & RSR_ADDROK) {
                 //PSbSendPSPOLL((PSDevice)pDevice);
             }
         }

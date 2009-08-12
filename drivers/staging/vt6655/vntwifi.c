@@ -32,7 +32,6 @@
  */
 
 #include "vntwifi.h"
-#include "tbit.h"
 #include "IEEE11h.h"
 #include "country.h"
 #include "device.h"
@@ -691,7 +690,7 @@ VNTWIFIwGetMaxSupportRate(
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
 
     for(wRate = RATE_54M; wRate > RATE_1M; wRate--) {
-        if (BITbIsBitOn(pMgmt->sNodeDBTable[0].wSuppRate, (1<<wRate))) {
+        if (pMgmt->sNodeDBTable[0].wSuppRate & (1<<wRate)) {
             return (wRate);
         }
     }

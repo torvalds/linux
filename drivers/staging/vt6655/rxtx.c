@@ -60,7 +60,6 @@
 #include "tcrc.h"
 #include "wctl.h"
 #include "wroute.h"
-#include "tbit.h"
 #include "hostap.h"
 #include "rf.h"
 

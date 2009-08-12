@@ -37,7 +37,6 @@
  */
 
 #include "tmacro.h"
-#include "tbit.h"
 #include "key.h"
 #include "mac.h"
 

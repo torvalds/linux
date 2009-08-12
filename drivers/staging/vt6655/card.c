@@ -47,7 +47,6 @@
 
 #include "tmacro.h"
 #include "card.h"
-#include "tbit.h"
 #include "baseband.h"
 #include "mac.h"
 #include "desc.h"
@@ -2374,7 +2373,7 @@ CARDbyAutoChannelSelect(
                 }
                 if (sChannelTbl[ii].byMAP == 0) {
                     return ((BYTE) ii);
-                } else if (BITbIsBitOff(sChannelTbl[ii].byMAP, 0x08)) {
+                } else if ( !(sChannelTbl[ii].byMAP & 0x08)) {
                     byOptionChannel = (BYTE) ii;
                 }
             }
@@ -2385,7 +2384,7 @@ CARDbyAutoChannelSelect(
             if (sChannelTbl[ii].bValid == TRUE) {
                 if (sChannelTbl[ii].byMAP == 0) {
                     aiWeight[ii] += 100;
-                } else if (BITbIsBitOn(sChannelTbl[ii].byMAP, 0x01)) {
+                } else if (sChannelTbl[ii].byMAP & 0x01) {
                     if (ii > 3) {
                         aiWeight[ii-3] -= 10;
                     }
@@ -2973,7 +2972,7 @@ BOOL CARDbGetCurrentTSF (DWORD_PTR dwIoBase, PQWORD pqwCurrTSF)
     MACvRegBitsOn(dwIoBase, MAC_REG_TFTCTL, TFTCTL_TSFCNTRRD);
     for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
         VNSvInPortB(dwIoBase + MAC_REG_TFTCTL, &byData);
-        if (BITbIsBitOff(byData, TFTCTL_TSFCNTRRD))
+        if ( !(byData & TFTCTL_TSFCNTRRD))
             break;
     }
     if (ww == W_MAX_TIMEOUT)

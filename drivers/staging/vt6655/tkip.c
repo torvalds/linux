@@ -33,7 +33,6 @@
  */
 
 #include "tmacro.h"
-#include "tbit.h"
 #include "tkip.h"
 
 /*---------------------  Static Definitions -------------------------*/

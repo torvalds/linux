@@ -34,7 +34,6 @@
 
 #include "mac.h"
 #include "srom.h"
-#include "tbit.h"
 #include "rf.h"
 #include "baseband.h"
 
@@ -633,7 +632,7 @@ BOOL IFRFbWriteEmbeded (DWORD_PTR dwIoBase, DWORD dwData)
     // W_MAX_TIMEOUT is the timeout period
     for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
         VNSvInPortD(dwIoBase + MAC_REG_IFREGCTL, &dwValue);
-        if (BITbIsBitOn(dwValue, IFREGCTL_DONE))
+        if (dwValue & IFREGCTL_DONE)
             break;
     }
 

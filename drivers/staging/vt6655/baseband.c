@@ -50,7 +50,6 @@
  */
 
 #include "tmacro.h"
-#include "tbit.h"
 #include "tether.h"
 #include "mac.h"
 #include "baseband.h"
@@ -2029,7 +2028,7 @@ BOOL BBbReadEmbeded (DWORD_PTR dwIoBase, BYTE byBBAddr, PBYTE pbyData)
     // W_MAX_TIMEOUT is the timeout period
     for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
         VNSvInPortB(dwIoBase + MAC_REG_BBREGCTL, &byValue);
-        if (BITbIsBitOn(byValue, BBREGCTL_DONE))
+        if (byValue & BBREGCTL_DONE)
             break;
     }
 
@@ -2074,7 +2073,7 @@ BOOL BBbWriteEmbeded (DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byData)
     // W_MAX_TIMEOUT is the timeout period
     for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
         VNSvInPortB(dwIoBase + MAC_REG_BBREGCTL, &byValue);
-        if (BITbIsBitOn(byValue, BBREGCTL_DONE))
+        if (byValue & BBREGCTL_DONE)
             break;
     }
 
@@ -2106,7 +2105,7 @@ BOOL BBbIsRegBitsOn (DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byTestBits)
     BYTE byOrgData;
 
     BBbReadEmbeded(dwIoBase, byBBAddr, &byOrgData);
-    return BITbIsAllBitsOn(byOrgData, byTestBits);
+    return (byOrgData & byTestBits) == byTestBits;
 }
 
 
@@ -2129,7 +2128,7 @@ BOOL BBbIsRegBitsOff (DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byTestBits)
     BYTE byOrgData;
 
     BBbReadEmbeded(dwIoBase, byBBAddr, &byOrgData);
-    return BITbIsAllBitsOff(byOrgData, byTestBits);
+    return (byOrgData & byTestBits) == 0;
 }
 
 /*
