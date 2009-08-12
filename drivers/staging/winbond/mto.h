@@ -50,8 +50,7 @@ typedef enum {
 //
 //   Defines the parameters used in the MAC Throughput Optimization algorithm
 //============================================================================
-typedef struct _MTO_PARAMETERS
-{
+struct wb35_mto_params {
 	u8      Th_Fixant;
 	u8      Th_Cnt;
 	u8      Th_SQ3;
@@ -130,7 +129,7 @@ typedef struct _MTO_PARAMETERS
 	s32		RSSI_high;
 	s32		RSSI_low;
 
-} MTO_PARAMETERS, *PMTO_PARAMETERS;
+};
 
 
 #define MTO_DATA()                  (adapter->sMtoPara)
