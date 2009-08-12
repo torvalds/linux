@@ -955,8 +955,8 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		 */
 		if (skb->pkt_type != PACKET_LOOPBACK)
 			ND_PRINTK1(KERN_WARNING
-			   "ICMPv6 NA: someone advertises our address on %s!\n",
-			   ifp->idev->dev->name);
+			   "ICMPv6 NA: someone advertises our address %pI6 on %s!\n",
+			   &ifp->addr, ifp->idev->dev->name);
 		in6_ifa_put(ifp);
 		return;
 	}
