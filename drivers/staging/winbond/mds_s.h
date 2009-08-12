@@ -67,7 +67,6 @@ enum {
 
 #define RX_BUF_SIZE						2352        // 600 	// For 301 must be multiple of 8
 #define MAX_RX_DESCRIPTORS              18         // Rx Layer 2
-#define MAX_BUFFER_QUEUE	8 // The value is always equal 8 due to NDIS_PACKET's MiniportReserved field size
 
 
 // For brand-new rx system
@@ -134,15 +133,6 @@ struct wb35_mds {
 
 };
 
-
-typedef struct _RxBuffer
-{
-    u8 * pBufferAddress;     // Pointer the received data buffer.
-	u16	BufferSize;
-	u8	RESERVED;
-	u8	BufferIndex;// Only 1 byte
-} RXBUFFER, *PRXBUFFER;
-
 //
 // Reveive Layer 1 Format.
 //----------------------------
@@ -160,8 +150,6 @@ typedef struct _RXLAYER1
 	u8	BufferNumber;
 
 	u32	FirstFrameArrivedTime;
-
-	RXBUFFER	BufferQueue[ MAX_BUFFER_QUEUE ];
 
 	u8		LastFrameType; // 20061004 for fix intel 3945 's bug
 	u8		RESERVED[3];  //@@ anson

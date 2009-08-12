@@ -25,14 +25,6 @@ void
 MLME_SendComplete(  struct wbsoft_priv * adapter,  u8 PacketID,  unsigned char SendOK );
 
 void
-MLMERcvFrame(
-     struct wbsoft_priv *    adapter,
-     PRXBUFFER        pRxBufferArray,
-     u8            NumOfBuffer,
-     u8            ReturnSlotIndex
-	);
-
-void
 MLMEReturnPacket(
      struct wbsoft_priv *    adapter,
      u8 *          pRxBufer
