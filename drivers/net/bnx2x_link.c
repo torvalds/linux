@@ -1276,14 +1276,14 @@ static void bnx2x_program_serdes(struct link_params *params,
 	struct bnx2x *bp = params->bp;
 	u16 reg_val;
 
-	/* program duplex, disable autoneg */
-
+	/* program duplex, disable autoneg and sgmii*/
 	CL45_RD_OVER_CL22(bp, params->port,
 			      params->phy_addr,
 			      MDIO_REG_BANK_COMBO_IEEE0,
 			      MDIO_COMBO_IEEE0_MII_CONTROL, &reg_val);
 	reg_val &= ~(MDIO_COMBO_IEEO_MII_CONTROL_FULL_DUPLEX |
-		     MDIO_COMBO_IEEO_MII_CONTROL_AN_EN);
+		     MDIO_COMBO_IEEO_MII_CONTROL_AN_EN |
+		     MDIO_COMBO_IEEO_MII_CONTROL_MAN_SGMII_SP_MASK);
 	if (params->req_duplex == DUPLEX_FULL)
 		reg_val |= MDIO_COMBO_IEEO_MII_CONTROL_FULL_DUPLEX;
 	CL45_WR_OVER_CL22(bp, params->port,
@@ -5270,6 +5270,13 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 			   params->ext_phy_config);
 			ext_phy_link_up = 0;
 			break;
+		}
+		/* Set SGMII mode for external phy */
+		if (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) {
+			if (vars->line_speed < SPEED_1000)
+				vars->phy_flags |= PHY_SGMII_FLAG;
+			else
+				vars->phy_flags &= ~PHY_SGMII_FLAG;
 		}
 
 	} else { /* SerDes */
