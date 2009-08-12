@@ -48,6 +48,7 @@
 
 #include "../../include/linux/perf_counter.h"
 #include "util/types.h"
+#include "util/debug.h"
 
 /*
  * prctl(PR_TASK_PERF_COUNTERS_DISABLE) will (cheaply) disable all

@@ -48,9 +48,20 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 		     symbol_filter_t filter, int verbose, int modules);
 int dso__load_modules(struct dso *self, symbol_filter_t filter, int verbose);
 int dso__load(struct dso *self, symbol_filter_t filter, int verbose);
+struct dso *dsos__findnew(const char *name);
+void dsos__fprintf(FILE *fp);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
 
+int load_kernel(void);
+
 void symbol__init(void);
+
+extern struct list_head dsos;
+extern struct dso *kernel_dso;
+extern struct dso *vdso;
+extern struct dso *hypervisor_dso;
+extern char *vmlinux;
+extern int   modules;
 #endif /* _PERF_SYMBOL_ */

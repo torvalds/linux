@@ -68,8 +68,6 @@ static int			group				=  0;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			= 16;
 static int			freq				=  0;
-static int			verbose				=  0;
-static char			*vmlinux			=  NULL;
 
 static int			delay_secs			=  2;
 static int			zero;
@@ -337,8 +335,6 @@ static void show_details(struct sym_entry *syme)
 	if (more)
 		printf("%d lines not displayed, maybe increase display entries [e]\n", more);
 }
-
-struct dso			*kernel_dso;
 
 /*
  * Symbols will be added here in record_ip and will get out

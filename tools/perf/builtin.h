@@ -22,5 +22,6 @@ extern int cmd_stat(int argc, const char **argv, const char *prefix);
 extern int cmd_top(int argc, const char **argv, const char *prefix);
 extern int cmd_version(int argc, const char **argv, const char *prefix);
 extern int cmd_list(int argc, const char **argv, const char *prefix);
+extern int cmd_trace(int argc, const char **argv, const char *prefix);
 
 #endif

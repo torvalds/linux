@@ -937,6 +937,103 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 	return err;
 }
 
+LIST_HEAD(dsos);
+struct dso	*kernel_dso;
+struct dso	*vdso;
+struct dso	*hypervisor_dso;
+
+char		*vmlinux = "vmlinux";
+int		modules;
+
+static void dsos__add(struct dso *dso)
+{
+	list_add_tail(&dso->node, &dsos);
+}
+
+static struct dso *dsos__find(const char *name)
+{
+	struct dso *pos;
+
+	list_for_each_entry(pos, &dsos, node)
+		if (strcmp(pos->name, name) == 0)
+			return pos;
+	return NULL;
+}
+
+struct dso *dsos__findnew(const char *name)
+{
+	struct dso *dso = dsos__find(name);
+	int nr;
+
+	if (dso)
+		return dso;
+
+	dso = dso__new(name, 0);
+	if (!dso)
+		goto out_delete_dso;
+
+	nr = dso__load(dso, NULL, verbose);
+	if (nr < 0) {
+		eprintf("Failed to open: %s\n", name);
+		goto out_delete_dso;
+	}
+	if (!nr)
+		eprintf("No symbols found in: %s, maybe install a debug package?\n", name);
+
+	dsos__add(dso);
+
+	return dso;
+
+out_delete_dso:
+	dso__delete(dso);
+	return NULL;
+}
+
+void dsos__fprintf(FILE *fp)
+{
+	struct dso *pos;
+
+	list_for_each_entry(pos, &dsos, node)
+		dso__fprintf(pos, fp);
+}
+
+static struct symbol *vdso__find_symbol(struct dso *dso, u64 ip)
+{
+	return dso__find_symbol(dso, ip);
+}
+
+int load_kernel(void)
+{
+	int err;
+
+	kernel_dso = dso__new("[kernel]", 0);
+	if (!kernel_dso)
+		return -1;
+
+	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose, modules);
+	if (err <= 0) {
+		dso__delete(kernel_dso);
+		kernel_dso = NULL;
+	} else
+		dsos__add(kernel_dso);
+
+	vdso = dso__new("[vdso]", 0);
+	if (!vdso)
+		return -1;
+
+	vdso->find_symbol = vdso__find_symbol;
+
+	dsos__add(vdso);
+
+	hypervisor_dso = dso__new("[hypervisor]", 0);
+	if (!hypervisor_dso)
+		return -1;
+	dsos__add(hypervisor_dso);
+
+	return err;
+}
+
+
 void symbol__init(void)
 {
 	elf_version(EV_CURRENT);
