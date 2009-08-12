@@ -33,6 +33,7 @@
 #include <asm/bootparam.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/fixmap.h>
 #include <asm/setup.h>
 #include <asm/tboot.h>
 #include <asm/e820.h>
