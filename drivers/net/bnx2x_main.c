@@ -1613,7 +1613,8 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 
 				skb = new_skb;
 
-			} else if (bnx2x_alloc_rx_skb(bp, fp, bd_prod) == 0) {
+			} else
+			if (likely(bnx2x_alloc_rx_skb(bp, fp, bd_prod) == 0)) {
 				pci_unmap_single(bp->pdev,
 					pci_unmap_addr(rx_buf, mapping),
 						 bp->rx_buf_size,
