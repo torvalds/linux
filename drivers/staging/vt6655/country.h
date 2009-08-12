@@ -168,7 +168,7 @@ typedef struct tagSCountryTable
     CHAR    chCountryCode[2];
     BYTE    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
     BYTE    byPower[CB_MAX_CHANNEL];
-}   SCountryTable, DEF* PSCountryTable;
+}   SCountryTable, *PSCountryTable;
 
 /*---------------------  Export Classes  ----------------------------*/
 

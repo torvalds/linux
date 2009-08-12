@@ -398,8 +398,6 @@ BSSpAddrIsInBSSList(
 
 
 
-
-
 /*+
  *
  * Routine Description:

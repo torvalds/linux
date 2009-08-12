@@ -432,7 +432,7 @@ device_set_int_opt(int *opt, int val, int min, int max, int def,char* name,char*
 }
 
 static void
-device_set_bool_opt(PU32 opt, int val,BOOL def,U32 flag, char* name,char* devname) {
+device_set_bool_opt(unsigned int *opt, int val,BOOL def,U32 flag, char* name,char* devname) {
     (*opt)&=(~flag);
     if (val==-1)
         *opt|=(def ? flag : 0);
@@ -1680,7 +1680,7 @@ static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pRD) {
     pRDInfo->skb->dev = pDevice->dev;
     pRDInfo->skb_dma = pci_map_single(pDevice->pcid, skb_tail_pointer(pRDInfo->skb),
 				      pDevice->rx_buf_sz, PCI_DMA_FROMDEVICE);
-    *((PU32) &(pRD->m_rd0RD0)) = 0;
+    *((unsigned int *) &(pRD->m_rd0RD0)) = 0; /* FIX cast */
 
     pRD->m_rd0RD0.wResCount = cpu_to_le16(pDevice->rx_buf_sz);
     pRD->m_rd0RD0.f1Owner = OWNED_BY_NIC;

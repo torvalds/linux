@@ -115,7 +115,7 @@ typedef struct tagSChannelTblElement {
     UINT    uFrequency;
     BOOL    bValid;
     BYTE    byMAP;
-}SChannelTblElement, DEF* PSChannelTblElement;
+}SChannelTblElement, *PSChannelTblElement;
 
                                                               //1M,   2M,   5M,  11M,  18M,  24M,  36M,  54M
 static BYTE abyDefaultSuppRatesG[] = {WLAN_EID_SUPP_RATES, 8, 0x02, 0x04, 0x0B, 0x16, 0x24, 0x30, 0x48, 0x6C};

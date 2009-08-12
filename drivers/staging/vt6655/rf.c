@@ -1216,7 +1216,7 @@ VOID
 RFvRSSITodBm (
     IN  PSDevice pDevice,
     IN  BYTE     byCurrRSSI,
-    OUT PLONG    pldBm
+    long *    pldBm
     )
 {
     BYTE byIdx = (((byCurrRSSI & 0xC0) >> 6) & 0x03);

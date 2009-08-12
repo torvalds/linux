@@ -105,13 +105,13 @@ typedef enum _NDIS_802_11_NETWORK_TYPE
 typedef struct tagSERPObject {
     BOOL    bERPExist;
     BYTE    byERP;
-}ERPObject, DEF* PERPObject;
+}ERPObject, *PERPObject;
 
 
 typedef struct tagSRSNCapObject {
     BOOL    bRSNCapExist;
     WORD    wRSNCap;
-}SRSNCapObject, DEF* PSRSNCapObject;
+}SRSNCapObject, *PSRSNCapObject;
 
 // BSS info(AP)
 #pragma pack(1)
@@ -177,7 +177,7 @@ typedef struct tagKnownBSS {
     BYTE            abyIEs[1024];   // don't move this field !!
 
 }__attribute__ ((__packed__))
-KnownBSS , DEF* PKnownBSS;
+KnownBSS , *PKnownBSS;
 
 //2006-1116-01,<Add> by NomadZhao
 #pragma pack()
@@ -248,7 +248,7 @@ typedef struct tagKnownNodeDB {
     UINT            uTxFail[MAX_RATE+1];
     UINT            uTimeCount;
 
-} KnownNodeDB, DEF* PKnownNodeDB;
+} KnownNodeDB, *PKnownNodeDB;
 
 
 /*---------------------  Export Functions  --------------------------*/

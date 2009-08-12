@@ -64,7 +64,7 @@ typedef enum tagCMD_CODE {
     WLAN_CMD_MAC_DISPOWERSAVING,
     WLAN_CMD_11H_CHSW,
     WLAN_CMD_RUN_AP
-} CMD_CODE, DEF* PCMD_CODE;
+} CMD_CODE, *PCMD_CODE;
 
 #define CMD_Q_SIZE              32
 
@@ -76,7 +76,7 @@ typedef enum tagCMD_STATUS {
     CMD_STATUS_TIMEOUT,
     CMD_STATUS_PENDING
 
-} CMD_STATUS, DEF* PCMD_STATUS;
+} CMD_STATUS, *PCMD_STATUS;
 
 
 typedef struct tagCMD_ITEM {
@@ -86,7 +86,7 @@ typedef struct tagCMD_ITEM {
     WORD     wDeAuthenReason;
     BOOL     bRadioCmd;
     BOOL     bForceSCAN;
-} CMD_ITEM, DEF* PCMD_ITEM;
+} CMD_ITEM, *PCMD_ITEM;
 
 // Command state
 typedef enum tagCMD_STATE {
@@ -102,7 +102,7 @@ typedef enum tagCMD_STATE {
     WLAN_CMD_RADIO_START,
     WLAN_CMD_CHECK_BBSENSITIVITY_CHANGE,
     WLAN_CMD_IDLE
-} CMD_STATE, DEF* PCMD_STATE;
+} CMD_STATE, *PCMD_STATE;
 
 
 

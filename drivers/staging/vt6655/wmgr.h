@@ -143,7 +143,7 @@ typedef struct tagSAssocInfo {
     // store ReqIEs set by OID_802_11_ASSOCIATION_INFORMATION
     ULONG                                   RequestIELength;
     BYTE                                    abyReqIEs[WLAN_BEACON_FR_MAXLEN];
-} SAssocInfo, DEF* PSAssocInfo;
+} SAssocInfo, *PSAssocInfo;
 //---
 
 
@@ -246,7 +246,7 @@ typedef struct tagSTxMgmtPacket {
     UINT                cbMPDULen;
     UINT                cbPayloadLen;
 
-} STxMgmtPacket, DEF* PSTxMgmtPacket;
+} STxMgmtPacket, *PSTxMgmtPacket;
 
 
 // Rx Managment Packet descriptor
@@ -261,7 +261,7 @@ typedef struct tagSRxMgmtPacket {
     BYTE                byRxRate;
     BYTE                byRxChannel;
 
-} SRxMgmtPacket, DEF* PSRxMgmtPacket;
+} SRxMgmtPacket, *PSRxMgmtPacket;
 
 
 
@@ -409,7 +409,7 @@ typedef struct tagSMgmtObject
 
     struct sk_buff  skb;
 
-} SMgmtObject, DEF *PSMgmtObject;
+} SMgmtObject, *PSMgmtObject;
 
 
 /*---------------------  Export Macros ------------------------------*/

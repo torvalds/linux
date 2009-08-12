@@ -76,7 +76,7 @@ typedef struct tagSKeyItem
     BYTE        byReserved0;
     DWORD       dwKeyIndex;
     PVOID       pvKeyTable;
-} SKeyItem, DEF* PSKeyItem; //64
+} SKeyItem, *PSKeyItem; //64
 
 typedef struct tagSKeyTable
 {
@@ -93,12 +93,12 @@ typedef struct tagSKeyTable
     WORD        wKeyCtl;      // for address of wKeyCtl at align 4
 
     BYTE        byReserved1[6];
-} SKeyTable, DEF* PSKeyTable; //348
+} SKeyTable, *PSKeyTable; //348
 
 typedef struct tagSKeyManagement
 {
     SKeyTable   KeyTable[MAX_KEY_TABLE];
-} SKeyManagement, DEF* PSKeyManagement;
+} SKeyManagement, * PSKeyManagement;
 
 /*---------------------  Export Types  ------------------------------*/
 
