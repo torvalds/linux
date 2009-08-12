@@ -94,50 +94,19 @@
 // device specific
 //
 
-#if !defined(_KCOMPAT_H)
 #include "kcompat.h"
-#endif
-
-#if !defined(__DEVICE_CONFIG_H)
 #include "device_cfg.h"
-#endif
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__WMGR_H__)
 #include "wmgr.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-#if !defined(__MIB_H__)
 #include "mib.h"
-#endif
-#if !defined(__SROM_H__)
 #include "srom.h"
-#endif
-#if !defined(__RC4_H__)
 #include "rc4.h"
-#endif
-#if !defined(__TPCI_H__)
-#include "tpci.h"
-#endif
-#if !defined(__DESC_H__)
 #include "desc.h"
-#endif
-#if !defined(__KEY_H__)
 #include "key.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 #define VNT_USB_VENDOR_ID                     0x160A
