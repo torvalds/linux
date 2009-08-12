@@ -204,7 +204,7 @@ struct sk_buff *i2400mu_rx(struct i2400mu *i2400mu, struct sk_buff *rx_skb)
 		dev_err(dev, "RX: can't get autopm: %d\n", result);
 		do_autopm = 0;
 	}
-	epd = usb_get_epd(i2400mu->usb_iface, I2400MU_EP_BULK_IN);
+	epd = usb_get_epd(i2400mu->usb_iface, i2400mu->endpoint_cfg.bulk_in);
 	usb_pipe = usb_rcvbulkpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 retry:
 	rx_size = skb_end_pointer(rx_skb) - rx_skb->data - rx_skb->len;

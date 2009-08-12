@@ -232,13 +232,15 @@ int i2400mu_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 
 	d_fnstart(3, dev, "(i2400m %p rt %u)\n", i2400m, rt);
 	if (rt == I2400M_RT_WARM)
-		result = __i2400mu_send_barker(i2400mu, i2400m_WARM_BOOT_BARKER,
-					       sizeof(i2400m_WARM_BOOT_BARKER),
-					       I2400MU_EP_BULK_OUT);
+		result = __i2400mu_send_barker(
+			i2400mu, i2400m_WARM_BOOT_BARKER,
+			sizeof(i2400m_WARM_BOOT_BARKER),
+			i2400mu->endpoint_cfg.bulk_out);
 	else if (rt == I2400M_RT_COLD)
-		result = __i2400mu_send_barker(i2400mu, i2400m_COLD_BOOT_BARKER,
-					       sizeof(i2400m_COLD_BOOT_BARKER),
-					       I2400MU_EP_RESET_COLD);
+		result = __i2400mu_send_barker(
+			i2400mu, i2400m_COLD_BOOT_BARKER,
+			sizeof(i2400m_COLD_BOOT_BARKER),
+			i2400mu->endpoint_cfg.reset_cold);
 	else if (rt == I2400M_RT_BUS) {
 do_bus_reset:
 		result = usb_reset_device(i2400mu->usb_dev);
@@ -412,6 +414,12 @@ int i2400mu_probe(struct usb_interface *iface,
 	i2400m->bus_fw_names = i2400mu_bus_fw_names;
 	i2400m->bus_bm_mac_addr_impaired = 0;
 
+	{
+		i2400mu->endpoint_cfg.bulk_out = 0;
+		i2400mu->endpoint_cfg.notification = 1;
+		i2400mu->endpoint_cfg.reset_cold = 2;
+		i2400mu->endpoint_cfg.bulk_in = 3;
+	}
 #ifdef CONFIG_PM
 	iface->needs_remote_wakeup = 1;		/* autosuspend (15s delay) */
 	device_init_wakeup(dev, 1);

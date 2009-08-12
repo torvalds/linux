@@ -220,7 +220,8 @@ int i2400mu_notification_setup(struct i2400mu *i2400mu)
 		dev_err(dev, "notification: cannot allocate URB\n");
 		goto error_alloc_urb;
 	}
-	epd = usb_get_epd(i2400mu->usb_iface, I2400MU_EP_NOTIFICATION);
+	epd = usb_get_epd(i2400mu->usb_iface,
+			  i2400mu->endpoint_cfg.notification);
 	usb_pipe = usb_rcvintpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 	usb_fill_int_urb(i2400mu->notif_urb, i2400mu->usb_dev, usb_pipe,
 			 buf, I2400MU_MAX_NOTIFICATION_LEN,

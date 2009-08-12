@@ -88,6 +88,13 @@ struct edc {
 	u16 errorcount;
 };
 
+struct i2400m_endpoint_cfg {
+	unsigned char bulk_out;
+	unsigned char notification;
+	unsigned char reset_cold;
+	unsigned char bulk_in;
+};
+
 static inline void edc_init(struct edc *edc)
 {
 	edc->timestart = jiffies;
@@ -141,12 +148,6 @@ enum {
 	I2400MU_MAX_NOTIFICATION_LEN = 256,
 	I2400MU_BLK_SIZE = 16,
 	I2400MU_PL_SIZE_MAX = 0x3EFF,
-
-	/* Endpoints */
-	I2400MU_EP_BULK_OUT = 0,
-	I2400MU_EP_NOTIFICATION,
-	I2400MU_EP_RESET_COLD,
-	I2400MU_EP_BULK_IN,
 };
 
 
@@ -216,6 +217,7 @@ struct i2400mu {
 	struct usb_device *usb_dev;
 	struct usb_interface *usb_iface;
 	struct edc urb_edc;		/* Error density counter */
+	struct i2400m_endpoint_cfg endpoint_cfg;
 
 	struct urb *notif_urb;
 	struct task_struct *tx_kthread;

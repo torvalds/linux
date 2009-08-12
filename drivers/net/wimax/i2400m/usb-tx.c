@@ -101,7 +101,7 @@ int i2400mu_tx(struct i2400mu *i2400mu, struct i2400m_msg_hdr *tx_msg,
 		dev_err(dev, "TX: can't get autopm: %d\n", result);
 		do_autopm = 0;
 	}
-	epd = usb_get_epd(i2400mu->usb_iface, I2400MU_EP_BULK_OUT);
+	epd = usb_get_epd(i2400mu->usb_iface, i2400mu->endpoint_cfg.bulk_out);
 	usb_pipe = usb_sndbulkpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 retry:
 	result = usb_bulk_msg(i2400mu->usb_dev, usb_pipe,
