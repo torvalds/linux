@@ -1347,7 +1347,7 @@ static void bnx2x_set_brcm_cl37_advertisment(struct link_params *params)
 			      MDIO_OVER_1G_UP3, 0x400);
 }
 
-static void bnx2x_calc_ieee_aneg_adv(struct link_params *params, u32 *ieee_fc)
+static void bnx2x_calc_ieee_aneg_adv(struct link_params *params, u16 *ieee_fc)
 {
 	*ieee_fc = MDIO_COMBO_IEEE0_AUTO_NEG_ADV_FULL_DUPLEX;
 	/* resolve pause mode and advertisement
@@ -1381,7 +1381,7 @@ static void bnx2x_calc_ieee_aneg_adv(struct link_params *params, u32 *ieee_fc)
 }
 
 static void bnx2x_set_ieee_aneg_advertisment(struct link_params *params,
-					   u32 ieee_fc)
+					   u16 ieee_fc)
 {
 	struct bnx2x *bp = params->bp;
 	/* for AN, we are always publishing full duplex */
@@ -1389,7 +1389,7 @@ static void bnx2x_set_ieee_aneg_advertisment(struct link_params *params,
 	CL45_WR_OVER_CL22(bp, params->port,
 			      params->phy_addr,
 			      MDIO_REG_BANK_COMBO_IEEE0,
-			      MDIO_COMBO_IEEE0_AUTO_NEG_ADV, (u16)ieee_fc);
+			      MDIO_COMBO_IEEE0_AUTO_NEG_ADV, ieee_fc);
 }
 
 static void bnx2x_restart_autoneg(struct link_params *params, u8 enable_cl73)

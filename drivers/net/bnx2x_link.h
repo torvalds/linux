@@ -81,6 +81,11 @@ struct link_params {
 #define SWITCH_CFG_AUTO_DETECT	PORT_FEATURE_CON_SWITCH_AUTO_DETECT
 
 	u16 hw_led_mode; /* part of the hw_config read from the shmem */
+
+	/* phy_addr populated by the phy_init function */
+	u8 phy_addr;
+	/*u8 reserved1;*/
+
 	u32 lane_config;
 	u32 ext_phy_config;
 #define XGXS_EXT_PHY_TYPE(ext_phy_config)	(ext_phy_config & \
@@ -90,39 +95,41 @@ struct link_params {
 	/* Phy register parameter */
 	u32 chip_id;
 
-	/* phy_addr populated by the CLC */
-	u8 phy_addr;
 	u16 xgxs_config_rx[4]; /* preemphasis values for the rx side */
-
 	u16 xgxs_config_tx[4]; /* preemphasis values for the tx side */
+
 	u32 feature_config_flags;
 #define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
 #define FEATURE_CONFIG_BC_SUPPORTS_OPT_MDL_VRFY	(1<<2)
 #define FEATURE_CONFIG_BCM8727_NOC			(1<<3)
+
 	/* Device pointer passed to all callback functions */
 	struct bnx2x *bp;
 };
 
 /* Output parameters */
 struct link_vars {
+	u8 phy_flags;
+
+	u8 mac_type;
+#define MAC_TYPE_NONE		0
+#define MAC_TYPE_EMAC		1
+#define MAC_TYPE_BMAC		2
+
 	u8 phy_link_up; /* internal phy link indication */
 	u8 link_up;
-	u16 duplex;
-	u16 flow_ctrl;
-	u32 ieee_fc;
-	u8 mac_type;
 
-#define MAC_TYPE_NONE	0
-#define MAC_TYPE_EMAC	1
-#define MAC_TYPE_BMAC	2
 	u16 line_speed;
+	u16 duplex;
+
+	u16 flow_ctrl;
+	u16 ieee_fc;
+
 	u32 autoneg;
 #define AUTO_NEG_DISABLED			0x0
 #define AUTO_NEG_ENABLED			0x1
 #define AUTO_NEG_COMPLETE			0x2
-#define AUTO_NEG_PARALLEL_DETECTION_USED 	0x3
-
-	u8 phy_flags;
+#define AUTO_NEG_PARALLEL_DETECTION_USED	0x3
 
 	/* The same definitions as the shmem parameter */
 	u32 link_status;
