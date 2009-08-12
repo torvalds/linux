@@ -1681,6 +1681,24 @@
 /* [RW 17] Debug only. RX_EOP_DSCR_lb_FIFO in NIG_RX_EOP. Data
    packet_length[13:0]; mac_error[14]; trunc_error[15]; parity[16] */
 #define NIG_REG_INGRESS_EOP_LB_FIFO				 0x104e4
+/* [RW 27] 0 - must be active for Everest A0; 1- for Everest B0 when latch
+   logic for interrupts must be used. Enable per bit of interrupt of
+   ~latch_status.latch_status */
+#define NIG_REG_LATCH_BC_0					 0x16210
+/* [RW 27] Latch for each interrupt from Unicore.b[0]
+   status_emac0_misc_mi_int; b[1] status_emac0_misc_mi_complete;
+   b[2]status_emac0_misc_cfg_change; b[3]status_emac0_misc_link_status;
+   b[4]status_emac0_misc_link_change; b[5]status_emac0_misc_attn;
+   b[6]status_serdes0_mac_crs; b[7]status_serdes0_autoneg_complete;
+   b[8]status_serdes0_fiber_rxact; b[9]status_serdes0_link_status;
+   b[10]status_serdes0_mr_page_rx; b[11]status_serdes0_cl73_an_complete;
+   b[12]status_serdes0_cl73_mr_page_rx; b[13]status_serdes0_rx_sigdet;
+   b[14]status_xgxs0_remotemdioreq; b[15]status_xgxs0_link10g;
+   b[16]status_xgxs0_autoneg_complete; b[17]status_xgxs0_fiber_rxact;
+   b[21:18]status_xgxs0_link_status; b[22]status_xgxs0_mr_page_rx;
+   b[23]status_xgxs0_cl73_an_complete; b[24]status_xgxs0_cl73_mr_page_rx;
+   b[25]status_xgxs0_rx_sigdet; b[26]status_xgxs0_mac_crs */
+#define NIG_REG_LATCH_STATUS_0					 0x18000
 /* [RW 1] led 10g for port 0 */
 #define NIG_REG_LED_10G_P0					 0x10320
 /* [RW 1] led 10g for port 1 */
@@ -1871,6 +1889,7 @@
 #define NIG_REG_XGXS_LANE_SEL_P0				 0x102e8
 /* [RW 1] selection for port0 for NIG_MUX block : 0 = SerDes; 1 = XGXS */
 #define NIG_REG_XGXS_SERDES0_MODE_SEL				 0x102e0
+#define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_EMAC0_MISC_MI_INT  (0x1<<0)
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_SERDES0_LINK_STATUS (0x1<<9)
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK10G	 (0x1<<15)
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS  (0xf<<18)
@@ -5889,6 +5908,13 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_7101_VER1		0xc026
 #define MDIO_PMA_REG_7101_VER2		0xc027
 
+#define MDIO_PMA_REG_8481_PMD_SIGNAL	0xa811
+#define MDIO_PMA_REG_8481_LED1_MASK	0xa82c
+#define MDIO_PMA_REG_8481_LED2_MASK	0xa82f
+#define MDIO_PMA_REG_8481_LED3_MASK	0xa832
+#define MDIO_PMA_REG_8481_SIGNAL_MASK	0xa835
+#define MDIO_PMA_REG_8481_LINK_SIGNAL	0xa83b
+
 
 #define MDIO_WIS_DEVAD			0x2
 /*bcm*/
@@ -5942,6 +5968,12 @@ Theotherbitsarereservedandshouldbezero*/
 
 #define MDIO_AN_REG_8073_2_5G		0x8329
 
+#define MDIO_AN_REG_8481_LEGACY_MII_CTRL	0xffe0
+#define MDIO_AN_REG_8481_LEGACY_AN_ADV		0xffe4
+#define MDIO_AN_REG_8481_1000T_CTRL		0xffe9
+#define MDIO_AN_REG_8481_EXPANSION_REG_RD_RW	0xfff5
+#define MDIO_AN_REG_8481_EXPANSION_REG_ACCESS	0xfff7
+#define MDIO_AN_REG_8481_LEGACY_SHADOW		0xfffc
 
 #define IGU_FUNC_BASE			0x0400
 
