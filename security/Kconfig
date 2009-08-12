@@ -123,7 +123,7 @@ config INTEL_TXT
 	  of the kernel. If the system does not support Intel(R) TXT, this
 	  will have no effect.
 
-	  Intel TXT will provide higher assurance of sysem configuration and
+	  Intel TXT will provide higher assurance of system configuration and
 	  initial state as well as data reset protection.  This is used to
 	  create a robust initial kernel measurement and verification, which
 	  helps to ensure that kernel security mechanisms are functioning
@@ -132,7 +132,7 @@ config INTEL_TXT
 
 	  Intel TXT also helps solve real end user concerns about having
 	  confidence that their hardware is running the VMM or kernel that
-	  it was conigured with, especially since they may be responsible for
+	  it was configured with, especially since they may be responsible for
 	  providing such assurances to VMs and services running on it.
 
 	  See <http://www.intel.com/technology/security/> for more information
