@@ -30,6 +30,8 @@
 #define BNX2X_NEW_NAPI
 
 
+
+#include <linux/mdio.h>
 #include "bnx2x_reg.h"
 #include "bnx2x_fw_defs.h"
 #include "bnx2x_hsi.h"
@@ -895,6 +897,7 @@ struct bnx2x {
 
 	struct link_params	link_params;
 	struct link_vars	link_vars;
+	struct mdio_if_info	mdio;
 
 	struct bnx2x_common	common;
 	struct bnx2x_port	port;

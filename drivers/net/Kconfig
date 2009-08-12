@@ -2722,6 +2722,7 @@ config BNX2X
 	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
+	select MDIO
 	help
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
 	  To compile this driver as a module, choose M here: the module
