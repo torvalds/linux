@@ -187,6 +187,10 @@ u8 bnx2x_test_link(struct link_params *input, struct link_vars *vars);
 /* One-time initialization for external phy after power up */
 u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base);
 
+/* Reset the external PHY using GPIO */
+void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port);
+
+void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, u8 port, u8 phy_addr);
 
 u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
 			      u8 byte_cnt, u8 *o_buf);

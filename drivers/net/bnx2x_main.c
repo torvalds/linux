@@ -9353,7 +9353,8 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 			    struct ethtool_eeprom *eeprom, u8 *eebuf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int rc;
+	int port = BP_PORT(bp);
+	int rc = 0;
 
 	if (!netif_running(dev))
 		return -EAGAIN;
@@ -9365,27 +9366,62 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 
 	/* parameters already validated in ethtool_set_eeprom */
 
-	/* If the magic number is PHY (0x00504859) upgrade the PHY FW */
-	if (eeprom->magic == 0x00504859)
-		if (bp->port.pmf) {
+	/* PHY eeprom can be accessed only by the PMF */
+	if ((eeprom->magic >= 0x50485900) && (eeprom->magic <= 0x504859FF) &&
+	    !bp->port.pmf)
+		return -EINVAL;
+
+	if (eeprom->magic == 0x50485950) {
+		/* 'PHYP' (0x50485950): prepare phy for FW upgrade */
+		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+
+		bnx2x_acquire_phy_lock(bp);
+		rc |= bnx2x_link_reset(&bp->link_params,
+				       &bp->link_vars, 0);
+		if (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config) ==
+					PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101)
+			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
+				       MISC_REGISTERS_GPIO_HIGH, port);
+		bnx2x_release_phy_lock(bp);
+		bnx2x_link_report(bp);
+
+	} else if (eeprom->magic == 0x50485952) {
+		/* 'PHYR' (0x50485952): re-init link after FW upgrade */
+		if ((bp->state == BNX2X_STATE_OPEN) ||
+		    (bp->state == BNX2X_STATE_DISABLED)) {
+			bnx2x_acquire_phy_lock(bp);
+			rc |= bnx2x_link_reset(&bp->link_params,
+					       &bp->link_vars, 1);
+
+			rc |= bnx2x_phy_init(&bp->link_params,
+					     &bp->link_vars);
+			bnx2x_release_phy_lock(bp);
+			bnx2x_calc_fc_adv(bp);
+		}
+	} else if (eeprom->magic == 0x53985943) {
+		/* 'PHYC' (0x53985943): PHY FW upgrade completed */
+		if (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config) ==
+				       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101) {
+			u8 ext_phy_addr =
+				(bp->link_params.ext_phy_config &
+				 PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+					PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT;
+
+			/* DSP Remove Download Mode */
+			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
+				       MISC_REGISTERS_GPIO_LOW, port);
 
 			bnx2x_acquire_phy_lock(bp);
-			rc = bnx2x_flash_download(bp, BP_PORT(bp),
-					     bp->link_params.ext_phy_config,
-					     (bp->state != BNX2X_STATE_CLOSED),
-					     eebuf, eeprom->len);
-			if ((bp->state == BNX2X_STATE_OPEN) ||
-			    (bp->state == BNX2X_STATE_DISABLED)) {
-				rc |= bnx2x_link_reset(&bp->link_params,
-						       &bp->link_vars, 1);
-				rc |= bnx2x_phy_init(&bp->link_params,
-						     &bp->link_vars);
-			}
-			bnx2x_release_phy_lock(bp);
 
-		} else /* Only the PMF can access the PHY */
-			return -EINVAL;
-	else
+			bnx2x_sfx7101_sp_sw_reset(bp, port, ext_phy_addr);
+
+			/* wait 0.5 sec to allow it to run */
+			msleep(500);
+			bnx2x_ext_phy_hw_reset(bp, port);
+			msleep(500);
+			bnx2x_release_phy_lock(bp);
+		}
+	} else
 		rc = bnx2x_nvram_write(bp, eeprom->offset, eebuf, eeprom->len);
 
 	return rc;

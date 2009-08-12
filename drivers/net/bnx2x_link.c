@@ -1996,7 +1996,7 @@ static u8 bnx2x_emac_program(struct link_params *params,
 /*****************************************************************************/
 /*      		     External Phy section       		     */
 /*****************************************************************************/
-static void bnx2x_hw_reset(struct bnx2x *bp, u8 port)
+void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port)
 {
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
 		       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
@@ -2035,7 +2035,7 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 					  params->port);
 
 			/* HW reset */
-			bnx2x_hw_reset(bp, params->port);
+			bnx2x_ext_phy_hw_reset(bp, params->port);
 
 			bnx2x_cl45_write(bp, params->port,
 				       ext_phy_type,
@@ -2106,8 +2106,7 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 					  params->port);
 
 			/* HW reset */
-			bnx2x_hw_reset(bp, params->port);
-
+			bnx2x_ext_phy_hw_reset(bp, params->port);
 			break;
 
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
@@ -2118,7 +2117,7 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 					  params->port);
 
 			/* HW reset */
-			bnx2x_hw_reset(bp, params->port);
+			bnx2x_ext_phy_hw_reset(bp, params->port);
 
 			bnx2x_cl45_write(bp, params->port,
 				       ext_phy_type,
@@ -2146,7 +2145,7 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 
 		case PORT_HW_CFG_SERDES_EXT_PHY_TYPE_BCM5482:
 			DP(NETIF_MSG_LINK, "SerDes 5482\n");
-			bnx2x_hw_reset(bp, params->port);
+			bnx2x_ext_phy_hw_reset(bp, params->port);
 			break;
 
 		default:
@@ -6573,7 +6572,7 @@ static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 	swap_val = REG_RD(bp,  NIG_REG_PORT_SWAP);
 	swap_override = REG_RD(bp,  NIG_REG_STRAP_OVERRIDE);
 
-	bnx2x_hw_reset(bp, 1 ^ (swap_val && swap_override));
+	bnx2x_ext_phy_hw_reset(bp, 1 ^ (swap_val && swap_override));
 	msleep(5);
 
 	if (swap_val && swap_override)
@@ -6647,7 +6646,7 @@ static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 		(1<<(MISC_REGISTERS_GPIO_3 + MISC_REGISTERS_GPIO_PORT_SHIFT)));
 	REG_WR(bp, MISC_REG_GPIO_EVENT_EN, val);
 
-	bnx2x_hw_reset(bp, 1);
+	bnx2x_ext_phy_hw_reset(bp, 1);
 	msleep(5);
 	for (port = 0; port < PORT_MAX; port++) {
 		/* Extract the ext phy address for the port */
@@ -6714,9 +6713,7 @@ u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 	return rc;
 }
 
-
-
-static void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, u8 port, u8 phy_addr)
+void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, u8 port, u8 phy_addr)
 {
 	u16 val, cnt;
 
@@ -7032,7 +7029,7 @@ static u8 bnx2x_sfx7101_flash_download(struct bnx2x *bp, u8 port,
 	for (cnt = 0; cnt < 100; cnt++)
 		msleep(5);
 
-	bnx2x_hw_reset(bp, port);
+	bnx2x_ext_phy_hw_reset(bp, port);
 
 	for (cnt = 0; cnt < 100; cnt++)
 		msleep(5);
