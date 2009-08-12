@@ -174,8 +174,6 @@ u8 bnx2x_set_led(struct bnx2x *bp, u8 port, u8 mode, u32 speed,
 
 u8 bnx2x_override_led_value(struct bnx2x *bp, u8 port, u32 led_idx, u32 value);
 
-u8 bnx2x_flash_download(struct bnx2x *bp, u8 port, u32 ext_phy_config,
-		      u8 driver_loaded, char data[], u32 size);
 /* bnx2x_handle_module_detect_int should be called upon module detection
    interrupt */
 void bnx2x_handle_module_detect_int(struct link_params *params);
