@@ -13563,6 +13563,8 @@ static int patch_alc269(struct hda_codec *codec)
 		set_capture_mixer(spec);
 	set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
 
+	spec->vmaster_nid = 0x02;
+
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC269_AUTO)
 		spec->init_hook = alc269_auto_init;
@@ -15577,9 +15579,12 @@ static int patch_alc861vd(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc861vd_pcm_digital_playback;
 	spec->stream_digital_capture = &alc861vd_pcm_digital_capture;
 
-	spec->adc_nids = alc861vd_adc_nids;
-	spec->num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids);
-	spec->capsrc_nids = alc861vd_capsrc_nids;
+	if (!spec->adc_nids) {
+		spec->adc_nids = alc861vd_adc_nids;
+		spec->num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids);
+	}
+	if (!spec->capsrc_nids)
+		spec->capsrc_nids = alc861vd_capsrc_nids;
 
 	set_capture_mixer(spec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
@@ -17496,9 +17501,12 @@ static int patch_alc662(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc662_pcm_digital_playback;
 	spec->stream_digital_capture = &alc662_pcm_digital_capture;
 
-	spec->adc_nids = alc662_adc_nids;
-	spec->num_adc_nids = ARRAY_SIZE(alc662_adc_nids);
-	spec->capsrc_nids = alc662_capsrc_nids;
+	if (!spec->adc_nids) {
+		spec->adc_nids = alc662_adc_nids;
+		spec->num_adc_nids = ARRAY_SIZE(alc662_adc_nids);
+	}
+	if (!spec->capsrc_nids)
+		spec->capsrc_nids = alc662_capsrc_nids;
 
 	if (!spec->cap_mixer)
 		set_capture_mixer(spec);
