@@ -76,6 +76,9 @@ static unsigned int moboard_pins[] = {
 	/* LEDs */
 	MX31_PIN_SVEN0__GPIO2_0, MX31_PIN_STX0__GPIO2_1,
 	MX31_PIN_SRX0__GPIO2_2, MX31_PIN_SIMPD0__GPIO2_3,
+	/* SEL */
+	MX31_PIN_DTR_DCE1__GPIO2_8, MX31_PIN_DSR_DCE1__GPIO2_9,
+	MX31_PIN_RI_DCE1__GPIO2_10, MX31_PIN_DCD_DCE1__GPIO2_11,
 };
 
 static struct physmap_flash_data mx31moboard_flash_data = {
@@ -235,6 +238,34 @@ static struct platform_device mx31moboard_leds_device = {
 	},
 };
 
+#define SEL0 IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1)
+#define SEL1 IOMUX_TO_GPIO(MX31_PIN_DSR_DCE1)
+#define SEL2 IOMUX_TO_GPIO(MX31_PIN_RI_DCE1)
+#define SEL3 IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)
+
+static void mx31moboard_init_sel_gpios(void)
+{
+	if (!gpio_request(SEL0, "sel0")) {
+		gpio_direction_input(SEL0);
+		gpio_export(SEL0, true);
+	}
+
+	if (!gpio_request(SEL1, "sel1")) {
+		gpio_direction_input(SEL1);
+		gpio_export(SEL1, true);
+	}
+
+	if (!gpio_request(SEL2, "sel2")) {
+		gpio_direction_input(SEL2);
+		gpio_export(SEL2, true);
+	}
+
+	if (!gpio_request(SEL3, "sel3")) {
+		gpio_direction_input(SEL3);
+		gpio_export(SEL3, true);
+	}
+}
+
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 	&mx31moboard_leds_device,
@@ -255,6 +286,8 @@ static void __init mxc_board_init(void)
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxc_uart_device4, &uart_pdata);
+
+	mx31moboard_init_sel_gpios();
 
 	mxc_register_device(&mxc_i2c_device0, &moboard_i2c0_pdata);
 	mxc_register_device(&mxc_i2c_device1, &moboard_i2c1_pdata);
