@@ -792,10 +792,15 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 
 	if (sb->s_flags & MS_RDONLY) {
 		if (nilfs_test_opt(sbi, SNAPSHOT)) {
+			down_read(&nilfs->ns_segctor_sem);
 			err = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile,
 						       sbi->s_snapshot_cno);
-			if (err < 0)
+			up_read(&nilfs->ns_segctor_sem);
+			if (err < 0) {
+				if (err == -ENOENT)
+					err = -EINVAL;
 				goto failed_sbi;
+			}
 			if (!err) {
 				printk(KERN_ERR
 				       "NILFS: The specified checkpoint is "
