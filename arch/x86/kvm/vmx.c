@@ -781,7 +781,12 @@ static void vmx_fpu_deactivate(struct kvm_vcpu *vcpu)
 
 static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 {
-	return vmcs_readl(GUEST_RFLAGS);
+	unsigned long rflags;
+
+	rflags = vmcs_readl(GUEST_RFLAGS);
+	if (to_vmx(vcpu)->rmode.vm86_active)
+		rflags &= ~(unsigned long)(X86_EFLAGS_IOPL | X86_EFLAGS_VM);
+	return rflags;
 }
 
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
