@@ -257,7 +257,7 @@ static int kernel_mode_regs(struct pt_regs *regs)
 	return regs->ipend & 0xffc0;
 }
 
-asmlinkage void trap_c(struct pt_regs *fp)
+asmlinkage notrace void trap_c(struct pt_regs *fp)
 {
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 	int j;
