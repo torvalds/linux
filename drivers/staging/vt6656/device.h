@@ -388,7 +388,7 @@ typedef struct tagSPMKIDCandidateEvent {
     ULONG Version;       // Version of the structure
     ULONG NumCandidates; // No. of pmkid candidates
     PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
-} SPMKIDCandidateEvent, DEF* PSPMKIDCandidateEvent;
+} SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
 
 //--
 
@@ -400,7 +400,7 @@ typedef struct tagSQuietControl {
     DWORD       dwStartTime;
     BYTE        byPeriod;
     WORD        wDuration;
-} SQuietControl, DEF* PSQuietControl;
+} SQuietControl, *PSQuietControl;
 
 //--
 
@@ -432,7 +432,7 @@ typedef struct tagSDeFragControlBlock
     PBYTE           pbyRxBuffer;
     UINT            cbFrameLength;
     BOOL            bInUse;
-} SDeFragControlBlock, DEF* PSDeFragControlBlock;
+} SDeFragControlBlock, *PSDeFragControlBlock;
 
 
 

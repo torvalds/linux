@@ -625,7 +625,7 @@ s_nsBulkInUsbIoCompleteRead(
     PRCB    pRCB = (PRCB)urb->context;
     PSDevice pDevice = (PSDevice)pRCB->pDevice;
     ULONG   bytesRead;
-    BOOLEAN bIndicateReceive = FALSE;
+    BOOL    bIndicateReceive = FALSE;
     BOOL    bReAllocSkb = FALSE;
     NTSTATUS    status;
 

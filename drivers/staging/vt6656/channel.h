@@ -41,7 +41,7 @@ typedef struct tagSChannelTblElement {
     BYTE    byChannelNumber;
     UINT    uFrequency;
     BOOL    bValid;
-}SChannelTblElement, DEF* PSChannelTblElement;
+}SChannelTblElement, *PSChannelTblElement;
 
 /*---------------------  Export Variables  --------------------------*/
 

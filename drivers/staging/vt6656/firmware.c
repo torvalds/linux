@@ -779,7 +779,7 @@ const BYTE abyFirmware[] = {
 /*---------------------  Export Functions  --------------------------*/
 
 
-BOOLEAN
+BOOL
 FIRMWAREbDownload(
     IN PSDevice pDevice
     )
@@ -829,7 +829,7 @@ FIRMWAREbDownload(
     return (TRUE);
 }
 
-BOOLEAN
+BOOL
 FIRMWAREbBrach2Sram(
     IN PSDevice pDevice
     )
@@ -854,7 +854,7 @@ FIRMWAREbBrach2Sram(
 }
 
 
-BOOLEAN
+BOOL
 FIRMWAREbCheckVersion(
     IN PSDevice pDevice
     )

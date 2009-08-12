@@ -29,46 +29,13 @@
 
 #include <linux/types.h>
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-
-
-typedef __u8    UINT8,   *PUINT8;
-typedef __u16   UINT16,  *PUINT16;
-typedef __u32   UINT32,  *PUINT32;
-
-
-#ifndef VOID
-#define VOID            void
-#endif
-
-#ifndef CONST
-#define CONST           const
-#endif
-
-#ifndef STATIC
-#define STATIC          static
-#endif
-
-#ifndef DEF
-#define DEF
-#endif
-
-#ifndef IN
-#define IN
-#endif
-
-#ifndef OUT
-#define OUT
-#endif
 
 typedef
 struct _version {
-    UINT8   major;
-    UINT8   minor;
-    UINT8   build;
+    unsigned char   major;
+    unsigned char   minor;
+    unsigned char   build;
 } version_t, *pversion_t;
 
 #ifndef FALSE
@@ -111,8 +78,6 @@ struct _version {
 #define PKT_BUF_SZ          2390
 
 
-#define MALLOC(x,y)         kmalloc((x),(y))
-#define FREE(x)             kfree((x))
 #define MAX_UINTS           8
 #define OPTION_DEFAULT      { [0 ... MAX_UINTS-1] = -1}
 

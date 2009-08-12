@@ -30,54 +30,14 @@
 
 #include <linux/version.h>
 
-#ifndef __init
-#define __init
-#endif
-
-#ifndef __exit
-#define __exit
-#endif
-
-#ifndef __devexit
-#define __devexit
-#endif
-
-#ifndef __devinitdata
-#define __devinitdata
-#endif
-
-#ifndef MODULE_LICENSE
-#define MODULE_LICENSE(license)
-#endif
-
-#ifndef MOD_INC_USE_COUNT
-#define MOD_INC_USE_COUNT do {} while (0)
-#endif
-
-#ifndef MOD_DEC_USE_COUNT
-#define MOD_DEC_USE_COUNT do {} while (0)
-#endif
-
 #ifndef HAVE_NETDEV_PRIV
 #define netdev_priv(dev) (dev->priv)
-#endif
-
-#ifndef IRQ_RETVAL
-typedef void irqreturn_t;
-
-
-#define IRQ_RETVAL(x)
-
 #endif
 
 #define vntwusb_submit_urb(val) usb_submit_urb(val, GFP_ATOMIC)
 #define vntwusb_alloc_urb(val)  usb_alloc_urb(val, GFP_ATOMIC)
 
 #define vntwusb_unlink_urb(val) usb_kill_urb(val)
-
-#ifndef MODULE_LICESEN
-#define MODULE_LICESEN(x)
-#endif
 
 #endif
 

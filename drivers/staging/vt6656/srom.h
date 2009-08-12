@@ -120,7 +120,7 @@ typedef struct tagSSromReg {
 
     BYTE    abyReserved0[96];           // 0x10 (WORD)
     BYTE    abyCIS[128];                // 0x80 (WORD)
-} SSromReg, DEF* PSSromReg;
+} SSromReg, *PSSromReg;
 
 /*---------------------  Export Macros ------------------------------*/
 

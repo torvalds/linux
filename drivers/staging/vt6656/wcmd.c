@@ -1265,7 +1265,7 @@ BOOL bScheduleCommand (
                 break;
 
             case WLAN_CMD_DISASSOCIATE:
-                pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bNeedRadioOFF = *((PBOOL)pbyItem0);
+                pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bNeedRadioOFF = *((int *)pbyItem0);
                 break;
 /*
             case WLAN_CMD_DEAUTH:
@@ -1274,7 +1274,7 @@ BOOL bScheduleCommand (
 */
 
             case WLAN_CMD_RADIO:
-                pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bRadioCmd = *((PBOOL)pbyItem0);
+                pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bRadioCmd = *((int *)pbyItem0);
                 break;
 
             default:

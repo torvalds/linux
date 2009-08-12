@@ -65,7 +65,7 @@ typedef struct tagSINTData {
     BYTE    byFCSErr;
     BYTE    abySW[2];
 }__attribute__ ((__packed__))
-SINTData, DEF* PSINTData;
+SINTData, *PSINTData;
 
 
 /*---------------------  Export Classes  ----------------------------*/

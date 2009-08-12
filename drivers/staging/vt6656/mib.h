@@ -52,7 +52,7 @@
 typedef struct tagSUSBCounter {
     DWORD dwCrc;
 
-} SUSBCounter, DEF* PSUSBCounter;
+} SUSBCounter, *PSUSBCounter;
 
 
 
@@ -88,7 +88,7 @@ typedef struct tagSDot11Counters {
 //    ULONGLONG   WEPICVErrorCount;
 //    ULONGLONG   DecryptSuccessCount;
 //    ULONGLONG   DecryptFailureCount;
-} SDot11Counters, DEF* PSDot11Counters;
+} SDot11Counters, *PSDot11Counters;
 
 
 //
@@ -96,7 +96,7 @@ typedef struct tagSDot11Counters {
 //
 typedef struct tagSMib2Counter {
     LONG    ifIndex;
-    TCHAR   ifDescr[256];               // max size 255 plus zero ending
+    char    ifDescr[256];               // max size 255 plus zero ending
                                         // e.g. "interface 1"
     LONG    ifType;
     LONG    ifMtu;
@@ -118,7 +118,7 @@ typedef struct tagSMib2Counter {
     DWORD   ifOutErrors;
     DWORD   ifOutQLen;
     DWORD   ifSpecific;
-} SMib2Counter, DEF* PSMib2Counter;
+} SMib2Counter, *PSMib2Counter;
 
 // Value in the ifType entry
 //#define ETHERNETCSMACD      6           //
@@ -155,7 +155,7 @@ typedef struct tagSRmonCounter {
     DWORD   etherStatsPkt1024to1518Octets;
     DWORD   etherStatsOwners;
     DWORD   etherStatsStatus;
-} SRmonCounter, DEF* PSRmonCounter;
+} SRmonCounter, *PSRmonCounter;
 
 //
 // Custom counter
@@ -193,7 +193,7 @@ typedef struct tagSCustomCounters {
     ULONGLONG   ullRsr9MCRCOk;
     ULONGLONG   ullRsr6MCRCOk;
 
-} SCustomCounters, DEF* PSCustomCounters;
+} SCustomCounters, *PSCustomCounters;
 
 
 //
@@ -224,7 +224,7 @@ typedef struct tagSISRCounters {
     DWORD   dwIsrSYNCFlushOK;
     DWORD   dwIsrSTIMER1Int;
     /////////////////////////////////////
-} SISRCounters, DEF* PSISRCounters;
+} SISRCounters, *PSISRCounters;
 
 
 // Value in the etherStatsStatus entry
@@ -242,7 +242,7 @@ typedef struct tagSTxPktInfo {
     WORD    wLength;
     WORD    wFIFOCtl;
     BYTE    abyDestAddr[U_ETHER_ADDR_LEN];
-} STxPktInfo, DEF* PSTxPktInfo;
+} STxPktInfo, *PSTxPktInfo;
 
 
 #define MAX_RATE            12
@@ -377,7 +377,7 @@ typedef struct tagSStatCounter {
     ULONG LinkQuality;
    #endif
 
-} SStatCounter, DEF* PSStatCounter;
+} SStatCounter, *PSStatCounter;
 
 #define NTSTATUS        int
 

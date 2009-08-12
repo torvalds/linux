@@ -87,7 +87,7 @@ VOID
 RFvRSSITodBm (
     IN  PSDevice pDevice,
     IN  BYTE     byCurrRSSI,
-    OUT PLONG    pldBm
+    long *    pldBm
     );
 
 VOID

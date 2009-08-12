@@ -163,7 +163,7 @@ static BOOL s_bHandleRxEncryption(
     IN PBYTE        pbyRsr,
     OUT PBYTE       pbyNewRsr,
     OUT PSKeyItem   *pKeyOut,
-    OUT PBOOL       pbExtIV,
+    int *       pbExtIV,
     OUT PWORD       pwRxTSC15_0,
     OUT PDWORD      pdwRxTSC47_16
     );
@@ -177,7 +177,7 @@ static BOOL s_bHostWepRxEncryption(
     IN BOOL         bOnFly,
     IN PSKeyItem    pKey,
     OUT PBYTE       pbyNewRsr,
-    OUT PBOOL       pbExtIV,
+    int *       pbExtIV,
     OUT PWORD       pwRxTSC15_0,
     OUT PDWORD      pdwRxTSC47_16
 
@@ -1187,7 +1187,7 @@ static BOOL s_bHandleRxEncryption (
     IN PBYTE        pbyRsr,
     OUT PBYTE       pbyNewRsr,
     OUT PSKeyItem   *pKeyOut,
-    OUT PBOOL       pbExtIV,
+    int *       pbExtIV,
     OUT PWORD       pwRxTSC15_0,
     OUT PDWORD      pdwRxTSC47_16
     )
@@ -1334,7 +1334,7 @@ static BOOL s_bHostWepRxEncryption (
     IN BOOL         bOnFly,
     IN PSKeyItem    pKey,
     OUT PBYTE       pbyNewRsr,
-    OUT PBOOL       pbExtIV,
+    int *       pbExtIV,
     OUT PWORD       pwRxTSC15_0,
     OUT PDWORD      pdwRxTSC47_16
     )

@@ -42,7 +42,7 @@ typedef struct {
     UINT ux;
     UINT uy;
     BYTE abystate[256];
-} RC4Ext, DEF* PRC4Ext;
+} RC4Ext, *PRC4Ext;
 
 VOID rc4_init(PRC4Ext pRC4, PBYTE pbyKey, UINT cbKey_len);
 UINT rc4_byte(PRC4Ext pRC4);

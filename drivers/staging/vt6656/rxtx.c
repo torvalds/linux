@@ -1033,9 +1033,6 @@ s_vFillRTSHead (
     UINT uRTSFrameLen = 20;
     WORD  wLen = 0x0000;
 
-    // dummy code, only to avoid compiler warning message
-    UNREFERENCED_PARAMETER(bNeedAck);
-
     if (pvRTS == NULL)
     	return;
 

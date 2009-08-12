@@ -179,7 +179,7 @@ typedef struct tagSEthernetHeader {
     BYTE    abySrcAddr[U_ETHER_ADDR_LEN];
     WORD    wType;
 }__attribute__ ((__packed__))
-SEthernetHeader, DEF* PSEthernetHeader;
+SEthernetHeader, *PSEthernetHeader;
 
 
 //
@@ -190,7 +190,7 @@ typedef struct tagS802_3Header {
     BYTE    abySrcAddr[U_ETHER_ADDR_LEN];
     WORD    wLen;
 }__attribute__ ((__packed__))
-S802_3Header, DEF* PS802_3Header;
+S802_3Header, *PS802_3Header;
 
 //
 // 802_11 packet
@@ -204,7 +204,7 @@ typedef struct tagS802_11Header {
     WORD    wSeqCtl;
     BYTE    abyAddr4[U_ETHER_ADDR_LEN];
 }__attribute__ ((__packed__))
-S802_11Header, DEF* PS802_11Header;
+S802_11Header, *PS802_11Header;
 
 /*---------------------  Export Macros ------------------------------*/
 // Frame type macro

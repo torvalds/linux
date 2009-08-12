@@ -48,7 +48,7 @@ typedef enum _CARD_PHY_TYPE {
     PHY_TYPE_11B,
     PHY_TYPE_11G,
     PHY_TYPE_11A
-} CARD_PHY_TYPE, DEF* PCARD_PHY_TYPE;
+} CARD_PHY_TYPE, *PCARD_PHY_TYPE;
 
 typedef enum _CARD_OP_MODE {
 

@@ -77,7 +77,7 @@ typedef enum tagWMAC_CMD {
     WLAN_CMD_ZONETYPE_SET,
     WLAN_CMD_GET_NODE_LIST
 
-} WMAC_CMD, DEF* PWMAC_CMD;
+} WMAC_CMD, *PWMAC_CMD;
 
 typedef enum tagWZONETYPE {
   ZoneType_USA=0,
@@ -268,7 +268,7 @@ typedef struct tagSDot11MIBCount {
     U32 ReceivedFragmentCount;
     U32 MulticastReceivedFrameCount;
     U32 FCSErrorCount;
-} SDot11MIBCount, DEF* PSDot11MIBCount;
+} SDot11MIBCount, *PSDot11MIBCount;
 
 
 
@@ -375,7 +375,7 @@ typedef struct tagSStatMIBCount {
     U32   ullTxBroadcastBytes[2];
     U32   ullTxMulticastBytes[2];
     U32   ullTxDirectedBytes[2];
-} SStatMIBCount, DEF* PSStatMIBCount;
+} SStatMIBCount, *PSStatMIBCount;
 
 
 
