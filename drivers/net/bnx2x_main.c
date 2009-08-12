@@ -63,8 +63,8 @@
 #include <linux/firmware.h>
 #include "bnx2x_fw_file_hdr.h"
 /* FW files */
-#define FW_FILE_PREFIX_E1		"bnx2x-e1-"
-#define FW_FILE_PREFIX_E1H		"bnx2x-e1h-"
+#define FW_FILE_PREFIX_E1	"bnx2x-e1-"
+#define FW_FILE_PREFIX_E1H	"bnx2x-e1h-"
 
 /* Time in jiffies before concluding the transmitter is hung */
 #define TX_TIMEOUT		(5*HZ)
@@ -723,7 +723,6 @@ static void bnx2x_int_disable(struct bnx2x *bp)
 	REG_WR(bp, addr, val);
 	if (REG_RD(bp, addr) != val)
 		BNX2X_ERR("BUG! proper val not read from IGU!\n");
-
 }
 
 static void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
@@ -1660,6 +1659,7 @@ reuse_rx:
 		}
 
 		skb_record_rx_queue(skb, fp->index);
+
 #ifdef BCM_VLAN
 		if ((bp->vlgrp != NULL) && (bp->flags & HW_VLAN_RX_FLAG) &&
 		    (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
@@ -2418,14 +2418,12 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 		int func;
 		int vn;
 
+		/* Set the attention towards other drivers on the same port */
 		for (vn = VN_0; vn < E1HVN_MAX; vn++) {
 			if (vn == BP_E1HVN(bp))
 				continue;
 
 			func = ((vn << 1) | port);
-
-			/* Set the attention towards other drivers
-			   on the same port */
 			REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_0 +
 			       (LINK_SYNC_ATTENTION_BIT_FUNC_0 + func)*4, 1);
 		}
@@ -2880,6 +2878,7 @@ static inline void bnx2x_fan_failure(struct bnx2x *bp)
 	       " damage.  Please contact Dell Support for assistance\n",
 	       bp->dev->name);
 }
+
 static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 {
 	int port = BP_PORT(bp);
@@ -7660,9 +7659,11 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	bp->state = BNX2X_STATE_CLOSING_WAIT4_HALT;
 
+	/* Set "drop all" */
 	bp->rx_mode = BNX2X_RX_MODE_NONE;
 	bnx2x_set_storm_rx_mode(bp);
 
+	/* Disable HW interrupts, NAPI and Tx */
 	bnx2x_netif_stop(bp, 1);
 
 	del_timer_sync(&bp->timer);
@@ -9158,8 +9159,7 @@ static int bnx2x_nway_reset(struct net_device *dev)
 	return 0;
 }
 
-static u32
-bnx2x_get_link(struct net_device *dev)
+static u32 bnx2x_get_link(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -10169,7 +10169,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 	__be32 buf[0x350 / 4];
 	u8 *data = (u8 *)buf;
 	int i, rc;
-	u32 magic, csum;
+	u32 magic, crc;
 
 	rc = bnx2x_nvram_read(bp, 0, data, 4);
 	if (rc) {
@@ -10194,10 +10194,10 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 			goto test_nvram_exit;
 		}
 
-		csum = ether_crc_le(nvram_tbl[i].size, data);
-		if (csum != CRC32_RESIDUAL) {
+		crc = ether_crc_le(nvram_tbl[i].size, data);
+		if (crc != CRC32_RESIDUAL) {
 			DP(NETIF_MSG_PROBE,
-			   "nvram_tbl[%d] csum value (0x%08x)\n", i, csum);
+			   "nvram_tbl[%d] crc value (0x%08x)\n", i, crc);
 			rc = -ENODEV;
 			goto test_nvram_exit;
 		}
@@ -11771,17 +11771,17 @@ static int __devinit bnx2x_check_firmware(struct bnx2x *bp)
 		       BCM_5710_FW_MINOR_VERSION,
 		       BCM_5710_FW_REVISION_VERSION,
 		       BCM_5710_FW_ENGINEERING_VERSION);
-                return -EINVAL;
+		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static void inline be32_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
+static inline void be32_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
 {
+	const __be32 *source = (const __be32 *)_source;
+	u32 *target = (u32 *)_target;
 	u32 i;
-	const __be32 *source = (const __be32*)_source;
-	u32 *target = (u32*)_target;
 
 	for (i = 0; i < n/4; i++)
 		target[i] = be32_to_cpu(source[i]);
@@ -11791,66 +11791,67 @@ static void inline be32_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
    Ops array is stored in the following format:
    {op(8bit), offset(24bit, big endian), data(32bit, big endian)}
  */
-static void inline bnx2x_prep_ops(const u8 *_source, u8 *_target, u32 n)
+static inline void bnx2x_prep_ops(const u8 *_source, u8 *_target, u32 n)
 {
+	const __be32 *source = (const __be32 *)_source;
+	struct raw_op *target = (struct raw_op *)_target;
 	u32 i, j, tmp;
-	const __be32 *source = (const __be32*)_source;
-	struct raw_op *target = (struct raw_op*)_target;
 
-	for (i = 0, j = 0; i < n/8; i++, j+=2) {
+	for (i = 0, j = 0; i < n/8; i++, j += 2) {
 		tmp = be32_to_cpu(source[j]);
 		target[i].op = (tmp >> 24) & 0xff;
 		target[i].offset =  tmp & 0xffffff;
 		target[i].raw_data = be32_to_cpu(source[j+1]);
 	}
 }
-static void inline be16_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
+
+static inline void be16_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
 {
+	const __be16 *source = (const __be16 *)_source;
+	u16 *target = (u16 *)_target;
 	u32 i;
-	u16 *target = (u16*)_target;
-	const __be16 *source = (const __be16*)_source;
 
 	for (i = 0; i < n/2; i++)
 		target[i] = be16_to_cpu(source[i]);
 }
 
 #define BNX2X_ALLOC_AND_SET(arr, lbl, func) \
-	do {   \
-		u32 len = be32_to_cpu(fw_hdr->arr.len);   \
-		bp->arr = kmalloc(len, GFP_KERNEL);  \
+	do { \
+		u32 len = be32_to_cpu(fw_hdr->arr.len); \
+		bp->arr = kmalloc(len, GFP_KERNEL); \
 		if (!bp->arr) { \
-			printk(KERN_ERR PFX "Failed to allocate %d bytes for "#arr"\n", len); \
+			printk(KERN_ERR PFX "Failed to allocate %d bytes " \
+					    "for "#arr"\n", len); \
 			goto lbl; \
 		} \
-		func(bp->firmware->data + \
-			be32_to_cpu(fw_hdr->arr.offset), \
-			(u8*)bp->arr, len); \
+		func(bp->firmware->data + be32_to_cpu(fw_hdr->arr.offset), \
+		     (u8 *)bp->arr, len); \
 	} while (0)
-
 
 static int __devinit bnx2x_init_firmware(struct bnx2x *bp, struct device *dev)
 {
 	char fw_file_name[40] = {0};
-        int rc, offset;
 	struct bnx2x_fw_file_hdr *fw_hdr;
+	int rc, offset;
 
 	/* Create a FW file name */
 	if (CHIP_IS_E1(bp))
-                offset = sprintf(fw_file_name, FW_FILE_PREFIX_E1);
+		offset = sprintf(fw_file_name, FW_FILE_PREFIX_E1);
 	else
 		offset = sprintf(fw_file_name, FW_FILE_PREFIX_E1H);
 
 	sprintf(fw_file_name + offset, "%d.%d.%d.%d.fw",
 		BCM_5710_FW_MAJOR_VERSION,
-                BCM_5710_FW_MINOR_VERSION,
-                BCM_5710_FW_REVISION_VERSION,
-                BCM_5710_FW_ENGINEERING_VERSION);
+		BCM_5710_FW_MINOR_VERSION,
+		BCM_5710_FW_REVISION_VERSION,
+		BCM_5710_FW_ENGINEERING_VERSION);
 
 	printk(KERN_INFO PFX "Loading %s\n", fw_file_name);
 
 	rc = request_firmware(&bp->firmware, fw_file_name, dev);
 	if (rc) {
-		printk(KERN_ERR PFX "Can't load firmware file %s\n", fw_file_name);
+		printk(KERN_ERR PFX "Can't load firmware file %s\n",
+		       fw_file_name);
 		goto request_firmware_exit;
 	}
 
@@ -11870,7 +11871,8 @@ static int __devinit bnx2x_init_firmware(struct bnx2x *bp, struct device *dev)
 	BNX2X_ALLOC_AND_SET(init_ops, init_ops_alloc_err, bnx2x_prep_ops);
 
 	/* Offsets */
-	BNX2X_ALLOC_AND_SET(init_ops_offsets, init_offsets_alloc_err, be16_to_cpu_n);
+	BNX2X_ALLOC_AND_SET(init_ops_offsets, init_offsets_alloc_err,
+			    be16_to_cpu_n);
 
 	/* STORMs firmware */
 	INIT_TSEM_INT_TABLE_DATA(bp) = bp->firmware->data +
@@ -11891,6 +11893,7 @@ static int __devinit bnx2x_init_firmware(struct bnx2x *bp, struct device *dev)
 			be32_to_cpu(fw_hdr->csem_pram_data.offset);
 
 	return 0;
+
 init_offsets_alloc_err:
 	kfree(bp->init_ops);
 init_ops_alloc_err:
@@ -11900,7 +11903,6 @@ request_firmware_exit:
 
 	return rc;
 }
-
 
 
 static int __devinit bnx2x_init_one(struct pci_dev *pdev,

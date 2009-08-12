@@ -4561,7 +4561,8 @@
 #define LATCHED_ATTN_SCPAD_PARITY_MCP		33
 
 #define GENERAL_ATTEN_WORD(atten_name)	       ((94 + atten_name) / 32)
-#define GENERAL_ATTEN_OFFSET(atten_name)       (1 << ((94 + atten_name) % 32))
+#define GENERAL_ATTEN_OFFSET(atten_name)\
+	(1UL << ((94 + atten_name) % 32))
 /*
  * This file defines GRC base address for every block.
  * This file is included by chipsim, asm microcode and cpp microcode.

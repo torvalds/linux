@@ -314,9 +314,11 @@ struct bnx2x_fastpath {
 	__le16			*rx_cons_sb;
 	__le16			*rx_bd_cons_sb;
 
+
 	unsigned long		tx_pkt,
 				rx_pkt,
 				rx_calls;
+
 	/* TPA related */
 	struct sw_rx_bd		tpa_pool[ETH_MAX_AGGREGATION_QUEUES_E1H];
 	u8			tpa_state[ETH_MAX_AGGREGATION_QUEUES_E1H];
@@ -998,20 +1000,20 @@ struct bnx2x {
 #define GUNZIP_PHYS(bp)			(bp->gunzip_mapping)
 #define GUNZIP_OUTLEN(bp)		(bp->gunzip_outlen)
 
-	struct raw_op          *init_ops;
+	struct raw_op		*init_ops;
 	/* Init blocks offsets inside init_ops */
-	u16                    *init_ops_offsets;
+	u16			*init_ops_offsets;
 	/* Data blob - has 32 bit granularity */
-	u32                    *init_data;
+	u32			*init_data;
 	/* Zipped PRAM blobs - raw data */
-	const u8               *tsem_int_table_data;
-	const u8               *tsem_pram_data;
-	const u8               *usem_int_table_data;
-	const u8               *usem_pram_data;
-	const u8               *xsem_int_table_data;
-	const u8               *xsem_pram_data;
-	const u8               *csem_int_table_data;
-	const u8               *csem_pram_data;
+	const u8		*tsem_int_table_data;
+	const u8		*tsem_pram_data;
+	const u8		*usem_int_table_data;
+	const u8		*usem_pram_data;
+	const u8		*xsem_int_table_data;
+	const u8		*xsem_pram_data;
+	const u8		*csem_int_table_data;
+	const u8		*csem_pram_data;
 #define INIT_OPS(bp)			(bp->init_ops)
 #define INIT_OPS_OFFSETS(bp)		(bp->init_ops_offsets)
 #define INIT_DATA(bp)			(bp->init_data)
@@ -1024,7 +1026,7 @@ struct bnx2x {
 #define INIT_CSEM_INT_TABLE_DATA(bp)	(bp->csem_int_table_data)
 #define INIT_CSEM_PRAM_DATA(bp)		(bp->csem_pram_data)
 
-        const struct firmware  *firmware;
+	const struct firmware	*firmware;
 };
 
 
@@ -1111,9 +1113,9 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define DMAE_COMP_VAL			0xe0d0d0ae
 
 #define MAX_DMAE_C_PER_PORT		8
-#define INIT_DMAE_C(bp)			(BP_PORT(bp)*MAX_DMAE_C_PER_PORT + \
+#define INIT_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \
 					 BP_E1HVN(bp))
-#define PMF_DMAE_C(bp)			(BP_PORT(bp)*MAX_DMAE_C_PER_PORT + \
+#define PMF_DMAE_C(bp)			(BP_PORT(bp) * MAX_DMAE_C_PER_PORT + \
 					 E1HVN_MAX)
 
 
@@ -1138,7 +1140,8 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 
 /* must be used on a CID before placing it on a HW ring */
-#define HW_CID(bp, x)		((BP_PORT(bp) << 23) | (BP_E1HVN(bp) << 17) | x)
+#define HW_CID(bp, x)			((BP_PORT(bp) << 23) | \
+					 (BP_E1HVN(bp) << 17) | (x))
 
 #define SP_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_spe))
 #define MAX_SP_DESC_CNT			(SP_DESC_CNT - 1)
@@ -1226,8 +1229,8 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 				 AEU_INPUTS_ATTN_BITS_QM_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_XSDM_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_XSEMI_PARITY_ERROR | \
-				AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR |\
-			    AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR |\
+				 AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR |\
+			     AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR |\
 				 AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_USDM_PARITY_ERROR | \
 				 AEU_INPUTS_ATTN_BITS_USEMI_PARITY_ERROR | \
@@ -1255,7 +1258,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY | \
 		 (bp->multi_mode << \
 		  TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE_SHIFT))
-
 #define MULTI_MASK			0x7f
 
 
