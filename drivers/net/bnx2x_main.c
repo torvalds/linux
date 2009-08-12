@@ -203,7 +203,7 @@ static void bnx2x_post_dmae(struct bnx2x *bp, struct dmae_command *dmae,
 void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 		      u32 len32)
 {
-	struct dmae_command *dmae = &bp->init_dmae;
+	struct dmae_command dmae;
 	u32 *wb_comp = bnx2x_sp(bp, wb_comp);
 	int cnt = 200;
 
@@ -216,43 +216,43 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 		return;
 	}
 
-	mutex_lock(&bp->dmae_mutex);
+	memset(&dmae, 0, sizeof(struct dmae_command));
 
-	memset(dmae, 0, sizeof(struct dmae_command));
-
-	dmae->opcode = (DMAE_CMD_SRC_PCI | DMAE_CMD_DST_GRC |
-			DMAE_CMD_C_DST_PCI | DMAE_CMD_C_ENABLE |
-			DMAE_CMD_SRC_RESET | DMAE_CMD_DST_RESET |
+	dmae.opcode = (DMAE_CMD_SRC_PCI | DMAE_CMD_DST_GRC |
+		       DMAE_CMD_C_DST_PCI | DMAE_CMD_C_ENABLE |
+		       DMAE_CMD_SRC_RESET | DMAE_CMD_DST_RESET |
 #ifdef __BIG_ENDIAN
-			DMAE_CMD_ENDIANITY_B_DW_SWAP |
+		       DMAE_CMD_ENDIANITY_B_DW_SWAP |
 #else
-			DMAE_CMD_ENDIANITY_DW_SWAP |
+		       DMAE_CMD_ENDIANITY_DW_SWAP |
 #endif
-			(BP_PORT(bp) ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0) |
-			(BP_E1HVN(bp) << DMAE_CMD_E1HVN_SHIFT));
-	dmae->src_addr_lo = U64_LO(dma_addr);
-	dmae->src_addr_hi = U64_HI(dma_addr);
-	dmae->dst_addr_lo = dst_addr >> 2;
-	dmae->dst_addr_hi = 0;
-	dmae->len = len32;
-	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, wb_comp));
-	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_comp));
-	dmae->comp_val = DMAE_COMP_VAL;
+		       (BP_PORT(bp) ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0) |
+		       (BP_E1HVN(bp) << DMAE_CMD_E1HVN_SHIFT));
+	dmae.src_addr_lo = U64_LO(dma_addr);
+	dmae.src_addr_hi = U64_HI(dma_addr);
+	dmae.dst_addr_lo = dst_addr >> 2;
+	dmae.dst_addr_hi = 0;
+	dmae.len = len32;
+	dmae.comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, wb_comp));
+	dmae.comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_comp));
+	dmae.comp_val = DMAE_COMP_VAL;
 
 	DP(BNX2X_MSG_OFF, "DMAE: opcode 0x%08x\n"
 	   DP_LEVEL "src_addr  [%x:%08x]  len [%d *4]  "
 		    "dst_addr [%x:%08x (%08x)]\n"
 	   DP_LEVEL "comp_addr [%x:%08x]  comp_val 0x%08x\n",
-	   dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
-	   dmae->len, dmae->dst_addr_hi, dmae->dst_addr_lo, dst_addr,
-	   dmae->comp_addr_hi, dmae->comp_addr_lo, dmae->comp_val);
+	   dmae.opcode, dmae.src_addr_hi, dmae.src_addr_lo,
+	   dmae.len, dmae.dst_addr_hi, dmae.dst_addr_lo, dst_addr,
+	   dmae.comp_addr_hi, dmae.comp_addr_lo, dmae.comp_val);
 	DP(BNX2X_MSG_OFF, "data [0x%08x 0x%08x 0x%08x 0x%08x]\n",
 	   bp->slowpath->wb_data[0], bp->slowpath->wb_data[1],
 	   bp->slowpath->wb_data[2], bp->slowpath->wb_data[3]);
 
+	mutex_lock(&bp->dmae_mutex);
+
 	*wb_comp = 0;
 
-	bnx2x_post_dmae(bp, dmae, INIT_DMAE_C(bp));
+	bnx2x_post_dmae(bp, &dmae, INIT_DMAE_C(bp));
 
 	udelay(5);
 
@@ -276,7 +276,7 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 {
-	struct dmae_command *dmae = &bp->init_dmae;
+	struct dmae_command dmae;
 	u32 *wb_comp = bnx2x_sp(bp, wb_comp);
 	int cnt = 200;
 
@@ -291,41 +291,41 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 		return;
 	}
 
-	mutex_lock(&bp->dmae_mutex);
+	memset(&dmae, 0, sizeof(struct dmae_command));
 
-	memset(bnx2x_sp(bp, wb_data[0]), 0, sizeof(u32) * 4);
-	memset(dmae, 0, sizeof(struct dmae_command));
-
-	dmae->opcode = (DMAE_CMD_SRC_GRC | DMAE_CMD_DST_PCI |
-			DMAE_CMD_C_DST_PCI | DMAE_CMD_C_ENABLE |
-			DMAE_CMD_SRC_RESET | DMAE_CMD_DST_RESET |
+	dmae.opcode = (DMAE_CMD_SRC_GRC | DMAE_CMD_DST_PCI |
+		       DMAE_CMD_C_DST_PCI | DMAE_CMD_C_ENABLE |
+		       DMAE_CMD_SRC_RESET | DMAE_CMD_DST_RESET |
 #ifdef __BIG_ENDIAN
-			DMAE_CMD_ENDIANITY_B_DW_SWAP |
+		       DMAE_CMD_ENDIANITY_B_DW_SWAP |
 #else
-			DMAE_CMD_ENDIANITY_DW_SWAP |
+		       DMAE_CMD_ENDIANITY_DW_SWAP |
 #endif
-			(BP_PORT(bp) ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0) |
-			(BP_E1HVN(bp) << DMAE_CMD_E1HVN_SHIFT));
-	dmae->src_addr_lo = src_addr >> 2;
-	dmae->src_addr_hi = 0;
-	dmae->dst_addr_lo = U64_LO(bnx2x_sp_mapping(bp, wb_data));
-	dmae->dst_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_data));
-	dmae->len = len32;
-	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, wb_comp));
-	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_comp));
-	dmae->comp_val = DMAE_COMP_VAL;
+		       (BP_PORT(bp) ? DMAE_CMD_PORT_1 : DMAE_CMD_PORT_0) |
+		       (BP_E1HVN(bp) << DMAE_CMD_E1HVN_SHIFT));
+	dmae.src_addr_lo = src_addr >> 2;
+	dmae.src_addr_hi = 0;
+	dmae.dst_addr_lo = U64_LO(bnx2x_sp_mapping(bp, wb_data));
+	dmae.dst_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_data));
+	dmae.len = len32;
+	dmae.comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, wb_comp));
+	dmae.comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, wb_comp));
+	dmae.comp_val = DMAE_COMP_VAL;
 
 	DP(BNX2X_MSG_OFF, "DMAE: opcode 0x%08x\n"
 	   DP_LEVEL "src_addr  [%x:%08x]  len [%d *4]  "
 		    "dst_addr [%x:%08x (%08x)]\n"
 	   DP_LEVEL "comp_addr [%x:%08x]  comp_val 0x%08x\n",
-	   dmae->opcode, dmae->src_addr_hi, dmae->src_addr_lo,
-	   dmae->len, dmae->dst_addr_hi, dmae->dst_addr_lo, src_addr,
-	   dmae->comp_addr_hi, dmae->comp_addr_lo, dmae->comp_val);
+	   dmae.opcode, dmae.src_addr_hi, dmae.src_addr_lo,
+	   dmae.len, dmae.dst_addr_hi, dmae.dst_addr_lo, src_addr,
+	   dmae.comp_addr_hi, dmae.comp_addr_lo, dmae.comp_val);
 
+	mutex_lock(&bp->dmae_mutex);
+
+	memset(bnx2x_sp(bp, wb_data[0]), 0, sizeof(u32) * 4);
 	*wb_comp = 0;
 
-	bnx2x_post_dmae(bp, dmae, INIT_DMAE_C(bp));
+	bnx2x_post_dmae(bp, &dmae, INIT_DMAE_C(bp));
 
 	udelay(5);
 

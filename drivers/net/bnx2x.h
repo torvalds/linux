@@ -973,7 +973,6 @@ struct bnx2x {
 	int			dmae_ready;
 	/* used to synchronize dmae accesses */
 	struct mutex		dmae_mutex;
-	struct dmae_command	init_dmae;
 
 	/* used to synchronize stats collecting */
 	int			stats_state;
