@@ -1975,17 +1975,14 @@ repeat:
 		/* otherwise we have to go forward and ... */
 		mddev->events ++;
 		if (!mddev->in_sync || mddev->recovery_cp != MaxSector) { /* not clean */
-			/* .. if the array isn't clean, insist on an odd 'events' */
-			if ((mddev->events&1)==0) {
-				mddev->events++;
+			/* .. if the array isn't clean, an 'even' event must also go
+			 * to spares. */
+			if ((mddev->events&1)==0)
 				nospares = 0;
-			}
 		} else {
-			/* otherwise insist on an even 'events' (for clean states) */
-			if ((mddev->events&1)) {
-				mddev->events++;
+			/* otherwise an 'odd' event must go to spares */
+			if ((mddev->events&1))
 				nospares = 0;
-			}
 		}
 	}
 
