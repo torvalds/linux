@@ -575,6 +575,9 @@ struct drm_mode_config {
 	struct drm_property *tv_brightness_property;
 	struct drm_property *tv_contrast_property;
 	struct drm_property *tv_flicker_reduction_property;
+	struct drm_property *tv_overscan_property;
+	struct drm_property *tv_saturation_property;
+	struct drm_property *tv_hue_property;
 
 	/* Optional properties */
 	struct drm_property *scaling_mode_property;
