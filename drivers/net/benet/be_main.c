@@ -1972,9 +1972,9 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (netif_running(netdev)) {
 		rtnl_lock();
 		be_close(netdev);
-		be_clear(adapter);
 		rtnl_unlock();
 	}
+	be_clear(adapter);
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
@@ -1997,9 +1997,9 @@ static int be_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
 
+	be_setup(adapter);
 	if (netif_running(netdev)) {
 		rtnl_lock();
-		be_setup(adapter);
 		be_open(netdev);
 		rtnl_unlock();
 	}
