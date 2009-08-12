@@ -49,7 +49,6 @@
 #include "tkip.h"
 #include "tcrc.h"
 #include "wctl.h"
-#include "tbit.h"
 #include "hostap.h"
 #include "rf.h"
 #include "iowpa.h"
@@ -568,7 +567,7 @@ RXbBulkInProcessData (
     //remove the CRC length
     FrameSize -= U_CRC_LEN;
 
-    if ((BITbIsAllBitsOff(*pbyRsr, (RSR_ADDRBROAD | RSR_ADDRMULTI))) && // unicast address
+    if ( !(*pbyRsr & (RSR_ADDRBROAD | RSR_ADDRMULTI)) && // unicast address
         (IS_FRAGMENT_PKT((pbyFrame)))
         ) {
         // defragment
@@ -663,7 +662,7 @@ RXbBulkInProcessData (
     else {
         if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
             //In AP mode, hw only check addr1(BSSID or RA) if equal to local MAC.
-            if (BITbIsBitOff(*pbyRsr, RSR_BSSIDOK)) {
+            if ( !(*pbyRsr & RSR_BSSIDOK)) {
                 if (bDeFragRx) {
                     if (!device_alloc_frag_buf(pDevice, &pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx])) {
                         DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s: can not alloc more frag bufs\n",
@@ -676,7 +675,7 @@ RXbBulkInProcessData (
         else {
             // discard DATA packet while not associate || BSSID error
             if ((pDevice->bLinkPass == FALSE) ||
-                BITbIsBitOff(*pbyRsr, RSR_BSSIDOK)) {
+                !(*pbyRsr & RSR_BSSIDOK)) {
                 if (bDeFragRx) {
                     if (!device_alloc_frag_buf(pDevice, &pDevice->sRxDFCB[pDevice->uCurrentDFCBIdx])) {
                         DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s: can not alloc more frag bufs\n",
@@ -724,7 +723,7 @@ RXbBulkInProcessData (
 
     if (pDevice->bEnablePSMode) {
         if (IS_FC_MOREDATA((pbyFrame))) {
-            if (BITbIsBitOn(*pbyRsr, RSR_ADDROK)) {
+            if (*pbyRsr & RSR_ADDROK) {
                 //PSbSendPSPOLL((PSDevice)pDevice);
             }
         }

@@ -55,7 +55,6 @@
 #include "card.h"
 #include "mac.h"
 #include "wpa2.h"
-#include "tbit.h"
 #include "control.h"
 #include "rndis.h"
 #include "iowpa.h"
@@ -1437,7 +1436,7 @@ BSSvUpdateNodeTxCounter(
         //DBG_PRN_GRP21(("Device %08X, wRate %04X, byTSR %02X\n", hDeviceContext, wRate, byTSR));
         if (pMgmt->eCurrMode == WMAC_MODE_ESS_STA) {
             pMgmt->sNodeDBTable[0].uTxAttempts += 1;
-            if (BITbIsAllBitsOff(byTSR, (TSR_TMO | TSR_RETRYTMO))) {
+            if ( !(byTSR & (TSR_TMO | TSR_RETRYTMO))) {
                 // transmit success, TxAttempts at least plus one
                 pMgmt->sNodeDBTable[0].uTxOk[MAX_RATE]++;
                 if ( (byFallBack == AUTO_FB_NONE) ||
@@ -1489,7 +1488,7 @@ BSSvUpdateNodeTxCounter(
 
             if (BSSbIsSTAInNodeDB((HANDLE)pDevice, pbyDestAddr, &uNodeIndex)){
                 pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts += 1;
-                if (BITbIsAllBitsOff(byTSR, (TSR_TMO | TSR_RETRYTMO))) {
+                if ( !(byTSR & (TSR_TMO | TSR_RETRYTMO))) {
                     // transmit success, TxAttempts at least plus one
                     pMgmt->sNodeDBTable[uNodeIndex].uTxOk[MAX_RATE]++;
                     if ( (byFallBack == AUTO_FB_NONE) ||

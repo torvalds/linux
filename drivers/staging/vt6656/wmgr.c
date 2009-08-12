@@ -62,7 +62,6 @@
  */
 
 #include "tmacro.h"
-#include "tbit.h"
 #include "desc.h"
 #include "device.h"
 #include "card.h"

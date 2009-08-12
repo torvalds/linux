@@ -57,7 +57,6 @@
 #include "tkip.h"
 #include "tcrc.h"
 #include "wctl.h"
-#include "tbit.h"
 #include "hostap.h"
 #include "rf.h"
 #include "datarate.h"

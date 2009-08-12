@@ -34,7 +34,6 @@
 
 #include "device.h"
 #include "tmacro.h"
-#include "tbit.h"
 #include "tcrc.h"
 #include "tether.h"
 
@@ -74,7 +73,7 @@ BYTE ETHbyGetHashIndexByCrc32 (PBYTE pbyMultiAddr)
     // reverse most bit to least bit
     for (ii = 0; ii < (sizeof(byTmpHash) * 8); ii++) {
         byHash <<= 1;
-        if (BITbIsBitOn(byTmpHash, 0x01))
+        if (byTmpHash & 0x01)
             byHash |= 1;
         byTmpHash >>= 1;
     }

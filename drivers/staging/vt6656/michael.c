@@ -40,7 +40,6 @@
  */
 
 #include "tmacro.h"
-#include "tbit.h"
 #include "michael.h"
 
 /*---------------------  Static Definitions -------------------------*/

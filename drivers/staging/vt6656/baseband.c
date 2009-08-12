@@ -38,7 +38,6 @@
  */
 
 #include "tmacro.h"
-#include "tbit.h"
 #include "tether.h"
 #include "mac.h"
 #include "baseband.h"

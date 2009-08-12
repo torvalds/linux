@@ -31,7 +31,6 @@
  */
 
 #include "tmacro.h"
-#include "tbit.h"
 #include "tether.h"
 #include "desc.h"
 #include "mac.h"

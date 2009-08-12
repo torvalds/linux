@@ -34,7 +34,6 @@
 
 #include "int.h"
 #include "mib.h"
-#include "tbit.h"
 #include "tmacro.h"
 #include "mac.h"
 #include "power.h"
@@ -112,28 +111,28 @@ INTnsProcessData(
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
 
     pINTData = (PSINTData) pDevice->intBuf.pDataBuf;
-    if (BITbIsBitOn(pINTData->byTSR0, TSR_VALID)) {
+    if (pINTData->byTSR0 & TSR_VALID) {
         STAvUpdateTDStatCounter (&(pDevice->scStatistic), (BYTE) (pINTData->byPkt0 & 0x0F), (BYTE) (pINTData->byPkt0>>4), pINTData->byTSR0);
         BSSvUpdateNodeTxCounter (pDevice, &(pDevice->scStatistic),  pINTData->byTSR0, pINTData->byPkt0);
         //DBG_PRN_GRP01(("TSR0 %02x\n", pINTData->byTSR0));
     }
-    if (BITbIsBitOn(pINTData->byTSR1, TSR_VALID)) {
+    if (pINTData->byTSR1 & TSR_VALID) {
         STAvUpdateTDStatCounter (&(pDevice->scStatistic), (BYTE) (pINTData->byPkt1 & 0x0F), (BYTE) (pINTData->byPkt1>>4), pINTData->byTSR1);
         BSSvUpdateNodeTxCounter (pDevice, &(pDevice->scStatistic),  pINTData->byTSR1, pINTData->byPkt1);
         //DBG_PRN_GRP01(("TSR1 %02x\n", pINTData->byTSR1));
     }
-    if (BITbIsBitOn(pINTData->byTSR2, TSR_VALID)) {
+    if (pINTData->byTSR2 & TSR_VALID) {
         STAvUpdateTDStatCounter (&(pDevice->scStatistic), (BYTE) (pINTData->byPkt2 & 0x0F), (BYTE) (pINTData->byPkt2>>4), pINTData->byTSR2);
         BSSvUpdateNodeTxCounter (pDevice, &(pDevice->scStatistic),  pINTData->byTSR2, pINTData->byPkt2);
         //DBG_PRN_GRP01(("TSR2 %02x\n", pINTData->byTSR2));
     }
-    if (BITbIsBitOn(pINTData->byTSR3, TSR_VALID)) {
+    if (pINTData->byTSR3 & TSR_VALID) {
         STAvUpdateTDStatCounter (&(pDevice->scStatistic), (BYTE) (pINTData->byPkt3 & 0x0F), (BYTE) (pINTData->byPkt3>>4), pINTData->byTSR3);
         BSSvUpdateNodeTxCounter (pDevice, &(pDevice->scStatistic),  pINTData->byTSR3, pINTData->byPkt3);
         //DBG_PRN_GRP01(("TSR3 %02x\n", pINTData->byTSR3));
     }
     if ( pINTData->byISR0 != 0 ) {
-        if ( BITbIsBitOn(pINTData->byISR0, ISR_BNTX) ) {
+        if (pINTData->byISR0 & ISR_BNTX) {
 
             if (pDevice->eOPMode == OP_MODE_AP) {
                 if(pMgmt->byDTIMCount > 0) {
@@ -154,7 +153,7 @@ INTnsProcessData(
         } else {
             pDevice->bBeaconSent = FALSE;
         }
-        if ( BITbIsBitOn(pINTData->byISR0, ISR_TBTT) ) {
+        if (pINTData->byISR0 & ISR_TBTT) {
             if ( pDevice->bEnablePSMode ) {
                 bScheduleCommand((HANDLE) pDevice, WLAN_CMD_TBTT_WAKEUP, NULL);
             }
@@ -176,7 +175,7 @@ INTnsProcessData(
     }
 
     if ( pINTData->byISR1 != 0 ) {
-        if ( BITbIsBitOn(pINTData->byISR1, ISR_GPIO3) ) {
+        if (pINTData->byISR1 & ISR_GPIO3) {
             bScheduleCommand((HANDLE) pDevice, WLAN_CMD_RADIO, NULL);
         }
     }
