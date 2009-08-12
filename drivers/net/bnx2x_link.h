@@ -88,10 +88,14 @@ struct link_params {
 
 	u32 lane_config;
 	u32 ext_phy_config;
-#define XGXS_EXT_PHY_TYPE(ext_phy_config)	(ext_phy_config & \
-					PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK)
-#define SERDES_EXT_PHY_TYPE(ext_phy_config)	(ext_phy_config & \
-					PORT_HW_CFG_SERDES_EXT_PHY_TYPE_MASK)
+#define XGXS_EXT_PHY_TYPE(ext_phy_config) \
+		((ext_phy_config) & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK)
+#define XGXS_EXT_PHY_ADDR(ext_phy_config) \
+		(((ext_phy_config) & PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >> \
+		 PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT)
+#define SERDES_EXT_PHY_TYPE(ext_phy_config) \
+		((ext_phy_config) & PORT_HW_CFG_SERDES_EXT_PHY_TYPE_MASK)
+
 	/* Phy register parameter */
 	u32 chip_id;
 

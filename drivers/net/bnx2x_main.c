@@ -8546,9 +8546,7 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	else if ((ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE) &&
 		 (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN))
 		bp->mdio.prtad =
-			(bp->link_params.ext_phy_config &
-			 PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
-				PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT;
+			XGXS_EXT_PHY_ADDR(bp->link_params.ext_phy_config);
 
 	val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_upper);
 	val = SHMEM_RD(bp, dev_info.port_hw_config[port].mac_lower);
@@ -9549,9 +9547,7 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 		if (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config) ==
 				       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101) {
 			u8 ext_phy_addr =
-				(bp->link_params.ext_phy_config &
-				 PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
-					PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT;
+			     XGXS_EXT_PHY_ADDR(bp->link_params.ext_phy_config);
 
 			/* DSP Remove Download Mode */
 			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
