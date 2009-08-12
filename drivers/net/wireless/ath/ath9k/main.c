@@ -1327,7 +1327,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc)
 	 */
 	ath_read_cachesize(sc, &csz);
 	/* XXX assert csz is non-zero */
-	sc->cachelsz = csz << 2;	/* convert to bytes */
+	sc->common.cachelsz = csz << 2;	/* convert to bytes */
 
 	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
 	if (!ah) {

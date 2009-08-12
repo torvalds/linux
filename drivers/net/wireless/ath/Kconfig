@@ -5,9 +5,7 @@ menuconfig ATH_COMMON
 	---help---
 	  This will enable the support for the Atheros wireless drivers.
 	  ath5k, ath9k and ar9170 drivers share some common code, this option
-	  enables the common ath.ko module which currently shares just common
-	  regulatory EEPROM helpers but will likely be extended later to share
-	  more between modules.
+	  enables the common ath.ko module which shares common helpers.
 
 	  For more information and documentation on this module you can visit:
 
