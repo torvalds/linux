@@ -116,14 +116,20 @@
 #define REG_RD_DMAE(bp, offset, valp, len32) \
 	do { \
 		bnx2x_read_dmae(bp, offset, len32);\
-		memcpy(valp, bnx2x_sp(bp, wb_data[0]), len32 * 4); \
+		memcpy(valp, bnx2x_sp(bp, wb_data[0]), (len32) * 4); \
 	} while (0)
 
 #define REG_WR_DMAE(bp, offset, valp, len32) \
 	do { \
-		memcpy(bnx2x_sp(bp, wb_data[0]), valp, len32 * 4); \
+		memcpy(bnx2x_sp(bp, wb_data[0]), valp, (len32) * 4); \
 		bnx2x_write_dmae(bp, bnx2x_sp_mapping(bp, wb_data), \
 				 offset, len32); \
+	} while (0)
+
+#define VIRT_WR_DMAE_LEN(bp, data, addr, len32) \
+	do { \
+		memcpy(GUNZIP_BUF(bp), data, (len32) * 4); \
+		bnx2x_write_big_buf_wb(bp, addr, len32); \
 	} while (0)
 
 #define SHMEM_ADDR(bp, field)		(bp->common.shmem_base + \
@@ -988,6 +994,9 @@ struct bnx2x {
 	dma_addr_t		gunzip_mapping;
 	int			gunzip_outlen;
 #define FW_BUF_SIZE			0x8000
+#define GUNZIP_BUF(bp)			(bp->gunzip_buf)
+#define GUNZIP_PHYS(bp)			(bp->gunzip_mapping)
+#define GUNZIP_OUTLEN(bp)		(bp->gunzip_outlen)
 
 	struct raw_op          *init_ops;
 	/* Init blocks offsets inside init_ops */
@@ -1003,6 +1012,18 @@ struct bnx2x {
 	const u8               *xsem_pram_data;
 	const u8               *csem_int_table_data;
 	const u8               *csem_pram_data;
+#define INIT_OPS(bp)			(bp->init_ops)
+#define INIT_OPS_OFFSETS(bp)		(bp->init_ops_offsets)
+#define INIT_DATA(bp)			(bp->init_data)
+#define INIT_TSEM_INT_TABLE_DATA(bp)	(bp->tsem_int_table_data)
+#define INIT_TSEM_PRAM_DATA(bp)		(bp->tsem_pram_data)
+#define INIT_USEM_INT_TABLE_DATA(bp)	(bp->usem_int_table_data)
+#define INIT_USEM_PRAM_DATA(bp)		(bp->usem_pram_data)
+#define INIT_XSEM_INT_TABLE_DATA(bp)	(bp->xsem_int_table_data)
+#define INIT_XSEM_PRAM_DATA(bp)		(bp->xsem_pram_data)
+#define INIT_CSEM_INT_TABLE_DATA(bp)	(bp->csem_int_table_data)
+#define INIT_CSEM_PRAM_DATA(bp)		(bp->csem_pram_data)
+
         const struct firmware  *firmware;
 };
 
@@ -1030,6 +1051,9 @@ int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port);
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 int bnx2x_set_gpio_int(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 u32 bnx2x_fw_command(struct bnx2x *bp, u32 command);
+void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
+void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
+			       u32 addr, u32 len);
 
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)

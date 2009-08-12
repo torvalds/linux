@@ -153,7 +153,7 @@ MODULE_DEVICE_TABLE(pci, bnx2x_pci_tbl);
 /* used only at init
  * locking is done by mcp
  */
-static void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val)
+void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val)
 {
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS, addr);
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_DATA, val);
@@ -344,6 +344,21 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 	   bp->slowpath->wb_data[2], bp->slowpath->wb_data[3]);
 
 	mutex_unlock(&bp->dmae_mutex);
+}
+
+void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
+			       u32 addr, u32 len)
+{
+	int offset = 0;
+
+	while (len > DMAE_LEN32_WR_MAX) {
+		bnx2x_write_dmae(bp, phys_addr + offset,
+				 addr + offset, DMAE_LEN32_WR_MAX);
+		offset += DMAE_LEN32_WR_MAX * 4;
+		len -= DMAE_LEN32_WR_MAX;
+	}
+
+	bnx2x_write_dmae(bp, phys_addr + offset, addr + offset, len);
 }
 
 /* used only for slowpath so not inlined */
@@ -5917,6 +5932,24 @@ static void bnx2x_reset_common(struct bnx2x *bp)
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR, 0x1403);
 }
 
+static void bnx2x_init_pxp(struct bnx2x *bp)
+{
+	u16 devctl;
+	int r_order, w_order;
+
+	pci_read_config_word(bp->pdev,
+			     bp->pcie_cap + PCI_EXP_DEVCTL, &devctl);
+	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", devctl);
+	w_order = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
+	if (bp->mrrs == -1)
+		r_order = ((devctl & PCI_EXP_DEVCTL_READRQ) >> 12);
+	else {
+		DP(NETIF_MSG_HW, "force read order to %d\n", bp->mrrs);
+		r_order = bp->mrrs;
+	}
+
+	bnx2x_init_pxp_arb(bp, r_order, w_order);
+}
 
 static void bnx2x_setup_fan_failure_detection(struct bnx2x *bp)
 {
@@ -6479,9 +6512,15 @@ static int bnx2x_init_func(struct bnx2x *bp)
 
 
 	if (CHIP_IS_E1H(bp)) {
-		for (i = 0; i < 9; i++)
-			bnx2x_init_block(bp,
-					 cm_blocks[i], FUNC0_STAGE + func);
+		bnx2x_init_block(bp, MISC_BLOCK, FUNC0_STAGE + func);
+		bnx2x_init_block(bp, TCM_BLOCK, FUNC0_STAGE + func);
+		bnx2x_init_block(bp, UCM_BLOCK, FUNC0_STAGE + func);
+		bnx2x_init_block(bp, CCM_BLOCK, FUNC0_STAGE + func);
+		bnx2x_init_block(bp, XCM_BLOCK, FUNC0_STAGE + func);
+		bnx2x_init_block(bp, TSEM_BLOCK, FUNC0_STAGE + func);
+		bnx2x_init_block(bp, USEM_BLOCK, FUNC0_STAGE + func);
+		bnx2x_init_block(bp, CSEM_BLOCK, FUNC0_STAGE + func);
+		bnx2x_init_block(bp, XSEM_BLOCK, FUNC0_STAGE + func);
 
 		REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 1);
 		REG_WR(bp, NIG_REG_LLH0_FUNC_VLAN_ID + port*8, bp->e1hov);
@@ -11834,22 +11873,22 @@ static int __devinit bnx2x_init_firmware(struct bnx2x *bp, struct device *dev)
 	BNX2X_ALLOC_AND_SET(init_ops_offsets, init_offsets_alloc_err, be16_to_cpu_n);
 
 	/* STORMs firmware */
-	bp->tsem_int_table_data = bp->firmware->data +
-		be32_to_cpu(fw_hdr->tsem_int_table_data.offset);
-	bp->tsem_pram_data      = bp->firmware->data +
-		be32_to_cpu(fw_hdr->tsem_pram_data.offset);
-	bp->usem_int_table_data = bp->firmware->data +
-		be32_to_cpu(fw_hdr->usem_int_table_data.offset);
-	bp->usem_pram_data      = bp->firmware->data +
-		be32_to_cpu(fw_hdr->usem_pram_data.offset);
-	bp->xsem_int_table_data = bp->firmware->data +
-		be32_to_cpu(fw_hdr->xsem_int_table_data.offset);
-	bp->xsem_pram_data      = bp->firmware->data +
-		be32_to_cpu(fw_hdr->xsem_pram_data.offset);
-	bp->csem_int_table_data = bp->firmware->data +
-		be32_to_cpu(fw_hdr->csem_int_table_data.offset);
-	bp->csem_pram_data      = bp->firmware->data +
-		be32_to_cpu(fw_hdr->csem_pram_data.offset);
+	INIT_TSEM_INT_TABLE_DATA(bp) = bp->firmware->data +
+			be32_to_cpu(fw_hdr->tsem_int_table_data.offset);
+	INIT_TSEM_PRAM_DATA(bp)      = bp->firmware->data +
+			be32_to_cpu(fw_hdr->tsem_pram_data.offset);
+	INIT_USEM_INT_TABLE_DATA(bp) = bp->firmware->data +
+			be32_to_cpu(fw_hdr->usem_int_table_data.offset);
+	INIT_USEM_PRAM_DATA(bp)      = bp->firmware->data +
+			be32_to_cpu(fw_hdr->usem_pram_data.offset);
+	INIT_XSEM_INT_TABLE_DATA(bp) = bp->firmware->data +
+			be32_to_cpu(fw_hdr->xsem_int_table_data.offset);
+	INIT_XSEM_PRAM_DATA(bp)      = bp->firmware->data +
+			be32_to_cpu(fw_hdr->xsem_pram_data.offset);
+	INIT_CSEM_INT_TABLE_DATA(bp) = bp->firmware->data +
+			be32_to_cpu(fw_hdr->csem_int_table_data.offset);
+	INIT_CSEM_PRAM_DATA(bp)      = bp->firmware->data +
+			be32_to_cpu(fw_hdr->csem_pram_data.offset);
 
 	return 0;
 init_offsets_alloc_err:
