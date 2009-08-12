@@ -138,7 +138,7 @@ enum {
 	VCPU_SREG_LDTR,
 };
 
-#include <asm/kvm_x86_emulate.h>
+#include <asm/kvm_emulate.h>
 
 #define KVM_NR_MEM_OBJS 40
 

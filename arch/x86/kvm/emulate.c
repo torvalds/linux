@@ -1,5 +1,5 @@
 /******************************************************************************
- * x86_emulate.c
+ * emulate.c
  *
  * Generic x86 (32-bit and 64-bit) instruction decoder and emulator.
  *
@@ -30,7 +30,7 @@
 #define DPRINTF(x...) do {} while (0)
 #endif
 #include <linux/module.h>
-#include <asm/kvm_x86_emulate.h>
+#include <asm/kvm_emulate.h>
 
 #include "mmu.h"		/* for is_long_mode() */
 

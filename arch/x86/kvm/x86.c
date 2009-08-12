@@ -2759,7 +2759,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	kvm_clear_exception_queue(vcpu);
 	vcpu->arch.mmio_fault_cr2 = cr2;
 	/*
-	 * TODO: fix x86_emulate.c to use guest_read/write_register
+	 * TODO: fix emulate.c to use guest_read/write_register
 	 * instead of direct ->regs accesses, can save hundred cycles
 	 * on Intel for instructions that don't read/change RSP, for
 	 * for example.
