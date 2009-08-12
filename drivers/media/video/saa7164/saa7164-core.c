@@ -578,8 +578,6 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 
 	pci_set_drvdata(pci_dev, dev);
 
-	saa7164_pci_quirks(dev);
-
 	/* Init the internal command list */
 	for (i = 0; i < SAA_CMD_MAX_MSG_UNITS; i++) {
 		dev->cmds[i].seqno = i;
