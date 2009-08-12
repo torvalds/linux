@@ -14,11 +14,7 @@
 //#include "ieee80211.h"
 #include "r8192E.h"
 #include "r8192E_hw.h"
-#ifdef RTL8190P
-#include "r819xP_firmware_img.h"
-#else
-#include "r819xE_firmware_img.h"
-#endif
+//#include "r819xE_firmware_img.h"
 #include "r819xE_firmware.h"
 #include <linux/firmware.h>
 
@@ -195,15 +191,6 @@ bool init_firmware(struct net_device *dev)
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
 	bool			rt_status = TRUE;
 
-#ifdef RTL8190P
-	u8			*firmware_img_buf[3] = { &rtl8190_fwboot_array[0],
-						   	 &rtl8190_fwmain_array[0],
-						   	 &rtl8190_fwdata_array[0]};
-
-	u32			firmware_img_len[3] = { sizeof(rtl8190_fwboot_array),
-							sizeof(rtl8190_fwmain_array),
-						   	sizeof(rtl8190_fwdata_array)};
-#else
 	u8			*firmware_img_buf[3] = { &rtl8192e_fwboot_array[0],
 						   	 &rtl8192e_fwmain_array[0],
 						   	 &rtl8192e_fwdata_array[0]};
@@ -211,7 +198,6 @@ bool init_firmware(struct net_device *dev)
 	u32			firmware_img_len[3] = { sizeof(rtl8192e_fwboot_array),
 						   	sizeof(rtl8192e_fwmain_array),
 						   	sizeof(rtl8192e_fwdata_array)};
-#endif
 	u32			file_length = 0;
 	u8			*mapped_file = NULL;
 	u32			init_step = 0;
@@ -220,16 +206,9 @@ bool init_firmware(struct net_device *dev)
 
 	rt_firmware		*pfirmware = priv->pFirmware;
 	const struct firmware 	*fw_entry;
-#ifdef RTL8190P
-	const char *fw_name[3] = { "RTL8190P/boot.img",
-                           "RTL8190P/main.img",
-			   "RTL8190P/data.img"};
-#endif
-#ifdef RTL8192E
 	const char *fw_name[3] = { "RTL8192E/boot.img",
                            "RTL8192E/main.img",
 			   "RTL8192E/data.img"};
-#endif
 	int rc;
 
 	RT_TRACE(COMP_FIRMWARE, " PlatformInitFirmware()==>\n");
@@ -279,17 +258,11 @@ bool init_firmware(struct net_device *dev)
 							pfirmware->firmware_buf_size[init_step] = fw_entry->size;
 
 						} else {
-#ifdef RTL8190P
-							memcpy(pfirmware->firmware_buf[init_step],fw_entry->data,fw_entry->size);
-							pfirmware->firmware_buf_size[init_step] = fw_entry->size;
-
-#else
 							memset(pfirmware->firmware_buf[init_step],0,128);
 							memcpy(&pfirmware->firmware_buf[init_step][128],fw_entry->data,fw_entry->size);
 							//mapped_file = pfirmware->firmware_buf[init_step];
 							pfirmware->firmware_buf_size[init_step] = fw_entry->size+128;
 							//file_length = fw_entry->size + 128;
-#endif
 						}
 						//pfirmware->firmware_buf_size = file_length;
 
