@@ -14,9 +14,21 @@
 //#include "ieee80211.h"
 #include "r8192E.h"
 #include "r8192E_hw.h"
-//#include "r819xE_firmware_img.h"
-#include "r819xE_firmware.h"
 #include <linux/firmware.h>
+
+/* It should be double word alignment */
+#define GET_COMMAND_PACKET_FRAG_THRESHOLD(v)	(4*(v/4) - 8 )
+
+typedef enum _firmware_init_step{
+	FW_INIT_STEP0_BOOT = 0,
+	FW_INIT_STEP1_MAIN = 1,
+	FW_INIT_STEP2_DATA = 2,
+}firmware_init_step_e;
+
+typedef enum _opt_rst_type{
+	OPT_SYSTEM_RESET = 0,
+	OPT_FIRMWARE_RESET = 1,
+}opt_rst_type_e;
 
 void firmware_init_param(struct net_device *dev)
 {
@@ -190,14 +202,6 @@ bool init_firmware(struct net_device *dev)
 {
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
 	bool			rt_status = TRUE;
-
-	u8			*firmware_img_buf[3] = { &rtl8192e_fwboot_array[0],
-						   	 &rtl8192e_fwmain_array[0],
-						   	 &rtl8192e_fwdata_array[0]};
-
-	u32			firmware_img_len[3] = { sizeof(rtl8192e_fwboot_array),
-						   	sizeof(rtl8192e_fwmain_array),
-						   	sizeof(rtl8192e_fwdata_array)};
 	u32			file_length = 0;
 	u8			*mapped_file = NULL;
 	u32			init_step = 0;
@@ -274,15 +278,6 @@ bool init_firmware(struct net_device *dev)
 					file_length = pfirmware->firmware_buf_size[init_step];
 					break;
 				}
-				case FW_SOURCE_HEADER_FILE:
-					mapped_file =  firmware_img_buf[init_step];
-					file_length  = firmware_img_len[init_step];
-					if(init_step == FW_INIT_STEP2_DATA) {
-						memcpy(pfirmware->firmware_buf[init_step], mapped_file, file_length);
-						pfirmware->firmware_buf_size[init_step] = file_length;
-					}
-					break;
-
 				default:
 					break;
 			}
