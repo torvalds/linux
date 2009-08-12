@@ -80,6 +80,43 @@ u32 saa7164_cmd_timeout_get(struct saa7164_dev *dev, u8 seqno)
 
 /* Commands to the f/w get marshelled to/from this code then onto the PCI
  * -bus/c running buffer. */
+int saa7164_irq_dequeue(struct saa7164_dev *dev)
+{
+	int ret = SAA_OK;
+	u32 timeout;
+	wait_queue_head_t *q = 0;
+	dprintk(DBGLVL_CMD, "%s()\n", __func__);
+
+	/* While any outstand message on the bus exists... */
+	do {
+
+		/* Peek the msg bus */
+		tmComResInfo_t tRsp = { 0, 0, 0, 0, 0, 0 };
+		ret = saa7164_bus_get(dev, &tRsp, NULL, 1);
+		if (ret != SAA_OK)
+			break;
+
+		q = &dev->cmds[tRsp.seqno].wait;
+		timeout = saa7164_cmd_timeout_get(dev, tRsp.seqno);
+		dprintk(DBGLVL_CMD, "%s() timeout = %d\n", __func__, timeout);
+		if (!timeout) {
+			dprintk(DBGLVL_CMD,
+				"%s() signalled seqno(%d) (for dequeue)\n",
+				__func__, tRsp.seqno);
+			dev->cmds[tRsp.seqno].signalled = 1;
+			wake_up(q);
+		} else {
+			printk(KERN_ERR
+				"%s() found timed out command on the bus\n",
+					__func__);
+		}
+	} while (0);
+
+	return ret;
+}
+
+/* Commands to the f/w get marshelled to/from this code then onto the PCI
+ * -bus/c running buffer. */
 int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 {
 	int loop = 1;

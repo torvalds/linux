@@ -328,6 +328,7 @@ int saa7164_cmd_send(struct saa7164_dev *dev,
 	u8 id, tmComResCmd_t command, u16 controlselector,
 	u16 size, void *buf);
 void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno);
+int saa7164_irq_dequeue(struct saa7164_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* saa7164-api.c                                               */

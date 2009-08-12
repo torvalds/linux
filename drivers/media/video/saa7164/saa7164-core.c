@@ -69,7 +69,7 @@ static void saa7164_work_cmdhandler(struct work_struct *w)
 	struct saa7164_dev *dev = container_of(w, struct saa7164_dev, workcmd);
 
 	/* Wake up any complete commands */
-	saa7164_cmd_signal(dev, 0);
+	saa7164_irq_dequeue(dev);
 }
 
 static void saa7164_buffer_deliver(struct saa7164_buffer *buf)
