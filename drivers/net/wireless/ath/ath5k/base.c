@@ -544,7 +544,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	__set_bit(ATH_STAT_INVALID, sc->status);
 
 	sc->iobase = mem; /* So we can unmap it on detach */
-	sc->cachelsz = csz * sizeof(u32); /* convert to bytes */
+	sc->common.cachelsz = csz * sizeof(u32); /* convert to bytes */
 	sc->opmode = NL80211_IFTYPE_STATION;
 	sc->bintval = 1000;
 	mutex_init(&sc->lock);
@@ -1151,27 +1151,20 @@ static
 struct sk_buff *ath5k_rx_skb_alloc(struct ath5k_softc *sc, dma_addr_t *skb_addr)
 {
 	struct sk_buff *skb;
-	unsigned int off;
 
 	/*
 	 * Allocate buffer with headroom_needed space for the
 	 * fake physical layer header at the start.
 	 */
-	skb = dev_alloc_skb(sc->rxbufsize + sc->cachelsz - 1);
+	skb = ath_rxbuf_alloc(&sc->common,
+			      sc->rxbufsize + sc->common.cachelsz - 1,
+			      GFP_ATOMIC);
 
 	if (!skb) {
 		ATH5K_ERR(sc, "can't alloc skbuff of size %u\n",
-				sc->rxbufsize + sc->cachelsz - 1);
+				sc->rxbufsize + sc->common.cachelsz - 1);
 		return NULL;
 	}
-	/*
-	 * Cache-line-align.  This is important (for the
-	 * 5210 at least) as not doing so causes bogus data
-	 * in rx'd frames.
-	 */
-	off = ((unsigned long)skb->data) % sc->cachelsz;
-	if (off != 0)
-		skb_reserve(skb, sc->cachelsz - off);
 
 	*skb_addr = pci_map_single(sc->pdev,
 		skb->data, sc->rxbufsize, PCI_DMA_FROMDEVICE);
@@ -1613,10 +1606,10 @@ ath5k_rx_start(struct ath5k_softc *sc)
 	struct ath5k_buf *bf;
 	int ret;
 
-	sc->rxbufsize = roundup(IEEE80211_MAX_LEN, sc->cachelsz);
+	sc->rxbufsize = roundup(IEEE80211_MAX_LEN, sc->common.cachelsz);
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "cachelsz %u rxbufsize %u\n",
-		sc->cachelsz, sc->rxbufsize);
+		sc->common.cachelsz, sc->rxbufsize);
 
 	spin_lock_bh(&sc->rxbuflock);
 	sc->rxlink = NULL;

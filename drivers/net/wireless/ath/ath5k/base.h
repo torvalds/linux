@@ -50,6 +50,7 @@
 
 #include "ath5k.h"
 #include "debug.h"
+#include "../ath.h"
 
 #define	ATH_RXBUF	40		/* number of RX buffers */
 #define	ATH_TXBUF	200		/* number of TX buffers */
@@ -112,6 +113,7 @@ struct ath5k_rfkill {
  * associated with an instance of a device */
 struct ath5k_softc {
 	struct pci_dev		*pdev;		/* for dma mapping */
+	struct ath_common	common;
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
 	struct ieee80211_tx_queue_stats tx_stats[AR5K_NUM_TX_QUEUES];
@@ -134,7 +136,6 @@ struct ath5k_softc {
 	struct ath5k_desc	*desc;		/* TX/RX descriptors */
 	dma_addr_t		desc_daddr;	/* DMA (physical) address */
 	size_t			desc_len;	/* size of TX/RX descriptors */
-	u16			cachelsz;	/* cache line size */
 
 	DECLARE_BITMAP(status, 5);
 #define ATH_STAT_INVALID	0		/* disable hardware accesses */
