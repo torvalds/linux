@@ -89,6 +89,7 @@
 	} while (0)
 #else
 #define bnx2x_panic() do { \
+		bp->panic = 1; \
 		BNX2X_ERR("driver assert\n"); \
 		bnx2x_panic_dump(bp); \
 	} while (0)
