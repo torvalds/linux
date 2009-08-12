@@ -35,10 +35,5 @@
 #define netdev_priv(dev) (dev->priv)
 #endif
 
-#define vntwusb_submit_urb(val) usb_submit_urb(val, GFP_ATOMIC)
-#define vntwusb_alloc_urb(val)  usb_alloc_urb(val, GFP_ATOMIC)
-
-#define vntwusb_unlink_urb(val) usb_kill_urb(val)
-
 #endif
 

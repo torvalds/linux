@@ -859,7 +859,7 @@ static VOID device_free_tx_bufs(PSDevice pDevice) {
         pTxContext = pDevice->apTD[ii];
         //de-allocate URBs
         if (pTxContext->pUrb) {
-            vntwusb_unlink_urb(pTxContext->pUrb);
+            usb_kill_urb(pTxContext->pUrb);
             usb_free_urb(pTxContext->pUrb);
         }
         if (pTxContext)
@@ -878,7 +878,7 @@ static VOID device_free_rx_bufs(PSDevice pDevice) {
         pRCB = pDevice->apRCB[ii];
         //de-allocate URBs
         if (pRCB->pUrb) {
-            vntwusb_unlink_urb(pRCB->pUrb);
+            usb_kill_urb(pRCB->pUrb);
             usb_free_urb(pRCB->pUrb);
         }
         //de-allocate skb
@@ -926,7 +926,7 @@ static BOOL device_alloc_bufs(PSDevice pDevice) {
         pDevice->apTD[ii] = pTxContext;
         pTxContext->pDevice = (PVOID) pDevice;
         //allocate URBs
-        pTxContext->pUrb = vntwusb_alloc_urb(0);;
+        pTxContext->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
         if (pTxContext->pUrb == NULL) {
             DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "alloc tx urb failed\n");
             goto free_tx;
@@ -955,7 +955,7 @@ static BOOL device_alloc_bufs(PSDevice pDevice) {
         pDevice->apRCB[ii] = pRCB;
         pRCB->pDevice = (PVOID) pDevice;
         //allocate URBs
-        pRCB->pUrb = vntwusb_alloc_urb(0);
+        pRCB->pUrb = usb_alloc_urb(0, GFP_ATOMIC);
 
         if (pRCB->pUrb == NULL) {
             DBG_PRT(MSG_LEVEL_ERR,KERN_ERR" Failed to alloc rx urb\n");
@@ -974,16 +974,16 @@ static BOOL device_alloc_bufs(PSDevice pDevice) {
     }
 
 
-	pDevice->pControlURB = vntwusb_alloc_urb(0);
+	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
 	if (pDevice->pControlURB == NULL) {
 	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc control urb\n");
 	    goto free_rx_tx;
 	}
 
-	pDevice->pInterruptURB = vntwusb_alloc_urb(0);
+	pDevice->pInterruptURB = usb_alloc_urb(0, GFP_ATOMIC);
 	if (pDevice->pInterruptURB == NULL) {
 	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int urb\n");
-   	    vntwusb_unlink_urb(pDevice->pControlURB);
+   	    usb_kill_urb(pDevice->pControlURB);
 	    usb_free_urb(pDevice->pControlURB);
 	    goto free_rx_tx;
 	}
@@ -991,8 +991,8 @@ static BOOL device_alloc_bufs(PSDevice pDevice) {
     pDevice->intBuf.pDataBuf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
 	if (pDevice->intBuf.pDataBuf == NULL) {
 	    DBG_PRT(MSG_LEVEL_ERR,KERN_ERR"Failed to alloc int buf\n");
-   	    vntwusb_unlink_urb(pDevice->pControlURB);
-   	    vntwusb_unlink_urb(pDevice->pInterruptURB);
+   	    usb_kill_urb(pDevice->pControlURB);
+   	    usb_kill_urb(pDevice->pInterruptURB);
 	    usb_free_urb(pDevice->pControlURB);
 	    usb_free_urb(pDevice->pInterruptURB);
 	    goto free_rx_tx;
@@ -1193,8 +1193,8 @@ free_rx_tx:
     device_free_rx_bufs(pDevice);
     device_free_tx_bufs(pDevice);
     device_free_int_bufs(pDevice);
-	vntwusb_unlink_urb(pDevice->pControlURB);
-	vntwusb_unlink_urb(pDevice->pInterruptURB);
+	usb_kill_urb(pDevice->pControlURB);
+	usb_kill_urb(pDevice->pInterruptURB);
     usb_free_urb(pDevice->pControlURB);
     usb_free_urb(pDevice->pInterruptURB);
 
@@ -1280,8 +1280,8 @@ device_release_WPADEV(pDevice);
     device_free_int_bufs(pDevice);
     device_free_frag_bufs(pDevice);
 
-	vntwusb_unlink_urb(pDevice->pControlURB);
-	vntwusb_unlink_urb(pDevice->pInterruptURB);
+	usb_kill_urb(pDevice->pControlURB);
+	usb_kill_urb(pDevice->pInterruptURB);
     usb_free_urb(pDevice->pControlURB);
     usb_free_urb(pDevice->pInterruptURB);
 
