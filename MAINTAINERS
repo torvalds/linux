@@ -603,6 +603,23 @@ L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 W:	http://maxim.org.za/at91_26.html
 S:	Maintained
 
+ARM/BCMRING ARM ARCHITECTURE
+P:	Leo Chen <leochen@broadcom.com>
+P:	Scott Branden <sbranden@broadcom.com>
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+F:	arch/arm/mach-bcmring
+
+ARM/BCMRING MTD NAND DRIVER
+P:	Leo Chen <leochen@broadcom.com>
+P:	Scott Branden <sbranden@broadcom.com>
+L:	linux-mtd@lists.infradead.org
+S:	Maintained
+F:	drivers/mtd/nand/bcm_umi_nand.c
+F:	drivers/mtd/nand/bcm_umi_bch.c
+F:	drivers/mtd/nand/bcm_umi_hamming.c
+F:	drivers/mtd/nand/nand_bcm_umi.h
+
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
