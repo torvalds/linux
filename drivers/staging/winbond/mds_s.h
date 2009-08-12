@@ -79,8 +79,7 @@ enum {
 #define PACKET_COME_FROM_MLME					0x80
 #define PACKET_SEND_COMPLETE					0xff
 
-typedef struct _MDS
-{
+struct wb35_mds {
 	// For Tx usage
 	u8	TxOwner[ ((MAX_USB_TX_BUFFER_NUMBER + 3) & ~0x03) ];
 	u8	*pTxBuffer;
@@ -133,7 +132,7 @@ typedef struct _MDS
 	u32	TxTsc; // 20060214
 	u32	TxTsc_2; // 20060214
 
-} MDS, *PMDS;
+};
 
 
 typedef struct _RxBuffer

@@ -8,7 +8,7 @@
 unsigned char
 Mds_initial(struct wbsoft_priv * adapter)
 {
-	PMDS pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 
 	pMds->TxPause = false;
 	pMds->TxRTSThreshold = DEFAULT_RTSThreshold;
@@ -220,7 +220,7 @@ static void Mds_DurationSet(struct wbsoft_priv *adapter,  PDESCRIPTOR pDes,  u8 
 static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 {
 	PT00_DESCRIPTOR	pT00;
-	PMDS	pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 	u8	*buffer;
 	u8	*src_buffer;
 	u8	*pctmp;
@@ -320,7 +320,7 @@ static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, PDESCRIPTOR pDes, u8 *Targe
 
 static void Mds_HeaderCopy(struct wbsoft_priv * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 {
-	PMDS	pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 	u8	*src_buffer = pDes->buffer_address[0];//931130.5.g
 	PT00_DESCRIPTOR	pT00;
 	PT01_DESCRIPTOR	pT01;
@@ -417,7 +417,7 @@ void
 Mds_Tx(struct wbsoft_priv * adapter)
 {
 	struct hw_data *	pHwData = &adapter->sHwData;
-	PMDS		pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 	DESCRIPTOR	TxDes;
 	PDESCRIPTOR	pTxDes = &TxDes;
 	u8		*XmitBufAddress;
@@ -552,7 +552,7 @@ Mds_Tx(struct wbsoft_priv * adapter)
 void
 Mds_SendComplete(struct wbsoft_priv * adapter, PT02_DESCRIPTOR pT02)
 {
-	PMDS	pMds = &adapter->Mds;
+	struct wb35_mds *pMds = &adapter->Mds;
 	struct hw_data *	pHwData = &adapter->sHwData;
 	u8	PacketId = (u8)pT02->T02_Tx_PktID;
 	unsigned char	SendOK = true;

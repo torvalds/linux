@@ -20,7 +20,7 @@ struct wbsoft_priv {
 
 	MTO_PARAMETERS sMtoPara;	// MTO_struct ...
 	struct hw_data sHwData;	//For HAL
-	MDS Mds;
+	struct wb35_mds Mds;
 
 	spinlock_t SpinLock;
 
