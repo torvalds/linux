@@ -55,26 +55,12 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
         write_nic_dword(dev,ISR,read_nic_dword(dev, ISR));
 
 	/* need to  free DM related functions */
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 	cancel_work_sync(&priv->reset_wq);
-#else
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
-	cancel_delayed_work(&priv->reset_wq);
-#endif
-#endif
 	del_timer_sync(&priv->fsync_timer);
 	del_timer_sync(&priv->watch_dog_timer);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	cancel_work_sync(&priv->qos_activate);
-#else
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
-	cancel_delayed_work(&priv->qos_activate);
-#endif
-#endif
 
 	/* TODO
 #if ((DEV_BUS_TYPE == PCI_INTERFACE) && (HAL_CODE_BASE == RTL8192))

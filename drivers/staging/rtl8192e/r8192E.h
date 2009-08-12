@@ -39,9 +39,6 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <asm/io.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27))
-#include <asm/semaphore.h>
-#endif
 #include "ieee80211.h"
 
 
@@ -1020,11 +1017,7 @@ typedef struct r8192_priv
 	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
 	spinlock_t rf_ps_lock;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	struct semaphore mutex;
-#else
         struct mutex mutex;
-#endif
 	spinlock_t rf_lock; //used to lock rf write operation added by wb
 	spinlock_t ps_lock;
 
@@ -1163,11 +1156,7 @@ typedef struct r8192_priv
 /* modified by davad for Rx process */
        struct sk_buff_head rx_queue;
        struct sk_buff_head skb_queue;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	struct tq_struct qos_activate;
-#else
        struct work_struct qos_activate;
-#endif
 	short  tx_urb_index;
 	atomic_t tx_pending[0x10];//UART_PRIORITY+1
 
@@ -1196,11 +1185,7 @@ typedef struct r8192_priv
 
 	struct 	ChnlAccessSetting  ChannelAccessSetting;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct work_struct reset_wq;
-#else
-	struct tq_struct reset_wq;
-#endif
 
 /**********************************************************/
 //for rtl819xPci
@@ -1379,32 +1364,13 @@ typedef struct r8192_priv
 	u8		InitialGainOperateType;
 
 	//define work item by amy 080526
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	struct delayed_work update_beacon_wq;
 	struct delayed_work watch_dog_wq;
 	struct delayed_work txpower_tracking_wq;
 	struct delayed_work rfpath_check_wq;
 	struct delayed_work gpio_change_rf_wq;
 	struct delayed_work initialgain_operate_wq;
-#else
-	struct work_struct update_beacon_wq;
-	struct work_struct watch_dog_wq;
-	struct work_struct txpower_tracking_wq;
-	struct work_struct rfpath_check_wq;
-	struct work_struct gpio_change_rf_wq;
-	struct work_struct initialgain_operate_wq;
-#endif
 	struct workqueue_struct *priv_wq;
-#else
-	struct tq_struct update_beacon_wq;
-	/* used for periodly scan */
-	struct tq_struct txpower_tracking_wq;
-	struct tq_struct rfpath_check_wq;
-	struct tq_struct watch_dog_wq;
-	struct tq_struct gpio_change_rf_wq;
-	struct tq_struct initialgain_operate_wq;
-#endif
 }r8192_priv;
 
 // for rtl8187
@@ -1540,11 +1506,7 @@ void CamPrintDbgReg(struct net_device* dev);
 extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
 extern void firmware_init_param(struct net_device *dev);
 extern RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8192_hw_wakeup_wq (struct work_struct *work);
-#else
-void rtl8192_hw_wakeup_wq(struct net_device *dev);
-#endif
 
 short rtl8192_is_tx_queue_empty(struct net_device *dev);
 #ifdef ENABLE_IPS

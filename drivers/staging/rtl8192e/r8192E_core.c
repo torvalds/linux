@@ -119,25 +119,16 @@ static int hwwep = 1; //default use hw. set 0 to use software security
 static int channels = 0x3fff;
 
 MODULE_LICENSE("GPL");
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 MODULE_VERSION("V 1.1");
-#endif
 MODULE_DEVICE_TABLE(pci, rtl8192_pci_id_tbl);
 //MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
 MODULE_DESCRIPTION("Linux driver for Realtek RTL819x WiFi cards");
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 module_param(ifname, charp, S_IRUGO|S_IWUSR );
 //module_param(hwseqnum,int, S_IRUGO|S_IWUSR);
 module_param(hwwep,int, S_IRUGO|S_IWUSR);
 module_param(channels,int, S_IRUGO|S_IWUSR);
-#else
-MODULE_PARM(ifname, "s");
-//MODULE_PARM(hwseqnum,"i");
-MODULE_PARM(hwwep,"i");
-MODULE_PARM(channels,"i");
-#endif
 
 MODULE_PARM_DESC(ifname," Net interface name, wlan%d=default");
 //MODULE_PARM_DESC(hwseqnum," Try to use hardware 802.11 header sequence numbers. Zero=default");
@@ -153,14 +144,12 @@ static struct pci_driver rtl8192_pci_driver = {
 	.id_table	= rtl8192_pci_id_tbl,	          /* PCI_ID table  */
 	.probe		= rtl8192_pci_probe,	          /* probe fn      */
 	.remove		= __devexit_p(rtl8192_pci_disconnect),	  /* remove fn     */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 5, 0)
 #ifdef CONFIG_PM_RTL
 	.suspend	= rtl8192E_suspend,	          /* PM suspend fn */
 	.resume		= rtl8192E_resume,                 /* PM resume fn  */
 #else
 	.suspend	= NULL,			          /* PM suspend fn */
 	.resume      	= NULL,			          /* PM resume fn  */
-#endif
 #endif
 };
 
@@ -367,25 +356,12 @@ inline void force_pci_posting(struct net_device *dev)
 
 
 //warning message WB
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-void rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs);
-#else
-irqreturn_t rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs);
-#endif
-#else
 irqreturn_t rtl8192_interrupt(int irq, void *netdev);
-#endif
 //static struct net_device_stats *rtl8192_stats(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
 //void rtl8192_restart(struct net_device *dev);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8192_restart(struct work_struct *work);
 //void rtl8192_rq_tx_ack(struct work_struct *work);
-#else
- void rtl8192_restart(struct net_device *dev);
-// //void rtl8192_rq_tx_ack(struct net_device *dev);
- #endif
 
 void watch_dog_timer_callback(unsigned long data);
 #ifdef ENABLE_IPS
@@ -608,21 +584,13 @@ static int proc_get_stats_rx(char *page, char **start,
 static void rtl8192_proc_module_init(void)
 {
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-	rtl8192_proc=create_proc_entry(RTL819xE_MODULE_NAME, S_IFDIR, proc_net);
-#else
 	rtl8192_proc=create_proc_entry(RTL819xE_MODULE_NAME, S_IFDIR, init_net.proc_net);
-#endif
 }
 
 
 static void rtl8192_proc_module_remove(void)
 {
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-	remove_proc_entry(RTL819xE_MODULE_NAME, proc_net);
-#else
 	remove_proc_entry(RTL819xE_MODULE_NAME, init_net.proc_net);
-#endif
 }
 
 
@@ -720,11 +688,7 @@ static void tx_timeout(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	//rtl8192_commit(dev);
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 	schedule_work(&priv->reset_wq);
-#else
-	schedule_task(&priv->reset_wq);
-#endif
 	printk("TXTIMEOUT");
 }
 
@@ -1773,16 +1737,10 @@ static struct ieee80211_qos_parameters def_qos_parameters = {
         {0,0,0,0} /* tx_op_limit */
 };
 
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 static void rtl8192_update_beacon(struct work_struct * work)
 {
         struct r8192_priv *priv = container_of(work, struct r8192_priv, update_beacon_wq.work);
         struct net_device *dev = priv->ieee80211->dev;
-#else
-void rtl8192_update_beacon(struct net_device *dev)
-{
-        struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
  	struct ieee80211_device* ieee = priv->ieee80211;
 	struct ieee80211_network* net = &ieee->current_network;
 
@@ -1795,16 +1753,10 @@ void rtl8192_update_beacon(struct net_device *dev)
 * background support to run QoS activate functionality
 */
 static int WDCAPARA_ADD[] = {EDCAPARA_BE,EDCAPARA_BK,EDCAPARA_VI,EDCAPARA_VO};
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 static void rtl8192_qos_activate(struct work_struct * work)
 {
         struct r8192_priv *priv = container_of(work, struct r8192_priv, qos_activate);
         struct net_device *dev = priv->ieee80211->dev;
-#else
-void rtl8192_qos_activate(struct net_device *dev)
-{
-        struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
         struct ieee80211_qos_parameters *qos_parameters = &priv->ieee80211->current_network.qos_data.parameters;
         u8 mode = priv->ieee80211->current_network.mode;
 //        u32 size = sizeof(struct ieee80211_qos_parameters);
@@ -1814,11 +1766,7 @@ void rtl8192_qos_activate(struct net_device *dev)
         if (priv == NULL)
                 return;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	down(&priv->mutex);
-#else
         mutex_lock(&priv->mutex);
-#endif
         if(priv->ieee80211->state != IEEE80211_LINKED)
 		goto success;
 	RT_TRACE(COMP_QOS,"qos active process with associate response received\n");
@@ -1838,11 +1786,7 @@ void rtl8192_qos_activate(struct net_device *dev)
 	}
 
 success:
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	up(&priv->mutex);
-#else
         mutex_unlock(&priv->mutex);
-#endif
 }
 
 static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
@@ -1869,11 +1813,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 				 network->qos_data.param_count)) {
 			network->qos_data.old_param_count =
 				network->qos_data.param_count;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 			queue_work(priv->priv_wq, &priv->qos_activate);
-#else
-			schedule_task(&priv->qos_activate);
-#endif
 			RT_TRACE (COMP_QOS, "QoS parameters change call "
 					"qos_activate\n");
 		}
@@ -1882,11 +1822,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 		       &def_qos_parameters, size);
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 			queue_work(priv->priv_wq, &priv->qos_activate);
-#else
-			schedule_task(&priv->qos_activate);
-#endif
 			RT_TRACE(COMP_QOS, "QoS was disabled call qos_activate \n");
 		}
 		network->qos_data.active = 0;
@@ -1905,15 +1841,7 @@ static int rtl8192_handle_beacon(struct net_device * dev,
 
 	rtl8192_qos_handle_probe_response(priv,1,network);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	queue_delayed_work(priv->priv_wq, &priv->update_beacon_wq, 0);
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	schedule_task(&priv->update_beacon_wq);
-#else
-	queue_work(priv->priv_wq, &priv->update_beacon_wq);
-#endif
-#endif
 	return 0;
 
 }
@@ -1970,12 +1898,7 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 
 	RT_TRACE(COMP_QOS, "%s: network->flags = %d,%d\n",__FUNCTION__,network->flags ,priv->ieee80211->current_network.qos_data.active);
 	if (set_qos_param == 1)
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 		queue_work(priv->priv_wq, &priv->qos_activate);
-#else
-		schedule_task(&priv->qos_activate);
-#endif
-
 
         return ret;
 }
@@ -2208,7 +2131,6 @@ static void rtl8192_hw_sleep_down(struct net_device *dev)
 	RT_TRACE(COMP_POWER, "%s()============>come to sleep down\n", __FUNCTION__);
 	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS);
 }
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 static void rtl8192_hw_sleep_wq (struct work_struct *work)
 {
 //      struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
@@ -2217,10 +2139,6 @@ static void rtl8192_hw_sleep_wq (struct work_struct *work)
         struct delayed_work *dwork = container_of(work,struct delayed_work,work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_sleep_wq);
         struct net_device *dev = ieee->dev;
-#else
-void rtl8192_hw_sleep_wq(struct net_device* dev)
-{
-#endif
 	//printk("=========>%s()\n", __FUNCTION__);
         rtl8192_hw_sleep_down(dev);
 }
@@ -2236,7 +2154,6 @@ static void rtl8192_hw_wakeup(struct net_device* dev)
 	//FIXME: will we send package stored while nic is sleep?
 //	spin_unlock_irqrestore(&priv->ps_lock,flags);
 }
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8192_hw_wakeup_wq (struct work_struct *work)
 {
 //	struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
@@ -2245,10 +2162,6 @@ void rtl8192_hw_wakeup_wq (struct work_struct *work)
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
 	struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_wakeup_wq);
 	struct net_device *dev = ieee->dev;
-#else
-void rtl8192_hw_wakeup_wq(struct net_device* dev)
-{
-#endif
 	rtl8192_hw_wakeup(dev);
 
 }
@@ -2468,18 +2381,10 @@ static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 	//spin_lock_init(&priv->rf_lock);
 	sema_init(&priv->wx_sem,1);
 	sema_init(&priv->rf_sem,1);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	sema_init(&priv->mutex, 1);
-#else
 	mutex_init(&priv->mutex);
-#endif
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern  void    rtl819x_watchdog_wqcallback(struct work_struct *work);
-#else
-extern  void    rtl819x_watchdog_wqcallback(struct net_device *dev);
-#endif
 
 void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
 void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
@@ -2490,15 +2395,12 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 #ifdef PF_SYNCTHREAD
 	priv->priv_wq = create_workqueue(DRV_NAME,0);
 #else
 	priv->priv_wq = create_workqueue(DRV_NAME);
 #endif
-#endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 //	INIT_WORK(&priv->reset_wq, (void(*)(void*)) rtl8192_restart);
 	INIT_WORK(&priv->reset_wq,  rtl8192_restart);
 //	INIT_DELAYED_WORK(&priv->watch_dog_wq, hal_dm_watchdog);
@@ -2511,34 +2413,6 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 	INIT_WORK(&priv->qos_activate, rtl8192_qos_activate);
 	INIT_DELAYED_WORK(&priv->ieee80211->hw_wakeup_wq,(void*) rtl8192_hw_wakeup_wq);
 	INIT_DELAYED_WORK(&priv->ieee80211->hw_sleep_wq,(void*) rtl8192_hw_sleep_wq);
-
-#else
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	tq_init(&priv->reset_wq, (void*)rtl8192_restart, dev);
-	tq_init(&priv->watch_dog_wq, (void*)rtl819x_watchdog_wqcallback, dev);
-	tq_init(&priv->txpower_tracking_wq, (void*)dm_txpower_trackingcallback, dev);
-	tq_init(&priv->rfpath_check_wq, (void*)dm_rf_pathcheck_workitemcallback, dev);
-	tq_init(&priv->update_beacon_wq, (void*)rtl8192_update_beacon, dev);
-	//tq_init(&priv->SwChnlWorkItem, (void*) rtl8192_SwChnl_WorkItem, dev);
-	//tq_init(&priv->SetBWModeWorkItem, (void*)rtl8192_SetBWModeWorkItem, dev);
-	tq_init(&priv->qos_activate, (void *)rtl8192_qos_activate, dev);
-	tq_init(&priv->ieee80211->hw_wakeup_wq,(void*) rtl8192_hw_wakeup_wq, dev);
-	tq_init(&priv->ieee80211->hw_sleep_wq,(void*) rtl8192_hw_sleep_wq, dev);
-
-#else
-	INIT_WORK(&priv->reset_wq,(void(*)(void*)) rtl8192_restart,dev);
-//	INIT_WORK(&priv->watch_dog_wq, (void(*)(void*)) hal_dm_watchdog,dev);
-	INIT_WORK(&priv->watch_dog_wq, (void(*)(void*)) rtl819x_watchdog_wqcallback,dev);
-	INIT_WORK(&priv->txpower_tracking_wq, (void(*)(void*)) dm_txpower_trackingcallback,dev);
-	INIT_WORK(&priv->rfpath_check_wq, (void(*)(void*)) dm_rf_pathcheck_workitemcallback,dev);
-	INIT_WORK(&priv->update_beacon_wq, (void(*)(void*))rtl8192_update_beacon,dev);
-	//INIT_WORK(&priv->SwChnlWorkItem, (void(*)(void*)) rtl8192_SwChnl_WorkItem, dev);
-	//INIT_WORK(&priv->SetBWModeWorkItem, (void(*)(void*)) rtl8192_SetBWModeWorkItem, dev);
-	INIT_WORK(&priv->qos_activate, (void(*)(void *))rtl8192_qos_activate, dev);
-	INIT_WORK(&priv->ieee80211->hw_wakeup_wq,(void*) rtl8192_hw_wakeup_wq, dev);
-	INIT_WORK(&priv->ieee80211->hw_sleep_wq,(void*) rtl8192_hw_sleep_wq, dev);
-#endif
-#endif
 
 	tasklet_init(&priv->irq_rx_tasklet,
 	     (void(*)(unsigned long))rtl8192_irq_rx_tasklet,
@@ -4171,9 +4045,7 @@ RESET_START:
 			printk("ieee->state is IEEE80211_LINKED\n");
 			ieee80211_stop_send_beacons(priv->ieee80211);
 			del_timer_sync(&ieee->associate_timer);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
                         cancel_delayed_work(&ieee->associate_retry_wq);
-#endif
 			ieee80211_stop_scan(ieee);
 			netif_carrier_off(dev);
 			up(&ieee->wx_sem);
@@ -4211,11 +4083,7 @@ RESET_START:
 			ieee->set_chan(ieee->dev, ieee->current_network.channel);
 
 #if 1
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 			queue_work(ieee->wq, &ieee->associate_complete_wq);
-#else
-			schedule_task(&ieee->associate_complete_wq);
-#endif
 #endif
 
 		}
@@ -4366,17 +4234,11 @@ static void rtl819x_update_rxcounts(
 }
 
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,watch_dog_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern	void	rtl819x_watchdog_wqcallback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 	struct ieee80211_device* ieee = priv->ieee80211;
 	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
       	static u8	check_reset_cnt=0;
@@ -4434,11 +4296,7 @@ extern	void	rtl819x_watchdog_wqcallback(struct net_device *dev)
 				ieee->is_roaming = true;
 				ieee->is_set_key = false;
                              ieee->link_change(dev);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
                                 queue_work(ieee->wq, &ieee->associate_procedure_wq);
-#else
-                                schedule_task(&ieee->associate_procedure_wq);
-#endif
 			}
 		}
 	      ieee->LinkDetectInfo.NumRecvBcnInPeriod=0;
@@ -4480,15 +4338,7 @@ extern	void	rtl819x_watchdog_wqcallback(struct net_device *dev)
 void watch_dog_timer_callback(unsigned long data)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *) data);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	queue_delayed_work(priv->priv_wq,&priv->watch_dog_wq,0);
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	schedule_task(&priv->watch_dog_wq);
-#else
-	queue_work(priv->priv_wq,&priv->watch_dog_wq);
-#endif
-#endif
 	mod_timer(&priv->watch_dog_timer, jiffies + MSECS(IEEE80211_WATCH_DOG_TIME));
 
 }
@@ -4637,17 +4487,10 @@ void rtl8192_commit(struct net_device *dev)
 	_rtl8192_up(dev);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8192_restart(struct work_struct *work)
 {
         struct r8192_priv *priv = container_of(work, struct r8192_priv, reset_wq);
         struct net_device *dev = priv->ieee80211->dev;
-#else
-void rtl8192_restart(struct net_device *dev)
-{
-
-        struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 
 	down(&priv->wx_sem);
 
@@ -4688,11 +4531,7 @@ static int r8192_set_mac_adr(struct net_device *dev, void *mac)
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 	schedule_work(&priv->reset_wq);
-#else
-	schedule_task(&priv->reset_wq);
-#endif
 	up(&priv->wx_sem);
 
 	return 0;
@@ -5899,11 +5738,7 @@ static void rtl8192_rx(struct net_device *dev)
                 stats.RxBufShift = ((pdesc->Shift)&0x03);
                 stats.Decrypted = !pdesc->SWDec;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
                 pci_dma_sync_single_for_cpu(priv->pdev,
-#else
-                    pci_unmap_single(priv->pdev,
-#endif
                      *((dma_addr_t *)skb->cb),
                      priv->rxbuffersize,
                      PCI_DMA_FROMDEVICE);
@@ -6034,33 +5869,19 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	//pci_set_wmi(pdev);
 	pci_set_dma_mask(pdev, 0xffffff00ULL);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	pci_set_consistent_dma_mask(pdev,0xffffff00ULL);
-#endif
 	dev = alloc_ieee80211(sizeof(struct r8192_priv));
 	if (!dev)
 		return -ENOMEM;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-	SET_MODULE_OWNER(dev);
-#endif
-
 	pci_set_drvdata(pdev, dev);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	SET_NETDEV_DEV(dev, &pdev->dev);
-#endif
 	priv = ieee80211_priv(dev);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	priv->ieee80211 = netdev_priv(dev);
-#else
-	priv->ieee80211 = (struct ieee80211_device *)dev->priv;
-#endif
 	priv->pdev=pdev;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	if((pdev->subsystem_vendor == PCI_VENDOR_ID_DLINK)&&(pdev->subsystem_device == 0x3304)){
 		priv->ieee80211->bSupportRemoteWakeUp = 1;
 	} else
-#endif
 	{
 		priv->ieee80211->bSupportRemoteWakeUp = 0;
 	}
@@ -6171,11 +5992,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 
 
 	RT_TRACE(COMP_INIT, "Driver probe completed\n");
-//#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-//	return dev;
-//#else
 	return 0;
-//#endif
 
 fail1:
 
@@ -6222,7 +6039,6 @@ void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
          * Otherwise call cancel_delayed_work is enough.
          * FIXME (2.6.20 shoud 2.6.22, work_struct shoud not cancel)
          * */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);
 	cancel_delayed_work(&priv->ieee80211->hw_wakeup_wq);
@@ -6230,20 +6046,10 @@ void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
 #ifdef RTL8192E
 	cancel_delayed_work(&priv->gpio_change_rf_wq);
 #endif
-#endif
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,22)
 	cancel_work_sync(&priv->reset_wq);
 	cancel_work_sync(&priv->qos_activate);
 	//cancel_work_sync(&priv->SetBWModeWorkItem);
 	//cancel_work_sync(&priv->SwChnlWorkItem);
-#else
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
-	cancel_delayed_work(&priv->reset_wq);
-	cancel_delayed_work(&priv->qos_activate);
-	//cancel_delayed_work(&priv->SetBWModeWorkItem);
-	//cancel_delayed_work(&priv->SwChnlWorkItem);
-#endif
-#endif
 
 }
 
@@ -6269,9 +6075,7 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 		}
 	//	priv->rf_close(dev);
 	//	rtl8192_usb_deleteendpoints(dev);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 		destroy_workqueue(priv->priv_wq);
-#endif
                 /* redundant with rtl8192_down */
                // rtl8192_irq_disable(dev);
                // rtl8192_reset(dev);
@@ -6334,11 +6138,7 @@ static int __init rtl8192_pci_module_init(void)
 	RT_TRACE(COMP_INIT, "Initializing module");
 	RT_TRACE(COMP_INIT, "Wireless extensions version %d", WIRELESS_EXT);
 	rtl8192_proc_module_init();
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22))
-      if(0!=pci_module_init(&rtl8192_pci_driver))
-#else
       if(0!=pci_register_driver(&rtl8192_pci_driver))
-#endif
 	{
 		DMESG("No device found");
 		/*pci_unregister_driver (&rtl8192_pci_driver);*/
@@ -6358,15 +6158,7 @@ static void __exit rtl8192_pci_module_exit(void)
 }
 
 //warning message WB
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-void rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs)
-#else
-irqreturn_t rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs)
-#endif
-#else
 irqreturn_t rtl8192_interrupt(int irq, void *netdev)
-#endif
 {
     struct net_device *dev = (struct net_device *) netdev;
     struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -6374,11 +6166,7 @@ irqreturn_t rtl8192_interrupt(int irq, void *netdev)
     u32 inta;
     /* We should return IRQ_NONE, but for now let me keep this */
     if(priv->irq_enabled == 0){
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-        return;
-#else
         return IRQ_HANDLED;
-#endif
     }
 
     spin_lock_irqsave(&priv->irq_th_lock,flags);
@@ -6392,11 +6180,7 @@ irqreturn_t rtl8192_interrupt(int irq, void *netdev)
     //DMESG("Enter interrupt, ISR value = 0x%08x", inta);
     if(!inta){
         spin_unlock_irqrestore(&priv->irq_th_lock,flags);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-        return;
-#else
         return IRQ_HANDLED;
-#endif
         /*
            most probably we can safely return IRQ_NONE,
            but for now is better to avoid problems
@@ -6406,11 +6190,7 @@ irqreturn_t rtl8192_interrupt(int irq, void *netdev)
     if(inta == 0xffff){
         /* HW disappared */
         spin_unlock_irqrestore(&priv->irq_th_lock,flags);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-        return;
-#else
         return IRQ_HANDLED;
-#endif
     }
 
     priv->stats.ints++;
@@ -6422,11 +6202,7 @@ irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 
     if(!netif_running(dev)) {
         spin_unlock_irqrestore(&priv->irq_th_lock,flags);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-        return;
-#else
         return IRQ_HANDLED;
-#endif
     }
 
     if(inta & IMR_TIMEOUT0){
@@ -6523,11 +6299,7 @@ irqreturn_t rtl8192_interrupt(int irq, void *netdev)
     force_pci_posting(dev);
     spin_unlock_irqrestore(&priv->irq_th_lock,flags);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-    return;
-#else
     return IRQ_HANDLED;
-#endif
 }
 
 void rtl8192_try_wake_queue(struct net_device *dev, int pri)

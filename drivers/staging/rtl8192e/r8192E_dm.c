@@ -69,11 +69,7 @@ extern void hal_dm_watchdog(struct net_device *dev);
 
 
 extern	void	init_rate_adaptive(struct net_device *dev);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_txpower_trackingcallback(struct work_struct *work);
-#else
-extern	void	dm_txpower_trackingcallback(struct net_device *dev);
-#endif
 
 extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
 extern	void	dm_restore_dynamic_mechanism_state(struct net_device *dev);
@@ -89,22 +85,14 @@ extern	void dm_force_tx_fw_info(struct net_device *dev,
 										u32		force_value);
 extern	void	dm_init_edca_turbo(struct net_device *dev);
 extern	void	dm_rf_operation_test_callback(unsigned long data);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work);
-#else
-extern	void	dm_rf_pathcheck_workitemcallback(struct net_device *dev);
-#endif
 extern	void dm_fsync_timer_callback(unsigned long data);
 extern	void dm_check_fsync(struct net_device *dev);
 extern	void	dm_shadow_init(struct net_device *dev);
 extern	void dm_initialize_txpower_tracking(struct net_device *dev);
 
 #ifdef RTL8192E
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern  void    dm_gpio_change_rf_callback(struct work_struct *work);
-#else
-extern  void    dm_gpio_change_rf_callback(struct net_device *dev);
-#endif
 #endif
 
 
@@ -217,11 +205,7 @@ void init_hal_dm(struct net_device *dev)
 	dm_init_rxpath_selection(dev);
 	dm_init_ctstoself(dev);
 #ifdef RTL8192E
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	INIT_DELAYED_WORK(&priv->gpio_change_rf_wq,  dm_gpio_change_rf_callback);
-#else
-	INIT_WORK(&priv->gpio_change_rf_wq, (void(*)(void*)) dm_gpio_change_rf_callback,dev);
-#endif
 #endif
 
 }	// InitHalDm
@@ -1021,19 +1005,11 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	priv->txpower_count = 0;
 }
 #endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void dm_txpower_trackingcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,txpower_tracking_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern	void	dm_txpower_trackingcallback(struct net_device *dev)
-{
-#ifndef RTL8190P
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
-#endif
 
 #ifdef RTL8190P
 	dm_TXPowerTrackingCallback_TSSI(dev);
@@ -1599,15 +1575,7 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 
 	 if(tx_power_track_counter > 90)
 	 	{
-	 		#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 				queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
-			#else
-				#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-				schedule_task(&priv->txpower_tracking_wq);
-				#else
-				queue_work(priv->priv_wq,&priv->txpower_tracking_wq);
-				#endif
-			#endif
 		tx_power_track_counter =0;
 	 	}
 
@@ -1646,15 +1614,7 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 	else
 		{
 		//DbgPrint("Schedule TxPowerTrackingWorkItem\n");
-			#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 			queue_delayed_work(priv->priv_wq,&priv->txpower_tracking_wq,0);
-			#else
-				#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-				schedule_task(&priv->txpower_tracking_wq);
-				#else
-				queue_work(priv->priv_wq,&priv->txpower_tracking_wq);
-				#endif
-			#endif
 		TM_Trigger = 0;
 		}
 }
@@ -2880,15 +2840,7 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
 	return;
 #endif
 #ifdef RTL8192E
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 		queue_delayed_work(priv->priv_wq,&priv->gpio_change_rf_wq,0);
-        #else
-                #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-			schedule_task(&priv->gpio_change_rf_wq);
-                #else
-		        queue_work(priv->priv_wq,&priv->gpio_change_rf_wq);
-                #endif
-	#endif
 #endif
 
 }	/* dm_CheckRfCtrlGPIO */
@@ -2949,17 +2901,11 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
  *	02/21/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void dm_gpio_change_rf_callback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,gpio_change_rf_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern	void	dm_gpio_change_rf_callback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 	u8 tmp1byte;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
 	bool bActuallySet = false;
@@ -3025,17 +2971,11 @@ extern	void	dm_gpio_change_rf_callback(struct net_device *dev)
  *	01/30/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,rfpath_check_wq);
        struct net_device *dev =priv->ieee80211->dev;
-#else
-extern	void	dm_rf_pathcheck_workitemcallback(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 	//bool bactually_set = false;
 	u8 rfpath = 0, i;
 
@@ -3360,15 +3300,7 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 static	void	dm_check_rx_path_selection(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	queue_delayed_work(priv->priv_wq,&priv->rfpath_check_wq,0);
-#else
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	schedule_task(&priv->rfpath_check_wq);
-#else
-	queue_work(priv->priv_wq,&priv->rfpath_check_wq);
-#endif
-#endif
 }	/* dm_CheckRxRFPath */
 
 

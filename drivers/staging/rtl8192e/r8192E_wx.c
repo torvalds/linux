@@ -1008,7 +1008,6 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
                                         union iwreq_data *wrqu, char *extra)
 {
 	int ret=0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
 
@@ -1093,7 +1092,6 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 
 end_hw_sec:
 	up(&priv->wx_sem);
-#endif
 	return ret;
 
 }
@@ -1102,13 +1100,11 @@ static int r8192_wx_set_auth(struct net_device *dev,
                                         union iwreq_data *data, char *extra)
 {
 	int ret=0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	//printk("====>%s()\n", __FUNCTION__);
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	down(&priv->wx_sem);
 	ret = ieee80211_wx_set_auth(priv->ieee80211, info, &(data->param), extra);
 	up(&priv->wx_sem);
-#endif
 	return ret;
 }
 
@@ -1119,12 +1115,10 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 	//printk("====>%s()\n", __FUNCTION__);
 
 	int ret=0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	down(&priv->wx_sem);
 	ret = ieee80211_wx_set_mlme(priv->ieee80211, info, wrqu, extra);
 	up(&priv->wx_sem);
-#endif
 	return ret;
 }
 #endif
@@ -1134,18 +1128,12 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 {
 	   //printk("====>%s(), len:%d\n", __FUNCTION__, data->length);
 	int ret=0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
         struct r8192_priv *priv = ieee80211_priv(dev);
         down(&priv->wx_sem);
-#if 1
         ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, data->data.length);
-#endif
         up(&priv->wx_sem);
 	//printk("<======%s(), ret:%d\n", __FUNCTION__, ret);
-#endif
         return ret;
-
-
 }
 
 static int dummy(struct net_device *dev, struct iw_request_info *a,
@@ -1325,11 +1313,7 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 		wstats->qual.qual = 0;
 		wstats->qual.level = 0;
 		wstats->qual.noise = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14))
 		wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
-#else
-		wstats->qual.updated = 0x0f;
-#endif
 		return wstats;
 	}
 
@@ -1341,11 +1325,7 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	wstats->qual.level = tmp_level;
 	wstats->qual.qual = tmp_qual;
 	wstats->qual.noise = tmp_noise;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14))
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
-#else
-	wstats->qual.updated = 0x0f;
-#endif
 	return wstats;
 }
 //#endif

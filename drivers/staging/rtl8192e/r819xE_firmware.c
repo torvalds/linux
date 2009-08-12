@@ -20,9 +20,7 @@
 #include "r819xE_firmware_img.h"
 #endif
 #include "r819xE_firmware.h"
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 #include <linux/firmware.h>
-#endif
 
 void firmware_init_param(struct net_device *dev)
 {
@@ -254,11 +252,7 @@ bool init_firmware(struct net_device *dev)
 	 * Download boot, main, and data image for System reset.
 	 * Download data image for firmware reseta
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	priv->firmware_source = FW_SOURCE_HEADER_FILE;
-#else
 	priv->firmware_source = FW_SOURCE_IMG_FILE;
-#endif
 	for(init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; init_step++) {
 		/*
 		 * Open Image file, and map file to contineous memory if open file success.
@@ -268,7 +262,6 @@ bool init_firmware(struct net_device *dev)
 			switch(priv->firmware_source) {
 				case FW_SOURCE_IMG_FILE:
 				{
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 					if(pfirmware->firmware_buf_size[init_step] == 0) {
 						rc = request_firmware(&fw_entry, fw_name[init_step],&priv->pdev->dev);
 						if(rc < 0 ) {
@@ -300,15 +293,12 @@ bool init_firmware(struct net_device *dev)
 						}
 						//pfirmware->firmware_buf_size = file_length;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 						if(rst_opt == OPT_SYSTEM_RESET) {
 							release_firmware(fw_entry);
 						}
-#endif
 					}
 					mapped_file = pfirmware->firmware_buf[init_step];
 					file_length = pfirmware->firmware_buf_size[init_step];
-#endif
 					break;
 				}
 				case FW_SOURCE_HEADER_FILE:
