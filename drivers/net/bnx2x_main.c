@@ -2104,6 +2104,12 @@ static void bnx2x_calc_fc_adv(struct bnx2x *bp)
 
 static void bnx2x_link_report(struct bnx2x *bp)
 {
+	if (bp->state == BNX2X_STATE_DISABLED) {
+		netif_carrier_off(bp->dev);
+		printk(KERN_ERR PFX "%s NIC Link is Down\n", bp->dev->name);
+		return;
+	}
+
 	if (bp->link_vars.link_up) {
 		if (bp->state == BNX2X_STATE_OPEN)
 			netif_carrier_on(bp->dev);
@@ -2238,6 +2244,46 @@ static void bnx2x_init_port_minmax(struct bnx2x *bp)
 	bp->cmng.fair_vars.upper_bound = r_param * t_fair * FAIR_MEM;
 	/* since each tick is 4 usec */
 	bp->cmng.fair_vars.fairness_timeout = fair_periodic_timeout_usec / 4;
+}
+
+/* Calculates the sum of vn_min_rates.
+   It's needed for further normalizing of the min_rates.
+   Returns:
+     sum of vn_min_rates.
+       or
+     0 - if all the min_rates are 0.
+     In the later case fainess algorithm should be deactivated.
+     If not all min_rates are zero then those that are zeroes will be set to 1.
+ */
+static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
+{
+	int all_zero = 1;
+	int port = BP_PORT(bp);
+	int vn;
+
+	bp->vn_weight_sum = 0;
+	for (vn = VN_0; vn < E1HVN_MAX; vn++) {
+		int func = 2*vn + port;
+		u32 vn_cfg = SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
+		u32 vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
+				   FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
+
+		/* Skip hidden vns */
+		if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE)
+			continue;
+
+		/* If min rate is zero - set it to 1 */
+		if (!vn_min_rate)
+			vn_min_rate = DEF_MIN_RATE;
+		else
+			all_zero = 0;
+
+		bp->vn_weight_sum += vn_min_rate;
+	}
+
+	/* ... only if all min rates are zeros - disable fairness */
+	if (all_zero)
+		bp->vn_weight_sum = 0;
 }
 
 static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func)
@@ -2383,6 +2429,8 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 
 static void bnx2x__link_status_update(struct bnx2x *bp)
 {
+	int func = BP_FUNC(bp);
+
 	if (bp->state != BNX2X_STATE_OPEN)
 		return;
 
@@ -2392,6 +2440,9 @@ static void bnx2x__link_status_update(struct bnx2x *bp)
 		bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 	else
 		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+
+	bp->mf_config = SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
+	bnx2x_calc_vn_weight_sum(bp);
 
 	/* indicate link status */
 	bnx2x_link_report(bp);
@@ -2420,6 +2471,152 @@ static void bnx2x_pmf_update(struct bnx2x *bp)
 /*
  * General service functions
  */
+
+/* send the MCP a request, block until there is a reply */
+u32 bnx2x_fw_command(struct bnx2x *bp, u32 command)
+{
+	int func = BP_FUNC(bp);
+	u32 seq = ++bp->fw_seq;
+	u32 rc = 0;
+	u32 cnt = 1;
+	u8 delay = CHIP_REV_IS_SLOW(bp) ? 100 : 10;
+
+	SHMEM_WR(bp, func_mb[func].drv_mb_header, (command | seq));
+	DP(BNX2X_MSG_MCP, "wrote command (%x) to FW MB\n", (command | seq));
+
+	do {
+		/* let the FW do it's magic ... */
+		msleep(delay);
+
+		rc = SHMEM_RD(bp, func_mb[func].fw_mb_header);
+
+		/* Give the FW up to 2 second (200*10ms) */
+	} while ((seq != (rc & FW_MSG_SEQ_NUMBER_MASK)) && (cnt++ < 200));
+
+	DP(BNX2X_MSG_MCP, "[after %d ms] read (%x) seq is (%x) from FW MB\n",
+	   cnt*delay, rc, seq);
+
+	/* is this a reply to our command? */
+	if (seq == (rc & FW_MSG_SEQ_NUMBER_MASK))
+		rc &= FW_MSG_CODE_MASK;
+	else {
+		/* FW BUG! */
+		BNX2X_ERR("FW failed to respond!\n");
+		bnx2x_fw_dump(bp);
+		rc = 0;
+	}
+
+	return rc;
+}
+
+static void bnx2x_set_storm_rx_mode(struct bnx2x *bp);
+static void bnx2x_set_mac_addr_e1h(struct bnx2x *bp, int set);
+static void bnx2x_set_rx_mode(struct net_device *dev);
+
+static void bnx2x_e1h_disable(struct bnx2x *bp)
+{
+	int port = BP_PORT(bp);
+	int i;
+
+	bp->rx_mode = BNX2X_RX_MODE_NONE;
+	bnx2x_set_storm_rx_mode(bp);
+
+	netif_tx_disable(bp->dev);
+	bp->dev->trans_start = jiffies;	/* prevent tx timeout */
+
+	REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 0);
+
+	bnx2x_set_mac_addr_e1h(bp, 0);
+
+	for (i = 0; i < MC_HASH_SIZE; i++)
+		REG_WR(bp, MC_HASH_OFFSET(bp, i), 0);
+
+	netif_carrier_off(bp->dev);
+}
+
+static void bnx2x_e1h_enable(struct bnx2x *bp)
+{
+	int port = BP_PORT(bp);
+
+	REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 1);
+
+	bnx2x_set_mac_addr_e1h(bp, 1);
+
+	/* Tx queue should be only reenabled */
+	netif_tx_wake_all_queues(bp->dev);
+
+	/* Initialize the receive filter. */
+	bnx2x_set_rx_mode(bp->dev);
+}
+
+static void bnx2x_update_min_max(struct bnx2x *bp)
+{
+	int port = BP_PORT(bp);
+	int vn, i;
+
+	/* Init rate shaping and fairness contexts */
+	bnx2x_init_port_minmax(bp);
+
+	bnx2x_calc_vn_weight_sum(bp);
+
+	for (vn = VN_0; vn < E1HVN_MAX; vn++)
+		bnx2x_init_vn_minmax(bp, 2*vn + port);
+
+	if (bp->port.pmf) {
+		int func;
+
+		/* Set the attention towards other drivers on the same port */
+		for (vn = VN_0; vn < E1HVN_MAX; vn++) {
+			if (vn == BP_E1HVN(bp))
+				continue;
+
+			func = ((vn << 1) | port);
+			REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_0 +
+			       (LINK_SYNC_ATTENTION_BIT_FUNC_0 + func)*4, 1);
+		}
+
+		/* Store it to internal memory */
+		for (i = 0; i < sizeof(struct cmng_struct_per_port) / 4; i++)
+			REG_WR(bp, BAR_XSTRORM_INTMEM +
+			       XSTORM_CMNG_PER_PORT_VARS_OFFSET(port) + i*4,
+			       ((u32 *)(&bp->cmng))[i]);
+	}
+}
+
+static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
+{
+	int func = BP_FUNC(bp);
+
+	DP(BNX2X_MSG_MCP, "dcc_event 0x%x\n", dcc_event);
+	bp->mf_config = SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
+
+	if (dcc_event & DRV_STATUS_DCC_DISABLE_ENABLE_PF) {
+
+		if (bp->mf_config & FUNC_MF_CFG_FUNC_DISABLED) {
+			DP(NETIF_MSG_IFDOWN, "mf_cfg function disabled\n");
+			bp->state = BNX2X_STATE_DISABLED;
+
+			bnx2x_e1h_disable(bp);
+		} else {
+			DP(NETIF_MSG_IFUP, "mf_cfg function enabled\n");
+			bp->state = BNX2X_STATE_OPEN;
+
+			bnx2x_e1h_enable(bp);
+		}
+		dcc_event &= ~DRV_STATUS_DCC_DISABLE_ENABLE_PF;
+	}
+	if (dcc_event & DRV_STATUS_DCC_BANDWIDTH_ALLOCATION) {
+
+		bnx2x_update_min_max(bp);
+		dcc_event &= ~DRV_STATUS_DCC_BANDWIDTH_ALLOCATION;
+	}
+
+	/* Report results to MCP */
+	if (dcc_event)
+		bnx2x_fw_command(bp, DRV_MSG_CODE_DCC_FAILURE);
+	else
+		bnx2x_fw_command(bp, DRV_MSG_CODE_DCC_OK);
+}
 
 /* the slow path queue is odd since completions arrive on the fastpath ring */
 static int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
@@ -2806,9 +3003,12 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 			int func = BP_FUNC(bp);
 
 			REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_12 + func*4, 0);
+			val = SHMEM_RD(bp, func_mb[func].drv_status);
+			if (val & DRV_STATUS_DCC_EVENT_MASK)
+				bnx2x_dcc_event(bp,
+					    (val & DRV_STATUS_DCC_EVENT_MASK));
 			bnx2x__link_status_update(bp);
-			if (SHMEM_RD(bp, func_mb[func].drv_status) &
-							DRV_STATUS_PMF)
+			if ((bp->port.pmf == 0) && (val & DRV_STATUS_PMF))
 				bnx2x_pmf_update(bp);
 
 		} else if (attn & BNX2X_MC_ASSERT_BITS) {
@@ -4968,47 +5168,6 @@ static void bnx2x_init_internal_port(struct bnx2x *bp)
 	REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_HC_BTR_OFFSET(port), BNX2X_BTR);
 }
 
-/* Calculates the sum of vn_min_rates.
-   It's needed for further normalizing of the min_rates.
-   Returns:
-     sum of vn_min_rates.
-       or
-     0 - if all the min_rates are 0.
-     In the later case fainess algorithm should be deactivated.
-     If not all min_rates are zero then those that are zeroes will be set to 1.
- */
-static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
-{
-	int all_zero = 1;
-	int port = BP_PORT(bp);
-	int vn;
-
-	bp->vn_weight_sum = 0;
-	for (vn = VN_0; vn < E1HVN_MAX; vn++) {
-		int func = 2*vn + port;
-		u32 vn_cfg =
-			SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
-		u32 vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
-				   FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
-
-		/* Skip hidden vns */
-		if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE)
-			continue;
-
-		/* If min rate is zero - set it to 1 */
-		if (!vn_min_rate)
-			vn_min_rate = DEF_MIN_RATE;
-		else
-			all_zero = 0;
-
-		bp->vn_weight_sum += vn_min_rate;
-	}
-
-	/* ... only if all min rates are zeros - disable fairness */
-	if (all_zero)
-		bp->vn_weight_sum = 0;
-}
-
 static void bnx2x_init_internal_func(struct bnx2x *bp)
 {
 	struct tstorm_eth_function_common_config tstorm_config = {0};
@@ -6272,44 +6431,6 @@ init_hw_err:
 	return rc;
 }
 
-/* send the MCP a request, block until there is a reply */
-u32 bnx2x_fw_command(struct bnx2x *bp, u32 command)
-{
-	int func = BP_FUNC(bp);
-	u32 seq = ++bp->fw_seq;
-	u32 rc = 0;
-	u32 cnt = 1;
-	u8 delay = CHIP_REV_IS_SLOW(bp) ? 100 : 10;
-
-	SHMEM_WR(bp, func_mb[func].drv_mb_header, (command | seq));
-	DP(BNX2X_MSG_MCP, "wrote command (%x) to FW MB\n", (command | seq));
-
-	do {
-		/* let the FW do it's magic ... */
-		msleep(delay);
-
-		rc = SHMEM_RD(bp, func_mb[func].fw_mb_header);
-
-		/* Give the FW up to 2 second (200*10ms) */
-	} while ((seq != (rc & FW_MSG_SEQ_NUMBER_MASK)) && (cnt++ < 200));
-
-	DP(BNX2X_MSG_MCP, "[after %d ms] read (%x) seq is (%x) from FW MB\n",
-	   cnt*delay, rc, seq);
-
-	/* is this a reply to our command? */
-	if (seq == (rc & FW_MSG_SEQ_NUMBER_MASK)) {
-		rc &= FW_MSG_CODE_MASK;
-
-	} else {
-		/* FW BUG! */
-		BNX2X_ERR("FW failed to respond!\n");
-		bnx2x_fw_dump(bp);
-		rc = 0;
-	}
-
-	return rc;
-}
-
 static void bnx2x_free_mem(struct bnx2x *bp)
 {
 
@@ -6996,7 +7117,6 @@ static int bnx2x_set_int_mode(struct bnx2x *bp)
 	return rc;
 }
 
-static void bnx2x_set_rx_mode(struct net_device *dev);
 
 /* must be called with rtnl_lock */
 static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
@@ -7102,6 +7222,12 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	/* Setup NIC internals and enable interrupts */
 	bnx2x_nic_init(bp, load_code);
+
+	if ((load_code == FW_MSG_CODE_DRV_LOAD_COMMON) &&
+	    (bp->common.shmem2_base))
+		SHMEM2_WR(bp, dcc_support,
+			  (SHMEM_DCC_SUPPORT_DISABLE_ENABLE_PF_TLV |
+			   SHMEM_DCC_SUPPORT_BANDWIDTH_ALLOCATION_TLV));
 
 	/* Send LOAD_DONE command to MCP */
 	if (!BP_NOMCP(bp)) {
@@ -7735,8 +7861,10 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		       bp->common.flash_size, bp->common.flash_size);
 
 	bp->common.shmem_base = REG_RD(bp, MISC_REG_SHARED_MEM_ADDR);
+	bp->common.shmem2_base = REG_RD(bp, MISC_REG_GENERIC_CR_0);
 	bp->link_params.shmem_base = bp->common.shmem_base;
-	BNX2X_DEV_INFO("shmem offset is 0x%x\n", bp->common.shmem_base);
+	BNX2X_DEV_INFO("shmem offset 0x%x  shmem2 offset 0x%x\n",
+		       bp->common.shmem_base, bp->common.shmem2_base);
 
 	if (!bp->common.shmem_base ||
 	    (bp->common.shmem_base < 0xA0000) ||
@@ -8290,20 +8418,31 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 		bp->mf_config =
 			SHMEM_RD(bp, mf_cfg.func_mf_config[func].config);
 
-		val = (SHMEM_RD(bp, mf_cfg.func_mf_config[func].e1hov_tag) &
+		val = (SHMEM_RD(bp, mf_cfg.func_mf_config[FUNC_0].e1hov_tag) &
 		       FUNC_MF_CFG_E1HOV_TAG_MASK);
-		if (val != FUNC_MF_CFG_E1HOV_TAG_DEFAULT) {
-
-			bp->e1hov = val;
+		if (val != FUNC_MF_CFG_E1HOV_TAG_DEFAULT)
 			bp->e1hmf = 1;
-			BNX2X_DEV_INFO("MF mode  E1HOV for func %d is %d "
-				       "(0x%04x)\n",
-				       func, bp->e1hov, bp->e1hov);
-		} else {
-			BNX2X_DEV_INFO("single function mode\n");
-			if (BP_E1HVN(bp)) {
+		BNX2X_DEV_INFO("%s function mode\n",
+			       IS_E1HMF(bp) ? "multi" : "single");
+
+		if (IS_E1HMF(bp)) {
+			val = (SHMEM_RD(bp, mf_cfg.func_mf_config[func].
+								e1hov_tag) &
+			       FUNC_MF_CFG_E1HOV_TAG_MASK);
+			if (val != FUNC_MF_CFG_E1HOV_TAG_DEFAULT) {
+				bp->e1hov = val;
+				BNX2X_DEV_INFO("E1HOV for func %d is %d "
+					       "(0x%04x)\n",
+					       func, bp->e1hov, bp->e1hov);
+			} else {
 				BNX2X_ERR("!!!  No valid E1HOV for func %d,"
 					  "  aborting\n", func);
+				rc = -EPERM;
+			}
+		} else {
+			if (BP_E1HVN(bp)) {
+				BNX2X_ERR("!!!  VN %d in single function mode,"
+					  "  aborting\n", BP_E1HVN(bp));
 				rc = -EPERM;
 			}
 		}

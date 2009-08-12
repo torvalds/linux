@@ -128,6 +128,11 @@
 #define SHMEM_RD(bp, field)		REG_RD(bp, SHMEM_ADDR(bp, field))
 #define SHMEM_WR(bp, field, val)	REG_WR(bp, SHMEM_ADDR(bp, field), val)
 
+#define SHMEM2_ADDR(bp, field)		(bp->common.shmem2_base + \
+					 offsetof(struct shmem2_region, field))
+#define SHMEM2_RD(bp, field)		REG_RD(bp, SHMEM2_ADDR(bp, field))
+#define SHMEM2_WR(bp, field, val)	REG_WR(bp, SHMEM2_ADDR(bp, field), val)
+
 #define EMAC_RD(bp, reg)		REG_RD(bp, emac_base + reg)
 #define EMAC_WR(bp, reg, val)		REG_WR(bp, emac_base + reg, val)
 
@@ -535,6 +540,7 @@ struct bnx2x_common {
 #define NVRAM_PAGE_SIZE			256
 
 	u32			shmem_base;
+	u32			shmem2_base;
 
 	u32			hw_config;
 
