@@ -83,8 +83,8 @@ void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 		WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp | RADEON_PCIE_TX_GART_INVALIDATE_TLB);
 		(void)RREG32_PCIE(RADEON_PCIE_TX_GART_CNTL);
 		WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp);
-		mb();
 	}
+	mb();
 }
 
 int rv370_pcie_gart_enable(struct radeon_device *rdev)
@@ -591,27 +591,6 @@ void r300_vram_info(struct radeon_device *rdev)
 	r100_vram_init_sizes(rdev);
 }
 
-
-/*
- * Indirect registers accessor
- */
-uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg)
-{
-	uint32_t r;
-
-	WREG8(RADEON_PCIE_INDEX, ((reg) & 0xff));
-	(void)RREG32(RADEON_PCIE_INDEX);
-	r = RREG32(RADEON_PCIE_DATA);
-	return r;
-}
-
-void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
-{
-	WREG8(RADEON_PCIE_INDEX, ((reg) & 0xff));
-	(void)RREG32(RADEON_PCIE_INDEX);
-	WREG32(RADEON_PCIE_DATA, (v));
-	(void)RREG32(RADEON_PCIE_DATA);
-}
 
 /*
  * PCIE Lanes

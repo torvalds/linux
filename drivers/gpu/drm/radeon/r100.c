@@ -1622,26 +1622,6 @@ void r100_pll_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	r100_pll_errata_after_data(rdev);
 }
 
-uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
-{
-	if (reg < 0x10000)
-		return readl(((void __iomem *)rdev->rmmio) + reg);
-	else {
-		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
-		return readl(((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
-	}
-}
-
-void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
-{
-	if (reg < 0x10000)
-		writel(v, ((void __iomem *)rdev->rmmio) + reg);
-	else {
-		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
-		writel(v, ((void __iomem *)rdev->rmmio) + RADEON_MM_DATA);
-	}
-}
-
 int r100_init(struct radeon_device *rdev)
 {
 	return 0;
