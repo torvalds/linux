@@ -146,7 +146,7 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	if (margins)
 		vmargin = vdisplay_rnd * CVT_MARGIN_PERCENTAGE / 1000;
 
-	drm_mode->vdisplay = vdisplay_rnd + 2 * vmargin;
+	drm_mode->vdisplay = vdisplay + 2 * vmargin;
 
 	/* Interlaced */
 	if (interlaced)
