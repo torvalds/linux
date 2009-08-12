@@ -1498,6 +1498,13 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		bd_prod = RX_BD(bd_prod);
 		bd_cons = RX_BD(bd_cons);
 
+		/* Prefetch the page containing the BD descriptor
+		   at producer's index. It will be needed when new skb is
+		   allocated */
+		prefetch((void *)(PAGE_ALIGN((unsigned long)
+					     (&fp->rx_desc_ring[bd_prod])) -
+				  PAGE_SIZE + 1));
+
 		cqe = &fp->rx_comp_ring[comp_ring_cons];
 		cqe_fp_flags = cqe->fast_path_cqe.type_error_flags;
 
