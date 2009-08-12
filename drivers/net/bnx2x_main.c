@@ -2927,7 +2927,7 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 		REG_WR(bp, reg_offset, val);
 
 		BNX2X_ERR("FATAL HW block attention set0 0x%x\n",
-			  (attn & HW_INTERRUT_ASSERT_SET_0));
+			  (u32)(attn & HW_INTERRUT_ASSERT_SET_0));
 		bnx2x_panic();
 	}
 }
@@ -2958,7 +2958,7 @@ static inline void bnx2x_attn_int_deasserted1(struct bnx2x *bp, u32 attn)
 		REG_WR(bp, reg_offset, val);
 
 		BNX2X_ERR("FATAL HW block attention set1 0x%x\n",
-			  (attn & HW_INTERRUT_ASSERT_SET_1));
+			  (u32)(attn & HW_INTERRUT_ASSERT_SET_1));
 		bnx2x_panic();
 	}
 }
@@ -2998,7 +2998,7 @@ static inline void bnx2x_attn_int_deasserted2(struct bnx2x *bp, u32 attn)
 		REG_WR(bp, reg_offset, val);
 
 		BNX2X_ERR("FATAL HW block attention set2 0x%x\n",
-			  (attn & HW_INTERRUT_ASSERT_SET_2));
+			  (u32)(attn & HW_INTERRUT_ASSERT_SET_2));
 		bnx2x_panic();
 	}
 }
