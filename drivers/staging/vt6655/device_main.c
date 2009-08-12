@@ -1180,17 +1180,17 @@ static BOOL device_get_pci_info(PSDevice pDevice, struct pci_dev* pcid) {
 
     pDevice->pcid = pcid;
 
-    pci_read_config_byte(pcid, PCI_REG_COMMAND, &b);
-    pci_write_config_byte(pcid, PCI_REG_COMMAND, (b|COMMAND_BUSM));
+    pci_read_config_byte(pcid, PCI_COMMAND, &b);
+    pci_write_config_byte(pcid, PCI_COMMAND, (b|PCI_COMMAND_MASTER));
 
 #ifdef	PLICE_DEBUG
-   	//pci_read_config_word(pcid,PCI_REG_MAX_LAT,&max_lat);
+   	//pci_read_config_word(pcid,PCI_MAX_LAT,&max_lat);
 	//printk("max lat is %x,SubSystemID is %x\n",max_lat,pDevice->SubSystemID);
 	//for (ii=0;ii<0xFF;ii++)
-	//pci_read_config_word(pcid,PCI_REG_MAX_LAT,&max_lat);
+	//pci_read_config_word(pcid,PCI_MAX_LAT,&max_lat);
 	//max_lat  = 0x20;
-	//pci_write_config_word(pcid,PCI_REG_MAX_LAT,max_lat);
-	//pci_read_config_word(pcid,PCI_REG_MAX_LAT,&max_lat);
+	//pci_write_config_word(pcid,PCI_MAX_LAT,max_lat);
+	//pci_read_config_word(pcid,PCI_MAX_LAT,&max_lat);
 	//printk("max lat is %x\n",max_lat);
 
 	for (ii=0;ii<0xFF;ii++)

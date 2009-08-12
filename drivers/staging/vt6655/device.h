@@ -95,7 +95,6 @@
 #include "mib.h"
 #include "srom.h"
 #include "rc4.h"
-#include "tpci.h"
 #include "desc.h"
 #include "key.h"
 #include "mac.h"
