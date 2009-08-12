@@ -397,7 +397,8 @@ static u8 bnx2x_emac_enable(struct link_params *params,
 
 		/* enable access for bmac registers */
 		REG_WR(bp, NIG_REG_BMAC0_REGS_OUT_EN + port*4, 0x1);
-	}
+	} else
+		REG_WR(bp, NIG_REG_BMAC0_REGS_OUT_EN + port*4, 0x0);
 
 	vars->mac_type = MAC_TYPE_EMAC;
 	return 0;
@@ -1021,8 +1022,8 @@ static u8 bnx2x_reset_unicore(struct link_params *params)
 			      MDIO_COMBO_IEEE0_MII_CONTROL,
 			      (mii_control |
 			       MDIO_COMBO_IEEO_MII_CONTROL_RESET));
-
-	bnx2x_set_serdes_access(params);
+	if (params->switch_cfg == SWITCH_CFG_1G)
+		bnx2x_set_serdes_access(params);
 
 	/* wait for the reset to self clear */
 	for (i = 0; i < MDIO_ACCESS_TIMEOUT; i++) {
