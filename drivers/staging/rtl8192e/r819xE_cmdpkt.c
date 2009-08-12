@@ -148,22 +148,6 @@ RT_STATUS cmpk_message_handle_tx(
             code_virtual_address += frag_length;
             frag_offset += frag_length;
 
-#if 0
-            {
-                int k;
-                printk("------------tx cmd------------\n");
-                for(k = 0; k<i; k++)
-                    printk(" 0x%x",((u8*)buf)[k]);
-                printk("\n");
-            }
-            {
-                int m;
-                printk("-------------cmd desc----------\n");
-                for(m=0;m<32;m++)
-                    printk(" 0x%x",((u8*)pdesc)[m]);
-                printk("\n");
-            }
-#endif
         }while(frag_offset < buffer_len);
 
 Failed:

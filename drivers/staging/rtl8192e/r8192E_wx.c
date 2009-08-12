@@ -43,40 +43,6 @@ static int r8192_wx_get_freq(struct net_device *dev,
 }
 
 
-#if 0
-
-static int r8192_wx_set_beaconinterval(struct net_device *dev, struct iw_request_info *aa,
-			  union iwreq_data *wrqu, char *b)
-{
-	int *parms = (int *)b;
-	int bi = parms[0];
-
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	down(&priv->wx_sem);
-	DMESG("setting beacon interval to %x",bi);
-
-	priv->ieee80211->beacon_interval=bi;
-	rtl8180_commit(dev);
-	up(&priv->wx_sem);
-
-	return 0;
-}
-
-
-static int r8192_wx_set_forceassociate(struct net_device *dev, struct iw_request_info *aa,
-			  union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv=ieee80211_priv(dev);
-	int *parms = (int *)extra;
-
-	priv->ieee80211->force_associate = (parms[0] > 0);
-
-
-	return 0;
-}
-
-#endif
 static int r8192_wx_get_mode(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
@@ -1037,17 +1003,6 @@ exit:
 }
 
 #if (WIRELESS_EXT >= 18)
-#if 0
-static int r8192_wx_get_enc_ext(struct net_device *dev,
-                                        struct iw_request_info *info,
-                                        union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	int ret = 0;
-	ret = ieee80211_wx_get_encode_ext(priv->ieee80211, info, wrqu, extra);
-	return ret;
-}
-#endif
 static int r8192_wx_set_enc_ext(struct net_device *dev,
                                         struct iw_request_info *info,
                                         union iwreq_data *wrqu, char *extra)

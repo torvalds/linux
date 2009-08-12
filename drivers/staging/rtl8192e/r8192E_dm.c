@@ -95,9 +95,6 @@ extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work);
 extern	void	dm_rf_pathcheck_workitemcallback(struct net_device *dev);
 #endif
 extern	void dm_fsync_timer_callback(unsigned long data);
-#if 0
-extern	bool	dm_check_lbus_status(struct net_device *dev);
-#endif
 extern	void dm_check_fsync(struct net_device *dev);
 extern	void	dm_shadow_init(struct net_device *dev);
 extern	void dm_initialize_txpower_tracking(struct net_device *dev);
@@ -946,33 +943,6 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 		return;
 	}
 
-	//==========================
-	// this is only for test, should be masked
-#if 0
-{
-	//UINT32	eRFPath;
-	//UINT32	start_rf, end_rf;
-	UINT32	curr_addr;
-	//UINT32	reg_addr;
-	//UINT32	reg_addr_end;
-	UINT32	reg_value;
-	//start_rf 		= RF90_PATH_A;
-	//end_rf 			= RF90_PATH_B;//RF90_PATH_MAX;
-	//reg_addr 		= 0x0;
-	//reg_addr_end 	= 0x2F;
-
-		for (curr_addr = 0; curr_addr < 0x2d; curr_addr++)
-		{
-			reg_value = PHY_QueryRFReg(	Adapter, (RF90_RADIO_PATH_E)RF90_PATH_A,
-										curr_addr, bMaskDWord);
-		}
-
-	pHalData->TXPowercount = 0;
-	return;
-}
-#endif
-	//==========================
-
 	// read and filter out unreasonable value
 	tmpRegA = rtl8192_phy_QueryRFReg(dev, RF90_PATH_A, 0x12, 0x078);	// 0x12: RF Reg[10:7]
 	RT_TRACE(COMP_POWER_TRACKING, "Readback ThermalMeterA = %d \n", tmpRegA);
@@ -1648,19 +1618,7 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	static u8 	TM_Trigger=0;
-#if 0
-	u1Byte					i;
-	u4Byte tmpRegA;
-	for(i=0; i<50; i++)
-	{
-		tmpRegA = PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x12, 0x078);	// 0x12: RF Reg[10:7]
-		PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-		//delay_us(100);
-		PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-		//delay_us(100);
-	}
-	DbgPrint("Trigger and readback ThermalMeter, write RF reg0x2 = 0x4d to 0x4f for 50 times\n");
-#else
+
 	//DbgPrint("dm_CheckTXPowerTracking() \n");
 	if(!priv->btxpower_tracking)
 		return;
@@ -1699,8 +1657,7 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 			#endif
 		TM_Trigger = 0;
 		}
-#endif
-	}
+}
 #endif
 
 static void dm_check_txpower_tracking(struct net_device *dev)
@@ -1908,14 +1865,6 @@ void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 			//cosa PlatformEFIOWrite4Byte(Adapter, RATR0, ((pu4Byte)(val))[0]);
 			write_nic_dword(dev, RATR0, ratr_value);
 			write_nic_byte(dev, UFWP, 1);
-#if 0		// Disable old code.
-			u1Byte index;
-			u4Byte input_value;
-			index = (u1Byte)((((pu4Byte)(val))[0]) >> 28);
-			input_value = (((pu4Byte)(val))[0]) & 0x0fffffff;
-			// TODO: Correct it. Emily 2007.01.11
-			PlatformEFIOWrite4Byte(Adapter, RATR0+index*4, input_value);
-#endif
 	}
 	//Resore TX Power Tracking Index
 	if(priv->btxpower_trackingInit && priv->btxpower_tracking){
@@ -2895,78 +2844,6 @@ static void dm_ctstoself(struct net_device *dev)
 }
 
 
-#if 0
-/*-----------------------------------------------------------------------------
- * Function:	dm_rf_operation_test_callback()
- *
- * Overview:	Only for RF operation test now.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/29/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-void dm_rf_operation_test_callback(unsigned long dev)
-{
-//	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
-	u8 erfpath;
-
-
-	for(erfpath=0; erfpath<4; erfpath++)
-	{
-		//DbgPrint("Set RF-%d\n\r", eRFPath);
-		//PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x2c, bMask12Bits, 0x3d7);
-		udelay(100);
-	}
-
-	{
-		//PlatformSetPeriodicTimer(Adapter, &pHalData->RfTest1Timer, 500);
-	}
-
-	// For test
-	{
-		//u8 i;
-		//PlatformSetPeriodicTimer(Adapter, &pHalData->RfTest1Timer, 500);
-#if 0
-		for(i=0; i<50; i++)
-		{
-			// Write Test
-			PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
-			//delay_us(100);
-			PHY_SetRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
-			//delay_us(100);
-			PHY_SetRFReg(Adapter, RF90_PATH_C, 0x02, bMask12Bits, 0x4d);
-			//delay_us(100);
-			PHY_SetRFReg(Adapter, RF90_PATH_C, 0x02, bMask12Bits, 0x4f);
-			//delay_us(100);
-
-#if 0
-			// Read test
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x02, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x12, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x12, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x21, bMask12Bits);
-			//delay_us(100);
-			PHY_QueryRFReg(Adapter, RF90_PATH_A, 0x21, bMask12Bits);
-			//delay_us(100);
-#endif
-		}
-#endif
-	}
-
-}	/* DM_RfOperationTestCallBack */
-#endif
 
 /*-----------------------------------------------------------------------------
  * Function:	dm_check_rfctrl_gpio()
@@ -3889,50 +3766,6 @@ void dm_check_fsync(struct net_device *dev)
 	}
 }
 
-#if 0
-/*-----------------------------------------------------------------------------
- * Function:	DM_CheckLBusStatus()
- *
- * Overview:	For 9x series, we must make sure LBUS is active for IO.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	02/22/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-extern	s1Byte	DM_CheckLBusStatus(IN	PADAPTER	Adapter)
-{
-	PMGNT_INFO	pMgntInfo=&Adapter->MgntInfo;
-
-#if (HAL_CODE_BASE & RTL819X)
-
-#if (HAL_CODE_BASE == RTL8192)
-
-#if( DEV_BUS_TYPE==PCI_INTERFACE)
-	//return (pMgntInfo->bLbusEnable);	// For debug only
-	return TRUE;
-#endif
-
-#if( DEV_BUS_TYPE==USB_INTERFACE)
-	return TRUE;
-#endif
-
-#endif	// #if (HAL_CODE_BASE == RTL8192)
-
-#if (HAL_CODE_BASE == RTL8190)
-	return TRUE;
-#endif	// #if (HAL_CODE_BASE == RTL8190)
-
-#endif	// #if (HAL_CODE_BASE & RTL819X)
-}	/* DM_CheckLBusStatus */
-
-#endif
 
 /*-----------------------------------------------------------------------------
  * Function:	dm_shadow_init()

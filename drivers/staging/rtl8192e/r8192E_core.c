@@ -115,10 +115,6 @@ static struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
 };
 
 static char* ifname = "wlan%d";
-#if 0
-static int hwseqnum = 0;
-static int hwwep = 0;
-#endif
 static int hwwep = 1; //default use hw. set 0 to use software security
 static int channels = 0x3fff;
 
@@ -130,19 +126,6 @@ MODULE_DEVICE_TABLE(pci, rtl8192_pci_id_tbl);
 //MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
 MODULE_DESCRIPTION("Linux driver for Realtek RTL819x WiFi cards");
 
-#if 0
-MODULE_PARM(ifname,"s");
-MODULE_PARM_DESC(devname," Net interface name, wlan%d=default");
-
-MODULE_PARM(hwseqnum,"i");
-MODULE_PARM_DESC(hwseqnum," Try to use hardware 802.11 header sequence numbers. Zero=default");
-
-MODULE_PARM(hwwep,"i");
-MODULE_PARM_DESC(hwwep," Try to use hardware WEP support. Still broken and not available on all cards");
-
-MODULE_PARM(channels,"i");
-MODULE_PARM_DESC(channels," Channel bitmask for specific locales. NYI");
-#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 module_param(ifname, charp, S_IRUGO|S_IWUSR );
@@ -515,99 +498,6 @@ static int proc_get_registers(char *page, char **start,
 }
 
 
-#if 0
-static int proc_get_cck_reg(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
-{
-	struct net_device *dev = data;
-//	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	int len = 0;
-	int i,n;
-
-	int max = 0x5F;
-
-	/* This dump the current register page */
-	for(n=0;n<=max;)
-	{
-		//printk( "\nD: %2x> ", n);
-		len += snprintf(page + len, count - len,
-			"\nD:  %2x > ",n);
-
-		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_phy_cck(dev,n));
-
-		//	printk("%2x ",read_nic_byte(dev,n));
-	}
-	len += snprintf(page + len, count - len,"\n");
-
-
-	*eof = 1;
-	return len;
-}
-
-#endif
-
-#if 0
-static int proc_get_ofdm_reg(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
-{
-
-	struct net_device *dev = data;
-//	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	int len = 0;
-	int i,n;
-
-	//int max=0xff;
-	int max = 0x40;
-
-	/* This dump the current register page */
-	for(n=0;n<=max;)
-	{
-		//printk( "\nD: %2x> ", n);
-		len += snprintf(page + len, count - len,
-			"\nD:  %2x > ",n);
-
-		for(i=0;i<16 && n<=max;i++,n++)
-		len += snprintf(page + len, count - len,
-			"%2x ",read_phy_ofdm(dev,n));
-
-		//	printk("%2x ",read_nic_byte(dev,n));
-	}
-	len += snprintf(page + len, count - len,"\n");
-
-
-
-	*eof = 1;
-	return len;
-}
-
-#endif
-
-#if 0
-static int proc_get_stats_hw(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
-{
-	struct net_device *dev = data;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	int len = 0;
-
-	len += snprintf(page + len, count - len,
-		"NIC int: %lu\n"
-		"Total int: %lu\n",
-		priv->stats.ints,
-		priv->stats.shints);
-
-	*eof = 1;
-	return len;
-}
-#endif
 
 static int proc_get_stats_tx(char *page, char **start,
 			  off_t offset, int count,
@@ -770,16 +660,6 @@ static void rtl8192_proc_init_one(struct net_device *dev)
 		      dev->name);
 		return;
 	}
-	#if 0
-	e = create_proc_read_entry("stats-hw", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_hw, dev);
-
-	if (!e) {
-		DMESGE("Unable to initialize "
-		      "/proc/net/rtl8192/%s/stats-hw\n",
-		      dev->name);
-	}
-	#endif
 	e = create_proc_read_entry("stats-rx", S_IFREG | S_IRUGO,
 				   priv->dir_dev, proc_get_stats_rx, dev);
 
@@ -798,17 +678,6 @@ static void rtl8192_proc_init_one(struct net_device *dev)
 		      "/proc/net/rtl8192/%s/stats-tx\n",
 		      dev->name);
 	}
-	#if 0
-	e = create_proc_read_entry("stats-ieee", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_ieee, dev);
-
-	if (!e) {
-		DMESGE("Unable to initialize "
-		      "/proc/net/rtl8192/%s/stats-ieee\n",
-		      dev->name);
-	}
-
-	#endif
 
 	e = create_proc_read_entry("stats-ap", S_IFREG | S_IRUGO,
 				   priv->dir_dev, proc_get_stats_ap, dev);
@@ -826,23 +695,6 @@ static void rtl8192_proc_init_one(struct net_device *dev)
 		      "/proc/net/rtl8192/%s/registers\n",
 		      dev->name);
 	}
-#if 0
-	e = create_proc_read_entry("cck-registers", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_cck_reg, dev);
-	if (!e) {
-		RT_TRACE(COMP_ERR, "Unable to initialize "
-		      "/proc/net/rtl8192/%s/cck-registers\n",
-		      dev->name);
-	}
-
-	e = create_proc_read_entry("ofdm-registers", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_ofdm_reg, dev);
-	if (!e) {
-		RT_TRACE(COMP_ERR, "Unable to initialize "
-		      "/proc/net/rtl8192/%s/ofdm-registers\n",
-		      dev->name);
-	}
-#endif
 }
 /****************************************************************************
    -----------------------------MISC STUFF-------------------------
@@ -1002,19 +854,6 @@ void rtl8192_tx_enable(struct net_device *dev)
     ieee80211_reset_queue(priv->ieee80211);
 }
 
-#if 0
-void rtl8192_beacon_tx_enable(struct net_device *dev)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	u32 reg;
-
-	reg = read_nic_dword(priv->ieee80211->dev,INTA_MASK);
-
-	/* enable Beacon realted interrupt signal */
-	reg |= (IMR_BcnInt | IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
-	write_nic_byte(dev,reg);
-}
-#endif
 
 static void rtl8192_free_rx_ring(struct net_device *dev)
 {
@@ -1111,20 +950,6 @@ inline u16 rtl8192_rate2rate(short rate)
 
 
 
-#if 0
-void rtl8192_tx_queues_stop(struct net_device *dev)
-{
-	//struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	u8 dma_poll_mask = (1<<TX_DMA_STOP_LOWPRIORITY_SHIFT);
-	dma_poll_mask |= (1<<TX_DMA_STOP_HIPRIORITY_SHIFT);
-	dma_poll_mask |= (1<<TX_DMA_STOP_NORMPRIORITY_SHIFT);
-	dma_poll_mask |= (1<<TX_DMA_STOP_BEACON_SHIFT);
-
-	rtl8192_set_mode(dev,EPROM_CMD_CONFIG);
-	write_nic_byte(dev,TX_DMA_POLLING,dma_poll_mask);
-	rtl8192_set_mode(dev,EPROM_CMD_NORMAL);
-}
-#endif
 
 static void rtl8192_data_hard_stop(struct net_device *dev)
 {
@@ -2378,13 +2203,6 @@ short rtl8192_is_tx_queue_empty(struct net_device *dev)
 	}
 	return 1;
 }
-#if 0
-void rtl8192_rq_tx_ack(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	priv->ieee80211->ack_tx_to_ieee = 1;
-}
-#endif
 static void rtl8192_hw_sleep_down(struct net_device *dev)
 {
 	RT_TRACE(COMP_POWER, "%s()============>come to sleep down\n", __FUNCTION__);
@@ -2857,13 +2675,6 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		// when auto load failed,  the last address byte set to be a random one.
 		// added by david woo.2007/11/7
 		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
-		#if 0
-		for(i = 0; i < 6; i++)
-		{
-			Adapter->PermanentAddress[i] = sMacAddr[i];
-			PlatformEFIOWrite1Byte(Adapter, IDR0+i, sMacAddr[i]);
-		}
-		#endif
 	}
 
 	RT_TRACE(COMP_INIT, "Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
@@ -3883,23 +3694,6 @@ void rtl8192_prepare_beacon(struct r8192_priv *priv)
 	//spin_unlock_irqrestore (&priv->tx_lock, flags);
 }
 
-#if 0
-void rtl8192_beacon_tx_enable(struct net_device *dev)
-{
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-
-	rtl8180_set_mode(dev,EPROM_CMD_CONFIG);
-#ifdef CONFIG_RTL8185B
-	priv->dma_poll_stop_mask &= ~(TPPOLLSTOP_BQ);MgntQuery_MgntFrameTxRateMgntQuery_MgntFrameTxRate
-	write_nic_byte(dev,TPPollStop, priv->dma_poll_mask);
-#else
-	priv->dma_poll_mask &=~(1<<TX_DMA_STOP_BEACON_SHIFT);
-	write_nic_byte(dev,TX_DMA_POLLING,priv->dma_poll_mask);
-#endif
-	rtl8180_set_mode(dev,EPROM_CMD_NORMAL);
-}
-#endif
-
 
 /* this configures registers for beacon tx and enables it via
  * rtl8192_beacon_tx_enable(). rtl8192_beacon_tx_disable() might
@@ -3955,14 +3749,6 @@ void rtl8192_start_beacon(struct net_device *dev)
 /***************************************************************************
     -------------------------------NET STUFF---------------------------
 ***************************************************************************/
-#if 0
-static struct net_device_stats *rtl8192_stats(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
-	return &priv->ieee80211->stats;
-}
-#endif
 
 
 
@@ -4064,13 +3850,6 @@ TxCheckStuck(struct net_device *dev)
 				continue;
 			}
 			txring->nStuckCount++;
-			#if 0
-			if(txring->nStuckCount > ResetThreshold)
-			{
-				RT_TRACE( COMP_RESET, "<== TxCheckStuck()\n" );
-				return RESET_TYPE_NORMAL;
-			}
-			#endif
 			bCheckFwTxCnt = TRUE;
 		}
 	}
@@ -4144,12 +3923,6 @@ static bool HalRxCheckStuck8190Pci(struct net_device *dev)
 			//DbgPrint("RSSI <= %d, check this time \n", VeryLowRSSI);
 		}
 	}
-#if 0
-	if (rx_chk_cnt < 2)
-		return bStuck;
-	else
-		rx_chk_cnt = 0;
-#endif
 	if(priv->RxCounter==RegRxCounter)
 		bStuck = TRUE;
 
@@ -4506,10 +4279,6 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 	//
 	// To solve CAM values miss in RF OFF, rewrite CAM values after RF ON. By Bruce, 2007-09-20.
 	//
-#if 0
-	if(pPSC->eInactivePowerState == eRfOn)
-		CamRestoreAllEntry(dev);
-#endif
 	pPSC->bSwRfProcessing = FALSE;
 	RT_TRACE(COMP_POWER, "InactivePsWorkItemCallback() <--------- \n");
 }
@@ -4868,11 +4637,6 @@ void rtl8192_commit(struct net_device *dev)
 	_rtl8192_up(dev);
 }
 
-/*
-void rtl8192_restart(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-*/
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8192_restart(struct work_struct *work)
 {
