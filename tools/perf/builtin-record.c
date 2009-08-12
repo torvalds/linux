@@ -35,6 +35,7 @@ static const char		*output_name			= "perf.data";
 static int			group				= 0;
 static unsigned int		realtime_prio			= 0;
 static int			system_wide			= 0;
+static int			profile_cpu			= -1;
 static pid_t			target_pid			= -1;
 static int			inherit				= 1;
 static int			force				= 0;
@@ -431,6 +432,8 @@ try_again:
 
 		if (err == EPERM)
 			die("Permission error - are you root?\n");
+		else if (err ==  ENODEV && profile_cpu != -1)
+			die("No such device - did you specify an out-of-range profile CPU?\n");
 
 		/*
 		 * If it's cycles then fall back to hrtimer
@@ -564,9 +567,15 @@ static int __cmd_record(int argc, const char **argv)
 		if (pid == -1)
 			pid = getpid();
 
-		open_counters(-1, pid);
-	} else for (i = 0; i < nr_cpus; i++)
-		open_counters(i, target_pid);
+		open_counters(profile_cpu, pid);
+	} else {
+		if (profile_cpu != -1) {
+			open_counters(profile_cpu, target_pid);
+		} else {
+			for (i = 0; i < nr_cpus; i++)
+				open_counters(i, target_pid);
+		}
+	}
 
 	if (file_new)
 		perf_header__write(header, output);
@@ -645,6 +654,8 @@ static const struct option options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('A', "append", &append_file,
 			    "append to the output file to do incremental profiling"),
+	OPT_INTEGER('C', "profile_cpu", &profile_cpu,
+			    "CPU to profile on"),
 	OPT_BOOLEAN('f', "force", &force,
 			"overwrite existing data file"),
 	OPT_LONG('c', "count", &default_interval,
