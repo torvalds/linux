@@ -10,28 +10,16 @@
 
 #include "core.h"
 
-void
-MLMEProcThread(
-     struct wbsoft_priv *    adapter
-	);
-
-void MLME_GetNextPacket(  struct wbsoft_priv * adapter,  PDESCRIPTOR pDes );
-u8 MLMESendFrame( struct wbsoft_priv * adapter,
-					u8	*pMMPDU,
-					u16	len,
-					 u8	DataType);
+void MLME_GetNextPacket(struct wbsoft_priv *adapter, PDESCRIPTOR pDes);
+u8 MLMESendFrame(struct wbsoft_priv *adapter,
+		 u8 * pMMPDU, u16 len, u8 DataType);
 
 void
-MLME_SendComplete(  struct wbsoft_priv * adapter,  u8 PacketID,  unsigned char SendOK );
+MLME_SendComplete(struct wbsoft_priv *adapter, u8 PacketID,
+		  unsigned char SendOK);
 
-void
-MLMEReturnPacket(
-     struct wbsoft_priv *    adapter,
-     u8 *          pRxBufer
-   );
 #ifdef _IBSS_BEACON_SEQ_STICK_
-s8 SendBCNullData(struct wbsoft_priv * adapter, u16 wIdx);
+s8 SendBCNullData(struct wbsoft_priv *adapter, u16 wIdx);
 #endif
 
 #endif
-
