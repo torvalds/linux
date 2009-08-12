@@ -277,6 +277,9 @@ int i2400m_barker_db_known_barkers(void)
 	result = i2400m_barker_db_add(I2400M_SBOOT_BARKER);
 	if (result < 0)
 		goto error_add;
+	result = i2400m_barker_db_add(I2400M_SBOOT_BARKER_6050);
+	if (result < 0)
+		goto error_add;
 error_add:
        return result;
 }

@@ -80,11 +80,16 @@ MODULE_PARM_DESC(debug,
 		 "initial debug value to set.");
 
 /* Our firmware file name */
-static const char *i2400mu_bus_fw_names[] = {
+static const char *i2400mu_bus_fw_names_5x50[] = {
 #define I2400MU_FW_FILE_NAME_v1_4 "i2400m-fw-usb-1.4.sbcf"
 	I2400MU_FW_FILE_NAME_v1_4,
-#define I2400MU_FW_FILE_NAME_v1_3 "i2400m-fw-usb-1.3.sbcf"
-	I2400MU_FW_FILE_NAME_v1_3,
+	NULL,
+};
+
+
+static const char *i2400mu_bus_fw_names_6050[] = {
+#define I6050U_FW_FILE_NAME_v1_5 "i6050-fw-usb-1.5.sbcf"
+	I6050U_FW_FILE_NAME_v1_5,
 	NULL,
 };
 
@@ -418,10 +423,16 @@ int i2400mu_probe(struct usb_interface *iface,
 	i2400m->bus_bm_retries = I2400M_USB_BOOT_RETRIES;
 	i2400m->bus_bm_cmd_send = i2400mu_bus_bm_cmd_send;
 	i2400m->bus_bm_wait_for_ack = i2400mu_bus_bm_wait_for_ack;
-	i2400m->bus_fw_names = i2400mu_bus_fw_names;
 	i2400m->bus_bm_mac_addr_impaired = 0;
 
-	{
+	if (id->idProduct == USB_DEVICE_ID_I6050) {
+		i2400m->bus_fw_names = i2400mu_bus_fw_names_6050;
+		i2400mu->endpoint_cfg.bulk_out = 0;
+		i2400mu->endpoint_cfg.notification = 3;
+		i2400mu->endpoint_cfg.reset_cold = 2;
+		i2400mu->endpoint_cfg.bulk_in = 1;
+	} else {
+		i2400m->bus_fw_names = i2400mu_bus_fw_names_5x50;
 		i2400mu->endpoint_cfg.bulk_out = 0;
 		i2400mu->endpoint_cfg.notification = 1;
 		i2400mu->endpoint_cfg.reset_cold = 2;
@@ -614,6 +625,7 @@ out:
 
 static
 struct usb_device_id i2400mu_id_table[] = {
+	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050) },
 	{ USB_DEVICE(0x8086, 0x0181) },
 	{ USB_DEVICE(0x8086, 0x1403) },
 	{ USB_DEVICE(0x8086, 0x1405) },
@@ -656,7 +668,7 @@ void __exit i2400mu_driver_exit(void)
 module_exit(i2400mu_driver_exit);
 
 MODULE_AUTHOR("Intel Corporation <linux-wimax@intel.com>");
-MODULE_DESCRIPTION("Intel 2400M WiMAX networking for USB");
+MODULE_DESCRIPTION("Driver for USB based Intel Wireless WiMAX Connection 2400M "
+		   "(5x50 & 6050)");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(I2400MU_FW_FILE_NAME_v1_4);
-MODULE_FIRMWARE(I2400MU_FW_FILE_NAME_v1_3);
