@@ -55,7 +55,6 @@
 #include "mac.h"
 #include "baseband.h"
 #include "srom.h"
-#include "umem.h"
 #include "rf.h"
 
 /*---------------------  Static Definitions -------------------------*/

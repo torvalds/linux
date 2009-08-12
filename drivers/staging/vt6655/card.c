@@ -57,7 +57,6 @@
 #include "key.h"
 #include "rc4.h"
 #include "country.h"
-#include "umem.h"
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -1304,7 +1303,7 @@ BOOL CARDbSetBSSID(PVOID pDeviceHandler, PBYTE pbyBSSID, CARD_OP_MODE eOPMode)
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
     MACvWriteBSSIDAddress(pDevice->PortOffset, pbyBSSID);
-    MEMvCopy(pDevice->abyBSSID, pbyBSSID, WLAN_BSSID_LEN);
+    memcpy(pDevice->abyBSSID, pbyBSSID, WLAN_BSSID_LEN);
     if (eOPMode == OP_MODE_ADHOC) {
         MACvRegBitsOn(pDevice->PortOffset, MAC_REG_HOSTCR, HOSTCR_ADHOC);
     } else {
@@ -1566,7 +1565,7 @@ CARDbAdd_PMKID_Candidate (
 
     if (pDevice->gsPMKIDCandidate.NumCandidates >= MAX_PMKIDLIST) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vFlush_PMKID_Candidate: 3\n");
-        ZERO_MEMORY(&pDevice->gsPMKIDCandidate, sizeof(SPMKIDCandidateEvent));
+        memset(&pDevice->gsPMKIDCandidate, 0, sizeof(SPMKIDCandidateEvent));
     }
 
     for (ii = 0; ii < 6; ii++) {
@@ -1578,7 +1577,7 @@ CARDbAdd_PMKID_Candidate (
     // Update Old Candidate
     for (ii = 0; ii < pDevice->gsPMKIDCandidate.NumCandidates; ii++) {
         pCandidateList = &pDevice->gsPMKIDCandidate.CandidateList[ii];
-        if (MEMEqualMemory(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN)) {
+        if ( !memcmp(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN)) {
             if ((bRSNCapExist == TRUE) && (wRSNCap & BIT0)) {
                 pCandidateList->Flags |= NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED;
             } else {
@@ -1595,7 +1594,7 @@ CARDbAdd_PMKID_Candidate (
     } else {
         pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
     }
-    MEMvCopy(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN);
+    memcpy(pCandidateList->BSSID, pbyBSSID, U_ETHER_ADDR_LEN);
     pDevice->gsPMKIDCandidate.NumCandidates++;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"NumCandidates:%d\n", (int)pDevice->gsPMKIDCandidate.NumCandidates);
     return TRUE;
@@ -2276,7 +2275,7 @@ CARDbChannelGetList (
     if (uCountryCodeIdx >= CCODE_MAX) {
         return (FALSE);
     }
-    MEMvCopy(pbyChannelTable, ChannelRuleTab[uCountryCodeIdx].bChannelIdxList, CB_MAX_CHANNEL);
+    memcpy(pbyChannelTable, ChannelRuleTab[uCountryCodeIdx].bChannelIdxList, CB_MAX_CHANNEL);
     return (TRUE);
 }
 

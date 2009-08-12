@@ -35,7 +35,6 @@
 #include "mac.h"
 #include "card.h"
 #include "hostap.h"
-#include "umem.h"
 #include "wpactl.h"
 #include "rf.h"
 
@@ -726,8 +725,8 @@ vConfigWEPKey (
     int ii;
 
 
-    ZERO_MEMORY(&pDevice->abyWepKey[dwKeyIndex][0], WLAN_WEPMAX_KEYLEN);
-    MEMvCopy(&pDevice->abyWepKey[dwKeyIndex][0], pbyKey, uKeyLength);
+    memset(&pDevice->abyWepKey[dwKeyIndex][0], 0, WLAN_WEPMAX_KEYLEN);
+    memcpy(&pDevice->abyWepKey[dwKeyIndex][0], pbyKey, uKeyLength);
 
     pDevice->bWepKeyAvailable[dwKeyIndex] = TRUE;
     pDevice->auWepKeyLength[dwKeyIndex] = uKeyLength;

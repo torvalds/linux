@@ -55,7 +55,6 @@
 #include "bssdb.h"
 #include "mac.h"
 #include "baseband.h"
-#include "umem.h"
 #include "michael.h"
 #include "tkip.h"
 #include "tcrc.h"
@@ -242,16 +241,16 @@ s_vFillTxKey (
 
     if (pTransmitKey->byCipherSuite == KEY_CTL_WEP) {
         if (pTransmitKey->uKeyLength == WLAN_WEP232_KEYLEN ){
-            MEMvCopy(pDevice->abyPRNG, (PBYTE)&(dwRevIVCounter), 3);
-            MEMvCopy(pDevice->abyPRNG+3, pTransmitKey->abyKey, pTransmitKey->uKeyLength);
+            memcpy(pDevice->abyPRNG, (PBYTE)&(dwRevIVCounter), 3);
+            memcpy(pDevice->abyPRNG+3, pTransmitKey->abyKey, pTransmitKey->uKeyLength);
         } else {
-            MEMvCopy(pbyBuf, (PBYTE)&(dwRevIVCounter), 3);
-            MEMvCopy(pbyBuf+3, pTransmitKey->abyKey, pTransmitKey->uKeyLength);
+            memcpy(pbyBuf, (PBYTE)&(dwRevIVCounter), 3);
+            memcpy(pbyBuf+3, pTransmitKey->abyKey, pTransmitKey->uKeyLength);
             if(pTransmitKey->uKeyLength == WLAN_WEP40_KEYLEN) {
-                MEMvCopy(pbyBuf+8, (PBYTE)&(dwRevIVCounter), 3);
-                MEMvCopy(pbyBuf+11, pTransmitKey->abyKey, pTransmitKey->uKeyLength);
+                memcpy(pbyBuf+8, (PBYTE)&(dwRevIVCounter), 3);
+                memcpy(pbyBuf+11, pTransmitKey->abyKey, pTransmitKey->uKeyLength);
             }
-            MEMvCopy(pDevice->abyPRNG, pbyBuf, 16);
+            memcpy(pDevice->abyPRNG, pbyBuf, 16);
         }
         // Append IV after Mac Header
         *pdwIV &= WEP_IV_MASK;//00000000 11111111 11111111 11111111
@@ -268,9 +267,9 @@ s_vFillTxKey (
         }
         TKIPvMixKey(pTransmitKey->abyKey, pDevice->abyCurrentNetAddr,
                     pTransmitKey->wTSC15_0, pTransmitKey->dwTSC47_16, pDevice->abyPRNG);
-        MEMvCopy(pbyBuf, pDevice->abyPRNG, 16);
+        memcpy(pbyBuf, pDevice->abyPRNG, 16);
         // Make IV
-        MEMvCopy(pdwIV, pDevice->abyPRNG, 3);
+        memcpy(pdwIV, pDevice->abyPRNG, 3);
 
         *(pbyIVHead+3) = (BYTE)(((byKeyIndex << 6) & 0xc0) | 0x20); // 0x20 is ExtIV
         // Append IV&ExtIV after Mac Header
@@ -282,7 +281,7 @@ s_vFillTxKey (
         if (pTransmitKey->wTSC15_0 == 0) {
             pTransmitKey->dwTSC47_16++;
         }
-        MEMvCopy(pbyBuf, pTransmitKey->abyKey, 16);
+        memcpy(pbyBuf, pTransmitKey->abyKey, 16);
 
         // Make IV
         *pdwIV = 0;
@@ -294,7 +293,7 @@ s_vFillTxKey (
         //Fill MICHDR0
         *pMICHDR = 0x59;
         *((PBYTE)(pMICHDR+1)) = 0; // TxPriority
-        MEMvCopy(pMICHDR+2, &(pMACHeader->abyAddr2[0]), 6);
+        memcpy(pMICHDR+2, &(pMACHeader->abyAddr2[0]), 6);
         *((PBYTE)(pMICHDR+8)) = HIBYTE(HIWORD(pTransmitKey->dwTSC47_16));
         *((PBYTE)(pMICHDR+9)) = LOBYTE(HIWORD(pTransmitKey->dwTSC47_16));
         *((PBYTE)(pMICHDR+10)) = HIBYTE(LOWORD(pTransmitKey->dwTSC47_16));
@@ -312,18 +311,18 @@ s_vFillTxKey (
             *((PBYTE)(pMICHDR+17)) = 22; // HLEN[7:0]
         }
         wValue = cpu_to_le16(pMACHeader->wFrameCtl & 0xC78F);
-        MEMvCopy(pMICHDR+18, (PBYTE)&wValue, 2); // MSKFRACTL
-        MEMvCopy(pMICHDR+20, &(pMACHeader->abyAddr1[0]), 6);
-        MEMvCopy(pMICHDR+26, &(pMACHeader->abyAddr2[0]), 6);
+        memcpy(pMICHDR+18, (PBYTE)&wValue, 2); // MSKFRACTL
+        memcpy(pMICHDR+20, &(pMACHeader->abyAddr1[0]), 6);
+        memcpy(pMICHDR+26, &(pMACHeader->abyAddr2[0]), 6);
 
         //Fill MICHDR2
-        MEMvCopy(pMICHDR+32, &(pMACHeader->abyAddr3[0]), 6);
+        memcpy(pMICHDR+32, &(pMACHeader->abyAddr3[0]), 6);
         wValue = pMACHeader->wSeqCtl;
         wValue &= 0x000F;
         wValue = cpu_to_le16(wValue);
-        MEMvCopy(pMICHDR+38, (PBYTE)&wValue, 2); // MSKSEQCTL
+        memcpy(pMICHDR+38, (PBYTE)&wValue, 2); // MSKSEQCTL
         if (pDevice->bLongHeader) {
-            MEMvCopy(pMICHDR+40, &(pMACHeader->abyAddr4[0]), 6);
+            memcpy(pMICHDR+40, &(pMACHeader->abyAddr4[0]), 6);
         }
     }
 }
@@ -902,16 +901,16 @@ s_vFillRTSHead (
             pBuf->Data.wFrameControl = TYPE_CTL_RTS;//0x00B4
             if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
                 (pDevice->eOPMode == OP_MODE_AP)) {
-                MEMvCopy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
             }
             else {
-                MEMvCopy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
             }
             if (pDevice->eOPMode == OP_MODE_AP) {
-                MEMvCopy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
             }
             else {
-                MEMvCopy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
             }
         }
         else {
@@ -940,17 +939,17 @@ s_vFillRTSHead (
 
             if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
                 (pDevice->eOPMode == OP_MODE_AP)) {
-                MEMvCopy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
             }
             else {
-                MEMvCopy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
             }
 
             if (pDevice->eOPMode == OP_MODE_AP) {
-                MEMvCopy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
             }
             else {
-                MEMvCopy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
             }
 
         } // if (byFBOption == AUTO_FB_NONE)
@@ -971,17 +970,17 @@ s_vFillRTSHead (
 
             if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
                 (pDevice->eOPMode == OP_MODE_AP)) {
-                MEMvCopy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
             }
             else {
-                MEMvCopy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
             }
 
             if (pDevice->eOPMode == OP_MODE_AP) {
-                MEMvCopy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
             }
             else {
-                MEMvCopy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
             }
 
         }
@@ -1002,16 +1001,16 @@ s_vFillRTSHead (
 
             if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
                 (pDevice->eOPMode == OP_MODE_AP)) {
-                MEMvCopy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
             }
             else {
-                MEMvCopy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
             }
             if (pDevice->eOPMode == OP_MODE_AP) {
-                MEMvCopy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
             }
             else {
-                MEMvCopy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
+                memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
             }
         }
     }
@@ -1031,17 +1030,17 @@ s_vFillRTSHead (
 
         if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
             (pDevice->eOPMode == OP_MODE_AP)) {
-            MEMvCopy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pBuf->Data.abyRA[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
         }
         else {
-            MEMvCopy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
         }
 
         if (pDevice->eOPMode == OP_MODE_AP) {
-            MEMvCopy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pBuf->Data.abyTA[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
         }
         else {
-            MEMvCopy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pBuf->Data.abyTA[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
         }
     }
 }
@@ -1100,7 +1099,7 @@ s_vFillCTSHead (
             pBuf->Data.wDurationID = pBuf->wDuration_ba;
             pBuf->Data.wFrameControl = TYPE_CTL_CTS;//0x00C4
             pBuf->Data.wReserved = 0x0000;
-            MEMvCopy(&(pBuf->Data.abyRA[0]), &(pDevice->abyCurrentNetAddr[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyCurrentNetAddr[0]), U_ETHER_ADDR_LEN);
 
         } else { //if (byFBOption != AUTO_FB_NONE && uDMAIdx != TYPE_ATIMDMA && uDMAIdx != TYPE_BEACONDMA)
             PSCTS pBuf = (PSCTS)pvCTS;
@@ -1118,7 +1117,7 @@ s_vFillCTSHead (
             pBuf->Data.wDurationID = pBuf->wDuration_ba;
             pBuf->Data.wFrameControl = TYPE_CTL_CTS;//0x00C4
             pBuf->Data.wReserved = 0x0000;
-            MEMvCopy(&(pBuf->Data.abyRA[0]), &(pDevice->abyCurrentNetAddr[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pBuf->Data.abyRA[0]), &(pDevice->abyCurrentNetAddr[0]), U_ETHER_ADDR_LEN);
         }
     }
 }
@@ -1546,7 +1545,7 @@ s_cbFillTxBufHead (
             }
         } // Auto Fall Back
     }
-    ZERO_MEMORY((PVOID)(pbyTxBufferAddr + wTxBufSize), (cbHeaderLength - wTxBufSize));
+    memset((PVOID)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderLength - wTxBufSize));
 
 //////////////////////////////////////////////////////////////////
     if ((bNeedEncrypt == TRUE) && (pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
@@ -1627,13 +1626,13 @@ s_cbFillTxBufHead (
                 if (ntohs(psEthHeader->wType) > MAX_DATA_LEN) {
                     if ((psEthHeader->wType == TYPE_PKT_IPX) ||
                         (psEthHeader->wType == cpu_to_le16(0xF380))) {
-                        MEMvCopy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_Bridgetunnel[0], 6);
+                        memcpy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_Bridgetunnel[0], 6);
                     }
                     else {
-                        MEMvCopy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_RFC1042[0], 6);
+                        memcpy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_RFC1042[0], 6);
                     }
                     pbyType = (PBYTE) (pbyPayloadHead + 6);
-                    MEMvCopy(pbyType, &(psEthHeader->wType), sizeof(WORD));
+                    memcpy(pbyType, &(psEthHeader->wType), sizeof(WORD));
                     cb802_1_H_len = 8;
                 }
 
@@ -1655,10 +1654,10 @@ s_cbFillTxBufHead (
 
                 uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen + cb802_1_H_len;
                 //copy TxBufferHeader + MacHeader to desc
-                MEMvCopy(pbyBuffer, (PVOID)psTxBufHd, uLength);
+                memcpy(pbyBuffer, (PVOID)psTxBufHd, uLength);
 
                 // Copy the Packet into a tx Buffer
-                MEMvCopy((pbyBuffer + uLength), (pPacket + 14), (cbFragPayloadSize - cb802_1_H_len));
+                memcpy((pbyBuffer + uLength), (pPacket + 14), (cbFragPayloadSize - cb802_1_H_len));
 
 
                 uTotalCopyLength += cbFragPayloadSize - cb802_1_H_len;
@@ -1742,12 +1741,12 @@ s_cbFillTxBufHead (
                 uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen;
 
                 //copy TxBufferHeader + MacHeader to desc
-                MEMvCopy(pbyBuffer, (PVOID)psTxBufHd, uLength);
+                memcpy(pbyBuffer, (PVOID)psTxBufHd, uLength);
 
                 // Copy the Packet into a tx Buffer
                 if (bMIC2Frag == FALSE) {
 
-                    MEMvCopy((pbyBuffer + uLength),
+                    memcpy((pbyBuffer + uLength),
                              (pPacket + 14 + uTotalCopyLength),
                              (cbLastFragPayloadSize - cbMIClen)
                              );
@@ -1768,16 +1767,16 @@ s_cbFillTxBufHead (
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Last MIC:%lX, %lX\n", *pdwMIC_L, *pdwMIC_R);
                     } else {
                         if (uMICFragLen >= 4) {
-                            MEMvCopy((pbyBuffer + uLength), ((PBYTE)&dwSafeMIC_R + (uMICFragLen - 4)),
+                            memcpy((pbyBuffer + uLength), ((PBYTE)&dwSafeMIC_R + (uMICFragLen - 4)),
                                      (cbMIClen - uMICFragLen));
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"LAST: uMICFragLen >= 4: %X, %d\n",
                                            *(PBYTE)((PBYTE)&dwSafeMIC_R + (uMICFragLen - 4)),
                                            (cbMIClen - uMICFragLen));
 
                         } else {
-                            MEMvCopy((pbyBuffer + uLength), ((PBYTE)&dwSafeMIC_L + uMICFragLen),
+                            memcpy((pbyBuffer + uLength), ((PBYTE)&dwSafeMIC_L + uMICFragLen),
                                      (4 - uMICFragLen));
-                            MEMvCopy((pbyBuffer + uLength + (4 - uMICFragLen)), &dwSafeMIC_R, 4);
+                            memcpy((pbyBuffer + uLength + (4 - uMICFragLen)), &dwSafeMIC_R, 4);
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"LAST: uMICFragLen < 4: %X, %d\n",
                                            *(PBYTE)((PBYTE)&dwSafeMIC_R + uMICFragLen - 4),
                                            (cbMIClen - uMICFragLen));
@@ -1877,10 +1876,10 @@ s_cbFillTxBufHead (
                 uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen;
 
                 //copy TxBufferHeader + MacHeader to desc
-                MEMvCopy(pbyBuffer, (PVOID)psTxBufHd, uLength);
+                memcpy(pbyBuffer, (PVOID)psTxBufHd, uLength);
 
                 // Copy the Packet into a tx Buffer
-                MEMvCopy((pbyBuffer + uLength),
+                memcpy((pbyBuffer + uLength),
                          (pPacket + 14 + uTotalCopyLength),
                          cbFragPayloadSize
                         );
@@ -1991,13 +1990,13 @@ s_cbFillTxBufHead (
         if (ntohs(psEthHeader->wType) > MAX_DATA_LEN) {
             if ((psEthHeader->wType == TYPE_PKT_IPX) ||
                 (psEthHeader->wType == cpu_to_le16(0xF380))) {
-                MEMvCopy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_Bridgetunnel[0], 6);
+                memcpy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_Bridgetunnel[0], 6);
             }
             else {
-                MEMvCopy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_RFC1042[0], 6);
+                memcpy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_RFC1042[0], 6);
             }
             pbyType = (PBYTE) (pbyPayloadHead + 6);
-            MEMvCopy(pbyType, &(psEthHeader->wType), sizeof(WORD));
+            memcpy(pbyType, &(psEthHeader->wType), sizeof(WORD));
             cb802_1_H_len = 8;
         }
 
@@ -2017,10 +2016,10 @@ s_cbFillTxBufHead (
         uLength = cbHeaderLength + cbMACHdLen + uPadding + cbIVlen + cb802_1_H_len;
 
         //copy TxBufferHeader + MacHeader to desc
-        MEMvCopy(pbyBuffer, (PVOID)psTxBufHd, uLength);
+        memcpy(pbyBuffer, (PVOID)psTxBufHd, uLength);
 
         // Copy the Packet into a tx Buffer
-        MEMvCopy((pbyBuffer + uLength),
+        memcpy((pbyBuffer + uLength),
                  (pPacket + 14),
                  cbFrameBodySize - cb802_1_H_len
                  );
@@ -2120,7 +2119,7 @@ vGenerateFIFOHeader (
 
     wTxBufSize = sizeof(STxBufHead);
 
-    ZERO_MEMORY(pTxBufHead, wTxBufSize);
+    memset(pTxBufHead, 0, wTxBufSize);
     //Set FIFOCTL_NEEDACK
 
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
@@ -2280,7 +2279,7 @@ vGenerateMACHeader (
 {
     PS802_11Header  pMACHeader = (PS802_11Header)pbyBufferAddr;
 
-    ZERO_MEMORY(pMACHeader, (sizeof(S802_11Header)));  //- sizeof(pMACHeader->dwIV)));
+    memset(pMACHeader, 0, (sizeof(S802_11Header)));  //- sizeof(pMACHeader->dwIV)));
 
     if (uDMAIdx == TYPE_ATIMDMA) {
     	pMACHeader->wFrameCtl = TYPE_802_11_ATIM;
@@ -2289,21 +2288,21 @@ vGenerateMACHeader (
     }
 
     if (pDevice->eOPMode == OP_MODE_AP) {
-        MEMvCopy(&(pMACHeader->abyAddr1[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
-        MEMvCopy(&(pMACHeader->abyAddr2[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
-        MEMvCopy(&(pMACHeader->abyAddr3[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
+        memcpy(&(pMACHeader->abyAddr1[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
+        memcpy(&(pMACHeader->abyAddr2[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+        memcpy(&(pMACHeader->abyAddr3[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
         pMACHeader->wFrameCtl |= FC_FROMDS;
     }
     else {
         if (pDevice->eOPMode == OP_MODE_ADHOC) {
-            MEMvCopy(&(pMACHeader->abyAddr1[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
-            MEMvCopy(&(pMACHeader->abyAddr2[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
-            MEMvCopy(&(pMACHeader->abyAddr3[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pMACHeader->abyAddr1[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pMACHeader->abyAddr2[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pMACHeader->abyAddr3[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
         }
         else {
-            MEMvCopy(&(pMACHeader->abyAddr3[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
-            MEMvCopy(&(pMACHeader->abyAddr2[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
-            MEMvCopy(&(pMACHeader->abyAddr1[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pMACHeader->abyAddr3[0]), &(psEthHeader->abyDstAddr[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pMACHeader->abyAddr2[0]), &(psEthHeader->abySrcAddr[0]), U_ETHER_ADDR_LEN);
+            memcpy(&(pMACHeader->abyAddr1[0]), &(pDevice->abyBSSID[0]), U_ETHER_ADDR_LEN);
             pMACHeader->wFrameCtl |= FC_TODS;
         }
     }
@@ -2316,7 +2315,7 @@ vGenerateMACHeader (
     if (pDevice->bLongHeader) {
         PWLAN_80211HDR_A4 pMACA4Header  = (PWLAN_80211HDR_A4) pbyBufferAddr;
         pMACHeader->wFrameCtl |= (FC_TODS | FC_FROMDS);
-        MEMvCopy(pMACA4Header->abyAddr4, pDevice->abyBSSID, WLAN_ADDR_LEN);
+        memcpy(pMACA4Header->abyAddr4, pDevice->abyBSSID, WLAN_ADDR_LEN);
     }
     pMACHeader->wSeqCtl = cpu_to_le16(pDevice->wSeqCounter << 4);
 
@@ -2518,10 +2517,10 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
         cbHeaderSize = wTxBufSize + sizeof(SRrvTime_ab) + sizeof(STxDataHead_ab);
     }
 
-    ZERO_MEMORY((PVOID)(pbyTxBufferAddr + wTxBufSize), (cbHeaderSize - wTxBufSize));
+    memset((PVOID)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
 
-    MEMvCopy(&(sEthHeader.abyDstAddr[0]), &(pPacket->p80211Header->sA3.abyAddr1[0]), U_ETHER_ADDR_LEN);
-    MEMvCopy(&(sEthHeader.abySrcAddr[0]), &(pPacket->p80211Header->sA3.abyAddr2[0]), U_ETHER_ADDR_LEN);
+    memcpy(&(sEthHeader.abyDstAddr[0]), &(pPacket->p80211Header->sA3.abyAddr1[0]), U_ETHER_ADDR_LEN);
+    memcpy(&(sEthHeader.abySrcAddr[0]), &(pPacket->p80211Header->sA3.abyAddr2[0]), U_ETHER_ADDR_LEN);
     //=========================
     //    No Fragmentation
     //=========================
@@ -2591,13 +2590,13 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
         s_vFillTxKey(pDevice, (PBYTE)(pTxBufHead->adwTxKey), pbyIVHead, pTransmitKey,
                      (PBYTE)pMACHeader, (WORD)cbFrameBodySize, NULL);
 
-        MEMvCopy(pMACHeader, pPacket->p80211Header, cbMacHdLen);
-        MEMvCopy(pbyPayloadHead, ((PBYTE)(pPacket->p80211Header) + cbMacHdLen),
+        memcpy(pMACHeader, pPacket->p80211Header, cbMacHdLen);
+        memcpy(pbyPayloadHead, ((PBYTE)(pPacket->p80211Header) + cbMacHdLen),
                  cbFrameBodySize);
     }
     else {
         // Copy the Packet into a tx Buffer
-        MEMvCopy(pMACHeader, pPacket->p80211Header, pPacket->cbMPDULen);
+        memcpy(pMACHeader, pPacket->p80211Header, pPacket->cbMPDULen);
     }
 
     pMACHeader->wSeqCtl = cpu_to_le16(pDevice->wSeqCounter << 4);
@@ -2714,7 +2713,7 @@ CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 
    //Generate Beacon Header
     pMACHeader = (PS802_11Header)(pbyBuffer + cbHeaderSize);
-    MEMvCopy(pMACHeader, pPacket->p80211Header, pPacket->cbMPDULen);
+    memcpy(pMACHeader, pPacket->p80211Header, pPacket->cbMPDULen);
 
     pMACHeader->wDurationID = 0;
     pMACHeader->wSeqCtl = cpu_to_le16(pDevice->wSeqCounter << 4);
@@ -3063,9 +3062,9 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDU
 
     }
 
-    ZERO_MEMORY((PVOID)(pbyTxBufferAddr + wTxBufSize), (cbHeaderSize - wTxBufSize));
-    MEMvCopy(&(sEthHeader.abyDstAddr[0]), &(p80211Header->sA3.abyAddr1[0]), U_ETHER_ADDR_LEN);
-    MEMvCopy(&(sEthHeader.abySrcAddr[0]), &(p80211Header->sA3.abyAddr2[0]), U_ETHER_ADDR_LEN);
+    memset((PVOID)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
+    memcpy(&(sEthHeader.abyDstAddr[0]), &(p80211Header->sA3.abyAddr1[0]), U_ETHER_ADDR_LEN);
+    memcpy(&(sEthHeader.abySrcAddr[0]), &(p80211Header->sA3.abyAddr2[0]), U_ETHER_ADDR_LEN);
     //=========================
     //    No Fragmentation
     //=========================

@@ -56,7 +56,6 @@
 #include "card.h"
 #include "mac.h"
 #include "wpa2.h"
-#include "umem.h"
 #include "iowpa.h"
 
 //#define	PLICE_DEBUG
@@ -167,7 +166,7 @@ if(pDevice->bLinkPass==FALSE) pCurrBSS->bSelected = FALSE;
                 if (IS_ETH_ADDRESS_EQUAL(pCurrBSS->abyBSSID, pbyBSSID)) {
                     if (pSSID != NULL) {
                         // compare ssid
-                        if (MEMEqualMemory(pSSID->abySSID,
+                        if ( !memcmp(pSSID->abySSID,
                             ((PWLAN_IE_SSID)pCurrBSS->abySSID)->abySSID,
                             pSSID->len)) {
                             if ((pMgmt->eConfigMode == WMAC_CONFIG_AUTO) ||
@@ -200,7 +199,7 @@ if(pDevice->bLinkPass==FALSE) pCurrBSS->bSelected = FALSE;
 
                 if (pSSID != NULL) {
                     // matched SSID
-                    if (!MEMEqualMemory(pSSID->abySSID,
+                    if (! !memcmp(pSSID->abySSID,
                         ((PWLAN_IE_SSID)pCurrBSS->abySSID)->abySSID,
                         pSSID->len) ||
                         (pSSID->len != ((PWLAN_IE_SSID)pCurrBSS->abySSID)->len)) {
@@ -259,8 +258,8 @@ if(pDevice->bLinkPass==FALSE) pCurrBSS->bSelected = FALSE;
 /*
                         if (pDevice->bRoaming == FALSE)  {
 	//       Einsn Add @20070907
-			ZERO_MEMORY(pbyDesireSSID, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
-			MEMvCopy(pbyDesireSSID,pCurrBSS->abySSID,WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1) ;
+			memset(pbyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
+			memcpy(pbyDesireSSID,pCurrBSS->abySSID,WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1) ;
                                                 }*/
 
             return(pSelect);
@@ -502,7 +501,7 @@ BSSbInsertToBSSList (
             }
         }
         if ((bIs802_1x == TRUE) && (pSSID->len == ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->len) &&
-            (MEMEqualMemory(pSSID->abySSID, ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID, pSSID->len))) {
+            ( !memcmp(pSSID->abySSID, ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID, pSSID->len))) {
 
             bAdd_PMKID_Candidate((HANDLE)pDevice, pBSSList->abyBSSID, &pBSSList->sRSNCapObj);
 
@@ -568,7 +567,7 @@ BSSbInsertToBSSList (
     pBSSList->uIELength = uIELength;
     if (pBSSList->uIELength > WLAN_BEACON_FR_MAXLEN)
         pBSSList->uIELength = WLAN_BEACON_FR_MAXLEN;
-    MEMvCopy(pBSSList->abyIEs, pbyIEs, pBSSList->uIELength);
+    memcpy(pBSSList->abyIEs, pbyIEs, pBSSList->uIELength);
 
     return TRUE;
 }

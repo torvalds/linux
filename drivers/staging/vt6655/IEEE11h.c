@@ -32,7 +32,6 @@
  */
 
 #include "ttype.h"
-#include "umem.h"
 #include "tmacro.h"
 #include "tether.h"
 #include "IEEE11h.h"
@@ -104,7 +103,7 @@ static BOOL s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq, UINT uLe
     BOOL    bResult = TRUE;
 
     if (uLength <= WLAN_A3FR_MAXLEN) {
-        MEMvCopy(pMgmt->abyCurrentMSRReq, pMSRReq, uLength);
+        memcpy(pMgmt->abyCurrentMSRReq, pMSRReq, uLength);
     }
     uNumOfEIDs = ((uLength - offsetof(WLAN_FRAME_MSRREQ, sMSRReqEIDs))/ (sizeof(WLAN_IE_MEASURE_REQ)));
     pMgmt->pCurrMeasureEIDRep = &(((PWLAN_FRAME_MSRREP) (pMgmt->abyCurrentMSRRep))->sMSRRepEIDs[0]);
@@ -133,9 +132,9 @@ static BOOL s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, BYTE byR
                                     WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_ACTION)
                                 );
 
-    MEMvCopy( pFrame->Header.abyAddr1, pTPCReq->Header.abyAddr2, WLAN_ADDR_LEN);
-    MEMvCopy( pFrame->Header.abyAddr2, CARDpGetCurrentAddress(pMgmt->pAdapter), WLAN_ADDR_LEN);
-    MEMvCopy( pFrame->Header.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
+    memcpy( pFrame->Header.abyAddr1, pTPCReq->Header.abyAddr2, WLAN_ADDR_LEN);
+    memcpy( pFrame->Header.abyAddr2, CARDpGetCurrentAddress(pMgmt->pAdapter), WLAN_ADDR_LEN);
+    memcpy( pFrame->Header.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 
     pFrame->byCategory = 0;
     pFrame->byAction = 3;
@@ -283,9 +282,9 @@ BOOL IEEE11hbMSRRepTx (
                                     WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_ACTION)
                                 );
 
-    MEMvCopy( pMSRRep->Header.abyAddr1, ((PWLAN_FRAME_MSRREQ) (pMgmt->abyCurrentMSRReq))->Header.abyAddr2, WLAN_ADDR_LEN);
-    MEMvCopy( pMSRRep->Header.abyAddr2, CARDpGetCurrentAddress(pMgmt->pAdapter), WLAN_ADDR_LEN);
-    MEMvCopy( pMSRRep->Header.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
+    memcpy( pMSRRep->Header.abyAddr1, ((PWLAN_FRAME_MSRREQ) (pMgmt->abyCurrentMSRReq))->Header.abyAddr2, WLAN_ADDR_LEN);
+    memcpy( pMSRRep->Header.abyAddr2, CARDpGetCurrentAddress(pMgmt->pAdapter), WLAN_ADDR_LEN);
+    memcpy( pMSRRep->Header.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 
     pMSRRep->byCategory = 0;
     pMSRRep->byAction = 1;

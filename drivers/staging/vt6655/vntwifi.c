@@ -32,7 +32,6 @@
  */
 
 #include "vntwifi.h"
-#include "umem.h"
 #include "tbit.h"
 #include "IEEE11h.h"
 #include "country.h"
@@ -677,7 +676,7 @@ VNTWIFIbSetPMKIDCache (
         return (FALSE);
     }
     pMgmt->gsPMKIDCache.BSSIDInfoCount = ulCount;
-    MEMvCopy(pMgmt->gsPMKIDCache.BSSIDInfo, pPMKIDInfo, (ulCount*sizeof(PMKIDInfo)));
+    memcpy(pMgmt->gsPMKIDCache.BSSIDInfo, pPMKIDInfo, (ulCount*sizeof(PMKIDInfo)));
     return (TRUE);
 }
 
@@ -741,24 +740,24 @@ VNTWIFIbMeasureReport(
         switch (pMgmt->pCurrMeasureEIDRep->byType) {
             case MEASURE_TYPE_BASIC :
                 pMgmt->pCurrMeasureEIDRep->len += sizeof(MEASEURE_REP_BASIC);
-                MEMvCopy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sBasic),
+                memcpy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sBasic),
                             &(((PWLAN_IE_MEASURE_REQ) pvMeasureEID)->sReq),
                             sizeof(MEASEURE_REQ));
                 pMgmt->pCurrMeasureEIDRep->sRep.sBasic.byMap = byBasicMap;
                 break;
             case MEASURE_TYPE_CCA :
                 pMgmt->pCurrMeasureEIDRep->len += sizeof(MEASEURE_REP_CCA);
-                MEMvCopy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sCCA),
+                memcpy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sCCA),
                             &(((PWLAN_IE_MEASURE_REQ) pvMeasureEID)->sReq),
                             sizeof(MEASEURE_REQ));
                 pMgmt->pCurrMeasureEIDRep->sRep.sCCA.byCCABusyFraction = byCCAFraction;
                 break;
             case MEASURE_TYPE_RPI :
                 pMgmt->pCurrMeasureEIDRep->len += sizeof(MEASEURE_REP_RPI);
-                MEMvCopy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sRPI),
+                memcpy(   &(pMgmt->pCurrMeasureEIDRep->sRep.sRPI),
                             &(((PWLAN_IE_MEASURE_REQ) pvMeasureEID)->sReq),
                             sizeof(MEASEURE_REQ));
-                MEMvCopy(pMgmt->pCurrMeasureEIDRep->sRep.sRPI.abyRPIdensity, pbyRPIs, 8);
+                memcpy(pMgmt->pCurrMeasureEIDRep->sRep.sRPI.abyRPIdensity, pbyRPIs, 8);
                 break;
             default :
                 break;

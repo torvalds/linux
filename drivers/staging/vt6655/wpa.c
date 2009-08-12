@@ -33,7 +33,6 @@
  */
 
 #include "ttype.h"
-#include "umem.h"
 #include "tmacro.h"
 #include "tether.h"
 #include "device.h"
@@ -121,22 +120,22 @@ WPA_ParseRSN (
 
     // information element header makes sense
     if ((pRSN->len >= 6) // oui1(4)+ver(2)
-         && (pRSN->byElementID == WLAN_EID_RSN_WPA) && MEMEqualMemory(pRSN->abyOUI, abyOUI01, 4)
+         && (pRSN->byElementID == WLAN_EID_RSN_WPA) &&  !memcmp(pRSN->abyOUI, abyOUI01, 4)
          && (pRSN->wVersion == 1)) {
 
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Legal RSN\n");
         // update each variable if pRSN is long enough to contain the variable
         if (pRSN->len >= 10) //oui1(4)+ver(2)+GKSuite(4)
         {
-            if (MEMEqualMemory(pRSN->abyMulticast, abyOUI01, 4))
+            if ( !memcmp(pRSN->abyMulticast, abyOUI01, 4))
                 pBSSList->byGKType = WPA_WEP40;
-            else if (MEMEqualMemory(pRSN->abyMulticast, abyOUI02, 4))
+            else if ( !memcmp(pRSN->abyMulticast, abyOUI02, 4))
                 pBSSList->byGKType = WPA_TKIP;
-            else if (MEMEqualMemory(pRSN->abyMulticast, abyOUI03, 4))
+            else if ( !memcmp(pRSN->abyMulticast, abyOUI03, 4))
                 pBSSList->byGKType = WPA_AESWRAP;
-            else if (MEMEqualMemory(pRSN->abyMulticast, abyOUI04, 4))
+            else if ( !memcmp(pRSN->abyMulticast, abyOUI04, 4))
                 pBSSList->byGKType = WPA_AESCCMP;
-            else if (MEMEqualMemory(pRSN->abyMulticast, abyOUI05, 4))
+            else if ( !memcmp(pRSN->abyMulticast, abyOUI05, 4))
                 pBSSList->byGKType = WPA_WEP104;
             else
                 // any vendor checks here
@@ -151,13 +150,13 @@ WPA_ParseRSN (
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wPKCount: %d, sizeof(pBSSList->abyPKType): %ld\n", pRSN->wPKCount, sizeof(pBSSList->abyPKType));
             for(i = 0; (i < pRSN->wPKCount) && (j < sizeof(pBSSList->abyPKType)/sizeof(BYTE)); i++) {
                 if(pRSN->len >= 12+i*4+4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*i)
-                    if (MEMEqualMemory(pRSN->PKSList[i].abyOUI, abyOUI00, 4))
+                    if ( !memcmp(pRSN->PKSList[i].abyOUI, abyOUI00, 4))
                         pBSSList->abyPKType[j++] = WPA_NONE;
-                    else if (MEMEqualMemory(pRSN->PKSList[i].abyOUI, abyOUI02, 4))
+                    else if ( !memcmp(pRSN->PKSList[i].abyOUI, abyOUI02, 4))
                         pBSSList->abyPKType[j++] = WPA_TKIP;
-                    else if (MEMEqualMemory(pRSN->PKSList[i].abyOUI, abyOUI03, 4))
+                    else if ( !memcmp(pRSN->PKSList[i].abyOUI, abyOUI03, 4))
                         pBSSList->abyPKType[j++] = WPA_AESWRAP;
-                    else if (MEMEqualMemory(pRSN->PKSList[i].abyOUI, abyOUI04, 4))
+                    else if ( !memcmp(pRSN->PKSList[i].abyOUI, abyOUI04, 4))
                         pBSSList->abyPKType[j++] = WPA_AESCCMP;
                     else
                         // any vendor checks here
@@ -183,9 +182,9 @@ WPA_ParseRSN (
                           pIE_RSN_Auth->wAuthCount, sizeof(pBSSList->abyAuthType));
             for(i = 0; (i < pIE_RSN_Auth->wAuthCount) && (j < sizeof(pBSSList->abyAuthType)/sizeof(BYTE)); i++) {
                 if(pRSN->len >= 14+4+(m+i)*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)+AKS(4*i)
-                    if (MEMEqualMemory(pIE_RSN_Auth->AuthKSList[i].abyOUI, abyOUI01, 4))
+                    if ( !memcmp(pIE_RSN_Auth->AuthKSList[i].abyOUI, abyOUI01, 4))
                         pBSSList->abyAuthType[j++] = WPA_AUTH_IEEE802_1X;
-                    else if (MEMEqualMemory(pIE_RSN_Auth->AuthKSList[i].abyOUI, abyOUI02, 4))
+                    else if ( !memcmp(pIE_RSN_Auth->AuthKSList[i].abyOUI, abyOUI02, 4))
                         pBSSList->abyAuthType[j++] = WPA_AUTH_PSK;
                     else
                     // any vendor checks here
@@ -307,7 +306,7 @@ WPAb_Is_RSN (
         return FALSE;
 
     if ((pRSN->len >= 6) && // oui1(4)+ver(2)
-        (pRSN->byElementID == WLAN_EID_RSN_WPA) && MEMEqualMemory(pRSN->abyOUI, abyOUI01, 4) &&
+        (pRSN->byElementID == WLAN_EID_RSN_WPA) &&  !memcmp(pRSN->abyOUI, abyOUI01, 4) &&
         (pRSN->wVersion == 1)) {
         return TRUE;
     }
