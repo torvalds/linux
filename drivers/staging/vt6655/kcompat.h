@@ -25,6 +25,7 @@
  * Date: Apr 8, 2002
  *
  */
+
 #ifndef _KCOMPAT_H
 #define _KCOMPAT_H
 

@@ -30,9 +30,7 @@
  *
  */
 
-#if !defined(__RC4_H__)
 #include "rc4.h"
-#endif
 
 VOID rc4_init(PRC4Ext pRC4, PBYTE pbyKey, UINT cbKey_len)
 {

@@ -34,15 +34,9 @@
 #ifndef __MAC_H__
 #define __MAC_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__UPC_H__)
 #include "upc.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 //
@@ -1079,9 +1073,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 extern WORD TxRate_iwconfig;//2008-5-8 <add> by chester
 VOID MACvReadAllRegs(DWORD_PTR dwIoBase, PBYTE pbyMacRegs);
@@ -1155,10 +1146,6 @@ void MACvSetDefaultKeyEntry(DWORD_PTR dwIoBase, UINT uKeyLen, UINT uKeyIdx, PDWO
 void MACvDisableDefaultKey(DWORD_PTR dwIoBase);
 void MACvSetDefaultTKIPKeyEntry(DWORD_PTR dwIoBase, UINT uKeyLen, UINT uKeyIdx, PDWORD pdwKey, BYTE byLocalID);
 void MACvSetDefaultKeyCtl(DWORD_PTR dwIoBase, WORD wKeyCtl, UINT uEntryIdx, BYTE byLocalID);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
 
 #endif // __MAC_H__
 

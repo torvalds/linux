@@ -1,7 +1,7 @@
 TODO:
-- remove __cplusplus ifdefs
+- remove __cplusplus ifdefs -- done
 - prepare for merge with vt6656 driver:
-  - rename DEVICE_PRT() to DBG_PRT()
+  - rename DEVICE_PRT() to DBG_PRT() -- done
   - share 80211*.h includes
   - move code for channel mapping from card.c to channel.c
   - split rf.c

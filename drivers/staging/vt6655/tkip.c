@@ -32,20 +32,10 @@
  *
  */
 
-
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__TKIP_H__)
 #include "tkip.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-
 
 /*---------------------  Static Definitions -------------------------*/
 

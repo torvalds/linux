@@ -30,15 +30,9 @@
 #ifndef __VNTWIFI_H__
 #define __VNTWIFI_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
 #include "wpa2.h"
 
 /*---------------------  Export Definitions -------------------------*/
@@ -145,11 +139,6 @@ typedef enum tagWMAC_POWER_MODE {
 
 
 /*---------------------  Export Functions  --------------------------*/
-
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
 
 VOID
 VNTWIFIvSetIBSSParameter (
@@ -320,10 +309,5 @@ VNTWIFIbRadarPresent(
     IN BYTE  byChannel
     );
 */
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
 
 #endif //__VNTWIFI_H__

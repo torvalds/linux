@@ -27,21 +27,12 @@
  *
  */
 
-
 #ifndef __KEY_H__
 #define __KEY_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 #define MAX_GROUP_KEY       4
@@ -109,9 +100,6 @@ typedef struct tagSKeyManagement
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 VOID KeyvInitTable(PSKeyManagement pTable, DWORD_PTR dwIoBase);
 
@@ -191,12 +179,6 @@ BOOL KeybSetAllGroupKey (
     DWORD_PTR       dwIoBase,
     BYTE            byLocalID
     );
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-
-#endif /* __cplusplus */
-
 
 #endif // __KEY_H__
 

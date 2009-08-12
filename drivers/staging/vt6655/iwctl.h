@@ -26,14 +26,10 @@
  *
  */
 
-
 #ifndef __IWCTL_H__
 #define __IWCTL_H__
 
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -43,12 +39,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-
-
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
 
 struct iw_statistics *iwctl_get_wireless_stats (struct net_device *dev);
 
@@ -232,13 +222,6 @@ int iwctl_siwmlme(struct net_device *dev,
 
 extern const struct iw_handler_def	iwctl_handler_def;
 extern const struct iw_priv_args	iwctl_private_args;
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __IWCTL_H__
 

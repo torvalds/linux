@@ -45,47 +45,19 @@
  *
  */
 
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__DESC_H__)
 #include "desc.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
-#if !defined(__VNTWIFI_H__)
 #include "vntwifi.h"
-#endif
-#if !defined(__POWER_H__)
 #include "power.h"
-#endif
-#if !defined(__KEY_H__)
 #include "key.h"
-#endif
-#if !defined(__RC4_H__)
 #include "rc4.h"
-#endif
-#if !defined(__COUNTRY_H__)
 #include "country.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-
-
 
 /*---------------------  Static Definitions -------------------------*/
 

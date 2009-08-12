@@ -30,42 +30,19 @@
  *
  */
 
-
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__IOCTL_H__)
 #include "ioctl.h"
-#endif
-#if !defined(__IOCMD_H__)
 #include "iocmd.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-#if !defined(__HOSTAP_H__)
 #include "hostap.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__POWER_H__)
 #include "power.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
 
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-#if !defined(__IOWPA_H__)
 #include "iowpa.h"
-#endif
-#if !defined(__WPACTL_H__)
 #include "wpactl.h"
-#endif
 #endif
 
 #include <net/iw_handler.h>

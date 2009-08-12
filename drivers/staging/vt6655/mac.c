@@ -68,21 +68,10 @@
  *
  */
 
-
-
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-
 
 WORD TxRate_iwconfig;//2008-5-8 <add> by chester
 /*---------------------  Static Definitions -------------------------*/

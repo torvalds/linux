@@ -32,21 +32,11 @@
  *
  */
 
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__SROM_H__)
 #include "srom.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 

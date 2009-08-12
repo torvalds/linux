@@ -30,32 +30,13 @@
  *
  */
 
-
-#if !defined(__HOSTAP_H__)
 #include "hostap.h"
-#endif
-#if !defined(__IOCMD_H__)
 #include "iocmd.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
-#if !defined(__WPACTL_H__)
 #include "wpactl.h"
-#endif
-#if !defined(__KEY_H__)
 #include "key.h"
-#endif
-#if !defined(__MAC_H__)
-#include "mac.h"
-#endif
-
 
 #define VIAWGET_HOSTAPD_MAX_BUF_SIZE 1024
 #define HOSTAP_CRYPT_FLAG_SET_TX_KEY BIT0

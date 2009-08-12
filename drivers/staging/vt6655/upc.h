@@ -26,16 +26,11 @@
  *
  */
 
-
 #ifndef __UPC_H__
 #define __UPC_H__
 
-#if !defined(DEVICE_H)
 #include "device.h"
-#endif
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 

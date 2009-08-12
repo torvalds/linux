@@ -31,32 +31,15 @@
  *
  */
 
-#if !defined(__VNTWIFI_H__)
 #include "vntwifi.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-
-
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__IEEE11h_H__)
 #include "IEEE11h.h"
-#endif
-#if !defined(__COUNTRY_H__)
 #include "country.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WMGR_H__)
 #include "wmgr.h"
-#endif
-#if !defined(__DATARATE_H__)
 #include "datarate.h"
-#endif
+
 //#define	PLICE_DEBUG
 
 /*---------------------  Static Definitions -------------------------*/

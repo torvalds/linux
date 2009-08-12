@@ -60,79 +60,31 @@
  */
 #undef __NO_VERSION__
 
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__WMGR_H__)
 #include "wmgr.h"
-#endif
-#if !defined(__WCTL_H__)
 #include "wctl.h"
-#endif
-#if !defined(__POWER_H__)
 #include "power.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-#if !defined(__IOCMD_H__)
 #include "iocmd.h"
-#endif
-#if !defined(__TCRC_H__)
 #include "tcrc.h"
-#endif
-#if !defined(__RXTX_H__)
 #include "rxtx.h"
-#endif
-#if !defined(__WROUTE_H__)
 #include "wroute.h"
-#endif
-#if !defined(__BSSDB_H__)
 #include "bssdb.h"
-#endif
-#if !defined(__HOSTAP_H__)
 #include "hostap.h"
-#endif
-#if !defined(__WPACTL_H__)
 #include "wpactl.h"
-#endif
-#if !defined(__IOCTL_H__)
 #include "ioctl.h"
-#endif
-#if !defined(__IWCTL_H__)
 #include "iwctl.h"
-#endif
-#if !defined(__DPC_H__)
 #include "dpc.h"
-#endif
-#if !defined(__DATARATE_H__)
 #include "datarate.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
-#if !defined(__IOWPA_H__)
 #include "iowpa.h"
-#endif
-
 #include <linux/delay.h>
 #include <linux/kthread.h>
-
 
 //#define	DEBUG
 /*---------------------  Static Definitions -------------------------*/

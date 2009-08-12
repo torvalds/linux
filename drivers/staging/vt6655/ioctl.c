@@ -30,32 +30,14 @@
  *
  */
 
-
-#if !defined(__IOCTL_H__)
 #include "ioctl.h"
-#endif
-#if !defined(__IOCMD_H__)
 #include "iocmd.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-#if !defined(__HOSTAP_H__)
 #include "hostap.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__WPACTL_H__)
 #include "wpactl.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
-
 
 /*---------------------  Static Definitions -------------------------*/
 

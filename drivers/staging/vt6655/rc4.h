@@ -30,11 +30,7 @@
 #ifndef __RC4_H__
 #define __RC4_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 /*---------------------  Export Types  ------------------------------*/

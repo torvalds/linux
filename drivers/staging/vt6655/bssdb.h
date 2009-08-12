@@ -30,23 +30,10 @@
 #ifndef __BSSDB_H__
 #define __BSSDB_H__
 
-//#if !defined(__DEVICE_H__)
-//#include "device.h"
-//#endif
-
 #include <linux/skbuff.h>
-
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 

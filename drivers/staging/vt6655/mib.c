@@ -37,31 +37,14 @@
  *
  */
 
-
-#if !defined(__UPC_H__)
 #include "upc.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__MIB_H__)
 #include "mib.h"
-#endif
-#if !defined(__WCTL_H__)
 #include "wctl.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;

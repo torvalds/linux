@@ -30,9 +30,7 @@
 #ifndef __AES_H__
 #define __AES_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 

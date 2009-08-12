@@ -61,64 +61,25 @@
  *
  */
 
-
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__DESC_H__)
 #include "desc.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
-#if !defined(__WMGR_H__)
 #include "wmgr.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__BSSDB_H__)
 #include "bssdb.h"
-#endif
-#if !defined(__POWER_H__)
 #include "power.h"
-#endif
-#if !defined(__DATARATE_H__)
 #include "datarate.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
-#if !defined(__RXTX_H__)
 #include "rxtx.h"
-#endif
-#if !defined(__WPA_H__)
 #include "wpa.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__IOWPA_H__)
 #include "iowpa.h"
-#endif
 
 #define	PLICE_DEBUG
 

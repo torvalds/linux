@@ -29,19 +29,9 @@
 #ifndef __MIB_H__
 #define __MIB_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__DESC_H__)
 #include "desc.h"
-#endif
-
-
-
-//#define ULONGLONG   ULONG
 
 /*---------------------  Export Definitions -------------------------*/
 //
@@ -351,10 +341,6 @@ typedef struct tagSStatCounter {
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
 
 void STAvClearAllCounter(PSStatCounter pStatistic);
 
@@ -385,13 +371,6 @@ void STAvUpdate802_11Counter(
     );
 
 void STAvClear802_11Counter(PSDot11Counters p802_11Counter);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __MIB_H__
 

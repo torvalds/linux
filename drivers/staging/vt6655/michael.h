@@ -28,13 +28,11 @@
  *
  */
 
-
 #ifndef __MICHAEL_H__
 #define __MICHAEL_H__
 
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
+
 /*---------------------  Export Definitions -------------------------*/
 
 /*---------------------  Export Types  ------------------------------*/

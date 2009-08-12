@@ -30,19 +30,11 @@
  * Date: Oct. 4, 2004
  *
  */
-#if !defined(__WPA2_H__)
-#include "wpa2.h"
-#endif
-#if !defined(__UMEM_H__)
-#include "umem.h"
-#endif
-#if !defined(__DEVICE_H__)
-#include "device.h"
-#endif
-#if !defined(__WMGR_H__)
-#include "wmgr.h"
-#endif
 
+#include "wpa2.h"
+#include "umem.h"
+#include "device.h"
+#include "wmgr.h"
 
 /*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;

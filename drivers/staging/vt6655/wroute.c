@@ -31,25 +31,13 @@
  *
  */
 
-
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__TCRC_H__)
 #include "tcrc.h"
-#endif
-#if !defined(__RXTX_H__)
 #include "rxtx.h"
-#endif
-#if !defined(__WROUTE_H__)
 #include "wroute.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
+
 /*---------------------  Static Definitions -------------------------*/
 
 /*---------------------  Static Classes  ----------------------------*/

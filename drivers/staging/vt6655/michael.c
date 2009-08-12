@@ -39,15 +39,9 @@
  *
  */
 
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__MICHAEL_H__)
 #include "michael.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 

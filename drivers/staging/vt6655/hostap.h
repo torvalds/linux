@@ -26,14 +26,10 @@
  *
  */
 
-
 #ifndef __HOSTAP_H__
 #define __HOSTAP_H__
 
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -57,11 +53,6 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
 #ifndef ETH_P_PAE
 #define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
 #endif /* ETH_P_PAE */
@@ -72,13 +63,6 @@ extern "C" {                            /* Assume C declarations for C++ */
 
 int hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked);
 int hostap_ioctl(PSDevice pDevice, struct iw_point *p);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __HOSTAP_H__
 

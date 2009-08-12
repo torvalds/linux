@@ -26,7 +26,6 @@
  *
  */
 
-
 #ifndef __TMACRO_H__
 #define __TMACRO_H__
 

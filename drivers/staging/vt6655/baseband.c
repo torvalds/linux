@@ -49,31 +49,14 @@
  *
  */
 
-
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
-#if !defined(__SROM_H__)
 #include "srom.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 //static int          msglevel                =MSG_LEVEL_DEBUG;

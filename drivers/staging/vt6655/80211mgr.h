@@ -28,17 +28,11 @@
  *
  */
 
-
 #ifndef __80211MGR_H__
 #define __80211MGR_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -719,6 +713,7 @@ typedef struct tagWLAN_FR_DEAUTHEN {
 } WLAN_FR_DEAUTHEN, *PWLAN_FR_DEAUTHEN;
 
 /*---------------------  Export Functions  --------------------------*/
+
 VOID
 vMgrEncodeBeacon(
     IN  PWLAN_FR_BEACON  pFrame
