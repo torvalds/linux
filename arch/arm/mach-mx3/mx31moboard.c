@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/memory.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
@@ -72,6 +73,9 @@ static unsigned int moboard_pins[] = {
 	MX31_PIN_USBOTG_CLK__USBOTG_CLK, MX31_PIN_USBOTG_DIR__USBOTG_DIR,
 	MX31_PIN_USBOTG_NXT__USBOTG_NXT, MX31_PIN_USBOTG_STP__USBOTG_STP,
 	MX31_PIN_USB_OC__GPIO1_30,
+	/* LEDs */
+	MX31_PIN_SVEN0__GPIO2_0, MX31_PIN_STX0__GPIO2_1,
+	MX31_PIN_SRX0__GPIO2_2, MX31_PIN_SIMPD0__GPIO2_3,
 };
 
 static struct physmap_flash_data mx31moboard_flash_data = {
@@ -201,8 +205,39 @@ static struct fsl_usb2_platform_data usb_pdata = {
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
 
+static struct gpio_led mx31moboard_leds[] = {
+	{
+		.name 	= "coreboard-led-0:red:running",
+		.default_trigger = "heartbeat",
+		.gpio 	= IOMUX_TO_GPIO(MX31_PIN_SVEN0),
+	}, {
+		.name	= "coreboard-led-1:red",
+		.gpio	= IOMUX_TO_GPIO(MX31_PIN_STX0),
+	}, {
+		.name	= "coreboard-led-2:red",
+		.gpio	= IOMUX_TO_GPIO(MX31_PIN_SRX0),
+	}, {
+		.name	= "coreboard-led-3:red",
+		.gpio	= IOMUX_TO_GPIO(MX31_PIN_SIMPD0),
+	},
+};
+
+static struct gpio_led_platform_data mx31moboard_led_pdata = {
+	.num_leds 	= ARRAY_SIZE(mx31moboard_leds),
+	.leds		= mx31moboard_leds,
+};
+
+static struct platform_device mx31moboard_leds_device = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &mx31moboard_led_pdata,
+	},
+};
+
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
+	&mx31moboard_leds_device,
 };
 
 static int mx31moboard_baseboard;
