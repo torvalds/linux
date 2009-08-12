@@ -288,16 +288,6 @@ config RADIO_TYPHOON
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-typhoon.
 
-config RADIO_TYPHOON_PROC_FS
-	bool "Support for /proc/radio-typhoon"
-	depends on PROC_FS && RADIO_TYPHOON
-	help
-	  Say Y here if you want the typhoon radio card driver to write
-	  status information (frequency, volume, muted, mute frequency,
-	  base address) to /proc/radio-typhoon. The file can be viewed with
-	  your favorite pager (i.e. use "more /proc/radio-typhoon" or "less
-	  /proc/radio-typhoon" or simply "cat /proc/radio-typhoon").
-
 config RADIO_TYPHOON_PORT
 	hex "Typhoon I/O port (0x316 or 0x336)"
 	depends on RADIO_TYPHOON=y
