@@ -82,6 +82,20 @@ static struct platform_device *m523x_devices[] __initdata = {
 
 /***************************************************************************/
 
+static void __init m523x_fec_init(void)
+{
+	u16 par;
+	u8 v;
+
+	/* Set multi-function pins to ethernet use */
+	par = readw(MCF_IPSBAR + 0x100082);
+	writew(par | 0xf00, MCF_IPSBAR + 0x100082);
+	v = readb(MCF_IPSBAR + 0x100078);
+	writeb(v | 0xc0, MCF_IPSBAR + 0x100078);
+}
+
+/***************************************************************************/
+
 static void m523x_cpu_reset(void)
 {
 	local_irq_disable();
@@ -99,6 +113,7 @@ void __init config_BSP(char *commandp, int size)
 
 static int __init init_BSP(void)
 {
+	m523x_fec_init();
 	platform_add_devices(m523x_devices, ARRAY_SIZE(m523x_devices));
 	return 0;
 }
