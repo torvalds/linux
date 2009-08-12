@@ -22,9 +22,6 @@
 #include <asm/string.h>
 
 #include "ieee80211.h"
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,20))
-//#include "crypto_compat.h"
-#endif
 
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
