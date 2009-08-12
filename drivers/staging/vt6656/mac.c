@@ -30,32 +30,15 @@
  * Revision History:
  */
 
-
-
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__DESC_H__)
 #include "desc.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__80211hdr_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__RNDIS_H__)
 #include "rndis.h"
-#endif
-#if !defined(__CONTROL_H__)
 #include "control.h"
-#endif
+
 /*---------------------  Static Definitions -------------------------*/
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;

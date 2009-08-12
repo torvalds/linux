@@ -33,18 +33,9 @@
 #ifndef __BASEBAND_H__
 #define __BASEBAND_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -104,9 +95,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 UINT
 BBuGetFrameTime(
@@ -154,10 +142,5 @@ VOID BBvUpdatePreEDThreshold(
      IN  PSDevice    pDevice,
      IN  BOOL        bScanning
      );
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
 
 #endif // __BASEBAND_H__

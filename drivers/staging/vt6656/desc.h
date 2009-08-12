@@ -28,23 +28,13 @@
  *
  */
 
-
 #ifndef __DESC_H__
 #define __DESC_H__
 
 #include <linux/types.h>
 #include <linux/mm.h>
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-
-
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 

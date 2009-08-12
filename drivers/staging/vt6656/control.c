@@ -38,15 +38,9 @@
  *
  */
 
-#if !defined(__CONTROL_H__)
 #include "control.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__RNDIS_H__)
 #include "rndis.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 //static int          msglevel                =MSG_LEVEL_INFO;

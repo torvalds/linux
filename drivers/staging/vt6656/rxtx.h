@@ -26,20 +26,12 @@
  *
  */
 
-
 #ifndef __RXTX_H__
 #define __RXTX_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -673,13 +665,6 @@ typedef struct tagSBEACON_BUFFER
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
-
-
 BOOL
 bPacketToWirelessUsb(
     IN  PSDevice         pDevice,
@@ -702,13 +687,6 @@ NTSTATUS nsDMA_tx_packet(PSDevice  pDevice, UINT uDMAIdx, struct sk_buff *skb);
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 BOOL bRelayPacketSend(PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeIndex);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __RXTX_H__
 

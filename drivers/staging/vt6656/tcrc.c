@@ -33,16 +33,8 @@
  *
  */
 
-
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__TCRC_H__)
 #include "tcrc.h"
-#endif
-
-
-
 
 /*---------------------  Static Definitions -------------------------*/
 

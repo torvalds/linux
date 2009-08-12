@@ -30,9 +30,7 @@
 #ifndef _CHANNEL_H_
 #define _CHANNEL_H_
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -55,4 +53,5 @@ CHvChannelGetList (
     IN  UINT       uCountryCodeIdx,
     OUT PBYTE      pbyChannelTable
     );
+
 #endif  /* _REGULATE_H_ */

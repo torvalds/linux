@@ -27,18 +27,11 @@
  *
  */
 
-
 #ifndef __USBPIPE_H__
 #define __USBPIPE_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -47,9 +40,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 NTSTATUS
 PIPEnsControlOut(
@@ -102,13 +92,6 @@ PIPEnsSendBulkOut(
     IN  PSDevice pDevice,
     IN  PUSB_SEND_CONTEXT pContext
     );
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __USBPIPE_H__
 

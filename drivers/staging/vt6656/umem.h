@@ -31,11 +31,7 @@
 #ifndef __UMEM_H__
 #define __UMEM_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 // 4-byte memory tag

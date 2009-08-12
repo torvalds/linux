@@ -27,16 +27,10 @@
  *
  */
 
-
 #ifndef __SROM_H__
 #define __SROM_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -129,16 +123,5 @@ typedef struct tagSSromReg {
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __EEPROM_H__

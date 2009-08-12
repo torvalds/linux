@@ -31,20 +31,10 @@
  *
  */
 
-
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__FIRMWARE_H__)
 #include "firmware.h"
-#endif
-#if !defined(__CONTROL_H__)
 #include "control.h"
-#endif
-#if !defined(__RNDIS_H__)
 #include "rndis.h"
-#endif
-
 
 /*---------------------  Static Definitions -------------------------*/
 

@@ -27,16 +27,12 @@
  *
  */
 
-
 #ifndef __RF_H__
 #define __RF_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
+
 /*---------------------  Export Definitions -------------------------*/
 //
 // Baseband RF pair definition in eeprom (Bits 6..0)
@@ -66,9 +62,6 @@
 /*---------------------  Export Variables  --------------------------*/
 extern const BYTE RFaby11aChannelIndex[200];
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 BOOL IFRFbWriteEmbeded(PSDevice pDevice, DWORD dwData);
 BOOL RFbSetPower (
@@ -100,11 +93,6 @@ BOOL s_bVT3226D0_11bLoCurrentAdjust(
     IN  BYTE        byChannel,
     IN  BOOL        b11bMode
     );
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
 
 #endif // __RF_H__
 

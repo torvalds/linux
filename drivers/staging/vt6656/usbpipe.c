@@ -38,28 +38,13 @@
  *
  */
 
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__INT_H__)
 #include "int.h"
-#endif
-#if !defined(__RXTX_H__)
 #include "rxtx.h"
-#endif
-#if !defined(__DPC_H__)
 #include "dpc.h"
-#endif
-#if !defined(__CONTROL_H__)
 #include "control.h"
-#endif
-#if !defined(__DESC_H__)
 #include "desc.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
 
 /*---------------------  Static Definitions -------------------------*/
 //endpoint def

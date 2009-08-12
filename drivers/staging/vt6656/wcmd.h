@@ -29,15 +29,9 @@
 #ifndef __WCMD_H__
 #define __WCMD_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 

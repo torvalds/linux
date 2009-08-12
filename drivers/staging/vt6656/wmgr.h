@@ -31,33 +31,16 @@
  *
  */
 
-
 #ifndef __WMGR_H__
 #define __WMGR_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-#if !defined(__BSSDB_H__)
 #include "bssdb.h"
-#endif
-#if !defined(__WPA2_H__)
 #include "wpa2.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 

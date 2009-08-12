@@ -26,20 +26,12 @@
  *
  */
 
-
 #ifndef __DPC_H__
 #define __DPC_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WCMD_H__)
 #include "wcmd.h"
-#endif
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -48,14 +40,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-
-
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
-
-
 
 VOID
 RXvWorkItem(
@@ -79,14 +63,6 @@ RXbBulkInProcessData(
     IN PRCB             pRCB,
     IN ULONG            BytesToIndicate
     );
-
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __RXTX_H__
 

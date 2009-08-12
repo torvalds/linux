@@ -1,5 +1,5 @@
 TODO:
-- remove __cplusplus ifdefs
+- remove __cplusplus ifdefs -- done
 - remove kernel version compatibility wrappers
 - remove support for older wireless extensions
 - prepare for merge with vt6655 driver:

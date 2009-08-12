@@ -34,18 +34,10 @@
 #ifndef __MAC_H__
 #define __MAC_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -428,9 +420,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 void MACvSetMultiAddrByHash (PSDevice pDevice, BYTE byHashIdx);
 VOID MACvWriteMultiAddr (PSDevice pDevice, UINT uByteIdx, BYTE byData);
@@ -450,9 +439,5 @@ void MACvDisableProtectMD(PSDevice pDevice);
 void MACvEnableBarkerPreambleMd(PSDevice pDevice);
 void MACvDisableBarkerPreambleMd(PSDevice pDevice);
 void MACvWriteBeaconInterval(PSDevice pDevice, WORD wInterval);
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
 
 #endif // __MAC_H__

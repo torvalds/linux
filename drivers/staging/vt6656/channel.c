@@ -34,19 +34,10 @@
  *
  */
 
-#if !defined (_COUNTRY_H_)
 #include "country.h"
-#endif
-#if !defined (_CHANNEL_H_)
 #include "channel.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-
 
 /*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;

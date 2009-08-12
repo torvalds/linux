@@ -27,18 +27,11 @@
  *
  */
 
-
 #ifndef __INT_H__
 #define __INT_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 #pragma pack(1)
@@ -73,9 +66,6 @@ SINTData, *PSINTData;
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 VOID
 INTvWorkItem(
@@ -86,14 +76,6 @@ NTSTATUS
 INTnsProcessData(
     IN  PSDevice pDevice
     );
-
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __INT_H__
 

@@ -26,7 +26,6 @@
  *
  */
 
-
 #ifndef __TMACRO_H__
 #define __TMACRO_H__
 
@@ -50,8 +49,6 @@
 
 #define LODWORD(q)          ((q).u.dwLowDword)
 #define HIDWORD(q)          ((q).u.dwHighDword)
-
-
 
 #if !defined(MAKEWORD)
 #define MAKEWORD(lb, hb)    ((WORD)(((BYTE)(lb)) | (((WORD)((BYTE)(hb))) << 8)))

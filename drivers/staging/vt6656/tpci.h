@@ -29,16 +29,10 @@
  *
  */
 
-
 #ifndef __TPCI_H__
 #define __TPCI_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 #define MAX_PCI_BUS             4       // max. # of PCI bus that we support

@@ -52,28 +52,12 @@
  *
  */
 
-
-
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-#if !defined(__80211MGR_H__)
 #include "80211mgr.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__WPA_H__)
 #include "wpa.h"
-#endif
-
-
 
 /*---------------------  Static Definitions -------------------------*/
 

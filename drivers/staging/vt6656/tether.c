@@ -32,24 +32,11 @@
  *
  */
 
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__TCRC_H__)
 #include "tcrc.h"
-#endif
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-
-
-
 
 /*---------------------  Static Definitions -------------------------*/
 

@@ -33,16 +33,9 @@
  *
  */
 
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__80211HDR_H__)
 #include "80211hdr.h"
-#endif
-
 
 /*---------------------  Static Definitions -------------------------*/
 

@@ -32,24 +32,12 @@
  *
  */
 
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__RF_H__)
 #include "rf.h"
-#endif
-#if !defined(__BASEBAND_H__)
 #include "baseband.h"
-#endif
-#if !defined(__CONTROL_H__)
 #include "control.h"
-#endif
-#if !defined(__RNDIS_H__)
 #include "rndis.h"
-#endif
-#if !defined(__DATARATE_H__)
 #include "datarate.h"
-#endif
 
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;

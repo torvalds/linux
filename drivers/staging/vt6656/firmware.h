@@ -27,17 +27,11 @@
  *
  */
 
-
 #ifndef __FIRMWARE_H__
 #define __FIRMWARE_H__
 
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 

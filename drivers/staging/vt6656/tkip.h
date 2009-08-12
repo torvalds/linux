@@ -27,19 +27,11 @@
  *
  */
 
-
 #ifndef __TKIP_H__
 #define __TKIP_H__
 
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-#if !defined(__TETHER_H__)
 #include "tether.h"
-#endif
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 #define TKIP_KEY_LEN        16
@@ -53,9 +45,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
 
 VOID TKIPvMixKey(
     PBYTE   pbyTKey,
@@ -64,11 +53,6 @@ VOID TKIPvMixKey(
     DWORD   dwTSC47_16,
     PBYTE   pbyRC4Key
     );
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
 
 #endif // __TKIP_H__
 

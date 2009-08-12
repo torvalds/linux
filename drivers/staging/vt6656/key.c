@@ -36,28 +36,13 @@
  *
  */
 
-
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
-#if !defined(__TBIT_H__)
 #include "tbit.h"
-#endif
-#if !defined(__KEY_H__)
 #include "key.h"
-#endif
-#if !defined(__UMEM_H__)
 #include "umem.h"
-#endif
-#if !defined(__MAC_H__)
 #include "mac.h"
-#endif
-#if !defined(__RNDIS_H__)
 #include "rndis.h"
-#endif
-#if !defined(__CONTROL_H__)
 #include "control.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 

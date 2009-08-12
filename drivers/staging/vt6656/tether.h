@@ -26,18 +26,10 @@
  *
  */
 
-
-
 #ifndef __TETHER_H__
 #define __TETHER_H__
 
-
-#if !defined(__TTYPE_H__)
 #include "ttype.h"
-#endif
-
-
-
 
 /*---------------------  Export Definitions -------------------------*/
 //
@@ -233,22 +225,10 @@ S802_11Header, *PS802_11Header;
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-#ifdef __cplusplus
-extern "C" {                            /* Assume C declarations for C++ */
-#endif /* __cplusplus */
-
 
 BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr);
 //BYTE ETHbyGetHashIndexByCrc(PBYTE pbyMultiAddr);
 BOOL ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, UINT cbFrameLength);
-
-
-#ifdef __cplusplus
-}                                       /* End of extern "C" { */
-#endif /* __cplusplus */
-
-
-
 
 #endif // __TETHER_H__
 

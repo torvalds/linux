@@ -34,19 +34,10 @@
  *
  */
 
-
-#if !defined(__WCTL_H__)
 #include "wctl.h"
-#endif
-#if !defined(__DEVICE_H__)
 #include "device.h"
-#endif
-#if !defined(__CARD_H__)
 #include "card.h"
-#endif
-#if !defined(__TMACRO_H__)
 #include "tmacro.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 
