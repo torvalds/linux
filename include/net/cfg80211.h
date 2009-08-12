@@ -1108,6 +1108,9 @@ struct cfg80211_ops {
  * @net: the network namespace this wiphy currently lives in
  * @netnsok: if set to false, do not allow changing the netns of this
  *	wiphy at all
+ * @ps_default: default for powersave, will be set depending on the
+ *	kernel's default on wiphy_new(), but can be changed by the
+ *	driver if it has a good reason to override the default
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -1123,6 +1126,7 @@ struct wiphy {
 	bool disable_beacon_hints;
 
 	bool netnsok;
+	bool ps_default;
 
 	enum cfg80211_signal_type signal_type;
 
