@@ -967,6 +967,8 @@ struct bnx2x {
 	dma_addr_t      	qm_mapping;
 #endif
 
+	int			dropless_fc;
+
 	int			dmae_ready;
 	/* used to synchronize dmae accesses */
 	struct mutex		dmae_mutex;

@@ -101,6 +101,10 @@ static int int_mode;
 module_param(int_mode, int, 0);
 MODULE_PARM_DESC(int_mode, " Force interrupt mode (1 INT#x; 2 MSI)");
 
+static int dropless_fc;
+module_param(dropless_fc, int, 0);
+MODULE_PARM_DESC(dropless_fc, " Pause on exhausted host ring");
+
 static int poll;
 module_param(poll, int, 0);
 MODULE_PARM_DESC(poll, " Use polling (for debug)");
@@ -2369,7 +2373,7 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 	if (bp->link_vars.link_up) {
 
 		/* dropless flow control */
-		if (CHIP_IS_E1H(bp)) {
+		if (CHIP_IS_E1H(bp) && bp->dropless_fc) {
 			int port = BP_PORT(bp);
 			u32 pause_enabled = 0;
 
@@ -6359,9 +6363,6 @@ static int bnx2x_init_port(struct bnx2x *bp)
 		REG_WR(bp, NIG_REG_LLH0_BRB1_DRV_MASK_MF + port*4,
 		       (IS_E1HMF(bp) ? 0x1 : 0x2));
 
-		/* support pause requests from USDM, TSDM and BRB */
-		REG_WR(bp, NIG_REG_LLFC_EGRESS_SRC_ENABLE_0 + port*4, 0x7);
-
 		{
 			REG_WR(bp, NIG_REG_LLFC_ENABLE_0 + port*4, 0);
 			REG_WR(bp, NIG_REG_LLFC_OUT_EN_0 + port*4, 0);
@@ -8676,6 +8677,11 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 		bp->flags |= TPA_ENABLE_FLAG;
 		bp->dev->features |= NETIF_F_LRO;
 	}
+
+	if (CHIP_IS_E1(bp))
+		bp->dropless_fc = 0;
+	else
+		bp->dropless_fc = dropless_fc;
 
 	bp->mrrs = mrrs;
 
