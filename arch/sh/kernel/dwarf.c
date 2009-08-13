@@ -89,7 +89,8 @@ static void dwarf_frame_alloc_regs(struct dwarf_frame *frame,
  */
 static inline int dwarf_read_addr(unsigned long *src, unsigned long *dst)
 {
-	*dst = get_unaligned(src);
+	u32 val = get_unaligned(src);
+	put_unaligned(val, dst);
 	return sizeof(unsigned long *);
 }
 
