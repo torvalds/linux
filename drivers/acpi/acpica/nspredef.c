@@ -42,6 +42,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#define ACPI_CREATE_PREDEFINED_TABLE
+
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"

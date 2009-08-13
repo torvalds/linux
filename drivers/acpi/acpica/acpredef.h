@@ -64,8 +64,8 @@
  *      (Used for _PRW)
  *
  *
- * 2) PTYPE2 packages contain a variable number of sub-packages. Each of the
- *    different types describe the contents of each of the sub-packages.
+ * 2) PTYPE2 packages contain a Variable-length number of sub-packages. Each
+ *    of the different types describe the contents of each of the sub-packages.
  *
  * ACPI_PTYPE2: Each subpackage contains 1 or 2 object types:
  *      object type
@@ -92,6 +92,7 @@
  *      (Used for _HPX)
  *
  * ACPI_PTYPE2_REV_FIXED: Revision at start, each subpackage is Fixed-length
+ *      (Used for _ART, _FPS)
  *
  *****************************************************************************/
 
@@ -107,6 +108,7 @@ enum acpi_return_package_types {
 	ACPI_PTYPE2_REV_FIXED = 9
 };
 
+#ifdef ACPI_CREATE_PREDEFINED_TABLE
 /*
  * Predefined method/object information table.
  *
@@ -189,21 +191,32 @@ static const union acpi_predefined_info predefined_names[] =
 			  {{{ACPI_PTYPE2, ACPI_RTYPE_INTEGER, 2,0}, 0,0}},
 
 	{{"_ALT", 0, ACPI_RTYPE_INTEGER}},
+	{{"_ART", 0, ACPI_RTYPE_PACKAGE}},	/* Variable-length (1 Int(rev), n Pkg (2 Ref/11 Int) */
+	{{{ACPI_PTYPE2_REV_FIXED, ACPI_RTYPE_REFERENCE, 2, ACPI_RTYPE_INTEGER},
+	  11, 0}},
+
 	{{"_BBN", 0, ACPI_RTYPE_INTEGER}},
 	{{"_BCL", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Ints) */
 			  {{{ACPI_PTYPE1_VAR, ACPI_RTYPE_INTEGER, 0,0}, 0,0}},
 
 	{{"_BCM", 1, 0}},
+	{{"_BCT", 1, ACPI_RTYPE_INTEGER}},
 	{{"_BDN", 0, ACPI_RTYPE_INTEGER}},
 	{{"_BFS", 1, 0}},
 	{{"_BIF", 0, ACPI_RTYPE_PACKAGE}}, /* Fixed-length (9 Int),(4 Str) */
 			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 9, ACPI_RTYPE_STRING}, 4,0}},
 
+	{{"_BIX", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (16 Int),(4 Str) */
+	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 16, ACPI_RTYPE_STRING}, 4,
+	  0}},
+
 	{{"_BLT", 3, 0}},
+	{{"_BMA", 1, ACPI_RTYPE_INTEGER}},
 	{{"_BMC", 1, 0}},
 	{{"_BMD", 0, ACPI_RTYPE_PACKAGE}}, /* Fixed-length (5 Int) */
 			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 5,0}, 0,0}},
 
+	{{"_BMS", 1, ACPI_RTYPE_INTEGER}},
 	{{"_BQC", 0, ACPI_RTYPE_INTEGER}},
 	{{"_BST", 0, ACPI_RTYPE_PACKAGE}}, /* Fixed-length (4 Int) */
 			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 4,0}, 0,0}},
@@ -211,6 +224,7 @@ static const union acpi_predefined_info predefined_names[] =
 	{{"_BTM", 1, ACPI_RTYPE_INTEGER}},
 	{{"_BTP", 1, 0}},
 	{{"_CBA", 0, ACPI_RTYPE_INTEGER}}, /* See PCI firmware spec 3.0 */
+	{{"_CDM", 0, ACPI_RTYPE_INTEGER}},
 	{{"_CID", 0, ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_PACKAGE}}, /* Variable-length (Ints/Strs) */
 			  {{{ACPI_PTYPE1_VAR, ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING, 0,0}, 0,0}},
 
@@ -236,6 +250,7 @@ static const union acpi_predefined_info predefined_names[] =
 	{{"_DSM", 4, ACPI_RTYPE_ALL}},     /* Must return a type, but it can be of any type */
 	{{"_DSS", 1, 0}},
 	{{"_DSW", 3, 0}},
+	{{"_DTI", 1, 0}},
 	{{"_EC_", 0, ACPI_RTYPE_INTEGER}},
 	{{"_EDL", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Refs)*/
 			  {{{ACPI_PTYPE1_VAR, ACPI_RTYPE_REFERENCE, 0,0}, 0,0}},
@@ -251,9 +266,21 @@ static const union acpi_predefined_info predefined_names[] =
 			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 16,0}, 0,0}},
 
 	{{"_FDM", 1, 0}},
+	{{"_FIF", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (4 Int) */
+			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 4, 0}, 0, 0}},
+
 	{{"_FIX", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Ints) */
 			  {{{ACPI_PTYPE1_VAR, ACPI_RTYPE_INTEGER, 0,0}, 0,0}},
 
+	{{"_FPS", 0, ACPI_RTYPE_PACKAGE}},	/* Variable-length (1 Int(rev), n Pkg (5 Int) */
+	{{{ACPI_PTYPE2_REV_FIXED, ACPI_RTYPE_INTEGER, 5, 0}, 0, 0}},
+
+	{{"_FSL", 1, 0}},
+	{{"_FST", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (3 Int) */
+	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 3, 0}, 0, 0}},
+
+	{{"_GAI", 0, ACPI_RTYPE_INTEGER}},
+	{{"_GHL", 0, ACPI_RTYPE_INTEGER}},
 	{{"_GLK", 0, ACPI_RTYPE_INTEGER}},
 	{{"_GPD", 0, ACPI_RTYPE_INTEGER}},
 	{{"_GPE", 0, ACPI_RTYPE_INTEGER}}, /* _GPE method, not _GPE scope */
@@ -281,15 +308,21 @@ static const union acpi_predefined_info predefined_names[] =
 	{{"_LCK", 1, 0}},
 	{{"_LID", 0, ACPI_RTYPE_INTEGER}},
 	{{"_MAT", 0, ACPI_RTYPE_BUFFER}},
+	{{"_MBM", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (8 Int) */
+	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 8, 0}, 0, 0}},
+
 	{{"_MLS", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each (2 Str) */
 			  {{{ACPI_PTYPE2, ACPI_RTYPE_STRING, 2,0}, 0,0}},
 
 	{{"_MSG", 1, 0}},
+	{{"_MSM", 4, ACPI_RTYPE_INTEGER}},
+	{{"_NTT", 0, ACPI_RTYPE_INTEGER}},
 	{{"_OFF", 0, 0}},
 	{{"_ON_", 0, 0}},
 	{{"_OS_", 0, ACPI_RTYPE_STRING}},
 	{{"_OSC", 4, ACPI_RTYPE_BUFFER}},
 	{{"_OST", 3, 0}},
+	{{"_PAI", 1, ACPI_RTYPE_INTEGER}},
 	{{"_PCL", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Refs) */
 			  {{{ACPI_PTYPE1_VAR, ACPI_RTYPE_REFERENCE, 0,0}, 0,0}},
 
@@ -297,10 +330,22 @@ static const union acpi_predefined_info predefined_names[] =
 			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_BUFFER, 2,0}, 0,0}},
 
 	{{"_PDC", 1, 0}},
+	{{"_PDL", 0, ACPI_RTYPE_INTEGER}},
 	{{"_PIC", 1, 0}},
+	{{"_PIF", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (3 Int),(3 Str) */
+	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 3, ACPI_RTYPE_STRING}, 3, 0}},
+
 	{{"_PLD", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Bufs) */
 			  {{{ACPI_PTYPE1_VAR, ACPI_RTYPE_BUFFER, 0,0}, 0,0}},
 
+	{{"_PMC", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (11 Int),(3 Str) */
+	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 11, ACPI_RTYPE_STRING}, 3,
+	  0}},
+
+	{{"_PMD", 0, ACPI_RTYPE_PACKAGE}},	/* Variable-length (Refs) */
+	{{{ACPI_PTYPE1_VAR, ACPI_RTYPE_REFERENCE, 0, 0}, 0, 0}},
+
+	{{"_PMM", 0, ACPI_RTYPE_INTEGER}},
 	{{"_PPC", 0, ACPI_RTYPE_INTEGER}},
 	{{"_PPE", 0, ACPI_RTYPE_INTEGER}}, /* See dig64 spec */
 	{{"_PR0", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Refs) */
@@ -312,17 +357,26 @@ static const union acpi_predefined_info predefined_names[] =
 	{{"_PR2", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Refs) */
 			  {{{ACPI_PTYPE1_VAR, ACPI_RTYPE_REFERENCE, 0,0}, 0,0}},
 
+	{{"_PR3", 0, ACPI_RTYPE_PACKAGE}},	/* Variable-length (Refs) */
+	{{{ACPI_PTYPE1_VAR, ACPI_RTYPE_REFERENCE, 0, 0}, 0, 0}},
+
+	{{"_PRL", 0, ACPI_RTYPE_PACKAGE}},	/* Variable-length (Refs) */
+	{{{ACPI_PTYPE1_VAR, ACPI_RTYPE_REFERENCE, 0, 0}, 0, 0}},
+
 	{{"_PRS", 0, ACPI_RTYPE_BUFFER}},
 
 	/*
-	 * For _PRT, many BIOSs reverse the 2nd and 3rd Package elements. This bug is so prevalent that there
-	 * is code in the ACPICA Resource Manager to detect this and switch them back. For now, do not allow
-	 * and issue a warning. To allow this and eliminate the warning, add the ACPI_RTYPE_REFERENCE
-	 * type to the 2nd element (index 1) in the statement below.
+	 * For _PRT, many BIOSs reverse the 3rd and 4th Package elements (Source
+	 * and source_index). This bug is so prevalent that there is code in the
+	 * ACPICA Resource Manager to detect this and switch them back. For now,
+	 * do not allow and issue a warning. To allow this and eliminate the
+	 * warning, add the ACPI_RTYPE_REFERENCE type to the 4th element (index 3)
+	 * in the statement below.
 	 */
 	{{"_PRT", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each (4): Int,Int,Int/Ref,Int */
 			  {{{ACPI_PTYPE2_FIXED, 4, ACPI_RTYPE_INTEGER,ACPI_RTYPE_INTEGER},
-			  ACPI_RTYPE_INTEGER | ACPI_RTYPE_REFERENCE,ACPI_RTYPE_INTEGER}},
+			  ACPI_RTYPE_INTEGER | ACPI_RTYPE_REFERENCE,
+			  ACPI_RTYPE_INTEGER}},
 
 	{{"_PRW", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each: Pkg/Int,Int,[Variable-length Refs] (Pkg is Ref/Int) */
 			  {{{ACPI_PTYPE1_OPTION, 2, ACPI_RTYPE_INTEGER | ACPI_RTYPE_PACKAGE,
@@ -348,7 +402,11 @@ static const union acpi_predefined_info predefined_names[] =
 	{{"_PTC", 0, ACPI_RTYPE_PACKAGE}}, /* Fixed-length (2 Buf) */
 			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_BUFFER, 2,0}, 0,0}},
 
+	{{"_PTP", 2, ACPI_RTYPE_INTEGER}},
 	{{"_PTS", 1, 0}},
+	{{"_PUR", 0, ACPI_RTYPE_PACKAGE}},	/* Fixed-length (2 Int) */
+	{{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 2, 0}, 0, 0}},
+
 	{{"_PXM", 0, ACPI_RTYPE_INTEGER}},
 	{{"_REG", 2, 0}},
 	{{"_REV", 0, ACPI_RTYPE_INTEGER}},
@@ -394,6 +452,7 @@ static const union acpi_predefined_info predefined_names[] =
 			   /* Note: the 3-arg definition may be removed for ACPI 4.0 */
 	{{"_SDD", 1, 0}},
 	{{"_SEG", 0, ACPI_RTYPE_INTEGER}},
+	{{"_SHL", 1, ACPI_RTYPE_INTEGER}},
 	{{"_SLI", 0, ACPI_RTYPE_BUFFER}},
 	{{"_SPD", 1, ACPI_RTYPE_INTEGER}},
 	{{"_SRS", 1, 0}},
@@ -401,11 +460,15 @@ static const union acpi_predefined_info predefined_names[] =
 	{{"_SST", 1, 0}},
 	{{"_STA", 0, ACPI_RTYPE_INTEGER}},
 	{{"_STM", 3, 0}},
+	{{"_STP", 2, ACPI_RTYPE_INTEGER}},
 	{{"_STR", 0, ACPI_RTYPE_BUFFER}},
+	{{"_STV", 2, ACPI_RTYPE_INTEGER}},
 	{{"_SUN", 0, ACPI_RTYPE_INTEGER}},
 	{{"_SWS", 0, ACPI_RTYPE_INTEGER}},
 	{{"_TC1", 0, ACPI_RTYPE_INTEGER}},
 	{{"_TC2", 0, ACPI_RTYPE_INTEGER}},
+	{{"_TIP", 1, ACPI_RTYPE_INTEGER}},
+	{{"_TIV", 1, ACPI_RTYPE_INTEGER}},
 	{{"_TMP", 0, ACPI_RTYPE_INTEGER}},
 	{{"_TPC", 0, ACPI_RTYPE_INTEGER}},
 	{{"_TPT", 1, 0}},
@@ -457,4 +520,5 @@ static const union acpi_predefined_info predefined_names[] =
 	think about possibly fixing package elements like _BIF, etc.
 #endif
 
+#endif
 #endif
