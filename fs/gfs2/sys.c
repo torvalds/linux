@@ -16,6 +16,7 @@
 #include <linux/kobject.h>
 #include <asm/uaccess.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/genhd.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -542,9 +543,17 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	if (error)
 		goto fail_tune;
 
+	error = sysfs_create_link(&sdp->sd_kobj,
+				  &disk_to_dev(sb->s_bdev->bd_disk)->kobj,
+				  "device");
+	if (error)
+		goto fail_lock_module;
+
 	kobject_uevent_env(&sdp->sd_kobj, KOBJ_ADD, envp);
 	return 0;
 
+fail_lock_module:
+	sysfs_remove_group(&sdp->sd_kobj, &lock_module_group);
 fail_tune:
 	sysfs_remove_group(&sdp->sd_kobj, &tune_group);
 fail_reg:
@@ -556,6 +565,7 @@ fail:
 
 void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 {
+	sysfs_remove_link(&sdp->sd_kobj, "device");
 	sysfs_remove_group(&sdp->sd_kobj, &tune_group);
 	sysfs_remove_group(&sdp->sd_kobj, &lock_module_group);
 	kobject_put(&sdp->sd_kobj);
