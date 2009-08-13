@@ -253,10 +253,12 @@ static int ath_pci_resume(struct pci_dev *pdev)
 	u32 val;
 	int err;
 
+	pci_restore_state(pdev);
+
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
-	pci_restore_state(pdev);
+
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to
 	 * re-disable the RETRY_TIMEOUT register (0x41) to keep
