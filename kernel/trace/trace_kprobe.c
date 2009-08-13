@@ -186,6 +186,7 @@ struct trace_probe {
 	};
 	const char		*symbol;	/* symbol name */
 	struct ftrace_event_call	call;
+	struct trace_event		event;
 	unsigned int		nr_args;
 	struct fetch_func	args[];
 };
@@ -795,7 +796,7 @@ static __kprobes int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 
 	size = SIZEOF_KPROBE_TRACE_ENTRY(tp->nr_args);
 
-	event = trace_current_buffer_lock_reserve(TRACE_KPROBE, size,
+	event = trace_current_buffer_lock_reserve(call->id, size,
 						  irq_flags, pc);
 	if (!event)
 		return 0;
@@ -827,7 +828,7 @@ static __kprobes int kretprobe_trace_func(struct kretprobe_instance *ri,
 
 	size = SIZEOF_KRETPROBE_TRACE_ENTRY(tp->nr_args);
 
-	event = trace_current_buffer_lock_reserve(TRACE_KRETPROBE, size,
+	event = trace_current_buffer_lock_reserve(call->id, size,
 						  irq_flags, pc);
 	if (!event)
 		return 0;
@@ -853,7 +854,7 @@ print_kprobe_event(struct trace_iterator *iter, int flags)
 	struct trace_seq *s = &iter->seq;
 	int i;
 
-	trace_assign_type(field, iter->ent);
+	field = (struct kprobe_trace_entry *)iter->ent;
 
 	if (!seq_print_ip_sym(s, field->ip, flags | TRACE_ITER_SYM_OFFSET))
 		goto partial;
@@ -880,7 +881,7 @@ print_kretprobe_event(struct trace_iterator *iter, int flags)
 	struct trace_seq *s = &iter->seq;
 	int i;
 
-	trace_assign_type(field, iter->ent);
+	field = (struct kretprobe_trace_entry *)iter->ent;
 
 	if (!seq_print_ip_sym(s, field->ret_ip, flags | TRACE_ITER_SYM_OFFSET))
 		goto partial;
@@ -905,16 +906,6 @@ print_kretprobe_event(struct trace_iterator *iter, int flags)
 partial:
 	return TRACE_TYPE_PARTIAL_LINE;
 }
-
-static struct trace_event kprobe_trace_event = {
-	.type	 	= TRACE_KPROBE,
-	.trace		= print_kprobe_event,
-};
-
-static struct trace_event kretprobe_trace_event = {
-	.type	 	= TRACE_KRETPROBE,
-	.trace		= print_kretprobe_event,
-};
 
 static int probe_event_enable(struct ftrace_event_call *call)
 {
@@ -1104,35 +1095,35 @@ static int register_probe_event(struct trace_probe *tp)
 	/* Initialize ftrace_event_call */
 	call->system = "kprobes";
 	if (probe_is_return(tp)) {
-		call->event = &kretprobe_trace_event;
-		call->id = TRACE_KRETPROBE;
+		tp->event.trace = print_kretprobe_event;
 		call->raw_init = probe_event_raw_init;
 		call->show_format = kretprobe_event_show_format;
 		call->define_fields = kretprobe_event_define_fields;
 	} else {
-		call->event = &kprobe_trace_event;
-		call->id = TRACE_KPROBE;
+		tp->event.trace = print_kprobe_event;
 		call->raw_init = probe_event_raw_init;
 		call->show_format = kprobe_event_show_format;
 		call->define_fields = kprobe_event_define_fields;
 	}
+	call->event = &tp->event;
+	call->id = register_ftrace_event(&tp->event);
+	if (!call->id)
+		return -ENODEV;
 	call->enabled = 1;
 	call->regfunc = probe_event_enable;
 	call->unregfunc = probe_event_disable;
 	call->data = tp;
 	ret = trace_add_event_call(call);
-	if (ret)
+	if (ret) {
 		pr_info("Failed to register kprobe event: %s\n", call->name);
+		unregister_ftrace_event(&tp->event);
+	}
 	return ret;
 }
 
 static void unregister_probe_event(struct trace_probe *tp)
 {
-	/*
-	 * Prevent to unregister event itself because the event is shared
-	 * among other probes.
-	 */
-	tp->call.event = NULL;
+	/* tp->event is unregistered in trace_remove_event_call() */
 	trace_remove_event_call(&tp->call);
 }
 
@@ -1141,18 +1132,6 @@ static __init int init_kprobe_trace(void)
 {
 	struct dentry *d_tracer;
 	struct dentry *entry;
-	int ret;
-
-	ret = register_ftrace_event(&kprobe_trace_event);
-	if (!ret) {
-		pr_warning("Could not register kprobe_trace_event type.\n");
-		return 0;
-	}
-	ret = register_ftrace_event(&kretprobe_trace_event);
-	if (!ret) {
-		pr_warning("Could not register kretprobe_trace_event type.\n");
-		return 0;
-	}
 
 	d_tracer = tracing_init_dentry();
 	if (!d_tracer)
