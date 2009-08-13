@@ -38,6 +38,8 @@ enum trace_type {
 	TRACE_KMEM_FREE,
 	TRACE_POWER,
 	TRACE_BLK,
+	TRACE_KPROBE,
+	TRACE_KRETPROBE,
 
 	__TRACE_LAST_TYPE,
 };
@@ -205,6 +207,30 @@ struct syscall_trace_exit {
 	unsigned long		ret;
 };
 
+struct kprobe_trace_entry {
+	struct trace_entry	ent;
+	unsigned long		ip;
+	int			nargs;
+	unsigned long		args[];
+};
+
+#define SIZEOF_KPROBE_TRACE_ENTRY(n)			\
+	(offsetof(struct kprobe_trace_entry, args) +	\
+	(sizeof(unsigned long) * (n)))
+
+struct kretprobe_trace_entry {
+	struct trace_entry	ent;
+	unsigned long		func;
+	unsigned long		ret_ip;
+	int			nargs;
+	unsigned long		args[];
+};
+
+#define SIZEOF_KRETPROBE_TRACE_ENTRY(n)			\
+	(offsetof(struct kretprobe_trace_entry, args) +	\
+	(sizeof(unsigned long) * (n)))
+
+
 
 /*
  * trace_flag_type is an enumeration that holds different
@@ -317,6 +343,10 @@ extern void __ftrace_bad_type(void);
 			  TRACE_KMEM_ALLOC);	\
 		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
 			  TRACE_KMEM_FREE);	\
+		IF_ASSIGN(var, ent, struct kprobe_trace_entry,		\
+			  TRACE_KPROBE);				\
+		IF_ASSIGN(var, ent, struct kretprobe_trace_entry,	\
+			  TRACE_KRETPROBE);				\
 		__ftrace_bad_type();					\
 	} while (0)
 

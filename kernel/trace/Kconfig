@@ -411,6 +411,18 @@ config BLK_DEV_IO_TRACE
 
 	  If unsure, say N.
 
+config KPROBE_TRACER
+	depends on KPROBES
+	depends on X86
+	bool "Trace kprobes"
+	select TRACING
+	select GENERIC_TRACER
+	help
+	  This tracer probes everywhere where kprobes can probe it, and
+	  records various registers and memories specified by user.
+	  This also allows you to trace kprobe probe points as a dynamic
+	  defined events. It provides per-probe event filtering interface.
+
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
 	depends on FUNCTION_TRACER
