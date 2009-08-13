@@ -310,6 +310,13 @@ static struct clk mmcsd_clk = {
 	.lpsc		= DA8XX_LPSC0_MMC_SD,
 };
 
+static struct clk aemif_clk = {
+	.name		= "aemif",
+	.parent		= &pll0_sysclk3,
+	.lpsc		= DA8XX_LPSC0_EMIF25,
+	.flags		= ALWAYS_ENABLED,
+};
+
 static struct davinci_clk da850_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
@@ -350,6 +357,7 @@ static struct davinci_clk da850_clks[] = {
 	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
 	CLK("da8xx_lcdc.0",	NULL,		&lcdc_clk),
 	CLK("davinci_mmc.0",	NULL,		&mmcsd_clk),
+	CLK(NULL,		"aemif",	&aemif_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
@@ -448,6 +456,21 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, MMCSD0_DAT_3,	10,	20,	15,	2,	false)
 	MUX_CFG(DA850, MMCSD0_CLK,	10,	0,	15,	2,	false)
 	MUX_CFG(DA850, MMCSD0_CMD,	10,	4,	15,	2,	false)
+	/* EMIF2.5/EMIFA function */
+	MUX_CFG(DA850, EMA_D_7,		9,	0,	15,	1,	false)
+	MUX_CFG(DA850, EMA_D_6,		9,	4,	15,	1,	false)
+	MUX_CFG(DA850, EMA_D_5,		9,	8,	15,	1,	false)
+	MUX_CFG(DA850, EMA_D_4,		9,	12,	15,	1,	false)
+	MUX_CFG(DA850, EMA_D_3,		9,	16,	15,	1,	false)
+	MUX_CFG(DA850, EMA_D_2,		9,	20,	15,	1,	false)
+	MUX_CFG(DA850, EMA_D_1,		9,	24,	15,	1,	false)
+	MUX_CFG(DA850, EMA_D_0,		9,	28,	15,	1,	false)
+	MUX_CFG(DA850, EMA_A_1,		12,	24,	15,	1,	false)
+	MUX_CFG(DA850, EMA_A_2,		12,	20,	15,	1,	false)
+	MUX_CFG(DA850, NEMA_CS_3,	7,	4,	15,	1,	false)
+	MUX_CFG(DA850, NEMA_CS_4,	7,	8,	15,	1,	false)
+	MUX_CFG(DA850, NEMA_WE,		7,	16,	15,	1,	false)
+	MUX_CFG(DA850, NEMA_OE,		7,	20,	15,	1,	false)
 	/* GPIO function */
 	MUX_CFG(DA850, GPIO2_15,	5,	0,	15,	8,	false)
 	MUX_CFG(DA850, GPIO8_10,	18,	28,	15,	8,	false)
@@ -511,6 +534,14 @@ const short da850_mmcsd0_pins[] __initdata = {
 	DA850_MMCSD0_DAT_0, DA850_MMCSD0_DAT_1, DA850_MMCSD0_DAT_2,
 	DA850_MMCSD0_DAT_3, DA850_MMCSD0_CLK, DA850_MMCSD0_CMD,
 	DA850_GPIO4_0, DA850_GPIO4_1,
+	-1
+};
+
+const short da850_nand_pins[] __initdata = {
+	DA850_EMA_D_7, DA850_EMA_D_6, DA850_EMA_D_5, DA850_EMA_D_4,
+	DA850_EMA_D_3, DA850_EMA_D_2, DA850_EMA_D_1, DA850_EMA_D_0,
+	DA850_EMA_A_1, DA850_EMA_A_2, DA850_NEMA_CS_3, DA850_NEMA_CS_4,
+	DA850_NEMA_WE, DA850_NEMA_OE,
 	-1
 };
 

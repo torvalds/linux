@@ -18,6 +18,10 @@
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -26,6 +30,7 @@
 #include <mach/irqs.h>
 #include <mach/cp_intc.h>
 #include <mach/da8xx.h>
+#include <mach/nand.h>
 
 #define DA850_EVM_PHY_MASK		0x1
 #define DA850_EVM_MDIO_FREQUENCY	2200000 /* PHY bus frequency */
@@ -36,6 +41,74 @@
 #define DA850_MMCSD_CD_PIN		GPIO_TO_PIN(4, 0)
 #define DA850_MMCSD_WP_PIN		GPIO_TO_PIN(4, 1)
 
+/* DA850/OMAP-L138 EVM includes a 512 MByte large-page NAND flash
+ * (128K blocks). It may be used instead of the (default) SPI flash
+ * to boot, using TI's tools to install the secondary boot loader
+ * (UBL) and U-Boot.
+ */
+struct mtd_partition da850_evm_nandflash_partition[] = {
+	{
+		.name		= "u-boot env",
+		.offset		= 0,
+		.size		= SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,
+	 },
+	{
+		.name		= "UBL",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	{
+		.name		= "u-boot",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 4 * SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	{
+		.name		= "kernel",
+		.offset		= 0x200000,
+		.size		= SZ_2M,
+		.mask_flags	= 0,
+	},
+	{
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0,
+	},
+};
+
+static struct davinci_nand_pdata da850_evm_nandflash_data = {
+	.parts		= da850_evm_nandflash_partition,
+	.nr_parts	= ARRAY_SIZE(da850_evm_nandflash_partition),
+	.ecc_mode	= NAND_ECC_HW,
+	.options	= NAND_USE_FLASH_BBT,
+};
+
+static struct resource da850_evm_nandflash_resource[] = {
+	{
+		.start	= DA8XX_AEMIF_CS3_BASE,
+		.end	= DA8XX_AEMIF_CS3_BASE + SZ_512K + 2 * SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= DA8XX_AEMIF_CTL_BASE,
+		.end	= DA8XX_AEMIF_CTL_BASE + SZ_32K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device da850_evm_nandflash_device = {
+	.name		= "davinci_nand",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &da850_evm_nandflash_data,
+	},
+	.num_resources	= ARRAY_SIZE(da850_evm_nandflash_resource),
+	.resource	= da850_evm_nandflash_resource,
+};
+
 static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
 	.bus_freq	= 100,	/* kHz */
 	.bus_delay	= 0,	/* usec */
@@ -43,6 +116,10 @@ static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
 
 static struct davinci_uart_config da850_evm_uart_config __initdata = {
 	.enabled_uarts = 0x7,
+};
+
+static struct platform_device *da850_evm_devices[] __initdata = {
+	&da850_evm_nandflash_device,
 };
 
 /* davinci da850 evm audio machine driver */
@@ -119,6 +196,14 @@ static __init void da850_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	int ret;
+
+	ret = da8xx_pinmux_setup(da850_nand_pins);
+	if (ret)
+		pr_warning("da850_evm_init: nand mux setup failed: %d\n",
+				ret);
+
+	platform_add_devices(da850_evm_devices,
+				ARRAY_SIZE(da850_evm_devices));
 
 	ret = da8xx_register_edma();
 	if (ret)
