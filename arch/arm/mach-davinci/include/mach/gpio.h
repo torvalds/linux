@@ -42,6 +42,9 @@
  */
 #define	GPIO(X)		(X)		/* 0 <= X <= (DAVINCI_N_GPIO - 1) */
 
+/* Convert GPIO signal to GPIO pin number */
+#define GPIO_TO_PIN(bank, gpio)	(16 * (bank) + (gpio))
+
 struct gpio_controller {
 	u32	dir;
 	u32	out_data;
