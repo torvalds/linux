@@ -1225,18 +1225,6 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	else
 		tbl->is_ht40 = 0;
 
-	/* FIXME: - don't toggle SGI here
-	if (tbl->is_ht40) {
-		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
-			tbl->is_SGI = 1;
-		else
-			tbl->is_SGI = 0;
-	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
-		tbl->is_SGI = 1;
-	else
-		tbl->is_SGI = 0;
-	*/
-
 	rs_set_expected_tpt_table(lq_sta, tbl);
 
 	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
@@ -1291,18 +1279,6 @@ static int rs_switch_to_mimo3(struct iwl_priv *priv,
 	else
 		tbl->is_ht40 = 0;
 
-	/* FIXME: - don't toggle SGI here
-	if (tbl->is_ht40) {
-		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
-			tbl->is_SGI = 1;
-		else
-			tbl->is_SGI = 0;
-	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
-		tbl->is_SGI = 1;
-	else
-		tbl->is_SGI = 0;
-	*/
-
 	rs_set_expected_tpt_table(lq_sta, tbl);
 
 	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
@@ -1349,18 +1325,6 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
-
-	/* FIXME: - don't toggle SGI here
-	if (tbl->is_ht40) {
-		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
-			tbl->is_SGI = 1;
-		else
-			tbl->is_SGI = 0;
-	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
-		tbl->is_SGI = 1;
-	else
-		tbl->is_SGI = 0;
-	*/
 
 	if (is_green)
 		tbl->is_SGI = 0; /*11n spec: no SGI in SISO+Greenfield*/
@@ -1530,6 +1494,7 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
@@ -1589,13 +1554,11 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 				goto out;
 			break;
 		case IWL_SISO_SWITCH_GI:
-			if (!tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_20MHZ))
+			if (!tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_20))
 				break;
-			if (tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_40MHZ))
+			if (tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_40))
 				break;
 
 			IWL_DEBUG_RATE(priv, "LQ: SISO toggle SGI/NGI\n");
@@ -1669,6 +1632,7 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
@@ -1729,13 +1693,11 @@ static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 			break;
 
 		case IWL_MIMO2_SWITCH_GI:
-			if (!tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_20MHZ))
+			if (!tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_20))
 				break;
-			if (tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_40MHZ))
+			if (tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_40))
 				break;
 
 			IWL_DEBUG_RATE(priv, "LQ: MIMO2 toggle SGI/NGI\n");
@@ -1811,6 +1773,7 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
@@ -1893,13 +1856,11 @@ static int rs_move_mimo3_to_other(struct iwl_priv *priv,
 			break;
 
 		case IWL_MIMO3_SWITCH_GI:
-			if (!tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_20MHZ))
+			if (!tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_20))
 				break;
-			if (tbl->is_ht40 &&
-				!(priv->current_ht_config.sgf &
-						HT_SHORT_GI_40MHZ))
+			if (tbl->is_ht40 && !(ht_cap->cap &
+						IEEE80211_HT_CAP_SGI_40))
 				break;
 
 			IWL_DEBUG_RATE(priv, "LQ: MIMO3 toggle SGI/NGI\n");

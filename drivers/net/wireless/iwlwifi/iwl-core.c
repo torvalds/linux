@@ -2391,11 +2391,6 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 	}
 	ht_conf = &sta->ht_cap;
 
-	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_20)
-		iwl_conf->sgf |= HT_SHORT_GI_20MHZ;
-	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_40)
-		iwl_conf->sgf |= HT_SHORT_GI_40MHZ;
-
 	iwl_conf->is_green_field = !!(ht_conf->cap & IEEE80211_HT_CAP_GRN_FLD);
 
 	iwl_conf->sm_ps = (u8)((ht_conf->cap & IEEE80211_HT_CAP_SM_PS) >> 2);

@@ -508,7 +508,6 @@ struct iwl_ht_info {
 	u8 supported_chan_width;
 	u8 sm_ps;
 	u8 is_green_field;
-	u8 sgf;			/* HT_SHORT_GI_* short guard interval */
 	struct ieee80211_mcs_info mcs;
 	/* BSS related data */
 	u8 extension_chan_offset;
@@ -727,9 +726,6 @@ struct iwl_dma_ptr {
 	void *addr;
 	size_t size;
 };
-
-#define HT_SHORT_GI_20MHZ	(1 << 0)
-#define HT_SHORT_GI_40MHZ	(1 << 1)
 
 #define IWL_CHANNEL_WIDTH_20MHZ   0
 #define IWL_CHANNEL_WIDTH_40MHZ   1
