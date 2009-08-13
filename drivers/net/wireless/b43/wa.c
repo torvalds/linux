@@ -37,7 +37,7 @@ static void b43_wa_papd(struct b43_wldev *dev)
 	backup = b43_ofdmtab_read16(dev, B43_OFDMTAB_PWRDYN2, 0);
 	b43_ofdmtab_write16(dev, B43_OFDMTAB_PWRDYN2, 0, 7);
 	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKNOWN_APHY, 0, 0);
-	b43_dummy_transmission(dev);
+	b43_dummy_transmission(dev, true, true);
 	b43_ofdmtab_write16(dev, B43_OFDMTAB_PWRDYN2, 0, backup);
 }
 

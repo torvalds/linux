@@ -691,9 +691,9 @@ static void b43_synchronize_irq(struct b43_wldev *dev)
 }
 
 /* DummyTransmission function, as documented on
- * http://bcm-specs.sipsolutions.net/DummyTransmission
+ * http://bcm-v4.sipsolutions.net/802.11/DummyTransmission
  */
-void b43_dummy_transmission(struct b43_wldev *dev)
+void b43_dummy_transmission(struct b43_wldev *dev, bool ofdm, bool pa_on)
 {
 	struct b43_wl *wl = dev->wl;
 	struct b43_phy *phy = &dev->phy;
@@ -707,19 +707,12 @@ void b43_dummy_transmission(struct b43_wldev *dev)
 		0x00000000,
 	};
 
-	switch (phy->type) {
-	case B43_PHYTYPE_A:
+	if (ofdm) {
 		max_loop = 0x1E;
 		buffer[0] = 0x000201CC;
-		break;
-	case B43_PHYTYPE_B:
-	case B43_PHYTYPE_G:
+	} else {
 		max_loop = 0xFA;
 		buffer[0] = 0x000B846E;
-		break;
-	default:
-		B43_WARN_ON(1);
-		return;
 	}
 
 	spin_lock_irq(&wl->irq_lock);
@@ -728,20 +721,35 @@ void b43_dummy_transmission(struct b43_wldev *dev)
 	for (i = 0; i < 5; i++)
 		b43_ram_write(dev, i * 4, buffer[i]);
 
-	/* Commit writes */
-	b43_read32(dev, B43_MMIO_MACCTL);
-
 	b43_write16(dev, 0x0568, 0x0000);
-	b43_write16(dev, 0x07C0, 0x0000);
-	value = ((phy->type == B43_PHYTYPE_A) ? 1 : 0);
+	if (dev->dev->id.revision < 11)
+		b43_write16(dev, 0x07C0, 0x0000);
+	else
+		b43_write16(dev, 0x07C0, 0x0100);
+	value = (ofdm ? 0x41 : 0x40);
 	b43_write16(dev, 0x050C, value);
+	if ((phy->type == B43_PHYTYPE_N) || (phy->type == B43_PHYTYPE_LP))
+		b43_write16(dev, 0x0514, 0x1A02);
 	b43_write16(dev, 0x0508, 0x0000);
 	b43_write16(dev, 0x050A, 0x0000);
 	b43_write16(dev, 0x054C, 0x0000);
 	b43_write16(dev, 0x056A, 0x0014);
 	b43_write16(dev, 0x0568, 0x0826);
 	b43_write16(dev, 0x0500, 0x0000);
-	b43_write16(dev, 0x0502, 0x0030);
+	if (!pa_on && (phy->type == B43_PHYTYPE_N)) {
+		//SPEC TODO
+	}
+
+	switch (phy->type) {
+	case B43_PHYTYPE_N:
+		b43_write16(dev, 0x0502, 0x00D0);
+		break;
+	case B43_PHYTYPE_LP:
+		b43_write16(dev, 0x0502, 0x0050);
+		break;
+	default:
+		b43_write16(dev, 0x0502, 0x0030);
+	}
 
 	if (phy->radio_ver == 0x2050 && phy->radio_rev <= 0x5)
 		b43_radio_write16(dev, 0x0051, 0x0017);

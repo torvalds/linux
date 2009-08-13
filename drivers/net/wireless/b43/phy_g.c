@@ -333,7 +333,7 @@ static void b43_set_all_gains(struct b43_wldev *dev,
 		b43_phy_maskset(dev, 0x04A1, 0xBFBF, tmp);
 		b43_phy_maskset(dev, 0x04A2, 0xBFBF, tmp);
 	}
-	b43_dummy_transmission(dev);
+	b43_dummy_transmission(dev, false, true);
 }
 
 static void b43_set_original_gains(struct b43_wldev *dev)
@@ -365,7 +365,7 @@ static void b43_set_original_gains(struct b43_wldev *dev)
 	b43_phy_maskset(dev, 0x04A0, 0xBFBF, 0x4040);
 	b43_phy_maskset(dev, 0x04A1, 0xBFBF, 0x4040);
 	b43_phy_maskset(dev, 0x04A2, 0xBFBF, 0x4000);
-	b43_dummy_transmission(dev);
+	b43_dummy_transmission(dev, false, true);
 }
 
 /* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
@@ -1964,7 +1964,7 @@ static void b43_phy_init_pctl(struct b43_wldev *dev)
 			}
 			b43_set_txpower_g(dev, &bbatt, &rfatt, 0);
 		}
-		b43_dummy_transmission(dev);
+		b43_dummy_transmission(dev, false, true);
 		gphy->cur_idle_tssi = b43_phy_read(dev, B43_PHY_ITSSI);
 		if (B43_DEBUG) {
 			/* Current-Idle-TSSI sanity check. */
