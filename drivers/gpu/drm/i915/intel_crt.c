@@ -156,6 +156,9 @@ static bool intel_igdng_crt_detect_hotplug(struct drm_connector *connector)
 
 	temp = adpa = I915_READ(PCH_ADPA);
 
+	adpa &= ~ADPA_DAC_ENABLE;
+	I915_WRITE(PCH_ADPA, adpa);
+
 	adpa &= ~ADPA_CRT_HOTPLUG_MASK;
 
 	adpa |= (ADPA_CRT_HOTPLUG_PERIOD_128 |
@@ -169,13 +172,14 @@ static bool intel_igdng_crt_detect_hotplug(struct drm_connector *connector)
 	DRM_DEBUG("pch crt adpa 0x%x", adpa);
 	I915_WRITE(PCH_ADPA, adpa);
 
-	/* This might not be needed as not specified in spec...*/
-	udelay(1000);
+	while ((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) != 0)
+		;
 
 	/* Check the status to see if both blue and green are on now */
 	adpa = I915_READ(PCH_ADPA);
-	if ((adpa & ADPA_CRT_HOTPLUG_MONITOR_MASK) ==
-			ADPA_CRT_HOTPLUG_MONITOR_COLOR)
+	adpa &= ADPA_CRT_HOTPLUG_MONITOR_MASK;
+	if ((adpa == ADPA_CRT_HOTPLUG_MONITOR_COLOR) ||
+		(adpa == ADPA_CRT_HOTPLUG_MONITOR_MONO))
 		ret = true;
 	else
 		ret = false;

@@ -43,9 +43,6 @@
 #include "rtmp_type.h"
 #include <linux/module.h>
 #include <linux/kernel.h>
-#if !defined(RT2860) && !defined(RT30xx)
-#include <linux/kthread.h>
-#endif
 
 #include <linux/spinlock.h>
 #include <linux/init.h>
@@ -166,9 +163,7 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 
 #ifndef RT30xx
 typedef	struct pid *	THREAD_PID;
-#ifdef RT2860
 #define	THREAD_PID_INIT_VALUE	NULL
-#endif
 #define	GET_PID(_v)	find_get_pid(_v)
 #define	GET_PID_NUMBER(_v)	pid_nr(_v)
 #define CHECK_PID_LEGALITY(_pid)	if (pid_nr(_pid) >= 0)
@@ -188,12 +183,12 @@ struct os_cookie {
 	dma_addr_t		  		pAd_pa;
 #endif
 #ifdef RT2870
-	struct usb_device	*pUsb_Dev;
+	struct usb_device		*pUsb_Dev;
 
 #ifndef RT30xx
-	struct task_struct	*MLMEThr_task;
-	struct task_struct	*RTUSBCmdThr_task;
-	struct task_struct	*TimerQThr_task;
+	THREAD_PID				MLMEThr_pid;
+	THREAD_PID				RTUSBCmdThr_pid;
+	THREAD_PID				TimerQThr_pid;
 #endif
 #ifdef RT30xx
 	struct pid	*MLMEThr_pid;

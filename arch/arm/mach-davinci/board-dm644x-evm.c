@@ -45,7 +45,6 @@
 #include <mach/nand.h>
 #include <mach/mmc.h>
 #include <mach/emac.h>
-#include <mach/common.h>
 
 #define DM644X_EVM_PHY_MASK		(0x2)
 #define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */

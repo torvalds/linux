@@ -31,6 +31,8 @@
 #include "lgdt330x.h"
 #include "zl10353.h"
 #include "s5h1409.h"
+#include "mt352.h"
+#include "mt352_priv.h" /* FIXME */
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -243,7 +245,7 @@ static struct s5h1409_config em28xx_s5h1409_with_xc3028 = {
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK
 };
 
-static struct zl10353_config em28xx_terratec_xs_zl10353_xc3028 = {
+static struct zl10353_config em28xx_zl10353_xc3028_no_i2c_gate = {
 	.demod_address = (0x1e >> 1),
 	.no_tuner = 1,
 	.disable_i2c_gate_ctrl = 1,
@@ -257,6 +259,41 @@ static struct drx397xD_config em28xx_drx397xD_with_xc3028 = {
 	.demod_address = (0xe0 >> 1),
 };
 #endif
+
+static int mt352_terratec_xs_init(struct dvb_frontend *fe)
+{
+	/* Values extracted from a USB trace of the Terratec Windows driver */
+	static u8 clock_config[]   = { CLOCK_CTL,  0x38, 0x2c };
+	static u8 reset[]          = { RESET,      0x80 };
+	static u8 adc_ctl_1_cfg[]  = { ADC_CTL_1,  0x40 };
+	static u8 agc_cfg[]        = { AGC_TARGET, 0x28, 0xa0 };
+	static u8 input_freq_cfg[] = { INPUT_FREQ_1, 0x31, 0xb8 };
+	static u8 rs_err_cfg[]     = { RS_ERR_PER_1, 0x00, 0x4d };
+	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x32 };
+	static u8 trl_nom_cfg[]    = { TRL_NOMINAL_RATE_1, 0x64, 0x00 };
+	static u8 tps_given_cfg[]  = { TPS_GIVEN_1, 0x40, 0x80, 0x50 };
+	static u8 tuner_go[]       = { TUNER_GO, 0x01};
+
+	mt352_write(fe, clock_config,   sizeof(clock_config));
+	udelay(200);
+	mt352_write(fe, reset,          sizeof(reset));
+	mt352_write(fe, adc_ctl_1_cfg,  sizeof(adc_ctl_1_cfg));
+	mt352_write(fe, agc_cfg,        sizeof(agc_cfg));
+	mt352_write(fe, input_freq_cfg, sizeof(input_freq_cfg));
+	mt352_write(fe, rs_err_cfg,     sizeof(rs_err_cfg));
+	mt352_write(fe, capt_range_cfg, sizeof(capt_range_cfg));
+	mt352_write(fe, trl_nom_cfg,    sizeof(trl_nom_cfg));
+	mt352_write(fe, tps_given_cfg,  sizeof(tps_given_cfg));
+	mt352_write(fe, tuner_go,       sizeof(tuner_go));
+	return 0;
+}
+
+static struct mt352_config terratec_xs_mt352_cfg = {
+	.demod_address = (0x1e >> 1),
+	.no_tuner = 1,
+	.if2 = 45600,
+	.demod_init = mt352_terratec_xs_init,
+};
 
 /* ------------------------------------------------------------------ */
 
@@ -440,7 +477,6 @@ static int dvb_init(struct em28xx *dev)
 			goto out_free;
 		}
 		break;
-	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2880_BOARD_KWORLD_DVB_310U:
 	case EM2880_BOARD_EMPIRE_DUAL_TV:
 		dvb->frontend = dvb_attach(zl10353_attach,
@@ -451,20 +487,28 @@ static int dvb_init(struct em28xx *dev)
 			goto out_free;
 		}
 		break;
-	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 		dvb->frontend = dvb_attach(zl10353_attach,
-					   &em28xx_terratec_xs_zl10353_xc3028,
+					   &em28xx_zl10353_xc3028_no_i2c_gate,
+					   &dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		break;
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
+		dvb->frontend = dvb_attach(zl10353_attach,
+					   &em28xx_zl10353_xc3028_no_i2c_gate,
 					   &dev->i2c_adap);
 		if (dvb->frontend == NULL) {
 			/* This board could have either a zl10353 or a mt352.
 			   If the chip id isn't for zl10353, try mt352 */
-
-			/* FIXME: make support for mt352 work */
-			printk(KERN_ERR "version of this board with mt352 not "
-			       "currently supported\n");
-			result = -EINVAL;
-			goto out_free;
+			dvb->frontend = dvb_attach(mt352_attach,
+						   &terratec_xs_mt352_cfg,
+						   &dev->i2c_adap);
 		}
+
 		if (attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
 			goto out_free;

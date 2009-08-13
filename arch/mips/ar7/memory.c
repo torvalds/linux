@@ -52,7 +52,7 @@ static int __init memsize(void)
 		size <<= 1;
 	} while (size < (64 << 20));
 
-	writel(tmpaddr, &addr);
+	writel((u32)tmpaddr, &addr);
 
 	return size;
 }

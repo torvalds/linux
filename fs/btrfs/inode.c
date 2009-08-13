@@ -2603,8 +2603,8 @@ noinline int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	if (root->ref_cows)
 		btrfs_drop_extent_cache(inode, new_size & (~mask), (u64)-1, 0);
 	path = btrfs_alloc_path();
-	path->reada = -1;
 	BUG_ON(!path);
+	path->reada = -1;
 
 	/* FIXME, add redo link to tree so we don't leak on crash */
 	key.objectid = inode->i_ino;
@@ -4785,8 +4785,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * and the replacement file is large.  Start IO on it now so
 	 * we don't add too much work to the end of the transaction
 	 */
-	if (new_inode && old_inode && S_ISREG(old_inode->i_mode) &&
-	    new_inode->i_size &&
+	if (new_inode && S_ISREG(old_inode->i_mode) && new_inode->i_size &&
 	    old_inode->i_size > BTRFS_ORDERED_OPERATIONS_FLUSH_LIMIT)
 		filemap_flush(old_inode->i_mapping);
 

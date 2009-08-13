@@ -735,6 +735,7 @@ ring_buffer_free(struct ring_buffer *buffer)
 
 	put_online_cpus();
 
+	kfree(buffer->buffers);
 	free_cpumask_var(buffer->cpumask);
 
 	kfree(buffer);
@@ -1785,7 +1786,7 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	 */
 	RB_WARN_ON(buffer, !local_read(&cpu_buffer->committing));
 
-	if (!rb_try_to_discard(cpu_buffer, event))
+	if (rb_try_to_discard(cpu_buffer, event))
 		goto out;
 
 	/*
@@ -2383,7 +2384,6 @@ rb_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 		 * the box. Return the padding, and we will release
 		 * the current locks, and try again.
 		 */
-		rb_advance_reader(cpu_buffer);
 		return event;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
@@ -2486,7 +2486,7 @@ static inline int rb_ok_to_lock(void)
 	 * buffer too. A one time deal is all you get from reading
 	 * the ring buffer from an NMI.
 	 */
-	if (likely(!in_nmi() && !oops_in_progress))
+	if (likely(!in_nmi()))
 		return 1;
 
 	tracing_off_permanent();
@@ -2519,6 +2519,8 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	if (dolock)
 		spin_lock(&cpu_buffer->reader_lock);
 	event = rb_buffer_peek(buffer, cpu, ts);
+	if (event && event->type_len == RINGBUF_TYPE_PADDING)
+		rb_advance_reader(cpu_buffer);
 	if (dolock)
 		spin_unlock(&cpu_buffer->reader_lock);
 	local_irq_restore(flags);
@@ -2590,12 +2592,9 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
 		spin_lock(&cpu_buffer->reader_lock);
 
 	event = rb_buffer_peek(buffer, cpu, ts);
-	if (!event)
-		goto out_unlock;
+	if (event)
+		rb_advance_reader(cpu_buffer);
 
-	rb_advance_reader(cpu_buffer);
-
- out_unlock:
 	if (dolock)
 		spin_unlock(&cpu_buffer->reader_lock);
 	local_irq_restore(flags);

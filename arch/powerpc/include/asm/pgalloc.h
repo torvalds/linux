@@ -38,14 +38,14 @@ static inline pgtable_free_t pgtable_free_cache(void *p, int cachenum,
 extern void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
 
 #ifdef CONFIG_SMP
-#define __pte_free_tlb(tlb,ptepage)	\
+#define __pte_free_tlb(tlb,ptepage,address)		\
 do { \
 	pgtable_page_dtor(ptepage); \
 	pgtable_free_tlb(tlb, pgtable_free_cache(page_address(ptepage), \
-		PTE_NONCACHE_NUM, PTE_TABLE_SIZE-1)); \
+					PTE_NONCACHE_NUM, PTE_TABLE_SIZE-1)); \
 } while (0)
 #else
-#define __pte_free_tlb(tlb, pte)	pte_free((tlb)->mm, (pte))
+#define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, (pte))
 #endif
 
 

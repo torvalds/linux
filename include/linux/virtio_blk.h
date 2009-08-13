@@ -20,8 +20,7 @@
 
 #define VIRTIO_BLK_ID_BYTES	(sizeof(__u16[256]))	/* IDENTIFY DATA */
 
-struct virtio_blk_config
-{
+struct virtio_blk_config {
 	/* The capacity (in 512-byte sectors). */
 	__u64 capacity;
 	/* The maximum segment size (if VIRTIO_BLK_F_SIZE_MAX) */
@@ -50,8 +49,7 @@ struct virtio_blk_config
 #define VIRTIO_BLK_T_BARRIER	0x80000000
 
 /* This is the first element of the read scatter-gather list. */
-struct virtio_blk_outhdr
-{
+struct virtio_blk_outhdr {
 	/* VIRTIO_BLK_T* */
 	__u32 type;
 	/* io priority. */

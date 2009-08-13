@@ -1,3 +1,10 @@
+Version 1.60
+-------------
+Fix memory leak in reconnect.  Fix oops in DFS mount error path.
+Set s_maxbytes to smaller (the max that vfs can handle) so that
+sendfile will now work over cifs mounts again.  Add noforcegid
+and noforceuid mount parameters.
+
 Version 1.59
 ------------
 Client uses server inode numbers (which are persistent) rather than

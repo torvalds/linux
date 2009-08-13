@@ -151,7 +151,7 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 			addr6 = addr;
 			mask6 = mask;
 			map6 = kzalloc(sizeof(*map6), GFP_ATOMIC);
-			if (map4 == NULL)
+			if (map6 == NULL)
 				goto cfg_unlbl_map_add_failure;
 			map6->type = NETLBL_NLTYPE_UNLABELED;
 			ipv6_addr_copy(&map6->list.addr, addr6);

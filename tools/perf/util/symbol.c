@@ -6,7 +6,16 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
+
+#ifndef NO_DEMANGLE
 #include <bfd.h>
+#else
+static inline
+char *bfd_demangle(void __used *v, const char __used *c, int __used i)
+{
+	return NULL;
+}
+#endif
 
 const char *sym_hist_filter;
 
@@ -14,6 +23,16 @@ const char *sym_hist_filter;
 #define DMGL_PARAMS      (1 << 0)       /* Include function args */
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
 #endif
+
+enum dso_origin {
+	DSO__ORIG_KERNEL = 0,
+	DSO__ORIG_JAVA_JIT,
+	DSO__ORIG_FEDORA,
+	DSO__ORIG_UBUNTU,
+	DSO__ORIG_BUILDID,
+	DSO__ORIG_DSO,
+	DSO__ORIG_NOT_FOUND,
+};
 
 static struct symbol *symbol__new(u64 start, u64 len,
 				  const char *name, unsigned int priv_size,
@@ -72,6 +91,7 @@ struct dso *dso__new(const char *name, unsigned int sym_priv_size)
 		self->sym_priv_size = sym_priv_size;
 		self->find_symbol = dso__find_symbol;
 		self->slen_calculated = 0;
+		self->origin = DSO__ORIG_NOT_FOUND;
 	}
 
 	return self;
@@ -565,7 +585,7 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 		goto out_elf_end;
 
 	secstrs = elf_getdata(sec_strndx, NULL);
-	if (symstrs == NULL)
+	if (secstrs == NULL)
 		goto out_elf_end;
 
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
@@ -652,11 +672,85 @@ out_close:
 	return err;
 }
 
+#define BUILD_ID_SIZE 128
+
+static char *dso__read_build_id(struct dso *self, int verbose)
+{
+	int i;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	Elf_Data *build_id_data;
+	Elf_Scn *sec;
+	char *build_id = NULL, *bid;
+	unsigned char *raw;
+	Elf *elf;
+	int fd = open(self->name, O_RDONLY);
+
+	if (fd < 0)
+		goto out;
+
+	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
+	if (elf == NULL) {
+		if (verbose)
+			fprintf(stderr, "%s: cannot read %s ELF file.\n",
+				__func__, self->name);
+		goto out_close;
+	}
+
+	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		if (verbose)
+			fprintf(stderr, "%s: cannot get elf header.\n", __func__);
+		goto out_elf_end;
+	}
+
+	sec = elf_section_by_name(elf, &ehdr, &shdr, ".note.gnu.build-id", NULL);
+	if (sec == NULL)
+		goto out_elf_end;
+
+	build_id_data = elf_getdata(sec, NULL);
+	if (build_id_data == NULL)
+		goto out_elf_end;
+	build_id = malloc(BUILD_ID_SIZE);
+	if (build_id == NULL)
+		goto out_elf_end;
+	raw = build_id_data->d_buf + 16;
+	bid = build_id;
+
+	for (i = 0; i < 20; ++i) {
+		sprintf(bid, "%02x", *raw);
+		++raw;
+		bid += 2;
+	}
+	if (verbose >= 2)
+		printf("%s(%s): %s\n", __func__, self->name, build_id);
+out_elf_end:
+	elf_end(elf);
+out_close:
+	close(fd);
+out:
+	return build_id;
+}
+
+char dso__symtab_origin(const struct dso *self)
+{
+	static const char origin[] = {
+		[DSO__ORIG_KERNEL] =   'k',
+		[DSO__ORIG_JAVA_JIT] = 'j',
+		[DSO__ORIG_FEDORA] =   'f',
+		[DSO__ORIG_UBUNTU] =   'u',
+		[DSO__ORIG_BUILDID] =  'b',
+		[DSO__ORIG_DSO] =      'd',
+	};
+
+	if (self == NULL || self->origin == DSO__ORIG_NOT_FOUND)
+		return '!';
+	return origin[self->origin];
+}
+
 int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 {
-	int size = strlen(self->name) + sizeof("/usr/lib/debug%s.debug");
-	char *name = malloc(size);
-	int variant = 0;
+	int size = PATH_MAX;
+	char *name = malloc(size), *build_id = NULL;
 	int ret = -1;
 	int fd;
 
@@ -665,26 +759,43 @@ int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 
 	self->adjust_symbols = 0;
 
-	if (strncmp(self->name, "/tmp/perf-", 10) == 0)
-		return dso__load_perf_map(self, filter, verbose);
+	if (strncmp(self->name, "/tmp/perf-", 10) == 0) {
+		ret = dso__load_perf_map(self, filter, verbose);
+		self->origin = ret > 0 ? DSO__ORIG_JAVA_JIT :
+					 DSO__ORIG_NOT_FOUND;
+		return ret;
+	}
+
+	self->origin = DSO__ORIG_FEDORA - 1;
 
 more:
 	do {
-		switch (variant) {
-		case 0: /* Fedora */
+		self->origin++;
+		switch (self->origin) {
+		case DSO__ORIG_FEDORA:
 			snprintf(name, size, "/usr/lib/debug%s.debug", self->name);
 			break;
-		case 1: /* Ubuntu */
+		case DSO__ORIG_UBUNTU:
 			snprintf(name, size, "/usr/lib/debug%s", self->name);
 			break;
-		case 2: /* Sane people */
+		case DSO__ORIG_BUILDID:
+			build_id = dso__read_build_id(self, verbose);
+			if (build_id != NULL) {
+				snprintf(name, size,
+					 "/usr/lib/debug/.build-id/%.2s/%s.debug",
+					build_id, build_id + 2);
+				free(build_id);
+				break;
+			}
+			self->origin++;
+			/* Fall thru */
+		case DSO__ORIG_DSO:
 			snprintf(name, size, "%s", self->name);
 			break;
 
 		default:
 			goto out;
 		}
-		variant++;
 
 		fd = open(name, O_RDONLY);
 	} while (fd < 0);
@@ -819,6 +930,9 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 
 	if (err <= 0)
 		err = dso__load_kallsyms(self, filter, verbose);
+
+	if (err > 0)
+		self->origin = DSO__ORIG_KERNEL;
 
 	return err;
 }
