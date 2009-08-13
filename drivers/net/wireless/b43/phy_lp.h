@@ -884,6 +884,8 @@ struct b43_phy_lp {
 
 	/* Used for "Save/Restore Dig Filt State" */
 	u16 dig_flt_state[9];
+
+	unsigned int pdiv;
 };
 
 enum tssi_mux_mode {

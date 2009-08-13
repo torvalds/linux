@@ -455,8 +455,9 @@ struct b2062_freqdata {
 /* Initialize the 2062 radio. */
 static void lpphy_2062_init(struct b43_wldev *dev)
 {
+	struct b43_phy_lp *lpphy = dev->phy.lp;
 	struct ssb_bus *bus = dev->dev->bus;
-	u32 crystalfreq, pdiv, tmp, ref;
+	u32 crystalfreq, tmp, ref;
 	unsigned int i;
 	const struct b2062_freqdata *fd = NULL;
 
@@ -496,22 +497,24 @@ static void lpphy_2062_init(struct b43_wldev *dev)
 	B43_WARN_ON(crystalfreq == 0);
 
 	if (crystalfreq >= 30000000) {
-		pdiv = 1;
+		lpphy->pdiv = 1;
 		b43_radio_mask(dev, B2062_S_RFPLL_CTL1, 0xFFFB);
 	} else {
-		pdiv = 2;
+		lpphy->pdiv = 2;
 		b43_radio_set(dev, B2062_S_RFPLL_CTL1, 0x4);
 	}
 
-	tmp = (800000000 * pdiv + crystalfreq) / (32000000 * pdiv);
+	tmp = (800000000 * lpphy->pdiv + crystalfreq) /
+	      (32000000 * lpphy->pdiv);
 	tmp = (tmp - 1) & 0xFF;
 	b43_radio_write(dev, B2062_S_RFPLL_CTL18, tmp);
 
-	tmp = (2 * crystalfreq + 1000000 * pdiv) / (2000000 * pdiv);
+	tmp = (2 * crystalfreq + 1000000 * lpphy->pdiv) /
+	      (2000000 * lpphy->pdiv);
 	tmp = ((tmp & 0xFF) - 1) & 0xFFFF;
 	b43_radio_write(dev, B2062_S_RFPLL_CTL19, tmp);
 
-	ref = (1000 * pdiv + 2 * crystalfreq) / (2000 * pdiv);
+	ref = (1000 * lpphy->pdiv + 2 * crystalfreq) / (2000 * lpphy->pdiv);
 	ref &= 0xFFFF;
 	for (i = 0; i < ARRAY_SIZE(freqdata_tab); i++) {
 		if (ref < freqdata_tab[i].freq) {
@@ -1431,6 +1434,162 @@ struct b206x_channel {
 	u8 data[12];
 };
 
+static const struct b206x_channel b2062_chantbl[] = {
+	{ .channel = 1, .freq = 2412, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 2, .freq = 2417, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 3, .freq = 2422, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 4, .freq = 2427, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 5, .freq = 2432, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 6, .freq = 2437, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 7, .freq = 2442, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 8, .freq = 2447, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 9, .freq = 2452, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 10, .freq = 2457, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 11, .freq = 2462, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 12, .freq = 2467, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 13, .freq = 2472, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 14, .freq = 2484, .data[0] = 0xFF, .data[1] = 0xFF,
+	  .data[2] = 0xB5, .data[3] = 0x1B, .data[4] = 0x24, .data[5] = 0x32,
+	  .data[6] = 0x32, .data[7] = 0x88, .data[8] = 0x88, },
+	{ .channel = 34, .freq = 5170, .data[0] = 0x00, .data[1] = 0x22,
+	  .data[2] = 0x20, .data[3] = 0x84, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 38, .freq = 5190, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x10, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 42, .freq = 5210, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x10, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 46, .freq = 5230, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 36, .freq = 5180, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x20, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 40, .freq = 5200, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x10, .data[3] = 0x84, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 44, .freq = 5220, .data[0] = 0x00, .data[1] = 0x11,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 48, .freq = 5240, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 52, .freq = 5260, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 56, .freq = 5280, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x83, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 60, .freq = 5300, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x63, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 64, .freq = 5320, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x62, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 100, .freq = 5500, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x30, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 104, .freq = 5520, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x20, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 108, .freq = 5540, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x20, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 112, .freq = 5560, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x20, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 116, .freq = 5580, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x10, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 120, .freq = 5600, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 124, .freq = 5620, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 128, .freq = 5640, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 132, .freq = 5660, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 136, .freq = 5680, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 140, .freq = 5700, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 149, .freq = 5745, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 153, .freq = 5765, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 157, .freq = 5785, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 161, .freq = 5805, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 165, .freq = 5825, .data[0] = 0x00, .data[1] = 0x00,
+	  .data[2] = 0x00, .data[3] = 0x00, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x37, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 184, .freq = 4920, .data[0] = 0x55, .data[1] = 0x77,
+	  .data[2] = 0x90, .data[3] = 0xF7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 188, .freq = 4940, .data[0] = 0x44, .data[1] = 0x77,
+	  .data[2] = 0x80, .data[3] = 0xE7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 192, .freq = 4960, .data[0] = 0x44, .data[1] = 0x66,
+	  .data[2] = 0x80, .data[3] = 0xE7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 196, .freq = 4980, .data[0] = 0x33, .data[1] = 0x66,
+	  .data[2] = 0x70, .data[3] = 0xC7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 200, .freq = 5000, .data[0] = 0x22, .data[1] = 0x55,
+	  .data[2] = 0x60, .data[3] = 0xD7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 204, .freq = 5020, .data[0] = 0x22, .data[1] = 0x55,
+	  .data[2] = 0x60, .data[3] = 0xC7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 208, .freq = 5040, .data[0] = 0x22, .data[1] = 0x44,
+	  .data[2] = 0x50, .data[3] = 0xC7, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0xFF, },
+	{ .channel = 212, .freq = 5060, .data[0] = 0x11, .data[1] = 0x44,
+	  .data[2] = 0x50, .data[3] = 0xA5, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+	{ .channel = 216, .freq = 5080, .data[0] = 0x00, .data[1] = 0x44,
+	  .data[2] = 0x40, .data[3] = 0xB6, .data[4] = 0x3C, .data[5] = 0x77,
+	  .data[6] = 0x35, .data[7] = 0xFF, .data[8] = 0x88, },
+};
+
 static const struct b206x_channel b2063_chantbl[] = {
 	{ .channel = 1, .freq = 2412, .data[0] = 0x6F, .data[1] = 0x3C,
 	  .data[2] = 0x3C, .data[3] = 0x04, .data[4] = 0x05, .data[5] = 0x05,
@@ -1638,10 +1797,110 @@ static const struct b206x_channel b2063_chantbl[] = {
 	  .data[10] = 0x40, .data[11] = 0x00, },
 };
 
-static void lpphy_b2062_tune(struct b43_wldev *dev,
-			     unsigned int channel)
+static void lpphy_b2062_reset_pll_bias(struct b43_wldev *dev)
 {
-	//TODO
+	struct ssb_bus *bus = dev->dev->bus;
+
+	b43_radio_write(dev, B2062_S_RFPLL_CTL2, 0xFF);
+	udelay(20);
+	if (bus->chip_id == 0x5354) {
+		b43_radio_write(dev, B2062_N_COMM1, 4);
+		b43_radio_write(dev, B2062_S_RFPLL_CTL2, 4);
+	} else {
+		b43_radio_write(dev, B2062_S_RFPLL_CTL2, 0);
+	}
+	udelay(5);
+}
+
+static void lpphy_b2062_vco_calib(struct b43_wldev *dev)
+{
+	b43_phy_write(dev, B2062_S_RFPLL_CTL21, 0x42);
+	b43_phy_write(dev, B2062_S_RFPLL_CTL21, 0x62);
+	udelay(200);
+}
+
+static int lpphy_b2062_tune(struct b43_wldev *dev,
+			    unsigned int channel)
+{
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+	struct ssb_bus *bus = dev->dev->bus;
+	static const struct b206x_channel *chandata = NULL;
+	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;
+	u32 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9;
+	int i, err = 0;
+
+	for (i = 0; i < ARRAY_SIZE(b2063_chantbl); i++) {
+		if (b2063_chantbl[i].channel == channel) {
+			chandata = &b2063_chantbl[i];
+			break;
+		}
+	}
+
+	if (B43_WARN_ON(!chandata))
+		return -EINVAL;
+
+	b43_radio_set(dev, B2062_S_RFPLL_CTL14, 0x04);
+	b43_radio_write(dev, B2062_N_LGENA_TUNE0, chandata->data[0]);
+	b43_radio_write(dev, B2062_N_LGENA_TUNE2, chandata->data[1]);
+	b43_radio_write(dev, B2062_N_LGENA_TUNE3, chandata->data[2]);
+	b43_radio_write(dev, B2062_N_TX_TUNE, chandata->data[3]);
+	b43_radio_write(dev, B2062_S_LGENG_CTL1, chandata->data[4]);
+	b43_radio_write(dev, B2062_N_LGENA_CTL5, chandata->data[5]);
+	b43_radio_write(dev, B2062_N_LGENA_CTL6, chandata->data[6]);
+	b43_radio_write(dev, B2062_N_TX_PGA, chandata->data[7]);
+	b43_radio_write(dev, B2062_N_TX_PAD, chandata->data[8]);
+
+	tmp1 = crystal_freq / 1000;
+	tmp2 = lpphy->pdiv * 1000;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL33, 0xCC);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL34, 0x07);
+	lpphy_b2062_reset_pll_bias(dev);
+	tmp3 = tmp2 * channel2freq_lp(channel);
+	if (channel2freq_lp(channel) < 4000)
+		tmp3 *= 2;
+	tmp4 = 48 * tmp1;
+	tmp6 = tmp3 / tmp4;
+	tmp7 = tmp3 % tmp4;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL26, tmp6);
+	tmp5 = tmp7 * 0x100;
+	tmp6 = tmp5 / tmp4;
+	tmp7 = tmp5 % tmp4;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL28, tmp6);
+	tmp5 = tmp7 * 0x100;
+	tmp6 = tmp5 / tmp4;
+	tmp7 = tmp5 % tmp4;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL29, tmp6 + ((2 * tmp7) / tmp4));
+	tmp8 = b43_phy_read(dev, B2062_S_RFPLL_CTL19);
+	tmp9 = ((2 * tmp3 * (tmp8 + 1)) + (3 * tmp1)) / (6 * tmp1);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL23, tmp9 >> 8);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL24, tmp9 & 0xFF);
+
+	lpphy_b2062_vco_calib(dev);
+	if (b43_radio_read(dev, B2062_S_RFPLL_CTL3) & 0x10) {
+		b43_radio_write(dev, B2062_S_RFPLL_CTL33, 0xFC);
+		b43_radio_write(dev, B2062_S_RFPLL_CTL34, 0);
+		lpphy_b2062_reset_pll_bias(dev);
+		lpphy_b2062_vco_calib(dev);
+		if (b43_radio_read(dev, B2062_S_RFPLL_CTL3) & 0x10)
+			err = -EINVAL;
+	}
+
+	b43_radio_mask(dev, B2062_S_RFPLL_CTL14, ~0x04);
+	return err;
+}
+
+static void lpphy_japan_filter(struct b43_wldev *dev, int channel)
+{
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+	u16 tmp = (channel == 14); //SPEC FIXME check japanwidefilter!
+
+	if (dev->phy.rev < 2) { //SPEC FIXME Isn't this rev0/1-specific?
+		b43_phy_maskset(dev, B43_LPPHY_LP_PHY_CTL, 0xFCFF, tmp << 9);
+		if ((dev->phy.rev == 1) && (lpphy->rc_cap))
+			lpphy_set_rc_cap(dev);
+	} else {
+		b43_radio_write(dev, B2063_TX_BB_SP3, 0x3F);
+	}
 }
 
 static void lpphy_b2063_vco_calib(struct b43_wldev *dev)
@@ -1661,8 +1920,8 @@ static void lpphy_b2063_vco_calib(struct b43_wldev *dev)
 	b43_phy_set(dev, B2063_PLL_SP1, 0x40);
 }
 
-static void lpphy_b2063_tune(struct b43_wldev *dev,
-			     unsigned int channel)
+static int lpphy_b2063_tune(struct b43_wldev *dev,
+			    unsigned int channel)
 {
 	struct ssb_bus *bus = dev->dev->bus;
 
@@ -1681,7 +1940,7 @@ static void lpphy_b2063_tune(struct b43_wldev *dev,
 	}
 
 	if (B43_WARN_ON(!chandata))
-		return;
+		return -EINVAL;
 
 	b43_radio_write(dev, B2063_LOGEN_VCOBUF1, chandata->data[0]);
 	b43_radio_write(dev, B2063_LOGEN_MIXER2, chandata->data[1]);
@@ -1780,18 +2039,26 @@ static void lpphy_b2063_tune(struct b43_wldev *dev,
 	b43_phy_mask(dev, B2063_PLL_SP2, 0xFFFC);
 	lpphy_b2063_vco_calib(dev);
 	b43_radio_write(dev, B2063_COMM15, old_comm15);
+
+	return 0;
 }
 
 static int b43_lpphy_op_switch_channel(struct b43_wldev *dev,
 				       unsigned int new_channel)
 {
+	int err;
+
 	b43_write16(dev, B43_MMIO_CHANNEL, new_channel);
 
 	if (dev->phy.radio_ver == 0x2063) {
-		lpphy_b2063_tune(dev, new_channel);
+		err = lpphy_b2063_tune(dev, new_channel);
+		if (err)
+			return err;
 	} else {
-		lpphy_b2062_tune(dev, new_channel);
-		//TODO Japan filter
+		err = lpphy_b2062_tune(dev, new_channel);
+		if (err)
+			return err;
+		lpphy_japan_filter(dev, new_channel);
 	}
 
 	lpphy_adjust_gain_table(dev, channel2freq_lp(new_channel));
