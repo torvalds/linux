@@ -78,9 +78,22 @@ acpi_status acpi_reset(void)
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	/* Write the reset value to the reset register */
+	if (reset_reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+		/*
+		 * For I/O space, write directly to the OSL. This bypasses the port
+		 * validation mechanism, which may block a valid write to the reset
+		 * register.
+		 */
+		status =
+		    acpi_os_write_port((acpi_io_address) reset_reg->address,
+				       acpi_gbl_FADT.reset_value,
+				       reset_reg->bit_width);
+	} else {
+		/* Write the reset value to the reset register */
 
-	status = acpi_hw_write(acpi_gbl_FADT.reset_value, reset_reg);
+		status = acpi_hw_write(acpi_gbl_FADT.reset_value, reset_reg);
+	}
+
 	return_ACPI_STATUS(status);
 }
 
