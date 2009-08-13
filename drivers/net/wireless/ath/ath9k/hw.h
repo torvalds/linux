@@ -127,6 +127,12 @@ enum wireless_mode {
 	ATH9K_MODE_MAX,
 };
 
+enum ath9k_ant_setting {
+	ATH9K_ANT_VARIABLE = 0,
+	ATH9K_ANT_FIXED_A,
+	ATH9K_ANT_FIXED_B
+};
+
 enum ath9k_hw_caps {
 	ATH9K_HW_CAP_MIC_AESCCM                 = BIT(0),
 	ATH9K_HW_CAP_MIC_CKIP                   = BIT(1),
@@ -191,7 +197,7 @@ struct ath9k_ops_config {
 	u32 cck_trig_high;
 	u32 cck_trig_low;
 	u32 enable_ani;
-	u16 diversity_control;
+	enum ath9k_ant_setting diversity_control;
 	u16 antenna_switch_swap;
 	int serialize_regmode;
 	bool intr_mitigation;
@@ -330,12 +336,6 @@ enum ath9k_power_mode {
 	ATH9K_PM_UNDEFINED
 };
 
-enum ath9k_ant_setting {
-	ATH9K_ANT_VARIABLE = 0,
-	ATH9K_ANT_FIXED_A,
-	ATH9K_ANT_FIXED_B
-};
-
 enum ath9k_tp_scale {
 	ATH9K_TP_SCALE_MAX = 0,
 	ATH9K_TP_SCALE_50,
@@ -437,8 +437,6 @@ struct ath_hw {
 	u32 txurn_interrupt_mask;
 	bool chip_fullsleep;
 	u32 atim_window;
-	u16 antenna_switch_swap;
-	enum ath9k_ant_setting diversity_control;
 
 	/* Calibration */
 	enum ath9k_cal_types supp_cals;

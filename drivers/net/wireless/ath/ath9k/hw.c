@@ -407,7 +407,7 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.cck_trig_high = 200;
 	ah->config.cck_trig_low = 100;
 	ah->config.enable_ani = 1;
-	ah->config.diversity_control = 0;
+	ah->config.diversity_control = ATH9K_ANT_VARIABLE;
 	ah->config.antenna_switch_swap = 0;
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
@@ -452,9 +452,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->regulatory.power_limit = MAX_RATE_POWER;
 	ah->regulatory.tp_scale = ATH9K_TP_SCALE_MAX;
 	ah->atim_window = 0;
-	ah->diversity_control = ah->config.diversity_control;
-	ah->antenna_switch_swap =
-		ah->config.antenna_switch_swap;
 	ah->sta_id1_defaults = AR_STA_ID1_CRPT_MIC_ENABLE;
 	ah->beacon_interval = 100;
 	ah->enable_32kHz_clock = DONT_USE_32KHZ;
@@ -3891,7 +3888,7 @@ bool ath9k_hw_setantennaswitch(struct ath_hw *ah,
 			break;
 		}
 	} else {
-		ah->diversity_control = settings;
+		ah->config.diversity_control = settings;
 	}
 
 	return true;

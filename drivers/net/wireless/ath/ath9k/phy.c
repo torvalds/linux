@@ -353,18 +353,16 @@ ath9k_hw_decrease_chain_power(struct ath_hw *ah, struct ath9k_channel *chan)
 	u32 bank6SelMask;
 	u32 *bank6Temp = ah->bank6Temp;
 
-	switch (ah->diversity_control) {
+	switch (ah->config.diversity_control) {
 	case ATH9K_ANT_FIXED_A:
 		bank6SelMask =
-		    (ah->
-		     antenna_switch_swap & ANTSWAP_AB) ? REDUCE_CHAIN_0 :
-		    REDUCE_CHAIN_1;
+		    (ah->config.antenna_switch_swap & ANTSWAP_AB) ?
+			REDUCE_CHAIN_0 : REDUCE_CHAIN_1;
 		break;
 	case ATH9K_ANT_FIXED_B:
 		bank6SelMask =
-		    (ah->
-		     antenna_switch_swap & ANTSWAP_AB) ? REDUCE_CHAIN_1 :
-		    REDUCE_CHAIN_0;
+		    (ah->config.antenna_switch_swap & ANTSWAP_AB) ?
+			REDUCE_CHAIN_1 : REDUCE_CHAIN_0;
 		break;
 	case ATH9K_ANT_VARIABLE:
 		return;
