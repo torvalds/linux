@@ -1692,7 +1692,32 @@ static int perf_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static u64 perf_counter_read_tree(struct perf_counter *counter)
+static int perf_counter_read_size(struct perf_counter *counter)
+{
+	int entry = sizeof(u64); /* value */
+	int size = 0;
+	int nr = 1;
+
+	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		size += sizeof(u64);
+
+	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		size += sizeof(u64);
+
+	if (counter->attr.read_format & PERF_FORMAT_ID)
+		entry += sizeof(u64);
+
+	if (counter->attr.read_format & PERF_FORMAT_GROUP) {
+		nr += counter->group_leader->nr_siblings;
+		size += sizeof(u64);
+	}
+
+	size += entry * nr;
+
+	return size;
+}
+
+static u64 perf_counter_read_value(struct perf_counter *counter)
 {
 	struct perf_counter *child;
 	u64 total = 0;
@@ -1704,14 +1729,96 @@ static u64 perf_counter_read_tree(struct perf_counter *counter)
 	return total;
 }
 
+static int perf_counter_read_entry(struct perf_counter *counter,
+				   u64 read_format, char __user *buf)
+{
+	int n = 0, count = 0;
+	u64 values[2];
+
+	values[n++] = perf_counter_read_value(counter);
+	if (read_format & PERF_FORMAT_ID)
+		values[n++] = primary_counter_id(counter);
+
+	count = n * sizeof(u64);
+
+	if (copy_to_user(buf, values, count))
+		return -EFAULT;
+
+	return count;
+}
+
+static int perf_counter_read_group(struct perf_counter *counter,
+				   u64 read_format, char __user *buf)
+{
+	struct perf_counter *leader = counter->group_leader, *sub;
+	int n = 0, size = 0, err = -EFAULT;
+	u64 values[3];
+
+	values[n++] = 1 + leader->nr_siblings;
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+		values[n++] = leader->total_time_enabled +
+			atomic64_read(&leader->child_total_time_enabled);
+	}
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+		values[n++] = leader->total_time_running +
+			atomic64_read(&leader->child_total_time_running);
+	}
+
+	size = n * sizeof(u64);
+
+	if (copy_to_user(buf, values, size))
+		return -EFAULT;
+
+	err = perf_counter_read_entry(leader, read_format, buf + size);
+	if (err < 0)
+		return err;
+
+	size += err;
+
+	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
+		err = perf_counter_read_entry(counter, read_format,
+				buf + size);
+		if (err < 0)
+			return err;
+
+		size += err;
+	}
+
+	return size;
+}
+
+static int perf_counter_read_one(struct perf_counter *counter,
+				 u64 read_format, char __user *buf)
+{
+	u64 values[4];
+	int n = 0;
+
+	values[n++] = perf_counter_read_value(counter);
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+		values[n++] = counter->total_time_enabled +
+			atomic64_read(&counter->child_total_time_enabled);
+	}
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+		values[n++] = counter->total_time_running +
+			atomic64_read(&counter->child_total_time_running);
+	}
+	if (read_format & PERF_FORMAT_ID)
+		values[n++] = primary_counter_id(counter);
+
+	if (copy_to_user(buf, values, n * sizeof(u64)))
+		return -EFAULT;
+
+	return n * sizeof(u64);
+}
+
 /*
  * Read the performance counter - simple non blocking version for now
  */
 static ssize_t
 perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 {
-	u64 values[4];
-	int n;
+	u64 read_format = counter->attr.read_format;
+	int ret;
 
 	/*
 	 * Return end-of-file for a read on a counter that is in
@@ -1721,28 +1828,18 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 	if (counter->state == PERF_COUNTER_STATE_ERROR)
 		return 0;
 
+	if (count < perf_counter_read_size(counter))
+		return -ENOSPC;
+
 	WARN_ON_ONCE(counter->ctx->parent_ctx);
 	mutex_lock(&counter->child_mutex);
-	values[0] = perf_counter_read_tree(counter);
-	n = 1;
-	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
-		values[n++] = counter->total_time_enabled +
-			atomic64_read(&counter->child_total_time_enabled);
-	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
-		values[n++] = counter->total_time_running +
-			atomic64_read(&counter->child_total_time_running);
-	if (counter->attr.read_format & PERF_FORMAT_ID)
-		values[n++] = primary_counter_id(counter);
+	if (read_format & PERF_FORMAT_GROUP)
+		ret = perf_counter_read_group(counter, read_format, buf);
+	else
+		ret = perf_counter_read_one(counter, read_format, buf);
 	mutex_unlock(&counter->child_mutex);
 
-	if (count < n * sizeof(u64))
-		return -EINVAL;
-	count = n * sizeof(u64);
-
-	if (copy_to_user(buf, values, count))
-		return -EFAULT;
-
-	return count;
+	return ret;
 }
 
 static ssize_t
@@ -2631,6 +2728,79 @@ static u32 perf_counter_tid(struct perf_counter *counter, struct task_struct *p)
 	return task_pid_nr_ns(p, counter->ns);
 }
 
+static void perf_output_read_one(struct perf_output_handle *handle,
+				 struct perf_counter *counter)
+{
+	u64 read_format = counter->attr.read_format;
+	u64 values[4];
+	int n = 0;
+
+	values[n++] = atomic64_read(&counter->count);
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+		values[n++] = counter->total_time_enabled +
+			atomic64_read(&counter->child_total_time_enabled);
+	}
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+		values[n++] = counter->total_time_running +
+			atomic64_read(&counter->child_total_time_running);
+	}
+	if (read_format & PERF_FORMAT_ID)
+		values[n++] = primary_counter_id(counter);
+
+	perf_output_copy(handle, values, n * sizeof(u64));
+}
+
+/*
+ * XXX PERF_FORMAT_GROUP vs inherited counters seems difficult.
+ */
+static void perf_output_read_group(struct perf_output_handle *handle,
+			    struct perf_counter *counter)
+{
+	struct perf_counter *leader = counter->group_leader, *sub;
+	u64 read_format = counter->attr.read_format;
+	u64 values[5];
+	int n = 0;
+
+	values[n++] = 1 + leader->nr_siblings;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		values[n++] = leader->total_time_enabled;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		values[n++] = leader->total_time_running;
+
+	if (leader != counter)
+		leader->pmu->read(leader);
+
+	values[n++] = atomic64_read(&leader->count);
+	if (read_format & PERF_FORMAT_ID)
+		values[n++] = primary_counter_id(leader);
+
+	perf_output_copy(handle, values, n * sizeof(u64));
+
+	list_for_each_entry(sub, &leader->sibling_list, list_entry) {
+		n = 0;
+
+		if (sub != counter)
+			sub->pmu->read(sub);
+
+		values[n++] = atomic64_read(&sub->count);
+		if (read_format & PERF_FORMAT_ID)
+			values[n++] = primary_counter_id(sub);
+
+		perf_output_copy(handle, values, n * sizeof(u64));
+	}
+}
+
+static void perf_output_read(struct perf_output_handle *handle,
+			     struct perf_counter *counter)
+{
+	if (counter->attr.read_format & PERF_FORMAT_GROUP)
+		perf_output_read_group(handle, counter);
+	else
+		perf_output_read_one(handle, counter);
+}
+
 void perf_counter_output(struct perf_counter *counter, int nmi,
 				struct perf_sample_data *data)
 {
@@ -2642,10 +2812,6 @@ void perf_counter_output(struct perf_counter *counter, int nmi,
 	struct {
 		u32 pid, tid;
 	} tid_entry;
-	struct {
-		u64 id;
-		u64 counter;
-	} group_entry;
 	struct perf_callchain_entry *callchain = NULL;
 	int callchain_size = 0;
 	u64 time;
@@ -2700,10 +2866,8 @@ void perf_counter_output(struct perf_counter *counter, int nmi,
 	if (sample_type & PERF_SAMPLE_PERIOD)
 		header.size += sizeof(u64);
 
-	if (sample_type & PERF_SAMPLE_GROUP) {
-		header.size += sizeof(u64) +
-			counter->nr_siblings * sizeof(group_entry);
-	}
+	if (sample_type & PERF_SAMPLE_READ)
+		header.size += perf_counter_read_size(counter);
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
 		callchain = perf_callchain(data->regs);
@@ -2760,26 +2924,8 @@ void perf_counter_output(struct perf_counter *counter, int nmi,
 	if (sample_type & PERF_SAMPLE_PERIOD)
 		perf_output_put(&handle, data->period);
 
-	/*
-	 * XXX PERF_SAMPLE_GROUP vs inherited counters seems difficult.
-	 */
-	if (sample_type & PERF_SAMPLE_GROUP) {
-		struct perf_counter *leader, *sub;
-		u64 nr = counter->nr_siblings;
-
-		perf_output_put(&handle, nr);
-
-		leader = counter->group_leader;
-		list_for_each_entry(sub, &leader->sibling_list, list_entry) {
-			if (sub != counter)
-				sub->pmu->read(sub);
-
-			group_entry.id = primary_counter_id(sub);
-			group_entry.counter = atomic64_read(&sub->count);
-
-			perf_output_put(&handle, group_entry);
-		}
-	}
+	if (sample_type & PERF_SAMPLE_READ)
+		perf_output_read(&handle, counter);
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
 		if (callchain)
@@ -2818,8 +2964,6 @@ struct perf_read_event {
 
 	u32				pid;
 	u32				tid;
-	u64				value;
-	u64				format[3];
 };
 
 static void
@@ -2831,34 +2975,20 @@ perf_counter_read_event(struct perf_counter *counter,
 		.header = {
 			.type = PERF_EVENT_READ,
 			.misc = 0,
-			.size = sizeof(event) - sizeof(event.format),
+			.size = sizeof(event) + perf_counter_read_size(counter),
 		},
 		.pid = perf_counter_pid(counter, task),
 		.tid = perf_counter_tid(counter, task),
-		.value = atomic64_read(&counter->count),
 	};
-	int ret, i = 0;
-
-	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
-		event.header.size += sizeof(u64);
-		event.format[i++] = counter->total_time_enabled;
-	}
-
-	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
-		event.header.size += sizeof(u64);
-		event.format[i++] = counter->total_time_running;
-	}
-
-	if (counter->attr.read_format & PERF_FORMAT_ID) {
-		event.header.size += sizeof(u64);
-		event.format[i++] = primary_counter_id(counter);
-	}
+	int ret;
 
 	ret = perf_output_begin(&handle, counter, event.header.size, 0, 0);
 	if (ret)
 		return;
 
-	perf_output_copy(&handle, &event, event.header.size);
+	perf_output_put(&handle, event);
+	perf_output_read(&handle, counter);
+
 	perf_output_end(&handle);
 }
 
@@ -3921,9 +4051,9 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 	atomic64_set(&hwc->period_left, hwc->sample_period);
 
 	/*
-	 * we currently do not support PERF_SAMPLE_GROUP on inherited counters
+	 * we currently do not support PERF_FORMAT_GROUP on inherited counters
 	 */
-	if (attr->inherit && (attr->sample_type & PERF_SAMPLE_GROUP))
+	if (attr->inherit && (attr->read_format & PERF_FORMAT_GROUP))
 		goto done;
 
 	switch (attr->type) {
