@@ -70,6 +70,14 @@ filter:
  names and field names for describing filters.
 
 
+Event Profiling
+---------------
+ You can check the total number of probe hits and probe miss-hits via
+/sys/kernel/debug/tracing/kprobe_profile.
+ The first column is event name, the second is the number of probe hits,
+the third is the number of probe miss-hits.
+
+
 Usage examples
 --------------
 To add a probe as a new event, write a new definition to kprobe_events
