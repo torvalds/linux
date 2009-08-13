@@ -437,6 +437,7 @@ struct platform_device mxc_sdhc_device1 = {
        .resource       = mxc_sdhc2_resources,
 };
 
+#ifdef CONFIG_MACH_MX27
 static struct resource otg_resources[] = {
 	{
 		.start	= OTG_BASE_ADDR,
@@ -527,7 +528,7 @@ struct platform_device mxc_usbh2 = {
 	.resource = mxc_usbh2_resources,
 	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
 };
-
+#endif
 
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
