@@ -196,6 +196,8 @@ acpi_ns_dump_objects(acpi_object_type type,
  */
 acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info);
 
+void acpi_ns_exec_module_code_list(void);
+
 /*
  * nspredef - Support for predefined/reserved names
  */

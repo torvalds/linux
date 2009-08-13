@@ -50,6 +50,11 @@
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nseval")
 
+/* Local prototypes */
+static void
+acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
+			 struct acpi_evaluate_info *info);
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_evaluate
@@ -76,6 +81,7 @@ ACPI_MODULE_NAME("nseval")
  * MUTEX:       Locks interpreter
  *
  ******************************************************************************/
+
 acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 {
 	acpi_status status;
@@ -275,4 +281,135 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 	 * just return
 	 */
 	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_exec_module_code_list
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None. Exceptions during method execution are ignored, since
+ *              we cannot abort a table load.
+ *
+ * DESCRIPTION: Execute all elements of the global module-level code list.
+ *              Each element is executed as a single control method.
+ *
+ ******************************************************************************/
+
+void acpi_ns_exec_module_code_list(void)
+{
+	union acpi_operand_object *prev;
+	union acpi_operand_object *next;
+	struct acpi_evaluate_info *info;
+	u32 method_count = 0;
+
+	ACPI_FUNCTION_TRACE(ns_exec_module_code_list);
+
+	/* Exit now if the list is empty */
+
+	next = acpi_gbl_module_code_list;
+	if (!next) {
+		return_VOID;
+	}
+
+	/* Allocate the evaluation information block */
+
+	info = ACPI_ALLOCATE(sizeof(struct acpi_evaluate_info));
+	if (!info) {
+		return_VOID;
+	}
+
+	/* Walk the list, executing each "method" */
+
+	while (next) {
+		prev = next;
+		next = next->method.mutex;
+
+		/* Clear the link field and execute the method */
+
+		prev->method.mutex = NULL;
+		acpi_ns_exec_module_code(prev, info);
+		method_count++;
+
+		/* Delete the (temporary) method object */
+
+		acpi_ut_remove_reference(prev);
+	}
+
+	ACPI_INFO((AE_INFO,
+		   "Executed %u blocks of module-level executable AML code",
+		   method_count));
+
+	ACPI_FREE(info);
+	acpi_gbl_module_code_list = NULL;
+	return_VOID;
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_exec_module_code
+ *
+ * PARAMETERS:  method_obj          - Object container for the module-level code
+ *              Info                - Info block for method evaluation
+ *
+ * RETURN:      None. Exceptions during method execution are ignored, since
+ *              we cannot abort a table load.
+ *
+ * DESCRIPTION: Execute a control method containing a block of module-level
+ *              executable AML code. The control method is temporarily
+ *              installed to the root node, then evaluated.
+ *
+ ******************************************************************************/
+
+static void
+acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
+			 struct acpi_evaluate_info *info)
+{
+	union acpi_operand_object *root_obj;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(ns_exec_module_code);
+
+	/* Initialize the evaluation information block */
+
+	ACPI_MEMSET(info, 0, sizeof(struct acpi_evaluate_info));
+	info->prefix_node = acpi_gbl_root_node;
+
+	/*
+	 * Get the currently attached root object. Add a reference, because the
+	 * ref count will be decreased when the method object is installed to
+	 * the root node.
+	 */
+	root_obj = acpi_ns_get_attached_object(acpi_gbl_root_node);
+	acpi_ut_add_reference(root_obj);
+
+	/* Install the method (module-level code) in the root node */
+
+	status = acpi_ns_attach_object(acpi_gbl_root_node, method_obj,
+				       ACPI_TYPE_METHOD);
+	if (ACPI_FAILURE(status)) {
+		goto exit;
+	}
+
+	/* Execute the root node as a control method */
+
+	status = acpi_ns_evaluate(info);
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INIT, "Executed module-level code at %p\n",
+			  method_obj->method.aml_start));
+
+	/* Detach the temporary method object */
+
+	acpi_ns_detach_object(acpi_gbl_root_node);
+
+	/* Restore the original root object */
+
+	status =
+	    acpi_ns_attach_object(acpi_gbl_root_node, root_obj,
+				  ACPI_TYPE_DEVICE);
+
+      exit:
+	acpi_ut_remove_reference(root_obj);
+	return_VOID;
 }

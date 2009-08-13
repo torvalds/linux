@@ -295,6 +295,7 @@ extern char const *acpi_gbl_exception_names_ctrl[];
 ACPI_EXTERN struct acpi_namespace_node acpi_gbl_root_node_struct;
 ACPI_EXTERN struct acpi_namespace_node *acpi_gbl_root_node;
 ACPI_EXTERN struct acpi_namespace_node *acpi_gbl_fadt_gpe_device;
+ACPI_EXTERN union acpi_operand_object *acpi_gbl_module_code_list;
 
 extern const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES];
 extern const struct acpi_predefined_names
