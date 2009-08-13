@@ -970,7 +970,7 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 	struct talitos_desc *desc = &edesc->desc;
 	unsigned int cryptlen = areq->cryptlen;
 	unsigned int authsize = ctx->authsize;
-	unsigned int ivsize;
+	unsigned int ivsize = crypto_aead_ivsize(aead);
 	int sg_count, ret;
 	int sg_link_tbl_len;
 
@@ -978,11 +978,9 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 	map_single_talitos_ptr(dev, &desc->ptr[0], ctx->authkeylen, &ctx->key,
 			       0, DMA_TO_DEVICE);
 	/* hmac data */
-	map_single_talitos_ptr(dev, &desc->ptr[1], sg_virt(areq->src) -
-			       sg_virt(areq->assoc), sg_virt(areq->assoc), 0,
-			       DMA_TO_DEVICE);
+	map_single_talitos_ptr(dev, &desc->ptr[1], areq->assoclen + ivsize,
+			       sg_virt(areq->assoc), 0, DMA_TO_DEVICE);
 	/* cipher iv */
-	ivsize = crypto_aead_ivsize(aead);
 	map_single_talitos_ptr(dev, &desc->ptr[2], ivsize, giv ?: areq->iv, 0,
 			       DMA_TO_DEVICE);
 
