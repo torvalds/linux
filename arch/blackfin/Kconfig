@@ -917,10 +917,6 @@ comment "Cache Support"
 config BFIN_ICACHE
 	bool "Enable ICACHE"
 	default y
-config BFIN_ICACHE_LOCK
-	bool "Enable Instruction Cache Locking"
-	depends on BFIN_ICACHE
-	default n
 config BFIN_EXTMEM_ICACHEABLE
 	bool "Enable ICACHE for external memory"
 	depends on BFIN_ICACHE

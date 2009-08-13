@@ -99,11 +99,6 @@ extern unsigned long bfin_sic_iwr[];
 extern unsigned vr_wakeup;
 extern u16 _bfin_swrst; /* shadow for Software Reset Register (SWRST) */
 
-#ifdef CONFIG_BFIN_ICACHE_LOCK
-extern void cache_grab_lock(int way);
-extern void bfin_cache_lock(int way);
-#endif
-
 #endif
 
 #endif				/* _BLACKFIN_H_ */

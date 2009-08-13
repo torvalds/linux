@@ -1238,57 +1238,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #ifdef __ARCH_SYNC_CORE_ICACHE
 	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", cpudata->icache_invld_count);
 #endif
-#ifdef CONFIG_BFIN_ICACHE_LOCK
-	switch ((cpudata->imemctl >> 3) & WAYALL_L) {
-	case WAY0_L:
-		seq_printf(m, "Way0 Locked-Down\n");
-		break;
-	case WAY1_L:
-		seq_printf(m, "Way1 Locked-Down\n");
-		break;
-	case WAY01_L:
-		seq_printf(m, "Way0,Way1 Locked-Down\n");
-		break;
-	case WAY2_L:
-		seq_printf(m, "Way2 Locked-Down\n");
-		break;
-	case WAY02_L:
-		seq_printf(m, "Way0,Way2 Locked-Down\n");
-		break;
-	case WAY12_L:
-		seq_printf(m, "Way1,Way2 Locked-Down\n");
-		break;
-	case WAY012_L:
-		seq_printf(m, "Way0,Way1 & Way2 Locked-Down\n");
-		break;
-	case WAY3_L:
-		seq_printf(m, "Way3 Locked-Down\n");
-		break;
-	case WAY03_L:
-		seq_printf(m, "Way0,Way3 Locked-Down\n");
-		break;
-	case WAY13_L:
-		seq_printf(m, "Way1,Way3 Locked-Down\n");
-		break;
-	case WAY013_L:
-		seq_printf(m, "Way 0,Way1,Way3 Locked-Down\n");
-		break;
-	case WAY32_L:
-		seq_printf(m, "Way3,Way2 Locked-Down\n");
-		break;
-	case WAY320_L:
-		seq_printf(m, "Way3,Way2,Way0 Locked-Down\n");
-		break;
-	case WAY321_L:
-		seq_printf(m, "Way3,Way2,Way1 Locked-Down\n");
-		break;
-	case WAYALL_L:
-		seq_printf(m, "All Ways are locked\n");
-		break;
-	default:
-		seq_printf(m, "No Ways are locked\n");
-	}
-#endif
 
 	if (cpu_num != num_possible_cpus() - 1)
 		return 0;
