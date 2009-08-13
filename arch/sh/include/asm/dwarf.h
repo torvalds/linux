@@ -193,11 +193,6 @@
  */
 #define DWARF_ARCH_RA_REG	17
 
-/*
- * At what offset into dwarf_unwind_stack() is DWARF_ARCH_RA_REG setup?
- */
-#define DWARF_ARCH_UNWIND_OFFSET	0x20
-
 #ifndef __ASSEMBLY__
 /*
  * Read either the frame pointer (r14) or the stack pointer (r15).
