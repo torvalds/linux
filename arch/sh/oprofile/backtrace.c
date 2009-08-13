@@ -81,33 +81,6 @@ user_backtrace(unsigned long *stackaddr, struct pt_regs *regs)
 	return stackaddr;
 }
 
-/*
- * |             | /\ Higher addresses
- * |             |
- * --------------- stack base (address of current_thread_info)
- * | thread info |
- * .             .
- * |    stack    |
- * --------------- saved regs->regs[15] value if valid
- * .             .
- * --------------- struct pt_regs stored on stack (struct pt_regs *)
- * |             |
- * .             .
- * |             |
- * --------------- ???
- * |             |
- * |             | \/ Lower addresses
- *
- * Thus, &pt_regs <-> stack base restricts the valid(ish) fp values
- */
-static int valid_kernel_stack(unsigned long *stackaddr, struct pt_regs *regs)
-{
-	unsigned long stack = (unsigned long)regs;
-	unsigned long stack_base = (stack & ~(THREAD_SIZE - 1)) + THREAD_SIZE;
-
-	return ((unsigned long)stackaddr > stack) && ((unsigned long)stackaddr < stack_base);
-}
-
 void sh_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
 	unsigned long *stackaddr;
