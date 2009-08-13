@@ -21,6 +21,7 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
+#include <video/da8xx-fb.h>
 
 #include "clock.h"
 
@@ -352,4 +353,62 @@ void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata)
 		da850_mcasp_device.dev.platform_data = pdata;
 		platform_device_register(&da850_mcasp_device);
 	}
+}
+
+static const struct display_panel disp_panel = {
+	QVGA,
+	16,
+	16,
+	COLOR_ACTIVE,
+};
+
+static struct lcd_ctrl_config lcd_cfg = {
+	&disp_panel,
+	.ac_bias		= 255,
+	.ac_bias_intrpt		= 0,
+	.dma_burst_sz		= 16,
+	.bpp			= 16,
+	.fdd			= 255,
+	.tft_alt_mode		= 0,
+	.stn_565_mode		= 0,
+	.mono_8bit_mode		= 0,
+	.invert_line_clock	= 1,
+	.invert_frm_clock	= 1,
+	.sync_edge		= 0,
+	.sync_ctrl		= 1,
+	.raster_order		= 0,
+};
+
+static struct da8xx_lcdc_platform_data da850_evm_lcdc_pdata = {
+	.manu_name = "sharp",
+	.controller_data = &lcd_cfg,
+	.type = "Sharp_LK043T1DG01",
+};
+
+static struct resource da8xx_lcdc_resources[] = {
+	[0] = { /* registers */
+		.start  = DA8XX_LCD_CNTRL_BASE,
+		.end    = DA8XX_LCD_CNTRL_BASE + SZ_4K - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = { /* interrupt */
+		.start  = IRQ_DA8XX_LCDINT,
+		.end    = IRQ_DA8XX_LCDINT,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device da850_lcdc_device = {
+	.name		= "da8xx_lcdc",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(da8xx_lcdc_resources),
+	.resource	= da8xx_lcdc_resources,
+	.dev = {
+		.platform_data = &da850_evm_lcdc_pdata,
+	}
+};
+
+int __init da8xx_register_lcdc(void)
+{
+	return platform_device_register(&da850_lcdc_device);
 }

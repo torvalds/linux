@@ -17,6 +17,7 @@
 #include <linux/console.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -28,6 +29,9 @@
 
 #define DA850_EVM_PHY_MASK		0x1
 #define DA850_EVM_MDIO_FREQUENCY	2200000 /* PHY bus frequency */
+
+#define DA850_LCD_BL_PIN		GPIO_TO_PIN(2, 15)
+#define DA850_LCD_PWR_PIN		GPIO_TO_PIN(8, 10)
 
 static struct davinci_i2c_platform_data da850_evm_i2c_0_pdata = {
 	.bus_freq	= 100,	/* kHz */
@@ -59,6 +63,37 @@ static struct snd_platform_data da850_evm_snd_data = {
 	.rxnumevt	= 1,
 };
 
+static int da850_lcd_hw_init(void)
+{
+	int status;
+
+	status = gpio_request(DA850_LCD_BL_PIN, "lcd bl\n");
+	if (status < 0)
+		return status;
+
+	status = gpio_request(DA850_LCD_PWR_PIN, "lcd pwr\n");
+	if (status < 0) {
+		gpio_free(DA850_LCD_BL_PIN);
+		return status;
+	}
+
+	gpio_direction_output(DA850_LCD_BL_PIN, 0);
+	gpio_direction_output(DA850_LCD_PWR_PIN, 0);
+
+	/* disable lcd backlight */
+	gpio_set_value(DA850_LCD_BL_PIN, 0);
+
+	/* disable lcd power */
+	gpio_set_value(DA850_LCD_PWR_PIN, 0);
+
+	/* enable lcd power */
+	gpio_set_value(DA850_LCD_PWR_PIN, 1);
+
+	/* enable lcd backlight */
+	gpio_set_value(DA850_LCD_BL_PIN, 1);
+
+	return 0;
+}
 
 static __init void da850_evm_init(void)
 {
@@ -115,6 +150,21 @@ static __init void da850_evm_init(void)
 				ret);
 
 	da8xx_init_mcasp(0, &da850_evm_snd_data);
+
+	ret = da8xx_pinmux_setup(da850_lcdcntl_pins);
+	if (ret)
+		pr_warning("da850_evm_init: lcdcntl mux setup failed: %d\n",
+				ret);
+
+	ret = da850_lcd_hw_init();
+	if (ret)
+		pr_warning("da850_evm_init: lcd initialization failed: %d\n",
+				ret);
+
+	ret = da8xx_register_lcdc();
+	if (ret)
+		pr_warning("da850_evm_init: lcdc registration failed: %d\n",
+				ret);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE

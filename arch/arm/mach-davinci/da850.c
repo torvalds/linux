@@ -297,6 +297,13 @@ static struct clk mcasp_clk = {
 	.psc_ctlr	= 1,
 };
 
+static struct clk lcdc_clk = {
+	.name		= "lcdc",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA8XX_LPSC1_LCDC,
+	.psc_ctlr	= 1,
+};
+
 static struct davinci_clk da850_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
@@ -335,6 +342,7 @@ static struct davinci_clk da850_clks[] = {
 	CLK(NULL,		"rmii",		&rmii_clk),
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
+	CLK("da8xx_lcdc.0",	NULL,		&lcdc_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
@@ -405,6 +413,30 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850,	AXR_2,		2,	20,	15,	1,	false)
 	MUX_CFG(DA850,	AXR_1,		2,	24,	15,	1,	false)
 	MUX_CFG(DA850,	AXR_0,		2,	28,	15,	1,	false)
+	/* LCD function */
+	MUX_CFG(DA850, LCD_D_7,		16,	8,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_6,		16,	12,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_5,		16,	16,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_4,		16,	20,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_3,		16,	24,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_2,		16,	28,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_1,		17,	0,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_0,		17,	4,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_15,	17,	8,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_14,	17,	12,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_13,	17,	16,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_12,	17,	20,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_11,	17,	24,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_10,	17,	28,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_9,		18,	0,	15,	2,	false)
+	MUX_CFG(DA850, LCD_D_8,		18,	4,	15,	2,	false)
+	MUX_CFG(DA850, LCD_PCLK,	18,	24,	15,	2,	false)
+	MUX_CFG(DA850, LCD_HSYNC,	19,	0,	15,	2,	false)
+	MUX_CFG(DA850, LCD_VSYNC,	19,	4,	15,	2,	false)
+	MUX_CFG(DA850, NLCD_AC_ENB_CS,	19,	24,	15,	2,	false)
+	/* GPIO function */
+	MUX_CFG(DA850, GPIO2_15,	5,	0,	15,	8,	false)
+	MUX_CFG(DA850, GPIO8_10,	18,	28,	15,	8,	false)
 #endif
 };
 
@@ -446,6 +478,16 @@ const short da850_mcasp_pins[] __initdata = {
 	DA850_AHCLKX, DA850_ACLKX, DA850_AFSX,
 	DA850_AHCLKR, DA850_ACLKR, DA850_AFSR, DA850_AMUTE,
 	DA850_AXR_11, DA850_AXR_12,
+	-1
+};
+
+const short da850_lcdcntl_pins[] __initdata = {
+	DA850_LCD_D_1, DA850_LCD_D_2, DA850_LCD_D_3, DA850_LCD_D_4,
+	DA850_LCD_D_5, DA850_LCD_D_6, DA850_LCD_D_7, DA850_LCD_D_8,
+	DA850_LCD_D_9, DA850_LCD_D_10, DA850_LCD_D_11, DA850_LCD_D_12,
+	DA850_LCD_D_13, DA850_LCD_D_14, DA850_LCD_D_15, DA850_LCD_PCLK,
+	DA850_LCD_HSYNC, DA850_LCD_VSYNC, DA850_NLCD_AC_ENB_CS, DA850_GPIO2_15,
+	DA850_GPIO8_10,
 	-1
 };
 

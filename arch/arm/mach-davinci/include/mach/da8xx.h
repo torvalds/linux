@@ -37,6 +37,7 @@
 #define DA8XX_TIMER64P1_BASE	0x01c21000
 #define DA8XX_GPIO_BASE		0x01e26000
 #define DA8XX_PSC1_BASE		0x01e27000
+#define DA8XX_LCD_CNTRL_BASE	0x01e13000
 
 #define PINMUX0			0x00
 #define PINMUX1			0x04
@@ -66,6 +67,7 @@ int da8xx_register_edma(void);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
 int da8xx_register_watchdog(void);
 int da8xx_register_emac(void);
+int da8xx_register_lcdc(void);
 void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata);
 
 extern struct platform_device da8xx_serial_device;
@@ -103,6 +105,7 @@ extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];
 extern const short da850_cpgmac_pins[];
 extern const short da850_mcasp_pins[];
+extern const short da850_lcdcntl_pins[];
 
 int da8xx_pinmux_setup(const short pins[]);
 
