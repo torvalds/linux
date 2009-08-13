@@ -165,7 +165,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 	struct trace_event enter_syscall_print_##sname = {		\
 		.trace                  = print_syscall_enter,		\
 	};								\
-	static int init_enter_##sname(void)				\
+	static int init_enter_##sname(struct ftrace_event_call *call)	\
 	{								\
 		int num, id;						\
 		num = syscall_name_to_nr("sys"#sname);			\
@@ -202,7 +202,7 @@ static void prof_sysexit_disable_##sname(struct ftrace_event_call *event_call) \
 	struct trace_event exit_syscall_print_##sname = {		\
 		.trace                  = print_syscall_exit,		\
 	};								\
-	static int init_exit_##sname(void)				\
+	static int init_exit_##sname(struct ftrace_event_call *call)	\
 	{								\
 		int num, id;						\
 		num = syscall_name_to_nr("sys"#sname);			\

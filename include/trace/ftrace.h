@@ -434,7 +434,7 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
  *	event_trace_printk(_RET_IP_, "<call>: " <fmt>);
  * }
  *
- * static int ftrace_reg_event_<call>(void)
+ * static int ftrace_reg_event_<call>(struct ftrace_event_call *unused)
  * {
  *	int ret;
  *
@@ -445,7 +445,7 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
  *	return ret;
  * }
  *
- * static void ftrace_unreg_event_<call>(void)
+ * static void ftrace_unreg_event_<call>(struct ftrace_event_call *unused)
  * {
  *	unregister_trace_<call>(ftrace_event_<call>);
  * }
@@ -478,7 +478,7 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
  *	trace_current_buffer_unlock_commit(event, irq_flags, pc);
  * }
  *
- * static int ftrace_raw_reg_event_<call>(void)
+ * static int ftrace_raw_reg_event_<call>(struct ftrace_event_call *unused)
  * {
  *	int ret;
  *
@@ -489,7 +489,7 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
  *	return ret;
  * }
  *
- * static void ftrace_unreg_event_<call>(void)
+ * static void ftrace_unreg_event_<call>(struct ftrace_event_call *unused)
  * {
  *	unregister_trace_<call>(ftrace_raw_event_<call>);
  * }
@@ -498,7 +498,7 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
  *	.trace			= ftrace_raw_output_<call>, <-- stage 2
  * };
  *
- * static int ftrace_raw_init_event_<call>(void)
+ * static int ftrace_raw_init_event_<call>(struct ftrace_event_call *unused)
  * {
  *	int id;
  *
@@ -592,7 +592,7 @@ static void ftrace_raw_event_##call(proto)				\
 		trace_nowake_buffer_unlock_commit(event, irq_flags, pc); \
 }									\
 									\
-static int ftrace_raw_reg_event_##call(void *ptr)			\
+static int ftrace_raw_reg_event_##call(struct ftrace_event_call *unused)\
 {									\
 	int ret;							\
 									\
@@ -603,7 +603,7 @@ static int ftrace_raw_reg_event_##call(void *ptr)			\
 	return ret;							\
 }									\
 									\
-static void ftrace_raw_unreg_event_##call(void *ptr)			\
+static void ftrace_raw_unreg_event_##call(struct ftrace_event_call *unused)\
 {									\
 	unregister_trace_##call(ftrace_raw_event_##call);		\
 }									\
@@ -612,7 +612,7 @@ static struct trace_event ftrace_event_type_##call = {			\
 	.trace			= ftrace_raw_output_##call,		\
 };									\
 									\
-static int ftrace_raw_init_event_##call(void)				\
+static int ftrace_raw_init_event_##call(struct ftrace_event_call *unused)\
 {									\
 	int id;								\
 									\

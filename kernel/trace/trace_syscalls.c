@@ -193,8 +193,8 @@ int syscall_enter_define_fields(struct ftrace_event_call *call)
 		return ret;
 
 	for (i = 0; i < meta->nb_args; i++) {
-		ret = trace_define_field(call, meta->types[i],
-					 meta->args[i], offset,
+		ret = trace_define_field(call, (char *)meta->types[i],
+					 (char *)meta->args[i], offset,
 					 sizeof(unsigned long), 0,
 					 FILTER_OTHER);
 		offset += sizeof(unsigned long);
@@ -277,13 +277,13 @@ void ftrace_syscall_exit(struct pt_regs *regs, long ret)
 		trace_current_buffer_unlock_commit(event, 0, 0);
 }
 
-int reg_event_syscall_enter(void *ptr)
+int reg_event_syscall_enter(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
 	char *name;
 
-	name = (char *)ptr;
+	name = (char *)call->data;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
 		return -ENOSYS;
@@ -301,12 +301,12 @@ int reg_event_syscall_enter(void *ptr)
 	return ret;
 }
 
-void unreg_event_syscall_enter(void *ptr)
+void unreg_event_syscall_enter(struct ftrace_event_call *call)
 {
 	int num;
 	char *name;
 
-	name = (char *)ptr;
+	name = (char *)call->data;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
 		return;
@@ -318,13 +318,13 @@ void unreg_event_syscall_enter(void *ptr)
 	mutex_unlock(&syscall_trace_lock);
 }
 
-int reg_event_syscall_exit(void *ptr)
+int reg_event_syscall_exit(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
 	char *name;
 
-	name = (char *)ptr;
+	name = (char *)call->data;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
 		return -ENOSYS;
@@ -342,12 +342,12 @@ int reg_event_syscall_exit(void *ptr)
 	return ret;
 }
 
-void unreg_event_syscall_exit(void *ptr)
+void unreg_event_syscall_exit(struct ftrace_event_call *call)
 {
 	int num;
 	char *name;
 
-	name = (char *)ptr;
+	name = (char *)call->data;
 	num = syscall_name_to_nr(name);
 	if (num < 0 || num >= FTRACE_SYSCALL_MAX)
 		return;

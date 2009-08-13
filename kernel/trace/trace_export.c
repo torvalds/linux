@@ -117,10 +117,16 @@ ftrace_format_##call(struct ftrace_event_call *unused,			\
 #define TRACE_FIELD_SPECIAL(type_item, item, len, cmd)	\
 	cmd;
 
+static int ftrace_raw_init_event(struct ftrace_event_call *event_call)
+{
+	INIT_LIST_HEAD(&event_call->fields);
+	init_preds(event_call);
+	return 0;
+}
+
 #undef TRACE_EVENT_FORMAT
 #define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
 int ftrace_define_fields_##call(struct ftrace_event_call *event_call);	\
-static int ftrace_raw_init_event_##call(void);				\
 									\
 struct ftrace_event_call __used						\
 __attribute__((__aligned__(4)))						\
@@ -128,16 +134,10 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.name			= #call,				\
 	.id			= proto,				\
 	.system			= __stringify(TRACE_SYSTEM),		\
-	.raw_init		= ftrace_raw_init_event_##call,		\
+	.raw_init		= ftrace_raw_init_event,		\
 	.show_format		= ftrace_format_##call,			\
 	.define_fields		= ftrace_define_fields_##call,		\
-};									\
-static int ftrace_raw_init_event_##call(void)				\
-{									\
-	INIT_LIST_HEAD(&event_##call.fields);				\
-	init_preds(&event_##call);					\
-	return 0;							\
-}									\
+};
 
 #undef TRACE_EVENT_FORMAT_NOFILTER
 #define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct,	\

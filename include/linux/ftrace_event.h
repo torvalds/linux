@@ -112,12 +112,12 @@ struct ftrace_event_call {
 	struct dentry		*dir;
 	struct trace_event	*event;
 	int			enabled;
-	int			(*regfunc)(void *);
-	void			(*unregfunc)(void *);
+	int			(*regfunc)(struct ftrace_event_call *);
+	void			(*unregfunc)(struct ftrace_event_call *);
 	int			id;
-	int			(*raw_init)(void);
-	int			(*show_format)(struct ftrace_event_call *call,
-					       struct trace_seq *s);
+	int			(*raw_init)(struct ftrace_event_call *);
+	int			(*show_format)(struct ftrace_event_call *,
+					       struct trace_seq *);
 	int			(*define_fields)(struct ftrace_event_call *);
 	struct list_head	fields;
 	int			filter_active;
@@ -147,11 +147,12 @@ enum {
 	FILTER_PTR_STRING,
 };
 
-extern int trace_define_field(struct ftrace_event_call *call,
-			      const char *type, const char *name,
-			      int offset, int size, int is_signed,
-			      int filter_type);
 extern int trace_define_common_fields(struct ftrace_event_call *call);
+extern int trace_define_field(struct ftrace_event_call *call, char *type,
+			      char *name, int offset, int size, int is_signed,
+			      int filter_type);
+extern int trace_add_event_call(struct ftrace_event_call *call);
+extern void trace_remove_event_call(struct ftrace_event_call *call);
 
 #define is_signed_type(type)	(((type)(-1)) < 0)
 
