@@ -261,7 +261,7 @@ struct mwl8k_vif {
 	 */
 };
 
-#define MWL8K_VIF(_vif) (struct mwl8k_vif *)(&((_vif)->drv_priv))
+#define MWL8K_VIF(_vif) ((struct mwl8k_vif *)&((_vif)->drv_priv))
 
 static const struct ieee80211_channel mwl8k_channels[] = {
 	{ .center_freq = 2412, .hw_value = 1, },
@@ -1012,6 +1012,8 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 		rmb();
 
 		skb = rxq->rx_skb[rxq->rx_head];
+		if (skb == NULL)
+			break;
 		rxq->rx_skb[rxq->rx_head] = NULL;
 
 		rxq->rx_head = (rxq->rx_head + 1) % MWL8K_RX_DESCS;
@@ -1592,6 +1594,9 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	timeout = wait_for_completion_timeout(&cmd_wait,
 				msecs_to_jiffies(MWL8K_CMD_TIMEOUT_MS));
 
+	pci_unmap_single(priv->pdev, dma_addr, dma_size,
+					PCI_DMA_BIDIRECTIONAL);
+
 	result = &cmd->result;
 	if (!timeout) {
 		spin_lock_irq(&priv->fw_lock);
@@ -1611,8 +1616,6 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 			       *result);
 	}
 
-	pci_unmap_single(priv->pdev, dma_addr, dma_size,
-					PCI_DMA_BIDIRECTIONAL);
 	return rc;
 }
 
@@ -1655,18 +1658,18 @@ static int mwl8k_cmd_get_hw_spec(struct ieee80211_hw *hw)
 	memset(cmd->perm_addr, 0xff, sizeof(cmd->perm_addr));
 	cmd->ps_cookie = cpu_to_le32(priv->cookie_dma);
 	cmd->rx_queue_ptr = cpu_to_le32(priv->rxq[0].rx_desc_dma);
-	cmd->num_tx_queues = MWL8K_TX_QUEUES;
+	cmd->num_tx_queues = cpu_to_le32(MWL8K_TX_QUEUES);
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
 		cmd->tx_queue_ptrs[i] = cpu_to_le32(priv->txq[i].tx_desc_dma);
-	cmd->num_tx_desc_per_queue = MWL8K_TX_DESCS;
-	cmd->total_rx_desc = MWL8K_RX_DESCS;
+	cmd->num_tx_desc_per_queue = cpu_to_le32(MWL8K_TX_DESCS);
+	cmd->total_rx_desc = cpu_to_le32(MWL8K_RX_DESCS);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
 
 	if (!rc) {
 		SET_IEEE80211_PERM_ADDR(hw, cmd->perm_addr);
 		priv->num_mcaddrs = le16_to_cpu(cmd->num_mcaddrs);
-		priv->fw_rev = cmd->fw_rev;
+		priv->fw_rev = le32_to_cpu(cmd->fw_rev);
 		priv->hw_rev = cmd->hw_rev;
 		priv->region_code = le16_to_cpu(cmd->region_code);
 	}
@@ -3216,15 +3219,19 @@ static int mwl8k_configure_filter_wt(struct work_struct *wt)
 	struct dev_addr_list *mclist = worker->mclist;
 
 	struct mwl8k_priv *priv = hw->priv;
-	struct mwl8k_vif *mv_vif;
 	int rc = 0;
 
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
 			rc = mwl8k_cmd_set_pre_scan(hw);
 		else {
-			mv_vif = MWL8K_VIF(priv->vif);
-			rc = mwl8k_cmd_set_post_scan(hw, mv_vif->bssid);
+			u8 *bssid;
+
+			bssid = "\x00\x00\x00\x00\x00\x00";
+			if (priv->vif != NULL)
+				bssid = MWL8K_VIF(priv->vif)->bssid;
+
+			rc = mwl8k_cmd_set_post_scan(hw, bssid);
 		}
 	}
 
@@ -3725,6 +3732,8 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 
 	ieee80211_stop_queues(hw);
 
+	ieee80211_unregister_hw(hw);
+
 	/* Remove tx reclaim tasklet */
 	tasklet_kill(&priv->tx_reclaim_task);
 
@@ -3737,8 +3746,6 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 	/* Return all skbs to mac80211 */
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
 		mwl8k_txq_reclaim(hw, i, 1);
-
-	ieee80211_unregister_hw(hw);
 
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
 		mwl8k_txq_deinit(hw, i);

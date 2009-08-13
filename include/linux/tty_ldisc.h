@@ -144,7 +144,7 @@ struct tty_ldisc_ops {
 
 struct tty_ldisc {
 	struct tty_ldisc_ops *ops;
-	int refcount;
+	atomic_t users;
 };
 
 #define TTY_LDISC_MAGIC	0x5403

@@ -570,16 +570,18 @@ static void tulip_tx_timeout(struct net_device *dev)
 				   (unsigned int)tp->rx_ring[i].buffer2,
 				   buf[0], buf[1], buf[2]);
 			for (j = 0; buf[j] != 0xee && j < 1600; j++)
-				if (j < 100) printk(" %2.2x", buf[j]);
-			printk(" j=%d.\n", j);
+				if (j < 100)
+					printk(KERN_CONT " %2.2x", buf[j]);
+			printk(KERN_CONT " j=%d.\n", j);
 		}
 		printk(KERN_DEBUG "  Rx ring %8.8x: ", (int)tp->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
-			printk(" %8.8x", (unsigned int)tp->rx_ring[i].status);
-		printk("\n" KERN_DEBUG "  Tx ring %8.8x: ", (int)tp->tx_ring);
+			printk(KERN_CONT " %8.8x",
+			       (unsigned int)tp->rx_ring[i].status);
+		printk(KERN_DEBUG "  Tx ring %8.8x: ", (int)tp->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
-			printk(" %8.8x", (unsigned int)tp->tx_ring[i].status);
-		printk("\n");
+			printk(KERN_CONT " %8.8x", (unsigned int)tp->tx_ring[i].status);
+		printk(KERN_CONT "\n");
 	}
 #endif
 

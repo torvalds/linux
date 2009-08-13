@@ -168,7 +168,6 @@ void __cpuinit bfin_setup_cpudata(unsigned int cpu)
 	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, cpu);
 
 	cpudata->idle = current;
-	cpudata->loops_per_jiffy = loops_per_jiffy;
 	cpudata->imemctl = bfin_read_IMEM_CONTROL();
 	cpudata->dmemctl = bfin_read_DMEM_CONTROL();
 }
@@ -408,13 +407,14 @@ static void __init print_memory_map(char *who)
 			bfin_memmap.map[i].addr + bfin_memmap.map[i].size);
 		switch (bfin_memmap.map[i].type) {
 		case BFIN_MEMMAP_RAM:
-				printk("(usable)\n");
-				break;
+			printk(KERN_CONT "(usable)\n");
+			break;
 		case BFIN_MEMMAP_RESERVED:
-				printk("(reserved)\n");
-				break;
-		default:	printk("type %lu\n", bfin_memmap.map[i].type);
-				break;
+			printk(KERN_CONT "(reserved)\n");
+			break;
+		default:
+			printk(KERN_CONT "type %lu\n", bfin_memmap.map[i].type);
+			break;
 		}
 	}
 }
@@ -567,17 +567,23 @@ static __init void memory_setup(void)
 #  endif				/* ANOMALY_05000263 */
 # endif				/* CONFIG_ROMFS_FS */
 
-	memory_end -= mtd_size;
+	/* Since the default MTD_UCLINUX has no magic number, we just blindly
+	 * read 8 past the end of the kernel's image, and look at it.
+	 * When no image is attached, mtd_size is set to a random number
+	 * Do some basic sanity checks before operating on things
+	 */
+	if (mtd_size == 0 || memory_end <= mtd_size) {
+		pr_emerg("Could not find valid ram mtd attached.\n");
+	} else {
+		memory_end -= mtd_size;
 
-	if (mtd_size == 0) {
-		console_init();
-		panic("Don't boot kernel without rootfs attached.");
+		/* Relocate MTD image to the top of memory after the uncached memory area */
+		uclinux_ram_map.phys = memory_mtd_start = memory_end;
+		uclinux_ram_map.size = mtd_size;
+		pr_info("Found mtd parition at 0x%p, (len=0x%lx), moving to 0x%p\n",
+			_end, mtd_size, (void *)memory_mtd_start);
+		dma_memcpy((void *)uclinux_ram_map.phys, _end, uclinux_ram_map.size);
 	}
-
-	/* Relocate MTD image to the top of memory after the uncached memory area */
-	uclinux_ram_map.phys = memory_mtd_start = memory_end;
-	uclinux_ram_map.size = mtd_size;
-	dma_memcpy((void *)uclinux_ram_map.phys, _end, uclinux_ram_map.size);
 #endif				/* CONFIG_MTD_UCLINUX */
 
 #if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
@@ -614,19 +620,19 @@ static __init void memory_setup(void)
 	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend >> 20);
 
 	printk(KERN_INFO "Memory map:\n"
-		KERN_INFO "  fixedcode = 0x%p-0x%p\n"
-		KERN_INFO "  text      = 0x%p-0x%p\n"
-		KERN_INFO "  rodata    = 0x%p-0x%p\n"
-		KERN_INFO "  bss       = 0x%p-0x%p\n"
-		KERN_INFO "  data      = 0x%p-0x%p\n"
-		KERN_INFO "    stack   = 0x%p-0x%p\n"
-		KERN_INFO "  init      = 0x%p-0x%p\n"
-		KERN_INFO "  available = 0x%p-0x%p\n"
+	       "  fixedcode = 0x%p-0x%p\n"
+	       "  text      = 0x%p-0x%p\n"
+	       "  rodata    = 0x%p-0x%p\n"
+	       "  bss       = 0x%p-0x%p\n"
+	       "  data      = 0x%p-0x%p\n"
+	       "    stack   = 0x%p-0x%p\n"
+	       "  init      = 0x%p-0x%p\n"
+	       "  available = 0x%p-0x%p\n"
 #ifdef CONFIG_MTD_UCLINUX
-		KERN_INFO "  rootfs    = 0x%p-0x%p\n"
+	       "  rootfs    = 0x%p-0x%p\n"
 #endif
 #if DMA_UNCACHED_REGION > 0
-		KERN_INFO "  DMA Zone  = 0x%p-0x%p\n"
+	       "  DMA Zone  = 0x%p-0x%p\n"
 #endif
 		, (void *)FIXED_CODE_START, (void *)FIXED_CODE_END,
 		_stext, _etext,
@@ -859,20 +865,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	printk(KERN_INFO "Hardware Trace ");
 	if (bfin_read_TBUFCTL() & 0x1)
-		printk("Active ");
+		printk(KERN_CONT "Active ");
 	else
-		printk("Off ");
+		printk(KERN_CONT "Off ");
 	if (bfin_read_TBUFCTL() & 0x2)
-		printk("and Enabled\n");
+		printk(KERN_CONT "and Enabled\n");
 	else
-	printk("and Disabled\n");
-
-#if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
-	/* we need to initialize the Flashrom device here since we might
-	 * do things with flash early on in the boot
-	 */
-	flash_probe();
-#endif
+		printk(KERN_CONT "and Disabled\n");
 
 	printk(KERN_INFO "Boot Mode: %i\n", bfin_read_SYSCR() & 0xF);
 
@@ -936,10 +935,6 @@ void __init setup_arch(char **cmdline_p)
 			printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
 			       CPU, bfin_revid());
 	}
-
-	/* We can't run on BF548-0.1 due to ANOMALY 05000448 */
-	if (bfin_cpuid() == 0x27de && bfin_revid() == 1)
-		panic("You can't run on this processor due to 05000448");
 
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
@@ -1163,9 +1158,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"
 		"Calibration\t: %lu loops\n",
-		(cpudata->loops_per_jiffy * HZ) / 500000,
-		((cpudata->loops_per_jiffy * HZ) / 5000) % 100,
-		(cpudata->loops_per_jiffy * HZ));
+		(loops_per_jiffy * HZ) / 500000,
+		((loops_per_jiffy * HZ) / 5000) % 100,
+		(loops_per_jiffy * HZ));
 
 	/* Check Cache configutation */
 	switch (cpudata->dmemctl & (1 << DMC0_P | 1 << DMC1_P)) {

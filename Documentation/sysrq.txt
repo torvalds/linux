@@ -66,7 +66,8 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 'b'     - Will immediately reboot the system without syncing or unmounting
           your disks.
 
-'c'	- Will perform a kexec reboot in order to take a crashdump.
+'c'	- Will perform a system crash by a NULL pointer dereference.
+          A crashdump will be taken if configured.
 
 'd'	- Shows all locks that are held.
 
@@ -141,8 +142,8 @@ useful when you want to exit a program that will not let you switch consoles.
 re'B'oot is good when you're unable to shut down. But you should also 'S'ync
 and 'U'mount first.
 
-'C'rashdump can be used to manually trigger a crashdump when the system is hung.
-The kernel needs to have been built with CONFIG_KEXEC enabled.
+'C'rash can be used to manually trigger a crashdump when the system is hung.
+Note that this just triggers a crash if there is no dump mechanism available.
 
 'S'ync is great when your system is locked up, it allows you to sync your
 disks and will certainly lessen the chance of data loss and fscking. Note

@@ -189,11 +189,36 @@ acpi_status __init acpi_os_initialize(void)
 	return AE_OK;
 }
 
+static void bind_to_cpu0(struct work_struct *work)
+{
+	set_cpus_allowed(current, cpumask_of_cpu(0));
+	kfree(work);
+}
+
+static void bind_workqueue(struct workqueue_struct *wq)
+{
+	struct work_struct *work;
+
+	work = kzalloc(sizeof(struct work_struct), GFP_KERNEL);
+	INIT_WORK(work, bind_to_cpu0);
+	queue_work(wq, work);
+}
+
 acpi_status acpi_os_initialize1(void)
 {
+	/*
+	 * On some machines, a software-initiated SMI causes corruption unless
+	 * the SMI runs on CPU 0.  An SMI can be initiated by any AML, but
+	 * typically it's done in GPE-related methods that are run via
+	 * workqueues, so we can avoid the known corruption cases by binding
+	 * the workqueues to CPU 0.
+	 */
 	kacpid_wq = create_singlethread_workqueue("kacpid");
+	bind_workqueue(kacpid_wq);
 	kacpi_notify_wq = create_singlethread_workqueue("kacpi_notify");
+	bind_workqueue(kacpi_notify_wq);
 	kacpi_hotplug_wq = create_singlethread_workqueue("kacpi_hotplug");
+	bind_workqueue(kacpi_hotplug_wq);
 	BUG_ON(!kacpid_wq);
 	BUG_ON(!kacpi_notify_wq);
 	BUG_ON(!kacpi_hotplug_wq);

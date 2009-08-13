@@ -935,6 +935,7 @@ int startup_gfar(struct net_device *dev)
 	struct gfar __iomem *regs = priv->regs;
 	int err = 0;
 	u32 rctrl = 0;
+	u32 tctrl = 0;
 	u32 attrs = 0;
 
 	gfar_write(&regs->imask, IMASK_INIT_CLEAR);
@@ -1110,11 +1111,19 @@ int startup_gfar(struct net_device *dev)
 		rctrl |= RCTRL_PADDING(priv->padding);
 	}
 
+	/* keep vlan related bits if it's enabled */
+	if (priv->vlgrp) {
+		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
+		tctrl |= TCTRL_VLINS;
+	}
+
 	/* Init rctrl based on our settings */
 	gfar_write(&priv->regs->rctrl, rctrl);
 
 	if (dev->features & NETIF_F_IP_CSUM)
-		gfar_write(&priv->regs->tctrl, TCTRL_INIT_CSUM);
+		tctrl |= TCTRL_INIT_CSUM;
+
+	gfar_write(&priv->regs->tctrl, tctrl);
 
 	/* Set the extraction length and index */
 	attrs = ATTRELI_EL(priv->rx_stash_size) |
@@ -1449,7 +1458,6 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 
 		/* Enable VLAN tag extraction */
 		tempval = gfar_read(&priv->regs->rctrl);
-		tempval |= RCTRL_VLEX;
 		tempval |= (RCTRL_VLEX | RCTRL_PRSDEP_INIT);
 		gfar_write(&priv->regs->rctrl, tempval);
 	} else {

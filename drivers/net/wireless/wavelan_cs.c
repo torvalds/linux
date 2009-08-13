@@ -3556,17 +3556,8 @@ wv_82593_config(struct net_device *	dev)
   cfblk.rcvstop = TRUE; 	/* Enable Receive Stop Register */
 
 #ifdef DEBUG_I82593_SHOW
-  {
-    u_char *c = (u_char *) &cfblk;
-    int i;
-    printk(KERN_DEBUG "wavelan_cs: config block:");
-    for(i = 0; i < sizeof(struct i82593_conf_block); i++,c++)
-      {
-	if((i % 16) == 0) printk("\n" KERN_DEBUG);
-	printk("%02x ", *c);
-      }
-    printk("\n");
-  }
+  print_hex_dump(KERN_DEBUG, "wavelan_cs: config block: ", DUMP_PREFIX_NONE,
+		 16, 1, &cfblk, sizeof(struct i82593_conf_block), false);
 #endif
 
   /* Copy the config block to the i82593 */

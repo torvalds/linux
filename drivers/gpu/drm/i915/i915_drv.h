@@ -133,6 +133,22 @@ struct sdvo_device_mapping {
 	u8 initialized;
 };
 
+struct drm_i915_error_state {
+	u32 eir;
+	u32 pgtbl_er;
+	u32 pipeastat;
+	u32 pipebstat;
+	u32 ipeir;
+	u32 ipehr;
+	u32 instdone;
+	u32 acthd;
+	u32 instpm;
+	u32 instps;
+	u32 instdone1;
+	u32 seqno;
+	struct timeval time;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -203,11 +219,19 @@ typedef struct drm_i915_private {
 	unsigned int lvds_vbt:1;
 	unsigned int int_crt_support:1;
 	unsigned int lvds_use_ssc:1;
+	unsigned int edp_support:1;
 	int lvds_ssc_freq;
 
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
+
+	unsigned int fsb_freq, mem_freq;
+
+	spinlock_t error_lock;
+	struct drm_i915_error_state *first_error;
+	struct work_struct error_work;
+	struct workqueue_struct *wq;
 
 	/* Register state */
 	u8 saveLBB;
@@ -468,9 +492,6 @@ struct drm_i915_gem_object {
 	 */
 	int fence_reg;
 
-	/** Boolean whether this object has a valid gtt offset. */
-	int gtt_bound;
-
 	/** How many users have pinned this object in GTT space */
 	int pin_count;
 
@@ -655,6 +676,7 @@ void i915_gem_free_object(struct drm_gem_object *obj);
 int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment);
 void i915_gem_object_unpin(struct drm_gem_object *obj);
 int i915_gem_object_unbind(struct drm_gem_object *obj);
+void i915_gem_release_mmap(struct drm_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 uint32_t i915_get_gem_seqno(struct drm_device *dev);
 int i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
@@ -869,7 +891,10 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 						      IS_I915GM(dev)))
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
 #define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
+#define SUPPORTS_EDP(dev)		(IS_IGDNG_M(dev))
 #define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
+/* dsparb controlled by hw only */
+#define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IGDNG(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

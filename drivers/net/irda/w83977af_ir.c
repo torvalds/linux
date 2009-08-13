@@ -115,7 +115,7 @@ static int __init w83977af_init(void)
 
 	IRDA_DEBUG(0, "%s()\n", __func__ );
 
-	for (i=0; (io[i] < 2000) && (i < ARRAY_SIZE(dev_self)); i++) {
+	for (i=0; i < ARRAY_SIZE(dev_self) && io[i] < 2000; i++) {
 		if (w83977af_open(i, io[i], irq[i], dma[i]) == 0)
 			return 0;
 	}

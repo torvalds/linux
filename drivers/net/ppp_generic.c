@@ -1384,7 +1384,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 
 	/* create a	fragment for each channel */
 	bits = B;
-	while (nfree > 0 &&	len	> 0) {
+	while (len	> 0) {
 		list = list->next;
 		if (list ==	&ppp->channels)	{
 			i =	0;
@@ -1431,29 +1431,31 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 		*otherwise divide it according to the speed
 		*of the channel we are going to transmit on
 		*/
-		if (pch->speed == 0) {
-			flen = totlen/nfree	;
-			if (nbigger > 0) {
-				flen++;
-				nbigger--;
-			}
-		} else {
-			flen = (((totfree - nzero)*(totlen + hdrlen*totfree)) /
-				((totspeed*totfree)/pch->speed)) - hdrlen;
-			if (nbigger > 0) {
-				flen += ((totfree - nzero)*pch->speed)/totspeed;
-				nbigger -= ((totfree - nzero)*pch->speed)/
+		if (nfree > 0) {
+			if (pch->speed == 0) {
+				flen = totlen/nfree	;
+				if (nbigger > 0) {
+					flen++;
+					nbigger--;
+				}
+			} else {
+				flen = (((totfree - nzero)*(totlen + hdrlen*totfree)) /
+					((totspeed*totfree)/pch->speed)) - hdrlen;
+				if (nbigger > 0) {
+					flen += ((totfree - nzero)*pch->speed)/totspeed;
+					nbigger -= ((totfree - nzero)*pch->speed)/
 							totspeed;
+				}
 			}
+			nfree--;
 		}
-		nfree--;
 
 		/*
 		 *check	if we are on the last channel or
 		 *we exceded the lenght	of the data	to
 		 *fragment
 		 */
-		if ((nfree == 0) || (flen > len))
+		if ((nfree <= 0) || (flen > len))
 			flen = len;
 		/*
 		 *it is not worth to tx on slow channels:
@@ -1467,7 +1469,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 			continue;
 		}
 
-		mtu	= pch->chan->mtu + 2 - hdrlen;
+		mtu	= pch->chan->mtu - hdrlen;
 		if (mtu	< 4)
 			mtu	= 4;
 		if (flen > mtu)

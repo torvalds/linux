@@ -462,8 +462,9 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 				 PCI_DMA_FROMDEVICE);
 	}
 	/* Adjust size of last fragment to match actual length */
-	skb_frags_rx[nr - 1].size = length -
-		priv->frag_info[nr - 1].frag_prefix_size;
+	if (nr > 0)
+		skb_frags_rx[nr - 1].size = length -
+			priv->frag_info[nr - 1].frag_prefix_size;
 	return nr;
 
 fail:

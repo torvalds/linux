@@ -484,8 +484,9 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 
 	mark = REG_RD(bp, MCP_REG_MCPR_SCRATCH + 0xf104);
 	mark = ((mark + 0x3) & ~0x3);
-	printk(KERN_ERR PFX "begin fw dump (mark 0x%x)\n" KERN_ERR, mark);
+	printk(KERN_ERR PFX "begin fw dump (mark 0x%x)\n", mark);
 
+	printk(KERN_ERR PFX);
 	for (offset = mark - 0x08000000; offset <= 0xF900; offset += 0x8*4) {
 		for (word = 0; word < 8; word++)
 			data[word] = htonl(REG_RD(bp, MCP_REG_MCPR_SCRATCH +
@@ -500,7 +501,7 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 		data[8] = 0x0;
 		printk(KERN_CONT "%s", (char *)data);
 	}
-	printk("\n" KERN_ERR PFX "end of fw dump\n");
+	printk(KERN_ERR PFX "end of fw dump\n");
 }
 
 static void bnx2x_panic_dump(struct bnx2x *bp)
@@ -7453,7 +7454,7 @@ static void bnx2x_reset_task(struct work_struct *work)
 #ifdef BNX2X_STOP_ON_ERROR
 	BNX2X_ERR("reset task called but STOP_ON_ERROR defined"
 		  " so reset not done to allow debug dump,\n"
-	 KERN_ERR " you will need to reboot when done\n");
+		  " you will need to reboot when done\n");
 	return;
 #endif
 

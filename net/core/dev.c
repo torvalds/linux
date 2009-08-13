@@ -3887,10 +3887,12 @@ int dev_unicast_delete(struct net_device *dev, void *addr)
 
 	ASSERT_RTNL();
 
+	netif_addr_lock_bh(dev);
 	err = __hw_addr_del(&dev->uc, addr, dev->addr_len,
 			    NETDEV_HW_ADDR_T_UNICAST);
 	if (!err)
 		__dev_set_rx_mode(dev);
+	netif_addr_unlock_bh(dev);
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_delete);
@@ -3911,10 +3913,12 @@ int dev_unicast_add(struct net_device *dev, void *addr)
 
 	ASSERT_RTNL();
 
+	netif_addr_lock_bh(dev);
 	err = __hw_addr_add(&dev->uc, addr, dev->addr_len,
 			    NETDEV_HW_ADDR_T_UNICAST);
 	if (!err)
 		__dev_set_rx_mode(dev);
+	netif_addr_unlock_bh(dev);
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_add);
@@ -3973,7 +3977,8 @@ EXPORT_SYMBOL_GPL(__dev_addr_unsync);
  *	@from: source device
  *
  *	Add newly added addresses to the destination device and release
- *	addresses that have no users left.
+ *	addresses that have no users left. The source device must be
+ *	locked by netif_tx_lock_bh.
  *
  *	This function is intended to be called from the dev->set_rx_mode
  *	function of layered software devices.
@@ -3982,14 +3987,14 @@ int dev_unicast_sync(struct net_device *to, struct net_device *from)
 {
 	int err = 0;
 
-	ASSERT_RTNL();
-
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
+	netif_addr_lock_bh(to);
 	err = __hw_addr_sync(&to->uc, &from->uc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
+	netif_addr_unlock_bh(to);
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_sync);
@@ -4005,27 +4010,27 @@ EXPORT_SYMBOL(dev_unicast_sync);
  */
 void dev_unicast_unsync(struct net_device *to, struct net_device *from)
 {
-	ASSERT_RTNL();
-
 	if (to->addr_len != from->addr_len)
 		return;
 
+	netif_addr_lock_bh(from);
+	netif_addr_lock(to);
 	__hw_addr_unsync(&to->uc, &from->uc, to->addr_len);
 	__dev_set_rx_mode(to);
+	netif_addr_unlock(to);
+	netif_addr_unlock_bh(from);
 }
 EXPORT_SYMBOL(dev_unicast_unsync);
 
 static void dev_unicast_flush(struct net_device *dev)
 {
-	/* rtnl_mutex must be held here */
-
+	netif_addr_lock_bh(dev);
 	__hw_addr_flush(&dev->uc);
+	netif_addr_unlock_bh(dev);
 }
 
 static void dev_unicast_init(struct net_device *dev)
 {
-	/* rtnl_mutex must be held here */
-
 	__hw_addr_init(&dev->uc);
 }
 

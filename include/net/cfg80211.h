@@ -1076,6 +1076,10 @@ struct cfg80211_ops {
  * 	channels at a later time. This can be used for devices which do not
  * 	have calibration information gauranteed for frequencies or settings
  * 	outside of its regulatory domain.
+ * @disable_beacon_hints: enable this if your driver needs to ensure that
+ *	passive scan flags and beaconing flags may not be lifted by cfg80211
+ *	due to regulatory beacon hints. For more information on beacon
+ *	hints read the documenation for regulatory_hint_found_beacon()
  * @reg_notifier: the driver's regulatory notification callback
  * @regd: the driver's regulatory domain, if one was requested via
  * 	the regulatory_hint() API. This can be used by the driver
@@ -1104,6 +1108,7 @@ struct wiphy {
 
 	bool custom_regulatory;
 	bool strict_regulatory;
+	bool disable_beacon_hints;
 
 	bool netnsok;
 

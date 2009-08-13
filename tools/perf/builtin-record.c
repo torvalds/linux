@@ -43,6 +43,7 @@ static int			call_graph			= 0;
 static int			verbose				= 0;
 static int			inherit_stat			= 0;
 static int			no_samples			= 0;
+static int			sample_address			= 0;
 
 static long			samples;
 static struct timeval		last_read;
@@ -294,7 +295,7 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 	while (1) {
 		char bf[BUFSIZ], *pbf = bf;
 		struct mmap_event mmap_ev = {
-			.header.type = PERF_EVENT_MMAP,
+			.header = { .type = PERF_EVENT_MMAP },
 		};
 		int n;
 		size_t size;
@@ -312,6 +313,10 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 		pbf += n + 3;
 		if (*pbf == 'x') { /* vm_exec */
 			char *execname = strchr(bf, '/');
+
+			/* Catch VDSO */
+			if (execname == NULL)
+				execname = strstr(bf, "[vdso]");
 
 			if (execname == NULL)
 				continue;
@@ -401,8 +406,12 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	if (inherit_stat)
 		attr->inherit_stat = 1;
 
+	if (sample_address)
+		attr->sample_type	|= PERF_SAMPLE_ADDR;
+
 	if (call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
+
 
 	attr->mmap		= track;
 	attr->comm		= track;
@@ -645,16 +654,19 @@ static const struct option options[] = {
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('s', "stat", &inherit_stat,
 		    "per thread counts"),
+	OPT_BOOLEAN('d', "data", &sample_address,
+		    "Sample addresses"),
 	OPT_BOOLEAN('n', "no-samples", &no_samples,
 		    "don't sample"),
 	OPT_END()
 };
 
-int cmd_record(int argc, const char **argv, const char *prefix)
+int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
-	argc = parse_options(argc, argv, options, record_usage, 0);
+	argc = parse_options(argc, argv, options, record_usage,
+		PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target_pid == -1 && !system_wide)
 		usage_with_options(record_usage, options);
 

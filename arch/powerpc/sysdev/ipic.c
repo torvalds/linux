@@ -728,11 +728,9 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	if (ret)
 		return NULL;
 
-	ipic = alloc_bootmem(sizeof(struct ipic));
+	ipic = kzalloc(sizeof(*ipic), GFP_KERNEL);
 	if (ipic == NULL)
 		return NULL;
-
-	memset(ipic, 0, sizeof(struct ipic));
 
 	ipic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
 				       NR_IPIC_INTS,

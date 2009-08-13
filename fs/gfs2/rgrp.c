@@ -285,27 +285,19 @@ void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd)
 	}
 
 	tmp = rgd->rd_data - rgd->rd_free - rgd->rd_dinodes;
-	if (count[1] + count[2] != tmp) {
+	if (count[1] != tmp) {
 		if (gfs2_consist_rgrpd(rgd))
 			fs_err(sdp, "used data mismatch:  %u != %u\n",
 			       count[1], tmp);
 		return;
 	}
 
-	if (count[3] != rgd->rd_dinodes) {
+	if (count[2] + count[3] != rgd->rd_dinodes) {
 		if (gfs2_consist_rgrpd(rgd))
 			fs_err(sdp, "used metadata mismatch:  %u != %u\n",
-			       count[3], rgd->rd_dinodes);
+			       count[2] + count[3], rgd->rd_dinodes);
 		return;
 	}
-
-	if (count[2] > count[3]) {
-		if (gfs2_consist_rgrpd(rgd))
-			fs_err(sdp, "unlinked inodes > inodes:  %u\n",
-			       count[2]);
-		return;
-	}
-
 }
 
 static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
@@ -961,7 +953,8 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
  * Returns: The inode, if one has been found
  */
 
-static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
+static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked,
+				     u64 skip)
 {
 	struct inode *inode;
 	u32 goal = 0, block;
@@ -984,6 +977,8 @@ static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
 		no_addr = block + rgd->rd_data0;
 		goal++;
 		if (*last_unlinked != NO_BLOCK && no_addr <= *last_unlinked)
+			continue;
+		if (no_addr == skip)
 			continue;
 		*last_unlinked = no_addr;
 		inode = gfs2_inode_lookup(rgd->rd_sbd->sd_vfs, DT_UNKNOWN,
@@ -1104,7 +1099,7 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			if (try_rgrp_fit(rgd, al))
 				goto out;
 			if (rgd->rd_flags & GFS2_RDF_CHECK)
-				inode = try_rgrp_unlink(rgd, last_unlinked);
+				inode = try_rgrp_unlink(rgd, last_unlinked, ip->i_no_addr);
 			if (!rg_locked)
 				gfs2_glock_dq_uninit(&al->al_rgd_gh);
 			if (inode)
@@ -1138,7 +1133,7 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			if (try_rgrp_fit(rgd, al))
 				goto out;
 			if (rgd->rd_flags & GFS2_RDF_CHECK)
-				inode = try_rgrp_unlink(rgd, last_unlinked);
+				inode = try_rgrp_unlink(rgd, last_unlinked, ip->i_no_addr);
 			if (!rg_locked)
 				gfs2_glock_dq_uninit(&al->al_rgd_gh);
 			if (inode)

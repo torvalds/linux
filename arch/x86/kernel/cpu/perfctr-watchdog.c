@@ -803,8 +803,3 @@ int __kprobes lapic_wd_event(unsigned nmi_hz)
 	wd_ops->rearm(wd, nmi_hz);
 	return 1;
 }
-
-int lapic_watchdog_ok(void)
-{
-	return wd_ops != NULL;
-}

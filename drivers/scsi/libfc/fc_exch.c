@@ -415,9 +415,9 @@ static void fc_exch_timeout(struct work_struct *work)
 	e_stat = ep->esb_stat;
 	if (e_stat & ESB_ST_COMPLETE) {
 		ep->esb_stat = e_stat & ~ESB_ST_REC_QUAL;
+		spin_unlock_bh(&ep->ex_lock);
 		if (e_stat & ESB_ST_REC_QUAL)
 			fc_exch_rrq(ep);
-		spin_unlock_bh(&ep->ex_lock);
 		goto done;
 	} else {
 		resp = ep->resp;
@@ -1624,14 +1624,14 @@ static void fc_exch_rrq(struct fc_exch *ep)
 	struct fc_lport *lp;
 	struct fc_els_rrq *rrq;
 	struct fc_frame *fp;
-	struct fc_seq *rrq_sp;
 	u32 did;
 
 	lp = ep->lp;
 
 	fp = fc_frame_alloc(lp, sizeof(*rrq));
 	if (!fp)
-		return;
+		goto retry;
+
 	rrq = fc_frame_payload_get(fp, sizeof(*rrq));
 	memset(rrq, 0, sizeof(*rrq));
 	rrq->rrq_cmd = ELS_RRQ;
@@ -1647,13 +1647,20 @@ static void fc_exch_rrq(struct fc_exch *ep)
 		       fc_host_port_id(lp->host), FC_TYPE_ELS,
 		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
 
-	rrq_sp = fc_exch_seq_send(lp, fp, fc_exch_rrq_resp, NULL, ep,
-				  lp->e_d_tov);
-	if (!rrq_sp) {
-		ep->esb_stat |= ESB_ST_REC_QUAL;
-		fc_exch_timer_set_locked(ep, ep->r_a_tov);
+	if (fc_exch_seq_send(lp, fp, fc_exch_rrq_resp, NULL, ep, lp->e_d_tov))
+		return;
+
+retry:
+	spin_lock_bh(&ep->ex_lock);
+	if (ep->state & (FC_EX_RST_CLEANUP | FC_EX_DONE)) {
+		spin_unlock_bh(&ep->ex_lock);
+		/* drop hold for rec qual */
+		fc_exch_release(ep);
 		return;
 	}
+	ep->esb_stat |= ESB_ST_REC_QUAL;
+	fc_exch_timer_set_locked(ep, ep->r_a_tov);
+	spin_unlock_bh(&ep->ex_lock);
 }
 
 

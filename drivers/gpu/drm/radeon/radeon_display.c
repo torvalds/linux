@@ -187,6 +187,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 
 	drm_mode_crtc_set_gamma_size(&radeon_crtc->base, 256);
 	radeon_crtc->crtc_id = index;
+	rdev->mode_info.crtcs[index] = radeon_crtc;
 
 	radeon_crtc->mode_set.crtc = &radeon_crtc->base;
 	radeon_crtc->mode_set.connectors = (struct drm_connector **)(radeon_crtc + 1);
@@ -491,7 +492,11 @@ void radeon_compute_pll(struct radeon_pll *pll,
 					tmp += (uint64_t)pll->reference_freq * 1000 * frac_feedback_div;
 					current_freq = radeon_div(tmp, ref_div * post_div);
 
-					error = abs(current_freq - freq);
+					if (flags & RADEON_PLL_PREFER_CLOSEST_LOWER) {
+						error = freq - current_freq;
+						error = error < 0 ? 0xffffffff : error;
+					} else
+						error = abs(current_freq - freq);
 					vco_diff = abs(vco - best_vco);
 
 					if ((best_vco == 0 && error < best_error) ||
@@ -657,36 +662,51 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 	}
 }
 
-void radeon_init_disp_bandwidth(struct drm_device *dev)
+bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
 {
-	struct radeon_device *rdev = dev->dev_private;
-	struct drm_display_mode *modes[2];
-	int pixel_bytes[2];
-	struct drm_crtc *crtc;
+	struct drm_device *dev = crtc->dev;
+	struct drm_encoder *encoder;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct radeon_encoder *radeon_encoder;
+	bool first = true;
 
-	pixel_bytes[0] = pixel_bytes[1] = 0;
-	modes[0] = modes[1] = NULL;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-
-		if (crtc->enabled && crtc->fb) {
-			modes[radeon_crtc->crtc_id] = &crtc->mode;
-			pixel_bytes[radeon_crtc->crtc_id] = crtc->fb->bits_per_pixel / 8;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		radeon_encoder = to_radeon_encoder(encoder);
+		if (encoder->crtc != crtc)
+			continue;
+		if (first) {
+			radeon_crtc->rmx_type = radeon_encoder->rmx_type;
+			radeon_crtc->devices = radeon_encoder->devices;
+			memcpy(&radeon_crtc->native_mode,
+				&radeon_encoder->native_mode,
+				sizeof(struct radeon_native_mode));
+			first = false;
+		} else {
+			if (radeon_crtc->rmx_type != radeon_encoder->rmx_type) {
+				/* WARNING: Right now this can't happen but
+				 * in the future we need to check that scaling
+				 * are consistent accross different encoder
+				 * (ie all encoder can work with the same
+				 *  scaling).
+				 */
+				DRM_ERROR("Scaling not consistent accross encoder.\n");
+				return false;
+			}
 		}
 	}
-
-	if (ASIC_IS_AVIVO(rdev)) {
-		radeon_init_disp_bw_avivo(dev,
-					  modes[0],
-					  pixel_bytes[0],
-					  modes[1],
-					  pixel_bytes[1]);
+	if (radeon_crtc->rmx_type != RMX_OFF) {
+		fixed20_12 a, b;
+		a.full = rfixed_const(crtc->mode.vdisplay);
+		b.full = rfixed_const(radeon_crtc->native_mode.panel_xres);
+		radeon_crtc->vsc.full = rfixed_div(a, b);
+		a.full = rfixed_const(crtc->mode.hdisplay);
+		b.full = rfixed_const(radeon_crtc->native_mode.panel_yres);
+		radeon_crtc->hsc.full = rfixed_div(a, b);
 	} else {
-		radeon_init_disp_bw_legacy(dev,
-					   modes[0],
-					   pixel_bytes[0],
-					   modes[1],
-					   pixel_bytes[1]);
+		radeon_crtc->vsc.full = rfixed_const(1);
+		radeon_crtc->hsc.full = rfixed_const(1);
 	}
+	return true;
 }

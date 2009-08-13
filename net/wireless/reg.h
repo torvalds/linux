@@ -30,7 +30,8 @@ int set_regdom(const struct ieee80211_regdomain *rd);
  * non-radar 5 GHz channels.
  *
  * Drivers do not need to call this, cfg80211 will do it for after a scan
- * on a newly found BSS.
+ * on a newly found BSS. If you cannot make use of this feature you can
+ * set the wiphy->disable_beacon_hints to true.
  */
 int regulatory_hint_found_beacon(struct wiphy *wiphy,
 					struct ieee80211_channel *beacon_chan,

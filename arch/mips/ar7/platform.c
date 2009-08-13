@@ -28,7 +28,6 @@
 #include <linux/serial_8250.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
-#include <linux/version.h>
 #include <linux/vlynq.h>
 #include <linux/leds.h>
 #include <linux/string.h>
@@ -251,13 +250,13 @@ static struct platform_device physmap_flash = {
 	.num_resources = 1,
 };
 
-static u64 cpmac_dma_mask = DMA_32BIT_MASK;
+static u64 cpmac_dma_mask = DMA_BIT_MASK(32);
 static struct platform_device cpmac_low = {
 	.id = 0,
 	.name = "cpmac",
 	.dev = {
 		.dma_mask = &cpmac_dma_mask,
-		.coherent_dma_mask = DMA_32BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 		.platform_data = &cpmac_low_data,
 	},
 	.resource = cpmac_low_res,
@@ -269,7 +268,7 @@ static struct platform_device cpmac_high = {
 	.name = "cpmac",
 	.dev = {
 		.dma_mask = &cpmac_dma_mask,
-		.coherent_dma_mask = DMA_32BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 		.platform_data = &cpmac_high_data,
 	},
 	.resource = cpmac_high_res,
@@ -489,6 +488,7 @@ static void __init detect_leds(void)
 static int __init ar7_register_devices(void)
 {
 	int res;
+#ifdef CONFIG_SERIAL_8250
 	static struct uart_port uart_port[2];
 
 	memset(uart_port, 0, sizeof(struct uart_port) * 2);
@@ -520,7 +520,7 @@ static int __init ar7_register_devices(void)
 		if (res)
 			return res;
 	}
-
+#endif /* CONFIG_SERIAL_8250 */
 	res = platform_device_register(&physmap_flash);
 	if (res)
 		return res;

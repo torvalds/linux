@@ -767,6 +767,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
 	u8 data, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
 	u16 pll_d = 1;
+	u8 reg;
 
 	/* select data word length */
 	data =
@@ -801,8 +802,16 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 		pll_q &= 0xf;
 		aic3x_write(codec, AIC3X_PLL_PROGA_REG, pll_q << PLLQ_SHIFT);
 		aic3x_write(codec, AIC3X_GPIOB_REG, CODEC_CLKIN_CLKDIV);
-	} else
+		/* disable PLL if it is bypassed */
+		reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
+		aic3x_write(codec, AIC3X_PLL_PROGA_REG, reg & ~PLL_ENABLE);
+
+	} else {
 		aic3x_write(codec, AIC3X_GPIOB_REG, CODEC_CLKIN_PLLDIV);
+		/* enable PLL when it is used */
+		reg = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
+		aic3x_write(codec, AIC3X_PLL_PROGA_REG, reg | PLL_ENABLE);
+	}
 
 	/* Route Left DAC to left channel input and
 	 * right DAC to right channel input */

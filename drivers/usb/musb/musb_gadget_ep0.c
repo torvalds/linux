@@ -407,7 +407,7 @@ stall:
 					csr |= MUSB_RXCSR_P_SENDSTALL
 						| MUSB_RXCSR_FLUSHFIFO
 						| MUSB_RXCSR_CLRDATATOG
-						| MUSB_TXCSR_P_WZC_BITS;
+						| MUSB_RXCSR_P_WZC_BITS;
 					musb_writew(regs, MUSB_RXCSR,
 							csr);
 				}
