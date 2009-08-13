@@ -418,11 +418,6 @@ static int ad1836_remove(struct platform_device *pdev)
 struct snd_soc_codec_device soc_codec_dev_ad1836 = {
 	.probe = 	ad1836_probe,
 	.remove = 	ad1836_remove,
-	/* The power management of ad1836 is very simple. There are
-	 * only adc&dac 2 components to control. Dapm handles them.
-	 */
-	.suspend =      NULL,
-	.resume =       NULL,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ad1836);
 
