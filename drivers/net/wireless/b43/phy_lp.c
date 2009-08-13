@@ -1257,18 +1257,109 @@ static void lpphy_calibration(struct b43_wldev *dev)
 	b43_mac_enable(dev);
 }
 
+static void lpphy_set_tssi_mux(struct b43_wldev *dev, enum tssi_mux_mode mode)
+{
+	if (mode != TSSI_MUX_EXT) {
+		b43_radio_set(dev, B2063_PA_SP1, 0x2);
+		b43_phy_set(dev, B43_PHY_OFDM(0xF3), 0x1000);
+		b43_radio_write(dev, B2063_PA_CTL10, 0x51);
+		if (mode == TSSI_MUX_POSTPA) {
+			b43_radio_mask(dev, B2063_PA_SP1, 0xFFFE);
+			b43_phy_mask(dev, B43_LPPHY_AFE_CTL_OVRVAL, 0xFFC7);
+		} else {
+			b43_radio_maskset(dev, B2063_PA_SP1, 0xFFFE, 0x1);
+			b43_phy_maskset(dev, B43_LPPHY_AFE_CTL_OVRVAL,
+					0xFFC7, 0x20);
+		}
+	} else {
+		B43_WARN_ON(1);
+	}
+}
+
+static void lpphy_tx_pctl_init_hw(struct b43_wldev *dev)
+{
+	u16 tmp;
+	int i;
+
+	//SPEC TODO Call LP PHY Clear TX Power offsets
+	for (i = 0; i < 64; i++) {
+		if (dev->phy.rev >= 2)
+			b43_lptab_write(dev, B43_LPTAB32(7, i + 1), i);
+		else
+			b43_lptab_write(dev, B43_LPTAB32(10, i + 1), i);
+	}
+
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_NNUM, 0xFF00, 0xFF);
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_NNUM, 0x8FFF, 0x5000);
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_IDLETSSI, 0xFFC0, 0x1F);
+	if (dev->phy.rev < 2) {
+		b43_phy_mask(dev, B43_LPPHY_LP_PHY_CTL, 0xEFFF);
+		b43_phy_maskset(dev, B43_LPPHY_LP_PHY_CTL, 0xDFFF, 0x2000);
+	} else {
+		b43_phy_mask(dev, B43_PHY_OFDM(0x103), 0xFFFE);
+		b43_phy_maskset(dev, B43_PHY_OFDM(0x103), 0xFFFB, 0x4);
+		b43_phy_maskset(dev, B43_PHY_OFDM(0x103), 0xFFEF, 0x10);
+		b43_radio_maskset(dev, B2063_IQ_CALIB_CTL2, 0xF3, 0x1);
+		lpphy_set_tssi_mux(dev, TSSI_MUX_POSTPA);
+	}
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_IDLETSSI, 0x7FFF, 0x8000);
+	b43_phy_mask(dev, B43_LPPHY_TX_PWR_CTL_DELTAPWR_LIMIT, 0xFF);
+	b43_phy_write(dev, B43_LPPHY_TX_PWR_CTL_DELTAPWR_LIMIT, 0xA);
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_CMD,
+			(u16)~B43_LPPHY_TX_PWR_CTL_CMD_MODE,
+			B43_LPPHY_TX_PWR_CTL_CMD_MODE_OFF);
+	b43_phy_mask(dev, B43_LPPHY_TX_PWR_CTL_NNUM, 0xF8FF);
+	b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_CMD,
+			(u16)~B43_LPPHY_TX_PWR_CTL_CMD_MODE,
+			B43_LPPHY_TX_PWR_CTL_CMD_MODE_SW);
+
+	if (dev->phy.rev < 2) {
+		b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_0, 0xEFFF, 0x1000);
+		b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_VAL_0, 0xEFFF);
+	} else {
+		lpphy_set_tx_power_by_index(dev, 0x7F);
+	}
+
+	b43_dummy_transmission(dev, true, true);
+
+	tmp = b43_phy_read(dev, B43_LPPHY_TX_PWR_CTL_STAT);
+	if (tmp & 0x8000) {
+		b43_phy_maskset(dev, B43_LPPHY_TX_PWR_CTL_IDLETSSI,
+				0xFFC0, (tmp & 0xFF) - 32);
+	}
+
+	b43_phy_mask(dev, B43_LPPHY_RF_OVERRIDE_0, 0xEFFF);
+
+	// (SPEC?) TODO Set "Target TX frequency" variable to 0
+	// SPEC FIXME "Set BB Multiplier to 0xE000" impossible - bb_mult is u8!
+}
+
+static void lpphy_tx_pctl_init_sw(struct b43_wldev *dev)
+{
+	struct lpphy_tx_gains gains;
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		gains.gm = 4;
+		gains.pad = 12;
+		gains.pga = 12;
+		gains.dac = 0;
+	} else {
+		gains.gm = 7;
+		gains.pad = 14;
+		gains.pga = 15;
+		gains.dac = 0;
+	}
+	lpphy_set_tx_gains(dev, gains);
+	lpphy_set_bb_mult(dev, 150);
+}
+
 /* Initialize TX power control */
 static void lpphy_tx_pctl_init(struct b43_wldev *dev)
 {
 	if (0/*FIXME HWPCTL capable */) {
-		//TODO
+		lpphy_tx_pctl_init_hw(dev);
 	} else { /* This device is only software TX power control capable. */
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
-			//TODO
-		} else {
-			//TODO
-		}
-		//TODO set BB multiplier to 0x0096
+		lpphy_tx_pctl_init_sw(dev);
 	}
 }
 
