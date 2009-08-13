@@ -745,6 +745,8 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (ieee80211_is_data_qos(fc)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+		if (unlikely(tid >= MAX_TID_COUNT))
+			goto drop_unlock;
 		seq_number = priv->stations[sta_id].tid[tid].seq_number;
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = hdr->seq_ctrl &
@@ -1237,6 +1239,9 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 		IWL_ERR(priv, "ra = NULL\n");
 		return -EINVAL;
 	}
+
+	if (unlikely(tid >= MAX_TID_COUNT))
+		return -EINVAL;
 
 	if (likely(tid < ARRAY_SIZE(default_tid_to_tx_fifo)))
 		tx_fifo_id = default_tid_to_tx_fifo[tid];

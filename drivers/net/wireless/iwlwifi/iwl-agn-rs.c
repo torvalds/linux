@@ -332,6 +332,9 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 	} else
 		return MAX_TID_COUNT;
 
+	if (unlikely(tid >= TID_MAX_LOAD_COUNT))
+		return MAX_TID_COUNT;
+
 	tl = &lq_data->load[tid];
 
 	curr_time -= curr_time % TID_ROUND_VALUE;
