@@ -4,6 +4,9 @@
 #include "util.h"
 #include <linux/list.h>
 
+/*
+ * PERF_SAMPLE_IP | PERF_SAMPLE_TID | *
+ */
 struct ip_event {
 	struct perf_event_header header;
 	u64 ip;
@@ -38,6 +41,9 @@ struct lost_event {
 	u64 lost;
 };
 
+/*
+ * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID
+ */
 struct read_event {
 	struct perf_event_header header;
 	u32 pid,tid;
