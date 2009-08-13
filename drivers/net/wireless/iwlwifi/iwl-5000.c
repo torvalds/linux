@@ -1411,6 +1411,7 @@ static void iwl5150_temperature(struct iwl_priv *priv)
 	vt = vt / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF + offset;
 	/* now vt hold the temperature in Kelvin */
 	priv->temperature = KELVIN_TO_CELSIUS(vt);
+	iwl_tt_handler(priv);
 }
 
 /* Calc max signal level (dBm) among 3 possible receivers */
