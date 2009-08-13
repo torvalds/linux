@@ -412,26 +412,6 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 }
 
 /*
- * Internal lookup() using the new generic dcache.
- * SMP-safe
- */
-static struct dentry * cached_lookup(struct dentry * parent, struct qstr * name, struct nameidata *nd)
-{
-	struct dentry * dentry = __d_lookup(parent, name);
-
-	/* lockess __d_lookup may fail due to concurrent d_move() 
-	 * in some unrelated directory, so try with d_lookup
-	 */
-	if (!dentry)
-		dentry = d_lookup(parent, name);
-
-	if (dentry && dentry->d_op && dentry->d_op->d_revalidate)
-		dentry = do_revalidate(dentry, nd);
-
-	return dentry;
-}
-
-/*
  * Short-cut version of permission(), for calling by
  * path_walk(), when dcache lock is held.  Combines parts
  * of permission() and generic_permission(), and tests ONLY for
@@ -461,70 +441,6 @@ static int exec_permission_lite(struct inode *inode)
 	return ret;
 ok:
 	return security_inode_permission(inode, MAY_EXEC);
-}
-
-/*
- * This is called when everything else fails, and we actually have
- * to go to the low-level filesystem to find out what we should do..
- *
- * We get the directory semaphore, and after getting that we also
- * make sure that nobody added the entry to the dcache in the meantime..
- * SMP-safe
- */
-static struct dentry * real_lookup(struct dentry * parent, struct qstr * name, struct nameidata *nd)
-{
-	struct dentry * result;
-	struct inode *dir = parent->d_inode;
-
-	mutex_lock(&dir->i_mutex);
-	/*
-	 * First re-do the cached lookup just in case it was created
-	 * while we waited for the directory semaphore..
-	 *
-	 * FIXME! This could use version numbering or similar to
-	 * avoid unnecessary cache lookups.
-	 *
-	 * The "dcache_lock" is purely to protect the RCU list walker
-	 * from concurrent renames at this point (we mustn't get false
-	 * negatives from the RCU list walk here, unlike the optimistic
-	 * fast walk).
-	 *
-	 * so doing d_lookup() (with seqlock), instead of lockfree __d_lookup
-	 */
-	result = d_lookup(parent, name);
-	if (!result) {
-		struct dentry *dentry;
-
-		/* Don't create child dentry for a dead directory. */
-		result = ERR_PTR(-ENOENT);
-		if (IS_DEADDIR(dir))
-			goto out_unlock;
-
-		dentry = d_alloc(parent, name);
-		result = ERR_PTR(-ENOMEM);
-		if (dentry) {
-			result = dir->i_op->lookup(dir, dentry, nd);
-			if (result)
-				dput(dentry);
-			else
-				result = dentry;
-		}
-out_unlock:
-		mutex_unlock(&dir->i_mutex);
-		return result;
-	}
-
-	/*
-	 * Uhhuh! Nasty case: the cache was re-populated while
-	 * we waited on the semaphore. Need to revalidate.
-	 */
-	mutex_unlock(&dir->i_mutex);
-	if (result->d_op && result->d_op->d_revalidate) {
-		result = do_revalidate(result, nd);
-		if (!result)
-			result = ERR_PTR(-ENOENT);
-	}
-	return result;
 }
 
 static __always_inline void set_root(struct nameidata *nd)
@@ -767,7 +683,8 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 		     struct path *path)
 {
 	struct vfsmount *mnt = nd->path.mnt;
-	struct dentry *dentry;
+	struct dentry *dentry, *parent;
+	struct inode *dir;
 	/*
 	 * See if the low-level filesystem might want
 	 * to use its own hash..
@@ -790,7 +707,59 @@ done:
 	return 0;
 
 need_lookup:
-	dentry = real_lookup(nd->path.dentry, name, nd);
+	parent = nd->path.dentry;
+	dir = parent->d_inode;
+
+	mutex_lock(&dir->i_mutex);
+	/*
+	 * First re-do the cached lookup just in case it was created
+	 * while we waited for the directory semaphore..
+	 *
+	 * FIXME! This could use version numbering or similar to
+	 * avoid unnecessary cache lookups.
+	 *
+	 * The "dcache_lock" is purely to protect the RCU list walker
+	 * from concurrent renames at this point (we mustn't get false
+	 * negatives from the RCU list walk here, unlike the optimistic
+	 * fast walk).
+	 *
+	 * so doing d_lookup() (with seqlock), instead of lockfree __d_lookup
+	 */
+	dentry = d_lookup(parent, name);
+	if (!dentry) {
+		struct dentry *new;
+
+		/* Don't create child dentry for a dead directory. */
+		dentry = ERR_PTR(-ENOENT);
+		if (IS_DEADDIR(dir))
+			goto out_unlock;
+
+		new = d_alloc(parent, name);
+		dentry = ERR_PTR(-ENOMEM);
+		if (new) {
+			dentry = dir->i_op->lookup(dir, new, nd);
+			if (dentry)
+				dput(new);
+			else
+				dentry = new;
+		}
+out_unlock:
+		mutex_unlock(&dir->i_mutex);
+		if (IS_ERR(dentry))
+			goto fail;
+		goto done;
+	}
+
+	/*
+	 * Uhhuh! Nasty case: the cache was re-populated while
+	 * we waited on the semaphore. Need to revalidate.
+	 */
+	mutex_unlock(&dir->i_mutex);
+	if (dentry->d_op && dentry->d_op->d_revalidate) {
+		dentry = do_revalidate(dentry, nd);
+		if (!dentry)
+			dentry = ERR_PTR(-ENOENT);
+	}
 	if (IS_ERR(dentry))
 		goto fail;
 	goto done;
@@ -1144,7 +1113,17 @@ static struct dentry *__lookup_hash(struct qstr *name,
 			goto out;
 	}
 
-	dentry = cached_lookup(base, name, nd);
+	dentry = __d_lookup(base, name);
+
+	/* lockess __d_lookup may fail due to concurrent d_move()
+	 * in some unrelated directory, so try with d_lookup
+	 */
+	if (!dentry)
+		dentry = d_lookup(base, name);
+
+	if (dentry && dentry->d_op && dentry->d_op->d_revalidate)
+		dentry = do_revalidate(dentry, nd);
+
 	if (!dentry) {
 		struct dentry *new;
 
