@@ -167,6 +167,8 @@ netxen_free_sds_rings(struct netxen_recv_context *recv_ctx)
 {
 	if (recv_ctx->sds_rings != NULL)
 		kfree(recv_ctx->sds_rings);
+
+	recv_ctx->sds_rings = NULL;
 }
 
 static int
@@ -186,6 +188,21 @@ netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
 	}
 
 	return 0;
+}
+
+static void
+netxen_napi_del(struct netxen_adapter *adapter)
+{
+	int ring;
+	struct nx_host_sds_ring *sds_ring;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		netif_napi_del(&sds_ring->napi);
+	}
+
+	netxen_free_sds_rings(&adapter->recv_ctx);
 }
 
 static void
@@ -889,10 +906,12 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	struct nx_host_tx_ring *tx_ring;
 
 	err = netxen_init_firmware(adapter);
-	if (err != 0) {
-		printk(KERN_ERR "Failed to init firmware\n");
-		return -EIO;
-	}
+	if (err)
+		return err;
+
+	err = netxen_napi_add(adapter, netdev);
+	if (err)
+		return err;
 
 	if (adapter->fw_major < 4)
 		adapter->max_rds_rings = 3;
@@ -956,6 +975,7 @@ netxen_nic_detach(struct netxen_adapter *adapter)
 	netxen_free_hw_resources(adapter);
 	netxen_release_rx_buffers(adapter);
 	netxen_nic_free_irq(adapter);
+	netxen_napi_del(adapter);
 	netxen_free_sw_resources(adapter);
 
 	adapter->is_up = 0;
@@ -1100,9 +1120,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	if (netxen_napi_add(adapter, netdev))
-		goto err_out_disable_msi;
-
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = &netxen_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
@@ -1183,7 +1200,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		netxen_free_adapter_offload(adapter);
 
 	netxen_teardown_intr(adapter);
-	netxen_free_sds_rings(&adapter->recv_ctx);
 
 	netxen_cleanup_pci_map(adapter);
 
