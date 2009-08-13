@@ -57,6 +57,7 @@
 #define   TALITOS_CCCR_RESET		0x1    /* channel reset */
 #define TALITOS_CCCR_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x110c)
 #define   TALITOS_CCCR_LO_IWSE		0x80   /* chan. ICCR writeback enab. */
+#define   TALITOS_CCCR_LO_EAE		0x20   /* extended address enable */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
 #define   TALITOS_CCCR_LO_NT		0x4    /* notification type */
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
