@@ -244,6 +244,20 @@ static void __init da850_evm_init_nor(void)
 	iounmap(aemif_addr);
 }
 
+#if defined(CONFIG_MTD_PHYSMAP) || \
+    defined(CONFIG_MTD_PHYSMAP_MODULE)
+#define HAS_NOR 1
+#else
+#define HAS_NOR 0
+#endif
+
+#if defined(CONFIG_MMC_DAVINCI) || \
+    defined(CONFIG_MMC_DAVINCI_MODULE)
+#define HAS_MMC 1
+#else
+#define HAS_MMC 0
+#endif
+
 static __init void da850_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
@@ -298,27 +312,34 @@ static __init void da850_evm_init(void)
 		pr_warning("da830_evm_init: watchdog registration failed: %d\n",
 				ret);
 
-	ret = da8xx_pinmux_setup(da850_mmcsd0_pins);
-	if (ret)
-		pr_warning("da850_evm_init: mmcsd0 mux setup failed: %d\n",
-				ret);
+	if (HAS_MMC) {
+		if (HAS_NOR)
+			pr_warning("WARNING: both NOR Flash and MMC/SD are "
+				"enabled, but they share AEMIF pins.\n"
+				"\tDisable one of them.\n");
 
-	ret = gpio_request(DA850_MMCSD_CD_PIN, "MMC CD\n");
-	if (ret)
-		pr_warning("da850_evm_init: can not open GPIO %d\n",
-				DA850_MMCSD_CD_PIN);
-	gpio_direction_input(DA850_MMCSD_CD_PIN);
+		ret = da8xx_pinmux_setup(da850_mmcsd0_pins);
+		if (ret)
+			pr_warning("da850_evm_init: mmcsd0 mux setup failed:"
+					" %d\n", ret);
 
-	ret = gpio_request(DA850_MMCSD_WP_PIN, "MMC WP\n");
-	if (ret)
-		pr_warning("da850_evm_init: can not open GPIO %d\n",
-				DA850_MMCSD_WP_PIN);
-	gpio_direction_input(DA850_MMCSD_WP_PIN);
+		ret = gpio_request(DA850_MMCSD_CD_PIN, "MMC CD\n");
+		if (ret)
+			pr_warning("da850_evm_init: can not open GPIO %d\n",
+					DA850_MMCSD_CD_PIN);
+		gpio_direction_input(DA850_MMCSD_CD_PIN);
 
-	ret = da8xx_register_mmcsd0(&da850_mmc_config);
-	if (ret)
-		pr_warning("da850_evm_init: mmcsd0 registration failed: %d\n",
-				ret);
+		ret = gpio_request(DA850_MMCSD_WP_PIN, "MMC WP\n");
+		if (ret)
+			pr_warning("da850_evm_init: can not open GPIO %d\n",
+					DA850_MMCSD_WP_PIN);
+		gpio_direction_input(DA850_MMCSD_WP_PIN);
+
+		ret = da8xx_register_mmcsd0(&da850_mmc_config);
+		if (ret)
+			pr_warning("da850_evm_init: mmcsd0 registration failed:"
+					" %d\n", ret);
+	}
 
 	davinci_serial_init(&da850_evm_uart_config);
 
