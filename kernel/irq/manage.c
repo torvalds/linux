@@ -451,6 +451,16 @@ static irqreturn_t irq_default_primary_handler(int irq, void *dev_id)
 	return IRQ_WAKE_THREAD;
 }
 
+/*
+ * Primary handler for nested threaded interrupts. Should never be
+ * called.
+ */
+static irqreturn_t irq_nested_primary_handler(int irq, void *dev_id)
+{
+	WARN(1, "Primary handler called for nested irq %d\n", irq);
+	return IRQ_NONE;
+}
+
 static int irq_wait_for_interrupt(struct irqaction *action)
 {
 	while (!kthread_should_stop()) {
@@ -600,7 +610,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	struct irqaction *old, **old_ptr;
 	const char *old_name = NULL;
 	unsigned long flags;
-	int shared = 0;
+	int nested, shared = 0;
 	int ret;
 
 	if (!desc)
@@ -630,9 +640,27 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		return -EINVAL;
 
 	/*
-	 * Threaded handler ?
+	 * Check whether the interrupt nests into another interrupt
+	 * thread.
 	 */
-	if (new->thread_fn) {
+	nested = desc->status & IRQ_NESTED_THREAD;
+	if (nested) {
+		if (!new->thread_fn)
+			return -EINVAL;
+		/*
+		 * Replace the primary handler which was provided from
+		 * the driver for non nested interrupt handling by the
+		 * dummy function which warns when called.
+		 */
+		new->handler = irq_nested_primary_handler;
+	}
+
+	/*
+	 * Create a handler thread when a thread function is supplied
+	 * and the interrupt does not nest into another interrupt
+	 * thread.
+	 */
+	if (new->thread_fn && !nested) {
 		struct task_struct *t;
 
 		t = kthread_create(irq_thread, new, "irq/%d-%s", irq,

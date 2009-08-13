@@ -70,6 +70,7 @@ typedef	void (*irq_flow_handler_t)(unsigned int irq,
 #define IRQ_AFFINITY_SET	0x02000000	/* IRQ affinity was set from userspace*/
 #define IRQ_SUSPENDED		0x04000000	/* IRQ has gone through suspend sequence */
 #define IRQ_ONESHOT		0x08000000	/* IRQ is not unmasked after hardirq */
+#define IRQ_NESTED_THREAD	0x10000000	/* IRQ is nested into another, no own handler thread */
 
 #ifdef CONFIG_IRQ_PER_CPU
 # define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
@@ -385,6 +386,8 @@ set_irq_chained_handler(unsigned int irq,
 {
 	__set_irq_handler(irq, handle, 1, NULL);
 }
+
+extern void set_irq_nested_thread(unsigned int irq, int nest);
 
 extern void set_irq_noprobe(unsigned int irq);
 extern void set_irq_probe(unsigned int irq);
