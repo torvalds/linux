@@ -234,6 +234,16 @@ config BOOT_TRACER
 	  You must pass in initcall_debug and ftrace=initcall to the kernel
 	  command line to enable this on bootup.
 
+config SKB_SOURCES_TRACER
+	bool "Trace skb source information"
+	select GENERIC_TRACER
+	help
+	   This tracer helps developers/sysadmins correlate skb allocation and
+	   consumption.  The idea being that some processes will primarily consume data
+	   that was allocated on certain numa nodes.  By being able to visualize which
+	   nodes the data was allocated on, a sysadmin or developer can optimize the
+	   scheduling of those processes to cut back on cross node chatter.
+
 config TRACE_BRANCH_PROFILING
 	bool
 	select GENERIC_TRACER
