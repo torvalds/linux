@@ -312,7 +312,7 @@ static void radeon_print_display_setup(struct drm_device *dev)
 	}
 }
 
-bool radeon_setup_enc_conn(struct drm_device *dev)
+static bool radeon_setup_enc_conn(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *drm_connector;
@@ -346,9 +346,13 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 
 	if (!radeon_connector->ddc_bus)
 		return -1;
-	radeon_i2c_do_lock(radeon_connector, 1);
-	edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
-	radeon_i2c_do_lock(radeon_connector, 0);
+	if (!radeon_connector->edid) {
+		radeon_i2c_do_lock(radeon_connector, 1);
+		edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
+		radeon_i2c_do_lock(radeon_connector, 0);
+	} else
+		edid = radeon_connector->edid;
+
 	if (edid) {
 		/* update digital bits here */
 		if (edid->input & DRM_EDID_INPUT_DIGITAL)
@@ -677,7 +681,6 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 			continue;
 		if (first) {
 			radeon_crtc->rmx_type = radeon_encoder->rmx_type;
-			radeon_crtc->devices = radeon_encoder->devices;
 			memcpy(&radeon_crtc->native_mode,
 				&radeon_encoder->native_mode,
 				sizeof(struct radeon_native_mode));

@@ -66,6 +66,7 @@ extern int radeon_gart_size;
 extern int radeon_benchmarking;
 extern int radeon_testing;
 extern int radeon_connector_table;
+extern int radeon_tv;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting

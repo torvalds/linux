@@ -471,11 +471,6 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 			continue;
 		}
 
-		if (i == ATOM_DEVICE_TV1_INDEX) {
-			DRM_DEBUG("Skipping TV Out\n");
-			continue;
-		}
-
 		bios_connectors[i].connector_type =
 		    supported_devices_connector_convert[ci.sucConnectorInfo.
 							sbfAccess.
@@ -858,6 +853,72 @@ radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder)
 	return p_dac;
 }
 
+bool radeon_atom_get_tv_timings(struct radeon_device *rdev, int index,
+				SET_CRTC_TIMING_PARAMETERS_PS_ALLOCATION *crtc_timing,
+				int32_t *pixel_clock)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	ATOM_ANALOG_TV_INFO *tv_info;
+	ATOM_ANALOG_TV_INFO_V1_2 *tv_info_v1_2;
+	ATOM_DTD_FORMAT *dtd_timings;
+	int data_index = GetIndexIntoMasterTable(DATA, AnalogTV_Info);
+	u8 frev, crev;
+	uint16_t data_offset;
+
+	atom_parse_data_header(mode_info->atom_context, data_index, NULL, &frev, &crev, &data_offset);
+
+	switch (crev) {
+	case 1:
+		tv_info = (ATOM_ANALOG_TV_INFO *)(mode_info->atom_context->bios + data_offset);
+		if (index > MAX_SUPPORTED_TV_TIMING)
+			return false;
+
+		crtc_timing->usH_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Total);
+		crtc_timing->usH_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_Disp);
+		crtc_timing->usH_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncStart);
+		crtc_timing->usH_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_H_SyncWidth);
+
+		crtc_timing->usV_Total = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Total);
+		crtc_timing->usV_Disp = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_Disp);
+		crtc_timing->usV_SyncStart = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncStart);
+		crtc_timing->usV_SyncWidth = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_V_SyncWidth);
+
+		crtc_timing->susModeMiscInfo = tv_info->aModeTimings[index].susModeMiscInfo;
+
+		crtc_timing->ucOverscanRight = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanRight);
+		crtc_timing->ucOverscanLeft = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanLeft);
+		crtc_timing->ucOverscanBottom = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanBottom);
+		crtc_timing->ucOverscanTop = le16_to_cpu(tv_info->aModeTimings[index].usCRTC_OverscanTop);
+		*pixel_clock = le16_to_cpu(tv_info->aModeTimings[index].usPixelClock) * 10;
+
+		if (index == 1) {
+			/* PAL timings appear to have wrong values for totals */
+			crtc_timing->usH_Total -= 1;
+			crtc_timing->usV_Total -= 1;
+		}
+		break;
+	case 2:
+		tv_info_v1_2 = (ATOM_ANALOG_TV_INFO_V1_2 *)(mode_info->atom_context->bios + data_offset);
+		if (index > MAX_SUPPORTED_TV_TIMING_V1_2)
+			return false;
+
+		dtd_timings = &tv_info_v1_2->aModeTimings[index];
+		crtc_timing->usH_Total = le16_to_cpu(dtd_timings->usHActive) + le16_to_cpu(dtd_timings->usHBlanking_Time);
+		crtc_timing->usH_Disp = le16_to_cpu(dtd_timings->usHActive);
+		crtc_timing->usH_SyncStart = le16_to_cpu(dtd_timings->usHActive) + le16_to_cpu(dtd_timings->usHSyncOffset);
+		crtc_timing->usH_SyncWidth = le16_to_cpu(dtd_timings->usHSyncWidth);
+		crtc_timing->usV_Total = le16_to_cpu(dtd_timings->usVActive) + le16_to_cpu(dtd_timings->usVBlanking_Time);
+		crtc_timing->usV_Disp = le16_to_cpu(dtd_timings->usVActive);
+		crtc_timing->usV_SyncStart = le16_to_cpu(dtd_timings->usVActive) + le16_to_cpu(dtd_timings->usVSyncOffset);
+		crtc_timing->usV_SyncWidth = le16_to_cpu(dtd_timings->usVSyncWidth);
+
+		crtc_timing->susModeMiscInfo.usAccess = le16_to_cpu(dtd_timings->susModeMiscInfo.usAccess);
+		*pixel_clock = le16_to_cpu(dtd_timings->usPixClk) * 10;
+		break;
+	}
+	return true;
+}
+
 struct radeon_encoder_tv_dac *
 radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 {
@@ -948,10 +1009,10 @@ void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev)
 	uint32_t bios_2_scratch, bios_6_scratch;
 
 	if (rdev->family >= CHIP_R600) {
-		bios_2_scratch = RREG32(R600_BIOS_0_SCRATCH);
+		bios_2_scratch = RREG32(R600_BIOS_2_SCRATCH);
 		bios_6_scratch = RREG32(R600_BIOS_6_SCRATCH);
 	} else {
-		bios_2_scratch = RREG32(RADEON_BIOS_0_SCRATCH);
+		bios_2_scratch = RREG32(RADEON_BIOS_2_SCRATCH);
 		bios_6_scratch = RREG32(RADEON_BIOS_6_SCRATCH);
 	}
 

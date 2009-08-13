@@ -91,6 +91,7 @@ int radeon_gart_size = 512; /* default gart size */
 int radeon_benchmarking = 0;
 int radeon_testing = 0;
 int radeon_connector_table = 0;
+int radeon_tv = 1;
 #endif
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
@@ -123,6 +124,9 @@ module_param_named(test, radeon_testing, int, 0444);
 
 MODULE_PARM_DESC(connector_table, "Force connector table");
 module_param_named(connector_table, radeon_connector_table, int, 0444);
+
+MODULE_PARM_DESC(tv, "TV enable (0 = disable)");
+module_param_named(tv, radeon_tv, int, 0444);
 #endif
 
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)

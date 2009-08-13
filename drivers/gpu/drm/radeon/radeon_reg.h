@@ -3462,7 +3462,9 @@
 #       define RADEON_RGB_CONVERT_BY_PASS	  (1 << 10)
 #       define RADEON_UVRAM_READ_MARGIN_SHIFT	  16
 #       define RADEON_FIFORAM_FFMACRO_READ_MARGIN_SHIFT	  20
-#	define RADEON_TVOUT_SCALE_EN		  (1 << 26)
+#       define RADEON_RGB_ATTEN_SEL(x)            ((x) << 24)
+#       define RADEON_TVOUT_SCALE_EN              (1 << 26)
+#       define RADEON_RGB_ATTEN_VAL(x)            ((x) << 28)
 #define RADEON_TV_SYNC_CNTL                          0x0808
 #       define RADEON_SYNC_OE                     (1 <<  0)
 #       define RADEON_SYNC_OUT                    (1 <<  1)
