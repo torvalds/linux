@@ -164,25 +164,33 @@ static void mx21ads_fb_exit(struct platform_device *pdev)
  * Connected is a portrait Sharp-QVGA display
  * of type: LQ035Q7DB02
  */
+static struct imx_fb_videomode mx21ads_modes[] = {
+	{
+		.mode = {
+			.name		= "Sharp-LQ035Q7",
+			.refresh	= 60,
+			.xres		= 240,
+			.yres		= 320,
+			.pixclock	= 188679, /* in ps (5.3MHz) */
+			.hsync_len	= 2,
+			.left_margin	= 6,
+			.right_margin	= 16,
+			.vsync_len	= 1,
+			.upper_margin	= 8,
+			.lower_margin	= 10,
+		},
+		.pcr		= 0xfb108bc7,
+		.bpp		= 16,
+	},
+};
+
 static struct imx_fb_platform_data mx21ads_fb_data = {
-	.pixclock       = 188679, /* in ps */
-	.xres           = 240,
-	.yres           = 320,
+	.mode = mx21ads_modes,
+	.num_modes = ARRAY_SIZE(mx21ads_modes),
 
-	.bpp            = 16,
-	.hsync_len      = 2,
-	.left_margin    = 6,
-	.right_margin   = 16,
-
-	.vsync_len      = 1,
-	.upper_margin   = 8,
-	.lower_margin   = 10,
-	.fixed_screen_cpu = 0,
-
-	.pcr            = 0xFB108BC7,
-	.pwmr           = 0x00A901ff,
-	.lscr1          = 0x00120300,
-	.dmacr          = 0x00020008,
+	.pwmr		= 0x00a903ff,
+	.lscr1		= 0x00120300,
+	.dmacr		= 0x00020008,
 
 	.init = mx21ads_fb_init,
 	.exit = mx21ads_fb_exit,
