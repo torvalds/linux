@@ -4509,7 +4509,26 @@ static int run(mddev_t *mddev)
 			   (old_disks-max_degraded));
 		/* here_old is the first stripe that we might need to read
 		 * from */
-		if (here_new >= here_old) {
+		if (mddev->delta_disks == 0) {
+			/* We cannot be sure it is safe to start an in-place
+			 * reshape.  It is only safe if user-space if monitoring
+			 * and taking constant backups.
+			 * mdadm always starts a situation like this in
+			 * readonly mode so it can take control before
+			 * allowing any writes.  So just check for that.
+			 */
+			if ((here_new * mddev->new_chunk_sectors != 
+			     here_old * mddev->chunk_sectors) ||
+			    mddev->ro == 0) {
+				printk(KERN_ERR "raid5: in-place reshape must be started"
+				       " in read-only mode - aborting\n");
+				return -EINVAL;
+			}
+		} else if (mddev->delta_disks < 0
+		    ? (here_new * mddev->new_chunk_sectors <=
+		       here_old * mddev->chunk_sectors)
+		    : (here_new * mddev->new_chunk_sectors >=
+		       here_old * mddev->chunk_sectors)) {
 			/* Reading from the same stripe as writing to - bad */
 			printk(KERN_ERR "raid5: reshape_position too early for "
 			       "auto-recovery - aborting.\n");
