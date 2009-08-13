@@ -63,10 +63,6 @@
 #include <linux/ctype.h>
 #include <linux/vmalloc.h>
 
-
-#ifdef RT30xx
-#include <linux/wireless.h>
-#endif
 #include <net/iw_handler.h>
 
 // load firmware
