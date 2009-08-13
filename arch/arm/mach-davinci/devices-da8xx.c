@@ -412,3 +412,39 @@ int __init da8xx_register_lcdc(void)
 {
 	return platform_device_register(&da850_lcdc_device);
 }
+
+static struct resource da8xx_mmcsd0_resources[] = {
+	{		/* registers */
+		.start	= DA8XX_MMCSD0_BASE,
+		.end	= DA8XX_MMCSD0_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{		/* interrupt */
+		.start	= IRQ_DA8XX_MMCSDINT0,
+		.end	= IRQ_DA8XX_MMCSDINT0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{		/* DMA RX */
+		.start	= EDMA_CTLR_CHAN(0, 16),
+		.end	= EDMA_CTLR_CHAN(0, 16),
+		.flags	= IORESOURCE_DMA,
+	},
+	{		/* DMA TX */
+		.start	= EDMA_CTLR_CHAN(0, 17),
+		.end	= EDMA_CTLR_CHAN(0, 17),
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device da8xx_mmcsd0_device = {
+	.name		= "davinci_mmc",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(da8xx_mmcsd0_resources),
+	.resource	= da8xx_mmcsd0_resources,
+};
+
+int __init da8xx_register_mmcsd0(struct davinci_mmc_config *config)
+{
+	da8xx_mmcsd0_device.dev.platform_data = config;
+	return platform_device_register(&da8xx_mmcsd0_device);
+}

@@ -304,6 +304,12 @@ static struct clk lcdc_clk = {
 	.psc_ctlr	= 1,
 };
 
+static struct clk mmcsd_clk = {
+	.name		= "mmcsd",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA8XX_LPSC0_MMC_SD,
+};
+
 static struct davinci_clk da850_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
@@ -343,6 +349,7 @@ static struct davinci_clk da850_clks[] = {
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
 	CLK("da8xx_lcdc.0",	NULL,		&lcdc_clk),
+	CLK("davinci_mmc.0",	NULL,		&mmcsd_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
@@ -434,9 +441,18 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, LCD_HSYNC,	19,	0,	15,	2,	false)
 	MUX_CFG(DA850, LCD_VSYNC,	19,	4,	15,	2,	false)
 	MUX_CFG(DA850, NLCD_AC_ENB_CS,	19,	24,	15,	2,	false)
+	/* MMC/SD0 function */
+	MUX_CFG(DA850, MMCSD0_DAT_0,	10,	8,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD0_DAT_1,	10,	12,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD0_DAT_2,	10,	16,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD0_DAT_3,	10,	20,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD0_CLK,	10,	0,	15,	2,	false)
+	MUX_CFG(DA850, MMCSD0_CMD,	10,	4,	15,	2,	false)
 	/* GPIO function */
 	MUX_CFG(DA850, GPIO2_15,	5,	0,	15,	8,	false)
 	MUX_CFG(DA850, GPIO8_10,	18,	28,	15,	8,	false)
+	MUX_CFG(DA850, GPIO4_0,		10,	28,	15,	8,	false)
+	MUX_CFG(DA850, GPIO4_1,		10,	24,	15,	8,	false)
 #endif
 };
 
@@ -488,6 +504,13 @@ const short da850_lcdcntl_pins[] __initdata = {
 	DA850_LCD_D_13, DA850_LCD_D_14, DA850_LCD_D_15, DA850_LCD_PCLK,
 	DA850_LCD_HSYNC, DA850_LCD_VSYNC, DA850_NLCD_AC_ENB_CS, DA850_GPIO2_15,
 	DA850_GPIO8_10,
+	-1
+};
+
+const short da850_mmcsd0_pins[] __initdata = {
+	DA850_MMCSD0_DAT_0, DA850_MMCSD0_DAT_1, DA850_MMCSD0_DAT_2,
+	DA850_MMCSD0_DAT_3, DA850_MMCSD0_CLK, DA850_MMCSD0_CMD,
+	DA850_GPIO4_0, DA850_GPIO4_1,
 	-1
 };
 

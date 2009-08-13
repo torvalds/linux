@@ -16,6 +16,7 @@
 #include <mach/i2c.h>
 #include <mach/emac.h>
 #include <mach/asp.h>
+#include <mach/mmc.h>
 
 /*
  * The cp_intc interrupt controller for the da8xx isn't in the same
@@ -38,6 +39,7 @@
 #define DA8XX_GPIO_BASE		0x01e26000
 #define DA8XX_PSC1_BASE		0x01e27000
 #define DA8XX_LCD_CNTRL_BASE	0x01e13000
+#define DA8XX_MMCSD0_BASE	0x01c40000
 
 #define PINMUX0			0x00
 #define PINMUX1			0x04
@@ -68,6 +70,7 @@ int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
 int da8xx_register_watchdog(void);
 int da8xx_register_emac(void);
 int da8xx_register_lcdc(void);
+int da8xx_register_mmcsd0(struct davinci_mmc_config *config);
 void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata);
 
 extern struct platform_device da8xx_serial_device;
@@ -106,6 +109,7 @@ extern const short da850_i2c1_pins[];
 extern const short da850_cpgmac_pins[];
 extern const short da850_mcasp_pins[];
 extern const short da850_lcdcntl_pins[];
+extern const short da850_mmcsd0_pins[];
 
 int da8xx_pinmux_setup(const short pins[]);
 
