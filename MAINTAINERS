@@ -685,6 +685,18 @@ ARM/MAGICIAN MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
 
+ARM/Marvell Loki/Kirkwood/MV78xx0/Orion SOC support
+M:	Lennert Buytenhek <buytenh@marvell.com>
+M:	Nicolas Pitre <nico@marvell.com>
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+T:	git git://git.marvell.com/orion
+S:	Maintained
+F:	arch/arm/mach-loki/
+F:	arch/arm/mach-kirkwood/
+F:	arch/arm/mach-mv78xx0/
+F:	arch/arm/mach-orion5x/
+F:	arch/arm/plat-orion/
+
 ARM/MIOA701 MACHINE SUPPORT
 M:	Robert Jarzmik <robert.jarzmik@free.fr>
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
