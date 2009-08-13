@@ -4350,7 +4350,8 @@ static int stac92xx_init(struct hda_codec *codec)
 			hda_nid_t nid = cfg->hp_pins[i];
 			enable_pin_detect(codec, nid, STAC_HP_EVENT);
 		}
-		if (cfg->line_out_type == AUTO_PIN_LINE_OUT) {
+		if (cfg->line_out_type == AUTO_PIN_LINE_OUT &&
+		    cfg->speaker_outs > 0) {
 			/* enable pin-detect for line-outs as well */
 			for (i = 0; i < cfg->line_outs; i++) {
 				hda_nid_t nid = cfg->line_out_pins[i];
