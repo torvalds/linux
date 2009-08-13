@@ -430,7 +430,7 @@ int i2400ms_probe(struct sdio_func *func,
 	i2400m->bus_reset = i2400ms_bus_reset;
 	/* The iwmc3200-wimax sometimes requires the driver to try
 	 * hard when we paint it into a corner. */
-	i2400m->bus_bm_retries = I3200_BOOT_RETRIES;
+	i2400m->bus_bm_retries = I2400M_SDIO_BOOT_RETRIES;
 	i2400m->bus_bm_cmd_send = i2400ms_bus_bm_cmd_send;
 	i2400m->bus_bm_wait_for_ack = i2400ms_bus_bm_wait_for_ack;
 	i2400m->bus_fw_names = i2400ms_bus_fw_names;

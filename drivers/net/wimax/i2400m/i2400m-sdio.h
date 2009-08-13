@@ -67,6 +67,7 @@
 
 /* Host-Device interface for SDIO */
 enum {
+	I2400M_SDIO_BOOT_RETRIES = 3,
 	I2400MS_BLK_SIZE = 256,
 	I2400MS_PL_SIZE_MAX = 0x3E00,
 

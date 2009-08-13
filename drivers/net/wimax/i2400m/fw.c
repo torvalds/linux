@@ -602,7 +602,7 @@ int i2400m_bootrom_init(struct i2400m *i2400m, enum i2400m_bri flags)
 	struct device *dev = i2400m_dev(i2400m);
 	struct i2400m_bootrom_header *cmd;
 	struct i2400m_bootrom_header ack;
-	int count = I2400M_BOOT_RETRIES;
+	int count = i2400m->bus_bm_retries;
 	int ack_timeout_cnt = 1;
 
 	BUILD_BUG_ON(sizeof(*cmd) != sizeof(i2400m_NBOOT_BARKER));

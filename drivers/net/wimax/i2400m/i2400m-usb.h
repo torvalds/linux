@@ -137,6 +137,7 @@ static inline int edc_inc(struct edc *edc, u16 max_err, u16 timeframe)
 
 /* Host-Device interface for USB */
 enum {
+	I2400M_USB_BOOT_RETRIES = 3,
 	I2400MU_MAX_NOTIFICATION_LEN = 256,
 	I2400MU_BLK_SIZE = 16,
 	I2400MU_PL_SIZE_MAX = 0x3EFF,

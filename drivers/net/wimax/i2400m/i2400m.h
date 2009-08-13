@@ -148,9 +148,6 @@
 
 /* Misc constants */
 enum {
-	/* Firmware uploading */
-	I2400M_BOOT_RETRIES = 3,
-	I3200_BOOT_RETRIES = 3,
 	/* Size of the Boot Mode Command buffer */
 	I2400M_BM_CMD_BUF_SIZE = 16 * 1024,
 	I2400M_BM_ACK_BUF_SIZE = 256,
