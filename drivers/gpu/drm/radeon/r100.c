@@ -254,6 +254,72 @@ void r100_mc_fini(struct radeon_device *rdev)
 
 
 /*
+ * Interrupts
+ */
+int r100_irq_set(struct radeon_device *rdev)
+{
+	uint32_t tmp = 0;
+
+	if (rdev->irq.sw_int) {
+		tmp |= RADEON_SW_INT_ENABLE;
+	}
+	if (rdev->irq.crtc_vblank_int[0]) {
+		tmp |= RADEON_CRTC_VBLANK_MASK;
+	}
+	if (rdev->irq.crtc_vblank_int[1]) {
+		tmp |= RADEON_CRTC2_VBLANK_MASK;
+	}
+	WREG32(RADEON_GEN_INT_CNTL, tmp);
+	return 0;
+}
+
+static inline uint32_t r100_irq_ack(struct radeon_device *rdev)
+{
+	uint32_t irqs = RREG32(RADEON_GEN_INT_STATUS);
+	uint32_t irq_mask = RADEON_SW_INT_TEST | RADEON_CRTC_VBLANK_STAT |
+		RADEON_CRTC2_VBLANK_STAT;
+
+	if (irqs) {
+		WREG32(RADEON_GEN_INT_STATUS, irqs);
+	}
+	return irqs & irq_mask;
+}
+
+int r100_irq_process(struct radeon_device *rdev)
+{
+	uint32_t status;
+
+	status = r100_irq_ack(rdev);
+	if (!status) {
+		return IRQ_NONE;
+	}
+	while (status) {
+		/* SW interrupt */
+		if (status & RADEON_SW_INT_TEST) {
+			radeon_fence_process(rdev);
+		}
+		/* Vertical blank interrupts */
+		if (status & RADEON_CRTC_VBLANK_STAT) {
+			drm_handle_vblank(rdev->ddev, 0);
+		}
+		if (status & RADEON_CRTC2_VBLANK_STAT) {
+			drm_handle_vblank(rdev->ddev, 1);
+		}
+		status = r100_irq_ack(rdev);
+	}
+	return IRQ_HANDLED;
+}
+
+u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc)
+{
+	if (crtc == 0)
+		return RREG32(RADEON_CRTC_CRNT_FRAME);
+	else
+		return RREG32(RADEON_CRTC2_CRNT_FRAME);
+}
+
+
+/*
  * Fence emission
  */
 void r100_fence_ring_emit(struct radeon_device *rdev,
