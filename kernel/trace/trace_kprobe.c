@@ -32,7 +32,7 @@
 #include "trace.h"
 #include "trace_output.h"
 
-#define TRACE_KPROBE_ARGS 6
+#define MAX_TRACE_ARGS 128
 #define MAX_ARGSTR_LEN 63
 
 /* currently, trace_kprobe only supports X86. */
@@ -184,10 +184,14 @@ struct trace_probe {
 		struct kretprobe	rp;
 	};
 	const char		*symbol;	/* symbol name */
-	unsigned int		nr_args;
-	struct fetch_func	args[TRACE_KPROBE_ARGS];
 	struct ftrace_event_call	call;
+	unsigned int		nr_args;
+	struct fetch_func	args[];
 };
+
+#define SIZEOF_TRACE_PROBE(n)			\
+	(offsetof(struct trace_probe, args) +	\
+	(sizeof(struct fetch_func) * (n)))
 
 static int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs);
 static int kretprobe_trace_func(struct kretprobe_instance *ri,
@@ -263,11 +267,11 @@ static DEFINE_MUTEX(probe_lock);
 static LIST_HEAD(probe_list);
 
 static struct trace_probe *alloc_trace_probe(const char *symbol,
-					     const char *event)
+					     const char *event, int nargs)
 {
 	struct trace_probe *tp;
 
-	tp = kzalloc(sizeof(struct trace_probe), GFP_KERNEL);
+	tp = kzalloc(SIZEOF_TRACE_PROBE(nargs), GFP_KERNEL);
 	if (!tp)
 		return ERR_PTR(-ENOMEM);
 
@@ -573,9 +577,10 @@ static int create_trace_probe(int argc, char **argv)
 		if (offset && is_return)
 			return -EINVAL;
 	}
+	argc -= 2; argv += 2;
 
 	/* setup a probe */
-	tp = alloc_trace_probe(symbol, event);
+	tp = alloc_trace_probe(symbol, event, argc);
 	if (IS_ERR(tp))
 		return PTR_ERR(tp);
 
@@ -594,8 +599,8 @@ static int create_trace_probe(int argc, char **argv)
 		kp->addr = addr;
 
 	/* parse arguments */
-	argc -= 2; argv += 2; ret = 0;
-	for (i = 0; i < argc && i < TRACE_KPROBE_ARGS; i++) {
+	ret = 0;
+	for (i = 0; i < argc && i < MAX_TRACE_ARGS; i++) {
 		if (strlen(argv[i]) > MAX_ARGSTR_LEN) {
 			pr_info("Argument%d(%s) is too long.\n", i, argv[i]);
 			ret = -ENOSPC;

@@ -32,7 +32,7 @@ Synopsis of kprobe_events
  SYMBOL[+offs|-offs]	: Symbol+offset where the probe is inserted.
  MEMADDR		: Address where the probe is inserted.
 
- FETCHARGS		: Arguments.
+ FETCHARGS		: Arguments. Each probe can have up to 128 args.
   %REG	: Fetch register REG
   sN	: Fetch Nth entry of stack (N >= 0)
   sa	: Fetch stack address.
