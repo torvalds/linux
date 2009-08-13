@@ -175,22 +175,4 @@ TRACE_EVENT_FORMAT(kmem_free, TRACE_KMEM_FREE, kmemtrace_free_entry, ignore,
 	TP_RAW_FMT("type:%u call_site:%lx ptr:%p")
 );
 
-TRACE_EVENT_FORMAT(kprobe, TRACE_KPROBE, kprobe_trace_entry, ignore,
-	TRACE_STRUCT(
-		TRACE_FIELD(unsigned long, ip, ip)
-		TRACE_FIELD(int, nargs, nargs)
-		TRACE_FIELD_ZERO(unsigned long, args)
-	),
-	TP_RAW_FMT("%08lx: args:0x%lx ...")
-);
-
-TRACE_EVENT_FORMAT(kretprobe, TRACE_KRETPROBE, kretprobe_trace_entry, ignore,
-	TRACE_STRUCT(
-		TRACE_FIELD(unsigned long, func, func)
-		TRACE_FIELD(unsigned long, ret_ip, ret_ip)
-		TRACE_FIELD(int, nargs, nargs)
-		TRACE_FIELD_ZERO(unsigned long, args)
-	),
-	TP_RAW_FMT("%08lx <- %08lx: args:0x%lx ...")
-);
 #undef TRACE_SYSTEM

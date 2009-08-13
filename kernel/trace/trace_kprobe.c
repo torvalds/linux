@@ -34,6 +34,7 @@
 
 #define MAX_TRACE_ARGS 128
 #define MAX_ARGSTR_LEN 63
+#define MAX_EVENT_NAME_LEN 64
 
 /* currently, trace_kprobe only supports X86. */
 
@@ -280,11 +281,11 @@ static struct trace_probe *alloc_trace_probe(const char *symbol,
 		if (!tp->symbol)
 			goto error;
 	}
-	if (event) {
-		tp->call.name = kstrdup(event, GFP_KERNEL);
-		if (!tp->call.name)
-			goto error;
-	}
+	if (!event)
+		goto error;
+	tp->call.name = kstrdup(event, GFP_KERNEL);
+	if (!tp->call.name)
+		goto error;
 
 	INIT_LIST_HEAD(&tp->list);
 	return tp;
@@ -314,7 +315,7 @@ static struct trace_probe *find_probe_event(const char *event)
 	struct trace_probe *tp;
 
 	list_for_each_entry(tp, &probe_list, list)
-		if (tp->call.name && !strcmp(tp->call.name, event))
+		if (!strcmp(tp->call.name, event))
 			return tp;
 	return NULL;
 }
@@ -330,8 +331,7 @@ static void __unregister_trace_probe(struct trace_probe *tp)
 /* Unregister a trace_probe and probe_event: call with locking probe_lock */
 static void unregister_trace_probe(struct trace_probe *tp)
 {
-	if (tp->call.name)
-		unregister_probe_event(tp);
+	unregister_probe_event(tp);
 	__unregister_trace_probe(tp);
 	list_del(&tp->list);
 }
@@ -360,18 +360,16 @@ static int register_trace_probe(struct trace_probe *tp)
 		goto end;
 	}
 	/* register as an event */
-	if (tp->call.name) {
-		old_tp = find_probe_event(tp->call.name);
-		if (old_tp) {
-			/* delete old event */
-			unregister_trace_probe(old_tp);
-			free_trace_probe(old_tp);
-		}
-		ret = register_probe_event(tp);
-		if (ret) {
-			pr_warning("Faild to register probe event(%d)\n", ret);
-			__unregister_trace_probe(tp);
-		}
+	old_tp = find_probe_event(tp->call.name);
+	if (old_tp) {
+		/* delete old event */
+		unregister_trace_probe(old_tp);
+		free_trace_probe(old_tp);
+	}
+	ret = register_probe_event(tp);
+	if (ret) {
+		pr_warning("Faild to register probe event(%d)\n", ret);
+		__unregister_trace_probe(tp);
 	}
 	list_add_tail(&tp->list, &probe_list);
 end:
@@ -580,7 +578,18 @@ static int create_trace_probe(int argc, char **argv)
 	argc -= 2; argv += 2;
 
 	/* setup a probe */
-	tp = alloc_trace_probe(symbol, event, argc);
+	if (!event) {
+		/* Make a new event name */
+		char buf[MAX_EVENT_NAME_LEN];
+		if (symbol)
+			snprintf(buf, MAX_EVENT_NAME_LEN, "%c@%s%+ld",
+				 is_return ? 'r' : 'p', symbol, offset);
+		else
+			snprintf(buf, MAX_EVENT_NAME_LEN, "%c@0x%p",
+				 is_return ? 'r' : 'p', addr);
+		tp = alloc_trace_probe(symbol, buf, argc);
+	} else
+		tp = alloc_trace_probe(symbol, event, argc);
 	if (IS_ERR(tp))
 		return PTR_ERR(tp);
 
@@ -661,8 +670,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	char buf[MAX_ARGSTR_LEN + 1];
 
 	seq_printf(m, "%c", probe_is_return(tp) ? 'r' : 'p');
-	if (tp->call.name)
-		seq_printf(m, ":%s", tp->call.name);
+	seq_printf(m, ":%s", tp->call.name);
 
 	if (tp->symbol)
 		seq_printf(m, " %s%+ld", probe_symbol(tp), probe_offset(tp));
@@ -780,10 +788,7 @@ static __kprobes int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 	struct ring_buffer_event *event;
 	int size, i, pc;
 	unsigned long irq_flags;
-	struct ftrace_event_call *call = &event_kprobe;
-
-	if (&tp->call.name)
-		call = &tp->call;
+	struct ftrace_event_call *call = &tp->call;
 
 	local_save_flags(irq_flags);
 	pc = preempt_count();
@@ -815,10 +820,7 @@ static __kprobes int kretprobe_trace_func(struct kretprobe_instance *ri,
 	struct ring_buffer_event *event;
 	int size, i, pc;
 	unsigned long irq_flags;
-	struct ftrace_event_call *call = &event_kretprobe;
-
-	if (&tp->call.name)
-		call = &tp->call;
+	struct ftrace_event_call *call = &tp->call;
 
 	local_save_flags(irq_flags);
 	pc = preempt_count();

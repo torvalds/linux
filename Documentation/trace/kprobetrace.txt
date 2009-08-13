@@ -28,7 +28,8 @@ Synopsis of kprobe_events
   p[:EVENT] SYMBOL[+offs|-offs]|MEMADDR [FETCHARGS]	: Set a probe
   r[:EVENT] SYMBOL[+0] [FETCHARGS]			: Set a return probe
 
- EVENT			: Event name.
+ EVENT			: Event name. If omitted, the event name is generated
+			  based on SYMBOL+offs or MEMADDR.
  SYMBOL[+offs|-offs]	: Symbol+offset where the probe is inserted.
  MEMADDR		: Address where the probe is inserted.
 
