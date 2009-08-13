@@ -107,7 +107,7 @@ int ab3100_set_register_interruptible(struct ab3100 *ab3100, u8 reg, u8 regval)
 		err = 0;
 	}
 	mutex_unlock(&ab3100->access_mutex);
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL(ab3100_set_register_interruptible);
 
