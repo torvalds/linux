@@ -40,6 +40,7 @@
 #define DA8XX_PSC1_BASE		0x01e27000
 #define DA8XX_LCD_CNTRL_BASE	0x01e13000
 #define DA8XX_MMCSD0_BASE	0x01c40000
+#define DA8XX_AEMIF_CS2_BASE	0x60000000
 #define DA8XX_AEMIF_CS3_BASE	0x62000000
 #define DA8XX_AEMIF_CTL_BASE	0x68000000
 
@@ -113,6 +114,7 @@ extern const short da850_mcasp_pins[];
 extern const short da850_lcdcntl_pins[];
 extern const short da850_mmcsd0_pins[];
 extern const short da850_nand_pins[];
+extern const short da850_nor_pins[];
 
 int da8xx_pinmux_setup(const short pins[]);
 

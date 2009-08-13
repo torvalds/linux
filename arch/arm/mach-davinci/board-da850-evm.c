@@ -22,6 +22,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -40,6 +41,39 @@
 
 #define DA850_MMCSD_CD_PIN		GPIO_TO_PIN(4, 0)
 #define DA850_MMCSD_WP_PIN		GPIO_TO_PIN(4, 1)
+
+static struct mtd_partition da850_evm_norflash_partition[] = {
+	{
+		.name           = "NOR filesystem",
+		.offset         = 0,
+		.size           = MTDPART_SIZ_FULL,
+		.mask_flags     = 0,
+	},
+};
+
+static struct physmap_flash_data da850_evm_norflash_data = {
+	.width		= 2,
+	.parts		= da850_evm_norflash_partition,
+	.nr_parts	= ARRAY_SIZE(da850_evm_norflash_partition),
+};
+
+static struct resource da850_evm_norflash_resource[] = {
+	{
+		.start	= DA8XX_AEMIF_CS2_BASE,
+		.end	= DA8XX_AEMIF_CS2_BASE + SZ_32M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device da850_evm_norflash_device = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data  = &da850_evm_norflash_data,
+	},
+	.num_resources	= 1,
+	.resource	= da850_evm_norflash_resource,
+};
 
 /* DA850/OMAP-L138 EVM includes a 512 MByte large-page NAND flash
  * (128K blocks). It may be used instead of the (default) SPI flash
@@ -120,6 +154,7 @@ static struct davinci_uart_config da850_evm_uart_config __initdata = {
 
 static struct platform_device *da850_evm_devices[] __initdata = {
 	&da850_evm_nandflash_device,
+	&da850_evm_norflash_device,
 };
 
 /* davinci da850 evm audio machine driver */
@@ -192,6 +227,23 @@ static int da850_lcd_hw_init(void)
 	return 0;
 }
 
+#define DA8XX_AEMIF_CE2CFG_OFFSET	0x10
+#define DA8XX_AEMIF_ASIZE_16BIT		0x1
+
+static void __init da850_evm_init_nor(void)
+{
+	void __iomem *aemif_addr;
+
+	aemif_addr = ioremap(DA8XX_AEMIF_CTL_BASE, SZ_32K);
+
+	/* Configure data bus width of CS2 to 16 bit */
+	writel(readl(aemif_addr + DA8XX_AEMIF_CE2CFG_OFFSET) |
+		DA8XX_AEMIF_ASIZE_16BIT,
+		aemif_addr + DA8XX_AEMIF_CE2CFG_OFFSET);
+
+	iounmap(aemif_addr);
+}
+
 static __init void da850_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
@@ -201,6 +253,13 @@ static __init void da850_evm_init(void)
 	if (ret)
 		pr_warning("da850_evm_init: nand mux setup failed: %d\n",
 				ret);
+
+	ret = da8xx_pinmux_setup(da850_nor_pins);
+	if (ret)
+		pr_warning("da850_evm_init: nor mux setup failed: %d\n",
+				ret);
+
+	da850_evm_init_nor();
 
 	platform_add_devices(da850_evm_devices,
 				ARRAY_SIZE(da850_evm_devices));
