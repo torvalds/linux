@@ -870,7 +870,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SND_BF5XX_SOC_AD1836) \
 	|| defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
 	{
-		.modalias = "ad1836-spi",
+		.modalias = "ad1836",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 4,/* CONFIG_SND_BLACKFIN_SPI_PFBIT */
@@ -881,7 +881,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 
 #if defined(CONFIG_SND_BF5XX_SOC_AD1938) || defined(CONFIG_SND_BF5XX_SOC_AD1938_MODULE)
 	{
-		.modalias = "ad1938-spi",
+		.modalias = "ad1938",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 0,/* CONFIG_SND_BLACKFIN_SPI_PFBIT */
