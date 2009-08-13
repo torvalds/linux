@@ -509,9 +509,6 @@ struct iwl_ht_info {
 	u8 sm_ps;
 	u8 is_green_field;
 	u8 sgf;			/* HT_SHORT_GI_* short guard interval */
-	u8 max_amsdu_size;
-	u8 ampdu_factor;
-	u8 mpdu_density;
 	struct ieee80211_mcs_info mcs;
 	/* BSS related data */
 	u8 extension_chan_offset;

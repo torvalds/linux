@@ -2397,8 +2397,6 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 		iwl_conf->sgf |= HT_SHORT_GI_40MHZ;
 
 	iwl_conf->is_green_field = !!(ht_conf->cap & IEEE80211_HT_CAP_GRN_FLD);
-	iwl_conf->max_amsdu_size =
-		!!(ht_conf->cap & IEEE80211_HT_CAP_MAX_AMSDU);
 
 	iwl_conf->supported_chan_width =
 		!!(ht_conf->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40);
