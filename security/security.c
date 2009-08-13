@@ -709,6 +709,11 @@ int security_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return security_ops->kernel_create_files_as(new, inode);
 }
 
+int security_kernel_module_request(void)
+{
+	return security_ops->kernel_module_request();
+}
+
 int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
 {
 	return security_ops->task_setuid(id0, id1, id2, flags);
