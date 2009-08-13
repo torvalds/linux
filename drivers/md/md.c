@@ -3599,6 +3599,7 @@ max_sync_store(mddev_t *mddev, const char *buf, size_t len)
 		if (max < mddev->resync_min)
 			return -EINVAL;
 		if (max < mddev->resync_max &&
+		    mddev->ro == 0 &&
 		    test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 			return -EBUSY;
 
