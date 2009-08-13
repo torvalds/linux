@@ -68,6 +68,9 @@ config SND_SOC_AC97_CODEC
 	tristate
 	select SND_AC97_CODEC
 
+config SND_SOC_AD1836
+	tristate
+
 config SND_SOC_AD1938
 	tristate
 
