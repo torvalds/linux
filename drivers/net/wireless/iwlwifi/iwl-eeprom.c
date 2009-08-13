@@ -152,6 +152,19 @@ int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwlcore_eeprom_verify_signature);
 
+static void iwl_set_otp_access(struct iwl_priv *priv, enum iwl_access_mode mode)
+{
+	u32 otpgp;
+
+	otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
+	if (mode == IWL_OTP_ACCESS_ABSOLUTE)
+		iwl_clear_bit(priv, CSR_OTP_GP_REG,
+				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+	else
+		iwl_set_bit(priv, CSR_OTP_GP_REG,
+				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+}
+
 static int iwlcore_get_nvm_type(struct iwl_priv *priv)
 {
 	u32 otpgp;
@@ -252,6 +265,124 @@ static int iwl_init_otp_access(struct iwl_priv *priv)
 	return ret;
 }
 
+static int iwl_read_otp_word(struct iwl_priv *priv, u16 addr, u16 *eeprom_data)
+{
+	int ret = 0;
+	u32 r;
+	u32 otpgp;
+
+	_iwl_write32(priv, CSR_EEPROM_REG,
+		     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
+	ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
+				  CSR_EEPROM_REG_READ_VALID_MSK,
+				  IWL_EEPROM_ACCESS_TIMEOUT);
+	if (ret < 0) {
+		IWL_ERR(priv, "Time out reading OTP[%d]\n", addr);
+		return ret;
+	}
+	r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
+	/* check for ECC errors: */
+	otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
+	if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
+		/* stop in this case */
+		/* set the uncorrectable OTP ECC bit for acknowledgement */
+		iwl_set_bit(priv, CSR_OTP_GP_REG,
+			CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
+		IWL_ERR(priv, "Uncorrectable OTP ECC error, abort OTP read\n");
+		return -EINVAL;
+	}
+	if (otpgp & CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK) {
+		/* continue in this case */
+		/* set the correctable OTP ECC bit for acknowledgement */
+		iwl_set_bit(priv, CSR_OTP_GP_REG,
+				CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
+		IWL_ERR(priv, "Correctable OTP ECC error, continue read\n");
+	}
+	*eeprom_data = le16_to_cpu((__force __le16)(r >> 16));
+	return 0;
+}
+
+/*
+ * iwl_is_otp_empty: check for empty OTP
+ */
+static bool iwl_is_otp_empty(struct iwl_priv *priv)
+{
+	u16 next_link_addr = 0, link_value;
+	bool is_empty = false;
+
+	/* locate the beginning of OTP link list */
+	if (!iwl_read_otp_word(priv, next_link_addr, &link_value)) {
+		if (!link_value) {
+			IWL_ERR(priv, "OTP is empty\n");
+			is_empty = true;
+		}
+	} else {
+		IWL_ERR(priv, "Unable to read first block of OTP list.\n");
+		is_empty = true;
+	}
+
+	return is_empty;
+}
+
+
+/*
+ * iwl_find_otp_image: find EEPROM image in OTP
+ *   finding the OTP block that contains the EEPROM image.
+ *   the last valid block on the link list (the block _before_ the last block)
+ *   is the block we should read and used to configure the device.
+ *   If all the available OTP blocks are full, the last block will be the block
+ *   we should read and used to configure the device.
+ *   only perform this operation if shadow RAM is disabled
+ */
+static int iwl_find_otp_image(struct iwl_priv *priv,
+					u16 *validblockaddr)
+{
+	u16 next_link_addr = 0, link_value = 0, valid_addr;
+	int ret = 0;
+	int usedblocks = 0;
+
+	/* set addressing mode to absolute to traverse the link list */
+	iwl_set_otp_access(priv, IWL_OTP_ACCESS_ABSOLUTE);
+
+	/* checking for empty OTP or error */
+	if (iwl_is_otp_empty(priv))
+		return -EINVAL;
+
+	/*
+	 * start traverse link list
+	 * until reach the max number of OTP blocks
+	 * different devices have different number of OTP blocks
+	 */
+	do {
+		/* save current valid block address
+		 * check for more block on the link list
+		 */
+		valid_addr = next_link_addr;
+		next_link_addr = link_value;
+		IWL_DEBUG_INFO(priv, "OTP blocks %d addr 0x%x\n",
+			       usedblocks, next_link_addr);
+		if (iwl_read_otp_word(priv, next_link_addr, &link_value))
+			return -EINVAL;
+		if (!link_value) {
+			/*
+			 * reach the end of link list,
+			 * set address point to the starting address
+			 * of the image
+			 */
+			goto done;
+		}
+		/* more in the link list, continue */
+		usedblocks++;
+	} while (usedblocks < priv->cfg->max_ll_items);
+	/* OTP full, use last block */
+	IWL_DEBUG_INFO(priv, "OTP is full, use last block\n");
+done:
+	*validblockaddr = valid_addr;
+	/* skip first 2 bytes (link list pointer) */
+	*validblockaddr += 2;
+	return ret;
+}
+
 /**
  * iwl_eeprom_init - read EEPROM contents
  *
@@ -266,15 +397,14 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 	int sz;
 	int ret;
 	u16 addr;
-	u32 otpgp;
+	u16 validblockaddr = 0;
+	u16 cache_addr = 0;
 
 	priv->nvm_device_type = iwlcore_get_nvm_type(priv);
 	if (priv->nvm_device_type == -ENOENT)
 		return -ENOENT;
 	/* allocate eeprom */
-	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
-		priv->cfg->eeprom_size =
-			OTP_BLOCK_SIZE * OTP_LOWER_BLOCKS_TOTAL;
+	IWL_DEBUG_INFO(priv, "NVM size = %d\n", priv->cfg->eeprom_size);
 	sz = priv->cfg->eeprom_size;
 	priv->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!priv->eeprom) {
@@ -302,46 +432,31 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		if (ret) {
 			IWL_ERR(priv, "Failed to initialize OTP access.\n");
 			ret = -ENOENT;
-			goto err;
+			goto done;
 		}
 		_iwl_write32(priv, CSR_EEPROM_GP,
 			     iwl_read32(priv, CSR_EEPROM_GP) &
 			     ~CSR_EEPROM_GP_IF_OWNER_MSK);
-		/* clear */
-		_iwl_write32(priv, CSR_OTP_GP_REG,
-			     iwl_read32(priv, CSR_OTP_GP_REG) |
+
+		iwl_set_bit(priv, CSR_OTP_GP_REG,
 			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
 			     CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
-
-		for (addr = 0; addr < sz; addr += sizeof(u16)) {
-			u32 r;
-
-			_iwl_write32(priv, CSR_EEPROM_REG,
-				     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
-
-			ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
-						  CSR_EEPROM_REG_READ_VALID_MSK,
-						  IWL_EEPROM_ACCESS_TIMEOUT);
-			if (ret < 0) {
-				IWL_ERR(priv, "Time out reading OTP[%d]\n", addr);
+		/* traversing the linked list if no shadow ram supported */
+		if (!priv->cfg->shadow_ram_support) {
+			if (iwl_find_otp_image(priv, &validblockaddr)) {
+				ret = -ENOENT;
 				goto done;
 			}
-			r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
-			/* check for ECC errors: */
-			otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
-			if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
-				/* stop in this case */
-				IWL_ERR(priv, "Uncorrectable OTP ECC error, Abort OTP read\n");
+		}
+		for (addr = validblockaddr; addr < validblockaddr + sz;
+		     addr += sizeof(u16)) {
+			u16 eeprom_data;
+
+			ret = iwl_read_otp_word(priv, addr, &eeprom_data);
+			if (ret)
 				goto done;
-			}
-			if (otpgp & CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK) {
-				/* continue in this case */
-				_iwl_write32(priv, CSR_OTP_GP_REG,
-					     iwl_read32(priv, CSR_OTP_GP_REG) |
-					     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
-				IWL_ERR(priv, "Correctable OTP ECC error, continue read\n");
-			}
-			e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
+			e[cache_addr / 2] = eeprom_data;
+			cache_addr += sizeof(u16);
 		}
 	} else {
 		/* eeprom is an array of 16bit values */

@@ -209,6 +209,8 @@ struct iwl_mod_params {
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @pa_type: used by 6000 series only to identify the type of Power Amplifier
+ * @max_ll_items: max number of OTP blocks
+ * @shadow_ram_support: shadow support for OTP memory
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -247,6 +249,8 @@ struct iwl_cfg {
 	bool need_pll_cfg;
 	bool use_isr_legacy;
 	enum iwl_pa_type pa_type;
+	const u16 max_ll_items;
+	const bool shadow_ram_support;
 };
 
 /***************************

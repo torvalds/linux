@@ -887,6 +887,17 @@ enum iwl_nvm_type {
 	NVM_DEVICE_TYPE_OTP,
 };
 
+/*
+ * Two types of OTP memory access modes
+ *   IWL_OTP_ACCESS_ABSOLUTE - absolute address mode,
+ * 			        based on physical memory addressing
+ *   IWL_OTP_ACCESS_RELATIVE - relative address mode,
+ * 			       based on logical memory addressing
+ */
+enum iwl_access_mode {
+	IWL_OTP_ACCESS_ABSOLUTE,
+	IWL_OTP_ACCESS_RELATIVE,
+};
 
 /**
  * enum iwl_pa_type - Power Amplifier type

@@ -180,8 +180,14 @@ struct iwl_eeprom_channel {
 #define EEPROM_5050_EEPROM_VERSION	(0x21E)
 
 /* OTP */
-#define OTP_LOWER_BLOCKS_TOTAL		(3)
-#define OTP_BLOCK_SIZE			(0x400)
+/* lower blocks contain EEPROM image and calibration data */
+#define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
+/* high blocks contain PAPD data */
+#define OTP_HIGH_IMAGE_SIZE_6x00        (6 * 512 * sizeof(u16)) /* 6 KB */
+#define OTP_HIGH_IMAGE_SIZE_1000        (0x200 * sizeof(u16)) /* 1024 bytes */
+#define OTP_MAX_LL_ITEMS_1000		(3)	/* OTP blocks for 1000 */
+#define OTP_MAX_LL_ITEMS_6x00		(4)	/* OTP blocks for 6x00 */
+#define OTP_MAX_LL_ITEMS_6x50		(7)	/* OTP blocks for 6x50 */
 
 /* 2.4 GHz */
 extern const u8 iwl_eeprom_band_1[14];
