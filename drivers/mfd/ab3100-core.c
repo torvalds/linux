@@ -667,7 +667,7 @@ ab3100_init_settings[] = {
 		.setting = 0x01
 	}, {
 		.abreg = AB3100_IMRB1,
-		.setting = 0xFF
+		.setting = 0xBF
 	}, {
 		.abreg = AB3100_IMRB2,
 		.setting = 0xFF
