@@ -494,7 +494,7 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_calib_hdr *hdr = (struct iwl_calib_hdr *)pkt->u.raw;
-	int len = le32_to_cpu(pkt->len) & FH_RSCSR_FRAME_SIZE_MSK;
+	int len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 	int index;
 
 	/* reduce the size of the length field itself */

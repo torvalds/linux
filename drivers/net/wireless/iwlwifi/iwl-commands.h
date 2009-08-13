@@ -3482,7 +3482,7 @@ struct iwl_wimax_coex_cmd {
  *****************************************************************************/
 
 struct iwl_rx_packet {
-	__le32 len;
+	__le32 len_n_flags;
 	struct iwl_cmd_header hdr;
 	union {
 		struct iwl3945_rx_frame rx_frame;

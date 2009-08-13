@@ -539,7 +539,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 
 	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(priv->statistics), pkt->len);
+		     (int)sizeof(priv->statistics),
+		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
 
 	change = ((priv->statistics.general.temperature !=
 		   pkt->u.stats.general.temperature) ||

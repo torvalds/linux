@@ -349,12 +349,13 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
  *
  *****************************************************************************/
 
-void iwl3945_hw_rx_statistics(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
+void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
+		struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(struct iwl3945_notif_statistics),
-		     le32_to_cpu(pkt->len));
+		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
 
 	memcpy(&priv->statistics_39, pkt->u.raw, sizeof(priv->statistics_39));
 
