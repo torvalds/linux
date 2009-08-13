@@ -3028,10 +3028,10 @@ static void perf_counter_task_output(struct perf_counter *counter,
 		return;
 
 	task_event->event.pid = perf_counter_pid(counter, task);
-	task_event->event.ppid = perf_counter_pid(counter, task->real_parent);
+	task_event->event.ppid = perf_counter_pid(counter, current);
 
 	task_event->event.tid = perf_counter_tid(counter, task);
-	task_event->event.ptid = perf_counter_tid(counter, task->real_parent);
+	task_event->event.ptid = perf_counter_tid(counter, current);
 
 	perf_output_put(&handle, task_event->event);
 	perf_output_end(&handle);
