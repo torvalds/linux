@@ -370,7 +370,6 @@
 #define CFC_REG_NUM_LCIDS_LEAVING				 0x104018
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define CSDM_REG_AGG_INT_EVENT_0				 0xc2038
-#define CSDM_REG_AGG_INT_EVENT_1				 0xc203c
 #define CSDM_REG_AGG_INT_EVENT_10				 0xc2060
 #define CSDM_REG_AGG_INT_EVENT_11				 0xc2064
 #define CSDM_REG_AGG_INT_EVENT_12				 0xc2068
@@ -378,37 +377,27 @@
 #define CSDM_REG_AGG_INT_EVENT_14				 0xc2070
 #define CSDM_REG_AGG_INT_EVENT_15				 0xc2074
 #define CSDM_REG_AGG_INT_EVENT_16				 0xc2078
-#define CSDM_REG_AGG_INT_EVENT_17				 0xc207c
-#define CSDM_REG_AGG_INT_EVENT_18				 0xc2080
-#define CSDM_REG_AGG_INT_EVENT_19				 0xc2084
 #define CSDM_REG_AGG_INT_EVENT_2				 0xc2040
-#define CSDM_REG_AGG_INT_EVENT_20				 0xc2088
-#define CSDM_REG_AGG_INT_EVENT_21				 0xc208c
-#define CSDM_REG_AGG_INT_EVENT_22				 0xc2090
-#define CSDM_REG_AGG_INT_EVENT_23				 0xc2094
-#define CSDM_REG_AGG_INT_EVENT_24				 0xc2098
-#define CSDM_REG_AGG_INT_EVENT_25				 0xc209c
-#define CSDM_REG_AGG_INT_EVENT_26				 0xc20a0
-#define CSDM_REG_AGG_INT_EVENT_27				 0xc20a4
-#define CSDM_REG_AGG_INT_EVENT_28				 0xc20a8
-#define CSDM_REG_AGG_INT_EVENT_29				 0xc20ac
 #define CSDM_REG_AGG_INT_EVENT_3				 0xc2044
-#define CSDM_REG_AGG_INT_EVENT_30				 0xc20b0
-#define CSDM_REG_AGG_INT_EVENT_31				 0xc20b4
 #define CSDM_REG_AGG_INT_EVENT_4				 0xc2048
-/* [RW 1] The T bit for aggregated interrupt 0 */
-#define CSDM_REG_AGG_INT_T_0					 0xc20b8
-#define CSDM_REG_AGG_INT_T_1					 0xc20bc
-#define CSDM_REG_AGG_INT_T_10					 0xc20e0
-#define CSDM_REG_AGG_INT_T_11					 0xc20e4
-#define CSDM_REG_AGG_INT_T_12					 0xc20e8
-#define CSDM_REG_AGG_INT_T_13					 0xc20ec
-#define CSDM_REG_AGG_INT_T_14					 0xc20f0
-#define CSDM_REG_AGG_INT_T_15					 0xc20f4
-#define CSDM_REG_AGG_INT_T_16					 0xc20f8
-#define CSDM_REG_AGG_INT_T_17					 0xc20fc
-#define CSDM_REG_AGG_INT_T_18					 0xc2100
-#define CSDM_REG_AGG_INT_T_19					 0xc2104
+#define CSDM_REG_AGG_INT_EVENT_5				 0xc204c
+#define CSDM_REG_AGG_INT_EVENT_6				 0xc2050
+#define CSDM_REG_AGG_INT_EVENT_7				 0xc2054
+#define CSDM_REG_AGG_INT_EVENT_8				 0xc2058
+#define CSDM_REG_AGG_INT_EVENT_9				 0xc205c
+/* [RW 1] For each aggregated interrupt index whether the mode is normal (0)
+   or auto-mask-mode (1) */
+#define CSDM_REG_AGG_INT_MODE_10				 0xc21e0
+#define CSDM_REG_AGG_INT_MODE_11				 0xc21e4
+#define CSDM_REG_AGG_INT_MODE_12				 0xc21e8
+#define CSDM_REG_AGG_INT_MODE_13				 0xc21ec
+#define CSDM_REG_AGG_INT_MODE_14				 0xc21f0
+#define CSDM_REG_AGG_INT_MODE_15				 0xc21f4
+#define CSDM_REG_AGG_INT_MODE_16				 0xc21f8
+#define CSDM_REG_AGG_INT_MODE_6 				 0xc21d0
+#define CSDM_REG_AGG_INT_MODE_7 				 0xc21d4
+#define CSDM_REG_AGG_INT_MODE_8 				 0xc21d8
+#define CSDM_REG_AGG_INT_MODE_9 				 0xc21dc
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define CSDM_REG_CFC_RSP_START_ADDR				 0xc2008
 /* [RW 16] The maximum value of the competion counter #0 */
@@ -1421,6 +1410,8 @@
 /* [RW 1] e1hmf for WOL. If clr WOL signal o the PXP will be send on bit 0
    only. */
 #define MISC_REG_E1HMF_MODE					 0xa5f8
+/* [RW 32] Debug only: spare RW register reset by core reset */
+#define MISC_REG_GENERIC_CR_0					 0xa460
 /* [RW 32] GPIO. [31-28] FLOAT port 0; [27-24] FLOAT port 0; When any of
    these bits is written as a '1'; the corresponding SPIO bit will turn off
    it's drivers and become an input. This is the reset state of all GPIO
@@ -1729,6 +1720,7 @@
 /* [RW 3] for port0 enable for llfc ppp and pause. b0 - brb1 enable; b1-
    tsdm enable; b2- usdm enable */
 #define NIG_REG_LLFC_EGRESS_SRC_ENABLE_0			 0x16070
+#define NIG_REG_LLFC_EGRESS_SRC_ENABLE_1			 0x16074
 /* [RW 1] SAFC enable for port0. This register may get 1 only when
    ~ppp_enable.ppp_enable = 0 and pause_enable.pause_enable =0 for the same
    port */
@@ -2079,6 +2071,7 @@
 #define PXP2_REG_PGL_ADDR_94_F0 				 0x120540
 #define PXP2_REG_PGL_CONTROL0					 0x120490
 #define PXP2_REG_PGL_CONTROL1					 0x120514
+#define PXP2_REG_PGL_DEBUG					 0x120520
 /* [RW 32] third dword data of expansion rom request. this register is
    special. reading from it provides a vector outstanding read requests. if
    a bit is zero it means that a read request on the corresponding tag did
@@ -2238,6 +2231,9 @@
 /* [RW 8] The maximum number of blocks in Tetris Buffer that can be
    allocated for vq22 */
 #define PXP2_REG_RD_MAX_BLKS_VQ22				 0x1203d0
+/* [RW 8] The maximum number of blocks in Tetris Buffer that can be
+   allocated for vq25 */
+#define PXP2_REG_RD_MAX_BLKS_VQ25				 0x1203dc
 /* [RW 8] The maximum number of blocks in Tetris Buffer that can be
    allocated for vq6 */
 #define PXP2_REG_RD_MAX_BLKS_VQ6				 0x120390
@@ -3835,6 +3831,7 @@
 #define TM_REG_LIN0_PHY_ADDR					 0x164270
 /* [RW 1] Linear0 physical address valid. */
 #define TM_REG_LIN0_PHY_ADDR_VALID				 0x164248
+#define TM_REG_LIN0_SCAN_ON					 0x1640d0
 /* [RW 24] Linear0 array scan timeout. */
 #define TM_REG_LIN0_SCAN_TIME					 0x16403c
 /* [RW 32] Linear1 logic address. */
@@ -4363,6 +4360,7 @@
 #define USDM_REG_AGG_INT_EVENT_31				 0xc40b4
 #define USDM_REG_AGG_INT_EVENT_4				 0xc4048
 #define USDM_REG_AGG_INT_EVENT_5				 0xc404c
+#define USDM_REG_AGG_INT_EVENT_6				 0xc4050
 /* [RW 1] For each aggregated interrupt index whether the mode is normal (0)
    or auto-mask-mode (1) */
 #define USDM_REG_AGG_INT_MODE_0 				 0xc41b8
@@ -4379,6 +4377,10 @@
 #define USDM_REG_AGG_INT_MODE_19				 0xc4204
 #define USDM_REG_AGG_INT_MODE_4 				 0xc41c8
 #define USDM_REG_AGG_INT_MODE_5 				 0xc41cc
+#define USDM_REG_AGG_INT_MODE_6 				 0xc41d0
+/* [RW 1] The T bit for aggregated interrupt 5 */
+#define USDM_REG_AGG_INT_T_5					 0xc40cc
+#define USDM_REG_AGG_INT_T_6					 0xc40d0
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define USDM_REG_CFC_RSP_START_ADDR				 0xc4008
 /* [RW 16] The maximum value of the competion counter #0 */

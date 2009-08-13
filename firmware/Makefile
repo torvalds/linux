@@ -32,7 +32,7 @@ fw-shipped-$(CONFIG_ADAPTEC_STARFIRE) += adaptec/starfire_rx.bin \
 					 adaptec/starfire_tx.bin
 fw-shipped-$(CONFIG_ATARI_DSP56K) += dsp56k/bootstrap.bin
 fw-shipped-$(CONFIG_ATM_AMBASSADOR) += atmsar11.fw
-fw-shipped-$(CONFIG_BNX2X) += bnx2x-e1-4.8.53.0.fw bnx2x-e1h-4.8.53.0.fw
+fw-shipped-$(CONFIG_BNX2X) += bnx2x-e1-5.0.21.0.fw bnx2x-e1h-5.0.21.0.fw
 fw-shipped-$(CONFIG_BNX2) += bnx2/bnx2-mips-09-4.6.17.fw \
 			     bnx2/bnx2-rv2p-09-4.6.15.fw \
 			     bnx2/bnx2-mips-06-4.6.16.fw \

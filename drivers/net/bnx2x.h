@@ -142,11 +142,19 @@ struct sw_rx_bd {
 struct sw_tx_bd {
 	struct sk_buff	*skb;
 	u16		first_bd;
+	u8		flags;
+/* Set on the first BD descriptor when there is a split BD */
+#define BNX2X_TSO_SPLIT_BD		(1<<0)
 };
 
 struct sw_rx_page {
 	struct page	*page;
 	DECLARE_PCI_UNMAP_ADDR(mapping)
+};
+
+union db_prod {
+	struct doorbell_set_prod data;
+	u32		raw;
 };
 
 
@@ -234,15 +242,14 @@ struct bnx2x_fastpath {
 
 	struct napi_struct	napi;
 
+	u8			is_rx_queue;
+
 	struct host_status_block *status_blk;
 	dma_addr_t		status_blk_mapping;
 
-	struct eth_tx_db_data	*hw_tx_prods;
-	dma_addr_t		tx_prods_mapping;
-
 	struct sw_tx_bd		*tx_buf_ring;
 
-	struct eth_tx_bd	*tx_desc_ring;
+	union eth_tx_bd_types	*tx_desc_ring;
 	dma_addr_t		tx_desc_mapping;
 
 	struct sw_rx_bd		*rx_buf_ring;	/* BDs mappings ring */
@@ -271,6 +278,8 @@ struct bnx2x_fastpath {
 	u8			index;	/* number in fp array */
 	u8			cl_id;	/* eth client id */
 	u8			sb_id;	/* status block number in HW */
+
+	union db_prod		tx_db;
 
 	u16			tx_pkt_prod;
 	u16			tx_pkt_cons;
@@ -309,13 +318,16 @@ struct bnx2x_fastpath {
 	struct xstorm_per_client_stats old_xclient;
 	struct bnx2x_eth_q_stats eth_q_stats;
 
-	char			name[IFNAMSIZ];
+	/* The size is calculated using the following:
+	     sizeof name field from netdev structure +
+	     4 ('-Xx-' string) +
+	     4 (for the digits and to make it DWORD aligned) */
+#define FP_NAME_SIZE		(sizeof(((struct net_device *)0)->name) + 8)
+	char			name[FP_NAME_SIZE];
 	struct bnx2x		*bp; /* parent */
 };
 
 #define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
-
-#define BNX2X_HAS_WORK(fp)	(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))
 
 
 /* MC hsi */
@@ -323,7 +335,7 @@ struct bnx2x_fastpath {
 #define RX_COPY_THRESH			92
 
 #define NUM_TX_RINGS			16
-#define TX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_tx_bd))
+#define TX_DESC_CNT		(BCM_PAGE_SIZE / sizeof(union eth_tx_bd_types))
 #define MAX_TX_DESC_CNT			(TX_DESC_CNT - 1)
 #define NUM_TX_BD			(TX_DESC_CNT * NUM_TX_RINGS)
 #define MAX_TX_BD			(NUM_TX_BD - 1)
@@ -395,7 +407,7 @@ struct bnx2x_fastpath {
 #define DPM_TRIGER_TYPE			0x40
 #define DOORBELL(bp, cid, val) \
 	do { \
-		writel((u32)val, (bp)->doorbells + (BCM_PAGE_SIZE * cid) + \
+		writel((u32)(val), bp->doorbells + (BCM_PAGE_SIZE * (cid)) + \
 		       DPM_TRIGER_TYPE); \
 	} while (0)
 
@@ -902,8 +914,6 @@ struct bnx2x {
 	u16			rx_quick_cons_trip;
 	u16			rx_ticks_int;
 	u16			rx_ticks;
-/* Maximal coalescing timeout in us */
-#define BNX2X_MAX_COALESCE_TOUT		(0xf0*12)
 
 	u32			lin_cnt;
 
@@ -985,19 +995,20 @@ struct bnx2x {
 };
 
 
-#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT / E1HVN_MAX) : \
-						 MAX_CONTEXT)
-#define BNX2X_NUM_QUEUES(bp)	max(bp->num_rx_queues, bp->num_tx_queues)
-#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
+#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT/(2 * E1HVN_MAX)) \
+					      : (MAX_CONTEXT/2))
+#define BNX2X_NUM_QUEUES(bp)	(bp->num_rx_queues + bp->num_tx_queues)
+#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 2)
 
 #define for_each_rx_queue(bp, var) \
 			for (var = 0; var < bp->num_rx_queues; var++)
 #define for_each_tx_queue(bp, var) \
-			for (var = 0; var < bp->num_tx_queues; var++)
+			for (var = bp->num_rx_queues; \
+			     var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_queue(bp, var) \
 			for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_nondefault_queue(bp, var) \
-			for (var = 1; var < BNX2X_NUM_QUEUES(bp); var++)
+			for (var = 1; var < bp->num_rx_queues; var++)
 
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
