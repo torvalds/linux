@@ -88,6 +88,7 @@ void __weak hw_perf_disable(void)		{ barrier(); }
 void __weak hw_perf_enable(void)		{ barrier(); }
 
 void __weak hw_perf_counter_setup(int cpu)	{ barrier(); }
+void __weak hw_perf_counter_setup_online(int cpu)	{ barrier(); }
 
 int __weak
 hw_perf_group_sched_in(struct perf_counter *group_leader,
@@ -2630,7 +2631,7 @@ static u32 perf_counter_tid(struct perf_counter *counter, struct task_struct *p)
 	return task_pid_nr_ns(p, counter->ns);
 }
 
-static void perf_counter_output(struct perf_counter *counter, int nmi,
+void perf_counter_output(struct perf_counter *counter, int nmi,
 				struct perf_sample_data *data)
 {
 	int ret;
@@ -4592,6 +4593,11 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 		perf_counter_init_cpu(cpu);
 		break;
 
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+		hw_perf_counter_setup_online(cpu);
+		break;
+
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		perf_counter_exit_cpu(cpu);
@@ -4615,6 +4621,8 @@ static struct notifier_block __cpuinitdata perf_cpu_nb = {
 void __init perf_counter_init(void)
 {
 	perf_cpu_notify(&perf_cpu_nb, (unsigned long)CPU_UP_PREPARE,
+			(void *)(long)smp_processor_id());
+	perf_cpu_notify(&perf_cpu_nb, (unsigned long)CPU_ONLINE,
 			(void *)(long)smp_processor_id());
 	register_cpu_notifier(&perf_cpu_nb);
 }
