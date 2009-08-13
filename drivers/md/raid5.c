@@ -5097,8 +5097,15 @@ static void raid5_finish_reshape(mddev_t *mddev)
 					mddev->degraded--;
 			for (d = conf->raid_disks ;
 			     d < conf->raid_disks - mddev->delta_disks;
-			     d++)
-				raid5_remove_disk(mddev, d);
+			     d++) {
+				mdk_rdev_t *rdev = conf->disks[d].rdev;
+				if (rdev && raid5_remove_disk(mddev, d) == 0) {
+					char nm[20];
+					sprintf(nm, "rd%d", rdev->raid_disk);
+					sysfs_remove_link(&mddev->kobj, nm);
+					rdev->raid_disk = -1;
+				}
+			}
 		}
 		mddev->layout = conf->algorithm;
 		mddev->chunk_sectors = conf->chunk_sectors;
