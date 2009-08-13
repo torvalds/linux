@@ -21,7 +21,7 @@
 #include <asm/dwarf.h>
 #include <asm/unwinder.h>
 #include <asm/sections.h>
-#include <asm-generic/unaligned.h>
+#include <asm/unaligned.h>
 #include <asm/dwarf.h>
 #include <asm/stacktrace.h>
 
@@ -87,11 +87,9 @@ static void dwarf_frame_alloc_regs(struct dwarf_frame *frame,
  *	from @src and writing to @dst, because they can be arbitrarily
  *	aligned. Return 'n' - the number of bytes read.
  */
-static inline int dwarf_read_addr(void *src, void *dst)
+static inline int dwarf_read_addr(unsigned long *src, unsigned long *dst)
 {
-	u32 val = __get_unaligned_cpu32(src);
-	__put_unaligned_cpu32(val, dst);
-
+	*dst = get_unaligned(src);
 	return sizeof(unsigned long *);
 }
 
@@ -207,7 +205,7 @@ static int dwarf_read_encoded_value(char *addr, unsigned long *val,
 	case DW_EH_PE_sdata4:
 	case DW_EH_PE_udata4:
 		count += 4;
-		decoded_addr += __get_unaligned_cpu32(addr);
+		decoded_addr += get_unaligned((u32 *)addr);
 		__raw_writel(decoded_addr, val);
 		break;
 	default:
@@ -232,7 +230,7 @@ static inline int dwarf_entry_len(char *addr, unsigned long *len)
 	u32 initial_len;
 	int count;
 
-	initial_len = __get_unaligned_cpu32(addr);
+	initial_len = get_unaligned((u32 *)addr);
 	count = 4;
 
 	/*
@@ -247,7 +245,7 @@ static inline int dwarf_entry_len(char *addr, unsigned long *len)
 		 * compulsory 32-bit length field.
 		 */
 		if (initial_len == DW_EXT_DWARF64) {
-			*len = __get_unaligned_cpu64(addr + 4);
+			*len = get_unaligned((u64 *)addr + 4);
 			count = 12;
 		} else {
 			printk(KERN_WARNING "Unknown DWARF extension\n");
@@ -392,12 +390,12 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			frame->pc += delta * cie->code_alignment_factor;
 			break;
 		case DW_CFA_advance_loc2:
-			delta = __get_unaligned_cpu16(current_insn);
+			delta = get_unaligned((u16 *)current_insn);
 			current_insn += 2;
 			frame->pc += delta * cie->code_alignment_factor;
 			break;
 		case DW_CFA_advance_loc4:
-			delta = __get_unaligned_cpu32(current_insn);
+			delta = get_unaligned((u32 *)current_insn);
 			current_insn += 4;
 			frame->pc += delta * cie->code_alignment_factor;
 			break;
@@ -841,7 +839,7 @@ void dwarf_unwinder_init(void)
 		/* initial length does not include itself */
 		end = p + len;
 
-		entry_type = __get_unaligned_cpu32(p);
+		entry_type = get_unaligned((u32 *)p);
 		p += 4;
 
 		if (entry_type == DW_EH_FRAME_CIE) {
