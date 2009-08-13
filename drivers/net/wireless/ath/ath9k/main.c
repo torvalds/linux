@@ -2214,8 +2214,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	if ((conf->type == NL80211_IFTYPE_STATION) ||
 	    (conf->type == NL80211_IFTYPE_ADHOC) ||
 	    (conf->type == NL80211_IFTYPE_MESH_POINT)) {
-		if (ath9k_hw_phycounters(sc->sc_ah))
-			sc->imask |= ATH9K_INT_MIB;
+		sc->imask |= ATH9K_INT_MIB;
 		sc->imask |= ATH9K_INT_TSFOOR;
 	}
 
