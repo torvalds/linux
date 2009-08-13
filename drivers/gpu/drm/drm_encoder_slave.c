@@ -24,7 +24,7 @@
  *
  */
 
-#include <drm/drm_encoder_slave.h>
+#include "drm_encoder_slave.h"
 
 /**
  * drm_i2c_encoder_init - Initialize an I2C slave encoder
