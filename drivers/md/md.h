@@ -223,6 +223,16 @@ struct mddev_s
 							    * so we don't loop trying */
 
 	int				in_sync;	/* know to not need resync */
+	/* 'open_mutex' avoids races between 'md_open' and 'do_md_stop', so
+	 * that we are never stopping an array while it is open.
+	 * 'reconfig_mutex' protects all other reconfiguration.
+	 * These locks are separate due to conflicting interactions
+	 * with bdev->bd_mutex.
+	 * Lock ordering is:
+	 *  reconfig_mutex -> bd_mutex : e.g. do_md_run -> revalidate_disk
+	 *  bd_mutex -> open_mutex:  e.g. __blkdev_get -> md_open
+	 */
+	struct mutex			open_mutex;
 	struct mutex			reconfig_mutex;
 	atomic_t			active;		/* general refcount */
 	atomic_t			openers;	/* number of active opens */
