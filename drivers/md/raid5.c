@@ -3785,7 +3785,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		    conf->reshape_progress < raid5_size(mddev, 0, 0)) {
 			sector_nr = raid5_size(mddev, 0, 0)
 				- conf->reshape_progress;
-		} else if (mddev->delta_disks > 0 &&
+		} else if (mddev->delta_disks >= 0 &&
 			   conf->reshape_progress > 0)
 			sector_nr = conf->reshape_progress;
 		sector_div(sector_nr, new_data_disks);
