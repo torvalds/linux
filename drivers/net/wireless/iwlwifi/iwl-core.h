@@ -251,6 +251,7 @@ struct iwl_cfg {
 	enum iwl_pa_type pa_type;
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
+	const bool ht_greenfield_support;
 };
 
 /***************************

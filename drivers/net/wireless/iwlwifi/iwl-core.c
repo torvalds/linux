@@ -394,7 +394,8 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 
 	ht_info->ht_supported = true;
 
-	ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
+	if (priv->cfg->ht_greenfield_support)
+		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
 	ht_info->cap |= (IEEE80211_HT_CAP_SM_PS &
 			     (WLAN_HT_CAP_SM_PS_DISABLED << 2));
@@ -2390,8 +2391,6 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 		return;
 	}
 	ht_conf = &sta->ht_cap;
-
-	iwl_conf->is_green_field = !!(ht_conf->cap & IEEE80211_HT_CAP_GRN_FLD);
 
 	iwl_conf->sm_ps = (u8)((ht_conf->cap & IEEE80211_HT_CAP_SM_PS) >> 2);
 

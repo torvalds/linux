@@ -657,19 +657,15 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 	return 1;
 }
 
-/* in 4965 we don't use greenfield at all */
-static inline u8 rs_use_green(struct iwl_priv *priv,
-			      struct ieee80211_conf *conf)
+/**
+ * Green-field mode is valid if the station supports it and
+ * there are no non-GF stations present in the BSS.
+ */
+static inline u8 rs_use_green(struct ieee80211_sta *sta,
+			      struct iwl_ht_info *ht_conf)
 {
-	u8 is_green;
-
-	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
-		is_green = 0;
-	else
-		is_green = (conf_is_ht(conf) &&
-			   priv->current_ht_config.is_green_field &&
-			   !priv->current_ht_config.non_GF_STA_present);
-	return is_green;
+	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
+		!(ht_conf->non_GF_STA_present);
 }
 
 /**
@@ -2072,7 +2068,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	if (is_legacy(tbl->lq_type))
 		lq_sta->is_green = 0;
 	else
-		lq_sta->is_green = rs_use_green(priv, conf);
+		lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
 	is_green = lq_sta->is_green;
 
 	/* current tx rate */
@@ -2430,7 +2426,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	int rate_idx;
 	int i;
 	u32 rate;
-	u8 use_green = rs_use_green(priv, conf);
+	u8 use_green = rs_use_green(sta, &priv->current_ht_config);
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
 
@@ -2627,7 +2623,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	lq_sta->is_dup = 0;
 	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IWL_MISSED_RATE_MAX;
-	lq_sta->is_green = rs_use_green(priv, conf);
+	lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
 	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
 	lq_sta->active_rate_basic = priv->active_rate_basic;
 	lq_sta->band = priv->band;

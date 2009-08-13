@@ -507,7 +507,6 @@ struct iwl_ht_info {
 	u8 is_ht;
 	u8 supported_chan_width;
 	u8 sm_ps;
-	u8 is_green_field;
 	struct ieee80211_mcs_info mcs;
 	/* BSS related data */
 	u8 extension_chan_offset;
