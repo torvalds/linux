@@ -500,7 +500,7 @@ struct acpi_hest_ia_machine_check {
 
 /* 1: IA32 Corrected Machine Check */
 
-struct acpi_table_hest_ia_corrected {
+struct acpi_hest_ia_corrected {
 	struct acpi_hest_header header;
 	u16 reserved1;
 	u8 flags;
