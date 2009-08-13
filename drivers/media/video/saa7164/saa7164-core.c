@@ -478,19 +478,8 @@ static int saa7164_dev_setup(struct saa7164_dev *dev)
 	dev->lmmio2 = ioremap(pci_resource_start(dev->pci, 2),
 			     pci_resource_len(dev->pci, 2));
 
-	printk(KERN_INFO "CORE %s: dev->lmmio  = 0x%p\n", dev->name,
-		dev->lmmio);
-
-	printk(KERN_INFO "CORE %s: dev->lmmio2 = 0x%p\n", dev->name,
-		dev->lmmio2);
-
 	dev->bmmio = (u8 __iomem *)dev->lmmio;
 	dev->bmmio2 = (u8 __iomem *)dev->lmmio2;
-	printk(KERN_INFO "CORE %s: dev->bmmio  = 0x%p\n", dev->name,
-		dev->bmmio);
-
-	printk(KERN_INFO "CORE %s: dev->bmmio2 = 0x%p\n", dev->name,
-		dev->bmmio2);
 
 	/* Inerrupt and ack register locations offset of bmmio */
 	dev->int_status = 0x183000 + 0xf80;
