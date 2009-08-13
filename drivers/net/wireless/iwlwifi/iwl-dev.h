@@ -515,7 +515,6 @@ struct iwl_ht_info {
 	struct ieee80211_mcs_info mcs;
 	/* BSS related data */
 	u8 extension_chan_offset;
-	u8 tx_chan_width;
 	u8 ht_protection;
 	u8 non_GF_STA_present;
 };
