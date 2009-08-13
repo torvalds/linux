@@ -422,7 +422,7 @@ static irqreturn_t ab3100_irq_handler(int irq, void *data)
 	 * stuff and we will re-enable the interrupts once th
 	 * worker has finished.
 	 */
-	disable_irq(ab3100->i2c_client->irq);
+	disable_irq_nosync(irq);
 	schedule_work(&ab3100->work);
 	return IRQ_HANDLED;
 }
