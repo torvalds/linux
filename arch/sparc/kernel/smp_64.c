@@ -1475,17 +1475,29 @@ static void __init pcpu_map_range(unsigned long start, unsigned long end,
 
 void __init setup_per_cpu_areas(void)
 {
-	size_t dyn_size, static_size = __per_cpu_end - __per_cpu_start;
 	static struct vm_struct vm;
+	struct pcpu_alloc_info *ai;
 	unsigned long delta, cpu;
 	size_t size_sum, pcpu_unit_size;
 	size_t ptrs_size;
 	void **ptrs;
 
-	size_sum = PFN_ALIGN(static_size + PERCPU_MODULE_RESERVE +
-			     PERCPU_DYNAMIC_RESERVE);
-	dyn_size = size_sum - static_size - PERCPU_MODULE_RESERVE;
+	ai = pcpu_alloc_alloc_info(1, nr_cpu_ids);
 
+	ai->static_size = __per_cpu_end - __per_cpu_start;
+	ai->reserved_size = PERCPU_MODULE_RESERVE;
+
+	size_sum = PFN_ALIGN(ai->static_size + ai->reserved_size +
+			     PERCPU_DYNAMIC_RESERVE);
+
+	ai->dyn_size = size_sum - ai->static_size - ai->reserved_size;
+	ai->unit_size = PCPU_CHUNK_SIZE;
+	ai->atom_size = PCPU_CHUNK_SIZE;
+	ai->alloc_size = PCPU_CHUNK_SIZE;
+	ai->groups[0].nr_units = nr_cpu_ids;
+
+	for_each_possible_cpu(cpu)
+		ai->groups[0].cpu_map[cpu] = cpu;
 
 	ptrs_size = PFN_ALIGN(nr_cpu_ids * sizeof(ptrs[0]));
 	ptrs = alloc_bootmem(ptrs_size);
@@ -1497,7 +1509,7 @@ void __init setup_per_cpu_areas(void)
 		free_bootmem(__pa(ptrs[cpu] + size_sum),
 			     PCPU_CHUNK_SIZE - size_sum);
 
-		memcpy(ptrs[cpu], __per_cpu_load, static_size);
+		memcpy(ptrs[cpu], __per_cpu_load, ai->static_size);
 	}
 
 	/* allocate address and map */
@@ -1514,9 +1526,7 @@ void __init setup_per_cpu_areas(void)
 		pcpu_map_range(start, end, virt_to_page(ptrs[cpu]));
 	}
 
-	pcpu_unit_size = pcpu_setup_first_chunk(static_size,
-						PERCPU_MODULE_RESERVE, dyn_size,
-						PCPU_CHUNK_SIZE, vm.addr, NULL);
+	pcpu_unit_size = pcpu_setup_first_chunk(ai, vm.addr);
 
 	free_bootmem(__pa(ptrs), ptrs_size);
 

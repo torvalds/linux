@@ -59,6 +59,25 @@
 extern void *pcpu_base_addr;
 extern const int *pcpu_unit_map;
 
+struct pcpu_group_info {
+	int			nr_units;	/* aligned # of units */
+	unsigned long		base_offset;	/* base address offset */
+	unsigned int		*cpu_map;	/* unit->cpu map, empty
+						 * entries contain NR_CPUS */
+};
+
+struct pcpu_alloc_info {
+	size_t			static_size;
+	size_t			reserved_size;
+	size_t			dyn_size;
+	size_t			unit_size;
+	size_t			atom_size;
+	size_t			alloc_size;
+	size_t			__ai_size;	/* internal, don't use */
+	int			nr_groups;	/* 0 if grouping unnecessary */
+	struct pcpu_group_info	groups[];
+};
+
 enum pcpu_fc {
 	PCPU_FC_AUTO,
 	PCPU_FC_EMBED,
@@ -78,18 +97,17 @@ typedef void (*pcpu_fc_populate_pte_fn_t)(unsigned long addr);
 typedef int (pcpu_fc_cpu_distance_fn_t)(unsigned int from, unsigned int to);
 typedef void (*pcpu_fc_map_fn_t)(void *ptr, size_t size, void *addr);
 
-#ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
-extern int __init pcpu_lpage_build_unit_map(
-				size_t reserved_size, ssize_t *dyn_sizep,
-				size_t *unit_sizep, size_t lpage_size,
-				int *unit_map,
-				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
-#endif
+extern struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
+							     int nr_units);
+extern void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai);
 
-extern size_t __init pcpu_setup_first_chunk(
-				size_t static_size, size_t reserved_size,
-				size_t dyn_size, size_t unit_size,
-				void *base_addr, const int *unit_map);
+extern struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+				size_t reserved_size, ssize_t dyn_size,
+				size_t atom_size,
+				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
+
+extern size_t __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+					    void *base_addr);
 
 #ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
 extern ssize_t __init pcpu_embed_first_chunk(
@@ -106,9 +124,7 @@ extern ssize_t __init pcpu_page_first_chunk(
 
 #ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
 extern ssize_t __init pcpu_lpage_first_chunk(
-				size_t reserved_size, size_t dyn_size,
-				size_t unit_size, size_t lpage_size,
-				const int *unit_map, int nr_units,
+				const struct pcpu_alloc_info *ai,
 				pcpu_fc_alloc_fn_t alloc_fn,
 				pcpu_fc_free_fn_t free_fn,
 				pcpu_fc_map_fn_t map_fn);

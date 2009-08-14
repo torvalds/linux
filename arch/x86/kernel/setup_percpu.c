@@ -161,9 +161,7 @@ static ssize_t __init setup_pcpu_lpage(bool chosen)
 {
 	size_t reserve = PERCPU_MODULE_RESERVE + PERCPU_DYNAMIC_RESERVE;
 	size_t dyn_size = reserve - PERCPU_FIRST_CHUNK_RESERVE;
-	size_t unit_map_size, unit_size;
-	int *unit_map;
-	int nr_units;
+	struct pcpu_alloc_info *ai;
 	ssize_t ret;
 
 	/* on non-NUMA, embedding is better */
@@ -177,26 +175,22 @@ static ssize_t __init setup_pcpu_lpage(bool chosen)
 	}
 
 	/* allocate and build unit_map */
-	unit_map_size = nr_cpu_ids * sizeof(int);
-	unit_map = alloc_bootmem_nopanic(unit_map_size);
-	if (!unit_map) {
-		pr_warning("PERCPU: failed to allocate unit_map\n");
-		return -ENOMEM;
+	ai = pcpu_build_alloc_info(PERCPU_FIRST_CHUNK_RESERVE, dyn_size,
+				   PMD_SIZE, pcpu_lpage_cpu_distance);
+	if (IS_ERR(ai)) {
+		pr_warning("PERCPU: failed to build unit_map (%ld)\n",
+			   PTR_ERR(ai));
+		return PTR_ERR(ai);
 	}
-
-	ret = pcpu_lpage_build_unit_map(PERCPU_FIRST_CHUNK_RESERVE,
-					&dyn_size, &unit_size, PMD_SIZE,
-					unit_map, pcpu_lpage_cpu_distance);
-	if (ret < 0) {
-		pr_warning("PERCPU: failed to build unit_map\n");
-		goto out_free;
-	}
-	nr_units = ret;
 
 	/* do the parameters look okay? */
 	if (!chosen) {
 		size_t vm_size = VMALLOC_END - VMALLOC_START;
-		size_t tot_size = nr_units * unit_size;
+		size_t tot_size = 0;
+		int group;
+
+		for (group = 0; group < ai->nr_groups; group++)
+			tot_size += ai->unit_size * ai->groups[group].nr_units;
 
 		/* don't consume more than 20% of vmalloc area */
 		if (tot_size > vm_size / 5) {
@@ -207,12 +201,10 @@ static ssize_t __init setup_pcpu_lpage(bool chosen)
 		}
 	}
 
-	ret = pcpu_lpage_first_chunk(PERCPU_FIRST_CHUNK_RESERVE, dyn_size,
-				     unit_size, PMD_SIZE, unit_map, nr_units,
-				     pcpu_fc_alloc, pcpu_fc_free, pcpul_map);
+	ret = pcpu_lpage_first_chunk(ai, pcpu_fc_alloc, pcpu_fc_free,
+				     pcpul_map);
 out_free:
-	if (ret < 0)
-		free_bootmem(__pa(unit_map), unit_map_size);
+	pcpu_free_alloc_info(ai);
 	return ret;
 }
 #else
