@@ -2026,7 +2026,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	else
 		hlreg0 |= IXGBE_HLREG0_JUMBOEN;
 #ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
+	if (netdev->features & NETIF_F_FCOE_MTU)
 		hlreg0 |= IXGBE_HLREG0_JUMBOEN;
 #endif
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg0);
@@ -2057,7 +2057,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 			rx_ring->flags |= IXGBE_RING_RX_PS_ENABLED;
 
 #ifdef IXGBE_FCOE
-		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		if (netdev->features & NETIF_F_FCOE_MTU) {
 			struct ixgbe_ring_feature *f;
 			f = &adapter->ring_feature[RING_F_FCOE];
 			if ((i >= f->mask) && (i < f->mask + f->indices)) {
@@ -2609,7 +2609,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 
 #ifdef IXGBE_FCOE
 	/* adjust max frame to be able to do baby jumbo for FCoE */
-	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
+	if ((netdev->features & NETIF_F_FCOE_MTU) &&
 	    (max_frame < IXGBE_FCOE_JUMBO_FRAME_SIZE))
 		max_frame = IXGBE_FCOE_JUMBO_FRAME_SIZE;
 
