@@ -23,7 +23,6 @@
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
-#include <linux/smp_lock.h>
 #include <scsi/scsi_scan.h>
 
 #include <asm/uaccess.h>

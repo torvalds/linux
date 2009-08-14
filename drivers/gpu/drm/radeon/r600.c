@@ -67,7 +67,7 @@ int r600_mc_init(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(R600_MC_FB_TOP, tmp >> 24);
 	tmp |= REG_SET(R600_MC_FB_BASE, rdev->mc.vram_location >> 24);
 	WREG32(R600_MC_VM_FB_LOCATION, tmp);
@@ -140,7 +140,8 @@ void r600_vram_get_type(struct radeon_device *rdev)
 void r600_vram_info(struct radeon_device *rdev)
 {
 	r600_vram_get_type(rdev);
-	rdev->mc.vram_size = RREG32(R600_CONFIG_MEMSIZE);
+	rdev->mc.real_vram_size = RREG32(R600_CONFIG_MEMSIZE);
+	rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
 
 	/* Could aper size report 0 ? */
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);

@@ -80,38 +80,18 @@ static int usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 	int max_tx;
 	int i;
 
-	/* Allocate space for the SS endpoint companion descriptor */
-	ep->ss_ep_comp = kzalloc(sizeof(struct usb_host_ss_ep_comp),
-			GFP_KERNEL);
-	if (!ep->ss_ep_comp)
-		return -ENOMEM;
 	desc = (struct usb_ss_ep_comp_descriptor *) buffer;
 	if (desc->bDescriptorType != USB_DT_SS_ENDPOINT_COMP) {
 		dev_warn(ddev, "No SuperSpeed endpoint companion for config %d "
 				" interface %d altsetting %d ep %d: "
 				"using minimum values\n",
 				cfgno, inum, asnum, ep->desc.bEndpointAddress);
-		ep->ss_ep_comp->desc.bLength = USB_DT_SS_EP_COMP_SIZE;
-		ep->ss_ep_comp->desc.bDescriptorType = USB_DT_SS_ENDPOINT_COMP;
-		ep->ss_ep_comp->desc.bMaxBurst = 0;
-		/*
-		 * Leave bmAttributes as zero, which will mean no streams for
-		 * bulk, and isoc won't support multiple bursts of packets.
-		 * With bursts of only one packet, and a Mult of 1, the max
-		 * amount of data moved per endpoint service interval is one
-		 * packet.
-		 */
-		if (usb_endpoint_xfer_isoc(&ep->desc) ||
-				usb_endpoint_xfer_int(&ep->desc))
-			ep->ss_ep_comp->desc.wBytesPerInterval =
-				ep->desc.wMaxPacketSize;
 		/*
 		 * The next descriptor is for an Endpoint or Interface,
 		 * no extra descriptors to copy into the companion structure,
 		 * and we didn't eat up any of the buffer.
 		 */
-		retval = 0;
-		goto valid;
+		return 0;
 	}
 	memcpy(&ep->ss_ep_comp->desc, desc, USB_DT_SS_EP_COMP_SIZE);
 	desc = &ep->ss_ep_comp->desc;
@@ -320,6 +300,28 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 		buffer += i;
 		size -= i;
 
+		/* Allocate space for the SS endpoint companion descriptor */
+		endpoint->ss_ep_comp = kzalloc(sizeof(struct usb_host_ss_ep_comp),
+				GFP_KERNEL);
+		if (!endpoint->ss_ep_comp)
+			return -ENOMEM;
+
+		/* Fill in some default values (may be overwritten later) */
+		endpoint->ss_ep_comp->desc.bLength = USB_DT_SS_EP_COMP_SIZE;
+		endpoint->ss_ep_comp->desc.bDescriptorType = USB_DT_SS_ENDPOINT_COMP;
+		endpoint->ss_ep_comp->desc.bMaxBurst = 0;
+		/*
+		 * Leave bmAttributes as zero, which will mean no streams for
+		 * bulk, and isoc won't support multiple bursts of packets.
+		 * With bursts of only one packet, and a Mult of 1, the max
+		 * amount of data moved per endpoint service interval is one
+		 * packet.
+		 */
+		if (usb_endpoint_xfer_isoc(&endpoint->desc) ||
+				usb_endpoint_xfer_int(&endpoint->desc))
+			endpoint->ss_ep_comp->desc.wBytesPerInterval =
+				endpoint->desc.wMaxPacketSize;
+
 		if (size > 0) {
 			retval = usb_parse_ss_endpoint_companion(ddev, cfgno,
 					inum, asnum, endpoint, num_ep, buffer,
@@ -329,6 +331,10 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 				retval = buffer - buffer0;
 			}
 		} else {
+			dev_warn(ddev, "config %d interface %d altsetting %d "
+				"endpoint 0x%X has no "
+				"SuperSpeed companion descriptor\n",
+				cfgno, inum, asnum, d->bEndpointAddress);
 			retval = buffer - buffer0;
 		}
 	} else {

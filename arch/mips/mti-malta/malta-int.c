@@ -331,6 +331,7 @@ static struct irqaction irq_call = {
 	.flags		= IRQF_DISABLED|IRQF_PERCPU,
 	.name		= "IPI_call"
 };
+#endif /* CONFIG_MIPS_MT_SMP */
 
 static int gic_resched_int_base;
 static int gic_call_int_base;
@@ -346,7 +347,6 @@ unsigned int plat_ipi_resched_int_xlate(unsigned int cpu)
 {
 	return GIC_RESCHED_INT(cpu);
 }
-#endif /* CONFIG_MIPS_MT_SMP */
 
 static struct irqaction i8259irq = {
 	.handler = no_action,

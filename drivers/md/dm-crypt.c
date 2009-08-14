@@ -776,7 +776,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		 * But don't wait if split was due to the io size restriction
 		 */
 		if (unlikely(out_of_pages))
-			congestion_wait(WRITE, HZ/100);
+			congestion_wait(BLK_RW_ASYNC, HZ/100);
 
 		/*
 		 * With async crypto it is unsafe to share the crypto context
@@ -1318,7 +1318,7 @@ static int crypt_iterate_devices(struct dm_target *ti,
 {
 	struct crypt_config *cc = ti->private;
 
-	return fn(ti, cc->dev, cc->start, data);
+	return fn(ti, cc->dev, cc->start, ti->len, data);
 }
 
 static struct target_type crypt_target = {

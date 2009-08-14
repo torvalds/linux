@@ -2060,8 +2060,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	pci_set_master(pdev);
-
 	/* ioremap MMIO region */
 	ioaddr = ioremap(pci_resource_start(pdev, region), R8169_REGS_SIZE);
 	if (!ioaddr) {
@@ -2088,6 +2086,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	RTL_W16(IntrStatus, 0xffff);
+
+	pci_set_master(pdev);
 
 	/* Identify chip attached to board */
 	rtl8169_get_mac_version(tp, ioaddr);
@@ -3874,6 +3874,15 @@ static void rtl_shutdown(struct pci_dev *pdev)
 	spin_unlock_irq(&tp->lock);
 
 	if (system_state == SYSTEM_POWER_OFF) {
+		/* WoL fails with some 8168 when the receiver is disabled. */
+		if (tp->features & RTL_FEATURE_WOL) {
+			pci_clear_master(pdev);
+
+			RTL_W8(ChipCmd, CmdRxEnb);
+			/* PCI commit */
+			RTL_R8(ChipCmd);
+		}
+
 		pci_wake_from_d3(pdev, true);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}

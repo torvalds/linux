@@ -55,6 +55,7 @@ struct psc_dma {
 	unsigned int irq;
 	struct device *dev;
 	spinlock_t lock;
+	struct mutex mutex;
 	u32 sicr;
 	uint sysclk;
 	int imr;

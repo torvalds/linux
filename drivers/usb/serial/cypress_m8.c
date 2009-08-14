@@ -1228,8 +1228,8 @@ static void cypress_read_int_callback(struct urb *urb)
 		/* precursor to disconnect so just go away */
 		return;
 	case -EPIPE:
-		usb_clear_halt(port->serial->dev, 0x81);
-		break;
+		/* Can't call usb_clear_halt while in_interrupt */
+		/* FALLS THROUGH */
 	default:
 		/* something ugly is going on... */
 		dev_err(&urb->dev->dev,

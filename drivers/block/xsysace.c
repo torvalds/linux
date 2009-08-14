@@ -390,9 +390,10 @@ static inline void ace_dump_mem(void *base, int len)
 
 static void ace_dump_regs(struct ace_device *ace)
 {
-	dev_info(ace->dev, "    ctrl:  %.8x  seccnt/cmd: %.4x      ver:%.4x\n"
-		 KERN_INFO "    status:%.8x  mpu_lba:%.8x  busmode:%4x\n"
-		 KERN_INFO "    error: %.8x  cfg_lba:%.8x  fatstat:%.4x\n",
+	dev_info(ace->dev,
+		 "    ctrl:  %.8x  seccnt/cmd: %.4x      ver:%.4x\n"
+		 "    status:%.8x  mpu_lba:%.8x  busmode:%4x\n"
+		 "    error: %.8x  cfg_lba:%.8x  fatstat:%.4x\n",
 		 ace_in32(ace, ACE_CTRL),
 		 ace_in(ace, ACE_SECCNTCMD),
 		 ace_in(ace, ACE_VERSION),

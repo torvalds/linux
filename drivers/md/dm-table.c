@@ -346,7 +346,7 @@ static void close_dev(struct dm_dev_internal *d, struct mapped_device *md)
  * If possible, this checks an area of a destination device is valid.
  */
 static int device_area_is_valid(struct dm_target *ti, struct dm_dev *dev,
-				sector_t start, void *data)
+				sector_t start, sector_t len, void *data)
 {
 	struct queue_limits *limits = data;
 	struct block_device *bdev = dev->bdev;
@@ -359,7 +359,7 @@ static int device_area_is_valid(struct dm_target *ti, struct dm_dev *dev,
 	if (!dev_size)
 		return 1;
 
-	if ((start >= dev_size) || (start + ti->len > dev_size)) {
+	if ((start >= dev_size) || (start + len > dev_size)) {
 		DMWARN("%s: %s too small for target",
 		       dm_device_name(ti->table->md), bdevname(bdev, b));
 		return 0;
@@ -377,11 +377,11 @@ static int device_area_is_valid(struct dm_target *ti, struct dm_dev *dev,
 		return 0;
 	}
 
-	if (ti->len & (logical_block_size_sectors - 1)) {
+	if (len & (logical_block_size_sectors - 1)) {
 		DMWARN("%s: len=%llu not aligned to h/w "
 		       "logical block size %hu of %s",
 		       dm_device_name(ti->table->md),
-		       (unsigned long long)ti->len,
+		       (unsigned long long)len,
 		       limits->logical_block_size, bdevname(bdev, b));
 		return 0;
 	}
@@ -482,7 +482,7 @@ static int __table_get_device(struct dm_table *t, struct dm_target *ti,
 #define min_not_zero(l, r) (l == 0) ? r : ((r == 0) ? l : min(l, r))
 
 int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
-			 sector_t start, void *data)
+			 sector_t start, sector_t len, void *data)
 {
 	struct queue_limits *limits = data;
 	struct block_device *bdev = dev->bdev;
@@ -828,11 +828,6 @@ int dm_table_set_type(struct dm_table *t)
 unsigned dm_table_get_type(struct dm_table *t)
 {
 	return t->type;
-}
-
-bool dm_table_bio_based(struct dm_table *t)
-{
-	return dm_table_get_type(t) == DM_TYPE_BIO_BASED;
 }
 
 bool dm_table_request_based(struct dm_table *t)

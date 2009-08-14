@@ -553,40 +553,35 @@ static void _zfcp_erp_unit_reopen_all(struct zfcp_port *port, int clear,
 		_zfcp_erp_unit_reopen(unit, clear, id, ref);
 }
 
-static void zfcp_erp_strategy_followup_actions(struct zfcp_erp_action *act)
+static void zfcp_erp_strategy_followup_failed(struct zfcp_erp_action *act)
 {
-	struct zfcp_adapter *adapter = act->adapter;
-	struct zfcp_port *port = act->port;
-	struct zfcp_unit *unit = act->unit;
-	u32 status = act->status;
-
-	/* initiate follow-up actions depending on success of finished action */
 	switch (act->action) {
-
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
-		if (status == ZFCP_ERP_SUCCEEDED)
-			_zfcp_erp_port_reopen_all(adapter, 0, "ersfa_1", NULL);
-		else
-			_zfcp_erp_adapter_reopen(adapter, 0, "ersfa_2", NULL);
+		_zfcp_erp_adapter_reopen(act->adapter, 0, "ersff_1", NULL);
 		break;
-
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
-		if (status == ZFCP_ERP_SUCCEEDED)
-			_zfcp_erp_port_reopen(port, 0, "ersfa_3", NULL);
-		else
-			_zfcp_erp_adapter_reopen(adapter, 0, "ersfa_4", NULL);
+		_zfcp_erp_port_forced_reopen(act->port, 0, "ersff_2", NULL);
 		break;
-
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
-		if (status == ZFCP_ERP_SUCCEEDED)
-			_zfcp_erp_unit_reopen_all(port, 0, "ersfa_5", NULL);
-		else
-			_zfcp_erp_port_forced_reopen(port, 0, "ersfa_6", NULL);
+		_zfcp_erp_port_reopen(act->port, 0, "ersff_3", NULL);
 		break;
-
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		if (status != ZFCP_ERP_SUCCEEDED)
-			_zfcp_erp_port_reopen(unit->port, 0, "ersfa_7", NULL);
+		_zfcp_erp_unit_reopen(act->unit, 0, "ersff_4", NULL);
+		break;
+	}
+}
+
+static void zfcp_erp_strategy_followup_success(struct zfcp_erp_action *act)
+{
+	switch (act->action) {
+	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
+		_zfcp_erp_port_reopen_all(act->adapter, 0, "ersfs_1", NULL);
+		break;
+	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
+		_zfcp_erp_port_reopen(act->port, 0, "ersfs_2", NULL);
+		break;
+	case ZFCP_ERP_ACTION_REOPEN_PORT:
+		_zfcp_erp_unit_reopen_all(act->port, 0, "ersfs_3", NULL);
 		break;
 	}
 }
@@ -801,7 +796,7 @@ static int zfcp_erp_port_forced_strategy(struct zfcp_erp_action *erp_action)
 			return ZFCP_ERP_FAILED;
 
 	case ZFCP_ERP_STEP_PHYS_PORT_CLOSING:
-		if (status & ZFCP_STATUS_PORT_PHYS_OPEN)
+		if (!(status & ZFCP_STATUS_PORT_PHYS_OPEN))
 			return ZFCP_ERP_SUCCEEDED;
 	}
 	return ZFCP_ERP_FAILED;
@@ -853,11 +848,17 @@ void zfcp_erp_port_strategy_open_lookup(struct work_struct *work)
 					      gid_pn_work);
 
 	retval = zfcp_fc_ns_gid_pn(&port->erp_action);
-	if (retval == -ENOMEM)
-		zfcp_erp_notify(&port->erp_action, ZFCP_ERP_NOMEM);
-	port->erp_action.step = ZFCP_ERP_STEP_NAMESERVER_LOOKUP;
-	if (retval)
-		zfcp_erp_notify(&port->erp_action, ZFCP_ERP_FAILED);
+	if (!retval) {
+		port->erp_action.step = ZFCP_ERP_STEP_NAMESERVER_LOOKUP;
+		goto out;
+	}
+	if (retval == -ENOMEM) {
+		zfcp_erp_notify(&port->erp_action, ZFCP_STATUS_ERP_LOWMEM);
+		goto out;
+	}
+	/* all other error condtions */
+	zfcp_erp_notify(&port->erp_action, 0);
+out:
 	zfcp_port_put(port);
 }
 
@@ -1289,7 +1290,10 @@ static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 	retval = zfcp_erp_strategy_statechange(erp_action, retval);
 	if (retval == ZFCP_ERP_EXIT)
 		goto unlock;
-	zfcp_erp_strategy_followup_actions(erp_action);
+	if (retval == ZFCP_ERP_SUCCEEDED)
+		zfcp_erp_strategy_followup_success(erp_action);
+	if (retval == ZFCP_ERP_FAILED)
+		zfcp_erp_strategy_followup_failed(erp_action);
 
  unlock:
 	write_unlock(&adapter->erp_lock);

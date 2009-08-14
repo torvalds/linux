@@ -286,8 +286,8 @@ __releases(&fc->lock)
 		}
 		if (fc->num_background == FUSE_CONGESTION_THRESHOLD &&
 		    fc->connected && fc->bdi_initialized) {
-			clear_bdi_congested(&fc->bdi, READ);
-			clear_bdi_congested(&fc->bdi, WRITE);
+			clear_bdi_congested(&fc->bdi, BLK_RW_SYNC);
+			clear_bdi_congested(&fc->bdi, BLK_RW_ASYNC);
 		}
 		fc->num_background--;
 		fc->active_background--;
@@ -414,8 +414,8 @@ static void fuse_request_send_nowait_locked(struct fuse_conn *fc,
 		fc->blocked = 1;
 	if (fc->num_background == FUSE_CONGESTION_THRESHOLD &&
 	    fc->bdi_initialized) {
-		set_bdi_congested(&fc->bdi, READ);
-		set_bdi_congested(&fc->bdi, WRITE);
+		set_bdi_congested(&fc->bdi, BLK_RW_SYNC);
+		set_bdi_congested(&fc->bdi, BLK_RW_ASYNC);
 	}
 	list_add_tail(&req->list, &fc->bg_queue);
 	flush_bg_queue(fc);

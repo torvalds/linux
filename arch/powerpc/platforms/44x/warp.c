@@ -64,8 +64,6 @@ define_machine(warp) {
 };
 
 
-static u32 post_info;
-
 static int __init warp_post_info(void)
 {
 	struct device_node *np;
@@ -87,10 +85,9 @@ static int __init warp_post_info(void)
 
 	iounmap(fpga);
 
-	if (post1 || post2) {
+	if (post1 || post2)
 		printk(KERN_INFO "Warp POST %08x %08x\n", post1, post2);
-		post_info = 1;
-	} else
+	else
 		printk(KERN_INFO "Warp POST OK\n");
 
 	return 0;
@@ -166,6 +163,9 @@ static irqreturn_t temp_isr(int irq, void *context)
 		value ^= 1;
 		mdelay(500);
 	}
+
+	/* Not reached */
+	return IRQ_HANDLED;
 }
 
 static int pika_setup_leds(void)
@@ -179,15 +179,10 @@ static int pika_setup_leds(void)
 	}
 
 	for_each_child_of_node(np, child)
-		if (strcmp(child->name, "green") == 0) {
+		if (strcmp(child->name, "green") == 0)
 			green_led = of_get_gpio(child, 0);
-			/* Turn back on the green LED */
-			gpio_set_value(green_led, 1);
-		} else if (strcmp(child->name, "red") == 0) {
+		else if (strcmp(child->name, "red") == 0)
 			red_led = of_get_gpio(child, 0);
-			/* Set based on post */
-			gpio_set_value(red_led, post_info);
-		}
 
 	of_node_put(np);
 

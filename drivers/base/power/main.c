@@ -762,6 +762,7 @@ static int dpm_prepare(pm_message_t state)
 			dev->power.status = DPM_ON;
 			if (error == -EAGAIN) {
 				put_device(dev);
+				error = 0;
 				continue;
 			}
 			printk(KERN_ERR "PM: Failed to prepare device %s "

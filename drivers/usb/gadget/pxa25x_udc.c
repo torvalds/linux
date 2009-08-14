@@ -139,7 +139,7 @@ static int is_vbus_present(void)
 {
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 
-	if (mach->gpio_vbus) {
+	if (gpio_is_valid(mach->gpio_vbus)) {
 		int value = gpio_get_value(mach->gpio_vbus);
 
 		if (mach->gpio_vbus_inverted)
@@ -158,7 +158,7 @@ static void pullup_off(void)
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 	int off_level = mach->gpio_pullup_inverted;
 
-	if (mach->gpio_pullup)
+	if (gpio_is_valid(mach->gpio_pullup))
 		gpio_set_value(mach->gpio_pullup, off_level);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
@@ -169,7 +169,7 @@ static void pullup_on(void)
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 	int on_level = !mach->gpio_pullup_inverted;
 
-	if (mach->gpio_pullup)
+	if (gpio_is_valid(mach->gpio_pullup))
 		gpio_set_value(mach->gpio_pullup, on_level);
 	else if (mach->udc_command)
 		mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
@@ -1000,7 +1000,7 @@ static int pxa25x_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	udc = container_of(_gadget, struct pxa25x_udc, gadget);
 
 	/* not all boards support pullup control */
-	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
+	if (!gpio_is_valid(udc->mach->gpio_pullup) && !udc->mach->udc_command)
 		return -EOPNOTSUPP;
 
 	udc->pullup = (is_active != 0);
@@ -1802,11 +1802,13 @@ pxa25x_udc_irq(int irq, void *_dev)
 					USIR0 |= tmp;
 					handled = 1;
 				}
+#ifndef	CONFIG_USB_PXA25X_SMALL
 				if (usir1 & tmp) {
 					handle_ep(&dev->ep[i+8]);
 					USIR1 |= tmp;
 					handled = 1;
 				}
+#endif
 			}
 		}
 
@@ -2160,7 +2162,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->dev = &pdev->dev;
 	dev->mach = pdev->dev.platform_data;
 
-	if (dev->mach->gpio_vbus) {
+	if (gpio_is_valid(dev->mach->gpio_vbus)) {
 		if ((retval = gpio_request(dev->mach->gpio_vbus,
 				"pxa25x_udc GPIO VBUS"))) {
 			dev_dbg(&pdev->dev,
@@ -2173,7 +2175,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	} else
 		vbus_irq = 0;
 
-	if (dev->mach->gpio_pullup) {
+	if (gpio_is_valid(dev->mach->gpio_pullup)) {
 		if ((retval = gpio_request(dev->mach->gpio_pullup,
 				"pca25x_udc GPIO PULLUP"))) {
 			dev_dbg(&pdev->dev,
@@ -2256,10 +2258,10 @@ lubbock_fail0:
 #endif
 	free_irq(irq, dev);
  err_irq1:
-	if (dev->mach->gpio_pullup)
+	if (gpio_is_valid(dev->mach->gpio_pullup))
 		gpio_free(dev->mach->gpio_pullup);
  err_gpio_pullup:
-	if (dev->mach->gpio_vbus)
+	if (gpio_is_valid(dev->mach->gpio_vbus))
 		gpio_free(dev->mach->gpio_vbus);
  err_gpio_vbus:
 	clk_put(dev->clk);
@@ -2294,11 +2296,11 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 		free_irq(LUBBOCK_USB_IRQ, dev);
 	}
 #endif
-	if (dev->mach->gpio_vbus) {
+	if (gpio_is_valid(dev->mach->gpio_vbus)) {
 		free_irq(gpio_to_irq(dev->mach->gpio_vbus), dev);
 		gpio_free(dev->mach->gpio_vbus);
 	}
-	if (dev->mach->gpio_pullup)
+	if (gpio_is_valid(dev->mach->gpio_pullup))
 		gpio_free(dev->mach->gpio_pullup);
 
 	clk_put(dev->clk);
@@ -2329,7 +2331,7 @@ static int pxa25x_udc_suspend(struct platform_device *dev, pm_message_t state)
 	struct pxa25x_udc	*udc = platform_get_drvdata(dev);
 	unsigned long flags;
 
-	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
+	if (!gpio_is_valid(udc->mach->gpio_pullup) && !udc->mach->udc_command)
 		WARNING("USB host won't detect disconnect!\n");
 	udc->suspended = 1;
 

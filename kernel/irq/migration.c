@@ -45,7 +45,7 @@ void move_masked_irq(int irq)
 		   < nr_cpu_ids))
 		if (!desc->chip->set_affinity(irq, desc->pending_mask)) {
 			cpumask_copy(desc->affinity, desc->pending_mask);
-			irq_set_thread_affinity(desc, desc->pending_mask);
+			irq_set_thread_affinity(desc);
 		}
 
 	cpumask_clear(desc->pending_mask);

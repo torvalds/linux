@@ -521,6 +521,12 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			goto err;
 		}
 
+		/* If we've changed tiling, GTT-mappings of the object
+		 * need to re-fault to ensure that the correct fence register
+		 * setup is in place.
+		 */
+		i915_gem_release_mmap(obj);
+
 		obj_priv->tiling_mode = args->tiling_mode;
 		obj_priv->stride = args->stride;
 	}

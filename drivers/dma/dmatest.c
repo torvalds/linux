@@ -38,6 +38,11 @@ module_param(max_channels, uint, S_IRUGO);
 MODULE_PARM_DESC(max_channels,
 		"Maximum number of channels to use (default: all)");
 
+static unsigned int iterations;
+module_param(iterations, uint, S_IRUGO);
+MODULE_PARM_DESC(iterations,
+		"Iterations before stopping test (default: infinite)");
+
 static unsigned int xor_sources = 3;
 module_param(xor_sources, uint, S_IRUGO);
 MODULE_PARM_DESC(xor_sources,
@@ -114,7 +119,7 @@ static void dmatest_init_srcs(u8 **bufs, unsigned int start, unsigned int len)
 			buf[i] = PATTERN_SRC | (~i & PATTERN_COUNT_MASK);
 		for ( ; i < start + len; i++)
 			buf[i] = PATTERN_SRC | PATTERN_COPY
-				| (~i & PATTERN_COUNT_MASK);;
+				| (~i & PATTERN_COUNT_MASK);
 		for ( ; i < test_buf_size; i++)
 			buf[i] = PATTERN_SRC | (~i & PATTERN_COUNT_MASK);
 		buf++;
@@ -270,7 +275,8 @@ static int dmatest_func(void *data)
 
 	flags = DMA_CTRL_ACK | DMA_COMPL_SKIP_DEST_UNMAP | DMA_PREP_INTERRUPT;
 
-	while (!kthread_should_stop()) {
+	while (!kthread_should_stop()
+	       && !(iterations && total_tests >= iterations)) {
 		struct dma_device *dev = chan->device;
 		struct dma_async_tx_descriptor *tx = NULL;
 		dma_addr_t dma_srcs[src_cnt];
@@ -416,6 +422,13 @@ err_srcbuf:
 err_srcs:
 	pr_notice("%s: terminating after %u tests, %u failures (status %d)\n",
 			thread_name, total_tests, failed_tests, ret);
+
+	if (iterations > 0)
+		while (!kthread_should_stop()) {
+			DECLARE_WAIT_QUEUE_HEAD(wait_dmatest_exit);
+			interruptible_sleep_on(&wait_dmatest_exit);
+		}
+
 	return ret;
 }
 
@@ -495,11 +508,11 @@ static int dmatest_add_channel(struct dma_chan *chan)
 
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask)) {
 		cnt = dmatest_add_threads(dtc, DMA_MEMCPY);
-		thread_count += cnt > 0 ?: 0;
+		thread_count += cnt > 0 ? cnt : 0;
 	}
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		cnt = dmatest_add_threads(dtc, DMA_XOR);
-		thread_count += cnt > 0 ?: 0;
+		thread_count += cnt > 0 ? cnt : 0;
 	}
 
 	pr_info("dmatest: Started %u threads using %s\n",

@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/fb.h>
 #include <linux/mutex.h>
+#include <linux/vmalloc.h>
 
 #include "udlfb.h"
 

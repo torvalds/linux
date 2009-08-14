@@ -92,7 +92,7 @@ static int simtec_i2c_probe(struct platform_device *dev)
 		goto err;
 	}
 
-	size = (res->end-res->start)+1;
+	size = resource_size(res);
 
 	pd->ioarea = request_mem_region(res->start, size, dev->name);
 	if (pd->ioarea == NULL) {

@@ -1540,9 +1540,6 @@ static int sm501fb_init_fb(struct fb_info *fb,
 	if (ret)
 		dev_err(info->dev, "check_var() failed on initial setup?\n");
 
-	/* ensure we've activated our new configuration */
-	(fb->fbops->fb_set_par)(fb);
-
 	return 0;
 }
 
@@ -1623,6 +1620,8 @@ static int __devinit sm501fb_start_one(struct sm501fb_info *info,
 
 	if (!fbi)
 		return 0;
+
+	mutex_init(&info->fb[head]->mm_lock);
 
 	ret = sm501fb_init_fb(info->fb[head], head, drvname);
 	if (ret) {

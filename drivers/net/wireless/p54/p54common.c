@@ -912,13 +912,14 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		}
 
 		__skb_unlink(entry, &priv->tx_queue);
-		spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
 		frame_len = entry->len;
 		entry_hdr = (struct p54_hdr *) entry->data;
 		entry_data = (struct p54_tx_data *) entry_hdr->data;
-		priv->tx_stats[entry_data->hw_queue].len--;
+		if (priv->tx_stats[entry_data->hw_queue].len)
+			priv->tx_stats[entry_data->hw_queue].len--;
 		priv->stats.dot11ACKFailureCount += payload->tries - 1;
+		spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
 		/*
 		 * Frames in P54_QUEUE_FWSCAN and P54_QUEUE_BEACON are

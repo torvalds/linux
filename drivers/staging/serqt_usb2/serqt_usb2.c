@@ -360,18 +360,18 @@ static void qt_read_bulk_callback(struct urb *urb)
 	if (port_paranoia_check(port, __func__) != 0) {
 		dbg("%s - port_paranoia_check, exiting\n", __func__);
 		qt_port->ReadBulkStopped = 1;
-		return;
+		goto exit;
 	}
 
 	if (!serial) {
 		dbg("%s - bad serial pointer, exiting\n", __func__);
-		return;
+		goto exit;
 	}
 	if (qt_port->closePending == 1) {
 		/* Were closing , stop reading */
 		dbg("%s - (qt_port->closepending == 1\n", __func__);
 		qt_port->ReadBulkStopped = 1;
-		return;
+		goto exit;
 	}
 
 	/*
@@ -381,7 +381,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 	 */
 	if (qt_port->RxHolding == 1) {
 		qt_port->ReadBulkStopped = 1;
-		return;
+		goto exit;
 	}
 
 	if (urb->status) {
@@ -389,7 +389,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 
 		dbg("%s - nonzero read bulk status received: %d\n",
 		    __func__, urb->status);
-		return;
+		goto exit;
 	}
 
 	if (tty && RxCount) {
@@ -463,6 +463,8 @@ static void qt_read_bulk_callback(struct urb *urb)
 	}
 
 	schedule_work(&port->work);
+exit:
+	tty_kref_put(tty);
 }
 
 /*
@@ -736,6 +738,11 @@ static int qt_startup(struct usb_serial *serial)
 		if (!qt_port) {
 			dbg("%s: kmalloc for quatech_port (%d) failed!.",
 			    __func__, i);
+			for(--i; i >= 0; i--) {
+				port = serial->port[i];
+				kfree(usb_get_serial_port_data(port));
+				usb_set_serial_port_data(port, NULL);
+			}
 			return -ENOMEM;
 		}
 		spin_lock_init(&qt_port->lock);
@@ -866,7 +873,7 @@ static void qt_release(struct usb_serial *serial)
 
 }
 
-int qt_open(struct tty_struct *tty,
+static int qt_open(struct tty_struct *tty,
 	    struct usb_serial_port *port, struct file *filp)
 {
 	struct usb_serial *serial;
@@ -1041,17 +1048,19 @@ static void qt_block_until_empty(struct tty_struct *tty,
 	}
 }
 
-static void qt_close(struct tty_struct *tty, struct usb_serial_port *port,
-		     struct file *filp)
+static void qt_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct quatech_port *qt_port;
 	struct quatech_port *port0;
+	struct tty_struct *tty;
 	int status;
 	unsigned int index;
 	status = 0;
 
 	dbg("%s - port %d\n", __func__, port->number);
+
+	tty = tty_port_tty_get(&port->port);
 	index = tty->index - serial->minor;
 
 	qt_port = qt_get_port_private(port);
@@ -1066,6 +1075,7 @@ static void qt_close(struct tty_struct *tty, struct usb_serial_port *port,
 	/* wait up to for transmitter to empty */
 	if (serial->dev)
 		qt_block_until_empty(tty, qt_port);
+	tty_kref_put(tty);
 
 	/* Close uart channel */
 	status = qt_close_channel(serial, index);

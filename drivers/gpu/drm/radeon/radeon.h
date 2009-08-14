@@ -64,6 +64,7 @@ extern int radeon_agpmode;
 extern int radeon_vram_limit;
 extern int radeon_gart_size;
 extern int radeon_benchmarking;
+extern int radeon_testing;
 extern int radeon_connector_table;
 
 /*
@@ -113,6 +114,7 @@ enum radeon_family {
 	CHIP_RV770,
 	CHIP_RV730,
 	CHIP_RV710,
+	CHIP_RS880,
 	CHIP_LAST,
 };
 
@@ -201,6 +203,14 @@ int radeon_fence_wait_last(struct radeon_device *rdev);
 struct radeon_fence *radeon_fence_ref(struct radeon_fence *fence);
 void radeon_fence_unref(struct radeon_fence **fence);
 
+/*
+ * Tiling registers
+ */
+struct radeon_surface_reg {
+	struct radeon_object *robj;
+};
+
+#define RADEON_GEM_MAX_SURFACES 8
 
 /*
  * Radeon buffer.
@@ -213,6 +223,7 @@ struct radeon_object_list {
 	uint64_t		gpu_offset;
 	unsigned		rdomain;
 	unsigned		wdomain;
+	uint32_t                tiling_flags;
 };
 
 int radeon_object_init(struct radeon_device *rdev);
@@ -242,8 +253,15 @@ void radeon_object_list_clean(struct list_head *head);
 int radeon_object_fbdev_mmap(struct radeon_object *robj,
 			     struct vm_area_struct *vma);
 unsigned long radeon_object_size(struct radeon_object *robj);
-
-
+void radeon_object_clear_surface_reg(struct radeon_object *robj);
+int radeon_object_check_tiling(struct radeon_object *robj, bool has_moved,
+			       bool force_drop);
+void radeon_object_set_tiling_flags(struct radeon_object *robj,
+				    uint32_t tiling_flags, uint32_t pitch);
+void radeon_object_get_tiling_flags(struct radeon_object *robj, uint32_t *tiling_flags, uint32_t *pitch);
+void radeon_bo_move_notify(struct ttm_buffer_object *bo,
+			   struct ttm_mem_reg *mem);
+void radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 /*
  * GEM objects.
  */
@@ -315,8 +333,11 @@ struct radeon_mc {
 	unsigned		gtt_location;
 	unsigned		gtt_size;
 	unsigned		vram_location;
-	unsigned		vram_size;
+	/* for some chips with <= 32MB we need to lie
+	 * about vram size near mc fb location */
+	unsigned		mc_vram_size;
 	unsigned		vram_width;
+	unsigned		real_vram_size;
 	int			vram_mtrr;
 	bool			vram_is_ddr;
 };
@@ -474,11 +495,50 @@ struct radeon_wb {
 	uint64_t		gpu_addr;
 };
 
+/**
+ * struct radeon_pm - power management datas
+ * @max_bandwidth:      maximum bandwidth the gpu has (MByte/s)
+ * @igp_sideport_mclk:  sideport memory clock Mhz (rs690,rs740,rs780,rs880)
+ * @igp_system_mclk:    system clock Mhz (rs690,rs740,rs780,rs880)
+ * @igp_ht_link_clk:    ht link clock Mhz (rs690,rs740,rs780,rs880)
+ * @igp_ht_link_width:  ht link width in bits (rs690,rs740,rs780,rs880)
+ * @k8_bandwidth:       k8 bandwidth the gpu has (MByte/s) (IGP)
+ * @sideport_bandwidth: sideport bandwidth the gpu has (MByte/s) (IGP)
+ * @ht_bandwidth:       ht bandwidth the gpu has (MByte/s) (IGP)
+ * @core_bandwidth:     core GPU bandwidth the gpu has (MByte/s) (IGP)
+ * @sclk:          	GPU clock Mhz (core bandwith depends of this clock)
+ * @needed_bandwidth:   current bandwidth needs
+ *
+ * It keeps track of various data needed to take powermanagement decision.
+ * Bandwith need is used to determine minimun clock of the GPU and memory.
+ * Equation between gpu/memory clock and available bandwidth is hw dependent
+ * (type of memory, bus size, efficiency, ...)
+ */
+struct radeon_pm {
+	fixed20_12		max_bandwidth;
+	fixed20_12		igp_sideport_mclk;
+	fixed20_12		igp_system_mclk;
+	fixed20_12		igp_ht_link_clk;
+	fixed20_12		igp_ht_link_width;
+	fixed20_12		k8_bandwidth;
+	fixed20_12		sideport_bandwidth;
+	fixed20_12		ht_bandwidth;
+	fixed20_12		core_bandwidth;
+	fixed20_12		sclk;
+	fixed20_12		needed_bandwidth;
+};
+
 
 /*
  * Benchmarking
  */
 void radeon_benchmark(struct radeon_device *rdev);
+
+
+/*
+ * Testing
+ */
+void radeon_test_moves(struct radeon_device *rdev);
 
 
 /*
@@ -535,6 +595,11 @@ struct radeon_asic {
 	void (*set_memory_clock)(struct radeon_device *rdev, uint32_t mem_clock);
 	void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
 	void (*set_clock_gating)(struct radeon_device *rdev, int enable);
+	int (*set_surface_reg)(struct radeon_device *rdev, int reg,
+			       uint32_t tiling_flags, uint32_t pitch,
+			       uint32_t offset, uint32_t obj_size);
+	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
+	void (*bandwidth_update)(struct radeon_device *rdev);
 };
 
 union radeon_asic_config {
@@ -566,6 +631,10 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *filp);
 int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
+int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *filp);
+int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *filp);
 
 
 /*
@@ -594,8 +663,8 @@ struct radeon_device {
 	struct radeon_object		*fbdev_robj;
 	struct radeon_framebuffer	*fbdev_rfb;
 	/* Register mmio */
-	unsigned long			rmmio_base;
-	unsigned long			rmmio_size;
+	resource_size_t			rmmio_base;
+	resource_size_t			rmmio_size;
 	void				*rmmio;
 	radeon_rreg_t			mm_rreg;
 	radeon_wreg_t			mm_wreg;
@@ -619,11 +688,14 @@ struct radeon_device {
 	struct radeon_irq		irq;
 	struct radeon_asic		*asic;
 	struct radeon_gem		gem;
+	struct radeon_pm		pm;
 	struct mutex			cs_mutex;
 	struct radeon_wb		wb;
 	bool				gpu_lockup;
 	bool				shutdown;
 	bool				suspend;
+	bool				need_dma32;
+	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -670,6 +742,8 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 /*
  * ASICs helpers.
  */
+#define ASIC_IS_RN50(rdev) ((rdev->pdev->device == 0x515e) || \
+			    (rdev->pdev->device == 0x5969))
 #define ASIC_IS_RV100(rdev) ((rdev->family == CHIP_RV100) || \
 		(rdev->family == CHIP_RV200) || \
 		(rdev->family == CHIP_RS100) || \
@@ -796,5 +870,8 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_set_memory_clock(rdev, e) (rdev)->asic->set_engine_clock((rdev), (e))
 #define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->set_pcie_lanes((rdev), (l))
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->set_clock_gating((rdev), (e))
+#define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
+#define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
+#define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
 
 #endif
