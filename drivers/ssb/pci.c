@@ -480,7 +480,7 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 
 	/* extract the MAC address */
 	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM1_IL0MAC) + i];
+		v = in[SPOFF(SSB_SPROM8_IL0MAC) + i];
 		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
 	}
 	SPEX(country_code, SSB_SPROM8_CCODE, 0xFFFF, 0);
