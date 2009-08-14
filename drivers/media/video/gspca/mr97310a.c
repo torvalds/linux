@@ -220,7 +220,8 @@ static int sensor_write_regs(struct gspca_dev *gspca_dev,
 
 static int sensor_write1(struct gspca_dev *gspca_dev, u8 reg, u8 data)
 {
-	u8 buf;
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 buf, confirm_reg;
 	int rc;
 
 	buf = data;
@@ -229,7 +230,8 @@ static int sensor_write1(struct gspca_dev *gspca_dev, u8 reg, u8 data)
 		return rc;
 
 	buf = 0x01;
-	rc = sensor_write_reg(gspca_dev, 0x13, 0x00, &buf, 1);
+	confirm_reg = sd->sensor_type ? 0x13 : 0x11;
+	rc = sensor_write_reg(gspca_dev, confirm_reg, 0x00, &buf, 1);
 	if (rc < 0)
 		return rc;
 
@@ -400,8 +402,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		       sd->sensor_type);
 
 		if (sd->sensor_type == 0)
-			gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX) |
-					      (1 << EXPOSURE_IDX) | (1 << GAIN_IDX);
+			gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX);
 	} else {
 		sd->cam_type = CAM_TYPE_VGA;
 		PDEBUG(D_PROBE, "MR97310A VGA camera detected");
@@ -767,10 +768,43 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	if (gspca_dev->ctrl_dis & (1 << EXPOSURE_IDX))
 		return;
 
-	val = sd->exposure >> 4;
-	sensor_write1(gspca_dev, 3, val);
-	val = sd->exposure & 0xf;
-	sensor_write1(gspca_dev, 4, val);
+	if (sd->sensor_type) {
+		val = sd->exposure >> 4;
+		sensor_write1(gspca_dev, 3, val);
+		val = sd->exposure & 0xf;
+		sensor_write1(gspca_dev, 4, val);
+	} else {
+		u8 clockdiv;
+		int exposure;
+
+		/* We have both a clock divider and an exposure register.
+		   We first calculate the clock divider, as that determines
+		   the maximum exposure and then we calculayte the exposure
+		   register setting (which goes from 0 - 511).
+
+		   Note our 0 - 4095 exposure is mapped to 0 - 511
+		   milliseconds exposure time */
+		clockdiv = (60 * sd->exposure + 7999) / 8000;
+
+		/* Limit framerate to not exceed usb bandwidth */
+		if (clockdiv < 3 && gspca_dev->width >= 320)
+			clockdiv = 3;
+		else if (clockdiv < 2)
+			clockdiv = 2;
+
+		/* Frame exposure time in ms = 1000 * clockdiv / 60 ->
+		exposure = (sd->exposure / 8) * 511 / (1000 * clockdiv / 60) */
+		exposure = (60 * 511 * sd->exposure) / (8000 * clockdiv);
+		if (exposure > 511)
+			exposure = 511;
+
+		/* exposure register value is reversed! */
+		exposure = 511 - exposure;
+
+		sensor_write1(gspca_dev, 0x02, clockdiv);
+		sensor_write1(gspca_dev, 0x0e, exposure & 0xff);
+		sensor_write1(gspca_dev, 0x0f, exposure >> 8);
+	}
 }
 
 static void setgain(struct gspca_dev *gspca_dev)
@@ -780,7 +814,11 @@ static void setgain(struct gspca_dev *gspca_dev)
 	if (gspca_dev->ctrl_dis & (1 << GAIN_IDX))
 		return;
 
-	sensor_write1(gspca_dev, 3, sd->gain);
+	if (sd->sensor_type) {
+		sensor_write1(gspca_dev, 3, sd->gain);
+	} else {
+		sensor_write1(gspca_dev, 0x10, sd->gain);
+	}
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
