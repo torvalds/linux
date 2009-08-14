@@ -998,6 +998,7 @@ static struct dtv_cmds_h dtv_cmds[] = {
 	_DTV_CMD(DTV_ISDBT_SB_SUBCHANNEL_ID, 1, 0),
 	_DTV_CMD(DTV_ISDBT_SB_SEGMENT_IDX, 1, 0),
 	_DTV_CMD(DTV_ISDBT_SB_SEGMENT_COUNT, 1, 0),
+	_DTV_CMD(DTV_ISDBT_LAYER_ENABLED, 1, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERA_FEC, 1, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERA_MODULATION, 1, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERA_SEGMENT_COUNT, 1, 0),
@@ -1016,6 +1017,7 @@ static struct dtv_cmds_h dtv_cmds[] = {
 	_DTV_CMD(DTV_ISDBT_SB_SUBCHANNEL_ID, 0, 0),
 	_DTV_CMD(DTV_ISDBT_SB_SEGMENT_IDX, 0, 0),
 	_DTV_CMD(DTV_ISDBT_SB_SEGMENT_COUNT, 0, 0),
+	_DTV_CMD(DTV_ISDBT_LAYER_ENABLED, 0, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERA_FEC, 0, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERA_MODULATION, 0, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERA_SEGMENT_COUNT, 0, 0),
@@ -1379,6 +1381,9 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	case DTV_ISDBT_SB_SEGMENT_COUNT:
 		tvp->u.data = fe->dtv_property_cache.isdbt_sb_segment_count;
 		break;
+	case DTV_ISDBT_LAYER_ENABLED:
+		tvp->u.data = fe->dtv_property_cache.isdbt_layer_enabled;
+		break;
 	case DTV_ISDBT_LAYERA_FEC:
 		tvp->u.data = fe->dtv_property_cache.layer[0].fec;
 		break;
@@ -1526,6 +1531,9 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		break;
 	case DTV_ISDBT_SB_SEGMENT_COUNT:
 		fe->dtv_property_cache.isdbt_sb_segment_count = tvp->u.data;
+		break;
+	case DTV_ISDBT_LAYER_ENABLED:
+		fe->dtv_property_cache.isdbt_layer_enabled = tvp->u.data;
 		break;
 	case DTV_ISDBT_LAYERA_FEC:
 		fe->dtv_property_cache.layer[0].fec = tvp->u.data;
