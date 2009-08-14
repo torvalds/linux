@@ -2167,38 +2167,31 @@ static int sep_end_transaction_handler(struct sep_device *sep, unsigned long arg
 }
 
 
-/*
-  This function handler the set flow id command
-*/
-static int sep_set_flow_id_handler(struct sep_device *sep, unsigned long arg)
+/**
+ *	sep_set_flow_id_handler	-	handle flow setting
+ *	@sep: the SEP we are configuring
+ *	@flow_id: the flow we are setting
+ *
+ * This function handler the set flow id command
+ */
+static int sep_set_flow_id_handler(struct sep_device *sep,
+						unsigned long flow_id)
 {
-	int error;
-	unsigned long flow_id;
+	int error = 0;
 	struct sep_flow_context_t *flow_data_ptr;
-
-	dbg("------------>SEP Driver: sep_set_flow_id_handler start\n");
-
-	error = get_user(flow_id, &(((struct sep_driver_set_flow_id_t *) arg)->flow_id));
-	if (error)
-		goto end_function;
 
 	/* find the flow data structure that was just used for creating new flow
 	   - its id should be default */
+
+	mutex_lock(&sep_mutex);
 	flow_data_ptr = sep_find_flow_context(sep, SEP_TEMP_FLOW_ID);
-	if (flow_data_ptr == NULL)
-		goto end_function;
-
-	/* set flow id */
-	flow_data_ptr->flow_id = flow_id;
-
-end_function:
-	dbg("SEP Driver:<-------- sep_set_flow_id_handler end\n");
+	if (flow_data_ptr)
+		flow_data_ptr->flow_id = flow_id;	/* set flow id */
+	else
+		error = -EINVAL;
+	mutex_unlock(&sep_mutex);
 	return error;
 }
-
-
-
-
 
 static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -2245,7 +2238,7 @@ static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 		break;
 	case SEP_IOCSETFLOWID:
 		/* set flow id */
-		error = sep_set_flow_id_handler(sep, arg);
+		error = sep_set_flow_id_handler(sep, (unsigned long)arg);
 		break;
 	case SEP_IOCADDFLOWTABLE:
 		/* add tables to the dynamic flow */
