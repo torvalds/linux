@@ -78,6 +78,14 @@ typedef void (*pcpu_fc_populate_pte_fn_t)(unsigned long addr);
 typedef int (pcpu_fc_cpu_distance_fn_t)(unsigned int from, unsigned int to);
 typedef void (*pcpu_fc_map_fn_t)(void *ptr, size_t size, void *addr);
 
+#ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
+extern int __init pcpu_lpage_build_unit_map(
+				size_t reserved_size, ssize_t *dyn_sizep,
+				size_t *unit_sizep, size_t lpage_size,
+				int *unit_map,
+				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
+#endif
+
 extern size_t __init pcpu_setup_first_chunk(
 				size_t static_size, size_t reserved_size,
 				size_t dyn_size, size_t unit_size,
@@ -97,12 +105,6 @@ extern ssize_t __init pcpu_page_first_chunk(
 #endif
 
 #ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
-extern int __init pcpu_lpage_build_unit_map(
-				size_t reserved_size, ssize_t *dyn_sizep,
-				size_t *unit_sizep, size_t lpage_size,
-				int *unit_map,
-				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
-
 extern ssize_t __init pcpu_lpage_first_chunk(
 				size_t reserved_size, size_t dyn_size,
 				size_t unit_size, size_t lpage_size,
