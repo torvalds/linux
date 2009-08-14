@@ -138,6 +138,16 @@ static struct cnic_dev *cnic_from_netdev(struct net_device *netdev)
 	return NULL;
 }
 
+static inline void ulp_get(struct cnic_ulp_ops *ulp_ops)
+{
+	atomic_inc(&ulp_ops->ref_count);
+}
+
+static inline void ulp_put(struct cnic_ulp_ops *ulp_ops)
+{
+	atomic_dec(&ulp_ops->ref_count);
+}
+
 static void cnic_ctx_wr(struct cnic_dev *dev, u32 cid_addr, u32 off, u32 val)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -358,6 +368,7 @@ int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 	}
 	read_unlock(&cnic_dev_lock);
 
+	atomic_set(&ulp_ops->ref_count, 0);
 	rcu_assign_pointer(cnic_ulp_tbl[ulp_type], ulp_ops);
 	mutex_unlock(&cnic_lock);
 
@@ -379,6 +390,8 @@ int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 int cnic_unregister_driver(int ulp_type)
 {
 	struct cnic_dev *dev;
+	struct cnic_ulp_ops *ulp_ops;
+	int i = 0;
 
 	if (ulp_type >= MAX_CNIC_ULP_TYPE) {
 		printk(KERN_ERR PFX "cnic_unregister_driver: Bad type %d\n",
@@ -386,7 +399,8 @@ int cnic_unregister_driver(int ulp_type)
 		return -EINVAL;
 	}
 	mutex_lock(&cnic_lock);
-	if (!cnic_ulp_tbl[ulp_type]) {
+	ulp_ops = cnic_ulp_tbl[ulp_type];
+	if (!ulp_ops) {
 		printk(KERN_ERR PFX "cnic_unregister_driver: Type %d has not "
 				    "been registered\n", ulp_type);
 		goto out_unlock;
@@ -411,6 +425,14 @@ int cnic_unregister_driver(int ulp_type)
 
 	mutex_unlock(&cnic_lock);
 	synchronize_rcu();
+	while ((atomic_read(&ulp_ops->ref_count) != 0) && (i < 20)) {
+		msleep(100);
+		i++;
+	}
+
+	if (atomic_read(&ulp_ops->ref_count) != 0)
+		printk(KERN_WARNING PFX "%s: Failed waiting for ref count to go"
+					" to zero.\n", dev->netdev->name);
 	return 0;
 
 out_unlock:
@@ -1161,19 +1183,23 @@ static void cnic_ulp_init(struct cnic_dev *dev)
 	int i;
 	struct cnic_local *cp = dev->cnic_priv;
 
-	rcu_read_lock();
 	for (i = 0; i < MAX_CNIC_ULP_TYPE_EXT; i++) {
 		struct cnic_ulp_ops *ulp_ops;
 
-		ulp_ops = rcu_dereference(cnic_ulp_tbl[i]);
-		if (!ulp_ops || !ulp_ops->cnic_init)
+		mutex_lock(&cnic_lock);
+		ulp_ops = cnic_ulp_tbl[i];
+		if (!ulp_ops || !ulp_ops->cnic_init) {
+			mutex_unlock(&cnic_lock);
 			continue;
+		}
+		ulp_get(ulp_ops);
+		mutex_unlock(&cnic_lock);
 
 		if (!test_and_set_bit(ULP_F_INIT, &cp->ulp_flags[i]))
 			ulp_ops->cnic_init(dev);
 
+		ulp_put(ulp_ops);
 	}
-	rcu_read_unlock();
 }
 
 static void cnic_ulp_exit(struct cnic_dev *dev)
@@ -1181,19 +1207,23 @@ static void cnic_ulp_exit(struct cnic_dev *dev)
 	int i;
 	struct cnic_local *cp = dev->cnic_priv;
 
-	rcu_read_lock();
 	for (i = 0; i < MAX_CNIC_ULP_TYPE_EXT; i++) {
 		struct cnic_ulp_ops *ulp_ops;
 
-		ulp_ops = rcu_dereference(cnic_ulp_tbl[i]);
-		if (!ulp_ops || !ulp_ops->cnic_exit)
+		mutex_lock(&cnic_lock);
+		ulp_ops = cnic_ulp_tbl[i];
+		if (!ulp_ops || !ulp_ops->cnic_exit) {
+			mutex_unlock(&cnic_lock);
 			continue;
+		}
+		ulp_get(ulp_ops);
+		mutex_unlock(&cnic_lock);
 
 		if (test_and_clear_bit(ULP_F_INIT, &cp->ulp_flags[i]))
 			ulp_ops->cnic_exit(dev);
 
+		ulp_put(ulp_ops);
 	}
-	rcu_read_unlock();
 }
 
 static int cnic_cm_offload_pg(struct cnic_sock *csk)
