@@ -153,11 +153,8 @@ static unsigned long watchdog_resumed;
 #define WATCHDOG_INTERVAL (HZ >> 1)
 #define WATCHDOG_THRESHOLD (NSEC_PER_SEC >> 4)
 
-static void clocksource_ratewd(struct clocksource *cs, int64_t delta)
+static void clocksource_unstable(struct clocksource *cs, int64_t delta)
 {
-	if (delta > -WATCHDOG_THRESHOLD && delta < WATCHDOG_THRESHOLD)
-		return;
-
 	printk(KERN_WARNING "Clocksource %s unstable (delta = %Ld ns)\n",
 	       cs->name, delta);
 	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
@@ -183,31 +180,31 @@ static void clocksource_watchdog(unsigned long data)
 	list_for_each_entry_safe(cs, tmp, &watchdog_list, wd_list) {
 		csnow = cs->read(cs);
 
-		if (unlikely(resumed)) {
+		/* Clocksource initialized ? */
+		if (!(cs->flags & CLOCK_SOURCE_WATCHDOG)) {
+			cs->flags |= CLOCK_SOURCE_WATCHDOG;
 			cs->wd_last = csnow;
 			continue;
 		}
 
-		/* Initialized ? */
-		if (!(cs->flags & CLOCK_SOURCE_WATCHDOG)) {
-			if ((cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) &&
-			    (watchdog->flags & CLOCK_SOURCE_IS_CONTINUOUS)) {
-				cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
-				/*
-				 * We just marked the clocksource as
-				 * highres-capable, notify the rest of the
-				 * system as well so that we transition
-				 * into high-res mode:
-				 */
-				tick_clock_notify();
-			}
-			cs->flags |= CLOCK_SOURCE_WATCHDOG;
-			cs->wd_last = csnow;
-		} else {
-			cs_nsec = cyc2ns(cs, (csnow - cs->wd_last) & cs->mask);
-			cs->wd_last = csnow;
-			/* Check the delta. Might remove from the list ! */
-			clocksource_ratewd(cs, cs_nsec - wd_nsec);
+		/* Check the deviation from the watchdog clocksource. */
+		cs_nsec = cyc2ns(cs, (csnow - cs->wd_last) & cs->mask);
+		cs->wd_last = csnow;
+		if (abs(cs_nsec - wd_nsec) > WATCHDOG_THRESHOLD) {
+			clocksource_unstable(cs, cs_nsec - wd_nsec);
+			continue;
+		}
+
+		if (!(cs->flags & CLOCK_SOURCE_VALID_FOR_HRES) &&
+		    (cs->flags & CLOCK_SOURCE_IS_CONTINUOUS) &&
+		    (watchdog->flags & CLOCK_SOURCE_IS_CONTINUOUS)) {
+			cs->flags |= CLOCK_SOURCE_VALID_FOR_HRES;
+			/*
+			 * We just marked the clocksource as highres-capable,
+			 * notify the rest of the system as well so that we
+			 * transition into high-res mode:
+			 */
+			tick_clock_notify();
 		}
 	}
 
