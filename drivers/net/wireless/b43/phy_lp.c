@@ -1159,7 +1159,7 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 	lpphy_read_tx_pctl_mode_from_hardware(dev);
 	old_txpctl = lpphy->txpctl_mode;
 
-	lpphy_set_tx_power_control(dev, B43_LPPHY_TX_PWR_CTL_CMD_MODE_OFF);
+	lpphy_set_tx_power_control(dev, B43_LPPHY_TXPCTL_OFF);
 	lpphy_disable_crs(dev);
 	loopback = lpphy_loopback(dev);
 	if (loopback == -1)
