@@ -377,7 +377,6 @@ static int max_cb_time(void)
 
 int setup_callback_client(struct nfs4_client *clp)
 {
-	struct sockaddr_in	addr;
 	struct nfs4_cb_conn *cb = &clp->cl_cb_conn;
 	struct rpc_timeout	timeparms = {
 		.to_initval	= max_cb_time(),
@@ -385,8 +384,8 @@ int setup_callback_client(struct nfs4_client *clp)
 	};
 	struct rpc_create_args args = {
 		.protocol	= IPPROTO_TCP,
-		.address	= (struct sockaddr *)&addr,
-		.addrsize	= sizeof(addr),
+		.address	= (struct sockaddr *) &cb->cb_addr,
+		.addrsize	= cb->cb_addrlen,
 		.timeout	= &timeparms,
 		.program	= &cb_program,
 		.prognumber	= cb->cb_prog,
@@ -399,12 +398,6 @@ int setup_callback_client(struct nfs4_client *clp)
 
 	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
 		return -EINVAL;
-
-	/* Initialize address */
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(cb->cb_port);
-	addr.sin_addr.s_addr = htonl(cb->cb_addr);
 
 	/* Create RPC client */
 	client = rpc_create(&args);

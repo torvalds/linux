@@ -81,8 +81,8 @@ struct nfs4_delegation {
 /* client delegation callback info */
 struct nfs4_cb_conn {
 	/* SETCLIENTID info */
-	u32                     cb_addr;
-	unsigned short          cb_port;
+	struct sockaddr_storage	cb_addr;
+	size_t			cb_addrlen;
 	u32                     cb_prog;
 	u32			cb_minorversion;
 	u32                     cb_ident;	/* minorversion 0 only */
