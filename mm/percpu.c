@@ -1578,7 +1578,7 @@ ssize_t __init pcpu_page_first_chunk(size_t reserved_size,
 		for (i = 0; i < unit_pages; i++) {
 			void *ptr;
 
-			ptr = alloc_fn(cpu, PAGE_SIZE);
+			ptr = alloc_fn(cpu, PAGE_SIZE, PAGE_SIZE);
 			if (!ptr) {
 				pr_warning("PERCPU: failed to allocate %s page "
 					   "for cpu%u\n", psize_str, cpu);
@@ -1888,7 +1888,7 @@ ssize_t __init pcpu_lpage_first_chunk(size_t reserved_size, size_t dyn_size,
 				goto found;
 		continue;
 	found:
-		ptr = alloc_fn(cpu, lpage_size);
+		ptr = alloc_fn(cpu, lpage_size, lpage_size);
 		if (!ptr) {
 			pr_warning("PERCPU: failed to allocate large page "
 				   "for cpu%u\n", cpu);

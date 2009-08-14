@@ -126,9 +126,9 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 /*
  * Helpers for first chunk memory allocation
  */
-static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size)
+static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
 {
-	return pcpu_alloc_bootmem(cpu, size, size);
+	return pcpu_alloc_bootmem(cpu, size, align);
 }
 
 static void __init pcpu_fc_free(void *ptr, size_t size)
