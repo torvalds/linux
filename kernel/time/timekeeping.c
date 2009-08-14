@@ -79,7 +79,7 @@ static void clocksource_forward_now(void)
 	cycle_t cycle_now, cycle_delta;
 	s64 nsec;
 
-	cycle_now = clocksource_read(clock);
+	cycle_now = clock->read(clock);
 	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
 	clock->cycle_last = cycle_now;
 
@@ -114,7 +114,7 @@ void getnstimeofday(struct timespec *ts)
 		*ts = xtime;
 
 		/* read clocksource: */
-		cycle_now = clocksource_read(clock);
+		cycle_now = clock->read(clock);
 
 		/* calculate the delta since the last update_wall_time: */
 		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
@@ -146,7 +146,7 @@ ktime_t ktime_get(void)
 		nsecs = xtime.tv_nsec + wall_to_monotonic.tv_nsec;
 
 		/* read clocksource: */
-		cycle_now = clocksource_read(clock);
+		cycle_now = clock->read(clock);
 
 		/* calculate the delta since the last update_wall_time: */
 		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
@@ -186,7 +186,7 @@ void ktime_get_ts(struct timespec *ts)
 		tomono = wall_to_monotonic;
 
 		/* read clocksource: */
-		cycle_now = clocksource_read(clock);
+		cycle_now = clock->read(clock);
 
 		/* calculate the delta since the last update_wall_time: */
 		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
@@ -274,16 +274,29 @@ static void change_clocksource(void)
 
 	clocksource_forward_now();
 
-	if (clocksource_enable(new))
+	if (new->enable && !new->enable(new))
 		return;
+	/*
+	 * The frequency may have changed while the clocksource
+	 * was disabled. If so the code in ->enable() must update
+	 * the mult value to reflect the new frequency. Make sure
+	 * mult_orig follows this change.
+	 */
+	new->mult_orig = new->mult;
 
 	new->raw_time = clock->raw_time;
 	old = clock;
 	clock = new;
-	clocksource_disable(old);
+	/*
+	 * Save mult_orig in mult so that the value can be restored
+	 * regardless if ->enable() updates the value of mult or not.
+	 */
+	old->mult = old->mult_orig;
+	if (old->disable)
+		old->disable(old);
 
 	clock->cycle_last = 0;
-	clock->cycle_last = clocksource_read(clock);
+	clock->cycle_last = clock->read(clock);
 	clock->error = 0;
 	clock->xtime_nsec = 0;
 	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
@@ -373,7 +386,7 @@ void getrawmonotonic(struct timespec *ts)
 		seq = read_seqbegin(&xtime_lock);
 
 		/* read clocksource: */
-		cycle_now = clocksource_read(clock);
+		cycle_now = clock->read(clock);
 
 		/* calculate the delta since the last update_wall_time: */
 		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
@@ -435,9 +448,12 @@ void __init timekeeping_init(void)
 	ntp_init();
 
 	clock = clocksource_get_next();
-	clocksource_enable(clock);
+	if (clock->enable)
+		clock->enable(clock);
+	/* set mult_orig on enable */
+	clock->mult_orig = clock->mult;
 	clocksource_calculate_interval(clock, NTP_INTERVAL_LENGTH);
-	clock->cycle_last = clocksource_read(clock);
+	clock->cycle_last = clock->read(clock);
 
 	xtime.tv_sec = sec;
 	xtime.tv_nsec = 0;
@@ -477,8 +493,7 @@ static int timekeeping_resume(struct sys_device *dev)
 	}
 	update_xtime_cache(0);
 	/* re-base the last cycle value */
-	clock->cycle_last = 0;
-	clock->cycle_last = clocksource_read(clock);
+	clock->cycle_last = clock->read(clock);
 	clock->error = 0;
 	timekeeping_suspended = 0;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
@@ -630,7 +645,7 @@ void update_wall_time(void)
 		return;
 
 #ifdef CONFIG_GENERIC_TIME
-	offset = (clocksource_read(clock) - clock->cycle_last) & clock->mask;
+	offset = (clock->read(clock) - clock->cycle_last) & clock->mask;
 #else
 	offset = clock->cycle_interval;
 #endif
