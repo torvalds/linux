@@ -628,7 +628,7 @@ void b43_wa_all(struct b43_wldev *dev)
 			B43_WARN_ON(1);
 		}
 		b43_wa_boards_g(dev);
-	} else { /* No N PHY support so far */
+	} else { /* No N PHY support so far, LP PHY is in phy_lp.c */
 		B43_WARN_ON(1);
 	}
 
