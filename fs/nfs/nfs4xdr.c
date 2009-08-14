@@ -2441,13 +2441,17 @@ static int nfs4_xdr_enc_get_lease_time(struct rpc_rqst *req, uint32_t *p,
 #define READ_BUF(nbytes)  do { \
 	p = xdr_inline_decode(xdr, nbytes); \
 	if (unlikely(!p)) { \
-		dprintk("nfs: %s: prematurely hit end of receive" \
-				" buffer\n", __func__); \
-		dprintk("nfs: %s: xdr->p=%p, bytes=%u, xdr->end=%p\n", \
-				__func__, xdr->p, nbytes, xdr->end); \
+		print_overflow_msg(__func__, xdr); \
 		return -EIO; \
 	} \
 } while (0)
+
+static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
+{
+	dprintk("nfs: %s: prematurely hit end of receive buffer. "
+		"Remaining buffer length is %tu words.\n",
+		func, xdr->end - xdr->p);
+}
 
 static int decode_opaque_inline(struct xdr_stream *xdr, unsigned int *len, char **string)
 {
