@@ -1811,11 +1811,8 @@ static void sky2_tx_clean(struct net_device *dev)
 	netif_tx_unlock_bh(dev);
 }
 
-static void sky2_tx_reset(struct sky2_port* sky2)
+static void sky2_tx_reset(struct sky2_hw *hw, unsigned port)
 {
-	unsigned port = sky2->port;
-	struct sky2_hw *hw = sky2->hw;
-
 	/* Disable Force Sync bit and Enable Alloc bit */
 	sky2_write8(hw, SK_REG(port, TXA_CTRL),
 		    TXA_DIS_FSYNC | TXA_DIS_ALLOC | TXA_STOP_RC);
@@ -1877,8 +1874,6 @@ static int sky2_down(struct net_device *dev)
 	      && port == 0 && hw->dev[1] && netif_running(hw->dev[1])))
 		sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_RST_SET);
 
-	sky2_tx_reset(sky2);
-
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
 
 	/* Force any delayed status interrrupt and NAPI */
@@ -1902,6 +1897,8 @@ static int sky2_down(struct net_device *dev)
 
 	/* turn off LED's */
 	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
+
+	sky2_tx_reset(hw, port);
 
 	sky2_tx_clean(dev);
 	sky2_rx_clean(sky2);
