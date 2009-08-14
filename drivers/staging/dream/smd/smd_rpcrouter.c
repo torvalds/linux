@@ -122,7 +122,7 @@ struct rr_context {
 	uint32_t count; /* bytes needed in this state */
 };
 
-struct rr_context the_rr_context;
+static struct rr_context the_rr_context;
 
 static struct platform_device rpcrouter_pdev = {
 	.name		= "oncrpc_router",

@@ -164,8 +164,8 @@ struct binder_transaction_log {
 	int full;
 	struct binder_transaction_log_entry entry[32];
 };
-struct binder_transaction_log binder_transaction_log;
-struct binder_transaction_log binder_transaction_log_failed;
+static struct binder_transaction_log binder_transaction_log;
+static struct binder_transaction_log binder_transaction_log_failed;
 
 static struct binder_transaction_log_entry *binder_transaction_log_add(
 	struct binder_transaction_log *log)

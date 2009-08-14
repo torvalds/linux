@@ -950,7 +950,7 @@ static int audio_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct audio the_aac_audio;
+static struct audio the_aac_audio;
 
 static int audio_open(struct inode *inode, struct file *file)
 {

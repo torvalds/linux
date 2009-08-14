@@ -785,7 +785,7 @@ static int audio_in_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct audio_in the_audio_in;
+static struct audio_in the_audio_in;
 
 static int audio_in_open(struct inode *inode, struct file *file)
 {
