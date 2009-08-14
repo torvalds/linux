@@ -456,7 +456,7 @@ static int __devexit ad1938_spi_remove(struct spi_device *spi)
 
 static struct spi_driver ad1938_spi_driver = {
 	.driver = {
-		.name	= "ad1938-spi",
+		.name	= "ad1938",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
@@ -543,6 +543,7 @@ static int ad1938_register(struct ad1938_priv *ad1938)
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
+		kfree(ad1938);
 		return ret;
 	}
 
@@ -550,6 +551,7 @@ static int ad1938_register(struct ad1938_priv *ad1938)
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
 		snd_soc_unregister_codec(codec);
+		kfree(ad1938);
 		return ret;
 	}
 
