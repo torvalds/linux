@@ -1500,13 +1500,12 @@ static int sky2_up(struct net_device *dev)
 	sky2_write32(hw, B0_IMSK, imask);
 	sky2_read32(hw, B0_IMSK);
 
-	sky2_set_multicast(dev);
-
 	/* wake queue incase we are restarting */
 	netif_wake_queue(dev);
 
 	if (netif_msg_ifup(sky2))
 		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
+
 	return 0;
 
 err_out:
@@ -3087,18 +3086,46 @@ static void sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_START);
 }
 
+/* Take device down (offline).
+ * Equivalent to doing dev_stop() but this does not
+ * inform upper layers of the transistion.
+ */
+static void sky2_detach(struct net_device *dev)
+{
+	if (netif_running(dev)) {
+		netif_device_detach(dev);	/* stop txq */
+		sky2_down(dev);
+	}
+}
+
+/* Bring device back after doing sky2_detach */
+static int sky2_reattach(struct net_device *dev)
+{
+	int err = 0;
+
+	if (netif_running(dev)) {
+		err = sky2_up(dev);
+		if (err) {
+			printk(KERN_INFO PFX "%s: could not restart %d\n",
+			       dev->name, err);
+			dev_close(dev);
+		} else {
+			netif_device_attach(dev);
+			sky2_set_multicast(dev);
+		}
+	}
+
+	return err;
+}
+
 static void sky2_restart(struct work_struct *work)
 {
 	struct sky2_hw *hw = container_of(work, struct sky2_hw, restart_work);
-	struct net_device *dev;
-	int i, err;
+	int i;
 
 	rtnl_lock();
-	for (i = 0; i < hw->ports; i++) {
-		dev = hw->dev[i];
-		if (netif_running(dev))
-			sky2_down(dev);
-	}
+	for (i = 0; i < hw->ports; i++)
+		sky2_detach(hw->dev[i]);
 
 	napi_disable(&hw->napi);
 	sky2_write32(hw, B0_IMSK, 0);
@@ -3106,17 +3133,8 @@ static void sky2_restart(struct work_struct *work)
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 	napi_enable(&hw->napi);
 
-	for (i = 0; i < hw->ports; i++) {
-		dev = hw->dev[i];
-		if (netif_running(dev)) {
-			err = sky2_up(dev);
-			if (err) {
-				printk(KERN_INFO PFX "%s: could not restart %d\n",
-				       dev->name, err);
-				dev_close(dev);
-			}
-		}
-	}
+	for (i = 0; i < hw->ports; i++)
+		sky2_reattach(hw->dev[i]);
 
 	rtnl_unlock();
 }
@@ -3705,7 +3723,6 @@ static int sky2_set_ringparam(struct net_device *dev,
 			      struct ethtool_ringparam *ering)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	int err = 0;
 
 	if (ering->rx_pending > RX_MAX_PENDING ||
 	    ering->rx_pending < 8 ||
@@ -3713,19 +3730,12 @@ static int sky2_set_ringparam(struct net_device *dev,
 	    ering->tx_pending > TX_RING_SIZE - 1)
 		return -EINVAL;
 
-	if (netif_running(dev))
-		sky2_down(dev);
+	sky2_detach(dev);
 
 	sky2->rx_pending = ering->rx_pending;
 	sky2->tx_pending = ering->tx_pending;
 
-	if (netif_running(dev)) {
-		err = sky2_up(dev);
-		if (err)
-			dev_close(dev);
-	}
-
-	return err;
+	return sky2_reattach(dev);
 }
 
 static int sky2_get_regs_len(struct net_device *dev)
@@ -4648,9 +4658,7 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 		struct net_device *dev = hw->dev[i];
 		struct sky2_port *sky2 = netdev_priv(dev);
 
-		netif_device_detach(dev);
-		if (netif_running(dev))
-			sky2_down(dev);
+		sky2_detach(dev);
 
 		if (sky2->wol)
 			sky2_wol_init(sky2);
@@ -4698,25 +4706,18 @@ static int sky2_resume(struct pci_dev *pdev)
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 	napi_enable(&hw->napi);
 
+	rtnl_lock();
 	for (i = 0; i < hw->ports; i++) {
-		struct net_device *dev = hw->dev[i];
-
-		netif_device_attach(dev);
-		if (netif_running(dev)) {
-			err = sky2_up(dev);
-			if (err) {
-				printk(KERN_ERR PFX "%s: could not up: %d\n",
-				       dev->name, err);
-				rtnl_lock();
-				dev_close(dev);
-				rtnl_unlock();
-				goto out;
-			}
-		}
+		err = sky2_reattach(hw->dev[i]);
+		if (err)
+			goto out;
 	}
+	rtnl_unlock();
 
 	return 0;
 out:
+	rtnl_unlock();
+
 	dev_err(&pdev->dev, "resume failed (%d)\n", err);
 	pci_disable_device(pdev);
 	return err;
