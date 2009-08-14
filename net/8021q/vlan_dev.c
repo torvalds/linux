@@ -561,6 +561,33 @@ static int vlan_dev_neigh_setup(struct net_device *dev, struct neigh_parms *pa)
 	return err;
 }
 
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+static int vlan_dev_fcoe_ddp_setup(struct net_device *dev, u16 xid,
+				   struct scatterlist *sgl, unsigned int sgc)
+{
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+	const struct net_device_ops *ops = real_dev->netdev_ops;
+	int rc = 0;
+
+	if (ops->ndo_fcoe_ddp_setup)
+		rc = ops->ndo_fcoe_ddp_setup(real_dev, xid, sgl, sgc);
+
+	return rc;
+}
+
+static int vlan_dev_fcoe_ddp_done(struct net_device *dev, u16 xid)
+{
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+	const struct net_device_ops *ops = real_dev->netdev_ops;
+	int len = 0;
+
+	if (ops->ndo_fcoe_ddp_done)
+		len = ops->ndo_fcoe_ddp_done(real_dev, xid);
+
+	return len;
+}
+#endif
+
 static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
 {
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
@@ -634,6 +661,10 @@ static int vlan_dev_init(struct net_device *dev)
 		memcpy(dev->dev_addr, real_dev->dev_addr, dev->addr_len);
 	if (is_zero_ether_addr(dev->broadcast))
 		memcpy(dev->broadcast, real_dev->broadcast, dev->addr_len);
+
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+	dev->fcoe_ddp_xid = real_dev->fcoe_ddp_xid;
+#endif
 
 	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
 		dev->header_ops      = real_dev->header_ops;
@@ -715,6 +746,10 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
 	.ndo_do_ioctl		= vlan_dev_ioctl,
 	.ndo_neigh_setup	= vlan_dev_neigh_setup,
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
+	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
+#endif
 };
 
 static const struct net_device_ops vlan_netdev_accel_ops = {
@@ -731,6 +766,10 @@ static const struct net_device_ops vlan_netdev_accel_ops = {
 	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
 	.ndo_do_ioctl		= vlan_dev_ioctl,
 	.ndo_neigh_setup	= vlan_dev_neigh_setup,
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+	.ndo_fcoe_ddp_setup	= vlan_dev_fcoe_ddp_setup,
+	.ndo_fcoe_ddp_done	= vlan_dev_fcoe_ddp_done,
+#endif
 };
 
 void vlan_setup(struct net_device *dev)
