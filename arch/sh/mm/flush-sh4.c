@@ -10,10 +10,11 @@
  */
 void __weak __flush_wback_region(void *start, int size)
 {
-	unsigned long v, cnt, end;
+	reg_size_t aligned_start, v, cnt, end;
 
-	v = (unsigned long)start & ~(L1_CACHE_BYTES-1);
-	end = ((unsigned long)start + size + L1_CACHE_BYTES-1)
+	aligned_start = register_align(start);
+	v = aligned_start & ~(L1_CACHE_BYTES-1);
+	end = (aligned_start + size + L1_CACHE_BYTES-1)
 		& ~(L1_CACHE_BYTES-1);
 	cnt = (end - v) / L1_CACHE_BYTES;
 
@@ -52,10 +53,11 @@ void __weak __flush_wback_region(void *start, int size)
  */
 void __weak __flush_purge_region(void *start, int size)
 {
-	unsigned long v, cnt, end;
+	reg_size_t aligned_start, v, cnt, end;
 
-	v = (unsigned long)start & ~(L1_CACHE_BYTES-1);
-	end = ((unsigned long)start + size + L1_CACHE_BYTES-1)
+	aligned_start = register_align(start);
+	v = aligned_start & ~(L1_CACHE_BYTES-1);
+	end = (aligned_start + size + L1_CACHE_BYTES-1)
 		& ~(L1_CACHE_BYTES-1);
 	cnt = (end - v) / L1_CACHE_BYTES;
 
@@ -90,10 +92,11 @@ void __weak __flush_purge_region(void *start, int size)
  */
 void __weak __flush_invalidate_region(void *start, int size)
 {
-	unsigned long v, cnt, end;
+	reg_size_t aligned_start, v, cnt, end;
 
-	v = (unsigned long)start & ~(L1_CACHE_BYTES-1);
-	end = ((unsigned long)start + size + L1_CACHE_BYTES-1)
+	aligned_start = register_align(start);
+	v = aligned_start & ~(L1_CACHE_BYTES-1);
+	end = (aligned_start + size + L1_CACHE_BYTES-1)
 		& ~(L1_CACHE_BYTES-1);
 	cnt = (end - v) / L1_CACHE_BYTES;
 

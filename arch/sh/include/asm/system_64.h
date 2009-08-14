@@ -37,4 +37,9 @@ do {								\
 #define jump_to_uncached()	do { } while (0)
 #define back_to_cached()	do { } while (0)
 
+static inline reg_size_t register_align(void *val)
+{
+	return (unsigned long long)(signed long long)(signed long)val;
+}
+
 #endif /* __ASM_SH_SYSTEM_64_H */

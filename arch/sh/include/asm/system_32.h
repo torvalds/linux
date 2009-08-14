@@ -198,6 +198,11 @@ do {							\
 })
 #endif
 
+static inline reg_size_t register_align(void *val)
+{
+	return (unsigned long)(signed long)val;
+}
+
 int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 			    struct mem_access *ma);
 
