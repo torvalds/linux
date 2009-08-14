@@ -40,7 +40,7 @@
 #define ENI2C0		(0x01 << 14)
 #define ENI2C1		(0x01 << 16)
 
-static DECLARE_MUTEX(mfp_sem);
+static DEFINE_MUTEX(mfp_mutex);
 
 void mfp_set_groupf(struct device *dev)
 {
@@ -49,7 +49,7 @@ void mfp_set_groupf(struct device *dev)
 
 	BUG_ON(!dev);
 
-	down(&mfp_sem);
+	mutex_lock(&mfp_mutex);
 
 	dev_id = dev_name(dev);
 
@@ -62,7 +62,7 @@ void mfp_set_groupf(struct device *dev)
 
 	__raw_writel(mfpen, REG_MFSEL);
 
-	up(&mfp_sem);
+	mutex_unlock(&mfp_mutex);
 }
 EXPORT_SYMBOL(mfp_set_groupf);
 
@@ -73,7 +73,7 @@ void mfp_set_groupc(struct device *dev)
 
 	BUG_ON(!dev);
 
-	down(&mfp_sem);
+	mutex_lock(&mfp_mutex);
 
 	dev_id = dev_name(dev);
 
@@ -92,7 +92,7 @@ void mfp_set_groupc(struct device *dev)
 
 	__raw_writel(mfpen, REG_MFSEL);
 
-	up(&mfp_sem);
+	mutex_unlock(&mfp_mutex);
 }
 EXPORT_SYMBOL(mfp_set_groupc);
 
@@ -103,7 +103,7 @@ void mfp_set_groupi(struct device *dev)
 
 	BUG_ON(!dev);
 
-	down(&mfp_sem);
+	mutex_lock(&mfp_mutex);
 
 	dev_id = dev_name(dev);
 
@@ -120,7 +120,7 @@ void mfp_set_groupi(struct device *dev)
 
 	__raw_writel(mfpen, REG_MFSEL);
 
-	up(&mfp_sem);
+	mutex_unlock(&mfp_mutex);
 }
 EXPORT_SYMBOL(mfp_set_groupi);
 
@@ -131,7 +131,7 @@ void mfp_set_groupg(struct device *dev)
 
 	BUG_ON(!dev);
 
-	down(&mfp_sem);
+	mutex_lock(&mfp_mutex);
 
 	dev_id = dev_name(dev);
 
@@ -152,7 +152,7 @@ void mfp_set_groupg(struct device *dev)
 
 	__raw_writel(mfpen, REG_MFSEL);
 
-	up(&mfp_sem);
+	mutex_unlock(&mfp_mutex);
 }
 EXPORT_SYMBOL(mfp_set_groupg);
 
