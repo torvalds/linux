@@ -460,23 +460,38 @@ static unsigned int sep_poll(struct file *filp, poll_table * wait)
 	return mask;
 }
 
-/*
-  calculates time and sets it at the predefined address. Called with the
-  mutex held.
-*/
-static int sep_set_time(struct sep_device *sep, unsigned long *address_ptr, unsigned long *time_in_sec_ptr)
+/**
+ *	sep_time_address	-	address in SEP memory of time
+ *	@sep: SEP device we want the address from
+ *
+ *	Return the address of the two dwords in memory used for time
+ *	setting.
+ */
+
+static u32 *sep_time_address(struct sep_device *sep)
+{
+	return sep->shared_addr + SEP_DRIVER_SYSTEM_TIME_MEMORY_OFFSET_IN_BYTES;
+}
+
+/**
+ *	sep_set_time		-	set the SEP time
+ *	@sep: the SEP we are setting the time for
+ *
+ *	Calculates time and sets it at the predefined address.
+ *	Called with the sep mutex held.
+ */
+static unsigned long sep_set_time(struct sep_device *sep)
 {
 	struct timeval time;
-	/* address of time in the kernel */
-	u32 *time_addr;
+	u32 *time_addr;	/* address of time as seen by the kernel */
 
 
-	dbg("SEP Driver:--------> sep_set_time start\n");
+	dbg("sep:sep_set_time start\n");
 
 	do_gettimeofday(&time);
 
 	/* set value in the SYSTEM MEMORY offset */
-	time_addr = sep->shared_addr + SEP_DRIVER_SYSTEM_TIME_MEMORY_OFFSET_IN_BYTES;
+	time_addr = sep_time_address(sep);
 
 	time_addr[0] = SEP_TIME_VAL_TOKEN;
 	time_addr[1] = time.tv_sec;
@@ -485,16 +500,7 @@ static int sep_set_time(struct sep_device *sep, unsigned long *address_ptr, unsi
 	edbg("SEP Driver:time_addr is %p\n", time_addr);
 	edbg("SEP Driver:sep->shared_addr is %p\n", sep->shared_addr);
 
-	/* set the output parameters if needed */
-	if (address_ptr)
-		*address_ptr = sep_shared_virt_to_bus(sep, time_addr);
-
-	if (time_in_sec_ptr)
-		*time_in_sec_ptr = time.tv_sec;
-
-	dbg("SEP Driver:<-------- sep_set_time end\n");
-
-	return 0;
+	return time.tv_sec;
 }
 
 /**
@@ -524,7 +530,7 @@ static void sep_send_command_handler(struct sep_device *sep)
 	dbg("sep:sep_send_command_handler start\n");
 
 	mutex_lock(&sep_mutex);
-	sep_set_time(sep, 0, 0);
+	sep_set_time(sep);
 
 	/* FIXME: flush cache */
 	flush_cache_all();
@@ -2149,19 +2155,27 @@ static int sep_realloc_cache_resident_handler(struct sep_device *sep,
 	return 0;
 }
 
-/*
-  this function handles the request for get time
-*/
+/**
+ *	sep_get_time_handler	-	time request from user space
+ *	@sep: sep we are to set the time for
+ *	@arg: pointer to user space arg buffer
+ *
+ *	This function reports back the time and the address in the SEP
+ *	shared buffer at which it has been placed. (Do we really need this!!!)
+ */
+
 static int sep_get_time_handler(struct sep_device *sep, unsigned long arg)
 {
-	int error;
 	struct sep_driver_get_time_t command_args;
 
-	error = sep_set_time(sep, &command_args.time_physical_address, &command_args.time_value);
-	if (error == 0)
-		error = copy_to_user((void __user *)arg,
-			&command_args, sizeof(struct sep_driver_get_time_t));
-	return error;
+	mutex_lock(&sep_mutex);
+	command_arg.time_value = sep_set_time(sep);
+	command_args.time_physical_address = sep_time_address(sep);
+	mutex_unlock(&sep_mutex);
+	if (copy_to_user((void __user *)arg,
+			&command_args, sizeof(struct sep_driver_get_time_t)))
+			return -EFAULT;
+	return 0;
 
 }
 
