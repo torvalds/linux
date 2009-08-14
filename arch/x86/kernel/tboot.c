@@ -34,6 +34,7 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/fixmap.h>
+#include <asm/proto.h>
 #include <asm/setup.h>
 #include <asm/tboot.h>
 #include <asm/e820.h>
@@ -164,24 +165,50 @@ void tboot_create_trampoline(void)
 	map_base = PFN_DOWN(tboot->tboot_base);
 	map_size = PFN_UP(tboot->tboot_size);
 	if (map_tboot_pages(map_base << PAGE_SHIFT, map_base, map_size))
-		panic("tboot: Error mapping tboot pages (mfns) @ 0x%x, 0x%x\n", map_base, map_size);
+		panic("tboot: Error mapping tboot pages (mfns) @ 0x%x, 0x%x\n",
+		      map_base, map_size);
 }
 
-static void set_mac_regions(void)
+#ifdef CONFIG_ACPI_SLEEP
+
+static void add_mac_region(phys_addr_t start, unsigned long size)
 {
-	tboot->num_mac_regions = 3;
-	/* S3 resume code */
-	tboot->mac_regions[0].start = PFN_PHYS(PFN_DOWN(acpi_wakeup_address));
-	tboot->mac_regions[0].size = PFN_UP(WAKEUP_SIZE) << PAGE_SHIFT;
-	/* AP trampoline code */
-	tboot->mac_regions[1].start =
-			PFN_PHYS(PFN_DOWN(virt_to_phys(trampoline_base)));
-	tboot->mac_regions[1].size = PFN_UP(TRAMPOLINE_SIZE) << PAGE_SHIFT;
-	/* kernel code + data + bss */
-	tboot->mac_regions[2].start = PFN_PHYS(PFN_DOWN(virt_to_phys(&_text)));
-	tboot->mac_regions[2].size = PFN_PHYS(PFN_UP(virt_to_phys(&_end))) -
-				     PFN_PHYS(PFN_DOWN(virt_to_phys(&_text)));
+	struct tboot_mac_region *mr;
+	phys_addr_t end = start + size;
+
+	if (start && size) {
+		mr = &tboot->mac_regions[tboot->num_mac_regions++];
+		mr->start = round_down(start, PAGE_SIZE);
+		mr->size  = round_up(end, PAGE_SIZE) - mr->start;
+	}
 }
+
+static int tboot_setup_sleep(void)
+{
+	tboot->num_mac_regions = 0;
+
+	/* S3 resume code */
+	add_mac_region(acpi_wakeup_address, WAKEUP_SIZE);
+	/* AP trampoline code */
+	add_mac_region(virt_to_phys(trampoline_base), TRAMPOLINE_SIZE);
+	/* kernel code + data + bss */
+	add_mac_region(virt_to_phys(_text), _end - _text);
+
+	tboot->acpi_sinfo.kernel_s3_resume_vector = acpi_wakeup_address;
+
+	return 0;
+}
+
+#else /* no CONFIG_ACPI_SLEEP */
+
+static int tboot_setup_sleep(void)
+{
+	/* S3 shutdown requested, but S3 not supported by the kernel... */
+	BUG();
+	return -1;
+}
+
+#endif
 
 void tboot_shutdown(u32 shutdown_type)
 {
@@ -200,7 +227,8 @@ void tboot_shutdown(u32 shutdown_type)
 
 	/* if this is S3 then set regions to MAC */
 	if (shutdown_type == TB_SHUTDOWN_S3)
-		set_mac_regions();
+		if (tboot_setup_sleep())
+			return;
 
 	tboot->shutdown_type = shutdown_type;
 
@@ -253,7 +281,6 @@ void tboot_sleep(u8 sleep_state, u32 pm1a_control, u32 pm1b_control)
 	tboot->acpi_sinfo.pm1b_cnt_val = pm1b_control;
 	/* we always use the 32b wakeup vector */
 	tboot->acpi_sinfo.vector_width = 32;
-	tboot->acpi_sinfo.kernel_s3_resume_vector = acpi_wakeup_address;
 
 	if (sleep_state >= ACPI_S_STATE_COUNT ||
 	    acpi_shutdown_map[sleep_state] == -1) {
