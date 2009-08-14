@@ -461,7 +461,8 @@ static unsigned int sep_poll(struct file *filp, poll_table * wait)
 }
 
 /*
-  calculates time and sets it at the predefined address
+  calculates time and sets it at the predefined address. Called with the
+  mutex held.
 */
 static int sep_set_time(struct sep_device *sep, unsigned long *address_ptr, unsigned long *time_in_sec_ptr)
 {
@@ -496,53 +497,74 @@ static int sep_set_time(struct sep_device *sep, unsigned long *address_ptr, unsi
 	return 0;
 }
 
-/*
-  This function raises interrupt to SEP that signals that is has a new
-	command from HOST
-*/
+/**
+ *	sep_dump_message	- dump the message that is pending
+ *	@sep: sep device
+ *
+ *	Dump out the message pending in the shared message area
+ */
+
+static void sep_dump_message(struct sep_device *sep)
+{
+	int count;
+	for (count = 0; count < 12 * 4; count += 4)
+		edbg("Word %d of the message is %u\n", count, *((u32 *) (sep->shared_addr + count)));
+}
+
+/**
+ *	sep_send_command_handler	-	kick off a command
+ *	@sep: sep being signalled
+ *
+ *	This function raises interrupt to SEP that signals that is has a new
+ *	command from the host
+ */
+
 static void sep_send_command_handler(struct sep_device *sep)
 {
-	unsigned long count;
+	dbg("sep:sep_send_command_handler start\n");
 
-	dbg("SEP Driver:--------> sep_send_command_handler start\n");
+	mutex_lock(&sep_mutex);
 	sep_set_time(sep, 0, 0);
 
-	/* flash cache */
+	/* FIXME: flush cache */
 	flush_cache_all();
 
-	for (count = 0; count < 12 * 4; count += 4)
-		edbg("Word %lu of the message is %lu\n", count, *((unsigned long *) (sep->shared_addr + count)));
-
+	sep_dump_message(sep);
 	/* update counter */
 	sep->send_ct++;
 	/* send interrupt to SEP */
 	sep_write_reg(sep, HW_HOST_HOST_SEP_GPR0_REG_ADDR, 0x2);
 	dbg("SEP Driver:<-------- sep_send_command_handler end\n");
+	mutex_unlock(&sep_mutex);
 	return;
 }
 
-/*
-  This function raises interrupt to SEPm that signals that is has a
-  new command from HOST
-*/
+/**
+ *	sep_send_reply_command_handler	-	kick off a command reply
+ *	@sep: sep being signalled
+ *
+ *	This function raises interrupt to SEP that signals that is has a new
+ *	command from the host
+ */
+
 static void sep_send_reply_command_handler(struct sep_device *sep)
 {
-	unsigned long count;
-
-	dbg("SEP Driver:--------> sep_send_reply_command_handler start\n");
+	dbg("sep:sep_send_reply_command_handler start\n");
 
 	/* flash cache */
 	flush_cache_all();
-	for (count = 0; count < 12 * 4; count += 4)
-		edbg("Word %lu of the message is %lu\n", count, *((unsigned long *) (sep->shared_addr + count)));
-	/* update counter */
-	sep->send_ct++;
+
+	sep_dump_message(sep);
+
+	mutex_lock(&sep_mutex);
+	sep->send_ct++;  	/* update counter */
 	/* send the interrupt to SEP */
 	sep_write_reg(sep, HW_HOST_HOST_SEP_GPR2_REG_ADDR, sep->send_ct);
 	/* update both counters */
 	sep->send_ct++;
 	sep->reply_ct++;
-	dbg("SEP Driver:<-------- sep_send_reply_command_handler end\n");
+	mutex_unlock(&sep_mutex);
+	dbg("sep: sep_send_reply_command_handler end\n");
 }
 
 /*
