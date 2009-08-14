@@ -9,3 +9,5 @@ obj-		:=
 
 obj-$(CONFIG_ARCH_U300)	          += u300.o
 obj-$(CONFIG_MMC)                 += mmc.o
+obj-$(CONFIG_SPI_PL022)           += spi.o
+obj-$(CONFIG_MACH_U300_SPIDUMMY)  += dummyspichip.o
