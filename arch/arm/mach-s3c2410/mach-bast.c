@@ -45,6 +45,7 @@
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 
+#include <plat/hwmon.h>
 #include <plat/nand.h>
 #include <plat/iic.h>
 #include <mach/fb.h>
@@ -547,7 +548,35 @@ static struct i2c_board_info bast_i2c_devs[] __initdata = {
 	},
 };
 
+static struct s3c_hwmon_pdata bast_hwmon_info = {
+	/* LCD contrast (0-6.6V) */
+	.in[0] = &(struct s3c_hwmon_chcfg) {
+		.name		= "lcd-contrast",
+		.mult		= 3300,
+		.div		= 512,
+	},
+	/* LED current feedback */
+	.in[1] = &(struct s3c_hwmon_chcfg) {
+		.name		= "led-feedback",
+		.mult		= 3300,
+		.div		= 1024,
+	},
+	/* LCD feedback (0-6.6V) */
+	.in[2] = &(struct s3c_hwmon_chcfg) {
+		.name		= "lcd-feedback",
+		.mult		= 3300,
+		.div		= 512,
+	},
+	/* Vcore (1.8-2.0V), Vref 3.3V  */
+	.in[3] = &(struct s3c_hwmon_chcfg) {
+		.name		= "vcore",
+		.mult		= 3300,
+		.div		= 1024,
+	},
+};
+
 /* Standard BAST devices */
+// cat /sys/devices/platform/s3c24xx-adc/s3c-hwmon/in_0
 
 static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_usb,
@@ -556,6 +585,8 @@ static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_i2c0,
  	&s3c_device_rtc,
 	&s3c_device_nand,
+	&s3c_device_adc,
+	&s3c_device_hwmon,
 	&bast_device_dm9k,
 	&bast_device_asix,
 	&bast_device_axpp,
@@ -588,6 +619,7 @@ static void __init bast_map_io(void)
 	s3c24xx_register_clocks(bast_clocks, ARRAY_SIZE(bast_clocks));
 
 	s3c_device_nand.dev.platform_data = &bast_nand_info;
+	s3c_device_hwmon.dev.platform_data = &bast_hwmon_info;
 
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);
