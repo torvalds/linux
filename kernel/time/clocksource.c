@@ -177,7 +177,8 @@ static void clocksource_watchdog(unsigned long data)
 		goto out;
 
 	wdnow = watchdog->read(watchdog);
-	wd_nsec = cyc2ns(watchdog, (wdnow - watchdog_last) & watchdog->mask);
+	wd_nsec = clocksource_cyc2ns((wdnow - watchdog_last) & watchdog->mask,
+				     watchdog->mult, watchdog->shift);
 	watchdog_last = wdnow;
 
 	list_for_each_entry(cs, &watchdog_list, wd_list) {
@@ -196,7 +197,8 @@ static void clocksource_watchdog(unsigned long data)
 		}
 
 		/* Check the deviation from the watchdog clocksource. */
-		cs_nsec = cyc2ns(cs, (csnow - cs->wd_last) & cs->mask);
+		cs_nsec = clocksource_cyc2ns((csnow - cs->wd_last) &
+					     cs->mask, cs->mult, cs->shift);
 		cs->wd_last = csnow;
 		if (abs(cs_nsec - wd_nsec) > WATCHDOG_THRESHOLD) {
 			clocksource_unstable(cs, cs_nsec - wd_nsec);

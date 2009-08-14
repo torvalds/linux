@@ -155,8 +155,6 @@ extern u64 timecounter_cyc2time(struct timecounter *tc,
  * @flags:		flags describing special properties
  * @vread:		vsyscall based read
  * @resume:		resume function for the clocksource, if necessary
- * @cycle_interval:	Used internally by timekeeping core, please ignore.
- * @xtime_interval:	Used internally by timekeeping core, please ignore.
  */
 struct clocksource {
 	/*
@@ -182,19 +180,12 @@ struct clocksource {
 #define CLKSRC_FSYS_MMIO_SET(mmio, addr)      do { } while (0)
 #endif
 
-	/* timekeeping specific data, ignore */
-	cycle_t cycle_interval;
-	u64	xtime_interval;
-	u32	raw_interval;
 	/*
 	 * Second part is written at each timer interrupt
 	 * Keep it in a different cache line to dirty no
 	 * more than one cache line.
 	 */
 	cycle_t cycle_last ____cacheline_aligned_in_smp;
-	u64 xtime_nsec;
-	s64 error;
-	struct timespec raw_time;
 
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG
 	/* Watchdog related data, used by the framework */
@@ -202,8 +193,6 @@ struct clocksource {
 	cycle_t wd_last;
 #endif
 };
-
-extern struct clocksource *clock;	/* current clocksource */
 
 /*
  * Clock source flags bits::
@@ -270,50 +259,15 @@ static inline u32 clocksource_hz2mult(u32 hz, u32 shift_constant)
 }
 
 /**
- * cyc2ns - converts clocksource cycles to nanoseconds
- * @cs:		Pointer to clocksource
- * @cycles:	Cycles
+ * clocksource_cyc2ns - converts clocksource cycles to nanoseconds
  *
- * Uses the clocksource and ntp ajdustment to convert cycle_ts to nanoseconds.
+ * Converts cycles to nanoseconds, using the given mult and shift.
  *
  * XXX - This could use some mult_lxl_ll() asm optimization
  */
-static inline s64 cyc2ns(struct clocksource *cs, cycle_t cycles)
+static inline s64 clocksource_cyc2ns(cycle_t cycles, u32 mult, u32 shift)
 {
-	u64 ret = (u64)cycles;
-	ret = (ret * cs->mult) >> cs->shift;
-	return ret;
-}
-
-/**
- * clocksource_calculate_interval - Calculates a clocksource interval struct
- *
- * @c:		Pointer to clocksource.
- * @length_nsec: Desired interval length in nanoseconds.
- *
- * Calculates a fixed cycle/nsec interval for a given clocksource/adjustment
- * pair and interval request.
- *
- * Unless you're the timekeeping code, you should not be using this!
- */
-static inline void clocksource_calculate_interval(struct clocksource *c,
-					  	  unsigned long length_nsec)
-{
-	u64 tmp;
-
-	/* Do the ns -> cycle conversion first, using original mult */
-	tmp = length_nsec;
-	tmp <<= c->shift;
-	tmp += c->mult_orig/2;
-	do_div(tmp, c->mult_orig);
-
-	c->cycle_interval = (cycle_t)tmp;
-	if (c->cycle_interval == 0)
-		c->cycle_interval = 1;
-
-	/* Go back from cycles -> shifted ns, this time use ntp adjused mult */
-	c->xtime_interval = (u64)c->cycle_interval * c->mult;
-	c->raw_interval = ((u64)c->cycle_interval * c->mult_orig) >> c->shift;
+	return ((u64) cycles * mult) >> shift;
 }
 
 

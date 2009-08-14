@@ -280,7 +280,6 @@ void __init time_init(void)
 	now = get_clock();
 	tod_to_timeval(now - TOD_UNIX_EPOCH, &xtime);
 	clocksource_tod.cycle_last = now;
-	clocksource_tod.raw_time = xtime;
 	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, &ts);
 	set_normalized_timespec(&wall_to_monotonic, -ts.tv_sec, -ts.tv_nsec);
 	write_sequnlock_irqrestore(&xtime_lock, flags);
