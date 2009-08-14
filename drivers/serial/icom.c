@@ -617,7 +617,7 @@ static void shutdown(struct icom_port *icom_port)
 	 * disable break condition
 	 */
 	cmdReg = readb(&icom_port->dram->CmdReg);
-	if ((cmdReg | CMD_SND_BREAK) == CMD_SND_BREAK) {
+	if (cmdReg & CMD_SND_BREAK) {
 		writeb(cmdReg & ~CMD_SND_BREAK, &icom_port->dram->CmdReg);
 	}
 }
