@@ -1059,7 +1059,8 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 	bool old_txg_ovr;
 	u8 old_bbmult;
 	u16 old_rf_ovr, old_rf_ovrval, old_afe_ovr, old_afe_ovrval,
-	    old_rf2_ovr, old_rf2_ovrval, old_phy_ctl, old_txpctl;
+	    old_rf2_ovr, old_rf2_ovrval, old_phy_ctl;
+	enum b43_lpphy_txpctl_mode old_txpctl;
 	u32 normal_pwr, ideal_pwr, mean_sq_pwr, tmp = 0, mean_sq_pwr_min = 0;
 	int loopback, i, j, inner_sum;
 
@@ -1077,8 +1078,8 @@ static void lpphy_rev0_1_rc_calib(struct b43_wldev *dev)
 	old_rf2_ovr = b43_phy_read(dev, B43_LPPHY_RF_OVERRIDE_2);
 	old_rf2_ovrval = b43_phy_read(dev, B43_LPPHY_RF_OVERRIDE_2_VAL);
 	old_phy_ctl = b43_phy_read(dev, B43_LPPHY_LP_PHY_CTL);
-	old_txpctl = b43_phy_read(dev, B43_LPPHY_TX_PWR_CTL_CMD) &
-					B43_LPPHY_TX_PWR_CTL_CMD_MODE;
+	lpphy_read_tx_pctl_mode_from_hardware(dev);
+	old_txpctl = lpphy->txpctl_mode;
 
 	lpphy_set_tx_power_control(dev, B43_LPPHY_TX_PWR_CTL_CMD_MODE_OFF);
 	lpphy_disable_crs(dev);
