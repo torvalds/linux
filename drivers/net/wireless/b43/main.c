@@ -1955,8 +1955,12 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		filename = "ucode5";
 	else if ((rev >= 11) && (rev <= 12))
 		filename = "ucode11";
-	else if (rev >= 13)
+	else if (rev == 13)
 		filename = "ucode13";
+	else if (rev == 14)
+		filename = "ucode14";
+	else if (rev >= 15)
+		filename = "ucode15";
 	else
 		goto err_no_ucode;
 	err = b43_do_request_fw(ctx, filename, &fw->ucode);
@@ -2004,6 +2008,16 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		else
 			goto err_no_initvals;
 		break;
+	case B43_PHYTYPE_LP:
+		if (rev == 13)
+			filename = "lp0initvals13";
+		else if (rev == 14)
+			filename = "lp0initvals14";
+		else if (rev >= 15)
+			filename = "lp0initvals15";
+		else
+			goto err_no_initvals;
+		break;
 	default:
 		goto err_no_initvals;
 	}
@@ -2035,6 +2049,16 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	case B43_PHYTYPE_N:
 		if ((rev >= 11) && (rev <= 12))
 			filename = "n0bsinitvals11";
+		else
+			goto err_no_initvals;
+		break;
+	case B43_PHYTYPE_LP:
+		if (rev == 13)
+			filename = "lp0bsinitvals13";
+		else if (rev == 14)
+			filename = "lp0bsinitvals14";
+		else if (rev >= 15)
+			filename = "lp0bsinitvals15";
 		else
 			goto err_no_initvals;
 		break;
