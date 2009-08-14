@@ -239,7 +239,14 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_AMPDU: this frame should be sent as part of an A-MPDU
  * @IEEE80211_TX_CTL_INJECTED: Frame was injected, internal to mac80211.
  * @IEEE80211_TX_STAT_TX_FILTERED: The frame was not transmitted
- *	because the destination STA was in powersave mode.
+ *	because the destination STA was in powersave mode. Note that to
+ *	avoid race conditions, the filter must be set by the hardware or
+ *	firmware upon receiving a frame that indicates that the station
+ *	went to sleep (must be done on device to filter frames already on
+ *	the queue) and may only be unset after mac80211 gives the OK for
+ *	that by setting the IEEE80211_TX_CTL_CLEAR_PS_FILT (see above),
+ *	since only then is it guaranteed that no more frames are in the
+ *	hardware queue.
  * @IEEE80211_TX_STAT_ACK: Frame was acknowledged
  * @IEEE80211_TX_STAT_AMPDU: The frame was aggregated, so status
  * 	is for the whole aggregation.
@@ -261,6 +268,10 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_PSPOLL_RESPONSE: (internal?)
  *	This frame is a response to a PS-poll frame and should be sent
  *	although the station is in powersave mode.
+ * @IEEE80211_TX_CTL_MORE_FRAMES: More frames will be passed to the
+ *	transmit function after the current frame, this can be used
+ *	by drivers to kick the DMA queue only if unset or when the
+ *	queue gets full.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -281,6 +292,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
 	IEEE80211_TX_CTL_PSPOLL_RESPONSE	= BIT(17),
+	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
 };
 
 /**
@@ -338,6 +350,21 @@ enum mac80211_rate_control_flags {
  *
  * When used for transmit status reporting, the driver should
  * always report the rate along with the flags it used.
+ *
+ * &struct ieee80211_tx_info contains an array of these structs
+ * in the control information, and it will be filled by the rate
+ * control algorithm according to what should be sent. For example,
+ * if this array contains, in the format { <idx>, <count> } the
+ * information
+ *    { 3, 2 }, { 2, 2 }, { 1, 4 }, { -1, 0 }, { -1, 0 }
+ * then this means that the frame should be transmitted
+ * up to twice at rate 3, up to twice at rate 2, and up to four
+ * times at rate 1 if it doesn't get acknowledged. Say it gets
+ * acknowledged by the peer after the fifth attempt, the status
+ * information should then contain
+ *   { 3, 2 }, { 2, 2 }, { 1, 1 }, { -1, 0 } ...
+ * since it was transmitted twice at rate 3, twice at rate 2
+ * and once at rate 1 after which we received an acknowledgement.
  */
 struct ieee80211_tx_rate {
 	s8 idx;

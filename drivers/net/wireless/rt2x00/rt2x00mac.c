@@ -274,6 +274,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 
 	spin_lock_init(&intf->lock);
 	spin_lock_init(&intf->seqlock);
+	mutex_init(&intf->beacon_skb_mutex);
 	intf->beacon = entry;
 
 	if (conf->type == NL80211_IFTYPE_AP)
@@ -338,7 +339,6 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
-	int status;
 
 	/*
 	 * mac80211 might be calling this function while we are trying
@@ -348,44 +348,29 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 		return 0;
 
 	/*
-	 * Only change device state when the radio is enabled. It does not
-	 * matter what parameters we have configured when the radio is disabled
-	 * because we won't be able to send or receive anyway. Also note that
-	 * some configuration parameters (e.g. channel and antenna values) can
-	 * only be set when the radio is enabled.
+	 * Some configuration parameters (e.g. channel and antenna values) can
+	 * only be set when the radio is enabled, but do require the RX to
+	 * be off.
 	 */
-	if (conf->radio_enabled) {
-		/* For programming the values, we have to turn RX off */
-		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
 
-		/* Enable the radio */
-		status = rt2x00lib_enable_radio(rt2x00dev);
-		if (unlikely(status))
-			return status;
+	/*
+	 * When we've just turned on the radio, we want to reprogram
+	 * everything to ensure a consistent state
+	 */
+	rt2x00lib_config(rt2x00dev, conf, changed);
 
-		/*
-		 * When we've just turned on the radio, we want to reprogram
-		 * everything to ensure a consistent state
-		 */
-		rt2x00lib_config(rt2x00dev, conf, changed);
+	/*
+	 * After the radio has been enabled we need to configure
+	 * the antenna to the default settings. rt2x00lib_config_antenna()
+	 * should determine if any action should be taken based on
+	 * checking if diversity has been enabled or no antenna changes
+	 * have been made since the last configuration change.
+	 */
+	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
 
-		/*
-		 * The radio was enabled, configure the antenna to the
-		 * default settings, the link tuner will later start
-		 * continue configuring the antenna based on the software
-		 * diversity. But for non-diversity configurations, we need
-		 * to have configured the correct state now.
-		 */
-		if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED)
-			rt2x00lib_config_antenna(rt2x00dev,
-						 rt2x00dev->default_ant);
-
-		/* Turn RX back on */
-		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
-	} else {
-		/* Disable the radio */
-		rt2x00lib_disable_radio(rt2x00dev);
-	}
+	/* Turn RX back on */
+	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
 
 	return 0;
 }
@@ -407,6 +392,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	    FIF_FCSFAIL |
 	    FIF_PLCPFAIL |
 	    FIF_CONTROL |
+	    FIF_PSPOLL |
 	    FIF_OTHER_BSS |
 	    FIF_PROMISC_IN_BSS;
 
@@ -420,6 +406,22 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	if (*total_flags & FIF_OTHER_BSS ||
 	    *total_flags & FIF_PROMISC_IN_BSS)
 		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
+
+	/*
+	 * If the device has a single filter for all control frames,
+	 * FIF_CONTROL and FIF_PSPOLL flags imply each other.
+	 * And if the device has more than one filter for control frames
+	 * of different types, but has no a separate filter for PS Poll frames,
+	 * FIF_CONTROL flag implies FIF_PSPOLL.
+	 */
+	if (!test_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags)) {
+		if (*total_flags & FIF_CONTROL || *total_flags & FIF_PSPOLL)
+			*total_flags |= FIF_CONTROL | FIF_PSPOLL;
+	}
+	if (!test_bit(DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL, &rt2x00dev->flags)) {
+		if (*total_flags & FIF_CONTROL)
+			*total_flags |= FIF_PSPOLL;
+	}
 
 	/*
 	 * Check if there is any work left for us.

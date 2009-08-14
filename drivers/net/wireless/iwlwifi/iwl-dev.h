@@ -277,8 +277,8 @@ struct iwl_channel_info {
 	struct iwl4965_channel_tgd_info tgd;
 	struct iwl4965_channel_tgh_info tgh;
 	struct iwl_eeprom_channel eeprom;	/* EEPROM regulatory limit */
-	struct iwl_eeprom_channel fat_eeprom;	/* EEPROM regulatory limit for
-						 * FAT channel */
+	struct iwl_eeprom_channel ht40_eeprom;	/* EEPROM regulatory limit for
+						 * HT40 channel */
 
 	u8 channel;	  /* channel number */
 	u8 flags;	  /* flags copied from EEPROM */
@@ -291,13 +291,13 @@ struct iwl_channel_info {
 	u8 band_index;	  /* 0-4, maps channel to band1/2/3/4/5 */
 	enum ieee80211_band band;
 
-	/* FAT channel info */
-	s8 fat_max_power_avg;	/* (dBm) regul. eeprom, normal Tx, any rate */
-	s8 fat_curr_txpow;	/* (dBm) regulatory/spectrum/user (not h/w) */
-	s8 fat_min_power;	/* always 0 */
-	s8 fat_scan_power;	/* (dBm) eeprom, direct scans, any rate */
-	u8 fat_flags;		/* flags copied from EEPROM */
-	u8 fat_extension_channel; /* HT_IE_EXT_CHANNEL_* */
+	/* HT40 channel info */
+	s8 ht40_max_power_avg;	/* (dBm) regul. eeprom, normal Tx, any rate */
+	s8 ht40_curr_txpow;	/* (dBm) regulatory/spectrum/user (not h/w) */
+	s8 ht40_min_power;	/* always 0 */
+	s8 ht40_scan_power;	/* (dBm) eeprom, direct scans, any rate */
+	u8 ht40_flags;		/* flags copied from EEPROM */
+	u8 ht40_extension_channel; /* HT_IE_EXT_CHANNEL_* */
 
 	/* Radio/DSP gain settings for each "normal" data Tx rate.
 	 * These include, in addition to RF and DSP gain, a few fields for
@@ -649,7 +649,7 @@ struct iwl_sensitivity_ranges {
  * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
  * @max_stations:
  * @bcast_sta_id:
- * @fat_channel: is 40MHz width possible in band 2.4
+ * @ht40_channel: is 40MHz width possible in band 2.4
  * BIT(IEEE80211_BAND_5GHZ) BIT(IEEE80211_BAND_5GHZ)
  * @sw_crypto: 0 for hw, 1 for sw
  * @max_xxx_size: for ucode uses
@@ -673,7 +673,7 @@ struct iwl_hw_params {
 	u32 max_pkt_size;
 	u8  max_stations;
 	u8  bcast_sta_id;
-	u8 fat_channel;
+	u8  ht40_channel;
 	u8  max_beacon_itrvl;	/* in 1024 ms */
 	u32 max_inst_size;
 	u32 max_data_size;
@@ -823,8 +823,6 @@ struct iwl_calib_result {
 	size_t buf_len;
 };
 
-#define UCODE_ALIVE_TIMEOUT	(5 * HZ)
-
 enum ucode_type {
 	UCODE_NONE = 0,
 	UCODE_INIT,
@@ -877,6 +875,8 @@ struct iwl_chain_noise_data {
 #define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
 #define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
 
+#define IWL_TRAFFIC_ENTRIES	(256)
+#define IWL_TRAFFIC_ENTRY_SIZE  (64)
 
 enum {
 	MEASUREMENT_READY = (1 << 0),
@@ -916,6 +916,48 @@ struct isr_statistics {
 	u32 tx;
 	u32 unhandled;
 };
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+/* management statistics */
+enum iwl_mgmt_stats {
+	MANAGEMENT_ASSOC_REQ = 0,
+	MANAGEMENT_ASSOC_RESP,
+	MANAGEMENT_REASSOC_REQ,
+	MANAGEMENT_REASSOC_RESP,
+	MANAGEMENT_PROBE_REQ,
+	MANAGEMENT_PROBE_RESP,
+	MANAGEMENT_BEACON,
+	MANAGEMENT_ATIM,
+	MANAGEMENT_DISASSOC,
+	MANAGEMENT_AUTH,
+	MANAGEMENT_DEAUTH,
+	MANAGEMENT_ACTION,
+	MANAGEMENT_MAX,
+};
+/* control statistics */
+enum iwl_ctrl_stats {
+	CONTROL_BACK_REQ =  0,
+	CONTROL_BACK,
+	CONTROL_PSPOLL,
+	CONTROL_RTS,
+	CONTROL_CTS,
+	CONTROL_ACK,
+	CONTROL_CFEND,
+	CONTROL_CFENDACK,
+	CONTROL_MAX,
+};
+
+struct traffic_stats {
+	u32 mgmt[MANAGEMENT_MAX];
+	u32 ctrl[CONTROL_MAX];
+	u32 data_cnt;
+	u64 data_bytes;
+};
+#else
+struct traffic_stats {
+	u64 data_bytes;
+};
+#endif
 
 #define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
 
@@ -1062,15 +1104,14 @@ struct iwl_priv {
 	int last_rx_noise;	/* From beacon statistics */
 
 	/* counts mgmt, ctl, and data packets */
-	struct traffic_stats {
-		u32 cnt;
-		u64 bytes;
-	} tx_stats[3], rx_stats[3];
+	struct traffic_stats tx_stats;
+	struct traffic_stats rx_stats;
 
 	/* counts interrupts */
 	struct isr_statistics isr_stats;
 
 	struct iwl_power_mgr power_data;
+	struct iwl_tt_mgmt thermal_throttle;
 
 	struct iwl_notif_statistics statistics;
 	unsigned long last_statistics_time;
@@ -1078,7 +1119,6 @@ struct iwl_priv {
 	/* context information */
 	u16 rates_mask;
 
-	u32 power_mode;
 	u8 bssid[ETH_ALEN];
 	u16 rts_threshold;
 	u8 mac_addr[ETH_ALEN];
@@ -1157,6 +1197,9 @@ struct iwl_priv {
 	struct work_struct report_work;
 	struct work_struct request_scan;
 	struct work_struct beacon_update;
+	struct work_struct tt_work;
+	struct work_struct ct_enter;
+	struct work_struct ct_exit;
 
 	struct tasklet_struct irq_tasklet;
 
@@ -1175,11 +1218,17 @@ struct iwl_priv {
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	/* debugging info */
+	u32 debug_level; /* per device debugging will override global
+			    iwl_debug_level if set */
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;
 	bool disable_ht40;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* debugfs */
+	u16 tx_traffic_idx;
+	u16 rx_traffic_idx;
+	u8 *tx_traffic;
+	u8 *rx_traffic;
 	struct iwl_debugfs *dbgfs;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 #endif /* CONFIG_IWLWIFI_DEBUG */
@@ -1211,8 +1260,27 @@ static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 const char *iwl_get_tx_fail_reason(u32 status);
+/*
+ * iwl_get_debug_level: Return active debug level for device
+ *
+ * Using sysfs it is possible to set per device debug level. This debug
+ * level will be used if set, otherwise the global debug level which can be
+ * set via module parameter is used.
+ */
+static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
+{
+	if (priv->debug_level)
+		return priv->debug_level;
+	else
+		return iwl_debug_level;
+}
 #else
 static inline const char *iwl_get_tx_fail_reason(u32 status) { return ""; }
+
+static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
+{
+	return iwl_debug_level;
+}
 #endif
 
 

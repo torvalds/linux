@@ -27,24 +27,54 @@ struct ssb_sprom {
 	u8 et1mdcport;		/* MDIO for enet1 */
 	u8 board_rev;		/* Board revision number from SPROM. */
 	u8 country_code;	/* Country Code */
-	u8 ant_available_a;	/* A-PHY antenna available bits (up to 4) */
-	u8 ant_available_bg;	/* B/G-PHY antenna available bits (up to 4) */
+	u8 ant_available_a;	/* 2GHz antenna available bits (up to 4) */
+	u8 ant_available_bg;	/* 5GHz antenna available bits (up to 4) */
 	u16 pa0b0;
 	u16 pa0b1;
 	u16 pa0b2;
 	u16 pa1b0;
 	u16 pa1b1;
 	u16 pa1b2;
+	u16 pa1lob0;
+	u16 pa1lob1;
+	u16 pa1lob2;
+	u16 pa1hib0;
+	u16 pa1hib1;
+	u16 pa1hib2;
 	u8 gpio0;		/* GPIO pin 0 */
 	u8 gpio1;		/* GPIO pin 1 */
 	u8 gpio2;		/* GPIO pin 2 */
 	u8 gpio3;		/* GPIO pin 3 */
-	u16 maxpwr_a;		/* A-PHY Amplifier Max Power (in dBm Q5.2) */
-	u16 maxpwr_bg;		/* B/G-PHY Amplifier Max Power (in dBm Q5.2) */
+	u16 maxpwr_bg;		/* 2.4GHz Amplifier Max Power (in dBm Q5.2) */
+	u16 maxpwr_al;		/* 5.2GHz Amplifier Max Power (in dBm Q5.2) */
+	u16 maxpwr_a;		/* 5.3GHz Amplifier Max Power (in dBm Q5.2) */
+	u16 maxpwr_ah;		/* 5.8GHz Amplifier Max Power (in dBm Q5.2) */
 	u8 itssi_a;		/* Idle TSSI Target for A-PHY */
 	u8 itssi_bg;		/* Idle TSSI Target for B/G-PHY */
-	u16 boardflags_lo;	/* Boardflags (low 16 bits) */
-	u16 boardflags_hi;	/* Boardflags (high 16 bits) */
+	u8 tri2g;		/* 2.4GHz TX isolation */
+	u8 tri5gl;		/* 5.2GHz TX isolation */
+	u8 tri5g;		/* 5.3GHz TX isolation */
+	u8 tri5gh;		/* 5.8GHz TX isolation */
+	u8 rxpo2g;		/* 2GHz RX power offset */
+	u8 rxpo5g;		/* 5GHz RX power offset */
+	u8 rssisav2g;		/* 2GHz RSSI params */
+	u8 rssismc2g;
+	u8 rssismf2g;
+	u8 bxa2g;		/* 2GHz BX arch */
+	u8 rssisav5g;		/* 5GHz RSSI params */
+	u8 rssismc5g;
+	u8 rssismf5g;
+	u8 bxa5g;		/* 5GHz BX arch */
+	u16 cck2gpo;		/* CCK power offset */
+	u32 ofdm2gpo;		/* 2.4GHz OFDM power offset */
+	u32 ofdm5glpo;		/* 5.2GHz OFDM power offset */
+	u32 ofdm5gpo;		/* 5.3GHz OFDM power offset */
+	u32 ofdm5ghpo;		/* 5.8GHz OFDM power offset */
+	u16 boardflags_lo;	/* Board flags (bits 0-15) */
+	u16 boardflags_hi;	/* Board flags (bits 16-31) */
+	u16 boardflags2_lo;	/* Board flags (bits 32-47) */
+	u16 boardflags2_hi;	/* Board flags (bits 48-63) */
+	/* TODO store board flags in a single u64 */
 
 	/* Antenna gain values for up to 4 antennas
 	 * on each band. Values in dBm/4 (Q5.2). Negative gain means the
@@ -58,7 +88,7 @@ struct ssb_sprom {
 		} ghz5;		/* 5GHz band */
 	} antenna_gain;
 
-	/* TODO - add any parameters needed from rev 2, 3, or 4 SPROMs */
+	/* TODO - add any parameters needed from rev 2, 3, 4, 5 or 8 SPROMs */
 };
 
 /* Information about the PCB the circuitry is soldered on. */

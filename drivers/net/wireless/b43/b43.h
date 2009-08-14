@@ -493,6 +493,10 @@ enum {
 
 /* Max size of a security key */
 #define B43_SEC_KEYSIZE			16
+/* Max number of group keys */
+#define B43_NR_GROUP_KEYS		4
+/* Max number of pairwise keys */
+#define B43_NR_PAIRWISE_KEYS		50
 /* Security algorithms. */
 enum {
 	B43_SEC_ALGO_NONE = 0,	/* unencrypted, as of TX header. */
@@ -639,7 +643,7 @@ struct b43_wl {
 	u8 mac_addr[ETH_ALEN];
 	/* Current BSSID */
 	u8 bssid[ETH_ALEN];
-	/* Interface type. (IEEE80211_IF_TYPE_XXX) */
+	/* Interface type. (NL80211_IFTYPE_XXX) */
 	int if_type;
 	/* Is the card operating in AP, STA or IBSS mode? */
 	bool operating;
@@ -819,8 +823,7 @@ struct b43_wldev {
 
 	/* encryption/decryption */
 	u16 ktp;		/* Key table pointer */
-	u8 max_nr_keys;
-	struct b43_key key[58];
+	struct b43_key key[B43_NR_GROUP_KEYS * 2 + B43_NR_PAIRWISE_KEYS];
 
 	/* Firmware data */
 	struct b43_firmware fw;
@@ -845,7 +848,7 @@ static inline struct b43_wldev *dev_to_b43_wldev(struct device *dev)
 	return ssb_get_drvdata(ssb_dev);
 }
 
-/* Is the device operating in a specified mode (IEEE80211_IF_TYPE_XXX). */
+/* Is the device operating in a specified mode (NL80211_IFTYPE_XXX). */
 static inline int b43_is_mode(struct b43_wl *wl, int type)
 {
 	return (wl->operating && wl->if_type == type);

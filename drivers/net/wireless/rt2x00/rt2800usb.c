@@ -518,7 +518,7 @@ static void rt2800usb_config_filter(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_RTS,
 			   !(filter_flags & FIF_CONTROL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_PSPOLL,
-			   !(filter_flags & FIF_CONTROL));
+			   !(filter_flags & FIF_PSPOLL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BA, 1);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BAR, 0);
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_CNTL,
@@ -2050,8 +2050,6 @@ static void rt2800usb_write_beacon(struct queue_entry *entry)
 	 * otherwise we might be sending out invalid data.
 	 */
 	rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
 	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
 	rt2x00usb_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
@@ -2622,6 +2620,13 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	retval = rt2800usb_probe_hw_mode(rt2x00dev);
 	if (retval)
 		return retval;
+
+	/*
+	 * This device has multiple filters for control frames
+	 * and has a separate filter for PS Poll frames.
+	 */
+	__set_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags);
+	__set_bit(DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL, &rt2x00dev->flags);
 
 	/*
 	 * This device requires firmware.

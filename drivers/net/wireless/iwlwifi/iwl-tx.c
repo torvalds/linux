@@ -668,14 +668,6 @@ static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 	}
 }
 
-static void iwl_update_tx_stats(struct iwl_priv *priv, u16 fc, u16 len)
-{
-	/* 0 - mgmt, 1 - cnt, 2 - data */
-	int idx = (fc & IEEE80211_FCTL_FTYPE) >> 2;
-	priv->tx_stats[idx].cnt++;
-	priv->tx_stats[idx].bytes += len;
-}
-
 /*
  * start REPLY_TX command process
  */
@@ -808,12 +800,12 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* TODO need this for burst mode later on */
 	iwl_tx_cmd_build_basic(priv, tx_cmd, info, hdr, sta_id);
+	iwl_dbg_log_tx_data_frame(priv, len, hdr);
 
 	/* set is_hcca to 0; it probably will never be implemented */
 	iwl_tx_cmd_build_rate(priv, tx_cmd, info, fc, sta_id, 0);
 
-	iwl_update_tx_stats(priv, le16_to_cpu(fc), len);
-
+	iwl_update_stats(priv, true, fc, len);
 	/*
 	 * Use the first empty entry in this queue's command buffer array
 	 * to contain the Tx command and MAC header concatenated together
@@ -884,8 +876,8 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	IWL_DEBUG_TX(priv, "sequence nr = 0X%x \n",
 		     le16_to_cpu(out_cmd->hdr.sequence));
 	IWL_DEBUG_TX(priv, "tx_flags = 0X%x \n", le32_to_cpu(tx_cmd->tx_flags));
-	iwl_print_hex_dump(IWL_DL_TX, (u8 *)tx_cmd, sizeof(*tx_cmd));
-	iwl_print_hex_dump(IWL_DL_TX, (u8 *)tx_cmd->hdr, hdr_len);
+	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx_cmd, sizeof(*tx_cmd));
+	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx_cmd->hdr, hdr_len);
 
 	/* Set up entry for this TFD in Tx byte-count array */
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)

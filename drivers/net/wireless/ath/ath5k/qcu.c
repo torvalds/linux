@@ -362,7 +362,7 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		}
 
 		if (tq->tqi_ready_time &&
-		(tq->tqi_type != AR5K_TX_QUEUE_ID_CAB))
+		(tq->tqi_type != AR5K_TX_QUEUE_CAB))
 			ath5k_hw_reg_write(ah, AR5K_REG_SM(tq->tqi_ready_time,
 				AR5K_QCU_RDYTIMECFG_INTVAL) |
 				AR5K_QCU_RDYTIMECFG_ENABLE,

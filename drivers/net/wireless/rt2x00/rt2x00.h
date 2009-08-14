@@ -134,6 +134,17 @@
 				  GET_DURATION(IEEE80211_HEADER + ACK_SIZE, 10) )
 
 /*
+ * Structure for average calculation
+ * The avg field contains the actual average value,
+ * but avg_weight is internally used during calculations
+ * to prevent rounding errors.
+ */
+struct avg_val {
+	int avg;
+	int avg_weight;
+};
+
+/*
  * Chipset identification
  * The chipset on the device is composed of a RT and RF chip.
  * The chipset combination is important for determining device capabilities.
@@ -245,21 +256,18 @@ struct link_ant {
 	struct antenna_setup active;
 
 	/*
-	 * RSSI information for the different antennas.
-	 * These statistics are used to determine when
-	 * to switch antenna when using software diversity.
-	 *
-	 *        rssi[0] -> Antenna A RSSI
-	 *        rssi[1] -> Antenna B RSSI
+	 * RSSI history information for the antenna.
+	 * Used to determine when to switch antenna
+	 * when using software diversity.
 	 */
-	int rssi_history[2];
+	int rssi_history;
 
 	/*
 	 * Current RSSI average of the currently active antenna.
 	 * Similar to the avg_rssi in the link_qual structure
 	 * this value is updated by using the walking average.
 	 */
-	int rssi_ant;
+	struct avg_val rssi_ant;
 };
 
 /*
@@ -288,7 +296,7 @@ struct link {
 	/*
 	 * Currently active average RSSI value
 	 */
-	int avg_rssi;
+	struct avg_val avg_rssi;
 
 	/*
 	 * Currently precalculated percentages of successful
@@ -324,6 +332,11 @@ struct rt2x00_intf {
 	 * BBSID of the AP to associate with.
 	 */
 	u8 bssid[ETH_ALEN];
+
+	/*
+	 * beacon->skb must be protected with the mutex.
+	 */
+	struct mutex beacon_skb_mutex;
 
 	/*
 	 * Entry in the beacon queue which belongs to
@@ -611,6 +624,8 @@ enum rt2x00_flags {
 	 */
 	CONFIG_SUPPORT_HW_BUTTON,
 	CONFIG_SUPPORT_HW_CRYPTO,
+	DRIVER_SUPPORT_CONTROL_FILTERS,
+	DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL,
 
 	/*
 	 * Driver configuration

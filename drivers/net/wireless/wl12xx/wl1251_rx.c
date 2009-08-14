@@ -26,9 +26,10 @@
 #include <net/mac80211.h>
 
 #include "wl1251.h"
-#include "reg.h"
-#include "wl1251_spi.h"
+#include "wl1251_reg.h"
+#include "wl1251_io.h"
 #include "wl1251_rx.h"
+#include "wl1251_cmd.h"
 #include "wl1251_acx.h"
 
 static void wl1251_rx_header(struct wl1251 *wl,
@@ -40,7 +41,7 @@ static void wl1251_rx_header(struct wl1251 *wl,
 	if (wl->rx_current_buffer)
 		rx_packet_ring_addr += wl->data_path->rx_packet_ring_chunk_size;
 
-	wl1251_spi_mem_read(wl, rx_packet_ring_addr, desc, sizeof(*desc));
+	wl1251_mem_read(wl, rx_packet_ring_addr, desc, sizeof(*desc));
 }
 
 static void wl1251_rx_status(struct wl1251 *wl,
@@ -136,7 +137,7 @@ static void wl1251_rx_body(struct wl1251 *wl,
 	}
 
 	rx_buffer = skb_put(skb, length);
-	wl1251_spi_mem_read(wl, rx_packet_ring_addr, rx_buffer, length);
+	wl1251_mem_read(wl, rx_packet_ring_addr, rx_buffer, length);
 
 	/* The actual lenght doesn't include the target's alignment */
 	skb->len = desc->length  - PLCP_HEADER_LENGTH;

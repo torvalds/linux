@@ -176,7 +176,7 @@ struct iwl3945_eeprom {
  * in EEPROM containing EEPROM_CHANNEL_* usage flags (LSB) and max regulatory
  * txpower (MSB).
  *
- * Entries immediately below are for 20 MHz channel width.  FAT (40 MHz)
+ * Entries immediately below are for 20 MHz channel width.  HT40 (40 MHz)
  * channels (only for 4965, not supported by 3945) appear later in the EEPROM.
  *
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14

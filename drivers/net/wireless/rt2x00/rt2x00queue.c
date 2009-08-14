@@ -324,7 +324,8 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Check if more fragments are pending
 	 */
-	if (ieee80211_has_morefrags(hdr->frame_control)) {
+	if (ieee80211_has_morefrags(hdr->frame_control) ||
+	    (tx_info->flags & IEEE80211_TX_CTL_MORE_FRAMES)) {
 		__set_bit(ENTRY_TXD_BURST, &txdesc->flags);
 		__set_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags);
 	}
@@ -452,9 +453,21 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 			rt2x00crypto_tx_remove_iv(skb, &txdesc);
 	}
 
+	/*
+	 * When DMA allocation is required we should guarentee to the
+	 * driver that the DMA is aligned to a 4-byte boundary.
+	 * Aligning the header to this boundary can be done by calling
+	 * rt2x00queue_payload_align with the header length of 0.
+	 * However some drivers require L2 padding to pad the payload
+	 * rather then the header. This could be a requirement for
+	 * PCI and USB devices, while header alignment only is valid
+	 * for PCI devices.
+	 */
 	if (test_bit(DRIVER_REQUIRE_L2PAD, &queue->rt2x00dev->flags))
 		rt2x00queue_payload_align(entry->skb, true,
 					  txdesc.header_length);
+	else if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))
+		rt2x00queue_payload_align(entry->skb, false, 0);
 
 	/*
 	 * It could be possible that the queue was corrupted and this
@@ -490,14 +503,25 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
 
+	mutex_lock(&intf->beacon_skb_mutex);
+
+	/*
+	 * Clean up the beacon skb.
+	 */
+	rt2x00queue_free_skb(rt2x00dev, intf->beacon->skb);
+	intf->beacon->skb = NULL;
+
 	if (!enable_beacon) {
 		rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev, QID_BEACON);
+		mutex_unlock(&intf->beacon_skb_mutex);
 		return 0;
 	}
 
 	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
-	if (!intf->beacon->skb)
+	if (!intf->beacon->skb) {
+		mutex_unlock(&intf->beacon_skb_mutex);
 		return -ENOMEM;
+	}
 
 	/*
 	 * Copy all TX descriptor information into txdesc,
@@ -534,6 +558,8 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00dev->ops->lib->write_beacon(intf->beacon);
 	rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, QID_BEACON);
+
+	mutex_unlock(&intf->beacon_skb_mutex);
 
 	return 0;
 }

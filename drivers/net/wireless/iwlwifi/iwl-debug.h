@@ -46,7 +46,7 @@ do {									\
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define IWL_DEBUG(__priv, level, fmt, args...)				\
 do {									\
-	if (iwl_debug_level & (level))					\
+	if (iwl_get_debug_level(__priv) & (level))					\
 		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
 			 "%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
 			__func__ , ## args);				\
@@ -54,15 +54,15 @@ do {									\
 
 #define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)			\
 do {									\
-	if ((iwl_debug_level & (level)) && net_ratelimit())		\
+	if ((iwl_get_debug_level(__priv) & (level)) && net_ratelimit())		\
 		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
 			"%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
 			 __func__ , ## args);				\
 } while (0)
 
-#define iwl_print_hex_dump(level, p, len) 				\
+#define iwl_print_hex_dump(priv, level, p, len) 			\
 do {                                            			\
-	if (iwl_debug_level & level)          				\
+	if (iwl_get_debug_level(priv) & level) 				\
 		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
@@ -72,13 +72,12 @@ struct iwl_debugfs {
 	const char *name;
 	struct dentry *dir_drv;
 	struct dentry *dir_data;
+	struct dentry *dir_debug;
 	struct dentry *dir_rf;
 	struct dir_data_files {
 		struct dentry *file_sram;
 		struct dentry *file_nvm;
 		struct dentry *file_stations;
-		struct dentry *file_rx_statistics;
-		struct dentry *file_tx_statistics;
 		struct dentry *file_log_event;
 		struct dentry *file_channels;
 		struct dentry *file_status;
@@ -89,12 +88,26 @@ struct iwl_debugfs {
 		struct dentry *file_led;
 #endif
 		struct dentry *file_disable_ht40;
+		struct dentry *file_sleep_level_override;
+		struct dentry *file_current_sleep_command;
 	} dbgfs_data_files;
 	struct dir_rf_files {
 		struct dentry *file_disable_sensitivity;
 		struct dentry *file_disable_chain_noise;
 		struct dentry *file_disable_tx_power;
 	} dbgfs_rf_files;
+	struct dir_debug_files {
+		struct dentry *file_rx_statistics;
+		struct dentry *file_tx_statistics;
+		struct dentry *file_traffic_log;
+		struct dentry *file_rx_queue;
+		struct dentry *file_tx_queue;
+		struct dentry *file_ucode_rx_stats;
+		struct dentry *file_ucode_tx_stats;
+		struct dentry *file_ucode_general_stats;
+		struct dentry *file_sensitivity;
+		struct dentry *file_chain_noise;
+	} dbgfs_debug_files;
 	u32 sram_offset;
 	u32 sram_len;
 };
@@ -106,7 +119,8 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv);
 #else
 #define IWL_DEBUG(__priv, level, fmt, args...)
 #define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)
-static inline void iwl_print_hex_dump(int level, void *p, u32 len)
+static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
+				      void *p, u32 len)
 {}
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 

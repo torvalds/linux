@@ -100,38 +100,6 @@ static u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp)
 	return (tsf & ~0x7fff) | rstamp;
 }
 
-static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len, gfp_t gfp_mask)
-{
-	struct sk_buff *skb;
-	u32 off;
-
-	/*
-	 * Cache-line-align.  This is important (for the
-	 * 5210 at least) as not doing so causes bogus data
-	 * in rx'd frames.
-	 */
-
-	/* Note: the kernel can allocate a value greater than
-	 * what we ask it to give us. We really only need 4 KB as that
-	 * is this hardware supports and in fact we need at least 3849
-	 * as that is the MAX AMSDU size this hardware supports.
-	 * Unfortunately this means we may get 8 KB here from the
-	 * kernel... and that is actually what is observed on some
-	 * systems :( */
-	skb = __dev_alloc_skb(len + sc->cachelsz - 1, gfp_mask);
-	if (skb != NULL) {
-		off = ((unsigned long) skb->data) % sc->cachelsz;
-		if (off != 0)
-			skb_reserve(skb, sc->cachelsz - off);
-	} else {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"skbuff alloc of size %u failed\n", len);
-		return NULL;
-	}
-
-	return skb;
-}
-
 /*
  * For Decrypt or Demic errors, we only mark packet status here and always push
  * up the frame up to let mac80211 handle the actual error case, be it no
@@ -252,6 +220,10 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	else if (ds->ds_rxstat.rs_rssi > 127)
 		ds->ds_rxstat.rs_rssi = 127;
 
+	/* Update Beacon RSSI, this is used by ANI. */
+	if (ieee80211_is_beacon(fc))
+		sc->nodestats.ns_avgbrssi = ds->ds_rxstat.rs_rssi;
+
 	rx_status->mactime = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
 	rx_status->freq = hw->conf.channel->center_freq;
@@ -332,10 +304,10 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	spin_lock_init(&sc->rx.rxbuflock);
 
 	sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-				 min(sc->cachelsz, (u16)64));
+				 min(sc->common.cachelsz, (u16)64));
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-		sc->cachelsz, sc->rx.bufsize);
+		sc->common.cachelsz, sc->rx.bufsize);
 
 	/* Initialize rx descriptors */
 
@@ -348,7 +320,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	}
 
 	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-		skb = ath_rxbuf_alloc(sc, sc->rx.bufsize, GFP_KERNEL);
+		skb = ath_rxbuf_alloc(&sc->common, sc->rx.bufsize, GFP_KERNEL);
 		if (skb == NULL) {
 			error = -ENOMEM;
 			goto err;
@@ -448,8 +420,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	/* If in HOSTAP mode, want to enable reception of PSPOLL frames */
-	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP)
+	if (sc->rx.rxfilter & FIF_PSPOLL)
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
 	if (sc->sec_wiphy) {
@@ -774,7 +745,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
-		requeue_skb = ath_rxbuf_alloc(sc, sc->rx.bufsize, GFP_ATOMIC);
+		requeue_skb = ath_rxbuf_alloc(&sc->common, sc->rx.bufsize, GFP_ATOMIC);
 
 		/* If there is no memory we ignore the current RX'd frame,
 		 * tell hardware it can give us a new frame using the old
@@ -789,7 +760,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 				 DMA_FROM_DEVICE);
 
 		skb_put(skb, ds->ds_rxstat.rs_datalen);
-		skb->protocol = cpu_to_be16(ETH_P_CONTROL);
 
 		/* see if any padding is done by the hw and remove it */
 		hdr = (struct ieee80211_hdr *)skb->data;

@@ -489,12 +489,21 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	char *dev_addr = rx->dev->dev_addr;
 
 	if (ieee80211_is_data(hdr->frame_control)) {
-		if (!ieee80211_has_a4(hdr->frame_control))
-			return RX_DROP_MONITOR;
-		if (memcmp(hdr->addr4, rx->dev->dev_addr, ETH_ALEN) == 0)
-			return RX_DROP_MONITOR;
+		if (is_multicast_ether_addr(hdr->addr1)) {
+			if (ieee80211_has_tods(hdr->frame_control) ||
+				!ieee80211_has_fromds(hdr->frame_control))
+				return RX_DROP_MONITOR;
+			if (memcmp(hdr->addr3, dev_addr, ETH_ALEN) == 0)
+				return RX_DROP_MONITOR;
+		} else {
+			if (!ieee80211_has_a4(hdr->frame_control))
+				return RX_DROP_MONITOR;
+			if (memcmp(hdr->addr4, dev_addr, ETH_ALEN) == 0)
+				return RX_DROP_MONITOR;
+		}
 	}
 
 	/* If there is not an established peer link and this is not a peer link
@@ -527,7 +536,7 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 
 	if (ieee80211_is_data(hdr->frame_control) &&
 	    is_multicast_ether_addr(hdr->addr1) &&
-	    mesh_rmc_check(hdr->addr4, msh_h_get(hdr, hdrlen), rx->sdata))
+	    mesh_rmc_check(hdr->addr3, msh_h_get(hdr, hdrlen), rx->sdata))
 		return RX_DROP_MONITOR;
 #undef msh_h_get
 
@@ -1495,7 +1504,8 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		/* illegal frame */
 		return RX_DROP_MONITOR;
 
-	if (mesh_hdr->flags & MESH_FLAGS_AE_A5_A6){
+	if (!is_multicast_ether_addr(hdr->addr1) &&
+			(mesh_hdr->flags & MESH_FLAGS_AE_A5_A6)) {
 		struct mesh_path *mppath;
 
 		rcu_read_lock();
@@ -1512,7 +1522,9 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		rcu_read_unlock();
 	}
 
-	if (compare_ether_addr(rx->dev->dev_addr, hdr->addr3) == 0)
+	/* Frame has reached destination.  Don't forward */
+	if (!is_multicast_ether_addr(hdr->addr1) &&
+			compare_ether_addr(rx->dev->dev_addr, hdr->addr3) == 0)
 		return RX_CONTINUE;
 
 	mesh_hdr->ttl--;
@@ -1532,22 +1544,21 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 						   rx->dev->name);
 
 			fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
-			/*
-			 * Save TA to addr1 to send TA a path error if a
-			 * suitable next hop is not found
-			 */
-			memcpy(fwd_hdr->addr1, fwd_hdr->addr2, ETH_ALEN);
 			memcpy(fwd_hdr->addr2, rx->dev->dev_addr, ETH_ALEN);
 			info = IEEE80211_SKB_CB(fwd_skb);
 			memset(info, 0, sizeof(*info));
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 			info->control.vif = &rx->sdata->vif;
 			ieee80211_select_queue(local, fwd_skb);
-			if (is_multicast_ether_addr(fwd_hdr->addr3))
-				memcpy(fwd_hdr->addr1, fwd_hdr->addr3,
+			if (!is_multicast_ether_addr(fwd_hdr->addr1)) {
+				int err;
+				/*
+				 * Save TA to addr1 to send TA a path error if a
+				 * suitable next hop is not found
+				 */
+				memcpy(fwd_hdr->addr1, fwd_hdr->addr2,
 						ETH_ALEN);
-			else {
-				int err = mesh_nexthop_lookup(fwd_skb, sdata);
+				err = mesh_nexthop_lookup(fwd_skb, sdata);
 				/* Failed to immediately resolve next hop:
 				 * fwded frame was dropped or will be added
 				 * later to the pending skb queue.  */
@@ -1560,7 +1571,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		}
 	}
 
-	if (is_multicast_ether_addr(hdr->addr3) ||
+	if (is_multicast_ether_addr(hdr->addr1) ||
 	    rx->dev->flags & IFF_PROMISC)
 		return RX_CONTINUE;
 	else

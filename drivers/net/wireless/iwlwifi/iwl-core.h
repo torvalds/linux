@@ -83,6 +83,8 @@ struct iwl_cmd;
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
 
+#define IWL_CMD(x) case x: return #x
+
 struct iwl_hcmd_ops {
 	int (*rxon_assoc)(struct iwl_priv *priv);
 	int (*commit_rxon)(struct iwl_priv *priv);
@@ -264,7 +266,7 @@ int iwl_full_rxon_required(struct iwl_priv *priv);
 void iwl_set_rxon_chain(struct iwl_priv *priv);
 int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info);
-u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
+u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_sta_ht_cap *sta_ht_inf);
 void iwl_set_flags_for_band(struct iwl_priv *priv, enum ieee80211_band band);
 void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode);
@@ -300,7 +302,55 @@ void iwl_config_ap(struct iwl_priv *priv);
 int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
 			 struct ieee80211_tx_queue_stats *stats);
 void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+int iwl_alloc_traffic_mem(struct iwl_priv *priv);
+void iwl_free_traffic_mem(struct iwl_priv *priv);
+void iwl_reset_traffic_log(struct iwl_priv *priv);
+void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
+				u16 length, struct ieee80211_hdr *header);
+void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
+				u16 length, struct ieee80211_hdr *header);
+const char *get_mgmt_string(int cmd);
+const char *get_ctrl_string(int cmd);
+void iwl_clear_tx_stats(struct iwl_priv *priv);
+void iwl_clear_rx_stats(struct iwl_priv *priv);
+void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
+		      u16 len);
+#else
+static inline int iwl_alloc_traffic_mem(struct iwl_priv *priv)
+{
+	return 0;
+}
+static inline void iwl_free_traffic_mem(struct iwl_priv *priv)
+{
+}
+static inline void iwl_reset_traffic_log(struct iwl_priv *priv)
+{
+}
+static inline void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
+		      u16 length, struct ieee80211_hdr *header)
+{
+}
+static inline void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
+		      u16 length, struct ieee80211_hdr *header)
+{
+}
+static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
+				    __le16 fc, u16 len)
+{
+	struct traffic_stats	*stats;
 
+	if (is_tx)
+		stats = &priv->tx_stats;
+	else
+		stats = &priv->rx_stats;
+
+	if (ieee80211_is_data(fc)) {
+		/* data */
+		stats->data_bytes += len;
+	}
+}
+#endif
 /*****************************************************
  * RX handlers.
  * **************************************************/
@@ -512,8 +562,6 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
 #define STATUS_MODE_PENDING	18
-#define STATUS_INIT_UCODE_ALIVE	19
-#define STATUS_RT_UCODE_ALIVE	20
 
 
 static inline int iwl_is_ready(struct iwl_priv *priv)

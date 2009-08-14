@@ -49,6 +49,7 @@ struct cfg80211_registered_device {
 	/* associate netdev list */
 	struct mutex devlist_mtx;
 	struct list_head netdev_list;
+	int devlist_generation;
 
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
@@ -101,6 +102,7 @@ bool wiphy_idx_valid(int wiphy_idx)
 
 extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_rdev_list;
+extern int cfg80211_rdev_list_generation;
 
 #define assert_cfg80211_lock() WARN_ON(!mutex_is_locked(&cfg80211_mutex))
 
@@ -335,7 +337,8 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
 		       struct cfg80211_connect_params *connect,
-		       struct cfg80211_cached_keys *connkeys);
+		       struct cfg80211_cached_keys *connkeys,
+		       const u8 *prev_bssid);
 int cfg80211_connect(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev,
 		     struct cfg80211_connect_params *connect,
@@ -353,6 +356,7 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev);
 
 void cfg80211_conn_work(struct work_struct *work);
+bool cfg80211_sme_failed_reassoc(struct wireless_dev *wdev);
 
 /* internal helpers */
 int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
@@ -364,6 +368,14 @@ void cfg80211_sme_scan_done(struct net_device *dev);
 void cfg80211_sme_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
 void cfg80211_sme_disassoc(struct net_device *dev, int idx);
 void __cfg80211_scan_done(struct work_struct *wk);
+void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev);
 void cfg80211_upload_connect_keys(struct wireless_dev *wdev);
+
+struct ieee80211_channel *
+rdev_fixed_channel(struct cfg80211_registered_device *rdev,
+		   struct wireless_dev *for_wdev);
+int rdev_set_freq(struct cfg80211_registered_device *rdev,
+		  struct wireless_dev *for_wdev,
+		  int freq, enum nl80211_channel_type channel_type);
 
 #endif /* __NET_WIRELESS_CORE_H */

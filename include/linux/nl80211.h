@@ -480,10 +480,6 @@ enum nl80211_commands {
  * @NL80211_ATTR_SCAN_FREQUENCIES: nested attribute with frequencies (in MHz)
  * @NL80211_ATTR_SCAN_SSIDS: nested attribute with SSIDs, leave out for passive
  *	scanning and include a zero-length SSID (wildcard) for wildcard scan
- * @NL80211_ATTR_SCAN_GENERATION: the scan generation increases whenever the
- *	scan result list changes (BSS expired or added) so that applications
- *	can verify that they got a single, consistent snapshot (when all dump
- *	messages carried the same generation number)
  * @NL80211_ATTR_BSS: scan result BSS
  *
  * @NL80211_ATTR_REG_INITIATOR: indicates who requested the regulatory domain
@@ -580,6 +576,14 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_PID: Process ID of a network namespace.
  *
+ * @NL80211_ATTR_GENERATION: Used to indicate consistent snapshots for
+ *	dumps. This number increases whenever the object list being
+ *	dumped changes, and as such userspace can verify that it has
+ *	obtained a complete and consistent snapshot by verifying that
+ *	all dump messages contain the same generation number. If it
+ *	changed then the list changed and the dump should be repeated
+ *	completely from scratch.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -651,7 +655,7 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_SCAN_FREQUENCIES,
 	NL80211_ATTR_SCAN_SSIDS,
-	NL80211_ATTR_SCAN_GENERATION,
+	NL80211_ATTR_GENERATION, /* replaces old SCAN_GENERATION */
 	NL80211_ATTR_BSS,
 
 	NL80211_ATTR_REG_INITIATOR,
@@ -715,6 +719,9 @@ enum nl80211_attrs {
 	__NL80211_ATTR_AFTER_LAST,
 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
 };
+
+/* source-level API compatibility */
+#define NL80211_ATTR_SCAN_GENERATION NL80211_ATTR_GENERATION
 
 /*
  * Allow user space programs to use #ifdef on new attributes by defining them

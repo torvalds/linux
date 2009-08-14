@@ -1764,8 +1764,15 @@ static int rndis_iw_set_essid(struct net_device *dev,
 
 	if (!wrqu->essid.flags || length == 0)
 		return disassociate(usbdev, 1);
-	else
+	else {
+		/* Pause and purge rx queue, so we don't pass packets before
+		 * 'media connect'-indication.
+		 */
+		usbnet_pause_rx(usbdev);
+		usbnet_purge_paused_rxq(usbdev);
+
 		return set_essid(usbdev, &ssid);
+	}
 }
 
 
@@ -2328,6 +2335,8 @@ get_bssid:
 			memcpy(evt.ap_addr.sa_data, bssid, ETH_ALEN);
 			wireless_send_event(usbdev->net, SIOCGIWAP, &evt, NULL);
 		}
+
+		usbnet_resume_rx(usbdev);
 	}
 
 	if (test_and_clear_bit(WORK_LINK_DOWN, &priv->work_pending)) {
@@ -2541,6 +2550,8 @@ static void rndis_wlan_indication(struct usbnet *usbdev, void *ind, int buflen)
 
 	switch (msg->status) {
 	case RNDIS_STATUS_MEDIA_CONNECT:
+		usbnet_pause_rx(usbdev);
+
 		devinfo(usbdev, "media connect");
 
 		/* queue work to avoid recursive calls into rndis_command */

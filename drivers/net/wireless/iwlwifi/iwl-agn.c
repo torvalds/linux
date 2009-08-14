@@ -533,16 +533,12 @@ static void iwl_rx_reply_alive(struct iwl_priv *priv,
 
 	if (palive->ver_subtype == INITIALIZE_SUBTYPE) {
 		IWL_DEBUG_INFO(priv, "Initialization Alive received.\n");
-		set_bit(STATUS_INIT_UCODE_ALIVE, &priv->status);
-		wake_up_interruptible(&priv->wait_command_queue);
 		memcpy(&priv->card_alive_init,
 		       &pkt->u.alive_frame,
 		       sizeof(struct iwl_init_alive_resp));
 		pwork = &priv->init_alive_start;
 	} else {
 		IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
-		set_bit(STATUS_RT_UCODE_ALIVE, &priv->status);
-		wake_up_interruptible(&priv->wait_command_queue);
 		memcpy(&priv->card_alive, &pkt->u.alive_frame,
 		       sizeof(struct iwl_alive_resp));
 		pwork = &priv->alive_start;
@@ -896,7 +892,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & IWL_DL_ISR) {
+	if (iwl_get_debug_level(priv) & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -931,7 +927,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -1045,7 +1041,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 		iwl_enable_interrupts(priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
@@ -1076,7 +1072,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	inta = priv->inta;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & IWL_DL_ISR) {
+	if (iwl_get_debug_level(priv) & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x\n ",
@@ -1104,7 +1100,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -1610,7 +1606,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
-	iwl_power_update_mode(priv, 1);
+	iwl_power_update_mode(priv, true);
 
 	/* reassociate for ADHOC mode */
 	if (priv->vif && (priv->iw_mode == NL80211_IFTYPE_ADHOC)) {
@@ -1784,7 +1780,6 @@ static int __iwl_up(struct iwl_priv *priv)
 {
 	int i;
 	int ret;
-	unsigned long status;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
@@ -1862,51 +1857,6 @@ static int __iwl_up(struct iwl_priv *priv)
 		/* start card; "initialize" will load runtime ucode */
 		iwl_nic_start(priv);
 
-		/* Just finish download Init or Runtime uCode image to device
-		 * now we wait here for uCode send REPLY_ALIVE notification
-		 * to indicate uCode is ready.
-		 * 1) For Init uCode image, all iwlagn devices should wait here
-		 * on STATUS_INIT_UCODE_ALIVE status bit; if timeout before
-		 * receive the REPLY_ALIVE notification, go back and try to
-		 * download the Init uCode image again.
-		 * 2) For Runtime uCode image, all iwlagn devices except 4965
-		 * wait here on STATUS_RT_UCODE_ALIVE status bit; if
-		 * timeout before receive the REPLY_ALIVE notification, go back
-		 * and download the Runtime uCode image again.
-		 * 3) For 4965 Runtime uCode, it will not go through this path,
-		 * need to wait for STATUS_RT_UCODE_ALIVE status bit in
-		 * iwl4965_init_alive_start() function; if timeout, need to
-		 * restart and download Init uCode image.
-		 */
-		if (priv->ucode_type == UCODE_INIT)
-			status = STATUS_INIT_UCODE_ALIVE;
-		else
-			status = STATUS_RT_UCODE_ALIVE;
-		if (test_bit(status, &priv->status)) {
-			IWL_WARN(priv,
-				"%s uCode already alive? "
-				"Waiting for alive anyway\n",
-				(status == STATUS_INIT_UCODE_ALIVE)
-				? "INIT" : "Runtime");
-			clear_bit(status, &priv->status);
-		}
-		ret = wait_event_interruptible_timeout(
-				priv->wait_command_queue,
-				test_bit(status, &priv->status),
-				UCODE_ALIVE_TIMEOUT);
-		if (!ret) {
-			if (!test_bit(status, &priv->status)) {
-				priv->ucode_type =
-					(status == STATUS_INIT_UCODE_ALIVE)
-					? UCODE_NONE : UCODE_INIT;
-				IWL_ERR(priv,
-					"%s timeout after %dms\n",
-					(status == STATUS_INIT_UCODE_ALIVE)
-					? "INIT" : "Runtime",
-					jiffies_to_msecs(UCODE_ALIVE_TIMEOUT));
-				continue;
-			}
-		}
 		IWL_DEBUG_INFO(priv, DRV_NAME " is coming up\n");
 
 		return 0;
@@ -2125,7 +2075,7 @@ void iwl_post_associate(struct iwl_priv *priv)
 	 * If chain noise has already been run, then we need to enable
 	 * power management here */
 	if (priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE)
-		iwl_power_update_mode(priv, 0);
+		iwl_power_update_mode(priv, false);
 
 	/* Enable Rx differential gain and sensitivity calibrations */
 	iwl_chain_noise_reset(priv);
@@ -2455,15 +2405,15 @@ static int iwl_mac_get_stats(struct ieee80211_hw *hw,
  *
  * See the level definitions in iwl for details.
  *
- * FIXME This file can be deprecated as the module parameter is
- * writable and users can thus also change the debug level
- * using the /sys/module/iwl3945/parameters/debug file.
+ * The debug_level being managed using sysfs below is a per device debug
+ * level that is used instead of the global debug level if it (the per
+ * device debug level) is set.
  */
-
 static ssize_t show_debug_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%08X\n", iwl_debug_level);
+	struct iwl_priv *priv = dev_get_drvdata(d);
+	return sprintf(buf, "0x%08X\n", iwl_get_debug_level(priv));
 }
 static ssize_t store_debug_level(struct device *d,
 				struct device_attribute *attr,
@@ -2476,9 +2426,12 @@ static ssize_t store_debug_level(struct device *d,
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
 		IWL_ERR(priv, "%s is not in hex or decimal form.\n", buf);
-	else
-		iwl_debug_level = val;
-
+	else {
+		priv->debug_level = val;
+		if (iwl_alloc_traffic_mem(priv))
+			IWL_ERR(priv,
+				"Not enough memory to generate traffic log\n");
+	}
 	return strnlen(buf, count);
 }
 
@@ -2612,47 +2565,6 @@ static ssize_t store_filter_flags(struct device *d,
 static DEVICE_ATTR(filter_flags, S_IWUSR | S_IRUGO, show_filter_flags,
 		   store_filter_flags);
 
-static ssize_t store_power_level(struct device *d,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int ret;
-	unsigned long mode;
-
-
-	mutex_lock(&priv->mutex);
-
-	ret = strict_strtoul(buf, 10, &mode);
-	if (ret)
-		goto out;
-
-	ret = iwl_power_set_user_mode(priv, mode);
-	if (ret) {
-		IWL_DEBUG_MAC80211(priv, "failed setting power mode.\n");
-		goto out;
-	}
-	ret = count;
-
- out:
-	mutex_unlock(&priv->mutex);
-	return ret;
-}
-
-static ssize_t show_power_level(struct device *d,
-				struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int level = priv->power_data.power_mode;
-	char *p = buf;
-
-	p += sprintf(p, "%d\n", level);
-	return p - buf + 1;
-}
-
-static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
-		   store_power_level);
-
 
 static ssize_t show_statistics(struct device *d,
 			       struct device_attribute *attr, char *buf)
@@ -2745,7 +2657,6 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
-	&dev_attr_power_level.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
@@ -2819,6 +2730,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_IWLWIFI_DEBUG
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
+	if (iwl_alloc_traffic_mem(priv))
+		IWL_ERR(priv, "Not enough memory to generate traffic log\n");
 
 	/**************************
 	 * 2. Initializing PCI bus
@@ -3003,6 +2916,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_disable_device(pdev);
  out_ieee80211_free_hw:
 	ieee80211_free_hw(priv->hw);
+	iwl_free_traffic_mem(priv);
  out:
 	return err;
 }
@@ -3061,6 +2975,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	 * until now... */
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
+	iwl_free_traffic_mem(priv);
 
 	free_irq(priv->pci_dev->irq, priv);
 	pci_disable_msi(priv->pci_dev);

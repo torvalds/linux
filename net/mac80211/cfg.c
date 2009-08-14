@@ -323,6 +323,8 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
+	sinfo->generation = sdata->local->sta_generation;
+
 	sinfo->filled = STATION_INFO_INACTIVE_TIME |
 			STATION_INFO_RX_BYTES |
 			STATION_INFO_TX_BYTES |
@@ -908,6 +910,8 @@ static void mpath_set_pinfo(struct mesh_path *mpath, u8 *next_hop,
 		memcpy(next_hop, mpath->next_hop->sta.addr, ETH_ALEN);
 	else
 		memset(next_hop, 0, ETH_ALEN);
+
+	pinfo->generation = mesh_paths_generation;
 
 	pinfo->filled = MPATH_INFO_FRAME_QLEN |
 			MPATH_INFO_DSN |

@@ -284,6 +284,7 @@ struct ieee80211_if_managed {
 
 	struct mutex mtx;
 	struct ieee80211_bss *associated;
+	struct ieee80211_mgd_work *old_associate_work;
 	struct list_head work_list;
 
 	u8 bssid[ETH_ALEN];
@@ -354,7 +355,7 @@ struct ieee80211_if_mesh {
 
 	unsigned long timers_running;
 
-	bool housekeeping;
+	unsigned long wrkq_flags;
 
 	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
 	size_t mesh_id_len;
@@ -677,6 +678,7 @@ struct ieee80211_local {
 	struct list_head sta_list;
 	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
+	int sta_generation;
 
 	struct sk_buff_head pending[IEEE80211_MAX_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
@@ -713,7 +715,7 @@ struct ieee80211_local {
 	struct mutex scan_mtx;
 	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
-	struct cfg80211_scan_request int_scan_req;
+	struct cfg80211_scan_request *int_scan_req;
 	struct cfg80211_scan_request *scan_req;
 	struct ieee80211_channel *scan_channel;
 	const u8 *orig_ies;

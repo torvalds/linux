@@ -80,7 +80,6 @@ enum ieee80211_channel_flags {
  * with cfg80211.
  *
  * @center_freq: center frequency in MHz
- * @max_bandwidth: maximum allowed bandwidth for this channel, in MHz
  * @hw_value: hardware-specific value for the channel
  * @flags: channel flags from &enum ieee80211_channel_flags.
  * @orig_flags: channel flags at registration time, used by regulatory
@@ -97,7 +96,6 @@ enum ieee80211_channel_flags {
 struct ieee80211_channel {
 	enum ieee80211_band band;
 	u16 center_freq;
-	u8 max_bandwidth;
 	u16 hw_value;
 	u32 flags;
 	int max_antenna_gain;
@@ -372,6 +370,10 @@ struct rate_info {
  * @txrate: current unicast bitrate to this station
  * @rx_packets: packets received from this station
  * @tx_packets: packets transmitted to this station
+ * @generation: generation number for nl80211 dumps.
+ *	This number should increase every time the list of stations
+ *	changes, i.e. when a station is added or removed, so that
+ *	userspace can tell whether it got a consistent snapshot.
  */
 struct station_info {
 	u32 filled;
@@ -385,6 +387,8 @@ struct station_info {
 	struct rate_info txrate;
 	u32 rx_packets;
 	u32 tx_packets;
+
+	int generation;
 };
 
 /**
@@ -444,6 +448,10 @@ enum mpath_info_flags {
  * @flags: mesh path flags
  * @discovery_timeout: total mesh path discovery timeout, in msecs
  * @discovery_retries: mesh path discovery retries
+ * @generation: generation number for nl80211 dumps.
+ *	This number should increase every time the list of mesh paths
+ *	changes, i.e. when a station is added or removed, so that
+ *	userspace can tell whether it got a consistent snapshot.
  */
 struct mpath_info {
 	u32 filled;
@@ -454,6 +462,8 @@ struct mpath_info {
 	u32 discovery_timeout;
 	u8 discovery_retries;
 	u8 flags;
+
+	int generation;
 };
 
 /**
@@ -547,7 +557,6 @@ struct cfg80211_ssid {
 struct cfg80211_scan_request {
 	struct cfg80211_ssid *ssids;
 	int n_ssids;
-	struct ieee80211_channel **channels;
 	u32 n_channels;
 	const u8 *ie;
 	size_t ie_len;
@@ -556,6 +565,9 @@ struct cfg80211_scan_request {
 	struct wiphy *wiphy;
 	struct net_device *dev;
 	bool aborted;
+
+	/* keep last */
+	struct ieee80211_channel *channels[0];
 };
 
 /**
@@ -1096,6 +1108,9 @@ struct cfg80211_ops {
  * @net: the network namespace this wiphy currently lives in
  * @netnsok: if set to false, do not allow changing the netns of this
  *	wiphy at all
+ * @ps_default: default for powersave, will be set depending on the
+ *	kernel's default on wiphy_new(), but can be changed by the
+ *	driver if it has a good reason to override the default
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -1111,6 +1126,7 @@ struct wiphy {
 	bool disable_beacon_hints;
 
 	bool netnsok;
+	bool ps_default;
 
 	enum cfg80211_signal_type signal_type;
 
@@ -1335,10 +1351,10 @@ struct wireless_dev {
 		struct cfg80211_cached_keys *keys;
 		u8 *ie;
 		size_t ie_len;
-		u8 bssid[ETH_ALEN];
+		u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 		u8 ssid[IEEE80211_MAX_SSID_LEN];
 		s8 default_key, default_mgmt_key;
-		bool ps;
+		bool ps, prev_bssid_valid;
 		int ps_timeout;
 	} wext;
 #endif

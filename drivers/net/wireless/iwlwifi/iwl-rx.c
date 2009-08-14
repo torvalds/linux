@@ -544,8 +544,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 	change = ((priv->statistics.general.temperature !=
 		   pkt->u.stats.general.temperature) ||
 		  ((priv->statistics.flag &
-		    STATISTICS_REPLY_FLG_FAT_MODE_MSK) !=
-		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_FAT_MODE_MSK)));
+		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
+		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
 
 	memcpy(&priv->statistics, &pkt->u.stats, sizeof(priv->statistics));
 
@@ -645,7 +645,7 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 	u32 tsf_low;
 	int rssi;
 
-	if (likely(!(iwl_debug_level & IWL_DL_RX)))
+	if (likely(!(iwl_get_debug_level(priv) & IWL_DL_RX)))
 		return;
 
 	/* MAC header */
@@ -741,17 +741,9 @@ static void iwl_dbg_report_frame(struct iwl_priv *priv,
 		}
 	}
 	if (print_dump)
-		iwl_print_hex_dump(IWL_DL_RX, header, length);
+		iwl_print_hex_dump(priv, IWL_DL_RX, header, length);
 }
 #endif
-
-static void iwl_update_rx_stats(struct iwl_priv *priv, u16 fc, u16 len)
-{
-	/* 0 - mgmt, 1 - cnt, 2 - data */
-	int idx = (fc & IEEE80211_FCTL_FTYPE) >> 2;
-	priv->rx_stats[idx].cnt++;
-	priv->rx_stats[idx].bytes += len;
-}
 
 /*
  * returns non-zero if packet should be dropped
@@ -930,7 +922,7 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	    iwl_set_decrypted_flag(priv, hdr, ampdu_status, stats))
 		return;
 
-	iwl_update_rx_stats(priv, le16_to_cpu(hdr->frame_control), len);
+	iwl_update_stats(priv, false, hdr->frame_control, len);
 	memcpy(IEEE80211_SKB_RXCB(rxb->skb), stats, sizeof(*stats));
 	ieee80211_rx_irqsafe(priv->hw, rxb->skb);
 	priv->alloc_rxb_skb--;
@@ -1060,9 +1052,10 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 
 	/* Set "1" to report good data frames in groups of 100 */
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (unlikely(iwl_debug_level & IWL_DL_RX))
+	if (unlikely(iwl_get_debug_level(priv) & IWL_DL_RX))
 		iwl_dbg_report_frame(priv, rx_start, len, header, 1);
 #endif
+	iwl_dbg_log_rx_data_frame(priv, len, header);
 	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, noise %d, qual %d, TSF %llu\n",
 		rx_status.signal, rx_status.noise, rx_status.qual,
 		(unsigned long long)rx_status.mactime);

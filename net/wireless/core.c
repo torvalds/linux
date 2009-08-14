@@ -32,6 +32,7 @@ MODULE_DESCRIPTION("wireless configuration support");
  * only read the list, and that can happen quite
  * often because we need to do it for each command */
 LIST_HEAD(cfg80211_rdev_list);
+int cfg80211_rdev_list_generation;
 
 /*
  * This is used to protect the cfg80211_rdev_list
@@ -411,6 +412,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	rdev->wiphy.dev.class = &ieee80211_class;
 	rdev->wiphy.dev.platform_data = rdev;
 
+	rdev->wiphy.ps_default = CONFIG_CFG80211_DEFAULT_PS_VALUE;
+
 	wiphy_net_set(&rdev->wiphy, &init_net);
 
 	rdev->rfkill_ops.set_block = cfg80211_rfkill_set_block;
@@ -511,6 +514,7 @@ int wiphy_register(struct wiphy *wiphy)
 	wiphy_update_regulatory(wiphy, NL80211_REGDOM_SET_BY_CORE);
 
 	list_add(&rdev->list, &cfg80211_rdev_list);
+	cfg80211_rdev_list_generation++;
 
 	mutex_unlock(&cfg80211_mutex);
 
@@ -593,13 +597,14 @@ void wiphy_unregister(struct wiphy *wiphy)
 	reg_device_remove(wiphy);
 
 	list_del(&rdev->list);
+	cfg80211_rdev_list_generation++;
 	device_del(&rdev->wiphy.dev);
 	debugfs_remove(rdev->wiphy.debugfsdir);
 
 	mutex_unlock(&cfg80211_mutex);
 
+	flush_work(&rdev->scan_done_wk);
 	cancel_work_sync(&rdev->conn_work);
-	cancel_work_sync(&rdev->scan_done_wk);
 	kfree(rdev->scan_req);
 	flush_work(&rdev->event_work);
 }
@@ -653,6 +658,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		spin_lock_init(&wdev->event_lock);
 		mutex_lock(&rdev->devlist_mtx);
 		list_add(&wdev->list, &rdev->netdev_list);
+		rdev->devlist_generation++;
 		/* can only change netns with wiphy */
 		dev->features |= NETIF_F_NETNS_LOCAL;
 
@@ -670,7 +676,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
-		wdev->wext.ps = CONFIG_CFG80211_DEFAULT_PS_VALUE;
+		wdev->wext.ps = wdev->wiphy->ps_default;
 		wdev->wext.ps_timeout = 100;
 		if (rdev->ops->set_power_mgmt)
 			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
@@ -706,6 +712,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 	case NETDEV_UP:
 #ifdef CONFIG_WIRELESS_EXT
 		cfg80211_lock_rdev(rdev);
+		mutex_lock(&rdev->devlist_mtx);
 		wdev_lock(wdev);
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
@@ -718,10 +725,18 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		}
 		wdev_unlock(wdev);
+		mutex_unlock(&rdev->devlist_mtx);
 		cfg80211_unlock_rdev(rdev);
 #endif
 		break;
 	case NETDEV_UNREGISTER:
+		cfg80211_lock_rdev(rdev);
+
+		if (WARN_ON(rdev->scan_req && rdev->scan_req->dev == dev)) {
+			rdev->scan_req->aborted = true;
+			___cfg80211_scan_done(rdev);
+		}
+
 		mutex_lock(&rdev->devlist_mtx);
 		/*
 		 * It is possible to get NETDEV_UNREGISTER
@@ -733,12 +748,14 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		if (!list_empty(&wdev->list)) {
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
 			list_del_init(&wdev->list);
+			rdev->devlist_generation++;
 			mutex_destroy(&wdev->mtx);
 #ifdef CONFIG_WIRELESS_EXT
 			kfree(wdev->wext.keys);
 #endif
 		}
 		mutex_unlock(&rdev->devlist_mtx);
+		cfg80211_unlock_rdev(rdev);
 		break;
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))

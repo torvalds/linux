@@ -67,6 +67,16 @@ void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len)
 
 	status_code = le16_to_cpu(mgmt->u.assoc_resp.status_code);
 
+	/*
+	 * This is a bit of a hack, we don't notify userspace of
+	 * a (re-)association reply if we tried to send a reassoc
+	 * and got a reject -- we only try again with an assoc
+	 * frame instead of reassoc.
+	 */
+	if (status_code != WLAN_STATUS_SUCCESS && wdev->conn &&
+	    cfg80211_sme_failed_reassoc(wdev))
+		goto out;
+
 	nl80211_send_rx_assoc(rdev, dev, buf, len, GFP_KERNEL);
 
 	if (status_code == WLAN_STATUS_SUCCESS) {
@@ -97,6 +107,7 @@ void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len)
 		cfg80211_put_bss(&bss->pub);
 	}
 
+ out:
 	wdev_unlock(wdev);
 }
 EXPORT_SYMBOL(cfg80211_send_rx_assoc);
@@ -149,7 +160,7 @@ static void __cfg80211_send_deauth(struct net_device *dev,
 
 		reason_code = le16_to_cpu(mgmt->u.deauth.reason_code);
 
-		from_ap = memcmp(mgmt->da, dev->dev_addr, ETH_ALEN) == 0;
+		from_ap = memcmp(mgmt->sa, dev->dev_addr, ETH_ALEN) != 0;
 		__cfg80211_disconnected(dev, NULL, 0, reason_code, from_ap);
 	} else if (wdev->sme_state == CFG80211_SME_CONNECTING) {
 		__cfg80211_connect_result(dev, mgmt->bssid, NULL, 0, NULL, 0,
@@ -198,7 +209,7 @@ static void __cfg80211_send_disassoc(struct net_device *dev,
 		return;
 
 	if (wdev->current_bss &&
-	    memcmp(wdev->current_bss, bssid, ETH_ALEN) == 0) {
+	    memcmp(wdev->current_bss->pub.bssid, bssid, ETH_ALEN) == 0) {
 		for (i = 0; i < MAX_AUTH_BSSES; i++) {
 			if (wdev->authtry_bsses[i] || wdev->auth_bsses[i])
 				continue;
@@ -215,7 +226,7 @@ static void __cfg80211_send_disassoc(struct net_device *dev,
 
 	reason_code = le16_to_cpu(mgmt->u.disassoc.reason_code);
 
-	from_ap = memcmp(mgmt->da, dev->dev_addr, ETH_ALEN) == 0;
+	from_ap = memcmp(mgmt->sa, dev->dev_addr, ETH_ALEN) != 0;
 	__cfg80211_disconnected(dev, NULL, 0, reason_code, from_ap);
 }
 

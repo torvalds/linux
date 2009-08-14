@@ -258,29 +258,35 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 		if (!set_chip)
 			goto commit;
 
-		/* Preserve sleep duration */
 		data = ath5k_hw_reg_read(ah, AR5K_SLEEP_CTL);
+
+		/* If card is down we 'll get 0xffff... so we
+		 * need to clean this up before we write the register
+		 */
 		if (data & 0xffc00000)
 			data = 0;
 		else
-			data = data & 0xfffcffff;
+			/* Preserve sleep duration etc */
+			data = data & ~AR5K_SLEEP_CTL_SLE;
 
-		ath5k_hw_reg_write(ah, data, AR5K_SLEEP_CTL);
+		ath5k_hw_reg_write(ah, data | AR5K_SLEEP_CTL_SLE_WAKE,
+							AR5K_SLEEP_CTL);
 		udelay(15);
 
-		for (i = 50; i > 0; i--) {
+		for (i = 200; i > 0; i--) {
 			/* Check if the chip did wake up */
 			if ((ath5k_hw_reg_read(ah, AR5K_PCICFG) &
 					AR5K_PCICFG_SPWR_DN) == 0)
 				break;
 
 			/* Wait a bit and retry */
-			udelay(200);
-			ath5k_hw_reg_write(ah, data, AR5K_SLEEP_CTL);
+			udelay(50);
+			ath5k_hw_reg_write(ah, data | AR5K_SLEEP_CTL_SLE_WAKE,
+							AR5K_SLEEP_CTL);
 		}
 
 		/* Fail if the chip didn't wake up */
-		if (i <= 0)
+		if (i == 0)
 			return -EIO;
 
 		break;
@@ -293,6 +299,64 @@ commit:
 	ath5k_hw_reg_write(ah, staid, AR5K_STA_ID1);
 
 	return 0;
+}
+
+/*
+ * Put device on hold
+ *
+ * Put MAC and Baseband on warm reset and
+ * keep that state (don't clean sleep control
+ * register). After this MAC and Baseband are
+ * disabled and a full reset is needed to come
+ * back. This way we save as much power as possible
+ * without puting the card on full sleep.
+ */
+int ath5k_hw_on_hold(struct ath5k_hw *ah)
+{
+	struct pci_dev *pdev = ah->ah_sc->pdev;
+	u32 bus_flags;
+	int ret;
+
+	/* Make sure device is awake */
+	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
+	if (ret) {
+		ATH5K_ERR(ah->ah_sc, "failed to wakeup the MAC Chip\n");
+		return ret;
+	}
+
+	/*
+	 * Put chipset on warm reset...
+	 *
+	 * Note: puting PCI core on warm reset on PCI-E cards
+	 * results card to hang and always return 0xffff... so
+	 * we ingore that flag for PCI-E cards. On PCI cards
+	 * this flag gets cleared after 64 PCI clocks.
+	 */
+	bus_flags = (pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
+
+	if (ah->ah_version == AR5K_AR5210) {
+		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
+			AR5K_RESET_CTL_MAC | AR5K_RESET_CTL_DMA |
+			AR5K_RESET_CTL_PHY | AR5K_RESET_CTL_PCI);
+			mdelay(2);
+	} else {
+		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
+			AR5K_RESET_CTL_BASEBAND | bus_flags);
+	}
+
+	if (ret) {
+		ATH5K_ERR(ah->ah_sc, "failed to put device on warm reset\n");
+		return -EIO;
+	}
+
+	/* ...wakeup again!*/
+	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
+	if (ret) {
+		ATH5K_ERR(ah->ah_sc, "failed to put device on hold\n");
+		return ret;
+	}
+
+	return ret;
 }
 
 /*
@@ -317,6 +381,50 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 		ATH5K_ERR(ah->ah_sc, "failed to wakeup the MAC Chip\n");
 		return ret;
 	}
+
+	/*
+	 * Put chipset on warm reset...
+	 *
+	 * Note: puting PCI core on warm reset on PCI-E cards
+	 * results card to hang and always return 0xffff... so
+	 * we ingore that flag for PCI-E cards. On PCI cards
+	 * this flag gets cleared after 64 PCI clocks.
+	 */
+	bus_flags = (pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
+
+	if (ah->ah_version == AR5K_AR5210) {
+		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
+			AR5K_RESET_CTL_MAC | AR5K_RESET_CTL_DMA |
+			AR5K_RESET_CTL_PHY | AR5K_RESET_CTL_PCI);
+			mdelay(2);
+	} else {
+		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
+			AR5K_RESET_CTL_BASEBAND | bus_flags);
+	}
+
+	if (ret) {
+		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip\n");
+		return -EIO;
+	}
+
+	/* ...wakeup again!...*/
+	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
+	if (ret) {
+		ATH5K_ERR(ah->ah_sc, "failed to resume the MAC Chip\n");
+		return ret;
+	}
+
+	/* ...clear reset control register and pull device out of
+	 * warm reset */
+	if (ath5k_hw_nic_reset(ah, 0)) {
+		ATH5K_ERR(ah->ah_sc, "failed to warm reset the MAC Chip\n");
+		return -EIO;
+	}
+
+	/* On initialization skip PLL programming since we don't have
+	 * a channel / mode set yet */
+	if (initial)
+		return 0;
 
 	if (ah->ah_version != AR5K_AR5210) {
 		/*
@@ -381,39 +489,6 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 		if (flags & CHANNEL_TURBO)
 			ath5k_hw_reg_write(ah, AR5K_PHY_TURBO_MODE,
 					AR5K_PHY_TURBO);
-	}
-
-	/* reseting PCI on PCI-E cards results card to hang
-	 * and always return 0xffff... so we ingore that flag
-	 * for PCI-E cards */
-	bus_flags = (pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
-
-	/* Reset chipset */
-	if (ah->ah_version == AR5K_AR5210) {
-		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
-			AR5K_RESET_CTL_MAC | AR5K_RESET_CTL_DMA |
-			AR5K_RESET_CTL_PHY | AR5K_RESET_CTL_PCI);
-			mdelay(2);
-	} else {
-		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
-			AR5K_RESET_CTL_BASEBAND | bus_flags);
-	}
-	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip\n");
-		return -EIO;
-	}
-
-	/* ...wakeup again!*/
-	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
-	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to resume the MAC Chip\n");
-		return ret;
-	}
-
-	/* ...final warm reset */
-	if (ath5k_hw_nic_reset(ah, 0)) {
-		ATH5K_ERR(ah->ah_sc, "failed to warm reset the MAC Chip\n");
-		return -EIO;
 	}
 
 	if (ah->ah_version != AR5K_AR5210) {

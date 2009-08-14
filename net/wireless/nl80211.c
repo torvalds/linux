@@ -408,6 +408,9 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, dev->wiphy_idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, wiphy_name(&dev->wiphy));
 
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION,
+		    cfg80211_rdev_list_generation);
+
 	NLA_PUT_U8(msg, NL80211_ATTR_WIPHY_RETRY_SHORT,
 		   dev->wiphy.retry_short);
 	NLA_PUT_U8(msg, NL80211_ATTR_WIPHY_RETRY_LONG,
@@ -701,14 +704,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
 		enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
-		struct ieee80211_channel *chan;
-		struct ieee80211_sta_ht_cap *ht_cap;
 		u32 freq;
-
-		if (!rdev->ops->set_channel) {
-			result = -EOPNOTSUPP;
-			goto bad_res;
-		}
 
 		result = -EINVAL;
 
@@ -723,42 +719,12 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
-		chan = ieee80211_get_channel(&rdev->wiphy, freq);
 
-		/* Primary channel not allowed */
-		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED)
-			goto bad_res;
-
-		if (channel_type == NL80211_CHAN_HT40MINUS &&
-		    (chan->flags & IEEE80211_CHAN_NO_HT40MINUS))
-			goto bad_res;
-		else if (channel_type == NL80211_CHAN_HT40PLUS &&
-			 (chan->flags & IEEE80211_CHAN_NO_HT40PLUS))
-			goto bad_res;
-
-		/*
-		 * At this point we know if that if HT40 was requested
-		 * we are allowed to use it and the extension channel
-		 * exists.
-		 */
-
-		ht_cap = &rdev->wiphy.bands[chan->band]->ht_cap;
-
-		/* no HT capabilities or intolerant */
-		if (channel_type != NL80211_CHAN_NO_HT) {
-			if (!ht_cap->ht_supported)
-				goto bad_res;
-			if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
-			    (ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT))
-				goto bad_res;
-		}
-
-		result = rdev->ops->set_channel(&rdev->wiphy, chan,
-						channel_type);
+		mutex_lock(&rdev->devlist_mtx);
+		result = rdev_set_freq(rdev, NULL, freq, channel_type);
+		mutex_unlock(&rdev->devlist_mtx);
 		if (result)
 			goto bad_res;
-
-		rdev->channel = chan;
 	}
 
 	changed = 0;
@@ -862,6 +828,11 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, dev->name);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, dev->ieee80211_ptr->iftype);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION,
+		    rdev->devlist_generation ^
+			(cfg80211_rdev_list_generation << 2));
+
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
@@ -875,12 +846,12 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 	int if_idx = 0;
 	int wp_start = cb->args[0];
 	int if_start = cb->args[1];
-	struct cfg80211_registered_device *dev;
+	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
 
 	mutex_lock(&cfg80211_mutex);
-	list_for_each_entry(dev, &cfg80211_rdev_list, list) {
-		if (!net_eq(wiphy_net(&dev->wiphy), sock_net(skb->sk)))
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		if (!net_eq(wiphy_net(&rdev->wiphy), sock_net(skb->sk)))
 			continue;
 		if (wp_idx < wp_start) {
 			wp_idx++;
@@ -888,21 +859,21 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 		}
 		if_idx = 0;
 
-		mutex_lock(&dev->devlist_mtx);
-		list_for_each_entry(wdev, &dev->netdev_list, list) {
+		mutex_lock(&rdev->devlist_mtx);
+		list_for_each_entry(wdev, &rdev->netdev_list, list) {
 			if (if_idx < if_start) {
 				if_idx++;
 				continue;
 			}
 			if (nl80211_send_iface(skb, NETLINK_CB(cb->skb).pid,
 					       cb->nlh->nlmsg_seq, NLM_F_MULTI,
-					       dev, wdev->netdev) < 0) {
-				mutex_unlock(&dev->devlist_mtx);
+					       rdev, wdev->netdev) < 0) {
+				mutex_unlock(&rdev->devlist_mtx);
 				goto out;
 			}
 			if_idx++;
 		}
-		mutex_unlock(&dev->devlist_mtx);
+		mutex_unlock(&rdev->devlist_mtx);
 
 		wp_idx++;
 	}
@@ -1653,6 +1624,8 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, mac_addr);
 
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION, sinfo->generation);
+
 	sinfoattr = nla_nest_start(msg, NL80211_ATTR_STA_INFO);
 	if (!sinfoattr)
 		goto nla_put_failure;
@@ -2137,6 +2110,8 @@ static int nl80211_send_mpath(struct sk_buff *msg, u32 pid, u32 seq,
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
 	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, dst);
 	NLA_PUT(msg, NL80211_ATTR_MPATH_NEXT_HOP, ETH_ALEN, next_hop);
+
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION, pinfo->generation);
 
 	pinfoattr = nla_nest_start(msg, NL80211_ATTR_MPATH_INFO);
 	if (!pinfoattr)
@@ -3027,10 +3002,9 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	request->channels = (void *)((char *)request + sizeof(*request));
 	request->n_channels = n_channels;
 	if (n_ssids)
-		request->ssids = (void *)(request->channels + n_channels);
+		request->ssids = (void *)&request->channels[n_channels];
 	request->n_ssids = n_ssids;
 	if (ie_len) {
 		if (request->ssids)
@@ -3127,8 +3101,7 @@ static int nl80211_send_bss(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	if (!hdr)
 		return -1;
 
-	NLA_PUT_U32(msg, NL80211_ATTR_SCAN_GENERATION,
-		    rdev->bss_generation);
+	NLA_PUT_U32(msg, NL80211_ATTR_GENERATION, rdev->bss_generation);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, wdev->netdev->ifindex);
 
 	bss = nla_nest_start(msg, NL80211_ATTR_BSS);
@@ -3453,7 +3426,7 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 	struct cfg80211_crypto_settings crypto;
-	struct ieee80211_channel *chan;
+	struct ieee80211_channel *chan, *fixedchan;
 	const u8 *bssid, *ssid, *ie = NULL, *prev_bssid = NULL;
 	int err, ssid_len, ie_len = 0;
 	bool use_mfp = false;
@@ -3495,6 +3468,15 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		err = -EINVAL;
 		goto out;
 	}
+
+	mutex_lock(&rdev->devlist_mtx);
+	fixedchan = rdev_fixed_channel(rdev, NULL);
+	if (fixedchan && chan != fixedchan) {
+		err = -EBUSY;
+		mutex_unlock(&rdev->devlist_mtx);
+		goto out;
+	}
+	mutex_unlock(&rdev->devlist_mtx);
 
 	ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
 	ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);

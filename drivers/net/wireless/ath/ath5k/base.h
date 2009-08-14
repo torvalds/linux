@@ -50,6 +50,7 @@
 
 #include "ath5k.h"
 #include "debug.h"
+#include "../ath.h"
 
 #define	ATH_RXBUF	40		/* number of RX buffers */
 #define	ATH_TXBUF	200		/* number of TX buffers */
@@ -112,6 +113,7 @@ struct ath5k_rfkill {
  * associated with an instance of a device */
 struct ath5k_softc {
 	struct pci_dev		*pdev;		/* for dma mapping */
+	struct ath_common	common;
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
 	struct ieee80211_tx_queue_stats tx_stats[AR5K_NUM_TX_QUEUES];
@@ -134,7 +136,6 @@ struct ath5k_softc {
 	struct ath5k_desc	*desc;		/* TX/RX descriptors */
 	dma_addr_t		desc_daddr;	/* DMA (physical) address */
 	size_t			desc_len;	/* size of TX/RX descriptors */
-	u16			cachelsz;	/* cache line size */
 
 	DECLARE_BITMAP(status, 5);
 #define ATH_STAT_INVALID	0		/* disable hardware accesses */
@@ -177,6 +178,8 @@ struct ath5k_softc {
 
 	struct ath5k_rfkill	rf_kill;
 
+	struct tasklet_struct	calib;		/* calibration tasklet */
+
 	spinlock_t		block;		/* protects beacon */
 	struct tasklet_struct	beacontq;	/* beacon intr tasklet */
 	struct ath5k_buf	*bbuf;		/* beacon buffer */
@@ -187,7 +190,6 @@ struct ath5k_softc {
 	unsigned int		nexttbtt;	/* next beacon time in TU */
 	struct ath5k_txq	*cabq;		/* content after beacon */
 
-	struct timer_list	calib_tim;	/* calibration timer */
 	int 			power_level;	/* Requested tx power in dbm */
 	bool			assoc;		/* assocate state */
 	bool			enable_beacon;	/* true if beacons are on */

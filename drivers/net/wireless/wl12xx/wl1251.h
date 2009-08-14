@@ -143,35 +143,6 @@ struct wl1251_partition_set {
 
 struct wl1251;
 
-/* FIXME: I'm not sure about this structure name */
-struct wl1251_chip {
-	u32 id;
-
-	const char *fw_filename;
-	const char *nvs_filename;
-
-	char fw_ver[21];
-
-	unsigned int power_on_sleep;
-	int intr_cmd_complete;
-	int intr_init_complete;
-
-	int (*op_upload_fw)(struct wl1251 *wl);
-	int (*op_upload_nvs)(struct wl1251 *wl);
-	int (*op_boot)(struct wl1251 *wl);
-	void (*op_set_ecpu_ctrl)(struct wl1251 *wl, u32 flag);
-	void (*op_target_enable_interrupts)(struct wl1251 *wl);
-	int (*op_hw_init)(struct wl1251 *wl);
-	int (*op_plt_init)(struct wl1251 *wl);
-	void (*op_tx_flush)(struct wl1251 *wl);
-	void (*op_fw_version)(struct wl1251 *wl);
-	int (*op_cmd_join)(struct wl1251 *wl, u8 bss_type, u8 dtim_interval,
-			    u16 beacon_interval, u8 wait);
-
-	struct wl1251_partition_set *p_table;
-	enum wl12xx_acx_int_reg *acx_reg_table;
-};
-
 struct wl1251_stats {
 	struct acx_statistics *fw_stats;
 	unsigned long fw_stats_update;
@@ -281,11 +252,20 @@ struct wl1251_debugfs {
 	struct dentry *excessive_retries;
 };
 
+struct wl1251_if_operations {
+	void (*read)(struct wl1251 *wl, int addr, void *buf, size_t len);
+	void (*write)(struct wl1251 *wl, int addr, void *buf, size_t len);
+	void (*reset)(struct wl1251 *wl);
+	void (*enable_irq)(struct wl1251 *wl);
+	void (*disable_irq)(struct wl1251 *wl);
+};
+
 struct wl1251 {
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
 
-	struct spi_device *spi;
+	void *if_priv;
+	const struct wl1251_if_operations *if_ops;
 
 	void (*set_power)(bool enable);
 	int irq;
@@ -297,8 +277,6 @@ struct wl1251 {
 	int physical_reg_addr;
 	int virtual_mem_addr;
 	int virtual_reg_addr;
-
-	struct wl1251_chip chip;
 
 	int cmd_box_addr;
 	int event_box_addr;
@@ -382,6 +360,9 @@ struct wl1251 {
 	/* PSM mode requested */
 	bool psm_requested;
 
+	u16 beacon_int;
+	u8 dtim_period;
+
 	/* in dBm */
 	int power_level;
 
@@ -392,10 +373,19 @@ struct wl1251 {
 	u32 buffer_cmd;
 	u8 buffer_busyword[WL1251_BUSY_WORD_LEN];
 	struct wl1251_rx_descriptor *rx_descriptor;
+
+	u32 chip_id;
+	char fw_ver[21];
 };
 
 int wl1251_plt_start(struct wl1251 *wl);
 int wl1251_plt_stop(struct wl1251 *wl);
+
+struct ieee80211_hw *wl1251_alloc_hw(void);
+int wl1251_free_hw(struct wl1251 *wl);
+int wl1251_init_ieee80211(struct wl1251 *wl);
+void wl1251_enable_interrupts(struct wl1251 *wl);
+void wl1251_disable_interrupts(struct wl1251 *wl);
 
 #define DEFAULT_HW_GEN_MODULATION_TYPE    CCK_LONG /* Long Preamble */
 #define DEFAULT_HW_GEN_TX_RATE          RATE_2MBPS
@@ -405,16 +395,30 @@ int wl1251_plt_stop(struct wl1251 *wl);
 
 #define WL1251_TX_QUEUE_MAX_LENGTH 20
 
-/* Different chips need different sleep times after power on.  WL1271 needs
- * 200ms, WL1251 needs only 10ms.  By default we use 200ms, but as soon as we
- * know the chip ID, we change the sleep value in the wl1251 chip structure,
- * so in subsequent power ons, we don't waste more time then needed.  */
-#define WL1251_DEFAULT_POWER_ON_SLEEP 200
+#define WL1251_DEFAULT_BEACON_INT 100
+#define WL1251_DEFAULT_DTIM_PERIOD 1
+
+#define WL1251_DEFAULT_CHANNEL 0
 
 #define CHIP_ID_1251_PG10	           (0x7010101)
 #define CHIP_ID_1251_PG11	           (0x7020101)
 #define CHIP_ID_1251_PG12	           (0x7030101)
 #define CHIP_ID_1271_PG10	           (0x4030101)
 #define CHIP_ID_1271_PG20	           (0x4030111)
+
+#define WL1251_FW_NAME "wl1251-fw.bin"
+#define WL1251_NVS_NAME "wl1251-nvs.bin"
+
+#define WL1251_POWER_ON_SLEEP 10 /* in miliseconds */
+
+#define WL1251_PART_DOWN_MEM_START	0x0
+#define WL1251_PART_DOWN_MEM_SIZE	0x16800
+#define WL1251_PART_DOWN_REG_START	REGISTERS_BASE
+#define WL1251_PART_DOWN_REG_SIZE	REGISTERS_DOWN_SIZE
+
+#define WL1251_PART_WORK_MEM_START	0x28000
+#define WL1251_PART_WORK_MEM_SIZE	0x14000
+#define WL1251_PART_WORK_REG_START	REGISTERS_BASE
+#define WL1251_PART_WORK_REG_SIZE	REGISTERS_WORK_SIZE
 
 #endif

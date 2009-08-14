@@ -23,8 +23,8 @@
  */
 
 #include "wl1251.h"
-#include "reg.h"
-#include "wl1251_spi.h"
+#include "wl1251_reg.h"
+#include "wl1251_io.h"
 #include "wl1251_event.h"
 #include "wl1251_ps.h"
 
@@ -39,6 +39,7 @@ static int wl1251_event_scan_complete(struct wl1251 *wl,
 		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, false);
 		mutex_lock(&wl->mutex);
+		wl1251_debug(DEBUG_MAC80211, "mac80211 hw scan completed");
 		wl->scanning = false;
 	}
 
@@ -112,7 +113,7 @@ int wl1251_event_handle(struct wl1251 *wl, u8 mbox_num)
 		return -EINVAL;
 
 	/* first we read the mbox descriptor */
-	wl1251_spi_mem_read(wl, wl->mbox_ptr[mbox_num], &mbox,
+	wl1251_mem_read(wl, wl->mbox_ptr[mbox_num], &mbox,
 			    sizeof(struct event_mailbox));
 
 	/* process the descriptor */

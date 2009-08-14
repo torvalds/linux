@@ -1227,8 +1227,6 @@ static void rt2500pci_write_beacon(struct queue_entry *entry)
 	 * otherwise we might be sending out invalid data.
 	 */
 	rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
-	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 0);
-	rt2x00_set_field32(&reg, CSR14_TBCN, 0);
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 

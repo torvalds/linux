@@ -53,6 +53,7 @@ struct usbnet {
 	struct sk_buff_head	rxq;
 	struct sk_buff_head	txq;
 	struct sk_buff_head	done;
+	struct sk_buff_head	rxq_pause;
 	struct urb		*interrupt;
 	struct tasklet_struct	bh;
 
@@ -63,6 +64,7 @@ struct usbnet {
 #		define EVENT_RX_MEMORY	2
 #		define EVENT_STS_SPLIT	3
 #		define EVENT_LINK_RESET	4
+#		define EVENT_RX_PAUSED	5
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -189,6 +191,10 @@ extern int usbnet_get_ethernet_addr(struct usbnet *, int);
 extern void usbnet_defer_kevent (struct usbnet *, int);
 extern void usbnet_skb_return (struct usbnet *, struct sk_buff *);
 extern void usbnet_unlink_rx_urbs(struct usbnet *);
+
+extern void usbnet_pause_rx(struct usbnet *);
+extern void usbnet_resume_rx(struct usbnet *);
+extern void usbnet_purge_paused_rxq(struct usbnet *);
 
 extern int usbnet_get_settings (struct net_device *net, struct ethtool_cmd *cmd);
 extern int usbnet_set_settings (struct net_device *net, struct ethtool_cmd *cmd);

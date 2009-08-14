@@ -2,11 +2,10 @@
 
 #include <linux/module.h>
 #include <linux/crc7.h>
-#include <linux/spi/spi.h>
 
 #include "wl1251.h"
-#include "reg.h"
-#include "wl1251_spi.h"
+#include "wl1251_reg.h"
+#include "wl1251_io.h"
 #include "wl1251_ps.h"
 #include "wl1251_acx.h"
 
@@ -31,14 +30,14 @@ int wl1251_cmd_send(struct wl1251 *wl, u16 id, void *buf, size_t len)
 
 	WARN_ON(len % 4 != 0);
 
-	wl1251_spi_mem_write(wl, wl->cmd_box_addr, buf, len);
+	wl1251_mem_write(wl, wl->cmd_box_addr, buf, len);
 
 	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
 
 	timeout = jiffies + msecs_to_jiffies(WL1251_COMMAND_TIMEOUT);
 
 	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
-	while (!(intr & wl->chip.intr_cmd_complete)) {
+	while (!(intr & WL1251_ACX_INTR_CMD_COMPLETE)) {
 		if (time_after(jiffies, timeout)) {
 			wl1251_error("command complete timeout");
 			ret = -ETIMEDOUT;
@@ -51,7 +50,7 @@ int wl1251_cmd_send(struct wl1251 *wl, u16 id, void *buf, size_t len)
 	}
 
 	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_ACK,
-			   wl->chip.intr_cmd_complete);
+			   WL1251_ACX_INTR_CMD_COMPLETE);
 
 out:
 	return ret;
@@ -86,7 +85,7 @@ int wl1251_cmd_test(struct wl1251 *wl, void *buf, size_t buf_len, u8 answer)
 		 * The answer would be a wl1251_command, where the
 		 * parameter array contains the actual answer.
 		 */
-		wl1251_spi_mem_read(wl, wl->cmd_box_addr, buf, buf_len);
+		wl1251_mem_read(wl, wl->cmd_box_addr, buf, buf_len);
 
 		cmd_answer = buf;
 
@@ -125,7 +124,7 @@ int wl1251_cmd_interrogate(struct wl1251 *wl, u16 id, void *buf, size_t len)
 	}
 
 	/* the interrogate command got in, we can read the answer */
-	wl1251_spi_mem_read(wl, wl->cmd_box_addr, buf, len);
+	wl1251_mem_read(wl, wl->cmd_box_addr, buf, len);
 
 	acx = buf;
 	if (acx->cmd.status != CMD_STATUS_SUCCESS)
@@ -252,10 +251,9 @@ out:
 	return ret;
 }
 
-int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 dtim_interval,
-		    u16 beacon_interval, u8 wait)
+int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 channel,
+		    u16 beacon_interval, u8 dtim_interval)
 {
-	unsigned long timeout;
 	struct cmd_join *join;
 	int ret, i;
 	u8 *bssid;
@@ -266,15 +264,9 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 dtim_interval,
 		goto out;
 	}
 
-	/* FIXME: this should be in main.c */
-	ret = wl1251_acx_frame_rates(wl, DEFAULT_HW_GEN_TX_RATE,
-				     DEFAULT_HW_GEN_MODULATION_TYPE,
-				     wl->tx_mgmt_frm_rate,
-				     wl->tx_mgmt_frm_mod);
-	if (ret < 0)
-		goto out;
-
-	wl1251_debug(DEBUG_CMD, "cmd join");
+	wl1251_debug(DEBUG_CMD, "cmd join%s ch %d %d/%d",
+		     bss_type == BSS_TYPE_IBSS ? " ibss" : "",
+		     channel, beacon_interval, dtim_interval);
 
 	/* Reverse order BSSID */
 	bssid = (u8 *) &join->bssid_lsb;
@@ -284,13 +276,22 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 dtim_interval,
 	join->rx_config_options = wl->rx_config;
 	join->rx_filter_options = wl->rx_filter;
 
+	/*
+	 * FIXME: disable temporarily all filters because after commit
+	 * 9cef8737 "mac80211: fix managed mode BSSID handling" broke
+	 * association. The filter logic needs to be implemented properly
+	 * and once that is done, this hack can be removed.
+	 */
+	join->rx_config_options = 0;
+	join->rx_filter_options = WL1251_DEFAULT_RX_FILTER;
+
 	join->basic_rate_set = RATE_MASK_1MBPS | RATE_MASK_2MBPS |
 		RATE_MASK_5_5MBPS | RATE_MASK_11MBPS;
 
 	join->beacon_interval = beacon_interval;
 	join->dtim_interval = dtim_interval;
 	join->bss_type = bss_type;
-	join->channel = wl->channel;
+	join->channel = channel;
 	join->ctrl = JOIN_CMD_CTRL_TX_FLUSH;
 
 	ret = wl1251_cmd_send(wl, CMD_START_JOIN, join, sizeof(*join));
@@ -298,15 +299,6 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 dtim_interval,
 		wl1251_error("failed to initiate cmd join");
 		goto out;
 	}
-
-	timeout = msecs_to_jiffies(JOIN_TIMEOUT);
-
-	/*
-	 * ugly hack: we should wait for JOIN_EVENT_COMPLETE_ID but to
-	 * simplify locking we just sleep instead, for now
-	 */
-	if (wait)
-		msleep(10);
 
 out:
 	kfree(join);
@@ -317,14 +309,6 @@ int wl1251_cmd_ps_mode(struct wl1251 *wl, u8 ps_mode)
 {
 	struct wl1251_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
-
-	/* FIXME: this should be in ps.c */
-	ret = wl1251_acx_wake_up_conditions(wl, WAKE_UP_EVENT_DTIM_BITMAP,
-					    wl->listen_int);
-	if (ret < 0) {
-		wl1251_error("couldn't set wake up conditions");
-		goto out;
-	}
 
 	wl1251_debug(DEBUG_CMD, "cmd set ps mode");
 
@@ -379,7 +363,7 @@ int wl1251_cmd_read_memory(struct wl1251 *wl, u32 addr, void *answer,
 	}
 
 	/* the read command got in, we can now read the answer */
-	wl1251_spi_mem_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd));
+	wl1251_mem_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd));
 
 	if (cmd->header.status != CMD_STATUS_SUCCESS)
 		wl1251_error("error in read command result: %d",

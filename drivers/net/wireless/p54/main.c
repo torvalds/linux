@@ -288,6 +288,11 @@ static int p54_config(struct ieee80211_hw *dev, u32 changed)
 		if (ret)
 			goto out;
 	}
+	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		ret = p54_setup_mac(priv);
+		if (ret)
+			goto out;
+	}
 
 out:
 	mutex_unlock(&priv->conf_mutex);
@@ -317,7 +322,7 @@ static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	int ret;
 
 	mutex_lock(&priv->conf_mutex);
-	if ((params) && !(queue > 4)) {
+	if (queue < dev->queues) {
 		P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
 			params->cw_min, params->cw_max, params->txop);
 		ret = p54_set_edcf(priv);

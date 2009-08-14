@@ -740,13 +740,22 @@ int ath5k_hw_rfregs_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 						AR5K_RF_XPD_GAIN, true);
 
 		} else {
-			/* TODO: Set high and low gain bits */
-			ath5k_hw_rfb_op(ah, rf_regs,
-						ee->ee_x_gain[ee_mode],
+			u8 *pdg_curve_to_idx = ee->ee_pdc_to_idx[ee_mode];
+			if (ee->ee_pd_gains[ee_mode] > 1) {
+				ath5k_hw_rfb_op(ah, rf_regs,
+						pdg_curve_to_idx[0],
 						AR5K_RF_PD_GAIN_LO, true);
-			ath5k_hw_rfb_op(ah, rf_regs,
-						ee->ee_x_gain[ee_mode],
+				ath5k_hw_rfb_op(ah, rf_regs,
+						pdg_curve_to_idx[1],
 						AR5K_RF_PD_GAIN_HI, true);
+			} else {
+				ath5k_hw_rfb_op(ah, rf_regs,
+						pdg_curve_to_idx[0],
+						AR5K_RF_PD_GAIN_LO, true);
+				ath5k_hw_rfb_op(ah, rf_regs,
+						pdg_curve_to_idx[0],
+						AR5K_RF_PD_GAIN_HI, true);
+			}
 
 			/* Lower synth voltage on Rev 2 */
 			ath5k_hw_rfb_op(ah, rf_regs, 2,
@@ -1094,6 +1103,29 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 /*****************\
   PHY calibration
 \*****************/
+
+void
+ath5k_hw_calibration_poll(struct ath5k_hw *ah)
+{
+	/* Calibration interval in jiffies */
+	unsigned long cal_intval;
+
+	cal_intval = msecs_to_jiffies(ah->ah_cal_intval * 1000);
+
+	/* Initialize timestamp if needed */
+	if (!ah->ah_cal_tstamp)
+		ah->ah_cal_tstamp = jiffies;
+
+	/* For now we always do full calibration
+	 * Mark software interrupt mask and fire software
+	 * interrupt (bit gets auto-cleared) */
+	if (time_is_before_eq_jiffies(ah->ah_cal_tstamp + cal_intval)) {
+		ah->ah_cal_tstamp = jiffies;
+		ah->ah_swi_mask = AR5K_SWI_FULL_CALIBRATION;
+		AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI);
+	}
+
+}
 
 /**
  * ath5k_hw_noise_floor_calibration - perform PHY noise floor calibration
@@ -1896,8 +1928,9 @@ ath5k_get_linear_pcdac_min(const u8 *stepL, const u8 *stepR,
 	s16 min_pwrL, min_pwrR;
 	s16 pwr_i;
 
-	if (WARN_ON(stepL[0] == stepL[1] || stepR[0] == stepR[1]))
-		return 0;
+	/* Some vendors write the same pcdac value twice !!! */
+	if (stepL[0] == stepL[1] || stepR[0] == stepR[1])
+		return max(pwrL[0], pwrR[0]);
 
 	if (pwrL[0] == pwrL[1])
 		min_pwrL = pwrL[0];

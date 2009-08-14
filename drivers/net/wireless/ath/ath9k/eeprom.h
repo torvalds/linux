@@ -385,105 +385,123 @@ struct calDataPerFreqOpLoop {
 } __packed;
 
 struct modal_eep_4k_header {
-	u32  antCtrlChain[AR5416_EEP4K_MAX_CHAINS];
-	u32  antCtrlCommon;
-	u8   antennaGainCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   switchSettling;
-	u8   txRxAttenCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   rxTxMarginCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   adcDesiredSize;
-	u8   pgaDesiredSize;
-	u8   xlnaGainCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   txEndToXpaOff;
-	u8   txEndToRxOn;
-	u8   txFrameToXpaOn;
-	u8   thresh62;
-	u8   noiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   xpdGain;
-	u8   xpd;
-	u8   iqCalICh[AR5416_EEP4K_MAX_CHAINS];
-	u8   iqCalQCh[AR5416_EEP4K_MAX_CHAINS];
-	u8   pdGainOverlap;
-	u8   ob_01;
-	u8   db1_01;
-	u8   xpaBiasLvl;
-	u8   txFrameToDataStart;
-	u8   txFrameToPaOn;
-	u8   ht40PowerIncForPdadc;
-	u8   bswAtten[AR5416_EEP4K_MAX_CHAINS];
-	u8   bswMargin[AR5416_EEP4K_MAX_CHAINS];
-	u8   swSettleHt40;
-	u8   xatten2Db[AR5416_EEP4K_MAX_CHAINS];
-	u8   xatten2Margin[AR5416_EEP4K_MAX_CHAINS];
-	u8   db2_01;
-	u8   version;
-	u16  ob_234;
-	u16  db1_234;
-	u16  db2_234;
-	u8   futureModal[4];
-
+	u32 antCtrlChain[AR5416_EEP4K_MAX_CHAINS];
+	u32 antCtrlCommon;
+	u8 antennaGainCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 switchSettling;
+	u8 txRxAttenCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 rxTxMarginCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 adcDesiredSize;
+	u8 pgaDesiredSize;
+	u8 xlnaGainCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 txEndToXpaOff;
+	u8 txEndToRxOn;
+	u8 txFrameToXpaOn;
+	u8 thresh62;
+	u8 noiseFloorThreshCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 xpdGain;
+	u8 xpd;
+	u8 iqCalICh[AR5416_EEP4K_MAX_CHAINS];
+	u8 iqCalQCh[AR5416_EEP4K_MAX_CHAINS];
+	u8 pdGainOverlap;
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 ob_1:4, ob_0:4;
+	u8 db1_1:4, db1_0:4;
+#else
+	u8 ob_0:4, ob_1:4;
+	u8 db1_0:4, db1_1:4;
+#endif
+	u8 xpaBiasLvl;
+	u8 txFrameToDataStart;
+	u8 txFrameToPaOn;
+	u8 ht40PowerIncForPdadc;
+	u8 bswAtten[AR5416_EEP4K_MAX_CHAINS];
+	u8 bswMargin[AR5416_EEP4K_MAX_CHAINS];
+	u8 swSettleHt40;
+	u8 xatten2Db[AR5416_EEP4K_MAX_CHAINS];
+	u8 xatten2Margin[AR5416_EEP4K_MAX_CHAINS];
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 db2_1:4, db2_0:4;
+#else
+	u8 db2_0:4, db2_1:4;
+#endif
+	u8 version;
+#ifdef __BIG_ENDIAN_BITFIELD
+	u8 ob_3:4, ob_2:4;
+	u8 antdiv_ctl1:4, ob_4:4;
+	u8 db1_3:4, db1_2:4;
+	u8 antdiv_ctl2:4, db1_4:4;
+	u8 db2_2:4, db2_3:4;
+	u8 reserved:4, db2_4:4;
+#else
+	u8 ob_2:4, ob_3:4;
+	u8 ob_4:4, antdiv_ctl1:4;
+	u8 db1_2:4, db1_3:4;
+	u8 db1_4:4, antdiv_ctl2:4;
+	u8 db2_2:4, db2_3:4;
+	u8 db2_4:4, reserved:4;
+#endif
+	u8 futureModal[4];
 	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
 } __packed;
 
 struct base_eep_ar9287_header {
-    u16  length;
-    u16  checksum;
-    u16  version;
-    u8 opCapFlags;
-    u8   eepMisc;
-    u16  regDmn[2];
-    u8   macAddr[6];
-    u8   rxMask;
-    u8   txMask;
-    u16  rfSilent;
-    u16  blueToothOptions;
-    u16  deviceCap;
-    u32  binBuildNumber;
-    u8   deviceType;
-    u8   openLoopPwrCntl;
-    int8_t    pwrTableOffset;
-    int8_t     tempSensSlope;
-    int8_t     tempSensSlopePalOn;
-    u8   futureBase[29];
+	u16 length;
+	u16 checksum;
+	u16 version;
+	u8 opCapFlags;
+	u8 eepMisc;
+	u16 regDmn[2];
+	u8 macAddr[6];
+	u8 rxMask;
+	u8 txMask;
+	u16 rfSilent;
+	u16 blueToothOptions;
+	u16 deviceCap;
+	u32 binBuildNumber;
+	u8 deviceType;
+	u8 openLoopPwrCntl;
+	int8_t pwrTableOffset;
+	int8_t tempSensSlope;
+	int8_t tempSensSlopePalOn;
+	u8 futureBase[29];
 } __packed;
 
 struct modal_eep_ar9287_header {
-    u32  antCtrlChain[AR9287_MAX_CHAINS];
-    u32  antCtrlCommon;
-    int8_t    antennaGainCh[AR9287_MAX_CHAINS];
-    u8   switchSettling;
-    u8   txRxAttenCh[AR9287_MAX_CHAINS];
-    u8   rxTxMarginCh[AR9287_MAX_CHAINS];
-    int8_t    adcDesiredSize;
-    u8   txEndToXpaOff;
-    u8   txEndToRxOn;
-    u8   txFrameToXpaOn;
-    u8   thresh62;
-    int8_t    noiseFloorThreshCh[AR9287_MAX_CHAINS];
-    u8   xpdGain;
-    u8   xpd;
-    int8_t    iqCalICh[AR9287_MAX_CHAINS];
-    int8_t    iqCalQCh[AR9287_MAX_CHAINS];
-    u8   pdGainOverlap;
-    u8   xpaBiasLvl;
-    u8   txFrameToDataStart;
-    u8   txFrameToPaOn;
-    u8   ht40PowerIncForPdadc;
-    u8   bswAtten[AR9287_MAX_CHAINS];
-    u8   bswMargin[AR9287_MAX_CHAINS];
-    u8   swSettleHt40;
-	u8   version;
-    u8   db1;
-    u8   db2;
-    u8   ob_cck;
-    u8   ob_psk;
-    u8   ob_qam;
-    u8   ob_pal_off;
-    u8   futureModal[30];
-    struct spur_chan spurChans[AR9287_EEPROM_MODAL_SPURS];
+	u32 antCtrlChain[AR9287_MAX_CHAINS];
+	u32 antCtrlCommon;
+	int8_t antennaGainCh[AR9287_MAX_CHAINS];
+	u8 switchSettling;
+	u8 txRxAttenCh[AR9287_MAX_CHAINS];
+	u8 rxTxMarginCh[AR9287_MAX_CHAINS];
+	int8_t adcDesiredSize;
+	u8 txEndToXpaOff;
+	u8 txEndToRxOn;
+	u8 txFrameToXpaOn;
+	u8 thresh62;
+	int8_t noiseFloorThreshCh[AR9287_MAX_CHAINS];
+	u8 xpdGain;
+	u8 xpd;
+	int8_t iqCalICh[AR9287_MAX_CHAINS];
+	int8_t iqCalQCh[AR9287_MAX_CHAINS];
+	u8 pdGainOverlap;
+	u8 xpaBiasLvl;
+	u8 txFrameToDataStart;
+	u8 txFrameToPaOn;
+	u8 ht40PowerIncForPdadc;
+	u8 bswAtten[AR9287_MAX_CHAINS];
+	u8 bswMargin[AR9287_MAX_CHAINS];
+	u8 swSettleHt40;
+	u8 version;
+	u8 db1;
+	u8 db2;
+	u8 ob_cck;
+	u8 ob_psk;
+	u8 ob_qam;
+	u8 ob_pal_off;
+	u8 futureModal[30];
+	struct spur_chan spurChans[AR9287_EEPROM_MODAL_SPURS];
 } __packed;
-
-
 
 struct cal_data_per_freq {
 	u8 pwrPdg[AR5416_NUM_PD_GAINS][AR5416_PD_GAIN_ICEPTS];
@@ -524,7 +542,6 @@ struct cal_data_op_loop_ar9287 {
 	u8 pcdac[2][5];
 	u8 empty[2][5];
 } __packed;
-
 
 struct cal_data_per_freq_ar9287 {
 	u8 pwrPdg[AR9287_NUM_PD_GAINS][AR9287_PD_GAIN_ICEPTS];
@@ -601,25 +618,24 @@ struct ar5416_eeprom_4k {
 } __packed;
 
 struct ar9287_eeprom {
-	struct base_eep_ar9287_header  baseEepHeader;
+	struct base_eep_ar9287_header baseEepHeader;
 	u8 custData[AR9287_DATA_SZ];
 	struct modal_eep_ar9287_header modalHeader;
 	u8 calFreqPier2G[AR9287_NUM_2G_CAL_PIERS];
 	union cal_data_per_freq_ar9287_u
-	 calPierData2G[AR9287_MAX_CHAINS][AR9287_NUM_2G_CAL_PIERS];
+	calPierData2G[AR9287_MAX_CHAINS][AR9287_NUM_2G_CAL_PIERS];
 	struct cal_target_power_leg
-	 calTargetPowerCck[AR9287_NUM_2G_CCK_TARGET_POWERS];
+	calTargetPowerCck[AR9287_NUM_2G_CCK_TARGET_POWERS];
 	struct cal_target_power_leg
-	 calTargetPower2G[AR9287_NUM_2G_20_TARGET_POWERS];
+	calTargetPower2G[AR9287_NUM_2G_20_TARGET_POWERS];
 	struct cal_target_power_ht
-	 calTargetPower2GHT20[AR9287_NUM_2G_20_TARGET_POWERS];
+	calTargetPower2GHT20[AR9287_NUM_2G_20_TARGET_POWERS];
 	struct cal_target_power_ht
-	 calTargetPower2GHT40[AR9287_NUM_2G_40_TARGET_POWERS];
+	calTargetPower2GHT40[AR9287_NUM_2G_40_TARGET_POWERS];
 	u8 ctlIndex[AR9287_NUM_CTLS];
 	struct cal_ctl_data_ar9287 ctlData[AR9287_NUM_CTLS];
 	u8 padding;
 } __packed;
-
 
 enum reg_ext_bitmap {
 	REG_EXT_JAPAN_MIDBAND = 1,
@@ -661,10 +677,39 @@ struct eeprom_ops {
 	u16 (*get_spur_channel)(struct ath_hw *ah, u16 i, bool is2GHz);
 };
 
+void ath9k_hw_analog_shift_rmw(struct ath_hw *ah, u32 reg, u32 mask,
+			       u32 shift, u32 val);
+int16_t ath9k_hw_interpolate(u16 target, u16 srcLeft, u16 srcRight,
+			     int16_t targetLeft,
+			     int16_t targetRight);
+bool ath9k_hw_get_lower_upper_index(u8 target, u8 *pList, u16 listSize,
+				    u16 *indexL, u16 *indexR);
+bool ath9k_hw_nvram_read(struct ath_hw *ah, u32 off, u16 *data);
+void ath9k_hw_fill_vpd_table(u8 pwrMin, u8 pwrMax, u8 *pPwrList,
+			     u8 *pVpdList, u16 numIntercepts,
+			     u8 *pRetVpdList);
+void ath9k_hw_get_legacy_target_powers(struct ath_hw *ah,
+				       struct ath9k_channel *chan,
+				       struct cal_target_power_leg *powInfo,
+				       u16 numChannels,
+				       struct cal_target_power_leg *pNewPower,
+				       u16 numRates, bool isExtTarget);
+void ath9k_hw_get_target_powers(struct ath_hw *ah,
+				struct ath9k_channel *chan,
+				struct cal_target_power_ht *powInfo,
+				u16 numChannels,
+				struct cal_target_power_ht *pNewPower,
+				u16 numRates, bool isHt40Target);
+u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
+				bool is2GHz, int num_band_edges);
+int ath9k_hw_eeprom_init(struct ath_hw *ah);
+
 #define ar5416_get_ntxchains(_txchainmask)			\
 	(((_txchainmask >> 2) & 1) +                            \
 	 ((_txchainmask >> 1) & 1) + (_txchainmask & 1))
 
-int ath9k_hw_eeprom_init(struct ath_hw *ah);
+extern const struct eeprom_ops eep_def_ops;
+extern const struct eeprom_ops eep_4k_ops;
+extern const struct eeprom_ops eep_AR9287_ops;
 
 #endif /* EEPROM_H */

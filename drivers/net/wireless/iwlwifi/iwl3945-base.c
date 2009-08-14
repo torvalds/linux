@@ -598,7 +598,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	len = (u16)skb->len;
 	tx->len = cpu_to_le16(len);
 
-
+	iwl_dbg_log_tx_data_frame(priv, len, hdr);
+	iwl_update_stats(priv, true, fc, len);
 	tx->tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
 	tx->tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
 
@@ -614,8 +615,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	IWL_DEBUG_TX(priv, "sequence nr = 0X%x \n",
 		     le16_to_cpu(out_cmd->hdr.sequence));
 	IWL_DEBUG_TX(priv, "tx_flags = 0X%x \n", le32_to_cpu(tx->tx_flags));
-	iwl_print_hex_dump(IWL_DL_TX, tx, sizeof(*tx));
-	iwl_print_hex_dump(IWL_DL_TX, (u8 *)tx->hdr,
+	iwl_print_hex_dump(priv, IWL_DL_TX, tx, sizeof(*tx));
+	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx->hdr,
 			   ieee80211_hdrlen(fc));
 
 	/*
@@ -1646,7 +1647,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & IWL_DL_ISR) {
+	if (iwl_get_debug_level(priv) & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -1681,7 +1682,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
@@ -1760,7 +1761,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 		iwl_enable_interrupts(priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_debug_level & (IWL_DL_ISR)) {
+	if (iwl_get_debug_level(priv) & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
@@ -3311,14 +3312,15 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  *
  * See the level definitions in iwl for details.
  *
- * FIXME This file can be deprecated as the module parameter is
- * writable and users can thus also change the debug level
- * using the /sys/module/iwl3945/parameters/debug file.
+ * The debug_level being managed using sysfs below is a per device debug
+ * level that is used instead of the global debug level if it (the per
+ * device debug level) is set.
  */
 static ssize_t show_debug_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%08X\n", iwl_debug_level);
+	struct iwl_priv *priv = dev_get_drvdata(d);
+	return sprintf(buf, "0x%08X\n", iwl_get_debug_level(priv));
 }
 static ssize_t store_debug_level(struct device *d,
 				struct device_attribute *attr,
@@ -3331,9 +3333,12 @@ static ssize_t store_debug_level(struct device *d,
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
 		IWL_INFO(priv, "%s is not in hex or decimal form.\n", buf);
-	else
-		iwl_debug_level = val;
-
+	else {
+		priv->debug_level = val;
+		if (iwl_alloc_traffic_mem(priv))
+			IWL_ERR(priv,
+				"Not enough memory to generate traffic log\n");
+	}
 	return strnlen(buf, count);
 }
 
@@ -3549,65 +3554,6 @@ static DEVICE_ATTR(retry_rate, S_IWUSR | S_IRUSR, show_retry_rate,
 		   store_retry_rate);
 
 
-static ssize_t store_power_level(struct device *d,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int ret;
-	unsigned long mode;
-
-
-	mutex_lock(&priv->mutex);
-
-	ret = strict_strtoul(buf, 10, &mode);
-	if (ret)
-		goto out;
-
-	ret = iwl_power_set_user_mode(priv, mode);
-	if (ret) {
-		IWL_DEBUG_MAC80211(priv, "failed setting power mode.\n");
-		goto out;
-	}
-	ret = count;
-
- out:
-	mutex_unlock(&priv->mutex);
-	return ret;
-}
-
-static ssize_t show_power_level(struct device *d,
-				struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	int level = priv->power_data.power_mode;
-	char *p = buf;
-
-	p += sprintf(p, "%d\n", level);
-	return p - buf + 1;
-}
-
-static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR,
-		   show_power_level, store_power_level);
-
-#define MAX_WX_STRING 80
-
-/* Values are in microsecond */
-static const s32 timeout_duration[] = {
-	350000,
-	250000,
-	75000,
-	37000,
-	25000,
-};
-static const s32 period_duration[] = {
-	400000,
-	700000,
-	1000000,
-	1000000,
-	1000000
-};
-
 static ssize_t show_channels(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
@@ -3784,7 +3730,6 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	&dev_attr_measurement.attr,
 #endif
-	&dev_attr_power_level.attr,
 	&dev_attr_retry_rate.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_status.attr,
@@ -3849,8 +3794,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->qos_data.qos_cap.val = 0;
 
 	priv->rates_mask = IWL_RATES_MASK;
-	/* If power management is turned on, default to CAM mode */
-	priv->power_mode = IWL_POWER_MODE_CAM;
 	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
@@ -3897,7 +3840,9 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM |
-		    IEEE80211_HW_SPECTRUM_MGMT;
+		    IEEE80211_HW_SPECTRUM_MGMT |
+		    IEEE80211_HW_SUPPORTS_PS |
+		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
@@ -3975,6 +3920,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 #ifdef CONFIG_IWLWIFI_DEBUG
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
+	if (iwl_alloc_traffic_mem(priv))
+		IWL_ERR(priv, "Not enough memory to generate traffic log\n");
 
 	/***************************
 	 * 2. Initializing PCI bus
@@ -4137,6 +4084,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	pci_disable_device(pdev);
  out_ieee80211_free_hw:
 	ieee80211_free_hw(priv->hw);
+	iwl_free_traffic_mem(priv);
  out:
 	return err;
 }
@@ -4192,6 +4140,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	 * until now... */
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
+	iwl_free_traffic_mem(priv);
 
 	free_irq(pdev->irq, priv);
 	pci_disable_msi(pdev);

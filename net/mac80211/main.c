@@ -765,9 +765,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
 	}
 
-	local->int_scan_req.n_channels = channels;
-	local->int_scan_req.channels = kzalloc(sizeof(void *) * channels, GFP_KERNEL);
-	if (!local->int_scan_req.channels)
+	local->int_scan_req = kzalloc(sizeof(*local->int_scan_req) +
+				      sizeof(void *) * channels, GFP_KERNEL);
+	if (!local->int_scan_req)
 		return -ENOMEM;
 
 	/* if low-level driver supports AP, we also support VLAN */
@@ -882,13 +882,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	/* alloc internal scan request */
 	i = 0;
-	local->int_scan_req.ssids = &local->scan_ssid;
-	local->int_scan_req.n_ssids = 1;
+	local->int_scan_req->ssids = &local->scan_ssid;
+	local->int_scan_req->n_ssids = 1;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (!hw->wiphy->bands[band])
 			continue;
 		for (j = 0; j < hw->wiphy->bands[band]->n_channels; j++) {
-			local->int_scan_req.channels[i] =
+			local->int_scan_req->channels[i] =
 				&hw->wiphy->bands[band]->channels[j];
 			i++;
 		}
@@ -920,7 +920,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  fail_workqueue:
 	wiphy_unregister(local->hw.wiphy);
  fail_wiphy_register:
-	kfree(local->int_scan_req.channels);
+	kfree(local->int_scan_req->channels);
 	return result;
 }
 EXPORT_SYMBOL(ieee80211_register_hw);
@@ -962,7 +962,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	wiphy_unregister(local->hw.wiphy);
 	ieee80211_wep_free(local);
 	ieee80211_led_exit(local);
-	kfree(local->int_scan_req.channels);
+	kfree(local->int_scan_req);
 }
 EXPORT_SYMBOL(ieee80211_unregister_hw);
 

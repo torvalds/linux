@@ -642,7 +642,7 @@ int orinoco_hw_get_tkip_iv(struct orinoco_private *priv, int key, u8 *tsc)
 {
 	hermes_t *hw = &priv->hw;
 	int err = 0;
-	u8 tsc_arr[4][IW_ENCODE_SEQ_MAX_SIZE];
+	u8 tsc_arr[4][ORINOCO_SEQ_LEN];
 
 	if ((key < 0) || (key > 4))
 		return -EINVAL;
@@ -768,12 +768,29 @@ int __orinoco_hw_setup_wepkeys(struct orinoco_private *priv)
 {
 	hermes_t *hw = &priv->hw;
 	int err = 0;
+	int i;
 
 	switch (priv->firmware_type) {
 	case FIRMWARE_TYPE_AGERE:
+	{
+		struct orinoco_key keys[ORINOCO_MAX_KEYS];
+
+		memset(&keys, 0, sizeof(keys));
+		for (i = 0; i < ORINOCO_MAX_KEYS; i++) {
+			int len = min(priv->keys[i].key_len,
+				      ORINOCO_MAX_KEY_SIZE);
+			memcpy(&keys[i].data, priv->keys[i].key, len);
+			if (len > SMALL_KEY_SIZE)
+				keys[i].len = cpu_to_le16(LARGE_KEY_SIZE);
+			else if (len > 0)
+				keys[i].len = cpu_to_le16(SMALL_KEY_SIZE);
+			else
+				keys[i].len = cpu_to_le16(0);
+		}
+
 		err = HERMES_WRITE_RECORD(hw, USER_BAP,
 					  HERMES_RID_CNFWEPKEYS_AGERE,
-					  &priv->keys);
+					  &keys);
 		if (err)
 			return err;
 		err = hermes_write_wordrec(hw, USER_BAP,
@@ -782,28 +799,38 @@ int __orinoco_hw_setup_wepkeys(struct orinoco_private *priv)
 		if (err)
 			return err;
 		break;
+	}
 	case FIRMWARE_TYPE_INTERSIL:
 	case FIRMWARE_TYPE_SYMBOL:
 		{
 			int keylen;
-			int i;
 
 			/* Force uniform key length to work around
 			 * firmware bugs */
-			keylen = le16_to_cpu(priv->keys[priv->tx_key].len);
+			keylen = priv->keys[priv->tx_key].key_len;
 
 			if (keylen > LARGE_KEY_SIZE) {
 				printk(KERN_ERR "%s: BUG: Key %d has oversize length %d.\n",
 				       priv->ndev->name, priv->tx_key, keylen);
 				return -E2BIG;
-			}
+			} else if (keylen > SMALL_KEY_SIZE)
+				keylen = LARGE_KEY_SIZE;
+			else if (keylen > 0)
+				keylen = SMALL_KEY_SIZE;
+			else
+				keylen = 0;
 
 			/* Write all 4 keys */
 			for (i = 0; i < ORINOCO_MAX_KEYS; i++) {
+				u8 key[LARGE_KEY_SIZE] = { 0 };
+
+				memcpy(key, priv->keys[i].key,
+				       priv->keys[i].key_len);
+
 				err = hermes_write_ltv(hw, USER_BAP,
 						HERMES_RID_CNFDEFAULTKEY0 + i,
 						HERMES_BYTES_TO_RECLEN(keylen),
-						priv->keys[i].data);
+						key);
 				if (err)
 					return err;
 			}
@@ -829,8 +856,8 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
 	int auth_flag;
 	int enc_flag;
 
-	/* Setup WEP keys for WEP and WPA */
-	if (priv->encode_alg)
+	/* Setup WEP keys */
+	if (priv->encode_alg == ORINOCO_ALG_WEP)
 		__orinoco_hw_setup_wepkeys(priv);
 
 	if (priv->wep_restrict)
@@ -840,14 +867,14 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
 
 	if (priv->wpa_enabled)
 		enc_flag = 2;
-	else if (priv->encode_alg == IW_ENCODE_ALG_WEP)
+	else if (priv->encode_alg == ORINOCO_ALG_WEP)
 		enc_flag = 1;
 	else
 		enc_flag = 0;
 
 	switch (priv->firmware_type) {
 	case FIRMWARE_TYPE_AGERE: /* Agere style WEP */
-		if (priv->encode_alg == IW_ENCODE_ALG_WEP) {
+		if (priv->encode_alg == ORINOCO_ALG_WEP) {
 			/* Enable the shared-key authentication. */
 			err = hermes_write_wordrec(hw, USER_BAP,
 					HERMES_RID_CNFAUTHENTICATION_AGERE,
@@ -872,7 +899,7 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
 
 	case FIRMWARE_TYPE_INTERSIL: /* Intersil style WEP */
 	case FIRMWARE_TYPE_SYMBOL: /* Symbol style WEP */
-		if (priv->encode_alg == IW_ENCODE_ALG_WEP) {
+		if (priv->encode_alg == ORINOCO_ALG_WEP) {
 			if (priv->wep_restrict ||
 			    (priv->firmware_type == FIRMWARE_TYPE_SYMBOL))
 				master_wep_flag = HERMES_WEP_PRIVACY_INVOKED |
@@ -905,19 +932,20 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
 }
 
 /* key must be 32 bytes, including the tx and rx MIC keys.
- * rsc must be 8 bytes
- * tsc must be 8 bytes or NULL
+ * rsc must be NULL or up to 8 bytes
+ * tsc must be NULL or up to 8 bytes
  */
 int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
-			      int set_tx, u8 *key, u8 *rsc, u8 *tsc)
+			      int set_tx, u8 *key, u8 *rsc, size_t rsc_len,
+			      u8 *tsc, size_t tsc_len)
 {
 	struct {
 		__le16 idx;
-		u8 rsc[IW_ENCODE_SEQ_MAX_SIZE];
+		u8 rsc[ORINOCO_SEQ_LEN];
 		u8 key[TKIP_KEYLEN];
 		u8 tx_mic[MIC_KEYLEN];
 		u8 rx_mic[MIC_KEYLEN];
-		u8 tsc[IW_ENCODE_SEQ_MAX_SIZE];
+		u8 tsc[ORINOCO_SEQ_LEN];
 	} __attribute__ ((packed)) buf;
 	hermes_t *hw = &priv->hw;
 	int ret;
@@ -934,17 +962,22 @@ int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
 	memcpy(buf.key, key,
 	       sizeof(buf.key) + sizeof(buf.tx_mic) + sizeof(buf.rx_mic));
 
-	if (rsc == NULL)
-		memset(buf.rsc, 0, sizeof(buf.rsc));
-	else
-		memcpy(buf.rsc, rsc, sizeof(buf.rsc));
+	if (rsc_len > sizeof(buf.rsc))
+		rsc_len = sizeof(buf.rsc);
 
-	if (tsc == NULL) {
-		memset(buf.tsc, 0, sizeof(buf.tsc));
+	if (tsc_len > sizeof(buf.tsc))
+		tsc_len = sizeof(buf.tsc);
+
+	memset(buf.rsc, 0, sizeof(buf.rsc));
+	memset(buf.tsc, 0, sizeof(buf.tsc));
+
+	if (rsc != NULL)
+		memcpy(buf.rsc, rsc, rsc_len);
+
+	if (tsc != NULL)
+		memcpy(buf.tsc, tsc, tsc_len);
+	else
 		buf.tsc[4] = 0x10;
-	} else {
-		memcpy(buf.tsc, tsc, sizeof(buf.tsc));
-	}
 
 	/* Wait upto 100ms for tx queue to empty */
 	for (k = 100; k > 0; k--) {
@@ -970,7 +1003,6 @@ int orinoco_clear_tkip_key(struct orinoco_private *priv, int key_idx)
 	hermes_t *hw = &priv->hw;
 	int err;
 
-	memset(&priv->tkip_key[key_idx], 0, sizeof(priv->tkip_key[key_idx]));
 	err = hermes_write_wordrec(hw, USER_BAP,
 				   HERMES_RID_CNFREMDEFAULTTKIPKEY_AGERE,
 				   key_idx);
@@ -1239,6 +1271,42 @@ int orinoco_hw_trigger_scan(struct orinoco_private *priv,
 
  out:
 	orinoco_unlock(priv, &flags);
+
+	return err;
+}
+
+/* Disassociate from node with BSSID addr */
+int orinoco_hw_disassociate(struct orinoco_private *priv,
+			    u8 *addr, u16 reason_code)
+{
+	hermes_t *hw = &priv->hw;
+	int err;
+
+	struct {
+		u8 addr[ETH_ALEN];
+		__le16 reason_code;
+	} __attribute__ ((packed)) buf;
+
+	/* Currently only supported by WPA enabled Agere fw */
+	if (!priv->has_wpa)
+		return -EOPNOTSUPP;
+
+	memcpy(buf.addr, addr, ETH_ALEN);
+	buf.reason_code = cpu_to_le16(reason_code);
+	err = HERMES_WRITE_RECORD(hw, USER_BAP,
+				  HERMES_RID_CNFDISASSOCIATE,
+				  &buf);
+	return err;
+}
+
+int orinoco_hw_get_current_bssid(struct orinoco_private *priv,
+				 u8 *addr)
+{
+	hermes_t *hw = &priv->hw;
+	int err;
+
+	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CURRENTBSSID,
+			      ETH_ALEN, NULL, addr);
 
 	return err;
 }

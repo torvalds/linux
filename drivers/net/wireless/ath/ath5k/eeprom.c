@@ -167,6 +167,16 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 	ee->ee_rfkill_pin = (u8) AR5K_REG_MS(val, AR5K_EEPROM_RFKILL_GPIO_SEL);
 	ee->ee_rfkill_pol = val & AR5K_EEPROM_RFKILL_POLARITY ? true : false;
 
+	/* Check if PCIE_OFFSET points to PCIE_SERDES_SECTION
+	 * and enable serdes programming if needed.
+	 *
+	 * XXX: Serdes values seem to be fixed so
+	 * no need to read them here, we write them
+	 * during ath5k_hw_attach */
+	AR5K_EEPROM_READ(AR5K_EEPROM_PCIE_OFFSET, val);
+	ee->ee_serdes = (val == AR5K_EEPROM_PCIE_SERDES_SECTION) ?
+							true : false;
+
 	return 0;
 }
 

@@ -237,7 +237,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		int wlhdr_len;
 		size_t iv_len;
 
-		B43_WARN_ON(key_idx >= dev->max_nr_keys);
+		B43_WARN_ON(key_idx >= ARRAY_SIZE(dev->key));
 		key = &(dev->key[key_idx]);
 
 		if (unlikely(!key->keyconf)) {
@@ -578,7 +578,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		 * key index, but the ucode passed it slightly different.
 		 */
 		keyidx = b43_kidx_to_raw(dev, keyidx);
-		B43_WARN_ON(keyidx >= dev->max_nr_keys);
+		B43_WARN_ON(keyidx >= ARRAY_SIZE(dev->key));
 
 		if (dev->key[keyidx].algorithm != B43_SEC_ALGO_NONE) {
 			wlhdr_len = ieee80211_hdrlen(fctl);

@@ -21,9 +21,10 @@
  *
  */
 
-#include "reg.h"
+#include "wl1251_reg.h"
 #include "wl1251_ps.h"
-#include "wl1251_spi.h"
+#include "wl1251_cmd.h"
+#include "wl1251_io.h"
 
 #define WL1251_WAKEUP_TIMEOUT 2000
 
@@ -117,6 +118,13 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_cmd_ps_mode mode)
 	switch (mode) {
 	case STATION_POWER_SAVE_MODE:
 		wl1251_debug(DEBUG_PSM, "entering psm");
+
+		ret = wl1251_acx_wake_up_conditions(wl,
+						    WAKE_UP_EVENT_DTIM_BITMAP,
+						    wl->listen_int);
+		if (ret < 0)
+			return ret;
+
 		ret = wl1251_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
 			return ret;
@@ -131,6 +139,12 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_cmd_ps_mode mode)
 	default:
 		wl1251_debug(DEBUG_PSM, "leaving psm");
 		ret = wl1251_ps_set_elp(wl, false);
+		if (ret < 0)
+			return ret;
+
+		ret = wl1251_acx_wake_up_conditions(wl,
+						    WAKE_UP_EVENT_DTIM_BITMAP,
+						    wl->listen_int);
 		if (ret < 0)
 			return ret;
 

@@ -1327,7 +1327,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc)
 	 */
 	ath_read_cachesize(sc, &csz);
 	/* XXX assert csz is non-zero */
-	sc->cachelsz = csz << 2;	/* convert to bytes */
+	sc->common.cachelsz = csz << 2;	/* convert to bytes */
 
 	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
 	if (!ah) {
@@ -2140,6 +2140,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);
 	ath9k_hw_configpcipowersave(sc->sc_ah, 1);
+	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
 
 	sc->sc_flags |= SC_OP_INVALID;
 
@@ -2214,8 +2215,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	if ((conf->type == NL80211_IFTYPE_STATION) ||
 	    (conf->type == NL80211_IFTYPE_ADHOC) ||
 	    (conf->type == NL80211_IFTYPE_MESH_POINT)) {
-		if (ath9k_hw_phycounters(sc->sc_ah))
-			sc->imask |= ATH9K_INT_MIB;
+		sc->imask |= ATH9K_INT_MIB;
 		sc->imask |= ATH9K_INT_TSFOOR;
 	}
 
@@ -2380,6 +2380,7 @@ skip_chan_change:
 	(FIF_PROMISC_IN_BSS |			\
 	FIF_ALLMULTI |				\
 	FIF_CONTROL |				\
+	FIF_PSPOLL |				\
 	FIF_OTHER_BSS |				\
 	FIF_BCN_PRBRESP_PROMISC |		\
 	FIF_FCSFAIL)

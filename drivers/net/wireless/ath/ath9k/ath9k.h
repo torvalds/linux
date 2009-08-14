@@ -25,6 +25,7 @@
 #include "hw.h"
 #include "rc.h"
 #include "debug.h"
+#include "../ath.h"
 
 struct ath_node;
 
@@ -532,6 +533,8 @@ struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
 
+	struct ath_common common;
+
 	spinlock_t wiphy_lock; /* spinlock to protect ath_wiphy data */
 	struct ath_wiphy *pri_wiphy;
 	struct ath_wiphy **sec_wiphy; /* secondary wiphys (virtual radios); may
@@ -564,7 +567,6 @@ struct ath_softc {
 	u32 sc_flags; /* SC_OP_* */
 	u16 curtxpow;
 	u16 curaid;
-	u16 cachelsz;
 	u8 nbcnvifs;
 	u16 nvifs;
 	u8 tx_chainmask;

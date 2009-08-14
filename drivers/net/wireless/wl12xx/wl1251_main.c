@@ -26,26 +26,30 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/spi/spi.h>
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
-#include <linux/spi/wl12xx.h>
 
 #include "wl1251.h"
 #include "wl12xx_80211.h"
-#include "reg.h"
-#include "wl1251_ops.h"
-#include "wl1251_spi.h"
+#include "wl1251_reg.h"
+#include "wl1251_io.h"
+#include "wl1251_cmd.h"
 #include "wl1251_event.h"
 #include "wl1251_tx.h"
 #include "wl1251_rx.h"
 #include "wl1251_ps.h"
 #include "wl1251_init.h"
 #include "wl1251_debugfs.h"
+#include "wl1251_boot.h"
 
-static void wl1251_disable_interrupts(struct wl1251 *wl)
+void wl1251_enable_interrupts(struct wl1251 *wl)
 {
-	disable_irq(wl->irq);
+	wl->if_ops->enable_irq(wl);
+}
+
+void wl1251_disable_interrupts(struct wl1251 *wl)
+{
+	wl->if_ops->disable_irq(wl);
 }
 
 static void wl1251_power_off(struct wl1251 *wl)
@@ -58,25 +62,13 @@ static void wl1251_power_on(struct wl1251 *wl)
 	wl->set_power(true);
 }
 
-static irqreturn_t wl1251_irq(int irq, void *cookie)
-{
-	struct wl1251 *wl;
-
-	wl1251_debug(DEBUG_IRQ, "IRQ");
-
-	wl = cookie;
-
-	schedule_work(&wl->irq_work);
-
-	return IRQ_HANDLED;
-}
-
 static int wl1251_fetch_firmware(struct wl1251 *wl)
 {
 	const struct firmware *fw;
+	struct device *dev = wiphy_dev(wl->hw->wiphy);
 	int ret;
 
-	ret = request_firmware(&fw, wl->chip.fw_filename, &wl->spi->dev);
+	ret = request_firmware(&fw, WL1251_FW_NAME, dev);
 
 	if (ret < 0) {
 		wl1251_error("could not get firmware: %d", ret);
@@ -112,9 +104,10 @@ out:
 static int wl1251_fetch_nvs(struct wl1251 *wl)
 {
 	const struct firmware *fw;
+	struct device *dev = wiphy_dev(wl->hw->wiphy);
 	int ret;
 
-	ret = request_firmware(&fw, wl->chip.nvs_filename, &wl->spi->dev);
+	ret = request_firmware(&fw, WL1251_NVS_NAME, dev);
 
 	if (ret < 0) {
 		wl1251_error("could not get nvs file: %d", ret);
@@ -164,9 +157,8 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 	int ret = 0;
 
 	wl1251_power_on(wl);
-	msleep(wl->chip.power_on_sleep);
-	wl1251_spi_reset(wl);
-	wl1251_spi_init(wl);
+	msleep(WL1251_POWER_ON_SLEEP);
+	wl->if_ops->reset(wl);
 
 	/* We don't need a real memory partition here, because we only want
 	 * to use the registers at this point. */
@@ -182,22 +174,19 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 	/* whal_FwCtrl_BootSm() */
 
 	/* 0. read chip id from CHIP_ID */
-	wl->chip.id = wl1251_reg_read32(wl, CHIP_ID_B);
+	wl->chip_id = wl1251_reg_read32(wl, CHIP_ID_B);
 
 	/* 1. check if chip id is valid */
 
-	switch (wl->chip.id) {
+	switch (wl->chip_id) {
 	case CHIP_ID_1251_PG12:
 		wl1251_debug(DEBUG_BOOT, "chip id 0x%x (1251 PG12)",
-			     wl->chip.id);
-
-		wl1251_setup(wl);
-
+			     wl->chip_id);
 		break;
 	case CHIP_ID_1251_PG10:
 	case CHIP_ID_1251_PG11:
 	default:
-		wl1251_error("unsupported chip id: 0x%x", wl->chip.id);
+		wl1251_error("unsupported chip id: 0x%x", wl->chip_id);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -219,6 +208,135 @@ out:
 	return ret;
 }
 
+static void wl1251_irq_work(struct work_struct *work)
+{
+	u32 intr;
+	struct wl1251 *wl =
+		container_of(work, struct wl1251, irq_work);
+	int ret;
+
+	mutex_lock(&wl->mutex);
+
+	wl1251_debug(DEBUG_IRQ, "IRQ work");
+
+	if (wl->state == WL1251_STATE_OFF)
+		goto out;
+
+	ret = wl1251_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, WL1251_ACX_INTR_ALL);
+
+	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
+	wl1251_debug(DEBUG_IRQ, "intr: 0x%x", intr);
+
+	if (wl->data_path) {
+		wl->rx_counter =
+			wl1251_mem_read32(wl, wl->data_path->rx_control_addr);
+
+		/* We handle a frmware bug here */
+		switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
+		case 0:
+			wl1251_debug(DEBUG_IRQ, "RX: FW and host in sync");
+			intr &= ~WL1251_ACX_INTR_RX0_DATA;
+			intr &= ~WL1251_ACX_INTR_RX1_DATA;
+			break;
+		case 1:
+			wl1251_debug(DEBUG_IRQ, "RX: FW +1");
+			intr |= WL1251_ACX_INTR_RX0_DATA;
+			intr &= ~WL1251_ACX_INTR_RX1_DATA;
+			break;
+		case 2:
+			wl1251_debug(DEBUG_IRQ, "RX: FW +2");
+			intr |= WL1251_ACX_INTR_RX0_DATA;
+			intr |= WL1251_ACX_INTR_RX1_DATA;
+			break;
+		default:
+			wl1251_warning("RX: FW and host out of sync: %d",
+				       wl->rx_counter - wl->rx_handled);
+			break;
+		}
+
+		wl->rx_handled = wl->rx_counter;
+
+
+		wl1251_debug(DEBUG_IRQ, "RX counter: %d", wl->rx_counter);
+	}
+
+	intr &= wl->intr_mask;
+
+	if (intr == 0) {
+		wl1251_debug(DEBUG_IRQ, "INTR is 0");
+		wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK,
+				   ~(wl->intr_mask));
+
+		goto out_sleep;
+	}
+
+	if (intr & WL1251_ACX_INTR_RX0_DATA) {
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX0_DATA");
+		wl1251_rx(wl);
+	}
+
+	if (intr & WL1251_ACX_INTR_RX1_DATA) {
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX1_DATA");
+		wl1251_rx(wl);
+	}
+
+	if (intr & WL1251_ACX_INTR_TX_RESULT) {
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
+		wl1251_tx_complete(wl);
+	}
+
+	if (intr & (WL1251_ACX_INTR_EVENT_A | WL1251_ACX_INTR_EVENT_B)) {
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)", intr);
+		if (intr & WL1251_ACX_INTR_EVENT_A)
+			wl1251_event_handle(wl, 0);
+		else
+			wl1251_event_handle(wl, 1);
+	}
+
+	if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_INIT_COMPLETE");
+
+	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
+
+out_sleep:
+	wl1251_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+}
+
+static int wl1251_join(struct wl1251 *wl, u8 bss_type, u8 channel,
+		       u16 beacon_interval, u8 dtim_period)
+{
+	int ret;
+
+	ret = wl1251_acx_frame_rates(wl, DEFAULT_HW_GEN_TX_RATE,
+				     DEFAULT_HW_GEN_MODULATION_TYPE,
+				     wl->tx_mgmt_frm_rate,
+				     wl->tx_mgmt_frm_mod);
+	if (ret < 0)
+		goto out;
+
+
+	ret = wl1251_cmd_join(wl, bss_type, channel, beacon_interval,
+			      dtim_period);
+	if (ret < 0)
+		goto out;
+
+	/*
+	 * FIXME: we should wait for JOIN_EVENT_COMPLETE_ID but to simplify
+	 * locking we just sleep instead, for now
+	 */
+	msleep(10);
+
+out:
+	return ret;
+}
+
 static void wl1251_filter_work(struct work_struct *work)
 {
 	struct wl1251 *wl =
@@ -234,8 +352,8 @@ static void wl1251_filter_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	/* FIXME: replace the magic numbers with proper definitions */
-	ret = wl->chip.op_cmd_join(wl, wl->bss_type, 1, 100, 0);
+	ret = wl1251_join(wl, wl->bss_type, wl->channel, wl->beacon_int,
+			  wl->dtim_period);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -257,7 +375,7 @@ static int wl1251_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * before that, the tx_work will not be initialized!
 	 */
 
-	schedule_work(&wl->tx_work);
+	ieee80211_queue_work(wl->hw, &wl->tx_work);
 
 	/*
 	 * The workqueue is slow to process the tx_queue and we need stop
@@ -297,11 +415,11 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 	if (ret < 0)
 		goto out;
 
-	ret = wl->chip.op_boot(wl);
+	ret = wl1251_boot(wl);
 	if (ret < 0)
 		goto out;
 
-	ret = wl->chip.op_hw_init(wl);
+	ret = wl1251_hw_init(wl);
 	if (ret < 0)
 		goto out;
 
@@ -311,7 +429,7 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 
 	wl->state = WL1251_STATE_ON;
 
-	wl1251_info("firmware booted (%s)", wl->chip.fw_ver);
+	wl1251_info("firmware booted (%s)", wl->fw_ver);
 
 out:
 	if (ret < 0)
@@ -354,7 +472,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	mutex_lock(&wl->mutex);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
-	wl->chip.op_tx_flush(wl);
+	wl1251_tx_flush(wl);
 	wl1251_power_off(wl);
 
 	memset(wl->bssid, 0, ETH_ALEN);
@@ -371,6 +489,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl->psm = 0;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
+	wl->channel = WL1251_DEFAULT_CHANNEL;
 
 	wl1251_debugfs_reset(wl);
 
@@ -474,12 +593,12 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out;
 
 	if (channel != wl->channel) {
-		/* FIXME: use beacon interval provided by mac80211 */
-		ret = wl->chip.op_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		wl->channel = channel;
+
+		ret = wl1251_join(wl, wl->bss_type, wl->channel,
+				  wl->beacon_int, wl->dtim_period);
 		if (ret < 0)
 			goto out_sleep;
-
-		wl->channel = channel;
 	}
 
 	ret = wl1251_build_null_data(wl);
@@ -877,7 +996,7 @@ static int wl1251_hw_scan(struct wl1251 *wl, u8 *ssid, size_t len,
 	if (ret < 0)
 		wl1251_error("SCAN failed");
 
-	wl1251_spi_mem_read(wl, wl->cmd_box_addr, params, sizeof(*params));
+	wl1251_mem_read(wl, wl->cmd_box_addr, params, sizeof(*params));
 
 	if (params->header.status != CMD_STATUS_SUCCESS) {
 		wl1251_error("TEST command answer error: %d",
@@ -967,6 +1086,11 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
+			wl->beacon_int = bss_conf->beacon_int;
+			wl->dtim_period = bss_conf->dtim_period;
+
+			/* FIXME: call join */
+
 			wl->aid = bss_conf->aid;
 
 			ret = wl1251_build_ps_poll(wl, wl->aid);
@@ -984,6 +1108,10 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 				if (ret < 0)
 					goto out_sleep;
 			}
+		} else {
+			/* use defaults when not associated */
+			wl->beacon_int = WL1251_DEFAULT_BEACON_INT;
+			wl->dtim_period = WL1251_DEFAULT_DTIM_PERIOD;
 		}
 	}
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -1023,7 +1151,8 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out;
 
 		if (wl->bss_type != BSS_TYPE_IBSS) {
-			ret = wl1251_cmd_join(wl, wl->bss_type, 5, 100, 1);
+			ret = wl1251_join(wl, wl->bss_type, wl->channel,
+					  wl->beacon_int, wl->dtim_period);
 			if (ret < 0)
 				goto out_sleep;
 			wl1251_warning("Set ctsprotect failed %d", ret);
@@ -1049,7 +1178,8 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto out;
 
-		ret = wl->chip.op_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		ret = wl1251_join(wl, wl->bss_type, wl->beacon_int,
+				  wl->channel, wl->dtim_period);
 
 		if (ret < 0)
 			goto out;
@@ -1167,8 +1297,10 @@ static int wl1251_register_hw(struct wl1251 *wl)
 	return 0;
 }
 
-static int wl1251_init_ieee80211(struct wl1251 *wl)
+int wl1251_init_ieee80211(struct wl1251 *wl)
 {
+	int ret;
+
 	/* The tx descriptor buffer and the TKIP space */
 	wl->hw->extra_tx_headroom = sizeof(struct tx_double_buffer_desc)
 		+ WL1251_TKIP_IV_SPACE;
@@ -1184,38 +1316,37 @@ static int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->wiphy->max_scan_ssids = 1;
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1251_band_2ghz;
 
-	SET_IEEE80211_DEV(wl->hw, &wl->spi->dev);
+	ret = wl1251_register_hw(wl);
+	if (ret)
+		goto out;
 
-	return 0;
+	wl1251_debugfs_init(wl);
+	wl1251_notice("initialized");
+
+	ret = 0;
+
+out:
+	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1251_init_ieee80211);
 
-#define WL1251_DEFAULT_CHANNEL 1
-static int __devinit wl1251_probe(struct spi_device *spi)
+struct ieee80211_hw *wl1251_alloc_hw(void)
 {
-	struct wl12xx_platform_data *pdata;
 	struct ieee80211_hw *hw;
 	struct wl1251 *wl;
-	int ret, i;
+	int i;
 	static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
-
-	pdata = spi->dev.platform_data;
-	if (!pdata) {
-		wl1251_error("no platform data");
-		return -ENODEV;
-	}
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1251_ops);
 	if (!hw) {
 		wl1251_error("could not alloc ieee80211_hw");
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	wl = hw->priv;
 	memset(wl, 0, sizeof(*wl));
 
 	wl->hw = hw;
-	dev_set_drvdata(&spi->dev, wl);
-	wl->spi = spi;
 
 	wl->data_in_count = 0;
 
@@ -1237,15 +1368,16 @@ static int __devinit wl1251_probe(struct spi_device *spi)
 	wl->psm_requested = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
-
-	/* We use the default power on sleep time until we know which chip
-	 * we're using */
-	wl->chip.power_on_sleep = WL1251_DEFAULT_POWER_ON_SLEEP;
+	wl->beacon_int = WL1251_DEFAULT_BEACON_INT;
+	wl->dtim_period = WL1251_DEFAULT_DTIM_PERIOD;
 
 	for (i = 0; i < FW_TX_CMPLT_BLOCK_SIZE; i++)
 		wl->tx_frames[i] = NULL;
 
 	wl->next_tx_complete = 0;
+
+	INIT_WORK(&wl->irq_work, wl1251_irq_work);
+	INIT_WORK(&wl->tx_work, wl1251_tx_work);
 
 	/*
 	 * In case our MAC address is not correctly set,
@@ -1263,79 +1395,20 @@ static int __devinit wl1251_probe(struct spi_device *spi)
 	wl->rx_descriptor = kmalloc(sizeof(*wl->rx_descriptor), GFP_KERNEL);
 	if (!wl->rx_descriptor) {
 		wl1251_error("could not allocate memory for rx descriptor");
-		ret = -ENOMEM;
-		goto out_free;
+		ieee80211_free_hw(hw);
+		return ERR_PTR(-ENOMEM);
 	}
 
-	/* This is the only SPI value that we need to set here, the rest
-	 * comes from the board-peripherals file */
-	spi->bits_per_word = 32;
-
-	ret = spi_setup(spi);
-	if (ret < 0) {
-		wl1251_error("spi_setup failed");
-		goto out_free;
-	}
-
-	wl->set_power = pdata->set_power;
-	if (!wl->set_power) {
-		wl1251_error("set power function missing in platform data");
-		ret = -ENODEV;
-		goto out_free;
-	}
-
-	wl->irq = spi->irq;
-	if (wl->irq < 0) {
-		wl1251_error("irq missing in platform data");
-		ret = -ENODEV;
-		goto out_free;
-	}
-
-	ret = request_irq(wl->irq, wl1251_irq, 0, DRIVER_NAME, wl);
-	if (ret < 0) {
-		wl1251_error("request_irq() failed: %d", ret);
-		goto out_free;
-	}
-
-	set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
-
-	disable_irq(wl->irq);
-
-	ret = wl1251_init_ieee80211(wl);
-	if (ret)
-		goto out_irq;
-
-	ret = wl1251_register_hw(wl);
-	if (ret)
-		goto out_irq;
-
-	wl1251_debugfs_init(wl);
-
-	wl1251_notice("initialized");
-
-	return 0;
-
- out_irq:
-	free_irq(wl->irq, wl);
-
- out_free:
-	kfree(wl->rx_descriptor);
-	wl->rx_descriptor = NULL;
-
-	ieee80211_free_hw(hw);
-
-	return ret;
+	return hw;
 }
+EXPORT_SYMBOL_GPL(wl1251_alloc_hw);
 
-static int __devexit wl1251_remove(struct spi_device *spi)
+int wl1251_free_hw(struct wl1251 *wl)
 {
-	struct wl1251 *wl = dev_get_drvdata(&spi->dev);
-
 	ieee80211_unregister_hw(wl->hw);
 
 	wl1251_debugfs_exit(wl);
 
-	free_irq(wl->irq, wl);
 	kfree(wl->target_mem_map);
 	kfree(wl->data_path);
 	kfree(wl->fw);
@@ -1350,44 +1423,8 @@ static int __devexit wl1251_remove(struct spi_device *spi)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1251_free_hw);
 
-
-static struct spi_driver wl1251_spi_driver = {
-	.driver = {
-		/* FIXME: use wl12xx name to not break the user space */
-		.name		= "wl12xx",
-		.bus		= &spi_bus_type,
-		.owner		= THIS_MODULE,
-	},
-
-	.probe		= wl1251_probe,
-	.remove		= __devexit_p(wl1251_remove),
-};
-
-static int __init wl1251_init(void)
-{
-	int ret;
-
-	ret = spi_register_driver(&wl1251_spi_driver);
-	if (ret < 0) {
-		wl1251_error("failed to register spi driver: %d", ret);
-		goto out;
-	}
-
-out:
-	return ret;
-}
-
-static void __exit wl1251_exit(void)
-{
-	spi_unregister_driver(&wl1251_spi_driver);
-
-	wl1251_notice("unloaded");
-}
-
-module_init(wl1251_init);
-module_exit(wl1251_exit);
-
+MODULE_DESCRIPTION("TI wl1251 Wireles LAN Driver Core");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kalle Valo <Kalle.Valo@nokia.com>, "
-		"Luciano Coelho <luciano.coelho@nokia.com>");
+MODULE_AUTHOR("Kalle Valo <kalle.valo@nokia.com>");

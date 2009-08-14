@@ -341,12 +341,14 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
+	struct orinoco_tkip_key *key;
 	hermes_t *hw = &priv->hw;
 	int err = 0;
 	u16 txfid = priv->txfid;
 	struct ethhdr *eh;
 	int tx_control;
 	unsigned long flags;
+	int do_mic;
 
 	if (!netif_running(dev)) {
 		printk(KERN_ERR "%s: Tx on stopped device!\n",
@@ -378,9 +380,14 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len < ETH_HLEN)
 		goto drop;
 
+	key = (struct orinoco_tkip_key *) priv->keys[priv->tx_key].key;
+
+	do_mic = ((priv->encode_alg == ORINOCO_ALG_TKIP) &&
+		  (key != NULL));
+
 	tx_control = HERMES_TXCTRL_TX_OK | HERMES_TXCTRL_TX_EX;
 
-	if (priv->encode_alg == IW_ENCODE_ALG_TKIP)
+	if (do_mic)
 		tx_control |= (priv->tx_key << HERMES_MIC_KEY_ID_SHIFT) |
 			HERMES_TXCTRL_MIC;
 
@@ -462,7 +469,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Calculate Michael MIC */
-	if (priv->encode_alg == IW_ENCODE_ALG_TKIP) {
+	if (do_mic) {
 		u8 mic_buf[MICHAEL_MIC_LEN + 1];
 		u8 *mic;
 		size_t offset;
@@ -480,8 +487,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 			len = MICHAEL_MIC_LEN;
 		}
 
-		orinoco_mic(priv->tx_tfm_mic,
-			    priv->tkip_key[priv->tx_key].tx_mic,
+		orinoco_mic(priv->tx_tfm_mic, key->tx_mic,
 			    eh->h_dest, eh->h_source, 0 /* priority */,
 			    skb->data + ETH_HLEN, skb->len - ETH_HLEN, mic);
 
@@ -926,6 +932,7 @@ static void orinoco_rx(struct net_device *dev,
 
 	/* Calculate and check MIC */
 	if (status & HERMES_RXSTAT_MIC) {
+		struct orinoco_tkip_key *key;
 		int key_id = ((status & HERMES_RXSTAT_MIC_KEY_ID) >>
 			      HERMES_MIC_KEY_ID_SHIFT);
 		u8 mic[MICHAEL_MIC_LEN];
@@ -939,14 +946,18 @@ static void orinoco_rx(struct net_device *dev,
 		skb_trim(skb, skb->len - MICHAEL_MIC_LEN);
 		length -= MICHAEL_MIC_LEN;
 
-		orinoco_mic(priv->rx_tfm_mic,
-			    priv->tkip_key[key_id].rx_mic,
-			    desc->addr1,
-			    src,
+		key = (struct orinoco_tkip_key *) priv->keys[key_id].key;
+
+		if (!key) {
+			printk(KERN_WARNING "%s: Received encrypted frame from "
+			       "%pM using key %i, but key is not installed\n",
+			       dev->name, src, key_id);
+			goto drop;
+		}
+
+		orinoco_mic(priv->rx_tfm_mic, key->rx_mic, desc->addr1, src,
 			    0, /* priority or QoS? */
-			    skb->data,
-			    skb->len,
-			    &mic[0]);
+			    skb->data, skb->len, &mic[0]);
 
 		if (memcmp(mic, rxmic,
 			   MICHAEL_MIC_LEN)) {
@@ -2040,7 +2051,7 @@ int orinoco_init(struct orinoco_private *priv)
 	priv->channel = 0; /* use firmware default */
 
 	priv->promiscuous = 0;
-	priv->encode_alg = IW_ENCODE_ALG_NONE;
+	priv->encode_alg = ORINOCO_ALG_NONE;
 	priv->tx_key = 0;
 	priv->wpa_enabled = 0;
 	priv->tkip_cm_active = 0;

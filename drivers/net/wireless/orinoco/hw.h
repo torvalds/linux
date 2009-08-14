@@ -38,7 +38,8 @@ int __orinoco_hw_set_wap(struct orinoco_private *priv);
 int __orinoco_hw_setup_wepkeys(struct orinoco_private *priv);
 int __orinoco_hw_setup_enc(struct orinoco_private *priv);
 int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
-			      int set_tx, u8 *key, u8 *rsc, u8 *tsc);
+			      int set_tx, u8 *key, u8 *rsc, size_t rsc_len,
+			      u8 *tsc, size_t tsc_len);
 int orinoco_clear_tkip_key(struct orinoco_private *priv, int key_idx);
 int __orinoco_hw_set_multicast_list(struct orinoco_private *priv,
 				    struct dev_addr_list *mc_list,
@@ -50,5 +51,9 @@ int orinoco_hw_get_bitratelist(struct orinoco_private *priv,
 			       int *numrates, s32 *rates, int max);
 int orinoco_hw_trigger_scan(struct orinoco_private *priv,
 			    const struct cfg80211_ssid *ssid);
+int orinoco_hw_disassociate(struct orinoco_private *priv,
+			    u8 *addr, u16 reason_code);
+int orinoco_hw_get_current_bssid(struct orinoco_private *priv,
+				 u8 *addr);
 
 #endif /* _ORINOCO_HW_H_ */

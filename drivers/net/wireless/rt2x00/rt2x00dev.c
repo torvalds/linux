@@ -186,7 +186,6 @@ static void rt2x00lib_intf_scheduled(struct work_struct *work)
 static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 				      struct ieee80211_vif *vif)
 {
-	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 
 	if (vif->type != NL80211_IFTYPE_AP &&
@@ -194,12 +193,6 @@ static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 	    vif->type != NL80211_IFTYPE_MESH_POINT &&
 	    vif->type != NL80211_IFTYPE_WDS)
 		return;
-
-	/*
-	 * Clean up the beacon skb.
-	 */
-	rt2x00queue_free_skb(rt2x00dev, intf->beacon->skb);
-	intf->beacon->skb = NULL;
 
 	spin_lock(&intf->lock);
 	intf->delayed_flags |= DELAYED_UPDATE_BEACON;
@@ -784,6 +777,13 @@ int rt2x00lib_start(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->intf_ap_count = 0;
 	rt2x00dev->intf_sta_count = 0;
 	rt2x00dev->intf_associated = 0;
+
+	/* Enable the radio */
+	retval = rt2x00lib_enable_radio(rt2x00dev);
+	if (retval) {
+		rt2x00queue_uninitialize(rt2x00dev);
+		return retval;
+	}
 
 	set_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags);
 

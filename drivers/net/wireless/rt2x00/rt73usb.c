@@ -493,7 +493,7 @@ static void rt73usb_config_filter(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_PHYSICAL,
 			   !(filter_flags & FIF_PLCPFAIL));
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CONTROL,
-			   !(filter_flags & FIF_CONTROL));
+			   !(filter_flags & (FIF_CONTROL | FIF_PSPOLL)));
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_NOT_TO_ME,
 			   !(filter_flags & FIF_PROMISC_IN_BSS));
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_TO_DS,
@@ -1527,8 +1527,6 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 	 * otherwise we might be sending out invalid data.
 	 */
 	rt2x00usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
 	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
 	rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 
@@ -2142,6 +2140,12 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	retval = rt73usb_probe_hw_mode(rt2x00dev);
 	if (retval)
 		return retval;
+
+	/*
+	 * This device has multiple filters for control frames,
+	 * but has no a separate filter for PS Poll frames.
+	 */
+	__set_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags);
 
 	/*
 	 * This device requires firmware.

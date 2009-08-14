@@ -502,14 +502,14 @@ static void _iwl3945_dbg_report_frame(struct iwl_priv *priv,
 		}
 	}
 	if (print_dump)
-		iwl_print_hex_dump(IWL_DL_RX, data, length);
+		iwl_print_hex_dump(priv, IWL_DL_RX, data, length);
 }
 
 static void iwl3945_dbg_report_frame(struct iwl_priv *priv,
 		      struct iwl_rx_packet *pkt,
 		      struct ieee80211_hdr *header, int group100)
 {
-	if (iwl_debug_level & IWL_DL_RX)
+	if (iwl_get_debug_level(priv) & IWL_DL_RX)
 		_iwl3945_dbg_report_frame(priv, pkt, header, group100);
 }
 
@@ -544,9 +544,7 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 				   struct ieee80211_rx_status *stats)
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-#ifdef CONFIG_IWLWIFI_LEDS
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)IWL_RX_DATA(pkt);
-#endif
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
 	short len = le16_to_cpu(rx_hdr->len);
@@ -577,6 +575,8 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 	if (ieee80211_is_data(hdr->frame_control))
 		priv->rxtxpackets += len;
 #endif
+	iwl_update_stats(priv, false, hdr->frame_control, len);
+
 	memcpy(IEEE80211_SKB_RXCB(rxb->skb), stats, sizeof(*stats));
 	ieee80211_rx_irqsafe(priv->hw, rxb->skb);
 	rxb->skb = NULL;
@@ -679,6 +679,7 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 
 	/* Set "1" to report good data frames in groups of 100 */
 	iwl3945_dbg_report_frame(priv, pkt, header, 1);
+	iwl_dbg_log_rx_data_frame(priv, le16_to_cpu(rx_hdr->len), header);
 
 	if (network_packet) {
 		priv->last_beacon_time = le32_to_cpu(rx_end->beacon_timestamp);
@@ -2851,8 +2852,8 @@ static struct iwl_lib_ops iwl3945_lib = {
 			EEPROM_REGULATORY_BAND_3_CHANNELS,
 			EEPROM_REGULATORY_BAND_4_CHANNELS,
 			EEPROM_REGULATORY_BAND_5_CHANNELS,
-			EEPROM_REGULATORY_BAND_NO_FAT,
-			EEPROM_REGULATORY_BAND_NO_FAT,
+			EEPROM_REGULATORY_BAND_NO_HT40,
+			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwl3945_eeprom_acquire_semaphore,

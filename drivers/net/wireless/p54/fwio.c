@@ -320,7 +320,7 @@ int p54_setup_mac(struct p54_common *priv)
 		return -ENOMEM;
 
 	setup = (struct p54_setup_mac *) skb_put(skb, sizeof(*setup));
-	if (priv->hw->conf.radio_enabled) {
+	if (!(priv->hw->conf.flags & IEEE80211_CONF_IDLE)) {
 		switch (priv->mode) {
 		case NL80211_IFTYPE_STATION:
 			mode = P54_FILTER_TYPE_STATION;
@@ -348,8 +348,9 @@ int p54_setup_mac(struct p54_common *priv)
 		     (priv->filter_flags & FIF_OTHER_BSS)) &&
 		    (mode != P54_FILTER_TYPE_PROMISCUOUS))
 			mode |= P54_FILTER_TYPE_TRANSPARENT;
-	} else
+	} else {
 		mode = P54_FILTER_TYPE_HIBERNATE;
+	}
 
 	setup->mac_mode = cpu_to_le16(mode);
 	memcpy(setup->mac_addr, priv->mac_addr, ETH_ALEN);

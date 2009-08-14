@@ -88,10 +88,10 @@ struct iwl_priv;
  * requirement for establishing a new network for legal operation on channels
  * requiring RADAR detection or restricting ACTIVE scanning.
  *
- * NOTE:  "WIDE" flag does not indicate anything about "FAT" 40 MHz channels.
- *        It only indicates that 20 MHz channel use is supported; FAT channel
+ * NOTE:  "WIDE" flag does not indicate anything about "HT40" 40 MHz channels.
+ *        It only indicates that 20 MHz channel use is supported; HT40 channel
  *        usage is indicated by a separate set of regulatory flags for each
- *        FAT channel pair.
+ *        HT40 channel pair.
  *
  * NOTE:  Using a channel inappropriately will result in a uCode error!
  */
@@ -112,7 +112,7 @@ enum {
 #define EEPROM_SKU_CAP_HW_RF_KILL_ENABLE                (1 << 1)
 
 /* *regulatory* channel data format in eeprom, one for each channel.
- * There are separate entries for FAT (40 MHz) vs. normal (20 MHz) channels. */
+ * There are separate entries for HT40 (40 MHz) vs. normal (20 MHz) channels. */
 struct iwl_eeprom_channel {
 	u8 flags;		/* EEPROM_CHANNEL_* flags copied from EEPROM */
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
@@ -170,9 +170,9 @@ struct iwl_eeprom_channel {
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22 bytes */
 #define EEPROM_5000_REG_BAND_5_CHANNELS       ((0x74)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 12 bytes */
-#define EEPROM_5000_REG_BAND_24_FAT_CHANNELS  ((0x82)\
+#define EEPROM_5000_REG_BAND_24_HT40_CHANNELS  ((0x82)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
-#define EEPROM_5000_REG_BAND_52_FAT_CHANNELS  ((0x92)\
+#define EEPROM_5000_REG_BAND_52_HT40_CHANNELS  ((0x92)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22  bytes */
 
 /* 5050 Specific */
@@ -313,7 +313,7 @@ struct iwl_eeprom_calib_info {
  * in EEPROM containing EEPROM_CHANNEL_* usage flags (LSB) and max regulatory
  * txpower (MSB).
  *
- * Entries immediately below are for 20 MHz channel width.  FAT (40 MHz)
+ * Entries immediately below are for 20 MHz channel width.  HT40 (40 MHz)
  * channels (only for 4965, not supported by 3945) appear later in the EEPROM.
  *
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
@@ -352,29 +352,29 @@ struct iwl_eeprom_calib_info {
 #define EEPROM_REGULATORY_BAND_5_CHANNELS   (2*0x99)	/* 12 bytes */
 
 /*
- * 2.4 GHz FAT channels 1 (5), 2 (6), 3 (7), 4 (8), 5 (9), 6 (10), 7 (11)
+ * 2.4 GHz HT40 channels 1 (5), 2 (6), 3 (7), 4 (8), 5 (9), 6 (10), 7 (11)
  *
  * The channel listed is the center of the lower 20 MHz half of the channel.
  * The overall center frequency is actually 2 channels (10 MHz) above that,
- * and the upper half of each FAT channel is centered 4 channels (20 MHz) away
- * from the lower half; e.g. the upper half of FAT channel 1 is channel 5,
- * and the overall FAT channel width centers on channel 3.
+ * and the upper half of each HT40 channel is centered 4 channels (20 MHz) away
+ * from the lower half; e.g. the upper half of HT40 channel 1 is channel 5,
+ * and the overall HT40 channel width centers on channel 3.
  *
  * NOTE:  The RXON command uses 20 MHz channel numbers to specify the
  *        control channel to which to tune.  RXON also specifies whether the
- *        control channel is the upper or lower half of a FAT channel.
+ *        control channel is the upper or lower half of a HT40 channel.
  *
- * NOTE:  4965 does not support FAT channels on 2.4 GHz.
+ * NOTE:  4965 does not support HT40 channels on 2.4 GHz.
  */
-#define EEPROM_4965_REGULATORY_BAND_24_FAT_CHANNELS (2*0xA0)	/* 14 bytes */
+#define EEPROM_4965_REGULATORY_BAND_24_HT40_CHANNELS (2*0xA0)	/* 14 bytes */
 
 /*
- * 5.2 GHz FAT channels 36 (40), 44 (48), 52 (56), 60 (64),
+ * 5.2 GHz HT40 channels 36 (40), 44 (48), 52 (56), 60 (64),
  * 100 (104), 108 (112), 116 (120), 124 (128), 132 (136), 149 (153), 157 (161)
  */
-#define EEPROM_4965_REGULATORY_BAND_52_FAT_CHANNELS (2*0xA8)	/* 22 bytes */
+#define EEPROM_4965_REGULATORY_BAND_52_HT40_CHANNELS (2*0xA8)	/* 22 bytes */
 
-#define EEPROM_REGULATORY_BAND_NO_FAT			(0)
+#define EEPROM_REGULATORY_BAND_NO_HT40			(0)
 
 struct iwl_eeprom_ops {
 	const u32 regulatory_bands[7];

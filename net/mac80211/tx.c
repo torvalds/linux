@@ -317,30 +317,30 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 	if (!atomic_read(&tx->sdata->bss->num_sta_ps))
 		return TX_CONTINUE;
 
-	/* buffered in mac80211 */
-	if (tx->local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING) {
-		if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
-			purge_old_ps_buffers(tx->local);
-		if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >=
-		    AP_MAX_BC_BUFFER) {
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-			if (net_ratelimit()) {
-				printk(KERN_DEBUG "%s: BC TX buffer full - "
-				       "dropping the oldest frame\n",
-				       tx->dev->name);
-			}
-#endif
-			dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
-		} else
-			tx->local->total_ps_buffered++;
-		skb_queue_tail(&tx->sdata->bss->ps_bc_buf, tx->skb);
-		return TX_QUEUED;
+	/* buffered in hardware */
+	if (!(tx->local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING)) {
+		info->flags |= IEEE80211_TX_CTL_SEND_AFTER_DTIM;
+
+		return TX_CONTINUE;
 	}
 
-	/* buffered in hardware */
-	info->flags |= IEEE80211_TX_CTL_SEND_AFTER_DTIM;
+	/* buffered in mac80211 */
+	if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
+		purge_old_ps_buffers(tx->local);
 
-	return TX_CONTINUE;
+	if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >= AP_MAX_BC_BUFFER) {
+#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: BC TX buffer full - dropping the oldest frame\n",
+			       tx->dev->name);
+#endif
+		dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
+	} else
+		tx->local->total_ps_buffered++;
+
+	skb_queue_tail(&tx->sdata->bss->ps_bc_buf, tx->skb);
+
+	return TX_QUEUED;
 }
 
 static int ieee80211_use_mfp(__le16 fc, struct sta_info *sta,
@@ -700,7 +700,6 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 		/* for pure STA mode without beacons, we can do it */
 		hdr->seq_ctrl = cpu_to_le16(tx->sdata->sequence_number);
 		tx->sdata->sequence_number += 0x10;
-		tx->sdata->sequence_number &= IEEE80211_SCTL_SEQ;
 		return TX_CONTINUE;
 	}
 
@@ -844,6 +843,23 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 }
 
 static ieee80211_tx_result debug_noinline
+ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
+{
+	struct sk_buff *skb = tx->skb;
+
+	if (!tx->sta)
+		return TX_CONTINUE;
+
+	tx->sta->tx_packets++;
+	do {
+		tx->sta->tx_fragments++;
+		tx->sta->tx_bytes += skb->len;
+	} while ((skb = skb->next));
+
+	return TX_CONTINUE;
+}
+
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 {
 	if (!tx->key)
@@ -882,23 +898,6 @@ ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 
 		hdr->duration_id =
 			ieee80211_duration(tx, group_addr, next_len);
-	} while ((skb = skb->next));
-
-	return TX_CONTINUE;
-}
-
-static ieee80211_tx_result debug_noinline
-ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
-{
-	struct sk_buff *skb = tx->skb;
-
-	if (!tx->sta)
-		return TX_CONTINUE;
-
-	tx->sta->tx_packets++;
-	do {
-		tx->sta->tx_fragments++;
-		tx->sta->tx_bytes += skb->len;
 	} while ((skb = skb->next));
 
 	return TX_CONTINUE;
@@ -1154,6 +1153,9 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 		next = skb->next;
 		len = skb->len;
 
+		if (next)
+			info->flags |= IEEE80211_TX_CTL_MORE_FRAMES;
+
 		sdata = vif_to_sdata(info->control.vif);
 
 		switch (sdata->vif.type) {
@@ -1210,9 +1212,9 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	CALL_TXH(ieee80211_tx_h_sequence)
 	CALL_TXH(ieee80211_tx_h_fragment)
 	/* handlers after fragment must be aware of tx info fragmentation! */
+	CALL_TXH(ieee80211_tx_h_stats)
 	CALL_TXH(ieee80211_tx_h_encrypt)
 	CALL_TXH(ieee80211_tx_h_calculate_duration)
-	CALL_TXH(ieee80211_tx_h_stats)
 #undef CALL_TXH
 
  txh_done:
@@ -1410,16 +1412,7 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 
 	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
 
-	if (ieee80211_vif_is_mesh(&sdata->vif) &&
-	    ieee80211_is_data(hdr->frame_control)) {
-		if (is_multicast_ether_addr(hdr->addr3))
-			memcpy(hdr->addr1, hdr->addr3, ETH_ALEN);
-		else
-			if (mesh_nexthop_lookup(skb, sdata)) {
-				dev_put(sdata->dev);
-				return;
-			}
-	} else if (unlikely(sdata->vif.type == NL80211_IFTYPE_MONITOR)) {
+	if (unlikely(sdata->vif.type == NL80211_IFTYPE_MONITOR)) {
 		int hdrlen;
 		u16 len_rthdr;
 
@@ -1475,6 +1468,15 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 	}
 
 	info->control.vif = &sdata->vif;
+
+	if (ieee80211_vif_is_mesh(&sdata->vif) &&
+	    ieee80211_is_data(hdr->frame_control) &&
+		!is_multicast_ether_addr(hdr->addr1))
+			if (mesh_nexthop_lookup(skb, sdata)) {
+				/* skb queued: don't free */
+				dev_put(sdata->dev);
+				return;
+			}
 
 	ieee80211_select_queue(local, skb);
 	ieee80211_tx(sdata, skb, false);
@@ -1617,52 +1619,58 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
-		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 		if (!sdata->u.mesh.mshcfg.dot11MeshTTL) {
 			/* Do not send frames with mesh_ttl == 0 */
 			sdata->u.mesh.mshstats.dropped_frames_ttl++;
 			ret = NETDEV_TX_OK;
 			goto fail;
 		}
-		memset(&mesh_hdr, 0, sizeof(mesh_hdr));
 
 		if (compare_ether_addr(dev->dev_addr,
 					  skb->data + ETH_ALEN) == 0) {
-			/* RA TA DA SA */
-			memset(hdr.addr1, 0, ETH_ALEN);
-			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
-			memcpy(hdr.addr3, skb->data, ETH_ALEN);
-			memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
-			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr, sdata);
+			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
+					skb->data, skb->data + ETH_ALEN);
+			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
+					sdata, NULL, NULL, NULL);
 		} else {
 			/* packet from other interface */
 			struct mesh_path *mppath;
+			int is_mesh_mcast = 1;
+			char *mesh_da;
 
-			memset(hdr.addr1, 0, ETH_ALEN);
-			memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
-			memcpy(hdr.addr4, dev->dev_addr, ETH_ALEN);
-
+			rcu_read_lock();
 			if (is_multicast_ether_addr(skb->data))
-				memcpy(hdr.addr3, skb->data, ETH_ALEN);
+				/* DA TA mSA AE:SA */
+				mesh_da = skb->data;
 			else {
-				rcu_read_lock();
 				mppath = mpp_path_lookup(skb->data, sdata);
-				if (mppath)
-					memcpy(hdr.addr3, mppath->mpp, ETH_ALEN);
-				else
-					memset(hdr.addr3, 0xff, ETH_ALEN);
-				rcu_read_unlock();
+				if (mppath) {
+					/* RA TA mDA mSA AE:DA SA */
+					mesh_da = mppath->mpp;
+					is_mesh_mcast = 0;
+				} else
+					/* DA TA mSA AE:SA */
+					mesh_da = dev->broadcast;
 			}
+			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
+					mesh_da, dev->dev_addr);
+			rcu_read_unlock();
+			if (is_mesh_mcast)
+				meshhdrlen =
+					ieee80211_new_mesh_header(&mesh_hdr,
+							sdata,
+							skb->data + ETH_ALEN,
+							NULL,
+							NULL);
+			else
+				meshhdrlen =
+					ieee80211_new_mesh_header(&mesh_hdr,
+							sdata,
+							NULL,
+							skb->data,
+							skb->data + ETH_ALEN);
 
-			mesh_hdr.flags |= MESH_FLAGS_AE_A5_A6;
-			mesh_hdr.ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
-			put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &mesh_hdr.seqnum);
-			memcpy(mesh_hdr.eaddr1, skb->data, ETH_ALEN);
-			memcpy(mesh_hdr.eaddr2, skb->data + ETH_ALEN, ETH_ALEN);
-			sdata->u.mesh.mesh_seqnum++;
-			meshhdrlen = 18;
 		}
-		hdrlen = 30;
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:

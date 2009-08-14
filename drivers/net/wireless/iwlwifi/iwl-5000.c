@@ -845,7 +845,7 @@ int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	priv->hw_params.max_bsm_size = 0;
-	priv->hw_params.fat_channel =  BIT(IEEE80211_BAND_2GHZ) |
+	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
@@ -1547,8 +1547,8 @@ struct iwl_lib_ops iwl5000_lib = {
 			EEPROM_5000_REG_BAND_3_CHANNELS,
 			EEPROM_5000_REG_BAND_4_CHANNELS,
 			EEPROM_5000_REG_BAND_5_CHANNELS,
-			EEPROM_5000_REG_BAND_24_FAT_CHANNELS,
-			EEPROM_5000_REG_BAND_52_FAT_CHANNELS
+			EEPROM_5000_REG_BAND_24_HT40_CHANNELS,
+			EEPROM_5000_REG_BAND_52_HT40_CHANNELS
 		},
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
@@ -1597,8 +1597,8 @@ static struct iwl_lib_ops iwl5150_lib = {
 			EEPROM_5000_REG_BAND_3_CHANNELS,
 			EEPROM_5000_REG_BAND_4_CHANNELS,
 			EEPROM_5000_REG_BAND_5_CHANNELS,
-			EEPROM_5000_REG_BAND_24_FAT_CHANNELS,
-			EEPROM_5000_REG_BAND_52_FAT_CHANNELS
+			EEPROM_5000_REG_BAND_24_HT40_CHANNELS,
+			EEPROM_5000_REG_BAND_52_HT40_CHANNELS
 		},
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,

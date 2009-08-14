@@ -42,8 +42,7 @@ int cfg80211_mgd_wext_giwessid(struct net_device *dev,
 			       struct iw_request_info *info,
 			       struct iw_point *data, char *ssid);
 
-struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
-					     struct iw_freq *freq);
+int cfg80211_wext_freq(struct wiphy *wiphy, struct iw_freq *freq);
 
 
 extern const struct iw_handler_def cfg80211_wext_handler;

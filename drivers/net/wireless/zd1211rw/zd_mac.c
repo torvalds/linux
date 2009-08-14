@@ -1013,7 +1013,7 @@ static void link_led_handler(struct work_struct *work)
 	spin_unlock_irq(&mac->lock);
 
 	r = zd_chip_control_leds(chip,
-		                 is_associated ? LED_ASSOCIATED : LED_SCANNING);
+		                 is_associated ? ZD_LED_ASSOCIATED : ZD_LED_SCANNING);
 	if (r)
 		dev_dbg_f(zd_mac_dev(mac), "zd_chip_control_leds error %d\n", r);
 
@@ -1038,5 +1038,5 @@ static void housekeeping_disable(struct zd_mac *mac)
 	dev_dbg_f(zd_mac_dev(mac), "\n");
 	cancel_rearming_delayed_workqueue(zd_workqueue,
 		&mac->housekeeping.link_led_work);
-	zd_chip_control_leds(&mac->chip, LED_OFF);
+	zd_chip_control_leds(&mac->chip, ZD_LED_OFF);
 }
