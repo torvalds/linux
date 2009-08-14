@@ -24,7 +24,7 @@ xdr_encode_netobj(__be32 *p, const struct xdr_netobj *obj)
 	unsigned int	quadlen = XDR_QUADLEN(obj->len);
 
 	p[quadlen] = 0;		/* zero trailing bytes */
-	*p++ = htonl(obj->len);
+	*p++ = cpu_to_be32(obj->len);
 	memcpy(p, obj->data, obj->len);
 	return p + XDR_QUADLEN(obj->len);
 }
@@ -83,7 +83,7 @@ EXPORT_SYMBOL_GPL(xdr_encode_opaque_fixed);
  */
 __be32 *xdr_encode_opaque(__be32 *p, const void *ptr, unsigned int nbytes)
 {
-	*p++ = htonl(nbytes);
+	*p++ = cpu_to_be32(nbytes);
 	return xdr_encode_opaque_fixed(p, ptr, nbytes);
 }
 EXPORT_SYMBOL_GPL(xdr_encode_opaque);
@@ -779,7 +779,7 @@ EXPORT_SYMBOL_GPL(xdr_decode_word);
 int
 xdr_encode_word(struct xdr_buf *buf, unsigned int base, u32 obj)
 {
-	__be32	raw = htonl(obj);
+	__be32	raw = cpu_to_be32(obj);
 
 	return write_bytes_to_xdr_buf(buf, base, &raw, sizeof(obj));
 }
