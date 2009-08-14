@@ -318,9 +318,9 @@ do_sigbus:
 /*
  * Called with interrupts disabled.
  */
-asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
-					 unsigned long writeaccess,
-					 unsigned long address)
+asmlinkage int __kprobes
+handle_tlbmiss(struct pt_regs *regs, unsigned long writeaccess,
+	       unsigned long address)
 {
 	pgd_t *pgd;
 	pud_t *pud;

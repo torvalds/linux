@@ -113,34 +113,33 @@ OFF_TRA	=  (16*4+6*4)
 #if defined(CONFIG_MMU)
 	.align	2
 ENTRY(tlb_miss_load)
-	bra	call_dpf
+	bra	call_handle_tlbmiss
 	 mov	#0, r5
 
 	.align	2
 ENTRY(tlb_miss_store)
-	bra	call_dpf
+	bra	call_handle_tlbmiss
 	 mov	#1, r5
 
 	.align	2
 ENTRY(initial_page_write)
-	bra	call_dpf
+	bra	call_handle_tlbmiss
 	 mov	#1, r5
 
 	.align	2
 ENTRY(tlb_protection_violation_load)
-	bra	call_dpf
+	bra	call_do_page_fault
 	 mov	#0, r5
 
 	.align	2
 ENTRY(tlb_protection_violation_store)
-	bra	call_dpf
+	bra	call_do_page_fault
 	 mov	#1, r5
 
-call_dpf:
+call_handle_tlbmiss:
 	mov.l	1f, r0
 	mov	r5, r8
 	mov.l	@r0, r6
-	mov	r6, r9
 	mov.l	2f, r0
 	sts	pr, r10
 	jsr	@r0
@@ -151,16 +150,25 @@ call_dpf:
 	 lds	r10, pr
 	rts
 	 nop
-0:	mov.l	3f, r0
-	mov	r9, r6
+0:
 	mov	r8, r5
+call_do_page_fault:
+	mov.l	1f, r0
+	mov.l	@r0, r6
+
+	sti
+
+	mov.l	3f, r0
+	mov.l	4f, r1
+	mov	r15, r4
 	jmp	@r0
-	 mov	r15, r4
+	 lds	r1, pr
 
 	.align 2
 1:	.long	MMU_TEA
-2:	.long	__do_page_fault
+2:	.long	handle_tlbmiss
 3:	.long	do_page_fault
+4:	.long	ret_from_exception
 
 	.align	2
 ENTRY(address_error_load)
