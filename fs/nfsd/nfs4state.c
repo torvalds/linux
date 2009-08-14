@@ -901,9 +901,16 @@ static void
 gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se)
 {
 	struct nfs4_cb_conn *cb = &clp->cl_cb_conn;
+	unsigned short expected_family;
 
-	/* Currently, we only support tcp for the callback channel */
-	if ((se->se_callback_netid_len != 3) || memcmp((char *)se->se_callback_netid_val, "tcp", 3))
+	/* Currently, we only support tcp and tcp6 for the callback channel */
+	if (se->se_callback_netid_len == 3 &&
+	    !memcmp(se->se_callback_netid_val, "tcp", 3))
+		expected_family = AF_INET;
+	else if (se->se_callback_netid_len == 4 &&
+		 !memcmp(se->se_callback_netid_val, "tcp6", 4))
+		expected_family = AF_INET6;
+	else
 		goto out_err;
 
 	cb->cb_addrlen = rpc_uaddr2sockaddr(se->se_callback_addr_val,
@@ -911,7 +918,7 @@ gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se)
 					    (struct sockaddr *) &cb->cb_addr,
 					    sizeof(cb->cb_addr));
 
-	if (!cb->cb_addrlen || cb->cb_addr.ss_family != AF_INET)
+	if (!cb->cb_addrlen || cb->cb_addr.ss_family != expected_family)
 		goto out_err;
 
 	cb->cb_minorversion = 0;
