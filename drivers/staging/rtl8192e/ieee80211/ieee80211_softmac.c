@@ -279,7 +279,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 			/* as for the completion function, it does not need
 			 * to check it any more.
 			 * */
-			printk("%s():insert to waitqueue!\n",__FUNCTION__);
+			//printk("%s():insert to waitqueue!\n",__FUNCTION__);
 			skb_queue_tail(&ieee->skb_waitQ[tcb_desc->queue_index], skb);
 		} else {
 			//printk("TX packet!\n");
