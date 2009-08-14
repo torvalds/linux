@@ -136,6 +136,7 @@ machdir-$(CONFIG_SH_7751_SYSTEMH)		+= mach-systemh
 machdir-$(CONFIG_SH_EDOSK7705)			+= mach-edosk7705
 machdir-$(CONFIG_SH_HIGHLANDER)			+= mach-highlander
 machdir-$(CONFIG_SH_MIGOR)			+= mach-migor
+machdir-$(CONFIG_SH_KFR2R09)			+= mach-kfr2r09
 machdir-$(CONFIG_SH_SDK7780)			+= mach-sdk7780
 machdir-$(CONFIG_SH_X3PROTO)			+= mach-x3proto
 machdir-$(CONFIG_SH_SH7763RDP)			+= mach-sh7763rdp
@@ -190,11 +191,15 @@ ifeq ($(CONFIG_MCOUNT),y)
   KBUILD_CFLAGS += -pg
 endif
 
+ifeq ($(CONFIG_DWARF_UNWINDER),y)
+  KBUILD_CFLAGS += -fasynchronous-unwind-tables
+endif
+
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
 libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
 
 BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.srec \
-	       zImage vmlinux.srec
+	       zImage vmlinux.srec romImage
 PHONY += maketools $(BOOT_TARGETS) FORCE
 
 maketools:  include/linux/version.h FORCE
@@ -215,6 +220,7 @@ archclean:
 
 define archhelp
 	@echo '  zImage 	           - Compressed kernel image'
+	@echo '  romImage	           - Compressed ROM image, if supported'
 	@echo '  vmlinux.srec	           - Create an ELF S-record'
 	@echo '* uImage  	           - Alias to bootable U-Boot image'
 	@echo '  uImage.srec	           - Create an S-record for U-Boot'

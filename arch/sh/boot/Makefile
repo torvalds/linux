@@ -24,9 +24,9 @@ suffix-$(CONFIG_KERNEL_GZIP)  := gz
 suffix-$(CONFIG_KERNEL_BZIP2) := bz2
 suffix-$(CONFIG_KERNEL_LZMA)  := lzma
 
-targets := zImage vmlinux.srec uImage uImage.srec uImage.gz uImage.bz2 uImage.lzma
+targets := zImage vmlinux.srec romImage uImage uImage.srec uImage.gz uImage.bz2 uImage.lzma
 extra-y += vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma
-subdir- := compressed
+subdir- := compressed romimage
 
 $(obj)/zImage: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
@@ -34,6 +34,13 @@ $(obj)/zImage: $(obj)/compressed/vmlinux FORCE
 
 $(obj)/compressed/vmlinux: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
+
+$(obj)/romImage: $(obj)/romimage/vmlinux FORCE
+	$(call if_changed,objcopy)
+	@echo '  Kernel: $@ is ready'
+
+$(obj)/romimage/vmlinux: $(obj)/zImage FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/romimage $@
 
 KERNEL_MEMORY := 0x00000000
 ifeq ($(CONFIG_PMB_FIXED),y)

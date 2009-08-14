@@ -17,9 +17,43 @@
 #include <linux/sched.h>
 #include <linux/kallsyms.h>
 #include <linux/mm.h>
+#include <asm/unwinder.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
 #include <asm/sections.h>
+#include <asm/stacktrace.h>
+
+static void backtrace_warning_symbol(void *data, char *msg,
+				     unsigned long symbol)
+{
+	/* Ignore warnings */
+}
+
+static void backtrace_warning(void *data, char *msg)
+{
+	/* Ignore warnings */
+}
+
+static int backtrace_stack(void *data, char *name)
+{
+	/* Yes, we want all stacks */
+	return 0;
+}
+
+static void backtrace_address(void *data, unsigned long addr, int reliable)
+{
+	unsigned int *depth = data;
+
+	if ((*depth)--)
+		oprofile_add_trace(addr);
+}
+
+static struct stacktrace_ops backtrace_ops = {
+	.warning = backtrace_warning,
+	.warning_symbol = backtrace_warning_symbol,
+	.stack = backtrace_stack,
+	.address = backtrace_address,
+};
 
 /* Limit to stop backtracing too far. */
 static int backtrace_limit = 20;
@@ -47,50 +81,6 @@ user_backtrace(unsigned long *stackaddr, struct pt_regs *regs)
 	return stackaddr;
 }
 
-/*
- * |             | /\ Higher addresses
- * |             |
- * --------------- stack base (address of current_thread_info)
- * | thread info |
- * .             .
- * |    stack    |
- * --------------- saved regs->regs[15] value if valid
- * .             .
- * --------------- struct pt_regs stored on stack (struct pt_regs *)
- * |             |
- * .             .
- * |             |
- * --------------- ???
- * |             |
- * |             | \/ Lower addresses
- *
- * Thus, &pt_regs <-> stack base restricts the valid(ish) fp values
- */
-static int valid_kernel_stack(unsigned long *stackaddr, struct pt_regs *regs)
-{
-	unsigned long stack = (unsigned long)regs;
-	unsigned long stack_base = (stack & ~(THREAD_SIZE - 1)) + THREAD_SIZE;
-
-	return ((unsigned long)stackaddr > stack) && ((unsigned long)stackaddr < stack_base);
-}
-
-static unsigned long *
-kernel_backtrace(unsigned long *stackaddr, struct pt_regs *regs)
-{
-	unsigned long addr;
-
-	/*
-	 * If not a valid kernel address, keep going till we find one
-	 * or the SP stops being a valid address.
-	 */
-	do {
-		addr = *stackaddr++;
-		oprofile_add_trace(addr);
-	} while (valid_kernel_stack(stackaddr, regs));
-
-	return stackaddr;
-}
-
 void sh_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
 	unsigned long *stackaddr;
@@ -103,9 +93,9 @@ void sh_backtrace(struct pt_regs * const regs, unsigned int depth)
 
 	stackaddr = (unsigned long *)regs->regs[15];
 	if (!user_mode(regs)) {
-		while (depth-- && valid_kernel_stack(stackaddr, regs))
-			stackaddr = kernel_backtrace(stackaddr, regs);
-
+		if (depth)
+			unwind_stack(NULL, regs, stackaddr,
+				     &backtrace_ops, &depth);
 		return;
 	}
 

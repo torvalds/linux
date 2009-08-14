@@ -13,6 +13,7 @@
 #include <linux/serial_sci.h>
 #include <linux/mm.h>
 #include <linux/uio_driver.h>
+#include <linux/usb/m66592.h>
 #include <linux/sh_timer.h>
 #include <asm/clock.h>
 #include <asm/mmzone.h>
@@ -47,9 +48,13 @@ static struct platform_device rtc_device = {
 	.resource	= rtc_resources,
 };
 
+static struct m66592_platdata usbf_platdata = {
+	.on_chip = 1,
+};
+
 static struct resource usbf_resources[] = {
 	[0] = {
-		.name	= "m66592_udc",
+		.name	= "USBF",
 		.start	= 0x04480000,
 		.end	= 0x044800FF,
 		.flags	= IORESOURCE_MEM,
@@ -67,6 +72,7 @@ static struct platform_device usbf_device = {
 	.dev = {
 		.dma_mask		= NULL,
 		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &usbf_platdata,
 	},
 	.num_resources	= ARRAY_SIZE(usbf_resources),
 	.resource	= usbf_resources,
@@ -359,7 +365,7 @@ static int __init sh7722_devices_setup(void)
 	return platform_add_devices(sh7722_devices,
 				    ARRAY_SIZE(sh7722_devices));
 }
-__initcall(sh7722_devices_setup);
+arch_initcall(sh7722_devices_setup);
 
 static struct platform_device *sh7722_early_devices[] __initdata = {
 	&cmt_device,

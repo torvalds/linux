@@ -687,6 +687,7 @@ static int omap_hdq_remove(struct platform_device *pdev)
 
 	if (hdq_data->hdq_usecount) {
 		dev_dbg(&pdev->dev, "removed when use count is not zero\n");
+		mutex_unlock(&hdq_data->hdq_mutex);
 		return -EBUSY;
 	}
 

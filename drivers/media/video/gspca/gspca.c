@@ -727,6 +727,74 @@ static int gspca_get_mode(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int vidioc_g_register(struct file *file, void *priv,
+			struct v4l2_dbg_register *reg)
+{
+	int ret;
+	struct gspca_dev *gspca_dev = priv;
+
+	if (!gspca_dev->sd_desc->get_chip_ident)
+		return -EINVAL;
+
+	if (!gspca_dev->sd_desc->get_register)
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
+		return -ERESTARTSYS;
+	if (gspca_dev->present)
+		ret = gspca_dev->sd_desc->get_register(gspca_dev, reg);
+	else
+		ret = -ENODEV;
+	mutex_unlock(&gspca_dev->usb_lock);
+
+	return ret;
+}
+
+static int vidioc_s_register(struct file *file, void *priv,
+			struct v4l2_dbg_register *reg)
+{
+	int ret;
+	struct gspca_dev *gspca_dev = priv;
+
+	if (!gspca_dev->sd_desc->get_chip_ident)
+		return -EINVAL;
+
+	if (!gspca_dev->sd_desc->set_register)
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
+		return -ERESTARTSYS;
+	if (gspca_dev->present)
+		ret = gspca_dev->sd_desc->set_register(gspca_dev, reg);
+	else
+		ret = -ENODEV;
+	mutex_unlock(&gspca_dev->usb_lock);
+
+	return ret;
+}
+#endif
+
+static int vidioc_g_chip_ident(struct file *file, void *priv,
+			struct v4l2_dbg_chip_ident *chip)
+{
+	int ret;
+	struct gspca_dev *gspca_dev = priv;
+
+	if (!gspca_dev->sd_desc->get_chip_ident)
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
+		return -ERESTARTSYS;
+	if (gspca_dev->present)
+		ret = gspca_dev->sd_desc->get_chip_ident(gspca_dev, chip);
+	else
+		ret = -ENODEV;
+	mutex_unlock(&gspca_dev->usb_lock);
+
+	return ret;
+}
+
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *fmtdesc)
 {
@@ -1883,6 +1951,11 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_s_parm		= vidioc_s_parm,
 	.vidioc_s_std		= vidioc_s_std,
 	.vidioc_enum_framesizes = vidioc_enum_framesizes,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register	= vidioc_g_register,
+	.vidioc_s_register	= vidioc_s_register,
+#endif
+	.vidioc_g_chip_ident	= vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif

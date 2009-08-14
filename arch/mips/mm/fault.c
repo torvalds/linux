@@ -171,6 +171,7 @@ out_of_memory:
 	 * We ran out of memory, call the OOM killer, and return the userspace
 	 * (which will retry the fault, or kill us if we got oom-killed).
 	 */
+	up_read(&mm->mmap_sem);
 	pagefault_out_of_memory();
 	return;
 

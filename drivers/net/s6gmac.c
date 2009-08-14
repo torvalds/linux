@@ -793,7 +793,7 @@ static inline int s6gmac_phy_start(struct net_device *dev)
 	struct s6gmac *pd = netdev_priv(dev);
 	int i = 0;
 	struct phy_device *p = NULL;
-	while ((!(p = pd->mii.bus->phy_map[i])) && (i < PHY_MAX_ADDR))
+	while ((i < PHY_MAX_ADDR) && (!(p = pd->mii.bus->phy_map[i])))
 		i++;
 	p = phy_connect(dev, dev_name(&p->dev), &s6gmac_adjust_link, 0,
 			PHY_INTERFACE_MODE_RGMII);

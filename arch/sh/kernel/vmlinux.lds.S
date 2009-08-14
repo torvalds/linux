@@ -12,7 +12,7 @@ OUTPUT_ARCH(sh)
 
 #include <asm/thread_info.h>
 #include <asm/cache.h>
-#include <asm-generic/vmlinux.lds.h>
+#include <asm/vmlinux.lds.h>
 
 ENTRY(_start)
 SECTIONS
@@ -69,6 +69,8 @@ SECTIONS
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 
 	_edata = .;			/* End of data section */
+
+	DWARF_EH_FRAME
 
 	. = ALIGN(PAGE_SIZE);		/* Init code and data */
 	__init_begin = .;

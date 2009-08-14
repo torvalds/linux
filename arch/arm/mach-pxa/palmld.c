@@ -128,6 +128,10 @@ static unsigned long palmld_pin_config[] __initdata = {
 	GPIO38_GPIO,	/* wifi ready */
 	GPIO81_GPIO,	/* wifi reset */
 
+	/* FFUART */
+	GPIO34_FFUART_RXD,
+	GPIO39_FFUART_TXD,
+
 	/* HDD */
 	GPIO98_GPIO,	/* HDD reset */
 	GPIO115_GPIO,	/* HDD power */

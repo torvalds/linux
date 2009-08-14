@@ -120,8 +120,10 @@ enum perf_counter_sample_format {
 	PERF_SAMPLE_ID				= 1U << 6,
 	PERF_SAMPLE_CPU				= 1U << 7,
 	PERF_SAMPLE_PERIOD			= 1U << 8,
+	PERF_SAMPLE_STREAM_ID			= 1U << 9,
+	PERF_SAMPLE_RAW				= 1U << 10,
 
-	PERF_SAMPLE_MAX = 1U << 9,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 11,		/* non-ABI */
 };
 
 /*
@@ -180,8 +182,9 @@ struct perf_counter_attr {
 				freq           :  1, /* use freq, not period  */
 				inherit_stat   :  1, /* per task counts       */
 				enable_on_exec :  1, /* next exec enables     */
+				task           :  1, /* trace fork/exit       */
 
-				__reserved_1   : 51;
+				__reserved_1   : 50;
 
 	__u32			wakeup_events;	/* wakeup every n events */
 	__u32			__reserved_2;
@@ -310,18 +313,18 @@ enum perf_event_type {
 	/*
 	 * struct {
 	 *	struct perf_event_header	header;
-	 *	u64				time;
-	 *	u64				id;
-	 *	u64				sample_period;
+	 *	u32				pid, ppid;
+	 *	u32				tid, ptid;
 	 * };
 	 */
-	PERF_EVENT_PERIOD		= 4,
+	PERF_EVENT_EXIT			= 4,
 
 	/*
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *	u64				time;
 	 *	u64				id;
+	 *	u64				stream_id;
 	 * };
 	 */
 	PERF_EVENT_THROTTLE		= 5,
@@ -331,6 +334,7 @@ enum perf_event_type {
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *	u32				pid, ppid;
+	 *	u32				tid, ptid;
 	 * };
 	 */
 	PERF_EVENT_FORK			= 7,
@@ -356,6 +360,7 @@ enum perf_event_type {
 	 *	{ u64			time;     } && PERF_SAMPLE_TIME
 	 *	{ u64			addr;     } && PERF_SAMPLE_ADDR
 	 *	{ u64			id;	  } && PERF_SAMPLE_ID
+	 *	{ u64			stream_id;} && PERF_SAMPLE_STREAM_ID
 	 *	{ u32			cpu, res; } && PERF_SAMPLE_CPU
 	 * 	{ u64			period;   } && PERF_SAMPLE_PERIOD
 	 *
@@ -364,6 +369,8 @@ enum perf_event_type {
 	 *
 	 *	{ u64			nr,
 	 *	  u64			ips[nr];  } && PERF_SAMPLE_CALLCHAIN
+	 *	{ u32			size;
+	 *	  char                  data[size];}&& PERF_SAMPLE_RAW
 	 * };
 	 */
 	PERF_EVENT_SAMPLE		= 9,
@@ -407,6 +414,11 @@ enum perf_callchain_context {
 struct perf_callchain_entry {
 	__u64				nr;
 	__u64				ip[PERF_MAX_STACK_DEPTH];
+};
+
+struct perf_raw_record {
+	u32				size;
+	void				*data;
 };
 
 struct task_struct;
@@ -677,6 +689,7 @@ struct perf_sample_data {
 	struct pt_regs			*regs;
 	u64				addr;
 	u64				period;
+	struct perf_raw_record		*raw;
 };
 
 extern int perf_counter_overflow(struct perf_counter *counter, int nmi,

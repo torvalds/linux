@@ -106,10 +106,8 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 	int ret = 0;
 
 	wdev = iwm_wdev_alloc(sizeof_bus, dev);
-	if (!wdev) {
-		dev_err(dev, "no memory for wireless device instance\n");
-		return ERR_PTR(-ENOMEM);
-	}
+	if (IS_ERR(wdev))
+		return wdev;
 
 	iwm = wdev_to_iwm(wdev);
 	iwm->bus_ops = if_ops;
@@ -151,8 +149,8 @@ void iwm_if_free(struct iwm_priv *iwm)
 		return;
 
 	free_netdev(iwm_to_ndev(iwm));
-	iwm_wdev_free(iwm);
 	iwm_priv_deinit(iwm);
+	iwm_wdev_free(iwm);
 }
 
 int iwm_if_add(struct iwm_priv *iwm)

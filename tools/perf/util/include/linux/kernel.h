@@ -18,4 +18,12 @@
 	(type *)((char *)__mptr - offsetof(type, member)); })
 #endif
 
+#ifndef max
+#define max(x, y) ({				\
+	typeof(x) _max1 = (x);			\
+	typeof(y) _max2 = (y);			\
+	(void) (&_max1 == &_max2);		\
+	_max1 > _max2 ? _max1 : _max2; })
+#endif
+
 #endif

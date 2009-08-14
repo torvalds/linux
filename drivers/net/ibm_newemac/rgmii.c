@@ -188,11 +188,12 @@ void rgmii_put_mdio(struct of_device *ofdev, int input)
 void rgmii_detach(struct of_device *ofdev, int input)
 {
 	struct rgmii_instance *dev = dev_get_drvdata(&ofdev->dev);
-	struct rgmii_regs __iomem *p = dev->base;
-
-	mutex_lock(&dev->lock);
+	struct rgmii_regs __iomem *p;
 
 	BUG_ON(!dev || dev->users == 0);
+	p = dev->base;
+
+	mutex_lock(&dev->lock);
 
 	RGMII_DBG(dev, "detach(%d)" NL, input);
 

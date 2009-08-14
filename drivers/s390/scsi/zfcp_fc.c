@@ -79,11 +79,9 @@ static int zfcp_wka_port_get(struct zfcp_wka_port *wka_port)
 
 	mutex_unlock(&wka_port->mutex);
 
-	wait_event_timeout(
-		wka_port->completion_wq,
-		wka_port->status == ZFCP_WKA_PORT_ONLINE ||
-		wka_port->status == ZFCP_WKA_PORT_OFFLINE,
-		HZ >> 1);
+	wait_event(wka_port->completion_wq,
+		   wka_port->status == ZFCP_WKA_PORT_ONLINE ||
+		   wka_port->status == ZFCP_WKA_PORT_OFFLINE);
 
 	if (wka_port->status == ZFCP_WKA_PORT_ONLINE) {
 		atomic_inc(&wka_port->refcount);

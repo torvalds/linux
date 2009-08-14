@@ -496,7 +496,7 @@ static const struct option options[] = {
 		    "stat events on existing pid"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
-	OPT_BOOLEAN('S', "scale", &scale,
+	OPT_BOOLEAN('c', "scale", &scale,
 		    "scale/normalize counters"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
@@ -511,7 +511,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 {
 	int status;
 
-	argc = parse_options(argc, argv, options, stat_usage, 0);
+	argc = parse_options(argc, argv, options, stat_usage,
+		PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc)
 		usage_with_options(stat_usage, options);
 	if (run_count <= 0 || run_count > MAX_RUN)

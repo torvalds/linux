@@ -39,7 +39,15 @@
  * SW41 : abxx xxxx  -> a = 0 : Analog  monitor
  *                          1 : Digital monitor
  *                      b = 0 : VGA
- *                          1 : SVGA
+ *                          1 : 720p
+ */
+
+/*
+ * about 720p
+ *
+ * When you use 1280 x 720 lcdc output,
+ * you should change OSC6 lcdc clock from 25.175MHz to 74.25MHz,
+ * and change SW41 to use 720p
  */
 
 /* Heartbeat */
@@ -421,6 +429,32 @@ static int __init devices_setup(void)
 	/* turn on USB clocks, use external clock */
 	ctrl_outw((ctrl_inw(PORT_MSELCRB) & ~0xc000) | 0x8000, PORT_MSELCRB);
 
+#ifdef CONFIG_PM
+	/* Let LED9 show STATUS2 */
+	gpio_request(GPIO_FN_STATUS2, NULL);
+
+	/* Lit LED10 show STATUS0 */
+	gpio_request(GPIO_FN_STATUS0, NULL);
+
+	/* Lit LED11 show PDSTATUS */
+	gpio_request(GPIO_FN_PDSTATUS, NULL);
+#else
+	/* Lit LED9 */
+	gpio_request(GPIO_PTJ6, NULL);
+	gpio_direction_output(GPIO_PTJ6, 1);
+	gpio_export(GPIO_PTJ6, 0);
+
+	/* Lit LED10 */
+	gpio_request(GPIO_PTJ5, NULL);
+	gpio_direction_output(GPIO_PTJ5, 1);
+	gpio_export(GPIO_PTJ5, 0);
+
+	/* Lit LED11 */
+	gpio_request(GPIO_PTJ7, NULL);
+	gpio_direction_output(GPIO_PTJ7, 1);
+	gpio_export(GPIO_PTJ7, 0);
+#endif
+
 	/* enable USB0 port */
 	ctrl_outw(0x0600, 0xa40501d4);
 
@@ -546,15 +580,15 @@ static int __init devices_setup(void)
 	sh_eth_init();
 
 	if (sw & SW41_B) {
-		/* SVGA */
-		lcdc_info.ch[0].lcd_cfg.xres         = 800;
-		lcdc_info.ch[0].lcd_cfg.yres         = 600;
-		lcdc_info.ch[0].lcd_cfg.left_margin  = 142;
-		lcdc_info.ch[0].lcd_cfg.right_margin = 52;
-		lcdc_info.ch[0].lcd_cfg.hsync_len    = 96;
-		lcdc_info.ch[0].lcd_cfg.upper_margin = 24;
-		lcdc_info.ch[0].lcd_cfg.lower_margin = 2;
-		lcdc_info.ch[0].lcd_cfg.vsync_len    = 2;
+		/* 720p */
+		lcdc_info.ch[0].lcd_cfg.xres         = 1280;
+		lcdc_info.ch[0].lcd_cfg.yres         = 720;
+		lcdc_info.ch[0].lcd_cfg.left_margin  = 220;
+		lcdc_info.ch[0].lcd_cfg.right_margin = 110;
+		lcdc_info.ch[0].lcd_cfg.hsync_len    = 40;
+		lcdc_info.ch[0].lcd_cfg.upper_margin = 20;
+		lcdc_info.ch[0].lcd_cfg.lower_margin = 5;
+		lcdc_info.ch[0].lcd_cfg.vsync_len    = 5;
 	} else {
 		/* VGA */
 		lcdc_info.ch[0].lcd_cfg.xres         = 640;

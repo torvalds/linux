@@ -38,11 +38,12 @@ config EARLY_SCIF_CONSOLE_PORT
 	default "0xffe00000" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7763 || \
 				CPU_SUBTYPE_SH7722 || CPU_SUBTYPE_SH7366 || \
 				CPU_SUBTYPE_SH7343
-	default "0xffea0000" if CPU_SUBTYPE_SH7785
+	default "0xffeb0000" if CPU_SUBTYPE_SH7785
 	default "0xffeb0000" if CPU_SUBTYPE_SH7786
 	default "0xfffe8000" if CPU_SUBTYPE_SH7203
 	default "0xfffe9800" if CPU_SUBTYPE_SH7206 || CPU_SUBTYPE_SH7263
 	default "0xffe80000" if CPU_SH4
+	default "0xa4000150" if CPU_SH3
 	default "0x00000000"
 
 config EARLY_PRINTK
@@ -108,6 +109,14 @@ config DUMP_CODE
 	  the kernel in size a bit, most users will want to say N here.
 
 	  Those looking for more verbose debugging output should say Y.
+
+config DWARF_UNWINDER
+	bool "Enable the DWARF unwinder for stacktraces"
+	select FRAME_POINTER
+	default n
+	help
+	  Enabling this option will make stacktraces more accurate, at
+	  the cost of an increase in overall kernel size.
 
 config SH_NO_BSS_INIT
 	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"

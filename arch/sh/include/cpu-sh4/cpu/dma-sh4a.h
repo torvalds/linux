@@ -16,7 +16,8 @@
 #define DMAE0_IRQ	38
 #define SH_DMAC_BASE0	0xFF608020
 #define SH_DMARS_BASE	0xFF609000
-#elif defined(CONFIG_CPU_SUBTYPE_SH7723)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7723) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7724)
 #define DMTE0_IRQ	48	/* DMAC0A*/
 #define DMTE4_IRQ	40	/* DMAC0B */
 #define DMTE6_IRQ	42

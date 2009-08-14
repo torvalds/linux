@@ -57,9 +57,9 @@ struct daio_rsc_idx idx_20k1[NUM_DAIOTYP] = {
 
 struct daio_rsc_idx idx_20k2[NUM_DAIOTYP] = {
 	[LINEO1] = {.left = 0x40, .right = 0x41},
-	[LINEO2] = {.left = 0x70, .right = 0x71},
+	[LINEO2] = {.left = 0x60, .right = 0x61},
 	[LINEO3] = {.left = 0x50, .right = 0x51},
-	[LINEO4] = {.left = 0x60, .right = 0x61},
+	[LINEO4] = {.left = 0x70, .right = 0x71},
 	[LINEIM] = {.left = 0x45, .right = 0xc5},
 	[SPDIFOO] = {.left = 0x00, .right = 0x01},
 	[SPDIFIO] = {.left = 0x05, .right = 0x85},

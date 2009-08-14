@@ -1,7 +1,4 @@
 /*
- *  arch/mips/emma2rh/markeins/platofrm.c
- *      This file sets up platform devices for EMMA2RH Mark-eins.
- *
  *  Copyright(C) MontaVista Software Inc, 2006
  *
  *  Author: dmitry pervushin <dpervushin@ru.mvista.com>

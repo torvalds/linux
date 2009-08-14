@@ -858,30 +858,6 @@ void __init trap_init(void)
 	per_cpu_trap_init();
 }
 
-void show_trace(struct task_struct *tsk, unsigned long *sp,
-		struct pt_regs *regs)
-{
-	unsigned long addr;
-
-	if (regs && user_mode(regs))
-		return;
-
-	printk("\nCall trace:\n");
-
-	while (!kstack_end(sp)) {
-		addr = *sp++;
-		if (kernel_text_address(addr))
-			print_ip_sym(addr);
-	}
-
-	printk("\n");
-
-	if (!tsk)
-		tsk = current;
-
-	debug_show_held_locks(tsk);
-}
-
 void show_stack(struct task_struct *tsk, unsigned long *sp)
 {
 	unsigned long stack;

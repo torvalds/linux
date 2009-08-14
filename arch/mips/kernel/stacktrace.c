@@ -1,6 +1,4 @@
 /*
- * arch/mips/kernel/stacktrace.c
- *
  * Stack trace management functions
  *
  *  Copyright (C) 2006 Atsushi Nemoto <anemo@mba.ocn.ne.jp>

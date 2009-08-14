@@ -1461,7 +1461,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	if (crtc_req->count_connectors > 0 && !mode && !fb) {
+	if (crtc_req->count_connectors > 0 && (!mode || !fb)) {
 		DRM_DEBUG("Count connectors is %d but no mode or fb set\n",
 			  crtc_req->count_connectors);
 		ret = -EINVAL;

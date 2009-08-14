@@ -598,7 +598,7 @@ int i915_restore_state(struct drm_device *dev)
 
 	for (i = 0; i < 16; i++) {
 		I915_WRITE(SWF00 + (i << 2), dev_priv->saveSWF0[i]);
-		I915_WRITE(SWF10 + (i << 2), dev_priv->saveSWF1[i+7]);
+		I915_WRITE(SWF10 + (i << 2), dev_priv->saveSWF1[i]);
 	}
 	for (i = 0; i < 3; i++)
 		I915_WRITE(SWF30 + (i << 2), dev_priv->saveSWF2[i]);

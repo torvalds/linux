@@ -2357,6 +2357,8 @@ static int r8a66597_resume(struct device *dev)
 static struct dev_pm_ops r8a66597_dev_pm_ops = {
 	.suspend = r8a66597_suspend,
 	.resume = r8a66597_resume,
+	.poweroff = r8a66597_suspend,
+	.restore = r8a66597_resume,
 };
 
 #define R8A66597_DEV_PM_OPS	(&r8a66597_dev_pm_ops)
