@@ -45,8 +45,13 @@ static int get_common_rates(struct lbs_private *priv,
 	u8 *card_rates = lbs_bg_rates;
 	size_t num_card_rates = sizeof(lbs_bg_rates);
 	int ret = 0, i, j;
-	u8 tmp[30];
+	u8 *tmp;
 	size_t tmp_size = 0;
+
+	tmp = kzalloc((ARRAY_SIZE(lbs_bg_rates) - 1) * (*rates_size - 1),
+			GFP_KERNEL);
+	if (!tmp)
+		return -1;
 
 	/* For each rate in card_rates that exists in rate1, copy to tmp */
 	for (i = 0; card_rates[i] && (i < num_card_rates); i++) {
@@ -77,6 +82,7 @@ done:
 	memset(rates, 0, *rates_size);
 	*rates_size = min_t(int, tmp_size, *rates_size);
 	memcpy(rates, tmp, *rates_size);
+	kfree(tmp);
 	return ret;
 }
 
