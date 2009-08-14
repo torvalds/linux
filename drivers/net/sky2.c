@@ -1893,7 +1893,9 @@ static int sky2_down(struct net_device *dev)
 	synchronize_irq(hw->pdev->irq);
 	napi_synchronize(&hw->napi);
 
+	spin_lock_bh(&sky2->phy_lock);
 	sky2_phy_power_down(hw, port);
+	spin_unlock_bh(&sky2->phy_lock);
 
 	/* turn off LED's */
 	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
