@@ -2433,11 +2433,6 @@ static int nfs4_xdr_enc_get_lease_time(struct rpc_rqst *req, uint32_t *p,
  * task to translate them into Linux-specific versions which are more
  * consistent with the style used in NFSv2/v3...
  */
-#define COPYMEM(x,nbytes) do {			\
-	memcpy((x), p, nbytes);			\
-	p += XDR_QUADLEN(nbytes);		\
-} while (0)
-
 #define READ_BUF(nbytes)  do { \
 	p = xdr_inline_decode(xdr, nbytes); \
 	if (unlikely(!p)) { \
@@ -3607,7 +3602,7 @@ static int decode_getfh(struct xdr_stream *xdr, struct nfs_fh *fh)
 		return -EIO;
 	fh->size = len;
 	READ_BUF(len);
-	COPYMEM(fh->data, len);
+	memcpy(fh->data, p, len);
 	return 0;
 }
 
@@ -4097,7 +4092,7 @@ static int decode_setclientid(struct xdr_stream *xdr, struct nfs_client *clp)
 	if (nfserr == NFS_OK) {
 		READ_BUF(8 + NFS4_VERIFIER_SIZE);
 		p = xdr_decode_hyper(p, &clp->cl_clientid);
-		COPYMEM(clp->cl_confirm.data, NFS4_VERIFIER_SIZE);
+		memcpy(clp->cl_confirm.data, p, NFS4_VERIFIER_SIZE);
 	} else if (nfserr == NFSERR_CLID_INUSE) {
 		uint32_t len;
 
@@ -4134,7 +4129,7 @@ static int decode_write(struct xdr_stream *xdr, struct nfs_writeres *res)
 	READ_BUF(16);
 	res->count = be32_to_cpup(p++);
 	res->verf->committed = be32_to_cpup(p++);
-	COPYMEM(res->verf->verifier, 8);
+	memcpy(res->verf->verifier, p, 8);
 	return 0;
 }
 
