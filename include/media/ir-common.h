@@ -164,6 +164,7 @@ extern IR_KEYTAB_TYPE ir_codes_kaiomy[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_dm1105_nec[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_evga_indtube[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_terratec_cinergy_xs[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_videomate_s350[IR_KEYTAB_SIZE];
 
 #endif
 

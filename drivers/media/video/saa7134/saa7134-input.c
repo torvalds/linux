@@ -605,6 +605,11 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x7f;
 		polling = 40; /* ms */
 		break;
+	case SAA7134_BOARD_VIDEOMATE_S350:
+		ir_codes     = ir_codes_videomate_s350;
+		mask_keycode = 0x003f00;
+		mask_keydown = 0x040000;
+		break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",

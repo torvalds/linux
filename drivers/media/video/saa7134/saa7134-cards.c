@@ -5116,6 +5116,25 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x00,
 		},
 	},
+	[SAA7134_BOARD_VIDEOMATE_S350] = {
+		/* Jan D. Louw <jd.louw@mweb.co.za */
+		.name		= "Compro VideoMate S350/S300",
+		.audio_clock	= 0x00187de7,
+		.tuner_type	= TUNER_ABSENT,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.mpeg		= SAA7134_MPEG_DVB,
+		.inputs = { {
+			.name	= name_comp1,
+			.vmux	= 0,
+			.amux	= LINE1,
+		}, {
+			.name	= name_svideo,
+			.vmux	= 8, /* Not tested */
+			.amux	= LINE1
+		} },
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -6223,7 +6242,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
 		.subdevice    = 0xf31d,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS,
-
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x185b,
+		.subdevice    = 0xc900,
+		.driver_data  = SAA7134_BOARD_VIDEOMATE_S350,
 	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
@@ -6672,6 +6696,11 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		/* write windows gpio values */
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x80040100, 0x80040100);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x80040100, 0x00040100);
+		break;
+	case SAA7134_BOARD_VIDEOMATE_S350:
+		dev->has_remote = SAA7134_REMOTE_GPIO;
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x00008000, 0x00008000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x00008000, 0x00008000);
 		break;
 	}
 	return 0;
