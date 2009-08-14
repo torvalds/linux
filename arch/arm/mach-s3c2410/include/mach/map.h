@@ -67,6 +67,13 @@
 #define S3C2443_PA_HSMMC   (0x4A800000)
 #define S3C2443_SZ_HSMMC   (256)
 
+/* S3C2412 memory and IO controls */
+#define S3C2412_PA_SSMC	(0x4F000000)
+#define S3C2412_VA_SSMC	S3C_ADDR_CPU(0x00000000)
+
+#define S3C2412_PA_EBI	(0x48800000)
+#define S3C2412_VA_EBI	S3C_ADDR_CPU(0x00010000)
+
 /* physical addresses of all the chip-select areas */
 
 #define S3C2410_CS0 (0x00000000)

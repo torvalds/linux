@@ -81,7 +81,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.map_io		= s3c2410_map_io,
 		.init_clocks	= s3c2410_init_clocks,
 		.init_uarts	= s3c2410_init_uarts,
-		.init		= s3c2410_init,
+		.init		= s3c2410a_init,
 		.name		= name_s3c2410a
 	},
 	{
