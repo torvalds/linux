@@ -305,7 +305,8 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 		if (err_code < 0)
 			return err_code;
 	}
-	PDEBUG(D_ERR, "status is %02x", status);
+	if (status != 0x0a)
+		PDEBUG(D_ERR, "status is %02x", status);
 
 	tries = 0;
 	while (tries < 4) {
@@ -321,7 +322,6 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 		if (err_code < 0)
 			return err_code;
 	}
-	PDEBUG(D_ERR, "Read 16 bytes from camera");
 
 	data[0] = 0x19;
 	err_code = mr_write(gspca_dev, 1);
@@ -348,8 +348,7 @@ static u8 get_sensor_id(struct gspca_dev *gspca_dev)
 	if (err_code < 0)
 		return err_code;
 
-	PDEBUG(D_ERR, "Read 16 bytes from camera");
-	PDEBUG(D_ERR, "Byte zero reported is %01x", gspca_dev->usb_buf[0]);
+	PDEBUG(D_PROBE, "Byte zero reported is %01x", gspca_dev->usb_buf[0]);
 
 	return gspca_dev->usb_buf[0];
 }
@@ -366,10 +365,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam = &gspca_dev->cam;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
-
-	PDEBUG(D_PROBE,
-		"MR97310A camera detected"
-		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
 
 	if (id->idProduct == 0x010e) {
 		sd->cam_type = CAM_TYPE_CIF;
@@ -401,13 +396,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		else
 			sd->sensor_type = 0;
 
-		PDEBUG(D_ERR, "Sensor type is %01x", sd->sensor_type);
+		PDEBUG(D_PROBE, "MR97310A CIF camera detected, sensor: %d",
+		       sd->sensor_type);
 
 		if (sd->sensor_type == 0)
 			gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX) |
 					      (1 << EXPOSURE_IDX) | (1 << GAIN_IDX);
 	} else {
 		sd->cam_type = CAM_TYPE_VGA;
+		PDEBUG(D_PROBE, "MR97310A VGA camera detected");
 		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX) |
 				      (1 << EXPOSURE_IDX) | (1 << GAIN_IDX);
 	}
@@ -568,8 +565,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 	if (err_code < 0)
 		return err_code;
 
-	PDEBUG(D_ERR, "Read 16 bytes from camera");
-	PDEBUG(D_ERR, "Byte reported is %02x", data[0]);
+	PDEBUG(D_PROBE, "Byte reported is %02x", data[0]);
 
 	msleep(200);
 	/*
@@ -604,7 +600,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		data[0] = get_sensor_id(gspca_dev);
 		if (data[0] == 0x7f) {
 			sd->sensor_type = 1;
-			PDEBUG(D_ERR, "sensor_type corrected to 1");
+			PDEBUG(D_PROBE, "sensor_type corrected to 1");
 		}
 		msleep(200);
 	}
@@ -715,10 +711,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	zero_the_pointer(gspca_dev);
 	msleep(200);
 	if (sd->cam_type == CAM_TYPE_CIF) {
-		PDEBUG(D_ERR, "CIF camera");
 		err_code = start_cif_cam(gspca_dev);
 	} else {
-		PDEBUG(D_ERR, "VGA camera");
 		err_code = start_vga_cam(gspca_dev);
 	}
 	return err_code;
