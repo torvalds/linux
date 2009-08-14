@@ -21,7 +21,6 @@
  *
  * TODO WishList:
  *   o Allow clocksource drivers to be unregistered
- *   o get rid of clocksource_jiffies extern
  */
 
 #include <linux/clocksource.h>
@@ -107,12 +106,9 @@ u64 timecounter_cyc2time(struct timecounter *tc,
 }
 EXPORT_SYMBOL(timecounter_cyc2time);
 
-/* XXX - Would like a better way for initializing curr_clocksource */
-extern struct clocksource clocksource_jiffies;
-
 /*[Clocksource internal variables]---------
  * curr_clocksource:
- *	currently selected clocksource. Initialized to clocksource_jiffies.
+ *	currently selected clocksource.
  * next_clocksource:
  *	pending next selected clocksource.
  * clocksource_list:
@@ -123,9 +119,8 @@ extern struct clocksource clocksource_jiffies;
  * override_name:
  *	Name of the user-specified clocksource.
  */
-static struct clocksource *curr_clocksource = &clocksource_jiffies;
+static struct clocksource *curr_clocksource;
 static struct clocksource *next_clocksource;
-static struct clocksource *clocksource_override;
 static LIST_HEAD(clocksource_list);
 static DEFINE_SPINLOCK(clocksource_lock);
 static char override_name[32];
@@ -320,6 +315,7 @@ void clocksource_touch_watchdog(void)
 	clocksource_resume_watchdog();
 }
 
+#ifdef CONFIG_GENERIC_TIME
 /**
  * clocksource_get_next - Returns the selected clocksource
  *
@@ -339,56 +335,65 @@ struct clocksource *clocksource_get_next(void)
 }
 
 /**
- * select_clocksource - Selects the best registered clocksource.
+ * clocksource_select - Select the best clocksource available
  *
  * Private function. Must hold clocksource_lock when called.
  *
  * Select the clocksource with the best rating, or the clocksource,
  * which is selected by userspace override.
  */
-static struct clocksource *select_clocksource(void)
+static void clocksource_select(void)
 {
-	struct clocksource *next;
+	struct clocksource *best, *cs;
 
 	if (list_empty(&clocksource_list))
-		return NULL;
-
-	if (clocksource_override)
-		next = clocksource_override;
-	else
-		next = list_entry(clocksource_list.next, struct clocksource,
-				  list);
-
-	if (next == curr_clocksource)
-		return NULL;
-
-	return next;
+		return;
+	/* First clocksource on the list has the best rating. */
+	best = list_first_entry(&clocksource_list, struct clocksource, list);
+	/* Check for the override clocksource. */
+	list_for_each_entry(cs, &clocksource_list, list) {
+		if (strcmp(cs->name, override_name) != 0)
+			continue;
+		/*
+		 * Check to make sure we don't switch to a non-highres
+		 * capable clocksource if the tick code is in oneshot
+		 * mode (highres or nohz)
+		 */
+		if (!(cs->flags & CLOCK_SOURCE_VALID_FOR_HRES) &&
+		    tick_oneshot_mode_active()) {
+			/* Override clocksource cannot be used. */
+			printk(KERN_WARNING "Override clocksource %s is not "
+			       "HRT compatible. Cannot switch while in "
+			       "HRT/NOHZ mode\n", cs->name);
+			override_name[0] = 0;
+		} else
+			/* Override clocksource can be used. */
+			best = cs;
+		break;
+	}
+	if (curr_clocksource != best)
+		next_clocksource = best;
 }
+
+#else /* CONFIG_GENERIC_TIME */
+
+static void clocksource_select(void) { }
+
+#endif
 
 /*
  * Enqueue the clocksource sorted by rating
  */
-static int clocksource_enqueue(struct clocksource *c)
+static void clocksource_enqueue(struct clocksource *cs)
 {
-	struct list_head *tmp, *entry = &clocksource_list;
+	struct list_head *entry = &clocksource_list;
+	struct clocksource *tmp;
 
-	list_for_each(tmp, &clocksource_list) {
-		struct clocksource *cs;
-
-		cs = list_entry(tmp, struct clocksource, list);
-		if (cs == c)
-			return -EBUSY;
+	list_for_each_entry(tmp, &clocksource_list, list)
 		/* Keep track of the place, where to insert */
-		if (cs->rating >= c->rating)
-			entry = tmp;
-	}
-	list_add(&c->list, entry);
-
-	if (strlen(c->name) == strlen(override_name) &&
-	    !strcmp(c->name, override_name))
-		clocksource_override = c;
-
-	return 0;
+		if (tmp->rating >= cs->rating)
+			entry = &tmp->list;
+	list_add(&cs->list, entry);
 }
 
 /**
@@ -397,19 +402,16 @@ static int clocksource_enqueue(struct clocksource *c)
  *
  * Returns -EBUSY if registration fails, zero otherwise.
  */
-int clocksource_register(struct clocksource *c)
+int clocksource_register(struct clocksource *cs)
 {
 	unsigned long flags;
-	int ret;
 
 	spin_lock_irqsave(&clocksource_lock, flags);
-	ret = clocksource_enqueue(c);
-	if (!ret)
-		next_clocksource = select_clocksource();
+	clocksource_enqueue(cs);
+	clocksource_select();
 	spin_unlock_irqrestore(&clocksource_lock, flags);
-	if (!ret)
-		clocksource_check_watchdog(c);
-	return ret;
+	clocksource_check_watchdog(cs);
+	return 0;
 }
 EXPORT_SYMBOL(clocksource_register);
 
@@ -425,7 +427,7 @@ void clocksource_change_rating(struct clocksource *cs, int rating)
 	list_del(&cs->list);
 	cs->rating = rating;
 	clocksource_enqueue(cs);
-	next_clocksource = select_clocksource();
+	clocksource_select();
 	spin_unlock_irqrestore(&clocksource_lock, flags);
 }
 
@@ -438,9 +440,7 @@ void clocksource_unregister(struct clocksource *cs)
 
 	spin_lock_irqsave(&clocksource_lock, flags);
 	list_del(&cs->list);
-	if (clocksource_override == cs)
-		clocksource_override = NULL;
-	next_clocksource = select_clocksource();
+	clocksource_select();
 	spin_unlock_irqrestore(&clocksource_lock, flags);
 }
 
@@ -478,9 +478,7 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 					  struct sysdev_attribute *attr,
 					  const char *buf, size_t count)
 {
-	struct clocksource *ovr = NULL;
 	size_t ret = count;
-	int len;
 
 	/* strings from sysfs write are not 0 terminated! */
 	if (count >= sizeof(override_name))
@@ -495,37 +493,7 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 	if (count > 0)
 		memcpy(override_name, buf, count);
 	override_name[count] = 0;
-
-	len = strlen(override_name);
-	if (len) {
-		struct clocksource *cs;
-
-		ovr = clocksource_override;
-		/* try to select it: */
-		list_for_each_entry(cs, &clocksource_list, list) {
-			if (strlen(cs->name) == len &&
-			    !strcmp(cs->name, override_name))
-				ovr = cs;
-		}
-	}
-
-	/*
-	 * Check to make sure we don't switch to a non-highres capable
-	 * clocksource if the tick code is in oneshot mode (highres or nohz)
-	 */
-	if (tick_oneshot_mode_active() && ovr &&
-	    !(ovr->flags & CLOCK_SOURCE_VALID_FOR_HRES)) {
-		printk(KERN_WARNING "%s clocksource is not HRT compatible. "
-			"Cannot switch while in HRT/NOHZ mode\n", ovr->name);
-		ovr = NULL;
-		override_name[0] = 0;
-	}
-
-	/* Reselect, when the override name has changed */
-	if (ovr != clocksource_override) {
-		clocksource_override = ovr;
-		next_clocksource = select_clocksource();
-	}
+	clocksource_select();
 
 	spin_unlock_irq(&clocksource_lock);
 

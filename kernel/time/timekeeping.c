@@ -269,7 +269,7 @@ static void change_clocksource(void)
 
 	new = clocksource_get_next();
 
-	if (clock == new)
+	if (!new || clock == new)
 		return;
 
 	clocksource_forward_now();
@@ -446,7 +446,7 @@ void __init timekeeping_init(void)
 
 	ntp_init();
 
-	clock = clocksource_get_next();
+	clock = clocksource_default_clock();
 	if (clock->enable)
 		clock->enable(clock);
 	/* set mult_orig on enable */
