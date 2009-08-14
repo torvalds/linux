@@ -1,11 +1,11 @@
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM irq
+
 #if !defined(_TRACE_IRQ_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_IRQ_H
 
 #include <linux/tracepoint.h>
 #include <linux/interrupt.h>
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM irq
 
 #define softirq_name(sirq) { sirq##_SOFTIRQ, #sirq }
 #define show_softirq_name(val)			\

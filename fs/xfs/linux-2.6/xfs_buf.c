@@ -412,7 +412,7 @@ _xfs_buf_lookup_pages(
 
 			XFS_STATS_INC(xb_page_retries);
 			xfsbufd_wakeup(0, gfp_mask);
-			congestion_wait(WRITE, HZ/50);
+			congestion_wait(BLK_RW_ASYNC, HZ/50);
 			goto retry;
 		}
 
@@ -770,7 +770,7 @@ xfs_buf_associate_memory(
 	bp->b_pages = NULL;
 	bp->b_addr = mem;
 
-	rval = _xfs_buf_get_pages(bp, page_count, 0);
+	rval = _xfs_buf_get_pages(bp, page_count, XBF_DONT_BLOCK);
 	if (rval)
 		return rval;
 

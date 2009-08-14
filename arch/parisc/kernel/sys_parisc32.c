@@ -174,68 +174,6 @@ asmlinkage long sys32_sched_rr_get_interval(pid_t pid,
 	return ret;
 }
 
-/*** copied from mips64 ***/
-/*
- * Ooo, nasty.  We need here to frob 32-bit unsigned longs to
- * 64-bit unsigned longs.
- */
-
-static inline int
-get_fd_set32(unsigned long n, u32 *ufdset, unsigned long *fdset)
-{
-	n = (n + 8*sizeof(u32) - 1) / (8*sizeof(u32));
-	if (ufdset) {
-		unsigned long odd;
-
-		if (!access_ok(VERIFY_WRITE, ufdset, n*sizeof(u32)))
-			return -EFAULT;
-
-		odd = n & 1UL;
-		n &= ~1UL;
-		while (n) {
-			unsigned long h, l;
-			__get_user(l, ufdset);
-			__get_user(h, ufdset+1);
-			ufdset += 2;
-			*fdset++ = h << 32 | l;
-			n -= 2;
-		}
-		if (odd)
-			__get_user(*fdset, ufdset);
-	} else {
-		/* Tricky, must clear full unsigned long in the
-		 * kernel fdset at the end, this makes sure that
-		 * actually happens.
-		 */
-		memset(fdset, 0, ((n + 1) & ~1)*sizeof(u32));
-	}
-	return 0;
-}
-
-static inline void
-set_fd_set32(unsigned long n, u32 *ufdset, unsigned long *fdset)
-{
-	unsigned long odd;
-	n = (n + 8*sizeof(u32) - 1) / (8*sizeof(u32));
-
-	if (!ufdset)
-		return;
-
-	odd = n & 1UL;
-	n &= ~1UL;
-	while (n) {
-		unsigned long h, l;
-		l = *fdset++;
-		h = l >> 32;
-		__put_user(l, ufdset);
-		__put_user(h, ufdset+1);
-		ufdset += 2;
-		n -= 2;
-	}
-	if (odd)
-		__put_user(*fdset, ufdset);
-}
-
 struct msgbuf32 {
     int mtype;
     char mtext[1];

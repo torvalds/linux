@@ -351,6 +351,7 @@ static int raid0_run(mddev_t *mddev)
 
 	blk_queue_merge_bvec(mddev->queue, raid0_mergeable_bvec);
 	dump_zones(mddev);
+	md_integrity_register(mddev);
 	return 0;
 }
 

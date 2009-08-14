@@ -238,7 +238,7 @@ static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 				&qdev->mpi_port_cfg_work, 0);
 	}
 
-	netif_carrier_on(qdev->ndev);
+	ql_link_on(qdev);
 }
 
 static void ql_link_down(struct ql_adapter *qdev, struct mbox_params *mbcp)
@@ -251,7 +251,7 @@ static void ql_link_down(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	if (status)
 		QPRINTK(qdev, DRV, ERR, "Link down AEN broken!\n");
 
-	netif_carrier_off(qdev->ndev);
+	ql_link_off(qdev);
 }
 
 static int ql_sfp_in(struct ql_adapter *qdev, struct mbox_params *mbcp)
@@ -849,7 +849,7 @@ void ql_mpi_idc_work(struct work_struct *work)
 	case MB_CMD_PORT_RESET:
 	case MB_CMD_SET_PORT_CFG:
 	case MB_CMD_STOP_FW:
-		netif_carrier_off(qdev->ndev);
+		ql_link_off(qdev);
 		/* Signal the resulting link up AEN
 		 * that the frame routing and mac addr
 		 * needs to be set.

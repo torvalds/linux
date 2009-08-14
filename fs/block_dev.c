@@ -564,6 +564,16 @@ struct block_device *bdget(dev_t dev)
 
 EXPORT_SYMBOL(bdget);
 
+/**
+ * bdgrab -- Grab a reference to an already referenced block device
+ * @bdev:	Block device to grab a reference to.
+ */
+struct block_device *bdgrab(struct block_device *bdev)
+{
+	atomic_inc(&bdev->bd_inode->i_count);
+	return bdev;
+}
+
 long nr_blockdev_pages(void)
 {
 	struct block_device *bdev;

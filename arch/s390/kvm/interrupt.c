@@ -386,7 +386,7 @@ no_timer:
 	}
 	__unset_cpu_idle(vcpu);
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&vcpu->wq, &wait);
+	remove_wait_queue(&vcpu->arch.local_int.wq, &wait);
 	spin_unlock_bh(&vcpu->arch.local_int.lock);
 	spin_unlock(&vcpu->arch.local_int.float_int->lock);
 	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);

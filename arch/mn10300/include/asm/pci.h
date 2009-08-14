@@ -59,7 +59,6 @@ void pcibios_penalize_isa_irq(int irq);
 #include <linux/slab.h>
 #include <asm/scatterlist.h>
 #include <linux/string.h>
-#include <linux/mm.h>
 #include <asm/io.h>
 
 struct pci_dev;
@@ -69,10 +68,6 @@ struct pci_dev;
  * this boolean for bounce buffer decisions.
  */
 #define PCI_DMA_BUS_IS_PHYS	(1)
-
-
-/* This is always fine. */
-#define pci_dac_dma_supported(pci_dev, mask)	(0)
 
 /* Return the index of the PCI controller for device. */
 static inline int pci_controller_num(struct pci_dev *dev)

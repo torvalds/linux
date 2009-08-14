@@ -1004,7 +1004,7 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
 	chunk->map_alloc = PCPU_DFL_MAP_ALLOC;
 	chunk->map[chunk->map_used++] = pcpu_unit_size;
 
-	chunk->vm = get_vm_area(pcpu_chunk_size, GFP_KERNEL);
+	chunk->vm = get_vm_area(pcpu_chunk_size, VM_ALLOC);
 	if (!chunk->vm) {
 		free_pcpu_chunk(chunk);
 		return NULL;
@@ -1325,7 +1325,7 @@ size_t __init pcpu_setup_first_chunk(size_t static_size, size_t reserved_size,
 		int *identity_map;
 
 		/* #units == #cpus, identity mapped */
-		identity_map = alloc_bootmem(num_possible_cpus() *
+		identity_map = alloc_bootmem(nr_cpu_ids *
 					     sizeof(identity_map[0]));
 
 		for_each_possible_cpu(cpu)
@@ -1333,7 +1333,7 @@ size_t __init pcpu_setup_first_chunk(size_t static_size, size_t reserved_size,
 
 		pcpu_first_unit_cpu = 0;
 		pcpu_last_unit_cpu = pcpu_nr_units - 1;
-		pcpu_nr_units = num_possible_cpus();
+		pcpu_nr_units = nr_cpu_ids;
 		pcpu_unit_map = identity_map;
 	}
 
@@ -1464,7 +1464,7 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	size_sum = pcpu_calc_fc_sizes(static_size, reserved_size, &dyn_size);
 
 	unit_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
-	chunk_size = unit_size * num_possible_cpus();
+	chunk_size = unit_size * nr_cpu_ids;
 
 	base = __alloc_bootmem_nopanic(chunk_size, PAGE_SIZE,
 				       __pa(MAX_DMA_ADDRESS));
@@ -1475,11 +1475,15 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	}
 
 	/* return the leftover and copy */
-	for_each_possible_cpu(cpu) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
 		void *ptr = base + cpu * unit_size;
 
-		free_bootmem(__pa(ptr + size_sum), unit_size - size_sum);
-		memcpy(ptr, __per_cpu_load, static_size);
+		if (cpu_possible(cpu)) {
+			free_bootmem(__pa(ptr + size_sum),
+				     unit_size - size_sum);
+			memcpy(ptr, __per_cpu_load, static_size);
+		} else
+			free_bootmem(__pa(ptr), unit_size);
 	}
 
 	/* we're ready, commit */
@@ -1525,8 +1529,7 @@ ssize_t __init pcpu_4k_first_chunk(size_t static_size, size_t reserved_size,
 				  PCPU_MIN_UNIT_SIZE));
 
 	/* unaligned allocations can't be freed, round up to page size */
-	pages_size = PFN_ALIGN(unit_pages * num_possible_cpus() *
-			       sizeof(pages[0]));
+	pages_size = PFN_ALIGN(unit_pages * nr_cpu_ids * sizeof(pages[0]));
 	pages = alloc_bootmem(pages_size);
 
 	/* allocate pages */
@@ -1546,7 +1549,7 @@ ssize_t __init pcpu_4k_first_chunk(size_t static_size, size_t reserved_size,
 
 	/* allocate vm area, map the pages and copy static data */
 	vm.flags = VM_ALLOC;
-	vm.size = num_possible_cpus() * unit_pages << PAGE_SHIFT;
+	vm.size = nr_cpu_ids * unit_pages << PAGE_SHIFT;
 	vm_area_register_early(&vm, PAGE_SIZE);
 
 	for_each_possible_cpu(cpu) {

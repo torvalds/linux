@@ -1487,7 +1487,7 @@ void __init setup_per_cpu_areas(void)
 	dyn_size = size_sum - static_size - PERCPU_MODULE_RESERVE;
 
 
-	ptrs_size = PFN_ALIGN(num_possible_cpus() * sizeof(ptrs[0]));
+	ptrs_size = PFN_ALIGN(nr_cpu_ids * sizeof(ptrs[0]));
 	ptrs = alloc_bootmem(ptrs_size);
 
 	for_each_possible_cpu(cpu) {
@@ -1502,7 +1502,7 @@ void __init setup_per_cpu_areas(void)
 
 	/* allocate address and map */
 	vm.flags = VM_ALLOC;
-	vm.size = num_possible_cpus() * PCPU_CHUNK_SIZE;
+	vm.size = nr_cpu_ids * PCPU_CHUNK_SIZE;
 	vm_area_register_early(&vm, PCPU_CHUNK_SIZE);
 
 	for_each_possible_cpu(cpu) {

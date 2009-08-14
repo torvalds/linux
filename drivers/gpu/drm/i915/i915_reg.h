@@ -206,6 +206,7 @@
 /*
  * Instruction and interrupt control regs
  */
+#define PGTBL_ER	0x02024
 #define PRB0_TAIL	0x02030
 #define PRB0_HEAD	0x02034
 #define PRB0_START	0x02038
@@ -226,11 +227,18 @@
 #define PRB1_HEAD	0x02044 /* 915+ only */
 #define PRB1_START	0x02048 /* 915+ only */
 #define PRB1_CTL	0x0204c /* 915+ only */
+#define IPEIR_I965	0x02064
+#define IPEHR_I965	0x02068
+#define INSTDONE_I965	0x0206c
+#define INSTPS		0x02070 /* 965+ only */
+#define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
 #define HWS_PGA		0x02080
 #define HWS_ADDRESS_MASK	0xfffff000
 #define HWS_START_ADDRESS_SHIFT	4
 #define IPEIR		0x02088
+#define IPEHR		0x0208c
+#define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
 #define SCPD0		0x0209c /* 915+ only */
@@ -258,10 +266,22 @@
 #define EIR		0x020b0
 #define EMR		0x020b4
 #define ESR		0x020b8
+#define   GM45_ERROR_PAGE_TABLE				(1<<5)
+#define   GM45_ERROR_MEM_PRIV				(1<<4)
+#define   I915_ERROR_PAGE_TABLE				(1<<4)
+#define   GM45_ERROR_CP_PRIV				(1<<3)
+#define   I915_ERROR_MEMORY_REFRESH			(1<<1)
+#define   I915_ERROR_INSTRUCTION			(1<<0)
 #define INSTPM	        0x020c0
 #define ACTHD	        0x020c8
 #define FW_BLC		0x020d8
+#define FW_BLC2	 	0x020dc
 #define FW_BLC_SELF	0x020e0 /* 915+ only */
+#define   FW_BLC_SELF_EN (1<<15)
+#define MM_BURST_LENGTH     0x00700000
+#define MM_FIFO_WATERMARK   0x0001F000
+#define LM_BURST_LENGTH     0x00000700
+#define LM_FIFO_WATERMARK   0x0000001F
 #define MI_ARB_STATE	0x020e4 /* 915+ only */
 #define CACHE_MODE_0	0x02120 /* 915+ only */
 #define   CM0_MASK_SHIFT          16
@@ -571,17 +591,21 @@
 
 /* Clocking configuration register */
 #define CLKCFG			0x10c00
-#define CLKCFG_FSB_400					(0 << 0)	/* hrawclk 100 */
+#define CLKCFG_FSB_400					(5 << 0)	/* hrawclk 100 */
 #define CLKCFG_FSB_533					(1 << 0)	/* hrawclk 133 */
 #define CLKCFG_FSB_667					(3 << 0)	/* hrawclk 166 */
 #define CLKCFG_FSB_800					(2 << 0)	/* hrawclk 200 */
 #define CLKCFG_FSB_1067					(6 << 0)	/* hrawclk 266 */
 #define CLKCFG_FSB_1333					(7 << 0)	/* hrawclk 333 */
-/* this is a guess, could be 5 as well */
+/* Note, below two are guess */
 #define CLKCFG_FSB_1600					(4 << 0)	/* hrawclk 400 */
-#define CLKCFG_FSB_1600_ALT				(5 << 0)	/* hrawclk 400 */
+#define CLKCFG_FSB_1600_ALT				(0 << 0)	/* hrawclk 400 */
 #define CLKCFG_FSB_MASK					(7 << 0)
- 
+#define CLKCFG_MEM_533					(1 << 4)
+#define CLKCFG_MEM_667					(2 << 4)
+#define CLKCFG_MEM_800					(3 << 4)
+#define CLKCFG_MEM_MASK					(7 << 4)
+
 /** GM965 GM45 render standby register */
 #define MCHBAR_RENDER_STANDBY	0x111B8
 
@@ -1371,6 +1395,7 @@
 #define TV_V_CHROMA_42		0x684a8
 
 /* Display Port */
+#define DP_A				0x64000 /* eDP */
 #define DP_B				0x64100
 #define DP_C				0x64200
 #define DP_D				0x64300
@@ -1413,13 +1438,22 @@
 /* Mystic DPCD version 1.1 special mode */
 #define   DP_ENHANCED_FRAMING		(1 << 18)
 
+/* eDP */
+#define   DP_PLL_FREQ_270MHZ		(0 << 16)
+#define   DP_PLL_FREQ_160MHZ		(1 << 16)
+#define   DP_PLL_FREQ_MASK		(3 << 16)
+
 /** locked once port is enabled */
 #define   DP_PORT_REVERSAL		(1 << 15)
+
+/* eDP */
+#define   DP_PLL_ENABLE			(1 << 14)
 
 /** sends the clock on lane 15 of the PEG for debug */
 #define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
 
 #define   DP_SCRAMBLING_DISABLE		(1 << 12)
+#define   DP_SCRAMBLING_DISABLE_IGDNG	(1 << 7)
 
 /** limit RGB values to avoid confusing TVs */
 #define   DP_COLOR_RANGE_16_235		(1 << 8)
@@ -1439,6 +1473,13 @@
  * is 20 bytes in each direction, hence the 5 fixed
  * data registers
  */
+#define DPA_AUX_CH_CTL			0x64010
+#define DPA_AUX_CH_DATA1		0x64014
+#define DPA_AUX_CH_DATA2		0x64018
+#define DPA_AUX_CH_DATA3		0x6401c
+#define DPA_AUX_CH_DATA4		0x64020
+#define DPA_AUX_CH_DATA5		0x64024
+
 #define DPB_AUX_CH_CTL			0x64110
 #define DPB_AUX_CH_DATA1		0x64114
 #define DPB_AUX_CH_DATA2		0x64118
@@ -1581,6 +1622,34 @@
 #define   DSPARB_CSTART_SHIFT	7
 #define   DSPARB_BSTART_MASK	(0x7f)
 #define   DSPARB_BSTART_SHIFT	0
+#define   DSPARB_BEND_SHIFT	9 /* on 855 */
+#define   DSPARB_AEND_SHIFT	0
+
+#define DSPFW1			0x70034
+#define DSPFW2			0x70038
+#define DSPFW3			0x7003c
+#define   IGD_SELF_REFRESH_EN	(1<<30)
+
+/* FIFO watermark sizes etc */
+#define I915_FIFO_LINE_SIZE	64
+#define I830_FIFO_LINE_SIZE	32
+#define I945_FIFO_SIZE		127 /* 945 & 965 */
+#define I915_FIFO_SIZE		95
+#define I855GM_FIFO_SIZE	127 /* In cachelines */
+#define I830_FIFO_SIZE		95
+#define I915_MAX_WM		0x3f
+
+#define IGD_DISPLAY_FIFO	512 /* in 64byte unit */
+#define IGD_FIFO_LINE_SIZE	64
+#define IGD_MAX_WM		0x1ff
+#define IGD_DFT_WM		0x3f
+#define IGD_DFT_HPLLOFF_WM	0
+#define IGD_GUARD_WM		10
+#define IGD_CURSOR_FIFO		64
+#define IGD_CURSOR_MAX_WM	0x3f
+#define IGD_CURSOR_DFT_WM	0
+#define IGD_CURSOR_GUARD_WM	5
+
 /*
  * The two pipe frame counter registers are not synchronized, so
  * reading a stable value is somewhat tricky. The following code
@@ -1796,6 +1865,8 @@
 #define PFA_CTL_1               0x68080
 #define PFB_CTL_1               0x68880
 #define  PF_ENABLE              (1<<31)
+#define PFA_WIN_SZ		0x68074
+#define PFB_WIN_SZ		0x68874
 
 /* legacy palette */
 #define LGC_PALETTE_A           0x4a000
@@ -2155,5 +2226,29 @@
 #define  EDP_PANEL		(1 << 30)
 #define PCH_PP_OFF_DELAYS	0xc720c
 #define PCH_PP_DIVISOR		0xc7210
+
+#define PCH_DP_B		0xe4100
+#define PCH_DPB_AUX_CH_CTL	0xe4110
+#define PCH_DPB_AUX_CH_DATA1	0xe4114
+#define PCH_DPB_AUX_CH_DATA2	0xe4118
+#define PCH_DPB_AUX_CH_DATA3	0xe411c
+#define PCH_DPB_AUX_CH_DATA4	0xe4120
+#define PCH_DPB_AUX_CH_DATA5	0xe4124
+
+#define PCH_DP_C		0xe4200
+#define PCH_DPC_AUX_CH_CTL	0xe4210
+#define PCH_DPC_AUX_CH_DATA1	0xe4214
+#define PCH_DPC_AUX_CH_DATA2	0xe4218
+#define PCH_DPC_AUX_CH_DATA3	0xe421c
+#define PCH_DPC_AUX_CH_DATA4	0xe4220
+#define PCH_DPC_AUX_CH_DATA5	0xe4224
+
+#define PCH_DP_D		0xe4300
+#define PCH_DPD_AUX_CH_CTL	0xe4310
+#define PCH_DPD_AUX_CH_DATA1	0xe4314
+#define PCH_DPD_AUX_CH_DATA2	0xe4318
+#define PCH_DPD_AUX_CH_DATA3	0xe431c
+#define PCH_DPD_AUX_CH_DATA4	0xe4320
+#define PCH_DPD_AUX_CH_DATA5	0xe4324
 
 #endif /* _I915_REG_H_ */

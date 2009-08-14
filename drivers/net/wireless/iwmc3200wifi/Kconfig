@@ -4,6 +4,15 @@ config IWM
 	depends on CFG80211
 	select WIRELESS_EXT
 	select FW_LOADER
+	help
+	  The Intel Wireless Multicomm 3200 hardware is a combo
+	  card with GPS, Bluetooth, WiMax and 802.11 radios. It
+	  runs over SDIO and is typically found on Moorestown
+	  based platform. This driver takes care of the 802.11
+	  part, which is a fullmac one.
+
+	  If you choose to build it as a module, it'll be called
+	  iwmc3200wifi.ko.
 
 config IWM_DEBUG
 	bool "Enable full debugging output in iwmc3200wifi"

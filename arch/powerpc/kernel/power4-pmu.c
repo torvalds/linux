@@ -606,7 +606,8 @@ static struct power_pmu power4_pmu = {
 
 static int init_power4_pmu(void)
 {
-	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power4"))
+	if (!cur_cpu_spec->oprofile_cpu_type ||
+	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power4"))
 		return -ENODEV;
 
 	return register_power_pmu(&power4_pmu);

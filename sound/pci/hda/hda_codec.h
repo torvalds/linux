@@ -568,7 +568,7 @@ struct hda_bus_ops {
 	/* send a single command */
 	int (*command)(struct hda_bus *bus, unsigned int cmd);
 	/* get a response from the last command */
-	unsigned int (*get_response)(struct hda_bus *bus);
+	unsigned int (*get_response)(struct hda_bus *bus, unsigned int addr);
 	/* free the private data */
 	void (*private_free)(struct hda_bus *);
 	/* attach a PCM stream */

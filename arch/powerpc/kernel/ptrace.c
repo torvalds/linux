@@ -736,15 +736,16 @@ void user_disable_single_step(struct task_struct *task)
 {
 	struct pt_regs *regs = task->thread.regs;
 
-
-#if defined(CONFIG_BOOKE)
-	/* If DAC then do not single step, skip */
-	if (task->thread.dabr)
-		return;
-#endif
-
 	if (regs != NULL) {
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#if defined(CONFIG_BOOKE)
+		/* If DAC don't clear DBCRO_IDM or MSR_DE */
+		if (task->thread.dabr)
+			task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_BT);
+		else {
+			task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_BT | DBCR0_IDM);
+			regs->msr &= ~MSR_DE;
+		}
+#elif defined(CONFIG_40x)
 		task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_BT | DBCR0_IDM);
 		regs->msr &= ~MSR_DE;
 #else

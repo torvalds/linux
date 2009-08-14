@@ -44,7 +44,9 @@ zc3xx		0458:7007	Genius VideoCam V2
 zc3xx		0458:700c	Genius VideoCam V3
 zc3xx		0458:700f	Genius VideoCam Web V2
 sonixj		0458:7025	Genius Eye 311Q
+sn9c20x		0458:7029	Genius Look 320s
 sonixj		0458:702e	Genius Slim 310 NB
+sn9c20x		045e:00f4	LifeCam VX-6000 (SN9C20x + OV9650)
 sonixj		045e:00f5	MicroSoft VX3000
 sonixj		045e:00f7	MicroSoft VX1000
 ov519		045e:028c	Micro$oft xbox cam
@@ -282,6 +284,28 @@ sonixj		0c45:613a	Microdia Sonix PC Camera
 sonixj		0c45:613b	Surfer SN-206
 sonixj		0c45:613c	Sonix Pccam168
 sonixj		0c45:6143	Sonix Pccam168
+sn9c20x		0c45:6240	PC Camera (SN9C201 + MT9M001)
+sn9c20x		0c45:6242	PC Camera (SN9C201 + MT9M111)
+sn9c20x		0c45:6248	PC Camera (SN9C201 + OV9655)
+sn9c20x		0c45:624e	PC Camera (SN9C201 + SOI968)
+sn9c20x		0c45:624f	PC Camera (SN9C201 + OV9650)
+sn9c20x		0c45:6251	PC Camera (SN9C201 + OV9650)
+sn9c20x		0c45:6253	PC Camera (SN9C201 + OV9650)
+sn9c20x		0c45:6260	PC Camera (SN9C201 + OV7670)
+sn9c20x		0c45:6270	PC Camera (SN9C201 + MT9V011/MT9V111/MT9V112)
+sn9c20x		0c45:627b	PC Camera (SN9C201 + OV7660)
+sn9c20x		0c45:627c	PC Camera (SN9C201 + HV7131R)
+sn9c20x		0c45:627f	PC Camera (SN9C201 + OV9650)
+sn9c20x		0c45:6280	PC Camera (SN9C202 + MT9M001)
+sn9c20x		0c45:6282	PC Camera (SN9C202 + MT9M111)
+sn9c20x		0c45:6288	PC Camera (SN9C202 + OV9655)
+sn9c20x		0c45:628e	PC Camera (SN9C202 + SOI968)
+sn9c20x		0c45:628f	PC Camera (SN9C202 + OV9650)
+sn9c20x		0c45:62a0	PC Camera (SN9C202 + OV7670)
+sn9c20x		0c45:62b0	PC Camera (SN9C202 + MT9V011/MT9V111/MT9V112)
+sn9c20x		0c45:62b3	PC Camera (SN9C202 + OV9655)
+sn9c20x		0c45:62bb	PC Camera (SN9C202 + OV7660)
+sn9c20x		0c45:62bc	PC Camera (SN9C202 + HV7131R)
 sunplus		0d64:0303	Sunplus FashionCam DXG
 etoms		102c:6151	Qcam Sangha CIF
 etoms		102c:6251	Qcam xxxxxx VGA
@@ -290,6 +314,7 @@ spca561		10fd:7e50	FlyCam Usb 100
 zc3xx		10fd:8050	Typhoon Webshot II USB 300k
 ov534		1415:2000	Sony HD Eye for PS3 (SLEH 00201)
 pac207		145f:013a	Trust WB-1300N
+sn9c20x		145f:013d	Trust WB-3600R
 vc032x		15b8:6001	HP 2.0 Megapixel
 vc032x		15b8:6002	HP 2.0 Megapixel rz406aa
 spca501		1776:501c	Arowana 300K CMOS Camera
@@ -300,4 +325,11 @@ spca500		2899:012c	Toptro Industrial
 spca508		8086:0110	Intel Easy PC Camera
 spca500		8086:0630	Intel Pocket PC Camera
 spca506		99fa:8988	Grandtec V.cap
+sn9c20x		a168:0610	Dino-Lite Digital Microscope (SN9C201 + HV7131R)
+sn9c20x		a168:0611	Dino-Lite Digital Microscope (SN9C201 + HV7131R)
+sn9c20x		a168:0613	Dino-Lite Digital Microscope (SN9C201 + HV7131R)
+sn9c20x		a168:0618	Dino-Lite Digital Microscope (SN9C201 + HV7131R)
+sn9c20x		a168:0614	Dino-Lite Digital Microscope (SN9C201 + MT9M111)
+sn9c20x		a168:0615	Dino-Lite Digital Microscope (SN9C201 + MT9M111)
+sn9c20x		a168:0617	Dino-Lite Digital Microscope (SN9C201 + MT9M111)
 spca561		abcd:cdee	Petcam

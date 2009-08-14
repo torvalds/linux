@@ -3514,11 +3514,13 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-	napi_schedule(&np->napi);
-
-	/* Disable furthur irq's
-	   (msix not enabled with napi) */
-	writel(0, base + NvRegIrqMask);
+	if (napi_schedule_prep(&np->napi)) {
+		/*
+		 * Disable further irq's (msix not enabled with napi)
+		 */
+		writel(0, base + NvRegIrqMask);
+		__napi_schedule(&np->napi);
+	}
 
 #else
 	do
@@ -3615,12 +3617,13 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 	nv_msi_workaround(np);
 
 #ifdef CONFIG_FORCEDETH_NAPI
-	napi_schedule(&np->napi);
-
-	/* Disable furthur irq's
-	   (msix not enabled with napi) */
-	writel(0, base + NvRegIrqMask);
-
+	if (napi_schedule_prep(&np->napi)) {
+		/*
+		 * Disable further irq's (msix not enabled with napi)
+		 */
+		writel(0, base + NvRegIrqMask);
+		__napi_schedule(&np->napi);
+	}
 #else
 	do
 	{

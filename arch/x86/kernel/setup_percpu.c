@@ -177,7 +177,7 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 	}
 
 	/* allocate and build unit_map */
-	unit_map_size = num_possible_cpus() * sizeof(int);
+	unit_map_size = nr_cpu_ids * sizeof(int);
 	unit_map = alloc_bootmem_nopanic(unit_map_size);
 	if (!unit_map) {
 		pr_warning("PERCPU: failed to allocate unit_map\n");

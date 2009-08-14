@@ -9,21 +9,11 @@
 #ifndef _ASM_MICROBLAZE_HARDIRQ_H
 #define _ASM_MICROBLAZE_HARDIRQ_H
 
-#include <linux/cache.h>
-#include <linux/irq.h>
-#include <asm/irq.h>
-#include <asm/current.h>
-#include <linux/ptrace.h>
-
 /* should be defined in each interrupt controller driver */
 extern unsigned int get_irq(struct pt_regs *regs);
 
-typedef struct {
-	unsigned int __softirq_pending;
-} ____cacheline_aligned irq_cpustat_t;
-
+#define ack_bad_irq ack_bad_irq
 void ack_bad_irq(unsigned int irq);
-
-#include <linux/irq_cpustat.h> /* Standard mappings for irq_cpustat_t above */
+#include <asm-generic/hardirq.h>
 
 #endif /* _ASM_MICROBLAZE_HARDIRQ_H */

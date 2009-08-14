@@ -761,6 +761,10 @@ static struct kobj_type ktype_cpufreq = {
  * cpufreq_add_dev - add a CPU device
  *
  * Adds the cpufreq interface for a CPU device.
+ *
+ * The Oracle says: try running cpufreq registration/unregistration concurrently
+ * with with cpu hotplugging and all hell will break loose. Tried to clean this
+ * mess up, but more thorough testing is needed. - Mathieu
  */
 static int cpufreq_add_dev(struct sys_device *sys_dev)
 {
@@ -772,9 +776,6 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	struct sys_device *cpu_sys_dev;
 	unsigned long flags;
 	unsigned int j;
-#ifdef CONFIG_SMP
-	struct cpufreq_policy *managed_policy;
-#endif
 
 	if (cpu_is_offline(cpu))
 		return 0;
@@ -804,15 +805,12 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 		goto nomem_out;
 	}
 	if (!alloc_cpumask_var(&policy->cpus, GFP_KERNEL)) {
-		kfree(policy);
 		ret = -ENOMEM;
-		goto nomem_out;
+		goto err_free_policy;
 	}
 	if (!zalloc_cpumask_var(&policy->related_cpus, GFP_KERNEL)) {
-		free_cpumask_var(policy->cpus);
-		kfree(policy);
 		ret = -ENOMEM;
-		goto nomem_out;
+		goto err_free_cpumask;
 	}
 
 	policy->cpu = cpu;
@@ -820,7 +818,8 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 
 	/* Initially set CPU itself as the policy_cpu */
 	per_cpu(policy_cpu, cpu) = cpu;
-	lock_policy_rwsem_write(cpu);
+	ret = (lock_policy_rwsem_write(cpu) < 0);
+	WARN_ON(ret);
 
 	init_completion(&policy->kobj_unregister);
 	INIT_WORK(&policy->update, handle_update);
@@ -833,7 +832,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	ret = cpufreq_driver->init(policy);
 	if (ret) {
 		dprintk("initialization failed\n");
-		goto err_out;
+		goto err_unlock_policy;
 	}
 	policy->user_policy.min = policy->min;
 	policy->user_policy.max = policy->max;
@@ -852,21 +851,31 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 #endif
 
 	for_each_cpu(j, policy->cpus) {
+		struct cpufreq_policy *managed_policy;
+
 		if (cpu == j)
 			continue;
 
 		/* Check for existing affected CPUs.
 		 * They may not be aware of it due to CPU Hotplug.
+		 * cpufreq_cpu_put is called when the device is removed
+		 * in __cpufreq_remove_dev()
 		 */
-		managed_policy = cpufreq_cpu_get(j);		/* FIXME: Where is this released?  What about error paths? */
+		managed_policy = cpufreq_cpu_get(j);
 		if (unlikely(managed_policy)) {
 
 			/* Set proper policy_cpu */
 			unlock_policy_rwsem_write(cpu);
 			per_cpu(policy_cpu, cpu) = managed_policy->cpu;
 
-			if (lock_policy_rwsem_write(cpu) < 0)
-				goto err_out_driver_exit;
+			if (lock_policy_rwsem_write(cpu) < 0) {
+				/* Should not go through policy unlock path */
+				if (cpufreq_driver->exit)
+					cpufreq_driver->exit(policy);
+				ret = -EBUSY;
+				cpufreq_cpu_put(managed_policy);
+				goto err_free_cpumask;
+			}
 
 			spin_lock_irqsave(&cpufreq_driver_lock, flags);
 			cpumask_copy(managed_policy->cpus, policy->cpus);
@@ -878,11 +887,13 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 						&managed_policy->kobj,
 						"cpufreq");
 			if (ret)
-				goto err_out_driver_exit;
-
-			cpufreq_debug_enable_ratelimit();
-			ret = 0;
-			goto err_out_driver_exit; /* call driver->exit() */
+				cpufreq_cpu_put(managed_policy);
+			/*
+			 * Success. We only needed to be added to the mask.
+			 * Call driver->exit() because only the cpu parent of
+			 * the kobj needed to call init().
+			 */
+			goto out_driver_exit; /* call driver->exit() */
 		}
 	}
 #endif
@@ -892,29 +903,31 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq, &sys_dev->kobj,
 				   "cpufreq");
 	if (ret)
-		goto err_out_driver_exit;
+		goto out_driver_exit;
 
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
 	while ((drv_attr) && (*drv_attr)) {
 		ret = sysfs_create_file(&policy->kobj, &((*drv_attr)->attr));
 		if (ret)
-			goto err_out_driver_exit;
+			goto err_out_kobj_put;
 		drv_attr++;
 	}
 	if (cpufreq_driver->get) {
 		ret = sysfs_create_file(&policy->kobj, &cpuinfo_cur_freq.attr);
 		if (ret)
-			goto err_out_driver_exit;
+			goto err_out_kobj_put;
 	}
 	if (cpufreq_driver->target) {
 		ret = sysfs_create_file(&policy->kobj, &scaling_cur_freq.attr);
 		if (ret)
-			goto err_out_driver_exit;
+			goto err_out_kobj_put;
 	}
 
 	spin_lock_irqsave(&cpufreq_driver_lock, flags);
 	for_each_cpu(j, policy->cpus) {
+		if (!cpu_online(j))
+			continue;
 		per_cpu(cpufreq_cpu_data, j) = policy;
 		per_cpu(policy_cpu, j) = policy->cpu;
 	}
@@ -922,18 +935,22 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 
 	/* symlink affected CPUs */
 	for_each_cpu(j, policy->cpus) {
+		struct cpufreq_policy *managed_policy;
+
 		if (j == cpu)
 			continue;
 		if (!cpu_online(j))
 			continue;
 
 		dprintk("CPU %u already managed, adding link\n", j);
-		cpufreq_cpu_get(cpu);
+		managed_policy = cpufreq_cpu_get(cpu);
 		cpu_sys_dev = get_cpu_sysdev(j);
 		ret = sysfs_create_link(&cpu_sys_dev->kobj, &policy->kobj,
 					"cpufreq");
-		if (ret)
+		if (ret) {
+			cpufreq_cpu_put(managed_policy);
 			goto err_out_unregister;
+		}
 	}
 
 	policy->governor = NULL; /* to assure that the starting sequence is
@@ -965,17 +982,20 @@ err_out_unregister:
 		per_cpu(cpufreq_cpu_data, j) = NULL;
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
+err_out_kobj_put:
 	kobject_put(&policy->kobj);
 	wait_for_completion(&policy->kobj_unregister);
 
-err_out_driver_exit:
+out_driver_exit:
 	if (cpufreq_driver->exit)
 		cpufreq_driver->exit(policy);
 
-err_out:
+err_unlock_policy:
 	unlock_policy_rwsem_write(cpu);
+err_free_cpumask:
+	free_cpumask_var(policy->cpus);
+err_free_policy:
 	kfree(policy);
-
 nomem_out:
 	module_put(cpufreq_driver->owner);
 module_out:
@@ -1070,8 +1090,6 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 #endif
 
-	unlock_policy_rwsem_write(cpu);
-
 	if (cpufreq_driver->target)
 		__cpufreq_governor(data, CPUFREQ_GOV_STOP);
 
@@ -1087,6 +1105,8 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 
 	if (cpufreq_driver->exit)
 		cpufreq_driver->exit(data);
+
+	unlock_policy_rwsem_write(cpu);
 
 	free_cpumask_var(data->related_cpus);
 	free_cpumask_var(data->cpus);
@@ -1228,12 +1248,21 @@ EXPORT_SYMBOL(cpufreq_get);
 
 static int cpufreq_suspend(struct sys_device *sysdev, pm_message_t pmsg)
 {
-	int cpu = sysdev->id;
 	int ret = 0;
+
+#ifdef __powerpc__
+	int cpu = sysdev->id;
 	unsigned int cur_freq = 0;
 	struct cpufreq_policy *cpu_policy;
 
 	dprintk("suspending cpu %u\n", cpu);
+
+	/*
+	 * This whole bogosity is here because Powerbooks are made of fail.
+	 * No sane platform should need any of the code below to be run.
+	 * (it's entirely the wrong thing to do, as driver->get may
+	 *  reenable interrupts on some architectures).
+	 */
 
 	if (!cpu_online(cpu))
 		return 0;
@@ -1293,6 +1322,7 @@ static int cpufreq_suspend(struct sys_device *sysdev, pm_message_t pmsg)
 
 out:
 	cpufreq_cpu_put(cpu_policy);
+#endif	/* __powerpc__ */
 	return ret;
 }
 
@@ -1306,11 +1336,17 @@ out:
  */
 static int cpufreq_resume(struct sys_device *sysdev)
 {
-	int cpu = sysdev->id;
 	int ret = 0;
+
+#ifdef __powerpc__
+	int cpu = sysdev->id;
 	struct cpufreq_policy *cpu_policy;
 
 	dprintk("resuming cpu %u\n", cpu);
+
+	/* As with the ->suspend method, all the code below is
+	 * only necessary because Powerbooks suck.
+	 * See commit 42d4dc3f4e1e for jokes. */
 
 	if (!cpu_online(cpu))
 		return 0;
@@ -1375,6 +1411,7 @@ out:
 	schedule_work(&cpu_policy->update);
 fail:
 	cpufreq_cpu_put(cpu_policy);
+#endif	/* __powerpc__ */
 	return ret;
 }
 

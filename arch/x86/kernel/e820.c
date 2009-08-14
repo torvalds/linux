@@ -627,10 +627,9 @@ __init void e820_setup_gap(void)
 #ifdef CONFIG_X86_64
 	if (!found) {
 		gapstart = (max_pfn << PAGE_SHIFT) + 1024*1024;
-		printk(KERN_ERR "PCI: Warning: Cannot find a gap in the 32bit "
-		       "address range\n"
-		       KERN_ERR "PCI: Unassigned devices with 32bit resource "
-		       "registers may break!\n");
+		printk(KERN_ERR
+	"PCI: Warning: Cannot find a gap in the 32bit address range\n"
+	"PCI: Unassigned devices with 32bit resource registers may break!\n");
 	}
 #endif
 

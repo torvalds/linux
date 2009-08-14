@@ -310,23 +310,6 @@ static inline struct inode *VFS_I(struct xfs_inode *ip)
 }
 
 /*
- * Get rid of a partially initialized inode.
- *
- * We have to go through destroy_inode to make sure allocations
- * from init_inode_always like the security data are undone.
- *
- * We mark the inode bad so that it takes the short cut in
- * the reclaim path instead of going through the flush path
- * which doesn't make sense for an inode that has never seen the
- * light of day.
- */
-static inline void xfs_destroy_inode(struct xfs_inode *ip)
-{
-	make_bad_inode(VFS_I(ip));
-	return destroy_inode(VFS_I(ip));
-}
-
-/*
  * i_flags helper functions
  */
 static inline void

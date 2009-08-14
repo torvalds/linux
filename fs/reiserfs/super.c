@@ -24,7 +24,6 @@
 #include <linux/exportfs.h>
 #include <linux/quotaops.h>
 #include <linux/vfs.h>
-#include <linux/mnt_namespace.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/crc32.h>

@@ -239,12 +239,6 @@ struct ibm_init_struct {
 };
 
 static struct {
-#ifdef CONFIG_THINKPAD_ACPI_BAY
-	u32 bay_status:1;
-	u32 bay_eject:1;
-	u32 bay_status2:1;
-	u32 bay_eject2:1;
-#endif
 	u32 bluetooth:1;
 	u32 hotkey:1;
 	u32 hotkey_mask:1;
@@ -589,18 +583,6 @@ static int acpi_ec_write(int i, u8 v)
 	return 1;
 }
 
-#if defined(CONFIG_THINKPAD_ACPI_DOCK) || defined(CONFIG_THINKPAD_ACPI_BAY)
-static int _sta(acpi_handle handle)
-{
-	int status;
-
-	if (!handle || !acpi_evalf(handle, &status, "_STA", "d"))
-		status = 0;
-
-	return status;
-}
-#endif
-
 static int issue_thinkpad_cmos_command(int cmos_cmd)
 {
 	if (!cmos_handle)
@@ -783,6 +765,8 @@ static int dispatch_procfs_write(struct file *file,
 	int ret;
 
 	if (!ibm || !ibm->write)
+		return -EINVAL;
+	if (count > PAGE_SIZE - 2)
 		return -EINVAL;
 
 	kernbuf = kmalloc(count + 2, GFP_KERNEL);
@@ -4442,293 +4426,6 @@ static struct ibm_struct light_driver_data = {
 };
 
 /*************************************************************************
- * Dock subdriver
- */
-
-#ifdef CONFIG_THINKPAD_ACPI_DOCK
-
-static void dock_notify(struct ibm_struct *ibm, u32 event);
-static int dock_read(char *p);
-static int dock_write(char *buf);
-
-TPACPI_HANDLE(dock, root, "\\_SB.GDCK",	/* X30, X31, X40 */
-	   "\\_SB.PCI0.DOCK",	/* 600e/x,770e,770x,A2xm/p,T20-22,X20-21 */
-	   "\\_SB.PCI0.PCI1.DOCK",	/* all others */
-	   "\\_SB.PCI.ISA.SLCE",	/* 570 */
-    );				/* A21e,G4x,R30,R31,R32,R40,R40e,R50e */
-
-/* don't list other alternatives as we install a notify handler on the 570 */
-TPACPI_HANDLE(pci, root, "\\_SB.PCI");	/* 570 */
-
-static const struct acpi_device_id ibm_pci_device_ids[] = {
-	{PCI_ROOT_HID_STRING, 0},
-	{"", 0},
-};
-
-static struct tp_acpi_drv_struct ibm_dock_acpidriver[2] = {
-	{
-	 .notify = dock_notify,
-	 .handle = &dock_handle,
-	 .type = ACPI_SYSTEM_NOTIFY,
-	},
-	{
-	/* THIS ONE MUST NEVER BE USED FOR DRIVER AUTOLOADING.
-	 * We just use it to get notifications of dock hotplug
-	 * in very old thinkpads */
-	 .hid = ibm_pci_device_ids,
-	 .notify = dock_notify,
-	 .handle = &pci_handle,
-	 .type = ACPI_SYSTEM_NOTIFY,
-	},
-};
-
-static struct ibm_struct dock_driver_data[2] = {
-	{
-	 .name = "dock",
-	 .read = dock_read,
-	 .write = dock_write,
-	 .acpi = &ibm_dock_acpidriver[0],
-	},
-	{
-	 .name = "dock",
-	 .acpi = &ibm_dock_acpidriver[1],
-	},
-};
-
-#define dock_docked() (_sta(dock_handle) & 1)
-
-static int __init dock_init(struct ibm_init_struct *iibm)
-{
-	vdbg_printk(TPACPI_DBG_INIT, "initializing dock subdriver\n");
-
-	TPACPI_ACPIHANDLE_INIT(dock);
-
-	vdbg_printk(TPACPI_DBG_INIT, "dock is %s\n",
-		str_supported(dock_handle != NULL));
-
-	return (dock_handle)? 0 : 1;
-}
-
-static int __init dock_init2(struct ibm_init_struct *iibm)
-{
-	int dock2_needed;
-
-	vdbg_printk(TPACPI_DBG_INIT, "initializing dock subdriver part 2\n");
-
-	if (dock_driver_data[0].flags.acpi_driver_registered &&
-	    dock_driver_data[0].flags.acpi_notify_installed) {
-		TPACPI_ACPIHANDLE_INIT(pci);
-		dock2_needed = (pci_handle != NULL);
-		vdbg_printk(TPACPI_DBG_INIT,
-			    "dock PCI handler for the TP 570 is %s\n",
-			    str_supported(dock2_needed));
-	} else {
-		vdbg_printk(TPACPI_DBG_INIT,
-		"dock subdriver part 2 not required\n");
-		dock2_needed = 0;
-	}
-
-	return (dock2_needed)? 0 : 1;
-}
-
-static void dock_notify(struct ibm_struct *ibm, u32 event)
-{
-	int docked = dock_docked();
-	int pci = ibm->acpi->hid && ibm->acpi->device &&
-		acpi_match_device_ids(ibm->acpi->device, ibm_pci_device_ids);
-	int data;
-
-	if (event == 1 && !pci)	/* 570 */
-		data = 1;	/* button */
-	else if (event == 1 && pci)	/* 570 */
-		data = 3;	/* dock */
-	else if (event == 3 && docked)
-		data = 1;	/* button */
-	else if (event == 3 && !docked)
-		data = 2;	/* undock */
-	else if (event == 0 && docked)
-		data = 3;	/* dock */
-	else {
-		printk(TPACPI_ERR "unknown dock event %d, status %d\n",
-		       event, _sta(dock_handle));
-		data = 0;	/* unknown */
-	}
-	acpi_bus_generate_proc_event(ibm->acpi->device, event, data);
-	acpi_bus_generate_netlink_event(ibm->acpi->device->pnp.device_class,
-					  dev_name(&ibm->acpi->device->dev),
-					  event, data);
-}
-
-static int dock_read(char *p)
-{
-	int len = 0;
-	int docked = dock_docked();
-
-	if (!dock_handle)
-		len += sprintf(p + len, "status:\t\tnot supported\n");
-	else if (!docked)
-		len += sprintf(p + len, "status:\t\tundocked\n");
-	else {
-		len += sprintf(p + len, "status:\t\tdocked\n");
-		len += sprintf(p + len, "commands:\tdock, undock\n");
-	}
-
-	return len;
-}
-
-static int dock_write(char *buf)
-{
-	char *cmd;
-
-	if (!dock_docked())
-		return -ENODEV;
-
-	while ((cmd = next_cmd(&buf))) {
-		if (strlencmp(cmd, "undock") == 0) {
-			if (!acpi_evalf(dock_handle, NULL, "_DCK", "vd", 0) ||
-			    !acpi_evalf(dock_handle, NULL, "_EJ0", "vd", 1))
-				return -EIO;
-		} else if (strlencmp(cmd, "dock") == 0) {
-			if (!acpi_evalf(dock_handle, NULL, "_DCK", "vd", 1))
-				return -EIO;
-		} else
-			return -EINVAL;
-	}
-
-	return 0;
-}
-
-#endif /* CONFIG_THINKPAD_ACPI_DOCK */
-
-/*************************************************************************
- * Bay subdriver
- */
-
-#ifdef CONFIG_THINKPAD_ACPI_BAY
-
-TPACPI_HANDLE(bay, root, "\\_SB.PCI.IDE.SECN.MAST",	/* 570 */
-	   "\\_SB.PCI0.IDE0.IDES.IDSM",	/* 600e/x, 770e, 770x */
-	   "\\_SB.PCI0.SATA.SCND.MSTR",	/* T60, X60, Z60 */
-	   "\\_SB.PCI0.IDE0.SCND.MSTR",	/* all others */
-	   );				/* A21e, R30, R31 */
-TPACPI_HANDLE(bay_ej, bay, "_EJ3",	/* 600e/x, A2xm/p, A3x */
-	   "_EJ0",		/* all others */
-	   );			/* 570,A21e,G4x,R30,R31,R32,R40e,R50e */
-TPACPI_HANDLE(bay2, root, "\\_SB.PCI0.IDE0.PRIM.SLAV",	/* A3x, R32 */
-	   "\\_SB.PCI0.IDE0.IDEP.IDPS",	/* 600e/x, 770e, 770x */
-	   );				/* all others */
-TPACPI_HANDLE(bay2_ej, bay2, "_EJ3",	/* 600e/x, 770e, A3x */
-	   "_EJ0",			/* 770x */
-	   );				/* all others */
-
-static int __init bay_init(struct ibm_init_struct *iibm)
-{
-	vdbg_printk(TPACPI_DBG_INIT, "initializing bay subdriver\n");
-
-	TPACPI_ACPIHANDLE_INIT(bay);
-	if (bay_handle)
-		TPACPI_ACPIHANDLE_INIT(bay_ej);
-	TPACPI_ACPIHANDLE_INIT(bay2);
-	if (bay2_handle)
-		TPACPI_ACPIHANDLE_INIT(bay2_ej);
-
-	tp_features.bay_status = bay_handle &&
-		acpi_evalf(bay_handle, NULL, "_STA", "qv");
-	tp_features.bay_status2 = bay2_handle &&
-		acpi_evalf(bay2_handle, NULL, "_STA", "qv");
-
-	tp_features.bay_eject = bay_handle && bay_ej_handle &&
-		(strlencmp(bay_ej_path, "_EJ0") == 0 || experimental);
-	tp_features.bay_eject2 = bay2_handle && bay2_ej_handle &&
-		(strlencmp(bay2_ej_path, "_EJ0") == 0 || experimental);
-
-	vdbg_printk(TPACPI_DBG_INIT,
-		"bay 1: status %s, eject %s; bay 2: status %s, eject %s\n",
-		str_supported(tp_features.bay_status),
-		str_supported(tp_features.bay_eject),
-		str_supported(tp_features.bay_status2),
-		str_supported(tp_features.bay_eject2));
-
-	return (tp_features.bay_status || tp_features.bay_eject ||
-		tp_features.bay_status2 || tp_features.bay_eject2)? 0 : 1;
-}
-
-static void bay_notify(struct ibm_struct *ibm, u32 event)
-{
-	acpi_bus_generate_proc_event(ibm->acpi->device, event, 0);
-	acpi_bus_generate_netlink_event(ibm->acpi->device->pnp.device_class,
-					  dev_name(&ibm->acpi->device->dev),
-					  event, 0);
-}
-
-#define bay_occupied(b) (_sta(b##_handle) & 1)
-
-static int bay_read(char *p)
-{
-	int len = 0;
-	int occupied = bay_occupied(bay);
-	int occupied2 = bay_occupied(bay2);
-	int eject, eject2;
-
-	len += sprintf(p + len, "status:\t\t%s\n",
-		tp_features.bay_status ?
-			(occupied ? "occupied" : "unoccupied") :
-				"not supported");
-	if (tp_features.bay_status2)
-		len += sprintf(p + len, "status2:\t%s\n", occupied2 ?
-			       "occupied" : "unoccupied");
-
-	eject = tp_features.bay_eject && occupied;
-	eject2 = tp_features.bay_eject2 && occupied2;
-
-	if (eject && eject2)
-		len += sprintf(p + len, "commands:\teject, eject2\n");
-	else if (eject)
-		len += sprintf(p + len, "commands:\teject\n");
-	else if (eject2)
-		len += sprintf(p + len, "commands:\teject2\n");
-
-	return len;
-}
-
-static int bay_write(char *buf)
-{
-	char *cmd;
-
-	if (!tp_features.bay_eject && !tp_features.bay_eject2)
-		return -ENODEV;
-
-	while ((cmd = next_cmd(&buf))) {
-		if (tp_features.bay_eject && strlencmp(cmd, "eject") == 0) {
-			if (!acpi_evalf(bay_ej_handle, NULL, NULL, "vd", 1))
-				return -EIO;
-		} else if (tp_features.bay_eject2 &&
-			   strlencmp(cmd, "eject2") == 0) {
-			if (!acpi_evalf(bay2_ej_handle, NULL, NULL, "vd", 1))
-				return -EIO;
-		} else
-			return -EINVAL;
-	}
-
-	return 0;
-}
-
-static struct tp_acpi_drv_struct ibm_bay_acpidriver = {
-	.notify = bay_notify,
-	.handle = &bay_handle,
-	.type = ACPI_SYSTEM_NOTIFY,
-};
-
-static struct ibm_struct bay_driver_data = {
-	.name = "bay",
-	.read = bay_read,
-	.write = bay_write,
-	.acpi = &ibm_bay_acpidriver,
-};
-
-#endif /* CONFIG_THINKPAD_ACPI_BAY */
-
-/*************************************************************************
  * CMOS subdriver
  */
 
@@ -5945,13 +5642,47 @@ static struct backlight_ops ibm_backlight_data = {
 
 /* --------------------------------------------------------------------- */
 
+/*
+ * These are only useful for models that have only one possibility
+ * of GPU.  If the BIOS model handles both ATI and Intel, don't use
+ * these quirks.
+ */
+#define TPACPI_BRGHT_Q_NOEC	0x0001	/* Must NOT use EC HBRV */
+#define TPACPI_BRGHT_Q_EC	0x0002  /* Should or must use EC HBRV */
+#define TPACPI_BRGHT_Q_ASK	0x8000	/* Ask for user report */
+
+static const struct tpacpi_quirk brightness_quirk_table[] __initconst = {
+	/* Models with ATI GPUs known to require ECNVRAM mode */
+	TPACPI_Q_IBM('1', 'Y', TPACPI_BRGHT_Q_EC),	/* T43/p ATI */
+
+	/* Models with ATI GPUs (waiting confirmation) */
+	TPACPI_Q_IBM('1', 'R', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+	TPACPI_Q_IBM('1', 'Q', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+	TPACPI_Q_IBM('7', '6', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+	TPACPI_Q_IBM('7', '8', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+
+	/* Models with Intel Extreme Graphics 2 (waiting confirmation) */
+	TPACPI_Q_IBM('1', 'V', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_NOEC),
+	TPACPI_Q_IBM('1', 'W', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_NOEC),
+	TPACPI_Q_IBM('1', 'U', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_NOEC),
+
+	/* Models with Intel GMA900 */
+	TPACPI_Q_IBM('7', '0', TPACPI_BRGHT_Q_NOEC),	/* T43, R52 */
+	TPACPI_Q_IBM('7', '4', TPACPI_BRGHT_Q_NOEC),	/* X41 */
+	TPACPI_Q_IBM('7', '5', TPACPI_BRGHT_Q_NOEC),	/* X41 Tablet */
+};
+
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
 	int b;
+	unsigned long quirks;
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing brightness subdriver\n");
 
 	mutex_init(&brightness_mutex);
+
+	quirks = tpacpi_check_quirks(brightness_quirk_table,
+				ARRAY_SIZE(brightness_quirk_table));
 
 	/*
 	 * We always attempt to detect acpi support, so as to switch
@@ -6009,23 +5740,13 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	/* TPACPI_BRGHT_MODE_AUTO not implemented yet, just use default */
 	if (brightness_mode == TPACPI_BRGHT_MODE_AUTO ||
 	    brightness_mode == TPACPI_BRGHT_MODE_MAX) {
-		if (thinkpad_id.vendor == PCI_VENDOR_ID_IBM) {
-			/*
-			 * IBM models that define HBRV probably have
-			 * EC-based backlight level control
-			 */
-			if (acpi_evalf(ec_handle, NULL, "HBRV", "qd"))
-				/* T40-T43, R50-R52, R50e, R51e, X31-X41 */
-				brightness_mode = TPACPI_BRGHT_MODE_ECNVRAM;
-			else
-				/* all other IBM ThinkPads */
-				brightness_mode = TPACPI_BRGHT_MODE_UCMS_STEP;
-		} else
-			/* All Lenovo ThinkPads */
+		if (quirks & TPACPI_BRGHT_Q_EC)
+			brightness_mode = TPACPI_BRGHT_MODE_ECNVRAM;
+		else
 			brightness_mode = TPACPI_BRGHT_MODE_UCMS_STEP;
 
 		dbg_printk(TPACPI_DBG_BRGHT,
-			   "selected brightness_mode=%d\n",
+			   "driver auto-selected brightness_mode=%d\n",
 			   brightness_mode);
 	}
 
@@ -6051,6 +5772,15 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	}
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
 			"brightness is supported\n");
+
+	if (quirks & TPACPI_BRGHT_Q_ASK) {
+		printk(TPACPI_NOTICE
+			"brightness: will use unverified default: "
+			"brightness_mode=%d\n", brightness_mode);
+		printk(TPACPI_NOTICE
+			"brightness: please report to %s whether it works well "
+			"or not on your ThinkPad\n", TPACPI_MAIL);
+	}
 
 	ibm_backlight_device->props.max_brightness =
 				(tp_features.bright_16levels)? 15 : 7;
@@ -7854,22 +7584,6 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 		.init = light_init,
 		.data = &light_driver_data,
 	},
-#ifdef CONFIG_THINKPAD_ACPI_DOCK
-	{
-		.init = dock_init,
-		.data = &dock_driver_data[0],
-	},
-	{
-		.init = dock_init2,
-		.data = &dock_driver_data[1],
-	},
-#endif
-#ifdef CONFIG_THINKPAD_ACPI_BAY
-	{
-		.init = bay_init,
-		.data = &bay_driver_data,
-	},
-#endif
 	{
 		.init = cmos_init,
 		.data = &cmos_driver_data,
@@ -7968,12 +7682,6 @@ TPACPI_PARAM(hotkey);
 TPACPI_PARAM(bluetooth);
 TPACPI_PARAM(video);
 TPACPI_PARAM(light);
-#ifdef CONFIG_THINKPAD_ACPI_DOCK
-TPACPI_PARAM(dock);
-#endif
-#ifdef CONFIG_THINKPAD_ACPI_BAY
-TPACPI_PARAM(bay);
-#endif /* CONFIG_THINKPAD_ACPI_BAY */
 TPACPI_PARAM(cmos);
 TPACPI_PARAM(led);
 TPACPI_PARAM(beep);

@@ -69,7 +69,7 @@
 
 #endif
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) && !defined(WANT_COMPAT_REG_H)
 
 #define EF_R0			 0
 #define EF_R1			 1

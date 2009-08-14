@@ -101,9 +101,10 @@ static int radeonfb_setcolreg(unsigned regno,
 				break;
 			case 24:
 			case 32:
-				fb->pseudo_palette[regno] = ((red & 0xff00) << 8) |
-					(green & 0xff00) |
-					((blue  & 0xff00) >> 8);
+				fb->pseudo_palette[regno] =
+					(((red >> 8) & 0xff) << info->var.red.offset) |
+					(((green >> 8) & 0xff) << info->var.green.offset) |
+					(((blue >> 8) & 0xff) << info->var.blue.offset);
 				break;
 			}
 		}
@@ -154,6 +155,7 @@ static int radeonfb_check_var(struct fb_var_screeninfo *var,
 		var->transp.length = 0;
 		var->transp.offset = 0;
 		break;
+#ifdef __LITTLE_ENDIAN
 	case 15:
 		var->red.offset = 10;
 		var->green.offset = 5;
@@ -194,6 +196,28 @@ static int radeonfb_check_var(struct fb_var_screeninfo *var,
 		var->transp.length = 8;
 		var->transp.offset = 24;
 		break;
+#else
+	case 24:
+		var->red.offset = 8;
+		var->green.offset = 16;
+		var->blue.offset = 24;
+		var->red.length = 8;
+		var->green.length = 8;
+		var->blue.length = 8;
+		var->transp.length = 0;
+		var->transp.offset = 0;
+		break;
+	case 32:
+		var->red.offset = 8;
+		var->green.offset = 16;
+		var->blue.offset = 24;
+		var->red.length = 8;
+		var->green.length = 8;
+		var->blue.length = 8;
+		var->transp.length = 8;
+		var->transp.offset = 0;
+		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -447,10 +471,10 @@ static struct notifier_block paniced = {
 	.notifier_call = radeonfb_panic,
 };
 
-static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp)
+static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
 {
 	int aligned = width;
-	int align_large = (ASIC_IS_AVIVO(rdev));
+	int align_large = (ASIC_IS_AVIVO(rdev)) || tiled;
 	int pitch_mask = 0;
 
 	switch (bpp / 8) {
@@ -488,12 +512,13 @@ int radeonfb_create(struct radeon_device *rdev,
 	u64 fb_gpuaddr;
 	void *fbptr = NULL;
 	unsigned long tmp;
+	bool fb_tiled = false; /* useful for testing */
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
 	mode_cmd.bpp = 32;
 	/* need to align pitch with crtc limits */
-	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp) * ((mode_cmd.bpp + 1) / 8);
+	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp, fb_tiled) * ((mode_cmd.bpp + 1) / 8);
 	mode_cmd.depth = 24;
 
 	size = mode_cmd.pitch * mode_cmd.height;
@@ -511,6 +536,8 @@ int radeonfb_create(struct radeon_device *rdev,
 	}
 	robj = gobj->driver_private;
 
+	if (fb_tiled)
+		radeon_object_set_tiling_flags(robj, RADEON_TILING_MACRO|RADEON_TILING_SURFACE, mode_cmd.pitch);
 	mutex_lock(&rdev->ddev->struct_mutex);
 	fb = radeon_framebuffer_create(rdev->ddev, &mode_cmd, gobj);
 	if (fb == NULL) {
@@ -538,6 +565,9 @@ int radeonfb_create(struct radeon_device *rdev,
 		goto out_unref;
 	}
 	rfbdev = info->par;
+
+	if (fb_tiled)
+		radeon_object_check_tiling(robj, 0, 0);
 
 	ret = radeon_object_kmap(robj, &fbptr);
 	if (ret) {
@@ -572,6 +602,11 @@ int radeonfb_create(struct radeon_device *rdev,
 	info->var.width = -1;
 	info->var.xres = fb_width;
 	info->var.yres = fb_height;
+
+	/* setup aperture base/size for vesafb takeover */
+	info->aperture_base = rdev->ddev->mode_config.fb_base;
+	info->aperture_size = rdev->mc.real_vram_size;
+
 	info->fix.mmio_start = 0;
 	info->fix.mmio_len = 0;
 	info->pixmap.size = 64*1024;
@@ -600,6 +635,7 @@ int radeonfb_create(struct radeon_device *rdev,
 		info->var.transp.offset = 0;
 		info->var.transp.length = 0;
 		break;
+#ifdef __LITTLE_ENDIAN
 	case 15:
 		info->var.red.offset = 10;
 		info->var.green.offset = 5;
@@ -639,7 +675,29 @@ int radeonfb_create(struct radeon_device *rdev,
 		info->var.transp.offset = 24;
 		info->var.transp.length = 8;
 		break;
+#else
+	case 24:
+		info->var.red.offset = 8;
+		info->var.green.offset = 16;
+		info->var.blue.offset = 24;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 0;
+		break;
+	case 32:
+		info->var.red.offset = 8;
+		info->var.green.offset = 16;
+		info->var.blue.offset = 24;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 8;
+		break;
 	default:
+#endif
 		break;
 	}
 

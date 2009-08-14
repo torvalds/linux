@@ -928,13 +928,32 @@ static void phy_state_machine(struct work_struct *work)
 				 * Otherwise, it's 0, and we're
 				 * still waiting for AN */
 				if (err > 0) {
-					phydev->state = PHY_RUNNING;
+					err = phy_read_status(phydev);
+					if (err)
+						break;
+
+					if (phydev->link) {
+						phydev->state = PHY_RUNNING;
+						netif_carrier_on(phydev->attached_dev);
+					} else
+						phydev->state = PHY_NOLINK;
+					phydev->adjust_link(phydev->attached_dev);
 				} else {
 					phydev->state = PHY_AN;
 					phydev->link_timeout = PHY_AN_TIMEOUT;
 				}
-			} else
-				phydev->state = PHY_RUNNING;
+			} else {
+				err = phy_read_status(phydev);
+				if (err)
+					break;
+
+				if (phydev->link) {
+					phydev->state = PHY_RUNNING;
+					netif_carrier_on(phydev->attached_dev);
+				} else
+					phydev->state = PHY_NOLINK;
+				phydev->adjust_link(phydev->attached_dev);
+			}
 			break;
 	}
 

@@ -35,7 +35,9 @@ int rtl8192U_suspend(struct usb_interface *intf, pm_message_t state)
 		      return 0;
 		 }
 
-		dev->stop(dev);
+		if (dev->netdev_ops->ndo_stop)
+			dev->netdev_ops->ndo_stop(dev);
+
 		mdelay(10);
 
 		netif_device_detach(dev);
@@ -61,7 +63,9 @@ int rtl8192U_resume (struct usb_interface *intf)
 		}
 
 		netif_device_attach(dev);
-		dev->open(dev);
+
+		if (dev->netdev_ops->ndo_open)
+			dev->netdev_ops->ndo_open(dev);
 	}
 
         return 0;

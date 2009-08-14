@@ -17,4 +17,4 @@ obj-$(CONFIG_HEART_BEAT)	+= heartbeat.o
 obj-$(CONFIG_MODULES)		+= microblaze_ksyms.o module.o
 obj-$(CONFIG_MMU)		+= misc.o
 
-obj-y	+= entry$(MMUEXT).o
+obj-y	+= entry$(MMU).o

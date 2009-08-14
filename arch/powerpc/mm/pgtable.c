@@ -129,12 +129,12 @@ static pte_t do_dcache_icache_coherency(pte_t pte)
 	page = pfn_to_page(pfn);
 
 	if (!PageReserved(page) && !test_bit(PG_arch_1, &page->flags)) {
-		pr_debug("do_dcache_icache_coherency... flushing\n");
+		pr_devel("do_dcache_icache_coherency... flushing\n");
 		flush_dcache_icache_page(page);
 		set_bit(PG_arch_1, &page->flags);
 	}
 	else
-		pr_debug("do_dcache_icache_coherency... already clean\n");
+		pr_devel("do_dcache_icache_coherency... already clean\n");
 	return __pte(pte_val(pte) | _PAGE_HWEXEC);
 }
 

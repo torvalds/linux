@@ -680,8 +680,8 @@ xfs_vn_fiemap(
 	else
 		bm.bmv_length = BTOBB(length);
 
-	/* our formatter will tell xfs_getbmap when to stop. */
-	bm.bmv_count = MAXEXTNUM;
+	/* We add one because in getbmap world count includes the header */
+	bm.bmv_count = fieinfo->fi_extents_max + 1;
 	bm.bmv_iflags = BMV_IF_PREALLOC;
 	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR)
 		bm.bmv_iflags |= BMV_IF_ATTRFORK;

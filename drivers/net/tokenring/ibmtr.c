@@ -1912,7 +1912,7 @@ static int __init ibmtr_init(void)
 
 	find_turbo_adapters(io);
 
-	for (i = 0; io[i] && (i < IBMTR_MAX_ADAPTERS); i++) {
+	for (i = 0; i < IBMTR_MAX_ADAPTERS && io[i]; i++) {
 		struct net_device *dev;
 		irq[i] = 0;
 		mem[i] = 0;

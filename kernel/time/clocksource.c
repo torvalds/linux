@@ -513,7 +513,7 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 	 * Check to make sure we don't switch to a non-highres capable
 	 * clocksource if the tick code is in oneshot mode (highres or nohz)
 	 */
-	if (tick_oneshot_mode_active() &&
+	if (tick_oneshot_mode_active() && ovr &&
 	    !(ovr->flags & CLOCK_SOURCE_VALID_FOR_HRES)) {
 		printk(KERN_WARNING "%s clocksource is not HRT compatible. "
 			"Cannot switch while in HRT/NOHZ mode\n", ovr->name);

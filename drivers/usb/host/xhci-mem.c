@@ -88,7 +88,7 @@ static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 		return;
 	prev->next = next;
 	if (link_trbs) {
-		prev->trbs[TRBS_PER_SEGMENT-1].link.segment_ptr[0] = next->dma;
+		prev->trbs[TRBS_PER_SEGMENT-1].link.segment_ptr = next->dma;
 
 		/* Set the last TRB in the segment to have a TRB type ID of Link TRB */
 		val = prev->trbs[TRBS_PER_SEGMENT-1].link.control;
@@ -189,6 +189,63 @@ fail:
 	return 0;
 }
 
+#define CTX_SIZE(_hcc) (HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
+
+struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
+						    int type, gfp_t flags)
+{
+	struct xhci_container_ctx *ctx = kzalloc(sizeof(*ctx), flags);
+	if (!ctx)
+		return NULL;
+
+	BUG_ON((type != XHCI_CTX_TYPE_DEVICE) && (type != XHCI_CTX_TYPE_INPUT));
+	ctx->type = type;
+	ctx->size = HCC_64BYTE_CONTEXT(xhci->hcc_params) ? 2048 : 1024;
+	if (type == XHCI_CTX_TYPE_INPUT)
+		ctx->size += CTX_SIZE(xhci->hcc_params);
+
+	ctx->bytes = dma_pool_alloc(xhci->device_pool, flags, &ctx->dma);
+	memset(ctx->bytes, 0, ctx->size);
+	return ctx;
+}
+
+void xhci_free_container_ctx(struct xhci_hcd *xhci,
+			     struct xhci_container_ctx *ctx)
+{
+	dma_pool_free(xhci->device_pool, ctx->bytes, ctx->dma);
+	kfree(ctx);
+}
+
+struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_hcd *xhci,
+					      struct xhci_container_ctx *ctx)
+{
+	BUG_ON(ctx->type != XHCI_CTX_TYPE_INPUT);
+	return (struct xhci_input_control_ctx *)ctx->bytes;
+}
+
+struct xhci_slot_ctx *xhci_get_slot_ctx(struct xhci_hcd *xhci,
+					struct xhci_container_ctx *ctx)
+{
+	if (ctx->type == XHCI_CTX_TYPE_DEVICE)
+		return (struct xhci_slot_ctx *)ctx->bytes;
+
+	return (struct xhci_slot_ctx *)
+		(ctx->bytes + CTX_SIZE(xhci->hcc_params));
+}
+
+struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci,
+				    struct xhci_container_ctx *ctx,
+				    unsigned int ep_index)
+{
+	/* increment ep index by offset of start of ep ctx array */
+	ep_index++;
+	if (ctx->type == XHCI_CTX_TYPE_INPUT)
+		ep_index++;
+
+	return (struct xhci_ep_ctx *)
+		(ctx->bytes + (ep_index * CTX_SIZE(xhci->hcc_params)));
+}
+
 /* All the xhci_tds in the ring's TD list should be freed at this point */
 void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 {
@@ -200,8 +257,7 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 		return;
 
 	dev = xhci->devs[slot_id];
-	xhci->dcbaa->dev_context_ptrs[2*slot_id] = 0;
-	xhci->dcbaa->dev_context_ptrs[2*slot_id + 1] = 0;
+	xhci->dcbaa->dev_context_ptrs[slot_id] = 0;
 	if (!dev)
 		return;
 
@@ -210,11 +266,10 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 			xhci_ring_free(xhci, dev->ep_rings[i]);
 
 	if (dev->in_ctx)
-		dma_pool_free(xhci->device_pool,
-				dev->in_ctx, dev->in_ctx_dma);
+		xhci_free_container_ctx(xhci, dev->in_ctx);
 	if (dev->out_ctx)
-		dma_pool_free(xhci->device_pool,
-				dev->out_ctx, dev->out_ctx_dma);
+		xhci_free_container_ctx(xhci, dev->out_ctx);
+
 	kfree(xhci->devs[slot_id]);
 	xhci->devs[slot_id] = 0;
 }
@@ -222,7 +277,6 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 		struct usb_device *udev, gfp_t flags)
 {
-	dma_addr_t	dma;
 	struct xhci_virt_device *dev;
 
 	/* Slot ID 0 is reserved */
@@ -236,23 +290,21 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 		return 0;
 	dev = xhci->devs[slot_id];
 
-	/* Allocate the (output) device context that will be used in the HC */
-	dev->out_ctx = dma_pool_alloc(xhci->device_pool, flags, &dma);
+	/* Allocate the (output) device context that will be used in the HC. */
+	dev->out_ctx = xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_DEVICE, flags);
 	if (!dev->out_ctx)
 		goto fail;
-	dev->out_ctx_dma = dma;
+
 	xhci_dbg(xhci, "Slot %d output ctx = 0x%llx (dma)\n", slot_id,
-			(unsigned long long)dma);
-	memset(dev->out_ctx, 0, sizeof(*dev->out_ctx));
+			(unsigned long long)dev->out_ctx->dma);
 
 	/* Allocate the (input) device context for address device command */
-	dev->in_ctx = dma_pool_alloc(xhci->device_pool, flags, &dma);
+	dev->in_ctx = xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT, flags);
 	if (!dev->in_ctx)
 		goto fail;
-	dev->in_ctx_dma = dma;
+
 	xhci_dbg(xhci, "Slot %d input ctx = 0x%llx (dma)\n", slot_id,
-			(unsigned long long)dma);
-	memset(dev->in_ctx, 0, sizeof(*dev->in_ctx));
+			(unsigned long long)dev->in_ctx->dma);
 
 	/* Allocate endpoint 0 ring */
 	dev->ep_rings[0] = xhci_ring_alloc(xhci, 1, true, flags);
@@ -261,17 +313,12 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 
 	init_completion(&dev->cmd_completion);
 
-	/*
-	 * Point to output device context in dcbaa; skip the output control
-	 * context, which is eight 32 bit fields (or 32 bytes long)
-	 */
-	xhci->dcbaa->dev_context_ptrs[2*slot_id] =
-		(u32) dev->out_ctx_dma + (32);
+	/* Point to output device context in dcbaa. */
+	xhci->dcbaa->dev_context_ptrs[slot_id] = dev->out_ctx->dma;
 	xhci_dbg(xhci, "Set slot id %d dcbaa entry %p to 0x%llx\n",
 			slot_id,
-			&xhci->dcbaa->dev_context_ptrs[2*slot_id],
-			(unsigned long long)dev->out_ctx_dma);
-	xhci->dcbaa->dev_context_ptrs[2*slot_id + 1] = 0;
+			&xhci->dcbaa->dev_context_ptrs[slot_id],
+			(unsigned long long) xhci->dcbaa->dev_context_ptrs[slot_id]);
 
 	return 1;
 fail:
@@ -285,6 +332,8 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	struct xhci_virt_device *dev;
 	struct xhci_ep_ctx	*ep0_ctx;
 	struct usb_device	*top_dev;
+	struct xhci_slot_ctx    *slot_ctx;
+	struct xhci_input_control_ctx *ctrl_ctx;
 
 	dev = xhci->devs[udev->slot_id];
 	/* Slot ID 0 is reserved */
@@ -293,27 +342,29 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 				udev->slot_id);
 		return -EINVAL;
 	}
-	ep0_ctx = &dev->in_ctx->ep[0];
+	ep0_ctx = xhci_get_ep_ctx(xhci, dev->in_ctx, 0);
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, dev->in_ctx);
+	slot_ctx = xhci_get_slot_ctx(xhci, dev->in_ctx);
 
 	/* 2) New slot context and endpoint 0 context are valid*/
-	dev->in_ctx->add_flags = SLOT_FLAG | EP0_FLAG;
+	ctrl_ctx->add_flags = SLOT_FLAG | EP0_FLAG;
 
 	/* 3) Only the control endpoint is valid - one endpoint context */
-	dev->in_ctx->slot.dev_info |= LAST_CTX(1);
+	slot_ctx->dev_info |= LAST_CTX(1);
 
 	switch (udev->speed) {
 	case USB_SPEED_SUPER:
-		dev->in_ctx->slot.dev_info |= (u32) udev->route;
-		dev->in_ctx->slot.dev_info |= (u32) SLOT_SPEED_SS;
+		slot_ctx->dev_info |= (u32) udev->route;
+		slot_ctx->dev_info |= (u32) SLOT_SPEED_SS;
 		break;
 	case USB_SPEED_HIGH:
-		dev->in_ctx->slot.dev_info |= (u32) SLOT_SPEED_HS;
+		slot_ctx->dev_info |= (u32) SLOT_SPEED_HS;
 		break;
 	case USB_SPEED_FULL:
-		dev->in_ctx->slot.dev_info |= (u32) SLOT_SPEED_FS;
+		slot_ctx->dev_info |= (u32) SLOT_SPEED_FS;
 		break;
 	case USB_SPEED_LOW:
-		dev->in_ctx->slot.dev_info |= (u32) SLOT_SPEED_LS;
+		slot_ctx->dev_info |= (u32) SLOT_SPEED_LS;
 		break;
 	case USB_SPEED_VARIABLE:
 		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
@@ -327,7 +378,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	for (top_dev = udev; top_dev->parent && top_dev->parent->parent;
 			top_dev = top_dev->parent)
 		/* Found device below root hub */;
-	dev->in_ctx->slot.dev_info2 |= (u32) ROOT_HUB_PORT(top_dev->portnum);
+	slot_ctx->dev_info2 |= (u32) ROOT_HUB_PORT(top_dev->portnum);
 	xhci_dbg(xhci, "Set root hub portnum to %d\n", top_dev->portnum);
 
 	/* Is this a LS/FS device under a HS hub? */
@@ -337,8 +388,8 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	 */
 	if ((udev->speed == USB_SPEED_LOW || udev->speed == USB_SPEED_FULL) &&
 			udev->tt) {
-		dev->in_ctx->slot.tt_info = udev->tt->hub->slot_id;
-		dev->in_ctx->slot.tt_info |= udev->ttport << 8;
+		slot_ctx->tt_info = udev->tt->hub->slot_id;
+		slot_ctx->tt_info |= udev->ttport << 8;
 	}
 	xhci_dbg(xhci, "udev->tt = %p\n", udev->tt);
 	xhci_dbg(xhci, "udev->ttport = 0x%x\n", udev->ttport);
@@ -360,10 +411,9 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	ep0_ctx->ep_info2 |= MAX_BURST(0);
 	ep0_ctx->ep_info2 |= ERROR_COUNT(3);
 
-	ep0_ctx->deq[0] =
+	ep0_ctx->deq =
 		dev->ep_rings[0]->first_seg->dma;
-	ep0_ctx->deq[0] |= dev->ep_rings[0]->cycle_state;
-	ep0_ctx->deq[1] = 0;
+	ep0_ctx->deq |= dev->ep_rings[0]->cycle_state;
 
 	/* Steps 7 and 8 were done in xhci_alloc_virt_device() */
 
@@ -470,25 +520,26 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	unsigned int max_burst;
 
 	ep_index = xhci_get_endpoint_index(&ep->desc);
-	ep_ctx = &virt_dev->in_ctx->ep[ep_index];
+	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
 
 	/* Set up the endpoint ring */
 	virt_dev->new_ep_rings[ep_index] = xhci_ring_alloc(xhci, 1, true, mem_flags);
 	if (!virt_dev->new_ep_rings[ep_index])
 		return -ENOMEM;
 	ep_ring = virt_dev->new_ep_rings[ep_index];
-	ep_ctx->deq[0] = ep_ring->first_seg->dma | ep_ring->cycle_state;
-	ep_ctx->deq[1] = 0;
+	ep_ctx->deq = ep_ring->first_seg->dma | ep_ring->cycle_state;
 
 	ep_ctx->ep_info = xhci_get_endpoint_interval(udev, ep);
 
 	/* FIXME dig Mult and streams info out of ep companion desc */
 
-	/* Allow 3 retries for everything but isoc */
+	/* Allow 3 retries for everything but isoc;
+	 * error count = 0 means infinite retries.
+	 */
 	if (!usb_endpoint_xfer_isoc(&ep->desc))
 		ep_ctx->ep_info2 = ERROR_COUNT(3);
 	else
-		ep_ctx->ep_info2 = ERROR_COUNT(0);
+		ep_ctx->ep_info2 = ERROR_COUNT(1);
 
 	ep_ctx->ep_info2 |= xhci_get_endpoint_type(udev, ep);
 
@@ -498,7 +549,12 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		max_packet = ep->desc.wMaxPacketSize;
 		ep_ctx->ep_info2 |= MAX_PACKET(max_packet);
 		/* dig out max burst from ep companion desc */
-		max_packet = ep->ss_ep_comp->desc.bMaxBurst;
+		if (!ep->ss_ep_comp) {
+			xhci_warn(xhci, "WARN no SS endpoint companion descriptor.\n");
+			max_packet = 0;
+		} else {
+			max_packet = ep->ss_ep_comp->desc.bMaxBurst;
+		}
 		ep_ctx->ep_info2 |= MAX_BURST(max_packet);
 		break;
 	case USB_SPEED_HIGH:
@@ -531,16 +587,112 @@ void xhci_endpoint_zero(struct xhci_hcd *xhci,
 	struct xhci_ep_ctx *ep_ctx;
 
 	ep_index = xhci_get_endpoint_index(&ep->desc);
-	ep_ctx = &virt_dev->in_ctx->ep[ep_index];
+	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
 
 	ep_ctx->ep_info = 0;
 	ep_ctx->ep_info2 = 0;
-	ep_ctx->deq[0] = 0;
-	ep_ctx->deq[1] = 0;
+	ep_ctx->deq = 0;
 	ep_ctx->tx_info = 0;
 	/* Don't free the endpoint ring until the set interface or configuration
 	 * request succeeds.
 	 */
+}
+
+/* Set up the scratchpad buffer array and scratchpad buffers, if needed. */
+static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
+{
+	int i;
+	struct device *dev = xhci_to_hcd(xhci)->self.controller;
+	int num_sp = HCS_MAX_SCRATCHPAD(xhci->hcs_params2);
+
+	xhci_dbg(xhci, "Allocating %d scratchpad buffers\n", num_sp);
+
+	if (!num_sp)
+		return 0;
+
+	xhci->scratchpad = kzalloc(sizeof(*xhci->scratchpad), flags);
+	if (!xhci->scratchpad)
+		goto fail_sp;
+
+	xhci->scratchpad->sp_array =
+		pci_alloc_consistent(to_pci_dev(dev),
+				     num_sp * sizeof(u64),
+				     &xhci->scratchpad->sp_dma);
+	if (!xhci->scratchpad->sp_array)
+		goto fail_sp2;
+
+	xhci->scratchpad->sp_buffers = kzalloc(sizeof(void *) * num_sp, flags);
+	if (!xhci->scratchpad->sp_buffers)
+		goto fail_sp3;
+
+	xhci->scratchpad->sp_dma_buffers =
+		kzalloc(sizeof(dma_addr_t) * num_sp, flags);
+
+	if (!xhci->scratchpad->sp_dma_buffers)
+		goto fail_sp4;
+
+	xhci->dcbaa->dev_context_ptrs[0] = xhci->scratchpad->sp_dma;
+	for (i = 0; i < num_sp; i++) {
+		dma_addr_t dma;
+		void *buf = pci_alloc_consistent(to_pci_dev(dev),
+						 xhci->page_size, &dma);
+		if (!buf)
+			goto fail_sp5;
+
+		xhci->scratchpad->sp_array[i] = dma;
+		xhci->scratchpad->sp_buffers[i] = buf;
+		xhci->scratchpad->sp_dma_buffers[i] = dma;
+	}
+
+	return 0;
+
+ fail_sp5:
+	for (i = i - 1; i >= 0; i--) {
+		pci_free_consistent(to_pci_dev(dev), xhci->page_size,
+				    xhci->scratchpad->sp_buffers[i],
+				    xhci->scratchpad->sp_dma_buffers[i]);
+	}
+	kfree(xhci->scratchpad->sp_dma_buffers);
+
+ fail_sp4:
+	kfree(xhci->scratchpad->sp_buffers);
+
+ fail_sp3:
+	pci_free_consistent(to_pci_dev(dev), num_sp * sizeof(u64),
+			    xhci->scratchpad->sp_array,
+			    xhci->scratchpad->sp_dma);
+
+ fail_sp2:
+	kfree(xhci->scratchpad);
+	xhci->scratchpad = NULL;
+
+ fail_sp:
+	return -ENOMEM;
+}
+
+static void scratchpad_free(struct xhci_hcd *xhci)
+{
+	int num_sp;
+	int i;
+	struct pci_dev	*pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+
+	if (!xhci->scratchpad)
+		return;
+
+	num_sp = HCS_MAX_SCRATCHPAD(xhci->hcs_params2);
+
+	for (i = 0; i < num_sp; i++) {
+		pci_free_consistent(pdev, xhci->page_size,
+				    xhci->scratchpad->sp_buffers[i],
+				    xhci->scratchpad->sp_dma_buffers[i]);
+	}
+	kfree(xhci->scratchpad->sp_dma_buffers);
+	kfree(xhci->scratchpad->sp_buffers);
+	pci_free_consistent(pdev, num_sp * sizeof(u64),
+			    xhci->scratchpad->sp_array,
+			    xhci->scratchpad->sp_dma);
+	kfree(xhci->scratchpad);
+	xhci->scratchpad = NULL;
 }
 
 void xhci_mem_cleanup(struct xhci_hcd *xhci)
@@ -551,10 +703,8 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 	/* Free the Event Ring Segment Table and the actual Event Ring */
 	xhci_writel(xhci, 0, &xhci->ir_set->erst_size);
-	xhci_writel(xhci, 0, &xhci->ir_set->erst_base[0]);
-	xhci_writel(xhci, 0, &xhci->ir_set->erst_base[1]);
-	xhci_writel(xhci, 0, &xhci->ir_set->erst_dequeue[0]);
-	xhci_writel(xhci, 0, &xhci->ir_set->erst_dequeue[1]);
+	xhci_write_64(xhci, 0, &xhci->ir_set->erst_base);
+	xhci_write_64(xhci, 0, &xhci->ir_set->erst_dequeue);
 	size = sizeof(struct xhci_erst_entry)*(xhci->erst.num_entries);
 	if (xhci->erst.entries)
 		pci_free_consistent(pdev, size,
@@ -566,8 +716,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->event_ring = NULL;
 	xhci_dbg(xhci, "Freed event ring\n");
 
-	xhci_writel(xhci, 0, &xhci->op_regs->cmd_ring[0]);
-	xhci_writel(xhci, 0, &xhci->op_regs->cmd_ring[1]);
+	xhci_write_64(xhci, 0, &xhci->op_regs->cmd_ring);
 	if (xhci->cmd_ring)
 		xhci_ring_free(xhci, xhci->cmd_ring);
 	xhci->cmd_ring = NULL;
@@ -586,8 +735,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->device_pool = NULL;
 	xhci_dbg(xhci, "Freed device context pool\n");
 
-	xhci_writel(xhci, 0, &xhci->op_regs->dcbaa_ptr[0]);
-	xhci_writel(xhci, 0, &xhci->op_regs->dcbaa_ptr[1]);
+	xhci_write_64(xhci, 0, &xhci->op_regs->dcbaa_ptr);
 	if (xhci->dcbaa)
 		pci_free_consistent(pdev, sizeof(*xhci->dcbaa),
 				xhci->dcbaa, xhci->dcbaa->dma);
@@ -595,6 +743,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
+	scratchpad_free(xhci);
 }
 
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
@@ -602,6 +751,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	dma_addr_t	dma;
 	struct device	*dev = xhci_to_hcd(xhci)->self.controller;
 	unsigned int	val, val2;
+	u64		val_64;
 	struct xhci_segment	*seg;
 	u32 page_size;
 	int i;
@@ -647,8 +797,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->dcbaa->dma = dma;
 	xhci_dbg(xhci, "// Device context base array address = 0x%llx (DMA), %p (virt)\n",
 			(unsigned long long)xhci->dcbaa->dma, xhci->dcbaa);
-	xhci_writel(xhci, dma, &xhci->op_regs->dcbaa_ptr[0]);
-	xhci_writel(xhci, (u32) 0, &xhci->op_regs->dcbaa_ptr[1]);
+	xhci_write_64(xhci, dma, &xhci->op_regs->dcbaa_ptr);
 
 	/*
 	 * Initialize the ring segment pool.  The ring must be a contiguous
@@ -658,11 +807,10 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 */
 	xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
 			SEGMENT_SIZE, 64, xhci->page_size);
+
 	/* See Table 46 and Note on Figure 55 */
-	/* FIXME support 64-byte contexts */
 	xhci->device_pool = dma_pool_create("xHCI input/output contexts", dev,
-			sizeof(struct xhci_device_control),
-			64, xhci->page_size);
+			2112, 64, xhci->page_size);
 	if (!xhci->segment_pool || !xhci->device_pool)
 		goto fail;
 
@@ -675,14 +823,12 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 			(unsigned long long)xhci->cmd_ring->first_seg->dma);
 
 	/* Set the address in the Command Ring Control register */
-	val = xhci_readl(xhci, &xhci->op_regs->cmd_ring[0]);
-	val = (val & ~CMD_RING_ADDR_MASK) |
-		(xhci->cmd_ring->first_seg->dma & CMD_RING_ADDR_MASK) |
+	val_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
+	val_64 = (val_64 & (u64) CMD_RING_RSVD_BITS) |
+		(xhci->cmd_ring->first_seg->dma & (u64) ~CMD_RING_RSVD_BITS) |
 		xhci->cmd_ring->cycle_state;
-	xhci_dbg(xhci, "// Setting command ring address low bits to 0x%x\n", val);
-	xhci_writel(xhci, val, &xhci->op_regs->cmd_ring[0]);
-	xhci_dbg(xhci, "// Setting command ring address high bits to 0x0\n");
-	xhci_writel(xhci, (u32) 0, &xhci->op_regs->cmd_ring[1]);
+	xhci_dbg(xhci, "// Setting command ring address to 0x%x\n", val);
+	xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
 	xhci_dbg_cmd_ptrs(xhci);
 
 	val = xhci_readl(xhci, &xhci->cap_regs->db_off);
@@ -722,8 +868,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	/* set ring base address and size for each segment table entry */
 	for (val = 0, seg = xhci->event_ring->first_seg; val < ERST_NUM_SEGS; val++) {
 		struct xhci_erst_entry *entry = &xhci->erst.entries[val];
-		entry->seg_addr[0] = seg->dma;
-		entry->seg_addr[1] = 0;
+		entry->seg_addr = seg->dma;
 		entry->seg_size = TRBS_PER_SEGMENT;
 		entry->rsvd = 0;
 		seg = seg->next;
@@ -741,11 +886,10 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	/* set the segment table base address */
 	xhci_dbg(xhci, "// Set ERST base address for ir_set 0 = 0x%llx\n",
 			(unsigned long long)xhci->erst.erst_dma_addr);
-	val = xhci_readl(xhci, &xhci->ir_set->erst_base[0]);
-	val &= ERST_PTR_MASK;
-	val |= (xhci->erst.erst_dma_addr & ~ERST_PTR_MASK);
-	xhci_writel(xhci, val, &xhci->ir_set->erst_base[0]);
-	xhci_writel(xhci, 0, &xhci->ir_set->erst_base[1]);
+	val_64 = xhci_read_64(xhci, &xhci->ir_set->erst_base);
+	val_64 &= ERST_PTR_MASK;
+	val_64 |= (xhci->erst.erst_dma_addr & (u64) ~ERST_PTR_MASK);
+	xhci_write_64(xhci, val_64, &xhci->ir_set->erst_base);
 
 	/* Set the event ring dequeue address */
 	xhci_set_hc_event_deq(xhci);
@@ -761,7 +905,11 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	for (i = 0; i < MAX_HC_SLOTS; ++i)
 		xhci->devs[i] = 0;
 
+	if (scratchpad_alloc(xhci, flags))
+		goto fail;
+
 	return 0;
+
 fail:
 	xhci_warn(xhci, "Couldn't initialize memory\n");
 	xhci_mem_cleanup(xhci);

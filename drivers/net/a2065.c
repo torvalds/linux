@@ -569,16 +569,8 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 #ifdef DEBUG_DRIVER
 	/* dump the packet */
-	{
-		int i;
-
-		for (i = 0; i < 64; i++) {
-			if ((i % 16) == 0)
-				printk("\n" KERN_DEBUG);
-			printk ("%2.2x ", skb->data [i]);
-		}
-		printk("\n");
-	}
+	print_hex_dump(KERN_DEBUG, "skb->data: ", DUMP_PREFIX_NONE,
+		       16, 1, skb->data, 64, true);
 #endif
 	entry = lp->tx_new & lp->tx_ring_mod_mask;
 	ib->btx_ring [entry].length = (-skblen) | 0xf000;

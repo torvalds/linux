@@ -635,7 +635,7 @@ static int __devinit p54spi_probe(struct spi_device *spi)
 
 	hw = p54_init_common(sizeof(*priv));
 	if (!hw) {
-		dev_err(&priv->spi->dev, "could not alloc ieee80211_hw");
+		dev_err(&spi->dev, "could not alloc ieee80211_hw");
 		return -ENOMEM;
 	}
 
