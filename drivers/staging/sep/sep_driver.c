@@ -2454,8 +2454,6 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	struct sep_device *sep;
 	int counter;
 	int size;		/* size of memory for allocation */
-	unsigned long iosize;
-	unsigned long bar0, end0;
 
 	edbg("Sep pci probe starting\n");
 	if (sep_dev != NULL) {
@@ -2496,6 +2494,8 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	}
 	/* now set the memory regions */
 #if (SEP_DRIVER_RECONFIG_MESSAGE_AREA == 1)
+	/* Note: this test section will need moving before it could ever
+	   work as the registers are not yet mapped ! */
 	/* send the new SHARED MESSAGE AREA to the SEP */
 	sep_write_reg(sep, HW_HOST_HOST_SEP_GPR1_REG_ADDR, sep->shared_bus);
 
@@ -2521,43 +2521,19 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 		goto end_function_deallocate_sep_shared_area;
 	}
 	edbg("SEP Driver: create flow workqueue \n");
+	sep->pdev = pci_dev_get(pdev);
+
+	sep->reg_addr = pci_ioremap_bar(pdev, 0);
+	if (!sep->reg_addr) {
+		edbg("sep: ioremap of registers failed.\n");
+		goto end_function_deallocate_sep_shared_area;
+	}
+	edbg("SEP Driver:reg_addr is %p\n", sep->reg_addr);
+
 	/* load the rom code */
 	sep_load_rom_code(sep);
 
-	sep->pdev = pci_dev_get(pdev);
-
-	/* get the io memory start address */
-	bar0 = pci_resource_start(pdev, 0);
-	if (!bar0) {
-		edbg("SEP Driver error pci resource start\n");
-		goto end_function_deallocate_sep_shared_area;
-	}
-
-	/* get the io memory end address */
-	end0 = pci_resource_end(pdev, 0);
-	if (!end0) {
-		edbg("SEP Driver error pci resource end\n");
-		goto end_function_deallocate_sep_shared_area;
-	}
-
-	iosize = end0 - bar0 + 1;
-
-	edbg("SEP Driver:io_bus is %08lx\n", bar0);
-
-	edbg("SEP Driver:io_memory_end_phyaical_address is %08lx\n", end0);
-
-	edbg("SEP Driver:io_memory_size is %08lx\n", iosize);
-
-	sep->reg_addr = ioremap_nocache(bar0, iosize);
-	if (!sep->reg_addr) {
-		edbg("SEP Driver error ioremap of io memory\n");
-		goto end_function_deallocate_sep_shared_area;
-	}
-
-	edbg("SEP Driver:io_addr is %p\n", sep->reg_addr);
-
 	/* set up system base address and shared memory location */
-
 	sep->rar_addr = dma_alloc_coherent(&sep->pdev->dev,
 			2 * SEP_RAR_IO_MEM_REGION_SIZE,
 			&sep->rar_bus, GFP_KERNEL);
@@ -2566,6 +2542,7 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 		edbg("SEP Driver:can't allocate rar\n");
 		goto end_function_uniomap;
 	}
+
 
 	edbg("SEP Driver:rar_bus is %08llx\n", (unsigned long long)sep->rar_bus);
 	edbg("SEP Driver:rar_virtual is %p\n", sep->rar_addr);
@@ -2585,8 +2562,7 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	error = request_irq(pdev->irq, sep_inthandler, IRQF_SHARED, "sep_driver", sep);
 	if (error)
 		goto end_function_free_res;
-
-	goto end_function;
+	return 0;
 	edbg("SEP Driver: about to write IMR REG_ADDR");
 
 	/* set the IMR register - open only GPR 2 */
