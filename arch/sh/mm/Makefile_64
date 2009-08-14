@@ -9,7 +9,7 @@ mmu-$(CONFIG_MMU)	:= fault_64.o ioremap_64.o tlbflush_64.o tlb-sh5.o \
 			   extable_64.o
 
 ifndef CONFIG_CACHE_OFF
-obj-y			+= cache-sh5.o
+obj-y			+= cache-sh5.o flush-sh4.o
 endif
 
 obj-y			+= $(mmu-y)

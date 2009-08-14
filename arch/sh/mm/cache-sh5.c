@@ -539,54 +539,6 @@ static void sh64_dcache_purge_user_range(struct mm_struct *mm,
 		sh64_dcache_purge_user_pages(mm, start, end);
 	}
 }
-
-/*
- * Purge the range of addresses from the D-cache.
- *
- * The addresses lie in the superpage mapping. There's no harm if we
- * overpurge at either end - just a small performance loss.
- */
-void __flush_purge_region(void *start, int size)
-{
-	unsigned long long ullend, addr, aligned_start;
-
-	aligned_start = (unsigned long long)(signed long long)(signed long) start;
-	addr = L1_CACHE_ALIGN(aligned_start);
-	ullend = (unsigned long long) (signed long long) (signed long) start + size;
-
-	while (addr <= ullend) {
-		__asm__ __volatile__ ("ocbp %0, 0" : : "r" (addr));
-		addr += L1_CACHE_BYTES;
-	}
-}
-
-void __flush_wback_region(void *start, int size)
-{
-	unsigned long long ullend, addr, aligned_start;
-
-	aligned_start = (unsigned long long)(signed long long)(signed long) start;
-	addr = L1_CACHE_ALIGN(aligned_start);
-	ullend = (unsigned long long) (signed long long) (signed long) start + size;
-
-	while (addr < ullend) {
-		__asm__ __volatile__ ("ocbwb %0, 0" : : "r" (addr));
-		addr += L1_CACHE_BYTES;
-	}
-}
-
-void __flush_invalidate_region(void *start, int size)
-{
-	unsigned long long ullend, addr, aligned_start;
-
-	aligned_start = (unsigned long long)(signed long long)(signed long) start;
-	addr = L1_CACHE_ALIGN(aligned_start);
-	ullend = (unsigned long long) (signed long long) (signed long) start + size;
-
-	while (addr < ullend) {
-		__asm__ __volatile__ ("ocbi %0, 0" : : "r" (addr));
-		addr += L1_CACHE_BYTES;
-	}
-}
 #endif /* !CONFIG_DCACHE_DISABLED */
 
 /*
