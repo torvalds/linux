@@ -55,6 +55,12 @@ void clk_disable(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_disable);
 
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return 15000000;
+}
+EXPORT_SYMBOL(clk_get_rate);
+
 void w90x900_clk_enable(struct clk *clk, int enable)
 {
 	unsigned int clocks = clk->cken;

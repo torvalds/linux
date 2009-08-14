@@ -495,6 +495,8 @@ config ARCH_W90X900
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 		Support for Nuvoton (Winbond logic dept.) ARM9 processor,You
 		can login www.mcuos.com or www.nuvoton.com to know more.

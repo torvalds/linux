@@ -76,6 +76,7 @@ static DEFINE_CLK(wdt, 26);
 static DEFINE_CLK(gdma, 27);
 static DEFINE_CLK(adc, 28);
 static DEFINE_CLK(usi, 29);
+static DEFINE_CLK(ext, 0);
 
 static struct clk_lookup w90p910_clkregs[] = {
 	DEF_CLKLOOK(&clk_lcd, "w90p910-lcd", NULL),
@@ -97,6 +98,7 @@ static struct clk_lookup w90p910_clkregs[] = {
 	DEF_CLKLOOK(&clk_gdma, "w90p910-gdma", NULL),
 	DEF_CLKLOOK(&clk_adc, "w90p910-adc", NULL),
 	DEF_CLKLOOK(&clk_usi, "w90p910-spi", NULL),
+	DEF_CLKLOOK(&clk_ext, NULL, "ext"),
 };
 
 /* Initial serial platform data */
