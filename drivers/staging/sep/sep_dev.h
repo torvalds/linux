@@ -54,7 +54,7 @@ struct sep_device {
 	unsigned long resident_size;
 	void *resident_addr;
 
-	unsigned long rar_region_addr;
+	void *rar_region_addr;
 
 	/* start address of the access to the SEP registers from driver */
 	void __iomem *reg_addr;

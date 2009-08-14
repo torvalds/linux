@@ -116,32 +116,14 @@ struct sep_driver_init_t {
   realloc cache resident command
 */
 struct sep_driver_realloc_cache_resident_t {
-	/* base address */
-	unsigned long base_addr;
-
-	/* current cache address */
-	unsigned long cache_addr;
-
-	/* cache size in bytes */
-	unsigned long cache_size_in_bytes;
-
-	/* current resident address */
-	unsigned long resident_addr;
-
-	/* resident size in bytes */
-	unsigned long resident_size_in_bytes;
-
 	/* new cache address */
-	unsigned long new_cache_addr;
-
+	u64 new_cache_addr;
 	/* new resident address */
-	unsigned long new_resident_addr;
-
+	u64 new_resident_addr;
 	/* new resident address */
-	unsigned long new_shared_area_addr;
-
+	u64  new_shared_area_addr;
 	/* new base address */
-	unsigned long new_base_addr;
+	u64 new_base_addr;
 };
 
 struct sep_driver_alloc_t {

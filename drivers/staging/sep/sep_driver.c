@@ -170,39 +170,25 @@ static DEFINE_MUTEX(sep_mutex);
 /* wait queue head (event) of the driver */
 static DECLARE_WAIT_QUEUE_HEAD(sep_event);
 
-/*
-  This functions copies the cache and resident from their source location into
-  destination memory, which is external to Linux VM and is given as
-  bus address
-*/
-static int sep_copy_cache_resident_to_area(struct sep_device *sep,
-				unsigned long src_cache_addr,
-				unsigned long cache_size_in_bytes,
-				unsigned long src_resident_addr,
-				unsigned long resident_size_in_bytes,
-				unsigned long *dst_new_cache_addr_ptr,
-				unsigned long *dst_new_resident_addr_ptr)
-{
-	void *resident_addr;
-	void *cache_addr;
-	const struct firmware *fw;
+/**
+ *	sep_load_firmware	-	copy firmware cache/resident
+ *	@sep: device we are loading
+ *
+ *	This functions copies the cache and resident from their source
+ *	location into destination shared memory.
+ */
 
+static int sep_load_firmware(struct sep_device *sep)
+{
+	const struct firmware *fw;
 	char *cache_name = "cache.image.bin";
 	char *res_name = "resident.image.bin";
-
-	/* error */
 	int error;
-
-	/*--------------------------------
-	    CODE
-	-------------------------------------*/
-	error = 0;
 
 	edbg("SEP Driver:rar_virtual is %p\n", sep->rar_addr);
 	edbg("SEP Driver:rar_bus is %08llx\n", (unsigned long long)sep->rar_bus);
 
-	sep->rar_region_addr = (unsigned long) sep->rar_addr;
-
+	sep->rar_region_addr = sep->rar_addr;
 	sep->cache_bus = sep->rar_bus;
 	sep->cache_addr = sep->rar_addr;
 
@@ -210,18 +196,12 @@ static int sep_copy_cache_resident_to_area(struct sep_device *sep,
 	error = request_firmware(&fw, cache_name, &sep->pdev->dev);
 	if (error) {
 		edbg("SEP Driver:cant request cache fw\n");
-		goto end_function;
+		return error;
 	}
+	edbg("SEP Driver:cache %08Zx@%p\n", fw->size, (void *) fw->data);
 
-	edbg("SEP Driver:cache data loc is %p\n", (void *) fw->data);
-	edbg("SEP Driver:cache data size is %08Zx\n", fw->size);
-
-	memcpy(sep->cache_addr, (void *) fw->data, fw->size);
-
+	memcpy(sep->cache_addr, (void *)fw->data, fw->size);
 	sep->cache_size = fw->size;
-
-	cache_addr = sep->cache_addr;
-
 	release_firmware(fw);
 
 	sep->resident_bus = sep->cache_bus + sep->cache_size;
@@ -231,36 +211,18 @@ static int sep_copy_cache_resident_to_area(struct sep_device *sep,
 	error = request_firmware(&fw, res_name, &sep->pdev->dev);
 	if (error) {
 		edbg("SEP Driver:cant request res fw\n");
-		goto end_function;
+		return error;
 	}
+	edbg("sep: res %08Zx@%p\n", fw->size, (void *)fw->data);
 
-	edbg("SEP Driver:res data loc is %p\n", (void *) fw->data);
-	edbg("SEP Driver:res data size is %08Zx\n", fw->size);
-
-	memcpy((void *) sep->resident_addr, (void *) fw->data, fw->size);
-
+	memcpy(sep->resident_addr, (void *) fw->data, fw->size);
 	sep->resident_size = fw->size;
-
 	release_firmware(fw);
 
-	resident_addr = sep->resident_addr;
-
-	edbg("SEP Driver:resident_addr (bus)is %08llx\n", (unsigned long long)sep->resident_bus);
-	edbg("SEP Driver:cache_addr (bus) is %08llx\n", (unsigned long long)sep->cache_bus);
-
-	edbg("SEP Driver:resident_addr (virtual)is %p\n", resident_addr);
-	edbg("SEP Driver:cache_addr (virtual) is %08llx\n", (unsigned long long)cache_addr);
-
-	edbg("SEP Driver:resident_size is %08lx\n", sep->resident_size);
-	edbg("SEP Driver:cache_size is %08llx\n", (unsigned long long)sep->cache_size);
-
-
-
-	/* bus addresses */
-	*dst_new_cache_addr_ptr = sep->cache_bus;
-	*dst_new_resident_addr_ptr = sep->resident_bus;
-end_function:
-	return error;
+	edbg("sep: resident v %p b %08llx cache v %p b %08llx\n",
+		sep->resident_addr, (unsigned long long)sep->resident_bus,
+		sep->cache_addr, (unsigned long long)sep->cache_bus);
+	return 0;
 }
 
 /**
@@ -2125,46 +2087,39 @@ end_function:
 static int sep_realloc_cache_resident_handler(struct sep_device *sep,
 						unsigned long arg)
 {
-	int error;
-	unsigned long bus_cache_address;
-	unsigned long bus_resident_address;
 	struct sep_driver_realloc_cache_resident_t command_args;
-
-	/* copy the data */
-	error = copy_from_user(&command_args, (void *) arg, sizeof(struct sep_driver_realloc_cache_resident_t));
-	if (error)
-		goto end_function;
+	int error;
 
 	/* copy cache and resident to the their intended locations */
-	error = sep_copy_cache_resident_to_area(sep, command_args.cache_addr, command_args.cache_size_in_bytes, command_args.resident_addr, command_args.resident_size_in_bytes, &bus_cache_address, &bus_resident_address);
+	error = sep_load_firmware(sep);
 	if (error)
-		goto end_function;
+		return error;
 
 	command_args.new_base_addr = sep->shared_area_bus;
 
 	/* find the new base address according to the lowest address between
 	   cache, resident and shared area */
-	if (bus_resident_address < command_args.new_base_addr)
-		command_args.new_base_addr = bus_resident_address;
-	if (bus_cache_address < command_args.new_base_addr)
-		command_args.new_base_addr = bus_cache_address;
+	if (sep->resident_bus < command_args.new_base_addr)
+		command_args.new_base_addr = sep->resident_bus;
+	if (sep->cache_bus < command_args.new_base_addr)
+		command_args.new_base_addr = sep->cache_bus;
 
 	/* set the return parameters */
-	command_args.new_cache_addr = bus_cache_address;
-	command_args.new_resident_addr = bus_resident_address;
+	command_args.new_cache_addr = sep->cache_bus;
+	command_args.new_resident_addr = sep->resident_bus;
 
 	/* set the new shared area */
 	command_args.new_shared_area_addr = sep->shared_area_bus;
 
-	edbg("SEP Driver:command_args.new_shared_area is %08lx\n", command_args.new_shared_area_addr);
-	edbg("SEP Driver:command_args.new_base_addr is %08lx\n", command_args.new_base_addr);
-	edbg("SEP Driver:command_args.new_resident_addr is %08lx\n", command_args.new_resident_addr);
-	edbg("SEP Driver:command_args.new_cache_addr is %08lx\n", command_args.new_cache_addr);
+	edbg("SEP Driver:command_args.new_shared_area is %08llx\n", command_args.new_shared_area_addr);
+	edbg("SEP Driver:command_args.new_base_addr is %08llx\n", command_args.new_base_addr);
+	edbg("SEP Driver:command_args.new_resident_addr is %08llx\n", command_args.new_resident_addr);
+	edbg("SEP Driver:command_args.new_cache_addr is %08llx\n", command_args.new_cache_addr);
 
 	/* return to user */
-	error = copy_to_user((void *) arg, (void *) &command_args, sizeof(struct sep_driver_realloc_cache_resident_t));
-end_function:
-	return error;
+	if (copy_to_user((void *) arg, &command_args, sizeof(struct sep_driver_realloc_cache_resident_t)))
+		return -EFAULT;
+	return 0;
 }
 
 /*
@@ -2573,14 +2528,14 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 
 	/* set up system base address and shared memory location */
 
-	sep->rar_addr = kmalloc(2 * SEP_RAR_IO_MEM_REGION_SIZE, GFP_KERNEL);
+	sep->rar_addr = dma_alloc_coherent(&sep->pdev->dev,
+			2 * SEP_RAR_IO_MEM_REGION_SIZE,
+			&sep->rar_bus, GFP_KERNEL);
 
 	if (!sep->rar_addr) {
-		edbg("SEP Driver:cant kmalloc rar\n");
+		edbg("SEP Driver:can't allocate rar\n");
 		goto end_function_uniomap;
 	}
-	/* FIXME */
-	sep->rar_bus = __pa(sep->rar_addr);
 
 	edbg("SEP Driver:rar_bus is %08llx\n", (unsigned long long)sep->rar_bus);
 	edbg("SEP Driver:rar_virtual is %p\n", sep->rar_addr);
@@ -2608,7 +2563,8 @@ static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id 
 	sep_write_reg(sep, HW_HOST_IMR_REG_ADDR, (~(0x1 << 13)));
 
 end_function_free_res:
-	kfree(sep->rar_addr);
+	dma_free_coherent(&sep->pdev->dev, 2 * SEP_RAR_IO_MEM_REGION_SIZE,
+			sep->rar_addr, sep->rar_bus);
 #endif				/* SEP_DRIVER_POLLING_MODE */
 end_function_uniomap:
 	iounmap(sep->io_addr);
