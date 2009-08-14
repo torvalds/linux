@@ -501,6 +501,21 @@ void __attribute__((weak)) read_persistent_clock(struct timespec *ts)
 	ts->tv_nsec = 0;
 }
 
+/**
+ * read_boot_clock -  Return time of the system start.
+ *
+ * Weak dummy function for arches that do not yet support it.
+ * Function to read the exact time the system has been started.
+ * Returns a timespec with tv_sec=0 and tv_nsec=0 if unsupported.
+ *
+ *  XXX - Do be sure to remove it once all arches implement it.
+ */
+void __attribute__((weak)) read_boot_clock(struct timespec *ts)
+{
+	ts->tv_sec = 0;
+	ts->tv_nsec = 0;
+}
+
 /*
  * timekeeping_init - Initializes the clocksource and common timekeeping values
  */
@@ -508,9 +523,10 @@ void __init timekeeping_init(void)
 {
 	struct clocksource *clock;
 	unsigned long flags;
-	struct timespec now;
+	struct timespec now, boot;
 
 	read_persistent_clock(&now);
+	read_boot_clock(&boot);
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 
@@ -525,8 +541,12 @@ void __init timekeeping_init(void)
 	xtime.tv_nsec = now.tv_nsec;
 	raw_time.tv_sec = 0;
 	raw_time.tv_nsec = 0;
+	if (boot.tv_sec == 0 && boot.tv_nsec == 0) {
+		boot.tv_sec = xtime.tv_sec;
+		boot.tv_nsec = xtime.tv_nsec;
+	}
 	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
+				-boot.tv_sec, -boot.tv_nsec);
 	update_xtime_cache(0);
 	total_sleep_time.tv_sec = 0;
 	total_sleep_time.tv_nsec = 0;

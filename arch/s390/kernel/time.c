@@ -187,6 +187,11 @@ void read_persistent_clock(struct timespec *ts)
 	tod_to_timeval(get_clock() - TOD_UNIX_EPOCH, ts);
 }
 
+void read_boot_clock(struct timespec *ts)
+{
+	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, ts);
+}
+
 static cycle_t read_tod_clock(struct clocksource *cs)
 {
 	return get_clock();
@@ -243,9 +248,6 @@ void update_vsyscall_tz(void)
  */
 void __init time_init(void)
 {
-	struct timespec ts;
-	unsigned long flags;
-
 	/* Reset time synchronization interfaces. */
 	etr_reset();
 	stp_reset();
@@ -260,15 +262,6 @@ void __init time_init(void)
 
 	if (clocksource_register(&clocksource_tod) != 0)
 		panic("Could not register TOD clock source");
-
-	/*
-	 * Reset wall_to_monotonic to the initial timestamp created
-	 * in head.S to get a precise value in /proc/uptime.
-	 */
-	write_seqlock_irqsave(&xtime_lock, flags);
-	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, &ts);
-	set_normalized_timespec(&wall_to_monotonic, -ts.tv_sec, -ts.tv_nsec);
-	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	/* Enable TOD clock interrupts on the boot cpu. */
 	init_cpu_timer();
