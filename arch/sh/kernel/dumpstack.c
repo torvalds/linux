@@ -61,7 +61,7 @@ stack_reader_dump(struct task_struct *task, struct pt_regs *regs,
 		unsigned long addr = *sp++;
 
 		if (__kernel_text_address(addr)) {
-			ops->address(data, addr, 0);
+			ops->address(data, addr, 1);
 
 			print_ftrace_graph_addr(addr, data, ops,
 						context, &graph);
