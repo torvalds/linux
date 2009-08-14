@@ -2169,8 +2169,8 @@ static int sep_get_time_handler(struct sep_device *sep, unsigned long arg)
 	struct sep_driver_get_time_t command_args;
 
 	mutex_lock(&sep_mutex);
-	command_arg.time_value = sep_set_time(sep);
-	command_args.time_physical_address = sep_time_address(sep);
+	command_args.time_value = sep_set_time(sep);
+	command_args.time_physical_address = (unsigned long)sep_time_address(sep);
 	mutex_unlock(&sep_mutex);
 	if (copy_to_user((void __user *)arg,
 			&command_args, sizeof(struct sep_driver_get_time_t)))
@@ -2646,31 +2646,22 @@ static int sep_register_driver_to_fs(void)
 {
 	int ret_val = alloc_chrdev_region(&sep_devno, 0, 1, "sep_sec_driver");
 	if (ret_val) {
-		edbg("sep_driver:major number allocation failed, retval is %d\n", ret_val);
-		goto end_function;
+		edbg("sep: major number allocation failed, retval is %d\n",
+								ret_val);
+		return ret_val;
 	}
-
 	/* init cdev */
 	cdev_init(&sep_cdev, &sep_file_operations);
 	sep_cdev.owner = THIS_MODULE;
 
 	/* register the driver with the kernel */
 	ret_val = cdev_add(&sep_cdev, sep_devno, 1);
-
 	if (ret_val) {
 		edbg("sep_driver:cdev_add failed, retval is %d\n", ret_val);
-		goto end_function_unregister_devnum;
+		/* unregister dev numbers */
+		unregister_chrdev_region(sep_devno, 1);
 	}
-
-	goto end_function;
-
-end_function_unregister_devnum:
-
-	/* unregister dev numbers */
-	unregister_chrdev_region(sep_devno, 1);
-
-end_function:
-      return ret_val;
+	return ret_val;
 }
 
 
