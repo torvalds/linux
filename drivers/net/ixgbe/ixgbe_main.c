@@ -494,12 +494,12 @@ static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
 
 	skb_record_rx_queue(skb, ring->queue_index);
 	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
-		if (adapter->vlgrp && is_vlan && (tag != 0))
+		if (adapter->vlgrp && is_vlan && (tag & VLAN_VID_MASK))
 			vlan_gro_receive(napi, adapter->vlgrp, tag, skb);
 		else
 			napi_gro_receive(napi, skb);
 	} else {
-		if (adapter->vlgrp && is_vlan && (tag != 0))
+		if (adapter->vlgrp && is_vlan && (tag & VLAN_VID_MASK))
 			vlan_hwaccel_rx(skb, adapter->vlgrp, tag);
 		else
 			netif_rx(skb);
