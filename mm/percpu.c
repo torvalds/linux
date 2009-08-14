@@ -1488,8 +1488,9 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	}
 
 	/* we're ready, commit */
-	pr_info("PERCPU: Embedded %zu pages at %p, static data %zu bytes\n",
-		size_sum >> PAGE_SHIFT, base, static_size);
+	pr_info("PERCPU: Embedded %zu pages/cpu @%p s%zu r%zu d%zu u%zu\n",
+		PFN_DOWN(size_sum), base, static_size, reserved_size, dyn_size,
+		unit_size);
 
 	return pcpu_setup_first_chunk(static_size, reserved_size, dyn_size,
 				      unit_size, base, NULL);
@@ -1579,8 +1580,8 @@ ssize_t __init pcpu_4k_first_chunk(size_t static_size, size_t reserved_size,
 	}
 
 	/* we're ready, commit */
-	pr_info("PERCPU: %d 4k pages per cpu, static data %zu bytes\n",
-		unit_pages, static_size);
+	pr_info("PERCPU: %d 4k pages/cpu @%p s%zu r%zu\n",
+		unit_pages, vm.addr, static_size, reserved_size);
 
 	ret = pcpu_setup_first_chunk(static_size, reserved_size, -1,
 				     unit_pages << PAGE_SHIFT, vm.addr, NULL);
@@ -1898,8 +1899,8 @@ ssize_t __init pcpu_lpage_first_chunk(size_t static_size, size_t reserved_size,
 		       static_size);
 
 	/* we're ready, commit */
-	pr_info("PERCPU: Remapped at %p with large pages, static data "
-		"%zu bytes\n", vm.addr, static_size);
+	pr_info("PERCPU: large pages @%p s%zu r%zu d%zu u%zu\n",
+		vm.addr, static_size, reserved_size, dyn_size, unit_size);
 
 	ret = pcpu_setup_first_chunk(static_size, reserved_size, dyn_size,
 				     unit_size, vm.addr, unit_map);
