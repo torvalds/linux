@@ -136,7 +136,7 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 		       int mode, struct buffer_head **out_bh)
 {
 	struct buffer_head *bh;
-	unsigned long blknum = 0;
+	__u64 blknum = 0;
 	int ret = -ENOMEM;
 
 	bh = nilfs_grab_buffer(inode, inode->i_mapping, blkoff, 0);
@@ -166,7 +166,7 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 		goto failed_bh;
 	}
 	bh->b_bdev = NILFS_MDT(inode)->mi_nilfs->ns_bdev;
-	bh->b_blocknr = blknum;
+	bh->b_blocknr = (sector_t)blknum;
 	set_buffer_mapped(bh);
 
 	bh->b_end_io = end_buffer_read_sync;

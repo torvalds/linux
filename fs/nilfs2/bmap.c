@@ -36,6 +36,26 @@ struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
 	return nilfs_dat_inode(NILFS_I_NILFS(bmap->b_inode));
 }
 
+/**
+ * nilfs_bmap_lookup_at_level - find a data block or node block
+ * @bmap: bmap
+ * @key: key
+ * @level: level
+ * @ptrp: place to store the value associated to @key
+ *
+ * Description: nilfs_bmap_lookup_at_level() finds a record whose key
+ * matches @key in the block at @level of the bmap.
+ *
+ * Return Value: On success, 0 is returned and the record associated with @key
+ * is stored in the place pointed by @ptrp. On error, one of the following
+ * negative error codes is returned.
+ *
+ * %-EIO - I/O error.
+ *
+ * %-ENOMEM - Insufficient amount of memory available.
+ *
+ * %-ENOENT - A record associated with @key does not exist.
+ */
 int nilfs_bmap_lookup_at_level(struct nilfs_bmap *bmap, __u64 key, int level,
 			       __u64 *ptrp)
 {
@@ -66,39 +86,6 @@ int nilfs_bmap_lookup_contig(struct nilfs_bmap *bmap, __u64 key, __u64 *ptrp,
 	down_read(&bmap->b_sem);
 	ret = bmap->b_ops->bop_lookup_contig(bmap, key, ptrp, maxblocks);
 	up_read(&bmap->b_sem);
-	return ret;
-}
-
-/**
- * nilfs_bmap_lookup - find a record
- * @bmap: bmap
- * @key: key
- * @recp: pointer to record
- *
- * Description: nilfs_bmap_lookup() finds a record whose key matches @key in
- * @bmap.
- *
- * Return Value: On success, 0 is returned and the record associated with @key
- * is stored in the place pointed by @recp. On error, one of the following
- * negative error codes is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
- *
- * %-ENOENT - A record associated with @key does not exist.
- */
-int nilfs_bmap_lookup(struct nilfs_bmap *bmap,
-		      unsigned long key,
-		      unsigned long *recp)
-{
-	__u64 ptr;
-	int ret;
-
-	/* XXX: use macro for level 1 */
-	ret = nilfs_bmap_lookup_at_level(bmap, key, 1, &ptr);
-	if (recp != NULL)
-		*recp = ptr;
 	return ret;
 }
 

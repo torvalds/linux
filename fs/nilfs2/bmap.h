@@ -142,7 +142,6 @@ struct nilfs_bmap {
 int nilfs_bmap_test_and_clear_dirty(struct nilfs_bmap *);
 int nilfs_bmap_read(struct nilfs_bmap *, struct nilfs_inode *);
 void nilfs_bmap_write(struct nilfs_bmap *, struct nilfs_inode *);
-int nilfs_bmap_lookup(struct nilfs_bmap *, unsigned long, unsigned long *);
 int nilfs_bmap_lookup_contig(struct nilfs_bmap *, __u64, __u64 *, unsigned);
 int nilfs_bmap_insert(struct nilfs_bmap *, unsigned long, unsigned long);
 int nilfs_bmap_delete(struct nilfs_bmap *, unsigned long);
@@ -160,6 +159,12 @@ void nilfs_bmap_init_gc(struct nilfs_bmap *);
 void nilfs_bmap_init_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
 void nilfs_bmap_commit_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
 
+
+static inline int nilfs_bmap_lookup(struct nilfs_bmap *bmap, __u64 key,
+				    __u64 *ptr)
+{
+	return nilfs_bmap_lookup_at_level(bmap, key, 1, ptr);
+}
 
 /*
  * Internal use only
