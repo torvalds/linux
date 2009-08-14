@@ -449,6 +449,7 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			count = dwarf_read_uleb128(current_insn,
 						   &frame->cfa_register);
 			current_insn += count;
+			frame->cfa_offset = 0;
 			frame->flags |= DWARF_FRAME_CFA_REG_OFFSET;
 			break;
 		case DW_CFA_def_cfa_offset:
