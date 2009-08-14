@@ -23,6 +23,8 @@
 struct timekeeper {
 	/* Current clocksource used for timekeeping. */
 	struct clocksource *clock;
+	/* The shift value of the current clocksource. */
+	int	shift;
 
 	/* Number of clock cycles in one NTP interval. */
 	cycle_t cycle_interval;
@@ -36,6 +38,9 @@ struct timekeeper {
 	/* Difference between accumulated time and NTP time in ntp
 	 * shifted nano seconds. */
 	s64	ntp_error;
+	/* Shift conversion between clock shifted nano seconds and
+	 * ntp shifted nano seconds. */
+	int	ntp_error_shift;
 };
 
 struct timekeeper timekeeper;
@@ -75,8 +80,10 @@ static void timekeeper_setup_internals(struct clocksource *clock)
 		((u64) interval * clock->mult_orig) >> clock->shift;
 
 	timekeeper.xtime_nsec = 0;
+	timekeeper.shift = clock->shift;
 
 	timekeeper.ntp_error = 0;
+	timekeeper.ntp_error_shift = NTP_SCALE_SHIFT - clock->shift;
 }
 
 /*
@@ -641,8 +648,7 @@ static __always_inline int timekeeping_bigadjust(s64 error, s64 *interval,
 	 * Now calculate the error in (1 << look_ahead) ticks, but first
 	 * remove the single look ahead already included in the error.
 	 */
-	tick_error = tick_length >>
-			(NTP_SCALE_SHIFT - timekeeper.clock->shift + 1);
+	tick_error = tick_length >> (timekeeper.ntp_error_shift + 1);
 	tick_error -= timekeeper.xtime_interval >> 1;
 	error = ((error - tick_error) >> look_ahead) + tick_error;
 
@@ -673,8 +679,7 @@ static void timekeeping_adjust(s64 offset)
 	s64 error, interval = timekeeper.cycle_interval;
 	int adj;
 
-	error = timekeeper.ntp_error >>
-		(NTP_SCALE_SHIFT - timekeeper.clock->shift - 1);
+	error = timekeeper.ntp_error >> (timekeeper.ntp_error_shift - 1);
 	if (error > interval) {
 		error >>= 2;
 		if (likely(error <= interval))
@@ -696,7 +701,7 @@ static void timekeeping_adjust(s64 offset)
 	timekeeper.xtime_interval += interval;
 	timekeeper.xtime_nsec -= offset;
 	timekeeper.ntp_error -= (interval - offset) <<
-			(NTP_SCALE_SHIFT - timekeeper.clock->shift);
+				timekeeper.ntp_error_shift;
 }
 
 /**
@@ -708,7 +713,7 @@ void update_wall_time(void)
 {
 	struct clocksource *clock;
 	cycle_t offset;
-	s64 nsecs;
+	u64 nsecs;
 
 	/* Make sure we're fully resumed: */
 	if (unlikely(timekeeping_suspended))
@@ -720,13 +725,13 @@ void update_wall_time(void)
 #else
 	offset = timekeeper.cycle_interval;
 #endif
-	timekeeper.xtime_nsec = (s64)xtime.tv_nsec << clock->shift;
+	timekeeper.xtime_nsec = (s64)xtime.tv_nsec << timekeeper.shift;
 
 	/* normally this loop will run just once, however in the
 	 * case of lost or late ticks, it will accumulate correctly.
 	 */
 	while (offset >= timekeeper.cycle_interval) {
-		u64 nsecps = (u64)NSEC_PER_SEC << clock->shift;
+		u64 nsecps = (u64)NSEC_PER_SEC << timekeeper.shift;
 
 		/* accumulate one interval */
 		offset -= timekeeper.cycle_interval;
@@ -748,7 +753,7 @@ void update_wall_time(void)
 		/* accumulate error between NTP and clock interval */
 		timekeeper.ntp_error += tick_length;
 		timekeeper.ntp_error -= timekeeper.xtime_interval <<
-					(NTP_SCALE_SHIFT - clock->shift);
+					timekeeper.ntp_error_shift;
 	}
 
 	/* correct the clock when NTP error is too big */
@@ -773,16 +778,16 @@ void update_wall_time(void)
 	if (unlikely((s64)timekeeper.xtime_nsec < 0)) {
 		s64 neg = -(s64)timekeeper.xtime_nsec;
 		timekeeper.xtime_nsec = 0;
-		timekeeper.ntp_error += neg << (NTP_SCALE_SHIFT - clock->shift);
+		timekeeper.ntp_error += neg << timekeeper.ntp_error_shift;
 	}
 
 	/* store full nanoseconds into xtime after rounding it up and
 	 * add the remainder to the error difference.
 	 */
-	xtime.tv_nsec = ((s64)timekeeper.xtime_nsec >> clock->shift) + 1;
-	timekeeper.xtime_nsec -= (s64)xtime.tv_nsec << clock->shift;
-	timekeeper.ntp_error += timekeeper.xtime_nsec <<
-				(NTP_SCALE_SHIFT - clock->shift);
+	xtime.tv_nsec =	((s64) timekeeper.xtime_nsec >> timekeeper.shift) + 1;
+	timekeeper.xtime_nsec -= (s64) xtime.tv_nsec << timekeeper.shift;
+	timekeeper.ntp_error +=	timekeeper.xtime_nsec <<
+				timekeeper.ntp_error_shift;
 
 	nsecs = clocksource_cyc2ns(offset, clock->mult, clock->shift);
 	update_xtime_cache(nsecs);
