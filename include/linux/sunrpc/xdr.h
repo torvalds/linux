@@ -124,9 +124,8 @@ xdr_encode_hyper(__be32 *p, __u64 val)
 static inline __be32 *
 xdr_decode_hyper(__be32 *p, __u64 *valp)
 {
-	*valp  = ((__u64) ntohl(*p++)) << 32;
-	*valp |= ntohl(*p++);
-	return p;
+	*valp = be64_to_cpup((__be64 *)p);
+	return p + 2;
 }
 
 /*
