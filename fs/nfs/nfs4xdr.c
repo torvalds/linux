@@ -3320,17 +3320,19 @@ static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)
 	return status;
 }
 
+static int decode_verifier(struct xdr_stream *xdr, void *verifier)
+{
+	return decode_opaque_fixed(xdr, verifier, 8);
+}
+
 static int decode_commit(struct xdr_stream *xdr, struct nfs_writeres *res)
 {
-	__be32 *p;
 	int status;
 
 	status = decode_op_hdr(xdr, OP_COMMIT);
-	if (status)
-		return status;
-	READ_BUF(8);
-	COPYMEM(res->verf->verifier, 8);
-	return 0;
+	if (!status)
+		status = decode_verifier(xdr, res->verf->verifier);
+	return status;
 }
 
 static int decode_create(struct xdr_stream *xdr, struct nfs4_change_info *cinfo)
@@ -3852,17 +3854,17 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	int		status;
 
 	status = decode_op_hdr(xdr, OP_READDIR);
-	if (status)
+	if (!status)
+		status = decode_verifier(xdr, readdir->verifier.data);
+	if (unlikely(status))
 		return status;
-	READ_BUF(8);
-	COPYMEM(readdir->verifier.data, 8);
 	dprintk("%s: verifier = %08x:%08x\n",
 			__func__,
 			((u32 *)readdir->verifier.data)[0],
 			((u32 *)readdir->verifier.data)[1]);
 
 
-	hdrlen = (char *) p - (char *) iov->iov_base;
+	hdrlen = (char *) xdr->p - (char *) iov->iov_base;
 	recvd = rcvbuf->len - hdrlen;
 	if (pglen > recvd)
 		pglen = recvd;
