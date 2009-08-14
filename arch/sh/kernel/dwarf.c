@@ -57,7 +57,7 @@ static void dwarf_frame_alloc_regs(struct dwarf_frame *frame,
 	if (frame->num_regs >= num_regs)
 		return;
 
-	regs = kzalloc(new_size, GFP_KERNEL);
+	regs = kzalloc(new_size, GFP_ATOMIC);
 	if (!regs) {
 		printk(KERN_WARNING "Unable to allocate DWARF registers\n");
 		/*
@@ -531,7 +531,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 		define_ra = true;
 	}
 
-	frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+	frame = kzalloc(sizeof(*frame), GFP_ATOMIC);
 	if (!frame)
 		return NULL;
 
