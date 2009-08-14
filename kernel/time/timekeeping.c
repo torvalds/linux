@@ -95,6 +95,40 @@ static void timekeeper_setup_internals(struct clocksource *clock)
 	timekeeper.mult = clock->mult;
 }
 
+/* Timekeeper helper functions. */
+static inline s64 timekeeping_get_ns(void)
+{
+	cycle_t cycle_now, cycle_delta;
+	struct clocksource *clock;
+
+	/* read clocksource: */
+	clock = timekeeper.clock;
+	cycle_now = clock->read(clock);
+
+	/* calculate the delta since the last update_wall_time: */
+	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+
+	/* return delta convert to nanoseconds using ntp adjusted mult. */
+	return clocksource_cyc2ns(cycle_delta, timekeeper.mult,
+				  timekeeper.shift);
+}
+
+static inline s64 timekeeping_get_ns_raw(void)
+{
+	cycle_t cycle_now, cycle_delta;
+	struct clocksource *clock;
+
+	/* read clocksource: */
+	clock = timekeeper.clock;
+	cycle_now = clock->read(clock);
+
+	/* calculate the delta since the last update_wall_time: */
+	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+
+	/* return delta convert to nanoseconds using ntp adjusted mult. */
+	return clocksource_cyc2ns(cycle_delta, clock->mult, clock->shift);
+}
+
 /*
  * This read-write spinlock protects us from races in SMP while
  * playing with xtime.
@@ -183,8 +217,6 @@ static void timekeeping_forward_now(void)
  */
 void getnstimeofday(struct timespec *ts)
 {
-	cycle_t cycle_now, cycle_delta;
-	struct clocksource *clock;
 	unsigned long seq;
 	s64 nsecs;
 
@@ -194,17 +226,7 @@ void getnstimeofday(struct timespec *ts)
 		seq = read_seqbegin(&xtime_lock);
 
 		*ts = xtime;
-
-		/* read clocksource: */
-		clock = timekeeper.clock;
-		cycle_now = clock->read(clock);
-
-		/* calculate the delta since the last update_wall_time: */
-		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
-
-		/* convert to nanoseconds: */
-		nsecs = clocksource_cyc2ns(cycle_delta, timekeeper.mult,
-					   timekeeper.shift);
+		nsecs = timekeeping_get_ns();
 
 		/* If arch requires, add in gettimeoffset() */
 		nsecs += arch_gettimeoffset();
@@ -218,8 +240,6 @@ EXPORT_SYMBOL(getnstimeofday);
 
 ktime_t ktime_get(void)
 {
-	cycle_t cycle_now, cycle_delta;
-	struct clocksource *clock;
 	unsigned int seq;
 	s64 secs, nsecs;
 
@@ -229,17 +249,7 @@ ktime_t ktime_get(void)
 		seq = read_seqbegin(&xtime_lock);
 		secs = xtime.tv_sec + wall_to_monotonic.tv_sec;
 		nsecs = xtime.tv_nsec + wall_to_monotonic.tv_nsec;
-
-		/* read clocksource: */
-		clock = timekeeper.clock;
-		cycle_now = clock->read(clock);
-
-		/* calculate the delta since the last update_wall_time: */
-		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
-
-		/* convert to nanoseconds: */
-		nsecs += clocksource_cyc2ns(cycle_delta, timekeeper.mult,
-					    timekeeper.shift);
+		nsecs += timekeeping_get_ns();
 
 	} while (read_seqretry(&xtime_lock, seq));
 	/*
@@ -260,8 +270,6 @@ EXPORT_SYMBOL_GPL(ktime_get);
  */
 void ktime_get_ts(struct timespec *ts)
 {
-	cycle_t cycle_now, cycle_delta;
-	struct clocksource *clock;
 	struct timespec tomono;
 	unsigned int seq;
 	s64 nsecs;
@@ -272,17 +280,7 @@ void ktime_get_ts(struct timespec *ts)
 		seq = read_seqbegin(&xtime_lock);
 		*ts = xtime;
 		tomono = wall_to_monotonic;
-
-		/* read clocksource: */
-		clock = timekeeper.clock;
-		cycle_now = clock->read(clock);
-
-		/* calculate the delta since the last update_wall_time: */
-		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
-
-		/* convert to nanoseconds: */
-		nsecs = clocksource_cyc2ns(cycle_delta, timekeeper.mult,
-					   timekeeper.shift);
+		nsecs = timekeeping_get_ns();
 
 	} while (read_seqretry(&xtime_lock, seq));
 
@@ -445,23 +443,10 @@ void getrawmonotonic(struct timespec *ts)
 {
 	unsigned long seq;
 	s64 nsecs;
-	cycle_t cycle_now, cycle_delta;
-	struct clocksource *clock;
 
 	do {
 		seq = read_seqbegin(&xtime_lock);
-
-		/* read clocksource: */
-		clock = timekeeper.clock;
-		cycle_now = clock->read(clock);
-
-		/* calculate the delta since the last update_wall_time: */
-		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
-
-		/* convert to nanoseconds: */
-		nsecs = clocksource_cyc2ns(cycle_delta, clock->mult,
-					   clock->shift);
-
+		nsecs = timekeeping_get_ns_raw();
 		*ts = raw_time;
 
 	} while (read_seqretry(&xtime_lock, seq));
