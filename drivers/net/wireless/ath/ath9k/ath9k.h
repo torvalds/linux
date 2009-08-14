@@ -454,7 +454,8 @@ struct ath_ani {
 /*   LED Control    */
 /********************/
 
-#define ATH_LED_PIN	1
+#define ATH_LED_PIN_DEF 		1
+#define ATH_LED_PIN_9287		8
 #define ATH_LED_ON_DURATION_IDLE	350	/* in msecs */
 #define ATH_LED_OFF_DURATION_IDLE	250	/* in msecs */
 

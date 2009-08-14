@@ -236,7 +236,7 @@ static int ath_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
-	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
+	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
@@ -269,9 +269,9 @@ static int ath_pci_resume(struct pci_dev *pdev)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
 
 	/* Enable LED */
-	ath9k_hw_cfg_output(sc->sc_ah, ATH_LED_PIN,
+	ath9k_hw_cfg_output(sc->sc_ah, sc->sc_ah->led_pin,
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
+	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 
 	return 0;
 }

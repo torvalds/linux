@@ -522,6 +522,7 @@ struct ath_hw {
 	u32 originalGain[22];
 	int initPDADC;
 	int PDADCdelta;
+	u8 led_pin;
 
 	struct ar5416IniArray iniModes;
 	struct ar5416IniArray iniCommon;
