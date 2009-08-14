@@ -156,10 +156,6 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 config NEED_PER_CPU_PAGE_FIRST_CHUNK
 	def_bool y
 
-config NEED_PER_CPU_LPAGE_FIRST_CHUNK
-	def_bool y
-	depends on NEED_MULTIPLE_NODES
-
 config HAVE_CPUMASK_OF_CPU_MAP
 	def_bool X86_64_SMP
 
