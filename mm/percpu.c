@@ -94,10 +94,11 @@ struct pcpu_chunk {
 	struct list_head	list;		/* linked to pcpu_slot lists */
 	int			free_size;	/* free bytes in the chunk */
 	int			contig_hint;	/* max contiguous size hint */
-	struct vm_struct	*vm;		/* mapped vmalloc region */
+	void			*base_addr;	/* base address of this chunk */
 	int			map_used;	/* # of map entries used */
 	int			map_alloc;	/* # of map entries allocated */
 	int			*map;		/* allocation map */
+	struct vm_struct	*vm;		/* mapped vmalloc region */
 	bool			immutable;	/* no [de]population allowed */
 	unsigned long		populated[];	/* populated bitmap */
 };
@@ -196,7 +197,7 @@ static int pcpu_page_idx(unsigned int cpu, int page_idx)
 static unsigned long pcpu_chunk_addr(struct pcpu_chunk *chunk,
 				     unsigned int cpu, int page_idx)
 {
-	return (unsigned long)chunk->vm->addr + pcpu_unit_offsets[cpu] +
+	return (unsigned long)chunk->base_addr + pcpu_unit_offsets[cpu] +
 		(page_idx << PAGE_SHIFT);
 }
 
@@ -324,7 +325,7 @@ static void pcpu_chunk_relocate(struct pcpu_chunk *chunk, int oslot)
  */
 static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 {
-	void *first_start = pcpu_first_chunk->vm->addr;
+	void *first_start = pcpu_first_chunk->base_addr;
 
 	/* is it in the first chunk? */
 	if (addr >= first_start && addr < first_start + pcpu_unit_size) {
@@ -1014,6 +1015,7 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
 	INIT_LIST_HEAD(&chunk->list);
 	chunk->free_size = pcpu_unit_size;
 	chunk->contig_hint = pcpu_unit_size;
+	chunk->base_addr = chunk->vm->addr;
 
 	return chunk;
 }
@@ -1103,8 +1105,8 @@ area_found:
 
 	mutex_unlock(&pcpu_alloc_mutex);
 
-	/* return address relative to unit0 */
-	return __addr_to_pcpu_ptr(chunk->vm->addr + off);
+	/* return address relative to base address */
+	return __addr_to_pcpu_ptr(chunk->base_addr + off);
 
 fail_unlock:
 	spin_unlock_irq(&pcpu_lock);
@@ -1213,7 +1215,7 @@ void free_percpu(void *ptr)
 	spin_lock_irqsave(&pcpu_lock, flags);
 
 	chunk = pcpu_chunk_addr_search(addr);
-	off = addr - chunk->vm->addr;
+	off = addr - chunk->base_addr;
 
 	pcpu_free_area(chunk, off);
 
@@ -1565,7 +1567,6 @@ static void pcpu_dump_alloc_info(const char *lvl,
 int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 				  void *base_addr)
 {
-	static struct vm_struct first_vm;
 	static int smap[2], dmap[2];
 	size_t dyn_size = ai->dyn_size;
 	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
@@ -1629,10 +1630,6 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_chunk_struct_size = sizeof(struct pcpu_chunk) +
 		BITS_TO_LONGS(pcpu_unit_pages) * sizeof(unsigned long);
 
-	first_vm.flags = VM_ALLOC;
-	first_vm.size = pcpu_chunk_size;
-	first_vm.addr = base_addr;
-
 	/*
 	 * Allocate chunk slots.  The additional last slot is for
 	 * empty chunks.
@@ -1651,7 +1648,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	 */
 	schunk = alloc_bootmem(pcpu_chunk_struct_size);
 	INIT_LIST_HEAD(&schunk->list);
-	schunk->vm = &first_vm;
+	schunk->base_addr = base_addr;
 	schunk->map = smap;
 	schunk->map_alloc = ARRAY_SIZE(smap);
 	schunk->immutable = true;
@@ -1675,7 +1672,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	if (dyn_size) {
 		dchunk = alloc_bootmem(pcpu_chunk_struct_size);
 		INIT_LIST_HEAD(&dchunk->list);
-		dchunk->vm = &first_vm;
+		dchunk->base_addr = base_addr;
 		dchunk->map = dmap;
 		dchunk->map_alloc = ARRAY_SIZE(dmap);
 		dchunk->immutable = true;
@@ -1691,7 +1688,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
 
 	/* we're done */
-	pcpu_base_addr = schunk->vm->addr;
+	pcpu_base_addr = base_addr;
 	return 0;
 }
 
