@@ -26,6 +26,8 @@
 #include <asm/mach/irq.h>
 #include <mach/fb.h>
 #include <mach/hardware.h>
+#include <mach/dma.h>
+#include <mach/irqs.h>
 #include <asm/irq.h>
 
 #include <plat/regs-serial.h>
@@ -472,5 +474,53 @@ struct platform_device s3c_device_camif = {
 };
 
 EXPORT_SYMBOL(s3c_device_camif);
+
+/* AC97 */
+
+static struct resource s3c_ac97_resource[] = {
+	[0] = {
+		.start = S3C2440_PA_AC97,
+		.end   = S3C2440_PA_AC97 + S3C2440_SZ_AC97 -1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_S3C244x_AC97,
+		.end   = IRQ_S3C244x_AC97,
+		.flags = IORESOURCE_IRQ,
+	},
+	[2] = {
+		.name  = "PCM out",
+		.start = DMACH_PCM_OUT,
+		.end   = DMACH_PCM_OUT,
+		.flags = IORESOURCE_DMA,
+	},
+	[3] = {
+		.name  = "PCM in",
+		.start = DMACH_PCM_IN,
+		.end   = DMACH_PCM_IN,
+		.flags = IORESOURCE_DMA,
+	},
+	[4] = {
+		.name  = "Mic in",
+		.start = DMACH_MIC_IN,
+		.end   = DMACH_MIC_IN,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static u64 s3c_device_ac97_dmamask = 0xffffffffUL;
+
+struct platform_device s3c_device_ac97 = {
+	.name		  = "s3c-ac97",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(s3c_ac97_resource),
+	.resource	  = s3c_ac97_resource,
+	.dev              = {
+		.dma_mask = &s3c_device_ac97_dmamask,
+		.coherent_dma_mask = 0xffffffffUL
+	}
+};
+
+EXPORT_SYMBOL(s3c_device_ac97);
 
 #endif // CONFIG_CPU_S32440
