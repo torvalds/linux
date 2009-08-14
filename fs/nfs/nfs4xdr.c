@@ -740,7 +740,7 @@ static void encode_compound_hdr(struct xdr_stream *xdr,
 
 	dprintk("encode_compound: tag=%.*s\n", (int)hdr->taglen, hdr->tag);
 	BUG_ON(hdr->taglen > NFS4_MAXTAGLEN);
-	RESERVE_SPACE(12+(XDR_QUADLEN(hdr->taglen)<<2));
+	RESERVE_SPACE(12 + hdr->taglen);
 	*p++ = cpu_to_be32(hdr->taglen);
 	p = xdr_encode_opaque_fixed(p, hdr->tag, hdr->taglen);
 	*p++ = cpu_to_be32(hdr->minorversion);
