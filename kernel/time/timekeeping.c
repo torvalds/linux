@@ -58,6 +58,13 @@ void update_xtime_cache(u64 nsec)
 
 struct clocksource *clock;
 
+/* must hold xtime_lock */
+void timekeeping_leap_insert(int leapsecond)
+{
+	xtime.tv_sec += leapsecond;
+	wall_to_monotonic.tv_sec -= leapsecond;
+	update_vsyscall(&xtime, clock);
+}
 
 #ifdef CONFIG_GENERIC_TIME
 /**
