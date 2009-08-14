@@ -34,29 +34,22 @@ struct sep_device {
 
 	unsigned long in_use;
 
-	unsigned long io_bus;
-	unsigned long io_end_bus;
-	unsigned long io_memory_size;
-	void __iomem *io_addr;
+	/* address of the shared memory allocated during init for SEP driver
+	   (coherent alloc) */
+	void *shared_addr;
+	/* the physical address of the shared area */
+	dma_addr_t shared_bus;
 
-	/* restricted access region */
+	/* restricted access region (coherent alloc) */
 	dma_addr_t rar_bus;
 	void *rar_addr;
-
-	/* shared memory region */
-	dma_addr_t shared_bus;
-	void *shared_addr;
-
-	/* firmware regions */
-	dma_addr_t cache_bus;
+	/* firmware regions: cache is at rar_addr */
 	unsigned long cache_size;
-	void *cache_addr;
 
+	/* follows the cache */
 	dma_addr_t resident_bus;
 	unsigned long resident_size;
 	void *resident_addr;
-
-	void *rar_region_addr;
 
 	/* start address of the access to the SEP registers from driver */
 	void __iomem *reg_addr;
@@ -88,13 +81,6 @@ struct sep_device {
 	/* pointer to the workqueue that handles the flow done interrupts */
 	struct workqueue_struct *flow_wq;
 
-	/* address of the shared memory allocated during init for SEP driver */
-	void *shared_area;
-	/* the physical address of the shared area */
-	dma_addr_t shared_area_bus;
-
-	/* Message Shared Area start address - will be allocated during init */
-	void *message_shared_area_addr;
 };
 
 static struct sep_device *sep_dev;
