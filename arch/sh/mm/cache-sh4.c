@@ -330,6 +330,9 @@ loop_exit:
  */
 void flush_cache_mm(struct mm_struct *mm)
 {
+	if (cpu_context(smp_processor_id(), mm) == NO_CONTEXT)
+		return;
+
 	/*
 	 * If cache is only 4k-per-way, there are never any 'aliases'.  Since
 	 * the cache is physically tagged, the data can just be left in there.
@@ -370,6 +373,9 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long address,
 {
 	unsigned long phys = pfn << PAGE_SHIFT;
 	unsigned int alias_mask;
+
+	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
+		return;
 
 	alias_mask = boot_cpu_data.dcache.alias_mask;
 
@@ -413,6 +419,9 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long address,
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 		       unsigned long end)
 {
+	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
+		return;
+
 	/*
 	 * If cache is only 4k-per-way, there are never any 'aliases'.  Since
 	 * the cache is physically tagged, the data can just be left in there.
