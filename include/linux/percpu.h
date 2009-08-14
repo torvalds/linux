@@ -74,7 +74,7 @@ extern ssize_t __init pcpu_embed_first_chunk(
 				size_t static_size, size_t reserved_size,
 				ssize_t dyn_size);
 
-extern ssize_t __init pcpu_4k_first_chunk(
+extern ssize_t __init pcpu_page_first_chunk(
 				size_t static_size, size_t reserved_size,
 				pcpu_fc_alloc_fn_t alloc_fn,
 				pcpu_fc_free_fn_t free_fn,

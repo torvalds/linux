@@ -249,21 +249,22 @@ static ssize_t __init setup_pcpu_embed(size_t static_size, bool chosen)
 }
 
 /*
- * 4k allocator
+ * Page allocator
  *
- * Boring fallback 4k allocator.  This allocator puts more pressure on
- * PTE TLBs but other than that behaves nicely on both UMA and NUMA.
+ * Boring fallback 4k page allocator.  This allocator puts more
+ * pressure on PTE TLBs but other than that behaves nicely on both UMA
+ * and NUMA.
  */
-static void __init pcpu4k_populate_pte(unsigned long addr)
+static void __init pcpup_populate_pte(unsigned long addr)
 {
 	populate_extra_pte(addr);
 }
 
-static ssize_t __init setup_pcpu_4k(size_t static_size)
+static ssize_t __init setup_pcpu_page(size_t static_size)
 {
-	return pcpu_4k_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
-				   pcpu_fc_alloc, pcpu_fc_free,
-				   pcpu4k_populate_pte);
+	return pcpu_page_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
+				     pcpu_fc_alloc, pcpu_fc_free,
+				     pcpup_populate_pte);
 }
 
 /* for explicit first chunk allocator selection */
@@ -307,7 +308,7 @@ void __init setup_per_cpu_areas(void)
 	 */
 	ret = -EINVAL;
 	if (strlen(pcpu_chosen_alloc)) {
-		if (strcmp(pcpu_chosen_alloc, "4k")) {
+		if (strcmp(pcpu_chosen_alloc, "page")) {
 			if (!strcmp(pcpu_chosen_alloc, "lpage"))
 				ret = setup_pcpu_lpage(static_size, true);
 			else if (!strcmp(pcpu_chosen_alloc, "embed"))
@@ -317,7 +318,7 @@ void __init setup_per_cpu_areas(void)
 					   "specified\n", pcpu_chosen_alloc);
 			if (ret < 0)
 				pr_warning("PERCPU: %s allocator failed (%zd), "
-					   "falling back to 4k\n",
+					   "falling back to page size\n",
 					   pcpu_chosen_alloc, ret);
 		}
 	} else {
@@ -326,7 +327,7 @@ void __init setup_per_cpu_areas(void)
 			ret = setup_pcpu_embed(static_size, false);
 	}
 	if (ret < 0)
-		ret = setup_pcpu_4k(static_size);
+		ret = setup_pcpu_page(static_size);
 	if (ret < 0)
 		panic("cannot allocate static percpu area (%zu bytes, err=%zd)",
 		      static_size, ret);

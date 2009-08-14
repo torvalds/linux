@@ -1497,15 +1497,15 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 }
 
 /**
- * pcpu_4k_first_chunk - map the first chunk using PAGE_SIZE pages
+ * pcpu_page_first_chunk - map the first chunk using PAGE_SIZE pages
  * @static_size: the size of static percpu area in bytes
  * @reserved_size: the size of reserved percpu area in bytes
  * @alloc_fn: function to allocate percpu page, always called with PAGE_SIZE
  * @free_fn: funtion to free percpu page, always called with PAGE_SIZE
  * @populate_pte_fn: function to populate pte
  *
- * This is a helper to ease setting up embedded first percpu chunk and
- * can be called where pcpu_setup_first_chunk() is expected.
+ * This is a helper to ease setting up page-remapped first percpu
+ * chunk and can be called where pcpu_setup_first_chunk() is expected.
  *
  * This is the basic allocator.  Static percpu area is allocated
  * page-by-page into vmalloc area.
@@ -1514,18 +1514,21 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
  * The determined pcpu_unit_size which can be used to initialize
  * percpu access on success, -errno on failure.
  */
-ssize_t __init pcpu_4k_first_chunk(size_t static_size, size_t reserved_size,
-				   pcpu_fc_alloc_fn_t alloc_fn,
-				   pcpu_fc_free_fn_t free_fn,
-				   pcpu_fc_populate_pte_fn_t populate_pte_fn)
+ssize_t __init pcpu_page_first_chunk(size_t static_size, size_t reserved_size,
+				     pcpu_fc_alloc_fn_t alloc_fn,
+				     pcpu_fc_free_fn_t free_fn,
+				     pcpu_fc_populate_pte_fn_t populate_pte_fn)
 {
 	static struct vm_struct vm;
+	char psize_str[16];
 	int unit_pages;
 	size_t pages_size;
 	struct page **pages;
 	unsigned int cpu;
 	int i, j;
 	ssize_t ret;
+
+	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
 
 	unit_pages = PFN_UP(max_t(size_t, static_size + reserved_size,
 				  PCPU_MIN_UNIT_SIZE));
@@ -1542,8 +1545,8 @@ ssize_t __init pcpu_4k_first_chunk(size_t static_size, size_t reserved_size,
 
 			ptr = alloc_fn(cpu, PAGE_SIZE);
 			if (!ptr) {
-				pr_warning("PERCPU: failed to allocate "
-					   "4k page for cpu%u\n", cpu);
+				pr_warning("PERCPU: failed to allocate %s page "
+					   "for cpu%u\n", psize_str, cpu);
 				goto enomem;
 			}
 			pages[j++] = virt_to_page(ptr);
@@ -1580,8 +1583,8 @@ ssize_t __init pcpu_4k_first_chunk(size_t static_size, size_t reserved_size,
 	}
 
 	/* we're ready, commit */
-	pr_info("PERCPU: %d 4k pages/cpu @%p s%zu r%zu\n",
-		unit_pages, vm.addr, static_size, reserved_size);
+	pr_info("PERCPU: %d %s pages/cpu @%p s%zu r%zu\n",
+		unit_pages, psize_str, vm.addr, static_size, reserved_size);
 
 	ret = pcpu_setup_first_chunk(static_size, reserved_size, -1,
 				     unit_pages << PAGE_SHIFT, vm.addr, NULL);
