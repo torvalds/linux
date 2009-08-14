@@ -1414,8 +1414,9 @@ size_t __init pcpu_setup_first_chunk(size_t static_size, size_t reserved_size,
 	return pcpu_unit_size;
 }
 
-static size_t pcpu_calc_fc_sizes(size_t static_size, size_t reserved_size,
-				 ssize_t *dyn_sizep)
+static inline size_t pcpu_calc_fc_sizes(size_t static_size,
+					size_t reserved_size,
+					ssize_t *dyn_sizep)
 {
 	size_t size_sum;
 
@@ -1427,6 +1428,8 @@ static size_t pcpu_calc_fc_sizes(size_t static_size, size_t reserved_size,
 	return size_sum;
 }
 
+#if defined(CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK) || \
+	!defined(CONFIG_HAVE_SETUP_PER_CPU_AREA)
 /**
  * pcpu_embed_first_chunk - embed the first percpu chunk into bootmem
  * @static_size: the size of static percpu area in bytes
@@ -1495,7 +1498,10 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	return pcpu_setup_first_chunk(static_size, reserved_size, dyn_size,
 				      unit_size, base, NULL);
 }
+#endif /* CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK ||
+	  !CONFIG_HAVE_SETUP_PER_CPU_AREA */
 
+#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 /**
  * pcpu_page_first_chunk - map the first chunk using PAGE_SIZE pages
  * @static_size: the size of static percpu area in bytes
@@ -1598,12 +1604,9 @@ out_free_ar:
 	free_bootmem(__pa(pages), pages_size);
 	return ret;
 }
+#endif /* CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK */
 
-/*
- * Large page remapping first chunk setup helper
- */
-#ifdef CONFIG_NEED_MULTIPLE_NODES
-
+#ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
 /**
  * pcpu_lpage_build_unit_map - build unit_map for large page remapping
  * @static_size: the size of static percpu area in bytes
@@ -1982,7 +1985,7 @@ void *pcpu_lpage_remapped(void *kaddr)
 
 	return NULL;
 }
-#endif
+#endif /* CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK */
 
 /*
  * Generic percpu area setup.

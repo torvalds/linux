@@ -70,17 +70,21 @@ extern size_t __init pcpu_setup_first_chunk(
 				ssize_t dyn_size, size_t unit_size,
 				void *base_addr, const int *unit_map);
 
+#ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
 extern ssize_t __init pcpu_embed_first_chunk(
 				size_t static_size, size_t reserved_size,
 				ssize_t dyn_size);
+#endif
 
+#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 extern ssize_t __init pcpu_page_first_chunk(
 				size_t static_size, size_t reserved_size,
 				pcpu_fc_alloc_fn_t alloc_fn,
 				pcpu_fc_free_fn_t free_fn,
 				pcpu_fc_populate_pte_fn_t populate_pte_fn);
+#endif
 
-#ifdef CONFIG_NEED_MULTIPLE_NODES
+#ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
 extern int __init pcpu_lpage_build_unit_map(
 				size_t static_size, size_t reserved_size,
 				ssize_t *dyn_sizep, size_t *unit_sizep,
@@ -98,27 +102,6 @@ extern ssize_t __init pcpu_lpage_first_chunk(
 
 extern void *pcpu_lpage_remapped(void *kaddr);
 #else
-static inline int pcpu_lpage_build_unit_map(
-				size_t static_size, size_t reserved_size,
-				ssize_t *dyn_sizep, size_t *unit_sizep,
-				size_t lpage_size, int *unit_map,
-				pcpu_fc_cpu_distance_fn_t cpu_distance_fn)
-{
-	return -EINVAL;
-}
-
-static inline ssize_t __init pcpu_lpage_first_chunk(
-				size_t static_size, size_t reserved_size,
-				size_t dyn_size, size_t unit_size,
-				size_t lpage_size, const int *unit_map,
-				int nr_units,
-				pcpu_fc_alloc_fn_t alloc_fn,
-				pcpu_fc_free_fn_t free_fn,
-				pcpu_fc_map_fn_t map_fn)
-{
-	return -EINVAL;
-}
-
 static inline void *pcpu_lpage_remapped(void *kaddr)
 {
 	return NULL;
