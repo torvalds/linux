@@ -234,7 +234,9 @@ static int __init setup_pcpu_embed(bool chosen)
 		return -EINVAL;
 
 	return pcpu_embed_first_chunk(PERCPU_FIRST_CHUNK_RESERVE,
-				      reserve - PERCPU_FIRST_CHUNK_RESERVE);
+				      reserve - PERCPU_FIRST_CHUNK_RESERVE,
+				      PAGE_SIZE, NULL, pcpu_fc_alloc,
+				      pcpu_fc_free);
 }
 
 /*
