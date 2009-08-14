@@ -1478,9 +1478,10 @@ void __init setup_per_cpu_areas(void)
 	static struct vm_struct vm;
 	struct pcpu_alloc_info *ai;
 	unsigned long delta, cpu;
-	size_t size_sum, pcpu_unit_size;
+	size_t size_sum;
 	size_t ptrs_size;
 	void **ptrs;
+	int rc;
 
 	ai = pcpu_alloc_alloc_info(1, nr_cpu_ids);
 
@@ -1526,14 +1527,15 @@ void __init setup_per_cpu_areas(void)
 		pcpu_map_range(start, end, virt_to_page(ptrs[cpu]));
 	}
 
-	pcpu_unit_size = pcpu_setup_first_chunk(ai, vm.addr);
+	rc = pcpu_setup_first_chunk(ai, vm.addr);
+	if (rc)
+		panic("failed to setup percpu first chunk (%d)", rc);
 
 	free_bootmem(__pa(ptrs), ptrs_size);
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
-	for_each_possible_cpu(cpu) {
-		__per_cpu_offset(cpu) = delta + cpu * pcpu_unit_size;
-	}
+	for_each_possible_cpu(cpu)
+		__per_cpu_offset(cpu) = delta + pcpu_unit_offsets[cpu];
 
 	/* Setup %g5 for the boot cpu.  */
 	__local_per_cpu_offset = __per_cpu_offset(smp_processor_id());

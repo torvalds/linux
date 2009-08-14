@@ -117,8 +117,8 @@ static unsigned int pcpu_last_unit_cpu __read_mostly;
 void *pcpu_base_addr __read_mostly;
 EXPORT_SYMBOL_GPL(pcpu_base_addr);
 
-/* cpu -> unit map */
-const int *pcpu_unit_map __read_mostly;
+static const int *pcpu_unit_map __read_mostly;		/* cpu -> unit */
+const unsigned long *pcpu_unit_offsets __read_mostly;	/* cpu -> unit offset */
 
 /*
  * The first chunk which always exists.  Note that unlike other
@@ -196,8 +196,8 @@ static int pcpu_page_idx(unsigned int cpu, int page_idx)
 static unsigned long pcpu_chunk_addr(struct pcpu_chunk *chunk,
 				     unsigned int cpu, int page_idx)
 {
-	return (unsigned long)chunk->vm->addr +
-		(pcpu_page_idx(cpu, page_idx) << PAGE_SHIFT);
+	return (unsigned long)chunk->vm->addr + pcpu_unit_offsets[cpu] +
+		(page_idx << PAGE_SHIFT);
 }
 
 static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,
@@ -341,7 +341,7 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 	 * space.  Note that any possible cpu id can be used here, so
 	 * there's no need to worry about preemption or cpu hotplug.
 	 */
-	addr += pcpu_unit_map[smp_processor_id()] * pcpu_unit_size;
+	addr += pcpu_unit_offsets[smp_processor_id()];
 	return pcpu_get_page_chunk(vmalloc_to_page(addr));
 }
 
@@ -1560,17 +1560,17 @@ static void pcpu_dump_alloc_info(const char *lvl,
  * and available for dynamic allocation like any other chunks.
  *
  * RETURNS:
- * The determined pcpu_unit_size which can be used to initialize
- * percpu access.
+ * 0 on success, -errno on failure.
  */
-size_t __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
-				     void *base_addr)
+int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+				  void *base_addr)
 {
 	static struct vm_struct first_vm;
 	static int smap[2], dmap[2];
 	size_t dyn_size = ai->dyn_size;
 	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
 	struct pcpu_chunk *schunk, *dchunk = NULL;
+	unsigned long *unit_off;
 	unsigned int cpu;
 	int *unit_map;
 	int group, unit, i;
@@ -1587,8 +1587,9 @@ size_t __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	pcpu_dump_alloc_info(KERN_DEBUG, ai);
 
-	/* determine number of units and verify and initialize pcpu_unit_map */
+	/* determine number of units and initialize unit_map and base */
 	unit_map = alloc_bootmem(nr_cpu_ids * sizeof(unit_map[0]));
+	unit_off = alloc_bootmem(nr_cpu_ids * sizeof(unit_off[0]));
 
 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
 		unit_map[cpu] = NR_CPUS;
@@ -1606,6 +1607,8 @@ size_t __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 			BUG_ON(unit_map[cpu] != NR_CPUS);
 
 			unit_map[cpu] = unit + i;
+			unit_off[cpu] = gi->base_offset + i * ai->unit_size;
+
 			if (pcpu_first_unit_cpu == NR_CPUS)
 				pcpu_first_unit_cpu = cpu;
 		}
@@ -1617,6 +1620,7 @@ size_t __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 		BUG_ON(unit_map[cpu] == NR_CPUS);
 
 	pcpu_unit_map = unit_map;
+	pcpu_unit_offsets = unit_off;
 
 	/* determine basic parameters */
 	pcpu_unit_pages = ai->unit_size >> PAGE_SHIFT;
@@ -1688,7 +1692,7 @@ size_t __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	/* we're done */
 	pcpu_base_addr = schunk->vm->addr;
-	return pcpu_unit_size;
+	return 0;
 }
 
 const char *pcpu_fc_names[PCPU_FC_NR] __initdata = {
@@ -1748,16 +1752,15 @@ early_param("percpu_alloc", percpu_alloc_setup);
  * size, the leftover is returned to the bootmem allocator.
  *
  * RETURNS:
- * The determined pcpu_unit_size which can be used to initialize
- * percpu access on success, -errno on failure.
+ * 0 on success, -errno on failure.
  */
-ssize_t __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size)
+int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size)
 {
 	struct pcpu_alloc_info *ai;
 	size_t size_sum, chunk_size;
 	void *base;
 	int unit;
-	ssize_t ret;
+	int rc;
 
 	ai = pcpu_build_alloc_info(reserved_size, dyn_size, PAGE_SIZE, NULL);
 	if (IS_ERR(ai))
@@ -1773,7 +1776,7 @@ ssize_t __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size)
 	if (!base) {
 		pr_warning("PERCPU: failed to allocate %zu bytes for "
 			   "embedding\n", chunk_size);
-		ret = -ENOMEM;
+		rc = -ENOMEM;
 		goto out_free_ai;
 	}
 
@@ -1790,10 +1793,10 @@ ssize_t __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size)
 		PFN_DOWN(size_sum), base, ai->static_size, ai->reserved_size,
 		ai->dyn_size, ai->unit_size);
 
-	ret = pcpu_setup_first_chunk(ai, base);
+	rc = pcpu_setup_first_chunk(ai, base);
 out_free_ai:
 	pcpu_free_alloc_info(ai);
-	return ret;
+	return rc;
 }
 #endif /* CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK ||
 	  !CONFIG_HAVE_SETUP_PER_CPU_AREA */
@@ -1813,13 +1816,12 @@ out_free_ai:
  * page-by-page into vmalloc area.
  *
  * RETURNS:
- * The determined pcpu_unit_size which can be used to initialize
- * percpu access on success, -errno on failure.
+ * 0 on success, -errno on failure.
  */
-ssize_t __init pcpu_page_first_chunk(size_t reserved_size,
-				     pcpu_fc_alloc_fn_t alloc_fn,
-				     pcpu_fc_free_fn_t free_fn,
-				     pcpu_fc_populate_pte_fn_t populate_pte_fn)
+int __init pcpu_page_first_chunk(size_t reserved_size,
+				 pcpu_fc_alloc_fn_t alloc_fn,
+				 pcpu_fc_free_fn_t free_fn,
+				 pcpu_fc_populate_pte_fn_t populate_pte_fn)
 {
 	static struct vm_struct vm;
 	struct pcpu_alloc_info *ai;
@@ -1827,8 +1829,7 @@ ssize_t __init pcpu_page_first_chunk(size_t reserved_size,
 	int unit_pages;
 	size_t pages_size;
 	struct page **pages;
-	int unit, i, j;
-	ssize_t ret;
+	int unit, i, j, rc;
 
 	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
 
@@ -1874,10 +1875,10 @@ ssize_t __init pcpu_page_first_chunk(size_t reserved_size,
 			populate_pte_fn(unit_addr + (i << PAGE_SHIFT));
 
 		/* pte already populated, the following shouldn't fail */
-		ret = __pcpu_map_pages(unit_addr, &pages[unit * unit_pages],
-				       unit_pages);
-		if (ret < 0)
-			panic("failed to map percpu area, err=%zd\n", ret);
+		rc = __pcpu_map_pages(unit_addr, &pages[unit * unit_pages],
+				      unit_pages);
+		if (rc < 0)
+			panic("failed to map percpu area, err=%d\n", rc);
 
 		/*
 		 * FIXME: Archs with virtual cache should flush local
@@ -1896,17 +1897,17 @@ ssize_t __init pcpu_page_first_chunk(size_t reserved_size,
 		unit_pages, psize_str, vm.addr, ai->static_size,
 		ai->reserved_size, ai->dyn_size);
 
-	ret = pcpu_setup_first_chunk(ai, vm.addr);
+	rc = pcpu_setup_first_chunk(ai, vm.addr);
 	goto out_free_ar;
 
 enomem:
 	while (--j >= 0)
 		free_fn(page_address(pages[j]), PAGE_SIZE);
-	ret = -ENOMEM;
+	rc = -ENOMEM;
 out_free_ar:
 	free_bootmem(__pa(pages), pages_size);
 	pcpu_free_alloc_info(ai);
-	return ret;
+	return rc;
 }
 #endif /* CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK */
 
@@ -1977,20 +1978,18 @@ static int __init pcpul_cpu_to_unit(int cpu, const struct pcpu_alloc_info *ai)
  * pcpu_lpage_remapped().
  *
  * RETURNS:
- * The determined pcpu_unit_size which can be used to initialize
- * percpu access on success, -errno on failure.
+ * 0 on success, -errno on failure.
  */
-ssize_t __init pcpu_lpage_first_chunk(const struct pcpu_alloc_info *ai,
-				      pcpu_fc_alloc_fn_t alloc_fn,
-				      pcpu_fc_free_fn_t free_fn,
-				      pcpu_fc_map_fn_t map_fn)
+int __init pcpu_lpage_first_chunk(const struct pcpu_alloc_info *ai,
+				  pcpu_fc_alloc_fn_t alloc_fn,
+				  pcpu_fc_free_fn_t free_fn,
+				  pcpu_fc_map_fn_t map_fn)
 {
 	static struct vm_struct vm;
 	const size_t lpage_size = ai->atom_size;
 	size_t chunk_size, map_size;
 	unsigned int cpu;
-	ssize_t ret;
-	int i, j, unit, nr_units;
+	int i, j, unit, nr_units, rc;
 
 	nr_units = 0;
 	for (i = 0; i < ai->nr_groups; i++)
@@ -2070,7 +2069,7 @@ ssize_t __init pcpu_lpage_first_chunk(const struct pcpu_alloc_info *ai,
 		vm.addr, ai->static_size, ai->reserved_size, ai->dyn_size,
 		ai->unit_size);
 
-	ret = pcpu_setup_first_chunk(ai, vm.addr);
+	rc = pcpu_setup_first_chunk(ai, vm.addr);
 
 	/*
 	 * Sort pcpul_map array for pcpu_lpage_remapped().  Unmapped
@@ -2094,7 +2093,7 @@ ssize_t __init pcpu_lpage_first_chunk(const struct pcpu_alloc_info *ai,
 	while (pcpul_nr_lpages && !pcpul_map[pcpul_nr_lpages - 1].ptr)
 		pcpul_nr_lpages--;
 
-	return ret;
+	return rc;
 
 enomem:
 	for (i = 0; i < pcpul_nr_lpages; i++)
@@ -2166,21 +2165,21 @@ EXPORT_SYMBOL(__per_cpu_offset);
 
 void __init setup_per_cpu_areas(void)
 {
-	ssize_t unit_size;
 	unsigned long delta;
 	unsigned int cpu;
+	int rc;
 
 	/*
 	 * Always reserve area for module percpu variables.  That's
 	 * what the legacy allocator did.
 	 */
-	unit_size = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
-					   PERCPU_DYNAMIC_RESERVE);
-	if (unit_size < 0)
+	rc = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
+				    PERCPU_DYNAMIC_RESERVE);
+	if (rc < 0)
 		panic("Failed to initialized percpu areas.");
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
 	for_each_possible_cpu(cpu)
-		__per_cpu_offset[cpu] = delta + cpu * unit_size;
+		__per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
 }
 #endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */

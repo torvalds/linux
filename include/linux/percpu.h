@@ -57,7 +57,7 @@
 #endif
 
 extern void *pcpu_base_addr;
-extern const int *pcpu_unit_map;
+extern const unsigned long *pcpu_unit_offsets;
 
 struct pcpu_group_info {
 	int			nr_units;	/* aligned # of units */
@@ -106,25 +106,23 @@ extern struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 				size_t atom_size,
 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn);
 
-extern size_t __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
-					    void *base_addr);
+extern int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+					 void *base_addr);
 
 #ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
-extern ssize_t __init pcpu_embed_first_chunk(
-				size_t reserved_size, ssize_t dyn_size);
+extern int __init pcpu_embed_first_chunk(size_t reserved_size,
+					 ssize_t dyn_size);
 #endif
 
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
-extern ssize_t __init pcpu_page_first_chunk(
-				size_t reserved_size,
+extern int __init pcpu_page_first_chunk(size_t reserved_size,
 				pcpu_fc_alloc_fn_t alloc_fn,
 				pcpu_fc_free_fn_t free_fn,
 				pcpu_fc_populate_pte_fn_t populate_pte_fn);
 #endif
 
 #ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
-extern ssize_t __init pcpu_lpage_first_chunk(
-				const struct pcpu_alloc_info *ai,
+extern int __init pcpu_lpage_first_chunk(const struct pcpu_alloc_info *ai,
 				pcpu_fc_alloc_fn_t alloc_fn,
 				pcpu_fc_free_fn_t free_fn,
 				pcpu_fc_map_fn_t map_fn);
