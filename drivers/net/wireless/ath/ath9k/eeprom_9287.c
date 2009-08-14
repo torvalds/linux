@@ -374,7 +374,6 @@ static void ar9287_eeprom_get_tx_gain_index(struct ath_hw *ah,
 			    u8 *pCalChans,  u16 availPiers,
 			    int8_t *pPwr)
 {
-	u8 pcdac, i = 0;
 	u16  idxL = 0, idxR = 0, numPiers;
 	bool match;
 	struct chan_centers centers;
@@ -392,17 +391,12 @@ static void ar9287_eeprom_get_tx_gain_index(struct ath_hw *ah,
 			&idxL, &idxR);
 
 	if (match) {
-		pcdac = pRawDatasetOpLoop[idxL].pcdac[0][0];
-		*pPwr = pRawDatasetOpLoop[idxL].pwrPdg[0][0];
+		*pPwr = (int8_t) pRawDatasetOpLoop[idxL].pwrPdg[0][0];
 	} else {
-		pcdac = pRawDatasetOpLoop[idxR].pcdac[0][0];
-		*pPwr = (pRawDatasetOpLoop[idxL].pwrPdg[0][0] +
-				pRawDatasetOpLoop[idxR].pwrPdg[0][0])/2;
+		*pPwr = ((int8_t) pRawDatasetOpLoop[idxL].pwrPdg[0][0] +
+			    (int8_t) pRawDatasetOpLoop[idxR].pwrPdg[0][0])/2;
 	}
 
-	while ((pcdac > ah->originalGain[i]) &&
-			(i < (AR9280_TX_GAIN_TABLE_SIZE - 1)))
-		i++;
 }
 
 static void ar9287_eeprom_olpc_set_pdadcs(struct ath_hw *ah,
