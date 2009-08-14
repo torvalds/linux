@@ -360,6 +360,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
+	__u8 *data = gspca_dev->usb_buf;
+	int err_code;
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = vga_mode;
@@ -372,6 +374,38 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (id->idProduct == 0x010e) {
 		sd->cam_type = CAM_TYPE_CIF;
 		cam->nmodes--;
+
+		data[0] = 0x01;
+		data[1] = 0x01;
+		err_code = mr_write(gspca_dev, 2);
+		if (err_code < 0)
+			return err_code;
+
+		msleep(200);
+		data[0] = get_sensor_id(gspca_dev);
+		/*
+		 * Known CIF cameras. If you have another to report, please do
+		 *
+		 * Name			byte just read		sd->sensor_type
+		 *					reported by
+		 * Sakar Spy-shot	0x28		T. Kilgore	0
+		 * Innovage		0xf5 (unstable)	T. Kilgore	0
+		 * Vivitar Mini		0x53		H. De Goede	0
+		 * Vivitar Mini		0x08		T. Kilgore	1
+		 * Elta-Media 8212dc	0x23		T. Kaiser	1
+		 * Philips dig. keych.	0x37		T. Kilgore	1
+		 */
+		if ((data[0] & 0x78) == 8 ||
+		    ((data[0] & 0x2) == 0x2 && data[0] != 0x53))
+			sd->sensor_type = 1;
+		else
+			sd->sensor_type = 0;
+
+		PDEBUG(D_ERR, "Sensor type is %01x", sd->sensor_type);
+
+		if (sd->sensor_type == 0)
+			gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX) |
+					      (1 << EXPOSURE_IDX) | (1 << GAIN_IDX);
 	} else {
 		sd->cam_type = CAM_TYPE_VGA;
 		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX) |
@@ -411,36 +445,11 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 	};
 
 	/* Note: Some of the above descriptions guessed from MR97113A driver */
-	sd->sensor_type = 0;
 	data[0] = 0x01;
 	data[1] = 0x01;
 	err_code = mr_write(gspca_dev, 2);
 	if (err_code < 0)
 		return err_code;
-
-	msleep(200);
-	data[0] = get_sensor_id(gspca_dev);
-	/*
-	 * Known CIF cameras. If you have another to report, please do
-	 *
-	 * Name			byte just read		sd->sensor_type
-	 *					reported by
-	 * Sakar Spy-shot	0x28		T. Kilgore	0
-	 * Innovage		0xf5 (unstable)	T. Kilgore	0
-	 * Vivitar Mini		0x53		H. De Goede	0
-	 * Vivitar Mini		0x08		T. Kilgore	1
-	 * Elta-Media 8212dc	0x23		T. Kaiser	1
-	 * Philips dig. keych.	0x37		T. Kilgore	1
-	 */
-	if ((data[0] & 0x78) == 8 ||
-	    ((data[0] & 0x2) == 0x2 && data[0] != 0x53))
-		sd->sensor_type = 1;
-
-	PDEBUG(D_ERR, "Sensor type is %01x", sd->sensor_type);
-
-	if (sd->sensor_type == 0)
-		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX) |
-				      (1 << EXPOSURE_IDX) | (1 << GAIN_IDX);
 
 	memcpy(data, startup_string, 11);
 	if (sd->sensor_type)
