@@ -898,7 +898,7 @@ find_unconfirmed_client_by_str(const char *dname, unsigned int hashval,
 }
 
 static void
-gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se)
+gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, u32 scopeid)
 {
 	struct nfs4_cb_conn *cb = &clp->cl_cb_conn;
 	unsigned short expected_family;
@@ -920,6 +920,9 @@ gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se)
 
 	if (!cb->cb_addrlen || cb->cb_addr.ss_family != expected_family)
 		goto out_err;
+
+	if (cb->cb_addr.ss_family == AF_INET6)
+		((struct sockaddr_in6 *) &cb->cb_addr)->sin6_scope_id = scopeid;
 
 	cb->cb_minorversion = 0;
 	cb->cb_prog = se->se_callback_prog;
@@ -1621,7 +1624,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 	copy_cred(&new->cl_cred, &rqstp->rq_cred);
 	gen_confirm(new);
-	gen_callback(new, setclid);
+	gen_callback(new, setclid, rpc_get_scope_id(sa));
 	add_to_unconfirmed(new, strhashval);
 	setclid->se_clientid.cl_boot = new->cl_clientid.cl_boot;
 	setclid->se_clientid.cl_id = new->cl_clientid.cl_id;

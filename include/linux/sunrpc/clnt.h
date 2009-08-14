@@ -286,5 +286,20 @@ static inline bool rpc_copy_addr(struct sockaddr *dst,
 	return false;
 }
 
+/**
+ * rpc_get_scope_id - return scopeid for a given sockaddr
+ * @sa: sockaddr to get scopeid from
+ *
+ * Returns the value of the sin6_scope_id for AF_INET6 addrs, or 0 if
+ * not an AF_INET6 address.
+ */
+static inline u32 rpc_get_scope_id(const struct sockaddr *sa)
+{
+	if (sa->sa_family != AF_INET6)
+		return 0;
+
+	return ((struct sockaddr_in6 *) sa)->sin6_scope_id;
+}
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */
