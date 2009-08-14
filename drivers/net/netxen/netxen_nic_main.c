@@ -95,10 +95,6 @@ static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, netxen_pci_tbl);
 
-static struct workqueue_struct *netxen_workq;
-#define SCHEDULE_WORK(tp)	queue_work(netxen_workq, tp)
-#define FLUSH_SCHEDULED_WORK()	flush_workqueue(netxen_workq)
-
 static void netxen_watchdog(unsigned long);
 
 static uint32_t crb_cmd_producer[4] = {
@@ -172,6 +168,8 @@ netxen_free_sds_rings(struct netxen_recv_context *recv_ctx)
 {
 	if (recv_ctx->sds_rings != NULL)
 		kfree(recv_ctx->sds_rings);
+
+	recv_ctx->sds_rings = NULL;
 }
 
 static int
@@ -191,6 +189,21 @@ netxen_napi_add(struct netxen_adapter *adapter, struct net_device *netdev)
 	}
 
 	return 0;
+}
+
+static void
+netxen_napi_del(struct netxen_adapter *adapter)
+{
+	int ring;
+	struct nx_host_sds_ring *sds_ring;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &recv_ctx->sds_rings[ring];
+		netif_napi_del(&sds_ring->napi);
+	}
+
+	netxen_free_sds_rings(&adapter->recv_ctx);
 }
 
 static void
@@ -910,7 +923,6 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	spin_unlock(&adapter->tx_clean_lock);
 
 	del_timer_sync(&adapter->watchdog_timer);
-	FLUSH_SCHEDULED_WORK();
 }
 
 
@@ -927,10 +939,12 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 		return 0;
 
 	err = netxen_init_firmware(adapter);
-	if (err != 0) {
-		printk(KERN_ERR "Failed to init firmware\n");
-		return -EIO;
-	}
+	if (err)
+		return err;
+
+	err = netxen_napi_add(adapter, netdev);
+	if (err)
+		return err;
 
 	err = netxen_alloc_sw_resources(adapter);
 	if (err) {
@@ -995,6 +1009,7 @@ netxen_nic_detach(struct netxen_adapter *adapter)
 	netxen_free_hw_resources(adapter);
 	netxen_release_rx_buffers(adapter);
 	netxen_nic_free_irq(adapter);
+	netxen_napi_del(adapter);
 	netxen_free_sw_resources(adapter);
 
 	adapter->is_up = 0;
@@ -1245,13 +1260,15 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
+	cancel_work_sync(&adapter->watchdog_task);
+	cancel_work_sync(&adapter->tx_timeout_task);
+
 	netxen_nic_detach(adapter);
 
 	if (adapter->portnum == 0)
 		netxen_free_dummy_dma(adapter);
 
 	netxen_teardown_intr(adapter);
-	netxen_free_sds_rings(&adapter->recv_ctx);
 
 	netxen_cleanup_pci_map(adapter);
 
@@ -1276,6 +1293,9 @@ netxen_nic_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (netif_running(netdev))
 		netxen_nic_down(adapter, netdev);
+
+	cancel_work_sync(&adapter->watchdog_task);
+	cancel_work_sync(&adapter->tx_timeout_task);
 
 	netxen_nic_detach(adapter);
 
@@ -1643,11 +1663,6 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 		       "%s: Device temperature %d degrees C exceeds"
 		       " maximum allowed. Hardware has been shut down.\n",
 		       netdev->name, temp_val);
-
-		netif_device_detach(netdev);
-		netxen_nic_down(adapter, netdev);
-		netxen_nic_detach(adapter);
-
 		rv = 1;
 	} else if (temp_state == NX_TEMP_WARN) {
 		if (adapter->temp == NX_TEMP_NORMAL) {
@@ -1681,10 +1696,7 @@ void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup)
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 		}
-
-		if (!adapter->has_link_events)
-			netxen_nic_set_link_parameters(adapter);
-
+		adapter->link_changed = !adapter->has_link_events;
 	} else if (!adapter->ahw.linkup && linkup) {
 		printk(KERN_INFO "%s: %s NIC Link is up\n",
 		       netxen_nic_driver_name, netdev->name);
@@ -1693,9 +1705,7 @@ void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup)
 			netif_carrier_on(netdev);
 			netif_wake_queue(netdev);
 		}
-
-		if (!adapter->has_link_events)
-			netxen_nic_set_link_parameters(adapter);
+		adapter->link_changed = !adapter->has_link_events;
 	}
 }
 
@@ -1722,11 +1732,36 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 	netxen_advert_link_change(adapter, linkup);
 }
 
+static void netxen_nic_thermal_shutdown(struct netxen_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	netif_device_detach(netdev);
+	netxen_nic_down(adapter, netdev);
+	netxen_nic_detach(adapter);
+}
+
 static void netxen_watchdog(unsigned long v)
 {
 	struct netxen_adapter *adapter = (struct netxen_adapter *)v;
 
-	SCHEDULE_WORK(&adapter->watchdog_task);
+	if (netxen_nic_check_temp(adapter))
+		goto do_sched;
+
+	if (!adapter->has_link_events) {
+		netxen_nic_handle_phy_intr(adapter);
+
+		if (adapter->link_changed)
+			goto do_sched;
+	}
+
+	if (netif_running(adapter->netdev))
+		mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
+
+	return;
+
+do_sched:
+	schedule_work(&adapter->watchdog_task);
 }
 
 void netxen_watchdog_task(struct work_struct *work)
@@ -1734,11 +1769,13 @@ void netxen_watchdog_task(struct work_struct *work)
 	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, watchdog_task);
 
-	if (netxen_nic_check_temp(adapter))
+	if (adapter->temp == NX_TEMP_PANIC) {
+		netxen_nic_thermal_shutdown(adapter);
 		return;
+	}
 
-	if (!adapter->has_link_events)
-		netxen_nic_handle_phy_intr(adapter);
+	if (adapter->link_changed)
+		netxen_nic_set_link_parameters(adapter);
 
 	if (netif_running(adapter->netdev))
 		mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
@@ -1746,12 +1783,10 @@ void netxen_watchdog_task(struct work_struct *work)
 
 static void netxen_tx_timeout(struct net_device *netdev)
 {
-	struct netxen_adapter *adapter = (struct netxen_adapter *)
-						netdev_priv(netdev);
+	struct netxen_adapter *adapter = netdev_priv(netdev);
 
 	dev_err(&netdev->dev, "transmit timeout, resetting.\n");
-
-	SCHEDULE_WORK(&adapter->tx_timeout_task);
+	schedule_work(&adapter->tx_timeout_task);
 }
 
 static void netxen_reset_task(struct work_struct *work)
@@ -2025,9 +2060,6 @@ static int __init netxen_init_module(void)
 {
 	printk(KERN_INFO "%s\n", netxen_nic_driver_string);
 
-	if ((netxen_workq = create_singlethread_workqueue("netxen")) == NULL)
-		return -ENOMEM;
-
 #ifdef CONFIG_INET
 	register_netdevice_notifier(&netxen_netdev_cb);
 	register_inetaddr_notifier(&netxen_inetaddr_cb);
@@ -2046,7 +2078,6 @@ static void __exit netxen_exit_module(void)
 	unregister_inetaddr_notifier(&netxen_inetaddr_cb);
 	unregister_netdevice_notifier(&netxen_netdev_cb);
 #endif
-	destroy_workqueue(netxen_workq);
 }
 
 module_exit(netxen_exit_module);

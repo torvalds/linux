@@ -1112,7 +1112,7 @@ struct netxen_adapter {
 	u8 mc_enabled;
 	u8 max_mc_count;
 	u8 rss_supported;
-	u8 resv2;
+	u8 link_changed;
 	u32 resv3;
 
 	u8 has_link_events;

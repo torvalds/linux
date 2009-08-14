@@ -611,11 +611,18 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int can_newlink(struct net_device *dev,
+		       struct nlattr *tb[], struct nlattr *data[])
+{
+	return -EOPNOTSUPP;
+}
+
 static struct rtnl_link_ops can_link_ops __read_mostly = {
 	.kind		= "can",
 	.maxtype	= IFLA_CAN_MAX,
 	.policy		= can_policy,
 	.setup		= can_setup,
+	.newlink	= can_newlink,
 	.changelink	= can_changelink,
 	.fill_info	= can_fill_info,
 	.fill_xstats	= can_fill_xstats,
