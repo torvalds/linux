@@ -243,3 +243,11 @@ config BACKLIGHT_WM831X
 	help
 	  If you have a backlight driven by the ISINK and DCDC of a
 	  WM831x PMIC say y to enable the backlight driver for it.
+
+config BACKLIGHT_ADX
+	tristate "Avionic Design Xanthos Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && ARCH_PXA_ADX
+	default y
+	help
+	  Say Y to enable the backlight driver on Avionic Design Xanthos-based
+	  boards.
