@@ -1085,9 +1085,9 @@ static void lpphy_set_tx_power_control(struct b43_wldev *dev,
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	enum b43_lpphy_txpctl_mode oldmode;
 
-	oldmode = lpphy->txpctl_mode;
 	lpphy_read_tx_pctl_mode_from_hardware(dev);
-	if (lpphy->txpctl_mode == mode)
+	oldmode = lpphy->txpctl_mode;
+	if (oldmode == mode)
 		return;
 	lpphy->txpctl_mode = mode;
 
