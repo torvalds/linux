@@ -989,11 +989,11 @@ static void sky2_prefetch_init(struct sky2_hw *hw, u32 qaddr,
 	sky2_read32(hw, Y2_QADDR(qaddr, PREF_UNIT_CTRL));
 }
 
-static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2)
+static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2, u16 *slot)
 {
-	struct sky2_tx_le *le = sky2->tx_le + sky2->tx_prod;
+	struct sky2_tx_le *le = sky2->tx_le + *slot;
 
-	sky2->tx_prod = RING_NEXT(sky2->tx_prod, TX_RING_SIZE);
+	*slot = RING_NEXT(*slot, TX_RING_SIZE);
 	le->ctrl = 0;
 	return le;
 }
@@ -1006,7 +1006,7 @@ static void tx_init(struct sky2_port *sky2)
 	sky2->tx_tcpsum = 0;
 	sky2->tx_last_mss = 0;
 
-	le = get_tx_le(sky2);
+	le = get_tx_le(sky2, &sky2->tx_prod);
 	le->addr = 0;
 	le->opcode = OP_ADDR64 | HW_OWNER;
 }
@@ -1572,7 +1572,8 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_hw *hw = sky2->hw;
 	struct sky2_tx_le *le = NULL;
 	struct tx_ring_info *re;
-	unsigned i, len, first_slot;
+	unsigned i, len;
+	u16 slot;
 	dma_addr_t mapping;
 	u16 mss;
 	u8 ctrl;
@@ -1586,14 +1587,14 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	if (pci_dma_mapping_error(hw->pdev, mapping))
 		goto mapping_error;
 
-	first_slot = sky2->tx_prod;
+	slot = sky2->tx_prod;
 	if (unlikely(netif_msg_tx_queued(sky2)))
 		printk(KERN_DEBUG "%s: tx queued, slot %u, len %d\n",
-		       dev->name, first_slot, skb->len);
+		       dev->name, slot, skb->len);
 
 	/* Send high bits if needed */
 	if (sizeof(dma_addr_t) > sizeof(u32)) {
-		le = get_tx_le(sky2);
+		le = get_tx_le(sky2, &slot);
 		le->addr = cpu_to_le32(upper_32_bits(mapping));
 		le->opcode = OP_ADDR64 | HW_OWNER;
 	}
@@ -1606,7 +1607,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 			mss += ETH_HLEN + ip_hdrlen(skb) + tcp_hdrlen(skb);
 
   		if (mss != sky2->tx_last_mss) {
-  			le = get_tx_le(sky2);
+			le = get_tx_le(sky2, &slot);
   			le->addr = cpu_to_le32(mss);
 
 			if (hw->flags & SKY2_HW_NEW_LE)
@@ -1622,7 +1623,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	/* Add VLAN tag, can piggyback on LRGLEN or ADDR64 */
 	if (sky2->vlgrp && vlan_tx_tag_present(skb)) {
 		if (!le) {
-			le = get_tx_le(sky2);
+			le = get_tx_le(sky2, &slot);
 			le->addr = 0;
 			le->opcode = OP_VLAN|HW_OWNER;
 		} else
@@ -1651,7 +1652,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 			if (tcpsum != sky2->tx_tcpsum) {
 				sky2->tx_tcpsum = tcpsum;
 
-				le = get_tx_le(sky2);
+				le = get_tx_le(sky2, &slot);
 				le->addr = cpu_to_le32(tcpsum);
 				le->length = 0;	/* initial checksum value */
 				le->ctrl = 1;	/* one packet */
@@ -1660,7 +1661,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	le = get_tx_le(sky2);
+	le = get_tx_le(sky2, &slot);
 	le->addr = cpu_to_le32((u32) mapping);
 	le->length = cpu_to_le16(len);
 	le->ctrl = ctrl;
@@ -1681,13 +1682,13 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 			goto mapping_unwind;
 
 		if (sizeof(dma_addr_t) > sizeof(u32)) {
-			le = get_tx_le(sky2);
+			le = get_tx_le(sky2, &slot);
 			le->addr = cpu_to_le32(upper_32_bits(mapping));
 			le->ctrl = 0;
 			le->opcode = OP_ADDR64 | HW_OWNER;
 		}
 
-		le = get_tx_le(sky2);
+		le = get_tx_le(sky2, &slot);
 		le->addr = cpu_to_le32((u32) mapping);
 		le->length = cpu_to_le16(frag->size);
 		le->ctrl = ctrl;
@@ -1701,6 +1702,8 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	le->ctrl |= EOP;
 
+	sky2->tx_prod = slot;
+
 	if (tx_avail(sky2) <= MAX_SKB_TX_LE)
 		netif_stop_queue(dev);
 
@@ -1709,7 +1712,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 
 mapping_unwind:
-	for (i = first_slot; i != sky2->tx_prod; i = RING_NEXT(i, TX_RING_SIZE)) {
+	for (i = sky2->tx_prod; i != slot; i = RING_NEXT(i, TX_RING_SIZE)) {
 		le = sky2->tx_le + i;
 		re = sky2->tx_ring + i;
 
@@ -1729,7 +1732,6 @@ mapping_unwind:
 		}
 	}
 
-	sky2->tx_prod = first_slot;
 mapping_error:
 	if (net_ratelimit())
 		dev_warn(&hw->pdev->dev, "%s: tx mapping error\n", dev->name);
