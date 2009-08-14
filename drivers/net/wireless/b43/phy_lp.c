@@ -747,7 +747,7 @@ static void lpphy_set_tx_gains(struct b43_wldev *dev,
 		b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFF7F, 1 << 7);
 		b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_2, 0xBFFF, 1 << 14);
 	}
-	b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFFBF, 1 << 4);
+	b43_phy_maskset(dev, B43_LPPHY_RF_OVERRIDE_2, 0xFFBF, 1 << 6);
 }
 
 static void lpphy_rev0_1_set_rx_gain(struct b43_wldev *dev, u32 gain)
