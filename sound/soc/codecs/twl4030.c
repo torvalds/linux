@@ -399,16 +399,20 @@ SOC_DAPM_ENUM("Route", twl4030_vibrapath_enum);
 
 /* Left analog microphone selection */
 static const struct snd_kcontrol_new twl4030_dapm_analoglmic_controls[] = {
-	SOC_DAPM_SINGLE("Main mic", TWL4030_REG_ANAMICL, 0, 1, 0),
-	SOC_DAPM_SINGLE("Headset mic", TWL4030_REG_ANAMICL, 1, 1, 0),
-	SOC_DAPM_SINGLE("AUXL", TWL4030_REG_ANAMICL, 2, 1, 0),
-	SOC_DAPM_SINGLE("Carkit mic", TWL4030_REG_ANAMICL, 3, 1, 0),
+	SOC_DAPM_SINGLE("Main Mic Capture Switch",
+			TWL4030_REG_ANAMICL, 0, 1, 0),
+	SOC_DAPM_SINGLE("Headset Mic Capture Switch",
+			TWL4030_REG_ANAMICL, 1, 1, 0),
+	SOC_DAPM_SINGLE("AUXL Capture Switch",
+			TWL4030_REG_ANAMICL, 2, 1, 0),
+	SOC_DAPM_SINGLE("Carkit Mic Capture Switch",
+			TWL4030_REG_ANAMICL, 3, 1, 0),
 };
 
 /* Right analog microphone selection */
 static const struct snd_kcontrol_new twl4030_dapm_analogrmic_controls[] = {
-	SOC_DAPM_SINGLE("Sub mic", TWL4030_REG_ANAMICR, 0, 1, 0),
-	SOC_DAPM_SINGLE("AUXR", TWL4030_REG_ANAMICR, 2, 1, 0),
+	SOC_DAPM_SINGLE("Sub Mic Capture Switch", TWL4030_REG_ANAMICR, 0, 1, 0),
+	SOC_DAPM_SINGLE("AUXR Capture Switch", TWL4030_REG_ANAMICR, 2, 1, 0),
 };
 
 /* TX1 L/R Analog/Digital microphone selection */
@@ -1333,11 +1337,11 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 		SND_SOC_DAPM_POST_REG),
 
 	/* Analog input mixers for the capture amplifiers */
-	SND_SOC_DAPM_MIXER("Analog Left Capture Route",
+	SND_SOC_DAPM_MIXER("Analog Left",
 		TWL4030_REG_ANAMICL, 4, 0,
 		&twl4030_dapm_analoglmic_controls[0],
 		ARRAY_SIZE(twl4030_dapm_analoglmic_controls)),
-	SND_SOC_DAPM_MIXER("Analog Right Capture Route",
+	SND_SOC_DAPM_MIXER("Analog Right",
 		TWL4030_REG_ANAMICR, 4, 0,
 		&twl4030_dapm_analogrmic_controls[0],
 		ARRAY_SIZE(twl4030_dapm_analogrmic_controls)),
@@ -1446,16 +1450,16 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"VIBRA", NULL, "Vibra Route"},
 
 	/* Capture path */
-	{"Analog Left Capture Route", "Main mic", "MAINMIC"},
-	{"Analog Left Capture Route", "Headset mic", "HSMIC"},
-	{"Analog Left Capture Route", "AUXL", "AUXL"},
-	{"Analog Left Capture Route", "Carkit mic", "CARKITMIC"},
+	{"Analog Left", "Main Mic Capture Switch", "MAINMIC"},
+	{"Analog Left", "Headset Mic Capture Switch", "HSMIC"},
+	{"Analog Left", "AUXL Capture Switch", "AUXL"},
+	{"Analog Left", "Carkit Mic Capture Switch", "CARKITMIC"},
 
-	{"Analog Right Capture Route", "Sub mic", "SUBMIC"},
-	{"Analog Right Capture Route", "AUXR", "AUXR"},
+	{"Analog Right", "Sub Mic Capture Switch", "SUBMIC"},
+	{"Analog Right", "AUXR Capture Switch", "AUXR"},
 
-	{"ADC Physical Left", NULL, "Analog Left Capture Route"},
-	{"ADC Physical Right", NULL, "Analog Right Capture Route"},
+	{"ADC Physical Left", NULL, "Analog Left"},
+	{"ADC Physical Right", NULL, "Analog Right"},
 
 	{"Digimic0 Enable", NULL, "DIGIMIC0"},
 	{"Digimic1 Enable", NULL, "DIGIMIC1"},
@@ -1479,11 +1483,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"ADC Virtual Right2", NULL, "TX2 Capture Route"},
 
 	/* Analog bypass routes */
-	{"Right1 Analog Loopback", "Switch", "Analog Right Capture Route"},
-	{"Left1 Analog Loopback", "Switch", "Analog Left Capture Route"},
-	{"Right2 Analog Loopback", "Switch", "Analog Right Capture Route"},
-	{"Left2 Analog Loopback", "Switch", "Analog Left Capture Route"},
-	{"Voice Analog Loopback", "Switch", "Analog Left Capture Route"},
+	{"Right1 Analog Loopback", "Switch", "Analog Right"},
+	{"Left1 Analog Loopback", "Switch", "Analog Left"},
+	{"Right2 Analog Loopback", "Switch", "Analog Right"},
+	{"Left2 Analog Loopback", "Switch", "Analog Left"},
+	{"Voice Analog Loopback", "Switch", "Analog Left"},
 
 	{"Analog R1 Playback Mixer", NULL, "Right1 Analog Loopback"},
 	{"Analog L1 Playback Mixer", NULL, "Left1 Analog Loopback"},
