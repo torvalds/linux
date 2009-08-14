@@ -198,6 +198,17 @@ static inline bool __rpc_cmp_addr4(const struct sockaddr *sap1,
 	return sin1->sin_addr.s_addr == sin2->sin_addr.s_addr;
 }
 
+static inline bool __rpc_copy_addr4(struct sockaddr *dst,
+				    const struct sockaddr *src)
+{
+	const struct sockaddr_in *ssin = (struct sockaddr_in *) src;
+	struct sockaddr_in *dsin = (struct sockaddr_in *) dst;
+
+	dsin->sin_family = ssin->sin_family;
+	dsin->sin_addr.s_addr = ssin->sin_addr.s_addr;
+	return true;
+}
+
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static inline bool __rpc_cmp_addr6(const struct sockaddr *sap1,
 				   const struct sockaddr *sap2)
@@ -206,9 +217,26 @@ static inline bool __rpc_cmp_addr6(const struct sockaddr *sap1,
 	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sap2;
 	return ipv6_addr_equal(&sin1->sin6_addr, &sin2->sin6_addr);
 }
+
+static inline bool __rpc_copy_addr6(struct sockaddr *dst,
+				    const struct sockaddr *src)
+{
+	const struct sockaddr_in6 *ssin6 = (const struct sockaddr_in6 *) src;
+	struct sockaddr_in6 *dsin6 = (struct sockaddr_in6 *) dst;
+
+	dsin6->sin6_family = ssin6->sin6_family;
+	ipv6_addr_copy(&dsin6->sin6_addr, &ssin6->sin6_addr);
+	return true;
+}
 #else	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
 static inline bool __rpc_cmp_addr6(const struct sockaddr *sap1,
 				   const struct sockaddr *sap2)
+{
+	return false;
+}
+
+static inline bool __rpc_copy_addr6(struct sockaddr *dst,
+				    const struct sockaddr *src)
 {
 	return false;
 }
@@ -232,6 +260,28 @@ static inline bool rpc_cmp_addr(const struct sockaddr *sap1,
 		case AF_INET6:
 			return __rpc_cmp_addr6(sap1, sap2);
 		}
+	}
+	return false;
+}
+
+/**
+ * rpc_copy_addr - copy the address portion of one sockaddr to another
+ * @dst: destination sockaddr
+ * @src: source sockaddr
+ *
+ * Just copies the address portion and family. Ignores port, scope, etc.
+ * Caller is responsible for making certain that dst is large enough to hold
+ * the address in src. Returns true if address family is supported. Returns
+ * false otherwise.
+ */
+static inline bool rpc_copy_addr(struct sockaddr *dst,
+				 const struct sockaddr *src)
+{
+	switch (src->sa_family) {
+	case AF_INET:
+		return __rpc_copy_addr4(dst, src);
+	case AF_INET6:
+		return __rpc_copy_addr6(dst, src);
 	}
 	return false;
 }
