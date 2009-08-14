@@ -1920,11 +1920,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			See arch/parisc/kernel/pdc_chassis.c
 
 	percpu_alloc=	Select which percpu first chunk allocator to use.
-			Currently supported values are "embed", "page" and
-			"lpage".  Archs may support subset or none of the
-			selections.  See comments in mm/percpu.c for details
-			on each allocator.  This parameter is primarily	for
-			debugging and performance comparison.
+			Currently supported values are "embed" and "page".
+			Archs may support subset or none of the	selections.
+			See comments in mm/percpu.c for details on each
+			allocator.  This parameter is primarily	for debugging
+			and performance comparison.
 
 	pf.		[PARIDE]
 			See Documentation/blockdev/paride.txt.

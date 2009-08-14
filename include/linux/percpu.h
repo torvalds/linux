@@ -82,7 +82,6 @@ enum pcpu_fc {
 	PCPU_FC_AUTO,
 	PCPU_FC_EMBED,
 	PCPU_FC_PAGE,
-	PCPU_FC_LPAGE,
 
 	PCPU_FC_NR,
 };
@@ -95,7 +94,6 @@ typedef void * (*pcpu_fc_alloc_fn_t)(unsigned int cpu, size_t size,
 typedef void (*pcpu_fc_free_fn_t)(void *ptr, size_t size);
 typedef void (*pcpu_fc_populate_pte_fn_t)(unsigned long addr);
 typedef int (pcpu_fc_cpu_distance_fn_t)(unsigned int from, unsigned int to);
-typedef void (*pcpu_fc_map_fn_t)(void *ptr, size_t size, void *addr);
 
 extern struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
 							     int nr_units);
@@ -122,20 +120,6 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
 				pcpu_fc_alloc_fn_t alloc_fn,
 				pcpu_fc_free_fn_t free_fn,
 				pcpu_fc_populate_pte_fn_t populate_pte_fn);
-#endif
-
-#ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
-extern int __init pcpu_lpage_first_chunk(const struct pcpu_alloc_info *ai,
-				pcpu_fc_alloc_fn_t alloc_fn,
-				pcpu_fc_free_fn_t free_fn,
-				pcpu_fc_map_fn_t map_fn);
-
-extern void *pcpu_lpage_remapped(void *kaddr);
-#else
-static inline void *pcpu_lpage_remapped(void *kaddr)
-{
-	return NULL;
-}
 #endif
 
 /*
