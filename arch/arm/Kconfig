@@ -498,8 +498,13 @@ config ARCH_W90X900
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
-		Support for Nuvoton (Winbond logic dept.) ARM9 processor,You
-		can login www.mcuos.com or www.nuvoton.com to know more.
+	  Support for Nuvoton (Winbond logic dept.) ARM9 processor,
+	  At present, the w90x900 has been renamed nuc900, regarding
+	  the ARM series product line, you can login the following
+	  link address to know more.
+
+	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
+		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
