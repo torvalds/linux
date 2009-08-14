@@ -1122,13 +1122,34 @@ EXPORT_SYMBOL_GPL(map_vm_area);
 DEFINE_RWLOCK(vmlist_lock);
 struct vm_struct *vmlist;
 
+static void insert_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+			      unsigned long flags, void *caller)
+{
+	struct vm_struct *tmp, **p;
+
+	vm->flags = flags;
+	vm->addr = (void *)va->va_start;
+	vm->size = va->va_end - va->va_start;
+	vm->caller = caller;
+	va->private = vm;
+	va->flags |= VM_VM_AREA;
+
+	write_lock(&vmlist_lock);
+	for (p = &vmlist; (tmp = *p) != NULL; p = &tmp->next) {
+		if (tmp->addr >= vm->addr)
+			break;
+	}
+	vm->next = *p;
+	*p = vm;
+	write_unlock(&vmlist_lock);
+}
+
 static struct vm_struct *__get_vm_area_node(unsigned long size,
 		unsigned long flags, unsigned long start, unsigned long end,
 		int node, gfp_t gfp_mask, void *caller)
 {
 	static struct vmap_area *va;
 	struct vm_struct *area;
-	struct vm_struct *tmp, **p;
 	unsigned long align = 1;
 
 	BUG_ON(in_interrupt());
@@ -1147,7 +1168,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 	if (unlikely(!size))
 		return NULL;
 
-	area = kmalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
+	area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
 	if (unlikely(!area))
 		return NULL;
 
@@ -1162,25 +1183,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 		return NULL;
 	}
 
-	area->flags = flags;
-	area->addr = (void *)va->va_start;
-	area->size = size;
-	area->pages = NULL;
-	area->nr_pages = 0;
-	area->phys_addr = 0;
-	area->caller = caller;
-	va->private = area;
-	va->flags |= VM_VM_AREA;
-
-	write_lock(&vmlist_lock);
-	for (p = &vmlist; (tmp = *p) != NULL; p = &tmp->next) {
-		if (tmp->addr >= area->addr)
-			break;
-	}
-	area->next = *p;
-	*p = area;
-	write_unlock(&vmlist_lock);
-
+	insert_vmalloc_vm(area, va, flags, caller);
 	return area;
 }
 
