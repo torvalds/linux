@@ -3073,7 +3073,7 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 	if (ah->config.pcie_waen) {
 		REG_WRITE(ah, AR_WA, ah->config.pcie_waen);
 	} else {
-		if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+		if (AR_SREV_9285(ah) || AR_SREV_9271(ah) || AR_SREV_9287(ah))
 			REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
 		/*
 		 * On AR9280 chips bit 22 of 0x4004 needs to be set to
