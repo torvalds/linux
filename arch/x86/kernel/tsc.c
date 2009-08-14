@@ -744,10 +744,16 @@ static cycle_t __vsyscall_fn vread_tsc(void)
 }
 #endif
 
+static void resume_tsc(void)
+{
+	clocksource_tsc.cycle_last = 0;
+}
+
 static struct clocksource clocksource_tsc = {
 	.name                   = "tsc",
 	.rating                 = 300,
 	.read                   = read_tsc,
+	.resume			= resume_tsc,
 	.mask                   = CLOCKSOURCE_MASK(64),
 	.shift                  = 22,
 	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS |

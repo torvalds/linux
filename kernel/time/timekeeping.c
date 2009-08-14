@@ -295,7 +295,6 @@ static void change_clocksource(void)
 	if (old->disable)
 		old->disable(old);
 
-	clock->cycle_last = 0;
 	clock->cycle_last = clock->read(clock);
 	clock->error = 0;
 	clock->xtime_nsec = 0;
