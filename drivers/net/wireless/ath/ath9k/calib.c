@@ -729,26 +729,42 @@ s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
 static void ath9k_olc_temp_compensation(struct ath_hw *ah)
 {
 	u32 rddata, i;
-	int delta, currPDADC, regval;
+	int delta, currPDADC, regval, slope;
 
 	rddata = REG_READ(ah, AR_PHY_TX_PWRCTRL4);
-
 	currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
 
-	if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
-		delta = (currPDADC - ah->initPDADC + 4) / 8;
-	else
-		delta = (currPDADC - ah->initPDADC + 5) / 10;
 
-	if (delta != ah->PDADCdelta) {
-		ah->PDADCdelta = delta;
-		for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
-			regval = ah->originalGain[i] - delta;
-			if (regval < 0)
-				regval = 0;
+	if (OLC_FOR_AR9287_10_LATER) {
+		if (ah->initPDADC == 0 || currPDADC == 0) {
+			return;
+		} else {
+			slope = ah->eep_ops->get_eeprom(ah, EEP_TEMPSENSE_SLOPE);
+			if (slope == 0)
+				delta = 0;
+			else
+				delta = ((currPDADC - ah->initPDADC)*4) / slope;
+			REG_RMW_FIELD(ah, AR_PHY_CH0_TX_PWRCTRL11,
+					AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
+			REG_RMW_FIELD(ah, AR_PHY_CH1_TX_PWRCTRL11,
+					AR_PHY_TX_PWRCTRL_OLPC_TEMP_COMP, delta);
+		}
+	} else {
+		if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
+			delta = (currPDADC - ah->initPDADC + 4) / 8;
+		else
+			delta = (currPDADC - ah->initPDADC + 5) / 10;
 
-			REG_RMW_FIELD(ah, AR_PHY_TX_GAIN_TBL1 + i * 4,
-					AR_PHY_TX_GAIN, regval);
+		if (delta != ah->PDADCdelta) {
+			ah->PDADCdelta = delta;
+			for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
+				regval = ah->originalGain[i] - delta;
+				if (regval < 0)
+					regval = 0;
+
+				REG_RMW_FIELD(ah, AR_PHY_TX_GAIN_TBL1 + i * 4,
+						AR_PHY_TX_GAIN, regval);
+			}
 		}
 	}
 }
