@@ -2433,11 +2433,6 @@ static int nfs4_xdr_enc_get_lease_time(struct rpc_rqst *req, uint32_t *p,
  * task to translate them into Linux-specific versions which are more
  * consistent with the style used in NFSv2/v3...
  */
-#define READTIME(x)       do {			\
-	p++;					\
-	(x.tv_sec) = ntohl(*p++);		\
-	(x.tv_nsec) = ntohl(*p++);		\
-} while (0)
 #define COPYMEM(x,nbytes) do {			\
 	memcpy((x), p, nbytes);			\
 	p += XDR_QUADLEN(nbytes);		\
