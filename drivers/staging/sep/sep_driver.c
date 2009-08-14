@@ -277,7 +277,7 @@ static int sep_map_and_alloc_shared_area(struct sep_device *sep,
 							unsigned long size)
 {
 	/* shared_addr = ioremap_nocache(0xda00000,shared_area_size); */
-	sep->shared_area = dma_alloc_coherent(&sep->pdev->dev, size,
+	sep->shared_addr = dma_alloc_coherent(&sep->pdev->dev, size,
 					&sep->shared_bus, GFP_KERNEL);
 
 	if (!sep->shared_addr) {
