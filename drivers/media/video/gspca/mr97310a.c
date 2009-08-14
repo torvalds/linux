@@ -64,11 +64,9 @@ struct sd {
 	u8 cam_type;	/* 0 is CIF and 1 is VGA */
 	u8 sensor_type;	/* We use 0 and 1 here, too. */
 	u8 do_lcd_stop;
-	u8 regs[15];
 
 	int brightness;
 	u16 exposure;
-	u8 autogain;
 	u8 gain;
 };
 
@@ -85,10 +83,14 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
+static void setbrightness(struct gspca_dev *gspca_dev);
+static void setexposure(struct gspca_dev *gspca_dev);
+static void setgain(struct gspca_dev *gspca_dev);
 
 /* V4L2 controls supported by the driver */
 static struct ctrl sd_ctrls[] = {
 	{
+#define BRIGHTNESS_IDX 0
 		{
 			.id = V4L2_CID_BRIGHTNESS,
 			.type = V4L2_CTRL_TYPE_INTEGER,
@@ -103,6 +105,7 @@ static struct ctrl sd_ctrls[] = {
 		.get = sd_getbrightness,
 	},
 	{
+#define EXPOSURE_IDX 1
 		{
 			.id = V4L2_CID_EXPOSURE,
 			.type = V4L2_CTRL_TYPE_INTEGER,
@@ -117,6 +120,7 @@ static struct ctrl sd_ctrls[] = {
 		.get = sd_getexposure,
 	},
 	{
+#define GAIN_IDX 2
 		{
 			.id = V4L2_CID_GAIN,
 			.type = V4L2_CTRL_TYPE_INTEGER,
@@ -360,14 +364,24 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam = &gspca_dev->cam;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
-	sd->cam_type = CAM_TYPE_VGA;
+
 	PDEBUG(D_PROBE,
 		"MR97310A camera detected"
 		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+
 	if (id->idProduct == 0x010e) {
-		cam->nmodes--;
 		sd->cam_type = CAM_TYPE_CIF;
+		cam->nmodes--;
+	} else {
+		sd->cam_type = CAM_TYPE_VGA;
+		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX) |
+				      (1 << EXPOSURE_IDX) | (1 << GAIN_IDX);
 	}
+
+	sd->brightness = MR97310A_BRIGHTNESS_DEFAULT;
+	sd->exposure = MR97310A_EXPOSURE_DEFAULT;
+	sd->gain = MR97310A_GAIN_DEFAULT;
+
 	return 0;
 }
 
@@ -375,35 +389,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 static int sd_init(struct gspca_dev *gspca_dev)
 {
 	return 0;
-}
-
-static int adjust_cif_sensor(struct gspca_dev *gspca_dev)
-{
-	/*
-	 * FIXME: The following sequence resets brightness, contrast, and
-	 * related  settings. Some of the values are adjustable, presumably
-	 * based upon what is detected in the frames. Here, only some
-	 * vaules are used which are compromises. When more is known about
-	 * what is done here, this needs to be moved out to presently
-	 * nonexistent functions which do controls. The same control messages
-	 * do work for all of the CIF cameras.
-	 */
-
-	const struct sensor_w_data  cif_sensor1_adjust_data[] = {
-		{0x02, 0x01, {0x10, 0x12, 0x0a}, 3},
-		/* Last or possibly two last bytes adjustable, above. */
-		{0x13, 0x04, {0x01}, 1}, /* seems to mean "write" */
-		{0x05, 0x01, {0x22, 0x00, 0x81, 0x06}, 4},
-		/* Last or possibly two last bytes adjustable, above. */
-		{0x13, 0x04, {0x01}, 1},
-		{0x09, 0x02, {0x05, 0x00, 0x00, 0x05, 0x07, 0x16}, 6},
-		/* Last or possibly two last bytes adjustable, above. */
-		{0x13, 0x04, {0x01}, 1},
-		{0, 0, {0}, 0}
-	};
-
-	return sensor_write_regs(gspca_dev, cif_sensor1_adjust_data,
-				 ARRAY_SIZE(cif_sensor1_adjust_data));
 }
 
 static int start_cif_cam(struct gspca_dev *gspca_dev)
@@ -452,6 +437,11 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		sd->sensor_type = 1;
 
 	PDEBUG(D_ERR, "Sensor type is %01x", sd->sensor_type);
+
+	if (sd->sensor_type == 0)
+		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX) |
+				      (1 << EXPOSURE_IDX) | (1 << GAIN_IDX);
+
 	memcpy(data, startup_string, 11);
 	if (sd->sensor_type)
 		data[5] = 0xbb;
@@ -504,18 +494,15 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 					 ARRAY_SIZE(cif_sensor0_init_data));
 	} else {	/* sd->sensor_type = 1 */
 		const struct sensor_w_data cif_sensor1_init_data[] = {
+			/* Reg 3,4, 7,8 get set by the controls */
 			{0x02, 0x00, {0x10}, 1},
-			{0x03, 0x01, {0x12}, 1},
-			{0x04, 0x01, {0x05}, 1},
-			{0x05, 0x01, {0x65}, 1},
-			{0x06, 0x01, {0x32}, 1},
-			{0x07, 0x01, {0x00}, 1},
-			{0x08, 0x02, {0x06}, 1},
+			{0x05, 0x01, {0x22}, 1}, /* 5/6 also seen as 65h/32h */
+			{0x06, 0x01, {0x00}, 1},
 			{0x09, 0x02, {0x0e}, 1},
 			{0x0a, 0x02, {0x05}, 1},
 			{0x0b, 0x02, {0x05}, 1},
 			{0x0c, 0x02, {0x0f}, 1},
-			{0x0d, 0x02, {0x00}, 1},
+			{0x0d, 0x02, {0x07}, 1},
 			{0x0e, 0x02, {0x0c}, 1},
 			{0x0f, 0x00, {0x00}, 1},
 			{0x10, 0x00, {0x06}, 1},
@@ -530,19 +517,18 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 	if (err_code < 0)
 		return err_code;
 
+	setbrightness(gspca_dev);
+	setexposure(gspca_dev);
+	setgain(gspca_dev);
+
 	msleep(200);
+
 	data[0] = 0x00;
 	data[1] = 0x4d;  /* ISOC transfering enable... */
 	err_code = mr_write(gspca_dev, 2);
 	if (err_code < 0)
 		return err_code;
 
-	msleep(200);
-	err_code = adjust_cif_sensor(gspca_dev);
-	if (err_code < 0)
-		return err_code;
-
-	msleep(200);
 	return 0;
 }
 
@@ -711,11 +697,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int err_code;
 	struct cam *cam;
 
-	/* TEST TEST */
-	int i;
-	for (i = 2; i <= 14; i++)
-		sd->regs[i] = sd_ctrls[i - 2].qctrl.default_value;
-
 	cam = &gspca_dev->cam;
 	sd->sof_read = 0;
 	/*
@@ -760,11 +741,16 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 val;
+
+	if (gspca_dev->ctrl_dis & (1 << BRIGHTNESS_IDX))
+		return;
+
+	/* Note register 7 is also seen as 0x8x or 0xCx in dumps */
 	if (sd->brightness > 0) {
-		sensor_write1(gspca_dev, 7, 0);
+		sensor_write1(gspca_dev, 7, 0x00);
 		val = sd->brightness;
 	} else {
-		sensor_write1(gspca_dev, 7, 1);
+		sensor_write1(gspca_dev, 7, 0x01);
 		val = 257 - sd->brightness;
 	}
 	sensor_write1(gspca_dev, 8, val);
@@ -775,6 +761,9 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 val;
 
+	if (gspca_dev->ctrl_dis & (1 << EXPOSURE_IDX))
+		return;
+
 	val = sd->exposure >> 4;
 	sensor_write1(gspca_dev, 3, val);
 	val = sd->exposure & 0xf;
@@ -784,6 +773,9 @@ static void setexposure(struct gspca_dev *gspca_dev)
 static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (gspca_dev->ctrl_dis & (1 << GAIN_IDX))
+		return;
 
 	sensor_write1(gspca_dev, 3, sd->gain);
 }
