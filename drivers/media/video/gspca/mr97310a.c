@@ -447,7 +447,8 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 	 * Elta-Media 8212dc	0x23		T. Kaiser	1
 	 * Philips dig. keych.	0x37		T. Kilgore	1
 	 */
-	if ((data[0] & 0x78) == 8 || (data[0] & 0x2) == 0x2)
+	if ((data[0] & 0x78) == 8 ||
+	    ((data[0] & 0x2) == 0x2 && data[0] != 0x53))
 		sd->sensor_type = 1;
 
 	PDEBUG(D_ERR, "Sensor type is %01x", sd->sensor_type);
