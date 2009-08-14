@@ -22,6 +22,7 @@
 #include <linux/sunrpc/timer.h>
 #include <asm/signal.h>
 #include <linux/path.h>
+#include <net/ipv6.h>
 
 struct rpc_inode;
 
@@ -187,6 +188,53 @@ static inline void rpc_set_port(struct sockaddr *sap,
 
 #define IPV6_SCOPE_DELIMITER		'%'
 #define IPV6_SCOPE_ID_LEN		sizeof("%nnnnnnnnnn")
+
+static inline bool __rpc_cmp_addr4(const struct sockaddr *sap1,
+				   const struct sockaddr *sap2)
+{
+	const struct sockaddr_in *sin1 = (const struct sockaddr_in *)sap1;
+	const struct sockaddr_in *sin2 = (const struct sockaddr_in *)sap2;
+
+	return sin1->sin_addr.s_addr == sin2->sin_addr.s_addr;
+}
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static inline bool __rpc_cmp_addr6(const struct sockaddr *sap1,
+				   const struct sockaddr *sap2)
+{
+	const struct sockaddr_in6 *sin1 = (const struct sockaddr_in6 *)sap1;
+	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sap2;
+	return ipv6_addr_equal(&sin1->sin6_addr, &sin2->sin6_addr);
+}
+#else	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
+static inline bool __rpc_cmp_addr6(const struct sockaddr *sap1,
+				   const struct sockaddr *sap2)
+{
+	return false;
+}
+#endif	/* !(CONFIG_IPV6 || CONFIG_IPV6_MODULE) */
+
+/**
+ * rpc_cmp_addr - compare the address portion of two sockaddrs.
+ * @sap1: first sockaddr
+ * @sap2: second sockaddr
+ *
+ * Just compares the family and address portion. Ignores port, scope, etc.
+ * Returns true if the addrs are equal, false if they aren't.
+ */
+static inline bool rpc_cmp_addr(const struct sockaddr *sap1,
+				const struct sockaddr *sap2)
+{
+	if (sap1->sa_family == sap2->sa_family) {
+		switch (sap1->sa_family) {
+		case AF_INET:
+			return __rpc_cmp_addr4(sap1, sap2);
+		case AF_INET6:
+			return __rpc_cmp_addr6(sap1, sap2);
+		}
+	}
+	return false;
+}
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */
