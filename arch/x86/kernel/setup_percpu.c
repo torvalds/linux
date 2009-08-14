@@ -157,7 +157,7 @@ static int pcpu_lpage_cpu_distance(unsigned int from, unsigned int to)
 		return REMOTE_DISTANCE;
 }
 
-static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
+static ssize_t __init setup_pcpu_lpage(bool chosen)
 {
 	size_t reserve = PERCPU_MODULE_RESERVE + PERCPU_DYNAMIC_RESERVE;
 	size_t dyn_size = reserve - PERCPU_FIRST_CHUNK_RESERVE;
@@ -184,8 +184,7 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 		return -ENOMEM;
 	}
 
-	ret = pcpu_lpage_build_unit_map(static_size,
-					PERCPU_FIRST_CHUNK_RESERVE,
+	ret = pcpu_lpage_build_unit_map(PERCPU_FIRST_CHUNK_RESERVE,
 					&dyn_size, &unit_size, PMD_SIZE,
 					unit_map, pcpu_lpage_cpu_distance);
 	if (ret < 0) {
@@ -208,9 +207,8 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 		}
 	}
 
-	ret = pcpu_lpage_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
-				     dyn_size, unit_size, PMD_SIZE,
-				     unit_map, nr_units,
+	ret = pcpu_lpage_first_chunk(PERCPU_FIRST_CHUNK_RESERVE, dyn_size,
+				     unit_size, PMD_SIZE, unit_map, nr_units,
 				     pcpu_fc_alloc, pcpu_fc_free, pcpul_map);
 out_free:
 	if (ret < 0)
@@ -218,7 +216,7 @@ out_free:
 	return ret;
 }
 #else
-static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
+static ssize_t __init setup_pcpu_lpage(bool chosen)
 {
 	return -EINVAL;
 }
@@ -232,7 +230,7 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
  * mapping so that it can use PMD mapping without additional TLB
  * pressure.
  */
-static ssize_t __init setup_pcpu_embed(size_t static_size, bool chosen)
+static ssize_t __init setup_pcpu_embed(bool chosen)
 {
 	size_t reserve = PERCPU_MODULE_RESERVE + PERCPU_DYNAMIC_RESERVE;
 
@@ -244,7 +242,7 @@ static ssize_t __init setup_pcpu_embed(size_t static_size, bool chosen)
 	if (!chosen && (!cpu_has_pse || pcpu_need_numa()))
 		return -EINVAL;
 
-	return pcpu_embed_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
+	return pcpu_embed_first_chunk(PERCPU_FIRST_CHUNK_RESERVE,
 				      reserve - PERCPU_FIRST_CHUNK_RESERVE);
 }
 
@@ -260,9 +258,9 @@ static void __init pcpup_populate_pte(unsigned long addr)
 	populate_extra_pte(addr);
 }
 
-static ssize_t __init setup_pcpu_page(size_t static_size)
+static ssize_t __init setup_pcpu_page(void)
 {
-	return pcpu_page_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
+	return pcpu_page_first_chunk(PERCPU_FIRST_CHUNK_RESERVE,
 				     pcpu_fc_alloc, pcpu_fc_free,
 				     pcpup_populate_pte);
 }
@@ -282,7 +280,6 @@ static inline void setup_percpu_segment(int cpu)
 
 void __init setup_per_cpu_areas(void)
 {
-	size_t static_size = __per_cpu_end - __per_cpu_start;
 	unsigned int cpu;
 	unsigned long delta;
 	size_t pcpu_unit_size;
@@ -300,9 +297,9 @@ void __init setup_per_cpu_areas(void)
 	if (pcpu_chosen_fc != PCPU_FC_AUTO) {
 		if (pcpu_chosen_fc != PCPU_FC_PAGE) {
 			if (pcpu_chosen_fc == PCPU_FC_LPAGE)
-				ret = setup_pcpu_lpage(static_size, true);
+				ret = setup_pcpu_lpage(true);
 			else
-				ret = setup_pcpu_embed(static_size, true);
+				ret = setup_pcpu_embed(true);
 
 			if (ret < 0)
 				pr_warning("PERCPU: %s allocator failed (%zd), "
@@ -310,15 +307,14 @@ void __init setup_per_cpu_areas(void)
 					   pcpu_fc_names[pcpu_chosen_fc], ret);
 		}
 	} else {
-		ret = setup_pcpu_lpage(static_size, false);
+		ret = setup_pcpu_lpage(false);
 		if (ret < 0)
-			ret = setup_pcpu_embed(static_size, false);
+			ret = setup_pcpu_embed(false);
 	}
 	if (ret < 0)
-		ret = setup_pcpu_page(static_size);
+		ret = setup_pcpu_page();
 	if (ret < 0)
-		panic("cannot allocate static percpu area (%zu bytes, err=%zd)",
-		      static_size, ret);
+		panic("cannot initialize percpu area (err=%zd)", ret);
 
 	pcpu_unit_size = ret;
 

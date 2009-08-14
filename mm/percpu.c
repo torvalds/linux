@@ -1464,7 +1464,6 @@ static inline size_t pcpu_calc_fc_sizes(size_t static_size,
 	!defined(CONFIG_HAVE_SETUP_PER_CPU_AREA)
 /**
  * pcpu_embed_first_chunk - embed the first percpu chunk into bootmem
- * @static_size: the size of static percpu area in bytes
  * @reserved_size: the size of reserved percpu area in bytes
  * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
  *
@@ -1489,9 +1488,9 @@ static inline size_t pcpu_calc_fc_sizes(size_t static_size,
  * The determined pcpu_unit_size which can be used to initialize
  * percpu access on success, -errno on failure.
  */
-ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
-				      ssize_t dyn_size)
+ssize_t __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size)
 {
+	const size_t static_size = __per_cpu_end - __per_cpu_start;
 	size_t size_sum, unit_size, chunk_size;
 	void *base;
 	unsigned int cpu;
@@ -1536,7 +1535,6 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
 /**
  * pcpu_page_first_chunk - map the first chunk using PAGE_SIZE pages
- * @static_size: the size of static percpu area in bytes
  * @reserved_size: the size of reserved percpu area in bytes
  * @alloc_fn: function to allocate percpu page, always called with PAGE_SIZE
  * @free_fn: funtion to free percpu page, always called with PAGE_SIZE
@@ -1552,12 +1550,13 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
  * The determined pcpu_unit_size which can be used to initialize
  * percpu access on success, -errno on failure.
  */
-ssize_t __init pcpu_page_first_chunk(size_t static_size, size_t reserved_size,
+ssize_t __init pcpu_page_first_chunk(size_t reserved_size,
 				     pcpu_fc_alloc_fn_t alloc_fn,
 				     pcpu_fc_free_fn_t free_fn,
 				     pcpu_fc_populate_pte_fn_t populate_pte_fn)
 {
 	static struct vm_struct vm;
+	const size_t static_size = __per_cpu_end - __per_cpu_start;
 	char psize_str[16];
 	int unit_pages;
 	size_t pages_size;
@@ -1641,7 +1640,6 @@ out_free_ar:
 #ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
 /**
  * pcpu_lpage_build_unit_map - build unit_map for large page remapping
- * @static_size: the size of static percpu area in bytes
  * @reserved_size: the size of reserved percpu area in bytes
  * @dyn_sizep: in/out parameter for dynamic size, -1 for auto
  * @unit_sizep: out parameter for unit size
@@ -1661,13 +1659,14 @@ out_free_ar:
  * On success, fills in @unit_map, sets *@dyn_sizep, *@unit_sizep and
  * returns the number of units to be allocated.  -errno on failure.
  */
-int __init pcpu_lpage_build_unit_map(size_t static_size, size_t reserved_size,
-				     ssize_t *dyn_sizep, size_t *unit_sizep,
-				     size_t lpage_size, int *unit_map,
+int __init pcpu_lpage_build_unit_map(size_t reserved_size, ssize_t *dyn_sizep,
+				     size_t *unit_sizep, size_t lpage_size,
+				     int *unit_map,
 				     pcpu_fc_cpu_distance_fn_t cpu_distance_fn)
 {
 	static int group_map[NR_CPUS] __initdata;
 	static int group_cnt[NR_CPUS] __initdata;
+	const size_t static_size = __per_cpu_end - __per_cpu_start;
 	int group_cnt_max = 0;
 	size_t size_sum, min_unit_size, alloc_size;
 	int upa, max_upa, uninitialized_var(best_upa);	/* units_per_alloc */
@@ -1819,7 +1818,6 @@ static void __init pcpul_lpage_dump_cfg(const char *lvl, size_t static_size,
 
 /**
  * pcpu_lpage_first_chunk - remap the first percpu chunk using large page
- * @static_size: the size of static percpu area in bytes
  * @reserved_size: the size of reserved percpu area in bytes
  * @dyn_size: free size for dynamic allocation in bytes
  * @unit_size: unit size in bytes
@@ -1850,15 +1848,15 @@ static void __init pcpul_lpage_dump_cfg(const char *lvl, size_t static_size,
  * The determined pcpu_unit_size which can be used to initialize
  * percpu access on success, -errno on failure.
  */
-ssize_t __init pcpu_lpage_first_chunk(size_t static_size, size_t reserved_size,
-				      size_t dyn_size, size_t unit_size,
-				      size_t lpage_size, const int *unit_map,
-				      int nr_units,
+ssize_t __init pcpu_lpage_first_chunk(size_t reserved_size, size_t dyn_size,
+				      size_t unit_size, size_t lpage_size,
+				      const int *unit_map, int nr_units,
 				      pcpu_fc_alloc_fn_t alloc_fn,
 				      pcpu_fc_free_fn_t free_fn,
 				      pcpu_fc_map_fn_t map_fn)
 {
 	static struct vm_struct vm;
+	const size_t static_size = __per_cpu_end - __per_cpu_start;
 	size_t chunk_size = unit_size * nr_units;
 	size_t map_size;
 	unsigned int cpu;
@@ -2037,7 +2035,6 @@ EXPORT_SYMBOL(__per_cpu_offset);
 
 void __init setup_per_cpu_areas(void)
 {
-	size_t static_size = __per_cpu_end - __per_cpu_start;
 	ssize_t unit_size;
 	unsigned long delta;
 	unsigned int cpu;
@@ -2046,7 +2043,7 @@ void __init setup_per_cpu_areas(void)
 	 * Always reserve area for module percpu variables.  That's
 	 * what the legacy allocator did.
 	 */
-	unit_size = pcpu_embed_first_chunk(static_size, PERCPU_MODULE_RESERVE,
+	unit_size = pcpu_embed_first_chunk(PERCPU_MODULE_RESERVE,
 					   PERCPU_DYNAMIC_RESERVE);
 	if (unit_size < 0)
 		panic("Failed to initialized percpu areas.");
