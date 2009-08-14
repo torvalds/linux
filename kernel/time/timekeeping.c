@@ -18,6 +18,7 @@
 #include <linux/jiffies.h>
 #include <linux/time.h>
 #include <linux/tick.h>
+#include <linux/stop_machine.h>
 
 /* Structure holding internal timekeeping values. */
 struct timekeeper {
@@ -179,6 +180,7 @@ void timekeeping_leap_insert(int leapsecond)
 }
 
 #ifdef CONFIG_GENERIC_TIME
+
 /**
  * timekeeping_forward_now - update clock to the current time
  *
@@ -351,31 +353,40 @@ EXPORT_SYMBOL(do_settimeofday);
  *
  * Accumulates current time interval and initializes new clocksource
  */
-static void change_clocksource(void)
+static int change_clocksource(void *data)
 {
 	struct clocksource *new, *old;
 
-	new = clocksource_get_next();
-
-	if (!new || timekeeper.clock == new)
-		return;
+	new = (struct clocksource *) data;
 
 	timekeeping_forward_now();
+	if (!new->enable || new->enable(new) == 0) {
+		old = timekeeper.clock;
+		timekeeper_setup_internals(new);
+		if (old->disable)
+			old->disable(old);
+	}
+	return 0;
+}
 
-	if (new->enable && !new->enable(new))
+/**
+ * timekeeping_notify - Install a new clock source
+ * @clock:		pointer to the clock source
+ *
+ * This function is called from clocksource.c after a new, better clock
+ * source has been registered. The caller holds the clocksource_mutex.
+ */
+void timekeeping_notify(struct clocksource *clock)
+{
+	if (timekeeper.clock == clock)
 		return;
-
-	old = timekeeper.clock;
-	timekeeper_setup_internals(new);
-
-	if (old->disable)
-		old->disable(old);
-
+	stop_machine(change_clocksource, clock, NULL);
 	tick_clock_notify();
 }
+
 #else /* GENERIC_TIME */
+
 static inline void timekeeping_forward_now(void) { }
-static inline void change_clocksource(void) { }
 
 /**
  * ktime_get - get the monotonic time in ktime_t format
@@ -416,6 +427,7 @@ void ktime_get_ts(struct timespec *ts)
 				ts->tv_nsec + tomono.tv_nsec);
 }
 EXPORT_SYMBOL_GPL(ktime_get_ts);
+
 #endif /* !GENERIC_TIME */
 
 /**
@@ -773,7 +785,6 @@ void update_wall_time(void)
 	update_xtime_cache(nsecs);
 
 	/* check to see if there is a new clocksource to use */
-	change_clocksource();
 	update_vsyscall(&xtime, timekeeper.clock);
 }
 

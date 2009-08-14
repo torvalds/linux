@@ -109,35 +109,17 @@ EXPORT_SYMBOL(timecounter_cyc2time);
 /*[Clocksource internal variables]---------
  * curr_clocksource:
  *	currently selected clocksource.
- * next_clocksource:
- *	pending next selected clocksource.
  * clocksource_list:
  *	linked list with the registered clocksources
- * clocksource_lock:
- *	protects manipulations to curr_clocksource and next_clocksource
- *	and the clocksource_list
+ * clocksource_mutex:
+ *	protects manipulations to curr_clocksource and the clocksource_list
  * override_name:
  *	Name of the user-specified clocksource.
  */
 static struct clocksource *curr_clocksource;
-static struct clocksource *next_clocksource;
 static LIST_HEAD(clocksource_list);
-static DEFINE_SPINLOCK(clocksource_lock);
+static DEFINE_MUTEX(clocksource_mutex);
 static char override_name[32];
-static int finished_booting;
-
-/* clocksource_done_booting - Called near the end of core bootup
- *
- * Hack to avoid lots of clocksource churn at boot time.
- * We use fs_initcall because we want this to start before
- * device_initcall but after subsys_initcall.
- */
-static int __init clocksource_done_booting(void)
-{
-	finished_booting = 1;
-	return 0;
-}
-fs_initcall(clocksource_done_booting);
 
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG
 static LIST_HEAD(watchdog_list);
@@ -356,18 +338,16 @@ static inline void clocksource_resume_watchdog(void) { }
 void clocksource_resume(void)
 {
 	struct clocksource *cs;
-	unsigned long flags;
 
-	spin_lock_irqsave(&clocksource_lock, flags);
+	mutex_lock(&clocksource_mutex);
 
-	list_for_each_entry(cs, &clocksource_list, list) {
+	list_for_each_entry(cs, &clocksource_list, list)
 		if (cs->resume)
 			cs->resume();
-	}
 
 	clocksource_resume_watchdog();
 
-	spin_unlock_irqrestore(&clocksource_lock, flags);
+	mutex_unlock(&clocksource_mutex);
 }
 
 /**
@@ -383,28 +363,13 @@ void clocksource_touch_watchdog(void)
 }
 
 #ifdef CONFIG_GENERIC_TIME
-/**
- * clocksource_get_next - Returns the selected clocksource
- *
- */
-struct clocksource *clocksource_get_next(void)
-{
-	unsigned long flags;
 
-	spin_lock_irqsave(&clocksource_lock, flags);
-	if (next_clocksource && finished_booting) {
-		curr_clocksource = next_clocksource;
-		next_clocksource = NULL;
-	}
-	spin_unlock_irqrestore(&clocksource_lock, flags);
-
-	return curr_clocksource;
-}
+static int finished_booting;
 
 /**
  * clocksource_select - Select the best clocksource available
  *
- * Private function. Must hold clocksource_lock when called.
+ * Private function. Must hold clocksource_mutex when called.
  *
  * Select the clocksource with the best rating, or the clocksource,
  * which is selected by userspace override.
@@ -413,7 +378,7 @@ static void clocksource_select(void)
 {
 	struct clocksource *best, *cs;
 
-	if (list_empty(&clocksource_list))
+	if (!finished_booting || list_empty(&clocksource_list))
 		return;
 	/* First clocksource on the list has the best rating. */
 	best = list_first_entry(&clocksource_list, struct clocksource, list);
@@ -438,13 +403,31 @@ static void clocksource_select(void)
 			best = cs;
 		break;
 	}
-	if (curr_clocksource != best)
-		next_clocksource = best;
+	if (curr_clocksource != best) {
+		printk(KERN_INFO "Switching to clocksource %s\n", best->name);
+		curr_clocksource = best;
+		timekeeping_notify(curr_clocksource);
+	}
 }
+
+/*
+ * clocksource_done_booting - Called near the end of core bootup
+ *
+ * Hack to avoid lots of clocksource churn at boot time.
+ * We use fs_initcall because we want this to start before
+ * device_initcall but after subsys_initcall.
+ */
+static int __init clocksource_done_booting(void)
+{
+	finished_booting = 1;
+	clocksource_select();
+	return 0;
+}
+fs_initcall(clocksource_done_booting);
 
 #else /* CONFIG_GENERIC_TIME */
 
-static void clocksource_select(void) { }
+static inline void clocksource_select(void) { }
 
 #endif
 
@@ -471,13 +454,11 @@ static void clocksource_enqueue(struct clocksource *cs)
  */
 int clocksource_register(struct clocksource *cs)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&clocksource_lock, flags);
+	mutex_lock(&clocksource_mutex);
 	clocksource_enqueue(cs);
 	clocksource_select();
-	spin_unlock_irqrestore(&clocksource_lock, flags);
 	clocksource_enqueue_watchdog(cs);
+	mutex_unlock(&clocksource_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(clocksource_register);
@@ -487,14 +468,12 @@ EXPORT_SYMBOL(clocksource_register);
  */
 void clocksource_change_rating(struct clocksource *cs, int rating)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&clocksource_lock, flags);
+	mutex_lock(&clocksource_mutex);
 	list_del(&cs->list);
 	cs->rating = rating;
 	clocksource_enqueue(cs);
 	clocksource_select();
-	spin_unlock_irqrestore(&clocksource_lock, flags);
+	mutex_unlock(&clocksource_mutex);
 }
 EXPORT_SYMBOL(clocksource_change_rating);
 
@@ -503,13 +482,11 @@ EXPORT_SYMBOL(clocksource_change_rating);
  */
 void clocksource_unregister(struct clocksource *cs)
 {
-	unsigned long flags;
-
+	mutex_lock(&clocksource_mutex);
 	clocksource_dequeue_watchdog(cs);
-	spin_lock_irqsave(&clocksource_lock, flags);
 	list_del(&cs->list);
 	clocksource_select();
-	spin_unlock_irqrestore(&clocksource_lock, flags);
+	mutex_unlock(&clocksource_mutex);
 }
 EXPORT_SYMBOL(clocksource_unregister);
 
@@ -527,9 +504,9 @@ sysfs_show_current_clocksources(struct sys_device *dev,
 {
 	ssize_t count = 0;
 
-	spin_lock_irq(&clocksource_lock);
+	mutex_lock(&clocksource_mutex);
 	count = snprintf(buf, PAGE_SIZE, "%s\n", curr_clocksource->name);
-	spin_unlock_irq(&clocksource_lock);
+	mutex_unlock(&clocksource_mutex);
 
 	return count;
 }
@@ -557,14 +534,14 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 	if (buf[count-1] == '\n')
 		count--;
 
-	spin_lock_irq(&clocksource_lock);
+	mutex_lock(&clocksource_mutex);
 
 	if (count > 0)
 		memcpy(override_name, buf, count);
 	override_name[count] = 0;
 	clocksource_select();
 
-	spin_unlock_irq(&clocksource_lock);
+	mutex_unlock(&clocksource_mutex);
 
 	return ret;
 }
@@ -584,7 +561,7 @@ sysfs_show_available_clocksources(struct sys_device *dev,
 	struct clocksource *src;
 	ssize_t count = 0;
 
-	spin_lock_irq(&clocksource_lock);
+	mutex_lock(&clocksource_mutex);
 	list_for_each_entry(src, &clocksource_list, list) {
 		/*
 		 * Don't show non-HRES clocksource if the tick code is
@@ -596,7 +573,7 @@ sysfs_show_available_clocksources(struct sys_device *dev,
 				  max((ssize_t)PAGE_SIZE - count, (ssize_t)0),
 				  "%s ", src->name);
 	}
-	spin_unlock_irq(&clocksource_lock);
+	mutex_unlock(&clocksource_mutex);
 
 	count += snprintf(buf + count,
 			  max((ssize_t)PAGE_SIZE - count, (ssize_t)0), "\n");
@@ -651,11 +628,10 @@ device_initcall(init_clocksource_sysfs);
  */
 static int __init boot_override_clocksource(char* str)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&clocksource_lock, flags);
+	mutex_lock(&clocksource_mutex);
 	if (str)
 		strlcpy(override_name, str, sizeof(override_name));
-	spin_unlock_irqrestore(&clocksource_lock, flags);
+	mutex_unlock(&clocksource_mutex);
 	return 1;
 }
 
