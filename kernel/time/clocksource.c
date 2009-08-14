@@ -143,9 +143,12 @@ fs_initcall(clocksource_done_booting);
 static LIST_HEAD(watchdog_list);
 static struct clocksource *watchdog;
 static struct timer_list watchdog_timer;
+static struct work_struct watchdog_work;
 static DEFINE_SPINLOCK(watchdog_lock);
 static cycle_t watchdog_last;
 static int watchdog_running;
+
+static void clocksource_watchdog_work(struct work_struct *work);
 
 /*
  * Interval: 0.5sec Threshold: 0.0625s
@@ -158,15 +161,16 @@ static void clocksource_unstable(struct clocksource *cs, int64_t delta)
 	printk(KERN_WARNING "Clocksource %s unstable (delta = %Ld ns)\n",
 	       cs->name, delta);
 	cs->flags &= ~(CLOCK_SOURCE_VALID_FOR_HRES | CLOCK_SOURCE_WATCHDOG);
-	clocksource_change_rating(cs, 0);
-	list_del(&cs->wd_list);
+	cs->flags |= CLOCK_SOURCE_UNSTABLE;
+	schedule_work(&watchdog_work);
 }
 
 static void clocksource_watchdog(unsigned long data)
 {
-	struct clocksource *cs, *tmp;
+	struct clocksource *cs;
 	cycle_t csnow, wdnow;
 	int64_t wd_nsec, cs_nsec;
+	int next_cpu;
 
 	spin_lock(&watchdog_lock);
 	if (!watchdog_running)
@@ -176,7 +180,12 @@ static void clocksource_watchdog(unsigned long data)
 	wd_nsec = cyc2ns(watchdog, (wdnow - watchdog_last) & watchdog->mask);
 	watchdog_last = wdnow;
 
-	list_for_each_entry_safe(cs, tmp, &watchdog_list, wd_list) {
+	list_for_each_entry(cs, &watchdog_list, wd_list) {
+
+		/* Clocksource already marked unstable? */
+		if (cs->flags & CLOCK_SOURCE_UNSTABLE)
+			continue;
+
 		csnow = cs->read(cs);
 
 		/* Clocksource initialized ? */
@@ -207,19 +216,15 @@ static void clocksource_watchdog(unsigned long data)
 		}
 	}
 
-	if (!list_empty(&watchdog_list)) {
-		/*
-		 * Cycle through CPUs to check if the CPUs stay
-		 * synchronized to each other.
-		 */
-		int next_cpu = cpumask_next(raw_smp_processor_id(),
-					    cpu_online_mask);
-
-		if (next_cpu >= nr_cpu_ids)
-			next_cpu = cpumask_first(cpu_online_mask);
-		watchdog_timer.expires += WATCHDOG_INTERVAL;
-		add_timer_on(&watchdog_timer, next_cpu);
-	}
+	/*
+	 * Cycle through CPUs to check if the CPUs stay synchronized
+	 * to each other.
+	 */
+	next_cpu = cpumask_next(raw_smp_processor_id(), cpu_online_mask);
+	if (next_cpu >= nr_cpu_ids)
+		next_cpu = cpumask_first(cpu_online_mask);
+	watchdog_timer.expires += WATCHDOG_INTERVAL;
+	add_timer_on(&watchdog_timer, next_cpu);
 out:
 	spin_unlock(&watchdog_lock);
 }
@@ -228,6 +233,7 @@ static inline void clocksource_start_watchdog(void)
 {
 	if (watchdog_running || !watchdog || list_empty(&watchdog_list))
 		return;
+	INIT_WORK(&watchdog_work, clocksource_watchdog_work);
 	init_timer(&watchdog_timer);
 	watchdog_timer.function = clocksource_watchdog;
 	watchdog_last = watchdog->read(watchdog);
@@ -311,6 +317,22 @@ static void clocksource_dequeue_watchdog(struct clocksource *cs)
 	/* Check if the watchdog timer needs to be stopped. */
 	clocksource_stop_watchdog();
 	spin_unlock_irqrestore(&watchdog_lock, flags);
+}
+
+static void clocksource_watchdog_work(struct work_struct *work)
+{
+	struct clocksource *cs, *tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&watchdog_lock, flags);
+	list_for_each_entry_safe(cs, tmp, &watchdog_list, wd_list)
+		if (cs->flags & CLOCK_SOURCE_UNSTABLE) {
+			list_del_init(&cs->wd_list);
+			clocksource_change_rating(cs, 0);
+		}
+	/* Check if the watchdog timer needs to be stopped. */
+	clocksource_stop_watchdog();
+	spin_unlock(&watchdog_lock);
 }
 
 #else /* CONFIG_CLOCKSOURCE_WATCHDOG */
