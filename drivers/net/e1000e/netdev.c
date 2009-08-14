@@ -4670,14 +4670,6 @@ static int e1000_resume(struct pci_dev *pdev)
 		return err;
 	}
 
-	/* AER (Advanced Error Reporting) hooks */
-	err = pci_enable_pcie_error_reporting(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "pci_enable_pcie_error_reporting failed "
-		                    "0x%x\n", err);
-		/* non-fatal, continue */
-	}
-
 	pci_set_master(pdev);
 
 	pci_enable_wake(pdev, PCI_D3hot, 0);
@@ -4989,6 +4981,14 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	                                  e1000e_driver_name);
 	if (err)
 		goto err_pci_reg;
+
+	/* AER (Advanced Error Reporting) hooks */
+	err = pci_enable_pcie_error_reporting(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "pci_enable_pcie_error_reporting failed "
+		        "0x%x\n", err);
+		/* non-fatal, continue */
+	}
 
 	pci_set_master(pdev);
 	/* PCI config space info */
