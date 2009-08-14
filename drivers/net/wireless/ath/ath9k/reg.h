@@ -744,6 +744,7 @@
 #define AR_SREV_VERSION_9287                  0x180
 #define AR_SREV_REVISION_9287_10              0
 #define AR_SREV_REVISION_9287_11              1
+#define AR_SREV_REVISION_9287_12              2
 #define AR_SREV_VERSION_9271			0x140
 #define AR_SREV_REVISION_9271_10		0
 #define AR_SREV_REVISION_9271_11		1
@@ -817,7 +818,13 @@
 	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9287) || \
 	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
 	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9287_11)))
-
+#define AR_SREV_9287_12(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
+	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_12))
+#define AR_SREV_9287_12_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9287) || \
+	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
+	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9287_12)))
 #define AR_SREV_9271(_ah) \
     (((_ah))->hw_version.macVersion == AR_SREV_VERSION_9271)
 #define AR_SREV_9271_10(_ah) \
