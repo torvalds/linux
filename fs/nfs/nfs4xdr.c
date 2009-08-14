@@ -4144,6 +4144,7 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 {
 	__be32 *p;
 	uint32_t dummy;
+	char *dummy_str;
 	int status;
 	struct nfs_client *clp = res->client;
 
@@ -4166,19 +4167,19 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 	READ_BUF(8);
 
 	/* Throw away Major id */
-	READ_BUF(4);
-	dummy = be32_to_cpup(p++);
-	READ_BUF(dummy);
+	status = decode_opaque_inline(xdr, &dummy, &dummy_str);
+	if (unlikely(status))
+		return status;
 
 	/* Throw away server_scope */
-	READ_BUF(4);
-	dummy = be32_to_cpup(p++);
-	READ_BUF(dummy);
+	status = decode_opaque_inline(xdr, &dummy, &dummy_str);
+	if (unlikely(status))
+		return status;
 
 	/* Throw away Implementation id array */
-	READ_BUF(4);
-	dummy = be32_to_cpup(p++);
-	READ_BUF(dummy);
+	status = decode_opaque_inline(xdr, &dummy, &dummy_str);
+	if (unlikely(status))
+		return status;
 
 	return 0;
 }
