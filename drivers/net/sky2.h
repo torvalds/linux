@@ -2053,7 +2053,6 @@ struct sky2_port {
 #define SKY2_FLAG_AUTO_SPEED		0x0002
 #define SKY2_FLAG_AUTO_PAUSE		0x0004
 
-	u8		     restarting;
  	enum flow_control    flow_mode;
  	enum flow_control    flow_status;
 
