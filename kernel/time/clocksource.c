@@ -145,7 +145,6 @@ static struct clocksource *watchdog;
 static struct timer_list watchdog_timer;
 static DEFINE_SPINLOCK(watchdog_lock);
 static cycle_t watchdog_last;
-static unsigned long watchdog_resumed;
 
 /*
  * Interval: 0.5sec Threshold: 0.0625s
@@ -167,11 +166,8 @@ static void clocksource_watchdog(unsigned long data)
 	struct clocksource *cs, *tmp;
 	cycle_t csnow, wdnow;
 	int64_t wd_nsec, cs_nsec;
-	int resumed;
 
 	spin_lock(&watchdog_lock);
-
-	resumed = test_and_clear_bit(0, &watchdog_resumed);
 
 	wdnow = watchdog->read(watchdog);
 	wd_nsec = cyc2ns(watchdog, (wdnow - watchdog_last) & watchdog->mask);
@@ -223,14 +219,26 @@ static void clocksource_watchdog(unsigned long data)
 	}
 	spin_unlock(&watchdog_lock);
 }
+
+static inline void clocksource_reset_watchdog(void)
+{
+	struct clocksource *cs;
+
+	list_for_each_entry(cs, &watchdog_list, wd_list)
+		cs->flags &= ~CLOCK_SOURCE_WATCHDOG;
+}
+
 static void clocksource_resume_watchdog(void)
 {
-	set_bit(0, &watchdog_resumed);
+	unsigned long flags;
+
+	spin_lock_irqsave(&watchdog_lock, flags);
+	clocksource_reset_watchdog();
+	spin_unlock_irqrestore(&watchdog_lock, flags);
 }
 
 static void clocksource_check_watchdog(struct clocksource *cs)
 {
-	struct clocksource *cse;
 	unsigned long flags;
 
 	spin_lock_irqsave(&watchdog_lock, flags);
@@ -256,8 +264,7 @@ static void clocksource_check_watchdog(struct clocksource *cs)
 			watchdog_timer.function = clocksource_watchdog;
 
 			/* Reset watchdog cycles */
-			list_for_each_entry(cse, &watchdog_list, wd_list)
-				cse->flags &= ~CLOCK_SOURCE_WATCHDOG;
+			clocksource_reset_watchdog();
 			/* Start if list is not empty */
 			if (!list_empty(&watchdog_list)) {
 				watchdog_last = watchdog->read(watchdog);
