@@ -4643,6 +4643,7 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 	del_timer_sync(&hw->watchdog_timer);
 	cancel_work_sync(&hw->restart_work);
 
+	rtnl_lock();
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 		struct sky2_port *sky2 = netdev_priv(dev);
@@ -4660,6 +4661,7 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 	sky2_write32(hw, B0_IMSK, 0);
 	napi_disable(&hw->napi);
 	sky2_power_aux(hw);
+	rtnl_unlock();
 
 	pci_save_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), wol);
@@ -4729,6 +4731,7 @@ static void sky2_shutdown(struct pci_dev *pdev)
 	if (!hw)
 		return;
 
+	rtnl_lock();
 	del_timer_sync(&hw->watchdog_timer);
 
 	for (i = 0; i < hw->ports; i++) {
@@ -4743,6 +4746,7 @@ static void sky2_shutdown(struct pci_dev *pdev)
 
 	if (wol)
 		sky2_power_aux(hw);
+	rtnl_unlock();
 
 	pci_enable_wake(pdev, PCI_D3hot, wol);
 	pci_enable_wake(pdev, PCI_D3cold, wol);
