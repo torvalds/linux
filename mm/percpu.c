@@ -1181,12 +1181,13 @@ static void pcpu_reclaim(struct work_struct *work)
 	}
 
 	spin_unlock_irq(&pcpu_lock);
-	mutex_unlock(&pcpu_alloc_mutex);
 
 	list_for_each_entry_safe(chunk, next, &todo, list) {
 		pcpu_depopulate_chunk(chunk, 0, pcpu_unit_size);
 		free_pcpu_chunk(chunk);
 	}
+
+	mutex_unlock(&pcpu_alloc_mutex);
 }
 
 /**
