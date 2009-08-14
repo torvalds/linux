@@ -39,7 +39,6 @@ void nilfs_dat_abort_alloc(struct inode *, struct nilfs_palloc_req *);
 int nilfs_dat_prepare_start(struct inode *, struct nilfs_palloc_req *);
 void nilfs_dat_commit_start(struct inode *, struct nilfs_palloc_req *,
 			    sector_t);
-void nilfs_dat_abort_start(struct inode *, struct nilfs_palloc_req *);
 int nilfs_dat_prepare_end(struct inode *, struct nilfs_palloc_req *);
 void nilfs_dat_commit_end(struct inode *, struct nilfs_palloc_req *, int);
 void nilfs_dat_abort_end(struct inode *, struct nilfs_palloc_req *);
