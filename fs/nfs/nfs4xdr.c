@@ -4212,6 +4212,11 @@ static int decode_chan_attrs(struct xdr_stream *xdr,
 	return 0;
 }
 
+static int decode_sessionid(struct xdr_stream *xdr, struct nfs4_sessionid *sid)
+{
+	return decode_opaque_fixed(xdr, sid->data, NFS4_MAX_SESSIONID_LEN);
+}
+
 static int decode_create_session(struct xdr_stream *xdr,
 				 struct nfs41_create_session_res *res)
 {
@@ -4221,13 +4226,10 @@ static int decode_create_session(struct xdr_stream *xdr,
 	struct nfs4_session *session = clp->cl_session;
 
 	status = decode_op_hdr(xdr, OP_CREATE_SESSION);
-
-	if (status)
+	if (!status)
+		status = decode_sessionid(xdr, &session->sess_id);
+	if (unlikely(status))
 		return status;
-
-	/* sessionid */
-	READ_BUF(NFS4_MAX_SESSIONID_LEN);
-	COPYMEM(&session->sess_id, NFS4_MAX_SESSIONID_LEN);
 
 	/* seqid, flags */
 	READ_BUF(8);
@@ -4262,7 +4264,9 @@ static int decode_sequence(struct xdr_stream *xdr,
 		return 0;
 
 	status = decode_op_hdr(xdr, OP_SEQUENCE);
-	if (status)
+	if (!status)
+		status = decode_sessionid(xdr, &id);
+	if (unlikely(status))
 		goto out_err;
 
 	/*
@@ -4271,15 +4275,16 @@ static int decode_sequence(struct xdr_stream *xdr,
 	 */
 	status = -ESERVERFAULT;
 
-	slot = &res->sr_session->fc_slot_table.slots[res->sr_slotid];
-	READ_BUF(NFS4_MAX_SESSIONID_LEN + 20);
-	COPYMEM(id.data, NFS4_MAX_SESSIONID_LEN);
 	if (memcmp(id.data, res->sr_session->sess_id.data,
 		   NFS4_MAX_SESSIONID_LEN)) {
 		dprintk("%s Invalid session id\n", __func__);
 		goto out_err;
 	}
+
+	READ_BUF(20);
+
 	/* seqid */
+	slot = &res->sr_session->fc_slot_table.slots[res->sr_slotid];
 	dummy = be32_to_cpup(p++);
 	if (dummy != slot->seq_nr) {
 		dprintk("%s Invalid sequence number\n", __func__);
