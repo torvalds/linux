@@ -79,7 +79,7 @@ typedef void (*pcpu_fc_map_fn_t)(void *ptr, size_t size, void *addr);
 
 extern size_t __init pcpu_setup_first_chunk(
 				size_t static_size, size_t reserved_size,
-				ssize_t dyn_size, size_t unit_size,
+				size_t dyn_size, size_t unit_size,
 				void *base_addr, const int *unit_map);
 
 #ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
