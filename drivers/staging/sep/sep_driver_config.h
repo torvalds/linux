@@ -210,13 +210,13 @@
 
 #define dbg(fmt, args...) \
 do {\
-	if (sepDebug & SEP_DEBUG_LEVEL_BASIC) \
+	if (debug & SEP_DEBUG_LEVEL_BASIC) \
 		printk(KERN_DEBUG fmt, ##args); \
 } while(0);
 
 #define edbg(fmt, args...) \
 do { \
-	if (sepDebug & SEP_DEBUG_LEVEL_EXTENDED) \
+	if (debug & SEP_DEBUG_LEVEL_EXTENDED) \
 		printk(KERN_DEBUG fmt, ##args); \
 } while(0);
 
