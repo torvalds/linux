@@ -2543,7 +2543,7 @@ static struct cnic_dev *init_bnx2_cnic(struct net_device *dev)
 	probe = symbol_get(bnx2_cnic_probe);
 	if (probe) {
 		ethdev = (*probe)(dev);
-		symbol_put_addr(probe);
+		symbol_put(bnx2_cnic_probe);
 	}
 	if (!ethdev)
 		return NULL;
