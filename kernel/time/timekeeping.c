@@ -154,7 +154,7 @@ __cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
  */
 struct timespec xtime __attribute__ ((aligned (16)));
 struct timespec wall_to_monotonic __attribute__ ((aligned (16)));
-static unsigned long total_sleep_time;		/* seconds */
+static struct timespec total_sleep_time;
 
 /*
  * The raw monotonic time for the CLOCK_MONOTONIC_RAW posix clock.
@@ -487,17 +487,18 @@ int timekeeping_valid_for_hres(void)
 }
 
 /**
- * read_persistent_clock -  Return time in seconds from the persistent clock.
+ * read_persistent_clock -  Return time from the persistent clock.
  *
  * Weak dummy function for arches that do not yet support it.
- * Returns seconds from epoch using the battery backed persistent clock.
- * Returns zero if unsupported.
+ * Reads the time from the battery backed persistent clock.
+ * Returns a timespec with tv_sec=0 and tv_nsec=0 if unsupported.
  *
  *  XXX - Do be sure to remove it once all arches implement it.
  */
-unsigned long __attribute__((weak)) read_persistent_clock(void)
+void __attribute__((weak)) read_persistent_clock(struct timespec *ts)
 {
-	return 0;
+	ts->tv_sec = 0;
+	ts->tv_nsec = 0;
 }
 
 /*
@@ -507,7 +508,9 @@ void __init timekeeping_init(void)
 {
 	struct clocksource *clock;
 	unsigned long flags;
-	unsigned long sec = read_persistent_clock();
+	struct timespec now;
+
+	read_persistent_clock(&now);
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 
@@ -518,19 +521,20 @@ void __init timekeeping_init(void)
 		clock->enable(clock);
 	timekeeper_setup_internals(clock);
 
-	xtime.tv_sec = sec;
-	xtime.tv_nsec = 0;
+	xtime.tv_sec = now.tv_sec;
+	xtime.tv_nsec = now.tv_nsec;
 	raw_time.tv_sec = 0;
 	raw_time.tv_nsec = 0;
 	set_normalized_timespec(&wall_to_monotonic,
 		-xtime.tv_sec, -xtime.tv_nsec);
 	update_xtime_cache(0);
-	total_sleep_time = 0;
+	total_sleep_time.tv_sec = 0;
+	total_sleep_time.tv_nsec = 0;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
 
 /* time in seconds when suspend began */
-static unsigned long timekeeping_suspend_time;
+static struct timespec timekeeping_suspend_time;
 
 /**
  * timekeeping_resume - Resumes the generic timekeeping subsystem.
@@ -543,18 +547,19 @@ static unsigned long timekeeping_suspend_time;
 static int timekeeping_resume(struct sys_device *dev)
 {
 	unsigned long flags;
-	unsigned long now = read_persistent_clock();
+	struct timespec ts;
+
+	read_persistent_clock(&ts);
 
 	clocksource_resume();
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 
-	if (now && (now > timekeeping_suspend_time)) {
-		unsigned long sleep_length = now - timekeeping_suspend_time;
-
-		xtime.tv_sec += sleep_length;
-		wall_to_monotonic.tv_sec -= sleep_length;
-		total_sleep_time += sleep_length;
+	if (timespec_compare(&ts, &timekeeping_suspend_time) > 0) {
+		ts = timespec_sub(ts, timekeeping_suspend_time);
+		xtime = timespec_add_safe(xtime, ts);
+		wall_to_monotonic = timespec_sub(wall_to_monotonic, ts);
+		total_sleep_time = timespec_add_safe(total_sleep_time, ts);
 	}
 	update_xtime_cache(0);
 	/* re-base the last cycle value */
@@ -577,7 +582,7 @@ static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
 {
 	unsigned long flags;
 
-	timekeeping_suspend_time = read_persistent_clock();
+	read_persistent_clock(&timekeeping_suspend_time);
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 	timekeeping_forward_now();
@@ -801,9 +806,10 @@ void update_wall_time(void)
  */
 void getboottime(struct timespec *ts)
 {
-	set_normalized_timespec(ts,
-		- (wall_to_monotonic.tv_sec + total_sleep_time),
-		- wall_to_monotonic.tv_nsec);
+	struct timespec boottime;
+
+	boottime = timespec_add_safe(wall_to_monotonic, total_sleep_time);
+	set_normalized_timespec(ts, -boottime.tv_sec, -boottime.tv_nsec);
 }
 
 /**
@@ -812,7 +818,7 @@ void getboottime(struct timespec *ts)
  */
 void monotonic_to_bootbased(struct timespec *ts)
 {
-	ts->tv_sec += total_sleep_time;
+	*ts = timespec_add_safe(*ts, total_sleep_time);
 }
 
 unsigned long get_seconds(void)

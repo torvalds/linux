@@ -70,7 +70,7 @@ void __init bus_error_init(void)
 }
 
 
-unsigned long read_persistent_clock(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	unsigned int year, month, day, hour, min, sec;
 	unsigned long flags;
@@ -92,7 +92,8 @@ unsigned long read_persistent_clock(void)
 	m48t37_base->control = 0x00;
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	return mktime(year, month, day, hour, min, sec);
+	ts->tv_sec = mktime(year, month, day, hour, min, sec);
+	ts->tv_nsec = 0;
 }
 
 int rtc_mips_set_time(unsigned long tim)

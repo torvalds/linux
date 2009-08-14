@@ -182,12 +182,9 @@ static void timing_alert_interrupt(__u16 code)
 static void etr_reset(void);
 static void stp_reset(void);
 
-unsigned long read_persistent_clock(void)
+void read_persistent_clock(struct timespec *ts)
 {
-	struct timespec ts;
-
-	tod_to_timeval(get_clock() - TOD_UNIX_EPOCH, &ts);
-	return ts.tv_sec;
+	tod_to_timeval(get_clock() - TOD_UNIX_EPOCH, ts);
 }
 
 static cycle_t read_tod_clock(struct clocksource *cs)
@@ -248,7 +245,6 @@ void __init time_init(void)
 {
 	struct timespec ts;
 	unsigned long flags;
-	cycle_t now;
 
 	/* Reset time synchronization interfaces. */
 	etr_reset();
@@ -266,20 +262,10 @@ void __init time_init(void)
 		panic("Could not register TOD clock source");
 
 	/*
-	 * The TOD clock is an accurate clock. The xtime should be
-	 * initialized in a way that the difference between TOD and
-	 * xtime is reasonably small. Too bad that timekeeping_init
-	 * sets xtime.tv_nsec to zero. In addition the clock source
-	 * change from the jiffies clock source to the TOD clock
-	 * source add another error of up to 1/HZ second. The same
-	 * function sets wall_to_monotonic to a value that is too
-	 * small for /proc/uptime to be accurate.
-	 * Reset xtime and wall_to_monotonic to sane values.
+	 * Reset wall_to_monotonic to the initial timestamp created
+	 * in head.S to get a precise value in /proc/uptime.
 	 */
 	write_seqlock_irqsave(&xtime_lock, flags);
-	now = get_clock();
-	tod_to_timeval(now - TOD_UNIX_EPOCH, &xtime);
-	clocksource_tod.cycle_last = now;
 	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, &ts);
 	set_normalized_timespec(&wall_to_monotonic, -ts.tv_sec, -ts.tv_nsec);
 	write_sequnlock_irqrestore(&xtime_lock, flags);
