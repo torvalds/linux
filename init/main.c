@@ -68,6 +68,7 @@
 #include <linux/async.h>
 #include <linux/kmemcheck.h>
 #include <linux/kmemtrace.h>
+#include <linux/sfi.h>
 #include <trace/boot.h>
 
 #include <asm/io.h>
@@ -712,6 +713,7 @@ asmlinkage void __init start_kernel(void)
 	check_bugs();
 
 	acpi_early_init(); /* before LAPIC and SMP init */
+	sfi_init_late();
 
 	ftrace_init();
 
