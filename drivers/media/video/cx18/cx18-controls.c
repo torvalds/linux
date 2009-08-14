@@ -20,6 +20,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307  USA
  */
+#include <linux/kernel.h>
 
 #include "cx18-driver.h"
 #include "cx18-cards.h"
@@ -317,7 +318,7 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		idx = p.audio_properties & 0x03;
 		/* The audio clock of the digitizer must match the codec sample
 		   rate otherwise you get some very strange effects. */
-		if (idx < sizeof(freqs))
+		if (idx < ARRAY_SIZE(freqs))
 			cx18_call_all(cx, audio, s_clock_freq, freqs[idx]);
 		return err;
 	}

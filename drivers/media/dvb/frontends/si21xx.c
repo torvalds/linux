@@ -928,7 +928,7 @@ struct dvb_frontend *si21xx_attach(const struct si21xx_config *config,
 	dprintk("%s\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct si21xx_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct si21xx_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 
