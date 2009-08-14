@@ -327,7 +327,6 @@ handle_tlbmiss(struct pt_regs *regs, unsigned long writeaccess,
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
-	int ret = 1;
 
 	/*
 	 * We don't take page faults for P1, P2, and parts of P4, these
@@ -338,40 +337,41 @@ handle_tlbmiss(struct pt_regs *regs, unsigned long writeaccess,
 		pgd = pgd_offset_k(address);
 	} else {
 		if (unlikely(address >= TASK_SIZE || !current->mm))
-			goto out;
+			return 1;
 
 		pgd = pgd_offset(current->mm, address);
 	}
 
 	pud = pud_offset(pgd, address);
 	if (pud_none_or_clear_bad(pud))
-		goto out;
+		return 1;
 	pmd = pmd_offset(pud, address);
 	if (pmd_none_or_clear_bad(pmd))
-		goto out;
+		return 1;
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
 	if (unlikely(pte_none(entry) || pte_not_present(entry)))
-		goto out;
+		return 1;
 	if (unlikely(writeaccess && !pte_write(entry)))
-		goto out;
+		return 1;
 
 	if (writeaccess)
 		entry = pte_mkdirty(entry);
 	entry = pte_mkyoung(entry);
 
+	set_pte(pte, entry);
+
 #if defined(CONFIG_CPU_SH4) && !defined(CONFIG_SMP)
 	/*
-	 * ITLB is not affected by "ldtlb" instruction.
-	 * So, we need to flush the entry by ourselves.
+	 * SH-4 does not set MMUCR.RC to the corresponding TLB entry in
+	 * the case of an initial page write exception, so we need to
+	 * flush it in order to avoid potential TLB entry duplication.
 	 */
-	local_flush_tlb_one(get_asid(), address & PAGE_MASK);
+	if (writeaccess == 2)
+		local_flush_tlb_one(get_asid(), address & PAGE_MASK);
 #endif
 
-	set_pte(pte, entry);
 	update_mmu_cache(NULL, address, entry);
 
-	ret = 0;
-out:
-	return ret;
+	return 0;
 }

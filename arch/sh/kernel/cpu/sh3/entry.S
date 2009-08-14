@@ -124,7 +124,7 @@ ENTRY(tlb_miss_store)
 	.align	2
 ENTRY(initial_page_write)
 	bra	call_handle_tlbmiss
-	 mov	#1, r5
+	 mov	#2, r5
 
 	.align	2
 ENTRY(tlb_protection_violation_load)
