@@ -253,6 +253,7 @@ struct pwc_device
    int snapshot_button_status;		/* set to 1 when the user push the button, reset to 0 when this value is read */
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
    struct input_dev *button_dev;	/* webcam snapshot button input */
+   char button_phys[64];
 #endif
 
    /*** Misc. data ***/
