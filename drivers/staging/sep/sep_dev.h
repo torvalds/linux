@@ -32,6 +32,8 @@ struct sep_device {
 	/* pointer to pci dev */
 	struct pci_dev *pdev;
 
+	unsigned long in_use;
+
 	unsigned long io_bus;
 	unsigned long io_end_bus;
 	unsigned long io_memory_size;

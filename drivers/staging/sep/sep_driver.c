@@ -296,53 +296,67 @@ static void *sep_shared_area_bus_to_virt(struct sep_device *sep,
 }
 
 
-/*----------------------------------------------------------------------
-  open function of the character driver - must only lock the mutex
-	must also release the memory data pool allocations
-------------------------------------------------------------------------*/
+/**
+ *	sep_try_open		-	attempt to open a SEP device
+ *	@sep: device to attempt to open
+ *
+ *	Atomically attempt to get ownership of a SEP device.
+ *	Returns 1 if the device was opened, 0 on failure.
+ */
+
+static int sep_try_open(struct sep_device *sep)
+{
+	if (!test_and_set_bit(0, &sep->in_use))
+		return 1;
+	return 0;
+}
+
+/**
+ *	sep_open		-	device open method
+ *	@inode: inode of sep device
+ *	@filp: file handle to sep device
+ *
+ *	Open method for the SEP device. Called when userspace opens
+ *	the SEP device node. Must also release the memory data pool
+ *	allocations.
+ *
+ *	Returns zero on success otherwise an error code.
+ */
+
 static int sep_open(struct inode *inode, struct file *filp)
 {
-	int error = 0;
-
-	dbg("SEP Driver:--------> open start\n");
-
-	/* check the blocking mode */
-	if (filp->f_flags & O_NDELAY)
-		error = mutex_trylock(&sep_mutex);
-	else
-		/* lock mutex */
-		mutex_lock(&sep_mutex);
-
-	/* check the error */
-	if (error) {
-		edbg("SEP Driver: down_interruptible failed\n");
-		goto end_function;
-	}
-	/* Bind to the device, we only have one which makes it easy */
-	filp->private_data = sep_dev;
 	if (sep_dev == NULL)
 		return -ENODEV;
 
+	/* check the blocking mode */
+	if (filp->f_flags & O_NDELAY) {
+		if (sep_try_open(sep_dev) == 0)
+			return -EAGAIN;
+	} else
+		if (wait_event_interruptible(sep_event, sep_try_open(sep_dev)) < 0)
+			return -EINTR;
+
+	/* Bind to the device, we only have one which makes it easy */
+	filp->private_data = sep_dev;
 	/* release data pool allocations */
 	sep_dev->data_pool_bytes_allocated = 0;
-
-
-end_function:
-	dbg("SEP Driver:<-------- open end\n");
-	return error;
+	return 0;
 }
 
 
+/**
+ *	sep_release		-	close a SEP device
+ *	@inode: inode of SEP device
+ *	@filp: file handle being closed
+ *
+ *	Called on the final close of a SEP device. As the open protects against
+ *	multiple simultaenous opens that means this method is called when the
+ *	final reference to the open handle is dropped.
+ */
 
-
-/*------------------------------------------------------------
-	release function
--------------------------------------------------------------*/
-static int sep_release(struct inode *inode_ptr, struct file *filp)
+static int sep_release(struct inode *inode, struct file *filp)
 {
-	struct sep_driver *sep =  filp->private_data;
-	dbg("----------->SEP Driver: sep_release start\n");
-
+	struct sep_device *sep =  filp->private_data;
 #if 0				/*!SEP_DRIVER_POLLING_MODE */
 	/* close IMR */
 	sep_write_reg(sep, HW_HOST_IMR_REG_ADDR, 0x7FFF);
@@ -350,14 +364,11 @@ static int sep_release(struct inode *inode_ptr, struct file *filp)
 	free_irq(SEP_DIRVER_IRQ_NUM, sep);
 
 #endif
-	/* unlock the sep mutex */
-	mutex_unlock(&sep_mutex);
-	dbg("SEP Driver:<-------- sep_release end\n");
+	/* Ensure any blocked open progresses */
+	clear_bit(0, &sep->in_use);
+	wake_up(&sep_event);
 	return 0;
 }
-
-
-
 
 /*---------------------------------------------------------------
   map function - this functions maps the message shared area
