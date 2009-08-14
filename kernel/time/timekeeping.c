@@ -41,6 +41,8 @@ struct timekeeper {
 	/* Shift conversion between clock shifted nano seconds and
 	 * ntp shifted nano seconds. */
 	int	ntp_error_shift;
+	/* NTP adjusted clock multiplier */
+	u32	mult;
 };
 
 struct timekeeper timekeeper;
@@ -66,8 +68,8 @@ static void timekeeper_setup_internals(struct clocksource *clock)
 	/* Do the ns -> cycle conversion first, using original mult */
 	tmp = NTP_INTERVAL_LENGTH;
 	tmp <<= clock->shift;
-	tmp += clock->mult_orig/2;
-	do_div(tmp, clock->mult_orig);
+	tmp += clock->mult/2;
+	do_div(tmp, clock->mult);
 	if (tmp == 0)
 		tmp = 1;
 
@@ -77,13 +79,20 @@ static void timekeeper_setup_internals(struct clocksource *clock)
 	/* Go back from cycles -> shifted ns */
 	timekeeper.xtime_interval = (u64) interval * clock->mult;
 	timekeeper.raw_interval =
-		((u64) interval * clock->mult_orig) >> clock->shift;
+		((u64) interval * clock->mult) >> clock->shift;
 
 	timekeeper.xtime_nsec = 0;
 	timekeeper.shift = clock->shift;
 
 	timekeeper.ntp_error = 0;
 	timekeeper.ntp_error_shift = NTP_SCALE_SHIFT - clock->shift;
+
+	/*
+	 * The timekeeper keeps its own mult values for the currently
+	 * active clocksource. These value will be adjusted via NTP
+	 * to counteract clock drifting.
+	 */
+	timekeeper.mult = clock->mult;
 }
 
 /*
@@ -154,14 +163,15 @@ static void timekeeping_forward_now(void)
 	cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
 	clock->cycle_last = cycle_now;
 
-	nsec = clocksource_cyc2ns(cycle_delta, clock->mult, clock->shift);
+	nsec = clocksource_cyc2ns(cycle_delta, timekeeper.mult,
+				  timekeeper.shift);
 
 	/* If arch requires, add in gettimeoffset() */
 	nsec += arch_gettimeoffset();
 
 	timespec_add_ns(&xtime, nsec);
 
-	nsec = clocksource_cyc2ns(cycle_delta, clock->mult_orig, clock->shift);
+	nsec = clocksource_cyc2ns(cycle_delta, clock->mult, clock->shift);
 	timespec_add_ns(&raw_time, nsec);
 }
 
@@ -193,8 +203,8 @@ void getnstimeofday(struct timespec *ts)
 		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
 
 		/* convert to nanoseconds: */
-		nsecs = clocksource_cyc2ns(cycle_delta, clock->mult,
-					   clock->shift);
+		nsecs = clocksource_cyc2ns(cycle_delta, timekeeper.mult,
+					   timekeeper.shift);
 
 		/* If arch requires, add in gettimeoffset() */
 		nsecs += arch_gettimeoffset();
@@ -228,8 +238,8 @@ ktime_t ktime_get(void)
 		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
 
 		/* convert to nanoseconds: */
-		nsecs += clocksource_cyc2ns(cycle_delta, clock->mult,
-					    clock->shift);
+		nsecs += clocksource_cyc2ns(cycle_delta, timekeeper.mult,
+					    timekeeper.shift);
 
 	} while (read_seqretry(&xtime_lock, seq));
 	/*
@@ -271,8 +281,8 @@ void ktime_get_ts(struct timespec *ts)
 		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
 
 		/* convert to nanoseconds: */
-		nsecs = clocksource_cyc2ns(cycle_delta, clock->mult,
-					   clock->shift);
+		nsecs = clocksource_cyc2ns(cycle_delta, timekeeper.mult,
+					   timekeeper.shift);
 
 	} while (read_seqretry(&xtime_lock, seq));
 
@@ -356,22 +366,10 @@ static void change_clocksource(void)
 
 	if (new->enable && !new->enable(new))
 		return;
-	/*
-	 * The frequency may have changed while the clocksource
-	 * was disabled. If so the code in ->enable() must update
-	 * the mult value to reflect the new frequency. Make sure
-	 * mult_orig follows this change.
-	 */
-	new->mult_orig = new->mult;
 
 	old = timekeeper.clock;
 	timekeeper_setup_internals(new);
 
-	/*
-	 * Save mult_orig in mult so that the value can be restored
-	 * regardless if ->enable() updates the value of mult or not.
-	 */
-	old->mult = old->mult_orig;
 	if (old->disable)
 		old->disable(old);
 
@@ -461,7 +459,7 @@ void getrawmonotonic(struct timespec *ts)
 		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
 
 		/* convert to nanoseconds: */
-		nsecs = clocksource_cyc2ns(cycle_delta, clock->mult_orig,
+		nsecs = clocksource_cyc2ns(cycle_delta, clock->mult,
 					   clock->shift);
 
 		*ts = raw_time;
@@ -521,9 +519,6 @@ void __init timekeeping_init(void)
 	clock = clocksource_default_clock();
 	if (clock->enable)
 		clock->enable(clock);
-	/* set mult_orig on enable */
-	clock->mult_orig = clock->mult;
-
 	timekeeper_setup_internals(clock);
 
 	xtime.tv_sec = sec;
@@ -697,7 +692,7 @@ static void timekeeping_adjust(s64 offset)
 	} else
 		return;
 
-	timekeeper.clock->mult += adj;
+	timekeeper.mult += adj;
 	timekeeper.xtime_interval += interval;
 	timekeeper.xtime_nsec -= offset;
 	timekeeper.ntp_error -= (interval - offset) <<
@@ -789,7 +784,7 @@ void update_wall_time(void)
 	timekeeper.ntp_error +=	timekeeper.xtime_nsec <<
 				timekeeper.ntp_error_shift;
 
-	nsecs = clocksource_cyc2ns(offset, clock->mult, clock->shift);
+	nsecs = clocksource_cyc2ns(offset, timekeeper.mult, timekeeper.shift);
 	update_xtime_cache(nsecs);
 
 	/* check to see if there is a new clocksource to use */
