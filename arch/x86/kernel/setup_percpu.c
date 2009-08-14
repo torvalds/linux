@@ -267,16 +267,6 @@ static ssize_t __init setup_pcpu_page(size_t static_size)
 				     pcpup_populate_pte);
 }
 
-/* for explicit first chunk allocator selection */
-static char pcpu_chosen_alloc[16] __initdata;
-
-static int __init percpu_alloc_setup(char *str)
-{
-	strncpy(pcpu_chosen_alloc, str, sizeof(pcpu_chosen_alloc) - 1);
-	return 0;
-}
-early_param("percpu_alloc", percpu_alloc_setup);
-
 static inline void setup_percpu_segment(int cpu)
 {
 #ifdef CONFIG_X86_32
@@ -307,19 +297,17 @@ void __init setup_per_cpu_areas(void)
 	 * each allocator for details.
 	 */
 	ret = -EINVAL;
-	if (strlen(pcpu_chosen_alloc)) {
-		if (strcmp(pcpu_chosen_alloc, "page")) {
-			if (!strcmp(pcpu_chosen_alloc, "lpage"))
+	if (pcpu_chosen_fc != PCPU_FC_AUTO) {
+		if (pcpu_chosen_fc != PCPU_FC_PAGE) {
+			if (pcpu_chosen_fc == PCPU_FC_LPAGE)
 				ret = setup_pcpu_lpage(static_size, true);
-			else if (!strcmp(pcpu_chosen_alloc, "embed"))
-				ret = setup_pcpu_embed(static_size, true);
 			else
-				pr_warning("PERCPU: unknown allocator %s "
-					   "specified\n", pcpu_chosen_alloc);
+				ret = setup_pcpu_embed(static_size, true);
+
 			if (ret < 0)
 				pr_warning("PERCPU: %s allocator failed (%zd), "
 					   "falling back to page size\n",
-					   pcpu_chosen_alloc, ret);
+					   pcpu_fc_names[pcpu_chosen_fc], ret);
 		}
 	} else {
 		ret = setup_pcpu_lpage(static_size, false);

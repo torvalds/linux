@@ -1414,6 +1414,38 @@ size_t __init pcpu_setup_first_chunk(size_t static_size, size_t reserved_size,
 	return pcpu_unit_size;
 }
 
+const char *pcpu_fc_names[PCPU_FC_NR] __initdata = {
+	[PCPU_FC_AUTO]	= "auto",
+	[PCPU_FC_EMBED]	= "embed",
+	[PCPU_FC_PAGE]	= "page",
+	[PCPU_FC_LPAGE]	= "lpage",
+};
+
+enum pcpu_fc pcpu_chosen_fc __initdata = PCPU_FC_AUTO;
+
+static int __init percpu_alloc_setup(char *str)
+{
+	if (0)
+		/* nada */;
+#ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
+	else if (!strcmp(str, "embed"))
+		pcpu_chosen_fc = PCPU_FC_EMBED;
+#endif
+#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+	else if (!strcmp(str, "page"))
+		pcpu_chosen_fc = PCPU_FC_PAGE;
+#endif
+#ifdef CONFIG_NEED_PER_CPU_LPAGE_FIRST_CHUNK
+	else if (!strcmp(str, "lpage"))
+		pcpu_chosen_fc = PCPU_FC_LPAGE;
+#endif
+	else
+		pr_warning("PERCPU: unknown allocator %s specified\n", str);
+
+	return 0;
+}
+early_param("percpu_alloc", percpu_alloc_setup);
+
 static inline size_t pcpu_calc_fc_sizes(size_t static_size,
 					size_t reserved_size,
 					ssize_t *dyn_sizep)

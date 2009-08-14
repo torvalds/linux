@@ -59,6 +59,18 @@
 extern void *pcpu_base_addr;
 extern const int *pcpu_unit_map;
 
+enum pcpu_fc {
+	PCPU_FC_AUTO,
+	PCPU_FC_EMBED,
+	PCPU_FC_PAGE,
+	PCPU_FC_LPAGE,
+
+	PCPU_FC_NR,
+};
+extern const char *pcpu_fc_names[PCPU_FC_NR];
+
+extern enum pcpu_fc pcpu_chosen_fc;
+
 typedef void * (*pcpu_fc_alloc_fn_t)(unsigned int cpu, size_t size);
 typedef void (*pcpu_fc_free_fn_t)(void *ptr, size_t size);
 typedef void (*pcpu_fc_populate_pte_fn_t)(unsigned long addr);
