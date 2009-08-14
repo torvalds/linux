@@ -2059,9 +2059,8 @@ static int b43_lpphy_op_switch_channel(struct b43_wldev *dev,
 		if (err)
 			return err;
 		lpphy_japan_filter(dev, new_channel);
+		lpphy_adjust_gain_table(dev, channel2freq_lp(new_channel));
 	}
-
-	lpphy_adjust_gain_table(dev, channel2freq_lp(new_channel));
 
 	return 0;
 }
