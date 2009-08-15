@@ -176,6 +176,9 @@ static struct platform_device kfr2r09_sh_lcdc_device = {
 	.dev	= {
 		.platform_data	= &kfr2r09_sh_lcdc_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_LCDC,
+	},
 };
 
 static struct platform_device *kfr2r09_devices[] __initdata = {
