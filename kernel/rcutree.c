@@ -1132,6 +1132,8 @@ __rcu_process_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
 {
 	unsigned long flags;
 
+	WARN_ON_ONCE(rdp->beenonline == 0);
+
 	/*
 	 * If an RCU GP has gone long enough, go check for dyntick
 	 * idle CPUs and, if needed, send resched IPIs.
@@ -1416,14 +1418,13 @@ static void __cpuinit rcu_online_cpu(int cpu)
 {
 	rcu_init_percpu_data(cpu, &rcu_state);
 	rcu_init_percpu_data(cpu, &rcu_bh_state);
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
 
 /*
  * Handle CPU online/offline notifcation events.
  */
-static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
-				unsigned long action, void *hcpu)
+int __cpuinit rcu_cpu_notify(struct notifier_block *self,
+			     unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
 
@@ -1532,10 +1533,6 @@ do { \
 	} \
 } while (0)
 
-static struct notifier_block __cpuinitdata rcu_nb = {
-	.notifier_call	= rcu_cpu_notify,
-};
-
 void __init __rcu_init(void)
 {
 	int i;			/* All used by RCU_DATA_PTR_INIT(). */
@@ -1554,11 +1551,7 @@ void __init __rcu_init(void)
 	RCU_DATA_PTR_INIT(&rcu_bh_state, rcu_bh_data);
 	for_each_possible_cpu(i)
 		rcu_boot_init_percpu_data(i, &rcu_bh_state);
-
-	for_each_online_cpu(i)
-		rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE, (void *)(long)i);
-	/* Register notifier for non-boot CPUs */
-	register_cpu_notifier(&rcu_nb);
+	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 }
 
 module_param(blimit, int, 0);
