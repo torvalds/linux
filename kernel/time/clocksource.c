@@ -307,16 +307,23 @@ static void clocksource_watchdog_work(struct work_struct *work)
 {
 	struct clocksource *cs, *tmp;
 	unsigned long flags;
+	LIST_HEAD(unstable);
 
 	spin_lock_irqsave(&watchdog_lock, flags);
 	list_for_each_entry_safe(cs, tmp, &watchdog_list, wd_list)
 		if (cs->flags & CLOCK_SOURCE_UNSTABLE) {
 			list_del_init(&cs->wd_list);
-			clocksource_change_rating(cs, 0);
+			list_add(&cs->wd_list, &unstable);
 		}
 	/* Check if the watchdog timer needs to be stopped. */
 	clocksource_stop_watchdog();
-	spin_unlock(&watchdog_lock);
+	spin_unlock_irqrestore(&watchdog_lock, flags);
+
+	/* Needs to be done outside of watchdog lock */
+	list_for_each_entry_safe(cs, tmp, &unstable, wd_list) {
+		list_del_init(&cs->wd_list);
+		clocksource_change_rating(cs, 0);
+	}
 }
 
 #else /* CONFIG_CLOCKSOURCE_WATCHDOG */
