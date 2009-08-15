@@ -21,6 +21,24 @@
 #include <asm/bootinfo.h>
 #endif
 
+extern const struct linux_logo logo_linux_mono;
+extern const struct linux_logo logo_linux_vga16;
+extern const struct linux_logo logo_linux_clut224;
+extern const struct linux_logo logo_blackfin_vga16;
+extern const struct linux_logo logo_blackfin_clut224;
+extern const struct linux_logo logo_zen_clut224;
+extern const struct linux_logo logo_arch_clut224;
+extern const struct linux_logo logo_gentoo_clut224;
+extern const struct linux_logo logo_dec_clut224;
+extern const struct linux_logo logo_mac_clut224;
+extern const struct linux_logo logo_parisc_clut224;
+extern const struct linux_logo logo_sgi_clut224;
+extern const struct linux_logo logo_sun_clut224;
+extern const struct linux_logo logo_superh_mono;
+extern const struct linux_logo logo_superh_vga16;
+extern const struct linux_logo logo_superh_clut224;
+extern const struct linux_logo logo_m32r_clut224;
+
 static bool nologo;
 module_param(nologo, bool, 0);
 MODULE_PARM_DESC(nologo, "Disables startup logo");
@@ -63,6 +81,18 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 	}
 	
 	if (depth >= 8) {
+#ifdef CONFIG_LOGO_ZEN_CLUT224
+		/* Zen-Sources logo */
+		logo = &logo_zen_clut224;
+#endif
+#ifdef CONFIG_LOGO_ARCH_CLUT224
+		/* Arch Linux logo */
+		logo = &logo_arch_clut224;
+#endif
+#ifdef CONFIG_LOGO_GENTOO_CLUT224
+		/* Gentoo Linux logo */
+		logo = &logo_gentoo_clut224;
+#endif
 #ifdef CONFIG_LOGO_LINUX_CLUT224
 		/* Generic Linux logo */
 		logo = &logo_linux_clut224;
