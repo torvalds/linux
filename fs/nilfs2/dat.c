@@ -134,15 +134,6 @@ void nilfs_dat_commit_start(struct inode *dat, struct nilfs_palloc_req *req,
 	entry = nilfs_palloc_block_get_entry(dat, req->pr_entry_nr,
 					     req->pr_entry_bh, kaddr);
 	entry->de_start = cpu_to_le64(nilfs_mdt_cno(dat));
-	if (entry->de_blocknr != cpu_to_le64(0) ||
-	    entry->de_end != cpu_to_le64(NILFS_CNO_MAX)) {
-		printk(KERN_CRIT
-		       "%s: vbn = %llu, start = %llu, end = %llu, pbn = %llu\n",
-		       __func__, (unsigned long long)req->pr_entry_nr,
-		       (unsigned long long)le64_to_cpu(entry->de_start),
-		       (unsigned long long)le64_to_cpu(entry->de_end),
-		       (unsigned long long)le64_to_cpu(entry->de_blocknr));
-	}
 	entry->de_blocknr = cpu_to_le64(blocknr);
 	kunmap_atomic(kaddr, KM_USER0);
 

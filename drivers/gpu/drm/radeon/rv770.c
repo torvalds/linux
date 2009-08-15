@@ -67,7 +67,7 @@ int rv770_mc_init(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 
-	tmp = rdev->mc.vram_location + rdev->mc.vram_size - 1;
+	tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
 	tmp = REG_SET(R700_MC_FB_TOP, tmp >> 24);
 	tmp |= REG_SET(R700_MC_FB_BASE, rdev->mc.vram_location >> 24);
 	WREG32(R700_MC_VM_FB_LOCATION, tmp);

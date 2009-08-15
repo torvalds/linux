@@ -139,7 +139,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	ecmd->autoneg = AUTONEG_ENABLE;
 	ecmd->transceiver = XCVR_EXTERNAL;
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
-	    (hw->mac.type == ixgbe_mac_82599EB)) {
+	    (hw->phy.multispeed_fiber)) {
 		ecmd->supported |= (SUPPORTED_1000baseT_Full |
 		                    SUPPORTED_Autoneg);
 
@@ -217,7 +217,7 @@ static int ixgbe_set_settings(struct net_device *netdev,
 	s32 err = 0;
 
 	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
-	    (hw->mac.type == ixgbe_mac_82599EB)) {
+	    (hw->phy.multispeed_fiber)) {
 		/* 10000/copper and 1000/copper must autoneg
 		 * this function does not support any duplex forcing, but can
 		 * limit the advertising of the adapter to only 10000 or 1000 */
@@ -245,6 +245,7 @@ static int ixgbe_set_settings(struct net_device *netdev,
 	} else {
 		/* in this case we currently only support 10Gb/FULL */
 		if ((ecmd->autoneg == AUTONEG_ENABLE) ||
+		    (ecmd->advertising != ADVERTISED_10000baseT_Full) ||
 		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
 			return -EINVAL;
 	}
@@ -1829,7 +1830,6 @@ static int ixgbe_wol_exclusion(struct ixgbe_adapter *adapter,
 		break;
 	default:
 		wol->supported = 0;
-		retval = 0;
 	}
 
 	return retval;
@@ -1975,7 +1975,10 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		 * any other value means disable eitr, which is best
 		 * served by setting the interrupt rate very high
 		 */
-		adapter->eitr_param = IXGBE_MAX_INT_RATE;
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
+			adapter->eitr_param = IXGBE_MAX_RSC_INT_RATE;
+		else
+			adapter->eitr_param = IXGBE_MAX_INT_RATE;
 		adapter->itr_setting = 0;
 	}
 
@@ -1999,13 +2002,13 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 
 	ethtool_op_set_flags(netdev, data);
 
-	if (!(adapter->flags & IXGBE_FLAG2_RSC_CAPABLE))
+	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
 		return 0;
 
 	/* if state changes we need to update adapter->flags and reset */
 	if ((!!(data & ETH_FLAG_LRO)) != 
-	    (!!(adapter->flags & IXGBE_FLAG2_RSC_ENABLED))) {
-		adapter->flags ^= IXGBE_FLAG2_RSC_ENABLED;
+	    (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) {
+		adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
 		if (netif_running(netdev))
 			ixgbe_reinit_locked(adapter);
 		else

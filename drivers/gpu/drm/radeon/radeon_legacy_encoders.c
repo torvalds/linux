@@ -30,170 +30,6 @@
 #include "atom.h"
 
 
-static void radeon_legacy_rmx_mode_set(struct drm_encoder *encoder,
-				       struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	int    xres = mode->hdisplay;
-	int    yres = mode->vdisplay;
-	bool   hscale = true, vscale = true;
-	int    hsync_wid;
-	int    vsync_wid;
-	int    hsync_start;
-	uint32_t scale, inc;
-	uint32_t fp_horz_stretch, fp_vert_stretch, crtc_more_cntl, fp_horz_vert_active;
-	uint32_t fp_h_sync_strt_wid, fp_v_sync_strt_wid, fp_crtc_h_total_disp, fp_crtc_v_total_disp;
-	struct radeon_native_mode *native_mode = &radeon_encoder->native_mode;
-
-	DRM_DEBUG("\n");
-
-	fp_vert_stretch = RREG32(RADEON_FP_VERT_STRETCH) &
-		(RADEON_VERT_STRETCH_RESERVED |
-		 RADEON_VERT_AUTO_RATIO_INC);
-	fp_horz_stretch = RREG32(RADEON_FP_HORZ_STRETCH) &
-		(RADEON_HORZ_FP_LOOP_STRETCH |
-		 RADEON_HORZ_AUTO_RATIO_INC);
-
-	crtc_more_cntl = 0;
-	if ((rdev->family == CHIP_RS100) ||
-	    (rdev->family == CHIP_RS200)) {
-		/* This is to workaround the asic bug for RMX, some versions
-		   of BIOS dosen't have this register initialized correctly. */
-		crtc_more_cntl |= RADEON_CRTC_H_CUTOFF_ACTIVE_EN;
-	}
-
-
-	fp_crtc_h_total_disp = ((((mode->crtc_htotal / 8) - 1) & 0x3ff)
-				| ((((mode->crtc_hdisplay / 8) - 1) & 0x1ff) << 16));
-
-	hsync_wid = (mode->crtc_hsync_end - mode->crtc_hsync_start) / 8;
-	if (!hsync_wid)
-		hsync_wid = 1;
-	hsync_start = mode->crtc_hsync_start - 8;
-
-	fp_h_sync_strt_wid = ((hsync_start & 0x1fff)
-			      | ((hsync_wid & 0x3f) << 16)
-			      | ((mode->flags & DRM_MODE_FLAG_NHSYNC)
-				 ? RADEON_CRTC_H_SYNC_POL
-				 : 0));
-
-	fp_crtc_v_total_disp = (((mode->crtc_vtotal - 1) & 0xffff)
-				| ((mode->crtc_vdisplay - 1) << 16));
-
-	vsync_wid = mode->crtc_vsync_end - mode->crtc_vsync_start;
-	if (!vsync_wid)
-		vsync_wid = 1;
-
-	fp_v_sync_strt_wid = (((mode->crtc_vsync_start - 1) & 0xfff)
-			      | ((vsync_wid & 0x1f) << 16)
-			      | ((mode->flags & DRM_MODE_FLAG_NVSYNC)
-				 ? RADEON_CRTC_V_SYNC_POL
-				 : 0));
-
-	fp_horz_vert_active = 0;
-
-	if (native_mode->panel_xres == 0 ||
-	    native_mode->panel_yres == 0) {
-		hscale = false;
-		vscale = false;
-	} else {
-		if (xres > native_mode->panel_xres)
-			xres = native_mode->panel_xres;
-		if (yres > native_mode->panel_yres)
-			yres = native_mode->panel_yres;
-
-		if (xres == native_mode->panel_xres)
-			hscale = false;
-		if (yres == native_mode->panel_yres)
-			vscale = false;
-	}
-
-	if (radeon_encoder->flags & RADEON_USE_RMX) {
-		if (radeon_encoder->rmx_type != RMX_CENTER) {
-			if (!hscale)
-				fp_horz_stretch |= ((xres/8-1) << 16);
-			else {
-				inc = (fp_horz_stretch & RADEON_HORZ_AUTO_RATIO_INC) ? 1 : 0;
-				scale = ((xres + inc) * RADEON_HORZ_STRETCH_RATIO_MAX)
-					/ native_mode->panel_xres + 1;
-				fp_horz_stretch |= (((scale) & RADEON_HORZ_STRETCH_RATIO_MASK) |
-						    RADEON_HORZ_STRETCH_BLEND |
-						    RADEON_HORZ_STRETCH_ENABLE |
-						    ((native_mode->panel_xres/8-1) << 16));
-			}
-
-			if (!vscale)
-				fp_vert_stretch |= ((yres-1) << 12);
-			else {
-				inc = (fp_vert_stretch & RADEON_VERT_AUTO_RATIO_INC) ? 1 : 0;
-				scale = ((yres + inc) * RADEON_VERT_STRETCH_RATIO_MAX)
-					/ native_mode->panel_yres + 1;
-				fp_vert_stretch |= (((scale) & RADEON_VERT_STRETCH_RATIO_MASK) |
-						    RADEON_VERT_STRETCH_ENABLE |
-						    RADEON_VERT_STRETCH_BLEND |
-						    ((native_mode->panel_yres-1) << 12));
-			}
-		} else if (radeon_encoder->rmx_type == RMX_CENTER) {
-			int    blank_width;
-
-			fp_horz_stretch |= ((xres/8-1) << 16);
-			fp_vert_stretch |= ((yres-1) << 12);
-
-			crtc_more_cntl |= (RADEON_CRTC_AUTO_HORZ_CENTER_EN |
-					   RADEON_CRTC_AUTO_VERT_CENTER_EN);
-
-			blank_width = (mode->crtc_hblank_end - mode->crtc_hblank_start) / 8;
-			if (blank_width > 110)
-				blank_width = 110;
-
-			fp_crtc_h_total_disp = (((blank_width) & 0x3ff)
-						| ((((mode->crtc_hdisplay / 8) - 1) & 0x1ff) << 16));
-
-			hsync_wid = (mode->crtc_hsync_end - mode->crtc_hsync_start) / 8;
-			if (!hsync_wid)
-				hsync_wid = 1;
-
-			fp_h_sync_strt_wid = ((((mode->crtc_hsync_start - mode->crtc_hblank_start) / 8) & 0x1fff)
-					      | ((hsync_wid & 0x3f) << 16)
-					      | ((mode->flags & DRM_MODE_FLAG_NHSYNC)
-						 ? RADEON_CRTC_H_SYNC_POL
-						 : 0));
-
-			fp_crtc_v_total_disp = (((mode->crtc_vblank_end - mode->crtc_vblank_start) & 0xffff)
-						| ((mode->crtc_vdisplay - 1) << 16));
-
-			vsync_wid = mode->crtc_vsync_end - mode->crtc_vsync_start;
-			if (!vsync_wid)
-				vsync_wid = 1;
-
-			fp_v_sync_strt_wid = ((((mode->crtc_vsync_start - mode->crtc_vblank_start) & 0xfff)
-					       | ((vsync_wid & 0x1f) << 16)
-					       | ((mode->flags & DRM_MODE_FLAG_NVSYNC)
-						  ? RADEON_CRTC_V_SYNC_POL
-						  : 0)));
-
-			fp_horz_vert_active = (((native_mode->panel_yres) & 0xfff) |
-					       (((native_mode->panel_xres / 8) & 0x1ff) << 16));
-		}
-	} else {
-		fp_horz_stretch |= ((xres/8-1) << 16);
-		fp_vert_stretch |= ((yres-1) << 12);
-	}
-
-	WREG32(RADEON_FP_HORZ_STRETCH,      fp_horz_stretch);
-	WREG32(RADEON_FP_VERT_STRETCH,      fp_vert_stretch);
-	WREG32(RADEON_CRTC_MORE_CNTL,       crtc_more_cntl);
-	WREG32(RADEON_FP_HORZ_VERT_ACTIVE,  fp_horz_vert_active);
-	WREG32(RADEON_FP_H_SYNC_STRT_WID,   fp_h_sync_strt_wid);
-	WREG32(RADEON_FP_V_SYNC_STRT_WID,   fp_v_sync_strt_wid);
-	WREG32(RADEON_FP_CRTC_H_TOTAL_DISP, fp_crtc_h_total_disp);
-	WREG32(RADEON_FP_CRTC_V_TOTAL_DISP, fp_crtc_v_total_disp);
-
-}
-
 static void radeon_legacy_lvds_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -287,9 +123,6 @@ static void radeon_legacy_lvds_mode_set(struct drm_encoder *encoder,
 
 	DRM_DEBUG("\n");
 
-	if (radeon_crtc->crtc_id == 0)
-		radeon_legacy_rmx_mode_set(encoder, mode, adjusted_mode);
-
 	lvds_pll_cntl = RREG32(RADEON_LVDS_PLL_CNTL);
 	lvds_pll_cntl &= ~RADEON_LVDS_PLL_EN;
 
@@ -318,7 +151,7 @@ static void radeon_legacy_lvds_mode_set(struct drm_encoder *encoder,
 
 	if (radeon_crtc->crtc_id == 0) {
 		if (ASIC_IS_R300(rdev)) {
-			if (radeon_encoder->flags & RADEON_USE_RMX)
+			if (radeon_encoder->rmx_type != RMX_OFF)
 				lvds_pll_cntl |= R300_LVDS_SRC_SEL_RMX;
 		} else
 			lvds_gen_cntl &= ~RADEON_LVDS_SEL_CRTC2;
@@ -349,8 +182,6 @@ static bool radeon_legacy_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
-
-	radeon_encoder->flags &= ~RADEON_USE_RMX;
 
 	if (radeon_encoder->rmx_type != RMX_OFF)
 		radeon_rmx_mode_fixup(encoder, mode, adjusted_mode);
@@ -454,9 +285,6 @@ static void radeon_legacy_primary_dac_mode_set(struct drm_encoder *encoder,
 	uint32_t disp_output_cntl, dac_cntl, dac2_cntl, dac_macro_cntl;
 
 	DRM_DEBUG("\n");
-
-	if (radeon_crtc->crtc_id == 0)
-		radeon_legacy_rmx_mode_set(encoder, mode, adjusted_mode);
 
 	if (radeon_crtc->crtc_id == 0) {
 		if (rdev->family == CHIP_R200 || ASIC_IS_R300(rdev)) {
@@ -653,9 +481,6 @@ static void radeon_legacy_tmds_int_mode_set(struct drm_encoder *encoder,
 
 	DRM_DEBUG("\n");
 
-	if (radeon_crtc->crtc_id == 0)
-		radeon_legacy_rmx_mode_set(encoder, mode, adjusted_mode);
-
 	tmp = tmds_pll_cntl = RREG32(RADEON_TMDS_PLL_CNTL);
 	tmp &= 0xfffff;
 	if (rdev->family == CHIP_RV280) {
@@ -711,7 +536,7 @@ static void radeon_legacy_tmds_int_mode_set(struct drm_encoder *encoder,
     if (radeon_crtc->crtc_id == 0) {
 	    if (ASIC_IS_R300(rdev) || rdev->family == CHIP_R200) {
 		    fp_gen_cntl &= ~R200_FP_SOURCE_SEL_MASK;
-		    if (radeon_encoder->flags & RADEON_USE_RMX)
+		    if (radeon_encoder->rmx_type != RMX_OFF)
 			    fp_gen_cntl |= R200_FP_SOURCE_SEL_RMX;
 		    else
 			    fp_gen_cntl |= R200_FP_SOURCE_SEL_CRTC1;
@@ -820,9 +645,6 @@ static void radeon_legacy_tmds_ext_mode_set(struct drm_encoder *encoder,
 
 	DRM_DEBUG("\n");
 
-	if (radeon_crtc->crtc_id == 0)
-		radeon_legacy_rmx_mode_set(encoder, mode, adjusted_mode);
-
 	if (rdev->is_atom_bios) {
 		radeon_encoder->pixel_clock = adjusted_mode->clock;
 		atombios_external_tmds_setup(encoder, ATOM_ENABLE);
@@ -856,7 +678,7 @@ static void radeon_legacy_tmds_ext_mode_set(struct drm_encoder *encoder,
 	if (radeon_crtc->crtc_id == 0) {
 		if ((rdev->family == CHIP_R200) || ASIC_IS_R300(rdev)) {
 			fp2_gen_cntl &= ~R200_FP2_SOURCE_SEL_MASK;
-			if (radeon_encoder->flags & RADEON_USE_RMX)
+			if (radeon_encoder->rmx_type != RMX_OFF)
 				fp2_gen_cntl |= R200_FP2_SOURCE_SEL_RMX;
 			else
 				fp2_gen_cntl |= R200_FP2_SOURCE_SEL_CRTC1;
@@ -1013,9 +835,6 @@ static void radeon_legacy_tv_dac_mode_set(struct drm_encoder *encoder,
 	uint32_t disp_hw_debug = 0, fp2_gen_cntl = 0;
 
 	DRM_DEBUG("\n");
-
-	if (radeon_crtc->crtc_id == 0)
-		radeon_legacy_rmx_mode_set(encoder, mode, adjusted_mode);
 
 	if (rdev->family != CHIP_R200) {
 		tv_dac_cntl = RREG32(RADEON_TV_DAC_CNTL);
@@ -1243,6 +1062,7 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t 
 
 	radeon_encoder->encoder_id = encoder_id;
 	radeon_encoder->devices = supported_device;
+	radeon_encoder->rmx_type = RMX_OFF;
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:

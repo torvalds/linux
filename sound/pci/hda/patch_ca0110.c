@@ -510,7 +510,7 @@ static int ca0110_parse_auto_config(struct hda_codec *codec)
 }
 
 
-int patch_ca0110(struct hda_codec *codec)
+static int patch_ca0110(struct hda_codec *codec)
 {
 	struct ca0110_spec *spec;
 	int err;

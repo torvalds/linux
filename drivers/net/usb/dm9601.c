@@ -513,11 +513,11 @@ static int dm9601_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	len = (skb->data[1] | (skb->data[2] << 8)) - 4;
 
 	if (unlikely(status & 0xbf)) {
-		if (status & 0x01) dev->stats.rx_fifo_errors++;
-		if (status & 0x02) dev->stats.rx_crc_errors++;
-		if (status & 0x04) dev->stats.rx_frame_errors++;
-		if (status & 0x20) dev->stats.rx_missed_errors++;
-		if (status & 0x90) dev->stats.rx_length_errors++;
+		if (status & 0x01) dev->net->stats.rx_fifo_errors++;
+		if (status & 0x02) dev->net->stats.rx_crc_errors++;
+		if (status & 0x04) dev->net->stats.rx_frame_errors++;
+		if (status & 0x20) dev->net->stats.rx_missed_errors++;
+		if (status & 0x90) dev->net->stats.rx_length_errors++;
 		return 0;
 	}
 

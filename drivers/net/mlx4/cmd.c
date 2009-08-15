@@ -80,7 +80,9 @@ enum {
 	/* Bad management packet (silently discarded): */
 	CMD_STAT_BAD_PKT	= 0x30,
 	/* More outstanding CQEs in CQ than new CQ size: */
-	CMD_STAT_BAD_SIZE	= 0x40
+	CMD_STAT_BAD_SIZE	= 0x40,
+	/* Multi Function device support required: */
+	CMD_STAT_MULTI_FUNC_REQ	= 0x50,
 };
 
 enum {
@@ -128,6 +130,7 @@ static int mlx4_status_to_errno(u8 status)
 		[CMD_STAT_LAM_NOT_PRE]	  = -EAGAIN,
 		[CMD_STAT_BAD_PKT]	  = -EINVAL,
 		[CMD_STAT_BAD_SIZE]	  = -ENOMEM,
+		[CMD_STAT_MULTI_FUNC_REQ] = -EACCES,
 	};
 
 	if (status >= ARRAY_SIZE(trans_table) ||

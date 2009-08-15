@@ -1585,6 +1585,7 @@ static int __init _omap_gpio_init(void)
 			__raw_writel(0x00000000, bank->base + OMAP24XX_GPIO_IRQENABLE1);
 			__raw_writel(0xffffffff, bank->base + OMAP24XX_GPIO_IRQSTATUS1);
 			__raw_writew(0x0015, bank->base + OMAP24XX_GPIO_SYSCONFIG);
+			__raw_writel(0x00000000, bank->base + OMAP24XX_GPIO_DEBOUNCE_EN);
 
 			/* Initialize interface clock ungated, module enabled */
 			__raw_writel(0, bank->base + OMAP24XX_GPIO_CTRL);

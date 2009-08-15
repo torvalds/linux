@@ -14,7 +14,7 @@ int ftrace_profile_enable(int event_id)
 
 	mutex_lock(&event_mutex);
 	list_for_each_entry(event, &ftrace_events, list) {
-		if (event->id == event_id) {
+		if (event->id == event_id && event->profile_enable) {
 			ret = event->profile_enable(event);
 			break;
 		}

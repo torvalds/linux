@@ -310,7 +310,7 @@ out:
 
 static void rawv6_err(struct sock *sk, struct sk_buff *skb,
 	       struct inet6_skb_parm *opt,
-	       int type, int code, int offset, __be32 info)
+	       u8 type, u8 code, int offset, __be32 info)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -343,7 +343,7 @@ static void rawv6_err(struct sock *sk, struct sk_buff *skb,
 }
 
 void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
-		int type, int code, int inner_offset, __be32 info)
+		u8 type, u8 code, int inner_offset, __be32 info)
 {
 	struct sock *sk;
 	int hash;

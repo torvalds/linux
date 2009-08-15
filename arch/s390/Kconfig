@@ -95,6 +95,11 @@ config S390
 	select HAVE_ARCH_TRACEHOOK
 	select INIT_ALL_POSSIBLE
 	select HAVE_PERF_COUNTERS
+	select GENERIC_ATOMIC64 if !64BIT
+
+config SCHED_OMIT_FRAME_POINTER
+	bool
+	default y
 
 source "init/Kconfig"
 
@@ -115,6 +120,9 @@ config 64BIT
 config 32BIT
 	bool
 	default y if !64BIT
+
+config KTIME_SCALAR
+	def_bool 32BIT
 
 config SMP
 	bool "Symmetric multi-processing support"

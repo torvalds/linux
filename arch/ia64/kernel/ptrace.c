@@ -15,7 +15,6 @@
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
-#include <linux/smp_lock.h>
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/audit.h>

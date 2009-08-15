@@ -1856,7 +1856,7 @@ E: rfkoenig@immd4.informatik.uni-erlangen.de
 D: The Linux Support Team Erlangen
 
 N: Andreas Koensgen
-E: ajk@iehk.rwth-aachen.de
+E: ajk@comnets.uni-bremen.de
 D: 6pack driver for AX.25
 
 N: Harald Koerfgen
@@ -2005,6 +2005,9 @@ N: Paul Laufer
 E: paul@laufernet.com
 D: Soundblaster driver fixes, ISAPnP quirk
 S: California, USA
+
+N: Jonathan Layes
+D: ARPD support
 
 N: Tom Lees
 E: tom@lpsg.demon.co.uk
@@ -3801,6 +3804,9 @@ D: Written Specialix SX driver
 S: van Bronckhorststraat 12
 S: 2612 XV Delft
 S: The Netherlands
+
+N: Thomas Woller
+D: CS461x Cirrus Logic sound driver
 
 N: David Woodhouse
 E: dwmw2@infradead.org

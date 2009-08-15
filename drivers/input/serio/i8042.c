@@ -934,10 +934,11 @@ static bool i8042_suspended;
 
 static int i8042_suspend(struct platform_device *dev, pm_message_t state)
 {
-	if (!i8042_suspended && state.event == PM_EVENT_SUSPEND) {
+	if (!i8042_suspended && state.event == PM_EVENT_SUSPEND)
 		i8042_controller_reset();
-		i8042_suspended = true;
-	}
+
+	i8042_suspended = state.event == PM_EVENT_SUSPEND ||
+			  state.event == PM_EVENT_FREEZE;
 
 	return 0;
 }

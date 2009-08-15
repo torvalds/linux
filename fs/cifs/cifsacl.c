@@ -327,7 +327,7 @@ static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
 
 static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 		       struct cifs_sid *pownersid, struct cifs_sid *pgrpsid,
-		       struct inode *inode)
+		       struct cifs_fattr *fattr)
 {
 	int i;
 	int num_aces = 0;
@@ -340,7 +340,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	if (!pdacl) {
 		/* no DACL in the security descriptor, set
 		   all the permissions for user/group/other */
-		inode->i_mode |= S_IRWXUGO;
+		fattr->cf_mode |= S_IRWXUGO;
 		return;
 	}
 
@@ -357,7 +357,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	/* reset rwx permissions for user/group/other.
 	   Also, if num_aces is 0 i.e. DACL has no ACEs,
 	   user/group/other have no permissions */
-	inode->i_mode &= ~(S_IRWXUGO);
+	fattr->cf_mode &= ~(S_IRWXUGO);
 
 	acl_base = (char *)pdacl;
 	acl_size = sizeof(struct cifs_acl);
@@ -379,17 +379,17 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 			if (compare_sids(&(ppace[i]->sid), pownersid))
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
-						     &(inode->i_mode),
+						     &fattr->cf_mode,
 						     &user_mask);
 			if (compare_sids(&(ppace[i]->sid), pgrpsid))
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
-						     &(inode->i_mode),
+						     &fattr->cf_mode,
 						     &group_mask);
 			if (compare_sids(&(ppace[i]->sid), &sid_everyone))
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
-						     &(inode->i_mode),
+						     &fattr->cf_mode,
 						     &other_mask);
 
 /*			memcpy((void *)(&(cifscred->aces[i])),
@@ -464,7 +464,7 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 
 /* Convert CIFS ACL to POSIX form */
 static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
-			  struct inode *inode)
+			  struct cifs_fattr *fattr)
 {
 	int rc;
 	struct cifs_sid *owner_sid_ptr, *group_sid_ptr;
@@ -472,7 +472,7 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 	char *end_of_acl = ((char *)pntsd) + acl_len;
 	__u32 dacloffset;
 
-	if ((inode == NULL) || (pntsd == NULL))
+	if (pntsd == NULL)
 		return -EIO;
 
 	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
@@ -497,7 +497,7 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 
 	if (dacloffset)
 		parse_dacl(dacl_ptr, end_of_acl, owner_sid_ptr,
-			   group_sid_ptr, inode);
+			   group_sid_ptr, fattr);
 	else
 		cFYI(1, ("no ACL")); /* BB grant all or default perms? */
 
@@ -507,7 +507,6 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 			sizeof(struct cifs_sid));
 	memcpy((void *)(&(cifscred->gsid)), (void *)group_sid_ptr,
 			sizeof(struct cifs_sid)); */
-
 
 	return 0;
 }
@@ -671,8 +670,9 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 }
 
 /* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
-void acl_to_uid_mode(struct cifs_sb_info *cifs_sb, struct inode *inode,
-		     const char *path, const __u16 *pfid)
+void
+cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
+		  struct inode *inode, const char *path, const __u16 *pfid)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	u32 acllen = 0;
@@ -687,7 +687,7 @@ void acl_to_uid_mode(struct cifs_sb_info *cifs_sb, struct inode *inode,
 
 	/* if we can retrieve the ACL, now parse Access Control Entries, ACEs */
 	if (pntsd)
-		rc = parse_sec_desc(pntsd, acllen, inode);
+		rc = parse_sec_desc(pntsd, acllen, fattr);
 	if (rc)
 		cFYI(1, ("parse sec desc failed rc = %d", rc));
 

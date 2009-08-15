@@ -356,6 +356,7 @@ ppp_asynctty_receive(struct tty_struct *tty, const unsigned char *buf,
 	if (!skb_queue_empty(&ap->rqueue))
 		tasklet_schedule(&ap->tsk);
 	ap_put(ap);
+	tty_unthrottle(tty);
 }
 
 static void

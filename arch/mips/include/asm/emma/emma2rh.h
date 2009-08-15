@@ -1,7 +1,4 @@
 /*
- *  arch/mips/include/asm/emma/emma2rh.h
- *      This file is EMMA2RH common header.
- *
  *  Copyright (C) NEC Electronics Corporation 2005-2006
  *
  *  This file based on include/asm-mips/ddb5xxx/ddb5xxx.h

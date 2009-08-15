@@ -62,6 +62,7 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
@@ -467,7 +468,6 @@ static unsigned int free_tbuf_count(struct slgt_info *info);
 static unsigned int tbuf_bytes(struct slgt_info *info);
 static void reset_tbufs(struct slgt_info *info);
 static void tdma_reset(struct slgt_info *info);
-static void tdma_start(struct slgt_info *info);
 static void tx_load(struct slgt_info *info, const char *buf, unsigned int count);
 
 static void get_signals(struct slgt_info *info);
@@ -795,6 +795,18 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	}
 }
 
+static void update_tx_timer(struct slgt_info *info)
+{
+	/*
+	 * use worst case speed of 1200bps to calculate transmit timeout
+	 * based on data in buffers (tbuf_bytes) and FIFO (128 bytes)
+	 */
+	if (info->params.mode == MGSL_MODE_HDLC) {
+		int timeout  = (tbuf_bytes(info) * 7) + 1000;
+		mod_timer(&info->tx_timer, jiffies + msecs_to_jiffies(timeout));
+	}
+}
+
 static int write(struct tty_struct *tty,
 		 const unsigned char *buf, int count)
 {
@@ -838,8 +850,18 @@ start:
 		spin_lock_irqsave(&info->lock,flags);
 		if (!info->tx_active)
 		 	tx_start(info);
-		else
-			tdma_start(info);
+		else if (!(rd_reg32(info, TDCSR) & BIT0)) {
+			/* transmit still active but transmit DMA stopped */
+			unsigned int i = info->tbuf_current;
+			if (!i)
+				i = info->tbuf_count;
+			i--;
+			/* if DMA buf unsent must try later after tx idle */
+			if (desc_count(info->tbufs[i]))
+				ret = 0;
+		}
+		if (ret > 0)
+			update_tx_timer(info);
 		spin_unlock_irqrestore(&info->lock,flags);
  	}
 
@@ -1502,10 +1524,9 @@ static int hdlcdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* save start time for transmit timeout detection */
 	dev->trans_start = jiffies;
 
-	/* start hardware transmitter if necessary */
 	spin_lock_irqsave(&info->lock,flags);
-	if (!info->tx_active)
-	 	tx_start(info);
+	tx_start(info);
+	update_tx_timer(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 
 	return 0;
@@ -3946,48 +3967,17 @@ static void tx_start(struct slgt_info *info)
 			slgt_irq_on(info, IRQ_TXUNDER + IRQ_TXIDLE);
 			/* clear tx idle and underrun status bits */
 			wr_reg16(info, SSR, (unsigned short)(IRQ_TXIDLE + IRQ_TXUNDER));
-			if (info->params.mode == MGSL_MODE_HDLC)
-				mod_timer(&info->tx_timer, jiffies +
-						msecs_to_jiffies(5000));
 		} else {
 			slgt_irq_off(info, IRQ_TXDATA);
 			slgt_irq_on(info, IRQ_TXIDLE);
 			/* clear tx idle status bit */
 			wr_reg16(info, SSR, IRQ_TXIDLE);
 		}
-		tdma_start(info);
+		/* set 1st descriptor address and start DMA */
+		wr_reg32(info, TDDAR, info->tbufs[info->tbuf_start].pdesc);
+		wr_reg32(info, TDCSR, BIT2 + BIT0);
 		info->tx_active = true;
 	}
-}
-
-/*
- * start transmit DMA if inactive and there are unsent buffers
- */
-static void tdma_start(struct slgt_info *info)
-{
-	unsigned int i;
-
-	if (rd_reg32(info, TDCSR) & BIT0)
-		return;
-
-	/* transmit DMA inactive, check for unsent buffers */
-	i = info->tbuf_start;
-	while (!desc_count(info->tbufs[i])) {
-		if (++i == info->tbuf_count)
-			i = 0;
-		if (i == info->tbuf_current)
-			return;
-	}
-	info->tbuf_start = i;
-
-	/* there are unsent buffers, start transmit DMA */
-
-	/* reset needed if previous error condition */
-	tdma_reset(info);
-
-	/* set 1st descriptor address */
-	wr_reg32(info, TDDAR, info->tbufs[info->tbuf_start].pdesc);
-	wr_reg32(info, TDCSR, BIT2 + BIT0); /* IRQ + DMA enable */
 }
 
 static void tx_stop(struct slgt_info *info)
@@ -5004,8 +4994,7 @@ static void tx_timeout(unsigned long context)
 		info->icount.txtimeout++;
 	}
 	spin_lock_irqsave(&info->lock,flags);
-	info->tx_active = false;
-	info->tx_count = 0;
+	tx_stop(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 
 #if SYNCLINK_GENERIC_HDLC

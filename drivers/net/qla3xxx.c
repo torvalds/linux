@@ -3142,6 +3142,7 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 						(void __iomem *)port_regs;
 	u32 delay = 10;
 	int status = 0;
+	unsigned long hw_flags = 0;
 
 	if(ql_mii_setup(qdev))
 		return -1;
@@ -3150,7 +3151,8 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 	ql_write_common_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
 			    (ISP_SERIAL_PORT_IF_WE |
 			     (ISP_SERIAL_PORT_IF_WE << 16)));
-
+	/* Give the PHY time to come out of reset. */
+	mdelay(100);
 	qdev->port_link_state = LS_DOWN;
 	netif_carrier_off(qdev->ndev);
 
@@ -3350,7 +3352,9 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 		value = ql_read_page0_reg(qdev, &port_regs->portStatus);
 		if (value & PORT_STATUS_IC)
 			break;
+		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 		msleep(500);
+		spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 	} while (--delay);
 
 	if (delay == 0) {

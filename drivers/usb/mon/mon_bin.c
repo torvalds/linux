@@ -1261,7 +1261,7 @@ static int mon_alloc_buff(struct mon_pgmap *map, int npages)
 			return -ENOMEM;
 		}
 		map[n].ptr = (unsigned char *) vaddr;
-		map[n].pg = virt_to_page(vaddr);
+		map[n].pg = virt_to_page((void *) vaddr);
 	}
 	return 0;
 }

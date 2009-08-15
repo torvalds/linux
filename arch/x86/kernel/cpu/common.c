@@ -59,7 +59,30 @@ void __init setup_cpu_local_masks(void)
 	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
 }
 
-static const struct cpu_dev *this_cpu __cpuinitdata;
+static void __cpuinit default_init(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_X86_64
+	display_cacheinfo(c);
+#else
+	/* Not much we can do here... */
+	/* Check if at least it has cpuid */
+	if (c->cpuid_level == -1) {
+		/* No cpuid. It must be an ancient CPU */
+		if (c->x86 == 4)
+			strcpy(c->x86_model_id, "486");
+		else if (c->x86 == 3)
+			strcpy(c->x86_model_id, "386");
+	}
+#endif
+}
+
+static const struct cpu_dev __cpuinitconst default_cpu = {
+	.c_init		= default_init,
+	.c_vendor	= "Unknown",
+	.c_x86_vendor	= X86_VENDOR_UNKNOWN,
+};
+
+static const struct cpu_dev *this_cpu __cpuinitdata = &default_cpu;
 
 DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 #ifdef CONFIG_X86_64
@@ -331,29 +354,6 @@ void switch_to_new_gdt(int cpu)
 }
 
 static const struct cpu_dev *__cpuinitdata cpu_devs[X86_VENDOR_NUM] = {};
-
-static void __cpuinit default_init(struct cpuinfo_x86 *c)
-{
-#ifdef CONFIG_X86_64
-	display_cacheinfo(c);
-#else
-	/* Not much we can do here... */
-	/* Check if at least it has cpuid */
-	if (c->cpuid_level == -1) {
-		/* No cpuid. It must be an ancient CPU */
-		if (c->x86 == 4)
-			strcpy(c->x86_model_id, "486");
-		else if (c->x86 == 3)
-			strcpy(c->x86_model_id, "386");
-	}
-#endif
-}
-
-static const struct cpu_dev __cpuinitconst default_cpu = {
-	.c_init	= default_init,
-	.c_vendor = "Unknown",
-	.c_x86_vendor = X86_VENDOR_UNKNOWN,
-};
 
 static void __cpuinit get_model_name(struct cpuinfo_x86 *c)
 {
@@ -848,9 +848,6 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_64)
 	numa_add_cpu(smp_processor_id());
 #endif
-
-	/* Cap the iomem address space to what is addressable on all CPUs */
-	iomem_resource.end &= (1ULL << c->x86_phys_bits) - 1;
 }
 
 #ifdef CONFIG_X86_64

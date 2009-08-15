@@ -552,7 +552,7 @@ static int hvc_chars_in_buffer(struct tty_struct *tty)
 	struct hvc_struct *hp = tty->driver_data;
 
 	if (!hp)
-		return -1;
+		return 0;
 	return hp->n_outbuf;
 }
 

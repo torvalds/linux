@@ -299,8 +299,8 @@ int btrfs_start_workers(struct btrfs_workers *workers, int num_workers)
 					   "btrfs-%s-%d", workers->name,
 					   workers->num_workers + i);
 		if (IS_ERR(worker->task)) {
-			kfree(worker);
 			ret = PTR_ERR(worker->task);
+			kfree(worker);
 			goto fail;
 		}
 
@@ -424,11 +424,11 @@ int btrfs_requeue_work(struct btrfs_work *work)
 	 * list
 	 */
 	if (worker->idle) {
-		spin_lock_irqsave(&worker->workers->lock, flags);
+		spin_lock(&worker->workers->lock);
 		worker->idle = 0;
 		list_move_tail(&worker->worker_list,
 			       &worker->workers->worker_list);
-		spin_unlock_irqrestore(&worker->workers->lock, flags);
+		spin_unlock(&worker->workers->lock);
 	}
 	if (!worker->working) {
 		wake = 1;

@@ -547,7 +547,7 @@ static int __init sh7786_devices_setup(void)
 	return platform_add_devices(sh7786_devices,
 				    ARRAY_SIZE(sh7786_devices));
 }
-device_initcall(sh7786_devices_setup);
+arch_initcall(sh7786_devices_setup);
 
 void __init plat_early_device_setup(void)
 {

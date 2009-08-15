@@ -190,6 +190,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		phy->ops.write_reg          = igb_write_phy_reg_igp;
 	}
 
+	/* set lan id */
+	hw->bus.func = (rd32(E1000_STATUS) & E1000_STATUS_FUNC_MASK) >>
+	               E1000_STATUS_FUNC_SHIFT;
+
 	/* Set phy->phy_addr and phy->id. */
 	ret_val = igb_get_phy_id_82575(hw);
 	if (ret_val)

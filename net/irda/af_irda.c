@@ -45,6 +45,7 @@
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/smp_lock.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/init.h>
@@ -913,9 +914,6 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	/* Clean up the original one to keep it in listen state */
 	irttp_listen(self->tsap);
 
-	/* Wow ! What is that ? Jean II */
-	skb->sk = NULL;
-	skb->destructor = NULL;
 	kfree_skb(skb);
 	sk->sk_ack_backlog--;
 

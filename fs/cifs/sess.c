@@ -802,7 +802,7 @@ ssetup_ntlmssp_authenticate:
 #endif /* CONFIG_CIFS_UPCALL */
 	} else {
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-		if ((experimEnabled > 1) && (type == RawNTLMSSP)) {
+		if (type == RawNTLMSSP) {
 			if ((pSMB->req.hdr.Flags2 & SMBFLG2_UNICODE) == 0) {
 				cERROR(1, ("NTLMSSP requires Unicode support"));
 				rc = -ENOSYS;

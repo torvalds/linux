@@ -864,7 +864,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
 
 #if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
 static struct i2c_board_info __initdata bfin_i2c_board_info1[] = {
-#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
+#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
 	{
 		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
 	},

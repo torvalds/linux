@@ -36,6 +36,7 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <linux/proc_fs.h>
 #include <linux/reboot.h>
 #include <linux/spinlock.h>

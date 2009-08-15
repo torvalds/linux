@@ -57,6 +57,7 @@ header-y += dlmconstants.h
 header-y += dlm_device.h
 header-y += dlm_netlink.h
 header-y += dm-ioctl.h
+header-y += dm-log-userspace.h
 header-y += dn.h
 header-y += dqblk_xfs.h
 header-y += efs_fs_sb.h

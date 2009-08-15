@@ -291,7 +291,9 @@ function_stat_next(void *v, int idx)
 	pg = (struct ftrace_profile_page *)((unsigned long)rec & PAGE_MASK);
 
  again:
-	rec++;
+	if (idx != 0)
+		rec++;
+
 	if ((void *)rec >= (void *)&pg->records[pg->index]) {
 		pg = pg->next;
 		if (!pg)
@@ -766,7 +768,7 @@ static struct tracer_stat function_stats __initdata = {
 	.stat_show	= function_stat_show
 };
 
-static void ftrace_profile_debugfs(struct dentry *d_tracer)
+static __init void ftrace_profile_debugfs(struct dentry *d_tracer)
 {
 	struct ftrace_profile_stat *stat;
 	struct dentry *entry;
@@ -784,7 +786,6 @@ static void ftrace_profile_debugfs(struct dentry *d_tracer)
 			 * The files created are permanent, if something happens
 			 * we still do not free memory.
 			 */
-			kfree(stat);
 			WARN(1,
 			     "Could not allocate stat file for cpu %d\n",
 			     cpu);
@@ -811,7 +812,7 @@ static void ftrace_profile_debugfs(struct dentry *d_tracer)
 }
 
 #else /* CONFIG_FUNCTION_PROFILER */
-static void ftrace_profile_debugfs(struct dentry *d_tracer)
+static __init void ftrace_profile_debugfs(struct dentry *d_tracer)
 {
 }
 #endif /* CONFIG_FUNCTION_PROFILER */
@@ -1417,10 +1418,20 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
 	void *p = NULL;
+	loff_t l;
+
+	if (!(iter->flags & FTRACE_ITER_HASH))
+		*pos = 0;
 
 	iter->flags |= FTRACE_ITER_HASH;
 
-	return t_hash_next(m, p, pos);
+	iter->hidx = 0;
+	for (l = 0; l <= *pos; ) {
+		p = t_hash_next(m, p, &l);
+		if (!p)
+			break;
+	}
+	return p;
 }
 
 static int t_hash_show(struct seq_file *m, void *v)
@@ -1467,8 +1478,6 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 			iter->pg = iter->pg->next;
 			iter->idx = 0;
 			goto retry;
-		} else {
-			iter->idx = -1;
 		}
 	} else {
 		rec = &iter->pg->records[iter->idx++];
@@ -1497,6 +1506,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
 	void *p = NULL;
+	loff_t l;
 
 	mutex_lock(&ftrace_lock);
 	/*
@@ -1508,23 +1518,21 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 		if (*pos > 0)
 			return t_hash_start(m, pos);
 		iter->flags |= FTRACE_ITER_PRINTALL;
-		(*pos)++;
 		return iter;
 	}
 
 	if (iter->flags & FTRACE_ITER_HASH)
 		return t_hash_start(m, pos);
 
-	if (*pos > 0) {
-		if (iter->idx < 0)
-			return p;
-		(*pos)--;
-		iter->idx--;
+	iter->pg = ftrace_pages_start;
+	iter->idx = 0;
+	for (l = 0; l <= *pos; ) {
+		p = t_next(m, p, &l);
+		if (!p)
+			break;
 	}
 
-	p = t_next(m, p, pos);
-
-	if (!p)
+	if (!p && iter->flags & FTRACE_ITER_FILTER)
 		return t_hash_start(m, pos);
 
 	return p;
@@ -1654,7 +1662,7 @@ ftrace_regex_open(struct inode *inode, struct file *file, int enable)
 
 	mutex_lock(&ftrace_regex_lock);
 	if ((file->f_mode & FMODE_WRITE) &&
-	    !(file->f_flags & O_APPEND))
+	    (file->f_flags & O_TRUNC))
 		ftrace_filter_reset(enable);
 
 	if (file->f_mode & FMODE_READ) {
@@ -2500,32 +2508,31 @@ int ftrace_graph_count;
 unsigned long ftrace_graph_funcs[FTRACE_GRAPH_MAX_FUNCS] __read_mostly;
 
 static void *
-g_next(struct seq_file *m, void *v, loff_t *pos)
+__g_next(struct seq_file *m, loff_t *pos)
 {
 	unsigned long *array = m->private;
-	int index = *pos;
 
-	(*pos)++;
-
-	if (index >= ftrace_graph_count)
+	if (*pos >= ftrace_graph_count)
 		return NULL;
+	return &array[*pos];
+}
 
-	return &array[index];
+static void *
+g_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	(*pos)++;
+	return __g_next(m, pos);
 }
 
 static void *g_start(struct seq_file *m, loff_t *pos)
 {
-	void *p = NULL;
-
 	mutex_lock(&graph_lock);
 
 	/* Nothing, tell g_show to print all functions are enabled */
 	if (!ftrace_graph_count && !*pos)
 		return (void *)1;
 
-	p = g_next(m, p, pos);
-
-	return p;
+	return __g_next(m, pos);
 }
 
 static void g_stop(struct seq_file *m, void *p)
@@ -2570,7 +2577,7 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&graph_lock);
 	if ((file->f_mode & FMODE_WRITE) &&
-	    !(file->f_flags & O_APPEND)) {
+	    (file->f_flags & O_TRUNC)) {
 		ftrace_graph_count = 0;
 		memset(ftrace_graph_funcs, 0, sizeof(ftrace_graph_funcs));
 	}
@@ -2586,6 +2593,14 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 	mutex_unlock(&graph_lock);
 
 	return ret;
+}
+
+static int
+ftrace_graph_release(struct inode *inode, struct file *file)
+{
+	if (file->f_mode & FMODE_READ)
+		seq_release(inode, file);
+	return 0;
 }
 
 static int
@@ -2717,9 +2732,10 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 }
 
 static const struct file_operations ftrace_graph_fops = {
-	.open = ftrace_graph_open,
-	.read = seq_read,
-	.write = ftrace_graph_write,
+	.open		= ftrace_graph_open,
+	.read		= seq_read,
+	.write		= ftrace_graph_write,
+	.release	= ftrace_graph_release,
 };
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
@@ -3152,10 +3168,10 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 	ret  = proc_dointvec(table, write, file, buffer, lenp, ppos);
 
-	if (ret || !write || (last_ftrace_enabled == ftrace_enabled))
+	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
 		goto out;
 
-	last_ftrace_enabled = ftrace_enabled;
+	last_ftrace_enabled = !!ftrace_enabled;
 
 	if (ftrace_enabled) {
 

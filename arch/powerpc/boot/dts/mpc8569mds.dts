@@ -253,6 +253,7 @@
 			/* Filled in by U-Boot */
 			clock-frequency = <0>;
 			status = "disabled";
+			sdhci,1-bit-only;
 		};
 
 		crypto@30000 {
@@ -499,6 +500,10 @@
 				interrupt-parent = <&mpic>;
 				reg = <0x6>;
 				device_type = "ethernet-phy";
+			};
+			tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
 			};
 		};
 		mdio@3520 {

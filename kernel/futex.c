@@ -247,6 +247,7 @@ again:
 	if (err < 0)
 		return err;
 
+	page = compound_head(page);
 	lock_page(page);
 	if (!page->mapping) {
 		unlock_page(page);
@@ -282,6 +283,25 @@ static inline
 void put_futex_key(int fshared, union futex_key *key)
 {
 	drop_futex_key_refs(key);
+}
+
+/*
+ * fault_in_user_writeable - fault in user address and verify RW access
+ * @uaddr:	pointer to faulting user space address
+ *
+ * Slow path to fixup the fault we just took in the atomic write
+ * access to @uaddr.
+ *
+ * We have no generic implementation of a non destructive write to the
+ * user address. We know that we faulted in the atomic pagefault
+ * disabled section so we can as well avoid the #PF overhead by
+ * calling get_user_pages() right away.
+ */
+static int fault_in_user_writeable(u32 __user *uaddr)
+{
+	int ret = get_user_pages(current, current->mm, (unsigned long)uaddr,
+				 1, 1, 0, NULL, NULL);
+	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -896,7 +916,6 @@ retry:
 retry_private:
 	op_ret = futex_atomic_op_inuser(op, uaddr2);
 	if (unlikely(op_ret < 0)) {
-		u32 dummy;
 
 		double_unlock_hb(hb1, hb2);
 
@@ -914,7 +933,7 @@ retry_private:
 			goto out_put_keys;
 		}
 
-		ret = get_user(dummy, uaddr2);
+		ret = fault_in_user_writeable(uaddr2);
 		if (ret)
 			goto out_put_keys;
 
@@ -991,15 +1010,19 @@ void requeue_futex(struct futex_q *q, struct futex_hash_bucket *hb1,
  * requeue_pi_wake_futex() - Wake a task that acquired the lock during requeue
  * q:	the futex_q
  * key:	the key of the requeue target futex
+ * hb:  the hash_bucket of the requeue target futex
  *
  * During futex_requeue, with requeue_pi=1, it is possible to acquire the
  * target futex if it is uncontended or via a lock steal.  Set the futex_q key
  * to the requeue target futex so the waiter can detect the wakeup on the right
  * futex, but remove it from the hb and NULL the rt_waiter so it can detect
- * atomic lock acquisition.  Must be called with the q->lock_ptr held.
+ * atomic lock acquisition.  Set the q->lock_ptr to the requeue target hb->lock
+ * to protect access to the pi_state to fixup the owner later.  Must be called
+ * with both q->lock_ptr and hb->lock held.
  */
 static inline
-void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key)
+void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key,
+			   struct futex_hash_bucket *hb)
 {
 	drop_futex_key_refs(&q->key);
 	get_futex_key_refs(key);
@@ -1010,6 +1033,11 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key)
 
 	WARN_ON(!q->rt_waiter);
 	q->rt_waiter = NULL;
+
+	q->lock_ptr = &hb->lock;
+#ifdef CONFIG_DEBUG_PI_LIST
+	q->list.plist.lock = &hb->lock;
+#endif
 
 	wake_up_state(q->task, TASK_NORMAL);
 }
@@ -1069,7 +1097,7 @@ static int futex_proxy_trylock_atomic(u32 __user *pifutex,
 	ret = futex_lock_pi_atomic(pifutex, hb2, key2, ps, top_waiter->task,
 				   set_waiters);
 	if (ret == 1)
-		requeue_pi_wake_futex(top_waiter, key2);
+		requeue_pi_wake_futex(top_waiter, key2, hb2);
 
 	return ret;
 }
@@ -1204,7 +1232,7 @@ retry_private:
 			double_unlock_hb(hb1, hb2);
 			put_futex_key(fshared, &key2);
 			put_futex_key(fshared, &key1);
-			ret = get_user(curval2, uaddr2);
+			ret = fault_in_user_writeable(uaddr2);
 			if (!ret)
 				goto retry;
 			goto out;
@@ -1228,8 +1256,15 @@ retry_private:
 		if (!match_futex(&this->key, &key1))
 			continue;
 
-		WARN_ON(!requeue_pi && this->rt_waiter);
-		WARN_ON(requeue_pi && !this->rt_waiter);
+		/*
+		 * FUTEX_WAIT_REQEUE_PI and FUTEX_CMP_REQUEUE_PI should always
+		 * be paired with each other and no other futex ops.
+		 */
+		if ((requeue_pi && !this->rt_waiter) ||
+		    (!requeue_pi && this->rt_waiter)) {
+			ret = -EINVAL;
+			break;
+		}
 
 		/*
 		 * Wake nr_wake waiters.  For requeue_pi, if we acquired the
@@ -1254,7 +1289,7 @@ retry_private:
 							this->task, 1);
 			if (ret == 1) {
 				/* We got the lock. */
-				requeue_pi_wake_futex(this, &key2);
+				requeue_pi_wake_futex(this, &key2, hb2);
 				continue;
 			} else if (ret) {
 				/* -EDEADLK */
@@ -1482,7 +1517,7 @@ retry:
 handle_fault:
 	spin_unlock(q->lock_ptr);
 
-	ret = get_user(uval, uaddr);
+	ret = fault_in_user_writeable(uaddr);
 
 	spin_lock(q->lock_ptr);
 
@@ -1807,7 +1842,6 @@ static int futex_lock_pi(u32 __user *uaddr, int fshared,
 {
 	struct hrtimer_sleeper timeout, *to = NULL;
 	struct futex_hash_bucket *hb;
-	u32 uval;
 	struct futex_q q;
 	int res, ret;
 
@@ -1909,16 +1943,9 @@ out:
 	return ret != -EINTR ? ret : -ERESTARTNOINTR;
 
 uaddr_faulted:
-	/*
-	 * We have to r/w  *(int __user *)uaddr, and we have to modify it
-	 * atomically.  Therefore, if we continue to fault after get_user()
-	 * below, we need to handle the fault ourselves, while still holding
-	 * the mmap_sem.  This can occur if the uaddr is under contention as
-	 * we have to drop the mmap_sem in order to call get_user().
-	 */
 	queue_unlock(&q, hb);
 
-	ret = get_user(uval, uaddr);
+	ret = fault_in_user_writeable(uaddr);
 	if (ret)
 		goto out_put_key;
 
@@ -2013,17 +2040,10 @@ out:
 	return ret;
 
 pi_faulted:
-	/*
-	 * We have to r/w  *(int __user *)uaddr, and we have to modify it
-	 * atomically.  Therefore, if we continue to fault after get_user()
-	 * below, we need to handle the fault ourselves, while still holding
-	 * the mmap_sem.  This can occur if the uaddr is under contention as
-	 * we have to drop the mmap_sem in order to call get_user().
-	 */
 	spin_unlock(&hb->lock);
 	put_futex_key(fshared, &key);
 
-	ret = get_user(uval, uaddr);
+	ret = fault_in_user_writeable(uaddr);
 	if (!ret)
 		goto retry;
 

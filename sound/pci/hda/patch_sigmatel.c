@@ -1590,8 +1590,6 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_REF),
-	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0xfb30,
-		      "SigmaTel",STAC_9205_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DFI, 0x3101,
 		      "DFI LanParty", STAC_REF),
 	/* Dell laptops have BIOS problem */
@@ -1811,6 +1809,8 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 				"Dell Studio 1537", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02a0,
 				"Dell Studio 17", STAC_DELL_M6_DMIC),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02be,
+				"Dell Studio 1555", STAC_DELL_M6_DMIC),
 	{} /* terminator */
 };
 
@@ -2266,7 +2266,7 @@ static struct snd_pci_quirk stac927x_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01f3, "Dell Inspiron 1420", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x0227, "Dell Vostro 1400  ", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x022e, "Dell     ", STAC_DELL_BIOS),
-	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x022f, "Dell Inspiron 1525", STAC_DELL_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x022f, "Dell Inspiron 1525", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x0242, "Dell     ", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x0243, "Dell     ", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x02ff, "Dell     ", STAC_DELL_BIOS),
@@ -2344,6 +2344,8 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_9205_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0xfb30,
+		      "SigmaTel", STAC_9205_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DFI, 0x3101,
 		      "DFI LanParty", STAC_9205_REF),
 	/* Dell */
@@ -2378,6 +2380,7 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0228,
 		      "Dell Vostro 1500", STAC_9205_DELL_M42),
 	/* Gateway */
+	SND_PCI_QUIRK(0x107b, 0x0560, "Gateway T6834c", STAC_9205_EAPD),
 	SND_PCI_QUIRK(0x107b, 0x0565, "Gateway T1616", STAC_9205_EAPD),
 	{} /* terminator */
 };
@@ -4065,7 +4068,7 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 	jack->nid = nid;
 	jack->type = type;
 
-	sprintf(name, "%s at %s %s Jack",
+	snprintf(name, sizeof(name), "%s at %s %s Jack",
 		snd_hda_get_jack_type(def_conf),
 		snd_hda_get_jack_connectivity(def_conf),
 		snd_hda_get_jack_location(def_conf));
@@ -5642,6 +5645,13 @@ static int patch_stac927x(struct hda_codec *codec)
 		/* GPIO2 High = Enable EAPD */
 		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x04;
 		spec->gpio_data = 0x04;
+		switch (codec->subsystem_id) {
+		case 0x1028022f:
+			/* correct EAPD to be GPIO0 */
+			spec->eapd_mask = spec->gpio_mask = 0x01;
+			spec->gpio_dir = spec->gpio_data = 0x01;
+			break;
+		};
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
 
@@ -5854,6 +5864,8 @@ static unsigned int *stac9872_brd_tbl[STAC_9872_MODELS] = {
 };
 
 static struct snd_pci_quirk stac9872_cfg_tbl[] = {
+	SND_PCI_QUIRK_MASK(0x104d, 0xfff0, 0x81e0,
+			   "Sony VAIO F/S", STAC_9872_VAIO),
 	{} /* terminator */
 };
 
@@ -5866,6 +5878,8 @@ static int patch_stac9872(struct hda_codec *codec)
 	if (spec == NULL)
 		return -ENOMEM;
 	codec->spec = spec;
+	spec->num_pins = ARRAY_SIZE(stac9872_pin_nids);
+	spec->pin_nids = stac9872_pin_nids;
 
 	spec->board_config = snd_hda_check_board_config(codec, STAC_9872_MODELS,
 							stac9872_models,
@@ -5877,8 +5891,6 @@ static int patch_stac9872(struct hda_codec *codec)
 		stac92xx_set_config_regs(codec,
 					 stac9872_brd_tbl[spec->board_config]);
 
-	spec->num_pins = ARRAY_SIZE(stac9872_pin_nids);
-	spec->pin_nids = stac9872_pin_nids;
 	spec->multiout.dac_nids = spec->dac_nids;
 	spec->num_adcs = ARRAY_SIZE(stac9872_adc_nids);
 	spec->adc_nids = stac9872_adc_nids;

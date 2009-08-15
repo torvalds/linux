@@ -1627,7 +1627,7 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 				drive, dtp->blocks, dtp->spt, dtp->stretch);
 
 		/* sanity check */
-		if (!dtp || setprm.track != dtp->blocks/dtp->spt/2 ||
+		if (setprm.track != dtp->blocks/dtp->spt/2 ||
 		    setprm.head != 2) {
 			redo_fd_request();
 			return -EINVAL;

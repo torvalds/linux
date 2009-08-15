@@ -187,6 +187,8 @@ struct atyfb_par {
 	int mtrr_reg;
 #endif
 	u32 mem_cntl;
+	struct crtc saved_crtc;
+	union aty_pll saved_pll;
 };
 
     /*
@@ -217,6 +219,7 @@ struct atyfb_par {
 #define M64F_XL_DLL		0x00080000
 #define M64F_MFB_FORCE_4	0x00100000
 #define M64F_HW_TRIPLE		0x00200000
+#define M64F_XL_MEM		0x00400000
     /*
      *  Register access
      */

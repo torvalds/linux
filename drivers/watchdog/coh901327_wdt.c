@@ -18,6 +18,7 @@
 #include <linux/bitops.h>
 #include <linux/uaccess.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 
 #define DRV_NAME "WDOG COH 901 327"
 
@@ -92,6 +93,8 @@ static struct clk *clk;
 static void coh901327_enable(u16 timeout)
 {
 	u16 val;
+	unsigned long freq;
+	unsigned long delay_ns;
 
 	clk_enable(clk);
 	/* Restart timer if it is disabled */
@@ -102,6 +105,14 @@ static void coh901327_enable(u16 timeout)
 	/* Acknowledge any pending interrupt so it doesn't just fire off */
 	writew(U300_WDOG_IER_WILL_BARK_IRQ_ACK_ENABLE,
 	       virtbase + U300_WDOG_IER);
+	/*
+	 * The interrupt is cleared in the 32 kHz clock domain.
+	 * Wait 3 32 kHz cycles for it to take effect
+	 */
+	freq = clk_get_rate(clk);
+	delay_ns = (1000000000 + freq - 1) / freq; /* Freq to ns and round up */
+	delay_ns = 3 * delay_ns; /* Wait 3 cycles */
+	ndelay(delay_ns);
 	/* Enable the watchdog interrupt */
 	writew(U300_WDOG_IMR_WILL_BARK_IRQ_ENABLE, virtbase + U300_WDOG_IMR);
 	/* Activate the watchdog timer */

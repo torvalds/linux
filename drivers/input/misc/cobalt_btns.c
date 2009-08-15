@@ -1,7 +1,7 @@
 /*
  *  Cobalt button interface driver.
  *
- *  Copyright (C) 2007-2008  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2007-2008  Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ static int __devexit cobalt_buttons_remove(struct platform_device *pdev)
 	return 0;
 }
 
-MODULE_AUTHOR("Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>");
+MODULE_AUTHOR("Yoichi Yuasa <yuasa@linux-mips.org>");
 MODULE_DESCRIPTION("Cobalt button interface driver");
 MODULE_LICENSE("GPL");
 /* work with hotplug and coldplug */

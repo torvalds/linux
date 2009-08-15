@@ -25,7 +25,7 @@
 #define PCI_BIOS_IRQ_SCAN	0x2000
 #define PCI_ASSIGN_ALL_BUSSES	0x4000
 #define PCI_CAN_SKIP_ISA_ALIGN	0x8000
-#define PCI_NO_ROOT_CRS		0x10000
+#define PCI_USE__CRS		0x10000
 #define PCI_CHECK_ENABLE_AMD_MMCONF	0x20000
 #define PCI_HAS_IO_ECS		0x40000
 #define PCI_NOASSIGN_ROMS	0x80000
@@ -120,6 +120,9 @@ extern int __init pcibios_init(void);
 
 extern int __init pci_mmcfg_arch_init(void);
 extern void __init pci_mmcfg_arch_free(void);
+
+extern struct acpi_mcfg_allocation *pci_mmcfg_config;
+extern int pci_mmcfg_config_num;
 
 /*
  * AMD Fam10h CPUs are buggy, and cannot access MMIO config space

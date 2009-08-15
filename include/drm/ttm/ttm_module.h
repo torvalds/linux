@@ -33,7 +33,7 @@
 
 #include <linux/kernel.h>
 
-#define TTM_PFX "[TTM]"
+#define TTM_PFX "[TTM] "
 
 enum ttm_global_types {
 	TTM_GLOBAL_TTM_MEM = 0,

@@ -1,11 +1,11 @@
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM kmem
+
 #if !defined(_TRACE_KMEM_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_KMEM_H
 
 #include <linux/types.h>
 #include <linux/tracepoint.h>
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM kmem
 
 /*
  * The order of these masks is important. Matching masks will be seen

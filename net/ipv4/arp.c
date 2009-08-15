@@ -801,11 +801,8 @@ static int arp_process(struct sk_buff *skb)
  *  cache.
  */
 
-	/*
-	 *  Special case: IPv4 duplicate address detection packet (RFC2131)
-	 *  and Gratuitous ARP/ARP Announce. (RFC3927, Section 2.4)
-	 */
-	if (sip == 0 || tip == sip) {
+	/* Special case: IPv4 duplicate address detection packet (RFC2131) */
+	if (sip == 0) {
 		if (arp->ar_op == htons(ARPOP_REQUEST) &&
 		    inet_addr_type(net, tip) == RTN_LOCAL &&
 		    !arp_ignore(in_dev, sip, tip))
@@ -1307,7 +1304,9 @@ static void arp_format_neigh_entry(struct seq_file *seq,
 		hbuffer[k++] = hex_asc_lo(n->ha[j]);
 		hbuffer[k++] = ':';
 	}
-	hbuffer[--k] = 0;
+	if (k != 0)
+		--k;
+	hbuffer[k] = 0;
 #if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
 	}
 #endif

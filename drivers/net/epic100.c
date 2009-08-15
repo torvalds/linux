@@ -338,8 +338,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 #ifndef MODULE
 	static int printed_version;
 	if (!printed_version++)
-		printk (KERN_INFO "%s" KERN_INFO "%s",
-			version, version2);
+		printk(KERN_INFO "%s%s", version, version2);
 #endif
 
 	card_idx++;
@@ -1600,7 +1599,7 @@ static int __init epic_init (void)
 {
 /* when a module, this is printed whether or not devices are found in probe */
 #ifdef MODULE
-	printk (KERN_INFO "%s" KERN_INFO "%s",
+	printk (KERN_INFO "%s%s",
 		version, version2);
 #endif
 

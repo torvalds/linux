@@ -1698,13 +1698,13 @@ static int netdev_close(struct net_device *dev)
 
 #ifdef __i386__
 	if (netif_msg_hw(np)) {
-		printk("\n"KERN_DEBUG"  Tx ring at %8.8x:\n",
+		printk(KERN_DEBUG "  Tx ring at %8.8x:\n",
 			   (int)(np->tx_ring_dma));
 		for (i = 0; i < TX_RING_SIZE; i++)
-			printk(" #%d desc. %4.4x %8.8x %8.8x.\n",
+			printk(KERN_DEBUG " #%d desc. %4.4x %8.8x %8.8x.\n",
 				   i, np->tx_ring[i].status, np->tx_ring[i].frag[0].addr,
 				   np->tx_ring[i].frag[0].length);
-		printk("\n"KERN_DEBUG "  Rx ring %8.8x:\n",
+		printk(KERN_DEBUG "  Rx ring %8.8x:\n",
 			   (int)(np->rx_ring_dma));
 		for (i = 0; i < /*RX_RING_SIZE*/4 ; i++) {
 			printk(KERN_DEBUG " #%d desc. %4.4x %4.4x %8.8x\n",

@@ -169,13 +169,14 @@ static void ivch_dump_regs(struct intel_dvo_device *dvo);
 static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
+	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	u8 out_buf[1];
 	u8 in_buf[2];
 
 	struct i2c_msg msgs[] = {
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = I2C_M_RD,
 			.len = 0,
 		},
@@ -186,7 +187,7 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 			.buf = out_buf,
 		},
 		{
-			.addr = i2cbus->slave_addr,
+			.addr = dvo->slave_addr,
 			.flags = I2C_M_RD | I2C_M_NOSTART,
 			.len = 2,
 			.buf = in_buf,
@@ -202,7 +203,7 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 
 	if (!priv->quiet) {
 		DRM_DEBUG("Unable to read register 0x%02x from %s:%02x.\n",
-			  addr, i2cbus->adapter.name, i2cbus->slave_addr);
+			  addr, i2cbus->adapter.name, dvo->slave_addr);
 	}
 	return false;
 }
@@ -211,10 +212,11 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
-	struct intel_i2c_chan *i2cbus = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
+	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	u8 out_buf[3];
 	struct i2c_msg msg = {
-		.addr = i2cbus->slave_addr,
+		.addr = dvo->slave_addr,
 		.flags = 0,
 		.len = 3,
 		.buf = out_buf,
@@ -229,7 +231,7 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 
 	if (!priv->quiet) {
 		DRM_DEBUG("Unable to write register 0x%02x to %s:%d.\n",
-			  addr, i2cbus->adapter.name, i2cbus->slave_addr);
+			  addr, i2cbus->adapter.name, dvo->slave_addr);
 	}
 
 	return false;
@@ -237,7 +239,7 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 
 /** Probes the given bus and slave address for an ivch */
 static bool ivch_init(struct intel_dvo_device *dvo,
-		      struct intel_i2c_chan *i2cbus)
+		      struct i2c_adapter *adapter)
 {
 	struct ivch_priv *priv;
 	uint16_t temp;
@@ -246,8 +248,7 @@ static bool ivch_init(struct intel_dvo_device *dvo,
 	if (priv == NULL)
 		return false;
 
-	dvo->i2c_bus = i2cbus;
-	dvo->i2c_bus->slave_addr = dvo->slave_addr;
+	dvo->i2c_bus = adapter;
 	dvo->dev_priv = priv;
 	priv->quiet = true;
 

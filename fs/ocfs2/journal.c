@@ -1880,12 +1880,19 @@ void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 
 	os = &osb->osb_orphan_scan;
 
-	status = ocfs2_orphan_scan_lock(osb, &seqno, DLM_LOCK_EX);
+	if (atomic_read(&os->os_state) == ORPHAN_SCAN_INACTIVE)
+		goto out;
+
+	status = ocfs2_orphan_scan_lock(osb, &seqno);
 	if (status < 0) {
 		if (status != -EAGAIN)
 			mlog_errno(status);
 		goto out;
 	}
+
+	/* Do no queue the tasks if the volume is being umounted */
+	if (atomic_read(&os->os_state) == ORPHAN_SCAN_INACTIVE)
+		goto unlock;
 
 	if (os->os_seqno != seqno) {
 		os->os_seqno = seqno;
@@ -1903,7 +1910,7 @@ void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 	os->os_count++;
 	os->os_scantime = CURRENT_TIME;
 unlock:
-	ocfs2_orphan_scan_unlock(osb, seqno, DLM_LOCK_EX);
+	ocfs2_orphan_scan_unlock(osb, seqno);
 out:
 	return;
 }
@@ -1920,8 +1927,9 @@ void ocfs2_orphan_scan_work(struct work_struct *work)
 
 	mutex_lock(&os->os_lock);
 	ocfs2_queue_orphan_scan(osb);
-	schedule_delayed_work(&os->os_orphan_scan_work,
-			      ocfs2_orphan_scan_timeout());
+	if (atomic_read(&os->os_state) == ORPHAN_SCAN_ACTIVE)
+		schedule_delayed_work(&os->os_orphan_scan_work,
+				      ocfs2_orphan_scan_timeout());
 	mutex_unlock(&os->os_lock);
 }
 
@@ -1930,26 +1938,39 @@ void ocfs2_orphan_scan_stop(struct ocfs2_super *osb)
 	struct ocfs2_orphan_scan *os;
 
 	os = &osb->osb_orphan_scan;
-	mutex_lock(&os->os_lock);
-	cancel_delayed_work(&os->os_orphan_scan_work);
-	mutex_unlock(&os->os_lock);
+	if (atomic_read(&os->os_state) == ORPHAN_SCAN_ACTIVE) {
+		atomic_set(&os->os_state, ORPHAN_SCAN_INACTIVE);
+		mutex_lock(&os->os_lock);
+		cancel_delayed_work(&os->os_orphan_scan_work);
+		mutex_unlock(&os->os_lock);
+	}
 }
 
-int ocfs2_orphan_scan_init(struct ocfs2_super *osb)
+void ocfs2_orphan_scan_init(struct ocfs2_super *osb)
 {
 	struct ocfs2_orphan_scan *os;
 
 	os = &osb->osb_orphan_scan;
 	os->os_osb = osb;
 	os->os_count = 0;
-	os->os_scantime = CURRENT_TIME;
+	os->os_seqno = 0;
 	mutex_init(&os->os_lock);
+	INIT_DELAYED_WORK(&os->os_orphan_scan_work, ocfs2_orphan_scan_work);
+}
 
-	INIT_DELAYED_WORK(&os->os_orphan_scan_work,
-			  ocfs2_orphan_scan_work);
-	schedule_delayed_work(&os->os_orphan_scan_work,
-			      ocfs2_orphan_scan_timeout());
-	return 0;
+void ocfs2_orphan_scan_start(struct ocfs2_super *osb)
+{
+	struct ocfs2_orphan_scan *os;
+
+	os = &osb->osb_orphan_scan;
+	os->os_scantime = CURRENT_TIME;
+	if (ocfs2_is_hard_readonly(osb) || ocfs2_mount_local(osb))
+		atomic_set(&os->os_state, ORPHAN_SCAN_INACTIVE);
+	else {
+		atomic_set(&os->os_state, ORPHAN_SCAN_ACTIVE);
+		schedule_delayed_work(&os->os_orphan_scan_work,
+				      ocfs2_orphan_scan_timeout());
+	}
 }
 
 struct ocfs2_orphan_filldir_priv {

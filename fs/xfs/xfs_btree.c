@@ -120,8 +120,8 @@ xfs_btree_check_sblock(
 			XFS_RANDOM_BTREE_CHECK_SBLOCK))) {
 		if (bp)
 			xfs_buftrace("SBTREE ERROR", bp);
-		XFS_ERROR_REPORT("xfs_btree_check_sblock", XFS_ERRLEVEL_LOW,
-				 cur->bc_mp);
+		XFS_CORRUPTION_ERROR("xfs_btree_check_sblock",
+			XFS_ERRLEVEL_LOW, cur->bc_mp, block);
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 	return 0;

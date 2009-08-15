@@ -34,6 +34,7 @@
 #include <linux/workqueue.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/lockdep.h>
 #ifndef CONFIG_OCFS2_COMPAT_JBD
 # include <linux/jbd2.h>
 #else
@@ -152,6 +153,14 @@ struct ocfs2_lock_res {
 	unsigned int		 l_lock_max_exmode; 	   /* Max wait for EX */
 	unsigned int		 l_lock_refresh;	   /* Disk refreshes */
 #endif
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	 l_lockdep_map;
+#endif
+};
+
+enum ocfs2_orphan_scan_state {
+	ORPHAN_SCAN_ACTIVE,
+	ORPHAN_SCAN_INACTIVE
 };
 
 struct ocfs2_orphan_scan {
@@ -162,6 +171,7 @@ struct ocfs2_orphan_scan {
 	struct timespec		os_scantime;  /* time this node ran the scan */
 	u32			os_count;      /* tracks node specific scans */
 	u32  			os_seqno;       /* tracks cluster wide scans */
+	atomic_t		os_state;              /* ACTIVE or INACTIVE */
 };
 
 struct ocfs2_dlm_debug {
@@ -214,10 +224,12 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_GRPQUOTA = 1 << 10, /* We support group quotas */
 };
 
-#define OCFS2_OSB_SOFT_RO	0x0001
-#define OCFS2_OSB_HARD_RO	0x0002
-#define OCFS2_OSB_ERROR_FS	0x0004
-#define OCFS2_DEFAULT_ATIME_QUANTUM	60
+#define OCFS2_OSB_SOFT_RO			0x0001
+#define OCFS2_OSB_HARD_RO			0x0002
+#define OCFS2_OSB_ERROR_FS			0x0004
+#define OCFS2_OSB_DROP_DENTRY_LOCK_IMMED	0x0008
+
+#define OCFS2_DEFAULT_ATIME_QUANTUM		60
 
 struct ocfs2_journal;
 struct ocfs2_slot_info;
@@ -478,6 +490,18 @@ static inline void ocfs2_set_osb_flag(struct ocfs2_super *osb,
 	spin_lock(&osb->osb_lock);
 	osb->osb_flags |= flag;
 	spin_unlock(&osb->osb_lock);
+}
+
+
+static inline unsigned long  ocfs2_test_osb_flag(struct ocfs2_super *osb,
+						 unsigned long flag)
+{
+	unsigned long ret;
+
+	spin_lock(&osb->osb_lock);
+	ret = osb->osb_flags & flag;
+	spin_unlock(&osb->osb_lock);
+	return ret;
 }
 
 static inline void ocfs2_set_ro_flag(struct ocfs2_super *osb,

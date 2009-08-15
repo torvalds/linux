@@ -41,8 +41,6 @@ struct btrfs_ordered_sum;
 
 #define BTRFS_MAGIC "_BHRfS_M"
 
-#define BTRFS_ACL_NOT_CACHED    ((void *)-1)
-
 #define BTRFS_MAX_LEVEL 8
 
 #define BTRFS_COMPAT_EXTENT_TREE_V0
@@ -483,7 +481,7 @@ struct btrfs_shared_data_ref {
 
 struct btrfs_extent_inline_ref {
 	u8 type;
-	u64 offset;
+	__le64 offset;
 } __attribute__ ((__packed__));
 
 /* old style backrefs item */
@@ -691,6 +689,7 @@ struct btrfs_space_info {
 	struct list_head block_groups;
 	spinlock_t lock;
 	struct rw_semaphore groups_sem;
+	atomic_t caching_threads;
 };
 
 /*
@@ -709,6 +708,9 @@ struct btrfs_free_cluster {
 	/* first extent starting offset */
 	u64 window_start;
 
+	/* if this cluster simply points at a bitmap in the block group */
+	bool points_to_bitmap;
+
 	struct btrfs_block_group_cache *block_group;
 	/*
 	 * when a cluster is allocated from a block group, we put the
@@ -718,24 +720,37 @@ struct btrfs_free_cluster {
 	struct list_head block_group_list;
 };
 
+enum btrfs_caching_type {
+	BTRFS_CACHE_NO		= 0,
+	BTRFS_CACHE_STARTED	= 1,
+	BTRFS_CACHE_FINISHED	= 2,
+};
+
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
+	struct btrfs_fs_info *fs_info;
 	spinlock_t lock;
-	struct mutex cache_mutex;
 	u64 pinned;
 	u64 reserved;
 	u64 flags;
-	int cached;
+	u64 sectorsize;
+	int extents_thresh;
+	int free_extents;
+	int total_bitmaps;
 	int ro;
 	int dirty;
+
+	/* cache tracking stuff */
+	wait_queue_head_t caching_q;
+	int cached;
 
 	struct btrfs_space_info *space_info;
 
 	/* free space cache stuff */
 	spinlock_t tree_lock;
-	struct rb_root free_space_bytes;
 	struct rb_root free_space_offset;
+	u64 free_space;
 
 	/* block group cache stuff */
 	struct rb_node cache_node;
@@ -810,6 +825,7 @@ struct btrfs_fs_info {
 	struct mutex drop_mutex;
 	struct mutex volume_mutex;
 	struct mutex tree_reloc_mutex;
+	struct rw_semaphore extent_commit_sem;
 
 	/*
 	 * this protects the ordered operations list only while we are
@@ -1990,6 +2006,7 @@ void btrfs_delalloc_reserve_space(struct btrfs_root *root, struct inode *inode,
 				 u64 bytes);
 void btrfs_delalloc_free_space(struct btrfs_root *root, struct inode *inode,
 			      u64 bytes);
+void btrfs_free_pinned_extents(struct btrfs_fs_info *info);
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 		     int level, int *slot);
@@ -2076,8 +2093,7 @@ static inline int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_root *root, struct extent_buffer *leaf);
-int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
-			*root);
+int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref);
 int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct extent_buffer *node,
