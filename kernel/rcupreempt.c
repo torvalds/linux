@@ -548,7 +548,7 @@ void rcu_irq_enter(void)
  * rcu_irq_exit - Called from exiting Hard irq context.
  *
  * If the CPU was idle with dynamic ticks active, update the
- * rcu_dyntick_sched.dynticks to put let the RCU handling be
+ * rcu_dyntick_sched.dynticks to let the RCU handling be
  * aware that the CPU is going back to idle with no ticks.
  */
 void rcu_irq_exit(void)
