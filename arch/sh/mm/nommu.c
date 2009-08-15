@@ -1,20 +1,41 @@
 /*
- * arch/sh/mm/tlb-nommu.c
+ * arch/sh/mm/nommu.c
  *
- * TLB Operations for MMUless SH.
+ * Various helper routines and stubs for MMUless SH.
  *
- * Copyright (C) 2002 Paul Mundt
+ * Copyright (C) 2002 - 2009 Paul Mundt
  *
  * Released under the terms of the GNU GPL v2.0.
  */
 #include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/string.h>
 #include <linux/mm.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#include <asm/page.h>
+#include <asm/uaccess.h>
 
 /*
  * Nothing too terribly exciting here ..
  */
+void copy_page(void *to, void *from)
+{
+	memcpy(to, from, PAGE_SIZE);
+}
+
+__kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n)
+{
+	memcpy(to, from, n);
+	return 0;
+}
+
+__kernel_size_t __clear_user(void *to, __kernel_size_t n)
+{
+	memset(to, 0, n);
+	return 0;
+}
+
 void local_flush_tlb_all(void)
 {
 	BUG();

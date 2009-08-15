@@ -14,7 +14,7 @@ endif
 
 obj-y			+= $(cacheops-y)
 
-mmu-y			:= tlb-nommu.o pg-nommu.o
+mmu-y			:= nommu.o
 mmu-$(CONFIG_MMU)	:= fault_32.o kmap.o tlbflush_32.o ioremap_32.o
 
 obj-y			+= $(mmu-y)
