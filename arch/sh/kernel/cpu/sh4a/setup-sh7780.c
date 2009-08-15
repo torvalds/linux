@@ -256,7 +256,7 @@ static int __init sh7780_devices_setup(void)
 	return platform_add_devices(sh7780_devices,
 				    ARRAY_SIZE(sh7780_devices));
 }
-__initcall(sh7780_devices_setup);
+arch_initcall(sh7780_devices_setup);
 
 static struct platform_device *sh7780_early_devices[] __initdata = {
 	&tmu0_device,

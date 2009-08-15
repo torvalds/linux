@@ -359,7 +359,7 @@ static int __init sh7722_devices_setup(void)
 	return platform_add_devices(sh7722_devices,
 				    ARRAY_SIZE(sh7722_devices));
 }
-__initcall(sh7722_devices_setup);
+arch_initcall(sh7722_devices_setup);
 
 static struct platform_device *sh7722_early_devices[] __initdata = {
 	&cmt_device,

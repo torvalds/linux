@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <math.h>
 
 #include "callchain.h"
 
@@ -112,7 +113,7 @@ static void __sort_chain_graph_rel(struct callchain_node *node,
 	u64 min_hit;
 
 	node->rb_root = RB_ROOT;
-	min_hit = node->children_hit * min_percent / 100.0;
+	min_hit = ceil(node->children_hit * min_percent);
 
 	chain_for_each_child(child, node) {
 		__sort_chain_graph_rel(child, min_percent);
@@ -126,7 +127,7 @@ static void
 sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_node *chain_root,
 		     u64 min_hit __used, struct callchain_param *param)
 {
-	__sort_chain_graph_rel(chain_root, param->min_percent);
+	__sort_chain_graph_rel(chain_root, param->min_percent / 100.0);
 	rb_root->rb_node = chain_root->rb_root.rb_node;
 }
 

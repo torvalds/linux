@@ -6009,7 +6009,7 @@ xfs_getbmap(
 	 */
 	error = ENOMEM;
 	subnex = 16;
-	map = kmem_alloc(subnex * sizeof(*map), KM_MAYFAIL);
+	map = kmem_alloc(subnex * sizeof(*map), KM_MAYFAIL | KM_NOFS);
 	if (!map)
 		goto out_unlock_ilock;
 
