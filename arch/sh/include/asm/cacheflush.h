@@ -20,8 +20,6 @@
 #define flush_dcache_page(page)			do { } while (0)
 #define flush_icache_range(start, end)		do { } while (0)
 #define flush_icache_page(vma,pg)		do { } while (0)
-#define flush_dcache_mmap_lock(mapping)		do { } while (0)
-#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 #define flush_cache_sigtramp(vaddr)		do { } while (0)
 #define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 #define __flush_wback_region(start, size)	do { (void)(start); } while (0)
@@ -70,6 +68,9 @@ extern void copy_from_user_page(struct vm_area_struct *vma,
 
 #define flush_cache_vmap(start, end)		flush_cache_all()
 #define flush_cache_vunmap(start, end)		flush_cache_all()
+
+#define flush_dcache_mmap_lock(mapping)		do { } while (0)
+#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
 void kmap_coherent_init(void);
 void *kmap_coherent(struct page *page, unsigned long addr);

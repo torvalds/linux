@@ -25,9 +25,6 @@ void flush_dcache_page(struct page *pg);
 void flush_icache_range(unsigned long start, unsigned long end);
 void flush_icache_page(struct vm_area_struct *vma, struct page *page);
 
-#define flush_dcache_mmap_lock(mapping)		do { } while (0)
-#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
-
 /* SH3 has unified cache so no special action needed here */
 #define flush_cache_sigtramp(vaddr)		do { } while (0)
 #define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
