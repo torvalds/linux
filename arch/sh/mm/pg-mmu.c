@@ -22,13 +22,14 @@ static pte_t *kmap_coherent_pte;
 
 void __init kmap_coherent_init(void)
 {
-#if defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB)
 	unsigned long vaddr;
+
+	if (!boot_cpu_data.dcache.n_aliases)
+		return;
 
 	/* cache the first coherent kmap pte */
 	vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
 	kmap_coherent_pte = kmap_get_fixmap_pte(vaddr);
-#endif
 }
 
 static void *kmap_coherent(struct page *page, unsigned long addr)
