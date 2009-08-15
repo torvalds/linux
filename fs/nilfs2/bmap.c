@@ -533,38 +533,25 @@ int nilfs_bmap_prepare_update_v(struct nilfs_bmap *bmap,
 				union nilfs_bmap_ptr_req *oldreq,
 				union nilfs_bmap_ptr_req *newreq)
 {
-	struct inode *dat = nilfs_bmap_get_dat(bmap);
-	int ret;
-
-	ret = nilfs_dat_prepare_end(dat, &oldreq->bpr_req);
-	if (ret < 0)
-		return ret;
-	ret = nilfs_dat_prepare_alloc(dat, &newreq->bpr_req);
-	if (ret < 0)
-		nilfs_dat_abort_end(dat, &oldreq->bpr_req);
-
-	return ret;
+	return nilfs_dat_prepare_update(nilfs_bmap_get_dat(bmap),
+					&oldreq->bpr_req, &newreq->bpr_req);
 }
 
 void nilfs_bmap_commit_update_v(struct nilfs_bmap *bmap,
 				union nilfs_bmap_ptr_req *oldreq,
 				union nilfs_bmap_ptr_req *newreq)
 {
-	struct inode *dat = nilfs_bmap_get_dat(bmap);
-
-	nilfs_dat_commit_end(dat, &oldreq->bpr_req,
-			     bmap->b_ptr_type == NILFS_BMAP_PTR_VS);
-	nilfs_dat_commit_alloc(dat, &newreq->bpr_req);
+	nilfs_dat_commit_update(nilfs_bmap_get_dat(bmap),
+				&oldreq->bpr_req, &newreq->bpr_req,
+				bmap->b_ptr_type == NILFS_BMAP_PTR_VS);
 }
 
 void nilfs_bmap_abort_update_v(struct nilfs_bmap *bmap,
 			       union nilfs_bmap_ptr_req *oldreq,
 			       union nilfs_bmap_ptr_req *newreq)
 {
-	struct inode *dat = nilfs_bmap_get_dat(bmap);
-
-	nilfs_dat_abort_end(dat, &oldreq->bpr_req);
-	nilfs_dat_abort_alloc(dat, &newreq->bpr_req);
+	nilfs_dat_abort_update(nilfs_bmap_get_dat(bmap),
+			       &oldreq->bpr_req, &newreq->bpr_req);
 }
 
 static struct lock_class_key nilfs_bmap_dat_lock_key;
