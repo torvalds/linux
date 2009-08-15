@@ -174,12 +174,13 @@ static const struct file_operations exports_operations = {
 };
 
 extern int nfsd_pool_stats_open(struct inode *inode, struct file *file);
+extern int nfsd_pool_stats_release(struct inode *inode, struct file *file);
 
 static struct file_operations pool_stats_operations = {
 	.open		= nfsd_pool_stats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= nfsd_pool_stats_release,
 	.owner		= THIS_MODULE,
 };
 
